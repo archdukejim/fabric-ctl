@@ -176,6 +176,8 @@ EXPECT = [
 ]
 for name, needle, count in EXPECT:
     # covers: ask:setup.vars.* ask:setup.ad_domain ask:setup.admin_password ask:setup.admin_password_again -
+    # covers: setting:domain setting:hostname setting:host_ip setting:lan_cidr setting:lan_gateway -
+    # covers: setting:friendly_name setting:webui_admin_user setting:ad_domain -
     check(name, text.count(needle) >= count, (text.count(needle), needle))
 names = [n for n, _ in asked]
 check("only what cannot change later is asked (2.1.2.16): no password policy, memory or Kerberos question",
@@ -223,6 +225,7 @@ check("setup's last words: FIRST the root certificate from the landing page (pla
       and fingerprint.strip() and fingerprint.strip() in text[first:signin]
       and f"https://fabric.{DOMAIN}" in text[signin:], text[-1500:])
 saved = yaml.safe_load(R("cat /opt/fabric/config/vars.yaml")) or {}
+# covers: setting:webui_admin_user +
 check("Enter took fabric-admin as the first admin; the console's role is fabric-console-admin; Kerberos off; the "
       "default policy; all the memory (2.1.2.16, 2.1.6.32, 2.1.6.33, 2.1.6.35)",
       saved.get("webui_admin_user") == "fabric-admin" and saved.get("webui_admin_role") == "fabric-console-admin"

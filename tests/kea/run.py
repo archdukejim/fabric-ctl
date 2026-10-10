@@ -108,6 +108,7 @@ check("Kea's configs, lease and socket folders, and the DHCP subzone file writte
       deploy_kea(V, {"kea_ddns_secret": secret}, env, 53, 53) and os.path.exists(f"{W}/bind9/data/db.dhcp.lan.test")
       and oct(os.stat(f"{W}/kea/config/kea-dhcp-ddns.conf").st_mode & 0o777) == "0o640")
 cfg4 = open(f"{W}/kea/config/kea-dhcp4.conf").read()
+# covers: setting:dhcp +
 check("Kea checked them first (kea-dhcp4 -t) and accepted: options, a client class, the subnet's id, name, VLAN",
       check_kea_config("fabric/kea:test", "kea-dhcp4.conf", cfg4) is True and '"id": 7' in cfg4
       and '"vlan": 23' in cfg4 and '"boot-test"' in cfg4)
@@ -117,6 +118,7 @@ try:
     refused = ""
 except ValidationError as e:
     refused = str(e)
+# covers: setting:dhcp -
 check("an option Kea does not know is refused by Kea's own check, and nothing is written",
       "Kea refused" in refused and open(f"{W}/kea/config/kea-dhcp4.conf").read() == cfg4, refused[-300:])
 os.makedirs(f"{W}/bind9/config", exist_ok=True)

@@ -121,6 +121,7 @@ for site, (container, ip, dc_type, cidr, parent) in SITES.items():
     os.makedirs(os.path.join(work, "stepca", "data", "certs"))
     sh(["cp", root["root_ca"], os.path.join(work, "stepca", "data", "certs", "root_ca.crt")], ok=True)
     deploy_samba(v, secrets, ENV)
+    # covers: setting:ad_join_server +
     check(f"{site}: deploy writes the join credentials (0600) and points the DC at its parent's DNS until it joined",
           oct(os.stat(os.path.join(work, "samba", "secrets", "join.auth")).st_mode & 0o777) == "0o600"
           and f"nameserver {pip}" in open(os.path.join(work, "samba", "resolv.conf")).read())
@@ -132,6 +133,7 @@ for site, (container, ip, dc_type, cidr, parent) in SITES.items():
         up = False
         print(f"    {e}")
     logs = sh(["docker", "logs", container]).stdout
+    # covers: setting:ad_dc_type +
     check(f"{site}: its DC joins the domain as {'a read-only' if dc_type == 'rodc' else 'a writable'} DC "
           f"(not a domain of its own)", up and "joined" in logs and "provisioning" not in logs, logs[-800:])
     if not up:
@@ -166,6 +168,7 @@ for site, (container, ip, dc_type, cidr, parent) in SITES.items():
 if "lab" in joined:
     container, v, secrets = joined["lab"]
     info = run_op(v, secrets, "site_info", container=container)
+    # covers: setting:posix_id_range +
     check("lab: its agent signs in at its own DC and reads its site's id block (the root's second block)",
           info["id_range"] == registry["sites"]["lab"]["id_range"], info)
     made = run_op(v, secrets, "create_person", {"uid": "labby", "first": "Lab", "last": "By", "email": "labby@lab.test",
@@ -186,6 +189,7 @@ if "lab" in joined:
 # ---- a site nested under a site that is not the root (2.1.6.20, manual 1.9.8.14)
 if "lab2" in joined:
     container, v, secrets = joined["lab2"]
+    # covers: setting:ad_site_ou +
     check("lab2: its OU sits in lab's, which sits in the root's (as the root sees it, once replicated)",
           until(lambda: f"OU=lab2,OU=lab,OU=lan,OU=sites,{BASE}" in search(
               ROOT, "(&(objectClass=fabricSiteInfo)(ou=lab2))", ["dn"]), 900))

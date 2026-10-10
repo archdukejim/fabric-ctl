@@ -1,0 +1,12 @@
+# Settings that need no negative test, each with why (manual 3.1.2.5.2; read by scripts/docs/entrypoints.py).
+# A setting belongs here only when no value of it can be wrong: free text with no rule. One that lacks a test does
+# not: an address, a port, a CIDR, a boolean, a list with a schema, a host name, a path or a size can be wrong and
+# needs its negative case. Reviewed like code.
+#
+# Format: one line per setting, "setting:<key>": <the reason, one line>
+#
+# None qualifies yet (reviewed 2026-10-10). The footer's free-text labels (copyright, service_mark, trademark, care_of,
+# address_line1, address_line2, contact_phone, contact_email) and ca_name come closest, but each can be wrong today:
+# templates/vars.yaml.j2 writes them unquoted into vars.yaml (a ": " or a leading "#" changes what is read back), and
+# the pages render them without HTML escaping (jinja_env has no autoescape), so each still needs a rule and a
+# negative test.

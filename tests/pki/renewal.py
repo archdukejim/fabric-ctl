@@ -77,6 +77,7 @@ chain = (root[0], root[0])
 print("--- when a service certificate is due (2.1.5.4, 2.1.5.7)")
 check("a fresh 47-day certificate is not due", not needs_renewal(svc, ["svc.example.test"], chain, 30, 47, now=NOW))
 check("29 days old: not due yet", not needs_renewal(svc, [], None, 30, 47, now=NOW + 29 * DAY))
+# covers: setting:cert_service_days setting:cert_renew_after_days +
 check("30 days old: due (renewed with 17 days left)", needs_renewal(svc, [], None, 30, 47, now=NOW + 30 * DAY))
 check("a 5475-day certificate (0.6.2's) is re-issued at once under the 47-day setting",
       needs_renewal(long, [], None, 30, 47, now=NOW))
@@ -105,9 +106,12 @@ def refused(settings):
 
 check("the defaults pass", refused({}) == "")
 check("90 days renewed at 30 passes", refused({"cert_service_days": 90}) == "")
+# covers: setting:cert_service_days -
 check("negative: renewal leaving under 7 days is refused, saying how long to make the certificate",
       "leave at least 7" in refused({"cert_service_days": 35}) and "at least 37" in refused({"cert_service_days": 35}))
+# covers: setting:cert_renew_after_days -
 check("negative: a renewal age of 0 is refused", "at least a day" in refused({"cert_renew_after_days": 0}))
+# covers: setting:cert_root_ca_days -
 check("negative: a root under a year is refused", "at least 365" in refused({"cert_root_ca_days": 300}))
 check("negative: a lifetime that is not a whole number of days is refused, naming the setting",
       "cert_service_days must be a whole number" in refused({"cert_service_days": "47d"})
@@ -226,6 +230,7 @@ chosen = os.path.join(W, "cfg-chosen")
 os.makedirs(chosen, exist_ok=True)
 with open(os.path.join(chosen, "ca-lifetime"), "w") as f:      # a CA made by 0.6.3 or later: its lifetime chosen
     f.write("3650\n")
+# covers: setting:cert_root_ca_days +
 check("the existing root's own lifetime passes", lifetime_refused(3650) == "")
 check("negative: a changed lifetime on an existing CA is refused, saying the root's and what to do",
       "made for 3650 days" in lifetime_refused(1825) and "cannot change" in lifetime_refused(1825))

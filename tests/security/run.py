@@ -113,6 +113,7 @@ check("refused: an unknown layer or value",
 # setup refuses to lower a layer of an existing install (a --file or a re-run): only the command lowers
 current = state()
 msg = refused(check_signin_lowering, current, {**current, "signin_admin_second_factor": "totp"})
+# covers: setting:signin_admin_second_factor -
 check("setup refuses a lowering from its settings and names the command", msg and "fabricctl security lower" in msg,
       msg)
 check("setup accepts the same or stronger values, and a fresh install takes any",
