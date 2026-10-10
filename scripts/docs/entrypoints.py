@@ -25,6 +25,18 @@ MARKER = re.compile(r"#\s*covers:\s*(.+?)\s*$")
 CASE = re.compile(r"^([a-z]+:[^\s]+)\s+([+-]+)$")
 
 
+def _walk(top):
+    """Purpose: os.walk in a fixed order (sorted folders and files), so the inventory is the same on every machine: an
+             ID declared in several files is recorded with the last in that order.
+    Inputs:  top — the folder to walk.
+    Returns: os.walk's (folder, dirs, files) triples, sorted.
+    Fails:   never (as os.walk).
+    Feeds:   _cli, _ask, markers."""
+    for folder, dirs, files in os.walk(top):
+        dirs.sort()
+        yield folder, dirs, sorted(files)
+
+
 def _read(path):
     """Purpose: a repository file's text.
     Inputs:  path — repository-relative, `/`-separated.
@@ -54,7 +66,7 @@ def _cli():
     flags = re.search(r"def _flags\(.*?(?=\ndef |\Z)", cli, re.S)
     for name in re.findall(r'"--([a-z][a-z0-9-]*)"', flags.group(0) if flags else ""):
         found[f"cli:--{name}"] = "src/fabriclib/cli.py (_flags)"
-    for folder, _dirs, files in os.walk(os.path.join(SRC, "fabriclib")):
+    for folder, _dirs, files in _walk(os.path.join(SRC, "fabriclib")):
         for name in files:
             if not (name.startswith("run_") and name.endswith("_command.py")):
                 continue
@@ -76,7 +88,7 @@ def _ask():
     Fails:   OSError on an unreadable file.
     Feeds:   collect."""
     found = {}
-    for folder, _dirs, files in os.walk(SRC):
+    for folder, _dirs, files in _walk(SRC):
         for name in files:
             if not name.endswith(".py"):
                 continue
@@ -176,7 +188,7 @@ def markers():
     Feeds:   gaps; tests/docs/check_entrypoints.py."""
     covered, named = {}, []
     tests = os.path.join(REPO, "tests")
-    for folder, _dirs, files in os.walk(tests):
+    for folder, _dirs, files in _walk(tests):
         for name in files:
             if not name.endswith((".py", ".sh")):
                 continue

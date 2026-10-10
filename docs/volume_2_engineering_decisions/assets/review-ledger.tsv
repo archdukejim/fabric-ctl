@@ -235,7 +235,7 @@ pyproject.toml	591b424c9e7c60e5b37c36662ebc707d35054947	2026-10-08
 scripts/README.md	dd36e9248260e4f936662417c4d10511c3cdb00a	2026-10-08	
 scripts/docs/README.md	e391ec81d122ee82ea285ffaf04eac6a8dd44372	2026-10-10	
 scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03	
-scripts/docs/entrypoints.py	a5ea0d32ea7779843bfa769856a0b82f15efa0ab	2026-10-10	
+scripts/docs/entrypoints.py	14b0fe048120a49b538083d5997b4eaf72e6e271	2026-10-10	
 scripts/docs/gen_lib_doc.py	7ff94cd622677c2a6040c2c75374a04e50cc48c4	2026-10-08	
 scripts/docs/lib_doc_numbers.tsv	22020bc40b647a599932a1f91596d97e83d3743c	2026-10-10	
 scripts/docs/lib_doc_registry.py	a65ab5459802daaca963fac77a8b708397d42d89	2026-10-08	
