@@ -192,6 +192,7 @@ check("converge wrote the site's networks into its OU=networks (the address plan
 
 # S2.2: the site's service accounts, its id block, fabric's groups with their gids, the agent's own sign-in
 info_ = run_op(v, SECRETS, "site_info", container=DC)
+# covers: setting:posix_id_block +
 check("the agent signs in as fabric-agent-lan and reads its site's id block (from 5001, posix_id_block long)",
       info_["id_range"] == "5001-105000" and 5001 < info_["id_next"] < 5010, info_)
 def attr(filter_, name):
@@ -213,6 +214,7 @@ check("winbind's privileged pipe: FreeRADIUS's group only (root, 0750); its sock
       and os.path.exists(os.path.join(W, "samba", "winbindd", "pipe")),
       (priv.st_uid, priv.st_gid, oct(priv.st_mode)))
 signd = os.stat(os.path.join(W, "ntp_signd"))
+# covers: setting:ad_ntp_signd_dir +
 check("the DC's time-signing socket in the folder the host's chrony reaches (2.1.13.1): root, 0750",
       os.path.exists(os.path.join(W, "ntp_signd", "socket")) and signd.st_uid == 0
       and signd.st_mode & 0o7777 == 0o750, oct(signd.st_mode))
@@ -238,6 +240,7 @@ check("the site's OU tree under OU=sites, with OU=organisation at the root site"
 check("the directory is consistent (dbcheck)", "(0 errors)" in dc("samba-tool", "dbcheck", "-s", "/data/etc/smb.conf",
                                                                   "--cross-ncs").stdout)
 policy = dc("samba-tool", "domain", "passwordsettings", "show", "-s", "/data/etc/smb.conf").stdout
+# covers: setting:ad_password_policy +
 check("the admin's password policy is the domain's",
       "Minimum password length: 14" in policy and "Password complexity: on" in policy
       and "Account lockout threshold (attempts): 5" in policy, policy)

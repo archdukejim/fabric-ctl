@@ -137,13 +137,16 @@ check("iteration-1 install: its key file becomes the key-file unlock method (no 
       and open(f"{W}/keys/local-fabric-1.key", "rb").read() == legacy)
 st = os.stat(f"{W}/keys/slots.json")
 kst = os.stat(f"{W}/keys/local-fabric-1.key")
+# covers: setting:openbao_key_dir +
 check("store root 0600, key file root 0400, folder root 0700",
       (st.st_uid, oct(st.st_mode & 0o777)) == (0, "0o600") and (kst.st_uid, oct(kst.st_mode & 0o777)) == (0, "0o400")
       and oct(os.stat(f"{W}/keys").st_mode & 0o777) == "0o700")
+# covers: setting:openbao_seal_key_id +
 check("seal.hcl names the vault key; OpenBao never sees the key folder",
       'current_key_id = "fabric-1"' in open(f"{W}/openbao/config/seal.hcl").read()
       and "/keys" not in open(f"{W}/openbao/docker-compose.yml").read())
 check("an existing store is never replaced", ensure_vault_key(V) == "present")
+# covers: setting:openbao_runtime_dir +
 check("fabric-unlock: the key goes to RAM for the openbao user only", unlock_vault(V)["slot"] == "local"
       and os.stat(f"{W}/run/fabric-1.key").st_uid == 913 and oct(os.stat(f"{W}/run/fabric-1.key").st_mode & 0o777) == "0o400"
       and open(f"{W}/run/fabric-1.key", "rb").read() == legacy)
@@ -487,6 +490,7 @@ if have_hsm:
         sh(["softhsm2-util", "--init-token", "--free", "--label", label, "--so-pin", "87654321", "--pin", "123456"])
     V["openbao_pkcs11_modules"] = [HSM]
     toks = {t["label"]: t for t in list_pkcs11_tokens(V)}
+    # covers: setting:openbao_pkcs11_modules +
     check("tokens listed without a login", set(toks) == {"fabric-a", "fabric-b"}
           and all(t["pin_state"] == "ok" for t in toks.values()), toks)
     A, B = toks["fabric-a"]["serial"], toks["fabric-b"]["serial"]
@@ -618,6 +622,7 @@ if have_hsm and have_kmip:
 insp = json.loads(sh("docker inspect openbao").stdout)[0]
 hc = insp["HostConfig"]
 check("runs as 913:913, not root", insp["Config"]["User"] == "913:913")
+# covers: setting:openbao_mem_limit +
 check("no capabilities, no-new-privileges, read-only root, memory limit",
       hc["CapDrop"] == ["ALL"] and not hc.get("CapAdd") and "no-new-privileges:true" in hc["SecurityOpt"]
       and hc["ReadonlyRootfs"] and hc["Memory"] == 256 * 1024 * 1024, hc)

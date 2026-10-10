@@ -238,6 +238,7 @@ def write_ca_pem(revoked=()):
 
 
 write_ca_pem()
+# covers: setting:radius_clients +
 check("config: clients.conf holds the client secret, mode 0640 (never world-readable)",
       oct(os.stat(f"{W}/freeradius/config/clients.conf").st_mode & 0o777) == "0o640"
       and SECRET in open(f"{W}/freeradius/config/clients.conf").read())
@@ -380,6 +381,7 @@ def eap_ttls(user, password, mac="02:00:00:00:20:01"):
 
 
 ok, vlan, out = eap_ttls("alice", PW)
+# covers: setting:radius_people +
 check("EAP-TTLS: a member of a mapped group, right password -> accepted on the group's VLAN (20)",
       ok and vlan == "20" and "ACCEPT method=eap-ttls person=alice group=staff vlan=20" in logs(),
       out[-800:] + logs()[-600:])

@@ -173,6 +173,7 @@ def write_until_seen(marker, seen, timeout=90):
     return False
 
 
+# covers: setting:log_forwarding +
 check("delivered to syslog over verified TLS",
       write_until_seen("mark-one", lambda: any("mark-one" in x for x in SYSLOG)),
       SYSLOG[-2:] + [sh("docker logs fluentbit", ok=False).stderr[-600:]])
@@ -182,6 +183,7 @@ check("delivered to Elasticsearch over verified TLS, with the password from Open
 
 insp = json.loads(sh("docker inspect fluentbit").stdout)[0]
 hc = insp["HostConfig"]
+# covers: setting:fluentbit_mem_limit +
 check("hardened: uid 914, no capabilities, no-new-privileges, read-only root, memory limit, group 913 (OpenBao's logs)",
       insp["Config"]["User"] == "914:914" and hc["CapDrop"] == ["ALL"] and not hc.get("CapAdd")
       and "no-new-privileges:true" in hc["SecurityOpt"] and hc["ReadonlyRootfs"]

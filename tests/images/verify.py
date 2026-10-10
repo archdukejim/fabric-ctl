@@ -88,8 +88,10 @@ try:
         why = ""
     except ValidationError as e:
         why = str(e)
+    # covers: setting:image_fabric_bind9 setting:image_fabric_stepca -
     check("setup stops before installing anything when a published image in use is unsigned",
           "no valid signature" in why, why)
+    # covers: setting:image_signature_check +
     check("the check off (image_signature_check: false): nothing is checked",
           verify_published_images(paths, dict(host, image_signature_check=False)) == [])
     os.remove(os.path.join(render, "bind9", "docker-compose.yml"))

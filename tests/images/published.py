@@ -95,6 +95,9 @@ try:
     check("the test lock pins every image", all(refs.values()), refs)
     pub = render(os.path.join(tree, "templates"), os.path.join(work, "published"))
     for n in IMAGES:
+        # covers: setting:image_fabric_bind9 setting:image_fabric_freeradius setting:image_fabric_kea +
+        # covers: setting:image_fabric_keycloak setting:image_fabric_samba setting:image_fabric_stepca +
+        # covers: setting:image_fabric_webui +
         check(f"{n}: a default host runs the published image ({refs[n].split('@')[0]}) and builds nothing",
               images_of(pub[n]) == {refs[n]} and not builds(pub[n]), sorted(images_of(pub[n])))
     rendered_vars = yaml.safe_load(open(os.path.join(work, "published", "vars.yaml")))
@@ -110,6 +113,7 @@ try:
                   {"image_rolled_back": ["image_fabric_bind9"], "image_fabric_bind9": old_bind,
                    "image_fabric_kea": old_bind})
     back_vars = yaml.safe_load(open(os.path.join(work, "rolledback", "vars.yaml")))
+    # covers: setting:image_rolled_back +
     check("a rolled-back image of fabric's keeps its older ref; another follows the lock (0.6.3 image-update test)",
           old_bind in images_of(back["bind9"]) and back_vars["image_fabric_kea"] == refs["kea"]
           and back_vars["image_rolled_back"] == ["image_fabric_bind9"], (images_of(back["bind9"]), back_vars.get(

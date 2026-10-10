@@ -54,6 +54,7 @@ try:
     check("a complete configuration passes", True)
 except ValidationError as e:
     check("a complete configuration passes", False, e)
+# covers: setting:ad_domain -
 check("refused: no AD domain (it has no default)", refused({**GOOD, "ad_domain": ""}, "ad_domain is required"))
 check("refused: an AD domain of one label", refused({**GOOD, "ad_domain": "ad"}, "not a valid DNS domain"))
 check("refused: fabric's own domain (same-domain mode dropped, 2.1.6.11)",
@@ -62,10 +63,13 @@ check("accepted: any other domain, not only the suggested ad.<domain>",
       not refused({**GOOD, "ad_domain": "corp.example.net"}, ""))
 check("refused: a parent of fabric's domain", refused({**GOOD, "ad_domain": "test.x", "domain": "lan.test.x"},
                                                        "parent of fabric's domain"))
+# covers: setting:ad_netbios -
 check("refused: a NetBIOS domain name over 15 characters",
       refused({**GOOD, "ad_netbios": "A" * 16}, "at most 15"))
+# covers: setting:hostname -
 check("refused: a host name Windows cannot use as the DC's NetBIOS name",
       refused({**GOOD, "hostname": "a-very-long-host-name"}, "NetBIOS name"))
+# covers: setting:ad_password_policy -
 check("refused: no password policy (no defaults, 2.1.6.13)",
       refused({**GOOD, "ad_password_policy": {}}, "no defaults"))
 check("refused: one policy key missing, named",
@@ -79,10 +83,12 @@ check("refused: a minimum age not below the maximum",
       refused({**GOOD, "ad_password_policy": {**POLICY, "minimum_age_days": 365}}, "must be below the second"))
 check("refused: a lockout shorter than its reset window (AD refuses it)",
       refused({**GOOD, "ad_password_policy": {**POLICY, "lockout_minutes": 5}}, "at least as long as that window"))
+# covers: setting:ad_password_policy +
 check("accepted: locked until an admin unlocks (lockout 0) with any window",
       not refused({**GOOD, "ad_password_policy": {**POLICY, "lockout_minutes": 0}}, ""))
 check("accepted: passwords that never expire (maximum 0) with any minimum age",
       not refused({**GOOD, "ad_password_policy": {**POLICY, "maximum_age_days": 0}}, ""))
+# covers: setting:ad_rpc_ports -
 check("refused: an RPC range at or below 1024", refused({**GOOD, "ad_rpc_ports": "100-200"}, "ad_rpc_ports"))
 
 check("the suggestion is a sibling at the top of the organisation's name (2.1.6.11); a two-label domain gets ad.<it>",
@@ -155,6 +161,7 @@ def ram(have, data):
 check("a host under 4 GB is refused", str(ram(3, {})).startswith("refused"))
 check("the measured memory is used and kept, nothing asked", ram(8, {}) == 8)
 check("a value set by the admin is kept when it fits", ram(8, {"host_ram_capacity": 6}) == 6)
+# covers: setting:host_ram_capacity -
 check("refused: more than the host has, or under 4", str(ram(8, {"host_ram_capacity": 12})).startswith("refused")
       and str(ram(8, {"host_ram_capacity": 2})).startswith("refused"))
 
@@ -171,6 +178,7 @@ base = {"domain": "lan.test", "hostname": "pi-core", "host_ip": "192.168.7.53", 
         "lan_gateway": "192.168.7.1", "ad_domain": "AD.lan.test",
         "ad_password_policy": POLICY}
 v = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base))
+# covers: setting:ad_domain +
 check("the domain's names follow from ad_domain (lower-cased; realm, base DN, NetBIOS, the DC's name)",
       (v["ad_domain"], v["ad_realm"], v["ad_base_dn"], v["ad_netbios"], v["hostname_dc"])
       == ("ad.lan.test", "AD.LAN.TEST", "DC=ad,DC=lan,DC=test", "AD", "pi-core.ad.lan.test"),
@@ -201,6 +209,7 @@ check("fabric's published image, pinned by digest; or, while it is pending, buil
 
 big = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base, host_ram_capacity=8))
 kc8 = yaml.safe_load(env.get_template("keycloak/docker-compose.yml.j2").render(**big))["services"]["keycloak"]
+# covers: setting:host_ram_capacity +
 check("at 8 GB the growing services scale: Keycloak 2400M, the DC 1024m",
       kc8["deploy"]["resources"]["limits"]["memory"] == "2400M" and big["samba_mem_limit"] == "1024m",
       (kc8.get("deploy"), big["samba_mem_limit"]))

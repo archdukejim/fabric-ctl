@@ -200,9 +200,11 @@ with open(os.path.join(_orig, "ufw.state"), "w") as f:
 check("the wording follows ufw as it was before fabric (its record), so it does not change once fabric turns it on",
       plan_firewall({**v, "ntp_serve": False}, cfg)[0].startswith("ufw is on already"))
 os.remove(os.path.join(_orig, "ufw.state"))
+# covers: setting:security +
 check("security.firewall false asks nothing", plan_firewall({**v, "security": {"firewall": False}}, cfg) == [])
 dc_rules = plan_ports({**v, "ntp_serve": False, "ad_rpc_ports": "49152-49251"}, cfg)
 dc_lines = [r for r in dc_rules if "domain controller" in r]
+# covers: setting:ad_rpc_ports +
 check("the DC's TCP ports (RPC range included) and UDP ports, from the LAN and fabric_net",
       f"ufw: allow 88,135,389,445,464,636,3268,3269,49152:49251/tcp (the Windows domain controller) from "
       f"{v['lan_cidr']}" in dc_lines
@@ -287,6 +289,7 @@ class Ctx:
 fresh = tempfile.mkdtemp()
 check("undo refuses the kinds fabric needs (uninstall removes those), naming the way",
       "fabricctl uninstall" in refused(lambda: undo_group(Ctx(cfg, {}), "accounts", True, True)))
+# covers: setting:use_host_dns +
 check("undo refuses the resolver while BIND needs port 53",
       "use_host_dns" in refused(lambda: undo_group(Ctx(cfg, {"use_host_dns": False}), "resolver", True, True)))
 check("undo refuses on an install never asked (setup asks first), and an unknown group",

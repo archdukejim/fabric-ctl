@@ -105,6 +105,7 @@ if dates:
     fmt = "%b %d %H:%M:%S %Y %Z"
     hours = (datetime.datetime.strptime(dates["notAfter"], fmt)
              - datetime.datetime.strptime(dates["notBefore"], fmt)).total_seconds() / 3600
+# covers: setting:cert_acme_lifetime_hours +
 check("…for 47 days (1128 h, within a minute of Step-CA's backdating), naming the CRL (fabric's leaf template)",
       hours is not None and 1128 <= hours <= 1129 and f"http://certs.{DOMAIN}/crl/intermediate.crl" in text,
       (hours, text[-600:]))

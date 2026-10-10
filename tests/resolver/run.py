@@ -115,9 +115,12 @@ for name, bad in (("a list without an http(s) url", {"dns_filter_lists": [{"name
         check_filter_settings({**BASE, **bad})
         check(f"settings: {name} is refused", False, "accepted")
     except ValidationError as e:
+        # covers: setting:dns_filter_lists setting:dns_filter_allow -
+        # covers: setting:dns_filter_block setting:dns_filter_upstreams -
         check(f"settings: {name} is refused, saying why", bool(str(e)), e)
 ok = {**BASE, "dns_filter_allow": ["Fine.Example."], "dns_filter_block": ["bad.example", "bad.example"]}
 check_filter_settings(ok)
+# covers: setting:dns_filter_allow setting:dns_filter_block +
 check("settings: rules are normalised (lowercase, no trailing dot, no duplicates)",
       ok["dns_filter_allow"] == ["fine.example"] and ok["dns_filter_block"] == ["bad.example"], ok)
 
@@ -256,6 +259,7 @@ try:
     check("config: DoT (853) and DoH (8053, plain: nginx terminates TLS) for clients with the DNS name's certificate",
           'listen-on port 853 tls "clients"' in conf and 'listen-on port 8053 tls none http "doh"' in conf
           and 'cert-file "/etc/bind-tls/fullchain.pem"' in conf and not resolver_tls_pending(V), conf[:900])
+    # covers: setting:dns_filter_upstreams +
     check("config: DoT to the upstreams with the certificate name verified (when set)",
           (not internet) or ('remote-hostname "cloudflare-dns.com"' in conf and "1.1.1.1 port 853 tls" in conf), conf)
     check("deploy again: nothing changes", not deploy_resolver(V, SECRETS, {"children": [], "upstream": None},
@@ -268,6 +272,7 @@ try:
         "-v", f"{W}/bind9/config:/etc/bind:ro", "-v", f"{W}/bind9/data:/var/lib/bind", IMAGE])
     compose = yaml.safe_load(env.get_template("resolver/docker-compose.yml.j2").render(**V))["services"]
     svc = compose["bind9-resolver"]
+    # covers: setting:resolver_mem_limit +
     check("compose: its own account, no capabilities, read-only, no-new-privileges, the memory limit, named -f",
           svc["user"] == "913:913" and svc["cap_drop"] == ["ALL"] and svc["read_only"] is True
           and svc["security_opt"] == ["no-new-privileges:true"] and svc["mem_limit"] == "384m"
@@ -289,10 +294,12 @@ try:
     V["security"] = {"firewall_allow": [f"{GATEWAY}/32"]}
     r = deploy_resolver(V, SECRETS, {"children": [], "upstream": None}, env)
     check("a settings change is written and reloaded by the running resolver", r["config"] and r["reconfigured"], r)
+    # covers: setting:security +
     check("after the reload the host is allowed: fabric's zone answers through the authoritative BIND",
           until(lambda: "10.9.8.7" in dig("+short", "www.lan.test"), 20), dig("www.lan.test"))
     check("fabric's zone is never filtered, even when a list names it (||lan.test^)",
           "10.9.8.8" in dig("+short", "ads.lan.test"), dig("ads.lan.test"))
+    # covers: setting:dns_filter_lists +
     check("a listed name answers NXDOMAIN, and every name below it", status("ads.example") == "NXDOMAIN"
           and status("deep.sub.ads.example") == "NXDOMAIN")
     check("a hosts line blocks", status("hosts-blocked.example") == "NXDOMAIN")

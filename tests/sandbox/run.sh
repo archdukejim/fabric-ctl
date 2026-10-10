@@ -265,6 +265,7 @@ check "DNS: certs.<domain> and fabric.<domain> resolve to the host" \
 check "web UI answers at fabric.<domain> (refuses without a client cert)" \
     "[ \"\$(in_box 'curl -s -o /dev/null -w %{http_code} --cacert /opt/stepca/data/certs/root_ca.crt --resolve fabric.lan.test:443:$IP https://fabric.lan.test/')\" = 400 ]"
 
+# covers: setting:ca_nest_depth +
 check "the root CA allows one level of nesting (ca_nest_depth 1: path length 2); its intermediate signs leaves only" \
     "in_box 'openssl x509 -in /opt/stepca/data/certs/root_ca.crt -noout -ext basicConstraints' | grep -q 'pathlen:2' && in_box 'openssl x509 -in /opt/stepca/data/certs/intermediate_ca.crt -noout -ext basicConstraints' | grep -q 'pathlen:0'"
 echo "--- federation endpoint: enable, invite, refuse a bad join, revoke, disable"

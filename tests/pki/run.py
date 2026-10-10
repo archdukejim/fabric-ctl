@@ -140,6 +140,7 @@ check("signed CSR chains to the fabric root", verifies(r["fullchain"]))
 check("signed cert keeps the CSR's names", all(n in t for n in ("DNS:dev1.lan.test", "DNS:dev1", "IP Address:192.168.7.21")), t)
 check("signed cert is a leaf for server + client auth",
       "TLS Web Server Authentication" in t and "TLS Web Client Authentication" in t and "CA:TRUE" not in t, t)
+# covers: setting:cert_org +
 check("signed cert gets the fabric subject defaults", "O=Fabric Test" in r["info"]["subject"], r["info"])
 end = sh(["openssl", "x509", "-noout", "-checkend", str(89 * 86400)], data=r["cert"], ok=False).returncode == 0
 end2 = sh(["openssl", "x509", "-noout", "-checkend", str(91 * 86400)], data=r["cert"], ok=False).returncode != 0
@@ -175,6 +176,7 @@ uri, _ = csr("uri", "-addext", "subjectAltName=URI:spiffe://evil/x")
 check("CSR with a URI name refused", refused(sign_csr, V, "alice", uri, 30, match="unsupported"))
 badcn, _ = csr("badcn", subj="/CN=not a host name!")
 check("CSR naming nothing usable refused", refused(sign_csr, V, "alice", badcn, 30, match="not a host name"))
+# covers: setting:pki_manual_max_days +
 check("validity above pki_manual_max_days refused", refused(sign_csr, V, "alice", good, 1826, match="1 to 1825"))
 check("validity of 0 days refused", refused(sign_csr, V, "alice", good, 0, match="days"))
 check("two CSRs at once refused", refused(sign_csr, V, "alice", good + cn_only, 30, match="exactly one"))
