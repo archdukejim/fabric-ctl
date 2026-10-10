@@ -141,7 +141,8 @@ def client(release, name):
         "-v", f"{W}/join-linux.sh:/root/join-linux.sh:ro", "-v", f"{W}/systemctl:/usr/local/sbin/systemctl:ro",
         IMAGES[release], "sleep", "infinity"])
     code, out = on(box, "export DEBIAN_FRONTEND=noninteractive; apt-get update -qq && "
-                        "apt-get install -y -qq pamtester sudo procps libcap2-bin >/dev/null")
+                        "apt-get install -y -qq pamtester sudo procps libcap2-bin >/dev/null"
+                        + ("; apt-get install -y -qq openssh-server >/dev/null; mkdir -p /run/sshd" if release == "24.04" else ""))
     return box, code == 0
 
 
@@ -193,6 +194,28 @@ check("24.04: its computer account is in OU=linux,OU=machines,OU=lan, recording 
 time.sleep(5)
 checks(box, "24.04")
 
+# managed by fabric (manual 1.6.11.6): the join configured SSH (an SSH server is on this one) and DNS for the domain;
+# the sort makes the admin-joined machine a member; fabric-managed's hourly check keeps it, and undoes it once taken out
+import tempfile  # noqa: E402
+from fabriclib.directory import sort_machines as m_sort  # noqa: E402
+m_sort.write_audit = lambda *a, **k: None
+code, out = on(box, "sshd -T 2>/dev/null | grep -Ei '^(gssapiauthentication|passwordauthentication) '; "
+                    "cat /etc/systemd/resolved.conf.d/fabric.conf")
+# covers: setting:host_ip +
+check("24.04: managed: sshd takes Kerberos and no passwords (its drop-in first), resolved sends the domain's names to "
+      "fabric", "gssapiauthentication yes" in out and "passwordauthentication no" in out
+      and f"DNS={V['host_ip']}" in out and f"~{V['ad_domain']}" in out, out)
+record = tempfile.mktemp()
+placed = m_sort.sort_machines(V, secrets=SECRETS, container=DC, record=record)
+code, out = on(box, "fabric-managed check; echo rc=$?; ls /etc/ssh/sshd_config.d/10-fabric.conf")
+check("24.04: the sort adopts it (lan-fabric-machines) and its hourly check keeps the configuration",
+      RELEASES["24.04"] in placed["adopted"] and "rc=0" in out and "10-fabric.conf" in out, (placed, out))
+sh(["docker", "exec", DC, "samba-tool", "group", "removemembers", "lan-fabric-machines", f"{RELEASES['24.04'].upper()}$",
+    "-s", "/data/etc/smb.conf"])
+code, out = on(box, "fabric-managed check; ls /etc/ssh/sshd_config.d/ /etc/systemd/resolved.conf.d/ 2>&1")
+check("24.04: taken out of lan-fabric-machines, its next check removes fabric's SSH and DNS configuration",
+      "removed" in out and "10-fabric.conf" not in out and "fabric.conf" not in out, out)
+
 # 26.04: pre-created by fabricctl domain add-machine, joined with the one-time password
 box, ok = client("26.04", RELEASES["26.04"])
 check("26.04: the client container is ready (ubuntu:26.04)", ok)
@@ -207,14 +230,24 @@ check("26.04: it stays where add-machine --os linux put it (OU=linux)",
       "OU=linux,OU=machines,OU=lan,OU=sites" in where, where)
 time.sleep(5)
 checks(box, "26.04")
+code, out = on(box, "fabric-managed check; echo rc=$?; cat /etc/systemd/resolved.conf.d/fabric.conf")
+check("26.04: pre-created managed (add-machine's default), its check finds it a member and keeps the configuration",
+      "rc=0" in out and f"DNS={V['host_ip']}" in out, out)
 
 # Debian 12 and 13 (Proxmox VE 8, 9): joined with a site admin's password
 for release in ("debian-12", "debian-13"):
     box_d, ok = client(release, RELEASES[release])
     check(f"{release}: the client container is ready ({IMAGES[release]})", ok)
-    code, out = on(box_d, f"bash /root/join-linux.sh {fp} --user adam", stdin=PW + "\n")
-    check(f"{release}: joins with a site admin's password (sudo installed with it: Debian has none)",
+    flag = " --unmanaged" if release == "debian-12" else ""
+    code, out = on(box_d, f"bash /root/join-linux.sh {fp} --user adam{flag}", stdin=PW + "\n")
+    check(f"{release}: joins with a site admin's password{flag} (sudo installed with it: Debian has none)",
           code == 0 and "joined" in out and on(box_d, "command -v sudo")[0] == 0, out[-600:])
+    if flag:
+        desc = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb",
+                   f"(sAMAccountName={RELEASES[release]}$)", "description"], ok=False).stdout
+        check(f"{release}: --unmanaged: fabric configures neither SSH nor DNS, and the account says unmanaged",
+              on(box_d, "test -e /etc/systemd/resolved.conf.d/fabric.conf")[0] != 0
+              and "description: fabric: unmanaged (manual 1.6.11.6)" in desc, desc)
     time.sleep(5)
     checks(box_d, release)
 

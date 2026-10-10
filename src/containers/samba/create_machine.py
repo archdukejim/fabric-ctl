@@ -1,21 +1,25 @@
 import re
 
+import ldb
+
 import paths
 
 NAME_RE = re.compile(r"^[a-z0-9]([a-z0-9-]{0,13}[a-z0-9])?$")
 
 
 OS_FAMILIES = ("linux", "windows")      # OU=<family>,OU=machines (manual 1.6.11.5)
+UNMANAGED = "fabric: unmanaged (manual 1.6.11.6)"   # on the account: left out of <site>-fabric-machines
 
 
-def create_machine(samdb, lp, site, name, password, os=None):
+def create_machine(samdb, lp, site, name, password, os=None, managed=True):
     """Purpose: pre-create a machine's computer account in the site's OU=machines (its OS family's OU when given,
              1.6.11.5) with a one-time join password
              (manual 1.6.7.3, S6.2), so the machine joins with `adcli --login-type=computer` and no admin password
              is typed on it.
     Inputs:  samdb — SamDB (as the site's agent); lp — LoadParm (unused); site — str; name — the machine's name
              (1–15 lower-case letters, digits, dashes: a NetBIOS name); password — the one-time password; os —
-             "linux", "windows" or None (OU=machines itself).
+             "linux", "windows" or None (OU=machines itself); managed — a member of <site>-fabric-machines (1.6.11.6),
+             or, False, marked unmanaged on its description.
     Returns: {"name", "dn"}.
     Fails:   ValueError for a name that is not a machine name, or an unknown OS family; ldb.LdbError
              ERR_ENTRY_ALREADY_EXISTS when the name is taken, ERR_INSUFFICIENT_ACCESS_RIGHTS outside the agent's site.
@@ -30,4 +34,9 @@ def create_machine(samdb, lp, site, name, password, os=None):
         machines = f"OU={os},{machines}"
     samdb.newcomputer(account, computerou=paths.relative(samdb, machines))
     samdb.setpassword(f"(sAMAccountName={account}$)", password, force_change_at_next_login=False)
+    if managed:
+        samdb.add_remove_group_members(f"{site}-fabric-machines", [f"{account}$"], add_members_operation=True)
+    else:
+        samdb.modify(ldb.Message.from_dict(samdb, {"dn": f"CN={account},{machines}", "description": UNMANAGED},
+                                           ldb.FLAG_MOD_REPLACE))
     return {"name": name, "dn": f"CN={account},{machines}"}

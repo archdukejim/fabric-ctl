@@ -34,6 +34,7 @@ file	fabricctl-jinja|src/containers/samba/acl_entries.py	63
 file	fabricctl-jinja|src/containers/samba/add_group_member.py	29	
 file	fabricctl-jinja|src/containers/samba/admin_gpo.py	49	
 file	fabricctl-jinja|src/containers/samba/admx_store.py	50	
+file	fabricctl-jinja|src/containers/samba/adopt_linux_machines.py	73	
 file	fabricctl-jinja|src/containers/samba/alloc_id.py	24	
 file	fabricctl-jinja|src/containers/samba/converge.py	13	
 file	fabricctl-jinja|src/containers/samba/create_machine.py	46	
@@ -885,6 +886,7 @@ function	fabricctl-jinja|src/containers/samba/admx_store.py|_value	5
 function	fabricctl-jinja|src/containers/samba/admx_store.py|read_policies	6	
 function	fabricctl-jinja|src/containers/samba/admx_store.py|save_templates	2	
 function	fabricctl-jinja|src/containers/samba/admx_store.py|store_dir	1	
+function	fabricctl-jinja|src/containers/samba/adopt_linux_machines.py|adopt_linux_machines	1	
 function	fabricctl-jinja|src/containers/samba/alloc_id.py|alloc_id	1	
 function	fabricctl-jinja|src/containers/samba/converge.py|_has_group	3	
 function	fabricctl-jinja|src/containers/samba/converge.py|_sid	1	0.5.0 / 2026-10-05

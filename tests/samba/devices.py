@@ -241,14 +241,50 @@ check("sort-machines: a Windows machine in OU=machines moves to OU=windows, audi
 samba_tool("computer", "move", "SELFJOIN", "OU=machines,OU=lan,OU=sites")
 code, out = domain("sort-machines", "--scheduled")
 check("...once: an admin's move back to OU=machines is kept (the record), the timer's run changes nothing",
-      code == 0 and "no Windows machine to sort" in out and "OU=windows" not in dn_of("selfjoin")
-      and len(_json.load(open(_record))) == 1, (code, out, dn_of("selfjoin")))
+      code == 0 and "nothing to sort" in out and "OU=windows" not in dn_of("selfjoin")
+      and len(_json.load(open(_record))["sorted"]) == 1, (code, out, dn_of("selfjoin")))
 code, out = domain("sort-machines", "--now")
 # covers: cli:domain.sort-machines -
 check("refused: sort-machines with an option it does not take (usage, exit 2), nothing moved",
       code == 2 and "usage:" in out and "OU=windows" not in dn_of("selfjoin"), (code, out))
 check("machine changes audited", {"MACHINE_CREATE", "MACHINE_DISABLE", "MACHINE_ENABLE", "MACHINE_REMOVE"} <= set(AUDIT),
       AUDIT)
+
+
+# ---- machines fabric manages (manual 1.6.11.6, 2.1.6.40): pre-created ones in lan-fabric-machines unless --unmanaged;
+# Linux machines an admin joined into OU=linux adopted by the sort, once; an unmanaged join's mark respected
+def members_of(group):
+    out = subprocess.run(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={group})",
+                          "member"], capture_output=True, text=True).stdout
+    return {line.split("CN=", 1)[1].split(",", 1)[0].lower() for line in out.splitlines() if line.startswith("member:")}
+
+
+def description(name):
+    out = subprocess.run(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb",
+                          f"(sAMAccountName={name.upper()}$)", "description"], capture_output=True, text=True).stdout
+    return next((line.split(": ", 1)[1] for line in out.splitlines() if line.startswith("description:")), "")
+
+
+check("add-machine: a pre-created machine is managed by default (in lan-fabric-machines)",
+      "lx01" in members_of("lan-fabric-machines"), members_of("lan-fabric-machines"))
+code, out = domain("add-machine", "lx03", "--os", "linux", "--unmanaged")
+check("add-machine --unmanaged: not in lan-fabric-machines, marked unmanaged on its account",
+      code == 0 and "lx03" not in members_of("lan-fabric-machines")
+      and description("lx03") == "fabric: unmanaged (manual 1.6.11.6)", (code, out, description("lx03")))
+code, out = domain("add-machine", "--unmanaged")
+check("refused: add-machine without a name (usage, exit 2)", code == 2 and "usage:" in out, (code, out))
+for name in ("ADMINJOIN", "PLAINJOIN"):      # joined with an admin's password: land in OU=linux on their own
+    samba_tool("computer", "add", name, "--computerou=OU=linux,OU=machines,OU=lan,OU=sites",
+               *(["--description=fabric: unmanaged (manual 1.6.11.6)"] if name == "PLAINJOIN" else []))
+code, out = domain("sort-machines")
+check("sort-machines: an admin-joined Linux machine becomes managed (lan-fabric-machines), audited; one whose join said "
+      "unmanaged does not", code == 0 and "adminjoin" in out and "adminjoin" in members_of("lan-fabric-machines")
+      and "plainjoin" not in members_of("lan-fabric-machines") and "MACHINE_ADOPT" in AUDIT, (code, out))
+samba_tool("group", "removemembers", "lan-fabric-machines", "ADMINJOIN$")
+code, out = domain("sort-machines", "--scheduled")
+check("...once: a machine an admin took out of lan-fabric-machines stays out",
+      code == 0 and "adminjoin" not in members_of("lan-fabric-machines")
+      and len(_json.load(open(_record))["adopted"]) == 1, (code, out))
 
 subprocess.run(["docker", "rm", "-f", DC], capture_output=True)
 subprocess.run(["docker", "network", "rm", NET], capture_output=True)

@@ -1,4 +1,5 @@
 from add_group_member import add_group_member
+from adopt_linux_machines import adopt_linux_machines
 from create_machine import create_machine
 from create_person import create_person
 from get_person import get_person
@@ -23,6 +24,7 @@ from sort_windows_machines import sort_windows_machines
 # the operations fabric-agent may ask for (directory_op): each is f(samdb, lp, site, **args) -> JSON-able result
 OPS = {
     "add_group_member": add_group_member,
+    "adopt_linux_machines": adopt_linux_machines,
     "create_machine": create_machine,
     "create_person": create_person,
     "get_person": get_person,

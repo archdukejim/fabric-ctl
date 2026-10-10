@@ -11,9 +11,10 @@ USAGE = """usage: fabricctl domain status                    the Windows domain:
        fabricctl domain password-policy [--minimum-length N] [--complexity on|off] [--history N]
            [--minimum-age-days N] [--maximum-age-days N] [--lockout-threshold N] [--lockout-minutes N]
            [--lockout-window-minutes N] [--no-apply]
-       fabricctl domain add-machine <name> [--os linux|windows]   pre-create a machine (in its OS family's OU) with a
-           one-time join password
-       fabricctl domain sort-machines [--scheduled]   move Windows machines that joined themselves into OU=windows
+       fabricctl domain add-machine <name> [--os linux|windows] [--unmanaged]   pre-create a machine (in its OS
+           family's OU; managed by fabric unless --unmanaged) with a one-time join password
+       fabricctl domain sort-machines [--scheduled]   Windows machines that joined themselves into OU=windows; Linux
+           machines joined with an admin's password into <site>-fabric-machines (each once)
   password-policy without options shows the policy in the settings; with options it changes those values (the whole
   policy is checked again) and applies them. add-machine prints the password once: give it to join-linux.sh
   --one-time on the machine (manual 4.6.6)."""
@@ -68,15 +69,23 @@ def run_domain_command(v, args):
         except ValidationError as e:
             print(f"refused: {e}")
             return 1
-        print(f"moved into OU=windows: {', '.join(moved)}" if moved else "no Windows machine to sort")
+        if moved["sorted"]:
+            print(f"moved into OU=windows: {', '.join(moved['sorted'])}")
+        if moved["adopted"]:
+            print(f"managed by fabric now (in {v['site_name']}-fabric-machines): {', '.join(moved['adopted'])}")
+        if not moved["sorted"] and not moved["adopted"]:
+            print("nothing to sort")
         return 0
     if args[0] == "add-machine":
-        os_family = args[3] if len(args) == 4 and args[2] == "--os" else None
-        if len(args) not in (2, 4) or (len(args) == 4 and os_family is None):
+        rest = args[2:]
+        managed = "--unmanaged" not in rest
+        rest = [a for a in rest if a != "--unmanaged"]
+        os_family = rest[1] if len(rest) == 2 and rest[0] == "--os" else None
+        if len(args) < 2 or args[1].startswith("-") or (rest and os_family is None):
             print(USAGE)
             return 2
         try:
-            password = add_machine(v, getpass.getuser(), args[1], os=os_family)
+            password = add_machine(v, getpass.getuser(), args[1], os=os_family, managed=managed)
         except ValidationError as e:
             print(f"refused: {e}")
             return 1
