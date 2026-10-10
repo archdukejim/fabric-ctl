@@ -175,6 +175,7 @@ EXPECT = [
     ("...typed differently the second time, asked again", "the two differ", 1),
 ]
 for name, needle, count in EXPECT:
+    # covers: ask:setup.vars.* ask:setup.ad_domain ask:setup.admin_password ask:setup.admin_password_again -
     check(name, text.count(needle) >= count, (text.count(needle), needle))
 names = [n for n, _ in asked]
 check("only what cannot change later is asked (2.1.2.16): no password policy, memory or Kerberos question",
@@ -185,6 +186,7 @@ check("a consent question asked again after an answer that is not y or n",
       len(consent_seen) >= 2 and consent_seen[0] == consent_seen[1], consent_seen[:3])
 check(f"the Enter defaults: the suggested AD domain ({AD}) and the host name it found",
       f"[{AD}]" in text and guess_host in text, (AD, guess_host))
+# covers: cli:setup ask:consent.* -
 check("declining the ports fabric needs with ufw on stops setup before any step, saying why (2.1.2.12, 2.1.2.13)",
       code != 0 and "ufw is on, and without fabric's firewall rules it blocks" in text and "[preflight]" not in text,
       (code, text[-800:]))
@@ -211,6 +213,7 @@ code, text, asked = drive(good, keep_own, f"{OUT}/run2.log")
 check("the three firewall questions, in order: the ports, securing, then the host's own rules (they exist here)",
       [t for t in seen2 if t in ("Ports fabric needs", "Secure this host", "The host's own firewall rules")]
       == ["Ports fabric needs", "Secure this host", "The host's own firewall rules"], seen2)
+# covers: cli:setup ask:consent.* ask:setup.vars.* ask:setup.ad_domain ask:setup.admin_password ask:setup.admin_password_again ask:setup.plan +
 check("with everything allowed, setup finishes (fabric is ready)", code == 0 and "fabric is ready" in text,
       (code, text[-1500:]))
 first, signin = text.find("FIRST install fabric's root certificate"), text.find("then sign in")

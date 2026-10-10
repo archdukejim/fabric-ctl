@@ -136,17 +136,22 @@ def run_cmd(argv, typed=None, tty=True):
 
 
 code, out = run_cmd(["lower", "admin-2fa", "--yes"])
+# covers: cli:security.lower -
 check("fabricctl security lower --yes is refused", code == 1 and "never by --yes" in out, out)
 code, out = run_cmd(["lower", "admin-2fa"], tty=False)
+# covers: cli:security.lower -
 check("fabricctl security lower without a terminal is refused", code == 1 and "needs a terminal" in out, out)
 code, out = run_cmd(["lower", "admin-2fa"], typed="admin\n")
 check("a wrong name typed back: not lowered", code == 2 and state()["signin_admin_second_factor"] == "passkey", out)
 code, out = run_cmd(["lower", "admin-2fa", "totp"], typed="admin-2fa\n")
+# covers: cli:security.lower ask:security.lower.confirm +
 check("the name typed back: lowered, then applied", code == 0 and state()["signin_admin_second_factor"] == "totp"
       and "applying" in out and "Every sign-in this covers is weaker" in out, out)
 code, out = run_cmd([])
+# covers: cli:security +
 check("status shows the lowered layer", code == 0 and "lowered from passkey" in out, out)
 code, out = run_cmd(["raise", "admin-2fa"])
+# covers: cli:security.raise +
 check("raise without a value goes to the next level up", code == 0 and state()["signin_admin_second_factor"] ==
       "passkey", out)
 print(f"\n{PASS} passed, {FAIL} failed")
