@@ -117,6 +117,7 @@ try:
         got = ask_consent(cfg2, {"packages": PLAN["packages"], "runtime": ["restart Docker"]}, interactive=True)
 finally:
     builtins.input = real_input
+# covers: ask:consent.* +
 check("each group is one question listing its changes and what no means; there is no default answer",
       got == {"packages": "yes", "runtime": "no"} and "If no:" in out.getvalue()
       and "apt: install docker.io" in out.getvalue(), got)

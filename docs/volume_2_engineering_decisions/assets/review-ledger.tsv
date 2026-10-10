@@ -1299,7 +1299,7 @@ tests/README.md	56b949e30197345fa529dfe71afc148676679017	2026-10-10
 tests/common/README.md	f80eb9544ae48082b2da9341fa267c0297bc3d46	2026-10-10	
 tests/common/ask.py	52a510850e39121e2bec244890dabb189195a748	2026-10-10	
 tests/consent/README.md	e145a0d2d43d16682fc9dda3e46179d6530c5a03	2026-10-08	
-tests/consent/run.py	eaecbd26d8b849f2b92b583fe117bc3080b025bb	2026-10-08	
+tests/consent/run.py	92f8b79ed20a545ececadf8e6da59e4c79f62aa0	2026-10-10	
 tests/docs/README.md	eeec2ea77295c6eefe030662bd4c7ca6327beff1	2026-10-10	
 tests/docs/check_consistency.py	f73615e09406f36b652b51e06b93be0d02a0c486	2026-10-08	
 tests/docs/check_docstrings.py	525f95338347ff4ea65bdec1130f401d9e326460	2026-10-03	
@@ -1321,9 +1321,9 @@ tests/freeradius/run.py	67d873222d08c223be8cc151d62d90f1801760e5	2026-10-08
 tests/hardening/README.md	514afa897a841c34383af1ef74949610d5dd333d	2026-10-05	
 tests/hardening/run.sh	b4e3e81266e9980d1dc636d34260a2619c00220c	2026-10-05	
 tests/host/README.md	d91d09e7d17622b432063f1b74256e96f6d940cd	2026-10-09	
-tests/host/installer.py	23dc3e21b7be0e53bfc9bb489b0563f0f3ed40ef	2026-10-09	
+tests/host/installer.py	0c66587de8b6947aaa763d4b80dcd53d62bd90fe	2026-10-10	
 tests/host/reset_user.py	36415b5b1fef5a58eb441687393d6062644b34e7	2026-10-05	
-tests/host/run.sh	3867fb70dc83b0c25097e9db1d45acfdc58741cc	2026-10-09	
+tests/host/run.sh	c2cb940c66ab4aa0cf3ac465c51e9621ec864a8f	2026-10-10	
 tests/host/upgrade.sh	85dd33fc7ea57cc3f7bcc0627f46e5dbbed5bde5	2026-10-09	
 tests/host/upgrade_state.py	264871e5ec5a8366413119615e738476b30de26e	2026-10-09	
 tests/image_ref.py	4ff35451eb0f155eee1efe6209e935e841d0dc32	2026-10-03	
@@ -1340,7 +1340,7 @@ tests/keycloak/README.md	55bf0779666050bc9febb2d9c86957665c1d3d0d	2026-10-08
 tests/keycloak/run.py	149da9c370ebd0fca2780534972ae10cbc11efd1	2026-10-09	
 tests/keycloak/soft_passkey.py	51ec49de47ee87f347e246b14acf0eb5f20cb512	2026-10-08	
 tests/lab/README.md	b7cde2a34af23759773558044499b5e990f148ac	2026-10-10	
-tests/lab/dhcp.sh	5fbfcf3da1c0afaec9e14bd2c5de0a143ea5b052	2026-10-10	
+tests/lab/dhcp.sh	d4e864b010c4b115cf68f3c364aab7e43720c820	2026-10-10	
 tests/lint/README.md	9757442e4a4f93e6dfa2de8daee0508f38dff835	2026-10-10	
 tests/lint/no_bare_prompts.py	acc4271e5a3df85e5e825fd354d86be955608356	2026-10-10	
 tests/lint/parse_py.py	2274821472d00fc05121d488e8d124c1a87d28b8	2026-10-10	
@@ -1352,9 +1352,9 @@ tests/openbao/README.md	2bbcd90747078f4eabfc18387617fb8ca1d9bd53	2026-10-09
 tests/openbao/db_rotation.py	98556342b4f9f70fbd7541c710c22f576b5998fd	2026-10-09	
 tests/openbao/run.py	5a40cf5f49db2227c758aa6906d324d9a417b488	2026-10-09	
 tests/pki/README.md	c00ae570e87e3a05c979e041a56057b2b388ec7e	2026-10-08	
-tests/pki/acme.py	64fd96f2019823f7e4ecada6b00a97c97b39d069	2026-10-08	
-tests/pki/renewal.py	30889317dd2709f3de4aae6a0e1a2c2b2547d03e	2026-10-09	
-tests/pki/revocation.py	f36e8ad4b2ca0683d820802ee8a6b9fb7f97dc97	2026-10-08	
+tests/pki/acme.py	ffe846e82e3d77aa2c3c4bcd0c1028751e7f9b5d	2026-10-10	
+tests/pki/renewal.py	d1f577b69cc8f017d2f458815d6c88ccaf5407b9	2026-10-10	
+tests/pki/revocation.py	cf80ad8b84912f80b941f8fcf3387825e9ba18e6	2026-10-10	
 tests/pki/run.py	8a8b78b3bcc320c5019eb4929129ae5d2b711a7c	2026-10-08	
 tests/pki/site_ca.py	6e71ca7798e1aa94ce0f43160716ac57302bec65	2026-10-08	
 tests/render.py	90333b3695c8eef903b06f141dc8b79e80406701	2026-10-10	
@@ -1367,7 +1367,7 @@ tests/run-all.sh	cf196c542e0ada1d249e66bf7ed6e8ae6ac1e7d4	2026-10-10
 tests/samba/README.md	2988a9d373cd532a415df9f842180d12152d6271	2026-10-08	
 tests/samba/dc.py	6d3a9aa01bfb0bae58e262c6ca4ce6e4fcf147fa	2026-10-09	
 tests/samba/devices.py	8b2d94d6ee0ebec716c8e40e02c2924746d589bc	2026-10-05	
-tests/samba/gpo.py	6c3023ce556ade2b616367800d43e0d9cd055c5a	2026-10-08	
+tests/samba/gpo.py	dc3a4eeaf55fa0a7c892721b4bbaf7ec0355dd79	2026-10-10	
 tests/samba/linux_join.py	14d50661d725dd59f729850a832fb72dfc536710	2026-10-09	
 tests/samba/run.py	209fb90877cb419d9d8d07f2d244d27b02f9c4a3	2026-10-09	
 tests/samba/site_join.py	b39b6bd69076e217d85d3a0e2f6ec3446bc30d83	2026-10-08	
@@ -1384,10 +1384,10 @@ tests/sandbox/make_person.py	f778029f1dfc122927b454149f21fda1c884cdf7	2026-10-05
 tests/sandbox/radius_device.py	12b3e1127a0cc5966846fe0554dc84da7a2e5449	2026-10-05	
 tests/sandbox/radius_mab.py	c9575e9fd8e3c3d52dbd77b879b9ef9a6bd148d5	2026-09-30	
 tests/sandbox/rfc2136_test.sh	4299bc1c1d62237439cad3a2ebac534f45ef0874	2026-10-09	
-tests/sandbox/run.sh	5a5d967ed2dea0fc34aabe2b15c8c391e18835c6	2026-10-10	
+tests/sandbox/run.sh	d9b714be24e2a97ab9af3883792ab102651095f6	2026-10-10	
 tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30	
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
-tests/security/run.py	87d5ce6fb52696c959fb5dcae46dc7dcb6462fd8	2026-10-08	
+tests/security/run.py	ae3fdcf036331d943d40118539dbfb7a5e3fd60a	2026-10-10	
 tests/webui/README.md	10b270a62e634adc3de38374c88a60447e7b68e3	2026-09-30	
 tests/webui/test_container.py	9093c2d60eba28f297096966c4202a4751de63e6	2026-10-10	
 tests/webui/test_devserver.py	76fd5203a6e1b34296691354fe80c4485fc8bd9c	2026-10-09	

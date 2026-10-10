@@ -204,6 +204,7 @@ print("--- `fabricctl certs`' flags")
 for argv, want in ((["certs", "--bogus"], 2), (["certs", "--force", "--scheduled"], 2)):
     res = subprocess.run([sys.executable, "-c", "import sys; sys.path.insert(0, 'src'); from fabriclib.cli import main; "
                           f"sys.exit(main({argv!r}))"], cwd=REPO, capture_output=True, text=True)
+    # covers: cli:certs -
     check(f"negative: fabricctl {' '.join(argv)} is refused with the usage (exit {want})",
           res.returncode == want and "usage: fabricctl certs" in res.stderr, (res.returncode, res.stderr[-300:]))
 
@@ -257,6 +258,7 @@ builtins.input = lambda prompt="": next(answers)
 pc = PlanCtx(os.path.join(W, "fresh"))
 with contextlib.redirect_stdout(io.StringIO()) as out:
     choose_plan._ask_ca_lifetime(pc)
+# covers: ask:setup.ca_years +-
 check("Advanced asks the root's lifetime in years; refuses text, 0 and over 30 with the reason, then takes 5",
       pc.vars.get("cert_root_ca_days") == 5 * 365 and out.getvalue().count("a whole number of years") == 3,
       (pc.vars, out.getvalue()))
