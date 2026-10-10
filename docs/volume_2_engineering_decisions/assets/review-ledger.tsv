@@ -134,7 +134,7 @@ docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2b
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	b7b267a50fb829ff77258a3045e90d83ef5499c3	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
-docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	692e9f6ce8ae49f7fb09eff20efc300fa478aa0d	2026-10-10	
+docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	ef27ee1aa7f83ae237ad6837bc4880312771d89c	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
 docs/volume_2_engineering_decisions/2.3.2-architecture-notes.md	b3ce46829288e2c63f9ecb711fb685ae33f80785	2026-10-08	
