@@ -91,7 +91,7 @@ docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	4ecb611249153130e8
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.1-directory.md	7fa9284225375dc046757b644311b8368d907462	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.10-security.md	4cbc7055f772e5b00dc264ef875fc304792cf856	2026-10-09	
-docs/volume_1_description_and_architecture/1.6.11-host-access.md	131aed3e9325ad2b7d54ad9b02ea6e06608d0122	2026-10-10	
+docs/volume_1_description_and_architecture/1.6.11-host-access.md	a5e0ac66c90a238a21b4f17d4bc08c878877c647	2026-10-10	
 docs/volume_1_description_and_architecture/1.6.2-keycloak.md	c6c367e10976fcdacc36faf78bb3149e462497cc	2026-10-09	
 docs/volume_1_description_and_architecture/1.6.3-samba-directory.md	b2de449c1625ab8b964cfa57810d73f61ecca184	2026-10-10	
 docs/volume_1_description_and_architecture/1.6.4-samba-ad.md	3b6e475a2efc928aee1e85a441af77e46f23e02e	2026-10-08	
