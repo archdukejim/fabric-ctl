@@ -6,7 +6,7 @@
 .github/workflows/images.yml	74c6608952aff3c029e5bd9dd2ae386123e31817	2026-10-09	
 .github/workflows/lint.yml	6fb8189ef0d87af6ece1858b97c5bac089c01cce	2026-10-08	
 .github/workflows/package.yml	7fbc29997f4d3708bab3011e302b521330dd2d0e	2026-10-09	
-.github/workflows/suites.yml	a80b3edc074dfbe9346d7abe51612b86f6af7a58	2026-10-10	
+.github/workflows/suites.yml	b4b2e7ce99f0a1f5c3c6e194c56a27c0b819f2c4	2026-10-10	
 .gitignore	e64a8baa6ed6ded642108a90c470c3c3bcd35c9e	2026-10-09	
 AGENTS.md	1c136916d77a5eb65db37dc93dc9c206a1131761	2026-10-09	
 CLAUDE.md	43c994c2d3617f947bcb5adf1933e21dabe46bb5	2026-09-30	
@@ -131,7 +131,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	9df3b3a9713275c6b4abd28d84f22
 docs/volume_2_engineering_decisions/2.1.9-federation.md	6c344024d62480ec9bea70a3245c3baa6511af50	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	74a14e6fa065be930ad9d180dbfb328a5652601e	2026-10-10	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	905141567625768590c16a2baf7b6ae877737587	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	692e9f6ce8ae49f7fb09eff20efc300fa478aa0d	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	

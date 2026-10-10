@@ -40,7 +40,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: What the suites need (3.1.2)
-        run: sudo apt-get install -y -qq python3-yaml python3-jinja2 >/dev/null
+        # openbao's HSM and KMIP unlock tests: SoftHSM2 with PyKCS11, and PyKMIP's client and server
+        run: sudo apt-get install -y -qq python3-yaml python3-jinja2 softhsm2 python3-pykcs11 python3-pykmip >/dev/null
       - name: sudo tests/run-all.sh ${{ matrix.suite }}
         env:
           FABRIC_TEST_OUT: /tmp/fabric-tests
@@ -83,8 +84,8 @@ jobs:
           KEEP: "1"
         run: sudo -E tests/run-all.sh sandbox
       - name: The image-update test on the sandbox
-        shell: bash     # with pipefail: tee keeps the test's own exit status
-        run: sudo tests/images/update.sh --box fabric-sandbox 2>&1 | tee /tmp/fabric-tests/image-update.log
+        shell: bash     # with pipefail: tee keeps the test's own exit status; sudo: the folder is root's
+        run: sudo tests/images/update.sh --box fabric-sandbox 2>&1 | sudo tee /tmp/fabric-tests/image-update.log
       - name: Keep the logs (30 days)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
