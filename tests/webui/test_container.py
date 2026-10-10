@@ -291,6 +291,7 @@ def login(cert=ALICE, user="alice", roles=tuple(ADMIN_ROLES), tamper=None, callb
 
 # ---------------------------------------------------------------- tests
 st, *_ = req("GET", "/")
+# covers: web:get.home -
 check("no client cert -> 403", st == 403, st)
 st, *_ = req("GET", "/", {**ALICE, "X-SSL-Client-Verify": "FAILED:unable to verify"})
 check("unverified cert -> 403", st == 403, st)
@@ -329,24 +330,31 @@ check("security headers present", "default-src 'none'" in hd.get("Content-Securi
       and hd.get("X-Frame-Options") == "DENY" and hd.get("Cache-Control") == "no-store", hd)
 
 st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
+# covers: web:get.home agent:get.services +
 check("overview tab renders service health", st == 200 and "Overview" in body and "services healthy" in body, st)
+# covers: agent:get.host-changes +
 check("overview: the host changes through the agent (this test install was never asked: says so)",
       "Host changes" in body and "Not asked yet" in body, body[-600:])
 st, hd, sc, body = req("GET", "/kea", ALICE, cookie=session)
+# covers: web:get.kea agent:get.dhcp +
 check("Kea tab: DHCP off on this host, a form to turn it on (interface, subnet, pool) naming the firewall change",
       st == 200 and "DHCP is off" in body and 'action="/kea/on"' in body and 'name="interface"' in body
       and "67/udp" in body, (st, body[:300]))
 st, hd, sc, body = req("GET", "/freeradius", ALICE, cookie=session)
+# covers: web:get.freeradius agent:get.radius +
 check("FreeRADIUS tab: 802.1X off on this host, how to turn it on",
       st == 200 and "802.1X is off" in body and "install_freeradius" in body and 'class="tab active"' in body,
       (st, body[:300]))
 st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
+# covers: agent:get.version +
 check("footer shows real version", "fabricctl 9.9.9" in body, body[-300:])
 st, hd, sc, body = req("GET", "/bind9?zone=dynamic_zone_var", ALICE, cookie=session)
+# covers: web:get.bind9 agent:get.zones.* +
 check("BIND9 tab shows the zone's records and CNAME targets", st == 200 and "nas25-apps" in body and "192.168.7.53" in body, body[:500])
 csrf = body.split('name="csrf" value="')[1].split('"')[0]
 check("A record shows its automatic PTR", "53.7.168.192.in-addr.arpa" in body, body[:300])
 st, hd, sc, body = req("GET", "/bind9?view=reverse", ALICE, cookie=session)
+# covers: agent:get.reverse-zones +
 check("reverse zones section lists generated PTRs", st == 200 and "7.168.192.in-addr.arpa" in body
       and "pi-core.lan.test." in body, body[:300])
 
@@ -362,6 +370,7 @@ csrf = body.split('name="csrf" value="')[1].split('"')[0]
 POSTH = {**ALICE, "Origin": "https://mgr.test"}
 add = {"csrf": csrf, "type": "CNAME", "name": "shelfmark", "target": "nas25-apps"}
 st, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", ALICE, dict(add), cookie=session)
+# covers: web:post.bind9.zone.*.add -
 check("POST without Origin -> 403", st == 403, st)
 st, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH, {**add, "csrf": "nope"}, cookie=session)
 check("POST with bad CSRF -> 403", st == 403, st)
@@ -369,9 +378,11 @@ st, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", {**POSTH, "Origin": "ht
 check("POST from foreign origin -> 403", st == 403, st)
 st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH, dict(add), cookie=session)
 vars_text = open(f"{W}/fabric/config/vars.yaml").read()
+# covers: web:post.bind9.zone.*.add agent:post.zones.*.records +
 check("add CNAME -> saved to vars.yaml", st == 303 and "shelfmark" in vars_text and "msg=" in hd["Location"], (st, hd))
 st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
                  {"csrf": csrf, "type": "A", "name": "bad name;rm", "ip": "1.2.3.4"}, cookie=session)
+# covers: web:post.bind9.zone.*.add agent:post.zones.*.records -
 check("invalid record name rejected", st == 303 and "err=" in hd["Location"], hd)
 st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
                  {"csrf": csrf, "type": "TXT", "name": "x", "text": 'a"\n$INCLUDE /etc/shadow'}, cookie=session)
@@ -382,25 +393,31 @@ for form, why, label in (({}, "give the interface, the subnet and a pool", "no s
                           "no interface 'eth9'", "an interface this host does not have")):
     st, hd, *_ = req("POST", "/kea/on", POSTH, {"csrf": csrf, **form}, cookie=session)
     loc = urllib.parse.unquote_plus(hd.get("Location", ""))
+    # covers: web:post.kea.on agent:post.dhcp.on -
     check(f"turn DHCP on refused: {label} (said why, nothing saved)",
           st == 303 and why in loc and "install_kea: true" not in open(f"{W}/fabric/config/vars.yaml").read(), loc)
 st, hd, *_ = req("POST", "/kea/off", POSTH, {"csrf": csrf}, cookie=session)
+# covers: web:post.kea.off agent:post.dhcp.off -
 check("turn DHCP off when it is off: refused, saying so", "already off" in urllib.parse.unquote_plus(
     hd.get("Location", "")), hd)
 st, hd, sc, body = req("GET", "/bind9?zone=dynamic_zone_var", ALICE, cookie=session)
 idx = [row for row in body.split("<tr>") if "shelfmark" in row][0].split('name="index" value="')[1].split('"')[0]
 st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/delete", POSTH,
                  {"csrf": csrf, "type": "CNAME", "index": idx, "name": "wrong-name"}, cookie=session)
+# covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete -
 check("stale delete (name mismatch) refused", "err=" in hd.get("Location", ""), hd)
 st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/delete", POSTH,
                  {"csrf": csrf, "type": "CNAME", "index": idx, "name": "shelfmark"}, cookie=session)
+# covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete +
 check("delete CNAME -> removed from vars.yaml", "shelfmark" not in open(f"{W}/fabric/config/vars.yaml").read(), hd)
 st, hd, sc, body = req("GET", "/audit", ALICE, cookie=session)
+# covers: web:get.audit agent:get.audit agent:post.events +
 check("audit log records web actions with user", "User: alice (web) | Action: DNS_ADD" in body
       and "LOGIN_DENIED" in body, body[:400])
 
 # ---- Step-CA tab: manual PKI through the agent
 st, hd, sc, body = req("GET", "/stepca", ALICE, cookie=session)
+# covers: web:get.stepca agent:get.pki.ca +
 check("Step-CA tab shows the CA certificates", st == 200 and "Test Root CA" in body and "Test Intermediate CA" in body
       and "http://certs.lan.test/" in body, body[:400])
 views_ok = all(req("GET", f"/stepca?view={v}", ALICE, cookie=session)[0] == 200
@@ -409,9 +426,11 @@ check("every Step-CA menu page renders", views_ok)
 sso_pem, sso_key = open(f"{W}/sso.crt").read(), open(f"{W}/sso.key").read()
 sso_der = subprocess.run(["openssl", "x509", "-in", f"{W}/sso.crt", "-outform", "DER"], capture_output=True).stdout
 st, hd, body = req_upload("/stepca/inspect", POSTH, {"csrf": csrf}, {"file": ("sso.cer", sso_der)}, session)
+# covers: web:post.stepca.inspect agent:post.pki.inspect +
 check("inspect a DER upload -> decoded, marked as issued by this fabric",
       st == 200 and "sso.test" in body and "issued by this fabric" in body, (st, body[:300]))
 st, hd, body = req_upload("/stepca/inspect", POSTH, {"csrf": csrf, "data": sso_key}, {}, session)
+# covers: web:post.stepca.inspect agent:post.pki.inspect -
 check("inspect refuses a pasted private key (400, not echoed)",
       st == 400 and "private key" in body and "BEGIN" not in body.split("<textarea")[0], st)
 st, hd, body = req_upload("/stepca/inspect", POSTH, {"csrf": "nope"}, {"file": ("x.crt", sso_pem.encode())}, session)
@@ -420,14 +439,17 @@ subprocess.run(["openssl", "req", "-new", "-newkey", "rsa:2048", "-nodes", "-key
                 f"{W}/dev.csr", "-subj", "/CN=dev.lan.test", "-addext", "subjectAltName=DNS:dev.lan.test,IP:192.168.7.9"],
                check=True, capture_output=True)
 st, hd, body = req_upload("/stepca/sign/review", POSTH, {"csrf": csrf}, {"csr_file": ("dev.csr", open(f"{W}/dev.csr", "rb").read())}, session)
+# covers: web:post.stepca.sign.review agent:post.pki.describe-csr +
 check("CSR upload -> review with names and a Sign button",
       st == 200 and "dev.lan.test, 192.168.7.9" in body and "Sign certificate" in body, body[:400])
 st, hd, body = req_upload("/stepca/convert", POSTH, {"csrf": csrf, "key": sso_key}, {"cert_file": ("sso.crt", sso_pem.encode())}, session)
+# covers: web:post.stepca.convert agent:post.pki.convert +
 check("convert cert + key -> downloads incl. .p12 and a one-time password",
       st == 200 and 'download="sso.test.p12"' in body and 'download="sso.test.cer"' in body and "shown once" in body,
       body[:400])
 st, hd, sc, body = req("POST", "/stepca/issue", POSTH, {"csrf": csrf, "cn": "bad name!", "key_type": "RSA-2048",
                                                         "days": "30"}, cookie=session)
+# covers: web:post.stepca.issue agent:post.pki.issue -
 check("invalid request -> form again with the reason (400)", st == 400 and "not a host name" in body, (st, body[:300]))
 
 # ---- the Directory tab without the domain controller: the page says so, nothing breaks
@@ -439,22 +461,28 @@ check("Step-CA still works without the directory (no device list)", st == 200 an
 st, hd, sc, body = req("GET", "/openbao", ALICE, cookie=session)
 check("OpenBao tab reports an unreachable vault instead of failing", st == 200 and "Unreachable" in body, (st, body[:300]))
 st, hd, sc, body = req("GET", "/openbao?view=unlock", ALICE, cookie=session)
+# covers: web:get.openbao +
 check("unlock methods page renders from the host, every method type addable",
       st == 200 and "Add an unlock method" in body and "arrives next" not in body, (st, body[:300]))
 st, hd, *_ = req("POST", "/openbao/rotate", POSTH, {"csrf": csrf, "confirm": "x"}, cookie=session)
+# covers: web:post.openbao.rotate -
 check("vault change: the host name must be typed", st == 303 and "Type+this+host" in hd.get("Location", ""), hd)
 st, hd, *_ = req("POST", "/openbao/rotate", POSTH, {"csrf": csrf, "confirm": "pi-core"}, cookie=session)
+# covers: agent:post.vault.rotate -
 check("vault change: confirmed and fresh -> reaches the agent (which refuses: this test host has no vault key)",
       st == 303 and "no+vault+key" in hd.get("Location", ""), hd)
 st, hd, *_ = req("POST", "/openbao/slots/add-hsm", POSTH, {"csrf": csrf, "confirm": "pi-core"}, cookie=session)
+# covers: web:post.openbao.slots.add-hsm agent:post.vault.slots.add-hsm -
 check("add HSM: the agent refuses an empty endpoint (validated before anything is touched)",
       "endpoint" in hd.get("Location", "") and "err=" in hd.get("Location", ""), hd)
 st, hd, *_ = req("POST", "/openbao/slots/add-usb", POSTH, {"csrf": csrf, "confirm": "pi-core", "disk": "/dev/nope"},
                  cookie=session)
+# covers: web:post.openbao.slots.add-usb agent:post.vault.slots.add-usb -
 check("add USB: the agent refuses a disk that does not exist", "not+a+disk" in hd.get("Location", ""), hd)
 st, hd, *_ = req("POST", "/openbao/slots/add-security-key", POSTH,
                  {"csrf": csrf, "confirm": "pi-core", "token": "/tmp/evil.so|1234", "pin": "123456", "key": "new"},
                  cookie=session)
+# covers: web:post.openbao.slots.add-security-key agent:post.vault.slots.add-security-key -
 check("add security key: a library not on the allowed list is never loaded", "allowed+list" in hd.get("Location", ""), hd)
 (st, hd, sc, body), _, _ = login(tamper="stale")
 stale = cookie_val(sc, "__Host-webui")
@@ -474,27 +502,33 @@ check("TSIG view renders the create form", st == 200 and "New TSIG key for a zon
 st, hd, sc, body = req("POST", "/bind9/tsig/create", POSTH, {"csrf": csrf, "name": "npm-certbot", "zone": "lan.test",
                                                               "scope": "acme-hosts", "hosts": "npm, nas"}, cookie=session)
 secret = body.split('<code class="secret">')[1].split("<")[0] if '<code class="secret">' in body else ""
+# covers: web:post.bind9.tsig.create agent:post.tsig +
 check("create TSIG key -> secret and rfc2136.ini shown once", st == 200 and secret
       and "dns_rfc2136_name = npm-certbot" in body, body[:300])
 vt = open(f"{W}/fabric/config/vars.yaml").read()
 check("...key saved, secret kept out of vars.yaml", "npm-certbot" in vt and secret not in vt
       and secret in open(f"{W}/fabric/config/fabric-secrets.yml").read())
 st, hd, sc, body = req("GET", "/bind9?view=tsig", ALICE, cookie=session)
+# covers: agent:get.tsig +
 check("TSIG list shows the key's rights, never its secret",
       "_acme-challenge.npm.lan.test" in body and secret not in body, body[:300])
 st, hd, sc, body = req("POST", "/bind9/tsig/create", POSTH, {"csrf": csrf, "name": "x", "zone": "evil.test",
                                                               "scope": "acme-zone"}, cookie=session)
+# covers: web:post.bind9.tsig.create agent:post.tsig -
 check("TSIG key for a zone fabric does not serve -> refused", st == 400 and "forward zones" in body, st)
 st, hd, sc, body = req("POST", "/bind9/tsig/npm-certbot/rotate", POSTH, {"csrf": csrf}, cookie=session)
 new = body.split('<code class="secret">')[1].split("<")[0] if '<code class="secret">' in body else ""
+# covers: web:post.bind9.tsig.*.rotate agent:post.tsig.*.rotate +
 check("rotate -> a new secret", st == 200 and new and new != secret, st)
 st, hd, *_ = req("POST", "/bind9/tsig/npm-certbot/delete", POSTH, {"csrf": csrf}, cookie=session)
+# covers: web:post.bind9.tsig.*.delete agent:post.tsig.*.delete +
 check("delete TSIG key -> removed", st == 303 and "npm-certbot" not in open(f"{W}/fabric/config/vars.yaml").read(), st)
 st, hd, sc, body = req("GET", "/audit", ALICE, cookie=session)
 check("audit log records TSIG and PKI actions", "TSIG_ADD" in body and "TSIG_SECRET" in body
       and "PKI_CONVERT" in body, body[:300])
 
 st, hd, sc, body = req("POST", "/logout", POSTH, {"csrf": csrf}, cookie=session)
+# covers: web:post.logout +
 check("logout -> Keycloak end-session with id_token_hint",
       st == 303 and "/protocol/openid-connect/logout?id_token_hint=" in hd.get("Location", ""), hd)
 st, *_ = req("GET", "/", ALICE, cookie=session)
@@ -517,10 +551,12 @@ st, hd, _, body = req("GET", "/", ALICE, cookie=aud)
 check("auditor: every tab shown (all read permissions)", all(t in body for t in ("/bind9", "/stepca", "/directory", "/openbao")))
 st, _, _, body = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
                      {"csrf": cookie_csrf(aud), "type": "A", "name": "sneaky", "ip": "192.168.7.9"}, cookie=aud)
+# covers: web:post.bind9.zone.*.add agent:post.zones.*.records -
 check("auditor: a crafted POST is refused by fabric-agent (403, permission named)",
       st == 403 and "dns:write" in body and "sneaky" not in open(f"{W}/fabric/config/vars.yaml").read(), (st, body[:200]))
 st, _, _, body = req("POST", "/kea/on", POSTH, {"csrf": cookie_csrf(aud), "interface": "eth0",
                                                 "subnet": "10.20.0.0/24", "pool": "10.20.0.100 - 10.20.0.199"}, cookie=aud)
+# covers: web:post.kea.on agent:post.dhcp.on -
 check("auditor: turning DHCP on is refused by fabric-agent (403, dhcp:write)",
       st == 403 and "dhcp:write" in body and "install_kea: true" not in open(f"{W}/fabric/config/vars.yaml").read(),
       (st, body[:200]))
@@ -585,24 +621,32 @@ out = agent_call("GET", "/v1/zones", "alice", AUDITOR_ROLES)
 check("auditor token: may read zones", " 200 " in out, out)
 out = agent_call("POST", "/v1/zones/dynamic_zone_var/records", "carol", AUDITOR_ROLES,
                  {"actor": "carol", "type": "A", "name": "nope", "ip": "192.168.7.9"})
+# covers: agent:post.zones.*.records -
 check("auditor token: may not add a record (403, the permission named)", " 403 " in out and "dns:write" in out, out)
 out = agent_call("POST", "/v1/people", "carol", AUDITOR_ROLES, {"uid": "mallory", "first": "M", "last": "M",
                                                                 "email": "m@x.test"})
+# covers: agent:post.people -
 check("auditor token: may not create people (403, people:create)", " 403 " in out and "people:create" in out, out)
 out = agent_call("POST", "/v1/people/alice/reset", "carol", AUDITOR_ROLES)
+# covers: agent:post.people.*.reset -
 check("auditor token: may not reset a sign-in (403, people:reset)", " 403 " in out and "people:reset" in out, out)
 for route, perm in (("disable", "people:disable"), ("enable", "people:disable"), ("delete", "people:remove"),
                     ("groups", "people:groups")):
     out = agent_call("POST", f"/v1/people/alice/{route}", "carol", AUDITOR_ROLES, {"confirm": "alice"})
+    # covers: agent:post.people.*.disable agent:post.people.*.enable agent:post.people.*.delete agent:post.people.*.groups -
     check(f"auditor token: may not {route} a person (403, {perm})", " 403 " in out and perm in out, out)
 out = agent_call("POST", "/v1/jobs/images", "carol", AUDITOR_ROLES, {"action": "update", "service": "nginx"})
+# covers: agent:post.jobs.images -
 check("auditor token: may not update an image (403, images:update)", " 403 " in out and "images:update" in out, out)
 out = agent_call("POST", "/v1/jobs/doctor", "carol", AUDITOR_ROLES)
 job = json.loads(out.split("\n", 1)[1]).get("id", "") if " 200 " in out else ""
+# covers: agent:post.jobs.doctor +
 check("auditor token: may run doctor as a job (status:read): an id comes back", bool(job), out)
 out = agent_call("GET", f"/v1/jobs/{job}", "carol", AUDITOR_ROLES)
+# covers: agent:get.jobs.* +
 check("...and read it back (running, done or failed: it is theirs)", " 200 " in out and '"kind": "doctor"' in out, out)
 out = agent_call("GET", f"/v1/jobs/{job}", "alice", ADMIN_ROLES)
+# covers: agent:get.jobs.* -
 check("refused: another person's job, even an admin's request (no such job)", " 400 " in out and "no such job" in out,
       out)
 out = agent_call("GET", "/v1/images", "carol", AUDITOR_ROLES)
@@ -611,10 +655,12 @@ for route, perm in (("delete", "people:remove"), ("groups", "people:groups")):
     out = agent_call("POST", f"/v1/people/alice/{route}", "carol", bundle_roles("fabric-helpdesk"), {"confirm": "alice"})
     check(f"helpdesk token: may not {route} a person (403, {perm}: admins only)", " 403 " in out and perm in out, out)
 out = agent_call("POST", "/v1/radius/clients", "carol", AUDITOR_ROLES, {"name": "evil", "address": "192.168.7.66"})
+# covers: agent:post.radius.clients -
 check("auditor token: may not add a RADIUS client (403, radius:admin)", " 403 " in out and "radius:admin" in out, out)
 out = agent_call("POST", "/v1/radius/clients", "carol", bundle_roles("fabric-network-operator"),
                  {"name": "evil", "address": "192.168.7.66"})
 out2 = agent_call("POST", "/v1/radius/people", "carol", AUDITOR_ROLES, {"group": "admins"})
+# covers: agent:post.radius.people -
 check("auditor token: may not map a group for network logins (403, radius:admin)",
       " 403 " in out2 and "radius:admin" in out2, out2)
 check("network operator token: may not add a RADIUS client either (802.1X is equipment operators')",
@@ -655,18 +701,22 @@ check("certificate off: the sign-in is audited as made without a certificate",
 # the Security page (manual 2.3.6.2.6.4): admins only; turning the certificate on needs this browser's own certificate
 csrf = req("GET", "/", cookie=sess)[3].split('name="csrf" value="')[1].split('"')[0]
 st, _, _, page = req("GET", "/security", cookie=sess)
+# covers: web:get.security +
 check("Security page: the admin sees each layer and its raises", st == 200 and "admin-2fa" in page
       and 'action="/security/raise"' in page, (st, page[:300]))
 st, hd, *_ = req("POST", "/security/raise", {"Origin": "https://mgr.test"},
                  {"csrf": csrf, "layer": "client-cert", "value": "on"}, cookie=sess)
+# covers: web:post.security.raise -
 check("refused: turning the client certificate on while this browser presents none (never locks the admin out)",
       st == 303 and "did+not+present" in hd.get("Location", "").replace("%20", "+"), (st, hd.get("Location")))
 out = agent_call("GET", "/v1/security", "carol", AUDITOR_ROLES)
+# covers: agent:get.security -
 check("auditor token: may not read or raise sign-in security (403, security:raise)",
       " 403 " in out and "security:raise" in out, out)
 out = agent_call("GET", "/v1/security", "alice", ADMIN_ROLES)
 check("admin token: may read the layers", " 200 " in out, out)
 out = agent_call("POST", "/v1/security/raise", "alice", ADMIN_ROLES, {"layer": "admin-2fa", "value": "sms"})
+# covers: agent:post.security.raise -
 check("refused through the agent: a value that is no level (400)", " 400 " in out, out)
 subprocess.run("docker rm -f cwebui >/dev/null; docker network rm cwnet >/dev/null; docker rmi fabric/webui:test >/dev/null",
                shell=True)
