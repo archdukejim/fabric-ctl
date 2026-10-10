@@ -64,11 +64,12 @@ V, SECRETS = dc["v"], dc["secrets"]
 check("a converged DC (its site's sudo rule included)", dc_healthy())
 sudo_rule = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "(objectClass=sudoRole)",
                 "sudoUser", "sudoHost", "sudoCommand"], ok=False).stdout
-check("the site's sudo rule: its linux-sudo role (lan-admins is in it) and, at the root, the admin group may run "
-      "anything (2.1.9.13)", "sudoUser: %lan-linux-sudo" in sudo_rule and "sudoUser: %admins" in sudo_rule
-      and "sudoCommand: ALL" in sudo_rule and "%lan-admins" not in sudo_rule, sudo_rule)
+check("the site's sudo rule: its fabric-admins and, at the root, the organisation's may run anything; the console's "
+      "admin group and the old linux-sudo role are not in it (1.6.11.3, 2.1.6.37, 2.1.6.41)",
+      "sudoUser: %lan-fabric-admins" in sudo_rule and "sudoUser: %fabric-admins" in sudo_rule
+      and "sudoCommand: ALL" in sudo_rule and "%admins" not in sudo_rule and "linux-sudo" not in sudo_rule, sudo_rule)
 
-# people: alice (a person of lan), adam (a lan admin), lara (a person of another site, lab)
+# people: alice (a person of lan), adam (a lan admin and one of its fabric-admins), lara (a person of another site, lab)
 lab = {"site": "lab", "root": False, "parent": "lan", "password_policy": POLICY, "networks": [],
        "root_ca_pem": open(dc["root_ca"]).read(), "id_range": "200001-300000", "groups": [], "admin_group": "admins",
        "accounts": {f"fabric-{k}-lab": random_password() for k in ("agent", "keycloak", "radius")}, "radius_gid": 610}
@@ -82,6 +83,7 @@ for uid, site_v, sec in (("alice", V, SECRETS), ("adam", V, SECRETS), ("lara", l
                                                   "gid": 5000, "home_base": "/home", "shell": "/bin/bash"}, DC)
     ids[uid] = made["uidNumber"]
 run_op(V, SECRETS, "add_group_member", {"group": "lan-admins", "uid": "adam"}, DC)
+run_op(V, SECRETS, "add_group_member", {"group": "lan-fabric-admins", "uid": "adam"}, DC)   # sudo (1.6.11.3)
 set_pw = f"""
 import sys
 sys.path.insert(0, "/fabric")
@@ -169,7 +171,7 @@ def checks(box, release):
     check(f"{release}: a Kerberos ticket from the domain (kinit)", code == 0 and f"alice@{V['ad_realm']}" in out, out)
     code, out = on(box, "sudo -l -U adam; echo ---; sudo -l -U alice")
     admin, person = out.split("---", 1)
-    check(f"{release}: sudo for a site admin from the site's rule, none for a person",
+    check(f"{release}: sudo for one of the site's fabric-admins from the site's rule, none for a person",
           "(ALL) ALL" in admin and "not allowed" in person, out)
 
 

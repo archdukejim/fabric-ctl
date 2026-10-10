@@ -884,6 +884,7 @@ function	fabricctl-jinja|src/containers/samba/admx_store.py|read_policies	6
 function	fabricctl-jinja|src/containers/samba/admx_store.py|save_templates	2	
 function	fabricctl-jinja|src/containers/samba/admx_store.py|store_dir	1	
 function	fabricctl-jinja|src/containers/samba/alloc_id.py|alloc_id	1	
+function	fabricctl-jinja|src/containers/samba/converge.py|_has_group	3	
 function	fabricctl-jinja|src/containers/samba/converge.py|_sid	1	0.5.0 / 2026-10-05
 function	fabricctl-jinja|src/containers/samba/converge.py|converge	2	
 function	fabricctl-jinja|src/containers/samba/create_machine.py|create_machine	1	
@@ -893,6 +894,7 @@ function	fabricctl-jinja|src/containers/samba/directory_op.py|run	2
 function	fabricctl-jinja|src/containers/samba/ensure_ad_site.py|ensure_ad_site	1	
 function	fabricctl-jinja|src/containers/samba/ensure_gpo.py|_gpo	1	
 function	fabricctl-jinja|src/containers/samba/ensure_gpo.py|ensure_gpo	2	
+function	fabricctl-jinja|src/containers/samba/ensure_groups.py|_add_member	5	
 function	fabricctl-jinja|src/containers/samba/ensure_groups.py|_ensure	4	
 function	fabricctl-jinja|src/containers/samba/ensure_groups.py|_ensure_group	1	0.5.0 / 2026-10-04
 function	fabricctl-jinja|src/containers/samba/ensure_groups.py|_group	3	
@@ -914,7 +916,10 @@ function	fabricctl-jinja|src/containers/samba/ensure_site_info.py|ensure_site_in
 function	fabricctl-jinja|src/containers/samba/ensure_site_link.py|ensure_site_link	1	
 function	fabricctl-jinja|src/containers/samba/ensure_sso_account.py|_export	1	
 function	fabricctl-jinja|src/containers/samba/ensure_sso_account.py|ensure_sso_account	2	
+function	fabricctl-jinja|src/containers/samba/ensure_sudo_rule.py|_description	3	
+function	fabricctl-jinja|src/containers/samba/ensure_sudo_rule.py|_dn_of	4	
 function	fabricctl-jinja|src/containers/samba/ensure_sudo_rule.py|_exists	2	
+function	fabricctl-jinja|src/containers/samba/ensure_sudo_rule.py|_move_members	5	
 function	fabricctl-jinja|src/containers/samba/ensure_sudo_rule.py|ensure_sudo_rule	1	
 function	fabricctl-jinja|src/containers/samba/find_machine.py|find_machine	1	
 function	fabricctl-jinja|src/containers/samba/find_person.py|find_person	1	
@@ -971,6 +976,8 @@ function	fabricctl-jinja|src/containers/samba/set_password_policy.py|set_passwor
 function	fabricctl-jinja|src/containers/samba/set_person.py|set_person	1	
 function	fabricctl-jinja|src/containers/samba/share_winbind.py|share_winbind	1	
 function	fabricctl-jinja|src/containers/samba/site_info.py|site_info	1	
+function	fabricctl-jinja|src/containers/samba/site_roles.py|fabric_admins	2	
+function	fabricctl-jinja|src/containers/samba/site_roles.py|fabric_machines	3	
 function	fabricctl-jinja|src/containers/samba/site_roles.py|role_group	1	
 function	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py|_entry	1	
 function	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py|windows_baseline_policy	2	

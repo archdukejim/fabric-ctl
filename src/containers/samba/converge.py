@@ -9,6 +9,8 @@ never a command line: it holds the service accounts' passwords). Prints one JSON
 import json
 import sys
 
+import ldb
+
 from acl_entries import sid_of
 from admin_gpo import ensure_gpo_admins
 from ensure_ad_site import ensure_ad_site
@@ -30,11 +32,22 @@ from remove_ipv6_records import remove_ipv6_records
 from root_ca_policy import EXTENSIONS as TRUST_EXTENSIONS, root_ca_policy
 from set_password_policy import set_password_policy
 from share_winbind import share_winbind
-from site_roles import role_group
+from site_roles import OLD_SUDO_ROLE, fabric_admins, role_group
 from windows_baseline_policy import windows_baseline_policy
 import paths
 
 CONF = "/data/etc/smb.conf"
+
+
+def _has_group(samdb, name):
+    """Purpose: whether a group exists, anywhere in the domain.
+    Inputs:  samdb — SamDB; name — sAMAccountName.
+    Returns: bool.
+    Fails:   ldb.LdbError from the search.
+    Feeds:   converge (the log-on list, during a federation's upgrade)."""
+    return bool(samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_SUBTREE,
+                             expression=f"(&(objectClass=group)(sAMAccountName={ldb.binary_encode(name)}))",
+                             attrs=["dn"]))
 
 
 def converge(state):
@@ -89,7 +102,9 @@ def converge(state):
     # must never be locked out of it; the roles of this site and of every site above it log on to administer (2.1.9.13)
     owners = [site] + paths.ancestors(samdb, site)
     names = [f"{site}-users", f"{site}-admins", state["admin_group"], "fabric-break-glass"]
-    names += [role_group(o, r) for o in owners for r in ("linux-sudo", "windows-admins")]
+    names += [role_group(o, "windows-admins") for o in owners] + [fabric_admins(site)]
+    # a site above that has not converged since the upgrade still has its linux-sudo role: whichever it has (1.6.11.3)
+    names += [g for o in owners[1:] for g in (fabric_admins(o), f"{o}-{OLD_SUDO_ROLE}") if _has_group(samdb, g)]
     names += [f"{o}-admins" for o in owners[1:]]
     sids = [sid_of(samdb, g) for g in names] + [BUILTIN_ADMINISTRATORS]
     local_admins = [sid_of(samdb, role_group(o, "windows-admins")) for o in owners]

@@ -194,7 +194,8 @@ check("converge wrote the site's networks into its OU=networks (the address plan
 info_ = run_op(v, SECRETS, "site_info", container=DC)
 # covers: setting:posix_id_block +
 check("the agent signs in as fabric-agent-lan and reads its site's id block (from 5001, posix_id_block long)",
-      info_["id_range"] == "5001-105000" and 5001 < info_["id_next"] < 5010, info_)
+      # a few taken: the site's groups (users, admins, four roles, two host groups) and fabric-admins
+      info_["id_range"] == "5001-105000" and 5001 < info_["id_next"] < 5015, info_)
 def attr(filter_, name):
     out = dc("ldbsearch", "-H", "/data/private/sam.ldb", filter_, name).stdout
     return [line.split(": ", 1)[1] for line in out.splitlines() if line.startswith(name + ": ")]
@@ -257,10 +258,52 @@ check("...and makes the site's windows-admins role a member of each machine's Ad
       "__Memberof = *S-1-5-32-544".encode("utf-16-le") in inf and "[Group Membership]".encode("utf-16-le") in inf)
 roles = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(&(objectClass=group)(sAMAccountName=lan-*))",
            "sAMAccountName", "member").stdout
-check("the site's five role groups, lan-admins a member of each (2.1.9.13)",
-      all(f"sAMAccountName: lan-{r}" in roles for r in ("ou-admins", "machine-admins", "gpo-admins", "linux-sudo",
-                                                      "windows-admins"))
-      and roles.count("member: CN=lan-admins,") == 5, roles[-600:])
+check("the site's four role groups, lan-admins a member of each (2.1.9.13; linux-sudo replaced, 2.1.6.37)",
+      all(f"sAMAccountName: lan-{r}" in roles for r in ("ou-admins", "machine-admins", "gpo-admins", "windows-admins"))
+      and "sAMAccountName: lan-linux-sudo" not in roles and roles.count("member: CN=lan-admins,") == 4, roles[-600:])
+
+
+def members(group):
+    """The member DNs' first RDN values of a group (lower case)."""
+    out = dc("ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={group})", "member").stdout
+    return {line.split(":", 1)[1].strip().split(",")[0][3:].lower() for line in out.splitlines()
+            if line.startswith("member:")}
+
+
+# the host groups (manual 1.6.11.2): a new site's fabric-admins start inside its machine-admins; the organisation's in each
+check("the host groups: fabric-admins (organisation), lan-fabric-admins and lan-fabric-machines (1.6.11.2)",
+      all(f"sAMAccountName: {g}" in dc("ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={g})",
+                                       "sAMAccountName").stdout
+          for g in ("fabric-admins", "lan-fabric-admins", "lan-fabric-machines")))
+check("a new site's lan-fabric-admins is a member of lan-machine-admins (2.1.6.38); fabric-admins of lan-fabric-admins",
+      "lan-fabric-admins" in members("lan-machine-admins") and "fabric-admins" in members("lan-fabric-admins"),
+      (members("lan-machine-admins"), members("lan-fabric-admins")))
+
+# the move from the linux-sudo role (2.1.6.37, 2.1.6.44): an install from before it, its role and rule put back as they
+# were with a member, then converged: the member keeps sudo through lan-fabric-admins, the old role and rule are gone
+_site = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(&(objectClass=organizationalUnit)(ou=sudoers))", "dn").stdout
+_sudoers = next(line.split(":", 1)[1].strip() for line in _site.splitlines()
+                if line.startswith("dn:") and "OU=lan," in line)
+dc("samba-tool", "group", "add", "lan-linux-sudo", "-s", "/data/etc/smb.conf")
+dc("samba-tool", "user", "add", "olga", "--random-password", "-s", "/data/etc/smb.conf")
+dc("samba-tool", "group", "addmembers", "lan-linux-sudo", "olga", "-s", "/data/etc/smb.conf")
+dc("samba-tool", "group", "addmembers", "admins", "olga", "-s", "/data/etc/smb.conf")
+dc("ldbadd", "-H", "/data/private/sam.ldb", stdin=(
+    f"dn: CN=lan-linux-sudo,{_sudoers}\nobjectClass: sudoRole\nsudoUser: %lan-linux-sudo\nsudoUser: %admins\n"
+    "sudoHost: ALL\nsudoCommand: ALL\nsudoRunAsUser: ALL\ndescription: fabric: the site's linux-sudo role (2.1.9.13)\n"))
+moved = converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS, container=DC)
+rules = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(objectClass=sudoRole)", "cn", "sudoUser").stdout
+check("upgrade: the linux-sudo role's member is now in lan-fabric-admins, and (at the root) the old rule's admin group's"
+      " member in fabric-admins: nobody loses sudo (2.1.6.44)",
+      "olga" in members("lan-fabric-admins") and "olga" in members("fabric-admins"), (moved, members("fabric-admins")))
+check("upgrade: the old rule and the linux-sudo group are gone; the fabric-admins rule is there",
+      "cn: lan-linux-sudo" not in rules and "cn: lan-fabric-admins" in rules
+      and "sAMAccountName: lan-linux-sudo" not in dc("ldbsearch", "-H", "/data/private/sam.ldb",
+                                                     "(sAMAccountName=lan-linux-sudo)", "sAMAccountName").stdout, rules)
+check("upgrade: an existing site's lan-fabric-admins is not nested anew (machine-admins unchanged by the move)",
+      not any("machine-admins" in c for c in moved), moved)
+check("and the next converge changes nothing", converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS,
+                                                               container=DC) == [])
 
 # BIND serves the AD zone from the DC's database through DLZ (manual 1.6.5.6, Q2): fabric's BIND image with the
 # files write_bind_dlz makes, mounted as the rendered compose file mounts them; a minimal named.conf around them
@@ -575,13 +618,14 @@ first = alice["uidNumber"]
 dc("samba-tool", "user", "delete", "alice", "-s", "/data/etc/smb.conf")
 carol = mk("carol")
 check("ids are never reused: after alice is deleted, carol gets a higher number", carol["uidNumber"] > first, carol)
-# a tiny site whose block is used up: its 7 groups (users, admins, the five roles) take 900-906, one person 907
-tiny = {**lab, "site": "tiny", "id_range": "900-907", "networks": [],
+# a tiny site whose block is used up: its 8 groups (users, admins, the four roles, the two host groups of 1.6.11.2)
+# take 900-907, one person 908
+tiny = {**lab, "site": "tiny", "id_range": "900-908", "networks": [],
         "accounts": {f"fabric-{k}-tiny": random_password() for k in ("agent", "keycloak", "radius")}, "radius_gid": 610}
 dc("python3", "/fabric/converge.py", stdin=json.dumps(tiny))
 tiny_v, tiny_s = {**v, "site_name": "tiny"}, {**SECRETS, "ad_agent_password": tiny["accounts"]["fabric-agent-tiny"]}
 first_tiny = mk("tina", site_v=tiny_v, sec=tiny_s)
-check("a site's people take numbers from that site's own block", first_tiny["uidNumber"] == 907, first_tiny)
+check("a site's people take numbers from that site's own block", first_tiny["uidNumber"] == 908, first_tiny)
 try:
     mk("tim", site_v=tiny_v, sec=tiny_s)
     check("refused: a person when the site's block is full", False)

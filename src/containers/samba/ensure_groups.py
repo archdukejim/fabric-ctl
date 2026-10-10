@@ -2,7 +2,7 @@ import ldb
 
 from alloc_id import alloc_id
 import paths
-from site_roles import ROLES, role_group
+from site_roles import FABRIC_ADMINS, ROLES, fabric_admins, fabric_machines, role_group
 
 DOMAIN_USERS_RID = 513          # AD's Domain Users: fabric's everyone-group `users` (Q11)
 
@@ -44,12 +44,28 @@ def _ensure(samdb, name, ou, gid, description, done):
         done += [f"group {name}: {k}" for k in sorted(changes)]
 
 
+def _add_member(samdb, group, member, done):
+    """Purpose: one group (or account) a member of another, when it is not already.
+    Inputs:  samdb — SamDB; group — the containing group's name; member — the member's name; done — list, appended.
+    Returns: None.
+    Fails:   ldb.LdbError from the change; TypeError if the group does not exist.
+    Feeds:   ensure_groups."""
+    have = samdb.search(base=str(_group(samdb, group).dn), scope=ldb.SCOPE_BASE, attrs=["member"])[0]
+    want = str(_group(samdb, member).dn).lower()
+    if want not in [str(m).lower() for m in have.get("member", [])]:
+        samdb.add_remove_group_members(group, [member], add_members_operation=True)
+        done.append(f"group {group}: {member} a member")
+
+
 def ensure_groups(samdb, site, root, org_groups):
     """Purpose: the groups access is built on (manual 1.6.3.6, 1.6.3.10), with their gid numbers (1.6.3.9): the site's
              people and admins, and its five role groups with `<site>-admins` in each (2.1.9.13) (gids from the site's
              block), and at the root site the organisation's groups — fabric's
              `ldap_groups` (the web UI's admin group, the RBAC bundle groups, the 802.1X groups) with their own gids,
-             `users` as AD's Domain Users, and `fabric-break-glass` (in every site's log-on policy).
+             `users` as AD's Domain Users, and `fabric-break-glass` (in every site's log-on policy). The host groups
+             (manual 1.6.11.2): the organisation's `fabric-admins` (at the root), each site's `<site>-fabric-admins`
+             with `fabric-admins` in it, and `<site>-fabric-machines`; a new site's `<site>-fabric-admins` starts as a
+             member of `<site>-machine-admins` (2.1.6.38), an existing site's is never nested by an upgrade.
     Inputs:  samdb — SamDB; site — str; root — bool; org_groups — list of {name, gidNumber, description?} (fabric's
              ldap_groups).
     Returns: list of str, what changed.
@@ -61,6 +77,7 @@ def ensure_groups(samdb, site, root, org_groups):
     groups = paths.relative(samdb, f"OU=groups,{site_dn}")
     for name in (f"{site}-users", f"{site}-admins"):
         _ensure(samdb, name, groups, lambda: alloc_id(samdb, site_dn), "", done)
+    new_site = f"group {site}-users created" in done
     admins = str(_group(samdb, f"{site}-admins").dn)
     for role, description in ROLES.items():      # the site's roles, <site>-admins in each (2.1.9.13)
         name = role_group(site, role)
@@ -84,4 +101,14 @@ def ensure_groups(samdb, site, root, org_groups):
             _ensure(samdb, g["name"], org, int(g["gidNumber"]), g.get("description") or "", done)
         _ensure(samdb, "fabric-break-glass", org, lambda: alloc_id(samdb, site_dn),
                 "May log on to every site's machines: for when everything else fails", done)
+        _ensure(samdb, FABRIC_ADMINS, org, lambda: alloc_id(samdb, site_dn),
+                "Manage every site's hosts: root through sudo, fabricctl (manual 1.6.11)", done)
+    _ensure(samdb, fabric_admins(site), groups, lambda: alloc_id(samdb, site_dn),
+            "Manage the site's hosts: root through sudo, fabricctl (manual 1.6.11)", done)
+    _ensure(samdb, fabric_machines(site), groups, lambda: alloc_id(samdb, site_dn),
+            "The site's machines fabric manages (manual 1.6.11.6)", done)
+    if _group(samdb, FABRIC_ADMINS) is not None:      # a site's DC converging before the root's upgrade has none yet
+        _add_member(samdb, fabric_admins(site), FABRIC_ADMINS, done)
+    if new_site:
+        _add_member(samdb, role_group(site, "machine-admins"), fabric_admins(site), done)
     return done

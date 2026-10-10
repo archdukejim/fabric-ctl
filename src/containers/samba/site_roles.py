@@ -7,9 +7,32 @@ ROLES = {
     "ou-admins": "Manage the site's OU: people, groups and sub-OUs",
     "machine-admins": "Add, enable and remove the site's machines and devices",
     "gpo-admins": "Edit the site's own Group Policy, and block what a parent did not enforce",
-    "linux-sudo": "Run any command as root on the site's Linux machines",
     "windows-admins": "Local Administrators on the site's Windows machines",
 }
+
+
+# the role fabric-admins replaced (2.1.6.37): known only to the move that retires it (ensure_sudo_rule)
+OLD_SUDO_ROLE = "linux-sudo"
+# the organisation's host admins, and each site's (manual 1.6.11.2): host management, apart from the console's admins
+FABRIC_ADMINS = "fabric-admins"
+
+
+def fabric_admins(site):
+    """Purpose: a site's host-admin group name (manual 1.6.11.2).
+    Inputs:  site — str.
+    Returns: str "<site>-fabric-admins".
+    Fails:   never.
+    Feeds:   ensure_groups, ensure_sudo_rule, converge."""
+    return f"{site}-fabric-admins"
+
+
+def fabric_machines(site):
+    """Purpose: the group of a site's machines fabric manages (manual 1.6.11.6).
+    Inputs:  site — str.
+    Returns: str "<site>-fabric-machines".
+    Fails:   never.
+    Feeds:   ensure_groups."""
+    return f"{site}-fabric-machines"
 
 
 def role_group(site, role):
