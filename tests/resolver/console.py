@@ -184,10 +184,12 @@ pdf.add_filter_list = m_add_list.add_filter_list
 pdf.load_vars = lambda: STORE["vars"]
 pdf.read_query_log = lambda vv, **kw: (CALLS.append(("querylog", kw)) or {"entries": []})
 r = pdf.post_dns_filter(["dns-filter", "lists"], "alice", {"name": "Three", "url": "https://lists.example/3.txt"})
+# covers: agent:post.dns-filter.lists +
 check("agent: adding a list saves it, applies, and starts the lists job (fabric-agent has no internet)",
       r["applied"] and r["fetching"] and CALLS[-2:] == [("apply", "alice", "web"), ("fetch",)], (r, CALLS))
 CALLS.clear()
 e = refused(pdf.post_dns_filter, ["dns-filter", "lists"], "alice", {"url": "ftp://x"})
+# covers: agent:post.dns-filter.lists -
 check("agent: a refused change is a 400 (ValidationError) and nothing is applied or fetched",
       isinstance(e, ValidationError) and CALLS == [], (e, CALLS))
 e = refused(pdf.post_dns_filter, ["dns-filter", "lists"], "alice", {"url": 42})
@@ -200,12 +202,15 @@ CALLS.clear()
 r = pdf.post_dns_filter(["dns-filter", "groups"], "alice", {"name": "guests", "clients": "192.168.1.200"})
 r2 = pdf.post_dns_filter(["dns-filter", "safe-search"], "alice", {"group": "guests", "on": "on", "youtube": "moderate"})
 r3 = pdf.post_dns_filter(["dns-filter", "rules"], "alice", {"group": "guests", "kind": "block", "name": "x.example"})
+# covers: agent:post.dns-filter.groups agent:post.dns-filter.safe-search agent:post.dns-filter.rules +
 check("agent: a group added, its safe search and its rule — each saved and applied, nothing fetched",
       r["result"]["added"] and r2["result"]["youtube"] == "moderate" and r3["result"]["group"] == "guests"
       and not r["fetching"] and CALLS == [("apply", "alice", "web")] * 3, (r, r2, r3, CALLS))
 r = pdf.post_dns_filter(["dns-filter", "groups", "delete"], "alice", {"name": "guests"})
+# covers: agent:post.dns-filter.groups.delete +
 check("agent: a group removed", r["result"]["name"] == "guests" and v()["dns_filter_groups"] == [], r)
 e = refused(pdf.post_dns_filter, ["dns-filter", "groups"], "alice", {"name": "x", "clients": ["192.168.1.9"]})
+# covers: agent:post.dns-filter.groups -
 check("agent: clients sent as a list (not text) are refused", isinstance(e, ValidationError) and "text" in str(e), e)
 r = pdf.post_dns_filter(["dns-filter", "querylog"], "alice", {"client": "192.168.1.0/24", "blocked": True, "limit": 50})
 check("agent: the query-log search passes its terms on", CALLS[-1] == ("querylog", {
@@ -266,14 +271,17 @@ class FakeActions:
 
 h, wpost.actions = H(), FakeActions()
 wpost.dns_filter_post(h, ["rules"], {"kind": "block", "name": "x.example", "back": "querylog"})
+# covers: web:post.dns-filter.rules +
 check("web: Block from the query log saves and goes back to the query log with the outcome",
       h.out[0] == 303 and h.out[1].startswith("/dns-filter?view=querylog&msg=") and wpost.actions.calls[-1][0] == "rules",
       h.out)
 wpost.dns_filter_post(h, ["lists"], {"name": "Two", "url": "https://x/2", "back": "<script>"})
+# covers: web:post.dns-filter.lists +
 check("web: a back section that is not one is ignored (the change's own section)",
       h.out[1].startswith("/dns-filter?view=lists&msg="), h.out)
 h, wpost.actions = H(), FakeActions(refuse="not a DNS name")
 wpost.dns_filter_post(h, ["rules"], {"kind": "block", "name": "bad!"})
+# covers: web:post.dns-filter.rules -
 check("web: a refused change goes back with the reason (err)", "err=not+a+DNS+name" in h.out[1], h.out)
 h, wpost.actions = H(), FakeActions(applied=False)
 wpost.dns_filter_post(h, ["upstreams"], {"upstreams": "9.9.9.9 dns.quad9.net"})
@@ -284,11 +292,13 @@ wpost.dns_filter_post(h, ["lists", "rename"], {})
 check("web: an unknown change is a 404", h.out[0] == 404, h.out)
 h, wpost.actions = H(), FakeActions()
 wpost.dns_filter_post(h, ["safe-search"], {"group": "kids", "youtube": "strict", "back": "groups"})
+# covers: web:post.dns-filter.safe-search +
 check("web: safe search with the box unchecked sends on='' (off) for its group, and goes back to Groups",
       wpost.actions.calls[-1] == ("safe-search", {"name": "", "url": "", "kind": "", "upstreams": "", "group": "kids",
                                                   "clients": "", "on": "", "youtube": "strict"})
       and h.out[1].startswith("/dns-filter?view=groups&msg="), (wpost.actions.calls[-1:], h.out))
 wpost.dns_filter_post(h, ["groups"], {"name": "kids", "clients": "192.168.1.64/27"})
+# covers: web:post.dns-filter.groups +
 check("web: a group's change goes back to Groups", h.out[1].startswith("/dns-filter?view=groups&msg="), h.out)
 
 from fabriclib.dns_filter.common.safe_search import safe_search_summary  # noqa: E402

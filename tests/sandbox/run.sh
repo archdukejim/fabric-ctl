@@ -501,8 +501,10 @@ check "images prune keeps the rollback image and everything in use" \
 
 docker cp "$REPO/tests/sandbox/agent_job.py" "$NAME:/root/agent_job.py"
 in_box 'python3 /root/agent_job.py doctor' > "$OUT/doctor-job.json" 2>&1
+# covers: agent:post.jobs.doctor agent:get.jobs.* +
 check "doctor as an agent job (the web console's Run doctor): done, every check passed"     "python3 -c 'import json,sys; j=json.load(open(sys.argv[1])); sys.exit(not (j[\"state\"] == \"done\" and j[\"result\"][\"failed\"] == 0 and j[\"result\"][\"checks\"]))' '$OUT/doctor-job.json'"
 in_box 'python3 /root/agent_job.py images update nginx' > "$OUT/images-job.json" 2>&1
+# covers: agent:post.jobs.images +
 check "an image update as an agent job (the web console's Updates): done, nothing to move while current"     "grep -q '\"state\": \"done\"' '$OUT/images-job.json' && grep -q 'nothing to update' '$OUT/images-job.json'"
 
 echo "--- setup with a changed setting (live DNS zone must update, bind9 keeps serving)"
