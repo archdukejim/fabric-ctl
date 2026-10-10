@@ -281,7 +281,6 @@ check("web: a back section that is not one is ignored (the change's own section)
       h.out[1].startswith("/dns-filter?view=lists&msg="), h.out)
 h, wpost.actions = H(), FakeActions(refuse="not a DNS name")
 wpost.dns_filter_post(h, ["rules"], {"kind": "block", "name": "bad!"})
-# covers: web:post.dns-filter.rules -
 check("web: a refused change goes back with the reason (err)", "err=not+a+DNS+name" in h.out[1], h.out)
 h, wpost.actions = H(), FakeActions(applied=False)
 wpost.dns_filter_post(h, ["upstreams"], {"upstreams": "9.9.9.9 dns.quad9.net"})
