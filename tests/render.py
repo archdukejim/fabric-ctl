@@ -131,6 +131,32 @@ acl = env.get_template('bind9/config/named.conf.acl.j2').render(**full)
 assert 'acl "certbot-devices"' in acl and 'key "dev1";' in acl, 'policy ACL not rendered'
 assert 'secret "bnBtLXRlc3Qtc2VjcmV0LTMyLWJ5dGVzLWxvbmch";' in keys, 'embedded TSIG secret not rendered'
 print('TSIG keys and RFC2136 grants rendered')
+# what apply refuses in tsig_keys and bind_acl_policies (deploy/merge_tsig_keys), saying why, the secrets untouched
+from fabriclib.common.errors import ValidationError as _VE  # noqa: E402
+from fabriclib.deploy.merge_tsig_keys import merge_tsig_keys  # noqa: E402
+_tk = user['tsig_keys']
+for _field, _bad, _msg in (
+        ('tsig_keys', [{'algorithm': 'hmac-sha256'}], 'needs a name'),
+        ('tsig_keys', _tk + [dict(_tk[0])], 'invalid or duplicate TSIG key name'),
+        ('tsig_keys', [{'name': '../etc'}], 'invalid or duplicate TSIG key name'),
+        ('tsig_keys', [{'name': 'k', 'algorithm': 'hmac-whirlpool'}], 'algorithm must be one of'),
+        ('tsig_keys', [{'name': 'k', 'record_types': ['TXT; drop']}], 'invalid record_types'),
+        ('tsig_keys', [{'name': 'k', 'records': ['web', 'bad host']}], 'invalid record names'),
+        ('tsig_keys', [{'name': 'k', 'secret': 'not base64!'}], 'secret is not valid base64'),
+        ('bind_acl_policies', {'certbot-devices': {'records': []}}, 'a policy needs records (hosts) or any_name'),
+        ('bind_acl_policies', {'bad acl!': {'any_name': True}}, 'invalid ACL name'),
+        ('bind_acl_policies', {'certbot-devices': {'records': ['web'], 'domain': 'evil zone'}}, 'invalid domain'),
+        ('bind_acl_policies', {'certbot-devices': {'records': ['web'], 'record_types': ['A B']}},
+         'invalid record_types')):
+    _vars = {**copy.deepcopy(user), _field: _bad}
+    _sec = {'tsig_secrets': dict(secrets['tsig_secrets'])}
+    try:
+        merge_tsig_keys(_vars, _sec)
+        raise AssertionError(f'{_field} accepted: {_bad!r}')
+    except _VE as e:
+        # covers: setting:tsig_keys setting:bind_acl_policies -
+        assert _msg in str(e) and _sec['tsig_secrets'] == secrets['tsig_secrets'], (_field, _bad, str(e))
+print('tsig_keys and bind_acl_policies: what apply refuses, with the reason, no secret made')
 
 # Web UI at any host name; certificate page on its own host.
 assert v2['hostname_mgr'] == 'fabric.lan.j-j.family' and v2['hostname_certs'] == 'certs.lan.j-j.family', v2['hostname_mgr']
