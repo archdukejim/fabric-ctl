@@ -168,6 +168,7 @@
 <form method="post" action="/directory/machines/_new" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Host name<input name="name" required pattern="[a-z0-9]([a-z0-9-]{0,13}[a-z0-9])?" placeholder="ws01"></label>
+<label>Operating system<select name="os"><option value="">not given (OU=machines)</option><option value="linux">Linux (OU=linux)</option><option value="windows">Windows (OU=windows)</option></select></label>
 <div><button>Add</button></div>
 </form>
 <p class="muted small">It gets a one-time join password (shown once): give it to <code>join-linux.sh --one-time</code> on a Linux machine (manual 4.6.6). Windows machines join with a site admin's account (4.6.7).</p>

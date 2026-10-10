@@ -41,6 +41,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `ensure_networks.py` | The site's networks as `fabricNetwork` entries in its OU=networks (the address plan), kept to match |
 | `read_networks.py` | Operation `read_networks`: the address plan, every site's networks in one search |
 | `create_machine.py` | Operation `create_machine`: a machine pre-created in the site's OU=machines with a one-time join password |
+| `sort_windows_machines.py` | Operation `sort_windows_machines`: Windows machines that joined themselves into OU=machines moved into OU=windows, those moved before skipped (manual 1.6.11.5) |
 | `ensure_sudo_rule.py` | The site's default sudo rule: its admins and the admin group may run anything on its machines (2.1.9.13) |
 | `windows_baseline_policy.py` | The site's Windows baseline: wait for the network at log-on, the domain's time, Wired AutoConfig and the 802.1X profile (start-up script) |
 | `gpo_tool.py` | fabric's ADMX editor's entry point: one operation (load, templates, policies, show, set, clear) as JSON |

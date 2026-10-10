@@ -42,6 +42,9 @@ done
 
 # in a subshell: os-release's own variables (NAME, VERSION, …) must not overwrite this script's
 release=$(. /etc/os-release && echo "${ID:-}-${VERSION_ID:-}")
+# what the computer account records (operatingSystem, operatingSystemVersion: 2.1.6.36)
+os_name=$(. /etc/os-release && echo "${NAME:-Linux}")
+os_version=$(. /etc/os-release && echo "${VERSION_ID:-}")
 case "$release" in
     ubuntu-24.04|ubuntu-26.04|debian-12|debian-13) ;;
     *) die "Ubuntu 24.04 or 26.04, or Debian 12 or 13 (Proxmox VE 8, 9) only (this is $release)" ;;
@@ -120,15 +123,18 @@ SUDO_BASES+="OU=sudoers,$ORG_DN?onelevel?"
 kdestroy >/dev/null 2>&1 || true
 
 # the join (the account's name in upper case, as Windows names them: SSSD looks for NAME$ in the keytab):
-# a computer account in the site's OU=machines (pre-created with --one-time), the password on stdin
+# a computer account in the site's OU=machines/OU=linux (pre-created with --one-time: where add-machine put it,
+# manual 1.6.11.5), recording its OS; the password on stdin
 if [[ $ONE_TIME -eq 1 ]]; then
     printf '%s' "$PASSWORD" | adcli join --domain="$AD_DOMAIN" --domain-realm="$REALM" --domain-controller="$DC" \
-        --computer-name="${MACHINE^^}" --login-type=computer --stdin-password --show-details >/dev/null \
+        --computer-name="${MACHINE^^}" --login-type=computer --stdin-password \
+        --os-name="$os_name" --os-version="$os_version" --show-details >/dev/null \
         || die "the join was refused (is $MACHINE pre-created with: fabricctl domain add-machine $MACHINE?)"
 else
     printf '%s' "$PASSWORD" | adcli join --domain="$AD_DOMAIN" --domain-realm="$REALM" --domain-controller="$DC" \
         --computer-name="${MACHINE^^}" --login-user="$JOIN_USER" --stdin-password \
-        --domain-ou="OU=machines,$SITE_DN" --show-details >/dev/null \
+        --domain-ou="OU=linux,OU=machines,$SITE_DN" --os-name="$os_name" --os-version="$os_version" \
+        --show-details >/dev/null \
         || die "the join was refused (a site admin of $SITE, and the right password?)"
 fi
 unset PASSWORD

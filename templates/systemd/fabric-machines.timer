@@ -1,0 +1,10 @@
+[Unit]
+Description=fabric: sort new Windows machines into their OU, hourly (manual 1.6.11.5, 2.1.6.36)
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+AccuracySec=5min
+
+[Install]
+WantedBy=timers.target

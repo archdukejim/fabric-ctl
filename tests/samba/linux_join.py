@@ -183,21 +183,28 @@ gone, _ = on(box, "test ! -e /usr/local/share/ca-certificates/fabric-root-ca.crt
 check("24.04: a wrong root-CA fingerprint is refused and nothing is trusted or installed",
       code != 0 and "not trusting it" in out and gone == 0, out)
 code, out = on(box, f"bash /root/join-linux.sh {fp} --user adam", stdin=PW + "\n")
-check("24.04: joins with a site admin's password (on stdin) into the site's OU=machines",
+check("24.04: joins with a site admin's password (on stdin) into the site's OU=machines/OU=linux",
       code == 0 and "joined" in out, out)
 where = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={RELEASES['24.04']}$)",
-            "distinguishedName"], ok=False).stdout
-check("24.04: its computer account is in OU=machines,OU=lan", "OU=machines,OU=lan,OU=sites" in where, where)
+            "distinguishedName", "operatingSystem", "operatingSystemVersion"], ok=False).stdout
+check("24.04: its computer account is in OU=linux,OU=machines,OU=lan, recording its OS (1.6.11.5, 2.1.6.36)",
+      "OU=linux,OU=machines,OU=lan,OU=sites" in where and "operatingSystem: Ubuntu" in where
+      and "operatingSystemVersion: 24.04" in where, where)
 time.sleep(5)
 checks(box, "24.04")
 
 # 26.04: pre-created by fabricctl domain add-machine, joined with the one-time password
 box, ok = client("26.04", RELEASES["26.04"])
 check("26.04: the client container is ready (ubuntu:26.04)", ok)
-one_time = m_add_machine.add_machine(V, "test", RELEASES["26.04"], secrets=SECRETS, container=DC)
+one_time = m_add_machine.add_machine(V, "test", RELEASES["26.04"], secrets=SECRETS, container=DC, os="linux")
 code, out = on(box, f"bash /root/join-linux.sh {fp} --one-time", stdin=one_time + "\n")
 check("26.04: joins with a one-time join password, no admin password on the machine", code == 0 and "joined" in out,
       out)
+where = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={RELEASES['26.04']}$)",
+            "distinguishedName", "operatingSystem"], ok=False).stdout
+# the OS is not recorded here: a one-time join signs in as the computer, which AD does not let write it (1.6.11.5)
+check("26.04: it stays where add-machine --os linux put it (OU=linux)",
+      "OU=linux,OU=machines,OU=lan,OU=sites" in where, where)
 time.sleep(5)
 checks(box, "26.04")
 

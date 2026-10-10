@@ -283,8 +283,6 @@ cli:dns-filter.status -
 cli:doctor -
 cli:domain +
 cli:domain -
-cli:domain.add-machine +
-cli:domain.add-machine -
 cli:domain.password-policy +
 cli:domain.password-policy -
 cli:domain.status +

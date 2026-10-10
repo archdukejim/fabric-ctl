@@ -92,7 +92,8 @@ def directory_post(h, sess, parts, form):
         try:
             if name == "_new" and not op:
                 machine = form.get("name", "")
-                return h.send(200, views.machine_result(page_context(sess), machine, actions.add_machine(machine)))
+                return h.send(200, views.machine_result(page_context(sess), machine,
+                                                        actions.add_machine(machine, form.get("os") or None)))
             if name and op in ("enable", "disable", "delete"):
                 actions.machine_action(name, op)
                 msg = {"enable": f"{name} enabled.", "disable": f"{name} disabled.", "delete": f"{name} removed."}[op]

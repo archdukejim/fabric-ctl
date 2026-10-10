@@ -237,7 +237,8 @@ except ValidationError as e:
 ous = dc("ldbsearch", "-H", "/data/private/sam.ldb", "-b", f"OU=sites,{BASE}", "(objectClass=organizationalUnit)",
          "dn").stdout
 check("the site's OU tree under OU=sites, with OU=organisation at the root site",
-      ous.count("dn: ") == 14 and f"OU=organisation,OU=lan,OU=sites,{BASE}" in ous, ous.count("dn: "))
+      # sites, lan, its eight OUs and OU=machines' linux and windows (1.6.11.5), organisation and its three
+      ous.count("dn: ") == 16 and f"OU=organisation,OU=lan,OU=sites,{BASE}" in ous, ous.count("dn: "))
 check("the directory is consistent (dbcheck)", "(0 errors)" in dc("samba-tool", "dbcheck", "-s", "/data/etc/smb.conf",
                                                                   "--cross-ncs").stdout)
 policy = dc("samba-tool", "domain", "passwordsettings", "show", "-s", "/data/etc/smb.conf").stdout
@@ -275,6 +276,9 @@ check("the host groups: fabric-admins (organisation), lan-fabric-admins and lan-
       all(f"sAMAccountName: {g}" in dc("ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={g})",
                                        "sAMAccountName").stdout
           for g in ("fabric-admins", "lan-fabric-admins", "lan-fabric-machines")))
+_ous = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(objectClass=organizationalUnit)", "dn").stdout
+check("each site's OU=machines holds OU=linux and OU=windows (1.6.11.5, 2.1.6.36)",
+      "OU=linux,OU=machines,OU=lan," in _ous and "OU=windows,OU=machines,OU=lan," in _ous, _ous[-400:])
 check("a new site's lan-fabric-admins is a member of lan-machine-admins (2.1.6.38); fabric-admins of lan-fabric-admins",
       "lan-fabric-admins" in members("lan-machine-admins") and "fabric-admins" in members("lan-fabric-admins"),
       (members("lan-machine-admins"), members("lan-fabric-admins")))
@@ -282,8 +286,8 @@ check("a new site's lan-fabric-admins is a member of lan-machine-admins (2.1.6.3
 # the move from the linux-sudo role (2.1.6.37, 2.1.6.44): an install from before it, its role and rule put back as they
 # were with a member, then converged: the member keeps sudo through lan-fabric-admins, the old role and rule are gone
 _site = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(&(objectClass=organizationalUnit)(ou=sudoers))", "dn").stdout
-_sudoers = next(line.split(":", 1)[1].strip() for line in _site.splitlines()
-                if line.startswith("dn:") and "OU=lan," in line)
+_sudoers = next(line.split(":", 1)[1].strip() for line in _site.splitlines()     # the site's, not the organisation's
+                if line.startswith("dn: OU=sudoers,OU=lan,OU=sites,"))
 dc("samba-tool", "group", "add", "lan-linux-sudo", "-s", "/data/etc/smb.conf")
 dc("samba-tool", "user", "add", "olga", "--random-password", "-s", "/data/etc/smb.conf")
 dc("samba-tool", "group", "addmembers", "lan-linux-sudo", "olga", "-s", "/data/etc/smb.conf")

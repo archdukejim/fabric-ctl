@@ -32,6 +32,7 @@ account, so AD's per-site limits apply to it.
 | `common/` | Helpers shared by the device and role operations (see its README) |
 | `ensure_default_device_roles.py` | Create fabric's default device roles once, in the organisation's `OU=device-roles` (a marker file keeps a deleted one from coming back) |
 | `add_machine.py` | A machine pre-created in this site with a one-time join password (`fabricctl domain add-machine`) |
+| `sort_machines.py` | Windows machines that joined themselves moved into OU=windows, once each, recorded in config/machines-sorted.json (`fabricctl domain sort-machines`, the fabric-machines timer) |
 | `list_machines.py` | This site's machines in the domain (the Directory tab's Machines) |
 | `set_machine_enabled.py` | Disable a machine of this site, or enable it again (audited) |
 | `remove_machine.py` | Remove a machine of this site from the domain (audited) |

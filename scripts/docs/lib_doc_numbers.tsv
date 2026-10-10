@@ -86,6 +86,7 @@ file	fabricctl-jinja|src/containers/samba/set_person.py	71
 file	fabricctl-jinja|src/containers/samba/share_winbind.py	43	
 file	fabricctl-jinja|src/containers/samba/site_info.py	28	
 file	fabricctl-jinja|src/containers/samba/site_roles.py	64	
+file	fabricctl-jinja|src/containers/samba/sort_windows_machines.py	72	
 file	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py	48	
 file	fabricctl-lib|src/federation/server.py	1	
 file	fabricctl-lib|src/ux/cli/keycloak_bootstrap.py	2	
@@ -228,6 +229,7 @@ file	fabriclib-directory|src/fabriclib/directory/run_people_command.py	29
 file	fabriclib-directory|src/fabriclib/directory/set_machine_enabled.py	26	
 file	fabriclib-directory|src/fabriclib/directory/set_person_enabled.py	30	
 file	fabriclib-directory|src/fabriclib/directory/set_person_group.py	31	
+file	fabriclib-directory|src/fabriclib/directory/sort_machines.py	32	
 file	fabriclib-directory|src/fabriclib/directory/update_device.py	21	
 file	fabriclib-directory|src/fabriclib/directory/update_role.py	22	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/add_filter_list.py	20	
@@ -979,6 +981,7 @@ function	fabricctl-jinja|src/containers/samba/site_info.py|site_info	1
 function	fabricctl-jinja|src/containers/samba/site_roles.py|fabric_admins	2	
 function	fabricctl-jinja|src/containers/samba/site_roles.py|fabric_machines	3	
 function	fabricctl-jinja|src/containers/samba/site_roles.py|role_group	1	
+function	fabricctl-jinja|src/containers/samba/sort_windows_machines.py|sort_windows_machines	1	
 function	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py|_entry	1	
 function	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py|windows_baseline_policy	2	
 function	fabricctl-lib|src/federation/server.py|Handler.after_join	1	
@@ -1177,6 +1180,7 @@ function	fabriclib-directory|src/fabriclib/directory/run_people_command.py|run_p
 function	fabriclib-directory|src/fabriclib/directory/set_machine_enabled.py|set_machine_enabled	1	
 function	fabriclib-directory|src/fabriclib/directory/set_person_enabled.py|set_person_enabled	1	
 function	fabriclib-directory|src/fabriclib/directory/set_person_group.py|set_person_group	1	
+function	fabriclib-directory|src/fabriclib/directory/sort_machines.py|sort_machines	1	
 function	fabriclib-directory|src/fabriclib/directory/update_device.py|update_device	1	
 function	fabriclib-directory|src/fabriclib/directory/update_role.py|update_role	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/add_filter_list.py|add_filter_list	1	
