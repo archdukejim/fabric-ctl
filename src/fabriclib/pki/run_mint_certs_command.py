@@ -9,6 +9,7 @@ from fabriclib.common.save_vars import save_vars
 from fabriclib.common.vars_lock import vars_lock
 from fabriclib.pki.mint_extra_cert import mint_extra_cert
 
+KEY_TYPES = ("RSA", "EC", "OKP")    # what step-ca mints (USAGE's --kty)
 USAGE = """usage: fabricctl --mint-certs [--intermediate-ca [N]] [--kty RSA|EC|OKP] [--size BITS]
                                                   ask for one certificate, record it in extra_certs and mint it
        fabricctl --mint-certs --apply             mint every extra_certs entry in vars.yaml"""
@@ -82,10 +83,25 @@ def run_mint_certs_command(vars_path, archive_dir, args):
             if not san:
                 break
             sans.append(san)
-    days = int(ask("mint_certs.days", _prompt("Validity in days", "365"), "365"))
+    # every answer checked before anything is written: a refusal says why and changes nothing (global Rule 9)
+    days = ask("mint_certs.days", _prompt("Validity in days", "365"), "365")
+    if not days.isdigit() or int(days) < 1:
+        print(f"[✗] Validity must be a whole number of days, not {days!r}: nothing changed.")
+        return 1
+    days = int(days)
     out_dir = ask("mint_certs.out_dir", _prompt("Output directory [caller's home]"))
-    kty = ask("mint_certs.key_type", _prompt("Key type", kty), kty)
-    size = int(ask("mint_certs.key_size", _prompt("Key size", str(size)), str(size)))
+    if out_dir and not os.path.isdir(out_dir):
+        print(f"[✗] No such directory: {out_dir}: nothing changed.")
+        return 1
+    kty = ask("mint_certs.key_type", _prompt("Key type", kty), kty).upper()
+    if kty not in KEY_TYPES:
+        print(f"[✗] Key type must be one of {', '.join(KEY_TYPES)}, not {kty!r}: nothing changed.")
+        return 1
+    size = ask("mint_certs.key_size", _prompt("Key size", str(size)), str(size))
+    if not size.isdigit():
+        print(f"[✗] Key size must be a whole number of bits, not {size!r}: nothing changed.")
+        return 1
+    size = int(size)
 
     entry = {"cn": cn, "sans": sans, "days": days, "kty": kty, "size": size}
     if is_ca:
@@ -95,10 +111,12 @@ def run_mint_certs_command(vars_path, archive_dir, args):
     kind = (f"Subordinate CA (pathLen={path_len})" if is_ca else "Leaf")
     print(f"\n  CN: {cn}\n  Type: {kind}\n  Key: {kty} {size}\n  Days: {days}"
           + "".join(f"\n    SAN {s}" for s in sans) + f"\n  Output: {out_dir or 'caller home'}\n")
-    if ask("mint_certs.confirm", "  Add to vars.yaml and mint? [y/N] ").lower() not in ("y", "yes"):
+    if ask("mint_certs.confirm", "  Mint and add to vars.yaml? [y/N] ").lower() not in ("y", "yes"):
         print("[*] Cancelled.")
         return 0
 
+    # minted first, saved after: a mint that fails leaves vars.yaml as it was
+    _show(mint_extra_cert(load_vars(vars_path), entry))
     with vars_lock():
         os.makedirs(os.path.join(archive_dir, "vars"), exist_ok=True)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
@@ -107,6 +125,5 @@ def run_mint_certs_command(vars_path, archive_dir, args):
         data["extra_certs"] = list(data.get("extra_certs") or []) + [entry]
         save_vars(data, vars_path)
     print("[+] vars.yaml updated")
-    _show(mint_extra_cert(load_vars(vars_path), entry))
     print(f"[+] Certificate for '{cn}' minted.")
     return 0

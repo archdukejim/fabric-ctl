@@ -203,10 +203,6 @@ ask:menu.mint.sans +
 ask:menu.mint.sans -
 ask:menu.vars.* +
 ask:menu.vars.* -
-ask:mint_certs.days -
-ask:mint_certs.key_size -
-ask:mint_certs.key_type -
-ask:mint_certs.out_dir -
 ask:mint_certs.san -
 ask:people.remove.confirm +
 ask:people.remove.confirm -
@@ -246,7 +242,6 @@ cli:--interactive +
 cli:--interactive -
 cli:--keycloak-sync +
 cli:--keycloak-sync -
-cli:--mint-certs -
 cli:--output +
 cli:--output -
 cli:--print +

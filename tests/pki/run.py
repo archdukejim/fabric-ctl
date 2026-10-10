@@ -521,6 +521,17 @@ code, out = fabricctl("--mint-certs", answers="\n".join(["kept.lan.test", "", "3
 check("answering no at the confirmation: cancelled, nothing recorded or minted",
       code == 0 and "Cancelled" in out and config_files() == before and not os.path.exists(f"{T}/kept-lan-test.crt"),
       (code, out[-300:]))
+# each answer checked before anything is written (2.3.1.15): refused with why, exit 1, vars.yaml and the folder as they were
+for bad, answers, says in (
+        ("days", ["bad.lan.test", "", "abc", T, "RSA", "2048", "y"], "whole number of days"),
+        ("out_dir", ["bad.lan.test", "", "30", "/nonexistent-dir", "RSA", "2048", "y"], "No such directory"),
+        ("key_type", ["bad.lan.test", "", "30", T, "DSA", "2048", "y"], "Key type must be one of RSA, EC, OKP"),
+        ("key_size", ["bad.lan.test", "", "30", T, "RSA", "big", "y"], "whole number of bits")):
+    code, out = fabricctl("--mint-certs", answers="\n".join(answers) + "\n")
+    # covers: ask:mint_certs.days ask:mint_certs.out_dir ask:mint_certs.key_type ask:mint_certs.key_size cli:--mint-certs -
+    check(f"refused: a bad {bad} answer says why, exits 1, records and mints nothing",
+          code == 1 and says in out and "Traceback" not in out and config_files() == before
+          and not os.path.exists(f"{T}/bad-lan-test.crt"), (code, out[-300:]))
 code, out = fabricctl("--mint-certs", answers="\n".join(["minted.lan.test", "minted", "192.168.7.77", "", "30", T,
                                                           "RSA", "2048", "y"]) + "\n")
 minted = f"{T}/minted-lan-test.crt"
