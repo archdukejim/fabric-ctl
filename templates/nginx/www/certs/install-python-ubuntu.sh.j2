@@ -29,10 +29,10 @@ echo "Checking for global pip certifi installation..."
 if command -v python3 >/dev/null 2>&1; then
     CERTIFI_PATH=$(python3 -c "import certifi; print(certifi.where())" 2>/dev/null || true)
     if [ -n "$CERTIFI_PATH" ] && [ -f "$CERTIFI_PATH" ]; then
-        if ! grep -q "{{ friendly_name | default(ca_name) }}" "$CERTIFI_PATH"; then
+        if ! grep -qF -- {{ (friendly_name | default(ca_name)) | sh }} "$CERTIFI_PATH"; then
             echo "Appending to global certifi bundle at $CERTIFI_PATH..."
             echo "" | $SUDO tee -a "$CERTIFI_PATH" >/dev/null
-            echo "# {{ friendly_name | default(ca_name) }} Root CA" | $SUDO tee -a "$CERTIFI_PATH" >/dev/null
+            echo {{ ('# ' ~ (friendly_name | default(ca_name)) ~ ' Root CA') | sh }} | $SUDO tee -a "$CERTIFI_PATH" >/dev/null
             cat "$CERT_FILE" | $SUDO tee -a "$CERTIFI_PATH" >/dev/null
         else
             echo "Certificate already exists in global certifi bundle."

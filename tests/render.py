@@ -701,3 +701,36 @@ assert re.search(r"^@\s+A\s+", _db_apex, re.M) and re.search(r"^info\s+CNAME\s+"
     "the zone answers for <domain> (to redirect) and for info"
 print("the info page at info.<domain>: HTTP without a redirect, the CA and its fingerprint; <domain> and the host's "
       "name redirect (2.1.4.3)")
+
+# Free-text labels (manual 1.1.5.7): whatever they hold, the settings file reads them back exactly, the pages escape
+# them, and the client scripts quote them, so nothing in a label is ever run on a client.
+import subprocess  # noqa: E402
+import tempfile  # noqa: E402
+HOSTILE = "Acme: Inc # \"q\" $(touch PWNED) `touch PWNED2` <b>x</b> & it's\nline two"
+HOSTILE_SH = HOSTILE.replace("\n", " ")   # one line, so each script line that carries it can run alone
+LABELS = ("friendly_name", "service_mark", "care_of", "trademark", "copyright", "contact_email", "contact_phone",
+          "address_line1", "address_line2", "ca_name")
+_lv = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE),
+                                                                 **{k: HOSTILE for k in LABELS}}))
+# covers: setting:friendly_name setting:service_mark setting:care_of setting:trademark setting:copyright +
+# covers: setting:contact_email setting:contact_phone setting:address_line1 setting:address_line2 setting:ca_name +
+assert all(_lv[k] == HOSTILE for k in LABELS), {k: _lv[k] for k in LABELS if _lv[k] != HOSTILE}
+_lpage = env.get_template('nginx/www/shared/base.html.j2').render(**{**full, **{k: HOSTILE for k in LABELS}})
+assert "<b>x</b>" not in _lpage and "&lt;b&gt;x&lt;/b&gt;" in _lpage, "a label is escaped in the pages"
+with tempfile.TemporaryDirectory() as _d:
+    for _name in ("install-certs.sh.j2", "install-chrome-ubuntu.sh.j2", "install-firefox-ubuntu.sh.j2",
+                  "install-python-ubuntu.sh.j2"):
+        _sh = env.get_template(f'nginx/www/certs/{_name}').render(**{**full, 'friendly_name': HOSTILE_SH})
+        assert subprocess.run(["bash", "-n"], input=_sh, text=True).returncode == 0, f"{_name} does not parse"
+        for _line in _sh.splitlines():       # run each line that carries the label, alone, where a canary would land
+            if "Acme" in _line and ("FRIENDLY_NAME=" in _line or _line.lstrip().startswith(("echo", "if"))):
+                _cmd = _line.strip().split(" | ")[0].removesuffix("; then").removeprefix("if ! ")
+                if _cmd.startswith("grep"):
+                    continue                 # needs the bundle; the quoting is the echo's and assignment's
+                _out = subprocess.run(["bash", "-c", _cmd + ('; printf %s "$FRIENDLY_NAME"' if "=" in _cmd.split()[0]
+                                                             else "")], cwd=_d, capture_output=True, text=True)
+                assert HOSTILE_SH in _out.stdout, (_name, _cmd, _out.stdout, _out.stderr)
+    assert not os.path.exists(os.path.join(_d, "PWNED")) and not os.path.exists(os.path.join(_d, "PWNED2")), \
+        "nothing in a label ran"
+print("free-text labels: read back exactly from vars.yaml, escaped in the pages, quoted in the client scripts "
+      "(nothing in one runs, 1.1.5.7)")

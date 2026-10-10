@@ -2,7 +2,7 @@
 set -euo pipefail
 
 CERT_FILE="/usr/local/share/ca-certificates/fabric-{{ domain_file }}-root-ca-1.crt"
-FRIENDLY_NAME="{{ friendly_name | default(ca_name) }} Root CA"
+FRIENDLY_NAME={{ ((friendly_name | default(ca_name)) ~ ' Root CA') | sh }}
 
 if [ ! -f "$CERT_FILE" ]; then
     CERT_FILE="/usr/local/share/ca-certificates/fabric-{{ domain_file }}-root-ca.crt"

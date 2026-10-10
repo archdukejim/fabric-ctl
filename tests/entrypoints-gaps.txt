@@ -478,10 +478,6 @@ setting:ad_org_ou -
 setting:ad_realm +
 setting:ad_realm -
 setting:ad_site_ou -
-setting:address_line1 +
-setting:address_line1 -
-setting:address_line2 +
-setting:address_line2 -
 setting:bind9_doh_port +
 setting:bind9_doh_port -
 setting:bind_acl_policies -
@@ -491,11 +487,7 @@ setting:byoc +
 setting:byoc -
 setting:ca_crt_path +
 setting:ca_crt_path -
-setting:ca_name +
-setting:ca_name -
 setting:ca_nest_depth -
-setting:care_of +
-setting:care_of -
 setting:cert_acme_lifetime_hours -
 setting:cert_city +
 setting:cert_city -
@@ -534,12 +526,6 @@ setting:cname_sso +
 setting:cname_sso -
 setting:compose_file +
 setting:compose_file -
-setting:contact_email +
-setting:contact_email -
-setting:contact_phone +
-setting:contact_phone -
-setting:copyright +
-setting:copyright -
 setting:deploy_base_dir +
 setting:deploy_base_dir -
 setting:dns -
@@ -555,7 +541,6 @@ setting:federation_endpoint -
 setting:fluentbit_mem_limit -
 setting:freeradius_mem_limit +
 setting:freeradius_mem_limit -
-setting:friendly_name +
 setting:hostname_bind9 +
 setting:hostname_bind9 -
 setting:hostname_certs +
@@ -701,8 +686,6 @@ setting:samba_mem_limit -
 setting:security -
 setting:service_dirs +
 setting:service_dirs -
-setting:service_mark +
-setting:service_mark -
 setting:service_users +
 setting:service_users -
 setting:signin_everyone_second_factor -
@@ -718,8 +701,6 @@ setting:stepca_port +
 setting:stepca_port -
 setting:system_timezone +
 setting:system_timezone -
-setting:trademark +
-setting:trademark -
 setting:tsig_keys -
 setting:use_host_dns -
 setting:webui_admin_email +

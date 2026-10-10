@@ -13,15 +13,16 @@
 domain: {{ domain }}
 domain_file: {{ domain_file | default(domain | replace('.', '_')) }}
 hostname: {{ hostname }}
-friendly_name: {{ friendly_name | default("Example Org", true) }}
-service_mark: {{ service_mark | default('null', true) }}
-care_of: {{ care_of | default('null', true) }}
-trademark: {{ trademark | default('null', true) }}
-copyright: {{ copyright | default('null', true) }}
-contact_email: {{ contact_email | default('null', true) }}
-contact_phone: {{ contact_phone | default('null', true) }}
-address_line1: {{ address_line1 | default('null', true) }}
-address_line2: {{ address_line2 | default('null', true) }}
+{# free text (organisation labels): written as JSON strings, valid YAML whatever they hold (manual 1.1.5.7) #}
+friendly_name: {{ (friendly_name | default("Example Org", true)) | to_json }}
+service_mark: {{ (service_mark | default(none, true)) | to_json }}
+care_of: {{ (care_of | default(none, true)) | to_json }}
+trademark: {{ (trademark | default(none, true)) | to_json }}
+copyright: {{ (copyright | default(none, true)) | to_json }}
+contact_email: {{ (contact_email | default(none, true)) | to_json }}
+contact_phone: {{ (contact_phone | default(none, true)) | to_json }}
+address_line1: {{ (address_line1 | default(none, true)) | to_json }}
+address_line2: {{ (address_line2 | default(none, true)) | to_json }}
 system_timezone: {{ system_timezone | default('America/New_York') }}
 deploy_base_dir: {{ deploy_base_dir | default('/opt') }}
 
@@ -317,7 +318,7 @@ ica_parents_path: {{ ica_parents_path }}
 {% endif %}
 site_ca_depth: {{ site_ca_depth | default(0) | int }}
 ca_nest_depth: {{ ca_nest_depth | default(1) | int }}
-ca_name: {{ ca_name | default(friendly_name ~ ' CA') }}
+ca_name: {{ (ca_name | default(friendly_name ~ ' CA')) | to_json }}
 cert_country: {{ cert_country | default('US') }}
 cert_province: {{ cert_province | default('State') }}
 cert_city: {{ cert_city | default('City') }}

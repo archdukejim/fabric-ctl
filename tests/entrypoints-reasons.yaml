@@ -5,8 +5,15 @@
 #
 # Format: one line per setting, "setting:<key>": <the reason, one line>
 #
-# None qualifies yet (reviewed 2026-10-10). The footer's free-text labels (copyright, service_mark, trademark, care_of,
-# address_line1, address_line2, contact_phone, contact_email) and ca_name come closest, but each can be wrong today:
-# templates/vars.yaml.j2 writes them unquoted into vars.yaml (a ": " or a leading "#" changes what is read back), and
-# the pages render them without HTML escaping (jinja_env has no autoescape), so each still needs a rule and a
-# negative test.
+# The organisation's free-text labels qualify since they are written quoted for every file they go into (1.1.5.7,
+# 2.3.1.14); until then they could break vars.yaml and the client scripts (reviewed 2026-10-10).
+"setting:friendly_name": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:ca_name": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:copyright": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:trademark": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:service_mark": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:care_of": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:contact_email": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:contact_phone": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:address_line1": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:address_line2": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)

@@ -4,6 +4,7 @@ import json
 import os
 import posixpath
 import re
+import shlex
 import time
 
 import jinja2
@@ -106,11 +107,15 @@ def jinja_env(template_dir):
     Feeds:   deploy/apply_deployment (and render_templates), dhcp/deploy_kea.py, logs/deploy_fluentbit.py,
              logs/run_logs_command.py,
              radius/deploy_freeradius.py; tests/render.py and the kea, fluentbit and freeradius suites."""
+    # pages (*.html.j2) escape every value; other files quote values for their language: `to_json` for YAML and
+    # JSON, `sh` for shell (manual 1.1.5.7)
     env = _RelativeEnvironment(loader=jinja2.FileSystemLoader(template_dir), keep_trailing_newline=True,
-                               trim_blocks=True, lstrip_blocks=True)
+                               trim_blocks=True, lstrip_blocks=True,
+                               autoescape=jinja2.select_autoescape(enabled_extensions=("html.j2",), default=False))
     env.filters.update({
         "to_nice_yaml": lambda v, indent=4: yaml.safe_dump(v, default_flow_style=False, indent=indent).strip(),
         "to_json": json.dumps,
+        "sh": lambda v: shlex.quote(str(v)),
         "unique": _unique,
         "regex_replace": lambda s, pattern, repl: re.sub(pattern, repl, s),
         "b64encode": lambda s: base64.b64encode(s.encode()).decode(),

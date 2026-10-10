@@ -22,7 +22,7 @@ docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	2616cd61465cd
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.4-roadmap.md	a11bed56a8b5cbc59e198144500fe79032c21bc4	2026-10-10	
-docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	b52c63eec8985cf2654c319022e20a5a92c6651a	2026-10-10	
+docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	1e4a87374910ef46254bdb7fae823a15a248feb4	2026-10-10	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	05ae522ba371603b5ae3129d01625d91c73c97f9	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.8-about-settings.md	8022994724f5bd9daa98a515c230ec5c8b949a67	2026-10-08	
@@ -131,7 +131,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	9df3b3a9713275c6b4abd28d84f22
 docs/volume_2_engineering_decisions/2.1.9-federation.md	6c344024d62480ec9bea70a3245c3baa6511af50	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	905141567625768590c16a2baf7b6ae877737587	2026-10-10	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	aeb784ed32210278863207c1876d3e0efd1995f3	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	692e9f6ce8ae49f7fb09eff20efc300fa478aa0d	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -399,7 +399,7 @@ src/fabriclib/common/doh_query.py	820cf245c084a1ead14f327d50c88c37d903d782	2026-
 src/fabriclib/common/dot_query.py	8269b11ec7689b9b4b70c761ca46fed3f5d3dba3	2026-10-10	
 src/fabriclib/common/ensure_dir.py	f9a865f3a3df279bd7c7276c2a4cb6a510171b03	2026-10-05	
 src/fabriclib/common/errors.py	71be207d776ff8004eea177377a0a3938601c1a7	2026-09-30	
-src/fabriclib/common/jinja_env.py	4c2274dd6a11180616773d025167b416edecc814	2026-10-08	
+src/fabriclib/common/jinja_env.py	38b69be0047ccd5d81dd698c6b99a282705c8811	2026-10-10	
 src/fabriclib/common/keep_original.py	e9b55a88a4a6c96716a1af5ecb87e42985383fcc	2026-10-08	
 src/fabriclib/common/load_vars.py	7f046554956bb5731937666fda743d4bd17cb9f8	2026-10-02	
 src/fabriclib/common/lock_dir.py	9edebb19c7cd9f0cbd88a3cb78401dd7364eae8d	2026-10-04	
@@ -1219,10 +1219,10 @@ templates/nginx/www/README.md	f25fde1156693652cede612c785ab748faa24ae4	2026-10-0
 templates/nginx/www/certs/README.md	970670cf8cc07afb6d30f2b595289748d5f6b6c4	2026-10-08	
 templates/nginx/www/certs/index.html.j2	bacff63a75c7727f2fe59f0f4f381761b14173f7	2026-10-06	
 templates/nginx/www/certs/install-all-ubuntu.sh.j2	441d6599d30dd51d9b7304e234fdd3c0c476e586	2026-09-30	
-templates/nginx/www/certs/install-certs.sh.j2	8db2ae48cb24cee1be440853a88cec4a4603ebe3	2026-09-30	
-templates/nginx/www/certs/install-chrome-ubuntu.sh.j2	f194bb501190c60b002a07019c58038e7086ca7f	2026-09-30	
-templates/nginx/www/certs/install-firefox-ubuntu.sh.j2	552f6e79216f6185a37f57a10954538f0c4d8cc0	2026-09-30	
-templates/nginx/www/certs/install-python-ubuntu.sh.j2	79adb0592b0e95bf0f334b0e83b943c61dca9538	2026-09-30	
+templates/nginx/www/certs/install-certs.sh.j2	f1803bb2a46904d1e5777a7c2731216f4c8a0269	2026-10-10	
+templates/nginx/www/certs/install-chrome-ubuntu.sh.j2	3196d4dffd42cd99ab875b65551ba321520e5a2e	2026-10-10	
+templates/nginx/www/certs/install-firefox-ubuntu.sh.j2	567ff3744968943c8c46406dfa2b591832aa95e5	2026-10-10	
+templates/nginx/www/certs/install-python-ubuntu.sh.j2	80bd35e39fbe8ef8f1ad0b7fba38353cc006247f	2026-10-10	
 templates/nginx/www/certs/join-linux.sh.j2	086bfa07d424124ba29d883cfe1c69d056a5c85e	2026-10-09	
 templates/nginx/www/landing/README.md	f6b22867e45e2bea4ff6d29d1287f5608a1607f7	2026-09-30	
 templates/nginx/www/landing/index.html.j2	5cc39dbedf85df4dfe3e58f5ea272b95ea48606a	2026-10-08	
@@ -1268,7 +1268,7 @@ templates/systemd/fabric-dns-log.timer	7ea4ce79550f39c4b4392f9db6bf558304bc7046	
 templates/systemd/fabric-federation.service.j2	5c33184dacfdbf2e4b6e37f5bdcf88acb191ca7a	2026-10-01	
 templates/systemd/fabric.target	b3b87d2c8db3fae16df3bbf548e09955f3d1a19e	2026-09-30	
 templates/systemd/wrapper.service.j2	3da88d27873cbcd446c3f41cca4309a71217063e	2026-10-08	
-templates/vars.yaml.j2	5e66ae30d267a0316a59edea697a1d4c23abfed8	2026-10-10	
+templates/vars.yaml.j2	89e903bba5290571aac1eff3e682d728b4e5c124	2026-10-10	
 templates/webui-app/README.md	cb36fb38d98f1b13362b52a096517eaf6d17b31f	2026-10-09	
 templates/webui-app/apply.html	8b8fd4593d075794cc14f4a38d97874c4cc76c1d	2026-10-02	
 templates/webui-app/audit.html	92d66156a5052b3b375db22a3c8eb3b1f266cf83	2026-10-02	
@@ -1306,8 +1306,8 @@ tests/docs/check_docstrings.py	525f95338347ff4ea65bdec1130f401d9e326460	2026-10-
 tests/docs/check_entrypoints.py	d5bc6e7b428fc22770b90e35ab0899c9ab616986	2026-10-10	
 tests/docs/docstring_only_diff.py	89dc777682c5db59760752f3d3dab245513f9163	2026-10-03	
 tests/docs/run.py	936ec0a533645a0628d5f56983de15dd56f9275b	2026-10-10	
-tests/entrypoints-gaps.txt	3f991a0089db6dcbf0c80a18e568c20e35bcffd5	2026-10-10	
-tests/entrypoints-reasons.yaml	59dda7940724395df6476be91b1baa79ea88b8cd	2026-10-10	
+tests/entrypoints-gaps.txt	a752cf2d612250d58a2cecf95a7160bb98e10ed1	2026-10-10	
+tests/entrypoints-reasons.yaml	fd19dcae1f8c4708e37dbe8a3cc43e366d9c08d1	2026-10-10	
 tests/entrypoints.yaml	4367da64acb1db7e2376f02d7c10112a28be4e60	2026-10-10	
 tests/federation/README.md	196c75b746763bfb12df898172248a0bfe83ad06	2026-10-05	
 tests/federation/address_plan.py	353d827caa3bd6b24884c785e238d859d9f16066	2026-10-08	
@@ -1358,7 +1358,7 @@ tests/pki/renewal.py	e7411202a204fa472a773e9564f60572605ffaf3	2026-10-10
 tests/pki/revocation.py	cf80ad8b84912f80b941f8fcf3387825e9ba18e6	2026-10-10	
 tests/pki/run.py	7e02f45975b4760239712fd6d582fab9960d75e7	2026-10-10	
 tests/pki/site_ca.py	6e71ca7798e1aa94ce0f43160716ac57302bec65	2026-10-08	
-tests/render.py	ed50db3d950c90baccf56baef34a278152c542ba	2026-10-10	
+tests/render.py	2c2d57445807a71790b175837aa8b15e6d4d8b15	2026-10-10	
 tests/resolver/README.md	e056b218eb8798e3eb120f5f4a07e34e4c40becd	2026-10-10	
 tests/resolver/console.py	efa41389157ce782d840a17a483f9ac521991dec	2026-10-10	
 tests/resolver/groups.py	70e151d1944ee764c5be7f473a3b76a3d19f8912	2026-10-10	
