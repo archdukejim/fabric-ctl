@@ -9,7 +9,8 @@ def directory_page(h, ctx, query, status=200):
              'people', 'domain', 'machines', 'gpo' (with match: a policy search), else 'devices'), name (device or
              role; unknown → the list), msg, err; status — int, default 200.
     Returns: the directory page with the given status; when the directory cannot be read (AgentError,
-             ValidationError) the page shows why instead of the data.
+             ValidationError) the page shows why instead of the data. The machines view also shows who may sign in
+             to them per OU (logon_overview; why it could not be read, alone, when it fails).
     Fails:   PermissionDenied and AuthError propagate to handle_request (403, redirect to /login).
     Feeds:   get_page (/directory).
     """
@@ -17,7 +18,14 @@ def directory_page(h, ctx, query, status=200):
                                                       "gpo") else "devices"
     kw = {"msg": query.get("msg", ""), "err": query.get("err", "")}
     try:
-        if view in ("domain", "machines"):
+        if view == "machines":                      # who may sign in to them, beside the machines (1.6.11.4)
+            domain = actions.domain_overview()
+            try:
+                logon = actions.logon_overview()
+            except (actions.AgentError, actions.ValidationError) as exc:
+                logon = {"error": str(exc), "policies": [], "always": [], "legacy": False}
+            return h.send(status, views.directory(ctx, view, domain=domain, logon=logon, **kw))
+        if view == "domain":
             return h.send(status, views.directory(ctx, view, domain=actions.domain_overview(), **kw))
         if view == "gpo":
             return h.send(status, views.directory(ctx, view, gpo=actions.gpo_overview(query.get("match", "")), **kw))

@@ -168,7 +168,9 @@ def collect_vars(ctx):
              the BIND resolver's (move_dns_filter, 0.7). Missing/invalid required
              values are asked for (defaults from detect_network); webui_admin_user is chosen once; the AD domain
              is asked when missing (ask_ad_domain); the rest takes defaults changed later (2.1.2.16): the password
-             policy (DEFAULT_POLICY, a vars file's keys kept, 2.1.6.35) and the memory (set_ram_capacity).
+             policy (DEFAULT_POLICY, a vars file's keys kept, 2.1.6.35), the memory (set_ram_capacity) and, on a
+             fresh install only (no vars file, no provisioned domain), who may sign in to the site's machines
+             (logon_policies: <site>-machine-admins on OU=machines, 1.6.11.4).
              Embedded TSIG secrets go to the secrets file, never into fabric.yaml.
     Fails:   SetupError for a --file that would lower a sign-in layer (check_signin_lowering), for missing/invalid
              required values (the AD domain included) with
@@ -178,6 +180,9 @@ def collect_vars(ctx):
              before deploy; deploy_config renders from fabric.yaml."""
     data = {}
     user_file = ctx.user_vars_file
+    # a fresh install: no settings yet and no domain provisioned (an upgrade or a reinstall keeps its log-on rights)
+    fresh = not os.path.exists(ctx.vars_file) and not os.path.exists(
+        os.path.join(ctx.deploy_base, "samba", "data", ".fabric-provisioned"))
     repo_vars = os.path.join(os.path.dirname(ctx.source_dir), "custom-vars.yaml")
     user = _load(user_file) if user_file else {}
     if os.path.exists(ctx.vars_file):
@@ -249,6 +254,12 @@ def collect_vars(ctx):
     if not (set(POLICY_KEYS) | {"complexity"}) <= set(policy):
         data["ad_password_policy"] = {**DEFAULT_POLICY, **policy}
         info("password policy: fabric's default (2.1.6.35), change it any time: sudo fabricctl domain password-policy")
+    # who may sign in to the site's machines (2.1.6.42, manual 1.6.11.4): on a fresh install, its machine admins on
+    # OU=machines; an upgrade keeps the rights it has (null, 2.1.6.44); a vars file may set its own
+    if fresh and "logon_policies" not in data:
+        site = str(data.get("site_name") or data["hostname"]).lower()
+        data["logon_policies"] = {"machines": {"console": [f"{site}-machine-admins"],
+                                               "remote": [f"{site}-machine-admins"]}}
     # how much of this host fabric may use (2.1.2.3, manual 1.2.4.2): all of it, measured, unless set (2.1.2.16)
     set_ram_capacity(data)
     # Kerberos sign-in stays off unless set (2.1.6.32, 2.1.2.16): the template's default; turned on later

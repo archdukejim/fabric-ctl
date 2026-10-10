@@ -57,10 +57,11 @@ def directory_post(h, sess, parts, form):
              ['devices'|'roles', '_new'] (form name + fields), ['devices'|'roles', <name>] (save), [..., <name>,
              'delete'], ['devices', <name>, 'certs', …] (unlink the certificate in form sha256), ['machines',
              '_new'] (form name), ['machines', <name>, 'enable'|'disable'|'delete'], ['gpo', 'set'|'clear'] (form
-             policy, el_<element> values, disabled); form — dict.
+             policy, el_<element> values, disabled), ['logon', 'set'|'clear'] (form ou; console and remote for set,
+             group names separated by commas, empty for nobody); form — dict.
     Returns: a new person, a reset and a new machine: 200 page with the one-time password; the other people changes,
              machines and gpo: 303 to their view with
-             msg or err; devices and roles: 303 to /directory with msg — the new item's
+             msg or err (logon: to the machines view); devices and roles: 303 to /directory with msg — the new item's
              page after create, the list after delete, the item's page otherwise.
     Fails:   404 for an unknown kind or operation or a missing name; ValidationError → 303 with err (people list; the
              list after a failed create; else the item's page); AgentError, PermissionDenied and AuthError propagate.
@@ -100,6 +101,16 @@ def directory_post(h, sess, parts, form):
         except actions.ValidationError as exc:
             return h.redirect("/directory?" + urllib.parse.urlencode({"view": "machines", "err": str(exc)}))
         return h.deny(404, "Not found.")
+    if kind == "logon" and name in ("set", "clear") and not op:
+        ou = form.get("ou", "")
+        groups = {k: [g.strip() for g in form.get(k, "").split(",") if g.strip()] for k in ("console", "remote")}
+        try:
+            done = actions.logon_change(name, ou, **(groups if name == "set" else {}))
+        except actions.ValidationError as exc:
+            return h.redirect("/directory?" + urllib.parse.urlencode({"view": "machines", "err": str(exc)}))
+        msg = f"{ou}: " + ("set" if name == "set" else "cleared, it takes its parent's policy") + (
+            "; applied." if done.get("applied") else "; saved, but the apply failed: see the audit log, apply again.")
+        return h.redirect("/directory?" + urllib.parse.urlencode({"view": "machines", "msg": msg}))
     if kind == "gpo" and name in ("set", "clear") and not op:
         policy = form.get("policy", "")
         values = {k[3:]: val for k, val in form.items() if k.startswith("el_") and val != ""}

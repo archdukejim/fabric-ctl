@@ -4,6 +4,7 @@ from create_person import create_person
 from get_person import get_person
 from link_device_cert import link_device_cert
 from list_machines import list_machines
+from logon_groups import logon_groups
 from list_people import list_people
 from read_devices import read_devices
 from read_networks import read_networks
@@ -27,6 +28,7 @@ OPS = {
     "get_person": get_person,
     "link_device_cert": link_device_cert,
     "list_machines": list_machines,
+    "logon_groups": logon_groups,
     "list_people": list_people,
     "read_devices": read_devices,
     "read_networks": read_networks,

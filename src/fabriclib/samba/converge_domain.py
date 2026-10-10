@@ -6,6 +6,7 @@ from fabriclib.federation.site_networks import site_networks
 from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.federation.common.load_registry import load_registry
 from fabriclib.radius.windows_lan_profile import windows_lan_profile
+from fabriclib.samba.check_logon_policies import check_logon_policies
 from fabriclib.samba.id_range import id_range
 from fabriclib.samba.sso_spns import sso_spns
 from fabriclib.samba.run_converge import run_converge
@@ -19,12 +20,14 @@ def converge_domain(v, federation_file, secrets, container="samba"):
              stepca/data/certs), lan_cidr and the DHCP subnets (site_networks), ldap_groups, webui_admin_group,
              service_users (FreeRADIUS's gid), install_freeradius, radius_people and hostname_radius (the Windows
              baseline's 802.1X profile), the id block (posix_id_block from the users OU's uid_range start), what
-             sso_spns reads (Keycloak's Kerberos sign-in account);
+             sso_spns reads (Keycloak's Kerberos sign-in account), logon_policies (who may sign in per OU, 1.6.11.4;
+             null: the site's log-on rights as before 0.9);
              federation_file — the federation registry (whether this is the root site); secrets — fabric's secrets
              (the service accounts' passwords: ad_agent_password, ad_keycloak_password, ad_radius_password);
              container — the DC's container.
     Returns: list of str, what changed (empty when the domain already was as wanted).
-    Fails:   ValidationError when the DC is not running or the converge code reports an error (its message);
+    Fails:   ValidationError when the DC is not running or the converge code reports an error (its message), or
+             for logon_policies check_logon_policies refuses;
              KeyError for a missing service-account secret;
              OSError reading the root CA; subprocess.TimeoutExpired after 10 minutes.
     Feeds:   setup/start_services (after the DC starts), deploy/restart_changed (every apply), tests/samba."""
@@ -39,7 +42,7 @@ def converge_domain(v, federation_file, secrets, container="samba"):
              "accounts": {f"fabric-{kind}-{v['site_name']}": secrets[f"ad_{kind}_password"]
                           for kind in ("agent", "keycloak", "radius")},
              "radius_gid": v["service_users"]["freeradius"]["gid"], "lan_profile": _lan_profile(v, root_ca),
-             "sso_spns": sso_spns(v)}
+             "sso_spns": sso_spns(v), "logon_policies": check_logon_policies(v.get("logon_policies"))}
     state["sso_host"] = v["hostname_keycloak"] if state["sso_spns"] else ""
     state["rodc"] = not state["root"] and v.get("ad_dc_type") == "rodc"
     if not state["root"]:                 # the AD site link to the parent (manual 1.9.8.5)

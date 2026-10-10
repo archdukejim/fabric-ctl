@@ -23,7 +23,12 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `set_password_policy.py` | The admin's password policy on the domain object (2.1.6.13) |
 | `ensure_gpo.py` | One of fabric's GPOs created, linked, its SYSVOL files written, its version bumped on change |
 | `root_ca_policy.py` | The Registry.pol that makes fabric's root CA a trusted root on Windows (Q13) |
-| `logon_rights_policy.py` | The GptTmpl.inf granting log-on to a site's machines (2.1.6.14, Q16) |
+| `logon_rights_policy.py` | The GptTmpl.inf granting log-on to a site's machines, at the keyboard and remotely (2.1.6.14, Q16, 1.6.11.4) |
+| `ensure_logon_policies.py` | Who may sign in to the site's machines: one log-on GPO per OU of `logon_policies` (or, null, the site's legacy one), the ones no longer wanted removed (1.6.11.4) |
+| `legacy_logon_groups.py` | The groups a site grants log-on to while it has no per-OU policies (as before 0.9, 2.1.6.44) |
+| `logon_groups.py` | Operation `logon_groups`: which named groups do not exist, and the site's legacy log-on groups (the editor's first edit) |
+| `find_gpo.py` | A GPO found by its display name |
+| `remove_gpo.py` | One of fabric's GPOs unlinked everywhere, its container and SYSVOL folder deleted |
 | `list_people.py` | Operation `list_people`: people and groups under OU=sites (service accounts left out) |
 | `create_person.py` | Operation `create_person`: a person in the site's OU=people, a uid from its block, in `<site>-users`, must change their password |
 | `get_person.py` | Operation `get_person`: where a person lives and their groups |
