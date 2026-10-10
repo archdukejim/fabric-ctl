@@ -169,7 +169,7 @@ subprocess.run(["bash", f"{REPO}/packaging/deb/assemble-tree.sh", W], check=True
 os.makedirs(f"{W}/fabric/config")
 open(f"{W}/fabric/VERSION", "w").write("9.9.9\n")
 open(f"{W}/fabric/config/vars.yaml", "w").write(
-    f"deploy_base_dir: {W}\nhost_ip: 192.168.7.53\nhostname_certs: certs.lan.test\n"
+    f"deploy_base_dir: {W}\nhost_ip: 192.168.7.53\nhostname_certs: certs.lan.test\nhostname_stepca: ca.lan.test\n"
     f"hostname_openbao: vault.lan.test\nip_openbao: 10.254.8.99\nopenbao_key_dir: {W}/nokeys\nhostname: pi-core\n"
     "service_users: {openbao: {uid: 913, gid: 913}}\n"
     "domain: lan.test\ndns:\n  dynamic_zone_var:\n    zone_authority: true\n    A:\n    - {name: pi-core, ip: 192.168.7.53}\n"
@@ -523,6 +523,35 @@ check("rotate -> a new secret", st == 200 and new and new != secret, st)
 st, hd, *_ = req("POST", "/bind9/tsig/npm-certbot/delete", POSTH, {"csrf": csrf}, cookie=session)
 # covers: web:post.bind9.tsig.*.delete agent:post.tsig.*.delete +
 check("delete TSIG key -> removed", st == 303 and "npm-certbot" not in open(f"{W}/fabric/config/vars.yaml").read(), st)
+vt = open(f"{W}/fabric/config/vars.yaml").read()
+st, hd, sc, body = req("POST", "/bind9/tsig/ghost/rotate", POSTH, {"csrf": csrf}, cookie=session)
+# covers: web:post.bind9.tsig.*.rotate -
+check("rotate a TSIG key that does not exist -> refused (400, named), nothing changed",
+      st == 400 and "no TSIG key named" in body and "ghost" in body
+      and open(f"{W}/fabric/config/vars.yaml").read() == vt, (st, body[:300]))
+st, hd, sc, body = req("POST", "/bind9/tsig/ghost/delete", POSTH, {"csrf": csrf}, cookie=session)
+# covers: web:post.bind9.tsig.*.delete -
+check("delete a TSIG key that does not exist -> refused (400, named), nothing changed",
+      st == 400 and "no TSIG key named" in body and open(f"{W}/fabric/config/vars.yaml").read() == vt,
+      (st, body[:300]))
+st, hd, sc, body = req("POST", "/bind9/tsig/acme-old/delete", POSTH, {"csrf": "nope"}, cookie=session)
+check("TSIG delete with a bad CSRF token -> 403, nothing changed",
+      st == 403 and open(f"{W}/fabric/config/vars.yaml").read() == vt, st)
+st, hd, sc, body = req("POST", "/stepca/acme/enroll", POSTH, {"csrf": csrf, "host": "nas", "domain": "lan.test"},
+                       cookie=session)
+# covers: web:post.stepca.acme.enroll +
+check("ACME enroll a machine for DNS-01 -> its key acme-nas, the secret and rfc2136.ini shown once",
+      st == 200 and '<code class="secret">' in body and "dns_rfc2136_name = acme-nas" in body
+      and "acme-nas" in open(f"{W}/fabric/config/vars.yaml").read(), (st, body[:300]))
+st, hd, sc, body = req("GET", "/stepca?view=acme", ALICE, cookie=session)
+check("Step-CA ACME view lists the enrolled machine and the directory",
+      st == 200 and "nas.lan.test" in body and "https://ca.lan.test/acme/acme/directory" in body, (st, body[:300]))
+vt = open(f"{W}/fabric/config/vars.yaml").read()
+st, hd, sc, body = req("POST", "/stepca/acme/enroll", POSTH, {"csrf": csrf, "host": "nas2", "domain": "evil.test"},
+                       cookie=session)
+# covers: web:post.stepca.acme.enroll -
+check("ACME enroll for a zone fabric does not serve -> the ACME view again with the reason (400), no key made",
+      st == 400 and "forward zones" in body and open(f"{W}/fabric/config/vars.yaml").read() == vt, (st, body[:300]))
 st, hd, sc, body = req("GET", "/audit", ALICE, cookie=session)
 check("audit log records TSIG and PKI actions", "TSIG_ADD" in body and "TSIG_SECRET" in body
       and "PKI_CONVERT" in body, body[:300])
@@ -566,6 +595,18 @@ net = cookie_val(sc, "__Host-webui")
 st, _, _, body = req("GET", "/", ALICE, cookie=net)
 check("network operator: no Directory or 802.1X tab (no device management)",
       "/directory" not in body and "/freeradius" not in body and "/bind9" in body, body[:300])
+(st, hd, sc, body), _, _ = login(roles=tuple(bundle_roles("fabric-pki-operator")))
+pkiop = cookie_val(sc, "__Host-webui")
+st, _, _, body = req("GET", "/bind9", ALICE, cookie=pkiop)
+# covers: web:get.bind9 -
+check("PKI operator (no dns:read): the BIND9 page is refused by fabric-agent (403, the permission named)",
+      st == 403 and "dns:read" in body and "nas25-apps" not in body, (st, body[:300]))
+vt = open(f"{W}/fabric/config/vars.yaml").read()
+st, _, _, body = req("POST", "/directory/devices/printer/certs/unlink", POSTH,
+                     {"csrf": cookie_csrf(aud), "sha256": "aa" * 32}, cookie=aud)
+# covers: web:post.directory.devices.*.certs.unlink -
+check("auditor: unlinking a device's certificate is refused by fabric-agent (403, pki:link-device), nothing changed",
+      st == 403 and "pki:link-device" in body and open(f"{W}/fabric/config/vars.yaml").read() == vt, (st, body[:300]))
 
 (st, hd, sc, body), _, _ = login(tamper="short")
 short = cookie_val(sc, "__Host-webui")
@@ -665,6 +706,50 @@ check("auditor token: may not map a group for network logins (403, radius:admin)
       " 403 " in out2 and "radius:admin" in out2, out2)
 check("network operator token: may not add a RADIUS client either (802.1X is equipment operators')",
       " 403 " in out and "radius:admin" in out, out)
+# DNS and PKI routes: each refuses a token without its permission, naming it; nothing changes
+DNS_ONLY = ("fabric:dns:read",)                      # a person granted only dns:read
+PKI_OPS = bundle_roles("fabric-pki-operator")        # no dns:read
+out = agent_call("GET", "/v1/zones", "carol", AUDITOR_ROLES)
+# covers: agent:get.zones +
+check("auditor token: GET /v1/zones lists the zones", " 200 " in out and '"key": "dynamic_zone_var"' in out, out)
+for path, roles, perm, ids in (("/v1/zones", PKI_OPS, "dns:read", "agent:get.zones"),
+                               ("/v1/zones/dynamic_zone_var", PKI_OPS, "dns:read", "agent:get.zones.*"),
+                               ("/v1/reverse-zones", PKI_OPS, "dns:read", "agent:get.reverse-zones"),
+                               ("/v1/tsig", PKI_OPS, "dns:read", "agent:get.tsig"),
+                               ("/v1/pki/ca", DNS_ONLY, "pki:read", "agent:get.pki.ca"),
+                               ("/v1/pki/issued", DNS_ONLY, "pki:read", "agent:get.pki.issued"),
+                               ("/v1/pki/acme", DNS_ONLY, "pki:read", "agent:get.pki.acme"),
+                               ("/v1/cert-warnings", DNS_ONLY, "status:read", "agent:get.cert-warnings")):
+    out = agent_call("GET", path, "carol", roles)
+    # covers: agent:get.zones agent:get.zones.* agent:get.reverse-zones agent:get.tsig agent:get.pki.ca -
+    # covers: agent:get.pki.issued agent:get.pki.acme agent:get.cert-warnings -
+    check(f"refused: GET {path} without {perm} ({ids}): 403, the permission named",
+          " 403 " in out and f"you need the permission {perm}" in out, out)
+out = agent_call("GET", "/v1/zones/nope", "alice", ADMIN_ROLES)
+# covers: agent:get.zones.* -
+check("refused: a zone that does not exist (400, unknown zone)", " 400 " in out and "unknown zone" in out, out)
+vt = open(f"{W}/fabric/config/vars.yaml").read()
+issued_ledger = f"{W}/fabric/archive/issued-certs.jsonl"
+ledger_before = open(issued_ledger).read() if os.path.exists(issued_ledger) else ""
+csr_pem = open(f"{W}/dev.csr").read()
+for path, body_, roles, perm, ids in (
+        ("/v1/pki/sign", {"csr": csr_pem, "days": 30}, AUDITOR_ROLES, "pki:sign", "agent:post.pki.sign"),
+        ("/v1/pki/issue", {"cn": "x.lan.test", "key_type": "RSA-2048", "days": 30}, AUDITOR_ROLES, "pki:issue",
+         "agent:post.pki.issue"),
+        ("/v1/pki/convert", {"cert": sso_pem, "key": sso_key}, AUDITOR_ROLES, "pki:issue", "agent:post.pki.convert"),
+        ("/v1/pki/revoke", {"target": "sso.test"}, AUDITOR_ROLES, "pki:revoke", "agent:post.pki.revoke"),
+        ("/v1/pki/describe-csr", {"csr": csr_pem}, DNS_ONLY, "pki:read", "agent:post.pki.describe-csr"),
+        ("/v1/tsig/acme-nas/rotate", {}, AUDITOR_ROLES, "tsig:manage", "agent:post.tsig.*.rotate"),
+        ("/v1/tsig/acme-nas/delete", {}, AUDITOR_ROLES, "tsig:manage", "agent:post.tsig.*.delete"),
+        ("/v1/devices/printer/certs", {"sha256": "aa" * 32}, AUDITOR_ROLES, "pki:link-device",
+         "agent:post.devices.*.certs")):
+    out = agent_call("POST", path, "carol", roles, body_)
+    # covers: agent:post.pki.sign agent:post.pki.issue agent:post.pki.convert agent:post.pki.revoke -
+    # covers: agent:post.pki.describe-csr agent:post.tsig.*.rotate agent:post.tsig.*.delete agent:post.devices.*.certs -
+    check(f"refused: POST {path} without {perm} ({ids}): 403, the permission named, nothing changed",
+          " 403 " in out and f"you need the permission {perm}" in out
+          and open(f"{W}/fabric/config/vars.yaml").read() == vt
+          and (open(issued_ledger).read() if os.path.exists(issued_ledger) else "") == ledger_before, out)
 out = agent_call("GET", "/v1/nope", "alice", ADMIN_ROLES)
 check("a route that is not in the permission table is refused even for the admin", " 403 " in out, out)
 out = agent_call("GET", "/v1/zones", "alice", ADMIN_ROLES, exp=-600)

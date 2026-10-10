@@ -1,8 +1,6 @@
 # The ratchet (decision 2.1.1.46, manual 3.1.2.5): entry points still missing a positive (+) or negative (-) test.
 # It only shrinks: remove a line when its test exists. Regenerate the candidates with scripts/docs/entrypoints.py --gaps.
 agent:get.audit -
-agent:get.cert-warnings +
-agent:get.cert-warnings -
 agent:get.devices +
 agent:get.devices -
 agent:get.dhcp -
@@ -18,20 +16,13 @@ agent:get.host-changes -
 agent:get.images +
 agent:get.images -
 agent:get.people -
-agent:get.pki.acme +
-agent:get.pki.acme -
-agent:get.pki.ca -
-agent:get.pki.issued +
-agent:get.pki.issued -
 agent:get.radius -
 agent:get.radius.guides +
 agent:get.radius.guides -
 agent:get.relaxed-settings +
 agent:get.relaxed-settings -
-agent:get.reverse-zones -
 agent:get.security +
 agent:get.services -
-agent:get.tsig -
 agent:get.vault +
 agent:get.vault -
 agent:get.vault.devices +
@@ -39,9 +30,6 @@ agent:get.vault.devices -
 agent:get.vault.slots +
 agent:get.vault.slots -
 agent:get.version -
-agent:get.zones +
-agent:get.zones -
-agent:get.zones.* -
 agent:post.apply +
 agent:post.apply -
 agent:post.devices +
@@ -49,7 +37,6 @@ agent:post.devices -
 agent:post.devices.* +
 agent:post.devices.* -
 agent:post.devices.*.certs +
-agent:post.devices.*.certs -
 agent:post.devices.*.delete +
 agent:post.devices.*.delete -
 agent:post.dhcp.classes +
@@ -105,13 +92,6 @@ agent:post.people.*.delete +
 agent:post.people.*.disable +
 agent:post.people.*.enable +
 agent:post.people.*.groups +
-agent:post.pki.convert -
-agent:post.pki.describe-csr -
-agent:post.pki.issue +
-agent:post.pki.revoke +
-agent:post.pki.revoke -
-agent:post.pki.sign +
-agent:post.pki.sign -
 agent:post.radius.clients +
 agent:post.radius.clients.*.delete +
 agent:post.radius.clients.*.delete -
@@ -129,8 +109,6 @@ agent:post.roles.*.delete -
 agent:post.security.kerberos +
 agent:post.security.kerberos -
 agent:post.security.raise +
-agent:post.tsig.*.delete -
-agent:post.tsig.*.rotate -
 agent:post.vault.rotate +
 agent:post.vault.slots.*.remove +
 agent:post.vault.slots.*.remove -
@@ -225,19 +203,10 @@ ask:menu.mint.sans +
 ask:menu.mint.sans -
 ask:menu.vars.* +
 ask:menu.vars.* -
-ask:mint_certs.cn +
-ask:mint_certs.cn -
-ask:mint_certs.confirm +
-ask:mint_certs.confirm -
-ask:mint_certs.days +
 ask:mint_certs.days -
-ask:mint_certs.key_size +
 ask:mint_certs.key_size -
-ask:mint_certs.key_type +
 ask:mint_certs.key_type -
-ask:mint_certs.out_dir +
 ask:mint_certs.out_dir -
-ask:mint_certs.san +
 ask:mint_certs.san -
 ask:people.remove.confirm +
 ask:people.remove.confirm -
@@ -251,8 +220,6 @@ ask:service_cert.confirm -
 ask:setup.join_invitation +
 ask:setup.join_invitation -
 ask:setup.plan -
-ask:tsig.secret +
-ask:tsig.secret -
 ask:undo.* +
 ask:undo.* -
 ask:uninstall.confirm +
@@ -279,7 +246,6 @@ cli:--interactive +
 cli:--interactive -
 cli:--keycloak-sync +
 cli:--keycloak-sync -
-cli:--mint-certs +
 cli:--mint-certs -
 cli:--output +
 cli:--output -
@@ -295,17 +261,6 @@ cli:--update-containers +
 cli:--update-containers -
 cli:--vars +
 cli:--vars -
-cli:acl +
-cli:acl -
-cli:acl.add -
-cli:acl.list +
-cli:acl.list -
-cli:acl.policy -
-cli:acl.remove -
-cli:acme +
-cli:acme.info -
-cli:acme.list -
-cli:client-cert -
 cli:dhcp +
 cli:dhcp -
 cli:dhcp.add-subnet -
@@ -428,14 +383,6 @@ cli:sso.remove +
 cli:sso.remove -
 cli:start -
 cli:stop -
-cli:tsig +
-cli:tsig -
-cli:tsig.add -
-cli:tsig.list -
-cli:tsig.remove -
-cli:tsig.rotate -
-cli:tsig.set-secret -
-cli:tsig.update -
 cli:vault +
 cli:vault -
 cli:vault.add-key +
@@ -480,7 +427,6 @@ setting:ad_realm -
 setting:ad_site_ou -
 setting:bind9_doh_port +
 setting:bind9_doh_port -
-setting:bind_acl_policies -
 setting:bind_acls -
 setting:bind_dns_port -
 setting:byoc +
@@ -701,7 +647,6 @@ setting:stepca_port +
 setting:stepca_port -
 setting:system_timezone +
 setting:system_timezone -
-setting:tsig_keys -
 setting:use_host_dns -
 setting:webui_admin_email +
 setting:webui_admin_email -
@@ -716,7 +661,6 @@ setting:webui_hostname -
 setting:webui_realm +
 setting:webui_realm -
 web:get.audit -
-web:get.bind9 -
 web:get.directory -
 web:get.dns-filter +
 web:get.dns-filter -
@@ -729,12 +673,9 @@ web:get.security -
 web:get.stepca -
 web:post.apply +
 web:post.apply -
-web:post.bind9.tsig.*.delete -
-web:post.bind9.tsig.*.rotate -
 web:post.directory.devices.* +
 web:post.directory.devices.* -
 web:post.directory.devices.*.certs.unlink +
-web:post.directory.devices.*.certs.unlink -
 web:post.directory.devices.*.delete +
 web:post.directory.devices.*.delete -
 web:post.directory.devices._new +
@@ -825,8 +766,6 @@ web:post.overview.images.*.update -
 web:post.security.kerberos +
 web:post.security.kerberos -
 web:post.security.raise +
-web:post.stepca.acme.enroll +
-web:post.stepca.acme.enroll -
 web:post.stepca.convert -
 web:post.stepca.issue +
 web:post.stepca.revoke +
