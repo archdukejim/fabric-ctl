@@ -60,8 +60,8 @@ check "the intermediate's CRL at http://info.<domain>/certs/crl/intermediate.crl
     "openssl crl -inform DER -in $W/crl.der -noout -CAfile /opt/stepca/data/certs/intermediate_ca.crt 2>&1 | grep -q 'verify OK'"
 check "…and the same at http://<host_ip>/certs/crl/ (DER and PEM)" \
     "curl -s http://$HOST_IP/certs/crl/intermediate.crl | cmp -s - $W/crl.der && curl -s http://$HOST_IP/certs/crl/intermediate.pem | grep -q 'BEGIN X509 CRL'"
-check "a service certificate names http://info.<domain>/certs/crl/intermediate.crl as its CRL" \
-    "openssl x509 -in /opt/nginx/certs/$INFO/fullchain.pem -noout -ext crlDistributionPoints | grep -q 'URI:http://$INFO/certs/crl/intermediate.crl'"
+check "Step-CA's leaf template (hand-signed and offline leaves) names http://info.<domain>/certs/crl/intermediate.crl" \
+    "grep -q '\"crlDistributionPoints\": \\[\"http://$INFO/certs/crl/intermediate.crl\"\\]' /opt/stepca/data/templates/certs/leaf.tpl && ! grep -q 'certs\\.$DOMAIN' /opt/stepca/data/templates/certs/leaf.tpl"
 # certs.<domain> is gone, with no redirect (2.1.5.11)
 check "negative: certs.<domain> over HTTPS has no certificate of its own (TLS refuses the name)" \
     "! curl -s --max-time 10 --cacert $ROOT --resolve $OLD:443:$IP -o /dev/null https://$OLD/root-ca.pem"

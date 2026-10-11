@@ -194,7 +194,7 @@ tctx = TCtx(tb)
 targets = msc._targets(tctx)
 check("no service certificate for certs.<domain> any more", all(not cn.startswith("certs.") for cn, *_ in targets),
       [cn for cn, *_ in targets])
-check("the old certs.<domain> certificate folder is found (every certificate then issued again, it deleted)",
+check("the old certs.<domain> certificate folder is found (run deletes it)",
       msc._old_certs_host(tctx, targets) == old_dir)
 os.rename(old_dir, old_dir + ".gone")
 check("…and once gone, nothing to do (idempotent)", msc._old_certs_host(tctx, targets) is None)

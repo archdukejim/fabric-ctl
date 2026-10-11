@@ -55,7 +55,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	35c0bfe60
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3b78491b62eb3573132f18fcff7dd889074a4da5	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	2c9698cebc820604d8fdfb728ac7f27dcce26876	2026-10-09	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	476faabbe0c00c58cd1c6928553e6c062ff7c910	2026-10-10	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	5376bb8d4a5bcf5aca15ed47c0490c4c2f3b6c95	2026-10-11	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	48fb85189724615626c5a1df6768212140a10356	2026-10-11	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	87f00fdc8f7263357b04fddab082b1bebf4b5fa5	2026-10-10	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	5591364f414bc6fc2a505d9b421026d7ae218d45	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	9db18b7001c1967177f6a2f19b49b773b11aa82a	2026-10-09	
@@ -87,7 +87,7 @@ docs/volume_1_description_and_architecture/1.3.2-setup-design.md	f5e5d9053fecee7
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	bbcb57d9f0854dcbeac64fd7e4e05de230bcdb5d	2026-10-10	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	afa7df001a592bb13ba756c1598d5f55873e4e74	2026-10-11	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	729f8a6934e41746bb00a5d02d3419cf699671c5	2026-10-11	
-docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	0a5f6373a19c5d843d0f9630a021d193141472b7	2026-10-11	
+docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	6b60dec19b8dfd501995503fc38320f208114683	2026-10-11	
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.1-directory.md	7fa9284225375dc046757b644311b8368d907462	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.10-security.md	4cbc7055f772e5b00dc264ef875fc304792cf856	2026-10-09	
@@ -890,7 +890,7 @@ src/fabriclib/setup/harden_docker.py	1ad4aca818b8227f6566193c67503b8f12adae09	20
 src/fabriclib/setup/init_pki.py	983501c41bb57169ddfc143d228a61221c4d9c9d	2026-10-11	
 src/fabriclib/setup/join_federation.py	52dc92d225b9bffcc91c629181755499be20dc3c	2026-10-08	
 src/fabriclib/setup/mint_extra_certs.py	0e23e41edec381ab688dab5b8a06f9e39eb6a39e	2026-09-30	
-src/fabriclib/setup/mint_service_certs.py	fb12e39b8b3138cc29015d1be08f0af69b58710c	2026-10-11	
+src/fabriclib/setup/mint_service_certs.py	46aee925542661aef0c0d57d2b5525f9da3a3bf8	2026-10-11	
 src/fabriclib/setup/move_dns_filter.py	0642b63d41b82f5f34f0cc97272bdf08029bce3a	2026-10-10	
 src/fabriclib/setup/preflight.py	b05c4c38902fad1b9e5a27eb34d92d4d141c6c0e	2026-10-10	
 src/fabriclib/setup/print_first_steps.py	8146eb4986d4f350915fc7bb1040c4d18fdbe992	2026-10-11	
@@ -1349,7 +1349,7 @@ tests/openbao/db_rotation.py	98556342b4f9f70fbd7541c710c22f576b5998fd	2026-10-09
 tests/openbao/run.py	5a40cf5f49db2227c758aa6906d324d9a417b488	2026-10-09	
 tests/pki/README.md	c00ae570e87e3a05c979e041a56057b2b388ec7e	2026-10-08	
 tests/pki/acme.py	c189db21b865fe1aa55f262418fd4a00a492d345	2026-10-11	
-tests/pki/renewal.py	37eb730d69ab8b0d7db980ab6dc4274a724584f2	2026-10-11	
+tests/pki/renewal.py	04f614fad296e086646f25aad3b5b550d8a69325	2026-10-11	
 tests/pki/revocation.py	f36e8ad4b2ca0683d820802ee8a6b9fb7f97dc97	2026-10-08	
 tests/pki/run.py	9d72da0da56712bc615ac648a664fcd7a6fec9a4	2026-10-11	
 tests/pki/site_ca.py	6e71ca7798e1aa94ce0f43160716ac57302bec65	2026-10-08	
@@ -1372,7 +1372,7 @@ tests/samba/start_dc.py	fabe88b40b4d62ef16120a391c256a185850fce8	2026-10-09
 tests/sandbox/Dockerfile	20b0b4c920006cd304cbe258c176c85b9e12b2a5	2026-10-10	
 tests/sandbox/README.md	684fac06bb91c31475f8aae127bf622078b0b055	2026-10-09	
 tests/sandbox/agent_job.py	b28da07392e6a32c9778411d7c9ec615bb1c2fad	2026-10-09	
-tests/sandbox/certs_page_test.sh	c33222e661e60ef42300777bd022ff46e6a13150	2026-10-11	
+tests/sandbox/certs_page_test.sh	21cd8c05c97d11f5d0a176fabba98453d3bd5235	2026-10-11	
 tests/sandbox/iterate.sh	8be80562d8c2adf70ec0ac9f8ed094c5bc1cdb0c	2026-10-03	
 tests/sandbox/list_roles.py	857dc28e0a40f95853048b691a117befa804aff3	2026-10-05	
 tests/sandbox/login_test.py	ada373569c37f6902e52370de47f01bcfc0d3b6f	2026-10-10	
