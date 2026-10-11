@@ -340,5 +340,29 @@ check("uninstall lists every kind of host change: removed, undone or kept (Docke
       and rows["Ports fabric needs"][0] == rows["The host's own firewall rules"][0] == "undone"
       and rows["Docker daemon settings"][0] == "kept" and "--undo runtime" in rows["Docker daemon settings"][1], rows)
 
+print("--- setup's plan: DHCP named a preview until 0.8.0, off by default (2.1.1.49, manual 1.10.3.9)")
+import types  # noqa: E402
+
+from fabriclib.setup.choose_plan import choose_plan  # noqa: E402
+
+
+def plan_text(v):
+    """setup's plan as printed, unattended (nothing asked), for these settings."""
+    out = io.StringIO()
+    plan_ctx = types.SimpleNamespace(vars=dict(v), non_interactive=True, assume_yes=True,
+                                     path=lambda *p: os.path.join(fresh, "no-such", *p))
+    with contextlib.redirect_stdout(out):
+        choose_plan(plan_ctx)
+    return [line for line in out.getvalue().splitlines() if "DHCP" in line or "DNS filter" in line]
+
+
+off, on = plan_text({"webui_admin_user": "fabric-admin"}), plan_text({"install_kea": True, "dhcp": {
+    "subnets": [{"subnet": "10.0.0.0/24"}]}})
+check("DHCP off by default, and named a preview until 0.8.0, off and on",
+      any("off: DHCP" in line and "preview until 0.8.0" in line for line in off)
+      and any("✓" in line and "preview until 0.8.0" in line and "10.0.0.0/24" in line for line in on), (off, on))
+check("negative: no other part of the plan is called a preview (the DNS filter is finished)",
+      not any("preview" in line for line in off + on if "DHCP" not in line), off + on)
+
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

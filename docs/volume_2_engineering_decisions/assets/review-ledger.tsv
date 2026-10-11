@@ -28,7 +28,7 @@ docs/volume_1_description_and_architecture/1.1.8-about-settings.md	8022994724f5b
 docs/volume_1_description_and_architecture/1.1.9-optional-parts.md	b06f20c92138f3dc7278f3dfc6d8696d14663c37	2026-10-10	
 docs/volume_1_description_and_architecture/1.10.1-kea-design.md	0e8b6720aa82c79132444cd5a6e1a3893173246b	2026-10-10	
 docs/volume_1_description_and_architecture/1.10.2-dhcp-management.md	3d818cf18c62108409294438880e1f12692af38d	2026-10-08	
-docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	5d098a3910a595b22a783d41a978f6e103e95ddc	2026-10-10	
+docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	a404a324b89e8417e3a5244fda52794b153cb423	2026-10-11	
 docs/volume_1_description_and_architecture/1.11.1-freeradius-design.md	53be8bfe3baba02927c9b7b66dd4d02282115356	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.1-adguard.md	b2280752ee06e87cb6e1497fdb91651e589b6a4d	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.2-bind-resolver.md	97e78a0db3ee1ca79d7edb569eb8e03b03a97164	2026-10-11	
@@ -55,7 +55,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	1e48d87df
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3b78491b62eb3573132f18fcff7dd889074a4da5	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	2c9698cebc820604d8fdfb728ac7f27dcce26876	2026-10-09	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	476faabbe0c00c58cd1c6928553e6c062ff7c910	2026-10-10	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	c2d49932ce1c1bb5fe53c0a38a220b459ca9a72a	2026-10-11	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	e5d52374d090c2cc42a87d399786fe35ff79f129	2026-10-11	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	87f00fdc8f7263357b04fddab082b1bebf4b5fa5	2026-10-10	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	5591364f414bc6fc2a505d9b421026d7ae218d45	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	9db18b7001c1967177f6a2f19b49b773b11aa82a	2026-10-09	
@@ -113,7 +113,7 @@ docs/volume_1_description_and_architecture/1.9.6-changes.md	de23fcd3ade76bb7206a
 docs/volume_1_description_and_architecture/1.9.7-milestones.md	a41e86e4f9febe721f6ea0699ab56a29e3185a48	2026-10-08	
 docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	772dcc42dd63416bb110df6d3945db8fc4589b0d	2026-10-08	
 docs/volume_1_description_and_architecture/README.md	a4d2285286435dad9cae432f8cb39d108b8d0fe9	2026-10-11	
-docs/volume_2_engineering_decisions/2.1.1-product.md	a03298b83921ca9d2fa6bd61e7feddc809f76a90	2026-10-11	
+docs/volume_2_engineering_decisions/2.1.1-product.md	4815310bec215c09d4a41ce6ae357deff3d32c5d	2026-10-11	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	d2f651c94dba5302552170cee89cc3bc6f73769a	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	fedcb30a5a6386169be903a14e8012d565f16cec	2026-10-11	
@@ -154,7 +154,7 @@ docs/volume_3_installation/3.2.1-requirements.md	923daf511f1da0012c84a1d8becb594
 docs/volume_3_installation/3.2.2-docker-from-ubuntu.md	2d7250a68efefe0413b077ee659fa444d40a325a	2026-10-08	
 docs/volume_3_installation/3.2.3-deployed-structure.md	7e6cdc8cf16bfca41ab48a5b0e0dd7d69d0c29a2	2026-10-08	
 docs/volume_3_installation/3.2.4-reinstall-uninstall.md	5e505ebf5c9e308d960be3ac459cd9481e605fa1	2026-10-08	
-docs/volume_3_installation/3.3.1-running-setup.md	81d7acc4458da06294a135d1dead62be7d5a4bb6	2026-10-10	
+docs/volume_3_installation/3.3.1-running-setup.md	dcbeb7dc4871f9759d8a08b9f7c1851b85710ec4	2026-10-11	
 docs/volume_3_installation/3.3.2-after-setup.md	142e3e869c1b96e32ca125b582af54b08a752605	2026-10-09	
 docs/volume_3_installation/3.3.3-setup-steps.md	28e429264fe93d64b773dc7eef4dd985fc84cadd	2026-10-09	
 docs/volume_3_installation/3.3.4-rebuilding.md	89cf47b0a1e0594bdae8b4d684b4111123f5b76b	2026-10-08	
@@ -162,7 +162,7 @@ docs/volume_3_installation/3.5.1-pki-before-install.md	fe4159103da796d8616041f0d
 docs/volume_3_installation/3.5.2-subordinate-ca.md	22f4344b8c14fd41c7b82196b0304fd511bbf8ab	2026-10-08	
 docs/volume_3_installation/3.9.1-joining.md	bbe4adfe006bbd7883a6d517dd5aeccd9a9840e2	2026-10-08	
 docs/volume_3_installation/README.md	4833799bdc73837286a8fdfba36d2a99217edc46	2026-10-09	
-docs/volume_4_operations/4.10.1-dhcp.md	cb66755f9c61301e1b612c93bb8241b48834a5e6	2026-10-10	
+docs/volume_4_operations/4.10.1-dhcp.md	cb002b5aca82e3cc1d948c6056844b6f1c92497b	2026-10-11	
 docs/volume_4_operations/4.11.1-radius.md	66c0d6a14d2303bc027517f9b3ba580bc370390d	2026-10-09	
 docs/volume_4_operations/4.12.1-dns-filter.md	4ef4c9fb57318e59f9e188ae4f4b5785171521bc	2026-10-10	
 docs/volume_4_operations/4.13.1-time.md	6c8f0553ab60090879e010d6463805505b645902	2026-10-08	
@@ -194,7 +194,7 @@ docs/volume_4_operations/4.9.1-federation.md	0c1f54e12235c63feaf3e052682b74207cd
 docs/volume_4_operations/4.9.2-address-plan.md	695bf8e260b9df9fd7d41a9e9d13019664765a25	2026-10-08	
 docs/volume_4_operations/README.md	521cbc1f5c7700304eff95959687ac01a4a105aa	2026-10-09	
 examples/README.md	8350c988c36d9098f3a1ae7945d585541264ea22	2026-10-03	
-examples/vars.yaml	ccf28dce76a23266da5a22b853cb8a8399572344	2026-10-08	
+examples/vars.yaml	91a1dd0d0f9f8bf89abf244a7ee87a69d5fd4b24	2026-10-11	
 packaging/README.md	f76df13474fd5f9ac5f058f26ec7b5f525952cc2	2026-10-08	
 packaging/apt/README.md	de5eb612b3aaa51cb82a16534249cb53577560ad	2026-10-08	
 packaging/apt/build-repo.sh	fe9a4d9ebb52d057b979398993202a783f9a1d79	2026-10-08	
@@ -866,7 +866,7 @@ src/fabriclib/setup/ask_kerberos.py	15dc0fab5814aa24e58209f3a365d37c800ea78b	202
 src/fabriclib/setup/ask_ram.py	86838eaaed52c6e3e51475039fcc6a8bf4a66a47	2026-10-08	
 src/fabriclib/setup/backup_install.py	2ff123589409bd647bab2659e86146217244fb6d	2026-10-08	
 src/fabriclib/setup/check_export_dir.py	418170a13dff61353dedf91b3e251156af4f931b	2026-09-30	
-src/fabriclib/setup/choose_plan.py	db6e7e5e5c4f874547f2349dc6ed7456289318b0	2026-10-10	
+src/fabriclib/setup/choose_plan.py	5aeaff79053fcd96e26e0bed3e490ea31de5d0fb	2026-10-11	
 src/fabriclib/setup/collect_vars.py	d6b6796021a8504bcbf0f9f585368d5cdab2d9d9	2026-10-10	
 src/fabriclib/setup/common/README.md	16aa541284a94b46b1d5b3e8e83f97f40c3785af	2026-10-02	
 src/fabriclib/setup/common/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-02	
@@ -1284,7 +1284,7 @@ templates/webui-app/error.html	509e885a7989108d54fa8694b1678499cf20e205	2026-10-
 templates/webui-app/federation.html	cf9c22d26753a217dfb442c89ac0fa31836b7722	2026-10-08	
 templates/webui-app/freeradius.html	e16950440618b58b4df3fc61b7ad67a4ad391ab6	2026-10-11	
 templates/webui-app/job.html	626dda99e1958b7a289827cac344752ecabc9a30	2026-10-09	
-templates/webui-app/kea.html	64a11ef731b5010740df0a3d848c4e9bbaa3507a	2026-10-11	
+templates/webui-app/kea.html	94379a7cbdb3a3663fa12af42196694496d43838	2026-10-11	
 templates/webui-app/machine_result.html	b2f5f9422d86504faeef0b9992c4d33f3edd8df7	2026-10-08	
 templates/webui-app/openbao.html	82a7fc315895e161b0c4feeaa73026596bc91c3f	2026-10-09	
 templates/webui-app/overview.html	f84f00064a2500f3fdde90f1d11f378dad47ee6a	2026-10-09	
@@ -1299,7 +1299,7 @@ templates/webui/docker-compose.yml.j2	8a2208e4a8bc715fce43eaf6f59a0e7949706177	2
 templates/webui/webui.json.j2	1161c507f612f4f256b7208bf12db143692a175d	2026-10-07	
 tests/README.md	e2d68e7db5178a1e6ca1b126f1d870bedb71d515	2026-10-10	
 tests/consent/README.md	e145a0d2d43d16682fc9dda3e46179d6530c5a03	2026-10-08	
-tests/consent/run.py	eaecbd26d8b849f2b92b583fe117bc3080b025bb	2026-10-08	
+tests/consent/run.py	97c2557aec7b3dad9dbe90ad1e0379016692c452	2026-10-11	
 tests/docs/README.md	f75d52925a7afe800bee5b2989addb136e813402	2026-10-03	
 tests/docs/check_consistency.py	f73615e09406f36b652b51e06b93be0d02a0c486	2026-10-08	
 tests/docs/check_docstrings.py	525f95338347ff4ea65bdec1130f401d9e326460	2026-10-03	
@@ -1386,5 +1386,5 @@ tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07
 tests/security/run.py	87d5ce6fb52696c959fb5dcae46dc7dcb6462fd8	2026-10-08	
 tests/webui/README.md	10b270a62e634adc3de38374c88a60447e7b68e3	2026-09-30	
 tests/webui/test_container.py	914baa9cf54815aee15bd7af2377d6bfcc7c1e28	2026-10-11	
-tests/webui/test_devserver.py	76fd5203a6e1b34296691354fe80c4485fc8bd9c	2026-10-09	
+tests/webui/test_devserver.py	d055ef3ce2c54bf0eee0d28bbb26e9a2e22eccbb	2026-10-11	
 tests/zone_test.py	4bed30787288ab1c63799bf296c8bb14de230708	2026-10-10	

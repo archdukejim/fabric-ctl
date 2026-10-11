@@ -71,6 +71,9 @@ try:
     page = req("GET", "/kea")[3]
     check("Kea tab: subnets, reservations, leases, reserve form", "192.168.1.0/24" in page and "printer" in page
           and "laptop1.dhcp.home.arpa" in page and 'action="/kea/reservations"' in page)
+    check("Kea tab: DHCP named a preview until 0.8.0 (2.1.1.49, manual 1.10.3.9); no other tab says so",
+          "DHCP is a preview in this release" in page and "0.8.0" in page
+          and "a preview in this release" not in req("GET", "/freeradius")[3])
     st, loc, _, _ = req("POST", "/kea/reservations", {"csrf": "dev", "mac": "02:00:00:00:00:99", "ip": "192.168.1.30",
                                                       "hostname": "nas"})
     check("Kea tab: reserve -> listed", st == 303 and "192.168.1.30" in req("GET", "/kea")[3], loc)

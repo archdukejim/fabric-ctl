@@ -93,7 +93,8 @@ def choose_plan(ctx):
     """Purpose: show what setup will do (every default is the hardened choice), then Proceed / Advanced / Quit.
              Advanced holds only what cannot be changed later (2.1.2.16): the CA root's lifetime, before the CA
              exists; without it there is no Advanced. Everything else shown is a default changed after the install
-             (fabricctl, the vars editor; the web console's settings page after 0.7, 2.1.1.42).
+             (fabricctl, the vars editor; the web console's settings page after 0.7, 2.1.1.42). DHCP, off by
+             default, is named a preview until 0.8.0 (manual 1.10.3.9).
     Inputs:  ctx — SetupContext: vars (PLAN keys, install_* flags, log_forwarding, dhcp, radius_clients,
              webui_admin_user), non_interactive, assume_yes. Interactive unless one of those two is set.
     Returns: None. Every PLAN item's effective value is written into ctx.vars (so what was shown is what gets
@@ -128,9 +129,10 @@ def choose_plan(ctx):
             print("  · Optional, off: DNS filter (fabric's resolver)")
         if ctx.vars.get("install_kea"):
             subnets = ", ".join(s.get("subnet", "?") for s in (ctx.vars.get("dhcp") or {}).get("subnets") or [])
-            print(f"  ✓ Optional: DHCP with Kea 3.0 on {subnets or '(no subnet yet)'}; hostnames in dhcp.<domain>")
+            print(f"  ✓ Optional, a preview until 0.8.0: DHCP with Kea 3.0 on {subnets or '(no subnet yet)'}; "
+                  "hostnames in dhcp.<domain>")
         else:
-            print("  · Optional, off: DHCP with Kea (hostnames registered in DNS)")
+            print("  · Optional, off: DHCP with Kea, a preview until 0.8.0 (hostnames registered in DNS)")
         if ctx.vars.get("install_freeradius"):
             n = len(ctx.vars.get("radius_clients") or [])
             print(f"  ✓ Optional: 802.1X with FreeRADIUS ({n} RADIUS client{'s' if n != 1 else ''})")
