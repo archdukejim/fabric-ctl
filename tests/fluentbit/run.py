@@ -9,8 +9,12 @@ again; the container is hardened; `logs status` reports what was sent.
     sudo python3 tests/fluentbit/run.py          (needs Docker, openssl, root)
 """
 import base64
+import contextlib
+import getpass
+import io
 import json
 import os
+import re
 import shutil
 import socket
 import ssl
@@ -18,7 +22,10 @@ import subprocess
 import sys
 import threading
 import time
+import types
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/fluentbit"
@@ -30,6 +37,10 @@ from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
 from fabriclib.logs.deploy_fluentbit import deploy_fluentbit  # noqa: E402
 from fabriclib.logs.log_status import log_status  # noqa: E402
+import fabriclib.logs.run_logs_command as m_logs  # noqa: E402
+from fabriclib.common.save_vars import save_vars  # noqa: E402
+from fabriclib.secrets.save_secrets import save_secrets  # noqa: E402
+from fabriclib.setup.context import SetupContext  # noqa: E402
 
 
 def check(name, cond, detail=""):
@@ -215,7 +226,128 @@ def both_sent():
 
 check("fabricctl logs status: both destinations with records sent", until(both_sent, 30), status)
 
+# ------------------------------------------------------------------ fabricctl logs (in-process, as fabriclib/cli.py routes it)
+# An install under W as SetupContext reads it: fabric/config/vars.yaml (these vars), fabric-secrets.yml (a file, as
+# before OpenBao holds them) and fabric/jinja (the templates). systemd's try-restart is stood in for by what the unit
+# does (wrapper.service.j2: compose rm, then up): the container is recreated and reads secrets.env again.
+os.makedirs(f"{W}/fabric/config")
+os.symlink(os.path.join(REPO, "templates"), f"{W}/fabric/jinja")
+SECRETS_FILE = f"{W}/fabric/config/fabric-secrets.yml"
+save_vars(V, f"{W}/fabric/config/vars.yaml")
+save_secrets({"log_elastic_password": PW}, SECRETS_FILE)
+RESTARTS = []
+
+
+def restart_unit(cmd, **kw):
+    RESTARTS.append(cmd)
+    if cmd == ["systemctl", "try-restart", "fluentbit"]:
+        sh(f"docker compose -f {W}/fluentbit/docker-compose.yml rm -fsv", ok=False)
+        return sh(f"docker compose -f {W}/fluentbit/docker-compose.yml up -d", ok=False)
+    raise AssertionError(f"unexpected command {cmd}")
+
+
+m_logs.subprocess = types.SimpleNamespace(run=restart_unit)
+
+
+class Tty(io.StringIO):
+    def isatty(self):
+        return True
+
+
+def logs(*argv, stdin="", typed=None):
+    """fabricctl logs …: (exit status, stdout, stderr, prompts asked). stdin — one line piped in; typed — the answer
+    at the hidden prompt instead (stdin a terminal; getpass stood in for, as tests/common/ask.py does)."""
+    out, err, asked, real = io.StringIO(), io.StringIO(), [], (sys.stdin, getpass.getpass)
+    sys.stdin = Tty() if typed is not None else io.StringIO(stdin)
+    getpass.getpass = lambda prompt="": asked.append(prompt) or typed
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = m_logs.run_logs_command(SetupContext(deploy_base=W).load_state(), list(argv))
+    finally:
+        sys.stdin, getpass.getpass = real
+    return code, out.getvalue(), err.getvalue(), asked
+
+
+def stored():
+    return open(SECRETS_FILE).read(), open(f"{W}/fluentbit/config/secrets.env").read()
+
+
+def es_got(password, marker):
+    """The Elasticsearch receiver gets a new record with this password (Basic auth) after the marker is written."""
+    want = f"Basic {base64.b64encode(f'fabric:{password}'.encode()).decode()}"
+    start = len(AUTH)
+    return write_until_seen(marker, lambda: want in AUTH[start:], 120)
+
+
+code, out, err, _ = logs()
+code2, out2, _, _ = logs("status")
+lines = {ln.split()[0]: ln for ln in out.splitlines() if ln.strip()}
+# covers: cli:logs cli:logs.status +
+check("fabricctl logs (status by default): each destination with its records sent, retries, errors, dropped",
+      code == 0 and code2 == 0 and set(lines) == set(status["outputs"]) and all(
+          re.search(r"sent [1-9]\d*  retries \d+  errors \d+  dropped \d+", ln) for ln in lines.values())
+      and len(out2.splitlines()) == len(lines) and not err, (code, out, err))
+fb_ip = insp["NetworkSettings"]["Networks"][NET]["IPAddress"]
+# covers: setting:ip_fluentbit +
+check("ip_fluentbit: the container runs on that address (fabric's compose file) and status asks it there",
+      fb_ip == V["ip_fluentbit"] == IP and status.get("reachable"), (fb_ip, status))
+code, out, err, _ = logs("bogus")
+code2, out2, err2, _ = logs("status", "extra")
+# covers: cli:logs -
+check("fabricctl logs: an unknown command, or status with an argument, is refused with the usage (exit 2)",
+      code == 2 and code2 == 2 and "usage: fabricctl logs status" in err and "usage: fabricctl logs status" in err2
+      and not out and not out2, (code, err, code2, err2))
+
+before = stored()
+code, out, err, _ = logs("set-password", "elastic", stdin="\n")
+code2, _, err2, _ = logs("set-password", "kibana", stdin="Pw-For-Kibana-1\n")
+# covers: cli:logs.set-password -
+check("set-password refused: an empty password on stdin (exit 1, why); a destination other than elastic (usage); "
+      "nothing saved, nothing restarted",
+      code == 1 and "error: empty password" in err and code2 == 2 and "usage: fabricctl logs" in err2
+      and stored() == before and not RESTARTS, (code, err, code2, err2, RESTARTS))
+code, out, err, asked = logs("set-password", "elastic", typed="")
+# covers: ask:logs.elastic_password -
+check("set-password at a terminal: an empty answer to the hidden question is refused (exit 1, why), nothing saved",
+      code == 1 and "error: empty password" in err and asked == ["Elasticsearch password: "] and stored() == before
+      and not RESTARTS, (code, err, asked))
+
+PW2 = "Es-Piped-Secret-7"
+code, out, err, _ = logs("set-password", "elastic", stdin=PW2 + "\n")
+# covers: cli:logs.set-password +
+check("set-password elastic (piped): saved in the secrets, Fluent Bit's credentials rewritten and the unit restarted; "
+      "Elasticsearch then gets the new password",
+      code == 0 and out.strip() == "saved in OpenBao and applied (fluentbit restarted)"
+      and yaml.safe_load(open(SECRETS_FILE))["log_elastic_password"] == PW2
+      and f"LOG_ELASTIC_PASSWORD={PW2}\n" == open(f"{W}/fluentbit/config/secrets.env").read()
+      and RESTARTS == [["systemctl", "try-restart", "fluentbit"]] and es_got(PW2, "mark-three"),
+      (code, out, err, RESTARTS, AUTH[-1:]))
+PW3 = "Es-Typed-Secret-8"
+code, out, err, asked = logs("set-password", "elastic", typed=PW3)
+# covers: ask:logs.elastic_password +
+check("set-password at a terminal: the password asked hidden is saved and used (Elasticsearch gets it)",
+      code == 0 and asked == ["Elasticsearch password: "]
+      and yaml.safe_load(open(SECRETS_FILE))["log_elastic_password"] == PW3 and es_got(PW3, "mark-four"),
+      (code, out, err, asked, AUTH[-1:]))
+
+save_vars({**V, "install_fluentbit": False}, f"{W}/fabric/config/vars.yaml")
+env_before, restarts = open(f"{W}/fluentbit/config/secrets.env").read(), len(RESTARTS)
+code, out, err, _ = logs("status")
+code2, out2, err2, _ = logs("set-password", "elastic", stdin="Es-Saved-Only-9\n")
+# covers: setting:install_fluentbit +
+check("install_fluentbit false: status says log forwarding is off; set-password only saves (Fluent Bit's files and "
+      "service untouched)",
+      code == 0 and out.strip() == "log forwarding is off (install_fluentbit: false)" and code2 == 0
+      and out2.strip() == "saved in OpenBao" and yaml.safe_load(open(SECRETS_FILE))["log_elastic_password"]
+      == "Es-Saved-Only-9" and open(f"{W}/fluentbit/config/secrets.env").read() == env_before
+      and len(RESTARTS) == restarts, (code, out, code2, out2, err2))
+save_vars(V, f"{W}/fabric/config/vars.yaml")
+
 sh(f"docker compose -f {W}/fluentbit/docker-compose.yml down", ok=False)
+code, out, err, _ = logs("status")
+# covers: cli:logs.status -
+check("logs status with Fluent Bit down: exit 1, it says Fluent Bit is not answering and why",
+      code == 1 and out.startswith("Fluent Bit is not answering: ") and len(out.strip()) > 30, (code, out, err))
 sh(f"docker network rm {NET}", ok=False)
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

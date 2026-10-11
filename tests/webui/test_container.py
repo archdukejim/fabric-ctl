@@ -803,6 +803,421 @@ audit_tail = open(f"{W}/fabric/archive/audit.log").read().splitlines()[-1] if os
     f"{W}/fabric/archive/audit.log") else ""
 check("the audit log names the token's user, not the actor the request claims",
       " 200 " in out and "alice" in audit_tail and "mallory" not in audit_tail, (out, audit_tail))
+
+print("--- DHCP, DNS filter, 802.1X, vault and images through the console (the real agent, the real vars.yaml)")
+VARS = f"{W}/fabric/config/vars.yaml"
+SECRETS = f"{W}/fabric/config/fabric-secrets.yml"
+
+
+def vars_now():
+    return open(VARS).read()
+
+
+def secrets_now():
+    return open(SECRETS).read() if os.path.exists(SECRETS) else ""
+
+
+def vars_key(key):
+    import yaml
+    return yaml.safe_load(vars_now()).get(key)
+
+
+def web_post(path, form, sess, token):
+    """A console form: its status, the Location it sends back (decoded) and its body."""
+    st, hd, _, body = req("POST", path, POSTH, {"csrf": token, **form}, cookie=sess)
+    return st, urllib.parse.unquote_plus(hd.get("Location", "")), body
+
+
+(st, hd, sc, body), _, _ = login()
+adm = cookie_val(sc, "__Host-webui")
+acsrf = cookie_csrf(adm)
+
+
+def fresh(roles=tuple(ADMIN_ROLES)):
+    """A new sign-in with these roles: its session cookie and CSRF token (vault changes need one under 5 minutes)."""
+    (_st, _hd, set_cookie, _body), _, _ = login(roles=tuple(roles))
+    cookie = cookie_val(set_cookie, "__Host-webui")
+    return cookie, cookie_csrf(cookie)
+
+
+aud, aud_csrf = fresh(AUDITOR_ROLES)
+# Every change below runs fabric's apply. This test install has no deployment to apply to: the apply must fail here,
+# so nothing is deployed and the host firewall is never touched (post_dhcp refreshes it only after an apply that worked).
+applies = [ln for ln in open(f"{W}/fabric/archive/audit.log").read().splitlines() if "Action: APPLY" in ln]
+SAFE = bool(applies) and all("exit=0" not in ln for ln in applies)
+check("this test install cannot apply (no deployment): the changes below are saved, never deployed to this host",
+      SAFE, applies[-3:])
+
+# ---- the pages: each refused without its read permission, the permission named
+for path, roles, perm, ident in (("/kea", PKI_OPS, "dhcp:read", "web:get.kea"),
+                                 ("/freeradius", netops, "radius:read", "web:get.freeradius"),
+                                 ("/openbao", bundle_roles("fabric-helpdesk"), "vault:status", "web:get.openbao"),
+                                 ("/dns-filter", AUDITOR_ROLES, "dns:filter", "web:get.dns-filter")):
+    (st, hd, sc, body), _, _ = login(roles=tuple(roles))
+    st, _, _, body = req("GET", path, ALICE, cookie=cookie_val(sc, "__Host-webui"))
+    if path == "/dns-filter":           # without dns:filter only the query log section is left, and it says why
+        # covers: web:get.dns-filter -
+        check("refused: the DNS filter tab without dns:filter: no list, rule or group form, the permission named",
+              st == 200 and "dns:querylog" in body and 'action="/dns-filter/' not in body, (st, body[:300]))
+        continue
+    # covers: web:get.kea web:get.freeradius web:get.openbao -
+    check(f"refused: the {path} page without {perm} ({ident}): 403, the permission named",
+          st == 403 and perm in body, (st, body[:300]))
+st, _, _, body = req("GET", "/dns-filter", ALICE, cookie=adm)
+# covers: web:get.dns-filter agent:get.dns-filter +
+check("DNS filter tab: the filter off on this host, how to turn it on (dns_filter in vars.yaml)",
+      st == 200 and "The DNS filter is off" in body and "dns_filter: bind" in body, (st, body[:300]))
+
+# ---- the agent's read routes: what each returns, and each refused without its permission
+out = agent_call("GET", "/v1/images", "alice", ADMIN_ROLES)
+# covers: agent:get.images +
+check("admin token: GET /v1/images answers with the image rows (none: no service is installed on this test host)",
+      " 200 " in out and out.split("\n", 1)[1].strip().startswith("["), out)
+for path, want, ident in (("/v1/radius/guides", '"windows"', "agent:get.radius.guides"),
+                          ("/v1/vault", '"reachable"', "agent:get.vault"),
+                          ("/v1/vault/devices", '"disks"', "agent:get.vault.devices"),
+                          ("/v1/vault/slots", '"pi-core"', "agent:get.vault.slots")):
+    out = agent_call("GET", path, "alice", ADMIN_ROLES)
+    # covers: agent:get.radius.guides agent:get.vault agent:get.vault.devices agent:get.vault.slots +
+    check(f"admin token: GET {path} answers ({ident})", " 200 " in out and want in out, out)
+for path, roles, perm, ident in (("/v1/dhcp", PKI_OPS, "dhcp:read", "agent:get.dhcp"),
+                                 ("/v1/dns-filter", AUDITOR_ROLES, "dns:filter", "agent:get.dns-filter"),
+                                 ("/v1/images", DNS_ONLY, "status:read", "agent:get.images"),
+                                 ("/v1/radius", netops, "radius:read", "agent:get.radius"),
+                                 ("/v1/radius/guides", netops, "radius:read", "agent:get.radius.guides"),
+                                 ("/v1/vault", PKI_OPS, "vault:status", "agent:get.vault"),
+                                 ("/v1/vault/devices", PKI_OPS, "vault:status", "agent:get.vault.devices"),
+                                 ("/v1/vault/slots", PKI_OPS, "vault:status", "agent:get.vault.slots")):
+    out = agent_call("GET", path, "carol", roles)
+    # covers: agent:get.dhcp agent:get.dns-filter agent:get.images agent:get.radius agent:get.radius.guides -
+    # covers: agent:get.vault agent:get.vault.devices agent:get.vault.slots -
+    check(f"refused: GET {path} without {perm} ({ident}): 403, the permission named",
+          " 403 " in out and f"you need the permission {perm}" in out, out)
+
+# ---- the agent's change routes: each refused without its permission, nothing changed
+vt, st_before = vars_now(), secrets_now()
+for path, roles, perm in (("/v1/dhcp/on", AUDITOR_ROLES, "dhcp:write"), ("/v1/dhcp/off", AUDITOR_ROLES, "dhcp:write"),
+                          ("/v1/dhcp/reservations", AUDITOR_ROLES, "dhcp:write"),
+                          ("/v1/dhcp/reservations/02:00:00:00:00:01/delete", AUDITOR_ROLES, "dhcp:write"),
+                          ("/v1/dhcp/subnets", AUDITOR_ROLES, "dhcp:write"),
+                          ("/v1/dhcp/subnets/update", AUDITOR_ROLES, "dhcp:write"),
+                          ("/v1/dhcp/subnets/delete", AUDITOR_ROLES, "dhcp:write"),
+                          ("/v1/dhcp/options", AUDITOR_ROLES, "dhcp:write"),
+                          ("/v1/dhcp/options/delete", AUDITOR_ROLES, "dhcp:write"),
+                          ("/v1/dhcp/classes", AUDITOR_ROLES, "dhcp:write"),
+                          ("/v1/dhcp/classes/pxe/delete", AUDITOR_ROLES, "dhcp:write"),
+                          ("/v1/dns-filter/lists", AUDITOR_ROLES, "dns:filter"),
+                          ("/v1/dns-filter/lists/delete", AUDITOR_ROLES, "dns:filter"),
+                          ("/v1/dns-filter/rules", AUDITOR_ROLES, "dns:filter"),
+                          ("/v1/dns-filter/rules/delete", AUDITOR_ROLES, "dns:filter"),
+                          ("/v1/dns-filter/upstreams", AUDITOR_ROLES, "dns:filter"),
+                          ("/v1/dns-filter/groups/delete", AUDITOR_ROLES, "dns:filter"),
+                          ("/v1/dns-filter/safe-search", AUDITOR_ROLES, "dns:filter"),
+                          ("/v1/dns-filter/fetch", AUDITOR_ROLES, "dns:filter"),
+                          ("/v1/dns-filter/querylog", netops, "dns:querylog"),
+                          ("/v1/radius/clients/switch1/rotate", AUDITOR_ROLES, "radius:admin"),
+                          ("/v1/radius/clients/switch1/delete", AUDITOR_ROLES, "radius:admin"),
+                          ("/v1/radius/people/lan-users/delete", AUDITOR_ROLES, "radius:admin"),
+                          ("/v1/vault/slots/s1/test", AUDITOR_ROLES, "vault:unlock"),
+                          ("/v1/vault/slots/s1/remove", AUDITOR_ROLES, "vault:unlock")):
+    out = agent_call("POST", path, "carol", roles, {"name": "x", "group": "", "subnet": "10.9.0.0/24"})
+    # covers: agent:post.dhcp.reservations agent:post.dhcp.reservations.*.delete agent:post.dhcp.subnets -
+    # covers: agent:post.dhcp.subnets.update agent:post.dhcp.subnets.delete agent:post.dhcp.options -
+    # covers: agent:post.dhcp.options.delete agent:post.dhcp.classes agent:post.dhcp.classes.*.delete -
+    # covers: agent:post.dns-filter.lists.delete agent:post.dns-filter.rules agent:post.dns-filter.rules.delete -
+    # covers: agent:post.dns-filter.upstreams agent:post.dns-filter.groups.delete agent:post.dns-filter.safe-search -
+    # covers: agent:post.dns-filter.fetch agent:post.dns-filter.querylog agent:post.radius.clients.*.rotate -
+    # covers: agent:post.radius.clients.*.delete agent:post.radius.people.*.delete agent:post.vault.slots.*.test -
+    # covers: agent:post.vault.slots.*.remove -
+    check(f"refused: POST {path} without {perm}: 403, the permission named, nothing changed",
+          " 403 " in out and f"you need the permission {perm}" in out and vars_now() == vt
+          and secrets_now() == st_before, out)
+
+# ---- the Kea tab (manual 1.10.2.5): DHCP stays off on this host (settings kept from an earlier turn-on: an interface
+# and a first subnet); its settings are edited all the same
+open(VARS, "a").write("dhcp:\n  interfaces: [eth0]\n  subnets:\n  - {subnet: 10.29.0.0/24, pools: [10.29.0.100 - 10.29.0.150]}\n")
+st, loc, _ = web_post("/kea/subnets", {"network": "10.30.0.0/24", "name": "lab", "vlan": "30", "router": "10.30.0.1",
+                                       "pools": "10.30.0.100 - 10.30.0.150", "notes": "the lab bench"}, adm, acsrf)
+subs = {s["subnet"]: s for s in ((vars_key("dhcp") or {}).get("subnets") or [])}
+lab = subs.get("10.30.0.0/24", {})
+# covers: web:post.kea.subnets agent:post.dhcp.subnets +
+check("Kea tab: add a subnet -> saved with its name, VLAN, router, pool, notes and an id, said so",
+      SAFE and st == 303 and "Subnet 10.30.0.0/24 (lab) added." in loc and lab.get("name") == "lab"
+      and lab.get("vlan") == 30 and lab.get("pools") == ["10.30.0.100 - 10.30.0.150"] and lab.get("id"), (loc, subs))
+vt = vars_now()
+for form, why in (({"network": "10.31.0.0/24", "name": "lab"}, "unique"),):
+    st, loc, _ = web_post("/kea/subnets", form, adm, acsrf)
+    # covers: web:post.kea.subnets agent:post.dhcp.subnets -
+    check(f"Kea tab: a subnet refused ({why}): said why, nothing saved",
+          st == 303 and "err=" in loc and why in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/kea/subnets/update", {"subnet": "lab", "name": "lab", "vlan": "30", "router": "10.30.0.1",
+                                              "notes": "moved to bench 2",
+                                              "add_pools": "10.30.0.200 - 10.30.0.210"}, adm, acsrf)
+lab = {s["subnet"]: s for s in vars_key("dhcp")["subnets"]}.get("10.30.0.0/24", {})
+# covers: web:post.kea.subnets.update agent:post.dhcp.subnets.update +
+check("Kea tab: change a subnet -> notes and pools saved, the id kept",
+      st == 303 and "Subnet 10.30.0.0/24 saved." in loc and lab.get("notes") == "moved to bench 2"
+      and "10.30.0.200 - 10.30.0.210" in lab.get("pools", []), (loc, lab))
+vt = vars_now()
+st, loc, _ = web_post("/kea/subnets/update", {"subnet": "lab", "name": "lab", "vlan": "30",
+                                              "router": "10.30.0.1", "notes": "moved to bench 2",
+                                              "remove_pools": "10.30.0.1 - 10.30.0.9"}, adm, acsrf)
+# covers: web:post.kea.subnets.update agent:post.dhcp.subnets.update -
+check("Kea tab: removing a pool the subnet does not have is refused, named, nothing saved",
+      "has no pool 10.30.0.1 - 10.30.0.9" in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/kea/reservations", {"mac": "02:00:00:00:00:44", "ip": "10.30.0.44", "hostname": "scope"},
+                      adm, acsrf)
+lab = {s["subnet"]: s for s in vars_key("dhcp")["subnets"]}.get("10.30.0.0/24", {})
+# covers: web:post.kea.reservations agent:post.dhcp.reservations +
+check("Kea tab: reserve an address -> saved in its subnet with the host name",
+      "Reserved 10.30.0.44 for 02:00:00:00:00:44." in loc
+      and any(r.get("ip") == "10.30.0.44" and r.get("hostname") == "scope" for r in lab.get("reservations", [])),
+      (loc, lab))
+vt = vars_now()
+st, loc, _ = web_post("/kea/reservations", {"mac": "02:00:00:00:00:45", "ip": "10.99.0.5"}, adm, acsrf)
+# covers: web:post.kea.reservations agent:post.dhcp.reservations -
+check("Kea tab: a reservation outside every subnet is refused, said why, nothing saved",
+      "10.99.0.5 is in none of the DHCP subnets" in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/kea/options", {"option": "ntp-servers", "data": "10.30.0.1", "scope": "subnet",
+                                       "target": "lab"}, adm, acsrf)
+lab = {s["subnet"]: s for s in vars_key("dhcp")["subnets"]}.get("10.30.0.0/24", {})
+# covers: web:post.kea.options agent:post.dhcp.options +
+check("Kea tab: set an option on a subnet -> saved there",
+      "Option ntp-servers set for" in loc and {"name": "ntp-servers", "data": "10.30.0.1"} in lab.get("options", []),
+      (loc, lab))
+vt = vars_now()
+st, loc, _ = web_post("/kea/options", {"option": "ntp-servers", "data": "10.30.0.1", "scope": "subnet",
+                                       "target": "nope"}, adm, acsrf)
+# covers: web:post.kea.options agent:post.dhcp.options -
+check("Kea tab: an option for a subnet that does not exist is refused, named, nothing saved",
+      "no DHCP subnet 'nope'" in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/kea/options/delete", {"option": "ntp-servers", "scope": "subnet", "target": "lab"}, adm, acsrf)
+lab = {s["subnet"]: s for s in vars_key("dhcp")["subnets"]}.get("10.30.0.0/24", {})
+# covers: web:post.kea.options.delete agent:post.dhcp.options.delete +
+check("Kea tab: remove the option -> gone from the subnet", "Option ntp-servers removed from" in loc
+      and not lab.get("options"), (loc, lab))
+vt = vars_now()
+st, loc, _ = web_post("/kea/options/delete", {"option": "ntp-servers", "scope": "subnet", "target": "lab"}, adm, acsrf)
+# covers: web:post.kea.options.delete agent:post.dhcp.options.delete -
+check("Kea tab: removing an option that is not set is refused, said so, nothing saved",
+      "option ntp-servers is not set for" in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/kea/classes", {"name": "pxe-uefi", "test": "option[93].hex == 0x0007",
+                                       "next_server": "10.30.0.5", "boot_file": "ipxe.efi"}, adm, acsrf)
+classes = {c["name"]: c for c in (vars_key("dhcp").get("client_classes") or [])}
+# covers: web:post.kea.classes agent:post.dhcp.classes +
+check("Kea tab: add a client class -> saved with its test, next server and boot file",
+      "Client class pxe-uefi added." in loc and classes.get("pxe-uefi", {}).get("test") == "option[93].hex == 0x0007",
+      (loc, classes))
+vt = vars_now()
+st, loc, _ = web_post("/kea/classes", {"name": "pxe-uefi", "test": "option[93].hex == 0x0009"}, adm, acsrf)
+# covers: web:post.kea.classes agent:post.dhcp.classes -
+check("Kea tab: a class that exists already is refused, named, nothing saved",
+      "client class pxe-uefi exists" in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/kea/classes/pxe-uefi/delete", {}, adm, acsrf)
+# covers: web:post.kea.classes.*.delete agent:post.dhcp.classes.*.delete +
+check("Kea tab: remove the client class -> gone", "Client class pxe-uefi removed." in loc
+      and not vars_key("dhcp").get("client_classes"), loc)
+vt = vars_now()
+st, loc, _ = web_post("/kea/classes/ghost/delete", {}, adm, acsrf)
+# covers: web:post.kea.classes.*.delete agent:post.dhcp.classes.*.delete -
+check("Kea tab: removing a class that does not exist is refused, named, nothing saved",
+      "no client class 'ghost'" in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/kea/reservations/02:00:00:00:00:44/delete", {}, adm, acsrf)
+lab = {s["subnet"]: s for s in vars_key("dhcp")["subnets"]}.get("10.30.0.0/24", {})
+# covers: web:post.kea.reservations.*.delete agent:post.dhcp.reservations.*.delete +
+check("Kea tab: remove the reservation -> gone", "Reservation for 02:00:00:00:00:44 removed." in loc
+      and not lab.get("reservations"), (loc, lab))
+vt = vars_now()
+st, loc, _ = web_post("/kea/reservations/02:00:00:00:00:99/delete", {}, adm, acsrf)
+# covers: web:post.kea.reservations.*.delete agent:post.dhcp.reservations.*.delete -
+check("Kea tab: removing a reservation that does not exist is refused, named, nothing saved",
+      "no reservation for 02:00:00:00:00:99" in loc and vars_now() == vt, loc)
+vt = vars_now()
+st, loc, _ = web_post("/kea/subnets/delete", {"subnet": "nope"}, adm, acsrf)
+# covers: web:post.kea.subnets.delete agent:post.dhcp.subnets.delete -
+check("Kea tab: removing a subnet that does not exist is refused, named, nothing saved",
+      "no DHCP subnet 'nope'" in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/kea/subnets/delete", {"subnet": "lab"}, adm, acsrf)
+check("Kea tab: removing a subnet while Kea's leases cannot be read is refused without force, saying why",
+      "active leases in 10.30.0.0/24 cannot be ruled out" in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/kea/subnets/delete", {"subnet": "lab", "force": "on"}, adm, acsrf)
+# covers: web:post.kea.subnets.delete agent:post.dhcp.subnets.delete +
+check("Kea tab: remove the subnet with force (Kea is not running here) -> gone", "Subnet 10.30.0.0/24 removed." in loc
+      and "10.30.0.0/24" not in vars_now(), loc)
+vt = vars_now()
+aud, aud_csrf = fresh(AUDITOR_ROLES)
+for path in ("/kea/subnets", "/kea/subnets/update", "/kea/subnets/delete", "/kea/options", "/kea/options/delete",
+             "/kea/classes", "/kea/classes/x/delete", "/kea/reservations", "/kea/reservations/x/delete"):
+    st, _, body = web_post(path, {"network": "10.32.0.0/24", "name": "x", "subnet": "x", "option": "x", "data": "1",
+                                  "test": "member('ALL')", "mac": "02:00:00:00:00:01", "ip": "10.32.0.1"}, aud, aud_csrf)
+    # covers: web:post.kea.subnets web:post.kea.subnets.update web:post.kea.subnets.delete web:post.kea.options -
+    # covers: web:post.kea.options.delete web:post.kea.classes web:post.kea.classes.*.delete web:post.kea.reservations -
+    # covers: web:post.kea.reservations.*.delete -
+    check(f"auditor: {path} is refused by fabric-agent (403, dhcp:write), nothing saved",
+          st == 403 and "dhcp:write" in body and vars_now() == vt, (st, body[:200]))
+
+# ---- the DNS filter tab (manual 1.12.2.14): each change saved; the refusals say why and save nothing
+st, loc, _ = web_post("/dns-filter/lists", {"name": "Test list", "url": "https://lists.example.test/hosts.txt"},
+                      adm, acsrf)
+check("DNS filter: add a list -> saved (fetched by the lists job once applied)",
+      "Test list added" in loc and "https://lists.example.test/hosts.txt" in vars_now(), loc)
+st, loc, _ = web_post("/dns-filter/lists/delete", {"url": "https://lists.example.test/hosts.txt"}, adm, acsrf)
+# covers: web:post.dns-filter.lists.delete agent:post.dns-filter.lists.delete +
+check("DNS filter: remove the list -> gone", "Test list removed" in loc
+      and "lists.example.test" not in vars_now(), loc)
+vt = vars_now()
+st, loc, _ = web_post("/dns-filter/lists/delete", {"url": "https://lists.example.test/other.txt"}, adm, acsrf)
+# covers: web:post.dns-filter.lists.delete agent:post.dns-filter.lists.delete -
+check("DNS filter: removing a list that is not there is refused, named, nothing saved",
+      "has no list with the url https://lists.example.test/other.txt" in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/dns-filter/lists", {"name": "x" * 201, "url": "https://lists.example.test/long.txt"},
+                      adm, acsrf)
+# covers: web:post.dns-filter.lists -
+check("DNS filter: a list name over 200 characters is refused, said why, nothing saved",
+      "a list's name is at most 200 characters" in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/dns-filter/rules", {"kind": "block", "name": "ads.example.test"}, adm, acsrf)
+check("DNS filter: block a name -> saved", "ads.example.test blocked" in loc and "ads.example.test" in vars_now(), loc)
+vt = vars_now()
+for form, why in (({"kind": "maybe", "name": "x.example.test"}, "kind: allow or block"),
+                  ({"kind": "block", "name": "bad name!"}, "is not a DNS name"),
+                  ({"kind": "block", "name": "pi-core.lan.test"}, "inside fabric's own domains")):
+    st, loc, _ = web_post("/dns-filter/rules", form, adm, acsrf)
+    # covers: web:post.dns-filter.rules agent:post.dns-filter.rules -
+    check(f"DNS filter: a rule refused ({why}): said why, nothing saved", why in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/dns-filter/rules/delete", {"kind": "block", "name": "ads.example.test"}, adm, acsrf)
+# covers: web:post.dns-filter.rules.delete agent:post.dns-filter.rules.delete +
+check("DNS filter: lift the block -> gone", "ads.example.test is no longer blocked" in loc
+      and "ads.example.test" not in vars_now(), loc)
+vt = vars_now()
+st, loc, _ = web_post("/dns-filter/rules/delete", {"kind": "block", "name": "ads.example.test"}, adm, acsrf)
+# covers: web:post.dns-filter.rules.delete agent:post.dns-filter.rules.delete -
+check("DNS filter: lifting a block that is not there is refused, named, nothing saved",
+      "ads.example.test is not blocked by a rule of" in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/dns-filter/upstreams", {"upstreams": "9.9.9.9 dns.quad9.net"}, adm, acsrf)
+# covers: web:post.dns-filter.upstreams agent:post.dns-filter.upstreams +
+check("DNS filter: set the upstreams -> saved with the name on each certificate",
+      "Upstreams saved: 9.9.9.9 (dns.quad9.net)" in loc and "dns.quad9.net" in vars_now(), loc)
+vt = vars_now()
+st, loc, _ = web_post("/dns-filter/upstreams", {"upstreams": "9.9.9.9"}, adm, acsrf)
+# covers: web:post.dns-filter.upstreams agent:post.dns-filter.upstreams -
+check("DNS filter: an upstream without its certificate name is refused, said why, nothing saved",
+      "an address and the name on its certificate" in loc and vars_now() == vt, loc)
+vt = vars_now()
+out = agent_call("POST", "/v1/dns-filter/safe-search", "alice", ADMIN_ROLES, {"group": "kids", "on": "on",
+                                                                              "youtube": "loose"})
+# covers: agent:post.dns-filter.safe-search -
+check("refused: a YouTube level that is not one (400, said why), nothing saved",
+      " 400 " in out and "youtube: strict or moderate" in out and vars_now() == vt, out)
+out = agent_call("POST", "/v1/dns-filter/groups/delete", "alice", ADMIN_ROLES, {"name": "kids"})
+# covers: agent:post.dns-filter.groups.delete -
+check("refused: removing a client group that does not exist (400, named), nothing saved",
+      " 400 " in out and "no client group is called kids" in out and vars_now() == vt, out)
+st, loc, _ = web_post("/dns-filter/fetch", {}, adm, acsrf)
+# covers: web:post.dns-filter.fetch agent:post.dns-filter.fetch -
+check("DNS filter: Fetch now without the lists job (the resolver is not installed here) is refused, saying so",
+      "the lists job could not start" in loc and vars_now() == vt, loc)
+out = agent_call("POST", "/v1/dns-filter/querylog", "alice", ADMIN_ROLES, {"name": "bad name!"})
+# covers: agent:post.dns-filter.querylog -
+check("refused: a query-log search for something that is not a DNS name (400, said why)",
+      " 400 " in out and "is not a DNS name" in out, out)
+aud, aud_csrf = fresh(AUDITOR_ROLES)
+for path in ("/dns-filter/lists", "/dns-filter/lists/delete", "/dns-filter/rules", "/dns-filter/rules/delete",
+             "/dns-filter/upstreams", "/dns-filter/fetch"):
+    st, _, body = web_post(path, {"name": "x.example.test", "url": "https://x.example.test/l", "kind": "block",
+                                  "upstreams": "none", "clients": "192.168.7.81"}, aud, aud_csrf)
+    # covers: web:post.dns-filter.lists web:post.dns-filter.lists.delete web:post.dns-filter.rules -
+    # covers: web:post.dns-filter.rules.delete web:post.dns-filter.upstreams web:post.dns-filter.fetch -
+    check(f"auditor: {path} is refused by fabric-agent (403, dns:filter), nothing saved",
+          st == 403 and "dns:filter" in body and vars_now() == vt, (st, body[:200]))
+
+# ---- the FreeRADIUS tab (manual 1.11): refused while 802.1X is off; with it on, each change saved
+vt, st_before = vars_now(), secrets_now()
+for path, form in (("/freeradius/clients", {"name": "switch1", "address": "192.168.7.20"}),
+                   ("/freeradius/people", {"group": "lan-users", "vlan": "20"})):
+    st, loc, _ = web_post(path, form, adm, acsrf)
+    # covers: web:post.freeradius.clients web:post.freeradius.people -
+    check(f"802.1X off: {path} is refused, saying 802.1X is off, nothing saved",
+          st == 303 and "802.1X is off (install_freeradius: false)" in loc and vars_now() == vt
+          and secrets_now() == st_before, loc)
+open(VARS, "a").write("install_freeradius: true\n")
+st, _, body = web_post("/freeradius/clients", {"name": "switch1", "address": "192.168.7.20",
+                                               "message_authenticator": "1"}, adm, acsrf)
+secret1 = body.split('<pre class="secret">')[1].split("<")[0] if '<pre class="secret">' in body else ""
+# covers: web:post.freeradius.clients agent:post.radius.clients +
+check("802.1X on: add a RADIUS client -> its shared secret shown once, kept in the secrets, never in vars.yaml",
+      st == 200 and secret1 and "switch1" in vars_now() and secret1 not in vars_now() and secret1 in secrets_now(),
+      (st, body[:300]))
+vt, st_before = vars_now(), secrets_now()
+st, loc, _ = web_post("/freeradius/clients", {"name": "switch2", "address": "999.1.1.1"}, adm, acsrf)
+# covers: web:post.freeradius.clients -
+check("802.1X: a client whose address is not one is refused, said why, nothing saved",
+      st == 303 and "switch2: address must be an IP address" in loc and vars_now() == vt and secrets_now() == st_before, loc)
+st, _, body = web_post("/freeradius/clients/switch1/rotate", {}, adm, acsrf)
+secret2 = body.split('<pre class="secret">')[1].split("<")[0] if '<pre class="secret">' in body else ""
+# covers: web:post.freeradius.clients.*.rotate agent:post.radius.clients.*.rotate +
+check("802.1X: a new shared secret for the client -> shown once, the old one replaced in the secrets",
+      st == 200 and secret2 and secret2 != secret1 and secret2 in secrets_now() and secret1 not in secrets_now(),
+      (st, body[:300]))
+vt, st_before = vars_now(), secrets_now()
+for path in ("/freeradius/clients/ghost/rotate", "/freeradius/clients/ghost/delete"):
+    st, loc, _ = web_post(path, {}, adm, acsrf)
+    # covers: web:post.freeradius.clients.*.rotate web:post.freeradius.clients.*.delete -
+    # covers: agent:post.radius.clients.*.rotate agent:post.radius.clients.*.delete -
+    check(f"802.1X: {path} for a client that does not exist is refused, named, nothing changed",
+          st == 303 and "no RADIUS client ghost" in loc and vars_now() == vt and secrets_now() == st_before, loc)
+st, loc, _ = web_post("/freeradius/people", {"group": "lan-users", "vlan": "20"}, adm, acsrf)
+people = {p["group"]: p for p in (vars_key("radius_people") or [])}
+# covers: web:post.freeradius.people agent:post.radius.people +
+check("802.1X: members of a group may join by password, on their VLAN -> saved",
+      "Members of lan-users may join by password on VLAN 20." in loc and str(people.get("lan-users", {}).get("vlan"))
+      == "20", (loc, people))
+vt = vars_now()
+st, loc, _ = web_post("/freeradius/people", {"group": "lan-admins", "vlan": "5000"}, adm, acsrf)
+# covers: web:post.freeradius.people -
+check("802.1X: a VLAN outside 1-4094 is refused, said why, nothing saved",
+      "lan-admins: VLAN must be 1-4094" in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/freeradius/people/lan-users/delete", {}, adm, acsrf)
+# covers: web:post.freeradius.people.*.delete agent:post.radius.people.*.delete +
+check("802.1X: unmap the group -> its members may no longer join by password",
+      "Members of lan-users may no longer join by password." in loc and not vars_key("radius_people"), loc)
+vt = vars_now()
+st, loc, _ = web_post("/freeradius/people/lan-users/delete", {}, adm, acsrf)
+# covers: web:post.freeradius.people.*.delete agent:post.radius.people.*.delete -
+check("802.1X: unmapping a group that is not mapped is refused, named, nothing saved",
+      "group lan-users is not mapped for 802.1X" in loc and vars_now() == vt, loc)
+st, loc, _ = web_post("/freeradius/clients/switch1/delete", {}, adm, acsrf)
+# covers: web:post.freeradius.clients.*.delete agent:post.radius.clients.*.delete +
+check("802.1X: remove the client -> gone from vars.yaml and its secret from the secrets",
+      "RADIUS client switch1 removed." in loc and "switch1" not in vars_now() and secret2 not in secrets_now(), loc)
+vt, st_before = vars_now(), secrets_now()
+aud, aud_csrf = fresh(AUDITOR_ROLES)
+for path in ("/freeradius/clients", "/freeradius/clients/switch1/rotate", "/freeradius/clients/switch1/delete",
+             "/freeradius/people", "/freeradius/people/lan-users/delete"):
+    st, _, body = web_post(path, {"name": "evil", "address": "192.168.7.66", "group": "lan-users"}, aud, aud_csrf)
+    # covers: web:post.freeradius.clients web:post.freeradius.clients.*.rotate web:post.freeradius.clients.*.delete -
+    # covers: web:post.freeradius.people web:post.freeradius.people.*.delete -
+    check(f"auditor: {path} is refused by fabric-agent (403, radius:admin), nothing changed",
+          st == 403 and "radius:admin" in body and vars_now() == vt and secrets_now() == st_before, (st, body[:200]))
+text = vars_now().replace("install_freeradius: true\n", "")
+open(VARS, "w").write(text)
+
+# ---- the vault's unlock methods: this host has no vault key; a method that does not exist is refused by name
+adm, acsrf = fresh()
+for action in ("test", "remove"):
+    st, loc, _ = web_post(f"/openbao/slots/ghost/{action}", {"confirm": "pi-core"}, adm, acsrf)
+    # covers: web:post.openbao.slots.*.test web:post.openbao.slots.*.remove -
+    # covers: agent:post.vault.slots.*.test agent:post.vault.slots.*.remove -
+    check(f"vault: {action} an unlock method that does not exist -> refused, said why",
+          st == 303 and "no unlock method 'ghost'" in loc, loc)
+
+# ---- an image update or rollback from the Overview: refused without images:update; a service fabric does not run
+# is refused by the job, saying so
+aud, aud_csrf = fresh(AUDITOR_ROLES)
+for action in ("update", "rollback"):
+    st, _, body = web_post(f"/overview/images/nginx/{action}", {}, aud, aud_csrf)
+    # covers: web:post.overview.images.*.update web:post.overview.images.*.rollback -
+    check(f"auditor: an image {action} from the Overview is refused by fabric-agent (403, images:update)",
+          st == 403 and "images:update" in body, (st, body[:200]))
 # ---------------------------------------------- without a client certificate (webui_client_cert off, manual 2.3.6.2.6.3)
 json.dump({**cfg, "client_cert": False}, open(f"{W}/config/webui.json", "w"))
 os.remove(f"{W}/run/web.sock")

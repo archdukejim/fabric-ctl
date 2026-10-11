@@ -9,10 +9,14 @@ happens when the key goes missing, and hardening.
 
     sudo python3 tests/openbao/run.py          (needs Docker, openssl, root)
 """
+import contextlib
+import getpass
+import io
 import json
 import os
 import shutil
 import socket
+import stat
 import subprocess
 import sys
 import time
@@ -120,6 +124,58 @@ from fabriclib.secrets.import_secrets import import_secrets  # noqa: E402
 from fabriclib.secrets.load_secrets import load_secrets  # noqa: E402
 from fabriclib.secrets.save_secrets import save_secrets  # noqa: E402
 from fabriclib.secrets.secrets_in_openbao import secrets_in_openbao  # noqa: E402
+from fabriclib.common.jinja_env import jinja_env  # noqa: E402
+import fabriclib.vault.run_vault_command as rvc  # noqa: E402
+
+
+def raises(fn, text):
+    try:
+        fn()
+        return False
+    except ValidationError as exc:
+        return text in str(exc)
+
+
+class _Tty(io.StringIO):
+    """stdin that is a terminal: the commands then ask (ask_secret) instead of reading stdin."""
+    def isatty(self):
+        return True
+
+
+def vault_cli(*argv, stdin="", answers=None, v=None):
+    """`fabricctl vault …` as the CLI routes it, in this process: (exit status, stdout, stderr, prompts asked).
+    answers: what a person types at each hidden prompt (stdin is then a terminal; getpass stands in for the
+    keyboard, as the consent suite answers setup's questions); otherwise stdin is piped from `stdin`. Secrets go
+    in this way only, never on the command line, and nothing captured is printed."""
+    out, err, asked = io.StringIO(), io.StringIO(), []
+    real_stdin, real_getpass = sys.stdin, getpass.getpass
+    if answers is not None:
+        typed = iter(answers)
+
+        def keyboard(prompt=""):
+            asked.append(prompt)
+            return next(typed)
+        getpass.getpass = keyboard
+        sys.stdin = _Tty()
+    else:
+        sys.stdin = io.StringIO(stdin)
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = rvc.run_vault_command(V if v is None else v, list(argv))
+    finally:
+        sys.stdin, getpass.getpass = real_stdin, real_getpass
+    return code, out.getvalue(), err.getvalue(), asked
+
+
+def slot_ids():
+    return [sl["id"] for sl in read_slot_store(V)["slots"]]
+
+
+def usage_refused(*argv):
+    """A form the command does not take: refused with the usage on stderr, exit 2, nothing on stdout."""
+    code, out, err, _ = vault_cli(*argv)
+    return code == 2 and err.startswith("usage: fabricctl vault") and not out
+
 
 SECRETS = f"{W}/fabric/config/fabric-secrets.yml"
 os.makedirs(os.path.dirname(SECRETS), exist_ok=True)
@@ -179,9 +235,14 @@ except ValidationError:
 check("TLS is verified: a server cert from another CA is refused", tls_ok)
 
 # ---------------------------------------------------------------- init + configure
+check("init asked for a threshold above the share count: OpenBao refuses it, nothing initialised",
+      raises(lambda: init_openbao({**V, "openbao_recovery_shares": 1, "openbao_recovery_threshold": 2}),
+             "OpenBao init failed") and not vault_status(V)["initialized"])
+V["openbao_recovery_shares"], V["openbao_recovery_threshold"] = 3, 2     # break glass then needs two of three
 first = init_openbao(V)
-check("init returns one recovery key and a root token", first and len(first["recovery_keys"]) == 1 and first["root_token"],
-      first)
+# covers: setting:openbao_recovery_shares +
+check("init returns the recovery keys openbao_recovery_shares asks for (3) and a root token",
+      first and len(first["recovery_keys"]) == 3 and first["root_token"], first)
 check("init is not repeated", init_openbao(V) is None)
 check("static seal: unsealed without anyone entering a key", not vault_status(V)["sealed"] and health() == "healthy")
 check("once unsealed the key is wiped from RAM; OpenBao keeps working", wipe_runtime_keys(V) == 1
@@ -232,6 +293,52 @@ check("auditor bundle: application secrets listed (metadata), never read or writ
 bao_request(V, "DELETE", "fabric/metadata/glass-probe", token=glass)
 check("break glass: the root token is revoked after use", revoke_token(V, glass))
 
+# fabricctl vault break-glass / revoke-token: keys and tokens asked hidden or read from stdin, never argv
+admin_compose = open(f"{W}/openbao/docker-compose.yml").read()
+# covers: setting:openbao_admin_dir +
+check("openbao_admin_dir: the break-glass socket is there, mounted into OpenBao; another folder reaches nothing",
+      stat.S_ISSOCK(os.stat(f"{W}/admin/bao.sock").st_mode) and f"{W}/admin:/openbao/admin" in admin_compose
+      and raises(lambda: bao_request({**V, "openbao_admin_dir": f"{W}/nowhere"}, "GET", "sys/generate-root/attempt",
+                                     admin=True), "not reachable"))
+
+
+def attempt_open():
+    return bao_request(V, "GET", "sys/generate-root/attempt", admin=True)[1].get("started")
+
+
+k = first["recovery_keys"]
+code, out, err, asked = vault_cli("break-glass", answers=[k[0], ""])
+# covers: cli:vault.break-glass ask:vault.recovery_key -
+check("vault break-glass: one recovery key typed of the two the threshold needs -> refused, attempt cancelled",
+      code == 1 and "error: 1 of 2 recovery keys given" in err and not out and not attempt_open()
+      and asked == ["recovery key 1 (empty line when done): ", "recovery key 2 (empty line when done): "], (err, asked))
+code, out, err, _ = vault_cli("break-glass", stdin="bm90IGEgcmVjb3Zlcnkga2V5\nYW5kIG5laXRoZXIgaXMgdGhpcw==\n")
+check("vault break-glass: wrong recovery keys on stdin are refused, no token shown, attempt cancelled",
+      code == 1 and "error: recovery key refused" in err and "ROOT TOKEN" not in out and not attempt_open(), err)
+code, out, err, asked = vault_cli("break-glass", answers=[k[2], k[0], ""])
+glass = out.splitlines()[1].strip() if code == 0 and len(out.splitlines()) > 1 else ""
+# covers: cli:vault.break-glass ask:vault.recovery_key setting:openbao_recovery_threshold +
+check("vault break-glass: two of the three recovery keys typed (hidden) -> a working root token, shown once",
+      code == 0 and out.startswith("ROOT TOKEN") and len(asked) == 3 and glass
+      and bao_request(V, "GET", "auth/token/lookup-self", token=glass)[1].get("data", {}).get("policies") == ["root"],
+      err)
+bao_request(V, "PUT", "sys/policies/acl/lookup-only", token=glass,
+            body={"policy": 'path "auth/token/lookup-self" { capabilities = ["read"] }'})
+sticky = bao_request(V, "POST", "auth/token/create", token=glass,
+                     body={"policies": ["lookup-only"], "no_default_policy": True, "ttl": "5m"})[1]["auth"]["client_token"]
+code, out, err, asked = vault_cli("revoke-token", answers=[sticky])
+# covers: cli:vault.revoke-token ask:vault.root_token -
+check("vault revoke-token: a token that may not revoke itself -> refused (still works), never reported revoked",
+      code == 1 and "error: the token still works (or OpenBao refused): not revoked" in err and "revoked" not in out
+      and asked == ["token: "] and bao_request(V, "GET", "auth/token/lookup-self", token=sticky)[0] == 200, err)
+bao_request(V, "POST", "auth/token/revoke", token=glass, body={"token": sticky})
+bao_request(V, "DELETE", "sys/policies/acl/lookup-only", token=glass)
+code, out, err, asked = vault_cli("revoke-token", answers=[glass])
+# covers: cli:vault.revoke-token ask:vault.root_token +
+check("vault revoke-token: the break-glass token typed (hidden) is revoked and refused from then on",
+      code == 0 and out.strip() == "revoked" and asked == ["token: "]
+      and bao_request(V, "GET", "auth/token/lookup-self", token=glass)[0] == 403, err)
+
 agent = approle_login(V, "agent-approle.json")
 check("fabric-agent may read the engine list", bao_request(V, "GET", "sys/mounts", token=agent)[0] == 200)
 check("fabric-agent may not write app secrets",
@@ -249,6 +356,62 @@ check("status: unsealed, static seal, raft, KV v2 fabric/ + apps/, approle, key 
       s["initialized"] and not s["sealed"] and s["seal_type"] == "static" and s["storage"] == "raft"
       and {"fabric/", "apps/"} <= {m["path"] for m in s["mounts"] if m["version"] == "2"} and "approle/" in s["auth"]
       and s["key"]["ok"], s)
+code, out, err, _ = vault_cli()
+# covers: cli:vault +
+check("fabricctl vault (no subcommand): the status — unsealed, static seal, raft — exit 0",
+      code == 0 and "unsealed  (static seal, raft storage)" in out and "fabric/" in out, (out, err))
+# covers: cli:vault -
+check("fabricctl vault <unknown>: refused with the usage, exit 2", usage_refused("unseal"))
+# covers: cli:vault.slots -
+check("vault slots takes no argument: refused with the usage", usage_refused("slots", "local"))
+code, out, err, _ = vault_cli("test", "nosuch")
+# covers: cli:vault.test -
+check("vault test: a method that does not exist is refused, says which", code == 1 and
+      "error: no unlock method 'nosuch'" in err and not out, err)
+code, out, err, _ = vault_cli("remove", "local", "--yes")
+# covers: cli:vault.remove -
+check("vault remove: the last unlock method is refused and stays", code == 1 and
+      "error: the last working unlock method cannot be removed" in err and slot_ids() == ["local"], err)
+check("vault remove without --yes: refused with the usage, nothing removed",
+      usage_refused("remove", "local") and slot_ids() == ["local"])
+code, out, err, _ = vault_cli("add-kmip", "127.0.0.1:5696", "--key-id", "1", "--label", "x", "--yes")
+# covers: cli:vault.add-kmip -
+check("vault add-kmip without its certificates: refused, says which are missing, nothing saved",
+      code == 1 and "error: missing --ca, --cert, --key" in err and slot_ids() == ["local"], err)
+code, out, err, _ = vault_cli("rotate-db", v={**V, "install_keycloak": True})
+rot = json.load(open(f"{W}/fabric/archive/db-rotation.json")) if os.path.exists(f"{W}/fabric/archive/db-rotation.json") \
+    else {}
+# covers: cli:vault.rotate-db -
+check("vault rotate-db: OpenBao has no database engine here -> refused, the old password keeps working, recorded",
+      code == 1 and "error: OpenBao did not rotate it" in err and "the old password keeps working" in err
+      and rot.get("ok") is False and not os.path.exists(SECRETS), err)
+bao_ip = sh("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' openbao").stdout.strip()
+elsewhere = vault_status({**V, "ip_openbao": "10.254.19.91"})
+# covers: setting:ip_openbao +
+check("ip_openbao: OpenBao's container has that address and fabric reaches it there (not elsewhere)",
+      bao_ip == IP and vault_status(V)["reachable"] and not elsewhere["reachable"]
+      and "not reachable at 10.254.19.91" in elsewhere.get("error", ""), (bao_ip, elsewhere))
+alias, other_name = vault_status({**V, "hostname_openbao": "openbao"}), \
+    vault_status({**V, "hostname_openbao": "elsewhere.lan.test"})
+# covers: setting:hostname_openbao +
+check("hostname_openbao: the name its certificate is checked for, and the address shown",
+      alias["reachable"] and alias["url"] == "https://openbao/" and not other_name["reachable"]
+      and "certificate" in other_name.get("error", "").lower(), (alias, other_name))
+
+
+def cnames(node):
+    if isinstance(node, dict):
+        return ([node] if set(node) == {"canonical", "name"} else []) + [c for x in node.values() for c in cnames(x)]
+    return [c for x in node for c in cnames(x)] if isinstance(node, list) else []
+
+
+named = yaml.safe_load(jinja_env(f"{W}/fabric/jinja").get_template("vars.yaml.j2").render(
+    domain="lan.test", hostname="h", host_ip="10.0.0.5", lan_cidr="10.0.0.0/24", lan_gateway="10.0.0.1",
+    cname_openbao="bao"))
+# covers: setting:cname_openbao +
+check("cname_openbao: OpenBao's name becomes bao.<domain> and a CNAME bao -> the host is published",
+      named["hostname_openbao"] == "bao.lan.test" and {"canonical": "h", "name": "bao"} in cnames(named)
+      and {"canonical": "h", "name": "vault"} not in cnames(named), named.get("hostname_openbao"))
 # ---------------------------------------------------------------- fabric's secrets into OpenBao
 ORIGINAL = {"ca_password": "Ca-pw-1", "rndc_secret": "cm5kYy1zZWNyZXQ=", "ad_agent_password": "Da1",
             "tsig_secrets": {"npm": "bnBtLXNlY3JldA=="}}
@@ -305,6 +468,18 @@ check("audit log records requests with secrets HMAC'd", '"path":"fabric/data/pro
 # ---------------------------------------------------------------- restarts, unlock methods, rotation
 check("after a restart it unseals itself (fabric-unlock, then wiped)", start() and not vault_status(V)["sealed"]
       and not os.listdir(f"{W}/run"))
+code, out, err, _ = vault_cli("unlock")
+placed = sorted(os.listdir(f"{W}/run"))
+wcode, wout, werr, _ = vault_cli("wipe-key")
+# covers: cli:vault.unlock cli:vault.wipe-key +
+check("vault unlock (systemd) puts the key in RAM through the key file; vault wipe-key wipes it again",
+      code == 0 and out.strip() == "vault key in place (via local)" and placed == ["fabric-1.key"]
+      and wcode == 0 and wout.strip() == "wiped 1 key file(s) from RAM" and not os.listdir(f"{W}/run"),
+      (out, err, placed, wout, werr))
+# covers: cli:vault.wipe-key -
+check("vault wipe-key takes no argument: refused with the usage", usage_refused("wipe-key", "now"))
+# covers: cli:vault.device-event -
+check("vault device-event takes no argument: refused with the usage", usage_refused("device-event", "add"))
 check("slot test: the key-file method unwraps the vault key", test_slot(V, "tester", "local", source="test"))
 sl = list_slots(V)
 check("slot list: type, presence, key version, what it was tested against",
@@ -350,7 +525,26 @@ wipe_runtime_keys(V)
 
 os.rename(f"{W}/keys/local-fabric-2.key", f"{W}/keys/away.key")
 check("no unlock method present: fabric-unlock refuses (systemd then does not start OpenBao)", unlock_vault(V) is None)
+code, out, err, _ = vault_cli("unlock")
+# covers: cli:vault.unlock -
+check("vault unlock with no method present: refused, says OpenBao stays locked, no key in RAM",
+      code == 1 and "no unlock method is present: OpenBao stays locked" in err and not out
+      and not os.listdir(f"{W}/run"), err)
+code, out, err, _ = vault_cli("rotate", "--yes")
+# covers: cli:vault.rotate -
+check("vault rotate with no method present: refused, says to plug one in; the vault key is unchanged",
+      code == 1 and "error: no unlock method is present: plug one in to rotate" in err
+      and read_slot_store(V)["key_id"] == "fabric-2" and not read_slot_store(V).get("previous_key_id"), err)
+check("vault rotate without --yes: refused with the usage, nothing rotated",
+      usage_refused("rotate") and read_slot_store(V)["key_id"] == "fabric-2")
 compose("stop")
+code, out, err, _ = vault_cli("status")
+# covers: cli:vault.status -
+check("vault status with OpenBao stopped: says unreachable, exit 1", code == 1 and out.startswith("OpenBao: unreachable"),
+      out)
+code, out, err, _ = vault_cli("revoke-token", stdin="s.not-a-real-token\n")
+check("vault revoke-token with OpenBao stopped: refused, says it is not reachable",
+      code == 1 and "error: OpenBao is not reachable" in err and not out, err)
 try:
     locked = load_secrets(SECRETS, V)
     locked_ok = False
@@ -389,6 +583,13 @@ try:
 except ValidationError as exc:
     usb_refused = "not a USB disk" in str(exc)
 check("add USB: anything that is not a USB disk is refused", usb_refused)
+code, out, err, _ = vault_cli("add-usb", loop, "--label", "safe stick", "--yes")
+# covers: cli:vault.add-usb -
+check("vault add-usb: a disk that is not on USB is refused, never erased, nothing saved",
+      code == 1 and f"error: {loop} is not a USB disk" in err and not out
+      and not any(sl["type"] == "usb" for sl in read_slot_store(V)["slots"])
+      and not sh(f"blkid -o value -s UUID {loop}", ok=False).stdout.strip(), err)
+check("vault add-usb without --yes: refused with the usage, nothing erased", usage_refused("add-usb", loop))
 os.makedirs(f"{W}/mnt", exist_ok=True)
 sh(f"mkfs.ext4 -q -F {other}")
 sh(f"mount {other} {W}/mnt")
@@ -433,6 +634,14 @@ check("with the stick gone fabric-unlock refuses", unlock_vault(V) is None)
 loop = sh(f"losetup --find --show {W}/stick.img").stdout.strip()
 check("stick back: OpenBao is started again", vault_device_event(V, lambda *a: fake_systemctl(*a, running=False))
       == "started" and ("start", "openbao") in calls)
+calls.clear()
+real_device_event = rvc.vault_device_event
+rvc.vault_device_event = lambda v: real_device_event(v, lambda *a: fake_systemctl(*a, running=False))
+code, out, err, _ = vault_cli("device-event")
+rvc.vault_device_event = real_device_event
+# covers: cli:vault.device-event +
+check("vault device-event (udev): the stick is present and OpenBao stopped -> it is started",
+      code == 0 and out.strip() == "started" and ("start", "openbao") in calls, (out, err, calls))
 check("...and unseals from it, data intact", start() and
       bao_request(V, "GET", "fabric/data/probe", token=approle_login(V, "setup-approle.json"))[1]
       .get("data", {}).get("data") == {"v": "1"})
@@ -486,12 +695,12 @@ if have_hsm:
     open(f"{W}/softhsm/softhsm2.conf", "w").write(f"directories.tokendir = {W}/softhsm/tokens\nobjectstore.backend = file\n")
     os.environ["SOFTHSM2_CONF"] = f"{W}/softhsm/softhsm2.conf"
     # softhsm2-util only takes PINs as arguments: acceptable for a throwaway software token in a test
-    for label in ("fabric-a", "fabric-b"):
+    for label in ("fabric-a", "fabric-b", "fabric-c"):
         sh(["softhsm2-util", "--init-token", "--free", "--label", label, "--so-pin", "87654321", "--pin", "123456"])
     V["openbao_pkcs11_modules"] = [HSM]
     toks = {t["label"]: t for t in list_pkcs11_tokens(V)}
     # covers: setting:openbao_pkcs11_modules +
-    check("tokens listed without a login", set(toks) == {"fabric-a", "fabric-b"}
+    check("tokens listed without a login", set(toks) == {"fabric-a", "fabric-b", "fabric-c"}
           and all(t["pin_state"] == "ok" for t in toks.values()), toks)
     A, B = toks["fabric-a"]["serial"], toks["fabric-b"]["serial"]
     check("a library not on the allowed list is refused (never loaded)",
@@ -555,6 +764,39 @@ if have_hsm:
     remove_slot(V, "tester", tok_b, source="test")
     check("removing a security key deletes its stored PIN", not os.path.exists(f"{W}/keys/pin-{tok_b}"))
 
+    # the same through fabricctl vault tokens / add-key / remove (the PIN asked hidden, never on the command line)
+    code, out, err, _ = vault_cli("tokens")
+    C = next((t["serial"] for t in list_pkcs11_tokens(V) if t["label"] == "fabric-c"), "")
+    # covers: cli:vault.tokens +
+    check("vault tokens: every token the allowed libraries see, by serial, PIN state and library",
+          code == 0 and C and all(s in out for s in (A, B, C)) and out.count("PIN: ok") == 3 and HSM in out, out)
+    # covers: cli:vault.tokens -
+    check("vault tokens takes no argument: refused with the usage", usage_refused("tokens", C))
+    before = slot_ids()
+    code, out, err, asked = vault_cli("add-key", "0000000000000000", "--yes", answers=["123456"])
+    # covers: cli:vault.add-key -
+    check("vault add-key: a serial no allowed library sees is refused before any PIN is asked, nothing saved",
+          code == 1 and "error: 0 tokens with serial '0000000000000000'" in err and not asked and slot_ids() == before,
+          err)
+    pins = sorted(f for f in os.listdir(f"{W}/keys") if f.startswith("pin-"))
+    code, out, err, asked = vault_cli("add-key", C, "--label", "token c", "--yes", answers=["000000"])
+    # covers: ask:vault.token_pin -
+    check("vault add-key: the PIN is asked hidden; a wrong one is refused, nothing saved",
+          code == 1 and "wrong PIN" in err and asked == ["token PIN: "] and slot_ids() == before
+          and sorted(f for f in os.listdir(f"{W}/keys") if f.startswith("pin-")) == pins, err)
+    code, out, err, asked = vault_cli("add-key", C, "--label", "token c", "--yes", answers=["123456"])
+    tok_c = out.split()[-1] if code == 0 and out.startswith("added ") else ""
+    # covers: cli:vault.add-key ask:vault.token_pin +
+    check("vault add-key: the right PIN typed (hidden) -> the security key is an unlock method that unwraps the key",
+          tok_c and asked == ["token PIN: "] and any(sl["id"] == tok_c and sl["type"] == "pkcs11"
+                                                     and sl["label"] == "token c" for sl in read_slot_store(V)["slots"])
+          and test_slot(V, "tester", tok_c, source="test"), (out, err))
+    code, out, err, _ = vault_cli("remove", tok_c, "--yes")
+    # covers: cli:vault.remove +
+    check("vault remove: the method is gone and its stored PIN deleted, the others untouched",
+          code == 0 and out.strip() == f"{tok_c}: removed" and slot_ids() == before
+          and not os.path.exists(f"{W}/keys/pin-{tok_c}"), (out, err))
+
     # the token alone
     remove_slot(V, "tester", usb_id, source="test")
     check("OpenBao restarts from the security key alone", start() and not vault_status(V)["sealed"])
@@ -608,6 +850,23 @@ if have_hsm and have_kmip:
     check("KMIP: added after a wrap + unwrap through the device; its certificates and key root 0400",
           all(oct(os.stat(f"{kdir}/{n}").st_mode & 0o777) == "0o400" for n in ("ca.crt", "client.crt", "client.key"))
           and test_slot(V, "tester", hsm, source="test"))
+    with kmip_session(*kargs) as kc:
+        kuid2 = kc.create(kenums.CryptographicAlgorithm.AES, 256)
+        kc.activate(kuid2)
+    before = slot_ids()
+    code, out, err, _ = vault_cli("add-kmip", f"127.0.0.1:{KP}", "--key-id", kuid2, "--ca", f"{W}/root.crt",
+                                  "--cert", f"{W}/kmip-client.crt", "--key", f"{W}/kmip-client.key",
+                                  "--server-name", "kmip.lan.test", "--label", "cli hsm", "--yes")
+    hsm2 = out.split()[-1] if code == 0 and out.startswith("added ") else ""
+    # covers: cli:vault.add-kmip +
+    check("vault add-kmip: certificates read from their files, the device's key made an unlock method that unwraps",
+          hsm2 and any(sl["id"] == hsm2 and sl["type"] == "kmip" and sl["label"] == "cli hsm"
+                       for sl in read_slot_store(V)["slots"]) and test_slot(V, "tester", hsm2, source="test"),
+          (out, err))
+    code, out, err, _ = vault_cli("remove", hsm2, "--yes")
+    # covers: cli:vault.remove +
+    check("vault remove: the HSM method added from the command line is gone again",
+          code == 0 and out.strip() == f"{hsm2}: removed" and slot_ids() == before, (out, err))
     remove_slot(V, "tester", tok, source="test")
     check("OpenBao restarts from the HSM alone", start() and not vault_status(V)["sealed"])
     res = rotate_vault_key(V, "tester", restart_unsealed, source="test")

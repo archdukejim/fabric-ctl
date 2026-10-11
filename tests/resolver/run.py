@@ -7,6 +7,7 @@ Also the converter's cases and the settings that must be refused.
     sudo python3 tests/resolver/run.py           (needs Docker and dig; the internet checks need Cloudflare)
 """
 import http.server
+import io
 import json
 import os
 import shutil
@@ -15,6 +16,7 @@ import subprocess
 import sys
 import threading
 import time
+from contextlib import redirect_stderr, redirect_stdout
 
 import yaml
 
@@ -69,6 +71,18 @@ from fabriclib.dns_filter.show_filter_status import show_filter_status  # noqa: 
 from fabriclib.dns_filter.resolver_tls_pending import resolver_tls_pending  # noqa: E402
 from fabriclib.common.dot_query import dot_query  # noqa: E402
 from fabriclib.dns_filter.update_lists import update_lists  # noqa: E402
+from fabriclib.dns_filter.run_dns_filter_command import run_dns_filter_command  # noqa: E402
+from fabriclib.deploy.check_settings import check_settings  # noqa: E402
+
+
+def dnsf(v, *argv):
+    """fabricctl dns-filter …, as the CLI routes it (fabriclib/cli.py): its exit status and output (stdout and
+    stderr)."""
+    out, err = io.StringIO(), io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        code = run_dns_filter_command(v, list(argv))
+    return code, out.getvalue() + err.getvalue()
+
 
 # ---- the converter (pure)
 z = convert_list("\n".join([
@@ -118,6 +132,14 @@ for name, bad in (("a list without an http(s) url", {"dns_filter_lists": [{"name
         # covers: setting:dns_filter_lists setting:dns_filter_allow -
         # covers: setting:dns_filter_block setting:dns_filter_upstreams -
         check(f"settings: {name} is refused, saying why", bool(str(e)), e)
+for value, says in (("unbound", "dns_filter must be bind or none (got 'unbound')"),
+                    ("adguard", "adguard is gone since 0.7")):
+    try:
+        check_settings({"dns_filter": value, "domain": "lan.test", "org_domain": "lan.test"})
+        check(f"settings: dns_filter {value} is refused", False, "accepted")
+    except ValidationError as e:
+        # covers: setting:dns_filter -
+        check(f"settings: dns_filter {value} is refused by the settings check, saying why", says in str(e), e)
 ok = {**BASE, "dns_filter_allow": ["Fine.Example."], "dns_filter_block": ["bad.example", "bad.example"]}
 check_filter_settings(ok)
 # covers: setting:dns_filter_allow setting:dns_filter_block +
@@ -277,7 +299,8 @@ try:
           svc["user"] == "913:913" and svc["cap_drop"] == ["ALL"] and svc["read_only"] is True
           and svc["security_opt"] == ["no-new-privileges:true"] and svc["mem_limit"] == "384m"
           and svc["entrypoint"][:2] == ["/usr/sbin/named", "-f"], svc)
-    run = ["docker", "run", "-d", "--name", "bind9-resolver", "--network", NET, "--ip", RES_IP,
+    run = ["docker", "run", "-d", "--name", "bind9-resolver", "--network", NET,
+           "--ip", svc["networks"]["fabric_net"]["ipv4_address"],
            "--user", svc["user"], "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
            "--memory", svc["mem_limit"], "--entrypoint", svc["entrypoint"][0]]
     for t in svc["tmpfs"]:
@@ -297,6 +320,13 @@ try:
     # covers: setting:security +
     check("after the reload the host is allowed: fabric's zone answers through the authoritative BIND",
           until(lambda: "10.9.8.7" in dig("+short", "www.lan.test"), 20), dig("www.lan.test"))
+    addr = sh(["docker", "inspect", "-f", "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+               "bind9-resolver"], ok=False).stdout.strip()
+    # covers: setting:ip_resolver +
+    check("the resolver runs on ip_resolver (its compose file's address) and answers clients there",
+          svc["networks"]["fabric_net"]["ipv4_address"] == V["ip_resolver"] == addr
+          and "10.9.8.7" in sh(["dig", "+time=5", "+tries=1", f"@{addr}", "+short", "www.lan.test"], ok=False).stdout,
+          (svc["networks"], addr))
     check("fabric's zone is never filtered, even when a list names it (||lan.test^)",
           "10.9.8.8" in dig("+short", "ads.lan.test"), dig("ads.lan.test"))
     # covers: setting:dns_filter_lists +
@@ -362,9 +392,54 @@ try:
     check("deploy: a list with no good copy is left out of the configuration (the resolver never loads a missing "
           "file)", zone404 not in open(f"{W}/resolver/config/named.conf").read() and status("ads.example") == "NXDOMAIN")
     check("status: exit 1 while a list has no good copy", show_filter_status(V) == 1)
+    code, out = dnsf(V, "status")
+    code2, out2 = dnsf(V, "status", "--all")
+    # covers: cli:dns-filter.status -
+    check("fabricctl dns-filter status: exit 1 naming the list with no good copy and its error; an unknown word "
+          "refused with the usage", code == 1 and "Missing: no good copy yet" in out and "404" in out
+          and code2 == 2 and "usage: fabricctl dns-filter" in out2, (code, out, code2, out2))
+    good = open(f"{W}/resolver/lists/{zone1}").read()
+    code, out = dnsf(V, "lists")
+    # covers: cli:dns-filter.lists -
+    check("fabricctl dns-filter lists: a list that cannot be fetched is reported FAILED with its error, exit 1; the "
+          "good list and its copy unchanged, still blocking", code == 1 and "Missing: FAILED" in out and "404" in out
+          and "Test list: unchanged" in out and open(f"{W}/resolver/lists/{zone1}").read() == good
+          and not os.path.exists(f"{W}/resolver/lists/{zone404}") and status("ads.example") == "NXDOMAIN",
+          (code, out))
     V["dns_filter_lists"] = [{"name": "Test list", "url": URL1}]
     deploy_resolver(V, SECRETS, {"children": [], "upstream": None}, env)
     check("status: exit 0 when the resolver runs and every list has a good copy", show_filter_status(V) == 0)
+
+    # fabricctl dns-filter, as the CLI routes it (manual 1.12.2.10)
+    with open(os.path.join(LIST_DIR, "one.txt"), "a") as f:
+        f.write("||cli-entry.example^\n")
+    code, out = dnsf(V, "lists")
+    # covers: cli:dns-filter.lists +
+    check("fabricctl dns-filter lists: the changed list fetched and reloaded (its rules counted), AdGuard's catalogue "
+          "reported, exit 0; the new entry is blocked", code == 0 and "Test list: changed, 6 rules" in out
+          and "AdGuard's catalogue:" in out and until(lambda: status("cli-entry.example") == "NXDOMAIN", 20),
+          (code, out))
+    code, out = dnsf(V)
+    code2, out2 = dnsf(V, "status")
+    # covers: cli:dns-filter cli:dns-filter.status setting:install_resolver +
+    check("fabricctl dns-filter (status by default): the running resolver, its memory limit, each list's rules, "
+          "exit 0", code == 0 and code2 == 0 and "resolver: running   memory limit 384m" in out
+          and "Test list: 6 rules" in out and out == out2, (code, out, code2, out2))
+    state_before = open(f"{W}/resolver/lists/state.json").read()
+    off = {**V, "install_resolver": False, "dns_filter": "none"}
+    code, out = dnsf(off, "lists")
+    code2, out2 = dnsf(V, "restart")
+    code3, out3 = dnsf(V, "lists", "--now")
+    # covers: cli:dns-filter -
+    check("fabricctl dns-filter: lists refused while the resolver is off (exit 2, saying so, nothing fetched); an "
+          "unknown command or option refused with the usage", code == 2
+          and "the BIND resolver is off (dns_filter: none): nothing to fetch" in out
+          and open(f"{W}/resolver/lists/state.json").read() == state_before
+          and code2 == 2 and "usage: fabricctl dns-filter" in out2 and code3 == 2 and "usage:" in out3,
+          (code, out, code2, out2, code3, out3))
+    code, out = dnsf(off, "status")
+    check("fabricctl dns-filter status with the resolver off: says so (install_resolver false)",
+          code == 0 and "the BIND resolver is off (dns_filter: none)" in out and "resolver: running" not in out, out)
     V["dns_filter_lists"] = []
     deploy_resolver(V, SECRETS, {"children": [], "upstream": None}, env)
 
