@@ -7,6 +7,7 @@ lists. Throwaway (global Rule 4); its findings are recorded in the manual, 2.3.1
 |---|---|
 | `run.sh` | A: BIND in front (views, the owner's rules, fabric's zone, dnstap) forwarding to AdGuard Home, set up and fed only through its API; B: BIND alone with the same lists merged. Memory, load, adding and toggling a list, answer times, restarts |
 | `adguard.py` | AdGuard Home's API as fabric-agent would drive it: first-run setup, its query log and statistics off, upstreams, a group as a client, rules, lists |
+| `clientid.sh` | 1.12.3.14's two points: a group's view forwarding over DoT names its group (ClientID) and AdGuard applies that client's rule; a list read from a file |
 | `merge.py` | The lists through fabric's converter, merged into one deduplicated response policy zone |
 
 ```bash

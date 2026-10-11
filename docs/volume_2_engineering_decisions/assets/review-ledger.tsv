@@ -32,7 +32,7 @@ docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	5d098a3910
 docs/volume_1_description_and_architecture/1.11.1-freeradius-design.md	53be8bfe3baba02927c9b7b66dd4d02282115356	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.1-adguard.md	b2280752ee06e87cb6e1497fdb91651e589b6a4d	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.2-bind-resolver.md	97e78a0db3ee1ca79d7edb569eb8e03b03a97164	2026-10-11	
-docs/volume_1_description_and_architecture/1.12.3-adguard-behind-bind.md	f1d1ca4949e44f2b2d3d68945323ac9d8e3c443d	2026-10-11	
+docs/volume_1_description_and_architecture/1.12.3-adguard-behind-bind.md	ca4e264568e839ae06158b502469098b996838ee	2026-10-11	
 docs/volume_1_description_and_architecture/1.13.1-chrony.md	ad072bf9a0b0d7d74c145a8df36599bb4f1aca6e	2026-10-08	
 docs/volume_1_description_and_architecture/1.14.1-image-channels.md	94a12a60defe93ae9bc13a991ae57f8961edd5ca	2026-10-08	
 docs/volume_1_description_and_architecture/1.14.2-image-updates.md	b7f95a062ae13998b7477152b86eb736930996d0	2026-10-09	
@@ -131,7 +131,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	9df3b3a9713275c6b4abd28d84f22
 docs/volume_2_engineering_decisions/2.1.9-federation.md	6c344024d62480ec9bea70a3245c3baa6511af50	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	16dd78ec3d286bd18877a4ee3123fa300bfd855d	2026-10-11	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	574db28b201f0a54ed0f823162001ee490cfb533	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	3424b43960e50007224d299adac7dd0533c7f0f6	2026-10-08	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -246,8 +246,9 @@ scripts/install-from-checkout.sh	b03b6b30bb230d09753b070af8f196285dfe788a	2026-1
 scripts/release/README.md	d5379b29f1b78dc46eefe9b1b518555b2236f651	2026-10-08	
 scripts/release/make-apt-key.sh	afc377602ea7f299327f42646cace23cb9c25963	2026-10-08	
 spikes/README.md	26fd7b7c1c3c71822152c1a713f510d47f6691d1	2026-10-11	
-spikes/dns-engine/README.md	8e0a4937d4dddbb6cacb9023e32652ee3ed9d395	2026-10-11	
+spikes/dns-engine/README.md	895bb7e3fd683380105a07417022b028c6c658ac	2026-10-11	
 spikes/dns-engine/adguard.py	95786719a486d0aba9863f44092e79011102e56c	2026-10-11	
+spikes/dns-engine/clientid.sh	2554372cb64076467585d7b3c8e471848ce2466b	2026-10-11	
 spikes/dns-engine/merge.py	6ac92671fd4e700ec7059715cb25a7817817d49f	2026-10-11	
 spikes/dns-engine/run.sh	1caf4c13c2f5b85c70248bfcb7ac8f559fc68608	2026-10-11	
 spikes/dns-filter/README.md	18112a638be76f259395a60d4860658158fce4c8	2026-10-09	
