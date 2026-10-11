@@ -236,6 +236,15 @@ with tempfile.TemporaryDirectory() as tmp:
 # ---- the web UI: its post route and the page for each kind of user
 from webui import views  # noqa: E402
 import webui.routes.dns_filter_post as wpost  # noqa: E402
+from fabriclib.rbac.required_permission import POST as AGENT_POST  # noqa: E402
+from webui.agentclient.dns_filter_change import CHANGES  # noqa: E402
+
+# every change the tab posts is one the console sends on, and one the agent serves (2.3.1.16: groups, groups/delete and
+# safe-search were missing from CHANGES, so those forms answered 500; the stand-in agent below accepts anything)
+check("web: every change the DNS filter tab posts is in the console's list of changes (none answers 500)",
+      set(wpost.BACK) <= CHANGES, sorted(set(wpost.BACK) - CHANGES))
+check("web: ...and each is a route the agent serves (its permission table)",
+      all(("dns-filter", *what.split("/")) in AGENT_POST for what in CHANGES), sorted(CHANGES))
 
 
 class H:
