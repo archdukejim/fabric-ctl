@@ -12,7 +12,8 @@ GET = {
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
     ("devices",): "devices:read",
     ("people",): "people:read",
-    ("domain",): "domain:read", ("gpo",): "domain:read", ("federation",): "federation:read",
+    ("domain",): "domain:read", ("domain", "logon"): "domain:read", ("gpo",): "domain:read",
+    ("federation",): "federation:read",
     ("vault",): "vault:status", ("vault", "slots"): "vault:status", ("vault", "devices"): "vault:status",
     ("security",): "security:raise",
 }
@@ -43,6 +44,7 @@ POST = {
     ("machines",): "machines:admin", ("machines", "*", "enable"): "machines:admin",
     ("machines", "*", "disable"): "machines:admin", ("machines", "*", "delete"): "machines:admin",
     ("gpo", "search"): "domain:read", ("gpo", "set"): "gpo:admin", ("gpo", "clear"): "gpo:admin",
+    ("domain", "logon", "set"): "gpo:admin", ("domain", "logon", "clear"): "gpo:admin",
     ("dhcp", "on"): "dhcp:write", ("dhcp", "off"): "dhcp:write",
     ("dhcp", "reservations"): "dhcp:write", ("dhcp", "reservations", "*", "delete"): "dhcp:write",
     ("dhcp", "subnets"): "dhcp:write", ("dhcp", "subnets", "update"): "dhcp:write",

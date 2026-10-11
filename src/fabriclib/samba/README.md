@@ -15,7 +15,12 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `converge_domain.py` | The wanted state handed to the converge code inside the running DC; what changed (after every start and apply) |
 | `domain_status.py` | What `fabricctl domain status` shows: the DC, whether it runs, its roles, the policy in force |
 | `set_domain_password_policy.py` | Change the password policy in the settings (checked whole, audited); the next apply writes it |
-| `run_domain_command.py` | `fabricctl domain status` and `password-policy` (routing only) |
+| `run_domain_command.py` | `fabricctl domain status`, `password-policy`, `add-machine` and `logon show / set / clear` (routing only) |
+| `logon_ou_path.py` | An OU's path below the site's OU as a log-on policy names it (`site` for the site's OU) |
+| `check_logon_policies.py` | The setting `logon_policies` checked and normalised: OU paths, group names, the site's machines always covered (1.6.11.4) |
+| `set_logon_policy.py` | Who may sign in to one OU's machines, saved (groups checked in the domain; the first edit keeps today's rights as the site OU's; audited) |
+| `clear_logon_policy.py` | One OU's log-on policy removed (it takes its parent's; never leaving the site's machines without one; audited) |
+| `logon_overview.py` | Who may sign in, per OU: `logon show`, domain status, the web console's Machines section |
 | `gpo_request.py` | One ADMX-editor operation inside the DC (`gpo_tool.py`), the request on stdin |
 | `run_gpo_command.py` | `fabricctl gpo load / templates / list / show / set / clear / starter` |
 | `domain_overview.py` | The Directory tab's domain section: the DC, the policy, this site's machines |

@@ -149,6 +149,11 @@ SAMPLE_DOMAIN = {"status": {"domain": "ad.home.arpa", "realm": "AD.HOME.ARPA", "
                                "last_logon": "2026-10-05T08:12:00+00:00", "created": "2026-10-04", "dn": ""},
                               {"name": "ws2404", "dns": "ws2404.ad.home.arpa", "os": "", "enabled": False,
                                "last_logon": "", "created": "2026-10-05", "dn": ""}]}
+SAMPLE_LOGON = {"site": "lan", "legacy": False, "error": "",
+                "always": ["fabric-break-glass", "BUILTIN\\Administrators"],
+                "policies": [{"ou": "machines", "console": ["lan-machine-admins"], "remote": ["lan-machine-admins"]},
+                             {"ou": "machines/linux", "console": ["lan-machine-admins", "lan-devs"],
+                              "remote": ["lan-devs"]}]}
 SAMPLE_FEDERATION = {
     "site": "lan", "upstream": None,
     "sites": [{"name": "lab", "domain": "lab.home.arpa", "address": "192.168.20.2", "parent": "lan", "dc": "writable",

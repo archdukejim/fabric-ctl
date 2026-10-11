@@ -3,21 +3,20 @@ database: no credentials, no network. Run after every start and apply by fabricl
     docker exec -i samba python3 /fabric/converge.py < state.json
 The wanted state comes on stdin as JSON: {"site", "root" (bool), "password_policy" {…}, "networks" [site_networks
 items], "root_ca_pem", "id_range", "groups" [{name, gidNumber, description}], "admin_group", "accounts" {name:
-password}, "radius_gid", "lan_profile", optional "parent", "rodc", "join_account", "moving" and "sso_spns"} (stdin,
+password}, "radius_gid", "lan_profile", optional "parent", "rodc", "join_account", "moving", "sso_spns" and
+"logon_policies"} (stdin,
 never a command line: it holds the service accounts' passwords). Prints one JSON object: {"changed": [what changed,
 …]}. Exits 1 with the error on stderr."""
 import json
 import sys
 
-import ldb
-
-from acl_entries import sid_of
 from admin_gpo import ensure_gpo_admins
 from ensure_ad_site import ensure_ad_site
 from ensure_gpo import ensure_gpo
 from ensure_groups import ensure_groups
 from ensure_join_account import ensure_join_account
 from ensure_layout import ensure_layout
+from ensure_logon_policies import ensure_logon_policies
 from ensure_networks import ensure_networks
 from ensure_schema import ensure_schema
 from ensure_service_accounts import ensure_service_accounts
@@ -26,28 +25,15 @@ from ensure_site_info import ensure_site_info
 from ensure_site_link import ensure_site_link
 from ensure_sso_account import ensure_sso_account
 from ensure_sudo_rule import ensure_sudo_rule
-from logon_rights_policy import BUILTIN_ADMINISTRATORS, EXTENSIONS as LOGON_EXTENSIONS, logon_rights_policy
 from open_samdb import open_samdb
 from remove_ipv6_records import remove_ipv6_records
 from root_ca_policy import EXTENSIONS as TRUST_EXTENSIONS, root_ca_policy
 from set_password_policy import set_password_policy
 from share_winbind import share_winbind
-from site_roles import OLD_SUDO_ROLE, fabric_admins, role_group
 from windows_baseline_policy import windows_baseline_policy
 import paths
 
 CONF = "/data/etc/smb.conf"
-
-
-def _has_group(samdb, name):
-    """Purpose: whether a group exists, anywhere in the domain.
-    Inputs:  samdb — SamDB; name — sAMAccountName.
-    Returns: bool.
-    Fails:   ldb.LdbError from the search.
-    Feeds:   converge (the log-on list, during a federation's upgrade)."""
-    return bool(samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_SUBTREE,
-                             expression=f"(&(objectClass=group)(sAMAccountName={ldb.binary_encode(name)}))",
-                             attrs=["dn"]))
 
 
 def converge(state):
@@ -55,8 +41,8 @@ def converge(state):
              groups, the site's service accounts, the AD zones on IPv4 only (2.1.6.29), its access entries, its networks
              (the address plan), its default
              sudo rule, the AD site and its subnets, the password policy, the domain's trust GPO (fabric's root CA),
-             the site's log-on GPO, its Windows baseline GPO and winbind's privileged pipe for FreeRADIUS. Each part
-             changes only what differs, so a second run changes nothing.
+             the site's log-on GPOs (one per OU, 1.6.11.4), its Windows baseline GPO and winbind's privileged pipe
+             for FreeRADIUS. Each part changes only what differs, so a second run changes nothing.
     Inputs:  state — dict: site (str), root (bool: the root site, which also holds the organisation's items and the
              domain-wide trust GPO), password_policy (dict, every key), networks (site_networks' list), root_ca_pem
              (str), id_range ("first-last"), groups (fabric's ldap_groups), admin_group (the web UI's admin group, in
@@ -68,7 +54,9 @@ def converge(state):
              own DC moving here: its OU and links only, never its GPOs, which its own DC owns), lan_profile (str:
              the Windows wired 802.1X profile the baseline installs, "" without one), sso_spns (list, optional: the
              HTTP SPNs of the site's Kerberos sign-in account; none, no account), sso_host (str, optional: Keycloak's
-             name, which the Windows baseline lets browsers use Kerberos for; "" or none, no allowlist).
+             name, which the Windows baseline lets browsers use Kerberos for; "" or none, no allowlist), logon_policies
+             (optional: {ou path: {console, remote}}, who may sign in per OU; none, the site's log-on GPO as before
+             0.9).
     Returns: list of str, what changed.
     Fails:   KeyError for a missing state key; whatever a part raises (ldb.LdbError, OSError, CalledProcessError).
     Feeds:   this script's main."""
@@ -98,18 +86,7 @@ def converge(state):
     if state.get("moving"):               # a site with its own DC moving here: its GPOs are its own to rewrite
         changed += share_winbind(lp, int(state["radius_gid"]))
         return changed
-    # a machine's own local Administrators keep log-on too: the policy replaces Windows' local lists, and its owners
-    # must never be locked out of it; the roles of this site and of every site above it log on to administer (2.1.9.13)
-    owners = [site] + paths.ancestors(samdb, site)
-    names = [f"{site}-users", f"{site}-admins", state["admin_group"], "fabric-break-glass"]
-    names += [role_group(o, "windows-admins") for o in owners] + [fabric_admins(site)]
-    # a site above that has not converged since the upgrade still has its linux-sudo role: whichever it has (1.6.11.3)
-    names += [g for o in owners[1:] for g in (fabric_admins(o), f"{o}-{OLD_SUDO_ROLE}") if _has_group(samdb, g)]
-    names += [f"{o}-admins" for o in owners[1:]]
-    sids = [sid_of(samdb, g) for g in names] + [BUILTIN_ADMINISTRATORS]
-    local_admins = [sid_of(samdb, role_group(o, "windows-admins")) for o in owners]
-    changed += ensure_gpo(samdb, lp, f"fabric: {site} log-on rights", site_dn, LOGON_EXTENSIONS,
-                          {"Machine/Microsoft/Windows NT/SecEdit/GptTmpl.inf": logon_rights_policy(sids, local_admins)})
+    changed += ensure_logon_policies(samdb, lp, site, state.get("logon_policies"), state["admin_group"])
     changed += ensure_gpo_admins(samdb, lp, site)
     extensions, files = windows_baseline_policy(state.get("lan_profile") or "", state.get("sso_host") or "")
     changed += ensure_gpo(samdb, lp, f"fabric: {site} Windows baseline", site_dn, extensions,

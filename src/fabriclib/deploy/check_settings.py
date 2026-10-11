@@ -7,6 +7,7 @@ from fabriclib.dhcp.place_subnets import place_subnets
 from fabriclib.dns_filter.check_filter_settings import check_filter_settings
 from fabriclib.keycloak.signin_levels import signin_level
 from fabriclib.ntp.normalize_ntp import normalize_ntp
+from fabriclib.samba.check_logon_policies import check_logon_policies
 from fabriclib.system.host_networks import host_networks
 
 
@@ -15,14 +16,16 @@ def check_settings(final_vars):
     Inputs:  final_vars — rendered settings; its `dhcp` is replaced by the normalized one, each subnet placed on
              this host's interfaces (place_subnets: fabric's address for it), and `dhcp_served` set (client_networks:
              the subnets and addresses the templates open and listen on, manual 1.10.3.3) and `dhcp_reverse_zones`
-             (where Kea registers PTRs: dns/reverse_zones, BIND's grants, Kea's reverse DDNS; 2.1.10.7).
+             (where Kea registers PTRs: dns/reverse_zones, BIND's grants, Kea's reverse DDNS; 2.1.10.7); its
+             `logon_policies` normalised (check_logon_policies: OU paths in lower case, groups without repeats).
     Returns: None.
     Fails:   ValidationError from normalize_dhcp (DHCP subnets, pools, reservations, dhcp.ntp), place_subnets (an
              interface this host lacks, a subnet on no served interface and not relayed) or normalize_ntp
              (ntp_servers, ntp_serve, ntp_set_clock), from check_samba_settings (the Windows domain), for a
              dns_filter other than bind or none (0.6's adguard: run setup, which moves it), from
              check_filter_settings (the BIND resolver's lists,
-             rules and upstreams), or from signin_level (a second factor that is not a level).
+             rules and upstreams), from signin_level (a second factor that is not a level), or from
+             check_logon_policies (who may sign in per OU, manual 1.6.11.4).
     Feeds:   apply_deployment."""
     final_vars["dhcp"] = normalize_dhcp(final_vars)
     if final_vars.get("install_kea"):                 # on the host: its interfaces; elsewhere ({}) served from host_ip
@@ -40,3 +43,4 @@ def check_settings(final_vars):
     for key in ("signin_admin_second_factor", "signin_everyone_second_factor"):
         final_vars[key] = signin_level(final_vars.get(key))
     check_samba_settings(final_vars)
+    final_vars["logon_policies"] = check_logon_policies(final_vars.get("logon_policies"))

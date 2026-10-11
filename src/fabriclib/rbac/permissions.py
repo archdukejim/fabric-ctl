@@ -33,7 +33,7 @@ PERMISSIONS = {
     "people:groups": "change which groups a user is in",
     "domain:read": "see the domain: its controller, password policy, machines and Group Policy settings",
     "machines:admin": "pre-create, disable, enable and remove the site's machines",
-    "gpo:admin": "set and clear policies in the site's admin settings GPO",
+    "gpo:admin": "set and clear policies in the site's admin settings GPO, and who may sign in to its machines",
     "federation:read": "see the federation: sites, DC replication and conflicts, limits, the address plan",
     "vault:status": "see OpenBao's state and unlock methods",
     "vault:unlock": "add, test, remove unlock methods; rotate the vault key",
