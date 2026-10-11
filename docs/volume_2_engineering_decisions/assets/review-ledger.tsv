@@ -1041,7 +1041,7 @@ src/webui/agentclient/delete_tsig_key.py	ce63d6d7da68946a94cd8417ef9811be2c64420
 src/webui/agentclient/describe_csr.py	b32ee35528da3b28e25b976acf714cda77e435cd	2026-10-03	
 src/webui/agentclient/device_overview.py	2889cdc5ed896e75f2604cae3063eca1d736ef06	2026-10-05	
 src/webui/agentclient/dhcp_overview.py	55dc92e20173106a248083a6533be816c399e3b4	2026-10-03	
-src/webui/agentclient/dns_filter_change.py	09a959dd35e39d41995a6eabc976913fe3afa1f0	2026-10-11	
+src/webui/agentclient/dns_filter_change.py	5b4607be8a1c273ec9b4bddf5e47aed99509b4fc	2026-10-11	
 src/webui/agentclient/dns_filter_overview.py	b9269467ceb72224554bad64e292321576f6b3f5	2026-10-09	
 src/webui/agentclient/domain_overview.py	96daef26db36e73b03fea701c7d11d168977f88d	2026-10-05	
 src/webui/agentclient/errors.py	1551e50bd238e9f7929cd177252b5ca130f2d26c	2026-10-03	

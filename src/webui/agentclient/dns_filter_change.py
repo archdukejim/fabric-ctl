@@ -6,8 +6,8 @@ CHANGES = {"lists", "lists/delete", "rules", "rules/delete", "upstreams", "group
 
 def dns_filter_change(what, body):
     """Purpose: Change the DNS filter: a list added or removed, a name allowed or blocked or taken out of the rules, the
-             upstreams set, a client group made, changed or removed, safe search set (each saved and applied at once), or
-             the lists job started.
+             upstreams set, a client group made, changed or removed, safe search set (each saved and applied at
+             once), or the lists job started.
              Agent routes: POST /v1/dns-filter/<what> (dns:filter), timeout 300 s.
     Inputs:  what — one of CHANGES; body — the change's fields, as typed (fabriclib checks them).
     Returns: {"result", "applied", "output", "fetching"} (fetch: {"fetching"}).
