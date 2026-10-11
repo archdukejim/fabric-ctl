@@ -19,6 +19,7 @@ GET = {
 POST = {
     ("events",): "session", ("jobs", "doctor"): "status:read", ("jobs", "images"): "images:update",
     ("security", "raise"): "security:raise", ("security", "kerberos"): "security:raise",
+    ("zones",): "dns:write", ("zones", "*", "delete"): "dns:write",
     ("zones", "*", "records"): "dns:write", ("zones", "*", "records", "delete"): "dns:write",
     ("apply",): "dns:write",
     ("dns-filter", "querylog"): "dns:querylog",        # who looked up what: the admin bundle only (2.1.12.4)

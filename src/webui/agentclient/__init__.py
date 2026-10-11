@@ -6,6 +6,8 @@ from webui.agentclient.errors import AgentError, AuthError, PermissionDenied, Va
 from webui.agentclient.add_client_class import add_client_class  # noqa: F401
 from webui.agentclient.add_radius_client import add_radius_client  # noqa: F401
 from webui.agentclient.add_record import add_record  # noqa: F401
+from webui.agentclient.add_zone import add_zone  # noqa: F401
+from webui.agentclient.remove_zone import remove_zone  # noqa: F401
 from webui.agentclient.add_reservation import add_reservation  # noqa: F401
 from webui.agentclient.add_subnet import add_subnet  # noqa: F401
 from webui.agentclient.set_dhcp_on import set_dhcp_on  # noqa: F401

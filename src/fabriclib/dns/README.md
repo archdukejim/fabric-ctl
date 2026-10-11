@@ -4,11 +4,12 @@ DNS zones and records as stored in `vars.yaml` (`dns:`), plus TSIG keys
 (`tsig_keys`), BIND ACLs (`bind_acls`) and their update policies
 (`bind_acl_policies`), used by fabric-agent (web UI), the `fabricctl tsig` /
 `fabricctl acl` commands and the `fabricctl --interactive` editor alike. Publishing happens
-through apply (`deploy.py`), which reloads only changed zones.
+through apply (`deploy.py`), which reloads only changed zones; a zone added or removed is published in
+seconds (`publish_zone_list.py`).
 
 | File | What |
 |---|---|
-| `constants.py` | Supported record types |
+| `constants.py` | Supported record types; the private-use top-level domains (a zone under them hides no public name) |
 | `zone_name.py` | Zone key → zone name (`dynamic_zone_var` is the main domain) |
 | `validate_record.py` | Build a record dict from user input, rejecting anything unsafe for a zone file |
 | `format_value.py` | Human-readable right-hand side of a record (as rendered in the zone file) |
@@ -25,6 +26,9 @@ through apply (`deploy.py`), which reloads only changed zones.
 | `zone_detail.py` | One zone's records (A/AAAA with their automatic PTR) and sync status (`docker exec … rndc zonestatus`) |
 | `add_record.py` | Validate and add a record (locked, audited) |
 | `remove_record.py` | Remove a record, refusing if it changed since it was shown (locked, audited) |
+| `add_zone.py` | Add a forward zone, refusing names BIND already answers for and public names not ticked as hidden; served in seconds (locked, audited, rolled back if BIND or the resolver refuses) |
+| `remove_zone.py` | Remove a forward zone with its records once its name is typed again; refused while a TSIG key or ACL policy names it (locked, audited, rolled back if BIND or the resolver refuses) |
+| `publish_zone_list.py` | The quick path for a zone change: BIND's configuration and the new zone files rendered, `rndc reconfig`, then the resolver's configuration rendered and reloaded |
 | `normalize_tsig_keys.py` | Validate `tsig_keys`, fill defaults, take embedded secrets out (they belong in fabric's secrets: `fabric-secrets.yml` or OpenBao) |
 | `add_tsig_key.py` | Add a TSIG key (new or existing secret) to vars + secrets (locked, audited) |
 | `remove_tsig_key.py` | Remove a TSIG key, its secret, its `key` entries in every ACL and the `rfc2136.ini` fabric wrote for it (locked, audited) |

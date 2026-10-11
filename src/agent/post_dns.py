@@ -3,10 +3,12 @@ from agent.read_text import read_text
 from agent.route_not_found import RouteNotFound
 from fabriclib.common.errors import ValidationError
 from fabriclib.dns.add_record import add_record
+from fabriclib.dns.add_zone import add_zone
 from fabriclib.dns.constants import RECORD_TYPES
 from fabriclib.dns.create_zone_tsig_key import create_zone_tsig_key
 from fabriclib.dns.remove_record import remove_record
 from fabriclib.dns.remove_tsig_key import remove_tsig_key
+from fabriclib.dns.remove_zone import remove_zone
 from fabriclib.dns.rotate_tsig_key import rotate_tsig_key
 
 
@@ -19,6 +21,11 @@ def post_dns(route, actor, data):
     Fails:   ValidationError for an unsupported record type, an invalid index or what fabriclib refuses (-> 400);
              RouteNotFound for another route.
     Feeds:   agent/post_route.py."""
+    if route == ["zones"]:
+        hide = data.get("hide_public") in (True, "on", "true", "1")
+        return add_zone(actor, read_text(data, "name"), hide_public=hide, source="web")
+    if len(route) == 3 and route[0] == "zones" and route[2] == "delete":
+        return remove_zone(actor, route[1], read_text(data, "confirm"), source="web")
     if len(route) == 3 and route[0] == "zones" and route[2] == "records":
         rtype = data.get("type", "")
         if rtype not in RECORD_TYPES:
