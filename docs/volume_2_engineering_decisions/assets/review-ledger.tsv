@@ -31,7 +31,8 @@ docs/volume_1_description_and_architecture/1.10.2-dhcp-management.md	3d818cf18c6
 docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	5d098a3910a595b22a783d41a978f6e103e95ddc	2026-10-10	
 docs/volume_1_description_and_architecture/1.11.1-freeradius-design.md	53be8bfe3baba02927c9b7b66dd4d02282115356	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.1-adguard.md	b2280752ee06e87cb6e1497fdb91651e589b6a4d	2026-10-09	
-docs/volume_1_description_and_architecture/1.12.2-bind-resolver.md	334d2d332f05fe9a0626647c351a74c5998e03b2	2026-10-10	
+docs/volume_1_description_and_architecture/1.12.2-bind-resolver.md	97e78a0db3ee1ca79d7edb569eb8e03b03a97164	2026-10-11	
+docs/volume_1_description_and_architecture/1.12.3-adguard-behind-bind.md	f1d1ca4949e44f2b2d3d68945323ac9d8e3c443d	2026-10-11	
 docs/volume_1_description_and_architecture/1.13.1-chrony.md	ad072bf9a0b0d7d74c145a8df36599bb4f1aca6e	2026-10-08	
 docs/volume_1_description_and_architecture/1.14.1-image-channels.md	94a12a60defe93ae9bc13a991ae57f8961edd5ca	2026-10-08	
 docs/volume_1_description_and_architecture/1.14.2-image-updates.md	b7f95a062ae13998b7477152b86eb736930996d0	2026-10-09	
@@ -111,7 +112,7 @@ docs/volume_1_description_and_architecture/1.9.5-attachment.md	e5801ff46a17fb282
 docs/volume_1_description_and_architecture/1.9.6-changes.md	de23fcd3ade76bb7206aead682c0b813573dc13c	2026-10-08	
 docs/volume_1_description_and_architecture/1.9.7-milestones.md	a41e86e4f9febe721f6ea0699ab56a29e3185a48	2026-10-08	
 docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	772dcc42dd63416bb110df6d3945db8fc4589b0d	2026-10-08	
-docs/volume_1_description_and_architecture/README.md	dd669f7bdbbb9652321ce57ed38d916410b39bf5	2026-10-10	
+docs/volume_1_description_and_architecture/README.md	a4d2285286435dad9cae432f8cb39d108b8d0fe9	2026-10-11	
 docs/volume_2_engineering_decisions/2.1.1-product.md	a03298b83921ca9d2fa6bd61e7feddc809f76a90	2026-10-11	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	d2f651c94dba5302552170cee89cc3bc6f73769a	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
