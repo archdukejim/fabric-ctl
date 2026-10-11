@@ -85,9 +85,9 @@ docs/volume_1_description_and_architecture/1.2.9-host-consent.md	eb1592d0949a6cb
 docs/volume_1_description_and_architecture/1.3.1-host-package.md	e703469d9b61e94eadbcb61dabc0fcb6ee57728b	2026-10-10	
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	f5e5d9053fecee73d4075d85ae21e12b32aa91e8	2026-10-11	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	bbcb57d9f0854dcbeac64fd7e4e05de230bcdb5d	2026-10-10	
-docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	443dbe6d82b85edbcedd975b0e406b88411eb835	2026-10-10	
+docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	afa7df001a592bb13ba756c1598d5f55873e4e74	2026-10-11	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	8a1ec469d476fdcd75f02f9bb1c27db2db3827d9	2026-10-08	
-docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	4ecb611249153130e8ccad8b6b3b43d54a117c60	2026-10-09	
+docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	bd51050d26883d1a095e896c5e58e08f735b15ef	2026-10-11	
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.1-directory.md	7fa9284225375dc046757b644311b8368d907462	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.10-security.md	4cbc7055f772e5b00dc264ef875fc304792cf856	2026-10-09	
@@ -123,8 +123,8 @@ docs/volume_2_engineering_decisions/2.1.15-logs.md	b3fb9286ea0a6760a0ab597950d77
 docs/volume_2_engineering_decisions/2.1.16-disk-encryption.md	2c5f6832b676ea44d7f5e8a76a4717b35f4d3cd6	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.2-architecture.md	5bcf57bae1fdf61406de7c8fbe3e022546ccb991	2026-10-11	
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	82bfa9a0f44a376c8a1b49c2b5b49af11e86c60c	2026-10-08	
-docs/volume_2_engineering_decisions/2.1.4-dns.md	70c64d958ea51b05611de7a8853bf6462cbdb8fd	2026-10-10	
-docs/volume_2_engineering_decisions/2.1.5-certificates.md	e51cd82273c960708e92258e4074cbef12cfebe0	2026-10-10	
+docs/volume_2_engineering_decisions/2.1.4-dns.md	475c9dbec41faf9e8c306cf75a6cb8b7e4d03cff	2026-10-11	
+docs/volume_2_engineering_decisions/2.1.5-certificates.md	8863ac7b387bc6afb9ddc76418ca9372bd156efc	2026-10-11	
 docs/volume_2_engineering_decisions/2.1.6-identity.md	7019006e8f880ed91097ce0f69acfa6590388fae	2026-10-11	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	77e976fa8af20d0d8527340ebd2d4e887669b539	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.8-webui.md	9df3b3a9713275c6b4abd28d84f2286bea353809	2026-10-10	
