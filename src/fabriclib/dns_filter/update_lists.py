@@ -35,19 +35,31 @@ def _fetch(url, timeout):
     return data.decode("utf-8", errors="replace")
 
 
+CHECK_MEMORY = "512m"   # the list check's own memory: a large list takes ~100 MB to check (2.3.1.13 finding 7)
+
+
 def _check_zone(zone, text):
-    """Purpose: named-checkzone on a converted list, in the authoritative BIND's container (it has the tools and is
-             always running); skipped when that container is not running.
+    """Purpose: named-checkzone on a converted list, in a container of its own made from the authoritative BIND's image
+             (it has the tools): never inside BIND's running container, whose memory limit the check would share
+             (a large list's check got BIND itself killed, 2.3.1.13 finding 7); no network, no capabilities, a
+             read-only root, its own memory. Skipped when the BIND container does not exist (no image to use).
     Inputs:  zone — the zone name; text — the zone file.
     Returns: None when the zone loads (or the check could not run); else the checker's last line (str).
     Fails:   never raises.
     Feeds:   update_lists."""
     try:
-        r = subprocess.run(["docker", "exec", "-i", "bind9", "named-checkzone", "-q", zone, "/dev/stdin"],
+        image = subprocess.run(["docker", "inspect", "-f", "{{.Config.Image}}", "bind9"], capture_output=True,
+                               text=True, timeout=30)
+        if image.returncode != 0 or not image.stdout.strip():
+            return None
+        r = subprocess.run(["docker", "run", "--rm", "-i", "--network", "none", "--memory", CHECK_MEMORY,
+                            "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
+                            "--user", "65534:65534", "--entrypoint", "named-checkzone", image.stdout.strip(),
+                            "-q", zone, "/dev/stdin"],
                            input=text, capture_output=True, text=True, timeout=300)
     except (subprocess.TimeoutExpired, OSError):
         return None
-    if r.returncode == 0 or "No such container" in r.stderr or "is not running" in r.stderr:
+    if r.returncode == 0:
         return None
     return (r.stdout + r.stderr).strip().splitlines()[-1] if (r.stdout + r.stderr).strip() else "named-checkzone failed"
 
