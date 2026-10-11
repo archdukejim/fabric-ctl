@@ -1,6 +1,6 @@
 # spikes/dns-engine
 
-The spike for 0.7.5's open question (decision 2.1.1.49, manual 2.3.1.18): which engine matches the DNS filter's
+The spike for 0.7.0's open question (decision 2.1.1.49, manual 2.3.1.18): which engine matches the DNS filter's
 lists. Throwaway (global Rule 4); its findings are recorded in the manual, 2.3.1.18.
 
 | File | What |
