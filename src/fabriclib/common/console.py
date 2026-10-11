@@ -1,7 +1,8 @@
 import os
 import sys
 
-_TTY = sys.stdout.isatty() and os.environ.get("TERM") != "dumb"
+# colour only on a terminal, never with NO_COLOR set (no-color.org): the words stay, uncoloured
+_TTY = sys.stdout.isatty() and os.environ.get("TERM") != "dumb" and not os.environ.get("NO_COLOR")
 BOLD, BLUE, GREEN, YELLOW, RED, NC = (("\033[1m", "\033[94m", "\033[92m", "\033[93m", "\033[91m", "\033[0m")
                                       if _TTY else ("",) * 6)
 

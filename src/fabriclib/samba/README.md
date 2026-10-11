@@ -10,7 +10,10 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `deploy_samba.py` | The DC's files under `<deploy_base>/samba`: root-only folders, the Administrator's password file, the converge code |
 | `write_bind_dlz.py` | What BIND includes for the AD zone: Samba's DLZ module and the update keytab, once the domain exists (empty before) |
 | `suggested_ad_domain.py` | The AD domain setup suggests: a sibling at the top of the organisation's name (2.1.6.11) |
-| `id_range.py` | This site's uid/gid block (the root's starts at today's range start, `posix_id_block` long) |
+| `suggested_dc_name.py` | The DC's name setup suggests: `dc-<hostname>`, cut to 15 characters (2.1.6.45) |
+| `dc_name_problem.py` | Why a name cannot be the DC's: one label of 1-15 characters, not only digits, not the domain's NetBIOS name |
+| `domain_dc_names.py` | The domain's computer names, its DCs apart, read inside this site's DC (a joining site's DC name checked) |
+| `id_range.py` | This site's uid/gid block (the root's from `posix_id_start`, `posix_id_block` long; a joined site's from its parent) |
 | `sso_spns.py` | The HTTP SPNs of the site's Kerberos sign-in account (none without Keycloak or Kerberos, or at a read-only DC) |
 | `converge_domain.py` | The wanted state handed to the converge code inside the running DC; what changed (after every start and apply) |
 | `domain_status.py` | What `fabricctl domain status` shows: the DC, whether it runs, its roles, the policy in force |

@@ -1,6 +1,7 @@
 import os
 
 from fabriclib.common.console import BOLD, NC, YELLOW, heading
+from fabriclib.setup.permanent_mark import permanent_mark
 
 # (settings key, default, what enabling it does, what relaxing it costs)
 PLAN = [
@@ -46,7 +47,8 @@ def _ask_ca_lifetime(ctx):
     """Purpose: Advanced plan question: the root CA's lifetime in years (manual 2.1.5.6); asked only before the CA
              exists. The intermediate lives a year less.
     Inputs:  ctx — SetupContext; reads ctx.vars cert_root_ca_days (default 3650). Interactive.
-    Returns: None; ctx.vars["cert_root_ca_days"] set (whole years, at least 1, as days). A value that is not a whole
+    Returns: None; ctx.vars["cert_root_ca_days"] set (whole years, at least 1, as days); the question is marked
+             "⚠ Permanent" (2.1.2.20). A value that is not a whole
              number of years from 1 to 30 is refused with the reason and asked again.
     Fails:   EOFError from input().
     Feeds:   choose_plan (Advanced)."""
@@ -55,7 +57,7 @@ def _ask_ca_lifetime(ctx):
     years = round(int(ctx.vars.get("cert_root_ca_days") or 3650) / 365)
     while True:
         answer = input(f"\n  The internal CA's root is valid for how many years (its intermediate a year less; fixed "
-                       f"once made)? [{years}] ").strip() or str(years)
+                       f"once made)?{permanent_mark('cert_root_ca_days')} [{years}] ").strip() or str(years)
         if answer.isdigit() and 1 <= int(answer) <= 30:
             ctx.vars["cert_root_ca_days"] = int(answer) * 365
             return
@@ -93,7 +95,8 @@ def choose_plan(ctx):
     """Purpose: show what setup will do (every default is the hardened choice), then Proceed / Advanced / Quit.
              Advanced holds only what cannot be changed later (2.1.2.16): the CA root's lifetime, before the CA
              exists; without it there is no Advanced. Everything else shown is a default changed after the install
-             (fabricctl, the vars editor; the web console's settings page after 0.7, 2.1.1.42).
+             (fabricctl, the vars editor; the web console's settings page after 0.7, 2.1.1.42). DHCP, off by
+             default, is named a preview until 0.8.0 (manual 1.10.3.9).
     Inputs:  ctx — SetupContext: vars (PLAN keys, install_* flags, log_forwarding, dhcp, radius_clients,
              webui_admin_user), non_interactive, assume_yes. Interactive unless one of those two is set.
     Returns: None. Every PLAN item's effective value is written into ctx.vars (so what was shown is what gets
@@ -128,9 +131,10 @@ def choose_plan(ctx):
             print("  · Optional, off: DNS filter (fabric's resolver)")
         if ctx.vars.get("install_kea"):
             subnets = ", ".join(s.get("subnet", "?") for s in (ctx.vars.get("dhcp") or {}).get("subnets") or [])
-            print(f"  ✓ Optional: DHCP with Kea 3.0 on {subnets or '(no subnet yet)'}; hostnames in dhcp.<domain>")
+            print(f"  ✓ Optional, a preview until 0.8.0: DHCP with Kea 3.0 on {subnets or '(no subnet yet)'}; "
+                  "hostnames in dhcp.<domain>")
         else:
-            print("  · Optional, off: DHCP with Kea (hostnames registered in DNS)")
+            print("  · Optional, off: DHCP with Kea, a preview until 0.8.0 (hostnames registered in DNS)")
         if ctx.vars.get("install_freeradius"):
             n = len(ctx.vars.get("radius_clients") or [])
             print(f"  ✓ Optional: 802.1X with FreeRADIUS ({n} RADIUS client{'s' if n != 1 else ''})")

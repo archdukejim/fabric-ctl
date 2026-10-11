@@ -25,7 +25,8 @@ def join_upstream(v, invitation, password, work_dir, domain, address, config_dir
              send the join over TLS verified against that root, check and stage the signed intermediate, and
              record the upstream.
     Inputs:  v — fabric vars: service_users.step, image_stepca (make_site_ca_request), lan_cidr and the DHCP
-             subnets (site_networks: sent so the upstream can refuse networks that overlap another site's);
+             subnets (site_networks: sent so the upstream can refuse networks that overlap another site's), dc_name
+             (this site's DC's own name: sent so the upstream can refuse one the domain has, 2.1.6.45);
              invitation — the
              invitation text (decode_invitation); password — this site's ca_password (encrypts its CA key);
              work_dir — where the site CA key, request and certificates are kept; domain — this site's own
@@ -75,7 +76,8 @@ def join_upstream(v, invitation, password, work_dir, domain, address, config_dir
     answer = post_upstream(inv["address"], inv["host"], root, "/v1/join",
                            {"id": inv["id"], "secret": inv["secret"], "site": inv["site"], "csr": req["csr"],
                             "domain": domain, "address": address, "federation_host": f"federation.{domain}",
-                            "via": inv["via"], "dns_port": int(dns_port), "networks": site_networks(v)},
+                            "via": inv["via"], "dns_port": int(dns_port), "networks": site_networks(v),
+                            "dc_name": str(v.get("dc_name") or "")},
                            port=https_port)
     if not isinstance(answer, dict) or answer.get("root", "").strip() != root.strip():
         raise ValidationError("the upstream answered with a different root")

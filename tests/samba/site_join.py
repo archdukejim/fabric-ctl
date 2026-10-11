@@ -24,9 +24,13 @@ from start_dc import POLICY, dc_tls, run_dc, start_dc  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
 from fabriclib.federation.next_id_block import next_id_block  # noqa: E402
+import fabriclib.federation.accept_join as m_accept  # noqa: E402
 from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
+from fabriclib.samba.domain_dc_names import domain_dc_names  # noqa: E402
+from fabriclib.samba.domain_sites import domain_sites  # noqa: E402
 from fabriclib.samba.deploy_samba import deploy_samba  # noqa: E402
 from fabriclib.samba.finish_join import finish_join  # noqa: E402
+from fabriclib.samba.id_range import id_range  # noqa: E402
 from fabriclib.samba.prepare_site import prepare_site  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
@@ -77,7 +81,7 @@ def cleanup():
 
 
 cleanup()
-root = start_dc(os.path.join(W, "root"), ROOT, NET, SUBNET, ROOT_IP)
+root = start_dc(os.path.join(W, "root"), ROOT, NET, SUBNET, ROOT_IP, hostname="sjhost", dc_name="dc1")
 RV, RS, ENV = root["v"], root["secrets"], root["env"]
 start_bind(RV, ENV, ROOT, ROOT_BIND)
 BASE = sh(["docker", "exec", ROOT, "ldbsearch", "-H", "/data/private/sam.ldb", "-s", "base", "-b", "", "defaultNamingContext"]
@@ -111,7 +115,7 @@ for site, (container, ip, dc_type, cidr, parent) in SITES.items():
     work = os.path.join(W, site)
     sh(["rm", "-rf", work])
     v = yaml.safe_load(ENV.get_template("vars.yaml.j2").render(
-        domain=f"{site}.lan.j-j.family", hostname=f"dc-{site}", host_ip=ip, lan_cidr=cidr,
+        domain=f"{site}.lan.j-j.family", hostname=f"host-{site}", dc_name=f"dc-{site}", host_ip=ip, lan_cidr=cidr,
         lan_gateway=cidr.rsplit(".", 1)[0] + ".1", site_name=site, ad_domain=RV["ad_domain"],
         ad_password_policy=POLICY, deploy_base_dir=work, ad_ntp_signd_dir=os.path.join(work, "ntp_signd"),
         ad_dc_type=dc_type, ad_join_server=pip, ad_join_server_name=pname, posix_id_range=block,
@@ -162,18 +166,52 @@ for site, (container, ip, dc_type, cidr, parent) in SITES.items():
         except RuntimeError as e:
             check(f"{site}: its BIND answers the AD zone (the sites below join through it)", False, e)
 
+# ---- a joining site's DC needs a name the domain does not have (2.1.6.45, manual 1.6.5.23): checked by its parent
+names = {}
+
+
+def all_dcs_named():
+    """Every joined site's DC is in the root's database (a nested site's joined at its parent: once replicated)."""
+    names.update(domain_dc_names(ROOT))
+    return "dc1" in names["dcs"] and all(f"dc-{s}" in names["dcs"] for s in joined)
+
+
+check("the domain's DC names, read inside the root's DC: its own and every joined site's, each unlike its host's",
+      until(all_dcs_named, 600) and "sjhost" not in names["computers"]
+      and not any(f"host-{s}" in names["computers"] for s in joined), names)
+m_accept.domain_dc_names = lambda: domain_dc_names(ROOT)      # accept_join reads the DC it runs beside: the root here
+m_accept.domain_sites = lambda: domain_sites(ROOT)
+for taken in ["DC1"] + [f"dc-{s}" for s in joined][:1]:
+    try:
+        m_accept._prepare_domain(RV, "dupe", "writable", [], {"sites": {}}, dc_name=taken)
+        why = ""
+    except ValidationError as e:
+        why = str(e)
+    check(f"refused: a joining site's DC named {taken}, a name the domain has, naming the domain's DCs; nothing prepared",
+          f"{taken.lower()} is taken" in why and "dc1" in why and "ou: dupe" not in search(ROOT, "(ou=dupe)", ["ou"]),
+          why)
+try:
+    m_accept._prepare_domain(RV, "dupe", "writable", [], {"sites": {}}, dc_name="not_valid")
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("refused: a joining site's DC name that is not a valid name", "1-15 letters" in why, why)
+check("a name the domain does not have is free (the join goes ahead)", "dc-fresh" not in names["computers"])
+
 # ---- a writable site: its own writes, both directions of replication, its id block
 if "lab" in joined:
     container, v, secrets = joined["lab"]
     info = run_op(v, secrets, "site_info", container=container)
-    check("lab: its agent signs in at its own DC and reads its site's id block (the root's second block)",
-          info["id_range"] == registry["sites"]["lab"]["id_range"], info)
+    check("lab: its agent signs in at its own DC and reads its site's id block: site 2's, 2000000-2999999, with the "
+          "same ranges as the root's (2.1.6.46)", info["id_range"] == registry["sites"]["lab"]["id_range"]
+          == "2000000-2999999" and info["id_marks"].get("person", 0) >= 2100001 and
+          2040101 <= info["id_marks"].get("builtin_group", 0) <= 2049999, info)
     made = run_op(v, secrets, "create_person", {"uid": "labby", "first": "Lab", "last": "By", "email": "labby@lab.test",
                                                 "password": "Ot-" + random_password(20), "gid": 5000,
                                                 "home_base": "/home", "shell": "/bin/bash"}, container)
     first, last = (int(x) for x in registry["sites"]["lab"]["id_range"].split("-"))
-    check("lab: a person made at the site takes a uid from the site's own block", first <= made["uidNumber"] <= last,
-          made)
+    check("lab: a person made at the site takes a uid from the people range of the site's own block (2100001-2899999)",
+          first <= made["uidNumber"] <= last and 2100001 <= made["uidNumber"] <= 2899999, made)
     # AD's KCC builds the return path from the site link within its 5-minute round
     check("lab -> root: the person reaches the root's DC (AD replication over the site link)",
           until(lambda: "sAMAccountName: labby" in search(ROOT, "(sAMAccountName=labby)", ["sAMAccountName"]), 900))
@@ -189,7 +227,7 @@ if "lab2" in joined:
     check("lab2: its OU sits in lab's, which sits in the root's (as the root sees it, once replicated)",
           until(lambda: f"OU=lab2,OU=lab,OU=lan,OU=sites,{BASE}" in search(
               ROOT, "(&(objectClass=fabricSiteInfo)(ou=lab2))", ["dn"]), 900))
-    others = [registry["sites"][s]["id_range"] for s in ("lab", "edge")] + [RV.get("posix_id_range") or "5001-105000"]
+    others = [registry["sites"][s]["id_range"] for s in ("lab", "edge")] + [id_range(RV)]
     mine = registry["sites"]["lab2"]["id_range"]
     check("lab2: its id block, handed out by lab with no registry of the others, comes after every block in the domain",
           int(mine.split("-")[0]) > max(int(b.split("-")[1]) for b in others), (mine, others))
@@ -333,7 +371,7 @@ if "lab" in joined:
           copied[ROOT])
 if "edge" in joined:
     check("the RODC copies what it does not hold from their owners, its own site's from the root (who wrote them)",
-          "copied from dc1" in copies(SITES["edge"][0]).lower(), copied[SITES["edge"][0]])
+          f"copied from {RV['dc_name']}" in copies(SITES["edge"][0]).lower(), copied[SITES["edge"][0]])
     # a change away from the owner: the object's version moves, the owner's files do not -> refused, not copied
     if "lab" in joined:
         lab_gpo = search(ROOT, "(&(objectClass=groupPolicyContainer)(displayName=*lab*))", ["cn", "versionNumber"])

@@ -1,3 +1,4 @@
+from fabriclib.deploy.keep_old_install import keep_old_install
 from fabriclib.rbac.permissions import ADMIN_ROLE, OLD_ADMIN_ROLE
 from fabriclib.setup.common.previous_accounts import PREVIOUS_ACCOUNTS
 
@@ -18,10 +19,11 @@ def upgrade_vars(data, pinned):
              release's (128m); a DNS filter group's own lists are taken out and named (the lists are the site's).
              certs.<domain> is gone (0.7.0, 1.5.1.5): cname_certs and hostname_certs are deleted, and so is the main
              zone's CNAME to this host under that label if an older vars file holds it.
+             What an install from before 0.7.0 keeps (keep_old_install: its DC's name).
     Fails:   never — dict operations only.
     Feeds:   collect_vars (logs each change).
     Notes:   `fabricctl images update` is what changes images (design 2.1.14.3)."""
-    changes = []
+    changes = keep_old_install(data)
     for key in [k for k in data if k.startswith("image_") and k != "image_pins" and k not in pinned]:
         if isinstance(data[key], str) and "@sha256:" in data[key]:
             continue

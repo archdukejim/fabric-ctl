@@ -180,9 +180,21 @@ code, out = on(box, f"bash /root/join-linux.sh {'00' * 32} --user adam", stdin=P
 gone, _ = on(box, "test ! -e /usr/local/share/ca-certificates/fabric-root-ca.crt && ! dpkg -s adcli >/dev/null 2>&1")
 check("24.04: a wrong root-CA fingerprint is refused and nothing is trusted or installed",
       code != 0 and "not trusting it" in out and gone == 0, out)
+# a local user whose rootless-container ids (subordinate ids) overlap the domain's (manual 1.6.3.17)
+on(box, "printf 'safeuser:100000:65536\\nolduser:1000000:65536\\n' >> /etc/subuid")
 code, out = on(box, f"bash /root/join-linux.sh {fp} --user adam", stdin=PW + "\n")
 check("24.04: joins with a site admin's password (on stdin) into the site's OU=machines",
       code == 0 and "joined" in out, out)
+check("24.04: a local user whose subordinate ids overlap a site's block is named, and left as it was (2.1.6.46)",
+      "olduser" in out and "overlap" in out and "olduser:1000000:65536" in on(box, "cat /etc/subuid")[1], out[-800:])
+join_out = out
+code, defs = on(box, "grep -E '^SUB_(UID|GID)_(MIN|MAX)' /etc/login.defs; useradd -m newbie && grep '^newbie:' /etc/subuid")
+new_start = int(defs.strip().splitlines()[-1].split(":")[1]) if "newbie:" in defs else 0
+check("24.04: local users made after the join get subordinate ids above AD's (SUB_UID_MIN, SUB_GID_MIN 2147483648)",
+      code == 0 and "SUB_UID_MIN\t\t2147483648" in defs and "SUB_GID_MIN\t\t2147483648" in defs
+      and new_start >= 2147483648, defs)
+check("negative: a local user whose subordinate ids overlap no block is not named", "safeuser" not in join_out,
+      join_out[-800:])
 where = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={RELEASES['24.04']}$)",
             "distinguishedName"], ok=False).stdout
 check("24.04: its computer account is in OU=machines,OU=lan", "OU=machines,OU=lan,OU=sites" in where, where)

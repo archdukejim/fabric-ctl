@@ -1,15 +1,13 @@
 def id_range(v):
-    """Purpose: this site's uid/gid block (2.1.6.17, manual 1.6.3.9) as "first-last": the root site's starts where
-             fabric's people range always started (the users OU's uid_range, 5001 by default), so earlier numbers stay
-             valid, and is posix_id_block numbers long. A site that joined gets its block from the root
-             (posix_id_range).
-    Inputs:  v — rendered vars: posix_id_range (a joined site's), ldap_organizational_units (the users OU's
-             uid_range), posix_id_block.
+    """Purpose: this site's uid/gid block (2.1.6.17, 2.1.6.46, manual 1.6.3.9, 1.6.3.17) as "first-last": the root's
+             starts at posix_id_start (1000000 for new installs: site 1's block; an install from before 0.7.0 keeps
+             where its people's range started, 5001 by default, keep_old_install) and is posix_id_block numbers long
+             (1000000; 100000 before 0.7.0). A site that joined gets its block from its parent (posix_id_range).
+    Inputs:  v — rendered vars: posix_id_range (a joined site's), posix_id_start, posix_id_block.
     Returns: str "first-last".
-    Fails:   ValueError for a malformed uid_range.
-    Feeds:   converge_domain; federation/next_id_block (the root's block)."""
+    Fails:   ValueError for a start or size that is not a number.
+    Feeds:   converge_domain; federation/next_id_block (this site's own block)."""
     if v.get("posix_id_range"):
         return str(v["posix_id_range"])
-    users = next((o for o in v.get("ldap_organizational_units") or [] if o.get("name") == "users"), {})
-    first = int(str(users.get("uid_range") or "5001-50000").split("-")[0])
-    return f"{first}-{first + int(v.get('posix_id_block') or 100000) - 1}"
+    first = int(v.get("posix_id_start") or 1000000)
+    return f"{first}-{first + int(v.get('posix_id_block') or 1000000) - 1}"

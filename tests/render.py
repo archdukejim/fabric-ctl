@@ -146,6 +146,53 @@ assert 'server_name admin.example.org;' in ngx and 'certs.lan.j-j.family' not in
 same = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'hostname': 'fabric'}))
 assert 'fabric' not in [r['name'] for r in same['dns']['dynamic_zone_var']['CNAME']], 'CNAME must not shadow the host A record'
 print('web UI host name (default, custom, same as host) rendered; no certs.<domain> server')
+
+# The DC's own name (2.1.6.45, manual 1.6.5.23): dc-<hostname> by default, cut to 15 characters; any name given is
+# kept; an install from before 0.7.0 keeps its host's; a host renamed later leaves the DC alone.
+from fabriclib.deploy.keep_old_install import keep_old_install  # noqa: E402
+from fabriclib.samba.suggested_dc_name import suggested_dc_name  # noqa: E402
+
+
+def _dc(**over):
+    got = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family',
+                                                                     **over}))
+    compose = yaml.safe_load(env.get_template('samba/docker-compose.yml.j2').render(**got))['services']['samba']
+    return got['dc_name'], got['hostname_dc'], compose['environment']['HOST_NAME']
+
+
+assert _dc() == ('dc-pi-core', 'dc-pi-core.ad.j-j.family', 'dc-pi-core') and suggested_dc_name('pi-core') == 'dc-pi-core', _dc()
+for host, want in (('Kitchen-Server01', 'dc-kitchen-serv'), ('raspberrypi-4b', 'dc-raspberrypi')):
+    assert _dc(hostname=host)[0] == want == suggested_dc_name(host), (host, _dc(hostname=host))
+assert _dc(dc_name='DC1') == ('dc1', 'dc1.ad.j-j.family', 'dc1'), _dc(dc_name='DC1')
+old = {**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family'}
+assert keep_old_install(old) and old['dc_name'] == 'pi-core' and _dc(dc_name=old['dc_name'])[1] == 'pi-core.ad.j-j.family'
+assert keep_old_install(old) == [] and keep_old_install({'dc_name': 'dc-x', 'hostname': 'x'}) == [], 'kept once only'
+renamed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family',
+                                                                     'dc_name': 'dc-pi-core', 'hostname': 'kitchen'}))
+assert renamed['hostname_dc'] == 'dc-pi-core.ad.j-j.family' and {'ip': '192.168.7.53', 'name': 'kitchen'} in \
+    renamed['dns']['dynamic_zone_var']['A'], renamed['dns']['dynamic_zone_var']['A']
+print("the DC's own name: dc-<hostname> cut to 15, a given one kept, an older install's host name kept, a renamed host "
+      "leaves it")
+
+# The id layout (2.1.6.46, manual 1.6.3.17): the root is site 1, a million long; the organisation's groups in its
+# built-in range; no hosts range and no uid_range read; an install from before 0.7.0 keeps its numbers.
+from fabriclib.samba.id_range import id_range  # noqa: E402
+assert (v2['posix_id_start'], v2['posix_id_block'], id_range(v2)) == (1000000, 1000000, '1000000-1999999'), id_range(v2)
+gids = {g['name']: g['gidNumber'] for g in v2['ldap_groups']}
+assert gids['admins'] == 1040001 and gids['users'] == 1040009 and all(1040001 <= g <= 1040100 for g in gids.values()), gids
+assert 'hosts' not in [o['name'] for o in v2['ldap_organizational_units']] \
+    and not any('uid_range' in o for o in v2['ldap_organizational_units']), v2['ldap_organizational_units']
+old = {**copy.deepcopy(PRISTINE), 'ldap_organizational_units': [
+    {'name': 'users', 'parent': 'accounts', 'uid_range': '5001-50000'}, {'name': 'hosts', 'uid_range': '2000-4900'}],
+       'ldap_groups': [{'gidNumber': 1100, 'name': 'admins'}, {'gidNumber': 5000, 'name': 'users'}]}
+keep_old_install(old)
+was = yaml.safe_load(env.get_template('vars.yaml.j2').render(**old))
+was_gids = {g['name']: g['gidNumber'] for g in was['ldap_groups']}
+assert id_range(was) == '5001-105000' and was_gids['admins'] == 1100 and was_gids['users'] == 5000 \
+    and 'hosts' not in [o['name'] for o in was['ldap_organizational_units']], (id_range(was), was_gids)
+assert id_range({'posix_id_range': '2000000-2999999', 'posix_id_start': 1000000}) == '2000000-2999999'
+print("id layout: the root's block 1000000-1999999, the organisation's gids from 1040001; an older install keeps "
+      "5001-105000, 1100 and 5000")
 doh = ngx[ngx.index('location /dns-query'):]
 doh = doh[:doh.index('\n        }')]          # the location block only
 assert 'grpc_pass $bind9_doh_backend;' in doh and '"grpc://resolver:8053"' in doh and 'proxy_pass $' not in doh, \

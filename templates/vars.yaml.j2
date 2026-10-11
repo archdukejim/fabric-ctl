@@ -157,8 +157,12 @@ ad_domain: "{{ _ad }}"
 ad_realm: "{{ _ad | upper }}"
 ad_base_dn: "{{ _ad.split('.') | map('regex_replace', '^', 'DC=') | join(',') if _ad else '' }}"
 ad_netbios: "{{ (ad_netbios | default(_ad.split('.')[0], true))[:15] | upper }}"
-{# the DC runs in the host network, where Docker cannot give it a name of its own: it is the host, in AD's domain #}
-hostname_dc: "{{ (hostname ~ '.' ~ _ad) | lower if _ad else '' }}"
+{# the DC's own name in the domain (2.1.6.45, manual 1.6.5.23), apart from the host's: setup asks it, suggesting
+   dc-<hostname> cut to 15 characters (a NetBIOS name); permanent. An install from before 0.7.0 keeps its host's name
+   (deploy/keep_old_install saves it as dc_name). #}
+{% set _dc = (dc_name | default(('dc-' ~ (hostname | lower))[:15].rstrip('-'), true)) | lower %}
+dc_name: "{{ _dc }}"
+hostname_dc: "{{ (_dc ~ '.' ~ _ad) | lower if _ad else '' }}"
 # minimum_length, complexity (bool), history, minimum_age_days, maximum_age_days, lockout_threshold,
 # lockout_minutes, lockout_window_minutes: every key required
 ad_password_policy: {{ ad_password_policy | default({}, true) | to_json }}
@@ -178,7 +182,10 @@ posix_id_range: "{{ posix_id_range | default('', true) }}"
 {% set _site_ou = ad_site_ou | default('OU=' ~ ((site_name | default(hostname, true)) | lower) ~ ',OU=sites', true) %}
 ad_site_ou: "{{ _site_ou }}"
 ad_org_ou: "{{ ad_org_ou | default('OU=organisation,' ~ _site_ou, true) }}"
-posix_id_block: {{ posix_id_block | default(100000) | int }}
+{# uid/gid blocks (2.1.6.46, manual 1.6.3.17): a million per site, site S's from S x 1000000, the root site 1; fixed
+   ranges inside each. Both permanent. An install from before 0.7.0 keeps its own (5001, 100000: keep_old_install). #}
+posix_id_start: {{ posix_id_start | default(1000000) | int }}
+posix_id_block: {{ posix_id_block | default(1000000) | int }}
 samba_mem_limit: {{ samba_mem_limit | default(((512 * ((host_ram_capacity | default(host_ram_detected | default(4), true) | int) / 4)) | int) ~ 'm', true) }}
 # 802.1X (optional, design §6): FreeRADIUS 3.2 checks each device against the site's DC
 # (EAP-TLS by linked certificate, MAB by MAC) and returns its role's VLAN.
@@ -462,16 +469,18 @@ site_name: {{ (site_name | default(hostname, true)) | lower }}
 
 {# `bundle`: the fabric role bundle Keycloak grants to members (design 2.1.6.1); admins get
    webui_admin_role through webui_admin_group. #}
+{# The organisation's groups have fixed gids in the root's built-in range (2.1.6.46, manual 1.6.3.17: 1040001 on,
+   the first hundred kept for them). An install from before 0.7.0 keeps 1100-1121 and 5000: its vars list them. #}
 {% set default_ldap_groups = [
-  { 'gidNumber': 1100, 'name': 'admins', 'permissions': ['read', 'write', 'modify'] },
-  { 'gidNumber': 1110, 'name': 'auditors', 'bundle': 'fabric-auditor' },
-  { 'gidNumber': 1111, 'name': 'network-operators', 'bundle': 'fabric-network-operator' },
-  { 'gidNumber': 1112, 'name': 'equipment-operators', 'bundle': 'fabric-equipment-operator' },
-  { 'gidNumber': 1113, 'name': 'pki-operators', 'bundle': 'fabric-pki-operator' },
-  { 'gidNumber': 1114, 'name': 'helpdesk', 'bundle': 'fabric-helpdesk' },
-  { 'gidNumber': 1120, 'name': 'network-staff', 'description': 'May join the network by password (802.1X EAP-TTLS)' },
-  { 'gidNumber': 1121, 'name': 'network-guests', 'description': 'May join the network by password (802.1X EAP-TTLS) — map it to a guest VLAN' },
-  { 'gidNumber': 5000, 'name': 'users', 'permissions': ['read'] }
+  { 'gidNumber': 1040001, 'name': 'admins', 'permissions': ['read', 'write', 'modify'] },
+  { 'gidNumber': 1040002, 'name': 'auditors', 'bundle': 'fabric-auditor' },
+  { 'gidNumber': 1040003, 'name': 'network-operators', 'bundle': 'fabric-network-operator' },
+  { 'gidNumber': 1040004, 'name': 'equipment-operators', 'bundle': 'fabric-equipment-operator' },
+  { 'gidNumber': 1040005, 'name': 'pki-operators', 'bundle': 'fabric-pki-operator' },
+  { 'gidNumber': 1040006, 'name': 'helpdesk', 'bundle': 'fabric-helpdesk' },
+  { 'gidNumber': 1040007, 'name': 'network-staff', 'description': 'May join the network by password (802.1X EAP-TTLS)' },
+  { 'gidNumber': 1040008, 'name': 'network-guests', 'description': 'May join the network by password (802.1X EAP-TTLS) — map it to a guest VLAN' },
+  { 'gidNumber': 1040009, 'name': 'users', 'permissions': ['read'] }
 ] %}
 {% set _merged_groups = (ldap_groups | default([]) + default_ldap_groups) | unique(attribute='name') | list %}
 ldap_groups:
@@ -484,12 +493,12 @@ posix_login_shell: {{ posix_login_shell | default('/bin/bash') }}
 {% set default_ldap_ous = [
   { 'name': 'accounts', 'description': 'User Accounts' },
   { 'name': 'groups', 'description': 'Security Groups' },
-  { 'name': 'users', 'description': 'Regular User accounts', 'parent': 'accounts', 'uid_range': '5001-50000' },
-  { 'name': 'hosts', 'description': 'Computer objects', 'uid_range': '2000-4900' },
+  { 'name': 'users', 'description': 'Regular User accounts', 'parent': 'accounts' },
   { 'name': 'device-roles', 'description': 'What member devices may do (fabric device RBAC)' }
 ] %}
-{# admins and devices live in the local suffix (o=<site_name>), not here: dropped even if an older vars.yaml lists them #}
+{# admins and devices live in the local suffix (o=<site_name>), not here; hosts' uid range (from 389-DS) was never
+   used (2.1.6.46): dropped even if an older vars.yaml lists them. A users OU's uid_range is no longer read. #}
 {% set _merged_ous = (ldap_organizational_units | default([]) + default_ldap_ous) | unique(attribute='name')
-                     | rejectattr('name', 'in', ['admins', 'devices']) | list %}
+                     | rejectattr('name', 'in', ['admins', 'devices', 'hosts']) | list %}
 ldap_organizational_units:
 {{ _merged_ous | to_nice_yaml(indent=2) | indent(2, first=True) }}

@@ -2,6 +2,7 @@ import re
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.samba.check_password_policy import check_password_policy
+from fabriclib.samba.dc_name_problem import dc_name_problem
 from fabriclib.samba.suggested_ad_domain import suggested_ad_domain
 
 _LABEL = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
@@ -11,13 +12,13 @@ _NETBIOS = re.compile(r"^[A-Z0-9][A-Z0-9-]{0,14}$")
 def check_samba_settings(v):
     """Purpose: refuse a Windows-domain configuration fabric cannot provision correctly (manual 1.6.5, 1.1.9.8),
              before anything is rendered: the domain (2.1.6.11), the NetBIOS names, the password policy (2.1.6.13).
-    Inputs:  v — rendered settings: ad_domain, domain, hostname, ad_netbios, ad_password_policy,
+    Inputs:  v — rendered settings: ad_domain, domain, dc_name, ad_netbios, ad_password_policy,
              ad_old_password_minutes, ad_rpc_ports.
     Returns: None.
     Fails:   ValidationError naming the first problem: no or an invalid ad_domain; ad_domain equal to fabric's domain
-             (same-domain mode was dropped, 2.1.6.11) or a parent of it; a NetBIOS domain name or host name
-             Windows cannot use (more than 15 characters); the password policy's (check_password_policy); an
-             invalid old-password window or RPC range.
+             (same-domain mode was dropped, 2.1.6.11) or a parent of it; a NetBIOS domain name Windows cannot
+             use (more than 15 characters); a DC name it cannot have (dc_name_problem, 2.1.6.45); the password
+             policy's (check_password_policy); an invalid old-password window or RPC range.
     Feeds:   deploy/check_settings."""
     ad, domain = str(v.get("ad_domain") or ""), str(v.get("domain") or "").lower()
     labels = ad.split(".")
@@ -35,9 +36,9 @@ def check_samba_settings(v):
                               "fabric's (2.1.6.11)")
     if not _NETBIOS.match(str(v.get("ad_netbios") or "")):
         raise ValidationError(f"ad_netbios {v.get('ad_netbios')!r}: at most 15 letters, digits or hyphens")
-    if not _NETBIOS.match(str(v.get("hostname") or "").upper()):
-        raise ValidationError(f"the host name {v.get('hostname')!r} is the domain controller's NetBIOS name: at "
-                              "most 15 letters, digits or hyphens")
+    problem = dc_name_problem(v.get("dc_name"), v.get("ad_netbios") or "")
+    if problem:
+        raise ValidationError(f"dc_name, the domain controller's name (2.1.6.45): {problem}")
     policy = v.get("ad_password_policy") or {}
     check_password_policy(policy)
     if not 0 <= int(v.get("ad_old_password_minutes", 0)) <= 99999:
