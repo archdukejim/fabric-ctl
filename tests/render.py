@@ -672,9 +672,11 @@ assert wj['client_cert'] is False, wj
 kit = {**v2, 'host_ip': '192.168.7.53'}
 off_txt, on_txt = _readme(kit, 'jim', 'jim', '/home/jim/fabric-admin'), \
     _readme({**kit, 'webui_client_cert': True, 'signin_admin_second_factor': 'totp'}, 'jim', 'jim', '/x')
-assert '.p12' not in off_txt and 'p12-password' not in off_txt and '\n3. Your computer must resolve' in off_txt
+assert '.p12' not in off_txt and 'p12-password' not in off_txt and '\n1. First, your computer must find' in off_txt
+assert '192.168.7.53 ' + v2['hostname_landing'] in off_txt and 'http://192.168.7.53/certs/' in off_txt, off_txt
+assert off_txt.index('find fabric') < off_txt.index('Trust the root CA') < off_txt.index('sign in as'), off_txt
 # covers: setting:signin_admin_second_factor +
-assert 'jim.p12' in on_txt and '\n3. Import jim.p12' in on_txt and 'authenticator app (TOTP)' in on_txt
+assert 'jim.p12' in on_txt and '\n4. Import jim.p12' in on_txt and '\n5. Open https://' in on_txt and 'authenticator app (TOTP)' in on_txt
 print('sign-in: no client certificate by default (nginx, webui.json, the admin kit); with it, mutual TLS and the .p12')
 
 # landing-page links from DNS records (manual 1.4.2.2, 2.1.4.2): only marked A/AAAA/CNAME records, https with port and
