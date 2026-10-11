@@ -1,5 +1,5 @@
 [Unit]
-Description=fabric: fetch the DNS filter's lists and reload the ones that changed (manual 1.12.2.10)
+Description=fabric: fetch a copy of every DNS filter list; AdGuard Home rereads the changed ones (manual 1.12.3.5)
 After=docker.service fabric.target network-online.target
 Wants=docker.service network-online.target
 

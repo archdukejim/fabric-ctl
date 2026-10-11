@@ -14,7 +14,8 @@ def upgrade_vars(data, pinned):
              the fabric-* account in the 600-649 band applies (the accounts step moves the files); entries the
              admin changed are kept. The console's admin role named fabric-admin (before 0.6.4) becomes
              fabric-console-admin: that name is now the first admin's (2.1.6.33); Keycloak and OpenBao follow at
-             their steps, members kept.
+             their steps, members kept. 0.7.0: resolver_mem_limit left at 0.8.0-rc's 384m default drops to the
+             release's (128m); a DNS filter group's own lists are taken out and named (the lists are the site's).
     Fails:   never — dict operations only.
     Feeds:   collect_vars (logs each change).
     Notes:   `fabricctl images update` is what changes images (design 2.1.14.3)."""
@@ -34,6 +35,17 @@ def upgrade_vars(data, pinned):
                 changes.append(f"service account {key} ({prev[1]}:{prev[2]}): moves to this release's fabric-* account")
         if not users:
             del data["service_users"]
+    # 0.7.0: the lists left the resolver for AdGuard Home (2.1.12.6): its old default limit goes, groups lose theirs
+    if str(data.get("resolver_mem_limit") or "").lower() == "384m":
+        del data["resolver_mem_limit"]
+        changes.append("resolver_mem_limit: 384m -> this release's 128m (the lists are AdGuard Home's, 1.12.3.9)")
+    for g in data.get("dns_filter_groups") or []:
+        if isinstance(g, dict) and "lists" in g:
+            gone = [str((i or {}).get("name") or (i or {}).get("url")) for i in g.pop("lists") or []
+                    if isinstance(i, dict)]
+            if gone:
+                changes.append(f"DNS filter group {g.get('name')}: its own lists are not moved, the lists are the "
+                               f"site's from 0.7.0 (1.12.3.11): {', '.join(gone)}")
     if data.get("webui_admin_role") == OLD_ADMIN_ROLE:
         data["webui_admin_role"] = ADMIN_ROLE
         changes.append(f"the web console's admin role: {OLD_ADMIN_ROLE} is now {ADMIN_ROLE} (2.1.6.33)")

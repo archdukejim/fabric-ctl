@@ -4,7 +4,9 @@ from fabriclib.common.service_user import service_user
 from fabriclib.consent.allowed_to_change import allowed_to_change
 from fabriclib.consent.plan_time import plan_time
 from fabriclib.dhcp.deploy_kea import deploy_kea
+from fabriclib.dns_filter.deploy_adguard import deploy_adguard
 from fabriclib.dns_filter.deploy_resolver import deploy_resolver
+from fabriclib.dns_filter.update_lists import update_lists
 from fabriclib.logs.deploy_fluentbit import deploy_fluentbit
 from fabriclib.ntp.deploy_chrony import deploy_chrony
 from fabriclib.radius.deploy_freeradius import deploy_freeradius
@@ -12,7 +14,8 @@ from fabriclib.samba.deploy_samba import deploy_samba
 
 
 def deploy_optional_parts(paths, final_vars, secrets, jinja_env, links):
-    """Purpose: the parts with a deploy step of their own: Fluent Bit, the DNS filter (the BIND resolver), time
+    """Purpose: the parts with a deploy step of their own: Fluent Bit, the DNS filter (the BIND resolver and AdGuard
+             Home behind it), time
              (chrony), Kea, FreeRADIUS and the Windows domain — each only when it is on (chrony whenever it is
              installed and the `time` host change is approved — manual 1.2.9; an install set up before consent
              existed keeps converging).
@@ -25,10 +28,18 @@ def deploy_optional_parts(paths, final_vars, secrets, jinja_env, links):
     # Fluent Bit (optional): its config, destination CAs, credentials, disk buffer
     if final_vars.get("install_fluentbit") and deploy_fluentbit(final_vars, secrets, jinja_env):
         restart.add("fluentbit")
-    # DNS filter, the BIND resolver (manual 1.12.2): its config and rules zones, a list never fetched fetched now;
-    # a running resolver reloads what changed, one that is not running takes it when it starts
+    # DNS filter (manual 1.12.2, 1.12.3): a site's list with no copy yet fetched now (the apply has the internet);
+    # the resolver's config and rules zones (a running resolver reloads what changed); AdGuard Home's file, or its API
+    # when only what the API changes differs: restarted only for a change outside it
     if final_vars.get("install_resolver"):
+        update_lists(final_vars, only_missing=True)
         deploy_resolver(final_vars, secrets, links, jinja_env)
+        adguard = deploy_adguard(final_vars, secrets, jinja_env)
+        if adguard["restart"]:
+            restart.add("adguard-filter")
+        if adguard["error"]:
+            print(f"  DNS filter: AdGuard Home not made to match yet ({adguard['error']}): it reads its file when it "
+                  "answers again")
     # Time (manual 1.13.1): chrony on the host, the upstream site first; installed by setup's host step
     if shutil.which("chronyd"):
         if not allowed_to_change(paths["config"], "time", plan_time(), unasked_install=True):

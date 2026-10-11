@@ -31,8 +31,8 @@ def set_filter_group(actor, name, clients, source="cli"):
         current = next((g for g in groups if str(g.get("name") or "").strip().lower() == key), None)
         added = current is None
         if added:
-            groups.append({"name": key, "clients": clients, "safe_search": False, "youtube": "strict", "lists": [],
-                           "allow": [], "block": []})
+            groups.append({"name": key, "clients": clients, "safe_search": False, "youtube": "strict", "allow": [],
+                           "block": []})
         else:
             current["clients"] = clients
         check_filter_settings(data)

@@ -16,8 +16,8 @@ def _targets(ctx):
     Returns: list of (cn, extra SANs, [(destination dir, service user or "freeradius:eap")],
              services to restart when it changes). bind9 (and the DNS filter's resolver when on), stepca, landing,
              certs and openbao always; LDAP,
-             Keycloak + Postgres, web UI, FreeRADIUS (EAP-TLS server cert), the federation endpoint when on, and
-             the domain controller.
+             Keycloak + Postgres, web UI, FreeRADIUS (EAP-TLS server cert), the federation endpoint when on, the
+             DNS filter's AdGuard Home (*.filter.<domain>) when on, and the domain controller.
     Fails:   KeyError for a missing hostname_* var.
     Feeds:   run."""
     v, p = ctx.vars, ctx.path
@@ -52,6 +52,11 @@ def _targets(ctx):
     # fabric_net's gateway too: containers reach the DC there (2.1.2.15)
     t.append((v["hostname_dc"], [v["ad_domain"], v["host_ip"], v.get("ip_fabric_gateway", "10.255.0.1")],
               [(p("samba", "tls"), "root")], ["samba"]))
+    if v.get("install_resolver"):
+        # AdGuard Home's DoT for the groups: each group's view names <group>.filter.<domain>, its ClientID (1.12.3.6);
+        # a new certificate restarts it (about 30 s of SERVFAIL for internet names: renewed at night by the timer)
+        t.append((f"filter.{v['domain']}", [f"*.filter.{v['domain']}"], [(p("dnsfilter", "tls"), "adguard")],
+                  ["adguard-filter"]))
     if v.get("install_freeradius"):
         # the EAP-TLS server certificate supplicants check (server.pem, server.key)
         t.append((v["hostname_radius"], [], [(p("freeradius", "certs"), "freeradius:eap")], ["freeradius"]))

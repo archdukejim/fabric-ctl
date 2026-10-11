@@ -1,14 +1,17 @@
-// fabric's DNS filter: the BIND resolver (manual 1.12.2). Rendered at every apply: do not edit here.
+// fabric's DNS filter: the BIND resolver (manual 1.12.2, 1.12.3). Rendered at every apply: do not edit here.
 include "/etc/bind/rndc.key";
 controls { inet 127.0.0.1 port 953 allow { 127.0.0.1; } keys { "rndc-key"; }; };
 
-{% for name in upstream_names %}
-tls "upstream-{{ loop.index }}" { remote-hostname "{{ name }}"; ca-file "/etc/ssl/certs/ca-certificates.crt"; };
-{% endfor %}
 {% if client_tls %}
 // DNS-over-TLS and DNS-over-HTTPS for clients (manual 1.12.2.16): the DNS name's certificate
 tls "clients" { cert-file "/etc/bind-tls/fullchain.pem"; key-file "/etc/bind-tls/privkey.pem"; protocols { TLSv1.2; TLSv1.3; }; };
 http "doh" { endpoints { "/dns-query"; }; };
+{% endif %}
+{% if adguard_tls %}
+{% for g in groups %}
+// group {{ g.name }} reaches AdGuard Home over DNS-over-TLS naming its group: AdGuard's ClientID (1.12.3.6)
+tls "group-{{ g.name }}" { ca-file "/etc/bind/fabric-root-ca.crt"; remote-hostname "{{ g.name }}.filter.{{ domain }}"; };
+{% endfor %}
 {% endif %}
 // the networks that may use it: the LAN, fabric's own, and what the firewall lets in
 acl "clients" { {% for c in clients %}{{ c }}; {% endfor %}127.0.0.1; };
@@ -28,15 +31,11 @@ options {
     allow-recursion { clients; };
     allow-query-cache { clients; };
     allow-transfer { none; };
-{% if dns_filter_upstreams %}
-    // DNS-over-TLS, the certificate's name verified (1.12.2.8)
-    forward only;
-    forwarders { {% for u in dns_filter_upstreams %}{{ u.address }} port 853 tls "upstream-{{ upstream_names.index(u.name) + 1 }}"; {% endfor %}};
-{% endif %}
-    dnssec-validation auto;
-    // fabric's zones are private: no DNSSEC chain from the root leads to them
-    validate-except { {% for z in zones %}"{{ z }}"; {% endfor %}};
+    // a blocked answer from AdGuard Home carries no signature: AdGuard validates instead (1.12.3.2)
+    dnssec-validation no;
     querylog yes;
+    // each answer logged after its query, for the query log (1.12.3.7)
+    responselog yes;
     version none;
     hostname none;
     server-id none;
@@ -48,64 +47,60 @@ logging {
     channel rpz { file "/var/log/named/rpz.log" versions 2 size 20m; print-time yes; };
     category default { default_out; };
     category queries { queries; };
+    category responses { queries; };
     category rpz { rpz; };
     category lame-servers { null; };
 };
 
+{% macro own_zones() %}
+{% for z in zones %}
+    zone "{{ z }}" { type forward; forward only; forwarders { {{ ip_bind9 }} port 53; }; };
+{% endfor %}
+    zone "fabric.rpz" { type primary; file "/etc/bind/fabric.rpz"; };
+    zone "owner.rpz" { type primary; file "/etc/bind/owner.rpz"; };
+{% endmacro %}
 {% for g in groups %}
-// client group {{ g.name }} (manual 1.12.2.15): its own policy, then everything else through the main view
+// client group {{ g.name }} (manual 1.12.2.15, 1.12.3.6): fabric's zones, its own rules, the owner's, its safe search;
+// everything else to AdGuard Home as the group {{ g.name }}
 view "{{ g.name }}" {
     match-clients { {% for m in g.match %}{{ m }}; {% endfor %}};
     forward only;
-    forwarders { 127.0.0.1 port 53; };
-    // the main view validates what it answers (a group's DS lookups for a listed name would be blocked there)
-    dnssec-validation no;
-    // never cache a blocked answer here: every blocked query reaches the main view and is logged as blocked
-    max-ncache-ttl 0;
-{% for n in g.allow %}
-    zone "{{ n }}" { type forward; forward only; forwarders { {% for u in dns_filter_upstreams %}{{ u.address }} port 853 tls "upstream-{{ upstream_names.index(u.name) + 1 }}"; {% endfor %}}; };
-{% endfor %}
-    zone "{{ g.rules_zone }}" { type primary; file "/etc/bind/{{ g.rules_zone }}"; };
+{% if adguard_tls %}
+    forwarders port 853 tls "group-{{ g.name }}" { {{ ip_adguard }}; };
+{% else %}
+    // no certificate for *.filter.{{ domain }} yet: plain DNS (the group's AdGuard rules wait for it)
+    forwarders { {{ ip_adguard }} port 53; };
+{% endif %}
+{{ own_zones() }}    zone "{{ g.rules_zone }}" { type primary; file "/etc/bind/{{ g.rules_zone }}"; };
 {% if g.safe_zone %}
     zone "{{ g.safe_zone }}" { type primary; file "/etc/bind/{{ g.safe_zone }}"; };
 {% endif %}
-{% for l in g.lists %}
-    zone "{{ l.zone }}" { type primary; file "/etc/bind-lists/{{ l.zone }}"; };  // {{ l.name | replace('*/', '') | replace('\n', ' ') }}
-{% endfor %}
+    // first match wins: fabric's zones never filtered, the group's own allows and blocks, the owner's, safe search
     response-policy {
+        zone "fabric.rpz";
         zone "{{ g.rules_zone }}";
+        zone "owner.rpz";
 {% if g.safe_zone %}
         zone "{{ g.safe_zone }}";
 {% endif %}
-{% for l in g.lists %}
-        zone "{{ l.zone }}";
-{% endfor %}
     } break-dnssec yes qname-wait-recurse no;
 };
 
 {% endfor %}
 view "everyone" {
     match-clients { any; };
-{% for z in zones %}
-    zone "{{ z }}" { type forward; forward only; forwarders { {{ ip_bind9 }} port 53; }; };
-{% endfor %}
-    zone "fabric.rpz" { type primary; file "/etc/bind/fabric.rpz"; };
-    zone "owner.rpz" { type primary; file "/etc/bind/owner.rpz"; };
-{% if safe_zone %}
+    // everything that is not fabric's goes to AdGuard Home, which matches the lists (1.12.3.2)
+    forward only;
+    forwarders { {{ ip_adguard }} port 53; };
+{{ own_zones() }}{% if safe_zone %}
     zone "{{ safe_zone }}" { type primary; file "/etc/bind/{{ safe_zone }}"; };
 {% endif %}
-{% for l in lists %}
-    zone "{{ l.zone }}" { type primary; file "/etc/bind-lists/{{ l.zone }}"; };  // {{ l.name | replace('*/', '') | replace('\n', ' ') }}
-{% endfor %}
-    // first match wins: fabric's zones are never filtered, then the owner's rules, safe search, the lists in order
+    // first match wins: fabric's zones are never filtered, then the owner's rules, safe search
     response-policy {
         zone "fabric.rpz";
         zone "owner.rpz";
 {% if safe_zone %}
         zone "{{ safe_zone }}";
 {% endif %}
-{% for l in lists %}
-        zone "{{ l.zone }}";
-{% endfor %}
     } break-dnssec yes qname-wait-recurse no;
 };

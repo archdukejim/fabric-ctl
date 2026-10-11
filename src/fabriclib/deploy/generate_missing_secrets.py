@@ -5,7 +5,8 @@ BASE64 = {"ca_password": 32, "rndc_secret": 32, "keycloak_admin_password": 24, "
           "kea_ddns_secret": 32,                     # HMAC-SHA256 TSIG key for Kea's DDNS
           "resolver_rndc_secret": 32}                # the BIND resolver's own control key (manual 1.12.2.4)
 # alphanumeric: safe inside JSON and configuration files without quoting
-ALNUM = ("webui_oidc_secret", "openbao_oidc_secret")
+ALNUM = ("webui_oidc_secret", "openbao_oidc_secret",
+         "adguard_api_password")                    # fabric-agent's account in AdGuard Home (manual 1.12.3.4)
 
 
 def generate_missing_secrets(secrets):

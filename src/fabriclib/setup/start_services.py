@@ -24,6 +24,7 @@ ORDER = [("bind9", "bind9", None), ("stepca", "step-ca", None), ("samba", "samba
          ("postgres", "postgres", "install_keycloak"), ("keycloak", "keycloak", "install_keycloak"),
          ("nginx", "nginx", None), ("fluentbit", "fluentbit", "install_fluentbit"),
          ("kea", "kea-dhcp4", "install_kea"), ("freeradius", "freeradius", "install_freeradius"),
+         ("adguard-filter", "adguard-filter", "install_resolver"),
          ("bind9-resolver", "bind9-resolver", "install_resolver")]
 
 

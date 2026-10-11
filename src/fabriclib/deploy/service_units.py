@@ -30,10 +30,13 @@ def service_units(base, v):
         # the DNS filter, a BIND resolver (manual 1.12.2): on host_ip:53; no requires: an apply that restarts the
         # authoritative BIND (every DNS apply) must not take the clients' DNS down with it
         {'service': 'bind9-resolver', 'compose': 'bind9-resolver', 'folder': 'resolver', 'requires': []},
+        # its list matcher, AdGuard Home behind it (manual 1.12.3): no requires either way, so a restart of one never
+        # takes the other down (while AdGuard restarts, the resolver answers internet names SERVFAIL: fail closed)
+        {'service': 'adguard-filter', 'compose': 'adguard-filter', 'folder': 'dnsfilter', 'requires': []},
     ]
     flag = {"keycloak": "install_keycloak", "postgres": "install_keycloak",
             "webui": "install_webui", "fluentbit": "install_fluentbit", "kea": "install_kea",
-            "freeradius": "install_freeradius", "resolver": "install_resolver"}
+            "freeradius": "install_freeradius", "resolver": "install_resolver", "dnsfilter": "install_resolver"}
     for u in units:
         u["enabled"] = bool(v.get(flag[u["folder"]])) if u["folder"] in flag else True
     return units

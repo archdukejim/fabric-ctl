@@ -1,0 +1,56 @@
+services:
+  adguard-filter:
+    # The DNS filter's list matcher (manual 1.12.3): AdGuard Home behind the BIND resolver, answering only the resolver
+    # on fabric_net; driven through its API by fabric. AdGuard Home's own image, pinned by digest.
+    image: "{{ image_adguard }}"
+    container_name: adguard-filter
+    logging:
+      driver: journald
+      options:
+        tag: "{{ '{{.Name}}' }}"
+    user: "{{ service_users.adguard.uid }}:{{ service_users.adguard.gid }}"
+    # updates are fabric's (the images lock); the folders' owner is checked by fabric, not by AdGuard
+    command: ["--no-check-update", "--no-permcheck", "-c", "/opt/adguardhome/conf/AdGuardHome.yaml",
+              "-w", "/opt/adguardhome/work"]
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    # NET_BIND_SERVICE stays in the bounding set only because the binary carries it as a file capability (the kernel
+    # refuses to run it otherwise); no-new-privileges voids it, so port 53 comes from the sysctl below (2.3.1.18)
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: 53
+    tmpfs:
+      - /tmp:noexec,nosuid,size=16m
+    volumes:
+      - {{ deploy_base_dir }}/dnsfilter/conf:/opt/adguardhome/conf
+      - {{ deploy_base_dir }}/dnsfilter/work:/opt/adguardhome/work
+      # fabric's copies of the lists (the lists job), read as files (1.12.3.5)
+      - {{ deploy_base_dir }}/dnsfilter/lists:/lists:ro
+      # the certificate for *.filter.<domain>: the groups' DNS-over-TLS (1.12.3.6)
+      - {{ deploy_base_dir }}/dnsfilter/tls:/tls:ro
+      # its upstreams' DoT certificates are checked against the host's CA bundle, kept current by its updates
+      - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
+    # nothing published: only the resolver reaches it (53, 853), and fabric its API (3000)
+    networks:
+      fabric_net:
+        ipv4_address: "{{ ip_adguard }}"
+        aliases:
+          - adguard-filter
+    mem_limit: {{ adguard_mem_limit }}
+    healthcheck:
+      # its sign-in page: answers once the lists are loaded; no credentials on a command line
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/login.html"]
+      interval: 15s
+      # the owner's lists take 33 s to load on the test Pi (2.3.1.18)
+      start_period: 120s
+      timeout: 5s
+      retries: 3
+
+networks:
+  fabric_net:
+    name: fabric_net
+    external: true

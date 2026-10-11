@@ -93,6 +93,7 @@ image_keycloak: {{ image_keycloak | default(images_lock.keycloak) }}
 image_postgres: {{ image_postgres | default(images_lock.postgres) }}
 image_openbao: {{ image_openbao | default(images_lock.openbao) }}
 image_fluentbit: {{ image_fluentbit | default(images_lock.fluentbit) }}
+image_adguard: {{ image_adguard | default(images_lock.adguard) }}
 {# Base of the locally built images (Debian packages). #}
 image_debian: {{ image_debian | default(images_lock.debian) }}
 {# Names of the locally built images (not pulled). #}
@@ -195,24 +196,30 @@ radius_people: {{ radius_people | default([{'group': 'network-staff', 'vlan': no
                                           {'group': 'network-guests', 'vlan': none, 'priority': 100}]) | to_json }}
 ip_fluentbit: {{ ip_fluentbit | default('10.255.0.95') }}
 fluentbit_mem_limit: {{ fluentbit_mem_limit | default('64m') }}
-# DNS filter (manual 1.12.2; on by default, 2.1.12.3): a BIND resolver answers clients on host_ip:53 and filters with
-# response policy zones; BIND moves to bind_dns_port (5053); fabric's zones go to it, never filtered. none turns it off.
+# DNS filter (manual 1.12.2, 1.12.3; on by default, 2.1.12.3): a BIND resolver answers clients on host_ip:53 (the
+# owner's rules, safe search, groups); AdGuard Home behind it matches the lists (2.1.12.6); BIND moves to
+# bind_dns_port (5053); fabric's zones go to it, never filtered. none turns it off.
 dns_filter: {{ dns_filter | default('bind', true) | lower }}
 install_resolver: {{ (dns_filter | default('bind', true) | lower) == 'bind' }}
 ip_resolver: {{ ip_resolver | default('10.255.0.33') }}
-resolver_mem_limit: {{ resolver_mem_limit | default('384m') }}
-# Lists [{name, url}] (hosts, domains, RPZ or AdGuard DNS syntax, converted); [] = none. Default: AdGuard's DNS filter.
-dns_filter_lists: {{ (dns_filter_lists if dns_filter_lists is defined and dns_filter_lists is not none else [{'name': 'AdGuard DNS filter', 'url': 'https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt'}]) | to_json }}
+resolver_mem_limit: {{ resolver_mem_limit | default('128m') }}
+# AdGuard Home behind the resolver (manual 1.12.3): on fabric_net only, driven through its API by fabric.
+# Its memory limit follows the host's (1 GiB at 4 GB: the owner's 16 lists peaked at 751 MiB on the test Pi).
+ip_adguard: {{ ip_adguard | default('10.255.0.34') }}
+adguard_mem_limit: {{ adguard_mem_limit | default(((1024 * ((host_ram_capacity | default(host_ram_detected | default(4), true) | int) / 4)) | int) ~ 'm', true) }}
+# Lists [{name, url, enabled}] (hosts, domains or AdGuard syntax), every one kept fetched; [] = none.
+# Default: AdGuard's DNS filter.
+dns_filter_lists: {{ (dns_filter_lists if dns_filter_lists is defined and dns_filter_lists is not none else [{'name': 'AdGuard DNS filter', 'url': 'https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt', 'enabled': true}]) | to_json }}
 # Names allowed past every list / blocked whatever the lists say; each with every name below it.
 dns_filter_allow: {{ dns_filter_allow | default([], true) | to_json }}
 dns_filter_block: {{ dns_filter_block | default([], true) | to_json }}
-# Forwarded to over DNS-over-TLS, the certificate's name verified; [] = resolve from the root servers.
+# AdGuard Home forwards to these over DNS-over-TLS, to each address, its certificate verified for it; at least one.
 dns_filter_upstreams: {{ (dns_filter_upstreams if dns_filter_upstreams is defined and dns_filter_upstreams is not none else [{'address': '1.1.1.1', 'name': 'cloudflare-dns.com'}, {'address': '1.0.0.1', 'name': 'cloudflare-dns.com'}]) | to_json }}
 # Strict safe search for everyone (Google, YouTube, Bing, DuckDuckGo, Yandex, Pixabay, Ecosia); YouTube strict or moderate.
 dns_filter_safe_search: {{ dns_filter_safe_search | default(false) | to_json }}
 dns_filter_youtube: {{ dns_filter_youtube | default('strict', true) }}
-# Client groups (manual 1.12.2.15): [{name, clients: [addresses, subnets], safe_search, youtube, lists, allow, block}];
-# a group only adds to everyone's lists and rules. The most specific address wins.
+# Client groups (manual 1.12.2.15, 1.12.3.6): [{name, clients: [addresses, subnets], safe_search, youtube, allow,
+# block}]; a group only adds to everyone's rules (the lists are the site's). The most specific address wins.
 dns_filter_groups: {{ dns_filter_groups | default([], true) | to_json }}
 # Time (manual 1.13.1): chrony on the host keeps its clock and serves the network. ntp_servers: "<host> [nts]
 # [pool] [prefer]" (nts: authenticated time); a federated site asks its upstream site first. [] = the upstream
@@ -295,7 +302,8 @@ service_dirs:
   'fluentbit': {'uid': 608, 'gid': 608, 'name': 'fabric-logs'},
   'kea': {'uid': 609, 'gid': 609, 'name': 'fabric-dhcp'},
   'freeradius': {'uid': 610, 'gid': 610, 'name': 'fabric-radius'},
-  'resolver': {'uid': 613, 'gid': 613, 'name': 'fabric-resolver'}
+  'resolver': {'uid': 613, 'gid': 613, 'name': 'fabric-resolver'},
+  'adguard': {'uid': 614, 'gid': 614, 'name': 'fabric-adguard'}
 } %}
 {# Merged, not defaulted: a vars.yaml rendered by an older release must still gain new accounts. #}
 service_users:

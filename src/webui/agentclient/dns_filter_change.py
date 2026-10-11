@@ -1,7 +1,7 @@
 from webui.agentclient.connection import call_agent
 
-CHANGES = {"lists", "lists/delete", "rules", "rules/delete", "upstreams", "groups", "groups/delete", "safe-search",
-           "fetch"}
+CHANGES = {"lists", "lists/set", "lists/delete", "rules", "rules/delete", "upstreams", "groups", "groups/delete",
+           "safe-search", "fetch"}
 
 
 def dns_filter_change(what, body):

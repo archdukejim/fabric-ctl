@@ -4,9 +4,10 @@ from webui import agentclient as actions
 from webui.views.constants import DNS_FILTER_SECTIONS
 
 # what a post changes -> the section it goes back to
-BACK = {"lists": "lists", "lists/delete": "lists", "fetch": "lists", "rules": "rules", "rules/delete": "rules",
-        "upstreams": "settings", "groups": "groups", "groups/delete": "groups", "safe-search": "settings"}
-FIELDS = ("name", "url", "kind", "upstreams", "group", "clients", "on", "youtube")
+BACK = {"lists": "lists", "lists/set": "lists", "lists/delete": "lists", "fetch": "lists", "rules": "rules",
+        "rules/delete": "rules", "upstreams": "settings", "groups": "groups", "groups/delete": "groups",
+        "safe-search": "settings"}
+FIELDS = ("name", "url", "enabled", "kind", "upstreams", "group", "clients", "on", "youtube")
 
 
 def _message(what, res):
@@ -17,10 +18,14 @@ def _message(what, res):
     Feeds:   dns_filter_post."""
     r = res.get("result") or {}
     whose = f" for {r['group']}" if isinstance(r, dict) and r.get("group") else ""
-    if what == "lists":
-        return f"{r.get('name')} added{whose}; it is being fetched and then used (see its state below)."
+    if what in ("lists", "lists/set"):
+        state = "ticked" if r.get("enabled") else "unticked"
+        if r.get("added"):
+            state = "added and ticked"
+        fetching = "; its first copy is being fetched, then it is used." if res.get("fetching") else "."
+        return f"{r.get('name')} {state}{fetching}"
     if what == "lists/delete":
-        return f"{r.get('name')} removed{whose}."
+        return f"{r.get('name')} removed."
     if what == "fetch":
         return "Fetching every list and AdGuard's catalogue now; reload this page in a minute."
     if what == "rules":
@@ -38,19 +43,19 @@ def _message(what, res):
         return f"Strict safe search {'on, YouTube ' + str(r.get('youtube')) if r.get('on') else 'off'}" + \
             (whose or " for everyone") + "."
     ups = res.get("result") if isinstance(res.get("result"), list) else []
-    return "Upstreams saved: " + (", ".join(f"{u['address']} ({u['name']})" for u in ups) or "the root servers") + "."
+    return "Upstreams saved: " + ", ".join(f"{u['address']} ({u['name']})" for u in ups) + "."
 
 
 def dns_filter_post(h, parts, form):
-    """Purpose: One DNS filter tab change (manual 1.12.2.14, 1.12.2.15), saved and applied by fabric-agent, then back
-             to its section with the outcome; a Block or Allow pressed in the query log goes back there, a group's
-             change to Groups.
+    """Purpose: One DNS filter tab change (manual 1.12.2.14, 1.12.2.15, 1.12.3.8), saved and made in seconds by
+             fabric-agent, then back to its section with the outcome; a Block or Allow pressed in the query log goes
+             back there, a group's change to Groups.
     Inputs:  h — the request handler (redirect, deny); parts — segments after /dns-filter/: ["lists"], ["lists",
-             "delete"], ["rules"], ["rules", "delete"], ["upstreams"], ["groups"], ["groups", "delete"],
-             ["safe-search"], ["fetch"]; form — dict (name, url, kind, upstreams, group, clients, on, youtube; back:
-             a section to return to). An unchecked safe-search box sends no "on": off.
+             "set"], ["lists", "delete"], ["rules"], ["rules", "delete"], ["upstreams"], ["groups"], ["groups",
+             "delete"], ["safe-search"], ["fetch"]; form — dict (name, url, enabled, kind, upstreams, group, clients,
+             on, youtube; back: a section to return to). An unchecked safe-search box sends no "on": off.
     Returns: 303 to /dns-filter?view=<section> with msg, or err when the agent refused the change (nothing saved) or
-             applying failed (saved; the last 300 characters of its output); 404 for another path.
+             it waits (saved; why: AdGuard not answering); 404 for another path.
     Fails:   AgentError, PermissionDenied and AuthError propagate to handle_request.
     Feeds:   post_action (/dns-filter/…)."""
     what = "/".join(parts)
@@ -65,5 +70,5 @@ def dns_filter_post(h, parts, form):
     msg = _message(what, res)
     if what != "fetch" and not res.get("applied"):
         return h.redirect("/dns-filter?" + urllib.parse.urlencode(
-            {"view": back, "err": msg + " Saved, but applying failed: " + (res.get("output") or "")[-300:]}))
+            {"view": back, "err": msg + " Saved, but not in use yet: " + str(res.get("waiting") or "")[-300:]}))
     return h.redirect("/dns-filter?" + urllib.parse.urlencode({"view": back, "msg": msg}))

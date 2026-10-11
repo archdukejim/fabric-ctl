@@ -40,15 +40,15 @@ def _clients(raw, name, answered, fabric):
     return list(dict.fromkeys(out))
 
 
-def check_filter_groups(v, own, shared_urls):
+def check_filter_groups(v, own):
     """Purpose: the DNS filter's client groups (manual 1.12.2.15), checked and normalised in place.
     Inputs:  v — rendered vars (dns_filter_groups, lan_cidr, fabric_subnet, security.firewall_allow, DHCP's
              subnets: client_networks); changed in
-             place; own — fabric's own domains; shared_urls — the urls of everyone's lists.
+             place; own — fabric's own domains.
     Returns: None.
     Fails:   ValidationError naming the group: a bad or reserved name, the same name twice; clients (see _clients),
              the same address or subnet in two groups; safe_search not true or false, youtube not strict or moderate;
-             a list without an http(s) url, twice, or already on everyone; an allow or block that is not a name, is
+             any list (the lists are the site's from 0.7.0, 1.12.3.5); an allow or block that is not a name, is
              inside fabric's domains, or is both allowed and blocked; a reference to Kea's data that names nothing
              (expand_group_clients: dhcp:, device:, vlan:, turned into addresses on every apply, manual 1.10.3.7).
     Feeds:   dns_filter/check_filter_settings."""
@@ -88,27 +88,14 @@ def check_filter_groups(v, own, shared_urls):
         youtube = str(g.get("youtube") or "strict")
         if youtube not in YOUTUBE:
             raise ValidationError(f"group {name}: youtube is strict or moderate, not {youtube!r}")
-        lists, seen = [], set()
-        for item in g.get("lists") or []:
-            url = str((item or {}).get("url") or "").strip() if isinstance(item, dict) else ""
-            if not url.startswith(("https://", "http://")):
-                raise ValidationError(f"group {name}: the list {item!r} needs an http(s) url")
-            if url in seen:
-                raise ValidationError(f"group {name}: the list {url} is there twice")
-            if url in shared_urls:
-                raise ValidationError(f"group {name}: the list {url} is already on everyone, so it applies to the "
-                                      "group too")
-            seen.add(url)
-            lists.append({"name": str(item.get("name") or url).strip(), "url": url})
+        if g.get("lists"):
+            raise ValidationError(f"group {name}: a group has no lists of its own from 0.7.0, the site's lists apply "
+                                  "to every client (manual 1.12.3.5): take them out of the group")
         allow = rule_names(g.get("allow"), f"group {name}: allow", own)
         block = rule_names(g.get("block"), f"group {name}: block", own)
-        for n in allow:                 # a group's allow is a forward zone: above fabric's zones it would hide them
-            if n == "arpa" or n.endswith(".arpa") or any(d.endswith("." + n) for d in own):
-                raise ValidationError(f"group {name}: allow {n} would contain fabric's own zones; allow the names "
-                                      "below it instead")
         both = set(allow) & set(block)
         if both:
             raise ValidationError(f"group {name}: allowed and blocked at once: {', '.join(sorted(both))}")
-        out.append({"name": name, "clients": clients, "safe_search": safe, "youtube": youtube, "lists": lists,
-                    "allow": allow, "block": block})
+        out.append({"name": name, "clients": clients, "safe_search": safe, "youtube": youtube, "allow": allow,
+                    "block": block})
     v["dns_filter_groups"] = out

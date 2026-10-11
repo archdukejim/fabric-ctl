@@ -22,7 +22,8 @@ POST = {
     ("zones", "*", "records"): "dns:write", ("zones", "*", "records", "delete"): "dns:write",
     ("apply",): "dns:write",
     ("dns-filter", "querylog"): "dns:querylog",        # who looked up what: the admin bundle only (2.1.12.4)
-    ("dns-filter", "lists"): "dns:filter", ("dns-filter", "lists", "delete"): "dns:filter",
+    ("dns-filter", "lists"): "dns:filter", ("dns-filter", "lists", "set"): "dns:filter",
+    ("dns-filter", "lists", "delete"): "dns:filter",
     ("dns-filter", "rules"): "dns:filter", ("dns-filter", "rules", "delete"): "dns:filter",
     ("dns-filter", "upstreams"): "dns:filter", ("dns-filter", "fetch"): "dns:filter",
     ("dns-filter", "groups"): "dns:filter", ("dns-filter", "groups", "delete"): "dns:filter",

@@ -100,10 +100,16 @@ for tpl in sorted(env.list_templates()):
     if tpl.startswith('systemd/'):
         extra = dict(item={'service': 'samba', 'compose': 'samba', 'folder': 'samba', 'requires': []})
     if tpl.startswith('resolver/config/'):     # what dns_filter/deploy_resolver passes beside the vars
-        extra = dict(zones=['lan.j-j.family', '7.168.192.in-addr.arpa'], lists=[{'zone': 'abc.list.rpz', 'name': 'L'}],
-                     upstream_names=['cloudflare-dns.com'], clients=['192.168.7.0/24'], resolver_rndc_secret='c2VjcmV0',
-                     groups=[], safe_zone=None, client_tls=False, zone='group-x.rpz', what='group x', allow=[],
-                     block=[], level='strict', records=[])
+        extra = dict(zones=['lan.j-j.family', '7.168.192.in-addr.arpa'], clients=['192.168.7.0/24'],
+                     resolver_rndc_secret='c2VjcmV0', groups=[{'name': 'kids', 'match': ['192.168.7.64/27'],
+                                                              'rules_zone': 'group-kids.rpz', 'safe_zone': None}],
+                     safe_zone=None, client_tls=False, adguard_tls=True, zone='group-x.rpz', what='group x',
+                     allow=[], block=[], level='strict', records=[])
+    if tpl.startswith('dnsfilter/AdGuardHome'):   # what dns_filter/deploy_adguard passes beside the vars
+        extra = dict(adguard_password_hash='$2b$10$abcdefghijklmnopqrstuuabcdefghijklmnopqrstuvwxyz01234', tls=True,
+                     filters=[{'id': 1, 'url': '/lists/0123456789ab.txt', 'name': 'L "one"', 'enabled': True}],
+                     user_rules=["@@||example.org^$client='kids',important"], groups=['kids'],
+                     upstreams=['tls://1.1.1.1'], bootstrap=['1.1.1.1'], with_api=True)
     if tpl.endswith('.json.j2'):
         json.loads(env.get_template(tpl).render(**full))
     text = env.get_template(tpl).render(**full, **extra)
@@ -148,19 +154,31 @@ off = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(
 ngx_off = env.get_template('nginx/nginx.conf.j2').render(**{**secrets, **off})
 assert '"grpc://bind9:' in ngx_off[ngx_off.index('location /dns-query'):], 'DoH goes to BIND with the DNS filter off'
 print('DoH: nginx speaks HTTP/2 to the DNS filter (or BIND with it off) (grpc_pass)')
-res_ctx = dict(zones=['lan.j-j.family'], lists=[], upstream_names=['cloudflare-dns.com'], clients=['192.168.7.0/24'],
-               resolver_rndc_secret='c2VjcmV0', client_tls=True, safe_zone='safesearch-strict.rpz',
+res_ctx = dict(zones=['lan.j-j.family'], clients=['192.168.7.0/24'], resolver_rndc_secret='c2VjcmV0', client_tls=True,
+               adguard_tls=True, safe_zone='safesearch-strict.rpz',
                groups=[{'name': 'kids', 'match': ['!192.168.7.70', '192.168.7.64/27'], 'rules_zone': 'group-kids.rpz',
-                        'safe_zone': 'safesearch-ytmoderate.rpz', 'lists': [], 'allow': ['ok.example']}])
+                        'safe_zone': 'safesearch-ytmoderate.rpz'}])
 res_conf = env.get_template('resolver/config/named.conf.j2').render(**{**v2, **res_ctx})
+kids = res_conf[res_conf.index('view "kids"'):res_conf.index('view "everyone"')]
+everyone = res_conf[res_conf.index('view "everyone"'):]
 assert 'listen-on port 853 tls "clients"' in res_conf and 'listen-on port 8053 tls none http "doh"' in res_conf \
-    and 'match-clients { !192.168.7.70; 192.168.7.64/27; };' in res_conf \
-    and res_conf.index('view "kids"') < res_conf.index('view "everyone"') \
-    and 'zone "ok.example" { type forward; forward only; forwarders { 1.1.1.1 port 853 tls "upstream-1"; ' in res_conf, \
-    res_conf
+    and 'match-clients { !192.168.7.70; 192.168.7.64/27; };' in kids, res_conf
+# each view on its own: the group's over DoT naming it (its ClientID), everyone's over plain DNS, both to AdGuard
+assert f'remote-hostname "kids.filter.{v2["domain"]}"' in res_conf and \
+    f'forwarders port 853 tls "group-kids" {{ {v2["ip_adguard"]}; }};' in kids, kids
+assert f'forwarders {{ {v2["ip_adguard"]} port 53; }};' in everyone and 'tls "upstream' not in res_conf, everyone
+for view in (kids, everyone):        # fabric's zones and the owner's rules in every view (no chained views now)
+    assert 'zone "lan.j-j.family" { type forward;' in view and 'zone "owner.rpz"' in view, view
+assert kids.index('zone "fabric.rpz";') < kids.index('zone "group-kids.rpz";') < kids.index('zone "owner.rpz";'), kids
+assert 'dnssec-validation no;' in res_conf and 'responselog yes;' in res_conf and 'category responses' in res_conf
+assert 'bind-lists' not in res_conf, 'no list in the resolver (1.12.3)'
+plain = env.get_template('resolver/config/named.conf.j2').render(**{**v2, **res_ctx, 'adguard_tls': False})
+assert 'tls "group-kids"' not in plain and f'forwarders {{ {v2["ip_adguard"]} port 53; }};' in \
+    plain[plain.index('view "kids"'):], 'before its certificate the group forwards over plain DNS'
 assert 'tls "clients"' not in env.get_template('resolver/config/named.conf.j2').render(
     **{**v2, **res_ctx, 'client_tls': False}), 'no DoT/DoH listeners before the certificate exists'
-print("DNS filter: a group's chained view, safe search, DoT and DoH listeners rendered (1.12.2.15, 1.12.2.16)")
+print("DNS filter: each view forwards to AdGuard Home (a group over DoT naming it), safe search, DoT and DoH "
+      "listeners rendered (1.12.2.16, 1.12.3.6)")
 
 # Federation (manual 1.9): the endpoint's vhost, socket mount, CNAME and unit only when it is
 # on; a site's organisation suffix comes from org_domain, its local suffix and names from its own.
@@ -220,21 +238,50 @@ res = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(
 for r in (dflt, res):
     assert r['dns_filter'] == 'bind' and r['install_resolver'] is True and r['bind_dns_port'] == 5053, \
         (r['dns_filter'], r['install_resolver'], r['bind_dns_port'])
-assert not [k for k in dflt if 'adguard' in k or 'oauth2proxy' in k], 'AdGuard Home is gone (0.7)'
+# 0.6's AdGuard Home in front is gone (0.7); 0.7.0's behind the resolver has exactly these settings (1.12.3)
+assert sorted(k for k in dflt if 'adguard' in k or 'oauth2proxy' in k) == ['adguard_mem_limit', 'image_adguard',
+                                                                           'ip_adguard'], dflt.keys()
 assert 'adguard' not in [r['name'] for r in dflt['dns']['dynamic_zone_var']['CNAME']]
 assert res['service_users']['resolver'] == {'uid': 613, 'gid': 613, 'name': 'fabric-resolver'}, res['service_users']
-assert not {'adguard', 'oauth2proxy'} & set(res['service_users']), res['service_users']
-assert res['resolver_mem_limit'] == '384m' and res['ip_resolver'] == '10.255.0.33'
-assert [f['name'] for f in res['dns_filter_lists']] == ['AdGuard DNS filter'] and res['dns_filter_upstreams'][0] == \
-    {'address': '1.1.1.1', 'name': 'cloudflare-dns.com'}, (res['dns_filter_lists'], res['dns_filter_upstreams'])
-assert 'adguard' not in env.get_template('nginx/nginx.conf.j2').render(**full), 'no AdGuard vhost'
+assert res['service_users']['adguard'] == {'uid': 614, 'gid': 614, 'name': 'fabric-adguard'}, res['service_users']
+assert 'oauth2proxy' not in res['service_users'], res['service_users']
+assert res['resolver_mem_limit'] == '128m' and res['ip_resolver'] == '10.255.0.33' and res['ip_adguard'] == '10.255.0.34'
+assert res['adguard_mem_limit'] == '1024m', res['adguard_mem_limit']          # 1 GiB at 4 GB (1.12.3.9)
+assert res['dns_filter_lists'] == [{'name': 'AdGuard DNS filter', 'enabled': True,
+                                    'url': 'https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt'}]
+assert res['dns_filter_upstreams'][0] == {'address': '1.1.1.1', 'name': 'cloudflare-dns.com'}, res['dns_filter_upstreams']
+assert res['image_adguard'].startswith('adguard/adguardhome:') and '@sha256:' in res['image_adguard'], res['image_adguard']
+assert 'adguard' not in env.get_template('nginx/nginx.conf.j2').render(**full), 'no AdGuard vhost: its UI is unpublished'
 rc = yaml.safe_load(env.get_template('resolver/docker-compose.yml.j2').render(**{**secrets, **res}))['services']
 assert list(rc) == ['bind9-resolver'] and rc['bind9-resolver']['cap_drop'] == ['ALL'] and 'cap_add' not in rc['bind9-resolver']
 assert rc['bind9-resolver']['ports'] == [f"{res['host_ip']}:53:53/tcp", f"{res['host_ip']}:53:53/udp",
                                          f"{res['host_ip']}:853:853/tcp"], rc['bind9-resolver']['ports']   # DoT, 1.12.2.16
+assert not any('lists' in m for m in rc['bind9-resolver']['volumes']), 'the resolver holds no lists (1.12.3)'
+ag = yaml.safe_load(env.get_template('dnsfilter/docker-compose.yml.j2').render(**{**secrets, **res}))['services']
+a = ag['adguard-filter']
+assert list(ag) == ['adguard-filter'] and 'ports' not in a, 'AdGuard Home publishes nothing (1.12.3.3)'
+assert a['user'] == '614:614' and a['cap_drop'] == ['ALL'] and a['cap_add'] == ['NET_BIND_SERVICE'], a
+assert a['read_only'] is True and 'no-new-privileges:true' in a['security_opt'], a
+assert a['sysctls'] == {'net.ipv4.ip_unprivileged_port_start': 53} and a['mem_limit'] == '1024m', a
+assert a['networks']['fabric_net']['ipv4_address'] == '10.255.0.34' and '/opt/dnsfilter/lists:/lists:ro' in a['volumes']
+assert '--no-check-update' in a['command'] and not any('password' in str(x).lower() for x in a['healthcheck']['test'])
+agt = env.get_template('dnsfilter/AdGuardHome.yaml.j2')
+agx = dict(adguard_password_hash='$2b$10$x', tls=False, filters=[], user_rules=[], groups=[],
+           upstreams=['tls://1.1.1.1'], bootstrap=['1.1.1.1'], ip_resolver=res['ip_resolver'],
+           domain=res['domain'])
+agc = yaml.safe_load(agt.render(**agx, with_api=True))
+assert agc['filters'] == [] and agc['user_rules'] == [] and agc['clients']['persistent'] == [], agc['filters']
+assert agc['filtering']['blocking_mode'] == 'nxdomain' and agc['querylog']['enabled'] is False
+assert agc['statistics']['enabled'] is False and agc['dns']['allowed_clients'] == ['10.255.0.33']
+assert agc['tls']['enabled'] is False and agc['schema_version'] == 34 and agc['filtering']['safe_fs_patterns'] == ['/lists/*']
+static = yaml.safe_load(agt.render(**agx, with_api=False))
+assert not {'filters', 'user_rules'} & set(static) and 'upstream_dns' not in static['dns'], 'the API parts left out'
 units_res = {u['service']: u for u in service_units('/opt', res)}
-assert units_res['bind9-resolver']['enabled'] and units_res['bind9-resolver']['requires'] == [] and 'adguard' not in units_res
-print('DNS filter: the BIND resolver on by default, on 53, BIND on 5053, its own account, no capabilities, no AdGuard')
+assert units_res['bind9-resolver']['enabled'] and units_res['bind9-resolver']['requires'] == []
+assert units_res['adguard-filter']['enabled'] and units_res['adguard-filter']['requires'] == []
+assert units_res['adguard-filter']['folder'] == 'dnsfilter' and 'adguard' not in units_res
+print('DNS filter: the BIND resolver on 53 and AdGuard Home behind it on fabric_net only, each its own account, '
+      'BIND on 5053')
 # time (manual 1.13.1): served by default with NTS sources and ntp.<domain>; a record of the user's own named ntp is kept
 assert v2['ntp_serve'] is True and v2['ntp_set_clock'] is True and all(x.endswith(' nts') for x in v2['ntp_servers'])
 assert 'ntp' in [r['name'] for r in v2['dns']['dynamic_zone_var']['CNAME']]

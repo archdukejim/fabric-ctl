@@ -31,6 +31,9 @@ SERVICES = [
     {"name": "samba", "unit": "samba", "container": "samba", "folder": "samba", "var": "image_debian",
      "build": "fabric/samba:local",
      "published": "samba"},
+    # the DNS filter's list matcher (manual 1.12.3): AdGuard Home's own image, behind the resolver
+    {"name": "adguard", "unit": "adguard-filter", "container": "adguard-filter", "folder": "dnsfilter",
+     "var": "image_adguard", "build": None},
     {"name": "fluentbit", "unit": "fluentbit", "container": "fluentbit", "folder": "fluentbit",
      "var": "image_fluentbit",
      "build": None},

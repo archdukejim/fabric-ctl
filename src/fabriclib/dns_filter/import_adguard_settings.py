@@ -18,6 +18,10 @@ GENERATED_END = "! fabric: the rules above are generated (fabric's own names sta
 SETTING_END = "! fabric: the rules above are adguard_rules (vars); rules you add in this UI go below"
 RULE = re.compile(r"^(@@)?\|\|([a-z0-9_.-]+)\^(\$important)?$")
 
+# the default upstreams (vars.yaml.j2): used when none of AdGuard's could be carried
+CLOUDFLARE = ({"address": "1.1.1.1", "name": "cloudflare-dns.com"},
+              {"address": "1.0.0.1", "name": "cloudflare-dns.com"})
+
 
 def _upstream(line, own_ip, not_carried):
     """Purpose: one AdGuard upstream as the resolver's DoT upstreams.
@@ -118,7 +122,7 @@ def _groups(cfg, v, own, everyone, not_carried):
         for raw in c.get("ids") or []:
             try:                      # an id is kept only where the settings check takes it (and no other group)
                 probe = {**v, "dns_filter_groups": [{"name": "probe", "clients": [str(raw)]}]}
-                check_filter_groups(probe, own, set())
+                check_filter_groups(probe, own)
                 ident = probe["dns_filter_groups"][0]["clients"][0]
             except ValidationError as e:
                 not_carried.append(f"client {label}: {raw} ({str(e).removeprefix('group probe: ')}; MAC addresses and "
@@ -139,16 +143,17 @@ def _groups(cfg, v, own, everyone, not_carried):
             not_carried.append(f"client {label}: its own upstreams (every group uses the resolver's)")
         if c.get("blocked_services"):
             not_carried.append(f"client {label}: blocked services (fabric does not block services as such)")
-        groups.append({"name": name, "clients": clients, "safe_search": on, "youtube": youtube, "lists": [],
-                       "allow": [], "block": []})
+        groups.append({"name": name, "clients": clients, "safe_search": on, "youtube": youtube, "allow": [],
+                       "block": []})
     return groups
 
 
 def import_adguard_settings(cfg, v):
-    """Purpose: AdGuard Home's settings as the BIND resolver's (manual 2.3.12.1.9, decision 2.1.12.3): its upstreams
-             (as DNS-over-TLS where the provider's certificate name is known), its enabled lists by URL, its
-             `||name^` and `@@||name^` rules, its safe search and its persistent clients as groups (1.12.2.15);
-             everything else is listed, never dropped silently.
+    """Purpose: 0.6's AdGuard Home settings as the DNS filter's (manual 2.3.12.1.9, 1.12.3.11, decisions 2.1.12.3,
+             2.1.12.6): its upstreams (as DNS-over-TLS where the provider's certificate name is known; Cloudflare's
+             when none can be), its lists by URL (ticked as they were), its `||name^` and `@@||name^` rules, its safe
+             search and its persistent clients as groups (1.12.2.15); everything else is listed, never dropped
+             silently.
     Inputs:  cfg — AdGuardHome.yaml as a dict, or None when AdGuard never ran (then the adguard_* vars are used: what
              a first deploy would have started with); v — the vars (adguard_upstreams, adguard_filter_lists,
              adguard_rules, ip_bind9, domain, org_domain, ad_domain, host_ip, and what check_filter_groups reads).
@@ -174,24 +179,24 @@ def import_adguard_settings(cfg, v):
         ups = v.get("adguard_upstreams") if v.get("adguard_upstreams") is not None else \
             ["https://1.1.1.1/dns-query", "https://1.0.0.1/dns-query"]
         lists = v.get("adguard_filter_lists") if v.get("adguard_filter_lists") is not None else \
-            [{"name": "AdGuard DNS filter", "url": "https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt"}]
+            [{"name": "AdGuard DNS filter",
+              "url": "https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt"}]
         off = []
         rules = v.get("adguard_rules") or []
     for line in ups:
         for u in _upstream(str(line), str(v.get("ip_bind9") or ""), not_carried):
             if u not in settings["dns_filter_upstreams"]:
                 settings["dns_filter_upstreams"].append(u)
-    if cfg and not [u for u in ups if not str(u).startswith("[/") and str(u).strip() != str(v.get("ip_bind9"))]:
-        not_carried.append("AdGuard answered fabric's names only (no internet upstream): the resolver resolves the "
-                           "internet itself, from the root servers (dns_filter_upstreams: [])")
-    for f in lists:
+    if not settings["dns_filter_upstreams"]:
+        settings["dns_filter_upstreams"] = [dict(u) for u in CLOUDFLARE]
+        not_carried.append("no upstream could be carried over DNS-over-TLS: Cloudflare's (1.1.1.1, 1.0.0.1) are used "
+                           "(dns_filter_upstreams)")
+    for f, enabled in [(f, True) for f in lists] + [(f, False) for f in off]:
         url = str(f.get("url") or "").strip()
         if url.startswith(("https://", "http://")) and url not in [x["url"] for x in settings["dns_filter_lists"]]:
-            settings["dns_filter_lists"].append({"name": f.get("name") or url, "url": url})
+            settings["dns_filter_lists"].append({"name": f.get("name") or url, "url": url, "enabled": enabled})
         elif url:
             not_carried.append(f"list {f.get('name') or url}: only lists on http(s) can be fetched")
-    for f in off:
-        not_carried.append(f"list {f.get('name') or f.get('url')}: it was switched off in AdGuard, so it is not added")
     for f in cfg.get("whitelist_filters") or []:
         not_carried.append(f"allowlist {f.get('name') or f.get('url')}: allowlists are not supported; allow names in "
                            "dns_filter_allow")
