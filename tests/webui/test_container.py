@@ -169,7 +169,8 @@ subprocess.run(["bash", f"{REPO}/packaging/deb/assemble-tree.sh", W], check=True
 os.makedirs(f"{W}/fabric/config")
 open(f"{W}/fabric/VERSION", "w").write("9.9.9\n")
 open(f"{W}/fabric/config/vars.yaml", "w").write(
-    f"deploy_base_dir: {W}\nhost_ip: 192.168.7.53\nhostname_certs: certs.lan.test\nhostname_stepca: ca.lan.test\n"
+    f"deploy_base_dir: {W}\nhost_ip: 192.168.7.53\nlan_cidr: 192.168.7.0/24\nhostname_certs: certs.lan.test\n"
+    "hostname_stepca: ca.lan.test\n"
     f"hostname_openbao: vault.lan.test\nip_openbao: 10.254.8.99\nopenbao_key_dir: {W}/nokeys\nhostname: pi-core\n"
     "service_users: {openbao: {uid: 913, gid: 913}}\n"
     "domain: lan.test\ndns:\n  dynamic_zone_var:\n    zone_authority: true\n    A:\n    - {name: pi-core, ip: 192.168.7.53}\n"
@@ -1112,6 +1113,36 @@ out = agent_call("POST", "/v1/dns-filter/groups/delete", "alice", ADMIN_ROLES, {
 # covers: agent:post.dns-filter.groups.delete -
 check("refused: removing a client group that does not exist (400, named), nothing saved",
       " 400 " in out and "no client group is called kids" in out and vars_now() == vt, out)
+# the console's own forms for groups and safe search (they answered 500 before 0.9: the web's list of changes lacked
+# them, 2.3.1.16)
+st, loc, _ = web_post("/dns-filter/groups", {"name": "kids", "clients": "192.168.7.64/27"}, adm, acsrf)
+# covers: web:post.dns-filter.groups agent:post.dns-filter.groups +
+check("DNS filter: a client group made from the console -> saved, its clients named",
+      "Group kids added: 192.168.7.64/27" in loc and "kids" in vars_now(), (st, loc))
+vt = vars_now()
+st, loc, _ = web_post("/dns-filter/groups", {"name": "kids2", "clients": "not-an-address"}, adm, acsrf)
+# covers: web:post.dns-filter.groups agent:post.dns-filter.groups -
+check("DNS filter: a group whose client is not an address is refused, said why, nothing saved",
+      "is not an address or a subnet" in loc and vars_now() == vt, (st, loc))
+st, loc, _ = web_post("/dns-filter/safe-search", {"group": "kids", "on": "on", "youtube": "moderate", "back": "groups"},
+                      adm, acsrf)
+# covers: web:post.dns-filter.safe-search agent:post.dns-filter.safe-search +
+check("DNS filter: strict safe search on for the group, from the console -> saved",
+      "Strict safe search on, YouTube moderate" in loc and vars_now() != vt, (st, loc))
+vt = vars_now()
+st, loc, _ = web_post("/dns-filter/safe-search", {"group": "kids", "on": "on", "youtube": "loose"}, adm, acsrf)
+# covers: web:post.dns-filter.safe-search -
+check("DNS filter: a YouTube level that is not one is refused from the console, said why, nothing saved",
+      "youtube: strict or moderate" in loc and vars_now() == vt, (st, loc))
+st, loc, _ = web_post("/dns-filter/groups/delete", {"name": "kids"}, adm, acsrf)
+# covers: web:post.dns-filter.groups.delete agent:post.dns-filter.groups.delete +
+check("DNS filter: the group removed from the console -> gone, its clients answered as everyone",
+      "Group kids removed" in loc and "kids" not in vars_now(), (st, loc))
+vt = vars_now()
+st, loc, _ = web_post("/dns-filter/groups/delete", {"name": "kids"}, adm, acsrf)
+# covers: web:post.dns-filter.groups.delete -
+check("DNS filter: removing a group that is not there, from the console, is refused, named, nothing saved",
+      "no client group is called kids" in loc and vars_now() == vt, (st, loc))
 st, loc, _ = web_post("/dns-filter/fetch", {}, adm, acsrf)
 # covers: web:post.dns-filter.fetch agent:post.dns-filter.fetch -
 check("DNS filter: Fetch now without the lists job (the resolver is not installed here) is refused, saying so",

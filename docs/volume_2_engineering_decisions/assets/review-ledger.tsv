@@ -15,7 +15,7 @@ README.md	77e9590e94812a05998caef2df4c2e0e30451499	2026-10-09
 THIRD_PARTY_NOTICES	ff836ec5208f7ac6140740a07186107c63702d24	2026-10-08	
 config/README.md	6300abd255fbbe5a87bd0d83cd9c9dd1c4b8de1f	2026-10-08	
 config/VERSION	a3df0a6959e154733da89a5d6063742ce6d5b851	2026-10-10	
-config/images.lock.yaml	e0420602460202002c91d29d95fe4f2469fbef64	2026-10-10	
+config/images.lock.yaml	0bbc7e86ec31e6fe217b1748a8475afb6a44d539	2026-10-11	
 config/link-vars-template.yaml	09caaa55680a13015332a468218c99437f67db26	2026-09-30	
 docs/README.md	a83e2585272bfff196d38a7264e6e2661ce40693	2026-10-09	
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	2616cd61465cdc6a60eb06146c56ba2dc3625f8d	2026-10-08	
@@ -60,7 +60,7 @@ docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	bb5e097a9
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	2336bf93057453e6f5308db18413c878110e5213	2026-10-11	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	9db18b7001c1967177f6a2f19b49b773b11aa82a	2026-10-09	
 docs/volume_1_description_and_architecture/1.17.28-installers.md	986b323d7a4ca2e8cbf71d23fdd677f464f51139	2026-10-08	
-docs/volume_1_description_and_architecture/1.17.29-webui.md	6da5c14ba1ea432d0866cef024df7e8649e08e0e	2026-10-11	
+docs/volume_1_description_and_architecture/1.17.29-webui.md	8aecd69e112b9d4f07497370197ceee62fb4de89	2026-10-11	
 docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	6a0c16a3fe696386dd7f437b4428d459ab939646	2026-10-11	
 docs/volume_1_description_and_architecture/1.17.30-fabriclib-samba.md	3942f4d22a7c05df74710bd2a16c55ed1fb75b4b	2026-10-11	
 docs/volume_1_description_and_architecture/1.17.31-fabriclib-directory.md	fd22d67667a3ddb3f9eb6ddb95b68cb2271ada67	2026-10-11	
@@ -132,7 +132,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	9df3b3a9713275c6b4abd28d84f22
 docs/volume_2_engineering_decisions/2.1.9-federation.md	6c344024d62480ec9bea70a3245c3baa6511af50	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	73c0ebcd6afd4249860c869f2b766fe1f1b3ad24	2026-10-11	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	f8d02082092969cefc068502a4b6643c5d33f802	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	ef27ee1aa7f83ae237ad6837bc4880312771d89c	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -145,7 +145,7 @@ docs/volume_2_engineering_decisions/2.3.7-openbao-notes.md	2add3dd1b079800abeff3
 docs/volume_2_engineering_decisions/2.3.9-federation-notes.md	589194fbf33eda431862f1414dabc04a3181edc9	2026-10-08	
 docs/volume_2_engineering_decisions/README.md	0b12a7eb3eb09214bb281eac2cd9d6cbf6d02b15	2026-10-09	
 docs/volume_2_engineering_decisions/assets/README.md	3fd72f26d985cf1827afa0868c6c138dfec9d627	2026-10-08	
-docs/volume_2_engineering_decisions/assets/review-ledger.tsv	95750e0598244d11fd5cf12714a6b320f3cbb730	2026-10-11	
+docs/volume_2_engineering_decisions/assets/review-ledger.tsv	ffddbbfa304ed26bddf5486d7fb38014b25d4daa	2026-10-11	
 docs/volume_3_installation/3.1.1-manual-test-plan.md	59e49fc4e7c0b8a883b259241d3f8bfdd7ea0809	2026-10-09	
 docs/volume_3_installation/3.1.2-automated-tests.md	22f4d6bab584034f6891397cb56588843e0c1ae9	2026-10-11	
 docs/volume_3_installation/3.1.3-dev-preview.md	f913e6ed5b5f0e0428479a417dc655071b3b2f42	2026-10-08	
@@ -1041,7 +1041,7 @@ src/webui/agentclient/delete_tsig_key.py	ce63d6d7da68946a94cd8417ef9811be2c64420
 src/webui/agentclient/describe_csr.py	b32ee35528da3b28e25b976acf714cda77e435cd	2026-10-03	
 src/webui/agentclient/device_overview.py	2889cdc5ed896e75f2604cae3063eca1d736ef06	2026-10-05	
 src/webui/agentclient/dhcp_overview.py	55dc92e20173106a248083a6533be816c399e3b4	2026-10-03	
-src/webui/agentclient/dns_filter_change.py	6b28463bdde51cf37b699e88b1b4bf348dba7795	2026-10-09	
+src/webui/agentclient/dns_filter_change.py	09a959dd35e39d41995a6eabc976913fe3afa1f0	2026-10-11	
 src/webui/agentclient/dns_filter_overview.py	b9269467ceb72224554bad64e292321576f6b3f5	2026-10-09	
 src/webui/agentclient/domain_overview.py	96daef26db36e73b03fea701c7d11d168977f88d	2026-10-05	
 src/webui/agentclient/errors.py	1551e50bd238e9f7929cd177252b5ca130f2d26c	2026-10-03	
@@ -1330,7 +1330,7 @@ tests/docs/check_docstrings.py	525f95338347ff4ea65bdec1130f401d9e326460	2026-10-
 tests/docs/check_entrypoints.py	d5bc6e7b428fc22770b90e35ab0899c9ab616986	2026-10-11	
 tests/docs/docstring_only_diff.py	89dc777682c5db59760752f3d3dab245513f9163	2026-10-03	
 tests/docs/run.py	936ec0a533645a0628d5f56983de15dd56f9275b	2026-10-11	
-tests/entrypoints-gaps.txt	d6a62dcb9efe00186e10e5b175809f3dd2076c8f	2026-10-11	
+tests/entrypoints-gaps.txt	cbd68c97c6299e36efb20543409ec042ae88298e	2026-10-11	
 tests/entrypoints-reasons.yaml	fd19dcae1f8c4708e37dbe8a3cc43e366d9c08d1	2026-10-11	
 tests/entrypoints.yaml	e575acfb010328871d7f6b47a97234445ab55131	2026-10-11	
 tests/federation/README.md	196c75b746763bfb12df898172248a0bfe83ad06	2026-10-05	
@@ -1416,6 +1416,6 @@ tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-11	
 tests/webui/README.md	e57f12b62e144ceb24370dd473fcce4341e2c63c	2026-10-11	
-tests/webui/test_container.py	33073d54ce8ffba033db7f8908a61c1a4a0eccbc	2026-10-11	
+tests/webui/test_container.py	f431182486f453c6b853a9d69e7275d8b612bb17	2026-10-11	
 tests/webui/test_devserver.py	10c24228e42bf04c3c0d7f0cb9f33567c2d36067	2026-10-11	
 tests/zone_test.py	4bed30787288ab1c63799bf296c8bb14de230708	2026-10-10	
