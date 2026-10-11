@@ -154,6 +154,16 @@ SAMPLE_LOGON = {"site": "lan", "legacy": False, "error": "",
                 "policies": [{"ou": "machines", "console": ["lan-machine-admins"], "remote": ["lan-machine-admins"]},
                              {"ou": "machines/linux", "console": ["lan-machine-admins", "lan-devs"],
                               "remote": ["lan-devs"]}]}
+SAMPLE_ACCESS = {"error": "",
+                 "groups": [{"name": "lan-hosts-web", "short": "web", "machines": ["host-1"], "other_members": [],
+                             "rules": ["web-restart"], "hosts": ["host-1", "host-1.ad.home.arpa"], "fabric": True}],
+                 "sudo": [{"name": "lan-fabric-admins", "kind": "default", "users": ["%lan-fabric-admins"],
+                           "commands": ["ALL"], "run_as": ["ALL"], "hosts": ["ALL"], "host_group": ""},
+                          {"name": "web-restart", "kind": "fabric", "users": ["alice", "%lan-web-ops"],
+                           "commands": ["/usr/bin/systemctl restart nginx"], "run_as": ["root"],
+                           "hosts": ["host-1", "host-1.ad.home.arpa"], "host_group": "lan-hosts-web"},
+                          {"name": "backup", "kind": "other", "users": ["%backup-ops"], "commands": ["/usr/bin/rsync"],
+                           "run_as": ["root"], "hosts": ["ALL"], "host_group": ""}]}
 SAMPLE_FEDERATION = {
     "site": "lan", "upstream": None,
     "sites": [{"name": "lab", "domain": "lab.home.arpa", "address": "192.168.20.2", "parent": "lan", "dc": "writable",

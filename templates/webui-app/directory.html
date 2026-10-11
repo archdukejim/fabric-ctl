@@ -191,6 +191,45 @@
 </form>
 <p class="muted small">Saved and applied at once: the OU's GPO <code>fabric: {{ domain.site }} log-on &lt;OU&gt;</code> is written for Windows and Linux (sssd) to enforce (manual 4.6.8).</p>{% endif %}
 </section>{% endif %}
+{% if access %}<section class="card"><h2>Host groups {% if access.groups %}<span class="muted">{{ access.groups | length }}</span>{% endif %}</h2>
+<p class="muted">Groups of this site's machines (<code>{{ domain.site }}-hosts-&lt;name&gt;</code>), for sudo rules to aim at; a log-on policy may name one like any group.</p>
+{% if access.error %}<p class="flash bad">Host groups and sudo rules could not be read: {{ access.error }}</p>{% endif %}
+{% if access.groups %}<table><thead><tr><th>Host group</th><th>Machines</th><th>Sudo rules</th><th></th></tr></thead><tbody>
+{% for g in access.groups %}<tr><td><strong>{{ g.name }}</strong>{% if not g.fabric %}<div class="muted small">not made by fabric</div>{% endif %}</td><td>{{ g.machines | join(', ') or 'none' }}{% if g.other_members %}<div class="muted small">also {{ g.other_members | join(', ') }}</div>{% endif %}</td><td>{{ g.rules | join(', ') or '—' }}</td>
+<td class="num">{% if can('machines:admin') %}<form method="post" action="/directory/hostgroups/{{ g.short | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger" title="refused while a sudo rule names it; its machines stay">Remove</button></form>{% endif %}</td></tr>{% endfor %}
+</tbody></table>{% elif not access.error %}<p class="blank">No host groups yet.</p>{% endif %}
+{% if can('machines:admin') %}
+{% if access.groups and domain.machines %}<form method="post" action="/directory/hostgroups/_form/members" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label>Host group<select name="group" required>{% for g in access.groups %}<option value="{{ g.short }}">{{ g.name }}</option>{% endfor %}</select></label>
+<label>Machine<select name="machine" required>{% for m in domain.machines %}<option>{{ m.name }}</option>{% endfor %}</select></label>
+<div><button name="action" value="add">Add to group</button> <button name="action" value="remove" class="ghost">Remove from group</button></div>
+</form>{% endif %}
+<form method="post" action="/directory/hostgroups/_new" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label>New host group<input name="name" required pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="web" title="it becomes {{ domain.site }}-hosts-&lt;name&gt;"></label>
+<div><button>Create</button></div>
+</form>
+<p class="muted small">A machine put in or taken out of a host group changes where its sudo rules apply at once (sssd reads them within minutes).</p>{% endif %}
+</section>
+<section class="card"><h2>Sudo rules {% if access.sudo %}<span class="muted">{{ access.sudo | length }}</span>{% endif %}</h2>
+<p class="muted">Who may run which commands as whom on this site's Linux machines (and those of the sites below). The site's default rule (its fabric-admins) and rules made with other tools are shown read-only.</p>
+{% if access.sudo %}<table><thead><tr><th>Rule</th><th>Who</th><th>Commands</th><th>As</th><th>Where</th><th></th></tr></thead><tbody>
+{% for r in access.sudo %}<tr><td><strong>{{ r.name }}</strong><div class="muted small">{{ {'fabric': 'fabric', 'default': "the site's default, kept by fabric", 'other': "not fabric's: read-only"}[r.kind] }}</div></td><td>{{ r.users | join(', ') }}</td><td><code class="small">{{ r.commands | join(', ') }}</code></td><td>{{ r.run_as | join(', ') or 'root' }}</td>
+<td>{% if r.host_group and r.host_group != 'ALL' %}{{ r.host_group }}<div class="muted small">{{ r.hosts | join(', ') or 'no machines yet' }}</div>{% else %}{{ r.hosts | join(', ') or '—' }}{% endif %}</td>
+<td class="num">{% if can('sudo:admin') and r.kind == 'fabric' %}<form method="post" action="/directory/sudo/{{ r.name | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Remove</button></form>{% endif %}</td></tr>{% endfor %}
+</tbody></table>{% elif not access.error %}<p class="blank">No sudo rules.</p>{% endif %}
+{% if can('sudo:admin') %}<form method="post" action="/directory/sudo/_new" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label>Name<input name="name" required pattern="[a-z0-9][a-z0-9_-]{0,62}" placeholder="web-restart"></label>
+<label>Who<input name="users" required placeholder="alice, %{{ domain.site }}-web-ops" title="user names and %groups, separated by commas"></label>
+<label>Commands<input name="commands" required placeholder="/usr/bin/systemctl restart nginx" title="absolute paths with their arguments, or ALL, separated by commas"></label>
+<label>As<input name="run_as" placeholder="root" title="default root"></label>
+<label>Where<select name="hosts"><option value="ALL">every machine of the site</option>{% for g in access.groups %}<option value="{{ g.name }}">{{ g.name }}</option>{% endfor %}</select></label>
+<div><button>Add</button></div>
+</form>
+<p class="muted small">A rule granting ALL commands to everyone (ALL, Domain Users, the site's users) is refused. On a host group, the rule names that group's machines and follows it as machines come and go (manual 4.6.6).</p>{% endif %}
+</section>{% endif %}
 
 {% elif view == 'gpo' %}
 {% for kind, title, about in (('settings', 'admin settings', "Defaults for this site's machines and people, and for the sites below it, which may override them."), ('controls', 'controls', "Linked enforced: the sites below this one cannot override or block these.")) %}

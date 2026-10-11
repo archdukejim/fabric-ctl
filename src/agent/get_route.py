@@ -13,7 +13,9 @@ from fabriclib.dns.zone_detail import zone_detail
 from fabriclib.dns_filter.filter_overview import filter_overview
 from fabriclib.federation.federation_overview import federation_overview
 from fabriclib.directory.device_overview import device_overview
+from fabriclib.directory.list_host_groups import list_host_groups
 from fabriclib.directory.list_people import list_people
+from fabriclib.directory.list_sudo_rules import list_sudo_rules
 from fabriclib.images.image_status import image_status
 from fabriclib.pki.acme_info import acme_info
 from fabriclib.pki.acme_machines import acme_machines
@@ -53,6 +55,8 @@ READS = {
     ("people",): lambda: list_people(load_vars()),
     ("domain",): lambda: domain_overview(load_vars()),
     ("domain", "logon"): lambda: logon_overview(load_vars()),
+    ("host-groups",): lambda: list_host_groups(load_vars()),
+    ("sudo",): lambda: list_sudo_rules(load_vars()),
     ("gpo",): lambda: gpo_overview(load_vars()),
     ("federation",): lambda: federation_overview(load_vars()),
     ("dhcp",): lambda: dhcp_overview(load_vars()),

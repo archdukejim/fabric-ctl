@@ -25,6 +25,7 @@ from ensure_site_info import ensure_site_info
 from ensure_site_link import ensure_site_link
 from ensure_sso_account import ensure_sso_account
 from ensure_sudo_rule import ensure_sudo_rule
+from refresh_sudo_hosts import refresh_sudo_hosts
 from open_samdb import open_samdb
 from remove_ipv6_records import remove_ipv6_records
 from root_ca_policy import EXTENSIONS as TRUST_EXTENSIONS, root_ca_policy
@@ -40,7 +41,8 @@ def converge(state):
     """Purpose: every part of the domain fabric owns, in order: the schema, the layout, the site's id block, the
              groups, the site's service accounts, the AD zones on IPv4 only (2.1.6.29), its access entries, its networks
              (the address plan), its default
-             sudo rule, the AD site and its subnets, the password policy, the domain's trust GPO (fabric's root CA),
+             sudo rule and the host names of fabric's sudo rules on host groups (1.6.11.7), the AD site and its
+             subnets, the password policy, the domain's trust GPO (fabric's root CA),
              the site's log-on GPOs (one per OU, 1.6.11.4), its Windows baseline GPO and winbind's privileged pipe
              for FreeRADIUS. Each part changes only what differs, so a second run changes nothing.
     Inputs:  state — dict: site (str), root (bool: the root site, which also holds the organisation's items and the
@@ -75,6 +77,7 @@ def converge(state):
     changed += ensure_site_acl(samdb, site, root)
     changed += ensure_networks(samdb, site, state["networks"])
     changed += ensure_sudo_rule(samdb, site, state["admin_group"], root)
+    changed += refresh_sudo_hosts(samdb, site)          # fabric's sudo rules follow their host groups (1.6.11.7)
     changed += ensure_ad_site(samdb, site, [n["cidr"] for n in state["networks"]])
     if state.get("parent"):               # a site: its AD site linked to its parent's (manual 1.9.8.5)
         changed += ensure_site_link(samdb, site, state["parent"])

@@ -4,7 +4,8 @@ root-CA fingerprint and changes nothing; a join with a site admin's password and
 (`fabricctl domain add-machine`); `id` with fabric's own ids; a password logon through PAM and a Kerberos ticket;
 sudo for a site admin (2.1.9.13's rule) and none for a person; a person of another site refused by the site's log-on
 GPO; cached logons with the DC stopped; then a log-on policy on OU=machines (manual 1.6.11.4) naming a group adam is in
-and alice is not: adam logs on, alice is refused. The containers have no systemd: a stand-in `systemctl` starts sssd.
+and alice is not: adam logs on, alice is refused; and a sudo rule on a host group (1.6.11.7) holding the 24.04 machine:
+it applies there and not on the 26.04 one. The containers have no systemd: a stand-in `systemctl` starts sssd.
     sudo python3 tests/samba/linux_join.py
 """
 import json
@@ -282,6 +283,23 @@ for name in (RELEASES["24.04"], RELEASES["26.04"]):
     code, out = logon(lbox, "alice", PW)
     check(f"{name}: a person of the site outside those groups (alice) is refused by OU=machines' policy",
           code != 0, out)
+
+# a sudo rule on a host group (manual 1.6.11.7): alice may run uptime on the machines of lan-hosts-web, which holds the
+# 24.04 machine only; sssd matches the rule's sudoHost (each member's names) against the machine's own name
+made = [run_op(V, SECRETS, "create_host_group", {"name": "web"}, DC),
+        run_op(V, SECRETS, "set_host_group_member", {"name": "web", "machine": RELEASES["24.04"], "member": True}, DC),
+        run_op(V, SECRETS, "add_sudo_rule", {"name": "web-uptime", "users": ["alice"], "commands": ["/usr/bin/uptime"],
+                                             "run_as": ["root"], "hosts": "lan-hosts-web"}, DC)]
+check("a host group lan-hosts-web holding the 24.04 machine, and a sudo rule for alice on it (its hosts: that "
+      "machine's names)", RELEASES["24.04"] in made[2]["hosts"] and RELEASES["26.04"] not in made[2]["hosts"], made)
+for name, applies in ((RELEASES["24.04"], True), (RELEASES["26.04"], False)):
+    lbox = f"lj-{name}"
+    on(lbox, "systemctl restart sssd")              # sssd's sudo rules fetched anew (else its next refresh)
+    time.sleep(8)
+    code, out = on(lbox, "sudo -l -U alice")
+    check(f"{name}: the host group's sudo rule " + ("applies on its member: alice may run /usr/bin/uptime"
+                                                    if applies else "does not apply on a machine outside it"),
+          ("/usr/bin/uptime" in out) == applies and (applies or "not allowed" in out), out)
 
 if not os.environ.get("FABRIC_TEST_KEEP"):         # FABRIC_TEST_KEEP=1 leaves the containers for a look
     cleanup()
