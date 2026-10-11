@@ -1,11 +1,13 @@
 """The installer test (manual 3.1.2): `sudo fabricctl setup` driven through a real terminal on a test host, as a
 person who gets things wrong would — every question first given answers it must refuse, each refusal checked by its
-message, then the good answer. Two runs:
-  1. a fresh host with ufw already on: every refusal, then the host firewall declined — setup must stop before any
-     step, saying why (2.1.2.12), with nothing started;
-  2. the same host again: valid answers (an invalid plan choice and consent answer first), everything allowed —
-     setup must finish, then doctor, and the checks a person would make (the domain on IPv4 only, 2.1.6.29; the landing
-     page at the host's own name; the host's own ufw rules kept beside fabric's).
+message, then the good answer. Two runs (setup's start, menu and plan: manual 1.2.9.11):
+  1. a fresh host with ufw already on, Guided: every refusal, then the plan's Menu, where the ports fabric needs are
+     turned off (securing and the host's own rules go with them), and Proceed — setup must stop before any step,
+     saying why (2.1.2.12), with nothing started;
+  2. the same host again, Advanced: the menu (Proceed refused until the required items have values; the ports turned
+     back on, the host's own rules kept), the plan's one yes — setup must finish, then doctor, and the checks a person
+     would make (the domain on IPv4 only, 2.1.6.29; the landing page at the host's own name; the host's own ufw rules
+     kept beside fabric's).
 The host is left installed for a person to look at. Run from a Linux machine that reaches the host with a key:
     TARGET=tempuser@192.168.5.57 KEY=~/.ssh/fabric-test_ed25519 HOST_IP=192.168.5.57 DOMAIN=home.arpa \\
         python3 tests/host/installer.py
@@ -66,19 +68,20 @@ PROMPTS = [
     ("kerberos", r"Turn it on now\? \[y/N\]: $"),
     ("admin_pw", r"Password for [^:\n]+: $"),
     ("admin_pw2", r"The same again: $"),
+    ("mode", r"Guided, Advanced or Quit\? \[G/a/q\] $"),
+    ("menu", r"\[P\]roceed.*a number to change it, or \[Q\]uit: $"),
     ("plan", r"\[P\]roceed.*\[Q\]uit\? $"),
-    ("consent", r"Allow these changes\? \[y/n\] $"),
+    ("yesno", r"\? \[[Yy]/[nN]\] $"),
 ]
 
 
-def drive(answers, consent, log):
+def drive(answers, log):
     """Run `sudo fabricctl setup` in a terminal, answering each question from answers[name] in turn ("" = Enter
-    when a list runs out; consent(title) for the host-change questions). Returns (exit status, transcript, the
-    questions in the order asked)."""
+    when a list runs out). Returns (exit status, transcript, the questions in the order asked)."""
     pid, fd = pty.fork()
     if pid == 0:
         os.execvp("ssh", ["ssh", "-tt", "-o", "BatchMode=yes", "-i", KEY, TARGET, "sudo fabricctl setup"])
-    screen, transcript, asked, last, last_title = "", "", [], time.time(), ""
+    screen, transcript, asked, last = "", "", [], time.time()
     with open(log, "w") as out:
         while True:
             r, _, _ = select.select([fd], [], [], 1)
@@ -97,15 +100,8 @@ def drive(answers, consent, log):
                 tail = re.sub(r"\x1b\[[0-9;]*m", "", screen[-500:])
                 for name, pattern in PROMPTS:
                     if re.search(pattern, tail):
-                        if name == "consent":
-                            title = re.findall(r"\n  (\S[^\n(]*?) \((?:required|recommended|optional|choice)",
-                                               re.sub(r"\x1b\[[0-9;]*m", "", screen))
-                            if title:
-                                last_title = title[-1].strip()      # a question asked again shows no title
-                            answer = consent(last_title)
-                        else:
-                            queue = answers.get(name, [])
-                            answer = queue.pop(0) if queue else ""
+                        queue = answers.get(name, [])
+                        answer = queue.pop(0) if queue else ""
                         asked.append((name, answer))
                         os.write(fd, (answer + "\r").encode())
                         screen = ""
@@ -143,19 +139,13 @@ bad = {
     # too short (the default policy: 12), containing the user name, then two that differ, then a good one twice
     "admin_pw": ["short", "xFabric-Admin-9", "Good-Pass-1234", "Good-Pass-1234"],
     "admin_pw2": ["nope", "Good-Pass-1234"],
-    "plan": ["x", "p"],
+    "mode": ["x", "g"],
+    # the plan: no choice, then the menu (a number not on the list, the ports turned off), then Proceed
+    "plan": ["x", "m", "p"],
+    "menu": ["99", "14", "p"],
+    "yesno": ["n"],
 }
-consent_seen = []
-
-
-def decline_firewall(title):
-    consent_seen.append(title)
-    if len(consent_seen) == 1:
-        return "maybe"                 # not y or n: asked again
-    return "n" if title == "Ports fabric needs" else "y"
-
-
-code, text, asked = drive(bad, decline_firewall, f"{OUT}/run1.log")
+code, text, asked = drive(bad, f"{OUT}/run1.log")
 EXPECT = [
     ("a single label, .local, an underscore, a leading hyphen: refused as a domain", "not a valid domain", 4),
     ("a dot, 25 characters (over NetBIOS's 15), localhost, an underscore: refused as the host name",
@@ -183,39 +173,45 @@ names = [n for n, _ in asked]
 check("only what cannot change later is asked (2.1.2.16): no password policy, memory or Kerberos question",
       not {"min_length", "history", "min_age", "max_age", "threshold", "window", "lock", "complexity", "memory",
            "kerberos"} & set(names) and "password policy: fabric's default" in text, names)
-check("the plan asked again after an answer that is no choice", names.count("plan") == 2, names.count("plan"))
-check("a consent question asked again after an answer that is not y or n",
-      len(consent_seen) >= 2 and consent_seen[0] == consent_seen[1], consent_seen[:3])
+# covers: ask:setup.mode ask:setup.plan ask:setup.menu ask:setup.consent.* -
+check("the start, the plan and the menu ask again after an answer that is no choice, saying which",
+      names.count("mode") == 2 and "answer g (guided), a (advanced) or q (quit)" in text
+      and names.count("plan") == 3 and "'x': answer p, m or q" in text
+      and "'99' is not on the list: a number from 1 to" in text, names)
+check("no separate consent question: the plan lists every host change and Proceed is the one yes (2.1.2.18)",
+      "consent" not in names and "Packages (required)" in text and "[P]roceed allows all of these" in text, names)
 check(f"the Enter defaults: the suggested AD domain ({AD}) and the host name it found",
       f"[{AD}]" in text and guess_host in text, (AD, guess_host))
-# covers: cli:setup ask:consent.* -
-check("declining the ports fabric needs with ufw on stops setup before any step, saying why (2.1.2.12, 2.1.2.13)",
+# covers: cli:setup -
+check("declining the ports fabric needs in the menu with ufw on stops setup before any step, saying why "
+      "(2.1.2.12, 2.1.2.13)",
       code != 0 and "ufw is on, and without fabric's firewall rules it blocks" in text and "[preflight]" not in text,
       (code, text[-800:]))
-check("…and securing and the host's own rules were not asked (they need the ports)",
-      "Secure this host" not in consent_seen and "The host's own firewall rules" not in consent_seen, consent_seen)
+check("…the menu said what declining them means, and took securing and the host's own rules along (they need the "
+      "ports)", "If no: ufw is not told about fabric's ports" in text and "also off: Secure this host" in text
+      and "also off: The host's own firewall rules" in text, text[-1500:])
 check("…and nothing was started or changed: no containers, ufw's rules as they were",
       R("docker ps -q | wc -l").strip() == "0"
       and R("ufw status | grep -iE 'ALLOW|DENY' | grep -v '(v6)'") == own_rules)
 
 # ---- run 2: valid answers, everything allowed; the install finished and looked at
 good = {
-    "domain": [DOMAIN], "friendly_name": ["Fabric Installer Test"], "plan": ["p"], "admin_pw": ["Good-Pass-1234"],
-    "admin_pw2": ["Good-Pass-1234"],
+    "mode": ["a"],
+    # Proceed before the required items have values (refused), the domain, the organisation, the first admin; the host's
+    # own rules turned on (the ports and securing come back with them), then off again (kept beside fabric's)
+    "menu": ["p", "1", "3", "6", "16", "16", "p"],
+    "yesno": ["y", "n"],
+    "domain": [DOMAIN], "friendly_name": ["Fabric Installer Test"], "admin": [""], "plan": ["p"],
+    "admin_pw": ["Good-Pass-1234"], "admin_pw2": ["Good-Pass-1234"],
 }
-seen2 = []
-
-
-def keep_own(title):
-    seen2.append(title)
-    return "n" if title == "The host's own firewall rules" else "y"
-
-
-code, text, asked = drive(good, keep_own, f"{OUT}/run2.log")
-check("the three firewall questions, in order: the ports, securing, then the host's own rules (they exist here)",
-      [t for t in seen2 if t in ("Ports fabric needs", "Secure this host", "The host's own firewall rules")]
-      == ["Ports fabric needs", "Secure this host", "The host's own firewall rules"], seen2)
-# covers: cli:setup ask:consent.* ask:setup.vars.* ask:setup.ad_domain ask:setup.admin_password ask:setup.admin_password_again ask:setup.plan +
+code, text, asked = drive(good, f"{OUT}/run2.log")
+check("Advanced: the menu's Proceed waits for the organisation and the first admin's password, naming them",
+      "not yet: 3, 6 need an answer" in text, text[:3000])
+check("the plan lists the ports and securing, in order, and the host's own rules under Not made (kept)",
+      0 <= text.rfind("Ports fabric needs (recommended)") < text.rfind("Secure this host (recommended)")
+      and "The host's own firewall rules: the host's own rules stay" in text, text[-3000:])
+# covers: cli:setup ask:setup.mode ask:setup.menu ask:setup.consent.* ask:setup.vars.* ask:setup.ad_domain +
+# covers: ask:setup.admin_password ask:setup.admin_password_again ask:setup.plan +
 check("with everything allowed, setup finishes (fabric is ready)", code == 0 and "fabric is ready" in text,
       (code, text[-1500:]))
 first, signin = text.find("FIRST install fabric's root certificate"), text.find("then sign in")

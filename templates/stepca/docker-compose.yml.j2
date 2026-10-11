@@ -40,11 +40,10 @@ services:
         ipv4_address: "{{ ip_stepca }}"
         aliases:
           - "{{ hostname_stepca }}"
-{% set stepca_mem = 128 %}
     deploy:
       resources:
         limits:
-          memory: {{ stepca_mem }}M
+          memory: {{ memory_mb('stepca') }}M
     healthcheck:
       test: ["CMD", "/usr/local/bin/step", "ca", "health", "--ca-url", "https://{{ hostname_stepca }}:{{ stepca_port }}", "--root", "/home/step/certs/root_ca.crt"]
       interval: 30s

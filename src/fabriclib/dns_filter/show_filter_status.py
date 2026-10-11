@@ -4,6 +4,7 @@ import time
 from fabriclib.dns_filter.common.list_zone import list_zone
 from fabriclib.dns_filter.common.resolver_paths import resolver_paths
 from fabriclib.dns_filter.common.resolver_rndc import resolver_rndc
+from fabriclib.system.memory_limit_mb import memory_limit_mb
 
 
 def _age(ts):
@@ -21,7 +22,7 @@ def _age(ts):
 def show_filter_status(v):
     """Purpose: `fabricctl dns-filter status` (manual 1.12.2.10): whether the resolver answers, and each list's state —
              last fetched, last good copy, rules converted and skipped, its estimated memory, the last error.
-    Inputs:  v — rendered vars (dns_filter, dns_filter_lists, resolver_mem_limit, deploy_base_dir).
+    Inputs:  v — rendered vars (dns_filter, dns_filter_lists, memory_plan, deploy_base_dir).
     Returns: exit status: 0 when the resolver runs and every list has a good copy; 1 otherwise (each problem printed).
     Fails:   never raises (a missing or unreadable state file reads as no list fetched yet).
     Feeds:   dns_filter/run_dns_filter_command."""
@@ -30,7 +31,7 @@ def show_filter_status(v):
         return 0
     r = resolver_rndc(["status"], timeout=15)
     running = bool(r and r.returncode == 0)
-    print(f"resolver: {'running' if running else 'NOT answering'}   memory limit {v.get('resolver_mem_limit')}")
+    print(f"resolver: {'running' if running else 'NOT answering'}   memory limit {memory_limit_mb(v, 'resolver')}m")
     try:
         with open(resolver_paths(v)["state"]) as f:
             state = json.load(f)

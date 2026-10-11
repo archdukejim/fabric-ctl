@@ -24,6 +24,9 @@ class SetupContext:
     force_certs: bool = False                     # re-issue service certs even if current
     admin_password_file: str = None               # setup --admin-password-file (unattended, 2.1.6.33)
     admin_password: str = None                    # the first admin's chosen password: memory only, never saved
+    fresh_install: bool = False                   # no settings yet and no domain provisioned (collect_vars)
+    host_choices: dict = field(default_factory=dict)   # recommended host changes on/off, the menu's (1.2.9.11.3)
+    origins: dict = field(default_factory=dict)   # settings the menu shows as "found" or "default", not chosen
 
     @property
     def target_dir(self):

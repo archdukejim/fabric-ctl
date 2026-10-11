@@ -66,7 +66,7 @@ services:
       - {{ ad_ntp_signd_dir }}:/run/samba/ntp_signd
       # its resolver: the host's address, which knows the AD zone (the host's own resolver may not)
       - {{ deploy_base_dir }}/samba/resolv.conf:/etc/resolv.conf:ro
-    mem_limit: {{ samba_mem_limit }}
+    mem_limit: {{ memory_mb('samba') }}m
     healthcheck:
       # the rootDSE over LDAP on loopback: the DC is up and answering
       test: ["CMD", "ldbsearch", "-H", "ldap://127.0.0.1", "-s", "base", "-b", "", "dnsHostName"]

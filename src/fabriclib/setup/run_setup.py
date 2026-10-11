@@ -16,13 +16,18 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from fabriclib.common.console import BOLD, NC, err, heading  # noqa: E402
 from fabriclib.consent.ask_consent import ask_consent  # noqa: E402
+from fabriclib.consent.initial_host_choices import initial_host_choices  # noqa: E402
 from fabriclib.consent.plan_host_changes import plan_host_changes  # noqa: E402
 from fabriclib.consent.planned_vars import planned_vars  # noqa: E402
+from fabriclib.setup.advanced.setup_menu import setup_menu  # noqa: E402
+from fabriclib.setup.apply_plan_defaults import apply_plan_defaults  # noqa: E402
 from fabriclib.setup.ask_first_admin import ask_first_admin  # noqa: E402
+from fabriclib.setup.choose_mode import choose_mode  # noqa: E402
 from fabriclib.setup.choose_plan import choose_plan  # noqa: E402
 from fabriclib.setup.collect_vars import collect_vars  # noqa: E402
 from fabriclib.setup.context import SetupContext  # noqa: E402
 from fabriclib.setup.errors import SetupError  # noqa: E402
+from fabriclib.setup.finish_vars import finish_vars  # noqa: E402
 from fabriclib.setup.print_first_steps import print_first_steps  # noqa: E402
 from fabriclib.setup.read_join_invitation import read_join_invitation  # noqa: E402
 from fabriclib.setup.steps import STEPS  # noqa: E402
@@ -43,10 +48,13 @@ def main(argv=None):
              used by doctor).
     Returns: exit status: 0 done (or --list printed), 1 a SetupError (message printed), 130 interrupted.
              A full run leaves the install converged; the steps before deploy (preflight, host, docker,
-             deploy) collect vars first, and the plan is shown only when no --step is given. Before the first
-             step every change outside fabric's own tree is asked about, by group (consent; --yes approves none).
-    Fails:   SystemExit(2) from argparse on bad options; SystemExit("setup cancelled") when Quit is chosen in the
-             plan; any exception other than SetupError/KeyboardInterrupt from a step (CalledProcessError,
+             deploy) collect vars first, and the plan is shown only when no --step is given. A new install with
+             someone there starts with [G]uided / [A]dvanced (choose_mode; Advanced: the menu of every setting,
+             1.2.9.11); the plan's [P]roceed is the one yes for every host change it lists (2.1.2.18). Without a
+             plan (--step, --yes), the changes that need an answer are listed with one question; unattended,
+             --approve / --decline answer (--yes approves none).
+    Fails:   SystemExit(2) from argparse on bad options; SystemExit("setup cancelled") when Quit is chosen at the
+             start, in the menu or in the plan; any exception other than SetupError/KeyboardInterrupt from a step (CalledProcessError,
              CommandError, ValidationError, OSError) propagates as a traceback.
     Feeds:   cli main (`setup`, `doctor`) and this file's `__main__`."""
     ap = argparse.ArgumentParser(prog="fabricctl setup", description=__doc__,
@@ -103,19 +111,30 @@ def main(argv=None):
         unknown = set(selected) - {n for n, _, _ in STEPS}
         if unknown:
             raise SetupError(f"unknown step(s): {', '.join(sorted(unknown))} (see --list)")
+        jinja = os.path.join(ctx.source_dir, "jinja")
+        decided = None
         if any(s in NEEDS_INPUT for s in selected):
             heading("fabric setup")
-            collect_vars(ctx)
-            if args.step is None:
-                choose_plan(ctx)
+            mode = choose_mode(ctx) if args.step is None else "guided"
+            collect_vars(ctx, ask=mode != "advanced")
+            apply_plan_defaults(ctx)
+            ctx.host_choices = initial_host_choices(ctx.config_dir, args.approve, args.decline)
+            if mode == "advanced":             # every setting in one menu, the required ones first (2.1.2.19)
+                setup_menu(ctx)
+                finish_vars(ctx)
             ask_first_admin(ctx)
+            if args.step is None:              # the plan: Proceed is the one yes for the host changes (2.1.2.18)
+                def plan_host():
+                    rendered = planned_vars(ctx)
+                    return rendered, plan_host_changes(rendered, ctx.deploy_base, ctx.config_dir, jinja, selected)
+                decided = choose_plan(ctx, plan_host)
         else:
             ctx.load_state()
         planned = planned_vars(ctx) if any(s in NEEDS_INPUT for s in selected) else ctx.vars
-        answers = ask_consent(ctx.config_dir, plan_host_changes(planned, ctx.deploy_base, ctx.config_dir,
-                                                                os.path.join(ctx.source_dir, "jinja"), selected),
+        answers = ask_consent(ctx.config_dir, plan_host_changes(planned, ctx.deploy_base, ctx.config_dir, jinja,
+                                                                selected),
                               interactive=not ctx.non_interactive, approve=args.approve, decline=args.decline,
-                              stops={"ports"} if ufw_active() else set())
+                              stops={"ports"} if ufw_active() else set(), decided=decided)
         # ufw already on blocks fabric's containers from the DC on this host unless fabric adds its rules (2.1.2.12):
         # said now, before any step changes the host, not when Keycloak cannot reach the DC much later
         if answers.get("ports") == "no" and "firewall" in selected and ufw_active():

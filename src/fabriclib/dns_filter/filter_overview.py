@@ -6,6 +6,7 @@ from fabriclib.dns_filter.common.list_zone import list_zone
 from fabriclib.dns_filter.common.resolver_paths import resolver_paths
 from fabriclib.dns_filter.common.safe_search import safe_search_summary
 from fabriclib.dns_filter.dns_filter_stats import dns_filter_stats
+from fabriclib.system.memory_limit_mb import memory_limit_mb
 
 
 def _read(path, default):
@@ -44,8 +45,8 @@ def filter_overview(v):
              manage, each list's state, the client groups, safe search with the sites it covers, and the statistics
              (no client addresses, 2.1.12.4).
     Inputs:  v — rendered vars (dns_filter, install_resolver, dns_filter_lists, dns_filter_allow, dns_filter_block,
-             dns_filter_upstreams, dns_filter_safe_search, dns_filter_youtube, dns_filter_groups, resolver_mem_limit,
-             deploy_base_dir).
+             dns_filter_upstreams, dns_filter_safe_search, dns_filter_youtube, dns_filter_groups,
+             memory_plan (the resolver's limit), deploy_base_dir).
     Returns: {"on": bool, "lists": [{name, url, zone, last_fetch, last_success, rules, skipped, memory_mb, error,
              left_out}], "allow", "block", "upstreams", "memory_limit", "memory": the last apply's estimate
              {estimate_mb, limit_mb, left_out} or None, "safe_search": {"on", "youtube"} (everyone's), "groups":
@@ -81,7 +82,7 @@ def filter_overview(v):
     catalogue["lists"] = [c for c in catalogue["lists"] if c["url"] not in used]
     return {"on": True, "lists": lists, "allow": v.get("dns_filter_allow") or [],
             "block": v.get("dns_filter_block") or [], "upstreams": v.get("dns_filter_upstreams") or [],
-            "memory_limit": v.get("resolver_mem_limit"), "memory": memory,
+            "memory_limit": f"{memory_limit_mb(v, 'resolver')}m", "memory": memory,
             "safe_search": {"on": bool(v.get("dns_filter_safe_search")), "youtube": v.get("dns_filter_youtube")
                             or "strict"},
             "groups": groups, "safe_search_sites": sites, "stats": stats, "catalogue": catalogue}

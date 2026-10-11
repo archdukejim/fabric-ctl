@@ -626,12 +626,16 @@ file	fabriclib-setup|src/fabriclib/setup/uninstall.py	35
 file	fabriclib-setup|src/fabriclib/setup/upgrade_vars.py	36	
 file	fabriclib-setup|src/fabriclib/setup/verify_install.py	37	
 file	fabriclib-system|src/fabriclib/system/apply_changes.py	1	
+file	fabriclib-system|src/fabriclib/system/common/parse_mem_mb.py	10	
 file	fabriclib-system|src/fabriclib/system/control_stack.py	2	
 file	fabriclib-system|src/fabriclib/system/host_networks.py	9	
 file	fabriclib-system|src/fabriclib/system/host_ram_gb.py	8	
+file	fabriclib-system|src/fabriclib/system/memory_limit_mb.py	11	
+file	fabriclib-system|src/fabriclib/system/plan_memory.py	12	
 file	fabriclib-system|src/fabriclib/system/relaxed_settings.py	6	
 file	fabriclib-system|src/fabriclib/system/render_template_file.py	3	
 file	fabriclib-system|src/fabriclib/system/service_status.py	4	
+file	fabriclib-system|src/fabriclib/system/show_memory_plan.py	13	
 file	fabriclib-system|src/fabriclib/system/show_relaxed_settings.py	7	
 file	fabriclib-system|src/fabriclib/system/version_info.py	5	
 file	fabriclib-undo|src/fabriclib/undo/undo_firewall.py	1	
@@ -1325,7 +1329,7 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/remove_filter_group.py|re
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/remove_filter_list.py|remove_filter_list	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/remove_filter_rule.py|remove_filter_rule	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/resolver_tls_pending.py|resolver_tls_pending	1	
-function	fabriclib-dns_filter|src/fabriclib/dns_filter/resolver_views.py|_limit_mb	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/resolver_views.py|_limit_mb	1	0.8.0 / 2026-10-11
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/resolver_views.py|_matches	2	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/resolver_views.py|resolver_views	3	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/run_dns_filter_command.py|_options	2	
@@ -1847,13 +1851,21 @@ function	fabriclib-setup|src/fabriclib/setup/verify_install.py|_records	6
 function	fabriclib-setup|src/fabriclib/setup/verify_install.py|checks	3	
 function	fabriclib-setup|src/fabriclib/setup/verify_install.py|run	4	
 function	fabriclib-system|src/fabriclib/system/apply_changes.py|apply_changes	1	
+function	fabriclib-system|src/fabriclib/system/common/parse_mem_mb.py|parse_mem_mb	1	
 function	fabriclib-system|src/fabriclib/system/control_stack.py|control_stack	1	
 function	fabriclib-system|src/fabriclib/system/host_networks.py|host_networks	1	
 function	fabriclib-system|src/fabriclib/system/host_ram_gb.py|host_ram_gb	1	
+function	fabriclib-system|src/fabriclib/system/memory_limit_mb.py|memory_limit_mb	1	
+function	fabriclib-system|src/fabriclib/system/plan_memory.py|_floor	3	
+function	fabriclib-system|src/fabriclib/system/plan_memory.py|_installed	1	
+function	fabriclib-system|src/fabriclib/system/plan_memory.py|_overrides	2	
+function	fabriclib-system|src/fabriclib/system/plan_memory.py|_weight	4	
+function	fabriclib-system|src/fabriclib/system/plan_memory.py|plan_memory	5	
 function	fabriclib-system|src/fabriclib/system/relaxed_settings.py|relaxed_settings	1	
 function	fabriclib-system|src/fabriclib/system/render_template_file.py|render_template_file	1	
 function	fabriclib-system|src/fabriclib/system/service_status.py|_health	1	
 function	fabriclib-system|src/fabriclib/system/service_status.py|service_status	2	
+function	fabriclib-system|src/fabriclib/system/show_memory_plan.py|show_memory_plan	1	
 function	fabriclib-system|src/fabriclib/system/show_relaxed_settings.py|show_relaxed_settings	1	
 function	fabriclib-system|src/fabriclib/system/version_info.py|version_info	1	
 function	fabriclib-undo|src/fabriclib/undo/undo_firewall.py|undo_firewall	1	

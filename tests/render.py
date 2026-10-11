@@ -260,7 +260,7 @@ assert not [k for k in dflt if 'adguard' in k or 'oauth2proxy' in k], 'AdGuard H
 assert 'adguard' not in [r['name'] for r in dflt['dns']['dynamic_zone_var']['CNAME']]
 assert res['service_users']['resolver'] == {'uid': 613, 'gid': 613, 'name': 'fabric-resolver'}, res['service_users']
 assert not {'adguard', 'oauth2proxy'} & set(res['service_users']), res['service_users']
-assert res['resolver_mem_limit'] == '384m' and res['ip_resolver'] == '10.255.0.33'
+assert res['resolver_mem_limit'] is None and res['memory_plan']['limits']['resolver'] >= 384 and res['ip_resolver'] == '10.255.0.33'
 assert [f['name'] for f in res['dns_filter_lists']] == ['AdGuard DNS filter'] and res['dns_filter_upstreams'][0] == \
     {'address': '1.1.1.1', 'name': 'cloudflare-dns.com'}, (res['dns_filter_lists'], res['dns_filter_upstreams'])
 assert 'adguard' not in env.get_template('nginx/nginx.conf.j2').render(**full), 'no AdGuard vhost'
@@ -760,3 +760,121 @@ with tempfile.TemporaryDirectory() as _d:
         "nothing in a label ran"
 print("free-text labels: read back exactly from vars.yaml, escaped in the pages, quoted in the client scripts "
       "(nothing in one runs, 1.1.5.7)")
+
+# Memory as a budget (manual 1.2.4.3, 2.1.1.47): every installed service's limit is planned from host_ram_capacity;
+# the limits add up to the budget, a part turned off leaves more for the others, floors that do not fit are refused.
+from fabriclib.deploy.render_vars import render_vars as _render_vars  # noqa: E402
+from fabriclib.system.plan_memory import RESERVE_MB  # noqa: E402
+
+PARTS_ON = {'install_kea': True, 'install_freeradius': True, 'install_fluentbit': True, 'dns_filter': 'bind',
+            'dhcp': {'interfaces': ['eth0'], 'subnets': [{'subnet': '192.168.7.0/24',
+                                                          'pools': ['192.168.7.100 - 192.168.7.199']}]}}
+PARTS_OFF = {'install_kea': False, 'install_freeradius': False, 'install_fluentbit': False, 'dns_filter': 'none'}
+MEM_KEYS = ('openbao_mem_limit', 'kea_mem_limit', 'samba_mem_limit', 'freeradius_mem_limit', 'fluentbit_mem_limit',
+            'resolver_mem_limit')
+
+
+def mem_vars(**extra):
+    """vars.yaml.j2 rendered over the long-running install's settings, then round-tripped once (as apply does)."""
+    once = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), **extra}))
+    return yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), **once, **extra}))
+
+
+def compose_limits(v):
+    """Each container's limit in MB as the rendered compose files set it, and Keycloak's heap."""
+    out = {}
+    folders = ['nginx', 'bind9', 'stepca', 'samba', 'keycloak', 'postgres', 'webui', 'openbao'] + \
+        [f for f, flag in (('kea', 'install_kea'), ('freeradius', 'install_freeradius'),
+                           ('fluentbit', 'install_fluentbit'), ('resolver', 'install_resolver')) if v.get(flag)]
+    for folder in folders:
+        dc = yaml.safe_load(env.get_template(f'{folder}/docker-compose.yml.j2').render(**{**secrets, **v}))
+        for name, spec in dc['services'].items():
+            raw = spec.get('mem_limit') or spec['deploy']['resources']['limits']['memory']
+            out[name] = int(str(raw).lower().rstrip('m'))
+            env_ = spec.get('environment') or {}
+            if 'JAVA_OPTS_APPEND' in env_:
+                out['keycloak-heap'] = int(re.search(r'-Xmx(\d+)m', env_['JAVA_OPTS_APPEND']).group(1))
+    return out
+
+
+def mem_total(plan):
+    return sum(mb * plan['containers'][s] for s, mb in plan['limits'].items()) + plan['unassigned_mb']
+
+
+CONTAINER_SERVICE = {'nginx': 'nginx', 'bind9': 'bind9', 'step-ca': 'stepca', 'samba': 'samba', 'keycloak': 'keycloak',
+                     'postgres': 'postgres', 'webui': 'webui', 'openbao': 'openbao', 'kea-dhcp4': 'kea',
+                     'kea-ddns': 'kea', 'freeradius': 'freeradius', 'fluentbit': 'fluentbit',
+                     'bind9-resolver': 'resolver'}
+mem_plans = {}
+for gb in (4, 8):
+    for label, parts in (('on', PARTS_ON), ('off', PARTS_OFF)):
+        mv = mem_vars(host_ram_capacity=gb, **parts)
+        p = mem_plans[(gb, label)] = mv['memory_plan']
+        # covers: setting:memory_plan setting:host_ram_capacity +
+        assert p['budget_mb'] == gb * 1024 - RESERVE_MB and mem_total(p) == p['budget_mb'], (gb, label, p)
+        assert all(mv[k] is None for k in MEM_KEYS), 'no *_mem_limit is written back unless the admin set one'
+        got = compose_limits(mv)
+        for container, mb in got.items():
+            if container != 'keycloak-heap':
+                assert mb == p['limits'][CONTAINER_SERVICE[container]], (gb, label, container, mb, p['limits'])
+        assert got['keycloak-heap'] == int(p['limits']['keycloak'] * 0.8), got
+        assert (label == 'on') == ('kea-dhcp4' in got and 'freeradius' in got and 'bind9-resolver' in got), got
+for gb in (4, 8):
+    on, off = mem_plans[(gb, 'on')]['limits'], mem_plans[(gb, 'off')]['limits']
+    assert all(off[s] > on[s] for s in ('keycloak', 'samba', 'postgres', 'bind9')), (gb, on, off)
+    assert 'kea' not in off and 'resolver' not in off and on['kea'] == 128, (on, off)
+assert all(mem_plans[(8, k)]['limits']['keycloak'] > mem_plans[(4, k)]['limits']['keycloak'] for k in ('on', 'off'))
+print('memory: the limits add up to the budget and are what the compose files set; a part off leaves more for the '
+      'others:\n  ' + '\n  '.join(f"{gb} GB, parts {k}: " + ', '.join(f'{s} {mb}' for s, mb in
+                                                                         mem_plans[(gb, k)]['limits'].items())
+                                  for gb in (4, 8) for k in ('on', 'off')))
+
+# overrides: memory_floors / memory_weights taken when valid, refused (with the reason) when not
+mv = mem_vars(host_ram_capacity=8, memory_floors={'keycloak': 2048, 'postgres': '256m'}, memory_weights={'samba': 0})
+p = mv['memory_plan']
+# covers: setting:memory_floors setting:memory_weights +
+assert p['limits']['keycloak'] > 2048 and p['limits']['samba'] == 512 and p['limits']['postgres'] >= 256 \
+    and mem_total(p) == p['budget_mb'], p
+
+
+def mem_refused(**extra):
+    """render_vars' refusal (what apply and setup say) for these settings, or ''."""
+    try:
+        _render_vars(env, secrets, {**copy.deepcopy(PRISTINE), **extra})
+    except ValidationError as e:
+        return str(e)
+    return ''
+
+
+for bad, needle in ((dict(memory_floors={'tomcat': 64}), 'no service tomcat'),
+                    (dict(memory_floors={'keycloak': 0}), 'a positive number of MB'),
+                    (dict(memory_floors={'keycloak': 'lots'}), 'not a memory size'),
+                    (dict(memory_floors=['keycloak']), 'a map of service'),
+                    (dict(memory_weights={'samba': -1}), 'a number, 0 or more'),
+                    (dict(memory_weights={'samba': 'x'}), 'a number, 0 or more'),
+                    (dict(memory_weights={'dhcp': 1}), 'no service dhcp')):
+    msg = mem_refused(host_ram_capacity=4, **bad)
+    # covers: setting:memory_floors setting:memory_weights -
+    assert needle in msg and 'did not render' not in msg, (bad, msg)
+# floors that do not fit: refused, naming the parts to turn off with what each frees, and the memory needed
+msg = mem_refused(host_ram_capacity=4, memory_floors={'keycloak': 2600}, **PARTS_ON)
+# covers: setting:memory_plan -
+assert 'Turn off DHCP (install_kea: false), 256 MB' in msg and '802.1X (install_freeradius: false), 128 MB' in msg \
+    and 'the DNS filter (dns_filter: none), 384 MB' in msg and 'give fabric 6 GB' in msg, msg
+print('memory: floors and weights overridden when valid, refused when not; a plan whose floors do not fit is refused, '
+      'naming the parts to turn off')
+
+# an explicit *_mem_limit wins (that limit, fixed); its pre-0.9 default counts as not set; a size that is none, refused
+mv = mem_vars(host_ram_capacity=4, kea_mem_limit='96m', samba_mem_limit='700m', resolver_mem_limit='384m', **PARTS_ON)
+p = mv['memory_plan']
+# covers: setting:samba_mem_limit +
+assert p['limits']['kea'] == 96 and p['limits']['samba'] == 700 and mv['kea_mem_limit'] == '96m' \
+    and mv['samba_mem_limit'] == '700m' and mv['resolver_mem_limit'] is None \
+    and p['explicit'] == {'kea': 96, 'samba': 700} and mem_total(p) == p['budget_mb'], p
+assert compose_limits(mv)['samba'] == 700 and compose_limits(mv)['kea-ddns'] == 96
+for key in MEM_KEYS:
+    msg = mem_refused(host_ram_capacity=4, **{key: '12x'})
+    # covers: setting:openbao_mem_limit setting:kea_mem_limit setting:samba_mem_limit -
+    # covers: setting:freeradius_mem_limit setting:fluentbit_mem_limit setting:resolver_mem_limit -
+    assert f"{key}: '12x' is not a memory size" in msg, (key, msg)
+print("memory: an explicit *_mem_limit fixes that service's limit (its pre-0.9 default does not), a bad size refused")

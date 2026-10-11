@@ -50,12 +50,11 @@ services:
         ipv4_address: "{{ ip_bind9 }}"
         aliases:
           - "{{ hostname_bind9 }}"
-{# Samba's DLZ libraries need more (Q10: 69 MiB measured) #}
-{% set bind_mem = (128 * ((host_ram_capacity | default(4) | int) / 4)) | int %}
+{# its planned limit (manual 1.2.4.3); Samba's DLZ libraries need more than plain BIND (Q10: 69 MiB measured) #}
     deploy:
       resources:
         limits:
-          memory: {{ bind_mem }}M
+          memory: {{ memory_mb('bind9') }}M
     healthcheck:
       test: ["CMD", "rndc", "status"]
       interval: 10s

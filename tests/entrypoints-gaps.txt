@@ -337,8 +337,6 @@ setting:domain_file -
 setting:fabric_subnet +
 setting:fabric_subnet -
 setting:federation_endpoint -
-setting:fluentbit_mem_limit -
-setting:freeradius_mem_limit -
 setting:hostname_bind9 +
 setting:hostname_bind9 -
 setting:hostname_certs +
@@ -408,7 +406,6 @@ setting:ip_stepca +
 setting:ip_stepca -
 setting:ip_webui +
 setting:ip_webui -
-setting:kea_mem_limit -
 setting:keycloak_data_dir +
 setting:keycloak_data_dir -
 setting:lan_gateway +
@@ -425,7 +422,6 @@ setting:nginx_backend_stepca -
 setting:ntp_set_clock -
 setting:openbao_admin_dir -
 setting:openbao_key_dir -
-setting:openbao_mem_limit -
 setting:openbao_pkcs11_modules -
 setting:openbao_recovery_shares -
 setting:openbao_recovery_threshold -
@@ -442,9 +438,6 @@ setting:postgres_data_dir +
 setting:postgres_data_dir -
 setting:project_containers +
 setting:project_containers -
-setting:resolver_mem_limit -
-setting:samba_mem_limit +
-setting:samba_mem_limit -
 setting:security -
 setting:service_dirs +
 setting:service_dirs -

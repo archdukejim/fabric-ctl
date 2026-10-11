@@ -107,6 +107,7 @@ from fabriclib.pki.run_acme_command import run_acme_command  # noqa: E402
 from fabriclib.pki.run_certs_command import run_certs_command  # noqa: E402
 from fabriclib.pki.show_cert_warnings import show_cert_warnings  # noqa: E402
 from fabriclib.system.show_relaxed_settings import show_relaxed_settings  # noqa: E402
+from fabriclib.system.show_memory_plan import show_memory_plan  # noqa: E402
 
 
 def _base(args):
@@ -269,6 +270,7 @@ def main(argv):
             show_consent_status(ctx.config_dir)
             vars_ = ctx.load_state().vars
             show_relaxed_settings(vars_)
+            show_memory_plan(vars_)
             show_cert_warnings(vars_)
         return 0
     if cmd == "tsig":

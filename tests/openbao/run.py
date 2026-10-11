@@ -21,10 +21,11 @@ import subprocess
 import sys
 import time
 
-import jinja2
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(REPO, "src"))
+from fabriclib.common.jinja_env import jinja_env  # noqa: E402  (the environment deploy renders with)
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/openbao"
 NET, SUBNET, IP = "obtest_net", "10.254.19.0/24", "10.254.19.90"   # its own range: suites may run back to back
 HOST = "vault.lan.test"
@@ -83,7 +84,7 @@ V = {"deploy_base_dir": W, "domain": "lan.test", "hostname_openbao": HOST, "ip_o
      "openbao_mem_limit": "256m",
      "fabric_subnet": SUBNET, "service_users": {"openbao": {"uid": 913, "gid": 913}},
      "image_openbao": sh([sys.executable, f"{REPO}/tests/image_ref.py", "openbao"]).stdout.strip()}
-env = jinja2.Environment()
+env = jinja_env(f"{REPO}/templates")
 for tpl, dest in (("docker-compose.yml.j2", "openbao/docker-compose.yml"), ("openbao.hcl.j2", "openbao/config/openbao.hcl")):
     text = env.from_string(open(f"{REPO}/templates/openbao/{tpl}").read()).render(**V)
     open(dest, "w").write(text.replace("name: fabric_net", f"name: {NET}"))

@@ -1,24 +1,12 @@
 import ipaddress
-import re
 
+from fabriclib.common.errors import ValidationError
 from fabriclib.dns_filter.common.list_zone import list_zone
 from fabriclib.dns_filter.common.safe_search import ZONES as SAFE_ZONES
+from fabriclib.system.memory_limit_mb import memory_limit_mb
 
 BASE_MB = 16                     # the resolver itself, its cache and fabric's own zones (2.3.12.1.17: 9 MiB measured)
 HEADROOM = 0.8                   # lists may take the estimate to 80% of the memory limit, never further (2.3.12.1.25)
-
-
-def _limit_mb(value):
-    """Purpose: a Docker memory limit as MiB.
-    Inputs:  value — "384m", "1g", "402653184" (bytes) or None.
-    Returns: float, or None when there is no limit or it does not parse.
-    Fails:   never.
-    Feeds:   resolver_views."""
-    m = re.match(r"^\s*(\d+(?:\.\d+)?)\s*([kmg]?)b?\s*$", str(value or "").lower())
-    if not m:
-        return None
-    n = float(m.group(1))
-    return {"": n / 1048576, "k": n / 1024, "m": n, "g": n * 1024}[m.group(2)]
 
 
 def _matches(groups):
@@ -47,14 +35,17 @@ def resolver_views(v, present, state):
              match-clients, its rules zone, its safe search, its own lists, its allowed names); each list counted
              against the memory limit in that order and left out when its copy would pass 80% of it.
     Inputs:  v — checked vars (dns_filter_lists, dns_filter_groups, dns_filter_safe_search, dns_filter_youtube,
-             resolver_mem_limit); present — set of list zones that have a converted copy; state — the lists' state
-             (update_lists: {zone: {memory_mb, ...}}).
+             the resolver's memory limit: memory_limit_mb); present — set of list zones that have a converted copy;
+             state — the lists' state (update_lists: {zone: {memory_mb, ...}}).
     Returns: {"lists": [{zone, name}] for everyone, "safe_zone": everyone's safe-search zone or None, "groups":
              [{name, match, rules_zone, safe_zone, lists, allow}], "memory": {"estimate_mb", "limit_mb",
              "left_out": [{view, zone, name}]}}.
     Fails:   never.
     Feeds:   dns_filter/deploy_resolver."""
-    limit = _limit_mb(v.get("resolver_mem_limit"))
+    try:                                  # its planned limit (manual 1.2.4.3), or an explicit resolver_mem_limit
+        limit = float(memory_limit_mb(v, "resolver"))
+    except ValidationError:               # a plan that does not fit is refused by the render, not here
+        limit = None
     budget = limit * HEADROOM if limit else None
     used = float(BASE_MB)
     left_out = []

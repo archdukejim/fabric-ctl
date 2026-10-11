@@ -26,7 +26,7 @@ from fabriclib.pki import pick_up_cert as pick  # noqa: E402
 from fabriclib.pki.cert_warnings import cert_warnings  # noqa: E402
 from fabriclib.pki.check_cert_lifetimes import check_cert_lifetimes  # noqa: E402
 from fabriclib.pki.needs_renewal import needs_renewal  # noqa: E402
-from fabriclib.setup import choose_plan  # noqa: E402
+from fabriclib.setup.advanced.ask_ca_lifetime import ask_ca_lifetime  # noqa: E402
 from fabriclib.setup import renew_service_certs as rsc  # noqa: E402
 from fabriclib.setup.errors import SetupError  # noqa: E402
 from fabriclib.setup.init_pki import _check_root_lifetime  # noqa: E402
@@ -262,7 +262,7 @@ real_input = builtins.input
 builtins.input = lambda prompt="": next(answers)
 pc = PlanCtx(os.path.join(W, "fresh"))
 with contextlib.redirect_stdout(io.StringIO()) as out:
-    choose_plan._ask_ca_lifetime(pc)
+    ask_ca_lifetime(pc)
 # covers: ask:setup.ca_years +-
 check("Advanced asks the root's lifetime in years; refuses text, 0 and over 30 with the reason, then takes 5",
       pc.vars.get("cert_root_ca_days") == 5 * 365 and out.getvalue().count("a whole number of years") == 3,
@@ -271,9 +271,11 @@ os.makedirs(os.path.join(base, "stepca", "data", "config"), exist_ok=True)
 open(os.path.join(base, "stepca", "data", "config", "ca.json"), "w").write("{}")
 pc = PlanCtx(base)
 builtins.input = lambda prompt="": (_ for _ in ()).throw(AssertionError("asked"))
-choose_plan._ask_ca_lifetime(pc)
+with contextlib.redirect_stdout(io.StringIO()) as out:
+    ask_ca_lifetime(pc)
 builtins.input = real_input
-check("negative: with a CA already made, the question is not asked", "cert_root_ca_days" not in pc.vars, pc.vars)
+check("negative: with a CA already made, the menu's item is refused, saying the lifetime is fixed; nothing asked",
+      "cert_root_ca_days" not in pc.vars and "lifetime is fixed" in out.getvalue(), (pc.vars, out.getvalue()))
 
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

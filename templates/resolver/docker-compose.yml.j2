@@ -46,7 +46,7 @@ services:
         ipv4_address: "{{ ip_resolver }}"
         aliases:
           - resolver
-    mem_limit: {{ resolver_mem_limit }}
+    mem_limit: {{ memory_mb('resolver') }}m
     healthcheck:
       test: ["CMD", "rndc", "-k", "/etc/bind/rndc.key", "status"]
       interval: 15s

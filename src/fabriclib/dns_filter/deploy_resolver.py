@@ -41,7 +41,7 @@ def deploy_resolver(v, secrets, links, jinja_env, fetch=True):
     Inputs:  v — rendered vars: deploy_base_dir, service_users.resolver, ip_bind9, lan_cidr, fabric_subnet,
              security.firewall_allow, DHCP's subnets (client_networks: full and guest, 2.1.10.4), dns_filter_lists,
              dns_filter_allow, dns_filter_block, dns_filter_upstreams,
-             dns_filter_safe_search, dns_filter_youtube, dns_filter_groups, resolver_mem_limit and what filter_zones
+             dns_filter_safe_search, dns_filter_youtube, dns_filter_groups, memory_plan and what filter_zones
              reads; secrets — resolver_rndc_secret; links — dns_links' result (the linked sites' zones); jinja_env —
              fabric's template environment; fetch — False to skip fetching (tests, offline).
     Returns: {"config": bool (a configuration file changed), "reconfigured": bool (the running resolver took it),
