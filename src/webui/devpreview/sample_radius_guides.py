@@ -18,5 +18,5 @@ def sample_radius_guides():
                                 "script": "# dev preview: run devserver.py from a checkout for the real script"}
                             for m in ("tls", "ttls")}}
     return radius_guides({"host_ip": "192.168.1.2", "hostname_radius": "radius.home.arpa", "domain": "home.arpa",
-                          "hostname_certs": "certs.home.arpa", "radius_clients": SAMPLE_RADIUS["clients"],
+                          "hostname_landing": "info.home.arpa", "radius_clients": SAMPLE_RADIUS["clients"],
                           "radius_people": SAMPLE_RADIUS["people"]}, root_pem=SAMPLE_ROOT_PEM)

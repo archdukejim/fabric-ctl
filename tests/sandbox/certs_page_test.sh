@@ -1,15 +1,18 @@
 #!/bin/bash
-# certs.<domain>: every published CA format is real, is this CA's certificate,
-# and is served with the right type; ca.<domain> stays Step-CA's API.
-# Run on the fabric host:  certs_page_test.sh <certs-host> <ca-host> <nginx-ip> <host-ip>
+# info.<domain>/certs/ (manual 1.5.1.5): every published CA format is real, is this CA's certificate,
+# and is served with the right type, by name and by address, with the CRLs; ca.<domain> stays Step-CA's API and sends
+# browsers here; certs.<domain> is gone (no server, no certificate, no redirect).
+# Run on the fabric host:  certs_page_test.sh <info-host> <ca-host> <nginx-ip> <host-ip>
 set -uo pipefail
-CERTS=$1 CA=$2 IP=$3 HOST_IP=$4
+INFO=$1 CA=$2 IP=$3 HOST_IP=$4
+DOMAIN=${INFO#*.}
+OLD=certs.$DOMAIN
 ROOT=/opt/stepca/data/certs/root_ca.crt
 W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
 PASS=0; FAIL=0
 check() { if (set +o pipefail; eval "$2"); then echo "PASS $1"; PASS=$((PASS+1)); else echo "FAIL $1"; FAIL=$((FAIL+1)); fi; }
 get() {   # file -> saves body to $W/file, headers to $W/file.h
-    curl -s --cacert "$ROOT" --resolve "$CERTS:443:$IP" -D "$W/$1.h" -o "$W/$1" "https://$CERTS/$1"
+    curl -s --cacert "$ROOT" --resolve "$INFO:443:$IP" -D "$W/$1.h" -o "$W/$1" "https://$INFO/certs/$1"
 }
 fp() { openssl x509 -noout -fingerprint -sha256 "$@" | cut -d= -f2; }
 ROOT_FP=$(fp -in "$ROOT")
@@ -38,16 +41,33 @@ check ".pem shown as text in the browser (no download)" \
 check "page offers Windows, Linux, PEM, DER and chain downloads" \
     "grep -q 'root-ca.cer' $W/index.html && grep -q 'root-ca.crt' $W/index.html && grep -q 'root-ca.pem' $W/index.html && grep -q 'root-ca.der' $W/index.html && grep -q 'ca-chain.p7b' $W/index.html"
 check "ca.<domain>/ redirects browsers to the certificate page" \
-    "curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --cacert $ROOT --resolve $CA:443:$IP https://$CA/ | grep -q \"^302 https://$CERTS/\""
+    "curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --cacert $ROOT --resolve $CA:443:$IP https://$CA/ | grep -qx \"302 https://$INFO/certs/\""
+check "an old /certificates link on info.<domain> goes to the certificate page" \
+    "curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --cacert $ROOT --resolve $INFO:443:$IP https://$INFO/certificates | grep -qx \"301 https://$INFO/certs/\""
 check "ca.<domain> ACME directory still served by Step-CA" \
     "curl -sf --cacert $ROOT --resolve $CA:443:$IP https://$CA/acme/acme/directory | grep -q newOrder"
 check "plain HTTP by name: served, no redirect to HTTPS (clients do not trust the CA yet)" \
-    "[ \"\$(curl -s -o /dev/null -w '%{http_code}' --resolve $CERTS:80:$HOST_IP http://$CERTS/root-ca.crt)\" = 200 ] && [ \"\$(curl -s --resolve $CERTS:80:$HOST_IP http://$CERTS/root-ca.pem | fp)\" = '$ROOT_FP' ]"
+    "[ \"\$(curl -s -o /dev/null -w '%{http_code}' --resolve $INFO:80:$HOST_IP http://$INFO/certs/root-ca.crt)\" = 200 ] && [ \"\$(curl -s --resolve $INFO:80:$HOST_IP http://$INFO/certs/root-ca.pem | fp)\" = '$ROOT_FP' ]"
 check "plain HTTP by IP, no DNS needed: http://<host_ip>/certs/" \
     "curl -s http://$HOST_IP/certs/ | grep -q 'root-ca.cer' && [ \"\$(curl -s http://$HOST_IP/certs/root-ca.cer | fp -inform DER)\" = '$ROOT_FP' ] && curl -sI http://$HOST_IP/certs/ca-chain.p7b | grep -qi 'content-type: application/x-pkcs7-certificates'"
 check "other plain-HTTP hosts still redirect to HTTPS" \
     "curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --resolve $CA:80:$HOST_IP http://$CA/ | grep -q '^301 https://'"
 check "this host trusts the CA from its system store" \
-    "curl -sf --resolve $CERTS:443:$IP -o /dev/null https://$CERTS/root-ca.pem"
+    "curl -sf --resolve $INFO:443:$IP -o /dev/null https://$INFO/certs/root-ca.pem"
+# the CRL (1.5.1.3) where every leaf's distribution point names it, by name and by address
+curl -s --resolve "$INFO:80:$HOST_IP" -o "$W/crl.der" "http://$INFO/certs/crl/intermediate.crl"
+check "the intermediate's CRL at http://info.<domain>/certs/crl/intermediate.crl: DER, signed by the intermediate" \
+    "openssl crl -inform DER -in $W/crl.der -noout -CAfile /opt/stepca/data/certs/intermediate_ca.crt 2>&1 | grep -q 'verify OK'"
+check "…and the same at http://<host_ip>/certs/crl/ (DER and PEM)" \
+    "curl -s http://$HOST_IP/certs/crl/intermediate.crl | cmp -s - $W/crl.der && curl -s http://$HOST_IP/certs/crl/intermediate.pem | grep -q 'BEGIN X509 CRL'"
+check "a service certificate names http://info.<domain>/certs/crl/intermediate.crl as its CRL" \
+    "openssl x509 -in /opt/nginx/certs/$INFO/fullchain.pem -noout -ext crlDistributionPoints | grep -q 'URI:http://$INFO/certs/crl/intermediate.crl'"
+# certs.<domain> is gone, with no redirect (2.1.5.11)
+check "negative: certs.<domain> over HTTPS has no certificate of its own (TLS refuses the name)" \
+    "! curl -s --max-time 10 --cacert $ROOT --resolve $OLD:443:$IP -o /dev/null https://$OLD/root-ca.pem"
+check "negative: certs.<domain> over plain HTTP serves no CA file (only the catch-all's redirect)" \
+    "[ \"\$(curl -s -o /dev/null -w '%{http_code}' --resolve $OLD:80:$HOST_IP http://$OLD/root-ca.crt)\" != 200 ]"
+check "negative: no certificate left for certs.<domain> and no nginx server for it" \
+    "[ ! -e /opt/nginx/certs/$OLD ] && ! grep -q 'server_name $OLD' /opt/nginx/config/nginx.conf"
 echo "$PASS passed, $FAIL failed"
 exit $FAIL

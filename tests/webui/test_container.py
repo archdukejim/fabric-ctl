@@ -169,7 +169,7 @@ subprocess.run(["bash", f"{REPO}/packaging/deb/assemble-tree.sh", W], check=True
 os.makedirs(f"{W}/fabric/config")
 open(f"{W}/fabric/VERSION", "w").write("9.9.9\n")
 open(f"{W}/fabric/config/vars.yaml", "w").write(
-    f"deploy_base_dir: {W}\nhost_ip: 192.168.7.53\nhostname_certs: certs.lan.test\n"
+    f"deploy_base_dir: {W}\nhost_ip: 192.168.7.53\nhostname_landing: info.lan.test\n"
     f"hostname_openbao: vault.lan.test\nip_openbao: 10.254.8.99\nopenbao_key_dir: {W}/nokeys\nhostname: pi-core\n"
     "service_users: {openbao: {uid: 913, gid: 913}}\n"
     "domain: lan.test\ndns:\n  dynamic_zone_var:\n    zone_authority: true\n    A:\n    - {name: pi-core, ip: 192.168.7.53}\n"
@@ -410,7 +410,7 @@ check("audit log records web actions with user", "User: alice (web) | Action: DN
 # ---- Step-CA tab: manual PKI through the agent
 st, hd, sc, body = req("GET", "/stepca", ALICE, cookie=session)
 check("Step-CA tab shows the CA certificates", st == 200 and "Test Root CA" in body and "Test Intermediate CA" in body
-      and "http://certs.lan.test/" in body, body[:400])
+      and "http://info.lan.test/certs/" in body, body[:400])
 views_ok = all(req("GET", f"/stepca?view={v}", ALICE, cookie=session)[0] == 200
                for v in ("sign", "issue", "inspect", "convert", "issued"))
 check("every Step-CA menu page renders", views_ok)

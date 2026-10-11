@@ -101,7 +101,7 @@
 
 {% elif view == 'issued' %}
 <section class="card"><h2>Issued by hand</h2>
-<p class="muted">Certificates signed from a CSR or generated here, client certificates and site CAs (newest first). Service certificates are managed by setup and not listed. A revoked certificate is refused by FreeRADIUS and the web console at once (the CRL on <code>certs.&lt;domain&gt;/crl/</code>).</p>
+<p class="muted">Certificates signed from a CSR or generated here, client certificates and site CAs (newest first). Service certificates are managed by setup and not listed. A revoked certificate is refused by FreeRADIUS and the web console at once (the CRL on <code>info.&lt;domain&gt;/certs/crl/</code>).</p>
 {% if issued %}
 <table><thead><tr><th>Subject</th><th>Names</th><th>How</th><th>Expires</th><th>By</th>{% if can('pki:revoke') %}<th>Revoke</th>{% endif %}</tr></thead><tbody>
 {% for c in issued %}

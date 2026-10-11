@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from fabriclib.common.console import ok
 from fabriclib.pki.install_cert import install_cert
@@ -10,12 +11,13 @@ from fabriclib.setup.mint_extra_certs import mint_extra_certs
 
 def _targets(ctx):
     """Purpose: the service certificates this install needs and where each one goes.
-    Inputs:  ctx — SetupContext: vars hostname_* (bind9, stepca, landing, certs, openbao, keycloak, mgr,
+    Inputs:  ctx — SetupContext: vars hostname_* (bind9, stepca, landing, openbao, keycloak, mgr,
              radius, federation, dc), domain, install_keycloak, install_webui,
              install_freeradius, install_resolver, federation_endpoint, ad_domain.
     Returns: list of (cn, extra SANs, [(destination dir, service user or "freeradius:eap")],
-             services to restart when it changes). bind9 (and the DNS filter's resolver when on), stepca, landing,
-             certs and openbao always; LDAP,
+             services to restart when it changes). bind9 (and the DNS filter's resolver when on), stepca, landing
+             and openbao always (no certs.<domain> since 0.7.0: the CA is served at info.<domain>/certs/, 1.5.1.5);
+             LDAP,
              Keycloak + Postgres, web UI, FreeRADIUS (EAP-TLS server cert), the federation endpoint when on, and
              the domain controller.
     Fails:   KeyError for a missing hostname_* var.
@@ -33,7 +35,6 @@ def _targets(ctx):
         # the host's own name and <domain> too: they redirect to the info page over HTTPS (2.1.4.3)
         (v["hostname_landing"], [f"{v['hostname']}.{v['domain']}".lower(), v["domain"]], [nginx(v["hostname_landing"])],
          ["nginx"]),
-        (v["hostname_certs"], [], [nginx(v["hostname_certs"])], ["nginx"]),
         (v["hostname_openbao"], ["openbao"], [nginx(v["hostname_openbao"]), (p("openbao", "certs"), "openbao")],
          ["nginx", "openbao"]),
     ]
@@ -58,6 +59,21 @@ def _targets(ctx):
     return t
 
 
+def _old_certs_host(ctx, targets):
+    """Purpose: the certificate folder of certs.<domain>, which fabric no longer serves or issues (0.7.0, 1.5.1.5),
+             when it is still there: run deletes it once every service certificate is issued again.
+    Inputs:  ctx — SetupContext: vars domain, path(); targets — _targets(ctx), so a name still in use is kept (a
+             landing_page_cname of "certs").
+    Returns: the folder <deploy_base>/nginx/certs/certs.<domain> (str), or None when it is gone or still in use.
+    Fails:   never.
+    Feeds:   run."""
+    name = f"certs.{ctx.vars.get('domain', '')}".lower()
+    old = ctx.path("nginx", "certs", name)
+    if name in {cn for cn, *_ in targets} or not os.path.isdir(old):
+        return None
+    return old
+
+
 def run(ctx):
     """Purpose: issue (or renew) every service certificate from Step-CA and the CA bundles that verify client
              certificates, then the extra_certs.
@@ -66,9 +82,12 @@ def run(ctx):
              force_certs (re-issue even when current), Step-CA certs under <deploy_base>/stepca/data/certs.
     Returns: None. Certificates that exist, cover their names, chain to this CA, are younger than
              cert_renew_after_days and live no longer than cert_service_days (manual 2.1.5.4, 2.1.5.7) are left
-             alone unless force_certs, or unless one of their destinations has no copy yet. The web UI client-CA
-             bundle is rewritten on every run; the CRLs are published every run (publish_crl: FreeRADIUS's ca.pem
-             with them). Services whose certificates changed are added to ctx.restart_services.
+             alone unless force_certs, or unless one of their destinations has no copy yet. While the old
+             certs.<domain> certificate is there (_old_certs_host, 1.5.1.5: the upgrade to 0.7.0) every service
+             certificate is issued again, so each names the CRL at info.<domain>/certs/crl/; then the old one is
+             deleted. The web UI client-CA bundle is rewritten on every run; the CRLs are published every run
+             (publish_crl: FreeRADIUS's ca.pem with them). Services whose certificates changed are added to
+             ctx.restart_services.
     Fails:   SetupError from mint_cert (step-ca refused); OSError/CalledProcessError installing files;
              ValidationError from mint_extra_certs; KeyError for missing hostname vars.
     Feeds:   setup step `certs`, run by run_setup via STEPS; renew_service_certs (`fabricctl certs`)."""
@@ -80,14 +99,17 @@ def run(ctx):
     restart = set()
     renew_after = int(ctx.vars.get("cert_renew_after_days", 30))
     lifetime = int(ctx.vars.get("cert_service_days", 47))
+    targets = _targets(ctx)
+    old_certs = _old_certs_host(ctx, targets)          # the upgrade to 0.7.0: every leaf gets the new CRL point
+    force = ctx.force_certs or bool(old_certs)
 
-    for cn, sans, dests, services in _targets(ctx):
+    for cn, sans, dests, services in targets:
         first = dests[0][0]
         check = os.path.join(first, "server.pem" if dests[0][1] == "freeradius:eap" else "fullchain.pem")
         # a destination added since the certificate was issued (the DNS filter's, on an upgrade) needs its copy now
         missing = any(not os.path.exists(os.path.join(d, "server.pem" if u == "freeradius:eap" else "fullchain.pem"))
                       for d, u in dests)
-        if not ctx.force_certs and not missing and not needs_renewal(check, [cn, *sans], (root_ca, intermediate),
+        if not force and not missing and not needs_renewal(check, [cn, *sans], (root_ca, intermediate),
                                                                      renew_after_days=renew_after,
                                                                      max_days=lifetime):
             ok(f"{cn}: current")
@@ -102,6 +124,9 @@ def run(ctx):
         os.remove(crt)
         restart.update(services)
         ok(f"{cn}: issued")
+    if old_certs:
+        shutil.rmtree(old_certs)
+        ok(f"{os.path.basename(old_certs)}: old certificate deleted (the CA is at info.<domain>/certs/, 1.5.1.5)")
 
     if ctx.vars.get("install_webui"):
         uid, gid = ctx.uid("nginx")

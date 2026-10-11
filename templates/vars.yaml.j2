@@ -58,7 +58,6 @@ landing_page_cname: {{ landing_page_cname | default('info', true) }}
 cname_dns: {{ cname_dns | default('dns') }}
 cname_sso: {{ cname_sso | default('sso') }}
 cname_mgr: {{ cname_mgr | default('fabric') }}
-cname_certs: {{ cname_certs | default('certs') }}
 cname_openbao: {{ cname_openbao | default('vault') }}
 {# The web UI's address: any host name (default fabric.<domain>). Outside the
    domain, fabric issues its certificate but you point DNS at this host. #}
@@ -71,8 +70,8 @@ hostname_landing: {{ hostname_landing | default((landing_page_cname | default('i
 hostname_keycloak: {{ hostname_keycloak | default((cname_sso | default('sso')) ~ '.' ~ domain) }}
 {% set _hostname_mgr = (webui_hostname | default('', true) or ((cname_mgr | default('fabric')) ~ '.' ~ domain)) | lower %}
 hostname_mgr: {{ _hostname_mgr }}
-{# CA certificates for every system (certs.<domain>); ca.<domain> is Step-CA's API. #}
-hostname_certs: {{ ((cname_certs | default('certs')) ~ '.' ~ domain) | lower }}
+{# CA certificates for every system: info.<domain>/certs/ (hostname_landing) and http://<host_ip>/certs/; certs.<domain>
+   was dropped in 0.7.0 (1.5.1.5). ca.<domain> is Step-CA's API. #}
 hostname_openbao: {{ ((cname_openbao | default('vault')) ~ '.' ~ domain) | lower }}
 hostname_radius: {{ ((cname_radius | default('radius')) ~ '.' ~ domain) | lower }}
 hostname_ntp: {{ ((cname_ntp | default('ntp')) ~ '.' ~ domain) | lower }}
@@ -395,9 +394,6 @@ bind_acl_policies:
   { 'canonical': hostname, 'name': cname_sso | default('sso') },
   { 'canonical': hostname, 'name': cname_openbao | default('vault') }
 ] %}
-{% if (cname_certs | default('certs')) != hostname %}
-{% set _ = default_cnames.append({ 'canonical': hostname, 'name': cname_certs | default('certs') }) %}
-{% endif %}
 {# The web UI name gets a CNAME only inside this domain, and not when it is the
    host's own name (that already has an A record). #}
 {% set _mgr_label = _hostname_mgr[:-(domain | length) - 1] if _hostname_mgr.endswith('.' ~ domain) else '' %}

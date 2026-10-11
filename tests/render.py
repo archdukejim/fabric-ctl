@@ -129,17 +129,17 @@ assert 'acl "certbot-devices"' in acl and 'key "dev1";' in acl, 'policy ACL not 
 assert 'secret "bnBtLXRlc3Qtc2VjcmV0LTMyLWJ5dGVzLWxvbmch";' in keys, 'embedded TSIG secret not rendered'
 print('TSIG keys and RFC2136 grants rendered')
 
-# Web UI at any host name; certificate page on its own host.
-assert v2['hostname_mgr'] == 'fabric.lan.j-j.family' and v2['hostname_certs'] == 'certs.lan.j-j.family', v2['hostname_mgr']
+# Web UI at any host name; the certificate page at info.<domain>/certs/ (no certs.<domain> since 0.7.0, 1.5.1.5).
+assert v2['hostname_mgr'] == 'fabric.lan.j-j.family' and 'hostname_certs' not in v2 and 'cname_certs' not in v2, v2
 custom = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'webui_hostname': 'Admin.Example.org'}))
 assert custom['hostname_mgr'] == 'admin.example.org', custom['hostname_mgr']
 names = [r['name'] for r in custom['dns']['dynamic_zone_var']['CNAME']]
 assert 'fabric' not in names and 'admin' not in names, f'no CNAME for a web UI outside the domain: {names}'
 ngx = env.get_template('nginx/nginx.conf.j2').render(**{**secrets, **custom})
-assert 'server_name admin.example.org;' in ngx and 'server_name certs.lan.j-j.family;' in ngx
+assert 'server_name admin.example.org;' in ngx and 'certs.lan.j-j.family' not in ngx
 same = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'hostname': 'fabric'}))
 assert 'fabric' not in [r['name'] for r in same['dns']['dynamic_zone_var']['CNAME']], 'CNAME must not shadow the host A record'
-print('web UI host name (default, custom, same as host) and certs host rendered')
+print('web UI host name (default, custom, same as host) rendered; no certs.<domain> server')
 doh = ngx[ngx.index('location /dns-query'):]
 doh = doh[:doh.index('\n        }')]          # the location block only
 assert 'grpc_pass $bind9_doh_backend;' in doh and '"grpc://resolver:8053"' in doh and 'proxy_pass $' not in doh, \
@@ -677,3 +677,33 @@ assert re.search(r"^@\s+A\s+", _db_apex, re.M) and re.search(r"^info\s+CNAME\s+"
     "the zone answers for <domain> (to redirect) and for info"
 print("the info page at info.<domain>: HTTP without a redirect, the CA and its fingerprint; <domain> and the host's "
       "name redirect (2.1.4.3)")
+
+# the CA only at info.<domain>/certs/ and <host_ip>/certs/ (1.5.1.5, 2.1.5.11): certs.<domain> is gone everywhere —
+# no server, no DNS name, no certificate; ca.<domain> and /certificates send browsers to the page; every leaf names the
+# CRL there; the page, the scripts and the admin's README use it
+_certs_url = f"http://{_land}/certs/"
+assert 'certs.' + v2['domain'] not in _ngx and 'hostname_certs' not in _ngx, "no certs.<domain> server (no redirect)"
+assert 'certs' not in [r['name'] for r in v2['dns']['dynamic_zone_var']['CNAME']], "no certs CNAME by default"
+assert not re.search(r"^certs\s", _db_apex, re.M), "the zone has no certs record"
+_ca = [b for b in _blocks if f"server_name {v2['hostname_stepca']};" in b][0]
+assert f"return 302 https://{_land}/certs/;" in _ca and f"return 301 https://{_land}/certs/;" in _ca, _ca
+_info443 = [b for b in _blocks if "listen 443 ssl;" in b and f"server_name {_land};" in b][0]
+assert "location /certs/" in _info443 and f"return 301 https://{_land}/certs/;" in _info443.split("location /certs/")[0]
+_default80 = [b for b in _blocks if "listen 80 default_server;" in b][0]
+assert "location /certs/" in _default80 and "root /srv/www;" in _default80, "http://<host_ip>/certs/ serves the CA"
+for _tpl in ('stepca/leaf.tpl.j2', 'stepca/acme.tpl.j2'):
+    _t = env.get_template(_tpl).render(**full)
+    assert f'"crlDistributionPoints": ["{_certs_url}crl/intermediate.crl"]' in _t and 'certs.' not in _t, (_tpl, _t)
+_page = env.get_template('nginx/www/certs/index.html.j2').render(**{**full, 'domain_file': 'lan'})
+assert f"<code>{_certs_url}</code>" in _page and f"{_certs_url}join-linux.sh" in _page and 'certs.' + v2['domain'] \
+    not in _page, "the certificate page names info.<domain>/certs/"
+for _tpl, _var in (('install-all-ubuntu.sh.j2', 'BASE_URL'), ('install-certs.sh.j2', 'CERT_BASE'),
+                   ('join-linux.sh.j2', 'CERTS')):
+    _t = env.get_template('nginx/www/certs/' + _tpl).render(**{**full, 'domain_file': 'lan'})
+    assert f'{_var}="http://{_land}/certs"' in _t and 'certs.' + v2['domain'] not in _t, (_tpl, _t[:400])
+assert f'href="{_certs_url}"' in _landing and f'href="https://{_land}/certs/#join"' in _landing, "landing links"
+assert _certs_url in off_txt and 'certs.' + v2['domain'] not in off_txt, "the admin's README names info.<domain>/certs/"
+from fabriclib.pki.acme_info import acme_info  # noqa: E402
+assert any(f"{_certs_url} (check its fingerprint" in x for x in acme_info(v2)), acme_info(v2)
+print("the CA at info.<domain>/certs/ and <host_ip>/certs/ only: no certs.<domain> server, name or CNAME; ca.<domain> "
+      "and /certificates redirect there; leaves name its CRL; the page, scripts and README use it (1.5.1.5)")

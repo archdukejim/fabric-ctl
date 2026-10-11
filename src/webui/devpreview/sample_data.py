@@ -48,9 +48,9 @@ SAMPLE = {
     "zones": {
         "dynamic_zone_var": {"name": "home.arpa", "records": [
             ("A", "fabric", "192.168.1.53"), ("A", "@", "192.168.1.53"), ("A", "nas", "192.168.1.10"),
-            ("CNAME", "ca", "fabric"), ("CNAME", "certs", "fabric"), ("CNAME", "dns", "fabric"),
+            ("CNAME", "ca", "fabric"), ("CNAME", "info", "fabric"), ("CNAME", "dns", "fabric"),
             ("A", "printer", "192.168.1.40"), ("AAAA", "nas", "fd00:1:2:3::10"), ("A", "vpn", "203.0.113.7"),
-            ("CNAME", "ca", "fabric"), ("CNAME", "certs", "fabric"), ("CNAME", "dns", "fabric"),
+            ("CNAME", "ca", "fabric"), ("CNAME", "info", "fabric"), ("CNAME", "dns", "fabric"),
             ("CNAME", "sso", "fabric"), ("MX", "@", "10 mail"), ("TXT", "@", '"v=spf1 -all"')]},
         "iot.home.arpa": {"name": "iot.home.arpa", "records": [
             ("A", "cam-front", "192.168.20.11"), ("A", "cam-back", "192.168.20.12"), ("A", "thermostat",
@@ -126,7 +126,7 @@ SAMPLE_DEVICES = {"tokens": [{"vendor": "Yubico", "product": "YubiKey OTP+FIDO+C
                               "serial": "23456799", "label": "YubiKey PIV #23456799",
                               "manufacturer": "Yubico (www.yubico.com)",
                               "model": "YubiKey YK5", "pin_state": "ok"}]}
-SAMPLE_CA = {"domain": "home.arpa", "certs_url": "http://certs.home.arpa/", "max_days": 1825,
+SAMPLE_CA = {"domain": "home.arpa", "certs_url": "http://info.home.arpa/certs/", "max_days": 1825,
              "root": {"subject": "CN=Fabric Root CA,O=Fabric", "not_after": "Sep  1 00:00:00 2046 GMT",
                       "key": "EC prime256v1", "sha256": _FP},
              "intermediate": {"subject": "CN=Fabric Intermediate CA,O=Fabric", "not_after": "Sep  1 00:00:00 2036 GMT",
@@ -201,7 +201,7 @@ SAMPLE_DOCTOR = {"checks": [{"name": "DNS ns.home.arpa", "ok": True, "detail": "
 SAMPLE_ACME = {"domain": "home.arpa", "machines": [{"name": "nas", "fqdn": "nas.home.arpa", "key": "acme-nas",
                                                     "records": ["nas"]}],
                "info": ["ACME directory: https://ca.home.arpa/acme/acme/directory",
-                        "trust fabric's root CA first: http://certs.home.arpa/ (check its fingerprint there)",
+                        "trust fabric's root CA first: http://info.home.arpa/certs/ (check its fingerprint there)",
                         "names: <name>.home.arpa only; certificates live 47 days: let the client renew at 30 days old",
                         "http-01: the machine answers on port 80 for its name (nothing to enroll)",
                         "dns-01: enroll it below; its client sends RFC2136 updates with its key"]}

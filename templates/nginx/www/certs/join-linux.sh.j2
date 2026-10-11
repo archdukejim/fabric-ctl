@@ -3,7 +3,7 @@
 # {{ ad_domain }} (manual 1.6.7, 4.6.6).
 #   sudo bash join-linux.sh <root CA SHA-256 fingerprint> --user <a site admin>   [--site <site>] [--name <name>]
 #   sudo bash join-linux.sh <root CA SHA-256 fingerprint> --one-time              [--site <site>] [--name <name>]
-# The fingerprint is shown on http://{{ hostname_certs }}/. The password - a site admin's, or with --one-time the
+# The fingerprint is shown on http://{{ hostname_landing }}/certs/. The password - a site admin's, or with --one-time the
 # machine's one-time join password from `fabricctl domain add-machine <name>` - is asked on the terminal (or read
 # from standard input), never taken from the command line.
 set -euo pipefail
@@ -13,7 +13,7 @@ REALM="{{ ad_realm }}"
 BASE_DN="{{ ad_base_dn }}"
 DC="{{ hostname_dc }}"
 SITE="{{ site_name }}"
-CERTS="http://{{ hostname_certs }}"
+CERTS="http://{{ hostname_landing }}/certs"
 NTP="{{ hostname_ntp }}"
 
 die() { echo "ERROR: $*" >&2; exit 1; }

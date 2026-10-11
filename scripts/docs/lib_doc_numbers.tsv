@@ -1681,6 +1681,7 @@ function	fabriclib-setup|src/fabriclib/setup/init_pki.py|run	7
 function	fabriclib-setup|src/fabriclib/setup/join_federation.py|run	1	
 function	fabriclib-setup|src/fabriclib/setup/mint_extra_certs.py|mint_extra_certs	1	
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_install_dirsrv_tls	2	0.5.0 / 2026-10-04
+function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_old_certs_host	4	
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_targets	1	
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|run	3	
 function	fabriclib-setup|src/fabriclib/setup/move_dns_filter.py|move_dns_filter	1	

@@ -64,7 +64,7 @@ env = jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.join(REPO, "temp
 for name in ("leaf", "acme"):                       # fabric's templates, rendered as setup renders them
     open(f"{data}/templates/certs/{name}.tpl", "w").write(env.get_template(f"stepca/{name}.tpl.j2").render(
         cert_country="US", cert_province="S", cert_city="C", cert_org="Test", cert_ou="IT",
-        hostname_certs=f"certs.{DOMAIN}", domain=DOMAIN))
+        hostname_landing=f"info.{DOMAIN}", domain=DOMAIN))
 v = {"hostname_stepca": f"ca.{DOMAIN}", "domain": DOMAIN, "cert_acme_lifetime_hours": "1128h",
      "stepca_cert_max_lifetime_hours": "1128h"}
 check("fabric's converge writes the ACME provisioner (changed), and a second run changes nothing",
@@ -106,7 +106,7 @@ if dates:
     hours = (datetime.datetime.strptime(dates["notAfter"], fmt)
              - datetime.datetime.strptime(dates["notBefore"], fmt)).total_seconds() / 3600
 check("…for 47 days (1128 h, within a minute of Step-CA's backdating), naming the CRL (fabric's leaf template)",
-      hours is not None and 1128 <= hours <= 1129 and f"http://certs.{DOMAIN}/crl/intermediate.crl" in text,
+      hours is not None and 1128 <= hours <= 1129 and f"http://info.{DOMAIN}/certs/crl/intermediate.crl" in text,
       (hours, text[-600:]))
 res = get("nas.example.org")
 check("negative: a name outside the domain is refused by fabric's ACME template (though its challenge passes)",
@@ -128,7 +128,7 @@ rac.apply_changes = lambda actor, source: (apply_ok[0], "apply failed: zone did 
 
 class Ctx:
     def load_state(self):
-        self.vars = {"domain": DOMAIN, "hostname_stepca": f"ca.{DOMAIN}", "hostname_certs": f"certs.{DOMAIN}",
+        self.vars = {"domain": DOMAIN, "hostname_stepca": f"ca.{DOMAIN}", "hostname_landing": f"info.{DOMAIN}",
                      "host_ip": "192.0.2.1", "bind_dns_port": 5053,
                      "tsig_keys": [{"name": "acme-nas", "records": ["nas"]}, {"name": "npm", "records": ["npm"]}]}
         return self

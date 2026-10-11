@@ -4,7 +4,7 @@ from fabriclib.radius.windows_setup_script import windows_setup_script
 
 def radius_guides(v, root_pem=None):
     """Purpose: What the FreeRADIUS tab's setup guides need, filled in for this install. Only public data.
-    Inputs:  v — the vars dict (host_ip, hostname_radius, hostname_certs, domain, radius_clients, radius_people,
+    Inputs:  v — the vars dict (host_ip, hostname_radius, hostname_landing, domain, radius_clients, radius_people,
              deploy_base_dir).
              root_pem — the fabric root CA as PEM; None reads <deploy_base>/stepca/data/certs/root_ca.crt.
     Returns: {"host_ip", "server_name", "certs_url", "domain", "clients" (names), "people" (group names), "windows":
@@ -21,7 +21,7 @@ def radius_guides(v, root_pem=None):
         filename, script = windows_setup_script(v, method, root_pem)
         windows[method] = {"filename": filename, "script": script}
     return {"host_ip": v.get("host_ip", ""), "server_name": v.get("hostname_radius", ""),
-            "certs_url": f"http://{v.get('hostname_certs', '')}/", "domain": v.get("domain", ""),
+            "certs_url": f"http://{v.get('hostname_landing', '')}/certs/", "domain": v.get("domain", ""),
             "clients": [c.get("name") for c in v.get("radius_clients") or []],
             "people": [m.get("group") for m in v.get("radius_people") or []],
             "windows": windows}
