@@ -1,8 +1,10 @@
 from fabriclib.setup.common.missing_packages import missing_packages
 
 # What the host needs to sign in with its domain (manual 1.6.11.8): sssd's AD provider, NSS and PAM for sss, sudo's
-# sss support, the Kerberos tools
-MEMBER_PACKAGES = ["sssd-ad", "libnss-sss", "libpam-sss", "libsss-sudo", "krb5-user"]
+# sss support, the Kerberos tools; SASL's GSSAPI module (without it sssd cannot bind to the DC: "No worthy mechs
+# found", found by the sandbox suite) and sssctl, as the Linux join installs them
+MEMBER_PACKAGES = ["sssd-ad", "sssd-tools", "libnss-sss", "libpam-sss", "libsss-sudo", "krb5-user",
+                   "libsasl2-modules-gssapi-mit"]
 KRB5_CONF = "/etc/krb5.conf"
 SSSD_CONF = "/etc/sssd/sssd.conf"
 KEYTAB = "/etc/krb5.keytab"
