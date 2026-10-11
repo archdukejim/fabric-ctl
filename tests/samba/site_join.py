@@ -167,9 +167,17 @@ for site, (container, ip, dc_type, cidr, parent) in SITES.items():
             check(f"{site}: its BIND answers the AD zone (the sites below join through it)", False, e)
 
 # ---- a joining site's DC needs a name the domain does not have (2.1.6.45, manual 1.6.5.23): checked by its parent
-names = domain_dc_names(ROOT)
+names = {}
+
+
+def all_dcs_named():
+    """Every joined site's DC is in the root's database (a nested site's joined at its parent: once replicated)."""
+    names.update(domain_dc_names(ROOT))
+    return "dc1" in names["dcs"] and all(f"dc-{s}" in names["dcs"] for s in joined)
+
+
 check("the domain's DC names, read inside the root's DC: its own and every joined site's, each unlike its host's",
-      "dc1" in names["dcs"] and all(f"dc-{s}" in names["dcs"] for s in joined) and "sjhost" not in names["computers"]
+      until(all_dcs_named, 600) and "sjhost" not in names["computers"]
       and not any(f"host-{s}" in names["computers"] for s in joined), names)
 m_accept.domain_dc_names = lambda: domain_dc_names(ROOT)      # accept_join reads the DC it runs beside: the root here
 m_accept.domain_sites = lambda: domain_sites(ROOT)

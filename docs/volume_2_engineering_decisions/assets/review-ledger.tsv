@@ -1374,7 +1374,7 @@ tests/samba/devices.py	8b2d94d6ee0ebec716c8e40e02c2924746d589bc	2026-10-05
 tests/samba/gpo.py	6c3023ce556ade2b616367800d43e0d9cd055c5a	2026-10-08	
 tests/samba/linux_join.py	5793ff2acf76a6e40df2b61331648dfd29468c3c	2026-10-11	
 tests/samba/run.py	f618dfcf6a94c124f5318080cc1999f656b78c4b	2026-10-11	
-tests/samba/site_join.py	5954a3d80cbd553fc31887af47a03635214088cc	2026-10-11	
+tests/samba/site_join.py	c8bc31a94cdc0347d4c74f93afb171872ef6b23e	2026-10-11	
 tests/samba/start_bind.py	d99f3b9ebf76a0c6bb2047503e1add88e4b3db88	2026-10-08	
 tests/samba/start_dc.py	dbba89a09d650988ed479f31ad6b46904c16561f	2026-10-11	
 tests/sandbox/Dockerfile	20b0b4c920006cd304cbe258c176c85b9e12b2a5	2026-10-10	
