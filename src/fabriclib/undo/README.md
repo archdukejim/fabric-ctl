@@ -11,5 +11,6 @@ are kept before fabric first changes them (`common/keep_original`).
 | `undo_trust.py` | fabric's CA out of the host trust store |
 | `undo_time.py` | chrony's files as they were, chrony restarted |
 | `undo_resolver.py` | systemd-resolved's stub listener and `/etc/resolv.conf` back |
+| `undo_member.py` | This host out of its domain: krb5.conf, sssd.conf, nsswitch.conf and `/etc/hosts` as they were, the keytab removed, sss off in PAM, sssd stopped if fabric started it |
 | `undo_group.py` | `fabricctl setup --undo GROUP`: says what it will do, asks, undoes, records the group as declined |
 | `uninstall_plan.py` | What uninstall does with each kind of host change: removed, undone or kept |

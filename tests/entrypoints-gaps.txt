@@ -217,7 +217,6 @@ ask:setup.join_invitation +
 ask:setup.join_invitation -
 ask:setup.plan -
 ask:undo.* +
-ask:undo.* -
 ask:uninstall.confirm +
 ask:uninstall.confirm -
 ask:uninstall.export +

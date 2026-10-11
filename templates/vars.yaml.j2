@@ -184,6 +184,9 @@ posix_id_range: "{{ posix_id_range | default('', true) }}"
 {% set _site_ou = ad_site_ou | default('OU=' ~ ((site_name | default(hostname, true)) | lower) ~ ',OU=sites', true) %}
 ad_site_ou: "{{ _site_ou }}"
 ad_org_ou: "{{ ad_org_ou | default('OU=organisation,' ~ _site_ou, true) }}"
+# This host as a member of its own domain (manual 1.6.11.8, 2.1.6.34): the fabric admins sign in to it with their domain
+# accounts; local accounts are untouched. Asked in setup's Advanced; false leaves the host out (status shows it).
+host_join_domain: {{ host_join_domain | default(true) | to_json }}
 posix_id_block: {{ posix_id_block | default(100000) | int }}
 samba_mem_limit: {{ samba_mem_limit | default(((512 * ((host_ram_capacity | default(host_ram_detected | default(4), true) | int) / 4)) | int) ~ 'm', true) }}
 # 802.1X (optional, design §6): FreeRADIUS 3.2 checks each device against the site's DC

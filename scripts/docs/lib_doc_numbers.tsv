@@ -134,6 +134,7 @@ file	fabriclib-consent|src/fabriclib/consent/load_consent.py	6
 file	fabriclib-consent|src/fabriclib/consent/plan_accounts.py	7	
 file	fabriclib-consent|src/fabriclib/consent/plan_firewall.py	8	
 file	fabriclib-consent|src/fabriclib/consent/plan_host_changes.py	9	
+file	fabriclib-consent|src/fabriclib/consent/plan_member.py	22	
 file	fabriclib-consent|src/fabriclib/consent/plan_own_rules.py	19	
 file	fabriclib-consent|src/fabriclib/consent/plan_packages.py	10	
 file	fabriclib-consent|src/fabriclib/consent/plan_ports.py	20	
@@ -560,8 +561,11 @@ file	fabriclib-setup|src/fabriclib/setup/backup_install.py	1
 file	fabriclib-setup|src/fabriclib/setup/check_export_dir.py	2	
 file	fabriclib-setup|src/fabriclib/setup/choose_plan.py	3	
 file	fabriclib-setup|src/fabriclib/setup/collect_vars.py	4	
+file	fabriclib-setup|src/fabriclib/setup/common/apt_install.py	48	
 file	fabriclib-setup|src/fabriclib/setup/common/docker_ready.py	5	
+file	fabriclib-setup|src/fabriclib/setup/common/export_dc_keytab.py	49	
 file	fabriclib-setup|src/fabriclib/setup/common/missing_packages.py	6	
+file	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py	50	
 file	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py	7	
 file	fabriclib-setup|src/fabriclib/setup/condition_host.py	8	
 file	fabriclib-setup|src/fabriclib/setup/configure_firewall.py	9	
@@ -577,6 +581,7 @@ file	fabriclib-setup|src/fabriclib/setup/export_install.py	16
 file	fabriclib-setup|src/fabriclib/setup/harden_docker.py	17	
 file	fabriclib-setup|src/fabriclib/setup/init_pki.py	18	
 file	fabriclib-setup|src/fabriclib/setup/join_federation.py	19	
+file	fabriclib-setup|src/fabriclib/setup/join_host_domain.py	51	
 file	fabriclib-setup|src/fabriclib/setup/mint_extra_certs.py	20	
 file	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py	21	
 file	fabriclib-setup|src/fabriclib/setup/move_dns_filter.py	43	
@@ -610,6 +615,7 @@ file	fabriclib-system|src/fabriclib/system/show_relaxed_settings.py	7
 file	fabriclib-system|src/fabriclib/system/version_info.py	5	
 file	fabriclib-undo|src/fabriclib/undo/undo_firewall.py	1	
 file	fabriclib-undo|src/fabriclib/undo/undo_group.py	2	
+file	fabriclib-undo|src/fabriclib/undo/undo_member.py	8	
 file	fabriclib-undo|src/fabriclib/undo/undo_resolver.py	3	
 file	fabriclib-undo|src/fabriclib/undo/undo_runtime.py	4	
 file	fabriclib-undo|src/fabriclib/undo/undo_time.py	5	
@@ -1075,6 +1081,7 @@ function	fabriclib-consent|src/fabriclib/consent/plan_accounts.py|_user_uid	3
 function	fabriclib-consent|src/fabriclib/consent/plan_accounts.py|plan_accounts	6	
 function	fabriclib-consent|src/fabriclib/consent/plan_firewall.py|plan_firewall	1	
 function	fabriclib-consent|src/fabriclib/consent/plan_host_changes.py|plan_host_changes	1	
+function	fabriclib-consent|src/fabriclib/consent/plan_member.py|plan_member	1	
 function	fabriclib-consent|src/fabriclib/consent/plan_own_rules.py|plan_own_rules	1	
 function	fabriclib-consent|src/fabriclib/consent/plan_packages.py|plan_packages	1	
 function	fabriclib-consent|src/fabriclib/consent/plan_ports.py|plan_ports	1	
@@ -1660,6 +1667,7 @@ function	fabriclib-setup|src/fabriclib/setup/check_export_dir.py|check_export_di
 function	fabriclib-setup|src/fabriclib/setup/choose_plan.py|_ask_ca_lifetime	10	
 function	fabriclib-setup|src/fabriclib/setup/choose_plan.py|_ask_dhcp	2	0.6.4 / 2026-10-09
 function	fabriclib-setup|src/fabriclib/setup/choose_plan.py|_ask_dns_filter	8	0.6.4 / 2026-10-09
+function	fabriclib-setup|src/fabriclib/setup/choose_plan.py|_ask_host_join_domain	11	
 function	fabriclib-setup|src/fabriclib/setup/choose_plan.py|_ask_log_forwarding	1	0.6.4 / 2026-10-09
 function	fabriclib-setup|src/fabriclib/setup/choose_plan.py|_ask_radius	3	0.6.4 / 2026-10-09
 function	fabriclib-setup|src/fabriclib/setup/choose_plan.py|_ca_exists	9	
@@ -1673,10 +1681,15 @@ function	fabriclib-setup|src/fabriclib/setup/collect_vars.py|_load	2
 function	fabriclib-setup|src/fabriclib/setup/collect_vars.py|_network_problem	6	
 function	fabriclib-setup|src/fabriclib/setup/collect_vars.py|_valid	1	
 function	fabriclib-setup|src/fabriclib/setup/collect_vars.py|collect_vars	5	
+function	fabriclib-setup|src/fabriclib/setup/common/apt_install.py|apt_install	1	
 function	fabriclib-setup|src/fabriclib/setup/common/docker_ready.py|docker_ready	1	
+function	fabriclib-setup|src/fabriclib/setup/common/export_dc_keytab.py|_principals	1	
+function	fabriclib-setup|src/fabriclib/setup/common/export_dc_keytab.py|export_dc_keytab	2	
 function	fabriclib-setup|src/fabriclib/setup/common/missing_packages.py|missing_packages	1	
+function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_sudo_search_base	1	
+function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|render_member_files	2	
 function	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py|service_account_name	1	
-function	fabriclib-setup|src/fabriclib/setup/condition_host.py|_apt_install	1	
+function	fabriclib-setup|src/fabriclib/setup/condition_host.py|_apt_install	1	0.8.0 / 2026-10-10
 function	fabriclib-setup|src/fabriclib/setup/condition_host.py|run	2	
 function	fabriclib-setup|src/fabriclib/setup/configure_firewall.py|_forget_rules	2	
 function	fabriclib-setup|src/fabriclib/setup/configure_firewall.py|_keep_ufw_state	3	
@@ -1727,6 +1740,16 @@ function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_publish_ca_certs	5
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_single_intermediate	3	
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|run	7	
 function	fabriclib-setup|src/fabriclib/setup/join_federation.py|run	1	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_keys	1	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_pam_on	5	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_read	3	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_record_before	8	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_resolves	4	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_sssd_on	7	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_sudo_rs	6	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_with_sss	2	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_write	9	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|run	10	
 function	fabriclib-setup|src/fabriclib/setup/mint_extra_certs.py|mint_extra_certs	1	
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_install_dirsrv_tls	2	0.5.0 / 2026-10-04
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_targets	1	
@@ -1777,6 +1800,7 @@ function	fabriclib-system|src/fabriclib/system/show_relaxed_settings.py|show_rel
 function	fabriclib-system|src/fabriclib/system/version_info.py|version_info	1	
 function	fabriclib-undo|src/fabriclib/undo/undo_firewall.py|undo_firewall	1	
 function	fabriclib-undo|src/fabriclib/undo/undo_group.py|undo_group	1	
+function	fabriclib-undo|src/fabriclib/undo/undo_member.py|undo_member	1	
 function	fabriclib-undo|src/fabriclib/undo/undo_resolver.py|undo_resolver	1	
 function	fabriclib-undo|src/fabriclib/undo/undo_runtime.py|_strip_hardening	1	
 function	fabriclib-undo|src/fabriclib/undo/undo_runtime.py|undo_runtime	2	
