@@ -213,10 +213,14 @@ check("the three firewall questions, in order: the ports, securing, then the hos
       == ["Ports fabric needs", "Secure this host", "The host's own firewall rules"], seen2)
 check("with everything allowed, setup finishes (fabric is ready)", code == 0 and "fabric is ready" in text,
       (code, text[-1500:]))
-first, signin = text.find("FIRST install fabric's root certificate"), text.find("then sign in")
+names, first, signin = (text.find("FIRST point the computer"), text.find("install fabric's root certificate"),
+                        text.find("then sign in"))
 fingerprint = R("openssl x509 -in /opt/nginx/www/certs/root-ca.crt -noout -fingerprint -sha256 | cut -d= -f2")
-check("setup's last words: FIRST the root certificate from the landing page (plain HTTP, its fingerprint), "
-      "then sign in at the console", 0 <= first < signin and f"http://info.{DOMAIN}/" in text[first:signin]
+check("setup's last words: FIRST fabric's names (its DNS at the host's address, or the hosts-file line naming info, "
+      "fabric and sso), then the root certificate over plain HTTP by address (its fingerprint), then sign in",
+      0 <= names < first < signin and "set its DNS server to" in text[names:first]
+      and f"info.{DOMAIN}" in text[names:first] and f"sso.{DOMAIN}" in text[names:first]
+      and "/certs/" in text[first:signin]
       and fingerprint.strip() and fingerprint.strip() in text[first:signin]
       and f"https://fabric.{DOMAIN}" in text[signin:], text[-1500:])
 saved = yaml.safe_load(R("cat /opt/fabric/config/vars.yaml")) or {}

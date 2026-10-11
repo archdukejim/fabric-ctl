@@ -14,7 +14,7 @@ README.md	77e9590e94812a05998caef2df4c2e0e30451499	2026-10-09
 THIRD_PARTY_NOTICES	ff836ec5208f7ac6140740a07186107c63702d24	2026-10-08	
 config/README.md	6300abd255fbbe5a87bd0d83cd9c9dd1c4b8de1f	2026-10-08	
 config/VERSION	a3df0a6959e154733da89a5d6063742ce6d5b851	2026-10-10	
-config/images.lock.yaml	954aaa8c5071d4e16ee139b4f3687a6cc4e829fe	2026-10-11	
+config/images.lock.yaml	afcca954d1ed6b6db3b96ca76a8049da7de3db5c	2026-10-11	
 config/link-vars-template.yaml	09caaa55680a13015332a468218c99437f67db26	2026-09-30	
 docs/README.md	a83e2585272bfff196d38a7264e6e2661ce40693	2026-10-09	
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	2616cd61465cdc6a60eb06146c56ba2dc3625f8d	2026-10-08	
@@ -54,7 +54,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	1e48d87df
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3b78491b62eb3573132f18fcff7dd889074a4da5	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	2c9698cebc820604d8fdfb728ac7f27dcce26876	2026-10-09	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	476faabbe0c00c58cd1c6928553e6c062ff7c910	2026-10-10	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	1ea1b988328f9c339d2ff4bfcc9cd54bdcd0a1b3	2026-10-10	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	c2d49932ce1c1bb5fe53c0a38a220b459ca9a72a	2026-10-11	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	87f00fdc8f7263357b04fddab082b1bebf4b5fa5	2026-10-10	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	5591364f414bc6fc2a505d9b421026d7ae218d45	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	9db18b7001c1967177f6a2f19b49b773b11aa82a	2026-10-09	
@@ -130,7 +130,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	9df3b3a9713275c6b4abd28d84f22
 docs/volume_2_engineering_decisions/2.1.9-federation.md	6c344024d62480ec9bea70a3245c3baa6511af50	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	e025f2f6fa515f20a1de124437e813991b3793fa	2026-10-11	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	7444029f2abe6e398a89cba3e8e9bef4042c170c	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	3424b43960e50007224d299adac7dd0533c7f0f6	2026-10-08	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -873,7 +873,7 @@ src/fabriclib/setup/configure_firewall.py	fa69f620ff6c0b117f875e82745792395814e8
 src/fabriclib/setup/configure_network.py	779fccd8fa0c0082fcb66a293ffaf3236028c1a3	2026-10-09	
 src/fabriclib/setup/context.py	70d7bb5af948db9621593aedbe6b9017f4f0fac5	2026-10-09	
 src/fabriclib/setup/create_accounts.py	b85910947e65cc42a0a858a526ba6fbbf29ad7e4	2026-10-08	
-src/fabriclib/setup/create_admin.py	3322531b8a484d66bd1e68b1148221d02478dc41	2026-10-09	
+src/fabriclib/setup/create_admin.py	0e9bcdc41d87b4736cc2a0860a932198acc50990	2026-10-11	
 src/fabriclib/setup/deploy_config.py	0017ba6cbb988eb54669670a637a866f4fe6582d	2026-10-09	
 src/fabriclib/setup/detect_network.py	5abb3088d0bb559e9124ad4129d96c1ab05d941d	2026-10-03	
 src/fabriclib/setup/doctor_report.py	2f6ff230fc03c73fdd3a8fcefd7c3f9fb5758b98	2026-10-09	
@@ -887,7 +887,7 @@ src/fabriclib/setup/mint_extra_certs.py	0e23e41edec381ab688dab5b8a06f9e39eb6a39e
 src/fabriclib/setup/mint_service_certs.py	f9ce209aaa32b638885f11023294034957e5316d	2026-10-10	
 src/fabriclib/setup/move_dns_filter.py	0642b63d41b82f5f34f0cc97272bdf08029bce3a	2026-10-10	
 src/fabriclib/setup/preflight.py	b05c4c38902fad1b9e5a27eb34d92d4d141c6c0e	2026-10-10	
-src/fabriclib/setup/print_first_steps.py	64497d3941997bfa41afcef4b21b402b9e9e4873	2026-10-09	
+src/fabriclib/setup/print_first_steps.py	c26c39594ae5502fa6dbb04acb2ed1591d3215b8	2026-10-11	
 src/fabriclib/setup/read_join_invitation.py	c9d57c31ab06a15b431197add546184ac9694285	2026-10-01	
 src/fabriclib/setup/renew_service_certs.py	c04c15d5969cee73de7c246aade36a8ca9bccaee	2026-10-08	
 src/fabriclib/setup/restore_install.py	66a6597b738c8087fd3b5959149daba6597f47f6	2026-09-30	
@@ -1091,7 +1091,7 @@ src/webui/devpreview/fabric_rules.py	890a22429bd9d776640848fe5c279ddb38818fc3	20
 src/webui/devpreview/sample_data.py	cc4ab6e3495a2efdf90287100d7f2d3238bb992c	2026-10-10	
 src/webui/devpreview/sample_radius_guides.py	42aa12bdb9b8f343704829bf0b6993d1d11d6102	2026-10-02	
 src/webui/devpreview/sample_result.py	dbac8d00eeb06164ebb3f38b15bae7a22cc2817a	2026-10-02	
-src/webui/handler.py	a7fa1169c146d15dbf1bad7e2ca41fa7591a9904	2026-10-07	
+src/webui/handler.py	342a2fa6a0f7669455691a821a9619b94caaabca	2026-10-11	
 src/webui/httpio/README.md	0b90aaf52ac4a6c322332e7217cae1d743f198cf	2026-10-03	
 src/webui/httpio/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-02	
 src/webui/httpio/cookie_header.py	f162d5df5a7f54ca6f43b6256a9d971131c366e9	2026-10-02	
@@ -1268,7 +1268,7 @@ templates/vars.yaml.j2	5e66ae30d267a0316a59edea697a1d4c23abfed8	2026-10-10
 templates/webui-app/README.md	cb36fb38d98f1b13362b52a096517eaf6d17b31f	2026-10-09	
 templates/webui-app/apply.html	8b8fd4593d075794cc14f4a38d97874c4cc76c1d	2026-10-02	
 templates/webui-app/audit.html	92d66156a5052b3b375db22a3c8eb3b1f266cf83	2026-10-02	
-templates/webui-app/base.html	57d5614bd4519bc1f7661ceaf9309076a47a77a2	2026-10-09	
+templates/webui-app/base.html	e60847122454a2a2348e4da3ac749b97dc69083a	2026-10-11	
 templates/webui-app/bind9.html	387b9a04fe89e3d75069173e153d54c5f9bba876	2026-10-10	
 templates/webui-app/continue.html	f99964b564967ff6c0425013986c54a555ba6259	2026-10-02	
 templates/webui-app/directory.html	a1df51eea93d38bf2f815d588e4b4eccf731ec5d	2026-10-09	
@@ -1276,9 +1276,9 @@ templates/webui-app/directory_macros.html	77b0a66ddf4bfb3a03d1d4acd10d9e92f04dac
 templates/webui-app/dns_filter.html	c246faf2c31db6f7be2324088dd7359d258ede47	2026-10-10	
 templates/webui-app/error.html	509e885a7989108d54fa8694b1678499cf20e205	2026-10-02	
 templates/webui-app/federation.html	cf9c22d26753a217dfb442c89ac0fa31836b7722	2026-10-08	
-templates/webui-app/freeradius.html	f29922fdafc199be3367d057b5e35ee3089fa02a	2026-10-08	
+templates/webui-app/freeradius.html	e16950440618b58b4df3fc61b7ad67a4ad391ab6	2026-10-11	
 templates/webui-app/job.html	626dda99e1958b7a289827cac344752ecabc9a30	2026-10-09	
-templates/webui-app/kea.html	b9a63d4575de822ad1892d337100ca5bc2e9965f	2026-10-10	
+templates/webui-app/kea.html	64a11ef731b5010740df0a3d848c4e9bbaa3507a	2026-10-11	
 templates/webui-app/machine_result.html	b2f5f9422d86504faeef0b9992c4d33f3edd8df7	2026-10-08	
 templates/webui-app/openbao.html	82a7fc315895e161b0c4feeaa73026596bc91c3f	2026-10-09	
 templates/webui-app/overview.html	f84f00064a2500f3fdde90f1d11f378dad47ee6a	2026-10-09	
@@ -1312,7 +1312,7 @@ tests/freeradius/run.py	67d873222d08c223be8cc151d62d90f1801760e5	2026-10-08
 tests/hardening/README.md	514afa897a841c34383af1ef74949610d5dd333d	2026-10-05	
 tests/hardening/run.sh	b4e3e81266e9980d1dc636d34260a2619c00220c	2026-10-05	
 tests/host/README.md	d91d09e7d17622b432063f1b74256e96f6d940cd	2026-10-09	
-tests/host/installer.py	23dc3e21b7be0e53bfc9bb489b0563f0f3ed40ef	2026-10-09	
+tests/host/installer.py	56ab2d8965c6a4dc3472998943b2892610968a2c	2026-10-11	
 tests/host/reset_user.py	36415b5b1fef5a58eb441687393d6062644b34e7	2026-10-05	
 tests/host/run.sh	3867fb70dc83b0c25097e9db1d45acfdc58741cc	2026-10-09	
 tests/host/upgrade.sh	85dd33fc7ea57cc3f7bcc0627f46e5dbbed5bde5	2026-10-09	
@@ -1347,7 +1347,7 @@ tests/pki/renewal.py	30889317dd2709f3de4aae6a0e1a2c2b2547d03e	2026-10-09
 tests/pki/revocation.py	f36e8ad4b2ca0683d820802ee8a6b9fb7f97dc97	2026-10-08	
 tests/pki/run.py	8a8b78b3bcc320c5019eb4929129ae5d2b711a7c	2026-10-08	
 tests/pki/site_ca.py	6e71ca7798e1aa94ce0f43160716ac57302bec65	2026-10-08	
-tests/render.py	90333b3695c8eef903b06f141dc8b79e80406701	2026-10-10	
+tests/render.py	97c78a072fdd6c8dd151e871582e34b683221561	2026-10-11	
 tests/resolver/README.md	e056b218eb8798e3eb120f5f4a07e34e4c40becd	2026-10-10	
 tests/resolver/console.py	c8d7cf566d1d34bec3fe41fcf6ee1b3e7ca079d4	2026-10-11	
 tests/resolver/groups.py	6d5c3280f7867e74fe946f3f87ccf2a1559a07d2	2026-10-10	
@@ -1379,6 +1379,6 @@ tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	87d5ce6fb52696c959fb5dcae46dc7dcb6462fd8	2026-10-08	
 tests/webui/README.md	10b270a62e634adc3de38374c88a60447e7b68e3	2026-09-30	
-tests/webui/test_container.py	9093c2d60eba28f297096966c4202a4751de63e6	2026-10-10	
+tests/webui/test_container.py	914baa9cf54815aee15bd7af2377d6bfcc7c1e28	2026-10-11	
 tests/webui/test_devserver.py	76fd5203a6e1b34296691354fe80c4485fc8bd9c	2026-10-09	
 tests/zone_test.py	4bed30787288ab1c63799bf296c8bb14de230708	2026-10-10	

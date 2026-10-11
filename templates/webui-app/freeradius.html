@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block body %}
-<h1>FreeRADIUS · 802.1X <span class="opt">optional</span></h1>
+<h1>FreeRADIUS · 802.1X</h1>
 {% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
 {% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
 {% if not r.enabled %}
