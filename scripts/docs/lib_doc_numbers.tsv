@@ -270,6 +270,7 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/update_lists.py	12
 file	fabriclib-dns|src/fabriclib/dns/add_acl_entries.py	1	
 file	fabriclib-dns|src/fabriclib/dns/add_record.py	2	
 file	fabriclib-dns|src/fabriclib/dns/add_tsig_key.py	3	
+file	fabriclib-dns|src/fabriclib/dns/add_zone.py	34	
 file	fabriclib-dns|src/fabriclib/dns/builtin_acls.py	4	
 file	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py	5	
 file	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py	6	
@@ -281,10 +282,12 @@ file	fabriclib-dns|src/fabriclib/dns/merge_dynamic_records.py	33
 file	fabriclib-dns|src/fabriclib/dns/normalize_acl_policies.py	11	
 file	fabriclib-dns|src/fabriclib/dns/normalize_tsig_keys.py	12	
 file	fabriclib-dns|src/fabriclib/dns/ptr_for_ip.py	13	
+file	fabriclib-dns|src/fabriclib/dns/publish_zone_list.py	35	
 file	fabriclib-dns|src/fabriclib/dns/reload_zone.py	14	
 file	fabriclib-dns|src/fabriclib/dns/remove_acl_entries.py	15	
 file	fabriclib-dns|src/fabriclib/dns/remove_record.py	16	
 file	fabriclib-dns|src/fabriclib/dns/remove_tsig_key.py	17	
+file	fabriclib-dns|src/fabriclib/dns/remove_zone.py	36	
 file	fabriclib-dns|src/fabriclib/dns/replace_tsig_secret.py	18	
 file	fabriclib-dns|src/fabriclib/dns/reverse_zones.py	19	
 file	fabriclib-dns|src/fabriclib/dns/rfc2136_settings.py	20	
@@ -655,6 +658,7 @@ file	webui|src/webui/agentclient/add_radius_client.py	2
 file	webui|src/webui/agentclient/add_record.py	3	
 file	webui|src/webui/agentclient/add_reservation.py	4	
 file	webui|src/webui/agentclient/add_subnet.py	5	
+file	webui|src/webui/agentclient/add_zone.py	153	
 file	webui|src/webui/agentclient/apply_changes.py	6	
 file	webui|src/webui/agentclient/audit.py	7	
 file	webui|src/webui/agentclient/ca_summary.py	8	
@@ -700,6 +704,7 @@ file	webui|src/webui/agentclient/remove_client_class.py	33
 file	webui|src/webui/agentclient/remove_radius_client.py	34	
 file	webui|src/webui/agentclient/remove_reservation.py	35	
 file	webui|src/webui/agentclient/remove_subnet.py	36	
+file	webui|src/webui/agentclient/remove_zone.py	154	
 file	webui|src/webui/agentclient/reset_sign_in.py	37	
 file	webui|src/webui/agentclient/reverse_zones.py	38	
 file	webui|src/webui/agentclient/revoke_cert.py	137	
@@ -764,6 +769,7 @@ file	webui|src/webui/routes/stepca_post.py	87
 file	webui|src/webui/routes/tsig_post.py	88	
 file	webui|src/webui/routes/vault_post.py	89	
 file	webui|src/webui/routes/zone_post.py	90	
+file	webui|src/webui/routes/zones_post.py	155	
 file	webui|src/webui/security/cert_subject_rfc2253.py	91	
 file	webui|src/webui/security/parse_dn.py	92	
 file	webui|src/webui/security/token_perms.py	93	
@@ -1241,6 +1247,9 @@ function	fabriclib-dns|src/fabriclib/dns/add_acl_entries.py|_check_entry	1
 function	fabriclib-dns|src/fabriclib/dns/add_acl_entries.py|add_acl_entries	2	
 function	fabriclib-dns|src/fabriclib/dns/add_record.py|add_record	1	
 function	fabriclib-dns|src/fabriclib/dns/add_tsig_key.py|add_tsig_key	1	
+function	fabriclib-dns|src/fabriclib/dns/add_zone.py|_is_public	1	
+function	fabriclib-dns|src/fabriclib/dns/add_zone.py|_taken	2	
+function	fabriclib-dns|src/fabriclib/dns/add_zone.py|add_zone	3	
 function	fabriclib-dns|src/fabriclib/dns/builtin_acls.py|builtin_acls	1	
 function	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py|create_zone_tsig_key	1	
 function	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py|find_changed_zones	1	
@@ -1254,12 +1263,16 @@ function	fabriclib-dns|src/fabriclib/dns/merge_dynamic_records.py|merge_dynamic_
 function	fabriclib-dns|src/fabriclib/dns/normalize_acl_policies.py|normalize_acl_policies	1	
 function	fabriclib-dns|src/fabriclib/dns/normalize_tsig_keys.py|normalize_tsig_keys	1	
 function	fabriclib-dns|src/fabriclib/dns/ptr_for_ip.py|ptr_for_ip	1	
+function	fabriclib-dns|src/fabriclib/dns/publish_zone_list.py|_why	1	
+function	fabriclib-dns|src/fabriclib/dns/publish_zone_list.py|publish_zone_list	2	
 function	fabriclib-dns|src/fabriclib/dns/reload_zone.py|_served_serial	2	
 function	fabriclib-dns|src/fabriclib/dns/reload_zone.py|file_serial	1	
 function	fabriclib-dns|src/fabriclib/dns/reload_zone.py|reload_zone	3	
 function	fabriclib-dns|src/fabriclib/dns/remove_acl_entries.py|remove_acl_entries	1	
 function	fabriclib-dns|src/fabriclib/dns/remove_record.py|remove_record	1	
 function	fabriclib-dns|src/fabriclib/dns/remove_tsig_key.py|remove_tsig_key	1	
+function	fabriclib-dns|src/fabriclib/dns/remove_zone.py|_named_by	1	
+function	fabriclib-dns|src/fabriclib/dns/remove_zone.py|remove_zone	2	
 function	fabriclib-dns|src/fabriclib/dns/replace_tsig_secret.py|replace_tsig_secret	1	
 function	fabriclib-dns|src/fabriclib/dns/reverse_zones.py|reverse_zones	1	
 function	fabriclib-dns|src/fabriclib/dns/rfc2136_settings.py|rfc2136_settings	1	
@@ -1427,6 +1440,9 @@ function	fabriclib-logs|src/fabriclib/logs/run_logs_command.py|run_logs_command	
 function	fabriclib-menu|src/fabriclib/menu/apply_and_report.py|apply_and_report	1	
 function	fabriclib-menu|src/fabriclib/menu/edit_category.py|edit_category	1	
 function	fabriclib-menu|src/fabriclib/menu/edit_complex_variable.py|edit_complex_variable	1	
+function	fabriclib-menu|src/fabriclib/menu/edit_dns.py|_add	3	
+function	fabriclib-menu|src/fabriclib/menu/edit_dns.py|_count	2	
+function	fabriclib-menu|src/fabriclib/menu/edit_dns.py|_remove	4	
 function	fabriclib-menu|src/fabriclib/menu/edit_dns.py|edit_dns	1	
 function	fabriclib-menu|src/fabriclib/menu/edit_dns_zone.py|_apply	2	
 function	fabriclib-menu|src/fabriclib/menu/edit_dns_zone.py|_prompt_record	1	
@@ -1830,6 +1846,7 @@ function	webui|src/webui/agentclient/add_radius_client.py|add_radius_client	1
 function	webui|src/webui/agentclient/add_record.py|add_record	1	
 function	webui|src/webui/agentclient/add_reservation.py|add_reservation	1	
 function	webui|src/webui/agentclient/add_subnet.py|add_subnet	1	
+function	webui|src/webui/agentclient/add_zone.py|add_zone	1	
 function	webui|src/webui/agentclient/apply_changes.py|apply_changes	1	
 function	webui|src/webui/agentclient/audit.py|audit	1	
 function	webui|src/webui/agentclient/ca_summary.py|ca_summary	1	
@@ -1879,6 +1896,7 @@ function	webui|src/webui/agentclient/remove_client_class.py|remove_client_class	
 function	webui|src/webui/agentclient/remove_radius_client.py|remove_radius_client	1	
 function	webui|src/webui/agentclient/remove_reservation.py|remove_reservation	1	
 function	webui|src/webui/agentclient/remove_subnet.py|remove_subnet	1	
+function	webui|src/webui/agentclient/remove_zone.py|remove_zone	1	
 function	webui|src/webui/agentclient/reset_sign_in.py|reset_sign_in	1	
 function	webui|src/webui/agentclient/reverse_zones.py|reverse_zones	1	
 function	webui|src/webui/agentclient/revoke_cert.py|revoke_cert	1	
@@ -1917,6 +1935,7 @@ function	webui|src/webui/devpreview/dev_post_dhcp.py|_where	1
 function	webui|src/webui/devpreview/dev_post_dhcp.py|dev_post_dhcp	2	
 function	webui|src/webui/devpreview/dev_post_directory.py|_person_change	2	
 function	webui|src/webui/devpreview/dev_post_directory.py|dev_post_directory	1	
+function	webui|src/webui/devpreview/dev_post_dns.py|_zones	2	
 function	webui|src/webui/devpreview/dev_post_dns.py|dev_post_dns	1	
 function	webui|src/webui/devpreview/dev_post_dns_filter.py|_target	2	
 function	webui|src/webui/devpreview/dev_post_dns_filter.py|dev_post_dns_filter	1	
@@ -1986,6 +2005,7 @@ function	webui|src/webui/routes/stepca_post.py|stepca_post	1
 function	webui|src/webui/routes/tsig_post.py|tsig_post	1	
 function	webui|src/webui/routes/vault_post.py|vault_post	1	
 function	webui|src/webui/routes/zone_post.py|zone_post	1	
+function	webui|src/webui/routes/zones_post.py|zones_post	1	
 function	webui|src/webui/security/cert_subject_rfc2253.py|cert_subject_rfc2253	1	
 function	webui|src/webui/security/parse_dn.py|parse_dn	1	
 function	webui|src/webui/security/token_perms.py|token_perms	1	

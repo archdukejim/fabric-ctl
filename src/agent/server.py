@@ -20,6 +20,7 @@ acting user in the audit log is the token's user, never a value from the
 request. Root peers (the host itself) are not asked for a token.
 
   GET  /v1/version | /v1/services | /v1/zones | /v1/zones/<key> | /v1/audit
+  POST /v1/zones {actor, name, hide_public} | /v1/zones/<key>/delete {actor, confirm}
   POST /v1/zones/<key>/records          {actor, type, name, ip|target|...}
   POST /v1/zones/<key>/records/delete   {actor, type, index, name}
   POST /v1/apply                        {actor}

@@ -93,6 +93,32 @@ try:
     req("POST", "/bind9/zone/dynamic_zone_var/delete", {"type": "A", "index": idx.group(1) if idx else "-1", "name": "preview"})
     st, _, _, page = req("GET", "/bind9?zone=dynamic_zone_var")
     check("deleting a record works (in memory)", "192.168.1.99" not in page)
+    # zones (manual 1.4.1.3): the New zone form everywhere, Remove zone on every zone but the site's own
+    check("BIND9 tab: New zone form with 'Hide the public name'; no Remove on the site's own zone",
+          'action="/bind9/zones/new"' in page and 'name="hide_public"' in page
+          and "/bind9/zones/dynamic_zone_var/remove" not in page)
+    page = req("GET", "/bind9?zone=iot.home.arpa")[3]
+    check("BIND9 tab: Remove zone on another zone, its record count shown, the name asked for again",
+          'action="/bind9/zones/iot.home.arpa/remove"' in page and "3 record(s)" in page and 'name="confirm"' in page)
+    st, loc, _, _ = req("POST", "/bind9/zones/new", {"csrf": "dev", "name": "Lab.LAN"})
+    page = req("GET", loc or "/bind9")[3]
+    check("New zone: added (normalised) and opened", st == 303 and "zone=lab.lan" in (loc or "")
+          and "Zone lab.lan added" in page and "lab.lan" in page, (st, loc))
+    for form, why in (({"name": "nodots"}, "two labels"), ({"name": "lab.lan"}, "already a zone"),
+                      ({"name": "shop.example.com"}, "Hide the public name")):
+        st, loc, _, _ = req("POST", "/bind9/zones/new", {"csrf": "dev", **form})
+        check(f"New zone refused ({why}), saying why", st == 303 and "err=" in (loc or "")
+              and why in urllib.parse.unquote(loc or ""), loc)
+    st, loc, _, _ = req("POST", "/bind9/zones/new", {"csrf": "dev", "name": "shop.example.com", "hide_public": "on"})
+    check("New zone: a public name with the tick is added", st == 303 and "msg=" in (loc or ""), loc)
+    st, loc, _, _ = req("POST", "/bind9/zones/lab.lan/remove", {"csrf": "dev", "confirm": "lab.la"})
+    check("Remove zone refused when the name is typed wrong", st == 303 and "err=" in (loc or ""), loc)
+    st, loc, _, _ = req("POST", "/bind9/zones/dynamic_zone_var/remove", {"csrf": "dev", "confirm": "home.arpa"})
+    check("Remove zone refused for the site's own zone", st == 303 and "cannot be removed" in
+          urllib.parse.unquote(loc or ""), loc)
+    st, loc, _, _ = req("POST", "/bind9/zones/lab.lan/remove", {"csrf": "dev", "confirm": "lab.lan"})
+    check("Remove zone: removed once its name is typed again", st == 303 and "msg=" in (loc or "")
+          and "zone=lab.lan" not in req("GET", "/bind9")[3], loc)
     st, _, _, page = req("POST", "/apply", {"csrf": "dev"})
     check("apply is a no-op that says so", st == 200 and "nothing was rendered or reloaded" in page)
     st, _, _, page = req("GET", "/audit")

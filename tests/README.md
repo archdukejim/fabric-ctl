@@ -13,6 +13,7 @@ suite needs no Docker or root and also runs alone: `python3 tests/docs/run.py`.
 | `render` | `render.py` | Every template renders from `vars.yaml.j2`; security properties of the rendered configs; every module imports |
 | `nginx` | `nginx_check.sh` | The rendered nginx configuration passes `nginx -t` in the pinned image |
 | `zone` | `zone_test.py` | `deploy.py`'s zone deployment with `rndc` stubbed: unchanged records ignored, changed zones found, fresh mtime, BIND's late write detected and the swap repeated, stale journal removed |
+| `zones` | [zones/](zones/) | Zones added and removed in seconds (1.4.1.3) with real BIND and resolver containers: through fabric-agent's routes and the menu, every refused name, the rollback when a reload fails, removal refused while a TSIG key names the zone |
 | `webui` | [webui/](webui/) | The web UI container against a mock Keycloak and the real fabric-agent; the dev preview |
 | `pki` | [pki/](pki/) | Manual PKI against a real Step-CA |
 | `resolver` | [resolver/](resolver/) | The DNS filter's BIND resolver (real containers, run as its compose file says): the list converter, refused settings and clients, fabric's zone never filtered, lists and the owner's rules, logs, reloads, the list job; the query log and statistics in Postgres |
