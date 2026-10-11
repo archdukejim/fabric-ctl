@@ -124,7 +124,7 @@ docs/volume_2_engineering_decisions/2.1.2-architecture.md	c1fb875bdd244a83580499
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	82bfa9a0f44a376c8a1b49c2b5b49af11e86c60c	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.4-dns.md	70c64d958ea51b05611de7a8853bf6462cbdb8fd	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	e51cd82273c960708e92258e4074cbef12cfebe0	2026-10-10	
-docs/volume_2_engineering_decisions/2.1.6-identity.md	5c3749d43240468b50a8f8de469d2d074e35a7fb	2026-10-11	
+docs/volume_2_engineering_decisions/2.1.6-identity.md	f5561b91efe7f26c1b8091e2ba4730b308e7b41a	2026-10-11	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	77e976fa8af20d0d8527340ebd2d4e887669b539	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.8-webui.md	9df3b3a9713275c6b4abd28d84f2286bea353809	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.9-federation.md	6c344024d62480ec9bea70a3245c3baa6511af50	2026-10-08	
