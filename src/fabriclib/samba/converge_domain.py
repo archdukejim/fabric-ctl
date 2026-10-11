@@ -18,7 +18,7 @@ def converge_domain(v, federation_file, secrets, container="samba"):
     Inputs:  v — rendered vars: site_name, ad_password_policy, deploy_base_dir (the root CA under
              stepca/data/certs), lan_cidr and the DHCP subnets (site_networks), ldap_groups, webui_admin_group,
              service_users (FreeRADIUS's gid), install_freeradius, radius_people and hostname_radius (the Windows
-             baseline's 802.1X profile), the id block (posix_id_block from the users OU's uid_range start), what
+             baseline's 802.1X profile), the id block (id_range), what
              sso_spns reads (Keycloak's Kerberos sign-in account);
              federation_file — the federation registry (whether this is the root site); secrets — fabric's secrets
              (the service accounts' passwords: ad_agent_password, ad_keycloak_password, ad_radius_password);

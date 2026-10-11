@@ -56,6 +56,7 @@ file	fabricctl-jinja|src/containers/samba/find_machine.py	53
 file	fabricctl-jinja|src/containers/samba/find_person.py	68	
 file	fabricctl-jinja|src/containers/samba/get_person.py	31	
 file	fabricctl-jinja|src/containers/samba/gpo_tool.py	51	
+file	fabricctl-jinja|src/containers/samba/id_layout.py	73	
 file	fabricctl-jinja|src/containers/samba/link_device_cert.py	34	
 file	fabricctl-jinja|src/containers/samba/list_machines.py	54	
 file	fabricctl-jinja|src/containers/samba/list_people.py	32	
@@ -889,6 +890,8 @@ function	fabricctl-jinja|src/containers/samba/admx_store.py|_value	5
 function	fabricctl-jinja|src/containers/samba/admx_store.py|read_policies	6	
 function	fabricctl-jinja|src/containers/samba/admx_store.py|save_templates	2	
 function	fabricctl-jinja|src/containers/samba/admx_store.py|store_dir	1	
+function	fabricctl-jinja|src/containers/samba/alloc_id.py|_in_use	2	
+function	fabricctl-jinja|src/containers/samba/alloc_id.py|_take	3	
 function	fabricctl-jinja|src/containers/samba/alloc_id.py|alloc_id	1	
 function	fabricctl-jinja|src/containers/samba/converge.py|_sid	1	0.5.0 / 2026-10-05
 function	fabricctl-jinja|src/containers/samba/converge.py|converge	2	
@@ -928,6 +931,7 @@ function	fabricctl-jinja|src/containers/samba/get_person.py|get_person	1
 function	fabricctl-jinja|src/containers/samba/gpo_tool.py|_policy	1	
 function	fabricctl-jinja|src/containers/samba/gpo_tool.py|_without	2	
 function	fabricctl-jinja|src/containers/samba/gpo_tool.py|run	3	
+function	fabricctl-jinja|src/containers/samba/id_layout.py|laid_out	1	
 function	fabricctl-jinja|src/containers/samba/link_device_cert.py|link_device_cert	1	
 function	fabricctl-jinja|src/containers/samba/list_machines.py|_when	1	
 function	fabricctl-jinja|src/containers/samba/list_machines.py|list_machines	2	

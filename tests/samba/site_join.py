@@ -30,6 +30,7 @@ from fabriclib.samba.domain_dc_names import domain_dc_names  # noqa: E402
 from fabriclib.samba.domain_sites import domain_sites  # noqa: E402
 from fabriclib.samba.deploy_samba import deploy_samba  # noqa: E402
 from fabriclib.samba.finish_join import finish_join  # noqa: E402
+from fabriclib.samba.id_range import id_range  # noqa: E402
 from fabriclib.samba.prepare_site import prepare_site  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
@@ -193,14 +194,16 @@ check("a name the domain does not have is free (the join goes ahead)", "dc-fresh
 if "lab" in joined:
     container, v, secrets = joined["lab"]
     info = run_op(v, secrets, "site_info", container=container)
-    check("lab: its agent signs in at its own DC and reads its site's id block (the root's second block)",
-          info["id_range"] == registry["sites"]["lab"]["id_range"], info)
+    check("lab: its agent signs in at its own DC and reads its site's id block: site 2's, 2000000-2999999, with the "
+          "same ranges as the root's (2.1.6.46)", info["id_range"] == registry["sites"]["lab"]["id_range"]
+          == "2000000-2999999" and info["id_marks"].get("person", 0) >= 2100001 and
+          2040101 <= info["id_marks"].get("builtin_group", 0) <= 2049999, info)
     made = run_op(v, secrets, "create_person", {"uid": "labby", "first": "Lab", "last": "By", "email": "labby@lab.test",
                                                 "password": "Ot-" + random_password(20), "gid": 5000,
                                                 "home_base": "/home", "shell": "/bin/bash"}, container)
     first, last = (int(x) for x in registry["sites"]["lab"]["id_range"].split("-"))
-    check("lab: a person made at the site takes a uid from the site's own block", first <= made["uidNumber"] <= last,
-          made)
+    check("lab: a person made at the site takes a uid from the people range of the site's own block (2100001-2899999)",
+          first <= made["uidNumber"] <= last and 2100001 <= made["uidNumber"] <= 2899999, made)
     # AD's KCC builds the return path from the site link within its 5-minute round
     check("lab -> root: the person reaches the root's DC (AD replication over the site link)",
           until(lambda: "sAMAccountName: labby" in search(ROOT, "(sAMAccountName=labby)", ["sAMAccountName"]), 900))
@@ -216,7 +219,7 @@ if "lab2" in joined:
     check("lab2: its OU sits in lab's, which sits in the root's (as the root sees it, once replicated)",
           until(lambda: f"OU=lab2,OU=lab,OU=lan,OU=sites,{BASE}" in search(
               ROOT, "(&(objectClass=fabricSiteInfo)(ou=lab2))", ["dn"]), 900))
-    others = [registry["sites"][s]["id_range"] for s in ("lab", "edge")] + [RV.get("posix_id_range") or "5001-105000"]
+    others = [registry["sites"][s]["id_range"] for s in ("lab", "edge")] + [id_range(RV)]
     mine = registry["sites"]["lab2"]["id_range"]
     check("lab2: its id block, handed out by lab with no registry of the others, comes after every block in the domain",
           int(mine.split("-")[0]) > max(int(b.split("-")[1]) for b in others), (mine, others))

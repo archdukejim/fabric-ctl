@@ -166,7 +166,9 @@ def _prepare_domain(v, site, dc_type, networks, registry, dc_name=""):
              request's; registry — load_registry()'s dict (the blocks handed out so far); dc_name — the joining
              site's DC's own name (2.1.6.45; "" from a fabric before 0.7.0: not checked).
     Returns: {"ad_domain", "dc_type", "dc_host", "dc_address", "id_range", "join_user", "join_password",
-             "accounts" {agent, keycloak, radius}, "site_ou" (its OU in this site's, 2.1.6.20), "org_ou"}; for a site
+             "accounts" {agent, keycloak, radius}, "site_ou" (its OU in this site's, 2.1.6.20), "org_ou", "groups"
+             (the organisation's groups with their gids, ldap_groups: the site's people get the same users gid)};
+             for a site
              already in the domain (moving here) {"ad_domain", "dc_type", "id_range" (its own), "moved": True,
              "site_ou", "org_ou"} (its OU moved, no join account, its service accounts keep their passwords); {}
              without a DC type.
@@ -199,5 +201,5 @@ def _prepare_domain(v, site, dc_type, networks, registry, dc_name=""):
     site_ou = v.get("ad_site_ou") or f"OU={v['site_name']},OU=sites"     # this site's: the new one nests in it
     return {"ad_domain": v["ad_domain"], "dc_type": dc_type, "dc_host": v["hostname_dc"], "dc_address": v["host_ip"],
             "id_range": block, "join_user": f"fabric-join-{site}", "join_password": join_password,
-            "accounts": accounts, "site_ou": f"OU={site},{site_ou}",
+            "accounts": accounts, "site_ou": f"OU={site},{site_ou}", "groups": v.get("ldap_groups") or [],
             "org_ou": v.get("ad_org_ou") or f"OU=organisation,{site_ou}"}
