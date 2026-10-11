@@ -108,6 +108,16 @@ if dates:
 check("…for 47 days (1128 h, within a minute of Step-CA's backdating), naming the CRL (fabric's leaf template)",
       hours is not None and 1128 <= hours <= 1129 and f"http://info.{DOMAIN}/certs/crl/intermediate.crl" in text,
       (hours, text[-600:]))
+# a service certificate, issued as setup issues it (pki/mint_cert: the JWK provisioner `admin`), names the CRL too
+svc = sh(["docker", "exec", "acme-ca", "step", "ca", "certificate", f"svc.{DOMAIN}", "/tmp/svc.crt", "/tmp/svc.key",
+          "--ca-url", "https://localhost:9000", "--root", "/home/step/certs/root_ca.crt", "--provisioner", "admin",
+          "--provisioner-password-file", "/home/step/secrets/password", "--force", "--kty", "RSA", "--size", "2048",
+          "--san", f"svc.{DOMAIN}", "--not-after", "24h"], ok=False)
+svc_text = subprocess.run(["openssl", "x509", "-noout", "-text"], capture_output=True, text=True,
+                          input=sh(["docker", "exec", "acme-ca", "cat", "/tmp/svc.crt"], ok=False).stdout).stdout
+check("a service certificate (the JWK provisioner, as setup mints it) names the CRL, for its own name",
+      svc.returncode == 0 and f"http://info.{DOMAIN}/certs/crl/intermediate.crl" in svc_text
+      and f"DNS:svc.{DOMAIN}" in svc_text and "TLS Web Server Authentication" in svc_text, (svc.stderr[-300:], svc_text[-600:]))
 res = get("nas.example.org")
 check("negative: a name outside the domain is refused by fabric's ACME template (though its challenge passes)",
       res.returncode != 0, res.stderr[-400:])
