@@ -18,21 +18,24 @@ Everything your computer needs to reach https://{mgr}:
 
   root-ca.crt / root-ca.cer     fabric root CA (Linux, macOS, iOS, Android / Windows)
 {cert_line}
-1. Copy this folder to your computer, e.g.
+1. First, your computer must find fabric's names: set its DNS server to {ip}
+   (its network settings, or your router's DHCP), or add this line to its
+   hosts file (/etc/hosts; Windows: C:\\Windows\\System32\\drivers\\etc\\hosts):
+     {ip} {names}
+2. Copy this folder to your computer, e.g.
      scp -r {login}@{host}:{folder} .
-2. Trust the root CA: Windows: double-click root-ca.cer and put it in
+   (or download the root CA from http://{ip}/certs/, plain HTTP, no names needed)
+3. Trust the root CA: Windows: double-click root-ca.cer and put it in
    "Trusted Root Certification Authorities"; macOS/Linux: root-ca.crt. Every
    system, format and installer: https://{certs}
-{cert_step}{n}. Your computer must resolve {mgr} (use fabric as its DNS server,
-   {ip}, or add a hosts entry).
-{n2}. Open https://{mgr}{choose} and sign in as '{user}' with the password
+{cert_step}{n}. Open https://{mgr}{choose} and sign in as '{user}' with the password
    you chose in setup{factor}.{kerberos}
 {p12_delete}More admins: add them to the '{group}' group.{more}
 Raise sign-in security (a second factor, the client certificate) in the web
 console's Security page.
 """
 CERT_LINE = "  {user}.p12                    your client certificate (password: p12-password.txt)\n"
-CERT_STEP = """3. Import {user}.p12 into your browser (Firefox: Settings > Certificates >
+CERT_STEP = """4. Import {user}.p12 into your browser (Firefox: Settings > Certificates >
    Your Certificates > Import; Chrome/Edge/Windows: double-click it).
 """
 FACTOR = {"none": "", "totp": "; Keycloak then asks you to set up an authenticator app (TOTP)",
@@ -61,8 +64,9 @@ def _write(path, text, owner):
 def _readme(v, user, login, folder):
     """Purpose: the kit's README.txt for the web console as it is set up: with the client-certificate steps only while
              the console requires one (webui_client_cert), and the second factor Keycloak will ask for.
-    Inputs:  v — vars: hostname_mgr, hostname_certs, host_ip, webui_admin_group, webui_client_cert, the sign-in
-             settings (admin_level); user — the admin; login — the account the kit is for; folder — the kit's path.
+    Inputs:  v — vars: hostname_mgr, hostname_certs, host_ip, the other names (for the hosts-file line),
+             webui_admin_group, webui_client_cert, the sign-in settings (admin_level); user — the admin; login — the
+             account the kit is for; folder — the kit's path.
     Returns: str.
     Fails:   ValidationError from admin_level for an unknown level; KeyError for a missing var.
     Feeds:   run; tests/render.py."""
@@ -70,8 +74,11 @@ def _readme(v, user, login, folder):
     return README.format(mgr=v["hostname_mgr"], certs=v["hostname_certs"], user=user, login=login, host=v["host_ip"],
                          ip=v["host_ip"], folder=folder, group=v.get("webui_admin_group", "admins"),
                          cert_line=CERT_LINE.format(user=user) if cert else "",
-                         cert_step=CERT_STEP.format(user=user) if cert else "", n=4 if cert else 3,
-                         n2=5 if cert else 4, choose=f', choose the "{user} (fabric)" certificate' if cert else "",
+                         cert_step=CERT_STEP.format(user=user) if cert else "", n=5 if cert else 4,
+                         names=" ".join(v[k] for k in ("hostname_landing", "hostname_mgr", "hostname_keycloak",
+                                                       "hostname_certs", "hostname_stepca", "hostname_openbao")
+                                        if v.get(k)),
+                         choose=f', choose the "{user} (fabric)" certificate' if cert else "",
                          factor=FACTOR[admin_level(v)], kerberos=KERBEROS if v.get("signin_kerberos") else "",
                          p12_delete="Delete p12-password.txt once you are in.\n" if cert else "",
                          more=" Their client certificate: sudo fabricctl client-cert <user>." if cert else "")

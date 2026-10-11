@@ -7,7 +7,8 @@ from fabriclib.common.sudo_owner import sudo_owner
 
 def print_first_steps(ctx):
     """Purpose: what the admin does next, in order, as setup's last words (manual 3.3.2): first trust fabric's root
-             CA from the landing page over plain HTTP, checking its fingerprint, then (when the console asks for one)
+             names first (fabric's DNS, or a hosts-file line printed here), then the CA from http://<host_ip>/certs/
+             over plain HTTP, checking its fingerprint, then (when the console asks for one)
              import the client certificate, then sign in. The order matters: a browser that does not trust the CA
              cannot reach the console safely (the owner nearly signed in first, 2026-10-09).
     Inputs:  ctx — SetupContext: vars install_webui, hostname_landing, hostname_mgr, webui_admin_user,
@@ -25,9 +26,16 @@ def print_first_steps(ctx):
             sha256 = json.load(open(ctx.path("nginx", "www", "certs", "ca-certs.json")))["root-ca"]["sha256"]
         except (OSError, ValueError, KeyError):
             sha256 = ""
-        steps = [f"{BOLD}FIRST install fabric's root certificate{NC} on the computer you will manage fabric from:\n"
-                 f"       open {BOLD}http://{v.get('hostname_landing')}/{NC} (plain HTTP works before the computer "
-                 "trusts fabric),\n       download the root certificate"
+        ip = v.get("host_ip")
+        names = " ".join(v.get(k) for k in ("hostname_landing", "hostname_mgr", "hostname_keycloak", "hostname_certs",
+                                             "hostname_stepca", "hostname_openbao") if v.get(k))
+        # the computer must find fabric's names before anything else: fabric's DNS, or its hosts file for a quick try
+        steps = [f"{BOLD}FIRST point the computer you will manage fabric from at fabric for names{NC}: set its DNS "
+                 f"server to {BOLD}{ip}{NC}\n       (its network settings, or your router's DHCP), or, to try it on "
+                 f"one computer, add this line to its hosts file\n       (/etc/hosts; Windows: "
+                 f"C:\\Windows\\System32\\drivers\\etc\\hosts):\n         {ip} {names}",
+                 f"{BOLD}install fabric's root certificate{NC} on it: open {BOLD}http://{ip}/certs/{NC} (plain HTTP, "
+                 f"no names needed; or http://{v.get('hostname_landing')}/),\n       download the root certificate"
                  + (f", check its SHA-256 fingerprint is\n         {sha256}\n       and" if sha256 else " and")
                  + f" install it as a trusted root (the same file: {kit}/root-ca.crt, .cer for Windows)"]
         if v.get("webui_client_cert"):
