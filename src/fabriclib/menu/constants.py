@@ -1,6 +1,8 @@
 """What the vars editor (`fabricctl --interactive`) treats specially."""
 
-# fixed once installed: never edited or deleted from the menu (ad_domain: 2.1.6.11; hostname: the DC's name, 2.1.2.16)
+# fixed once installed: never edited or deleted from the menu (ad_domain: 2.1.6.11; dc_name: an AD DC cannot be
+# renamed, 2.1.6.45; friendly_name: the CA's name is made from it). Setup marks its questions for these "⚠ Permanent"
+# (setup/permanent_mark, 2.1.2.20): one list for both.
 IMMUTABLE_KEYS = {
     "ad_domain", "ca_name", "cert_country", "cert_province", "cert_city", "cert_org", "cert_ou",
     "cert_root_digest", "cert_root_key_type", "cert_root_key_param", "cert_root_ca_days",
@@ -8,11 +10,12 @@ IMMUTABLE_KEYS = {
     "cert_intermediate_key_param", "cert_service_days", "cert_acme_lifetime_hours",
     "stepca_port", "stepca_cert_allow_subordinate_ca", "stepca_cert_max_lifetime_hours",
     "byoc", "ca_crt_path", "ica_crt_path", "ica_key_path", "extra_certs",
-    "deploy_base_dir", "domain", "org_domain", "site_name", "hostname",
+    "deploy_base_dir", "domain", "org_domain", "site_name", "dc_name", "friendly_name",
 }
 
-# changing these can cut the host off its network: the menu asks before applying
-WARNED_KEYS = {"host_ip", "lan_cidr", "lan_gateway", "fabric_subnet"}
+# changing these can cut the host off its network, or rename it (hostname: its certificates and pages, never the DC,
+# 2.1.6.45): the menu asks before applying
+WARNED_KEYS = {"host_ip", "lan_cidr", "lan_gateway", "fabric_subnet", "hostname"}
 
 # the "Docker & Services" screen
 SERVICE_KEYS = [

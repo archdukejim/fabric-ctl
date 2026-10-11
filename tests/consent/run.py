@@ -364,5 +364,77 @@ check("DHCP off by default, and named a preview until 0.8.0, off and on",
 check("negative: no other part of the plan is called a preview (the DNS filter is finished)",
       not any("preview" in line for line in off + on if "DHCP" not in line), off + on)
 
+print("--- setup's permanent questions marked ⚠ Permanent, the others not (2.1.2.20, manual 1.3.2.2)")
+import builtins  # noqa: E402
+import importlib  # noqa: E402
+
+import fabriclib.common.console as m_console  # noqa: E402
+import fabriclib.setup.choose_plan as m_plan  # noqa: E402
+import fabriclib.setup.collect_vars as m_collect  # noqa: E402
+import fabriclib.setup.permanent_mark as m_mark  # noqa: E402
+from fabriclib.menu.constants import IMMUTABLE_KEYS  # noqa: E402
+from fabriclib.setup.ask_ad_domain import ask_ad_domain  # noqa: E402
+from fabriclib.setup.ask_dc_name import ask_dc_name  # noqa: E402
+
+
+def prompts(fn, answers):
+    """The prompts a question showed, answered with these answers (nothing else is printed)."""
+    feed, real, seen = iter(answers), builtins.input, []
+    builtins.input = lambda prompt="": (seen.append(prompt), next(feed))[1]
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            fn()
+    finally:
+        builtins.input = real
+    return seen
+
+
+q = types.SimpleNamespace(vars={"domain": "lan.test", "hostname": "pi", "cert_root_ca_days": 3650},
+                          non_interactive=False, path=lambda *p: os.path.join(fresh, "no-such", *p))
+asked = {key: prompts(lambda key=key: m_collect._ask(key, default), [default])[0]
+         for key, default in (("domain", "lan.test"), ("friendly_name", "Home Network"), ("hostname", "pi"),
+                              ("host_ip", "10.0.0.5"), ("lan_cidr", "10.0.0.0/24"), ("lan_gateway", "10.0.0.1"),
+                              ("webui_admin_user", "fabric-admin"))}
+asked["ad_domain"] = prompts(lambda: ask_ad_domain(q), [""])[0]
+asked["dc_name"] = prompts(lambda: ask_dc_name(q), [""])[0]
+asked["cert_root_ca_days"] = prompts(lambda: m_plan._ask_ca_lifetime(q), [""])[0]
+permanent = ("domain", "friendly_name", "ad_domain", "dc_name", "cert_root_ca_days")
+check("each permanent question carries ⚠ Permanent after its label: the DNS domain, the organisation's name, the AD "
+      "domain, the DC's name, the CA root's lifetime (Advanced)",
+      all("⚠ Permanent" in asked[k] for k in permanent) and set(permanent) <= IMMUTABLE_KEYS, asked)
+check("negative: none on a question that can change later: the host's name, its address, the subnet, the gateway, the "
+      "first admin's name", not any("Permanent" in asked[k] for k in asked if k not in permanent), asked)
+check("without a terminal the label is the same words, uncoloured",
+      all("\033" not in asked[k] for k in permanent), [asked[k] for k in permanent])
+
+
+class _Tty(io.StringIO):
+    def isatty(self):
+        return True
+
+
+def mark_on_tty(no_color):
+    """permanent_mark as a terminal shows it, with or without NO_COLOR (the console's colours are read at import)."""
+    real_out, env = sys.stdout, {k: os.environ.get(k) for k in ("NO_COLOR", "TERM")}
+    sys.stdout = _Tty()
+    os.environ["TERM"] = "xterm"
+    os.environ.pop("NO_COLOR", None)
+    if no_color:
+        os.environ["NO_COLOR"] = "1"
+    try:
+        importlib.reload(m_console)
+        return importlib.reload(m_mark).permanent_mark("dc_name")
+    finally:
+        sys.stdout = real_out
+        for k, val in env.items():
+            os.environ.pop(k, None) if val is None else os.environ.__setitem__(k, val)
+        importlib.reload(m_console)
+        importlib.reload(m_mark)
+
+
+check("on a terminal it is yellow; with NO_COLOR the same words uncoloured",
+      mark_on_tty(False) == " \033[93m⚠ Permanent\033[0m" and mark_on_tty(True) == " ⚠ Permanent",
+      (mark_on_tty(False), mark_on_tty(True)))
+
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

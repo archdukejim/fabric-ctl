@@ -1,6 +1,7 @@
 import os
 
 from fabriclib.common.console import BOLD, NC, YELLOW, heading
+from fabriclib.setup.permanent_mark import permanent_mark
 
 # (settings key, default, what enabling it does, what relaxing it costs)
 PLAN = [
@@ -46,7 +47,8 @@ def _ask_ca_lifetime(ctx):
     """Purpose: Advanced plan question: the root CA's lifetime in years (manual 2.1.5.6); asked only before the CA
              exists. The intermediate lives a year less.
     Inputs:  ctx — SetupContext; reads ctx.vars cert_root_ca_days (default 3650). Interactive.
-    Returns: None; ctx.vars["cert_root_ca_days"] set (whole years, at least 1, as days). A value that is not a whole
+    Returns: None; ctx.vars["cert_root_ca_days"] set (whole years, at least 1, as days); the question is marked
+             "⚠ Permanent" (2.1.2.20). A value that is not a whole
              number of years from 1 to 30 is refused with the reason and asked again.
     Fails:   EOFError from input().
     Feeds:   choose_plan (Advanced)."""
@@ -55,7 +57,7 @@ def _ask_ca_lifetime(ctx):
     years = round(int(ctx.vars.get("cert_root_ca_days") or 3650) / 365)
     while True:
         answer = input(f"\n  The internal CA's root is valid for how many years (its intermediate a year less; fixed "
-                       f"once made)? [{years}] ").strip() or str(years)
+                       f"once made)?{permanent_mark('cert_root_ca_days')} [{years}] ").strip() or str(years)
         if answer.isdigit() and 1 <= int(answer) <= 30:
             ctx.vars["cert_root_ca_days"] = int(answer) * 365
             return

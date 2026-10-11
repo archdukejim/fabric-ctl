@@ -11,6 +11,7 @@ installs what changed and restarts or reloads what is affected.
 | `generate_missing_secrets.py` | fabric's own secrets that do not exist yet, created once |
 | `merge_tsig_keys.py` | TSIG keys and ACL policies from the vars, checked; each key's secret kept or generated |
 | `merge_radius_clients.py` | 802.1X clients and groups from the vars, checked; each client's shared secret kept, generated or removed |
+| `keep_old_install.py` | What an install from before 0.7.0 keeps, saved once: its DC's name, the host's (2.1.6.45) |
 | `render_vars.py` | `vars.yaml.j2` rendered over the admin's vars and the secrets (the full settings); the RAM minimum |
 | `archive_vars.py` | Keep the deployed `vars.yaml` in `archive/` before it is replaced |
 | `check_fixed_identity.py` | `site_name`, `org_domain` and `ldap_base_dn` valid and unchanged since install (the markers in `config/`) |

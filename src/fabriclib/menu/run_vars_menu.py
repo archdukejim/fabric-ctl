@@ -24,8 +24,9 @@ def run_vars_menu():
     Returns: never normally: sys.exit(0) on q/quit/exit or after an apply.
     Fails:   sys.exit with the apply's code when it fails; OSError saving; EOFError from input().
     Feeds:   interactive.py --interactive (cli.py --interactive).
-    Notes:   every change is saved at once (under the vars lock) and audited; IMMUTABLE_KEYS cannot be deleted or
-             edited; changed WARNED_KEYS ask for "yes" before an apply (compared with the vars last deployed)."""
+    Notes:   every change is saved at once (under the vars lock) and audited; IMMUTABLE_KEYS cannot be deleted,
+             edited or added over; changed WARNED_KEYS ask for "yes" before an apply (compared with the vars last
+             deployed)."""
     data = load_vars(VARS_FILE)
     deployed = dict(data)
     while True:
@@ -57,7 +58,10 @@ def run_vars_menu():
             sys.exit(0)
         if choice == "a":
             key = input("New variable key: ").strip()
-            if key:
+            if key in IMMUTABLE_KEYS and key in data:      # adding over one would change it (dc_name: 2.1.6.45)
+                print(f"{RED}Cannot change immutable key: {key}{NC}")
+                input("Press Enter to continue...")
+            elif key:
                 data[key] = parse_value(input(f"Value for {key} (Enter for null): ").strip())
                 save_menu_change(VARS_FILE, data, key, "None", data[key], "ADDED")
         elif choice == "d":

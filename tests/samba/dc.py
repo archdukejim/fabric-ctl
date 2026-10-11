@@ -96,7 +96,8 @@ if build.returncode:
 # the settings and compose file as an install renders them
 env = jinja_env(os.path.join(REPO, "templates"))
 v = yaml.safe_load(env.get_template("vars.yaml.j2").render(
-    domain="lan.test", hostname="dc1", host_ip=IP, lan_cidr=SUBNET, lan_gateway="10.254.30.1", site_name="lan",
+    domain="lan.test", hostname="pi-host", dc_name="dc1", host_ip=IP, lan_cidr=SUBNET, lan_gateway="10.254.30.1",
+    site_name="lan",
     ad_domain="ad.lan.test", ad_password_policy=POLICY, deploy_base_dir=W,
     ad_ntp_signd_dir=os.path.join(W, "ntp_signd")))     # never the host's own /var/lib/samba
 compose = yaml.safe_load(env.get_template("samba/docker-compose.yml.j2").render(**v))["services"]["samba"]
@@ -125,7 +126,8 @@ check("deploy_samba: root-only folders (data traversable: SYSVOL is served as ea
 
 # run it as the compose file says, on the test network
 sh(["docker", "network", "create", "--subnet", SUBNET, NET])
-run = ["docker", "run", "-d", "--name", DC, "--hostname", "dc1", "--network", NET, "--ip", IP,
+# the container's host name is the host's (the host network gives it the host's): the DC has its own (2.1.6.45)
+run = ["docker", "run", "-d", "--name", DC, "--hostname", "pi-host", "--network", NET, "--ip", IP,
        "--read-only", "--memory", compose["mem_limit"], "--cap-drop", "ALL"]
 run += [x for c in compose["cap_add"] for x in ("--cap-add", c)]
 run += [x for o in compose["security_opt"] for x in ("--security-opt", o)]
@@ -155,6 +157,11 @@ check("hardened as rendered: exactly the six capabilities, read-only, no-new-pri
       and info["CapDrop"] == ["ALL"] and info["ReadonlyRootfs"] and "no-new-privileges:true" in info["SecurityOpt"]
       and info["Memory"] > 0, info["CapAdd"])
 
+dc_obj = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(objectClass=computer)", "sAMAccountName",
+            "dNSHostName").stdout
+check("the DC provisions with its own name, unlike its host's (2.1.6.45): DC1$, dc1.ad.lan.test, no PI-HOST$",
+      "sAMAccountName: DC1$" in dc_obj and "dNSHostName: dc1.ad.lan.test" in dc_obj and "PI-HOST" not in dc_obj.upper()
+      and compose["environment"]["HOST_NAME"] == "dc1", dc_obj)
 first = converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS, container=DC)
 check("converge: schema, layout, groups, access, AD site, policy and GPOs made", len(first) > 30, first)
 again = converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS, container=DC)

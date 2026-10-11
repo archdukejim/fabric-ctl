@@ -34,11 +34,12 @@ def _sh(cmd, **kw):
 
 
 def start_dc(work, container, network, subnet, ip, domain="lan.j-j.family", ad_domain="ad.j-j.family",
-             hostname="dc1", site="lan", extra_vars=None):
+             hostname="dc1", site="lan", extra_vars=None, dc_name=""):
     """Purpose: a converged DC of a test domain on a test network, and what a suite needs to talk to it.
     Inputs:  work — a scratch folder (made anew); container — the DC's name; network/subnet — a Docker network (made
              if missing); ip — the DC's address there; domain, ad_domain, hostname, site — the install's settings;
-             extra_vars — more settings for the render (e.g. Keycloak's).
+             extra_vars — more settings for the render (e.g. Keycloak's); dc_name — the DC's own name ("": the
+             default, dc-<hostname>, so every suite's DC has a name unlike its host's, 2.1.6.45).
     Returns: dict {"v": rendered vars (deploy_base_dir = work), "secrets", "env" (jinja env), "root_ca", "root_key"
              (the test PKI's files), "container"}.
     Fails:   RuntimeError when a step fails or the DC is not healthy within 5 minutes."""
@@ -54,7 +55,7 @@ def start_dc(work, container, network, subnet, ip, domain="lan.j-j.family", ad_d
     env = jinja_env(os.path.join(REPO, "templates"))
     v = yaml.safe_load(env.get_template("vars.yaml.j2").render(
         domain=domain, hostname=hostname, host_ip=ip, lan_cidr=subnet, lan_gateway=subnet.rsplit(".", 1)[0] + ".1",
-        site_name=site, ad_domain=ad_domain, ad_password_policy=POLICY, deploy_base_dir=work,
+        site_name=site, ad_domain=ad_domain, ad_password_policy=POLICY, deploy_base_dir=work, dc_name=dc_name,
         ad_ntp_signd_dir=os.path.join(work, "ntp_signd"),
         ip_fabric_gateway=ip,                # on a test network the clients reach the DC at its own address
         **(extra_vars or {})))               # never the host's own

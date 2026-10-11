@@ -140,6 +140,33 @@ assert 'server_name admin.example.org;' in ngx and 'server_name certs.lan.j-j.fa
 same = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'hostname': 'fabric'}))
 assert 'fabric' not in [r['name'] for r in same['dns']['dynamic_zone_var']['CNAME']], 'CNAME must not shadow the host A record'
 print('web UI host name (default, custom, same as host) and certs host rendered')
+
+# The DC's own name (2.1.6.45, manual 1.6.5.23): dc-<hostname> by default, cut to 15 characters; any name given is
+# kept; an install from before 0.7.0 keeps its host's; a host renamed later leaves the DC alone.
+from fabriclib.deploy.keep_old_install import keep_old_install  # noqa: E402
+from fabriclib.samba.suggested_dc_name import suggested_dc_name  # noqa: E402
+
+
+def _dc(**over):
+    got = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family',
+                                                                     **over}))
+    compose = yaml.safe_load(env.get_template('samba/docker-compose.yml.j2').render(**got))['services']['samba']
+    return got['dc_name'], got['hostname_dc'], compose['environment']['HOST_NAME']
+
+
+assert _dc() == ('dc-pi-core', 'dc-pi-core.ad.j-j.family', 'dc-pi-core') and suggested_dc_name('pi-core') == 'dc-pi-core', _dc()
+for host, want in (('Kitchen-Server01', 'dc-kitchen-serv'), ('raspberrypi-4b', 'dc-raspberrypi')):
+    assert _dc(hostname=host)[0] == want == suggested_dc_name(host), (host, _dc(hostname=host))
+assert _dc(dc_name='DC1') == ('dc1', 'dc1.ad.j-j.family', 'dc1'), _dc(dc_name='DC1')
+old = {**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family'}
+assert keep_old_install(old) and old['dc_name'] == 'pi-core' and _dc(dc_name=old['dc_name'])[1] == 'pi-core.ad.j-j.family'
+assert keep_old_install(old) == [] and keep_old_install({'dc_name': 'dc-x', 'hostname': 'x'}) == [], 'kept once only'
+renamed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family',
+                                                                     'dc_name': 'dc-pi-core', 'hostname': 'kitchen'}))
+assert renamed['hostname_dc'] == 'dc-pi-core.ad.j-j.family' and {'ip': '192.168.7.53', 'name': 'kitchen'} in \
+    renamed['dns']['dynamic_zone_var']['A'], renamed['dns']['dynamic_zone_var']['A']
+print("the DC's own name: dc-<hostname> cut to 15, a given one kept, an older install's host name kept, a renamed host "
+      "leaves it")
 doh = ngx[ngx.index('location /dns-query'):]
 doh = doh[:doh.index('\n        }')]          # the location block only
 assert 'grpc_pass $bind9_doh_backend;' in doh and '"grpc://resolver:8053"' in doh and 'proxy_pass $' not in doh, \

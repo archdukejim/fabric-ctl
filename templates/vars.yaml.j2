@@ -157,8 +157,12 @@ ad_domain: "{{ _ad }}"
 ad_realm: "{{ _ad | upper }}"
 ad_base_dn: "{{ _ad.split('.') | map('regex_replace', '^', 'DC=') | join(',') if _ad else '' }}"
 ad_netbios: "{{ (ad_netbios | default(_ad.split('.')[0], true))[:15] | upper }}"
-{# the DC runs in the host network, where Docker cannot give it a name of its own: it is the host, in AD's domain #}
-hostname_dc: "{{ (hostname ~ '.' ~ _ad) | lower if _ad else '' }}"
+{# the DC's own name in the domain (2.1.6.45, manual 1.6.5.23), apart from the host's: setup asks it, suggesting
+   dc-<hostname> cut to 15 characters (a NetBIOS name); permanent. An install from before 0.7.0 keeps its host's name
+   (deploy/keep_old_install saves it as dc_name). #}
+{% set _dc = (dc_name | default(('dc-' ~ (hostname | lower))[:15].rstrip('-'), true)) | lower %}
+dc_name: "{{ _dc }}"
+hostname_dc: "{{ (_dc ~ '.' ~ _ad) | lower if _ad else '' }}"
 # minimum_length, complexity (bool), history, minimum_age_days, maximum_age_days, lockout_threshold,
 # lockout_minutes, lockout_window_minutes: every key required
 ad_password_policy: {{ ad_password_policy | default({}, true) | to_json }}

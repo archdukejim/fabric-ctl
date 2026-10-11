@@ -38,7 +38,8 @@ services:
     environment:
       REALM: "{{ ad_realm }}"
       NETBIOS: "{{ ad_netbios }}"
-      HOST_NAME: "{{ hostname | lower }}"
+      # the DC's own name in the domain (2.1.6.45), not the host's: the image's variable keeps its old name
+      HOST_NAME: "{{ dc_name }}"
       HOST_IP: "{{ host_ip }}"
       # loopback, the LAN, and fabric_net's gateway: containers (Keycloak, FreeRADIUS) reach it on the bridge
       # (2.1.2.15); its DNS records name the LAN address only (HOST_IP)

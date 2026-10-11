@@ -1,3 +1,4 @@
+from fabriclib.deploy.keep_old_install import keep_old_install
 from fabriclib.rbac.permissions import ADMIN_ROLE, OLD_ADMIN_ROLE
 from fabriclib.setup.common.previous_accounts import PREVIOUS_ACCOUNTS
 
@@ -14,11 +15,11 @@ def upgrade_vars(data, pinned):
              the fabric-* account in the 600-649 band applies (the accounts step moves the files); entries the
              admin changed are kept. The console's admin role named fabric-admin (before 0.6.4) becomes
              fabric-console-admin: that name is now the first admin's (2.1.6.33); Keycloak and OpenBao follow at
-             their steps, members kept.
+             their steps, members kept. What an install from before 0.7.0 keeps (keep_old_install: its DC's name).
     Fails:   never — dict operations only.
     Feeds:   collect_vars (logs each change).
     Notes:   `fabricctl images update` is what changes images (design 2.1.14.3)."""
-    changes = []
+    changes = keep_old_install(data)
     for key in [k for k in data if k.startswith("image_") and k != "image_pins" and k not in pinned]:
         if isinstance(data[key], str) and "@sha256:" in data[key]:
             continue

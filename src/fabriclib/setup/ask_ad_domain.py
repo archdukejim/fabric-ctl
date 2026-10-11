@@ -2,6 +2,7 @@ import re
 
 from fabriclib.common.console import BOLD, NC, YELLOW
 from fabriclib.samba.suggested_ad_domain import suggested_ad_domain
+from fabriclib.setup.permanent_mark import permanent_mark
 
 _LABEL = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")    # as check_samba_settings takes them
 
@@ -12,8 +13,8 @@ def ask_ad_domain(ctx):
              AD domain on every install. Its password policy is not asked: a new domain starts from the default
              (collect_vars, 2.1.6.35; 2.1.2.16).
     Inputs:  ctx — SetupContext; reads and sets ctx.vars ad_domain; domain for the suggestion. Interactive.
-    Returns: None; ctx.vars["ad_domain"] set (Enter takes the value already set or the suggestion; a domain AD
-             cannot use is refused, saying why, and asked again).
+    Returns: None; ctx.vars["ad_domain"] set (the question marked "⚠ Permanent", 2.1.2.20; Enter takes the value
+             already set or the suggestion; a domain AD cannot use is refused, saying why, and asked again).
     Fails:   EOFError from input().
     Feeds:   setup/collect_vars."""
     print("\n  fabric's directory is a Samba AD domain (people, groups, devices; Windows and Linux machines may join).")
@@ -27,7 +28,8 @@ def ask_ad_domain(ctx):
         print(f"    Suggested: {suggested_ad_domain(domain)}, {where}; press Enter to take it. "
               f"It cannot be {domain} itself.")
     while True:
-        answer = input(f"    AD domain{f' [{suggestion}]' if suggestion else ''}: ").strip().lower()
+        answer = input(f"    AD domain{permanent_mark('ad_domain')}{f' [{suggestion}]' if suggestion else ''}: "
+                       ).strip().lower()
         chosen = answer or suggestion
         labels = chosen.split(".")
         if (chosen and chosen != domain and len(labels) >= 2 and all(_LABEL.match(x) for x in labels)
