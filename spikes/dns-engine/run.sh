@@ -40,7 +40,7 @@ cleanup
 mkdir -p "$W"
 [ "${KEEP_RAW:-}" ] || rm -rf "$W/raw" "$W/conf" "$W/ag" "$W/log"
 mkdir -p "$W/raw" "$W/conf" "$W/ag/work" "$W/ag/conf" "$W/log"
-chown -R 65534:65534 "$W/ag"; chmod 777 "$W/log"
+chmod 777 "$W/log"
 
 echo "--- the lists, downloaded once"
 for i in "${IDS[@]}" "$MORE"; do
@@ -91,23 +91,28 @@ adguard() {
     docker rm -f sde-adguard >/dev/null 2>&1
     docker create --name sde-adguard --network spike_dnse_a --ip "$A.20" ${1:+--user "$1"} --cap-drop ALL \
         --cap-add NET_BIND_SERVICE --security-opt no-new-privileges:true \
-        -v "$W/ag/work:/opt/adguardhome/work" -v "$W/ag/conf:/opt/adguardhome/conf" "$AG_IMAGE" \
+        --sysctl net.ipv4.ip_unprivileged_port_start=53 -v "$W/ag/work:/opt/adguardhome/work" -v "$W/ag/conf:/opt/adguardhome/conf" "$AG_IMAGE" \
         --no-check-update --no-permcheck -c /opt/adguardhome/conf/AdGuardHome.yaml -w /opt/adguardhome/work >/dev/null
     docker network connect --ip "$B.20" spike_dnse_b sde-adguard
     docker start sde-adguard >/dev/null
     for _ in $(seq 1 60); do curl -s -o /dev/null "http://$A.20:3000/" && break; sleep 1; done
 }
 AG() { python3 "$HERE/adguard.py" "http://$A.20:3000" "$W/ag.pw" "$@"; }
-# finding: its first launch refuses any user but root, --no-permcheck or not ("you must run it as administrator");
-# so the first launch (setup through the API) runs as root, capabilities still dropped, then never again
+# findings: its first launch (no AdGuardHome.yaml yet) refuses any user but root, --no-permcheck or not ("you must
+# run it as administrator"); root with every capability dropped cannot write folders it does not own; as nobody,
+# no-new-privileges (rightly) voids the binary's file capability, so port 53 needs the namespace's
+# ip_unprivileged_port_start instead, and NET_BIND_SERVICE stays in the bounding set only so exec is allowed.
+# Here the first launch runs once as root on root-owned folders; fabric would render AdGuardHome.yaml itself, so
+# there is no first launch. Then nobody, for good.
 echo "--- A: AdGuard Home set up through its API (first launch as root), then run as nobody"
+chown -R 0:0 "$W/ag"
 adguard ""
 AG setup
 chown -R 65534:65534 "$W/ag"
 adguard 65534:65534
 docker ps --filter name=sde-adguard --format '  {{.Names}} {{.Status}}'
 check "AdGuard Home runs as a non-root user once set up" \
-    "[ \"\$(docker top sde-adguard -o user | tail -1 | tr -d ' ')\" = 65534 ] || docker top sde-adguard -o user | tail -1 | grep -qE 'nobody|65534'"
+    "[ \"\$(docker exec sde-adguard id -u)\" = 65534 ]"
 echo "  memory, empty: $(mem sde-adguard)"
 echo "--- A: the 15 lists added through the API"
 AG lists "http://$A.40" "${IDS[@]}" | tail -1 | tee "$W/ag-lists.json"
