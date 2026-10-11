@@ -624,7 +624,7 @@ try:
 except ValidationError as e:
     why = str(e)
 check("refused: a person in a range that is not a person's (service accounts are fabric's)", "kind" in why, why)
-FILL = """
+FILL = r"""
 import sys
 sys.path.insert(0, "/fabric")
 import ldb
@@ -638,7 +638,8 @@ samdb.modify_ldif(f"dn: {dn}\nchangetype: modify\ndelete: fabricIdMark\nfabricId
                   "add: fabricIdMark\nfabricIdMark: guest=1949999\n")
 print("filled")
 """
-check("(the guest range brought to its last id)", "filled" in dc("python3", "-", stdin=FILL).stdout)
+filled = dc("python3", "-", stdin=FILL)
+check("(the guest range brought to its last id)", "filled" in filled.stdout, filled.stderr[-400:])
 last_guest = mk_kind("gst2", "guest")
 try:
     mk_kind("gst3", "guest")
