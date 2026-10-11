@@ -1,6 +1,7 @@
 from fabriclib.consent.groups import GROUPS
 from fabriclib.consent.plan_accounts import plan_accounts
 from fabriclib.consent.plan_firewall import plan_firewall
+from fabriclib.consent.plan_member import plan_member
 from fabriclib.consent.plan_own_rules import plan_own_rules
 from fabriclib.consent.plan_packages import plan_packages
 from fabriclib.consent.plan_ports import plan_ports
@@ -30,6 +31,7 @@ def plan_host_changes(v, deploy_base, config_dir, jinja_dir, steps=None):
         "own_rules": lambda: plan_own_rules(v, config_dir),
         "trust": lambda: plan_trust(v),
         "time": plan_time,
+        "member": lambda: plan_member(v),
     }
     out = {}
     for group, meta in GROUPS.items():

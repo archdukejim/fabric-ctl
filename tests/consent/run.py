@@ -340,9 +340,166 @@ check("negative: a fresh install has nothing to carry: every question needs an a
 
 rows = {t: (how, what) for t, how, what in uninstall_plan()}
 check("uninstall lists every kind of host change: removed, undone or kept (Docker's settings: how to undo first)",
-      len(rows) == 10 and rows["Service accounts"][0] == "removed" and rows["Secure this host"][0] == "undone"
+      len(rows) == 11 and rows["Service accounts"][0] == "removed" and rows["Secure this host"][0] == "undone"
       and rows["Ports fabric needs"][0] == rows["The host's own firewall rules"][0] == "undone"
       and rows["Docker daemon settings"][0] == "kept" and "--undo runtime" in rows["Docker daemon settings"][1], rows)
+
+print("--- this host as a member of its domain (manual 1.6.11.8, 2.1.6.34)")
+import struct  # noqa: E402
+
+import fabriclib.consent.plan_member as pm  # noqa: E402
+import fabriclib.setup.join_host_domain as jh  # noqa: E402
+import fabriclib.undo.undo_member as um  # noqa: E402
+from fabriclib.consent.plan_host_changes import plan_host_changes  # noqa: E402
+from fabriclib.deploy.check_samba_settings import check_samba_settings  # noqa: E402
+from fabriclib.setup import choose_plan  # noqa: E402
+from fabriclib.setup.common.render_member_files import render_member_files  # noqa: E402
+from fabriclib.setup.steps import STEPS  # noqa: E402
+from fabriclib.system.relaxed_settings import relaxed_settings  # noqa: E402
+
+POLICY = {"minimum_length": 14, "complexity": True, "history": 24, "minimum_age_days": 0, "maximum_age_days": 0,
+          "lockout_threshold": 10, "lockout_minutes": 15, "lockout_window_minutes": 15}
+mv = yaml.safe_load(jinja_env(JINJA).get_template("vars.yaml.j2").render(
+    domain="lan.test", hostname="fab1", host_ip="10.0.0.5", lan_cidr="10.0.0.0/24", lan_gateway="10.0.0.1",
+    ad_domain="ad.test", ad_password_policy=POLICY, site_name="hq"))
+off = yaml.safe_load(jinja_env(JINJA).get_template("vars.yaml.j2").render(
+    domain="lan.test", hostname="fab1", host_ip="10.0.0.5", lan_cidr="10.0.0.0/24", lan_gateway="10.0.0.1",
+    ad_domain="ad.test", ad_password_policy=POLICY, host_join_domain=False))
+# covers: setting:host_join_domain +
+check("host_join_domain: true by default, false when set (a JSON boolean)",
+      mv["host_join_domain"] is True and off["host_join_domain"] is False, (mv["host_join_domain"], off))
+check_samba_settings(mv)
+msg = ""
+try:
+    check_samba_settings({**mv, "host_join_domain": "maybe"})
+except Exception as e:      # ValidationError
+    msg = str(e)
+# covers: setting:host_join_domain -
+check("negative: a host_join_domain that is not true or false is refused, saying so", "must be true or false" in msg,
+      msg)
+names = [n for n, _, _ in STEPS]
+check("the group `member` is recommended, asked after the time service; its step comes right after `start`",
+      GROUPS["member"]["level"] == "recommended" and list(GROUPS)[-1] == "member"
+      and GROUPS["member"]["step"] == "member" and names.index("member") == names.index("start") + 1, names)
+_real_missing = pm.missing_packages
+pm.missing_packages = lambda pkgs: ["sssd-ad", "krb5-user"]
+planned = plan_host_changes(mv, "/opt", cfg, JINJA, ["member"]).get("member", [])
+check("planned when on: the missing packages, the keytab of FAB1$ only, krb5.conf, sssd.conf, NSS and PAM",
+      planned[:2] == ["apt: install sssd-ad", "apt: install krb5-user"]
+      and any("FAB1$" in x and "/etc/krb5.keytab" in x for x in planned)
+      and any("hq-fabric-admins" in x and "/etc/sssd/sssd.conf" in x for x in planned)
+      and any(x.startswith("PAM: pam-auth-update") for x in planned), planned)
+check("negative: not planned when host_join_domain is false (nothing asked, nothing changed)",
+      "member" not in plan_host_changes(off, "/opt", cfg, JINJA, ["member"]), off.get("host_join_domain"))
+pm.missing_packages = _real_missing
+files = render_member_files(mv)
+sssd = files["/etc/sssd/sssd.conf"]
+check("sssd.conf: the fabric admins only (simple access), sudo from the domain, this host's own DC, no dynamic DNS",
+      "access_provider = simple\n" in sssd and "simple_allow_groups = fabric-admins, hq-fabric-admins\n" in sssd
+      and "sudo_provider = ad\n" in sssd and "ad_server = fab1.ad.test\n" in sssd and "dyndns_update = false" in sssd
+      and sssd.startswith("# fabric"), sssd)
+check("its sudo search bases: the site's OU=sudoers, then the organisation's (as the Linux join builds them)",
+      "ldap_sudo_search_base = OU=sudoers,OU=hq,OU=sites,DC=ad,DC=test?onelevel??"
+      "OU=sudoers,OU=organisation,OU=hq,OU=sites,DC=ad,DC=test?onelevel?\n" in sssd, sssd)
+nested = render_member_files({**mv, "ad_site_ou": "OU=edge,OU=hq,OU=sites"})["/etc/sssd/sssd.conf"]
+check("a nested site's host also reads the rules of each site above it",
+      "OU=sudoers,OU=edge,OU=hq,OU=sites,DC=ad,DC=test?onelevel??OU=sudoers,OU=hq,OU=sites,DC=ad,DC=test?onelevel??"
+      in nested, nested)
+check("krb5.conf: the realm, its KDC this host's DC",
+      "default_realm = AD.TEST" in files["/etc/krb5.conf"] and "kdc = fab1.ad.test" in files["/etc/krb5.conf"])
+nss = "passwd:         files systemd\ngroup:          files systemd\nshadow:         files\nhosts: files dns\n"
+once = jh._with_sss(nss)
+check("nsswitch: sss after the files for passwd and group, a sudoers line added; a second pass changes nothing",
+      "passwd:         files systemd sss\n" in once and "sudoers:        files sss\n" in once
+      and "hosts: files dns\n" in once and jh._with_sss(once) == once, once)
+
+
+def _entry(principal, stamp, kvno, key):
+    name, realm = principal.split("@")
+    body = struct.pack(">H", len(name.split("/"))) + struct.pack(">H", len(realm)) + realm.encode()
+    for part in name.split("/"):
+        body += struct.pack(">H", len(part)) + part.encode()
+    body += struct.pack(">II", 1, stamp) + bytes([kvno]) + struct.pack(">HH", 18, len(key)) + key
+    return struct.pack(">i", len(body)) + body
+
+
+kt1 = b"\x05\x02" + _entry("FAB1$@AD.TEST", 100, 1, b"k" * 32)
+kt2 = b"\x05\x02" + _entry("FAB1$@AD.TEST", 200, 1, b"k" * 32)
+kt3 = b"\x05\x02" + _entry("FAB1$@AD.TEST", 200, 2, b"n" * 32)
+check("the keytab compares by its keys, not the time of the export: a re-export of the same keys changes nothing",
+      jh._keys(kt1) == jh._keys(kt2) == {("FAB1$@AD.TEST", 1, 18, b"k" * 32)} and jh._keys(kt1) != jh._keys(kt3)
+      and jh._keys(None) == set() and jh._keys(b"junk") == set())
+
+# the step: off, or declined, leaves the host as it is
+mcfg = tempfile.mkdtemp()
+jh.export_dc_keytab = lambda v: (_ for _ in ()).throw(AssertionError("exported"))
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    jh.run(type("C", (), {"vars": off, "config_dir": mcfg, "offline": False})())
+check("host_join_domain false: the step says so and touches nothing (not even the DC)",
+      "stays out of its domain" in out.getvalue() and not os.listdir(mcfg), out.getvalue())
+with contextlib.redirect_stdout(io.StringIO()):
+    ask_consent(mcfg, {"member": ["x"]}, interactive=False, decline=["member"])
+jh.export_dc_keytab = lambda v: kt1
+jh.missing_packages = lambda pkgs: []
+jh._sssd_on = lambda: False
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    jh.run(type("C", (), {"vars": mv, "config_dir": mcfg, "offline": False})())
+check("declined: the step warns what that means and changes nothing (no copy kept, no record)",
+      "not approved" in out.getvalue() and "not a member of its domain" in out.getvalue()
+      and sorted(os.listdir(mcfg)) == ["consent.yaml"], (out.getvalue(), os.listdir(mcfg)))
+row = next(r for r in consent_status(mcfg) if r["group"] == "member")
+check("status shows the declined membership as a relaxation", row["state"] == "declined"
+      and "not a member" in row["relaxation"], row)
+check("host_join_domain false is a relaxed setting in status; the default is not",
+      any(r["setting"] == "host_join_domain: false" for r in relaxed_settings(off, mcfg))
+      and not any("host_join_domain" in r["setting"] for r in relaxed_settings(mv, mcfg)))
+
+# the undo: each kept file back, the keytab gone, the record used
+uhost = tempfile.mkdtemp()
+paths = {p: os.path.join(uhost, p.strip("/").replace("/", "_")) for p in pm.KEPT_FILES}
+open(paths["/etc/nsswitch.conf"], "w").write(nss)
+um.KEPT_FILES, um.KEYTAB = tuple(paths.values()), paths["/etc/krb5.keytab"]
+for p in paths.values():
+    keep_original(p, mcfg, marker="# fabric")
+open(paths["/etc/nsswitch.conf"], "w").write(once)
+open(paths["/etc/krb5.keytab"], "wb").write(kt1)
+open(paths["/etc/sssd/sssd.conf"], "w").write(sssd)
+with open(os.path.join(mcfg, pm.RECORD), "w") as f:
+    f.write('{"pam": [], "sssd_enabled": false, "sudo": null}')
+done = um.undo_member(mcfg, manage_units=False)
+check("undo: nsswitch.conf put back, the keytab and sssd.conf removed (fabric added them), the record used",
+      open(paths["/etc/nsswitch.conf"]).read() == nss and not os.path.exists(paths["/etc/krb5.keytab"])
+      and not os.path.exists(paths["/etc/sssd/sssd.conf"]) and not os.path.exists(os.path.join(mcfg, pm.RECORD))
+      and any("put back" in d for d in done), done)
+check("negative: a second undo has nothing to do", um.undo_member(mcfg, manage_units=False) == [])
+check("negative: `setup --undo member` unattended without --yes changes nothing",
+      "--yes" in refused(lambda: undo_group(Ctx(mcfg, mv), "member", False, False)))
+answers = iter(["maybe", "n"])
+builtins.input = lambda prompt="": next(answers)
+msg = refused(lambda: undo_group(Ctx(mcfg, mv), "member", True, False))
+builtins.input = real_input
+# covers: ask:undo.* -
+check("negative: asked whether to undo, an answer that is not y or n is asked again, and no changes nothing",
+      "nothing changed" in msg and next(answers, None) is None
+      and yaml.safe_load(open(os.path.join(mcfg, "consent.yaml")))["groups"]["member"]["changes"] == ["x"], msg)
+
+# Advanced: the question
+answers = iter(["maybe", "n"])
+builtins.input = lambda prompt="": next(answers)
+pc = type("P", (), {"vars": {}})()
+with contextlib.redirect_stdout(io.StringIO()) as out:
+    choose_plan._ask_host_join_domain(pc)
+builtins.input = real_input
+# covers: ask:setup.host_join_domain +-
+check("Advanced asks whether this host joins its domain: refuses an answer that is not y or n, then takes n",
+      pc.vars.get("host_join_domain") is False and out.getvalue().count("answer y or n") == 1, (pc.vars, out.getvalue()))
+builtins.input = lambda prompt="": ""
+pc = type("P", (), {"vars": {}})()
+choose_plan._ask_host_join_domain(pc)
+builtins.input = real_input
+check("…and Enter keeps the default: a member", pc.vars.get("host_join_domain") is True, pc.vars)
 
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

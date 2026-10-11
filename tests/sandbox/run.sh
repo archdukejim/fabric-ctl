@@ -428,6 +428,57 @@ check "third user carol in the auditors group, with a client cert" "grep -q crea
 BOB_UID=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=bob)' uidNumber" | grep ^uidNumber)
 CAROL_UID=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=carol)' uidNumber" | grep ^uidNumber)
 check "bob and carol have distinct uid numbers from the site's block" "[ -n '$BOB_UID' ] && [ '$BOB_UID' != '$CAROL_UID' ]"
+
+echo "--- the fabric host as a member of its own domain (manual 1.6.11.8): the fabric admins only, local accounts kept"
+in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq pamtester >/dev/null 2>&1'
+# passwords reach the box in root-only files, read on stdin (never a command line)
+( umask 077; LOCAL_PW="Lc-$(openssl rand -hex 12)"; printf 'wrong\n' > "$OUT/wrong-pw"
+  printf 'localop:%s\n' "$LOCAL_PW" > "$OUT/localop-chpasswd"; printf '%s\n' "$LOCAL_PW" > "$OUT/localop-pw" )
+for f in wrong-pw localop-chpasswd localop-pw; do docker cp "$OUT/$f" "$NAME:/root/$f"; done
+in_box 'useradd -m -s /bin/bash -G sudo localop && chpasswd < /root/localop-chpasswd && rm -f /root/localop-chpasswd'
+# pamtester's exit status: 0 only when every PAM call given passed (its output kept for diagnosis)
+pam() { in_box "pamtester login $1 ${3:-authenticate acct_mgmt} < $2" >> "$OUT/pam.log" 2>&1; }
+check "setup made the host a member: its keytab holds the DC account's keys only (0600), sssd runs" \
+    "[ \"\$(in_box 'stat -c %a /etc/krb5.keytab /etc/sssd/sssd.conf' | sort -u)\" = 600 ] \
+     && in_box 'klist -k /etc/krb5.keytab' | grep -qF 'FABRIC-SBX\$@AD.TEST' && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi krbtgt \
+     && in_box 'systemctl is-active sssd' | grep -qx active"
+check "the first admin (in fabric-admins) resolves on the host with the domain's uid" \
+    "in_box 'getent passwd fabric-admin' | grep -qE '^fabric-admin:[^:]*:(500[1-9]|50[1-9][0-9]|5[1-9][0-9]{2}|[1-9][0-9]{4,5}):'"
+check "the first admin signs in to the host with their domain password (PAM)" "pam fabric-admin /root/admin-pw"
+check "a wrong password is refused" "! pam fabric-admin /root/wrong-pw"
+check "the first admin has sudo on the host from the site's rule" "in_box 'sudo -l -U fabric-admin' | grep -q '(ALL) ALL'"
+check "a person outside the fabric admins (bob) resolves but is refused by the host's access rule, and has no sudo" \
+    "in_box 'getent passwd bob' >/dev/null && ! pam bob /dev/null acct_mgmt && pam fabric-admin /dev/null acct_mgmt \
+     && in_box 'sudo -l -U bob 2>&1' | grep -q 'not allowed'"
+in_box 'systemctl stop samba' >/dev/null 2>&1
+check "with the DC stopped: a local account signs in and keeps its sudo, root works, the admin signs in from sssd's cache" \
+    "pam localop /root/localop-pw && in_box 'sudo -l -U localop' | grep -q '(ALL : ALL) ALL' \
+     && [ \"\$(in_box 'id -u root')\" = 0 ] && pam fabric-admin /root/admin-pw"
+in_box 'systemctl start samba' >/dev/null 2>&1
+for _ in $(seq 1 60); do [ "$(in_box "docker inspect -f '{{.State.Health.Status}}' samba")" = healthy ] && break; sleep 5; done
+NSS_ORIG=$(in_box 'md5sum < /opt/fabric/config/host-originals/etc/nsswitch.conf')
+in_box 'fabricctl setup --undo member --non-interactive' > "$OUT/undo-member-refused.log" 2>&1
+# covers: cli:setup -
+check "setup --undo member unattended without --yes changes nothing" \
+    "grep -q 'pass --yes' '$OUT/undo-member-refused.log' && in_box 'test -e /etc/sssd/sssd.conf'"
+in_box 'fabricctl setup --undo member --non-interactive --yes' > "$OUT/undo-member.log" 2>&1
+# covers: cli:setup +
+check "setup --undo member: nsswitch.conf as it was, sssd.conf and the keytab gone, sssd stopped, recorded as declined" \
+    "[ \"\$(in_box 'md5sum < /etc/nsswitch.conf')\" = '$NSS_ORIG' ] && ! in_box 'test -e /etc/sssd/sssd.conf || test -e /etc/krb5.keytab' \
+     && ! in_box 'systemctl is-active --quiet sssd' && in_box 'fabricctl status' | grep -qE '^  member +declined'"
+check "…the admin no longer resolves on the host; root and the local account still work" \
+    "! in_box 'getent passwd fabric-admin' && pam localop /root/localop-pw"
+in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_load(open(p)); v['host_join_domain']=False; yaml.safe_dump(v, open(p, 'w'))\""
+in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-off.log" 2>&1
+check "host_join_domain false: the step leaves the host as it is, even with the change approved; status shows it" \
+    "grep -q 'stays out of its domain' '$OUT/member-off.log' && ! in_box 'test -e /etc/sssd/sssd.conf' \
+     && in_box 'fabricctl status' | grep -q 'host_join_domain: false'"
+in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_load(open(p)); v['host_join_domain']=True; yaml.safe_dump(v, open(p, 'w'))\""
+in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-again.log" 2>&1
+check "approved again: a member once more (the admin resolves and signs in)" \
+    "in_box 'getent passwd fabric-admin' >/dev/null && pam fabric-admin /root/admin-pw"
+in_box 'rm -f /root/localop-pw /root/wrong-pw'
+
 echo "--- Keycloak's database password, rotated by OpenBao (2.1.7.4)"
 pg_roles() { in_box "docker exec postgres psql -tA -U fabric_admin -d keycloak -c 'SELECT rolname, rolsuper, rolcanlogin FROM pg_roles'"; }
 check "setup handed Keycloak's password to OpenBao: Keycloak runs as its own role, the bootstrap role locked" \
@@ -478,6 +529,7 @@ in_box 'fabricctl setup --non-interactive --yes' 2>&1 | tee "$OUT/setup2.log"
 # covers: cli:setup +
 check "re-run completes" "grep -q 'fabric is ready' '$OUT/setup2.log'"
 check "re-run re-issues no certificates" "! grep -q ': issued' '$OUT/setup2.log'"
+check "re-run leaves the host's domain membership as it is (the member step changes nothing)"     "grep -q 'this host is a member of its domain (nothing to change)' '$OUT/setup2.log'"
 check "re-run neither re-initialises nor changes OpenBao" \
     "! grep -q 'OpenBao initialised' '$OUT/setup2.log' && grep -q 'OpenBao configured (no changes)' '$OUT/setup2.log'"
 check "re-run keeps the admin and their certificate" \
@@ -686,6 +738,7 @@ check "uninstall listed every host change first (removed, undone, kept)" \
 check "uninstall put chrony's own configuration back and left ufw as it was before fabric ($UFW_BEFORE)" \
     "! in_box 'grep -q \"^# fabric\" /etc/chrony/chrony.conf' && ! in_box 'ufw status' | grep -qE '22/tcp|123/udp' \
      && in_box 'ufw status' | grep -q \"Status: $UFW_BEFORE\""
+check "uninstall took the host out of its domain: sssd.conf and the keytab gone, the admin no longer resolves"     "grep -qE 'This host as a member of its domain +undone' '$OUT/uninstall.log'      && ! in_box 'test -e /etc/sssd/sssd.conf || test -e /etc/krb5.keytab' && ! in_box 'getent passwd fabric-admin'"
 
 echo "--- fabricctl restore: the same fabric back from the export"
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /root/fabricctl-new.deb' > "$OUT/apt-restore.log" 2>&1
