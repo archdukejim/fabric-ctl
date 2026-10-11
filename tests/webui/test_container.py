@@ -359,6 +359,14 @@ check("...and that session is now destroyed", st == 303, st)
 session = cookie_val(sc, "__Host-webui")
 st, hd, sc, body = req("GET", "/bind9?zone=dynamic_zone_var", ALICE, cookie=session)
 csrf = body.split('name="csrf" value="')[1].split('"')[0]
+# a browser sends its form posts' Origin only under a referrer policy that allows it to the same site: no-referrer
+# makes it "Origin: null", which the CSRF check refuses, so every button failed in rc.2 (2.3.1.13 finding 9)
+check("pages send Referrer-Policy: same-origin (the browser then sends the real Origin on its own form posts)",
+      hd.get("Referrer-Policy") == "same-origin", hd.get("Referrer-Policy"))
+st, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", {**ALICE, "Origin": "null"},
+             {"csrf": csrf, "type": "CNAME", "name": "nullorigin", "target": "nas25-apps"}, cookie=session)
+check("...and a post that arrives with Origin: null is still refused (what no-referrer made browsers send)",
+      st == 403, st)
 POSTH = {**ALICE, "Origin": "https://mgr.test"}
 add = {"csrf": csrf, "type": "CNAME", "name": "shelfmark", "target": "nas25-apps"}
 st, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", ALICE, dict(add), cookie=session)

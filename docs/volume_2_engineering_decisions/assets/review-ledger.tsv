@@ -130,7 +130,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	9df3b3a9713275c6b4abd28d84f22
 docs/volume_2_engineering_decisions/2.1.9-federation.md	6c344024d62480ec9bea70a3245c3baa6511af50	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	b3cf4f881c4ec58e8444e8c4f03e50ecb4a3c340	2026-10-11	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	0b71c1123920aecd05c705e5f307daa907c69437	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	3424b43960e50007224d299adac7dd0533c7f0f6	2026-10-08	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -1091,7 +1091,7 @@ src/webui/devpreview/fabric_rules.py	890a22429bd9d776640848fe5c279ddb38818fc3	20
 src/webui/devpreview/sample_data.py	cc4ab6e3495a2efdf90287100d7f2d3238bb992c	2026-10-10	
 src/webui/devpreview/sample_radius_guides.py	42aa12bdb9b8f343704829bf0b6993d1d11d6102	2026-10-02	
 src/webui/devpreview/sample_result.py	dbac8d00eeb06164ebb3f38b15bae7a22cc2817a	2026-10-02	
-src/webui/handler.py	a7fa1169c146d15dbf1bad7e2ca41fa7591a9904	2026-10-07	
+src/webui/handler.py	342a2fa6a0f7669455691a821a9619b94caaabca	2026-10-11	
 src/webui/httpio/README.md	0b90aaf52ac4a6c322332e7217cae1d743f198cf	2026-10-03	
 src/webui/httpio/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-02	
 src/webui/httpio/cookie_header.py	f162d5df5a7f54ca6f43b6256a9d971131c366e9	2026-10-02	
@@ -1379,6 +1379,6 @@ tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	87d5ce6fb52696c959fb5dcae46dc7dcb6462fd8	2026-10-08	
 tests/webui/README.md	10b270a62e634adc3de38374c88a60447e7b68e3	2026-09-30	
-tests/webui/test_container.py	9093c2d60eba28f297096966c4202a4751de63e6	2026-10-10	
+tests/webui/test_container.py	914baa9cf54815aee15bd7af2377d6bfcc7c1e28	2026-10-11	
 tests/webui/test_devserver.py	76fd5203a6e1b34296691354fe80c4485fc8bd9c	2026-10-09	
 tests/zone_test.py	4bed30787288ab1c63799bf296c8bb14de230708	2026-10-10	
