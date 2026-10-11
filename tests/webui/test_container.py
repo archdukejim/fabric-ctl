@@ -637,6 +637,19 @@ for path, form in (("/directory/logon/set", {"ou": "machines", "console": "lan-u
     # covers: web:post.directory.logon.set web:post.directory.logon.clear -
     check(f"auditor: {path} (who may sign in) is refused by fabric-agent (403, gpo:admin), nothing changed",
           st == 403 and "gpo:admin" in body and open(f"{W}/fabric/config/vars.yaml").read() == vt, (st, body[:300]))
+# host groups and sudo rules (manual 1.6.11.7): refused before the directory is asked; the changes themselves against a
+# real DC in tests/samba/hostgroups.py
+for path, form, perm in (("/directory/hostgroups/_new", {"name": "web"}, "machines:admin"),
+                         ("/directory/hostgroups/_form/members", {"group": "web", "machine": "ws1", "action": "add"},
+                          "machines:admin"),
+                         ("/directory/hostgroups/web/delete", {}, "machines:admin"),
+                         ("/directory/sudo/_new", {"name": "r", "users": "alice", "commands": "/bin/true"},
+                          "sudo:admin"),
+                         ("/directory/sudo/r/delete", {}, "sudo:admin")):
+    st, _, _, body = req("POST", path, POSTH, {"csrf": cookie_csrf(aud), **form}, cookie=aud)
+    # covers: web:post.directory.hostgroups._new web:post.directory.hostgroups._form.members -
+    # covers: web:post.directory.hostgroups.*.delete web:post.directory.sudo._new web:post.directory.sudo.*.delete -
+    check(f"auditor: {path} is refused by fabric-agent (403, {perm})", st == 403 and perm in body, (st, body[:300]))
 
 (st, hd, sc, body), _, _ = login(tamper="short")
 short = cookie_val(sc, "__Host-webui")
@@ -763,6 +776,19 @@ out = agent_call("GET", "/v1/domain/logon", "carol", PKI_OPS)
 # covers: agent:get.domain.logon -
 check("refused: GET /v1/domain/logon without domain:read (403, the permission named)",
       " 403 " in out and "you need the permission domain:read" in out, out)
+for path in ("/v1/host-groups", "/v1/sudo"):
+    out = agent_call("GET", path, "carol", PKI_OPS)
+    # covers: agent:get.host-groups agent:get.sudo -
+    check(f"refused: GET {path} without domain:read (403, the permission named)",
+          " 403 " in out and "you need the permission domain:read" in out, out)
+for path, perm in (("/v1/host-groups", "machines:admin"), ("/v1/host-groups/web/members", "machines:admin"),
+                   ("/v1/host-groups/web/delete", "machines:admin"), ("/v1/sudo", "sudo:admin"),
+                   ("/v1/sudo/r/delete", "sudo:admin")):
+    out = agent_call("POST", path, "carol", AUDITOR_ROLES, {"name": "web", "action": "add", "machine": "ws1"})
+    # covers: agent:post.host-groups agent:post.host-groups.*.members agent:post.host-groups.*.delete -
+    # covers: agent:post.sudo agent:post.sudo.*.delete -
+    check(f"auditor token: may not change host groups or sudo rules, POST {path} (403, {perm})",
+          " 403 " in out and perm in out, out)
 for path in ("/v1/domain/logon/set", "/v1/domain/logon/clear"):
     out = agent_call("POST", path, "carol", AUDITOR_ROLES, {"ou": "machines", "console": ["lan-users"]})
     # covers: agent:post.domain.logon.set agent:post.domain.logon.clear -

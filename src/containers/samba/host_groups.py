@@ -1,0 +1,92 @@
+"""Host groups and fabric's sudo rules (manual 1.6.11.7): their names, the marks fabric writes on them, and the
+lookups the operations on them share."""
+import ldb
+
+from paths import site_dn
+
+HOST_GROUP_MARK = "fabric: a host group (manual 1.6.11.7)"
+# fabric's editor-made sudo rules; the site's default rule carries ensure_sudo_rule's own MARK, never this one
+RULE_MARK = "fabric: a sudo rule of fabric's editor (manual 1.6.11.7)"
+HOSTS = "; hosts: "
+
+
+def host_group_name(site, name):
+    """Purpose: a host group's AD name from its short name.
+    Inputs:  site — str; name — the short name (`web`).
+    Returns: str "<site>-hosts-<name>".
+    Fails:   never.
+    Feeds:   create_host_group, remove_host_group, set_host_group_member, add_sudo_rule."""
+    return f"{site}-hosts-{name}"
+
+
+def find_host_group(samdb, site, name):
+    """Purpose: one of the site's host groups, in its OU=groups.
+    Inputs:  samdb — SamDB; site — str; name — the group's AD name (`<site>-hosts-<name>`).
+    Returns: ldb.Message (dn, member).
+    Fails:   ValueError "no host group <name> in site <site>"; ldb.LdbError from the search.
+    Feeds:   remove_host_group, set_host_group_member, add_sudo_rule, refresh_sudo_hosts."""
+    found = samdb.search(base=f"OU=groups,{site_dn(samdb, site)}", scope=ldb.SCOPE_ONELEVEL, attrs=["member"],
+                         expression=f"(&(objectClass=group)(sAMAccountName={ldb.binary_encode(name)}))")
+    if not found or not name.startswith(f"{site}-hosts-"):
+        raise ValueError(f"no host group {name} in site {site}")
+    return found[0]
+
+
+def member_hosts(samdb, group):
+    """Purpose: the host names sudo matches for a host group's machines: each member computer's short name and its
+             DNS name, lower case (sssd asks the DC for the rules naming this host's short name or FQDN).
+    Inputs:  samdb — SamDB; group — ldb.Message of the group (with member).
+    Returns: sorted list of str (empty when the group holds no computer).
+    Fails:   ldb.LdbError from a search.
+    Feeds:   refresh_sudo_hosts, list_host_groups."""
+    names = set()
+    for dn in group.get("member", []):
+        found = samdb.search(base=str(dn), scope=ldb.SCOPE_BASE, expression="(objectCategory=computer)",
+                             attrs=["sAMAccountName", "dNSHostName"])
+        for m in found:
+            names.add(str(m["sAMAccountName"][0]).rstrip("$").lower())
+            if m.get("dNSHostName"):
+                names.add(str(m["dNSHostName"][0]).lower())
+    return sorted(names)
+
+
+def rule_description(hosts):
+    """Purpose: the description fabric writes on one of its editor's sudo rules: the mark, and where it applies.
+    Inputs:  hosts — "ALL" or a host group's AD name.
+    Returns: str.
+    Fails:   never.
+    Feeds:   add_sudo_rule."""
+    return f"{RULE_MARK}{HOSTS}{hosts}"
+
+
+def rule_hosts(description):
+    """Purpose: where one of fabric's editor-made rules applies, from its description.
+    Inputs:  description — str.
+    Returns: "ALL", a host group's AD name, or None when the rule is not the editor's.
+    Fails:   never.
+    Feeds:   list_sudo_rules, remove_sudo_rule, remove_host_group, refresh_sudo_hosts."""
+    if not description.startswith(RULE_MARK + HOSTS):
+        return None
+    return description[len(RULE_MARK + HOSTS):]
+
+
+def site_rules(samdb, site):
+    """Purpose: the sudo rules in the site's OU=sudoers.
+    Inputs:  samdb — SamDB; site — str.
+    Returns: list of ldb.Message (cn, sudoUser, sudoHost, sudoCommand, sudoRunAsUser, description), by name.
+    Fails:   ldb.LdbError from the search (OU=sudoers missing).
+    Feeds:   list_sudo_rules, remove_host_group, refresh_sudo_hosts."""
+    found = samdb.search(base=f"OU=sudoers,{site_dn(samdb, site)}", scope=ldb.SCOPE_ONELEVEL,
+                         expression="(objectClass=sudoRole)",
+                         attrs=["cn", "sudoUser", "sudoHost", "sudoCommand", "sudoRunAsUser", "sudoRunAs",
+                                "description"])
+    return sorted(found, key=lambda m: str(m["cn"][0]).lower())
+
+
+def text(msg, attr):
+    """Purpose: an attribute's first value as text.
+    Inputs:  msg — ldb.Message; attr — str.
+    Returns: str ("" when absent).
+    Fails:   never.
+    Feeds:   the host group and sudo rule operations."""
+    return str(msg[attr][0]) if msg.get(attr) else ""

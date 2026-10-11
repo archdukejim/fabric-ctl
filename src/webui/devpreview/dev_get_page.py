@@ -1,6 +1,7 @@
 from webui import views
 from webui.devpreview.sample_data import (RECORD_TYPES, SAMPLE_CA, SAMPLE_DEVICES, SAMPLE_DHCP, SAMPLE_DOMAIN,
                                           SAMPLE_FEDERATION, SAMPLE_GPO, SAMPLE_LOGON, SAMPLE_RADIUS, SAMPLE_ACME,
+                                          SAMPLE_ACCESS,
                                           SAMPLE_IMAGES,
                                           SAMPLE_SECURITY, SAMPLE_VAULT, SAMPLE_DNS_FILTER, SAMPLE_QUERY_LOG)
 from webui.devpreview.sample_radius_guides import sample_radius_guides
@@ -55,7 +56,8 @@ def dev_get_page(h, path, query):
                                                           "gpo") else "devices"
         kw = {"msg": query.get("msg", ""), "err": query.get("err", "")}
         if view in ("domain", "machines"):
-            return h.send(200, views.directory(ctx, view, domain=SAMPLE_DOMAIN, logon=SAMPLE_LOGON, **kw))
+            return h.send(200, views.directory(ctx, view, domain=SAMPLE_DOMAIN, logon=SAMPLE_LOGON,
+                                               access=SAMPLE_ACCESS, **kw))
         if view == "gpo":
             return h.send(200, views.directory(ctx, view, gpo={**SAMPLE_GPO, "match": query.get("match", "")}, **kw))
         if view == "people":
