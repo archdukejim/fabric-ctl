@@ -19,7 +19,7 @@
 {% if ctx %}
 <nav class="tabs">
 {% for id, href, label, optional in tabs %}
-  <a href="{{ href }}" class="tab{{ ' active' if id == tab }}">{{ label }}{% if optional %}<span class="opt">optional</span>{% endif %}</a>
+  <a href="{{ href }}" class="tab{{ ' active' if id == tab }}">{{ label }}</a>
 {% endfor %}
 </nav>
 {% endif %}

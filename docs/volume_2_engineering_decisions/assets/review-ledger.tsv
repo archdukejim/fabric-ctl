@@ -1268,7 +1268,7 @@ templates/vars.yaml.j2	5e66ae30d267a0316a59edea697a1d4c23abfed8	2026-10-10
 templates/webui-app/README.md	cb36fb38d98f1b13362b52a096517eaf6d17b31f	2026-10-09	
 templates/webui-app/apply.html	8b8fd4593d075794cc14f4a38d97874c4cc76c1d	2026-10-02	
 templates/webui-app/audit.html	92d66156a5052b3b375db22a3c8eb3b1f266cf83	2026-10-02	
-templates/webui-app/base.html	57d5614bd4519bc1f7661ceaf9309076a47a77a2	2026-10-09	
+templates/webui-app/base.html	e60847122454a2a2348e4da3ac749b97dc69083a	2026-10-11	
 templates/webui-app/bind9.html	387b9a04fe89e3d75069173e153d54c5f9bba876	2026-10-10	
 templates/webui-app/continue.html	f99964b564967ff6c0425013986c54a555ba6259	2026-10-02	
 templates/webui-app/directory.html	a1df51eea93d38bf2f815d588e4b4eccf731ec5d	2026-10-09	
@@ -1276,9 +1276,9 @@ templates/webui-app/directory_macros.html	77b0a66ddf4bfb3a03d1d4acd10d9e92f04dac
 templates/webui-app/dns_filter.html	c246faf2c31db6f7be2324088dd7359d258ede47	2026-10-10	
 templates/webui-app/error.html	509e885a7989108d54fa8694b1678499cf20e205	2026-10-02	
 templates/webui-app/federation.html	cf9c22d26753a217dfb442c89ac0fa31836b7722	2026-10-08	
-templates/webui-app/freeradius.html	f29922fdafc199be3367d057b5e35ee3089fa02a	2026-10-08	
+templates/webui-app/freeradius.html	e16950440618b58b4df3fc61b7ad67a4ad391ab6	2026-10-11	
 templates/webui-app/job.html	626dda99e1958b7a289827cac344752ecabc9a30	2026-10-09	
-templates/webui-app/kea.html	b9a63d4575de822ad1892d337100ca5bc2e9965f	2026-10-10	
+templates/webui-app/kea.html	64a11ef731b5010740df0a3d848c4e9bbaa3507a	2026-10-11	
 templates/webui-app/machine_result.html	b2f5f9422d86504faeef0b9992c4d33f3edd8df7	2026-10-08	
 templates/webui-app/openbao.html	82a7fc315895e161b0c4feeaa73026596bc91c3f	2026-10-09	
 templates/webui-app/overview.html	f84f00064a2500f3fdde90f1d11f378dad47ee6a	2026-10-09	
