@@ -372,6 +372,23 @@ try:
     else:
         print("INFO no internet: DoT upstream and the allow over a real name not checked")
 
+    # the list check runs beside BIND, never inside it (2.3.1.13 finding 7: a large list's named-checkzone shared BIND's
+    # 128 MiB and got named killed): a stand-in "bind9" from the same image with a tiny limit outlives a large check
+    import fabriclib.dns_filter.update_lists as m_lists  # noqa: E402
+    sh("docker rm -f bind9", ok=False)
+    sh(["docker", "run", "-d", "--name", "bind9", "--network", "none", "--memory", "48m", "--entrypoint", "sleep",
+        IMAGE, "infinity"])
+    big = "$TTL 60\n@ IN SOA localhost. root.localhost. 1 3600 600 86400 60\n@ IN NS localhost.\n" + "".join(
+        f"block{i}.example CNAME .\n" for i in range(300000))
+    said = m_lists._check_zone("big.list.rpz", big)
+    oom = sh(["docker", "inspect", "-f", "{{.State.Running}} {{.State.OOMKilled}}", "bind9"], ok=False).stdout.strip()
+    check("lists: a large list (300,000 names) is checked in its own container: it loads, and BIND's container (48 MiB "
+          "here) is not touched", said is None and oom == "true false", (said, oom))
+    said = m_lists._check_zone("bad.list.rpz", "$TTL 60\n@ IN SOA localhost. root.localhost. 1 3600 600 86400 60\n"
+                                               "this is not a record\n")
+    check("lists: a list that does not load is still refused, with the checker's reason", bool(said), said)
+    sh("docker rm -f bind9", ok=False)
+
     # the list job: a changed list is reloaded alone; a list that fails keeps its last good copy
     with open(os.path.join(LIST_DIR, "one.txt"), "a") as f:
         f.write("||new-entry.example^\n")
