@@ -46,7 +46,7 @@ if CMD == "setup":
             pass
     steps = [
         ("POST", "/control/dns_config", {"upstream_dns": ["tls://1.1.1.1", "tls://1.0.0.1"],
-                                         "bootstrap_dns": ["1.1.1.1"], "blocking_mode": "default",
+                                         "bootstrap_dns": ["1.1.1.1"], "blocking_mode": "nxdomain",
                                          "dnssec_enabled": True, "cache_size": 4194304, "ratelimit": 0,
                                          "blocked_response_ttl": 10}),
         ("PUT", "/control/querylog/config/update", {"enabled": False, "interval": 86400000,

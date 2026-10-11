@@ -112,10 +112,10 @@ docs/volume_1_description_and_architecture/1.9.6-changes.md	de23fcd3ade76bb7206a
 docs/volume_1_description_and_architecture/1.9.7-milestones.md	a41e86e4f9febe721f6ea0699ab56a29e3185a48	2026-10-08	
 docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	772dcc42dd63416bb110df6d3945db8fc4589b0d	2026-10-08	
 docs/volume_1_description_and_architecture/README.md	dd669f7bdbbb9652321ce57ed38d916410b39bf5	2026-10-10	
-docs/volume_2_engineering_decisions/2.1.1-product.md	05ee1c7fec9f19c8a614638ed9920d01b24ce87d	2026-10-11	
+docs/volume_2_engineering_decisions/2.1.1-product.md	2fe3aa5354522579aa2bab53d33bb656c481c290	2026-10-11	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	d2f651c94dba5302552170cee89cc3bc6f73769a	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
-docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	211c4d67d2be944e35f2e0bc2df3e82566044d18	2026-10-10	
+docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	aa1c8850f82a45a9e1edf04456005f2a089e25cf	2026-10-11	
 docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece98c5e28bc1c8	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.14-images.md	10ae5d4e6d1e0f8b06210e69caeaa341538cf37e	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.15-logs.md	b3fb9286ea0a6760a0ab597950d771e6cc305633	2026-10-08	
@@ -130,7 +130,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	9df3b3a9713275c6b4abd28d84f22
 docs/volume_2_engineering_decisions/2.1.9-federation.md	6c344024d62480ec9bea70a3245c3baa6511af50	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	d27892635d644436e52c84ff592b7a3615339dd6	2026-10-11	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	a6f373d40479d1d6b5816b978ae378d558ed86e9	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	3424b43960e50007224d299adac7dd0533c7f0f6	2026-10-08	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -246,9 +246,9 @@ scripts/release/README.md	d5379b29f1b78dc46eefe9b1b518555b2236f651	2026-10-08
 scripts/release/make-apt-key.sh	afc377602ea7f299327f42646cace23cb9c25963	2026-10-08	
 spikes/README.md	26fd7b7c1c3c71822152c1a713f510d47f6691d1	2026-10-11	
 spikes/dns-engine/README.md	cd4ea00c27a705c4301411d8dfe4efe3967c701d	2026-10-11	
-spikes/dns-engine/adguard.py	d1653bebc6454556e76b47cf0fd0b8eb5b98d387	2026-10-11	
+spikes/dns-engine/adguard.py	95786719a486d0aba9863f44092e79011102e56c	2026-10-11	
 spikes/dns-engine/merge.py	6ac92671fd4e700ec7059715cb25a7817817d49f	2026-10-11	
-spikes/dns-engine/run.sh	d9bfb570cbf7d131154edf1bb3cfa2800c24d16c	2026-10-11	
+spikes/dns-engine/run.sh	1caf4c13c2f5b85c70248bfcb7ac8f559fc68608	2026-10-11	
 spikes/dns-filter/README.md	18112a638be76f259395a60d4860658158fce4c8	2026-10-09	
 spikes/dns-filter/convert.py	f936569cef262d0ddc9c98ee4345b5c239c9f54d	2026-10-09	
 spikes/dns-filter/fetch.sh	f64db23cef788dc6e5ba712bb797465c94b85faa	2026-10-09	

@@ -38,7 +38,8 @@ cleanup() {
 }
 cleanup
 mkdir -p "$W"
-[ "${KEEP_RAW:-}" ] || rm -rf "$W/raw" "$W/conf" "$W/ag" "$W/log"
+[ "${KEEP_RAW:-}" ] || rm -rf "$W/raw"
+rm -rf "$W/conf" "$W/ag" "$W/log"            # KEEP_RAW keeps only the downloaded lists
 mkdir -p "$W/raw" "$W/conf" "$W/ag/work" "$W/ag/conf" "$W/log"
 chmod 777 "$W/log"
 
@@ -159,7 +160,7 @@ echo "  the blocked answer's authority section (the marker):"
 q sde-tools $A.30 "$BLOCKED" | sed -n '/AUTHORITY SECTION/,/^$/p' | sed 's/^/    /'
 echo "  a genuine NXDOMAIN's authority section:"
 q sde-tools $A.30 "no-such-name-$RANDOM.example.com" | sed -n '/AUTHORITY SECTION/,/^$/p' | sed 's/^/    /'
-docker exec sde-res rndc dnstap -roll >/dev/null 2>&1; sleep 1
+docker exec sde-res rndc -k /etc/bind/x/rndc.key dnstap -roll >/dev/null 2>&1; sleep 1
 docker exec sde-res sh -c 'dnstap-read -y /var/log/named/dnstap.log.0 2>/dev/null || dnstap-read -y /var/log/named/dnstap.log' \
     > "$W/dnstap.yaml" 2>&1
 check "dnstap records the client, the name and NXDOMAIN for the blocked answer" \
@@ -184,11 +185,11 @@ controls { inet 127.0.0.1 allow { localhost; } keys { "rndc-key"; }; };
 tls cloudflare { ca-file "/etc/ssl/certs/ca-certificates.crt"; remote-hostname "one.one.one.one"; };
 options { directory "/var/cache/bind"; listen-on { any; }; listen-on-v6 { none; }; recursion yes;
   allow-query { $A.0/24; }; dnssec-validation auto; max-cache-size 64m;
-  forward only; forwarders port 853 tls cloudflare { 1.1.1.1; 1.0.0.1; }; };
+  forward only; forwarders port 853 tls cloudflare { 1.1.1.1; 1.0.0.1; };
+  response-policy { zone "fabric.rpz"; zone "merged.rpz"; } break-dnssec yes qname-wait-recurse no; };
 zone "site.test" { type forward; forward only; forwarders { $A.10; }; };
 zone "fabric.rpz" { type primary; file "/etc/bind/x/fabric.rpz"; };
 zone "merged.rpz" { type primary; file "/etc/bind/x/merged.rpz"; };
-response-policy { zone "fabric.rpz"; zone "merged.rpz"; } break-dnssec yes qname-wait-recurse no;
 EOF
 docker run -d --name sde-bindonly --network spike_dnse_a --ip "$A.50" -v "$C:/etc/bind/x:ro" "$BIND_IMAGE" \
     named -f -u bind -c /etc/bind/x/bindonly.conf >/dev/null
@@ -198,8 +199,8 @@ echo "--- B: one more list: merge again and reload"
 t0=$(date +%s.%N)
 python3 "$HERE/merge.py" "$W/raw" "$C/merged.rpz" "${IDS[@]}" "$MORE" > "$W/merge-more.json"
 sed -i '2s/ 1 3600/ 2 3600/' "$C/merged.rpz"          # a new serial: the reload is done when BIND serves it
-docker exec sde-bindonly rndc reload merged.rpz >/dev/null
-for _ in $(seq 1 3000); do docker exec sde-bindonly rndc zonestatus merged.rpz 2>/dev/null | grep -q '^serial: 2' && break; sleep 0.2; done
+docker exec sde-bindonly rndc -k /etc/bind/x/rndc.key reload merged.rpz >/dev/null
+for _ in $(seq 1 3000); do docker exec sde-bindonly rndc -k /etc/bind/x/rndc.key zonestatus merged.rpz 2>/dev/null | grep -q '^serial: 2' && break; sleep 0.2; done
 B_MORE=$(echo "$(date +%s.%N) - $t0" | bc)
 echo "  merge + reload: ${B_MORE}s; memory, 16 lists: $(mem sde-bindonly); $(cut -c1-200 "$W/merge-more.json" | grep -o '"records_merged": [0-9]*')"
 
