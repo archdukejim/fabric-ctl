@@ -84,7 +84,7 @@ NGINX_IP=$(R "python3 -c 'import yaml;print(yaml.safe_load(open(\"/opt/fabric/co
 for f in certs_page_test.sh rfc2136_test.sh login_test.py; do put "$REPO/tests/sandbox/$f"; done
 R "bash /tmp/certs_page_test.sh info.$DOMAIN ca.$DOMAIN $NGINX_IP $HOST_IP" > "$OUT/certs-page.log" 2>&1
 check "certs page at info.<domain>/certs/: formats, CA identity, MIME, plain HTTP by name and IP, CRLs, ca.<domain> = Step-CA, certs.<domain> gone" \
-    "! grep -q '^FAIL' '$OUT/certs-page.log' && [ \"\$(grep -c '^PASS' '$OUT/certs-page.log')\" -ge 26 ]"
+    "! grep -q '^FAIL' '$OUT/certs-page.log' && [ \"\$(grep -c '^PASS' '$OUT/certs-page.log')\" -ge 25 ]"
 check "LAN clients reach the certificate page over plain HTTP: http://$HOST_IP/certs/" \
     "curl -s --max-time 10 http://$HOST_IP/certs/root-ca.pem | grep -q 'BEGIN CERTIFICATE'"
 

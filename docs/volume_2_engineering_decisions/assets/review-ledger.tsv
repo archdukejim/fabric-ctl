@@ -87,7 +87,7 @@ docs/volume_1_description_and_architecture/1.3.2-setup-design.md	f5e5d9053fecee7
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	bbcb57d9f0854dcbeac64fd7e4e05de230bcdb5d	2026-10-10	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	afa7df001a592bb13ba756c1598d5f55873e4e74	2026-10-11	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	729f8a6934e41746bb00a5d02d3419cf699671c5	2026-10-11	
-docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	6b60dec19b8dfd501995503fc38320f208114683	2026-10-11	
+docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	930775effc40c0ed7c2c112f1432b9460befc8bd	2026-10-11	
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.1-directory.md	7fa9284225375dc046757b644311b8368d907462	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.10-security.md	4cbc7055f772e5b00dc264ef875fc304792cf856	2026-10-09	
@@ -1320,7 +1320,7 @@ tests/hardening/run.sh	b4e3e81266e9980d1dc636d34260a2619c00220c	2026-10-05
 tests/host/README.md	d91d09e7d17622b432063f1b74256e96f6d940cd	2026-10-09	
 tests/host/installer.py	56ab2d8965c6a4dc3472998943b2892610968a2c	2026-10-11	
 tests/host/reset_user.py	36415b5b1fef5a58eb441687393d6062644b34e7	2026-10-05	
-tests/host/run.sh	dc302491f52af2e3c174e0d587959cfd243b4991	2026-10-11	
+tests/host/run.sh	d058103e0326e47d558f1bdac8db26601ac414ea	2026-10-11	
 tests/host/upgrade.sh	85dd33fc7ea57cc3f7bcc0627f46e5dbbed5bde5	2026-10-09	
 tests/host/upgrade_state.py	264871e5ec5a8366413119615e738476b30de26e	2026-10-09	
 tests/image_ref.py	4ff35451eb0f155eee1efe6209e935e841d0dc32	2026-10-03	
@@ -1380,7 +1380,7 @@ tests/sandbox/make_person.py	f778029f1dfc122927b454149f21fda1c884cdf7	2026-10-05
 tests/sandbox/radius_device.py	12b3e1127a0cc5966846fe0554dc84da7a2e5449	2026-10-05	
 tests/sandbox/radius_mab.py	c9575e9fd8e3c3d52dbd77b879b9ef9a6bd148d5	2026-09-30	
 tests/sandbox/rfc2136_test.sh	4299bc1c1d62237439cad3a2ebac534f45ef0874	2026-10-09	
-tests/sandbox/run.sh	62de31025a638abad082f2c889abcbddedf2689c	2026-10-11	
+tests/sandbox/run.sh	c112441b10bd3d181f95a23ccce891b43468adcd	2026-10-11	
 tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30	
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	87d5ce6fb52696c959fb5dcae46dc7dcb6462fd8	2026-10-08	

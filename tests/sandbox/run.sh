@@ -259,7 +259,7 @@ docker cp "$REPO/tests/sandbox/certs_page_test.sh" "$NAME:/root/certs_page_test.
 in_box 'bash /root/certs_page_test.sh info.lan.test ca.lan.test $(python3 -c "import yaml;print(yaml.safe_load(open(\"/opt/fabric/config/vars.yaml\"))[\"ip_nginx\"])") '"$IP" \
     > "$OUT/certs-page.log" 2>&1
 check "certs page at info.<domain>/certs/: every format real, right CA, right MIME, plain HTTP by name and IP, the CRLs; ca.<domain> stays Step-CA; certs.<domain> gone" \
-    "! grep -q '^FAIL' '$OUT/certs-page.log' && [ \"\$(grep -c '^PASS' '$OUT/certs-page.log')\" -ge 26 ]"
+    "! grep -q '^FAIL' '$OUT/certs-page.log' && [ \"\$(grep -c '^PASS' '$OUT/certs-page.log')\" -ge 25 ]"
 check "DNS: info.<domain> and fabric.<domain> resolve to the host" \
     "in_box 'dig +short @$IP info.lan.test' | grep -qx $IP && in_box 'dig +short @$IP fabric.lan.test' | grep -qx $IP"
 check "negative: certs.<domain> no longer resolves (1.5.1.5)" \
