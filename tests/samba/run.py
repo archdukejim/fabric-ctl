@@ -303,6 +303,19 @@ except ValidationError as e:
     applied = str(e)
 check("refused at apply: check_settings checks logon_policies before anything is rendered",
       "grants nobody" in applied, applied)
+# pki_manual_max_days (2.3.1.15): a cap that is not a whole number of days is refused at apply, not on the PKI page
+for bad in ("abc", "0", "-5", "12.5"):
+    try:
+        check_settings({**v, "dns_filter": "none", "pki_manual_max_days": bad})
+        said = "accepted"
+    except ValidationError as e:
+        said = str(e)
+    # covers: setting:pki_manual_max_days -
+    check(f"refused at apply: pki_manual_max_days {bad!r}, saying it must be a whole number of days",
+          "pki_manual_max_days must be a whole number of days" in said, said)
+_ok = {**v, "dns_filter": "none", "pki_manual_max_days": "90"}
+check_settings(_ok)
+check("...and a whole number is accepted, as a number", _ok["pki_manual_max_days"] == 90, _ok["pki_manual_max_days"])
 
 tmp = tempfile.mkdtemp()
 answers = os.path.join(tmp, "answers.yaml")

@@ -178,7 +178,7 @@ def _flags(argv):
         if flag == "--update-containers":        # the old name
             return main(["images", "update", "--all"])
         if flag == "--client-cert":
-            return main(["client-cert", value("--client-cert") or ""])
+            return main(["client-cert", *([value("--client-cert")] if value("--client-cert") else [])])
         if flag == "--keycloak-sync":
             return subprocess.call([sys.executable, os.path.join(lib, "keycloak_bootstrap.py"), "--vars", vars_file,
                                     "--secrets", os.path.join(fabric, "config", "fabric-secrets.yml")])

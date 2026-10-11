@@ -236,7 +236,6 @@ cli:--all -
 cli:--apply +
 cli:--apply -
 cli:--client-cert +
-cli:--client-cert -
 cli:--interactive +
 cli:--interactive -
 cli:--keycloak-sync +
@@ -607,7 +606,6 @@ setting:openbao_recovery_threshold -
 setting:openbao_runtime_dir -
 setting:openbao_seal_key_id -
 setting:org_domain -
-setting:pki_manual_max_days -
 setting:posix_home_base +
 setting:posix_home_base -
 setting:posix_id_block -

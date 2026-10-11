@@ -25,7 +25,8 @@ def check_settings(final_vars):
              dns_filter other than bind or none (0.6's adguard: run setup, which moves it), from
              check_filter_settings (the BIND resolver's lists,
              rules and upstreams), from signin_level (a second factor that is not a level), or from
-             check_logon_policies (who may sign in per OU, manual 1.6.11.4).
+             check_logon_policies (who may sign in per OU, manual 1.6.11.4), or for a pki_manual_max_days that is not
+             a whole number of days.
     Feeds:   apply_deployment."""
     final_vars["dhcp"] = normalize_dhcp(final_vars)
     if final_vars.get("install_kea"):                 # on the host: its interfaces; elsewhere ({}) served from host_ip
@@ -44,3 +45,7 @@ def check_settings(final_vars):
         final_vars[key] = signin_level(final_vars.get(key))
     check_samba_settings(final_vars)
     final_vars["logon_policies"] = check_logon_policies(final_vars.get("logon_policies"))
+    days = str(final_vars.get("pki_manual_max_days", 1825)).strip()
+    if not days.isdigit() or int(days) < 1:          # the cap on certificates issued by hand (pki/common/valid_days)
+        raise ValidationError(f"pki_manual_max_days must be a whole number of days, at least 1 (got {days!r})")
+    final_vars["pki_manual_max_days"] = int(days)

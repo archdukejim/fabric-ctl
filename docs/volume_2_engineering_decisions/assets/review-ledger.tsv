@@ -68,7 +68,7 @@ docs/volume_1_description_and_architecture/1.17.4-fabricctl-lib.md	76bc845876c67
 docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	b3f0070d964dbc3a038127890717f91aedeef5e7	2026-10-11	
 docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	81f40e8bf707e5d716697ddfd4ce27c012e2fb82	2026-10-11	
 docs/volume_1_description_and_architecture/1.17.7-fabriclib-core.md	287e5a946064faecbdb0262ece385ff0e043036c	2026-10-08	
-docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	e517c818d0d5d114e02a42c34736a83411e8b1a3	2026-10-11	
+docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	4827832ddf0075bf687946df84e291d80578d16b	2026-10-11	
 docs/volume_1_description_and_architecture/1.17.9-fabriclib-dhcp.md	8b2e1da590690f5cb85c59f7c9c87ce7429e13c7	2026-10-10	
 docs/volume_1_description_and_architecture/1.2.1-topology.md	93eb5885bd1c51cc6545c5a5ebd269cf6a36173d	2026-10-10	
 docs/volume_1_description_and_architecture/1.2.10-global.md	5534a46e259bcd499006919750da778ed47dad63	2026-10-09	
@@ -132,7 +132,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	9df3b3a9713275c6b4abd28d84f22
 docs/volume_2_engineering_decisions/2.1.9-federation.md	6c344024d62480ec9bea70a3245c3baa6511af50	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	b7b267a50fb829ff77258a3045e90d83ef5499c3	2026-10-11	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	73c0ebcd6afd4249860c869f2b766fe1f1b3ad24	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	ef27ee1aa7f83ae237ad6837bc4880312771d89c	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -394,7 +394,7 @@ src/containers/samba/sort_windows_machines.py	ae4fe96107dd82d76ba9ddf8e6350da5cf
 src/containers/samba/windows_baseline_policy.py	349c3e6df012d9eab0baaee551503e818fe0af8a	2026-10-08	
 src/fabriclib/README.md	a326e9deda879932b89a56b2275b6062f5d8de7c	2026-10-09	
 src/fabriclib/__init__.py	117907918b0432dc26398d6d6e4aefc09ca0ab31	2026-09-30	
-src/fabriclib/cli.py	60622e768ff3fecb7711b7a0387f5ea4acfd93f6	2026-10-11	
+src/fabriclib/cli.py	2d229a5e04795f1a4c261af164375811f2cb2c76	2026-10-11	
 src/fabriclib/common/README.md	4b03673533c585381ea9621c47db27edd514e3d2	2026-10-11	
 src/fabriclib/common/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
 src/fabriclib/common/ask.py	8c00589bf58fd452cdfd3998041c3a0404ed103d	2026-10-11	
@@ -460,7 +460,7 @@ src/fabriclib/deploy/apply_deployment.py	19405adf527ac592a3a7276691fcc09f6afa049
 src/fabriclib/deploy/archive_vars.py	512658f15cee9e1f34ad065538d701c567971aca	2026-10-02	
 src/fabriclib/deploy/check_fixed_identity.py	35cc05d2938150eeee1fc248702cbfecfc889e3e	2026-10-02	
 src/fabriclib/deploy/check_samba_settings.py	d3a60fe6689cfc15ec4549129c3c81890129c35c	2026-10-11	
-src/fabriclib/deploy/check_settings.py	8c214007c74949daa969eca5d9e0def4ea6044ac	2026-10-11	
+src/fabriclib/deploy/check_settings.py	fa6ba0e8184072896044754b80066ef7b18d4c57	2026-10-11	
 src/fabriclib/deploy/compose_builds.py	95f535d5fa028de30d075b3606d12f0fbbe18366	2026-10-08	
 src/fabriclib/deploy/deploy_optional_parts.py	4da8a35988cbabf795813cf1f7e638e28d38c399	2026-10-09	
 src/fabriclib/deploy/deploy_paths.py	092af181572026d51744c33959d4cc8c6198fdd2	2026-10-08	
@@ -1330,7 +1330,7 @@ tests/docs/check_docstrings.py	525f95338347ff4ea65bdec1130f401d9e326460	2026-10-
 tests/docs/check_entrypoints.py	d5bc6e7b428fc22770b90e35ab0899c9ab616986	2026-10-11	
 tests/docs/docstring_only_diff.py	89dc777682c5db59760752f3d3dab245513f9163	2026-10-03	
 tests/docs/run.py	936ec0a533645a0628d5f56983de15dd56f9275b	2026-10-11	
-tests/entrypoints-gaps.txt	e8fd8cbf5fde238c6764e2b6db080379a0946ed2	2026-10-11	
+tests/entrypoints-gaps.txt	b9e8c9e186f89e1e91cad96b432dcecf8c8bff65	2026-10-11	
 tests/entrypoints-reasons.yaml	fd19dcae1f8c4708e37dbe8a3cc43e366d9c08d1	2026-10-11	
 tests/entrypoints.yaml	e575acfb010328871d7f6b47a97234445ab55131	2026-10-11	
 tests/federation/README.md	196c75b746763bfb12df898172248a0bfe83ad06	2026-10-05	
@@ -1380,7 +1380,7 @@ tests/pki/README.md	c00ae570e87e3a05c979e041a56057b2b388ec7e	2026-10-08
 tests/pki/acme.py	7438b5f1f8a3b63fd4c449134f6430e1ee0e5601	2026-10-11	
 tests/pki/renewal.py	e7411202a204fa472a773e9564f60572605ffaf3	2026-10-11	
 tests/pki/revocation.py	cf80ad8b84912f80b941f8fcf3387825e9ba18e6	2026-10-11	
-tests/pki/run.py	674eb6e17892a276fded53fe62b57f9deff92d55	2026-10-11	
+tests/pki/run.py	9e8b560850a829463834c14ab152065151cf710b	2026-10-11	
 tests/pki/site_ca.py	6e71ca7798e1aa94ce0f43160716ac57302bec65	2026-10-08	
 tests/render.py	0ff53a81cf2a1868fb563f6a7b282f355099f9f9	2026-10-11	
 tests/resolver/README.md	e056b218eb8798e3eb120f5f4a07e34e4c40becd	2026-10-10	
@@ -1395,7 +1395,7 @@ tests/samba/devices.py	f1fd095e609b97e395f97de93350afb127d2be54	2026-10-11
 tests/samba/gpo.py	dc3a4eeaf55fa0a7c892721b4bbaf7ec0355dd79	2026-10-11	
 tests/samba/linux_join.py	9f080729b99ada6d0238be124c4bd9a4daa4a013	2026-10-11	
 tests/samba/logon.py	89cb995e97b1e46e10f52a796ad3fc797bdac77d	2026-10-11	
-tests/samba/run.py	59d184385e679adbf89984e22711b38cf7f2873e	2026-10-11	
+tests/samba/run.py	9268ffcc7d7ec9d0d23d386f1a0012051ef3e2d4	2026-10-11	
 tests/samba/site_join.py	ba4db54b94a996e822c23711537682c83ad44bc3	2026-10-11	
 tests/samba/start_bind.py	d99f3b9ebf76a0c6bb2047503e1add88e4b3db88	2026-10-08	
 tests/samba/start_dc.py	fabe88b40b4d62ef16120a391c256a185850fce8	2026-10-09	

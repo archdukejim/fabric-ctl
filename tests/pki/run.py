@@ -505,6 +505,10 @@ code, out = fabricctl("client-cert")
 # covers: cli:client-cert -
 check("refused: fabricctl client-cert without a user: exit 2 with the usage naming <user>",
       code == 2 and "fabricctl client-cert <user>" in out, (code, out[-300:]))
+code, out = fabricctl("--client-cert")
+# covers: cli:--client-cert -
+check("refused: the old --client-cert with no user: the same usage (exit 2), no traceback (2.3.1.15)",
+      code == 2 and "fabricctl client-cert <user>" in out and "Traceback" not in out, (code, out[-300:]))
 code, out = fabricctl("acl", "remove", "cli-acl", "--no-apply")
 check("acl remove: the whole ACL and its policy go", code == 0 and "cli-acl: removed" in out
       and "cli-acl" not in config_files()[0], (code, out))
