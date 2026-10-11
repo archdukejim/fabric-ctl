@@ -347,6 +347,26 @@ try:
     else:
         print("INFO no internet: the safe-search answers and the group's allow over a real name not checked")
 
+    # everyone's YouTube level (dns_filter_youtube) with safe search on: the main view loads the moderate zone
+    V["dns_filter_safe_search"], V["dns_filter_youtube"] = True, "moderate"
+    r = deploy_resolver(V, SECRETS, LINKS, env)
+    conf = open(f"{W}/resolver/config/named.conf").read()
+    main = conf[conf.index('view "everyone"'):]
+    before = rpz_log()
+
+    def adult_moderate():
+        yt = dig("adult", "www.youtube.com")
+        if internet:
+            return "restrictmoderate.youtube.com." in yt
+        return "via www.youtube.com.safesearch-ytmoderate.rpz" in rpz_log()[len(before):]
+    # covers: setting:dns_filter_youtube +
+    check("everyone's YouTube level moderate: the main view loads the moderate safe-search zone, and the adult's "
+          "YouTube is rewritten by it in the running resolver", r["reconfigured"]
+          and 'zone "safesearch-ytmoderate.rpz"' in main and 'zone "safesearch-strict.rpz"' not in main
+          and until(adult_moderate, 20), (r, rpz_log()[len(before):][-600:]))
+    V["dns_filter_safe_search"], V["dns_filter_youtube"] = False, "strict"
+    deploy_resolver(V, SECRETS, LINKS, env)
+
     # removing a group removes its view and its rules zone
     V["dns_filter_groups"] = [V["dns_filter_groups"][1]]
     r = deploy_resolver(V, SECRETS, LINKS, env)

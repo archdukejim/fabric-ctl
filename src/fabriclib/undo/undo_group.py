@@ -9,6 +9,7 @@ from fabriclib.consent.plan_host_changes import plan_host_changes
 from fabriclib.consent.save_consent import save_consent
 from fabriclib.setup.errors import SetupError
 from fabriclib.undo.undo_firewall import undo_firewall
+from fabriclib.undo.undo_member import undo_member
 from fabriclib.undo.undo_resolver import undo_resolver
 from fabriclib.undo.undo_runtime import undo_runtime
 from fabriclib.undo.undo_time import undo_time
@@ -30,6 +31,10 @@ UNDO = {
              "stays) and restart chrony", lambda ctx: undo_time(ctx.config_dir)),
     "resolver": ("remove fabric's systemd-resolved drop-in (the stub listener on port 53 comes back) and put "
                  "/etc/resolv.conf back", lambda ctx: undo_resolver(ctx.config_dir)),
+    "member": ("take this host out of its domain: put back the files fabric changed (krb5.conf, sssd.conf, "
+               "nsswitch.conf, /etc/hosts), remove its keytab, turn sss off in NSS and PAM and stop sssd if fabric "
+               "started it (the packages stay; local accounts were never changed)",
+               lambda ctx: undo_member(ctx.config_dir)),
 }
 
 

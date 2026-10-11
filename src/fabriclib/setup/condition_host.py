@@ -1,36 +1,22 @@
-import os
 import subprocess
 import time
 
 from fabriclib.common.console import info, ok
-from fabriclib.common.run import CommandError, run as sh
+from fabriclib.common.run import run as sh
 from fabriclib.consent.check_consent import check_consent
 from fabriclib.consent.plan_packages import DOCKER_PACKAGES, plan_packages
+from fabriclib.setup.common.apt_install import apt_install
 from fabriclib.setup.common.missing_packages import missing_packages
 from fabriclib.setup.errors import SetupError
 
 DOCKER_CE = "docker-ce"     # Docker's own package: kept when an install already runs it, never installed
-APT_ENV = {**os.environ, "DEBIAN_FRONTEND": "noninteractive", "NEEDRESTART_MODE": "a"}
-
-
-def _apt_install(pkgs, hint):
-    """Purpose: install packages from the host's own apt sources.
-    Inputs:  pkgs — package names; hint — what to check when apt fails (added to the error).
-    Returns: None; the packages installed.
-    Fails:   SetupError when apt cannot install them; CommandError from `apt-get update` propagates.
-    Feeds:   run."""
-    sh(["apt-get", "update"], env=APT_ENV, timeout=900)
-    try:
-        sh(["apt-get", "install", "-y", "--no-install-recommends", *pkgs], env=APT_ENV, timeout=1800)
-    except CommandError as e:
-        raise SetupError(f"apt could not install {' '.join(pkgs)}: {str(e)[-600:]}\n{hint}") from None
 
 
 def run(ctx):
     """Purpose: host packages and Docker Engine with compose v2 and buildx (Ubuntu's docker.io; an existing
              docker-ce install is kept), running and enabled — all from the host's own apt sources, after the
              `packages` consent (manual 1.2.9).
-    Inputs:  ctx — SetupContext: offline (never download), config_dir (consent.yaml). Env APT_ENV for apt.
+    Inputs:  ctx — SetupContext: offline (never download), config_dir (consent.yaml).
     Returns: None; missing packages installed, Docker installed if needed, docker.service enabled and answering
              `docker info`. Idempotent: nothing is installed when present. No apt source or key is added.
     Fails:   SetupError: the packages not approved; offline with packages or Docker missing; apt install failure
@@ -44,14 +30,14 @@ def run(ctx):
         check_consent(ctx.config_dir, "packages", plan["text"])
     if plan["host"]:
         info(f"installing {' '.join(plan['host'])}")
-        _apt_install(plan["host"], "If apt reports unmet dependencies or held broken packages, the host's apt sources "
+        apt_install(plan["host"], "If apt reports unmet dependencies or held broken packages, the host's apt sources "
                                    "are usually incomplete (e.g. missing <release>-updates, which the installed "
                                    "libraries came from). Fix the sources, run `apt-get update`, then re-run setup.")
     ok("host packages present")
 
     if plan["docker"]:
         info(f"installing Docker Engine from the Ubuntu archive ({' '.join(DOCKER_PACKAGES)})")
-        _apt_install(plan["docker"], "They are in Ubuntu's universe component: check that the host's apt sources "
+        apt_install(plan["docker"], "They are in Ubuntu's universe component: check that the host's apt sources "
                                      "include universe, run `apt-get update`, then re-run setup.")
     elif not missing_packages([DOCKER_CE]):
         info("Docker comes from Docker's own repository (docker-ce): kept as it is. New hosts get Ubuntu's "

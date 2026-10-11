@@ -31,6 +31,8 @@ import subprocess
 import sys
 import time
 
+import yaml
+
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests")
 W = OUT + "/freeradius"
@@ -146,7 +148,8 @@ openssl("x509", "-req", "-in", "int.csr", "-CA", "root.crt", "-CAkey", "root.key
         "-out", "int.crt", "-days", "2", "-extfile", "int.ext")
 openssl("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "foreign.key", "-out", "foreign.crt",
         "-days", "2", "-subj", "/CN=Foreign Root", "-addext", "basicConstraints=critical,CA:TRUE")
-leaf("radius", "int", "serverAuth", f"radius.{DOMAIN}")
+SERVER_NAME = V["hostname_radius"]                         # the name supplicants check (fabric's setting)
+leaf("radius", "int", "serverAuth", SERVER_NAME)
 FP = {d: leaf(d, "int") for d in ("laptop1", "laptop2", "laptop3", "printer1", "cam1")}
 FP["impostor"] = leaf("impostor", "foreign")
 with open(f"{W}/pki/radius.chain", "w") as f:          # the chain as Step-CA hands it out
@@ -219,7 +222,11 @@ people_map = normalize_radius_people([{"group": "staff", "vlan": 20, "priority":
                                       {"group": "contractors", "priority": 70},
                                       {"group": "Domain Computers", "vlan": 40, "priority": 80}])
 rv = {**V, "deploy_base_dir": W, "radius_clients": clients, "radius_people": people_map,
-      "service_users": {"freeradius": {"uid": 610, "gid": 610}}}
+      "service_users": {"freeradius": {"uid": 610, "gid": 610}}, "ip_freeradius": RADIUS_IP,
+      "freeradius_mem_limit": "96m"}
+# the container's address and memory limit as fabric's compose file sets them (ip_freeradius, freeradius_mem_limit)
+COMPOSE = yaml.safe_load(jinja_env(os.path.join(REPO, "templates")).get_template(
+    "freeradius/docker-compose.yml.j2").render(**rv))["services"]["freeradius"]
 deploy_freeradius(rv, {"radius_secrets": embedded, "ad_radius_password": SECRETS["ad_radius_password"]},
                   jinja_env(os.path.join(REPO, "templates")))
 install_cert(f"{W}/pki/radius.chain", f"{W}/pki/radius.key", f"{W}/pki/root.crt", f"{W}/freeradius/certs", 610, 610,
@@ -247,7 +254,8 @@ check("config: the directory account's password file, mode 0640",
 
 
 def start_radius():
-    sh(["docker", "run", "-d", "--name", "rt-radius", "--network", NET, "--ip", RADIUS_IP, "--user", "610:610",
+    sh(["docker", "run", "-d", "--name", "rt-radius", "--network", NET, "--ip",
+        COMPOSE["networks"]["fabric_net"]["ipv4_address"], "--memory", COMPOSE["mem_limit"], "--user", "610:610",
         "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
         "--tmpfs", "/tmp:noexec,nosuid,size=8m", "--tmpfs", "/run/freeradius:uid=610,gid=610,mode=0700,size=8m",
         "-v", f"{W}/freeradius/config:/etc/freeradius/fabric:ro",
@@ -279,7 +287,7 @@ def eap_tls(cert, box="rt-switch", secret=SECRET, mac="02:00:00:00:10:01"):
     """(accepted, VLAN or None, output) for one EAP-TLS authentication."""
     conf = (f'network={{\n key_mgmt=IEEE8021X\n eap=TLS\n identity="{cert}"\n ca_cert="/pki/root.crt"\n'
             f' client_cert="/pki/{cert}.crt"\n private_key="/pki/{cert}.key"\n'
-            f' domain_suffix_match="radius.{DOMAIN}"\n eapol_flags=0\n}}\n')
+            f' domain_suffix_match="{SERVER_NAME}"\n eapol_flags=0\n}}\n')
     res = sh(["docker", "exec", "-i", box, "sh", "-c",
               f"cat > /tmp/{cert}.conf && eapol_test -c /tmp/{cert}.conf -a {RADIUS_IP} -s '{secret}' "
               f"-M {mac} -t 10 -r 0"], ok=False, input=conf)
@@ -371,7 +379,7 @@ def eap_ttls(user, password, mac="02:00:00:00:20:01"):
     """(accepted, VLAN or None, output) for one EAP-TTLS/PAP login."""
     conf = (f'network={{\n key_mgmt=IEEE8021X\n eap=TTLS\n identity="{user}"\n anonymous_identity="anonymous"\n'
             f' password="{password}"\n phase2="auth=PAP"\n ca_cert="/pki/root.crt"\n'
-            f' domain_suffix_match="radius.{DOMAIN}"\n eapol_flags=0\n}}\n')
+            f' domain_suffix_match="{SERVER_NAME}"\n eapol_flags=0\n}}\n')
     res = sh(["docker", "exec", "-i", "rt-switch", "sh", "-c",
               f"cat > /tmp/ttls.conf && eapol_test -c /tmp/ttls.conf -a {RADIUS_IP} -s '{SECRET}' -M {mac} -t 10 -r 0"],
              ok=False, input=conf)
@@ -419,7 +427,7 @@ def eap_peap(user, password, mac="02:00:00:00:20:02"):
     """(accepted, VLAN or None, output) for one PEAP-MSCHAPv2 login."""
     conf = (f'network={{\n key_mgmt=IEEE8021X\n eap=PEAP\n identity="{user}"\n anonymous_identity="anonymous"\n'
             f' password="{password}"\n phase1="peaplabel=0"\n phase2="auth=MSCHAPV2"\n ca_cert="/pki/root.crt"\n'
-            f' domain_suffix_match="radius.{DOMAIN}"\n eapol_flags=0\n}}\n')
+            f' domain_suffix_match="{SERVER_NAME}"\n eapol_flags=0\n}}\n')
     res = sh(["docker", "exec", "-i", "rt-switch", "sh", "-c",
               f"cat > /tmp/peap.conf && eapol_test -c /tmp/peap.conf -a {RADIUS_IP} -s '{SECRET}' -M {mac} -t 10 -r 0"],
              ok=False, input=conf)
@@ -476,12 +484,207 @@ until(dc_healthy, 300)
 code, _, out = mab("02:00:00:00:30:01")
 check("the DC back: FreeRADIUS reconnects by itself", code == "Access-Accept", out[-300:] + logs()[-400:])
 
+# ------------------------------------------------------------------ fabricctl radius (in-process, as fabriclib/cli.py routes it)
+# The commands edit vars.yaml and fabric's secrets: here a scratch copy of each (the real save_secrets, on a file), the
+# audit log stood in for as above. "Apply" is what apply does for FreeRADIUS: its files from them, then a restart.
+import contextlib  # noqa: E402
+import functools  # noqa: E402
+import getpass  # noqa: E402
+import importlib  # noqa: E402
+import io  # noqa: E402
+from fabriclib.common.load_vars import load_vars  # noqa: E402
+from fabriclib.common.save_vars import save_vars  # noqa: E402
+from fabriclib.common.vars_lock import vars_lock  # noqa: E402
+from fabriclib.radius.run_radius_command import run_radius_command  # noqa: E402
+from fabriclib.secrets.save_secrets import save_secrets  # noqa: E402
+
+CLI = f"{W}/cli"
+os.makedirs(CLI)
+VARS_FILE, SECRETS_FILE = f"{CLI}/vars.yaml", f"{CLI}/fabric-secrets.yml"
+save_vars({"install_freeradius": True, "hostname_radius": V["hostname_radius"], "host_ip": V["host_ip"],
+           "radius_clients": clients, "radius_people": people_map}, VARS_FILE)
+save_secrets({"radius_secrets": embedded, "ad_radius_password": SECRETS["ad_radius_password"]}, SECRETS_FILE)
+for name in ("add_radius_client", "rotate_radius_secret", "remove_radius_client", "map_radius_group",
+             "unmap_radius_group"):
+    mod = importlib.import_module(f"fabriclib.radius.{name}")
+    mod.load_vars = functools.partial(load_vars, VARS_FILE)
+    if hasattr(mod, "save_vars"):
+        mod.save_vars = functools.partial(save_vars, path=VARS_FILE)
+    mod.vars_lock = functools.partial(vars_lock, f"{CLI}/.vars.lock")
+    if hasattr(mod, "save_secrets"):
+        mod.save_secrets = functools.partial(save_secrets, path=SECRETS_FILE)
+    mod.write_audit = lambda *a, **k: None
+ASKED = []
+
+
+def radius(*argv, typed=None):
+    """fabricctl radius …, as the CLI routes it (the rendered vars, then the command): (exit status, stdout, stderr).
+    typed — what the person types at the hidden prompt (getpass stood in for, as tests/common/ask.py does)."""
+    out, err, real = io.StringIO(), io.StringIO(), getpass.getpass
+
+    def answer(prompt=""):
+        ASKED.append(prompt)
+        if typed is None:
+            raise EOFError
+        return typed
+    getpass.getpass = answer
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = run_radius_command({**V, **load_vars(VARS_FILE)}, list(argv))
+    finally:
+        getpass.getpass = real
+    return code, out.getvalue(), err.getvalue()
+
+
+def stored():
+    """vars.yaml and the secrets, as saved (to prove a refusal changed nothing)."""
+    return open(VARS_FILE).read(), open(SECRETS_FILE).read()
+
+
+def secrets_now():
+    return yaml.safe_load(open(SECRETS_FILE)).get("radius_secrets") or {}
+
+
+def apply_radius():
+    """What apply does for FreeRADIUS (deploy_optional_parts): its files from vars.yaml and the secrets, a restart."""
+    data, sec = load_vars(VARS_FILE), yaml.safe_load(open(SECRETS_FILE))
+    deploy_freeradius({**rv, "radius_clients": data.get("radius_clients") or [],
+                       "radius_people": data.get("radius_people") or []},
+                      {"radius_secrets": sec.get("radius_secrets") or {},
+                       "ad_radius_password": sec["ad_radius_password"]}, jinja_env(os.path.join(REPO, "templates")))
+    sh("docker rm -f rt-radius", ok=False)
+    return start_radius()
+
+
+code, out, err = radius()
+# covers: cli:radius cli:radius.status setting:hostname_radius +
+check("fabricctl radius (status by default): the server name supplicants verified above (hostname_radius), the "
+      "client with Message-Authenticator required, the mapped groups with their VLANs; never a secret",
+      code == 0 and f"server name (supplicants check it): {SERVER_NAME}   RADIUS on {V['host_ip']}:1812/udp" in out
+      and re.search(rf"switch1 +{re.escape(SWITCH_IP)} +Message-Authenticator required", out)
+      and re.search(r"group staff +vlan 20 +priority 50", out) and SECRET not in out and not err, (code, out, err))
+code, out, err = radius("bogus")
+code2, out2, err2 = radius("status", "extra")
+# covers: cli:radius cli:radius.status -
+check("fabricctl radius: an unknown command, or status with an argument, is refused with the usage (exit 2)",
+      code == 2 and code2 == 2 and "usage: fabricctl radius status" in err and "usage: fabricctl radius status" in err2
+      and not out and not out2, (code, err, code2, err2))
+
+before = stored()
+code, out, err = radius("add-client", "switch2", "0.0.0.0/0", "--no-apply")
+code2, _, err2 = radius("add-client", "switch3", SWITCH_IP, "--no-apply")
+code3, _, err3 = radius("add-client", "Bad_Name", STRANGER_IP, "--no-apply")
+# covers: cli:radius.add-client -
+check("add-client refused: 'any address', an address another client has, a name that is not one -> exit 1, why, "
+      "nothing saved",
+      (code, code2, code3) == (1, 1, 1) and "error: radius_clients: switch2: 'any address' is not a RADIUS client" in err
+      and "overlap" in err2 and "switch1" in err2 and "is not a name" in err3 and stored() == before,
+      (err, err2, err3))
+code, out, err = radius("add-client", "switch2", STRANGER_IP, "--secret-prompt", "--no-apply", typed="too short")
+# covers: ask:radius.secret -
+check("add-client --secret-prompt: a typed secret that is too short or has spaces is refused, nothing saved",
+      code == 1 and "the secret must be 16-128 printable characters" in err and ASKED[-1] == "shared secret (hidden): "
+      and stored() == before, (code, err, ASKED[-1:]))
+
+code, out, err = radius("add-client", "Switch2", STRANGER_IP, "--no-apply")
+NEW = out.strip().splitlines()[-2] if code == 0 and len(out.strip().splitlines()) > 2 else ""
+saved_ok = (code == 0 and "RADIUS client switch2 added" in out and "recorded; apply with: sudo fabricctl --apply" in out
+            and len(NEW) == 32 and secrets_now().get("switch2") == NEW and NEW not in open(VARS_FILE).read()
+            and any(c["name"] == "switch2" for c in load_vars(VARS_FILE)["radius_clients"]))
+apply_radius()
+reply, vlan, mab_out = mab("02:00:00:00:30:01", box="rt-stranger", secret=NEW)
+# covers: cli:radius.add-client +
+check("add-client: the secret shown once is kept in the secrets (not vars.yaml); after apply the new switch is "
+      "answered with it (MAB accepted on VLAN 30)", saved_ok and reply == "Access-Accept" and vlan == "30",
+      (code, out, err, reply, mab_out[-300:]))
+
+TYPED = "Typed-Secret-For-Switch2-0001"
+code, out, err = radius("rotate-secret", "switch2", "--secret-prompt", "--no-apply", typed=f"  {TYPED} \n")
+saved_ok = (code == 0 and f"new shared secret for switch2 (shown once; give the device the same):\n{TYPED}" in out
+            and secrets_now().get("switch2") == TYPED and ASKED[-1] == "shared secret (hidden): ")
+apply_radius()
+new_reply, _, new_out = mab("02:00:00:00:30:01", box="rt-stranger", secret=TYPED)
+old_reply, _, old_out = mab("02:00:00:00:30:01", box="rt-stranger", secret=NEW)
+# covers: cli:radius.rotate-secret ask:radius.secret +
+check("rotate-secret --secret-prompt: the typed secret (trimmed) replaces the old one; after apply the switch is "
+      "answered with it, the old one gets no Access-Accept",
+      saved_ok and new_reply == "Access-Accept" and old_reply != "Access-Accept",
+      (code, out, err, new_reply, old_reply, new_out[-300:]))
+before = stored()
+code, out, err = radius("rotate-secret", "nosuch", "--no-apply")
+code2, _, err2 = radius("rotate-secret", "switch2", "--secret-prompt", "--no-apply", typed="has spaces in it, quite long")
+# covers: cli:radius.rotate-secret ask:radius.secret -
+check("rotate-secret refused: a client fabric does not have; a typed secret with spaces -> exit 1, why, nothing saved",
+      code == 1 and "error: no RADIUS client nosuch" in err and code2 == 1
+      and "the secret must be 16-128 printable characters" in err2 and stored() == before, (err, err2))
+
+code, out, err = radius("remove-client", "nosuch", "--no-apply")
+# covers: cli:radius.remove-client -
+check("remove-client refused: a client fabric does not have -> exit 1, why, nothing changed",
+      code == 1 and "error: no RADIUS client nosuch" in err and stored() == before, (code, err))
+code, out, err = radius("remove-client", "switch2", "--no-apply")
+saved_ok = (code == 0 and "RADIUS client switch2 removed" in out and "switch2" not in secrets_now()
+            and not any(c["name"] == "switch2" for c in load_vars(VARS_FILE)["radius_clients"]))
+apply_radius()
+reply, _, mab_out = mab("02:00:00:00:30:01", box="rt-stranger", secret=TYPED)
+# covers: cli:radius.remove-client +
+check("remove-client: gone from vars.yaml and its secret deleted; after apply the switch gets no answer",
+      saved_ok and reply is None, (code, out, err, reply, mab_out[-300:]))
+
+before = stored()
+code, out, err = radius("map-group", "sales", "--vlan", "5000", "--no-apply")
+code2, _, err2 = radius("map-group", "bad group!", "--no-apply")
+code3, _, err3 = radius("map-group", "sales", "--priority", "10000", "--no-apply")
+# covers: cli:radius.map-group -
+check("map-group refused: VLAN 5000, a name that is no group's, priority 10000 -> exit 1, why, nothing saved",
+      (code, code2, code3) == (1, 1, 1) and "radius_people: sales: VLAN must be 1-4094" in err
+      and "is not a group name" in err2 and "priority must be 0-9999" in err3 and stored() == before,
+      (err, err2, err3))
+code, out, err = radius("map-group", "sales", "--vlan", "60", "--priority", "40", "--no-apply")
+apply_radius()
+ok, vlan, ttls_out = eap_ttls("nora", PW)
+# covers: cli:radius.map-group +
+check("map-group: after apply a member of the newly mapped group (nora, sales) is accepted on its VLAN (60)",
+      code == 0 and "members of sales may join by password on VLAN 60" in out and ok and vlan == "60",
+      (code, out, err, vlan, logs()[-400:]))
+code, out, err = radius("unmap-group", "sales", "--no-apply")
+apply_radius()
+ok, _, ttls_out = eap_ttls("nora", PW)
+# covers: cli:radius.unmap-group +
+check("unmap-group: after apply that group's member is refused again (in no mapped group)",
+      code == 0 and "members of sales may no longer join by password" in out and not ok
+      and "person=nora reason=in_no_group_mapped_for_802.1X" in logs(), (code, out, err, logs()[-400:]))
+before = stored()
+code, out, err = radius("unmap-group", "sales", "--no-apply")
+# covers: cli:radius.unmap-group -
+check("unmap-group refused: a group that is not mapped -> exit 1, why, nothing changed",
+      code == 1 and "error: group sales is not mapped for 802.1X" in err and stored() == before, (code, err))
+
+save_vars({**load_vars(VARS_FILE), "install_freeradius": False}, VARS_FILE)
+before = stored()
+code, out, err = radius("status")
+# covers: setting:install_freeradius +
+check("install_freeradius false: status says 802.1X is off (true: the clients and groups above)",
+      code == 0 and out.strip() == "802.1X is off (install_freeradius: false)", (code, out, err))
+code, out, err = radius("add-client", "switch4", STRANGER_IP, "--no-apply")
+code2, _, err2 = radius("map-group", "sales", "--no-apply")
+# covers: cli:radius.add-client cli:radius.map-group -
+check("802.1X off: add-client and map-group are refused (exit 1, why), nothing saved",
+      code == 1 and code2 == 1 and "error: 802.1X is off (install_freeradius: false)" in err
+      and "error: 802.1X is off (install_freeradius: false)" in err2 and stored() == before, (err, err2))
+
 # ------------------------------------------------------------------ hardening
 import json  # noqa: E402
 h = json.loads(sh("docker inspect rt-radius").stdout)[0]
 check("container: uid 610, no capabilities, read-only, no-new-privileges",
       h["Config"]["User"] == "610:610" and h["HostConfig"]["CapDrop"] == ["ALL"] and not h["HostConfig"].get("CapAdd")
       and h["HostConfig"]["ReadonlyRootfs"] and "no-new-privileges:true" in h["HostConfig"]["SecurityOpt"])
+net = h["NetworkSettings"]["Networks"][NET]
+# covers: setting:ip_freeradius setting:freeradius_mem_limit +
+check("the container on the address and memory limit fabric's compose file gives it (ip_freeradius, the address every "
+      "request above went to; freeradius_mem_limit 96m)",
+      net["IPAddress"] == RADIUS_IP == rv["ip_freeradius"] and h["HostConfig"]["Memory"] == 96 * 1024 * 1024,
+      (net["IPAddress"], h["HostConfig"]["Memory"]))
 check("no RADIUS secret and no person's password in the logs",
       SECRET not in logs() and PW not in logs() and ONE_TIME not in logs() and "wrong-password" not in logs()
       and SECRETS["ad_radius_password"] not in logs() and MACHINE_PW not in logs())

@@ -88,7 +88,7 @@ published:
     keycloak:   {var: image_fabric_keycloak, tag: "0.8.0-rc.85", digest: "sha256:67a14d6f995342d351bda6b0d58c5fd2b06dfda6a28da005ac472d8355d95c42", source: "sha256:959fee075a7826341979c0d03be1041f3030429677424512af8d9af92a223f2c"}
     samba:      {var: image_fabric_samba, tag: "0.8.0-rc.85", digest: "sha256:a31147f109fd173d0b14b177baa8b9ee77e906689c26a2dcd885d2ad5f630147", source: "sha256:bc9d2e8b51a78105d939031954ae237c63a1e5ca8b762f8545c8bbcf2e239af0", groups: "BIND_GID=600,RADIUS_GID=610"}
     stepca:     {var: image_fabric_stepca, tag: "0.8.0-rc.85", digest: "sha256:eb4b1dee66051e5fcdf36da3db0714b0d93b2ee279781a81d9be852210a98a02", source: "sha256:c1cfad746580c5a98afc2a1268448efbdb2b610024d2e5adeda45db85175f20e"}
-    webui:      {var: image_fabric_webui, tag: "0.8.0-rc.85", digest: "sha256:de71c45ee5c93aab52281acde86082808d8312ba7f9a56e276db2ed760bcc8d7", source: "sha256:68e6ba3dc06a1f7e39c21255041adb3d93077109dd88d42ea2cdf697477fae10", account: webui, ids: "606:606"}
+    webui:      {var: image_fabric_webui, tag: "", digest: "", pending: "its sources changed since 0.8.0-rc.85 (0.9: the console's host access, sign-in per OU, host groups and sudo rules; the DNS filter's group forms, 2.3.1.16): built and published again with 0.9's candidate", account: webui, ids: "606:606"}
 
 # Packages installed into fabric's own images from an upstream's signed apt
 # repository (not Debian's): the exact version and the signing key's

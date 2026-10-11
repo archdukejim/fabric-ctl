@@ -7,6 +7,7 @@ from fabriclib.common.console import info, ok, warn
 from fabriclib.images.constants import STATE as IMAGE_STATE
 from fabriclib.setup.common.service_account_name import service_account_name
 from fabriclib.undo.undo_firewall import undo_firewall
+from fabriclib.undo.undo_member import undo_member
 from fabriclib.undo.undo_resolver import undo_resolver
 from fabriclib.undo.undo_time import undo_time
 from fabriclib.undo.undo_trust import undo_trust
@@ -31,8 +32,9 @@ LOCAL_IMAGES = ["fabric/bind9:local", "fabric/stepca:local", "fabric/dirsrv:loca
 def uninstall(ctx):
     """Purpose: remove fabric from this host: units, fabric.target, containers, fabric_net, local images, the
              host changes it made (undo/: its firewall rules — ufw off again if it was off before —, the resolver,
-             chrony's files, CA trust), data folders, the OpenBao key and runtime folders, the image rollback
-             record (and /etc/fabric once empty), service accounts and the CLI wrapper (undo/uninstall_plan lists it).
+             chrony's files, CA trust, the host's domain membership), data folders, the OpenBao key and runtime
+             folders, the image rollback record (and /etc/fabric once empty), service accounts and the CLI wrapper
+             (undo/uninstall_plan lists it).
     Inputs:  ctx — SetupContext (state reloaded): vars keycloak_data_dir/postgres_data_dir (deleted when outside
              deploy_base), tsig_keys names (their <deploy_base>/<name> folders), openbao_runtime_dir,
              openbao_admin_dir, openbao_udev_rules, openbao_key_dir, service_users, domain_file.
@@ -66,7 +68,7 @@ def uninstall(ctx):
 
     # the host changes fabric made, undone while their records (in the config folder) still exist
     for line in (undo_firewall(ctx.config_dir) + undo_resolver(ctx.config_dir) + undo_time(ctx.config_dir)
-                 + undo_trust(v)):
+                 + undo_trust(v) + undo_member(ctx.config_dir)):
         ok(line)
 
     for key in ("keycloak_data_dir", "postgres_data_dir"):

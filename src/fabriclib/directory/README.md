@@ -36,3 +36,12 @@ account, so AD's per-site limits apply to it.
 | `list_machines.py` | This site's machines in the domain (the Directory tab's Machines) |
 | `set_machine_enabled.py` | Disable a machine of this site, or enable it again (audited) |
 | `remove_machine.py` | Remove a machine of this site from the domain (audited) |
+| `list_host_groups.py` | This site's host groups (`<site>-hosts-<name>`), their machines and the sudo rules naming each (1.6.11.7) |
+| `create_host_group.py` | A new host group in this site's OU=groups (audited) |
+| `remove_host_group.py` | Delete a host group, refused while a sudo rule names it (audited) |
+| `set_host_group_member.py` | Put one of this site's machines in a host group or take it out; the sudo rules on it follow (audited) |
+| `run_machines_command.py` | `fabricctl machines`: routes to the host group functions |
+| `list_sudo_rules.py` | This site's sudo rules: fabric's editor's, the site default, admins' own (read-only) |
+| `add_sudo_rule.py` | A sudo rule: who, which commands, as whom, on which host group; ALL commands to everyone refused (audited) |
+| `remove_sudo_rule.py` | Remove one of fabric's editor-made sudo rules; never the site default or an admin's own (audited) |
+| `run_sudo_command.py` | `fabricctl sudo`: routes to the sudo rule functions |

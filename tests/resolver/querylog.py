@@ -6,11 +6,13 @@ fabric runs it): ingesting the resolver's log files, rewrites marking their quer
     sudo python3 tests/resolver/querylog.py      (needs Docker)
 """
 import datetime
+import io
 import os
 import shutil
 import subprocess
 import sys
 import time
+from contextlib import redirect_stderr, redirect_stdout
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/querylog"
@@ -36,6 +38,7 @@ from fabriclib.dns_filter.common.list_zone import list_zone  # noqa: E402
 from fabriclib.dns_filter.dns_filter_stats import dns_filter_stats  # noqa: E402
 from fabriclib.dns_filter.ingest_dns_log import ingest_dns_log  # noqa: E402
 from fabriclib.dns_filter.read_query_log import read_query_log  # noqa: E402
+from fabriclib.dns_filter.run_dns_filter_command import run_dns_filter_command  # noqa: E402
 from fabriclib.rbac.permissions import BUNDLES  # noqa: E402
 from fabriclib.rbac.required_permission import required_permission  # noqa: E402
 
@@ -66,6 +69,15 @@ def append(name, text):
         f.write(text)
 
 
+def dnsf(v, *argv):
+    """fabricctl dns-filter …, as the CLI routes it (fabriclib/cli.py): its exit status and output (stdout and
+    stderr)."""
+    out, err = io.StringIO(), io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        code = run_dns_filter_command(v, list(argv))
+    return code, out.getvalue() + err.getvalue()
+
+
 def psql(sql, user="fabric_dnslog", db="dnslog"):
     return subprocess.run(["docker", "exec", "-i", "postgres", "psql", "-X", "-At", "-U", user, "-d", db],
                           input=sql, capture_output=True, text=True)
@@ -79,6 +91,12 @@ check("dns:querylog is in the admin bundle only (not network operators, not audi
       "dns:querylog" in BUNDLES["admin"] and not [b for b, p in BUNDLES.items() if b != "admin" and "dns:querylog" in p])
 check("off: without Postgres (install_keycloak false) the query log says so",
       "Postgres" in ingest_dns_log({**V, "install_keycloak": False}).get("off", ""))
+NOPG = {**V, "install_keycloak": False}
+OFF = "the query log is off: Postgres is not installed (install_keycloak: false)"
+outs = {cmd: dnsf(NOPG, cmd) for cmd in ("ingest", "log", "stats")}
+# covers: cli:dns-filter.ingest cli:dns-filter.log cli:dns-filter.stats -
+check("fabricctl dns-filter ingest, log and stats refused without Postgres: exit 2, saying the query log is off",
+      all(code == 2 and OFF in out for code, out in outs.values()), outs)
 
 pg = sh([sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "postgres"]).stdout.strip()
 try:
@@ -136,6 +154,41 @@ try:
     kept = psql("SELECT count(*) FROM stats_hourly WHERE zone = '' AND hour < now() - interval '7 days';").stdout.strip()
     check("statistics stay past 7 days (90): the old hour's count kept though its query is gone", kept == "1", kept)
 
+    # fabricctl dns-filter stats | log | ingest, as the CLI routes them (manual 1.12.2.13)
+    code, out = dnsf(V, "stats")
+    # covers: cli:dns-filter.stats +
+    check("fabricctl dns-filter stats: the 7 days' totals and share, per list, the most blocked names, exit 0",
+          code == 0 and "last 7 days: 4 queries, 2 blocked (50.0%)" in out and "Test list: 2 blocked" in out
+          and "ads.example  (Test list)" in out and "192.168" not in out, out)
+    code, out = dnsf(V, "log", "--client", "192.168.1.21")
+    code2, out2 = dnsf(V, "log", "--blocked", "--limit", "1")
+    rows = out.splitlines()
+    # covers: cli:dns-filter.log +
+    check("fabricctl dns-filter log: newest first, by client; a block names its action and list; --blocked --limit",
+          code == 0 and len(rows) == 2 and "ok.example" in rows[0] and "PASSTHRU via owner.rpz" in rows[0]
+          and "deep.sub.ads.example" in rows[1] and "NXDOMAIN via Test list" in rows[1]
+          and code2 == 0 and len(out2.splitlines()) == 1 and "deep.sub.ads.example" in out2, (out, out2))
+    refusals = {why: dnsf(V, "log", *args) for why, args in (
+        ("a limit of 0", ["--limit", "0"]), ("an option without its value", ["--client"]),
+        ("an unknown option", ["--since", "1h"]), ("a name that is not one", ["--name", "bad name!"]))}
+    # covers: cli:dns-filter.log -
+    check("fabricctl dns-filter log refuses a limit of 0, an option without its value, an unknown option and a bad "
+          "name: exit 1, saying why", all(code == 1 and out.startswith("refused: ") for code, out in refusals.values())
+          and "limit must be 1 to 500" in refusals["a limit of 0"][1]
+          and "missing value: --client" in refusals["an option without its value"][1]
+          and "unknown option or missing value: --since" in refusals["an unknown option"][1]
+          and "is not a DNS name" in refusals["a name that is not one"][1], refusals)
+    append("query.log", query("192.168.1.50", 4101, "cli-ingest.example"))
+    code, out = dnsf(V, "ingest", "--scheduled")
+    # covers: cli:dns-filter.ingest +
+    check("fabricctl dns-filter ingest (as its timer runs it): the new line read, exit 0; the log shows it",
+          code == 0 and out.strip() == "query log: 1 queries and 0 rewrites read"
+          and [e["name"] for e in read_query_log(V, client="192.168.1.50")["entries"]] == ["cli-ingest.example"],
+          out)
+    code, out = dnsf(V, "stats", "--week")
+    check("fabricctl dns-filter stats with an unknown word: refused with the usage", code == 2 and "usage:" in out,
+          out)
+
     # a client group (1.12.2.15): its view's query, the main view's copy from 127.0.0.1 and the main view's rewrite;
     # a rewrite of the group's own rules on its query
     append("query.log", query("192.168.1.40", 7001, "tracker.example", 5, view="kids")
@@ -172,6 +225,12 @@ try:
         check("Postgres down: refused", False, "accepted")
     except ValidationError as e:
         check("Postgres down: refused, saying why", "query log" in str(e), e)
+    place = open(f"{W}/resolver/ingest.json").read()
+    code, out = dnsf(V, "ingest")
+    # covers: cli:dns-filter.ingest -
+    check("fabricctl dns-filter ingest with Postgres down: refused (exit 1) saying why; its place in the log kept",
+          code == 1 and out.startswith("refused: the DNS query log (Postgres)")
+          and open(f"{W}/resolver/ingest.json").read() == place, out)
     sh("docker start postgres")
     for _ in range(60):
         if sh("docker exec postgres pg_isready -U fabric_admin -d keycloak", ok=False).returncode == 0:

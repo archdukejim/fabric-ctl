@@ -8,6 +8,9 @@ Run by tests/images/run.sh; no Docker needed.
 - the rule itself (published_image) and the relaxed-settings list
 - stale published images (2.1.14.13): the lock as it is passes; a changed source without `pending`, or a published
   image without a source hash, is refused
+- the image settings (image_debian, image_stepca, image_keycloak, image_kea, image_freeradius, image_samba,
+  image_webui, image_nginx, image_postgres, image_openbao, image_fluentbit, image_cosign): a value set is what the
+  rendered compose files build from or run; image_pins holds an image of fabric's at the admin's ref
 """
 import json
 import os
@@ -22,6 +25,7 @@ import yaml
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, "src"))
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
+from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
 from fabriclib.common.read_published_lock import read_published_lock  # noqa: E402
 from fabriclib.dhcp.common.kea_image import kea_image  # noqa: E402
 from fabriclib.images.effective_service import effective_service  # noqa: E402
@@ -51,7 +55,8 @@ def render(templates, out, test_vars=None):
                          capture_output=True, text=True)
     if res.returncode != 0:
         print(res.stdout[-1500:], res.stderr[-1500:])
-    return {name: yaml.safe_load(open(os.path.join(out, name, "docker-compose.yml")))["services"] for name in IMAGES}
+    return {name: yaml.safe_load(open(os.path.join(out, name, "docker-compose.yml")))["services"]
+            for name in sorted(os.listdir(out)) if os.path.exists(os.path.join(out, name, "docker-compose.yml"))}
 
 
 def images_of(services):
@@ -84,7 +89,7 @@ try:
     tree = os.path.join(work, "tree")
     os.makedirs(os.path.join(tree, "config"))
     os.symlink(os.path.join(REPO, "templates"), os.path.join(tree, "templates"))
-    text = open(os.path.join(REPO, "config", "images.lock.yaml")).read()
+    text = lock_text_all = open(os.path.join(REPO, "config", "images.lock.yaml")).read()
     for i, name in enumerate(IMAGES):
         digest = "sha256:" + f"{i + 1:x}" * 64
         text = re.sub(rf'^(    {name}: +\{{var: \S+, )tag: "[^"]*", digest: "[^"]*"',
@@ -119,6 +124,17 @@ try:
           and back_vars["image_rolled_back"] == ["image_fabric_bind9"], (images_of(back["bind9"]), back_vars.get(
               "image_fabric_kea")))
 
+    # image_pins: an image of fabric's the admin set keeps the admin's ref; one not listed follows the lock
+    old_kea = refs["kea"].split("@")[0].rsplit(":", 1)[0] + ":0.6.2-rc.47@sha256:" + "e" * 64
+    old_webui = refs["webui"].split("@")[0].rsplit(":", 1)[0] + ":0.6.2-rc.47@sha256:" + "d" * 64
+    held = render(os.path.join(tree, "templates"), os.path.join(work, "pinned"),
+                  {"image_pins": ["image_fabric_kea"], "image_fabric_kea": old_kea, "image_fabric_webui": old_webui})
+    held_vars = yaml.safe_load(open(os.path.join(work, "pinned", "vars.yaml")))
+    # covers: setting:image_pins +
+    check("image_pins: the admin's Kea image is what the host runs; the web UI (not pinned) follows the lock",
+          images_of(held["kea"]) == {old_kea} and images_of(held["webui"]) == {refs["webui"]}
+          and held_vars["image_pins"] == ["image_fabric_kea"], (images_of(held["kea"]), images_of(held["webui"])))
+
     # custom ids for the DNS account: bind9 is built locally (its ids are baked in); stepca (no account) is not
     users = {"bind": {"uid": 700, "gid": 700, "name": "fabric-dns"}}
     custom = render(os.path.join(tree, "templates"), os.path.join(work, "custom"), {"service_users": users})
@@ -127,6 +143,52 @@ try:
           and custom["bind9"]["bind9"]["build"]["args"]["BIND_UID"] == "700")
     check("custom bind ids leave the images without that account published",
           images_of(custom["stepca"]) == {refs["stepca"]} and images_of(custom["kea"]) == {refs["kea"]})
+
+    # the image settings: a host that builds locally (no published digests) takes each value set as it is
+    local = os.path.join(work, "local")
+    os.makedirs(os.path.join(local, "config"))
+    os.symlink(os.path.join(REPO, "templates"), os.path.join(local, "templates"))
+    open(os.path.join(local, "config", "images.lock.yaml"), "w").write(     # the published digests blanked
+        re.sub(r'(tag: )"[^"]*", (digest: )"[^"]*"', r'\1"", \2""', lock_text_all))
+    mine = {var: f"registry.test/fabric-test/{var[6:]}:1@sha256:{c * 64}" for var, c in
+            zip(["image_debian", "image_stepca", "image_keycloak", "image_nginx", "image_postgres", "image_openbao",
+                 "image_fluentbit", "image_cosign"], "abcdef12")}
+    mine.update({var: f"fabric-test/{var[6:]}:custom" for var in
+                 ["image_kea", "image_freeradius", "image_samba", "image_webui"]})
+    # tests/render.py holds every image to the lock's refs, so the host is rendered there with the defaults, then its
+    # vars.yaml with these values set goes through vars.yaml.j2 and the compose templates again, the way deploy does
+    render(os.path.join(local, "templates"), os.path.join(work, "local-default"))
+    local_env = jinja_env(os.path.join(local, "templates"))
+    own_vars = yaml.safe_load(local_env.get_template("vars.yaml.j2").render(
+        **{**yaml.safe_load(open(os.path.join(work, "local-default", "vars.yaml"))), **mine}))
+    own = {n: yaml.safe_load(local_env.get_template(f"{n}/docker-compose.yml.j2").render(**own_vars))["services"]
+           for n in [*IMAGES, "nginx", "postgres", "openbao", "fluentbit"]}
+    base_of = {"bind9": "image_debian", "freeradius": "image_debian", "kea": "image_debian", "samba": "image_debian",
+               "webui": "image_debian", "stepca": "image_stepca", "keycloak": "image_keycloak"}
+
+    def bases(name):
+        return {s["build"]["args"]["BASE_IMAGE"] for s in own[name].values() if "build" in s}
+
+    # covers: setting:image_debian setting:image_stepca setting:image_keycloak +
+    check("image_debian, image_stepca, image_keycloak: each local build's base is the value set",
+          all(bases(n) == {mine[v]} for n, v in base_of.items()), {n: bases(n) for n in base_of})
+    named = {"kea": "image_kea", "freeradius": "image_freeradius", "samba": "image_samba", "webui": "image_webui"}
+    # covers: setting:image_kea setting:image_freeradius setting:image_samba setting:image_webui +
+    check("image_kea, image_freeradius, image_samba, image_webui: the local build's image name is the value set",
+          all(images_of(own[n]) == {mine[v]} for n, v in named.items()), {n: images_of(own[n]) for n in named})
+    pulled = {"nginx": "image_nginx", "postgres": "image_postgres", "openbao": "image_openbao",
+              "fluentbit": "image_fluentbit"}
+    # covers: setting:image_nginx setting:image_postgres setting:image_openbao setting:image_fluentbit +
+    check("image_nginx, image_postgres, image_openbao, image_fluentbit: the image pulled is the value set, not built",
+          all(images_of(own[n]) == {mine[v]} and not builds(own[n]) for n, v in pulled.items()),
+          {n: images_of(own[n]) for n in pulled})
+    lock_refs = {e["var"]: e["ref"] for e in read_images_lock(os.path.join(REPO, "config")).values()}
+    check("without them each takes the lock's validated ref (nginx, postgres, openbao, fluentbit, cosign)",
+          all(images_of(plain[n]) == {lock_refs[v]} for n, v in pulled.items())
+          and yaml.safe_load(open(os.path.join(work, "plain", "vars.yaml")))["image_cosign"] == lock_refs["image_cosign"])
+    # covers: setting:image_cosign +
+    check("image_cosign: vars.yaml carries the value set (the cosign the signature check runs, verify.py)",
+          own_vars["image_cosign"] == mine["image_cosign"], own_vars.get("image_cosign"))
 
     # the lock's ids are what the Dockerfiles bake in and what vars.yaml.j2 gives by default
     defaults = yaml.safe_load(open(os.path.join(work, "plain", "vars.yaml")))["service_users"]

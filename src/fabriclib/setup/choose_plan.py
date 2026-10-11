@@ -12,6 +12,10 @@ PLAN = [
      "Harden the Docker daemon (no-new-privileges, no inter-container traffic on the default bridge, "
      "no userland proxy, live-restore, bounded logs)",
      "containers may gain privileges via setuid binaries; logs can fill the disk"),
+    ("host_join_domain", True,
+     "Make this host a member of its domain: fabric admins sign in to it with their domain accounts (local accounts "
+     "unchanged; Advanced to change)",
+     "fabric admins sign in to this host with local accounts only"),
     ("install_keycloak", True, "Keycloak SSO (+ Postgres), required by the web UI", "no SSO and no web UI"),
     ("install_webui", True, "Fabric web UI at https://fabric.<domain> (Keycloak sign-in)",
      "manage with fabricctl only"),
@@ -63,6 +67,25 @@ def _ask_ca_lifetime(ctx):
         print(f"    {YELLOW}{answer!r}: a whole number of years, 1 to 30{NC}")
 
 
+def _ask_host_join_domain(ctx):
+    """Purpose: Advanced plan question: whether setup makes this host a member of its own domain (manual 1.6.11.8,
+             decision 2.1.6.34; on by default).
+    Inputs:  ctx — SetupContext; reads ctx.vars host_join_domain (default True). Interactive.
+    Returns: None; ctx.vars["host_join_domain"] set to True or False. An answer other than y, yes, n or no is
+             refused with the reason and asked again.
+    Fails:   EOFError from input().
+    Feeds:   choose_plan (Advanced)."""
+    now = ctx.vars.get("host_join_domain", True) is not False
+    while True:
+        answer = ask("setup.host_join_domain",
+                     f"\n  Make this host a member of its domain {'[Y/n]' if now else '[y/N]'} ",
+                     "y" if now else "n").lower()
+        if answer in ("y", "yes", "n", "no"):
+            ctx.vars["host_join_domain"] = answer.startswith("y")
+            return
+        print(f"    {YELLOW}{answer!r}: answer y or n{NC}")
+
+
 def _get(data, dotted, default):
     """Purpose: read a dotted key ("security.firewall") from nested dicts.
     Inputs:  data — dict; dotted — key path; default — value when any part is missing or not a dict.
@@ -92,8 +115,9 @@ def _set(data, dotted, value):
 
 def choose_plan(ctx):
     """Purpose: show what setup will do (every default is the hardened choice), then Proceed / Advanced / Quit.
-             Advanced holds only what cannot be changed later (2.1.2.16): the CA root's lifetime, before the CA
-             exists; without it there is no Advanced. Everything else shown is a default changed after the install
+             Advanced holds what is best chosen before the install (2.1.2.16): the CA root's lifetime, before the
+             CA exists (fixed once made); whether this host becomes a member of its domain (1.6.11.8: undone later
+             with `fabricctl setup --undo member`). Everything else shown is a default changed after the install
              (fabricctl, the vars editor; the web console's settings page after 0.7, 2.1.1.42).
     Inputs:  ctx — SetupContext: vars (PLAN keys, install_* flags, log_forwarding, dhcp, radius_clients,
              webui_admin_user), non_interactive, assume_yes. Interactive unless one of those two is set.
@@ -152,15 +176,16 @@ def choose_plan(ctx):
     show()
     if ctx.non_interactive or ctx.assume_yes:
         return
-    advanced = not _ca_exists(ctx)            # the only permanent choice left (2.1.2.16)
-    prompt = (f"\n  {BOLD}[P]roceed{NC}, [A]dvanced (the CA's lifetime), or [Q]uit? " if advanced
-              else f"\n  {BOLD}[P]roceed{NC} or [Q]uit? ")
+    what = ("the CA's lifetime, this host's domain membership" if not _ca_exists(ctx)
+            else "this host's domain membership")
+    prompt = f"\n  {BOLD}[P]roceed{NC}, [A]dvanced ({what}), or [Q]uit? "
     while True:
         choice = ask("setup.plan", prompt, "p").lower()
         if choice.startswith("q"):
             raise SystemExit("setup cancelled")
         if choice.startswith("p"):
             return
-        if choice.startswith("a") and advanced:
+        if choice.startswith("a"):
             _ask_ca_lifetime(ctx)
+            _ask_host_join_domain(ctx)
             show()

@@ -192,6 +192,17 @@ try:
     check("machines section (admin): machines with state, disable/enable and remove, the add form",
           "host-1" in page and "/directory/machines/host-1/disable" in page and "/directory/machines/ws2404/enable" in page
           and "/directory/machines/_new" in page)
+    check("machines section (admin): who may sign in per OU, each with a clear form, and the set form (1.6.11.4)",
+          "Who may sign in" in page and "machines/linux" in page and "lan-machine-admins" in page
+          and 'action="/directory/logon/clear"' in page and 'action="/directory/logon/set"' in page
+          and "fabric-break-glass" in page)
+    check("machines section (admin): host groups with their machines and a remove form, the membership and new-group "
+          "forms; sudo rules with who made each, remove only for fabric's, the add form (1.6.11.7)",
+          "lan-hosts-web" in page and 'action="/directory/hostgroups/web/delete"' in page
+          and 'action="/directory/hostgroups/_form/members"' in page and 'action="/directory/hostgroups/_new"' in page
+          and 'action="/directory/sudo/web-restart/delete"' in page and "/directory/sudo/backup/delete" not in page
+          and "/directory/sudo/lan-fabric-admins/delete" not in page and 'action="/directory/sudo/_new"' in page
+          and "/usr/bin/systemctl restart nginx" in page and "read-only" in page)
     page = req("GET", "/directory?view=gpo&match=example")[3]
     check("Group Policy section (admin): what is set, a search with a set form per policy",
           "ExampleText" in page and "/directory/gpo/set" in page and "Example setting" in page)

@@ -78,6 +78,12 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `gpo_change.py` | Set or clear a policy in the admin settings GPO. Agent routes: POST /v1/gpo/set, /v1/gpo/clear (gpo:admin). |
 | `add_machine.py` | Pre-create a machine with a one-time join password. Agent route: POST /v1/machines (machines:admin). |
 | `machine_action.py` | Enable, disable or remove a machine. Agent route: POST /v1/machines/<name>/<action> (machines:admin). |
+| `logon_overview.py` | Who may sign in to the site's machines, per OU. Agent route: GET /v1/domain/logon (domain:read). |
+| `logon_change.py` | Set or clear one OU's log-on policy (saved and applied). Agent routes: POST /v1/domain/logon/set, /v1/domain/logon/clear (gpo:admin). |
+| `list_host_groups.py` | The site's host groups, their machines and the sudo rules on each. Agent route: GET /v1/host-groups (domain:read). |
+| `host_group_change.py` | Create or delete a host group, put a machine in or take it out. Agent routes: POST /v1/host-groups, /v1/host-groups/<name>/delete, /v1/host-groups/<name>/members (machines:admin). |
+| `list_sudo_rules.py` | The site's sudo rules, each fabric's, the default or an admin's own. Agent route: GET /v1/sudo (domain:read). |
+| `sudo_rule_change.py` | Add a sudo rule or remove one of fabric's. Agent routes: POST /v1/sudo, /v1/sudo/<name>/delete (sudo:admin). |
 | `federation_overview.py` | The federation's sites, replication, conflicts, limits and address plan. Agent route: GET /v1/federation (federation:read). |
 | `security_layers.py` | GET /v1/security: the sign-in layers |
 | `raise_signin_layer.py` | POST /v1/security/raise or /kerberos |
