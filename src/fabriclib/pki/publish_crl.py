@@ -75,8 +75,8 @@ def _site_crls(timeout=10):
     """Purpose: the intermediate CRLs of the other sites this install knows (the federation registry), so a device
              certificate from another site is checked too (2.1.5.10, 2.1.9.12).
     Inputs:  timeout — seconds per fetch.
-    Returns: list of PEM CRLs fetched (http://<certs host of the site>/crl/intermediate.crl); a site that cannot be
-             reached is skipped (its last CRL stays until it expires).
+    Returns: list of PEM CRLs fetched (http://info.<site domain>/certs/crl/intermediate.pem, 1.5.1.5); a site that
+             cannot be reached is skipped (its last CRL stays until it expires).
     Fails:   never.
     Feeds:   publish_crl."""
     import yaml
@@ -92,7 +92,7 @@ def _site_crls(timeout=10):
         if not domain:
             continue
         try:
-            with urllib.request.urlopen(f"http://certs.{domain}/crl/intermediate.pem", timeout=timeout) as r:
+            with urllib.request.urlopen(f"http://info.{domain}/certs/crl/intermediate.pem", timeout=timeout) as r:
                 body = r.read(1_000_000).decode()
             if "BEGIN X509 CRL" in body:
                 out.append(body)
@@ -103,8 +103,9 @@ def _site_crls(timeout=10):
 
 def publish_crl(v, revoked_file=REVOKED_CERTS_FILE, fetch_sites=True):
     """Purpose: publish fabric's certificate revocation lists (manual 2.1.5.10), each where its key is on this host: the
-             intermediate's (every leaf fabric issues) and the root's (the site CAs it signed); served on the certs
-             host (DER for the certificates' distribution point, PEM too) and given to nginx and FreeRADIUS.
+             intermediate's (every leaf fabric issues) and the root's (the site CAs it signed); served at
+             info.<domain>/certs/crl/ and <host_ip>/certs/crl/ (DER for the certificates' distribution point, PEM
+             too; 1.5.1.5) and given to nginx and FreeRADIUS.
     Inputs:  v — settings: deploy_base_dir, service_users (nginx); revoked_file — the revocations; fetch_sites — also
              fetch the other sites' CRLs for FreeRADIUS (False in tests).
     Returns: {"changed": True if what nginx reads changed (reload it), "radius_changed", "root": True if a root CRL

@@ -3,7 +3,7 @@
 # End-to-end test on a REAL host (e.g. a Raspberry Pi) over SSH, from the
 # package, as users install it:
 #   apt install ./fabricctl_<v>_all.deb -> fabricctl setup --file vars.yaml
-#   -> doctor, fabric.target, certs.<domain> (HTTP + HTTPS), RFC2136 with an
+#   -> doctor, fabric.target, info.<domain>/certs/ (HTTP + HTTPS), RFC2136 with an
 #   embedded TSIG key, restricted sign-in (real Keycloak), re-run, stop/start.
 #
 #   TARGET=tempuser@192.168.4.57 HOST_IP=192.168.4.57 LAN_CIDR=192.168.4.0/22 \
@@ -82,9 +82,9 @@ check "every container healthy" "[ \"\$(grep -c ' healthy' '$OUT/status.log')\" 
 
 NGINX_IP=$(R "python3 -c 'import yaml;print(yaml.safe_load(open(\"/opt/fabric/config/vars.yaml\"))[\"ip_nginx\"])'")
 for f in certs_page_test.sh rfc2136_test.sh login_test.py; do put "$REPO/tests/sandbox/$f"; done
-R "bash /tmp/certs_page_test.sh certs.$DOMAIN ca.$DOMAIN $NGINX_IP $HOST_IP" > "$OUT/certs-page.log" 2>&1
-check "certs page: formats, CA identity, MIME, plain HTTP by name and IP, ca.<domain> = Step-CA" \
-    "! grep -q '^FAIL' '$OUT/certs-page.log' && [ \"\$(grep -c '^PASS' '$OUT/certs-page.log')\" -ge 18 ]"
+R "bash /tmp/certs_page_test.sh info.$DOMAIN ca.$DOMAIN $NGINX_IP $HOST_IP" > "$OUT/certs-page.log" 2>&1
+check "certs page at info.<domain>/certs/: formats, CA identity, MIME, plain HTTP by name and IP, CRLs, ca.<domain> = Step-CA, certs.<domain> gone" \
+    "! grep -q '^FAIL' '$OUT/certs-page.log' && [ \"\$(grep -c '^PASS' '$OUT/certs-page.log')\" -ge 25 ]"
 check "LAN clients reach the certificate page over plain HTTP: http://$HOST_IP/certs/" \
     "curl -s --max-time 10 http://$HOST_IP/certs/root-ca.pem | grep -q 'BEGIN CERTIFICATE'"
 

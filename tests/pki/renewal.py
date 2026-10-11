@@ -170,6 +170,39 @@ check("negative: a failed run is recorded with its error and exits 1 (the timer 
       code == 1 and not done["ok"] and "step-ca refused" in done["error"], done)
 rsc.mint_service_certs.run, rsc.pick_up_cert = real_mint, real_pick
 
+print("--- certs.<domain> is gone (1.5.1.5): no certificate issued for it, the old one deleted")
+msc = rsc.mint_service_certs
+_names = {k: f"{k}.lan.test" for k in ("hostname_bind9", "hostname_stepca", "hostname_landing", "hostname_openbao",
+                                       "hostname_dc")}
+
+
+class TCtx:
+    def __init__(self, base, **extra):
+        self.vars = {**_names, "hostname": "fab", "domain": "LAN.test", "ad_domain": "ad.lan.test",
+                     "host_ip": "192.0.2.1", **extra}
+        self.base = base
+
+    def path(self, *parts):
+        return os.path.join(self.base, *parts)
+
+
+tb = os.path.join(W, "retire")
+old_dir = os.path.join(tb, "nginx", "certs", "certs.lan.test")
+os.makedirs(old_dir)
+open(os.path.join(old_dir, "fullchain.pem"), "w").write("old")
+tctx = TCtx(tb)
+targets = msc._targets(tctx)
+check("no service certificate for certs.<domain> any more", all(not cn.startswith("certs.") for cn, *_ in targets),
+      [cn for cn, *_ in targets])
+check("the old certs.<domain> certificate folder is found (run deletes it)",
+      msc._old_certs_host(tctx, targets) == old_dir)
+os.rename(old_dir, old_dir + ".gone")
+check("…and once gone, nothing to do (idempotent)", msc._old_certs_host(tctx, targets) is None)
+os.rename(old_dir + ".gone", old_dir)
+tctx = TCtx(tb, hostname_landing="certs.lan.test")
+check("negative: a name still in use (the info page named certs) keeps its certificate",
+      msc._old_certs_host(tctx, msc._targets(tctx)) is None)
+
 print("--- the warnings (status, doctor, the web console)")
 base = os.path.join(W, "opt")
 nginx_dir = os.path.join(base, "nginx", "certs", "svc.example.test")

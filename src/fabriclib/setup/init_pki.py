@@ -30,7 +30,8 @@ def _chown_tree(path, uid, gid):
 
 def _configure_ca_json(ca_json, v):
     """Purpose: converge Step-CA's ca.json after `step ca init`: bring-your-own chain paths, DNS names,
-             certificate lifetimes, an ACME provisioner with fabric's ACME template.
+             certificate lifetimes, an ACME provisioner with fabric's ACME template, and fabric's leaf template on
+             the JWK provisioner (setup's service certificates name the CRL, manual 1.5.1.3).
     Inputs:  ca_json — path to ca.json; v — vars: byoc, hostname_stepca, domain, stepca_cert_max_lifetime_hours
              (default 131400h), stepca_cert_allow_subordinate_ca, cert_acme_lifetime_hours (default 1128h).
     Returns: True if ca.json changed (rewritten, tab-indented; restart Step-CA). The ACME provisioner's template issues
@@ -54,6 +55,9 @@ def _configure_ca_json(ca_json, v):
     if not any(p.get("type") == "ACME" for p in provisioners):
         provisioners.append({"type": "ACME", "name": "acme"})
     for p in provisioners:
+        if p.get("type") == "JWK":
+            # the service certificates (pki/mint_cert) name the CRL like every other leaf: leaf.tpl (1.5.1.3)
+            p.setdefault("options", {}).setdefault("x509", {})["templateFile"] = "/home/step/templates/certs/leaf.tpl"
         if p.get("type") == "JWK" and v.get("stepca_cert_allow_subordinate_ca"):
             p.setdefault("options", {}).setdefault("x509", {})["allowedExtensions"] = ["2.5.29.19"]
         if p.get("type") == "ACME":
@@ -189,8 +193,8 @@ def _check_root_lifetime(v, certs_dir, config_dir):
 
 
 def _publish_ca_certs(ctx, certs_dir):
-    """Purpose: publish every CA format on certs.<domain> and trust the CA on this host; done on every
-             setup, since a reinstall keeps the CA but not /opt/nginx or the host trust entries.
+    """Purpose: publish every CA format at info.<domain>/certs/ (and <host_ip>/certs/) and trust the CA on this
+             host; done on every setup, since a reinstall keeps the CA but not /opt/nginx or the host trust entries.
     Inputs:  ctx — SetupContext: vars.domain_file, service user nginx (uid/gid), config_dir (the `trust` consent:
              without it the CA is published but not added to the host's trust store); certs_dir — Step-CA certs
              folder.

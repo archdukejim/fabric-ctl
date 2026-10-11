@@ -27,15 +27,16 @@ def print_first_steps(ctx):
         except (OSError, ValueError, KeyError):
             sha256 = ""
         ip = v.get("host_ip")
-        names = " ".join(v.get(k) for k in ("hostname_landing", "hostname_mgr", "hostname_keycloak", "hostname_certs",
-                                             "hostname_stepca", "hostname_openbao") if v.get(k))
+        names = " ".join(v.get(k) for k in ("hostname_landing", "hostname_mgr", "hostname_keycloak", "hostname_stepca",
+                                             "hostname_openbao") if v.get(k))
         # the computer must find fabric's names before anything else: fabric's DNS, or its hosts file for a quick try
         steps = [f"{BOLD}FIRST point the computer you will manage fabric from at fabric for names{NC}: set its DNS "
                  f"server to {BOLD}{ip}{NC}\n       (its network settings, or your router's DHCP), or, to try it on "
                  f"one computer, add this line to its hosts file\n       (/etc/hosts; Windows: "
                  f"C:\\Windows\\System32\\drivers\\etc\\hosts):\n         {ip} {names}",
                  f"{BOLD}install fabric's root certificate{NC} on it: open {BOLD}http://{ip}/certs/{NC} (plain HTTP, "
-                 f"no names needed; or http://{v.get('hostname_landing')}/),\n       download the root certificate"
+                 f"no names needed; or http://{v.get('hostname_landing')}/certs/),\n       download the root "
+                 "certificate"
                  + (f", check its SHA-256 fingerprint is\n         {sha256}\n       and" if sha256 else " and")
                  + f" install it as a trusted root (the same file: {kit}/root-ca.crt, .cer for Windows)"]
         if v.get("webui_client_cert"):

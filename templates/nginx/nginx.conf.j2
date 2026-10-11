@@ -2,8 +2,8 @@
 {# nginx.conf — rendered by fabricctl from nginx/nginx.conf.j2         #}
 {# ----------------------------------------------------------------- #}
 
-{# How the CA certificate files are served (certs.<domain> on 80 and 443, and
-   http://<host_ip>/certs/): the MIME types operating systems recognise;
+{# How the CA certificate files are served (info.<domain>/certs/ on 80 and 443, and
+   http://<host_ip>/certs/; manual 1.5.1.5): the MIME types operating systems recognise;
    .pem/.json readable in the browser, the rest downloads. #}
 {% macro cert_file_types() %}
             location ~ \.pem$ {
@@ -133,12 +133,12 @@ http {
         set $stepca_backend "{{ nginx_backend_stepca }}";
 
         # Step-CA's API / ACME only. People opening ca.<domain> in a browser
-        # (or an old /certificates link) get the certificate page.
+        # (or an old /certificates link) get the certificate page at info.<domain>/certs/ (1.5.1.5).
         location = / {
-            return 302 https://{{ hostname_certs }}/;
+            return 302 https://{{ hostname_landing }}/certs/;
         }
         location /certificates {
-            return 301 https://{{ hostname_certs }}/;
+            return 301 https://{{ hostname_landing }}/certs/;
         }
 
         location / {
@@ -224,36 +224,18 @@ http {
             default_type text/html;
         }
 
+        # CA certificates for every kind of system (published by fabricctl setup:
+        # fabriclib/pki/publish_ca_certs.py), here and on plain HTTP above: the only places by name since
+        # certs.<domain> was dropped (1.5.1.5). Integrity: compare the fingerprints shown on the page.
         location /certificates {
-            return 301 https://{{ hostname_certs }}/;
+            return 301 https://{{ hostname_landing }}/certs/;
+        }
+        location = /certs {
+            return 301 /certs/;
         }
         location /certs/ {
             root /srv/www;
             index index.html;
-{{ cert_file_types() }}        }
-    }
-
-    # CA certificates for every kind of system (published by fabricctl setup:
-    # fabriclib/pki/publish_ca_certs.py). Read-only static files, deliberately
-    # also on plain HTTP: a client fetching the CA does not trust it yet.
-    # Integrity: compare the fingerprints shown on the page.
-    server {
-        listen 80;
-        listen 443 ssl;
-        server_name {{ hostname_certs }};
-
-        ssl_certificate     /etc/nginx/certs/{{ hostname_certs }}/fullchain.pem;
-        ssl_certificate_key /etc/nginx/certs/{{ hostname_certs }}/privkey.pem;
-        ssl_protocols       TLSv1.2 TLSv1.3;
-
-        root /srv/www/certs;
-        index index.html;
-        add_header X-Content-Type-Options nosniff always;
-
-        location = /style.css {
-            alias /srv/www/shared/style.css;
-        }
-        location / {
 {{ cert_file_types() }}        }
     }
 

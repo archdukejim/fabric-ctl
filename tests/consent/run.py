@@ -151,6 +151,19 @@ old = {"service_users": {"bind": {"uid": 53, "gid": 53}, "nginx": {"uid": 1443, 
 changes = upgrade_vars(old, set())
 check("previous defaults are dropped (the new accounts apply), an admin's own ids are kept",
       old["service_users"] == {"nginx": {"uid": 1443, "gid": 1443}} and len(changes) == 1, (old, changes))
+# certs.<domain> dropped (1.5.1.5): its keys and the default CNAME go; an admin's other records stay
+old = {"hostname": "fab", "cname_certs": "certs", "hostname_certs": "certs.lan.test",
+       "dns": {"dynamic_zone_var": {"CNAME": [{"canonical": "fab", "name": "certs"}, {"canonical": "fab", "name": "ca"},
+                                             {"canonical": "nas", "name": "certs2"}]}}}
+changes = upgrade_vars(old, set())
+check("an older install's certs.<domain>: cname_certs, hostname_certs and its CNAME removed, other CNAMEs kept",
+      "cname_certs" not in old and "hostname_certs" not in old and len(changes) == 2
+      and [r["name"] for r in old["dns"]["dynamic_zone_var"]["CNAME"]] == ["ca", "certs2"], (old, changes))
+old = {"hostname": "fab", "dns": {"dynamic_zone_var": {"CNAME": [{"canonical": "elsewhere", "name": "certs"}]}}}
+changes = upgrade_vars(old, set())
+check("…but a certs record the admin pointed elsewhere is not the old default: kept, nothing reported",
+      old["dns"]["dynamic_zone_var"]["CNAME"] == [{"canonical": "elsewhere", "name": "certs"}] and changes == [],
+      (old, changes))
 
 print("--- the firewall's questions (2.1.2.13): the ports fabric needs, then securing, then the host's own rules")
 rules = plan_firewall({**v, "ntp_serve": False}, cfg, active=False)

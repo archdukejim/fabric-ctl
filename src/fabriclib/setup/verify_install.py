@@ -144,20 +144,19 @@ def checks(ctx):
     for host in (v["hostname_landing"], v["hostname_stepca"], v["hostname_bind9"]):
         rc, code = _curl(f"https://{host}/", host, v["ip_nginx"], 443, root_ca)
         add(f"HTTPS {host} (cert verified)", rc == 0, f"HTTP {code}" if rc == 0 else f"curl exit {rc}")
-    # certs.<domain>: the CA certificates; ca.<domain>: Step-CA's API, browsers redirected.
-    certs_host = v.get("hostname_certs")
-    if certs_host:
-        res = subprocess.run(["curl", "-s", "--max-time", "10", "--cacert", root_ca, "--resolve",
-                              f"{certs_host}:443:{v['ip_nginx']}", f"https://{certs_host}/root-ca.pem"],
-                             capture_output=True, text=True)
-        with open(root_ca) as f:
-            served_ok = res.returncode == 0 and res.stdout.strip() and res.stdout.strip() in f.read()
-        add(f"https://{certs_host}/ serves this CA's root certificate", served_ok, f"curl exit {res.returncode}")
-        res = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code} %{redirect_url}", "--max-time", "10",
-                              "--cacert", root_ca, "--resolve", f"{v['hostname_stepca']}:443:{v['ip_nginx']}",
-                              f"https://{v['hostname_stepca']}/"], capture_output=True, text=True)
-        add(f"https://{v['hostname_stepca']}/ sends browsers to {certs_host}",
-            res.stdout.startswith("302 ") and certs_host in res.stdout, res.stdout)
+    # info.<domain>/certs/: the CA certificates (1.5.1.5); ca.<domain>: Step-CA's API, browsers redirected there.
+    certs_url = f"https://{v['hostname_landing']}/certs/"
+    res = subprocess.run(["curl", "-s", "--max-time", "10", "--cacert", root_ca, "--resolve",
+                          f"{v['hostname_landing']}:443:{v['ip_nginx']}", f"{certs_url}root-ca.pem"],
+                         capture_output=True, text=True)
+    with open(root_ca) as f:
+        served_ok = res.returncode == 0 and res.stdout.strip() and res.stdout.strip() in f.read()
+    add(f"{certs_url} serves this CA's root certificate", served_ok, f"curl exit {res.returncode}")
+    res = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code} %{redirect_url}", "--max-time", "10",
+                          "--cacert", root_ca, "--resolve", f"{v['hostname_stepca']}:443:{v['ip_nginx']}",
+                          f"https://{v['hostname_stepca']}/"], capture_output=True, text=True)
+    add(f"https://{v['hostname_stepca']}/ sends browsers to {certs_url}",
+        res.stdout.startswith("302 ") and res.stdout.split(" ", 1)[-1] == certs_url, res.stdout)
     rc, code = _curl(f"https://{v['hostname_stepca']}/acme/acme/directory", v["hostname_stepca"], v["ip_nginx"], 443,
                      root_ca)
     add("Step-CA ACME directory reachable (API unaffected)", rc == 0 and code == "200", f"HTTP {code}")

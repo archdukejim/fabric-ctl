@@ -254,14 +254,16 @@ in_box 'fabricctl radius map-group auditors --vlan 40' > "$OUT/radius-map.log" 2
 check "radius: map-group applied; FreeRADIUS back up with EAP-TTLS on; status lists the group"     "grep -q applied '$OUT/radius-map.log' && in_box 'systemctl is-active freeradius' | grep -qx active && in_box 'grep -q \"ttls {\" /opt/freeradius/config/mods/eap' && in_box 'fabricctl radius status' | grep -q 'group auditors .*vlan 40'"
 check "kea: fabricctl images status covers the Kea image" "in_box 'fabricctl images status' | grep -qE '^kea '"
 
-echo "--- certs.<domain>: CA certificates for every system; web UI at fabric.<domain>"
+echo "--- info.<domain>/certs/: CA certificates for every system (1.5.1.5); web UI at fabric.<domain>"
 docker cp "$REPO/tests/sandbox/certs_page_test.sh" "$NAME:/root/certs_page_test.sh"
-in_box 'bash /root/certs_page_test.sh certs.lan.test ca.lan.test $(python3 -c "import yaml;print(yaml.safe_load(open(\"/opt/fabric/config/vars.yaml\"))[\"ip_nginx\"])") '"$IP" \
+in_box 'bash /root/certs_page_test.sh info.lan.test ca.lan.test $(python3 -c "import yaml;print(yaml.safe_load(open(\"/opt/fabric/config/vars.yaml\"))[\"ip_nginx\"])") '"$IP" \
     > "$OUT/certs-page.log" 2>&1
-check "certs page: every format real, right CA, right MIME, plain HTTP by name and IP; ca.<domain> stays Step-CA" \
-    "! grep -q '^FAIL' '$OUT/certs-page.log' && [ \"\$(grep -c '^PASS' '$OUT/certs-page.log')\" -ge 18 ]"
-check "DNS: certs.<domain> and fabric.<domain> resolve to the host" \
-    "in_box 'dig +short @$IP certs.lan.test' | grep -qx $IP && in_box 'dig +short @$IP fabric.lan.test' | grep -qx $IP"
+check "certs page at info.<domain>/certs/: every format real, right CA, right MIME, plain HTTP by name and IP, the CRLs; ca.<domain> stays Step-CA; certs.<domain> gone" \
+    "! grep -q '^FAIL' '$OUT/certs-page.log' && [ \"\$(grep -c '^PASS' '$OUT/certs-page.log')\" -ge 25 ]"
+check "DNS: info.<domain> and fabric.<domain> resolve to the host" \
+    "in_box 'dig +short @$IP info.lan.test' | grep -qx $IP && in_box 'dig +short @$IP fabric.lan.test' | grep -qx $IP"
+check "negative: certs.<domain> no longer resolves (1.5.1.5)" \
+    "[ -z \"\$(in_box 'dig +short @$IP certs.lan.test')\" ]"
 check "web UI answers at fabric.<domain> (refuses without a client cert)" \
     "[ \"\$(in_box 'curl -s -o /dev/null -w %{http_code} --cacert /opt/stepca/data/certs/root_ca.crt --resolve fabric.lan.test:443:$IP https://fabric.lan.test/')\" = 400 ]"
 

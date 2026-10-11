@@ -83,7 +83,7 @@ step("certificate", "create", "Fabric Test Intermediate CA", "/home/step/certs/i
      "--ca-password-file", "/home/step/secrets/password", "--password-file", "/home/step/secrets/password")
 ROOT, INTER = f"{data}/certs/root_ca.crt", f"{data}/certs/intermediate_ca.crt"
 
-V = {"deploy_base_dir": W, "domain": "lan.test", "host_ip": "192.168.7.53", "hostname_certs": "certs.lan.test",
+V = {"deploy_base_dir": W, "domain": "lan.test", "host_ip": "192.168.7.53", "hostname_landing": "info.lan.test",
      "image_stepca": IMAGE, "service_users": {"step": {"uid": STEP_UID, "gid": STEP_UID}},
      "dns": {"dynamic_zone_var": {"zone_authority": True, "A": [{"name": "fabric", "ip": "192.168.7.53"}]},
              "7.168.192.in-addr.arpa": {"PTR": [{"name": "53", "target": "fabric.lan.test."}]}}}
@@ -258,7 +258,7 @@ check("audit log records signing and generation by user",
 ca = ca_summary(V)
 check("CA summary: root, intermediate, certs URL",
       ca["root"]["subject"].endswith("Fabric Test Root CA") and "Intermediate" in ca["intermediate"]["subject"]
-      and ca["certs_url"] == "http://certs.lan.test/", ca)
+      and ca["certs_url"] == "http://info.lan.test/certs/", ca)
 
 # ---------------------------------------------------------------- TSIG keys for a zone
 key, secret, ini = create_zone_tsig_key("alice", "npm-certbot", "lan.test", "acme-hosts", ["npm", "nas"])

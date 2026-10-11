@@ -16,6 +16,8 @@ def upgrade_vars(data, pinned):
              fabric-console-admin: that name is now the first admin's (2.1.6.33); Keycloak and OpenBao follow at
              their steps, members kept. 0.7.0: resolver_mem_limit left at 0.8.0-rc's 384m default drops to the
              release's (128m); a DNS filter group's own lists are taken out and named (the lists are the site's).
+             certs.<domain> is gone (0.7.0, 1.5.1.5): cname_certs and hostname_certs are deleted, and so is the main
+             zone's CNAME to this host under that label if an older vars file holds it.
     Fails:   never — dict operations only.
     Feeds:   collect_vars (logs each change).
     Notes:   `fabricctl images update` is what changes images (design 2.1.14.3)."""
@@ -49,4 +51,15 @@ def upgrade_vars(data, pinned):
     if data.get("webui_admin_role") == OLD_ADMIN_ROLE:
         data["webui_admin_role"] = ADMIN_ROLE
         changes.append(f"the web console's admin role: {OLD_ADMIN_ROLE} is now {ADMIN_ROLE} (2.1.6.33)")
+    label = data.pop("cname_certs", None) or "certs"
+    if data.pop("hostname_certs", None) is not None or label != "certs":
+        changes.append("certs.<domain> is gone: the CA is at info.<domain>/certs/ (1.5.1.5)")
+    dns = data.get("dns")
+    zone = dns.get("dynamic_zone_var") if isinstance(dns, dict) else None
+    if isinstance(zone, dict) and isinstance(zone.get("CNAME"), list):
+        keep = [r for r in zone["CNAME"] if not (isinstance(r, dict) and r.get("name") == label
+                                                 and r.get("canonical") == data.get("hostname"))]
+        if len(keep) != len(zone["CNAME"]):
+            zone["CNAME"] = keep
+            changes.append(f"DNS: the CNAME {label} (certs.<domain>) removed (1.5.1.5)")
     return changes

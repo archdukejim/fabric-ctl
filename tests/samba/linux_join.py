@@ -94,9 +94,9 @@ print("set")
 check("people in the domain: alice and adam (lan; adam a site admin), lara (lab)",
       "set" in sh(["docker", "exec", "-i", DC, "python3", "-"], input=set_pw, ok=False).stdout, ids)
 
-# certs.<domain>: the root CA served over plain HTTP, as nginx serves it
-os.makedirs(os.path.join(W, "www"), exist_ok=True)
-with open(os.path.join(W, "www", "root-ca.crt"), "w") as f:
+# info.<domain>/certs/: the root CA served over plain HTTP, as nginx serves it (1.5.1.5)
+os.makedirs(os.path.join(W, "www", "certs"), exist_ok=True)
+with open(os.path.join(W, "www", "certs", "root-ca.crt"), "w") as f:
     f.write(open(dc["root_ca"]).read())
 sh(["docker", "run", "-d", "--name", WEB, "--network", NET, "--ip", WEB_IP, "-v", f"{W}/www:/srv:ro",
     "--entrypoint", "python3", "fabric/samba:test", "-m", "http.server", "80", "--directory", "/srv"])
@@ -127,7 +127,7 @@ exit 0
 with open(os.path.join(W, "systemctl"), "w") as f:
     f.write(SHIM)
 os.chmod(os.path.join(W, "systemctl"), 0o755)
-hosts = [f"--add-host={V['hostname_dc']}:{IP}", f"--add-host={V['hostname_certs']}:{WEB_IP}",
+hosts = [f"--add-host={V['hostname_dc']}:{IP}", f"--add-host={V['hostname_landing']}:{WEB_IP}",
          f"--add-host={V['hostname_ntp']}:{IP}"]
 
 
