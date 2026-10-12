@@ -13,6 +13,7 @@ CLAUDE.md	43c994c2d3617f947bcb5adf1933e21dabe46bb5	2026-09-30
 LICENSE	05e475fa9aff67dbd7d98e3bc88d87f93e36c79f	2026-09-30	
 README.md	77e9590e94812a05998caef2df4c2e0e30451499	2026-10-09	
 THIRD_PARTY_NOTICES	ff836ec5208f7ac6140740a07186107c63702d24	2026-10-08	
+archive/db-rotation.json	bee2acaeb901633929cf982d8daf209a22776451	2026-10-12	
 config/README.md	6300abd255fbbe5a87bd0d83cd9c9dd1c4b8de1f	2026-10-08	
 config/VERSION	faef31a4357c48d6e4c55e84c8be8e3bc9055e20	2026-10-11	
 config/images.lock.yaml	bca72924fe5242dc424cfed7b4e75b69d28e4ce9	2026-10-12	
@@ -1492,7 +1493,7 @@ tests/samba/gpo.py	dc3a4eeaf55fa0a7c892721b4bbaf7ec0355dd79	2026-10-12
 tests/samba/hostgroups.py	75c932c311f1a2edcdfde133eac604b442b065dd	2026-10-12	
 tests/samba/linux_join.py	41199253aeaf434ba1bf4b2774f4447bf2753b06	2026-10-12	
 tests/samba/logon.py	89cb995e97b1e46e10f52a796ad3fc797bdac77d	2026-10-12	
-tests/samba/run.py	e329376c35245d9748460552ceff4431e3189fc9	2026-10-12	
+tests/samba/run.py	5a73012701a8fce09518e04b31df5d085ced0e4c	2026-10-12	
 tests/samba/site_join.py	8f6e84afbe8614ed7c343f06974b7b286ceeed90	2026-10-12	
 tests/samba/start_bind.py	d99f3b9ebf76a0c6bb2047503e1add88e4b3db88	2026-10-08	
 tests/samba/start_dc.py	dbba89a09d650988ed479f31ad6b46904c16561f	2026-10-11	

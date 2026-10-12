@@ -166,8 +166,8 @@ def ask_dc(answers, have=None, unattended=False):
 
 
 got, said = ask_dc([""])
-check("asked with dc-<hostname> suggested; Enter takes it; says it is permanent and apart from the host's name",
-      got == "dc-pi-core" and "[dc-pi-core]" in said and "permanent" in said and "host's name" in said, (got, said))
+check("asked with dc-<hostname> suggested; Enter takes it; marked permanent in its one line (2.1.2.21)",
+      got == "dc-pi-core" and "[dc-pi-core]" in said and "Permanent" in said, (got, said))
 got, said = ask_dc(["a-name-far-too-long", "ad", "12", "DC-Kitchen"])
 check("negative: too long, the domain's NetBIOS name, only digits each refused saying why, then any valid name taken",
       got == "dc-kitchen" and "1-15 letters" in said and "NetBIOS name" in said and "only digits" in said,
@@ -285,12 +285,14 @@ check("fabric's published image, pinned by digest; or, while it is pending, buil
           and dc.get("build", {}).get("args", {}).get("RADIUS_GID") == "610"), dc.get("image"))
 
 big = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base, host_ram_capacity=8, install_keycloak=True))
+# the same parts at 4 GB: under the budget a DC without Keycloak beside it takes Keycloak's share too (2.1.1.47)
+small = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base, host_ram_capacity=4, install_keycloak=True))
 kc8 = yaml.safe_load(env.get_template("keycloak/docker-compose.yml.j2").render(**big))["services"]["keycloak"]
 # covers: setting:host_ram_capacity +
-check("at 8 GB the growing services take more: Keycloak and the DC (their planned limits, 1.2.4.3)",
+check("at 8 GB the growing services take more than at 4 GB: Keycloak and the DC (their planned limits, 1.2.4.3)",
       kc8["deploy"]["resources"]["limits"]["memory"] == f"{big['memory_plan']['limits']['keycloak']}M"
-      and big["memory_plan"]["limits"]["keycloak"] > 1024
-      and big["memory_plan"]["limits"]["samba"] > v["memory_plan"]["limits"]["samba"],
+      and big["memory_plan"]["limits"]["keycloak"] > small["memory_plan"]["limits"]["keycloak"] > 1024
+      and big["memory_plan"]["limits"]["samba"] > small["memory_plan"]["limits"]["samba"],
       (kc8.get("deploy"), big["memory_plan"]))
 
 print("--- what changes around it")
