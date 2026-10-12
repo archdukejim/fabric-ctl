@@ -8,6 +8,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 |---|---|
 | `converge.py` | The entry point: the wanted state as JSON on stdin, every part in order, what changed as JSON |
 | `open_samdb.py` | The DC's database opened locally as the system (optionally allowing schema changes) |
+| `repair_role_owners.py` | The roles this DC holds named by its current DN (a renamed AD site left the old text, 1.6.5.24) |
 | `ensure_schema.py` | fabric's and sudo's attributes and classes in AD's schema, added once (OIDs AD accepts, Q3) |
 | `ensure_layout.py` | `OU=sites`, the site's OU tree, `OU=organisation` at the root site; new users and computers into it |
 | `ensure_groups.py` | `<site>-users`, `<site>-admins` (gids from the site's block); at the root site fabric's groups (`ldap_groups`, their gids), Domain Users as `users` (5000), `fabric-break-glass` |

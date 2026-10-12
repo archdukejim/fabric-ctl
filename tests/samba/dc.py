@@ -166,6 +166,53 @@ first = converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS, containe
 check("converge: schema, layout, groups, access, AD site, policy and GPOs made", len(first) > 30, first)
 again = converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS, container=DC)
 check("converge again changes nothing (idempotent)", again == [], again)
+check("the AD site renamed from Default-First-Site-Name, the roles' owners follow the DC (2.3.1.19.1)",
+      "AD site Default-First-Site-Name renamed lan" in first
+      and any(c.startswith("role owner of CN=Schema,") for c in first), first)
+
+# 2.3.1.19.1: a DC whose AD site was renamed before the roles followed (every install before 0.7.0) refused every schema
+# addition ("we are not master"); found upgrading the test Pi from 0.6.2. Reproduced: the schema's owner written
+# while the site has another name, the site renamed back; the next converge repairs it, and the schema takes additions
+STALE = """
+import ldb, sys
+sys.path.insert(0, "/fabric")
+from open_samdb import open_samdb
+s, _ = open_samdb("/data/etc/smb.conf")
+sites = "CN=Sites," + str(s.get_config_basedn())
+s.rename("CN=lan," + sites, "CN=lan-moved," + sites)
+s.modify(ldb.Message.from_dict(s, {"dn": str(s.get_schema_basedn()), "fSMORoleOwner": str(s.get_dsServiceName())},
+                               ldb.FLAG_MOD_REPLACE))
+s.rename("CN=lan-moved," + sites, "CN=lan," + sites)
+"""
+PROBE = """
+import sys
+sys.path.insert(0, "/fabric")
+from open_samdb import open_samdb
+s, _ = open_samdb("/data/etc/smb.conf", schema_updates=True)
+schema = str(s.get_schema_basedn())
+s.add({"dn": "CN=Fabric-Test-Probe-%s,%s" % (sys.argv[1], schema), "objectClass": ["top", "attributeSchema"],
+       "attributeID": "1.2.840.113556.1.8000.2554.99999.%s" % sys.argv[1], "lDAPDisplayName": "fabricTestProbe%s"
+       % sys.argv[1], "adminDisplayName": "Fabric-Test-Probe-%s" % sys.argv[1], "attributeSyntax": "2.5.5.12",
+       "oMSyntax": "64", "isSingleValued": "TRUE"})
+"""
+staled = dc("python3", "-", stdin=STALE)
+refused = dc("python3", "-", "1", stdin=PROBE)
+check("reproduced: a stale schema owner (the site renamed after it was written) refuses a schema addition",
+      staled.returncode == 0 and refused.returncode != 0 and "not master" in refused.stderr,
+      staled.stderr[-300:] + refused.stderr[-300:])
+repaired = converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS, container=DC)
+accepted = dc("python3", "-", "2", stdin=PROBE)
+check("the next converge names the schema's owner by the DC's current DN, and the schema takes additions again",
+      any(c.startswith("role owner of CN=Schema,") for c in repaired) and accepted.returncode == 0,
+      (repaired, accepted.stderr[-300:]))
+# converge repairs and then adds in one process, where Samba keeps the schema it loaded first
+ONE = PROBE.replace('s, _ = open_samdb("/data/etc/smb.conf", schema_updates=True)\n',
+                    's, _ = open_samdb("/data/etc/smb.conf", schema_updates=True)\n'
+                    'from repair_role_owners import repair_role_owners\nassert repair_role_owners(s)\n')
+staled = dc("python3", "-", stdin=STALE)
+same = dc("python3", "-", "3", stdin=ONE)
+check("...in one process too, as converge runs them: repaired, then the schema takes an addition",
+      staled.returncode == 0 and same.returncode == 0, staled.stderr[-300:] + same.stderr[-300:])
 
 # 2.1.6.29: the AD zones keep no AAAA (the DC listens on IPv4 only); one published from the host's IPv6 goes at converge
 AAAA_PROBE = r"""

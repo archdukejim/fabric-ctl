@@ -27,6 +27,7 @@ from ensure_sudo_rule import ensure_sudo_rule
 from logon_rights_policy import BUILTIN_ADMINISTRATORS, EXTENSIONS as LOGON_EXTENSIONS, logon_rights_policy
 from open_samdb import open_samdb
 from remove_ipv6_records import remove_ipv6_records
+from repair_role_owners import repair_role_owners
 from root_ca_policy import EXTENSIONS as TRUST_EXTENSIONS, root_ca_policy
 from set_password_policy import set_password_policy
 from share_winbind import share_winbind
@@ -38,7 +39,8 @@ CONF = "/data/etc/smb.conf"
 
 
 def converge(state):
-    """Purpose: every part of the domain fabric owns, in order: the schema, the layout, the site's id block, the
+    """Purpose: every part of the domain fabric owns, in order: the roles this DC holds named by its current DN (again
+             after the AD site, which may move it), the schema, the layout, the site's id block, the
              groups, the site's service accounts, the AD zones on IPv4 only (2.1.6.29), its access entries, its networks
              (the address plan), its default
              sudo rule, the AD site and its subnets, the password policy, the domain's trust GPO (fabric's root CA),
@@ -63,7 +65,11 @@ def converge(state):
     if state.get("rodc"):                 # a read-only DC holds the domain's copy: only what is local to it
         _, lp = open_samdb(CONF)
         return share_winbind(lp, int(state["radius_gid"]))
-    changed = [f"schema: {name} added" for name in ensure_schema(CONF)]
+    # before the schema: Samba checks its master by the owner's DN text. Samba keeps one schema per process, loaded by
+    # the first database opened, with that one's "schema update allowed": so this one allows them, as ensure_schema's
+    samdb, lp = open_samdb(CONF, schema_updates=True)
+    changed = repair_role_owners(samdb)
+    changed += [f"schema: {name} added" for name in ensure_schema(CONF)]
     samdb, lp = open_samdb(CONF)
     changed += ensure_layout(samdb, site, root, state.get("parent") or "")
     changed += ensure_site_info(samdb, site, state["id_range"])
@@ -75,6 +81,7 @@ def converge(state):
     changed += ensure_networks(samdb, site, state["networks"])
     changed += ensure_sudo_rule(samdb, site, state["admin_group"], root)
     changed += ensure_ad_site(samdb, site, [n["cidr"] for n in state["networks"]])
+    changed += repair_role_owners(samdb)  # a renamed AD site moved the DC: its roles follow it
     if state.get("parent"):               # a site: its AD site linked to its parent's (manual 1.9.8.5)
         changed += ensure_site_link(samdb, site, state["parent"])
     base, site_dn = str(samdb.domain_dn()), paths.site_dn(samdb, site)

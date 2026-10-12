@@ -61,7 +61,7 @@ docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	5591364f414
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	9db18b7001c1967177f6a2f19b49b773b11aa82a	2026-10-09	
 docs/volume_1_description_and_architecture/1.17.28-installers.md	986b323d7a4ca2e8cbf71d23fdd677f464f51139	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.29-webui.md	26e2906300ede50201f7357f87bf770dae30923d	2026-10-11	
-docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	f2c6e7cea555bea86877ba78597d433daf14309d	2026-10-11	
+docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	7699d5312cf34d614885149c67682d449f5bc25b	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.30-fabriclib-samba.md	3a4522e55328d2f1a04b665e11de8cd2165d66d2	2026-10-11	
 docs/volume_1_description_and_architecture/1.17.31-fabriclib-directory.md	a351cf6b7f7a0d69a9ec9791a7fbfc68e3ef64c9	2026-10-11	
 docs/volume_1_description_and_architecture/1.17.4-fabricctl-lib.md	76bc845876c679778c0588d379f7246a12fae2d0	2026-10-08	
@@ -94,7 +94,7 @@ docs/volume_1_description_and_architecture/1.6.10-security.md	4cbc7055f772e5b00d
 docs/volume_1_description_and_architecture/1.6.2-keycloak.md	c6c367e10976fcdacc36faf78bb3149e462497cc	2026-10-09	
 docs/volume_1_description_and_architecture/1.6.3-samba-directory.md	970ac751c77e71dd7a4fbc961686b3f2dff5e62b	2026-10-11	
 docs/volume_1_description_and_architecture/1.6.4-samba-ad.md	3b6e475a2efc928aee1e85a441af77e46f23e02e	2026-10-08	
-docs/volume_1_description_and_architecture/1.6.5-samba-dc.md	c35d0830ceaa83b1c70f3527843917dbfdcdfb99	2026-10-11	
+docs/volume_1_description_and_architecture/1.6.5-samba-dc.md	d6194bef2d3939025829cfa0a64025be039a16b5	2026-10-12	
 docs/volume_1_description_and_architecture/1.6.6-domain-join.md	5f1da00e7d17efb840db5850edafdaf821651fd0	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.7-linux-join-ad.md	4167d4edd72bc6f2ac11eb64cb258ec62cf143d8	2026-10-11	
 docs/volume_1_description_and_architecture/1.6.8-rbac.md	3a2e7cf46c1dbc8ec1c7e0602899147963486c0f	2026-10-09	
@@ -131,7 +131,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	9df3b3a9713275c6b4abd28d84f22
 docs/volume_2_engineering_decisions/2.1.9-federation.md	6c344024d62480ec9bea70a3245c3baa6511af50	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	fa1ebd29cd73265e524175386a163054053c098b	2026-10-11	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	66119dd0e222795f479b099877edcdcb396728fe	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	3424b43960e50007224d299adac7dd0533c7f0f6	2026-10-08	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -235,7 +235,7 @@ scripts/README.md	dd36e9248260e4f936662417c4d10511c3cdb00a	2026-10-08
 scripts/docs/README.md	af834e1650d5a42ed93702d10180e09780634830	2026-10-08	
 scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03	
 scripts/docs/gen_lib_doc.py	7ff94cd622677c2a6040c2c75374a04e50cc48c4	2026-10-08	
-scripts/docs/lib_doc_numbers.tsv	d684793eaa972c41a8940649c9f98d483f9d4a2e	2026-10-11	
+scripts/docs/lib_doc_numbers.tsv	812aacec770e6fba6291fd37211227134456eb91	2026-10-12	
 scripts/docs/lib_doc_registry.py	a65ab5459802daaca963fac77a8b708397d42d89	2026-10-08	
 scripts/docs/product_code.py	645a3bb130463028b90de64798c81694e5293131	2026-10-03	
 scripts/docs/review_ledger.py	b3f307b4dbaba54a69cc93c993287d43c747ba8f	2026-10-08	
@@ -329,13 +329,13 @@ src/containers/freeradius/lookup_device.py	93105e0d888b214ffa1bffdcdda80010f403b
 src/containers/freeradius/mappings.py	ba5eef477e7508519bd97e421066ffd370a0077f	2026-10-08	
 src/containers/freeradius/normalize_mac.py	da91bf150ef1281ccbddbb25da5cbf39b50e9696	2026-09-30	
 src/containers/freeradius/record_fingerprint.py	f28c298252a0734911006b670a3437332dd5a291	2026-09-30	
-src/containers/samba/README.md	6c775fa10180dd3a2c71135ca79baf42648f13a4	2026-10-11	
+src/containers/samba/README.md	f63af9a1b50e9e69e3056092ac6cb324f007ff3c	2026-10-12	
 src/containers/samba/acl_entries.py	c4e9f14dcd06b8e806bd438fa0b699111421a317	2026-10-05	
 src/containers/samba/add_group_member.py	d058d43ae8bc96158938b10c1290d38877ed9640	2026-10-05	
 src/containers/samba/admin_gpo.py	88fce9de3462b619fbdbec13ed21a4b60126fec5	2026-10-08	
 src/containers/samba/admx_store.py	38254f44323f18add9df73c414adf0f02b16b5ed	2026-10-08	
 src/containers/samba/alloc_id.py	d7ed68b53c64044f7b46b6c2e8a594ad16e1a2cd	2026-10-11	
-src/containers/samba/converge.py	f1be851ec6444b299d9fed5aa9e7287aa10c0ec0	2026-10-08	
+src/containers/samba/converge.py	48bb6a5aa869f02e81186ec486eecdd69596988b	2026-10-12	
 src/containers/samba/create_machine.py	dd311f211c4ffac1be64bcad6e91cce4ac72774e	2026-10-08	
 src/containers/samba/create_person.py	ca31f04582cb828b3a9466c63cf90b970c9114c2	2026-10-11	
 src/containers/samba/directory_op.py	8575da5cc2800a2a8fec6e84269c712a87d4f3ae	2026-10-08	
@@ -377,6 +377,7 @@ src/containers/samba/remove_ipv6_records.py	d0db6416b03b12d19d34734d5472b9fcbf3e
 src/containers/samba/remove_machine.py	209aa199d2b0d893519edeccd5435afe8726ed9f	2026-10-08	
 src/containers/samba/remove_person.py	450538365b37103a7d6123b169148a73bff70cac	2026-10-09	
 src/containers/samba/remove_role.py	94b23850a0f99248bfc78432697353351ab95649	2026-10-05	
+src/containers/samba/repair_role_owners.py	89a69df686f055d727ccb491366674dff0a759eb	2026-10-12	
 src/containers/samba/reset_password.py	0c80212333824d6c0bb60aa4d7e9e882c1c7f85c	2026-10-05	
 src/containers/samba/root_ca_policy.py	9ca33e991bb4abae0ba83f6b04a92be9e8140d4c	2026-10-08	
 src/containers/samba/save_device.py	8c4788470287b2e5a50187aae3623965c7dc6f09	2026-10-05	
@@ -1389,7 +1390,7 @@ tests/resolver/querylog.py	40d5859a07ec4be84b768c4186a7e41593b4b638	2026-10-11
 tests/resolver/run.py	f18dc81df9261cf116c8a50054b23447eec54b2d	2026-10-11	
 tests/run-all.sh	f4742d28f330f65bd983ca22300ff75bc72f7c17	2026-10-11	
 tests/samba/README.md	2988a9d373cd532a415df9f842180d12152d6271	2026-10-08	
-tests/samba/dc.py	6b7a05ef3bdc377bda5945dcca528b0ece9cc347	2026-10-11	
+tests/samba/dc.py	f8b485a38557f8cde5edfe7cb62d1ae65525516c	2026-10-12	
 tests/samba/devices.py	8b2d94d6ee0ebec716c8e40e02c2924746d589bc	2026-10-05	
 tests/samba/gpo.py	6c3023ce556ade2b616367800d43e0d9cd055c5a	2026-10-08	
 tests/samba/linux_join.py	b50d0ebf9aab36b1ece95662883161677c8355b2	2026-10-11	
@@ -1408,7 +1409,7 @@ tests/sandbox/make_person.py	f778029f1dfc122927b454149f21fda1c884cdf7	2026-10-05
 tests/sandbox/radius_device.py	12b3e1127a0cc5966846fe0554dc84da7a2e5449	2026-10-05	
 tests/sandbox/radius_mab.py	c9575e9fd8e3c3d52dbd77b879b9ef9a6bd148d5	2026-09-30	
 tests/sandbox/rfc2136_test.sh	4299bc1c1d62237439cad3a2ebac534f45ef0874	2026-10-09	
-tests/sandbox/run.sh	c112441b10bd3d181f95a23ccce891b43468adcd	2026-10-11	
+tests/sandbox/run.sh	1de55b8cd4b3dd0e27f1ece4c81135111b15f416	2026-10-12	
 tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30	
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	87d5ce6fb52696c959fb5dcae46dc7dcb6462fd8	2026-10-08	

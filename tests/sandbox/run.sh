@@ -171,8 +171,10 @@ in_box 'fabricctl setup --undo accounts --non-interactive --yes' > "$OUT/undo-ac
 check "setup --undo refuses what fabric needs (accounts), naming uninstall" "grep -q 'fabricctl uninstall' '$OUT/undo-accounts.log'"
 
 echo "--- POSIX identities in the domain (manual 1.6.3.9)"
-check "the admin has fabric's POSIX identity in AD: a uid from the site's block, Domain Users' gid 5000" \
-    "in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=fabric-admin)' uidNumber gidNumber\" | grep -qE '^uidNumber: (500[1-9]|50[1-9][0-9]|5[1-9][0-9]{2}|[1-9][0-9]{4,5})$'"
+# a new install's laid-out block (1.6.3.17): the first admin takes the block's first id, Domain Users is `users`
+ADMIN_IDS=$(in_box "docker exec samba ldbsearch -s /data/etc/smb.conf -H /data/private/sam.ldb '(sAMAccountName=fabric-admin)' uidNumber gidNumber" | tr -d '\r')
+check "the admin has fabric's POSIX identity in AD: the block's first uid 1000000, Domain Users' gid 1040009" \
+    "grep -qx 'uidNumber: 1000000' <<< '$ADMIN_IDS' && grep -qx 'gidNumber: 1040009' <<< '$ADMIN_IDS'"
 
 echo "--- traffic stays on the host (2.1.2.15): containers reach the DC on fabric_net's gateway"
 DC_NAME=$(in_box "python3 -c 'import yaml; print(yaml.safe_load(open(\"/opt/fabric/config/vars.yaml\"))[\"hostname_dc\"])'")

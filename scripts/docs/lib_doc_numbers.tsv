@@ -77,6 +77,7 @@ file	fabricctl-jinja|src/containers/samba/remove_ipv6_records.py	67
 file	fabricctl-jinja|src/containers/samba/remove_machine.py	55	
 file	fabricctl-jinja|src/containers/samba/remove_person.py	70	
 file	fabricctl-jinja|src/containers/samba/remove_role.py	38	
+file	fabricctl-jinja|src/containers/samba/repair_role_owners.py	74	
 file	fabricctl-jinja|src/containers/samba/reset_password.py	33	
 file	fabricctl-jinja|src/containers/samba/root_ca_policy.py	22	
 file	fabricctl-jinja|src/containers/samba/save_device.py	39	
@@ -989,6 +990,7 @@ function	fabricctl-jinja|src/containers/samba/remove_ipv6_records.py|remove_ipv6
 function	fabricctl-jinja|src/containers/samba/remove_machine.py|remove_machine	1	
 function	fabricctl-jinja|src/containers/samba/remove_person.py|remove_person	1	
 function	fabricctl-jinja|src/containers/samba/remove_role.py|remove_role	1	
+function	fabricctl-jinja|src/containers/samba/repair_role_owners.py|repair_role_owners	1	
 function	fabricctl-jinja|src/containers/samba/reset_password.py|reset_password	1	
 function	fabricctl-jinja|src/containers/samba/root_ca_policy.py|root_ca_policy	1	
 function	fabricctl-jinja|src/containers/samba/save_device.py|_owner_dn	1	
