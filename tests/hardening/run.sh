@@ -5,9 +5,9 @@
 # the local build layers), prove each one works, and assert from the host
 # that it is hardened: non-root, all capabilities dropped and none added,
 # no-new-privileges, read-only root filesystem, zero effective capabilities,
-# a memory limit.
+# its planned memory limit (manual 1.2.4.3).
 #
-# Uses the 4 GB memory limits (host_ram_capacity=4) so limits are exercised.
+# Plans memory for 4 GB (host_ram_capacity=4), the smallest host, so the tightest limits are exercised.
 # Needs root, Docker with compose v2, python3 (yaml, jinja2), openssl, curl.
 # Creates and removes the docker network fabric_net — do not run on a host
 # that runs a live fabric stack.
@@ -199,6 +199,34 @@ check "openbao (pinned image) starts; uninitialised counts as healthy" "up openb
 check "openbao hardened: $(hardened openbao 1 | tr -d '\n')" "hardened openbao 1 >/dev/null"
 check "openbao serves TLS with its cert" \
     "curl -s --cacert root.crt --resolve vault.$DOMAIN:8200:10.255.0.90 https://vault.$DOMAIN:8200/v1/sys/seal-status | grep -q '\"type\":\"static\"'"
+
+# ---- memory as a budget (manual 1.2.4.3): each running container's limit is the planned one -------------------------
+planned_limits() {
+    python3 - "$R/vars.yaml" <<'PY'
+import json, subprocess, sys
+import yaml
+plan = yaml.safe_load(open(sys.argv[1]))["memory_plan"]
+problems = []
+for container, service in (("bind9", "bind9"), ("step-ca", "stepca"), ("postgres", "postgres"), ("keycloak", "keycloak"),
+                           ("openbao", "openbao")):
+    info = json.loads(subprocess.run(["docker", "inspect", container], capture_output=True, text=True).stdout or "[]")
+    got = info[0]["HostConfig"]["Memory"] // 2**20 if info else None
+    if got != plan["limits"][service]:
+        problems.append(f"{container} {got}M, planned {plan['limits'][service]}M")
+    if container == "keycloak" and info:
+        heap = [e for e in info[0]["Config"]["Env"] if e.startswith("JAVA_OPTS_APPEND=")]
+        if not heap or f"-Xmx{int(plan['limits']['keycloak'] * 0.8)}m" not in heap[0]:
+            problems.append(f"keycloak heap {heap}")
+total = sum(mb * plan["containers"][s] for s, mb in plan["limits"].items()) + plan["unassigned_mb"]
+if total != plan["budget_mb"]:
+    problems.append(f"the plan adds up to {total} MB, the budget is {plan['budget_mb']} MB")
+print("; ".join(problems) if problems else
+      "ok (" + ", ".join(f"{s} {plan['limits'][s]}M" for s in ("keycloak", "postgres", "bind9", "stepca", "openbao")) + ")")
+sys.exit(1 if problems else 0)
+PY
+}
+check "each running container's memory limit is the planned one, Keycloak's heap 80% of it: $(planned_limits | tr -d '\n')" \
+    "planned_limits >/dev/null"
 
 echo; echo "$PASS passed, $FAIL failed"
 [ "${KEEP:-0}" = 1 ] || { down_all; docker rmi fabric/bind9:local fabric/stepca:local fabric/keycloak:local >/dev/null 2>&1; }

@@ -42,3 +42,19 @@ def ask_secret(qid, prompt):
     Feeds:   setup (first admin, join invitation), fabricctl's tsig, radius, logs and vault commands."""
     _check(qid)
     return getpass.getpass(prompt)
+
+
+def ask_yes_no(qid, question, now):
+    """Purpose: ask a person one yes/no question on the terminal (manual 1.1.5.6): [Y/n] or [y/N], the current value
+             the default.
+    Inputs:  qid — the question's stable ID, "<area>.<name>" (e.g. "setup.part.<name>", "setup.consent.<group>");
+             question — the text before the brackets; now — the current value (bool).
+    Returns: bool, the answer (Enter: now). An answer other than y, yes, n or no is refused, saying so, and asked again.
+    Fails:   ValueError for a malformed qid; EOFError / KeyboardInterrupt from input() propagate unchanged.
+    Feeds:   setup/advanced (the parts, the host changes, domain membership)."""
+    _check(qid)
+    while True:
+        answer = input(f"\n  {question}? {'[Y/n]' if now else '[y/N]'} ").strip().lower() or ("y" if now else "n")
+        if answer in ("y", "yes", "n", "no"):
+            return answer.startswith("y")
+        print(f"    {answer!r}: answer y or n")

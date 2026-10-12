@@ -95,7 +95,7 @@ def _ask():
             path = os.path.relpath(os.path.join(folder, name), REPO).replace(os.sep, "/")
             for node in ast.walk(ast.parse(_read(path))):
                 if not (isinstance(node, ast.Call) and getattr(node.func, "id", getattr(node.func, "attr", ""))
-                        in ("ask", "ask_secret") and node.args):
+                        in ("ask", "ask_secret", "ask_yes_no") and node.args):
                     continue
                 qid = node.args[0]
                 if isinstance(qid, ast.Constant) and isinstance(qid.value, str):

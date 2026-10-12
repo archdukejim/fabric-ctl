@@ -260,7 +260,7 @@ check("the domain's names follow from ad_domain (lower-cased; realm, base DN, Ne
       (v["ad_domain"], v["ad_realm"], v["ad_base_dn"], v["ad_netbios"], v["hostname_dc"])
       == ("ad.lan.test", "AD.LAN.TEST", "DC=ad,DC=lan,DC=test", "AD", "dc-pi-core.ad.lan.test"),
       (v["ad_domain"], v["ad_realm"], v["ad_base_dn"], v["ad_netbios"], v["hostname_dc"]))
-check("the limit is 512m (4 GB is the smallest host, 2.1.2.3)", v["samba_mem_limit"] == "512m")
+check("the limit is planned (1.2.4.3): 512 MB at least at 4 GB, the smallest host (2.1.2.3); no samba_mem_limit written", v["memory_plan"]["limits"]["samba"] >= 512 and v["samba_mem_limit"] is None, v["memory_plan"])
 dc = yaml.safe_load(env.get_template("samba/docker-compose.yml.j2").render(**v))["services"]["samba"]
 check("host network (2.1.6.18), read-only, no-new-privileges, every capability dropped",
       dc["network_mode"] == "host" and dc["read_only"] is True and dc["cap_drop"] == ["ALL"]
@@ -278,18 +278,20 @@ check("the DC's time-signing socket in the one folder chrony's AppArmor profile 
       "/var/lib/samba/ntp_signd:/run/samba/ntp_signd" in dc["volumes"], dc["volumes"])
 check("its secrets, certificate and converge code are mounted read-only",
       all(any(m.endswith(f":{target}:ro") for m in dc["volumes"]) for target in ("/run/secrets", "/tls", "/fabric")))
-check("a memory limit", dc["mem_limit"] == "512m")
+check("a memory limit: the planned one", dc["mem_limit"] == f"{v['memory_plan']['limits']['samba']}m", dc["mem_limit"])
 check("fabric's published image, pinned by digest; or, while it is pending, built here with BIND's and FreeRADIUS's gids",
       ("@sha256:" in dc["image"] and "build" not in dc)
       or (dc.get("build", {}).get("args", {}).get("BIND_GID") == "600"
           and dc.get("build", {}).get("args", {}).get("RADIUS_GID") == "610"), dc.get("image"))
 
-big = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base, host_ram_capacity=8))
+big = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base, host_ram_capacity=8, install_keycloak=True))
 kc8 = yaml.safe_load(env.get_template("keycloak/docker-compose.yml.j2").render(**big))["services"]["keycloak"]
 # covers: setting:host_ram_capacity +
-check("at 8 GB the growing services scale: Keycloak 2400M, the DC 1024m",
-      kc8["deploy"]["resources"]["limits"]["memory"] == "2400M" and big["samba_mem_limit"] == "1024m",
-      (kc8.get("deploy"), big["samba_mem_limit"]))
+check("at 8 GB the growing services take more: Keycloak and the DC (their planned limits, 1.2.4.3)",
+      kc8["deploy"]["resources"]["limits"]["memory"] == f"{big['memory_plan']['limits']['keycloak']}M"
+      and big["memory_plan"]["limits"]["keycloak"] > 1024
+      and big["memory_plan"]["limits"]["samba"] > v["memory_plan"]["limits"]["samba"],
+      (kc8.get("deploy"), big["memory_plan"]))
 
 print("--- what changes around it")
 ngx = env.get_template("nginx/nginx.conf.j2").render(**v)
@@ -305,8 +307,9 @@ b = b["services"]["bind9"]
 check("BIND mounts fabric's DLZ files and the DC's smb.conf read-only, the DNS partition writable",
       "/opt/samba/bind:/etc/bind-samba:ro" in b["volumes"] and "/opt/samba/data/etc:/etc/samba:ro" in b["volumes"]
       and "/opt/samba/data/bind-dns:/data/bind-dns" in b["volumes"], b["volumes"])
-check("BIND gets a Kerberos replay cache and 128 MiB at 4 GB (Samba's DLZ libraries)",
-      any(t.startswith("/var/tmp:") for t in b["tmpfs"]) and b["deploy"]["resources"]["limits"]["memory"] == "128M")
+check("BIND gets a Kerberos replay cache and 128 MiB at least at 4 GB (Samba's DLZ libraries)",
+      any(t.startswith("/var/tmp:") for t in b["tmpfs"])
+      and int(b["deploy"]["resources"]["limits"]["memory"].rstrip("M")) >= 128, b.get("deploy"))
 sibling = {**v, "ad_domain": "ad.test"}
 check("the DNS filter forwards the AD zone to BIND, also when it sits beside fabric's domain (ad.<parent>)",
       "ad.test" in adguard_zones(sibling, {}) and "ad.lan.test" in adguard_zones(v, {}))
@@ -322,7 +325,7 @@ from fabriclib.samba.check_logon_policies import check_logon_policies  # noqa: E
 import fabriclib.setup.collect_vars as m_collect  # noqa: E402
 from fabriclib.setup.collect_vars import collect_vars  # noqa: E402
 
-m_collect._network_problem = lambda data: ""        # the test's addresses are not this machine's (pure logic)
+m_collect.network_problem = lambda data: ""         # the test's addresses are not this machine's (pure logic)
 
 
 def logon_refused(value, words):
@@ -409,7 +412,7 @@ def setup_vars(vars_file, provisioned=False):
         open(os.path.join(base_dir, "samba", "data", ".fabric-provisioned"), "w").close()
     ctx = types.SimpleNamespace(user_vars_file=answers, vars_file=vars_file, source_dir=os.path.join(tmp, "src"),
                                 config_dir=os.path.join(base_dir, "config"), deploy_base=base_dir,
-                                join_invitation=None, non_interactive=True,
+                                join_invitation=None, non_interactive=True, origins={},
                                 secrets_file=os.path.join(base_dir, "secrets.yml"))
     with contextlib.redirect_stdout(io.StringIO()):
         collect_vars(ctx)

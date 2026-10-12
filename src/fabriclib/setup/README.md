@@ -9,11 +9,15 @@
 | `steps.py` | The ordered step list |
 | `context.py` | `SetupContext`: install paths, rendered vars, secrets, options, services to restart |
 | `errors.py` | `SetupError` — a step cannot continue; message says why and what to do |
-| `collect_vars.py` | Where settings come from: existing install, `--file` (or a checkout's `custom-vars.yaml` on a fresh install) overrides, prompts for anything missing |
+| `choose_mode.py` | A new install's start: [G]uided, [A]dvanced (the menu of every setting) or [Q]uit (1.2.9.11.1) |
+| `collect_vars.py` | Where settings come from: existing install, `--file` (or a checkout's `custom-vars.yaml` on a fresh install) overrides, prompts for anything missing (guided mode) |
+| `apply_plan_defaults.py` | The plan's hardened defaults recorded as values, so what is shown is what renders |
+| `finish_vars.py` | The last of collecting the settings: a fresh install's log-on rights, TSIG secrets moved, `fabric.yaml` saved |
 | `upgrade_vars.py` | Existing install's vars before re-render: new release's images (unless pinned) and service accounts (unless changed) |
 | `move_dns_filter.py` | Upgrade to 0.7: AdGuard Home's settings become the BIND resolver's; what cannot move is listed and recorded |
 | `detect_network.py` | Guess hostname, host IP, gateway, LAN CIDR and interface from the default route |
-| `choose_plan.py` | Show the (hardened) default plan; Proceed / Advanced / Quit |
+| `choose_plan.py` | The plan: what setup will do, the memory split, every host change; [P]roceed (the one yes), [M]enu, [Q]uit |
+| `advanced/` | The menu of every setting (1.2.9.11.3): its items and their questions |
 | `permanent_mark.py` | The yellow "⚠ Permanent" after a question whose setting is in the vars editor's `IMMUTABLE_KEYS` (2.1.2.20) |
 | `ask_dc_name.py` | The domain controller's own name (permanent; `dc-<hostname>` suggested), asked when missing (2.1.6.45) |
 | `ask_ad_domain.py` | The directory's AD domain (permanent; a sibling suggested), asked when missing; its password policy starts from the default (2.1.6.35) |

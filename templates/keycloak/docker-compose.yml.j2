@@ -41,8 +41,8 @@ services:
       # Bootstrap admin (Keycloak 26+ names; KEYCLOAK_ADMIN* are deprecated)
       KC_BOOTSTRAP_ADMIN_USERNAME: "{{ keycloak_admin_user }}"
       KC_BOOTSTRAP_ADMIN_PASSWORD: "{{ keycloak_admin_password }}"
-{% set kc_mem = (1200 * ((host_ram_capacity | default(4) | int) / 4)) | int %}
-      JAVA_OPTS_APPEND: "-Xmx{{ (kc_mem * 0.8) | int }}m -Djava.security.krb5.conf=/etc/keycloak/kerberos/krb5.conf"
+{# its JVM heap: 80% of its planned limit (manual 1.2.4.3) #}
+      JAVA_OPTS_APPEND: "-Xmx{{ (memory_mb('keycloak') * 0.8) | int }}m -Djava.security.krb5.conf=/etc/keycloak/kerberos/krb5.conf"
     volumes:
       - {{ keycloak_data_dir }}:/opt/keycloak/data
       - {{ deploy_base_dir }}/keycloak/certs:/etc/keycloak/certs:ro
@@ -56,11 +56,10 @@ services:
           - "{{ hostname_keycloak }}"
           - "keycloak"
     restart: unless-stopped
-{% set kc_mem = (1200 * ((host_ram_capacity | default(4) | int) / 4)) | int %}
     deploy:
       resources:
         limits:
-          memory: {{ kc_mem }}M
+          memory: {{ memory_mb('keycloak') }}M
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000'"]
       interval: 15s

@@ -1,6 +1,6 @@
 """Every question fabric asks goes through fabriclib/common/ask.py with a stable ID (manual 1.1.5.6): refuse input()
-and getpass() anywhere else in the product, and an ask()/ask_secret() whose ID does not start with a literal
-"<area>." (the entry-point inventory reads it, 3.1.2.5). Read from the syntax tree, so comments, docstrings and
+and getpass() anywhere else in the product, and an ask()/ask_secret()/ask_yes_no() whose ID does not start with a
+literal "<area>." (the entry-point inventory reads it, 3.1.2.5). Read from the syntax tree, so comments, docstrings and
 strings that mention input() never count.
     python3 tests/lint/no_bare_prompts.py <dir> ...
 """
@@ -37,8 +37,8 @@ def _python_files(root):
 
 
 def _id_is_literal(node):
-    """Purpose: whether an ask()/ask_secret() ID starts with a literal "<area>." (a str, or an f-string whose first
-             part is one: f"menu.vars.{key}").
+    """Purpose: whether an ask()/ask_secret()/ask_yes_no() ID starts with a literal "<area>." (a str, or an f-string
+             whose first part is one: f"menu.vars.{key}").
     Inputs:  node — the call's first argument (ast node), or None when there is none.
     Returns: bool.
     Fails:   never.
@@ -74,7 +74,7 @@ def findings(path, text):
             out.append(f"{path}:{node.lineno}: input(): use fabriclib.common.ask.ask with a stable ID")
         elif name == "getpass":
             out.append(f"{path}:{node.lineno}: getpass(): use fabriclib.common.ask.ask_secret with a stable ID")
-        elif name in ("ask", "ask_secret") and isinstance(f, ast.Name) and not _id_is_literal(
+        elif name in ("ask", "ask_secret", "ask_yes_no") and isinstance(f, ast.Name) and not _id_is_literal(
                 node.args[0] if node.args else None):
             out.append(f"{path}:{node.lineno}: {name}() needs a literal \"<area>.<name>\" ID as its first argument")
     return out

@@ -45,7 +45,7 @@ services:
       - {{ deploy_base_dir }}/kea/config:/config:ro
       - {{ deploy_base_dir }}/kea/leases:/var/lib/kea
       - {{ deploy_base_dir }}/kea/run:/run/kea
-    mem_limit: {{ kea_mem_limit }}
+    mem_limit: {{ memory_mb('kea') }}m
     healthcheck:
       test: ["CMD", "test", "-S", "/var/run/kea/kea4-ctrl-socket"]
       interval: 15s
@@ -79,7 +79,7 @@ services:
     networks:
       fabric_net:
         ipv4_address: "{{ ip_kea_ddns }}"
-    mem_limit: {{ kea_mem_limit }}
+    mem_limit: {{ memory_mb('kea') }}m
     healthcheck:
       test: ["CMD", "sh", "-c", "kill -0 1"]
       interval: 30s

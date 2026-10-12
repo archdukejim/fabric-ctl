@@ -45,7 +45,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 96M
+          memory: {{ memory_mb('webui') }}M
     healthcheck:
       test: ["CMD", "python3", "-c", "import socket; s = socket.socket(socket.AF_UNIX); s.connect('/run/webui/web.sock')"]
       interval: 15s

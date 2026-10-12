@@ -1,9 +1,7 @@
-import os
-
 from fabriclib.common.ask import ask_secret
 from fabriclib.common.console import BOLD, NC, YELLOW
-from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.samba.password_meets_policy import password_meets_policy
+from fabriclib.setup.common.first_admin_needed import first_admin_needed
 from fabriclib.setup.errors import SetupError
 
 
@@ -18,12 +16,11 @@ def ask_first_admin(ctx, needed=None):
     Returns: None; ctx.admin_password set when needed.
     Fails:   SetupError when unattended without --admin-password-file, or when that file's password is refused;
              OSError reading the file; EOFError from input.
-    Feeds:   setup/run_setup (after the plan), setup/create_admin (needed=True)."""
+    Feeds:   setup/run_setup (before the plan), setup/advanced/ask_first_admin_item and setup/create_admin
+             (needed=True)."""
     v = ctx.vars
     if needed is None:
-        needed = (v.get("install_webui") and v.get("install_keycloak") and not ctx.join_invitation
-                  and is_root_site(os.path.join(ctx.config_dir, "federation.yaml"))
-                  and not os.path.exists(os.path.join(ctx.deploy_base, "samba", "data", ".fabric-provisioned")))
+        needed = first_admin_needed(ctx)
     if not needed or ctx.admin_password:
         return
     user, policy = v["webui_admin_user"], v["ad_password_policy"]

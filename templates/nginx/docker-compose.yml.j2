@@ -46,11 +46,10 @@ services:
         ipv4_address: "{{ ip_nginx }}"
         aliases:
           - "{{ hostname_nginx }}"
-{% set nginx_mem = 256 %}
     deploy:
       resources:
         limits:
-          memory: {{ nginx_mem }}M
+          memory: {{ memory_mb('nginx') }}M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/"]
       interval: 30s

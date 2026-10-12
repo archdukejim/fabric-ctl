@@ -42,11 +42,10 @@ services:
         aliases:
           - postgres
     restart: unless-stopped
-{% set pg_mem = (200 * ((host_ram_capacity | default(4) | int) / 4)) | int %}
     deploy:
       resources:
         limits:
-          memory: {{ pg_mem }}M
+          memory: {{ memory_mb('postgres') }}M
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
       interval: 10s

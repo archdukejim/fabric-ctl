@@ -37,7 +37,7 @@ services:
     networks:
       fabric_net:
         ipv4_address: "{{ ip_fluentbit }}"
-    mem_limit: {{ fluentbit_mem_limit }}
+    mem_limit: {{ memory_mb('fluentbit') }}m
     healthcheck:
       test: ["CMD", "/fluent-bit/bin/fluent-bit", "--version"]
       interval: 30s

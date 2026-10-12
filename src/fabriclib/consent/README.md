@@ -8,6 +8,7 @@ recorded answers; the check every step makes before it changes the host.
 |---|---|
 | `groups.py` | The groups (packages, runtime, services, accounts, resolver, firewall, trust, time, member): title, level (required / recommended / choice), what saying no means |
 | `plan_host_changes.py` | Every planned change, by group, for the steps that will run |
+| `initial_host_choices.py` | Whether each recommended host change starts on in setup's menu and plan (earlier answers, `--approve` / `--decline`) |
 | `planned_vars.py` | The settings setup will render, before anything is deployed (so the questions come first) |
 | `plan_packages.py` | apt packages to install, all from the host's own sources (Ubuntu's `docker.io`, no apt source added) |
 | `plan_runtime.py` | The `daemon.json` keys hardening changes, and the Docker restart it needs |

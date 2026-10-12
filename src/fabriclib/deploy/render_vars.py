@@ -16,13 +16,16 @@ def render_vars(jinja_env, secrets, custom_vars):
     Returns: (final_vars — the rendered settings, context — secrets + custom_vars + render_date: the start of what
              every other template renders with; the caller adds final_vars once they are checked).
     Fails:   ValidationError when vars.yaml.j2 does not render, or host_ram_capacity — the admin's, else this host's
-             measured memory — is under 4 GB (2.1.2.3; every container's memory limit follows from it, manual 1.2.4.2);
-             check_cert_lifetimes' messages.
+             measured memory — is under 4 GB (2.1.2.3; every container's memory limit follows from it, manual 1.2.4.3);
+             plan_memory's refusals (memory_floors / memory_weights / a `*_mem_limit` not valid; the installed
+             services' floors not fitting the budget, naming the parts to turn off); check_cert_lifetimes' messages.
     Feeds:   apply_deployment."""
     context = {**secrets, **custom_vars, "host_ram_detected": host_ram_gb(),
                "render_date": datetime.now(timezone.utc).strftime("%Y-%m-%d")}
     try:
         final_vars = yaml.safe_load(jinja_env.get_template("vars.yaml.j2").render(**context)) or {}
+    except ValidationError:                 # a setting refused while rendering: the memory plan (1.2.4.3)
+        raise
     except Exception as e:                  # a template error of any kind: say which file
         raise ValidationError(f"vars.yaml.j2 did not render: {e}")
     ram = int(final_vars.get("host_ram_capacity") or 0)
