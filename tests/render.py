@@ -331,10 +331,11 @@ assert res['service_users']['resolver'] == {'uid': 613, 'gid': 613, 'name': 'fab
 assert res['service_users']['adguard'] == {'uid': 614, 'gid': 614, 'name': 'fabric-adguard'}, res['service_users']
 assert 'oauth2proxy' not in res['service_users'], res['service_users']
 assert res['ip_resolver'] == '10.255.0.33' and res['ip_adguard'] == '10.255.0.34'
-# the resolver's limit is planned with the others (1.2.4.3): its floor, no lists in it; AdGuard Home's follows the host
-# outside the budget, 1 GiB at 4 GB (1.12.3.9, 1.2.4.3.4)
+# the resolver's limit is planned with the others (1.2.4.3): its floor, no lists in it; AdGuard Home's too since 0.7.1:
+# the budget counts its steady share, its container's limit is 2.5 times that (1.2.4.3.5, 2.1.12.8)
 assert res['resolver_mem_limit'] is None and res['memory_plan']['limits']['resolver'] == 128, res['memory_plan']
-assert res['adguard_mem_limit'] == '1024m' and 'adguard' not in res['memory_plan']['limits'], res['adguard_mem_limit']
+AG = res['memory_plan']['limits']['adguard']
+assert res['adguard_mem_limit'] is None and AG >= 384 and res['memory_plan']['bursts'] == {'adguard': int(AG * 2.5)}     and res['memory_plan']['over_mb'] == int(AG * 2.5) - AG, res['memory_plan']
 assert res['dns_filter_lists'] == [{'name': 'AdGuard DNS filter', 'enabled': True,
                                     'url': 'https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt'}]
 assert res['dns_filter_upstreams'][0] == {'address': '1.1.1.1', 'name': 'cloudflare-dns.com'}, res['dns_filter_upstreams']
@@ -351,7 +352,7 @@ a = ag['adguard-filter']
 assert list(ag) == ['adguard-filter'] and 'ports' not in a, 'AdGuard Home publishes nothing (1.12.3.3)'
 assert a['user'] == '614:614' and a['cap_drop'] == ['ALL'] and a['cap_add'] == ['NET_BIND_SERVICE'], a
 assert a['read_only'] is True and 'no-new-privileges:true' in a['security_opt'], a
-assert a['sysctls'] == {'net.ipv4.ip_unprivileged_port_start': 53} and a['mem_limit'] == '1024m', a
+assert a['sysctls'] == {'net.ipv4.ip_unprivileged_port_start': 53} and a['mem_limit'] == f'{int(AG * 2.5)}m', a
 assert a['networks']['fabric_net']['ipv4_address'] == '10.255.0.34' and f"{res['deploy_base_dir']}/dnsfilter/lists:/lists:ro" in a['volumes']
 assert '--no-check-update' in a['command'] and not any('password' in str(x).lower() for x in a['healthcheck']['test'])
 agt = env.get_template('dnsfilter/AdGuardHome.yaml.j2')
@@ -939,7 +940,7 @@ PARTS_ON = {'install_kea': True, 'install_freeradius': True, 'install_fluentbit'
                                                           'pools': ['192.168.7.100 - 192.168.7.199']}]}}
 PARTS_OFF = {'install_kea': False, 'install_freeradius': False, 'install_fluentbit': False, 'dns_filter': 'none'}
 MEM_KEYS = ('openbao_mem_limit', 'kea_mem_limit', 'samba_mem_limit', 'freeradius_mem_limit', 'fluentbit_mem_limit',
-            'resolver_mem_limit')
+            'resolver_mem_limit', 'adguard_mem_limit')
 
 
 def mem_vars(**extra):
@@ -953,7 +954,8 @@ def compose_limits(v):
     out = {}
     folders = ['nginx', 'bind9', 'stepca', 'samba', 'keycloak', 'postgres', 'webui', 'openbao'] + \
         [f for f, flag in (('kea', 'install_kea'), ('freeradius', 'install_freeradius'),
-                           ('fluentbit', 'install_fluentbit'), ('resolver', 'install_resolver')) if v.get(flag)]
+                           ('fluentbit', 'install_fluentbit'), ('resolver', 'install_resolver'),
+                           ('dnsfilter', 'install_resolver')) if v.get(flag)]
     for folder in folders:
         dc = yaml.safe_load(env.get_template(f'{folder}/docker-compose.yml.j2').render(**{**secrets, **v}))
         for name, spec in dc['services'].items():
@@ -972,7 +974,7 @@ def mem_total(plan):
 CONTAINER_SERVICE = {'nginx': 'nginx', 'bind9': 'bind9', 'step-ca': 'stepca', 'samba': 'samba', 'keycloak': 'keycloak',
                      'postgres': 'postgres', 'webui': 'webui', 'openbao': 'openbao', 'kea-dhcp4': 'kea',
                      'kea-ddns': 'kea', 'freeradius': 'freeradius', 'fluentbit': 'fluentbit',
-                     'bind9-resolver': 'resolver'}
+                     'bind9-resolver': 'resolver', 'adguard-filter': 'adguard'}
 mem_plans = {}
 for gb in (4, 8):
     for label, parts in (('on', PARTS_ON), ('off', PARTS_OFF)):
@@ -983,10 +985,13 @@ for gb in (4, 8):
         assert all(mv[k] is None for k in MEM_KEYS), 'no *_mem_limit is written back unless the admin set one'
         got = compose_limits(mv)
         for container, mb in got.items():
-            if container != 'keycloak-heap':
-                assert mb == p['limits'][CONTAINER_SERVICE[container]], (gb, label, container, mb, p['limits'])
+            if container != 'keycloak-heap':       # AdGuard Home's container: its share x 2.5 (p['bursts'])
+                svc = CONTAINER_SERVICE[container]
+                assert mb == (p['bursts'].get(svc) or p['limits'][svc]), (gb, label, container, mb, p['limits'])
         assert got['keycloak-heap'] == int(p['limits']['keycloak'] * 0.8), got
-        assert (label == 'on') == ('kea-dhcp4' in got and 'freeradius' in got and 'bind9-resolver' in got), got
+        assert (label == 'on') == ('kea-dhcp4' in got and 'freeradius' in got and 'bind9-resolver' in got
+                                   and 'adguard-filter' in got), got
+        assert (p['over_mb'] > 0) == (label == 'on'), p    # only AdGuard Home's rebuilds pass the budget, briefly
 for gb in (4, 8):
     on, off = mem_plans[(gb, 'on')]['limits'], mem_plans[(gb, 'off')]['limits']
     assert all(off[s] > on[s] for s in ('keycloak', 'samba', 'postgres', 'bind9')), (gb, on, off)
@@ -1028,21 +1033,30 @@ for bad, needle in ((dict(memory_floors={'tomcat': 64}), 'no service tomcat'),
 msg = mem_refused(host_ram_capacity=4, memory_floors={'keycloak': 2600}, **PARTS_ON)
 # covers: setting:memory_plan -
 assert 'Turn off DHCP (install_kea: false), 256 MB' in msg and '802.1X (install_freeradius: false), 128 MB' in msg \
-    and 'the DNS filter (dns_filter: none), 128 MB' in msg and 'give fabric 6 GB' in msg, msg
+    and 'the DNS filter (dns_filter: none), 512 MB' in msg and 'give fabric 6 GB' in msg, msg
 print('memory: floors and weights overridden when valid, refused when not; a plan whose floors do not fit is refused, '
       'naming the parts to turn off')
 
 # an explicit *_mem_limit wins (that limit, fixed); its pre-0.9 default counts as not set; a size that is none, refused
-mv = mem_vars(host_ram_capacity=4, kea_mem_limit='96m', samba_mem_limit='700m', resolver_mem_limit='384m', **PARTS_ON)
+mv = mem_vars(host_ram_capacity=4, kea_mem_limit='96m', samba_mem_limit='600m', resolver_mem_limit='384m', **PARTS_ON)
 p = mv['memory_plan']
 # covers: setting:samba_mem_limit +
-assert p['limits']['kea'] == 96 and p['limits']['samba'] == 700 and mv['kea_mem_limit'] == '96m' \
-    and mv['samba_mem_limit'] == '700m' and mv['resolver_mem_limit'] is None \
-    and p['explicit'] == {'kea': 96, 'samba': 700} and mem_total(p) == p['budget_mb'], p
-assert compose_limits(mv)['samba'] == 700 and compose_limits(mv)['kea-ddns'] == 96
+assert p['limits']['kea'] == 96 and p['limits']['samba'] == 600 and mv['kea_mem_limit'] == '96m' \
+    and mv['samba_mem_limit'] == '600m' and mv['resolver_mem_limit'] is None \
+    and p['explicit'] == {'kea': 96, 'samba': 600} and mem_total(p) == p['budget_mb'], p
+assert compose_limits(mv)['samba'] == 600 and compose_limits(mv)['kea-ddns'] == 96
+# AdGuard Home's adguard_mem_limit is its container's limit, rebuilds included: the budget counts it / 2.5; its 0.7.0
+# default (1 GiB at 4 GB) counts as not set (2.1.12.8)
+mv = mem_vars(host_ram_capacity=4, adguard_mem_limit='800m', **PARTS_ON)
+p = mv['memory_plan']
+# covers: setting:adguard_mem_limit +
+assert p['explicit'] == {'adguard': 800} and p['limits']['adguard'] == 320 and p['bursts'] == {'adguard': 800}     and compose_limits(mv)['adguard-filter'] == 800 and mem_total(p) == p['budget_mb'], p
+mv = mem_vars(host_ram_capacity=4, adguard_mem_limit='1024m', **PARTS_ON)
+assert mv['memory_plan']['explicit'] == {} and mv['adguard_mem_limit'] is None, mv['memory_plan']
 for key in MEM_KEYS:
     msg = mem_refused(host_ram_capacity=4, **{key: '12x'})
     # covers: setting:openbao_mem_limit setting:kea_mem_limit setting:samba_mem_limit -
     # covers: setting:freeradius_mem_limit setting:fluentbit_mem_limit setting:resolver_mem_limit -
+    # covers: setting:adguard_mem_limit -
     assert f"{key}: '12x' is not a memory size" in msg, (key, msg)
 print("memory: an explicit *_mem_limit fixes that service's limit (its pre-0.9 default does not), a bad size refused")

@@ -43,6 +43,7 @@ import fabriclib.dns_filter.remove_filter_group as m_rm_group  # noqa: E402
 import fabriclib.dns_filter.set_safe_search as m_safe  # noqa: E402
 import fabriclib.dns_filter.refresh_lists as m_refresh  # noqa: E402
 from fabriclib.dns_filter.common.list_id import list_id  # noqa: E402
+from fabriclib.system.memory_limit_mb import memory_limit_mb  # noqa: E402
 from fabriclib.rbac.permissions import BUNDLES  # noqa: E402
 from fabriclib.rbac.required_permission import required_permission  # noqa: E402
 
@@ -50,7 +51,8 @@ L1 = "https://lists.example/one.txt"
 BASE = tempfile.mkdtemp()
 STORE = {"vars": {"domain": "lan.test", "org_domain": "lan.test", "dns_filter": "bind", "install_resolver": True,
                   "lan_cidr": "192.168.1.0/24", "fabric_subnet": "10.255.0.0/24", "deploy_base_dir": BASE,
-                  "adguard_mem_limit": "1024m",
+                  "adguard_mem_limit": "1024m", "host_ram_capacity": 4, "install_keycloak": True,   # the owner's Pi:
+                  # 0.7.0's default limit (counts as not set) and AdGuard Home's share of a 4 GB budget, 429 MiB
                   "dns_filter_lists": [{"name": "One", "url": L1, "enabled": True}], "dns_filter_allow": [],
                   "dns_filter_block": [], "dns_filter_upstreams": [{"address": "1.1.1.1", "name": "cloudflare-dns.com"}]}}
 AUDIT = []
@@ -74,7 +76,7 @@ check("untick a list: kept on the site, its name kept, audited as off",
 r = m_set_list.set_filter_list("alice", TWO, True, "", "web")
 check("tick it again: no second entry", len(v()["dns_filter_lists"]) == 2 and v()["dns_filter_lists"][1]["enabled"]
       and AUDIT[-1][1] == "DNS_FILTER_LIST_ON", v()["dns_filter_lists"])
-# a copy whose estimate would take the ticked lists' peak past adguard_mem_limit (1.12.3.9)
+# a copy whose estimate would take the ticked lists past AdGuard Home's share of the budget (1.12.3.9, 2.1.12.8)
 BIG = "https://lists.example/big.txt"
 os.makedirs(f"{BASE}/dnsfilter", exist_ok=True)
 with open(f"{BASE}/dnsfilter/state.json", "w") as f:
@@ -87,9 +89,11 @@ for args, why in (((("ftp://lists.example/x", True, "x")), "not http(s)"),
     e = refused(m_set_list.set_filter_list, "alice", *args)
     check(f"tick or add a list refused: {why}, saying why, nothing saved",
           isinstance(e, ValidationError) and str(e) and STORE["vars"] == before, e)
-check("the memory refusal names the estimate, the peak and the limit",
-      "1250 MiB" in str(refused(m_set_list.set_filter_list, "alice", BIG, True, "Big"))
-      and "1024 MiB" in str(refused(m_set_list.set_filter_list, "alice", BIG, True, "Big")))
+_said = str(refused(m_set_list.set_filter_list, "alice", BIG, True, "Big"))
+_limit = memory_limit_mb(STORE["vars"], "adguard")       # planned: its share x 2.5 (2.1.12.8)
+check("the memory refusal names the estimate, AdGuard Home's share of the budget, its limit and how to make room",
+      "about 500 MiB" in _said and f"({_limit / 2.5:.0f} MiB;" in _said and f"{_limit:.0f} MiB while it compiles" in _said
+      and "host_ram_capacity" in _said, (_said, _limit))
 m_rm_list.remove_filter_list("alice", TWO, "web")
 check("remove a list", [i["url"] for i in v()["dns_filter_lists"]] == [L1])
 e = refused(m_rm_list.remove_filter_list, "alice", "https://lists.example/nope.txt")

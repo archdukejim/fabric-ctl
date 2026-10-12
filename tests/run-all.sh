@@ -34,7 +34,7 @@ for s in "${SUITES[@]}"; do
     case "$s" in
         docs)     run docs     python3 "$HERE/docs/run.py" ;;
         lint)     run lint     bash "$HERE/lint/run.sh" ;;
-        deploy)   run deploy   python3 "$HERE/deploy/restart_changed_test.py" ;;
+        deploy)   run deploy   bash -c "python3 \"$HERE/deploy/restart_changed_test.py\" && python3 \"$HERE/deploy/check_service_settings_test.py\"" ;;
         consent)  run consent  bash -c "python3 \"$HERE/consent/run.py\" && python3 \"$HERE/common/ask.py\"" ;;
         render)   run render   python3 "$HERE/render.py" "$FABRIC_TEST_OUT/rendered" ;;
         nginx)    run nginx    bash "$HERE/nginx_check.sh" "$FABRIC_TEST_OUT/rendered" ;;

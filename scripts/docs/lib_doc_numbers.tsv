@@ -165,6 +165,7 @@ file	fabriclib-deploy|src/fabriclib/deploy/apply_deployment.py	1
 file	fabriclib-deploy|src/fabriclib/deploy/archive_vars.py	2	
 file	fabriclib-deploy|src/fabriclib/deploy/check_fixed_identity.py	3	
 file	fabriclib-deploy|src/fabriclib/deploy/check_samba_settings.py	28	
+file	fabriclib-deploy|src/fabriclib/deploy/check_service_settings.py	31	
 file	fabriclib-deploy|src/fabriclib/deploy/check_settings.py	4	
 file	fabriclib-deploy|src/fabriclib/deploy/compose_builds.py	26	
 file	fabriclib-deploy|src/fabriclib/deploy/deploy_optional_parts.py	5	
@@ -282,7 +283,7 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/filter_zones.py	4
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_id.py	44	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_memory.py	45	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_zone.py	5	
-file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py	46	
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py	46	0.7.0 / 2026-10-12
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_paths.py	6	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_rndc.py	7	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/rule_names.py	31	
@@ -1217,6 +1218,8 @@ function	fabriclib-deploy|src/fabriclib/deploy/apply_deployment.py|apply_deploym
 function	fabriclib-deploy|src/fabriclib/deploy/archive_vars.py|archive_vars	1	
 function	fabriclib-deploy|src/fabriclib/deploy/check_fixed_identity.py|check_fixed_identity	1	
 function	fabriclib-deploy|src/fabriclib/deploy/check_samba_settings.py|check_samba_settings	1	
+function	fabriclib-deploy|src/fabriclib/deploy/check_service_settings.py|_whole	1	
+function	fabriclib-deploy|src/fabriclib/deploy/check_service_settings.py|check_service_settings	2	
 function	fabriclib-deploy|src/fabriclib/deploy/check_settings.py|check_settings	1	
 function	fabriclib-deploy|src/fabriclib/deploy/compose_builds.py|compose_builds	1	
 function	fabriclib-deploy|src/fabriclib/deploy/deploy_optional_parts.py|deploy_optional_parts	1	
@@ -1361,7 +1364,7 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/filter_zones.py|fi
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_id.py|list_id	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_memory.py|list_memory	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_zone.py|list_zone	1	
-function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py|mem_mb	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py|mem_mb	1	0.7.0 / 2026-10-12
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_paths.py|resolver_paths	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_rndc.py|resolver_rndc	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/rule_names.py|rule_names	1	

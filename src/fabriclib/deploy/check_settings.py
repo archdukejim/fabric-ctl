@@ -1,5 +1,6 @@
 from fabriclib.common.errors import ValidationError
 from fabriclib.deploy.check_samba_settings import check_samba_settings
+from fabriclib.deploy.check_service_settings import check_service_settings
 from fabriclib.dhcp.client_networks import client_networks
 from fabriclib.dhcp.dhcp_reverse_zones import dhcp_reverse_zones
 from fabriclib.dhcp.normalize_dhcp import normalize_dhcp
@@ -26,8 +27,10 @@ def check_settings(final_vars):
              check_filter_settings (the BIND resolver's lists,
              rules and upstreams), from signin_level (a second factor that is not a level), or from
              check_logon_policies (who may sign in per OU, manual 1.6.11.4), or for a pki_manual_max_days that is not
-             a whole number of days.
+             a whole number of days, or from check_service_settings (images, fabric's container addresses, the
+             uid/gid block).
     Feeds:   apply_deployment."""
+    check_service_settings(final_vars)
     final_vars["dhcp"] = normalize_dhcp(final_vars)
     if final_vars.get("install_kea"):                 # on the host: its interfaces; elsewhere ({}) served from host_ip
         final_vars["dhcp"] = place_subnets(final_vars["dhcp"], final_vars.get("host_ip"), host_networks() or None)

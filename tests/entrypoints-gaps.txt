@@ -280,7 +280,6 @@ setting:ad_org_ou -
 setting:ad_realm +
 setting:ad_realm -
 setting:ad_site_ou -
-setting:adguard_mem_limit -
 setting:bind9_doh_port +
 setting:bind9_doh_port -
 setting:bind_acls -
@@ -361,12 +360,10 @@ setting:ica_key_path +
 setting:ica_key_path -
 setting:ica_parents_path +
 setting:ica_parents_path -
-setting:image_adguard -
 setting:image_cosign -
 setting:image_debian -
 setting:image_fluentbit -
 setting:image_freeradius -
-setting:image_kea -
 setting:image_keycloak -
 setting:image_nginx -
 setting:image_openbao -
@@ -385,7 +382,6 @@ setting:install_keycloak -
 setting:install_resolver -
 setting:install_webui +
 setting:install_webui -
-setting:ip_adguard -
 setting:ip_bind9 +
 setting:ip_bind9 -
 setting:ip_fabric_gateway +
@@ -428,9 +424,7 @@ setting:openbao_seal_key_id -
 setting:org_domain -
 setting:posix_home_base +
 setting:posix_home_base -
-setting:posix_id_block -
 setting:posix_id_range -
-setting:posix_id_start -
 setting:posix_login_shell +
 setting:posix_login_shell -
 setting:postgres_data_dir +

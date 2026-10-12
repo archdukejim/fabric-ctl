@@ -9,6 +9,7 @@ SERVICES = {
     "keycloak": (1024, 6, 1, "Keycloak"),
     "samba": (512, 3, 1, "the domain controller (Samba)"),
     "resolver": (128, 0, 1, "the DNS filter's resolver"),
+    "adguard": (384, 1, 1, "AdGuard Home (the DNS filter's lists)"),
     "postgres": (128, 1, 1, "Postgres"),
     "bind9": (128, 1, 1, "BIND"),
     "nginx": (256, 0, 1, "nginx"),
@@ -20,21 +21,28 @@ SERVICES = {
     "fluentbit": (64, 0, 1, "Fluent Bit"),
 }
 
+# the services whose memory briefly jumps past their steady use, and by how much: AdGuard Home compiling its lists
+# takes this many times their steady size (2.1 on the Pi, 2.6 on amd64; 1.12.3.9). The budget counts the steady use;
+# the container's limit is this many times it, and what that adds past the budget is reported, never refused
+# (2.1.12.8).
+BURST = {"adguard": 2.5}
+
 # the services that had a `*_mem_limit` setting before 0.7.1, and the values it held by default then (an install's
 # vars.yaml carries one): such a value is no choice of the admin's, so the service joins the budget. The resolver's
-# was 384m in the 0.8.0 candidates and 128m in 0.7.0. AdGuard Home is outside the budget for now: its limit follows
-# the host as in 0.7.0 (adguard_mem_limit, 1 GiB at 4 GB, 1.12.3.9), which does not fit beside Keycloak on 4 GB.
+# was 384m in the 0.8.0 candidates and 128m in 0.7.0; AdGuard Home's followed the host in 0.7.0 (1 GiB at 4 GB).
+# An admin's adguard_mem_limit is the container's limit, its rebuilds included: the budget counts it / BURST.
 SETTINGS = {"openbao": ("openbao_mem_limit", lambda gb: 256), "kea": ("kea_mem_limit", lambda gb: 128),
             "samba": ("samba_mem_limit", lambda gb: int(512 * gb / 4)),
             "freeradius": ("freeradius_mem_limit", lambda gb: 128),
             "fluentbit": ("fluentbit_mem_limit", lambda gb: 64),
-            "resolver": ("resolver_mem_limit", lambda gb: (384, 128))}
+            "resolver": ("resolver_mem_limit", lambda gb: (384, 128)),
+            "adguard": ("adguard_mem_limit", lambda gb: int(1024 * gb / 4))}
 
 # the parts a person can turn off (1.1.9), what turns each off, and the services that go with it
 PARTS = [("install_kea", "DHCP (install_kea: false)", ["kea"]),
          ("install_freeradius", "802.1X (install_freeradius: false)", ["freeradius"]),
          ("install_fluentbit", "log forwarding (install_fluentbit: false)", ["fluentbit"]),
-         ("dns_filter", "the DNS filter (dns_filter: none)", ["resolver"]),
+         ("dns_filter", "the DNS filter (dns_filter: none)", ["resolver", "adguard"]),
          ("install_keycloak", "Keycloak and the web console (install_keycloak: false)",
           ["keycloak", "postgres", "webui"])]
 
@@ -52,7 +60,7 @@ def _installed(v):
           *(["webui"] if keycloak and v.get("install_webui", True) is not False else []),
           *(["kea"] if v.get("install_kea") else []), *(["freeradius"] if v.get("install_freeradius") else []),
           *(["fluentbit"] if v.get("install_fluentbit") else []),
-          *(["resolver"] if str(v.get("dns_filter") or "bind").lower() == "bind" else [])}
+          *(["resolver", "adguard"] if str(v.get("dns_filter") or "bind").lower() == "bind" else [])}
     return [s for s in SERVICES if s in on]
 
 
@@ -109,11 +117,12 @@ def plan_memory(v):
              weight).
     Inputs:  v — settings: host_ram_capacity (GB), the install flags (_installed), memory_floors, memory_weights,
              openbao_mem_limit, kea_mem_limit, samba_mem_limit, freeradius_mem_limit, fluentbit_mem_limit,
-             resolver_mem_limit.
+             resolver_mem_limit, adguard_mem_limit (AdGuard Home's container limit: counted / BURST).
     Returns: {"capacity_mb", "reserve_mb", "budget_mb", "limits": {service: MB per container}, "containers":
              {service: count}, "explicit": {service: MB} (the ones set by a `*_mem_limit`), "settings":
              {"<svc>_mem_limit": the admin's value or None}, "unassigned_mb": what no service took (only when no
-             installed service has a weight)}.
+             installed service has a weight), "bursts": {service: its container's limit, BURST times its share, for
+             the services in BURST}, "over_mb": how far those limits together go past the budget during a burst}.
     Fails:   ValidationError: host_ram_capacity not a whole number; memory_floors / memory_weights not valid; a
              `*_mem_limit` that is not a size; the floors (and fixed limits) of the installed services do not fit the
              budget — naming the parts that could be turned off, what each frees, and the memory the plan needs.
@@ -136,8 +145,9 @@ def plan_memory(v):
         settings[key] = v.get(key) if honoured else None
         if honoured and service in installed:
             explicit[service] = mb
+    steady = {s: -(-explicit[s] * 10 // int(BURST[s] * 10)) if s in BURST else explicit[s] for s in explicit}
     containers = {s: SERVICES[s][2] for s in installed}
-    limits = {s: explicit.get(s, floors.get(s, SERVICES[s][0])) for s in installed}
+    limits = {s: steady.get(s, floors.get(s, SERVICES[s][0])) for s in installed}
     need = sum(limits[s] * containers[s] for s in installed)
     if need > budget:
         frees = []
@@ -162,5 +172,7 @@ def plan_memory(v):
     if single:
         limits[single[0]] += rest
         rest = 0
+    bursts = {s: explicit.get(s, int(limits[s] * BURST[s])) for s in BURST if s in installed}
     return {"capacity_mb": capacity, "reserve_mb": RESERVE_MB, "budget_mb": budget, "limits": limits,
-            "containers": containers, "explicit": explicit, "settings": settings, "unassigned_mb": rest}
+            "containers": containers, "explicit": explicit, "settings": settings, "unassigned_mb": rest,
+            "bursts": bursts, "over_mb": sum(bursts[s] - limits[s] for s in bursts)}

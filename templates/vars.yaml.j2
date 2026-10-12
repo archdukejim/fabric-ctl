@@ -146,6 +146,7 @@ openbao_seal_key_id: {{ openbao_seal_key_id | default('fabric-1') }}
   'openbao_mem_limit': openbao_mem_limit | default(none), 'kea_mem_limit': kea_mem_limit | default(none),
   'samba_mem_limit': samba_mem_limit | default(none), 'freeradius_mem_limit': freeradius_mem_limit | default(none),
   'fluentbit_mem_limit': fluentbit_mem_limit | default(none), 'resolver_mem_limit': resolver_mem_limit | default(none),
+  'adguard_mem_limit': adguard_mem_limit | default(none),
 }) %}
 openbao_mem_limit: {{ _mem.settings.openbao_mem_limit | to_json }}
 # PKCS#11 libraries fabric may load for security-key unlock methods (paths or globs; they run as root).
@@ -235,10 +236,11 @@ install_resolver: {{ (dns_filter | default('bind', true) | lower) == 'bind' }}
 ip_resolver: {{ ip_resolver | default('10.255.0.33') }}
 resolver_mem_limit: {{ _mem.settings.resolver_mem_limit | to_json }}
 # AdGuard Home behind the resolver (manual 1.12.3): on fabric_net only, driven through its API by fabric.
-# Its memory limit follows the host's (1 GiB at 4 GB: the owner's 16 lists peaked at 751 MiB on the test Pi); it is
-# outside the memory budget (1.2.4.3) for now.
+# Its memory is planned with the others (1.2.4.3, 2.1.12.8): the budget counts its lists' steady size, and its limit is
+# 2.5 times that so compiling them fits (the owner's 16 lists: 380 MiB steady, 751 MiB at their peak); set, the
+# limit is fixed and the budget counts it / 2.5.
 ip_adguard: {{ ip_adguard | default('10.255.0.34') }}
-adguard_mem_limit: {{ adguard_mem_limit | default(((1024 * ((host_ram_capacity | default(host_ram_detected | default(4), true) | int) / 4)) | int) ~ 'm', true) }}
+adguard_mem_limit: {{ _mem.settings.adguard_mem_limit | to_json }}
 # Lists [{name, url, enabled}] (hosts, domains or AdGuard syntax), every one kept fetched; [] = none.
 # Default: AdGuard's DNS filter.
 dns_filter_lists: {{ (dns_filter_lists if dns_filter_lists is defined and dns_filter_lists is not none else [{'name': 'AdGuard DNS filter', 'url': 'https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt', 'enabled': true}]) | to_json }}
@@ -303,7 +305,7 @@ memory_weights: {{ memory_weights | default({}, true) | to_json }}
 {# derived on every render, never set: the budget, the reserve and each service's limit (MB) #}
 memory_plan: {{ {'capacity_mb': _mem.capacity_mb, 'reserve_mb': _mem.reserve_mb, 'budget_mb': _mem.budget_mb,
                  'limits': _mem.limits, 'containers': _mem.containers, 'explicit': _mem.explicit,
-                 'unassigned_mb': _mem.unassigned_mb} | to_json }}
+                 'unassigned_mb': _mem.unassigned_mb, 'bursts': _mem.bursts, 'over_mb': _mem.over_mb} | to_json }}
 compose_file: {{ compose_file | default((deploy_base_dir | default('/opt')) ~ '/fabric/docker-compose.yml') }}
 keycloak_data_dir: {{ keycloak_data_dir | default((deploy_base_dir | default('/opt')) ~ '/keycloak/data') }}
 postgres_data_dir: {{ postgres_data_dir | default((deploy_base_dir | default('/opt')) ~ '/postgres/data') }}

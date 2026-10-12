@@ -43,7 +43,7 @@ def show_filter_status(v, password=None):
         try:
             status = adguard_api(v, password, "GET", "/control/filtering/status") or {}
             counts = {f.get("url"): f.get("rules_count") for f in status.get("filters") or []}
-            print(f"AdGuard Home: running   memory limit {v.get('adguard_mem_limit')}")
+            print(f"AdGuard Home: running   memory limit {memory_limit_mb(v, 'adguard')}m")
         except ValidationError as e:
             print(f"AdGuard Home: NOT answering ({e}): internet names fail closed (SERVFAIL) until it does")
             ok = False
