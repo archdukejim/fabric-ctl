@@ -1122,6 +1122,7 @@ function	fabriclib-deploy|src/fabriclib/deploy/render_vars.py|_host_ram_gb	2	0.5
 function	fabriclib-deploy|src/fabriclib/deploy/render_vars.py|render_vars	1	
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_enabled	2	
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_quiet	1	
+function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_roll_out	4	
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|restart_changed	3	
 function	fabriclib-deploy|src/fabriclib/deploy/service_units.py|service_units	1	
 function	fabriclib-deploy|src/fabriclib/deploy/verify_published_images.py|verify_published_images	1	

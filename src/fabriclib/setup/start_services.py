@@ -16,16 +16,10 @@ from fabriclib.secrets.save_secrets import save_secrets
 from fabriclib.setup.errors import SetupError
 from fabriclib.setup.retire_adguard import retire_adguard
 from fabriclib.setup.retire_renamed_units import retire_renamed_units
+from fabriclib.setup.service_order import ORDER
 from fabriclib.setup.ensure_db_rotation import align_postgres_roles
 from fabriclib.setup.start_unit import start_unit
 
-# (systemd unit, container, enabled-if flag); order = start order
-ORDER = [("bind9", "bind9", None), ("stepca", "step-ca", None), ("samba", "samba", None),
-         ("postgres", "postgres", "install_keycloak"), ("keycloak", "keycloak", "install_keycloak"),
-         ("nginx", "nginx", None), ("fluentbit", "fluentbit", "install_fluentbit"),
-         ("kea", "kea-dhcp4", "install_kea"), ("freeradius", "freeradius", "install_freeradius"),
-         ("adguard-filter", "adguard-filter", "install_resolver"),
-         ("bind9-resolver", "bind9-resolver", "install_resolver")]
 
 
 def run(ctx):

@@ -34,6 +34,7 @@
 | `mint_service_certs.py` | Issue/renew service certificates (only what is missing, expiring or wrong); web UI and FreeRADIUS CA bundles |
 | `mint_extra_certs.py` | `extra_certs` entries, when missing or due (part of the `certs` step) |
 | `start_services.py` | Retire renamed units; start the stack in order; converge the domain; configure Keycloak; fabric-agent + web UI; activate `fabric.target` |
+| `service_order.py` | fabric's container services in dependency order: setup starts them in it, an apply's rollout restarts them in it (2.1.14.15) |
 | `start_unit.py` | Enable, start or restart one unit and wait until its container is healthy |
 | `setup_openbao.py` | `vault` step: vault key and unlock, start OpenBao, init once (recovery keys to `~/fabric-admin`, root token used once and revoked), converge its configuration, move fabric's secrets file into OpenBao |
 | `create_admin.py` | First web UI admin: a person in the domain, in the admin group, forced password change, client `.p12`, root CA and README in `~/fabric-admin` |

@@ -9,6 +9,7 @@ suite needs no Docker or root and also runs alone: `python3 tests/docs/run.py`.
 |---|---|---|
 | `docs` | [docs/](docs/) | Every function documented (Purpose/Inputs/Returns/Fails/Feeds), the function reference (manual 1.17) current, docs and code agree, every file reviewed |
 | `lint` | [lint/](lint/) | ruff (Python, `pyproject.toml`) and shellcheck (shell) from their pinned images: no findings in `src/`, `scripts/`, `tests/` (decision 2.1.1.15); every product file parses on Python 3.10 (2.1.1.43) |
+| `deploy` | [deploy/](deploy/) | An apply's measured rollout: one service at a time in dependency order, health-gated, stopped at the first failure (2.1.14.15), systemd stood in for |
 | `consent` | [consent/](consent/) | Asking before fabric changes the host: answers, questions, the subset rule, declined groups, the `fabric-*` accounts and their move, no containers |
 | `render` | `render.py` | Every template renders from `vars.yaml.j2`; security properties of the rendered configs; every module imports |
 | `nginx` | `nginx_check.sh` | The rendered nginx configuration passes `nginx -t` in the pinned image |

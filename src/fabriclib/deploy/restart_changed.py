@@ -9,8 +9,40 @@ from fabriclib.dns.rndc import rndc
 from fabriclib.keycloak.install_sso_keytab import install_sso_keytab
 from fabriclib.samba.converge_domain import converge_domain
 from fabriclib.samba.write_bind_dlz import write_bind_dlz
+from fabriclib.setup.errors import SetupError
+from fabriclib.setup.service_order import ORDER
+from fabriclib.setup.start_unit import start_unit
 
 TIMEOUT = {"keycloak": 90, "postgres": 60, "samba": 300}   # seconds per restart (others 30); the DC provisions once
+# the measured rollout's order (1.14.2.11): OpenBao first, then setup's start order; (unit, container)
+ROLLOUT = [("openbao", "openbao")] + [(unit, container) for unit, container, _ in ORDER]
+
+
+def _roll_out(restart):
+    """Purpose: restart the changed services one at a time in dependency order, each waited for until healthy, and
+             stop at the first that is not (2.1.14.15, manual 1.14.2.11).
+    Inputs:  restart — set of unit names to restart (a unit fabric does not order, such as a host service, goes
+             last, checked active).
+    Returns: None.
+    Fails:   ValidationError naming the service that did not come back healthy and those not restarted after it.
+    Feeds:   restart_changed."""
+    known = {u for u, _ in ROLLOUT}
+    plan = [(u, c) for u, c in ROLLOUT if u in restart] + [(u, None) for u in sorted(restart - known)]
+    for i, (unit, container) in enumerate(plan):
+        print(f"Restarting {unit} due to configuration changes...")
+        try:
+            if container:
+                start_unit(unit, container, restart=True)
+            else:
+                subprocess.run(["systemctl", "restart", unit], check=True, timeout=TIMEOUT.get(unit, 30))
+                if subprocess.run(["systemctl", "is-active", "--quiet", unit]).returncode != 0:
+                    raise SetupError(f"{unit} is not active after its restart")
+        except (SetupError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            rest = [u for u, _ in plan[i + 1:]]
+            raise ValidationError(f"{unit} did not come back healthy after the apply's restart; the rollout stopped"
+                                  + (f" ({', '.join(rest)} not restarted)" if rest else "")
+                                  + f": {str(e).splitlines()[0] if str(e) else type(e).__name__}. "
+                                  "Run `sudo fabricctl doctor`.")
 
 
 def _quiet(cmd, what, timeout, capture=False):
@@ -44,10 +76,13 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
              and what converge_domain reads); secrets — fabric's secrets (the domain's service accounts); state —
              what the install steps found (see finish_without_start); bind_ids — the bind user's ids.
     Returns: the set of units restarted (fabric-web included when it was queued).
-    Fails:   ValidationError when BIND refuses `rndc reconfig` (a silent failure would leave a removed TSIG key
-             working). Timeouts of systemctl/docker and a domain that cannot be converged are reported, not raised.
+    Fails:   ValidationError when a restarted service does not come back healthy (the rollout stops there, nothing
+             after it runs: 2.1.14.15) or BIND refuses `rndc reconfig` (a silent failure would leave a removed TSIG
+             key working). Timeouts of other systemctl/docker calls and a domain that cannot be converged are
+             reported, not raised.
     Feeds:   apply_deployment (start_services=True: `fabricctl --apply`, the web UI's Apply).
-    Notes:   BIND down or about to restart reads its zone files on start, so they are installed first (a running
+    Notes:   restarts go one at a time in dependency order, each health-gated (_roll_out). BIND down or about to
+             restart reads its zone files on start, so they are installed first (a running
              BIND frozen before, so the files hold what DHCP registered: 2.1.10.7). The web UI is
              restarted last with --no-block: this apply may have come from it. No --pull on image builds."""
     restart = set(state["restart"])
@@ -70,9 +105,7 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
         verb = "build" if compose_builds(compose) else "pull"     # fabric's published images are pulled
         print(f"{'Rebuilding' if verb == 'build' else 'Pulling'} {folder} image...")
         subprocess.run(["docker", "compose", "-f", compose, verb], timeout=1200)
-    for svc in restart:
-        print(f"Restarting {svc} due to configuration changes...")
-        _quiet(["systemctl", "restart", svc], f"Restart of {svc}", TIMEOUT.get(svc, 30))
+    _roll_out(restart)                            # one at a time, health-gated, stopping at a failure (2.1.14.15)
 
     print("Reloading active services...")
     if bind9_live:
