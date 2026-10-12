@@ -535,9 +535,12 @@ check("the group `member` is recommended, asked after the time service; its step
 _real_missing = pm.missing_packages
 pm.missing_packages = lambda pkgs: ["sssd-ad", "krb5-user"]
 planned = plan_host_changes(mv, "/opt", cfg, JINJA, ["member"]).get("member", [])
-check("planned when on: the missing packages, the keytab of DC-FAB1$ only, krb5.conf, sssd.conf, NSS and PAM",
+check("planned when on: the missing packages, the host's own account FAB1$ in OU=machines/OU=linux and its keytab "
+      "only (never the DC's), krb5.conf, sssd.conf, NSS and PAM (2.1.6.48)",
       planned[:2] == ["apt: install sssd-ad", "apt: install krb5-user"]
-      and any("DC-FAB1$" in x and "/etc/krb5.keytab" in x for x in planned)
+      and any("FAB1$" in x and "OU=machines/OU=linux" in x and x.startswith("the domain:") for x in planned)
+      and any("own computer account FAB1$" in x and "/etc/krb5.keytab" in x for x in planned)
+      and not any("DC-FAB1" in x for x in planned)
       and any("hq-fabric-admins" in x and "/etc/sssd/sssd.conf" in x for x in planned)
       and any(x.startswith("PAM: pam-auth-update") for x in planned), planned)
 check("negative: not planned when host_join_domain is false (nothing asked, nothing changed)",
@@ -545,8 +548,13 @@ check("negative: not planned when host_join_domain is false (nothing asked, noth
 pm.missing_packages = _real_missing
 files = render_member_files(mv)
 sssd = files["/etc/sssd/sssd.conf"]
-check("sssd.conf: the fabric admins only (simple access), sudo from the domain, this host's own DC, no dynamic DNS",
-      "access_provider = simple\n" in sssd and "simple_allow_groups = fabric-admins, hq-fabric-admins\n" in sssd
+check("sssd.conf: the host's own name, the OU's log-on policy (GPO access enforcing) and on top of it the fabric "
+      "admins only (nested too), sudo from the domain, this host's own DC, no dynamic DNS (2.1.6.48)",
+      "access_provider = ad\n" in sssd and "ad_gpo_access_control = enforcing\n" in sssd
+      and "ad_access_filter = DOM:ad.test:(|(memberOf:1.2.840.113556.1.4.1941:=CN=hq-fabric-admins,OU=groups,OU=hq,OU=sites,"
+          "DC=ad,DC=test)(memberOf:1.2.840.113556.1.4.1941:=CN=fabric-admins,OU=groups,OU=organisation,OU=hq,"
+          "OU=sites,DC=ad,DC=test))\n" in sssd
+      and "ad_hostname = fab1.ad.test\n" in sssd and "simple_allow" not in sssd
       and "sudo_provider = ad\n" in sssd and "ad_server = dc-fab1.ad.test\n" in sssd and "dyndns_update = false" in sssd
       and sssd.startswith("# fabric"), sssd)
 check("its sudo search bases: the site's OU=sudoers, then the organisation's (as the Linux join builds them)",
@@ -583,7 +591,8 @@ check("the keytab compares by its keys, not the time of the export: a re-export 
 
 # the step: off, or declined, leaves the host as it is
 mcfg = tempfile.mkdtemp()
-jh.export_dc_keytab = lambda v: (_ for _ in ()).throw(AssertionError("exported"))
+jh.export_keytab = lambda principals: (_ for _ in ()).throw(AssertionError("exported"))
+jh.find_computer = lambda account: (_ for _ in ()).throw(AssertionError("looked up"))
 out = io.StringIO()
 with contextlib.redirect_stdout(out):
     jh.run(type("C", (), {"vars": off, "config_dir": mcfg, "offline": False})())
@@ -591,13 +600,16 @@ check("host_join_domain false: the step says so and touches nothing (not even th
       "stays out of its domain" in out.getvalue() and not os.listdir(mcfg), out.getvalue())
 with contextlib.redirect_stdout(io.StringIO()):
     ask_consent(mcfg, {"member": ["x"]}, interactive=False, decline=["member"])
-jh.export_dc_keytab = lambda v: kt1
+jh.find_computer = lambda account: None                    # the host's own account not made yet
+jh.add_machine = lambda *a, **k: (_ for _ in ()).throw(AssertionError("account created"))
 jh.missing_packages = lambda pkgs: []
 jh._sssd_on = lambda: False
 out = io.StringIO()
 with contextlib.redirect_stdout(out):
-    jh.run(type("C", (), {"vars": mv, "config_dir": mcfg, "offline": False})())
-check("declined: the step warns what that means and changes nothing (no copy kept, no record)",
+    jh.run(type("C", (), {"vars": mv, "config_dir": mcfg, "offline": False, "secrets": {}})())
+# covers: cli:setup -
+check("declined: the step warns what that means and changes nothing (no account made in the domain, no copy kept, "
+      "no record)",
       "not approved" in out.getvalue() and "not a member of its domain" in out.getvalue()
       and sorted(os.listdir(mcfg)) == ["consent.yaml"], (out.getvalue(), os.listdir(mcfg)))
 row = next(r for r in consent_status(mcfg) if r["group"] == "member")
@@ -635,6 +647,138 @@ builtins.input = real_input
 check("negative: asked whether to undo, an answer that is not y or n is asked again, and no changes nothing",
       "nothing changed" in msg and next(answers, None) is None
       and yaml.safe_load(open(os.path.join(mcfg, "consent.yaml")))["groups"]["member"]["changes"] == ["x"], msg)
+
+print("--- the host's own computer account, not the DC's (2.1.6.48, manual 1.6.11.8)")
+import json  # noqa: E402
+
+import fabriclib.undo.remove_host_account as rha  # noqa: E402
+from fabriclib.common.errors import ValidationError  # noqa: E402
+from fabriclib.setup.common.host_identity import host_identity  # noqa: E402
+
+ident = host_identity(mv)
+check("the host's identity: its own account FAB1$, its host/ names under the AD domain, never the DC's",
+      ident["own"] and ident["account"] == "FAB1" and ident["fqdn"] == "fab1.ad.test"
+      and ident["principals"] == ["FAB1$", "host/fab1.ad.test", "host/FAB1"], ident)
+long_name = host_identity({**mv, "hostname": "kitchen-server-0-x"})
+check("a host name past 15 characters is cut as Windows and adcli cut it, without a dash left at the end",
+      long_name["account"] == "KITCHEN-SERVER" and long_name["own"], long_name)
+old = host_identity({**mv, "dc_name": "fab1", "hostname_dc": "fab1.ad.test"})
+rodc = host_identity({**mv, "ad_dc_type": "rodc"})
+check("negative: the DC's account where the host cannot have its own — an install from before 0.7.0 whose DC has "
+      "the host's name, a site whose DC is read-only — each said why",
+      not old["own"] and old["account"] == "FAB1" and "before 0.7.0" in old["why"]
+      and old["principals"] == ["FAB1$", "host/fab1.ad.test", "host/FAB1"]
+      and not rodc["own"] and rodc["account"] == "DC-FAB1" and "read-only" in rodc["why"], (old, rodc))
+old_sssd = render_member_files({**mv, "dc_name": "fab1", "hostname_dc": "fab1.ad.test"})["/etc/sssd/sssd.conf"]
+old_plan = pm.plan_member({**mv, "dc_name": "fab1", "hostname_dc": "fab1.ad.test"})
+check("…then sssd keeps the fabric admins only by the simple provider (no OU's policy reaches a DC) and the plan "
+      "names the DC's account and why, creating none",
+      "access_provider = simple\n" in old_sssd and "ad_hostname = fab1.ad.test\n" in old_sssd
+      and not any(x.startswith("the domain:") for x in old_plan)
+      and any("domain controller account FAB1$" in x and "before 0.7.0" in x for x in old_plan), (old_sssd, old_plan))
+
+# the step on a scratch tree: the host's files in a folder of their own, the DC and the directory faked
+host = tempfile.mkdtemp()
+jcfg = tempfile.mkdtemp()
+krb_path, sssd_path = os.path.join(host, "krb5.conf"), os.path.join(host, "sssd.conf")
+jh.KEYTAB, jh.NSSWITCH, jh.HOSTS, jh.SSSD_CONF = (os.path.join(host, "krb5.keytab"), os.path.join(host, "nsswitch"),
+                                                  os.path.join(host, "hosts"), sssd_path)
+open(jh.NSSWITCH, "w").write(once)
+jh.render_member_files = lambda v: {krb_path: "# fabric krb5\n", sssd_path: "# fabric sssd\n"}
+jh._resolves, jh._pam_on, jh._sudo_rs = (lambda name, address: True), (lambda: ["sss", "mkhomedir"]), (lambda: False)
+jh._sssd_on = lambda: True
+jh.subprocess = types.SimpleNamespace(run=lambda *a, **k: types.SimpleNamespace(returncode=1, stdout="", stderr=""))
+kt_own = b"\x05\x02" + _entry("FAB1$@AD.TEST", 300, 1, b"o" * 32)
+calls, directory = [], {}
+
+
+def fake_add(v, actor, name, source="cli", secrets=None, container="samba", os=None, managed=True):
+    calls.append(("add", name, os, managed))
+    directory[name.upper()] = {"dn": f"CN={name.upper()},OU=linux,OU=machines,OU=hq,OU=sites,DC=ad,DC=test",
+                               "description": "fabric: unmanaged (manual 1.6.11.6)"}
+    return "one-time"
+
+
+def fake_remove(v, actor, name, source="web", secrets=None, container="samba"):
+    calls.append(("remove", name))
+    if directory.pop(name.upper(), None) is None:
+        raise ValidationError("no such entry")
+    return {"name": name}
+
+
+jh.add_machine, jh.remove_machine, rha.remove_machine = fake_add, fake_remove, fake_remove
+jh.find_computer = lambda account: directory.get(account)
+jh.export_keytab = lambda principals: kt_own if principals[0] == "FAB1$" else kt1
+jctx = type("C", (), {"vars": mv, "config_dir": jcfg, "offline": False, "secrets": {"ad_agent_password": "x"}})()
+directory["FAB1"] = {"dn": "CN=FAB1,CN=Computers,DC=ad,DC=test", "description": ""}
+msg = refused(lambda: jh.run(jctx))
+# covers: cli:setup -
+check("negative: a computer of the host's name that fabric did not make for it is refused, named, nothing changed "
+      "(no account made, no keytab written, no record)",
+      "already has a computer named FAB1" in msg and "CN=Computers" in msg and not calls
+      and not os.path.exists(jh.KEYTAB) and not os.path.exists(os.path.join(jcfg, pm.RECORD)), (msg, calls))
+directory.clear()
+with contextlib.redirect_stdout(io.StringIO()):
+    ask_consent(jcfg, {"member": pm.plan_member(mv)}, interactive=False, approve=["member"])
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    jh.run(jctx)
+record = json.load(open(os.path.join(jcfg, pm.RECORD)))
+# covers: cli:setup +
+check("approved: the host's own account made as add-machine makes one (OU=linux, not a fabric-machine), recorded, "
+      "its keys (only) in the keytab, 0600",
+      calls == [("add", "fab1", "linux", False)] and record.get("account") == "FAB1"
+      and open(jh.KEYTAB, "rb").read() == kt_own and oct(os.stat(jh.KEYTAB).st_mode & 0o777) == "0o600"
+      and "own computer account FAB1$" in out.getvalue(), (calls, record, out.getvalue()))
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    jh.run(jctx)
+check("a second run changes nothing (the account is the host's: recorded)",
+      "nothing to change" in out.getvalue() and calls == [("add", "fab1", "linux", False)], (out.getvalue(), calls))
+# an upgrade: the keytab still holds the DC's account (2.1.6.34), the record knows no account
+open(jh.KEYTAB, "wb").write(kt1)
+directory.clear()
+json.dump({"pam": [], "sssd_enabled": False, "sudo": None}, open(os.path.join(jcfg, pm.RECORD), "w"))
+calls.clear()
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    jh.run(jctx)
+check("an install whose keytab holds the DC's account moves to the host's own: made, recorded, the keytab replaced",
+      calls == [("add", "fab1", "linux", False)] and open(jh.KEYTAB, "rb").read() == kt_own
+      and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") == "FAB1"
+      and "held another account's: replaced" in out.getvalue(), (calls, out.getvalue()))
+# the host renamed: its account under the new name, the old one (fabric's, recorded) removed
+renamed = {**mv, "hostname": "fab2"}
+kt_new = b"\x05\x02" + _entry("FAB2$@AD.TEST", 400, 1, b"t" * 32)
+jh.export_keytab = lambda principals: kt_new if principals[0] == "FAB2$" else kt_own
+with contextlib.redirect_stdout(io.StringIO()):
+    ask_consent(jcfg, {"member": pm.plan_member(renamed)}, interactive=False, approve=["member"])
+calls.clear()
+with contextlib.redirect_stdout(io.StringIO()):
+    jh.run(type("C", (), {"vars": renamed, "config_dir": jcfg, "offline": False, "secrets": {}})())
+check("the host renamed: its own account under the new name, the one fabric made under the old name removed",
+      calls == [("add", "fab2", "linux", False), ("remove", "fab1")] and set(directory) == {"FAB2"}
+      and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") == "FAB2", (calls, directory))
+
+# the undo's part in the domain
+done = rha.remove_host_account(jcfg, renamed, lambda: {})
+# covers: cli:setup +
+check("undo: the host's own account removed from the domain, the record forgets it",
+      done == ["the domain: this host's computer account FAB2$ removed"] and not directory
+      and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") is None, (done, directory))
+check("negative: a second undo removes nothing; no record, nothing either",
+      rha.remove_host_account(jcfg, renamed, lambda: {}) == [] and rha.remove_host_account(fresh, mv, None) == [])
+json.dump({"account": "FAB2"}, open(os.path.join(jcfg, pm.RECORD), "w"))
+check("an account already gone is fine (said so)",
+      rha.remove_host_account(jcfg, renamed, lambda: {}) == ["the domain: this host's computer account FAB2$ was "
+                                                              "already gone"])
+json.dump({"account": "FAB2"}, open(os.path.join(jcfg, pm.RECORD), "w"))
+rha.remove_machine = lambda *a, **k: (_ for _ in ()).throw(ValidationError("the directory is not reachable"))
+done = rha.remove_host_account(jcfg, renamed, lambda: {})
+# covers: cli:setup -
+check("negative: the DC refusing (or down) is said, with where to remove it, and the record keeps the account",
+      "NOT removed (the directory is not reachable)" in done[0] and "Directory → Machines" in done[0]
+      and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") == "FAB2", done)
 
 # the menu's membership item
 answers = iter(["maybe", "n"])

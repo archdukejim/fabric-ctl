@@ -4,13 +4,18 @@ import socket
 import struct
 import subprocess
 
-from fabriclib.common.console import info, ok
+from fabriclib.common.console import info, ok, warn
+from fabriclib.common.errors import ValidationError
 from fabriclib.common.keep_original import keep_original
 from fabriclib.consent.check_consent import check_consent
 from fabriclib.consent.plan_member import (HOSTS, KEYTAB, MEMBER_PACKAGES, NSSWITCH, RECORD, SSSD_CONF,
                                            plan_member)
+from fabriclib.directory.add_machine import add_machine
+from fabriclib.directory.remove_machine import remove_machine
 from fabriclib.setup.common.apt_install import apt_install
-from fabriclib.setup.common.export_dc_keytab import export_dc_keytab
+from fabriclib.setup.common.export_keytab import export_keytab
+from fabriclib.setup.common.find_computer import find_computer
+from fabriclib.setup.common.host_identity import host_identity
 from fabriclib.setup.common.missing_packages import missing_packages
 from fabriclib.setup.common.render_member_files import render_member_files
 from fabriclib.setup.errors import SetupError
@@ -150,6 +155,37 @@ def _record_before(config_dir):
         json.dump(before, f)
 
 
+def _recorded_account(config_dir):
+    """Purpose: the host's own computer account fabric made in the domain, as RECORD keeps it.
+    Inputs:  config_dir — the install's config folder (None: tests on a scratch tree).
+    Returns: str (e.g. "FAB1") or None.
+    Fails:   OSError / ValueError reading a damaged RECORD.
+    Feeds:   run."""
+    path = os.path.join(config_dir or "", RECORD)
+    if not config_dir or not os.path.exists(path):
+        return None
+    with open(path) as f:
+        return json.load(f).get("account")
+
+
+def _record_account(config_dir, account):
+    """Purpose: keep the name of the host's own computer account in RECORD (after _record_before), so the undo
+             removes it and a later run knows the account is this host's.
+    Inputs:  config_dir — the install's config folder (None: nothing kept); account — str, or None to forget it.
+    Returns: None; RECORD rewritten (0600).
+    Fails:   OSError / ValueError on RECORD.
+    Feeds:   run."""
+    path = os.path.join(config_dir or "", RECORD)
+    if not config_dir or not os.path.exists(path):
+        return
+    with open(path) as f:
+        record = json.load(f)
+    record["account"] = account
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(record, f)
+
+
 def _write(path, data, mode):
     """Purpose: replace a file whole (written beside it, then renamed), with the mode given.
     Inputs:  path; data — str or bytes; mode — e.g. 0o600.
@@ -166,22 +202,29 @@ def _write(path, data, mode):
 
 
 def run(ctx):
-    """Purpose: make the fabric host a member of its own domain (manual 1.6.11.8, decision 2.1.6.34): it signs in
-             with its DC's own machine account, the fabric admins (fabric-admins, <site>-fabric-admins) sign in to it
-             with their domain accounts and have sudo from the site's rules. Local accounts, root and local sudo are
-             untouched.
+    """Purpose: make the fabric host a member of its own domain (manual 1.6.11.8, decisions 2.1.6.34, 2.1.6.48): it
+             signs in with its own computer account `<HOSTNAME>$` in the site's OU=machines/OU=linux, pre-created
+             as `fabricctl domain add-machine` makes one (not a fabric-machine), so the site's group policy reaches
+             it; the fabric admins (fabric-admins, <site>-fabric-admins) sign in to it with their domain accounts
+             where the OU's log-on policy allows them, and have sudo from the site's rules. Where the host cannot
+             have its own account (setup/common/host_identity), its DC's account as before 2.1.6.48, said so.
+             Local accounts, root and local sudo are untouched.
     Inputs:  ctx — SetupContext: vars (host_join_domain, default true; the domain's names: render_member_files,
-             plan_member), config_dir (the `member` consent; the kept originals), offline.
+             plan_member, host_identity), config_dir (the `member` consent; the kept originals; RECORD), offline,
+             secrets (the site's agent account, which creates the host's account).
     Returns: None. Skipped (said so) with host_join_domain false or the consent declined. Otherwise, after the
              consent and with each host file kept before its first change (common/keep_original): the packages
-             installed when missing; /etc/krb5.keytab (0600) with the DC account's current keys; /etc/krb5.conf and
-             /etc/sssd/sssd.conf (0600); sss in nsswitch.conf for passwd, group and sudoers; PAM's sss and
-             mkhomedir profiles on; the DC's name in /etc/hosts when the host cannot resolve it; the classic sudo
-             where sudo-rs is the default; sssd enabled and restarted when anything changed. Idempotent: a second
-             run changes nothing.
-    Fails:   SetupError: offline with packages missing; the DC not exporting its keys (export_dc_keytab); apt
-             (apt_install). CalledProcessError from pam-auth-update, update-alternatives or systemctl; OSError on
-             the files.
+             installed when missing; the host's own account created when missing (recorded in RECORD); an account
+             fabric made for this host under an earlier name removed; /etc/krb5.keytab (0600) with the account's
+             current keys (an install whose keytab held the DC's account moves to its own: the keytab replaced);
+             /etc/krb5.conf and /etc/sssd/sssd.conf (0600); sss in nsswitch.conf for passwd, group and sudoers;
+             PAM's sss and mkhomedir profiles on; the DC's name in /etc/hosts when the host cannot resolve it; the
+             classic sudo where sudo-rs is the default; sssd enabled and restarted when anything changed.
+             Idempotent: a second run changes nothing.
+    Fails:   SetupError: offline with packages missing; a computer of the host's name in the domain that fabric
+             did not make for it; the DC not answering (find_computer) or not exporting the keys (export_keytab);
+             the directory refusing the account (add_machine's ValidationError); apt (apt_install).
+             CalledProcessError from pam-auth-update, update-alternatives or systemctl; OSError on the files.
     Feeds:   setup step `member`, run by run_setup via STEPS."""
     v = ctx.vars
     if v.get("host_join_domain", True) is False:
@@ -191,12 +234,25 @@ def run(ctx):
     if not plan:
         ok("no AD domain to join")
         return
+    ident = host_identity(v)
+    if not ident["own"]:
+        warn(f"this host signs in with its domain controller's account {ident['account']}$, not its own: "
+             f"{ident['why']} (manual 1.6.11.8)")
+    current = _read(KEYTAB, "rb")
+    recorded = _recorded_account(ctx.config_dir)
+    found = find_computer(ident["account"]) if ident["own"] else {"dn": "the DC's"}
+    if found and ident["own"] and recorded != ident["account"] and not any(
+            k[0].upper().startswith(f"{ident['account']}$@") for k in _keys(current)):
+        raise SetupError(f"the domain already has a computer named {ident['account']} ({found['dn']}) that fabric "
+                         "did not make for this host: remove it in the web console (Directory → Machines) or rename "
+                         "this host, then run `sudo fabricctl setup --step member` again (manual 1.6.11.8)")
     missing = missing_packages(MEMBER_PACKAGES)
     files = render_member_files(v)
-    keytab = export_dc_keytab(v)
+    keytab = export_keytab(ident["principals"]) if found else None
+    stale = recorded if ident["own"] and recorded and recorded != ident["account"] else None
     hosts_line = None if _resolves(v["hostname_dc"], v["host_ip"]) else f"{v['host_ip']} {v['hostname_dc']}\n"
     nss = _read(NSSWITCH) or ""
-    todo = (missing or _keys(keytab) != _keys(_read(KEYTAB, "rb"))
+    todo = (missing or not found or stale or _keys(keytab) != _keys(current)
             or any(_read(p) != c for p, c in files.items()) or _with_sss(nss) != nss or hosts_line
             or len(_pam_on()) < 2 or _sudo_rs() or not _sssd_on())
     if not todo:
@@ -214,10 +270,30 @@ def run(ctx):
         apt_install(missing, "They are in Ubuntu's main and universe components: check the host's apt sources, run "
                              "`apt-get update`, then re-run `sudo fabricctl setup --step member`.")
     changed = bool(missing)
+    if not found:
+        # a random password the domain's policy accepts, never shown nor kept: the keytab is all the host needs
+        add_machine(v, "fabricctl setup", ident["account"].lower(), source="setup", secrets=ctx.secrets,
+                    os="linux", managed=False)
+        _record_account(ctx.config_dir, ident["account"])
+        keytab = export_keytab(ident["principals"])
+        ok(f"the domain: this host's own computer account {ident['account']}$ in {v.get('site_name')}'s "
+           "OU=machines/OU=linux")
+    elif ident["own"] and recorded != ident["account"]:
+        _record_account(ctx.config_dir, ident["account"])      # made before it was recorded (its keys are here)
     if _keys(keytab) != _keys(_read(KEYTAB, "rb")):
+        held = {k[0].split("@")[0].upper() for k in _keys(_read(KEYTAB, "rb"))}
+        moved = bool(held) and f"{ident['account']}$" not in held
         _write(KEYTAB, keytab, 0o600)
         changed = True
-        ok(f"{KEYTAB}: the keys of {str(v['dc_name']).upper()}$ and its host/ names")
+        ok(f"{KEYTAB}: the keys of {ident['account']}$ and its host/ names"
+           + (" (it held another account's: replaced)" if moved else ""))
+    if stale:
+        try:
+            remove_machine(v, "fabricctl setup", stale.lower(), source="setup", secrets=ctx.secrets)
+            ok(f"the domain: {stale}$, this host's account under its earlier name, removed")
+        except ValidationError as e:
+            warn(f"the domain: {stale}$, this host's account under its earlier name, not removed ({e}): remove it "
+                 "in the web console (Directory → Machines)")
     for path, content in files.items():
         if _read(path) != content:
             _write(path, content, 0o600 if path == SSSD_CONF else 0o644)

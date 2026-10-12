@@ -6,8 +6,10 @@ Helpers shared by setup steps and the consent plans.
 |---|---|
 | `missing_packages.py` | Which Debian packages are not installed |
 | `apt_install.py` | Install packages from the host's own apt sources (noninteractive) |
-| `render_member_files.py` | The host's krb5.conf and sssd.conf as a member of its own domain: the fabric admins only, sudo from the site's rules |
-| `export_dc_keytab.py` | The keys of the DC's own account and its host/ names (never the whole domain's), read from the samba container |
+| `render_member_files.py` | The host's krb5.conf and sssd.conf as a member of its own domain: the fabric admins only (and the log-on policy of its OU), sudo from the site's rules |
+| `host_identity.py` | Which domain account the host signs in with: its own `<HOSTNAME>$` (2.1.6.48), or its DC's where it cannot have its own |
+| `find_computer.py` | Whether the domain has a computer account of a name, and where (read inside the DC) |
+| `export_keytab.py` | The keys of the host's domain account and its host/ names (never the whole domain's), read from the samba container |
 | `docker_ready.py` | Whether Docker, compose v2 and buildx answer |
 | `service_account_name.py` | A service's host account name (`fabric-dns`, …): `service_users.<key>.name` or fabric's default |
 | `valid_setting.py` | The checks of the asked settings (domain, host name, network, organisation, first admin) and their labels |

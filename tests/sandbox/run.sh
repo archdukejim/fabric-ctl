@@ -445,10 +445,17 @@ for f in wrong-pw localop-chpasswd localop-pw; do docker cp "$OUT/$f" "$NAME:/ro
 in_box 'useradd -m -s /bin/bash -G sudo localop && chpasswd < /root/localop-chpasswd && rm -f /root/localop-chpasswd'
 # pamtester's exit status: 0 only when every PAM call given passed (its output kept for diagnosis)
 pam() { in_box "pamtester login $1 ${3:-authenticate acct_mgmt} < $2" >> "$OUT/pam.log" 2>&1; }
-check "setup made the host a member: its keytab holds the DC account's keys only (0600), sssd runs" \
+# the host's own computer account in the domain (2.1.6.48): its DN, or nothing
+host_account() { in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=FABRIC-SBX\$)' dn" | grep '^dn:'; }
+# covers: cli:setup +
+check "setup made the host a member with its own account: the keytab holds FABRIC-SBX\$'s keys only, never the DC's (0600), sssd runs" \
     "[ \"\$(in_box 'stat -c %a /etc/krb5.keytab /etc/sssd/sssd.conf' | sort -u)\" = 600 ] \
-     && in_box 'klist -k /etc/krb5.keytab' | grep -qF 'DC-FABRIC-SBX\$@AD.TEST' && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi krbtgt \
+     && in_box 'klist -k /etc/krb5.keytab' | grep -qF ' FABRIC-SBX\$@AD.TEST' && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi 'DC-FABRIC-SBX' \
+     && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi krbtgt \
      && in_box 'systemctl is-active sssd' | grep -qx active"
+check "…its computer account sits in the site's OU=machines/OU=linux (group policy reaches it); sssd enforces the OU's log-on policy" \
+    "host_account | grep -q 'OU=linux,OU=machines,' \
+     && in_box 'grep -qx ad_gpo_access_control.=.enforcing /etc/sssd/sssd.conf && grep -qx ad_hostname.=.fabric-sbx.ad.test /etc/sssd/sssd.conf'"
 check "the first admin (in fabric-admins) resolves on the host with the domain's uid (1000000, the block's first)" \
     "in_box 'getent passwd fabric-admin' | grep -qE '^fabric-admin:[^:]*:1000000:'"
 check "the first admin signs in to the host with their domain password (PAM)" "pam fabric-admin /root/admin-pw"
@@ -473,8 +480,8 @@ in_box 'fabricctl setup --undo member --non-interactive --yes' > "$OUT/undo-memb
 check "setup --undo member: nsswitch.conf as it was, sssd.conf and the keytab gone, sssd stopped, recorded as declined" \
     "[ \"\$(in_box 'md5sum < /etc/nsswitch.conf')\" = '$NSS_ORIG' ] && ! in_box 'test -e /etc/sssd/sssd.conf || test -e /etc/krb5.keytab' \
      && ! in_box 'systemctl is-active --quiet sssd' && in_box 'fabricctl status' | grep -qE '^  member +declined'"
-check "…the admin no longer resolves on the host; root and the local account still work" \
-    "! in_box 'getent passwd fabric-admin' && pam localop /root/localop-pw"
+check "…the admin no longer resolves on the host; root and the local account still work; its own account left the domain" \
+    "! in_box 'getent passwd fabric-admin' && pam localop /root/localop-pw && ! host_account"
 in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_load(open(p)); v['host_join_domain']=False; yaml.safe_dump(v, open(p, 'w'))\""
 in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-off.log" 2>&1
 check "host_join_domain false: the step leaves the host as it is, even with the change approved; status shows it" \
@@ -482,8 +489,8 @@ check "host_join_domain false: the step leaves the host as it is, even with the 
      && in_box 'fabricctl status' | grep -q 'host_join_domain: false'"
 in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_load(open(p)); v['host_join_domain']=True; yaml.safe_dump(v, open(p, 'w'))\""
 in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-again.log" 2>&1
-check "approved again: a member once more (the admin resolves and signs in)" \
-    "in_box 'getent passwd fabric-admin' >/dev/null && pam fabric-admin /root/admin-pw"
+check "approved again: a member once more, its own account made again (the admin resolves and signs in)" \
+    "in_box 'getent passwd fabric-admin' >/dev/null && pam fabric-admin /root/admin-pw && host_account | grep -q 'OU=linux,OU=machines,'"
 in_box 'rm -f /root/localop-pw /root/wrong-pw'
 
 echo "--- Keycloak's database password, rotated by OpenBao (2.1.7.4)"

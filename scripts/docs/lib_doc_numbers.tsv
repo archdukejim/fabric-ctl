@@ -631,8 +631,11 @@ file	fabriclib-setup|src/fabriclib/setup/common/ask_setting.py	68
 file	fabriclib-setup|src/fabriclib/setup/common/ca_exists.py	69	
 file	fabriclib-setup|src/fabriclib/setup/common/docker_ready.py	5	
 file	fabriclib-setup|src/fabriclib/setup/common/dotted_keys.py	70	
-file	fabriclib-setup|src/fabriclib/setup/common/export_dc_keytab.py	51	
+file	fabriclib-setup|src/fabriclib/setup/common/export_dc_keytab.py	51	0.7.0 / 2026-10-12
+file	fabriclib-setup|src/fabriclib/setup/common/export_keytab.py	75	
+file	fabriclib-setup|src/fabriclib/setup/common/find_computer.py	76	
 file	fabriclib-setup|src/fabriclib/setup/common/first_admin_needed.py	71	
+file	fabriclib-setup|src/fabriclib/setup/common/host_identity.py	77	
 file	fabriclib-setup|src/fabriclib/setup/common/missing_packages.py	6	
 file	fabriclib-setup|src/fabriclib/setup/common/network_problem.py	72	
 file	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py	52	
@@ -690,6 +693,7 @@ file	fabriclib-system|src/fabriclib/system/service_status.py	4
 file	fabriclib-system|src/fabriclib/system/show_memory_plan.py	13	
 file	fabriclib-system|src/fabriclib/system/show_relaxed_settings.py	7	
 file	fabriclib-system|src/fabriclib/system/version_info.py	5	
+file	fabriclib-undo|src/fabriclib/undo/remove_host_account.py	9	
 file	fabriclib-undo|src/fabriclib/undo/undo_firewall.py	1	
 file	fabriclib-undo|src/fabriclib/undo/undo_group.py	2	
 file	fabriclib-undo|src/fabriclib/undo/undo_member.py	8	
@@ -1884,11 +1888,16 @@ function	fabriclib-setup|src/fabriclib/setup/common/ca_exists.py|ca_exists	1
 function	fabriclib-setup|src/fabriclib/setup/common/docker_ready.py|docker_ready	1	
 function	fabriclib-setup|src/fabriclib/setup/common/dotted_keys.py|get_dotted	1	
 function	fabriclib-setup|src/fabriclib/setup/common/dotted_keys.py|set_dotted	2	
-function	fabriclib-setup|src/fabriclib/setup/common/export_dc_keytab.py|_principals	1	
-function	fabriclib-setup|src/fabriclib/setup/common/export_dc_keytab.py|export_dc_keytab	2	
+function	fabriclib-setup|src/fabriclib/setup/common/export_dc_keytab.py|_principals	1	0.7.0 / 2026-10-12
+function	fabriclib-setup|src/fabriclib/setup/common/export_dc_keytab.py|export_dc_keytab	2	0.7.0 / 2026-10-12
+function	fabriclib-setup|src/fabriclib/setup/common/export_keytab.py|export_keytab	1	
+function	fabriclib-setup|src/fabriclib/setup/common/find_computer.py|find_computer	1	
 function	fabriclib-setup|src/fabriclib/setup/common/first_admin_needed.py|first_admin_needed	1	
+function	fabriclib-setup|src/fabriclib/setup/common/host_identity.py|_account_name	1	
+function	fabriclib-setup|src/fabriclib/setup/common/host_identity.py|host_identity	2	
 function	fabriclib-setup|src/fabriclib/setup/common/missing_packages.py|missing_packages	1	
 function	fabriclib-setup|src/fabriclib/setup/common/network_problem.py|network_problem	1	
+function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_access	3	
 function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_sudo_search_base	1	
 function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|render_member_files	2	
 function	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py|service_account_name	1	
@@ -1948,7 +1957,9 @@ function	fabriclib-setup|src/fabriclib/setup/join_federation.py|run	1
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_keys	1	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_pam_on	5	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_read	3	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_record_account	12	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_record_before	8	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_recorded_account	11	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_resolves	4	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_sssd_on	7	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_sudo_rs	6	
@@ -2014,6 +2025,7 @@ function	fabriclib-system|src/fabriclib/system/service_status.py|service_status	
 function	fabriclib-system|src/fabriclib/system/show_memory_plan.py|show_memory_plan	1	
 function	fabriclib-system|src/fabriclib/system/show_relaxed_settings.py|show_relaxed_settings	1	
 function	fabriclib-system|src/fabriclib/system/version_info.py|version_info	1	
+function	fabriclib-undo|src/fabriclib/undo/remove_host_account.py|remove_host_account	1	
 function	fabriclib-undo|src/fabriclib/undo/undo_firewall.py|undo_firewall	1	
 function	fabriclib-undo|src/fabriclib/undo/undo_group.py|undo_group	1	
 function	fabriclib-undo|src/fabriclib/undo/undo_member.py|undo_member	1	
