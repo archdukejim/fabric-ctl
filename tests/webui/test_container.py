@@ -167,6 +167,9 @@ threading.Thread(target=kc.serve_forever, daemon=True).start()
 # ------------------------------------------- fabric-agent (host, root)
 subprocess.run(["bash", f"{REPO}/packaging/deb/assemble-tree.sh", W], check=True)   # the installed tree
 os.makedirs(f"{W}/fabric/config")
+# fabric's own services declined on this host (1.2.9.4): every apply the console starts is refused at once, so nothing
+# is ever deployed to the machine running the suite, whatever the settings below make possible
+open(f"{W}/fabric/config/consent.yaml", "w").write("groups:\n  services: {answer: 'no', changes: []}\n")
 open(f"{W}/fabric/VERSION", "w").write("9.9.9\n")
 open(f"{W}/fabric/config/vars.yaml", "w").write(
     f"deploy_base_dir: {W}\nhost_ip: 192.168.7.53\nlan_cidr: 192.168.7.0/24\nhostname_landing: info.lan.test\n"
@@ -191,9 +194,21 @@ for d, owner, group, mode in [("agent", 0, UID, 0o750), ("run", UID, 0, 0o750), 
 shutil.copy(f"{W}/root.crt", f"{W}/certs/root_ca.crt")
 shutil.copy(f"{W}/int.crt", f"{W}/certs/intermediate_ca.crt")
 shutil.copytree(f"{W}/certs", f"{W}/stepca/data/certs")      # what the agent's PKI pages read
+# the agent's systemctl answers questions but never starts, stops or reloads anything: whatever fabric units the machine
+# running the suite has, no change made in the console runs a job or touches a service there
+os.makedirs(f"{W}/bin")
+REAL_SYSTEMCTL = shutil.which("systemctl") or "/usr/bin/systemctl"
+open(f"{W}/bin/systemctl", "w").write(
+    "#!/bin/sh\n"
+    "for a in \"$@\"; do case $a in start|stop|restart|reload|reload-or-restart|try-restart|enable|disable|"
+    "daemon-reload) echo \"Unit not started: the webui suite's agent changes nothing on this machine.\" >&2; "
+    "exit 5;; esac; done\n"
+    f"exec {REAL_SYSTEMCTL} \"$@\"\n")
+os.chmod(f"{W}/bin/systemctl", 0o755)
 agent = subprocess.Popen([sys.executable, f"{W}/fabric/lib/agent/server.py", "--socket", f"{W}/agent/agent.sock",
                           "--socket-gid", str(UID), "--allow-uid", str(UID)],
-                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                         env={**os.environ, "PATH": f"{W}/bin:" + os.environ.get("PATH", "/usr/bin:/bin")})
 
 # ------------------------------------------- webui container (uid 912)
 sh("docker rm -f cwebui >/dev/null 2>&1; docker network rm cwnet >/dev/null 2>&1; true")
@@ -339,8 +354,8 @@ st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
 # covers: web:get.home agent:get.services +
 check("overview tab renders service health", st == 200 and "Overview" in body and "services healthy" in body, st)
 # covers: agent:get.host-changes +
-check("overview: the host changes through the agent (this test install was never asked: says so)",
-      "Host changes" in body and "Not asked yet" in body, body[-600:])
+check("overview: the host changes through the agent (this test install declined fabric's services, never asked the rest)",
+      "Host changes" in body and ">declined<" in body and ">not asked<" in body, body[-600:])
 st, hd, sc, body = req("GET", "/kea", ALICE, cookie=session)
 # covers: web:get.kea agent:get.dhcp +
 check("Kea tab: DHCP off on this host, a form to turn it on (interface, subnet, pool) naming the firewall change",
@@ -1289,7 +1304,7 @@ check("DNS filter: removing a group that is not there, from the console, is refu
       "no client group is called kids" in loc and vars_now() == vt, (st, loc))
 st, loc, _ = web_post("/dns-filter/fetch", {}, adm, acsrf)
 # covers: web:post.dns-filter.fetch agent:post.dns-filter.fetch -
-check("DNS filter: Fetch now without the lists job (the resolver is not installed here) is refused, saying so",
+check("DNS filter: Fetch now when the lists job cannot start (it never can here) is refused, saying so",
       "the lists job could not start" in loc and vars_now() == vt, loc)
 out = agent_call("POST", "/v1/dns-filter/querylog", "alice", ADMIN_ROLES, {"name": "bad name!"})
 # covers: agent:post.dns-filter.querylog -

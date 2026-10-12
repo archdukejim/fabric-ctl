@@ -61,7 +61,7 @@ docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	1106c267b
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	2336bf93057453e6f5308db18413c878110e5213	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	9db18b7001c1967177f6a2f19b49b773b11aa82a	2026-10-09	
 docs/volume_1_description_and_architecture/1.17.28-installers.md	986b323d7a4ca2e8cbf71d23fdd677f464f51139	2026-10-08	
-docs/volume_1_description_and_architecture/1.17.29-webui.md	b77190f9a1f17c8b74dd9e61199ffe624ff2bc19	2026-10-12	
+docs/volume_1_description_and_architecture/1.17.29-webui.md	8eb085105c592b6232406fd72d2e209656498a58	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	d23bbae7ff3fadcb8ff1f1104c1c53f9138f7f23	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.30-fabriclib-samba.md	b4c9455e7974a890fb73e20e37fd88854163ef6a	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.31-fabriclib-directory.md	7ebff3f55bbd3e2e1508434bd567ee9fd1eaa2c3	2026-10-12	
@@ -133,7 +133,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	26448992ddd38c08ba2df0df2bfbd
 docs/volume_2_engineering_decisions/2.1.9-federation.md	12242c0751465f3995c9e7494b3ec70d7664283e	2026-10-12	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	d55d2f0779b2a8cbb8a7f91fb89bc665055d8f91	2026-10-12	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	988ba57e60053d8992623c0c0820e049d9f40864	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -1151,7 +1151,7 @@ src/webui/agentclient/list_people.py	647e17313c9549cd1c1cac4cd329684b07b90610	20
 src/webui/agentclient/list_sudo_rules.py	ddf2933c9e902f070fc6177b91cfe6b18a71e10d	2026-10-12	
 src/webui/agentclient/list_tsig_keys.py	8ea9a3f9c6b00a82bb654a9459bc63e16c79b8f1	2026-10-03	
 src/webui/agentclient/list_zones.py	c0cbbac02b1238385153a6057b7f82fcbfd387a7	2026-10-03	
-src/webui/agentclient/logon_change.py	4d02eaafa8186c76b7e311bee988b518899853a9	2026-10-12	
+src/webui/agentclient/logon_change.py	2844a7f7a1d9bcc80c873bf59f3deca5606c0e74	2026-10-12	
 src/webui/agentclient/logon_overview.py	75624cadb447c5ab9c29a8fb6fffe3910057980f	2026-10-12	
 src/webui/agentclient/machine_action.py	5b62eb182fbfaa4be1056694b694e994a435906b	2026-10-05	
 src/webui/agentclient/map_radius_group.py	07f106a7ba02188e6895122e5f4085cc26a51550	2026-10-03	
@@ -1277,7 +1277,7 @@ src/webui/views/job_page.py	f60c9d4d15d4e3589653dbceddf7433798a53bf4	2026-10-09
 src/webui/views/kea.py	b945da0d91692f3eadd745600777b4270c4b7489	2026-10-03	
 src/webui/views/machine_result.py	c7411cbd7307706e025896a364da3c19b6907b39	2026-10-05	
 src/webui/views/openbao.py	d1ac165e6e7d979e17a0f4ade781d7174d921125	2026-10-03	
-src/webui/views/overview.py	61950d91c51cf3b46a7f25c1443b95319c3ba6d4	2026-10-09	
+src/webui/views/overview.py	ac6930e892b07474d186d9cb72143ca712e06982	2026-10-12	
 src/webui/views/person_result.py	a381d52f6c7de2148307c80ad8f609cb185237a9	2026-10-05	
 src/webui/views/pki_result.py	8ea0cc622d9255e19f96bf3aad4a6f65fa709ffa	2026-10-03	
 src/webui/views/radius_secret.py	b84409a9de83c5a2de23c7b2792b8436d3e2b7ea	2026-10-03	
@@ -1412,7 +1412,7 @@ templates/webui-app/job.html	626dda99e1958b7a289827cac344752ecabc9a30	2026-10-09
 templates/webui-app/kea.html	94379a7cbdb3a3663fa12af42196694496d43838	2026-10-11	
 templates/webui-app/machine_result.html	b2f5f9422d86504faeef0b9992c4d33f3edd8df7	2026-10-08	
 templates/webui-app/openbao.html	82a7fc315895e161b0c4feeaa73026596bc91c3f	2026-10-09	
-templates/webui-app/overview.html	f84f00064a2500f3fdde90f1d11f378dad47ee6a	2026-10-09	
+templates/webui-app/overview.html	a4006c03d5059f737f11d5092416b4ad69b054d8	2026-10-12	
 templates/webui-app/person_result.html	8fdaeb21c7530e71c7b34ebfdde7909834fb9ba6	2026-10-05	
 templates/webui-app/pki_result.html	ce229db99acc47aa2f4ec9cfc5b1c35d61b9db6e	2026-10-05	
 templates/webui-app/radius_secret.html	3f937bfd603587f5739a5d8b0942ff315e001612	2026-10-02	
@@ -1522,7 +1522,7 @@ tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-12	
 tests/webui/README.md	e57f12b62e144ceb24370dd473fcce4341e2c63c	2026-10-12	
-tests/webui/test_container.py	14666ae4e4d119632da823e34ffa3d9ee0f88d8c	2026-10-12	
+tests/webui/test_container.py	443223acfd7a76f7f9f683664fb0507e64762813	2026-10-12	
 tests/webui/test_devserver.py	b2e9a2db4c067a5ee358fb7faefb7400143f0655	2026-10-12	
 tests/zone_test.py	4bed30787288ab1c63799bf296c8bb14de230708	2026-10-10	
 tests/zones/README.md	09229c84b389706c276773792706ed6b36298e1f	2026-10-11	

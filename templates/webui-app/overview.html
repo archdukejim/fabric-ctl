@@ -12,6 +12,7 @@
 {% endif %}
 <p class="muted">{{ ok }} of {{ services | length }} services healthy.</p>
 <section class="tiles">
+{% set open_tabs = tabs | map('first') | list %}{# a tile links only to a tab its viewer may open #}
 {% for name, state, health in services %}
 {% set info = service_info.get(name, (name, None)) %}
 {% if state != 'active' or health == 'unhealthy' %}{% set light, why = 'bad', (state if state != 'active' else 'running, health check failing') %}
@@ -20,7 +21,7 @@
 <div class="tile" title="{{ name }}: {{ why }}">
   <div class="tile-head">
     <span class="light {{ light }}" role="img" aria-label="{{ why }}"></span>
-    {% if info[1] %}<a href="/{{ info[1] }}"><strong>{{ name }}</strong></a>{% else %}<strong>{{ name }}</strong>{% endif %}
+    {% if info[1] and info[1] in open_tabs %}<a href="/{{ info[1] }}"><strong>{{ name }}</strong></a>{% else %}<strong>{{ name }}</strong>{% endif %}
   </div>
   <div class="muted">{{ info[0] }}{% if light != 'ok' %} · <span class="{{ light }}-text">{{ why }}</span>{% endif %}</div>
 </div>
