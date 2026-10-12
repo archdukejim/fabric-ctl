@@ -6,6 +6,7 @@ import subprocess
 from fabriclib.common.console import info, ok, warn
 from fabriclib.images.constants import STATE as IMAGE_STATE
 from fabriclib.setup.common.service_account_name import service_account_name
+from fabriclib.undo.remove_host_account import remove_host_account
 from fabriclib.undo.undo_firewall import undo_firewall
 from fabriclib.undo.undo_member import undo_member
 from fabriclib.undo.undo_resolver import undo_resolver
@@ -48,6 +49,10 @@ def uninstall(ctx):
     ctx.load_state()
     v = ctx.vars
 
+    # the host's own computer account (1.6.11.8), removed while the DC still answers: in a federation the domain
+    # outlives this site's DC
+    for line in remove_host_account(ctx.config_dir, v, lambda: ctx.secrets):
+        ok(line)
     info("stopping and removing services")
     for timer in ("fabric-directory-sync", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists", "fabric-dns-log",
                   "fabric-machines"):
