@@ -1,6 +1,7 @@
 {# Step-CA x509 certificate template for leaf certificates.
    Rendered by Jinja — Go template directives are wrapped in raw blocks
-   so Jinja2 passes them through untouched for step-ca to evaluate. #}
+   so Jinja2 passes them through untouched for step-ca to evaluate. The CRL point names hostname_stepca
+   (ca.<domain>), a name fabric keeps whatever the admin does to the info alias (1.5.1.6). #}
 {
     "subject": {
         "commonName": {% raw %}{{ if .Subject.CommonName }}{{ toJson .Subject.CommonName }}{{ else if .Insecure.CR.Subject.CommonName }}{{ toJson .Insecure.CR.Subject.CommonName }}{{ else if .Insecure.CR.DNSNames }}{{ toJson (index .Insecure.CR.DNSNames 0) }}{{ else if .DNSNames }}{{ toJson (index .DNSNames 0) }}{{ else }}""{{ end }}{% endraw %},
@@ -13,5 +14,5 @@
     "sans": {% raw %}{{ toJson .SANs }}{% endraw %},
     "keyUsage": ["digitalSignature", "keyEncipherment"],
     "extKeyUsage": ["serverAuth", "clientAuth"],
-    "crlDistributionPoints": ["http://{{ hostname_landing }}/certs/crl/intermediate.crl"]
+    "crlDistributionPoints": ["http://{{ hostname_stepca }}/certs/crl/intermediate.crl"]
 }

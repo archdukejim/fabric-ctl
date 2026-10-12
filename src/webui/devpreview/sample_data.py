@@ -5,10 +5,9 @@ RECORD_TYPES = ["A", "AAAA", "CNAME", "MX", "TXT", "SRV"]
 # the site zone's names fabric adds on every render (fabriclib.dns.common.fabric_record): (type, name) -> (service,
 # setting); the preview marks them "provided by fabric" and refuses their delete as fabric-agent does (2.1.2.22)
 SAMPLE_FABRIC_NAMES = {("A", "fabric"): ("this host", "hostname"),
-                       ("A", "@"): ("the domain itself, which redirects to the landing page", "host_ip"),
+                       ("A", "@"): ("the domain itself, which serves the landing page", "host_ip"),
                        ("CNAME", "ca"): ("the CA (step-ca)", "cname_ca"), ("CNAME", "dns"): ("DNS (BIND)", "cname_dns"),
-                       ("CNAME", "sso"): ("sign-in (Keycloak)", "cname_sso"),
-                       ("CNAME", "info"): ("the landing page", "landing_page_cname")}
+                       ("CNAME", "sso"): ("sign-in (Keycloak)", "cname_sso")}
 SAMPLE_RADIUS = {"enabled": True, "server_name": "radius.home.arpa", "host_ip": "192.168.1.2",
                  "clients": [{"name": "switch1", "address": "192.168.1.3", "message_authenticator": True},
                              {"name": "ap-hall", "address": "192.168.1.4", "message_authenticator": False}],
@@ -134,7 +133,7 @@ SAMPLE_DEVICES = {"tokens": [{"vendor": "Yubico", "product": "YubiKey OTP+FIDO+C
                               "serial": "23456799", "label": "YubiKey PIV #23456799",
                               "manufacturer": "Yubico (www.yubico.com)",
                               "model": "YubiKey YK5", "pin_state": "ok"}]}
-SAMPLE_CA = {"domain": "home.arpa", "certs_url": "http://info.home.arpa/certs/", "max_days": 1825,
+SAMPLE_CA = {"domain": "home.arpa", "certs_url": "http://ca.home.arpa/certs/", "max_days": 1825,
              "root": {"subject": "CN=Fabric Root CA,O=Fabric", "not_after": "Sep  1 00:00:00 2046 GMT",
                       "key": "EC prime256v1", "sha256": _FP},
              "intermediate": {"subject": "CN=Fabric Intermediate CA,O=Fabric", "not_after": "Sep  1 00:00:00 2036 GMT",
@@ -232,7 +231,7 @@ SAMPLE_DOCTOR = {"checks": [{"name": "DNS ns.home.arpa", "ok": True, "detail": "
 SAMPLE_ACME = {"domain": "home.arpa", "machines": [{"name": "nas", "fqdn": "nas.home.arpa", "key": "acme-nas",
                                                     "records": ["nas"]}],
                "info": ["ACME directory: https://ca.home.arpa/acme/acme/directory",
-                        "trust fabric's root CA first: http://info.home.arpa/certs/ (check its fingerprint there)",
+                        "trust fabric's root CA first: http://ca.home.arpa/certs/ (check its fingerprint there)",
                         "names: <name>.home.arpa only; certificates live 47 days: let the client renew at 30 days old",
                         "http-01: the machine answers on port 80 for its name (nothing to enroll)",
                         "dns-01: enroll it below; its client sends RFC2136 updates with its key"]}

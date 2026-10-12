@@ -164,7 +164,7 @@ for _field, _bad, _msg in (
         assert _msg in str(e) and _sec['tsig_secrets'] == secrets['tsig_secrets'], (_field, _bad, str(e))
 print('tsig_keys and bind_acl_policies: what apply refuses, with the reason, no secret made')
 
-# Web UI at any host name; the certificate page at info.<domain>/certs/ (no certs.<domain> since 0.7.0, 1.5.1.5).
+# Web UI at any host name; the certificate page at /certs/ (no certs.<domain> since 0.7.0, 1.5.1.5).
 assert v2['hostname_mgr'] == 'fabric.lan.j-j.family' and 'hostname_certs' not in v2 and 'cname_certs' not in v2, v2
 custom = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'webui_hostname': 'Admin.Example.org'}))
 # covers: setting:webui_hostname +
@@ -828,14 +828,38 @@ for _rt, _form, _why in (("A", {"value": "nas"}, "invalid IPv4"), ("MX", {"value
 print("the record form: one value fills the type's field; priority for MX, priority, weight and port for SRV, "
       "each type checked (2.1.2.22)")
 # fabric's own names in the site's zone (2.1.2.22 item 6): every render adds them back, so the console marks them and
-# a delete is refused, naming the setting; the admin's own records and other zones are never fabric's
+# a delete is refused, naming the setting; the admin's own records and other zones are never fabric's. The landing
+# page's info is the admin's since 0.7.1 (2.1.4.6): added by the install's first render, never added back
 from fabriclib.dns.common.fabric_record import fabric_record  # noqa: E402
 _site = v2["dns"]["dynamic_zone_var"]
 _info = next(r for r in _site["CNAME"] if r["name"] == "info")
-assert fabric_record(v2, "dynamic_zone_var", "CNAME", _info) == {"service": "the landing page",
-                                                                 "setting": "landing_page_cname"}
-assert [r["name"] for r in _site["CNAME"] if not fabric_record(v2, "dynamic_zone_var", "CNAME", r)] == ["calibre"], \
-    _site["CNAME"]
+assert _info == {"name": "info", "canonical": v2["hostname"]}, _info
+assert fabric_record(v2, "dynamic_zone_var", "CNAME", _info) is None, "info is an ordinary record (2.1.4.6)"
+_ca_rec = next(r for r in _site["CNAME"] if r["name"] == "ca")
+assert fabric_record(v2, "dynamic_zone_var", "CNAME", _ca_rec) == {"service": "the CA (step-ca)", "setting": "cname_ca"}
+assert [r["name"] for r in _site["CNAME"] if not fabric_record(v2, "dynamic_zone_var", "CNAME", r)] == \
+    ["calibre", "info"], _site["CNAME"]
+# the admin deletes info (or renames it: deleted, added under another name): the next render does not add it back
+_gone = copy.deepcopy(v2)
+_gone["dns"]["dynamic_zone_var"]["CNAME"] = [r for r in _gone["dns"]["dynamic_zone_var"]["CNAME"] if r["name"] != "info"]
+_gone["dns"]["dynamic_zone_var"]["CNAME"].append({"name": "welcome", "canonical": v2["hostname"]})
+_v3 = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**secrets, **_gone, 'render_date': '2026-01-01'}))
+_names3 = [r["name"] for r in _v3["dns"]["dynamic_zone_var"]["CNAME"]]
+assert "info" not in _names3 and "welcome" in _names3 and _v3["hostname_landing"] == v2["hostname_landing"], _names3
+# a repointed info is kept as the admin left it
+_moved = copy.deepcopy(v2)
+for _r in _moved["dns"]["dynamic_zone_var"]["CNAME"]:
+    if _r["name"] == "info":
+        _r["canonical"] = "nas25-apps"
+_v3 = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**secrets, **_moved, 'render_date': '2026-01-01'}))
+assert [r for r in _v3["dns"]["dynamic_zone_var"]["CNAME"] if r["name"] == "info"] == [
+    {"name": "info", "canonical": "nas25-apps"}], _v3["dns"]["dynamic_zone_var"]["CNAME"]
+# covers: setting:landing_page_cname +
+_fresh = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE),
+                                                                    'landing_page_cname': 'welcome'}))
+assert _fresh["hostname_landing"] == f"welcome.{v2['domain']}" and {"name": "welcome", "canonical": v2["hostname"]} \
+    in _fresh["dns"]["dynamic_zone_var"]["CNAME"] and "info" not in [
+        r["name"] for r in _fresh["dns"]["dynamic_zone_var"]["CNAME"]], _fresh["dns"]["dynamic_zone_var"]["CNAME"]
 # the host's own A records are fabric's (an admin's record at another address is not: the hardening suite renders
 # with host_ip 127.0.0.1 beside the fixture's pi-core at 192.168.7.53)
 _own = [r for r in _site["A"] if r["ip"] == v2["host_ip"]]
@@ -848,55 +872,70 @@ assert fabric_record(v2, "dynamic_zone_var", "A", {"name": "host1", "ip": "192.1
 assert fabric_record(v2, "home.lan", "CNAME", _info) is None, "only the site's zone holds fabric's names"
 print("fabric's own names in the site's zone recognised by name and target; the admin's records never (2.1.2.22)")
 _ngx = env.get_template('nginx/nginx.conf.j2').render(**full)
-# the info page (2.1.4.3): info.<domain> by default, on HTTP with no redirect; <domain> and the host's name redirect
+# the landing page (2.1.4.3, 2.1.4.6): at /info/ on every name over HTTP (http://<host_ip>/info/), and at / and /info/
+# on its names (info.<domain> by default, <domain>, the host's own name) over HTTP with no redirect and over HTTPS
 _land = v2['hostname_landing']
+_host_fqdn = (v2['hostname'] + '.' + v2['domain']).lower()
+_landing_names = f"server_name {_land} {v2['domain']} {_host_fqdn};"
 _blocks = re.split(r"\n    server \{", _ngx)
-_info80 = [b for b in _blocks if "listen 80;" in b and f"server_name {_land};" in b]
+_info80 = [b for b in _blocks if "listen 80;" in b and _landing_names in b]
 assert _land == f"info.{v2['domain']}", _land
 assert _info80 and "return 301 https" not in _info80[0].split("location /manual/")[0] \
-    and "location /certs/" in _info80[0], "info.<domain> answers on plain HTTP, with the CA files, without a redirect"
-_redir = [b for b in _blocks if f"return 301 $scheme://{_land}$request_uri;" in b]
+    and "location /certs/" in _info80[0] and "location /info/" in _info80[0], \
+    "the landing names answer on plain HTTP, with the CA files and /info/, without a redirect"
 # covers: setting:hostname +
-assert _redir and v2['domain'] + " " in _redir[0] and (v2['hostname'] + '.' + v2['domain']).lower() in _redir[0] \
-    and "listen 80;" in _redir[0] and "listen 443 ssl;" in _redir[0], "<domain> and the host's name redirect, both"
-assert 'id="root-fp"' in _landing and "/certs/ca-certs.json" in _landing and f"https://{_land}/manual/" in _landing, \
-    "the page shows the root's fingerprint and links the manual over HTTPS"
+assert not [b for b in _blocks if "$scheme://" + _land in b or f"https://{_land}" in b], \
+    "nothing redirects to info.<domain> any more: the admin may rename, repoint or delete it (2.1.4.6)"
+_info443 = [b for b in _blocks if "listen 443 ssl;" in b and _landing_names in b][0]
+assert f"ssl_certificate     /etc/nginx/certs/{_land}/fullchain.pem;" in _info443 and "location /info/" in _info443 \
+    and "alias /srv/www/landing/;" in _info443.split("location /info/")[1], "the page over HTTPS on its names, at /info/ too"
+_default80 = [b for b in _blocks if "listen 80 default_server;" in b][0]
+assert "location /info/" in _default80 and "alias /srv/www/landing/;" in _default80.split("location /info/")[1] \
+    and "return 302 /info/;" in _default80 and "if ($fabric_https_name)" in _default80 \
+    and f"return 301 https://{_host_fqdn}$request_uri;" in _default80.split("location /manual/")[1], \
+    "http://<host_ip>/info/ and any other name: the page; its manual link to the host's own name over HTTPS"
+_map = _ngx.split("map $host $fabric_https_name {")[1].split("}")[0]
+assert all(f"        {n} 1;" in _map for n in (v2['hostname_bind9'], v2['hostname_stepca'], v2['hostname_openbao'],
+                                                v2['hostname_keycloak'])) and _land not in _map and "default 0;" in _map, \
+    _map
+assert 'id="root-fp"' in _landing and "/certs/ca-certs.json" in _landing and 'href="/manual/"' in _landing \
+    and _land not in _landing, "the page shows the root's fingerprint; its links are relative, so it works anywhere"
 _db_apex = env.get_template('bind9/data/zone.j2').render(**full, federation_links={}, zone_name=v2['domain'],
                                                          zone_records=_zone["dynamic_zone_var"])
 assert re.search(r"^@\s+A\s+", _db_apex, re.M) and re.search(r"^info\s+CNAME\s+", _db_apex, re.M), \
-    "the zone answers for <domain> (to redirect) and for info"
-print("the info page at info.<domain>: HTTP without a redirect, the CA and its fingerprint; <domain> and the host's "
-      "name redirect (2.1.4.3)")
+    "the zone answers for <domain> (it serves the page) and, on a new install, for info"
+print("the landing page at /info/ on every name and at its names (info, <domain>, the host's): HTTP without a "
+      "redirect, the CA and its fingerprint; nothing depends on info.<domain> (2.1.4.3, 2.1.4.6)")
 
-# the CA only at info.<domain>/certs/ and <host_ip>/certs/ (1.5.1.5, 2.1.5.11): certs.<domain> is gone everywhere —
-# no server, no DNS name, no certificate; ca.<domain> and /certificates send browsers to the page; every leaf names the
-# CRL there; the page, the scripts and the admin's README use it
-_certs_url = f"http://{_land}/certs/"
+# the CA at /certs/ (1.5.1.5, 2.1.5.11): certs.<domain> is gone everywhere — no server, no DNS name, no certificate;
+# ca.<domain> and /certificates send browsers to the page at the host's own name; every leaf names the CRL at
+# ca.<domain>, and the page, the scripts and the admin's README name it there, never info.<domain> (1.5.1.6, 2.1.4.6)
+_certs_url = f"http://{v2['hostname_stepca']}/certs/"      # the CA's own name, fabric's (1.5.1.6)
 assert 'certs.' + v2['domain'] not in _ngx and 'hostname_certs' not in _ngx, "no certs.<domain> server (no redirect)"
 assert 'certs' not in [r['name'] for r in v2['dns']['dynamic_zone_var']['CNAME']], "no certs CNAME by default"
 assert not re.search(r"^certs\s", _db_apex, re.M), "the zone has no certs record"
 _ca = [b for b in _blocks if f"server_name {v2['hostname_stepca']};" in b][0]
-assert f"return 302 https://{_land}/certs/;" in _ca and f"return 301 https://{_land}/certs/;" in _ca, _ca
-_info443 = [b for b in _blocks if "listen 443 ssl;" in b and f"server_name {_land};" in b][0]
-assert "location /certs/" in _info443 and f"return 301 https://{_land}/certs/;" in _info443.split("location /certs/")[0]
-_default80 = [b for b in _blocks if "listen 80 default_server;" in b][0]
+assert f"return 302 https://{_host_fqdn}/certs/;" in _ca and f"return 301 https://{_host_fqdn}/certs/;" in _ca, _ca
+assert "location /certs/" in _info443 and "return 301 /certs/;" in _info443.split("location /certs/")[0]
 assert "location /certs/" in _default80 and "root /srv/www;" in _default80, "http://<host_ip>/certs/ serves the CA"
 for _tpl in ('stepca/leaf.tpl.j2', 'stepca/acme.tpl.j2'):
     _t = env.get_template(_tpl).render(**full)
-    assert f'"crlDistributionPoints": ["{_certs_url}crl/intermediate.crl"]' in _t and 'certs.' not in _t, (_tpl, _t)
+    assert f'"crlDistributionPoints": ["{_certs_url}crl/intermediate.crl"]' in _t and 'certs.' not in _t \
+        and _land not in _t, (_tpl, _t)
 _page = env.get_template('nginx/www/certs/index.html.j2').render(**{**full, 'domain_file': 'lan'})
 assert f"<code>{_certs_url}</code>" in _page and f"{_certs_url}join-linux.sh" in _page and 'certs.' + v2['domain'] \
-    not in _page, "the certificate page names info.<domain>/certs/"
+    not in _page and _land not in _page, "the certificate page names ca.<domain>/certs/"
 for _tpl, _var in (('install-all-ubuntu.sh.j2', 'BASE_URL'), ('install-certs.sh.j2', 'CERT_BASE'),
                    ('join-linux.sh.j2', 'CERTS')):
     _t = env.get_template('nginx/www/certs/' + _tpl).render(**{**full, 'domain_file': 'lan'})
-    assert f'{_var}="http://{_land}/certs"' in _t and 'certs.' + v2['domain'] not in _t, (_tpl, _t[:400])
-assert f'href="{_certs_url}"' in _landing and f'href="https://{_land}/certs/#join"' in _landing, "landing links"
-assert _certs_url in off_txt and 'certs.' + v2['domain'] not in off_txt, "the admin's README names info.<domain>/certs/"
+    assert f'{_var}="{_certs_url[:-1]}"' in _t and 'certs.' + v2['domain'] not in _t and _land not in _t, \
+        (_tpl, _t[:400])
+assert 'href="/certs/"' in _landing and 'href="/certs/#join"' in _landing, "landing links"
+assert _certs_url in off_txt and 'certs.' + v2['domain'] not in off_txt, "the admin's README names ca.<domain>/certs/"
 from fabriclib.pki.acme_info import acme_info  # noqa: E402
 assert any(f"{_certs_url} (check its fingerprint" in x for x in acme_info(v2)), acme_info(v2)
-print("the CA at info.<domain>/certs/ and <host_ip>/certs/ only: no certs.<domain> server, name or CNAME; ca.<domain> "
-      "and /certificates redirect there; leaves name its CRL; the page, scripts and README use it (1.5.1.5)")
+print("the CA at /certs/: no certs.<domain> server, name or CNAME; ca.<domain> and /certificates redirect to the "
+      "host's own name; leaves name the CRL at ca.<domain>; the page, scripts and README use it (1.5.1.5, 1.5.1.6)")
 # Free-text labels (manual 1.1.5.7): whatever they hold, the settings file reads them back exactly, the pages escape
 # them, and the client scripts quote them, so nothing in a label is ever run on a client.
 import subprocess  # noqa: E402

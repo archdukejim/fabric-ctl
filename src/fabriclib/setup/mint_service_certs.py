@@ -2,6 +2,7 @@ import os
 import shutil
 
 from fabriclib.common.console import ok
+from fabriclib.pki.common.crl_points import crl_points
 from fabriclib.pki.install_cert import install_cert
 from fabriclib.pki.mint_cert import mint_cert
 from fabriclib.pki.needs_renewal import needs_renewal
@@ -16,7 +17,7 @@ def _targets(ctx):
              install_freeradius, install_resolver, federation_endpoint, ad_domain.
     Returns: list of (cn, extra SANs, [(destination dir, service user or "freeradius:eap")],
              services to restart when it changes). bind9 (and the DNS filter's resolver when on), stepca, landing
-             and openbao always (no certs.<domain> since 0.7.0: the CA is served at info.<domain>/certs/, 1.5.1.5);
+             and openbao always (no certs.<domain> since 0.7.0: the CA is served at /certs/, 1.5.1.5, 1.5.1.6);
              LDAP, Keycloak + Postgres, web UI, FreeRADIUS (EAP-TLS server cert), the federation endpoint when on,
              the DNS filter's AdGuard Home (*.filter.<domain>) when on, and the domain controller.
     Fails:   KeyError for a missing hostname_* var.
@@ -31,7 +32,7 @@ def _targets(ctx):
     t = [
         (v["hostname_bind9"], [f"ns.{v['domain']}", "127.0.0.1"], dns_dests, dns_services),
         (v["hostname_stepca"], [], [nginx(v["hostname_stepca"])], ["nginx"]),
-        # the host's own name and <domain> too: they redirect to the info page over HTTPS (2.1.4.3)
+        # the host's own name and <domain> too: they serve the landing page over HTTPS (2.1.4.6)
         (v["hostname_landing"], [f"{v['hostname']}.{v['domain']}".lower(), v["domain"]], [nginx(v["hostname_landing"])],
          ["nginx"]),
         (v["hostname_openbao"], ["openbao"], [nginx(v["hostname_openbao"]), (p("openbao", "certs"), "openbao")],
@@ -63,6 +64,22 @@ def _targets(ctx):
     return t
 
 
+def _crl_moved(ctx, cert_path):
+    """Purpose: whether a service certificate names a CRL point other than the one fabric's certificates name now
+             (http://<hostname_stepca>/certs/crl/intermediate.crl, 1.5.1.6): one issued by 0.7.0 names info.<domain>,
+             which the admin may now rename, repoint or delete (2.1.4.6), so it is issued again at once.
+    Inputs:  ctx — SetupContext: vars hostname_stepca; cert_path — the certificate on disk.
+    Returns: True when the certificate names CRL points and the current one is not exactly the one; False when it
+             names none (issued before 0.7.0: left to its renewal, 1.5.1.5), names the current one, or is missing
+             (needs_renewal decides that).
+    Fails:   FileNotFoundError only if openssl is not installed.
+    Feeds:   run."""
+    if not os.path.exists(cert_path):
+        return False
+    points = crl_points(cert_path)
+    return bool(points) and points != [f"http://{ctx.vars['hostname_stepca']}/certs/crl/intermediate.crl"]
+
+
 def _old_certs_host(ctx, targets):
     """Purpose: the certificate folder of certs.<domain>, which fabric no longer serves or issues (0.7.0, 1.5.1.5),
              when it is still there (an install from before 0.7.0): run deletes it.
@@ -86,7 +103,8 @@ def run(ctx):
              force_certs (re-issue even when current), Step-CA certs under <deploy_base>/stepca/data/certs.
     Returns: None. Certificates that exist, cover their names, chain to this CA, are younger than
              cert_renew_after_days and live no longer than cert_service_days (manual 2.1.5.4, 2.1.5.7) are left
-             alone unless force_certs, or unless one of their destinations has no copy yet. The old
+             alone unless force_certs, unless one of their destinations has no copy yet, or unless they name another
+             CRL point than fabric's current one (_crl_moved, 1.5.1.6). The old
              certs.<domain> certificate, still there after an upgrade to 0.7.0, is deleted (_old_certs_host,
              1.5.1.5). The web UI client-CA bundle is rewritten on every run; the CRLs are published every run
              (publish_crl: FreeRADIUS's ca.pem with them). Services whose certificates changed are added to
@@ -111,9 +129,9 @@ def run(ctx):
         # a destination added since the certificate was issued (the DNS filter's, on an upgrade) needs its copy now
         missing = any(not os.path.exists(os.path.join(d, "server.pem" if u == "freeradius:eap" else "fullchain.pem"))
                       for d, u in dests)
-        if not ctx.force_certs and not missing and not needs_renewal(check, [cn, *sans], (root_ca, intermediate),
-                                                                     renew_after_days=renew_after,
-                                                                     max_days=lifetime):
+        moved = not missing and _crl_moved(ctx, check)
+        if not ctx.force_certs and not missing and not moved and not needs_renewal(
+                check, [cn, *sans], (root_ca, intermediate), renew_after_days=renew_after, max_days=lifetime):
             ok(f"{cn}: current")
             continue
         crt, key = mint_cert(ctx, cn, sans, cn.replace(".", "-"))
@@ -125,10 +143,10 @@ def run(ctx):
         os.remove(key)
         os.remove(crt)
         restart.update(services)
-        ok(f"{cn}: issued")
+        ok(f"{cn}: issued" + (" (its CRL point moved to the CA's own name, 1.5.1.6)" if moved else ""))
     if old_certs:
         shutil.rmtree(old_certs)
-        ok(f"{os.path.basename(old_certs)}: old certificate deleted (the CA is at info.<domain>/certs/, 1.5.1.5)")
+        ok(f"{os.path.basename(old_certs)}: old certificate deleted (the CA is at /certs/, 1.5.1.5)")
 
     if ctx.vars.get("install_webui"):
         uid, gid = ctx.uid("nginx")

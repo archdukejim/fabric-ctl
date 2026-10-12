@@ -99,7 +99,7 @@ print("set")
 check("people in the domain: alice and adam (lan; adam a site admin), lara (lab)",
       "set" in sh(["docker", "exec", "-i", DC, "python3", "-"], input=set_pw, ok=False).stdout, ids)
 
-# info.<domain>/certs/: the root CA served over plain HTTP, as nginx serves it (1.5.1.5)
+# ca.<domain>/certs/: the root CA served over plain HTTP, as nginx serves it; the join script fetches it there (1.5.1.6)
 os.makedirs(os.path.join(W, "www", "certs"), exist_ok=True)
 with open(os.path.join(W, "www", "certs", "root-ca.crt"), "w") as f:
     f.write(open(dc["root_ca"]).read())
@@ -132,7 +132,7 @@ exit 0
 with open(os.path.join(W, "systemctl"), "w") as f:
     f.write(SHIM)
 os.chmod(os.path.join(W, "systemctl"), 0o755)
-hosts = [f"--add-host={V['hostname_dc']}:{IP}", f"--add-host={V['hostname_landing']}:{WEB_IP}",
+hosts = [f"--add-host={V['hostname_dc']}:{IP}", f"--add-host={V['hostname_stepca']}:{WEB_IP}",
          f"--add-host={V['hostname_ntp']}:{IP}"]
 
 

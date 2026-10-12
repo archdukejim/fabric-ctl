@@ -41,7 +41,8 @@
 TXT. A and AAAA records with a private address get their PTR record automatically — see Reverse zones. Which records
 the landing page links to is set in its own section: <a href="/bind9?view=landing">Landing page</a>.
 Names marked <span class="pill">provided by fabric</span> are fabric's own: every apply adds them back from their
-setting, so they are not deleted here.</p></section>
+setting, so they are not deleted here. The landing page's <code>info</code> is yours: rename, repoint or delete it;
+the page stays at <code>http://&lt;this host's address&gt;/info/</code>.</p></section>
 {% else %}<section class="card"><p class="blank">No forward zones.</p></section>{% endif %}
 {% if can('dns:write') %}
 {% if zone and zone.key != 'dynamic_zone_var' %}
@@ -72,8 +73,9 @@ domain zones, another site's zone, reverse zones (generated) and a zone that exi
 
 {% elif section == 'landing' %}
 <section class="card"><h2>Landing page</h2>
-<p class="muted">The landing page is fabric's start page (<code>info.&lt;domain&gt;</code>): the instructions, the CA
-certificates, the manual and a link to each of your services. It links to the records of {{ zone.name if zone else "the site's zone" }} listed
+<p class="muted">The landing page is fabric's start page (<code>http://&lt;this host's address&gt;/info/</code>, and
+<code>info.&lt;domain&gt;</code> while that record points at this host; any name you point here shows it): the
+instructions, the CA certificates, the manual and a link to each of your services. It links to the records of {{ zone.name if zone else "the site's zone" }} listed
 here, each as <code>https://&lt;name&gt;.{{ zone.name if zone else '&lt;domain&gt;' }}</code> with its port and path. Apply publishes a change.</p>
 {% set linked = (zone.records if zone else []) | selectattr('link') | list %}
 {% if linked %}<table><thead><tr><th>Label</th><th>Address</th><th>Record</th><th></th></tr></thead><tbody>

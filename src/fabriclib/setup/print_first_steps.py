@@ -11,7 +11,7 @@ def print_first_steps(ctx):
              over plain HTTP, checking its fingerprint, then (when the console asks for one)
              import the client certificate, then sign in. The order matters: a browser that does not trust the CA
              cannot reach the console safely (the owner nearly signed in first, 2026-10-09).
-    Inputs:  ctx — SetupContext: vars install_webui, hostname_landing, hostname_mgr, webui_admin_user,
+    Inputs:  ctx — SetupContext: vars install_webui, hostname_landing, hostname_stepca, hostname_mgr, webui_admin_user,
              webui_client_cert; the published ca-certs.json under <deploy_base>/nginx/www/certs; the login kit in the
              home of the account that ran sudo (sudo_owner).
     Returns: None; prints. Without the web UI: only the doctor line.
@@ -35,7 +35,7 @@ def print_first_steps(ctx):
                  f"one computer, add this line to its hosts file\n       (/etc/hosts; Windows: "
                  f"C:\\Windows\\System32\\drivers\\etc\\hosts):\n         {ip} {names}",
                  f"{BOLD}install fabric's root certificate{NC} on it: open {BOLD}http://{ip}/certs/{NC} (plain HTTP, "
-                 f"no names needed; or http://{v.get('hostname_landing')}/certs/),\n       download the root "
+                 f"no names needed; or http://{v.get('hostname_stepca')}/certs/),\n       download the root "
                  "certificate"
                  + (f", check its SHA-256 fingerprint is\n         {sha256}\n       and" if sha256 else " and")
                  + f" install it as a trusted root (the same file: {kit}/root-ca.crt, .cer for Windows)"]

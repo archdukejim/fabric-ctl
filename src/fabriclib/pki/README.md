@@ -6,7 +6,7 @@ Certificates from fabric's Step-CA.
 |---|---|
 | `cert_warnings.py` | What is wrong or coming with fabric's certificates (a failed renewal, a service certificate under 7 days, the CA within 180 days, issued certificates within 30), for status, doctor and the web console |
 | `check_cert_lifetimes.py` | Refuses certificate lifetimes that cannot work (2.1.5.4, 2.1.5.6) |
-| `publish_crl.py` | Publish the CRLs (the intermediate's; the root's where its key is here) to `info.<domain>/certs/crl/`, nginx and FreeRADIUS (2.1.5.10, 1.5.1.5) |
+| `publish_crl.py` | Publish the CRLs (the intermediate's; the root's where its key is here) to `/certs/crl/` (the point certificates name: `ca.<domain>`), nginx and FreeRADIUS (2.1.5.10, 1.5.1.5, 1.5.1.6) |
 | `revoke_cert.py` | Revoke a certificate fabric issued, by serial or name; the CRLs published at once |
 | `run_acme_command.py` | `fabricctl acme`: the ACME directory for LAN machines, their DNS-01 keys (2.1.5.8) |
 | `run_certs_command.py` | `fabricctl certs`: renewal, the issued list, revocation |
@@ -30,7 +30,7 @@ Certificates from fabric's Step-CA.
 | `sign_site_ca.py` | Federation: sign a site's intermediate with the root key (path length 0, never outliving the root); ledger + audit |
 | `replace_site_ca.py` | Federation: switch a re-parented site's Step-CA files to its new CA (old ones kept) |
 | `stage_site_ca.py` | Federation: check the root site's answer (pinned root, chain, path length, our key) and lay it out for the bring-your-own-CA path |
-| `publish_ca_certs.py` | Root + intermediate for every system at `info.<domain>/certs/` and `http://<host_ip>/certs/` (PEM `.crt`/`.pem`, DER `.cer`/`.der`, chain `.pem`/`.p7b`, fingerprints JSON); trust them on this host |
+| `publish_ca_certs.py` | Root + intermediate for every system at `/certs/` (`http://ca.<domain>/certs/`, `http://<host_ip>/certs/`) (PEM `.crt`/`.pem`, DER `.cer`/`.der`, chain `.pem`/`.p7b`, fingerprints JSON); trust them on this host |
 | `run_mint_certs_command.py` | `fabricctl --mint-certs`: mint every `extra_certs` entry (`--apply`), or ask for one, record it and mint it |
 | `run_service_cert_command.py` | `fabricctl --service-cert`: list expiry dates, then re-issue every service certificate |
 | `common/` | Helpers shared by the operations above (see its README) |

@@ -342,8 +342,6 @@ setting:hostname_federation +
 setting:hostname_federation -
 setting:hostname_keycloak +
 setting:hostname_keycloak -
-setting:hostname_landing +
-setting:hostname_landing -
 setting:hostname_mgr +
 setting:hostname_mgr -
 setting:hostname_nginx +
@@ -352,8 +350,6 @@ setting:hostname_ntp +
 setting:hostname_ntp -
 setting:hostname_openbao -
 setting:hostname_radius -
-setting:hostname_stepca +
-setting:hostname_stepca -
 setting:ica_crt_path +
 setting:ica_crt_path -
 setting:ica_key_path +
@@ -403,7 +399,6 @@ setting:ip_webui -
 setting:keycloak_data_dir +
 setting:keycloak_data_dir -
 setting:lan_gateway +
-setting:landing_page_cname +
 setting:landing_page_cname -
 setting:ldap_base_dn -
 setting:ldap_groups +

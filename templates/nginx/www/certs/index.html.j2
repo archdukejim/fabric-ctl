@@ -4,7 +4,7 @@
 
 {% block header_subtitle %}{{ cert_org }} &mdash; Certificate Authority for {{ domain }}{% endblock %}
 
-{% block back_link %}<a href="https://{{ hostname_landing }}/" class="back-link">&larr; Back to Landing Portal</a>{% endblock %}
+{% block back_link %}<a href="/info/" class="back-link">&larr; Back to Landing Portal</a>{% endblock %}
 
 {% block content %}
     <div class="card">
@@ -14,7 +14,7 @@
         <strong>root CA</strong> on a device to trust them; appliances that build the chain themselves may also need the
         <strong>intermediate CA</strong>. Before trusting a certificate, compare its <strong>SHA-256 fingerprint</strong>
         with the one shown here. This page works over plain HTTP on purpose (a device cannot check TLS before it
-        trusts the CA): <code>http://{{ hostname_landing }}/certs/</code>, or without DNS <code>http://{{ host_ip }}/certs/</code>.
+        trusts the CA): <code>http://{{ hostname_stepca }}/certs/</code>, or without DNS <code>http://{{ host_ip }}/certs/</code>.
         To check a fingerprint independently of this page, on the fabric host:
         <code>openssl x509 -noout -fingerprint -sha256 -in /opt/stepca/data/certs/root_ca.crt</code>.
       </p>
@@ -73,8 +73,8 @@
         <p style="color:var(--muted);font-size:.9rem;">Double-click <code>root-ca.cer</code> &rarr; <em>Install Certificate</em> &rarr;
           <em>Local Machine</em> &rarr; <em>Trusted Root Certification Authorities</em>. Put <code>intermediate-ca.cer</code>
           in <em>Intermediate Certification Authorities</em>. Or, in PowerShell as Administrator:</p>
-        <pre><code><span class="cmd">Invoke-WebRequest</span> http://{{ hostname_landing }}/certs/root-ca.cer -OutFile $env:TEMP\root-ca.cer
-<span class="cmd">Invoke-WebRequest</span> http://{{ hostname_landing }}/certs/intermediate-ca.cer -OutFile $env:TEMP\intermediate-ca.cer
+        <pre><code><span class="cmd">Invoke-WebRequest</span> http://{{ hostname_stepca }}/certs/root-ca.cer -OutFile $env:TEMP\root-ca.cer
+<span class="cmd">Invoke-WebRequest</span> http://{{ hostname_stepca }}/certs/intermediate-ca.cer -OutFile $env:TEMP\intermediate-ca.cer
 <span class="cmd">Import-Certificate</span> -FilePath $env:TEMP\root-ca.cer -CertStoreLocation Cert:\LocalMachine\Root
 <span class="cmd">Import-Certificate</span> -FilePath $env:TEMP\intermediate-ca.cer -CertStoreLocation Cert:\LocalMachine\CA</code></pre>
       </div>
@@ -84,18 +84,18 @@
       <div class="card">
         <h2>Linux</h2>
         <strong>Ubuntu / Debian — everything (system, Python, Firefox, Chrome):</strong>
-        <pre><code><span class="cmd">wget</span> -nv -O- http://{{ hostname_landing }}/certs/install-all-{{ domain_file }}.sh | <span class="cmd">sudo bash</span></code></pre>
+        <pre><code><span class="cmd">wget</span> -nv -O- http://{{ hostname_stepca }}/certs/install-all-{{ domain_file }}.sh | <span class="cmd">sudo bash</span></code></pre>
         <strong style="display:block;margin-top:1rem;">Debian / Ubuntu — system only, by hand:</strong>
-        <pre><code><span class="cmd">sudo wget</span> -nv -O /usr/local/share/ca-certificates/{{ domain_file }}-root-ca.crt http://{{ hostname_landing }}/certs/root-ca.crt
+        <pre><code><span class="cmd">sudo wget</span> -nv -O /usr/local/share/ca-certificates/{{ domain_file }}-root-ca.crt http://{{ hostname_stepca }}/certs/root-ca.crt
 <span class="cmd">sudo update-ca-certificates</span></code></pre>
         <strong style="display:block;margin-top:1rem;">RHEL / Fedora / Rocky:</strong>
-        <pre><code><span class="cmd">sudo curl</span> -sSo /etc/pki/ca-trust/source/anchors/{{ domain_file }}-root-ca.crt http://{{ hostname_landing }}/certs/root-ca.crt
+        <pre><code><span class="cmd">sudo curl</span> -sSo /etc/pki/ca-trust/source/anchors/{{ domain_file }}-root-ca.crt http://{{ hostname_stepca }}/certs/root-ca.crt
 <span class="cmd">sudo update-ca-trust</span></code></pre>
         <strong style="display:block;margin-top:1rem;">Other installers:</strong>
-        <pre><code>http://{{ hostname_landing }}/certs/install-certs-{{ domain_file }}.sh     <span style="color:var(--muted)"># system store only</span>
-http://{{ hostname_landing }}/certs/install-python-{{ domain_file }}.sh    <span style="color:var(--muted)"># Python requests / SSL_CERT_FILE</span>
-http://{{ hostname_landing }}/certs/install-firefox-{{ domain_file }}.sh   <span style="color:var(--muted)"># Firefox NSS</span>
-http://{{ hostname_landing }}/certs/install-chrome-{{ domain_file }}.sh    <span style="color:var(--muted)"># Chrome / Chromium / Brave / Edge NSS</span></code></pre>
+        <pre><code>http://{{ hostname_stepca }}/certs/install-certs-{{ domain_file }}.sh     <span style="color:var(--muted)"># system store only</span>
+http://{{ hostname_stepca }}/certs/install-python-{{ domain_file }}.sh    <span style="color:var(--muted)"># Python requests / SSL_CERT_FILE</span>
+http://{{ hostname_stepca }}/certs/install-firefox-{{ domain_file }}.sh   <span style="color:var(--muted)"># Firefox NSS</span>
+http://{{ hostname_stepca }}/certs/install-chrome-{{ domain_file }}.sh    <span style="color:var(--muted)"># Chrome / Chromium / Brave / Edge NSS</span></code></pre>
       </div>
       <div class="card">
         <h2>Join a Linux machine to the domain</h2>
@@ -107,9 +107,9 @@ http://{{ hostname_landing }}/certs/install-chrome-{{ domain_file }}.sh    <span
       <div class="card">
         <h2>macOS / iOS</h2>
         <strong>macOS (Terminal):</strong>
-        <pre><code><span class="cmd">curl</span> -sSo /tmp/root-ca.crt http://{{ hostname_landing }}/certs/root-ca.crt
+        <pre><code><span class="cmd">curl</span> -sSo /tmp/root-ca.crt http://{{ hostname_stepca }}/certs/root-ca.crt
 <span class="cmd">sudo security</span> add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain /tmp/root-ca.crt</code></pre>
-        <p style="color:var(--muted);font-size:.9rem;"><strong>iOS / iPadOS:</strong> open <code>http://{{ hostname_landing }}/certs/root-ca.crt</code> in Safari &rarr;
+        <p style="color:var(--muted);font-size:.9rem;"><strong>iOS / iPadOS:</strong> open <code>http://{{ hostname_stepca }}/certs/root-ca.crt</code> in Safari &rarr;
           <em>Settings &rarr; Profile Downloaded &rarr; Install</em>, then <em>Settings &rarr; General &rarr; About &rarr;
           Certificate Trust Settings</em> &rarr; enable full trust for the root.</p>
       </div>
@@ -186,7 +186,7 @@ crypto pki authenticate {{ domain_file | upper }}-ROOT
       fingerprint you give matches the root CA's above), joins the domain, takes its time from this network, and lets
       the site's people log on with their domain password; sudo follows the site's rules. The password is asked, never
       typed on the command line.</p>
-      <pre><code><span class="cmd">wget</span> -nv http://{{ hostname_landing }}/certs/join-linux.sh
+      <pre><code><span class="cmd">wget</span> -nv http://{{ hostname_stepca }}/certs/join-linux.sh
 <span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --user &lt;site admin&gt;
 <span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --one-time     <span style="color:var(--muted)"># a pre-created machine</span>
 <span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --user &lt;site admin&gt; --site &lt;site&gt; --name &lt;name&gt;</code></pre>
