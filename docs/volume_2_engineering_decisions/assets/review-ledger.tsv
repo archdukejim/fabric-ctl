@@ -27,8 +27,9 @@ docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be
 docs/volume_1_description_and_architecture/1.1.8-about-settings.md	8022994724f5bd9daa98a515c230ec5c8b949a67	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.9-optional-parts.md	296a7d76f3ff3f8cb752622ecc634d75bdcc8642	2026-10-11	
 docs/volume_1_description_and_architecture/1.10.1-kea-design.md	0e8b6720aa82c79132444cd5a6e1a3893173246b	2026-10-10	
-docs/volume_1_description_and_architecture/1.10.2-dhcp-management.md	3d818cf18c62108409294438880e1f12692af38d	2026-10-08	
+docs/volume_1_description_and_architecture/1.10.2-dhcp-management.md	30a8e67a6d91ba53648cdf049a4ecc38644be234	2026-10-12	
 docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	a404a324b89e8417e3a5244fda52794b153cb423	2026-10-11	
+docs/volume_1_description_and_architecture/1.10.4-address-manager.md	5e7e255a37aa7a6acc4cec5507cc321f0e6eec30	2026-10-12	
 docs/volume_1_description_and_architecture/1.11.1-freeradius-design.md	53be8bfe3baba02927c9b7b66dd4d02282115356	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.1-adguard.md	b2280752ee06e87cb6e1497fdb91651e589b6a4d	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.2-bind-resolver.md	97e78a0db3ee1ca79d7edb569eb8e03b03a97164	2026-10-11	
@@ -112,9 +113,9 @@ docs/volume_1_description_and_architecture/1.9.5-attachment.md	e5801ff46a17fb282
 docs/volume_1_description_and_architecture/1.9.6-changes.md	de23fcd3ade76bb7206aead682c0b813573dc13c	2026-10-08	
 docs/volume_1_description_and_architecture/1.9.7-milestones.md	a41e86e4f9febe721f6ea0699ab56a29e3185a48	2026-10-08	
 docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	772dcc42dd63416bb110df6d3945db8fc4589b0d	2026-10-08	
-docs/volume_1_description_and_architecture/README.md	a4d2285286435dad9cae432f8cb39d108b8d0fe9	2026-10-11	
+docs/volume_1_description_and_architecture/README.md	8795ef5b6ab3b470c67b757897a26736cfa80cee	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.1-product.md	4815310bec215c09d4a41ce6ae357deff3d32c5d	2026-10-11	
-docs/volume_2_engineering_decisions/2.1.10-dhcp.md	b4f05a2e15532543e2d858d5e2c549ceeff29c86	2026-10-12	
+docs/volume_2_engineering_decisions/2.1.10-dhcp.md	a5a50a8ca678b598811902b923c477712010c76f	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	9ab4cd892d9de5dca4132f454088ce0ef2da1bd2	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece98c5e28bc1c8	2026-10-08	
