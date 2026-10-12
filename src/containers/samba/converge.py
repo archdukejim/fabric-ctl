@@ -26,6 +26,7 @@ from ensure_sso_account import ensure_sso_account
 from ensure_sudo_rule import ensure_sudo_rule
 from logon_rights_policy import BUILTIN_ADMINISTRATORS, EXTENSIONS as LOGON_EXTENSIONS, logon_rights_policy
 from open_samdb import open_samdb
+from plan_cidrs import plan_cidrs
 from remove_ipv6_records import remove_ipv6_records
 from repair_role_owners import repair_role_owners
 from root_ca_policy import EXTENSIONS as TRUST_EXTENSIONS, root_ca_policy
@@ -43,7 +44,8 @@ def converge(state):
              after the AD site, which may move it), the schema, the layout, the site's id block, the
              groups, the site's service accounts, the AD zones on IPv4 only (2.1.6.29), its access entries, its networks
              (the address plan), its default
-             sudo rule, the AD site and its subnets, the password policy, the domain's trust GPO (fabric's root CA),
+             sudo rule, the AD site and its subnets (the plan's among them, 1.10.4.13), the password policy, the
+             domain's trust GPO (fabric's root CA),
              the site's log-on GPO, its Windows baseline GPO and winbind's privileged pipe for FreeRADIUS. Each part
              changes only what differs, so a second run changes nothing.
     Inputs:  state — dict: site (str), root (bool: the root site, which also holds the organisation's items and the
@@ -80,7 +82,8 @@ def converge(state):
     changed += ensure_site_acl(samdb, site, root)
     changed += ensure_networks(samdb, site, state["networks"])
     changed += ensure_sudo_rule(samdb, site, state["admin_group"], root)
-    changed += ensure_ad_site(samdb, site, [n["cidr"] for n in state["networks"]])
+    cidrs = [n["cidr"] for n in state["networks"]]
+    changed += ensure_ad_site(samdb, site, cidrs + [c for c in plan_cidrs(samdb, site) if c not in cidrs])
     changed += repair_role_owners(samdb)  # a renamed AD site moved the DC: its roles follow it
     if state.get("parent"):               # a site: its AD site linked to its parent's (manual 1.9.8.5)
         changed += ensure_site_link(samdb, site, state["parent"])

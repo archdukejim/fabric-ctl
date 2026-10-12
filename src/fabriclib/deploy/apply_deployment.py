@@ -40,12 +40,14 @@ from fabriclib.deploy.verify_published_images import verify_published_images
 from fabriclib.dns.reverse_zones import reverse_zones
 from fabriclib.federation.deploy_federation_endpoint import deploy_federation_endpoint
 from fabriclib.federation.dns_links import dns_links
+from fabriclib.ipam.load_address_plan import load_address_plan
 from fabriclib.secrets.load_secrets import load_secrets
 from fabriclib.secrets.save_secrets import save_secrets
 
 
 def _prepare(paths):
-    """Purpose: everything up to the render: secrets, the checked settings and the render context.
+    """Purpose: everything up to the render: secrets, the checked settings (the DHCP subnets and static names from the
+             site's address plan in the domain, manual 1.10.4.14) and the render context.
     Inputs:  paths — deploy_paths().
     Returns: dict with secrets, final_vars, context, tsig_keys, jinja_env.
     Fails:   ValidationError (settings, secrets that cannot be loaded or saved, fixed identity).
@@ -72,6 +74,8 @@ def _prepare(paths):
     final_vars, context = render_vars(jinja_env, secrets, custom_vars)
     archive_vars(paths["target"])
     check_fixed_identity(final_vars, paths["config"])
+    for line in load_address_plan(final_vars, secrets):    # the subnets and static names from the plan (1.10.4.14)
+        print(line)
     check_settings(final_vars)
     return {"secrets": secrets, "final_vars": final_vars, "context": context, "tsig_keys": tsig_keys,
             "jinja_env": jinja_env}

@@ -57,6 +57,7 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 ## 4.10 DHCP: Kea
 
 - [4.10.1 DHCP with Kea](4.10.1-dhcp.md)
+- [4.10.2 The address manager](4.10.2-address-manager.md)
 
 ## 4.11 802.1X: FreeRADIUS
 

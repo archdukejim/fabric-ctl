@@ -88,10 +88,10 @@ def normalize_dhcp(v):
              subnet, a subnet overlapping fabric_subnet, a bad or repeated id, name or vlan, notes or
              allow_overlap too long, an access that is not full or guest, a relay that is not an IPv4 address, a
              bad pool or two pools overlapping
-             (in any subnet), a router outside its subnet, a bad MAC, a reservation outside its subnet or inside a
-             pool, a duplicate MAC or address, a bad hostname, no subnets, or a static A record inside a pool; a plain
-             ValueError (not a ValidationError) if routers is not an IP address; errors of normalize_options,
-             normalize_option_defs and normalize_client_classes.
+             (in any subnet), a router outside its subnet, a bad MAC, a reservation outside its subnet (inside a
+             pool it is allowed since 0.8.0, manual 1.10.4.3.2), a duplicate MAC or address, a bad hostname, no
+             subnets, or a static A record inside a pool; a plain ValueError (not a ValidationError) if routers is
+             not an IP address; errors of normalize_options, normalize_option_defs and normalize_client_classes.
     Feeds:   deploy/check_settings (apply, before rendering), add_reservation; tests/kea/run.py, tests/render.py.
     Notes:   a static A record inside a pool is refused because Kea would hand that address out.
     """
@@ -178,8 +178,8 @@ def normalize_dhcp(v):
                 ip = ipaddress.ip_address(str(r.get("ip", "")))
             except ValueError:
                 raise ValidationError(f"reservation {mac}: address {r.get('ip')!r} is not an IPv4 address")
-            if ip not in net or any(lo <= ip <= hi for lo, hi in pools):
-                raise ValidationError(f"reservation {ip}: inside {net} but outside its pools")
+            if ip not in net:              # inside a pool is allowed: Kea hands it only to its MAC (1.10.4.3.2)
+                raise ValidationError(f"reservation {ip}: must lie inside {net}")
             if ip in seen_ips or mac in seen_macs:
                 raise ValidationError(f"reservation {mac} / {ip}: MAC and address must be unique")
             seen_ips.add(ip)

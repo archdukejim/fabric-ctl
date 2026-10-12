@@ -31,6 +31,7 @@ from fabriclib.dhcp.deploy_kea import deploy_kea  # noqa: E402
 from fabriclib.dhcp.list_leases import list_leases  # noqa: E402
 from fabriclib.dhcp.dhcp_reverse_zones import dhcp_reverse_zones  # noqa: E402
 from fabriclib.dhcp.normalize_dhcp import normalize_dhcp  # noqa: E402
+from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp  # noqa: E402
 
 
 def check(name, cond, detail=""):
@@ -119,6 +120,29 @@ except ValidationError as e:
     refused = str(e)
 check("an option Kea does not know is refused by Kea's own check, and nothing is written",
       "Kea refused" in refused and open(f"{W}/kea/config/kea-dhcp4.conf").read() == cfg4, refused[-300:])
+# the address manager (1.10.4.14): Kea rendered from a site's plan; a reservation inside a dhcp range (1.10.4.3.2)
+PLAN = {"vlans": [{"id": 23, "name": "lab", "access": "full"}, {"id": 24, "name": "guests", "access": "guest"}],
+        "subnets": [{"name": "lab", "cidr": SUBNET, "vlan": 23, "gateway": "10.254.23.1", "dhcp": True, "id": 7,
+                     "relay": "", "notes": "", "allow_overlap": "", "options": [{"name": "time-offset", "data": "60"}],
+                     "ranges": [{"kind": "dhcp", "first": "10.254.23.100", "last": "10.254.23.150"}],
+                     "addresses": [{"ip": "10.254.23.120", "kind": "reservation", "name": "inpool",
+                                    "mac": "02:00:00:00:00:43", "dns": False,
+                                    "options": [{"name": "boot-file-name", "data": "x.efi"}]},
+                                   {"ip": "10.254.23.9", "kind": "static", "name": "nas", "mac": "", "dns": True,
+                                    "options": []}]},
+                    {"name": "guests", "cidr": "10.254.24.0/24", "vlan": 24, "gateway": "10.254.24.1", "dhcp": True,
+                     "id": 8, "relay": "", "notes": "", "allow_overlap": "", "options": [],
+                     "ranges": [{"kind": "dhcp", "first": "10.254.24.100", "last": "10.254.24.200"}],
+                     "addresses": []}]}
+pv = {**V, "dhcp": normalize_dhcp({**V, "dhcp": {**V["dhcp"], "subnets": plan_to_dhcp(PLAN)["subnets"]}})}
+plan_cfg = env.get_template("kea/kea-dhcp4.conf.j2").render(**pv)
+try:
+    plan_ok = check_kea_config("fabric/kea:test", "kea-dhcp4.conf", plan_cfg) is True
+except ValidationError as e:
+    plan_ok = str(e)
+check("Kea accepts a configuration rendered from an address plan: two VLANs' subnets, a reservation inside the "
+      "DHCP range, options on a subnet and a reservation", plan_ok is True and '"10.254.23.120"' in plan_cfg
+      and '"id": 8' in plan_cfg, plan_ok)
 os.makedirs(f"{W}/bind9/config", exist_ok=True)
 bv = {**V, "dns": {}, "bind_acls": {"lan": ["any"]}, "tsig_keys": [], "tsig_secrets": {}, "kea_ddns_secret": secret,
       "reverse_zone_names": [REV]}

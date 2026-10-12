@@ -14,6 +14,8 @@ from fabriclib.dhcp.normalize_dhcp import normalize_dhcp
 from fabriclib.federation.network_conflicts import network_conflicts
 from fabriclib.federation.read_address_plan import read_address_plan
 from fabriclib.federation.site_networks import site_networks
+from fabriclib.ipam.common.plan_holds_subnets import MOVED, plan_holds_subnets
+from fabriclib.ipam.planned_subnets import planned_subnets
 
 
 def _check_address_plan(before, data):
@@ -55,21 +57,31 @@ def edit_dhcp(actor, event, change, source="cli"):
     Fails:   ValidationError from change, normalize_dhcp or Kea's check (check_kea_config: an option Kea does not
              know, data that does not fit, a class expression it cannot parse) or the address plan (a subnet
              overlapping another site's network without allow_overlap) — nothing is saved then, so a
-             refused change never breaks the next apply; OSError or yaml.YAMLError from vars_lock / load_vars /
+             refused change never breaks the next apply; MOVED once the subnets live in the address plan and the
+             change touches one (global options and client classes stay in the settings, 1.10.4.9; they are checked
+             with the plan's subnets); OSError or yaml.YAMLError from vars_lock / load_vars /
              save_vars / write_audit.
     Feeds:   dhcp/add_subnet, update_subnet, remove_subnet, set_option, unset_option, add_client_class,
              remove_client_class."""
     with vars_lock():
         data = load_vars()
+        planned = plan_holds_subnets(data)
+        if planned:                          # checked with the plan's subnets, saved without them (1.10.4.9)
+            data["dhcp"] = {**(data.get("dhcp") or {}), "subnets": planned_subnets(data)}
         before = copy.deepcopy(data)
         dhcp = normalize_dhcp({**data, "dhcp": copy.deepcopy(data.get("dhcp") or {}), "install_kea": True})
+        kept = copy.deepcopy(dhcp["subnets"])
         result, detail = change(dhcp)
         data["dhcp"] = normalize_dhcp({**data, "dhcp": dhcp, "install_kea": True})
+        if planned and data["dhcp"]["subnets"] != kept:
+            raise ValidationError(MOVED)
         _check_address_plan(before, data)
         if data.get("install_kea"):         # vars.yaml holds the rendered settings: render Kea's file from them
             env = jinja_env(deploy_paths()["jinja"])
             text = env.get_template("kea/kea-dhcp4.conf.j2").render(**data)
             check_kea_config(kea_image(env, data), "kea-dhcp4.conf", text)
+        if planned:
+            data["dhcp"] = {k: val for k, val in data["dhcp"].items() if k != "subnets"}
         save_vars(data)
     write_audit(actor, event, detail, source)
     return result, data["dhcp"]

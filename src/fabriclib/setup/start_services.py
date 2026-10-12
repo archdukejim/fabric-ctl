@@ -9,6 +9,7 @@ from fabriclib.directory.ensure_default_device_roles import ensure_default_devic
 from fabriclib.dns_filter.resolver_tls_pending import resolver_tls_pending
 from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.keycloak.install_sso_keytab import install_sso_keytab
+from fabriclib.ipam.move_subnets_to_plan import move_subnets_to_plan
 from fabriclib.samba.converge_domain import converge_domain
 from fabriclib.samba.finish_join import finish_join
 from fabriclib.samba.write_bind_dlz import write_bind_dlz
@@ -30,10 +31,11 @@ def run(ctx):
              restart); target_dir (lib/keycloak_bootstrap.py), vars_file, secrets_file, config_dir.
     Returns: None. fabric.target enabled and started; renamed units retired; the deploy rendered again when the DNS
              filter's certificate arrived after it (DoT and DoH, 1.12.2.16); every enabled unit running and its
-             container healthy; the domain converged; Keycloak given the DC's Kerberos keytab; Keycloak configured (up
-             to 6 tries, 15 s apart); fabric-agent and fabric-web running when the web UI is on; fabric-federation
-             running when federation_endpoint is on. Once Keycloak's password is OpenBao's, Postgres's roles are
-             made to match fabric's secrets before Keycloak starts (a reinstall's fresh data folder, 2.1.7.4).
+             container healthy; the domain converged; 0.7's DHCP subnets moved into the address plan (1.10.4.15);
+             Keycloak given the DC's Kerberos keytab; Keycloak configured (up to 6 tries, 15 s apart); fabric-agent and
+             fabric-web running when the web UI is on; fabric-federation running when federation_endpoint is on.
+             Once Keycloak's password is OpenBao's, Postgres's roles are made to match fabric's secrets before
+             Keycloak starts (a reinstall's fresh data folder, 2.1.7.4).
     Fails:   SetupError when a container is not healthy (start_unit), the domain cannot be converged, the default
              device roles cannot be made, or Keycloak configuration still fails after 6 tries; CalledProcessError
              from systemctl.
@@ -61,6 +63,8 @@ def run(ctx):
     except ValidationError as e:
         raise SetupError(str(e))
     ok(f"directory {v['ad_domain']}: " + (f"{len(done)} change(s)" if done else "as wanted"))
+    for line in move_subnets_to_plan(v, ctx.secrets):        # once: 0.7's subnets into the address plan (1.10.4.15)
+        info(line)
     if v.get("install_keycloak") and install_sso_keytab(v):     # Kerberos sign-in's keytab (manual 2.3.6.2.6.2)
         ok(f"keycloak: {start_unit('keycloak', 'keycloak', True)} (Kerberos sign-in keytab)")
     if (ctx.secrets or {}).get("ad_join"):        # a site whose DC just joined: its join account goes (1.9.8.4)
