@@ -835,7 +835,10 @@ assert fabric_record(v2, "dynamic_zone_var", "CNAME", _info) == {"service": "the
                                                                  "setting": "landing_page_cname"}
 assert [r["name"] for r in _site["CNAME"] if not fabric_record(v2, "dynamic_zone_var", "CNAME", r)] == ["calibre"], \
     _site["CNAME"]
-assert all(fabric_record(v2, "dynamic_zone_var", "A", r) for r in _site["A"]), _site["A"]
+# the host's own A records are fabric's (an admin's record at another address is not: the hardening suite renders
+# with host_ip 127.0.0.1 beside the fixture's pi-core at 192.168.7.53)
+_own = [r for r in _site["A"] if r["ip"] == v2["host_ip"]]
+assert _own and all(fabric_record(v2, "dynamic_zone_var", "A", r) for r in _own), _site["A"]
 _host = {"name": v2["hostname"], "ip": v2["host_ip"]}
 assert fabric_record(v2, "dynamic_zone_var", "A", _host)["setting"] == "hostname"
 assert fabric_record(v2, "dynamic_zone_var", "CNAME", {"name": "info", "canonical": "nas25"}) is None, \

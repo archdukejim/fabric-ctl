@@ -1488,7 +1488,7 @@ tests/pki/renewal.py	202d8fca898ca32e22ac5d487f4fe7ed5630a8fe	2026-10-12
 tests/pki/revocation.py	cf80ad8b84912f80b941f8fcf3387825e9ba18e6	2026-10-12	
 tests/pki/run.py	df0df25262c471531ff1bc5da54b6cc4c889e663	2026-10-12	
 tests/pki/site_ca.py	6e71ca7798e1aa94ce0f43160716ac57302bec65	2026-10-08	
-tests/render.py	3c2ac1860b20111721d1070695aa8cfde2a4bdbf	2026-10-12	
+tests/render.py	3e2e2193c3125adc6497788e40984e4b71b31c22	2026-10-12	
 tests/resolver/README.md	5deedb8081cac3e1e9090cc764c1db4b1687c442	2026-10-12	
 tests/resolver/console.py	f179c3df2f72589c15f8cf55320a341915625d11	2026-10-12	
 tests/resolver/groups.py	13e2709fab07db2cfce3b4a24b13e542b882d45a	2026-10-12	
