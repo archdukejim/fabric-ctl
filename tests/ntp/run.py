@@ -17,9 +17,9 @@ import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/ntp"
-NET_A, SUB_A, SRV_A = "ntp_test_lan", "10.254.42.0/24", "10.254.42.10"
-NET_B, SUB_B, SRV_B = "ntp_test_other", "10.254.43.0/24", "10.254.43.10"
-SITE_IP = "10.254.42.20"
+NET_A, SUB_A, SRV_A = "ntp_test_lan", "10.254.46.0/24", "10.254.46.10"
+NET_B, SUB_B, SRV_B = "ntp_test_other", "10.254.47.0/24", "10.254.47.10"
+SITE_IP = "10.254.46.20"
 IMAGE = "fabric/chrony:test"
 FAILED = 0
 

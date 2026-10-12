@@ -1485,9 +1485,9 @@ tests/lint/parse_py.py	2274821472d00fc05121d488e8d124c1a87d28b8	2026-10-10
 tests/lint/run.sh	65cb637fbb502f8a1acb006605509c0cec72be2c	2026-10-12	
 tests/nginx_check.sh	d41ad12b92c4ae5b509cc048987b12484f17d618	2026-10-09	
 tests/ntp/README.md	37e7cca81172f8a93564bcd84d2a894591b76848	2026-10-02	
-tests/ntp/run.py	cab50473c8f2493b29c2f775bef6719bf46c70f8	2026-10-12	
+tests/ntp/run.py	d0e97cff6c986d75f0265fbe37e2570b79b6f04e	2026-10-12	
 tests/openbao/README.md	068ff5048f630b55d42c0c65b3d4dc7d428c8fd3	2026-10-12	
-tests/openbao/db_rotation.py	98556342b4f9f70fbd7541c710c22f576b5998fd	2026-10-09	
+tests/openbao/db_rotation.py	96cce10dd1b4657f95d485ced41a9baa70d6160a	2026-10-12	
 tests/openbao/run.py	b81db03cdc10f2ad8f30acc184b1322403b104c2	2026-10-12	
 tests/pki/README.md	c00ae570e87e3a05c979e041a56057b2b388ec7e	2026-10-08	
 tests/pki/acme.py	453de69ae0b33c283f9f662ddbd539c747b1eec0	2026-10-12	
@@ -1512,7 +1512,7 @@ tests/samba/logon.py	89cb995e97b1e46e10f52a796ad3fc797bdac77d	2026-10-12
 tests/samba/run.py	54e6e58ce5bb15c041fed6ca92e54578fcc63a0e	2026-10-12	
 tests/samba/site_join.py	8f6e84afbe8614ed7c343f06974b7b286ceeed90	2026-10-12	
 tests/samba/start_bind.py	d99f3b9ebf76a0c6bb2047503e1add88e4b3db88	2026-10-08	
-tests/samba/start_dc.py	dbba89a09d650988ed479f31ad6b46904c16561f	2026-10-11	
+tests/samba/start_dc.py	e4e802c0b6c28944fda4d43947c5f34c47f27bb4	2026-10-12	
 tests/sandbox/Dockerfile	20b0b4c920006cd304cbe258c176c85b9e12b2a5	2026-10-10	
 tests/sandbox/README.md	684fac06bb91c31475f8aae127bf622078b0b055	2026-10-09	
 tests/sandbox/agent_job.py	b28da07392e6a32c9778411d7c9ec615bb1c2fad	2026-10-09	
