@@ -16,6 +16,7 @@
 | `choose_plan.py` | Show the (hardened) default plan; Proceed / Advanced / Quit |
 | `permanent_mark.py` | The yellow "⚠ Permanent" after a question whose setting is in the vars editor's `IMMUTABLE_KEYS` (2.1.2.20) |
 | `ask_dc_name.py` | The domain controller's own name (permanent; `dc-<hostname>` suggested), asked when missing (2.1.6.45) |
+| `ask_site_number.py` | The site's number (the second octet of the subnets fabric suggests), asked once at the start step while it has none (2.1.10.16) |
 | `ask_ad_domain.py` | The directory's AD domain (permanent; a sibling suggested), asked when missing; its password policy starts from the default (2.1.6.35) |
 | `ask_first_admin.py` | The first admin's password, chosen in setup: typed twice and checked against the policy, or from `--admin-password-file` (2.1.6.33) |
 | `preflight.py` | Refuse a host without amd64/arm64, root, enough RAM or the cgroup memory controller; warn about untested OS and conflicting listeners |

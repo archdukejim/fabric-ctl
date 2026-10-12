@@ -95,6 +95,7 @@ file	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py	48
 file	fabricctl-jinja|src/containers/samba/write_plan.py	77	
 file	fabricctl-lib|src/federation/server.py	1	
 file	fabricctl-lib|src/ux/cli/keycloak_bootstrap.py	2	
+file	fabriclib-common|src/fabriclib/common/ask.py	28	
 file	fabriclib-common|src/fabriclib/common/console.py	1	
 file	fabriclib-common|src/fabriclib/common/copy_if_changed.py	2	
 file	fabriclib-common|src/fabriclib/common/copy_tree_with_perms.py	3	
@@ -374,13 +375,17 @@ file	fabriclib-images|src/fabriclib/images/update_images.py	10
 file	fabriclib-images|src/fabriclib/images/verify_signature.py	13	
 file	fabriclib-ipam|src/fabriclib/ipam/add_address.py	1	
 file	fabriclib-ipam|src/fabriclib/ipam/add_range.py	2	
+file	fabriclib-ipam|src/fabriclib/ipam/add_subnet.py	30	
 file	fabriclib-ipam|src/fabriclib/ipam/add_vlan.py	3	
 file	fabriclib-ipam|src/fabriclib/ipam/check_address.py	4	
+file	fabriclib-ipam|src/fabriclib/ipam/check_block.py	31	
 file	fabriclib-ipam|src/fabriclib/ipam/check_range.py	5	
 file	fabriclib-ipam|src/fabriclib/ipam/check_subnet.py	6	
 file	fabriclib-ipam|src/fabriclib/ipam/check_vlan.py	7	
+file	fabriclib-ipam|src/fabriclib/ipam/common/change_subnet.py	32	
 file	fabriclib-ipam|src/fabriclib/ipam/common/edit_plan.py	8	
 file	fabriclib-ipam|src/fabriclib/ipam/common/fields.py	9	
+file	fabriclib-ipam|src/fabriclib/ipam/common/new_subnet.py	33	
 file	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py	10	
 file	fabriclib-ipam|src/fabriclib/ipam/common/plan_holds_subnets.py	11	
 file	fabriclib-ipam|src/fabriclib/ipam/common/site_plan.py	12	
@@ -394,10 +399,14 @@ file	fabriclib-ipam|src/fabriclib/ipam/planned_subnets.py	19
 file	fabriclib-ipam|src/fabriclib/ipam/read_plan.py	20	
 file	fabriclib-ipam|src/fabriclib/ipam/remove_address.py	21	
 file	fabriclib-ipam|src/fabriclib/ipam/remove_range.py	22	
+file	fabriclib-ipam|src/fabriclib/ipam/remove_subnet.py	34	
 file	fabriclib-ipam|src/fabriclib/ipam/remove_vlan.py	23	
 file	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py	24	
 file	fabriclib-ipam|src/fabriclib/ipam/set_address.py	25	
+file	fabriclib-ipam|src/fabriclib/ipam/set_block.py	35	
+file	fabriclib-ipam|src/fabriclib/ipam/set_subnet.py	36	
 file	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py	26	
+file	fabriclib-ipam|src/fabriclib/ipam/show_plan.py	37	
 file	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py	27	
 file	fabriclib-ipam|src/fabriclib/ipam/suggestions.py	28	
 file	fabriclib-ipam|src/fabriclib/ipam/write_plan.py	29	
@@ -596,6 +605,7 @@ file	fabriclib-setup|src/fabriclib/setup/ask_dc_name.py	48
 file	fabriclib-setup|src/fabriclib/setup/ask_first_admin.py	45	
 file	fabriclib-setup|src/fabriclib/setup/ask_kerberos.py	46	0.6.4 / 2026-10-09
 file	fabriclib-setup|src/fabriclib/setup/ask_ram.py	40	0.6.4 / 2026-10-09
+file	fabriclib-setup|src/fabriclib/setup/ask_site_number.py	50	
 file	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py	38	0.5.0 / 2026-10-04
 file	fabriclib-setup|src/fabriclib/setup/backup_install.py	1	
 file	fabriclib-setup|src/fabriclib/setup/check_export_dir.py	2	
@@ -1056,6 +1066,10 @@ function	fabricctl-lib|src/federation/server.py|Handler.reply	4
 function	fabricctl-lib|src/federation/server.py|UnixServer.verify_request	7	
 function	fabricctl-lib|src/federation/server.py|main	8	
 function	fabricctl-lib|src/ux/cli/keycloak_bootstrap.py|main	1	
+function	fabriclib-common|src/fabriclib/common/ask.py|_check	1	
+function	fabriclib-common|src/fabriclib/common/ask.py|ask	2	
+function	fabriclib-common|src/fabriclib/common/ask.py|ask_secret	3	
+function	fabriclib-common|src/fabriclib/common/ask.py|ask_yes_no	4	
 function	fabriclib-common|src/fabriclib/common/console.py|err	5	
 function	fabriclib-common|src/fabriclib/common/console.py|heading	1	
 function	fabriclib-common|src/fabriclib/common/console.py|info	2	
@@ -1452,19 +1466,27 @@ function	fabriclib-images|src/fabriclib/images/verify_signature.py|verify_signat
 function	fabriclib-ipam|src/fabriclib/ipam/add_address.py|_subnet_for	1	
 function	fabriclib-ipam|src/fabriclib/ipam/add_address.py|add_address	2	
 function	fabriclib-ipam|src/fabriclib/ipam/add_range.py|add_range	1	
+function	fabriclib-ipam|src/fabriclib/ipam/add_subnet.py|_free_name	1	
+function	fabriclib-ipam|src/fabriclib/ipam/add_subnet.py|add_subnet	2	
 function	fabriclib-ipam|src/fabriclib/ipam/add_vlan.py|add_vlan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/check_address.py|check_address	1	
+function	fabriclib-ipam|src/fabriclib/ipam/check_block.py|check_block	1	
 function	fabriclib-ipam|src/fabriclib/ipam/check_range.py|check_range	1	
 function	fabriclib-ipam|src/fabriclib/ipam/check_subnet.py|_overlap_message	1	
 function	fabriclib-ipam|src/fabriclib/ipam/check_subnet.py|check_subnet	2	
 function	fabriclib-ipam|src/fabriclib/ipam/check_vlan.py|check_vlan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/change_subnet.py|_gateway_claim	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/change_subnet.py|change_subnet	2	
 function	fabriclib-ipam|src/fabriclib/ipam/common/edit_plan.py|edit_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|find_address	6	
+function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|find_subnet	8	
 function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|find_vlan	5	
 function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|host_in	4	
 function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|ipv4	3	
 function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|notes	2	
 function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|one_line	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|subnet_holding	7	
+function	fabriclib-ipam|src/fabriclib/ipam/common/new_subnet.py|new_subnet	1	
 function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|load_plan_cache	2	
 function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|plan_cache_path	1	
 function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|save_plan_cache	3	
@@ -1482,6 +1504,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/planned_subnets.py|planned_subnets	1
 function	fabriclib-ipam|src/fabriclib/ipam/read_plan.py|read_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/remove_address.py|remove_address	1	
 function	fabriclib-ipam|src/fabriclib/ipam/remove_range.py|remove_range	1	
+function	fabriclib-ipam|src/fabriclib/ipam/remove_subnet.py|remove_subnet	1	
 function	fabriclib-ipam|src/fabriclib/ipam/remove_vlan.py|remove_vlan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_done	7	
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_keep	3	
@@ -1489,11 +1512,15 @@ function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_leases	4
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_on_off	2	
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_parse	1	
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_print_rows	6	
-function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_show	5	
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_show	5	0.7.0 / 2026-10-12
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_subnet_line	9	
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|run_ipam_command	8	
 function	fabriclib-ipam|src/fabriclib/ipam/set_address.py|set_address	1	
-function	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py|_gateway_claim	1	
+function	fabriclib-ipam|src/fabriclib/ipam/set_block.py|set_block	1	
+function	fabriclib-ipam|src/fabriclib/ipam/set_subnet.py|set_subnet	1	
+function	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py|_gateway_claim	1	0.7.0 / 2026-10-12
 function	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py|set_vlan	2	
+function	fabriclib-ipam|src/fabriclib/ipam/show_plan.py|show_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py|_label	1	
 function	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py|subnets_to_plan	2	
 function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_block	3	
@@ -1764,6 +1791,7 @@ function	fabriclib-setup|src/fabriclib/setup/ask_first_admin.py|ask_first_admin	
 function	fabriclib-setup|src/fabriclib/setup/ask_kerberos.py|ask_kerberos	1	0.6.4 / 2026-10-09
 function	fabriclib-setup|src/fabriclib/setup/ask_ram.py|_plan	1	0.6.4 / 2026-10-09
 function	fabriclib-setup|src/fabriclib/setup/ask_ram.py|ask_ram	2	0.6.4 / 2026-10-09
+function	fabriclib-setup|src/fabriclib/setup/ask_site_number.py|ask_site_number	1	
 function	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py|_number	1	0.5.0 / 2026-10-04
 function	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py|ask_windows_domain	2	0.5.0 / 2026-10-04
 function	fabriclib-setup|src/fabriclib/setup/backup_install.py|backup_install	1	

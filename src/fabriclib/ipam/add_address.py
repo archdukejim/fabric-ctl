@@ -3,7 +3,7 @@ import ipaddress
 from fabriclib.common.errors import ValidationError
 from fabriclib.ipam.check_address import check_address
 from fabriclib.ipam.common.edit_plan import edit_plan
-from fabriclib.ipam.common.fields import find_vlan, ipv4
+from fabriclib.ipam.common.fields import find_vlan, ipv4, subnet_holding
 
 
 def _subnet_for(plan, ip, vid):
@@ -15,10 +15,8 @@ def _subnet_for(plan, ip, vid):
              one (allowed overlaps) and no VLAN was named.
     Feeds:   add_address."""
     if vid is not None:
-        vlan, sub = find_vlan(plan, vid)
-        if sub is None:
-            raise ValidationError(f"VLAN {vlan['id']} has no subnet (a record only)")
-        return sub
+        vlan, subs = find_vlan(plan, vid)
+        return subnet_holding(vlan, subs, ip, "address")
     holding = [s for s in plan["subnets"] if ip in ipaddress.ip_network(s["cidr"])]
     if not holding:
         raise ValidationError(f"{ip} is in none of {plan['site']}'s subnets")
@@ -30,9 +28,9 @@ def _subnet_for(plan, ip, vid):
 def add_address(v, actor, ip, kind, site="", name="", mac="", owner="", notes="", dns=False, vid=None,
                 secrets=None, container="samba", source="cli"):
     """Purpose: an address recorded in a site's plan (manual 1.10.4.3, 1.10.4.16): a static address, a reservation (a
-             MAC's fixed address, served by Kea) or infrastructure, with its name, MAC, owner and notes, and for a
-             static or infrastructure address with DNS on, an A and a PTR in the site's zone at its next apply. One
-             claim per address; check_address's rules and warnings.
+             MAC's fixed address, served by Kea) or infrastructure, with its name, MAC, owner and notes, and with
+             DNS on an A and a PTR in the site's zone at its next apply (a reservation's beside DHCP's own name in
+             dhcp.<domain>, 2.1.10.17). One claim per address; check_address's rules and warnings.
     Inputs:  v — fabric vars (site_name, dns: the settings' own records of this site's zone); actor — who asks
              (audit); ip — the address; kind — static, reservation or infrastructure; site — whose plan ("" this
              site's); name, mac, owner, notes — text; dns — bool; vid — the VLAN whose subnet holds it (only needed

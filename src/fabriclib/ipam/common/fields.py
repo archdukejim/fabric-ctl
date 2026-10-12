@@ -66,11 +66,11 @@ KEEP = object()          # a field a change leaves as it is (set_vlan, set_addre
 
 
 def find_vlan(plan, vid):
-    """Purpose: a VLAN of the site's plan and its subnet, by ID.
+    """Purpose: a VLAN of the site's plan and its subnets, by ID (a VLAN may have several, 2.1.10.18).
     Inputs:  plan — the site's plan; vid — int or str (a VLAN ID as typed).
-    Returns: (vlan, subnet or None).
+    Returns: (vlan, list of its subnets' plan entries in the plan's order; [] for a record only).
     Fails:   ValidationError "VLAN <id> is not in <site>'s plan" (or not a number).
-    Feeds:   set_vlan, remove_vlan, add_range, remove_range, add_address."""
+    Feeds:   set_vlan, remove_vlan, add_range, remove_range, add_address, add_subnet."""
     try:
         vid = int(str(vid).strip())
     except ValueError:
@@ -78,7 +78,39 @@ def find_vlan(plan, vid):
     vlan = next((x for x in plan["vlans"] if x["id"] == vid), None)
     if vlan is None:
         raise ValidationError(f"VLAN {vid} is not in {plan['site']}'s plan")
-    return vlan, next((s for s in plan["subnets"] if s.get("vlan") == vid), None)
+    return vlan, [s for s in plan["subnets"] if s.get("vlan") == vid]
+
+
+def subnet_holding(vlan, subnets, ip, what):
+    """Purpose: which of a VLAN's subnets an address belongs in: the only one, or the one holding it.
+    Inputs:  vlan — the VLAN; subnets — its subnets (find_vlan); ip — IPv4Address; what — the address's role for the
+             message (e.g. "first address").
+    Returns: the subnet's plan entry (with one subnet, that one even when the address lies outside it: the caller's
+             check then says so).
+    Fails:   ValidationError: a VLAN without a subnet (a record only); with several, an address in none of them.
+    Feeds:   add_range, add_address."""
+    if not subnets:
+        raise ValidationError(f"VLAN {vlan['id']} has no subnet (a record only)")
+    if len(subnets) == 1:
+        return subnets[0]
+    holding = [s for s in subnets if ip in ipaddress.ip_network(s["cidr"])]
+    if not holding:
+        raise ValidationError(f"{what} {ip} is in none of VLAN {vlan['id']}'s subnets ("
+                              + ", ".join(s["cidr"] for s in subnets) + ")")
+    return holding[0]
+
+
+def find_subnet(plan, text):
+    """Purpose: a subnet of the site's plan by its name or its network (`fabricctl ipam subnet`, 2.1.10.18).
+    Inputs:  plan — the site's plan; text — str, a subnet's name or its network as typed.
+    Returns: the subnet's plan entry.
+    Fails:   ValidationError "<text> is not a subnet of <site>'s plan".
+    Feeds:   set_subnet, remove_subnet."""
+    want = str(text or "").strip().lower()
+    for s in plan["subnets"]:
+        if want in (s["name"], s["cidr"]):
+            return s
+    raise ValidationError(f"{text!r} is not a subnet of {plan['site']}'s plan: give its name or its network")
 
 
 def find_address(plan, ip):

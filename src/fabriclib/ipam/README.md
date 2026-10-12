@@ -10,7 +10,9 @@ from it at every apply. The rules are pure functions checked before anything is 
 | `check_subnet.py` | A subnet checked: an IPv4 network, its gateway, relay, no overlap in the organisation without a reason |
 | `check_range.py` | A range checked: kind, inside its subnet, no overlap; a dhcp range holds only reservations |
 | `check_address.py` | An address checked: one claim each, only reservations in a dhcp range, MAC and DNS name rules; warnings |
+| `check_block.py` | A site's number checked: 1-255, no other site's |
 | `suggestions.py` | What fabric suggests: a VLAN's subnet, the split of a /24, a site's number |
+| `show_plan.py` | One site's plan as text: its number, each VLAN with each of its subnets, ranges and addresses |
 | `plan_to_dhcp.py` | A site's plan as Kea's `dhcp.subnets` and the A records of its published addresses |
 | `subnets_to_plan.py` | The upgrade's changes: 0.7's `dhcp.subnets` as VLANs, subnets, ranges and reservations |
 | `plan_rows.py` | A site's address table: gateways, recorded addresses, leases |
@@ -22,12 +24,16 @@ from it at every apply. The rules are pure functions checked before anything is 
 | `load_address_plan.py` | At an apply: the plan read (or the last one kept) into Kea's subnets and the site's zone |
 | `move_subnets_to_plan.py` | The upgrade: a site's `dhcp.subnets` moved into its plan once, recorded |
 | `add_vlan.py` | Add a VLAN with its subnet (suggested or given), gateway and the suggested ranges |
-| `set_vlan.py` | Change a VLAN's record and its subnet's gateway, DHCP, relay, overlap reason |
-| `remove_vlan.py` | Remove a VLAN with its subnet (refused while it records addresses, unless forced) |
+| `set_vlan.py` | Change a VLAN's record, and the subnet's settings of a VLAN with one subnet |
+| `remove_vlan.py` | Remove a VLAN with its subnets (refused while they record addresses, unless forced) |
+| `set_block.py` | Set or change a site's number (what fabric suggests from then on) |
+| `add_subnet.py` | Add another subnet to a VLAN (or a first one to a VLAN kept as a record) |
+| `set_subnet.py` | Change a subnet's gateway, DHCP, relay, notes, overlap reason |
+| `remove_subnet.py` | Remove one subnet with its ranges and addresses (refused while it records addresses, unless forced) |
 | `add_range.py` | Add a range to a VLAN's subnet |
 | `remove_range.py` | Remove a range by its first address |
 | `add_address.py` | Record an address: static, reservation or infrastructure |
 | `set_address.py` | Change a recorded address |
 | `remove_address.py` | Remove a recorded address |
-| `run_ipam_command.py` | `fabricctl ipam show / find / export / vlan / range / address` (applies a change to this site unless `--no-apply`) |
+| `run_ipam_command.py` | `fabricctl ipam show / find / export / block / vlan / subnet / range / address` (applies a change to this site unless `--no-apply`) |
 | `common/` | Helpers shared by the commands: the checked edit, the plan's fields, the kept copy |

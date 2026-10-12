@@ -44,7 +44,7 @@ def find_in_plan(read, text, leases=None, site=""):
             out += [r for r in rows if r["name"].lower() == want]
             for v in plan["vlans"]:
                 if v["name"] == want:
-                    sub = next((s["cidr"] for s in plan["subnets"] if s.get("vlan") == v["id"]), "")
+                    sub = " ".join(s["cidr"] for s in plan["subnets"] if s.get("vlan") == v["id"])   # 2.1.10.18
                     out.append({"site": name, "vlan": v["id"], "vlan_name": v["name"], "subnet": sub, "ip": "",
                                 "kind": "vlan", "range": "", "name": v["name"], "mac": "", "owner": "", "dns": "",
                                 "lease": "", "notes": v.get("notes") or ""})

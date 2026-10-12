@@ -1,9 +1,8 @@
 from fabriclib.common.errors import ValidationError
-from fabriclib.ipam.check_range import check_range
-from fabriclib.ipam.check_subnet import check_subnet
 from fabriclib.ipam.check_vlan import check_vlan
 from fabriclib.ipam.common.edit_plan import edit_plan
-from fabriclib.ipam.suggestions import suggest_block, suggest_split, suggest_subnet
+from fabriclib.ipam.common.new_subnet import new_subnet
+from fabriclib.ipam.suggestions import suggest_block, suggest_subnet
 
 
 def add_vlan(v, actor, vid, name, site="", subnet="", no_subnet=False, gateway="", purpose="", notes="",
@@ -44,28 +43,9 @@ def add_vlan(v, actor, vid, name, site="", subnet="", no_subnet=False, gateway="
             cidr = suggest_subnet(block, vlan["id"])
             if not cidr:
                 raise ValidationError(f"no subnet to suggest for VLAN {vlan['id']}: give --subnet (or --no-subnet)")
-        sug = suggest_split(cidr) if "/" in cidr else {"gateway": "", "ranges": []}
-        legacy = next((n for n in plan["networks"] if n["name"] == vlan["name"]), None)
-        sub = check_subnet({"name": vlan["name"], "cidr": cidr, "vlan": vlan["id"],
-                            "gateway": gateway or sug["gateway"], "dhcp": dhcp, "relay": relay, "notes": "",
-                            "allow_overlap": allow_overlap}, plan, plan["site"], org,
-                           v.get("fabric_subnet") or "10.255.0.0/24", current=vlan["name"] if legacy else None)
-        if legacy and legacy["cidr"] != sub["cidr"]:
-            raise ValidationError(f"the name {sub['name']} is the site's network {legacy['cidr']}: choose another "
-                                  "name, or give that network as the subnet")
-        sub["kind"] = "dhcp" if sub["dhcp"] else "subnet"
-        sub["id"] = max([s.get("id") or 0 for s in plan["subnets"]] + [0]) + 1
-        sub["options"] = []
-        changes.append({"do": "set" if legacy else "add", "what": "subnet", "site": plan["site"], "key": sub["name"],
-                        "fields": sub})
-        held = {**sub, "ranges": [], "addresses": []}
-        for r in (sug["ranges"] if split else []):
-            if r["kind"] == "gateway" and r["first"] != sub["gateway"]:
-                continue                   # a gateway elsewhere: its range is not the suggested .1
-            rng = check_range(r, held)
-            held["ranges"].append(rng)
-            changes.append({"do": "add", "what": "range", "site": plan["site"], "subnet": sub["name"],
-                            "key": f"{rng['kind']}-{rng['first']}", "fields": rng})
-        out.update(subnet=sub, ranges=held["ranges"])
+        more, sub, ranges = new_subnet(v, plan, org, vlan, cidr, vlan["name"], gateway, dhcp, relay, "",
+                                       allow_overlap, split)
+        changes += more
+        out.update(subnet=sub, ranges=ranges)
         return changes, out, f"vlan={vlan['id']} name={vlan['name']} subnet={sub['cidr']}", []
     return edit_plan(v, actor, site, "IPAM_VLAN_ADD", change, secrets, container, source, networks=not no_subnet)

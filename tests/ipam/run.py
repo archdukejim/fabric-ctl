@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """The `ipam` suite (manual 1.10.4.17): the address manager's model with no container: its rules (one claim per
 address, ranges inside their subnet and apart, only reservations in a dhcp range, overlaps refused unless a reason is
-given), its suggestions, a plan rendered for Kea (and checked by fabric's normalize_dhcp and the Kea template), the
+given), its suggestions, the site's number, several subnets on one VLAN and a reservation published in DNS
+(2.1.10.16-18), a plan rendered for Kea (and checked by fabric's normalize_dhcp and the Kea template), the
 upgrade's changes from 0.7's subnets, the address table, find and export, and `fabricctl ipam`'s refusals that need
 no domain. The plan in a real domain: tests/samba/ipam.py.
 
@@ -9,6 +10,7 @@ no domain. The plan in a real domain: tests/samba/ipam.py.
 """
 import copy
 import io
+import ipaddress
 import json
 import os
 import sys
@@ -20,14 +22,17 @@ from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.dhcp.normalize_dhcp import normalize_dhcp  # noqa: E402
 from fabriclib.ipam.check_address import check_address  # noqa: E402
+from fabriclib.ipam.check_block import check_block  # noqa: E402
 from fabriclib.ipam.check_range import check_range  # noqa: E402
 from fabriclib.ipam.check_subnet import check_subnet  # noqa: E402
 from fabriclib.ipam.check_vlan import check_vlan  # noqa: E402
+from fabriclib.ipam.common.fields import find_subnet, find_vlan, subnet_holding  # noqa: E402
 from fabriclib.ipam.export_plan import export_plan  # noqa: E402
 from fabriclib.ipam.find_in_plan import find_in_plan  # noqa: E402
 from fabriclib.ipam.plan_rows import plan_rows  # noqa: E402
 from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp  # noqa: E402
 from fabriclib.ipam.run_ipam_command import run_ipam_command  # noqa: E402
+from fabriclib.ipam.show_plan import show_plan  # noqa: E402
 from fabriclib.ipam.subnets_to_plan import subnets_to_plan  # noqa: E402
 from fabriclib.ipam.suggestions import suggest_block, suggest_split, suggest_subnet  # noqa: E402
 
@@ -167,9 +172,12 @@ check("refused: a reservation without a MAC", is_refused(lambda: check_address({
 check("refused: a MAC that already has a reservation",
       is_refused(lambda: check_address({"ip": "10.1.20.121", "kind": "reservation", "mac": "aa:bb:cc:dd:ee:01"}, SUB,
                                        PLAN), "already has a reservation: 10.1.20.150"))
-check("refused: DNS on a reservation (2.3.10.4.2)",
+r, w = check_address({"ip": "10.1.20.121", "kind": "reservation", "mac": "aa:bb:cc:dd:ee:03", "name": "cam9",
+                      "dns": True}, SUB, PLAN)
+check("a reservation may be published in DNS too, beside DHCP's own name (2.1.10.17)", r["dns"] and w == [], (r, w))
+check("refused: a reservation published under a name another address publishes",
       is_refused(lambda: check_address({"ip": "10.1.20.121", "kind": "reservation", "mac": "aa:bb:cc:dd:ee:03",
-                                        "name": "x", "dns": True}, SUB, PLAN), "registered by DHCP"))
+                                        "name": "nas", "dns": True}, SUB, PLAN), "already published"))
 check("refused: DNS without a name, and a name another address publishes",
       is_refused(lambda: check_address({"ip": "10.1.20.21", "kind": "static", "dns": True}, SUB, PLAN), "needs a name")
       and is_refused(lambda: check_address({"ip": "10.1.20.21", "kind": "static", "name": "nas", "dns": True}, SUB,
@@ -201,6 +209,57 @@ sites = [{"name": "lan", "created": "1", "block": 1}, {"name": "house2", "create
 check("a site's number: its order in the organisation", suggest_block(sites, "house2") == 2)
 check("a taken number gives the next free one", suggest_block([*sites[:2], {"name": "x", "created": "0", "block": 2}],
                                                               "house2") == 3)
+
+print("--- the site's number (2.1.10.16)")
+check("a free number from 1 to 255 is accepted, as typed or as an int", check_block("2", sites, "house2") == 2
+      and check_block(255, sites, "house2") == 255)
+check("a site keeps its own number", check_block(3, sites, "house3") == 3)
+check("refused: 0, 256, text and a boolean", is_refused(lambda: check_block("0", sites, "house2"), "1 to 255")
+      and is_refused(lambda: check_block(256, sites, "house2"), "1 to 255")
+      and is_refused(lambda: check_block("two", sites, "house2"), "1 to 255")
+      and is_refused(lambda: check_block(True, sites, "house2"), "1 to 255"))
+check("refused: another site's number, naming it", is_refused(lambda: check_block(3, sites, "house2"),
+                                                              "already house3's"))
+
+print("--- more than one subnet per VLAN (2.1.10.18)")
+SECOND = {"name": "iot-2", "cidr": "10.1.21.0/24", "vlan": 20, "gateway": "10.1.21.1", "dhcp": True, "id": 5,
+          "relay": "", "notes": "renumbering", "allow_overlap": "", "options": [],
+          "ranges": [{"kind": "dhcp", "first": "10.1.21.100", "last": "10.1.21.200", "notes": ""}],
+          "addresses": [{"ip": "10.1.21.150", "kind": "reservation", "name": "cam5", "mac": "aa:bb:cc:dd:ee:05",
+                         "owner": "", "notes": "", "dns": True, "options": []}]}
+TWO = {**PLAN, "subnets": [SUB, PLAN["subnets"][1], SECOND]}
+vlan20, subs20 = find_vlan(TWO, 20)
+check("a VLAN's subnets, in the plan's order", [s["name"] for s in subs20] == ["iot", "iot-2"])
+check("an address goes in the VLAN's subnet holding it",
+      subnet_holding(vlan20, subs20, ipaddress.ip_address("10.1.21.7"), "address")["name"] == "iot-2")
+check("refused: an address in none of the VLAN's subnets, naming them",
+      is_refused(lambda: subnet_holding(vlan20, subs20, ipaddress.ip_address("10.1.22.7"), "address"),
+                 "none of VLAN 20's subnets (10.1.20.0/24, 10.1.21.0/24)"))
+check("refused: a VLAN with no subnet", is_refused(lambda: subnet_holding({"id": 40}, [], None, "address"),
+                                                   "has no subnet"))
+check("a subnet by its name or its network", find_subnet(TWO, "IOT-2")["cidr"] == "10.1.21.0/24"
+      and find_subnet(TWO, "10.1.21.0/24")["name"] == "iot-2")
+check("refused: a subnet the plan does not have", is_refused(lambda: find_subnet(TWO, "10.9.0.0/24"),
+                                                             "is not a subnet of lan's plan"))
+two = plan_to_dhcp(TWO)
+check("both subnets of the VLAN are Kea's, with the VLAN; the reservation's name is an A record of the site's zone",
+      [(s["name"], s.get("vlan")) for s in two["subnets"]] == [("iot", 20), ("guest", 30), ("iot-2", 20)]
+      and {"name": "cam5", "ip": "10.1.21.150"} in two["records"], two)
+VT = {"install_kea": True, "domain": "lan.test", "host_ip": "192.168.4.2",
+      "dns": {"dynamic_zone_var": {"A": two["records"]}}, "dhcp": {"interfaces": ["eth0"], "subnets": two["subnets"]}}
+try:
+    check("fabric's DHCP checks accept two subnets on one VLAN and a reservation's A record inside its pool",
+          len(normalize_dhcp(VT)["subnets"]) == 3)
+except ValidationError as e:
+    check("fabric's DHCP checks accept two subnets on one VLAN and a reservation's A record inside its pool", False, e)
+check("refused still: a static A record inside a pool that is no reservation's",
+      is_refused(lambda: normalize_dhcp({**VT, "dns": {"dynamic_zone_var": {"A": [{"name": "x",
+                                                                                     "ip": "10.1.21.160"}]}}}),
+                 "inside a DHCP pool"))
+text = show_plan({"sites": [{"name": "lan", "created": "1", "block": 1}], "plans": {"lan": TWO}}, "lan")
+check("show: each of a VLAN's subnets under it, a second one by its name",
+      "VLAN 20    iot              10.1.20.0/24" in text and "10.1.21.0/24" in text and "subnet iot-2" in text
+      and "  10.1.21.150" in text, text)
 
 print("--- the plan rendered for Kea and DNS (1.10.4.14)")
 out = plan_to_dhcp(PLAN)
@@ -357,6 +416,25 @@ check("find without what to find: usage, exit 2", code == 2 and "usage:" in text
 # covers: cli:ipam.export -
 code, text = cli(["export", "a", "b"])
 check("export with two sites: usage, exit 2", code == 2 and "usage:" in text, text)
+# covers: cli:ipam.block -
+code, text = cli(["block", "1", "2"])
+check("block with two numbers: usage, exit 2", code == 2 and "usage:" in text, text)
+code, text = cli(["block", "7"])
+check("block without the domain's agent password: refused, saying why", code == 1 and "ad_agent_password" in text,
+      text)
+# covers: cli:ipam.subnet -
+code, text = cli(["subnet", "add", "20"])
+check("subnet add without its network: usage, exit 2", code == 2 and "usage:" in text, text)
+code, text = cli(["subnet", "add", "20", "10.1.21.0/24", "--dhcp", "maybe"])
+check("subnet add with --dhcp other than on or off: refused, exit 1", code == 1 and "--dhcp is on or off" in text,
+      text)
+code, text = cli(["subnet", "set", "iot-2"])
+check("subnet set with nothing to change: refused before the domain is asked", code == 1
+      and "nothing to change" in text, text)
+code, text = cli(["subnet", "remove"])
+check("subnet remove without a subnet: usage, exit 2", code == 2 and "usage:" in text, text)
+code, text = cli(["subnet", "rename", "iot-2"])
+check("an unknown subnet command: usage, exit 2", code == 2 and "usage:" in text, text)
 code, text = cli(["show"])
 check("without the domain's agent password: refused, saying why", code == 1 and "ad_agent_password" in text, text)
 

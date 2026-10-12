@@ -11,7 +11,8 @@ def check_address(addr, subnet, plan, current=None):
              (a static address, a reservation or the gateway; a second is refused naming the first); inside a dhcp
              range only a reservation; a static address outside every static range is warned about, never refused; a
              reservation has a MAC, unique among the site's reservations; a name is one DNS label, and one published
-             in DNS (an A and a PTR in the site's zone, 1.10.4.5) is unique among the site's.
+             in DNS (an A and a PTR in the site's zone, 1.10.4.5; a reservation's too, beside the name DHCP registers
+             in dhcp.<domain>, 2.1.10.17) is unique among the site's.
     Inputs:  addr — {"ip", "kind", "name", "mac", "owner", "notes", "dns", "options"}; subnet — the subnet's plan entry
              (cidr, gateway, dhcp, ranges, addresses); plan — the site's plan (every subnet's addresses, for MACs and
              DNS names); current — the address being changed (its own claim is not a second one), None for a new one.
@@ -19,8 +20,8 @@ def check_address(addr, subnet, plan, current=None):
              "options"}, warnings: list of str).
     Fails:   ValidationError: not a host of the subnet, an unknown kind, a second claim (named), a non-reservation in a
              dhcp range, a reservation without a MAC or with a MAC another reservation has, a bad MAC or name, DNS
-             without a name, DNS on a reservation (its name is DHCP's, registered in dhcp.<domain>), a DNS name
-             another address publishes, an owner over one line, notes over 500 characters, bad options.
+             without a name, a DNS name another address publishes, an owner over one line, notes over 500
+             characters, bad options.
     Feeds:   add_address, set_address."""
     net = ipaddress.ip_network(subnet["cidr"])
     ip = ipv4(addr.get("ip"), "address")
@@ -48,9 +49,6 @@ def check_address(addr, subnet, plan, current=None):
         taken = next((a for a in others if a["kind"] == "reservation" and a["mac"] == mac), None)
         if taken:
             raise ValidationError(f"MAC {mac} already has a reservation: {taken['ip']}")
-        if dns:
-            raise ValidationError("a reservation's name is registered by DHCP in its own zone (dhcp.<domain>): "
-                                  "DNS is for static and infrastructure addresses")
     if dns and not name:
         raise ValidationError(f"{ip}: an address published in DNS needs a name (--name)")
     if dns and any(a.get("dns") and a.get("name") == name for a in others):

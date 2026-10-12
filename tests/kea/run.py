@@ -126,23 +126,30 @@ PLAN = {"vlans": [{"id": 23, "name": "lab", "access": "full"}, {"id": 24, "name"
                      "relay": "", "notes": "", "allow_overlap": "", "options": [{"name": "time-offset", "data": "60"}],
                      "ranges": [{"kind": "dhcp", "first": "10.254.23.100", "last": "10.254.23.150"}],
                      "addresses": [{"ip": "10.254.23.120", "kind": "reservation", "name": "inpool",
-                                    "mac": "02:00:00:00:00:43", "dns": False,
+                                    "mac": "02:00:00:00:00:43", "dns": True,
                                     "options": [{"name": "boot-file-name", "data": "x.efi"}]},
                                    {"ip": "10.254.23.9", "kind": "static", "name": "nas", "mac": "", "dns": True,
                                     "options": []}]},
                     {"name": "guests", "cidr": "10.254.24.0/24", "vlan": 24, "gateway": "10.254.24.1", "dhcp": True,
                      "id": 8, "relay": "", "notes": "", "allow_overlap": "", "options": [],
                      "ranges": [{"kind": "dhcp", "first": "10.254.24.100", "last": "10.254.24.200"}],
+                     "addresses": []},
+                    {"name": "lab-2", "cidr": "10.254.25.0/24", "vlan": 23, "gateway": "10.254.25.1", "dhcp": True,
+                     "id": 9, "relay": "", "notes": "", "allow_overlap": "", "options": [],
+                     "ranges": [{"kind": "dhcp", "first": "10.254.25.100", "last": "10.254.25.200"}],
                      "addresses": []}]}
-pv = {**V, "dhcp": normalize_dhcp({**V, "dhcp": {**V["dhcp"], "subnets": plan_to_dhcp(PLAN)["subnets"]}})}
+RENDERED = plan_to_dhcp(PLAN)        # a reservation published in DNS (2.1.10.17); two subnets on VLAN 23 (2.1.10.18)
+pv = {**V, "dns": {"dynamic_zone_var": {"A": RENDERED["records"]}}}
+pv["dhcp"] = normalize_dhcp({**pv, "dhcp": {**V["dhcp"], "subnets": RENDERED["subnets"]}})
 plan_cfg = env.get_template("kea/kea-dhcp4.conf.j2").render(**pv)
 try:
     plan_ok = check_kea_config("fabric/kea:test", "kea-dhcp4.conf", plan_cfg) is True
 except ValidationError as e:
     plan_ok = str(e)
-check("Kea accepts a configuration rendered from an address plan: two VLANs' subnets, a reservation inside the "
-      "DHCP range, options on a subnet and a reservation", plan_ok is True and '"10.254.23.120"' in plan_cfg
-      and '"id": 8' in plan_cfg, plan_ok)
+check("Kea accepts a configuration rendered from an address plan: three subnets (two on one VLAN), a reservation "
+      "inside the DHCP range published in the site's zone, options on a subnet and a reservation",
+      plan_ok is True and '"10.254.23.120"' in plan_cfg and '"id": 9' in plan_cfg
+      and {"name": "inpool", "ip": "10.254.23.120"} in RENDERED["records"], plan_ok)
 os.makedirs(f"{W}/bind9/config", exist_ok=True)
 bv = {**V, "dns": {}, "bind_acls": {"lan": ["any"]}, "tsig_keys": [], "tsig_secrets": {}, "kea_ddns_secret": secret,
       "reverse_zone_names": [REV]}
@@ -312,11 +319,14 @@ check("remove-subnet: the others keep their ids (their leases stay theirs)",
 check("remove-subnet with active leases in it is refused without --force; Kea not answering needs --force too",
       "active lease" in refused(lambda: remove_subnet("root", "iot", [{"ip": "10.4.0.120", "state": "active"}]))
       and "--force" in refused(lambda: remove_subnet("root", "iot", None)))
-check("a name or VLAN already in use, an overlapping pool, and a missing subnet are refused",
+check("a name already in use, an overlapping pool, and a missing subnet are refused",
       "unique" in refused(lambda: add_subnet("root", "10.5.0.0/24", "iot"))
-      and "unique" in refused(lambda: add_subnet("root", "10.5.0.0/24", "cams", vlan=40))
       and "overlaps" in refused(lambda: update_subnet("root", "iot", add_pools=["10.4.0.150 - 10.4.0.220"]))
       and "no DHCP subnet" in refused(lambda: update_subnet("root", "nope", notes="x")))
+add_subnet("root", "10.5.0.0/24", "cams", vlan=40, pools=["10.5.0.100 - 10.5.0.200"])
+check("a second subnet on a VLAN already in use is accepted (2.1.10.18)",
+      subnets()["10.5.0.0/24"]["vlan"] == 40 and subnets()["10.4.0.0/24"]["vlan"] == 40, subnets())
+remove_subnet("root", "cams", [])
 update_subnet("root", "iot", vlan=41, notes=None, remove_pools=["10.4.0.100 - 10.4.0.200"],
               add_pools=["10.4.0.50 - 10.4.0.60"])
 s4 = subnets()["10.4.0.0/24"]
@@ -342,7 +352,7 @@ remove_client_class("root", "pxe-uefi")
 check("option unset and class removal; unsetting an option that is not set is refused",
       "options" not in STORE["vars"]["dhcp"] and "client_classes" not in STORE["vars"]["dhcp"]
       and "not set" in refused(lambda: unset_option("root", "66")))
-check("every change was audited", AUDIT.count("DHCP_SUBNET_ADD") == 1 and "DHCP_CLASS_REMOVE" in AUDIT
+check("every change was audited", AUDIT.count("DHCP_SUBNET_ADD") == 2 and "DHCP_CLASS_REMOVE" in AUDIT
       and "DHCP_OPTION_SET" in AUDIT, AUDIT)
 
 cleanup()

@@ -14,6 +14,7 @@ from fabriclib.samba.converge_domain import converge_domain
 from fabriclib.samba.finish_join import finish_join
 from fabriclib.samba.write_bind_dlz import write_bind_dlz
 from fabriclib.secrets.save_secrets import save_secrets
+from fabriclib.setup.ask_site_number import ask_site_number
 from fabriclib.setup.errors import SetupError
 from fabriclib.setup.retire_adguard import retire_adguard
 from fabriclib.setup.retire_renamed_units import retire_renamed_units
@@ -31,7 +32,8 @@ def run(ctx):
              restart); target_dir (lib/keycloak_bootstrap.py), vars_file, secrets_file, config_dir.
     Returns: None. fabric.target enabled and started; renamed units retired; the deploy rendered again when the DNS
              filter's certificate arrived after it (DoT and DoH, 1.12.2.16); every enabled unit running and its
-             container healthy; the domain converged; 0.7's DHCP subnets moved into the address plan (1.10.4.15);
+             container healthy; the domain converged; the site's number asked once, while it has none (2.1.10.16;
+             unattended, the suggestion); 0.7's DHCP subnets moved into the address plan (1.10.4.15);
              Keycloak given the DC's Kerberos keytab; Keycloak configured (up to 6 tries, 15 s apart); fabric-agent and
              fabric-web running when the web UI is on; fabric-federation running when federation_endpoint is on.
              Once Keycloak's password is OpenBao's, Postgres's roles are made to match fabric's secrets before
@@ -63,6 +65,8 @@ def run(ctx):
     except ValidationError as e:
         raise SetupError(str(e))
     ok(f"directory {v['ad_domain']}: " + (f"{len(done)} change(s)" if done else "as wanted"))
+    for line in ask_site_number(v, ctx.secrets, ctx.non_interactive):     # once: the site's number (2.1.10.16)
+        info(line)
     for line in move_subnets_to_plan(v, ctx.secrets):        # once: 0.7's subnets into the address plan (1.10.4.15)
         info(line)
     if v.get("install_keycloak") and install_sso_keytab(v):     # Kerberos sign-in's keytab (manual 2.3.6.2.6.2)
