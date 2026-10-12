@@ -18,7 +18,8 @@ DNS_FILTER_SECTIONS = [("overview", "Overview"), ("lists", "Lists"), ("rules", "
                        ("querylog", "Query log"), ("settings", "Settings")]
 # BIND9 tab sections: (view, label)
 FREERADIUS_SECTIONS = [("overview", "Overview"), ("switches", "Connect a switch"), ("windows", "Connect Windows")]
-BIND9_SECTIONS = [("forward", "Forward zones"), ("reverse", "Reverse zones"), ("dhcp", "DHCP names"),
+BIND9_SECTIONS = [("forward", "Forward zones"), ("landing", "Landing page"), ("reverse", "Reverse zones"),
+                  ("dhcp", "DHCP names"),
                   ("tsig", "TSIG keys")]
 # OpenBao tab sections and unlock-method (key slot) types
 OPENBAO_SECTIONS = [("status", "Status"), ("unlock", "Unlock methods"), ("secrets", "Secrets"),
@@ -32,6 +33,14 @@ SLOT_TYPES = {
     "usb": ("USB stick", "A plain or keypad-encrypted stick. Cheap; a plain stick can be copied."),
     "hsm": ("HSM / key manager", "Any KMIP server on your network. Revoke fabric there to lock the vault."),
 }
+# the password policy's form in the Domain section (2.1.2.22): (key, label); complexity is a choice of its own. The
+# agent checks every value as `fabricctl domain password-policy` does (fabriclib.samba.check_password_policy).
+POLICY_FIELDS = [("minimum_length", "Minimum length (characters)"), ("history", "Passwords remembered"),
+                 ("minimum_age_days", "Changed again after (days)"),
+                 ("maximum_age_days", "Valid for (days; 0: never expires)"),
+                 ("lockout_threshold", "Failed sign-ins before a lockout (0: never)"),
+                 ("lockout_minutes", "Locked for (minutes; 0: until an admin unlocks)"),
+                 ("lockout_window_minutes", "Failed sign-ins forgotten after (minutes)")]
 # Directory tab sections: (view, label)
 DIRECTORY_SECTIONS = [("devices", "Devices"), ("roles", "Roles"), ("people", "People"), ("domain", "Domain"),
                       ("machines", "Machines"), ("gpo", "Group Policy")]
@@ -58,7 +67,8 @@ PREVIEW_PERMS = ["status:read", "dns:read", "dns:write", "tsig:manage", "dhcp:re
                  "pki:issue", "pki:sign",
                  "pki:link-device", "devices:read", "devices:enroll", "devices:admin", "roles:admin", "radius:read",
                  "radius:admin",
-                 "people:read", "domain:read", "machines:admin", "sudo:admin", "gpo:admin", "federation:read",
+                 "people:read", "domain:read", "domain:admin", "machines:admin", "sudo:admin", "gpo:admin",
+                 "federation:read",
                  "vault:status", "vault:unlock", "audit:read", "dns:filter", "dns:querylog"]
 # tab -> the permission(s) that show it (any of them)
 TAB_PERMS = {"overview": ("status:read",), "bind9": ("dns:read",), "kea": ("dhcp:read",), "stepca": ("pki:read",),

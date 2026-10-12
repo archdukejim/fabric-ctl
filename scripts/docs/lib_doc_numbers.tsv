@@ -319,6 +319,8 @@ file	fabriclib-dns|src/fabriclib/dns/add_record.py	2
 file	fabriclib-dns|src/fabriclib/dns/add_tsig_key.py	3	
 file	fabriclib-dns|src/fabriclib/dns/add_zone.py	34	
 file	fabriclib-dns|src/fabriclib/dns/builtin_acls.py	4	
+file	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py	37	
+file	fabriclib-dns|src/fabriclib/dns/common/landing_link.py	38	
 file	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py	5	
 file	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py	6	
 file	fabriclib-dns|src/fabriclib/dns/format_value.py	7	
@@ -344,6 +346,7 @@ file	fabriclib-dns|src/fabriclib/dns/run_acl_command.py	23
 file	fabriclib-dns|src/fabriclib/dns/run_tsig_command.py	24	
 file	fabriclib-dns|src/fabriclib/dns/set_acl_policy.py	25	
 file	fabriclib-dns|src/fabriclib/dns/set_key_acls.py	26	
+file	fabriclib-dns|src/fabriclib/dns/set_record_link.py	39	
 file	fabriclib-dns|src/fabriclib/dns/sync_status.py	27	
 file	fabriclib-dns|src/fabriclib/dns/update_tsig_key.py	28	
 file	fabriclib-dns|src/fabriclib/dns/validate_record.py	29	
@@ -560,6 +563,7 @@ file	fabriclib-samba|src/fabriclib/samba/logon_ou_path.py	30
 file	fabriclib-samba|src/fabriclib/samba/logon_overview.py	31	
 file	fabriclib-samba|src/fabriclib/samba/password_meets_policy.py	24	
 file	fabriclib-samba|src/fabriclib/samba/prepare_site.py	16	
+file	fabriclib-samba|src/fabriclib/samba/read_policy_changes.py	28	
 file	fabriclib-samba|src/fabriclib/samba/replication_status.py	19	
 file	fabriclib-samba|src/fabriclib/samba/run_converge.py	17	
 file	fabriclib-samba|src/fabriclib/samba/run_domain_command.py	4	
@@ -570,6 +574,7 @@ file	fabriclib-samba|src/fabriclib/samba/set_logon_policy.py	32
 file	fabriclib-samba|src/fabriclib/samba/sso_spns.py	22	
 file	fabriclib-samba|src/fabriclib/samba/suggested_ad_domain.py	7	
 file	fabriclib-samba|src/fabriclib/samba/suggested_dc_name.py	27	
+file	fabriclib-samba|src/fabriclib/samba/summarize_roles.py	29	
 file	fabriclib-samba|src/fabriclib/samba/write_bind_dlz.py	6	
 file	fabriclib-secrets|src/fabriclib/secrets/common/read_vault_secrets.py	1	
 file	fabriclib-secrets|src/fabriclib/secrets/common/write_vault_secrets.py	2	
@@ -808,6 +813,8 @@ file	webui|src/webui/agentclient/security_layers.py	133
 file	webui|src/webui/agentclient/service_status.py	43	
 file	webui|src/webui/agentclient/set_dhcp_on.py	152	
 file	webui|src/webui/agentclient/set_option.py	44	
+file	webui|src/webui/agentclient/set_password_policy.py	156	
+file	webui|src/webui/agentclient/set_record_link.py	157	
 file	webui|src/webui/agentclient/sign_csr.py	45	
 file	webui|src/webui/agentclient/start_job.py	142	
 file	webui|src/webui/agentclient/sudo_rule_change.py	161	
@@ -852,6 +859,7 @@ file	webui|src/webui/routes/dns_filter_page.py	149
 file	webui|src/webui/routes/dns_filter_post.py	150	
 file	webui|src/webui/routes/get_page.py	80	
 file	webui|src/webui/routes/kea_post.py	81	
+file	webui|src/webui/routes/landing_post.py	158	
 file	webui|src/webui/routes/openbao_page.py	82	
 file	webui|src/webui/routes/overview_post.py	143	
 file	webui|src/webui/routes/post_action.py	83	
@@ -1428,6 +1436,9 @@ function	fabriclib-dns|src/fabriclib/dns/add_zone.py|_is_public	1
 function	fabriclib-dns|src/fabriclib/dns/add_zone.py|_taken	2	
 function	fabriclib-dns|src/fabriclib/dns/add_zone.py|add_zone	3	
 function	fabriclib-dns|src/fabriclib/dns/builtin_acls.py|builtin_acls	1	
+function	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py|_names	1	
+function	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py|fabric_record	2	
+function	fabriclib-dns|src/fabriclib/dns/common/landing_link.py|landing_link	1	
 function	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py|create_zone_tsig_key	1	
 function	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py|find_changed_zones	1	
 function	fabriclib-dns|src/fabriclib/dns/format_value.py|format_value	1	
@@ -1464,11 +1475,12 @@ function	fabriclib-dns|src/fabriclib/dns/run_tsig_command.py|run_tsig_command	4
 function	fabriclib-dns|src/fabriclib/dns/set_acl_policy.py|set_acl_policy	1	
 function	fabriclib-dns|src/fabriclib/dns/set_key_acls.py|_is_key_entry	1	
 function	fabriclib-dns|src/fabriclib/dns/set_key_acls.py|set_key_acls	2	
+function	fabriclib-dns|src/fabriclib/dns/set_record_link.py|set_record_link	1	
 function	fabriclib-dns|src/fabriclib/dns/sync_status.py|sync_status	1	
 function	fabriclib-dns|src/fabriclib/dns/update_tsig_key.py|update_tsig_key	1	
 function	fabriclib-dns|src/fabriclib/dns/validate_record.py|_host	2	
 function	fabriclib-dns|src/fabriclib/dns/validate_record.py|_int	1	
-function	fabriclib-dns|src/fabriclib/dns/validate_record.py|_link	4	
+function	fabriclib-dns|src/fabriclib/dns/validate_record.py|_link	4	0.7.0 / 2026-10-12
 function	fabriclib-dns|src/fabriclib/dns/validate_record.py|validate_record	3	
 function	fabriclib-dns|src/fabriclib/dns/zone_content_changed.py|zone_content_changed	1	
 function	fabriclib-dns|src/fabriclib/dns/zone_detail.py|zone_detail	1	
@@ -1750,6 +1762,7 @@ function	fabriclib-samba|src/fabriclib/samba/logon_ou_path.py|logon_ou_path	1
 function	fabriclib-samba|src/fabriclib/samba/logon_overview.py|logon_overview	1	
 function	fabriclib-samba|src/fabriclib/samba/password_meets_policy.py|password_meets_policy	1	
 function	fabriclib-samba|src/fabriclib/samba/prepare_site.py|prepare_site	1	
+function	fabriclib-samba|src/fabriclib/samba/read_policy_changes.py|read_policy_changes	1	
 function	fabriclib-samba|src/fabriclib/samba/replication_status.py|replication_status	1	
 function	fabriclib-samba|src/fabriclib/samba/run_converge.py|run_converge	1	
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_changes	1	
@@ -1765,6 +1778,8 @@ function	fabriclib-samba|src/fabriclib/samba/set_logon_policy.py|set_logon_polic
 function	fabriclib-samba|src/fabriclib/samba/sso_spns.py|sso_spns	1	
 function	fabriclib-samba|src/fabriclib/samba/suggested_ad_domain.py|suggested_ad_domain	1	
 function	fabriclib-samba|src/fabriclib/samba/suggested_dc_name.py|suggested_dc_name	1	
+function	fabriclib-samba|src/fabriclib/samba/summarize_roles.py|_owner	1	
+function	fabriclib-samba|src/fabriclib/samba/summarize_roles.py|summarize_roles	2	
 function	fabriclib-samba|src/fabriclib/samba/write_bind_dlz.py|write_bind_dlz	1	
 function	fabriclib-secrets|src/fabriclib/secrets/common/read_vault_secrets.py|read_vault_secrets	1	
 function	fabriclib-secrets|src/fabriclib/secrets/common/write_vault_secrets.py|write_vault_secrets	1	
@@ -2164,6 +2179,8 @@ function	webui|src/webui/agentclient/security_layers.py|security_layers	1
 function	webui|src/webui/agentclient/service_status.py|service_status	1	
 function	webui|src/webui/agentclient/set_dhcp_on.py|set_dhcp_on	1	
 function	webui|src/webui/agentclient/set_option.py|set_option	1	
+function	webui|src/webui/agentclient/set_password_policy.py|set_password_policy	1	
+function	webui|src/webui/agentclient/set_record_link.py|set_record_link	1	
 function	webui|src/webui/agentclient/sign_csr.py|sign_csr	1	
 function	webui|src/webui/agentclient/start_job.py|start_job	1	
 function	webui|src/webui/agentclient/sudo_rule_change.py|sudo_rule_change	1	
@@ -2190,8 +2207,11 @@ function	webui|src/webui/devpreview/dev_handler.py|DevHandler.send	2
 function	webui|src/webui/devpreview/dev_post_action.py|dev_post_action	1	
 function	webui|src/webui/devpreview/dev_post_dhcp.py|_where	1	
 function	webui|src/webui/devpreview/dev_post_dhcp.py|dev_post_dhcp	2	
+function	webui|src/webui/devpreview/dev_post_directory.py|_password_policy	3	
 function	webui|src/webui/devpreview/dev_post_directory.py|_person_change	2	
 function	webui|src/webui/devpreview/dev_post_directory.py|dev_post_directory	1	
+function	webui|src/webui/devpreview/dev_post_dns.py|_landing	3	
+function	webui|src/webui/devpreview/dev_post_dns.py|_value	4	
 function	webui|src/webui/devpreview/dev_post_dns.py|_zones	2	
 function	webui|src/webui/devpreview/dev_post_dns.py|dev_post_dns	1	
 function	webui|src/webui/devpreview/dev_post_dns_filter.py|_target	2	
@@ -2251,6 +2271,7 @@ function	webui|src/webui/routes/kea_post.py|_kea	3
 function	webui|src/webui/routes/kea_post.py|_pools	1	
 function	webui|src/webui/routes/kea_post.py|_where	2	
 function	webui|src/webui/routes/kea_post.py|kea_post	4	
+function	webui|src/webui/routes/landing_post.py|landing_post	1	
 function	webui|src/webui/routes/openbao_page.py|openbao_page	1	
 function	webui|src/webui/routes/overview_post.py|overview_post	1	
 function	webui|src/webui/routes/post_action.py|_radius_people	2	
@@ -2287,6 +2308,7 @@ function	webui|src/webui/views/css.py|css	1
 function	webui|src/webui/views/directory.py|directory	1	
 function	webui|src/webui/views/dirsrv.py|dirsrv	1	0.5.0 / 2026-10-05
 function	webui|src/webui/views/dns_filter.py|_ago	1	
+function	webui|src/webui/views/dns_filter.py|_first_fetch_pending	3	
 function	webui|src/webui/views/dns_filter.py|dns_filter	2	
 function	webui|src/webui/views/error_page.py|error_page	1	
 function	webui|src/webui/views/federation.py|federation	1	

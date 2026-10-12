@@ -142,12 +142,29 @@
 <dt>Realm</dt><dd>{{ s.realm }}</dd><dt>NetBIOS name</dt><dd>{{ s.netbios }}</dd>
 <dt>This site's controller</dt><dd><span class="light {{ 'ok' if s.running else 'bad' }}"></span> {{ s.dc }} — {{ 'running' if s.running else 'not running' }}</dd>
 </dl>
-{% if s.roles %}<p class="muted small">{{ s.roles | join('; ') }}</p>{% endif %}
+{# the roles named plainly (2.1.2.22): all held here, or which another controller holds, never each role's DN #}
+{% if s.role_summary and s.role_summary.text %}<p>{{ s.role_summary.text }}</p>
+{% elif s.running %}<p class="muted small">The domain-wide roles could not be read.</p>{% endif %}
 </section>
 <section class="card"><h2>Password policy</h2>
-{% if domain.policy %}<table><tbody>{% for key, value in domain.policy | dictsort %}<tr><td>{{ key | replace('_', ' ') }}</td><td class="num">{{ value }}</td></tr>{% endfor %}</tbody></table>{% else %}<p class="blank">Not set.</p>{% endif %}
-<p class="muted small">Changed on the fabric host: <code>sudo fabricctl domain password-policy …</code> (manual 4.6.5).</p>
+{% if domain.policy and not can('domain:admin') %}<table><tbody>{% for key, value in domain.policy | dictsort %}<tr><td>{{ key | replace('_', ' ') }}</td><td class="num">{{ value }}</td></tr>{% endfor %}</tbody></table>{% elif not domain.policy %}<p class="blank">Not set.</p>{% endif %}
+{% if can('domain:admin') %}
+<form method="post" action="/directory/domain/password-policy" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+{% for key, label in policy_fields %}<label>{{ label }}<input name="{{ key }}" required inputmode="numeric" pattern="[0-9]+" value="{{ domain.policy[key] if domain.policy and key in domain.policy }}"></label>
+{% endfor %}<label>Complexity (three kinds of characters, not the user name)<select name="complexity"><option value="on"{{ ' selected' if not domain.policy or domain.policy.complexity }}>on</option><option value="off"{{ ' selected' if domain.policy and not domain.policy.complexity }}>off</option></select></label>
+<div><button>Save the policy</button></div>
+</form>
+<p class="muted small">Checked as <code>fabricctl domain password-policy</code> checks it (a lockout at least as long as
+its window, a minimum age below the maximum); a refusal says why and changes nothing. <strong>Apply changes</strong>
+writes a saved policy into the domain.</p>
+{% else %}<p class="muted small">Changed by an admin here or on the fabric host: <code>sudo fabricctl domain password-policy …</code> (manual 4.6.5).</p>{% endif %}
 </section>
+{% if can('domain:admin') and can('dns:write') %}<form method="post" action="/apply" class="apply card">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<button>Apply changes</button>
+<span class="muted">Writes the saved password policy into the domain (the whole apply, same as <code>fabricctl --apply</code>).</span>
+</form>{% endif %}
 
 {% elif view == 'machines' %}
 <section class="card"><h2>Machines of {{ domain.site }} {% if domain.machines is not none %}<span class="muted">{{ domain.machines | length }}</span>{% endif %}</h2>

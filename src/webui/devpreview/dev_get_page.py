@@ -12,7 +12,7 @@ def dev_get_page(h, path, query):
              /directory, /kea, /dns-filter, /freeradius, /audit, /jobs/<id>, /static/app.css, and /preview/denied
              (what a refused sign-in looks like). No sign-in, no client certificate, no fabric-agent.
     Inputs:  h — the dev handler (send, state, ctx); path — the URL path; query — dict (msg, err, view, zone, device,
-             slot, name).
+             slot, name; /dns-filter: wait, and fresh=1 for a fresh install's first fetch still running).
     Returns: None; sends 200 with the page, 403 for /preview/denied, 404 for anything else.
     Fails:   an exception from views or fabriclib is not caught: http.server logs it and closes the connection.
     Feeds:   dev_handler.DevHandler.do_GET (under the state lock)."""
@@ -30,9 +30,9 @@ def dev_get_page(h, path, query):
             return h.send(400, views.error_page(400, "no such job"))
         return h.send(200, views.job_page(ctx, job))
     if path == "/bind9":
-        section = query.get("view") if query.get("view") in ("reverse", "dhcp", "tsig") else "forward"
-        key = query.get("zone") or next(iter(state.data["zones"]))
-        zone = state.zone(key) if section == "forward" and key in state.data["zones"] else None
+        section = query.get("view") if query.get("view") in ("landing", "reverse", "dhcp", "tsig") else "forward"
+        key = "dynamic_zone_var" if section == "landing" else query.get("zone") or next(iter(state.data["zones"]))
+        zone = state.zone(key) if section in ("forward", "landing") and key in state.data["zones"] else None
         return h.send(200, views.bind9(ctx, section, state.zones(), zone=zone, types=RECORD_TYPES,
                                        msg=query.get("msg", ""), err=query.get("err", ""),
                                        tsig_keys=state.data["tsig"] if section == "tsig" else None,
@@ -81,8 +81,12 @@ def dev_get_page(h, path, query):
         log = SAMPLE_QUERY_LOG if view == "querylog" else None
         if log and search["blocked"] == "on":
             log = {"entries": [e for e in log["entries"] if e["blocked"]]}
-        return h.send(200, views.dns_filter(ctx, view, SAMPLE_DNS_FILTER, log, search, query.get("msg", ""),
-                                            query.get("err", "")))
+        sample = SAMPLE_DNS_FILTER if not query.get("fresh") else {     # the lists job's first run not done yet
+            **SAMPLE_DNS_FILTER, "catalogue_fetched": None, "categories": ["Added by URL"],
+            "lists": [{**r, "last_fetch": None, "last_success": None, "rules": None, "memory_mb": None}
+                      for r in SAMPLE_DNS_FILTER["lists"] if r["category"] == "Added by URL"]}
+        return h.send(200, views.dns_filter(ctx, view, sample, log, search, query.get("msg", ""),
+                                            query.get("err", ""), query.get("wait", 0)))
     if path == "/kea":
         # ?off=1: DHCP off, as a first turn-on shows it (manual 1.10.3.5); ?off=resume: off with settings kept
         sample = SAMPLE_DHCP if not query.get("off") else {

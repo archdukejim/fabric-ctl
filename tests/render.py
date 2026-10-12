@@ -808,6 +808,41 @@ _db = env.get_template('bind9/data/zone.j2').render(**full, federation_links={},
                                                     zone_records=_zone["dynamic_zone_var"])
 assert re.search(r"^host1\s+A\s+192\.168\.4\.21$", _db, re.M) and "8006" not in _db and "Proxmox" not in _db
 print('landing links from DNS records: only marked ones, https with port and path; the zone file unchanged (2.1.4.2)')
+# the console's record form (2.1.2.22 item 3): one value, filling the type's own field; each type still checked
+assert validate_record("A", {"name": "nas", "value": "192.168.4.10"}) == {"name": "nas", "ip": "192.168.4.10"}
+assert validate_record("CNAME", {"name": "www", "value": "nas"})["canonical"] == "nas"
+assert validate_record("TXT", {"name": "@", "value": "v=spf1 -all"})["text"] == "v=spf1 -all"
+assert validate_record("MX", {"name": "@", "value": "mail", "priority": "10"}) == {
+    "name": "@", "priority": 10, "exchange": "mail"}
+assert validate_record("SRV", {"name": "_sip._tcp", "value": "pbx", "priority": "0", "weight": "5", "port": "5060"})[
+    "target"] == "pbx"
+for _rt, _form, _why in (("A", {"value": "nas"}, "invalid IPv4"), ("MX", {"value": "mail"}, "priority must be"),
+                         ("SRV", {"value": "pbx", "priority": "1", "weight": "1"}, "port must be"),
+                         ("TXT", {"value": 'a"b'}, "TXT must be")):
+    try:
+        validate_record(_rt, {"name": "x", **_form})
+        raise AssertionError(f"accepted {_rt} {_form}")
+    except ValidationError as _e:
+        assert _why in str(_e), (_rt, _e)
+print("the record form: one value fills the type's field; priority for MX, priority, weight and port for SRV, "
+      "each type checked (2.1.2.22)")
+# fabric's own names in the site's zone (2.1.2.22 item 6): every render adds them back, so the console marks them and
+# a delete is refused, naming the setting; the admin's own records and other zones are never fabric's
+from fabriclib.dns.common.fabric_record import fabric_record  # noqa: E402
+_site = v2["dns"]["dynamic_zone_var"]
+_info = next(r for r in _site["CNAME"] if r["name"] == "info")
+assert fabric_record(v2, "dynamic_zone_var", "CNAME", _info) == {"service": "the landing page",
+                                                                 "setting": "landing_page_cname"}
+assert [r["name"] for r in _site["CNAME"] if not fabric_record(v2, "dynamic_zone_var", "CNAME", r)] == ["calibre"], \
+    _site["CNAME"]
+assert all(fabric_record(v2, "dynamic_zone_var", "A", r) for r in _site["A"]), _site["A"]
+_host = {"name": v2["hostname"], "ip": v2["host_ip"]}
+assert fabric_record(v2, "dynamic_zone_var", "A", _host)["setting"] == "hostname"
+assert fabric_record(v2, "dynamic_zone_var", "CNAME", {"name": "info", "canonical": "nas25"}) is None, \
+    "an admin's own record of the same name points elsewhere: theirs"
+assert fabric_record(v2, "dynamic_zone_var", "A", {"name": "host1", "ip": "192.168.4.21"}) is None
+assert fabric_record(v2, "home.lan", "CNAME", _info) is None, "only the site's zone holds fabric's names"
+print("fabric's own names in the site's zone recognised by name and target; the admin's records never (2.1.2.22)")
 _ngx = env.get_template('nginx/nginx.conf.j2').render(**full)
 # the info page (2.1.4.3): info.<domain> by default, on HTTP with no redirect; <domain> and the host's name redirect
 _land = v2['hostname_landing']

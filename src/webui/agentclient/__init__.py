@@ -6,6 +6,8 @@ from webui.agentclient.errors import AgentError, AuthError, PermissionDenied, Va
 from webui.agentclient.add_client_class import add_client_class  # noqa: F401
 from webui.agentclient.add_radius_client import add_radius_client  # noqa: F401
 from webui.agentclient.add_record import add_record  # noqa: F401
+from webui.agentclient.set_record_link import set_record_link  # noqa: F401
+from webui.agentclient.set_password_policy import set_password_policy  # noqa: F401
 from webui.agentclient.add_zone import add_zone  # noqa: F401
 from webui.agentclient.remove_zone import remove_zone  # noqa: F401
 from webui.agentclient.add_reservation import add_reservation  # noqa: F401

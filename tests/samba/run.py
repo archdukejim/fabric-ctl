@@ -19,7 +19,9 @@ from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.deploy.check_samba_settings import check_samba_settings  # noqa: E402
 from fabriclib.deploy.service_units import service_units  # noqa: E402
 from fabriclib.dns_filter.common.filter_zones import filter_zones as adguard_zones  # noqa: E402
+from fabriclib.samba.read_policy_changes import read_policy_changes  # noqa: E402
 from fabriclib.samba.suggested_ad_domain import suggested_ad_domain  # noqa: E402
+from fabriclib.samba.summarize_roles import summarize_roles  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 PASS = FAIL = 0
@@ -104,6 +106,32 @@ check("the two-label suggestion is a valid AD domain (a sub-domain, never the do
       not refused({**GOOD, "domain": "home.arpa", "ad_domain": suggested_ad_domain("home.arpa")}, ""))
 check("accepted: a sub-domain of fabric's domain too", not refused({**GOOD, "ad_domain": "ad.lan.test"}, ""))
 check("accepted: the suggested sibling", not refused({**GOOD, "ad_domain": "ad.test2", "domain": "lan.test2"}, ""))
+
+print("--- the console's Domain section (2.1.2.22): the roles named plainly, the policy typed as the command types it")
+_DN = "CN=NTDS Settings,CN={},CN=Servers,CN=lan,CN=Sites,CN=Configuration,DC=ad,DC=lan,DC=test"
+_ROLES = ["SchemaMaster", "InfrastructureMaster", "RidAllocationMaster", "PdcEmulationMaster", "DomainNamingMaster",
+          "DomainDnsZonesMaster", "ForestDnsZonesMaster"]
+s = summarize_roles([f"{r}Role owner: {_DN.format('DC-PI-CORE')}" for r in _ROLES], "dc-pi-core.ad.lan.test")
+check("roles: all held here -> 'This controller holds all five roles', no DN shown",
+      s["text"].startswith("This controller holds all five roles") and "CN=" not in s["text"] and not s["elsewhere"],
+      s)
+s = summarize_roles([f"{r}Role owner: {_DN.format('DC-LAB' if r == 'PdcEmulationMaster' else 'DC-PI-CORE')}"
+                     for r in _ROLES], "dc-pi-core.ad.lan.test")
+check("roles: one held by another controller -> named with it, the rest held here",
+      "DC-LAB holds the PDC emulator" in s["text"] and "schema master" in s["text"] and "CN=" not in s["text"], s)
+check("roles: none read (the DC not running) -> no sentence", summarize_roles([], "dc-pi-core")["text"] == "")
+check("policy form: digits and on/off typed as the command's options",
+      read_policy_changes({"minimum_length": "14", "complexity": "off", "lockout_minutes": 30, "actor": "x"})
+      == {"minimum_length": 14, "complexity": False, "lockout_minutes": 30})
+for data, words in (({"minimum_length": "twelve"}, "whole number"), ({"history": "-1"}, "whole number"),
+                    ({"complexity": "yes"}, "on or off"), ({"colour": "1"}, "unknown policy setting"), ({}, "no policy"),
+                    ({"history": True}, "whole number")):
+    try:
+        read_policy_changes(data)
+        ok = False
+    except ValidationError as e:
+        ok = words in str(e)
+    check(f"policy form refused: {data} ({words})", ok)
 
 print("--- what setup asks of the directory: only the AD domain; the policy starts from the default (2.1.2.16)")
 import builtins  # noqa: E402

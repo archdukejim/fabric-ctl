@@ -174,7 +174,10 @@ open(f"{W}/fabric/config/vars.yaml", "w").write(
     f"hostname_openbao: vault.lan.test\nip_openbao: 10.254.8.99\nopenbao_key_dir: {W}/nokeys\nhostname: pi-core\n"
     "service_users: {openbao: {uid: 913, gid: 913}}\n"
     "domain: lan.test\ndns:\n  dynamic_zone_var:\n    zone_authority: true\n    A:\n    - {name: pi-core, ip: 192.168.7.53}\n"
-    "    CNAME:\n    - {name: calibre, canonical: nas25-apps}\n"
+    "    CNAME:\n    - {name: calibre, canonical: nas25-apps}\n    - {name: info, canonical: pi-core}\n"
+    "ad_domain: ad.lan.test\ndc_name: dc-pi-core\nad_password_policy: {minimum_length: 12, complexity: true, "
+    "history: 5, minimum_age_days: 0, maximum_age_days: 0, lockout_threshold: 10, lockout_minutes: 15, "
+    "lockout_window_minutes: 15}\n"
     "logon_policies:\n  machines: {console: [lan-admins], remote: [lan-admins]}\n"
     "  machines/lab: {console: [lan-users], remote: []}\n")
 UID = 912
@@ -458,6 +461,78 @@ st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/delete", POSTH,
                  {"csrf": csrf, "type": "CNAME", "index": idx, "name": "shelfmark"}, cookie=session)
 # covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete +
 check("delete CNAME -> removed from vars.yaml", "shelfmark" not in open(f"{W}/fabric/config/vars.yaml").read(), hd)
+# 2.1.2.22: the record form asks type, name, value (and priority, weight, port for MX and SRV only)
+st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
+                 {"csrf": csrf, "type": "CNAME", "name": "valued", "value": "nas25-apps"}, cookie=session)
+check("add a CNAME from the form's one value -> saved with its target",
+      st == 303 and "name: valued" in open(f"{W}/fabric/config/vars.yaml").read(), hd)
+st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
+                 {"csrf": csrf, "type": "MX", "name": "@", "value": "mail"}, cookie=session)
+check("an MX record without its priority is refused, saying why",
+      "priority must be a number" in urllib.parse.unquote_plus(hd.get("Location", "")), hd)
+# fabric's own names: marked, and a delete refused naming the setting (the apply would add them back)
+st, hd, sc, body = req("GET", "/bind9?zone=dynamic_zone_var", ALICE, cookie=session)
+rows = body.split("<tr>")
+mark = {n: any(f"<td>{n} " in r and "provided by fabric" in r for r in rows) for n in ("pi-core", "info", "calibre")}
+check("fabric's own names (the host's A, info) marked 'provided by fabric', the admin's not",
+      mark == {"pi-core": True, "info": True, "calibre": False}, mark)
+st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/delete", POSTH,
+                 {"csrf": csrf, "type": "CNAME", "index": "1", "name": "info"}, cookie=session)
+loc = urllib.parse.unquote_plus(hd.get("Location", ""))
+check("deleting info.<domain> is refused: fabric's, named with its setting, kept in vars.yaml",
+      "provided by fabric" in loc and "landing_page_cname" in loc
+      and "name: info" in open(f"{W}/fabric/config/vars.yaml").read(), loc)
+st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/delete", POSTH,
+                 {"csrf": csrf, "type": "A", "index": "0", "name": "pi-core"}, cookie=session)
+check("deleting the host's own A record is refused, naming hostname",
+      "provided by fabric" in urllib.parse.unquote_plus(hd.get("Location", ""))
+      and "hostname" in urllib.parse.unquote_plus(hd.get("Location", "")), hd)
+# the landing page's links, in their own section (2.1.2.22 item 4); kept on the record as before (2.1.4.2)
+st, hd, sc, body = req("GET", "/bind9?view=landing", ALICE, cookie=session)
+check("Landing page section: none linked yet, the add form lists the zone's records",
+      st == 200 and "links to none of your records" in body and 'value="CNAME|0|calibre"' in body, body[:400])
+# covers: web:post.bind9.landing.add agent:post.zones.*.records.link +
+st, hd, *_ = req("POST", "/bind9/landing/add", POSTH, {"csrf": csrf, "record": "CNAME|0|calibre",
+                                                       "link_label": "Calibre", "link_port": "8083"}, cookie=session)
+vars_text = open(f"{W}/fabric/config/vars.yaml").read()
+check("link calibre from the landing page -> saved on the record (link: label, port), listed",
+      st == 303 and "label: Calibre" in vars_text and "port: 8083" in vars_text
+      and "https://calibre.lan.test:8083/" in req("GET", "/bind9?view=landing", ALICE, cookie=session)[3], hd)
+for form, why in (({"record": "CNAME|0|calibre", "link_port": "99999"}, "link port must be between"),
+                  ({"record": "CNAME|0|calibre", "link_path": "no-slash"}, "invalid link path"),
+                  ({"record": "CNAME|0|other"}, "record changed"), ({"record": ""}, "pick a record")):
+    # covers: web:post.bind9.landing.add -
+    st, hd, *_ = req("POST", "/bind9/landing/add", POSTH, {"csrf": csrf, **form}, cookie=session)
+    check(f"link refused ({why}), saying why", why in urllib.parse.unquote_plus(hd.get("Location", "")), hd)
+# covers: web:post.bind9.landing.remove -
+st, hd, *_ = req("POST", "/bind9/landing/remove", POSTH, {"csrf": csrf, "type": "CNAME", "index": "0",
+                                                          "name": "other"}, cookie=session)
+check("stop linking a record changed since it was shown -> refused, saying why, the link kept",
+      "record changed" in urllib.parse.unquote_plus(hd.get("Location", ""))
+      and "Calibre" in open(f"{W}/fabric/config/vars.yaml").read(), hd)
+# covers: web:post.bind9.landing.remove +
+st, hd, *_ = req("POST", "/bind9/landing/remove", POSTH, {"csrf": csrf, "type": "CNAME", "index": "0",
+                                                          "name": "calibre"}, cookie=session)
+check("stop linking calibre -> its link gone from vars.yaml",
+      st == 303 and "Calibre" not in open(f"{W}/fabric/config/vars.yaml").read(), hd)
+# the password policy edited in the Domain section (2.1.2.22 item 2), checked as the command checks it
+POLICY = {"minimum_length": "14", "history": "24", "minimum_age_days": "1", "maximum_age_days": "365",
+          "lockout_threshold": "5", "lockout_minutes": "30", "lockout_window_minutes": "15", "complexity": "on"}
+# covers: web:post.directory.domain.password-policy agent:post.domain.password-policy +
+st, hd, *_ = req("POST", "/directory/domain/password-policy", POSTH, {"csrf": csrf, **POLICY}, cookie=session)
+vars_text = open(f"{W}/fabric/config/vars.yaml").read()
+check("password policy saved from the console (domain:admin) -> in vars.yaml, the next apply writes it",
+      st == 303 and "Apply" in urllib.parse.unquote_plus(hd.get("Location", "")) and "minimum_length: 14" in vars_text
+      and "lockout_minutes: 30" in vars_text, (hd, vars_text[-400:]))
+for form, why in (({"lockout_minutes": "5", "lockout_window_minutes": "15"}, "at least as long"),
+                  ({"minimum_age_days": "400"}, "must be below"), ({"minimum_length": "x"}, "whole number")):
+    # covers: web:post.directory.domain.password-policy -
+    st, hd, *_ = req("POST", "/directory/domain/password-policy", POSTH, {"csrf": csrf, **POLICY, **form},
+                     cookie=session)
+    check(f"password policy refused ({why}): said why, vars.yaml unchanged",
+          why in urllib.parse.unquote_plus(hd.get("Location", ""))
+          and "minimum_length: 14" in open(f"{W}/fabric/config/vars.yaml").read()
+          and "lockout_minutes: 30" in open(f"{W}/fabric/config/vars.yaml").read(), hd)
 st, hd, sc, body = req("GET", "/audit", ALICE, cookie=session)
 # covers: web:get.audit agent:get.audit agent:post.events +
 check("audit log records web actions with user", "User: alice (web) | Action: DNS_ADD" in body
@@ -731,6 +806,22 @@ out = agent_call("POST", "/v1/zones/dynamic_zone_var/records", "carol", AUDITOR_
                  {"actor": "carol", "type": "A", "name": "nope", "ip": "192.168.7.9"})
 # covers: agent:post.zones.*.records -
 check("auditor token: may not add a record (403, the permission named)", " 403 " in out and "dns:write" in out, out)
+# covers: agent:post.zones.*.records.link -
+out = agent_call("POST", "/v1/zones/dynamic_zone_var/records/link", "carol", AUDITOR_ROLES,
+                 {"type": "CNAME", "index": 0, "name": "calibre", "link": "on"})
+check("auditor token: may not link a record from the landing page (403, dns:write)", " 403 " in out and "dns:write" in out,
+      out)
+# covers: agent:post.domain.password-policy -
+out = agent_call("POST", "/v1/domain/password-policy", "carol", AUDITOR_ROLES, {"minimum_length": 4})
+check("auditor token: may not change the password policy (403, domain:admin)", " 403 " in out and "domain:admin" in out,
+      out)
+out = agent_call("POST", "/v1/domain/password-policy", "carol", bundle_roles("fabric-equipment-operator"),
+                 {"minimum_length": 4})
+check("equipment operator token: may not change it either (domain:admin is the admins' only)",
+      " 403 " in out and "domain:admin" in out, out)
+out = agent_call("POST", "/v1/zones/dynamic_zone_var/records/link", "alice", ADMIN_ROLES,
+                 {"type": "TXT", "index": 0, "name": "x", "link": "on"})
+check("refused through the agent: linking a TXT record (400)", " 400 " in out and "only A, AAAA and CNAME" in out, out)
 out = agent_call("POST", "/v1/zones", "carol", AUDITOR_ROLES, {"actor": "carol", "name": "home.lan"})
 check("auditor token: may not add a zone (403, dns:write)", " 403 " in out and "dns:write" in out, out)
 out = agent_call("POST", "/v1/zones/home.lan/delete", "carol", AUDITOR_ROLES, {"actor": "carol", "confirm": "home.lan"})

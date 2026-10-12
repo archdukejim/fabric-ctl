@@ -23,6 +23,7 @@ POST = {
     ("security", "raise"): "security:raise", ("security", "kerberos"): "security:raise",
     ("zones",): "dns:write", ("zones", "*", "delete"): "dns:write",
     ("zones", "*", "records"): "dns:write", ("zones", "*", "records", "delete"): "dns:write",
+    ("zones", "*", "records", "link"): "dns:write",
     ("apply",): "dns:write",
     ("dns-filter", "querylog"): "dns:querylog",        # who looked up what: the admin bundle only (2.1.12.4)
     ("dns-filter", "lists"): "dns:filter", ("dns-filter", "lists", "set"): "dns:filter",
@@ -46,6 +47,7 @@ POST = {
     ("people", "*", "delete"): "people:remove", ("people", "*", "groups"): "people:groups",
     ("machines",): "machines:admin", ("machines", "*", "enable"): "machines:admin",
     ("machines", "*", "disable"): "machines:admin", ("machines", "*", "delete"): "machines:admin",
+    ("domain", "password-policy"): "domain:admin",
     ("gpo", "search"): "domain:read", ("gpo", "set"): "gpo:admin", ("gpo", "clear"): "gpo:admin",
     ("domain", "logon", "set"): "gpo:admin", ("domain", "logon", "clear"): "gpo:admin",
     ("host-groups",): "machines:admin", ("host-groups", "*", "delete"): "machines:admin",

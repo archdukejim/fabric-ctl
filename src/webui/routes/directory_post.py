@@ -3,6 +3,7 @@ import urllib.parse
 
 from webui import agentclient as actions
 from webui import views
+from webui.views.constants import POLICY_FIELDS
 from webui.session.page_context import page_context
 
 
@@ -87,10 +88,10 @@ def directory_post(h, sess, parts, form):
              'delete'], ['devices', <name>, 'certs', …] (unlink the certificate in form sha256), ['machines',
              '_new'] (form name), ['machines', <name>, 'enable'|'disable'|'delete'], ['gpo', 'set'|'clear'] (form
              policy, el_<element> values, disabled), ['logon', 'set'|'clear'] (form ou; console and remote for set,
-             group names separated by commas, empty for nobody), ['hostgroups'|'sudo', …] (_host_access' forms);
-             form — dict.
+             group names separated by commas, empty for nobody), ['hostgroups'|'sudo', …] (_host_access' forms),
+             ['domain', 'password-policy'] (form: POLICY_FIELDS' keys, complexity on|off); form — dict.
     Returns: a new person, a reset and a new machine: 200 page with the one-time password; the other people changes,
-             machines and gpo: 303 to their view with
+             machines, gpo and the password policy: 303 to their view with
              msg or err (logon, hostgroups and sudo: to the machines view); devices and roles: 303 to /directory with
              msg — the new item's
              page after create, the list after delete, the item's page otherwise.
@@ -147,6 +148,14 @@ def directory_post(h, sess, parts, form):
     if kind in ("hostgroups", "sudo") and name:
         return h.redirect("/directory?" + urllib.parse.urlencode({"view": "machines", **_host_access(kind, name, op,
                                                                                                      form)}))
+    if kind == "domain" and name == "password-policy" and not op:
+        values = {k: form[k] for k in [f for f, _ in POLICY_FIELDS] + ["complexity"] if k in form}
+        try:
+            actions.set_password_policy(values)
+        except actions.ValidationError as exc:
+            return h.redirect("/directory?" + urllib.parse.urlencode({"view": "domain", "err": str(exc)}))
+        return h.redirect("/directory?" + urllib.parse.urlencode(
+            {"view": "domain", "msg": "Password policy saved. Apply changes writes it into the domain."}))
     if kind == "gpo" and name in ("set", "clear") and not op:
         policy = form.get("policy", "")
         values = {k[3:]: val for k, val in form.items() if k.startswith("el_") and val != ""}
