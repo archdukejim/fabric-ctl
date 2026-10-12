@@ -20,7 +20,9 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(REPO, "src"))
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
+from fabriclib.dhcp.dhcp_reverse_zones import dhcp_reverse_zones  # noqa: E402
 from fabriclib.dhcp.normalize_dhcp import normalize_dhcp  # noqa: E402
+from fabriclib.dns.reverse_by_hand import reverse_by_hand  # noqa: E402
 from fabriclib.ipam.check_address import check_address  # noqa: E402
 from fabriclib.ipam.check_block import check_block  # noqa: E402
 from fabriclib.ipam.check_range import check_range  # noqa: E402
@@ -256,6 +258,32 @@ check("refused still: a static A record inside a pool that is no reservation's",
       is_refused(lambda: normalize_dhcp({**VT, "dns": {"dynamic_zone_var": {"A": [{"name": "x",
                                                                                      "ip": "10.1.21.160"}]}}}),
                  "inside a DHCP pool"))
+
+print("--- a name set by hand wins over DHCP's (2.1.10.20)")
+cam5 = next(r for s in two["subnets"] for r in s["reservations"] if r["ip"] == "10.1.21.150")
+cam1 = next(r for s in two["subnets"] for r in s["reservations"] if r["ip"] == "10.1.20.150")
+check("a reservation published in the site's zone is one DHCP never registers; one that is not, DHCP's",
+      cam5.get("ddns") is False and "ddns" not in cam1, (cam5, cam1))
+bare_plan = {**TWO, "subnets": [{**SECOND, "addresses": [{**SECOND["addresses"][0], "dns": False}]}]}
+by_hand = normalize_dhcp({**VT, "dns": {"dynamic_zone_var": {"A": [{"name": "cam5", "ip": "10.1.21.150"}]}},
+                          "dhcp": {"interfaces": ["eth0"], "subnets": plan_to_dhcp(bare_plan)["subnets"]}})
+check("any record set by hand on a reservation's address (the settings' dns:) takes it away from DHCP's updates",
+      by_hand["subnets"][0]["reservations"][0].get("ddns") is False, by_hand["subnets"][0])
+plain = normalize_dhcp({**VT, "dns": {}, "dhcp": {"interfaces": ["eth0"],
+                                                 "subnets": plan_to_dhcp(bare_plan)["subnets"]}})
+check("without one, DHCP registers the reservation as before", "ddns" not in plain["subnets"][0]["reservations"][0])
+check("refused: a reservation's ddns that is not true or false",
+      is_refused(lambda: normalize_dhcp({**VT, "dns": {}, "dhcp": {"interfaces": ["eth0"], "subnets": [
+          {"subnet": "10.1.21.0/24", "pools": ["10.1.21.100 - 10.1.21.200"],
+           "reservations": [{"mac": "aa:bb:cc:dd:ee:05", "ip": "10.1.21.150", "ddns": "no"}]}]}}),
+                 "ddns is true"))
+check("Kea's reverse zones leave out a reservation whose names are set by hand",
+      dhcp_reverse_zones({"install_kea": True, "dhcp": {"subnets": [
+          {"pools": [], "reservations": [{"ip": "10.7.7.7", "ddns": False}, {"ip": "10.7.8.8"}]}]}})
+      == ["8.7.10.in-addr.arpa"])
+check("every PTR fabric generates is one DHCP's key is denied in BIND",
+      reverse_by_hand({"zones": {"20.1.10.in-addr.arpa": [{"label": "10"}, {"label": "150"}], "x.arpa": []}})
+      == {"20.1.10.in-addr.arpa": ["10", "150"]})
 text = show_plan({"sites": [{"name": "lan", "created": "1", "block": 1}], "plans": {"lan": TWO}}, "lan")
 check("show: each of a VLAN's subnets under it, a second one by its name",
       "VLAN 20    iot              10.1.20.0/24" in text and "10.1.21.0/24" in text and "subnet iot-2" in text

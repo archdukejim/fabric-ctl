@@ -57,7 +57,7 @@ def until(pred, timeout=60):
 
 
 def cleanup():
-    sh("docker rm -f kt-dhcp4 kt-ddns kt-bind kt-c1 kt-c2 kt-c3 kt-boot >/dev/null 2>&1", ok=False)
+    sh("docker rm -f kt-dhcp4 kt-ddns kt-bind kt-c1 kt-c2 kt-c3 kt-c4 kt-boot >/dev/null 2>&1", ok=False)
     sh(f"docker network rm {NET} >/dev/null 2>&1", ok=False)
 
 
@@ -99,7 +99,10 @@ V = {"deploy_base_dir": W, "domain": "lan.test", "install_kea": True, "ip_kea_dd
               "subnets": [{"subnet": SUBNET, "name": "lab", "vlan": 23, "notes": "the test bridge", "id": 7,
                            "pools": ["10.254.23.100 - 10.254.23.150"], "routers": "10.254.23.1",
                            "reservations": [{"mac": "02:00:00:00:00:42", "ip": "10.254.23.42",
-                                             "hostname": "printer"}]}]}}
+                                             "hostname": "printer"},
+                                            # its names are set by hand: DHCP never registers them (2.1.10.20)
+                                            {"mac": "02:00:00:00:00:44", "ip": "10.254.23.44",
+                                             "hostname": "cam3", "ddns": False}]}]}}
 V["dhcp"] = normalize_dhcp(V)
 V["dhcp_reverse_zones"] = dhcp_reverse_zones(V)          # as check_settings sets it (2.1.10.7)
 REV = V["dhcp_reverse_zones"][0]
@@ -109,8 +112,11 @@ check("Kea's configs, lease and socket folders, and the DHCP subzone file writte
       deploy_kea(V, {"kea_ddns_secret": secret}, env, 53, 53) and os.path.exists(f"{W}/bind9/data/db.dhcp.lan.test")
       and oct(os.stat(f"{W}/kea/config/kea-dhcp-ddns.conf").st_mode & 0o777) == "0o640")
 cfg4 = open(f"{W}/kea/config/kea-dhcp4.conf").read()
-check("Kea checked them first (kea-dhcp4 -t) and accepted: options, a client class, the subnet's id, name, VLAN",
+check("Kea checked them first (kea-dhcp4 -t) and accepted: options, a client class, the subnet's id, name, VLAN, "
+      "the reservation whose names are set by hand in SKIP_DDNS with the ddns-tuning hook (2.1.10.20)",
       check_kea_config("fabric/kea:test", "kea-dhcp4.conf", cfg4) is True and '"id": 7' in cfg4
+      and "libdhcp_ddns_tuning.so" in cfg4 and '"SKIP_DDNS"' in cfg4.split('"10.254.23.44"')[1].split("}")[0]
+      and '"SKIP_DDNS"' not in cfg4.split('"10.254.23.42"')[1].split("}")[0]
       and '"vlan": 23' in cfg4 and '"boot-test"' in cfg4)
 bad_v = {**V, "dhcp": normalize_dhcp({**V, "dhcp": {**V["dhcp"], "options": [{"name": "no-such-option", "data": "1"}]}})}
 try:
@@ -146,15 +152,24 @@ try:
     plan_ok = check_kea_config("fabric/kea:test", "kea-dhcp4.conf", plan_cfg) is True
 except ValidationError as e:
     plan_ok = str(e)
+try:      # why the class and the hook: Kea 3.0 takes no DDNS settings in a client class (2.1.10.20)
+    in_class = check_kea_config("fabric/kea:test", "kea-dhcp4.conf", plan_cfg.replace(
+        '"name": "SKIP_DDNS"', '"name": "SKIP_DDNS", "ddns-send-updates": false'))
+except ValidationError as e:
+    in_class = str(e)
+check("Kea 3.0 refuses ddns-send-updates in a client class: a reservation's DNS updates are skipped through the "
+      "SKIP_DDNS class and the ddns-tuning hook instead", "ddns-send-updates" in str(in_class)
+      and '"SKIP_DDNS"' in plan_cfg and "libdhcp_ddns_tuning.so" in plan_cfg, in_class)
 check("Kea accepts a configuration rendered from an address plan: three subnets (two on one VLAN), a reservation "
       "inside the DHCP range published in the site's zone, options on a subnet and a reservation",
       plan_ok is True and '"10.254.23.120"' in plan_cfg and '"id": 9' in plan_cfg
       and {"name": "inpool", "ip": "10.254.23.120"} in RENDERED["records"], plan_ok)
 os.makedirs(f"{W}/bind9/config", exist_ok=True)
 bv = {**V, "dns": {}, "bind_acls": {"lan": ["any"]}, "tsig_keys": [], "tsig_secrets": {}, "kea_ddns_secret": secret,
-      "reverse_zone_names": [REV]}
+      "reverse_zone_names": [REV], "reverse_by_hand": {REV: ["9"]}}
+# a PTR set by hand (from a forward record of fabric's zones): 10.254.23.9 is nas.lan.test (2.1.10.20)
 open(f"{W}/bind9/data/db.{REV}", "w").write(env.get_template("bind9/data/reverse-zone.j2").render(
-    **bv, reverse_zone_name=REV, ptr_records=[]))
+    **bv, reverse_zone_name=REV, ptr_records=[{"label": "9", "target": "nas.lan.test."}]))
 open(f"{W}/bind9/config/named.conf", "w").write(
     'options { directory "/var/cache/bind"; listen-on { any; }; listen-on-v6 { none; }; recursion no; };\n'
     'acl "lan" { any; };\n'
@@ -232,6 +247,23 @@ check(f"the lease's PTR is registered too, in fabric's reverse zone {REV} (2.1.1
       until(lambda: sh(["dig", "+short", f"@{BIND_IP}", "-x", ip1], ok=False).stdout.strip()
             == "laptop1.dhcp.lan.test.", 30), (sh(["dig", "+short", f"@{BIND_IP}", "-x", ip1], ok=False).stdout,
                                                sh("docker logs kt-ddns", ok=False).stdout[-600:]))
+check("a reservation DHCP registers: its name and PTR come from Kea (the reserved hostname)",
+      until(lambda: dig("printer.dhcp.lan.test") == "10.254.23.42"
+            and sh(["dig", "+short", f"@{BIND_IP}", "-x", "10.254.23.42"], ok=False).stdout.strip()
+            == "printer.dhcp.lan.test.", 30), sh("docker logs kt-ddns", ok=False).stdout[-600:])
+# covers: cli:ipam.address +
+ip4, out4 = client("kt-c4", "02:00:00:00:00:44", "cam3")
+time.sleep(8)                                        # longer than the printer's registration took
+check("a reservation whose names are set by hand gets its address, and Kea registers nothing for it, forward or "
+      "reverse (2.1.10.20)", ip4 == "10.254.23.44" and dig("cam3.dhcp.lan.test") == ""
+      and sh(["dig", "+short", f"@{BIND_IP}", "-x", "10.254.23.44"], ok=False).stdout.strip() == "",
+      (ip4, dig("cam3.dhcp.lan.test"), sh("docker logs kt-dhcp4", ok=False).stdout[-800:]))
+# covers: cli:ipam.address -
+grab = sh(f"printf 'server {BIND_IP}\\nzone {REV}\\nupdate delete 9.{REV} PTR\\nupdate add 9.{REV} 60 PTR "
+          f"evil.dhcp.lan.test.\\nsend\\n' | nsupdate -y hmac-sha256:kea-ddns:{secret} 2>&1", ok=False).stdout
+check("refused: DHCP's key replacing a PTR set by hand (BIND denies it that name); the hand-set PTR stays",
+      "REFUSED" in grab and sh(["dig", "+short", f"@{BIND_IP}", "-x", "10.254.23.9"], ok=False).stdout.strip()
+      == "nas.lan.test.", grab[-300:])
 ip3, out3 = client("kt-c3", "02:00:00:00:00:13", "laptop1")
 time.sleep(3)
 check("another client asking for the same name cannot take it over (DHCID)", ip3 and ip3 != ip1

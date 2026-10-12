@@ -84,13 +84,17 @@ def normalize_dhcp(v):
     Returns: a copy of `dhcp`, unchecked, when install_kea is off; else `dhcp` normalized: every subnet with its id
              (_subnet_ids: existing installs keep the ids their position gave them), subnet as str, name/vlan/
              notes/options only when set, reservations with lower-case colon MACs and a hostname / options only
-             when set; options, option_defs and client_classes normalized (left out when empty).
+             when set, and `"ddns": False` on a reservation DHCP must not register in DNS: one that says so, and
+             every one whose address a record set by hand names (an A record of any zone in `dns`, the address
+             manager's published names among them): a name set by hand wins over DHCP's updates (2.1.10.20);
+             options, option_defs and client_classes normalized (left out when empty).
     Fails:   ValidationError for missing or bad interfaces, bad ddns_subdomain, bad lease_time, a bad or non-IPv4
              subnet, a subnet overlapping fabric_subnet, a bad or repeated id or name, a bad vlan, notes or
              allow_overlap too long, an access that is not full or guest, a relay that is not an IPv4 address, a
              bad pool or two pools overlapping
              (in any subnet), a router outside its subnet, a bad MAC, a reservation outside its subnet (inside a
-             pool it is allowed since 0.8.0, manual 1.10.4.3.2), a duplicate MAC or address, a bad hostname, no
+             pool it is allowed since 0.8.0, manual 1.10.4.3.2), a duplicate MAC or address, a bad hostname, a
+             reservation's ddns that is not true or false, no
              subnets, or a static A record inside a pool (unless the address is a reservation's, whose name the
              address manager may publish, 2.1.10.17); a plain ValueError (not a ValidationError) if routers is
              not an IP address; errors of normalize_options, normalize_option_defs and normalize_client_classes.
@@ -189,8 +193,12 @@ def normalize_dhcp(v):
             if host and not LABEL_RE.match(host):
                 raise ValidationError(f"reservation hostname {host!r}: one DNS label")
             ropts = normalize_options(r.get("options"), f"reservation {mac}")
+            if not isinstance(r.get("ddns", True), bool):
+                raise ValidationError(f"reservation {mac}: ddns is true (DHCP registers its name, the default) or "
+                                      "false")
             reservations.append({"mac": mac, "ip": str(ip), **({"hostname": host} if host else {}),
-                                 **({"options": ropts} if ropts else {})})
+                                 **({"options": ropts} if ropts else {}),
+                                 **({"ddns": False} if r.get("ddns") is False else {})})
         sopts = normalize_options(s.get("options"), f"subnet {meta.get('name', net)}")
         own = ("name", "vlan", "notes", "options", "allow_overlap", "access", "relay")
         subnets.append({**{k: x for k, x in s.items() if k not in own},
@@ -198,6 +206,7 @@ def normalize_dhcp(v):
                         **({"options": sopts} if sopts else {})})
     if not subnets:
         raise ValidationError("dhcp.subnets: at least one subnet with a pool")
+    by_hand = set()
     for zone in (v.get("dns") or {}).values():
         for rec in (zone or {}).get("A") or []:
             try:
@@ -207,6 +216,11 @@ def normalize_dhcp(v):
             if ip not in seen_ips and any(lo <= ip <= hi for lo, hi in pools_all):   # a reservation's: 2.1.10.17
                 raise ValidationError(f"DNS record {rec.get('name')} = {ip} is inside a DHCP pool: make it a "
                                       "DHCP reservation, or move the pool")
+            by_hand.add(str(ip))
+    for s in subnets:                      # a name set by hand is never replaced by DHCP's (2.1.10.20)
+        for r in s["reservations"]:
+            if r["ip"] in by_hand:
+                r["ddns"] = False
     out = {**d, "subnets": subnets}
     for key, fn in (("options", lambda x: normalize_options(x, "dhcp.options")),
                     ("option_defs", normalize_option_defs), ("client_classes", normalize_client_classes)):

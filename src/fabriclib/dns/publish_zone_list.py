@@ -10,6 +10,7 @@ from fabriclib.deploy.deploy_paths import deploy_paths
 from fabriclib.deploy.merge_tsig_keys import merge_tsig_keys
 from fabriclib.deploy.render_templates import BIND_CONFIG
 from fabriclib.deploy.render_vars import render_vars
+from fabriclib.dns.reverse_by_hand import reverse_by_hand
 from fabriclib.dns.reverse_zones import reverse_zones
 from fabriclib.dns.rndc import rndc
 from fabriclib.dns_filter.deploy_resolver import deploy_resolver
@@ -54,7 +55,9 @@ def publish_zone_list(added=(), removed=()):
     jinja_env = jinja_env_for(paths["jinja"])
     final_vars, context = render_vars(jinja_env, secrets, custom_vars)
     context.update(final_vars)
-    context["reverse_zone_names"] = list(reverse_zones(final_vars)["zones"])
+    reverse = reverse_zones(final_vars)
+    context["reverse_zone_names"] = list(reverse["zones"])
+    context["reverse_by_hand"] = reverse_by_hand(reverse)      # as apply: PTRs DHCP may never replace (2.1.10.20)
     context["federation_links"] = dns_links(final_vars, secrets, FEDERATION_FILE)
     uid, gid = service_user(final_vars, "bind")
     base = final_vars["deploy_base_dir"]

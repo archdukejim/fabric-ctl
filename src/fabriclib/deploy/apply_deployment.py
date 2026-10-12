@@ -37,6 +37,7 @@ from fabriclib.deploy.render_vars import render_vars
 from fabriclib.deploy.restart_changed import restart_changed
 from fabriclib.deploy.service_units import service_units
 from fabriclib.deploy.verify_published_images import verify_published_images
+from fabriclib.dns.reverse_by_hand import reverse_by_hand
 from fabriclib.dns.reverse_zones import reverse_zones
 from fabriclib.federation.deploy_federation_endpoint import deploy_federation_endpoint
 from fabriclib.federation.dns_links import dns_links
@@ -105,6 +106,7 @@ def _deploy(paths, start_services):
     units = service_units(paths["base"], final_vars)
     reverse = reverse_zones(final_vars)    # reverse zones and their PTRs come from the forward A/AAAA records
     context["reverse_zone_names"] = list(reverse["zones"])
+    context["reverse_by_hand"] = reverse_by_hand(reverse)      # PTRs DHCP's key may never replace (2.1.10.20)
     # federation (manual 1.9 M4): delegations, secondary zones and TSIG keys for the sites next to this one
     context["federation_links"] = dns_links(final_vars, secrets, paths["federation"])
     print("Rendering Jinja2 templates...")

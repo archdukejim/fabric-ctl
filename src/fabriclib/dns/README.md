@@ -23,6 +23,7 @@ seconds (`publish_zone_list.py`).
 | `list_zones.py` | Zones with record counts (flagging hand-written reverse zones) |
 | `ptr_for_ip.py` | Reverse zone and PTR label for an address — or why it gets none (public, loopback, link-local) |
 | `reverse_zones.py` | Reverse zones + PTRs generated from all forward A/AAAA records (one per address); used by apply and the web UI |
+| `reverse_by_hand.py` | The reverse names whose PTR is set by hand, by zone (DHCP's key is denied them, 2.1.10.20) |
 | `zone_detail.py` | One zone's records (A/AAAA with their automatic PTR) and sync status (`docker exec … rndc zonestatus`) |
 | `add_record.py` | Validate and add a record (locked, audited) |
 | `remove_record.py` | Remove a record, refusing if it changed since it was shown (locked, audited) |

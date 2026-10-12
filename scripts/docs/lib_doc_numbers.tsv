@@ -309,6 +309,7 @@ file	fabriclib-dns|src/fabriclib/dns/remove_record.py	16
 file	fabriclib-dns|src/fabriclib/dns/remove_tsig_key.py	17	
 file	fabriclib-dns|src/fabriclib/dns/remove_zone.py	36	
 file	fabriclib-dns|src/fabriclib/dns/replace_tsig_secret.py	18	
+file	fabriclib-dns|src/fabriclib/dns/reverse_by_hand.py	37	
 file	fabriclib-dns|src/fabriclib/dns/reverse_zones.py	19	
 file	fabriclib-dns|src/fabriclib/dns/rfc2136_settings.py	20	
 file	fabriclib-dns|src/fabriclib/dns/rndc.py	21	
@@ -1376,6 +1377,7 @@ function	fabriclib-dns|src/fabriclib/dns/remove_tsig_key.py|remove_tsig_key	1
 function	fabriclib-dns|src/fabriclib/dns/remove_zone.py|_named_by	1	
 function	fabriclib-dns|src/fabriclib/dns/remove_zone.py|remove_zone	2	
 function	fabriclib-dns|src/fabriclib/dns/replace_tsig_secret.py|replace_tsig_secret	1	
+function	fabriclib-dns|src/fabriclib/dns/reverse_by_hand.py|reverse_by_hand	1	
 function	fabriclib-dns|src/fabriclib/dns/reverse_zones.py|reverse_zones	1	
 function	fabriclib-dns|src/fabriclib/dns/rfc2136_settings.py|rfc2136_settings	1	
 function	fabriclib-dns|src/fabriclib/dns/rndc.py|rndc	1	
