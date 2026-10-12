@@ -23,7 +23,7 @@ NOTE = ("Generated from the code's docstrings by `scripts/docs/gen_lib_doc.py` "
         "([1.17.1](1.17.1-about-the-reference.md)): do not edit.")
 # what each page covers (the index shows it; a page not listed here shows its name only)
 ABOUT = {
-    "webui": "Open Fabric web UI: server, pages, fabric-agent client, OIDC, CA-pinned TLS, dev preview",
+    "webui": "fabric-ctl web UI: server, pages, fabric-agent client, OIDC, CA-pinned TLS, dev preview",
     "installers": "The Debian package wrapper",
     "fabricctl-lib": "Entry points: the deploy engine, the vars editor, the Keycloak configuration",
     "fabricctl-agent": "fabric-agent: the permission-checked host API behind the web UI",

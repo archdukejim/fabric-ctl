@@ -59,7 +59,7 @@ cert_ou: IT
 # FEATURE FLAGS
 # ============================================================
 install_keycloak: true      # Keycloak SSO + Postgres; the web UI needs it
-# install_webui: true       # Open Fabric web UI (default on with Keycloak)
+# install_webui: true       # fabric-ctl web UI (default on with Keycloak)
 # install_kea: false        # DHCP, a preview until 0.8.0 (set `dhcp:` too)
 # install_freeradius: false # 802.1X (set `radius_clients:` too; the domain controller answers it)
 # install_fluentbit: false  # log forwarding (set `log_forwarding:` too)
