@@ -18,23 +18,25 @@ def _sudo_search_base(site_dn, org_dn):
     return "".join(bases) + f"OU=sudoers,{org_dn}?onelevel?"
 
 
-def _access(ident, site, site_dn, org_dn):
+def _access(ident, domain, site, site_dn, org_dn):
     """Purpose: sssd's access lines. With the host's own account (2.1.6.48): AD's access provider, so the log-on
              policy of the host's OU applies as on every joined machine (GPO access control enforcing), and on top
              of it the fabric admins only (an access filter: members, nested too, of `<site>-fabric-admins` or
              `fabric-admins`). With the DC's account (2.1.6.34; no OU's policy reaches a DC's account): the fabric
              admins only, by sssd's simple access provider.
-    Inputs:  ident — host_identity's answer; site — the site's name; site_dn, org_dn — the site's and the
-             organisation's OU (full DNs).
+    Inputs:  ident — host_identity's answer; domain — the AD domain; site — the site's name; site_dn, org_dn — the
+             site's and the organisation's OU (full DNs).
     Returns: str, the access lines of the [domain/…] section.
     Fails:   never.
     Feeds:   render_member_files."""
     if not ident["own"]:
         return f"access_provider = simple\nsimple_allow_groups = fabric-admins, {site}-fabric-admins\n"
     chain = "memberOf:1.2.840.113556.1.4.1941:="           # AD's matching rule for nested membership
+    # DOM:<domain>: is required: without it sssd takes the matching rule's colons for a prefix of its own and denies
+    # everyone (found by the sandbox suite)
     return ("access_provider = ad\n"
             "ad_gpo_access_control = enforcing\n"
-            f"ad_access_filter = (|({chain}CN={site}-fabric-admins,OU=groups,{site_dn})"
+            f"ad_access_filter = DOM:{domain}:(|({chain}CN={site}-fabric-admins,OU=groups,{site_dn})"
             f"({chain}CN=fabric-admins,OU=groups,{org_dn}))\n")
 
 
@@ -75,7 +77,7 @@ def render_member_files(v):
             "services = nss, pam, sudo\n"
             f"\n[domain/{domain}]\n"
             "id_provider = ad\n"
-            + _access(ident, site, f"{site_ou},{base}", f"{org_ou},{base}")
+            + _access(ident, domain, site, f"{site_ou},{base}", f"{org_ou},{base}")
             + "sudo_provider = ad\n"
             f"ad_domain = {domain}\n"
             f"krb5_realm = {realm}\n"

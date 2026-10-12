@@ -551,7 +551,7 @@ sssd = files["/etc/sssd/sssd.conf"]
 check("sssd.conf: the host's own name, the OU's log-on policy (GPO access enforcing) and on top of it the fabric "
       "admins only (nested too), sudo from the domain, this host's own DC, no dynamic DNS (2.1.6.48)",
       "access_provider = ad\n" in sssd and "ad_gpo_access_control = enforcing\n" in sssd
-      and "ad_access_filter = (|(memberOf:1.2.840.113556.1.4.1941:=CN=hq-fabric-admins,OU=groups,OU=hq,OU=sites,"
+      and "ad_access_filter = DOM:ad.test:(|(memberOf:1.2.840.113556.1.4.1941:=CN=hq-fabric-admins,OU=groups,OU=hq,OU=sites,"
           "DC=ad,DC=test)(memberOf:1.2.840.113556.1.4.1941:=CN=fabric-admins,OU=groups,OU=organisation,OU=hq,"
           "OU=sites,DC=ad,DC=test))\n" in sssd
       and "ad_hostname = fab1.ad.test\n" in sssd and "simple_allow" not in sssd

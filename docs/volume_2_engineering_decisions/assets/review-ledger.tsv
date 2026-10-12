@@ -56,7 +56,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	35c0bfe60
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3b78491b62eb3573132f18fcff7dd889074a4da5	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	6b5ec8ed7548a61b8ab03d7e6aecf94a0b1fa065	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	476faabbe0c00c58cd1c6928553e6c062ff7c910	2026-10-10	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	9aff1faba31ab3849ed78148dc8d13c590632593	2026-10-12	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	9ee5510654635d27a20174cba4924f745c11fbcf	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	1106c267bb50d4f90ccc9d8f2e666c15024a903c	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	318514ab8b3dfe626fe148eaa1c03bcb5a3bf59c	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	9db18b7001c1967177f6a2f19b49b773b11aa82a	2026-10-09	
@@ -92,7 +92,7 @@ docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	3626d5edb33144b790
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.1-directory.md	7fa9284225375dc046757b644311b8368d907462	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.10-security.md	d8db599a48382b6823605d85ad6c196d07fad39f	2026-10-12	
-docs/volume_1_description_and_architecture/1.6.11-host-access.md	26fdb0f6f590501006204b64dace3ac238c8470e	2026-10-12	
+docs/volume_1_description_and_architecture/1.6.11-host-access.md	de311e9f9b0c346b5d9ecf62a5dde46cc7be76af	2026-10-12	
 docs/volume_1_description_and_architecture/1.6.2-keycloak.md	c6c367e10976fcdacc36faf78bb3149e462497cc	2026-10-09	
 docs/volume_1_description_and_architecture/1.6.3-samba-directory.md	1643a18a39fdbd50054b14a8b8f3803b52d3315c	2026-10-12	
 docs/volume_1_description_and_architecture/1.6.4-samba-ad.md	3b6e475a2efc928aee1e85a441af77e46f23e02e	2026-10-08	
@@ -971,7 +971,7 @@ src/fabriclib/setup/common/missing_packages.py	331805c17190dd9903e7556bdc97c8ef0
 src/fabriclib/setup/common/network_problem.py	e98bc07680049971c400f9814e1bfd75417eb774	2026-10-12	
 src/fabriclib/setup/common/plan_items.py	f7bfd4db9136523e0129a031cbfee691b1ab7e33	2026-10-12	
 src/fabriclib/setup/common/previous_accounts.py	fdb2460af25b283d3436578d43a17f25c46d387c	2026-10-08	
-src/fabriclib/setup/common/render_member_files.py	3b185a5b738b59a09980d9cec411ae13003f1cd1	2026-10-12	
+src/fabriclib/setup/common/render_member_files.py	d3b1fe803abc3ea325b20483ced5673c95c50b24	2026-10-12	
 src/fabriclib/setup/common/service_account_name.py	480a2591f9dd1de67bb8b36435f469875fcf4c72	2026-10-09	
 src/fabriclib/setup/common/valid_setting.py	d197e8c7d80bc0393937f7eae3be09a8f8e91a52	2026-10-12	
 src/fabriclib/setup/condition_host.py	1ba436a6447e2b17a040c5e98fcbf67fd0311197	2026-10-12	
@@ -1430,7 +1430,7 @@ tests/README.md	f0bda99c5806bebd66cac9b6c8956d1f1bbb6794	2026-10-12
 tests/common/README.md	f80eb9544ae48082b2da9341fa267c0297bc3d46	2026-10-12	
 tests/common/ask.py	52a510850e39121e2bec244890dabb189195a748	2026-10-12	
 tests/consent/README.md	e145a0d2d43d16682fc9dda3e46179d6530c5a03	2026-10-08	
-tests/consent/run.py	f9d0b93799bd3ba695ec965c22487e80ef04885b	2026-10-12	
+tests/consent/run.py	aa97f2d1c98017f653c71189c466f7fe8f3388a0	2026-10-12	
 tests/deploy/README.md	cf0267dd7a7ccd9ee1ac97a366391b94d0979424	2026-10-12	
 tests/deploy/restart_changed_test.py	911a86a353be18a9a12204b2e11bfbb57316e93e	2026-10-12	
 tests/docs/README.md	eeec2ea77295c6eefe030662bd4c7ca6327beff1	2026-10-12	
