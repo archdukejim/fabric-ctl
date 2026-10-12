@@ -804,6 +804,7 @@ src/fabriclib/pki/common/ca_files.py	f93210791c541c2b283b5dee925361440f869313	20
 src/fabriclib/pki/common/ca_parents_pem.py	84d714e5966ef8530f78b648f68d825b5bf2372c	2026-10-08	
 src/fabriclib/pki/common/ca_path_len.py	f22c464ed5d41a987ebec6d42276b31590f9f46e	2026-10-01	
 src/fabriclib/pki/common/cert_dates.py	f6f2c535ab3e7d1b951d73fac0ef7655d898c10d	2026-10-08	
+src/fabriclib/pki/common/crl_points.py	d959ba8bd2f051c89d00f4cdad69150b4a6195f4	2026-10-12	
 src/fabriclib/pki/common/describe_cert.py	94eadd19db0d595abdc309278d8166c1c238acc6	2026-10-01	
 src/fabriclib/pki/common/openssl.py	369b01e779ca0f600b30da9836f4c84ee12361ec	2026-10-01	
 src/fabriclib/pki/common/record_issued.py	30076a77c1ed00b14d9a40cfdc034f38fcce9b72	2026-10-08	
