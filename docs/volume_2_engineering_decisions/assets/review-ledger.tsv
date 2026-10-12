@@ -1460,7 +1460,7 @@ tests/samba/hostgroups.py	75c932c311f1a2edcdfde133eac604b442b065dd	2026-10-12
 tests/samba/linux_join.py	41199253aeaf434ba1bf4b2774f4447bf2753b06	2026-10-12	
 tests/samba/logon.py	89cb995e97b1e46e10f52a796ad3fc797bdac77d	2026-10-12	
 tests/samba/run.py	c860a870dce36132758259b79c48c12c812f35bf	2026-10-12	
-tests/samba/site_join.py	8f6e84afbe8614ed7c343f06974b7b286ceeed90	2026-10-12	
+tests/samba/site_join.py	2f4269f3408c639a561e78c85e6de614fd1c6704	2026-10-12	
 tests/samba/start_bind.py	d99f3b9ebf76a0c6bb2047503e1add88e4b3db88	2026-10-08	
 tests/samba/start_dc.py	dbba89a09d650988ed479f31ad6b46904c16561f	2026-10-11	
 tests/sandbox/Dockerfile	20b0b4c920006cd304cbe258c176c85b9e12b2a5	2026-10-10	

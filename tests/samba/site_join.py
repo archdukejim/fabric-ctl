@@ -379,6 +379,10 @@ if "edge" in joined:
     # a change away from the owner: the object's version moves, the owner's files do not -> refused, not copied
     if "lab" in joined:
         lab_gpo = search(ROOT, "(&(objectClass=groupPolicyContainer)(displayName=*lab*))", ["cn", "versionNumber"])
+        if "cn: " not in lab_gpo:
+            check("the root holds the lab site's GPOs (to change one away from its owner)", False,
+                  lab_gpo + search(ROOT, "(objectClass=groupPolicyContainer)", ["displayName"]))
+            raise SystemExit(1)
         guid = lab_gpo.split("cn: ")[1].split()[0]
         ver = int(lab_gpo.split("versionNumber: ")[1].split()[0])
         dn = f"CN={guid},CN=Policies,CN=System,{BASE}"
