@@ -169,7 +169,7 @@ assert keep_old_install(old) and old['dc_name'] == 'pi-core' and _dc(dc_name=old
 assert keep_old_install(old) == [] and keep_old_install({'dc_name': 'dc-x', 'hostname': 'x'}) == [], 'kept once only'
 renamed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family',
                                                                      'dc_name': 'dc-pi-core', 'hostname': 'kitchen'}))
-assert renamed['hostname_dc'] == 'dc-pi-core.ad.j-j.family' and {'ip': '192.168.7.53', 'name': 'kitchen'} in \
+assert renamed['hostname_dc'] == 'dc-pi-core.ad.j-j.family' and {'ip': renamed['host_ip'], 'name': 'kitchen'} in \
     renamed['dns']['dynamic_zone_var']['A'], renamed['dns']['dynamic_zone_var']['A']
 print("the DC's own name: dc-<hostname> cut to 15, a given one kept, an older install's host name kept, a renamed host "
       "leaves it")
@@ -310,7 +310,7 @@ assert list(ag) == ['adguard-filter'] and 'ports' not in a, 'AdGuard Home publis
 assert a['user'] == '614:614' and a['cap_drop'] == ['ALL'] and a['cap_add'] == ['NET_BIND_SERVICE'], a
 assert a['read_only'] is True and 'no-new-privileges:true' in a['security_opt'], a
 assert a['sysctls'] == {'net.ipv4.ip_unprivileged_port_start': 53} and a['mem_limit'] == '1024m', a
-assert a['networks']['fabric_net']['ipv4_address'] == '10.255.0.34' and '/opt/dnsfilter/lists:/lists:ro' in a['volumes']
+assert a['networks']['fabric_net']['ipv4_address'] == '10.255.0.34' and f"{res['deploy_base_dir']}/dnsfilter/lists:/lists:ro" in a['volumes']
 assert '--no-check-update' in a['command'] and not any('password' in str(x).lower() for x in a['healthcheck']['test'])
 agt = env.get_template('dnsfilter/AdGuardHome.yaml.j2')
 agx = dict(adguard_password_hash='$2b$10$x', tls=False, filters=[], user_rules=[], groups=[],
