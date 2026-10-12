@@ -121,7 +121,7 @@ docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece9
 docs/volume_2_engineering_decisions/2.1.14-images.md	2fcd1b4476cfc62d69930aa58d65a3bc6845445f	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.15-logs.md	b3fb9286ea0a6760a0ab597950d771e6cc305633	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.16-disk-encryption.md	2c5f6832b676ea44d7f5e8a76a4717b35f4d3cd6	2026-10-08	
-docs/volume_2_engineering_decisions/2.1.2-architecture.md	b13a9d7018dcf9e6ab77d88744d6665913ff69c9	2026-10-12	
+docs/volume_2_engineering_decisions/2.1.2-architecture.md	18c0eef5ef780eb8442d2704e663a9b102d78a92	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	82bfa9a0f44a376c8a1b49c2b5b49af11e86c60c	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.4-dns.md	5c0904ec11e4cb0de988652046d5a14123c36642	2026-10-11	
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	c182ec57ff3ef0f8175fdf28309982d42661a869	2026-10-11	
