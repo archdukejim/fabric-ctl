@@ -1,6 +1,7 @@
 import os
 import sys
 
+from fabriclib.common.ask import ask
 from fabriclib.common.errors import ValidationError
 from fabriclib.setup.context import SetupContext
 from fabriclib.setup.restore_install import restore_install
@@ -38,7 +39,8 @@ def run_restore_command(args, deploy_base, cli):
         print(f"error: {exc}\n{USAGE}", file=sys.stderr)
         return 1
     if "--yes" not in args and "-y" not in args:
-        if input(f"Restore fabric from {folder} and set it up. Type 'yes' to continue: ").strip().lower() != "yes":
+        if ask("restore.confirm",
+               f"Restore fabric from {folder} and set it up. Type 'yes' to continue: ").lower() != "yes":
             print("nothing changed")
             return 1
     restore_install(ctx, folder)

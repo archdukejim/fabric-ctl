@@ -1,6 +1,7 @@
 import datetime
 import os
 
+from fabriclib.common.ask import ask
 from fabriclib.common.console import BOLD, NC, YELLOW, heading
 from fabriclib.consent.carry_over_splits import carry_over_splits
 from fabriclib.consent.groups import GROUPS
@@ -36,7 +37,7 @@ def _ask(group, changes, new):
         print(f"    {'+' if c in new and len(new) < len(changes) else '-'} {c}")
     print(f"    {YELLOW}If no: {g['declined']}.{NC}")
     while True:
-        answer = input("    Allow these changes? [y/n] ").strip().lower()
+        answer = ask(f"consent.{group}", "    Allow these changes? [y/n] ").lower()
         if answer in ("y", "yes", "n", "no"):
             return answer.startswith("y")
 

@@ -61,6 +61,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.6.8 Access control for people across the stack](1.6.8-rbac.md)
 - [1.6.9 The organisation and its directory](1.6.9-directory.md)
 - [1.6.10 Security contexts and features](1.6.10-security.md)
+- [1.6.11 Host access](1.6.11-host-access.md)
 
 ## 1.7 Secrets: OpenBao
 

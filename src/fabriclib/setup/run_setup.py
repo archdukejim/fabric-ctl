@@ -59,15 +59,15 @@ def main(argv=None):
                     help="accept the plan without the Proceed prompt (approves no host change: see --approve)")
     ap.add_argument("--approve", action="append", metavar="GROUPS",
                     help="allow these host changes without asking: packages, runtime, services, accounts, resolver, "
-                         "firewall, trust, time (comma-separated, repeatable) or all")
+                         "firewall, trust, time, member (comma-separated, repeatable) or all")
     ap.add_argument("--decline", action="append", metavar="GROUPS",
                     help="refuse these host changes (recommended ones are then left unmanaged and shown in status)")
     ap.add_argument("--step", action="append", help="run only this step (repeatable)")
     ap.add_argument("--admin-password-file", metavar="FILE",
                     help="the first admin's password, read from FILE (unattended; never on the command line)")
     ap.add_argument("--undo", metavar="GROUP",
-                    help="undo one kind of host change fabric made (runtime, firewall, trust, time, resolver) and "
-                         "record it as declined; nothing else runs")
+                    help="undo one kind of host change fabric made (runtime, firewall, trust, time, resolver, "
+                         "member) and record it as declined; nothing else runs")
     ap.add_argument("--join", metavar="@FILE", nargs="?", const="",
                     help="join an upstream fabric as a new site (a fresh install): paste the invitation from "
                          "`fabricctl federation invite` at the prompt, or give @FILE or - (stdin)")

@@ -1,5 +1,6 @@
 import getpass
 
+from fabriclib.common.ask import ask
 from fabriclib.common.errors import ValidationError
 from fabriclib.directory.create_person import create_person
 from fabriclib.directory.list_people import list_people
@@ -91,7 +92,8 @@ def _run(v, args, actor):
         confirm = _options(rest[1:], ("--confirm",)).get("--confirm")
         if confirm is None:
             try:
-                confirm = input(f"Remove {rest[0]} and revoke their certificates? Type the user name to confirm: ")
+                confirm = ask("people.remove.confirm",
+                              f"Remove {rest[0]} and revoke their certificates? Type the user name to confirm: ")
             except EOFError:
                 confirm = ""
         done = remove_person(v, actor, rest[0], confirm, privileged=True, source="cli")

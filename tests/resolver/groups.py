@@ -137,6 +137,7 @@ for name, bad in (
         check_filter_settings({**BASE, "dns_filter_groups": bad})
         check(f"groups: {name} is refused", False, "accepted")
     except ValidationError as e:
+        # covers: setting:dns_filter_groups -
         check(f"groups: {name} is refused, saying why", bool(str(e)), e)
 # a group's allow is a passthru in its view and an AdGuard rule; fabric's zones are answered before either, so an allow
 # above them hides nothing now (the forward zone per allow went with 1.12.3.6)
@@ -150,10 +151,12 @@ for name, bad in (("everyone's safe search that is not true or false", {"dns_fil
         check_filter_settings({**BASE, **bad})
         check(f"settings: {name} is refused", False, "accepted")
     except ValidationError as e:
+        # covers: setting:dns_filter_safe_search setting:dns_filter_youtube -
         check(f"settings: {name} is refused, saying why", bool(str(e)), e)
 ok = {**BASE, "dns_filter_groups": [{"name": " Kids ", "clients": ["192.168.77.0/26", "192.168.77.70/32"],
                                      "allow": ["Ok.Example."]}]}
 check_filter_settings(ok)
+# covers: setting:dns_filter_groups +
 check("groups: normalised (name lowercased, a /32 as an address, defaults: safe search off, YouTube strict)",
       ok["dns_filter_groups"] == [{"name": "kids", "clients": ["192.168.77.0/26", "192.168.77.70"],
                                    "safe_search": False, "youtube": "strict", "allow": ["ok.example"],
@@ -367,12 +370,33 @@ try:
               and "restrict" not in dig("adult", "www.youtube.com"))
         V["dns_filter_safe_search"] = True
         r = deploy_resolver(V, SECRETS, LINKS, env)
+        # covers: setting:dns_filter_safe_search +
         check("everyone's safe search: the adult gets strict too, the teen keeps YouTube moderate",
               r["reconfigured"] and until(lambda: "forcesafesearch" in dig("adult", "www.google.com"), 20)
               and "restrictmoderate.youtube.com." in dig("teen", "www.youtube.com"), r)
         V["dns_filter_safe_search"] = False
     else:
         print("INFO no internet: the safe-search answers and a pass over a real name not checked")
+
+    # everyone's YouTube level (dns_filter_youtube) with safe search on: the main view loads the moderate zone
+    V["dns_filter_safe_search"], V["dns_filter_youtube"] = True, "moderate"
+    r = deploy_resolver(V, SECRETS, LINKS, env)
+    conf = open(f"{W}/resolver/config/named.conf").read()
+    main = conf[conf.index('view "everyone"'):]
+    before = rpz_log()
+
+    def adult_moderate():
+        yt = dig("adult", "www.youtube.com")
+        if internet:
+            return "restrictmoderate.youtube.com." in yt
+        return "via www.youtube.com.safesearch-ytmoderate.rpz" in rpz_log()[len(before):]
+    # covers: setting:dns_filter_youtube +
+    check("everyone's YouTube level moderate: the main view loads the moderate safe-search zone, and the adult's "
+          "YouTube is rewritten by it in the running resolver", r["reconfigured"]
+          and 'zone "safesearch-ytmoderate.rpz"' in main and 'zone "safesearch-strict.rpz"' not in main
+          and until(adult_moderate, 20), (r, rpz_log()[len(before):][-600:]))
+    V["dns_filter_safe_search"], V["dns_filter_youtube"] = False, "strict"
+    deploy_resolver(V, SECRETS, LINKS, env)
 
     # removing a group removes its view, its rules zone and its AdGuard client
     V["dns_filter_groups"] = [V["dns_filter_groups"][1]]

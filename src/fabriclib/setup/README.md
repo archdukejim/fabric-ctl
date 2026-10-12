@@ -33,6 +33,7 @@
 | `start_bootstrap.py` | Start bind9 + step-ca; validate every zone |
 | `mint_service_certs.py` | Issue/renew service certificates (only what is missing, expiring or wrong); web UI and FreeRADIUS CA bundles |
 | `mint_extra_certs.py` | `extra_certs` entries, when missing or due (part of the `certs` step) |
+| `join_host_domain.py` | Step `member`: this host a member of its own domain with its DC's account (keytab, krb5.conf, sssd.conf, NSS, PAM); the fabric admins sign in (1.6.11.8) |
 | `start_services.py` | Retire renamed units; start the stack in order; converge the domain; configure Keycloak; fabric-agent + web UI; activate `fabric.target` |
 | `service_order.py` | fabric's container services in dependency order: setup starts them in it, an apply's rollout restarts them in it (2.1.14.15) |
 | `start_unit.py` | Enable, start or restart one unit and wait until its container is healthy |

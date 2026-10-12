@@ -3,6 +3,7 @@ import subprocess
 import sys
 import time
 
+from fabriclib.common.ask import ask
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.sudo_owner import sudo_owner
 from fabriclib.setup.check_export_dir import check_export_dir
@@ -74,15 +75,16 @@ def run_uninstall_command(args, deploy_base):
                   f"({ctx.deploy_base}, /etc/fabric/openbao). Docker and other containers are not touched.")
             _show_plan()
             if not export and "--no-export" not in args:
-                if input("Export all of fabric's data first (config, secrets, CA, directory, vault + key)? "
-                         "[Y/n] ").strip().lower() in ("", "y", "yes"):
+                if ask("uninstall.export", "Export all of fabric's data first (config, secrets, CA, directory, "
+                       "vault + key)? [Y/n] ").lower() in ("", "y", "yes"):
                     default = os.path.join(sudo_owner()[1], f"fabric-export-{time.strftime('%Y%m%d-%H%M%S')}")
-                    export = input(f"Export folder [{default}]: ").strip() or default
+                    export = ask("uninstall.export_dir", f"Export folder [{default}]: ", default)
             if export:
                 export = check_export_dir(ctx, export)         # refuse before anything is touched
             if not purge and _package_installed():
-                purge = input("Also remove the fabricctl package (apt purge)? [y/N] ").strip().lower() in ("y", "yes")
-            if input("Type 'yes' to remove fabric: ").strip().lower() != "yes":
+                purge = ask("uninstall.purge",
+                            "Also remove the fabricctl package (apt purge)? [y/N] ").lower() in ("y", "yes")
+            if ask("uninstall.confirm", "Type 'yes' to remove fabric: ").lower() != "yes":
                 print("nothing changed")
                 return 1
         if export:

@@ -105,21 +105,25 @@ try:
           'action="/bind9/zones/iot.home.arpa/remove"' in page and "3 record(s)" in page and 'name="confirm"' in page)
     st, loc, _, _ = req("POST", "/bind9/zones/new", {"csrf": "dev", "name": "Lab.LAN"})
     page = req("GET", loc or "/bind9")[3]
+    # covers: web:post.bind9.zones.new +
     check("New zone: added (normalised) and opened", st == 303 and "zone=lab.lan" in (loc or "")
           and "Zone lab.lan added" in page and "lab.lan" in page, (st, loc))
     for form, why in (({"name": "nodots"}, "two labels"), ({"name": "lab.lan"}, "already a zone"),
                       ({"name": "shop.example.com"}, "Hide the public name")):
         st, loc, _, _ = req("POST", "/bind9/zones/new", {"csrf": "dev", **form})
+        # covers: web:post.bind9.zones.new -
         check(f"New zone refused ({why}), saying why", st == 303 and "err=" in (loc or "")
               and why in urllib.parse.unquote(loc or ""), loc)
     st, loc, _, _ = req("POST", "/bind9/zones/new", {"csrf": "dev", "name": "shop.example.com", "hide_public": "on"})
     check("New zone: a public name with the tick is added", st == 303 and "msg=" in (loc or ""), loc)
     st, loc, _, _ = req("POST", "/bind9/zones/lab.lan/remove", {"csrf": "dev", "confirm": "lab.la"})
+    # covers: web:post.bind9.zones.*.remove -
     check("Remove zone refused when the name is typed wrong", st == 303 and "err=" in (loc or ""), loc)
     st, loc, _, _ = req("POST", "/bind9/zones/dynamic_zone_var/remove", {"csrf": "dev", "confirm": "home.arpa"})
     check("Remove zone refused for the site's own zone", st == 303 and "cannot be removed" in
           urllib.parse.unquote(loc or ""), loc)
     st, loc, _, _ = req("POST", "/bind9/zones/lab.lan/remove", {"csrf": "dev", "confirm": "lab.lan"})
+    # covers: web:post.bind9.zones.*.remove +
     check("Remove zone: removed once its name is typed again", st == 303 and "msg=" in (loc or "")
           and "zone=lab.lan" not in req("GET", "/bind9")[3], loc)
     st, _, _, page = req("POST", "/apply", {"csrf": "dev"})
@@ -221,6 +225,17 @@ try:
     check("machines section (admin): machines with state, disable/enable and remove, the add form",
           "host-1" in page and "/directory/machines/host-1/disable" in page and "/directory/machines/ws2404/enable" in page
           and "/directory/machines/_new" in page)
+    check("machines section (admin): who may sign in per OU, each with a clear form, and the set form (1.6.11.4)",
+          "Who may sign in" in page and "machines/linux" in page and "lan-machine-admins" in page
+          and 'action="/directory/logon/clear"' in page and 'action="/directory/logon/set"' in page
+          and "fabric-break-glass" in page)
+    check("machines section (admin): host groups with their machines and a remove form, the membership and new-group "
+          "forms; sudo rules with who made each, remove only for fabric's, the add form (1.6.11.7)",
+          "lan-hosts-web" in page and 'action="/directory/hostgroups/web/delete"' in page
+          and 'action="/directory/hostgroups/_form/members"' in page and 'action="/directory/hostgroups/_new"' in page
+          and 'action="/directory/sudo/web-restart/delete"' in page and "/directory/sudo/backup/delete" not in page
+          and "/directory/sudo/lan-fabric-admins/delete" not in page and 'action="/directory/sudo/_new"' in page
+          and "/usr/bin/systemctl restart nginx" in page and "read-only" in page)
     page = req("GET", "/directory?view=gpo&match=example")[3]
     check("Group Policy section (admin): what is set, a search with a set form per policy",
           "ExampleText" in page and "/directory/gpo/set" in page and "Example setting" in page)

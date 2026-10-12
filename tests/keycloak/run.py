@@ -364,6 +364,7 @@ st, location, page = sign_in(b4, APP_AUTH, "jim", new_pw)
 check("every other sign-in still asks only for the password (everyone: none)",
       st in (302, 303) and "code=" in location, (st, location[:120], page[:200]))
 st, location, page = sign_in(b4, AUTH, "jim", new_pw)
+# covers: setting:signin_admin_second_factor +
 check("the admin tools never take that session: the console asks for the password, then for TOTP enrolment",
       st == 200 and 'name="totp"' in page and "code=" not in location, (st, location[:120], page[:200]))
 fields = dict(re.findall(r'<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"', page))
@@ -423,6 +424,7 @@ check("without a ticket Keycloak asks for one (401 Negotiate), then falls back t
       st == 401 and 'name="password"' in start(Browser(root_ca), APP_AUTH), (st, page[:200]))
 run4 = converge_with(signin_kerberos=False)
 st, _, _ = Browser(root_ca).go(APP_AUTH)
+# covers: setting:signin_kerberos +
 check("signin_kerberos off: no Negotiate, the password form at once",
       "complete" in run4.stdout and st == 200 and steps("fabric-signin").get("auth-spnego") == "DISABLED", st)
 converge_with(signin_kerberos=True, signin_admin_second_factor="none")
@@ -465,6 +467,7 @@ b6 = Browser(root_ca)
 page = start(b6, APP_AUTH)
 st, hdr, page = b6.go(action(page), {"username": "pk", "password": pk_pw})
 seen, st, location, page = required_actions(b6, page, st, hdr, pk_new, device)
+# covers: setting:signin_everyone_second_factor +
 check("passkeys required: pk chooses a password, must register a passkey (user verification), then gets in",
       seen == ["password", "passkey"] and "code=" in location, (seen, st, location[:120], page[:300]))
 b7 = Browser(root_ca)

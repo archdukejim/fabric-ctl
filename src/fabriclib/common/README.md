@@ -2,6 +2,7 @@
 
 | File | What |
 |---|---|
+| `ask.py` | `ask` / `ask_secret`: every question fabric asks a person, each with a stable ID (`<area>.<name>`, manual 1.1.5.6) |
 | `paths.py` | Well-known paths derived from the install location (`FABRIC_DIR`, `VARS_FILE`, `AUDIT_FILE`, …) |
 | `read_images_lock.py` | The validated, digest-pinned images (`config/images.lock.yaml`) with their refs |
 | `read_packages_lock.py` | The pinned packages built into fabric's own images (`packages:` in `images.lock.yaml`: Kea from ISC's repository, key fingerprint, version) |

@@ -13,15 +13,16 @@
 domain: {{ domain }}
 domain_file: {{ domain_file | default(domain | replace('.', '_')) }}
 hostname: {{ hostname }}
-friendly_name: {{ friendly_name | default("Example Org", true) }}
-service_mark: {{ service_mark | default('null', true) }}
-care_of: {{ care_of | default('null', true) }}
-trademark: {{ trademark | default('null', true) }}
-copyright: {{ copyright | default('null', true) }}
-contact_email: {{ contact_email | default('null', true) }}
-contact_phone: {{ contact_phone | default('null', true) }}
-address_line1: {{ address_line1 | default('null', true) }}
-address_line2: {{ address_line2 | default('null', true) }}
+{# free text (organisation labels): written as JSON strings, valid YAML whatever they hold (manual 1.1.5.7) #}
+friendly_name: {{ (friendly_name | default("Example Org", true)) | to_json }}
+service_mark: {{ (service_mark | default(none, true)) | to_json }}
+care_of: {{ (care_of | default(none, true)) | to_json }}
+trademark: {{ (trademark | default(none, true)) | to_json }}
+copyright: {{ (copyright | default(none, true)) | to_json }}
+contact_email: {{ (contact_email | default(none, true)) | to_json }}
+contact_phone: {{ (contact_phone | default(none, true)) | to_json }}
+address_line1: {{ (address_line1 | default(none, true)) | to_json }}
+address_line2: {{ (address_line2 | default(none, true)) | to_json }}
 system_timezone: {{ system_timezone | default('America/New_York') }}
 deploy_base_dir: {{ deploy_base_dir | default('/opt') }}
 
@@ -167,6 +168,11 @@ hostname_dc: "{{ (_dc ~ '.' ~ _ad) | lower if _ad else '' }}"
 # lockout_minutes, lockout_window_minutes: every key required
 ad_password_policy: {{ ad_password_policy | default({}, true) | to_json }}
 ad_old_password_minutes: {{ ad_old_password_minutes | default(0) | int }}
+# Who may sign in to the site's joined machines, per OU (manual 1.6.11.4): {<OU path below the site's OU, "" for the
+# site's OU>: {console: [groups], remote: [groups]}}; fabric-break-glass and local Administrators are always added.
+# null: the site's log-on rights as before 0.9 (an upgrade keeps them, 2.1.6.44); a fresh install starts with
+# {machines: {console: [<site>-machine-admins], remote: [<site>-machine-admins]}}. Edit: fabricctl domain logon.
+logon_policies: {{ (logon_policies if logon_policies is defined else none) | to_json }}
 {# the DC's signing socket for Windows members' time (2.1.13.1), where the host's chrony reaches it: the one path
    Ubuntu's AppArmor profile for chronyd allows (manual 1.6.5.8) #}
 ad_ntp_signd_dir: {{ ad_ntp_signd_dir | default('/var/lib/samba/ntp_signd', true) }}
@@ -186,6 +192,9 @@ ad_org_ou: "{{ ad_org_ou | default('OU=organisation,' ~ _site_ou, true) }}"
    ranges inside each. Both permanent. An install from before 0.7.0 keeps its own (5001, 100000: keep_old_install). #}
 posix_id_start: {{ posix_id_start | default(1000000) | int }}
 posix_id_block: {{ posix_id_block | default(1000000) | int }}
+# This host as a member of its own domain (manual 1.6.11.8, 2.1.6.34): the fabric admins sign in to it with their domain
+# accounts; local accounts are untouched. Asked in setup's Advanced; false leaves the host out (status shows it).
+host_join_domain: {{ host_join_domain | default(true) | to_json }}
 samba_mem_limit: {{ samba_mem_limit | default(((512 * ((host_ram_capacity | default(host_ram_detected | default(4), true) | int) / 4)) | int) ~ 'm', true) }}
 # 802.1X (optional, design §6): FreeRADIUS 3.2 checks each device against the site's DC
 # (EAP-TLS by linked certificate, MAB by MAC) and returns its role's VLAN.
@@ -331,7 +340,7 @@ ica_parents_path: {{ ica_parents_path }}
 {% endif %}
 site_ca_depth: {{ site_ca_depth | default(0) | int }}
 ca_nest_depth: {{ ca_nest_depth | default(1) | int }}
-ca_name: {{ ca_name | default(friendly_name ~ ' CA') }}
+ca_name: {{ (ca_name | default(friendly_name ~ ' CA')) | to_json }}
 cert_country: {{ cert_country | default('US') }}
 cert_province: {{ cert_province | default('State') }}
 cert_city: {{ cert_city | default('City') }}

@@ -105,6 +105,7 @@ if dates:
     fmt = "%b %d %H:%M:%S %Y %Z"
     hours = (datetime.datetime.strptime(dates["notAfter"], fmt)
              - datetime.datetime.strptime(dates["notBefore"], fmt)).total_seconds() / 3600
+# covers: setting:cert_acme_lifetime_hours +
 check("…for 47 days (1128 h, within a minute of Step-CA's backdating), naming the CRL (fabric's leaf template)",
       hours is not None and 1128 <= hours <= 1129 and f"http://info.{DOMAIN}/certs/crl/intermediate.crl" in text,
       (hours, text[-600:]))
@@ -152,9 +153,11 @@ def acme(*argv):
 
 
 code, text = acme("info")
+# covers: cli:acme.info +
 check("acme info: the directory, the root to trust, the names allowed, http-01 and dns-01",
       code == 0 and f"https://ca.{DOMAIN}/acme/acme/directory" in text and "port 5053" in text, text)
 code, text = acme("enroll", f"nas.{DOMAIN}", "--dns")
+# covers: cli:acme.enroll +
 check("acme enroll <name>.<domain> --dns: a TSIG key for that name's TXT challenge only, applied",
       code == 0 and calls[-1] == ("add", {"name": "acme-nas", "records": ["nas"], "record_types": ["TXT"]})
       and "/opt/acme-nas/rfc2136.ini" in text, (calls, text))
@@ -162,15 +165,18 @@ code, text = acme("enroll", "printer")
 check("acme enroll without --dns: nothing to enroll for http-01 (no key made)",
       code == 0 and "nothing to enroll" in text and len(calls) == 1, text)
 code, text = acme("list")
+# covers: cli:acme.list +
 check("acme list: the machines with a DNS-01 key (not other TSIG keys)",
       code == 0 and "nas" in text and "npm" not in text and "1 machine(s)" in text, text)
 code, text = acme("remove", "nas")
+# covers: cli:acme.remove +
 check("acme remove: its key withdrawn, applied", code == 0 and calls[-1] == ("remove", "acme-nas"), (calls, text))
 for argv, want, what in ((("enroll", "Bad_Name", "--dns"), 1, "a name that is not a hostname"),
                          (("enroll", "nas", "--dns", "--force"), 2, "an unknown flag"),
                          (("remove", "nas", "--dns"), 2, "--dns on remove"), (("bogus",), 2, "an unknown command"),
                          (("enroll",), 2, "no name")):
     code, text = acme(*argv)
+    # covers: cli:acme cli:acme.enroll cli:acme.remove -
     check(f"negative: acme {' '.join(argv)} refused ({what}), exit {want}",
           code == want and ("error:" in text or "usage:" in text), (code, text[-200:]))
 apply_ok[0] = False

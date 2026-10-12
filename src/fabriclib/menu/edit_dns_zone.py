@@ -1,6 +1,7 @@
 import os
 import subprocess
 
+from fabriclib.common.ask import ask
 from fabriclib.common.console import BLUE, BOLD, GREEN, NC, RED, YELLOW
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
@@ -21,23 +22,23 @@ def _prompt_record(rtype):
     Inputs:  rtype — A, AAAA, CNAME, TXT, MX, SRV (any other type gets only a name).
     Returns: dict form: name plus ip | target | text | priority/target | priority/weight/port/target (MX priority
              defaults to "10", SRV priority and weight to "0"); unvalidated strings (add_record validates).
-    Fails:   EOFError / KeyboardInterrupt from input().
+    Fails:   EOFError / KeyboardInterrupt from ask().
     Feeds:   edit_dns_zone."""
-    form = {"name": input("Record name (e.g. '@', 'www'): ").strip()}
+    form = {"name": ask("menu.dns.record.name", "Record name (e.g. '@', 'www'): ")}
     if rtype in ("A", "AAAA"):
-        form["ip"] = input("IP address: ").strip()
+        form["ip"] = ask("menu.dns.record.ip", "IP address: ")
     elif rtype == "CNAME":
-        form["target"] = input("Canonical name / target: ").strip()
+        form["target"] = ask("menu.dns.record.cname_target", "Canonical name / target: ")
     elif rtype == "TXT":
-        form["text"] = input("Text: ").strip()
+        form["text"] = ask("menu.dns.record.text", "Text: ")
     elif rtype == "MX":
-        form["priority"] = input("Priority [10]: ").strip() or "10"
-        form["target"] = input("Mail exchange: ").strip()
+        form["priority"] = ask("menu.dns.record.mx_priority", "Priority [10]: ", "10")
+        form["target"] = ask("menu.dns.record.mx_target", "Mail exchange: ")
     elif rtype == "SRV":
-        form["priority"] = input("Priority [0]: ").strip() or "0"
-        form["weight"] = input("Weight [0]: ").strip() or "0"
-        form["port"] = input("Port: ").strip()
-        form["target"] = input("Target: ").strip()
+        form["priority"] = ask("menu.dns.record.srv_priority", "Priority [0]: ", "0")
+        form["weight"] = ask("menu.dns.record.srv_weight", "Weight [0]: ", "0")
+        form["port"] = ask("menu.dns.record.srv_port", "Port: ")
+        form["target"] = ask("menu.dns.record.srv_target", "Target: ")
     return form
 
 
@@ -84,32 +85,32 @@ def edit_dns_zone(data, zone_key, domain):
         print("  l) Live update (apply: publish changed zones)")
         print("  f) Force update (rm journal, recreate zone, restart bind9)")
         print("  b) Back to zones")
-        choice = input("Select an option: ").strip().lower()
+        choice = ask("menu.dns.zone.option", "Select an option: ").lower()
         if choice == "b":
             return
         try:
             if choice == "d" and records:
-                pick = input(f"Enter record number to delete (1-{len(records)}): ").strip()
+                pick = ask("menu.dns.zone.delete_pick", f"Enter record number to delete (1-{len(records)}): ")
                 if pick.isdigit() and int(pick) in records:
                     rtype, ridx, name = records[int(pick)]
                     remove_record(menu_actor(), zone_key, rtype, ridx, name)
             elif choice == "a":
-                rtype = input(f"Record type ({', '.join(RECORD_TYPES)}): ").strip().upper()
+                rtype = ask("menu.dns.record.type", f"Record type ({', '.join(RECORD_TYPES)}): ").upper()
                 if rtype:
                     add_record(menu_actor(), zone_key, rtype, _prompt_record(rtype))
         except ValidationError as exc:
             print(f"{RED}{exc}{NC}")
-            input("Press Enter to continue...")
+            ask("menu.continue", "Press Enter to continue...")
             continue
         data.clear()
         data.update(load_vars())
         if choice == "l":
             _apply()                       # the deploy engine freezes and thaws each changed zone itself
-            input("Press Enter to continue...")
+            ask("menu.continue", "Press Enter to continue...")
         elif choice == "f":
             print(f"\n{YELLOW}WARNING: This will delete the journal file, overwrite the zone data, and restart the "
                   f"BIND9 container.{NC}")
-            if input("Type 'force' to confirm: ").strip().lower() == "force":
+            if ask("menu.dns.zone.force_confirm", "Type 'force' to confirm: ").lower() == "force":
                 subprocess.run(["systemctl", "stop", "bind9"])
                 for suffix in ("", ".jnl"):
                     path = os.path.join(BIND_DATA_DIR, f"db.{shown}{suffix}")
@@ -121,4 +122,4 @@ def edit_dns_zone(data, zone_key, domain):
                 print(f"{BLUE}Restarting BIND9 container...{NC}")
                 subprocess.run(["systemctl", "restart", "bind9"])
                 print(f"{GREEN}Force update complete.{NC}")
-            input("Press Enter to continue...")
+            ask("menu.continue", "Press Enter to continue...")

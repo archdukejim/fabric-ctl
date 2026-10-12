@@ -145,6 +145,7 @@ for _ in range(an):
     i += rdlen
 PY
 }
+# covers: setting:bind_dns_port setting:host_ip +
 check "bind9 answers (pi-core.$DOMAIN via published port)" "[ \"\$(dnsq pi-core.$DOMAIN 127.0.0.1 10053)\" = 127.0.0.1 ]"
 check "bind9 follows CNAME (ca.$DOMAIN -> pi-core)" "[ \"\$(dnsq ca.$DOMAIN 127.0.0.1 10053)\" = 127.0.0.1 ]"
 

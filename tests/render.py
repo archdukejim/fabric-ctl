@@ -124,20 +124,50 @@ keys = env.get_template('bind9/config/named.conf.keys.j2').render(**full)
 for want in ('grant "npm" name _acme-challenge.npm.lan.j-j.family. TXT;',
              'grant "npm" name _acme-challenge.shelfmark.lan.j-j.family. TXT;',
              'grant "acme_dns-01" subdomain _acme-challenge TXT;'):
+    # covers: setting:tsig_keys +
     assert want in zones, f'missing update-policy grant: {want}'
 assert 'zonesub' not in zones, 'no key asked for any_name: nothing may get zonesub'
 for want in ('grant "dev1" name _acme-challenge.web.lan.j-j.family. TXT;',
              'grant "dev1" name _acme-challenge.git.lan.j-j.family. TXT;'):
+    # covers: setting:bind_acl_policies +
     assert want in zones, f'missing ACL-policy grant: {want}'
 assert 'grant "lonely"' not in zones, 'a key with no records, policy or any_name must get no update rights'
 acl = env.get_template('bind9/config/named.conf.acl.j2').render(**full)
+# covers: setting:bind_acls +
 assert 'acl "certbot-devices"' in acl and 'key "dev1";' in acl, 'policy ACL not rendered'
 assert 'secret "bnBtLXRlc3Qtc2VjcmV0LTMyLWJ5dGVzLWxvbmch";' in keys, 'embedded TSIG secret not rendered'
 print('TSIG keys and RFC2136 grants rendered')
+# what apply refuses in tsig_keys and bind_acl_policies (deploy/merge_tsig_keys), saying why, the secrets untouched
+from fabriclib.common.errors import ValidationError as _VE  # noqa: E402
+from fabriclib.deploy.merge_tsig_keys import merge_tsig_keys  # noqa: E402
+_tk = user['tsig_keys']
+for _field, _bad, _msg in (
+        ('tsig_keys', [{'algorithm': 'hmac-sha256'}], 'needs a name'),
+        ('tsig_keys', _tk + [dict(_tk[0])], 'invalid or duplicate TSIG key name'),
+        ('tsig_keys', [{'name': '../etc'}], 'invalid or duplicate TSIG key name'),
+        ('tsig_keys', [{'name': 'k', 'algorithm': 'hmac-whirlpool'}], 'algorithm must be one of'),
+        ('tsig_keys', [{'name': 'k', 'record_types': ['TXT; drop']}], 'invalid record_types'),
+        ('tsig_keys', [{'name': 'k', 'records': ['web', 'bad host']}], 'invalid record names'),
+        ('tsig_keys', [{'name': 'k', 'secret': 'not base64!'}], 'secret is not valid base64'),
+        ('bind_acl_policies', {'certbot-devices': {'records': []}}, 'a policy needs records (hosts) or any_name'),
+        ('bind_acl_policies', {'bad acl!': {'any_name': True}}, 'invalid ACL name'),
+        ('bind_acl_policies', {'certbot-devices': {'records': ['web'], 'domain': 'evil zone'}}, 'invalid domain'),
+        ('bind_acl_policies', {'certbot-devices': {'records': ['web'], 'record_types': ['A B']}},
+         'invalid record_types')):
+    _vars = {**copy.deepcopy(user), _field: _bad}
+    _sec = {'tsig_secrets': dict(secrets['tsig_secrets'])}
+    try:
+        merge_tsig_keys(_vars, _sec)
+        raise AssertionError(f'{_field} accepted: {_bad!r}')
+    except _VE as e:
+        # covers: setting:tsig_keys setting:bind_acl_policies -
+        assert _msg in str(e) and _sec['tsig_secrets'] == secrets['tsig_secrets'], (_field, _bad, str(e))
+print('tsig_keys and bind_acl_policies: what apply refuses, with the reason, no secret made')
 
 # Web UI at any host name; the certificate page at info.<domain>/certs/ (no certs.<domain> since 0.7.0, 1.5.1.5).
 assert v2['hostname_mgr'] == 'fabric.lan.j-j.family' and 'hostname_certs' not in v2 and 'cname_certs' not in v2, v2
 custom = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'webui_hostname': 'Admin.Example.org'}))
+# covers: setting:webui_hostname +
 assert custom['hostname_mgr'] == 'admin.example.org', custom['hostname_mgr']
 names = [r['name'] for r in custom['dns']['dynamic_zone_var']['CNAME']]
 assert 'fabric' not in names and 'admin' not in names, f'no CNAME for a web UI outside the domain: {names}'
@@ -177,6 +207,7 @@ print("the DC's own name: dc-<hostname> cut to 15, a given one kept, an older in
 # The id layout (2.1.6.46, manual 1.6.3.17): the root is site 1, a million long; the organisation's groups in its
 # built-in range; no hosts range and no uid_range read; an install from before 0.7.0 keeps its numbers.
 from fabriclib.samba.id_range import id_range  # noqa: E402
+# covers: setting:posix_id_start +
 assert (v2['posix_id_start'], v2['posix_id_block'], id_range(v2)) == (1000000, 1000000, '1000000-1999999'), id_range(v2)
 gids = {g['name']: g['gidNumber'] for g in v2['ldap_groups']}
 assert gids['admins'] == 1040001 and gids['users'] == 1040009 and all(1040001 <= g <= 1040100 for g in gids.values()), gids
@@ -199,6 +230,7 @@ assert 'grpc_pass $bind9_doh_backend;' in doh and '"grpc://resolver:8053"' in do
     "DoH goes to the DNS filter over HTTP/2 (grpc_pass) while it is on (1.12.2.16): BIND's DoH speaks HTTP/2 only"
 off = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'dns_filter': 'none'}))
 ngx_off = env.get_template('nginx/nginx.conf.j2').render(**{**secrets, **off})
+# covers: setting:dns_filter +
 assert '"grpc://bind9:' in ngx_off[ngx_off.index('location /dns-query'):], 'DoH goes to BIND with the DNS filter off'
 print('DoH: nginx speaks HTTP/2 to the DNS filter (or BIND with it off) (grpc_pass)')
 res_ctx = dict(zones=['lan.j-j.family'], clients=['192.168.7.0/24'], resolver_rndc_secret='c2VjcmV0', client_tls=True,
@@ -235,6 +267,7 @@ assert 'federation' not in [r['name'] for r in v2['dns']['dynamic_zone_var']['CN
 assert 'server_name federation.' not in env.get_template('nginx/nginx.conf.j2').render(**full), 'no vhost while off'
 assert '/srv/federation' not in env.get_template('nginx/docker-compose.yml.j2').render(**full), 'no socket mount while off'
 fed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'federation_endpoint': True}))
+# covers: setting:federation_endpoint +
 assert 'federation' in [r['name'] for r in fed['dns']['dynamic_zone_var']['CNAME']], 'CNAME for the endpoint'
 ngx = env.get_template('nginx/nginx.conf.j2').render(**{**secrets, **fed})
 assert 'server_name federation.lan.j-j.family;' in ngx and 'proxy_pass http://unix:/srv/federation/federation.sock:;' in ngx
@@ -244,11 +277,14 @@ unit = env.get_template('systemd/fabric-federation.service.j2').render(**fed)
 assert f"--allow-uid {fed['service_users']['nginx']['uid']}" in unit and 'lib/federation/server.py' in unit, unit
 site = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'domain': 'branch1.lan.j-j.family',
                                                                   'org_domain': 'lan.j-j.family', 'site_name': 'branch1'}))
+# covers: setting:org_domain +
 assert site['ldap_base_dn'] == v2['ldap_base_dn'] == 'dc=lan,dc=j-j,dc=family', site['ldap_base_dn']
+# covers: setting:site_name setting:domain +
 assert site['site_name'] == 'branch1' and site['hostname_federation'] == 'federation.branch1.lan.j-j.family'
 # a chosen base DN (the root site's install, e.g. dc=lan) is kept as given: it names the organisation
 for base in ('dc=lan', 'o=acme,dc=lan'):
     chosen = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ldap_base_dn': base}))
+    # covers: setting:ldap_base_dn +
     assert chosen['ldap_base_dn'] == base, chosen['ldap_base_dn']
 print('federation: endpoint vhost/mount/CNAME/unit only when on; a site shares the organisation suffix')
 # DNS links (manual 1.9 M4): none -> no transfers; with links -> keys, transfers, secondaries, delegation
@@ -272,6 +308,7 @@ print('federation DNS: no links -> no transfers; links -> keys, signed transfers
 assert v2['dns_filter'] == user.get('dns_filter', 'bind') and v2['install_resolver'] is (v2['dns_filter'] == 'bind')
 off = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'dns_filter': 'none',
                                                                  'bind_dns_port': 53}))
+# covers: setting:bind_dns_port setting:dns_filter +
 assert off['install_resolver'] is False and off['bind_dns_port'] == 53, 'with the filter off the port is what vars say (53)'
 kept = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'dns_filter': 'none',
                                                                   'bind_dns_port': 5053}))
@@ -286,6 +323,7 @@ for r in (dflt, res):
     assert r['dns_filter'] == 'bind' and r['install_resolver'] is True and r['bind_dns_port'] == 5053, \
         (r['dns_filter'], r['install_resolver'], r['bind_dns_port'])
 # 0.6's AdGuard Home in front is gone (0.7); 0.7.0's behind the resolver has exactly these settings (1.12.3)
+# covers: setting:adguard_mem_limit setting:image_adguard setting:ip_adguard +
 assert sorted(k for k in dflt if 'adguard' in k or 'oauth2proxy' in k) == ['adguard_mem_limit', 'image_adguard',
                                                                            'ip_adguard'], dflt.keys()
 assert 'adguard' not in [r['name'] for r in dflt['dns']['dynamic_zone_var']['CNAME']]
@@ -301,6 +339,7 @@ assert res['image_adguard'].startswith('adguard/adguardhome:') and '@sha256:' in
 assert 'adguard' not in env.get_template('nginx/nginx.conf.j2').render(**full), 'no AdGuard vhost: its UI is unpublished'
 rc = yaml.safe_load(env.get_template('resolver/docker-compose.yml.j2').render(**{**secrets, **res}))['services']
 assert list(rc) == ['bind9-resolver'] and rc['bind9-resolver']['cap_drop'] == ['ALL'] and 'cap_add' not in rc['bind9-resolver']
+# covers: setting:host_ip +
 assert rc['bind9-resolver']['ports'] == [f"{res['host_ip']}:53:53/tcp", f"{res['host_ip']}:53:53/udp",
                                          f"{res['host_ip']}:853:853/tcp"], rc['bind9-resolver']['ports']   # DoT, 1.12.2.16
 assert not any('lists' in m for m in rc['bind9-resolver']['volumes']), 'the resolver holds no lists (1.12.3)'
@@ -336,6 +375,7 @@ own = copy.deepcopy(PRISTINE)
 own['dns'] = {'dynamic_zone_var': {'zone_authority': True, 'A': [{'name': 'ntp', 'ip': '192.168.4.9'}]}}
 own_v = yaml.safe_load(env.get_template('vars.yaml.j2').render(**own))
 assert 'ntp' not in [r['name'] for r in own_v['dns']['dynamic_zone_var'].get('CNAME', [])], 'never a CNAME next to an A'
+# covers: setting:ntp_servers +
 assert yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ntp_servers': []}))['ntp_servers'] == []
 assert 'time-sync.target' in env.get_template('systemd/wrapper.service.j2').render(**{**v2, 'item': {'service': 'x', 'folder': 'x', 'compose': 'x'}})
 print('time: served with NTS sources by default, ntp.<domain>, units after time-sync.target, Kea option 42')
@@ -370,6 +410,7 @@ fb_vars = {**v2, "hostname": "pi-core", "log_forwarding": {"syslog": {"host": "s
                                                           "elastic": {"url": "https://es.lan:9200", "user": "fabric"}}}
 fb = yaml.safe_load(env.get_template('fluentbit/fluent-bit.yaml.j2').render(**fb_vars))
 outs = {o["name"]: o for o in fb["pipeline"]["outputs"]}
+# covers: setting:log_forwarding +
 assert set(outs) == {"syslog", "es"} and all(o["tls.verify"] in (True, "on") for o in outs.values()), outs
 assert outs["syslog"]["mode"] == "tls" and outs["syslog"]["syslog_format"] == "rfc5424", outs["syslog"]
 assert outs["es"]["host"] == "es.lan" and outs["es"]["port"] == 9200 and outs["es"]["http_passwd"] == "${LOG_ELASTIC_PASSWORD}"
@@ -403,6 +444,7 @@ def kea_json(name):
 
 k4 = kea_json("kea-dhcp4.conf")["Dhcp4"]
 sn = k4["subnet4"][0]
+# covers: setting:dhcp +
 assert sn["pools"] == [{"pool": "192.168.7.100 - 192.168.7.199"}] and sn["reservations"][0]["ip-address"] == "192.168.7.20"
 assert k4["ddns-qualifying-suffix"] == "dhcp.lan.j-j.family." and k4["ddns-conflict-resolution-mode"] == "check-with-dhcid"
 assert k4["control-socket"]["socket-name"].startswith("/var/run/kea/") and k4["interfaces-config"]["interfaces"] == ["eth0"]
@@ -430,7 +472,9 @@ parent = env.get_template('bind9/data/zone.j2').render(**{**secrets, **kv, "zone
                                                         "zone_records": kv["dns"]["dynamic_zone_var"]})
 assert re.search(r"^dhcp\s+NS\s+ns\.lan\.j-j\.family\.$", parent, re.M), "no delegation of the DHCP subzone"
 nokea = env.get_template('bind9/config/named.conf.zones.j2').render(**{**secrets, **v2, "tsig_keys": [], "tsig_secrets": {}})
+# covers: setting:install_kea +
 assert "dhcp.lan.j-j.family" not in nokea, "no DHCP subzone without Kea"
+# covers: setting:dhcp -
 for bad, msg in ((lambda d: d["subnets"][0].update(pools=["192.168.8.1 - 192.168.8.9"]), "inside"),
                  (lambda d: d["subnets"][0]["reservations"][0].update(ip="192.168.7.150"), "outside its pools"),
                  (lambda d: d.update(interfaces=[]), "interface"),
@@ -553,9 +597,11 @@ assert json.loads("\n".join(ln for ln in env.get_template("kea/kea-dhcp4.conf.j2
 from fabriclib.dns_filter.expand_group_clients import expand_group_clients  # noqa: E402
 gl = {**lab, "dhcp": {**lab["dhcp"], "subnets": [dict(s) for s in lab["dhcp"]["subnets"]]}}
 gl["dhcp"]["subnets"][1].update(name="lab", vlan=20)
+# covers: setting:dns_filter_groups +
 assert expand_group_clients(["dhcp:lab", "dhcp:10.30.0.0/24", "device:printer", "device:AA:BB:CC:00:11:22",
                              "vlan:20", "192.168.7.77"], "kids", gl) == \
     ["10.20.0.0/24", "10.30.0.0/24", "192.168.7.20", "192.168.7.20", "10.20.0.0/24", "192.168.7.77"]
+# covers: setting:dns_filter_groups -
 for raw, msg in ((["dhcp:nope"], "no DHCP subnet 'nope'"), (["device:ghost"], "no DHCP reservation 'ghost'"),
                  (["vlan:99"], "no DHCP subnet with VLAN '99'")):
     try:
@@ -586,8 +632,10 @@ from fabriclib.radius.normalize_radius_clients import normalize_radius_clients  
 rclients, rembedded = normalize_radius_clients([{"name": "Switch1", "address": "192.168.7.2"},
                                                 {"name": "ap-old", "address": "192.168.7.16/28",
                                                  "message_authenticator": False, "secret": "OldApSecretOldApSecret"}])
+# covers: setting:radius_clients +
 assert rclients[0] == {"name": "switch1", "address": "192.168.7.2", "message_authenticator": True}, rclients
 assert rembedded == {"ap-old": "OldApSecretOldApSecret"} and "secret" not in rclients[1], "secret must leave vars"
+# covers: setting:radius_clients -
 for bad in ([{"name": "a", "address": "0.0.0.0/0"}], [{"name": "a", "address": "10.0.0.1"}, {"name": "b", "address": "10.0.0.0/24"}],
             [{"name": "a", "address": "10.0.0.1"}, {"name": "a", "address": "10.0.0.2"}], [{"name": "a b", "address": "10.0.0.1"}],
             [{"name": "a", "address": "10.0.0.1", "secret": "has $ {dollar} x"}], [{"name": "a", "address": "10.0.0.1", "secret": "short"}]):
@@ -608,7 +656,9 @@ eap_none = env.get_template("freeradius/config/mods/eap.j2").render(**{**rv_, "r
 assert "ttls {" not in eap_none and "peap {" not in eap_none, "no password logins while no group is mapped"
 from fabriclib.radius.normalize_radius_people import normalize_radius_people  # noqa: E402
 people = normalize_radius_people([{"group": "guests", "vlan": "50", "priority": 60}, {"group": "staff", "vlan": 20}])
+# covers: setting:radius_people +
 assert people[0]["group"] == "guests" and people[1] == {"group": "staff", "vlan": 20, "priority": 100}, people
+# covers: setting:radius_people -
 for bad in ([{"group": "staff", "vlan": 5000}], [{"group": "staff"}, {"group": "STAFF"}], [{"group": ""}],
             [{"group": "x", "priority": "high"}]):
     try:
@@ -709,6 +759,7 @@ from fabriclib.setup.create_admin import _readme  # noqa: E402
 ngx_off = env.get_template('nginx/nginx.conf.j2').render(**{**full, 'install_webui': True})
 ngx_on = env.get_template('nginx/nginx.conf.j2').render(**{**full, 'install_webui': True, 'webui_client_cert': True})
 assert 'ssl_verify_client optional;' in ngx_off and 'ssl_verify_client on;' not in ngx_off, 'no certificate required by default'
+# covers: setting:webui_client_cert +
 assert 'ssl_verify_client on;' in ngx_on and 'ssl_client_certificate /etc/nginx/certs/client-ca/ca-bundle.pem;' in ngx_on
 assert v2['webui_client_cert'] is False and v2['signin_kerberos'] is False and v2['signin_admin_second_factor'] == 'none'
 assert v2['webui_admin_role'] == 'fabric-console-admin', "the admin role is not the first admin's name (2.1.6.33)"
@@ -720,6 +771,7 @@ off_txt, on_txt = _readme(kit, 'jim', 'jim', '/home/jim/fabric-admin'), \
 assert '.p12' not in off_txt and 'p12-password' not in off_txt and '\n1. First, your computer must find' in off_txt
 assert '192.168.7.53 ' + v2['hostname_landing'] in off_txt and 'http://192.168.7.53/certs/' in off_txt, off_txt
 assert off_txt.index('find fabric') < off_txt.index('Trust the root CA') < off_txt.index('sign in as'), off_txt
+# covers: setting:signin_admin_second_factor +
 assert 'jim.p12' in on_txt and '\n4. Import jim.p12' in on_txt and '\n5. Open https://' in on_txt and 'authenticator app (TOTP)' in on_txt
 print('sign-in: no client certificate by default (nginx, webui.json, the admin kit); with it, mutual TLS and the .p12')
 
@@ -744,6 +796,7 @@ _zone["dynamic_zone_var"].setdefault("A", []).extend(
 _zone["dynamic_zone_var"].setdefault("CNAME", []).append(
     {"name": "nas", "canonical": "nas25", "link": {"label": None, "port": None, "path": "/ui/"}})
 _landing = env.get_template('nginx/www/landing/index.html.j2').render(**{**full, 'dns': _zone})
+# covers: setting:dns +
 assert f'href="https://host1.{v2["domain"]}:8006/"' in _landing and '>Proxmox host1<' in _landing, _landing[-1500:]
 assert f'href="https://nas.{v2["domain"]}/ui/"' in _landing and "printer" not in _landing and "Apps" not in _landing
 assert _landing.index("This network") < _landing.index(f'nas.{v2["domain"]}') < _landing.index("Proxmox host1"), \
@@ -761,6 +814,7 @@ assert _land == f"info.{v2['domain']}", _land
 assert _info80 and "return 301 https" not in _info80[0].split("location /manual/")[0] \
     and "location /certs/" in _info80[0], "info.<domain> answers on plain HTTP, with the CA files, without a redirect"
 _redir = [b for b in _blocks if f"return 301 $scheme://{_land}$request_uri;" in b]
+# covers: setting:hostname +
 assert _redir and v2['domain'] + " " in _redir[0] and (v2['hostname'] + '.' + v2['domain']).lower() in _redir[0] \
     and "listen 80;" in _redir[0] and "listen 443 ssl;" in _redir[0], "<domain> and the host's name redirect, both"
 assert 'id="root-fp"' in _landing and "/certs/ca-certs.json" in _landing and f"https://{_land}/manual/" in _landing, \
@@ -801,3 +855,35 @@ from fabriclib.pki.acme_info import acme_info  # noqa: E402
 assert any(f"{_certs_url} (check its fingerprint" in x for x in acme_info(v2)), acme_info(v2)
 print("the CA at info.<domain>/certs/ and <host_ip>/certs/ only: no certs.<domain> server, name or CNAME; ca.<domain> "
       "and /certificates redirect there; leaves name its CRL; the page, scripts and README use it (1.5.1.5)")
+# Free-text labels (manual 1.1.5.7): whatever they hold, the settings file reads them back exactly, the pages escape
+# them, and the client scripts quote them, so nothing in a label is ever run on a client.
+import subprocess  # noqa: E402
+import tempfile  # noqa: E402
+HOSTILE = "Acme: Inc # \"q\" $(touch PWNED) `touch PWNED2` <b>x</b> & it's\nline two"
+HOSTILE_SH = HOSTILE.replace("\n", " ")   # one line, so each script line that carries it can run alone
+LABELS = ("friendly_name", "service_mark", "care_of", "trademark", "copyright", "contact_email", "contact_phone",
+          "address_line1", "address_line2", "ca_name")
+_lv = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE),
+                                                                 **{k: HOSTILE for k in LABELS}}))
+# covers: setting:friendly_name setting:service_mark setting:care_of setting:trademark setting:copyright +
+# covers: setting:contact_email setting:contact_phone setting:address_line1 setting:address_line2 setting:ca_name +
+assert all(_lv[k] == HOSTILE for k in LABELS), {k: _lv[k] for k in LABELS if _lv[k] != HOSTILE}
+_lpage = env.get_template('nginx/www/shared/base.html.j2').render(**{**full, **{k: HOSTILE for k in LABELS}})
+assert "<b>x</b>" not in _lpage and "&lt;b&gt;x&lt;/b&gt;" in _lpage, "a label is escaped in the pages"
+with tempfile.TemporaryDirectory() as _d:
+    for _name in ("install-certs.sh.j2", "install-chrome-ubuntu.sh.j2", "install-firefox-ubuntu.sh.j2",
+                  "install-python-ubuntu.sh.j2"):
+        _sh = env.get_template(f'nginx/www/certs/{_name}').render(**{**full, 'friendly_name': HOSTILE_SH})
+        assert subprocess.run(["bash", "-n"], input=_sh, text=True).returncode == 0, f"{_name} does not parse"
+        for _line in _sh.splitlines():       # run each line that carries the label, alone, where a canary would land
+            if "Acme" in _line and ("FRIENDLY_NAME=" in _line or _line.lstrip().startswith(("echo", "if"))):
+                _cmd = _line.strip().split(" | ")[0].removesuffix("; then").removeprefix("if ! ")
+                if _cmd.startswith("grep"):
+                    continue                 # needs the bundle; the quoting is the echo's and assignment's
+                _out = subprocess.run(["bash", "-c", _cmd + ('; printf %s "$FRIENDLY_NAME"' if "=" in _cmd.split()[0]
+                                                             else "")], cwd=_d, capture_output=True, text=True)
+                assert HOSTILE_SH in _out.stdout, (_name, _cmd, _out.stdout, _out.stderr)
+    assert not os.path.exists(os.path.join(_d, "PWNED")) and not os.path.exists(os.path.join(_d, "PWNED2")), \
+        "nothing in a label ran"
+print("free-text labels: read back exactly from vars.yaml, escaped in the pages, quoted in the client scripts "
+      "(nothing in one runs, 1.1.5.7)")

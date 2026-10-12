@@ -190,6 +190,7 @@ try:
     t0 = time.time()
     st, res = agent("/v1/zones", {"name": "Home.LAN.", "hide_public": False})
     took = time.time() - t0
+    # covers: agent:post.zones +
     check("add: POST /v1/zones accepts a zone, normalised (lowercase, no trailing dot)",
           st == 200 and res["name"] == "home.lan" and res["resolver"] and not res["public"], (st, res))
     check(f"add: in seconds, not an apply ({took:.1f} s)", took < 30, took)
@@ -218,6 +219,7 @@ try:
                             ("bad_name.lan", "not a DNS name", "two labels"),
                             ("shop.example.com", "a public name without the tick", "Hide the public name")):
         st, res = agent("/v1/zones", {"name": name})
+        # covers: agent:post.zones -
         check(f"add refused: {why}, saying why, nothing changed",
               st == 400 and word in res["error"] and vars_dns() == before, (st, res))
     st, res = agent("/v1/zones", {"name": 7})
@@ -252,10 +254,12 @@ try:
                                     ("dynamic_zone_var", "lan.test", "the site's own zone", "cannot be removed"),
                                     ("nowhere.lan", "nowhere.lan", "an unknown zone", "unknown zone")):
         st, res = agent(f"/v1/zones/{key}/delete", {"confirm": confirm})
+        # covers: agent:post.zones.*.delete -
         check(f"remove refused: {why}, saying why", st == 400 and word in res["error"], (st, res))
     st, res = agent("/v1/zones/home.lan/records", {"type": "A", "name": "nas", "ip": "10.9.8.20"})
     check("a record added to the zone (published by the next apply)", st == 200, (st, res))
     st, res = agent("/v1/zones/home.lan/delete", {"confirm": "HOME.LAN"})
+    # covers: agent:post.zones.*.delete +
     check("remove: accepted with the name typed again, the record count returned",
           st == 200 and res == {"key": "home.lan", "name": "home.lan", "records": 1}, (st, res))
     check("remove: BIND and the resolver stop answering for it, its zone file is gone",
@@ -277,14 +281,22 @@ try:
     check("menu: 'a' refuses a name BIND already answers for, saying why", "site's own domain" in r.stdout,
           r.stdout[-400:])
     r = lib(menu, stdin="a\nshop.example.net\nn\n\nb\n")
+    # covers: ask:menu.dns.hide_public -
     check("menu: a public name asks whether it hides the real one; no is refused",
           "Hide the public name?" in r.stdout and "Tick 'Hide the public name'" in r.stdout, r.stdout[-400:])
+    r = lib(menu, stdin="a\nshop.example.org\ny\n\nb\n")
+    # covers: ask:menu.dns.hide_public +
+    check("menu: a public name with yes to hiding the real one is added and BIND answers for it",
+          "Zone shop.example.org added" in r.stdout and status(BIND_IP, "shop.example.org") == "NOERROR",
+          r.stdout[-400:] + r.stderr[-400:])
     idx = 1 + [k for k in vars_dns() if k != "dynamic_zone_var"].index("menu.lan") + 1
     r = lib(menu, stdin=f"r\n{idx}\nwrong.lan\n\nb\n")
+    # covers: ask:menu.dns.remove_pick ask:menu.dns.remove_confirm -
     check("menu: 'r' shows the record count and refuses a name typed wrong",
           "removes its 0 record(s)" in r.stdout and "type the zone's name" in r.stdout
           and "menu.lan" in vars_dns(), r.stdout[-400:])
     r = lib(menu, stdin=f"r\n{idx}\nmenu.lan\n\nb\n")
+    # covers: ask:menu.dns.remove_pick ask:menu.dns.remove_confirm +
     check("menu: 'r' removes the zone once its name is typed again", "Zone menu.lan removed" in r.stdout
           and status(BIND_IP, "menu.lan") != "NOERROR" and "menu.lan" not in vars_dns(), r.stdout[-400:])
     r = lib(menu, stdin="r\n1\n\nb\n")

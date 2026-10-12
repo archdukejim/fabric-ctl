@@ -31,6 +31,9 @@ GROUPS = {
     "time": {"title": "Time service (chrony)", "level": "recommended", "step": "deploy",
              "declined": "chrony keeps the host's own configuration: fabric does not serve time to the network "
                          "or follow the upstream site"},
+    "member": {"title": "This host as a member of its domain", "level": "recommended", "step": "member",
+               "declined": "this host is not a member of its domain: fabric admins sign in to it with local accounts "
+                           "only, and sudo here does not follow the domain's rules"},
 }
 
 # A group later split into several (2.1.2.14): an install whose answers predate the split (it has no answer for

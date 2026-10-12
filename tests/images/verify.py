@@ -7,6 +7,8 @@ signatures in Sigstore's public log. Needs Docker and network access. Run by tes
 - an unsigned image (the pinned Debian base) is refused; so is one whose registry cannot be reached
 - a ref not pinned by digest is refused before anything runs
 - the deploy step checks only images in use, and does nothing while image_signature_check is false
+- fabric's own published image (bind9, from the lock) verifies with fabric's signer and the pinned cosign
+  (image_cosign); each published image of fabric's in use stops setup when its signature cannot be verified
 """
 import os
 import shutil
@@ -20,6 +22,7 @@ from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
 from fabriclib.common.read_published_lock import read_published_lock  # noqa: E402
 from fabriclib.deploy.verify_published_images import verify_published_images  # noqa: E402
+from fabriclib.images.published_image import GROUP_ACCOUNTS  # noqa: E402
 from fabriclib.images.verify_signature import verify_signature  # noqa: E402
 
 PASS = FAIL = 0
@@ -75,6 +78,17 @@ try:
     why = refused("ghcr.io/archdukejim/open-fabric/bind9:1.5.0", PUBLISHED["signer"], PUBLISHED["issuer"], fresh)
     check("a ref not pinned by digest is refused", "not pinned by digest" in why, why)
 
+    # fabric's own published image, signed by its images workflow, with the pinned cosign (image_cosign's default)
+    ours = PUBLISHED["images"]["bind9"]["ref"]
+    if ours:
+        mine = os.path.join(work, "ours.json")
+        why = refused(ours, PUBLISHED["signer"], PUBLISHED["issuer"], mine)
+        # covers: setting:image_cosign +
+        check("fabric's published bind9 verifies with fabric's signer, run by the pinned cosign (image_cosign)",
+              not why and ours.split("@")[1] in open(mine).read(), why)
+    else:
+        print("SKIP fabric's published bind9: the lock has no published bind9 yet")
+
     # the deploy step: only images this deploy runs, and nothing while the check is off
     render = os.path.join(work, "render")
     os.makedirs(os.path.join(render, "bind9"))
@@ -88,10 +102,41 @@ try:
         why = ""
     except ValidationError as e:
         why = str(e)
+    # covers: setting:image_fabric_bind9 setting:image_fabric_stepca -
     check("setup stops before installing anything when a published image in use is unsigned",
           "no valid signature" in why, why)
+    # covers: setting:image_signature_check +
     check("the check off (image_signature_check: false): nothing is checked",
           verify_published_images(paths, dict(host, image_signature_check=False)) == [])
+    # each published image of fabric's in use, at the ids baked into it, is checked: one that cannot be verified
+    # (its registry unreachable) stops setup, named in the refusal
+    users = {}
+    for e in PUBLISHED["images"].values():
+        if e.get("account"):
+            uid, gid = e["ids"].split(":")
+            users[e["account"]] = {"uid": int(uid), "gid": int(gid)}
+    for e in PUBLISHED["images"].values():
+        for pair in filter(None, (e.get("groups") or "").split(",")):
+            key, gid = pair.split("=")
+            users.setdefault(GROUP_ACCOUNTS[key], {})["gid"] = int(gid)
+    stopped = {}
+    for name in ["freeradius", "kea", "keycloak", "samba", "webui"]:
+        one = os.path.join(work, "render-" + name)
+        os.makedirs(os.path.join(one, name))
+        open(os.path.join(one, name, "docker-compose.yml"), "w").write("services: {}\n")
+        bad = f"localhost:5999/fabric-test/{name}:1@sha256:" + "0" * 64
+        try:
+            verify_published_images({"jinja": os.path.join(REPO, "templates"), "render": one},
+                                    {PUBLISHED["images"][name]["var"]: bad, "image_cosign": COSIGN,
+                                     "service_users": users})
+            stopped[name] = ""
+        except ValidationError as e:
+            stopped[name] = str(e)
+    # covers: setting:image_fabric_freeradius setting:image_fabric_kea setting:image_fabric_keycloak -
+    # covers: setting:image_fabric_samba setting:image_fabric_webui -
+    check("freeradius, kea, keycloak, samba, webui: a published image in use that cannot be verified stops setup",
+          all(why.startswith(f"localhost:5999/fabric-test/{n}:1@") and "no valid signature" in why
+              for n, why in stopped.items()), stopped)
     os.remove(os.path.join(render, "bind9", "docker-compose.yml"))
     check("an image this host does not run (no rendered compose file) is not checked",
           verify_published_images(paths, host) == [])

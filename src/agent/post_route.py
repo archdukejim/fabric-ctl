@@ -2,6 +2,7 @@ from agent.job_store import JOBS
 from agent.post_directory import post_directory
 from agent.post_dhcp import post_dhcp
 from agent.post_domain import post_domain
+from agent.post_host_access import post_host_access
 from agent.post_dns import post_dns
 from agent.post_dns_filter import post_dns_filter
 from agent.post_network import post_network
@@ -53,8 +54,10 @@ def post_route(route, actor, data, perms):
         return post_vault(route[1:], actor, data)
     if area in (["devices"], ["roles"]):
         return post_directory(route, actor, data)
-    if area in (["machines"], ["gpo"]):
+    if area in (["machines"], ["gpo"]) or route[:2] == ["domain", "logon"]:
         return post_domain(route, actor, data)
+    if area in (["host-groups"], ["sudo"]):
+        return post_host_access(route, actor, data)
     if area == ["security"]:
         return post_security(route, actor, data)
     if area == ["dns-filter"]:

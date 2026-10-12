@@ -1,6 +1,6 @@
-import getpass
 import os
 
+from fabriclib.common.ask import ask_secret
 from fabriclib.common.console import BOLD, NC, YELLOW
 from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.samba.password_meets_policy import password_meets_policy
@@ -41,12 +41,12 @@ def ask_first_admin(ctx, needed=None):
     print(f"\n  The first admin, {BOLD}{user}{NC}, signs in to the web console with a password you choose now "
           "(it is not shown or stored by setup).")
     while True:
-        password = getpass.getpass(f"    Password for {user}: ")
+        password = ask_secret("setup.admin_password", f"    Password for {user}: ")
         refused = password_meets_policy(password, user, policy)
         if refused:
             print(f"    {YELLOW}{refused}{NC}")
             continue
-        if getpass.getpass("    The same again: ") == password:
+        if ask_secret("setup.admin_password_again", "    The same again: ") == password:
             ctx.admin_password = password
             return
         print(f"    {YELLOW}the two differ: once more{NC}")

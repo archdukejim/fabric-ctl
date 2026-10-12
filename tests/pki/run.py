@@ -10,11 +10,14 @@ zone — including what must be refused.
     sudo python3 tests/pki/run.py          (needs Docker, openssl, root)
 """
 import base64
+import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
+import time
 
 import jinja2
 import yaml
@@ -84,6 +87,7 @@ step("certificate", "create", "Fabric Test Intermediate CA", "/home/step/certs/i
 ROOT, INTER = f"{data}/certs/root_ca.crt", f"{data}/certs/intermediate_ca.crt"
 
 V = {"deploy_base_dir": W, "domain": "lan.test", "host_ip": "192.168.7.53", "hostname_landing": "info.lan.test",
+     "hostname_stepca": "ca.lan.test",
      "image_stepca": IMAGE, "service_users": {"step": {"uid": STEP_UID, "gid": STEP_UID}},
      "dns": {"dynamic_zone_var": {"zone_authority": True, "A": [{"name": "fabric", "ip": "192.168.7.53"}]},
              "7.168.192.in-addr.arpa": {"PTR": [{"name": "53", "target": "fabric.lan.test."}]}}}
@@ -140,6 +144,7 @@ check("signed CSR chains to the fabric root", verifies(r["fullchain"]))
 check("signed cert keeps the CSR's names", all(n in t for n in ("DNS:dev1.lan.test", "DNS:dev1", "IP Address:192.168.7.21")), t)
 check("signed cert is a leaf for server + client auth",
       "TLS Web Server Authentication" in t and "TLS Web Client Authentication" in t and "CA:TRUE" not in t, t)
+# covers: setting:cert_org +
 check("signed cert gets the fabric subject defaults", "O=Fabric Test" in r["info"]["subject"], r["info"])
 end = sh(["openssl", "x509", "-noout", "-checkend", str(89 * 86400)], data=r["cert"], ok=False).returncode == 0
 end2 = sh(["openssl", "x509", "-noout", "-checkend", str(91 * 86400)], data=r["cert"], ok=False).returncode != 0
@@ -175,6 +180,7 @@ uri, _ = csr("uri", "-addext", "subjectAltName=URI:spiffe://evil/x")
 check("CSR with a URI name refused", refused(sign_csr, V, "alice", uri, 30, match="unsupported"))
 badcn, _ = csr("badcn", subj="/CN=not a host name!")
 check("CSR naming nothing usable refused", refused(sign_csr, V, "alice", badcn, 30, match="not a host name"))
+# covers: setting:pki_manual_max_days +
 check("validity above pki_manual_max_days refused", refused(sign_csr, V, "alice", good, 1826, match="1 to 1825"))
 check("validity of 0 days refused", refused(sign_csr, V, "alice", good, 0, match="days"))
 check("two CSRs at once refused", refused(sign_csr, V, "alice", good + cn_only, 30, match="exactly one"))
@@ -300,6 +306,249 @@ check("rotate: new secret, in the secrets file and the new ini",
 remove_tsig_key("alice", "legacy", source="web")
 check("remove: key and secret gone", "legacy" not in open(f"{W}/fabric/config/vars.yaml").read()
       and kept not in open(f"{W}/fabric/config/fabric-secrets.yml").read())
+
+# ---------------------------------------------------------------- the same through fabric-agent
+print("--- through fabric-agent (its routes; a root peer needs no token, so the request names the actor)")
+SOCK = f"{W}/agent.sock"
+agent = subprocess.Popen([sys.executable, f"{W}/fabric/lib/agent/server.py", "--socket", SOCK, "--socket-gid", "0"],
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+for _ in range(100):
+    if os.path.exists(SOCK):
+        break
+    time.sleep(0.1)
+
+
+def agent_call(method, path, body=None):
+    """(status, JSON reply) of one fabric-agent request over its unix socket, as root."""
+    raw = json.dumps({"actor": "alice", **(body or {})}).encode() if method == "POST" else b""
+    s = socket.socket(socket.AF_UNIX)
+    s.connect(SOCK)
+    s.sendall(f"{method} {path} HTTP/1.0\r\nContent-Type: application/json\r\nContent-Length: {len(raw)}\r\n\r\n"
+              .encode() + raw)
+    out = b""
+    while True:
+        chunk = s.recv(65536)
+        if not chunk:
+            break
+        out += chunk
+    s.close()
+    head, _, payload = out.partition(b"\r\n\r\n")
+    return int(head.split()[1]), json.loads(payload or b"null")
+
+
+def ledger_text():
+    return open(f"{W}/fabric/archive/issued-certs.jsonl").read()
+
+
+def config_files():
+    """vars.yaml and fabric-secrets.yml as they are now (to prove a refusal changed nothing)."""
+    return open(f"{W}/fabric/config/vars.yaml").read(), open(f"{W}/fabric/config/fabric-secrets.yml").read()
+
+
+REVOKED = f"{W}/fabric/archive/revoked-certs.jsonl"
+
+
+def revoked_text():
+    return open(REVOKED).read() if os.path.exists(REVOKED) else ""
+
+
+before = ledger_text()
+st, res = agent_call("POST", "/v1/pki/sign", {"csr": good, "days": 20})
+# covers: agent:post.pki.sign +
+check("agent: POST /v1/pki/sign signs the CSR (chains to the root) and records it in the ledger",
+      st == 200 and verifies(res["fullchain"]) and ledger_text().count("\n") == before.count("\n") + 1, (st, res))
+before = ledger_text()
+st, res = agent_call("POST", "/v1/pki/sign", {"csr": weak, "days": 20})
+# covers: agent:post.pki.sign -
+check("agent: a 1024-bit CSR is refused (400, says why), nothing signed or recorded",
+      st == 400 and "too small" in res.get("error", "") and ledger_text() == before, (st, res))
+st, res = agent_call("POST", "/v1/pki/issue", {"cn": "agentkey.lan.test", "sans": ["agentkey"], "key_type": "EC-P256",
+                                               "days": 20})
+# covers: agent:post.pki.issue +
+check("agent: POST /v1/pki/issue makes a key + certificate that chains to the root",
+      st == 200 and verifies(res["fullchain"]) and "PRIVATE KEY" in res["key"]
+      and "DNS:agentkey" in text_of(res["cert"]), (st, str(res)[:300]))
+st, res = agent_call("GET", "/v1/pki/issued")
+# covers: agent:get.pki.issued +
+check("agent: GET /v1/pki/issued lists them, newest first",
+      st == 200 and res[0]["subject"].startswith("CN=agentkey.lan.test,") and res[0]["kind"] == "keypair", (st, res[:2]))
+st, res = agent_call("GET", "/v1/cert-warnings")
+# covers: agent:get.cert-warnings +
+check("agent: GET /v1/cert-warnings counts the issued certificates expiring within 30 days",
+      st == 200 and any(w["level"] == "warn" and "expiring within 30 days" in w["what"] for w in res), (st, res))
+st, res = agent_call("POST", "/v1/pki/describe-csr", {"csr": "hello"})
+# covers: agent:post.pki.describe-csr -
+check("agent: describe-csr refuses what is not a CSR (400, says why)",
+      st == 400 and "not a PEM" in res.get("error", ""), (st, res))
+st, res = agent_call("POST", "/v1/pki/convert", {"cert": r["cert"], "key": open(f"{T}/foreign.key").read()})
+# covers: agent:post.pki.convert -
+check("agent: convert refuses a key that is not the certificate's (400, says why)",
+      st == 400 and "does not belong" in res.get("error", ""), (st, res))
+before = revoked_text()
+st, res = agent_call("POST", "/v1/pki/revoke", {"target": "nobody.lan.test", "reason": "unspecified"})
+# covers: agent:post.pki.revoke -
+check("agent: revoking a name not in the ledger is refused (400, says why), nothing recorded",
+      st == 400 and "no certificate named 'nobody.lan.test'" in res.get("error", "") and revoked_text() == before,
+      (st, res))
+st, res = agent_call("POST", "/v1/pki/revoke", {"target": "agentkey.lan.test", "reason": "superseded"})
+# covers: agent:post.pki.revoke +
+check("agent: POST /v1/pki/revoke revokes by name: recorded with its serial and reason",
+      st == 200 and res["subject"].startswith("CN=agentkey.lan.test,") and res["serial"] in revoked_text()
+      and '"reason": "superseded"' in revoked_text(), (st, res))
+st, res = agent_call("POST", "/v1/tsig", {"name": "acme-nas", "zone": "lan.test", "scope": "acme-hosts",
+                                          "hosts": ["nas"], "types": ["TXT"]})
+check("agent: a DNS-01 key for one machine (acme-nas)", st == 200 and res["key"]["name"] == "acme-nas", (st, res))
+st, res = agent_call("GET", "/v1/pki/acme")
+# covers: agent:get.pki.acme +
+check("agent: GET /v1/pki/acme: the ACME directory and the machines with a DNS-01 key",
+      st == 200 and any("https://ca.lan.test/acme/acme/directory" in line for line in res["info"])
+      and [m["fqdn"] for m in res["machines"]] == ["nas.lan.test"] and res["domain"] == "lan.test", (st, res))
+before = config_files()
+st, res = agent_call("POST", "/v1/tsig/ghost/rotate")
+# covers: agent:post.tsig.*.rotate -
+check("agent: rotating a TSIG key that does not exist is refused (400, names it), nothing changed",
+      st == 400 and "no TSIG key named 'ghost'" in res.get("error", "") and config_files() == before, (st, res))
+st, res = agent_call("POST", "/v1/tsig/ghost/delete")
+# covers: agent:post.tsig.*.delete -
+check("agent: deleting a TSIG key that does not exist is refused (400, names it), nothing changed",
+      st == 400 and "no TSIG key named 'ghost'" in res.get("error", "") and config_files() == before, (st, res))
+agent.terminate()
+agent.wait()
+
+# ---------------------------------------------------------------- fabricctl tsig and acl (the real command)
+print("--- fabricctl tsig and acl (the installed command; --no-apply: no BIND runs here)")
+
+
+def fabricctl(*argv, answers=None):
+    """(exit status, stdout + stderr) of the installed fabricctl, answers on stdin; its own session, so a hidden
+    prompt reads stdin, never a terminal."""
+    res = subprocess.run([sys.executable, "-m", "fabriclib.cli", *argv], cwd=f"{W}/fabric/lib", input=answers,
+                         capture_output=True, text=True, start_new_session=True)
+    return res.returncode, res.stdout + res.stderr
+
+
+code, out = fabricctl("tsig", "add", "cli-key", "--record", "web", "--no-apply")
+# covers: cli:tsig +
+check("tsig add: a key for one host's DNS-01 challenge, recorded (not applied: said so)",
+      code == 0 and "TSIG key 'cli-key' added (new secret)" in out and "not applied yet" in out
+      and "cli-key" in config_files()[0], (code, out))
+before = config_files()
+for argv, code_want, why, ids in (
+        (("tsig", "frobnicate"), 2, "invalid choice", "cli:tsig"),
+        (("tsig", "list", "--all"), 2, "unrecognized arguments", "cli:tsig.list"),
+        (("tsig", "add", "cli-key2", "--record", "web", "--any-name", "--no-apply"), 1,
+         "--record and --any-name exclude each other", "cli:tsig.add"),
+        (("tsig", "add", "cli-key", "--no-apply"), 1, "TSIG key 'cli-key' already exists", "cli:tsig.add"),
+        (("tsig", "update", "cli-key", "--no-apply"), 1, "nothing to change", "cli:tsig.update"),
+        (("tsig", "update", "ghost", "--types", "TXT", "--no-apply"), 1, "no TSIG key named 'ghost'", "cli:tsig.update"),
+        (("tsig", "set-secret", "cli-key", "--no-apply"), 1, "give the secret with --secret-prompt or --secret-file",
+         "cli:tsig.set-secret"),
+        (("tsig", "rotate", "ghost", "--no-apply"), 1, "no TSIG key named 'ghost'", "cli:tsig.rotate"),
+        (("tsig", "remove", "ghost", "--no-apply"), 1, "no TSIG key named 'ghost'", "cli:tsig.remove")):
+    code, out = fabricctl(*argv)
+    # covers: cli:tsig cli:tsig.list cli:tsig.add cli:tsig.update cli:tsig.set-secret cli:tsig.rotate cli:tsig.remove -
+    check(f"refused: fabricctl {' '.join(argv)} ({ids}): exit {code_want}, says why, nothing changed",
+          code == code_want and why in out and config_files() == before, (code, out[-300:]))
+given = base64.b64encode(os.urandom(32)).decode()
+code, out = fabricctl("tsig", "set-secret", "cli-key", "--secret-prompt", "--no-apply", answers=given + "\n")
+# covers: ask:tsig.secret +
+check("tsig set-secret --secret-prompt: the secret typed at the hidden prompt replaces the key's (never on argv)",
+      code == 0 and "secret replaced" in out and given in config_files()[1] and given not in config_files()[0],
+      (code, out))
+before = config_files()
+code, out = fabricctl("tsig", "set-secret", "cli-key", "--secret-prompt", "--no-apply", answers="not-base64!\n")
+# covers: ask:tsig.secret -
+check("refused: a typed secret that is not base64 (says why, the old secret kept)",
+      code == 1 and "secret is not valid base64" in out and config_files() == before, (code, out))
+
+code, out = fabricctl("acl", "add", "cli-acl", "10.9.0.0/16", "key cli-key", "--no-apply")
+# covers: cli:acl +
+check("acl add: an ACL with a network and a TSIG key, recorded",
+      code == 0 and 'cli-acl: 10.9.0.0/16, key "cli-key"' in out and "cli-acl" in config_files()[0], (code, out))
+code, out = fabricctl("acl", "policy", "cli-acl", "--record", "web", "--no-apply")
+check("acl policy: the ACL's keys may set web's DNS-01 challenge",
+      code == 0 and "members may update _acme-challenge.web.lan.test (TXT)" in out, (code, out))
+code, out = fabricctl("acl", "list")
+# covers: cli:acl.list +
+check("acl list: the ACL, its entries and its policy",
+      code == 0 and 'cli-acl: 10.9.0.0/16, key "cli-key"' in out
+      and "policy: members may update _acme-challenge.web.lan.test (TXT)" in out, out)
+before = config_files()
+for argv, code_want, why, ids in (
+        (("acl",), 2, "required", "cli:acl"),
+        (("acl", "list", "extra"), 2, "unrecognized arguments", "cli:acl.list"),
+        (("acl", "add", "cli-acl", "not-an-address", "--no-apply"), 1, "not an IP, CIDR", "cli:acl.add"),
+        (("acl", "add", "any", "10.0.0.1", "--no-apply"), 1, "invalid ACL name 'any'", "cli:acl.add"),
+        (("acl", "add", "cli-acl", "key ghost", "--no-apply"), 1, "no TSIG key named 'ghost'", "cli:acl.add"),
+        (("acl", "remove", "ghost-acl", "--no-apply"), 1, "no ACL named 'ghost-acl'", "cli:acl.remove"),
+        (("acl", "remove", "cli-acl", "10.1.1.1", "--no-apply"), 1, "'10.1.1.1' is not in 'cli-acl'", "cli:acl.remove"),
+        (("acl", "policy", "cli-acl", "--record", "web", "--any-name", "--no-apply"), 1,
+         "give --record host (repeatable) or --any-name", "cli:acl.policy"),
+        (("acl", "policy", "cli-acl", "--record", "bad host!", "--no-apply"), 1, "invalid record names",
+         "cli:acl.policy"),
+        (("acl", "policy", "ghost-acl", "--clear", "--no-apply"), 1, "ACL 'ghost-acl' has no update policy",
+         "cli:acl.policy")):
+    code, out = fabricctl(*argv)
+    # covers: cli:acl cli:acl.list cli:acl.add cli:acl.remove cli:acl.policy -
+    check(f"refused: fabricctl {' '.join(argv)} ({ids}): exit {code_want}, says why, nothing changed",
+          code == code_want and why in out and config_files() == before, (code, out[-300:]))
+code, out = fabricctl("acme", "info", "--deploy-base", W)      # this test install, never the host's /opt
+# covers: cli:acme +
+check("fabricctl acme info: the ACME directory and the names it signs",
+      code == 0 and "https://ca.lan.test/acme/acme/directory" in out and ".lan.test" in out, (code, out))
+for argv, ids in ((("acme", "info", "extra"), "cli:acme.info"), (("acme", "list", "--all"), "cli:acme.list")):
+    code, out = fabricctl(*argv, "--deploy-base", W)
+    # covers: cli:acme.info cli:acme.list -
+    check(f"refused: fabricctl {' '.join(argv)} ({ids}): exit 2 with the usage", code == 2
+          and "usage: fabricctl acme info" in out, (code, out[-300:]))
+code, out = fabricctl("client-cert")
+# covers: cli:client-cert -
+check("refused: fabricctl client-cert without a user: exit 2 with the usage naming <user>",
+      code == 2 and "fabricctl client-cert <user>" in out, (code, out[-300:]))
+code, out = fabricctl("--client-cert")
+# covers: cli:--client-cert -
+check("refused: the old --client-cert with no user: the same usage (exit 2), no traceback (2.3.1.15)",
+      code == 2 and "fabricctl client-cert <user>" in out and "Traceback" not in out, (code, out[-300:]))
+code, out = fabricctl("acl", "remove", "cli-acl", "--no-apply")
+check("acl remove: the whole ACL and its policy go", code == 0 and "cli-acl: removed" in out
+      and "cli-acl" not in config_files()[0], (code, out))
+
+# ---------------------------------------------------------------- fabricctl --mint-certs (asks on stdin)
+print("--- fabricctl --mint-certs (the installed command, answering its questions)")
+before = config_files()
+code, out = fabricctl("--mint-certs", answers="\n")
+# covers: ask:mint_certs.cn -
+check("refused: no Common Name (exit 1, says why), nothing recorded",
+      code == 1 and "Common Name is required" in out and config_files() == before, (code, out[-300:]))
+code, out = fabricctl("--mint-certs", answers="\n".join(["kept.lan.test", "", "30", T, "RSA", "2048", "n"]) + "\n")
+# covers: ask:mint_certs.confirm -
+check("answering no at the confirmation: cancelled, nothing recorded or minted",
+      code == 0 and "Cancelled" in out and config_files() == before and not os.path.exists(f"{T}/kept-lan-test.crt"),
+      (code, out[-300:]))
+# each answer checked before anything is written (2.3.1.15): refused with why, exit 1, vars.yaml and the folder as they were
+for bad, answers, says in (
+        ("days", ["bad.lan.test", "", "abc", T, "RSA", "2048", "y"], "whole number of days"),
+        ("out_dir", ["bad.lan.test", "", "30", "/nonexistent-dir", "RSA", "2048", "y"], "No such directory"),
+        ("key_type", ["bad.lan.test", "", "30", T, "DSA", "2048", "y"], "Key type must be one of RSA, EC, OKP"),
+        ("key_size", ["bad.lan.test", "", "30", T, "RSA", "big", "y"], "whole number of bits")):
+    code, out = fabricctl("--mint-certs", answers="\n".join(answers) + "\n")
+    # covers: ask:mint_certs.days ask:mint_certs.out_dir ask:mint_certs.key_type ask:mint_certs.key_size cli:--mint-certs -
+    check(f"refused: a bad {bad} answer says why, exits 1, records and mints nothing",
+          code == 1 and says in out and "Traceback" not in out and config_files() == before
+          and not os.path.exists(f"{T}/bad-lan-test.crt"), (code, out[-300:]))
+code, out = fabricctl("--mint-certs", answers="\n".join(["minted.lan.test", "minted", "192.168.7.77", "", "30", T,
+                                                          "RSA", "2048", "y"]) + "\n")
+minted = f"{T}/minted-lan-test.crt"
+mt = text_of(open(minted).read()) if os.path.exists(minted) else ""
+# covers: cli:--mint-certs +
+# covers: ask:mint_certs.cn ask:mint_certs.san ask:mint_certs.days ask:mint_certs.out_dir ask:mint_certs.key_type +
+# covers: ask:mint_certs.key_size ask:mint_certs.confirm +
+check("--mint-certs: the answers make a 2048-bit RSA leaf with its SANs, in the directory given, recorded in "
+      "extra_certs, chaining to the root",
+      code == 0 and mt and verifies(open(minted).read()) and "DNS:minted" in mt and "IP Address:192.168.7.77" in mt
+      and "Public-Key: (2048 bit)" in mt and os.path.exists(f"{T}/minted-lan-test.key")
+      and any(e.get("cn") == "minted.lan.test" and e.get("days") == 30
+              for e in yaml.safe_load(config_files()[0]).get("extra_certs") or []), (code, out[-600:]))
 
 # ---------------------------------------------------------------- federation site CAs (own throwaway root)
 print("--- site CAs (site_ca.py)")

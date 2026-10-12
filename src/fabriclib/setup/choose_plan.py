@@ -1,5 +1,6 @@
 import os
 
+from fabriclib.common.ask import ask
 from fabriclib.common.console import BOLD, NC, YELLOW, heading
 from fabriclib.setup.permanent_mark import permanent_mark
 
@@ -12,6 +13,10 @@ PLAN = [
      "Harden the Docker daemon (no-new-privileges, no inter-container traffic on the default bridge, "
      "no userland proxy, live-restore, bounded logs)",
      "containers may gain privileges via setuid binaries; logs can fill the disk"),
+    ("host_join_domain", True,
+     "Make this host a member of its domain: fabric admins sign in to it with their domain accounts (local accounts "
+     "unchanged; Advanced to change)",
+     "fabric admins sign in to this host with local accounts only"),
     ("install_keycloak", True, "Keycloak SSO (+ Postgres), required by the web UI", "no SSO and no web UI"),
     ("install_webui", True, "Fabric web UI at https://fabric.<domain> (Keycloak sign-in)",
      "manage with fabricctl only"),
@@ -56,12 +61,31 @@ def _ask_ca_lifetime(ctx):
         return
     years = round(int(ctx.vars.get("cert_root_ca_days") or 3650) / 365)
     while True:
-        answer = input(f"\n  The internal CA's root is valid for how many years (its intermediate a year less; fixed "
-                       f"once made)?{permanent_mark('cert_root_ca_days')} [{years}] ").strip() or str(years)
+        answer = ask("setup.ca_years", f"\n  The internal CA's root is valid for how many years (its intermediate a "
+                     f"year less; fixed once made)?{permanent_mark('cert_root_ca_days')} [{years}] ", str(years))
         if answer.isdigit() and 1 <= int(answer) <= 30:
             ctx.vars["cert_root_ca_days"] = int(answer) * 365
             return
         print(f"    {YELLOW}{answer!r}: a whole number of years, 1 to 30{NC}")
+
+
+def _ask_host_join_domain(ctx):
+    """Purpose: Advanced plan question: whether setup makes this host a member of its own domain (manual 1.6.11.8,
+             decision 2.1.6.34; on by default).
+    Inputs:  ctx — SetupContext; reads ctx.vars host_join_domain (default True). Interactive.
+    Returns: None; ctx.vars["host_join_domain"] set to True or False. An answer other than y, yes, n or no is
+             refused with the reason and asked again.
+    Fails:   EOFError from input().
+    Feeds:   choose_plan (Advanced)."""
+    now = ctx.vars.get("host_join_domain", True) is not False
+    while True:
+        answer = ask("setup.host_join_domain",
+                     f"\n  Make this host a member of its domain {'[Y/n]' if now else '[y/N]'} ",
+                     "y" if now else "n").lower()
+        if answer in ("y", "yes", "n", "no"):
+            ctx.vars["host_join_domain"] = answer.startswith("y")
+            return
+        print(f"    {YELLOW}{answer!r}: answer y or n{NC}")
 
 
 def _get(data, dotted, default):
@@ -93,8 +117,9 @@ def _set(data, dotted, value):
 
 def choose_plan(ctx):
     """Purpose: show what setup will do (every default is the hardened choice), then Proceed / Advanced / Quit.
-             Advanced holds only what cannot be changed later (2.1.2.16): the CA root's lifetime, before the CA
-             exists; without it there is no Advanced. Everything else shown is a default changed after the install
+             Advanced holds what is best chosen before the install (2.1.2.16): the CA root's lifetime, before the
+             CA exists (fixed once made); whether this host becomes a member of its domain (1.6.11.8: undone later
+             with `fabricctl setup --undo member`). Everything else shown is a default changed after the install
              (fabricctl, the vars editor; the web console's settings page after 0.7, 2.1.1.42). DHCP, off by
              default, is named a preview until 0.8.0 (manual 1.10.3.9).
     Inputs:  ctx — SetupContext: vars (PLAN keys, install_* flags, log_forwarding, dhcp, radius_clients,
@@ -155,15 +180,16 @@ def choose_plan(ctx):
     show()
     if ctx.non_interactive or ctx.assume_yes:
         return
-    advanced = not _ca_exists(ctx)            # the only permanent choice left (2.1.2.16)
-    prompt = (f"\n  {BOLD}[P]roceed{NC}, [A]dvanced (the CA's lifetime), or [Q]uit? " if advanced
-              else f"\n  {BOLD}[P]roceed{NC} or [Q]uit? ")
+    what = ("the CA's lifetime, this host's domain membership" if not _ca_exists(ctx)
+            else "this host's domain membership")
+    prompt = f"\n  {BOLD}[P]roceed{NC}, [A]dvanced ({what}), or [Q]uit? "
     while True:
-        choice = input(prompt).strip().lower() or "p"
+        choice = ask("setup.plan", prompt, "p").lower()
         if choice.startswith("q"):
             raise SystemExit("setup cancelled")
         if choice.startswith("p"):
             return
-        if choice.startswith("a") and advanced:
+        if choice.startswith("a"):
             _ask_ca_lifetime(ctx)
+            _ask_host_join_domain(ctx)
             show()

@@ -57,6 +57,7 @@ check "package installs with apt (dependencies resolved)" "in_box 'dpkg -s fabri
 check "fabricctl is the packaged command" "in_box 'command -v fabricctl' | grep -qx /usr/bin/fabricctl"
 check "installing the package started nothing" "! in_box 'test -e /etc/systemd/system/fabric.target'"
 # (the command exits 1 here by design; `; true` keeps pipefail from masking grep)
+# covers: cli:status -
 check "before setup, day-2 commands say what to do" "in_box 'fabricctl status 2>&1; true' | grep -q 'not set up on this host yet'"
 # An existing TSIG key (as on a host being rebuilt) whose RFC2136 client —
 # nginx-proxy-manager's certbot plugin — must keep working unchanged.
@@ -97,6 +98,7 @@ ADMIN_PW="Fx9-$(openssl rand -hex 12)"
 ( umask 077; printf '%s\n' "$ADMIN_PW" > "$OUT/admin-pw"; printf 'short\n' > "$OUT/admin-pw-short" )
 docker cp "$OUT/admin-pw" "$NAME:/root/admin-pw"; docker cp "$OUT/admin-pw-short" "$NAME:/root/admin-pw-short"
 in_box 'fabricctl setup --file /root/vars.yaml --non-interactive --yes --approve all' > "$OUT/setup-nopw.log" 2>&1
+# covers: cli:setup -
 check "unattended setup without the first admin's password refuses before any step, naming --admin-password-file" \
     "grep -q 'needs a password: --admin-password-file' '$OUT/setup-nopw.log' && ! grep -q '\[preflight\]' '$OUT/setup-nopw.log' \
      && ! in_box 'getent passwd fabric-dns'"
@@ -106,11 +108,13 @@ check "a password the domain's policy refuses is refused before any step, saying
     "grep -q 'admin-pw-short is refused: at least' '$OUT/setup-shortpw.log' && ! grep -q '\[preflight\]' '$OUT/setup-shortpw.log'"
 in_box 'fabricctl setup --file /root/vars.yaml --non-interactive --yes --admin-password-file /root/admin-pw' \
     > "$OUT/setup-noconsent.log" 2>&1
+# covers: cli:setup -
 check "unattended setup without --approve changes nothing and names the groups to answer" \
     "grep -q 'need an answer: packages' '$OUT/setup-noconsent.log' && ! in_box 'test -e /etc/systemd/system/fabric.target' \
      && ! in_box 'getent passwd fabric-dns'"
 in_box 'fabricctl setup --file /root/vars.yaml --non-interactive --yes --approve all --admin-password-file /root/admin-pw' 2>&1 \
     | tee "$OUT/setup.log"
+# covers: cli:setup +
 check "setup completes" "grep -q 'fabric is ready' '$OUT/setup.log'"
 check "the first admin is fabric-admin, created with the password chosen for setup (2.1.6.33)" \
     "grep -q \"admin 'fabric-admin' created in the directory with the password chosen in setup\" '$OUT/setup.log'"
@@ -126,6 +130,7 @@ check "Docker comes from the Ubuntu archive, no apt source added" \
 
 echo "--- doctor"
 in_box 'fabricctl doctor' 2>&1 | tee "$OUT/doctor.log"
+# covers: cli:doctor +
 check "doctor: all checks pass" "! grep -q '✗' '$OUT/doctor.log' && grep -q '✓' '$OUT/doctor.log'"
 
 echo "--- fabric's own images (manual 1.14.3): published and signature-checked once the lock pins them"
@@ -148,6 +153,7 @@ print(' '.join('fabric/' + {'webui': 'web'}.get(n, n) + ':local' for n, e in r('
     check "$published of $total published: the pending ones are built here ($pending)" \
         "in_box 'docker image inspect $pending' >/dev/null"
 fi
+# covers: cli:status +
 check "fabricctl status lists the relaxed security settings (none here)" \
     "in_box 'fabricctl status' | grep -A1 '^relaxed security settings:' | grep -qx '  none'"
 
@@ -189,8 +195,12 @@ check "the resolver answers clients on 53 (fabric's names through BIND); BIND an
 check "the resolver runs with no capabilities, as its own account" \
     "[ \"\$(in_box \"docker inspect -f '{{.HostConfig.CapAdd}} {{.HostConfig.CapDrop}} {{.Config.User}}' bind9-resolver\")\" = '[] [ALL] 613:613' ]"
 check "fabricctl status lists the DNS filter" "in_box 'fabricctl status' | grep -qE '^bind9-resolver +active'"
+# covers: cli:dns-filter.status +
 check "fabricctl dns-filter status: the resolver answers and every list has a good copy" \
     "in_box 'fabricctl dns-filter status' > '$OUT/dns-filter-status.log' 2>&1"
+# covers: cli:dns-filter.apply +
+check "fabricctl dns-filter apply: the settings made where they live, AdGuard Home answering, exit 0" \
+    "in_box 'fabricctl dns-filter apply' > '$OUT/dns-filter-apply.log' 2>&1 && grep -q '^resolver: ' '$OUT/dns-filter-apply.log' && ! grep -q 'waiting' '$OUT/dns-filter-apply.log'"
 check "the daily list timer is installed and enabled" "in_box 'systemctl is-enabled fabric-dns-lists.timer' | grep -qx enabled"
 RES_SINCE=$(in_box 'systemctl show -p ActiveEnterTimestampMonotonic --value bind9-resolver')
 in_box 'systemctl restart bind9' > /dev/null 2>&1
@@ -220,22 +230,27 @@ check "kea: a LAN client gets an address from the pool" "grep -q 'lease of 10.77
 check "kea: the client is handed this host as its time server (option 42)" "grep -q 'ntpsrv=$IP' '$OUT/dhcp.log'"
 check "kea: its hostname is registered in dhcp.lan.test (delegated from lan.test)" \
     "for _ in 1 2 3 4 5; do in_box 'dig +short @$IP sbxclient.dhcp.lan.test' | grep -q '^10\.77\.0\.2' && exit 0; sleep 2; done; exit 1"
+# covers: cli:dhcp.leases +
 check "kea: fabricctl dhcp leases lists the client's lease" "in_box 'fabricctl dhcp leases' | grep -q 'sbxclient.dhcp.lan.test'"
 in_box 'fabricctl dhcp reserve 02:00:00:00:77:01 10.77.0.50 sbxprinter' > "$OUT/dhcp-reserve.log" 2>&1
+# covers: cli:dhcp.reserve cli:dhcp.status +
 check "kea: fabricctl dhcp reserve saves and applies; status lists it"     "grep -q 'applied' '$OUT/dhcp-reserve.log' && in_box 'fabricctl dhcp status' | grep -q '02:00:00:00:77:01  10.77.0.50'"
 check "kea: a reservation inside the pool is refused"     "! in_box 'fabricctl dhcp reserve 02:00:00:00:77:02 10.77.0.205 --no-apply' >/dev/null 2>&1"
 # DHCP management (manual 1.10.2): subnets with name/VLAN/notes, options, a client class, Kea's own check
 in_box 'fabricctl dhcp add-subnet 10.78.0.0/24 --name lab2 --vlan 78 --router 10.78.0.1 --pool "10.78.0.100 - 10.78.0.150" --notes "second lab"' > "$OUT/dhcp-subnet.log" 2>&1
 in_box 'fabricctl dhcp class add pxe-uefi --test "option[93].hex == 0x0007" --next-server 10.77.0.30 --boot-file ipxe.efi' >> "$OUT/dhcp-subnet.log" 2>&1
 in_box 'fabricctl dhcp option set tftp-server-name 10.77.0.30 --class pxe-uefi' >> "$OUT/dhcp-subnet.log" 2>&1
+# covers: cli:dhcp.add-subnet cli:dhcp.class cli:dhcp.option +
 check "kea: add-subnet, a client class and an option are saved, applied, and Kea runs them" \
     "grep -c 'applied' '$OUT/dhcp-subnet.log' | grep -qx 3 && in_box 'systemctl is-active kea' | grep -qx active \
      && in_box 'fabricctl dhcp status' | grep -q 'lab2.*VLAN 78' && in_box 'cat /opt/kea/config/kea-dhcp4.conf' | grep -q 'pxe-uefi'"
 in_box 'fabricctl dhcp option set no-such-option 1' > "$OUT/dhcp-badopt.log" 2>&1
+# covers: cli:dhcp.option -
 check "kea: an option Kea does not know is refused before it is saved; the next apply is clean" \
     "grep -q 'Kea refused' '$OUT/dhcp-badopt.log' && ! in_box 'grep -q no-such-option /opt/fabric/config/vars.yaml' \
      && in_box 'fabricctl --apply' > '$OUT/dhcp-apply.log' 2>&1"
 in_box 'fabricctl dhcp remove-subnet lab2 && fabricctl dhcp class remove pxe-uefi' > "$OUT/dhcp-remove.log" 2>&1
+# covers: cli:dhcp.remove-subnet +
 check "kea: remove-subnet and class remove apply; the first subnet keeps its id (its leases stay)" \
     "grep -c 'applied' '$OUT/dhcp-remove.log' | grep -qx 2 && in_box 'cat /opt/kea/config/kea-dhcp4.conf' | grep -qF '\"id\": 1,' \
      && in_box 'fabricctl dhcp leases' | grep -q 'sbxclient.dhcp.lan.test'"
@@ -245,15 +260,20 @@ RADIUS_SECRET=$(grep -A1 'shown once' "$OUT/radius-add.log" | tail -1)
 docker cp "$REPO/tests/sandbox/radius_device.py" "$NAME:/root/radius_device.py"
 docker cp "$REPO/tests/sandbox/list_roles.py" "$NAME:/root/list_roles.py"
 check "setup created the six default device roles, once (marker)"     "in_box 'test -f /opt/fabric/config/.default-device-roles' && [ \"\$(in_box 'python3 /root/list_roles.py' | sort | tr '\n' ' ')\" = 'iot network-gear phones-tablets printers servers workstations ' ]"
+# covers: cli:radius.status +
 check "the network groups exist and are mapped for password logins (no VLAN yet)"     "in_box 'fabricctl radius status' | grep -q 'group network-staff' && in_box 'fabricctl radius status' | grep -q 'group network-guests'"
+# covers: cli:radius.add-client +
 check "radius: add-client applied; the secret is shown once and kept in OpenBao, not in vars"     "grep -q 'applied' '$OUT/radius-add.log' && [ \${#RADIUS_SECRET} -eq 32 ] && ! in_box \"grep -qF '$RADIUS_SECRET' /opt/fabric/config/vars.yaml\""
 check "radius: a device with network:mab (made like the 389-DS tab does)"     "in_box 'python3 /root/radius_device.py 02:00:00:00:88:01' | grep -qx ok"
 check "radius: the switch's MAB request for it -> Access-Accept on its role's VLAN"     "echo '$RADIUS_SECRET' | python3 '$REPO/tests/sandbox/radius_mab.py' $IP 02:00:00:00:88:01 | grep -qx 'Access-Accept vlan=30'"
 check "radius: an unknown MAC -> Access-Reject"     "echo '$RADIUS_SECRET' | python3 '$REPO/tests/sandbox/radius_mab.py' $IP 02:00:00:00:88:99 | grep -qx 'Access-Reject'"
 check "radius: a wrong shared secret gets no answer"     "echo 'NotTheSecretNotTheSecret' | python3 '$REPO/tests/sandbox/radius_mab.py' $IP 02:00:00:00:88:01 | grep -qx 'no reply'"
+# covers: cli:radius.log +
 check "radius: fabricctl radius log shows both decisions"     "in_box 'fabricctl radius log' | grep -q 'ACCEPT mab .*sbxprinter .*vlan 30' && in_box 'fabricctl radius log' | grep -q 'REJECT mab'"
 in_box 'fabricctl radius map-group auditors --vlan 40' > "$OUT/radius-map.log" 2>&1
+# covers: cli:radius.map-group +
 check "radius: map-group applied; FreeRADIUS back up with EAP-TTLS on; status lists the group"     "grep -q applied '$OUT/radius-map.log' && in_box 'systemctl is-active freeradius' | grep -qx active && in_box 'grep -q \"ttls {\" /opt/freeradius/config/mods/eap' && in_box 'fabricctl radius status' | grep -q 'group auditors .*vlan 40'"
+# covers: cli:images.status +
 check "kea: fabricctl images status covers the Kea image" "in_box 'fabricctl images status' | grep -qE '^kea '"
 
 echo "--- info.<domain>/certs/: CA certificates for every system (1.5.1.5); web UI at fabric.<domain>"
@@ -269,11 +289,13 @@ check "negative: certs.<domain> no longer resolves (1.5.1.5)" \
 check "web UI answers at fabric.<domain> (refuses without a client cert)" \
     "[ \"\$(in_box 'curl -s -o /dev/null -w %{http_code} --cacert /opt/stepca/data/certs/root_ca.crt --resolve fabric.lan.test:443:$IP https://fabric.lan.test/')\" = 400 ]"
 
+# covers: setting:ca_nest_depth +
 check "the root CA allows one level of nesting (ca_nest_depth 1: path length 2); its intermediate signs leaves only" \
     "in_box 'openssl x509 -in /opt/stepca/data/certs/root_ca.crt -noout -ext basicConstraints' | grep -q 'pathlen:2' && in_box 'openssl x509 -in /opt/stepca/data/certs/intermediate_ca.crt -noout -ext basicConstraints' | grep -q 'pathlen:0'"
 echo "--- federation endpoint: enable, invite, refuse a bad join, revoke, disable"
 FED_CURL="curl -s --cacert /opt/stepca/data/certs/root_ca.crt --resolve federation.lan.test:443:$IP"
 in_box 'fabricctl federation enable' > "$OUT/fed-enable.log" 2>&1
+# covers: cli:federation.enable +
 check "federation: enable issues the endpoint's certificate and applies" \
     "grep -q 'federation endpoint on: https://federation.lan.test' '$OUT/fed-enable.log' && in_box 'test -s /opt/nginx/certs/federation.lan.test/fullchain.pem'"
 check "federation: fabric-federation runs; its socket is root:nginx 0660 in a 0750 directory" \
@@ -283,6 +305,7 @@ check "federation: federation.<domain> resolves and answers health over CA-verif
 check "federation: only the federation routes are served there" \
     "[ \"\$(in_box '$FED_CURL -o /dev/null -w %{http_code} https://federation.lan.test/v1/secrets')\" = 404 ]"
 INVITE=$(in_box 'fabricctl federation invite branch1' | grep -o 'fabric-join-1\.[A-Za-z0-9_-]*' | head -1)
+# covers: cli:federation.invite cli:federation.status +
 check "federation: invite prints a one-time invitation; status lists it" \
     "[ -n '$INVITE' ] && in_box 'fabricctl federation status' | grep -q 'invitation .* for branch1'"
 printf '%s' '{"id":"000000000000","secret":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","site":"branch1","csr":"x","domain":"branch1.lan.test","address":"10.9.9.9"}' > "$OUT/badjoin.json"
@@ -290,6 +313,7 @@ docker cp "$OUT/badjoin.json" "$NAME:/root/badjoin.json"
 check "federation: a join with a wrong secret is refused through nginx (400, no reason given)"     "in_box '$FED_CURL -w \" %{http_code}\" -H Content-Type:application/json --data @/root/badjoin.json https://federation.lan.test/v1/join' | grep -q 'not valid.* 400$'"
 check "federation: the invitation's secret is in neither vars nor the audit log" \
     "secret=\$(python3 -c \"import base64,json,sys;t='$INVITE'.split('.',1)[1];print(json.loads(base64.urlsafe_b64decode(t+'==='))['secret'])\") && [ -n \"\$secret\" ] && ! in_box \"grep -rqF \$secret /opt/fabric/config /opt/fabric/archive\""
+# covers: cli:federation.revoke cli:federation.invitations +
 check "federation: revoke withdraws it" "in_box 'fabricctl federation revoke branch1' | grep -q 'withdrawn: 1' && in_box 'fabricctl federation invitations' | grep -q 'no open invitations'"
 check "federation: doctor passes with the endpoint on" "in_box 'fabricctl doctor' 2>&1 | grep -q 'federation endpoint, TLS verified' && ! in_box 'fabricctl doctor' 2>&1 | grep -q '✗'"
 in_box 'fabricctl federation disable' > "$OUT/fed-disable.log" 2>&1
@@ -301,9 +325,11 @@ check "fabric.target enabled and active" "in_box 'systemctl is-enabled fabric.ta
 check "every unit is part of fabric.target" \
     "[ \"\$(in_box 'systemctl list-dependencies --plain fabric.target' | grep -cE '(bind9|stepca|nginx|samba|postgres|keycloak|fabric-agent|fabric-web)\\.service')\" -ge 8 ]"
 in_box 'fabricctl status' > "$OUT/status.log" 2>&1
+# covers: cli:status +
 check "fabricctl status: target active, containers healthy" \
     "grep -qE '^fabric.target +active' '$OUT/status.log' && [ \"\$(grep -c ' healthy' '$OUT/status.log')\" -ge 7 ]"
 in_box 'fabricctl stop' > "$OUT/stop.log" 2>&1
+# covers: cli:stop +
 check "fabricctl stop: every service stopped" \
     "! in_box 'systemctl is-active bind9 stepca nginx samba postgres keycloak openbao fabric-web fabric-agent' | grep -qx active"
 check "fabricctl stop: DNS no longer answers" "! in_box 'dig +time=2 +tries=1 +short @$IP ns.lan.test' | grep -qx $IP"
@@ -312,6 +338,7 @@ check "fabricctl stop: the host keeps its time (chrony is not part of the stack)
 in_box 'fabricctl start' > "$OUT/start.log" 2>&1
 sleep 20
 in_box 'fabricctl doctor' > "$OUT/doctor-after-start.log" 2>&1
+# covers: cli:start +
 check "fabricctl start: everything back, doctor passes" \
     "! grep -q '✗' '$OUT/doctor-after-start.log' && grep -q '✓' '$OUT/doctor-after-start.log'"
 in_box 'systemctl restart fabric.target' > /dev/null 2>&1
@@ -332,12 +359,15 @@ secrets_json() { in_box 'python3 /root/secrets_dump.py'; }
 echo "--- fabric's secrets live in OpenBao, not on disk"
 check "no plaintext fabric-secrets.yml after setup" "! in_box 'test -e /opt/fabric/config/fabric-secrets.yml'"
 check "the marker says OpenBao is the source of truth" "in_box 'test -s /opt/fabric/config/secrets.openbao'"
+# covers: cli:vault.status +
 check "fabricctl vault status: secrets in OpenBao (fabric/secrets)" "in_box 'fabricctl vault status' | grep -q \"fabric's secrets: in OpenBao (fabric/secrets\""
 check "every generated secret is in OpenBao" \
     "secrets_json | python3 -c 'import json,sys; s=json.load(sys.stdin); sys.exit(0 if all(s.get(k) for k in (\"ca_password\",\"rndc_secret\",\"ad_admin_password\",\"keycloak_admin_password\",\"webui_oidc_secret\",\"ad_agent_password\")) else 1)'"
 
+# covers: cli:secrets.list +
 check "fabricctl secrets list: names only, no values" \
     "in_box 'fabricctl secrets list' | grep -qx keycloak_admin_password && ! in_box 'fabricctl secrets list' | grep -qF \"\$(secrets_json | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"keycloak_admin_password\"])')\""
+# covers: cli:secrets.show +
 check "fabricctl secrets show: the value, and the read is audited" \
     "[ \"\$(in_box 'fabricctl secrets show tsig/npm')\" = '$TSIG_SECRET' ] && in_box 'grep -q \"SECRET_READ | name=tsig/npm\" /opt/fabric/archive/audit.log'"
 
@@ -365,7 +395,9 @@ check "recovery key written once into ~/fabric-admin, 0600" \
     "[ \"\$(in_box 'stat -c %a /root/fabric-admin/openbao-recovery-keys.txt')\" = 600 ]"
 check "vault key in the key-file unlock method: root 0400; store root 0600"     "[ \"\$(in_box 'stat -c %a:%U /etc/fabric/openbao/local-fabric-1.key /etc/fabric/openbao/slots.json' | tr '\n' ' ')\" = '400:root 600:root ' ]"
 check "no vault key left in RAM once OpenBao is unsealed" "! in_box 'ls /run/fabric/openbao/*.key' >/dev/null 2>&1"
+# covers: cli:vault.slots +
 check "fabricctl vault slots lists the key-file method, present" "in_box 'fabricctl vault slots' | grep -qE '^● local +local +fabric-1'"
+# covers: cli:vault.test +
 check "fabricctl vault test local: unwraps and verifies the vault key" "in_box 'fabricctl vault test local' | grep -q 'check value matches'"
 check "the initial root token is revoked and not kept on disk" "! in_box 'test -e /etc/fabric/openbao/bootstrap-root-token'"
 check "AppRole credentials: root-only 0400" \
@@ -376,6 +408,7 @@ in_box 'systemctl restart openbao' > /dev/null 2>&1; sleep 10
 check "OpenBao unseals itself after a restart (fabric-unlock, nobody enters a key)" "in_box 'fabricctl vault status' > /dev/null"
 check "...and the key was wiped from RAM again" "! in_box 'ls /run/fabric/openbao/*.key' >/dev/null 2>&1"
 in_box 'fabricctl vault rotate --yes' > "$OUT/rotate.log" 2>&1
+# covers: cli:vault.rotate +
 check "fabricctl vault rotate: new key fabric-2, OpenBao unsealed, fabric's secrets still readable"     "grep -q 'rotated to fabric-2' '$OUT/rotate.log' && in_box 'fabricctl vault status' > /dev/null && in_box 'fabricctl secrets list' | grep -qx ca_password"
 check "rotation shredded the old key file" "! in_box 'test -e /etc/fabric/openbao/local-fabric-1.key' && in_box 'test -e /etc/fabric/openbao/local-fabric-2.key'"
 in_box 'systemctl stop openbao; systemctl restart bind9 nginx' > /dev/null 2>&1; sleep 10
@@ -392,6 +425,7 @@ in_box 'python3 /root/make_person.py bob' > "$OUT/bob.log" 2>&1
 in_box 'python3 /root/reset_user.py bob /root/bob-pw' >> "$OUT/bob.log" 2>&1
 BOB_PW=$(in_box 'cat /root/bob-pw; rm -f /root/bob-pw')
 BOB_P12_PW=$(in_box 'fabricctl client-cert bob' 2>&1 | sed -n 's/^.p12 password (shown once): //p')
+# covers: cli:client-cert +
 check "second user bob (a person of the site, not an admin) with a client cert" "grep -q created '$OUT/bob.log' && [ -n '$BOB_P12_PW' ]"
 in_box 'python3 /root/make_person.py carol auditors' > "$OUT/carol.log" 2>&1
 in_box 'python3 /root/reset_user.py carol /root/carol-pw' >> "$OUT/carol.log" 2>&1
@@ -401,11 +435,63 @@ check "third user carol in the auditors group, with a client cert" "grep -q crea
 BOB_UID=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=bob)' uidNumber" | grep ^uidNumber)
 CAROL_UID=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=carol)' uidNumber" | grep ^uidNumber)
 check "bob and carol have distinct uid numbers from the site's block" "[ -n '$BOB_UID' ] && [ '$BOB_UID' != '$CAROL_UID' ]"
+
+echo "--- the fabric host as a member of its own domain (manual 1.6.11.8): the fabric admins only, local accounts kept"
+in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq pamtester >/dev/null 2>&1'
+# passwords reach the box in root-only files, read on stdin (never a command line)
+( umask 077; LOCAL_PW="Lc-$(openssl rand -hex 12)"; printf 'wrong\n' > "$OUT/wrong-pw"
+  printf 'localop:%s\n' "$LOCAL_PW" > "$OUT/localop-chpasswd"; printf '%s\n' "$LOCAL_PW" > "$OUT/localop-pw" )
+for f in wrong-pw localop-chpasswd localop-pw; do docker cp "$OUT/$f" "$NAME:/root/$f"; done
+in_box 'useradd -m -s /bin/bash -G sudo localop && chpasswd < /root/localop-chpasswd && rm -f /root/localop-chpasswd'
+# pamtester's exit status: 0 only when every PAM call given passed (its output kept for diagnosis)
+pam() { in_box "pamtester login $1 ${3:-authenticate acct_mgmt} < $2" >> "$OUT/pam.log" 2>&1; }
+check "setup made the host a member: its keytab holds the DC account's keys only (0600), sssd runs" \
+    "[ \"\$(in_box 'stat -c %a /etc/krb5.keytab /etc/sssd/sssd.conf' | sort -u)\" = 600 ] \
+     && in_box 'klist -k /etc/krb5.keytab' | grep -qF 'DC-FABRIC-SBX\$@AD.TEST' && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi krbtgt \
+     && in_box 'systemctl is-active sssd' | grep -qx active"
+check "the first admin (in fabric-admins) resolves on the host with the domain's uid" \
+    "in_box 'getent passwd fabric-admin' | grep -qE '^fabric-admin:[^:]*:(500[1-9]|50[1-9][0-9]|5[1-9][0-9]{2}|[1-9][0-9]{4,5}):'"
+check "the first admin signs in to the host with their domain password (PAM)" "pam fabric-admin /root/admin-pw"
+check "a wrong password is refused" "! pam fabric-admin /root/wrong-pw"
+check "the first admin has sudo on the host from the site's rule" "in_box 'sudo -l -U fabric-admin' | grep -q '(ALL) ALL'"
+check "a person outside the fabric admins (bob) resolves but is refused by the host's access rule, and has no sudo" \
+    "in_box 'getent passwd bob' >/dev/null && ! pam bob /dev/null acct_mgmt && pam fabric-admin /dev/null acct_mgmt \
+     && in_box 'sudo -l -U bob 2>&1' | grep -q 'not allowed'"
+in_box 'systemctl stop samba' >/dev/null 2>&1
+check "with the DC stopped: a local account signs in and keeps its sudo, root works, the admin signs in from sssd's cache" \
+    "pam localop /root/localop-pw && in_box 'sudo -l -U localop' | grep -q '(ALL : ALL) ALL' \
+     && [ \"\$(in_box 'id -u root')\" = 0 ] && pam fabric-admin /root/admin-pw"
+in_box 'systemctl start samba' >/dev/null 2>&1
+for _ in $(seq 1 60); do [ "$(in_box "docker inspect -f '{{.State.Health.Status}}' samba")" = healthy ] && break; sleep 5; done
+NSS_ORIG=$(in_box 'md5sum < /opt/fabric/config/host-originals/etc/nsswitch.conf')
+in_box 'fabricctl setup --undo member --non-interactive' > "$OUT/undo-member-refused.log" 2>&1
+# covers: cli:setup -
+check "setup --undo member unattended without --yes changes nothing" \
+    "grep -q 'pass --yes' '$OUT/undo-member-refused.log' && in_box 'test -e /etc/sssd/sssd.conf'"
+in_box 'fabricctl setup --undo member --non-interactive --yes' > "$OUT/undo-member.log" 2>&1
+# covers: cli:setup +
+check "setup --undo member: nsswitch.conf as it was, sssd.conf and the keytab gone, sssd stopped, recorded as declined" \
+    "[ \"\$(in_box 'md5sum < /etc/nsswitch.conf')\" = '$NSS_ORIG' ] && ! in_box 'test -e /etc/sssd/sssd.conf || test -e /etc/krb5.keytab' \
+     && ! in_box 'systemctl is-active --quiet sssd' && in_box 'fabricctl status' | grep -qE '^  member +declined'"
+check "…the admin no longer resolves on the host; root and the local account still work" \
+    "! in_box 'getent passwd fabric-admin' && pam localop /root/localop-pw"
+in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_load(open(p)); v['host_join_domain']=False; yaml.safe_dump(v, open(p, 'w'))\""
+in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-off.log" 2>&1
+check "host_join_domain false: the step leaves the host as it is, even with the change approved; status shows it" \
+    "grep -q 'stays out of its domain' '$OUT/member-off.log' && ! in_box 'test -e /etc/sssd/sssd.conf' \
+     && in_box 'fabricctl status' | grep -q 'host_join_domain: false'"
+in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_load(open(p)); v['host_join_domain']=True; yaml.safe_dump(v, open(p, 'w'))\""
+in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-again.log" 2>&1
+check "approved again: a member once more (the admin resolves and signs in)" \
+    "in_box 'getent passwd fabric-admin' >/dev/null && pam fabric-admin /root/admin-pw"
+in_box 'rm -f /root/localop-pw /root/wrong-pw'
+
 echo "--- Keycloak's database password, rotated by OpenBao (2.1.7.4)"
 pg_roles() { in_box "docker exec postgres psql -tA -U fabric_admin -d keycloak -c 'SELECT rolname, rolsuper, rolcanlogin FROM pg_roles'"; }
 check "setup handed Keycloak's password to OpenBao: Keycloak runs as its own role, the bootstrap role locked" \
     "pg_roles | grep -qx 'keycloak_db|f|t' && pg_roles | grep -qx 'keycloak|t|f' && pg_roles | grep -qx 'fabric_admin|t|t'"
 in_box 'fabricctl vault rotate-db' > "$OUT/rotate-db.log" 2>&1
+# covers: cli:vault.rotate-db +
 check "fabricctl vault rotate-db: rotated, Keycloak restarted with it and healthy; doctor's rotation check passes"     "grep -q 'Keycloak restarted with it and healthy' '$OUT/rotate-db.log' && in_box 'fabricctl doctor' | grep -q 'rotated by OpenBao in the last 40 days'"
 check "the monthly fabric-db-rotate timer is on" "in_box 'systemctl is-enabled fabric-db-rotate.timer' | grep -qx enabled"
 docker cp "$REPO/tests/sandbox/login_test.py" "$NAME:/root/login_test.py"
@@ -441,13 +527,16 @@ in_box "python3 /root/set_lock.py nginx nginx 1.30.4 $NGX_OLD"
 check "a new validated list only reports: status shows the nginx update, nothing changed" \
     "in_box 'fabricctl images status' | grep -qE '^nginx +update available' && [ \"\$(nginx_ref)\" != '$NGX_REF' ]"
 in_box 'fabricctl images update nginx' > "$OUT/images-update.log" 2>&1
+# covers: cli:images.update +
 check "images update nginx: recreated on the validated image, healthy, serving; others untouched" \
     "grep -q 'updated nginx' '$OUT/images-update.log' && [ \"\$(nginx_ref)\" = '$NGX_REF' ] && certs_ok && in_box 'fabricctl images status' | grep -qE '^keycloak +current'"
 
 echo "--- setup again (must converge without changes)"
 in_box 'fabricctl setup --non-interactive --yes' 2>&1 | tee "$OUT/setup2.log"
+# covers: cli:setup +
 check "re-run completes" "grep -q 'fabric is ready' '$OUT/setup2.log'"
 check "re-run re-issues no certificates" "! grep -q ': issued' '$OUT/setup2.log'"
+check "re-run leaves the host's domain membership as it is (the member step changes nothing)"     "grep -q 'this host is a member of its domain (nothing to change)' '$OUT/setup2.log'"
 check "re-run neither re-initialises nor changes OpenBao" \
     "! grep -q 'OpenBao initialised' '$OUT/setup2.log' && grep -q 'OpenBao configured (no changes)' '$OUT/setup2.log'"
 check "re-run keeps the admin and their certificate" \
@@ -455,22 +544,27 @@ check "re-run keeps the admin and their certificate" \
 check "re-run keeps the images this host runs (a fabric upgrade never changes them)" \
     "[ \"\$(nginx_ref)\" = '$NGX_REF' ]"
 in_box 'fabricctl images rollback nginx' > "$OUT/images-rollback.log" 2>&1
+# covers: cli:images.rollback +
 check "images rollback nginx: back to the image before the update" \
     "grep -q 'rolled back nginx' '$OUT/images-rollback.log' && [ \"\$(nginx_ref)\" != '$NGX_REF' ] && certs_ok"
 in_box "python3 /root/set_lock.py nginx busybox 1.37 sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e"
 in_box 'fabricctl images update nginx' > "$OUT/images-bad.log" 2>&1
 in_box 'journalctl -u nginx --no-pager -n 120' > "$OUT/images-bad-journal.log" 2>&1    # kept for an intermittent failure
+# covers: cli:images.update -
 check "a validated image that does not come up healthy is rolled back by itself" \
     "grep -q 'rolled back to' '$OUT/images-bad.log' && nginx_ref | grep -q '^nginx:1.30.5@' && certs_ok"
 in_box "python3 /root/set_lock.py nginx nginx 1.30.5 sha256:b972f831f200b19ef0767938224f9711e74cd783718738cd7405d5cabf75c442"
 in_box 'fabricctl images prune' > "$OUT/images-prune.log" 2>&1
+# covers: cli:images.prune +
 check "images prune keeps the rollback image and everything in use" \
     "in_box 'docker image inspect nginx@$NGX_OLD' >/dev/null 2>&1 && in_box 'fabricctl images status' | grep -q 'all images current'"
 
 docker cp "$REPO/tests/sandbox/agent_job.py" "$NAME:/root/agent_job.py"
 in_box 'python3 /root/agent_job.py doctor' > "$OUT/doctor-job.json" 2>&1
+# covers: agent:post.jobs.doctor agent:get.jobs.* +
 check "doctor as an agent job (the web console's Run doctor): done, every check passed"     "python3 -c 'import json,sys; j=json.load(open(sys.argv[1])); sys.exit(not (j[\"state\"] == \"done\" and j[\"result\"][\"failed\"] == 0 and j[\"result\"][\"checks\"]))' '$OUT/doctor-job.json'"
 in_box 'python3 /root/agent_job.py images update nginx' > "$OUT/images-job.json" 2>&1
+# covers: agent:post.jobs.images +
 check "an image update as an agent job (the web console's Updates): done, nothing to move while current"     "grep -q '\"state\": \"done\"' '$OUT/images-job.json' && grep -q 'nothing to update' '$OUT/images-job.json'"
 
 echo "--- setup with a changed setting (live DNS zone must update, bind9 keeps serving)"
@@ -508,6 +602,7 @@ check "vars file: npm key is in ACL npm-updaters" \
 S2=$(openssl rand -base64 32)
 in_box "umask 077; printf '%s' '$S2' > /root/nas.secret"
 in_box 'fabricctl tsig add nas --record nas --secret-file /root/nas.secret --acl nas-updaters' > "$OUT/tsig.log" 2>&1
+# covers: cli:tsig.add +
 check "tsig add: existing secret kept, key in ACL nas-updaters" \
     "grep -q \"TSIG key 'nas' added (existing secret kept), in ACL nas-updaters.\" '$OUT/tsig.log'"
 check "tsig add: key works over RFC2136" "[ \"\$(t2136 nas '$S2' nas)\" = '4 passed, 0 failed' ]"
@@ -516,22 +611,27 @@ check "tsig add: ACL rendered with the key" "in_box \"sed -n '/acl \\\"nas-updat
 in_box 'fabricctl tsig rotate nas' >> "$OUT/tsig.log" 2>&1
 S3=$(secret_of nas)
 check "tsig rotate: old secret refused" "[ \"\$(t2136 nas '$S2' nas | cut -d' ' -f1)\" != 4 ]"
+# covers: cli:tsig.rotate +
 check "tsig rotate: new secret works" "[ -n '$S3' ] && [ '$S3' != '$S2' ] && [ \"\$(t2136 nas '$S3' nas)\" = '4 passed, 0 failed' ]"
 check "tsig rotate: rfc2136.ini carries the new secret" "in_box \"grep -qxF 'dns_rfc2136_secret = $S3' /opt/nas/rfc2136.ini\""
 
 in_box 'fabricctl tsig set-secret nas --secret-file /root/nas.secret' >> "$OUT/tsig.log" 2>&1
+# covers: cli:tsig.set-secret +
 check "tsig set-secret: the given secret works again" "[ \"\$(t2136 nas '$S2' nas)\" = '4 passed, 0 failed' ]"
 
 in_box 'fabricctl tsig update nas --record web' >> "$OUT/tsig.log" 2>&1
+# covers: cli:tsig.update +
 check "tsig update: new record allowed" "[ \"\$(t2136 nas '$S2' web)\" = '4 passed, 0 failed' ]"
 check "tsig update: old record no longer allowed" "[ \"\$(t2136 nas '$S2' nas | cut -d' ' -f1)\" != 4 ]"
 
 in_box "fabricctl acl add lab 192.168.50.0/24 10.9.9.9 'key nas'" >> "$OUT/tsig.log" 2>&1
+# covers: cli:acl.add +
 check "acl add: rendered with CIDR, IP and key" \
     "in_box \"sed -n '/acl \\\"lab\\\"/,/};/p' $ACLF\" | tr -d ' ' | grep -c -e '192.168.50.0/24;' -e '10.9.9.9;' -e 'key\"nas\";' | grep -qx 3"
 check "acl add: rejects nonsense" "! in_box \"fabricctl acl add lab 'not-an-ip'\" >/dev/null 2>&1"
 check "acl remove: built-in ACL protected" "! in_box 'fabricctl acl remove dns-resolvers' >/dev/null 2>&1"
 in_box 'fabricctl acl remove lab 10.9.9.9' >> "$OUT/tsig.log" 2>&1
+# covers: cli:acl.remove +
 check "acl remove: one entry" "! in_box \"grep -q '10.9.9.9' $ACLF\""
 
 echo "--- ACL policy: only certbot devices in the ACL may prove names for certificates"
@@ -540,10 +640,12 @@ in_box "umask 077; printf '%s' '$D1' > /root/d1.secret; printf '%s' '$D2' > /roo
 in_box 'fabricctl acl policy certbot-devices --record web' >> "$OUT/tsig.log" 2>&1
 in_box 'fabricctl tsig add dev1 --acl certbot-devices --secret-file /root/d1.secret' >> "$OUT/tsig.log" 2>&1
 in_box 'fabricctl tsig add dev2 --secret-file /root/d2.secret' >> "$OUT/tsig.log" 2>&1
+# covers: cli:acl.policy +
 check "policy: device key in the ACL may set _acme-challenge.web (other names refused)" \
     "[ \"\$(t2136 dev1 '$D1' web)\" = '4 passed, 0 failed' ]"
 check "policy: a key outside the ACL has no update rights (deny by default)" \
     "[ \"\$(t2136 dev2 '$D2' web | cut -d' ' -f1)\" != 4 ]"
+# covers: cli:tsig.list +
 check "policy: tsig list shows rights via the ACL and none for the other key" \
     "in_box 'fabricctl tsig list' | grep -A1 '^dev1' | grep -q 'via ACL certbot-devices' && in_box 'fabricctl tsig list' | grep '^dev2' | grep -q 'no update rights'"
 in_box 'fabricctl acl policy certbot-devices --record web --record git' >> "$OUT/tsig.log" 2>&1
@@ -559,6 +661,7 @@ check "policy: cleanup leaves no trace in BIND's config" \
 
 in_box 'fabricctl tsig remove nas' >> "$OUT/tsig.log" 2>&1
 in_box "bash /root/rfc2136_test.sh $IP lan.test nas '$S2' web $BIND_PORT" > "$OUT/tsig-removed.log" 2>&1
+# covers: cli:tsig.remove +
 check "tsig remove: key refused by BIND" "grep -q '^FAIL RFC2136 update with the embedded key accepted' '$OUT/tsig-removed.log'"
 check "tsig remove: key gone from every ACL" "! in_box \"grep -q 'key \\\"nas\\\"' $ACLF\""
 check "tsig remove: rfc2136.ini deleted" "! in_box 'test -e /opt/nas/rfc2136.ini'"
@@ -591,6 +694,7 @@ echo "--- reinstall keeps fabric's secrets (backup exports them, setup re-import
 in_box 'python3 /root/make_person.py keeper' > "$OUT/keeper.log" 2>&1
 SID_BEFORE=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=keeper)' objectSid" | sed -n 's/^objectSid: //p')
 in_box 'fabricctl reinstall --yes --non-interactive' > "$OUT/reinstall.log" 2>&1
+# covers: cli:reinstall +
 check "reinstall completes" "grep -q 'fabric is ready' '$OUT/reinstall.log'"
 check "reinstall re-imported the exported secrets into OpenBao and left no plaintext file" \
     "grep -q 'restored secrets file matched OpenBao; shredded' '$OUT/reinstall.log' && ! in_box 'test -e /opt/fabric/config/fabric-secrets.yml'"
@@ -621,11 +725,14 @@ CA_FP=$(in_box 'openssl x509 -noout -fingerprint -sha256 -in /opt/stepca/data/ce
 # a person made after the reinstall (which starts the domain fresh): only the export has her
 in_box 'python3 /root/make_person.py erin' > "$OUT/erin.log" 2>&1
 in_box 'fabricctl uninstall --yes' > "$OUT/uninstall-refused.log" 2>&1
+# covers: cli:uninstall -
 check "unattended uninstall without an export choice is refused, nothing changed"     "grep -q 'choose --export DIR or --no-export' '$OUT/uninstall-refused.log' && in_box 'systemctl is-active fabric.target' | grep -qx active"
 in_box 'fabricctl uninstall --yes --export /opt/fabric/exported' > "$OUT/uninstall-refused2.log" 2>&1
+# covers: cli:uninstall -
 check "an export folder the uninstall would delete is refused"     "grep -q 'would be deleted by the uninstall' '$OUT/uninstall-refused2.log' && in_box 'systemctl is-active fabric.target' | grep -qx active"
 in_box 'fabricctl uninstall --yes --export /root/fabric-export --purge-package' > "$OUT/uninstall.log" 2>&1
 EX=/root/fabric-export
+# covers: cli:uninstall +
 check "export: config, secrets, CA, directory, Keycloak, the vault and its key, README (root 0700)"     "in_box 'test -s $EX/fabric/config/fabric-secrets.yml && test -d $EX/stepca/data && test -d $EX/samba/data && test -d $EX/postgres && test -d $EX/openbao/data && test -f $EX/@root/etc/fabric/openbao/slots.json && test -f $EX/README.txt && [ \"\$(stat -c %a $EX)\" = 700 ]'"
 check "the package was purged too, and nothing was written to /var/backups"     "! in_box 'dpkg -s fabricctl' >/dev/null 2>&1 && ! in_box 'test -e /var/backups/fabric'"
 # the container names asked of Docker first, so a failing `docker ps` cannot pass for "none left"
@@ -638,12 +745,15 @@ check "uninstall listed every host change first (removed, undone, kept)" \
 check "uninstall put chrony's own configuration back and left ufw as it was before fabric ($UFW_BEFORE)" \
     "! in_box 'grep -q \"^# fabric\" /etc/chrony/chrony.conf' && ! in_box 'ufw status' | grep -qE '22/tcp|123/udp' \
      && in_box 'ufw status' | grep -q \"Status: $UFW_BEFORE\""
+check "uninstall took the host out of its domain: sssd.conf and the keytab gone, the admin no longer resolves"     "grep -qE 'This host as a member of its domain +undone' '$OUT/uninstall.log'      && ! in_box 'test -e /etc/sssd/sssd.conf || test -e /etc/krb5.keytab' && ! in_box 'getent passwd fabric-admin'"
 
 echo "--- fabricctl restore: the same fabric back from the export"
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /root/fabricctl-new.deb' > "$OUT/apt-restore.log" 2>&1
 in_box 'fabricctl restore /root/nope --yes' > "$OUT/restore-refused.log" 2>&1
+# covers: cli:restore -
 check "restore refuses a folder that is not a fabric export" "grep -q 'is not a fabric export' '$OUT/restore-refused.log'"
 in_box 'fabricctl restore /root/fabric-export --yes' > "$OUT/restore.log" 2>&1
+# covers: cli:restore +
 check "restore: setup completes on the exported data" "grep -q 'fabric is ready' '$OUT/restore.log'"
 check "restore: the same CA (clients keep trusting it)" \
     "[ \"\$(in_box 'openssl x509 -noout -fingerprint -sha256 -in /opt/stepca/data/certs/root_ca.crt')\" = '$CA_FP' ]"

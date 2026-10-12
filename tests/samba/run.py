@@ -54,6 +54,7 @@ try:
     check("a complete configuration passes", True)
 except ValidationError as e:
     check("a complete configuration passes", False, e)
+# covers: setting:ad_domain -
 check("refused: no AD domain (it has no default)", refused({**GOOD, "ad_domain": ""}, "ad_domain is required"))
 check("refused: an AD domain of one label", refused({**GOOD, "ad_domain": "ad"}, "not a valid DNS domain"))
 check("refused: fabric's own domain (same-domain mode dropped, 2.1.6.11)",
@@ -62,8 +63,10 @@ check("accepted: any other domain, not only the suggested ad.<domain>",
       not refused({**GOOD, "ad_domain": "corp.example.net"}, ""))
 check("refused: a parent of fabric's domain", refused({**GOOD, "ad_domain": "test.x", "domain": "lan.test.x"},
                                                        "parent of fabric's domain"))
+# covers: setting:ad_netbios -
 check("refused: a NetBIOS domain name over 15 characters",
       refused({**GOOD, "ad_netbios": "A" * 16}, "at most 15"))
+# covers: setting:dc_name -
 check("refused: a DC name Windows cannot use as its NetBIOS name (2.1.6.45)",
       refused({**GOOD, "dc_name": "a-very-long-dc-name"}, "1-15 letters")
       and refused({**GOOD, "dc_name": "dc_1"}, "1-15 letters") and refused({**GOOD, "dc_name": "-dc"}, "hyphen")
@@ -71,6 +74,7 @@ check("refused: a DC name Windows cannot use as its NetBIOS name (2.1.6.45)",
 check("refused: the domain's own NetBIOS name as the DC's", refused({**GOOD, "dc_name": "ad"}, "NetBIOS name"))
 check("accepted: a long host name: the DC has its own name now (2.1.6.45)",
       not refused({**GOOD, "hostname": "a-very-long-host-name"}, ""))
+# covers: setting:ad_password_policy -
 check("refused: no password policy (no defaults, 2.1.6.13)",
       refused({**GOOD, "ad_password_policy": {}}, "no defaults"))
 check("refused: one policy key missing, named",
@@ -84,10 +88,12 @@ check("refused: a minimum age not below the maximum",
       refused({**GOOD, "ad_password_policy": {**POLICY, "minimum_age_days": 365}}, "must be below the second"))
 check("refused: a lockout shorter than its reset window (AD refuses it)",
       refused({**GOOD, "ad_password_policy": {**POLICY, "lockout_minutes": 5}}, "at least as long as that window"))
+# covers: setting:ad_password_policy +
 check("accepted: locked until an admin unlocks (lockout 0) with any window",
       not refused({**GOOD, "ad_password_policy": {**POLICY, "lockout_minutes": 0}}, ""))
 check("accepted: passwords that never expire (maximum 0) with any minimum age",
       not refused({**GOOD, "ad_password_policy": {**POLICY, "maximum_age_days": 0}}, ""))
+# covers: setting:ad_rpc_ports -
 check("refused: an RPC range at or below 1024", refused({**GOOD, "ad_rpc_ports": "100-200"}, "ad_rpc_ports"))
 
 check("the suggestion is a sibling at the top of the organisation's name (2.1.6.11); a two-label domain gets ad.<it>",
@@ -232,6 +238,7 @@ def ram(have, data):
 check("a host under 4 GB is refused", str(ram(3, {})).startswith("refused"))
 check("the measured memory is used and kept, nothing asked", ram(8, {}) == 8)
 check("a value set by the admin is kept when it fits", ram(8, {"host_ram_capacity": 6}) == 6)
+# covers: setting:host_ram_capacity -
 check("refused: more than the host has, or under 4", str(ram(8, {"host_ram_capacity": 12})).startswith("refused")
       and str(ram(8, {"host_ram_capacity": 2})).startswith("refused"))
 
@@ -248,6 +255,7 @@ base = {"domain": "lan.test", "hostname": "pi-core", "host_ip": "192.168.7.53", 
         "lan_gateway": "192.168.7.1", "ad_domain": "AD.lan.test",
         "ad_password_policy": POLICY}
 v = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base))
+# covers: setting:ad_domain +
 check("the domain's names follow from ad_domain (lower-cased; realm, base DN, NetBIOS, the DC's name)",
       (v["ad_domain"], v["ad_realm"], v["ad_base_dn"], v["ad_netbios"], v["hostname_dc"])
       == ("ad.lan.test", "AD.LAN.TEST", "DC=ad,DC=lan,DC=test", "AD", "dc-pi-core.ad.lan.test"),
@@ -278,6 +286,7 @@ check("fabric's published image, pinned by digest; or, while it is pending, buil
 
 big = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base, host_ram_capacity=8))
 kc8 = yaml.safe_load(env.get_template("keycloak/docker-compose.yml.j2").render(**big))["services"]["keycloak"]
+# covers: setting:host_ram_capacity +
 check("at 8 GB the growing services scale: Keycloak 2400M, the DC 1024m",
       kc8["deploy"]["resources"]["limits"]["memory"] == "2400M" and big["samba_mem_limit"] == "1024m",
       (kc8.get("deploy"), big["samba_mem_limit"]))
@@ -304,6 +313,121 @@ check("the DNS filter forwards the AD zone to BIND, also when it sits beside fab
 units = {u["service"]: u for u in service_units("/opt", v)}
 check("a samba unit on every install, requiring nothing",
       units["samba"]["enabled"] and units["samba"]["requires"] == [])
+
+print("--- who may sign in, per OU (manual 1.6.11.4): the setting, checked at apply; a fresh install's default")
+import tempfile  # noqa: E402
+
+from fabriclib.deploy.check_settings import check_settings  # noqa: E402
+from fabriclib.samba.check_logon_policies import check_logon_policies  # noqa: E402
+import fabriclib.setup.collect_vars as m_collect  # noqa: E402
+from fabriclib.setup.collect_vars import collect_vars  # noqa: E402
+
+m_collect._network_problem = lambda data: ""        # the test's addresses are not this machine's (pure logic)
+
+
+def logon_refused(value, words):
+    try:
+        check_logon_policies(value)
+    except ValidationError as e:
+        return words in str(e) or print(f"    refused, but: {e}")
+    return False
+
+
+check("logon_policies renders null by default (an upgrade keeps the rights it has, 2.1.6.44)",
+      "logon_policies" in v and v["logon_policies"] is None, v.get("logon_policies"))
+odd = "lan-x: #1 'q' $(id)"
+lp = yaml.safe_load(env.get_template("vars.yaml.j2").render(
+    **base, logon_policies={"machines": {"console": ["lan-machine-admins"], "remote": [odd]}}))
+check("logon_policies renders as it was set, a value with YAML's and the shell's specials read back as itself (1.1.5.7)",
+      lp["logon_policies"] == {"machines": {"console": ["lan-machine-admins"], "remote": [odd]}}, lp["logon_policies"])
+# covers: setting:logon_policies +
+check("accepted and normalised: OU paths in lower case (Site and / for the site's OU), groups stripped, a repeat "
+      "dropped, a right left out empty, Domain Admins with its space",
+      check_logon_policies({"Machines/Linux/": {"console": [" lan-devs", "LAN-devs"]},
+                            "site": {"console": ["Domain Admins"], "remote": ["Domain Admins"]}})
+      == {"": {"console": ["Domain Admins"], "remote": ["Domain Admins"]},
+          "machines/linux": {"console": ["lan-devs"], "remote": []}})
+check("accepted: null (the site's rights as before 0.9); an OU below machines granting nobody (a locked-down OU)",
+      check_logon_policies(None) is None and check_logon_policies(
+          {"machines": {"console": ["a"]}, "machines/vault": {"console": [], "remote": []}})["machines/vault"]
+      == {"console": [], "remote": []})
+# covers: setting:logon_policies -
+check("refused: a map without the site's OU or OU=machines (the site's machines would have no policy of fabric's)",
+      logon_refused({}, "no policy on the site's OU") and logon_refused({"machines/linux": {"console": ["a"]}},
+                                                                           "no policy on the site's OU"))
+check("refused: OU=machines or the site's OU granting nobody (only break-glass could sign in)",
+      logon_refused({"machines": {"console": [], "remote": []}}, "grants nobody")
+      and logon_refused({"": {}, "machines": {"console": ["a"]}}, "grants nobody"))
+check("refused: an OU path with a space, a comma or an empty part, nine levels, or `rights` (the legacy GPO's name)",
+      logon_refused({"machines/a b": {"console": ["a"]}, "machines": {"console": ["a"]}}, "a path below")
+      and logon_refused({"OU=x,DC=y": {"console": ["a"]}, "machines": {"console": ["a"]}}, "a path below")
+      and logon_refused({"machines//x": {"console": ["a"]}, "machines": {"console": ["a"]}}, "a path below")
+      and logon_refused({"/".join("abcdefghi"): {"console": ["a"]}, "machines": {"console": ["a"]}}, "a path below")
+      and logon_refused({"rights": {"console": ["a"]}, "machines": {"console": ["a"]}}, "rights"))
+check("refused: a group name AD could not hold (a comma, brackets, a leading space kept by a list item that is not "
+      "text), a right that is not a list, an unknown key, the same OU twice, a value that is not a map",
+      logon_refused({"machines": {"console": ["a,b"]}}, "not a group name")
+      and logon_refused({"machines": {"console": ["[x]"]}}, "not a group name")
+      and logon_refused({"machines": {"console": [5]}}, "not a group name")
+      and logon_refused({"machines": {"console": "a"}}, "a list of group names")
+      and logon_refused({"machines": {"console": ["a"], "ssh": ["a"]}}, "only console and remote")
+      and logon_refused({"machines": {"console": ["a"]}, "Machines": {"console": ["a"]}}, "named twice")
+      and logon_refused(["machines"], "a map of OU path"))
+try:
+    check_settings({**v, "dns_filter": "none", "logon_policies": {"machines": {"console": []}}})
+    applied = "accepted"
+except ValidationError as e:
+    applied = str(e)
+check("refused at apply: check_settings checks logon_policies before anything is rendered",
+      "grants nobody" in applied, applied)
+# pki_manual_max_days (2.3.1.15): a cap that is not a whole number of days is refused at apply, not on the PKI page
+for bad in ("abc", "0", "-5", "12.5"):
+    try:
+        check_settings({**v, "dns_filter": "none", "pki_manual_max_days": bad})
+        said = "accepted"
+    except ValidationError as e:
+        said = str(e)
+    # covers: setting:pki_manual_max_days -
+    check(f"refused at apply: pki_manual_max_days {bad!r}, saying it must be a whole number of days",
+          "pki_manual_max_days must be a whole number of days" in said, said)
+_ok = {**v, "dns_filter": "none", "pki_manual_max_days": "90"}
+check_settings(_ok)
+check("...and a whole number is accepted, as a number", _ok["pki_manual_max_days"] == 90, _ok["pki_manual_max_days"])
+
+tmp = tempfile.mkdtemp()
+answers = os.path.join(tmp, "answers.yaml")
+with open(answers, "w") as f:
+    yaml.safe_dump({**{k: base[k] for k in ("domain", "hostname", "host_ip", "lan_cidr", "lan_gateway")},
+                    "ad_domain": "ad.lan.test", "site_name": "Lan", "host_ram_capacity": 8}, f)
+
+
+def setup_vars(vars_file, provisioned=False):
+    """collect_vars as setup runs it unattended with a vars file (pure logic: files in a scratch folder)."""
+    base_dir = tempfile.mkdtemp(dir=tmp)
+    if provisioned:
+        os.makedirs(os.path.join(base_dir, "samba", "data"))
+        open(os.path.join(base_dir, "samba", "data", ".fabric-provisioned"), "w").close()
+    ctx = types.SimpleNamespace(user_vars_file=answers, vars_file=vars_file, source_dir=os.path.join(tmp, "src"),
+                                config_dir=os.path.join(base_dir, "config"), deploy_base=base_dir,
+                                join_invitation=None, non_interactive=True,
+                                secrets_file=os.path.join(base_dir, "secrets.yml"))
+    with contextlib.redirect_stdout(io.StringIO()):
+        collect_vars(ctx)
+    return ctx.vars
+
+
+fresh = setup_vars(os.path.join(tmp, "none.yaml"))
+check("a fresh install: the site's machine admins may sign in to its OU=machines, at the keyboard and remotely "
+      "(2.1.6.42)", fresh.get("logon_policies") == {"machines": {"console": ["lan-machine-admins"],
+                                                                 "remote": ["lan-machine-admins"]}},
+      fresh.get("logon_policies"))
+existing = os.path.join(tmp, "vars.yaml")
+with open(existing, "w") as f:
+    yaml.safe_dump({"ad_password_policy": POLICY}, f)
+check("an upgrade (a vars file already there) keeps the log-on rights it has: no logon_policies (2.1.6.44)",
+      "logon_policies" not in setup_vars(existing), "set on an upgrade")
+check("a reinstall over a provisioned domain keeps them too (no vars file, but the domain's marker)",
+      "logon_policies" not in setup_vars(os.path.join(tmp, "none.yaml"), provisioned=True), "set on a reinstall")
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

@@ -5,7 +5,8 @@ from fabriclib.directory.run_op import run_op
 
 def ensure_admin(v, secrets, user, email, password=None, container="samba"):
     """Purpose: the first web UI admin in the directory (manual 1.6.3): a person of this site, in the web UI's admin
-             group (Keycloak grants it the console's admin role): with the password they chose in setup (2.1.6.33),
+             group (Keycloak grants it the console's admin role) and in `fabric-admins` (the hosts, 1.6.11.2):
+             with the password they chose in setup (2.1.6.33),
              or, given none, a one-time password they change at their first sign-in. Never changes an existing
              person's password. Their uid is the site block's first id where the block is laid out in ranges
              (2.1.6.46, manual 1.6.3.17).
@@ -37,4 +38,6 @@ def ensure_admin(v, secrets, user, email, password=None, container="samba"):
         state = "created"
     if run_op(v, secrets, "add_group_member", {"group": group, "uid": user}, container)["added"] and state == "exists":
         state = "exists+member"
+    # the installer's one person manages the hosts too (manual 1.6.11.2): without them fabric-admins starts empty
+    run_op(v, secrets, "add_group_member", {"group": "fabric-admins", "uid": user}, container)
     return state, password

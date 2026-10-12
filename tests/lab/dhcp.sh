@@ -82,10 +82,12 @@ fi
 
 echo "--- DHCP on, the first subnet on $LAB_IF (fabricctl dhcp on)"
 R "fabricctl dhcp on --interface $LAB_IF --subnet $LAB_NET --pool '$POOL'" > "$OUT/on.log" 2>&1
+# covers: cli:dhcp.on +
 check "dhcp on: applied and the host firewall brought in line" "grep -q 'applied' '$OUT/on.log' && grep -q 'host firewall: in line' '$OUT/on.log'"
 check "Kea runs, listening on $LAB_ADDR:67" "R 'ss -ulpn' | grep -q '$LAB_ADDR:67 '"
 check "ufw lets DHCP in on $LAB_IF (67/udp)" "R 'ufw status' | grep -E '67/udp' | grep -q '$LAB_IF'"
 R "fabricctl dhcp on" > "$OUT/on-again.log" 2>&1
+# covers: cli:dhcp.on -
 check "dhcp on when on: refused, saying so" "grep -q 'already on' '$OUT/on-again.log'"
 
 echo "--- the clients"
@@ -139,6 +141,7 @@ check "full again: the pages answer" "on $first 'curl -s -m 8 -o /dev/null -w %{
 
 echo "--- off, then on again"
 R "fabricctl dhcp off" > "$OUT/off.log" 2>&1
+# covers: cli:dhcp.off +
 check "dhcp off: applied, Kea stopped and its unit removed" \
     "grep -q 'applied' '$OUT/off.log' && ! R 'systemctl is-active kea' | grep -qx active && ! R 'test -e /etc/systemd/system/kea.service'"
 check "off: nothing listens on 67, ufw's DHCP rule gone, the settings kept" \

@@ -132,6 +132,7 @@ m_accept.domain_dc_names = lambda container="samba": {"dcs": ["hq"], "computers"
 SECRETS = f"{W}/fabric/config/fabric-secrets.yml"
 
 # ---------------------------------------------------------------- invitations
+# covers: setting:federation_endpoint +
 check("invite: refused while the endpoint is off",
       refused(create_invitation, HQ, "alice", "branch1", match="endpoint is off"))
 save_hq(federation_endpoint=True)

@@ -1,6 +1,6 @@
 #!/bin/bash
-# The lint suite (decision 2.1.1.15, manual 3.1.2): ruff for Python, shellcheck for shell scripts, and every Python file
-# parsed by the oldest supported Python (3.10, Ubuntu 22.04: 2.1.1.43). All run from their published images, pinned by
+# The lint suite (decision 2.1.1.15, manual 3.1.2): ruff for Python, shellcheck for shell scripts, every Python file
+# parsed by the oldest supported Python (3.10, Ubuntu 22.04: 2.1.1.43), and no prompt outside ask() (1.1.5.6). All run from their published images, pinned by
 # digest (nothing is installed on the host).
 #   sudo tests/run-all.sh lint
 set -uo pipefail
@@ -39,6 +39,11 @@ check "ruff: no findings in src/, scripts/ and tests/ (pyproject.toml)" "[ $rc -
 out=$(docker run --rm -v "$REPO:/io:ro" -w /io "$PY310" python3 tests/lint/parse_py.py src scripts 2>&1); rc=$?
 echo "$out" | tail -15 | sed 's/^/    /'
 check "Python 3.10 parses every file in src/ and scripts/ (the oldest supported host, Ubuntu 22.04)" "[ $rc -eq 0 ]"
+
+# every question goes through fabriclib/common/ask.py with a stable ID (manual 1.1.5.6): no input()/getpass() elsewhere
+out=$(docker run --rm -v "$REPO:/io:ro" -w /io "$PY310" python3 tests/lint/no_bare_prompts.py src 2>&1); rc=$?
+echo "$out" | tail -15 | sed 's/^/    /'
+check "no input() or getpass() in src/ outside common/ask.py; every ask() has a literal <area>.<name> ID" "[ $rc -eq 0 ]"
 
 mapfile -t product < <(shell_files src packaging scripts)
 out=$(docker run --rm -v "$REPO:/mnt" -w /mnt "$SHELLCHECK" -S warning "${product[@]}" 2>&1); rc=$?

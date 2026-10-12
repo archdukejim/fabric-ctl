@@ -1,0 +1,8 @@
+[Unit]
+Description=fabric: move Windows machines that joined themselves into OU=windows, once each (manual 1.6.11.5)
+After=docker.service fabric.target
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/fabricctl domain sort-machines --scheduled

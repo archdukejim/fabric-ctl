@@ -2,7 +2,8 @@
 `fabricctl setup --step <name>`."""
 from fabriclib.setup import (condition_host, configure_firewall, configure_network, create_accounts, create_admin,
                              deploy_config, ensure_db_rotation,
-                             harden_docker, init_pki, join_federation, mint_service_certs, preflight, setup_openbao,
+                             harden_docker, init_pki, join_federation, join_host_domain, mint_service_certs, preflight,
+                             setup_openbao,
                              start_bootstrap, start_services, verify_install)
 
 STEPS = [
@@ -18,6 +19,8 @@ STEPS = [
     ("bootstrap", start_bootstrap.run, "start bind9 and step-ca; check zones"),
     ("certs", mint_service_certs.run, "issue/renew service certificates"),
     ("start", start_services.run, "start everything; converge the domain; configure Keycloak; web UI"),
+    ("member", join_host_domain.run,
+     "this host as a member of its own domain: fabric admins sign in with their domain accounts (host_join_domain)"),
     ("vault", setup_openbao.run,
      "OpenBao: vault key + unlock methods, init once (recovery keys to ~/fabric-admin), configure, import secrets"),
     ("dbrotation", ensure_db_rotation.run,

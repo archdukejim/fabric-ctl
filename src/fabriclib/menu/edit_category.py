@@ -1,5 +1,6 @@
 import os
 
+from fabriclib.common.ask import ask
 from fabriclib.common.console import BLUE, BOLD, GREEN, NC, RED, YELLOW
 from fabriclib.common.paths import VARS_FILE
 from fabriclib.menu.constants import IMMUTABLE_KEYS, WARNED_KEYS
@@ -29,7 +30,7 @@ def edit_category(title, data, keys):
             print(f"  {i}) {BLUE}{k}{NC}: {GREEN}{'(complex structure)' if isinstance(v, (dict, list)) else v}{NC}"
                   f"{mark}")
         print(f"\n  {BOLD}b{NC} Back to categories")
-        pick = input(f"Select a variable to edit (1-{len(shown)}) or 'b': ").strip().lower()
+        pick = ask("menu.category.pick", f"Select a variable to edit (1-{len(shown)}) or 'b': ").lower()
         if pick == "b":
             return
         if not (pick.isdigit() and 1 <= int(pick) <= len(shown)):
@@ -37,7 +38,7 @@ def edit_category(title, data, keys):
         k = shown[int(pick) - 1]
         if k in IMMUTABLE_KEYS:
             print(f"\n{RED}Error: '{k}' is an immutable variable and cannot be changed post-deployment.{NC}")
-            input("Press Enter to continue...")
+            ask("menu.continue", "Press Enter to continue...")
             continue
         current = data[k]
         if isinstance(current, (dict, list)):
@@ -47,9 +48,9 @@ def edit_category(title, data, keys):
         if k in WARNED_KEYS:
             print(f"{YELLOW}⚠️ WARNING: Editing this variable could impact network routing!{NC}")
         print(f"Current value: {GREEN}{current}{NC}")
-        typed = input("New value (Enter to keep current, 'null' to clear): ").strip()
+        typed = ask(f"menu.vars.{k}", "New value (Enter to keep current, 'null' to clear): ")
         if typed:
             data[k] = parse_value(typed)
             save_menu_change(VARS_FILE, data, k, current, data[k])
             print(f"{GREEN}Saved.{NC}")
-            input("Press Enter to continue...")
+            ask("menu.continue", "Press Enter to continue...")
