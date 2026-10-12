@@ -449,8 +449,8 @@ check "setup made the host a member: its keytab holds the DC account's keys only
     "[ \"\$(in_box 'stat -c %a /etc/krb5.keytab /etc/sssd/sssd.conf' | sort -u)\" = 600 ] \
      && in_box 'klist -k /etc/krb5.keytab' | grep -qF 'DC-FABRIC-SBX\$@AD.TEST' && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi krbtgt \
      && in_box 'systemctl is-active sssd' | grep -qx active"
-check "the first admin (in fabric-admins) resolves on the host with the domain's uid" \
-    "in_box 'getent passwd fabric-admin' | grep -qE '^fabric-admin:[^:]*:(500[1-9]|50[1-9][0-9]|5[1-9][0-9]{2}|[1-9][0-9]{4,5}):'"
+check "the first admin (in fabric-admins) resolves on the host with the domain's uid (1000000, the block's first)" \
+    "in_box 'getent passwd fabric-admin' | grep -qE '^fabric-admin:[^:]*:1000000:'"
 check "the first admin signs in to the host with their domain password (PAM)" "pam fabric-admin /root/admin-pw"
 check "a wrong password is refused" "! pam fabric-admin /root/wrong-pw"
 check "the first admin has sudo on the host from the site's rule" "in_box 'sudo -l -U fabric-admin' | grep -q '(ALL) ALL'"

@@ -1502,7 +1502,7 @@ tests/samba/gpo.py	dc3a4eeaf55fa0a7c892721b4bbaf7ec0355dd79	2026-10-12
 tests/samba/hostgroups.py	75c932c311f1a2edcdfde133eac604b442b065dd	2026-10-12	
 tests/samba/linux_join.py	41199253aeaf434ba1bf4b2774f4447bf2753b06	2026-10-12	
 tests/samba/logon.py	89cb995e97b1e46e10f52a796ad3fc797bdac77d	2026-10-12	
-tests/samba/run.py	f025a88a72ed6be94951c32786d293b3b80c3a9a	2026-10-12	
+tests/samba/run.py	54e6e58ce5bb15c041fed6ca92e54578fcc63a0e	2026-10-12	
 tests/samba/site_join.py	8f6e84afbe8614ed7c343f06974b7b286ceeed90	2026-10-12	
 tests/samba/start_bind.py	d99f3b9ebf76a0c6bb2047503e1add88e4b3db88	2026-10-08	
 tests/samba/start_dc.py	dbba89a09d650988ed479f31ad6b46904c16561f	2026-10-11	
@@ -1517,7 +1517,7 @@ tests/sandbox/make_person.py	f778029f1dfc122927b454149f21fda1c884cdf7	2026-10-05
 tests/sandbox/radius_device.py	12b3e1127a0cc5966846fe0554dc84da7a2e5449	2026-10-05	
 tests/sandbox/radius_mab.py	c9575e9fd8e3c3d52dbd77b879b9ef9a6bd148d5	2026-09-30	
 tests/sandbox/rfc2136_test.sh	4299bc1c1d62237439cad3a2ebac534f45ef0874	2026-10-09	
-tests/sandbox/run.sh	3a185aeece41267e122bc404e157e7d2ecdd7a24	2026-10-12	
+tests/sandbox/run.sh	fb766d94f29234d9299cf1f62641f95668c1ac7b	2026-10-12	
 tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30	
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-12	
