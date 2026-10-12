@@ -1,20 +1,18 @@
 import os
 
-from fabriclib.common.errors import ValidationError
+from fabriclib.common.errors import NotPublished, ValidationError
 from fabriclib.common.jinja_env import jinja_env as jinja_env_for
 from fabriclib.common.load_vars import load_vars
 from fabriclib.common.paths import FEDERATION_FILE, SECRETS_FILE
 from fabriclib.common.service_user import service_user
 from fabriclib.common.write_file_if_changed import write_file_if_changed
+from fabriclib.deploy.check_rendered import check_rendered
 from fabriclib.deploy.deploy_paths import deploy_paths
 from fabriclib.deploy.merge_tsig_keys import merge_tsig_keys
 from fabriclib.deploy.render_templates import BIND_CONFIG
 from fabriclib.deploy.render_vars import render_vars
-from fabriclib.dns.reverse_by_hand import reverse_by_hand
-from fabriclib.dns.reverse_zones import reverse_zones
 from fabriclib.dns.rndc import rndc
 from fabriclib.dns_filter.deploy_resolver import deploy_resolver
-from fabriclib.federation.dns_links import dns_links
 from fabriclib.secrets.load_secrets import load_secrets
 
 SECRET_FILES = ("named.conf.keys", "rndc.key")
@@ -36,29 +34,35 @@ def publish_zone_list(added=(), removed=()):
              render BIND's configuration as apply does (the zone list, and the keys and ACLs it names) and the added
              zones' files into the deploy base, `rndc reconfig`, check BIND serves each added zone, delete the removed
              zones' files and journals; then, when the DNS filter is installed, render and reload the resolver's
-             configuration (its forward zones), through deploy_resolver. Nothing restarts.
+             configuration (its forward zones), through deploy_resolver. Nothing restarts. The settings are made whole
+             and checked exactly as an apply does them (check_rendered, decision 2.1.10.21): the address plan, the
+             settings check, so the zone list keeps DHCP's reverse zones, Kea's grants and the denies on PTRs set by
+             hand between applies.
     Inputs:  added — zone names whose file is written (a new zone: its SOA, NS and ns record); removed — zone names
              whose files go once BIND has dropped them. Reads vars.yaml, fabric's secrets (read only: nothing is
-             generated or saved here), the federation registry and the templates; the caller holds vars_lock.
+             generated or saved here), the address plan (read from the DC as an apply reads it, and kept), the
+             federation registry and the templates; the caller holds vars_lock.
     Returns: {"bind": True, "resolver": True when the resolver was rendered (installed), else False}.
-    Fails:   ValidationError saying why: settings that do not render, secrets that cannot be read (OpenBao locked), a
-             TSIG key whose secret apply has not made yet, BIND refusing `rndc reconfig` or not serving an added zone,
-             the resolver not taking its configuration; OSError writing the files. The caller rolls back the vars and
-             calls it again.
+    Fails:   NotPublished (a ValidationError) saying why, before any file is written: a TSIG key whose secret apply
+             has not made yet, settings the apply's check refuses or that do not render; the caller rolls back the
+             vars and has nothing to publish again. ValidationError once files are written: secrets that cannot be
+             read (OpenBao locked), BIND refusing `rndc reconfig` or not serving an added zone, the resolver not
+             taking its configuration; OSError writing the files. The caller rolls back the vars and calls it
+             again.
     Feeds:   dns/add_zone, dns/remove_zone (and their rollback)."""
     paths = deploy_paths()
     custom_vars = load_vars()
     secrets = load_secrets(SECRETS_FILE)
     if merge_tsig_keys(custom_vars, secrets)[1]:
-        raise ValidationError("a TSIG key in the settings has no secret yet: run an apply first "
-                              "(it makes and saves it)")
+        raise NotPublished("a TSIG key in the settings has no secret yet: run an apply first "
+                           "(it makes and saves it)")
     jinja_env = jinja_env_for(paths["jinja"])
-    final_vars, context = render_vars(jinja_env, secrets, custom_vars)
+    try:                                    # as an apply: the plan, the settings check, the zone-list context
+        final_vars, context = render_vars(jinja_env, secrets, custom_vars)
+        check_rendered(final_vars, secrets, context, FEDERATION_FILE)
+    except ValidationError as e:
+        raise NotPublished(f"the settings do not pass the apply's check, nothing changed: {e}")
     context.update(final_vars)
-    reverse = reverse_zones(final_vars)
-    context["reverse_zone_names"] = list(reverse["zones"])
-    context["reverse_by_hand"] = reverse_by_hand(reverse)      # as apply: PTRs DHCP may never replace (2.1.10.20)
-    context["federation_links"] = dns_links(final_vars, secrets, FEDERATION_FILE)
     uid, gid = service_user(final_vars, "bind")
     base = final_vars["deploy_base_dir"]
     config, data = os.path.join(base, "bind9", "config"), os.path.join(base, "bind9", "data")
@@ -73,7 +77,7 @@ def publish_zone_list(added=(), removed=()):
                 files[zone] = jinja_env.get_template("bind9/data/zone.j2").render(
                     {**context, "zone_name": zone, "zone_records": records or {}})
     except Exception as e:                  # any template error: say which part
-        raise ValidationError(f"BIND's zone configuration did not render: {e}")
+        raise NotPublished(f"BIND's zone configuration did not render: {e}")
     for zone, text in files.items():
         dst = os.path.join(data, f"db.{zone}")
         for stale in (dst + ".jnl", dst + ".jbk"):

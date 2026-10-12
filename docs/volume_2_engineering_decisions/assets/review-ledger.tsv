@@ -29,7 +29,7 @@ docs/volume_1_description_and_architecture/1.1.9-optional-parts.md	f7d1ed4335530
 docs/volume_1_description_and_architecture/1.10.1-kea-design.md	0e8b6720aa82c79132444cd5a6e1a3893173246b	2026-10-10	
 docs/volume_1_description_and_architecture/1.10.2-dhcp-management.md	aceaf8c28259d98538176d44a300de71006e3e4f	2026-10-12	
 docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	a404a324b89e8417e3a5244fda52794b153cb423	2026-10-11	
-docs/volume_1_description_and_architecture/1.10.4-address-manager.md	249514e41c8ddd8a16c1801bf2b2b027650d3d70	2026-10-12	
+docs/volume_1_description_and_architecture/1.10.4-address-manager.md	698967dcb08ac246bcba2d69bde064f9f1eda4d6	2026-10-12	
 docs/volume_1_description_and_architecture/1.11.1-freeradius-design.md	53be8bfe3baba02927c9b7b66dd4d02282115356	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.1-adguard.md	b2280752ee06e87cb6e1497fdb91651e589b6a4d	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.2-bind-resolver.md	97e78a0db3ee1ca79d7edb569eb8e03b03a97164	2026-10-11	
@@ -41,9 +41,9 @@ docs/volume_1_description_and_architecture/1.14.3-published-images-on-hosts.md	3
 docs/volume_1_description_and_architecture/1.15.1-fluent-bit.md	f808ad89a79c10260c048ca1ec58b12037dcb8e9	2026-10-08	
 docs/volume_1_description_and_architecture/1.16.1-luks.md	f4b4c1a4dd1ecd389fd2fde6ec3bc00e7f92a738	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.1-about-the-reference.md	4a2b06beefecb2046109e7be6217d3443827239a	2026-10-08	
-docs/volume_1_description_and_architecture/1.17.10-fabriclib-dns.md	40c59e0949d158493c5ceeabbb7f057e2bc8e2eb	2026-10-12	
+docs/volume_1_description_and_architecture/1.17.10-fabriclib-dns.md	606a40b7d9570321eefc3a4a818c49c32ab01ccb	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.11-fabriclib-dns_filter.md	6b7fc4ecf3c87ec4a660b20a3e586c0791db7b14	2026-10-12	
-docs/volume_1_description_and_architecture/1.17.12-fabriclib-federation.md	1e80c208c89c6022448185150d24b626a67b7fb8	2026-10-12	
+docs/volume_1_description_and_architecture/1.17.12-fabriclib-federation.md	d3324a311e0a479755d746f3a2ded1795b2048dd	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.13-fabriclib-images.md	84cc17d7cdef06ea109040d5de56d68898b6465f	2026-10-09	
 docs/volume_1_description_and_architecture/1.17.14-fabriclib-keycloak.md	79772d31d87cdf4e234f66e22fd79d9b8ba3e8ed	2026-10-10	
 docs/volume_1_description_and_architecture/1.17.15-fabriclib-ldap.md	b418f2836a0b1c7a8d6f591eb39a697a5b34fadb	2026-10-08	
@@ -65,12 +65,12 @@ docs/volume_1_description_and_architecture/1.17.29-webui.md	26e2906300ede50201f7
 docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	aba6d88026cbf48ab5bd298ca49e7590d5589b3f	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.30-fabriclib-samba.md	3a4522e55328d2f1a04b665e11de8cd2165d66d2	2026-10-11	
 docs/volume_1_description_and_architecture/1.17.31-fabriclib-directory.md	7475de8701d3039b61d952a4c06fc697bec15f2d	2026-10-12	
-docs/volume_1_description_and_architecture/1.17.32-fabriclib-ipam.md	4216ee07725636d0d493aed34d934c6b69b1c760	2026-10-12	
+docs/volume_1_description_and_architecture/1.17.32-fabriclib-ipam.md	0a4604927aa21a72bc019da62d6506e6fe12bd75	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.4-fabricctl-lib.md	76bc845876c679778c0588d379f7246a12fae2d0	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	3355d382834764f5ccc49bbea8ee45e20ef209a5	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	fac0dccbc79c6b304807039ef3e7dde8cec12ad9	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.7-fabriclib-core.md	287e5a946064faecbdb0262ece385ff0e043036c	2026-10-08	
-docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	294a5efa8352a055d98cf9f4e68d89beb7864ba5	2026-10-12	
+docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	63330885f949113412f332b90c733f4830349275	2026-10-12	
 docs/volume_1_description_and_architecture/1.17.9-fabriclib-dhcp.md	8b4debae4d35ecac60ffd73bb52369bd9a50c97b	2026-10-12	
 docs/volume_1_description_and_architecture/1.2.1-topology.md	93eb5885bd1c51cc6545c5a5ebd269cf6a36173d	2026-10-10	
 docs/volume_1_description_and_architecture/1.2.10-global.md	5534a46e259bcd499006919750da778ed47dad63	2026-10-09	
@@ -87,7 +87,7 @@ docs/volume_1_description_and_architecture/1.2.9-host-consent.md	eb1592d0949a6cb
 docs/volume_1_description_and_architecture/1.3.1-host-package.md	e703469d9b61e94eadbcb61dabc0fcb6ee57728b	2026-10-10	
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	aab868685bad963cd88ecb6ebeeb3302122c9a9b	2026-10-11	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	c9051b17df742a356820db1fbbbaf7bf70b9ff03	2026-10-11	
-docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	83082136a872db1c3920ec199de2101090b0aad9	2026-10-11	
+docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	8658e1afdaae27fe7bcaddecfbc6bca5f945f097	2026-10-12	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	729f8a6934e41746bb00a5d02d3419cf699671c5	2026-10-11	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	3626d5edb33144b790f204808466f6e0e134bd53	2026-10-11	
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
@@ -116,7 +116,7 @@ docs/volume_1_description_and_architecture/1.9.7-milestones.md	a41e86e4f9febe721
 docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	772dcc42dd63416bb110df6d3945db8fc4589b0d	2026-10-08	
 docs/volume_1_description_and_architecture/README.md	d38368d64cc62f6f20ac48b05bb95fbc2d29df07	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.1-product.md	4815310bec215c09d4a41ce6ae357deff3d32c5d	2026-10-11	
-docs/volume_2_engineering_decisions/2.1.10-dhcp.md	9f706c16ccfbed7563bbd8ad30254b6beaeccce6	2026-10-12	
+docs/volume_2_engineering_decisions/2.1.10-dhcp.md	515961dee8467c586571186fe26a719b95b17dcb	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	9ab4cd892d9de5dca4132f454088ce0ef2da1bd2	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece98c5e28bc1c8	2026-10-08	
@@ -134,7 +134,7 @@ docs/volume_2_engineering_decisions/2.1.9-federation.md	612ddfe1c82f02f08ea10de5
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	9077359c6fe7e8c99a3f89954ceaf6b5a473ffc7	2026-10-12	
-docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	3338ce0d2ae52fb87e6c57e1c677106964530887	2026-10-12	
+docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	b72f1f77a95f4fd04704f647d1b0bb7bc3075686	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	3424b43960e50007224d299adac7dd0533c7f0f6	2026-10-08	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
@@ -238,7 +238,7 @@ scripts/README.md	dd36e9248260e4f936662417c4d10511c3cdb00a	2026-10-08
 scripts/docs/README.md	af834e1650d5a42ed93702d10180e09780634830	2026-10-08	
 scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03	
 scripts/docs/gen_lib_doc.py	7ff94cd622677c2a6040c2c75374a04e50cc48c4	2026-10-08	
-scripts/docs/lib_doc_numbers.tsv	e52a0bcb3524477288ef4143211e44f166f65e00	2026-10-12	
+scripts/docs/lib_doc_numbers.tsv	e4d7bd3c310713c08de40cb64c27d42e930ee49c	2026-10-12	
 scripts/docs/lib_doc_registry.py	a65ab5459802daaca963fac77a8b708397d42d89	2026-10-08	
 scripts/docs/product_code.py	645a3bb130463028b90de64798c81694e5293131	2026-10-03	
 scripts/docs/review_ledger.py	b3f307b4dbaba54a69cc93c993287d43c747ba8f	2026-10-08	
@@ -399,7 +399,7 @@ src/containers/samba/write_plan.py	7eb18a56334dbd6dfca4af2a1606ff465b5ad366	2026
 src/fabriclib/README.md	e4f9724573d00b393c140459a6cae99c0f43e9af	2026-10-12	
 src/fabriclib/__init__.py	117907918b0432dc26398d6d6e4aefc09ca0ab31	2026-09-30	
 src/fabriclib/cli.py	8869e3b105d0d9ee654efe166a9a3bfc0f0a68c0	2026-10-12	
-src/fabriclib/common/README.md	4b03673533c585381ea9621c47db27edd514e3d2	2026-10-12	
+src/fabriclib/common/README.md	57065e57ec4198329154041e32c09385e2f98bfa	2026-10-12	
 src/fabriclib/common/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
 src/fabriclib/common/ask.py	5df065e3cd4c5487b71a37bbca9e2acb7de40d6c	2026-10-12	
 src/fabriclib/common/console.py	10ecbfe70f1058ba0c93a8428d5037a0e108ebd6	2026-10-11	
@@ -410,7 +410,7 @@ src/fabriclib/common/dns_wire.py	3d0e2891f655b593472a57a2d2123844a66d2dc3	2026-1
 src/fabriclib/common/doh_query.py	820cf245c084a1ead14f327d50c88c37d903d782	2026-10-09	
 src/fabriclib/common/dot_query.py	8269b11ec7689b9b4b70c761ca46fed3f5d3dba3	2026-10-10	
 src/fabriclib/common/ensure_dir.py	f9a865f3a3df279bd7c7276c2a4cb6a510171b03	2026-10-05	
-src/fabriclib/common/errors.py	71be207d776ff8004eea177377a0a3938601c1a7	2026-09-30	
+src/fabriclib/common/errors.py	b39f35d5b0aab40a6a356c3c7829b211cd46b3bf	2026-10-12	
 src/fabriclib/common/jinja_env.py	4c2274dd6a11180616773d025167b416edecc814	2026-10-08	
 src/fabriclib/common/keep_original.py	e9b55a88a4a6c96716a1af5ecb87e42985383fcc	2026-10-08	
 src/fabriclib/common/load_vars.py	7f046554956bb5731937666fda743d4bd17cb9f8	2026-10-02	
@@ -457,11 +457,12 @@ src/fabriclib/consent/plan_trust.py	00d8119fb62f2b9098e32497c1f1ea0c5c31d442	202
 src/fabriclib/consent/planned_vars.py	3fdfc57946d19b8cfd156d4e15b438647e22e72b	2026-10-08	
 src/fabriclib/consent/save_consent.py	5660e01ec5c4d3054a8c35de5c1b604ccc54d09c	2026-10-08	
 src/fabriclib/consent/show_consent_status.py	533404911c2996df4cdf2db2a29a5cbe05f19194	2026-10-08	
-src/fabriclib/deploy/README.md	1209361dfdcde908eaabd73ac1ccde08bbbd1b77	2026-10-11	
+src/fabriclib/deploy/README.md	c2486c49c0e2fe15fbbf489b496b46dc2db79caf	2026-10-12	
 src/fabriclib/deploy/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-02	
-src/fabriclib/deploy/apply_deployment.py	c6f91560f012a78a88aac1ef5a743ff4b3d4285f	2026-10-12	
+src/fabriclib/deploy/apply_deployment.py	94b3c98c82e3b22b28cf5caa390d28e70f5ef7d8	2026-10-12	
 src/fabriclib/deploy/archive_vars.py	512658f15cee9e1f34ad065538d701c567971aca	2026-10-02	
 src/fabriclib/deploy/check_fixed_identity.py	35cc05d2938150eeee1fc248702cbfecfc889e3e	2026-10-02	
+src/fabriclib/deploy/check_rendered.py	54c6ddf791fe9b2f79a8469c184b8b87d67887da	2026-10-12	
 src/fabriclib/deploy/check_samba_settings.py	47194ff97d3f33f11f96430048478b11c7f3de15	2026-10-11	
 src/fabriclib/deploy/check_settings.py	9e6f2c04bd7d2e26ccacb7056aff450b81c216fb	2026-10-10	
 src/fabriclib/deploy/compose_builds.py	95f535d5fa028de30d075b3606d12f0fbbe18366	2026-10-08	
@@ -564,7 +565,7 @@ src/fabriclib/dns/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-3
 src/fabriclib/dns/add_acl_entries.py	d22d374c6b3f4a8a335a3b45051f29f33a3eaf93	2026-10-03	
 src/fabriclib/dns/add_record.py	99ac15582d8962652b7c224e2c49eb14153d7ab7	2026-10-03	
 src/fabriclib/dns/add_tsig_key.py	f602decae0f7699a3782e591461210163647124c	2026-09-30	
-src/fabriclib/dns/add_zone.py	fe3821a02c19590a6a456661b117a0f8b4d43a70	2026-10-11	
+src/fabriclib/dns/add_zone.py	9744d3c85e3f08c9360436408581c6ef3e3fc12c	2026-10-12	
 src/fabriclib/dns/builtin_acls.py	9e6b7d30fd2836778d1e5e269b3e4bc9329d666f	2026-10-10	
 src/fabriclib/dns/constants.py	a7d978c8c0a4f6883478c9db6666a8a9f80d5b29	2026-10-11	
 src/fabriclib/dns/create_zone_tsig_key.py	a79d0069466e2335014ae53e5b2134078ca5f8b6	2026-10-03	
@@ -577,12 +578,12 @@ src/fabriclib/dns/merge_dynamic_records.py	a5aea875894280acaad25107022584961e2a5
 src/fabriclib/dns/normalize_acl_policies.py	aa91948fae42dac41b8c7b2044a61391ecc593f1	2026-10-02	
 src/fabriclib/dns/normalize_tsig_keys.py	fbf0798dc356e42fa8c17b3ad48b6954b6c7c25f	2026-10-03	
 src/fabriclib/dns/ptr_for_ip.py	cbd2dd78b557e6b25bf78c7f4425be9a2d00d9fb	2026-10-03	
-src/fabriclib/dns/publish_zone_list.py	28b6192b9299179965dcd18654bd8fb59eccc031	2026-10-12	
+src/fabriclib/dns/publish_zone_list.py	77f28814c5ba998e643503af577da1f08d66a89e	2026-10-12	
 src/fabriclib/dns/reload_zone.py	94a5dfa7d0f679e51cb32d10a68ef1b44849e247	2026-10-03	
 src/fabriclib/dns/remove_acl_entries.py	1c4d1d419aa2dcac0ab961a663ed91cf10b1e40b	2026-09-30	
 src/fabriclib/dns/remove_record.py	0c41c6ad6f9844189b3974ec2447f3573e9c3747	2026-10-03	
 src/fabriclib/dns/remove_tsig_key.py	ff875cbdbfb2212a37edcbc27544bfb2e6a1ef24	2026-10-03	
-src/fabriclib/dns/remove_zone.py	173f714242f9dc969d374dea38d005ad9d7aa92d	2026-10-11	
+src/fabriclib/dns/remove_zone.py	27ad132753812af8eaf1a84e6557bfe112ae20ef	2026-10-12	
 src/fabriclib/dns/replace_tsig_secret.py	898ef35bb204dd749a2f20d39bc24a8a82938ddc	2026-09-30	
 src/fabriclib/dns/reverse_by_hand.py	c952675bc436aeb7d01b4ef80ddec8160ca070f0	2026-10-12	
 src/fabriclib/dns/reverse_zones.py	5391a1c8887fdd4582fb8d7f7eb67f7e4be7e8b8	2026-10-10	
@@ -1473,4 +1474,4 @@ tests/webui/test_container.py	20d06e7f1bd74253b5f499545f81dc5d2dd5a38c	2026-10-1
 tests/webui/test_devserver.py	e9e23e7bb9e3da246c61ec3510d01a618e0591f0	2026-10-11	
 tests/zone_test.py	4bed30787288ab1c63799bf296c8bb14de230708	2026-10-10	
 tests/zones/README.md	09229c84b389706c276773792706ed6b36298e1f	2026-10-11	
-tests/zones/run.py	b235a26f39b07ef9f9201d766f9d1aabb9feb305	2026-10-12	
+tests/zones/run.py	5e55ec717a0c7b99c0cf392ac3d5cc73e2a9fc37	2026-10-12	

@@ -15,6 +15,7 @@ installs what changed and restarts or reloads what is affected.
 | `render_vars.py` | `vars.yaml.j2` rendered over the admin's vars and the secrets (the full settings); the RAM minimum |
 | `archive_vars.py` | Keep the deployed `vars.yaml` in `archive/` before it is replaced |
 | `check_fixed_identity.py` | `site_name`, `org_domain` and `ldap_base_dn` valid and unchanged since install (the markers in `config/`) |
+| `check_rendered.py` | The address plan read, the settings checked and BIND's zone-list context set: shared by the apply and the quick zone path (2.1.10.21) |
 | `check_settings.py` | DHCP, time, `dns_filter` and Windows-domain settings checked before anything is rendered |
 | `check_samba_settings.py` | The Windows domain's settings: the AD domain, NetBIOS names, the whole password policy (2.1.6.11, 2.1.6.13) |
 | `load_link_vars.py` | The landing page's links, rendered into the context (a bad file is reported, never fatal) |

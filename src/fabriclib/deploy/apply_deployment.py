@@ -14,7 +14,7 @@ from fabriclib.consent.allowed_to_change import allowed_to_change
 from fabriclib.consent.plan_services import plan_services
 from fabriclib.deploy.archive_vars import archive_vars
 from fabriclib.deploy.check_fixed_identity import check_fixed_identity
-from fabriclib.deploy.check_settings import check_settings
+from fabriclib.deploy.check_rendered import check_rendered
 from fabriclib.deploy.deploy_optional_parts import deploy_optional_parts
 from fabriclib.deploy.deploy_paths import deploy_paths
 from fabriclib.deploy.finish_without_start import finish_without_start
@@ -37,20 +37,17 @@ from fabriclib.deploy.render_vars import render_vars
 from fabriclib.deploy.restart_changed import restart_changed
 from fabriclib.deploy.service_units import service_units
 from fabriclib.deploy.verify_published_images import verify_published_images
-from fabriclib.dns.reverse_by_hand import reverse_by_hand
-from fabriclib.dns.reverse_zones import reverse_zones
 from fabriclib.federation.deploy_federation_endpoint import deploy_federation_endpoint
-from fabriclib.federation.dns_links import dns_links
-from fabriclib.ipam.load_address_plan import load_address_plan
 from fabriclib.secrets.load_secrets import load_secrets
 from fabriclib.secrets.save_secrets import save_secrets
 
 
 def _prepare(paths):
     """Purpose: everything up to the render: secrets, the checked settings (the DHCP subnets and static names from the
-             site's address plan in the domain, manual 1.10.4.14) and the render context.
+             site's address plan in the domain, manual 1.10.4.14) and the render context (check_rendered, shared with
+             the quick zone path: 2.1.10.21).
     Inputs:  paths — deploy_paths().
-    Returns: dict with secrets, final_vars, context, tsig_keys, jinja_env.
+    Returns: dict with secrets, final_vars, context, tsig_keys, jinja_env, reverse (reverse_zones()).
     Fails:   ValidationError (settings, secrets that cannot be loaded or saved, fixed identity).
     Feeds:   apply_deployment."""
     custom_vars = load_vars(paths["vars"])
@@ -75,11 +72,13 @@ def _prepare(paths):
     final_vars, context = render_vars(jinja_env, secrets, custom_vars)
     archive_vars(paths["target"])
     check_fixed_identity(final_vars, paths["config"])
-    for line in load_address_plan(final_vars, secrets):    # the subnets and static names from the plan (1.10.4.14)
+    # the plan's subnets and static names (1.10.4.14), the settings check and BIND's zone-list context: shared with
+    # the quick zone path (dns/publish_zone_list, 2.1.10.21)
+    checked = check_rendered(final_vars, secrets, context, paths["federation"])
+    for line in checked["lines"]:
         print(line)
-    check_settings(final_vars)
     return {"secrets": secrets, "final_vars": final_vars, "context": context, "tsig_keys": tsig_keys,
-            "jinja_env": jinja_env}
+            "jinja_env": jinja_env, "reverse": checked["reverse"]}
 
 
 def _deploy(paths, start_services):
@@ -104,11 +103,7 @@ def _deploy(paths, start_services):
         pass
     load_link_vars(paths, jinja_env, context)
     units = service_units(paths["base"], final_vars)
-    reverse = reverse_zones(final_vars)    # reverse zones and their PTRs come from the forward A/AAAA records
-    context["reverse_zone_names"] = list(reverse["zones"])
-    context["reverse_by_hand"] = reverse_by_hand(reverse)      # PTRs DHCP's key may never replace (2.1.10.20)
-    # federation (manual 1.9 M4): delegations, secondary zones and TSIG keys for the sites next to this one
-    context["federation_links"] = dns_links(final_vars, secrets, paths["federation"])
+    reverse = p["reverse"]                 # with reverse_zone_names, reverse_by_hand, federation_links (check_rendered)
     print("Rendering Jinja2 templates...")
     render_templates(paths, jinja_env, context, final_vars, secrets, p["tsig_keys"], units, reverse)
     if verify_published_images(paths, final_vars):  # nothing installed yet: a refusal changes nothing

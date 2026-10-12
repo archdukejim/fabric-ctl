@@ -113,7 +113,11 @@ VARS = {"deploy_base_dir": W, "domain": "lan.test", "org_domain": "lan.test", "h
         "ip_bind9": BIND_IP, "ip_resolver": RES_IP, "host_ram_capacity": 8, "ad_domain": "corp.test",
         "dns_filter": "bind", "dns_filter_lists": [], "dns_filter_upstreams": [{"address": "1.1.1.1", "name": "cloudflare-dns.com"}],
         "service_users": {"bind": {"uid": 600, "gid": 600}, "resolver": {"uid": 913, "gid": 913}},
-        "dns": {"dynamic_zone_var": {"zone_authority": True, "A": [{"name": "www", "ip": "10.9.8.7"}]}}}
+        "dns": {"dynamic_zone_var": {"zone_authority": True, "A": [{"name": "www", "ip": "10.9.8.7"}]}},
+        # the zone path checks the settings as an apply does (2.1.10.21): an install's password policy (2.1.6.13)
+        "ad_password_policy": {"minimum_length": 14, "complexity": True, "history": 24, "minimum_age_days": 0,
+                               "maximum_age_days": 0, "lockout_threshold": 5, "lockout_minutes": 15,
+                               "lockout_window_minutes": 15}}
 agent_proc = None
 try:
     sh(f"docker rm -f bind9 bind9-resolver; docker network rm {NET}", ok=False)
@@ -289,6 +293,102 @@ try:
           and status(BIND_IP, "menu.lan") != "NOERROR" and "menu.lan" not in vars_dns(), r.stdout[-400:])
     r = lib(menu, stdin="r\n1\n\nb\n")
     check("menu: 'r' refuses the site's own zone", "cannot be removed" in r.stdout, r.stdout[-400:])
+
+    # ---- DHCP between applies (2.3.10.4.10, decision 2.1.10.21): a zone change renders BIND's zone list from the
+    # same checked settings as an apply, so DHCP's reverse zones, Kea's grants and the denies on hand-set PTRs stay
+    REV45, REV46 = "45.254.10.in-addr.arpa", "46.254.10.in-addr.arpa"
+    iface = lib("from fabriclib.system.host_networks import host_networks\nprint(sorted(host_networks())[0])")
+    iface = iface.stdout.strip()
+    kea_secret = "a2VhLWRkbnMtdGVzdC1vbmx5LXNlY3JldC0zMi1ieXRlcyE="
+    with open(f"{W}/fabric/config/fabric-secrets.yml") as f:
+        sec = yaml.safe_load(f)
+    sec["kea_ddns_secret"] = kea_secret
+    with open(f"{W}/fabric/config/fabric-secrets.yml", "w") as f:
+        yaml.safe_dump(sec, f)
+    with open(f"{W}/kea-ddns.key", "w") as f:       # nsupdate reads the key from a file, never the command line
+        f.write(f'key "kea-ddns" {{ algorithm hmac-sha256; secret "{kea_secret}"; }};\n')
+
+    def edit_vars(fn):
+        with open(f"{W}/fabric/config/vars.yaml") as f:
+            v = yaml.safe_load(f)
+        fn(v)
+        with open(f"{W}/fabric/config/vars.yaml", "w") as f:
+            yaml.safe_dump(v, f, sort_keys=False)
+
+    def kea_on(v):
+        v["install_kea"] = True                     # a pool in 45 (no name set by hand: DHCP's only), one in 46
+        v["dhcp"] = {"interfaces": [iface], "subnets": [
+            {"subnet": "10.254.45.0/24", "name": "lab45", "vlan": 45, "pools": ["10.254.45.100 - 10.254.45.150"],
+             "routers": "10.254.45.1"},
+            {"subnet": "10.254.46.0/24", "name": "lab46", "vlan": 46, "pools": ["10.254.46.100 - 10.254.46.150"],
+             "routers": "10.254.46.1"}]}
+        v["dns"]["dynamic_zone_var"].setdefault("A", []).append({"name": "nas46", "ip": "10.254.46.9"})
+    edit_vars(kea_on)
+    # what an apply leaves: the reverse zones' files and BIND's zone list (the same shared check, check_rendered)
+    r = lib("import os\nfrom fabriclib.common.jinja_env import jinja_env\nfrom fabriclib.common.load_vars import "
+            "load_vars\nfrom fabriclib.common.paths import FEDERATION_FILE\nfrom fabriclib.secrets.load_secrets "
+            "import load_secrets\nfrom fabriclib.deploy.render_vars import render_vars\nfrom "
+            "fabriclib.deploy.check_rendered import check_rendered\nfrom fabriclib.dns.publish_zone_list import "
+            f"publish_zone_list\nenv = jinja_env({W + '/fabric/jinja'!r})\ns = load_secrets()\n"
+            "v, c = render_vars(env, s, load_vars())\nrev = check_rendered(v, s, c, FEDERATION_FILE)['reverse']\n"
+            "c.update(v)\nfor zone, ptrs in rev['zones'].items():\n"
+            f"    path = {W + '/bind9/data/db.'!r} + zone\n"
+            "    open(path, 'w').write(env.get_template('bind9/data/reverse-zone.j2').render(**c, "
+            "reverse_zone_name=zone, ptr_records=ptrs))\n    os.chown(path, 600, 600)\n"
+            "publish_zone_list()\nprint('applied', sorted(rev['zones']))")
+    check("DHCP on: the apply's zone list serves DHCP's reverse zones", "applied" in r.stdout
+          and status(BIND_IP, REV45) == "NOERROR" and status(BIND_IP, REV46) == "NOERROR",
+          r.stdout[-400:] + r.stderr[-600:])
+
+    def zone_list():
+        return open(f"{W}/bind9/config/named.conf.zones").read()
+
+    def zone_block(text, zone):
+        return text.split(f'zone "{zone}"', 1)[-1].split("\n};", 1)[0] if f'zone "{zone}"' in text else ""
+
+    # covers: cli:dns.add-zone +
+    st, res = agent("/v1/zones", {"name": "between.lan"})
+    conf = zone_list()
+    check("add between applies: accepted, and the zone list keeps the reverse zone that holds only DHCP's PTRs, "
+          "with Kea's grant", st == 200 and 'grant "kea-ddns" zonesub PTR DHCID;' in zone_block(conf, REV45)
+          and status(BIND_IP, "between.lan") == "NOERROR" and status(BIND_IP, REV45) == "NOERROR", (st, res, conf))
+    check("add between applies: the PTR set by hand keeps its deny before Kea's grant (2.1.10.20)",
+          f'deny "kea-ddns" name 9.{REV46}. ANY;' in zone_block(conf, REV46)
+          and 'grant "kea-ddns" zonesub PTR DHCID;' in zone_block(conf, REV46)
+          and 'grant "kea-ddns" zonesub A AAAA DHCID;' in zone_block(conf, "dhcp.lan.test"), conf)
+    upd = sh(f"printf 'server {BIND_IP}\\nzone {REV45}\\nupdate add 120.{REV45} 60 PTR laptop9.dhcp.lan.test.\\n"
+             f"send\\n' | nsupdate -k {W}/kea-ddns.key 2>&1", ok=False)
+    check("add between applies: DHCP's PTR registration still works (Kea's key adds a PTR in its reverse zone)",
+          upd.returncode == 0 and short(BIND_IP, f"120.{REV45}", "PTR") == "laptop9.dhcp.lan.test.",
+          upd.stdout[-300:])
+    grab = sh(f"printf 'server {BIND_IP}\\nzone {REV46}\\nupdate delete 9.{REV46} PTR\\nupdate add 9.{REV46} 60 PTR "
+              f"evil.dhcp.lan.test.\\nsend\\n' | nsupdate -k {W}/kea-ddns.key 2>&1", ok=False).stdout
+    check("add between applies: Kea's key still may not replace the PTR set by hand",
+          "REFUSED" in grab and short(BIND_IP, f"9.{REV46}", "PTR") == "nas46.lan.test.", grab[-300:])
+
+    # covers: cli:dns.add-zone -
+    # covers: cli:dns.remove-zone -
+    edit_vars(lambda v: v["dhcp"].__setitem__("interfaces", ["nosuch0"]))
+    before_dns, before_conf = vars_dns(), zone_list()
+    st, res = agent("/v1/zones", {"name": "refused.lan"})
+    check("add refused when the apply's settings check refuses (an interface this host lacks), saying why",
+          st == 400 and "not added" in res["error"] and "nosuch0" in res["error"]
+          and "nothing changed" in res["error"] and "failed too" not in res["error"], (st, res))
+    check("refused add: nothing changed (the vars, BIND's zone list, no zone file, BIND does not serve it)",
+          vars_dns() == before_dns and zone_list() == before_conf
+          and not os.path.exists(f"{W}/bind9/data/db.refused.lan") and status(BIND_IP, "refused.lan") != "NOERROR"
+          and status(BIND_IP, REV45) == "NOERROR", (vars_dns(), dig(BIND_IP, "refused.lan", "SOA")))
+    st, res = agent("/v1/zones/between.lan/delete", {"confirm": "between.lan"})
+    check("remove refused the same way, nothing changed (the zone still in the vars and served)",
+          st == 400 and "not removed" in res["error"] and "nosuch0" in res["error"]
+          and vars_dns() == before_dns and zone_list() == before_conf
+          and status(BIND_IP, "between.lan") == "NOERROR", (st, res))
+    edit_vars(lambda v: v["dhcp"].__setitem__("interfaces", [iface]))
+    st, res = agent("/v1/zones/between.lan/delete", {"confirm": "between.lan"})
+    check("remove between applies: accepted, and DHCP's reverse zone and Kea's grant stay",
+          st == 200 and status(BIND_IP, "between.lan") != "NOERROR"
+          and 'grant "kea-ddns" zonesub PTR DHCID;' in zone_block(zone_list(), REV45)
+          and status(BIND_IP, REV45) == "NOERROR", (st, res))
 finally:
     if agent_proc:
         agent_proc.terminate()
