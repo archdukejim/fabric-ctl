@@ -48,9 +48,9 @@ SAMPLE = {
     "zones": {
         "dynamic_zone_var": {"name": "home.arpa", "records": [
             ("A", "fabric", "192.168.1.53"), ("A", "@", "192.168.1.53"), ("A", "nas", "192.168.1.10"),
-            ("CNAME", "ca", "fabric"), ("CNAME", "certs", "fabric"), ("CNAME", "dns", "fabric"),
+            ("CNAME", "ca", "fabric"), ("CNAME", "info", "fabric"), ("CNAME", "dns", "fabric"),
             ("A", "printer", "192.168.1.40"), ("AAAA", "nas", "fd00:1:2:3::10"), ("A", "vpn", "203.0.113.7"),
-            ("CNAME", "ca", "fabric"), ("CNAME", "certs", "fabric"), ("CNAME", "dns", "fabric"),
+            ("CNAME", "ca", "fabric"), ("CNAME", "info", "fabric"), ("CNAME", "dns", "fabric"),
             ("CNAME", "sso", "fabric"), ("MX", "@", "10 mail"), ("TXT", "@", '"v=spf1 -all"')]},
         "iot.home.arpa": {"name": "iot.home.arpa", "records": [
             ("A", "cam-front", "192.168.20.11"), ("A", "cam-back", "192.168.20.12"), ("A", "thermostat",
@@ -126,7 +126,7 @@ SAMPLE_DEVICES = {"tokens": [{"vendor": "Yubico", "product": "YubiKey OTP+FIDO+C
                               "serial": "23456799", "label": "YubiKey PIV #23456799",
                               "manufacturer": "Yubico (www.yubico.com)",
                               "model": "YubiKey YK5", "pin_state": "ok"}]}
-SAMPLE_CA = {"domain": "home.arpa", "certs_url": "http://certs.home.arpa/", "max_days": 1825,
+SAMPLE_CA = {"domain": "home.arpa", "certs_url": "http://info.home.arpa/certs/", "max_days": 1825,
              "root": {"subject": "CN=Fabric Root CA,O=Fabric", "not_after": "Sep  1 00:00:00 2046 GMT",
                       "key": "EC prime256v1", "sha256": _FP},
              "intermediate": {"subject": "CN=Fabric Intermediate CA,O=Fabric", "not_after": "Sep  1 00:00:00 2036 GMT",
@@ -201,26 +201,50 @@ SAMPLE_DOCTOR = {"checks": [{"name": "DNS ns.home.arpa", "ok": True, "detail": "
 SAMPLE_ACME = {"domain": "home.arpa", "machines": [{"name": "nas", "fqdn": "nas.home.arpa", "key": "acme-nas",
                                                     "records": ["nas"]}],
                "info": ["ACME directory: https://ca.home.arpa/acme/acme/directory",
-                        "trust fabric's root CA first: http://certs.home.arpa/ (check its fingerprint there)",
+                        "trust fabric's root CA first: http://info.home.arpa/certs/ (check its fingerprint there)",
                         "names: <name>.home.arpa only; certificates live 47 days: let the client renew at 30 days old",
                         "http-01: the machine answers on port 80 for its name (nothing to enroll)",
                         "dns-01: enroll it below; its client sends RFC2136 updates with its key"]}
 _REG_LIST = "https://adguardteam.github.io/HostlistsRegistry/assets/filter_{}.txt"
 _ZONE = "8f1c2d3e4a5b.list.rpz"
 _NOW = int(time.time())          # the sample's lists were fetched a few hours ago
+def _list(name, n, group, description, homepage, enabled=None, rules=None, memory=None, ago=3):
+    """Purpose: one row of the sample's lists table, as filter_overview gives it (manual 1.12.3.5).
+    Inputs:  name, n (its registry number), group, description, homepage; enabled — None: not on the site; rules,
+             memory — its copy's state; ago — hours since its copy.
+    Returns: dict.
+    Fails:   never.
+    Feeds:   SAMPLE_DNS_FILTER."""
+    return {"id": f"{n:012x}", "name": name, "url": _REG_LIST.format(n), "description": description,
+            "homepage": homepage, "category": group, "on_site": enabled is not None, "enabled": bool(enabled),
+            "last_fetch": _NOW - ago * 3600, "last_success": _NOW - ago * 3600, "rules": rules, "memory_mb": memory,
+            "error": None}
+
+
 SAMPLE_DNS_FILTER = {
-    "on": True, "memory_limit": "384m",
-    "lists": [{"name": "AdGuard DNS filter", "url": _REG_LIST.format(1), "zone": _ZONE, "last_fetch": _NOW - 3 * 3600,
-               "last_success": _NOW - 3 * 3600, "rules": 178979, "skipped": 714, "memory_mb": 185.2, "error": None}],
+    "on": True, "catalogue_fetched": _NOW - 3 * 3600,
+    "categories": ["General", "Security", "Regional", "Added by URL"],
+    "lists": [_list("AdGuard DNS filter", 1, "General", "Blocks ads and trackers; few false positives.",
+                    "https://github.com/AdguardTeam/AdGuardSDNSFilter", True, 178979, 24.5),
+              _list("OISD Blocklist Small", 5, "General", "Blocks ads, mobile app ads, phishing and malware.",
+                    "https://oisd.nl/", None, 56012, 7.7),
+              _list("HaGeZi's Pro Blocklist", 48, "General", "Ads, affiliate, tracking, metrics, telemetry.",
+                    "https://github.com/hagezi/dns-blocklists", False, 189433, 25.9),
+              _list("Phishing Army", 18, "Security", "Phishing domains.", "https://phishing.army/", True, 151020,
+                    20.6),
+              _list("POL: Polish filters for Pi-hole", 14, "Regional", "Polish ad and tracker domains.", "", None,
+                    23001, 3.1),
+              {**_list("My list", 9999, "Added by URL", "", "", True, 12, 0.0),
+               "url": "https://lists.example/mine.txt"}],
+    "memory": {"estimate_mb": 45.1, "peak_mb": 112.8, "limit_mb": 1024.0, "fits": True, "unknown": []},
     "allow": ["doubleclick.net"], "block": ["ads.example.org"],
     "upstreams": [{"address": "1.1.1.1", "name": "cloudflare-dns.com"},
                   {"address": "1.0.0.1", "name": "cloudflare-dns.com"}],
-    "memory": {"estimate_mb": 201.2, "limit_mb": 384.0, "left_out": []},
     "safe_search": {"on": False, "youtube": "strict"},
     "groups": [{"name": "kids", "clients": ["192.168.1.64/27"], "safe_search": True, "youtube": "strict",
-                "lists": [], "allow": ["khanacademy.org"], "block": ["roblox.com"]},
+                "allow": ["khanacademy.org"], "block": ["roblox.com"]},
                {"name": "teen-laptop", "clients": ["192.168.1.70"], "safe_search": True, "youtube": "moderate",
-                "lists": [], "allow": [], "block": []}],
+                "allow": [], "block": []}],
     # the same engines and counts as fabriclib's table (dns_filter/common/safe_search), which the agent sends
     "safe_search_sites": {"engines": [{"engine": e, "names": n, "answer": a} for e, n, a in (
         ("Google", 187, "forcesafesearch.google.com"),
@@ -240,18 +264,7 @@ SAMPLE_DNS_FILTER = {
                                "count": 1204},
                               {"name": "app-measurement.com", "zone": _ZONE, "list": "AdGuard DNS filter",
                                "count": 640},
-                              {"name": "ads.example.org", "zone": "owner.rpz", "list": None, "count": 28}]},
-    "catalogue": {"fetched": _NOW - 3 * 3600, "lists": [
-        {"name": "OISD Blocklist Small", "url": _REG_LIST.format(5), "group": "General",
-         "description": "Blocks ads, mobile app ads, phishing and malware; few false positives.",
-         "homepage": "https://oisd.nl/"},
-        {"name": "HaGeZi's Pro Blocklist", "url": _REG_LIST.format(48), "group": "General",
-         "description": "Ads, affiliate, tracking, metrics, telemetry, phishing, malware, scam.",
-         "homepage": "https://github.com/hagezi/dns-blocklists"},
-        {"name": "Phishing Army", "url": _REG_LIST.format(18), "group": "Security", "description": "Phishing domains.",
-         "homepage": "https://phishing.army/"},
-        {"name": "POL: Polish filters for Pi-hole", "url": _REG_LIST.format(14), "group": "Regional",
-         "description": "Polish ad and tracker domains.", "homepage": ""}]}}
+                              {"name": "ads.example.org", "zone": "owner.rpz", "list": None, "count": 28}]}}
 SAMPLE_QUERY_LOG = {"entries": [
     {"at": "2026-10-09T09:58:12Z", "client": "192.168.1.20", "view": "everyone", "name": "browser.events.data.msn.com",
      "qtype": "A", "action": "NXDOMAIN", "zone": _ZONE, "list": "AdGuard DNS filter", "blocked": True},

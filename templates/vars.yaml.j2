@@ -58,7 +58,6 @@ landing_page_cname: {{ landing_page_cname | default('info', true) }}
 cname_dns: {{ cname_dns | default('dns') }}
 cname_sso: {{ cname_sso | default('sso') }}
 cname_mgr: {{ cname_mgr | default('fabric') }}
-cname_certs: {{ cname_certs | default('certs') }}
 cname_openbao: {{ cname_openbao | default('vault') }}
 {# The web UI's address: any host name (default fabric.<domain>). Outside the
    domain, fabric issues its certificate but you point DNS at this host. #}
@@ -71,8 +70,8 @@ hostname_landing: {{ hostname_landing | default((landing_page_cname | default('i
 hostname_keycloak: {{ hostname_keycloak | default((cname_sso | default('sso')) ~ '.' ~ domain) }}
 {% set _hostname_mgr = (webui_hostname | default('', true) or ((cname_mgr | default('fabric')) ~ '.' ~ domain)) | lower %}
 hostname_mgr: {{ _hostname_mgr }}
-{# CA certificates for every system (certs.<domain>); ca.<domain> is Step-CA's API. #}
-hostname_certs: {{ ((cname_certs | default('certs')) ~ '.' ~ domain) | lower }}
+{# CA certificates for every system: info.<domain>/certs/ (hostname_landing) and http://<host_ip>/certs/; certs.<domain>
+   was dropped in 0.7.0 (1.5.1.5). ca.<domain> is Step-CA's API. #}
 hostname_openbao: {{ ((cname_openbao | default('vault')) ~ '.' ~ domain) | lower }}
 hostname_radius: {{ ((cname_radius | default('radius')) ~ '.' ~ domain) | lower }}
 hostname_ntp: {{ ((cname_ntp | default('ntp')) ~ '.' ~ domain) | lower }}
@@ -93,6 +92,7 @@ image_keycloak: {{ image_keycloak | default(images_lock.keycloak) }}
 image_postgres: {{ image_postgres | default(images_lock.postgres) }}
 image_openbao: {{ image_openbao | default(images_lock.openbao) }}
 image_fluentbit: {{ image_fluentbit | default(images_lock.fluentbit) }}
+image_adguard: {{ image_adguard | default(images_lock.adguard) }}
 {# Base of the locally built images (Debian packages). #}
 image_debian: {{ image_debian | default(images_lock.debian) }}
 {# Names of the locally built images (not pulled). #}
@@ -157,8 +157,12 @@ ad_domain: "{{ _ad }}"
 ad_realm: "{{ _ad | upper }}"
 ad_base_dn: "{{ _ad.split('.') | map('regex_replace', '^', 'DC=') | join(',') if _ad else '' }}"
 ad_netbios: "{{ (ad_netbios | default(_ad.split('.')[0], true))[:15] | upper }}"
-{# the DC runs in the host network, where Docker cannot give it a name of its own: it is the host, in AD's domain #}
-hostname_dc: "{{ (hostname ~ '.' ~ _ad) | lower if _ad else '' }}"
+{# the DC's own name in the domain (2.1.6.45, manual 1.6.5.23), apart from the host's: setup asks it, suggesting
+   dc-<hostname> cut to 15 characters (a NetBIOS name); permanent. An install from before 0.7.0 keeps its host's name
+   (deploy/keep_old_install saves it as dc_name). #}
+{% set _dc = (dc_name | default(('dc-' ~ (hostname | lower))[:15].rstrip('-'), true)) | lower %}
+dc_name: "{{ _dc }}"
+hostname_dc: "{{ (_dc ~ '.' ~ _ad) | lower if _ad else '' }}"
 # minimum_length, complexity (bool), history, minimum_age_days, maximum_age_days, lockout_threshold,
 # lockout_minutes, lockout_window_minutes: every key required
 ad_password_policy: {{ ad_password_policy | default({}, true) | to_json }}
@@ -178,7 +182,10 @@ posix_id_range: "{{ posix_id_range | default('', true) }}"
 {% set _site_ou = ad_site_ou | default('OU=' ~ ((site_name | default(hostname, true)) | lower) ~ ',OU=sites', true) %}
 ad_site_ou: "{{ _site_ou }}"
 ad_org_ou: "{{ ad_org_ou | default('OU=organisation,' ~ _site_ou, true) }}"
-posix_id_block: {{ posix_id_block | default(100000) | int }}
+{# uid/gid blocks (2.1.6.46, manual 1.6.3.17): a million per site, site S's from S x 1000000, the root site 1; fixed
+   ranges inside each. Both permanent. An install from before 0.7.0 keeps its own (5001, 100000: keep_old_install). #}
+posix_id_start: {{ posix_id_start | default(1000000) | int }}
+posix_id_block: {{ posix_id_block | default(1000000) | int }}
 samba_mem_limit: {{ samba_mem_limit | default(((512 * ((host_ram_capacity | default(host_ram_detected | default(4), true) | int) / 4)) | int) ~ 'm', true) }}
 # 802.1X (optional, design §6): FreeRADIUS 3.2 checks each device against the site's DC
 # (EAP-TLS by linked certificate, MAB by MAC) and returns its role's VLAN.
@@ -195,24 +202,30 @@ radius_people: {{ radius_people | default([{'group': 'network-staff', 'vlan': no
                                           {'group': 'network-guests', 'vlan': none, 'priority': 100}]) | to_json }}
 ip_fluentbit: {{ ip_fluentbit | default('10.255.0.95') }}
 fluentbit_mem_limit: {{ fluentbit_mem_limit | default('64m') }}
-# DNS filter (manual 1.12.2; on by default, 2.1.12.3): a BIND resolver answers clients on host_ip:53 and filters with
-# response policy zones; BIND moves to bind_dns_port (5053); fabric's zones go to it, never filtered. none turns it off.
+# DNS filter (manual 1.12.2, 1.12.3; on by default, 2.1.12.3): a BIND resolver answers clients on host_ip:53 (the
+# owner's rules, safe search, groups); AdGuard Home behind it matches the lists (2.1.12.6); BIND moves to
+# bind_dns_port (5053); fabric's zones go to it, never filtered. none turns it off.
 dns_filter: {{ dns_filter | default('bind', true) | lower }}
 install_resolver: {{ (dns_filter | default('bind', true) | lower) == 'bind' }}
 ip_resolver: {{ ip_resolver | default('10.255.0.33') }}
-resolver_mem_limit: {{ resolver_mem_limit | default('384m') }}
-# Lists [{name, url}] (hosts, domains, RPZ or AdGuard DNS syntax, converted); [] = none. Default: AdGuard's DNS filter.
-dns_filter_lists: {{ (dns_filter_lists if dns_filter_lists is defined and dns_filter_lists is not none else [{'name': 'AdGuard DNS filter', 'url': 'https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt'}]) | to_json }}
+resolver_mem_limit: {{ resolver_mem_limit | default('128m') }}
+# AdGuard Home behind the resolver (manual 1.12.3): on fabric_net only, driven through its API by fabric.
+# Its memory limit follows the host's (1 GiB at 4 GB: the owner's 16 lists peaked at 751 MiB on the test Pi).
+ip_adguard: {{ ip_adguard | default('10.255.0.34') }}
+adguard_mem_limit: {{ adguard_mem_limit | default(((1024 * ((host_ram_capacity | default(host_ram_detected | default(4), true) | int) / 4)) | int) ~ 'm', true) }}
+# Lists [{name, url, enabled}] (hosts, domains or AdGuard syntax), every one kept fetched; [] = none.
+# Default: AdGuard's DNS filter.
+dns_filter_lists: {{ (dns_filter_lists if dns_filter_lists is defined and dns_filter_lists is not none else [{'name': 'AdGuard DNS filter', 'url': 'https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt', 'enabled': true}]) | to_json }}
 # Names allowed past every list / blocked whatever the lists say; each with every name below it.
 dns_filter_allow: {{ dns_filter_allow | default([], true) | to_json }}
 dns_filter_block: {{ dns_filter_block | default([], true) | to_json }}
-# Forwarded to over DNS-over-TLS, the certificate's name verified; [] = resolve from the root servers.
+# AdGuard Home forwards to these over DNS-over-TLS, to each address, its certificate verified for it; at least one.
 dns_filter_upstreams: {{ (dns_filter_upstreams if dns_filter_upstreams is defined and dns_filter_upstreams is not none else [{'address': '1.1.1.1', 'name': 'cloudflare-dns.com'}, {'address': '1.0.0.1', 'name': 'cloudflare-dns.com'}]) | to_json }}
 # Strict safe search for everyone (Google, YouTube, Bing, DuckDuckGo, Yandex, Pixabay, Ecosia); YouTube strict or moderate.
 dns_filter_safe_search: {{ dns_filter_safe_search | default(false) | to_json }}
 dns_filter_youtube: {{ dns_filter_youtube | default('strict', true) }}
-# Client groups (manual 1.12.2.15): [{name, clients: [addresses, subnets], safe_search, youtube, lists, allow, block}];
-# a group only adds to everyone's lists and rules. The most specific address wins.
+# Client groups (manual 1.12.2.15, 1.12.3.6): [{name, clients: [addresses, subnets], safe_search, youtube, allow,
+# block}]; a group only adds to everyone's rules (the lists are the site's). The most specific address wins.
 dns_filter_groups: {{ dns_filter_groups | default([], true) | to_json }}
 # Time (manual 1.13.1): chrony on the host keeps its clock and serves the network. ntp_servers: "<host> [nts]
 # [pool] [prefer]" (nts: authenticated time); a federated site asks its upstream site first. [] = the upstream
@@ -295,7 +308,8 @@ service_dirs:
   'fluentbit': {'uid': 608, 'gid': 608, 'name': 'fabric-logs'},
   'kea': {'uid': 609, 'gid': 609, 'name': 'fabric-dhcp'},
   'freeradius': {'uid': 610, 'gid': 610, 'name': 'fabric-radius'},
-  'resolver': {'uid': 613, 'gid': 613, 'name': 'fabric-resolver'}
+  'resolver': {'uid': 613, 'gid': 613, 'name': 'fabric-resolver'},
+  'adguard': {'uid': 614, 'gid': 614, 'name': 'fabric-adguard'}
 } %}
 {# Merged, not defaulted: a vars.yaml rendered by an older release must still gain new accounts. #}
 service_users:
@@ -395,9 +409,6 @@ bind_acl_policies:
   { 'canonical': hostname, 'name': cname_sso | default('sso') },
   { 'canonical': hostname, 'name': cname_openbao | default('vault') }
 ] %}
-{% if (cname_certs | default('certs')) != hostname %}
-{% set _ = default_cnames.append({ 'canonical': hostname, 'name': cname_certs | default('certs') }) %}
-{% endif %}
 {# The web UI name gets a CNAME only inside this domain, and not when it is the
    host's own name (that already has an A record). #}
 {% set _mgr_label = _hostname_mgr[:-(domain | length) - 1] if _hostname_mgr.endswith('.' ~ domain) else '' %}
@@ -458,16 +469,18 @@ site_name: {{ (site_name | default(hostname, true)) | lower }}
 
 {# `bundle`: the fabric role bundle Keycloak grants to members (design 2.1.6.1); admins get
    webui_admin_role through webui_admin_group. #}
+{# The organisation's groups have fixed gids in the root's built-in range (2.1.6.46, manual 1.6.3.17: 1040001 on,
+   the first hundred kept for them). An install from before 0.7.0 keeps 1100-1121 and 5000: its vars list them. #}
 {% set default_ldap_groups = [
-  { 'gidNumber': 1100, 'name': 'admins', 'permissions': ['read', 'write', 'modify'] },
-  { 'gidNumber': 1110, 'name': 'auditors', 'bundle': 'fabric-auditor' },
-  { 'gidNumber': 1111, 'name': 'network-operators', 'bundle': 'fabric-network-operator' },
-  { 'gidNumber': 1112, 'name': 'equipment-operators', 'bundle': 'fabric-equipment-operator' },
-  { 'gidNumber': 1113, 'name': 'pki-operators', 'bundle': 'fabric-pki-operator' },
-  { 'gidNumber': 1114, 'name': 'helpdesk', 'bundle': 'fabric-helpdesk' },
-  { 'gidNumber': 1120, 'name': 'network-staff', 'description': 'May join the network by password (802.1X EAP-TTLS)' },
-  { 'gidNumber': 1121, 'name': 'network-guests', 'description': 'May join the network by password (802.1X EAP-TTLS) — map it to a guest VLAN' },
-  { 'gidNumber': 5000, 'name': 'users', 'permissions': ['read'] }
+  { 'gidNumber': 1040001, 'name': 'admins', 'permissions': ['read', 'write', 'modify'] },
+  { 'gidNumber': 1040002, 'name': 'auditors', 'bundle': 'fabric-auditor' },
+  { 'gidNumber': 1040003, 'name': 'network-operators', 'bundle': 'fabric-network-operator' },
+  { 'gidNumber': 1040004, 'name': 'equipment-operators', 'bundle': 'fabric-equipment-operator' },
+  { 'gidNumber': 1040005, 'name': 'pki-operators', 'bundle': 'fabric-pki-operator' },
+  { 'gidNumber': 1040006, 'name': 'helpdesk', 'bundle': 'fabric-helpdesk' },
+  { 'gidNumber': 1040007, 'name': 'network-staff', 'description': 'May join the network by password (802.1X EAP-TTLS)' },
+  { 'gidNumber': 1040008, 'name': 'network-guests', 'description': 'May join the network by password (802.1X EAP-TTLS) — map it to a guest VLAN' },
+  { 'gidNumber': 1040009, 'name': 'users', 'permissions': ['read'] }
 ] %}
 {% set _merged_groups = (ldap_groups | default([]) + default_ldap_groups) | unique(attribute='name') | list %}
 ldap_groups:
@@ -480,12 +493,12 @@ posix_login_shell: {{ posix_login_shell | default('/bin/bash') }}
 {% set default_ldap_ous = [
   { 'name': 'accounts', 'description': 'User Accounts' },
   { 'name': 'groups', 'description': 'Security Groups' },
-  { 'name': 'users', 'description': 'Regular User accounts', 'parent': 'accounts', 'uid_range': '5001-50000' },
-  { 'name': 'hosts', 'description': 'Computer objects', 'uid_range': '2000-4900' },
+  { 'name': 'users', 'description': 'Regular User accounts', 'parent': 'accounts' },
   { 'name': 'device-roles', 'description': 'What member devices may do (fabric device RBAC)' }
 ] %}
-{# admins and devices live in the local suffix (o=<site_name>), not here: dropped even if an older vars.yaml lists them #}
+{# admins and devices live in the local suffix (o=<site_name>), not here; hosts' uid range (from 389-DS) was never
+   used (2.1.6.46): dropped even if an older vars.yaml lists them. A users OU's uid_range is no longer read. #}
 {% set _merged_ous = (ldap_organizational_units | default([]) + default_ldap_ous) | unique(attribute='name')
-                     | rejectattr('name', 'in', ['admins', 'devices']) | list %}
+                     | rejectattr('name', 'in', ['admins', 'devices', 'hosts']) | list %}
 ldap_organizational_units:
 {{ _merged_ous | to_nice_yaml(indent=2) | indent(2, first=True) }}

@@ -3,7 +3,7 @@
 # End-to-end test on a REAL host (e.g. a Raspberry Pi) over SSH, from the
 # package, as users install it:
 #   apt install ./fabricctl_<v>_all.deb -> fabricctl setup --file vars.yaml
-#   -> doctor, fabric.target, certs.<domain> (HTTP + HTTPS), RFC2136 with an
+#   -> doctor, fabric.target, info.<domain>/certs/ (HTTP + HTTPS), RFC2136 with an
 #   embedded TSIG key, restricted sign-in (real Keycloak), re-run, stop/start.
 #
 #   TARGET=tempuser@192.168.4.57 HOST_IP=192.168.4.57 LAN_CIDR=192.168.4.0/22 \
@@ -82,9 +82,9 @@ check "every container healthy" "[ \"\$(grep -c ' healthy' '$OUT/status.log')\" 
 
 NGINX_IP=$(R "python3 -c 'import yaml;print(yaml.safe_load(open(\"/opt/fabric/config/vars.yaml\"))[\"ip_nginx\"])'")
 for f in certs_page_test.sh rfc2136_test.sh login_test.py; do put "$REPO/tests/sandbox/$f"; done
-R "bash /tmp/certs_page_test.sh certs.$DOMAIN ca.$DOMAIN $NGINX_IP $HOST_IP" > "$OUT/certs-page.log" 2>&1
-check "certs page: formats, CA identity, MIME, plain HTTP by name and IP, ca.<domain> = Step-CA" \
-    "! grep -q '^FAIL' '$OUT/certs-page.log' && [ \"\$(grep -c '^PASS' '$OUT/certs-page.log')\" -ge 18 ]"
+R "bash /tmp/certs_page_test.sh info.$DOMAIN ca.$DOMAIN $NGINX_IP $HOST_IP" > "$OUT/certs-page.log" 2>&1
+check "certs page at info.<domain>/certs/: formats, CA identity, MIME, plain HTTP by name and IP, CRLs, ca.<domain> = Step-CA, certs.<domain> gone" \
+    "! grep -q '^FAIL' '$OUT/certs-page.log' && [ \"\$(grep -c '^PASS' '$OUT/certs-page.log')\" -ge 25 ]"
 check "LAN clients reach the certificate page over plain HTTP: http://$HOST_IP/certs/" \
     "curl -s --max-time 10 http://$HOST_IP/certs/root-ca.pem | grep -q 'BEGIN CERTIFICATE'"
 
@@ -95,10 +95,13 @@ check "RFC2136 to BIND's port ($BIND_PORT) with the embedded TSIG key (npm): all
 # AdGuard's DNS filter list
 check "DNS filter on by default: the resolver on 53 answers fabric's names, BIND behind it on 5053" \
     "R 'dig +short @$HOST_IP ns.$DOMAIN' | grep -qx $HOST_IP && R 'dig +short -p 5053 @$HOST_IP ns.$DOMAIN' | grep -qx $HOST_IP"
-check "DNS filter: internet names over DoT, DNSSEC validated; an ad domain blocked by the AdGuard DNS filter list" \
-    "R 'dig @$HOST_IP +dnssec example.com' | grep -q ' ad;' && \
-     R 'dig @$HOST_IP doubleclick.net' | grep -q 'status: NXDOMAIN' && \
-     R 'grep -q \"doubleclick.net/A/IN via doubleclick.net.[0-9a-f]*.list.rpz\" /opt/resolver/log/rpz.log'"
+# AdGuard Home blocks (2.1.12.6): its answer, not the old engine's RPZ log
+check "DNS filter: internet names resolve; an ad domain blocked by the AdGuard DNS filter list" \
+    "R 'dig @$HOST_IP example.com' | grep -q 'status: NOERROR' && \
+     R 'dig @$HOST_IP ads.doubleclick.net' | grep -q 'status: NXDOMAIN'"
+# DNSSEC is validated somewhere on the way (1.12.3.2): a name whose signatures are broken is refused (2.3.1.19.3)
+check "DNS filter: DNSSEC validated: a name with broken signatures (dnssec-failed.org) is refused" \
+    "R 'dig @$HOST_IP +time=10 dnssec-failed.org' | grep -q 'status: SERVFAIL'"
 
 echo "--- restricted sign-in (real Keycloak)"
 cat > "$OUT/bob.py" <<'PY'

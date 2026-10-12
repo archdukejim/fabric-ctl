@@ -1,8 +1,9 @@
 services:
   bind9-resolver:
-    # The DNS filter (manual 1.12.2): a second BIND that answers clients on host_ip:53, resolves the internet over
-    # DNS-over-TLS and filters with response policy zones; fabric's zones go to the authoritative BIND, never
-    # filtered. fabric's bind9 image (built by the bind9 unit when not published), its own account and config.
+    # The DNS filter (manual 1.12.2, 1.12.3): a second BIND that answers clients on host_ip:53 with the owner's rules,
+    # safe search and the groups, and forwards everything else to AdGuard Home (the lists); fabric's zones go to the
+    # authoritative BIND, never filtered. fabric's bind9 image (built by the bind9 unit when not published), its own
+    # account and config.
     image: {{ published_ref('bind9') or 'fabric/bind9:local' }}
     container_name: bind9-resolver
     logging:
@@ -34,13 +35,10 @@ services:
 {% endfor %}
     volumes:
       - {{ deploy_base_dir }}/resolver/config:/etc/bind:ro
-      - {{ deploy_base_dir }}/resolver/lists:/etc/bind-lists:ro
       # the DNS name's certificate (mint_service_certs), for DoT and DoH
       - {{ deploy_base_dir }}/resolver/tls:/etc/bind-tls:ro
       - {{ deploy_base_dir }}/resolver/log:/var/log/named
       - {{ deploy_base_dir }}/resolver/cache:/var/cache/bind
-      # the upstream's DoT certificate is checked against the host's CA bundle, kept current by its updates
-      - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
     networks:
       fabric_net:
         ipv4_address: "{{ ip_resolver }}"
@@ -50,8 +48,7 @@ services:
     healthcheck:
       test: ["CMD", "rndc", "-k", "/etc/bind/rndc.key", "status"]
       interval: 15s
-      # the default list takes about 2 s to load on a Pi (2.3.12.1.17); several large ones longer
-      start_period: 60s
+      start_period: 30s
       timeout: 5s
       retries: 3
 

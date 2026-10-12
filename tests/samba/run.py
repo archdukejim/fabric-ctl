@@ -45,7 +45,7 @@ def refused(v, words):
 
 POLICY = {"minimum_length": 14, "complexity": True, "history": 24, "minimum_age_days": 1, "maximum_age_days": 365,
           "lockout_threshold": 5, "lockout_minutes": 15, "lockout_window_minutes": 15}
-GOOD = {"ad_domain": "ad.lan.test", "domain": "lan.test", "hostname": "pi-core",
+GOOD = {"ad_domain": "ad.lan.test", "domain": "lan.test", "hostname": "pi-core", "dc_name": "dc-pi-core",
         "ad_netbios": "AD", "ad_password_policy": POLICY, "ad_old_password_minutes": 0, "ad_rpc_ports": "49152-49251"}
 
 print("--- settings (2.1.6.11, 2.1.6.13)")
@@ -64,8 +64,13 @@ check("refused: a parent of fabric's domain", refused({**GOOD, "ad_domain": "tes
                                                        "parent of fabric's domain"))
 check("refused: a NetBIOS domain name over 15 characters",
       refused({**GOOD, "ad_netbios": "A" * 16}, "at most 15"))
-check("refused: a host name Windows cannot use as the DC's NetBIOS name",
-      refused({**GOOD, "hostname": "a-very-long-host-name"}, "NetBIOS name"))
+check("refused: a DC name Windows cannot use as its NetBIOS name (2.1.6.45)",
+      refused({**GOOD, "dc_name": "a-very-long-dc-name"}, "1-15 letters")
+      and refused({**GOOD, "dc_name": "dc_1"}, "1-15 letters") and refused({**GOOD, "dc_name": "-dc"}, "hyphen")
+      and refused({**GOOD, "dc_name": "12345"}, "only digits") and refused({**GOOD, "dc_name": ""}, "1-15"))
+check("refused: the domain's own NetBIOS name as the DC's", refused({**GOOD, "dc_name": "ad"}, "NetBIOS name"))
+check("accepted: a long host name: the DC has its own name now (2.1.6.45)",
+      not refused({**GOOD, "hostname": "a-very-long-host-name"}, ""))
 check("refused: no password policy (no defaults, 2.1.6.13)",
       refused({**GOOD, "ad_password_policy": {}}, "no defaults"))
 check("refused: one policy key missing, named",
@@ -132,10 +137,82 @@ check("the default policy (2.1.6.35): 12 characters, complexity, 5 remembered, n
           "minimum_length": 12, "complexity": True, "history": 5, "minimum_age_days": 0, "maximum_age_days": 0,
           "lockout_threshold": 10, "lockout_window_minutes": 15, "lockout_minutes": 15}, ok_default)
 
+print("--- the DC's own name (2.1.6.45, manual 1.6.5.23): asked, dc-<hostname> suggested, permanent")
+from fabriclib.setup.ask_dc_name import ask_dc_name  # noqa: E402
+from fabriclib.setup.errors import SetupError  # noqa: E402
+
+
+def ask_dc(answers, have=None, unattended=False):
+    """setup's DC-name question with these answers; the settings after it and what was printed (or the refusal)."""
+    feed, real = iter(answers), builtins.input
+    ctx = types.SimpleNamespace(vars={"hostname": "Pi-Core", "ad_domain": "ad.lan.test", **(have or {})},
+                                non_interactive=unattended)
+    builtins.input = lambda prompt="": (print(prompt), next(feed))[1]
+    out = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(out):
+            ask_dc_name(ctx)
+    except SetupError as e:
+        return None, str(e)
+    finally:
+        builtins.input = real
+    return ctx.vars.get("dc_name"), out.getvalue()
+
+
+got, said = ask_dc([""])
+check("asked with dc-<hostname> suggested; Enter takes it; says it is permanent and apart from the host's name",
+      got == "dc-pi-core" and "[dc-pi-core]" in said and "permanent" in said and "host's name" in said, (got, said))
+got, said = ask_dc(["a-name-far-too-long", "ad", "12", "DC-Kitchen"])
+check("negative: too long, the domain's NetBIOS name, only digits each refused saying why, then any valid name taken",
+      got == "dc-kitchen" and "1-15 letters" in said and "NetBIOS name" in said and "only digits" in said,
+      (got, said))
+got, said = ask_dc([], {"dc_name": "pi-core"})
+check("an install that has its DC's name keeps it, nothing asked", got == "pi-core" and said == "", (got, said))
+got, said = ask_dc([], unattended=True)
+check("unattended: the suggestion is taken", got == "dc-pi-core", (got, said))
+got, said = ask_dc([], {"dc_name": "not valid!"}, unattended=True)
+check("negative: unattended, an invalid dc_name in the vars file is refused, saying why",
+      got is None and "dc_name" in said and "1-15 letters" in said, said)
+
+print("--- the vars editor: dc_name refused like ad_domain, the host's name warned (2.1.6.45)")
+import fabriclib.menu.edit_category as m_edit  # noqa: E402
+import fabriclib.menu.run_vars_menu as m_menu  # noqa: E402
+from fabriclib.menu.constants import IMMUTABLE_KEYS, WARNED_KEYS  # noqa: E402
+
+
+def editor(fn, answers, data):
+    """Drive one vars-editor screen with these answers; nothing is saved or applied; what it printed."""
+    feed, real, saved = iter(answers), builtins.input, []
+    builtins.input = lambda prompt="": (print(prompt), next(feed))[1]
+    m_edit.os.system = lambda cmd: 0
+    m_edit.save_menu_change = m_menu.save_menu_change = lambda path, d, k, old, new, *a: saved.append((k, new))
+    out = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(out):
+            fn(data)
+    except (StopIteration, SystemExit):
+        pass
+    finally:
+        builtins.input = real
+    return out.getvalue(), saved
+
+
+data = {"dc_name": "dc-pi-core", "hostname": "pi-core"}
+said, saved = editor(lambda d: m_edit.edit_category("Advanced", d, lambda x: list(x)), ["1", "", "2", "kitchen", "",
+                                                                                      "b"], data)
+check("dc_name is immutable and the host's name warned (not immutable any more)",
+      "dc_name" in IMMUTABLE_KEYS and "hostname" not in IMMUTABLE_KEYS and "hostname" in WARNED_KEYS)
+check("negative: editing dc_name is refused, unchanged; the host's name changes after a warning",
+      "'dc_name' is an immutable variable" in said and data["dc_name"] == "dc-pi-core" and "WARNING" in said
+      and saved == [("hostname", "kitchen")], (said[-600:], saved))
+m_menu.load_vars = lambda path: dict(data)
+said, saved = editor(lambda d: m_menu.run_vars_menu(), ["a", "dc_name", "", "a", "note", "x", "q"], data)
+check("negative: adding dc_name over the one set is refused too; adding another key works",
+      "Cannot change immutable key: dc_name" in said and saved == [("note", "x")], (said[-600:], saved))
+
 print("--- the memory fabric may use (2.1.2.3, manual 1.2.4.2): all of it unless set, not asked (2.1.2.16)")
 
 import fabriclib.setup.set_ram_capacity as m_ram  # noqa: E402
-from fabriclib.setup.errors import SetupError  # noqa: E402
 
 
 def ram(have, data):
@@ -173,7 +250,7 @@ base = {"domain": "lan.test", "hostname": "pi-core", "host_ip": "192.168.7.53", 
 v = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base))
 check("the domain's names follow from ad_domain (lower-cased; realm, base DN, NetBIOS, the DC's name)",
       (v["ad_domain"], v["ad_realm"], v["ad_base_dn"], v["ad_netbios"], v["hostname_dc"])
-      == ("ad.lan.test", "AD.LAN.TEST", "DC=ad,DC=lan,DC=test", "AD", "pi-core.ad.lan.test"),
+      == ("ad.lan.test", "AD.LAN.TEST", "DC=ad,DC=lan,DC=test", "AD", "dc-pi-core.ad.lan.test"),
       (v["ad_domain"], v["ad_realm"], v["ad_base_dn"], v["ad_netbios"], v["hostname_dc"]))
 check("the limit is 512m (4 GB is the smallest host, 2.1.2.3)", v["samba_mem_limit"] == "512m")
 dc = yaml.safe_load(env.get_template("samba/docker-compose.yml.j2").render(**v))["services"]["samba"]

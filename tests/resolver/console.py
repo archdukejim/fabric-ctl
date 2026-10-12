@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""The DNS filter tab (manual 1.12.2.14) without a host: the settings it changes (lists, rules, upstreams) on an
-in-memory vars file, fabric-agent's routes and their permissions, the lists job's apply when a list is new, the web
-UI's post route and the page for each kind of user. What must be refused is checked beside what must be accepted.
+"""The DNS filter tab (manual 1.12.2.14, 1.12.3.5, 1.12.3.8) without a host: the settings it changes (lists ticked
+and unticked, rules, upstreams, groups) on an in-memory vars file, fabric-agent's routes and their permissions, the
+lists job making AdGuard Home match, the web UI's post route and the page for each kind of user. What must be refused
+is checked beside what must be accepted.
 
     python3 tests/resolver/console.py
 """
 import contextlib
 import copy
+import json
 import os
 import sys
 import tempfile
@@ -31,7 +33,7 @@ def refused(fn, *args, **kw):
 
 
 from fabriclib.common.errors import ValidationError  # noqa: E402
-import fabriclib.dns_filter.add_filter_list as m_add_list  # noqa: E402
+import fabriclib.dns_filter.set_filter_list as m_set_list  # noqa: E402
 import fabriclib.dns_filter.add_filter_rule as m_add_rule  # noqa: E402
 import fabriclib.dns_filter.remove_filter_list as m_rm_list  # noqa: E402
 import fabriclib.dns_filter.remove_filter_rule as m_rm_rule  # noqa: E402
@@ -40,35 +42,55 @@ import fabriclib.dns_filter.set_filter_group as m_group  # noqa: E402
 import fabriclib.dns_filter.remove_filter_group as m_rm_group  # noqa: E402
 import fabriclib.dns_filter.set_safe_search as m_safe  # noqa: E402
 import fabriclib.dns_filter.refresh_lists as m_refresh  # noqa: E402
-from fabriclib.dns_filter.common.list_zone import list_zone  # noqa: E402
+from fabriclib.dns_filter.common.list_id import list_id  # noqa: E402
 from fabriclib.rbac.permissions import BUNDLES  # noqa: E402
 from fabriclib.rbac.required_permission import required_permission  # noqa: E402
 
 L1 = "https://lists.example/one.txt"
+BASE = tempfile.mkdtemp()
 STORE = {"vars": {"domain": "lan.test", "org_domain": "lan.test", "dns_filter": "bind", "install_resolver": True,
-                  "lan_cidr": "192.168.1.0/24", "fabric_subnet": "10.255.0.0/24",
-                  "dns_filter_lists": [{"name": "One", "url": L1}], "dns_filter_allow": [], "dns_filter_block": [],
-                  "dns_filter_upstreams": [{"address": "1.1.1.1", "name": "cloudflare-dns.com"}]}}
+                  "lan_cidr": "192.168.1.0/24", "fabric_subnet": "10.255.0.0/24", "deploy_base_dir": BASE,
+                  "adguard_mem_limit": "1024m",
+                  "dns_filter_lists": [{"name": "One", "url": L1, "enabled": True}], "dns_filter_allow": [],
+                  "dns_filter_block": [], "dns_filter_upstreams": [{"address": "1.1.1.1", "name": "cloudflare-dns.com"}]}}
 AUDIT = []
-for mod in (m_add_list, m_add_rule, m_rm_list, m_rm_rule, m_ups, m_group, m_rm_group, m_safe):
+for mod in (m_set_list, m_add_rule, m_rm_list, m_rm_rule, m_ups, m_group, m_rm_group, m_safe):
     mod.load_vars = lambda: copy.deepcopy(STORE["vars"])
     mod.save_vars = lambda data: STORE.update(vars=copy.deepcopy(data))
     mod.vars_lock = contextlib.nullcontext
     mod.write_audit = lambda actor, action, detail, source: AUDIT.append((actor, action, detail, source))
 v = lambda: STORE["vars"]  # noqa: E731
 
-# ---- lists
-r = m_add_list.add_filter_list("alice", "Two", "https://lists.example/two.txt", "web")
-check("add a list: saved after the others, its zone named from its URL, audited",
-      [i["name"] for i in v()["dns_filter_lists"]] == ["One", "Two"] and r["zone"] == list_zone(
-          "https://lists.example/two.txt") and AUDIT[-1][:2] == ("alice", "DNS_FILTER_LIST_ADD"), (r, AUDIT[-1:]))
+# ---- lists: ticked, unticked, added from the catalogue or by URL (1.12.3.5)
+TWO = "https://lists.example/two.txt"
+r = m_set_list.set_filter_list("alice", TWO, True, "Two", "web")
+check("add a list: saved after the others, ticked, its id from its URL, audited",
+      [i["name"] for i in v()["dns_filter_lists"]] == ["One", "Two"] and v()["dns_filter_lists"][1]["enabled"] is True
+      and r["added"] and r["id"] == list_id(TWO) and AUDIT[-1][:2] == ("alice", "DNS_FILTER_LIST_ADD"), (r, AUDIT[-1:]))
+r = m_set_list.set_filter_list("alice", TWO, False, "", "web")
+check("untick a list: kept on the site, its name kept, audited as off",
+      v()["dns_filter_lists"][1] == {"name": "Two", "url": TWO, "enabled": False} and not r["added"]
+      and AUDIT[-1][1] == "DNS_FILTER_LIST_OFF", (r, v()["dns_filter_lists"]))
+r = m_set_list.set_filter_list("alice", TWO, True, "", "web")
+check("tick it again: no second entry", len(v()["dns_filter_lists"]) == 2 and v()["dns_filter_lists"][1]["enabled"]
+      and AUDIT[-1][1] == "DNS_FILTER_LIST_ON", v()["dns_filter_lists"])
+# a copy whose estimate would take the ticked lists' peak past adguard_mem_limit (1.12.3.9)
+BIG = "https://lists.example/big.txt"
+os.makedirs(f"{BASE}/dnsfilter", exist_ok=True)
+with open(f"{BASE}/dnsfilter/state.json", "w") as f:
+    json.dump({list_id(BIG): {"memory_mb": 500.0}}, f)
 before = copy.deepcopy(STORE["vars"])
-for args, why in ((("x", "ftp://lists.example/x"), "not http(s)"), (("x", L1), "the same URL twice"),
-                  (("y" * 201, "https://lists.example/y"), "a name over 200 characters")):
-    e = refused(m_add_list.add_filter_list, "alice", *args)
-    check(f"add a list refused: {why}, saying why, nothing saved",
+for args, why in (((("ftp://lists.example/x", True, "x")), "not http(s)"),
+                  ((("https://lists.example/y", True, "y" * 201)), "a name over 200 characters"),
+                  ((("https://lists.example/nope.txt", False, "")), "unticking a list the site does not have"),
+                  (((BIG, True, "Big")), "past AdGuard Home's memory limit")):
+    e = refused(m_set_list.set_filter_list, "alice", *args)
+    check(f"tick or add a list refused: {why}, saying why, nothing saved",
           isinstance(e, ValidationError) and str(e) and STORE["vars"] == before, e)
-m_rm_list.remove_filter_list("alice", "https://lists.example/two.txt", "web")
+check("the memory refusal names the estimate, the peak and the limit",
+      "1250 MiB" in str(refused(m_set_list.set_filter_list, "alice", BIG, True, "Big"))
+      and "1024 MiB" in str(refused(m_set_list.set_filter_list, "alice", BIG, True, "Big")))
+m_rm_list.remove_filter_list("alice", TWO, "web")
 check("remove a list", [i["url"] for i in v()["dns_filter_lists"]] == [L1])
 e = refused(m_rm_list.remove_filter_list, "alice", "https://lists.example/nope.txt")
 check("remove a list refused: not there", isinstance(e, ValidationError) and "no list" in str(e), e)
@@ -100,10 +122,9 @@ r = m_ups.set_filter_upstreams("alice", "9.9.9.9 dns.quad9.net\n149.112.112.112 
 check("upstreams: address and certificate-name pairs, one per line or comma-separated",
       v()["dns_filter_upstreams"] == [{"address": "9.9.9.9", "name": "dns.quad9.net"},
                                       {"address": "149.112.112.112", "name": "dns.quad9.net"}], r)
-check("upstreams: none is the root servers", m_ups.set_filter_upstreams("alice", "None") == []
-      and v()["dns_filter_upstreams"] == [])
 before = copy.deepcopy(STORE["vars"])
-for text, why in (("", "empty"), ("9.9.9.9", "an address without its certificate name"),
+for text, why in (("", "empty"), ("none", "none (AdGuard Home needs one)"),
+                  ("9.9.9.9", "an address without its certificate name"),
                   ("dns.quad9.net 9.9.9.9", "the two the wrong way round")):
     e = refused(m_ups.set_filter_upstreams, "alice", text)
     check(f"upstreams refused: {why}, saying why, nothing saved",
@@ -114,8 +135,7 @@ r = m_group.set_filter_group("alice", " Kids ", "192.168.1.64/27, 192.168.1.70",
 check("add a group: normalised, starts with safe search off and nothing of its own, audited",
       r == {"name": "kids", "clients": ["192.168.1.64/27", "192.168.1.70"], "added": True}
       and v()["dns_filter_groups"][0] == {"name": "kids", "clients": ["192.168.1.64/27", "192.168.1.70"],
-                                          "safe_search": False, "youtube": "strict", "lists": [], "allow": [],
-                                          "block": []} and AUDIT[-1][1] == "DNS_FILTER_GROUP_ADD", (r, v()))
+                                          "safe_search": False, "youtube": "strict", "allow": [], "block": []} and AUDIT[-1][1] == "DNS_FILTER_GROUP_ADD", (r, v()))
 r = m_group.set_filter_group("alice", "kids", ["192.168.1.64/27"], "web")
 check("change a group's clients (the rest kept)", not r["added"] and v()["dns_filter_groups"][0]["clients"]
       == ["192.168.1.64/27"] and AUDIT[-1][1] == "DNS_FILTER_GROUP_CLIENTS", r)
@@ -128,16 +148,13 @@ for args, why in ((("everyone", "192.168.1.5"), "the name everyone"), (("Kid Roo
     check(f"group refused: {why}, saying why, nothing saved",
           isinstance(e, ValidationError) and str(e) and STORE["vars"] == before, e)
 r = m_add_rule.add_filter_rule("alice", "block", "roblox.com", "web", group="kids")
-m_add_list.add_filter_list("alice", "Adult", "https://lists.example/adult.txt", "web", group="kids")
-check("a group's own rule and list: saved on the group, not on everyone, audited with the group",
+check("a group's own rule: saved on the group, not on everyone, audited with the group; groups have no lists",
       v()["dns_filter_groups"][0]["block"] == ["roblox.com"] and v()["dns_filter_block"] == []
-      and v()["dns_filter_groups"][0]["lists"] == [{"name": "Adult", "url": "https://lists.example/adult.txt"}]
-      and r["group"] == "kids" and "(group kids)" in AUDIT[-1][2], (r, AUDIT[-1:]))
+      and "lists" not in v()["dns_filter_groups"][0] and r["group"] == "kids" and "(group kids)" in AUDIT[-1][2],
+      (r, AUDIT[-1:]))
 before = copy.deepcopy(STORE["vars"])
 for fn, args, why in ((m_add_rule.add_filter_rule, ("block", "x.example", "web", "nosuch"), "a rule for no group"),
-                      (m_add_list.add_filter_list, ("One again", L1, "web", "kids"), "a group list already on everyone"),
-                      (m_add_rule.add_filter_rule, ("allow", "lan.test.", "web", "kids"), "a group allow of fabric's zone"),
-                      (m_rm_list.remove_filter_list, (L1, "web", "kids"), "removing a list the group does not have")):
+                      (m_add_rule.add_filter_rule, ("allow", "lan.test.", "web", "kids"), "a group allow of fabric's zone")):
     e = refused(fn, "alice", *args)
     check(f"group change refused: {why}, saying why, nothing saved",
           isinstance(e, ValidationError) and str(e) and STORE["vars"] == before, e)
@@ -164,7 +181,7 @@ check("remove a group refused: not there", isinstance(e, ValidationError) and "n
 # ---- fabric-agent's routes and their permissions
 routes = {("GET", ("dns-filter",)): "dns:filter", ("POST", ("dns-filter", "querylog")): "dns:querylog"}
 routes.update({("POST", ("dns-filter", *p)): "dns:filter"
-               for p in (("lists",), ("lists", "delete"), ("rules",), ("rules", "delete"), ("upstreams",), ("fetch",),
+               for p in (("lists",), ("lists", "set"), ("lists", "delete"), ("rules",), ("rules", "delete"), ("upstreams",), ("fetch",),
                          ("groups",), ("groups", "delete"), ("safe-search",))})
 check("every route needs its permission: the query log dns:querylog, the rest dns:filter",
       all(required_permission(m, list(p)) == need for (m, p), need in routes.items()))
@@ -177,19 +194,34 @@ check("network operators manage the filter but cannot read the query log; audito
 
 import agent.post_dns_filter as pdf  # noqa: E402
 from agent.route_not_found import RouteNotFound  # noqa: E402
-CALLS = []
-pdf.apply_changes = lambda actor, source: (CALLS.append(("apply", actor, source)) or (True, "applied"))
+CALLS, HAVE, WAIT = [], [], {"why": None}
+pdf.apply_dns_filter = lambda actor, source: (CALLS.append(("apply", actor, source)) or {"waiting": WAIT["why"]})
 pdf.start_list_fetch = lambda: (CALLS.append(("fetch",)) or True)
-pdf.add_filter_list = m_add_list.add_filter_list
+pdf.adguard_desired = lambda vv: {"filters": [{"source": u} for u in HAVE]}     # the lists with a copy
+pdf.set_filter_list = m_set_list.set_filter_list
 pdf.load_vars = lambda: STORE["vars"]
 pdf.read_query_log = lambda vv, **kw: (CALLS.append(("querylog", kw)) or {"entries": []})
 r = pdf.post_dns_filter(["dns-filter", "lists"], "alice", {"name": "Three", "url": "https://lists.example/3.txt"})
-check("agent: adding a list saves it, applies, and starts the lists job (fabric-agent has no internet)",
+check("agent: a list added with no copy yet is saved, made at once, and the lists job starts (no internet here)",
       r["applied"] and r["fetching"] and CALLS[-2:] == [("apply", "alice", "web"), ("fetch",)], (r, CALLS))
 CALLS.clear()
-e = refused(pdf.post_dns_filter, ["dns-filter", "lists"], "alice", {"url": "ftp://x"})
-check("agent: a refused change is a 400 (ValidationError) and nothing is applied or fetched",
-      isinstance(e, ValidationError) and CALLS == [], (e, CALLS))
+HAVE.append(L1)
+r = pdf.post_dns_filter(["dns-filter", "lists", "set"], "alice", {"url": L1, "enabled": "off"})
+r2 = pdf.post_dns_filter(["dns-filter", "lists", "set"], "alice", {"url": L1, "enabled": "on"})
+check("agent: untick and tick a list with a copy: each made at once, nothing fetched",
+      r["result"]["enabled"] is False and r2["result"]["enabled"] is True and not r2["fetching"]
+      and CALLS == [("apply", "alice", "web")] * 2, (r, r2, CALLS))
+CALLS.clear()
+WAIT["why"] = "AdGuard Home is not answering"
+r = pdf.post_dns_filter(["dns-filter", "lists", "set"], "alice", {"url": L1, "enabled": "off"})
+check("agent: AdGuard not answering: the change is saved and says it waits", not r["applied"]
+      and r["waiting"] == WAIT["why"] and v()["dns_filter_lists"][0]["enabled"] is False, r)
+WAIT["why"] = None
+CALLS.clear()
+for body, why in (({"url": "ftp://x"}, "not http(s)"), ({"url": L1, "enabled": "maybe"}, "a tick that is not on or off")):
+    e = refused(pdf.post_dns_filter, ["dns-filter", "lists", "set"], "alice", body)
+    check(f"agent: refused ({why}) is a 400 (ValidationError), nothing applied or fetched",
+          isinstance(e, ValidationError) and CALLS == [], (e, CALLS))
 e = refused(pdf.post_dns_filter, ["dns-filter", "lists"], "alice", {"url": 42})
 check("agent: a field that is not text is refused", isinstance(e, ValidationError) and "text" in str(e), e)
 check("agent: an unknown DNS filter route is a 404", isinstance(refused(pdf.post_dns_filter, ["dns-filter", "x"],
@@ -211,27 +243,40 @@ r = pdf.post_dns_filter(["dns-filter", "querylog"], "alice", {"client": "192.168
 check("agent: the query-log search passes its terms on", CALLS[-1] == ("querylog", {
     "client": "192.168.1.0/24", "name": "", "blocked_only": True, "limit": 50}), CALLS[-1:])
 
-# ---- the lists job applies once a list has a copy the running configuration does not name yet
+# ---- the lists job: copies fetched, then AdGuard made to match and asked to reread what changed (1.12.3.5)
 with tempfile.TemporaryDirectory() as tmp:
     vv = {"deploy_base_dir": tmp, "dns_filter_lists": [{"name": "One", "url": L1}]}
-    os.makedirs(f"{tmp}/resolver/config")
-    os.makedirs(f"{tmp}/resolver/lists")
-    open(f"{tmp}/resolver/lists/{list_zone(L1)}", "w").write("x")
-    m_refresh.update_lists = lambda vv: {"changed": [], "failed": [], "lists": {}}
+    API, SYNC = [], {"fail": None}
     m_refresh.fetch_catalogue = lambda vv: {"lists": [1, 2, 3]}
-    APPLIED = []
-    m_refresh.apply_changes = lambda actor, source: (APPLIED.append(source) or (True, ""))
-    open(f"{tmp}/resolver/config/named.conf", "w").write('zone "fabric.rpz" {};\n')
-    r = m_refresh.refresh_lists(vv, source="timer")
-    check("lists job: a fetched list not in the running configuration is applied", r["applied"] is True
-          and APPLIED == ["timer"] and r["catalogue"] == 3, r)
-    open(f"{tmp}/resolver/config/named.conf", "w").write(f'zone "{list_zone(L1)}" {{}};\n')
-    APPLIED.clear()
-    r = m_refresh.refresh_lists(vv)
-    check("lists job: nothing to apply when every list is in use", r["applied"] is None and APPLIED == [], r)
+    m_refresh.update_lists = lambda vv, catalogue=(): {"changed": [L1], "failed": [], "lists": {}}
+
+    def fake_sync(vv, pw):
+        if SYNC["fail"]:
+            raise ValidationError(SYNC["fail"])
+        return ["list added: One"]
+
+    m_refresh.sync_adguard = fake_sync
+    m_refresh.adguard_api = lambda vv, pw, method, path, body=None, timeout=30: API.append(path)
+    r = m_refresh.refresh_lists(vv, "pw")
+    check("lists job: a changed copy: AdGuard synced, then asked to reread its lists",
+          r["catalogue"] == 3 and r["synced"] == ["list added: One"] and API == ["/control/filtering/refresh"]
+          and r["error"] is None, (r, API))
+    API.clear()
+    m_refresh.update_lists = lambda vv, catalogue=(): {"changed": [], "failed": [], "lists": {}}
+    r = m_refresh.refresh_lists(vv, "pw")
+    check("lists job: nothing changed, nothing reread", API == [] and r["synced"] == ["list added: One"], (r, API))
+    os.makedirs(f"{tmp}/dnsfilter")
+    with open(f"{tmp}/dnsfilter/catalogue.json", "w") as f:
+        json.dump({"fetched": 1, "lists": [{"name": "Kept", "url": "https://x/kept"}]}, f)
+    SEEN = []
+    m_refresh.update_lists = lambda vv, catalogue=(): (SEEN.append(list(catalogue)) or
+                                                       {"changed": [], "failed": [], "lists": {}})
     m_refresh.fetch_catalogue = lambda vv: (_ for _ in ()).throw(OSError("offline"))
-    check("lists job: the catalogue unreachable keeps the last copy (None), the job goes on",
-          m_refresh.refresh_lists(vv)["catalogue"] is None)
+    SYNC["fail"] = "AdGuard Home is not answering"
+    r = m_refresh.refresh_lists(vv, "pw")
+    check("lists job: the catalogue unreachable uses its last copy (None); AdGuard down is reported, not raised",
+          r["catalogue"] is None and SEEN == [[{"name": "Kept", "url": "https://x/kept"}]]
+          and r["synced"] is None and "not answering" in r["error"], (r, SEEN))
 
 # ---- the web UI: its post route and the page for each kind of user
 from webui import views  # noqa: E402
@@ -270,7 +315,8 @@ class FakeActions:
             raise ValidationError(self.refuse)
         result = [{"address": "9.9.9.9", "name": "dns.quad9.net"}] if what == "upstreams" else \
             {"name": body.get("name"), "kind": body.get("kind")}          # the agent's shapes
-        return {"result": result, "applied": self.applied, "output": "boom" * 100, "fetching": True}
+        return {"result": result, "applied": self.applied, "fetching": True,
+                "waiting": None if self.applied else "AdGuard Home is not answering"}
 
 
 h, wpost.actions = H(), FakeActions()
@@ -281,34 +327,34 @@ check("web: Block from the query log saves and goes back to the query log with t
 wpost.dns_filter_post(h, ["lists"], {"name": "Two", "url": "https://x/2", "back": "<script>"})
 check("web: a back section that is not one is ignored (the change's own section)",
       h.out[1].startswith("/dns-filter?view=lists&msg="), h.out)
+wpost.dns_filter_post(h, ["lists", "set"], {"url": "https://x/2", "name": "Two", "enabled": "off"})
+check("web: a tick posts the list's URL and on or off, and goes back to Lists",
+      wpost.actions.calls[-1] == ("lists/set", {"name": "Two", "url": "https://x/2", "enabled": "off", "kind": "",
+                                                "upstreams": "", "group": "", "clients": "", "on": "", "youtube": ""})
+      and h.out[1].startswith("/dns-filter?view=lists&msg="), (wpost.actions.calls[-1:], h.out))
 h, wpost.actions = H(), FakeActions(refuse="not a DNS name")
 wpost.dns_filter_post(h, ["rules"], {"kind": "block", "name": "bad!"})
 check("web: a refused change goes back with the reason (err)", "err=not+a+DNS+name" in h.out[1], h.out)
 h, wpost.actions = H(), FakeActions(applied=False)
 wpost.dns_filter_post(h, ["upstreams"], {"upstreams": "9.9.9.9 dns.quad9.net"})
-check("web: saved but not applied says so, with the apply's output's end",
-      "applying+failed" in h.out[1] and "view=settings" in h.out[1], h.out)
+check("web: saved but waiting says so, with why",
+      "Saved%2C+but+not+in+use+yet" in h.out[1] and "not+answering" in h.out[1] and "view=settings" in h.out[1], h.out)
 h = H()
 wpost.dns_filter_post(h, ["lists", "rename"], {})
 check("web: an unknown change is a 404", h.out[0] == 404, h.out)
 h, wpost.actions = H(), FakeActions()
 wpost.dns_filter_post(h, ["safe-search"], {"group": "kids", "youtube": "strict", "back": "groups"})
 check("web: safe search with the box unchecked sends on='' (off) for its group, and goes back to Groups",
-      wpost.actions.calls[-1] == ("safe-search", {"name": "", "url": "", "kind": "", "upstreams": "", "group": "kids",
-                                                  "clients": "", "on": "", "youtube": "strict"})
+      wpost.actions.calls[-1] == ("safe-search", {"name": "", "url": "", "enabled": "", "kind": "", "upstreams": "",
+                                                  "group": "kids", "clients": "", "on": "", "youtube": "strict"})
       and h.out[1].startswith("/dns-filter?view=groups&msg="), (wpost.actions.calls[-1:], h.out))
 wpost.dns_filter_post(h, ["groups"], {"name": "kids", "clients": "192.168.1.64/27"})
 check("web: a group's change goes back to Groups", h.out[1].startswith("/dns-filter?view=groups&msg="), h.out)
 
 from fabriclib.dns_filter.common.safe_search import safe_search_summary  # noqa: E402
-OV = {"on": True, "lists": [], "allow": ["a.example"], "block": [], "upstreams": [], "memory_limit": "384m",
-      "memory": {"estimate_mb": 30.0, "limit_mb": 384.0, "left_out": []},
-      "safe_search": {"on": False, "youtube": "strict"}, "safe_search_sites": safe_search_summary(),
-      "groups": [{"name": "kids", "clients": ["192.168.1.64/27"], "safe_search": True, "youtube": "moderate",
-                  "lists": [{"name": "Big", "url": "https://x/big", "zone": "z", "last_fetch": None,
-                             "last_success": None, "rules": None, "skipped": None, "memory_mb": 300, "error": None,
-                             "left_out": True}], "allow": [], "block": ["roblox.com"]}],
-      "stats": {"off": "Postgres is not installed"}, "catalogue": {"fetched": None, "lists": []}}
+from webui.devpreview.sample_data import SAMPLE_DNS_FILTER  # noqa: E402
+OV = {**copy.deepcopy(SAMPLE_DNS_FILTER), "safe_search_sites": safe_search_summary(),
+      "stats": {"off": "Postgres is not installed"}}
 LOG = {"entries": [{"at": "2026-10-09T10:00:00Z", "client": "192.168.1.2", "view": "everyone", "name": "ads.example",
                     "qtype": "A", "action": "NXDOMAIN", "zone": "owner.rpz", "list": None, "blocked": True},
                    {"at": "2026-10-09T10:00:01Z", "client": "192.168.1.66", "view": "kids", "name": "roblox.com",
@@ -338,7 +384,14 @@ groups = views.dns_filter(ctx("dns:filter"), "groups", OV, None, SEARCH)
 check("page: Groups names every engine strict safe search covers, from fabric's own table, and what it cannot",
       all(f"{e['engine']} ({e['names']} " in groups for e in safe_search_summary()["engines"])
       and "Brave Search" in groups and 'value="moderate" selected' in groups, groups[:300])
-check("page: a group's list left out by the memory guard says so", "left out: it would pass" in groups)
+lists = views.dns_filter(ctx("dns:filter"), "lists", OV, None, SEARCH)
+check("page: every list a checkbox posting its tick, by category, with its memory and the limit",
+      lists.count('action="/dns-filter/lists/set"') == len(OV["lists"]) and 'aria-pressed="true"' in lists
+      and "Security" in lists and "~24.5 MiB" in lists and "of a limit of 1024 MiB" in lists, lists[:400])
+check("page: only a list added by URL has Remove", lists.count('action="/dns-filter/lists/delete"') == 1)
+seen = views.dns_filter(ctx("dns:querylog"), "lists", OV, LOG, SEARCH)
+check("page: without dns:filter the ticks show but post nothing", "/dns-filter/lists/set" not in seen
+      and 'class="tick on"' in seen)
 check("page: everyone's safe search is in Settings",
       'action="/dns-filter/safe-search"' in views.dns_filter(ctx("dns:filter"), "settings", OV, None, SEARCH))
 viewer = views.dns_filter(ctx("dns:querylog"), "groups", None, LOG, SEARCH)

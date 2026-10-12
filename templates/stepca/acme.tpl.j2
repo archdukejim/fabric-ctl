@@ -12,5 +12,5 @@
     "sans": {% raw %}{{ toJson .SANs }}{% endraw %},
     "keyUsage": ["digitalSignature", "keyEncipherment"],
     "extKeyUsage": ["serverAuth", "clientAuth"],
-    "crlDistributionPoints": ["http://{{ hostname_certs }}/crl/intermediate.crl"]
+    "crlDistributionPoints": ["http://{{ hostname_landing }}/certs/crl/intermediate.crl"]
 }

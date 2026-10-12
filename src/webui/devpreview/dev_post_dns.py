@@ -1,15 +1,59 @@
 import base64
 import os
+import re
 import urllib.parse
 
 from webui import views
+from webui.devpreview.fabric_rules import PRIVATE_TLDS
 from webui.devpreview.sample_data import RECORD_TYPES
+
+ZONE_RE = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$")
+
+
+def _zones(h, parts, form):
+    """Purpose: a zone added or removed in memory, refused as fabric refuses it where the preview can tell (the
+             name's form, an existing zone, a public name without the tick, the site's own zone, a wrong
+             confirmation).
+    Inputs:  h — the dev handler (send, state); parts — segments after /bind9/zones/: ['new'] or [<key>, 'remove'];
+             form — dict (name, hide_public; confirm).
+    Returns: True (a 303 with msg or err was sent, or a 404).
+    Fails:   never.
+    Feeds:   dev_post_dns."""
+    zones = h.state.data["zones"]
+    if parts == ["new"]:
+        name = form.get("name", "").strip().rstrip(".").lower()
+        public = not (name == "home.arpa" or name.endswith(".home.arpa") or name.rsplit(".", 1)[-1] in PRIVATE_TLDS)
+        err = ("not a DNS name of at least two labels" if not ZONE_RE.match(name) else
+               "it is already a zone" if any(z["name"] == name for z in zones.values()) else
+               "a public name needs 'Hide the public name' ticked" if public and not form.get("hide_public") else "")
+        if err:
+            h.send(303, b"", location="/bind9?err=" + urllib.parse.quote(f"{name or 'the name'}: {err}"))
+            return True
+        zones[name] = {"name": name, "records": []}
+        h.state.log("DNS_ZONE_ADD", f"zone={name} (in memory)")
+        h.send(303, b"", location=f"/bind9?zone={urllib.parse.quote(name)}&msg=" +
+               urllib.parse.quote(f"Zone {name} added (dev preview: in memory only)."))
+        return True
+    if len(parts) == 2 and parts[1] == "remove" and parts[0] in zones:
+        key, back = parts[0], f"/bind9?zone={urllib.parse.quote(parts[0])}"
+        if key == "dynamic_zone_var" or form.get("confirm", "").strip().rstrip(".").lower() != zones[key]["name"]:
+            h.send(303, b"", location=back + "&err=" + urllib.parse.quote(
+                "the site's own zone cannot be removed" if key == "dynamic_zone_var"
+                else f"type the zone's name, {zones[key]['name']}, to remove it"))
+            return True
+        gone = zones.pop(key)
+        h.state.log("DNS_ZONE_DELETE", f"zone={key} records={len(gone['records'])} (in memory)")
+        h.send(303, b"", location="/bind9?msg=" + urllib.parse.quote(
+            f"Zone {gone['name']} removed with its {len(gone['records'])} record(s) (dev preview: in memory only)."))
+        return True
+    h.send(404, views.error_page(404, "Not found."))
+    return True
 
 
 def dev_post_dns(h, path, form):
-    """Purpose: TSIG keys and zone records acted out in memory (secrets are fresh random throwaways).
+    """Purpose: TSIG keys, zones and zone records acted out in memory (secrets are fresh random throwaways).
     Inputs:  h — the dev handler (send, state, ctx); path — /bind9/tsig/create, /bind9/tsig/<name>/rotate|delete,
-             /bind9/zone/<key>/add|delete; form — dict.
+             /bind9/zones/new, /bind9/zones/<key>/remove, /bind9/zone/<key>/add|delete; form — dict.
     Returns: True when the path was handled; None otherwise.
     Fails:   ValueError for a non-numeric record index; IndexError for an unexpected …/rotate path (not caught).
     Feeds:   dev_post_action."""
@@ -33,6 +77,8 @@ def dev_post_dns(h, path, form):
         h.send(303, b"", location="/bind9?view=tsig&msg=" +
                urllib.parse.quote(f"TSIG key {name} removed (dev preview: in memory)."))
         return True
+    if path.startswith("/bind9/zones/"):
+        return _zones(h, [urllib.parse.unquote(p) for p in path.split("/")[3:]], form)
     parts = path.strip("/").split("/")
     if not (len(parts) == 4 and parts[:2] == ["bind9", "zone"] and parts[2] in state.data["zones"]):
         return None

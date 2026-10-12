@@ -59,7 +59,8 @@ def _write_if_changed(path, data, uid, gid):
 
 def publish_ca_certs(certs_dir, www_dir, uid, gid, trust_prefix):
     """Purpose: Publish the fabric root and intermediate CA certificates for every kind of system into
-             www_dir (served at certs.<domain>) and trust them on this host. Idempotent.
+             www_dir (served at info.<domain>/certs/ and http://<host_ip>/certs/) and trust them on this host.
+             Idempotent.
     Inputs:  certs_dir — holds Step-CA's root_ca.crt and intermediate_ca.crt (the latter may carry the root
              too, as with a bring-your-own chain: only its first certificate is used); www_dir — the certs
              web root (created if missing); uid, gid — owner of the published files (nginx);

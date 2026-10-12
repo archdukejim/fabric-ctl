@@ -27,7 +27,7 @@ Everything your computer needs to reach https://{mgr}:
    (or download the root CA from http://{ip}/certs/, plain HTTP, no names needed)
 3. Trust the root CA: Windows: double-click root-ca.cer and put it in
    "Trusted Root Certification Authorities"; macOS/Linux: root-ca.crt. Every
-   system, format and installer: https://{certs}
+   system, format and installer: http://{certs}/certs/
 {cert_step}{n}. Open https://{mgr}{choose} and sign in as '{user}' with the password
    you chose in setup{factor}.{kerberos}
 {p12_delete}More admins: add them to the '{group}' group.{more}
@@ -64,19 +64,19 @@ def _write(path, text, owner):
 def _readme(v, user, login, folder):
     """Purpose: the kit's README.txt for the web console as it is set up: with the client-certificate steps only while
              the console requires one (webui_client_cert), and the second factor Keycloak will ask for.
-    Inputs:  v — vars: hostname_mgr, hostname_certs, host_ip, the other names (for the hosts-file line),
+    Inputs:  v — vars: hostname_mgr, hostname_landing, host_ip, the other names (for the hosts-file line),
              webui_admin_group, webui_client_cert, the sign-in settings (admin_level); user — the admin; login — the
              account the kit is for; folder — the kit's path.
     Returns: str.
     Fails:   ValidationError from admin_level for an unknown level; KeyError for a missing var.
     Feeds:   run; tests/render.py."""
     cert = bool(v.get("webui_client_cert"))
-    return README.format(mgr=v["hostname_mgr"], certs=v["hostname_certs"], user=user, login=login, host=v["host_ip"],
+    return README.format(mgr=v["hostname_mgr"], certs=v["hostname_landing"], user=user, login=login, host=v["host_ip"],
                          ip=v["host_ip"], folder=folder, group=v.get("webui_admin_group", "admins"),
                          cert_line=CERT_LINE.format(user=user) if cert else "",
                          cert_step=CERT_STEP.format(user=user) if cert else "", n=5 if cert else 4,
                          names=" ".join(v[k] for k in ("hostname_landing", "hostname_mgr", "hostname_keycloak",
-                                                       "hostname_certs", "hostname_stepca", "hostname_openbao")
+                                                       "hostname_stepca", "hostname_openbao")
                                         if v.get(k)),
                          choose=f', choose the "{user} (fabric)" certificate' if cert else "",
                          factor=FACTOR[admin_level(v)], kerberos=KERBEROS if v.get("signin_kerberos") else "",
@@ -91,7 +91,7 @@ def run(ctx):
              that ran setup.
     Inputs:  ctx — SetupContext: vars install_webui, install_keycloak,
              webui_admin_user, webui_admin_email, webui_admin_group (default admins), webui_client_cert,
-             webui_client_cert_days (default 365), the sign-in settings, domain, hostname_mgr, hostname_certs,
+             webui_client_cert_days (default 365), the sign-in settings, domain, hostname_mgr, hostname_landing,
              host_ip; secrets (Keycloak admin); the published CA under <deploy_base>/nginx/www/certs. Env SUDO_USER
              via sudo_owner.
     Returns: None. Without web UI or Keycloak: nothing. At a federated site the person is not created here

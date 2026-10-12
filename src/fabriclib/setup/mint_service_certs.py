@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from fabriclib.common.console import ok
 from fabriclib.pki.install_cert import install_cert
@@ -10,14 +11,14 @@ from fabriclib.setup.mint_extra_certs import mint_extra_certs
 
 def _targets(ctx):
     """Purpose: the service certificates this install needs and where each one goes.
-    Inputs:  ctx — SetupContext: vars hostname_* (bind9, stepca, landing, certs, openbao, keycloak, mgr,
+    Inputs:  ctx — SetupContext: vars hostname_* (bind9, stepca, landing, openbao, keycloak, mgr,
              radius, federation, dc), domain, install_keycloak, install_webui,
              install_freeradius, install_resolver, federation_endpoint, ad_domain.
     Returns: list of (cn, extra SANs, [(destination dir, service user or "freeradius:eap")],
-             services to restart when it changes). bind9 (and the DNS filter's resolver when on), stepca, landing,
-             certs and openbao always; LDAP,
-             Keycloak + Postgres, web UI, FreeRADIUS (EAP-TLS server cert), the federation endpoint when on, and
-             the domain controller.
+             services to restart when it changes). bind9 (and the DNS filter's resolver when on), stepca, landing
+             and openbao always (no certs.<domain> since 0.7.0: the CA is served at info.<domain>/certs/, 1.5.1.5);
+             LDAP, Keycloak + Postgres, web UI, FreeRADIUS (EAP-TLS server cert), the federation endpoint when on,
+             the DNS filter's AdGuard Home (*.filter.<domain>) when on, and the domain controller.
     Fails:   KeyError for a missing hostname_* var.
     Feeds:   run."""
     v, p = ctx.vars, ctx.path
@@ -33,7 +34,6 @@ def _targets(ctx):
         # the host's own name and <domain> too: they redirect to the info page over HTTPS (2.1.4.3)
         (v["hostname_landing"], [f"{v['hostname']}.{v['domain']}".lower(), v["domain"]], [nginx(v["hostname_landing"])],
          ["nginx"]),
-        (v["hostname_certs"], [], [nginx(v["hostname_certs"])], ["nginx"]),
         (v["hostname_openbao"], ["openbao"], [nginx(v["hostname_openbao"]), (p("openbao", "certs"), "openbao")],
          ["nginx", "openbao"]),
     ]
@@ -52,10 +52,30 @@ def _targets(ctx):
     # fabric_net's gateway too: containers reach the DC there (2.1.2.15)
     t.append((v["hostname_dc"], [v["ad_domain"], v["host_ip"], v.get("ip_fabric_gateway", "10.255.0.1")],
               [(p("samba", "tls"), "root")], ["samba"]))
+    if v.get("install_resolver"):
+        # AdGuard Home's DoT for the groups: each group's view names <group>.filter.<domain>, its ClientID (1.12.3.6);
+        # a new certificate restarts it (about 30 s of SERVFAIL for internet names: renewed at night by the timer)
+        t.append((f"filter.{v['domain']}", [f"*.filter.{v['domain']}"], [(p("dnsfilter", "tls"), "adguard")],
+                  ["adguard-filter"]))
     if v.get("install_freeradius"):
         # the EAP-TLS server certificate supplicants check (server.pem, server.key)
         t.append((v["hostname_radius"], [], [(p("freeradius", "certs"), "freeradius:eap")], ["freeradius"]))
     return t
+
+
+def _old_certs_host(ctx, targets):
+    """Purpose: the certificate folder of certs.<domain>, which fabric no longer serves or issues (0.7.0, 1.5.1.5),
+             when it is still there (an install from before 0.7.0): run deletes it.
+    Inputs:  ctx — SetupContext: vars domain, path(); targets — _targets(ctx), so a name still in use is kept (a
+             landing_page_cname of "certs").
+    Returns: the folder <deploy_base>/nginx/certs/certs.<domain> (str), or None when it is gone or still in use.
+    Fails:   never.
+    Feeds:   run."""
+    name = f"certs.{ctx.vars.get('domain', '')}".lower()
+    old = ctx.path("nginx", "certs", name)
+    if name in {cn for cn, *_ in targets} or not os.path.isdir(old):
+        return None
+    return old
 
 
 def run(ctx):
@@ -66,9 +86,11 @@ def run(ctx):
              force_certs (re-issue even when current), Step-CA certs under <deploy_base>/stepca/data/certs.
     Returns: None. Certificates that exist, cover their names, chain to this CA, are younger than
              cert_renew_after_days and live no longer than cert_service_days (manual 2.1.5.4, 2.1.5.7) are left
-             alone unless force_certs, or unless one of their destinations has no copy yet. The web UI client-CA
-             bundle is rewritten on every run; the CRLs are published every run (publish_crl: FreeRADIUS's ca.pem
-             with them). Services whose certificates changed are added to ctx.restart_services.
+             alone unless force_certs, or unless one of their destinations has no copy yet. The old
+             certs.<domain> certificate, still there after an upgrade to 0.7.0, is deleted (_old_certs_host,
+             1.5.1.5). The web UI client-CA bundle is rewritten on every run; the CRLs are published every run
+             (publish_crl: FreeRADIUS's ca.pem with them). Services whose certificates changed are added to
+             ctx.restart_services.
     Fails:   SetupError from mint_cert (step-ca refused); OSError/CalledProcessError installing files;
              ValidationError from mint_extra_certs; KeyError for missing hostname vars.
     Feeds:   setup step `certs`, run by run_setup via STEPS; renew_service_certs (`fabricctl certs`)."""
@@ -80,8 +102,10 @@ def run(ctx):
     restart = set()
     renew_after = int(ctx.vars.get("cert_renew_after_days", 30))
     lifetime = int(ctx.vars.get("cert_service_days", 47))
+    targets = _targets(ctx)
+    old_certs = _old_certs_host(ctx, targets)          # the upgrade to 0.7.0
 
-    for cn, sans, dests, services in _targets(ctx):
+    for cn, sans, dests, services in targets:
         first = dests[0][0]
         check = os.path.join(first, "server.pem" if dests[0][1] == "freeradius:eap" else "fullchain.pem")
         # a destination added since the certificate was issued (the DNS filter's, on an upgrade) needs its copy now
@@ -102,6 +126,9 @@ def run(ctx):
         os.remove(crt)
         restart.update(services)
         ok(f"{cn}: issued")
+    if old_certs:
+        shutil.rmtree(old_certs)
+        ok(f"{os.path.basename(old_certs)}: old certificate deleted (the CA is at info.<domain>/certs/, 1.5.1.5)")
 
     if ctx.vars.get("install_webui"):
         uid, gid = ctx.uid("nginx")

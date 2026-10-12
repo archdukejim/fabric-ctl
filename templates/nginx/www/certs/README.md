@@ -2,7 +2,7 @@
 
 Rendered by `deploy.py` to `/opt/nginx/www/certs/`; the CA certificate files
 beside them are published by `fabriclib/pki/publish_ca_certs.py`. Served at
-`certs.<domain>` (80 and 443) and `http://<host_ip>/certs/`.
+`http(s)://info.<domain>/certs/` (`hostname_landing`) and `http://<host_ip>/certs/` (manual 1.5.1.5).
 
 | File | What |
 |---|---|

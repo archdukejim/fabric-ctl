@@ -169,7 +169,7 @@ subprocess.run(["bash", f"{REPO}/packaging/deb/assemble-tree.sh", W], check=True
 os.makedirs(f"{W}/fabric/config")
 open(f"{W}/fabric/VERSION", "w").write("9.9.9\n")
 open(f"{W}/fabric/config/vars.yaml", "w").write(
-    f"deploy_base_dir: {W}\nhost_ip: 192.168.7.53\nhostname_certs: certs.lan.test\n"
+    f"deploy_base_dir: {W}\nhost_ip: 192.168.7.53\nhostname_landing: info.lan.test\n"
     f"hostname_openbao: vault.lan.test\nip_openbao: 10.254.8.99\nopenbao_key_dir: {W}/nokeys\nhostname: pi-core\n"
     "service_users: {openbao: {uid: 913, gid: 913}}\n"
     "domain: lan.test\ndns:\n  dynamic_zone_var:\n    zone_authority: true\n    A:\n    - {name: pi-core, ip: 192.168.7.53}\n"
@@ -384,6 +384,21 @@ check("invalid record name rejected", st == 303 and "err=" in hd["Location"], hd
 st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
                  {"csrf": csrf, "type": "TXT", "name": "x", "text": 'a"\n$INCLUDE /etc/shadow'}, cookie=session)
 check("zone-file injection via TXT rejected", st == 303 and "err=" in hd["Location"], hd)
+# zones (manual 1.4.1.3) through the real agent and fabriclib: refusals here (no BIND runs in this suite, so a valid
+# name is refused too and rolled back); the zone served by BIND is tests/zones/run.py's
+check("BIND9 tab: the New zone form (the site's own zone has no Remove)", 'action="/bind9/zones/new"' in body
+      and "/bind9/zones/dynamic_zone_var/remove" not in body, body[:300])
+for form, why in (({"name": "shop.example.com"}, "Hide the public name"), ({"name": "lan.test"}, "site's own domain"),
+                  ({"name": "home.lan"}, "not added")):
+    st, hd, *_ = req("POST", "/bind9/zones/new", POSTH, {"csrf": csrf, **form}, cookie=session)
+    loc = urllib.parse.unquote_plus(hd.get("Location", ""))
+    check(f"New zone refused ({why}): said why on the page, vars.yaml unchanged",
+          st == 303 and why in loc and "home.lan" not in open(f"{W}/fabric/config/vars.yaml").read()
+          and "shop.example.com" not in open(f"{W}/fabric/config/vars.yaml").read(), loc)
+st, hd, *_ = req("POST", "/bind9/zones/dynamic_zone_var/remove", POSTH, {"csrf": csrf, "confirm": "lan.test"},
+                 cookie=session)
+check("Remove zone refused for the site's own zone, saying why",
+      "cannot be removed" in urllib.parse.unquote_plus(hd.get("Location", "")), hd)
 # DHCP on and off from the console (manual 1.10.3.5): refusals here, the real turn-on in the lab suite
 for form, why, label in (({}, "give the interface, the subnet and a pool", "no settings and no first subnet"),
                          ({"interface": "eth9", "subnet": "10.20.0.0/24", "pool": "10.20.0.100 - 10.20.0.199"},
@@ -410,7 +425,7 @@ check("audit log records web actions with user", "User: alice (web) | Action: DN
 # ---- Step-CA tab: manual PKI through the agent
 st, hd, sc, body = req("GET", "/stepca", ALICE, cookie=session)
 check("Step-CA tab shows the CA certificates", st == 200 and "Test Root CA" in body and "Test Intermediate CA" in body
-      and "http://certs.lan.test/" in body, body[:400])
+      and "http://info.lan.test/certs/" in body, body[:400])
 views_ok = all(req("GET", f"/stepca?view={v}", ALICE, cookie=session)[0] == 200
                for v in ("sign", "issue", "inspect", "convert", "issued"))
 check("every Step-CA menu page renders", views_ok)
@@ -514,7 +529,7 @@ aud = cookie_val(sc, "__Host-webui")
 check("an auditor signs in", st == 200 and aud, st)
 st, _, _, body = req("GET", "/bind9", ALICE, cookie=aud)
 check("auditor: DNS records shown, no add/delete forms, no Apply", st == 200 and "nas25-apps" in body
-      and "/bind9/zone/dynamic_zone_var/add" not in body and 'action="/apply"' not in body, body[:300])
+      and "/bind9/zone/dynamic_zone_var/add" not in body and "/bind9/zones/new" not in body and 'action="/apply"' not in body, body[:300])
 st, _, _, body = req("GET", "/stepca", ALICE, cookie=aud)
 check("auditor: Step-CA without Sign / New key / Convert", st == 200 and "Sign a CSR" not in body
       and "New key + certificate" not in body and "Certificate authority" in body, body[:300])
@@ -594,6 +609,10 @@ check("auditor token: may read zones", " 200 " in out, out)
 out = agent_call("POST", "/v1/zones/dynamic_zone_var/records", "carol", AUDITOR_ROLES,
                  {"actor": "carol", "type": "A", "name": "nope", "ip": "192.168.7.9"})
 check("auditor token: may not add a record (403, the permission named)", " 403 " in out and "dns:write" in out, out)
+out = agent_call("POST", "/v1/zones", "carol", AUDITOR_ROLES, {"actor": "carol", "name": "home.lan"})
+check("auditor token: may not add a zone (403, dns:write)", " 403 " in out and "dns:write" in out, out)
+out = agent_call("POST", "/v1/zones/home.lan/delete", "carol", AUDITOR_ROLES, {"actor": "carol", "confirm": "home.lan"})
+check("auditor token: may not remove a zone (403, dns:write)", " 403 " in out and "dns:write" in out, out)
 out = agent_call("POST", "/v1/people", "carol", AUDITOR_ROLES, {"uid": "mallory", "first": "M", "last": "M",
                                                                 "email": "m@x.test"})
 check("auditor token: may not create people (403, people:create)", " 403 " in out and "people:create" in out, out)

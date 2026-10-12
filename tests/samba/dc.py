@@ -96,7 +96,8 @@ if build.returncode:
 # the settings and compose file as an install renders them
 env = jinja_env(os.path.join(REPO, "templates"))
 v = yaml.safe_load(env.get_template("vars.yaml.j2").render(
-    domain="lan.test", hostname="dc1", host_ip=IP, lan_cidr=SUBNET, lan_gateway="10.254.30.1", site_name="lan",
+    domain="lan.test", hostname="pi-host", dc_name="dc1", host_ip=IP, lan_cidr=SUBNET, lan_gateway="10.254.30.1",
+    site_name="lan",
     ad_domain="ad.lan.test", ad_password_policy=POLICY, deploy_base_dir=W,
     ad_ntp_signd_dir=os.path.join(W, "ntp_signd")))     # never the host's own /var/lib/samba
 compose = yaml.safe_load(env.get_template("samba/docker-compose.yml.j2").render(**v))["services"]["samba"]
@@ -125,7 +126,8 @@ check("deploy_samba: root-only folders (data traversable: SYSVOL is served as ea
 
 # run it as the compose file says, on the test network
 sh(["docker", "network", "create", "--subnet", SUBNET, NET])
-run = ["docker", "run", "-d", "--name", DC, "--hostname", "dc1", "--network", NET, "--ip", IP,
+# the container's host name is the host's (the host network gives it the host's): the DC has its own (2.1.6.45)
+run = ["docker", "run", "-d", "--name", DC, "--hostname", "pi-host", "--network", NET, "--ip", IP,
        "--read-only", "--memory", compose["mem_limit"], "--cap-drop", "ALL"]
 run += [x for c in compose["cap_add"] for x in ("--cap-add", c)]
 run += [x for o in compose["security_opt"] for x in ("--security-opt", o)]
@@ -155,10 +157,62 @@ check("hardened as rendered: exactly the six capabilities, read-only, no-new-pri
       and info["CapDrop"] == ["ALL"] and info["ReadonlyRootfs"] and "no-new-privileges:true" in info["SecurityOpt"]
       and info["Memory"] > 0, info["CapAdd"])
 
+dc_obj = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(objectClass=computer)", "sAMAccountName",
+            "dNSHostName").stdout
+check("the DC provisions with its own name, unlike its host's (2.1.6.45): DC1$, dc1.ad.lan.test, no PI-HOST$",
+      "sAMAccountName: DC1$" in dc_obj and "dNSHostName: dc1.ad.lan.test" in dc_obj and "PI-HOST" not in dc_obj.upper()
+      and compose["environment"]["HOST_NAME"] == "dc1", dc_obj)
 first = converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS, container=DC)
 check("converge: schema, layout, groups, access, AD site, policy and GPOs made", len(first) > 30, first)
 again = converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS, container=DC)
 check("converge again changes nothing (idempotent)", again == [], again)
+check("the AD site renamed from Default-First-Site-Name, the roles' owners follow the DC (2.3.1.19.1)",
+      "AD site Default-First-Site-Name renamed lan" in first
+      and any(c.startswith("role owner of CN=Schema,") for c in first), first)
+
+# 2.3.1.19.1: a DC whose AD site was renamed before the roles followed (every install before 0.7.0) refused every schema
+# addition ("we are not master"); found upgrading the test Pi from 0.6.2. Reproduced: the schema's owner written
+# while the site has another name, the site renamed back; the next converge repairs it, and the schema takes additions
+STALE = """
+import ldb, sys
+sys.path.insert(0, "/fabric")
+from open_samdb import open_samdb
+s, _ = open_samdb("/data/etc/smb.conf")
+sites = "CN=Sites," + str(s.get_config_basedn())
+s.rename("CN=lan," + sites, "CN=lan-moved," + sites)
+s.modify(ldb.Message.from_dict(s, {"dn": str(s.get_schema_basedn()), "fSMORoleOwner": str(s.get_dsServiceName())},
+                               ldb.FLAG_MOD_REPLACE))
+s.rename("CN=lan-moved," + sites, "CN=lan," + sites)
+"""
+PROBE = """
+import sys
+sys.path.insert(0, "/fabric")
+from open_samdb import open_samdb
+s, _ = open_samdb("/data/etc/smb.conf", schema_updates=True)
+schema = str(s.get_schema_basedn())
+s.add({"dn": "CN=Fabric-Test-Probe-%s,%s" % (sys.argv[1], schema), "objectClass": ["top", "attributeSchema"],
+       "attributeID": "1.2.840.113556.1.8000.2554.99999.%s" % sys.argv[1], "lDAPDisplayName": "fabricTestProbe%s"
+       % sys.argv[1], "adminDisplayName": "Fabric-Test-Probe-%s" % sys.argv[1], "attributeSyntax": "2.5.5.12",
+       "oMSyntax": "64", "isSingleValued": "TRUE"})
+"""
+staled = dc("python3", "-", stdin=STALE)
+refused = dc("python3", "-", "1", stdin=PROBE)
+check("reproduced: a stale schema owner (the site renamed after it was written) refuses a schema addition",
+      staled.returncode == 0 and refused.returncode != 0 and "not master" in refused.stderr,
+      staled.stderr[-300:] + refused.stderr[-300:])
+repaired = converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS, container=DC)
+accepted = dc("python3", "-", "2", stdin=PROBE)
+check("the next converge names the schema's owner by the DC's current DN, and the schema takes additions again",
+      any(c.startswith("role owner of CN=Schema,") for c in repaired) and accepted.returncode == 0,
+      (repaired, accepted.stderr[-300:]))
+# converge repairs and then adds in one process, where Samba keeps the schema it loaded first
+ONE = PROBE.replace('s, _ = open_samdb("/data/etc/smb.conf", schema_updates=True)\n',
+                    's, _ = open_samdb("/data/etc/smb.conf", schema_updates=True)\n'
+                    'from repair_role_owners import repair_role_owners\nassert repair_role_owners(s)\n')
+staled = dc("python3", "-", stdin=STALE)
+same = dc("python3", "-", "3", stdin=ONE)
+check("...in one process too, as converge runs them: repaired, then the schema takes an addition",
+      staled.returncode == 0 and same.returncode == 0, staled.stderr[-300:] + same.stderr[-300:])
 
 # 2.1.6.29: the AD zones keep no AAAA (the DC listens on IPv4 only); one published from the host's IPv6 goes at converge
 AAAA_PROBE = r"""
@@ -192,17 +246,28 @@ check("converge wrote the site's networks into its OU=networks (the address plan
 
 # S2.2: the site's service accounts, its id block, fabric's groups with their gids, the agent's own sign-in
 info_ = run_op(v, SECRETS, "site_info", container=DC)
-check("the agent signs in as fabric-agent-lan and reads its site's id block (from 5001, posix_id_block long)",
-      info_["id_range"] == "5001-105000" and 5001 < info_["id_next"] < 5010, info_)
+check("the agent signs in as fabric-agent-lan and reads its site's id block: site 1's, 1000000-1999999, laid out in "
+      "ranges, one mark each (2.1.6.46)", info_["id_range"] == "1000000-1999999"
+      and set(info_["id_marks"]) == {"first_admin", "admin", "service", "builtin_group", "group", "person", "guest"},
+      info_)
 def attr(filter_, name):
     out = dc("ldbsearch", "-H", "/data/private/sam.ldb", filter_, name).stdout
     return [line.split(": ", 1)[1] for line in out.splitlines() if line.startswith(name + ": ")]
-check("fabric's groups carry their gids: admins 1100 in OU=organisation, Domain Users 5000 (fabric's users)",
-      attr("(sAMAccountName=admins)", "gidNumber") == ["1100"]
-      and attr("(sAMAccountName=Domain Users)", "gidNumber") == ["5000"]
+check("the organisation's groups carry their fixed gids in the root's built-in range: admins 1040001 in "
+      "OU=organisation, Domain Users 1040009 (fabric's users)",
+      attr("(sAMAccountName=admins)", "gidNumber") == ["1040001"]
+      and attr("(sAMAccountName=Domain Users)", "gidNumber") == ["1040009"]
       and "OU=organisation" in attr("(sAMAccountName=admins)", "distinguishedName")[0])
-site_gid = int(attr("(sAMAccountName=lan-users)", "gidNumber")[0])
-check("the site's groups take gids from the site's block", 5001 <= site_gid < info_["id_next"], site_gid)
+site_gids = [int(attr(f"(sAMAccountName={g})", "gidNumber")[0]) for g in ("lan-users", "lan-admins",
+                                                                          "fabric-break-glass")]
+check("the site's own groups and break-glass take gids from the built-in range, past the organisation's hundred",
+      all(1040101 <= g <= 1049999 for g in site_gids) and len(set(site_gids)) == 3, site_gids)
+svc_uids = [int((attr(f"(sAMAccountName=fabric-{k}-lan)", "uidNumber") or ["0"])[0])
+            for k in ("agent", "keycloak", "radius")]
+check("the site's service accounts take uids from the service range (1020001-1039999), primary gid users, no shell",
+      all(1020001 <= u <= 1039999 for u in svc_uids) and len(set(svc_uids)) == 3
+      and attr("(sAMAccountName=fabric-agent-lan)", "gidNumber") == ["1040009"]
+      and attr("(sAMAccountName=fabric-agent-lan)", "loginShell") == ["/usr/sbin/nologin"], svc_uids)
 uac = attr("(sAMAccountName=fabric-agent-lan)", "userAccountControl")
 check("the site's service accounts exist in its OU, their passwords never expiring",
       all(attr(f"(sAMAccountName=fabric-{k}-lan)", "distinguishedName")[0].startswith(f"CN=fabric-{k}-lan,OU=service-accounts,")
@@ -481,7 +546,8 @@ def mk(uid, email=None, pw=None, site_v=None, sec=None):
 
 
 alice = mk("alice")
-check("a person is created with a uid from the site's block", 5001 <= alice["uidNumber"] <= 105000, alice)
+check("a person is created with a uid from the people range of the site's block (1100001-1899999)",
+      1100001 <= alice["uidNumber"] <= 1899999, alice)
 check("their POSIX identity: primary gid 5000 (fabric's users), /home/alice, /bin/bash, in lan-users",
       attr("(sAMAccountName=alice)", "gidNumber") == ["5000"]
       and attr("(sAMAccountName=alice)", "unixHomeDirectory") == ["/home/alice"]
@@ -578,12 +644,68 @@ tiny = {**lab, "site": "tiny", "id_range": "900-907", "networks": [],
 dc("python3", "/fabric/converge.py", stdin=json.dumps(tiny))
 tiny_v, tiny_s = {**v, "site_name": "tiny"}, {**SECRETS, "ad_agent_password": tiny["accounts"]["fabric-agent-tiny"]}
 first_tiny = mk("tina", site_v=tiny_v, sec=tiny_s)
-check("a site's people take numbers from that site's own block", first_tiny["uidNumber"] == 907, first_tiny)
+check("a site's people take numbers from that site's own block (a block from before 0.7.0: one run, as before)",
+      first_tiny["uidNumber"] == 907, first_tiny)
 try:
     mk("tim", site_v=tiny_v, sec=tiny_s)
     check("refused: a person when the site's block is full", False)
 except ValidationError as e:
     check("refused: a person when the site's block is full", "full" in str(e), e)
+
+# 2.1.6.46 (manual 1.6.3.17): each kind of account in its range; a full range refused, naming it; the 1000th block
+def mk_kind(uid, kind):
+    return run_op(v, SECRETS, "create_person", {"uid": uid, "first": uid.title(), "last": "Test",
+                                                "email": f"{uid}@lan.test", "password": "Pw-" + random_password(20),
+                                                "gid": 1040009, "home_base": "/home", "shell": "/bin/bash",
+                                                "kind": kind}, container=DC)
+
+
+boss, boss2 = mk_kind("boss", "first_admin"), mk_kind("boss2", "first_admin")
+adm, gst = mk_kind("adm", "admin"), mk_kind("gst", "guest")
+check("the first admin takes the block's first id; past it, an admin account's range; admins and guests their own",
+      boss["uidNumber"] == 1000000 and 1000001 <= boss2["uidNumber"] <= 1019999
+      and 1000001 <= adm["uidNumber"] <= 1019999 and 1900001 <= gst["uidNumber"] <= 1949999, (boss, boss2, adm, gst))
+try:
+    mk_kind("svc", "service")
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("refused: a person in a range that is not a person's (service accounts are fabric's)", "kind" in why, why)
+FILL = r"""
+import sys
+sys.path.insert(0, "/fabric")
+import ldb
+from open_samdb import open_samdb
+import paths
+samdb, _ = open_samdb("/data/etc/smb.conf")
+dn = paths.site_dn(samdb, "lan")
+old = [str(m) for m in samdb.search(base=dn, scope=ldb.SCOPE_BASE, attrs=["fabricIdMark"])[0]["fabricIdMark"]
+       if str(m).startswith("guest=")][0]
+samdb.modify_ldif(f"dn: {dn}\nchangetype: modify\ndelete: fabricIdMark\nfabricIdMark: {old}\n-\n"
+                  "add: fabricIdMark\nfabricIdMark: guest=1949999\n")
+print("filled")
+"""
+filled = dc("python3", "-", stdin=FILL)
+check("(the guest range brought to its last id)", "filled" in filled.stdout, filled.stderr[-400:])
+last_guest = mk_kind("gst2", "guest")
+try:
+    mk_kind("gst3", "guest")
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("a range's last id is taken, then the range is refused as full, naming it; other ranges go on",
+      last_guest["uidNumber"] == 1949999 and "guest range 1900001-1949999" in why and "full" in why
+      and 1100001 <= mk("after")["uidNumber"] <= 1899999, (last_guest, why))
+from fabriclib.federation.next_id_block import next_id_block  # noqa: E402
+check("the next site's block follows the domain's: site 2's after the root's (2000000-2999999)",
+      next_id_block(v, {"sites": {}}, container=DC) == "2000000-2999999", next_id_block(v, {"sites": {}}, container=DC))
+try:
+    next_id_block(v, {"sites": {"s999": {"id_range": "999000000-999999999"}}}, container=DC)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("refused: a 1000th site's block (ids stay below 1000000000; no setting raises it)",
+      "999 sites" in why, why)
 
 # a read-only DC joining with fabric's image (its join path), and NTLM at it for an account it does not cache:
 # forwarded to the writable DC while it is up (the Q6 follow-up S1 owes: PEAP at an RODC site relies on it); with the

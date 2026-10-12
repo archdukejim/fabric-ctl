@@ -127,6 +127,7 @@ m_accept.prepare_site = lambda v, site, networks, block, accounts, password, con
 import fabriclib.federation.next_id_block as m_block  # noqa: E402
 m_block.domain_sites = lambda container="samba": []
 m_accept.domain_sites = lambda container="samba": []      # the domain's blocks: none beyond the registry's
+m_accept.domain_dc_names = lambda container="samba": {"dcs": ["hq"], "computers": ["hq"]}     # the root's DC only
 
 SECRETS = f"{W}/fabric/config/fabric-secrets.yml"
 
@@ -230,6 +231,11 @@ check("join: an expired invitation is refused",
       refused(accept_join, HQ, {**{k: decode_invitation(old["invitation"])[k] for k in ("id", "secret", "site")},
                                 "csr": "x", "domain": "b3.hq.test", "address": "127.0.0.3"}, match="not valid"))
 
+check("join: a site whose DC would take a name the domain has (the root's) is refused, naming the DCs; the "
+      "invitation is kept (2.1.6.45)",
+      refused(join_upstream, {**SITE, "dc_name": "HQ"}, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca",
+              "branch1.hq.test", "127.0.0.2", **J, match="hq is taken in ad.hq.test (its domain controllers: hq)"))
+SITE["dc_name"] = "dc-branch1"
 res = join_upstream(SITE, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca", "branch1.hq.test", "127.0.0.2", **J)
 jv = res["vars"]
 check("join: the site gets the bring-your-own-CA settings and the organisation",
@@ -242,7 +248,7 @@ check("join: the root prepares the site in its domain and answers with it (a wri
       "join account, the service accounts' passwords)",
       dom.get("ad_domain") == "ad.hq.test" and dom.get("dc_type") == "writable" and dom.get("join_user") == "fabric-join-branch1"
       and sorted(dom.get("accounts") or {}) == ["agent", "keycloak", "radius"] and PREPARED
-      and PREPARED[0][0] == "branch1" and PREPARED[0][1] == dom.get("id_range") == "105001-205000", (dom, PREPARED))
+      and PREPARED[0][0] == "branch1" and PREPARED[0][1] == dom.get("id_range") == "2000000-2999999", (dom, PREPARED))
 site_ca = open(jv["ica_crt_path"]).read()
 check("join: the site's CA is signed by the organisation's root, path length 0",
       sh(["openssl", "verify", "-CAfile", jv["ca_crt_path"], jv["ica_crt_path"]], ok=False).returncode == 0

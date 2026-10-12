@@ -7,7 +7,8 @@ def ensure_admin(v, secrets, user, email, password=None, container="samba"):
     """Purpose: the first web UI admin in the directory (manual 1.6.3): a person of this site, in the web UI's admin
              group (Keycloak grants it the console's admin role): with the password they chose in setup (2.1.6.33),
              or, given none, a one-time password they change at their first sign-in. Never changes an existing
-             person's password.
+             person's password. Their uid is the site block's first id where the block is laid out in ranges
+             (2.1.6.46, manual 1.6.3.17).
     Inputs:  v — fabric vars (site_name, webui_admin_group (default admins), ad_password_policy, ldap_groups,
              posix_home_base, posix_login_shell); secrets — fabric's secrets (ad_agent_password); user — the admin's
              user name; email — str; password — a callable returning the password they chose (called only when
@@ -31,7 +32,8 @@ def ensure_admin(v, secrets, user, email, password=None, container="samba"):
         run_op(v, secrets, "create_person",
                {"uid": user, "first": name, "last": name, "email": email, "password": chosen or password,
                 "gid": users_gid, "home_base": v.get("posix_home_base") or "/home",
-                "shell": v.get("posix_login_shell") or "/bin/bash", "must_change": not chosen}, container)
+                "shell": v.get("posix_login_shell") or "/bin/bash", "must_change": not chosen,
+                "kind": "first_admin"}, container)      # the block's first id (2.1.6.46), an admin's past it
         state = "created"
     if run_op(v, secrets, "add_group_member", {"group": group, "uid": user}, container)["added"] and state == "exists":
         state = "exists+member"

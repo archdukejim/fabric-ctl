@@ -15,6 +15,7 @@ from webui.routes.tsig_post import tsig_post
 from webui.routes.security_post import security_post
 from webui.routes.vault_post import vault_post
 from webui.routes.zone_post import zone_post
+from webui.routes.zones_post import zones_post
 from webui.session.page_context import page_context
 
 
@@ -45,9 +46,9 @@ def _radius_people(parts, form):
 def post_action(h, sess, path, form):
     """Purpose: Route a signed-in, CSRF-checked POST to its action.
     Inputs:  h — the request handler (app, send, redirect, deny); sess — dict from find_session; path — str; form —
-             dict from read_form. Routes: /logout; /bind9/zone/…; /apply; /stepca/…; /openbao/…; /directory/…;
-             /kea/… (reservations, subnets, options, classes); /dns-filter/… (lists, rules, upstreams, fetch);
-             /overview/… (jobs); /freeradius/clients…;
+             dict from read_form. Routes: /logout; /bind9/zone/…; /bind9/zones/…; /apply; /stepca/…; /openbao/…;
+             /directory/…; /kea/… (reservations, subnets, options, classes); /dns-filter/… (lists, rules, upstreams,
+             fetch); /overview/… (jobs); /freeradius/clients…;
              /freeradius/people…; /bind9/tsig/….
     Returns: /logout: session dropped, LOGOUT audited, 303 to Keycloak's logout URL clearing the session cookie;
              /apply: 200 apply result; the rest as their route modules.
@@ -63,6 +64,8 @@ def post_action(h, sess, path, form):
                           [cookie_header(SESSION_COOKIE, "", 0)])
     if path.startswith("/bind9/zone/"):
         return zone_post(h, user, path, form)
+    if path.startswith("/bind9/zones/"):
+        return zones_post(h, user, _segments(path, 3), form)
     if path == "/apply":
         ok, output = actions.apply_changes(user)
         return h.send(200, views.apply_result(page_context(sess), ok, output))

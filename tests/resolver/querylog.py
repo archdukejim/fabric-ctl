@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The DNS filter's query log and statistics (manual 1.12.2.13) with a real Postgres (the pinned image, named as
+"""The DNS filter's query log and statistics (manual 1.12.2.13, 1.12.3.7) with a real Postgres (the pinned image, named as
 fabric runs it): ingesting the resolver's log files, rewrites marking their queries, reading on from where it stopped
 (a rotated file too), purging at 7 days while statistics stay, searches and statistics, and what must be refused.
 
@@ -11,6 +11,8 @@ import shutil
 import subprocess
 import sys
 import time
+
+import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/querylog"
@@ -42,8 +44,8 @@ from fabriclib.rbac.required_permission import required_permission  # noqa: E402
 URL = "https://lists.example/test.txt"
 ZONE = list_zone(URL)
 LOG = f"{W}/resolver/log"
-V = {"deploy_base_dir": W, "install_resolver": True, "install_keycloak": True,
-     "dns_filter_lists": [{"name": "Test list", "url": URL}]}
+V = {"deploy_base_dir": W, "install_resolver": True, "install_keycloak": True, "ip_adguard": "127.0.0.1",
+     "dns_filter_lists": [{"name": "Test list", "url": URL}]}       # AdGuard: nothing listens there
 
 
 def stamp(ago=0):
@@ -59,6 +61,11 @@ def query(client, port, name, ago=0, view="everyone"):
 def rewrite(client, port, name, action, via, ago=0, view="everyone"):
     return (f"{stamp(ago)} client @0x7f00 {client}#{port} ({name}): view {view}: rpz QNAME {action} rewrite "
             f"{name}/A/IN via {via}\n")
+
+
+def response(client, port, name, rcode, ago=0, view="everyone"):
+    return (f"{stamp(ago)} client @0x7f00 {client}#{port} ({name}): view {view}: response: {name} IN A {rcode} "
+            f"+E(0)K 0 0 0\n")
 
 
 def append(name, text):
@@ -85,6 +92,9 @@ try:
     sh("docker rm -f postgres", ok=False)
     shutil.rmtree(W, ignore_errors=True)
     os.makedirs(LOG)
+    os.makedirs(f"{W}/fabric/config")
+    with open(f"{W}/fabric/config/fabric-secrets.yml", "w") as f:
+        yaml.safe_dump({"adguard_api_password": "test-only"}, f)
     sh(["docker", "run", "-d", "--name", "postgres", "-e", "POSTGRES_USER=fabric_admin", "-e", "POSTGRES_DB=keycloak",
         "-e", "POSTGRES_PASSWORD=test-only-password", pg])
     for _ in range(60):
@@ -136,24 +146,26 @@ try:
     kept = psql("SELECT count(*) FROM stats_hourly WHERE zone = '' AND hour < now() - interval '7 days';").stdout.strip()
     check("statistics stay past 7 days (90): the old hour's count kept though its query is gone", kept == "1", kept)
 
-    # a client group (1.12.2.15): its view's query, the main view's copy from 127.0.0.1 and the main view's rewrite;
-    # a rewrite of the group's own rules on its query
+    # a client group (1.12.2.15, 1.12.3.6): its view on its query, and its own rule's rewrite on it (no chained views)
     append("query.log", query("192.168.1.40", 7001, "tracker.example", 5, view="kids")
-           + query("127.0.0.1", 7101, "tracker.example", 5)
            + query("192.168.1.40", 7002, "kids-only.example", 4, view="kids"))
-    append("rpz.log", rewrite("127.0.0.1", 7101, "tracker.example", "NXDOMAIN", f"tracker.example.{ZONE}", 5)
-           + rewrite("192.168.1.40", 7002, "kids-only.example", "NXDOMAIN", "kids-only.example.group-kids.rpz", 4,
-                     view="kids"))
+    append("rpz.log", rewrite("192.168.1.40", 7002, "kids-only.example", "NXDOMAIN", "kids-only.example.group-kids.rpz",
+                              4, view="kids"))
     ingest_dns_log(V)
     kid = {e["name"]: e for e in read_query_log(V, client="192.168.1.40")["entries"]}
-    check("groups: the main view's rewrite is put on the group's query (the real client, its view, the list)",
-          set(kid) == {"tracker.example", "kids-only.example"}
-          and (kid["tracker.example"]["view"], kid["tracker.example"]["zone"], kid["tracker.example"]["blocked"])
-          == ("kids", ZONE, True), kid)
-    check("groups: the group's own rule is on its query (group-kids.rpz)",
-          (kid["kids-only.example"]["zone"], kid["kids-only.example"]["blocked"]) == ("group-kids.rpz", True), kid)
-    check("groups: the chain's own hop (127.0.0.1) is not a client's query",
-          read_query_log(V, client="127.0.0.1")["entries"] == [])
+    check("groups: each query carries its group's view; the group's own rule is on its query (group-kids.rpz)",
+          set(kid) == {"tracker.example", "kids-only.example"} and kid["tracker.example"]["view"] == "kids"
+          and not kid["tracker.example"]["blocked"]
+          and (kid["kids-only.example"]["zone"], kid["kids-only.example"]["blocked"]) == ("group-kids.rpz", True), kid)
+
+    # an NXDOMAIN no rewrite explains is asked of AdGuard (1.12.3.7); AdGuard not answering is said, the rest kept
+    append("query.log", query("192.168.1.41", 7101, "maybe-listed.example", 3)
+           + response("192.168.1.41", 7101, "maybe-listed.example", "NXDOMAIN", 3))
+    r = ingest_dns_log(V)
+    one = read_query_log(V, client="192.168.1.41")["entries"]
+    check("AdGuard not answering: the query kept, not marked, and the run says why",
+          r["queries"] == 1 and r["adguard"] == 0 and "not answering" in (r["adguard_error"] or "")
+          and [(e["name"], e["blocked"]) for e in one] == [("maybe-listed.example", False)], (r, one))
 
     # reading on: only new lines; a rotated file finished first; Postgres down keeps the lines for the next run
     r = ingest_dns_log(V)

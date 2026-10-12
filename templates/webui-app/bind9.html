@@ -46,6 +46,32 @@
 A record shown on the landing page links to https://&lt;name&gt;.&lt;domain&gt; with its port and path (to change a link,
 delete the record and add it again).</p></section>
 {% else %}<section class="card"><p class="blank">No forward zones.</p></section>{% endif %}
+{% if can('dns:write') %}
+{% if zone and zone.key != 'dynamic_zone_var' %}
+{% set shown = forward_zones | selectattr('key', 'equalto', zone.key) | first %}
+<section class="card"><h2>Remove zone {{ zone.name }}</h2>
+<p class="muted">BIND and the DNS filter stop answering for {{ zone.name }} within seconds. Its
+<strong>{{ shown.records if shown else zone.records | length }} record(s)</strong> go with it (they are kept in the audit log).
+A TSIG key or ACL policy for this zone must be removed first (TSIG keys).</p>
+<form method="post" action="/bind9/zones/{{ zone.key | urlencode }}/remove" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label class="wide">Type the zone's name to confirm<input name="confirm" required autocomplete="off" placeholder="{{ zone.name }}"></label>
+<div><button class="danger">Remove zone</button></div>
+</form></section>
+{% endif %}
+<section class="card"><h2>New zone</h2>
+<form method="post" action="/bind9/zones/new" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label>Zone name<input name="name" required placeholder="home.lan" pattern="[A-Za-z0-9]([A-Za-z0-9.\-]*[A-Za-z0-9])?\.?"></label>
+<label class="check wide"><input type="checkbox" name="hide_public" value="on"> Hide the public name — needed for a name
+under a public top-level domain (.com, .net, …): every client of this site then gets this zone's answers instead of the real ones</label>
+<div><button>Add zone</button></div>
+</form>
+<p class="muted">BIND answers for the new zone within seconds (no Apply), and the DNS filter forwards it to BIND, never
+filtered. Names for private use need no tick: <code>home.arpa</code>, <code>.internal</code>, <code>.lan</code>,
+<code>.local</code>, <code>.test</code>, <code>.example</code>. Refused: the site's own domain, the DHCP and Windows
+domain zones, another site's zone, reverse zones (generated) and a zone that exists.</p></section>
+{% endif %}
 
 {% elif section == 'reverse' %}
 <section class="card"><h2>Reverse zones</h2>

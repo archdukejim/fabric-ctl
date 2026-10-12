@@ -15,8 +15,10 @@ from fabriclib.setup.detect_network import detect_network
 from fabriclib.secrets.save_secrets import save_secrets
 from fabriclib.security.check_signin_lowering import check_signin_lowering
 from fabriclib.setup.ask_ad_domain import ask_ad_domain
+from fabriclib.setup.ask_dc_name import ask_dc_name
 from fabriclib.setup.errors import SetupError
 from fabriclib.setup.move_dns_filter import move_dns_filter
+from fabriclib.setup.permanent_mark import permanent_mark
 from fabriclib.setup.set_ram_capacity import set_ram_capacity
 from fabriclib.setup.upgrade_vars import upgrade_vars
 
@@ -45,10 +47,10 @@ def _valid(key, value):
              other); value — str.
     Returns: True if valid: an IPv4 address; an IPv4 network; an admin username matching ADMIN_RE that no system or
              AD account uses (RESERVED, and not fabric-… other than FIRST_ADMIN, 2.1.6.33); a domain of two labels or
-             more that is not `.local` (mDNS) or `localhost`; a host name of one label, at most 15 characters (the
-             DC's NetBIOS name), not `localhost`; an organisation name of 1-40 printable characters without quotes,
-             backslashes or <> (the CA's certificate names, at most 64 characters, are built from it); any other key
-             just needs a value.
+             more that is not `.local` (mDNS) or `localhost`; a host name of one DNS label, not `localhost` (the DC
+             has a name of its own, dc_name, 2.1.6.45); an organisation name of 1-40 printable characters without
+             quotes, backslashes or <> (the CA's certificate names, at most 64 characters, are built from it); any
+             other key just needs a value.
     Fails:   never — ValueError from ipaddress is turned into False.
     Feeds:   collect_vars (which required values to ask), _ask."""
     try:
@@ -64,7 +66,7 @@ def _valid(key, value):
             return (bool(HOST_RE.match(value)) and "." in value and not low.endswith(".local")
                     and low != "localhost" and not low.endswith(".localhost"))
         elif key == "hostname":
-            return bool(HOST_RE.match(value)) and "." not in value and len(value) <= 15 and value.lower() != "localhost"
+            return bool(HOST_RE.match(value)) and "." not in value and value.lower() != "localhost"
         elif key == "friendly_name":
             return 0 < len(value) <= 40 and value.isprintable() and not any(c in value for c in '"\\<>')
         return bool(value)
@@ -112,13 +114,14 @@ def _network_problem(data):
 
 
 def _ask(key, default):
-    """Purpose: prompt until the operator gives a valid value for one setting.
+    """Purpose: prompt until the operator gives a valid value for one setting; one that cannot change after the
+             install is marked "⚠ Permanent" (permanent_mark, 2.1.2.20).
     Inputs:  key — setting name (label from LABELS); default — offered value (Enter accepts it) or None.
     Returns: the valid answer (str).
     Fails:   EOFError from input() when stdin is closed; loops forever on invalid input by design.
     Feeds:   collect_vars."""
     while True:
-        answer = input(f"  {LABELS.get(key, key)} [{default or ''}]: ").strip() or (default or "")
+        answer = input(f"  {LABELS.get(key, key)}{permanent_mark(key)} [{default or ''}]: ").strip() or (default or "")
         if _valid(key, answer):
             return answer
         print(f"    not a valid {key}")
@@ -166,12 +169,13 @@ def collect_vars(ctx):
              (upgrade_vars); image_* keys set explicitly are recorded in image_pins. AdGuard Home's settings move to
              the BIND resolver's (move_dns_filter, 0.7). Missing/invalid required
              values are asked for (defaults from detect_network); webui_admin_user is chosen once; the AD domain
-             is asked when missing (ask_ad_domain); the rest takes defaults changed later (2.1.2.16): the password
+             is asked when missing (ask_ad_domain), then the DC's own name (ask_dc_name: dc-<hostname> suggested,
+             taken unattended); the rest takes defaults changed later (2.1.2.16): the password
              policy (DEFAULT_POLICY, a vars file's keys kept, 2.1.6.35) and the memory (set_ram_capacity).
              Embedded TSIG secrets go to the secrets file, never into fabric.yaml.
     Fails:   SetupError for a --file that would lower a sign-in layer (check_signin_lowering), for missing/invalid
              required values (the AD domain included) with
-             --non-interactive, invalid tsig_keys, or a
+             --non-interactive, an invalid dc_name with --non-interactive, invalid tsig_keys, or a
              secrets file that cannot be written (ValidationError converted); OSError/yaml errors on files.
     Feeds:   run_setup main (before choose_plan and the steps); ctx.vars feeds choose_plan and the steps
              before deploy; deploy_config renders from fabric.yaml."""
@@ -244,6 +248,9 @@ def collect_vars(ctx):
                              "and has no default)")
         ctx.vars = data
         ask_ad_domain(ctx)
+    # the domain controller's own name (2.1.6.45): permanent, dc-<hostname> suggested; an existing install keeps its own
+    ctx.vars = data
+    ask_dc_name(ctx)
     policy = data.get("ad_password_policy") or {}
     if not (set(POLICY_KEYS) | {"complexity"}) <= set(policy):
         data["ad_password_policy"] = {**DEFAULT_POLICY, **policy}

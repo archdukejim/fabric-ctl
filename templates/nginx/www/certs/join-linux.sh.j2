@@ -3,7 +3,7 @@
 # {{ ad_domain }} (manual 1.6.7, 4.6.6).
 #   sudo bash join-linux.sh <root CA SHA-256 fingerprint> --user <a site admin>   [--site <site>] [--name <name>]
 #   sudo bash join-linux.sh <root CA SHA-256 fingerprint> --one-time              [--site <site>] [--name <name>]
-# The fingerprint is shown on http://{{ hostname_certs }}/. The password - a site admin's, or with --one-time the
+# The fingerprint is shown on http://{{ hostname_landing }}/certs/. The password - a site admin's, or with --one-time the
 # machine's one-time join password from `fabricctl domain add-machine <name>` - is asked on the terminal (or read
 # from standard input), never taken from the command line.
 set -euo pipefail
@@ -13,7 +13,7 @@ REALM="{{ ad_realm }}"
 BASE_DN="{{ ad_base_dn }}"
 DC="{{ hostname_dc }}"
 SITE="{{ site_name }}"
-CERTS="http://{{ hostname_certs }}"
+CERTS="http://{{ hostname_landing }}/certs"
 NTP="{{ hostname_ntp }}"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -117,6 +117,10 @@ while [[ ${dn^^} == OU=* && ${dn^^} != OU=SITES,* ]]; do
     dn=${dn#*,}
 done
 SUDO_BASES+="OU=sudoers,$ORG_DN?onelevel?"
+# every site's uid/gid block (manual 1.6.3.17): local subordinate ids that overlap one are named below
+ID_BLOCKS=$(LDAPSASL_NOCANON=on ldapsearch -LLL -o ldif-wrap=no -Q -Y GSSAPI -H "ldap://$DC" -b "OU=sites,$BASE_DN" \
+    "(objectClass=fabricSiteInfo)" fabricIdRange 2>/dev/null | sed -n 's/^fabricIdRange: //p' | tr '\n' ' ')
+[[ -n $ID_BLOCKS ]] || ID_BLOCKS="1000000-999999999"
 kdestroy >/dev/null 2>&1 || true
 
 # the join (the account's name in upper case, as Windows names them: SSSD looks for NAME$ in the keytab):
@@ -158,6 +162,34 @@ ldap_sudo_search_base = $SUDO_BASES
 EOF
 chmod 0600 /etc/sssd/sssd.conf
 pam-auth-update --enable mkhomedir >/dev/null
+
+# local subordinate ids (rootless Podman and Docker) are not in AD: local users made from now on get theirs above
+# AD's ids (above 2147483647, manual 1.6.3.17); ranges already given are named when they overlap a site's block,
+# never moved (that would break their container storage)
+set_login_def() {
+    if grep -qE "^[[:space:]]*$1[[:space:]]" /etc/login.defs; then
+        sed -i -E "s|^[[:space:]]*$1[[:space:]].*|$1\t\t$2|" /etc/login.defs
+    else
+        printf '%s\t\t%s\n' "$1" "$2" >> /etc/login.defs
+    fi
+}
+for kind in UID GID; do
+    set_login_def "SUB_${kind}_MIN" 2147483648
+    set_login_def "SUB_${kind}_MAX" 4294000000
+done
+for file in /etc/subuid /etc/subgid; do
+    [[ -f $file ]] || continue
+    while IFS=: read -r owner start count; do
+        [[ $start =~ ^[0-9]+$ && $count =~ ^[0-9]+$ ]] || continue
+        for block in $ID_BLOCKS; do
+            if (( start <= ${block#*-} && start + count - 1 >= ${block%-*} )); then
+                echo "WARNING: local user $owner's subordinate ids in $file ($start-$((start + count - 1))) overlap" \
+                     "the domain's ids ($block): left as they are (manual 1.6.3.17)" >&2
+                break
+            fi
+        done
+    done < "$file"
+done
 
 # sudo rules from the domain need sudo's own sss support: Ubuntu 26.04's default sudo-rs has none, so the classic
 # sudo it also ships becomes the default

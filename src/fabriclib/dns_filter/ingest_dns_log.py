@@ -3,17 +3,23 @@ import fcntl
 import json
 import os
 import re
+import urllib.parse
 
+from fabriclib.common.errors import ValidationError
 from fabriclib.common.write_file_if_changed import write_file_if_changed
+from fabriclib.dns_filter.common.adguard_api import adguard_api
+from fabriclib.dns_filter.common.adguard_password import adguard_password
 from fabriclib.dns_filter.common.dnslog_psql import dnslog_psql
 from fabriclib.dns_filter.common.resolver_paths import resolver_paths
 from fabriclib.dns_filter.ensure_dnslog_db import ensure_dnslog_db
 
 CLIENT = r"client @\S+ ([0-9a-fA-F:.]+)#(\d+) \((\S+)\): view (\S+):"
 QUERY = re.compile(r"^(\S+ \S+) " + CLIENT + r" query: (\S+) IN (\S+) ")
+RESPONSE = re.compile(r"^(\S+ \S+) " + CLIENT + r" response: (\S+) IN (\S+) (\S+) ")
 RPZ = re.compile(r"^(\S+ \S+) " + CLIENT + r" rpz \S+ (\S+) rewrite (\S+)/(\S+)/IN via (\S+)")
 ZONE = re.compile(r"((?:[0-9a-f]{12}\.list|[a-z0-9-]+)\.rpz)$")
 MAX_BATCH = 64 * 1024 * 1024           # read at most this much per file and run (the rest the next run)
+MAX_ASK = 5000                         # names asked of AdGuard per run at most (the rest stay unmarked)
 
 PURGE = """
 DELETE FROM queries WHERE at < now() - interval '7 days';
@@ -75,11 +81,62 @@ def _field(value):
     return value.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r")
 
 
+def _adguard_blocks(v, responses, rewritten):
+    """Purpose: which NXDOMAIN answers AdGuard Home gave for a list (manual 1.12.3.7): an NXDOMAIN with no rewrite of
+             the resolver's own came from AdGuard or from the internet; AdGuard is asked (check_host) once per name
+             and group, and a name it filters is marked blocked by its list. A genuine NXDOMAIN stays unblocked.
+    Inputs:  v — rendered vars (ip_adguard, deploy_base_dir); responses — _responses' tuples; rewritten — set of
+             (client, port, name) the RPZ log names.
+    Returns: (rows: COPY rows (at, client, port, name, zone) of the queries to mark, error: why AdGuard could not be
+             asked, or None).
+    Fails:   never (AdGuard not answering is the error returned).
+    Feeds:   ingest_dns_log."""
+    pending = {}
+    for at, client, port, view, name, _, rcode in responses:
+        if rcode == "NXDOMAIN" and (client, port, name) not in rewritten:
+            pending.setdefault((name, view), []).append((at, client, port))
+    if not pending:
+        return [], None
+    try:
+        password = adguard_password(v)
+        status = adguard_api(v, password, "GET", "/control/filtering/status") or {}
+        ids = {f.get("id"): f.get("url") or "" for f in status.get("filters") or []}
+        rows = []
+        for (name, view), hits in list(pending.items())[:MAX_ASK]:
+            query = {"name": name} if view == "everyone" else {"name": name, "client": view}
+            r = adguard_api(v, password, "GET", "/control/filtering/check_host?" + urllib.parse.urlencode(query)) or {}
+            if not str(r.get("reason") or "").startswith("FilteredBlack"):
+                continue
+            url = next((ids.get(x.get("filter_list_id")) for x in r.get("rules") or [] if x.get("filter_list_id")),
+                       "") or ""
+            zone = os.path.basename(url)[:-4] + ".list.rpz" if url.startswith("/lists/") else "adguard"
+            rows += ["\t".join(_field(x) for x in (at, client, port, name, zone)) for at, client, port in hits]
+        return rows, None
+    except (ValidationError, KeyError) as e:
+        return [], str(e)
+
+
+def _responses(lines):
+    """Purpose: the resolver's answers in its query log (`responselog`, manual 1.12.3.7).
+    Inputs:  lines — query.log's lines.
+    Returns: list of (at, client, port, view, name, qtype, rcode).
+    Fails:   never.
+    Feeds:   ingest_dns_log."""
+    out = []
+    for line in lines:
+        m = RESPONSE.match(line)
+        at = _time(m.group(1)) if m else None
+        if at:
+            client, port, _, view, name, qtype, rcode = m.group(2, 3, 4, 5, 6, 7, 8)
+            out.append((at, client, port, view, name.rstrip(".").lower(), qtype, rcode))
+    return out
+
+
 def _rows(lines, pattern, rpz):
     """Purpose: the lines of one log as COPY rows: queries (time, client, port, view, name, type) or rewrites (the
              same and the action and the zone).
     Inputs:  lines — list of str; pattern — QUERY or RPZ; rpz — True for rpz.log's lines.
-    Returns: (rows: list of str, skipped: int — lines that are not a query or a rewrite).
+    Returns: (rows: list of str, skipped: int — lines that are not a query, a response or a rewrite).
     Fails:   never.
     Feeds:   ingest_dns_log."""
     rows, skipped = [], 0
@@ -87,7 +144,7 @@ def _rows(lines, pattern, rpz):
         m = pattern.match(line)
         at = _time(m.group(1)) if m else None
         if not at:
-            skipped += 1
+            skipped += 0 if RESPONSE.match(line) else 1
             continue
         if rpz:
             client, port, _, view, action, name, qtype, via = m.group(2, 3, 4, 5, 6, 7, 8, 9)
@@ -101,12 +158,15 @@ def _rows(lines, pattern, rpz):
 
 
 def ingest_dns_log(v):
-    """Purpose: read the resolver's new query and RPZ log lines into the query log (manual 1.12.2.13, decision
-             2.1.12.5): queries in, each rewrite marked on its query, the touched hours' and days' statistics
+    """Purpose: read the resolver's new query and RPZ log lines into the query log (manual 1.12.2.13, 1.12.3.7,
+             decision 2.1.12.5): queries in, each rewrite of the resolver's marked on its query, each NXDOMAIN that
+             AdGuard Home gave for a list marked blocked by that list, the touched hours' and days' statistics
              recomputed, then rows past their time purged (2.1.12.4: 7 days; statistics 90 days). One run at a time.
-    Inputs:  v — rendered vars (install_resolver, install_keycloak, deploy_base_dir).
+    Inputs:  v — rendered vars (install_resolver, install_keycloak, deploy_base_dir, ip_adguard).
     Returns: {"off": reason} when the resolver or Postgres is not on; else {"queries": rows added, "rewrites": rewrite
-             lines read, "skipped": lines that were neither, "created": True when the database was made now}.
+             lines read, "adguard": answers marked blocked by a list, "adguard_error": why AdGuard could not be asked
+             (those answers stay unmarked) or None, "skipped": lines that were none of these, "created": True when
+             the database was made now}.
     Fails:   ValidationError from dnslog_psql (Postgres not running or refusing; the place in the files is kept, so
              the next run reads the same lines again); OSError reading the logs or writing the place.
     Feeds:   dns_filter/run_dns_filter_command (`fabricctl dns-filter ingest`, the fabric-dns-log timer),
@@ -129,29 +189,34 @@ def ingest_dns_log(v):
         r_lines, r_place = _new_lines(paths["log"], "rpz.log", place.get("rpz.log"))
         queries, q_skip = _rows(q_lines, QUERY, False)
         rewrites, r_skip = _rows(r_lines, RPZ, True)
+        rewritten = set()
+        for line in r_lines:
+            m = RPZ.match(line)
+            if m:
+                rewritten.add((m.group(2), m.group(3), m.group(7).rstrip(".").lower()))
+        blocks, ag_error = _adguard_blocks(v, _responses(q_lines), rewritten)
         sql = ["BEGIN;"]
-        if queries or rewrites:
+        if queries or rewrites or blocks:
             sql += ["CREATE TEMP TABLE q_in (at timestamptz, client inet, port int, view text, name text, qtype text)"
                     " ON COMMIT DROP;",
                     "COPY q_in FROM STDIN;", *queries, "\\.",
-                    # a group's view passes what it does not answer to the main view from 127.0.0.1 (1.12.2.15):
-                    # that copy is not a client's query
-                    "INSERT INTO queries (at, client, port, view, name, qtype) SELECT * FROM q_in"
-                    " WHERE client <> '127.0.0.1';",
+                    "INSERT INTO queries (at, client, port, view, name, qtype) SELECT * FROM q_in;",
                     "CREATE TEMP TABLE r_in (at timestamptz, client inet, port int, view text, name text, qtype text,"
                     " action text, zone text) ON COMMIT DROP;",
                     "COPY r_in FROM STDIN;", *rewrites, "\\.",
                     """UPDATE queries q SET action = r.action, zone = r.zone, blocked = (r.action = 'NXDOMAIN')
                        FROM r_in r WHERE q.client = r.client AND q.port = r.port AND q.name = r.name
                        AND q.at BETWEEN r.at - interval '2 seconds' AND r.at + interval '2 seconds';""",
-                    # the main view's rewrite for a group's query: on that group query (the same name, no rewrite of
-                    # its own, within 2 seconds), so the log names the real client and the list that blocked it
-                    """UPDATE queries q SET action = r.action, zone = r.zone, blocked = (r.action = 'NXDOMAIN')
-                       FROM r_in r WHERE r.client = '127.0.0.1' AND q.view <> 'everyone' AND q.zone IS NULL
-                       AND q.name = r.name
-                       AND q.at BETWEEN r.at - interval '2 seconds' AND r.at + interval '2 seconds';""",
+                    # AdGuard's blocks, each with the list that blocked it (1.12.3.7)
+                    "CREATE TEMP TABLE a_in (at timestamptz, client inet, port int, name text, zone text)"
+                    " ON COMMIT DROP;",
+                    "COPY a_in FROM STDIN;", *blocks, "\\.",
+                    """UPDATE queries q SET action = 'NXDOMAIN', zone = a.zone, blocked = true
+                       FROM a_in a WHERE q.client = a.client AND q.port = a.port AND q.name = a.name
+                       AND q.zone IS NULL
+                       AND q.at BETWEEN a.at - interval '5 seconds' AND a.at + interval '1 second';""",
                     """CREATE TEMP TABLE touched ON COMMIT DROP AS SELECT DISTINCT date_trunc('hour', at) AS hour
-                       FROM (SELECT at FROM q_in UNION ALL SELECT at FROM r_in) t;""",
+                       FROM (SELECT at FROM q_in UNION ALL SELECT at FROM r_in UNION ALL SELECT at FROM a_in) t;""",
                     "DELETE FROM stats_hourly WHERE hour IN (SELECT hour FROM touched);",
                     """INSERT INTO stats_hourly SELECT date_trunc('hour', at), '', count(*),
                        count(*) FILTER (WHERE blocked) FROM queries WHERE at >= (SELECT min(hour) FROM touched)
@@ -170,4 +235,5 @@ def ingest_dns_log(v):
         new = {k: p for k, p in (("query.log", q_place), ("rpz.log", r_place)) if p}
         if new != place:
             write_file_if_changed(place_file, json.dumps(new) + "\n", 0o600)
-    return {"queries": len(queries), "rewrites": len(rewrites), "skipped": q_skip + r_skip, "created": created}
+    return {"queries": len(queries), "rewrites": len(rewrites), "adguard": len(blocks), "adguard_error": ag_error,
+            "skipped": q_skip + r_skip, "created": created}

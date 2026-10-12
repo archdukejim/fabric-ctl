@@ -14,28 +14,16 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 <label>YouTube<select name="youtube"{{ ' disabled' if not can('dns:filter') }}><option value="strict"{{ ' selected' if youtube == 'strict' }}>strict</option><option value="moderate"{{ ' selected' if youtube == 'moderate' }}>moderate</option></select></label>
 {% if can('dns:filter') %}<div><button>Save safe search</button></div>{% endif %}</form>
 {% endmacro %}
-{% macro lists_table(lists, group, back) %}
-{% if lists %}<table><thead><tr><th>List</th><th>Fetched</th><th>Good copy</th><th class="num">Rules</th><th class="num">Skipped</th><th class="num">Memory</th><th></th></tr></thead><tbody>
-{% for l in lists %}<tr><td>{{ l.name }}<br><span class="muted small">{{ l.url }}</span>{% if l.error %}<br><span class="bad-text small">{{ l.error }}</span>{% endif %}{% if l.left_out %}<br><span class="pill warn">left out: it would pass the resolver's memory limit</span>{% endif %}</td>
-<td>{{ ago(l.last_fetch) }}</td><td>{% if l.last_success %}{{ ago(l.last_success) }}{% else %}<span class="pill warn">none yet</span>{% endif %}</td>
-<td class="num">{{ l.rules or '—' }}</td><td class="num">{{ l.skipped if l.skipped is not none else '—' }}</td><td class="num">{{ ('~' ~ l.memory_mb ~ ' MiB') if l.memory_mb is not none else '—' }}</td>
-<td class="num">{% if can('dns:filter') %}<form method="post" action="/dns-filter/lists/delete">{{ csrf() }}{{ hidden_group(group, back) }}<input type="hidden" name="url" value="{{ l.url }}"><button class="ghost">Remove</button></form>{% endif %}</td></tr>{% endfor %}
-</tbody></table>{% endif %}
-{% endmacro %}
-{% macro catalogue(group, back, skip) %}
-{% set offered = d.catalogue.lists | rejectattr('url', 'in', skip) | list %}
-{% if offered %}<p class="muted small">AdGuard's registry, read {{ ago(d.catalogue.fetched) }}. Each list adds to the resolver's memory: see its size once fetched.</p>
-{% for cat in ['General', 'Security', 'Regional', 'Other'] %}{% set items = offered | selectattr('group', 'equalto', cat) | list %}{% if items %}
-<details{{ ' open' if cat == 'General' and not group }}><summary>{{ cat }} <span class="muted">({{ items | length }})</span></summary>
-<table><tbody>{% for c in items %}<tr><td><strong>{{ c.name }}</strong><br><span class="muted small">{{ c.description }}</span>{% if c.homepage %} <a class="small" href="{{ c.homepage }}" rel="noopener noreferrer" target="_blank">home page</a>{% endif %}</td>
-<td class="num"><form method="post" action="/dns-filter/lists">{{ csrf() }}{{ hidden_group(group, back) }}<input type="hidden" name="name" value="{{ c.name }}"><input type="hidden" name="url" value="{{ c.url }}"><button>Add</button></form></td></tr>{% endfor %}</tbody></table>
-</details>{% endif %}{% endfor %}
-{% else %}<p class="blank">The catalogue has not been read yet: <em>Fetch every list now</em> (Lists) reads it.</p>{% endif %}
-<details><summary>Add a list by its URL</summary>
-<form method="post" action="/dns-filter/lists" class="grid">{{ csrf() }}{{ hidden_group(group, back) }}
-<label>Name<input name="name" maxlength="200" placeholder="My list"></label>
-<label>URL (hosts, domains, RPZ or AdGuard DNS syntax)<input name="url" required placeholder="https://example.org/list.txt"></label>
-<div><button>Add list</button></div></form></details>
+{# A list's checkbox (manual 1.12.3.5): a button that ticks or unticks it, no script needed #}
+{% macro tick(l) %}{% if can('dns:filter') %}<form method="post" action="/dns-filter/lists/set">{{ csrf() }}<input type="hidden" name="url" value="{{ l.url }}"><input type="hidden" name="name" value="{{ l.name }}"><input type="hidden" name="enabled" value="{{ 'off' if l.enabled else 'on' }}"><button class="tick{{ ' on' if l.enabled }}" title="{{ 'Untick' if l.enabled else 'Tick' }} {{ l.name }}" aria-pressed="{{ 'true' if l.enabled else 'false' }}">{{ '✓' if l.enabled else '' }}</button></form>{% else %}<span class="tick{{ ' on' if l.enabled }}">{{ '✓' if l.enabled else '' }}</span>{% endif %}{% endmacro %}
+{% macro lists_table(rows) %}
+<table class="lists"><thead><tr><th></th><th>List</th><th class="num">Rules</th><th class="num">Memory (est.)</th><th>Copy</th><th></th></tr></thead><tbody>
+{% for l in rows %}<tr><td>{{ tick(l) }}</td>
+<td><strong>{{ l.name }}</strong>{% if l.description %}<br><span class="muted small">{{ l.description }}</span>{% endif %}{% if l.homepage %} <a class="small" href="{{ l.homepage }}" rel="noopener noreferrer" target="_blank">home page</a>{% endif %}{% if l.category == 'Added by URL' %}<br><span class="muted small">{{ l.url }}</span>{% endif %}{% if l.error %}<br><span class="bad-text small">{{ l.error }}</span>{% endif %}</td>
+<td class="num">{{ l.rules or '—' }}</td><td class="num">{{ ('~' ~ l.memory_mb ~ ' MiB') if l.memory_mb is not none else '—' }}</td>
+<td>{% if l.last_success %}{{ ago(l.last_success) }}{% elif l.last_fetch %}<span class="pill warn">failed</span>{% else %}<span class="muted">not yet</span>{% endif %}</td>
+<td class="num">{% if can('dns:filter') and l.on_site and l.category == 'Added by URL' %}<form method="post" action="/dns-filter/lists/delete">{{ csrf() }}<input type="hidden" name="url" value="{{ l.url }}"><button class="ghost">Remove</button></form>{% endif %}</td></tr>{% endfor %}
+</tbody></table>
 {% endmacro %}
 {% macro rules_tiles(allow, block, group, back) %}
 <div class="tiles">
@@ -53,7 +41,7 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 {% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
 {% if d is not none and not d.on %}
 <section class="card"><h2>The DNS filter is off</h2>
-<p class="muted">fabric's resolver answers your network's DNS on port 53 and blocks ads, trackers and malware with AdGuard's lists; fabric's own names are never filtered. Turn it on in <code>vars.yaml</code> and re-run setup:</p>
+<p class="muted">fabric's resolver answers your network's DNS on port 53 and blocks ads, trackers and malware with AdGuard's lists, matched by AdGuard Home behind it; fabric's own names are never filtered. Turn it on in <code>vars.yaml</code> and re-run setup:</p>
 <pre>dns_filter: bind</pre></section>
 {% else %}
 <nav class="sections">
@@ -68,9 +56,8 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 <div class="tile"><span class="muted">Queries, last 7 days</span><strong class="big">{{ s.week.queries }}</strong></div>
 <div class="tile"><span class="muted">Blocked, last 7 days</span><strong class="big">{{ s.week.blocked }}</strong>
 <span class="muted small">{{ ((100 * s.week.blocked / s.week.queries) | round(1)) if s.week.queries else 0 }}% of queries</span></div>
-<div class="tile"><span class="muted">Lists in use</span><strong class="big">{{ d.lists | length }}</strong>
-<span class="muted small">{% if d.memory %}~{{ d.memory.estimate_mb }} MiB of {{ d.memory_limit }}{% else %}memory limit {{ d.memory_limit }}{% endif %}{% if d.groups %} · {{ d.groups | length }} client {{ 'group' if d.groups | length == 1 else 'groups' }}{% endif %}</span>
-{% if d.memory and d.memory.left_out %}<span class="pill warn">{{ d.memory.left_out | length }} left out: memory</span>{% endif %}</div>
+<div class="tile"><span class="muted">Lists ticked</span><strong class="big">{{ d.lists | selectattr('enabled') | list | length }}</strong>
+<span class="muted small">~{{ d.memory.estimate_mb }} MiB{% if d.memory.limit_mb %}, ~{{ d.memory.peak_mb }} MiB at most of {{ d.memory.limit_mb | round | int }} MiB{% endif %}{% if d.groups %} · {{ d.groups | length }} client {{ 'group' if d.groups | length == 1 else 'groups' }}{% endif %}</span></div>
 </div>
 <section class="card"><h2>Last 24 hours <span class="muted">UTC</span></h2>
 {% if s.hours %}<table class="hours"><thead><tr><th>Hour</th><th></th><th class="num">Queries</th><th class="num">Blocked</th></tr></thead><tbody>
@@ -88,28 +75,32 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 {% endif %}
 
 {% if view == 'lists' and d %}
-<section class="card"><h2>Lists in use <span class="muted">everyone, and every group</span></h2>
-<p class="muted">Fetched every night and when you add one; a list that cannot be fetched keeps its last good copy. Rules a response policy zone cannot express (regular expressions, wildcards inside a name, AdGuard-only modifiers) are skipped and counted. A client group's own lists are on its page (Groups).</p>
-{{ lists_table(d.lists, '', 'lists') }}{% if not d.lists %}<p class="blank">No lists: nothing is blocked but your own rules.</p>{% endif %}
-{% if can('dns:filter') %}<form method="post" action="/dns-filter/fetch">{{ csrf() }}<button class="ghost">Fetch every list now</button></form>{% endif %}
+<section class="card"><h2>Lists <span class="muted">every client of the site</span></h2>
+<p class="muted">Tick a list to use it, untick it to stop: it takes a second or two, nothing restarts. Every list here is kept fetched every night, so ticking one never waits for a download; a list that cannot be fetched keeps its last good copy. AdGuard's catalogue was read {{ ago(d.catalogue_fetched) }}.</p>
+<p class="muted small"><strong>Memory</strong> is what AdGuard Home needs to hold a list (its rules × 0.14 KB); while it reads the lists it briefly needs about 2.5 times the total. Ticked now: ~{{ d.memory.estimate_mb }} MiB{% if d.memory.limit_mb %}, ~{{ d.memory.peak_mb }} MiB at most, of a limit of {{ d.memory.limit_mb | round | int }} MiB{% endif %}. A list that would pass the limit is refused when ticked.{% if d.memory.unknown %} Not counted yet (no copy): {{ d.memory.unknown | join(', ') }}.{% endif %}</p>
+{% for cat in d.categories %}{% set rows = d.lists | selectattr('category', 'equalto', cat) | list %}
+<details{{ ' open' if cat == 'General' or rows | selectattr('enabled') | list }}><summary>{{ cat }} <span class="muted">({{ rows | selectattr('enabled') | list | length }} of {{ rows | length }} ticked)</span></summary>
+{{ lists_table(rows) }}
+</details>{% else %}<p class="blank">The catalogue has not been read yet: <em>Fetch every list now</em> reads it.</p>{% endfor %}
+{% if can('dns:filter') %}<form method="post" action="/dns-filter/fetch">{{ csrf() }}<button class="ghost">Fetch every list now</button></form>
+<details><summary>Add a list by its URL</summary>
+<form method="post" action="/dns-filter/lists" class="grid">{{ csrf() }}
+<label>Name<input name="name" maxlength="200" placeholder="My list"></label>
+<label>URL (hosts, domains or AdGuard syntax)<input name="url" required placeholder="https://example.org/list.txt"></label>
+<div><button>Add list</button></div></form></details>{% endif %}
 </section>
-{% if can('dns:filter') %}
-<section class="card"><h2>Add a list from AdGuard's catalogue</h2>
-{{ catalogue('', 'lists', []) }}
-</section>
-{% endif %}
 {% endif %}
 
 {% if view == 'rules' and d %}
 <section class="card"><h2>Your rules <span class="muted">everyone, and every group</span></h2>
-<p class="muted">Each name counts with every name below it. An allowed name passes every list; a blocked name is blocked whatever the lists say. fabric's own names are never filtered. A client group's own rules are on its page (Groups).</p>
+<p class="muted">Each name counts with every name below it. An allowed name passes every list; a blocked name is blocked whatever the lists say. fabric's own names are never filtered. A client group's own rules are on its page (Groups). A change takes a second or two.</p>
 {{ rules_tiles(d.allow, d.block, '', 'rules') }}
 </section>
 {% endif %}
 
 {% if view == 'groups' and d %}
 <section class="card"><h2>Client groups</h2>
-<p class="muted">A group is a set of addresses and subnets with its own safe search, lists and rules, <strong>added</strong> to everyone's: a group cannot switch off a list on everyone, only allow names past it. A client in no group is answered as everyone. When a client is in a group's subnet and another group names its address, the address wins.</p>
+<p class="muted">A group is a set of addresses and subnets with its own safe search and rules, <strong>added</strong> to everyone's; the lists are the site's, for every client: a group can allow names past them, not switch one off. A client in no group is answered as everyone. When a client is in a group's subnet and another group names its address, the address wins.</p>
 {% if not d.groups %}<p class="blank">No groups: every client is answered as everyone.</p>{% endif %}
 </section>
 {% for g in d.groups %}
@@ -118,11 +109,8 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 <label>Addresses and subnets<input name="clients" required value="{{ g.clients | join(' ') }}"></label><div><button class="ghost">Save addresses</button></div></form>{% endif %}
 <h3>Safe search</h3>
 {{ safe_search(g.name, g.safe_search, g.youtube, 'groups') }}
-<h3>Its own lists</h3>
-{{ lists_table(g.lists, g.name, 'groups') }}{% if not g.lists %}<p class="blank">None: everyone's lists only.</p>{% endif %}
-{% if can('dns:filter') %}<details><summary>Add a list for {{ g.name }}</summary>{{ catalogue(g.name, 'groups', g.lists | map(attribute='url') | list) }}</details>{% endif %}
 <h3>Its own rules</h3>
-<p class="muted small">An allowed name goes straight to the internet for this group, past everyone's lists and rules.</p>
+<p class="muted small">An allowed name passes the site's lists and your rules for this group; a blocked name is blocked for it whatever they say.</p>
 {{ rules_tiles(g.allow, g.block, g.name, 'groups') }}
 {% if can('dns:filter') %}<form method="post" action="/dns-filter/groups/delete">{{ csrf() }}<input type="hidden" name="name" value="{{ g.name }}"><button class="ghost">Remove the group {{ g.name }}</button></form>{% endif %}
 </section>
@@ -160,12 +148,12 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 <p class="muted small">On for everyone, it reaches every client group too; a group may still choose YouTube moderate.</p>
 </section>
 <section class="card"><h2>Internet lookups</h2>
-<p class="muted">Sent over DNS-over-TLS, each upstream's certificate checked against its name; with none, the resolver asks the internet's root servers itself (unencrypted).</p>
+<p class="muted">AdGuard Home sends them over DNS-over-TLS, each upstream's certificate checked against its name. At least one.</p>
 {% if d.upstreams %}<table><thead><tr><th>Address</th><th>Certificate name</th></tr></thead><tbody>
 {% for u in d.upstreams %}<tr><td>{{ u.address }}</td><td><code>{{ u.name }}</code></td></tr>{% endfor %}</tbody></table>
-{% else %}<p class="blank">None: the root servers.</p>{% endif %}
+{% endif %}
 {% if can('dns:filter') %}<form method="post" action="/dns-filter/upstreams" class="stack">{{ csrf() }}
-<label>Upstreams, one per line: address and certificate name — or <code>none</code><textarea name="upstreams" rows="3" required placeholder="1.1.1.1 cloudflare-dns.com&#10;1.0.0.1 cloudflare-dns.com">{% for u in d.upstreams %}{{ u.address }} {{ u.name }}
+<label>Upstreams, one per line: address and certificate name<textarea name="upstreams" rows="3" required placeholder="1.1.1.1 cloudflare-dns.com&#10;1.0.0.1 cloudflare-dns.com">{% for u in d.upstreams %}{{ u.address }} {{ u.name }}
 {% endfor %}</textarea></label>
 <div><button>Save upstreams</button></div></form>{% endif %}
 </section>

@@ -1,0 +1,243 @@
+{# AdGuard Home behind the BIND resolver (manual 1.12.3.4): rendered by dns_filter/deploy_adguard, so AdGuard never
+   has a first launch (it refuses any user but root then). AdGuard rewrites this file when its API changes it; fabric
+   keeps its own render beside it and restarts AdGuard only when a part outside the API changed.
+   with_api — False renders only the parts the API cannot change (the restart check); True the whole file. #}
+http:
+  pprof:
+    port: 6060
+    enabled: false
+  address: 0.0.0.0:3000
+  session_ttl: 1h
+users:
+  - name: fabric-agent
+    password: {{ adguard_password_hash | to_json }}
+auth_attempts: 5
+block_auth_min: 15
+http_proxy: ""
+language: ""
+theme: auto
+dns:
+  bind_hosts:
+    - 0.0.0.0
+  port: 53
+  anonymize_client_ip: false
+  ratelimit: 0
+  ratelimit_subnet_len_ipv4: 24
+  ratelimit_subnet_len_ipv6: 56
+  ratelimit_whitelist: []
+  refuse_any: false
+{% if with_api %}
+  # Cloudflare over DNS-over-TLS by default (dns_filter_upstreams), to each address, its certificate verified for
+  # that address
+  upstream_dns:
+{% for u in upstreams %}
+    - {{ u | to_json }}
+{% endfor %}
+  bootstrap_dns:
+{% for b in bootstrap %}
+    - {{ b | to_json }}
+{% endfor %}
+{% endif %}
+  upstream_dns_file: ""
+  fallback_dns: []
+  upstream_mode: load_balance
+  fastest_timeout: 1s
+  # only the resolver asks it (1.12.3.10)
+  allowed_clients:
+    - {{ ip_resolver | to_json }}
+  disallowed_clients: []
+  blocked_hosts:
+    - version.bind
+    - id.server
+    - hostname.bind
+  trusted_proxies:
+    - 127.0.0.0/8
+  cache_enabled: true
+  cache_size: 4194304
+  cache_ttl_min: 0
+  cache_ttl_max: 0
+  cache_optimistic: false
+  bogus_nxdomain: []
+  aaaa_disabled: false
+  # the resolver does not validate (a blocked answer carries no signature): AdGuard does (1.12.3.2)
+  enable_dnssec: true
+  edns_client_subnet:
+    custom_ip: ""
+    enabled: false
+    use_custom: false
+  max_goroutines: 300
+  handle_ddr: false
+  ipset: []
+  ipset_file: ""
+  bootstrap_prefer_ipv6: false
+  upstream_timeout: 10s
+  private_networks: []
+  use_private_ptr_resolvers: false
+  local_ptr_upstreams: []
+  use_dns64: false
+  dns64_prefixes: []
+  serve_http3: false
+  use_http3_upstreams: false
+  serve_plain_dns: true
+  hostsfile_enabled: false
+  pending_requests:
+    enabled: true
+tls:
+{% if tls %}
+  # the groups' views reach it over DNS-over-TLS naming <group>.filter.<domain>: the group's ClientID (1.12.3.6)
+  enabled: true
+  server_name: {{ ('filter.' ~ domain) | to_json }}
+  force_https: false
+  port_https: 0
+  port_dns_over_tls: 853
+  port_dns_over_quic: 0
+  port_dnscrypt: 0
+  dnscrypt_config_file: ""
+  certificate_chain: ""
+  private_key: ""
+  certificate_path: /tls/fullchain.pem
+  private_key_path: /tls/privkey.pem
+  strict_sni_check: false
+{% else %}
+  # no certificate for *.filter.<domain> yet (a first install, before the certificates step): plain DNS only
+  enabled: false
+{% endif %}
+# fabric's query log and statistics are the only ones (1.12.3.7): AdGuard's are off
+querylog:
+  dir_path: ""
+  ignored: []
+  interval: 1h
+  size_memory: 0
+  enabled: false
+  ignored_enabled: false
+  file_enabled: false
+statistics:
+  dir_path: ""
+  ignored: []
+  interval: 1h
+  enabled: false
+  ignored_enabled: false
+{% if with_api %}
+# the site's lists: fabric's local copies, read as files (1.12.3.5); a list unticked stays, disabled
+filters:
+{% for f in filters %}
+  - enabled: {{ f.enabled | to_json }}
+    url: {{ f.url | to_json }}
+    name: {{ f.name | to_json }}
+    id: {{ f.id }}
+{% else %}
+  []
+{% endfor %}
+whitelist_filters: []
+# the owner's allows, and each group's for its own clients: past every list (their blocks stay in the resolver)
+user_rules:
+{% for r in user_rules %}
+  - {{ r | to_json }}
+{% else %}
+  []
+{% endfor %}
+{% endif %}
+dhcp:
+  enabled: false
+  interface_name: ""
+  local_domain_name: lan
+  dhcpv4:
+    gateway_ip: ""
+    subnet_mask: ""
+    range_start: ""
+    range_end: ""
+    lease_duration: 86400
+    icmp_timeout_msec: 1000
+    options: []
+  dhcpv6:
+    range_start: ""
+    lease_duration: 86400
+    ra_slaac_only: false
+    ra_allow_slaac: false
+filtering:
+  blocking_ipv4: ""
+  blocking_ipv6: ""
+  blocked_services:
+    schedule:
+      time_zone: UTC
+    ids: []
+  protection_disabled_until: null
+  # safe search stays in the resolver, per group (1.12.3.6)
+  safe_search:
+    enabled: false
+    bing: false
+    duckduckgo: false
+    ecosia: false
+    google: false
+    pixabay: false
+    yandex: false
+    youtube: false
+  # a blocked name answers NXDOMAIN, not 0.0.0.0 (2.3.1.18)
+  blocking_mode: nxdomain
+  parental_block_host: family-block.dns.adguard.com
+  safebrowsing_block_host: standard-block.dns.adguard.com
+  rewrites: []
+  # the lists folder is the only place a list may be read from (1.12.3.5)
+  safe_fs_patterns:
+    - /lists/*
+  max_http_size: 256MB
+  safebrowsing_cache_size: 1048576
+  safesearch_cache_size: 1048576
+  parental_cache_size: 1048576
+  cache_time: 30
+  # the lists job refreshes it after new copies; this rereads the files daily as well
+  filters_update_interval: 24
+  blocked_response_ttl: 10
+  filtering_enabled: true
+  rewrites_enabled: false
+  parental_enabled: false
+  safebrowsing_enabled: false
+  protection_enabled: true
+clients:
+  # it never sees a client's address, only the resolver's: nothing to look up
+  runtime_sources:
+    whois: false
+    arp: false
+    rdns: false
+    dhcp: false
+    hosts: false
+{% if with_api %}
+  # each group: a client known by its ClientID, the name its view's DoT gives (1.12.3.6)
+  persistent:
+{% for g in groups %}
+    - name: {{ g | to_json }}
+      ids:
+        - {{ g | to_json }}
+      tags: []
+      upstreams: []
+      safe_search:
+        enabled: false
+      blocked_services:
+        schedule:
+          time_zone: UTC
+        ids: []
+      use_global_settings: true
+      filtering_enabled: true
+      parental_enabled: false
+      safebrowsing_enabled: false
+      use_global_blocked_services: true
+      ignore_querylog: false
+      ignore_statistics: false
+{% else %}
+    []
+{% endfor %}
+{% endif %}
+log:
+  enabled: true
+  file: ""
+  max_backups: 0
+  max_size: 100
+  max_age: 3
+  compress: false
+  local_time: false
+  verbose: false
+os:
+  group: ""
+  user: ""
+  rlimit_nofile: 0
+schema_version: 34

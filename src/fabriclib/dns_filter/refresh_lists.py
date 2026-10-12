@@ -1,42 +1,40 @@
-import os
+import json
 
-from fabriclib.dns_filter.common.all_lists import all_lists
-from fabriclib.dns_filter.common.list_zone import list_zone
-from fabriclib.dns_filter.common.resolver_paths import resolver_paths
+from fabriclib.common.errors import ValidationError
+from fabriclib.dns_filter.common.adguard_api import adguard_api
+from fabriclib.dns_filter.common.adguard_paths import adguard_paths
 from fabriclib.dns_filter.fetch_catalogue import fetch_catalogue
+from fabriclib.dns_filter.sync_adguard import sync_adguard
 from fabriclib.dns_filter.update_lists import update_lists
-from fabriclib.system.apply_changes import apply_changes
 
 
-def refresh_lists(v, actor="root", source="cli"):
-    """Purpose: the lists job (manual 1.12.2.10, 1.12.2.14): fetch every list and reload the changed ones, refresh
-             AdGuard's catalogue, and apply when a list now has a good copy the running configuration does not name
-             yet (one just added from the web console, which fabric-agent cannot fetch itself).
-    Inputs:  v — rendered vars; actor, source — for the apply's audit line.
-    Returns: update_lists' result, plus "catalogue": the number of lists in it (None when it could not be fetched:
-             the last copy stays), "applied": None (nothing to add), True or False (the apply's outcome), "output":
-             the apply's output when it failed.
-    Fails:   OSError from update_lists writing its files; subprocess.TimeoutExpired from apply_changes.
+def refresh_lists(v, password):
+    """Purpose: the lists job (manual 1.12.3.5): AdGuard's catalogue read again, a copy of every list (the site's and
+             the catalogue's) fetched, then AdGuard Home made to match (a list ticked before its copy arrived is added
+             now) and asked to reread the copies that changed. Nothing restarts.
+    Inputs:  v — rendered vars; password — adguard_api_password.
+    Returns: update_lists' result, plus "catalogue": the number of lists in it (None when it could not be fetched: the
+             last copy is used), "synced": sync_adguard's changes (None when AdGuard was not answering), "error": why
+             AdGuard could not be reached or refused, or None.
+    Fails:   OSError from update_lists writing its files.
     Feeds:   dns_filter/run_dns_filter_command (`fabricctl dns-filter lists`, the fabric-dns-lists timer and the
-             console's Fetch now / a list added, through start_list_fetch)."""
-    result = update_lists(v)
+             console's Fetch now / a list ticked with no copy yet, through start_list_fetch)."""
+    count = None
     try:
-        result["catalogue"] = len(fetch_catalogue(v)["lists"])
+        catalogue = fetch_catalogue(v)
+        count = len(catalogue["lists"])
     except (OSError, ValueError):
-        result["catalogue"] = None
-    paths = resolver_paths(v)
+        try:
+            with open(adguard_paths(v)["catalogue"]) as f:
+                catalogue = json.load(f)
+        except (OSError, ValueError):
+            catalogue = {"lists": []}
+    result = update_lists(v, catalogue=catalogue.get("lists") or [])
+    result.update({"catalogue": count, "synced": None, "error": None})
     try:
-        with open(os.path.join(paths["config"], "named.conf")) as f:
-            running = f.read()
-    except FileNotFoundError:
-        running = ""
-    new = [i for i in all_lists(v)
-           if os.path.exists(os.path.join(paths["lists"], list_zone(i["url"])))
-           and f'"{list_zone(i["url"])}"' not in running]
-    result["applied"] = None
-    if new:
-        ok, output = apply_changes(actor, source)
-        result["applied"] = ok
-        if not ok:
-            result["output"] = output[-600:]
+        result["synced"] = sync_adguard(v, password)
+        if result["changed"]:
+            adguard_api(v, password, "POST", "/control/filtering/refresh", {"whitelist": False}, timeout=600)
+    except ValidationError as e:
+        result["error"] = str(e)
     return result

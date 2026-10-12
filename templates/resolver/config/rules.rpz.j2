@@ -1,5 +1,5 @@
-; {{ what }}'s rules (manual 1.12.2.15): its allows pass its own policy (and go straight to the upstream), its blocks
-; apply whatever everyone's lists say; each name with every name below it
+; {{ what }}'s rules (manual 1.12.2.15, 1.12.3.6): its allows pass the owner's blocks here and the lists in AdGuard Home
+; (a rule there for the group); its blocks apply whatever the lists say; each name with every name below it
 $TTL 300
 @ SOA localhost. hostmaster.{{ zone }}. 1 3600 600 86400 300
 @ NS localhost.

@@ -6,6 +6,8 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 |---|---|
 | `add_radius_client.py` | Add a RADIUS client (switch or access point); saved and applied at once. Agent route: POST /v1/radius/clients (radius:admin), timeout 300 s. |
 | `add_record.py` | Add one DNS record to a zone in vars.yaml (published by the next apply). Agent route: POST /v1/zones/<key>/records (dns:write). |
+| `add_zone.py` | Add a forward zone; BIND and the DNS filter serve it within seconds. Agent route: POST /v1/zones (dns:write), timeout 300 s. |
+| `remove_zone.py` | Remove a forward zone with its records (its name typed again). Agent route: POST /v1/zones/<key>/delete (dns:write), timeout 300 s. |
 | `add_reservation.py` | Reserve an IP for a MAC; the agent saves it and applies at once (Kea reloads with it). Agent route: POST /v1/dhcp/reservations (dhcp:write), timeout 300 s. |
 | `set_dhcp_on.py` | Turn DHCP on or off; saved, applied, the host firewall brought in line |
 | `add_subnet.py` | Add a DHCP subnet (name, VLAN record, router, pools, notes); saved and applied |
