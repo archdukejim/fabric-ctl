@@ -210,6 +210,9 @@ internet = sh(["dig", "+time=3", "+tries=1", "@1.1.1.1", "example.com"], ok=Fals
 # fails upstream: anything but NXDOMAIN)
 LISTED = "example.org" if internet else "shared-blocked.example"
 KID_ALLOWED = "example.net" if internet else "kid-allowed.example"
+# example.org's zone is signed: AdGuard's unsigned NXDOMAIN cannot validate there, so the resolver answers SERVFAIL,
+# still blocked (2.1.12.7)
+BLOCKED = "SERVFAIL" if internet else "NXDOMAIN"
 env = jinja_env(os.path.join(REPO, "templates"))
 USERS = {"resolver": {"uid": 913, "gid": 913}, "adguard": {"uid": 914, "gid": 914}}
 SECRETS = {"resolver_rndc_secret": "c2VjcmV0LXRlc3Qta2V5LWZvci1mYWJyaWMtcmVzb2x2ZXI=",
@@ -316,8 +319,8 @@ try:
           "10.9.8.7" in dig("kid", "+short", "www.lan.test") and "10.9.8.8" in dig("kid", "+short", "ads.lan.test"))
     # the site's list applies to every group: AdGuard matches it for each
     check("kid, teen and adult: the site's list blocks for everyone (AdGuard over DoT for the groups)",
-          until(lambda: status("kid", LISTED) == "NXDOMAIN", 20) and status("teen", LISTED) == "NXDOMAIN"
-          and status("adult", LISTED) == "NXDOMAIN", dig("kid", LISTED))
+          until(lambda: status("kid", LISTED) == BLOCKED, 20) and status("teen", LISTED) == BLOCKED
+          and status("adult", LISTED) == BLOCKED, dig("kid", LISTED))
     # the group's own policy
     check("kid: the group's block applies (in its view's rules zone)",
           status("kid", "kid-blocked.example") == "NXDOMAIN" and "via kid-blocked.example.group-kids.rpz" in rpz_log())
@@ -327,7 +330,7 @@ try:
     check("adult: the kids' block does not apply (no rewrite logged)", "kid-blocked.example" not in rpz_log()[len(before):])
     kid_status, adult_status = status("kid", KID_ALLOWED), status("adult", KID_ALLOWED)
     check("kid: the group's allow passes the site's list in AdGuard (its ClientID over DoT); the adult is still blocked",
-          kid_status != "NXDOMAIN" and (kid_status == "NOERROR" or not internet) and adult_status == "NXDOMAIN",
+          kid_status != BLOCKED and (kid_status == "NOERROR" or not internet) and adult_status == BLOCKED,
           (kid_status, adult_status))
     host = adguard_api(V, PW, "GET", f"/control/filtering/check_host?name={KID_ALLOWED}&client=kids")
     check("AdGuard: the kids' allow is theirs (check_host as client kids: allowed)",

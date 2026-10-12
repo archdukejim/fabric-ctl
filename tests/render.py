@@ -217,7 +217,7 @@ assert f'forwarders {{ {v2["ip_adguard"]} port 53; }};' in everyone and 'tls "up
 for view in (kids, everyone):        # fabric's zones and the owner's rules in every view (no chained views now)
     assert 'zone "lan.j-j.family" { type forward;' in view and 'zone "owner.rpz"' in view, view
 assert kids.index('zone "fabric.rpz";') < kids.index('zone "group-kids.rpz";') < kids.index('zone "owner.rpz";'), kids
-assert 'dnssec-validation no;' in res_conf and 'responselog yes;' in res_conf and 'category responses' in res_conf
+assert 'dnssec-validation auto;' in res_conf and 'validate-except { "' in res_conf and 'responselog yes;' in res_conf and 'category responses' in res_conf
 assert 'bind-lists' not in res_conf, 'no list in the resolver (1.12.3)'
 plain = env.get_template('resolver/config/named.conf.j2').render(**{**v2, **res_ctx, 'adguard_tls': False})
 assert 'tls "group-kids"' not in plain and f'forwarders {{ {v2["ip_adguard"]} port 53; }};' in \

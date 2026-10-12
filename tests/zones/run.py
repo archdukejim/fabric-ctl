@@ -201,8 +201,9 @@ try:
     check("add: a record in the new zone resolves through the resolver (forwarded to BIND, never filtered)",
           until(lambda: short(RES_IP, "ns.home.lan") == "192.168.77.53", 10), dig(RES_IP, "ns.home.lan"))
     conf = open(f"{W}/resolver/config/named.conf").read()
-    check("add: the resolver forwards the zone to BIND in every view (it validates nothing: AdGuard does, 1.12.3.2)",
-          conf.count('zone "home.lan" { type forward;') == conf.count('view "') and "dnssec-validation no;" in conf)
+    check("add: the resolver forwards the zone to BIND in every view, never validating it (unsigned, 2.1.12.7)",
+          conf.count('zone "home.lan" { type forward;') == conf.count('view "') and '"home.lan";' in
+          conf.split("validate-except {", 1)[-1].split("}", 1)[0])
     audit = open(f"{W}/fabric/archive/audit.log").read()
     check("add: audited", "DNS_ZONE_ADD" in audit and "zone=home.lan" in audit, audit[-300:])
 

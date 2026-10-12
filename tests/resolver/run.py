@@ -283,9 +283,11 @@ try:
     check("deploy: files root-owned, readable by the resolver's group only; log and cache its own",
           oct(os.stat(f"{W}/resolver/config/rndc.key").st_mode & 0o777) == "0o640"
           and os.stat(f"{W}/resolver/config/rndc.key").st_gid == 913 and os.stat(f"{W}/resolver/log").st_uid == 913)
-    check("config: fabric's zone forwarded to the authoritative BIND, the rest to AdGuard Home, passthru zone first",
+    check("config: fabric's zone forwarded to the authoritative BIND (never validated: unsigned), the rest to AdGuard "
+          "Home, validated (2.1.12.7), passthru zone first",
           f'zone "lan.test" {{ type forward; forward only; forwarders {{ {BIND_IP} port 53; }}; }};' in conf
-          and f"forwarders {{ {AG_IP} port 53; }};" in conf and "dnssec-validation no;" in conf
+          and f"forwarders {{ {AG_IP} port 53; }};" in conf and "dnssec-validation auto;" in conf
+          and 'validate-except { "lan.test";' in conf
           and conf.index('zone "fabric.rpz";') < conf.index('zone "owner.rpz";'))
     check("config: DoT (853) and DoH (8053, plain: nginx terminates TLS) for clients with the DNS name's certificate",
           'listen-on port 853 tls "clients"' in conf and 'listen-on port 8053 tls none http "doh"' in conf
@@ -300,7 +302,8 @@ try:
     check("AdGuard: the site's list as a file, the owner's allows past it, fabric-agent's account (a bcrypt hash, "
           "never the password), only the resolver may ask it",
           [f["url"] for f in agconf["filters"]] == [f"/lists/{lid1}.txt"]
-          and agconf["user_rules"] == ["@@||blocked-then-allowed.example^$important", "@@||example.net^$important"]
+          and agconf["user_rules"] == ["@@||*^$dnstype=DS,important", "@@||blocked-then-allowed.example^$important",
+                                      "@@||example.net^$important"]
           and agconf["users"][0]["name"] == "fabric-agent" and agconf["users"][0]["password"].startswith("$2")
           and PW not in open(f"{W}/dnsfilter/conf/AdGuardHome.yaml").read()
           and agconf["dns"]["allowed_clients"] == [RES_IP], agconf.get("filters"))
@@ -393,10 +396,14 @@ try:
               or "CERTIFICATE_VERIFY_FAILED" in str(e), e)
     if internet:
         check("an internet name resolves through AdGuard Home", status("example.com") == "NOERROR", dig("example.com"))
-        # validated somewhere on the way (1.12.3.2): broken signatures are refused (open: 2.3.1.19.3)
+        # the resolver validates (2.1.12.7): broken signatures are refused, a signed answer carries AD
         check("DNSSEC validated: a name with broken signatures (dnssec-failed.org) is refused",
               status("dnssec-failed.org") == "SERVFAIL", dig("dnssec-failed.org"))
-        check("a listed internet name is blocked though it exists (example.org)", status("example.org") == "NXDOMAIN")
+        check("DNSSEC validated: a signed name's answer carries AD (example.com)",
+              " ad;" in dig("+dnssec", "example.com").split("flags:", 1)[-1].split("QUERY", 1)[0], dig("example.com"))
+        # AdGuard's unsigned NXDOMAIN in a signed zone cannot validate: SERVFAIL, still blocked (2.1.12.7)
+        check("a listed internet name in a signed zone is blocked though it exists (example.org: SERVFAIL)",
+              status("example.org") == "SERVFAIL", dig("example.org"))
         check("the owner's allow beats a list (example.net is listed and allowed: it resolves)",
               status("example.net") == "NOERROR", dig("example.net"))
     else:

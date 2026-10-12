@@ -31,8 +31,11 @@ options {
     allow-recursion { clients; };
     allow-query-cache { clients; };
     allow-transfer { none; };
-    // a blocked answer from AdGuard Home carries no signature: AdGuard validates instead (1.12.3.2)
-    dnssec-validation no;
+    // DNSSEC validated here (2.1.12.7): a resolver that does not validate sets CD on what it forwards, so nothing
+    // upstream would. AdGuard passes every DS query, so a blocked name in an unsigned zone stays NXDOMAIN; fabric's
+    // own zones are never signed
+    dnssec-validation auto;
+    validate-except { {% for z in zones %}"{{ z }}"; {% endfor %}};
     querylog yes;
     // each answer logged after its query, for the query log (1.12.3.7)
     responselog yes;
