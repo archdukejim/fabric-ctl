@@ -490,6 +490,7 @@ file	fabriclib-pki|src/fabriclib/pki/common/ca_files.py	4
 file	fabriclib-pki|src/fabriclib/pki/common/ca_parents_pem.py	5	
 file	fabriclib-pki|src/fabriclib/pki/common/ca_path_len.py	6	
 file	fabriclib-pki|src/fabriclib/pki/common/cert_dates.py	38	
+file	fabriclib-pki|src/fabriclib/pki/common/crl_points.py	48	
 file	fabriclib-pki|src/fabriclib/pki/common/describe_cert.py	7	
 file	fabriclib-pki|src/fabriclib/pki/common/openssl.py	8	
 file	fabriclib-pki|src/fabriclib/pki/common/record_issued.py	9	
@@ -1665,6 +1666,7 @@ function	fabriclib-pki|src/fabriclib/pki/common/ca_files.py|ca_files	1
 function	fabriclib-pki|src/fabriclib/pki/common/ca_parents_pem.py|ca_parents_pem	1	
 function	fabriclib-pki|src/fabriclib/pki/common/ca_path_len.py|ca_path_len	1	
 function	fabriclib-pki|src/fabriclib/pki/common/cert_dates.py|cert_dates	1	
+function	fabriclib-pki|src/fabriclib/pki/common/crl_points.py|crl_points	1	
 function	fabriclib-pki|src/fabriclib/pki/common/describe_cert.py|describe_cert	1	
 function	fabriclib-pki|src/fabriclib/pki/common/openssl.py|openssl	1	
 function	fabriclib-pki|src/fabriclib/pki/common/record_issued.py|record_issued	1	
@@ -1951,6 +1953,7 @@ function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_with_sss	2
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_write	9	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|run	10	
 function	fabriclib-setup|src/fabriclib/setup/mint_extra_certs.py|mint_extra_certs	1	
+function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_crl_moved	5	
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_install_dirsrv_tls	2	0.5.0 / 2026-10-04
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_old_certs_host	4	
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_targets	1	

@@ -264,7 +264,7 @@ check("audit log records signing and generation by user",
 ca = ca_summary(V)
 check("CA summary: root, intermediate, certs URL",
       ca["root"]["subject"].endswith("Fabric Test Root CA") and "Intermediate" in ca["intermediate"]["subject"]
-      and ca["certs_url"] == "http://info.lan.test/certs/", ca)
+      and ca["certs_url"] == "http://ca.lan.test/certs/", ca)
 
 # ---------------------------------------------------------------- TSIG keys for a zone
 key, secret, ini = create_zone_tsig_key("alice", "npm-certbot", "lan.test", "acme-hosts", ["npm", "nas"])

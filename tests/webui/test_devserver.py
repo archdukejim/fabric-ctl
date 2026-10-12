@@ -113,16 +113,25 @@ try:
     check("record form refused: an SRV record without its port, saying why",
           st == 303 and "port must be a number" in urllib.parse.unquote(loc or ""), loc)
     page = req("GET", "/bind9?zone=dynamic_zone_var")[3]
-    info_row = [row for row in page.split("<tr>") if ">info" in row][0]
-    check("fabric's own names marked 'provided by fabric', with the setting instead of a Delete button",
-          "provided by fabric" in info_row and "landing_page_cname" in info_row and "Delete</button>" not in info_row,
-          info_row)
-    st, loc, _, _ = req("POST", "/bind9/zone/dynamic_zone_var/delete", {"csrf": "dev", "type": "CNAME", "index": "4",
-                                                                       "name": "info"})
-    check("deleting fabric's own name (info) is refused, naming its setting",
+    rows = page.split("<tr>")
+    ca_row = [row.split("</tr>")[0] for row in rows if ">ca " in row][0]
+    info_rows = [row.split("</tr>")[0] for row in rows if ">info<" in row]
+    check("fabric's own names marked 'provided by fabric', with the setting instead of a Delete button; the landing "
+          "page's info is the admin's since 0.7.1 (2.1.4.6), with its Delete button",
+          "provided by fabric" in ca_row and "cname_ca" in ca_row and "Delete</button>" not in ca_row
+          and info_rows and all("provided by fabric" not in r and "Delete</button>" in r for r in info_rows),
+          (info_rows, ca_row))
+    st, loc, _, _ = req("POST", "/bind9/zone/dynamic_zone_var/delete", {"csrf": "dev", "type": "CNAME", "index": "3",
+                                                                       "name": "ca"})
+    check("deleting fabric's own name (ca) is refused, naming its setting",
           st == 303 and "provided by fabric" in urllib.parse.unquote(loc or "")
-          and "landing_page_cname" in urllib.parse.unquote(loc or "")
-          and ">info" in req("GET", "/bind9?zone=dynamic_zone_var")[3], loc)
+          and "cname_ca" in urllib.parse.unquote(loc or "")
+          and ">ca " in req("GET", "/bind9?zone=dynamic_zone_var")[3], loc)
+    st, loc, _, _ = req("POST", "/bind9/zone/dynamic_zone_var/delete", {"csrf": "dev", "type": "CNAME", "index": "10",
+                                                                       "name": "info"})
+    after = [row for row in req("GET", "/bind9?zone=dynamic_zone_var")[3].split("<tr>") if ">info<" in row]
+    check("deleting an info record works (the admin's since 0.7.1)",
+          st == 303 and "Record deleted" in urllib.parse.unquote(loc or "") and len(after) == len(info_rows) - 1, loc)
     # 2.1.2.22 item 4: the landing page's links in a section of their own
     page = req("GET", "/bind9?view=landing")[3]
     check("Landing page section: what the page is, its links (label, address), the add form with the zone's records",
@@ -134,7 +143,7 @@ try:
     check("link a record from the landing page -> listed with its port", st == 303 and "msg=" in (loc or "")
           and "https://printer.home.arpa:631/" in req("GET", "/bind9?view=landing")[3], loc)
     for form, why in (({"record": "A|6|printer", "link_port": "70000"}, "link port must be"),
-                      ({"record": ""}, "pick a record"), ({"record": "MX|13|@"}, "only A, AAAA and CNAME"),
+                      ({"record": ""}, "pick a record"), ({"record": "MX|12|@"}, "only A, AAAA and CNAME"),
                       ({"record": "A|5|nas"}, "record changed")):
         st, loc, _, _ = req("POST", "/bind9/landing/add", {"csrf": "dev", **form})
         check(f"link refused ({why}), saying why", st == 303 and why in urllib.parse.unquote(loc or ""), loc)

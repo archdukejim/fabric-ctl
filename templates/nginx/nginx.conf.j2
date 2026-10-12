@@ -2,9 +2,9 @@
 {# nginx.conf — rendered by fabricctl from nginx/nginx.conf.j2         #}
 {# ----------------------------------------------------------------- #}
 
-{# How the CA certificate files are served (info.<domain>/certs/ on 80 and 443, and
-   http://<host_ip>/certs/; manual 1.5.1.5): the MIME types operating systems recognise;
-   .pem/.json readable in the browser, the rest downloads. #}
+{# How the CA certificate files are served (/certs/ on every name over HTTP, http://<host_ip>/certs/ and
+   http://ca.<domain>/certs/ among them, and on the landing names over HTTPS; manual 1.5.1.5, 1.5.1.6): the MIME types
+   operating systems recognise; .pem/.json readable in the browser, the rest downloads. #}
 {% macro cert_file_types() %}
             location ~ \.pem$ {
                 default_type text/plain;
@@ -40,6 +40,22 @@
                 add_header X-Content-Type-Options nosniff always;
             }
 {% endmacro %}
+{# The landing page at /info/ (2.1.4.6, manual 1.4.2.5): on every name over HTTP and on the landing names #}
+{% macro landing_path() %}
+        location = /info {
+            return 301 /info/;
+        }
+        location /info/ {
+            alias /srv/www/landing/;
+            index index.html;
+            default_type text/html;
+        }
+{% endmacro %}
+{# The names the landing page answers at / with its certificate: hostname_landing, <domain> and the host's own name.
+   The host's own name is fabric's (refused in the DNS tab), so links that must work whatever the admin does to the
+   info alias use it. #}
+{% set _host_fqdn = (hostname ~ '.' ~ domain) | lower %}
+{% set _landing_names = [hostname_landing, domain, _host_fqdn] | unique | list %}
 
 # Global settings
 worker_processes  auto;
@@ -72,7 +88,19 @@ http {
 
     resolver 127.0.0.11 valid=30s;
 
-    # HTTP — health check, CA certificates (/certs/), redirect everything else to HTTPS
+    # fabric's HTTPS services: plain HTTP to them goes to HTTPS; any other name pointing at this host (an alias the
+    # admin keeps, such as info.<domain> renamed) gets the landing page at /info/ (2.1.4.6)
+    map $host $fabric_https_name {
+        default 0;
+{% for _n in ([hostname_bind9, hostname_stepca, hostname_openbao]
+              + ([hostname_keycloak] if install_keycloak | default(false) | bool else [])
+              + ([hostname_federation] if federation_endpoint | default(false) | bool else [])
+              + ([hostname_mgr] if install_webui | default(false) | bool else [])) | map('lower') | unique %}
+        {{ _n }} 1;
+{% endfor %}
+    }
+
+    # HTTP — health check, CA certificates (/certs/), the landing page (/info/); fabric's services to HTTPS
     server {
         listen 80 default_server;
         server_name _;
@@ -93,9 +121,17 @@ http {
         location = /style.css {
             root /srv/www/shared;
         }
+{{ landing_path() }}
+        # the page's manual link: HTTPS at the host's own name (this name or address may have no certificate)
+        location /manual/ {
+            return 301 https://{{ _host_fqdn }}$request_uri;
+        }
 
         location / {
-            return 301 https://$host$request_uri;
+            if ($fabric_https_name) {
+                return 301 https://$host$request_uri;
+            }
+            return 302 /info/;
         }
     }
 
@@ -132,13 +168,13 @@ http {
 
         set $stepca_backend "{{ nginx_backend_stepca }}";
 
-        # Step-CA's API / ACME only. People opening ca.<domain> in a browser
-        # (or an old /certificates link) get the certificate page at info.<domain>/certs/ (1.5.1.5).
+        # Step-CA's API / ACME only. People opening ca.<domain> in a browser (or an old /certificates link) get the
+        # certificate page at the host's own name, a name fabric keeps (1.5.1.5, 2.1.4.6).
         location = / {
-            return 302 https://{{ hostname_landing }}/certs/;
+            return 302 https://{{ _host_fqdn }}/certs/;
         }
         location /certificates {
-            return 301 https://{{ hostname_landing }}/certs/;
+            return 301 https://{{ _host_fqdn }}/certs/;
         }
 
         location / {
@@ -151,12 +187,17 @@ http {
         }
     }
 
-    # The info page (decision 2.1.4.3) at info.<domain>: also over plain HTTP with no redirect, so a new device can
-    # fetch the CA (/certs/) and check its fingerprint before it trusts anything; the manual stays on HTTPS
+    # The landing page (decisions 2.1.4.3, 2.1.4.6) on its names (hostname_landing, <domain>, the host's own name):
+    # also over plain HTTP with no redirect, so a new device can fetch the CA (/certs/) and check its fingerprint
+    # before it trusts anything; the manual stays on HTTPS
     server {
         listen 80;
-        server_name {{ hostname_landing }};
+        server_name {{ _landing_names | join(' ') }};
 
+        location /health {
+            access_log off;
+            return 200 'OK';
+        }
         location = /style.css {
             alias /srv/www/shared/style.css;
         }
@@ -170,6 +211,7 @@ http {
         location /manual/ {
             return 301 https://$host$request_uri;
         }
+{{ landing_path() }}
         location / {
             alias /srv/www/landing/;
             index index.html;
@@ -177,32 +219,11 @@ http {
         }
     }
 
-{% set _old_names = ([domain, (hostname ~ '.' ~ domain) | lower] | unique | reject('equalto', hostname_landing) | list) %}
-{% if _old_names %}
-    # <domain> and the host's own name send people to the info page (2.1.4.3): HTTP to its HTTP page, HTTPS to HTTPS
-    server {
-        listen 80;
-        listen 443 ssl;
-        server_name {{ _old_names | join(' ') }};
-
-        ssl_certificate     /etc/nginx/certs/{{ hostname_landing }}/fullchain.pem;
-        ssl_certificate_key /etc/nginx/certs/{{ hostname_landing }}/privkey.pem;
-        ssl_protocols       TLSv1.2 TLSv1.3;
-
-        location /health {
-            access_log off;
-            return 200 'OK';
-        }
-        location / {
-            return 301 $scheme://{{ hostname_landing }}$request_uri;
-        }
-    }
-{% endif %}
-
-    # The info page over HTTPS (Landing, Certificates, Manual)
+    # The landing page over HTTPS (Landing, Certificates, Manual) on the same names: <domain> and the host's own name
+    # serve it themselves since 0.7.1 instead of redirecting to info.<domain>, which the admin may change (2.1.4.6)
     server {
         listen 443 ssl;
-        server_name {{ hostname_landing }};
+        server_name {{ _landing_names | join(' ') }};
 
         ssl_certificate     /etc/nginx/certs/{{ hostname_landing }}/fullchain.pem;
         ssl_certificate_key /etc/nginx/certs/{{ hostname_landing }}/privkey.pem;
@@ -223,12 +244,12 @@ http {
             index index.html;
             default_type text/html;
         }
-
+{{ landing_path() }}
         # CA certificates for every kind of system (published by fabricctl setup:
-        # fabriclib/pki/publish_ca_certs.py), here and on plain HTTP above: the only places by name since
-        # certs.<domain> was dropped (1.5.1.5). Integrity: compare the fingerprints shown on the page.
+        # fabriclib/pki/publish_ca_certs.py), here and on plain HTTP above (certs.<domain> was dropped, 1.5.1.5).
+        # Integrity: compare the fingerprints shown on the page.
         location /certificates {
-            return 301 https://{{ hostname_landing }}/certs/;
+            return 301 /certs/;
         }
         location = /certs {
             return 301 /certs/;

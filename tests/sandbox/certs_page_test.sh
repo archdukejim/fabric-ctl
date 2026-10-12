@@ -1,11 +1,13 @@
 #!/bin/bash
 # info.<domain>/certs/ (manual 1.5.1.5): every published CA format is real, is this CA's certificate,
 # and is served with the right type, by name and by address, with the CRLs; ca.<domain> stays Step-CA's API and sends
-# browsers here; certs.<domain> is gone (no server, no certificate, no redirect).
+# browsers to the host's own name's page; certs.<domain> is gone (no server, no certificate, no redirect). Since 0.7.1
+# (2.1.4.6, 1.4.2.5, 1.5.1.6): the landing page at http://<host_ip>/info/, the CRL point at ca.<domain>.
 # Run on the fabric host:  certs_page_test.sh <info-host> <ca-host> <nginx-ip> <host-ip>
 set -uo pipefail
 INFO=$1 CA=$2 IP=$3 HOST_IP=$4
 DOMAIN=${INFO#*.}
+HOST_FQDN=$(python3 -c "import yaml; v = yaml.safe_load(open('/opt/fabric/config/vars.yaml')); print((v['hostname'] + '.' + v['domain']).lower())")
 OLD=certs.$DOMAIN
 ROOT=/opt/stepca/data/certs/root_ca.crt
 W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
@@ -41,7 +43,7 @@ check ".pem shown as text in the browser (no download)" \
 check "page offers Windows, Linux, PEM, DER and chain downloads" \
     "grep -q 'root-ca.cer' $W/index.html && grep -q 'root-ca.crt' $W/index.html && grep -q 'root-ca.pem' $W/index.html && grep -q 'root-ca.der' $W/index.html && grep -q 'ca-chain.p7b' $W/index.html"
 check "ca.<domain>/ redirects browsers to the certificate page" \
-    "curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --cacert $ROOT --resolve $CA:443:$IP https://$CA/ | grep -qx \"302 https://$INFO/certs/\""
+    "curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --cacert $ROOT --resolve $CA:443:$IP https://$CA/ | grep -qx \"302 https://$HOST_FQDN/certs/\""
 check "an old /certificates link on info.<domain> goes to the certificate page" \
     "curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --cacert $ROOT --resolve $INFO:443:$IP https://$INFO/certificates | grep -qx \"301 https://$INFO/certs/\""
 check "ca.<domain> ACME directory still served by Step-CA" \
@@ -60,8 +62,14 @@ check "the intermediate's CRL at http://info.<domain>/certs/crl/intermediate.crl
     "openssl crl -inform DER -in $W/crl.der -noout -CAfile /opt/stepca/data/certs/intermediate_ca.crt 2>&1 | grep -q 'verify OK'"
 check "…and the same at http://<host_ip>/certs/crl/ (DER and PEM)" \
     "curl -s http://$HOST_IP/certs/crl/intermediate.crl | cmp -s - $W/crl.der && curl -s http://$HOST_IP/certs/crl/intermediate.pem | grep -q 'BEGIN X509 CRL'"
-check "Step-CA's leaf template (hand-signed and offline leaves) names http://info.<domain>/certs/crl/intermediate.crl" \
-    "grep -q '\"crlDistributionPoints\": \\[\"http://$INFO/certs/crl/intermediate.crl\"\\]' /opt/stepca/data/templates/certs/leaf.tpl && ! grep -q 'certs\\.$DOMAIN' /opt/stepca/data/templates/certs/leaf.tpl"
+check "Step-CA's leaf template (hand-signed and offline leaves) names http://ca.<domain>/certs/crl/intermediate.crl" \
+    "grep -q '\"crlDistributionPoints\": \\[\"http://$CA/certs/crl/intermediate.crl\"\\]' /opt/stepca/data/templates/certs/leaf.tpl && ! grep -q 'certs\\.$DOMAIN' /opt/stepca/data/templates/certs/leaf.tpl && ! grep -q '$INFO' /opt/stepca/data/templates/certs/leaf.tpl"
+check "the CRL point certificates name answers: http://ca.<domain>/certs/crl/intermediate.crl, the same CRL" \
+    "curl -s --resolve $CA:80:$HOST_IP http://$CA/certs/crl/intermediate.crl | cmp -s - $W/crl.der"
+check "the landing page by address: http://<host_ip>/info/ (and http://<host_ip>/ goes there)" \
+    "curl -s http://$HOST_IP/info/ | grep -q 'ca-certs.json' && curl -s -o /dev/null -w '%{http_code} %{redirect_url}' http://$HOST_IP/ | grep -qx '302 http://$HOST_IP/info/'"
+check "<domain> and the host's own name serve the page themselves (no redirect to info.<domain>)" \
+    "[ \"\$(curl -s -o /dev/null -w '%{http_code}' --cacert $ROOT --resolve $DOMAIN:443:$IP https://$DOMAIN/)\" = 200 ] && [ \"\$(curl -s -o /dev/null -w '%{http_code}' --cacert $ROOT --resolve $HOST_FQDN:443:$IP https://$HOST_FQDN/)\" = 200 ]"
 # certs.<domain> is gone, with no redirect (2.1.5.11)
 check "negative: certs.<domain> over HTTPS has no certificate of its own (TLS refuses the name)" \
     "! curl -s --max-time 10 --cacert $ROOT --resolve $OLD:443:$IP -o /dev/null https://$OLD/root-ca.pem"

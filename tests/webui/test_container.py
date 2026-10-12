@@ -21,6 +21,8 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import yaml
+
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path[0:0] = [os.path.join(REPO, "src"), REPO]
 from fabriclib.rbac.permissions import BUNDLES  # noqa: E402
@@ -178,6 +180,7 @@ open(f"{W}/fabric/config/vars.yaml", "w").write(
     "service_users: {openbao: {uid: 913, gid: 913}}\n"
     "domain: lan.test\ndns:\n  dynamic_zone_var:\n    zone_authority: true\n    A:\n    - {name: pi-core, ip: 192.168.7.53}\n"
     "    CNAME:\n    - {name: calibre, canonical: nas25-apps}\n    - {name: info, canonical: pi-core}\n"
+    "    - {name: ca, canonical: pi-core}\n"
     "ad_domain: ad.lan.test\ndc_name: dc-pi-core\nad_password_policy: {minimum_length: 12, complexity: true, "
     "history: 5, minimum_age_days: 0, maximum_age_days: 0, lockout_threshold: 10, lockout_minutes: 15, "
     "lockout_window_minutes: 15}\n"
@@ -485,18 +488,34 @@ st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
                  {"csrf": csrf, "type": "MX", "name": "@", "value": "mail"}, cookie=session)
 check("an MX record without its priority is refused, saying why",
       "priority must be a number" in urllib.parse.unquote_plus(hd.get("Location", "")), hd)
-# fabric's own names: marked, and a delete refused naming the setting (the apply would add them back)
+# fabric's own names: marked, and a delete refused naming the setting (the apply would add them back); the landing
+# page's info is the admin's since 0.7.1 (2.1.4.6): not marked, deleted, and added again pointing elsewhere
 st, hd, sc, body = req("GET", "/bind9?zone=dynamic_zone_var", ALICE, cookie=session)
 rows = body.split("<tr>")
-mark = {n: any(f"<td>{n} " in r and "provided by fabric" in r for r in rows) for n in ("pi-core", "info", "calibre")}
-check("fabric's own names (the host's A, info) marked 'provided by fabric', the admin's not",
-      mark == {"pi-core": True, "info": True, "calibre": False}, mark)
+mark = {n: any(f"<td>{n} " in r and "provided by fabric" in r for r in rows)
+        for n in ("pi-core", "ca", "info", "calibre")}
+check("fabric's own names (the host's A, ca) marked 'provided by fabric'; info and the admin's not",
+      mark == {"pi-core": True, "ca": True, "info": False, "calibre": False}, mark)
+# covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete +
 st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/delete", POSTH,
                  {"csrf": csrf, "type": "CNAME", "index": "1", "name": "info"}, cookie=session)
+check("deleting info.<domain> works: an ordinary record now, gone from vars.yaml (the page stays at /info/)",
+      st == 303 and "provided by fabric" not in urllib.parse.unquote_plus(hd.get("Location", ""))
+      and "name: info" not in open(f"{W}/fabric/config/vars.yaml").read(), hd)
+# covers: web:post.bind9.zone.*.add +
+st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
+                 {"csrf": csrf, "type": "CNAME", "name": "info", "value": "nas25-apps"}, cookie=session)
+_cnames = (yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"]["dynamic_zone_var"].get("CNAME") or [])
+check("info added again pointing at another machine (repointed), saved as the admin's record",
+      st == 303 and {"name": "info", "canonical": "nas25-apps"} in _cnames, (hd, _cnames))
+# covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete -
+st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/delete", POSTH,
+                 {"csrf": csrf, "type": "CNAME", "index": "1", "name": "ca"}, cookie=session)
 loc = urllib.parse.unquote_plus(hd.get("Location", ""))
-check("deleting info.<domain> is refused: fabric's, named with its setting, kept in vars.yaml",
-      "provided by fabric" in loc and "landing_page_cname" in loc
-      and "name: info" in open(f"{W}/fabric/config/vars.yaml").read(), loc)
+check("deleting ca.<domain> is still refused: fabric's (the CA, and the CRL point), named with its setting",
+      "provided by fabric" in loc and "cname_ca" in loc
+      and any(r.get("name") == "ca" for r in yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"][
+          "dynamic_zone_var"]["CNAME"]), loc)
 st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/delete", POSTH,
                  {"csrf": csrf, "type": "A", "index": "0", "name": "pi-core"}, cookie=session)
 check("deleting the host's own A record is refused, naming hostname",
@@ -557,7 +576,7 @@ check("audit log records web actions with user", "User: alice (web) | Action: DN
 st, hd, sc, body = req("GET", "/stepca", ALICE, cookie=session)
 # covers: web:get.stepca agent:get.pki.ca +
 check("Step-CA tab shows the CA certificates", st == 200 and "Test Root CA" in body and "Test Intermediate CA" in body
-      and "http://info.lan.test/certs/" in body, body[:400])
+      and "http://ca.lan.test/certs/" in body, body[:400])
 views_ok = all(req("GET", f"/stepca?view={v}", ALICE, cookie=session)[0] == 200
                for v in ("sign", "issue", "inspect", "convert", "issued"))
 check("every Step-CA menu page renders", views_ok)

@@ -4,7 +4,7 @@
 #   sudo bash join-linux.sh <root CA SHA-256 fingerprint> --user <a site admin>   [--site <site>] [--name <name>]
 #   sudo bash join-linux.sh <root CA SHA-256 fingerprint> --one-time              [--site <site>] [--name <name>]
 #   --unmanaged: a plain member; fabric does not configure SSH and DNS here (manual 1.6.11.6)
-# The fingerprint is shown on http://{{ hostname_landing }}/certs/. The password - a site admin's, or with --one-time the
+# The fingerprint is shown on http://{{ hostname_stepca }}/certs/. The password - a site admin's, or with --one-time the
 # machine's one-time join password from `fabricctl domain add-machine <name>` - is asked on the terminal (or read
 # from standard input), never taken from the command line.
 set -euo pipefail
@@ -14,7 +14,7 @@ REALM="{{ ad_realm }}"
 BASE_DN="{{ ad_base_dn }}"
 DC="{{ hostname_dc }}"
 SITE="{{ site_name }}"
-CERTS="http://{{ hostname_landing }}/certs"
+CERTS="http://{{ hostname_stepca }}/certs"
 NTP="{{ hostname_ntp }}"
 FABRIC_DNS="{{ host_ip }}"
 DOMAIN="{{ domain }}"

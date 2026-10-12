@@ -54,7 +54,9 @@ ip_openbao: {{ ip_openbao | default('10.255.0.90') }}
 # SERVICE HOSTNAMES
 # ============================================================
 cname_ca: {{ cname_ca | default('ca') }}
-# The info page's name (2.1.4.3): info.<domain> by default; <domain> and the host's own name redirect to it.
+# The landing page's alias (2.1.4.6, manual 1.4.2.5): the install's first render adds <landing_page_cname>.<domain>
+# (info by default) as an ordinary record, which the admin may rename, repoint or delete; the page itself is at
+# http://<host_ip>/info/ and on <domain>, the host's own name and hostname_landing.
 landing_page_cname: {{ landing_page_cname | default('info', true) }}
 cname_dns: {{ cname_dns | default('dns') }}
 cname_sso: {{ cname_sso | default('sso') }}
@@ -71,8 +73,9 @@ hostname_landing: {{ hostname_landing | default((landing_page_cname | default('i
 hostname_keycloak: {{ hostname_keycloak | default((cname_sso | default('sso')) ~ '.' ~ domain) }}
 {% set _hostname_mgr = (webui_hostname | default('', true) or ((cname_mgr | default('fabric')) ~ '.' ~ domain)) | lower %}
 hostname_mgr: {{ _hostname_mgr }}
-{# CA certificates for every system: info.<domain>/certs/ (hostname_landing) and http://<host_ip>/certs/; certs.<domain>
-   was dropped in 0.7.0 (1.5.1.5). ca.<domain> is Step-CA's API. #}
+{# CA certificates for every system: http://<hostname_stepca>/certs/ (fabric's texts and scripts, and the CRL point:
+   1.5.1.6), http://<host_ip>/certs/, and every other name nginx answers; certs.<domain> was dropped in 0.7.0 (1.5.1.5).
+   ca.<domain> over HTTPS is Step-CA's API. #}
 hostname_openbao: {{ ((cname_openbao | default('vault')) ~ '.' ~ domain) | lower }}
 hostname_radius: {{ ((cname_radius | default('radius')) ~ '.' ~ domain) | lower }}
 hostname_ntp: {{ ((cname_ntp | default('ntp')) ~ '.' ~ domain) | lower }}
@@ -450,21 +453,23 @@ bind_acl_policies:
 {% if (install_webui | default(true) | bool) and (install_keycloak | default(false) | bool) and _mgr_label and _mgr_label != hostname %}
 {% set _ = default_cnames.append({ 'canonical': hostname, 'name': _mgr_label }) %}
 {% endif %}
-{% if landing_page_cname | default('info', true) %}
-{% set _ = default_cnames.append({ 'canonical': hostname, 'name': landing_page_cname | default('info', true) }) %}
-{% endif %}
 {% if federation_endpoint | default(false) | bool %}
 {% set _ = default_cnames.append({ 'canonical': hostname, 'name': cname_federation | default('federation') }) %}
 {% endif %}
 {# ntp.<domain> for clients; an install that already has a record of that name keeps its own #}
 {% set _own = ((dns | default({})).get('dynamic_zone_var', {}).get('A', []) + (dns | default({})).get('dynamic_zone_var', {}).get('CNAME', [])) | map(attribute='name') | list %}
+{# the landing page's alias (2.1.4.6): added once, by the render that installs the site (the one that also fixes
+   hostname_landing); from then on it is the admin's record, never added back #}
+{% if hostname_landing is not defined and (landing_page_cname | default('info', true)) not in _own %}
+{% set _ = default_cnames.append({ 'canonical': hostname, 'name': landing_page_cname | default('info', true) }) %}
+{% endif %}
 {% if ntp_serve | default(true) | bool and (cname_ntp | default('ntp')) not in _own %}
 {% set _ = default_cnames.append({ 'canonical': hostname, 'name': cname_ntp | default('ntp') }) %}
 {% endif %}
 {% set default_a = [
   { 'ip': host_ip, 'name': hostname }
 ] %}
-{# <domain> itself answers on this host (it redirects to the info page, 2.1.4.3) unless the admin's own records name it #}
+{# <domain> itself answers on this host (it serves the landing page, 2.1.4.6) unless the admin's own records name it #}
 {% if '@' not in _own %}
 {% set _ = default_a.append({ 'ip': host_ip, 'name': '@' }) %}
 {% endif %}

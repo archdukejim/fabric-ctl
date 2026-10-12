@@ -25,6 +25,7 @@ from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.pki import pick_up_cert as pick  # noqa: E402
 from fabriclib.pki.cert_warnings import cert_warnings  # noqa: E402
 from fabriclib.pki.check_cert_lifetimes import check_cert_lifetimes  # noqa: E402
+from fabriclib.pki.common.crl_points import crl_points  # noqa: E402
 from fabriclib.pki.needs_renewal import needs_renewal  # noqa: E402
 from fabriclib.setup.advanced.ask_ca_lifetime import ask_ca_lifetime  # noqa: E402
 from fabriclib.setup import renew_service_certs as rsc  # noqa: E402
@@ -55,12 +56,12 @@ def ca(name, days):
     return crt, key
 
 
-def leaf(name, days, issuer, sans=("svc.example.test",)):
-    """A leaf signed by issuer (cert, key), valid for days, with DNS SANs."""
+def leaf(name, days, issuer, sans=("svc.example.test",), extra=""):
+    """A leaf signed by issuer (cert, key), valid for days, with DNS SANs (and extra extension lines)."""
     key, csr, crt = (os.path.join(W, f"{name}.{x}") for x in ("key", "csr", "crt"))
     ext = os.path.join(W, f"{name}.ext")
     with open(ext, "w") as f:
-        f.write("subjectAltName=" + ",".join(f"DNS:{s}" for s in sans) + "\n")
+        f.write("subjectAltName=" + ",".join(f"DNS:{s}" for s in sans) + "\n" + extra)
     sh("openssl", "req", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes", "-keyout", key, "-out", csr,
        "-subj", f"/CN={sans[0]}")
     sh("openssl", "x509", "-req", "-in", csr, "-CA", issuer[0], "-CAkey", issuer[1], "-CAcreateserial", "-out", crt,
@@ -206,6 +207,21 @@ os.rename(old_dir + ".gone", old_dir)
 tctx = TCtx(tb, hostname_landing="certs.lan.test")
 check("negative: a name still in use (the info page named certs) keeps its certificate",
       msc._old_certs_host(tctx, msc._targets(tctx)) is None)
+
+print("--- a service certificate naming another CRL point is issued again (1.5.1.6, 2.1.4.6)")
+_aia = "authorityInfoAccess=caIssuers;URI:http://aia.lan.test/intermediate.crt\n"
+_old_point = leaf("crl-info", 47, root,
+                  extra="crlDistributionPoints=URI:http://info.lan.test/certs/crl/intermediate.crl\n" + _aia)
+_new_point = leaf("crl-ca", 47, root,
+                  extra="crlDistributionPoints=URI:http://hostname_stepca.lan.test/certs/crl/intermediate.crl\n" + _aia)
+tctx = TCtx(tb)
+check("the CRL point read from the certificate (and nothing from the extensions after it)",
+      crl_points(_old_point) == ["http://info.lan.test/certs/crl/intermediate.crl"], crl_points(_old_point))
+check("a certificate from 0.7.0 naming info.<domain> as its CRL point is issued again",
+      msc._crl_moved(tctx, _old_point) is True)
+check("negative: one naming the current point (ca.<domain>) is left alone", msc._crl_moved(tctx, _new_point) is False)
+check("negative: one naming no point (before 0.7.0) is left to its renewal, and a missing one to needs_renewal",
+      msc._crl_moved(tctx, svc) is False and msc._crl_moved(tctx, os.path.join(W, "none.pem")) is False)
 
 print("--- the warnings (status, doctor, the web console)")
 base = os.path.join(W, "opt")
