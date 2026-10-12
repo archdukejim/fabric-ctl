@@ -1,4 +1,4 @@
-# Open Fabric
+# fabric-ctl
 
 A simple, lightweight, open-source setup for the core of a small network — authoritative DNS, an internal PKI, a
 directory, single sign-on, secrets and a secure management web UI — installed on the host it runs on (amd64 or
@@ -22,7 +22,7 @@ hardware and working offline.
 | OpenBao | Secrets, unlocked at boot by a key file, USB stick, security key or HSM |
 | Samba AD | The directory: people, groups, machines and devices in one domain; Windows and Linux machines join it |
 | Keycloak | Single sign-on with TOTP, on the directory |
-| Open Fabric | The web control: every action through a fixed, permission-checked host API |
+| fabric-ctl web control | The web control: every action through a fixed, permission-checked host API |
 | DNS filter | A second BIND that filters ads, trackers and malware with AdGuard's lists (on by default) |
 | Kea, FreeRADIUS, Fluent Bit *(optional)* | DHCP, 802.1X, log forwarding |
 

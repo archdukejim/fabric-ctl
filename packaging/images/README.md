@@ -12,7 +12,7 @@ installed as `jinja/<service>/build/`; CI builds and publishes them from the sam
 | [keycloak/](keycloak/) | Keycloak's optimized build |
 | [samba/](samba/) | Samba AD domain controller from Debian packages |
 | [stepca/](stepca/) | Step-CA |
-| [webui/](webui/) | The Open Fabric web UI |
+| [webui/](webui/) | The fabric-ctl web UI |
 | `stage-contexts.sh` | Stages the nine build contexts exactly as a host has them, for `../docker-bake.hcl` |
 | `bake_env.py` | Prints the build inputs (pinned bases, Kea's pinned package) from `config/images.lock.yaml` |
 | `smoke-test.sh` | Runs one built image's program under fabric's settings and checks its labels, before publishing |

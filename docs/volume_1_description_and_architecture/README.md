@@ -150,7 +150,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.17.26 fabriclib-undo](1.17.26-fabriclib-undo.md)
 - [1.17.27 fabriclib-vault](1.17.27-fabriclib-vault.md) — OpenBao: unlock methods (key slots), status, rotation, OIDC, break glass
 - [1.17.28 installers](1.17.28-installers.md) — The Debian package wrapper
-- [1.17.29 webui](1.17.29-webui.md) — Open Fabric web UI: server, pages, fabric-agent client, OIDC, CA-pinned TLS, dev preview
+- [1.17.29 webui](1.17.29-webui.md) — fabric-ctl web UI: server, pages, fabric-agent client, OIDC, CA-pinned TLS, dev preview
 - [1.17.30 fabriclib-samba](1.17.30-fabriclib-samba.md)
 - [1.17.31 fabriclib-directory](1.17.31-fabriclib-directory.md)
 <!-- end of generated 1.17 -->
