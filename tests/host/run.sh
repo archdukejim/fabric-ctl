@@ -95,10 +95,13 @@ check "RFC2136 to BIND's port ($BIND_PORT) with the embedded TSIG key (npm): all
 # AdGuard's DNS filter list
 check "DNS filter on by default: the resolver on 53 answers fabric's names, BIND behind it on 5053" \
     "R 'dig +short @$HOST_IP ns.$DOMAIN' | grep -qx $HOST_IP && R 'dig +short -p 5053 @$HOST_IP ns.$DOMAIN' | grep -qx $HOST_IP"
-check "DNS filter: internet names over DoT, DNSSEC validated; an ad domain blocked by the AdGuard DNS filter list" \
-    "R 'dig @$HOST_IP +dnssec example.com' | grep -q ' ad;' && \
-     R 'dig @$HOST_IP doubleclick.net' | grep -q 'status: NXDOMAIN' && \
-     R 'grep -q \"doubleclick.net/A/IN via doubleclick.net.[0-9a-f]*.list.rpz\" /opt/resolver/log/rpz.log'"
+# AdGuard Home blocks (2.1.12.6): its answer, not the old engine's RPZ log
+check "DNS filter: internet names resolve; an ad domain blocked by the AdGuard DNS filter list" \
+    "R 'dig @$HOST_IP example.com' | grep -q 'status: NOERROR' && \
+     R 'dig @$HOST_IP ads.doubleclick.net' | grep -q 'status: NXDOMAIN'"
+# DNSSEC is validated somewhere on the way (1.12.3.2): a name whose signatures are broken is refused (2.3.1.19.3)
+check "DNS filter: DNSSEC validated: a name with broken signatures (dnssec-failed.org) is refused" \
+    "R 'dig @$HOST_IP +time=10 dnssec-failed.org' | grep -q 'status: SERVFAIL'"
 
 echo "--- restricted sign-in (real Keycloak)"
 cat > "$OUT/bob.py" <<'PY'

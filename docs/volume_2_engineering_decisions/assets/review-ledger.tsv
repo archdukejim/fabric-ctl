@@ -32,7 +32,7 @@ docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	a404a324b8
 docs/volume_1_description_and_architecture/1.11.1-freeradius-design.md	53be8bfe3baba02927c9b7b66dd4d02282115356	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.1-adguard.md	b2280752ee06e87cb6e1497fdb91651e589b6a4d	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.2-bind-resolver.md	97e78a0db3ee1ca79d7edb569eb8e03b03a97164	2026-10-11	
-docs/volume_1_description_and_architecture/1.12.3-adguard-behind-bind.md	6726f95b8f9e67cb73c95f1abeffc8f1176ae7aa	2026-10-11	
+docs/volume_1_description_and_architecture/1.12.3-adguard-behind-bind.md	dff772c0b5c095503c2ce5cc0bad1819fe2ce93e	2026-10-12	
 docs/volume_1_description_and_architecture/1.13.1-chrony.md	ad072bf9a0b0d7d74c145a8df36599bb4f1aca6e	2026-10-08	
 docs/volume_1_description_and_architecture/1.14.1-image-channels.md	94a12a60defe93ae9bc13a991ae57f8961edd5ca	2026-10-08	
 docs/volume_1_description_and_architecture/1.14.2-image-updates.md	b7f95a062ae13998b7477152b86eb736930996d0	2026-10-09	
@@ -116,7 +116,7 @@ docs/volume_1_description_and_architecture/README.md	a4d2285286435dad9cae432f8cb
 docs/volume_2_engineering_decisions/2.1.1-product.md	4815310bec215c09d4a41ce6ae357deff3d32c5d	2026-10-11	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	d2f651c94dba5302552170cee89cc3bc6f73769a	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
-docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	bd216c098216ef466d51a5ed7a889860281eb3ae	2026-10-11	
+docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	56c7b3ec7deffb581955848b3221107e0069c86c	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece98c5e28bc1c8	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.14-images.md	10ae5d4e6d1e0f8b06210e69caeaa341538cf37e	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.15-logs.md	b3fb9286ea0a6760a0ab597950d771e6cc305633	2026-10-08	
@@ -131,7 +131,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	9df3b3a9713275c6b4abd28d84f22
 docs/volume_2_engineering_decisions/2.1.9-federation.md	6c344024d62480ec9bea70a3245c3baa6511af50	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	66119dd0e222795f479b099877edcdcb396728fe	2026-10-12	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	a0b7ebe80aae3cc4d1e88c8973587d724e4d5f2f	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	3424b43960e50007224d299adac7dd0533c7f0f6	2026-10-08	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -1349,13 +1349,13 @@ tests/hardening/run.sh	b4e3e81266e9980d1dc636d34260a2619c00220c	2026-10-05
 tests/host/README.md	d91d09e7d17622b432063f1b74256e96f6d940cd	2026-10-09	
 tests/host/installer.py	56ab2d8965c6a4dc3472998943b2892610968a2c	2026-10-11	
 tests/host/reset_user.py	36415b5b1fef5a58eb441687393d6062644b34e7	2026-10-05	
-tests/host/run.sh	d058103e0326e47d558f1bdac8db26601ac414ea	2026-10-11	
+tests/host/run.sh	654709c20aa88381ee9de46308c28cbc082e943d	2026-10-12	
 tests/host/upgrade.sh	85dd33fc7ea57cc3f7bcc0627f46e5dbbed5bde5	2026-10-09	
 tests/host/upgrade_state.py	264871e5ec5a8366413119615e738476b30de26e	2026-10-09	
 tests/image_ref.py	4ff35451eb0f155eee1efe6209e935e841d0dc32	2026-10-03	
 tests/images/README.md	faef5036b8a6c2ea180834b851533c0e6709bd7b	2026-10-09	
 tests/images/host_images.py	88e855ce667d351a3edc1fe87421a5ad687d19e0	2026-10-09	
-tests/images/previous.yaml	b9aa38fd2e32e73dc4c7cafeb21575c21988e443	2026-10-09	
+tests/images/previous.yaml	7dab3417916065b715c9e904ca412877f7767222	2026-10-12	
 tests/images/published.py	886d98e54dbb10efa8ba3ba03fd7223d14f26533	2026-10-09	
 tests/images/run.sh	187b9888b22269aca9a55af47bb347498a1e6a3b	2026-10-09	
 tests/images/update.sh	075211f0db5332572d6355fbdc507ae98a69c8b8	2026-10-10	
@@ -1387,7 +1387,7 @@ tests/resolver/README.md	e056b218eb8798e3eb120f5f4a07e34e4c40becd	2026-10-10
 tests/resolver/console.py	171ceacec907c31d8e9713f0775fee0cf057338d	2026-10-11	
 tests/resolver/groups.py	57cc1e341d8e7d5a6f70e5c0d45b8257a7f87b15	2026-10-11	
 tests/resolver/querylog.py	40d5859a07ec4be84b768c4186a7e41593b4b638	2026-10-11	
-tests/resolver/run.py	f18dc81df9261cf116c8a50054b23447eec54b2d	2026-10-11	
+tests/resolver/run.py	ba11f28d13c45ff4b863a7139b6486c33f963c98	2026-10-12	
 tests/run-all.sh	f4742d28f330f65bd983ca22300ff75bc72f7c17	2026-10-11	
 tests/samba/README.md	2988a9d373cd532a415df9f842180d12152d6271	2026-10-08	
 tests/samba/dc.py	f8b485a38557f8cde5edfe7cb62d1ae65525516c	2026-10-12	
@@ -1409,7 +1409,7 @@ tests/sandbox/make_person.py	f778029f1dfc122927b454149f21fda1c884cdf7	2026-10-05
 tests/sandbox/radius_device.py	12b3e1127a0cc5966846fe0554dc84da7a2e5449	2026-10-05	
 tests/sandbox/radius_mab.py	c9575e9fd8e3c3d52dbd77b879b9ef9a6bd148d5	2026-09-30	
 tests/sandbox/rfc2136_test.sh	4299bc1c1d62237439cad3a2ebac534f45ef0874	2026-10-09	
-tests/sandbox/run.sh	1de55b8cd4b3dd0e27f1ece4c81135111b15f416	2026-10-12	
+tests/sandbox/run.sh	611fc14617aad64d2f22f0c85b2e9416e1470d8d	2026-10-12	
 tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30	
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	87d5ce6fb52696c959fb5dcae46dc7dcb6462fd8	2026-10-08	

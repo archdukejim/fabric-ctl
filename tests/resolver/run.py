@@ -392,8 +392,10 @@ try:
         check("doctor's DoT client refuses a certificate for another name", "match" in str(e) or "mismatch" in str(e)
               or "CERTIFICATE_VERIFY_FAILED" in str(e), e)
     if internet:
-        check("an internet name resolves through AdGuard Home, DNSSEC validated there", status("example.com") ==
-              "NOERROR", dig("example.com"))
+        check("an internet name resolves through AdGuard Home", status("example.com") == "NOERROR", dig("example.com"))
+        # validated somewhere on the way (1.12.3.2): broken signatures are refused (open: 2.3.1.19.3)
+        check("DNSSEC validated: a name with broken signatures (dnssec-failed.org) is refused",
+              status("dnssec-failed.org") == "SERVFAIL", dig("dnssec-failed.org"))
         check("a listed internet name is blocked though it exists (example.org)", status("example.org") == "NXDOMAIN")
         check("the owner's allow beats a list (example.net is listed and allowed: it resolves)",
               status("example.net") == "NOERROR", dig("example.net"))
