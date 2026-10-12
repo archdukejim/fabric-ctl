@@ -1481,7 +1481,7 @@ tests/ntp/README.md	37e7cca81172f8a93564bcd84d2a894591b76848	2026-10-02
 tests/ntp/run.py	cab50473c8f2493b29c2f775bef6719bf46c70f8	2026-10-12	
 tests/openbao/README.md	068ff5048f630b55d42c0c65b3d4dc7d428c8fd3	2026-10-12	
 tests/openbao/db_rotation.py	98556342b4f9f70fbd7541c710c22f576b5998fd	2026-10-09	
-tests/openbao/run.py	642ffbf8419190afe1c3136ae16eeadc33e70a92	2026-10-12	
+tests/openbao/run.py	b81db03cdc10f2ad8f30acc184b1322403b104c2	2026-10-12	
 tests/pki/README.md	c00ae570e87e3a05c979e041a56057b2b388ec7e	2026-10-08	
 tests/pki/acme.py	453de69ae0b33c283f9f662ddbd539c747b1eec0	2026-10-12	
 tests/pki/renewal.py	202d8fca898ca32e22ac5d487f4fe7ed5630a8fe	2026-10-12	

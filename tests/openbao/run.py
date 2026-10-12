@@ -94,6 +94,11 @@ sh(["chown", "913:913", "openbao/certs/privkey.pem"])
 sh(["chmod", "0400", "openbao/certs/privkey.pem"])
 sh(f"docker network create --subnet {SUBNET} {NET}")
 
+# from here fabriclib is the installed tree's, so its paths (archive/, config/) are this install's, never the
+# checkout's: the copy imported from src/ above, only to render, is dropped
+sys.path.remove(os.path.join(REPO, "src"))
+for _mod in [m for m in sys.modules if m == "fabriclib" or m.startswith("fabriclib.")]:
+    del sys.modules[_mod]
 sys.path.insert(0, f"{W}/fabric/lib")
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.vault.common.approle_login import approle_login  # noqa: E402
