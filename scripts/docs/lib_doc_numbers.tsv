@@ -164,6 +164,7 @@ file	fabriclib-core|src/fabriclib/cli.py	1
 file	fabriclib-deploy|src/fabriclib/deploy/apply_deployment.py	1	
 file	fabriclib-deploy|src/fabriclib/deploy/archive_vars.py	2	
 file	fabriclib-deploy|src/fabriclib/deploy/check_fixed_identity.py	3	
+file	fabriclib-deploy|src/fabriclib/deploy/check_rendered.py	32	
 file	fabriclib-deploy|src/fabriclib/deploy/check_samba_settings.py	28	
 file	fabriclib-deploy|src/fabriclib/deploy/check_service_settings.py	31	
 file	fabriclib-deploy|src/fabriclib/deploy/check_settings.py	4	
@@ -1222,6 +1223,7 @@ function	fabriclib-deploy|src/fabriclib/deploy/apply_deployment.py|_prepare	1
 function	fabriclib-deploy|src/fabriclib/deploy/apply_deployment.py|apply_deployment	3	
 function	fabriclib-deploy|src/fabriclib/deploy/archive_vars.py|archive_vars	1	
 function	fabriclib-deploy|src/fabriclib/deploy/check_fixed_identity.py|check_fixed_identity	1	
+function	fabriclib-deploy|src/fabriclib/deploy/check_rendered.py|check_rendered	1	
 function	fabriclib-deploy|src/fabriclib/deploy/check_samba_settings.py|check_samba_settings	1	
 function	fabriclib-deploy|src/fabriclib/deploy/check_service_settings.py|_whole	1	
 function	fabriclib-deploy|src/fabriclib/deploy/check_service_settings.py|check_service_settings	2	

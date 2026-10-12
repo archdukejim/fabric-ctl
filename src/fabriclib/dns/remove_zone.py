@@ -1,7 +1,7 @@
 import copy
 import json
 
-from fabriclib.common.errors import ValidationError
+from fabriclib.common.errors import NotPublished, ValidationError
 from fabriclib.common.load_vars import load_vars
 from fabriclib.common.save_vars import save_vars
 from fabriclib.common.vars_lock import vars_lock
@@ -58,6 +58,9 @@ def remove_zone(actor, key, confirm, source="cli"):
         save_vars(data)
         try:
             publish_zone_list(removed=(name,))
+        except NotPublished as e:           # refused before BIND's files were touched: only the vars to put back
+            save_vars(before)
+            raise ValidationError(f"zone {name} not removed: {e}")
         except Exception as e:
             save_vars(before)
             try:
