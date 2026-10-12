@@ -6,6 +6,7 @@ previous:
   image_nginx:       {tag: "1.30.4", digest: "sha256:d5792f71a9496b833bc08ea834a758c46e2b6a6306c10f4be926f38a656cdc1c"}
   image_postgres:    {tag: "18.4", digest: "sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636"}   # 18.5 was never published
   image_fluentbit:   {tag: "5.1.1", digest: "sha256:a941bdd5ca552b2c6597fc7b3bccf2e61d30873939bab5700963de0e94ac6169"}
+  image_adguard:     {tag: "v0.107.78", digest: "sha256:1ea34eafe5dc691007946e8eaab7bf46b0de9412f39213d8c06e48b53bf9a6c5"}   # new in 0.7.0
   # fabric's own images: the 0.6.2 release (its candidate rc.47). Only the update path and health are checked:
   # an image of the previous release is not expected to have this release's features.
   image_fabric_bind9:      {tag: "0.6.2-rc.47", digest: "sha256:fdff1a3984de031116d79a483f8387c91872a9d043cc1c652f1b0088a5fb2697"}

@@ -172,7 +172,7 @@ check "setup --undo refuses what fabric needs (accounts), naming uninstall" "gre
 
 echo "--- POSIX identities in the domain (manual 1.6.3.9)"
 # a new install's laid-out block (1.6.3.17): the first admin takes the block's first id, Domain Users is `users`
-ADMIN_IDS=$(in_box "docker exec samba ldbsearch -s /data/etc/smb.conf -H /data/private/sam.ldb '(sAMAccountName=fabric-admin)' uidNumber gidNumber" | tr -d '\r')
+ADMIN_IDS=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=fabric-admin)' uidNumber gidNumber" | tr -d '\r')
 check "the admin has fabric's POSIX identity in AD: the block's first uid 1000000, Domain Users' gid 1040009" \
     "grep -qx 'uidNumber: 1000000' <<< '$ADMIN_IDS' && grep -qx 'gidNumber: 1040009' <<< '$ADMIN_IDS'"
 
