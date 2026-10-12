@@ -32,6 +32,7 @@ PERMISSIONS = {
     "people:remove": "remove a user and revoke their certificates",
     "people:groups": "change which groups a user is in",
     "domain:read": "see the domain: its controller, password policy, machines and Group Policy settings",
+    "domain:admin": "change the domain's password policy (2.1.2.22; admins only)",
     "machines:admin": "pre-create, disable, enable and remove the site's machines",
     "gpo:admin": "set and clear policies in the site's admin settings GPO",
     "federation:read": "see the federation: sites, DC replication and conflicts, limits, the address plan",

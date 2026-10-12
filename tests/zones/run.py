@@ -289,6 +289,20 @@ try:
           and status(BIND_IP, "menu.lan") != "NOERROR" and "menu.lan" not in vars_dns(), r.stdout[-400:])
     r = lib(menu, stdin="r\n1\n\nb\n")
     check("menu: 'r' refuses the site's own zone", "cannot be removed" in r.stdout, r.stdout[-400:])
+    # fabric's own names (2.1.2.22 item 6): the host's A record comes back on every render, so its delete is refused
+    # in the menu as in the console, naming the setting it follows
+    st, res = agent("/v1/zones/dynamic_zone_var/records", {"type": "A", "name": "pi-core", "ip": "192.168.77.53"})
+    pos = 1 + [r["name"] for r in vars_dns()["dynamic_zone_var"]["A"]].index("pi-core")
+    r = lib(menu, stdin=f"1\nd\n{pos}\n\nb\nb\n")
+    check("menu: deleting one of fabric's own names (the host's A) is refused, naming the setting; it stays",
+          st == 200 and "provided by fabric" in r.stdout and "hostname" in r.stdout
+          and "pi-core" in [x["name"] for x in vars_dns()["dynamic_zone_var"]["A"]], r.stdout[-600:])
+    st, res = agent("/v1/zones/dynamic_zone_var/records/delete", {"type": "A", "index": pos - 1, "name": "pi-core"})
+    check("the agent refuses it too (400), saying why", st == 400 and "provided by fabric" in str(res), (st, res))
+    r = lib(menu, stdin="1\nd\n1\n\nb\nb\n")
+    check("menu: an admin's own record still deletes", "www" not in [x["name"] for x in
+                                                                     vars_dns()["dynamic_zone_var"].get("A", [])],
+          r.stdout[-400:])
 finally:
     if agent_proc:
         agent_proc.terminate()

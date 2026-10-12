@@ -2,6 +2,13 @@
 import time
 
 RECORD_TYPES = ["A", "AAAA", "CNAME", "MX", "TXT", "SRV"]
+# the site zone's names fabric adds on every render (fabriclib.dns.common.fabric_record): (type, name) -> (service,
+# setting); the preview marks them "provided by fabric" and refuses their delete as fabric-agent does (2.1.2.22)
+SAMPLE_FABRIC_NAMES = {("A", "fabric"): ("this host", "hostname"),
+                       ("A", "@"): ("the domain itself, which redirects to the landing page", "host_ip"),
+                       ("CNAME", "ca"): ("the CA (step-ca)", "cname_ca"), ("CNAME", "dns"): ("DNS (BIND)", "cname_dns"),
+                       ("CNAME", "sso"): ("sign-in (Keycloak)", "cname_sso"),
+                       ("CNAME", "info"): ("the landing page", "landing_page_cname")}
 SAMPLE_RADIUS = {"enabled": True, "server_name": "radius.home.arpa", "host_ip": "192.168.1.2",
                  "clients": [{"name": "switch1", "address": "192.168.1.3", "message_authenticator": True},
                              {"name": "ap-hall", "address": "192.168.1.4", "message_authenticator": False}],
@@ -51,7 +58,8 @@ SAMPLE = {
             ("CNAME", "ca", "fabric"), ("CNAME", "info", "fabric"), ("CNAME", "dns", "fabric"),
             ("A", "printer", "192.168.1.40"), ("AAAA", "nas", "fd00:1:2:3::10"), ("A", "vpn", "203.0.113.7"),
             ("CNAME", "ca", "fabric"), ("CNAME", "info", "fabric"), ("CNAME", "dns", "fabric"),
-            ("CNAME", "sso", "fabric"), ("MX", "@", "10 mail"), ("TXT", "@", '"v=spf1 -all"')]},
+            ("CNAME", "sso", "fabric"), ("MX", "@", "10 mail"), ("TXT", "@", '"v=spf1 -all"')],
+            "links": {"A|nas": {"label": "NAS", "port": 5001, "path": None}}},
         "iot.home.arpa": {"name": "iot.home.arpa", "records": [
             ("A", "cam-front", "192.168.20.11"), ("A", "cam-back", "192.168.20.12"), ("A", "thermostat",
                                                                                       "192.168.20.30")]},
@@ -142,8 +150,16 @@ SAMPLE_INFO = {"subject": "CN=device.home.arpa,OU=IT,O=Fabric", "issuer": "CN=Fa
                "usage": "TLS Web Server Authentication, TLS Web Client Authentication", "is_ca": False}
 SAMPLE_DOMAIN = {"status": {"domain": "ad.home.arpa", "realm": "AD.HOME.ARPA", "netbios": "AD",
                             "dc": "pi-core.ad.home.arpa", "running": True,
-                            "roles": ["SchemaMasterRole owner: pi-core"], "policy": []},
-                 "policy": {"minimum_length": 14, "complexity": True, "history": 24, "lockout_threshold": 5},
+                            "roles": [f"{r}Role owner: CN=NTDS Settings,CN=DC-PI-CORE,CN=Servers,CN=lan,CN=Sites,"
+                                      "CN=Configuration,DC=ad,DC=home,DC=arpa"
+                                      for r in ("SchemaMaster", "InfrastructureMaster", "RidAllocationMaster",
+                                                "PdcEmulationMaster", "DomainNamingMaster", "DomainDnsZonesMaster",
+                                                "ForestDnsZonesMaster")],
+                            "role_summary": {"text": "This controller holds all five roles (and the 2 DNS zone "
+                                                     "masters).", "held": [], "elsewhere": []}, "policy": []},
+                 "policy": {"minimum_length": 14, "complexity": True, "history": 24, "minimum_age_days": 0,
+                            "maximum_age_days": 0, "lockout_threshold": 5, "lockout_minutes": 15,
+                            "lockout_window_minutes": 15},
                  "site": "lan", "machines_error": "",
                  "machines": [{"name": "host-1", "dns": "host-1.ad.home.arpa", "os": "Windows 11 Pro", "enabled": True,
                                "last_logon": "2026-10-05T08:12:00+00:00", "created": "2026-10-04", "dn": ""},

@@ -20,6 +20,7 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `tsig_post.py` | TSIG keys: create, rotate, delete (Apply publishes them to BIND9). |
 | `vault_post.py` | Change the vault's unlock methods: rotate the key, test or remove a method, or add a USB stick, security key or KMIP HSM — each one fabric-agent call after a recent sign-in and the host name typed as confirmation. |
 | `zone_post.py` | DNS records: add one to a zone, or delete one (published by the next Apply). |
+| `landing_post.py` | The landing page's links: link a record of the site's zone from it, or stop (published by the next Apply). |
 | `zones_post.py` | DNS zones: add one, or remove one with its records (served or dropped in seconds, no Apply). |
 | `__init__.py` | Empty; makes it a package |
 | `security_post.py` | The Security page's changes: a recent sign-in, the admin's own certificate before turning it on, then the agent |

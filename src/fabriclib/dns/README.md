@@ -11,7 +11,7 @@ seconds (`publish_zone_list.py`).
 |---|---|
 | `constants.py` | Supported record types; the private-use top-level domains (a zone under them hides no public name) |
 | `zone_name.py` | Zone key → zone name (`dynamic_zone_var` is the main domain) |
-| `validate_record.py` | Build a record dict from user input, rejecting anything unsafe for a zone file |
+| `validate_record.py` | Build a record dict from user input (one value or the type's own fields), rejecting anything unsafe for a zone file |
 | `format_value.py` | Human-readable right-hand side of a record (as rendered in the zone file) |
 | `sync_status.py` | Serial BIND is serving vs. the deployed zone file |
 | `rndc.py` | Run `rndc` inside the bind9 container (argument list, never a shell) |
@@ -23,9 +23,10 @@ seconds (`publish_zone_list.py`).
 | `list_zones.py` | Zones with record counts (flagging hand-written reverse zones) |
 | `ptr_for_ip.py` | Reverse zone and PTR label for an address — or why it gets none (public, loopback, link-local) |
 | `reverse_zones.py` | Reverse zones + PTRs generated from all forward A/AAAA records (one per address); used by apply and the web UI |
-| `zone_detail.py` | One zone's records (A/AAAA with their automatic PTR) and sync status (`docker exec … rndc zonestatus`) |
+| `zone_detail.py` | One zone's records (A/AAAA with their automatic PTR, fabric's own names marked, landing links) and sync status (`docker exec … rndc zonestatus`) |
 | `add_record.py` | Validate and add a record (locked, audited) |
-| `remove_record.py` | Remove a record, refusing if it changed since it was shown (locked, audited) |
+| `remove_record.py` | Remove a record, refusing if it changed since it was shown or is one of fabric's own names (locked, audited) |
+| `set_record_link.py` | Link a record of the site's zone from the landing page, or stop linking it (locked, audited) |
 | `add_zone.py` | Add a forward zone, refusing names BIND already answers for and public names not ticked as hidden; served in seconds (locked, audited, rolled back if BIND or the resolver refuses) |
 | `remove_zone.py` | Remove a forward zone with its records once its name is typed again; refused while a TSIG key or ACL policy names it (locked, audited, rolled back if BIND or the resolver refuses) |
 | `publish_zone_list.py` | The quick path for a zone change: BIND's configuration and the new zone files rendered, `rndc reconfig`, then the resolver's configuration rendered and reloaded |
@@ -46,3 +47,4 @@ seconds (`publish_zone_list.py`).
 | `normalize_acl_policies.py` | Validate ACL update policies (hosts or any name, record types, zone) |
 | `set_acl_policy.py` | Set or clear the update policy every TSIG key in an ACL inherits (locked, audited) |
 | `run_acl_command.py` | `fabricctl acl list/add/remove/policy` (applies after a change) |
+| `common/` | Helpers shared by these files |

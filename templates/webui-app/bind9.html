@@ -17,34 +17,31 @@
 <p class="muted">{{ zone.status }}</p>
 <table><thead><tr><th>Type</th><th>Name</th><th>Value</th><th>Reverse (PTR)</th><th></th></tr></thead><tbody>
 {% for r in zone.records %}
-<tr><td><span class="pill">{{ r.type }}</span></td><td>{{ r.name or '(missing)' }}</td><td><code>{{ r.value }}</code></td>
+<tr><td><span class="pill">{{ r.type }}</span></td><td>{{ r.name or '(missing)' }}{% if r.fabric %} <span class="pill" title="{{ r.fabric.service }}: every apply adds it from the setting {{ r.fabric.setting }}">provided by fabric</span>{% endif %}{% if r.link %} <span class="muted small">· on the landing page</span>{% endif %}</td><td><code>{{ r.value }}</code></td>
 <td>{% if r.ptr %}<span class="muted small">auto</span> <code class="small">{{ r.ptr }}</code>{% elif r.ptr_note %}<span class="muted small">none — {{ r.ptr_note }}</span>{% endif %}</td>
-<td class="num">{% if can('dns:write') %}<form method="post" action="/bind9/zone/{{ zone.key | urlencode }}/delete">
+<td class="num">{% if r.fabric %}<span class="muted small">kept by fabric: {{ r.fabric.setting }}</span>{% elif can('dns:write') %}<form method="post" action="/bind9/zone/{{ zone.key | urlencode }}/delete">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="type" value="{{ r.type }}">
 <input type="hidden" name="index" value="{{ r.index }}"><input type="hidden" name="name" value="{{ r.name }}">
 <button class="danger">Delete</button></form>{% endif %}</td></tr>
 {% endfor %}</tbody></table></section>
 <section class="card"><h2>Add record</h2>
-{% if can('dns:write') %}<form method="post" action="/bind9/zone/{{ zone.key | urlencode }}/add" class="grid">
+{# type, name, value; priority for MX, priority, weight and port for SRV: shown only for those types by the stylesheet
+   (:has, no script); a browser without :has shows them all, and the server checks each type's fields (2.1.2.22) #}
+{% if can('dns:write') %}<form method="post" action="/bind9/zone/{{ zone.key | urlencode }}/add" class="grid record">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<label>Type<select name="type">{% for t in types %}<option>{{ t }}</option>{% endfor %}</select></label>
+<label>Type<select name="type">{% for t in types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></label>
 <label>Name<input name="name" required placeholder="www or @"></label>
-<label>IP (A / AAAA)<input name="ip" placeholder="192.168.1.20"></label>
-<label>Target (CNAME / MX / SRV)<input name="target" placeholder="host"></label>
-<label>Text (TXT)<input name="text"></label>
-<label>Priority (MX / SRV)<input name="priority" inputmode="numeric" placeholder="10"></label>
-<label>Weight (SRV)<input name="weight" inputmode="numeric"></label>
-<label>Port (SRV)<input name="port" inputmode="numeric"></label>
-<fieldset><legend>Landing page (A / AAAA / CNAME)</legend>
-<label><input type="checkbox" name="link" value="on"> Show on the landing page</label>
-<label>Label<input name="link_label" maxlength="60" placeholder="Proxmox host1"></label>
-<label>Port<input name="link_port" inputmode="numeric" placeholder="8006"></label>
-<label>Path<input name="link_path" placeholder="/"></label></fieldset>
+<label class="wide">Value<input name="value" required placeholder="192.168.1.20, a host name, or the text"></label>
+<label class="f-prio">Priority (MX, SRV)<input name="priority" inputmode="numeric" placeholder="10"></label>
+<label class="f-srv">Weight (SRV)<input name="weight" inputmode="numeric" placeholder="0"></label>
+<label class="f-srv">Port (SRV)<input name="port" inputmode="numeric" placeholder="443"></label>
 <div><button>Add record</button></div>
 </form>{% endif %}
-<p class="muted">A and AAAA records with a private address get their PTR record automatically — see Reverse zones.
-A record shown on the landing page links to https://&lt;name&gt;.&lt;domain&gt; with its port and path (to change a link,
-delete the record and add it again).</p></section>
+<p class="muted">The value is the address for A and AAAA, the host it points to for CNAME, MX and SRV, the text for
+TXT. A and AAAA records with a private address get their PTR record automatically — see Reverse zones. Which records
+the landing page links to is set in its own section: <a href="/bind9?view=landing">Landing page</a>.
+Names marked <span class="pill">provided by fabric</span> are fabric's own: every apply adds them back from their
+setting, so they are not deleted here.</p></section>
 {% else %}<section class="card"><p class="blank">No forward zones.</p></section>{% endif %}
 {% if can('dns:write') %}
 {% if zone and zone.key != 'dynamic_zone_var' %}
@@ -71,6 +68,39 @@ under a public top-level domain (.com, .net, …): every client of this site the
 filtered. Names for private use need no tick: <code>home.arpa</code>, <code>.internal</code>, <code>.lan</code>,
 <code>.local</code>, <code>.test</code>, <code>.example</code>. Refused: the site's own domain, the DHCP and Windows
 domain zones, another site's zone, reverse zones (generated) and a zone that exists.</p></section>
+{% endif %}
+
+{% elif section == 'landing' %}
+<section class="card"><h2>Landing page</h2>
+<p class="muted">The landing page is fabric's start page (<code>info.&lt;domain&gt;</code>): the instructions, the CA
+certificates, the manual and a link to each of your services. It links to the records of {{ zone.name if zone else "the site's zone" }} listed
+here, each as <code>https://&lt;name&gt;.{{ zone.name if zone else '&lt;domain&gt;' }}</code> with its port and path. Apply publishes a change.</p>
+{% set linked = (zone.records if zone else []) | selectattr('link') | list %}
+{% if linked %}<table><thead><tr><th>Label</th><th>Address</th><th>Record</th><th></th></tr></thead><tbody>
+{% for r in linked %}{% set host = zone.name if r.name == '@' else r.name ~ '.' ~ zone.name %}
+<tr><td>{{ r.link.label or host }}</td><td><code>https://{{ host }}{{ (':' ~ r.link.port) if r.link.port }}{{ r.link.path or '/' }}</code></td>
+<td><span class="pill">{{ r.type }}</span> {{ r.name }}</td>
+<td class="num">{% if can('dns:write') %}<form method="post" action="/bind9/landing/remove"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<input type="hidden" name="type" value="{{ r.type }}"><input type="hidden" name="index" value="{{ r.index }}"><input type="hidden" name="name" value="{{ r.name }}">
+<button class="ghost">Remove</button></form>{% endif %}</td></tr>
+{% endfor %}</tbody></table>
+{% else %}<p class="blank">The landing page links to none of your records yet.</p>{% endif %}
+</section>
+{% if can('dns:write') and zone %}
+{% set choices = [] %}{% for r in zone.records if r.type in ('A', 'AAAA', 'CNAME') and '*' not in r.name %}{% set _ = choices.append(r) %}{% endfor %}
+<section class="card"><h2>Add a link</h2>
+{% if choices %}<form method="post" action="/bind9/landing/add" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label class="wide">Record<select name="record" required>{% for r in choices %}<option value="{{ r.type }}|{{ r.index }}|{{ r.name }}">{{ r.name }} ({{ r.type }} {{ r.value }}){{ ' — linked' if r.link }}</option>{% endfor %}</select></label>
+<label>Label<input name="link_label" maxlength="60" placeholder="Proxmox host1"></label>
+<label>Port<input name="link_port" inputmode="numeric" placeholder="8006"></label>
+<label>Path<input name="link_path" placeholder="/"></label>
+<div><button>Link it</button></div>
+</form>
+<p class="muted">Only A, AAAA and CNAME records of {{ zone.name }}, and never a wildcard. The label is the text shown
+(default: the name); linking a record that is linked already replaces its link.</p>
+{% else %}<p class="blank">No A, AAAA or CNAME record to link: add one in <a href="/bind9">Forward zones</a>.</p>{% endif %}
+</section>
 {% endif %}
 
 {% elif section == 'reverse' %}

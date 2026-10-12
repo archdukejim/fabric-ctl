@@ -27,6 +27,8 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `create_person.py` | Create a person in Keycloak with a one-time password. Agent route: POST /v1/people (people:create). |
 | `create_tsig_key.py` | Create a TSIG key allowed to update part of a zone (published by the next apply). Agent route: POST /v1/tsig (tsig:manage). |
 | `delete_device.py` | Delete a device and take it out of every role. Agent route: POST /v1/devices/<name>/delete (devices:admin). |
+| `set_record_link.py` | Link a record of the site's zone from the landing page, or stop linking it. Agent route: POST /v1/zones/<key>/records/link (dns:write). |
+| `set_password_policy.py` | Change the domain's password policy (checked as the command checks it). Agent route: POST /v1/domain/password-policy (domain:admin). |
 | `delete_record.py` | Remove one DNS record from a zone, only if it is still the record the page showed. Agent route: POST /v1/zones/<key>/records/delete (dns:write). |
 | `delete_role.py` | Delete a device role. Agent route: POST /v1/roles/<name>/delete (roles:admin). |
 | `delete_tsig_key.py` | Remove a TSIG key (published by the next apply). Agent route: POST /v1/tsig/<name>/delete (tsig:manage). |

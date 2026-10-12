@@ -6,7 +6,7 @@ from webui import views
 from webui.devpreview.fabric_rules import (DEVICE_NAME_RE, DEVICE_TYPES, PERMISSIONS, ROLE_NAME_RE, ValidationError,
                                            check_device_fields, check_role_fields, list_devices, ptr_for_ip,
                                            reverse_zones)
-from webui.devpreview.sample_data import SAMPLE, SAMPLE_SLOTS
+from webui.devpreview.sample_data import SAMPLE, SAMPLE_FABRIC_NAMES, SAMPLE_SLOTS
 
 
 class DevState:
@@ -55,14 +55,19 @@ class DevState:
     def zone(self, key):
         """Purpose: One sample zone with its records, in the shape fabric-agent's GET /v1/zones/<key> returns.
         Inputs:  key — a key of self.data["zones"].
-        Returns: {"key", "name", "status": dev-preview note, "records": [{"type", "index", "name", "value"} plus
-                 "ptr"/"ptr_note" for A/AAAA when fabriclib is present]}; "index" is the position in the zone's list.
+        Returns: {"key", "name", "status": dev-preview note, "records": [{"type", "index", "name", "value", "fabric"
+                 ({"service", "setting"} for SAMPLE_FABRIC_NAMES in the site's zone, else None), "link" (the landing
+                 page's, from the zone's "links", or None)} plus "ptr"/"ptr_note" for A/AAAA when fabriclib is
+                 present]}; "index" is the position in the zone's list.
         Fails:   KeyError for an unknown key (the caller checks first).
         Feeds:   Handler.do_GET for /bind9 (forward view); the index is what do_POST's record delete expects.
         """
         z = self.data["zones"][key]
+        own = SAMPLE_FABRIC_NAMES if key == "dynamic_zone_var" else {}
         return {"key": key, "name": z["name"], "status": "dev preview — sample data, not served by BIND",
-                "records": [dict({"type": t, "index": i, "name": n, "value": v}, **self._ptr(t, v))
+                "records": [dict({"type": t, "index": i, "name": n, "value": v,
+                                  "fabric": dict(zip(("service", "setting"), own[(t, n)])) if (t, n) in own else None,
+                                  "link": (z.get("links") or {}).get(f"{t}|{n}")}, **self._ptr(t, v))
                             for i, (t, n, v) in enumerate(z["records"])]}
 
     @staticmethod
