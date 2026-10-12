@@ -36,7 +36,7 @@ def _ask_all(asks, plan, groups):
     for group in asks:
         g, rec = GROUPS[group], groups.get(group) or {}
         new = [c for c in plan[group] if c not in (rec.get("changes") or [])]
-        print(f"\n  {BOLD}{g['title']}{NC} ({g['level']})")
+        print(f"\n  {BOLD}{g['question']}?{NC} ({g['level']})")
         for c in plan[group]:
             print(f"    {'+' if c in new and len(new) < len(plan[group]) else '-'} {c}")
         print(f"    {YELLOW}If no: {g['declined']}.{NC}")

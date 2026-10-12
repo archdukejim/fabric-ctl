@@ -1,5 +1,5 @@
 from fabriclib.common.ask import ask_secret
-from fabriclib.common.console import BOLD, NC, YELLOW
+from fabriclib.common.console import NC, YELLOW
 from fabriclib.samba.password_meets_policy import password_meets_policy
 from fabriclib.setup.common.first_admin_needed import first_admin_needed
 from fabriclib.setup.errors import SetupError
@@ -35,10 +35,8 @@ def ask_first_admin(ctx, needed=None):
     if ctx.non_interactive:
         raise SetupError(f"the first admin ({user}) needs a password: --admin-password-file FILE (2.1.6.33; never "
                          "on the command line)")
-    print(f"\n  The first admin, {BOLD}{user}{NC}, signs in to the web console with a password you choose now "
-          "(it is not shown or stored by setup).")
     while True:
-        password = ask_secret("setup.admin_password", f"    Password for {user}: ")
+        password = ask_secret("setup.admin_password", f"    Password for {user} (web console sign-in, not shown): ")
         refused = password_meets_policy(password, user, policy)
         if refused:
             print(f"    {YELLOW}{refused}{NC}")

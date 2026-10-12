@@ -1,5 +1,5 @@
 from fabriclib.common.ask import ask
-from fabriclib.common.console import BOLD, NC, YELLOW
+from fabriclib.common.console import NC, YELLOW
 from fabriclib.samba.dc_name_problem import dc_name_problem
 from fabriclib.samba.suggested_dc_name import suggested_dc_name
 from fabriclib.setup.errors import SetupError
@@ -31,8 +31,6 @@ def ask_dc_name(ctx):
             raise SetupError(f"dc_name: {dc_name_problem(current, netbios)} (manual 1.6.5.23)")
         v["dc_name"] = suggestion
         return
-    print("\n  The domain controller has a name of its own in the AD domain, apart from this host's name.")
-    print(f"    It is {BOLD}permanent{NC}: a domain controller cannot be renamed. The host's name can change later.")
     while True:
         answer = ask("setup.dc_name", f"    Domain controller's name{permanent_mark('dc_name')}"
                      f"{f' [{suggestion}]' if suggestion else ''}: ").lower()

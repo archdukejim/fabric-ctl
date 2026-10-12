@@ -1,7 +1,7 @@
 import re
 
 from fabriclib.common.ask import ask
-from fabriclib.common.console import BOLD, NC, YELLOW
+from fabriclib.common.console import NC, YELLOW
 from fabriclib.samba.suggested_ad_domain import suggested_ad_domain
 from fabriclib.setup.permanent_mark import permanent_mark
 
@@ -18,18 +18,11 @@ def ask_ad_domain(ctx):
              already set or the suggestion; a domain AD cannot use is refused, saying why, and asked again).
     Fails:   EOFError from input().
     Feeds:   setup/collect_vars."""
-    print("\n  fabric's directory is a Samba AD domain (people, groups, devices; Windows and Linux machines may join).")
     domain = str(ctx.vars.get("domain") or "").lower()
     current = str(ctx.vars.get("ad_domain") or "").lower()
-    print(f"    The AD domain is {BOLD}permanent{NC}: it cannot be changed once the domain exists.")
     suggestion = current or suggested_ad_domain(domain)
-    if suggested_ad_domain(domain):
-        where = ("beside fabric's domain, apart from the sites' names" if domain.count(".") >= 2
-                 else "under fabric's domain (it has no parent of its own to sit beside)")
-        print(f"    Suggested: {suggested_ad_domain(domain)}, {where}; press Enter to take it. "
-              f"It cannot be {domain} itself.")
     while True:
-        answer = ask("setup.ad_domain", f"    AD domain{permanent_mark('ad_domain')}"
+        answer = ask("setup.ad_domain", f"    Windows (AD) domain{permanent_mark('ad_domain')}"
                                         f"{f' [{suggestion}]' if suggestion else ''}: ").lower()
         chosen = answer or suggestion
         labels = chosen.split(".")

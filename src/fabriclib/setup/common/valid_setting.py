@@ -3,13 +3,13 @@ import re
 
 REQUIRED = ["domain", "hostname", "host_ip", "lan_cidr", "lan_gateway"]
 LABELS = {
-    "domain": "DNS domain for this network (RFC 8375 suggests home.arpa)",
-    "hostname": "Name of this host",
-    "host_ip": "LAN IP address of this host",
+    "domain": "DNS domain (e.g. home.arpa)",
+    "hostname": "This host's name",
+    "host_ip": "This host's LAN address",
     "lan_cidr": "LAN subnet (CIDR)",
-    "lan_gateway": "LAN gateway (router) IP",
-    "friendly_name": "Organisation / network name (used in the CA name)",
-    "webui_admin_user": "Username of the first web UI admin (a person in the domain, signing in through Keycloak)",
+    "lan_gateway": "LAN gateway (router)",
+    "friendly_name": "Organisation's name (names the CA)",
+    "webui_admin_user": "First admin's user name",
 }
 ADMIN_RE = re.compile(r"^[a-z_][a-z0-9_.-]{0,31}$")
 # names the first admin cannot take: the system's own, and AD's built-in accounts

@@ -18,15 +18,15 @@ def ask_host_change(ctx, group):
     g = GROUPS[group]
     if group == "member":
         now = ctx.vars.get("host_join_domain", True) is not False
-        on = ask_yes_no("setup.host_join_domain", "Make this host a member of its domain", now)
+        on = ask_yes_no("setup.host_join_domain", GROUPS["member"]["question"], now)
         ctx.vars["host_join_domain"] = on
     elif group == "resolver":
         now = ctx.vars.get("use_host_dns", True) is False
-        on = ask_yes_no(f"setup.consent.{group}", f"Allow: {g['title']} (fabric takes port 53)", now)
+        on = ask_yes_no(f"setup.consent.{group}", g["question"], now)
         ctx.vars["use_host_dns"] = not on
     else:
         now = ctx.host_choices.get(group, True)
-        on = ask_yes_no(f"setup.consent.{group}", f"Allow: {g['title']}", now)
+        on = ask_yes_no(f"setup.consent.{group}", g["question"], now)
         ctx.host_choices[group] = on
         if on:
             need = g.get("needs")

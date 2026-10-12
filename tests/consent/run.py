@@ -222,7 +222,7 @@ with contextlib.redirect_stdout(io.StringIO()) as _out:
 builtins.input = real_input
 check("a declined change that stops setup is asked again in the next interactive run without a plan (never stuck "
       "with the no): the one question, its yes taking what needs it along",
-      len(_seen) == 1 and "Ports fabric needs" in _out.getvalue() and _ans.get("ports") == "yes"
+      len(_seen) == 1 and "(Firewall) Open the ports fabric needs?" in _out.getvalue() and _ans.get("ports") == "yes"
       and _ans.get("firewall") == "yes", (_seen, _ans))
 _ans = ask_consent_mod.ask_consent(os.path.join(cfg, "needs"), {"ports": ["p"]}, interactive=False, stops={"ports"})
 check("…and unattended, the recorded answer stands (no question without a person)", _ans.get("ports") == "yes", _ans)
