@@ -26,6 +26,16 @@ def fabric_admins(site):
     return f"{site}-fabric-admins"
 
 
+def rodc_cache(site):
+    """Purpose: the group of a site's accounts its read-only DC may cache (decision 2.1.6.52, manual 1.6.11.13): on
+             the read-only DC's password replication allow list (msDS-RevealOnDemandGroup).
+    Inputs:  site — str.
+    Returns: str "<site>-rodc-cache".
+    Fails:   never.
+    Feeds:   ensure_groups, place_fabric_host."""
+    return f"{site}-rodc-cache"
+
+
 def fabric_machines(site):
     """Purpose: the group of a site's machines fabric manages (manual 1.6.11.6).
     Inputs:  site — str.

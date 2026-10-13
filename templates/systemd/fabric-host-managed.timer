@@ -1,0 +1,10 @@
+[Unit]
+Description=fabric: keep this fabric host's own management in step, hourly (manual 1.6.11.11, 2.1.6.49)
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+AccuracySec=5min
+
+[Install]
+WantedBy=timers.target

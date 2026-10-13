@@ -22,6 +22,7 @@ from fabriclib.directory.run_op import run_op  # noqa: E402
 from fabriclib.federation.network_conflicts import network_conflicts  # noqa: E402
 from fabriclib.federation.read_address_plan import read_address_plan  # noqa: E402
 from fabriclib.radius.windows_lan_profile import windows_lan_profile  # noqa: E402
+from fabriclib.samba.allow_rodc_cache import allow_rodc_cache  # noqa: E402
 from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
 from fabriclib.samba.deploy_samba import deploy_samba  # noqa: E402
 from fabriclib.samba.write_bind_dlz import write_bind_dlz  # noqa: E402
@@ -301,8 +302,9 @@ except ValidationError as e:
 ous = dc("ldbsearch", "-H", "/data/private/sam.ldb", "-b", f"OU=sites,{BASE}", "(objectClass=organizationalUnit)",
          "dn").stdout
 check("the site's OU tree under OU=sites, with OU=organisation at the root site",
-      # sites, lan, its eight OUs and OU=machines' linux and windows (1.6.11.5), organisation and its three
-      ous.count("dn: ") == 16 and f"OU=organisation,OU=lan,OU=sites,{BASE}" in ous, ous.count("dn: "))
+      # sites, lan, its nine OUs (OU=fabric-hosts since 0.7.1, 1.6.11.11) and OU=machines' linux and windows
+      # (1.6.11.5), organisation and its three
+      ous.count("dn: ") == 17 and f"OU=organisation,OU=lan,OU=sites,{BASE}" in ous, ous.count("dn: "))
 check("the directory is consistent (dbcheck)", "(0 errors)" in dc("samba-tool", "dbcheck", "-s", "/data/etc/smb.conf",
                                                                   "--cross-ncs").stdout)
 policy = dc("samba-tool", "domain", "passwordsettings", "show", "-s", "/data/etc/smb.conf").stdout
@@ -814,11 +816,79 @@ dc("samba-tool", "group", "addmembers", "Allowed RODC Password Replication Group
 pre = sh(["docker", "exec", RODC, "samba-tool", "rodc", "preload", "cachy", "-s", "/data/etc/smb.conf",
           "--server=dc1.ad.lan.test"], ok=False)
 check("a site person's password is preloaded at the RODC", pre.returncode == 0, pre.stderr[-300:])
+
+# the fabric host at a read-only DC's site (decision 2.1.6.52, manual 1.6.11.13): the site's rodc-cache group on the
+# read-only DC's allow list, written at the writable DC with the join account from inside the read-only DC (as setup
+# does at the join); the host's account made and placed at the writable DC by the site's agent; cached at once
+rv = {"ad_dc_type": "rodc", "ad_join_server": IP, "dc_name": "rodc1", "site_name": "lab", "ad_domain": "ad.lan.test",
+      "ad_base_dn": BASE, "ad_site_ou": "OU=lab,OU=lan,OU=sites"}
+LAB_CACHE = f"CN=lab-rodc-cache,OU=groups,OU=lab,OU=lan,OU=sites,{BASE}"
+
+
+def reveal_list():
+    out = dc("ldbsearch", "-H", "/data/private/sam.ldb", "-b", f"CN=RODC1,OU=Domain Controllers,{BASE}", "-s", "base",
+             "msDS-RevealOnDemandGroup").stdout.replace("\n ", "")
+    return [x.split(": ", 1)[1] for x in out.splitlines() if x.startswith("msDS-RevealOnDemandGroup: ")]
+
+
+check("the site's lab-rodc-cache group exists (converged with the site's groups) and is not yet on the RODC's allow "
+      "list", "dn: " + LAB_CACHE in dc("ldbsearch", "-H", "/data/private/sam.ldb", "(cn=lab-rodc-cache)", "dn").stdout
+      and LAB_CACHE.lower() not in [x.lower() for x in reveal_list()], reveal_list())
+said = allow_rodc_cache(rv, container=RODC)
+check("allow_rodc_cache: the group put on the read-only DC's allow list at the writable DC (the default entry kept)",
+      said and LAB_CACHE.lower() in [x.lower() for x in reveal_list()] and len(reveal_list()) == 2, (said, reveal_list()))
+check("...a second run writes nothing", allow_rodc_cache(rv, container=RODC) == "", reveal_list())
+check("...nothing to do where the site's DC is writable", allow_rodc_cache({**rv, "ad_dc_type": "writable"}) == "")
+try:
+    allow_rodc_cache({**rv, "ad_join_server": "10.254.30.99"}, container=RODC)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: allow_rodc_cache with the writable DC not answering: refused, saying where", "10.254.30.99" in why, why)
+lab_sec = {**SECRETS, "ad_agent_password": lab["accounts"]["fabric-agent-lab"]}
+host_pw = random_password(24)
+run_op({**v, "site_name": "lab"}, lab_sec, "create_machine",
+       {"name": "labhost", "password": host_pw, "os": "linux", "managed": False}, DC, IP)
+placed = run_op({**v, "site_name": "lab"}, lab_sec, "place_fabric_host", {"name": "LABHOST", "rodc_cache": True}, DC, IP)
+check("the host's account made and placed at the writable DC by the site's agent: in OU=fabric-hosts, in "
+      "lab-fabric-machines and lab-rodc-cache",
+      placed["moved"] and placed["joined"] and placed["cached"]
+      and placed["dn"] == f"CN=LABHOST,OU=fabric-hosts,OU=lab,OU=lan,OU=sites,{BASE}"
+      and LAB_CACHE in dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=LABHOST$)",
+                          "memberOf").stdout.replace("\n ", ""), placed)
+again = run_op({**v, "site_name": "lab"}, lab_sec, "place_fabric_host", {"name": "LABHOST", "rodc_cache": True}, DC, IP)
+check("...a second placing changes nothing", not (again["moved"] or again["joined"] or again["cached"]), again)
+try:
+    run_op({**v, "site_name": "lab"}, lab_sec, "create_machine", {"name": "labrw", "password": host_pw}, DC, RODC_IP)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: the same write at the read-only DC is refused (why the account is made at the writable one)",
+      why != "" and "labrw" not in dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=labrw$)",
+                                      "dn").stdout, why)
+try:
+    run_op({**v, "site_name": "lab"}, lab_sec, "place_fabric_host", {"name": "LABHOST"}, DC, "10.254.30.99")
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: a writable DC that does not answer: refused, nothing changed", why != "", why)
+pre_host = sh(["docker", "exec", RODC, "samba-tool", "rodc", "preload", "LABHOST$", f"--server={IP}", "-s",
+               "/data/etc/smb.conf"], ok=False)
+check("the read-only DC caches the host's account at once (rodc preload, as the member step asks it, by the writable "
+      "DC's address)", pre_host.returncode == 0, (pre_host.stdout + pre_host.stderr)[-400:])
+run_op({**v, "site_name": "lab"}, lab_sec, "create_machine",
+       {"name": "labother", "password": host_pw, "os": "linux"}, DC, IP)
+pre_other = sh(["docker", "exec", RODC, "samba-tool", "rodc", "preload", "LABOTHER$", f"--server={IP}", "-s",
+                "/data/etc/smb.conf"], ok=False)
+check("negative: a machine outside lab-rodc-cache is not cached (the allow list holds the group, not every machine)",
+      pre_other.returncode != 0, (pre_other.stdout + pre_other.stderr)[-400:])
 sh(["docker", "stop", DC])
 check("with the writable DC down: a cached person signs in at the RODC", ntlm_at_rodc("cachy", cached_pw))
 check("with the writable DC down: refused, the Administrator (never cached)", not ntlm_at_rodc("Administrator",
                                                                                                admin_pw))
 check("with the writable DC down: refused, a person the RODC does not cache", not ntlm_at_rodc("labadmin", lab_pw))
+check("with the writable DC down: the fabric host's account, cached, signs in at the RODC (2.1.6.52)",
+      ntlm_at_rodc("LABHOST$", host_pw))
 with open(os.path.join(W, "op.ldif"), "w") as f:
     f.write(f"dn: CN=cachy,OU=people,OU=lab,OU=lan,OU=sites,{BASE}\nchangetype: modify\nreplace: description\n"
             "description: written at the RODC\n")

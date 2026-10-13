@@ -10,6 +10,7 @@ from fabriclib.dns_filter.resolver_tls_pending import resolver_tls_pending
 from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.keycloak.install_sso_keytab import install_sso_keytab
 from fabriclib.samba.converge_domain import converge_domain
+from fabriclib.samba.allow_rodc_cache import allow_rodc_cache
 from fabriclib.samba.finish_join import finish_join
 from fabriclib.samba.write_bind_dlz import write_bind_dlz
 from fabriclib.secrets.save_secrets import save_secrets
@@ -65,6 +66,9 @@ def run(ctx):
         ok(f"keycloak: {start_unit('keycloak', 'keycloak', True)} (Kerberos sign-in keytab)")
     if (ctx.secrets or {}).get("ad_join"):        # a site whose DC just joined: its join account goes (1.9.8.4)
         try:
+            cached = allow_rodc_cache(v)              # while the join account still exists (2.1.6.52)
+            if cached:
+                ok(cached)
             ok(finish_join(v, ctx.secrets))
             save_secrets({"ad_join": None}, ctx.secrets_file)
             ctx.secrets = None

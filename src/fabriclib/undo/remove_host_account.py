@@ -26,7 +26,10 @@ def remove_host_account(config_dir, v, secrets):
     if not account:
         return []
     try:
-        remove_machine(v, "fabricctl setup", account.lower(), source="setup", secrets=secrets())
+        # a read-only DC's site: removed at the writable DC it was made at, with its place on the allow list
+        # (its <site>-rodc-cache membership goes with it, 2.1.6.52)
+        server = v.get("ad_join_server") if v.get("ad_dc_type") == "rodc" else None
+        remove_machine(v, "fabricctl setup", account.lower(), source="setup", secrets=secrets(), server=server)
         done = f"the domain: this host's computer account {account}$ removed"
     except ValidationError as e:
         if "no such entry" not in str(e):

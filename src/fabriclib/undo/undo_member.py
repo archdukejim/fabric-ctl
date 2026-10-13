@@ -4,17 +4,20 @@ import subprocess
 
 from fabriclib.common.restore_original import restore_original
 from fabriclib.consent.plan_member import KEPT_FILES, KEYTAB, RECORD
+from fabriclib.setup.common.apply_host_managed import apply_host_managed
 
 
 def undo_member(config_dir, manage_units=True):
     """Purpose: undo the `member` host change (manual 1.2.9.5, 1.6.11.8): the host is no longer a member of its
              domain. Each file fabric changed goes back as it was (common/keep_original), the keytab goes, PAM's sss
              (and mkhomedir, when fabric turned it on) and sss in NSS are off again, sudo's alternative as it was,
-             and sssd stopped when fabric enabled it (else restarted). The packages stay.
+             sssd stopped when fabric enabled it (else restarted), and fabric's management of the host removed (its
+             SSH and DNS drop-ins and its lines in /etc/pam.d/sshd, manual 1.6.11.11). The packages stay.
     Inputs:  config_dir — the install's config folder (the kept copies and RECORD); manage_units — run
-             pam-auth-update, update-alternatives and systemctl (False in tests).
+             pam-auth-update, update-alternatives and systemctl, and remove fabric's management (False in tests).
     Returns: list of str, what was done (empty when fabric never made the host a member).
-    Fails:   OSError writing a file or reading RECORD; a failing command is ignored (a package may be gone).
+    Fails:   OSError writing a file or reading RECORD; SetupError should pam_localuser be needed (never, to remove);
+             a failing command is ignored (a package may be gone).
     Feeds:   undo/undo_group (`fabricctl setup --undo member`), setup/uninstall."""
     record = os.path.join(config_dir, RECORD)
     done = []
@@ -30,6 +33,7 @@ def undo_member(config_dir, manage_units=True):
         os.remove(KEYTAB)
         done.append(f"{KEYTAB} removed")
     if manage_units:
+        done += apply_host_managed({}, False)
         off = [p for p in ("sss", "mkhomedir") if p not in (before.get("pam") or [])]
         if off:
             subprocess.run(["pam-auth-update", "--disable", *off], capture_output=True)

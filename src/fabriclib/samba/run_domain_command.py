@@ -1,13 +1,18 @@
 import getpass
+import os
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.common.paths import INSTALL_DIR
 from fabriclib.directory.add_machine import add_machine
 from fabriclib.directory.sort_machines import sort_machines
 from fabriclib.samba.clear_logon_policy import clear_logon_policy
 from fabriclib.samba.domain_status import domain_status
+from fabriclib.samba.host_logon_default import HOSTS_OU
 from fabriclib.samba.logon_overview import logon_overview
 from fabriclib.samba.set_domain_password_policy import set_domain_password_policy
 from fabriclib.samba.set_logon_policy import set_logon_policy
+from fabriclib.setup.common.sync_host_managed import sync_host_managed
+from fabriclib.setup.errors import SetupError
 from fabriclib.system.apply_changes import apply_changes
 
 USAGE = """usage: fabricctl domain status                    the Windows domain: its DC, the roles it holds, the policy
@@ -18,6 +23,8 @@ USAGE = """usage: fabricctl domain status                    the Windows domain:
            family's OU; managed by fabric unless --unmanaged) with a one-time join password
        fabricctl domain sort-machines [--scheduled]   Windows machines that joined themselves into OU=windows; Linux
            machines joined with an admin's password into <site>-fabric-machines (each once)
+       fabricctl domain host-managed [--scheduled]   this fabric host's management (Kerberos for SSH, the
+           domain's names from fabric's DNS) applied or removed as its account's <site>-fabric-machines membership says
        fabricctl domain logon show [<ou>]          who may sign in to the site's machines, per OU
        fabricctl domain logon set <ou> [--console G,...] [--remote G,...] [--no-apply]
        fabricctl domain logon clear <ou> [--no-apply]
@@ -104,7 +111,9 @@ def _logon(v, args):
             return 0
         if op == "clear" and len(rest) == 1:
             clear_logon_policy(getpass.getuser(), rest[0])
-            print(f"{rest[0]}: its own log-on policy cleared (it takes its parent's)")
+            print(f"{rest[0]}: its own log-on policy cleared ("
+                  + ("back to the default: the fabric admins, 2.1.6.53)" if rest[0].strip("/").lower() == HOSTS_OU
+                     else "it takes its parent's)"))
         elif op == "set" and len(rest) in (3, 5) and set(opts) <= {"--console", "--remote"} \
                 and len(opts) * 2 == len(rest) - 1:
             done = set_logon_policy(v, getpass.getuser(), rest[0],
@@ -126,15 +135,44 @@ def _logon(v, args):
     return 0 if ok else 1
 
 
+def _host_managed(v, args):
+    """Purpose: `fabricctl domain host-managed [--scheduled]` (manual 1.6.11.11): only parses and routes to
+             sync_host_managed, and says what it found and changed.
+    Inputs:  v — rendered vars; args — list of str after `host-managed`.
+    Returns: exit status: 0 done, 1 refused (not a member; the DC not answering; sshd refusing), 2 usage. With
+             --scheduled (the fabric-host-managed timer) a host that is not a member is 0: nothing to keep in step.
+    Fails:   OSError from the record (propagates).
+    Feeds:   run_domain_command."""
+    if args not in ([], ["--scheduled"]):
+        print(USAGE)
+        return 2
+    try:
+        done = sync_host_managed(v, os.path.join(INSTALL_DIR, "config"))
+    except ValidationError as e:
+        print(f"{'nothing to do' if args else 'refused'}: {e}")
+        return 0 if args else 1
+    except SetupError as e:
+        print(f"refused: {e}")
+        return 1
+    print(f"{done['account']}$ is {'in' if done['managed'] else 'not in'} {v.get('site_name')}-fabric-machines: "
+          f"fabric's management {'applied' if done['managed'] else 'removed'}")
+    for line in done["changes"] or ["nothing to change"]:
+        print(f"  {line}")
+    return 0
+
+
 def run_domain_command(v, args):
     """Purpose: `fabricctl domain …` (manual 4.6.5): only routes to the domain functions.
     Inputs:  v — rendered vars; args — list of str after `domain`.
     Returns: exit status: 0 ok, 1 a refused change or a failed apply, 2 usage.
     Fails:   OSError from the vars file or the audit log (propagates).
     Feeds:   cli.main."""
-    if not args or args[0] not in ("status", "password-policy", "add-machine", "sort-machines", "logon"):
+    if not args or args[0] not in ("status", "password-policy", "add-machine", "sort-machines", "logon",
+                                   "host-managed"):
         print(USAGE)
         return 2
+    if args[0] == "host-managed":
+        return _host_managed(v, args[1:])
     if args[0] == "logon":
         return _logon(v, args[1:])
     if args[0] == "sort-machines":

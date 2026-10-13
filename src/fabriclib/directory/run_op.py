@@ -8,12 +8,14 @@ MESSAGES = {"exists": "that name is already taken", "missing": "no such entry",
             "refused": "the directory refused the change (not permitted for this site)"}
 
 
-def run_op(v, secrets, op, args=None, container="samba"):
+def run_op(v, secrets, op, args=None, container="samba", server=None):
     """Purpose: one directory operation (manual 1.6.3, 1.6.5.16), run inside the DC by src/containers/samba/
              directory_op.py, signed in as this site's fabric-agent account — so AD's per-site limits apply to every
              change fabric-agent makes (1.6.3.6). The request, the account's password included, goes on stdin.
     Inputs:  v — rendered vars (site_name); secrets — fabric's secrets (ad_agent_password); op — str, an operation
-             of the DC's directory_ops; args — dict of its arguments (JSON-able); container — the DC's container.
+             of the DC's directory_ops; args — dict of its arguments (JSON-able); container — the DC's container;
+             server — None (this DC) or another DC's address to sign in at (a read-only DC's writable partner,
+             2.1.6.52).
     Returns: the operation's result (JSON-decoded).
     Fails:   ValidationError with a message safe to show: "that name is already taken", "no such entry", "the
              directory refused the change …", "the directory refused it: …" (e.g. a password the policy refuses),
@@ -22,7 +24,7 @@ def run_op(v, secrets, op, args=None, container="samba"):
     Feeds:   fabriclib/directory/* (people, groups, devices, roles, networks)."""
     site = v["site_name"]
     request = {"op": op, "args": args or {}, "site": site, "account": f"fabric-agent-{site}",
-               "password": secrets["ad_agent_password"]}
+               "password": secrets["ad_agent_password"], **({"server": server} if server else {})}
     res = subprocess.run(["docker", "exec", "-i", "-e", "PYTHONDONTWRITEBYTECODE=1", container,
                           "python3", "/fabric/directory_op.py"],
                          input=json.dumps(request), capture_output=True, text=True, timeout=60)
