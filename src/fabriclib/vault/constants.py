@@ -27,6 +27,7 @@ path "database/static-roles/*" { capabilities = ["create", "read", "update"] }
 path "database/static-creds/*" { capabilities = ["read"] }
 path "database/rotate-role/*"  { capabilities = ["update"] }
 path "ssh/*"               { capabilities = ["create", "read", "update", "delete", "list"] }
+path "ssh-host/*"          { capabilities = ["create", "read", "update", "delete", "list"] }
 """,
     "fabric-agent": """
 path "sys/mounts" { capabilities = ["read"] }

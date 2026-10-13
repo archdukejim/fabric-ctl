@@ -2,13 +2,12 @@ import glob
 import os
 import subprocess
 
+from fabriclib.setup.common.sshd_check import sshd_check as _sshd_check
 from fabriclib.setup.errors import SetupError
 
 SSHD_DIR = "/etc/ssh/sshd_config.d"
 # 10-: sshd keeps the first value it reads, and Ubuntu's cloud images set their own in 50-cloud-init.conf
 SSHD_DROPIN = "/etc/ssh/sshd_config.d/10-fabric.conf"
-SSHD = "/usr/sbin/sshd"
-PRIVSEP_DIR = "/run/sshd"
 PAM_SSHD = "/etc/pam.d/sshd"
 PAM_MODULES = ("/usr/lib/*/security/pam_localuser.so", "/lib/*/security/pam_localuser.so",
                "/usr/lib/security/pam_localuser.so", "/lib/security/pam_localuser.so")
@@ -90,22 +89,6 @@ def _pam_without(text):
     i = lines.index(PAM_MARK)
     drop = 2 if i + 1 < len(lines) and lines[i + 1].strip() == PAM_LINE else 1
     return "\n".join(lines[:i] + lines[i + drop:]) + "\n"
-
-
-def _sshd_check():
-    """Purpose: whether sshd accepts its configuration as it is on disk (`sshd -t`).
-    Inputs:  none.
-    Returns: "" when it does; sshd's complaint otherwise.
-    Fails:   never (an sshd that cannot run is a complaint).
-    Feeds:   apply_host_managed.
-    Notes:   sshd's test needs its privilege-separation folder, which ssh.service makes only when sshd first runs (on
-             Ubuntu 24.04 the socket starts it at the first connection): made here as the service makes it."""
-    try:
-        os.makedirs(PRIVSEP_DIR, mode=0o755, exist_ok=True)
-        res = subprocess.run([SSHD, "-t"], capture_output=True, text=True, timeout=30)
-    except (OSError, subprocess.TimeoutExpired) as e:
-        return str(e)
-    return "" if res.returncode == 0 else ((res.stderr or res.stdout).strip()[-400:] or f"exit {res.returncode}")
 
 
 def _reload(what):

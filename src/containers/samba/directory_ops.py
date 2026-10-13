@@ -9,10 +9,12 @@ from is_fabric_admin import is_fabric_admin
 from link_device_cert import link_device_cert
 from list_host_groups import list_host_groups
 from list_machines import list_machines
+from list_ssh_hosts import list_ssh_hosts
 from list_sudo_rules import list_sudo_rules
 from logon_groups import logon_groups
 from list_people import list_people
 from place_fabric_host import place_fabric_host
+from prepare_ssh_hosts import prepare_ssh_hosts
 from read_devices import read_devices
 from read_networks import read_networks
 from read_plan import read_plan
@@ -29,6 +31,7 @@ from save_role import save_role
 from set_host_group_member import set_host_group_member
 from set_machine import set_machine
 from set_person import set_person
+from set_ssh_host import set_ssh_host
 from site_info import site_info
 from sort_windows_machines import sort_windows_machines
 from sync_rodc_cache import sync_rodc_cache
@@ -47,10 +50,12 @@ OPS = {
     "link_device_cert": link_device_cert,
     "list_host_groups": list_host_groups,
     "list_machines": list_machines,
+    "list_ssh_hosts": list_ssh_hosts,
     "list_sudo_rules": list_sudo_rules,
     "logon_groups": logon_groups,
     "list_people": list_people,
     "place_fabric_host": place_fabric_host,
+    "prepare_ssh_hosts": prepare_ssh_hosts,
     "read_devices": read_devices,
     "read_networks": read_networks,
     "read_plan": read_plan,
@@ -67,6 +72,7 @@ OPS = {
     "set_host_group_member": set_host_group_member,
     "set_machine": set_machine,
     "set_person": set_person,
+    "set_ssh_host": set_ssh_host,
     "site_info": site_info,
     "sort_windows_machines": sort_windows_machines,
     "sync_rodc_cache": sync_rodc_cache,

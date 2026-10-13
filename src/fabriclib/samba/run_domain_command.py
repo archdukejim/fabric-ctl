@@ -15,6 +15,7 @@ from fabriclib.samba.sync_rodc_cache import sync_rodc_cache
 from fabriclib.setup.common.sync_host_managed import sync_host_managed
 from fabriclib.setup.errors import SetupError
 from fabriclib.system.apply_changes import apply_changes
+from fabriclib.vault.ssh.sign_ssh_hosts import sign_ssh_hosts
 
 USAGE = """usage: fabricctl domain status                    the Windows domain: its DC, the roles it holds, the policy
        fabricctl domain password-policy [--minimum-length N] [--complexity on|off] [--history N]
@@ -28,6 +29,8 @@ USAGE = """usage: fabricctl domain status                    the Windows domain:
            domain's names from fabric's DNS) applied or removed as its account's <site>-fabric-machines membership says
        fabricctl domain rodc-cache [--scheduled]   at a site whose DC is read-only: the site's people and machines
            kept in <site>-rodc-cache and cached at the read-only DC now (2.1.6.55)
+       fabricctl domain ssh-hosts [--scheduled]   SSH host certificates: the managed machines' published host keys
+           signed by fabric's host CA and written back, this host's own applied (while SSH certificates are on)
        fabricctl domain logon show [<ou>]          who may sign in to the site's machines, per OU
        fabricctl domain logon set <ou> [--console G,...] [--remote G,...] [--no-apply]
        fabricctl domain logon clear <ou> [--no-apply]
@@ -196,6 +199,40 @@ def _rodc_cache(v, args):
     return 0
 
 
+def _ssh_hosts(v, args):
+    """Purpose: `fabricctl domain ssh-hosts [--scheduled]` (manual 1.6.11.9.8): only parses and routes to
+             sign_ssh_hosts, and says what it signed, withdrew and changed.
+    Inputs:  v — rendered vars; args — list of str after `ssh-hosts`.
+    Returns: exit status: 0 done (off: this host's part removed), 1 refused (OpenBao locked, the directory or sshd
+             refusing), 2 usage.
+    Fails:   OSError from the files or the audit log (propagates).
+    Feeds:   run_domain_command."""
+    if args not in ([], ["--scheduled"]):
+        print(USAGE)
+        return 2
+    try:
+        done = sign_ssh_hosts(v, os.path.join(INSTALL_DIR, "config"), getpass.getuser(),
+                              "timer" if args else "cli")
+    except ValidationError as e:
+        print(f"refused: {e}")
+        return 1
+    if not done["on"]:
+        print("SSH certificates are off: no host certificates signed; this host's own removed")
+    else:
+        print(f"host CA {done['ca_fingerprint']}")
+        for name in done["prepared"]:
+            print(f"  {name}: may publish its host keys now")
+        for m in done["machines"]:
+            what = ("certificates withdrawn (not managed, or disabled)" if m["withdrawn"] else m["error"]
+                    or f"{m['signed']} signed, {m['kept']} kept")
+            print(f"  {m['name']}: {what}" + "".join(f"; refused: {r}" for r in m["refused"]))
+    for key in done.get("revoked") or []:
+        print(f"  revoked until its certificate's end: {key[:60]}…")
+    for line in done["host"] or ["this host: nothing to change"]:
+        print(f"  {line}")
+    return 1 if any(m["error"] for m in done["machines"]) else 0
+
+
 def run_domain_command(v, args):
     """Purpose: `fabricctl domain …` (manual 4.6.5): only routes to the domain functions.
     Inputs:  v — rendered vars; args — list of str after `domain`.
@@ -203,11 +240,13 @@ def run_domain_command(v, args):
     Fails:   OSError from the vars file or the audit log (propagates).
     Feeds:   cli.main."""
     if not args or args[0] not in ("status", "password-policy", "add-machine", "sort-machines", "logon",
-                                   "host-managed", "rodc-cache"):
+                                   "host-managed", "rodc-cache", "ssh-hosts"):
         print(USAGE)
         return 2
     if args[0] == "rodc-cache":
         return _rodc_cache(v, args[1:])
+    if args[0] == "ssh-hosts":
+        return _ssh_hosts(v, args[1:])
     if args[0] == "host-managed":
         return _host_managed(v, args[1:])
     if args[0] == "logon":

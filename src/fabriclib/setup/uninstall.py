@@ -4,6 +4,7 @@ import shutil
 import subprocess
 
 from fabriclib.common.console import info, ok, warn
+from fabriclib.common.errors import ValidationError
 from fabriclib.images.constants import STATE as IMAGE_STATE
 from fabriclib.setup.common.service_account_name import service_account_name
 from fabriclib.undo.remove_host_account import remove_host_account
@@ -12,6 +13,7 @@ from fabriclib.undo.undo_member import undo_member
 from fabriclib.undo.undo_resolver import undo_resolver
 from fabriclib.undo.undo_time import undo_time
 from fabriclib.undo.undo_trust import undo_trust
+from fabriclib.vault.ssh.apply_host_ssh_cert import apply_host_ssh_cert
 
 # ldap, fabric-directory-sync and dirsrv: 389-DS, gone since 0.5.0 (S7); still removed where an older install
 # left them
@@ -21,7 +23,7 @@ UNITS = ["fabric-web", "webui", "fluentbit", "kea", "freeradius", "samba", "adgu
          "postgres",
          "ldap", "stepca", "bind9", "fabric-firewall", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists",
          "fabric-dns-log", "fabric-machines", "fabric-dhcp-names", "fabric-plan-watch", "fabric-host-managed",
-         "fabric-rodc-cache"]
+         "fabric-rodc-cache", "fabric-ssh-hosts"]
 TARGET = "/etc/systemd/system/fabric.target"
 CONTAINERS = ["fabric-web", "webui", "fluentbit", "kea-dhcp4", "kea-ddns", "freeradius", "samba", "adguardhome",
               "oauth2-proxy-adguard", "bind9-resolver", "adguard-filter", "nginx", "openbao", "keycloak", "postgres",
@@ -36,9 +38,9 @@ LOCAL_IMAGES = ["fabric/bind9:local", "fabric/stepca:local", "fabric/dirsrv:loca
 def uninstall(ctx):
     """Purpose: remove fabric from this host: units, fabric.target, containers, fabric_net, local images, the
              host changes it made (undo/: its firewall rules — ufw off again if it was off before —, the resolver,
-             chrony's files, CA trust, the host's domain membership), data folders, the OpenBao key and runtime
-             folders, the image rollback record (and /etc/fabric once empty), service accounts and the CLI wrapper
-             (undo/uninstall_plan lists it).
+             chrony's files, CA trust, the host's domain membership; its SSH host certificate), data folders, the
+             OpenBao key and runtime folders, the image rollback record (and /etc/fabric once empty), service accounts
+             and the CLI wrapper (undo/uninstall_plan lists it).
     Inputs:  ctx — SetupContext (state reloaded): vars keycloak_data_dir/postgres_data_dir (deleted when outside
              deploy_base), tsig_keys names (their <deploy_base>/<name> folders), openbao_runtime_dir,
              openbao_admin_dir, openbao_udev_rules, openbao_key_dir, service_users, domain_file.
@@ -55,10 +57,16 @@ def uninstall(ctx):
     # outlives this site's DC
     for line in remove_host_account(ctx.config_dir, v, lambda: ctx.secrets):
         ok(line)
+    try:                # this host's SSH host certificate and its trust of fabric's host CA (1.6.11.9.10)
+        for line in apply_host_ssh_cert(v, [], ""):
+            ok(line)
+    except (ValidationError, OSError) as exc:
+        warn(f"this host's SSH host certificate not removed ({exc}): remove /etc/ssh/fabric-host-cert-*.pub and "
+             "/etc/ssh/sshd_config.d/11-fabric-host-cert.conf by hand")
     info("stopping and removing services")
     for timer in ("fabric-directory-sync", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists", "fabric-dns-log",
                   "fabric-machines", "fabric-dhcp-names", "fabric-plan-watch", "fabric-host-managed",
-                  "fabric-rodc-cache"):
+                  "fabric-rodc-cache", "fabric-ssh-hosts"):
         subprocess.run(["systemctl", "disable", "--now", f"{timer}.timer"], capture_output=True)
     for unit in UNITS:
         subprocess.run(["systemctl", "disable", "--now", unit], capture_output=True)

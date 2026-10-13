@@ -7,8 +7,13 @@ GPO; cached logons with the DC stopped; then a log-on policy on OU=machines (man
 and alice is not: adam logs on, alice is refused; and a sudo rule on a host group (1.6.11.7) holding the 24.04 machine:
 it applies there and not on the 26.04 one; SSH certificates (1.6.11.9.4, 0.9, written and not run yet): the user CA
 fetched from the fabric host's own name over HTTPS and trusted while published, a certificate signed for adam signing
-him in and no one else, the trust kept while the host is unreachable and removed when withdrawn or taken out. The
-containers have no systemd: a stand-in `systemctl` starts sssd.
+him in and no one else, the trust kept while the host is unreachable and removed when withdrawn or taken out; SSH
+host certificates (1.6.11.9.6 to 1.6.11.9.10, 2.1.7.13; written and not run yet): the machine publishes its host keys
+on its own account as itself and may write nothing else, fabric's signing run (a stand-in CA for OpenBao) writes the
+certificate back, the machine takes it, sshd presents it and ssh trusts it by name through the system known-hosts
+file, a certificate from another CA is ignored, a withdrawn certificate's key is revoked on clients (@revoked) at
+once, and off removes it all. The containers have no systemd: a stand-in
+`systemctl` starts sssd.
     sudo python3 tests/samba/linux_join.py
 """
 import json
@@ -292,12 +297,156 @@ check("24.04: withdrawn (turned off, 404): the CA file and TrustedUserCAKeys rem
       "rc=0" in out and "No such file" in out and "\n0\n" in out and "ssh=0" not in out, out)
 shutil.copy(SSH_CA_KEY + ".pub", os.path.join(TLS, "www", "certs", "ssh-user-ca.pub"))
 on(box, "fabric-managed check")
+
+# SSH host certificates (manual 1.6.11.9.6 to 1.6.11.9.10, 2.1.7.13): through the machine's own computer account
+from fabriclib.common.errors import ValidationError  # noqa: E402
+from fabriclib.vault.ssh import sign_ssh_hosts as m_shs  # noqa: E402
+m_shs.write_audit = lambda *a, **k: None
+HOST_CA = os.path.join(W, "ssh_host_ca")
+sh(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "fabric test SSH host CA", "-f", HOST_CA])
+HOST_CA_PUB = open(HOST_CA + ".pub").read().strip()
+NAME = RELEASES["24.04"]
+FQDN = f"{NAME}.{V['domain']}".lower()
+on(box, f"echo '127.0.0.1 {FQDN} {NAME}.{V['ad_domain'].lower()}' >> /etc/hosts")
+shutil.copy(HOST_CA + ".pub", os.path.join(TLS, "www", "certs", "ssh-host-ca.pub"))
+code, out = on(box, "fabric-managed check; echo rc=$?; cat /etc/ssh/ssh_known_hosts")
+check("24.04: host CA published: trusted for the domain's names and short names in /etc/ssh/ssh_known_hosts; its "
+      "keys not publishable until fabric prepares its account (says so, nothing fails)",
+      "rc=0" in out and f"@cert-authority *.{V['ad_domain'].lower()},*.{V['domain'].lower()} "
+      f"{' '.join(HOST_CA_PUB.split()[:2])}" in out and "@cert-authority *,!*.*,!*:*" in out
+      and "not published yet" in out, out)
+other = m_add_machine.add_machine(V, "test", "other1", secrets=SECRETS, container=DC, os="linux")
+prepared = run_op(V, SECRETS, "prepare_ssh_hosts", {}, DC)
+check("the signing run's first step: the managed machines get the class fabricSshHost (24.04 and other1)",
+      NAME in prepared["prepared"] and "other1" in prepared["prepared"], prepared)
+code, out = on(box, "fabric-managed check; echo rc=$?")
+listed = {h["name"]: h for h in run_op(V, SECRETS, "list_ssh_hosts", {}, DC)}
+own_key = " ".join(on(box, "cat /etc/ssh/ssh_host_ed25519_key.pub")[1].split()[:2])
+check("24.04: its next check publishes its host keys on its own account, signed in as the machine",
+      "host keys published" in out and own_key in listed[NAME]["keys"] and listed[NAME]["managed"], (out, listed[NAME]))
+AS_MACHINE = (f"cc=$(mktemp); KRB5CCNAME=FILE:$cc kinit -k '{NAME.upper()}$@{V['ad_realm']}' && "
+              f"KRB5CCNAME=FILE:$cc LDAPSASL_NOCANON=on ldapmodify -Q -Y GSSAPI -H ldap://{V['hostname_dc']} 2>&1")
+own_dn = listed[NAME]["dn"]
+code, out = on(box, AS_MACHINE, stdin=f"dn: {own_dn}\nchangetype: modify\nreplace: fabricSshHostCert\n"
+                                       f"fabricSshHostCert: ssh-ed25519-cert-v01@openssh.com AAAAforged\n-\n")
+check("negative: the machine cannot write its own certificate attribute (only fabric does)",
+      code != 0 and "insufficient access" in out.lower(), out)
+code, out = on(box, AS_MACHINE, stdin=f"dn: {listed['other1']['dn']}\nchangetype: modify\nreplace: fabricSshHostKey\n"
+                                       f"fabricSshHostKey: {own_key}\n-\n")
+check("negative: the machine cannot publish keys on another machine's account (SELF only)",
+      code != 0 and "insufficient access" in out.lower(), out)
+try:
+    run_op(V, SECRETS, "set_ssh_host", {"name": NAME, "certs": ["not a certificate"]}, DC)
+    bad = ""
+except ValidationError as exc:
+    bad = str(exc)
+check("negative: set_ssh_host refuses a value that is not a certificate", "not one SSH certificate" in bad, bad)
+
+
+def stand_in_sign(v, token, key_line, principals, key_id):
+    """OpenBao's host CA stood in by a local CA key (tests/openbao/ssh_ca.py signs with the real one)."""
+    path = os.path.join(W, "to-sign.pub")
+    with open(path, "w") as f:
+        f.write(key_line + "\n")
+    sh(["ssh-keygen", "-q", "-s", HOST_CA, "-h", "-I", key_id, "-n", ",".join(principals), "-V", "+30d", path])
+    return open(os.path.join(W, "to-sign-cert.pub")).read().strip()
+
+
+m_shs.bao_request = lambda v, method, path, token=None, body=None: (200, {"data": {"public_key": HOST_CA_PUB}})
+REVOKED_FILE = os.path.join(TLS, "www", "certs", "ssh-host-revoked.pub")
+
+
+def publish_revoked(v, text, name):
+    """publish_ssh_ca stood in: the revoked keys where the HTTPS stand-in serves /certs/ (404 when none)."""
+    path = os.path.join(TLS, "www", "certs", name)
+    if text:
+        with open(path, "w") as f:
+            f.write(text.strip() + "\n")
+    elif os.path.exists(path):
+        os.remove(path)
+
+
+run_v = {**V, "ssh_certificates": True}
+signed = m_shs.sign_ssh_hosts(run_v, tempfile.mkdtemp(), login=lambda v, creds: "token",
+                              op=lambda name, args: run_op(V, SECRETS, name, args, DC), sign=stand_in_sign,
+                              apply=lambda *a: [], publish=publish_revoked)
+rows = {m["name"]: m for m in signed["machines"]}
+listed = {h["name"]: h for h in run_op(V, SECRETS, "list_ssh_hosts", {}, DC)}
+check("the signing run: 24.04's key signed for its names and written back to its account (fabricSshHostCert)",
+      rows.get(NAME, {}).get("signed") == 1 and len(listed[NAME]["certs"]) == 1, (rows, listed[NAME]))
+code, out = on(box, "fabric-managed check; echo rc=$?; ssh-keygen -L -f /etc/ssh/fabric-host-cert-ed25519.pub; "
+                    "pkill -x sshd; /usr/sbin/sshd; sshd -T 2>/dev/null | grep -i '^hostcertificate '")
+check("24.04: its next check takes the certificate (a host certificate of its key, from the CA it fetched, naming "
+      "it), and sshd presents it (HostCertificate)",
+      "rc=0" in out and "host certificate" in out and f"    {NAME}" in out
+      and "hostcertificate /etc/ssh/fabric-host-cert-ed25519.pub" in out.lower(), out)
+STRICT = ("ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/dev/null "
+          "-o GlobalKnownHostsFile=/etc/ssh/ssh_known_hosts -o GSSAPIAuthentication=no "
+          "-o PreferredAuthentications=publickey -o IdentitiesOnly=yes -i /root/adam_key")
+code, out = on(box, f"{STRICT} adam@{FQDN} id -un")
+check("24.04: ssh by its name, strict host key checking, only the system known-hosts file: trusted by the host CA",
+      code == 0 and out.strip().endswith("adam"), out[-400:])
+code, out = on(box, f"{STRICT} adam@{NAME} id -un")
+check("24.04: by its short name too (the short-name line)", code == 0 and out.strip().endswith("adam"), out[-400:])
+code, out = on(box, f"{STRICT} adam@127.0.0.1 id -un")
+check("negative: by an IP address the host CA vouches for nothing: the host key is not trusted",
+      code != 0 and "host key verification failed" in out.lower(), out[-400:])
+keygen_other = os.path.join(W, "other_ca")
+sh(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", keygen_other])
+with open(os.path.join(W, "forge.pub"), "w") as f:
+    f.write(own_key + "\n")
+sh(["ssh-keygen", "-q", "-s", keygen_other, "-h", "-I", "forged", "-n", NAME, "-V", "+30d",
+    os.path.join(W, "forge.pub")])
+run_op(V, SECRETS, "set_ssh_host", {"name": NAME, "certs": [open(os.path.join(W, "forge-cert.pub")).read().strip()]},
+       DC)
+code, out = on(box, "fabric-managed check; echo rc=$?; ls /etc/ssh/; grep -c HostCertificate "
+                    "/etc/ssh/sshd_config.d/10-fabric.conf")
+check("negative: a certificate from another CA in its account is not taken: the old one removed, no HostCertificate",
+      "rc=0" in out and "fabric-host-cert-ed25519.pub" not in out and "\n0\n" in out, out)
+m_shs.sign_ssh_hosts(run_v, tempfile.mkdtemp(), login=lambda v, creds: "token",
+                     op=lambda name, args: run_op(V, SECRETS, name, args, DC), sign=stand_in_sign,
+                     apply=lambda *a: [], publish=publish_revoked)
+code, out = on(box, "fabric-managed check; ls /etc/ssh/")
+check("the next signing run replaces it (another CA's), and the machine takes the new one",
+      "fabric-host-cert-ed25519.pub" in out, out)
+# revocation (1.6.11.9.12): other1 holds a certificate, is taken out of lan-fabric-machines, the run withdraws it and
+# revokes its key; then the box's own key revoked as the run would publish it: ssh refuses it at once
+sh(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", os.path.join(W, "other1_host")])
+other_pub = " ".join(open(os.path.join(W, "other1_host.pub")).read().split()[:2])
+run_op(V, SECRETS, "set_ssh_host", {"name": "other1", "certs": [stand_in_sign(None, None, other_pub, ["other1"],
+                                                                             "test:other1")]}, DC)
+sh(["docker", "exec", DC, "samba-tool", "group", "removemembers", "lan-fabric-machines", "OTHER1$",
+    "-s", "/data/etc/smb.conf"])
+signed = m_shs.sign_ssh_hosts(run_v, tempfile.mkdtemp(), login=lambda v, creds: "token",
+                              op=lambda name, args: run_op(V, SECRETS, name, args, DC), sign=stand_in_sign,
+                              apply=lambda *a: [], publish=publish_revoked)
+code, out = on(box, "fabric-managed check; echo rc=$?; cat /etc/ssh/ssh_known_hosts")
+check("other1 taken out: its certificate withdrawn, its key revoked and published; the box's next check writes the "
+      "@revoked line", signed["revoked"] == [other_pub] and f"@revoked * {other_pub}" in out, (signed["revoked"], out))
+with open(REVOKED_FILE, "w") as f:
+    f.write(own_key + "\n")
+code, out = on(box, f"fabric-managed check; {STRICT} adam@{FQDN} id -un; echo ssh=$?")
+check("negative: the box's own key revoked: ssh refuses it at once, certificate or not",
+      "ssh=0" not in out and "revoked" in out.lower(), out[-500:])
+os.remove(REVOKED_FILE)
+code, out = on(box, f"fabric-managed check; {STRICT} adam@{FQDN} id -un; echo ssh=$?")
+check("nothing revoked any more (404): the @revoked lines removed, ssh trusts it again",
+      "ssh=0" in out and "@revoked" not in on(box, "cat /etc/ssh/ssh_known_hosts")[1], out[-500:])
+os.remove(os.path.join(TLS, "www", "certs", "ssh-host-ca.pub"))
+code, out = on(box, "fabric-managed check; echo rc=$?; ls /etc/ssh/; grep -c 'cert-authority' /etc/ssh/ssh_known_hosts "
+                    "2>&1; grep -c HostCertificate /etc/ssh/sshd_config.d/10-fabric.conf")
+check("24.04: host CA withdrawn (off, 404): the certificate, HostCertificate, the CA's copy and the @cert-authority "
+      "lines removed", "rc=0" in out and "fabric-host-cert" not in out and "fabric-host-ca.pub" not in out
+      and "@cert-authority" not in on(box, "cat /etc/ssh/ssh_known_hosts 2>&1")[1], out)
+shutil.copy(HOST_CA + ".pub", os.path.join(TLS, "www", "certs", "ssh-host-ca.pub"))
+on(box, "fabric-managed check")
 sh(["docker", "exec", DC, "samba-tool", "group", "removemembers", "lan-fabric-machines", f"{RELEASES['24.04'].upper()}$",
     "-s", "/data/etc/smb.conf"])
 code, out = on(box, "fabric-managed check; ls /etc/ssh/sshd_config.d/ /etc/systemd/resolved.conf.d/ /etc/ssh/ 2>&1")
-check("24.04: taken out of lan-fabric-machines, its next check removes fabric's SSH and DNS configuration, the SSH CA "
-      "with them", "removed" in out and "10-fabric.conf" not in out and "fabric.conf" not in out
-      and "fabric-user-ca.pub" not in out, out)
+check("24.04: taken out of lan-fabric-machines, its next check removes fabric's SSH and DNS configuration, the SSH CAs "
+      "and the host certificate with them", "removed" in out and "10-fabric.conf" not in out and "fabric.conf" not in out
+      and "fabric-user-ca.pub" not in out and "fabric-host-cert" not in out and "fabric-host-ca.pub" not in out, out)
+os.remove(os.path.join(TLS, "www", "certs", "ssh-host-ca.pub"))
 
 # 26.04: pre-created by fabricctl domain add-machine, joined with the one-time password
 box, ok = client("26.04", RELEASES["26.04"])

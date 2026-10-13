@@ -312,6 +312,11 @@ try:
     st, _, _, page = req("GET", "/ssh")
     check("the SSH page: on, the CA's fingerprint, the toggle and the form to sign",
           st == 200 and 'action="/ssh/off"' in page and 'action="/ssh/sign"' in page and "SHA256:" in page)
+    # covers: web:get.ssh +
+    check("the SSH page's host certificates: the host CA's fingerprint and each machine's state, until when, names",
+          "Host certificates" in page and "SHA256:HOSTCA" in page and "<th>Machine</th>" in page
+          and "(fabric host)" in page and "renewing" in page and "not published" in page
+          and "ws2404.ad.lan.test" in page)
     st, _, _, page = req("POST", "/ssh/sign", {"csrf": "dev", "public_key": "ssh-ed25519 AAAAC3Nza dev@laptop"})
     # covers: web:post.ssh.sign +
     check("sign a public key: the certificate shown once, as a download", st == 200

@@ -262,7 +262,21 @@ SAMPLE_ENROLMENTS = {"challenges": [{"id": "c0ffee12", "by": "admin", "made": "2
                                  "serial": "4241", "link_error": "DEV PREVIEW: no device named jims-mac"}]}
 SAMPLE_SSH = {"on": True, "public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDEVPREVIEWDEVPREVIEWDEVPREVIEWx",
               "fingerprint": "SHA256:DEVPREVIEWdevpreviewDEVPREVIEWdevpreview00", "may_sign": True, "why_not": "",
-              "hours": 8}
+              "hours": 8, "host_public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHOSTCADEVPREVIEWHOSTCADEVPREVIEWx",
+              "host_fingerprint": "SHA256:HOSTCAdevpreviewHOSTCAdevpreviewHOSTCA0000"}
+# the SSH page's host certificates (manual 1.6.11.9.11): one machine of each state the page shows
+SAMPLE_SSH_HOSTS = {"on": True, "public_key": SAMPLE_SSH["host_public_key"],
+                    "fingerprint": SAMPLE_SSH["host_fingerprint"], "machines": [
+                        {"name": "fab1", "ou": "fabric-hosts", "managed": True, "state": "valid",
+                         "until": "2026-11-12", "principals": ["fab1", "fab1.ad.lan.test", "fab1.lan.test"],
+                         "types": ["ssh-ed25519", "ecdsa-sha2-nistp256"]},
+                        {"name": "ws2404", "ou": "machines", "managed": True, "state": "renewing",
+                         "until": "2026-10-20", "principals": ["ws2404", "ws2404.ad.lan.test", "ws2404.lan.test"],
+                         "types": ["ssh-ed25519"]},
+                        {"name": "ws2604", "ou": "machines", "managed": True, "state": "not published",
+                         "until": "", "principals": [], "types": []},
+                        {"name": "printsrv", "ou": "machines", "managed": False, "state": "not managed",
+                         "until": "", "principals": [], "types": []}]}
 _REG_LIST = "https://adguardteam.github.io/HostlistsRegistry/assets/filter_{}.txt"
 _ZONE = "8f1c2d3e4a5b.list.rpz"
 _NOW = int(time.time())          # the sample's lists were fetched a few hours ago

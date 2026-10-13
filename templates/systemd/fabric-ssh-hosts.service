@@ -1,0 +1,8 @@
+[Unit]
+Description=fabric: SSH host certificates for the managed machines and this host, while SSH certificates are on (manual 1.6.11.9.8)
+After=docker.service fabric.target
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/fabricctl domain ssh-hosts --scheduled

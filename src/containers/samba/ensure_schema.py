@@ -33,7 +33,10 @@ SETS = {
                 ("fabricHostName", 28, IA5, True), ("fabricOwner", 29, STRING, True), ("fabricDns", 30, BOOL, True),
                 ("fabricBlock", 31, INT, True), ("fabricVlanName", 32, STRING, True),
                 # the option sets of the organisation and of each site (2.1.10.23, manual 1.10.4.24.1)
-                ("fabricDhcpOptionDef", 33, STRING, False), ("fabricDhcpClass", 34, STRING, False)],
+                ("fabricDhcpOptionDef", 33, STRING, False), ("fabricDhcpClass", 34, STRING, False),
+                # SSH host certificates (2.1.7.13, manual 1.6.11.9.7): a machine's host public keys, written by the
+                # machine itself; the certificates fabric's host CA signed for them, written by fabric
+                ("fabricSshHostKey", 35, IA5, False), ("fabricSshHostCert", 36, IA5, False)],
                [("fabricDevice", 1, 3, [], ["fabricDeviceType", "fabricEnabled", "fabricCertFingerprint"]),
                 ("fabricRole", 2, 3, [], ["fabricPermission", "fabricVlan", "fabricPriority"]),
                 ("fabricDeviceRoles", 3, 3, [], ["fabricRoleName"]),
@@ -55,7 +58,9 @@ SETS = {
                 ("fabricAddressBlock", 11, 3, [], ["fabricBlock"]),
                 # the organisation's DHCP options (in OU=organisation) and each site's (in its OU): 2.1.10.23
                 ("fabricOptionSet", 12, 1, [], ["fabricDhcpOption", "fabricDhcpOptionDef", "fabricDhcpClass",
-                                                "description"])]),
+                                                "description"]),
+                # on a managed machine's computer account (2.1.7.13): its host keys and their certificates
+                ("fabricSshHost", 13, 3, [], ["fabricSshHostKey", "fabricSshHostCert"])]),
     # sudo's rules in the directory, with sudo's own registered arc (Ubuntu no longer ships its AD schema; Q9)
     "sudo": ("1.3.6.1.4.1.15953.9.1", "1.3.6.1.4.1.15953.9.2",
              [("sudoUser", 1, IA5, False), ("sudoHost", 2, IA5, False), ("sudoCommand", 3, IA5, False),

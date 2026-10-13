@@ -15,6 +15,7 @@ GET = {
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
     ("pki", "enrolments"): "pki:read",
     ("ssh",): "session",                # SSH certificates: anyone may look; signing is for fabric admins (2.1.7.12)
+    ("ssh", "hosts"): "domain:read",    # each machine's SSH host certificate (1.6.11.9.11): the site's machines
     ("devices",): "devices:read",
     ("people",): "people:read",
     ("domain",): "domain:read", ("domain", "logon"): "domain:read", ("gpo",): "domain:read",
