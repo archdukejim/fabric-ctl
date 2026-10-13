@@ -398,5 +398,6 @@ def run(ctx):
         ok("sssd enabled and restarted")
     for line in apply_host_managed(v, managed):
         ok(line)
-    ok(f"this host is a member of {v['ad_domain']}: fabric-admins and {v.get('site_name')}-fabric-admins sign in "
-       "with their domain accounts" + ("; fabric manages it (manual 1.6.11.11)" if managed else ""))
+    ok(f"this host is a member of {v['ad_domain']}: whom OU=fabric-hosts' log-on policy allows signs in with a "
+       "domain account (the fabric admins by default, 2.1.6.53)"
+       + ("; fabric manages it (manual 1.6.11.11)" if managed else ""))

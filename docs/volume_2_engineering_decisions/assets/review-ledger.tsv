@@ -158,7 +158,7 @@ docs/volume_3_installation/3.2.3-deployed-structure.md	7e6cdc8cf16bfca41ab48a5b0
 docs/volume_3_installation/3.2.4-reinstall-uninstall.md	5e505ebf5c9e308d960be3ac459cd9481e605fa1	2026-10-08	
 docs/volume_3_installation/3.3.1-running-setup.md	09e095e29c0e90eeb30fb94a37fd21cdd9a0863f	2026-10-12	
 docs/volume_3_installation/3.3.2-after-setup.md	544ea595e8cf8a5dc93028e481e10bd72e8089e0	2026-10-11	
-docs/volume_3_installation/3.3.3-setup-steps.md	5b169478111b527d318a4e772a39af597bc2233e	2026-10-13	
+docs/volume_3_installation/3.3.3-setup-steps.md	8810c5c3822e8eaddef541ff4db6ba94c868ff3b	2026-10-13	
 docs/volume_3_installation/3.3.4-rebuilding.md	89cf47b0a1e0594bdae8b4d684b4111123f5b76b	2026-10-08	
 docs/volume_3_installation/3.5.1-pki-before-install.md	fe4159103da796d8616041f0d1cd09f4b134db79	2026-10-08	
 docs/volume_3_installation/3.5.2-subordinate-ca.md	d84ac7e3817c58047a6317cdbff214f52895ed6e	2026-10-11	
@@ -892,7 +892,7 @@ src/fabriclib/samba/prepare_site.py	7a05cbcd3136eba664ffd6c2d6f15f8539e2916b	202
 src/fabriclib/samba/read_policy_changes.py	6767355c574ac22705fca798578b7bd5788ff24f	2026-10-12	
 src/fabriclib/samba/replication_status.py	a04709ee132cfac905be7d60e7a77237312cd0d6	2026-10-08	
 src/fabriclib/samba/run_converge.py	6c114c8e2cca5db09c164cc9323230e65e7e5ee4	2026-10-05	
-src/fabriclib/samba/run_domain_command.py	779c1e0fd05e00144e5bfb8fe287b65b205c14e9	2026-10-13	
+src/fabriclib/samba/run_domain_command.py	9e74daf288202971fbe939163475cb1294cc2819	2026-10-13	
 src/fabriclib/samba/run_gpo_command.py	334d24fa54af3fb403d49d2d95b0d02b37e026c0	2026-10-08	
 src/fabriclib/samba/set_domain_password_policy.py	527fa392e838658fb8416f54f64273c638d4793e	2026-10-12	
 src/fabriclib/samba/set_gpo_policy.py	d0ba27475a6fa0b2448b94863f0f40012f4712ef	2026-10-08	
@@ -1000,7 +1000,7 @@ src/fabriclib/setup/finish_vars.py	3e694f58481d9a9dbb20a304a926620136e8189b	2026
 src/fabriclib/setup/harden_docker.py	1ad4aca818b8227f6566193c67503b8f12adae09	2026-10-03	
 src/fabriclib/setup/init_pki.py	d476f50b211b0e3ac3769afdda07a8d696b84cbe	2026-10-11	
 src/fabriclib/setup/join_federation.py	25837fec96138cc315bac37e20910ea110ce2e83	2026-10-11	
-src/fabriclib/setup/join_host_domain.py	78bc4ed9f31ced47cd9725222c4e765b2fc00689	2026-10-13	
+src/fabriclib/setup/join_host_domain.py	6ff4b446d86f9944332c68368d9d4da5a6327cde	2026-10-13	
 src/fabriclib/setup/mint_extra_certs.py	0e23e41edec381ab688dab5b8a06f9e39eb6a39e	2026-09-30	
 src/fabriclib/setup/mint_service_certs.py	ad7f23f6c95c57fb095cac7b3c85e9fcbe3435a2	2026-10-11	
 src/fabriclib/setup/move_dns_filter.py	0642b63d41b82f5f34f0cc97272bdf08029bce3a	2026-10-10	
@@ -1022,7 +1022,7 @@ src/fabriclib/setup/stage_source.py	fc569e4dbbec1547cbf74bb155ad3d2498c21c6b	202
 src/fabriclib/setup/start_bootstrap.py	cd55ee690beb024d64109b2ac4927bae129d17e7	2026-09-30	
 src/fabriclib/setup/start_services.py	d43d00b7eacc6e030caf12b5ff4f8e24a8f5d922	2026-10-13	
 src/fabriclib/setup/start_unit.py	898cc7b68b842376bbff19fa3ce5ea9480651a3b	2026-10-08	
-src/fabriclib/setup/steps.py	4df80fb8761f84126d2babff5f4d69babaff5717	2026-10-12	
+src/fabriclib/setup/steps.py	eb3d4a2f9e0f1e859a531c4ffb177ccd5e213a54	2026-10-13	
 src/fabriclib/setup/uninstall.py	9f46e78cc9e93a3f423fd37bf0d5460df40908de	2026-10-13	
 src/fabriclib/setup/upgrade_vars.py	17ce34c17dd15a00638149d432090f8fe05cfa37	2026-10-11	
 src/fabriclib/setup/verify_install.py	675a510c40b9160ef5359e0f4cb1950045695cc1	2026-10-11	
@@ -1534,7 +1534,7 @@ tests/sandbox/make_person.py	f778029f1dfc122927b454149f21fda1c884cdf7	2026-10-05
 tests/sandbox/radius_device.py	12b3e1127a0cc5966846fe0554dc84da7a2e5449	2026-10-05	
 tests/sandbox/radius_mab.py	c9575e9fd8e3c3d52dbd77b879b9ef9a6bd148d5	2026-09-30	
 tests/sandbox/rfc2136_test.sh	4299bc1c1d62237439cad3a2ebac534f45ef0874	2026-10-09	
-tests/sandbox/run.sh	f57dcdfcf2bd89e34774dbae935626ff66b34648	2026-10-13	
+tests/sandbox/run.sh	fe85b9fdfd81d13272683e019f6c95cf65d2929a	2026-10-13	
 tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30	
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-12	

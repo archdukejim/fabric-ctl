@@ -493,20 +493,32 @@ check "a local account signs in over SSH with its password (the host's exception
     "ssh_pw localop /root/localop-pw"
 check "a fabric admin signs in over SSH with a Kerberos ticket" "ssh_krb fabric-admin /root/admin-pw"
 check "a fabric admin's domain password over SSH is refused (domain accounts sign in with Kerberos)" "! ssh_pw fabric-admin /root/admin-pw"
-check "a person outside the fabric admins (bob) gets a ticket but is refused over SSH with it" \
-    "in_box 'KRB5CCNAME=FILE:/tmp/cc-bobt kinit bob < /root/bob-pw >/dev/null 2>&1 && kdestroy -c FILE:/tmp/cc-bobt' && ! ssh_krb bob /root/bob-pw"
+# dora: a person of the site (in <site>-users, not a fabric admin) whose password is usable at once (bob's is a
+# one-time password the web sign-in test needs, so neither kinit nor sssd's account check would take it): reset to a
+# password in a root-only file, then its must-change flag lifted in the domain (pwdLastSet -1: no secret on a line)
+in_box 'python3 /root/make_person.py dora' > "$OUT/dora.log" 2>&1
+in_box 'python3 /root/reset_user.py dora /root/dora-pw' >> "$OUT/dora.log" 2>&1
+DORA_DN=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=dora)' dn" | sed -n 's/^dn: //p')
+printf 'dn: %s\nchangetype: modify\nreplace: pwdLastSet\npwdLastSet: -1\n' "$DORA_DN" \
+    | docker exec -i "$NAME" docker exec -i samba ldbmodify -H /data/private/sam.ldb >> "$OUT/dora.log" 2>&1
+in_box 'sss_cache -E' >/dev/null 2>&1
+check "a person outside the fabric admins (dora) gets a ticket but is refused, over SSH with it and by PAM's account check" \
+    "in_box 'KRB5CCNAME=FILE:/tmp/cc-dorat kinit dora < /root/dora-pw >/dev/null 2>&1 && kdestroy -c FILE:/tmp/cc-dorat' \
+     && ! ssh_krb dora /root/dora-pw && ! pam dora /dev/null acct_mgmt"
 echo "--- who signs in to the host is OU=fabric-hosts' log-on policy alone (2.1.6.53): changed there, nothing on the host"
 SITE=${FM%-fabric-machines}
 SSSD_BEFORE=$(in_box 'md5sum /etc/sssd/sssd.conf')
 # covers: cli:domain.logon +
 in_box "fabricctl domain logon set fabric-hosts --console fabric-admins,$SITE-fabric-admins,$SITE-users --remote fabric-admins,$SITE-fabric-admins,$SITE-users" > "$OUT/logon-hosts.log" 2>&1
-sleep 10     # sssd keeps a GPO it read for 5 seconds (ad_gpo_cache_timeout)
-check "an admin grants $SITE-users on OU=fabric-hosts' policy: bob may now sign in to the host (PAM, and SSH with a ticket), no file on the host changed" \
-    "pam bob /dev/null acct_mgmt && ssh_krb bob /root/bob-pw && [ \"\$(in_box 'md5sum /etc/sssd/sssd.conf')\" = '$SSSD_BEFORE' ]"
+# sssd reads a GPO again once its own copy is 5 seconds old (ad_gpo_cache_timeout): asked for up to a minute
+within_a_minute() { for _ in $(seq 12); do eval "$1" && return 0; sleep 5; done; return 1; }
+check "an admin grants $SITE-users on OU=fabric-hosts' policy: dora may now sign in to the host (PAM, and SSH with a ticket), no file on the host changed" \
+    "within_a_minute 'pam dora /dev/null acct_mgmt' && ssh_krb dora /root/dora-pw \
+     && [ \"\$(in_box 'md5sum /etc/sssd/sssd.conf')\" = '$SSSD_BEFORE' ]"
 in_box 'fabricctl domain logon clear fabric-hosts' >> "$OUT/logon-hosts.log" 2>&1
-sleep 10
-check "...logon clear fabric-hosts puts the default back: bob refused again, the fabric admin still signs in" \
-    "! pam bob /dev/null acct_mgmt && pam fabric-admin /dev/null acct_mgmt"
+check "...logon clear fabric-hosts puts the default back: dora refused again (SSH too), the fabric admin still signs in" \
+    "within_a_minute '! pam dora /dev/null acct_mgmt' && ! ssh_krb dora /root/dora-pw && pam fabric-admin /dev/null acct_mgmt \
+     && grep -q 'back to the default' '$OUT/logon-hosts.log'"
 in_box 'systemctl stop samba' >/dev/null 2>&1
 check "with the DC stopped: a local account signs in and keeps its sudo, root works, the admin signs in from sssd's cache" \
     "pam localop /root/localop-pw && in_box 'sudo -l -U localop' | grep -q '(ALL : ALL) ALL' \
@@ -590,10 +602,12 @@ check "host_join_domain false: the step leaves the host as it is, even with the 
      && in_box 'fabricctl status' | grep -q 'host_join_domain: false'"
 in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_load(open(p)); v['host_join_domain']=True; yaml.safe_dump(v, open(p, 'w'))\""
 in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-again.log" 2>&1
+# the undo put /etc/hosts back as it was, the test's name for the host's own SSH (above) with it
+in_box "grep -q ' fabric-sbx.ad.test\$' /etc/hosts || echo '127.0.0.2 fabric-sbx.ad.test' >> /etc/hosts"
 check "approved again: a member once more, its own account made again in OU=fabric-hosts and managed (the admin resolves, signs in, and over SSH with Kerberos)" \
     "in_box 'getent passwd fabric-admin' >/dev/null && pam fabric-admin /root/admin-pw && host_account | grep -q 'OU=fabric-hosts,' \
      && in_member && ssh_krb fabric-admin /root/admin-pw"
-in_box 'rm -f /root/localop-pw /root/wrong-pw /root/bob-pw'
+in_box 'rm -f /root/localop-pw /root/wrong-pw /root/bob-pw /root/dora-pw'
 
 echo "--- Keycloak's database password, rotated by OpenBao (2.1.7.4)"
 pg_roles() { in_box "docker exec postgres psql -tA -U fabric_admin -d keycloak -c 'SELECT rolname, rolsuper, rolcanlogin FROM pg_roles'"; }

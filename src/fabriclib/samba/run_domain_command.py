@@ -7,6 +7,7 @@ from fabriclib.directory.add_machine import add_machine
 from fabriclib.directory.sort_machines import sort_machines
 from fabriclib.samba.clear_logon_policy import clear_logon_policy
 from fabriclib.samba.domain_status import domain_status
+from fabriclib.samba.host_logon_default import HOSTS_OU
 from fabriclib.samba.logon_overview import logon_overview
 from fabriclib.samba.set_domain_password_policy import set_domain_password_policy
 from fabriclib.samba.set_logon_policy import set_logon_policy
@@ -110,7 +111,9 @@ def _logon(v, args):
             return 0
         if op == "clear" and len(rest) == 1:
             clear_logon_policy(getpass.getuser(), rest[0])
-            print(f"{rest[0]}: its own log-on policy cleared (it takes its parent's)")
+            print(f"{rest[0]}: its own log-on policy cleared ("
+                  + ("back to the default: the fabric admins, 2.1.6.53)" if rest[0].strip("/").lower() == HOSTS_OU
+                     else "it takes its parent's)"))
         elif op == "set" and len(rest) in (3, 5) and set(opts) <= {"--console", "--remote"} \
                 and len(opts) * 2 == len(rest) - 1:
             done = set_logon_policy(v, getpass.getuser(), rest[0],
