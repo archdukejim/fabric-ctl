@@ -453,8 +453,8 @@ check "setup made the host a member with its own account: the keytab holds FABRI
      && in_box 'klist -k /etc/krb5.keytab' | grep -qF ' FABRIC-SBX\$@AD.TEST' && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi 'DC-FABRIC-SBX' \
      && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi krbtgt \
      && in_box 'systemctl is-active sssd' | grep -qx active"
-check "…its computer account sits in the site's OU=machines/OU=linux (group policy reaches it); sssd enforces the OU's log-on policy" \
-    "host_account | grep -q 'OU=linux,OU=machines,' \
+check "…its computer account sits in the site's OU=fabric-hosts (group policy reaches it, 2.1.6.49); sssd enforces the OU's log-on policy" \
+    "host_account | grep -q 'OU=fabric-hosts,' \
      && in_box 'grep -qx ad_gpo_access_control.=.enforcing /etc/sssd/sssd.conf && grep -qx ad_hostname.=.fabric-sbx.ad.test /etc/sssd/sssd.conf'"
 check "the first admin (in fabric-admins) resolves on the host with the domain's uid (1000000, the block's first)" \
     "in_box 'getent passwd fabric-admin' | grep -qE '^fabric-admin:[^:]*:1000000:'"
@@ -464,12 +464,94 @@ check "the first admin has sudo on the host from the site's rule" "in_box 'sudo 
 check "a person outside the fabric admins (bob) resolves but is refused by the host's access rule, and has no sudo" \
     "in_box 'getent passwd bob' >/dev/null && ! pam bob /dev/null acct_mgmt && pam fabric-admin /dev/null acct_mgmt \
      && in_box 'sudo -l -U bob 2>&1' | grep -q 'not allowed'"
+echo "--- the fabric host as a machine fabric manages (manual 1.6.11.11, 2.1.6.49): Kerberos for SSH, never locked out"
+FM=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=*-fabric-machines)' sAMAccountName" \
+     | sed -n 's/^sAMAccountName: //p' | head -1)
+in_member() { in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=FABRIC-SBX\$)' memberOf" \
+              | grep -qi "^memberOf: CN=$FM,"; }
+samba_tool() { in_box "docker exec samba samba-tool $* -s /data/etc/smb.conf" >> "$OUT/samba-tool.log" 2>&1; }
+check "setup placed the host's account in the site's fabric-machines group ($FM): fabric manages it" \
+    "[ -n '$FM' ] && in_member && in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=FABRIC-SBX\\$)' description\" | grep -q \"fabric host\""
+( umask 077; printf '%s\n' "$BOB_PW" > "$OUT/bob-pw" ); docker cp "$OUT/bob-pw" "$NAME:/root/bob-pw"; rm -f "$OUT/bob-pw"
+in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server sshpass >/dev/null 2>&1; systemctl start ssh.socket >/dev/null 2>&1; true'
+in_box 'fabricctl domain host-managed' > "$OUT/host-managed.log" 2>&1
+# covers: cli:domain.host-managed +
+check "with an SSH server installed, \`domain host-managed\` applies Kerberos for SSH and pam_localuser; sshd accepts it; local passwords stay on" \
+    "grep -q 'is in $FM' '$OUT/host-managed.log' && in_box 'test -f /etc/ssh/sshd_config.d/10-fabric.conf' \
+     && in_box 'grep -qx \"auth requisite pam_localuser.so\" /etc/pam.d/sshd' && in_box 'sshd -T' | grep -qx 'gssapiauthentication yes' \
+     && in_box 'sshd -T' | grep -qx 'passwordauthentication yes'"
+in_box "grep -q ' fabric-sbx.ad.test\$' /etc/hosts || echo '127.0.0.2 fabric-sbx.ad.test' >> /etc/hosts"
+# SSH sign-ins inside the box: a password from a root-only file (sshpass -f), or a Kerberos ticket from kinit (stdin)
+ssh_pw() { in_box "sshpass -f $2 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20 \
+    -o PreferredAuthentications=password,keyboard-interactive -o PubkeyAuthentication=no -o GSSAPIAuthentication=no \
+    $1@127.0.0.1 true" >> "$OUT/ssh.log" 2>&1; }
+ssh_krb() { in_box "export KRB5CCNAME=FILE:/tmp/cc-$1; kinit $1 < $2 >/dev/null 2>&1 && ssh -o StrictHostKeyChecking=no \
+    -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ConnectTimeout=20 -o PreferredAuthentications=gssapi-with-mic \
+    -o GSSAPIAuthentication=yes $1@fabric-sbx.ad.test true; rc=\$?; kdestroy >/dev/null 2>&1; exit \$rc" >> "$OUT/ssh.log" 2>&1; }
+check "a local account signs in over SSH with its password (the host's exception to Kerberos-only: local accounts as before)" \
+    "ssh_pw localop /root/localop-pw"
+check "a fabric admin signs in over SSH with a Kerberos ticket" "ssh_krb fabric-admin /root/admin-pw"
+check "a fabric admin's domain password over SSH is refused (domain accounts sign in with Kerberos)" "! ssh_pw fabric-admin /root/admin-pw"
+check "a person outside the fabric admins (bob) gets a ticket but is refused over SSH with it" \
+    "in_box 'KRB5CCNAME=FILE:/tmp/cc-bobt kinit bob < /root/bob-pw >/dev/null 2>&1 && kdestroy -c FILE:/tmp/cc-bobt' && ! ssh_krb bob /root/bob-pw"
 in_box 'systemctl stop samba' >/dev/null 2>&1
 check "with the DC stopped: a local account signs in and keeps its sudo, root works, the admin signs in from sssd's cache" \
     "pam localop /root/localop-pw && in_box 'sudo -l -U localop' | grep -q '(ALL : ALL) ALL' \
      && [ \"\$(in_box 'id -u root')\" = 0 ] && pam fabric-admin /root/admin-pw"
+check "…and over SSH with its password: the managed host never locks its owner out" "ssh_pw localop /root/localop-pw"
+in_box 'fabricctl domain host-managed --scheduled' > "$OUT/host-managed-dcdown.log" 2>&1
+check "with the DC stopped, the timer's run changes nothing (says the DC did not answer)" \
+    "grep -q 'could not be read' '$OUT/host-managed-dcdown.log' && in_box 'test -f /etc/ssh/sshd_config.d/10-fabric.conf'"
 in_box 'systemctl start samba' >/dev/null 2>&1
 for _ in $(seq 1 60); do [ "$(in_box "docker inspect -f '{{.State.Health.Status}}' samba")" = healthy ] && break; sleep 5; done
+samba_tool group removemembers "$FM" 'FABRIC-SBX\$'
+in_box 'fabricctl domain host-managed --scheduled' > "$OUT/host-managed-out.log" 2>&1
+check "taken out of $FM: the timer's run removes the SSH drop-in and fabric's PAM lines; SSH works as before" \
+    "grep -q 'not in $FM' '$OUT/host-managed-out.log' && ! in_box 'test -e /etc/ssh/sshd_config.d/10-fabric.conf' \
+     && ! in_box 'grep -q pam_localuser /etc/pam.d/sshd' && ssh_pw localop /root/localop-pw"
+in_box 'fabricctl setup --step member --non-interactive --yes' > "$OUT/member-out.log" 2>&1
+check "…and setup does not put it back (placed once: the admin's choice is kept)" \
+    "! in_member && ! in_box 'test -e /etc/ssh/sshd_config.d/10-fabric.conf'"
+samba_tool group addmembers "$FM" 'FABRIC-SBX\$'
+in_box "printf 'BogusOption yes\n' > /etc/ssh/sshd_config.d/00-broken.conf"
+in_box 'fabricctl domain host-managed' > "$OUT/host-managed-broken.log" 2>&1
+# covers: cli:domain.host-managed -
+check "negative: sshd already refusing its configuration: host-managed refuses (exit 1), saying so, and changes nothing" \
+    "grep -q 'refuses its configuration as it is' '$OUT/host-managed-broken.log' && ! in_box 'fabricctl domain host-managed >/dev/null 2>&1' \
+     && ! in_box 'test -e /etc/ssh/sshd_config.d/10-fabric.conf' && ! in_box 'grep -q pam_localuser /etc/pam.d/sshd'"
+in_box 'rm -f /etc/ssh/sshd_config.d/00-broken.conf; fabricctl domain host-managed' > "$OUT/host-managed-fixed.log" 2>&1
+check "…fixed: applied again, and the fabric admin signs in with Kerberos" \
+    "grep -q 'is in $FM' '$OUT/host-managed-fixed.log' && ssh_krb fabric-admin /root/admin-pw"
+# an account of 0.7.1's first build: in OU=machines/OU=linux, never placed (the record without "placed")
+SITE_OU=$(host_account | sed -n 's/^dn: CN=FABRIC-SBX,OU=fabric-hosts,\(.*\),DC=ad,DC=test$/\1/p')
+samba_tool computer move FABRIC-SBX "OU=linux,OU=machines,$SITE_OU"
+in_box "python3 -c \"import json; p='/opt/fabric/config/member.json'; r=json.load(open(p)); r.pop('placed', None); json.dump(r, open(p, 'w'))\""
+in_box 'fabricctl setup --step member --non-interactive --yes' > "$OUT/member-move.log" 2>&1
+in_box 'fabricctl setup --step member --non-interactive --yes' > "$OUT/member-move2.log" 2>&1
+check "an account in OU=machines/OU=linux that setup never placed (0.7.1's first build) moves into OU=fabric-hosts at the next setup; a second run changes nothing" \
+    "[ -n '$SITE_OU' ] && host_account | grep -q 'OU=fabric-hosts,' && grep -q 'moved into OU=fabric-hosts' '$OUT/member-move.log' \
+     && grep -q 'nothing to change' '$OUT/member-move2.log'"
+# renewing the host's machine password (1.6.11.12): off by default; on, adcli is installed and sssd renews it
+check "the host's machine password is never renewed by default (sssd: age 0; no adcli)" \
+    "in_box 'grep -qx \"ad_maximum_machine_account_password_age = 0\" /etc/sssd/sssd.conf'"
+in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_load(open(p)); v['host_machine_password_renew_days']=1; yaml.safe_dump(v, open(p, 'w'))\""
+in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-renew.log" 2>&1
+# covers: setting:host_machine_password_renew_days +
+check "host_machine_password_renew_days 1: adcli installed and sssd renews the host's password once it is a day old" \
+    "in_box 'dpkg -s adcli' | grep -q 'install ok installed' \
+     && in_box 'grep -qx \"ad_maximum_machine_account_password_age = 1\" /etc/sssd/sssd.conf'"
+KVNO1=$(in_box 'klist -k /etc/krb5.keytab' | awk '/FABRIC-SBX\$@/ {print $1}' | sort -n | tail -1)
+DCNAME=$(in_box "sed -n 's/^ad_server = //p' /etc/sssd/sssd.conf")
+in_box "adcli update --domain=ad.test --domain-controller=$DCNAME --computer-password-lifetime=0 --verbose" > "$OUT/adcli-update.log" 2>&1
+KVNO2=$(in_box 'klist -k /etc/krb5.keytab' | awk '/FABRIC-SBX\$@/ {print $1}' | sort -n | tail -1)
+in_box 'systemctl restart sssd; sss_cache -E' >/dev/null 2>&1
+host_kinit() { in_box "KRB5CCNAME=FILE:/tmp/cc-host kinit -k 'FABRIC-SBX\$@AD.TEST' && kdestroy -c FILE:/tmp/cc-host"; }
+check "the renewal sssd runs (adcli, from the host's keytab) changes the password: its keys move on, the host signs in with them, a fabric admin still signs in" \
+    "[ -n '$KVNO1' ] && [ '${KVNO2:-0}' -gt '$KVNO1' ] && host_kinit && pam fabric-admin /root/admin-pw"
+in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_load(open(p)); v['host_machine_password_renew_days']=0; yaml.safe_dump(v, open(p, 'w'))\""
+in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-renew-off.log" 2>&1
+check "renewal off again: sssd's age back to 0, the keytab the DC's current keys, the admin signs in" \
+    "in_box 'grep -qx \"ad_maximum_machine_account_password_age = 0\" /etc/sssd/sssd.conf' && pam fabric-admin /root/admin-pw"
 NSS_ORIG=$(in_box 'md5sum < /opt/fabric/config/host-originals/etc/nsswitch.conf')
 in_box 'fabricctl setup --undo member --non-interactive' > "$OUT/undo-member-refused.log" 2>&1
 # covers: cli:setup -
@@ -482,6 +564,12 @@ check "setup --undo member: nsswitch.conf as it was, sssd.conf and the keytab go
      && ! in_box 'systemctl is-active --quiet sssd' && in_box 'fabricctl status' | grep -qE '^  member +declined'"
 check "…the admin no longer resolves on the host; root and the local account still work; its own account left the domain" \
     "! in_box 'getent passwd fabric-admin' && pam localop /root/localop-pw && ! host_account"
+check "…and fabric's management of the host is gone: no SSH drop-in, PAM's sshd as before; the local account signs in over SSH" \
+    "! in_box 'test -e /etc/ssh/sshd_config.d/10-fabric.conf' && ! in_box 'grep -q pam_localuser /etc/pam.d/sshd' \
+     && ssh_pw localop /root/localop-pw"
+in_box 'fabricctl domain host-managed' > "$OUT/host-managed-nomember.log" 2>&1
+check "negative: no longer a member: \`domain host-managed\` refuses, saying so" \
+    "grep -q 'not a member of its domain' '$OUT/host-managed-nomember.log' && ! in_box 'fabricctl domain host-managed >/dev/null 2>&1'"
 in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_load(open(p)); v['host_join_domain']=False; yaml.safe_dump(v, open(p, 'w'))\""
 in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-off.log" 2>&1
 check "host_join_domain false: the step leaves the host as it is, even with the change approved; status shows it" \
@@ -489,9 +577,10 @@ check "host_join_domain false: the step leaves the host as it is, even with the 
      && in_box 'fabricctl status' | grep -q 'host_join_domain: false'"
 in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_load(open(p)); v['host_join_domain']=True; yaml.safe_dump(v, open(p, 'w'))\""
 in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-again.log" 2>&1
-check "approved again: a member once more, its own account made again (the admin resolves and signs in)" \
-    "in_box 'getent passwd fabric-admin' >/dev/null && pam fabric-admin /root/admin-pw && host_account | grep -q 'OU=linux,OU=machines,'"
-in_box 'rm -f /root/localop-pw /root/wrong-pw'
+check "approved again: a member once more, its own account made again in OU=fabric-hosts and managed (the admin resolves, signs in, and over SSH with Kerberos)" \
+    "in_box 'getent passwd fabric-admin' >/dev/null && pam fabric-admin /root/admin-pw && host_account | grep -q 'OU=fabric-hosts,' \
+     && in_member && ssh_krb fabric-admin /root/admin-pw"
+in_box 'rm -f /root/localop-pw /root/wrong-pw /root/bob-pw'
 
 echo "--- Keycloak's database password, rotated by OpenBao (2.1.7.4)"
 pg_roles() { in_box "docker exec postgres psql -tA -U fabric_admin -d keycloak -c 'SELECT rolname, rolsuper, rolcanlogin FROM pg_roles'"; }

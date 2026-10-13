@@ -455,6 +455,24 @@ seen_dc = prompts(lambda: ask_dc_name(q_dc), ["dc_1", "ad", "DC-Garage"])
 check("the DC's name: a name the DC cannot have (an underscore, the domain's NetBIOS name) is refused and asked again; "
       "the answer is kept in lower case", len(seen_dc) == 3 and q_dc.vars["dc_name"] == "dc-garage",
       (seen_dc, q_dc.vars))
+q_host = types.SimpleNamespace(vars={"hostname": "pi", "ad_domain": "ad.lan.test"}, non_interactive=False)
+out_host = io.StringIO()
+with contextlib.redirect_stdout(out_host):
+    feed_host = iter(["PI", "dc-pi"])
+    real_in = builtins.input
+    builtins.input = lambda prompt="": next(feed_host)
+    try:
+        ask_dc_name(q_host)
+    finally:
+        builtins.input = real_in
+# covers: ask:setup.dc_name -
+check("the DC's name: the host's own name is refused (the host joins the domain under it, 2.1.6.51), saying why, and "
+      "asked again", q_host.vars["dc_name"] == "dc-pi" and "this host's own name" in out_host.getvalue(),
+      (q_host.vars, out_host.getvalue()))
+q_unatt = types.SimpleNamespace(vars={"hostname": "pi", "ad_domain": "ad.lan.test", "dc_name": "pi"},
+                                non_interactive=True)
+check("negative: unattended, a dc_name equal to the host's name is refused, saying why",
+      "this host's own name" in refused(lambda: ask_dc_name(q_unatt)), q_unatt.vars)
 asked["cert_root_ca_days"] = prompts(lambda: ask_ca_lifetime(q), [""])[0]
 permanent = ("domain", "friendly_name", "ad_domain", "dc_name", "cert_root_ca_days")
 check("each permanent question carries ⚠ Permanent after its label: the DNS domain, the organisation's name, the AD "
@@ -528,6 +546,21 @@ except Exception as e:      # ValidationError
 # covers: setting:host_join_domain -
 check("negative: a host_join_domain that is not true or false is refused, saying so", "must be true or false" in msg,
       msg)
+# covers: setting:host_machine_password_renew_days +
+check("host_machine_password_renew_days: 0 (off) by default, a whole number from 0 to 999 accepted (1.6.11.12)",
+      mv["host_machine_password_renew_days"] == 0
+      and all(check_samba_settings({**mv, "host_machine_password_renew_days": d}) is None for d in (0, 1, 30, 999)),
+      mv.get("host_machine_password_renew_days"))
+bad_days = []
+for d in (-1, 1000, 1.5, "30", True, None, [30]):
+    try:
+        check_samba_settings({**mv, "host_machine_password_renew_days": d})
+    except Exception as e:      # ValidationError
+        if "whole number from 0" in str(e):
+            bad_days.append(d)
+# covers: setting:host_machine_password_renew_days -
+check("negative: a renewal that is not a whole number from 0 to 999 (negative, too large, a fraction, text, true, "
+      "empty, a list) is refused, saying so", bad_days == [-1, 1000, 1.5, "30", True, None, [30]], bad_days)
 names = [n for n, _, _ in STEPS]
 check("the group `member` is recommended, asked after the time service; its step comes right after `start`",
       GROUPS["member"]["level"] == "recommended" and list(GROUPS)[-1] == "member"
@@ -535,14 +568,30 @@ check("the group `member` is recommended, asked after the time service; its step
 _real_missing = pm.missing_packages
 pm.missing_packages = lambda pkgs: ["sssd-ad", "krb5-user"]
 planned = plan_host_changes(mv, "/opt", cfg, JINJA, ["member"]).get("member", [])
-check("planned when on: the missing packages, the host's own account FAB1$ in OU=machines/OU=linux and its keytab "
-      "only (never the DC's), krb5.conf, sssd.conf, NSS and PAM (2.1.6.48)",
+check("planned when on: the missing packages, the host's own account FAB1$ placed in OU=fabric-hosts and "
+      "hq-fabric-machines (never renewed by default) and its keytab only (never the DC's), krb5.conf, sssd.conf, NSS "
+      "and PAM (2.1.6.48, 2.1.6.49)",
       planned[:2] == ["apt: install sssd-ad", "apt: install krb5-user"]
-      and any("FAB1$" in x and "OU=machines/OU=linux" in x and x.startswith("the domain:") for x in planned)
+      and any("FAB1$" in x and "OU=fabric-hosts" in x and "hq-fabric-machines" in x and "never renewed" in x
+              and x.startswith("the domain:") for x in planned)
       and any("own computer account FAB1$" in x and "/etc/krb5.keytab" in x for x in planned)
       and not any("DC-FAB1" in x for x in planned)
       and any("hq-fabric-admins" in x and "/etc/sssd/sssd.conf" in x for x in planned)
       and any(x.startswith("PAM: pam-auth-update") for x in planned), planned)
+check("…and fabric's management of the host while it is in hq-fabric-machines: Kerberos for SSH with local accounts "
+      "unchanged (checked by sshd -t), a domain password refused over SSH, the domain's names from fabric's DNS "
+      "(1.6.11.11)",
+      any("10-fabric.conf" in x and "local accounts' sign-in unchanged" in x and "sshd -t" in x
+          and "pam_localuser" in x for x in planned)
+      and any("resolved.conf.d/fabric.conf" in x and "10.0.0.5" in x for x in planned), planned)
+renew = {**mv, "host_machine_password_renew_days": 30}
+pm.missing_packages = lambda pkgs: [p for p in pkgs if p == "adcli"]
+renew_plan = pm.plan_member(renew)
+check("with host_machine_password_renew_days set: adcli planned and the renewal named (1.6.11.12); off, neither",
+      "apt: install adcli" in renew_plan and any("every 30 days" in x for x in renew_plan)
+      and "apt: install adcli" not in pm.plan_member(mv), renew_plan)
+check("with use_host_dns false the resolver is left alone (no DNS drop-in planned)",
+      not any("resolved.conf.d/fabric.conf" in x for x in pm.plan_member({**mv, "use_host_dns": False})))
 check("negative: not planned when host_join_domain is false (nothing asked, nothing changed)",
       "member" not in plan_host_changes(off, "/opt", cfg, JINJA, ["member"]), off.get("host_join_domain"))
 pm.missing_packages = _real_missing
@@ -557,6 +606,13 @@ check("sssd.conf: the host's own name, the OU's log-on policy (GPO access enforc
       and "ad_hostname = fab1.ad.test\n" in sssd and "simple_allow" not in sssd
       and "sudo_provider = ad\n" in sssd and "ad_server = dc-fab1.ad.test\n" in sssd and "dyndns_update = false" in sssd
       and sssd.startswith("# fabric"), sssd)
+renew_sssd = render_member_files(renew)["/etc/sssd/sssd.conf"]
+rodc_sssd = render_member_files({**renew, "ad_dc_type": "rodc"})["/etc/sssd/sssd.conf"]
+check("sssd.conf: the machine password never renewed by default (age 0), renewed at the age set; never for the DC's "
+      "account (a read-only DC's site), whatever is set (1.6.11.12)",
+      "ad_maximum_machine_account_password_age = 0\n" in sssd
+      and "ad_maximum_machine_account_password_age = 30\n" in renew_sssd
+      and "ad_maximum_machine_account_password_age = 0\n" in rodc_sssd, (sssd, renew_sssd))
 check("its sudo search bases: the site's OU=sudoers, then the organisation's (as the Linux join builds them)",
       "ldap_sudo_search_base = OU=sudoers,OU=hq,OU=sites,DC=ad,DC=test?onelevel??"
       "OU=sudoers,OU=organisation,OU=hq,OU=sites,DC=ad,DC=test?onelevel?\n" in sssd, sssd)
@@ -664,18 +720,19 @@ check("a host name past 15 characters is cut as Windows and adcli cut it, withou
       long_name["account"] == "KITCHEN-SERVER" and long_name["own"], long_name)
 old = host_identity({**mv, "dc_name": "fab1", "hostname_dc": "fab1.ad.test"})
 rodc = host_identity({**mv, "ad_dc_type": "rodc"})
-check("negative: the DC's account where the host cannot have its own — an install from before 0.7.0 whose DC has "
-      "the host's name, a site whose DC is read-only — each said why",
-      not old["own"] and old["account"] == "FAB1" and "before 0.7.0" in old["why"]
-      and old["principals"] == ["FAB1$", "host/fab1.ad.test", "host/FAB1"]
-      and not rodc["own"] and rodc["account"] == "DC-FAB1" and "read-only" in rodc["why"], (old, rodc))
-old_sssd = render_member_files({**mv, "dc_name": "fab1", "hostname_dc": "fab1.ad.test"})["/etc/sssd/sssd.conf"]
-old_plan = pm.plan_member({**mv, "dc_name": "fab1", "hostname_dc": "fab1.ad.test"})
-check("…then sssd keeps the fabric admins only by the simple provider (no OU's policy reaches a DC) and the plan "
-      "names the DC's account and why, creating none",
-      "access_provider = simple\n" in old_sssd and "ad_hostname = fab1.ad.test\n" in old_sssd
-      and not any(x.startswith("the domain:") for x in old_plan)
-      and any("domain controller account FAB1$" in x and "before 0.7.0" in x for x in old_plan), (old_sssd, old_plan))
+check("negative: a DC with the host's name is refused, saying why (2.1.6.51: no install from before 0.7.0 to keep); "
+      "the DC's account only where the host cannot have its own (a read-only DC), said why",
+      old["refused"] and "domain controller has this host's name" in old["refused"] and not host_identity(mv)["refused"]
+      and not rodc["own"] and rodc["account"] == "DC-FAB1" and "read-only" in rodc["why"] and not rodc["refused"],
+      (old, rodc))
+rodc_vars = {**mv, "ad_dc_type": "rodc"}
+old_sssd = render_member_files(rodc_vars)["/etc/sssd/sssd.conf"]
+old_plan = pm.plan_member(rodc_vars)
+check("…with the DC's account, sssd keeps the fabric admins only by the simple provider (no OU's policy reaches a DC) "
+      "and the plan names the DC's account and why, creating none and managing nothing",
+      "access_provider = simple\n" in old_sssd and "ad_hostname = dc-fab1.ad.test\n" in old_sssd
+      and not any(x.startswith("the domain:") for x in old_plan) and not any("10-fabric.conf" in x for x in old_plan)
+      and any("domain controller account DC-FAB1$" in x and "read-only" in x for x in old_plan), (old_sssd, old_plan))
 
 # the step on a scratch tree: the host's files in a folder of their own, the DC and the directory faked
 host = tempfile.mkdtemp()
@@ -706,7 +763,28 @@ def fake_remove(v, actor, name, source="web", secrets=None, container="samba"):
     return {"name": name}
 
 
+def fake_place(v, actor, name, source="setup", secrets=None, container="samba"):
+    calls.append(("place", name))
+    entry = directory[name.upper()]
+    moved = "OU=fabric-hosts," not in entry["dn"]
+    entry["dn"] = f"CN={name.upper()},OU=fabric-hosts,OU=hq,OU=sites,DC=ad,DC=test"
+    entry["member_of"] = ["CN=hq-fabric-machines,OU=groups,OU=hq,OU=sites,DC=ad,DC=test"]
+    return {"name": name.lower(), "dn": entry["dn"], "moved": moved, "joined": True}
+
+
+managed_calls = []
+
+
+def fake_managed(v, managed, dry=False):
+    if not dry:
+        managed_calls.append(managed)
+    return [] if managed_state.get("on") == managed else [f"managed {managed}"] if dry else (
+        managed_state.update(on=managed) or [f"managed {managed}"])
+
+
+managed_state = {}
 jh.add_machine, jh.remove_machine, rha.remove_machine = fake_add, fake_remove, fake_remove
+jh.place_fabric_host, jh.apply_host_managed = fake_place, fake_managed
 jh.find_computer = lambda account: directory.get(account)
 jh.export_keytab = lambda principals: kt_own if principals[0] == "FAB1$" else kt1
 jctx = type("C", (), {"vars": mv, "config_dir": jcfg, "offline": False, "secrets": {"ad_agent_password": "x"}})()
@@ -725,16 +803,51 @@ with contextlib.redirect_stdout(out):
     jh.run(jctx)
 record = json.load(open(os.path.join(jcfg, pm.RECORD)))
 # covers: cli:setup +
-check("approved: the host's own account made as add-machine makes one (OU=linux, not a fabric-machine), recorded, "
-      "its keys (only) in the keytab, 0600",
-      calls == [("add", "fab1", "linux", False)] and record.get("account") == "FAB1"
+check("approved: the host's own account made as add-machine makes one, then placed once as the site's fabric host "
+      "(OU=fabric-hosts, hq-fabric-machines), recorded, its keys (only) in the keytab, 0600; fabric's management "
+      "applied (2.1.6.49)",
+      calls == [("add", "fab1", "linux", False), ("place", "FAB1")] and record.get("account") == "FAB1"
+      and record.get("placed") == "FAB1" and managed_calls == [True]
       and open(jh.KEYTAB, "rb").read() == kt_own and oct(os.stat(jh.KEYTAB).st_mode & 0o777) == "0o600"
-      and "own computer account FAB1$" in out.getvalue(), (calls, record, out.getvalue()))
+      and "own computer account FAB1$" in out.getvalue() and "OU=fabric-hosts" in out.getvalue(),
+      (calls, record, out.getvalue()))
 out = io.StringIO()
 with contextlib.redirect_stdout(out):
     jh.run(jctx)
-check("a second run changes nothing (the account is the host's: recorded)",
-      "nothing to change" in out.getvalue() and calls == [("add", "fab1", "linux", False)], (out.getvalue(), calls))
+check("a second run changes nothing (the account is the host's and placed: recorded)",
+      "nothing to change" in out.getvalue() and calls == [("add", "fab1", "linux", False), ("place", "FAB1")]
+      and managed_calls == [True], (out.getvalue(), calls))
+# an admin takes the host out of hq-fabric-machines (or moves it): setup keeps it so, and removes the management
+directory["FAB1"]["member_of"] = []
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    jh.run(jctx)
+check("taken out of hq-fabric-machines by an admin: the next setup does not put it back (placed once), and removes "
+      "fabric's management",
+      calls == [("add", "fab1", "linux", False), ("place", "FAB1")] and managed_calls == [True, False],
+      (calls, managed_calls, out.getvalue()))
+directory["FAB1"]["member_of"] = ["CN=hq-fabric-machines,OU=groups,OU=hq,OU=sites,DC=ad,DC=test"]
+with contextlib.redirect_stdout(io.StringIO()):
+    jh.run(jctx)
+# an account of 0.7.1's first build: in OU=linux, unmanaged, never placed (the record has no "placed")
+directory["FAB1"] = {"dn": "CN=FAB1,OU=linux,OU=machines,OU=hq,OU=sites,DC=ad,DC=test",
+                     "description": "fabric: unmanaged (manual 1.6.11.6)", "member_of": []}
+rec = json.load(open(os.path.join(jcfg, pm.RECORD)))
+rec.pop("placed")
+json.dump(rec, open(os.path.join(jcfg, pm.RECORD), "w"))
+calls.clear()
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    jh.run(jctx)
+out2 = io.StringIO()
+with contextlib.redirect_stdout(out2):
+    jh.run(jctx)
+check("an account of 0.7.1's first build (OU=linux, unmanaged) is moved into OU=fabric-hosts at the next setup, once; "
+      "a second run changes nothing",
+      calls == [("place", "FAB1")] and "moved into OU=fabric-hosts" in out.getvalue()
+      and "nothing to change" in out2.getvalue()
+      and json.load(open(os.path.join(jcfg, pm.RECORD))).get("placed") == "FAB1", (calls, out.getvalue()))
+calls[:] = [("add", "fab1", "linux", False), ("place", "FAB1")]
 # an upgrade: the keytab still holds the DC's account (2.1.6.34), the record knows no account
 open(jh.KEYTAB, "wb").write(kt1)
 directory.clear()
@@ -744,7 +857,7 @@ out = io.StringIO()
 with contextlib.redirect_stdout(out):
     jh.run(jctx)
 check("an install whose keytab holds the DC's account moves to the host's own: made, recorded, the keytab replaced",
-      calls == [("add", "fab1", "linux", False)] and open(jh.KEYTAB, "rb").read() == kt_own
+      calls == [("add", "fab1", "linux", False), ("place", "FAB1")] and open(jh.KEYTAB, "rb").read() == kt_own
       and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") == "FAB1"
       and "held another account's: replaced" in out.getvalue(), (calls, out.getvalue()))
 # the host renamed: its account under the new name, the old one (fabric's, recorded) removed
@@ -756,8 +869,8 @@ with contextlib.redirect_stdout(io.StringIO()):
 calls.clear()
 with contextlib.redirect_stdout(io.StringIO()):
     jh.run(type("C", (), {"vars": renamed, "config_dir": jcfg, "offline": False, "secrets": {}})())
-check("the host renamed: its own account under the new name, the one fabric made under the old name removed",
-      calls == [("add", "fab2", "linux", False), ("remove", "fab1")] and set(directory) == {"FAB2"}
+check("the host renamed: its own account under the new name (placed), the one fabric made under the old name removed",
+      calls == [("add", "fab2", "linux", False), ("place", "FAB2"), ("remove", "fab1")] and set(directory) == {"FAB2"}
       and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") == "FAB2", (calls, directory))
 
 # the undo's part in the domain
@@ -797,6 +910,144 @@ with contextlib.redirect_stdout(io.StringIO()):
     ask_host_change(pc, "member")
 builtins.input = real_input
 check("…and Enter keeps the default: a member", pc.vars.get("host_join_domain") is True, pc.vars)
+
+print("--- the fabric host as a machine fabric manages (2.1.6.49, 2.1.6.51, manual 1.6.11.11)")
+import fabriclib.samba.run_domain_command as m_rdc  # noqa: E402
+import fabriclib.setup.common.apply_host_managed as ahm  # noqa: E402
+import fabriclib.setup.common.sync_host_managed as shm  # noqa: E402
+
+# the member step refuses a DC named as the host before anything changes (no lookup, no record, nothing written)
+rcfg = tempfile.mkdtemp()
+calls.clear()
+jh.find_computer = lambda account: (_ for _ in ()).throw(AssertionError("looked up"))
+msg = refused(lambda: jh.run(type("C", (), {"vars": {**mv, "dc_name": "fab1", "hostname_dc": "fab1.ad.test"},
+                                            "config_dir": rcfg, "offline": False, "secrets": {}})()))
+# covers: cli:setup -
+check("negative: the member step refuses a domain controller named as the host, saying what to do, before anything "
+      "changes (2.1.6.51)",
+      "domain controller has this host's name" in msg and "host_join_domain: false" in msg and "dc_name" in msg
+      and not calls and not os.listdir(rcfg), (msg, calls))
+
+# fabric's management of the host, on a scratch tree: every host path its own, sshd and systemctl faked
+mhost = tempfile.mkdtemp()
+ahm.SSHD_DIR = os.path.join(mhost, "sshd_config.d")
+ahm.SSHD_DROPIN = os.path.join(ahm.SSHD_DIR, "10-fabric.conf")
+ahm.PAM_SSHD = os.path.join(mhost, "pam.d-sshd")
+ahm.RESOLVED_DROPIN = os.path.join(mhost, "resolved.conf.d", "fabric.conf")
+ahm.RESOLVED_RUN = os.path.join(mhost, "run-resolve")
+ahm.PAM_MODULES = (os.path.join(mhost, "pam_localuser.so"),)
+open(ahm.PAM_MODULES[0], "w").close()
+os.makedirs(ahm.SSHD_DIR)
+os.makedirs(ahm.RESOLVED_RUN)
+PAM_ORIG = ("# PAM configuration for the Secure Shell service\n\n# Standard Un*x authentication.\n"
+            "@include common-auth\n\naccount    required     pam_nologin.so\n@include common-account\n")
+open(ahm.PAM_SSHD, "w").write(PAM_ORIG)
+reloads, sshd_says = [], {"before": "", "after": ""}
+ahm._reload = lambda what: reloads.append(what)
+ahm._sshd_check = lambda: sshd_says["after"] if os.path.exists(ahm.SSHD_DROPIN) else sshd_says["before"]
+done = ahm.apply_host_managed(mv, True)
+dropin, pam_now = open(ahm.SSHD_DROPIN).read(), open(ahm.PAM_SSHD).read()
+check("managed: sshd gets Kerberos (GSSAPI, the strict acceptor check off, PAM) and never PasswordAuthentication, so "
+      "local accounts sign in as before (the host's exception to 2.1.6.39); sshd reloaded",
+      "GSSAPIAuthentication yes\n" in dropin and "GSSAPIStrictAcceptorCheck no\n" in dropin
+      and "UsePAM yes\n" in dropin and "PasswordAuthentication" not in dropin.replace("PasswordAuthentication is", "")
+      and reloads.count("ssh") == 1, (dropin, reloads))
+check("…a domain account's password is refused over SSH: pam_localuser before common-auth, under fabric's mark",
+      pam_now.index(ahm.PAM_LINE) < pam_now.index("@include common-auth") and ahm.PAM_MARK in pam_now
+      and pam_now.replace(ahm.PAM_MARK + "\n" + ahm.PAM_LINE + "\n", "") == PAM_ORIG, pam_now)
+check("…and the domain's names from fabric's DNS (the host's address; other names untouched)",
+      open(ahm.RESOLVED_DROPIN).read().endswith("[Resolve]\nDNS=10.0.0.5\nDomains=~ad.test ~lan.test\n")
+      and "resolved" in reloads and len(done) == 3, (done, reloads))
+reloads.clear()
+check("a second pass changes nothing and reloads nothing", ahm.apply_host_managed(mv, True) == [] and not reloads)
+done = ahm.apply_host_managed(mv, False)
+check("taken out of the group: the drop-ins and fabric's PAM lines removed, PAM as it was",
+      not os.path.exists(ahm.SSHD_DROPIN) and not os.path.exists(ahm.RESOLVED_DROPIN)
+      and open(ahm.PAM_SSHD).read() == PAM_ORIG and "ssh" in reloads and len(done) == 3, done)
+check("dry: says what would change, changes nothing",
+      len(ahm.apply_host_managed(mv, True, dry=True)) == 3 and not os.path.exists(ahm.SSHD_DROPIN)
+      and open(ahm.PAM_SSHD).read() == PAM_ORIG)
+# sshd refusing: before fabric changes anything, or with fabric's drop-in
+sshd_says["before"] = "line 3: Bad configuration option: Bogus"
+reloads.clear()
+msg = refused(lambda: ahm.apply_host_managed(mv, True))
+check("negative: sshd already refusing its configuration: setup stops, saying so, and nothing is changed or reloaded",
+      "refuses its configuration as it is" in msg and not os.path.exists(ahm.SSHD_DROPIN)
+      and open(ahm.PAM_SSHD).read() == PAM_ORIG and not reloads, msg)
+sshd_says.update(before="", after="Unsupported option GSSAPIStrictAcceptorCheck")
+msg = refused(lambda: ahm.apply_host_managed(mv, True))
+check("negative: sshd refusing fabric's drop-in: it is put back (none), PAM untouched, nothing reloaded, so SSH works "
+      "as before (never a configuration sshd refuses)",
+      "put back as it was and nothing reloaded" in msg and not os.path.exists(ahm.SSHD_DROPIN)
+      and open(ahm.PAM_SSHD).read() == PAM_ORIG and "ssh" not in reloads, (msg, reloads))
+sshd_says.update(after="")
+os.remove(ahm.PAM_MODULES[0])
+msg = refused(lambda: ahm.apply_host_managed(mv, True))
+check("negative: without pam_localuser nothing is changed (a domain password would be taken over SSH)",
+      "pam_localuser.so" in msg and not os.path.exists(ahm.SSHD_DROPIN), msg)
+open(ahm.PAM_MODULES[0], "w").close()
+open(ahm.SSHD_DROPIN, "w").write("# the owner's own file\nPasswordAuthentication no\n")
+ahm.apply_host_managed(mv, True)
+check("an owner's own 10-fabric.conf (without fabric's mark) is left alone; removal leaves it too",
+      open(ahm.SSHD_DROPIN).read() == "# the owner's own file\nPasswordAuthentication no\n"
+      and ahm.apply_host_managed(mv, False) and open(ahm.SSHD_DROPIN).read().startswith("# the owner's"))
+os.remove(ahm.SSHD_DROPIN)
+nodns = ahm.apply_host_managed({**mv, "use_host_dns": False}, True)
+check("use_host_dns false: the resolver is left alone (no DNS drop-in)",
+      not os.path.exists(ahm.RESOLVED_DROPIN) and len(nodns) == 2, nodns)
+ahm.apply_host_managed(mv, False)
+os.rmdir(ahm.SSHD_DIR)
+check("no SSH server on the host (no sshd_config.d): nothing for SSH, PAM untouched",
+      not any("10-fabric.conf" in x or "pam.d-sshd" in x for x in ahm.apply_host_managed(mv, True))
+      and open(ahm.PAM_SSHD).read() == PAM_ORIG)
+ahm.apply_host_managed(mv, False)
+os.makedirs(ahm.SSHD_DIR)
+
+# `fabricctl domain host-managed`: in step with the group, as the DC says
+m_rdc.INSTALL_DIR = tempfile.mkdtemp()
+scfg = os.path.join(m_rdc.INSTALL_DIR, "config")
+os.makedirs(scfg)
+dc_says = {"FAB1": {"dn": "CN=FAB1,OU=fabric-hosts,OU=hq,OU=sites,DC=ad,DC=test", "description": "",
+                    "member_of": ["CN=hq-fabric-machines,OU=groups,OU=hq,OU=sites,DC=ad,DC=test"]}}
+shm.find_computer = lambda account: dc_says.get(account)
+
+
+def domain_cmd(*argv):
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        code = m_rdc.run_domain_command(mv, list(argv))
+    return code, out.getvalue()
+
+
+code, text = domain_cmd("host-managed")
+# covers: cli:domain.host-managed -
+check("negative: on a host that is not a member of its domain, `domain host-managed` refuses, saying so; nothing "
+      "changes", code == 1 and "not a member of its domain" in text and not os.path.exists(ahm.SSHD_DROPIN),
+      (code, text))
+code, text = domain_cmd("host-managed", "--scheduled")
+check("…the timer's run then has nothing to do (exit 0)", code == 0 and "nothing to do" in text, (code, text))
+check("negative: an unknown option is a usage error", domain_cmd("host-managed", "--now")[0] == 2)
+json.dump({"account": "FAB1", "placed": "FAB1"}, open(os.path.join(scfg, pm.RECORD), "w"))
+code, text = domain_cmd("host-managed")
+# covers: cli:domain.host-managed +
+check("in hq-fabric-machines: `domain host-managed` applies fabric's management and says what it found and changed",
+      code == 0 and "FAB1$ is in hq-fabric-machines" in text and os.path.exists(ahm.SSHD_DROPIN)
+      and ahm.PAM_LINE in open(ahm.PAM_SSHD).read(), (code, text))
+code, text = domain_cmd("host-managed")
+check("…a second run: nothing to change", code == 0 and "nothing to change" in text, text)
+dc_says["FAB1"]["member_of"] = []
+code, text = domain_cmd("host-managed", "--scheduled")
+check("taken out of the group: the timer's run removes it", code == 0 and "not in hq-fabric-machines" in text
+      and not os.path.exists(ahm.SSHD_DROPIN) and open(ahm.PAM_SSHD).read() == PAM_ORIG, (code, text))
+dc_says.clear()
+code, text = domain_cmd("host-managed")
+check("negative: the account gone from the domain: refused, saying how to make it again; nothing changed",
+      code == 1 and "setup --step member" in text, (code, text))
+shm.find_computer = lambda account: (_ for _ in ()).throw(SetupError("the domain controller's directory could not be "
+                                                                      "read"))
+code, text = domain_cmd("host-managed", "--scheduled")
+check("negative: the DC not answering: refused (exit 1), nothing changed", code == 1 and "could not be read" in text,
+      (code, text))
 
 print("--- setup's start, its menu of every setting and the plan's one yes (manual 1.2.9.11, 2.1.2.17-2.1.2.19)")
 import getpass  # noqa: E402

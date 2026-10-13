@@ -215,6 +215,9 @@ posix_id_block: {{ posix_id_block | default(1000000) | int }}
 # This host as a member of its own domain (manual 1.6.11.8, 2.1.6.34): the fabric admins sign in to it with their domain
 # accounts; local accounts are untouched. Asked in setup's Advanced; false leaves the host out (status shows it).
 host_join_domain: {{ host_join_domain | default(true) | to_json }}
+# After how many days sssd renews this host's machine password with adcli (manual 1.6.11.12, 2.1.6.50): 0 never (the
+# default: the password is set once); a whole number from 1 to 999 turns it on (setup's member step installs adcli).
+host_machine_password_renew_days: {{ host_machine_password_renew_days | default(0) | to_json }}
 samba_mem_limit: {{ _mem.settings.samba_mem_limit | to_json }}
 # 802.1X (optional, design §6): FreeRADIUS 3.2 checks each device against the site's DC
 # (EAP-TLS by linked certificate, MAB by MAC) and returns its role's VLAN.

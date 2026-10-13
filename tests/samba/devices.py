@@ -286,6 +286,36 @@ check("...once: a machine an admin took out of lan-fabric-machines stays out",
       code == 0 and "adminjoin" not in members_of("lan-fabric-machines")
       and len(_json.load(open(_record))["adopted"]) == 1, (code, out))
 
+# ---- the site's fabric host (manual 1.6.11.11, 2.1.6.49): its own OU beside OU=machines, placed once, managed
+import fabriclib.directory.place_fabric_host as m_place  # noqa: E402
+
+m_place.write_audit = lambda actor, event, detail, source: AUDIT.append(event)
+ou = subprocess.run(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb",
+                     "(&(objectClass=organizationalUnit)(ou=fabric-hosts))", "dn"], capture_output=True, text=True)
+check("the site's OU=fabric-hosts exists beside OU=machines (made by the convergence)",
+      "dn: OU=fabric-hosts,OU=lan,OU=sites," in ou.stdout, ou.stdout + ou.stderr)
+m_add_machine.add_machine(V, "setup", "fabhost", secrets=SECRETS, container=DC, os="linux", managed=False)
+placed = m_place.place_fabric_host(V, "setup", "FABHOST", secrets=SECRETS, container=DC)
+check("place_fabric_host: the host's account (made in OU=linux, unmanaged) moved into OU=fabric-hosts, made a member "
+      "of lan-fabric-machines, marked as the fabric host, audited",
+      placed["moved"] and placed["joined"] and "OU=fabric-hosts,OU=lan,OU=sites" in dn_of("fabhost")
+      and "fabhost" in members_of("lan-fabric-machines") and description("fabhost").startswith("fabric: this site's "
+                                                                                                "fabric host")
+      and "MACHINE_PLACE" in AUDIT, (placed, dn_of("fabhost"), description("fabhost")))
+AUDIT.clear()
+again = m_place.place_fabric_host(V, "setup", "fabhost", secrets=SECRETS, container=DC)
+check("...a second time changes nothing and audits nothing", not again["moved"] and not again["joined"]
+      and "MACHINE_PLACE" not in AUDIT, again)
+check("the fabric host is one of the site's machines: listed (Directory → Machines), found to disable",
+      "fabhost" in [m["name"] for m in list_machines(V, SECRETS, DC)]
+      and m_set_machine.set_machine_enabled(V, "alice", "fabhost", True, secrets=SECRETS, container=DC) is not None)
+check("refused: placing a machine the site does not have (nothing made)",
+      refused(m_place.place_fabric_host, V, "setup", "nosuchhost", match="no such")
+      and "NOSUCHHOST" not in dn_of("nosuchhost"))
+m_remove_machine.remove_machine(V, "setup", "fabhost", secrets=SECRETS, container=DC)
+check("the fabric host's account is removed as other machines are (the undo of setup's member step)",
+      "FABHOST" not in dn_of("fabhost"), dn_of("fabhost"))
+
 subprocess.run(["docker", "rm", "-f", DC], capture_output=True)
 subprocess.run(["docker", "network", "rm", NET], capture_output=True)
 sys.exit(1 if FAILED else 0)
