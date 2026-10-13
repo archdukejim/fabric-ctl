@@ -36,4 +36,6 @@ from it at every apply. The rules are pure functions checked before anything is 
 | `set_address.py` | Change a recorded address |
 | `remove_address.py` | Remove a recorded address |
 | `run_ipam_command.py` | `fabricctl ipam show / find / export / block / vlan / subnet / range / address` (applies a change to this site unless `--no-apply`) |
+| `poll_plan.py` | One run of the plan poll (fabric-plan-watch.timer): the USN, then Kea alone re-rendered when its input changed |
+| `options/` | The DHCP options in the plan: option sets, levels, classes, definitions, provenance, netboot presets, the poll's parts |
 | `common/` | Helpers shared by the commands: the checked edit, the plan's fields, the kept copy |

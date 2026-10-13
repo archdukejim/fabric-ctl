@@ -2,7 +2,7 @@ import json
 
 import ldb
 
-from paths import site_dn, sites_dn
+from paths import organisation_dn, site_dn, sites_dn
 
 KINDS = ("(|(objectClass=fabricVlanRecord)(objectClass=fabricNetwork)(objectClass=fabricRange)"
          "(objectClass=fabricAddress))")
@@ -34,20 +34,81 @@ def _one(m, name):
     return str(m.get(name, idx=0) or "")
 
 
-def _options(m):
-    """Purpose: the DHCP options an entry carries (fabricDhcpOption: one JSON object per value, as fabric wrote it).
-    Inputs:  m — ldb.Message.
-    Returns: list of dicts, in the order they were written (each value starts with its position, "<n>:").
+def _listed(m, attr="fabricDhcpOption"):
+    """Purpose: the JSON objects an entry carries in a positional attribute (fabricDhcpOption, fabricDhcpOptionDef,
+             fabricDhcpClass: one object per value, as fabric wrote it, each value starting with its position "<n>:").
+    Inputs:  m — ldb.Message; attr — the attribute.
+    Returns: list of dicts, in the order they were written.
     Fails:   never: a value that is not JSON is skipped (fabric writes them all).
-    Feeds:   read_plan."""
+    Feeds:   _options, _option_set."""
     out = []
-    for value in m.get("fabricDhcpOption") or []:
+    for value in m.get(attr) or []:
         pos, _, text = str(value).partition(":")
         try:
             out.append((int(pos), json.loads(text)))
         except ValueError:
             continue
     return [o for _, o in sorted(out, key=lambda x: x[0])]
+
+
+def _options(m):
+    """Purpose: the DHCP options an entry carries, and its netboot preset: kept as a named option, one value of
+             fabricDhcpOption holding {"netboot": {...}} (2.1.10.25), read apart from the options.
+    Inputs:  m — ldb.Message.
+    Returns: (list of option dicts, the preset dict or None).
+    Fails:   never.
+    Feeds:   read_plan."""
+    options, netboot = [], None
+    for o in _listed(m):
+        if isinstance(o, dict) and set(o) == {"netboot"}:
+            netboot = o["netboot"]
+        else:
+            options.append(o)
+    return options, netboot
+
+
+def _option_set(m):
+    """Purpose: one option set (the organisation's or a site's, 2.1.10.23) as fabric reads it.
+    Inputs:  m — ldb.Message of a fabricOptionSet entry.
+    Returns: {"options", "option_defs", "client_classes"} (lists).
+    Fails:   never.
+    Feeds:   read_plan."""
+    return {"options": _listed(m), "option_defs": _listed(m, "fabricDhcpOptionDef"),
+            "client_classes": _listed(m, "fabricDhcpClass")}
+
+
+def _option_sets(samdb, of):
+    """Purpose: the organisation's option set and each site's (or `of`'s alone), and the sites the top lets edit the
+             organisation's (their agent in fabric-dhcp-org-editors, manual 1.10.4.24.2).
+    Inputs:  samdb — SamDB; of — a site's name, or "" for every site.
+    Returns: ({"org": set or None, <site>: set, ...}, sorted list of site names).
+    Fails:   ldb.LdbError from the searches.
+    Feeds:   read_plan."""
+    try:
+        org = organisation_dn(samdb).lower()
+    except LookupError:                   # no organisation yet (a domain being made)
+        org = ""
+    sets = {"org": None}
+    for m in samdb.search(base=sites_dn(samdb), scope=ldb.SCOPE_SUBTREE, expression="(objectClass=fabricOptionSet)",
+                          attrs=["fabricDhcpOption", "fabricDhcpOptionDef", "fabricDhcpClass"]):
+        parent = str(m.dn.parent())
+        if parent.lower() == org:
+            sets["org"] = _option_set(m)
+            continue
+        owner = parent.split(",", 1)[0].split("=", 1)[1]
+        if not of or owner == of:
+            sets[owner] = _option_set(m)
+    if of:
+        sets.setdefault(of, {"options": [], "option_defs": [], "client_classes": []})
+    editors = []
+    for g in samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_SUBTREE,
+                          expression="(&(objectClass=group)(sAMAccountName=fabric-dhcp-org-editors))",
+                          attrs=["member"]):
+        for member in g.get("member") or []:
+            cn = str(member).split(",", 1)[0].split("=", 1)[1]
+            if cn.startswith("fabric-agent-"):
+                editors.append(cn[len("fabric-agent-"):])
+    return sets, sorted(editors)
 
 
 def read_plan(samdb, lp, site, of=""):
@@ -60,8 +121,12 @@ def read_plan(samdb, lp, site, of=""):
              [{"id", "name", "purpose", "access", "notes"}], "subnets": [{"name", "cidr", "vlan", "kind", "gateway",
              "dhcp" (bool), "id" (Kea's subnet id or None), "relay", "notes", "allow_overlap", "options", "ranges":
              [{"kind", "first", "last", "notes"}], "addresses": [{"ip", "kind", "name", "mac", "owner", "notes",
-             "dns" (bool), "options"}]}], "networks": [{"name", "cidr", "kind", "vlan", "notes",
-             "allow_overlap"}]}}}: lists sorted; a site without entries has no key in plans unless it is `of`.
+             "dns" (bool), "options", "netboot"}]}], "networks": [{"name", "cidr", "kind", "vlan", "notes",
+             "allow_overlap"}]}}, "option_sets": {"org": {"options", "option_defs", "client_classes"} or None,
+             <site>: the same}, "org_editors": [site names] (2.1.10.23), "options" (the organisation's options; and
+             each plan's "options", the site's: the shape the Networks tab reads, 2.3.10.5.7)}: lists sorted; a site
+             without entries has no key in plans unless it is `of`; a subnet's and an address's "netboot" is its
+             preset or None (2.1.10.25).
     Fails:   ldb.LdbError from the searches; ValueError "no such site: <of>".
     Feeds:   directory_ops (op "read_plan")."""
     sites = []
@@ -94,7 +159,8 @@ def read_plan(samdb, lp, site, of=""):
                           "dhcp": _one(m, "fabricDhcpServed").upper() == "TRUE",
                           "id": int(_one(m, "fabricSubnetId")) if _one(m, "fabricSubnetId") else None,
                           "relay": _one(m, "fabricRelay"), "notes": _one(m, "description"),
-                          "allow_overlap": _one(m, "fabricAllowOverlap"), "options": _options(m)})
+                          "allow_overlap": _one(m, "fabricAllowOverlap"), "options": _options(m)[0],
+                          "netboot": _options(m)[1]})
             plan["subnets"].append(entry)
         elif "fabricNetwork" in classes:
             plan["networks"].append({"name": _one(m, "cn"), "cidr": _one(m, "fabricCidr"),
@@ -115,7 +181,8 @@ def read_plan(samdb, lp, site, of=""):
             parent["addresses"].append({"ip": _one(m, "fabricIp"), "kind": _one(m, "fabricAddressKind"),
                                         "name": _one(m, "fabricHostName"), "mac": _one(m, "fabricMac"),
                                         "owner": _one(m, "fabricOwner"), "notes": _one(m, "description"),
-                                        "dns": _one(m, "fabricDns").upper() == "TRUE", "options": _options(m)})
+                                        "dns": _one(m, "fabricDns").upper() == "TRUE", "options": _options(m)[0],
+                                        "netboot": _options(m)[1]})
     for plan in plans.values():
         plan["vlans"].sort(key=lambda x: x["id"])
         plan["subnets"].sort(key=lambda x: (x["vlan"] or 0, x["name"]))
@@ -123,4 +190,9 @@ def read_plan(samdb, lp, site, of=""):
         for s in plan["subnets"]:
             s["ranges"].sort(key=lambda r: tuple(int(p) for p in r["first"].split(".")))
             s["addresses"].sort(key=lambda a: tuple(int(p) for p in a["ip"].split(".")))
-    return {"sites": sorted(sites, key=lambda x: (x["created"], x["name"])), "plans": plans}
+    option_sets, editors = _option_sets(samdb, of)
+    for name, plan in plans.items():      # the Networks tab's shape (1.10.4.21.4): a site's options in its plan
+        plan["options"] = (option_sets.get(name) or {}).get("options") or []
+    return {"sites": sorted(sites, key=lambda x: (x["created"], x["name"])), "plans": plans,
+            "options": (option_sets.get("org") or {}).get("options") or [],
+            "option_sets": option_sets, "org_editors": editors}

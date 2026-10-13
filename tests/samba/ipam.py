@@ -396,6 +396,154 @@ code, out = ipam("subnet", "add", "10", "10.2.11.0/24", "--site", "house2")
 check("the site above adds a second subnet to house2's VLAN", code == 0 and "written to house2's plan" in out
       and [s["name"] for s in plan("house2")["subnets"]] == ["mgmt", "mgmt-2"], out)
 
+print("--- DHCP options in the plan (2.1.10.23, 2.1.10.25, manual 1.10.4.24, 1.10.4.25)")
+import fabriclib.ipam.common.edit_options as m_eo  # noqa: E402
+import fabriclib.ipam.options.set_option_editor as m_editor  # noqa: E402
+from fabriclib.ipam.options.set_option_editor import set_option_editor  # noqa: E402
+from fabriclib.ipam.options.move_options_to_plan import move_options_to_plan  # noqa: E402
+m_eo.write_audit = lambda actor, event, detail, source: AUDIT.append((event, detail))
+m_editor.write_audit = lambda actor, event, detail, source: AUDIT.append((event, detail))
+
+
+def sets():
+    return read_plan(V, SECRETS, of="lan", container=DC)
+
+
+first_sets = sets()
+check("the schema's option set class: the organisation's entry made by the top's convergence, empty; no site set yet",
+      first_sets["option_sets"]["org"] == {"options": [], "option_defs": [], "client_classes": []}
+      and first_sets["option_sets"]["lan"]["options"] == [] and first_sets["org_editors"] == []
+      and first_sets["options"] == [] and first_sets["plans"]["lan"]["options"] == [], first_sets)
+# covers: cli:ipam.option +
+code, out = ipam("option", "set", "org", "67", "pxelinux.0", "--no-apply")
+check("the top sets an organisation option by code: kept by its standard name, audited with the site and scope",
+      code == 0 and sets()["option_sets"]["org"]["options"] == [{"name": "boot-file-name", "data": "pxelinux.0"}]
+      and sets()["options"] == [{"name": "boot-file-name", "data": "pxelinux.0"}]
+      and any(e == "IPAM_OPTION_SET" and "from=lan" in d and "the organisation" in d for e, d in AUDIT), out)
+code, out = ipam("option", "set", "site", "ntp-servers", "10.1.10.1", "--no-apply")
+check("a site option: the site's set entry made by its first write, the Networks tab's shape too",
+      code == 0 and sets()["option_sets"]["lan"]["options"] == [{"name": "ntp-servers", "data": "10.1.10.1"}]
+      and sets()["plans"]["lan"]["options"] == [{"name": "ntp-servers", "data": "10.1.10.1"}], out)
+# covers: cli:ipam.option -
+held = sets()["option_sets"]
+code, out = ipam("option", "set", "site", "no-such-option", "x", "--no-apply")
+check("refused: a name Kea does not know, saying how, nothing written", code == 1 and "define it first" in out
+      and sets()["option_sets"] == held, out)
+code, out = ipam("option", "remove", "site", "tftp-server-name", "--no-apply")
+check("refused: removing an option not set there", code == 1 and "has no option" in out, out)
+code, out = ipam("option", "define", "site", "ztp-url", "239", "string", "--no-apply")
+code2, out2 = ipam("option", "set", "site", "ztp-url", "http://ztp/cfg", "--no-apply")
+check("a custom definition, then an option by its name", code == 0 and code2 == 0
+      and {"name": "ztp-url", "code": 239, "type": "string"} in sets()["option_sets"]["lan"]["option_defs"], out + out2)
+code, out = ipam("option", "undefine", "site", "ztp-url", "--no-apply")
+check("refused: undefining an option still set", code == 1 and "remove it first" in out, out)
+code, out = ipam("option", "define", "site", "my-boot", "67", "string", "--no-apply")
+check("refused: redefining a standard option", code == 1 and "already defined by Kea" in out, out)
+# covers: cli:ipam.class +
+code, out = ipam("class", "add", "site", "uefi", "--test", "option[93].hex == 0x0007", "--boot-file", "ipxe.efi",
+                 "--no-apply")
+code2, out2 = ipam("option", "set", "class", "uefi", "tftp-server-name", "boot.lan", "--no-apply")
+cls = sets()["option_sets"]["lan"]["client_classes"]
+check("a site's client class with an option", code == 0 and code2 == 0 and cls[0]["name"] == "uefi"
+      and cls[0]["options"] == [{"name": "tftp-server-name", "data": "boot.lan"}], out + out2)
+# covers: cli:ipam.class -
+code, out = ipam("class", "add", "site", "fabric-nb-x", "--test", "true", "--no-apply")
+check("refused: a class with fabric's netboot prefix", code == 1 and "netboot classes" in out, out)
+code, out = ipam("class", "remove", "site", "nope", "--no-apply")
+check("refused: removing a class that is not there", code == 1 and "no client class" in out, out)
+code, out = ipam("option", "set", "subnet", "iot", "domain-name-servers", "1.1.1.1", "--no-apply")
+check("a subnet's option", code == 0 and sub("iot")["options"][-1] == {"name": "domain-name-servers",
+                                                                        "data": "1.1.1.1"}, out)
+# covers: cli:ipam.netboot +
+code, out = ipam("netboot", "on", "iot", "--server", "10.1.10.5", "--bios", "undionly.kpxe", "--uefi", "ipxe.efi",
+                 "--ipxe", "http://boot.lan/boot.ipxe", "--no-apply")
+check("a subnet's netboot preset: a named option beside the subnet's options, which stay",
+      code == 0 and sub("iot")["netboot"]["ipxe"] == "http://boot.lan/boot.ipxe"
+      and sub("iot")["options"][-1]["name"] == "domain-name-servers", out)
+code, out = ipam("option", "set", "subnet", "iot", "interface-mtu", "1400", "--no-apply")
+check("an option change keeps the preset (fabricDhcpOption written with both)", code == 0 and sub("iot")["netboot"]
+      and any(o["name"] == "interface-mtu" for o in sub("iot")["options"]), out)
+code, out = ipam("netboot", "show", "iot")
+check("netboot show", code == 0 and "undionly.kpxe" in out and "fabric-nb-s" in out, out)
+# covers: cli:ipam.netboot -
+code, out = ipam("netboot", "on", "iot", "--server", "10.1.10.5", "--no-apply")
+check("refused: a preset with nothing to boot", code == 1 and "nothing to boot" in out, out)
+code, out = ipam("netboot", "on", "iot", "--bios", "x.0", "--no-apply")
+check("refused: a preset without a boot server", code == 1 and "boot server" in out, out)
+code, out = ipam("netboot", "off", "iot", "--no-apply")
+code2, out2 = ipam("netboot", "off", "iot", "--no-apply")
+check("netboot off, then refused as already off", code == 0 and not sub("iot")["netboot"] and code2 == 1
+      and "no netboot preset" in out2, out + out2)
+print("--- the organisation's options from another site (2.1.10.23)")
+held = sets()["option_sets"]["org"]
+code, out = ipam("option", "set", "org", "ntp-servers", "10.9.9.9", v=house_v, secrets=house_s)
+check("refused by AD: house2 editing the organisation's options before the top allows it, nothing written",
+      code == 1 and "not permitted" in out and sets()["option_sets"]["org"] == held, out)
+# covers: cli:ipam.option-editors -
+try:
+    set_option_editor(house_v, "root", "house2", True, secrets=house_s, container=DC, root=False)
+    check("refused: a site that is not the top deciding who may edit them", False)
+except ValidationError as e:
+    check("refused: a site that is not the top deciding who may edit them", "only the top site" in str(e), e)
+check("...and nothing changed", read_plan(V, SECRETS, of="lan", container=DC)["org_editors"] == [])
+out = set_option_editor(V, "root", "house2", True, secrets=SECRETS, container=DC, root=True)
+check("the top lets house2 edit them: its agent in fabric-dhcp-org-editors, audited", out["changed"]
+      and out["editors"] == ["house2"] and any(e == "IPAM_OPTION_EDITOR_ADD" for e, _ in AUDIT), out)
+code, out = ipam("option", "set", "org", "ntp-servers", "10.9.9.9", "--no-apply", v=house_v, secrets=house_s)
+check("house2 now edits the organisation's options; audited from house2", code == 0
+      and {"name": "ntp-servers", "data": "10.9.9.9"} in sets()["option_sets"]["org"]["options"]
+      and any("from=house2" in d for e, d in AUDIT if e == "IPAM_OPTION_SET"), out)
+code, out = ipam("class", "add", "org", "anything", "--test", "true", "--no-apply", v=house_v, secrets=house_s)
+check("an allowed site writes only the three option attributes: a class goes in fabricDhcpClass, allowed too",
+      code == 0, out)
+code, out = ipam("option", "set", "site", "ntp-servers", "10.1.1.1", "--site", "lan", "--no-apply", v=house_v,
+                 secrets=house_s)
+check("refused by AD: house2 editing lan's own site options (only the org's were granted)", code == 1
+      and "not permitted" in out, out)
+set_option_editor(V, "root", "house2", False, secrets=SECRETS, container=DC, root=True)
+held = sets()["option_sets"]["org"]
+code, out = ipam("option", "remove", "org", "ntp-servers", "--no-apply", v=house_v, secrets=house_s)
+check("refused again once the top takes house2 out of the group", code == 1 and "not permitted" in out
+      and sets()["option_sets"]["org"] == held, out)
+code, out = ipam("option", "set", "site", "domain-name", "house2.lan", "--site", "house2", "--no-apply")
+check("the top edits house2's own site options", code == 0 and "written to house2's plan" in out
+      and read_plan(V, SECRETS, of="house2", container=DC)["option_sets"]["house2"]["options"]
+      == [{"name": "domain-name", "data": "house2.lan"}], out)
+rodc_v = {**house_v, "ad_dc_type": "rodc"}
+code, out = ipam("option", "set", "site", "domain-name", "x.lan", "--no-apply", v=rodc_v, secrets=house_s)
+check("refused before anything is written: a read-only DC's site with no writable partner known", code == 1
+      and "ad_join_server" in out, out)
+rodc_v = {**house_v, "ad_dc_type": "rodc", "ad_join_server": IP}
+code, out = ipam("option", "set", "site", "domain-name", "rodc.lan", "--no-apply", v=rodc_v, secrets=house_s)
+check("a read-only DC's site writes at its writable partner (ad_join_server)", code == 0
+      and read_plan(V, SECRETS, of="house2", container=DC)["option_sets"]["house2"]["options"]
+      == [{"name": "domain-name", "data": "rodc.lan"}], out)
+print("--- the upgrade of the settings' options (1.10.4.24.4)")
+vars_path = os.path.join(CONFIG, "vars.yaml")
+data = yaml.safe_load(open(vars_path)) if os.path.exists(vars_path) else {}
+data["dhcp"] = {**(data.get("dhcp") or {}), "options": [{"name": "ntp-servers", "data": "10.7.7.7"},
+                                                      {"name": "tftp-server-name", "data": "tftp.lan"}],
+                "client_classes": [{"name": "old-class", "test": "option[60].exists"}]}
+data.pop("dhcp_subnets_dummy", None)
+with open(vars_path, "w") as f:
+    yaml.safe_dump(data, f)
+lines = move_options_to_plan(V, SECRETS, container=DC)
+after = sets()["option_sets"]["lan"]
+saved = yaml.safe_load(open(vars_path))
+check("moved once: the settings' option the set lacks carried, the one it has kept as the set's (not carried), the "
+      "class carried, recorded, the settings without them",
+      {"name": "tftp-server-name", "data": "tftp.lan"} in after["options"]
+      and {"name": "ntp-servers", "data": "10.1.10.1"} in after["options"]
+      and any(c["name"] == "old-class" for c in after["client_classes"])
+      and "options" not in (saved.get("dhcp") or {}) and glob.glob(os.path.join(CONFIG, "ipam-options-upgrade-*.json"))
+      and any("not carried" in x for x in lines), (lines, after, saved))
+check("idempotent: a second run moves nothing", move_options_to_plan(V, SECRETS, container=DC) == [])
+final = {"install_kea": True, "site_name": "lan", "dhcp": {"interfaces": ["eth0"]}}
+load_address_plan(final, SECRETS, container=DC)
+check("an apply renders the merged global options: the organisation's under the site's",
+      {"name": "boot-file-name", "data": "pxelinux.0"} in final["dhcp"]["options"]
+      and {"name": "ntp-servers", "data": "10.1.10.1"} in final["dhcp"]["options"], final["dhcp"].get("options"))
+
 print("--- the plan at an apply with the DC not answering (1.10.4.14)")
 final = {**V, "install_kea": True, "dhcp": copy.deepcopy(saved["dhcp"])}
 said = load_address_plan(final, SECRETS, container="no-such-dc")

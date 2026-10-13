@@ -4,7 +4,10 @@ fabric's templates, with real DHCP clients: a client gets a pool address and
 its hostname lands in the DHCP subzone (BIND, fabric's zone and key
 templates); a reserved MAC gets its fixed address; another client cannot
 take over that name (DHCID); the lease list comes over the control socket;
-the containers are hardened (two capabilities for DHCP, none for DDNS).
+the containers are hardened (two capabilities for DHCP, none for DDNS); the address
+plan's DHCP options and netboot presets (2.1.10.23, 2.1.10.25): Kea takes the rendered
+classes, BIOS, UEFI, iPXE and HTTP boot clients each get their own boot file, and a
+reservation's options and preset win over its subnet's, its subnet's over the site's.
 
     sudo python3 tests/kea/run.py          (needs Docker, dig, root)
 """
@@ -57,7 +60,8 @@ def until(pred, timeout=60):
 
 
 def cleanup():
-    sh("docker rm -f kt-dhcp4 kt-ddns kt-bind kt-c1 kt-c2 kt-c3 kt-c4 kt-boot >/dev/null 2>&1", ok=False)
+    sh("docker rm -f kt-dhcp4 kt-ddns kt-bind kt-c1 kt-c2 kt-c3 kt-c4 kt-boot kt-nb1 kt-nb2 kt-nb3 kt-nb4 kt-nb5 kt-nb6 "
+       ">/dev/null 2>&1", ok=False)
     sh(f"docker network rm {NET} >/dev/null 2>&1", ok=False)
 
 
@@ -206,8 +210,9 @@ check("kea-dhcp4 runs and creates its control socket", until(lambda: os.path.exi
       sh("docker logs kt-dhcp4", ok=False).stdout[-800:] + sh("docker logs kt-dhcp4", ok=False).stderr[-800:])
 
 
-def client(name, mac=None, hostname=None, vendor=None):
-    """One DHCP client run; its script prints what it was given (udhcpc's environment: tftp, bootfile, siaddr…)."""
+def client(name, mac=None, hostname=None, vendor=None, extra=()):
+    """One DHCP client run; its script prints what it was given (udhcpc's environment: tftp, bootfile, siaddr…);
+    extra: more udhcpc options sent (`-x 0x5d:0007`: the client's architecture, option 93)."""
     args = ["docker", "run", "--name", name, "--network", NET, "--cap-add", "NET_ADMIN", "--cap-add", "NET_RAW"]
     if mac:
         args += ["--mac-address", mac]
@@ -216,6 +221,8 @@ def client(name, mac=None, hostname=None, vendor=None):
         cmd += ["-x", f"hostname:{hostname}"]
     if vendor:
         cmd += ["-V", vendor]
+    for x in extra:
+        cmd += ["-x", x]
     args += [BUSYBOX, "sh", "-c", "printf '#!/bin/sh\nenv | grep -E \"^(tftp|timezone|siaddr|boot_file)=\"\n' > /tmp/s; "
              "chmod +x /tmp/s; exec " + shlex.join(cmd)]
     out = sh(args, ok=False)
@@ -409,6 +416,73 @@ check("kea-dhcp4: only NET_RAW + NET_BIND_SERVICE, read-only, no-new-privileges"
       and h4["ReadonlyRootfs"] and "no-new-privileges:true" in h4["SecurityOpt"], h4.get("CapAdd"))
 check("kea-ddns: uid 915, no capabilities, read-only",
       insp["kt-ddns"]["Config"]["User"] == "915:915" and not hd.get("CapAdd") and hd["ReadonlyRootfs"])
+
+
+# ------------------------------------------------------------------ the plan's options and netboot presets
+# (decisions 2.1.10.23 and 2.1.10.25, manual 1.10.4.24 and 1.10.4.25): Kea itself takes the rendered classes, and real
+# clients of each kind are handed their own boot file; options at each level win in Kea's order
+NB_PLAN = {"site": "lan", "block": 1, "vlans": [{"id": 23, "name": "lab", "access": "full"}], "networks": [],
+           "org_options": {"options": [{"name": "time-offset", "data": "100"},
+                                       {"name": "ztp-url", "data": "http://ztp.lan/cfg"}],
+                           "option_defs": [{"name": "ztp-url", "code": 239, "type": "string"}], "client_classes": []},
+           "site_options": {"options": [{"name": "time-offset", "data": "200"}], "option_defs": [],
+                            "client_classes": []},
+           "subnets": [{"name": "lab", "cidr": SUBNET, "vlan": 23, "gateway": "10.254.23.1", "dhcp": True, "id": 7,
+                        "relay": "", "notes": "", "allow_overlap": "", "options": [{"name": "time-offset",
+                                                                                     "data": "300"}],
+                        "netboot": {"server": "10.254.23.30", "bios": "undionly.kpxe", "uefi": "ipxe.efi",
+                                    "ipxe": "http://10.254.23.30/boot.ipxe",
+                                    "http": "http://10.254.23.30/grubx64.efi"},
+                        "ranges": [{"kind": "dhcp", "first": "10.254.23.100", "last": "10.254.23.150"}],
+                        "addresses": [{"ip": "10.254.23.51", "kind": "reservation", "name": "kiosk",
+                                       "mac": "02:00:00:00:00:51", "dns": False,
+                                       "options": [{"name": "time-offset", "data": "400"}],
+                                       "netboot": {"server": "10.254.23.31", "bios": "kiosk.0"}}]}]}
+NB = plan_to_dhcp(NB_PLAN)
+nv = {**V, "dns": {"dynamic_zone_var": {"A": NB["records"]}}}
+nv["dhcp"] = normalize_dhcp({**nv, "dhcp": {**V["dhcp"], "subnets": NB["subnets"], "options": NB["options"],
+                                           "option_defs": NB["option_defs"], "client_classes": NB["client_classes"]}})
+nb_cfg = env.get_template("kea/kea-dhcp4.conf.j2").render(**nv)
+try:
+    nb_ok = check_kea_config("fabric/kea:test", "kea-dhcp4.conf", nb_cfg) is True
+except ValidationError as e:
+    nb_ok = str(e)
+check("Kea accepts the plan's option sets and netboot classes: a custom definition, only-in-additional-list classes "
+      "the subnet evaluates, a reservation's marker class", nb_ok is True and '"only-in-additional-list": true'
+      in nb_cfg and '"evaluate-additional-classes"' in nb_cfg and '"fabric-nb-a-10.254.23.51"' in nb_cfg, nb_ok)
+check("the global level: the site's time-offset (200) over the organisation's (100)",
+      {"name": "time-offset", "data": "200"} in NB["options"]
+      and {"name": "time-offset", "data": "100"} not in NB["options"], NB["options"])
+saved_cfg = open(f"{W}/kea/config/kea-dhcp4.conf").read()
+with open(f"{W}/kea/config/kea-dhcp4.conf", "w") as f:
+    f.write(nb_cfg)
+sh("docker rm -f kt-dhcp4")
+start_dhcp4()
+until(lambda: os.path.exists(f"{W}/kea/run/kea4-ctrl-socket"))
+time.sleep(2)
+ip_b, out_b = client("kt-nb1", "02:00:00:00:00:61", extra=["0x5d:0000"])
+check("a BIOS PXE client (architecture 0) gets the BIOS file from the boot server, and the subnet's time-offset "
+      "(300) over the site's", ip_b and "boot_file=undionly.kpxe" in out_b and "siaddr=10.254.23.30" in out_b
+      and "tftp=10.254.23.30" in out_b and "timezone=300" in out_b, out_b[-500:])
+ip_u, out_u = client("kt-nb2", "02:00:00:00:00:62", extra=["0x5d:0007"])
+check("a UEFI client (architecture 7) gets the UEFI file", ip_u and "boot_file=ipxe.efi" in out_u, out_u[-500:])
+ip_i, out_i = client("kt-nb3", "02:00:00:00:00:63", extra=["0x5d:0007", "0x4d:69505845"])
+check("the same client once running iPXE (user class 'iPXE') gets the script's URL, not iPXE again",
+      ip_i and "boot_file=http://10.254.23.30/boot.ipxe" in out_i, out_i[-500:])
+ip_h, out_h = client("kt-nb4", "02:00:00:00:00:64", vendor="HTTPClient:Arch:00016:UNDI:003001")
+check("a UEFI HTTP boot client gets the HTTP URL", ip_h and "boot_file=http://10.254.23.30/grubx64.efi" in out_h,
+      out_h[-500:])
+ip_n, out_n = client("kt-nb5", "02:00:00:00:00:65")
+check("a client that asks for no boot gets no boot file", ip_n and "boot_file=" not in out_n.replace("boot_file=\n", ""),
+      out_n[-500:])
+ip_k, out_k = client("kt-nb6", "02:00:00:00:00:51", extra=["0x5d:0000"])
+check("the reservation's own preset and option win over the subnet's: its address, its boot server and file, "
+      "time-offset 400", ip_k == "10.254.23.51" and "boot_file=kiosk.0" in out_k and "siaddr=10.254.23.31" in out_k
+      and "timezone=400" in out_k, out_k[-500:])
+with open(f"{W}/kea/config/kea-dhcp4.conf", "w") as f:
+    f.write(saved_cfg)
+sh("docker rm -f kt-dhcp4")
+start_dhcp4()
 
 
 # ------------------------------------------------------------------ commands (manual 1.10.2.5)

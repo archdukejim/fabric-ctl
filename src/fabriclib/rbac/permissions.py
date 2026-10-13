@@ -14,6 +14,8 @@ PERMISSIONS = {
     "dns:querylog": "read the DNS query log: which client looked up which name (admin bundle only, 2.1.12.4)",
     "dhcp:read": "see DHCP subnets, reservations and leases",
     "dhcp:write": "add and remove DHCP reservations",
+    "dhcp:org-options": "change the organisation's DHCP options, definitions and classes, where the top lets this site "
+                        "(2.1.10.23)",
     "pki:read": "see the CA and issued certificates; inspect a CSR or certificate",
     "pki:issue": "issue key + certificate pairs, convert to .p12",
     "pki:sign": "sign uploaded CSRs",

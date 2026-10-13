@@ -10,6 +10,7 @@ from fabriclib.dns.reload_zone import reload_zone
 from fabriclib.dns.rndc import rndc
 from fabriclib.keycloak.install_sso_keytab import install_sso_keytab
 from fabriclib.ipam.move_subnets_to_plan import move_subnets_to_plan
+from fabriclib.ipam.options.move_options_to_plan import move_options_to_plan
 from fabriclib.samba.converge_domain import converge_domain
 from fabriclib.samba.write_bind_dlz import write_bind_dlz
 from fabriclib.setup.errors import SetupError
@@ -132,6 +133,8 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
             done = converge_domain(final_vars, paths["federation"], secrets)
             print("Windows domain: " + ("; ".join(done) if done else "as wanted"))
             for line in move_subnets_to_plan(final_vars, secrets):    # once: 0.7's subnets into the plan (1.10.4.15)
+                print(line)
+            for line in move_options_to_plan(final_vars, secrets):    # once: the global options too (2.1.10.23)
                 print(line)
             if final_vars.get("install_keycloak") and install_sso_keytab(final_vars) and "keycloak" in running:
                 print("Restarting Keycloak (Kerberos sign-in keytab)...")

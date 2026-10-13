@@ -12,6 +12,7 @@ from fabriclib.dns.reverse_zones import reverse_zones
 from fabriclib.dns.zone_detail import zone_detail
 from fabriclib.dns_filter.filter_overview import filter_overview
 from fabriclib.federation.federation_overview import federation_overview
+from fabriclib.ipam.options.options_overview import options_overview
 from fabriclib.directory.device_overview import device_overview
 from fabriclib.directory.list_people import list_people
 from fabriclib.images.image_status import image_status
@@ -70,13 +71,17 @@ def get_route(route, user=None):
     Inputs:  route — list of path segments after /v1/ (already authorized by the handler); user — the token's user
              (None for root): a job is read only by the person who started it.
     Returns: the operation's JSON-serialisable result. zones/<key>: zone_detail; vault/slots: the unlock methods with
-             this host's name; images: the image status rows; pki/acme: {info, machines, domain}; jobs/<id>: the job.
+             this host's name; images: the image status rows; pki/acme: {info, machines, domain}; jobs/<id>: the job;
+             ipam/options/<site>[/<target>]: options_overview (the DHCP options and, given a target, its effective
+             options with their sources, 1.10.4.24.3).
     Fails:   RouteNotFound for any other route (-> 404); whatever the operation raises (ValidationError -> 400).
     Feeds:   agent/handler.py (dispatch)."""
     if tuple(route) in READS:
         return READS[tuple(route)]()
     if len(route) == 2 and route[0] == "zones":
         return zone_detail(route[1])
+    if len(route) in (3, 4) and route[:2] == ["ipam", "options"]:
+        return options_overview(load_vars(), "" if route[2] == "-" else route[2], route[3] if len(route) == 4 else "")
     if len(route) == 2 and route[0] == "jobs":
         return JOBS.read(route[1], user)
     if route == ["vault", "slots"]:

@@ -31,7 +31,9 @@ SETS = {
                 ("fabricFirst", 23, IA5, True), ("fabricLast", 24, IA5, True), ("fabricIp", 25, IA5, True),
                 ("fabricAddressKind", 26, STRING, True), ("fabricMac", 27, IA5, True),
                 ("fabricHostName", 28, IA5, True), ("fabricOwner", 29, STRING, True), ("fabricDns", 30, BOOL, True),
-                ("fabricBlock", 31, INT, True), ("fabricVlanName", 32, STRING, True)],
+                ("fabricBlock", 31, INT, True), ("fabricVlanName", 32, STRING, True),
+                # the option sets of the organisation and of each site (2.1.10.23, manual 1.10.4.24.1)
+                ("fabricDhcpOptionDef", 33, STRING, False), ("fabricDhcpClass", 34, STRING, False)],
                [("fabricDevice", 1, 3, [], ["fabricDeviceType", "fabricEnabled", "fabricCertFingerprint"]),
                 ("fabricRole", 2, 3, [], ["fabricPermission", "fabricVlan", "fabricPriority"]),
                 ("fabricDeviceRoles", 3, 3, [], ["fabricRoleName"]),
@@ -50,7 +52,10 @@ SETS = {
                 ("fabricAddress", 10, 1, ["fabricIp", "fabricAddressKind"],
                  ["fabricMac", "fabricHostName", "fabricOwner", "fabricDns", "fabricDhcpOption", "description"],
                  ["fabricNetwork"]),
-                ("fabricAddressBlock", 11, 3, [], ["fabricBlock"])]),
+                ("fabricAddressBlock", 11, 3, [], ["fabricBlock"]),
+                # the organisation's DHCP options (in OU=organisation) and each site's (in its OU): 2.1.10.23
+                ("fabricOptionSet", 12, 1, [], ["fabricDhcpOption", "fabricDhcpOptionDef", "fabricDhcpClass",
+                                                "description"])]),
     # sudo's rules in the directory, with sudo's own registered arc (Ubuntu no longer ships its AD schema; Q9)
     "sudo": ("1.3.6.1.4.1.15953.9.1", "1.3.6.1.4.1.15953.9.2",
              [("sudoUser", 1, IA5, False), ("sudoHost", 2, IA5, False), ("sudoCommand", 3, IA5, False),

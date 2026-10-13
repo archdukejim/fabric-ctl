@@ -77,7 +77,8 @@ def normalize_dhcp(v):
              access ("full", the default, or "guest": DNS and NTP only, 2.1.10.4), relay (the DHCP relay's
              address when it lies outside the subnet: Kea picks a relayed subnet by that address, manual
              1.10.3.2), pools, routers, options,
-             reservations [{mac, ip, hostname, options}]}], options (every subnet), option_defs, client_classes
+             reservations [{mac, ip, hostname, options, classes (netboot markers, 2.1.10.25)}]}], options (every
+             subnet), option_defs, client_classes
              (manual 1.10.2.3), ddns_subdomain (one label, default dhcp), ntp (IPv4 addresses, default
              this host), lease_time (int 300-2592000, default 86400)}; dns (its A records); fabric_subnet
              (default 10.255.0.0/24: no DHCP subnet may overlap it).
@@ -196,9 +197,13 @@ def normalize_dhcp(v):
             if not isinstance(r.get("ddns", True), bool):
                 raise ValidationError(f"reservation {mac}: ddns is true (DHCP registers its name, the default) or "
                                       "false")
+            classes = r.get("classes") or []      # netboot markers the plan gives a reservation (2.1.10.25)
+            if not isinstance(classes, list) or not all(isinstance(c, str) and c for c in classes):
+                raise ValidationError(f"reservation {mac}: classes is a list of client class names")
             reservations.append({"mac": mac, "ip": str(ip), **({"hostname": host} if host else {}),
                                  **({"options": ropts} if ropts else {}),
-                                 **({"ddns": False} if r.get("ddns") is False else {})})
+                                 **({"ddns": False} if r.get("ddns") is False else {}),
+                                 **({"classes": list(classes)} if classes else {})})
         sopts = normalize_options(s.get("options"), f"subnet {meta.get('name', net)}")
         own = ("name", "vlan", "notes", "options", "allow_overlap", "access", "relay")
         subnets.append({**{k: x for k, x in s.items() if k not in own},

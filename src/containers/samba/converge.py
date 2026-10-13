@@ -17,6 +17,7 @@ from ensure_groups import ensure_groups
 from ensure_join_account import ensure_join_account
 from ensure_layout import ensure_layout
 from ensure_networks import ensure_networks
+from ensure_org_options import ensure_org_options
 from ensure_schema import ensure_schema
 from ensure_service_accounts import ensure_service_accounts
 from ensure_site_acl import ensure_site_acl
@@ -45,7 +46,8 @@ def converge(state):
              groups, the site's service accounts, the AD zones on IPv4 only (2.1.6.29), its access entries, its networks
              (the address plan), its default
              sudo rule, the AD site and its subnets (the plan's among them, 1.10.4.13), the password policy, the
-             domain's trust GPO (fabric's root CA),
+             domain's trust GPO (fabric's root CA) and the organisation's DHCP options entry with its editors' group
+             (2.1.10.23),
              the site's log-on GPO, its Windows baseline GPO and winbind's privileged pipe for FreeRADIUS. Each part
              changes only what differs, so a second run changes nothing.
     Inputs:  state — dict: site (str), root (bool: the root site, which also holds the organisation's items and the
@@ -92,6 +94,7 @@ def converge(state):
         changed += [f"password policy: {a}" for a in set_password_policy(samdb, state["password_policy"])]
         changed += ensure_gpo(samdb, lp, "fabric: trust in fabric's root CA", base, TRUST_EXTENSIONS,
                               {"Machine/Registry.pol": root_ca_policy(state["root_ca_pem"])})
+        changed += ensure_org_options(samdb)      # the organisation's DHCP options and who edits them (2.1.10.23)
     if state.get("moving"):               # a site with its own DC moving here: its GPOs are its own to rewrite
         changed += share_winbind(lp, int(state["radius_gid"]))
         return changed
