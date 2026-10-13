@@ -15,6 +15,7 @@ from fabriclib.ipam.networks_csv import networks_csv
 from fabriclib.ipam.networks_overview import networks_overview
 from fabriclib.federation.federation_overview import federation_overview
 from fabriclib.ipam.scannable_subnets import scannable_subnets
+from fabriclib.ipam.options.options_overview import options_overview
 from fabriclib.directory.device_overview import device_overview
 from fabriclib.directory.list_host_groups import list_host_groups
 from fabriclib.directory.list_people import list_people
@@ -83,7 +84,8 @@ def get_route(route, user=None):
     Returns: the operation's JSON-serialisable result. zones/<key>: zone_detail; vault/slots: the unlock methods with
              this host's name; images: the image status rows; pki/acme: {info, machines, domain}; jobs/<id>: the job;
              networks[/<site>]: networks_overview (the Networks tab, a site this console shows); networks/<site>/export:
-             networks_csv ({"csv", "name"}).
+             networks_csv ({"csv", "name"}); ipam/options/<site>[/<target>]: options_overview (the DHCP options and,
+             given a target, its effective options with their sources, 1.10.4.24.3).
     Fails:   RouteNotFound for any other route (-> 404); whatever the operation raises (ValidationError -> 400).
     Feeds:   agent/handler.py (dispatch)."""
     if tuple(route) in READS:
@@ -94,6 +96,8 @@ def get_route(route, user=None):
         return networks_overview(load_vars(), route[1])
     if len(route) == 3 and route[0] == "networks" and route[2] == "export":
         return networks_csv(load_vars(), route[1])
+    if len(route) in (3, 4) and route[:2] == ["ipam", "options"]:
+        return options_overview(load_vars(), "" if route[2] == "-" else route[2], route[3] if len(route) == 4 else "")
     if len(route) == 2 and route[0] == "jobs":
         return JOBS.read(route[1], user)
     if route == ["vault", "slots"]:

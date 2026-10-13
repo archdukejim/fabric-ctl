@@ -17,6 +17,7 @@ arbitrary commands.
 | `post_dns_filter.py` | The DNS filter's lists, rules and upstreams (saved and applied), the lists job, the query-log search |
 | `post_dhcp.py` | DHCP: reservations, subnets (name, VLAN, notes, pools), options, client classes, each applied at once |
 | `post_ipam_scan.py` | The scan of a subnet, and recording an address it found (a reservation for its MAC, or static), applied at once |
+| `post_options.py` | The DHCP options in the plan: options, classes, definitions (a site's; the organisation's with dhcp:org-options), netboot, who edits the organisation's |
 | `post_network.py` | 802.1X settings, each applied at once |
 | `post_networks.py` | The Networks tab: a site's number, VLANs, subnets, ranges and addresses (this site's applied at once; a site this console does not show refused) |
 | `post_pki.py` | Manual PKI: describe or sign a CSR, issue, inspect, convert |

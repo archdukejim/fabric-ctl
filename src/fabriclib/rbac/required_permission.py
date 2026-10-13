@@ -9,6 +9,7 @@ GET = {
     ("dhcp",): "dhcp:read",
     ("networks",): "dhcp:read", ("networks", "*"): "dhcp:read", ("networks", "*", "export"): "dhcp:read",
     ("ipam", "scan"): "dhcp:read",                     # the subnets a scan may cover (2.1.10.26)
+    ("ipam", "options", "*"): "dhcp:read", ("ipam", "options", "*", "*"): "dhcp:read",
     ("dns-filter",): "dns:filter",
     ("radius",): "radius:read", ("radius", "guides"): "radius:read",
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
@@ -70,6 +71,11 @@ POST = {
     ("networks", "*", "addresses", "*"): "dhcp:write", ("networks", "*", "addresses", "*", "delete"): "dhcp:write",
     # a scan sends packets onto the site's networks and offers to record what it finds: whoever may change DHCP
     ("ipam", "scan"): "dhcp:write", ("ipam", "scan", "record"): "dhcp:write",
+    # the address manager's DHCP options (2.1.10.23): a site's with dhcp:write, the organisation's with dhcp:org-options
+    ("ipam", "options"): "dhcp:write", ("ipam", "classes"): "dhcp:write", ("ipam", "option-defs"): "dhcp:write",
+    ("ipam", "netboot"): "dhcp:write",
+    ("ipam", "options", "org"): "dhcp:org-options", ("ipam", "classes", "org"): "dhcp:org-options",
+    ("ipam", "option-defs", "org"): "dhcp:org-options", ("ipam", "option-editors"): "dhcp:org-options",
     ("radius", "clients"): "radius:admin", ("radius", "clients", "*", "rotate"): "radius:admin",
     ("radius", "clients", "*", "delete"): "radius:admin",
     ("radius", "people"): "radius:admin", ("radius", "people", "*", "delete"): "radius:admin",

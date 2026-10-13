@@ -13,6 +13,7 @@ from fabriclib.ipam.export_plan import export_plan
 from fabriclib.ipam.find_in_plan import find_in_plan
 from fabriclib.ipam.offer_reservations import offer_reservations
 from fabriclib.ipam.read_plan import read_plan
+from fabriclib.ipam.options.run_option_command import run_option_command
 from fabriclib.ipam.remove_address import remove_address
 from fabriclib.ipam.remove_range import remove_range
 from fabriclib.ipam.remove_subnet import remove_subnet
@@ -50,6 +51,8 @@ USAGE = """usage: fabricctl ipam show [<site>]                    a site's VLANs
        fabricctl ipam address remove <ip>
        fabricctl ipam scan <subnet> [--no-ask]         which addresses answer, and which nobody recorded: offers to
                                                        record each (a subnet this site's DHCP serves; name or network)
+       fabricctl ipam option|class|netboot|option-editors|watch …   DHCP options, netboot, the plan poll
+                               (fabricctl ipam option --help)
    --site S: another site's plan (a site above it may edit it); a change to this site's plan applies at once
    unless --no-apply"""
 FLAGS = {"--site", "--name", "--subnet", "--gateway", "--purpose", "--notes", "--access", "--dhcp", "--relay",
@@ -161,7 +164,8 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
     """Purpose: `fabricctl ipam …` — the address manager's plan from the command line (manual 1.10.4.9, 1.10.4.16;
              Volume 4: 4.10.2): show, find and export, the site's number, and changes to VLANs, subnets (several
              per VLAN, 2.1.10.18), ranges and addresses, this site's or (--site) a site below it; a scan of one of
-             this site's subnets, offering to record what nobody did (2.1.10.26). Routes only: every rule is in the
+             this site's subnets, offering to record what nobody did (2.1.10.26); the DHCP options, netboot and the
+             plan poll through run_option_command (1.10.4.24 to 1.10.4.26). Routes only: every rule is in the
              function each command calls.
     Inputs:  v — the rendered vars (SetupContext.load_state().vars); argv — list of str after "ipam" (default
              show); secrets — fabric's secrets (default: loaded by the functions); container — the DC's container
@@ -174,6 +178,8 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
         print(USAGE)
         return 0
     cmd, args = (argv[0], argv[1:]) if argv else ("show", [])
+    if cmd in ("option", "class", "netboot", "option-editors", "watch"):   # the options (1.10.4.24 to 1.10.4.26)
+        return run_option_command(v, cmd, args, secrets, container)
     common = {"secrets": secrets, "container": container}
     try:
         pos, vals, bare = _parse(args)

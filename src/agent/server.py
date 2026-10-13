@@ -47,6 +47,9 @@ request. Root peers (the host itself) are not asked for a token.
             | /v1/dhcp/subnets/delete {subnet, force} | /v1/dhcp/options {option, data, subnet|class|mac,
             always_send} | /v1/dhcp/options/delete | /v1/dhcp/classes {name, test, next_server, boot_file}
             | /v1/dhcp/classes/<name>/delete
+  GET  /v1/ipam/options/<site|->[/<target>] | POST /v1/ipam/options, /v1/ipam/classes, /v1/ipam/option-defs,
+       /v1/ipam/netboot (dhcp:write); /v1/ipam/options/org, /classes/org, /option-defs/org, /v1/ipam/option-editors
+       (dhcp:org-options)
   GET  /v1/radius | /v1/radius/guides (setup guides, Windows scripts) | POST /v1/radius/clients {name, address,
   message_authenticator, secret?}
        | /v1/radius/clients/<name>/rotate {secret?} | /v1/radius/clients/<name>/delete   (secret returned once)

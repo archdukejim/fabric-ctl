@@ -1,5 +1,6 @@
 from webui import views
 from webui.devpreview.sample_data import (RECORD_TYPES, SAMPLE_CA, SAMPLE_DEVICES, SAMPLE_DHCP, SAMPLE_DOMAIN,
+                                          SAMPLE_EFFECTIVE, SAMPLE_OPTIONS,
                                           SAMPLE_FEDERATION, SAMPLE_GPO, SAMPLE_LOGON, SAMPLE_RADIUS, SAMPLE_ACME,
                                           SAMPLE_ACCESS,
                                           SAMPLE_IMAGES,
@@ -11,8 +12,8 @@ from webui.devpreview.sample_radius_guides import sample_radius_guides
 
 def dev_get_page(h, path, query):
     """Purpose: Render the real pages (src/webui/views) with sample or in-memory data: /, /bind9, /stepca, /openbao,
-             /directory, /kea, /dns-filter, /freeradius, /audit, /jobs/<id>, /static/app.css, and /preview/denied
-             (what a refused sign-in looks like). No sign-in, no client certificate, no fabric-agent.
+             /directory, /kea, /kea/options, /dns-filter, /freeradius, /audit, /jobs/<id>, /static/app.css, and
+             /preview/denied (what a refused sign-in looks like). No sign-in, no client certificate, no fabric-agent.
     Inputs:  h — the dev handler (send, state, ctx); path — the URL path; query — dict (msg, err, view, zone, device,
              slot, name; /dns-filter: wait, and fresh=1 for a fresh install's first fetch still running).
     Returns: None; sends 200 with the page, 403 for /preview/denied, 404 for anything else.
@@ -94,6 +95,10 @@ def dev_get_page(h, path, query):
     if path == "/networks/scan":                       # the scan page, before a scan (manual 1.10.4.22)
         return h.send(200, views.ipam_scan(ctx, SAMPLE_SCAN_SUBNETS, None, query.get("msg", ""), query.get("err", ""),
                                            query.get("subnet", "")))
+    if path == "/kea/options":           # the DHCP options page (1.10.4.24.6); ?target=… shows the sample's sources
+        target = query.get("target", "")
+        sample = {**SAMPLE_OPTIONS, "effective": SAMPLE_EFFECTIVE if target else None}
+        return h.send(200, views.dhcp_options(ctx, sample, target, query.get("msg", ""), query.get("err", "")))
     if path == "/kea":
         # ?plan=1: the subnets in the address plan, so the tab links to Networks (manual 1.10.4.21)
         # ?off=1: DHCP off, as a first turn-on shows it (manual 1.10.3.5); ?off=resume: off with settings kept

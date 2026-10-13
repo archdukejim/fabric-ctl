@@ -50,7 +50,7 @@ Nothing here yet — nothing to install on its own: see [1.8](../volume_1_descri
 
 ## 3.10 DHCP: Kea
 
-Nothing here yet — nothing to install on its own: see [1.10](../volume_1_description_and_architecture/README.md).
+- [3.10.1 DHCP options and the plan poll: install and upgrade](3.10.1-dhcp-options-install.md)
 
 ## 3.11 802.1X: FreeRADIUS
 

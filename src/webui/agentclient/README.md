@@ -40,6 +40,8 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `dns_filter_change.py` | Change the DNS filter: lists, rules, upstreams (saved and applied), or start the lists job. Agent routes: POST /v1/dns-filter/... (dns:filter). |
 | `dns_filter_overview.py` | What the DNS filter tab shows. Agent route: GET /v1/dns-filter (dns:filter). |
 | `dhcp_overview.py` | What the Kea (DHCP) page shows, read-only. Agent route: GET /v1/dhcp (dhcp:read). |
+| `option_sets.py` | What the DHCP options page shows: the option sets, presets, a target's effective options. Agent route: GET /v1/ipam/options/<site>[/<target>] (dhcp:read). |
+| `option_change.py` | One change of the DHCP options page: options, classes, definitions, netboot, which sites edit the organisation's. Agent routes: POST /v1/ipam/... (dhcp:write; the organisation's dhcp:org-options). |
 | `errors.py` | The agent rejected the input (HTTP 400); message is safe to show. |
 | `inspect_pem.py` | Decode certificates or a CSR for reading, with a trust verdict. Agent route: POST /v1/pki/inspect (pki:read). |
 | `issue_key_pair.py` | Generate a private key and certificate for a device that cannot make its own CSR. Agent route: POST /v1/pki/issue (pki:issue), timeout 180 s. |

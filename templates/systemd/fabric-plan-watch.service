@@ -1,0 +1,9 @@
+[Unit]
+Description=fabric: the address plan poll: Kea re-rendered when the plan changed (manual 1.10.4.26, 2.1.10.24)
+After=docker.service fabric.target
+Wants=docker.service
+
+[Service]
+Type=oneshot
+# Kea alone, never a full apply; a failure fails the run (systemctl status fabric-plan-watch) and the next run retries
+ExecStart=/usr/bin/fabricctl ipam watch --scheduled

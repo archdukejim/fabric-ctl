@@ -110,6 +110,7 @@
 
 <h2>Options</h2>
 <p class="muted">What this subnet's clients get and where each option comes from; the most specific level wins.</p>
+<p><a href="/kea/options?site={{ n.site | urlencode }}&amp;target=subnet:{{ s.name | urlencode }}">Change them on the DHCP options page</a> <span class="muted">(the organisation's, the site's, this subnet's and its reservations' options, classes and netboot presets)</span></p>
 {% if s.options %}<table><thead><tr><th>Option</th><th>Code</th><th>Value</th><th>From</th><th></th></tr></thead><tbody>
 {% for o in s.options %}<tr{% if o.overridden %} class="overridden"{% endif %}><td>{{ o.name or '—' }}</td><td class="num">{{ o.code or '—' }}</td><td><code>{{ o.data }}</code></td><td>{{ o.source }}</td>
 <td>{% if o.provided %}<span class="pill ok">provided by fabric</span>{% endif %}{% if o.overridden %} <span class="pill warn">overridden by {{ o.overridden }}</span>{% endif %}</td></tr>{% endfor %}

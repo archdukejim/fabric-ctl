@@ -9,6 +9,7 @@ from webui.views.audit import audit  # noqa: F401
 from webui.views.bind9 import bind9  # noqa: F401
 from webui.views.continue_page import continue_page  # noqa: F401
 from webui.views.css import css  # noqa: F401
+from webui.views.dhcp_options import dhcp_options  # noqa: F401
 from webui.views.directory import directory  # noqa: F401
 from webui.views.dns_filter import dns_filter  # noqa: F401
 from webui.views.error_page import error_page  # noqa: F401

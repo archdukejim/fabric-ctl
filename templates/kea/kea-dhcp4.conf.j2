@@ -79,6 +79,10 @@
 {% if s.relay is defined and s.relay %}
             "relay": { "ip-addresses": [ "{{ s.relay }}" ] },
 {% endif %}
+{# the subnet's netboot preset: its classes evaluated for this subnet alone (2.1.10.25, manual 1.10.4.25) #}
+{% if s.netboot_classes is defined and s.netboot_classes %}
+            "evaluate-additional-classes": {{ s.netboot_classes | to_json }},
+{% endif %}
             "pools": [ {% for p in s.pools | default([]) %}{ "pool": "{{ p }}" }{{ ', ' if not loop.last }}{% endfor %} ],
 {# the subnet's own DNS and time server: fabric's address on the interface that serves it (2.1.10.5), unless
    dhcp.dns / dhcp.ntp or a global option names them; the subnet's own options still replace these #}
@@ -99,7 +103,7 @@
             "option-data": {{ kea_option_data(sub_defaults, s.options) | to_json }},
             "reservations": [
 {% for r in s.reservations | default([]) %}
-                { "hw-address": "{{ r.mac | lower }}", "ip-address": "{{ r.ip }}"{% if r.hostname is defined and r.hostname %}, "hostname": "{{ r.hostname }}"{% endif %}{% if r.options is defined and r.options %}, "option-data": {{ kea_option_data([], r.options) | to_json }}{% endif %}{% if skip.on and r.ddns is defined and not r.ddns %}, "client-classes": [ "SKIP_DDNS" ]{% endif %} }{{ ',' if not loop.last }}
+                { "hw-address": "{{ r.mac | lower }}", "ip-address": "{{ r.ip }}"{% if r.hostname is defined and r.hostname %}, "hostname": "{{ r.hostname }}"{% endif %}{% if r.options is defined and r.options %}, "option-data": {{ kea_option_data([], r.options) | to_json }}{% endif %}{% set rc = (r.classes | default([])) + (["SKIP_DDNS"] if skip.on and r.ddns is defined and not r.ddns else []) %}{% if rc %}, "client-classes": {{ rc | to_json }}{% endif %} }{{ ',' if not loop.last }}
 {% endfor %}
             ]
         }{{ ',' if not loop.last }}

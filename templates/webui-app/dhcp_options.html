@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{# The DHCP options page (manual 1.10.4.24.6): its own route, view and template, so it drops into the Networks tab #}
+{% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="site" value="{{ d.site }}"><input type="hidden" name="view_target" value="{{ target }}">{% endmacro %}
+{% macro opt_label(o) %}{% if o.code is defined %}{{ o.code }}{% for c in d.catalogue if c.code == o.code %} {{ c.name }}{% endfor %}{% else %}{% for c in d.catalogue if c.name == o.name %}{{ c.code }} {% endfor %}{{ o.name }}{% endif %}{% endmacro %}
+{% macro remove(o, path, scope, target, org=False) %}{% if path == 'options/org' %}<form method="post" action="/kea/options/options/org" class="inline">{% else %}<form method="post" action="/kea/options/options" class="inline">{% endif %}{{ csrf() }}<input type="hidden" name="action" value="remove"><input type="hidden" name="scope" value="{{ scope }}"><input type="hidden" name="target" value="{{ target }}"><input type="hidden" name="option" value="{{ o.name if o.name is defined else o.code }}">{% if org %}<input type="hidden" name="org" value="on">{% endif %}<button class="ghost">Remove</button></form>{% endmacro %}
+{% macro add_option(path, scope, target, org=False) %}<details><summary>Set an option</summary>
+{% if path == 'options/org' %}<form method="post" action="/kea/options/options/org" class="grid">{% else %}<form method="post" action="/kea/options/options" class="grid">{% endif %}{{ csrf() }}<input type="hidden" name="action" value="set"><input type="hidden" name="scope" value="{{ scope }}"><input type="hidden" name="target" value="{{ target }}">{% if org %}<input type="hidden" name="org" value="on">{% endif %}
+<label>Option (standard name or code 1–254)<input name="option" required list="option-names" placeholder="boot-file-name"></label>
+<label>Value<input name="data" maxlength="1024" placeholder="ipxe.efi"></label>
+<label><input type="checkbox" name="always_send"> send even when the client does not ask</label>
+<div><button>Set option</button></div></form></details>{% endmacro %}
+{% macro option_rows(opts, path, scope, target, editable, org=False) %}
+{% for o in opts %}<tr><td><code>{{ opt_label(o) }}</code></td><td>{{ o.data }}</td><td class="num">{% if editable %}{{ remove(o, path, scope, target, org) }}{% endif %}</td></tr>{% endfor %}
+{% if not opts %}<tr><td colspan="3" class="muted">none set</td></tr>{% endif %}
+{% endmacro %}
+{% macro option_set(set, path, scope, editable) %}
+<table><thead><tr><th>Option</th><th>Value</th><th></th></tr></thead><tbody>{{ option_rows(set.options or [], path, scope, '', editable) }}</tbody></table>
+{% if editable %}{{ add_option(path, scope, '') }}{% endif %}
+<h3>Option definitions</h3>
+<table><thead><tr><th>Name</th><th>Code</th><th>Type</th><th></th></tr></thead><tbody>
+{% for o in set.option_defs or [] %}<tr><td><code>{{ o.name }}</code></td><td>{{ o.code }}</td><td>{{ o.type }}{{ ', array' if o.array }}</td><td class="num">{% if editable %}{% if scope == 'org' %}<form method="post" action="/kea/options/option-defs/org" class="inline">{% else %}<form method="post" action="/kea/options/option-defs" class="inline">{% endif %}{{ csrf() }}<input type="hidden" name="action" value="undefine"><input type="hidden" name="name" value="{{ o.name }}"><button class="ghost">Remove</button></form>{% endif %}</td></tr>{% endfor %}
+{% if not set.option_defs %}<tr><td colspan="4" class="muted">none: every standard option is known by name already</td></tr>{% endif %}
+</tbody></table>
+{% if editable %}<details><summary>Define an option Kea has no name for</summary>
+{% if scope == 'org' %}<form method="post" action="/kea/options/option-defs/org" class="grid">{% else %}<form method="post" action="/kea/options/option-defs" class="grid">{% endif %}{{ csrf() }}<input type="hidden" name="action" value="define">
+<label>Name<input name="name" required placeholder="ztp-url"></label>
+<label>Code (1–254)<input name="code" required placeholder="239"></label>
+<label>Type<select name="type">{% for t in ["string", "ipv4-address", "uint8", "uint16", "uint32", "boolean", "binary", "fqdn", "record"] %}<option>{{ t }}</option>{% endfor %}</select></label>
+<label><input type="checkbox" name="array"> an array</label>
+<label>Record types (for a record)<input name="record_types" placeholder="uint8, string"></label>
+<div><button>Define</button></div></form></details>{% endif %}
+<h3>Client classes</h3>
+<p class="muted small">Kea ranks a class's options below the subnet's: the same option set on a subnet wins there.</p>
+{% for c in set.client_classes or [] %}<div class="card"><p><strong>{{ c.name }}</strong> <code>{{ c.test }}</code>{% if c.next_server %} · next server {{ c.next_server }}{% endif %}{% if c.boot_file_name %} · boot file {{ c.boot_file_name }}{% endif %}</p>
+<table><tbody>{{ option_rows(c.options or [], 'options' ~ ('/org' if scope == 'org'), 'class', c.name, editable, scope == 'org') }}</tbody></table>
+{% if editable %}{{ add_option('options' ~ ('/org' if scope == 'org'), 'class', c.name, scope == 'org') }}
+{% if scope == 'org' %}<form method="post" action="/kea/options/classes/org" class="inline">{% else %}<form method="post" action="/kea/options/classes" class="inline">{% endif %}{{ csrf() }}<input type="hidden" name="action" value="remove"><input type="hidden" name="name" value="{{ c.name }}"><button class="ghost">Remove class {{ c.name }}</button></form>{% endif %}</div>{% endfor %}
+{% if editable %}<details><summary>Add a client class</summary>
+{% if scope == 'org' %}<form method="post" action="/kea/options/classes/org" class="grid">{% else %}<form method="post" action="/kea/options/classes" class="grid">{% endif %}{{ csrf() }}<input type="hidden" name="action" value="add">
+<label>Name<input name="name" required placeholder="uefi-pxe"></label>
+<label>Test (Kea expression)<input name="test" required placeholder="option[93].hex == 0x0007"></label>
+<label>Next server (address, optional)<input name="next_server"></label>
+<label>Boot file (optional)<input name="boot_file"></label>
+<div><button>Add class</button></div></form></details>{% endif %}
+{% endmacro %}
+{% macro netboot(p, target) %}
+{% if p %}<p>Netboot on: boot server <code>{{ p.server }}</code>{% for k, label in [("bios", "PXE BIOS"), ("uefi", "PXE UEFI x64"), ("arm64", "PXE UEFI arm64"), ("ipxe", "iPXE script"), ("http", "HTTP boot")] if p[k] %} · {{ label }} <code>{{ p[k] }}</code>{% endfor %}</p>{% endif %}
+{% if can('dhcp:write') %}<details><summary>{{ 'Change the netboot preset' if p else 'Switch netboot on' }}</summary>
+<form method="post" action="/kea/options/netboot" class="grid">{{ csrf() }}<input type="hidden" name="action" value="on"><input type="hidden" name="target" value="{{ target }}">
+<label>Boot server (address, or a name in DNS)<input name="server" required value="{{ p.server if p else '' }}" placeholder="10.1.10.5"></label>
+<label>PXE BIOS file<input name="bios" maxlength="127" value="{{ p.bios if p and p.bios else '' }}" placeholder="undionly.kpxe"></label>
+<label>PXE UEFI x64 file<input name="uefi" maxlength="127" value="{{ p.uefi if p and p.uefi else '' }}" placeholder="ipxe.efi"></label>
+<label>PXE UEFI arm64 file<input name="arm64" maxlength="127" value="{{ p.arm64 if p and p.arm64 else '' }}"></label>
+<label>iPXE script URL (chain-load)<input name="ipxe" maxlength="127" value="{{ p.ipxe if p and p.ipxe else '' }}" placeholder="http://boot.lan/boot.ipxe"></label>
+<label>UEFI HTTP boot URL<input name="http" maxlength="127" value="{{ p.http if p and p.http else '' }}" placeholder="http://boot.lan/shimx64.efi"></label>
+<div><button>Save preset</button></div></form>
+{% if p %}<form method="post" action="/kea/options/netboot" class="inline">{{ csrf() }}<input type="hidden" name="action" value="off"><input type="hidden" name="target" value="{{ target }}"><button class="ghost">Switch netboot off</button></form>{% endif %}
+</details>{% endif %}
+{% endmacro %}
+{% block body %}
+<h1>Kea · DHCP options</h1>
+<p><a href="/kea">← Kea</a> · <a href="/networks{{ '?site=' ~ (d.site | urlencode) if d.site != d.here }}">Networks</a></p>
+{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
+{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
+<datalist id="option-names">{% for c in d.catalogue %}<option value="{{ c.name }}">{{ c.code }}</option>{% endfor %}</datalist>
+<section class="card"><h2>Site {{ d.site }}</h2>
+<form method="get" action="/kea/options" class="grid">
+{% if d.root %}<label>Site<input name="site" value="{{ d.site }}"></label>{% else %}<input type="hidden" name="site" value="{{ d.site }}">{% endif %}
+<label>Show what a client gets at<select name="target"><option value="">—</option><option value="site"{{ ' selected' if target == 'site' }}>the site</option>
+{% for s in d.subnets %}<option value="subnet:{{ s.name }}"{{ ' selected' if target == 'subnet:' ~ s.name }}>subnet {{ s.name }} ({{ s.cidr }})</option>
+{% for r in s.reservations %}<option value="address:{{ r.ip }}"{{ ' selected' if target == 'address:' ~ r.ip }}>address {{ r.ip }} {{ r.name }}</option>{% endfor %}{% endfor %}</select></label>
+<div><button>Show</button></div></form></section>
+{% if d.effective %}<section class="card"><h2>What a client gets: {{ d.effective.target }}</h2>
+<p class="muted">The most specific wins, as Kea applies it: the reservation, the subnet, a client class, then the organisation's and the site's.</p>
+<table><thead><tr><th>Code</th><th>Option</th><th>Value</th><th>From</th><th>Overrides</th></tr></thead><tbody>
+{% for r in d.effective.rows %}<tr><td>{{ r.code or '—' }}</td><td><code>{{ r.name or '(no name)' }}</code>{% if r.provided %} <span class="pill">{{ 'provided by fabric · overridden' if r.fabric_overridden else 'provided by fabric' }}</span>{% endif %}</td><td>{{ r.data }}</td><td>{{ r.source }}</td><td class="muted">{{ r.overrides | join(', ') }}</td></tr>{% endfor %}
+</tbody></table>
+{% for c in d.effective.classes %}<h3>Clients in class {{ c.name }} <span class="muted small">({{ c.owner }}) {{ c.test }}</span></h3>
+{% if c.fields %}<p class="muted small">{% for k, val in c.fields.items() %}{{ k.replace('_', ' ') }}: {{ val }} {% endfor %}</p>{% endif %}
+<table><tbody>{% for r in c.rows %}<tr><td>{{ r.code or '—' }}</td><td><code>{{ r.name }}</code></td><td>{{ r.data }}</td><td class="muted">{{ ('replaced by ' ~ r.overridden_by) if r.overridden_by }}</td></tr>{% endfor %}</tbody></table>{% endfor %}
+</section>{% endif %}
+<section class="card"><h2>The organisation (every site)</h2>
+{% set org_edit = can('dhcp:org-options') and d.org_editable %}
+{% if not d.org %}<p class="muted">Not in the domain yet: an apply at the top site makes it.</p>
+{% else %}
+{% if not d.org_editable %}<p class="muted">This site may not change them: the top site decides which sites may.</p>{% elif not can('dhcp:org-options') %}<p class="muted">Changing them needs the <code>dhcp:org-options</code> permission.</p>{% endif %}
+{{ option_set(d.org, 'options/org', 'org', org_edit) }}
+{% endif %}
+{% if d.root %}<h3>Sites that may edit the organisation's options</h3>
+<p>The top site{% for e in d.org_editors %}, {{ e }}{% if can('dhcp:org-options') %} <form method="post" action="/kea/options/option-editors" class="inline"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="action" value="remove"><input type="hidden" name="site" value="{{ e }}"><button class="ghost">Stop</button></form>{% endif %}{% endfor %}</p>
+{% if can('dhcp:org-options') %}<form method="post" action="/kea/options/option-editors" class="grid"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="action" value="add">
+<label>Let a site edit them (its admins with <code>dhcp:org-options</code>)<input name="site" required placeholder="house2"></label><div><button>Allow</button></div></form>{% endif %}{% endif %}
+</section>
+<section class="card"><h2>Site {{ d.site }} (every subnet here)</h2>
+{% if d.settings %}<p class="flash warn">This site's settings still carry options, definitions or classes: they are served above the site's own and move into the plan at the next apply.</p>{% endif %}
+{{ option_set(d.site_options, 'options', 'site', can('dhcp:write')) }}
+</section>
+<section class="card"><h2>Subnets and reservations</h2>
+{% for s in d.subnets %}<h3>Subnet {{ s.name }} <span class="muted small">{{ s.cidr }}{{ ' · VLAN ' ~ s.vlan if s.vlan }}{{ ' · not served by DHCP' if not s.dhcp }}</span></h3>
+<table><tbody>{{ option_rows(s.options, 'options', 'subnet', s.name, can('dhcp:write')) }}</tbody></table>
+{% if can('dhcp:write') %}{{ add_option('options', 'subnet', s.name) }}{% endif %}
+{{ netboot(s.netboot, s.name) }}
+{% for r in s.reservations %}<div class="card"><p><strong>{{ r.ip }}</strong> {{ r.name }} <span class="muted">{{ r.mac }}</span></p>
+<table><tbody>{{ option_rows(r.options, 'options', 'address', r.ip, can('dhcp:write')) }}</tbody></table>
+{% if can('dhcp:write') %}{{ add_option('options', 'address', r.ip) }}{% endif %}
+{{ netboot(r.netboot, r.ip) }}</div>{% endfor %}
+{% endfor %}
+{% if not d.subnets %}<p class="muted">No subnet in this site's plan yet (fabricctl ipam vlan add).</p>{% endif %}
+</section>
+{% endblock %}

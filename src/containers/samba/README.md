@@ -48,6 +48,8 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `read_networks.py` | Operation `read_networks`: the address plan, every site's networks in one search |
 | `read_plan.py` | Operation `read_plan`: the address manager's plan, one site's or every site's, and every site's number |
 | `write_plan.py` | Operation `write_plan`: checked changes to a site's plan (VLANs, subnets, ranges, addresses, its number) |
+| `ensure_org_options.py` | At the top site: the organisation's DHCP options entry, the group `fabric-dhcp-org-editors` and its access to it |
+| `read_usn.py` | Print the DC's highest committed USN (an anonymous root DSE read): the plan poll's first step |
 | `plan_cidrs.py` | The networks of the site's plan subnets, for its AD site |
 | `create_machine.py` | Operation `create_machine`: a machine pre-created in the site's OU=machines with a one-time join password |
 | `sort_windows_machines.py` | Operation `sort_windows_machines`: Windows machines that joined themselves into OU=machines moved into OU=windows, those moved before skipped (manual 1.6.11.5) |

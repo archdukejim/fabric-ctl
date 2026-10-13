@@ -308,3 +308,38 @@ SAMPLE_QUERY_LOG = {"entries": [
      "qtype": "A", "action": "PASSTHRU", "zone": "owner.rpz", "list": None, "blocked": False},
     {"at": "2026-10-09T09:57:02Z", "client": "192.168.1.44", "view": "everyone", "name": "ads.example.org",
      "qtype": "A", "action": "NXDOMAIN", "zone": "owner.rpz", "list": None, "blocked": True}]}
+# the DHCP options page (manual 1.10.4.24.6): what options_overview answers for a small two-house organisation
+SAMPLE_OPTIONS = {
+    "site": "home", "here": "home", "root": True, "org_editable": True, "org_editors": ["parents"], "settings": None,
+    "org": {"options": [{"name": "v4-captive-portal", "data": "https://portal.home.arpa/"}], "option_defs": [],
+            "client_classes": []},
+    "site_options": {"options": [{"name": "ntp-servers", "data": "10.1.10.1"}],
+                     "option_defs": [{"name": "ztp-url", "code": 239, "type": "string"}],
+                     "client_classes": [{"name": "switches", "test": "substring(option[60].hex,0,5) == 'Cisco'",
+                                         "options": [{"name": "ztp-url", "data": "http://ztp.home.arpa/cfg"}]}]},
+    "subnets": [{"name": "lab", "cidr": "10.1.40.0/24", "vlan": 40, "id": 5, "dhcp": True,
+                 "options": [{"name": "domain-name-servers", "data": "10.1.40.53"}],
+                 "netboot": {"server": "10.1.10.5", "bios": "undionly.kpxe", "uefi": "ipxe.efi",
+                             "ipxe": "http://boot.home.arpa/boot.ipxe"},
+                 "reservations": [{"ip": "10.1.40.20", "name": "pxe-test", "mac": "aa:bb:cc:00:40:20",
+                                   "options": [{"name": "boot-file-name", "data": "custom.efi"}], "netboot": None}]}],
+    "catalogue": [{"code": 6, "name": "domain-name-servers"}, {"code": 42, "name": "ntp-servers"},
+                  {"code": 66, "name": "tftp-server-name"}, {"code": 67, "name": "boot-file-name"},
+                  {"code": 114, "name": "v4-captive-portal"}, {"code": 119, "name": "domain-search"}],
+    "effective": None,
+}
+SAMPLE_EFFECTIVE = {
+    "target": "subnet lab",
+    "rows": [{"code": 3, "name": "routers", "data": "10.1.40.1", "source": "fabric (the subnet's gateway)",
+              "provided": False, "fabric_overridden": False, "overrides": []},
+             {"code": 6, "name": "domain-name-servers", "data": "10.1.40.53", "source": "subnet lab", "provided": True,
+              "fabric_overridden": True, "overrides": ["fabric"]},
+             {"code": 42, "name": "ntp-servers", "data": "10.1.10.1", "source": "site home", "provided": True,
+              "fabric_overridden": True, "overrides": ["fabric"]},
+             {"code": 114, "name": "v4-captive-portal", "data": "https://portal.home.arpa/", "source": "organisation",
+              "provided": False, "fabric_overridden": False, "overrides": []}],
+    "classes": [{"name": "fabric-nb-s5-ipxe", "owner": "netboot", "test": "substring(option[77].hex,0,4) == 'iPXE'",
+                 "fields": {"boot_file_name": "http://boot.home.arpa/boot.ipxe"},
+                 "rows": [{"code": 67, "name": "boot-file-name", "data": "http://boot.home.arpa/boot.ipxe",
+                           "overridden_by": "", "overrides": []}]}],
+}

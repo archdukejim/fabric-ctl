@@ -27,6 +27,10 @@ def dev_post_dhcp(h, path, form):
     Feeds:   dev_post_action."""
     if not path.startswith("/kea/"):
         return None
+    if path.startswith("/kea/options/"):     # the DHCP options page: shown, never saved (1.10.4.24.6)
+        h.send(303, b"", location="/kea/options?" + urllib.parse.urlencode(
+            {"msg": "Saved (dev preview: nothing saved or applied)."}))
+        return True
     parts = [urllib.parse.unquote(p) for p in path.split("/")[2:]]
     subnets = SAMPLE_DHCP["subnets"]
     if parts in (["on"], ["off"]):

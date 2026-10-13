@@ -18,6 +18,7 @@ from ensure_join_account import ensure_join_account
 from ensure_layout import ensure_layout
 from ensure_logon_policies import ensure_logon_policies
 from ensure_networks import ensure_networks
+from ensure_org_options import ensure_org_options
 from ensure_schema import ensure_schema
 from ensure_service_accounts import ensure_service_accounts
 from ensure_site_acl import ensure_site_acl
@@ -46,8 +47,9 @@ def converge(state):
              (the address plan), its default
              sudo rule and the host names of fabric's sudo rules on host groups (1.6.11.7), the AD site and its
              subnets (the plan's among them, 1.10.4.13), the password policy, the domain's trust GPO (fabric's root
-             CA), the site's log-on GPOs (one per OU, 1.6.11.4), its Windows baseline GPO and winbind's privileged
-             pipe for FreeRADIUS. Each part changes only what differs, so a second run changes nothing.
+             CA), the organisation's DHCP options entry with its editors' group (2.1.10.23), the site's log-on GPOs
+             (one per OU, 1.6.11.4), its Windows baseline GPO and winbind's privileged pipe for FreeRADIUS. Each part
+             changes only what differs, so a second run changes nothing.
     Inputs:  state — dict: site (str), root (bool: the root site, which also holds the organisation's items and the
              domain-wide trust GPO), password_policy (dict, every key), networks (site_networks' list), root_ca_pem
              (str), id_range ("first-last"), groups (fabric's ldap_groups), admin_group (the web UI's admin group, in
@@ -95,6 +97,7 @@ def converge(state):
         changed += [f"password policy: {a}" for a in set_password_policy(samdb, state["password_policy"])]
         changed += ensure_gpo(samdb, lp, "fabric: trust in fabric's root CA", base, TRUST_EXTENSIONS,
                               {"Machine/Registry.pol": root_ca_policy(state["root_ca_pem"])})
+        changed += ensure_org_options(samdb)      # the organisation's DHCP options and who edits them (2.1.10.23)
     if state.get("moving"):               # a site with its own DC moving here: its GPOs are its own to rewrite
         changed += share_winbind(lp, int(state["radius_gid"]))
         return changed

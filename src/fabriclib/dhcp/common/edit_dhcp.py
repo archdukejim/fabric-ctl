@@ -14,7 +14,7 @@ from fabriclib.dhcp.normalize_dhcp import normalize_dhcp
 from fabriclib.federation.network_conflicts import network_conflicts
 from fabriclib.federation.read_address_plan import read_address_plan
 from fabriclib.federation.site_networks import site_networks
-from fabriclib.ipam.common.plan_holds_subnets import MOVED, plan_holds_subnets
+from fabriclib.ipam.common.plan_holds_subnets import MOVED, MOVED_OPTIONS, plan_holds_subnets
 from fabriclib.ipam.planned_subnets import planned_subnets
 
 
@@ -58,9 +58,9 @@ def edit_dhcp(actor, event, change, source="cli"):
              know, data that does not fit, a class expression it cannot parse) or the address plan (a subnet
              overlapping another site's network without allow_overlap) — nothing is saved then, so a
              refused change never breaks the next apply; MOVED once the subnets live in the address plan and the
-             change touches one (global options and client classes stay in the settings, 1.10.4.9; they are checked
-             with the plan's subnets); OSError or yaml.YAMLError from vars_lock / load_vars /
-             save_vars / write_audit.
+             change touches one; MOVED_OPTIONS once the subnets live in the plan and the change touches the global
+             options, definitions or client classes (they are the plan's too since 0.8.0, 2.1.10.23); OSError or
+             yaml.YAMLError from vars_lock / load_vars / save_vars / write_audit.
     Feeds:   dhcp/add_subnet, update_subnet, remove_subnet, set_option, unset_option, add_client_class,
              remove_client_class."""
     with vars_lock():
@@ -71,10 +71,14 @@ def edit_dhcp(actor, event, change, source="cli"):
         before = copy.deepcopy(data)
         dhcp = normalize_dhcp({**data, "dhcp": copy.deepcopy(data.get("dhcp") or {}), "install_kea": True})
         kept = copy.deepcopy(dhcp["subnets"])
+        globals_before = copy.deepcopy(dhcp)
         result, detail = change(dhcp)
         data["dhcp"] = normalize_dhcp({**data, "dhcp": dhcp, "install_kea": True})
         if planned and data["dhcp"]["subnets"] != kept:
             raise ValidationError(MOVED)
+        if planned and any(data["dhcp"].get(k) != globals_before.get(k)
+                           for k in ("options", "option_defs", "client_classes")):
+            raise ValidationError(MOVED_OPTIONS)
         _check_address_plan(before, data)
         if data.get("install_kea"):         # vars.yaml holds the rendered settings: render Kea's file from them
             env = jinja_env(deploy_paths()["jinja"])

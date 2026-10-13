@@ -31,6 +31,8 @@ from webui.agentclient.delete_tsig_key import delete_tsig_key  # noqa: F401
 from webui.agentclient.describe_csr import describe_csr  # noqa: F401
 from webui.agentclient.device_overview import device_overview  # noqa: F401
 from webui.agentclient.dhcp_overview import dhcp_overview  # noqa: F401
+from webui.agentclient.option_change import option_change  # noqa: F401
+from webui.agentclient.option_sets import option_sets  # noqa: F401
 from webui.agentclient.dns_filter_change import dns_filter_change  # noqa: F401
 from webui.agentclient.dns_filter_overview import dns_filter_overview  # noqa: F401
 from webui.agentclient.host_changes import host_changes  # noqa: F401

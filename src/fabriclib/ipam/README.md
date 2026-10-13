@@ -39,7 +39,9 @@ from it at every apply. The rules are pure functions checked before anything is 
 | `scan_subnet.py` | Scan one served subnet on request: what answers, set beside the plan and Kea's leases; one at a time, once a minute; audited |
 | `show_scan.py` | A scan's result as text, with the command that would record each find |
 | `offer_reservations.py` | After a scan on a terminal: "make it a reservation?" (or static) for each find, through `add_address` |
-| `run_ipam_command.py` | `fabricctl ipam show / find / export / block / vlan / subnet / range / address / scan` (applies a change to this site unless `--no-apply`) |
+| `run_ipam_command.py` | `fabricctl ipam show / find / export / block / vlan / subnet / range / address / scan / option / class / netboot / option-editors / watch` (applies a change to this site unless `--no-apply`) |
+| `poll_plan.py` | One run of the plan poll (fabric-plan-watch.timer): the USN, then Kea alone re-rendered when its input changed |
+| `options/` | The DHCP options in the plan: option sets, levels, classes, definitions, provenance, netboot presets, the poll's parts |
 | `common/` | Helpers shared by the commands: the checked edit, the plan's fields, the kept copy |
 | `visible_sites.py` | The sites this console shows and edits: its own, then those that joined below it |
 | `subnet_map.py` | A subnet as the Networks tab draws it: its ranges as a bar, its counts, every address (free runs too) |

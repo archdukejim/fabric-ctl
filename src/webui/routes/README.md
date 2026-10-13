@@ -15,6 +15,8 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `networks_scan_page.py` | The scan page (`/networks/scan`): the subnets this site's DHCP serves, to scan one (its own page, for the Networks tab) |
 | `networks_scan_post.py` | The scan and "make it a reservation?": scan a subnet and show what answered; record an address it found |
 | `kea_post.py` | The Kea tab's changes: reservations, subnets (name, VLAN, notes, pools), options, client classes |
+| `options_page.py` | The DHCP options page (`/kea/options`): option sets, presets, a target's effective options with their sources |
+| `options_post.py` | The DHCP options page's changes: options, classes, definitions, netboot, who edits the organisation's |
 | `radius_post.py` | RADIUS clients: add, new shared secret, remove — saved and applied at once; a secret is shown once on its own page, never in a URL. |
 | `saved_and_applied.py` | Run a change that fabric-agent saves and applies at once, and go back to its tab with the outcome. |
 | `stepca_page.py` | Render the Step-CA tab for one sub-view, with the CA summary, linkable devices and the issued list where needed. |

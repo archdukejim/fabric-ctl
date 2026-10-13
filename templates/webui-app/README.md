@@ -16,6 +16,7 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `dns_filter.html` | The DNS filter tab |
 | `kea.html` | The kea page |
 | `ipam_scan.html` | The scan page: scan a subnet this site's DHCP serves, and record what answers but nobody recorded (for the Networks tab) |
+| `dhcp_options.html` | The DHCP options page under the Kea tab (`/kea/options`, manual 1.10.4.24.6): the organisation's and the site's option sets, subnets and reservations with their options and netboot presets, a target's effective options with their sources |
 | `openbao.html` | The openbao page |
 | `overview.html` | The overview page |
 | `person_result.html` | The person result page |
