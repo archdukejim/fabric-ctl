@@ -3,21 +3,8 @@ from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.ipam.common.site_plan import site_plan
 from fabriclib.ipam.common.option_codes import CATALOGUE
 from fabriclib.ipam.options.effective_options import effective_options
+from fabriclib.ipam.options.settings_options import settings_options
 from fabriclib.ipam.read_plan import read_plan
-
-EMPTY = {"options": [], "option_defs": [], "client_classes": []}
-
-
-def _settings(v):
-    """Purpose: the options, definitions and classes this site's settings still carry (not moved into the plan yet,
-             manual 1.10.4.24.4).
-    Inputs:  v — fabric vars (dhcp).
-    Returns: {"options", "option_defs", "client_classes"} or None when it carries none.
-    Fails:   never.
-    Feeds:   options_overview."""
-    d = v.get("dhcp") or {}
-    out = {k: list(d.get(k) or []) for k in EMPTY}
-    return out if any(out.values()) else None
 
 
 def options_overview(v, site="", target="", secrets=None, container="samba", root=None):
@@ -42,7 +29,7 @@ def options_overview(v, site="", target="", secrets=None, container="samba", roo
     if site != here and not root:
         raise ValidationError("a site's DHCP options are shown at that site, or at the top site")
     plan = site_plan(read_plan(v, secrets, of=site, container=container), site)
-    settings = _settings(v) if site == here else None
+    settings = settings_options(v) if site == here else None
     effective = None
     if target:
         kind, _, name = target.partition(":")

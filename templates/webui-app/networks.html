@@ -6,6 +6,10 @@
 {% if seg.uw %}<rect class="use" x="{{ seg.x }}" y="17" width="{{ seg.uw }}" height="7"></rect>{% endif %}
 {% endfor %}</svg>{% endmacro %}
 {% macro kind_pill(r) %}{% if r.kind == 'lease' %}<span class="pill warn">lease · unrecorded</span>{% elif r.kind == 'free' %}<span class="pill">free</span>{% elif r.kind == 'gateway' %}<span class="pill ok">gateway</span>{% else %}<span class="pill">{{ r.kind }}</span>{% endif %}{% endmacro %}
+{% macro option_table(opts) %}{% if opts %}<table><thead><tr><th>Option</th><th>Code</th><th>Value</th><th>From</th><th></th></tr></thead><tbody>
+{% for o in opts %}<tr><td>{{ o.name or '—' }}</td><td class="num">{{ o.code or '—' }}</td><td><code>{{ o.data }}</code></td><td>{{ o.source }}</td>
+<td>{% if o.source.startswith('fabric') %}<span class="pill ok">provided by fabric</span>{% endif %}{% if o.fabric_overridden %} <span class="pill warn">replaces fabric's</span>{% endif %}{% if o.overrides %} <span class="muted">over {{ o.overrides | join(', ') }}</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table>{% else %}<p class="blank">No options.</p>{% endif %}{% endmacro %}
 {% block body %}
 <h1>Networks</h1>
 <p class="muted">The address plan: every site's VLANs, their subnets and ranges, and every address — recorded, leased or free. It lives in the domain, so the site above edits the sites below it.</p>
@@ -111,12 +115,14 @@
 <h2>Options</h2>
 <p class="muted">What this subnet's clients get and where each option comes from; the most specific level wins.</p>
 <p><a href="/kea/options?site={{ n.site | urlencode }}&amp;target=subnet:{{ s.name | urlencode }}">Change them on the DHCP options page</a> <span class="muted">(the organisation's, the site's, this subnet's and its reservations' options, classes and netboot presets)</span></p>
-{% if s.options %}<table><thead><tr><th>Option</th><th>Code</th><th>Value</th><th>From</th><th></th></tr></thead><tbody>
-{% for o in s.options %}<tr{% if o.overridden %} class="overridden"{% endif %}><td>{{ o.name or '—' }}</td><td class="num">{{ o.code or '—' }}</td><td><code>{{ o.data }}</code></td><td>{{ o.source }}</td>
-<td>{% if o.provided %}<span class="pill ok">provided by fabric</span>{% endif %}{% if o.overridden %} <span class="pill warn">overridden by {{ o.overridden }}</span>{% endif %}</td></tr>{% endfor %}
-</tbody></table>{% else %}<p class="blank">No options.</p>{% endif %}
+{{ option_table(s.options) }}
+{% if s.classes %}<h3>Client classes that may apply</h3>
+<p class="muted small">A class's options reach a client only when its test matches; Kea ranks a class below the subnet and the reservation.</p>
+<table><thead><tr><th>Class</th><th>Option</th><th>Code</th><th>Value</th><th></th></tr></thead><tbody>
+{% for c in s.classes %}{% for o in c.rows %}<tr{% if o.overridden_by %} class="overridden"{% endif %}><td>{{ c.name }} <span class="muted">({{ c.owner }})</span></td><td>{{ o.name or '—' }}</td><td class="num">{{ o.code or '—' }}</td><td><code>{{ o.data }}</code></td><td>{% if o.overridden_by %}<span class="pill warn">overridden by {{ o.overridden_by }}</span>{% endif %}</td></tr>{% else %}<tr><td>{{ c.name }} <span class="muted">({{ c.owner }})</span></td><td colspan="4" class="muted">{{ 'boot fields only' if c.fields else 'no options' }}</td></tr>{% endfor %}{% endfor %}
+</tbody></table>{% endif %}
 {% for ip, rows in (s.reservation_options or {}).items() %}<h3>Reservation {{ ip }}</h3>
-<table><tbody>{% for o in rows if o.source == 'reservation' %}<tr><td>{{ o.name or '—' }}</td><td class="num">{{ o.code or '—' }}</td><td><code>{{ o.data }}</code></td><td>reservation</td></tr>{% endfor %}</tbody></table>{% endfor %}
+<table><tbody>{% for o in rows %}<tr><td>{{ o.name or '—' }}</td><td class="num">{{ o.code or '—' }}</td><td><code>{{ o.data }}</code></td><td>{{ o.source }}{% if o.overrides %} <span class="pill warn">overrides {{ o.overrides[-1] }}</span>{% endif %}</td></tr>{% endfor %}</tbody></table>{% endfor %}
 </section>
 {% else %}
 
@@ -124,6 +130,10 @@
 {% if n.vlans %}<table><thead><tr><th>VLAN</th><th>Name</th><th>Access</th><th>Purpose</th><th>Subnets</th></tr></thead><tbody>
 {% for vlan in n.vlans %}<tr><td class="num">{{ vlan.id }}</td><td>{{ vlan.name }}</td><td>{{ vlan.access }}</td><td>{{ vlan.purpose or '' }}</td>
 <td>{% for s in vlan.subnets %}<div class="subnet"><a href="/networks?site={{ n.site | urlencode }}&amp;subnet={{ s.name | urlencode }}">{{ s.cidr }}</a>{% if s.name != vlan.name %} ({{ s.name }}){% endif %} <span class="muted">{{ s.counts.used }}/{{ s.counts.size }} in use{% if s.counts.unrecorded %} · {{ s.counts.unrecorded }} unrecorded{% endif %}{% if not s.dhcp %} · DHCP off{% endif %}</span>{{ bar(s, false) }}</div>{% else %}<span class="muted">a record only (no subnet)</span>{% endfor %}</td></tr>
+{% if vlan.subnets %}<tr><td colspan="5"><details><summary>Options its subnets' clients get</summary>
+<p class="muted small">A VLAN has no options of its own: each of its subnets' is shown, with where each option comes from.</p>
+{% for s in vlan.subnets %}<h4>{{ s.cidr }}{% if s.name != vlan.name %} ({{ s.name }}){% endif %}</h4>{{ option_table(s.options) }}{% endfor %}
+</details></td></tr>{% endif %}
 {% if can('dhcp:write') %}<tr><td colspan="5"><details><summary>Change VLAN {{ vlan.id }}</summary>
 <form method="post" action="/networks/{{ n.site | urlencode }}/vlans/{{ vlan.id }}" class="grid">{{ csrf() }}
 <label>Name<input name="name" value="{{ vlan.name }}" required></label>

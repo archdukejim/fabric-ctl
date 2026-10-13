@@ -19,7 +19,13 @@ _SPLIT = [{"kind": "gateway", "first": "10.1.20.1", "last": "10.1.20.1", "notes"
 SAMPLE_NETWORK_READ = {
     "sites": [{"name": "lan", "created": "20261001000000.0Z", "block": 1},
               {"name": "parents", "created": "20261005000000.0Z", "block": 2}],
-    "options": [],
+    # the organisation's and the site's option sets (read_plan's "option_sets", manual 1.10.4.24.1)
+    "option_sets": {"org": {"options": [{"name": "domain-name-servers", "data": "10.1.10.53"}], "option_defs": [],
+                            "client_classes": []},
+                    "lan": {"options": [], "option_defs": [],
+                            "client_classes": [{"name": "uefi", "test": "option[93].hex == 0x0007",
+                                                "options": [{"name": "ntp-servers", "data": "10.1.10.4"}]}]}},
+    "org_editors": [],
     "plans": {
         "lan": {"vlans": [{"id": 10, "name": "mgmt", "purpose": "switches and APs", "access": "full", "notes": ""},
                           {"id": 20, "name": "iot", "purpose": "cameras", "access": "full", "notes": ""},

@@ -32,9 +32,6 @@ CATALOGUE = {
     162: "v4-dnr", 212: "option-6rd", 213: "v4-access-domain",
 }
 CODES = {name: code for code, name in CATALOGUE.items()}
-NAMES = CATALOGUE
 # the options fabric sets because it runs the service: marked "provided by fabric" (2.1.10.14, manual 1.10.4.6.2),
 # by code; the subnet's gateway as its router is fabric's too, shown with a source of its own (effective_options)
 FABRIC_PROVIDED = {6, 15, 42, 119}
-# the same by name, with the router (the Networks tab's subnet_options)
-PROVIDED = ("routers", "domain-name-servers", "ntp-servers", "domain-name", "domain-search")

@@ -22,13 +22,11 @@ from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.ipam.common.fields import KEEP  # noqa: E402
 from fabriclib.ipam.common.pool_text import pool_text  # noqa: E402
 from fabriclib.ipam.common.site_scope import site_scope  # noqa: E402
-from fabriclib.ipam.fabric_options import fabric_options  # noqa: E402
 from fabriclib.ipam.networks_view import networks_view  # noqa: E402
 from fabriclib.ipam.plan_rows import plan_rows  # noqa: E402
 from fabriclib.ipam.remove_reservation_mac import remove_reservation_mac  # noqa: E402
 from fabriclib.ipam.set_dhcp_subnet import set_dhcp_subnet  # noqa: E402
 from fabriclib.ipam.subnet_map import subnet_map  # noqa: E402
-from fabriclib.ipam.subnet_options import subnet_options  # noqa: E402
 from fabriclib.rbac.required_permission import required_permission  # noqa: E402
 
 FAILED = 0
@@ -105,27 +103,40 @@ check("a /16: a handful of rows, never 65,000; the gaps around its range drawn a
       len(big["rows"]) <= 5 and [b["kind"] for b in big["bar"]] == ["none", "dhcp", "none"]
       and big["counts"]["size"] == 65534, (len(big["rows"]), big["bar"]))
 
-print("--- options and their sources (1.10.4.6, 1.10.4.21)")
-own = fabric_options(V, "10.1.20.1")
-check("fabric provides the router, DNS, NTP, the domain and its search list", [o["name"] for o in own] ==
-      ["routers", "domain-name-servers", "ntp-servers", "domain-name", "domain-search"]
-      and own[1]["data"] == "192.168.1.2" and own[4]["data"] == "dhcp.home.arpa, home.arpa", own)
-check("with dhcp.dns set, fabric's DNS option names those servers",
-      fabric_options({**V, "dhcp": {"dns": ["9.9.9.9"]}})[0]["data"] == "9.9.9.9")
-opts = subnet_options({"fabric": own, "settings": V["dhcp"]["options"], "subnet": IOT["options"]})
-ntp = [o for o in opts if o["name"] == "ntp-servers"]
-check("each option by name and code; fabric's marked provided; the subnet's NTP overrides fabric's",
-      all(o["code"] for o in opts) and ntp[0]["provided"] and ntp[0]["overridden"] == "subnet"
-      and ntp[1]["source"] == "subnet" and not ntp[1]["provided"], opts)
-check("an option by code only shows its standard name (67, boot-file-name)",
-      subnet_options({"reservation": [{"code": 67, "data": "x"}]})[0]["name"] == "boot-file-name")
-check("a code Kea has no standard name for shows its code alone",
-      subnet_options({"subnet": [{"code": 224, "data": "x"}]})[0] == {
-          "name": "", "code": 224, "data": "x", "source": "subnet", "provided": False, "overridden": ""})
-with_org = subnet_options({"fabric": own, "organisation": [{"name": "domain-name-servers", "data": "10.0.0.53"}]})
-check("a level another part of fabric fills (the organisation's) appears as soon as its data does, and overrides "
-      "fabric's own", any(o["source"] == "organisation" for o in with_org)
-      and next(o for o in with_org if o["name"] == "domain-name-servers")["overridden"] == "organisation")
+print("--- options and their sources, from effective_options (1.10.4.21.4, 2.3.10.5.7)")
+ORG_SET = {"options": [{"name": "domain-name-servers", "data": "10.0.0.53"}], "option_defs": [], "client_classes": []}
+SITE_SET = {"options": [], "option_defs": [],
+            "client_classes": [{"name": "uefi", "test": "option[93].hex == 0x0007",
+                                "options": [{"name": "ntp-servers", "data": "10.9.9.9"}]}]}
+WITH_SETS = {**READ, "option_sets": {"org": ORG_SET, "lan": SITE_SET}}
+view = networks_view(V, WITH_SETS, "lan", SITES, LEASES)
+iot = view["vlans"][0]["subnets"][0]
+opts = {o["name"]: o for o in iot["options"]}
+check("each option by name and code, with its source: fabric's router (the gateway), DNS and NTP marked provided",
+      all(o["code"] for o in iot["options"]) and opts["routers"]["source"] == "fabric (the subnet's gateway)"
+      and opts["routers"]["data"] == "10.1.20.1" and opts["domain-search"]["source"] == "fabric"
+      and opts["domain-search"]["provided"], iot["options"])
+check("the organisation's DNS replaces fabric's, and says so", opts["domain-name-servers"]["source"] == "organisation"
+      and opts["domain-name-servers"]["overrides"] == ["fabric"] and opts["domain-name-servers"]["fabric_overridden"],
+      opts["domain-name-servers"])
+check("the subnet's NTP replaces fabric's; the settings' option not moved yet is shown as theirs",
+      opts["ntp-servers"]["source"] == "subnet iot" and opts["ntp-servers"]["overrides"] == ["fabric"]
+      and opts["time-offset"]["source"].startswith("settings"), (opts["ntp-servers"], opts["time-offset"]))
+check("the site's class that may apply, its NTP marked as overridden by the subnet",
+      iot["classes"][0]["name"] == "uefi" and iot["classes"][0]["owner"] == "site"
+      and iot["classes"][0]["rows"][0]["overridden_by"] == "subnet iot", iot["classes"])
+check("a reservation's own option by code shows its standard name (67, boot-file-name)",
+      iot["reservation_options"]["10.1.20.150"] == [r for r in iot["reservation_options"]["10.1.20.150"]
+                                                     if r["source"] == "address 10.1.20.150"]
+      and iot["reservation_options"]["10.1.20.150"][0]["name"] == "boot-file-name"
+      and iot["reservation_options"]["10.1.20.150"][0]["code"] == 67, iot["reservation_options"])
+odd = networks_view(V, {**READ, "plans": {"lan": {**READ["plans"]["lan"], "subnets": [
+    {**IOT, "options": [{"code": 224, "data": "x"}], "addresses": []}]}}}, "lan", SITES, None)
+row = next(o for o in odd["vlans"][0]["subnets"][0]["options"] if o["code"] == 224)
+check("a code Kea has no standard name for shows its code alone", row["name"] == "" and row["source"] == "subnet iot",
+      row)
+check("no VLAN-level options: a VLAN carries none of its own, its subnets' are shown",
+      "options" not in {k for k in view["vlans"][0] if k != "subnets"} and iot["options"])
 
 print("--- a site's view")
 view = networks_view(V, READ, "lan", SITES, LEASES)
@@ -137,9 +148,10 @@ check("the sites listed with their numbers and suggestions",
       [(s["name"], s["block"], s["own"]) for s in view["sites"]] == [("lan", 1, True), ("parents", None, False)]
       and view["sites"][1]["suggested"] == 2, view["sites"])
 other = networks_view(V, READ, "parents", SITES, None)
-check("another site's view: no fabric or settings options of this site's, no leases",
-      not any(o["source"] in ("fabric", "settings") for o in other["vlans"][0]["subnets"][0]["options"])
-      and not other["leases_shown"])
+rows = other["vlans"][0]["subnets"][0]["options"]
+check("another site's view: none of this install's settings, fabric's shown as that site's own, no leases",
+      not any(o["source"].startswith("settings") for o in rows)
+      and all(o["data"] == "(fabric's)" for o in rows if o["source"] == "fabric") and not other["leases_shown"], rows)
 
 print("--- the site scope (2.1.10.27)")
 m_sites.load_registry = lambda: {"sites": {"parents": {}, "brother": {}}, "upstream": None}

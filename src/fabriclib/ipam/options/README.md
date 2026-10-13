@@ -6,6 +6,7 @@ provenance of what a client gets, netboot presets, the upgrade from the settings
 
 | File | What |
 |---|---|
+| `settings_options.py` | The options, definitions and classes the settings still carry (not moved into the plan yet) |
 | `option_label.py` | An option's code, name and identity, by the one option list (`ipam/common/option_codes`) or a definition |
 | `check_option_set.py` | An option set or one level's options checked: known names, definitions, classes (no `fabric-nb-` name) |
 | `check_netboot.py` | A netboot preset checked: a boot server and at least one way to boot; warnings |

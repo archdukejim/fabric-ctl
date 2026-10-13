@@ -114,8 +114,12 @@ try:
     check("Networks tab: a subnet's ranges, address table (recorded, the lease beside a reservation, an unrecorded "
           "lease, free runs) and its options with their sources and fabric's marker",
           "nas" in page and "cam1" in page and "lease · unrecorded" in page and "10.1.20.120" in page
-          and "free" in page and "provided by fabric" in page and "overridden by subnet" in page
+          and "free" in page and "provided by fabric" in page and "over fabric" in page
+          and "replaces fabric's" in page and "overridden by subnet iot" in page
           and "boot-file-name" in page and "Record 10.1.20.120" in page, page[:300])
+    page = req("GET", "/networks")[3]
+    check("Networks tab: a VLAN has no options of its own; its row opens its subnets' (2.3.10.5.7)",
+          "Options its subnets' clients get" in page and "organisation" in page, page[:300])
     page = req("GET", "/networks?q=aa:bb:cc")[3]
     check("Networks tab: a search by part of a MAC finds the reservation", "cam1" in page and "Matching" in page)
     page = req("GET", "/networks?q=nothing-here")[3]

@@ -447,7 +447,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/common/probe_subnet.py	50
 file	fabriclib-ipam|src/fabriclib/ipam/common/site_plan.py	12	
 file	fabriclib-ipam|src/fabriclib/ipam/common/site_scope.py	40	
 file	fabriclib-ipam|src/fabriclib/ipam/export_plan.py	13	
-file	fabriclib-ipam|src/fabriclib/ipam/fabric_options.py	41	
+file	fabriclib-ipam|src/fabriclib/ipam/fabric_options.py	41	0.7.0 / 2026-10-13
 file	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py	14	
 file	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py	15	
 file	fabriclib-ipam|src/fabriclib/ipam/move_subnets_to_plan.py	16	
@@ -479,6 +479,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/options/set_netboot.py	58
 file	fabriclib-ipam|src/fabriclib/ipam/options/set_option_editor.py	59	
 file	fabriclib-ipam|src/fabriclib/ipam/options/set_owner.py	60	
 file	fabriclib-ipam|src/fabriclib/ipam/options/set_plan_option.py	61	
+file	fabriclib-ipam|src/fabriclib/ipam/options/settings_options.py	86	
 file	fabriclib-ipam|src/fabriclib/ipam/options/show_netboot.py	62	
 file	fabriclib-ipam|src/fabriclib/ipam/options/show_options.py	63	
 file	fabriclib-ipam|src/fabriclib/ipam/options/undefine_plan_option.py	64	
@@ -505,7 +506,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py	26
 file	fabriclib-ipam|src/fabriclib/ipam/show_plan.py	37	
 file	fabriclib-ipam|src/fabriclib/ipam/show_scan.py	54	
 file	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py	47	
-file	fabriclib-ipam|src/fabriclib/ipam/subnet_options.py	48	
+file	fabriclib-ipam|src/fabriclib/ipam/subnet_options.py	48	0.7.0 / 2026-10-13
 file	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py	27	
 file	fabriclib-ipam|src/fabriclib/ipam/suggestions.py	28	
 file	fabriclib-ipam|src/fabriclib/ipam/visible_sites.py	49	
@@ -1767,7 +1768,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/common/probe_subnet.py|probe_subnet	3
 function	fabriclib-ipam|src/fabriclib/ipam/common/site_plan.py|site_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/common/site_scope.py|site_scope	1	
 function	fabriclib-ipam|src/fabriclib/ipam/export_plan.py|export_plan	1	
-function	fabriclib-ipam|src/fabriclib/ipam/fabric_options.py|fabric_options	1	
+function	fabriclib-ipam|src/fabriclib/ipam/fabric_options.py|fabric_options	1	0.7.0 / 2026-10-13
 function	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py|find_in_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|_add_records	1	
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|_globals	3	
@@ -1797,7 +1798,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/options/netboot_classes.py|_kinds	1
 function	fabriclib-ipam|src/fabriclib/ipam/options/netboot_classes.py|netboot_classes	3	
 function	fabriclib-ipam|src/fabriclib/ipam/options/netboot_targets.py|netboot_targets	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/option_label.py|option_label	1	
-function	fabriclib-ipam|src/fabriclib/ipam/options/options_overview.py|_settings	1	
+function	fabriclib-ipam|src/fabriclib/ipam/options/options_overview.py|_settings	1	0.7.0 / 2026-10-13
 function	fabriclib-ipam|src/fabriclib/ipam/options/options_overview.py|options_overview	2	
 function	fabriclib-ipam|src/fabriclib/ipam/options/plan_digest.py|_hash	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/plan_digest.py|plan_digest	2	
@@ -1815,6 +1816,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/options/set_netboot.py|set_netboot	1
 function	fabriclib-ipam|src/fabriclib/ipam/options/set_option_editor.py|set_option_editor	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/set_owner.py|set_owner	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/set_plan_option.py|set_plan_option	1	
+function	fabriclib-ipam|src/fabriclib/ipam/options/settings_options.py|settings_options	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/show_netboot.py|show_netboot	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/show_options.py|_option	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/show_options.py|_preset	3	
@@ -1862,8 +1864,8 @@ function	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py|_free_rows	3
 function	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py|_hosts	1	
 function	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py|_range_at	2	
 function	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py|subnet_map	4	
-function	fabriclib-ipam|src/fabriclib/ipam/subnet_options.py|_key	1	
-function	fabriclib-ipam|src/fabriclib/ipam/subnet_options.py|subnet_options	2	
+function	fabriclib-ipam|src/fabriclib/ipam/subnet_options.py|_key	1	0.7.0 / 2026-10-13
+function	fabriclib-ipam|src/fabriclib/ipam/subnet_options.py|subnet_options	2	0.7.0 / 2026-10-13
 function	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py|_label	1	
 function	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py|subnets_to_plan	2	
 function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_block	3	
