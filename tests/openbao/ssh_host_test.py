@@ -2,9 +2,11 @@
 """SSH host certificates (manual 1.6.11.9.6 to 1.6.11.9.11; decision 2.1.7.13), container-free: certificates made by
 ssh-keygen read back (kind, key, principals, validity, CA); a machine's names from its account; which keys are signed
 and which certificates kept (missing, renewing, another CA, other names, a user certificate, keys refused); the
-known-hosts lines; the fabric host's own files (sshd checked before and after, put back when refused, off removes
+known-hosts lines and their @revoked lines; the store of revoked keys; the fabric host's own files (sshd checked before and after, put back when refused, off removes
 them, the owner's lines kept); one signing run with stand-ins for OpenBao and the directory (off, on, a machine's
-refusal not stopping the others, a second run keeping everything, OpenBao without a host CA); and the command
+refusal not stopping the others, a second run keeping everything, withdrawn and replaced keys revoked and
+cleared again when signed, writes routed to the writable DC at a read-only DC's site, OpenBao without a host CA);
+and the command
 `fabricctl domain ssh-hosts`. The real OpenBao is tests/openbao/ssh_ca.py; the real DC and joined machines,
 tests/samba/linux_join.py.
 
@@ -28,6 +30,7 @@ from fabriclib.vault.ssh.known_hosts_block import BEGIN, END, known_hosts_block 
 from fabriclib.vault.ssh.parse_ssh_cert import parse_ssh_cert  # noqa: E402
 from fabriclib.vault.ssh.parse_ssh_key import parse_ssh_key  # noqa: E402
 from fabriclib.vault.ssh.plan_host_certs import plan_host_certs  # noqa: E402
+from fabriclib.vault.ssh.update_revoked_keys import update_revoked_keys  # noqa: E402
 import fabriclib.samba.run_domain_command as m_rdc  # noqa: E402
 
 FAILED = 0
@@ -85,6 +88,8 @@ check("an ECDSA host certificate: its key found too", ce["type"] == "ecdsa-sha2-
       and ce["key_fingerprint"] == parse_ssh_key(HOST_ECDSA)["fingerprint"], ce)
 keygen("alice")
 cu = parse_ssh_cert(certify("ca", "alice", ["alice"], "+8h", host=False))
+check("the certified key itself, as a key line (what an @revoked line names)",
+      c["key_line"] == " ".join(HOST_KEY.split()[:2]), c["key_line"])
 check("a user certificate reads as a user certificate", cu["kind"] == "user" and cu["principals"] == ["alice"], cu)
 line = certify("ca", "ws1", NAMES)
 check("negative: a damaged certificate is refused, not misread",
@@ -139,6 +144,27 @@ check("the domain's names, then short names only, between fabric's markers",
       and lines[1] == "@cert-authority *.ad.lan.test,*.lan.test " + " ".join(CA.split()[:2])
       and lines[2] == "@cert-authority *,!*.*,!*:* " + " ".join(CA.split()[:2]), block)
 
+block = known_hosts_block(CA, ["lan.test"], [HOST_ECDSA, HOST_KEY + " comment", HOST_KEY, "junk"])
+gone = [x for x in block.splitlines() if x.startswith("@revoked")]
+check("revoked host keys: one @revoked line each, for every name, sorted, once, before the end marker",
+      gone == sorted([f"@revoked * {' '.join(HOST_ECDSA.split()[:2])}", f"@revoked * {' '.join(HOST_KEY.split()[:2])}"])
+      and block.splitlines()[-1] == END, block)
+
+print("--- the store of revoked keys")
+store = os.path.join(W, "revoked-store")
+k1, k2 = " ".join(HOST_KEY.split()[:2]), " ".join(HOST_ECDSA.split()[:2])
+got = update_revoked_keys(store, [{"key": k1, "until": NOW + 100, "name": "ws1"},
+                                  {"key": k2, "until": NOW - 1, "name": "ws1"}], set(), NOW)
+check("a withdrawn certificate's key kept until the certificate's end; one already past it never listed; 0600",
+      got == [k1] and oct(os.stat(os.path.join(store, "ssh-host-revoked.json")).st_mode & 0o777) == "0o600", got)
+check("kept across runs", update_revoked_keys(store, [], set(), NOW) == [k1])
+check("dropped once the certificate would have expired", update_revoked_keys(store, [], set(), NOW + 101) == [])
+update_revoked_keys(store, [{"key": k1, "until": NOW + 100, "name": "ws1"}], set(), NOW)
+check("cleared at once when fabric signs that key again", update_revoked_keys(store, [], {k1}, NOW) == [])
+open(os.path.join(store, "ssh-host-revoked.json"), "w").write("not json")
+check("negative: a damaged store counts as empty and is rewritten", update_revoked_keys(store, [], set(), NOW) == []
+      and open(os.path.join(store, "ssh-host-revoked.json")).read().strip() == "[]")
+
 # ---------------------------------------------------------------- the fabric host's own files
 print("--- the fabric host's own certificate and trust")
 etc = os.path.join(W, "etc-ssh")
@@ -187,6 +213,9 @@ check("negative: sshd already refuses its configuration: refused before anything
               match="before fabric changes anything")
       and open(ahc.CERT_FILE.format("ed25519")).read().strip() == " ".join(host_cert.split()[:2]))
 sshd["before"] = ""
+done = ahc.apply_host_ssh_cert(V, [host_cert], CA, [k2], check=sshd_says, reload=lambda: reloads.append(1))
+check("a revoked key: its @revoked line in this host's known hosts", f"@revoked * {k2}" in open(ahc.KNOWN_HOSTS).read()
+      and any("ssh_known_hosts" in d for d in done), done)
 done = ahc.apply_host_ssh_cert(V, [], "", check=sshd_says, reload=lambda: reloads.append(1))
 check("off: the certificate, the drop-in and fabric's lines removed; the owner's line kept",
       not os.path.exists(ahc.CERT_FILE.format("ed25519")) and not os.path.exists(ahc.DROPIN)
@@ -255,12 +284,14 @@ shs.bao_request = lambda v, method, path, token=None, body=None: (200, {"data": 
 applied = []
 run_v = {"ssh_certificates": True, "ad_domain": "ad.lan.test", "domain": "lan.test", "hostname": "fab1",
          "site_name": "lan"}
+published = {}
 kw = dict(login=lambda v, creds: "token", op=op, sign=sign,
-          apply=lambda v, certs, ca: applied.append((list(certs), ca)) or ["applied"],
-          host_keys=os.path.join(hostkeys, "ssh_host_*_key.pub"), now=NOW)
+          apply=lambda v, certs, ca, revoked=(): applied.append((list(certs), ca, list(revoked))) or ["applied"],
+          host_keys=os.path.join(hostkeys, "ssh_host_*_key.pub"), now=NOW,
+          publish=lambda v, text, name: published.__setitem__(name, text))
 off = shs.sign_ssh_hosts({**run_v, "ssh_certificates": False}, cfg, **kw)
 check("off: nothing asked of OpenBao or the directory; this host's part removed",
-      off["on"] is False and not CALLS and applied == [([], "")], (off, CALLS))
+      off["on"] is False and not CALLS and applied == [([], "", [])], (off, CALLS))
 applied.clear()
 res = shs.sign_ssh_hosts(run_v, cfg, **kw)
 rows = {m["name"]: m for m in res["machines"]}
@@ -275,6 +306,11 @@ check("this host's keys published on its account and signed; its certificate app
       (rows.get("fab1"), applied))
 check("negative: ws2 is not managed: its certificate withdrawn, audited", rows["ws2"]["withdrawn"]
       and DIR["ws2"]["certs"] == [] and ("SSH_HOST_WITHDRAW", "ws2: not managed or disabled") in AUDIT, rows["ws2"])
+ws2_key = " ".join(open(os.path.join(W, "ws2.pub")).read().split()[:2])
+check("ws2's withdrawn certificate: its key revoked until the certificate's end, published for clients, in this "
+      "host's own known hosts, audited", res["revoked"] == [ws2_key] and published.get("ssh-host-revoked.pub") == ws2_key
+      and applied[-1][2] == [ws2_key] and any(e == "SSH_HOST_REVOKE" and d.startswith("ws2: ") for e, d in AUDIT),
+      (res["revoked"], published))
 check("negative: a disabled machine is not signed", "old" not in rows and DIR["old"]["certs"] == [], rows)
 check("negative: OpenBao refusing ws3 is reported for ws3; the others are signed",
       "stand-in refusal" in rows["ws3"]["error"] and rows["ws1"]["signed"] == 1, rows["ws3"])
@@ -286,12 +322,41 @@ again = shs.sign_ssh_hosts(run_v, cfg, **kw)
 check("a second run: every valid certificate kept, nothing signed or written",
       all(m["signed"] == 0 for m in again["machines"] if m["name"] != "ws3")
       and not [c for c in CALLS if c[0] == "set_ssh_host" and "certs" in c[1]], (again, CALLS))
+old_ws1 = DIR["ws1"]["certs"][0]
+DIR["ws1"]["keys"] = [HOST_ECDSA]                 # ws1 replaced its host key
+res = shs.sign_ssh_hosts(run_v, cfg, **kw)
+check("a machine that replaced its host key: the new one signed, the old one's certificate revoked",
+      " ".join(HOST_KEY.split()[:2]) in res["revoked"] and parse_ssh_cert(DIR["ws1"]["certs"][0])["type"]
+      == "ecdsa-sha2-nistp256" and old_ws1 not in DIR["ws1"]["certs"], (res["revoked"], DIR["ws1"]))
 DIR["fab1"]["managed"] = False
 applied.clear()
-shs.sign_ssh_hosts(run_v, cfg, **kw)
-check("this host taken out of lan-fabric-machines: its own part removed (no consent beyond the member step)",
-      applied == [([], "")] and DIR["fab1"]["certs"] == [], applied)
+res = shs.sign_ssh_hosts(run_v, cfg, **kw)
+fab1_key = " ".join(open(os.path.join(W, "fab1.pub")).read().split()[:2])
+check("this host taken out of lan-fabric-machines: its own part removed (no consent beyond the member step), its "
+      "certificate withdrawn and its key revoked", applied == [([], "", [])] and DIR["fab1"]["certs"] == []
+      and fab1_key in res["revoked"], applied)
 DIR["fab1"]["managed"] = True
+res = shs.sign_ssh_hosts(run_v, cfg, **kw)
+check("...managed again: signed again and its key no longer revoked", fab1_key not in res["revoked"]
+      and DIR["fab1"]["certs"] and fab1_key not in published["ssh-host-revoked.pub"], res["revoked"])
+
+print("--- writes at a read-only DC's site go to the writable DC (2.1.6.52)")
+routed = []
+shs.load_secrets = lambda: {"ad_agent_password": "x"}
+shs.run_op = lambda v, secrets, name, args, server=None: routed.append((name, server)) or op(name, args)
+rodc_kw = {k: x for k, x in kw.items() if k != "op"}
+shs.sign_ssh_hosts({**run_v, "ad_dc_type": "rodc", "ad_join_server": "10.0.0.5"}, cfg, **rodc_kw)
+check("every write (prepare, keys, certificates) at the writable DC; the list read at this site's own",
+      routed and all(srv == "10.0.0.5" for name, srv in routed if name != "list_ssh_hosts")
+      and all(srv is None for name, srv in routed if name == "list_ssh_hosts")
+      and {"prepare_ssh_hosts", "set_ssh_host"} <= {name for name, _ in routed}, routed)
+routed.clear()
+check("negative: read-only DC, no writable DC known: refused before anything is asked",
+      refused(shs.sign_ssh_hosts, {**run_v, "ad_dc_type": "rodc"}, cfg, match="no writable domain controller",
+              **rodc_kw) and not routed, routed)
+routed.clear()
+shs.sign_ssh_hosts(run_v, cfg, **rodc_kw)
+check("a writable DC's site: everything at its own DC", routed and all(srv is None for _, srv in routed), routed)
 shs.bao_request = lambda v, method, path, token=None, body=None: (404, {"errors": []})
 check("negative: OpenBao has no host CA: refused, saying how to make it",
       refused(shs.sign_ssh_hosts, run_v, cfg, match="no SSH host CA", **kw))
@@ -317,12 +382,14 @@ check("negative: OpenBao locked: refused (exit 1), saying why", code == 1 and "r
 m_rdc.sign_ssh_hosts = lambda v, config_dir, actor, source: {
     "on": True, "ca_fingerprint": CA_FP, "prepared": ["ws1"], "host": ["/etc/ssh/fabric-host-cert-ed25519.pub: written"],
     "machines": [{"name": "ws1", "signed": 1, "kept": 0, "refused": [], "withdrawn": False, "error": ""},
-                 {"name": "ws2", "signed": 0, "kept": 0, "refused": [], "withdrawn": True, "error": ""}]}
+                 {"name": "ws2", "signed": 0, "kept": 0, "refused": [], "withdrawn": True, "error": ""}],
+    "revoked": ["ssh-ed25519 AAAAREVOKEDKEY"]}
 code, text = domain_cmd("ssh-hosts")
 # covers: cli:domain.ssh-hosts +
 check("on: says the CA, what it prepared, signed and withdrew, and what changed here (exit 0)",
       code == 0 and CA_FP in text and "ws1: may publish its host keys now" in text and "ws1: 1 signed, 0 kept" in text
-      and "ws2: certificates withdrawn" in text and "fabric-host-cert-ed25519.pub: written" in text, text)
+      and "ws2: certificates withdrawn" in text and "fabric-host-cert-ed25519.pub: written" in text
+      and "revoked until its certificate's end: ssh-ed25519 AAAAREVOKEDKEY" in text, text)
 m_rdc.sign_ssh_hosts = lambda v, config_dir, actor, source: {"on": False, "ca_fingerprint": "", "prepared": [],
                                                               "machines": [], "host": []}
 code, text = domain_cmd("ssh-hosts", "--scheduled")

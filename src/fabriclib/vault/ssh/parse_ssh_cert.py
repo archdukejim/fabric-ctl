@@ -62,7 +62,8 @@ def parse_ssh_cert(text):
     Inputs:  text — str, "<type>-cert-v01@openssh.com <base64> [comment]".
     Returns: {"type" (the plain key's type), "kind" ("host" or "user"), "key_fingerprint" (of the certified key, as
              parse_ssh_key gives it), "principals" (list of str), "valid_after", "valid_before" (int, seconds since
-             1970 UTC), "ca_fingerprint", "serial" (int), "key_id" (str), "line" ("<type> <base64>")}.
+             1970 UTC), "ca_fingerprint", "serial" (int), "key_id" (str), "line" ("<type> <base64>"), "key_line"
+             (the certified public key, "<type> <base64>": what an @revoked line names)}.
     Fails:   ValidationError: not one certificate line, a type fabric does not handle, base64 that does not decode, a
              blob that names another type or runs short, an unknown certificate kind.
     Feeds:   vault/ssh/plan_host_certs; vault/ssh/ssh_hosts_overview."""
@@ -100,4 +101,5 @@ def parse_ssh_cert(text):
     ca, at = _string(blob, at)
     return {"type": base, "kind": KINDS[kind], "key_fingerprint": _fingerprint(key_blob), "principals": principals,
             "valid_after": after, "valid_before": before, "ca_fingerprint": _fingerprint(ca), "serial": serial,
-            "key_id": key_id.decode(errors="replace"), "line": f"{parts[0]} {parts[1]}"}
+            "key_id": key_id.decode(errors="replace"), "line": f"{parts[0]} {parts[1]}",
+            "key_line": f"{base} {base64.b64encode(key_blob).decode()}"}

@@ -21,6 +21,10 @@ HOST_TTL = "720h"                   # 30 days
 HOST_DAYS = 30
 RENEW_DAYS = 10                     # signed again once fewer days than this are left
 HOST_PUBLISHED = "ssh-host-ca.pub"  # in nginx's www/certs/: https://<host's own name>/certs/ssh-host-ca.pub
+# host keys whose certificates fabric withdrew before they ran out (1.6.11.9.12): published beside the CA, one key a
+# line, for @revoked lines on every client until those certificates would have expired; kept in the install's config
+HOST_REVOKED = "ssh-host-revoked.pub"
+REVOKED_STORE = "ssh-host-revoked.json"
 # the host key types signed (OpenSSH names); DSA and RSA below MIN_RSA_BITS are never signed
 HOST_KEY_TYPES = ("ssh-ed25519", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521", "ssh-rsa")
 # allowed_domains "*": the short name has no domain to match; fabric is the role's only caller and chooses every

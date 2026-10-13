@@ -72,7 +72,7 @@ def _reload():
     subprocess.run(["systemctl", "try-reload-or-restart", "ssh.service"], capture_output=True)
 
 
-def apply_host_ssh_cert(v, certs, ca_key, check=sshd_check, reload=_reload):
+def apply_host_ssh_cert(v, certs, ca_key, revoked=(), check=sshd_check, reload=_reload):
     """Purpose: the fabric host's own side of SSH host certificates (manual 1.6.11.9.10; decision 2.1.7.13): its host
              certificates beside its host keys and named by HostCertificate in DROPIN (where an SSH server is
              installed, checked with `sshd -t` before and after: a configuration sshd refuses is put back and never
@@ -80,7 +80,8 @@ def apply_host_ssh_cert(v, certs, ca_key, check=sshd_check, reload=_reload):
              (fabric's block only; the rest of the file is the owner's). Empty certs and ca_key remove all of it.
              Idempotent.
     Inputs:  v — settings: ad_domain, domain; certs — list of certificate lines for this host's keys; ca_key — the
-             host CA's public key line, or ""; check, reload — sshd_check and _reload (tests pass their own).
+             host CA's public key line, or ""; revoked — host key lines refused by @revoked lines (1.6.11.9.12);
+             check, reload — sshd_check and _reload (tests pass their own).
     Returns: list of str, what changed; [] when nothing.
     Fails:   ValidationError when sshd already refuses its configuration (nothing changed) or refuses it with the
              host certificates (the drop-in put back, nothing reloaded); OSError on the files.
@@ -135,7 +136,7 @@ def apply_host_ssh_cert(v, certs, ca_key, check=sshd_check, reload=_reload):
     old_known = _read(KNOWN_HOSTS)
     want_known = _without_block(old_known or "")
     if ca_key:
-        want_known += known_hosts_block(ca_key, [v.get("ad_domain"), v.get("domain")])
+        want_known += known_hosts_block(ca_key, [v.get("ad_domain"), v.get("domain")], revoked)
     if want_known != (old_known or "") and not (old_known is None and not want_known):
         _write(KNOWN_HOSTS, want_known)
         done.append(f"{KNOWN_HOSTS}: " + ("fabric's host CA trusted for the domain's names" if ca_key

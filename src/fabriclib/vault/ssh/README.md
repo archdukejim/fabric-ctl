@@ -23,6 +23,7 @@ account, trusted by clients through `@cert-authority` lines.
 | `sign_ssh_host_key.py` | One host certificate from the host CA for the principals fabric chose |
 | `sign_ssh_hosts.py` | One run of `fabric-ssh-hosts.timer`: prepare, sign, write back, withdraw; this host's own applied |
 | `apply_host_ssh_cert.py` | The fabric host's own host certificates and its trust of the host CA (`sshd -t` before and after) |
-| `known_hosts_block.py` | fabric's `@cert-authority` lines for the domain's names and short names |
+| `known_hosts_block.py` | fabric's `@cert-authority` lines for the domain's names and short names, and `@revoked` lines |
+| `update_revoked_keys.py` | The host keys clients must refuse: withdrawn or replaced certificates' keys until their end, cleared when signed again |
 | `ssh_hosts_overview.py` | The SSH page's host certificates: the host CA, each machine's state |
 | `__init__.py` | Package marker (empty) |

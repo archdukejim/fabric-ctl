@@ -919,6 +919,7 @@ file	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_hosts.py	59
 file	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_key.py	49	
 file	fabriclib-vault|src/fabriclib/vault/ssh/ssh_hosts_overview.py	60	
 file	fabriclib-vault|src/fabriclib/vault/ssh/ssh_overview.py	50	
+file	fabriclib-vault|src/fabriclib/vault/ssh/update_revoked_keys.py	61	
 file	fabriclib-vault|src/fabriclib/vault/test_slot.py	38	
 file	fabriclib-vault|src/fabriclib/vault/unlock_vault.py	39	
 file	fabriclib-vault|src/fabriclib/vault/vault_device_event.py	40	
@@ -2635,6 +2636,7 @@ function	fabriclib-vault|src/fabriclib/vault/ssh/publish_ssh_ca.py|publish_ssh_c
 function	fabriclib-vault|src/fabriclib/vault/ssh/set_ssh_certificates.py|set_ssh_certificates	1	
 function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_host_key.py|sign_ssh_host_key	1	
 function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_hosts.py|_account	2	
+function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_hosts.py|_gone	4	
 function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_hosts.py|_read_lines	1	
 function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_hosts.py|sign_ssh_hosts	3	
 function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_key.py|sign_ssh_key	1	
@@ -2642,6 +2644,7 @@ function	fabriclib-vault|src/fabriclib/vault/ssh/ssh_hosts_overview.py|_state	1
 function	fabriclib-vault|src/fabriclib/vault/ssh/ssh_hosts_overview.py|ssh_hosts_overview	2	
 function	fabriclib-vault|src/fabriclib/vault/ssh/ssh_overview.py|_published	2	
 function	fabriclib-vault|src/fabriclib/vault/ssh/ssh_overview.py|ssh_overview	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/update_revoked_keys.py|update_revoked_keys	1	
 function	fabriclib-vault|src/fabriclib/vault/test_slot.py|test_slot	1	
 function	fabriclib-vault|src/fabriclib/vault/unlock_vault.py|unlock_vault	1	
 function	fabriclib-vault|src/fabriclib/vault/vault_device_event.py|vault_device_event	1	

@@ -191,6 +191,8 @@ def _ssh_hosts(v, args):
             what = ("certificates withdrawn (not managed, or disabled)" if m["withdrawn"] else m["error"]
                     or f"{m['signed']} signed, {m['kept']} kept")
             print(f"  {m['name']}: {what}" + "".join(f"; refused: {r}" for r in m["refused"]))
+    for key in done.get("revoked") or []:
+        print(f"  revoked until its certificate's end: {key[:60]}…")
     for line in done["host"] or ["this host: nothing to change"]:
         print(f"  {line}")
     return 1 if any(m["error"] for m in done["machines"]) else 0

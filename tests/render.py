@@ -812,6 +812,13 @@ assert 'HostCertificate $f' in _join and "grep -q 'host certificate$'" in _join 
 assert '@cert-authority *.${AD_DOMAIN,,},*.${DOMAIN,,} $key' in _join and '@cert-authority *,!*.*,!*:* $key' in _join
 from fabriclib.vault.ssh.known_hosts_block import BEGIN as _KH_BEGIN, END as _KH_END  # noqa: E402
 assert f'BEGIN="{_KH_BEGIN}"' in _join and f'END="{_KH_END}"' in _join, 'the same markers as the fabric host writes'
+assert 'RODC=0' in _join and 'WRITE_DC=""' in _join and 'fetch_revoked' in _join \
+    and "sed 's/^/@revoked * /'" in _join, 'a writable site; revoked keys as @revoked lines (1.6.11.9.12)'
+# at a read-only DC's site the machine writes its host keys at the writable DC, by name for Kerberos (2.1.6.52)
+_join_ro = env.get_template('nginx/www/certs/join-linux.sh.j2').render(
+    **{**full, 'ad_dc_type': 'rodc', 'ad_join_server': '10.9.9.9', 'ad_join_server_name': 'root-dc.ad.lan.test'})
+assert 'RODC=1' in _join_ro and 'WRITE_DC="root-dc.ad.lan.test"' in _join_ro and 'TARGET=$at as_machine ldapmodify' \
+    in _join_ro and 'REFUSED' in _join_ro, 'the writable DC named for the write; a refusal said loudly'
 _managed = _join.split("<<'MANAGED'\n", 1)[1].split("\nMANAGED\n", 1)[0]
 _bash = _sp.run(['bash', '-n'], input=_managed, capture_output=True, text=True)
 assert _bash.returncode == 0, _bash.stderr

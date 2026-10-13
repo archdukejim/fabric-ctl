@@ -11,7 +11,8 @@ him in and no one else, the trust kept while the host is unreachable and removed
 host certificates (1.6.11.9.6 to 1.6.11.9.10, 2.1.7.13; written and not run yet): the machine publishes its host keys
 on its own account as itself and may write nothing else, fabric's signing run (a stand-in CA for OpenBao) writes the
 certificate back, the machine takes it, sshd presents it and ssh trusts it by name through the system known-hosts
-file, a certificate from another CA is ignored, and off removes it all. The containers have no systemd: a stand-in
+file, a certificate from another CA is ignored, a withdrawn certificate's key is revoked on clients (@revoked) at
+once, and off removes it all. The containers have no systemd: a stand-in
 `systemctl` starts sssd.
     sudo python3 tests/samba/linux_join.py
 """
@@ -352,10 +353,23 @@ def stand_in_sign(v, token, key_line, principals, key_id):
 
 
 m_shs.bao_request = lambda v, method, path, token=None, body=None: (200, {"data": {"public_key": HOST_CA_PUB}})
+REVOKED_FILE = os.path.join(TLS, "www", "certs", "ssh-host-revoked.pub")
+
+
+def publish_revoked(v, text, name):
+    """publish_ssh_ca stood in: the revoked keys where the HTTPS stand-in serves /certs/ (404 when none)."""
+    path = os.path.join(TLS, "www", "certs", name)
+    if text:
+        with open(path, "w") as f:
+            f.write(text.strip() + "\n")
+    elif os.path.exists(path):
+        os.remove(path)
+
+
 run_v = {**V, "ssh_certificates": True}
 signed = m_shs.sign_ssh_hosts(run_v, tempfile.mkdtemp(), login=lambda v, creds: "token",
                               op=lambda name, args: run_op(V, SECRETS, name, args, DC), sign=stand_in_sign,
-                              apply=lambda v, certs, ca: [])
+                              apply=lambda *a: [], publish=publish_revoked)
 rows = {m["name"]: m for m in signed["machines"]}
 listed = {h["name"]: h for h in run_op(V, SECRETS, "list_ssh_hosts", {}, DC)}
 check("the signing run: 24.04's key signed for its names and written back to its account (fabricSshHostCert)",
@@ -391,10 +405,33 @@ check("negative: a certificate from another CA in its account is not taken: the 
       "rc=0" in out and "fabric-host-cert-ed25519.pub" not in out and "\n0\n" in out, out)
 m_shs.sign_ssh_hosts(run_v, tempfile.mkdtemp(), login=lambda v, creds: "token",
                      op=lambda name, args: run_op(V, SECRETS, name, args, DC), sign=stand_in_sign,
-                     apply=lambda v, certs, ca: [])
+                     apply=lambda *a: [], publish=publish_revoked)
 code, out = on(box, "fabric-managed check; ls /etc/ssh/")
 check("the next signing run replaces it (another CA's), and the machine takes the new one",
       "fabric-host-cert-ed25519.pub" in out, out)
+# revocation (1.6.11.9.12): other1 holds a certificate, is taken out of lan-fabric-machines, the run withdraws it and
+# revokes its key; then the box's own key revoked as the run would publish it: ssh refuses it at once
+sh(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", os.path.join(W, "other1_host")])
+other_pub = " ".join(open(os.path.join(W, "other1_host.pub")).read().split()[:2])
+run_op(V, SECRETS, "set_ssh_host", {"name": "other1", "certs": [stand_in_sign(None, None, other_pub, ["other1"],
+                                                                             "test:other1")]}, DC)
+sh(["docker", "exec", DC, "samba-tool", "group", "removemembers", "lan-fabric-machines", "OTHER1$",
+    "-s", "/data/etc/smb.conf"])
+signed = m_shs.sign_ssh_hosts(run_v, tempfile.mkdtemp(), login=lambda v, creds: "token",
+                              op=lambda name, args: run_op(V, SECRETS, name, args, DC), sign=stand_in_sign,
+                              apply=lambda *a: [], publish=publish_revoked)
+code, out = on(box, "fabric-managed check; echo rc=$?; cat /etc/ssh/ssh_known_hosts")
+check("other1 taken out: its certificate withdrawn, its key revoked and published; the box's next check writes the "
+      "@revoked line", signed["revoked"] == [other_pub] and f"@revoked * {other_pub}" in out, (signed["revoked"], out))
+with open(REVOKED_FILE, "w") as f:
+    f.write(own_key + "\n")
+code, out = on(box, f"fabric-managed check; {STRICT} adam@{FQDN} id -un; echo ssh=$?")
+check("negative: the box's own key revoked: ssh refuses it at once, certificate or not",
+      "ssh=0" not in out and "revoked" in out.lower(), out[-500:])
+os.remove(REVOKED_FILE)
+code, out = on(box, f"fabric-managed check; {STRICT} adam@{FQDN} id -un; echo ssh=$?")
+check("nothing revoked any more (404): the @revoked lines removed, ssh trusts it again",
+      "ssh=0" in out and "@revoked" not in on(box, "cat /etc/ssh/ssh_known_hosts")[1], out[-500:])
 os.remove(os.path.join(TLS, "www", "certs", "ssh-host-ca.pub"))
 code, out = on(box, "fabric-managed check; echo rc=$?; ls /etc/ssh/; grep -c 'cert-authority' /etc/ssh/ssh_known_hosts "
                     "2>&1; grep -c HostCertificate /etc/ssh/sshd_config.d/10-fabric.conf")
