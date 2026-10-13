@@ -26,6 +26,7 @@ from fabriclib.pki.acme_machines import acme_machines
 from fabriclib.pki.ca_summary import ca_summary
 from fabriclib.pki.list_issued import list_issued
 from fabriclib.pki.scep.list_enrolments import list_enrolments
+from fabriclib.vault.ssh.ssh_hosts_overview import ssh_hosts_overview
 from fabriclib.vault.ssh.ssh_overview import ssh_overview
 from fabriclib.radius.radius_guides import radius_guides
 from fabriclib.samba.domain_overview import domain_overview
@@ -91,7 +92,7 @@ def get_route(route, user=None):
              networks[/<site>]: networks_overview (the Networks tab, a site this console shows); networks/<site>/export:
              networks_csv ({"csv", "name"}); ipam/options/<site>[/<target>]: options_overview (the DHCP options and,
              given a target, its effective options with their sources, 1.10.4.24.3);
-             pki/enrolments: list_enrolments; ssh: ssh_overview for the token's user.
+             pki/enrolments: list_enrolments; ssh: ssh_overview for the token's user; ssh/hosts: ssh_hosts_overview.
     Fails:   RouteNotFound for any other route (-> 404); whatever the operation raises (ValidationError -> 400).
     Feeds:   agent/handler.py (dispatch)."""
     if tuple(route) in READS:
@@ -108,6 +109,8 @@ def get_route(route, user=None):
         return JOBS.read(route[1], user)
     if route == ["ssh"]:                     # SSH certificates: may this person sign? (1.6.11.9)
         return ssh_overview(load_vars(), user)
+    if route == ["ssh", "hosts"]:            # SSH host certificates, per machine (1.6.11.9.11)
+        return ssh_hosts_overview(load_vars())
     if route == ["vault", "slots"]:
         v = load_vars()
         return {"slots": list_slots(v), "host": v.get("hostname", "")}

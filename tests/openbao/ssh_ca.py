@@ -10,6 +10,10 @@ fabric-setup policy given to a real AppRole (the credentials file approle_login 
 - refused: a person outside the fabric admins (audited), a private key, DSA, RSA under 3072 bits, two keys, root
   without a person, anything while off; a setup policy without the SSH engine says to run the vault step
 - turning them off: nothing can be signed, the published key withdrawn, the CA kept (on again: the same key)
+- the host CA (1.6.11.9.6, 2.1.7.13), converged with it: a mount and key of its own (never the user CA), the role
+  for host certificates only; a host key signed for the names fabric gives (ssh-keygen -L: a host certificate, its
+  principals, 30 days, the host CA); off deletes its role and withdraws its published key, the CA kept;
+  GET /v1/ssh/hosts while off (nothing to list) and, while on with no directory here, an error rather than a list
 
 The membership check (Samba's fabric-admins, in-chain) is stood in for here; tests/samba/run.py runs the real one, and
 the lab's linux_join test signs in to a joined machine with a certificate.
@@ -38,6 +42,8 @@ from fabriclib.vault.common.approle_login import approle_login  # noqa: E402
 from fabriclib.vault.common.bao_request import bao_request  # noqa: E402
 from fabriclib.vault.constants import POLICIES  # noqa: E402
 from fabriclib.vault.ssh import sign_ssh_key as ssk  # noqa: E402
+from fabriclib.vault.ssh.parse_ssh_cert import parse_ssh_cert  # noqa: E402
+from fabriclib.vault.ssh.sign_ssh_host_key import sign_ssh_host_key  # noqa: E402
 from fabriclib.vault.ssh.ssh_overview import ssh_overview  # noqa: E402
 
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/sshca"
@@ -173,6 +179,10 @@ st, res = agent_call("GET", "/v1/ssh")
 check("off by default: GET /v1/ssh says off, no key, nobody may sign, why",
       st == 200 and res["on"] is False and res["public_key"] == "" and res["may_sign"] is False
       and "off" in res["why_not"], (st, res))
+st, res = agent_call("GET", "/v1/ssh/hosts")
+# covers: agent:get.ssh.hosts +
+check("off: GET /v1/ssh/hosts says off and lists nothing (no directory asked)",
+      st == 200 and res == {"on": False, "public_key": "", "fingerprint": "", "machines": []}, (st, res))
 st, res = agent_call("POST", "/v1/ssh/on")
 # covers: agent:post.ssh.on setting:ssh_certificates +
 check("POST /v1/ssh/on: the engine, an Ed25519 CA, the role; the setting saved true; the key published (0644)",
@@ -185,9 +195,24 @@ role = bao_request(V, "GET", "ssh/roles/fabric-admin", token=ROOT)[1].get("data"
 check("the role: user certificates only, 8 hours at most, permit-pty, no host certificates",
       role.get("allow_user_certificates") is True and role.get("allow_host_certificates") is False
       and role.get("max_ttl") in (28800, "8h") and "permit-pty" in json.dumps(role.get("default_extensions")), role)
+HOST_PUB = os.path.join(W, "nginx", "www", "certs", "ssh-host-ca.pub")
+HOST_CA_KEY, HOST_CA_FP = res.get("host_public_key", ""), res.get("host_fingerprint", "")
+check("...and the host CA: a mount of its own (ssh-host/), its own Ed25519 key (not the user CA's), published (0644)",
+      HOST_CA_KEY.startswith("ssh-ed25519 ") and HOST_CA_KEY != CA_KEY
+      and "ssh-host/" in bao_request(V, "GET", "sys/mounts", token=ROOT)[1].get("data", {})
+      and open(HOST_PUB).read().strip() == HOST_CA_KEY and oct(os.stat(HOST_PUB).st_mode & 0o777) == "0o644",
+      (res, HOST_CA_KEY))
+hrole = bao_request(V, "GET", "ssh-host/roles/fabric-host", token=ROOT)[1].get("data", {})
+check("the host role: host certificates only, 30 days at most",
+      hrole.get("allow_host_certificates") is True and hrole.get("allow_user_certificates") is False
+      and hrole.get("max_ttl") in (2592000, "720h"), hrole)
 st, res = agent_call("POST", "/v1/ssh/on")
 check("on again: converged, nothing changed, the same CA", st == 200 and res["changed"] is False
-      and res["public_key"] == CA_KEY, (st, res))
+      and res["public_key"] == CA_KEY and res["host_public_key"] == HOST_CA_KEY, (st, res))
+st, res = agent_call("GET", "/v1/ssh/hosts")
+# covers: agent:get.ssh.hosts -
+check("negative: on, with no directory here: GET /v1/ssh/hosts is an error (400), never an empty list",
+      st >= 400, (st, res))
 check("status lists ssh_certificates as on (a relaxation shown while it is)",
       any(r["setting"] == "ssh_certificates: true" for r in relaxed_settings(saved())), relaxed_settings(saved()))
 
@@ -212,6 +237,26 @@ check("the SSH page for alice: on, the CA key and fingerprint, may sign",
       ov["on"] and ov["public_key"] == CA_KEY and ov["fingerprint"] == CA_FP and ov["may_sign"], ov)
 ov = ssh_overview(v_on, "bob", admin_check=admin_check)
 check("...for bob: may not, and says why", not ov["may_sign"] and "only fabric admins" in ov["why_not"], ov)
+
+print("--- a host key signed by the host CA")
+os.makedirs(f"{W}/host", mode=0o700)
+sh(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", f"{W}/host/ssh_host_ed25519_key"])
+host_pub = " ".join(open(f"{W}/host/ssh_host_ed25519_key.pub").read().split()[:2])
+names = ["ws1", "ws1.ad.lan.test", "ws1.lan.test"]
+hcert = sign_ssh_host_key(v_on, approle_login(v_on, "setup-approle.json"), host_pub, names, "fabric-host:ws1:test")
+open(f"{W}/host/ssh_host_ed25519_key-cert.pub", "w").write(hcert + "\n")
+hshown = sh(["ssh-keygen", "-L", "-f", f"{W}/host/ssh_host_ed25519_key-cert.pub"], ok=False).stdout
+parsed = parse_ssh_cert(hcert)
+check("a host certificate: its names exactly, 30 days, signed by the host CA (not the user CA), as ssh-keygen reads it",
+      "host certificate" in hshown and parsed["principals"] == names and parsed["ca_fingerprint"] == HOST_CA_FP
+      and HOST_CA_FP in hshown and CA_FP not in hshown
+      and 29 * 86400 < parsed["valid_before"] - parsed["valid_after"] <= 30 * 86400 + 600, hshown)
+user_bad = bao_request(V, "POST", "ssh-host/sign/fabric-host", token=approle_login(v_on, "setup-approle.json"),
+                       body={"public_key": host_pub, "valid_principals": "alice", "cert_type": "user"})
+check("negative: the host role signs no user certificate", user_bad[0] >= 400, user_bad)
+host_bad = bao_request(V, "POST", "ssh/sign/fabric-admin", token=approle_login(v_on, "setup-approle.json"),
+                       body={"public_key": host_pub, "valid_principals": "ws1", "cert_type": "host"})
+check("negative: the user CA's role signs no host certificate", host_bad[0] >= 400, host_bad)
 
 print("--- refusals")
 # covers: agent:post.ssh.sign -
@@ -244,7 +289,7 @@ ssc.write_audit = lambda *a, **k: None
 ssc.vars_lock = contextlib.nullcontext
 check("negative: says to run the vault step; nothing saved",
       refused(ssc.set_ssh_certificates, "alice", True, login=lambda v, creds: approle_login(v, "old-approle.json"),
-              publish=lambda v, key: None, match="--step vault"))
+              publish=lambda v, key, name=None: None, match="--step vault"))
 
 # ---------------------------------------------------------------- off
 print("--- turning them off")
@@ -255,6 +300,13 @@ check("POST /v1/ssh/off: the role deleted, the key withdrawn, the setting saved 
       and bao_request(V, "GET", "ssh/roles/fabric-admin", token=ROOT)[0] == 404
       and bao_request(V, "GET", "ssh/config/ca", token=ROOT)[1].get("data", {}).get("public_key", "").strip() == CA_KEY,
       (st, res))
+check("off: the host CA's role deleted and its published key withdrawn; its CA key kept",
+      bao_request(V, "GET", "ssh-host/roles/fabric-host", token=ROOT)[0] == 404 and not os.path.exists(HOST_PUB)
+      and bao_request(V, "GET", "ssh-host/config/ca", token=ROOT)[1].get("data", {}).get("public_key", "").strip()
+      == HOST_CA_KEY)
+check("negative: off: no host certificate is signed",
+      refused(sign_ssh_host_key, V, approle_login(V, "setup-approle.json"), host_pub, names, "fabric-host:ws1:off",
+              match="did not sign"))
 check("negative: off: nothing is signed", refused(ssk.sign_ssh_key, V, "alice", alice_pub, admin_check=admin_check,
                                                   match="off"))
 st, res = agent_call("POST", "/v1/ssh/sign", {"public_key": alice_pub})
@@ -262,7 +314,8 @@ check("negative: off: the agent's route refuses too (400)", st == 400 and "off" 
 st, res = agent_call("POST", "/v1/ssh/off")
 check("off again: nothing changed", st == 200 and res["changed"] is False, (st, res))
 st, res = agent_call("POST", "/v1/ssh/on")
-check("on again: the same CA, so machines need nothing new", st == 200 and res["public_key"] == CA_KEY, (st, res))
+check("on again: the same CAs, so machines and clients need nothing new",
+      st == 200 and res["public_key"] == CA_KEY and res["host_public_key"] == HOST_CA_KEY, (st, res))
 bao_request(V, "POST", "sys/seal", token=ROOT)
 before = saved()
 st, res = agent_call("POST", "/v1/ssh/off")

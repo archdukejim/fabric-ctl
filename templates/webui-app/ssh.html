@@ -17,6 +17,28 @@
 {% endif %}
 </section>
 
+{% if ov.on %}
+<section class="card"><h2>Host certificates</h2>
+<p class="muted">Managed machines, and this host, present an SSH host certificate signed by fabric's host CA (a CA of its own, never the one above): 30 days, renewed by fabric every hour as needed. SSH clients that trust the host CA (managed machines and this host do) connect without being asked to accept a host key (manual 1.6.11.9.6).</p>
+{% if ov.host_fingerprint %}
+<dl class="kv"><dt>Host CA key</dt><dd><code class="fp">{{ ov.host_fingerprint }}</code></dd>
+<dt>Published</dt><dd><code>/certs/ssh-host-ca.pub</code> on the console's name</dd></dl>
+<details><summary>Host CA public key</summary><textarea readonly rows="3">{{ ov.host_public_key }}</textarea>
+<p class="muted small">To trust it on another computer, add a line to <code>~/.ssh/known_hosts</code>: <code>@cert-authority *.&lt;your domain&gt;</code> followed by this key.</p></details>
+{% else %}<p class="blank">The host CA is not published yet: turn SSH certificates off and on again, or run <code>sudo fabricctl setup --step vault</code>.</p>{% endif %}
+{% if hosts is not none %}
+{% if hosts.error %}<p class="flash bad">The machines' certificates could not be read: {{ hosts.error }}</p>
+{% elif hosts.machines %}
+<table><thead><tr><th>Machine</th><th>Host certificate</th><th>Valid until</th><th>Names</th><th>Host keys</th></tr></thead><tbody>
+{% for m in hosts.machines %}<tr><td>{{ m.name }}{% if m.ou == 'fabric-hosts' %} <span class="muted small">(fabric host)</span>{% endif %}</td>
+<td><span class="pill {{ 'ok' if m.state == 'valid' else ('bad' if m.state in ('expired', 'other CA') else 'warn') }}">{{ m.state }}</span></td>
+<td>{{ m.until or '—' }}</td><td>{{ m.principals | join(', ') or '—' }}</td><td>{{ m.types | join(', ') or '—' }}</td></tr>
+{% endfor %}</tbody></table>
+{% else %}<p class="blank">No machines in this site yet.</p>{% endif %}
+{% endif %}
+</section>
+{% endif %}
+
 {% if signed %}
 <section class="card"><h2>Your certificate</h2>
 <p class="flash ok">Signed for <code>{{ signed.principal }}</code>, valid {{ signed.valid_hours }} hours (key {{ signed.type }} {{ signed.fingerprint }}, serial {{ signed.serial }}).</p>

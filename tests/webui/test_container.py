@@ -778,6 +778,28 @@ check("signing while off: refused, saying so (400)", st == 400 and "are off" in 
 st, hd, sc, body = req("POST", "/ssh/sideways", POSTH, {"csrf": fresh_csrf}, cookie=fresh)
 check("an unknown SSH action -> 404", st == 404, st)
 
+# host certificates (manual 1.6.11.9.11): shown while on; each machine's state for domain:read only. On is stood in by
+# the setting and the published host CA (no OpenBao here), so the machines cannot be read: the page says so
+vt_ssh = open(f"{W}/fabric/config/vars.yaml").read()
+open(f"{W}/fabric/config/vars.yaml", "w").write(vt_ssh + "\nssh_certificates: true\n")
+os.makedirs(f"{W}/nginx/www/certs", exist_ok=True)
+HOST_CA_LINE = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMHlNsQTVJzLdhAnyuh5vbDB+nUmcTiwAsdlHpSn3xU8 host-ca"
+open(f"{W}/nginx/www/certs/ssh-host-ca.pub", "w").write(HOST_CA_LINE + "\n")
+st, hd, sc, body = req("GET", "/ssh", ALICE, cookie=fresh)
+# covers: agent:get.ssh.hosts -
+check("on: the SSH page shows the host CA's fingerprint; with domain:read, the machines' certificates are asked for "
+      "and, with no directory here, the page says they could not be read (the rest still shown)",
+      st == 200 and "Host certificates" in body and "Host CA key" in body and "SHA256:" in body
+      and "could not be read" in body, (st, body[:400]))
+(st, hd, sc, body), _, _ = login(roles=tuple(bundle_roles("fabric-pki-operator")))
+pki_session = cookie_val(sc, "__Host-webui")
+st, hd, sc, body = req("GET", "/ssh", ALICE, cookie=pki_session)
+check("negative: without domain:read the host CA is shown but no machine list (not even asked for)",
+      st == 200 and "Host CA key" in body and "could not be read" not in body and "<th>Machine</th>" not in body,
+      (st, body[:400]))
+open(f"{W}/fabric/config/vars.yaml", "w").write(vt_ssh)
+os.remove(f"{W}/nginx/www/certs/ssh-host-ca.pub")
+
 st, hd, sc, body = req("GET", "/audit", ALICE, cookie=session)
 check("audit log records TSIG and PKI actions", "TSIG_ADD" in body and "TSIG_SECRET" in body
       and "PKI_CONVERT" in body, body[:300])

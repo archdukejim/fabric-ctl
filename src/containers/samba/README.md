@@ -73,6 +73,9 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `list_machines.py` | Operation `list_machines`: the site's computer accounts (Windows and Linux, and its fabric host) with state and last logon |
 | `find_machine.py` | A machine of the site by its name, in its OU=machines or OU=fabric-hosts (for set_machine, remove_machine, place_fabric_host) |
 | `place_fabric_host.py` | Operation `place_fabric_host`: the site's fabric host's account moved into OU=fabric-hosts, made a member of <site>-fabric-machines (and <site>-rodc-cache at a read-only DC's site, 2.1.6.52), marked as the fabric host (manual 1.6.11.11) |
+| `list_ssh_hosts.py` | Operation `list_ssh_hosts`: the site's computer accounts with their SSH host keys and certificates, managed or not, enabled or not (manual 1.6.11.9.8) |
+| `prepare_ssh_hosts.py` | Operation `prepare_ssh_hosts`: the auxiliary class `fabricSshHost` on each managed, enabled machine, so it can publish its host keys (1.6.11.9.7) |
+| `set_ssh_host.py` | Operation `set_ssh_host`: a machine's host certificates written back by fabric (and the fabric host's own host keys), each value checked (1.6.11.9.8) |
 | `set_machine.py` | Operation `set_machine`: disable a machine, or enable it again |
 | `remove_machine.py` | Operation `remove_machine`: a machine removed from the domain |
 | `find_person.py` | A person of the site by user name, in its own OU=people (for set_person and remove_person) |

@@ -3,7 +3,7 @@ from webui.devpreview.sample_data import (RECORD_TYPES, SAMPLE_CA, SAMPLE_DEVICE
                                           SAMPLE_EFFECTIVE, SAMPLE_OPTIONS,
                                           SAMPLE_FEDERATION, SAMPLE_GPO, SAMPLE_LOGON, SAMPLE_RADIUS, SAMPLE_ACME,
                                           SAMPLE_RADIUS_SESSIONS,
-                                          SAMPLE_ACCESS, SAMPLE_ENROLMENTS, SAMPLE_SSH,
+                                          SAMPLE_ACCESS, SAMPLE_ENROLMENTS, SAMPLE_SSH, SAMPLE_SSH_HOSTS,
                                           SAMPLE_IMAGES,
                                           SAMPLE_SECURITY, SAMPLE_VAULT, SAMPLE_DNS_FILTER, SAMPLE_QUERY_LOG)
 from webui.devpreview.dev_networks_page import dev_networks_page
@@ -51,7 +51,9 @@ def dev_get_page(h, path, query):
                                         acme=SAMPLE_ACME if view == "acme" else None,
                                         enrolments=SAMPLE_ENROLMENTS if view == "enrol" else None))
     if path == "/ssh":
-        return h.send(200, views.ssh(ctx, SAMPLE_SSH, msg=query.get("msg", ""), err=query.get("err", "")))
+        hosts = {**SAMPLE_SSH_HOSTS, "on": SAMPLE_SSH["on"]} if "domain:read" in ctx["perms"] else None
+        return h.send(200, views.ssh(ctx, SAMPLE_SSH, msg=query.get("msg", ""), err=query.get("err", ""),
+                                     hosts=hosts))
     if path == "/openbao":
         view = query.get("view") if query.get("view") in views.OPENBAO_VIEWS else "status"
         return h.send(200, views.openbao(ctx, SAMPLE_VAULT, view, state.data["slots"], SAMPLE_DEVICES,

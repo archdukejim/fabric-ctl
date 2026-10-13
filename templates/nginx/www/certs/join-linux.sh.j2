@@ -271,6 +271,12 @@ set -euo pipefail
 SSHD=/etc/ssh/sshd_config.d/10-fabric.conf
 RESOLVED=/etc/systemd/resolved.conf.d/fabric.conf
 SSH_CA=/etc/ssh/fabric-user-ca.pub      # fabric's SSH user CA (manual 1.6.11.9.4), while SSH certificates are on
+HOST_CA=/etc/ssh/fabric-host-ca.pub     # fabric's SSH host CA (manual 1.6.11.9.9), while SSH certificates are on
+HOST_CERT=/etc/ssh/fabric-host-cert     # + -<ed25519|ecdsa|rsa>.pub: this machine's host certificates (1.6.11.9.8)
+KNOWN=/etc/ssh/ssh_known_hosts
+BEGIN="# fabric: SSH host CA, begin (manual 1.6.11.9.9; written by fabric, kept in step with SSH certificates)"
+END="# fabric: SSH host CA, end"
+CC=""
 
 reload() {
     systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
@@ -282,34 +288,142 @@ write() {   # write $1 from stdin if it differs; true when it changed
     if cmp -s "$tmp" "$1"; then rm -f "$tmp"; return 1; fi
     mv "$tmp" "$1"
 }
-ssh_ca() {  # fabric's SSH user CA (manual 1.6.11.9.4): 0 published (in $1), 1 not published (off), 2 unknown
+ssh_ca() {  # one of fabric's SSH CAs ($2: ssh-user-ca.pub 1.6.11.9.4, ssh-host-ca.pub 1.6.11.9.9): 0 published (in
+            # $1), 1 not published (off), 2 unknown
     local code
     [[ -n ${FABRIC_HOST:-} ]] || return 2   # joined before 0.9: re-run the join to learn the host's name
-    code=$(curl -sS --max-time 20 -o "$1" -w '%{http_code}' "https://$FABRIC_HOST/certs/ssh-user-ca.pub" 2>/dev/null) \
+    code=$(curl -sS --max-time 20 -o "$1" -w '%{http_code}' "https://$FABRIC_HOST/certs/$2" 2>/dev/null) \
         || return 2                      # unreachable, or its certificate not fabric's: unknown, nothing changes
     if [[ $code == 404 ]]; then return 1; fi
     [[ $code == 200 ]] && grep -qE '^(ssh-ed25519|ecdsa-sha2-nistp[0-9]+|ssh-rsa) [A-Za-z0-9+/=]+( .*)?$' "$1" \
         && [[ $(wc -l < "$1") -le 1 ]] || return 2
 }
+as_machine() {  # an LDAP tool ($1) against the DC, signed in as this machine (its keytab), one ticket per run
+    if [[ -z $CC ]]; then
+        CC=$(mktemp)
+        trap 'rm -f "$CC"' EXIT
+        KRB5CCNAME="FILE:$CC" kinit -k "${MACHINE^^}\$@$REALM" >/dev/null 2>&1 || return 2
+    fi
+    local tool=$1
+    shift
+    KRB5CCNAME="FILE:$CC" LDAPSASL_NOCANON=on "$tool" -o ldif-wrap=no -Q -Y GSSAPI -H "ldap://$DC" "$@"
+}
+known_block() {   # $1: the host CA's key file -> fabric's known-hosts lines (the domain's names, then short names)
+    local key
+    key=$(awk '{print $1" "$2}' "$1")
+    printf '%s\n' "$BEGIN" "@cert-authority *.${AD_DOMAIN,,},*.${DOMAIN,,} $key" "@cert-authority *,!*.*,!*:* $key" "$END"
+}
+set_known() {     # fabric's block in /etc/ssh/ssh_known_hosts, from $1 (the host CA's file) or removed ($1 ""); true
+                  # when the file changed
+    local rest
+    [[ -d /etc/ssh ]] || return 1
+    rest=$(awk -v b="$BEGIN" -v e="$END" '$0==b{skip=1;next} $0==e&&skip{skip=0;next} !skip' "$KNOWN" 2>/dev/null || true)
+    if [[ -z $rest && -z $1 ]]; then
+        [[ -e $KNOWN ]] || return 1
+        rm -f "$KNOWN"
+        return 0
+    fi
+    { if [[ -n $rest ]]; then printf '%s\n' "$rest"; fi
+      if [[ -n $1 ]]; then known_block "$1"; fi; } | write "$KNOWN" || return 1
+    chmod 0644 "$KNOWN"
+}
+host_certs() {    # this machine's host keys published on its own account; the certificates fabric signed taken back,
+                  # each checked (a host certificate of one of its keys, from the host CA, naming it, still valid);
+                  # true when a certificate file changed. Nothing changes when the DC does not answer.
+    local found dn have want certs line info valid_to fp family f now ca_fp kept="" changed_cert=0
+    command -v ssh-keygen >/dev/null || return 1
+    found=$(as_machine ldapsearch -LLL -b "$BASE_DN" "(sAMAccountName=${MACHINE^^}\$)" dn fabricSshHostKey \
+        fabricSshHostCert 2>/dev/null) || return 1
+    dn=$(printf '%s\n' "$found" | sed -n 's/^dn: //p')
+    [[ -n $dn ]] || return 1
+    have=$(printf '%s\n' "$found" | sed -n 's/^fabricSshHostKey: //p' | sort)
+    want=$(for f in /etc/ssh/ssh_host_ed25519_key.pub /etc/ssh/ssh_host_ecdsa_key.pub /etc/ssh/ssh_host_rsa_key.pub; do
+               if [[ -r $f ]]; then awk '{print $1" "$2}' "$f"; fi; done | sort)
+    if [[ -n $want && $want != "$have" ]]; then
+        if { printf 'dn: %s\nchangetype: modify\nreplace: fabricSshHostKey\n' "$dn"
+             printf '%s\n' "$want" | sed 's/^/fabricSshHostKey: /'
+             printf -- '-\n'; } | as_machine ldapmodify >/dev/null 2>&1; then
+            echo "fabric-managed: host keys published for signing"
+        else
+            echo "fabric-managed: host keys not published yet (fabric prepares this machine's account within the hour)" >&2
+        fi
+    fi
+    certs=$(printf '%s\n' "$found" | sed -n 's/^fabricSshHostCert: //p')
+    ca_fp=$(ssh-keygen -lf "$HOST_CA" 2>/dev/null | awk '{print $2}')
+    now=$(date +%s)
+    while IFS= read -r line; do
+        [[ -n $line && -n $ca_fp ]] || continue
+        printf '%s\n' "$line" > "$HOST_CERT.check"
+        info=$(ssh-keygen -L -f "$HOST_CERT.check" 2>/dev/null) || continue
+        grep -q 'host certificate$' <<< "$info" || continue
+        grep -q "Signing CA: .* $ca_fp " <<< "$info" || continue
+        grep -qx " *${MACHINE,,}" <<< "$info" || continue
+        valid_to=$(sed -n 's/^ *Valid: from .* to //p' <<< "$info")
+        [[ -n $valid_to && $valid_to != forever ]] || continue
+        [[ $(date -d "$valid_to" +%s 2>/dev/null || echo 0) -gt $now ]] || continue
+        fp=$(sed -n 's/^ *Public key: [A-Z0-9-]* //p' <<< "$info")
+        for f in /etc/ssh/ssh_host_ed25519_key.pub /etc/ssh/ssh_host_ecdsa_key.pub /etc/ssh/ssh_host_rsa_key.pub; do
+            [[ -r $f && $(ssh-keygen -lf "$f" | awk '{print $2}') == "$fp" ]] || continue
+            family=${f#/etc/ssh/ssh_host_}
+            family=${family%_key.pub}
+            if write "$HOST_CERT-$family.pub" < "$HOST_CERT.check"; then changed_cert=1; fi
+            chmod 0644 "$HOST_CERT-$family.pub"
+            kept="$kept $family"
+        done
+    done <<< "$certs"
+    rm -f "$HOST_CERT.check"
+    for f in "$HOST_CERT"-*.pub; do            # a certificate fabric no longer holds for one of its keys
+        [[ -e $f ]] || continue
+        family=${f#"$HOST_CERT"-}
+        family=${family%.pub}
+        if [[ " $kept " != *" $family "* ]]; then rm -f "$f"; changed_cert=1; fi
+    done
+    [[ $changed_cert -eq 1 ]]
+}
+sshd_text() {     # the drop-in, from what is on disk now
+    printf '%s\n' "# fabric (manual 1.6.11.6): domain sign-in with Kerberos; who may sign in is the OU's log-on policy" \
+        "GSSAPIAuthentication yes" "GSSAPICleanupCredentials yes" "PasswordAuthentication no" \
+        "KbdInteractiveAuthentication no" "UsePAM yes"
+    if [[ -e $SSH_CA ]]; then
+        printf '%s\n' "# fabric (manual 1.6.11.9): 8-hour certificates for the fabric admins, signed by fabric's SSH CA" \
+            "TrustedUserCAKeys $SSH_CA"
+    fi
+    for f in "$HOST_CERT"-*.pub; do
+        if [[ -e $f ]]; then
+            printf '%s\n' "# fabric (manual 1.6.11.9.8): this machine's host certificate" "HostCertificate $f"
+        fi
+    done
+}
 apply() {
-    local changed=0 ca_rc=0 ca_file
+    local changed=0 ca_rc=0 host_rc=0 ca_file
     ca_file=$(mktemp)
-    ssh_ca "$ca_file" || ca_rc=$?
+    ssh_ca "$ca_file" ssh-user-ca.pub || ca_rc=$?
     if [[ $ca_rc -eq 0 ]]; then
         write "$SSH_CA" < "$ca_file" && changed=1
         chmod 0644 "$SSH_CA"
     elif [[ $ca_rc -eq 1 && -e $SSH_CA ]]; then
         rm -f "$SSH_CA"; changed=1
     fi
+    ssh_ca "$ca_file" ssh-host-ca.pub || host_rc=$?
+    if [[ $host_rc -eq 0 ]]; then              # on: the host CA trusted as a client; this machine's certificates
+        write "$HOST_CA" < "$ca_file" && changed=1
+        chmod 0644 "$HOST_CA"
+        set_known "$HOST_CA" && changed=1
+        if [[ -d /etc/ssh/sshd_config.d ]] && host_certs; then changed=1; fi
+    elif [[ $host_rc -eq 1 ]]; then            # off: the certificates, the trust and the CA removed
+        if [[ -e $HOST_CA ]] || compgen -G "$HOST_CERT-*.pub" >/dev/null; then
+            rm -f "$HOST_CA" "$HOST_CERT"-*.pub; changed=1
+        fi
+        set_known "" && changed=1
+    fi
     rm -f "$ca_file"
-    if [[ -d /etc/ssh/sshd_config.d ]]; then
-        { printf '%s\n' "# fabric (manual 1.6.11.6): domain sign-in with Kerberos; who may sign in is the OU's log-on policy" \
-            "GSSAPIAuthentication yes" "GSSAPICleanupCredentials yes" "PasswordAuthentication no" \
-            "KbdInteractiveAuthentication no" "UsePAM yes"
-          if [[ -e $SSH_CA ]]; then
-              printf '%s\n' "# fabric (manual 1.6.11.9): 8-hour certificates for the fabric admins, signed by fabric's SSH CA" \
-                  "TrustedUserCAKeys $SSH_CA"
-          fi; } | write "$SSHD" && changed=1
+    if [[ -d /etc/ssh/sshd_config.d ]] && sshd_text | write "$SSHD"; then
+        changed=1
+        if command -v sshd >/dev/null && ! sshd -t 2>/dev/null; then   # a host certificate sshd refuses: dropped
+            rm -f "$HOST_CERT"-*.pub
+            sshd_text | write "$SSHD" || true
+            echo "fabric-managed: sshd refused the host certificates; removed them" >&2
+        fi
     fi
     mkdir -p /etc/systemd/resolved.conf.d
     printf '[Resolve]\n# fabric (manual 1.6.11.6): the domain names from fabric; other names as the machine had them\nDNS=%s\nDomains=~%s ~%s\n' \
@@ -317,8 +431,9 @@ apply() {
     if [[ $changed -eq 1 ]]; then reload; echo "fabric-managed: applied"; fi
 }
 remove() {
-    if [[ -e $SSHD || -e $RESOLVED || -e $SSH_CA ]]; then
-        rm -f "$SSHD" "$RESOLVED" "$SSH_CA"
+    if [[ -e $SSHD || -e $RESOLVED || -e $SSH_CA || -e $HOST_CA ]] || compgen -G "$HOST_CERT-*.pub" >/dev/null; then
+        rm -f "$SSHD" "$RESOLVED" "$SSH_CA" "$HOST_CA" "$HOST_CERT"-*.pub
+        set_known "" || true
         reload
         echo "fabric-managed: removed (no longer in $SITE-fabric-machines)"
     fi

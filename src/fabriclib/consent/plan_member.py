@@ -65,7 +65,12 @@ def plan_member(v):
         f"while this host is in {site}-fabric-machines, where an SSH server is installed: "
         "/etc/ssh/sshd_config.d/10-fabric.conf (Kerberos for SSH; local accounts' sign-in unchanged, so the host "
         "stays reachable with its domain controller down; checked with `sshd -t` before it is loaded) and "
-        "/etc/pam.d/sshd (pam_localuser: a domain account's password refused over SSH)"]
+        "/etc/pam.d/sshd (pam_localuser: a domain account's password refused over SSH)",
+        f"while this host is in {site}-fabric-machines and SSH certificates are on (1.6.11.9.10): its SSH host "
+        "certificates /etc/ssh/fabric-host-cert-*.pub, named in /etc/ssh/sshd_config.d/11-fabric-host-cert.conf "
+        "(where an SSH server is installed; checked with `sshd -t` before it is loaded), and fabric's SSH host CA "
+        "trusted for the domain's names in /etc/ssh/ssh_known_hosts (fabric's own lines only), kept in step "
+        "hourly by fabric-ssh-hosts.timer"]
     if v.get("use_host_dns", True) is not False:
         managed.append(f"while this host is in {site}-fabric-machines: /etc/systemd/resolved.conf.d/fabric.conf "
                        f"(the names of {v.get('ad_domain')} and {v.get('domain')} from fabric's DNS at "

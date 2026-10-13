@@ -4,14 +4,15 @@ from fabriclib.common.service_user import service_user
 from fabriclib.vault.ssh.constants import PUBLISHED
 
 
-def publish_ssh_ca(v, public_key):
-    """Purpose: publish the SSH user CA's public key where managed machines fetch it over HTTPS (manual 1.6.11.9.4),
-             or withdraw it: a machine that gets 404 stops trusting the CA.
-    Inputs:  v — settings: deploy_base_dir, service_users (nginx); public_key — the CA's key line, or "" to withdraw.
+def publish_ssh_ca(v, public_key, name=PUBLISHED):
+    """Purpose: publish an SSH CA's public key where managed machines fetch it over HTTPS (manual 1.6.11.9.4: the user
+             CA; 1.6.11.9.9: the host CA), or withdraw it: a machine that gets 404 stops trusting the CA.
+    Inputs:  v — settings: deploy_base_dir, service_users (nginx); public_key — the CA's key line, or "" to withdraw;
+             name — the file in /certs/: PUBLISHED (the user CA, the default) or HOST_PUBLISHED (the host CA).
     Returns: True when the published file changed (written or removed).
     Fails:   OSError writing or removing.
     Feeds:   vault/ssh/set_ssh_certificates, setup/setup_openbao."""
-    path = os.path.join(v["deploy_base_dir"], "nginx", "www", "certs", PUBLISHED)
+    path = os.path.join(v["deploy_base_dir"], "nginx", "www", "certs", name)
     if not public_key:
         if os.path.exists(path):
             os.remove(path)

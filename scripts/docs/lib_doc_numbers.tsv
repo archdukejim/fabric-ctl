@@ -80,6 +80,7 @@ file	fabricctl-jinja|src/containers/samba/link_device_cert.py	34
 file	fabricctl-jinja|src/containers/samba/list_host_groups.py	82	
 file	fabricctl-jinja|src/containers/samba/list_machines.py	54	
 file	fabricctl-jinja|src/containers/samba/list_people.py	32	
+file	fabricctl-jinja|src/containers/samba/list_ssh_hosts.py	102	
 file	fabricctl-jinja|src/containers/samba/list_sudo_rules.py	83	
 file	fabricctl-jinja|src/containers/samba/logon_groups.py	84	
 file	fabricctl-jinja|src/containers/samba/logon_rights_policy.py	20	
@@ -88,6 +89,7 @@ file	fabricctl-jinja|src/containers/samba/paths.py	35
 file	fabricctl-jinja|src/containers/samba/place_fabric_host.py	96	
 file	fabricctl-jinja|src/containers/samba/plan_cidrs.py	91	
 file	fabricctl-jinja|src/containers/samba/policy_entries.py	52	
+file	fabricctl-jinja|src/containers/samba/prepare_ssh_hosts.py	103	
 file	fabricctl-jinja|src/containers/samba/pull_sysvol.py	61	
 file	fabricctl-jinja|src/containers/samba/read_dc_names.py	72	
 file	fabricctl-jinja|src/containers/samba/read_devices.py	36	
@@ -117,6 +119,7 @@ file	fabricctl-jinja|src/containers/samba/set_host_group_member.py	89
 file	fabricctl-jinja|src/containers/samba/set_machine.py	56	
 file	fabricctl-jinja|src/containers/samba/set_password_policy.py	23	
 file	fabricctl-jinja|src/containers/samba/set_person.py	71	
+file	fabricctl-jinja|src/containers/samba/set_ssh_host.py	104	
 file	fabricctl-jinja|src/containers/samba/share_winbind.py	43	
 file	fabricctl-jinja|src/containers/samba/site_info.py	28	
 file	fabricctl-jinja|src/containers/samba/site_roles.py	64	
@@ -798,6 +801,7 @@ file	fabriclib-setup|src/fabriclib/setup/common/network_problem.py	72
 file	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py	52	
 file	fabriclib-setup|src/fabriclib/setup/common/renew_days.py	79	
 file	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py	7	
+file	fabriclib-setup|src/fabriclib/setup/common/sshd_check.py	82	
 file	fabriclib-setup|src/fabriclib/setup/common/sync_host_managed.py	80	
 file	fabriclib-setup|src/fabriclib/setup/common/valid_setting.py	73	
 file	fabriclib-setup|src/fabriclib/setup/condition_host.py	8	
@@ -899,11 +903,21 @@ file	fabriclib-vault|src/fabriclib/vault/slots/kmip.py	34
 file	fabriclib-vault|src/fabriclib/vault/slots/local.py	35	
 file	fabriclib-vault|src/fabriclib/vault/slots/pkcs11.py	36	
 file	fabriclib-vault|src/fabriclib/vault/slots/usb.py	37	
+file	fabriclib-vault|src/fabriclib/vault/ssh/apply_host_ssh_cert.py	51	
+file	fabriclib-vault|src/fabriclib/vault/ssh/bao_call.py	52	
 file	fabriclib-vault|src/fabriclib/vault/ssh/converge_ssh_ca.py	45	
+file	fabriclib-vault|src/fabriclib/vault/ssh/converge_ssh_host_ca.py	53	
+file	fabriclib-vault|src/fabriclib/vault/ssh/host_principals.py	54	
+file	fabriclib-vault|src/fabriclib/vault/ssh/known_hosts_block.py	55	
+file	fabriclib-vault|src/fabriclib/vault/ssh/parse_ssh_cert.py	56	
 file	fabriclib-vault|src/fabriclib/vault/ssh/parse_ssh_key.py	46	
+file	fabriclib-vault|src/fabriclib/vault/ssh/plan_host_certs.py	57	
 file	fabriclib-vault|src/fabriclib/vault/ssh/publish_ssh_ca.py	47	
 file	fabriclib-vault|src/fabriclib/vault/ssh/set_ssh_certificates.py	48	
+file	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_host_key.py	58	
+file	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_hosts.py	59	
 file	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_key.py	49	
+file	fabriclib-vault|src/fabriclib/vault/ssh/ssh_hosts_overview.py	60	
 file	fabriclib-vault|src/fabriclib/vault/ssh/ssh_overview.py	50	
 file	fabriclib-vault|src/fabriclib/vault/test_slot.py	38	
 file	fabriclib-vault|src/fabriclib/vault/unlock_vault.py	39	
@@ -1003,6 +1017,7 @@ file	webui|src/webui/agentclient/set_record_link.py	157
 file	webui|src/webui/agentclient/set_ssh_certificates.py	188	
 file	webui|src/webui/agentclient/sign_csr.py	45	
 file	webui|src/webui/agentclient/sign_ssh_key.py	189	
+file	webui|src/webui/agentclient/ssh_hosts.py	197	
 file	webui|src/webui/agentclient/ssh_overview.py	190	
 file	webui|src/webui/agentclient/start_job.py	142	
 file	webui|src/webui/agentclient/sudo_rule_change.py	161	
@@ -1258,6 +1273,7 @@ function	fabricctl-jinja|src/containers/samba/ensure_schema.py|ensure_schema	3
 function	fabricctl-jinja|src/containers/samba/ensure_service_accounts.py|_signs_in	1	
 function	fabricctl-jinja|src/containers/samba/ensure_service_accounts.py|ensure_service_accounts	2	
 function	fabricctl-jinja|src/containers/samba/ensure_site_acl.py|_has_ace	1	0.5.0 / 2026-10-05
+function	fabricctl-jinja|src/containers/samba/ensure_site_acl.py|_schema_guid	4	
 function	fabricctl-jinja|src/containers/samba/ensure_site_acl.py|_sid	3	0.5.0 / 2026-10-05
 function	fabricctl-jinja|src/containers/samba/ensure_site_acl.py|ensure_site_acl	2	
 function	fabricctl-jinja|src/containers/samba/ensure_site_info.py|ensure_site_info	1	
@@ -1295,6 +1311,7 @@ function	fabricctl-jinja|src/containers/samba/list_machines.py|list_machines	2
 function	fabricctl-jinja|src/containers/samba/list_people.py|_cn	1	
 function	fabricctl-jinja|src/containers/samba/list_people.py|_site	2	
 function	fabricctl-jinja|src/containers/samba/list_people.py|list_people	3	
+function	fabricctl-jinja|src/containers/samba/list_ssh_hosts.py|list_ssh_hosts	1	
 function	fabricctl-jinja|src/containers/samba/list_sudo_rules.py|list_sudo_rules	1	
 function	fabricctl-jinja|src/containers/samba/logon_groups.py|logon_groups	1	
 function	fabricctl-jinja|src/containers/samba/logon_rights_policy.py|logon_rights_policy	1	
@@ -1313,6 +1330,7 @@ function	fabricctl-jinja|src/containers/samba/policy_entries.py|_element	2
 function	fabricctl-jinja|src/containers/samba/policy_entries.py|_write	1	
 function	fabricctl-jinja|src/containers/samba/policy_entries.py|policy_entries	3	
 function	fabricctl-jinja|src/containers/samba/policy_entries.py|policy_targets	4	
+function	fabricctl-jinja|src/containers/samba/prepare_ssh_hosts.py|prepare_ssh_hosts	1	
 function	fabricctl-jinja|src/containers/samba/pull_sysvol.py|_owners	3	
 function	fabricctl-jinja|src/containers/samba/pull_sysvol.py|_site_of	2	
 function	fabricctl-jinja|src/containers/samba/pull_sysvol.py|_version	1	
@@ -1356,6 +1374,8 @@ function	fabricctl-jinja|src/containers/samba/set_machine.py|set_machine	1
 function	fabricctl-jinja|src/containers/samba/set_password_policy.py|_ticks	1	
 function	fabricctl-jinja|src/containers/samba/set_password_policy.py|set_password_policy	2	
 function	fabricctl-jinja|src/containers/samba/set_person.py|set_person	1	
+function	fabricctl-jinja|src/containers/samba/set_ssh_host.py|_lines	1	
+function	fabricctl-jinja|src/containers/samba/set_ssh_host.py|set_ssh_host	2	
 function	fabricctl-jinja|src/containers/samba/share_winbind.py|share_winbind	1	
 function	fabricctl-jinja|src/containers/samba/site_info.py|site_info	1	
 function	fabricctl-jinja|src/containers/samba/site_roles.py|fabric_admins	2	
@@ -2237,6 +2257,7 @@ function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_groups	3
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_host_managed	6	
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_logon	5	
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_show	4	
+function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_ssh_hosts	7	
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|run_domain_command	2	
 function	fabriclib-samba|src/fabriclib/samba/run_gpo_command.py|_files	1	
 function	fabriclib-samba|src/fabriclib/samba/run_gpo_command.py|run_gpo_command	2	
@@ -2347,7 +2368,7 @@ function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_pam_w
 function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_pam_without	4	
 function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_read	1	
 function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_reload	6	
-function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_sshd_check	5	
+function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_sshd_check	5	0.7.0 / 2026-10-13
 function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_write	2	
 function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|apply_host_managed	7	
 function	fabriclib-setup|src/fabriclib/setup/common/apt_install.py|apt_install	1	
@@ -2370,6 +2391,7 @@ function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_sudo
 function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|render_member_files	2	
 function	fabriclib-setup|src/fabriclib/setup/common/renew_days.py|renew_days	1	
 function	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py|service_account_name	1	
+function	fabriclib-setup|src/fabriclib/setup/common/sshd_check.py|sshd_check	1	
 function	fabriclib-setup|src/fabriclib/setup/common/sync_host_managed.py|sync_host_managed	1	
 function	fabriclib-setup|src/fabriclib/setup/common/valid_setting.py|valid_setting	1	
 function	fabriclib-setup|src/fabriclib/setup/condition_host.py|_apt_install	1	0.7.0 / 2026-10-12
@@ -2589,13 +2611,36 @@ function	fabriclib-vault|src/fabriclib/vault/slots/usb.py|forget	5
 function	fabriclib-vault|src/fabriclib/vault/slots/usb.py|present	4	
 function	fabriclib-vault|src/fabriclib/vault/slots/usb.py|unwrap	3	
 function	fabriclib-vault|src/fabriclib/vault/slots/usb.py|wrap	2	
-function	fabriclib-vault|src/fabriclib/vault/ssh/converge_ssh_ca.py|_call	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/apply_host_ssh_cert.py|_read	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/apply_host_ssh_cert.py|_reload	4	
+function	fabriclib-vault|src/fabriclib/vault/ssh/apply_host_ssh_cert.py|_without_block	3	
+function	fabriclib-vault|src/fabriclib/vault/ssh/apply_host_ssh_cert.py|_write	2	
+function	fabriclib-vault|src/fabriclib/vault/ssh/apply_host_ssh_cert.py|apply_host_ssh_cert	5	
+function	fabriclib-vault|src/fabriclib/vault/ssh/bao_call.py|bao_call	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/converge_ssh_ca.py|_call	1	0.7.0 / 2026-10-13
 function	fabriclib-vault|src/fabriclib/vault/ssh/converge_ssh_ca.py|converge_ssh_ca	2	
+function	fabriclib-vault|src/fabriclib/vault/ssh/converge_ssh_host_ca.py|converge_ssh_host_ca	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/host_principals.py|host_principals	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/known_hosts_block.py|known_hosts_block	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/parse_ssh_cert.py|_fingerprint	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/parse_ssh_cert.py|_number	4	
+function	fabriclib-vault|src/fabriclib/vault/ssh/parse_ssh_cert.py|_string	3	
+function	fabriclib-vault|src/fabriclib/vault/ssh/parse_ssh_cert.py|_take	2	
+function	fabriclib-vault|src/fabriclib/vault/ssh/parse_ssh_cert.py|parse_ssh_cert	5	
 function	fabriclib-vault|src/fabriclib/vault/ssh/parse_ssh_key.py|_strings	1	
 function	fabriclib-vault|src/fabriclib/vault/ssh/parse_ssh_key.py|parse_ssh_key	2	
+function	fabriclib-vault|src/fabriclib/vault/ssh/plan_host_certs.py|_family	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/plan_host_certs.py|plan_host_certs	2	
 function	fabriclib-vault|src/fabriclib/vault/ssh/publish_ssh_ca.py|publish_ssh_ca	1	
 function	fabriclib-vault|src/fabriclib/vault/ssh/set_ssh_certificates.py|set_ssh_certificates	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_host_key.py|sign_ssh_host_key	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_hosts.py|_account	2	
+function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_hosts.py|_read_lines	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_hosts.py|sign_ssh_hosts	3	
 function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_key.py|sign_ssh_key	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/ssh_hosts_overview.py|_state	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/ssh_hosts_overview.py|ssh_hosts_overview	2	
+function	fabriclib-vault|src/fabriclib/vault/ssh/ssh_overview.py|_published	2	
 function	fabriclib-vault|src/fabriclib/vault/ssh/ssh_overview.py|ssh_overview	1	
 function	fabriclib-vault|src/fabriclib/vault/test_slot.py|test_slot	1	
 function	fabriclib-vault|src/fabriclib/vault/unlock_vault.py|unlock_vault	1	
@@ -2701,6 +2746,7 @@ function	webui|src/webui/agentclient/set_record_link.py|set_record_link	1
 function	webui|src/webui/agentclient/set_ssh_certificates.py|set_ssh_certificates	1	
 function	webui|src/webui/agentclient/sign_csr.py|sign_csr	1	
 function	webui|src/webui/agentclient/sign_ssh_key.py|sign_ssh_key	1	
+function	webui|src/webui/agentclient/ssh_hosts.py|ssh_hosts	1	
 function	webui|src/webui/agentclient/ssh_overview.py|ssh_overview	1	
 function	webui|src/webui/agentclient/start_job.py|start_job	1	
 function	webui|src/webui/agentclient/sudo_rule_change.py|sudo_rule_change	1	
@@ -2793,6 +2839,7 @@ function	webui|src/webui/routes/dns_filter_page.py|dns_filter_page	1
 function	webui|src/webui/routes/dns_filter_post.py|_message	1	
 function	webui|src/webui/routes/dns_filter_post.py|dns_filter_post	2	
 function	webui|src/webui/routes/enrol_post.py|enrol_post	1	
+function	webui|src/webui/routes/get_page.py|_ssh_hosts	2	
 function	webui|src/webui/routes/get_page.py|get_page	1	
 function	webui|src/webui/routes/kea_post.py|_kea	3	
 function	webui|src/webui/routes/kea_post.py|_pools	1	

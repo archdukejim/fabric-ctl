@@ -1,0 +1,10 @@
+[Unit]
+Description=fabric: sign and renew SSH host certificates, hourly (manual 1.6.11.9.8, 2.1.7.13)
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=1h
+AccuracySec=5min
+
+[Install]
+WantedBy=timers.target

@@ -11,6 +11,21 @@ from webui.routes.stepca_page import stepca_page
 from webui.session.page_context import page_context
 
 
+def _ssh_hosts(ctx):
+    """Purpose: the SSH page's host certificates (manual 1.6.11.9.11), for a person who may see the domain's machines.
+    Inputs:  ctx — page context (perms).
+    Returns: ssh_hosts()'s dict; None without domain:read; {"error": why} when the agent cannot answer it (the page
+             still shows the rest).
+    Fails:   AuthError propagates (the session ended).
+    Feeds:   get_page (/ssh)."""
+    if "domain:read" not in (ctx.get("perms") or ()):
+        return None
+    try:
+        return actions.ssh_hosts()
+    except (actions.AgentError, actions.ValidationError, actions.PermissionDenied) as exc:
+        return {"error": str(exc)}
+
+
 def get_page(h, sess, path, query):
     """Purpose: Route a signed-in GET to its page.
     Inputs:  h — the request handler (send, deny); sess — dict from find_session; path — str: /, /bind9, /stepca,
@@ -20,7 +35,7 @@ def get_page(h, sess, path, query):
              site, subnet, q, target, msg, err, the query log's search as each page uses them).
     Returns: 200 page (overview with the host changes fabric may make, BIND9, Step-CA, directory, OpenBao, Kea,
              Federation, FreeRADIUS with its setup guides for view switches / windows and its sessions, audit log, SSH
-             certificates).
+             certificates, with each machine's host certificate for domain:read).
     Fails:   404 for any other path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
     Feeds:   handler.Handler.handle_request.
     """
@@ -64,7 +79,8 @@ def get_page(h, sess, path, query):
     if path == "/audit":
         return h.send(200, views.audit(ctx, actions.read_audit()))
     if path == "/ssh":
-        return h.send(200, views.ssh(ctx, actions.ssh_overview(), msg=query.get("msg", ""), err=query.get("err", "")))
+        return h.send(200, views.ssh(ctx, actions.ssh_overview(), msg=query.get("msg", ""), err=query.get("err", ""),
+                                     hosts=_ssh_hosts(ctx)))
     if path == "/security":
         return h.send(200, views.security(ctx, actions.security_layers(), query.get("msg", ""), query.get("err", "")))
     return h.deny(404, "Not found.")

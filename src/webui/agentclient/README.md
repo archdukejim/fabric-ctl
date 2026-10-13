@@ -111,5 +111,6 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `list_enrolments.py` | GET /v1/pki/enrolments: open profiles and certificates from enrolment |
 | `withdraw_enrolment.py` | POST /v1/pki/enrolments/<id>/withdraw: withdraw an unused profile |
 | `ssh_overview.py` | GET /v1/ssh: SSH certificates on or off, the CA key, whether this person may sign |
+| `ssh_hosts.py` | GET /v1/ssh/hosts: the SSH host CA and each machine's host certificate state (domain:read) |
 | `sign_ssh_key.py` | POST /v1/ssh/sign: an 8-hour SSH certificate for a fabric admin |
 | `set_ssh_certificates.py` | POST /v1/ssh/on, /v1/ssh/off: turn SSH certificates on or off |
