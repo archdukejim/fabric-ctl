@@ -9,11 +9,15 @@
 | `steps.py` | The ordered step list |
 | `context.py` | `SetupContext`: install paths, rendered vars, secrets, options, services to restart |
 | `errors.py` | `SetupError` — a step cannot continue; message says why and what to do |
-| `collect_vars.py` | Where settings come from: existing install, `--file` (or a checkout's `custom-vars.yaml` on a fresh install) overrides, prompts for anything missing |
+| `choose_mode.py` | A new install's start: [G]uided, [A]dvanced (the menu of every setting) or [Q]uit (1.2.9.11.1) |
+| `collect_vars.py` | Where settings come from: existing install, `--file` (or a checkout's `custom-vars.yaml` on a fresh install) overrides, prompts for anything missing (guided mode) |
+| `apply_plan_defaults.py` | The plan's hardened defaults recorded as values, so what is shown is what renders |
+| `finish_vars.py` | The last of collecting the settings: a fresh install's log-on rights, TSIG secrets moved, `fabric.yaml` saved |
 | `upgrade_vars.py` | Existing install's vars before re-render: new release's images (unless pinned) and service accounts (unless changed) |
 | `move_dns_filter.py` | Upgrade to 0.7: AdGuard Home's settings become the BIND resolver's; what cannot move is listed and recorded |
 | `detect_network.py` | Guess hostname, host IP, gateway, LAN CIDR and interface from the default route |
-| `choose_plan.py` | Show the (hardened) default plan; Proceed / Advanced / Quit |
+| `choose_plan.py` | The plan: what setup will do, the memory split, every host change; [P]roceed (the one yes), [M]enu, [Q]uit |
+| `advanced/` | The menu of every setting (1.2.9.11.3): its items and their questions |
 | `permanent_mark.py` | The yellow "⚠ Permanent" after a question whose setting is in the vars editor's `IMMUTABLE_KEYS` (2.1.2.20) |
 | `ask_dc_name.py` | The domain controller's own name (permanent; `dc-<hostname>` suggested), asked when missing (2.1.6.45) |
 | `ask_site_number.py` | The site's number (the second octet of the subnets fabric suggests), asked once at the start step while it has none (2.1.10.16) |
@@ -34,6 +38,7 @@
 | `start_bootstrap.py` | Start bind9 + step-ca; validate every zone |
 | `mint_service_certs.py` | Issue/renew service certificates (only what is missing, expiring or wrong); web UI and FreeRADIUS CA bundles |
 | `mint_extra_certs.py` | `extra_certs` entries, when missing or due (part of the `certs` step) |
+| `join_host_domain.py` | Step `member`: this host a member of its own domain with its own computer account in the site's OU=machines/OU=linux (2.1.6.48; keytab, krb5.conf, sssd.conf, NSS, PAM); the fabric admins sign in (1.6.11.8) |
 | `start_services.py` | Retire renamed units; start the stack in order; converge the domain; configure Keycloak; fabric-agent + web UI; activate `fabric.target` |
 | `service_order.py` | fabric's container services in dependency order: setup starts them in it, an apply's rollout restarts them in it (2.1.14.15) |
 | `start_unit.py` | Enable, start or restart one unit and wait until its container is healthy |

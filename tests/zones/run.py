@@ -10,6 +10,7 @@ console calls them, and the menu (`fabricctl`, DNS Configuration) driven on its 
 import http.client
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -114,10 +115,15 @@ VARS = {"deploy_base_dir": W, "domain": "lan.test", "org_domain": "lan.test", "h
         "dns_filter": "bind", "dns_filter_lists": [], "dns_filter_upstreams": [{"address": "1.1.1.1", "name": "cloudflare-dns.com"}],
         "service_users": {"bind": {"uid": 600, "gid": 600}, "resolver": {"uid": 913, "gid": 913}},
         "dns": {"dynamic_zone_var": {"zone_authority": True, "A": [{"name": "www", "ip": "10.9.8.7"}]}},
-        # the zone path checks the settings as an apply does (2.1.10.21): an install's password policy (2.1.6.13)
+        # the zone path checks the settings as an apply does (2.1.4.7, 2.1.10.21): an install's password policy (2.1.6.13)
         "ad_password_policy": {"minimum_length": 14, "complexity": True, "history": 24, "minimum_age_days": 0,
                                "maximum_age_days": 0, "lockout_threshold": 5, "lockout_minutes": 15,
                                "lockout_window_minutes": 15}}
+# every container address inside the test's network, as an install that moves fabric_subnet sets them: the zone path
+# runs the apply's check, which refuses one outside it (check_service_settings)
+with open(f"{REPO}/templates/vars.yaml.j2") as f:
+    for key, last in re.findall(r"^(ip_\w+): \{\{ ip_\w+ \| default\('10\.255\.0\.(\d+)'\) \}\}", f.read(), re.M):
+        VARS.setdefault(key, SUBNET.rsplit('.', 1)[0] + '.' + last)
 agent_proc = None
 try:
     sh(f"docker rm -f bind9 bind9-resolver; docker network rm {NET}", ok=False)
@@ -194,6 +200,7 @@ try:
     t0 = time.time()
     st, res = agent("/v1/zones", {"name": "Home.LAN.", "hide_public": False})
     took = time.time() - t0
+    # covers: agent:post.zones +
     check("add: POST /v1/zones accepts a zone, normalised (lowercase, no trailing dot)",
           st == 200 and res["name"] == "home.lan" and res["resolver"] and not res["public"], (st, res))
     check(f"add: in seconds, not an apply ({took:.1f} s)", took < 30, took)
@@ -222,6 +229,7 @@ try:
                             ("bad_name.lan", "not a DNS name", "two labels"),
                             ("shop.example.com", "a public name without the tick", "Hide the public name")):
         st, res = agent("/v1/zones", {"name": name})
+        # covers: agent:post.zones -
         check(f"add refused: {why}, saying why, nothing changed",
               st == 400 and word in res["error"] and vars_dns() == before, (st, res))
     st, res = agent("/v1/zones", {"name": 7})
@@ -256,10 +264,12 @@ try:
                                     ("dynamic_zone_var", "lan.test", "the site's own zone", "cannot be removed"),
                                     ("nowhere.lan", "nowhere.lan", "an unknown zone", "unknown zone")):
         st, res = agent(f"/v1/zones/{key}/delete", {"confirm": confirm})
+        # covers: agent:post.zones.*.delete -
         check(f"remove refused: {why}, saying why", st == 400 and word in res["error"], (st, res))
     st, res = agent("/v1/zones/home.lan/records", {"type": "A", "name": "nas", "ip": "10.9.8.20"})
     check("a record added to the zone (published by the next apply)", st == 200, (st, res))
     st, res = agent("/v1/zones/home.lan/delete", {"confirm": "HOME.LAN"})
+    # covers: agent:post.zones.*.delete +
     check("remove: accepted with the name typed again, the record count returned",
           st == 200 and res == {"key": "home.lan", "name": "home.lan", "records": 1}, (st, res))
     check("remove: BIND and the resolver stop answering for it, its zone file is gone",
@@ -281,21 +291,44 @@ try:
     check("menu: 'a' refuses a name BIND already answers for, saying why", "site's own domain" in r.stdout,
           r.stdout[-400:])
     r = lib(menu, stdin="a\nshop.example.net\nn\n\nb\n")
+    # covers: ask:menu.dns.hide_public -
     check("menu: a public name asks whether it hides the real one; no is refused",
           "Hide the public name?" in r.stdout and "Tick 'Hide the public name'" in r.stdout, r.stdout[-400:])
+    r = lib(menu, stdin="a\nshop.example.org\ny\n\nb\n")
+    # covers: ask:menu.dns.hide_public +
+    check("menu: a public name with yes to hiding the real one is added and BIND answers for it",
+          "Zone shop.example.org added" in r.stdout and status(BIND_IP, "shop.example.org") == "NOERROR",
+          r.stdout[-400:] + r.stderr[-400:])
     idx = 1 + [k for k in vars_dns() if k != "dynamic_zone_var"].index("menu.lan") + 1
     r = lib(menu, stdin=f"r\n{idx}\nwrong.lan\n\nb\n")
+    # covers: ask:menu.dns.remove_pick ask:menu.dns.remove_confirm -
     check("menu: 'r' shows the record count and refuses a name typed wrong",
           "removes its 0 record(s)" in r.stdout and "type the zone's name" in r.stdout
           and "menu.lan" in vars_dns(), r.stdout[-400:])
     r = lib(menu, stdin=f"r\n{idx}\nmenu.lan\n\nb\n")
+    # covers: ask:menu.dns.remove_pick ask:menu.dns.remove_confirm +
     check("menu: 'r' removes the zone once its name is typed again", "Zone menu.lan removed" in r.stdout
           and status(BIND_IP, "menu.lan") != "NOERROR" and "menu.lan" not in vars_dns(), r.stdout[-400:])
     r = lib(menu, stdin="r\n1\n\nb\n")
     check("menu: 'r' refuses the site's own zone", "cannot be removed" in r.stdout, r.stdout[-400:])
+    # fabric's own names (2.1.2.22 item 6): the host's A record comes back on every render, so its delete is refused
+    # in the menu as in the console, naming the setting it follows
+    st, res = agent("/v1/zones/dynamic_zone_var/records", {"type": "A", "name": "pi-core", "ip": "192.168.77.53"})
+    pos = 1 + [r["name"] for r in vars_dns()["dynamic_zone_var"]["A"]].index("pi-core")
+    r = lib(menu, stdin=f"1\nd\n{pos}\n\nb\nb\n")
+    check("menu: deleting one of fabric's own names (the host's A) is refused, naming the setting; it stays",
+          st == 200 and "provided by fabric" in r.stdout and "hostname" in r.stdout
+          and "pi-core" in [x["name"] for x in vars_dns()["dynamic_zone_var"]["A"]], r.stdout[-600:])
+    st, res = agent("/v1/zones/dynamic_zone_var/records/delete", {"type": "A", "index": pos - 1, "name": "pi-core"})
+    check("the agent refuses it too (400), saying why", st == 400 and "provided by fabric" in str(res), (st, res))
+    r = lib(menu, stdin="1\nd\n1\n\nb\nb\n")
+    check("menu: an admin's own record still deletes", "www" not in [x["name"] for x in
+                                                                     vars_dns()["dynamic_zone_var"].get("A", [])],
+          r.stdout[-400:])
 
-    # ---- DHCP between applies (2.3.10.4.10, decision 2.1.10.21): a zone change renders BIND's zone list from the
-    # same checked settings as an apply, so DHCP's reverse zones, Kea's grants and the denies on hand-set PTRs stay
+    # ---- DHCP between applies (2.3.4.3, 2.3.10.4.10; decision 2.1.4.7, extended by 2.1.10.21): a zone change renders
+    # BIND's zone list from the same checked settings as an apply, so DHCP's reverse zones, Kea's grants and the
+    # denies on hand-set PTRs stay
     REV45, REV46 = "45.254.10.in-addr.arpa", "46.254.10.in-addr.arpa"
     iface = lib("from fabriclib.system.host_networks import host_networks\nprint(sorted(host_networks())[0])")
     iface = iface.stdout.strip()
@@ -346,7 +379,7 @@ try:
     def zone_block(text, zone):
         return text.split(f'zone "{zone}"', 1)[-1].split("\n};", 1)[0] if f'zone "{zone}"' in text else ""
 
-    # covers: cli:dns.add-zone +
+    # covers: agent:post.zones +
     st, res = agent("/v1/zones", {"name": "between.lan"})
     conf = zone_list()
     check("add between applies: accepted, and the zone list keeps the reverse zone that holds only DHCP's PTRs, "
@@ -366,8 +399,8 @@ try:
     check("add between applies: Kea's key still may not replace the PTR set by hand",
           "REFUSED" in grab and short(BIND_IP, f"9.{REV46}", "PTR") == "nas46.lan.test.", grab[-300:])
 
-    # covers: cli:dns.add-zone -
-    # covers: cli:dns.remove-zone -
+    # covers: agent:post.zones -
+    # covers: agent:post.zones.*.delete -
     edit_vars(lambda v: v["dhcp"].__setitem__("interfaces", ["nosuch0"]))
     before_dns, before_conf = vars_dns(), zone_list()
     st, res = agent("/v1/zones", {"name": "refused.lan"})

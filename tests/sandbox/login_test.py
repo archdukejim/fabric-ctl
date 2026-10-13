@@ -232,6 +232,7 @@ if os.environ.get("SIGNIN_MODE") == "plain":
           "(2.1.6.33)", st == 200 and ("update-password" in seen) != CHOSEN and "configure-totp" not in seen
           and "otp" not in seen, (st, seen))
     st, _, page = b.request("GET", f"https://{MGR}/security")
+    # covers: web:get.security +
     check("the Security page shows the layers to raise", st == 200 and "admin-2fa" in page, st)
     bob = Browser()
     st, page, seen = login(bob, OTHER, OTHER_PW)
@@ -310,6 +311,7 @@ if os.environ.get("CAROL_PW"):
     csrf = page.split('name="csrf" value="')[1].split('"')[0] if 'name="csrf"' in page else ""
     st, _, page = cb.request("POST", f"https://{MGR}/bind9/zone/dynamic_zone_var/add",
                              {"csrf": csrf, "type": "A", "name": "carol-was-here", "ip": "10.77.0.66"})
+    # covers: web:post.bind9.zone.*.add agent:post.zones.*.records -
     check("auditor: a DNS change is refused by fabric-agent (403, dns:write)", st == 403 and "dns:write" in page,
           (st, page[:300]))
 
@@ -360,11 +362,14 @@ if not csrf or "/directory/people/_new" not in page:     # what the People page 
     print(f"    people page ({st}): {page.split('<main>')[-1][:600]!r}")
 st, loc, page = b.request("POST", f"https://{MGR}/directory/people/_new",
                           {"csrf": csrf, "uid": NEW, "first": "Dave", "last": "Doe", "email": f"{NEW}@lan.test"})
+# covers: web:post.directory.people._new agent:post.people +
 check(f"people: the admin adds {NEW} -> one-time password shown once", st == 200 and "shown only now" in page,
       (st, urllib.parse.unquote_plus(loc or ""), page.split("<main>")[-1][:300]))     # the page's own message
 st, _, page = b.request("GET", f"https://{MGR}/directory?view=people")
+# covers: web:get.directory agent:get.people +
 check(f"people: {NEW} is in the directory (written by Keycloak)", f"{NEW}@lan.test" in page, page[:200])
 st, loc, page = b.request("POST", f"https://{MGR}/directory/people/{NEW}/reset", {"csrf": csrf})
+# covers: web:post.directory.people.*.reset agent:post.people.*.reset +
 check(f"people: the admin resets {NEW}'s sign-in", st == 200 and "sign-in reset" in page,
       (st, urllib.parse.unquote_plus(loc or ""), page[:300]))
 

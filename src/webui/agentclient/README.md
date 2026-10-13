@@ -4,11 +4,11 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 
 | File | What |
 |---|---|
-| `add_radius_client.py` | Add a RADIUS client (switch or access point); saved and applied at once. Agent route: POST /v1/radius/clients (radius:admin), timeout 300 s. |
+| `add_radius_client.py` | Add a RADIUS client (switch or access point); saved and applied at once. Agent route: POST /v1/radius/clients (radius:admin), timeout 960 s. |
 | `add_record.py` | Add one DNS record to a zone in vars.yaml (published by the next apply). Agent route: POST /v1/zones/<key>/records (dns:write). |
-| `add_zone.py` | Add a forward zone; BIND and the DNS filter serve it within seconds. Agent route: POST /v1/zones (dns:write), timeout 300 s. |
-| `remove_zone.py` | Remove a forward zone with its records (its name typed again). Agent route: POST /v1/zones/<key>/delete (dns:write), timeout 300 s. |
-| `add_reservation.py` | Reserve an IP for a MAC; the agent saves it and applies at once (Kea reloads with it). Agent route: POST /v1/dhcp/reservations (dhcp:write), timeout 300 s. |
+| `add_zone.py` | Add a forward zone; BIND and the DNS filter serve it within seconds. Agent route: POST /v1/zones (dns:write), timeout 960 s. |
+| `remove_zone.py` | Remove a forward zone with its records (its name typed again). Agent route: POST /v1/zones/<key>/delete (dns:write), timeout 960 s. |
+| `add_reservation.py` | Reserve an IP for a MAC; the agent saves it and applies at once (Kea reloads with it). Agent route: POST /v1/dhcp/reservations (dhcp:write), timeout 960 s. |
 | `set_dhcp_on.py` | Turn DHCP on or off; saved, applied, the host firewall brought in line |
 | `add_subnet.py` | Add a DHCP subnet (name, VLAN record, router, pools, notes); saved and applied |
 | `update_subnet.py` | Change a DHCP subnet's name, VLAN, router, notes or pools |
@@ -27,6 +27,8 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `create_person.py` | Create a person in Keycloak with a one-time password. Agent route: POST /v1/people (people:create). |
 | `create_tsig_key.py` | Create a TSIG key allowed to update part of a zone (published by the next apply). Agent route: POST /v1/tsig (tsig:manage). |
 | `delete_device.py` | Delete a device and take it out of every role. Agent route: POST /v1/devices/<name>/delete (devices:admin). |
+| `set_record_link.py` | Link a record of the site's zone from the landing page, or stop linking it. Agent route: POST /v1/zones/<key>/records/link (dns:write). |
+| `set_password_policy.py` | Change the domain's password policy (checked as the command checks it). Agent route: POST /v1/domain/password-policy (domain:admin). |
 | `delete_record.py` | Remove one DNS record from a zone, only if it is still the record the page showed. Agent route: POST /v1/zones/<key>/records/delete (dns:write). |
 | `delete_role.py` | Delete a device role. Agent route: POST /v1/roles/<name>/delete (roles:admin). |
 | `delete_tsig_key.py` | Remove a TSIG key (published by the next apply). Agent route: POST /v1/tsig/<name>/delete (tsig:manage). |
@@ -43,24 +45,24 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `list_people.py` | People and their groups (read-only; managed in Keycloak). Agent route: GET /v1/people (people:read). |
 | `list_tsig_keys.py` | The TSIG keys and their update rights (never their secrets). Agent route: GET /v1/tsig (dns:read). |
 | `list_zones.py` | The DNS zones for the BIND page's zone list. Agent route: GET /v1/zones (dns:read). |
-| `map_radius_group.py` | Let members of a directory group join the network by password; saved and applied at once. Agent route: POST /v1/radius/people (radius:admin), timeout 300 s. |
+| `map_radius_group.py` | Let members of a directory group join the network by password; saved and applied at once. Agent route: POST /v1/radius/people (radius:admin), timeout 960 s. |
 | `quote_segment.py` | URL-quote one path segment with nothing kept safe ("/" becomes %2F), so a name cannot change the route. |
 | `radius_guides.py` | The FreeRADIUS setup guides and Windows scripts, filled in for this host (public data only). Agent route: GET /v1/radius/guides (radius:read). |
 | `radius_overview.py` | What the FreeRADIUS page shows: on/off, clients, password groups, recent decisions. Agent route: GET /v1/radius (radius:read). |
 | `query_log.py` | Search the DNS query log. Agent route: POST /v1/dns-filter/querylog (dns:querylog). |
 | `read_audit.py` | Recent audit-log lines for the Audit page. Agent route: GET /v1/audit (audit:read). |
-| `remove_radius_client.py` | Remove a RADIUS client; saved and applied at once. Agent route: POST /v1/radius/clients/<name>/delete (radius:admin), timeout 300 s. |
-| `remove_reservation.py` | Remove a DHCP reservation and apply at once. Agent route: POST /v1/dhcp/reservations/<mac>/delete (dhcp:write), timeout 300 s. |
+| `remove_radius_client.py` | Remove a RADIUS client; saved and applied at once. Agent route: POST /v1/radius/clients/<name>/delete (radius:admin), timeout 960 s. |
+| `remove_reservation.py` | Remove a DHCP reservation and apply at once. Agent route: POST /v1/dhcp/reservations/<mac>/delete (dhcp:write), timeout 960 s. |
 | `reset_sign_in.py` | Reset a person's sign-in: new one-time password, TOTP removed, sessions ended. Agent route: POST /v1/people/<uid>/reset (people:reset). |
 | `person_action.py` | Disable, enable or remove a person, or change their groups. Agent routes: POST /v1/people/<uid>/disable\|enable (people:disable), /delete (people:remove), /groups (people:groups). |
 | `reverse_zones.py` | The reverse (PTR) zones apply generates from the A/AAAA records. Agent route: GET /v1/reverse-zones (dns:read). |
-| `rotate_radius_secret.py` | Give a RADIUS client a new shared secret; saved and applied at once. Agent route: POST /v1/radius/clients/<name>/rotate (radius:admin), timeout 300 s. |
+| `rotate_radius_secret.py` | Give a RADIUS client a new shared secret; saved and applied at once. Agent route: POST /v1/radius/clients/<name>/rotate (radius:admin), timeout 960 s. |
 | `rotate_tsig_key.py` | Give a TSIG key a new secret. Agent route: POST /v1/tsig/<name>/rotate (tsig:manage). |
 | `save_device.py` | Create a device, or replace an existing device's fields. Agent route: POST /v1/devices (devices:enroll) when new, else POST /v1/devices/<name> (devices:admin). |
 | `save_role.py` | Create a device role, or replace an existing role's fields. Agent route: POST /v1/roles when new, else POST /v1/roles/<name> (roles:admin). |
 | `service_status.py` | The state of every fabric service, for the overview page. Agent route: GET /v1/services (status:read). |
 | `sign_csr.py` | Sign a device's CSR with the fabric CA. Agent route: POST /v1/pki/sign (pki:sign), timeout 120 s. |
-| `unmap_radius_group.py` | Stop a group's members joining by password; saved and applied at once. Agent route: POST /v1/radius/people/<group>/delete (radius:admin), timeout 300 s. |
+| `unmap_radius_group.py` | Stop a group's members joining by password; saved and applied at once. Agent route: POST /v1/radius/people/<group>/delete (radius:admin), timeout 960 s. |
 | `vault_add_kmip.py` | Add a KMIP HSM/KMS as an unlock method. Agent route: POST /v1/vault/slots/add-hsm (vault:unlock), timeout 120 s. |
 | `vault_add_security_key.py` | Add a PKCS#11 security key (e.g. a YubiKey) as an unlock method. Agent route: POST /v1/vault/slots/add-security-key (vault:unlock), timeout 120 s. |
 | `vault_add_usb.py` | Add a USB stick as an unlock method. Agent route: POST /v1/vault/slots/add-usb (vault:unlock), timeout 180 s. |
@@ -80,6 +82,12 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `gpo_change.py` | Set or clear a policy in the admin settings GPO. Agent routes: POST /v1/gpo/set, /v1/gpo/clear (gpo:admin). |
 | `add_machine.py` | Pre-create a machine with a one-time join password. Agent route: POST /v1/machines (machines:admin). |
 | `machine_action.py` | Enable, disable or remove a machine. Agent route: POST /v1/machines/<name>/<action> (machines:admin). |
+| `logon_overview.py` | Who may sign in to the site's machines, per OU. Agent route: GET /v1/domain/logon (domain:read). |
+| `logon_change.py` | Set or clear one OU's log-on policy (saved and applied). Agent routes: POST /v1/domain/logon/set, /v1/domain/logon/clear (gpo:admin). |
+| `list_host_groups.py` | The site's host groups, their machines and the sudo rules on each. Agent route: GET /v1/host-groups (domain:read). |
+| `host_group_change.py` | Create or delete a host group, put a machine in or take it out. Agent routes: POST /v1/host-groups, /v1/host-groups/<name>/delete, /v1/host-groups/<name>/members (machines:admin). |
+| `list_sudo_rules.py` | The site's sudo rules, each fabric's, the default or an admin's own. Agent route: GET /v1/sudo (domain:read). |
+| `sudo_rule_change.py` | Add a sudo rule or remove one of fabric's. Agent routes: POST /v1/sudo, /v1/sudo/<name>/delete (sudo:admin). |
 | `federation_overview.py` | The federation's sites, replication, conflicts, limits and address plan. Agent route: GET /v1/federation (federation:read). |
 | `security_layers.py` | GET /v1/security: the sign-in layers |
 | `raise_signin_layer.py` | POST /v1/security/raise or /kerberos |

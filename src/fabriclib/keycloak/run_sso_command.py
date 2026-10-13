@@ -11,6 +11,11 @@ from fabriclib.keycloak.list_app_clients import list_app_clients
 from fabriclib.keycloak.remove_app_client import remove_app_client
 from fabriclib.secrets.load_secrets import load_secrets
 
+USAGE = """usage: fabricctl sso add <name> --redirect URL (repeatable)
+                                                  register an app; prints its client id and secret once
+       fabricctl sso list                         the registered apps
+       fabricctl sso remove <name>                unregister an app"""
+
 
 def run_sso_command(argv):
     """Purpose: `fabricctl sso add | list | remove` — apps (Proxmox VE, TrueNAS, …) signing people in through this
@@ -30,6 +35,7 @@ def run_sso_command(argv):
     sub.add_parser("list", help="the registered apps")
     rem = sub.add_parser("remove", help="unregister an app")
     rem.add_argument("name")
+    ap.usage = USAGE.removeprefix("usage: ")    # after the subparsers: they take their prog from it
     args = ap.parse_args(argv)
     v = load_vars()
     if not v.get("install_keycloak"):

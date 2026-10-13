@@ -4,6 +4,7 @@ import json
 import os
 import posixpath
 import re
+import shlex
 import time
 
 import jinja2
@@ -16,7 +17,10 @@ from fabriclib.common.read_published_lock import read_published_lock
 from fabriclib.dhcp.kea_client_classes import kea_client_classes
 from fabriclib.dhcp.kea_option_data import kea_option_data
 from fabriclib.dhcp.kea_option_defs import kea_option_defs
+from fabriclib.dns.common.landing_names import landing_names
 from fabriclib.images.published_image import published_image
+from fabriclib.system.memory_limit_mb import memory_limit_mb
+from fabriclib.system.plan_memory import plan_memory
 
 
 class _RelativeEnvironment(jinja2.Environment):
@@ -99,18 +103,24 @@ def jinja_env(template_dir):
              tree), or the parent's config/ does (the repository).
     Returns: jinja2.Environment with globals images_lock ({name: ref}), packages_lock, published_lock ({name: ref or
              ""}), published_ref(name) (the published image a host runs, or "": images/published_image), lookup and
-             the Kea helpers (kea_option_data, kea_option_defs, kea_client_classes).
+             the Kea helpers (kea_option_data, kea_option_defs, kea_client_classes), plan_memory (the memory budget)
+             and memory_mb(service) (that service's limit in MB from the template's context), landing_names() (the
+             landing page's names from the template's context: dns/common/landing_names).
     Fails:   yaml.YAMLError or OSError from read_images_lock / read_packages_lock if images.lock.yaml is
              unreadable; KeyError from read_images_lock if an image entry lacks repo, tag or digest.
              A missing lock file gives empty globals, not an error.
     Feeds:   deploy/apply_deployment (and render_templates), dhcp/deploy_kea.py, logs/deploy_fluentbit.py,
              logs/run_logs_command.py,
              radius/deploy_freeradius.py; tests/render.py and the kea, fluentbit and freeradius suites."""
+    # pages (*.html.j2) escape every value; other files quote values for their language: `to_json` for YAML and
+    # JSON, `sh` for shell (manual 1.1.5.7)
     env = _RelativeEnvironment(loader=jinja2.FileSystemLoader(template_dir), keep_trailing_newline=True,
-                               trim_blocks=True, lstrip_blocks=True)
+                               trim_blocks=True, lstrip_blocks=True,
+                               autoescape=jinja2.select_autoescape(enabled_extensions=("html.j2",), default=False))
     env.filters.update({
         "to_nice_yaml": lambda v, indent=4: yaml.safe_dump(v, default_flow_style=False, indent=indent).strip(),
         "to_json": json.dumps,
+        "sh": lambda v: shlex.quote(str(v)),
         "unique": _unique,
         "regex_replace": lambda s, pattern, repl: re.sub(pattern, repl, s),
         "b64encode": lambda s: base64.b64encode(s.encode()).decode(),
@@ -134,4 +144,9 @@ def jinja_env(template_dir):
     env.globals["published_lock"] = {k: e["ref"] for k, e in published.items()}
     env.globals["published_ref"] = jinja2.pass_context(
         lambda ctx, name: published_image(ctx, published[name]) if name in published else "")
+    # memory as a budget (manual 1.2.4.3): vars.yaml.j2 plans it, each compose file takes its service's limit
+    env.globals["plan_memory"] = plan_memory
+    env.globals["memory_mb"] = jinja2.pass_context(memory_limit_mb)
+    # the landing page's names from the template's context (2.1.4.8): nginx's server names, the certificate's names
+    env.globals["landing_names"] = jinja2.pass_context(landing_names)
     return env

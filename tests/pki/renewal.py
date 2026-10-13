@@ -25,8 +25,9 @@ from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.pki import pick_up_cert as pick  # noqa: E402
 from fabriclib.pki.cert_warnings import cert_warnings  # noqa: E402
 from fabriclib.pki.check_cert_lifetimes import check_cert_lifetimes  # noqa: E402
+from fabriclib.pki.common.crl_points import crl_points  # noqa: E402
 from fabriclib.pki.needs_renewal import needs_renewal  # noqa: E402
-from fabriclib.setup import choose_plan  # noqa: E402
+from fabriclib.setup.advanced.ask_ca_lifetime import ask_ca_lifetime  # noqa: E402
 from fabriclib.setup import renew_service_certs as rsc  # noqa: E402
 from fabriclib.setup.errors import SetupError  # noqa: E402
 from fabriclib.setup.init_pki import _check_root_lifetime  # noqa: E402
@@ -55,12 +56,12 @@ def ca(name, days):
     return crt, key
 
 
-def leaf(name, days, issuer, sans=("svc.example.test",)):
-    """A leaf signed by issuer (cert, key), valid for days, with DNS SANs."""
+def leaf(name, days, issuer, sans=("svc.example.test",), extra=""):
+    """A leaf signed by issuer (cert, key), valid for days, with DNS SANs (and extra extension lines)."""
     key, csr, crt = (os.path.join(W, f"{name}.{x}") for x in ("key", "csr", "crt"))
     ext = os.path.join(W, f"{name}.ext")
     with open(ext, "w") as f:
-        f.write("subjectAltName=" + ",".join(f"DNS:{s}" for s in sans) + "\n")
+        f.write("subjectAltName=" + ",".join(f"DNS:{s}" for s in sans) + "\n" + extra)
     sh("openssl", "req", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes", "-keyout", key, "-out", csr,
        "-subj", f"/CN={sans[0]}")
     sh("openssl", "x509", "-req", "-in", csr, "-CA", issuer[0], "-CAkey", issuer[1], "-CAcreateserial", "-out", crt,
@@ -77,6 +78,7 @@ chain = (root[0], root[0])
 print("--- when a service certificate is due (2.1.5.4, 2.1.5.7)")
 check("a fresh 47-day certificate is not due", not needs_renewal(svc, ["svc.example.test"], chain, 30, 47, now=NOW))
 check("29 days old: not due yet", not needs_renewal(svc, [], None, 30, 47, now=NOW + 29 * DAY))
+# covers: setting:cert_service_days setting:cert_renew_after_days +
 check("30 days old: due (renewed with 17 days left)", needs_renewal(svc, [], None, 30, 47, now=NOW + 30 * DAY))
 check("a 5475-day certificate (0.6.2's) is re-issued at once under the 47-day setting",
       needs_renewal(long, [], None, 30, 47, now=NOW))
@@ -105,9 +107,12 @@ def refused(settings):
 
 check("the defaults pass", refused({}) == "")
 check("90 days renewed at 30 passes", refused({"cert_service_days": 90}) == "")
+# covers: setting:cert_service_days -
 check("negative: renewal leaving under 7 days is refused, saying how long to make the certificate",
       "leave at least 7" in refused({"cert_service_days": 35}) and "at least 37" in refused({"cert_service_days": 35}))
+# covers: setting:cert_renew_after_days -
 check("negative: a renewal age of 0 is refused", "at least a day" in refused({"cert_renew_after_days": 0}))
+# covers: setting:cert_root_ca_days -
 check("negative: a root under a year is refused", "at least 365" in refused({"cert_root_ca_days": 300}))
 check("negative: a lifetime that is not a whole number of days is refused, naming the setting",
       "cert_service_days must be a whole number" in refused({"cert_service_days": "47d"})
@@ -203,6 +208,21 @@ tctx = TCtx(tb, hostname_landing="certs.lan.test")
 check("negative: a name still in use (the info page named certs) keeps its certificate",
       msc._old_certs_host(tctx, msc._targets(tctx)) is None)
 
+print("--- a service certificate naming another CRL point is issued again (1.5.1.6, 2.1.4.6)")
+_aia = "authorityInfoAccess=caIssuers;URI:http://aia.lan.test/intermediate.crt\n"
+_old_point = leaf("crl-info", 47, root,
+                  extra="crlDistributionPoints=URI:http://info.lan.test/certs/crl/intermediate.crl\n" + _aia)
+_new_point = leaf("crl-ca", 47, root,
+                  extra="crlDistributionPoints=URI:http://hostname_stepca.lan.test/certs/crl/intermediate.crl\n" + _aia)
+tctx = TCtx(tb)
+check("the CRL point read from the certificate (and nothing from the extensions after it)",
+      crl_points(_old_point) == ["http://info.lan.test/certs/crl/intermediate.crl"], crl_points(_old_point))
+check("a certificate from 0.7.0 naming info.<domain> as its CRL point is issued again",
+      msc._crl_moved(tctx, _old_point) is True)
+check("negative: one naming the current point (ca.<domain>) is left alone", msc._crl_moved(tctx, _new_point) is False)
+check("negative: one naming no point (before 0.7.0) is left to its renewal, and a missing one to needs_renewal",
+      msc._crl_moved(tctx, svc) is False and msc._crl_moved(tctx, os.path.join(W, "none.pem")) is False)
+
 print("--- the warnings (status, doctor, the web console)")
 base = os.path.join(W, "opt")
 nginx_dir = os.path.join(base, "nginx", "certs", "svc.example.test")
@@ -237,6 +257,7 @@ print("--- `fabricctl certs`' flags")
 for argv, want in ((["certs", "--bogus"], 2), (["certs", "--force", "--scheduled"], 2)):
     res = subprocess.run([sys.executable, "-c", "import sys; sys.path.insert(0, 'src'); from fabriclib.cli import main; "
                           f"sys.exit(main({argv!r}))"], cwd=REPO, capture_output=True, text=True)
+    # covers: cli:certs -
     check(f"negative: fabricctl {' '.join(argv)} is refused with the usage (exit {want})",
           res.returncode == want and "usage: fabricctl certs" in res.stderr, (res.returncode, res.stderr[-300:]))
 
@@ -258,6 +279,7 @@ chosen = os.path.join(W, "cfg-chosen")
 os.makedirs(chosen, exist_ok=True)
 with open(os.path.join(chosen, "ca-lifetime"), "w") as f:      # a CA made by 0.6.3 or later: its lifetime chosen
     f.write("3650\n")
+# covers: setting:cert_root_ca_days +
 check("the existing root's own lifetime passes", lifetime_refused(3650) == "")
 check("negative: a changed lifetime on an existing CA is refused, saying the root's and what to do",
       "made for 3650 days" in lifetime_refused(1825) and "cannot change" in lifetime_refused(1825))
@@ -289,7 +311,8 @@ real_input = builtins.input
 builtins.input = lambda prompt="": next(answers)
 pc = PlanCtx(os.path.join(W, "fresh"))
 with contextlib.redirect_stdout(io.StringIO()) as out:
-    choose_plan._ask_ca_lifetime(pc)
+    ask_ca_lifetime(pc)
+# covers: ask:setup.ca_years +-
 check("Advanced asks the root's lifetime in years; refuses text, 0 and over 30 with the reason, then takes 5",
       pc.vars.get("cert_root_ca_days") == 5 * 365 and out.getvalue().count("a whole number of years") == 3,
       (pc.vars, out.getvalue()))
@@ -297,9 +320,11 @@ os.makedirs(os.path.join(base, "stepca", "data", "config"), exist_ok=True)
 open(os.path.join(base, "stepca", "data", "config", "ca.json"), "w").write("{}")
 pc = PlanCtx(base)
 builtins.input = lambda prompt="": (_ for _ in ()).throw(AssertionError("asked"))
-choose_plan._ask_ca_lifetime(pc)
+with contextlib.redirect_stdout(io.StringIO()) as out:
+    ask_ca_lifetime(pc)
 builtins.input = real_input
-check("negative: with a CA already made, the question is not asked", "cert_root_ca_days" not in pc.vars, pc.vars)
+check("negative: with a CA already made, the menu's item is refused, saying the lifetime is fixed; nothing asked",
+      "cert_root_ca_days" not in pc.vars and "lifetime is fixed" in out.getvalue(), (pc.vars, out.getvalue()))
 
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

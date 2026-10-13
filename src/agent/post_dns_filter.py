@@ -40,7 +40,8 @@ def post_dns_filter(route, actor, data):
              {upstreams: "<address> <name>, …"}; groups {name, clients}; groups/delete {name}; safe-search {group, on,
              youtube}; fetch {}; querylog {client, name, blocked, limit}. A missing or empty group is everyone.
     Returns: a change: {"result": what it saved, "applied": bool (made at once), "waiting": why not (or None),
-             "fetching": True when the lists job was started (a list ticked with no copy yet)}; fetch: {"fetching":
+             "fetching": True when the lists job was started (a list ticked with no copy yet); a job that cannot
+             start leaves the change saved, "waiting" naming why}; fetch: {"fetching":
              True}; querylog: read_query_log's result.
     Fails:   ValidationError (-> 400) for what fabriclib refuses (and nothing is saved); RouteNotFound (-> 404).
     Feeds:   agent/post_route."""
@@ -77,5 +78,10 @@ def post_dns_filter(route, actor, data):
     fetch = False
     if route[:2] == ["dns-filter", "lists"] and route[2:] != ["delete"] and result.get("enabled"):
         fetch = not any(f["source"] == result["url"] for f in adguard_desired(load_vars())["filters"])
-    return {"result": result, "applied": not done["waiting"], "waiting": done["waiting"],
-            "fetching": start_list_fetch() if fetch else False}
+    waiting, fetching = done["waiting"], False
+    if fetch:
+        try:
+            fetching = start_list_fetch()
+        except ValidationError as e:        # the change is saved and made: only its first copy waits (2.3.1.20.4)
+            waiting = waiting or f"{e}; run sudo fabricctl dns-filter lists to fetch it"
+    return {"result": result, "applied": not waiting, "waiting": waiting, "fetching": fetching}

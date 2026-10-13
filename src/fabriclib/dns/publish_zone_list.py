@@ -35,9 +35,9 @@ def publish_zone_list(added=(), removed=()):
              zones' files into the deploy base, `rndc reconfig`, check BIND serves each added zone, delete the removed
              zones' files and journals; then, when the DNS filter is installed, render and reload the resolver's
              configuration (its forward zones), through deploy_resolver. Nothing restarts. The settings are made whole
-             and checked exactly as an apply does them (check_rendered, decision 2.1.10.21): the address plan, the
-             settings check, so the zone list keeps DHCP's reverse zones, Kea's grants and the denies on PTRs set by
-             hand between applies.
+             and checked exactly as an apply does them (check_rendered, decisions 2.1.4.7 and 2.1.10.21): the address
+             plan, the settings check, so the zone list keeps DHCP's reverse zones, Kea's grants and the denies on PTRs
+             set by hand between applies.
     Inputs:  added — zone names whose file is written (a new zone: its SOA, NS and ns record); removed — zone names
              whose files go once BIND has dropped them. Reads vars.yaml, fabric's secrets (read only: nothing is
              generated or saved here), the address plan (read from the DC as an apply reads it, and kept), the

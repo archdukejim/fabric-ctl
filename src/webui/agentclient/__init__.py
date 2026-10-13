@@ -6,6 +6,8 @@ from webui.agentclient.errors import AgentError, AuthError, PermissionDenied, Va
 from webui.agentclient.add_client_class import add_client_class  # noqa: F401
 from webui.agentclient.add_radius_client import add_radius_client  # noqa: F401
 from webui.agentclient.add_record import add_record  # noqa: F401
+from webui.agentclient.set_record_link import set_record_link  # noqa: F401
+from webui.agentclient.set_password_policy import set_password_policy  # noqa: F401
 from webui.agentclient.add_zone import add_zone  # noqa: F401
 from webui.agentclient.remove_zone import remove_zone  # noqa: F401
 from webui.agentclient.add_reservation import add_reservation  # noqa: F401
@@ -76,6 +78,12 @@ from webui.agentclient.gpo_overview import gpo_overview  # noqa: F401
 from webui.agentclient.gpo_change import gpo_change  # noqa: F401
 from webui.agentclient.add_machine import add_machine  # noqa: F401
 from webui.agentclient.machine_action import machine_action  # noqa: F401
+from webui.agentclient.logon_change import logon_change  # noqa: F401
+from webui.agentclient.logon_overview import logon_overview  # noqa: F401
+from webui.agentclient.list_host_groups import list_host_groups  # noqa: F401
+from webui.agentclient.host_group_change import host_group_change  # noqa: F401
+from webui.agentclient.list_sudo_rules import list_sudo_rules  # noqa: F401
+from webui.agentclient.sudo_rule_change import sudo_rule_change  # noqa: F401
 from webui.agentclient.federation_overview import federation_overview  # noqa: F401
 from webui.agentclient.image_rows import image_rows  # noqa: F401
 from webui.agentclient.start_job import start_job  # noqa: F401

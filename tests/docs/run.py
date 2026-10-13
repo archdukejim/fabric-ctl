@@ -5,6 +5,7 @@
   - the function reference (manual 1.17) is what those docstrings say (scripts/docs/gen_lib_doc.py --check)
   - docs and code agree on settings, commands, routes, permissions, suites,
     setup steps, READMEs and links (check_consistency.py)
+  - every entry point has a positive and a negative test, or is a listed gap (check_entrypoints.py)
   - every file in the repository has been reviewed (scripts/docs/review_ledger.py)
 
     python3 tests/docs/run.py        (no Docker, no root)
@@ -18,11 +19,12 @@ TOOLS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "scripts", "docs") 
 STEPS = [("every function has a structured docstring", [os.path.join(HERE, "check_docstrings.py"), "--summary"]),
          ("the function reference (manual 1.17) matches the code", [os.path.join(TOOLS, "gen_lib_doc.py"), "--check"]),
          ("docs and code agree", [os.path.join(HERE, "check_consistency.py")]),
+         ("every entry point is tested both ways, or a listed gap", [os.path.join(HERE, "check_entrypoints.py")]),
          ("every file has been reviewed", [os.path.join(TOOLS, "review_ledger.py")])]
 
 
 def main():
-    """Purpose: run the four checks and report each as PASS/FAIL.
+    """Purpose: run the five checks and report each as PASS/FAIL.
     Inputs:  none.
     Returns: exit status: 0 all passed, 1 any failed.
     Fails:   never raises; a check that crashes counts as FAIL (its output is shown).

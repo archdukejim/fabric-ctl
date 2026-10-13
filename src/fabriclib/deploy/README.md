@@ -15,9 +15,10 @@ installs what changed and restarts or reloads what is affected.
 | `render_vars.py` | `vars.yaml.j2` rendered over the admin's vars and the secrets (the full settings); the RAM minimum |
 | `archive_vars.py` | Keep the deployed `vars.yaml` in `archive/` before it is replaced |
 | `check_fixed_identity.py` | `site_name`, `org_domain` and `ldap_base_dn` valid and unchanged since install (the markers in `config/`) |
-| `check_rendered.py` | The address plan read, the settings checked and BIND's zone-list context set: shared by the apply and the quick zone path (2.1.10.21) |
+| `check_rendered.py` | The address plan read, the settings checked and BIND's zone-list context set: shared by the apply and the quick zone path (2.1.4.7, extended by 2.1.10.21) |
 | `check_settings.py` | DHCP, time, `dns_filter` and Windows-domain settings checked before anything is rendered |
 | `check_samba_settings.py` | The Windows domain's settings: the AD domain, NetBIOS names, the whole password policy (2.1.6.11, 2.1.6.13) |
+| `check_service_settings.py` | Every service's image, its address in fabric's network and the uid/gid block, checked before anything starts (gaps of 2.3.1.20.2) |
 | `load_link_vars.py` | The landing page's links, rendered into the context (a bad file is reported, never fatal) |
 | `service_units.py` | fabric's container services and their wrapper units, with which are on |
 | `render_templates.py` | Every configuration file into the render folder |
@@ -33,5 +34,6 @@ installs what changed and restarts or reloads what is affected.
 | `deploy_optional_parts.py` | Fluent Bit, the DNS filter, chrony, Kea, FreeRADIUS through their own deploy steps |
 | `finish_without_start.py` | Setup's ending: start nothing, swap zones safely, build images, return what to restart |
 | `restart_changed.py` | Apply's ending: build images, restart and reload what changed, the web UI last |
+| `renew_landing_cert.py` | Apply's last step: the landing page's certificate issued again at once when its names changed; the replaced one expires (2.1.4.8, 1.5.1.7) |
 | `verify_published_images.py` | Before anything is installed: the signature of every published fabric image this deploy runs (2.1.14.6, 2.1.14.10) |
 | `compose_builds.py` | Whether a rendered compose file builds its image or pulls it (published images are pulled) |

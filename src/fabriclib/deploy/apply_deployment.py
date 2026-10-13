@@ -46,7 +46,7 @@ from fabriclib.secrets.save_secrets import save_secrets
 def _prepare(paths):
     """Purpose: everything up to the render: secrets, the checked settings (the DHCP subnets and static names from the
              site's address plan in the domain, manual 1.10.4.14) and the render context (check_rendered, shared with
-             the quick zone path: 2.1.10.21).
+             the quick zone path: 2.1.4.7, 2.1.10.21).
     Inputs:  paths — deploy_paths().
     Returns: dict with secrets, final_vars, context, tsig_keys, jinja_env, reverse (reverse_zones()).
     Fails:   ValidationError (settings, secrets that cannot be loaded or saved, fixed identity).
@@ -74,7 +74,8 @@ def _prepare(paths):
     archive_vars(paths["target"])
     check_fixed_identity(final_vars, paths["config"])
     # the plan's subnets and static names (1.10.4.14), the settings check and BIND's zone-list context: shared with
-    # the quick zone path (dns/publish_zone_list, 2.1.10.21)
+    # the quick zone path (dns/publish_zone_list, 2.1.4.7,
+    # 2.1.10.21)
     checked = check_rendered(final_vars, secrets, context, paths["federation"])
     for line in checked["lines"]:
         print(line)

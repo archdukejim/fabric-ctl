@@ -14,12 +14,14 @@ from fabriclib.common.paths import CERT_RENEWAL_FILE, DB_ROTATION_FILE, ISSUED_C
 from fabriclib.common.sudo_owner import sudo_owner
 from fabriclib.consent.allowed_to_change import allowed_to_change
 from fabriclib.consent.plan_trust import plan_trust
+from fabriclib.dns.common.landing_names import landing_names
 from fabriclib.federation.common.load_registry import load_registry
 from fabriclib.keycloak.user_has_role import user_has_role
 from fabriclib.ntp.chrony_settings import chrony_settings
 from fabriclib.ntp.query_time import query_time
 from fabriclib.ntp.time_status import time_status
 from fabriclib.pki.cert_warnings import cert_warnings
+from fabriclib.pki.common.cert_names import cert_names
 from fabriclib.setup.errors import SetupError
 from fabriclib.system.relaxed_settings import relaxed_settings
 from fabriclib.vault.vault_status import vault_status
@@ -71,8 +73,9 @@ def _records(archive):
 
 def checks(ctx):
     """Purpose: the end-to-end checks of a running install: DNS (and DNS-over-HTTPS), HTTP/HTTPS chains, CA
-             publishing, ACME, host trust (unless the `trust` host change was declined), web UI gates, fabric-agent
-             socket, first admin
+             publishing (the landing page at http://<host_ip>/info/ and over HTTPS at each of its names, aliases
+             included, 2.1.4.8; the CRL point at ca.<domain>), ACME, host trust
+             (unless the `trust` host change was declined), web UI gates, fabric-agent socket, first admin
              (Keycloak role, the client certificate while one is required), OpenBao state, the federation endpoint and
              the DNS filter (the BIND resolver answers on 53) when on, time (chrony synchronised and
              under 1 s off — or this host's own clock when no source is set —, and at a site within 1 s of its
@@ -95,7 +98,9 @@ def checks(ctx):
     def add(name, passed, detail=""):
         results.append((name, bool(passed), detail))
 
-    for name in (v["hostname_landing"], f"ns.{v['domain']}", v["hostname_stepca"]):
+    # fabric's own names (the landing page's info alias is the admin's since 0.7.1: 2.1.4.6)
+    host_fqdn = f"{v['hostname']}.{v['domain']}".lower()
+    for name in (host_fqdn, f"ns.{v['domain']}", v["hostname_stepca"]):
         try:
             got = dns_query(name, v["host_ip"], port)
             add(f"DNS {name}", v["host_ip"] in got, ", ".join(got) or "no answer")
@@ -111,11 +116,11 @@ def checks(ctx):
 
     if v.get("install_resolver"):          # the BIND resolver (1.12.2) answers clients on 53, fabric's names via BIND
         try:
-            got = dns_query(v["hostname_landing"], v["host_ip"], 53)
-            add(f"DNS filter (BIND resolver, port 53) resolves {v['hostname_landing']}", v["host_ip"] in got,
+            got = dns_query(v["hostname_stepca"], v["host_ip"], 53)
+            add(f"DNS filter (BIND resolver, port 53) resolves {v['hostname_stepca']}", v["host_ip"] in got,
                 ", ".join(got) or "no answer")
         except OSError as e:
-            add(f"DNS filter (BIND resolver, port 53) resolves {v['hostname_landing']}", False, str(e))
+            add(f"DNS filter (BIND resolver, port 53) resolves {v['hostname_stepca']}", False, str(e))
         what = f"DNS-over-TLS {v['host_ip']}:853 ({v['hostname_bind9']}) answers"      # 1.12.2.16
         try:
             got = dot_query(f"ns.{v['domain']}", v["hostname_bind9"], v["host_ip"], root_ca)
@@ -141,17 +146,33 @@ def checks(ctx):
 
     rc, code = _curl(f"http://{v['host_ip']}/", v["host_ip"], v["host_ip"], 80, root_ca)
     add("nginx HTTP", code in ("200", "301", "302"), f"HTTP {code}")
-    for host in (v["hostname_landing"], v["hostname_stepca"], v["hostname_bind9"]):
+    res = subprocess.run(["curl", "-s", "--max-time", "10", f"http://{v['host_ip']}/info/"], capture_output=True,
+                         text=True)                       # the landing page by address (2.1.4.6, 1.4.2.5)
+    add(f"the landing page at http://{v['host_ip']}/info/",
+        res.returncode == 0 and "/certs/ca-certs.json" in res.stdout, f"curl exit {res.returncode}")
+    # the landing page's names, its aliases included: its certificate holds exactly them once applied (2.1.4.8)
+    names = landing_names(v)
+    have = cert_names(ctx.path("nginx", "certs", v["hostname_landing"], "fullchain.pem")) or set()
+    missing, extra = sorted(set(names) - have), sorted(have - set(names))
+    add("the landing page's certificate holds its names (the host's, <domain>, its aliases)", not missing and not extra,
+        "; ".join(([f"not yet: {', '.join(missing)}"] if missing else [])
+                  + ([f"no longer: {', '.join(extra)}"] if extra else [])) + " (an apply issues it again)")
+    for host in (*[n for n in names if n in have or n in names[:2]], v["hostname_stepca"], v["hostname_bind9"]):
         rc, code = _curl(f"https://{host}/", host, v["ip_nginx"], 443, root_ca)
         add(f"HTTPS {host} (cert verified)", rc == 0, f"HTTP {code}" if rc == 0 else f"curl exit {rc}")
-    # info.<domain>/certs/: the CA certificates (1.5.1.5); ca.<domain>: Step-CA's API, browsers redirected there.
-    certs_url = f"https://{v['hostname_landing']}/certs/"
+    # the CA certificates at the host's own name (1.5.1.5, 2.1.4.6); ca.<domain>: Step-CA's API, browsers sent there
+    certs_url = f"https://{host_fqdn}/certs/"
     res = subprocess.run(["curl", "-s", "--max-time", "10", "--cacert", root_ca, "--resolve",
-                          f"{v['hostname_landing']}:443:{v['ip_nginx']}", f"{certs_url}root-ca.pem"],
+                          f"{host_fqdn}:443:{v['ip_nginx']}", f"{certs_url}root-ca.pem"],
                          capture_output=True, text=True)
     with open(root_ca) as f:
         served_ok = res.returncode == 0 and res.stdout.strip() and res.stdout.strip() in f.read()
     add(f"{certs_url} serves this CA's root certificate", served_ok, f"curl exit {res.returncode}")
+    crl_url = f"http://{v['hostname_stepca']}/certs/crl/intermediate.crl"      # the point certificates name (1.5.1.6)
+    if os.path.exists(ctx.path("nginx", "www", "certs", "crl", "intermediate.crl")):    # where the key is here
+        res = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", "10", "--resolve",
+                              f"{v['hostname_stepca']}:80:{v['host_ip']}", crl_url], capture_output=True, text=True)
+        add(f"{crl_url} answers (the CRL point certificates name)", res.stdout == "200", f"HTTP {res.stdout}")
     res = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code} %{redirect_url}", "--max-time", "10",
                           "--cacert", root_ca, "--resolve", f"{v['hostname_stepca']}:443:{v['ip_nginx']}",
                           f"https://{v['hostname_stepca']}/"], capture_output=True, text=True)
@@ -161,7 +182,7 @@ def checks(ctx):
                      root_ca)
     add("Step-CA ACME directory reachable (API unaffected)", rc == 0 and code == "200", f"HTTP {code}")
     if allowed_to_change(ctx.config_dir, "trust", plan_trust(v), unasked_install=True):    # not when declined
-        rc, code = _curl(f"https://{v['hostname_landing']}/", v["hostname_landing"], v["ip_nginx"], 443, None)
+        rc, code = _curl(f"https://{host_fqdn}/", host_fqdn, v["ip_nginx"], 443, None)   # a name fabric keeps
         add("this host trusts the fabric CA (system store)", rc == 0, f"HTTP {code}" if rc == 0 else f"curl exit {rc}")
 
     if v.get("install_webui"):

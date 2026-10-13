@@ -112,6 +112,7 @@ check("Kea's configs, lease and socket folders, and the DHCP subzone file writte
       deploy_kea(V, {"kea_ddns_secret": secret}, env, 53, 53) and os.path.exists(f"{W}/bind9/data/db.dhcp.lan.test")
       and oct(os.stat(f"{W}/kea/config/kea-dhcp-ddns.conf").st_mode & 0o777) == "0o640")
 cfg4 = open(f"{W}/kea/config/kea-dhcp4.conf").read()
+# covers: setting:dhcp +
 check("Kea checked them first (kea-dhcp4 -t) and accepted: options, a client class, the subnet's id, name, VLAN, "
       "the reservation whose names are set by hand in SKIP_DDNS with the ddns-tuning hook (2.1.10.20)",
       check_kea_config("fabric/kea:test", "kea-dhcp4.conf", cfg4) is True and '"id": 7' in cfg4
@@ -124,6 +125,7 @@ try:
     refused = ""
 except ValidationError as e:
     refused = str(e)
+# covers: setting:dhcp -
 check("an option Kea does not know is refused by Kea's own check, and nothing is written",
       "Kea refused" in refused and open(f"{W}/kea/config/kea-dhcp4.conf").read() == cfg4, refused[-300:])
 # the address manager (1.10.4.14): Kea rendered from a site's plan; a reservation inside a dhcp range (1.10.4.3.2)
@@ -164,6 +166,23 @@ check("Kea accepts a configuration rendered from an address plan: three subnets 
       "inside the DHCP range published in the site's zone, options on a subnet and a reservation",
       plan_ok is True and '"10.254.23.120"' in plan_cfg and '"id": 9' in plan_cfg
       and {"name": "inpool", "ip": "10.254.23.120"} in RENDERED["records"], plan_ok)
+try:                                                  # ip_kea_ddns: Kea's own check refuses what is no address
+    deploy_kea({**V, "ip_kea_ddns": "10.254.23.300"}, {"kea_ddns_secret": secret}, env, 53, 53)
+    refused = ""
+except ValidationError as e:
+    refused = str(e)
+# covers: setting:ip_kea_ddns -
+check("an ip_kea_ddns that is not an address is refused by Kea's own check, and nothing is written",
+      "Kea refused" in refused and open(f"{W}/kea/config/kea-dhcp4.conf").read() == cfg4, refused[-300:])
+from fabriclib.deploy.check_settings import check_settings  # noqa: E402
+try:
+    check_settings({"install_kea": True, "domain": "lan.test", "dhcp": {"interfaces": ["eth0"]}})
+    refused = ""
+except ValidationError as e:
+    refused = str(e)
+# covers: setting:install_kea -
+check("install_kea: true without a subnet to serve is refused before anything is rendered (check_settings)",
+      "at least one subnet with a pool" in refused, refused)
 os.makedirs(f"{W}/bind9/config", exist_ok=True)
 bv = {**V, "dns": {}, "bind_acls": {"lan": ["any"]}, "tsig_keys": [], "tsig_secrets": {}, "kea_ddns_secret": secret,
       "reverse_zone_names": [REV], "reverse_by_hand": {REV: ["9"]}}
@@ -186,13 +205,13 @@ sh(f"docker run -d --name kt-bind --network {NET} --ip {BIND_IP} --user 53:53 --
 # with the command from fabric's compose template
 import shlex  # noqa: E402
 import yaml  # noqa: E402
-KEA_CMD = yaml.safe_load(env.get_template("kea/docker-compose.yml.j2").render(
-    **V, image_debian="debian", kea_mem_limit="128m",
-    packages_lock=pkgs))["services"]["kea-dhcp4"]["command"]
+COMPOSE = yaml.safe_load(env.get_template("kea/docker-compose.yml.j2").render(
+    **V, image_debian="debian", kea_mem_limit="96m", packages_lock=pkgs))["services"]
+KEA_CMD, KEA_MEM = COMPOSE["kea-dhcp4"]["command"], COMPOSE["kea-dhcp4"]["mem_limit"]
 
 
 def start_dhcp4():
-    sh(f"docker run -d --name kt-dhcp4 --network {NET} --ip 10.254.23.2 --read-only "
+    sh(f"docker run -d --name kt-dhcp4 --network {NET} --ip 10.254.23.2 --read-only --memory {KEA_MEM} "
        f"--security-opt no-new-privileges:true --cap-drop ALL --cap-add NET_RAW --cap-add NET_BIND_SERVICE --tmpfs /tmp "
        f"-v {W}/kea/config:/config:ro -v {W}/kea/leases:/var/lib/kea -v {W}/kea/run:/run/kea "
        f"fabric/kea:test {shlex.join(KEA_CMD)}")
@@ -235,6 +254,12 @@ def dig(name):
 check("its hostname is registered in the DHCP subzone (Kea DDNS -> BIND, kea-ddns key)",
       until(lambda: dig("laptop1.dhcp.lan.test") == ip1, 30),
       (dig("laptop1.dhcp.lan.test"), sh("docker logs kt-ddns", ok=False).stdout[-600:]))
+cfg_ddns = open(f"{W}/kea/config/kea-dhcp-ddns.conf").read()
+# covers: setting:ip_kea_ddns +
+check("ip_kea_ddns is where kea-ddns runs (compose) and listens, and where kea-dhcp4 sends its updates",
+      COMPOSE["kea-ddns"]["networks"]["fabric_net"]["ipv4_address"] == DDNS_IP
+      and f'"ip-address": "{DDNS_IP}"' in cfg_ddns and f'"server-ip": "{DDNS_IP}"' in cfg4
+      and dig("laptop1.dhcp.lan.test") == ip1, (COMPOSE["kea-ddns"]["networks"], cfg_ddns[:300]))
 check("every client gets the global option (time-offset 3600 s), no boot settings",
       "timezone=3600" in out1 and "tftp=" not in out1, out1[-400:])
 ipb, outb = client("kt-boot", "02:00:00:00:00:31", vendor="fabricboot-x86")
@@ -407,6 +432,10 @@ check("kea-dhcp4: only NET_RAW + NET_BIND_SERVICE, read-only, no-new-privileges"
       sorted(c.replace("CAP_", "") for c in h4.get("CapAdd") or []) == ["NET_BIND_SERVICE", "NET_RAW"]
       and h4["CapDrop"] == ["ALL"]
       and h4["ReadonlyRootfs"] and "no-new-privileges:true" in h4["SecurityOpt"], h4.get("CapAdd"))
+# covers: setting:kea_mem_limit +
+check("kea_mem_limit is both Kea services' memory limit, and kea-dhcp4 runs under it",
+      KEA_MEM == "96m" and COMPOSE["kea-ddns"]["mem_limit"] == "96m" and h4["Memory"] == 96 * 1024 * 1024,
+      (KEA_MEM, h4.get("Memory")))
 check("kea-ddns: uid 915, no capabilities, read-only",
       insp["kt-ddns"]["Config"]["User"] == "915:915" and not hd.get("CapAdd") and hd["ReadonlyRootfs"])
 
@@ -491,6 +520,129 @@ check("option unset and class removal; unsetting an option that is not set is re
       and "not set" in refused(lambda: unset_option("root", "66")))
 check("every change was audited", AUDIT.count("DHCP_SUBNET_ADD") == 2 and "DHCP_CLASS_REMOVE" in AUDIT
       and "DHCP_OPTION_SET" in AUDIT, AUDIT)
+
+# ---- fabricctl dhcp … as the CLI routes it (run_dhcp_command), on the same scratch STORE; changes with --no-apply
+import io  # noqa: E402
+from contextlib import redirect_stderr, redirect_stdout  # noqa: E402
+import fabriclib.dhcp.add_reservation as m_reserve  # noqa: E402
+import fabriclib.dhcp.remove_reservation as m_unreserve  # noqa: E402
+import fabriclib.dhcp.set_dhcp_on as m_on  # noqa: E402
+from fabriclib.dhcp.run_dhcp_command import run_dhcp_command  # noqa: E402
+for m in (m_reserve, m_unreserve, m_on):            # these read and write vars.yaml themselves, not via edit_dhcp
+    m.load_vars, m.save_vars, m.vars_lock, m.write_audit = ed.load_vars, ed.save_vars, ed.vars_lock, ed.write_audit
+
+
+def dhcp_cli(v, *argv):
+    """fabricctl dhcp …: its exit status, stdout and stderr."""
+    out, err = io.StringIO(), io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        code = run_dhcp_command(v, list(argv))
+    return code, out.getvalue(), err.getvalue()
+
+
+def refused_cli(v, *argv):
+    """A refused change: (exit status, stderr, STORE unchanged)."""
+    before = copy.deepcopy(STORE["vars"])
+    code, _, err = dhcp_cli(v, *argv)
+    return code, err, STORE["vars"] == before
+
+
+NO_KEA = {**V, "deploy_base_dir": f"{W}/no-such-install"}
+code, out, err = dhcp_cli(V)
+# covers: cli:dhcp +
+check("fabricctl dhcp (no subcommand) shows the status: the subnet, its name and VLAN, the reservation, the class",
+      code == 0 and "10.254.23.0/24" in out and "lab" in out and "VLAN 23" in out and "printer" in out
+      and "class boot-test" in out, (code, out, err))
+code, err, same = refused_cli(V, "add-subnet", "10.9.0.0/24", "--no-apply", "--name")
+code2, _, err2 = dhcp_cli(V, "frobnicate")
+# covers: cli:dhcp -
+check("fabricctl dhcp refuses a flag without its value (saying which) and an unknown subcommand (usage)",
+      code == 1 and "error: --name needs a value" in err and same
+      and code2 == 2 and "usage: fabricctl dhcp" in err2, (code, err, code2, err2[:200]))
+code, out, err = dhcp_cli(V, "status", "extra")
+# covers: cli:dhcp.status -
+check("dhcp status with an argument it does not take: usage on stderr, exit 2",
+      code == 2 and "usage: fabricctl dhcp status" in err and not out, (code, out, err[:200]))
+code, out, err = dhcp_cli(NO_KEA, "leases")
+# covers: cli:dhcp.leases -
+check("dhcp leases when Kea is not answering: refused with why, exit 1",
+      code == 1 and "error: Kea is not answering" in err and not out, (code, out, err))
+
+code, out, err = dhcp_cli(V, "reserve", "02:00:00:00:00:77", "10.1.0.20", "cam1", "--no-apply")
+r10 = subnets()["10.1.0.0/24"].get("reservations") or []
+check("dhcp reserve: saved in the subnet holding the address; recorded, not applied (--no-apply)",
+      code == 0 and "reserved 10.1.0.20 for 02:00:00:00:00:77" in out and "recorded" in out
+      and r10 == [{"mac": "02:00:00:00:00:77", "ip": "10.1.0.20", "hostname": "cam1"}], (code, out, err, r10))
+code, err, same = refused_cli(V, "reserve", "02:00:00:00:00:78", "10.9.0.5", "--no-apply")
+# a reservation inside a pool is allowed since 0.8.0 (manual 1.10.4.3.2): the second refusal is a MAC that is no MAC
+code2, err2, same2 = refused_cli(V, "reserve", "02:00:00:00:00", "10.1.0.21", "--no-apply")
+code3, err3, same3 = refused_cli(V, "reserve", "02:00:00:00:00:78", "10.1.0.20", "--no-apply")
+# covers: cli:dhcp.reserve -
+check("dhcp reserve refuses an address in no subnet, a MAC that is no MAC, one already reserved; nothing saved",
+      (code, code2, code3) == (1, 1, 1) and "10.9.0.5 is in none of the DHCP subnets" in err
+      and "MAC like aa:bb:cc:dd:ee:ff" in err2 and "must be unique" in err3 and same and same2 and same3,
+      (err, err2, err3))
+code, out, err = dhcp_cli(V, "unreserve", "02-00-00-00-00-77", "--no-apply")
+# covers: cli:dhcp.unreserve +
+check("dhcp unreserve (any MAC spelling): the reservation is gone",
+      code == 0 and "reservation for 02-00-00-00-00-77 removed" in out
+      and not subnets()["10.1.0.0/24"].get("reservations"), (code, out, err, subnets()["10.1.0.0/24"]))
+code, err, same = refused_cli(V, "unreserve", "02:00:00:00:00:77", "--no-apply")
+# covers: cli:dhcp.unreserve -
+check("dhcp unreserve of a MAC with no reservation is refused; nothing saved",
+      code == 1 and "error: no reservation for 02:00:00:00:00:77" in err and same, (code, err))
+
+code, err, same = refused_cli(V, "add-subnet", "10.5.0.0/24", "--name", "iot", "--no-apply")
+code2, err2, same2 = refused_cli(V, "add-subnet", "10.5.0.0/24", "--name", "cams", "--vlan", "abc", "--no-apply")
+code3, err3, same3 = refused_cli(V, "add-subnet", "10.5.0.0/24", "--name", "cams", "--router", "10.6.0.1",
+                                 "--no-apply")
+# covers: cli:dhcp.add-subnet -
+check("dhcp add-subnet refuses a name in use, a VLAN that is no number, a router outside it; nothing saved",
+      (code, code2, code3) == (1, 1, 1) and "unique" in err and "--vlan abc: a number from 1 to 4094" in err2
+      and "router 10.6.0.1 is outside the subnet" in err3 and same and same2 and same3, (err, err2, err3))
+code, out, err = dhcp_cli(V, "set-subnet", "iot", "--notes", "door cameras", "--vlan", "none", "--router", "10.4.0.1",
+                          "--add-pool", "10.4.0.70 - 10.4.0.80", "--no-apply")
+s4 = subnets()["10.4.0.0/24"]
+# covers: cli:dhcp.set-subnet +
+check("dhcp set-subnet: notes set, VLAN cleared, router set, a pool added; the id stays; Kea accepted it",
+      code == 0 and "subnet 10.4.0.0/24 changed" in out and "recorded" in out and s4["notes"] == "door cameras"
+      and "vlan" not in s4 and s4["routers"] == "10.4.0.1" and s4["id"] == 4
+      and [p.replace(" ", "") for p in s4["pools"]] == ["10.4.0.50-10.4.0.60", "10.4.0.70-10.4.0.80"],
+      (code, out, err, s4))
+code, err, same = refused_cli(V, "set-subnet", "iot", "--router", "10.9.9.9", "--no-apply")
+code2, err2, same2 = refused_cli(V, "set-subnet", "nope", "--notes", "x", "--no-apply")
+code3, err3, same3 = refused_cli(V, "set-subnet", "iot", "--remove-pool", "10.4.0.1 - 10.4.0.2", "--no-apply")
+# covers: cli:dhcp.set-subnet -
+check("dhcp set-subnet refuses a router outside the subnet, a subnet that does not exist, removing a pool it "
+      "lacks; nothing saved", (code, code2, code3) == (1, 1, 1) and "outside the subnet" in err
+      and "no DHCP subnet 'nope'" in err2 and "has no pool 10.4.0.1 - 10.4.0.2" in err3
+      and same and same2 and same3, (err, err2, err3))
+code, err, same = refused_cli(NO_KEA, "remove-subnet", "iot", "--no-apply")
+code2, err2, same2 = refused_cli(V, "remove-subnet", "nope", "--no-apply")
+# covers: cli:dhcp.remove-subnet -
+check("dhcp remove-subnet refuses while Kea's leases cannot be read (needs --force) and a subnet that does not "
+      "exist; nothing saved", code == 1 and "--force" in err and code2 == 1 and "no DHCP subnet 'nope'" in err2
+      and same and same2 and "10.4.0.0/24" in subnets(), (err, err2))
+code, err, same = refused_cli(V, "class", "remove", "nosuch", "--no-apply")
+code2, err2, same2 = refused_cli(V, "class", "add", "broken", "--test", "option[93].hex ==", "--no-apply")
+code3, _, err3 = dhcp_cli(V, "class", "add", "notest", "--no-apply")
+# covers: cli:dhcp.class -
+check("dhcp class refuses removing a class that does not exist, an expression Kea cannot parse (Kea's own check), "
+      "and add without --test (usage); nothing saved", code == 1 and "no client class 'nosuch'" in err
+      and code2 == 1 and "Kea refused" in err2 and same and same2 and code3 == 2 and "usage:" in err3
+      and "client_classes" not in STORE["vars"]["dhcp"], (err, err2[-300:], code3))
+
+code, err, same = refused_cli(V, "on", "--no-apply")
+check("dhcp on while it is on is refused; nothing saved", code == 1 and "DHCP is already on" in err and same, err)
+code, out, err = dhcp_cli(V, "off", "--no-apply")
+# covers: cli:dhcp.off +
+check("dhcp off: install_kea false, the subnets kept for the next on",
+      code == 0 and "DHCP off (its settings and leases kept)" in out and STORE["vars"]["install_kea"] is False
+      and "10.4.0.0/24" in subnets() and "DHCP_OFF" in AUDIT, (code, out, err))
+code, err, same = refused_cli(V, "off", "--no-apply")
+# covers: cli:dhcp.off -
+check("dhcp off while it is off is refused; nothing saved", code == 1 and "error: DHCP is already off" in err and same,
+      err)
 
 cleanup()
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")

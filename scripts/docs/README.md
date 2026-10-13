@@ -8,3 +8,4 @@
 | `review_ledger.py` | The review ledger: every file reviewed, and which changed since (`--mark` after reviewing) |
 | `product_code.py` | The product's code and every function's structured docstring (shared with the checks in `tests/docs/`) |
 | `call_graph.py` | Static callers of every Python function ("Called by" in the reference) |
+| `entrypoints.py` | The entry-point inventory (manual 3.1.2.5): writes `tests/entrypoints.yaml` (`--check`: is it current? `--gaps`: every missing case) |

@@ -106,9 +106,9 @@ check("declining a required group stops setup and says why", "Service accounts d
 check("... and a step of a required group refuses on its own too",
       "not approved" in refused(lambda: check_consent(cfg, "accounts", PLAN["accounts"])))
 
-print("--- interactive")
+print("--- interactive without a plan (a --step run, or --yes): one question for every change that needs one")
 cfg2 = tempfile.mkdtemp()
-answers = iter(["", "maybe", "y", "n"])
+answers = iter(["", "maybe", "y"])
 real_input = builtins.input
 builtins.input = lambda prompt="": next(answers)
 try:
@@ -117,9 +117,41 @@ try:
         got = ask_consent(cfg2, {"packages": PLAN["packages"], "runtime": ["restart Docker"]}, interactive=True)
 finally:
     builtins.input = real_input
-check("each group is one question listing its changes and what no means; there is no default answer",
-      got == {"packages": "yes", "runtime": "no"} and "If no:" in out.getvalue()
-      and "apt: install docker.io" in out.getvalue(), got)
+# covers: ask:consent.step +-
+check("every group listed with its changes and what no means, one question for all; no default answer: Enter and "
+      "'maybe' asked again", got == {"packages": "yes", "runtime": "yes"} and out.getvalue().count("If no:") == 2
+      and out.getvalue().count("Allow these changes?") == 0 and "apt: install docker.io" in out.getvalue()
+      and next(answers, None) is None, got)
+builtins.input = lambda prompt="": "n"
+msg = refused(lambda: ask_consent(tempfile.mkdtemp(), {"packages": PLAN["packages"], "runtime": ["x"]},
+                                  interactive=True))
+builtins.input = real_input
+check("negative: no to the one question declines them all, and a required one stops setup naming it",
+      "Packages declined" in msg, msg)
+
+print("--- the plan's Proceed (decided): the one yes for every host change listed (1.2.9.11.4, 2.1.2.18)")
+cfg3 = tempfile.mkdtemp()
+builtins.input = lambda prompt="": (_ for _ in ()).throw(AssertionError("asked"))
+plan3 = {"packages": ["apt: install x"], "runtime": ["restart Docker"], "ports": ["p"], "firewall": ["f"],
+         "own_rules": ["o"]}
+with contextlib.redirect_stdout(io.StringIO()):
+    got = ask_consent(cfg3, plan3, interactive=True, decided={"packages": True, "runtime": False, "ports": True,
+                                                              "firewall": False, "own_rules": False})
+builtins.input = real_input
+rec3 = yaml.safe_load(open(os.path.join(cfg3, "consent.yaml")))["groups"]
+check("Proceed records every group as the consent file always did, nothing asked: allowed ones yes, those turned off "
+      "in the menu no (a relaxation), what needs a declined one skipped",
+      got == {"packages": "yes", "runtime": "no", "ports": "yes", "firewall": "no", "own_rules": "skipped"}
+      and rec3["packages"]["answer"] == "yes" and rec3["runtime"]["answer"] == "no" and "own_rules" not in rec3, got)
+row = next(r for r in consent_status(cfg3) if r["group"] == "runtime")
+check("…and status shows the one turned off as declined, with its relaxation", row["state"] == "declined", row)
+plan3b = dict(plan3, packages=["apt: install x", "apt: install y"])
+with contextlib.redirect_stdout(io.StringIO()):
+    got = ask_consent(cfg3, plan3b, interactive=True, decided={g: True for g in plan3b})
+check("an upgrade that adds a change: Proceed approves the changed group with its new line (the old kept)",
+      got["packages"] == "yes" and allowed_to_change(cfg3, "packages", plan3b["packages"]), got)
+msg = refused(lambda: ask_consent(cfg3, {"packages": ["apt: install z"]}, interactive=False))
+check("…and unattended, a changed group still needs --approve, named", "need an answer: packages" in msg, msg)
 
 print("--- service accounts")
 v = yaml.safe_load(jinja_env(JINJA).get_template("vars.yaml.j2").render(
@@ -177,21 +209,21 @@ check("ufw on already: the first line says so, the rest the same",
 check("the three questions in order; securing needs the ports, the host's own rules need securing",
       list(GROUPS).index("ports") < list(GROUPS).index("firewall") < list(GROUPS).index("own_rules")
       and GROUPS["firewall"]["needs"] == "ports" and GROUPS["own_rules"]["needs"] == "firewall")
-_asked = []
-_orig_ask = ask_consent_mod._ask
-ask_consent_mod._ask = lambda group, changes, new: (_asked.append(group), group != "ports")[1]
-_ans = ask_consent_mod.ask_consent(os.path.join(cfg, "needs"), {"ports": ["p"], "firewall": ["f"], "own_rules": ["o"]},
-                                   interactive=True)
-ask_consent_mod._ask = _orig_ask
-check("the ports declined: securing and the host's own rules are not asked", _asked == ["ports"]
-      and _ans == {"ports": "no", "firewall": "skipped", "own_rules": "skipped"}, (_asked, _ans))
-_asked.clear()
-ask_consent_mod._ask = lambda group, changes, new: (_asked.append(group), True)[1]
-_ans = ask_consent_mod.ask_consent(os.path.join(cfg, "needs"), {"ports": ["p"], "firewall": ["f"], "own_rules": ["o"]},
-                                   interactive=True, stops={"ports"})
-ask_consent_mod._ask = _orig_ask
-check("a declined question that stops setup is asked again in the next interactive run (never stuck with the no)",
-      _asked[:1] == ["ports"] and _ans.get("ports") == "yes", (_asked, _ans))
+with contextlib.redirect_stdout(io.StringIO()):
+    _ans = ask_consent_mod.ask_consent(os.path.join(cfg, "needs"), {"ports": ["p"], "firewall": ["f"], "own_rules": ["o"]},
+                                       interactive=False, decline=["ports"])
+check("the ports declined: securing and the host's own rules are not made (skipped, nothing recorded)",
+      _ans == {"ports": "no", "firewall": "skipped", "own_rules": "skipped"}, _ans)
+_seen = []
+builtins.input = lambda prompt="": (_seen.append(prompt), "y")[1]
+with contextlib.redirect_stdout(io.StringIO()) as _out:
+    _ans = ask_consent_mod.ask_consent(os.path.join(cfg, "needs"), {"ports": ["p"], "firewall": ["f"], "own_rules": ["o"]},
+                                       interactive=True, stops={"ports"})
+builtins.input = real_input
+check("a declined change that stops setup is asked again in the next interactive run without a plan (never stuck "
+      "with the no): the one question, its yes taking what needs it along",
+      len(_seen) == 1 and "(Firewall) Open the ports fabric needs?" in _out.getvalue() and _ans.get("ports") == "yes"
+      and _ans.get("firewall") == "yes", (_seen, _ans))
 _ans = ask_consent_mod.ask_consent(os.path.join(cfg, "needs"), {"ports": ["p"]}, interactive=False, stops={"ports"})
 check("…and unattended, the recorded answer stands (no question without a person)", _ans.get("ports") == "yes", _ans)
 fake = os.path.join(cfg, "fakebin")
@@ -214,9 +246,11 @@ with open(os.path.join(_orig, "ufw.state"), "w") as f:
 check("the wording follows ufw as it was before fabric (its record), so it does not change once fabric turns it on",
       plan_firewall({**v, "ntp_serve": False}, cfg)[0].startswith("ufw is on already"))
 os.remove(os.path.join(_orig, "ufw.state"))
+# covers: setting:security +
 check("security.firewall false asks nothing", plan_firewall({**v, "security": {"firewall": False}}, cfg) == [])
 dc_rules = plan_ports({**v, "ntp_serve": False, "ad_rpc_ports": "49152-49251"}, cfg)
 dc_lines = [r for r in dc_rules if "domain controller" in r]
+# covers: setting:ad_rpc_ports +
 check("the DC's TCP ports (RPC range included) and UDP ports, from the LAN and fabric_net",
       f"ufw: allow 88,135,389,445,464,636,3268,3269,49152:49251/tcp (the Windows domain controller) from "
       f"{v['lan_cidr']}" in dc_lines
@@ -301,6 +335,7 @@ class Ctx:
 fresh = tempfile.mkdtemp()
 check("undo refuses the kinds fabric needs (uninstall removes those), naming the way",
       "fabricctl uninstall" in refused(lambda: undo_group(Ctx(cfg, {}), "accounts", True, True)))
+# covers: setting:use_host_dns +
 check("undo refuses the resolver while BIND needs port 53",
       "use_host_dns" in refused(lambda: undo_group(Ctx(cfg, {"use_host_dns": False}), "resolver", True, True)))
 check("undo refuses on an install never asked (setup asks first), and an unknown group",
@@ -350,7 +385,7 @@ check("negative: a fresh install has nothing to carry: every question needs an a
 
 rows = {t: (how, what) for t, how, what in uninstall_plan()}
 check("uninstall lists every kind of host change: removed, undone or kept (Docker's settings: how to undo first)",
-      len(rows) == 10 and rows["Service accounts"][0] == "removed" and rows["Secure this host"][0] == "undone"
+      len(rows) == 11 and rows["Service accounts"][0] == "removed" and rows["Secure this host"][0] == "undone"
       and rows["Ports fabric needs"][0] == rows["The host's own firewall rules"][0] == "undone"
       and rows["Docker daemon settings"][0] == "kept" and "--undo runtime" in rows["Docker daemon settings"][1], rows)
 
@@ -363,10 +398,11 @@ from fabriclib.setup.choose_plan import choose_plan  # noqa: E402
 def plan_text(v):
     """setup's plan as printed, unattended (nothing asked), for these settings."""
     out = io.StringIO()
-    plan_ctx = types.SimpleNamespace(vars=dict(v), non_interactive=True, assume_yes=True,
-                                     path=lambda *p: os.path.join(fresh, "no-such", *p))
+    from fabriclib.setup.context import SetupContext
+    plan_ctx = SetupContext(deploy_base=os.path.join(fresh, "no-such"), vars=dict(v), non_interactive=True,
+                            assume_yes=True)
     with contextlib.redirect_stdout(out):
-        choose_plan(plan_ctx)
+        choose_plan(plan_ctx, lambda: (None, {}))
     return [line for line in out.getvalue().splitlines() if "DHCP" in line or "DNS filter" in line]
 
 
@@ -383,8 +419,8 @@ import builtins  # noqa: E402
 import importlib  # noqa: E402
 
 import fabriclib.common.console as m_console  # noqa: E402
-import fabriclib.setup.choose_plan as m_plan  # noqa: E402
-import fabriclib.setup.collect_vars as m_collect  # noqa: E402
+from fabriclib.setup.advanced.ask_ca_lifetime import ask_ca_lifetime  # noqa: E402
+from fabriclib.setup.common.ask_setting import ask_setting  # noqa: E402
 import fabriclib.setup.permanent_mark as m_mark  # noqa: E402
 from fabriclib.menu.constants import IMMUTABLE_KEYS  # noqa: E402
 from fabriclib.setup.ask_ad_domain import ask_ad_domain  # noqa: E402
@@ -405,13 +441,21 @@ def prompts(fn, answers):
 
 q = types.SimpleNamespace(vars={"domain": "lan.test", "hostname": "pi", "cert_root_ca_days": 3650},
                           non_interactive=False, path=lambda *p: os.path.join(fresh, "no-such", *p))
-asked = {key: prompts(lambda key=key: m_collect._ask(key, default), [default])[0]
+asked = {key: prompts(lambda key=key: ask_setting(key, default), [default])[0]
          for key, default in (("domain", "lan.test"), ("friendly_name", "Home Network"), ("hostname", "pi"),
                               ("host_ip", "10.0.0.5"), ("lan_cidr", "10.0.0.0/24"), ("lan_gateway", "10.0.0.1"),
                               ("webui_admin_user", "fabric-admin"))}
 asked["ad_domain"] = prompts(lambda: ask_ad_domain(q), [""])[0]
 asked["dc_name"] = prompts(lambda: ask_dc_name(q), [""])[0]
-asked["cert_root_ca_days"] = prompts(lambda: m_plan._ask_ca_lifetime(q), [""])[0]
+# covers: ask:setup.dc_name setting:dc_name +
+check("the DC's name: Enter takes the suggestion dc-<hostname>", q.vars["dc_name"] == "dc-pi", q.vars)
+q_dc = types.SimpleNamespace(vars={"hostname": "pi", "ad_domain": "ad.lan.test"}, non_interactive=False)
+seen_dc = prompts(lambda: ask_dc_name(q_dc), ["dc_1", "ad", "DC-Garage"])
+# covers: ask:setup.dc_name -
+check("the DC's name: a name the DC cannot have (an underscore, the domain's NetBIOS name) is refused and asked again; "
+      "the answer is kept in lower case", len(seen_dc) == 3 and q_dc.vars["dc_name"] == "dc-garage",
+      (seen_dc, q_dc.vars))
+asked["cert_root_ca_days"] = prompts(lambda: ask_ca_lifetime(q), [""])[0]
 permanent = ("domain", "friendly_name", "ad_domain", "dc_name", "cert_root_ca_days")
 check("each permanent question carries ⚠ Permanent after its label: the DNS domain, the organisation's name, the AD "
       "domain, the DC's name, the CA root's lifetime (Advanced)",
@@ -449,6 +493,509 @@ def mark_on_tty(no_color):
 check("on a terminal it is yellow; with NO_COLOR the same words uncoloured",
       mark_on_tty(False) == " \033[93m⚠ Permanent\033[0m" and mark_on_tty(True) == " ⚠ Permanent",
       (mark_on_tty(False), mark_on_tty(True)))
+
+print("--- this host as a member of its domain (manual 1.6.11.8, 2.1.6.34)")
+import struct  # noqa: E402
+
+import fabriclib.consent.plan_member as pm  # noqa: E402
+import fabriclib.setup.join_host_domain as jh  # noqa: E402
+import fabriclib.undo.undo_member as um  # noqa: E402
+from fabriclib.consent.plan_host_changes import plan_host_changes  # noqa: E402
+from fabriclib.deploy.check_samba_settings import check_samba_settings  # noqa: E402
+from fabriclib.setup.advanced.ask_host_change import ask_host_change  # noqa: E402
+from fabriclib.setup.context import SetupContext  # noqa: E402
+from fabriclib.setup.common.render_member_files import render_member_files  # noqa: E402
+from fabriclib.setup.steps import STEPS  # noqa: E402
+from fabriclib.system.relaxed_settings import relaxed_settings  # noqa: E402
+
+POLICY = {"minimum_length": 14, "complexity": True, "history": 24, "minimum_age_days": 0, "maximum_age_days": 0,
+          "lockout_threshold": 10, "lockout_minutes": 15, "lockout_window_minutes": 15}
+mv = yaml.safe_load(jinja_env(JINJA).get_template("vars.yaml.j2").render(
+    domain="lan.test", hostname="fab1", host_ip="10.0.0.5", lan_cidr="10.0.0.0/24", lan_gateway="10.0.0.1",
+    ad_domain="ad.test", ad_password_policy=POLICY, site_name="hq"))
+off = yaml.safe_load(jinja_env(JINJA).get_template("vars.yaml.j2").render(
+    domain="lan.test", hostname="fab1", host_ip="10.0.0.5", lan_cidr="10.0.0.0/24", lan_gateway="10.0.0.1",
+    ad_domain="ad.test", ad_password_policy=POLICY, host_join_domain=False))
+# covers: setting:host_join_domain +
+check("host_join_domain: true by default, false when set (a JSON boolean)",
+      mv["host_join_domain"] is True and off["host_join_domain"] is False, (mv["host_join_domain"], off))
+check_samba_settings(mv)
+msg = ""
+try:
+    check_samba_settings({**mv, "host_join_domain": "maybe"})
+except Exception as e:      # ValidationError
+    msg = str(e)
+# covers: setting:host_join_domain -
+check("negative: a host_join_domain that is not true or false is refused, saying so", "must be true or false" in msg,
+      msg)
+names = [n for n, _, _ in STEPS]
+check("the group `member` is recommended, asked after the time service; its step comes right after `start`",
+      GROUPS["member"]["level"] == "recommended" and list(GROUPS)[-1] == "member"
+      and GROUPS["member"]["step"] == "member" and names.index("member") == names.index("start") + 1, names)
+_real_missing = pm.missing_packages
+pm.missing_packages = lambda pkgs: ["sssd-ad", "krb5-user"]
+planned = plan_host_changes(mv, "/opt", cfg, JINJA, ["member"]).get("member", [])
+check("planned when on: the missing packages, the host's own account FAB1$ in OU=machines/OU=linux and its keytab "
+      "only (never the DC's), krb5.conf, sssd.conf, NSS and PAM (2.1.6.48)",
+      planned[:2] == ["apt: install sssd-ad", "apt: install krb5-user"]
+      and any("FAB1$" in x and "OU=machines/OU=linux" in x and x.startswith("the domain:") for x in planned)
+      and any("own computer account FAB1$" in x and "/etc/krb5.keytab" in x for x in planned)
+      and not any("DC-FAB1" in x for x in planned)
+      and any("hq-fabric-admins" in x and "/etc/sssd/sssd.conf" in x for x in planned)
+      and any(x.startswith("PAM: pam-auth-update") for x in planned), planned)
+check("negative: not planned when host_join_domain is false (nothing asked, nothing changed)",
+      "member" not in plan_host_changes(off, "/opt", cfg, JINJA, ["member"]), off.get("host_join_domain"))
+pm.missing_packages = _real_missing
+files = render_member_files(mv)
+sssd = files["/etc/sssd/sssd.conf"]
+check("sssd.conf: the host's own name, the OU's log-on policy (GPO access enforcing) and on top of it the fabric "
+      "admins only (nested too), sudo from the domain, this host's own DC, no dynamic DNS (2.1.6.48)",
+      "access_provider = ad\n" in sssd and "ad_gpo_access_control = enforcing\n" in sssd
+      and "ad_access_filter = DOM:ad.test:(|(memberOf:1.2.840.113556.1.4.1941:=CN=hq-fabric-admins,OU=groups,OU=hq,OU=sites,"
+          "DC=ad,DC=test)(memberOf:1.2.840.113556.1.4.1941:=CN=fabric-admins,OU=groups,OU=organisation,OU=hq,"
+          "OU=sites,DC=ad,DC=test))\n" in sssd
+      and "ad_hostname = fab1.ad.test\n" in sssd and "simple_allow" not in sssd
+      and "sudo_provider = ad\n" in sssd and "ad_server = dc-fab1.ad.test\n" in sssd and "dyndns_update = false" in sssd
+      and sssd.startswith("# fabric"), sssd)
+check("its sudo search bases: the site's OU=sudoers, then the organisation's (as the Linux join builds them)",
+      "ldap_sudo_search_base = OU=sudoers,OU=hq,OU=sites,DC=ad,DC=test?onelevel??"
+      "OU=sudoers,OU=organisation,OU=hq,OU=sites,DC=ad,DC=test?onelevel?\n" in sssd, sssd)
+nested = render_member_files({**mv, "ad_site_ou": "OU=edge,OU=hq,OU=sites"})["/etc/sssd/sssd.conf"]
+check("a nested site's host also reads the rules of each site above it",
+      "OU=sudoers,OU=edge,OU=hq,OU=sites,DC=ad,DC=test?onelevel??OU=sudoers,OU=hq,OU=sites,DC=ad,DC=test?onelevel??"
+      in nested, nested)
+check("krb5.conf: the realm, its KDC this host's DC",
+      "default_realm = AD.TEST" in files["/etc/krb5.conf"] and "kdc = dc-fab1.ad.test" in files["/etc/krb5.conf"])
+nss = "passwd:         files systemd\ngroup:          files systemd\nshadow:         files\nhosts: files dns\n"
+once = jh._with_sss(nss)
+check("nsswitch: sss after the files for passwd and group, a sudoers line added; a second pass changes nothing",
+      "passwd:         files systemd sss\n" in once and "sudoers:        files sss\n" in once
+      and "hosts: files dns\n" in once and jh._with_sss(once) == once, once)
+
+
+def _entry(principal, stamp, kvno, key):
+    name, realm = principal.split("@")
+    body = struct.pack(">H", len(name.split("/"))) + struct.pack(">H", len(realm)) + realm.encode()
+    for part in name.split("/"):
+        body += struct.pack(">H", len(part)) + part.encode()
+    body += struct.pack(">II", 1, stamp) + bytes([kvno]) + struct.pack(">HH", 18, len(key)) + key
+    return struct.pack(">i", len(body)) + body
+
+
+kt1 = b"\x05\x02" + _entry("DC-FAB1$@AD.TEST", 100, 1, b"k" * 32)
+kt2 = b"\x05\x02" + _entry("DC-FAB1$@AD.TEST", 200, 1, b"k" * 32)
+kt3 = b"\x05\x02" + _entry("DC-FAB1$@AD.TEST", 200, 2, b"n" * 32)
+check("the keytab compares by its keys, not the time of the export: a re-export of the same keys changes nothing",
+      jh._keys(kt1) == jh._keys(kt2) == {("DC-FAB1$@AD.TEST", 1, 18, b"k" * 32)} and jh._keys(kt1) != jh._keys(kt3)
+      and jh._keys(None) == set() and jh._keys(b"junk") == set())
+
+# the step: off, or declined, leaves the host as it is
+mcfg = tempfile.mkdtemp()
+jh.export_keytab = lambda principals: (_ for _ in ()).throw(AssertionError("exported"))
+jh.find_computer = lambda account: (_ for _ in ()).throw(AssertionError("looked up"))
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    jh.run(type("C", (), {"vars": off, "config_dir": mcfg, "offline": False})())
+check("host_join_domain false: the step says so and touches nothing (not even the DC)",
+      "stays out of its domain" in out.getvalue() and not os.listdir(mcfg), out.getvalue())
+with contextlib.redirect_stdout(io.StringIO()):
+    ask_consent(mcfg, {"member": ["x"]}, interactive=False, decline=["member"])
+jh.find_computer = lambda account: None                    # the host's own account not made yet
+jh.add_machine = lambda *a, **k: (_ for _ in ()).throw(AssertionError("account created"))
+jh.missing_packages = lambda pkgs: []
+jh._sssd_on = lambda: False
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    jh.run(type("C", (), {"vars": mv, "config_dir": mcfg, "offline": False, "secrets": {}})())
+# covers: cli:setup -
+check("declined: the step warns what that means and changes nothing (no account made in the domain, no copy kept, "
+      "no record)",
+      "not approved" in out.getvalue() and "not a member of its domain" in out.getvalue()
+      and sorted(os.listdir(mcfg)) == ["consent.yaml"], (out.getvalue(), os.listdir(mcfg)))
+row = next(r for r in consent_status(mcfg) if r["group"] == "member")
+check("status shows the declined membership as a relaxation", row["state"] == "declined"
+      and "not a member" in row["relaxation"], row)
+check("host_join_domain false is a relaxed setting in status; the default is not",
+      any(r["setting"] == "host_join_domain: false" for r in relaxed_settings(off, mcfg))
+      and not any("host_join_domain" in r["setting"] for r in relaxed_settings(mv, mcfg)))
+
+# the undo: each kept file back, the keytab gone, the record used
+uhost = tempfile.mkdtemp()
+paths = {p: os.path.join(uhost, p.strip("/").replace("/", "_")) for p in pm.KEPT_FILES}
+open(paths["/etc/nsswitch.conf"], "w").write(nss)
+um.KEPT_FILES, um.KEYTAB = tuple(paths.values()), paths["/etc/krb5.keytab"]
+for p in paths.values():
+    keep_original(p, mcfg, marker="# fabric")
+open(paths["/etc/nsswitch.conf"], "w").write(once)
+open(paths["/etc/krb5.keytab"], "wb").write(kt1)
+open(paths["/etc/sssd/sssd.conf"], "w").write(sssd)
+with open(os.path.join(mcfg, pm.RECORD), "w") as f:
+    f.write('{"pam": [], "sssd_enabled": false, "sudo": null}')
+done = um.undo_member(mcfg, manage_units=False)
+check("undo: nsswitch.conf put back, the keytab and sssd.conf removed (fabric added them), the record used",
+      open(paths["/etc/nsswitch.conf"]).read() == nss and not os.path.exists(paths["/etc/krb5.keytab"])
+      and not os.path.exists(paths["/etc/sssd/sssd.conf"]) and not os.path.exists(os.path.join(mcfg, pm.RECORD))
+      and any("put back" in d for d in done), done)
+check("negative: a second undo has nothing to do", um.undo_member(mcfg, manage_units=False) == [])
+check("negative: `setup --undo member` unattended without --yes changes nothing",
+      "--yes" in refused(lambda: undo_group(Ctx(mcfg, mv), "member", False, False)))
+answers = iter(["maybe", "n"])
+builtins.input = lambda prompt="": next(answers)
+msg = refused(lambda: undo_group(Ctx(mcfg, mv), "member", True, False))
+builtins.input = real_input
+# covers: ask:undo.* -
+check("negative: asked whether to undo, an answer that is not y or n is asked again, and no changes nothing",
+      "nothing changed" in msg and next(answers, None) is None
+      and yaml.safe_load(open(os.path.join(mcfg, "consent.yaml")))["groups"]["member"]["changes"] == ["x"], msg)
+
+print("--- the host's own computer account, not the DC's (2.1.6.48, manual 1.6.11.8)")
+import json  # noqa: E402
+
+import fabriclib.undo.remove_host_account as rha  # noqa: E402
+from fabriclib.common.errors import ValidationError  # noqa: E402
+from fabriclib.setup.common.host_identity import host_identity  # noqa: E402
+
+ident = host_identity(mv)
+check("the host's identity: its own account FAB1$, its host/ names under the AD domain, never the DC's",
+      ident["own"] and ident["account"] == "FAB1" and ident["fqdn"] == "fab1.ad.test"
+      and ident["principals"] == ["FAB1$", "host/fab1.ad.test", "host/FAB1"], ident)
+long_name = host_identity({**mv, "hostname": "kitchen-server-0-x"})
+check("a host name past 15 characters is cut as Windows and adcli cut it, without a dash left at the end",
+      long_name["account"] == "KITCHEN-SERVER" and long_name["own"], long_name)
+old = host_identity({**mv, "dc_name": "fab1", "hostname_dc": "fab1.ad.test"})
+rodc = host_identity({**mv, "ad_dc_type": "rodc"})
+check("negative: the DC's account where the host cannot have its own — an install from before 0.7.0 whose DC has "
+      "the host's name, a site whose DC is read-only — each said why",
+      not old["own"] and old["account"] == "FAB1" and "before 0.7.0" in old["why"]
+      and old["principals"] == ["FAB1$", "host/fab1.ad.test", "host/FAB1"]
+      and not rodc["own"] and rodc["account"] == "DC-FAB1" and "read-only" in rodc["why"], (old, rodc))
+old_sssd = render_member_files({**mv, "dc_name": "fab1", "hostname_dc": "fab1.ad.test"})["/etc/sssd/sssd.conf"]
+old_plan = pm.plan_member({**mv, "dc_name": "fab1", "hostname_dc": "fab1.ad.test"})
+check("…then sssd keeps the fabric admins only by the simple provider (no OU's policy reaches a DC) and the plan "
+      "names the DC's account and why, creating none",
+      "access_provider = simple\n" in old_sssd and "ad_hostname = fab1.ad.test\n" in old_sssd
+      and not any(x.startswith("the domain:") for x in old_plan)
+      and any("domain controller account FAB1$" in x and "before 0.7.0" in x for x in old_plan), (old_sssd, old_plan))
+
+# the step on a scratch tree: the host's files in a folder of their own, the DC and the directory faked
+host = tempfile.mkdtemp()
+jcfg = tempfile.mkdtemp()
+krb_path, sssd_path = os.path.join(host, "krb5.conf"), os.path.join(host, "sssd.conf")
+jh.KEYTAB, jh.NSSWITCH, jh.HOSTS, jh.SSSD_CONF = (os.path.join(host, "krb5.keytab"), os.path.join(host, "nsswitch"),
+                                                  os.path.join(host, "hosts"), sssd_path)
+open(jh.NSSWITCH, "w").write(once)
+jh.render_member_files = lambda v: {krb_path: "# fabric krb5\n", sssd_path: "# fabric sssd\n"}
+jh._resolves, jh._pam_on, jh._sudo_rs = (lambda name, address: True), (lambda: ["sss", "mkhomedir"]), (lambda: False)
+jh._sssd_on = lambda: True
+jh.subprocess = types.SimpleNamespace(run=lambda *a, **k: types.SimpleNamespace(returncode=1, stdout="", stderr=""))
+kt_own = b"\x05\x02" + _entry("FAB1$@AD.TEST", 300, 1, b"o" * 32)
+calls, directory = [], {}
+
+
+def fake_add(v, actor, name, source="cli", secrets=None, container="samba", os=None, managed=True):
+    calls.append(("add", name, os, managed))
+    directory[name.upper()] = {"dn": f"CN={name.upper()},OU=linux,OU=machines,OU=hq,OU=sites,DC=ad,DC=test",
+                               "description": "fabric: unmanaged (manual 1.6.11.6)"}
+    return "one-time"
+
+
+def fake_remove(v, actor, name, source="web", secrets=None, container="samba"):
+    calls.append(("remove", name))
+    if directory.pop(name.upper(), None) is None:
+        raise ValidationError("no such entry")
+    return {"name": name}
+
+
+jh.add_machine, jh.remove_machine, rha.remove_machine = fake_add, fake_remove, fake_remove
+jh.find_computer = lambda account: directory.get(account)
+jh.export_keytab = lambda principals: kt_own if principals[0] == "FAB1$" else kt1
+jctx = type("C", (), {"vars": mv, "config_dir": jcfg, "offline": False, "secrets": {"ad_agent_password": "x"}})()
+directory["FAB1"] = {"dn": "CN=FAB1,CN=Computers,DC=ad,DC=test", "description": ""}
+msg = refused(lambda: jh.run(jctx))
+# covers: cli:setup -
+check("negative: a computer of the host's name that fabric did not make for it is refused, named, nothing changed "
+      "(no account made, no keytab written, no record)",
+      "already has a computer named FAB1" in msg and "CN=Computers" in msg and not calls
+      and not os.path.exists(jh.KEYTAB) and not os.path.exists(os.path.join(jcfg, pm.RECORD)), (msg, calls))
+directory.clear()
+with contextlib.redirect_stdout(io.StringIO()):
+    ask_consent(jcfg, {"member": pm.plan_member(mv)}, interactive=False, approve=["member"])
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    jh.run(jctx)
+record = json.load(open(os.path.join(jcfg, pm.RECORD)))
+# covers: cli:setup +
+check("approved: the host's own account made as add-machine makes one (OU=linux, not a fabric-machine), recorded, "
+      "its keys (only) in the keytab, 0600",
+      calls == [("add", "fab1", "linux", False)] and record.get("account") == "FAB1"
+      and open(jh.KEYTAB, "rb").read() == kt_own and oct(os.stat(jh.KEYTAB).st_mode & 0o777) == "0o600"
+      and "own computer account FAB1$" in out.getvalue(), (calls, record, out.getvalue()))
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    jh.run(jctx)
+check("a second run changes nothing (the account is the host's: recorded)",
+      "nothing to change" in out.getvalue() and calls == [("add", "fab1", "linux", False)], (out.getvalue(), calls))
+# an upgrade: the keytab still holds the DC's account (2.1.6.34), the record knows no account
+open(jh.KEYTAB, "wb").write(kt1)
+directory.clear()
+json.dump({"pam": [], "sssd_enabled": False, "sudo": None}, open(os.path.join(jcfg, pm.RECORD), "w"))
+calls.clear()
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    jh.run(jctx)
+check("an install whose keytab holds the DC's account moves to the host's own: made, recorded, the keytab replaced",
+      calls == [("add", "fab1", "linux", False)] and open(jh.KEYTAB, "rb").read() == kt_own
+      and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") == "FAB1"
+      and "held another account's: replaced" in out.getvalue(), (calls, out.getvalue()))
+# the host renamed: its account under the new name, the old one (fabric's, recorded) removed
+renamed = {**mv, "hostname": "fab2"}
+kt_new = b"\x05\x02" + _entry("FAB2$@AD.TEST", 400, 1, b"t" * 32)
+jh.export_keytab = lambda principals: kt_new if principals[0] == "FAB2$" else kt_own
+with contextlib.redirect_stdout(io.StringIO()):
+    ask_consent(jcfg, {"member": pm.plan_member(renamed)}, interactive=False, approve=["member"])
+calls.clear()
+with contextlib.redirect_stdout(io.StringIO()):
+    jh.run(type("C", (), {"vars": renamed, "config_dir": jcfg, "offline": False, "secrets": {}})())
+check("the host renamed: its own account under the new name, the one fabric made under the old name removed",
+      calls == [("add", "fab2", "linux", False), ("remove", "fab1")] and set(directory) == {"FAB2"}
+      and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") == "FAB2", (calls, directory))
+
+# the undo's part in the domain
+done = rha.remove_host_account(jcfg, renamed, lambda: {})
+# covers: cli:setup +
+check("undo: the host's own account removed from the domain, the record forgets it",
+      done == ["the domain: this host's computer account FAB2$ removed"] and not directory
+      and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") is None, (done, directory))
+check("negative: a second undo removes nothing; no record, nothing either",
+      rha.remove_host_account(jcfg, renamed, lambda: {}) == [] and rha.remove_host_account(fresh, mv, None) == [])
+json.dump({"account": "FAB2"}, open(os.path.join(jcfg, pm.RECORD), "w"))
+check("an account already gone is fine (said so)",
+      rha.remove_host_account(jcfg, renamed, lambda: {}) == ["the domain: this host's computer account FAB2$ was "
+                                                              "already gone"])
+json.dump({"account": "FAB2"}, open(os.path.join(jcfg, pm.RECORD), "w"))
+rha.remove_machine = lambda *a, **k: (_ for _ in ()).throw(ValidationError("the directory is not reachable"))
+done = rha.remove_host_account(jcfg, renamed, lambda: {})
+# covers: cli:setup -
+check("negative: the DC refusing (or down) is said, with where to remove it, and the record keeps the account",
+      "NOT removed (the directory is not reachable)" in done[0] and "Directory → Machines" in done[0]
+      and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") == "FAB2", done)
+
+# the menu's membership item
+answers = iter(["maybe", "n"])
+builtins.input = lambda prompt="": next(answers)
+pc = SetupContext(deploy_base=tempfile.mkdtemp())
+with contextlib.redirect_stdout(io.StringIO()) as out:
+    ask_host_change(pc, "member")
+builtins.input = real_input
+# covers: ask:setup.host_join_domain +-
+check("the menu asks whether this host joins its domain: refuses an answer that is not y or n, then takes n and says "
+      "what that means", pc.vars.get("host_join_domain") is False and out.getvalue().count("answer y or n") == 1
+      and "If no: this host is not a member" in out.getvalue(), (pc.vars, out.getvalue()))
+builtins.input = lambda prompt="": ""
+pc = SetupContext(deploy_base=tempfile.mkdtemp())
+with contextlib.redirect_stdout(io.StringIO()):
+    ask_host_change(pc, "member")
+builtins.input = real_input
+check("…and Enter keeps the default: a member", pc.vars.get("host_join_domain") is True, pc.vars)
+
+print("--- setup's start, its menu of every setting and the plan's one yes (manual 1.2.9.11, 2.1.2.17-2.1.2.19)")
+import getpass  # noqa: E402
+import ipaddress  # noqa: E402
+
+import fabriclib.setup.advanced.ask_network as m_net  # noqa: E402
+import fabriclib.setup.advanced.menu_items as m_items  # noqa: E402
+import fabriclib.setup.advanced.setup_menu as m_menu  # noqa: E402
+from fabriclib.consent.initial_host_choices import TOGGLED, initial_host_choices  # noqa: E402
+from fabriclib.consent.save_consent import save_consent  # noqa: E402
+from fabriclib.setup.advanced.ask_dhcp_settings import ask_dhcp_settings  # noqa: E402
+from fabriclib.setup.advanced.ask_memory import ask_memory  # noqa: E402
+from fabriclib.setup.choose_mode import choose_mode  # noqa: E402
+
+# the test's addresses are not this machine's: the check of the three together is the network item's own test below
+m_items.network_problem = m_menu.network_problem = lambda data: ""
+NETS = {"eth0": [ipaddress.IPv4Interface("10.0.0.5/24")]}
+
+
+def drive(fn, answers, secrets=()):
+    """Run fn with these answers typed (and these secrets at hidden prompts): (its result or the exception it raised,
+    what it printed, the answers left over)."""
+    queue, hidden = list(answers), list(secrets)
+    real_in, real_pw = builtins.input, getpass.getpass
+    builtins.input = lambda prompt="": queue.pop(0)
+    getpass.getpass = lambda prompt="": hidden.pop(0)
+    out = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(out):
+            result = fn()
+    except (SystemExit, SetupError, IndexError) as e:
+        result = e
+    finally:
+        builtins.input, getpass.getpass = real_in, real_pw
+    return result, out.getvalue(), queue + hidden
+
+
+def new_ctx(**extra):
+    """A new install's context in a scratch folder, its settings as collect_vars leaves them without questions."""
+    c = SetupContext(deploy_base=tempfile.mkdtemp())
+    c.vars = {"domain": "lan.test", "hostname": "fab1", "host_ip": "10.0.0.5", "lan_cidr": "10.0.0.0/24",
+              "lan_gateway": "10.0.0.1", "install_keycloak": True, "install_webui": True, "dns_filter": "bind",
+              "host_ram_capacity": 4, "ad_password_policy": POLICY, **extra}
+    c.fresh_install = True
+    return c
+
+
+# the start: [G]uided / [A]dvanced / [Q]uit, only on a new install with someone there
+c = new_ctx()
+got, out, left = drive(lambda: choose_mode(c), ["x", ""])
+# covers: ask:setup.mode +-
+check("the start: an answer that is not g, a or q refused, saying which; Enter takes Guided",
+      got == "guided" and "answer g (guided), a (advanced) or q (quit)" in out and "[A]dvanced - a menu of every "
+      "setting" in out and not left, (got, out))
+got, _, _ = drive(lambda: choose_mode(c), ["a"])
+quit_, _, _ = drive(lambda: choose_mode(c), ["q"])
+check("…a takes Advanced; q quits, changing nothing", got == "advanced" and isinstance(quit_, SystemExit), (got, quit_))
+os.makedirs(c.config_dir, exist_ok=True)
+open(c.vars_file, "w").write("domain: lan.test\n")
+got, out, left = drive(lambda: choose_mode(c), ["a"])
+check("negative: an upgrade or a re-run (the settings exist) is not asked: straight to the plan",
+      got == "guided" and left == ["a"] and not out, (got, out))
+
+# the menu, from the start's Advanced: every item asked with guided mode's question, refusals said, Proceed waits
+c = new_ctx()
+got, out, left = drive(lambda: m_menu.setup_menu(c, NETS), [
+    "99", "p",
+    "3", 'a"quote', "Acme",
+    "7", "root", "",
+    "4", "",
+    "5", "dc_1", "DC-Office",
+    "8", "0", "5",
+    "10", "maybe", "y",
+    "9", "y", "eth9", "", "", "",
+    "9", "y", "", "", "", "",
+    "11", "y", "http://siem.lan", "siem.lan:99999", "siem.lan",
+    "12", "n",
+    "13", "2", "4",
+    "15", "n",
+    "17", "y",
+    "14", "n",
+    "20", "n",
+    "p"], secrets=["short", "Good-Pass-12345", "Good-Pass-12345"])
+v = c.vars
+# covers: ask:setup.menu +-
+check("the menu: three parts, 20 numbered items with their values; something not on the list refused naming the "
+      "numbers; Proceed waits for the required items without a value, naming them",
+      got is None and "Required (setup cannot proceed until each has a value):" in out
+      and "Changes to this host (recommended; each can be declined):" in out
+      and "'99' is not on the list: a number from 1 to 20" in out and "not yet: 3, 7 need an answer" in out
+      and "(needs an answer)" in out and not left, (got, out[-3000:], left))
+# covers: ask:setup.vars.* ask:setup.admin_password ask:setup.admin_password_again +-
+check("required items ask guided mode's questions with its checks: the organisation, the first admin (a reserved name "
+      "refused, Enter its default) and their password (too short refused, typed twice)",
+      v["friendly_name"] == "Acme" and v["webui_admin_user"] == "fabric-admin" and c.admin_password == "Good-Pass-12345"
+      and "not a valid friendly_name" in out and "not a valid webui_admin_user" in out, (v.get("friendly_name"), out))
+check("the AD domain: Enter takes the suggestion (ad.lan.test); the CA's lifetime 5 years after 0 refused",
+      v["ad_domain"] == "ad.lan.test" and v["cert_root_ca_days"] == 5 * 365 and "a whole number of years" in out, v)
+# covers: ask:setup.dc_name +-
+check("the DC's name item: dc-<hostname> suggested; a name the DC cannot have refused and asked again, then kept in "
+      "lower case", v["dc_name"] == "dc-office" and "dc-fab1 (suggested)" in out and "1-15 letters" in out, v)
+# covers: ask:setup.part.* +-
+check("the parts: 802.1X on (an answer that is not y or n refused first), the DNS filter off",
+      v["install_freeradius"] is True and v["dns_filter"] == "none" and "'maybe': answer y or n" in out, v)
+# covers: ask:setup.dhcp.interface ask:setup.dhcp.subnet ask:setup.dhcp.pool ask:setup.dhcp.router +
+# covers: ask:setup.dhcp.interface -
+check("DHCP on asks what `fabricctl dhcp on` needs, checked the same way: an interface this host lacks refused (DHCP "
+      "stays off), then the offered ones taken",
+      v["install_kea"] is True and v["dhcp"]["interfaces"] == ["eth0"]
+      and v["dhcp"]["subnets"][0]["subnet"] == "10.0.0.0/24" and v["dhcp"]["subnets"][0]["pools"] == [
+          "10.0.0.128 - 10.0.0.245"] and "no interface 'eth9'" in out and "DHCP stays off" in out, v.get("dhcp"))
+# covers: ask:setup.logs.target +-
+check("log forwarding on asks its destination: a URL that is not https and a port over 65535 refused, then syslog "
+      "over TLS on 6514", v["install_fluentbit"] is True
+      and v["log_forwarding"] == {"syslog": {"host": "siem.lan", "port": 6514}}
+      and "starts https://" in out and "optionally :port (1-65535)" in out, v.get("log_forwarding"))
+# covers: ask:setup.memory +-
+check("memory: 2 GB refused (4 at least), 4 taken", v["host_ram_capacity"] == 4 and "'2': a whole number of GB" in out,
+      v["host_ram_capacity"])
+# covers: ask:setup.consent.* +-
+check("host changes: the ports turned off show what that means and take securing and the host's own rules along; "
+      "the host's own rules turned on bring back what they need; Docker's hardening and membership off",
+      {g: c.host_choices.get(g, True) for g in TOGGLED} == {"runtime": False, "ports": True, "firewall": True,
+                                                            "own_rules": True, "trust": True, "time": True}
+      and v["host_join_domain"] is False
+      and "If no: ufw is not told about fabric's ports" in out and "also off: Secure this host" in out
+      and "also off: The host's own firewall rules" in out and "also on: Ports fabric needs" in out
+      and "also on: Secure this host" in out, (c.host_choices, out[-2500:]))
+got, _, _ = drive(lambda: m_menu.setup_menu(new_ctx(), NETS), ["q"])
+check("negative: Quit in the menu changes nothing and stops setup", isinstance(got, SystemExit), got)
+
+# the network item: the three checked together, refused and asked again until they fit
+_problems = iter(["the gateway 10.0.1.1 is not in the subnet 10.0.0.0/24", ""])
+m_net.network_problem = lambda data: next(_problems)
+c2 = new_ctx()
+got, out, left = drive(lambda: m_net.ask_network(c2), ["999.1.1.1", "10.0.0.5", "", "10.0.1.1", "", "", "10.0.0.1"])
+check("the network item: an impossible address refused; answers that do not fit together refused, saying why, and "
+      "asked again", c2.vars["lan_gateway"] == "10.0.0.1" and "not a valid host_ip" in out
+      and "not in the subnet" in out and not left, (out, left))
+
+# DHCP's questions alone: each refusal says why and leaves DHCP off
+for bad, why in ((["eth0", "nope", "", ""], "subnet"), (["eth0", "", "10.9.9.1 - 10.9.9.9", ""], "must lie inside"),
+                 (["eth0", "", "", "300.1.1.1"], "300.1.1.1")):
+    c3 = new_ctx()
+    got, out, _ = drive(lambda: ask_dhcp_settings(c3, NETS), bad)
+    # covers: ask:setup.dhcp.subnet ask:setup.dhcp.pool ask:setup.dhcp.router -
+    check(f"negative: DHCP refused ({why}), nothing saved", got is False and why in out and "dhcp" not in c3.vars,
+          (bad, out))
+c3 = new_ctx(memory_floors={"keycloak": 3000})
+got, out, _ = drive(lambda: ask_memory(c3, have=16), ["5", "8"])
+check("negative: a size whose memory plan does not fit is refused with the plan's reason, a larger one taken",
+      c3.vars["host_ram_capacity"] == 8 and "refused: memory: the installed services need" in out, out)
+
+# the plan: settings, the memory split, every host change; Proceed is the one yes; Menu opens the menu
+pc = new_ctx(friendly_name="Acme", webui_admin_user="fabric-admin", ad_domain="ad.lan.test")
+pc.admin_password = "Good-Pass-12345"             # chosen already (the first admin item)
+pc.host_choices = {"runtime": False, "ports": True, "firewall": True, "own_rules": True, "trust": True, "time": True}
+os.makedirs(pc.config_dir, exist_ok=True)
+save_consent(pc.config_dir, {"packages": {"answer": "yes", "changes": ["apt: install x"], "when": "t", "by": "x"}})
+changes = {"packages": ["apt: install x", "apt: install y"], "runtime": ["restart Docker"], "ports": ["p"],
+           "firewall": ["f"], "own_rules": ["o"]}
+got, out, left = drive(lambda: choose_plan(pc, lambda: (mv, changes)), ["", "x", "m", "p", "p"])
+# covers: ask:setup.plan +-
+check("the plan: no default (Enter and 'x' refused), [M]enu opens the menu and shows the plan again, Proceed allows "
+      "every change listed and declines the one turned off",
+      got == {"packages": True, "runtime": False, "ports": True, "firewall": True, "own_rules": True}
+      and out.count("'': answer p, m or q") == 1 and "'x': answer p, m or q" in out
+      and out.count("fabricctl setup will:") == 2 and "fabric setup: every setting" in out and not left, (got, left))
+check("…it lists the memory split and every host change on, with its changes; a group changed since it was allowed is "
+      "marked, its new line with +; the one turned off under Not made, with what that means",
+      "kept for the host" in out and "Packages (required)  changed since it was allowed" in out
+      and "+ apt: install y" in out and "- apt: install x" in out and "Not made (declined; [M]enu to change):" in out
+      and "Docker daemon settings: the Docker daemon is not hardened" in out, out[-2500:])
+check("…and the menu's changes were saved with the settings (fabric.yaml)",
+      os.path.exists(os.path.join(pc.config_dir, "fabric.yaml")))
+
+
+def no_fit():
+    raise SetupError("memory: the installed services need 4936 MB at least … Turn off DHCP (install_kea: false)")
+
+
+got, out, _ = drive(lambda: choose_plan(pc, no_fit), ["p", "q"])
+check("negative: a plan setup cannot take (the memory does not fit) is said, Proceed refused: only Menu or Quit",
+      isinstance(got, SystemExit) and "setup cannot proceed: memory" in out and "'p': answer m or q" in out, out[-600:])
+pc.non_interactive = True
+got, out, left = drive(lambda: choose_plan(pc, lambda: (mv, changes)), ["p"])
+check("unattended: the plan and its host changes shown, nothing asked (--approve / --decline answer)",
+      got is None and left == ["p"] and "Packages (required)" in out, (got, left))
+pc.non_interactive = False
+
+# where the menu's host changes start: earlier answers, --approve, --decline; what needs a declined one is off too
+hc = tempfile.mkdtemp()
+save_consent(hc, {"firewall": {"answer": "no", "changes": ["f"], "when": "t", "by": "x"}})
+check("a host change declined before starts off, what needs it too; the others on",
+      initial_host_choices(hc) == {"runtime": True, "ports": True, "firewall": False, "own_rules": False,
+                                   "trust": True, "time": True}, initial_host_choices(hc))
+check("--approve turns one back on; --decline ports takes securing and the host's own rules along",
+      initial_host_choices(hc, approve=["firewall"])["firewall"] is True
+      and not any(initial_host_choices(hc, decline=["ports"])[g] for g in ("ports", "firewall", "own_rules")))
 
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

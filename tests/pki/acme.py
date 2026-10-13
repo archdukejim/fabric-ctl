@@ -64,7 +64,7 @@ env = jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.join(REPO, "temp
 for name in ("leaf", "acme"):                       # fabric's templates, rendered as setup renders them
     open(f"{data}/templates/certs/{name}.tpl", "w").write(env.get_template(f"stepca/{name}.tpl.j2").render(
         cert_country="US", cert_province="S", cert_city="C", cert_org="Test", cert_ou="IT",
-        hostname_landing=f"info.{DOMAIN}", domain=DOMAIN))
+        hostname_landing=f"info.{DOMAIN}", hostname_stepca=f"ca.{DOMAIN}", domain=DOMAIN))
 v = {"hostname_stepca": f"ca.{DOMAIN}", "domain": DOMAIN, "cert_acme_lifetime_hours": "1128h",
      "stepca_cert_max_lifetime_hours": "1128h"}
 check("fabric's converge writes the ACME provisioner (changed), and a second run changes nothing",
@@ -105,8 +105,10 @@ if dates:
     fmt = "%b %d %H:%M:%S %Y %Z"
     hours = (datetime.datetime.strptime(dates["notAfter"], fmt)
              - datetime.datetime.strptime(dates["notBefore"], fmt)).total_seconds() / 3600
-check("…for 47 days (1128 h, within a minute of Step-CA's backdating), naming the CRL (fabric's leaf template)",
-      hours is not None and 1128 <= hours <= 1129 and f"http://info.{DOMAIN}/certs/crl/intermediate.crl" in text,
+# covers: setting:cert_acme_lifetime_hours +
+check("…for 47 days (1128 h, within a minute of Step-CA's backdating), naming the CRL at ca.<domain> (1.5.1.6)",
+      hours is not None and 1128 <= hours <= 1129 and f"http://ca.{DOMAIN}/certs/crl/intermediate.crl" in text
+      and f"info.{DOMAIN}" not in text,
       (hours, text[-600:]))
 # a service certificate, issued as setup issues it (pki/mint_cert: the JWK provisioner `admin`), names the CRL too
 svc = sh(["docker", "exec", "acme-ca", "step", "ca", "certificate", f"svc.{DOMAIN}", "/tmp/svc.crt", "/tmp/svc.key",
@@ -116,7 +118,7 @@ svc = sh(["docker", "exec", "acme-ca", "step", "ca", "certificate", f"svc.{DOMAI
 svc_text = subprocess.run(["openssl", "x509", "-noout", "-text"], capture_output=True, text=True,
                           input=sh(["docker", "exec", "acme-ca", "cat", "/tmp/svc.crt"], ok=False).stdout).stdout
 check("a service certificate (the JWK provisioner, as setup mints it) names the CRL, for its own name",
-      svc.returncode == 0 and f"http://info.{DOMAIN}/certs/crl/intermediate.crl" in svc_text
+      svc.returncode == 0 and f"http://ca.{DOMAIN}/certs/crl/intermediate.crl" in svc_text and "info." not in svc_text
       and f"DNS:svc.{DOMAIN}" in svc_text and "TLS Web Server Authentication" in svc_text, (svc.stderr[-300:], svc_text[-600:]))
 res = get("nas.example.org")
 check("negative: a name outside the domain is refused by fabric's ACME template (though its challenge passes)",
@@ -152,9 +154,11 @@ def acme(*argv):
 
 
 code, text = acme("info")
+# covers: cli:acme.info +
 check("acme info: the directory, the root to trust, the names allowed, http-01 and dns-01",
       code == 0 and f"https://ca.{DOMAIN}/acme/acme/directory" in text and "port 5053" in text, text)
 code, text = acme("enroll", f"nas.{DOMAIN}", "--dns")
+# covers: cli:acme.enroll +
 check("acme enroll <name>.<domain> --dns: a TSIG key for that name's TXT challenge only, applied",
       code == 0 and calls[-1] == ("add", {"name": "acme-nas", "records": ["nas"], "record_types": ["TXT"]})
       and "/opt/acme-nas/rfc2136.ini" in text, (calls, text))
@@ -162,15 +166,18 @@ code, text = acme("enroll", "printer")
 check("acme enroll without --dns: nothing to enroll for http-01 (no key made)",
       code == 0 and "nothing to enroll" in text and len(calls) == 1, text)
 code, text = acme("list")
+# covers: cli:acme.list +
 check("acme list: the machines with a DNS-01 key (not other TSIG keys)",
       code == 0 and "nas" in text and "npm" not in text and "1 machine(s)" in text, text)
 code, text = acme("remove", "nas")
+# covers: cli:acme.remove +
 check("acme remove: its key withdrawn, applied", code == 0 and calls[-1] == ("remove", "acme-nas"), (calls, text))
 for argv, want, what in ((("enroll", "Bad_Name", "--dns"), 1, "a name that is not a hostname"),
                          (("enroll", "nas", "--dns", "--force"), 2, "an unknown flag"),
                          (("remove", "nas", "--dns"), 2, "--dns on remove"), (("bogus",), 2, "an unknown command"),
                          (("enroll",), 2, "no name")):
     code, text = acme(*argv)
+    # covers: cli:acme cli:acme.enroll cli:acme.remove -
     check(f"negative: acme {' '.join(argv)} refused ({what}), exit {want}",
           code == want and ("error:" in text or "usage:" in text), (code, text[-200:]))
 apply_ok[0] = False

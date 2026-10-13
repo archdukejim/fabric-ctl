@@ -34,8 +34,8 @@ for s in "${SUITES[@]}"; do
     case "$s" in
         docs)     run docs     python3 "$HERE/docs/run.py" ;;
         lint)     run lint     bash "$HERE/lint/run.sh" ;;
-        deploy)   run deploy   python3 "$HERE/deploy/restart_changed_test.py" ;;
-        consent)  run consent  python3 "$HERE/consent/run.py" ;;
+        deploy)   run deploy   bash -c "python3 \"$HERE/deploy/restart_changed_test.py\" && python3 \"$HERE/deploy/check_service_settings_test.py\"" ;;
+        consent)  run consent  bash -c "python3 \"$HERE/consent/run.py\" && python3 \"$HERE/common/ask.py\"" ;;
         render)   run render   python3 "$HERE/render.py" "$FABRIC_TEST_OUT/rendered" ;;
         nginx)    run nginx    bash "$HERE/nginx_check.sh" "$FABRIC_TEST_OUT/rendered" ;;
         zone)     run zone     python3 "$HERE/zone_test.py" ;;
@@ -50,7 +50,7 @@ for s in "${SUITES[@]}"; do
         kea) run kea python3 "$HERE/kea/run.py" ;;
         ipam)     run ipam     python3 "$HERE/ipam/run.py" ;;
         freeradius) run freeradius python3 "$HERE/freeradius/run.py" ;;
-        samba)    run samba    bash -c "python3 \"$HERE/samba/run.py\" && python3 \"$HERE/samba/dc.py\" && python3 \"$HERE/samba/devices.py\" && python3 \"$HERE/samba/linux_join.py\" && python3 \"$HERE/samba/gpo.py\" && python3 \"$HERE/samba/site_join.py\" && python3 \"$HERE/samba/ipam.py\"" ;;
+        samba)    run samba    bash -c "python3 \"$HERE/samba/run.py\" && python3 \"$HERE/samba/dc.py\" && python3 \"$HERE/samba/devices.py\" && python3 \"$HERE/samba/linux_join.py\" && python3 \"$HERE/samba/gpo.py\" && python3 \"$HERE/samba/logon.py\" && python3 \"$HERE/samba/hostgroups.py\" && python3 \"$HERE/samba/site_join.py\" && python3 \"$HERE/samba/ipam.py\"" ;;
         keycloak) run keycloak python3 "$HERE/keycloak/run.py" ;;
         hardening) run hardening bash "$HERE/hardening/run.sh" ;;
         images)   run images   bash "$HERE/images/run.sh" ;;

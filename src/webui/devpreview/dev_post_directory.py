@@ -1,7 +1,8 @@
 import urllib.parse
 
 from webui import views
-from webui.devpreview.fabric_rules import ValidationError, list_devices
+from webui.devpreview.fabric_rules import ValidationError, check_password_policy, list_devices, read_policy_changes
+from webui.devpreview.sample_data import SAMPLE_DOMAIN
 
 
 def _person_change(state, ctx, users, target, op, form):
@@ -32,15 +33,43 @@ def _person_change(state, ctx, users, target, op, form):
     return urllib.parse.urlencode({"msg": f"{uid} {op}d (in memory)."})
 
 
+def _password_policy(h, form):
+    """Purpose: the Domain section's password policy saved in memory, checked by fabriclib's own rules (the ones
+             fabric-agent runs: read_policy_changes, check_password_policy), refused without domain:admin (403).
+    Inputs:  h — the dev handler (send, ctx); form — dict: the policy keys and complexity (on|off).
+    Returns: True (403, or a 303 to /directory?view=domain with msg or err).
+    Fails:   never for ValidationError (shown as err).
+    Feeds:   dev_post_directory."""
+    if "domain:admin" not in h.ctx["perms"]:
+        h.send(403, views.error_page(403, "Not allowed: you need the permission domain:admin."))
+        return True
+    try:
+        if not read_policy_changes:
+            raise ValidationError("the dev preview from the image has no fabriclib; run it from a checkout")
+        policy = {**SAMPLE_DOMAIN["policy"], **read_policy_changes(form)}
+        check_password_policy(policy)
+    except ValidationError as exc:
+        h.send(303, b"", location="/directory?" + urllib.parse.urlencode({"view": "domain", "err": str(exc)}))
+        return True
+    SAMPLE_DOMAIN["policy"] = policy
+    h.state.log("AD_PASSWORD_POLICY", "(dev preview: in memory)")
+    h.send(303, b"", location="/directory?" + urllib.parse.urlencode(
+        {"view": "domain", "msg": "Password policy saved (dev preview: in memory only)."}))
+    return True
+
+
 def dev_post_directory(h, path, form):
     """Purpose: People, devices and roles acted out in memory, with the real fabriclib rules when available.
-    Inputs:  h — the dev handler (send, state, ctx); path — /directory/people/<_new|uid>[/reset] or
-             /directory/<devices|roles>/<name|_new>[/delete|/certs/…]; form — dict.
+    Inputs:  h — the dev handler (send, state, ctx); path — /directory/people/<_new|uid>[/reset],
+             /directory/domain/password-policy or /directory/<devices|roles>/<name|_new>[/delete|/certs/…]; form —
+             dict.
     Returns: True when the path was handled (a result page or a 303 with msg or err was sent); None otherwise (the
              device and role forms need fabriclib).
     Fails:   never for ValidationError (shown as err); other errors propagate.
     Feeds:   dev_post_action."""
     state, ctx = h.state, h.ctx
+    if path == "/directory/domain/password-policy":
+        return _password_policy(h, {k: v for k, v in form.items() if k != "csrf"})
     if path.startswith("/directory/people/"):
         name, op = (path.split("/")[3:] + ["", ""])[:2]
         users = state.data["people"]["users"]

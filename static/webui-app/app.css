@@ -85,3 +85,7 @@ button:disabled,.btn.disabled{opacity:.45;cursor:not-allowed;pointer-events:none
 .big{font-size:24px;font-weight:600}
 meter.bar{width:100%;min-width:120px;height:10px}
 table.hours td{padding:3px 8px}
+/* the record form (2.1.2.22): priority for MX and SRV, weight and port for SRV only; a browser without :has drops
+   these rules and shows every field (the server checks each type's own) */
+form.record:not(:has(option[value="MX"]:checked)):not(:has(option[value="SRV"]:checked)) .f-prio{display:none}
+form.record:not(:has(option[value="SRV"]:checked)) .f-srv{display:none}

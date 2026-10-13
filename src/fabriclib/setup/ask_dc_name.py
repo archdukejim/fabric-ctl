@@ -1,4 +1,5 @@
-from fabriclib.common.console import BOLD, NC, YELLOW
+from fabriclib.common.ask import ask
+from fabriclib.common.console import NC, YELLOW
 from fabriclib.samba.dc_name_problem import dc_name_problem
 from fabriclib.samba.suggested_dc_name import suggested_dc_name
 from fabriclib.setup.errors import SetupError
@@ -14,7 +15,7 @@ def ask_dc_name(ctx):
     Returns: None; ctx.vars["dc_name"] set, lower case: a valid name already set is kept; unattended, a missing one
              takes the suggestion; asked (marked "⚠ Permanent", 2.1.2.20), Enter takes the suggestion and a name
              the DC cannot have is refused, saying why, and asked again.
-    Fails:   SetupError unattended for a dc_name set but invalid (dc_name_problem); EOFError from input().
+    Fails:   SetupError unattended for a dc_name set but invalid (dc_name_problem); EOFError from ask().
     Feeds:   setup/collect_vars (after the AD domain)."""
     v = ctx.vars
     netbios = str(v.get("ad_netbios") or str(v.get("ad_domain") or "").split(".")[0])[:15]
@@ -30,11 +31,9 @@ def ask_dc_name(ctx):
             raise SetupError(f"dc_name: {dc_name_problem(current, netbios)} (manual 1.6.5.23)")
         v["dc_name"] = suggestion
         return
-    print("\n  The domain controller has a name of its own in the AD domain, apart from this host's name.")
-    print(f"    It is {BOLD}permanent{NC}: a domain controller cannot be renamed. The host's name can change later.")
     while True:
-        answer = input(f"    Domain controller's name{permanent_mark('dc_name')}"
-                       f"{f' [{suggestion}]' if suggestion else ''}: ").strip().lower()
+        answer = ask("setup.dc_name", f"    Domain controller's name{permanent_mark('dc_name')}"
+                     f"{f' [{suggestion}]' if suggestion else ''}: ").lower()
         chosen = answer or suggestion
         problem = dc_name_problem(chosen, netbios)
         if not problem:

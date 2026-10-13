@@ -64,14 +64,15 @@ def _write(path, text, owner):
 def _readme(v, user, login, folder):
     """Purpose: the kit's README.txt for the web console as it is set up: with the client-certificate steps only while
              the console requires one (webui_client_cert), and the second factor Keycloak will ask for.
-    Inputs:  v — vars: hostname_mgr, hostname_landing, host_ip, the other names (for the hosts-file line),
+    Inputs:  v — vars: hostname_mgr, hostname_stepca (the CA's files, 1.5.1.6), host_ip, the other names (for the
+             hosts-file line),
              webui_admin_group, webui_client_cert, the sign-in settings (admin_level); user — the admin; login — the
              account the kit is for; folder — the kit's path.
     Returns: str.
     Fails:   ValidationError from admin_level for an unknown level; KeyError for a missing var.
     Feeds:   run; tests/render.py."""
     cert = bool(v.get("webui_client_cert"))
-    return README.format(mgr=v["hostname_mgr"], certs=v["hostname_landing"], user=user, login=login, host=v["host_ip"],
+    return README.format(mgr=v["hostname_mgr"], certs=v["hostname_stepca"], user=user, login=login, host=v["host_ip"],
                          ip=v["host_ip"], folder=folder, group=v.get("webui_admin_group", "admins"),
                          cert_line=CERT_LINE.format(user=user) if cert else "",
                          cert_step=CERT_STEP.format(user=user) if cert else "", n=5 if cert else 4,

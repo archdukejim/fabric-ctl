@@ -24,7 +24,12 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `set_password_policy.py` | The admin's password policy on the domain object (2.1.6.13) |
 | `ensure_gpo.py` | One of fabric's GPOs created, linked, its SYSVOL files written, its version bumped on change |
 | `root_ca_policy.py` | The Registry.pol that makes fabric's root CA a trusted root on Windows (Q13) |
-| `logon_rights_policy.py` | The GptTmpl.inf granting log-on to a site's machines (2.1.6.14, Q16) |
+| `logon_rights_policy.py` | The GptTmpl.inf granting log-on to a site's machines, at the keyboard and remotely (2.1.6.14, Q16, 1.6.11.4) |
+| `ensure_logon_policies.py` | Who may sign in to the site's machines: one log-on GPO per OU of `logon_policies` (or, null, the site's legacy one), the ones no longer wanted removed (1.6.11.4) |
+| `legacy_logon_groups.py` | The groups a site grants log-on to while it has no per-OU policies (as before 0.9, 2.1.6.44) |
+| `logon_groups.py` | Operation `logon_groups`: which named groups do not exist, and the site's legacy log-on groups (the editor's first edit) |
+| `find_gpo.py` | A GPO found by its display name |
+| `remove_gpo.py` | One of fabric's GPOs unlinked everywhere, its container and SYSVOL folder deleted |
 | `list_people.py` | Operation `list_people`: people and groups under OU=sites (service accounts left out) |
 | `create_person.py` | Operation `create_person`: a person in the site's OU=people, a uid from its block, in `<site>-users`, must change their password |
 | `get_person.py` | Operation `get_person`: where a person lives and their groups |
@@ -45,7 +50,18 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `write_plan.py` | Operation `write_plan`: checked changes to a site's plan (VLANs, subnets, ranges, addresses, its number) |
 | `plan_cidrs.py` | The networks of the site's plan subnets, for its AD site |
 | `create_machine.py` | Operation `create_machine`: a machine pre-created in the site's OU=machines with a one-time join password |
+| `sort_windows_machines.py` | Operation `sort_windows_machines`: Windows machines that joined themselves into OU=machines moved into OU=windows, those moved before skipped (manual 1.6.11.5) |
+| `adopt_linux_machines.py` | Operation `adopt_linux_machines`: Linux machines joined into OU=linux with an admin's password made members of <site>-fabric-machines, once, unless their join said unmanaged (manual 1.6.11.6) |
 | `ensure_sudo_rule.py` | The site's default sudo rule: its admins and the admin group may run anything on its machines (2.1.9.13) |
+| `host_groups.py` | Host groups and fabric's sudo rules (1.6.11.7): their names, marks, a host group's machines as sudo host names, the site's rules |
+| `list_host_groups.py` | Operation `list_host_groups`: the site's `<site>-hosts-<name>` groups, their machines and the sudo rules naming each |
+| `create_host_group.py` | Operation `create_host_group`: a host group in the site's OU=groups |
+| `remove_host_group.py` | Operation `remove_host_group`: a host group deleted, refused while a sudo rule names it |
+| `set_host_group_member.py` | Operation `set_host_group_member`: a machine of the site in or out of a host group, the sudo rules' hosts refreshed |
+| `list_sudo_rules.py` | Operation `list_sudo_rules`: the rules in the site's OU=sudoers, each fabric's editor's, the site default or an admin's own |
+| `add_sudo_rule.py` | Operation `add_sudo_rule`: a sudo rule of fabric's editor (ALL commands to everyone refused) |
+| `remove_sudo_rule.py` | Operation `remove_sudo_rule`: one of the editor's rules deleted (never the site default, never an admin's own) |
+| `refresh_sudo_hosts.py` | The editor's rules on a host group name its machines' short and DNS names as sudoHost (after a member change, at convergence) |
 | `windows_baseline_policy.py` | The site's Windows baseline: wait for the network at log-on, the domain's time, Wired AutoConfig and the 802.1X profile (start-up script) |
 | `gpo_tool.py` | fabric's ADMX editor's entry point: one operation (load, templates, policies, show, set, clear) as JSON |
 | `admx_store.py` | The domain's central store: templates saved, and every policy they define read as Windows' editor reads them |

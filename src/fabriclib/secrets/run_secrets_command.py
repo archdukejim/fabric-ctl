@@ -5,6 +5,9 @@ from fabriclib.common.paths import SECRETS_FILE
 from fabriclib.common.write_audit import write_audit
 from fabriclib.secrets.load_secrets import load_secrets
 
+USAGE = """usage: fabricctl secrets list                     the names of fabric's own secrets
+       fabricctl secrets show <name>              one secret's value (audited, the name only)"""
+
 
 def _flat(secrets):
     """Purpose: Flatten fabric's secrets for listing: each tsig_secrets entry becomes "tsig/<name>".
@@ -50,5 +53,5 @@ def run_secrets_command(argv, path=SECRETS_FILE):
         write_audit("root", "SECRET_READ", f"name={argv[1]}", "cli")
         print(flat[argv[1]])
         return 0
-    print("usage: fabricctl secrets list | show <name>", file=sys.stderr)
+    print(USAGE, file=sys.stderr)
     return 2

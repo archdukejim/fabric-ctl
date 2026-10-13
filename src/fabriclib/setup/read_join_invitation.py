@@ -1,6 +1,6 @@
-import getpass
 import sys
 
+from fabriclib.common.ask import ask_secret
 from fabriclib.federation.constants import INVITE_PREFIX
 from fabriclib.setup.errors import SetupError
 
@@ -31,7 +31,7 @@ def read_join_invitation(value, non_interactive=False):
     elif non_interactive:
         raise SetupError("no invitation given: --join @FILE or on stdin with --non-interactive")
     else:
-        text = getpass.getpass("Invitation (from fabricctl federation invite; hidden): ")
+        text = ask_secret("setup.join_invitation", "Invitation (from fabricctl federation invite; hidden): ")
     if not text.strip():
         raise SetupError("no invitation given")
     return text.strip()

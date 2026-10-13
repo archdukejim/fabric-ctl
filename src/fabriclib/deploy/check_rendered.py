@@ -7,11 +7,11 @@ from fabriclib.ipam.load_address_plan import load_address_plan
 
 def check_rendered(final_vars, secrets, context, federation_file):
     """Purpose: the rendered settings made whole and checked, and BIND's zone-list context set from them, the same
-             for an apply and for the quick zone path (`dns add-zone` / `remove-zone`, decision 2.1.10.21): the
-             site's address plan (load_address_plan: the DHCP subnets and static names, manual 1.10.4.14), the
-             settings check (check_settings: DHCP placed and normalized, `dhcp_reverse_zones` where Kea registers
-             PTRs), then the reverse zones, the PTRs set by hand that Kea's key may never replace (2.1.10.20) and the
-             federation links.
+             for an apply and for the quick zone path (`dns add-zone` / `remove-zone`, decision 2.1.4.7, extended by
+             2.1.10.21): the site's address plan (load_address_plan: the DHCP subnets and static names, manual
+             1.10.4.14), the settings check (check_settings: DHCP placed and normalized, `dhcp_reverse_zones` where
+             Kea registers PTRs), then the reverse zones, the PTRs set by hand that Kea's key may never replace
+             (2.1.10.20) and the federation links.
     Inputs:  final_vars — render_vars' settings, changed in place (dhcp, dns, dhcp_served, dhcp_reverse_zones, ...);
              secrets — fabric's secrets (the agent's password for the plan, the federation keys); context — the
              render context, changed in place (reverse_zone_names, reverse_by_hand, federation_links);

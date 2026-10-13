@@ -1,6 +1,7 @@
 import os
 import sys
 
+from fabriclib.common.ask import ask
 from fabriclib.common.console import BOLD, NC, RED
 from fabriclib.common.load_vars import load_vars
 from fabriclib.common.paths import VARS_FILE
@@ -40,7 +41,7 @@ def run_vars_menu():
         print(f"  {BOLD}d{NC}    Delete variable")
         print(f"  {BOLD}apply{NC} Save and Apply changes")
         print(f"  {BOLD}q{NC}    Quit without applying\n")
-        choice = input("Select a category (1-6), or option: ").strip().lower()
+        choice = ask("menu.main.option", "Select a category (1-6), or option: ").lower()
 
         if choice in ("q", "quit", "exit"):
             print("Exiting.")
@@ -51,24 +52,25 @@ def run_vars_menu():
                 print(f"\n{RED}{BOLD}[WARNING]{NC} You are about to apply changes to highly sensitive network "
                       f"configurations: {', '.join(warned)}")
                 print("This may break routing and require widespread restarts.")
-                if input("Are you absolutely sure you want to apply? (type 'yes'): ").strip().lower() != "yes":
+                if ask("menu.main.apply_confirm",
+                       "Are you absolutely sure you want to apply? (type 'yes'): ").lower() != "yes":
                     continue
             print("Applying changes...")
             apply_and_report()
             sys.exit(0)
         if choice == "a":
-            key = input("New variable key: ").strip()
+            key = ask("menu.main.new_key", "New variable key: ")
             if key in IMMUTABLE_KEYS and key in data:      # adding over one would change it (dc_name: 2.1.6.45)
                 print(f"{RED}Cannot change immutable key: {key}{NC}")
-                input("Press Enter to continue...")
+                ask("menu.continue", "Press Enter to continue...")
             elif key:
-                data[key] = parse_value(input(f"Value for {key} (Enter for null): ").strip())
+                data[key] = parse_value(ask("menu.main.new_value", f"Value for {key} (Enter for null): "))
                 save_menu_change(VARS_FILE, data, key, "None", data[key], "ADDED")
         elif choice == "d":
-            key = input("Variable key to delete: ").strip()
+            key = ask("menu.main.delete_key", "Variable key to delete: ")
             if key in IMMUTABLE_KEYS:
                 print(f"{RED}Cannot delete immutable key: {key}{NC}")
-                input("Press Enter to continue...")
+                ask("menu.continue", "Press Enter to continue...")
             elif key in data:
                 old = data.pop(key)
                 save_menu_change(VARS_FILE, data, key, old, "None", "DELETED")

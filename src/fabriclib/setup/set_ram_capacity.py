@@ -1,19 +1,26 @@
 from fabriclib.common.console import info
+from fabriclib.common.errors import ValidationError
 from fabriclib.setup.errors import SetupError
 from fabriclib.system.host_ram_gb import host_ram_gb
+from fabriclib.system.plan_memory import SERVICES, plan_memory
 
 MIN_RAM_GB = 4                      # 2.1.2.3: a Raspberry Pi with 4 GB is the smallest host
 
 
-def _plan(gb):
-    """Purpose: what fabric's largest containers may use at a size, as the compose files set it (manual 1.2.4.2).
-    Inputs:  gb — int, host_ram_capacity.
-    Returns: str, e.g. "Keycloak 2400 MB, the domain controller 1024 MB, Postgres 400 MB, BIND 256 MB".
+def _plan(data):
+    """Purpose: what fabric's largest containers may use at this size, as planned (manual 1.2.4.3).
+    Inputs:  data — the settings so far (host_ram_capacity set; the parts as chosen so far, Keycloak on unless set
+             off, as the plan's default).
+    Returns: str, e.g. "Keycloak 1129 MB, the domain controller (Samba) 563 MB, ..." (the four largest), or the plan's
+             refusal when the floors do not fit.
     Fails:   never.
     Feeds:   set_ram_capacity."""
-    f = gb / 4
-    return (f"Keycloak {int(1200 * f)} MB, the domain controller {int(512 * f)} MB, Postgres {int(200 * f)} MB, "
-            f"BIND {int(128 * f)} MB")
+    try:
+        plan = plan_memory({"install_keycloak": True, **data})
+    except ValidationError as e:
+        return str(e)
+    top = sorted(plan["limits"].items(), key=lambda kv: -kv[1])[:4]
+    return ", ".join(f"{SERVICES[s][3]} {mb} MB" for s, mb in top)
 
 
 def set_ram_capacity(data):
@@ -34,5 +41,5 @@ def set_ram_capacity(data):
             raise SetupError(f"host_ram_capacity is {set_} GB: give {MIN_RAM_GB} to {have or 'the host'}'s GB")
         return
     data["host_ram_capacity"] = have or MIN_RAM_GB
-    info(f"memory: sized for {data['host_ram_capacity']} GB ({_plan(data['host_ram_capacity'])}); give fabric less "
+    info(f"memory: sized for {data['host_ram_capacity']} GB ({_plan(data)}); give fabric less "
          "with the vars editor")

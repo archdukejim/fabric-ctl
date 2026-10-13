@@ -2,6 +2,12 @@
 import time
 
 RECORD_TYPES = ["A", "AAAA", "CNAME", "MX", "TXT", "SRV"]
+# the site zone's names fabric adds on every render (fabriclib.dns.common.fabric_record): (type, name) -> (service,
+# setting); the preview marks them "provided by fabric" and refuses their delete as fabric-agent does (2.1.2.22)
+SAMPLE_FABRIC_NAMES = {("A", "fabric"): ("this host", "hostname"),
+                       ("A", "@"): ("the domain itself, which serves the landing page", "host_ip"),
+                       ("CNAME", "ca"): ("the CA (step-ca)", "cname_ca"), ("CNAME", "dns"): ("DNS (BIND)", "cname_dns"),
+                       ("CNAME", "sso"): ("sign-in (Keycloak)", "cname_sso")}
 SAMPLE_RADIUS = {"enabled": True, "server_name": "radius.home.arpa", "host_ip": "192.168.1.2",
                  "clients": [{"name": "switch1", "address": "192.168.1.3", "message_authenticator": True},
                              {"name": "ap-hall", "address": "192.168.1.4", "message_authenticator": False}],
@@ -51,7 +57,8 @@ SAMPLE = {
             ("CNAME", "ca", "fabric"), ("CNAME", "info", "fabric"), ("CNAME", "dns", "fabric"),
             ("A", "printer", "192.168.1.40"), ("AAAA", "nas", "fd00:1:2:3::10"), ("A", "vpn", "203.0.113.7"),
             ("CNAME", "ca", "fabric"), ("CNAME", "info", "fabric"), ("CNAME", "dns", "fabric"),
-            ("CNAME", "sso", "fabric"), ("MX", "@", "10 mail"), ("TXT", "@", '"v=spf1 -all"')]},
+            ("CNAME", "sso", "fabric"), ("MX", "@", "10 mail"), ("TXT", "@", '"v=spf1 -all"')],
+            "links": {"A|nas": {"label": "NAS", "port": 5001, "path": None}}},
         "iot.home.arpa": {"name": "iot.home.arpa", "records": [
             ("A", "cam-front", "192.168.20.11"), ("A", "cam-back", "192.168.20.12"), ("A", "thermostat",
                                                                                       "192.168.20.30")]},
@@ -126,7 +133,7 @@ SAMPLE_DEVICES = {"tokens": [{"vendor": "Yubico", "product": "YubiKey OTP+FIDO+C
                               "serial": "23456799", "label": "YubiKey PIV #23456799",
                               "manufacturer": "Yubico (www.yubico.com)",
                               "model": "YubiKey YK5", "pin_state": "ok"}]}
-SAMPLE_CA = {"domain": "home.arpa", "certs_url": "http://info.home.arpa/certs/", "max_days": 1825,
+SAMPLE_CA = {"domain": "home.arpa", "certs_url": "http://ca.home.arpa/certs/", "max_days": 1825,
              "root": {"subject": "CN=Fabric Root CA,O=Fabric", "not_after": "Sep  1 00:00:00 2046 GMT",
                       "key": "EC prime256v1", "sha256": _FP},
              "intermediate": {"subject": "CN=Fabric Intermediate CA,O=Fabric", "not_after": "Sep  1 00:00:00 2036 GMT",
@@ -142,13 +149,36 @@ SAMPLE_INFO = {"subject": "CN=device.home.arpa,OU=IT,O=Fabric", "issuer": "CN=Fa
                "usage": "TLS Web Server Authentication, TLS Web Client Authentication", "is_ca": False}
 SAMPLE_DOMAIN = {"status": {"domain": "ad.home.arpa", "realm": "AD.HOME.ARPA", "netbios": "AD",
                             "dc": "pi-core.ad.home.arpa", "running": True,
-                            "roles": ["SchemaMasterRole owner: pi-core"], "policy": []},
-                 "policy": {"minimum_length": 14, "complexity": True, "history": 24, "lockout_threshold": 5},
+                            "roles": [f"{r}Role owner: CN=NTDS Settings,CN=DC-PI-CORE,CN=Servers,CN=lan,CN=Sites,"
+                                      "CN=Configuration,DC=ad,DC=home,DC=arpa"
+                                      for r in ("SchemaMaster", "InfrastructureMaster", "RidAllocationMaster",
+                                                "PdcEmulationMaster", "DomainNamingMaster", "DomainDnsZonesMaster",
+                                                "ForestDnsZonesMaster")],
+                            "role_summary": {"text": "This controller holds all five roles (and the 2 DNS zone "
+                                                     "masters).", "held": [], "elsewhere": []}, "policy": []},
+                 "policy": {"minimum_length": 14, "complexity": True, "history": 24, "minimum_age_days": 0,
+                            "maximum_age_days": 0, "lockout_threshold": 5, "lockout_minutes": 15,
+                            "lockout_window_minutes": 15},
                  "site": "lan", "machines_error": "",
                  "machines": [{"name": "host-1", "dns": "host-1.ad.home.arpa", "os": "Windows 11 Pro", "enabled": True,
                                "last_logon": "2026-10-05T08:12:00+00:00", "created": "2026-10-04", "dn": ""},
                               {"name": "ws2404", "dns": "ws2404.ad.home.arpa", "os": "", "enabled": False,
                                "last_logon": "", "created": "2026-10-05", "dn": ""}]}
+SAMPLE_LOGON = {"site": "lan", "legacy": False, "error": "",
+                "always": ["fabric-break-glass", "BUILTIN\\Administrators"],
+                "policies": [{"ou": "machines", "console": ["lan-machine-admins"], "remote": ["lan-machine-admins"]},
+                             {"ou": "machines/linux", "console": ["lan-machine-admins", "lan-devs"],
+                              "remote": ["lan-devs"]}]}
+SAMPLE_ACCESS = {"error": "",
+                 "groups": [{"name": "lan-hosts-web", "short": "web", "machines": ["host-1"], "other_members": [],
+                             "rules": ["web-restart"], "hosts": ["host-1", "host-1.ad.home.arpa"], "fabric": True}],
+                 "sudo": [{"name": "lan-fabric-admins", "kind": "default", "users": ["%lan-fabric-admins"],
+                           "commands": ["ALL"], "run_as": ["ALL"], "hosts": ["ALL"], "host_group": ""},
+                          {"name": "web-restart", "kind": "fabric", "users": ["alice", "%lan-web-ops"],
+                           "commands": ["/usr/bin/systemctl restart nginx"], "run_as": ["root"],
+                           "hosts": ["host-1", "host-1.ad.home.arpa"], "host_group": "lan-hosts-web"},
+                          {"name": "backup", "kind": "other", "users": ["%backup-ops"], "commands": ["/usr/bin/rsync"],
+                           "run_as": ["root"], "hosts": ["ALL"], "host_group": ""}]}
 SAMPLE_FEDERATION = {
     "site": "lan", "upstream": None,
     "sites": [{"name": "lab", "domain": "lab.home.arpa", "address": "192.168.20.2", "parent": "lan", "dc": "writable",
@@ -201,7 +231,7 @@ SAMPLE_DOCTOR = {"checks": [{"name": "DNS ns.home.arpa", "ok": True, "detail": "
 SAMPLE_ACME = {"domain": "home.arpa", "machines": [{"name": "nas", "fqdn": "nas.home.arpa", "key": "acme-nas",
                                                     "records": ["nas"]}],
                "info": ["ACME directory: https://ca.home.arpa/acme/acme/directory",
-                        "trust fabric's root CA first: http://info.home.arpa/certs/ (check its fingerprint there)",
+                        "trust fabric's root CA first: http://ca.home.arpa/certs/ (check its fingerprint there)",
                         "names: <name>.home.arpa only; certificates live 47 days: let the client renew at 30 days old",
                         "http-01: the machine answers on port 80 for its name (nothing to enroll)",
                         "dns-01: enroll it below; its client sends RFC2136 updates with its key"]}

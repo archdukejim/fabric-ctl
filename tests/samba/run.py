@@ -19,7 +19,9 @@ from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.deploy.check_samba_settings import check_samba_settings  # noqa: E402
 from fabriclib.deploy.service_units import service_units  # noqa: E402
 from fabriclib.dns_filter.common.filter_zones import filter_zones as adguard_zones  # noqa: E402
+from fabriclib.samba.read_policy_changes import read_policy_changes  # noqa: E402
 from fabriclib.samba.suggested_ad_domain import suggested_ad_domain  # noqa: E402
+from fabriclib.samba.summarize_roles import summarize_roles  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 PASS = FAIL = 0
@@ -54,6 +56,7 @@ try:
     check("a complete configuration passes", True)
 except ValidationError as e:
     check("a complete configuration passes", False, e)
+# covers: setting:ad_domain -
 check("refused: no AD domain (it has no default)", refused({**GOOD, "ad_domain": ""}, "ad_domain is required"))
 check("refused: an AD domain of one label", refused({**GOOD, "ad_domain": "ad"}, "not a valid DNS domain"))
 check("refused: fabric's own domain (same-domain mode dropped, 2.1.6.11)",
@@ -62,8 +65,10 @@ check("accepted: any other domain, not only the suggested ad.<domain>",
       not refused({**GOOD, "ad_domain": "corp.example.net"}, ""))
 check("refused: a parent of fabric's domain", refused({**GOOD, "ad_domain": "test.x", "domain": "lan.test.x"},
                                                        "parent of fabric's domain"))
+# covers: setting:ad_netbios -
 check("refused: a NetBIOS domain name over 15 characters",
       refused({**GOOD, "ad_netbios": "A" * 16}, "at most 15"))
+# covers: setting:dc_name -
 check("refused: a DC name Windows cannot use as its NetBIOS name (2.1.6.45)",
       refused({**GOOD, "dc_name": "a-very-long-dc-name"}, "1-15 letters")
       and refused({**GOOD, "dc_name": "dc_1"}, "1-15 letters") and refused({**GOOD, "dc_name": "-dc"}, "hyphen")
@@ -71,6 +76,7 @@ check("refused: a DC name Windows cannot use as its NetBIOS name (2.1.6.45)",
 check("refused: the domain's own NetBIOS name as the DC's", refused({**GOOD, "dc_name": "ad"}, "NetBIOS name"))
 check("accepted: a long host name: the DC has its own name now (2.1.6.45)",
       not refused({**GOOD, "hostname": "a-very-long-host-name"}, ""))
+# covers: setting:ad_password_policy -
 check("refused: no password policy (no defaults, 2.1.6.13)",
       refused({**GOOD, "ad_password_policy": {}}, "no defaults"))
 check("refused: one policy key missing, named",
@@ -84,10 +90,12 @@ check("refused: a minimum age not below the maximum",
       refused({**GOOD, "ad_password_policy": {**POLICY, "minimum_age_days": 365}}, "must be below the second"))
 check("refused: a lockout shorter than its reset window (AD refuses it)",
       refused({**GOOD, "ad_password_policy": {**POLICY, "lockout_minutes": 5}}, "at least as long as that window"))
+# covers: setting:ad_password_policy +
 check("accepted: locked until an admin unlocks (lockout 0) with any window",
       not refused({**GOOD, "ad_password_policy": {**POLICY, "lockout_minutes": 0}}, ""))
 check("accepted: passwords that never expire (maximum 0) with any minimum age",
       not refused({**GOOD, "ad_password_policy": {**POLICY, "maximum_age_days": 0}}, ""))
+# covers: setting:ad_rpc_ports -
 check("refused: an RPC range at or below 1024", refused({**GOOD, "ad_rpc_ports": "100-200"}, "ad_rpc_ports"))
 
 check("the suggestion is a sibling at the top of the organisation's name (2.1.6.11); a two-label domain gets ad.<it>",
@@ -98,6 +106,32 @@ check("the two-label suggestion is a valid AD domain (a sub-domain, never the do
       not refused({**GOOD, "domain": "home.arpa", "ad_domain": suggested_ad_domain("home.arpa")}, ""))
 check("accepted: a sub-domain of fabric's domain too", not refused({**GOOD, "ad_domain": "ad.lan.test"}, ""))
 check("accepted: the suggested sibling", not refused({**GOOD, "ad_domain": "ad.test2", "domain": "lan.test2"}, ""))
+
+print("--- the console's Domain section (2.1.2.22): the roles named plainly, the policy typed as the command types it")
+_DN = "CN=NTDS Settings,CN={},CN=Servers,CN=lan,CN=Sites,CN=Configuration,DC=ad,DC=lan,DC=test"
+_ROLES = ["SchemaMaster", "InfrastructureMaster", "RidAllocationMaster", "PdcEmulationMaster", "DomainNamingMaster",
+          "DomainDnsZonesMaster", "ForestDnsZonesMaster"]
+s = summarize_roles([f"{r}Role owner: {_DN.format('DC-PI-CORE')}" for r in _ROLES], "dc-pi-core.ad.lan.test")
+check("roles: all held here -> 'This controller holds all five roles', no DN shown",
+      s["text"].startswith("This controller holds all five roles") and "CN=" not in s["text"] and not s["elsewhere"],
+      s)
+s = summarize_roles([f"{r}Role owner: {_DN.format('DC-LAB' if r == 'PdcEmulationMaster' else 'DC-PI-CORE')}"
+                     for r in _ROLES], "dc-pi-core.ad.lan.test")
+check("roles: one held by another controller -> named with it, the rest held here",
+      "DC-LAB holds the PDC emulator" in s["text"] and "schema master" in s["text"] and "CN=" not in s["text"], s)
+check("roles: none read (the DC not running) -> no sentence", summarize_roles([], "dc-pi-core")["text"] == "")
+check("policy form: digits and on/off typed as the command's options",
+      read_policy_changes({"minimum_length": "14", "complexity": "off", "lockout_minutes": 30, "actor": "x"})
+      == {"minimum_length": 14, "complexity": False, "lockout_minutes": 30})
+for data, words in (({"minimum_length": "twelve"}, "whole number"), ({"history": "-1"}, "whole number"),
+                    ({"complexity": "yes"}, "on or off"), ({"colour": "1"}, "unknown policy setting"), ({}, "no policy"),
+                    ({"history": True}, "whole number")):
+    try:
+        read_policy_changes(data)
+        ok = False
+    except ValidationError as e:
+        ok = words in str(e)
+    check(f"policy form refused: {data} ({words})", ok)
 
 print("--- what setup asks of the directory: only the AD domain; the policy starts from the default (2.1.2.16)")
 import builtins  # noqa: E402
@@ -160,8 +194,8 @@ def ask_dc(answers, have=None, unattended=False):
 
 
 got, said = ask_dc([""])
-check("asked with dc-<hostname> suggested; Enter takes it; says it is permanent and apart from the host's name",
-      got == "dc-pi-core" and "[dc-pi-core]" in said and "permanent" in said and "host's name" in said, (got, said))
+check("asked with dc-<hostname> suggested; Enter takes it; marked permanent in its one line (2.1.2.21)",
+      got == "dc-pi-core" and "[dc-pi-core]" in said and "Permanent" in said, (got, said))
 got, said = ask_dc(["a-name-far-too-long", "ad", "12", "DC-Kitchen"])
 check("negative: too long, the domain's NetBIOS name, only digits each refused saying why, then any valid name taken",
       got == "dc-kitchen" and "1-15 letters" in said and "NetBIOS name" in said and "only digits" in said,
@@ -232,6 +266,7 @@ def ram(have, data):
 check("a host under 4 GB is refused", str(ram(3, {})).startswith("refused"))
 check("the measured memory is used and kept, nothing asked", ram(8, {}) == 8)
 check("a value set by the admin is kept when it fits", ram(8, {"host_ram_capacity": 6}) == 6)
+# covers: setting:host_ram_capacity -
 check("refused: more than the host has, or under 4", str(ram(8, {"host_ram_capacity": 12})).startswith("refused")
       and str(ram(8, {"host_ram_capacity": 2})).startswith("refused"))
 
@@ -248,11 +283,12 @@ base = {"domain": "lan.test", "hostname": "pi-core", "host_ip": "192.168.7.53", 
         "lan_gateway": "192.168.7.1", "ad_domain": "AD.lan.test",
         "ad_password_policy": POLICY}
 v = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base))
+# covers: setting:ad_domain +
 check("the domain's names follow from ad_domain (lower-cased; realm, base DN, NetBIOS, the DC's name)",
       (v["ad_domain"], v["ad_realm"], v["ad_base_dn"], v["ad_netbios"], v["hostname_dc"])
       == ("ad.lan.test", "AD.LAN.TEST", "DC=ad,DC=lan,DC=test", "AD", "dc-pi-core.ad.lan.test"),
       (v["ad_domain"], v["ad_realm"], v["ad_base_dn"], v["ad_netbios"], v["hostname_dc"]))
-check("the limit is 512m (4 GB is the smallest host, 2.1.2.3)", v["samba_mem_limit"] == "512m")
+check("the limit is planned (1.2.4.3): 512 MB at least at 4 GB, the smallest host (2.1.2.3); no samba_mem_limit written", v["memory_plan"]["limits"]["samba"] >= 512 and v["samba_mem_limit"] is None, v["memory_plan"])
 dc = yaml.safe_load(env.get_template("samba/docker-compose.yml.j2").render(**v))["services"]["samba"]
 check("host network (2.1.6.18), read-only, no-new-privileges, every capability dropped",
       dc["network_mode"] == "host" and dc["read_only"] is True and dc["cap_drop"] == ["ALL"]
@@ -270,17 +306,22 @@ check("the DC's time-signing socket in the one folder chrony's AppArmor profile 
       "/var/lib/samba/ntp_signd:/run/samba/ntp_signd" in dc["volumes"], dc["volumes"])
 check("its secrets, certificate and converge code are mounted read-only",
       all(any(m.endswith(f":{target}:ro") for m in dc["volumes"]) for target in ("/run/secrets", "/tls", "/fabric")))
-check("a memory limit", dc["mem_limit"] == "512m")
+check("a memory limit: the planned one", dc["mem_limit"] == f"{v['memory_plan']['limits']['samba']}m", dc["mem_limit"])
 check("fabric's published image, pinned by digest; or, while it is pending, built here with BIND's and FreeRADIUS's gids",
       ("@sha256:" in dc["image"] and "build" not in dc)
       or (dc.get("build", {}).get("args", {}).get("BIND_GID") == "600"
           and dc.get("build", {}).get("args", {}).get("RADIUS_GID") == "610"), dc.get("image"))
 
-big = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base, host_ram_capacity=8))
+big = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base, host_ram_capacity=8, install_keycloak=True))
+# the same parts at 4 GB: under the budget a DC without Keycloak beside it takes Keycloak's share too (2.1.1.47)
+small = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base, host_ram_capacity=4, install_keycloak=True))
 kc8 = yaml.safe_load(env.get_template("keycloak/docker-compose.yml.j2").render(**big))["services"]["keycloak"]
-check("at 8 GB the growing services scale: Keycloak 2400M, the DC 1024m",
-      kc8["deploy"]["resources"]["limits"]["memory"] == "2400M" and big["samba_mem_limit"] == "1024m",
-      (kc8.get("deploy"), big["samba_mem_limit"]))
+# covers: setting:host_ram_capacity +
+check("at 8 GB the growing services take more than at 4 GB: Keycloak and the DC (their planned limits, 1.2.4.3)",
+      kc8["deploy"]["resources"]["limits"]["memory"] == f"{big['memory_plan']['limits']['keycloak']}M"
+      and big["memory_plan"]["limits"]["keycloak"] > small["memory_plan"]["limits"]["keycloak"] > 1024
+      and big["memory_plan"]["limits"]["samba"] > small["memory_plan"]["limits"]["samba"],
+      (kc8.get("deploy"), big["memory_plan"]))
 
 print("--- what changes around it")
 ngx = env.get_template("nginx/nginx.conf.j2").render(**v)
@@ -296,14 +337,130 @@ b = b["services"]["bind9"]
 check("BIND mounts fabric's DLZ files and the DC's smb.conf read-only, the DNS partition writable",
       "/opt/samba/bind:/etc/bind-samba:ro" in b["volumes"] and "/opt/samba/data/etc:/etc/samba:ro" in b["volumes"]
       and "/opt/samba/data/bind-dns:/data/bind-dns" in b["volumes"], b["volumes"])
-check("BIND gets a Kerberos replay cache and 128 MiB at 4 GB (Samba's DLZ libraries)",
-      any(t.startswith("/var/tmp:") for t in b["tmpfs"]) and b["deploy"]["resources"]["limits"]["memory"] == "128M")
+check("BIND gets a Kerberos replay cache and 128 MiB at least at 4 GB (Samba's DLZ libraries)",
+      any(t.startswith("/var/tmp:") for t in b["tmpfs"])
+      and int(b["deploy"]["resources"]["limits"]["memory"].rstrip("M")) >= 128, b.get("deploy"))
 sibling = {**v, "ad_domain": "ad.test"}
 check("the DNS filter forwards the AD zone to BIND, also when it sits beside fabric's domain (ad.<parent>)",
       "ad.test" in adguard_zones(sibling, {}) and "ad.lan.test" in adguard_zones(v, {}))
 units = {u["service"]: u for u in service_units("/opt", v)}
 check("a samba unit on every install, requiring nothing",
       units["samba"]["enabled"] and units["samba"]["requires"] == [])
+
+print("--- who may sign in, per OU (manual 1.6.11.4): the setting, checked at apply; a fresh install's default")
+import tempfile  # noqa: E402
+
+from fabriclib.deploy.check_settings import check_settings  # noqa: E402
+from fabriclib.samba.check_logon_policies import check_logon_policies  # noqa: E402
+import fabriclib.setup.collect_vars as m_collect  # noqa: E402
+from fabriclib.setup.collect_vars import collect_vars  # noqa: E402
+
+m_collect.network_problem = lambda data: ""         # the test's addresses are not this machine's (pure logic)
+
+
+def logon_refused(value, words):
+    try:
+        check_logon_policies(value)
+    except ValidationError as e:
+        return words in str(e) or print(f"    refused, but: {e}")
+    return False
+
+
+check("logon_policies renders null by default (an upgrade keeps the rights it has, 2.1.6.44)",
+      "logon_policies" in v and v["logon_policies"] is None, v.get("logon_policies"))
+odd = "lan-x: #1 'q' $(id)"
+lp = yaml.safe_load(env.get_template("vars.yaml.j2").render(
+    **base, logon_policies={"machines": {"console": ["lan-machine-admins"], "remote": [odd]}}))
+check("logon_policies renders as it was set, a value with YAML's and the shell's specials read back as itself (1.1.5.7)",
+      lp["logon_policies"] == {"machines": {"console": ["lan-machine-admins"], "remote": [odd]}}, lp["logon_policies"])
+# covers: setting:logon_policies +
+check("accepted and normalised: OU paths in lower case (Site and / for the site's OU), groups stripped, a repeat "
+      "dropped, a right left out empty, Domain Admins with its space",
+      check_logon_policies({"Machines/Linux/": {"console": [" lan-devs", "LAN-devs"]},
+                            "site": {"console": ["Domain Admins"], "remote": ["Domain Admins"]}})
+      == {"": {"console": ["Domain Admins"], "remote": ["Domain Admins"]},
+          "machines/linux": {"console": ["lan-devs"], "remote": []}})
+check("accepted: null (the site's rights as before 0.9); an OU below machines granting nobody (a locked-down OU)",
+      check_logon_policies(None) is None and check_logon_policies(
+          {"machines": {"console": ["a"]}, "machines/vault": {"console": [], "remote": []}})["machines/vault"]
+      == {"console": [], "remote": []})
+# covers: setting:logon_policies -
+check("refused: a map without the site's OU or OU=machines (the site's machines would have no policy of fabric's)",
+      logon_refused({}, "no policy on the site's OU") and logon_refused({"machines/linux": {"console": ["a"]}},
+                                                                           "no policy on the site's OU"))
+check("refused: OU=machines or the site's OU granting nobody (only break-glass could sign in)",
+      logon_refused({"machines": {"console": [], "remote": []}}, "grants nobody")
+      and logon_refused({"": {}, "machines": {"console": ["a"]}}, "grants nobody"))
+check("refused: an OU path with a space, a comma or an empty part, nine levels, or `rights` (the legacy GPO's name)",
+      logon_refused({"machines/a b": {"console": ["a"]}, "machines": {"console": ["a"]}}, "a path below")
+      and logon_refused({"OU=x,DC=y": {"console": ["a"]}, "machines": {"console": ["a"]}}, "a path below")
+      and logon_refused({"machines//x": {"console": ["a"]}, "machines": {"console": ["a"]}}, "a path below")
+      and logon_refused({"/".join("abcdefghi"): {"console": ["a"]}, "machines": {"console": ["a"]}}, "a path below")
+      and logon_refused({"rights": {"console": ["a"]}, "machines": {"console": ["a"]}}, "rights"))
+check("refused: a group name AD could not hold (a comma, brackets, a leading space kept by a list item that is not "
+      "text), a right that is not a list, an unknown key, the same OU twice, a value that is not a map",
+      logon_refused({"machines": {"console": ["a,b"]}}, "not a group name")
+      and logon_refused({"machines": {"console": ["[x]"]}}, "not a group name")
+      and logon_refused({"machines": {"console": [5]}}, "not a group name")
+      and logon_refused({"machines": {"console": "a"}}, "a list of group names")
+      and logon_refused({"machines": {"console": ["a"], "ssh": ["a"]}}, "only console and remote")
+      and logon_refused({"machines": {"console": ["a"]}, "Machines": {"console": ["a"]}}, "named twice")
+      and logon_refused(["machines"], "a map of OU path"))
+try:
+    check_settings({**v, "dns_filter": "none", "logon_policies": {"machines": {"console": []}}})
+    applied = "accepted"
+except ValidationError as e:
+    applied = str(e)
+check("refused at apply: check_settings checks logon_policies before anything is rendered",
+      "grants nobody" in applied, applied)
+# pki_manual_max_days (2.3.1.15): a cap that is not a whole number of days is refused at apply, not on the PKI page
+for bad in ("abc", "0", "-5", "12.5"):
+    try:
+        check_settings({**v, "dns_filter": "none", "pki_manual_max_days": bad})
+        said = "accepted"
+    except ValidationError as e:
+        said = str(e)
+    # covers: setting:pki_manual_max_days -
+    check(f"refused at apply: pki_manual_max_days {bad!r}, saying it must be a whole number of days",
+          "pki_manual_max_days must be a whole number of days" in said, said)
+_ok = {**v, "dns_filter": "none", "pki_manual_max_days": "90"}
+check_settings(_ok)
+check("...and a whole number is accepted, as a number", _ok["pki_manual_max_days"] == 90, _ok["pki_manual_max_days"])
+
+tmp = tempfile.mkdtemp()
+answers = os.path.join(tmp, "answers.yaml")
+with open(answers, "w") as f:
+    yaml.safe_dump({**{k: base[k] for k in ("domain", "hostname", "host_ip", "lan_cidr", "lan_gateway")},
+                    "ad_domain": "ad.lan.test", "site_name": "Lan", "host_ram_capacity": 8}, f)
+
+
+def setup_vars(vars_file, provisioned=False):
+    """collect_vars as setup runs it unattended with a vars file (pure logic: files in a scratch folder)."""
+    base_dir = tempfile.mkdtemp(dir=tmp)
+    if provisioned:
+        os.makedirs(os.path.join(base_dir, "samba", "data"))
+        open(os.path.join(base_dir, "samba", "data", ".fabric-provisioned"), "w").close()
+    ctx = types.SimpleNamespace(user_vars_file=answers, vars_file=vars_file, source_dir=os.path.join(tmp, "src"),
+                                config_dir=os.path.join(base_dir, "config"), deploy_base=base_dir,
+                                join_invitation=None, non_interactive=True, origins={},
+                                secrets_file=os.path.join(base_dir, "secrets.yml"))
+    with contextlib.redirect_stdout(io.StringIO()):
+        collect_vars(ctx)
+    return ctx.vars
+
+
+fresh = setup_vars(os.path.join(tmp, "none.yaml"))
+check("a fresh install: the site's machine admins may sign in to its OU=machines, at the keyboard and remotely "
+      "(2.1.6.42)", fresh.get("logon_policies") == {"machines": {"console": ["lan-machine-admins"],
+                                                                 "remote": ["lan-machine-admins"]}},
+      fresh.get("logon_policies"))
+existing = os.path.join(tmp, "vars.yaml")
+with open(existing, "w") as f:
+    yaml.safe_dump({"ad_password_policy": POLICY}, f)
+check("an upgrade (a vars file already there) keeps the log-on rights it has: no logon_policies (2.1.6.44)",
+      "logon_policies" not in setup_vars(existing), "set on an upgrade")
+check("a reinstall over a provisioned domain keeps them too (no vars file, but the domain's marker)",
+      "logon_policies" not in setup_vars(os.path.join(tmp, "none.yaml"), provisioned=True), "set on a reinstall")
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

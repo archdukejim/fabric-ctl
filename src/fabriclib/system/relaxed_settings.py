@@ -11,9 +11,10 @@ def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON):
              while they are active (global Rule 10; manual 1.2.8). Host changes the admin declined are listed by
              consent_status instead; Docker's userland proxy is listed here too while the DNS filter has client
              groups, because it hides their addresses (1.12.2.15).
-    Inputs:  vars_ — the host's vars (image_signature_check, the sign-in settings, install_resolver,
-             dns_filter_groups); config_dir — the install's config folder (LOWERED_FILE: sign-in layers lowered with
-             `fabricctl security lower`; default vars.yaml's); daemon_json — Docker's daemon settings file.
+    Inputs:  vars_ — the host's vars (image_signature_check, host_join_domain, the sign-in settings,
+             install_resolver, dns_filter_groups); config_dir — the install's config folder (LOWERED_FILE: sign-in
+             layers lowered with `fabricctl security lower`; default vars.yaml's); daemon_json — Docker's daemon
+             settings file.
     Returns: list of {"setting": str, "effect": str}; [] when none is relaxed.
     Fails:   OSError / ValueError for an unreadable LOWERED_FILE.
     Feeds:   system/show_relaxed_settings (`fabricctl status`); fabric-agent GET /v1/relaxed-settings (the web UI's
@@ -22,6 +23,10 @@ def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON):
     if not vars_.get("image_signature_check", True):
         relaxed.append({"setting": "image_signature_check: false",
                         "effect": "fabric's published images are used without checking their signatures (1.14.3.4)"})
+    if vars_.get("host_join_domain", True) is False:                     # 2.1.6.34: a member by default
+        relaxed.append({"setting": "host_join_domain: false",
+                        "effect": "this host is not a member of its domain: fabric admins sign in to it with local "
+                                  "accounts only, and sudo here does not follow the domain's rules (1.6.11.8)"})
     if vars_.get("install_keycloak") and admin_level(vars_) == "none":     # 2.1.6.23: a password only, by default
         relaxed.append({"setting": "signin_admin_second_factor: none",
                         "effect": "the web console and OpenBao ask for a password only; raise a "

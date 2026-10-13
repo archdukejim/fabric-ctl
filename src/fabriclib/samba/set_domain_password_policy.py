@@ -14,7 +14,8 @@ def set_domain_password_policy(actor, changes, source="cli"):
     Returns: dict, the saved policy.
     Fails:   ValidationError from check_samba_settings (a key unknown, out of range,
              or the policy inconsistent); OSError or yaml.YAMLError from the vars file or the audit log.
-    Feeds:   run_domain_command (password-policy)."""
+    Feeds:   run_domain_command (password-policy); agent/post_domain (POST /v1/domain/password-policy, the
+             console's Domain section, domain:admin)."""
     with vars_lock():
         data = load_vars()
         policy = {**(data.get("ad_password_policy") or {}), **changes}

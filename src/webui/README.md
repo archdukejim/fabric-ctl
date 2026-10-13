@@ -1,6 +1,6 @@
 # webui
 
-**Open Fabric** (*web control*): the control-plane web UI. It runs in its own
+**fabric-ctl** (*web control*): the control-plane web UI. It runs in its own
 unprivileged container (`fabric-web`) and holds no power: every action is a
 request to `fabric-agent` over a unix socket, carrying the signed-in person's
 ID token, and `fabric-agent` checks it against their permissions. Installed by

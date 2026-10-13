@@ -1,0 +1,19 @@
+# Settings that need no negative test, each with why (manual 3.1.2.5.2; read by scripts/docs/entrypoints.py).
+# A setting belongs here only when no value of it can be wrong: free text with no rule. One that lacks a test does
+# not: an address, a port, a CIDR, a boolean, a list with a schema, a host name, a path or a size can be wrong and
+# needs its negative case. Reviewed like code.
+#
+# Format: one line per setting, "setting:<key>": <the reason, one line>
+#
+# The organisation's free-text labels qualify since they are written quoted for every file they go into (1.1.5.7,
+# 2.3.1.14); until then they could break vars.yaml and the client scripts (reviewed 2026-10-10).
+"setting:friendly_name": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:ca_name": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:copyright": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:trademark": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:service_mark": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:care_of": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:contact_email": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:contact_phone": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:address_line1": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)
+"setting:address_line2": free text with no rule: any value is valid; it is written quoted for each file (1.1.5.7, tests/render.py proves it)

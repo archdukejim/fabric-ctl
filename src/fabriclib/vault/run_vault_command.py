@@ -2,6 +2,7 @@ import getpass
 import subprocess
 import sys
 
+from fabriclib.common.ask import ask_secret
 from fabriclib.common.errors import ValidationError
 from fabriclib.vault.add_kmip_slot import add_kmip_slot
 from fabriclib.vault.common.approle_login import approle_login
@@ -160,7 +161,8 @@ def run_vault_command(v, argv):
                 raise ValidationError(f"{len(tokens)} tokens with serial {args[0]!r}: see `fabricctl vault tokens`"
                                       + (" and pass --module" if tokens else ""))
             # the PIN never goes on the command line (argv is world-readable)
-            pin = getpass.getpass("token PIN: ") if sys.stdin.isatty() else sys.stdin.readline().rstrip("\n")
+            pin = (ask_secret("vault.token_pin", "token PIN: ") if sys.stdin.isatty()
+                   else sys.stdin.readline().rstrip("\n"))
             print("added " + add_security_key_slot(v, "root", tokens[0]["module"], args[0], pin,
                                                    opt.get("--key-id", "new"), opt.get("--label", ""), source="cli"))
             return 0
@@ -169,7 +171,8 @@ def run_vault_command(v, argv):
             if sys.stdin.isatty():
                 keys = []
                 while len(keys) < 10:
-                    key = getpass.getpass(f"recovery key {len(keys) + 1} (empty line when done): ").strip()
+                    key = ask_secret("vault.recovery_key",
+                                     f"recovery key {len(keys) + 1} (empty line when done): ").strip()
                     if not key:
                         break
                     keys.append(key)
@@ -181,7 +184,7 @@ def run_vault_command(v, argv):
             print("revoke: sudo fabricctl vault revoke-token   (paste it)")
             return 0
         if cmd == "revoke-token" and not args:
-            token = getpass.getpass("token: ") if sys.stdin.isatty() else sys.stdin.readline().strip()
+            token = ask_secret("vault.root_token", "token: ") if sys.stdin.isatty() else sys.stdin.readline().strip()
             if not revoke_token(v, token):
                 raise ValidationError("the token still works (or OpenBao refused): not revoked")
             print("revoked")

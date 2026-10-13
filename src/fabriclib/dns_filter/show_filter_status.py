@@ -7,6 +7,7 @@ from fabriclib.dns_filter.common.adguard_paths import adguard_paths
 from fabriclib.dns_filter.common.list_id import list_id
 from fabriclib.dns_filter.common.list_memory import list_memory
 from fabriclib.dns_filter.common.resolver_rndc import resolver_rndc
+from fabriclib.system.memory_limit_mb import memory_limit_mb
 
 
 def _age(ts):
@@ -25,8 +26,8 @@ def show_filter_status(v, password=None):
     """Purpose: `fabricctl dns-filter status` (manual 1.12.2.10, 1.12.3): whether the resolver and AdGuard Home answer,
              and each of the site's lists: ticked or not, its copy (fetched, last good copy, rules, estimated memory,
              last error) and AdGuard's own rule count; the memory rule's total.
-    Inputs:  v — rendered vars (install_resolver, dns_filter, dns_filter_lists, adguard_mem_limit, deploy_base_dir,
-             ip_adguard); password — adguard_api_password (None: AdGuard is not asked).
+    Inputs:  v — rendered vars (install_resolver, dns_filter, dns_filter_lists, memory_plan, adguard_mem_limit,
+             deploy_base_dir, ip_adguard); password — adguard_api_password (None: AdGuard is not asked).
     Returns: exit status: 0 when both answer and every ticked list has a good copy; 1 otherwise (each problem
              printed).
     Fails:   never raises (a missing or unreadable state file reads as no list fetched yet).
@@ -36,13 +37,13 @@ def show_filter_status(v, password=None):
         return 0
     r = resolver_rndc(["status"], timeout=15)
     ok = bool(r and r.returncode == 0)
-    print(f"resolver: {'running' if ok else 'NOT answering'}   memory limit {v.get('resolver_mem_limit')}")
+    print(f"resolver: {'running' if ok else 'NOT answering'}   memory limit {memory_limit_mb(v, 'resolver')}m")
     counts = {}
     if password is not None:
         try:
             status = adguard_api(v, password, "GET", "/control/filtering/status") or {}
             counts = {f.get("url"): f.get("rules_count") for f in status.get("filters") or []}
-            print(f"AdGuard Home: running   memory limit {v.get('adguard_mem_limit')}")
+            print(f"AdGuard Home: running   memory limit {memory_limit_mb(v, 'adguard')}m")
         except ValidationError as e:
             print(f"AdGuard Home: NOT answering ({e}): internet names fail closed (SERVFAIL) until it does")
             ok = False
