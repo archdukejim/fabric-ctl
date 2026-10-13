@@ -9,3 +9,4 @@ Helpers shared by the DHCP commands.
 | `option_target.py` | Where an option goes: every subnet, a subnet, a client class or a reservation |
 | `apply_dhcp_change.py` | Apply a recorded DHCP or address-plan change now (unless `--no-apply`), then the host firewall |
 | `kea_image.py` | The Kea image this host runs (published or its local build), to check Kea files with |
+| `hand_set_path.py` | Where the last apply keeps the addresses set by hand for the hourly cleanup (`<deploy base>/kea/hand-set.json`) |

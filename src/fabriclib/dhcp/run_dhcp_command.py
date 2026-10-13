@@ -1,9 +1,11 @@
+import getpass
 import sys
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.dhcp.add_client_class import add_client_class
 from fabriclib.dhcp.add_reservation import add_reservation
 from fabriclib.dhcp.add_subnet import add_subnet
+from fabriclib.dhcp.clean_dhcp_names import clean_dhcp_names
 from fabriclib.dhcp.common.apply_dhcp_change import apply_dhcp_change
 from fabriclib.dhcp.dhcp_overview import dhcp_overview
 from fabriclib.dhcp.list_leases import list_leases
@@ -31,6 +33,8 @@ USAGE = """usage: fabricctl dhcp status                       subnets (name, VLA
        fabricctl dhcp option unset <name|code> [--subnet S | --class C | --mac M]
        fabricctl dhcp class add <name> --test "<Kea expression>" [--next-server IP] [--boot-file F]
        fabricctl dhcp class remove <name>
+       fabricctl dhcp clean-names [--scheduled]   delete DHCP names left behind for addresses named by hand
+                                                   (also hourly, by fabric-dhcp-names.timer: 2.1.10.22)
    every change applies at once unless --no-apply"""
 FLAGS = {"--name", "--vlan", "--router", "--pool", "--notes", "--add-pool", "--remove-pool", "--subnet", "--class",
          "--mac", "--test", "--next-server", "--boot-file", "--allow-overlap", "--interface"}
@@ -115,7 +119,7 @@ def _keep(one, flag):
 def run_dhcp_command(v, argv):
     """Purpose: `fabricctl dhcp …` — the Kea tab's operations without the web UI: status, leases, reservations,
              subnets (name, VLAN record, notes, router, pools), options at every level, client classes (manual
-             1.10.2.5).
+             1.10.2.5); and `clean-names`, the DHCP names left behind for addresses named by hand (1.10.4.20).
     Inputs:  v — the rendered vars (SetupContext.load_state().vars); argv — list of str after "dhcp" (default
              status); see USAGE. Every change applies at once unless --no-apply.
     Returns: exit status: 0 success; 1 a ValidationError, unreadable leases or a failed apply; 2 usage (printed to
@@ -190,6 +194,15 @@ def run_dhcp_command(v, argv):
                              source="cli")
             print(f"client class {pos[1]} added (options: fabricctl dhcp option set ... --class {pos[1]})")
             return apply_dhcp_change(args)
+        if cmd == "clean-names" and not pos and not vals and bare <= {"--scheduled"}:
+            r = clean_dhcp_names(v, getpass.getuser(), "timer" if bare else "cli")
+            if "off" in r:
+                print(r["off"])
+                return 0
+            for owner, rtype, rdata in r["removed"]:
+                print(f"deleted {owner.rstrip('.')} {rtype} {rdata}")
+            print(f"DHCP names left behind: {len(r['removed'])} record(s) deleted")
+            return 0
         if cmd == "class" and pos[:1] == ["remove"] and len(pos) == 2:
             remove_client_class("root", pos[1], source="cli")
             print(f"client class {pos[1]} removed")

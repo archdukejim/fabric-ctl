@@ -18,7 +18,7 @@
   fabricctl acl list|add|remove  BIND ACLs (who may query the zones)
   fabricctl dns-filter lists|apply|status|log|stats|ingest
                                  the DNS filter's BIND resolver: its lists, their state, the query log
-  fabricctl dhcp status|leases|reserve|unreserve|add-subnet|set-subnet|remove-subnet|option|class
+  fabricctl dhcp status|leases|reserve|unreserve|add-subnet|set-subnet|remove-subnet|option|class|clean-names
                                  DHCP (optional Kea): subnets, leases, reservations, options, client classes
   fabricctl ipam show|find|export|vlan|range|address
                                  the address plan: VLANs, subnets, ranges, every address (fabricctl ipam --help)

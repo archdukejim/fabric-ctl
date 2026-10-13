@@ -10,6 +10,7 @@ seconds (`publish_zone_list.py`).
 | File | What |
 |---|---|
 | `constants.py` | Supported record types; the private-use top-level domains (a zone under them hides no public name) |
+| `common/` | Helpers shared with other operations: reading a zone file's records |
 | `zone_name.py` | Zone key → zone name (`dynamic_zone_var` is the main domain) |
 | `validate_record.py` | Build a record dict from user input, rejecting anything unsafe for a zone file |
 | `format_value.py` | Human-readable right-hand side of a record (as rendered in the zone file) |

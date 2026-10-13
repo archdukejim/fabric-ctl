@@ -279,6 +279,111 @@ evil_rev = sh(f"printf 'server {BIND_IP}\\nzone {REV}\\nupdate add 9.{REV} 60 TX
 check("in the reverse zone the key may write PTR and DHCID only (a TXT refused)", "REFUSED" in evil_rev, evil_rev[-300:])
 
 
+# ------------------------------------------------------------------ DHCP names left behind (2.1.10.22, manual 1.10.4.20)
+import fabriclib.dhcp.clean_dhcp_names as cdn  # noqa: E402
+import fabriclib.dhcp.clear_stale_dhcp_names as csn  # noqa: E402
+import fabriclib.dns.constants as dns_constants  # noqa: E402
+from fabriclib.dhcp.hand_set_addresses import hand_set_addresses  # noqa: E402
+from fabriclib.dhcp.keep_hand_set_addresses import keep_hand_set_addresses  # noqa: E402
+from fabriclib.dhcp.run_dhcp_command import run_dhcp_command  # noqa: E402
+from fabriclib.dns.merge_dynamic_records import merge_dynamic_records  # noqa: E402
+dns_constants.BIND_CONTAINER = "kt-bind"              # BIND's container here; production's is bind9
+CLEARED = []
+csn.write_audit = lambda actor, action, detail, source, path=None: CLEARED.append((action, detail, source))
+cdn.load_secrets = lambda: {"kea_ddns_secret": secret}
+KEYFILE = f"{W}/kea-ddns.key"                         # the test's own updates: the key in a 0600 file
+fd = os.open(KEYFILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+with os.fdopen(fd, "w") as f:
+    f.write(f'key "kea-ddns" {{ algorithm hmac-sha256; secret "{secret}"; }};\n')
+DHCID = "AAIBY2/AuCccgoJbsaxcQc9TUapptP69lOjxfNuVAA2kjEA="     # RFC 4701's example
+
+
+def kea_update(*lines):
+    """What Kea would have registered: an update signed with its key."""
+    text = "\n".join([f"server {BIND_IP}", "zone dhcp.lan.test", *lines, "send", ""])
+    return sh(["nsupdate", "-k", KEYFILE], ok=False, input=text)
+
+
+def dig_t(rtype, name):
+    return sh(["dig", "+short", f"@{BIND_IP}", rtype, name], ok=False).stdout.strip()
+
+
+def call(fn):
+    try:
+        return fn(), ""
+    except ValidationError as e:
+        return None, str(e)
+
+
+# the printer was registered by Kea above; now an admin names 10.254.23.42 by hand (printer.lan.test)
+HV = {**V, "dns": {"dynamic_zone_var": {"A": [{"name": "printer", "ip": "10.254.23.42"},
+                                              {"name": "nas", "ip": "10.254.23.9"}]}}}
+check("before: Kea's name and DHCID for the address now named by hand are in dhcp.lan.test",
+      dig("printer.dhcp.lan.test") == "10.254.23.42" and dig_t("DHCID", "printer.dhcp.lan.test") != "",
+      dig("printer.dhcp.lan.test"))
+gone, err = call(lambda: csn.clear_stale_dhcp_names(HV, hand_set_addresses(HV), secret, "root", "apply"))
+check("at the apply: Kea's name for an address named by hand is deleted, its DHCID with it, and audited",
+      err == "" and dig("printer.dhcp.lan.test") == "" and dig_t("DHCID", "printer.dhcp.lan.test") == ""
+      and [c[0] for c in CLEARED] == ["DHCP_NAME_CLEAR", "DHCP_NAME_CLEAR"]
+      and all(c[2] == "apply" for c in CLEARED) and "printer.dhcp.lan.test A 10.254.23.42" in CLEARED[0][1],
+      (err, gone, CLEARED))
+check("not deleted: a DHCP name whose address nothing names by hand (laptop1 keeps its name)",
+      dig("laptop1.dhcp.lan.test") == ip1, dig("laptop1.dhcp.lan.test"))
+check("not touched: the PTR set by hand (nas.lan.test), a record outside DHCP's zone",
+      sh(["dig", "+short", f"@{BIND_IP}", "-x", "10.254.23.9"], ok=False).stdout.strip() == "nas.lan.test.")
+again, err = call(lambda: csn.clear_stale_dhcp_names(HV, hand_set_addresses(HV), secret, "root", "apply"))
+check("a second run finds nothing and sends nothing (idempotent)", again == [] and err == "" and len(CLEARED) == 2,
+      (again, err, CLEARED))
+merged = merge_dynamic_records(REV, env.get_template("bind9/data/reverse-zone.j2").render(
+    **bv, reverse_zone_name=REV, ptr_records=[{"label": "9", "target": "nas.lan.test."},
+                                             {"label": "42", "target": "printer.lan.test."}]),
+    csn._served_zone(REV))
+check("Kea's PTR for that address: the apply's regenerated reverse zone drops it for the PTR set by hand "
+      "(the zone as BIND serves it), and keeps laptop1's", "printer.dhcp" not in merged
+      and "laptop1.dhcp.lan.test." in merged, merged[-600:])
+
+# the hourly timer's run: what its unit starts, with the addresses the apply kept
+unit = open(f"{REPO}/templates/systemd/fabric-dhcp-names.service").read()
+timer = open(f"{REPO}/templates/systemd/fabric-dhcp-names.timer").read()
+argv = [ln.split("=", 1)[1].split() for ln in unit.splitlines() if ln.startswith("ExecStart=")][0]
+check("the timer runs hourly and its unit runs the cleanup alone (`fabricctl dhcp clean-names --scheduled`)",
+      argv == ["/usr/bin/fabricctl", "dhcp", "clean-names", "--scheduled"] and "OnUnitActiveSec=1h" in timer, argv)
+HV2 = {**HV, "dns": {"dynamic_zone_var": {"A": HV["dns"]["dynamic_zone_var"]["A"]
+                                          + [{"name": "cam3", "ip": "10.254.23.44"}]}}}
+kept = keep_hand_set_addresses(HV2)
+check("the apply keeps its addresses set by hand for the timer (root only, 0600)",
+      kept and oct(os.stat(kept).st_mode & 0o777) == "0o600"
+      and json.load(open(kept))["addresses"] == ["10.254.23.42", "10.254.23.44", "10.254.23.9"], kept)
+planted = kea_update("update add old-cam.dhcp.lan.test 300 A 10.254.23.44",
+                     f"update add old-cam.dhcp.lan.test 300 DHCID {DHCID}")
+check("(set up: a name Kea registered for cam3's address before it was named by hand)",
+      planted.returncode == 0 and dig("old-cam.dhcp.lan.test") == "10.254.23.44", planted.stdout + planted.stderr)
+# covers: cli:dhcp.clean-names +
+rc = run_dhcp_command(HV2, argv[2:])
+check("by the timer's unit: the name left behind is deleted, audited as the timer's; laptop1 left alone",
+      rc == 0 and dig("old-cam.dhcp.lan.test") == "" and dig_t("DHCID", "old-cam.dhcp.lan.test") == ""
+      and dig("laptop1.dhcp.lan.test") == ip1 and CLEARED[-1][2] == "timer", (rc, CLEARED[-2:]))
+# covers: cli:dhcp.clean-names -
+kea_update("update add old-cam2.dhcp.lan.test 300 A 10.254.23.44")
+before = len(CLEARED)
+cdn.load_secrets = lambda: {"kea_ddns_secret": sh("openssl rand -base64 32").stdout.strip()}
+rc_bad = run_dhcp_command(HV2, ["clean-names", "--scheduled"])
+_, err = call(lambda: csn.clear_stale_dhcp_names(HV2, ["10.254.23.44"], "x" + secret[1:], "root", "cli"))
+check("refused: BIND refusing the update (a key it does not know) fails the run (exit 1) and says so; the name "
+      "stays, nothing audited", rc_bad == 1 and "BIND refused" in err and "nothing was deleted" in err
+      and dig("old-cam2.dhcp.lan.test") == "10.254.23.44" and len(CLEARED) == before, (rc_bad, err))
+cdn.load_secrets = lambda: {"kea_ddns_secret": secret}
+os.remove(kept)
+check("refused: no apply has kept the addresses yet (exit 1); a stray argument is a usage error (2)",
+      run_dhcp_command(HV2, ["clean-names"]) == 1 and run_dhcp_command(HV2, ["clean-names", "now"]) == 2
+      and dig("old-cam2.dhcp.lan.test") == "10.254.23.44")
+off = {**HV2, "dhcp": {**HV2["dhcp"], "ddns": False}}
+keep_hand_set_addresses(HV2)
+check("with DHCP's DNS registration off: nothing kept, nothing to clean (exit 0), nothing deleted",
+      keep_hand_set_addresses(off) is None and not os.path.exists(kept) and run_dhcp_command(off, ["clean-names"]) == 0
+      and dig("old-cam2.dhcp.lan.test") == "10.254.23.44")
+
+
 def leases_or_none():
     try:
         return list_leases(V)

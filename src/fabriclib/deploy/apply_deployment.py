@@ -27,6 +27,7 @@ from fabriclib.deploy.install_runtime_dirs import install_runtime_dirs
 from fabriclib.deploy.install_service_units import install_service_units
 from fabriclib.deploy.install_stepca_templates import install_stepca_templates
 from fabriclib.deploy.install_timers import install_timers
+from fabriclib.dhcp.keep_hand_set_addresses import keep_hand_set_addresses
 from fabriclib.deploy.install_webui_files import install_webui_files
 from fabriclib.deploy.keep_old_install import keep_old_install
 from fabriclib.deploy.load_link_vars import load_link_vars
@@ -127,6 +128,7 @@ def _deploy(paths, start_services):
         restart.add("stepca")
     install_runtime_dirs(paths, final_vars, p["tsig_keys"])
     install_timers(paths, final_vars)
+    keep_hand_set_addresses(final_vars)    # for the hourly cleanup of DHCP names left behind (2.1.10.22)
 
     state = {"restart": restart, "rebuild": svc["rebuild"],
              "daemon_reload": svc["daemon_reload"] or ngx["daemon_reload"] or web["agent"]

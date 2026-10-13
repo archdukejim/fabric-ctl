@@ -17,7 +17,7 @@ UNITS = ["fabric-web", "webui", "fluentbit", "kea", "freeradius", "samba", "adgu
          "adguard-filter", "fabric-agent", "fabric-federation", "fabric-directory-sync", "nginx", "openbao", "keycloak",
          "postgres",
          "ldap", "stepca", "bind9", "fabric-firewall", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists",
-         "fabric-dns-log"]
+         "fabric-dns-log", "fabric-dhcp-names"]
 TARGET = "/etc/systemd/system/fabric.target"
 CONTAINERS = ["fabric-web", "webui", "fluentbit", "kea-dhcp4", "kea-ddns", "freeradius", "samba", "adguardhome",
               "oauth2-proxy-adguard", "bind9-resolver", "adguard-filter", "nginx", "openbao", "keycloak", "postgres",
@@ -47,7 +47,8 @@ def uninstall(ctx):
     v = ctx.vars
 
     info("stopping and removing services")
-    for timer in ("fabric-directory-sync", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists", "fabric-dns-log"):
+    for timer in ("fabric-directory-sync", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists", "fabric-dns-log",
+                  "fabric-dhcp-names"):
         subprocess.run(["systemctl", "disable", "--now", f"{timer}.timer"], capture_output=True)
     for unit in UNITS:
         subprocess.run(["systemctl", "disable", "--now", unit], capture_output=True)
