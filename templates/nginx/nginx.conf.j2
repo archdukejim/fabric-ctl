@@ -51,11 +51,13 @@
             default_type text/html;
         }
 {% endmacro %}
-{# The names the landing page answers at / with its certificate: hostname_landing, <domain> and the host's own name.
-   The host's own name is fabric's (refused in the DNS tab), so links that must work whatever the admin does to the
-   info alias use it. #}
+{# The names the landing page answers at / with its certificate (2.1.4.8, manual 1.4.2.6): the host's own name, <domain>
+   and every alias of the host the admin keeps in the site's zone (info.<domain> on a new install, renamed or not),
+   computed from the zone at each apply, the same as the certificate's names (dns/common/landing_names). The host's
+   own name is fabric's (refused in the DNS tab), so links that must work whatever the admin does to the aliases use
+   it. #}
 {% set _host_fqdn = (hostname ~ '.' ~ domain) | lower %}
-{% set _landing_names = [hostname_landing, domain, _host_fqdn] | unique | list %}
+{% set _landing_names = landing_names() %}
 
 # Global settings
 worker_processes  auto;
@@ -88,8 +90,9 @@ http {
 
     resolver 127.0.0.11 valid=30s;
 
-    # fabric's HTTPS services: plain HTTP to them goes to HTTPS; any other name pointing at this host (an alias the
-    # admin keeps, such as info.<domain> renamed) gets the landing page at /info/ (2.1.4.6)
+    # fabric's HTTPS services: plain HTTP to them goes to HTTPS; any other name pointing at this host that is not a
+    # landing name (one the zone did not hold at the last apply, or a name only a hosts file knows) gets the landing
+    # page at /info/ (2.1.4.6); the zone's aliases of the host are landing names (2.1.4.8)
     map $host $fabric_https_name {
         default 0;
 {% for _n in ([hostname_bind9, hostname_stepca, hostname_openbao]
@@ -187,7 +190,7 @@ http {
         }
     }
 
-    # The landing page (decisions 2.1.4.3, 2.1.4.6) on its names (hostname_landing, <domain>, the host's own name):
+    # The landing page (decisions 2.1.4.3, 2.1.4.6, 2.1.4.8) on its names (the host's own name, <domain>, the aliases):
     # also over plain HTTP with no redirect, so a new device can fetch the CA (/certs/) and check its fingerprint
     # before it trusts anything; the manual stays on HTTPS
     server {
@@ -220,7 +223,8 @@ http {
     }
 
     # The landing page over HTTPS (Landing, Certificates, Manual) on the same names: <domain> and the host's own name
-    # serve it themselves since 0.7.1 instead of redirecting to info.<domain>, which the admin may change (2.1.4.6)
+    # serve it themselves since 0.7.1 instead of redirecting to info.<domain>, which the admin may change (2.1.4.6);
+    # its certificate names each of them, an alias renamed included, and stays in the folder of hostname_landing (2.1.4.8)
     server {
         listen 443 ssl;
         server_name {{ _landing_names | join(' ') }};

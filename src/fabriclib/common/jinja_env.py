@@ -17,6 +17,7 @@ from fabriclib.common.read_published_lock import read_published_lock
 from fabriclib.dhcp.kea_client_classes import kea_client_classes
 from fabriclib.dhcp.kea_option_data import kea_option_data
 from fabriclib.dhcp.kea_option_defs import kea_option_defs
+from fabriclib.dns.common.landing_names import landing_names
 from fabriclib.images.published_image import published_image
 from fabriclib.system.memory_limit_mb import memory_limit_mb
 from fabriclib.system.plan_memory import plan_memory
@@ -103,7 +104,8 @@ def jinja_env(template_dir):
     Returns: jinja2.Environment with globals images_lock ({name: ref}), packages_lock, published_lock ({name: ref or
              ""}), published_ref(name) (the published image a host runs, or "": images/published_image), lookup and
              the Kea helpers (kea_option_data, kea_option_defs, kea_client_classes), plan_memory (the memory budget)
-             and memory_mb(service) (that service's limit in MB from the template's context).
+             and memory_mb(service) (that service's limit in MB from the template's context), landing_names() (the
+             landing page's names from the template's context: dns/common/landing_names).
     Fails:   yaml.YAMLError or OSError from read_images_lock / read_packages_lock if images.lock.yaml is
              unreadable; KeyError from read_images_lock if an image entry lacks repo, tag or digest.
              A missing lock file gives empty globals, not an error.
@@ -145,4 +147,6 @@ def jinja_env(template_dir):
     # memory as a budget (manual 1.2.4.3): vars.yaml.j2 plans it, each compose file takes its service's limit
     env.globals["plan_memory"] = plan_memory
     env.globals["memory_mb"] = jinja2.pass_context(memory_limit_mb)
+    # the landing page's names from the template's context (2.1.4.8): nginx's server names, the certificate's names
+    env.globals["landing_names"] = jinja2.pass_context(landing_names)
     return env

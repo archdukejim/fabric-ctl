@@ -34,5 +34,6 @@ installs what changed and restarts or reloads what is affected.
 | `deploy_optional_parts.py` | Fluent Bit, the DNS filter, chrony, Kea, FreeRADIUS through their own deploy steps |
 | `finish_without_start.py` | Setup's ending: start nothing, swap zones safely, build images, return what to restart |
 | `restart_changed.py` | Apply's ending: build images, restart and reload what changed, the web UI last |
+| `renew_landing_cert.py` | Apply's last step: the landing page's certificate issued again at once when its names changed, the replaced one revoked (2.1.4.8, 1.5.1.7) |
 | `verify_published_images.py` | Before anything is installed: the signature of every published fabric image this deploy runs (2.1.14.6, 2.1.14.10) |
 | `compose_builds.py` | Whether a rendered compose file builds its image or pulls it (published images are pulled) |

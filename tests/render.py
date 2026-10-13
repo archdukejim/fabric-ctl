@@ -873,10 +873,11 @@ assert fabric_record(v2, "home.lan", "CNAME", _info) is None, "only the site's z
 print("fabric's own names in the site's zone recognised by name and target; the admin's records never (2.1.2.22)")
 _ngx = env.get_template('nginx/nginx.conf.j2').render(**full)
 # the landing page (2.1.4.3, 2.1.4.6): at /info/ on every name over HTTP (http://<host_ip>/info/), and at / and /info/
-# on its names (info.<domain> by default, <domain>, the host's own name) over HTTP with no redirect and over HTTPS
+# on its names (the host's own name, <domain>, and the zone's aliases of the host: info.<domain> on a new install;
+# 2.1.4.8) over HTTP with no redirect and over HTTPS
 _land = v2['hostname_landing']
 _host_fqdn = (v2['hostname'] + '.' + v2['domain']).lower()
-_landing_names = f"server_name {_land} {v2['domain']} {_host_fqdn};"
+_landing_names = f"server_name {_host_fqdn} {v2['domain']} {_land};"
 _blocks = re.split(r"\n    server \{", _ngx)
 _info80 = [b for b in _blocks if "listen 80;" in b and _landing_names in b]
 assert _land == f"info.{v2['domain']}", _land
@@ -906,6 +907,42 @@ assert re.search(r"^@\s+A\s+", _db_apex, re.M) and re.search(r"^info\s+CNAME\s+"
     "the zone answers for <domain> (it serves the page) and, on a new install, for info"
 print("the landing page at /info/ on every name and at its names (info, <domain>, the host's): HTTP without a "
       "redirect, the CA and its fingerprint; nothing depends on info.<domain> (2.1.4.3, 2.1.4.6)")
+
+# the landing page's names follow the zone (2.1.4.8, manual 1.4.2.6): the host's own name, <domain>, and every alias of
+# the host the admin keeps; the certificate holds exactly these (setup/mint_service_certs), nginx serves them
+from fabriclib.dns.common.landing_names import landing_names  # noqa: E402
+_d = v2['domain']
+assert landing_names(v2) == [_host_fqdn, _d, f"info.{_d}"], landing_names(v2)
+_ren = copy.deepcopy(v2)
+_z = _ren["dns"]["dynamic_zone_var"]
+_z["CNAME"] = [r for r in _z["CNAME"] if r["name"] != "info"] + [
+    {"name": "welcome", "canonical": v2["hostname"]},                         # info renamed
+    {"name": "www", "canonical": "welcome"},                                  # a CNAME to the alias: also the host
+    {"name": "abs", "canonical": f"{v2['hostname']}.{_d}."},                  # an absolute target
+    {"name": "*.apps", "canonical": v2["hostname"]},                          # a wildcard: never a landing name
+    {"name": "_acme-challenge", "canonical": v2["hostname"]},                 # not a host name
+    {"name": "elsewhere", "canonical": "nas25-apps"}]                         # another machine
+_z["A"] = list(_z["A"]) + [{"name": "home", "ip": v2["host_ip"]}, {"name": "nas25-apps", "ip": "192.168.7.20"}]
+_names = landing_names(_ren)
+assert _names == [_host_fqdn, _d, f"abs.{_d}", f"home.{_d}", f"welcome.{_d}", f"www.{_d}"], _names
+# covers: setting:hostname_landing -
+assert f"info.{_d}" not in _names and f"elsewhere.{_d}" not in _names and f"calibre.{_d}" not in _names \
+    and not any(n.startswith(("ca.", "dns.", "sso.", "vault.", "ntp.", "*", "_")) for n in _names), \
+    "only the current aliases of the host: never the old name, another machine, a wildcard or fabric's own names"
+_ngx_ren = env.get_template('nginx/nginx.conf.j2').render(**{**full, 'dns': _ren['dns']})
+_srv = f"server_name {' '.join(_names)};"
+assert _ngx_ren.count(_srv) == 2 and f"ssl_certificate     /etc/nginx/certs/{_land}/fullchain.pem;" in \
+    [b for b in re.split(r"\n    server \{", _ngx_ren) if "listen 443 ssl;" in b and _srv in b][0] \
+    and not [ln for ln in _ngx_ren.splitlines() if "server_name" in ln and f"info.{_d}" in ln], \
+    "nginx serves the renamed alias on HTTP and HTTPS with the landing certificate (its folder keeps its name)"
+# a name fabric's other services answer at is never a landing name, even when the admin points one at the host
+_clash = copy.deepcopy(v2)
+_clash["dns"]["dynamic_zone_var"]["CNAME"].append({"name": "radius", "canonical": v2["hostname"]})
+_clash["hostname_radius"] = f"radius.{_d}"
+assert f"radius.{_d}" not in landing_names(_clash), landing_names(_clash)
+assert landing_names({"hostname": "h", "domain": "d.test"}) == ["h.d.test", "d.test"], "no zone: fabric's names"
+print("the landing names follow the zone: a renamed alias, CNAME chains, absolute targets; never the old name, "
+      "another machine, a wildcard or fabric's names (2.1.4.8)")
 
 # the CA at /certs/ (1.5.1.5, 2.1.5.11): certs.<domain> is gone everywhere — no server, no DNS name, no certificate;
 # ca.<domain> and /certificates send browsers to the page at the host's own name; every leaf names the CRL at

@@ -29,9 +29,10 @@ def renew_service_certs(ctx, force=False, scheduled=False, record=CERT_RENEWAL_F
     Inputs:  ctx — SetupContext (state is reloaded from vars.yaml); force — re-issue all; scheduled — the
              timer's run (quiet when nothing is due); record — where the outcome is kept.
     Returns: exit status: 0 done, 1 a certificate or a service failed (the outcome recorded either way: when, ok,
-             renewed services, what each did, the error).
+             renewed services, what each did, the error). A replaced certificate that could not be revoked
+             (ctx.cert_problems, 2.1.4.8) is a failure too, recorded with what to run; the new certificate stays.
     Fails:   never raises for a renewal failure (recorded and returned as 1); OSError writing the record.
-    Feeds:   cli main (`certs`)."""
+    Feeds:   cli main (`certs`), deploy/renew_landing_cert (an apply that changed the landing page's names)."""
     started = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     result = {"when": started, "scheduled": scheduled, "ok": True, "services": {}, "error": ""}
     try:
@@ -44,6 +45,9 @@ def renew_service_certs(ctx, force=False, scheduled=False, record=CERT_RENEWAL_F
             ok(f"{unit}: {how}")
         if not ctx.restart_services and not scheduled:
             ok("every service certificate is current")
+        problems = getattr(ctx, "cert_problems", None) or []
+        if problems:                             # a replaced certificate not revoked (2.1.4.8): the new one is in use
+            result.update(ok=False, error="; ".join(problems)[-500:])
     except Exception as e:                   # any failure: recorded for status, doctor and the web console
         result.update(ok=False, error=str(e)[-500:])
         print(f"error: certificate renewal failed: {e}")

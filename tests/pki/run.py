@@ -576,5 +576,12 @@ print("\n".join(line for line in acme_run.stdout.splitlines() if line.startswith
       or acme_run.stdout[-2000:] + acme_run.stderr[-2000:])
 check("ACME: acme.py passed", acme_run.returncode == 0, acme_run.stderr[-400:])
 
+print("--- the landing page's certificate follows the zone (landing.py)")
+land = subprocess.run([sys.executable, os.path.join(REPO, "tests", "pki", "landing.py")], capture_output=True,
+                      text=True)
+print("\n".join(line for line in land.stdout.splitlines() if line.startswith(("PASS", "FAIL")))
+      or land.stdout[-2000:] + land.stderr[-2000:])
+check("landing certificate: landing.py passed", land.returncode == 0, land.stderr[-400:])
+
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)
