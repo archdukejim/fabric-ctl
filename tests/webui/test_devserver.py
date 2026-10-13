@@ -152,6 +152,26 @@ try:
     st, loc, _, _ = req("POST", "/networks/lan/addresses", {"csrf": "dev", "ip": "10.1.20.11", "vlan": "20",
                                                              "kind": "static"})
     check("Networks tab refused: an address claimed twice", st == 303 and "already+claimed" in (loc or ""), loc)
+    # a reservation's device role (1.11.1.7, 1.10.4.21.3)
+    page = req("GET", "/networks?subnet=iot")[3]
+    check("Networks tab: the address forms have a device role field; a reservation's role shown beside its kind",
+          page.count('name="role"') >= 2 and 'name="role" value="iot"' in page and 'from this reservation">iot<' in page, page[:300])
+    # covers: web:post.networks.*.addresses web:post.networks.*.addresses.* +
+    st, loc, _, _ = req("POST", "/networks/lan/addresses", {"csrf": "dev", "ip": "10.1.20.152", "vlan": "20",
+                                                             "kind": "reservation", "mac": "aa:bb:cc:dd:ee:03",
+                                                             "name": "cam3", "role": "cameras", "back": "iot"})
+    st2, loc2, _, _ = req("POST", "/networks/lan/addresses/10.1.20.150", {"csrf": "dev", "role": "", "back": "iot"})
+    page = req("GET", "/networks?subnet=iot")[3]
+    check("Networks tab: record a reservation with a role, and take a role off with an empty field",
+          st == 303 and "msg=" in (loc or "") and st2 == 303 and "msg=" in (loc2 or "")
+          and 'from this reservation">cameras<' in page and 'from this reservation">iot<' not in page, (loc, loc2))
+    # covers: web:post.networks.*.addresses web:post.networks.*.addresses.* -
+    st, loc, _, _ = req("POST", "/networks/lan/addresses", {"csrf": "dev", "ip": "10.1.20.12", "vlan": "20",
+                                                             "kind": "static", "role": "iot"})
+    st2, loc2, _, _ = req("POST", "/networks/lan/addresses/10.1.20.10", {"csrf": "dev", "role": "iot"})
+    check("Networks tab refused: a device role on a static address, new or changed, saying why",
+          st == 303 and st2 == 303 and all("only+a+reservation" in (x or "") for x in (loc, loc2))
+          and "Change 10.1.20.12" not in req("GET", "/networks?subnet=iot")[3], (loc, loc2))
     st, loc, _, _ = req("POST", "/networks/upstairs/vlans", {"csrf": "dev", "id": "50", "name": "x"})
     check("Networks tab refused: a change to a site this console does not show", st == 303 and "err=" in (loc or ""),
           loc)

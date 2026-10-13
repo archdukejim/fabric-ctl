@@ -1600,6 +1600,12 @@ for body, why in (({"id": "abc", "name": "iot"}, "1 to 4094"), ({"id": "20", "na
                   ({"id": 20, "name": "iot"}, "id must be text")):
     out = agent_call("POST", "/v1/networks/lan/vlans", "dan", NETOPS, body)
     check(f"refused: bad input ({why}), 400 saying why", " 400 " in out and why in out, out)
+# covers: agent:post.networks.*.addresses agent:post.networks.*.addresses.* -
+for path, body in (("/v1/networks/lan/addresses", {"ip": "10.1.20.151", "kind": "reservation", "role": ["iot"]}),
+                   ("/v1/networks/lan/addresses/10.1.20.150", {"role": 7})):
+    out = agent_call("POST", path, "dan", NETOPS, body)
+    check(f"refused: a device role that is not text ({path.rsplit('/', 1)[-1]}), 400 saying why",
+          " 400 " in out and "role must be text" in out, out)
 out = agent_call("POST", "/v1/networks/lan/vlans/20/move", "dan", NETOPS, {})
 check("refused: a route the permission table does not list (403)", " 403 " in out, out)
 # covers: web:get.networks +

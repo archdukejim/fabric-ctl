@@ -317,6 +317,26 @@ for ident, sub, body, fname, (bad_site, bad_sub, bad_body), words in ROUTES:
     check(f"refused: POST /v1/networks/<site>/{ident.replace('.', '/')} ({words}): nothing written or applied",
           refused(lambda: m_post.post_networks(["networks", bad_site, *bad_sub], "alice", bad_body), words) is True
           and not CALLS and not APPLIES, CALLS)
+print("--- a reservation's device role from the address forms (1.11.1.7, 1.10.4.21.3): the same units as --role")
+del CALLS[:], APPLIES[:]
+# covers: agent:post.networks.*.addresses agent:post.networks.*.addresses.* +
+m_post.post_networks(["networks", "lan", "addresses"], "alice", {"ip": "10.1.20.151", "kind": "reservation",
+                                                                 "mac": "aa:bb:cc:dd:ee:02", "role": "iot"})
+m_post.post_networks(["networks", "lan", "addresses", "10.1.20.150"], "alice", {"role": "iot"})
+m_post.post_networks(["networks", "lan", "addresses", "10.1.20.150"], "alice", {"role": ""})
+m_post.post_networks(["networks", "lan", "addresses", "10.1.20.150"], "alice", {"owner": "door"})
+check("the address forms' role reaches add_address and set_address (\"\" takes it off; left out it is kept)",
+      [(c[0], c[2].get("role")) for c in CALLS] == [("add_address", "iot"), ("set_address", "iot"),
+                                                     ("set_address", ""), ("set_address", KEEP)], CALLS)
+del CALLS[:], APPLIES[:]
+# covers: agent:post.networks.*.addresses agent:post.networks.*.addresses.* -
+check("refused: a role that is not text, on a new address or a change (400): nothing written or applied",
+      refused(lambda: m_post.post_networks(["networks", "lan", "addresses"], "alice",
+                                           {"ip": "10.1.20.151", "kind": "reservation", "role": ["iot"]}),
+              "role must be text") is True
+      and refused(lambda: m_post.post_networks(["networks", "lan", "addresses", "10.1.20.150"], "alice",
+                                               {"role": 7}), "role must be text") is True
+      and not CALLS and not APPLIES, CALLS)
 out = m_post.post_networks(["networks", "parents", "vlans"], "alice", {"id": "40", "name": "lab"})
 check("a change to a site below this one is written for its next apply, never applied here",
       out["site"] == "parents" and not out["own"] and out["applied"] is None, out)
@@ -365,6 +385,23 @@ for ident, sub, body, _fname, _bad, _words in ROUTES:
     # covers: web:post.networks.*.addresses.*.delete -
     check(f"console: refused POST /networks/<site>/{ident.replace('.', '/')}: back to the tab with the agent's why",
           st == 303 and "err=" in url and "msg=" not in url and "agent+refused" in url, (st, url))
+m_web.actions.networks_change = agent_ok
+del SENT[:]
+# covers: web:post.networks.*.addresses web:post.networks.*.addresses.* +
+m_web.networks_post(Page(), ["lan", "addresses", "10.1.20.150"], {"csrf": "x", "kind": "reservation", "role": "iot"})
+check("console: an address form's device role is sent to the agent", SENT and SENT[0][2].get("role") == "iot", SENT)
+
+
+def agent_role_no(site, parts, body):
+    raise m_web.actions.ValidationError("10.1.20.10: only a reservation names a device role")
+
+
+m_web.actions.networks_change = agent_role_no
+# covers: web:post.networks.*.addresses web:post.networks.*.addresses.* -
+st, url = m_web.networks_post(Page(), ["lan", "addresses", "10.1.20.10"], {"csrf": "x", "kind": "static",
+                                                                           "role": "iot"})
+check("console: a role refused for a static address: back to the tab with why", st == 303 and "err=" in url
+      and "only+a+reservation" in url and "msg=" not in url, url)
 m_web.actions.networks_change = agent_ok
 check("console: a path the tab does not have is 404, nothing sent",
       m_web.networks_post(Page(), ["lan", "vlans", "20", "move"], {})[0] == 404

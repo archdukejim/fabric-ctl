@@ -44,7 +44,7 @@ SAMPLE_NETWORK_READ = {
                                     "notes": "", "dns": True, "options": []},
                                    {"ip": "10.1.20.150", "kind": "reservation", "name": "cam1",
                                     "mac": "aa:bb:cc:dd:ee:01", "owner": "", "notes": "front door", "dns": False,
-                                    "options": [{"code": 67, "data": "cam.bin"}]}]},
+                                    "options": [{"code": 67, "data": "cam.bin"}], "role": "iot"}]},
                     {"name": "guest", "cidr": "10.1.30.0/24", "vlan": 30, "kind": "dhcp", "gateway": "10.1.30.1",
                      "dhcp": True, "id": 3, "relay": "", "notes": "", "allow_overlap": "", "options": [],
                      "ranges": [{"kind": "dhcp", "first": "10.1.30.100", "last": "10.1.30.200", "notes": ""}],

@@ -72,6 +72,6 @@ class DevHandler(BaseHTTPRequestHandler):
                     (part.get_payload(decode=True) or b"").decode(errors="replace")
                     for part in (msg.iter_parts() if msg.is_multipart() else []) if part.get_filename() is None}
         else:
-            form = dict(urllib.parse.parse_qsl(body.decode(errors="replace")))
+            form = dict(urllib.parse.parse_qsl(body.decode(errors="replace"), keep_blank_values=True))
         with self.state.lock:
             dev_post_action(self, path, form)

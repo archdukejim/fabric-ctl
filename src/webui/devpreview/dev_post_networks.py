@@ -42,8 +42,21 @@ def _act(plan, site, rest, form):
         plan["vlans"][:] = [v for v in plan["vlans"] if str(v["id"]) != rest[1]]
         plan["subnets"][:] = [s for s in plan["subnets"] if str(s.get("vlan")) != rest[1]]
         return "VLAN removed.", ""
+    if len(rest) == 2 and rest[0] == "addresses":
+        for s in plan["subnets"]:
+            for a in s["addresses"]:
+                if a["ip"] == rest[1]:
+                    if form.get("role", a.get("role")) and form.get("kind", a["kind"]) != "reservation":
+                        return "", f"{rest[1]}: only a reservation names a device role"
+                    a.update({k: form[k] for k in ("kind", "name", "mac", "owner", "notes", "role") if k in form})
+                    if "dns" in form:
+                        a["dns"] = form["dns"] == "on"
+                    return "Address saved.", ""
+        return "", f"no address {rest[1]} in {site}'s plan"
     if rest == ["addresses"]:
         ip = form.get("ip", "")
+        if form.get("role") and form.get("kind", "static") != "reservation":
+            return "", f"{ip}: only a reservation names a device role"
         for s in plan["subnets"]:
             if any(a["ip"] == ip for a in s["addresses"]):
                 return "", f"{ip} is already claimed"
@@ -52,7 +65,8 @@ def _act(plan, site, rest, form):
             return "", f"{ip} is in none of {site}'s subnets"
         sub["addresses"].append({"ip": ip, "kind": form.get("kind", "static"), "name": form.get("name", ""),
                                  "mac": form.get("mac", ""), "owner": form.get("owner", ""),
-                                 "notes": form.get("notes", ""), "dns": form.get("dns") == "on", "options": []})
+                                 "notes": form.get("notes", ""), "dns": form.get("dns") == "on", "options": [],
+                                 "role": form.get("role", "")})
         sub["addresses"].sort(key=lambda a: tuple(int(p) for p in a["ip"].split(".")))
         return f"{ip} recorded.", ""
     if len(rest) == 3 and rest[0] == "addresses" and rest[2] == "delete":
@@ -64,7 +78,8 @@ def _act(plan, site, rest, form):
 
 def dev_post_networks(h, path, form):
     """Purpose: the Networks tab's changes acted out on the sample plan in memory (nothing written or applied): the
-             site's number, a VLAN added or removed, an address recorded or removed; the other forms say saved.
+             site's number, a VLAN added or removed, an address recorded, changed or removed (a device role only on
+             a reservation); the other forms say saved.
     Inputs:  h — the dev handler (send); path — /networks/<site>/…; form — dict.
     Returns: True when the path was handled (303 back to the tab with msg or err); None otherwise.
     Fails:   never for form values.

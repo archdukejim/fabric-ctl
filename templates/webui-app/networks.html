@@ -79,13 +79,14 @@
 <table><thead><tr><th>Address</th><th>Kind</th><th>Range</th><th>Name</th><th>MAC</th><th>Owner</th><th>DNS</th><th>Lease</th><th>Notes</th></tr></thead><tbody>
 {% for r in s.rows %}<tr class="row-{{ r.kind }}">
 {% if r.kind == 'free' %}<td>{{ r.ip }}{% if r.count > 1 %} – {{ r.last }}{% endif %}</td><td>{{ kind_pill(r) }}</td><td>{{ r.range or '—' }}</td><td colspan="6" class="muted">{{ r.count }} address{{ 'es' if r.count != 1 }}</td>
-{% else %}<td>{{ r.ip }}</td><td>{{ kind_pill(r) }}</td><td>{{ r.range or '—' }}</td><td>{{ r.name or '—' }}</td><td><code>{{ r.mac or '—' }}</code></td><td>{{ r.owner or '' }}</td><td>{{ 'yes' if r.dns else '' }}</td><td>{{ r.lease or '' }}</td><td>{{ r.notes or '' }}</td>{% endif %}</tr>
+{% else %}<td>{{ r.ip }}</td><td>{{ kind_pill(r) }}{% if r.role %} <span class="pill" title="device role: MAB from this reservation">{{ r.role }}</span>{% endif %}</td><td>{{ r.range or '—' }}</td><td>{{ r.name or '—' }}</td><td><code>{{ r.mac or '—' }}</code></td><td>{{ r.owner or '' }}</td><td>{{ 'yes' if r.dns else '' }}</td><td>{{ r.lease or '' }}</td><td>{{ r.notes or '' }}</td>{% endif %}</tr>
 {% if can('dhcp:write') and r.kind in ('static', 'reservation', 'infrastructure') %}<tr><td colspan="9"><details><summary>Change {{ r.ip }}</summary>
 <form method="post" action="/networks/{{ n.site | urlencode }}/addresses/{{ r.ip | urlencode }}" class="grid">{{ csrf() }}{{ back(s.name) }}
 <label>Kind<select name="kind">{% for k in ('static', 'reservation', 'infrastructure') %}<option{{ ' selected' if k == r.kind }}>{{ k }}</option>{% endfor %}</select></label>
 <label>Name (one DNS label; empty: none)<input name="name" value="{{ r.name or '' }}"></label>
 <label>MAC (a reservation's; empty: none)<input name="mac" value="{{ r.mac or '' }}"></label>
 <label>Owner<input name="owner" value="{{ r.owner or '' }}" maxlength="200"></label>
+<label>Device role (a reservation's, for MAB; empty: none)<input name="role" value="{{ r.role or '' }}" maxlength="64"></label>
 <label>Notes<input name="notes" value="{{ r.notes or '' }}" maxlength="500"></label>
 <label>In DNS (A and PTR in the site's zone)<select name="dns"><option value="off"{{ ' selected' if not r.dns }}>off</option><option value="on"{{ ' selected' if r.dns }}>on</option></select></label>
 <div><button>Save address</button></div></form>
@@ -97,6 +98,7 @@
 <label>MAC<input name="mac" value="{{ r.mac or '' }}"></label>
 <label>Name<input name="name" value="{{ r.name or '' }}"></label>
 <label>Owner<input name="owner" maxlength="200"></label>
+<label>Device role (a reservation's, for MAB)<input name="role" maxlength="64"></label>
 <div><button>Record it</button></div></form></details></td></tr>{% endif %}
 {% endfor %}
 </tbody></table>
@@ -107,6 +109,7 @@
 <label>Name (one DNS label)<input name="name"></label>
 <label>MAC (needed for a reservation)<input name="mac" placeholder="aa:bb:cc:dd:ee:ff"></label>
 <label>Owner<input name="owner" maxlength="200"></label>
+<label>Device role (a reservation's, for MAB)<input name="role" maxlength="64"></label>
 <label>Notes<input name="notes" maxlength="500"></label>
 <label>In DNS<select name="dns"><option value="off">off</option><option value="on">on</option></select></label>
 <div><button>Record address</button></div></form>

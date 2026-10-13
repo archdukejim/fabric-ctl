@@ -10,7 +10,8 @@ MESSAGES = [(["block"], "Site number set to {number}."), (["vlans"], "VLAN {id} 
             (["ranges", "delete"], "Range removed."), (["addresses"], "{ip} recorded."),
             (["addresses", "*"], "Address saved."), (["addresses", "*", "delete"], "Address removed.")]
 FIELDS = {"number", "id", "name", "subnet", "no_subnet", "gateway", "purpose", "notes", "access", "dhcp", "relay",
-          "allow_overlap", "split", "force", "vlan", "cidr", "kind", "first", "last", "ip", "mac", "owner", "dns"}
+          "allow_overlap", "split", "force", "vlan", "cidr", "kind", "first", "last", "ip", "mac", "owner", "dns",
+          "role"}
 
 
 def _message(rest, form):

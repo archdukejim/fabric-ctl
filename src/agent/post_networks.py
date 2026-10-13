@@ -99,11 +99,11 @@ def _change(v, actor, site, sub, data):
         vlan = t(data, "vlan")
         return add_address(v, actor, t(data, "ip"), t(data, "kind"), site, t(data, "name"), t(data, "mac"),
                            t(data, "owner"), t(data, "notes"), _flag(data, "dns", False),
-                           _vid(vlan) if vlan else None, **web)
+                           _vid(vlan) if vlan else None, role=t(data, "role"), **web)
     if len(sub) == 2 and sub[0] == "addresses":
         return set_address(v, actor, sub[1], site, kind=_keep(data, "kind"), name=_keep(data, "name"),
                            mac=_keep(data, "mac"), owner=_keep(data, "owner"), notes=_keep(data, "notes"),
-                           dns=_flag(data, "dns", KEEP), **web)
+                           dns=_flag(data, "dns", KEEP), role=_keep(data, "role"), **web)
     if len(sub) == 3 and sub[0] == "addresses" and sub[2] == "delete":
         return remove_address(v, actor, sub[1], site, **web)
     raise RouteNotFound()
@@ -123,8 +123,8 @@ def post_networks(route, actor, data):
              purpose, notes, access (a VLAN changed: a field left out stays); vlan, cidr, name, gateway, dhcp, relay,
              notes, allow_overlap, split (a subnet); gateway, dhcp, relay, notes, allow_overlap (a subnet changed);
              force (a removal with its recorded addresses); vlan, kind, first, last, notes (a range); vlan, first (a
-             range removed); ip, kind, name, mac, owner, notes, dns, vlan (an address); kind, name, mac, owner,
-             notes, dns (an address changed).
+             range removed); ip, kind, name, mac, owner, notes, dns, vlan, role (an address; role: a reservation's
+             device role, 1.11.1.7); kind, name, mac, owner, notes, dns, role ("" takes it off) (an address changed).
     Returns: {"result", "warnings", "site", "own" (bool: this site's plan), "applied" (bool, or None when nothing was
              applied here), "output" (the last 2000 characters of the apply)}.
     Fails:   ValidationError (-> 400) from site_scope ("not this site or one below it"), the readers and fabriclib
