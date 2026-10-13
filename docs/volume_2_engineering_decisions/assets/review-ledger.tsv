@@ -66,7 +66,7 @@ docs/volume_1_description_and_architecture/1.17.29-webui.md	6430195d4866bc7f2947
 docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	d6ad2ff84a093afb0056daf1ec970b1c298e76dc	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.30-fabriclib-samba.md	b46f91bd21601e12605979440842befe7bc198dd	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.31-fabriclib-directory.md	a01c45a92ab75c9100eb32db8e94074bcd7127e4	2026-10-13	
-docs/volume_1_description_and_architecture/1.17.32-fabriclib-ipam.md	5c6238e1b16a257a3c50eacd9ba5bd028a974f02	2026-10-13	
+docs/volume_1_description_and_architecture/1.17.32-fabriclib-ipam.md	5c611399aeaba311d2da3f7a5a57899efc8e7c0c	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.4-fabricctl-lib.md	76bc845876c679778c0588d379f7246a12fae2d0	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	aed30500adf5f9138ebabe385324951d64475b46	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	24ff0b144f278b04318828076bbe081aab5d2ecc	2026-10-13	
@@ -845,7 +845,7 @@ src/fabriclib/ipam/subnet_options.py	504631d9d48604cd98ad7207b2d582a645152461	20
 src/fabriclib/ipam/subnets_to_plan.py	9b6243ba6e27e433436e40487c3096e2b04c7ff0	2026-10-12	
 src/fabriclib/ipam/suggestions.py	38149f2aa85604d7e52814ee287dcb1ac870a481	2026-10-12	
 src/fabriclib/ipam/visible_sites.py	0aa8ca972a297f44845cfff449c1a7ed1da31f1b	2026-10-13	
-src/fabriclib/ipam/write_plan.py	10cba82664fdbb7558906e0eda95cf7ac661b2a3	2026-10-13	
+src/fabriclib/ipam/write_plan.py	69b292e42ea7c653c3fef6c8dab8d1368867cd6b	2026-10-13	
 src/fabriclib/keycloak/README.md	0db19883c959655ce1d418d8de2bfccc040ac747	2026-10-09	
 src/fabriclib/keycloak/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
 src/fabriclib/keycloak/add_app_client.py	c9b95794f57a0cb6d92b577c50c489cfb02dea6f	2026-10-08	

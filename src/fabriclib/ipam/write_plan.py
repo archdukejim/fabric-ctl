@@ -6,7 +6,7 @@ def write_plan(v, secrets, changes, container="samba", server=None):
              agent account: AD decides which sites it may write (its own and those below it, 1.6.3.6).
     Inputs:  v — fabric vars (site_name); secrets — fabric's secrets (ad_agent_password); changes — write_plan's
              changes ([{"do", "what", "site", "key", "subnet", "fields"}]); container — the DC's container; server —
-             None (this DC) or a writable DC's address (a read-only DC's site, options/write_server, 2.1.10.23).
+             None (this DC) or a writable DC's address (a read-only DC's site, samba/writable_server, 2.1.10.23).
     Returns: list of str, what changed.
     Fails:   ValidationError from run_op ("the directory refused the change (not permitted for this site)", "that
              name is already taken", the DC not reachable); the changes before a refused one stay made.
