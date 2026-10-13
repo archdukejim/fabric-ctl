@@ -32,6 +32,7 @@ seconds (`publish_zone_list.py`).
 | `add_zone.py` | Add a forward zone, refusing names BIND already answers for and public names not ticked as hidden; served in seconds (locked, audited, rolled back if BIND or the resolver refuses) |
 | `remove_zone.py` | Remove a forward zone with its records once its name is typed again; refused while a TSIG key or ACL policy names it (locked, audited, rolled back if BIND or the resolver refuses) |
 | `publish_zone_list.py` | The quick path for a zone change: BIND's configuration and the new zone files rendered, `rndc reconfig`, then the resolver's configuration rendered and reloaded |
+| `publish_plan_records.py` | The same quick path for the address plan's DNS (Sync now): the zone list, and every zone whose records changed reloaded under the running BIND |
 | `normalize_tsig_keys.py` | Validate `tsig_keys`, fill defaults, take embedded secrets out (they belong in fabric's secrets: `fabric-secrets.yml` or OpenBao) |
 | `add_tsig_key.py` | Add a TSIG key (new or existing secret) to vars + secrets (locked, audited) |
 | `remove_tsig_key.py` | Remove a TSIG key, its secret, its `key` entries in every ACL and the `rfc2136.ini` fabric wrote for it (locked, audited) |

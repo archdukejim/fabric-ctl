@@ -1,23 +1,19 @@
-import ipaddress
-
-from fabriclib.ipam.planned_subnets import planned_subnets
+from fabriclib.ipam.common.plan_cache import load_plan_cache
+from fabriclib.ipam.common.plan_subnets import plan_subnets
 
 LARGEST = 1022          # a /22's hosts: a larger network is not scanned at once (decision 2.1.10.26)
 
 
-def scannable_subnets(v):
-    """Purpose: the subnets an on-request scan may cover (manual 1.10.4.22, decision 2.1.10.26): only the ones this
-             site's Kea serves, each no larger than a /22.
-    Inputs:  v — fabric vars (install_kea, dhcp; the plan this site last read, through planned_subnets).
-    Returns: list of {"name", "cidr", "vlan", "hosts"} in address order ([] with DHCP off).
-    Fails:   OSError or json errors reading a damaged plan copy (planned_subnets).
-    Feeds:   scan_subnet; agent GET /v1/ipam/scan (the console's scan page)."""
+def scannable_subnets(v, cache=load_plan_cache):
+    """Purpose: the subnets an on-request scan may cover (manual 1.10.4.22, 1.10.4.27.1; decisions 2.1.10.26 and
+             2.1.10.28): every subnet of this site's plan, DHCP on or off (and 0.7's served subnets before the
+             upgrade), each no larger than a /22; none where Kea is not installed (the scan runs in its container).
+             Whether the scan policy allows a scan is asked apart (read_scan_policy).
+    Inputs:  v — fabric vars (install_kea, dhcp, site_name; the plan this site last read); cache — as plan_subnets.
+    Returns: list of {"name", "cidr", "vlan", "dhcp" (bool), "hosts"} in address order ([] with DHCP off).
+    Fails:   OSError or json errors reading a damaged plan copy.
+    Feeds:   agent GET /v1/ipam/scan (the console's scan page)."""
     if not v.get("install_kea"):
         return []
-    out = []
-    for s in planned_subnets(v):
-        net = ipaddress.ip_network(str(s.get("subnet")), strict=False)
-        hosts = net.num_addresses - 2 if net.prefixlen < 31 else net.num_addresses
-        if hosts <= LARGEST:
-            out.append({"name": s.get("name") or "", "cidr": str(net), "vlan": s.get("vlan") or "", "hosts": hosts})
-    return sorted(out, key=lambda s: ipaddress.ip_network(s["cidr"]))
+    return [{k: s[k] for k in ("name", "cidr", "vlan", "dhcp", "hosts")} for s in plan_subnets(v, cache)
+            if s["hosts"] <= LARGEST]

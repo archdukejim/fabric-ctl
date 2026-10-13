@@ -37,6 +37,9 @@ for bad, said in (("5001-105000", "not a site's block"), ("200001-300000", "not 
                   ("", "two whole numbers")):
     why = refused(bad)
     check(f"refused: {bad!r} ({said}), naming the block", why and said in why and repr(bad) in why, why)
+why = refused("5001-105000")
+check("an older block's refusal says to install fresh, why, and where the steps are (2.1.6.54)",
+      why and "before 0.7.0" in why and "install it fresh" in why and "no migration" in why and "3.3.5" in why, why)
 
 print(f"\nid_layout: {PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

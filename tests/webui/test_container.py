@@ -1475,6 +1475,29 @@ check("auditor: a crafted Networks change is refused by fabric-agent (403, dhcp:
 st, _, _, body = req("GET", "/networks?site=upstairs", ALICE, cookie=aud)
 check("auditor: a site this console does not show is refused (400)", st == 400 and "not this site" in body,
       (st, body[:200]))
+print("--- the scan policy and Sync now through fabric-agent (manual 1.10.4.27, 1.10.4.28): permissions, bad input")
+# covers: agent:post.ipam.scan-policy agent:post.ipam.sync -
+for path, body in (("/v1/ipam/scan-policy", {"site": "lan", "policy": "deny"}), ("/v1/ipam/sync", {})):
+    out = agent_call("POST", path, "carol", AUDITOR_ROLES, body)
+    check(f"auditor token: refused {path} (403, dhcp:write)", " 403 " in out and "dhcp:write" in out, out)
+# covers: agent:post.ipam.scan-policy.org -
+out = agent_call("POST", "/v1/ipam/scan-policy/org", "dan", NETOPS, {"policy": "deny", "enforced": "on"})
+check("a network operator (dhcp:write, not dhcp:org-options): the organisation's scan policy refused (403)",
+      " 403 " in out and "dhcp:org-options" in out, out)
+out = agent_call("POST", "/v1/ipam/scan-policy", "dan", NETOPS, {"site": "upstairs", "policy": "deny"})
+check("refused: a site's scan policy for a site this console does not show (400), before the domain is asked",
+      " 400 " in out and "not this site or one below it" in out, out)
+out = agent_call("POST", "/v1/ipam/scan-policy", "dan", NETOPS, {"site": "lan", "policy": "maybe"})
+check("refused: a value a site's level does not take (400, saying which it takes)",
+      " 400 " in out and "allow, deny or inherit" in out, out)
+out = agent_call("POST", "/v1/ipam/sync", "dan", NETOPS, {})
+check("Sync now with DHCP off here: refused, saying why (400), nothing changed",
+      " 400 " in out and "DHCP is off at this site" in out, out)
+# covers: web:post.networks.sync web:post.networks.scan.policy -
+for path, form in (("/networks/sync", {}), ("/networks/scan/policy", {"site": "lan", "policy": "deny"})):
+    st, _, _, body = req("POST", path, POSTH, {"csrf": cookie_csrf(aud), **form}, cookie=aud)
+    check(f"auditor: a crafted {path} is refused by fabric-agent (403, dhcp:write)",
+          st == 403 and "dhcp:write" in body, (st, body[:200]))
 # ---------------------------------------------- without a client certificate (webui_client_cert off, manual 2.3.6.2.6.3)
 json.dump({**cfg, "client_cert": False}, open(f"{W}/config/webui.json", "w"))
 os.remove(f"{W}/run/web.sock")

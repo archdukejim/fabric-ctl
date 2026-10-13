@@ -422,6 +422,38 @@ try:
           st == 200 and status(BIND_IP, "between.lan") != "NOERROR"
           and 'grant "kea-ddns" zonesub PTR DHCID;' in zone_block(zone_list(), REV45)
           and status(BIND_IP, REV45) == "NOERROR", (st, res))
+
+    # Sync now's quick path (manual 1.10.4.28, decision 2.1.10.29): names set by hand and a new subnet's reverse zone
+    # published under the running BIND without an apply; a reloaded reverse zone keeps Kea's PTR (2.1.10.7)
+    REV47 = "47.254.10.in-addr.arpa"
+
+    def more(v):
+        v["dhcp"]["subnets"].append({"subnet": "10.254.47.0/24", "name": "lab47", "vlan": 47,
+                                     "pools": ["10.254.47.100 - 10.254.47.150"], "routers": "10.254.47.1"})
+        v["dns"]["dynamic_zone_var"]["A"] += [{"name": "printer47", "ip": "10.254.47.9"},
+                                              {"name": "nas45", "ip": "10.254.45.9"}]
+    edit_vars(more)
+    code = ("from fabriclib.dns.publish_plan_records import publish_plan_records\n"
+            "try:\n    print('done', publish_plan_records())\nexcept Exception as e:\n    print('REFUSED', e)")
+    r = lib(code)
+    check("Sync now's quick path: a new subnet's reverse zone served, with its PTR; a new name served",
+          "done" in r.stdout and status(BIND_IP, REV47) == "NOERROR"
+          and short(BIND_IP, f"9.{REV47}", "PTR") == "printer47.lan.test."
+          and short(BIND_IP, "printer47.lan.test") == "10.254.47.9", r.stdout[-400:] + r.stderr[-600:])
+    check("Sync now's quick path: a changed reverse zone reloaded with fabric's new PTR, Kea's PTR kept",
+          short(BIND_IP, f"9.{REV45}", "PTR") == "nas45.lan.test."
+          and short(BIND_IP, f"120.{REV45}", "PTR") == "laptop9.dhcp.lan.test.", dig(BIND_IP, f"120.{REV45}", "PTR"))
+    check("Sync now's quick path: nothing restarted (BIND's container kept running)",
+          sh("docker inspect -f '{{.RestartCount}} {{.State.Running}}' bind9", ok=False).stdout.strip() == "0 true")
+    r = lib(code)
+    check("a second run finds nothing to change and reloads nothing", "'zones': []" in r.stdout
+          and "'config': False" in r.stdout, r.stdout[-400:])
+    edit_vars(lambda v: v["dhcp"].__setitem__("interfaces", ["nosuch0"]))
+    before_conf = zone_list()
+    r = lib(code)
+    check("refused when the apply's settings check refuses (an interface this host lacks), nothing changed",
+          "REFUSED" in r.stdout and "nothing changed" in r.stdout and zone_list() == before_conf, r.stdout[-400:])
+    edit_vars(lambda v: v["dhcp"].__setitem__("interfaces", [iface]))
 finally:
     if agent_proc:
         agent_proc.terminate()

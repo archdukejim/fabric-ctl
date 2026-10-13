@@ -6,11 +6,16 @@
 {% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
 {% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
 <section class="card"><h2>Scan</h2>
-<p class="muted">Pings every address of one subnet this site's DHCP serves and reads which devices answered ARP: what answers but nobody recorded is shown, and you may record it. A scan never blocks anything. A routed VLAN answers only what its gateway lets through, and shows no MAC. One scan at a time; the same subnet once a minute; at most a /22.</p>
-{% if not subnets %}<p class="muted">Nothing to scan: DHCP serves no subnet on this site.</p>
+<p class="muted">Pings every address of one subnet of this site's plan (DHCP on or off) and reads which devices answered ARP: what answers but nobody recorded is shown, and you may record it. A scan never blocks anything. A routed VLAN answers only what its gateway lets through, and shows no MAC. One scan at a time; the same subnet once a minute; at most a /22.</p>
+{% if policy %}<p class="scan-policy">Scan policy here: {% if policy.allowed %}<span class="pill ok">allowed</span>{% else %}<span class="pill bad">denied</span>{% endif %} <span class="muted">({{ policy.source }}; organisation: {{ policy.org.policy or 'unset' }}{{ ', enforced' if policy.org.enforced }}; this site: {{ policy.site_level.policy or 'inherit' }})</span> <a href="/networks">Change it on the Networks tab</a></p>
+{% if policy.stale %}<p class="flash warn">{{ policy.stale }}</p>{% endif %}
+{% if not policy.allowed %}<p class="flash bad">{{ policy.why }}</p>{% endif %}
+{% elif policy_error %}<p class="flash bad">{{ policy_error }}</p>{% endif %}
+{% if not subnets %}<p class="muted">Nothing to scan: this site's plan has no subnet, or DHCP (whose container runs the scan) is off here.</p>
+{% elif not (policy and policy.allowed) %}<p class="muted">No scan runs here while the scan policy {{ 'denies it' if policy else 'cannot be read' }}.</p>
 {% elif can('dhcp:write') %}
 <form method="post" action="/networks/scan" class="grid">{{ csrf() }}
-<label>Subnet<select name="subnet" required>{% for s in subnets %}<option value="{{ s.cidr }}"{% if (result and result.subnet.cidr == s.cidr) or (not result and pick in (s.cidr, s.name)) %} selected{% endif %}>{{ s.cidr }}{% if s.name %} — {{ s.name }}{% endif %}{% if s.vlan %} (VLAN {{ s.vlan }}){% endif %}</option>{% endfor %}</select></label>
+<label>Subnet<select name="subnet" required>{% for s in subnets %}<option value="{{ s.cidr }}"{% if (result and result.subnet.cidr == s.cidr) or (not result and pick in (s.cidr, s.name)) %} selected{% endif %}>{{ s.cidr }}{% if s.name %} — {{ s.name }}{% endif %}{% if s.vlan %} (VLAN {{ s.vlan }}){% endif %}{% if s.dhcp is defined and not s.dhcp %} · DHCP off{% endif %}</option>{% endfor %}</select></label>
 <div><button>Scan now</button></div></form>
 {% else %}<p class="muted">Scanning needs the <code>dhcp:write</code> permission.</p>{% endif %}
 </section>
