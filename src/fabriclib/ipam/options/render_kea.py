@@ -25,7 +25,7 @@ def render_kea(secrets, container="samba", restart=start_unit):
     paths = deploy_paths()
     env = jinja_env(paths["jinja"])
     final_vars, _ = render_vars(env, secrets, load_vars(paths["vars"]))
-    load_address_plan(final_vars, secrets, container=container, dns=False)
+    load_address_plan(final_vars, secrets, container=container)
     check_settings(final_vars)
     changed = bool(deploy_kea(final_vars, secrets, env, *service_user(final_vars, "bind")))
     if changed:

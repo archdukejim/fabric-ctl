@@ -30,7 +30,7 @@ docs/volume_1_description_and_architecture/1.1.9-optional-parts.md	00ecb5ee5eb1d
 docs/volume_1_description_and_architecture/1.10.1-kea-design.md	0e8b6720aa82c79132444cd5a6e1a3893173246b	2026-10-10	
 docs/volume_1_description_and_architecture/1.10.2-dhcp-management.md	aceaf8c28259d98538176d44a300de71006e3e4f	2026-10-12	
 docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	5945ed43c7c8c6d3834cb4eff4f3eac0e1937850	2026-10-13	
-docs/volume_1_description_and_architecture/1.10.4-address-manager.md	d68a76221df21ec06c068a328fd11645c2b07e40	2026-10-13	
+docs/volume_1_description_and_architecture/1.10.4-address-manager.md	06f91a11b389262a22c1313a6b5bbd52dff8eb51	2026-10-13	
 docs/volume_1_description_and_architecture/1.11.1-freeradius-design.md	53be8bfe3baba02927c9b7b66dd4d02282115356	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.1-adguard.md	b2280752ee06e87cb6e1497fdb91651e589b6a4d	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.2-bind-resolver.md	d8567bcd4a8f0e8952d4f61e946b5db370e536c0	2026-10-13	
@@ -66,12 +66,12 @@ docs/volume_1_description_and_architecture/1.17.29-webui.md	6430195d4866bc7f2947
 docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	d1bf0d1cd4055b51ac3948b3416bc5269d64dc5a	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.30-fabriclib-samba.md	b4c9455e7974a890fb73e20e37fd88854163ef6a	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.31-fabriclib-directory.md	2d579ab82d4de018f799f199cbb52abf5fa091ee	2026-10-13	
-docs/volume_1_description_and_architecture/1.17.32-fabriclib-ipam.md	1c3235a039107902cfc00cf92a91913011d8d993	2026-10-13	
+docs/volume_1_description_and_architecture/1.17.32-fabriclib-ipam.md	3ae79b4200cd42e7d9d95b143841065d575601ba	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.4-fabricctl-lib.md	76bc845876c679778c0588d379f7246a12fae2d0	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	eaaf93d043f510d66f03f0b0773251aac04404ef	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	b93e978a931f4cb894b607f98bc11187541996ee	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.7-fabriclib-core.md	287e5a946064faecbdb0262ece385ff0e043036c	2026-10-08	
-docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	268be39cfe2f4e0214e84477dc34310b5323a2f6	2026-10-13	
+docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	29fca74bb5eca2f4fdec0258e6bccee4c4c7929f	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.9-fabriclib-dhcp.md	764eaec3dc64a7c194795895f0a7d9e8feb6dbc8	2026-10-13	
 docs/volume_1_description_and_architecture/1.2.1-topology.md	93eb5885bd1c51cc6545c5a5ebd269cf6a36173d	2026-10-10	
 docs/volume_1_description_and_architecture/1.2.10-global.md	5534a46e259bcd499006919750da778ed47dad63	2026-10-09	
@@ -136,7 +136,7 @@ docs/volume_2_engineering_decisions/2.1.9-federation.md	0555c5348dabe3760e7e9941
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	459f67da10006c8ae2fb2432e99d4608d3093dfa	2026-10-13	
-docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	65e38f7541d0c4022aca5c72e2bc3a1838197e60	2026-10-13	
+docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	b5be94e195057442dae1ded7ee06d34d1cffb14a	2026-10-13	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-13	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
@@ -487,10 +487,10 @@ src/fabriclib/consent/save_consent.py	5660e01ec5c4d3054a8c35de5c1b604ccc54d09c	2
 src/fabriclib/consent/show_consent_status.py	533404911c2996df4cdf2db2a29a5cbe05f19194	2026-10-08	
 src/fabriclib/deploy/README.md	a71c579af5ac81a282532c1888c95026c860f74c	2026-10-13	
 src/fabriclib/deploy/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-02	
-src/fabriclib/deploy/apply_deployment.py	0ecc0a7a5f4bfce20497284caa5beee1e598720a	2026-10-13	
+src/fabriclib/deploy/apply_deployment.py	1e2862f8004941cc2aa5fb5d33e8a0e15cc40775	2026-10-13	
 src/fabriclib/deploy/archive_vars.py	512658f15cee9e1f34ad065538d701c567971aca	2026-10-02	
 src/fabriclib/deploy/check_fixed_identity.py	35cc05d2938150eeee1fc248702cbfecfc889e3e	2026-10-02	
-src/fabriclib/deploy/check_rendered.py	4ed3acc12be86f0f3e1ab1512df9f0596fa41139	2026-10-13	
+src/fabriclib/deploy/check_rendered.py	c3fc7768882941f0292a5f94945a4ca5337d06fb	2026-10-13	
 src/fabriclib/deploy/check_samba_settings.py	767529c745ca0a48ed4cb67aef0be81ce893b262	2026-10-13	
 src/fabriclib/deploy/check_service_settings.py	ad68f56e8334c42ddf224580c049c413627ff6c4	2026-10-13	
 src/fabriclib/deploy/check_settings.py	038236ada4800b904898c59ccc507ef280295701	2026-10-13	
@@ -633,7 +633,7 @@ src/fabriclib/dns/merge_dynamic_records.py	6592dbabb4b9bb3a8fe2b1f134e9937ec9caa
 src/fabriclib/dns/normalize_acl_policies.py	aa91948fae42dac41b8c7b2044a61391ecc593f1	2026-10-02	
 src/fabriclib/dns/normalize_tsig_keys.py	fbf0798dc356e42fa8c17b3ad48b6954b6c7c25f	2026-10-03	
 src/fabriclib/dns/ptr_for_ip.py	cbd2dd78b557e6b25bf78c7f4425be9a2d00d9fb	2026-10-03	
-src/fabriclib/dns/publish_zone_list.py	37d9103329c6d5648dedc04be916b44700063962	2026-10-13	
+src/fabriclib/dns/publish_zone_list.py	d371e712086261aae7bf39036f8e702562da9a43	2026-10-13	
 src/fabriclib/dns/reload_zone.py	94a5dfa7d0f679e51cb32d10a68ef1b44849e247	2026-10-03	
 src/fabriclib/dns/remove_acl_entries.py	1c4d1d419aa2dcac0ab961a663ed91cf10b1e40b	2026-09-30	
 src/fabriclib/dns/remove_record.py	abaa7095d1ebcb7021750a1041a631e87927adea	2026-10-13	
@@ -781,7 +781,7 @@ src/fabriclib/ipam/common/site_scope.py	5f09a7a3ef3487a69336a7cd9535552d71e94038
 src/fabriclib/ipam/export_plan.py	623c38ed8793b4e34ae5f46fe2b3b8e06fa1d0f6	2026-10-12	
 src/fabriclib/ipam/fabric_options.py	3f6c810a3efbab21c518f24bbc4f90abd34bc8e4	2026-10-13	
 src/fabriclib/ipam/find_in_plan.py	503ed8c3636ee5f1f3be43f0ea861d1b37a39376	2026-10-12	
-src/fabriclib/ipam/load_address_plan.py	41c28fa353bb72613e4ab9dd7849e40987e76f57	2026-10-13	
+src/fabriclib/ipam/load_address_plan.py	2577b830f882aaa73a40100adcb72bcb19ff51cc	2026-10-13	
 src/fabriclib/ipam/move_subnets_to_plan.py	cc095992cfcba7dbc9d1ac86ce4f2656042fb0c5	2026-10-12	
 src/fabriclib/ipam/networks_csv.py	30a92107b9ac3dade0e5a9ca43db0baeacaa7672	2026-10-13	
 src/fabriclib/ipam/networks_overview.py	c98336ee936de3fa2ef716d663e92ac99c1f8404	2026-10-13	
@@ -804,7 +804,7 @@ src/fabriclib/ipam/options/plan_digest.py	71eab15454055925213f012266b896746ba6f7
 src/fabriclib/ipam/options/read_usn.py	a950065e3aa6b4373c6689778e19223544d9c7d9	2026-10-13	
 src/fabriclib/ipam/options/remove_plan_class.py	161f5cad6e55eb4ba088f40c3eb3546d06831e61	2026-10-13	
 src/fabriclib/ipam/options/remove_plan_option.py	be39d279d3a48e05433d3d837eec36eba153634b	2026-10-13	
-src/fabriclib/ipam/options/render_kea.py	0646e3d43f9fe06f2ceb0230ce406f9d06c2afe6	2026-10-13	
+src/fabriclib/ipam/options/render_kea.py	3fb5bca2661a30b10896ac30246033a5a0beca32	2026-10-13	
 src/fabriclib/ipam/options/run_option_command.py	fc0738e7a3988fe434b6963efcb86c8652a32e6c	2026-10-13	
 src/fabriclib/ipam/options/scope_options.py	4333e2963ef187ab4e263b3222ca972fdd75ee99	2026-10-13	
 src/fabriclib/ipam/options/set_netboot.py	9446e01304f22bb8844fdb7f55f0149a854c0e90	2026-10-13	
@@ -814,7 +814,7 @@ src/fabriclib/ipam/options/set_plan_option.py	63525e3bdad04c32ef5e7f168dac1fdc26
 src/fabriclib/ipam/options/show_netboot.py	071e7b4da03b005d467b153864eb1942c06de8a5	2026-10-13	
 src/fabriclib/ipam/options/show_options.py	a278938b07ca1e61d09d1795ca7dedb777be659f	2026-10-13	
 src/fabriclib/ipam/options/undefine_plan_option.py	12e2e2c806fe69ae61ed2edb73e02f544694f94e	2026-10-13	
-src/fabriclib/ipam/options/watch_state.py	65d92991716a69aa9455ac33dfbad041033ae8f3	2026-10-13	
+src/fabriclib/ipam/options/watch_state.py	afb5302bd77dc2f3a574820e849622226ca9b1db	2026-10-13	
 src/fabriclib/ipam/options/write_server.py	4cd6507fbdb3f01c24b9917e6adb04ad494a0c34	2026-10-13	
 src/fabriclib/ipam/plan_rows.py	21253546bac71e49815106044ac66a7a5fd1c80f	2026-10-12	
 src/fabriclib/ipam/plan_to_dhcp.py	4be129c8e87eb1dc2cd69d4e87acc0c15d987630	2026-10-13	
@@ -1608,7 +1608,7 @@ tests/images/update.sh	075211f0db5332572d6355fbdc507ae98a69c8b8	2026-10-13
 tests/images/verify.py	a00728895b0d367ff144663dca8b9275fb002392	2026-10-13	
 tests/ipam/README.md	91732ba0b515dc1debc0ba66b4e004ac6bf4faab	2026-10-13	
 tests/ipam/networks.py	d88a90e93e7c7f698c13122fa5f79573144e7633	2026-10-13	
-tests/ipam/options.py	37582a149dd2b2d69ad2dd267bc3c6cd30fc198c	2026-10-13	
+tests/ipam/options.py	e9673425c40d50e45252ddfa02e33f4300884995	2026-10-13	
 tests/ipam/run.py	6365cb286e2ae52fa4b2721da44ba9fbe1cde10c	2026-10-12	
 tests/ipam/scan.py	69c751c911268eac77e3cc4dfe62df751d563da7	2026-10-13	
 tests/kea/README.md	e85275d7cdf0e8d4e36dfd0442ec311d80882652	2026-10-13	

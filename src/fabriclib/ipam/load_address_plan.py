@@ -5,7 +5,6 @@ from fabriclib.ipam.common.plan_cache import load_plan_cache, save_plan_cache
 from fabriclib.ipam.common.site_plan import site_plan
 from fabriclib.ipam.options.merge_option_sets import merge_option_sets
 from fabriclib.ipam.options.plan_digest import plan_digest
-from fabriclib.ipam.options.watch_state import save_watch_state
 from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp
 from fabriclib.ipam.read_plan import read_plan
 
@@ -57,7 +56,7 @@ def _globals(final_vars, d, rendered):
             dhcp.pop(key, None)
 
 
-def load_address_plan(final_vars, secrets, container="samba", dns=True):
+def load_address_plan(final_vars, secrets, container="samba", digest=None):
     """Purpose: at every apply, the site's subnets and static names from its plan in the domain (manual 1.10.4.4,
              1.10.4.14): read from the DC as the site's agent and kept; a DC that does not answer leaves the apply on
              the plan last read (its last rendering). And the global options, definitions and classes: the
@@ -67,13 +66,13 @@ def load_address_plan(final_vars, secrets, container="samba", dns=True):
              option sets are read, and nothing is kept or required.
     Inputs:  final_vars — rendered settings (site_name, install_kea, dhcp, dns), changed in place: dhcp.subnets from
              the plan, dhcp.options / option_defs / client_classes, dns.dynamic_zone_var.A with the plan's published
-             addresses; secrets — fabric's secrets (ad_agent_password); container — the DC's container; dns — whether
-             DNS is rendered from this too (an apply, a zone change): what it was rendered from is kept for the plan
-             poll (<config>/plan-dns.json, manual 1.10.4.26); the poll itself passes False.
+             addresses; secrets — fabric's secrets (ad_agent_password); container — the DC's container; digest — a dict
+             filled with what DNS is rendered from ({"dns": plan_digest's}) when DNS is rendered from this too (an
+             apply, a zone change), for the caller to keep for the plan poll (<config>/plan-dns.json, manual
+             1.10.4.26) once BIND took it (2.3.10.5.6); None (the poll) leaves it.
     Returns: list of str to show (where the plan came from, names left out).
     Fails:   ValidationError when DHCP is on, the subnets live in the plan and no plan can be had (the DC not
-             answering and none kept): Kea is then left as it was rendered. OSError writing the kept copy or the DNS
-             digest.
+             answering and none kept): Kea is then left as it was rendered. OSError writing the kept copy.
     Feeds:   deploy/check_rendered (an apply, before check_settings), ipam/options/render_kea (the plan poll)."""
     d = dict(final_vars.get("dhcp") or {})
     if not final_vars.get("site_name"):
@@ -106,7 +105,7 @@ def load_address_plan(final_vars, secrets, container="samba", dns=True):
     rendered = plan_to_dhcp(plan)
     final_vars["dhcp"] = {**d, "subnets": rendered["subnets"]}
     _globals(final_vars, d, rendered)
-    if dns:
-        save_watch_state("plan-dns", {"dns": plan_digest(rendered)["dns"]})
+    if digest is not None:              # kept by the caller once BIND took it, never before (2.3.10.5.6)
+        digest["dns"] = plan_digest(rendered)["dns"]
     lines += [f"address plan: {n} keeps the settings' record" for n in _add_records(final_vars, rendered["records"])]
     return lines

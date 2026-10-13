@@ -13,6 +13,7 @@ from fabriclib.deploy.render_templates import BIND_CONFIG
 from fabriclib.deploy.render_vars import render_vars
 from fabriclib.dns.rndc import rndc
 from fabriclib.dns_filter.deploy_resolver import deploy_resolver
+from fabriclib.ipam.options.watch_state import save_watch_state
 from fabriclib.secrets.load_secrets import load_secrets
 
 SECRET_FILES = ("named.conf.keys", "rndc.key")
@@ -59,7 +60,7 @@ def publish_zone_list(added=(), removed=()):
     jinja_env = jinja_env_for(paths["jinja"])
     try:                                    # as an apply: the plan, the settings check, the zone-list context
         final_vars, context = render_vars(jinja_env, secrets, custom_vars)
-        check_rendered(final_vars, secrets, context, FEDERATION_FILE)
+        checked = check_rendered(final_vars, secrets, context, FEDERATION_FILE)
     except ValidationError as e:
         raise NotPublished(f"the settings do not pass the apply's check, nothing changed: {e}")
     context.update(final_vars)
@@ -98,6 +99,8 @@ def publish_zone_list(added=(), removed=()):
             path = os.path.join(data, f"db.{zone}{suffix}")
             if os.path.exists(path):
                 os.remove(path)
+    if checked["dns_digest"] is not None:  # BIND serves this plan's names now: the poll may count DNS current
+        save_watch_state("plan-dns", {"dns": checked["dns_digest"]})
 
     if not final_vars.get("install_resolver"):
         return {"bind": True, "resolver": False}

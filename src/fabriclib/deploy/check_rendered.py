@@ -16,15 +16,18 @@ def check_rendered(final_vars, secrets, context, federation_file):
              secrets — fabric's secrets (the agent's password for the plan, the federation keys); context — the
              render context, changed in place (reverse_zone_names, reverse_by_hand, federation_links);
              federation_file — the federation registry's path.
-    Returns: {"lines": list of str to show (where the plan came from, names left out), "reverse": reverse_zones()}.
+    Returns: {"lines": list of str to show (where the plan came from, names left out), "reverse": reverse_zones(),
+             "dns_digest": what DNS is rendered from out of the plan (plan_digest's "dns"), or None when DNS is not
+             rendered from a plan; the caller keeps it for the plan poll once BIND took it (2.3.10.5.6)}.
     Fails:   ValidationError from load_address_plan (DHCP on and no plan to be had) or check_settings; OSError keeping
              the plan read.
     Feeds:   deploy/apply_deployment, dns/publish_zone_list."""
-    lines = load_address_plan(final_vars, secrets)
+    digest = {}
+    lines = load_address_plan(final_vars, secrets, digest=digest)
     check_settings(final_vars)
     reverse = reverse_zones(final_vars)    # reverse zones and their PTRs come from the forward A/AAAA records
     context["reverse_zone_names"] = list(reverse["zones"])
     context["reverse_by_hand"] = reverse_by_hand(reverse)      # PTRs DHCP's key may never replace (2.1.10.20)
     # federation (manual 1.9 M4): delegations, secondary zones and TSIG keys for the sites next to this one
     context["federation_links"] = dns_links(final_vars, secrets, federation_file)
-    return {"lines": lines, "reverse": reverse}
+    return {"lines": lines, "reverse": reverse, "dns_digest": digest.get("dns")}

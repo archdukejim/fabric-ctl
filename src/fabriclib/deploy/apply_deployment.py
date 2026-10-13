@@ -39,6 +39,7 @@ from fabriclib.deploy.restart_changed import restart_changed
 from fabriclib.deploy.service_units import service_units
 from fabriclib.deploy.verify_published_images import verify_published_images
 from fabriclib.federation.deploy_federation_endpoint import deploy_federation_endpoint
+from fabriclib.ipam.options.watch_state import save_watch_state
 from fabriclib.secrets.load_secrets import load_secrets
 from fabriclib.secrets.save_secrets import save_secrets
 
@@ -48,7 +49,8 @@ def _prepare(paths):
              site's address plan in the domain, manual 1.10.4.14) and the render context (check_rendered, shared with
              the quick zone path: 2.1.4.7, 2.1.10.21).
     Inputs:  paths — deploy_paths().
-    Returns: dict with secrets, final_vars, context, tsig_keys, jinja_env, reverse (reverse_zones()).
+    Returns: dict with secrets, final_vars, context, tsig_keys, jinja_env, reverse (reverse_zones()), dns_digest
+             (what DNS is rendered from out of the plan, or None: kept once BIND took it, 2.3.10.5.6).
     Fails:   ValidationError (settings, secrets that cannot be loaded or saved, fixed identity).
     Feeds:   apply_deployment."""
     custom_vars = load_vars(paths["vars"])
@@ -80,7 +82,7 @@ def _prepare(paths):
     for line in checked["lines"]:
         print(line)
     return {"secrets": secrets, "final_vars": final_vars, "context": context, "tsig_keys": tsig_keys,
-            "jinja_env": jinja_env, "reverse": checked["reverse"]}
+            "jinja_env": jinja_env, "reverse": checked["reverse"], "dns_digest": checked["dns_digest"]}
 
 
 def _deploy(paths, start_services):
@@ -138,8 +140,12 @@ def _deploy(paths, start_services):
              "webui": web["webui"], "agent": web["agent"], "federation_unit": fed["unit_changed"]}
     bind_ids = service_user(final_vars, "bind")
     if not start_services:
-        return finish_without_start(paths, state, bind_ids)
-    return restart_changed(paths, final_vars, secrets, state, bind_ids)
+        changed = finish_without_start(paths, state, bind_ids)
+    else:
+        changed = restart_changed(paths, final_vars, secrets, state, bind_ids)
+    if p["dns_digest"] is not None:        # BIND took this plan's names: only now may the poll count DNS current
+        save_watch_state("plan-dns", {"dns": p["dns_digest"]})
+    return changed
 
 
 def apply_deployment(start_services=True):

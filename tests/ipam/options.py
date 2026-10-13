@@ -279,6 +279,26 @@ try:
 except ValidationError as e:
     check("refused loudly: the firewall step failing; the USN not kept, so the next run tries again",
           "firewall" in str(e) and poll()["state"] != "unchanged", e)
+print("--- what DNS was rendered from is kept only once BIND took it (2.3.10.5.6)")
+import fabriclib.ipam.load_address_plan as m_lap  # noqa: E402
+from fabriclib.ipam.options.watch_state import load_watch_state  # noqa: E402
+m_lap.read_plan = lambda v, secrets, of=None, container="samba": answer(SITE)(v, secrets, of, container)
+m_lap.save_plan_cache = lambda plan: None
+save_watch_state("plan-dns", {"dns": "before"})
+fv, digest = {"site_name": "lan", "install_kea": True, "dhcp": {"interfaces": ["eth0"]}, "dns": {}}, {}
+m_lap.load_address_plan(fv, {}, container="none", digest=digest)
+check("load_address_plan gives the caller the DNS digest and writes nothing itself (an apply that fails later "
+      "leaves plan-dns.json as it was)", digest.get("dns") == plan_digest(plan_to_dhcp(PLAN))["dns"]
+      and load_watch_state("plan-dns") == {"dns": "before"}, (digest, load_watch_state("plan-dns")))
+m_lap.load_address_plan({**fv, "dhcp": {"interfaces": ["eth0"]}}, {}, container="none")
+check("the poll's render (no digest asked) writes nothing either", load_watch_state("plan-dns") == {"dns": "before"})
+src = {f: open(os.path.join(REPO, "src", "fabriclib", *f.split("/")), encoding="utf-8").read()
+       for f in ("deploy/apply_deployment.py", "dns/publish_zone_list.py")}
+check("the apply keeps it after its restarts; a zone change after BIND serves the new list",
+      src["deploy/apply_deployment.py"].index('save_watch_state("plan-dns"')
+      > src["deploy/apply_deployment.py"].index("restart_changed(paths, final_vars")
+      and src["dns/publish_zone_list.py"].index('save_watch_state("plan-dns"')
+      > src["dns/publish_zone_list.py"].index('rndc(["zonestatus", zone])'))
 unit = open(os.path.join(REPO, "templates", "systemd", "fabric-plan-watch.service")).read()
 timer = open(os.path.join(REPO, "templates", "systemd", "fabric-plan-watch.timer")).read()
 check("the unit runs the poll once, scheduled; the timer every 30 s",
