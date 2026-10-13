@@ -80,6 +80,43 @@ def _write_set(samdb, change):
     return f"{label} changed"
 
 
+def _write_scan_policy(samdb, change):
+    """Purpose: one level of the scan policy written (decision 2.1.10.28, manual 1.10.4.27.2), on the option set's
+             entry: a site's entry is made by its first write, or given the auxiliary class fabricScanPolicySet when
+             it lacks it; the organisation's is made and given the class by the top site's convergence (its editors
+             may write the attributes only).
+    Inputs:  samdb — SamDB (as the site's agent); change — {"key" ("org" or a site), "fields" ({"policy": "allow",
+             "deny" or "" (unset); "enforced": bool, the organisation's only, left out to keep it})}.
+    Returns: str, what changed.
+    Fails:   ValueError: the organisation's entry or its class not there yet (an apply at the top site makes them), no
+             such site; ldb.LdbError when AD refuses (a site the top has not added to fabric-dhcp-org-editors).
+    Feeds:   write_plan."""
+    dn = _set_dn(samdb, change["key"])
+    given = change.get("fields") or {}
+    fields = {"fabricScanPolicy": _values(given.get("policy") or "")}
+    if change["key"] == "org" and "enforced" in given:
+        fields["fabricScanEnforced"] = _values(bool(given["enforced"]))
+    found = samdb.search(base=dn.split(",", 1)[1], scope=ldb.SCOPE_ONELEVEL,
+                         expression="(&(objectClass=fabricOptionSet)(cn=dhcp-options))", attrs=["objectClass"])
+    label = "the organisation's scan policy" if change["key"] == "org" else f"{change['key']}'s scan policy"
+    if not found:
+        if change["key"] == "org":
+            raise ValueError("the organisation's scan policy is not in the domain yet: run an apply at the top site")
+        samdb.add({"dn": dn, "objectClass": ["fabricOptionSet", "fabricScanPolicySet"],
+                   **{a: v for a, v in fields.items() if v}})
+        return f"{label} set"
+    if "fabricScanPolicySet" not in [str(c) for c in found[0]["objectClass"]]:
+        if change["key"] == "org":
+            raise ValueError("the organisation's scan policy is not in the domain yet: run an apply at the top site")
+        samdb.modify(ldb.Message.from_dict(samdb, {"dn": dn, "objectClass": "fabricScanPolicySet"},
+                                           ldb.FLAG_MOD_ADD))
+    msg = ldb.Message(ldb.Dn(samdb, dn))
+    for attr, values in fields.items():
+        msg[attr] = ldb.MessageElement(values, ldb.FLAG_MOD_REPLACE, attr)
+    samdb.modify(msg)
+    return f"{label} set"
+
+
 def _with_netboot(samdb, dn, fields):
     """Purpose: a subnet's or an address's options and netboot preset written together into fabricDhcpOption (the
              preset is one named value, {"netboot": {...}}, 2.1.10.25): the one the change does not give is kept from
@@ -141,11 +178,12 @@ def write_plan(samdb, lp, site, changes):
              option set, its editors' group (2.1.10.23).
     Inputs:  samdb — SamDB (as the site's agent); lp — LoadParm (unused); site — str (unused: each change names its
              site); changes — list of {"do" ("add", "set" or "remove"), "what" ("vlan", "subnet", "range",
-             "address", "block" or "options"), "site", "key" (the entry's name: a VLAN's ID, a subnet's name, a range's
-             "<kind>-<first>", an address; for "options" "org" or a site's name), "subnet" (for a range or an
-             address), "fields" ({field: value}; a set field of "" or None is removed; a subnet's or address's
-             "netboot" goes into fabricDhcpOption with its options, 2.1.10.25; an option set's "options",
-             "option_defs", "client_classes" each replace their list, 2.1.10.23)}.
+             "address", "block", "options" or "scan_policy"), "site", "key" (the entry's name: a VLAN's ID, a
+             subnet's name, a range's "<kind>-<first>", an address; for "options" "org" or a site's name), "subnet"
+             (for a range or an address), "fields" ({field: value}; a set field of "" or None is removed; a subnet's
+             or address's "netboot" goes into fabricDhcpOption with its options, 2.1.10.25; an option set's
+             "options", "option_defs", "client_classes" each replace their list, 2.1.10.23; "scan_policy" (key "org"
+             or a site): "policy" and the organisation's "enforced", 2.1.10.28)}.
     Returns: list of str, what changed.
     Fails:   ldb.LdbError from a change AD refuses (the changes before it stay made); ValueError for a site with no
              OU or a change of an unknown kind.
@@ -153,11 +191,14 @@ def write_plan(samdb, lp, site, changes):
     done = []
     for c in changes:
         what, do = c.get("what"), c.get("do")
-        if what not in ("vlan", "subnet", "range", "address", "block", "options") or do not in ("add", "set",
-                                                                                                "remove"):
+        if what not in ("vlan", "subnet", "range", "address", "block", "options", "scan_policy") or do not in (
+                "add", "set", "remove"):
             raise ValueError(f"unknown plan change: {do} {what}")
         if what == "options":
             done.append(_write_set(samdb, c))
+            continue
+        if what == "scan_policy":
+            done.append(_write_scan_policy(samdb, c))
             continue
         dn = _dn(samdb, c)
         label = f"{what} {c.get('key', '')} of {c['site']}".replace("  ", " ")

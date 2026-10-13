@@ -7,16 +7,18 @@ file	fabricctl-agent|src/agent/post_directory.py	4
 file	fabricctl-agent|src/agent/post_dns.py	5	
 file	fabricctl-agent|src/agent/post_dns_filter.py	17	
 file	fabricctl-agent|src/agent/post_domain.py	14	
-file	fabricctl-agent|src/agent/post_enrol.py	22	
+file	fabricctl-agent|src/agent/post_enrol.py	24	
 file	fabricctl-agent|src/agent/post_host_access.py	18	
 file	fabricctl-agent|src/agent/post_ipam_scan.py	20	
+file	fabricctl-agent|src/agent/post_ipam_sync.py	22	
 file	fabricctl-agent|src/agent/post_network.py	6	
 file	fabricctl-agent|src/agent/post_networks.py	19	
 file	fabricctl-agent|src/agent/post_options.py	21	
 file	fabricctl-agent|src/agent/post_pki.py	7	
 file	fabricctl-agent|src/agent/post_route.py	8	
+file	fabricctl-agent|src/agent/post_scan_policy.py	23	
 file	fabricctl-agent|src/agent/post_security.py	15	
-file	fabricctl-agent|src/agent/post_ssh.py	23	
+file	fabricctl-agent|src/agent/post_ssh.py	25	
 file	fabricctl-agent|src/agent/post_vault.py	9	
 file	fabricctl-agent|src/agent/read_fields.py	10	
 file	fabricctl-agent|src/agent/read_strings.py	11	
@@ -154,6 +156,7 @@ file	fabriclib-common|src/fabriclib/common/save_vars.py	15
 file	fabriclib-common|src/fabriclib/common/service_user.py	16	
 file	fabriclib-common|src/fabriclib/common/set_tsig_secrets.py	17	
 file	fabriclib-common|src/fabriclib/common/sudo_owner.py	18	
+file	fabriclib-common|src/fabriclib/common/try_vars_lock.py	29	
 file	fabriclib-common|src/fabriclib/common/vars_lock.py	19	
 file	fabriclib-common|src/fabriclib/common/wait_healthy.py	20	
 file	fabriclib-common|src/fabriclib/common/write_audit.py	21	
@@ -368,6 +371,7 @@ file	fabriclib-dns|src/fabriclib/dns/merge_dynamic_records.py	33
 file	fabriclib-dns|src/fabriclib/dns/normalize_acl_policies.py	11	
 file	fabriclib-dns|src/fabriclib/dns/normalize_tsig_keys.py	12	
 file	fabriclib-dns|src/fabriclib/dns/ptr_for_ip.py	13	
+file	fabriclib-dns|src/fabriclib/dns/publish_plan_records.py	43	
 file	fabriclib-dns|src/fabriclib/dns/publish_zone_list.py	35	
 file	fabriclib-dns|src/fabriclib/dns/reload_zone.py	14	
 file	fabriclib-dns|src/fabriclib/dns/remove_acl_entries.py	15	
@@ -447,7 +451,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/add_range.py	2
 file	fabriclib-ipam|src/fabriclib/ipam/add_subnet.py	30	
 file	fabriclib-ipam|src/fabriclib/ipam/add_vlan.py	3	
 file	fabriclib-ipam|src/fabriclib/ipam/check_address.py	4	
-file	fabriclib-ipam|src/fabriclib/ipam/check_address_role.py	87	
+file	fabriclib-ipam|src/fabriclib/ipam/check_address_role.py	96	
 file	fabriclib-ipam|src/fabriclib/ipam/check_block.py	31	
 file	fabriclib-ipam|src/fabriclib/ipam/check_range.py	5	
 file	fabriclib-ipam|src/fabriclib/ipam/check_subnet.py	6	
@@ -459,6 +463,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/common/fields.py	9
 file	fabriclib-ipam|src/fabriclib/ipam/common/new_subnet.py	33	
 file	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py	10	
 file	fabriclib-ipam|src/fabriclib/ipam/common/plan_holds_subnets.py	11	
+file	fabriclib-ipam|src/fabriclib/ipam/common/plan_subnets.py	87	
 file	fabriclib-ipam|src/fabriclib/ipam/common/pool_text.py	39	
 file	fabriclib-ipam|src/fabriclib/ipam/common/probe_subnet.py	50	
 file	fabriclib-ipam|src/fabriclib/ipam/common/site_plan.py	12	
@@ -513,8 +518,14 @@ file	fabriclib-ipam|src/fabriclib/ipam/remove_reservation_mac.py	45
 file	fabriclib-ipam|src/fabriclib/ipam/remove_subnet.py	34	
 file	fabriclib-ipam|src/fabriclib/ipam/remove_vlan.py	23	
 file	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py	24	
+file	fabriclib-ipam|src/fabriclib/ipam/scan_overview.py	88	
 file	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py	52	
 file	fabriclib-ipam|src/fabriclib/ipam/scannable_subnets.py	53	
+file	fabriclib-ipam|src/fabriclib/ipam/scanpolicy/effective_scan_policy.py	89	
+file	fabriclib-ipam|src/fabriclib/ipam/scanpolicy/read_scan_policy.py	90	
+file	fabriclib-ipam|src/fabriclib/ipam/scanpolicy/run_scan_policy_command.py	91	
+file	fabriclib-ipam|src/fabriclib/ipam/scanpolicy/set_scan_policy.py	92	
+file	fabriclib-ipam|src/fabriclib/ipam/scanpolicy/show_scan_policy.py	93	
 file	fabriclib-ipam|src/fabriclib/ipam/set_address.py	25	
 file	fabriclib-ipam|src/fabriclib/ipam/set_block.py	35	
 file	fabriclib-ipam|src/fabriclib/ipam/set_dhcp_subnet.py	46	
@@ -526,8 +537,10 @@ file	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py	47
 file	fabriclib-ipam|src/fabriclib/ipam/subnet_options.py	48	0.7.0 / 2026-10-13
 file	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py	27	
 file	fabriclib-ipam|src/fabriclib/ipam/suggestions.py	28	
+file	fabriclib-ipam|src/fabriclib/ipam/sync/sync_plan.py	94	
+file	fabriclib-ipam|src/fabriclib/ipam/sync/sync_status.py	95	
 file	fabriclib-ipam|src/fabriclib/ipam/visible_sites.py	49	
-file	fabriclib-ipam|src/fabriclib/ipam/vlan_labels.py	88	
+file	fabriclib-ipam|src/fabriclib/ipam/vlan_labels.py	97	
 file	fabriclib-ipam|src/fabriclib/ipam/write_plan.py	29	
 file	fabriclib-keycloak|src/fabriclib/keycloak/add_app_client.py	21	
 file	fabriclib-keycloak|src/fabriclib/keycloak/admin_client.py	1	
@@ -944,7 +957,7 @@ file	webui|src/webui/agentclient/apply_changes.py	6
 file	webui|src/webui/agentclient/audit.py	7	
 file	webui|src/webui/agentclient/ca_summary.py	8	
 file	webui|src/webui/agentclient/cert_warnings.py	136	
-file	webui|src/webui/agentclient/coa_session.py	181	
+file	webui|src/webui/agentclient/coa_session.py	198	
 file	webui|src/webui/agentclient/connection.py	9	
 file	webui|src/webui/agentclient/convert_cert.py	10	
 file	webui|src/webui/agentclient/create_person.py	11	
@@ -991,7 +1004,7 @@ file	webui|src/webui/agentclient/query_log.py	147
 file	webui|src/webui/agentclient/quote_segment.py	29	
 file	webui|src/webui/agentclient/radius_guides.py	30	
 file	webui|src/webui/agentclient/radius_overview.py	31	
-file	webui|src/webui/agentclient/radius_sessions.py	182	
+file	webui|src/webui/agentclient/radius_sessions.py	199	
 file	webui|src/webui/agentclient/raise_signin_layer.py	132	
 file	webui|src/webui/agentclient/read_audit.py	32	
 file	webui|src/webui/agentclient/read_job.py	141	
@@ -1016,8 +1029,9 @@ file	webui|src/webui/agentclient/service_status.py	43
 file	webui|src/webui/agentclient/set_dhcp_on.py	152	
 file	webui|src/webui/agentclient/set_option.py	44	
 file	webui|src/webui/agentclient/set_password_policy.py	156	
-file	webui|src/webui/agentclient/set_radius_client.py	183	
+file	webui|src/webui/agentclient/set_radius_client.py	200	
 file	webui|src/webui/agentclient/set_record_link.py	157	
+file	webui|src/webui/agentclient/set_scan_policy.py	181	
 file	webui|src/webui/agentclient/set_ssh_certificates.py	188	
 file	webui|src/webui/agentclient/sign_csr.py	45	
 file	webui|src/webui/agentclient/sign_ssh_key.py	189	
@@ -1025,6 +1039,7 @@ file	webui|src/webui/agentclient/ssh_hosts.py	197
 file	webui|src/webui/agentclient/ssh_overview.py	190	
 file	webui|src/webui/agentclient/start_job.py	142	
 file	webui|src/webui/agentclient/sudo_rule_change.py	161	
+file	webui|src/webui/agentclient/sync_now.py	182	
 file	webui|src/webui/agentclient/unmap_radius_group.py	46	
 file	webui|src/webui/agentclient/unset_option.py	47	
 file	webui|src/webui/agentclient/update_subnet.py	48	
@@ -1077,6 +1092,7 @@ file	webui|src/webui/routes/networks_page.py	169
 file	webui|src/webui/routes/networks_post.py	162	
 file	webui|src/webui/routes/networks_scan_page.py	173	
 file	webui|src/webui/routes/networks_scan_post.py	174	
+file	webui|src/webui/routes/networks_sync_post.py	183	
 file	webui|src/webui/routes/openbao_page.py	82	
 file	webui|src/webui/routes/options_page.py	178	
 file	webui|src/webui/routes/options_post.py	179	
@@ -1156,6 +1172,7 @@ function	fabricctl-agent|src/agent/post_domain.py|post_domain	1
 function	fabricctl-agent|src/agent/post_enrol.py|post_enrol	1	
 function	fabricctl-agent|src/agent/post_host_access.py|post_host_access	1	
 function	fabricctl-agent|src/agent/post_ipam_scan.py|post_ipam_scan	1	
+function	fabricctl-agent|src/agent/post_ipam_sync.py|post_ipam_sync	1	
 function	fabricctl-agent|src/agent/post_network.py|post_network	1	
 function	fabricctl-agent|src/agent/post_networks.py|_change	4	
 function	fabricctl-agent|src/agent/post_networks.py|_flag	1	
@@ -1167,6 +1184,7 @@ function	fabricctl-agent|src/agent/post_options.py|_change	2
 function	fabricctl-agent|src/agent/post_options.py|post_options	3	
 function	fabricctl-agent|src/agent/post_pki.py|post_pki	1	
 function	fabricctl-agent|src/agent/post_route.py|post_route	1	
+function	fabricctl-agent|src/agent/post_scan_policy.py|post_scan_policy	1	
 function	fabricctl-agent|src/agent/post_security.py|post_security	1	
 function	fabricctl-agent|src/agent/post_ssh.py|post_ssh	1	
 function	fabricctl-agent|src/agent/post_vault.py|post_vault	1	
@@ -1350,6 +1368,7 @@ function	fabricctl-jinja|src/containers/samba/read_plan.py|_one	2
 function	fabricctl-jinja|src/containers/samba/read_plan.py|_option_set	6	
 function	fabricctl-jinja|src/containers/samba/read_plan.py|_option_sets	7	
 function	fabricctl-jinja|src/containers/samba/read_plan.py|_options	3	
+function	fabricctl-jinja|src/containers/samba/read_plan.py|_scan_policies	8	
 function	fabricctl-jinja|src/containers/samba/read_plan.py|_site_of	1	
 function	fabricctl-jinja|src/containers/samba/read_plan.py|read_plan	4	
 function	fabricctl-jinja|src/containers/samba/read_replication.py|_when	1	
@@ -1398,6 +1417,7 @@ function	fabricctl-jinja|src/containers/samba/write_plan.py|_dn	2
 function	fabricctl-jinja|src/containers/samba/write_plan.py|_set_dn	4	
 function	fabricctl-jinja|src/containers/samba/write_plan.py|_values	1	
 function	fabricctl-jinja|src/containers/samba/write_plan.py|_with_netboot	6	
+function	fabricctl-jinja|src/containers/samba/write_plan.py|_write_scan_policy	7	
 function	fabricctl-jinja|src/containers/samba/write_plan.py|_write_set	5	
 function	fabricctl-jinja|src/containers/samba/write_plan.py|write_plan	3	
 function	fabricctl-lib|src/federation/server.py|Handler.after_join	1	
@@ -1454,6 +1474,7 @@ function	fabriclib-common|src/fabriclib/common/save_vars.py|save_vars	2
 function	fabriclib-common|src/fabriclib/common/service_user.py|service_user	1	
 function	fabriclib-common|src/fabriclib/common/set_tsig_secrets.py|set_tsig_secrets	1	
 function	fabriclib-common|src/fabriclib/common/sudo_owner.py|sudo_owner	1	
+function	fabriclib-common|src/fabriclib/common/try_vars_lock.py|try_vars_lock	1	
 function	fabriclib-common|src/fabriclib/common/vars_lock.py|vars_lock	1	
 function	fabriclib-common|src/fabriclib/common/wait_healthy.py|wait_healthy	1	
 function	fabriclib-common|src/fabriclib/common/write_audit.py|write_audit	1	
@@ -1760,6 +1781,9 @@ function	fabriclib-dns|src/fabriclib/dns/merge_dynamic_records.py|merge_dynamic_
 function	fabriclib-dns|src/fabriclib/dns/normalize_acl_policies.py|normalize_acl_policies	1	
 function	fabriclib-dns|src/fabriclib/dns/normalize_tsig_keys.py|normalize_tsig_keys	1	
 function	fabriclib-dns|src/fabriclib/dns/ptr_for_ip.py|ptr_for_ip	1	
+function	fabriclib-dns|src/fabriclib/dns/publish_plan_records.py|_render	2	
+function	fabriclib-dns|src/fabriclib/dns/publish_plan_records.py|_why	1	
+function	fabriclib-dns|src/fabriclib/dns/publish_plan_records.py|publish_plan_records	3	
 function	fabriclib-dns|src/fabriclib/dns/publish_zone_list.py|_why	1	
 function	fabriclib-dns|src/fabriclib/dns/publish_zone_list.py|publish_zone_list	2	
 function	fabriclib-dns|src/fabriclib/dns/reload_zone.py|_served_serial	2	
@@ -1891,6 +1915,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|load_plan_cache	
 function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|plan_cache_path	1	
 function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|save_plan_cache	3	
 function	fabriclib-ipam|src/fabriclib/ipam/common/plan_holds_subnets.py|plan_holds_subnets	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/plan_subnets.py|plan_subnets	1	
 function	fabriclib-ipam|src/fabriclib/ipam/common/pool_text.py|pool_text	1	
 function	fabriclib-ipam|src/fabriclib/ipam/common/probe_subnet.py|_exec	1	
 function	fabriclib-ipam|src/fabriclib/ipam/common/probe_subnet.py|_neighbours	2	
@@ -1960,7 +1985,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/plan_rows.py|_range_of	1
 function	fabriclib-ipam|src/fabriclib/ipam/plan_rows.py|plan_rows	2	
 function	fabriclib-ipam|src/fabriclib/ipam/plan_to_dhcp.py|plan_to_dhcp	1	
 function	fabriclib-ipam|src/fabriclib/ipam/planned_subnets.py|planned_subnets	1	
-function	fabriclib-ipam|src/fabriclib/ipam/poll_plan.py|_try_lock	1	
+function	fabriclib-ipam|src/fabriclib/ipam/poll_plan.py|_try_lock	1	0.7.0 / 2026-10-13
 function	fabriclib-ipam|src/fabriclib/ipam/poll_plan.py|poll_plan	2	
 function	fabriclib-ipam|src/fabriclib/ipam/read_plan.py|read_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/remove_address.py|remove_address	1	
@@ -1977,11 +2002,20 @@ function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_print_rows	6
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_show	5	0.7.0 / 2026-10-12
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_subnet_line	9	
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|run_ipam_command	8	
+function	fabriclib-ipam|src/fabriclib/ipam/scan_overview.py|scan_overview	1	
 function	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py|_classify	3	
 function	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py|_slot	2	
 function	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py|_which	1	
 function	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py|scan_subnet	4	
 function	fabriclib-ipam|src/fabriclib/ipam/scannable_subnets.py|scannable_subnets	1	
+function	fabriclib-ipam|src/fabriclib/ipam/scanpolicy/effective_scan_policy.py|_why	1	
+function	fabriclib-ipam|src/fabriclib/ipam/scanpolicy/effective_scan_policy.py|effective_scan_policy	2	
+function	fabriclib-ipam|src/fabriclib/ipam/scanpolicy/read_scan_policy.py|read_scan_policy	1	
+function	fabriclib-ipam|src/fabriclib/ipam/scanpolicy/run_scan_policy_command.py|_parse	1	
+function	fabriclib-ipam|src/fabriclib/ipam/scanpolicy/run_scan_policy_command.py|run_scan_policy_command	2	
+function	fabriclib-ipam|src/fabriclib/ipam/scanpolicy/set_scan_policy.py|_fields	1	
+function	fabriclib-ipam|src/fabriclib/ipam/scanpolicy/set_scan_policy.py|set_scan_policy	2	
+function	fabriclib-ipam|src/fabriclib/ipam/scanpolicy/show_scan_policy.py|show_scan_policy	1	
 function	fabriclib-ipam|src/fabriclib/ipam/set_address.py|set_address	1	
 function	fabriclib-ipam|src/fabriclib/ipam/set_block.py|set_block	1	
 function	fabriclib-ipam|src/fabriclib/ipam/set_dhcp_subnet.py|set_dhcp_subnet	1	
@@ -2001,6 +2035,9 @@ function	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py|subnets_to_plan	2
 function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_block	3	
 function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_split	2	
 function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_subnet	1	
+function	fabriclib-ipam|src/fabriclib/ipam/sync/sync_plan.py|_Held.close	1	
+function	fabriclib-ipam|src/fabriclib/ipam/sync/sync_plan.py|sync_plan	2	
+function	fabriclib-ipam|src/fabriclib/ipam/sync/sync_status.py|sync_status	1	
 function	fabriclib-ipam|src/fabriclib/ipam/visible_sites.py|visible_sites	1	
 function	fabriclib-ipam|src/fabriclib/ipam/vlan_labels.py|vlan_labels	1	
 function	fabriclib-ipam|src/fabriclib/ipam/write_plan.py|write_plan	1	
@@ -2760,6 +2797,7 @@ function	webui|src/webui/agentclient/set_option.py|set_option	1
 function	webui|src/webui/agentclient/set_password_policy.py|set_password_policy	1	
 function	webui|src/webui/agentclient/set_radius_client.py|set_radius_client	1	
 function	webui|src/webui/agentclient/set_record_link.py|set_record_link	1	
+function	webui|src/webui/agentclient/set_scan_policy.py|set_scan_policy	1	
 function	webui|src/webui/agentclient/set_ssh_certificates.py|set_ssh_certificates	1	
 function	webui|src/webui/agentclient/sign_csr.py|sign_csr	1	
 function	webui|src/webui/agentclient/sign_ssh_key.py|sign_ssh_key	1	
@@ -2767,6 +2805,7 @@ function	webui|src/webui/agentclient/ssh_hosts.py|ssh_hosts	1
 function	webui|src/webui/agentclient/ssh_overview.py|ssh_overview	1	
 function	webui|src/webui/agentclient/start_job.py|start_job	1	
 function	webui|src/webui/agentclient/sudo_rule_change.py|sudo_rule_change	1	
+function	webui|src/webui/agentclient/sync_now.py|sync_now	1	
 function	webui|src/webui/agentclient/unmap_radius_group.py|unmap_radius_group	1	
 function	webui|src/webui/agentclient/unset_option.py|unset_option	1	
 function	webui|src/webui/agentclient/update_subnet.py|update_subnet	1	
@@ -2867,8 +2906,10 @@ function	webui|src/webui/routes/networks_page.py|networks_page	1
 function	webui|src/webui/routes/networks_post.py|_message	1	
 function	webui|src/webui/routes/networks_post.py|networks_post	2	
 function	webui|src/webui/routes/networks_scan_page.py|networks_scan_page	1	
+function	webui|src/webui/routes/networks_scan_post.py|_policy	3	
 function	webui|src/webui/routes/networks_scan_post.py|_record	1	
 function	webui|src/webui/routes/networks_scan_post.py|networks_scan_post	2	
+function	webui|src/webui/routes/networks_sync_post.py|networks_sync_post	1	
 function	webui|src/webui/routes/openbao_page.py|openbao_page	1	
 function	webui|src/webui/routes/options_page.py|options_page	1	
 function	webui|src/webui/routes/options_post.py|_message	1	

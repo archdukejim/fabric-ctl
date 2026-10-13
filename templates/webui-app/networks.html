@@ -33,6 +33,31 @@
 <p class="muted small">A site joins or leaves the organisation in the <a href="/federation">Federation</a> tab.</p>
 </section>
 
+{% if n.sync %}<section class="card"><h2>Sync now</h2>
+<p class="muted">The plan poll brings Kea in line within 30 s of a change to this site's plan; names published in DNS wait for an apply. Sync now does both at once, without an apply: only Kea restarts, BIND reloads its zones.</p>
+<p>{% if n.sync.rendered %}The poll last rendered Kea at {{ n.sync.rendered }}.{% elif n.sync.polled %}The poll has run; Kea is as the last apply rendered it.{% else %}The poll has not run yet.{% endif %}
+{% if n.sync.dns_pending %} <span class="pill warn">DNS waits for an apply or Sync now</span>{% else %} <span class="pill ok">DNS in line with the plan</span>{% endif %}</p>
+{% if can('dhcp:write') %}<form method="post" action="/networks/sync" class="inline">{{ csrf() }}<button>Sync now</button></form>{% else %}<p class="muted small">Sync now needs the <code>dhcp:write</code> permission.</p>{% endif %}
+</section>{% endif %}
+
+{% if n.scan_policy %}{% set p = n.scan_policy %}<section class="card"><h2>Scan policy · {{ n.site }}</h2>
+<p>Scans at {{ n.site }}: {% if p.allowed %}<span class="pill ok">allowed</span>{% else %}<span class="pill bad">denied</span>{% endif %} <span class="muted">decided by {{ p.source }}</span></p>
+<table><tbody>
+<tr><td>Organisation</td><td>{{ p.org.policy or 'unset (allow)' }}{% if p.org.enforced %} <span class="pill warn">enforced: wins at every site</span>{% endif %}</td></tr>
+<tr><td>Site {{ n.site }}</td><td>{{ p.site_level.policy or 'inherit' }}</td></tr>
+</tbody></table>
+{% if not p.allowed %}<p class="muted small">{{ p.why }}</p>{% endif %}
+<p class="muted small">Like a group policy: the organisation's level wins when it is enforced; otherwise the site's own setting, then the organisation's; with neither, scans are allowed.</p>
+{% if can('dhcp:write') %}<form method="post" action="/networks/scan/policy" class="grid">{{ csrf() }}<input type="hidden" name="site" value="{{ n.site }}">
+<label>{{ n.site }}'s level<select name="policy"><option value="inherit"{{ ' selected' if not p.site_level.policy }}>inherit (the organisation decides)</option><option value="allow"{{ ' selected' if p.site_level.policy == 'allow' }}>allow</option><option value="deny"{{ ' selected' if p.site_level.policy == 'deny' }}>deny</option></select></label>
+<div><button>Set {{ n.site }}'s scan policy</button></div></form>{% endif %}
+{% if can('dhcp:org-options') and p.org_editable %}<form method="post" action="/networks/scan/policy/org" class="grid">{{ csrf() }}<input type="hidden" name="site" value="{{ n.site }}">
+<label>The organisation's level<select name="policy"><option value="allow"{{ ' selected' if p.org.policy != 'deny' }}>allow</option><option value="deny"{{ ' selected' if p.org.policy == 'deny' }}>deny</option></select></label>
+<label>Enforced (wins over every site's setting)<select name="enforced"><option value="off"{{ ' selected' if not p.org.enforced }}>off</option><option value="on"{{ ' selected' if p.org.enforced }}>on</option></select></label>
+<div><button>Set the organisation's scan policy</button></div></form>
+{% elif can('dhcp:org-options') %}<p class="muted small">This site may not change the organisation's level: the top site decides which sites may (the DHCP options page).</p>{% endif %}
+</section>{% endif %}
+
 <section class="card"><h2>Site {{ n.site }}{% if n.block %} · number {{ n.block }}{% endif %}</h2>
 <form method="get" action="/networks" class="grid"><input type="hidden" name="site" value="{{ n.site }}">
 <label>Search (an address, a name or a MAC, or part of one)<input name="q" value="{{ q }}" placeholder="10.1.20.15, cam, aa:bb"></label>
@@ -46,7 +71,7 @@
 
 {% if open %}{% set vlan, s = open %}
 <section class="card"><h2>VLAN {{ vlan.id }} ({{ vlan.name }}) · subnet {{ s.name }} · {{ s.cidr }}</h2>
-<p><a href="/networks?site={{ n.site | urlencode }}">All VLANs of {{ n.site }}</a>{% if n.site == n.own and s.dhcp %} · <a href="/networks/scan?subnet={{ s.cidr | urlencode }}">Scan this subnet</a> <span class="muted">(what answers but nobody recorded)</span>{% endif %}</p>
+<p><a href="/networks?site={{ n.site | urlencode }}">All VLANs of {{ n.site }}</a>{% if n.site == n.own and n.scan_policy and n.scan_policy.allowed %} · <a href="/networks/scan?subnet={{ s.cidr | urlencode }}">Scan this subnet</a> <span class="muted">(what answers but nobody recorded)</span>{% endif %}</p>
 {{ bar(s, true) }}
 <p class="legend"><span class="key seg-gateway"></span>gateway <span class="key seg-static"></span>static <span class="key seg-dhcp"></span>DHCP <span class="key seg-reserved"></span>reserved <span class="key seg-none"></span>no range <span class="key use"></span>in use</p>
 <p class="muted">Gateway {{ s.gateway or '—' }} · DHCP {{ 'on' if s.dhcp else 'off' }}{% if s.relay %} · relay {{ s.relay }}{% endif %} · {{ s.counts.used }} of {{ s.counts.size }} in use, {{ s.counts.free }} free · {{ s.counts.recorded }} recorded, {{ s.counts.leases }} lease(s){% if s.counts.unrecorded %}, <strong>{{ s.counts.unrecorded }} unrecorded</strong>{% endif %}{% if s.notes %} · {{ s.notes }}{% endif %}</p>

@@ -10,6 +10,7 @@ from webui.routes.kea_post import kea_post
 from webui.routes.landing_post import landing_post
 from webui.routes.networks_post import networks_post
 from webui.routes.networks_scan_post import networks_scan_post
+from webui.routes.networks_sync_post import networks_sync_post
 from webui.routes.options_post import options_post
 from webui.routes.overview_post import overview_post
 from webui.routes.radius_post import radius_post
@@ -55,8 +56,9 @@ def post_action(h, sess, path, form):
              dict from read_form. Routes: /logout; /bind9/zone/…; /bind9/zones/…; /bind9/landing/…; /apply;
              /stepca/…; /openbao/…; /directory/…; /kea/… (reservations, subnets, options, classes); /kea/options/…
              (the DHCP options page); /dns-filter/… (lists, rules, upstreams, fetch); /networks/scan[/record] (the
-             scan); /networks/<site>/… (the address plan); /overview/… (jobs); /freeradius/clients…;
-             /freeradius/sessions…; /freeradius/people…; /bind9/tsig/…; /ssh/… (sign, on, off).
+             scan); /networks/scan/policy[/org] (the scan policy); /networks/sync (Sync now); /networks/<site>/… (the
+             address plan); /overview/… (jobs); /freeradius/clients…; /freeradius/sessions…; /freeradius/people…;
+             /bind9/tsig/…; /ssh/… (sign, on, off).
     Returns: /logout: session dropped, LOGOUT audited, 303 to Keycloak's logout URL clearing the session cookie;
              /apply: 200 apply result; the rest as their route modules.
     Fails:   404 for an unknown path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
@@ -96,6 +98,8 @@ def post_action(h, sess, path, form):
         return kea_post(h, _segments(path, 2), form)
     if path == "/networks/scan" or path.startswith("/networks/scan/"):
         return networks_scan_post(h, sess, _segments(path, 3), form)
+    if path == "/networks/sync":                       # Sync now (1.10.4.28), before a site's /networks/<site>/…
+        return networks_sync_post(h, form)
     if path.startswith("/networks/"):
         return networks_post(h, _segments(path, 2), form)
     if path.startswith("/dns-filter/"):

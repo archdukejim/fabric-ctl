@@ -11,6 +11,7 @@
 | `load_vars.py` | Read `vars.yaml` (empty dict if missing) |
 | `save_vars.py` | Write `vars.yaml`, empty strings stored as null |
 | `vars_lock.py` | Exclusive lock around read-modify-write of `vars.yaml` |
+| `try_vars_lock.py` | The same lock taken without waiting: None while an apply holds it (the plan poll, Sync now) |
 | `write_audit.py` | Append one line to the audit log with the acting user and source |
 | `read_audit.py` | Last N audit lines, newest first |
 | `run.py` | Run a command as an argument list (never a shell); raise `CommandError` with stderr on failure |

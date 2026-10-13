@@ -13,7 +13,8 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `dns_filter_page.py` | The DNS filter tab: overview, lists, rules, the query log (dns:querylog), settings |
 | `dns_filter_post.py` | The DNS filter tab's changes: lists, rules (also Allow / Block from the query log), upstreams, fetch now |
 | `networks_scan_page.py` | The scan page (`/networks/scan`): the subnets this site's DHCP serves, to scan one (its own page, for the Networks tab) |
-| `networks_scan_post.py` | The scan and "make it a reservation?": scan a subnet and show what answered; record an address it found |
+| `networks_scan_post.py` | The scan and "make it a reservation?": scan a subnet and show what answered; record an address it found; set the scan policy (a site's level, the organisation's) |
+| `networks_sync_post.py` | Sync now: the plan poll at once and BIND's records, back to the Networks tab with what it did |
 | `kea_post.py` | The Kea tab's changes: reservations, subnets (name, VLAN, notes, pools), options, client classes |
 | `options_page.py` | The DHCP options page (`/kea/options`): option sets, presets, a target's effective options with their sources |
 | `options_post.py` | The DHCP options page's changes: options, classes, definitions, netboot, who edits the organisation's |

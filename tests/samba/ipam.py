@@ -719,6 +719,48 @@ check("refused: unreserve for a MAC no reservation holds", "no reservation for 0
 remove_vlan(V, "tester", 3939, "", True, **DCK)
 check("the alias VLAN removed again with its subnet", sub("alias39", OWN) is None)
 
+print("--- the scan policy at a real DC (2.1.10.28, manual 1.10.4.27)")
+from fabriclib.ipam.scanpolicy.read_scan_policy import read_scan_policy  # noqa: E402
+
+
+def pol(site="lan"):
+    return read_scan_policy(V, site, SECRETS, container=DC)
+
+
+check("nothing set: scans allowed by default at both sites", pol()["allowed"] and pol()["source"] == "default"
+      and pol("house2")["allowed"], (pol(), pol("house2")))
+# covers: cli:ipam.scan-policy +
+code, out = ipam("scan-policy", "set", "site", "deny", "--site", "house2")
+check("the top denies house2's own level: written, read back as denied by house2's own policy", code == 0
+      and not pol("house2")["allowed"] and pol("house2")["source"] == "site house2" and pol()["allowed"], out)
+code, out = ipam("scan-policy", "set", "site", "allow", v=house_v, secrets=house_s)
+check("house2's own admins set its level (the site's level is the site's, as a GPO's link)", code == 0
+      and pol("house2")["allowed"] and pol("house2")["source"] == "site house2", out)
+code, out = ipam("scan-policy", "set", "org", "deny", "--enforced", "on")
+check("the top denies scanning everywhere, enforced: house2's own allow no longer counts, the top's neither",
+      code == 0 and not pol("house2")["allowed"] and pol("house2")["source"] == "organisation (enforced)"
+      and not pol()["allowed"], out)
+code, out = ipam("scan-policy", v=house_v, secrets=house_s)
+check("house2 sees why: denied by the enforced organisation's level, its own allow shown", code == 0
+      and "denied (organisation (enforced))" in out and "site house2: allow" in out, out)
+# covers: cli:ipam.scan-policy -
+code, out = ipam("scan-policy", "set", "org", "allow", "--enforced", "off", v=house_v, secrets=house_s)
+check("refused by AD: house2, not among the organisation's editors, lifting the organisation's level; nothing changed",
+      code == 1 and "not permitted" in out and pol()["org"] == {"policy": "deny", "enforced": True}, out)
+code, out = ipam("scan-policy", "set", "site", "allow", "--site", "lan", v=house_v, secrets=house_s)
+check("refused by AD: house2 setting its parent's level", code == 1 and "not permitted" in out
+      and pol()["site_level"]["policy"] == "", out)
+set_option_editor(V, "root", "house2", True, secrets=SECRETS, container=DC, root=True)
+code, out = ipam("scan-policy", "set", "org", "deny", "--enforced", "off", v=house_v, secrets=house_s)
+check("a site the top lets edit the organisation's settings may set its scan policy too (2.1.10.23's holders)",
+      code == 0 and pol()["org"] == {"policy": "deny", "enforced": False} and pol("house2")["allowed"], out)
+set_option_editor(V, "root", "house2", False, secrets=SECRETS, container=DC, root=True)
+code, out = ipam("scan-policy", "set", "org", "allow")
+check("the top puts it back: the enforcement kept as it was (off), scans allowed", code == 0 and pol()["allowed"]
+      and pol()["org"] == {"policy": "allow", "enforced": False}, out)
+check("every change audited (IPAM_SCAN_POLICY_SET, with the level and the site)",
+      sum(1 for e, d in AUDIT if e == "IPAM_SCAN_POLICY_SET" and "level=" in d) >= 5, AUDIT[-6:])
+
 subprocess.run(["docker", "rm", "-f", DC], capture_output=True)
 subprocess.run(["docker", "network", "rm", NET], capture_output=True)
 print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")

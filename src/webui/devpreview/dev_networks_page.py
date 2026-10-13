@@ -1,7 +1,8 @@
 from webui import views
 from webui.devpreview.fabric_rules import export_plan, networks_view
 from webui.devpreview.sample_networks import (SAMPLE_NETWORK_LEASES, SAMPLE_NETWORK_READ, SAMPLE_NETWORK_SITES,
-                                              SAMPLE_NETWORK_VARS)
+                                              SAMPLE_NETWORK_VARS, SAMPLE_SCAN_POLICY, SAMPLE_SCAN_POLICY_DENIED,
+                                              SAMPLE_SYNC)
 
 
 def dev_networks_page(h, path, query):
@@ -26,6 +27,8 @@ def dev_networks_page(h, path, query):
     if path == "/networks/export":
         return h.send(200, export_plan(SAMPLE_NETWORK_READ, site, leases, "lan"), "text/csv; charset=utf-8")
     overview = networks_view(SAMPLE_NETWORK_VARS, SAMPLE_NETWORK_READ, site, SAMPLE_NETWORK_SITES, leases)
-    overview.update(own="lan", stale="", error="", leases_error="")
+    overview.update(own="lan", stale="", error="", leases_error="",
+                    scan_policy=SAMPLE_SCAN_POLICY if site == "lan" else SAMPLE_SCAN_POLICY_DENIED,
+                    sync=SAMPLE_SYNC if site == "lan" else None)
     return h.send(200, views.networks(h.ctx, overview, query.get("subnet", ""), query.get("q", ""),
                                       query.get("msg", ""), query.get("err", "")))

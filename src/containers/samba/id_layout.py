@@ -23,7 +23,8 @@ def check_block(id_range):
              starting on a multiple of a million, so the fixed ranges fit it.
     Inputs:  id_range — str "first-last".
     Returns: (first, last), both int.
-    Fails:   ValueError naming the block: malformed, or not a site block (e.g. an install's from before 0.7.0).
+    Fails:   ValueError naming the block: malformed, or not a site block (e.g. an install's from before 0.7.0: the
+             message says it is installed fresh for 0.8.0, decision 2.1.6.54).
     Feeds:   converge (first, before the schema and the layout), ensure_site_info."""
     try:
         first, last = (int(x) for x in str(id_range).split("-"))
@@ -31,5 +32,7 @@ def check_block(id_range):
         raise ValueError(f"id range {id_range!r}: first-last, two whole numbers") from None
     if first <= 0 or first % BLOCK or last - first + 1 != BLOCK:
         raise ValueError(f"id range {id_range!r} is not a site's block: a million ids from a multiple of a million "
-                         "(2.1.6.46)")
+                         "(2.1.6.46). Such a block comes from an install made before 0.7.0, which 0.8.0 does not "
+                         "upgrade: install it fresh (there is no migration of ids before 1.0, 2.1.1.31; the steps: "
+                         "manual 3.3.5)")
     return first, last
