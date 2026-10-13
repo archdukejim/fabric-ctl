@@ -63,7 +63,7 @@ docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	9fa68800106
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	9db18b7001c1967177f6a2f19b49b773b11aa82a	2026-10-09	
 docs/volume_1_description_and_architecture/1.17.28-installers.md	986b323d7a4ca2e8cbf71d23fdd677f464f51139	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.29-webui.md	6430195d4866bc7f294766d47d7fa6644cc442aa	2026-10-13	
-docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	24697b11d8317ea139e30c11a75ca1c9ef52307e	2026-10-13	
+docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	78a7f9d848d1affc94edc08c865d16241c909834	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.30-fabriclib-samba.md	b46f91bd21601e12605979440842befe7bc198dd	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.31-fabriclib-directory.md	a01c45a92ab75c9100eb32db8e94074bcd7127e4	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.32-fabriclib-ipam.md	5c611399aeaba311d2da3f7a5a57899efc8e7c0c	2026-10-13	
@@ -71,7 +71,7 @@ docs/volume_1_description_and_architecture/1.17.4-fabricctl-lib.md	76bc845876c67
 docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	aed30500adf5f9138ebabe385324951d64475b46	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	24ff0b144f278b04318828076bbe081aab5d2ecc	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.7-fabriclib-core.md	287e5a946064faecbdb0262ece385ff0e043036c	2026-10-08	
-docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	c41238be734dc51eb2b77c876c25a1cec391fd2f	2026-10-13	
+docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	dac47984e9a81d2c23afb9345537ed9b341cd26e	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.9-fabriclib-dhcp.md	764eaec3dc64a7c194795895f0a7d9e8feb6dbc8	2026-10-13	
 docs/volume_1_description_and_architecture/1.2.1-topology.md	93eb5885bd1c51cc6545c5a5ebd269cf6a36173d	2026-10-10	
 docs/volume_1_description_and_architecture/1.2.10-global.md	5534a46e259bcd499006919750da778ed47dad63	2026-10-09	
@@ -96,7 +96,7 @@ docs/volume_1_description_and_architecture/1.6.1-directory.md	7fa9284225375dc046
 docs/volume_1_description_and_architecture/1.6.10-security.md	d4fe8b6a3ddb421741741daefc07bbb55301258f	2026-10-13	
 docs/volume_1_description_and_architecture/1.6.11-host-access.md	debef3000d262ce66f9bbc5fafe2ce7f5ef7f7b4	2026-10-13	
 docs/volume_1_description_and_architecture/1.6.2-keycloak.md	9a5c2286d1ed3dcd0db40a0f98ad1be084340fe8	2026-10-13	
-docs/volume_1_description_and_architecture/1.6.3-samba-directory.md	45c7da5a53a82a06d44f0cc2ab39a305c3e7773b	2026-10-13	
+docs/volume_1_description_and_architecture/1.6.3-samba-directory.md	cf5309690c99e89a2e9fd50cfe635c4e8d8c65bf	2026-10-13	
 docs/volume_1_description_and_architecture/1.6.4-samba-ad.md	3b6e475a2efc928aee1e85a441af77e46f23e02e	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.5-samba-dc.md	c526de26fe9e137bb882bf5b9c291f298f693427	2026-10-13	
 docs/volume_1_description_and_architecture/1.6.6-domain-join.md	5f1da00e7d17efb840db5850edafdaf821651fd0	2026-10-08	
@@ -129,14 +129,14 @@ docs/volume_2_engineering_decisions/2.1.2-architecture.md	b07023dae6b8bd641b4ca8
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	58090998c7ae665ec0d5fb4e3d8549c97d4475d5	2026-10-13	
 docs/volume_2_engineering_decisions/2.1.4-dns.md	4ede274a0b0d2985ad6ee03cf27dcf002f5f3246	2026-10-13	
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	9c2a9993c146c9dd177ed7469f2bb6d4e160f22b	2026-10-13	
-docs/volume_2_engineering_decisions/2.1.6-identity.md	60a59d7bed9b1061a3a6ffecd5860231452dbe71	2026-10-13	
+docs/volume_2_engineering_decisions/2.1.6-identity.md	7a7f14434c96246dafa5652d11ed9e32fa1db590	2026-10-13	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	d373cc28549d589cb20d8c50532c931cc3de5524	2026-10-13	
 docs/volume_2_engineering_decisions/2.1.8-webui.md	26448992ddd38c08ba2df0df2bfbd4171a433a41	2026-10-13	
 docs/volume_2_engineering_decisions/2.1.9-federation.md	0555c5348dabe3760e7e9941875bfcea66c3bda1	2026-10-13	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	cb345b3e933f8ed78de5c2711305a7368fee3878	2026-10-13	
-docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	89bcb7f031d9299fa81bb22ea026fc650bf82387	2026-10-13	
+docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	9112bd7f2db83585041cc8e54528c697e393f0fc	2026-10-13	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-13	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
@@ -159,14 +159,15 @@ docs/volume_3_installation/3.2.1-requirements.md	923daf511f1da0012c84a1d8becb594
 docs/volume_3_installation/3.2.2-docker-from-ubuntu.md	2d7250a68efefe0413b077ee659fa444d40a325a	2026-10-08	
 docs/volume_3_installation/3.2.3-deployed-structure.md	7e6cdc8cf16bfca41ab48a5b0e0dd7d69d0c29a2	2026-10-08	
 docs/volume_3_installation/3.2.4-reinstall-uninstall.md	5e505ebf5c9e308d960be3ac459cd9481e605fa1	2026-10-08	
-docs/volume_3_installation/3.3.1-running-setup.md	f10c98d933c8e9a927abbf0007a9507f5694aa9b	2026-10-13	
+docs/volume_3_installation/3.3.1-running-setup.md	fc5fb742d0c40c8c99d7abac8bc67f69980680e5	2026-10-13	
 docs/volume_3_installation/3.3.2-after-setup.md	16ec9a9e7a9f3190bf7d7dfac82e97d3a92a88ee	2026-10-13	
 docs/volume_3_installation/3.3.3-setup-steps.md	191e6203fb94b827a675cebf6d8db594f6b708cc	2026-10-13	
 docs/volume_3_installation/3.3.4-rebuilding.md	89cf47b0a1e0594bdae8b4d684b4111123f5b76b	2026-10-08	
+docs/volume_3_installation/3.3.5-upgrading-to-080.md	a21df92afec692695209a73660c2efb920e44b36	2026-10-13	
 docs/volume_3_installation/3.5.1-pki-before-install.md	fe4159103da796d8616041f0d1cd09f4b134db79	2026-10-08	
 docs/volume_3_installation/3.5.2-subordinate-ca.md	d84ac7e3817c58047a6317cdbff214f52895ed6e	2026-10-11	
 docs/volume_3_installation/3.9.1-joining.md	5f36b2555c019f4944b4ec3c55f3c26561852b1e	2026-10-11	
-docs/volume_3_installation/README.md	0fdbd13eaefe8c61f908a17757559fcf08e406b7	2026-10-13	
+docs/volume_3_installation/README.md	0d1d7ddd2e0353081fed01319a5406ee106cfd81	2026-10-13	
 docs/volume_4_operations/4.10.1-dhcp.md	1084fa1e00d173350176b5ad212b625e0b8730e8	2026-10-12	
 docs/volume_4_operations/4.10.2-address-manager.md	686506480e64eb0a8aae99117375b3b6ec60ce74	2026-10-13	
 docs/volume_4_operations/4.11.1-radius.md	66c0d6a14d2303bc027517f9b3ba580bc370390d	2026-10-09	
@@ -375,7 +376,7 @@ src/containers/samba/find_person.py	db9d0ae83a51983a0567d9ad6653cf22f3eeb54c	202
 src/containers/samba/get_person.py	1cc37e1a666aaebbf02030ad228782a6dba71212	2026-10-05	
 src/containers/samba/gpo_tool.py	a3b26135e0db70cc802fdfd1371fa2b4e886fc38	2026-10-08	
 src/containers/samba/host_groups.py	7ca669e23450e60ee42010fdf2a3fe2f505f0eb9	2026-10-13	
-src/containers/samba/id_layout.py	bb790004f3e194c30ada3ecbae3f54ae866330c0	2026-10-13	
+src/containers/samba/id_layout.py	07fcf5b0633f0abd132b459939f831d68ee2c3de	2026-10-13	
 src/containers/samba/legacy_logon_groups.py	533466b8c6e71850e03bb712b89fbd19187bf526	2026-10-13	
 src/containers/samba/link_device_cert.py	97c0c0fc783d3ff4471d0aa184063a9d13e423d2	2026-10-05	
 src/containers/samba/list_host_groups.py	72e738b664c95c2769d5cf31dbb738b766a527e9	2026-10-13	
@@ -493,7 +494,7 @@ src/fabriclib/deploy/archive_vars.py	512658f15cee9e1f34ad065538d701c567971aca	20
 src/fabriclib/deploy/check_fixed_identity.py	35cc05d2938150eeee1fc248702cbfecfc889e3e	2026-10-02	
 src/fabriclib/deploy/check_rendered.py	c3fc7768882941f0292a5f94945a4ca5337d06fb	2026-10-13	
 src/fabriclib/deploy/check_samba_settings.py	ffe4930e59fd7a1d7c370c6adc62be150d940306	2026-10-13	
-src/fabriclib/deploy/check_service_settings.py	88207d4e68bc05f4c3eb64397d369954defb3f75	2026-10-13	
+src/fabriclib/deploy/check_service_settings.py	ace717e1f4a17ce8e6c16f58360fe5716bbf885c	2026-10-13	
 src/fabriclib/deploy/check_settings.py	038236ada4800b904898c59ccc507ef280295701	2026-10-13	
 src/fabriclib/deploy/compose_builds.py	95f535d5fa028de30d075b3606d12f0fbbe18366	2026-10-08	
 src/fabriclib/deploy/deploy_optional_parts.py	f0b2cd1e2477a3b436d13e8ed160785613c180a1	2026-10-11	
@@ -1580,7 +1581,7 @@ tests/common/ask.py	52a510850e39121e2bec244890dabb189195a748	2026-10-13
 tests/consent/README.md	e145a0d2d43d16682fc9dda3e46179d6530c5a03	2026-10-08	
 tests/consent/run.py	fbcc9c0d811f8d19d3c7cc37cb2a8a70c972203f	2026-10-13	
 tests/deploy/README.md	d1e5586a64f770723e0f1f55c4d29072af2dc7fd	2026-10-13	
-tests/deploy/check_service_settings_test.py	b25d59f98bfc34a53b23e4a25eaeab48ef96164e	2026-10-13	
+tests/deploy/check_service_settings_test.py	b4c26eb2d37bf4a1c79ffd51c56fd20e9aaa798a	2026-10-13	
 tests/deploy/restart_changed_test.py	911a86a353be18a9a12204b2e11bfbb57316e93e	2026-10-12	
 tests/docs/README.md	eeec2ea77295c6eefe030662bd4c7ca6327beff1	2026-10-13	
 tests/docs/check_consistency.py	f73615e09406f36b652b51e06b93be0d02a0c486	2026-10-08	
@@ -1661,7 +1662,7 @@ tests/samba/dc.py	82f2bbfe767640cecce34c4a529ee2aac8969bc1	2026-10-13
 tests/samba/devices.py	bd71b4b019421a3683be413c08e67f40a4af8c98	2026-10-13	
 tests/samba/gpo.py	dc3a4eeaf55fa0a7c892721b4bbaf7ec0355dd79	2026-10-13	
 tests/samba/hostgroups.py	75c932c311f1a2edcdfde133eac604b442b065dd	2026-10-13	
-tests/samba/id_layout_test.py	efe616e9c6423649c799f7f6977816900029f000	2026-10-13	
+tests/samba/id_layout_test.py	73ccc2e1084426822955906647436b2673733666	2026-10-13	
 tests/samba/ipam.py	5ed7f406f612025e2d0e67d712dac8a9c8863d3e	2026-10-13	
 tests/samba/ipam_two_site.py	08e5b25cbf31471c1b3583c83708ad6a5c2082af	2026-10-13	
 tests/samba/linux_join.py	33ef5f01efae3a5720ac3eef21dc0f1c42f72e5f	2026-10-13	

@@ -10,6 +10,9 @@ IMAGE_RE = re.compile(r"^(?:[a-z0-9.-]+(?::[0-9]+)?/)?[a-z0-9]+(?:[._-][a-z0-9]+
 NOT_IMAGES = {"image_pins", "image_prune", "image_rolled_back", "image_signature_check"}
 ID_MAX = 2 ** 31 - 1                    # the largest uid/gid Linux and AD both take
 BLOCK = 1_000_000                       # a site's id block: a million ids from a multiple of a million (2.1.6.46)
+# what an older block means, said with each refusal (decision 2.1.6.54)
+FRESH = ("Such a block comes from an install made before 0.7.0, which 0.8.0 does not upgrade: install it fresh "
+         "(there is no migration of ids before 1.0, 2.1.1.31; the steps: manual 3.3.5)")
 
 
 def _whole(v, key, low):
@@ -36,7 +39,8 @@ def check_service_settings(v):
              posix_id_start under 1000 (the system's own ids) or posix_id_block under 1000, or a first block that
              does not fit under 2^31 - 1; a posix_id_start that is not a multiple of 1000000 or a posix_id_block other
              than 1000000 (a site's block, whose fixed ranges the DC hands ids from, 2.1.6.46; the one-run block of an
-             install from before 0.7.0 is no longer served, 2.1.6.51, S11).
+             install from before 0.7.0 is no longer served, 2.1.6.51, S11; the message says such an install is
+             installed fresh for 0.8.0, 2.1.6.54).
     Feeds:   deploy/check_settings."""
     for key in sorted(k for k in v if k.startswith("image_") and k not in NOT_IMAGES):
         ref = v.get(key)
@@ -68,7 +72,7 @@ def check_service_settings(v):
                               "uid and gid Linux and AD take")
     if start is not None and start % BLOCK:
         raise ValidationError(f"posix_id_start must be a multiple of {BLOCK} (got {start}): a site's id block starts "
-                              "there (2.1.6.46)")
+                              f"there (2.1.6.46). {FRESH}")
     if block is not None and block != BLOCK:
         raise ValidationError(f"posix_id_block must be {BLOCK} (got {block}): every site's id block is a million long "
-                              "(2.1.6.46)")
+                              f"(2.1.6.46). {FRESH}")
