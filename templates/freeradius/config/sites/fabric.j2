@@ -12,6 +12,10 @@ server fabric {
 	}
 
 	authorize {
+		# the client that asked, for the policy's vendor rules and the log (manual 1.11.1.2)
+		update request {
+			&Tmp-String-3 := "%{client:shortname}"
+		}
 		# EAP (802.1X): the eap module drives the exchange; the device check
 		# runs in fabric-check-eap-tls once the certificate is verified.
 		eap {
@@ -26,8 +30,13 @@ server fabric {
 		eap
 	}
 
-	# Accounting is acknowledged and not stored.
+	# Accounting: logged by the policy as one `fabric: ACCT` line (the sessions
+	# the console lists, 1.11.1.4), then acknowledged; nothing else is stored.
 	accounting {
+		update request {
+			&Tmp-String-3 := "%{client:shortname}"
+		}
+		fabric_policy
 		ok
 	}
 

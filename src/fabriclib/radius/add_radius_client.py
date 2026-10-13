@@ -10,7 +10,8 @@ from fabriclib.radius.normalize_radius_clients import normalize_radius_clients
 from fabriclib.secrets.save_secrets import save_secrets
 
 
-def add_radius_client(actor, name, address, message_authenticator=True, secret=None, source="cli"):
+def add_radius_client(actor, name, address, message_authenticator=True, secret=None, source="cli", vendor="generic",
+                      transport="udp"):
     """Purpose: Add a switch or access point that may ask FreeRADIUS (vars.yaml radius_clients) and keep its shared
              secret in fabric's secrets (radius_secrets). Applied by the next apply.
     Inputs:  actor — str, who asks (audit).
@@ -20,9 +21,12 @@ def add_radius_client(actor, name, address, message_authenticator=True, secret=N
              secret — str the device already has (16-128 printable, no spaces, quotes, backslashes or $), or None for a
              random 32-character one.
              source — "cli" (default) or "web". Reads/writes vars.yaml under vars_lock.
+             vendor — "unifi", "cisco" or "generic" (default): its profile (manual 1.11.1.2).
+             transport — "udp" (default) or "radsec" (only for a vendor whose profile offers it, 1.11.1.3).
     Returns: the shared secret (str), to be shown once.
     Fails:   ValidationError "802.1X is off (install_freeradius: false)" or one from normalize_radius_clients (name,
-             duplicate, address, overlap, secret); errors from save_secrets; OSError or yaml.YAMLError from vars_lock /
+             duplicate, address, overlap, secret, vendor, transport); errors from save_secrets; OSError or
+             yaml.YAMLError from vars_lock /
              load_vars / save_vars / write_audit.
     Feeds:   agent route POST /v1/radius/clients (fabric-agent, src/agent/, called by the web UI);
              run_radius_command (add-client).
@@ -34,11 +38,13 @@ def add_radius_client(actor, name, address, message_authenticator=True, secret=N
             raise ValidationError("802.1X is off (install_freeradius: false)")
         current = data.get("radius_clients") or []
         clients, _ = normalize_radius_clients(current + [{"name": name, "address": address, "secret": secret,
-                                                          "message_authenticator": message_authenticator}])
+                                                          "message_authenticator": message_authenticator,
+                                                          "vendor": vendor, "transport": transport}])
         save_secrets({"radius_secrets": {clients[-1]["name"]: secret}})
         data["radius_clients"] = clients
         save_vars(data)
     c = clients[-1]
     write_audit(actor, "RADIUS_CLIENT_ADD", f"client={c['name']} address={c['address']} "
-                                            f"message_authenticator={c['message_authenticator']}", source)
+                                            f"message_authenticator={c['message_authenticator']} vendor={c['vendor']} "
+                                            f"transport={c['transport']}", source)
     return secret

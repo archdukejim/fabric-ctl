@@ -21,6 +21,18 @@ fabric makes them:
   Refused before any policy: an unknown RADIUS client, a wrong secret, a
   request without Message-Authenticator. The DC down -> refused (fail
   closed), and back -> reconnected. Container hardening.
+  Vendors (manual 1.11.1.2 to 1.11.1.4): MAB in UniFi's shape (the MAC as
+  password) and Cisco's (Call-Check), each refused out of shape; the VLAN
+  attributes per vendor; RadSec (python's ssl, TCP 2083) accepted with the
+  client's own certificate and refused with another client's, a foreign
+  CA's or none, and a RadSec client never answered over UDP; accounting
+  logged as sessions, Start then Stop; `fabricctl radius set-client`,
+  `sessions`, `disconnect` and `reauthenticate` (a UniFi session refused,
+  a Cisco one acknowledged by a stand-in switch: tests/freeradius/nas_standin.py).
+  On the address plan (1.11.1.7, 1.11.1.8): MAB from a DHCP reservation with a
+  role (on the reservation's VLAN), refused without a role or network:mab, a
+  device's MAC decided by the device alone; a role's VLAN outside the plan
+  refused.
 
     sudo python3 tests/freeradius/run.py      (needs Docker, openssl, root)
 """
@@ -38,11 +50,13 @@ OUT = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests")
 W = OUT + "/freeradius"
 NET, SUBNET = "radtest_net", "10.254.24.0/24"
 DC_IP, RADIUS_IP, SWITCH_IP, STRANGER_IP = "10.254.24.50", "10.254.24.98", "10.254.24.10", "10.254.24.11"
+RADSEC_IP, UNIFI_IP, CISCO_IP = "10.254.24.12", "10.254.24.13", "10.254.24.14"      # one client per vendor
 DOMAIN = "lan.j-j.family"                                          # tests/render.py's install
 DC = "samba"                    # the product's own name: fabric's directory functions use it
 SECRET = "Sw1tchSecretForTests0123456789ab"
 FAILED = 0
-sys.path[0:0] = [os.path.join(REPO, "src"), REPO, os.path.join(REPO, "tests", "samba")]
+sys.path[0:0] = [os.path.join(REPO, "src"), REPO, os.path.join(REPO, "tests", "samba"),
+                 os.path.dirname(os.path.abspath(__file__))]
 from start_dc import start_dc  # noqa: E402
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
@@ -84,7 +98,7 @@ def until(pred, timeout=90):
 
 
 def cleanup():
-    sh(f"docker rm -f {DC} rt-radius rt-switch rt-stranger >/dev/null 2>&1", ok=False)
+    sh(f"docker rm -f {DC} rt-radius rt-switch rt-stranger rt-radsec rt-unifi rt-cisco >/dev/null 2>&1", ok=False)
     sh(f"docker network rm {NET} >/dev/null 2>&1", ok=False)
 
 
@@ -152,6 +166,10 @@ SERVER_NAME = V["hostname_radius"]                         # the name supplicant
 leaf("radius", "int", "serverAuth", SERVER_NAME)
 FP = {d: leaf(d, "int") for d in ("laptop1", "laptop2", "laptop3", "printer1", "cam1")}
 FP["impostor"] = leaf("impostor", "foreign")
+# RadSec (1.11.1.3): the switch's own certificate (CN radsec-<client name>), another client's, a foreign CA's
+leaf("radsec-core-sw", "int", cn="radsec-core-sw")
+leaf("radsec-other", "int", cn="radsec-other")
+leaf("radsec-foreign", "foreign", cn="radsec-core-sw")
 with open(f"{W}/pki/radius.chain", "w") as f:          # the chain as Step-CA hands it out
     f.write(open(f"{W}/pki/radius.crt").read() + open(f"{W}/pki/int.crt").read())
 
@@ -216,7 +234,13 @@ seeded = sh(["docker", "exec", "-i", DC, "python3", "-"], input=seed_people, ok=
 check("people and groups in the domain", "seeded" in seeded.stdout, seeded.stderr[-600:])
 
 # ------------------------------------------------------------------ FreeRADIUS from fabric's templates
-clients, embedded = normalize_radius_clients([{"name": "switch1", "address": SWITCH_IP, "secret": SECRET}])
+clients, embedded = normalize_radius_clients([{"name": "switch1", "address": SWITCH_IP, "secret": SECRET},
+                                              {"name": "unifi-sw", "address": UNIFI_IP, "vendor": "unifi",
+                                               "secret": SECRET},
+                                              {"name": "cisco-udp", "address": CISCO_IP, "vendor": "cisco",
+                                               "secret": SECRET},
+                                              {"name": "core-sw", "address": RADSEC_IP, "vendor": "cisco",
+                                               "transport": "radsec", "secret": SECRET}])
 people_map = normalize_radius_people([{"group": "staff", "vlan": 20, "priority": 50},
                                       {"group": "visitors", "vlan": 50, "priority": 60},
                                       {"group": "contractors", "priority": 70},
@@ -278,7 +302,8 @@ check("FreeRADIUS starts on fabric's configuration (non-root, read-only)", ready
 if not ready:
     cleanup()
     sys.exit(1)
-for name, ip in (("rt-switch", SWITCH_IP), ("rt-stranger", STRANGER_IP)):
+for name, ip in (("rt-switch", SWITCH_IP), ("rt-stranger", STRANGER_IP), ("rt-radsec", RADSEC_IP),
+                 ("rt-unifi", UNIFI_IP), ("rt-cisco", CISCO_IP)):
     sh(["docker", "run", "-d", "--name", name, "--network", NET, "--ip", ip, "-v", f"{W}/pki:/pki:ro",
         "fabric/radius-client:test"])
 
@@ -321,14 +346,16 @@ except socket.timeout:
 '''
 
 
-def mab(mac, box="rt-switch", secret=SECRET, authenticator=True, user=None, timeout=3):
-    """(reply code or None, VLAN or None, output) for one MAB request (User-Name = the MAC)."""
+def mab(mac, box="rt-switch", secret=SECRET, authenticator=True, user=None, timeout=3, password=None, extra=""):
+    """(reply code or None, VLAN or None, output) for one MAB request (User-Name = the MAC); password — the
+    User-Password (default the user name); extra — more attributes, e.g. 'Service-Type = Call-Check'."""
     if not authenticator:
         res = sh(["docker", "exec", "-i", box, "python3", "-", RADIUS_IP, secret, mac], ok=False, input=RAW_REQUEST)
         code = re.search(r"Received (Access-\w+)", res.stdout)
         return code.group(1) if code else None, None, res.stdout + res.stderr
-    attrs = (f'User-Name = "{user or mac}", User-Password = "{user or mac}", Calling-Station-Id = "{mac}", '
-             f'NAS-Identifier = "switch1", Message-Authenticator = 0x00')
+    attrs = (f'User-Name = "{user or mac}", User-Password = "{password or user or mac}", '
+             f'Calling-Station-Id = "{mac}", NAS-Identifier = "switch1", Message-Authenticator = 0x00'
+             + (", " + extra if extra else ""))
     res = sh(["docker", "exec", "-i", box, "radclient", "-x", "-r", "1", "-t", str(timeout), f"{RADIUS_IP}:1812",
               "auth", secret], ok=False, input=attrs + "\n")
     text = res.stdout + res.stderr
@@ -465,6 +492,170 @@ check("MAB: an unknown MAC is refused", code == "Access-Reject", out[-400:])
 code, _, out = mab("02:00:00:00:30:01", user="alice")
 check("MAB: a User-Name that is not the calling MAC is refused", code == "Access-Reject", out[-400:])
 
+# ------------------------------------------------------------------ MAB from a DHCP reservation (1.11.1.7, 2.3.11.6)
+# written 2026-10-12, not run (the owner's direction for 0.9). The plan's entries are written as `fabricctl ipam`
+# writes them (write_plan, as the site's agent), and removed after, so nothing below sees them.
+from fabriclib.ipam.write_plan import write_plan  # noqa: E402
+SITE = V["site_name"]
+RESERVED = {"10.1.40.50": ("02:00:00:00:40:01", "cam5", "mab-printers"),
+            "10.1.40.51": ("02:00:00:00:40:02", "cam6", ""), "10.1.40.52": ("02:00:00:00:40:03", "cam7", "dns-only"),
+            "10.1.40.53": ("02:00:00:00:30:02", "cam1r", "mab-printers"),    # cam1's MAC: the device decides
+            "10.1.40.54": ("02:00:00:00:40:04", "cam8", "res-only")}         # a role only a reservation names
+add_role_mod.add_role(V, "test", "res-only", {"permissions": ["network:mab"], "priority": 50})
+write_plan(V, SECRETS, [{"do": "add", "what": "vlan", "site": SITE, "key": 40, "fields": {"id": 40, "name": "cams"}},
+                        {"do": "add", "what": "subnet", "site": SITE, "key": "cams",
+                         "fields": {"cidr": "10.1.40.0/24", "vlan": 40, "kind": "lan", "gateway": "10.1.40.1",
+                                    "dhcp": True}}]
+           + [{"do": "add", "what": "address", "site": SITE, "subnet": "cams", "key": ip,
+               "fields": {"ip": ip, "kind": "reservation", "mac": mac, "name": name, "role": role}}
+              for ip, (mac, name, role) in RESERVED.items()], container=DC)
+code, vlan, out = mab("02-00-00-00-40-01", box="rt-cisco", user="020000004001", extra="Service-Type = Call-Check")
+check("MAB from a reservation: a MAC no device has, reserved with a role granting network:mab -> Access-Accept on "
+      "the reservation's VLAN (40, not the role's 30), logged source=reservation",
+      code == "Access-Accept" and vlan == "40"
+      and "ACCEPT method=mab device=cam5 vlan=40 source=reservation" in logs(), out[-800:] + logs()[-600:])
+code, _, out = mab("02:00:00:00:40:02")
+check("MAB from a reservation: a reservation without a role is refused, saying so",
+      code == "Access-Reject" and "device=cam6 reason=reservation_has_no_role source=reservation" in logs(),
+      out[-400:] + logs()[-400:])
+code, _, out = mab("02:00:00:00:40:03")
+check("MAB from a reservation: a role without network:mab is refused",
+      code == "Access-Reject" and "device=cam7 reason=no_role_grants_network:mab source=reservation" in logs(),
+      out[-400:] + logs()[-400:])
+code, _, out = mab("02:00:00:00:30:02")
+check("MAB: a MAC a device has is decided by the device alone, whatever its reservation's role grants",
+      code == "Access-Reject" and "device=cam1r" not in logs(), out[-400:] + logs()[-400:])
+# a role's VLAN names a VLAN of the plan (1.11.1.8): the plan now has VLAN 40
+try:
+    add_role_mod.add_role(V, "test", "badvlan", {"permissions": ["network:mab"], "vlan": "77", "priority": 50})
+    refused_vlan = ""
+except Exception as exc:                 # ValidationError
+    refused_vlan = str(exc)
+add_role_mod.add_role(V, "test", "cams-role", {"permissions": ["network:mab"], "vlan": "40", "priority": 50})
+check("a role's VLAN outside the plan is refused, naming the plan's VLANs; one in the plan is saved",
+      "VLAN 77 is not in" in refused_vlan and "40 (cams)" in refused_vlan
+      and "cams-role" in {r["name"] for r in list_roles(V)} and "badvlan" not in {r["name"] for r in list_roles(V)},
+      refused_vlan)
+run_op(V, SECRETS, "remove_role", {"name": "cams-role"}, DC)
+# removing a role a reservation names is refused, naming it (2.1.11.9); once taken off, the role is removed
+try:
+    run_op(V, SECRETS, "remove_role", {"name": "res-only"}, DC)
+    refused_remove = ""
+except Exception as exc:                 # ValidationError
+    refused_remove = str(exc)
+check("remove a role a reservation names: refused, naming the reservation and how to take the role off",
+      "role res-only is named by 1 reservation(s): 10.1.40.54 (cam8)" in refused_remove
+      and "--role none" in refused_remove and "res-only" in {r["name"] for r in list_roles(V)}, refused_remove)
+write_plan(V, SECRETS, [{"do": "set", "what": "address", "site": SITE, "subnet": "cams", "key": "10.1.40.54",
+                         "fields": {"role": ""}}], container=DC)
+run_op(V, SECRETS, "remove_role", {"name": "res-only"}, DC)
+check("...and removed once no reservation names it", "res-only" not in {r["name"] for r in list_roles(V)})
+write_plan(V, SECRETS, [{"do": "remove", "what": "subnet", "site": SITE, "key": "cams"},
+                        {"do": "remove", "what": "vlan", "site": SITE, "key": 40}], container=DC)
+
+# ------------------------------------------------------------------ vendors (1.11.1.2)
+code, vlan, out = mab("02-00-00-00-30-01", box="rt-unifi", user="020000003001", password="020000003001")
+check("UniFi: MAB with the MAC as user name and password (AABBCCDDEEFF) -> Access-Accept on VLAN 30, with "
+      "Tunnel-Type VLAN and Tunnel-Medium-Type IEEE-802",
+      code == "Access-Accept" and vlan == "30" and re.search(r"Tunnel-Type(?::\d+)? = VLAN", out)
+      and re.search(r"Tunnel-Medium-Type(?::\d+)? = IEEE-802", out), out[-800:] + logs()[-400:])
+code, _, out = mab("02-00-00-00-30-01", box="rt-unifi", user="020000003001", password="not-the-mac-at-all")
+check("UniFi: a MAB request whose password is not the MAC is refused (and logged why)",
+      code == "Access-Reject" and "reason=password_is_not_the_MAC" in logs(), out[-400:] + logs()[-400:])
+code, vlan, out = mab("02-00-00-00-30-01", box="rt-cisco", user="020000003001", extra="Service-Type = Call-Check")
+check("Cisco: MAB as IOS-XE sends it (Call-Check, aabbccddeeff, AA-BB-..) -> Access-Accept on VLAN 30, RFC 3580 "
+      "attributes", code == "Access-Accept" and vlan == "30" and re.search(r"Tunnel-Type(?::\d+)? = VLAN", out),
+      out[-800:] + logs()[-400:])
+code, _, out = mab("02-00-00-00-30-01", box="rt-cisco", user="020000003001")
+check("Cisco: a request without Call-Check is not MAB: refused (a password login pretending to be MAB)",
+      code == "Access-Reject" and "reason=not_a_MAB_request_for_this_switch" in logs(), out[-400:] + logs()[-400:])
+code, _, out = mab("02:00:00:00:30:01", box="rt-radsec")
+check("RadSec: a RadSec client's address is never answered over UDP", code is None, out[-300:])
+
+# ------------------------------------------------------------------ RadSec (1.11.1.3): RADIUS over TLS on TCP 2083
+RADSEC_REQUEST = r'''
+import hashlib, hmac, os, socket, ssl, sys
+server, cert, key, mac = sys.argv[1:5]
+secret = b"radsec"
+ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile="/pki/root.crt")
+ctx.check_hostname = False                     # the server's name is checked below, as a switch matches it
+if cert != "-":
+    ctx.load_cert_chain("/pki/%s.crt" % cert, "/pki/%s.key" % key)
+def attr(t, v):
+    return bytes([t, len(v) + 2]) + v
+auth = os.urandom(16)
+pw, prev, enc = mac.encode().ljust(16, b"\0"), auth, b""
+for i in range(0, len(pw), 16):
+    block = bytes(a ^ b for a, b in zip(pw[i:i + 16], hashlib.md5(secret + prev).digest()))
+    enc, prev = enc + block, block
+body = (attr(1, mac.encode()) + attr(2, enc) + attr(31, b"02-00-00-00-30-01") + attr(6, (10).to_bytes(4, "big"))
+        + attr(80, bytes(16)))
+head = bytes([1, 9]) + (20 + len(body)).to_bytes(2, "big")
+ma = hmac.new(secret, head + auth + body, hashlib.md5).digest()
+packet = head + auth + body[:-16] + ma
+try:
+    with socket.create_connection((server, 2083), timeout=6) as raw:
+        with ctx.wrap_socket(raw) as tls:
+            print("server", tls.getpeercert()["subject"])
+            tls.sendall(packet)
+            reply = tls.recv(4096)
+            print("Received", {2: "Access-Accept", 3: "Access-Reject"}.get(reply[0], "?") if reply else "nothing")
+except (ssl.SSLError, OSError) as exc:
+    print("tls refused:", type(exc).__name__, exc)
+'''
+
+
+def radsec(cert, key=None, mac="020000003001"):
+    """(reply code or None, output) for one MAB request over RadSec from rt-radsec with the certificate `cert`."""
+    res = sh(["docker", "exec", "-i", "rt-radsec", "python3", "-", RADIUS_IP, cert, key or cert, mac], ok=False,
+             input=RADSEC_REQUEST)
+    code = re.search(r"Received (Access-\w+)", res.stdout)
+    return code.group(1) if code else None, res.stdout + res.stderr
+
+
+code, out = radsec("radsec-core-sw")
+check("RadSec: the client's own certificate (CN radsec-core-sw, from the fabric CA) -> TLS up with the server's "
+      "certificate, Cisco-shaped MAB accepted", code == "Access-Accept" and SERVER_NAME in out, out[-800:] + logs()[-400:])
+code, out = radsec("radsec-other")
+check("RadSec: another client's certificate (CN radsec-other) is refused before any decision, logged why",
+      code != "Access-Accept" and "method=radsec reason=certificate_not_this_client" in logs(), out[-600:] + logs()[-400:])
+code, out = radsec("radsec-foreign")
+check("RadSec: a certificate from another CA: no TLS, nothing answered", code is None, out[-400:])
+code, out = radsec("-")
+check("RadSec: no client certificate: no TLS, nothing answered", code is None, out[-400:])
+code, out = radsec("laptop1")
+check("RadSec: a device's certificate (fabric CA, not radsec-<client>) is refused", code != "Access-Accept",
+      out[-400:])
+
+# ------------------------------------------------------------------ accounting -> sessions (1.11.1.4)
+import datetime  # noqa: E402
+from fabriclib.radius.list_radius_sessions import list_radius_sessions  # noqa: E402
+
+
+def acct(status, session, box="rt-cisco"):
+    attrs = (f'Acct-Status-Type = {status}, Acct-Session-Id = "{session}", Calling-Station-Id = "02-00-00-00-30-01", '
+             f'User-Name = "020000003001", NAS-IP-Address = {CISCO_IP}, NAS-Port-Id = "GigabitEthernet1/0/7"')
+    return sh(["docker", "exec", "-i", box, "radclient", "-x", "-r", "1", "-t", "3", f"{RADIUS_IP}:1813", "acct",
+               SECRET], ok=False, input=attrs + "\n")
+
+
+def log_records():
+    now = datetime.datetime.now()
+    return [(now, line) for line in logs().splitlines()]
+
+
+res = acct("Start", "0A0B0C0D00000012")
+sessions = {s["session"]: s for s in list_radius_sessions(log_records())}
+check("accounting: a Start is acknowledged and logged as a session: the client, the MAC, the port, who it is (the "
+      "last ACCEPT for that MAC: printer1 on VLAN 30)",
+      "Accounting-Response" in res.stdout and sessions.get("0A0B0C0D00000012", {}).get("client") == "cisco-udp"
+      and sessions["0A0B0C0D00000012"]["port"] == "GigabitEthernet1/0/7"
+      and sessions["0A0B0C0D00000012"]["who"] == "printer1" and sessions["0A0B0C0D00000012"]["vlan"] == "30",
+      (res.stdout[-400:], sessions))
+acct("Stop", "0A0B0C0D00000012")
+check("accounting: a Stop ends the session",
+      "0A0B0C0D00000012" not in {s["session"] for s in list_radius_sessions(log_records())})
+
 # ------------------------------------------------------------------ refused before any policy
 code, _, out = mab("02:00:00:00:30:01", box="rt-stranger")
 check("an address that is not a RADIUS client gets no answer", code is None, out[-300:])
@@ -505,7 +696,7 @@ save_vars({"install_freeradius": True, "hostname_radius": V["hostname_radius"], 
            "radius_clients": clients, "radius_people": people_map}, VARS_FILE)
 save_secrets({"radius_secrets": embedded, "ad_radius_password": SECRETS["ad_radius_password"]}, SECRETS_FILE)
 for name in ("add_radius_client", "rotate_radius_secret", "remove_radius_client", "map_radius_group",
-             "unmap_radius_group"):
+             "unmap_radius_group", "set_radius_client"):
     mod = importlib.import_module(f"fabriclib.radius.{name}")
     mod.load_vars = functools.partial(load_vars, VARS_FILE)
     if hasattr(mod, "save_vars"):
@@ -561,7 +752,9 @@ code, out, err = radius()
 check("fabricctl radius (status by default): the server name supplicants verified above (hostname_radius), the "
       "client with Message-Authenticator required, the mapped groups with their VLANs; never a secret",
       code == 0 and f"server name (supplicants check it): {SERVER_NAME}   RADIUS on {V['host_ip']}:1812/udp" in out
-      and re.search(rf"switch1 +{re.escape(SWITCH_IP)} +Message-Authenticator required", out)
+      and re.search(rf"switch1 +{re.escape(SWITCH_IP)} +generic +RADIUS/UDP \(relaxed: MD5 only\) +"
+                    r"Message-Authenticator required", out)
+      and re.search(rf"core-sw +{re.escape(RADSEC_IP)} +cisco +RadSec \(TCP 2083\)", out)
       and re.search(r"group staff +vlan 20 +priority 50", out) and SECRET not in out and not err, (code, out, err))
 code, out, err = radius("bogus")
 code2, out2, err2 = radius("status", "extra")
@@ -659,6 +852,76 @@ code, out, err = radius("unmap-group", "sales", "--no-apply")
 # covers: cli:radius.unmap-group -
 check("unmap-group refused: a group that is not mapped -> exit 1, why, nothing changed",
       code == 1 and "error: group sales is not mapped for 802.1X" in err and stored() == before, (code, err))
+
+# set-client (1.11.1.2, 1.11.1.3): vendor and transport changed, applied, proven by a real authentication
+before = stored()
+code, out, err = radius("set-client", "switch1", "--vendor", "juniper", "--no-apply")
+code2, _, err2 = radius("set-client", "switch1", "--transport", "radsec", "--no-apply")
+code3, _, err3 = radius("set-client", "nosuch", "--vendor", "cisco", "--no-apply")
+code4, _, err4 = radius("set-client", "switch1", "--no-apply")
+# covers: cli:radius.set-client -
+check("set-client refused: an unknown vendor, RadSec for a generic switch, a client fabric does not have, nothing to "
+      "change -> exit 1, why, nothing saved",
+      (code, code2, code3, code4) == (1, 1, 1, 1) and "vendor must be one of unifi, cisco, generic" in err
+      and "RadSec is not offered for vendor generic" in err2 and "no RADIUS client nosuch" in err3
+      and "nothing to change" in err4 and stored() == before, (err, err2, err3, err4))
+code, out, err = radius("set-client", "switch1", "--vendor", "cisco", "--no-apply")
+apply_radius()
+plain, _, _ = mab("02:00:00:00:30:01")
+shaped, vlan, shaped_out = mab("02:00:00:00:30:01", extra="Service-Type = Call-Check")
+# covers: cli:radius.set-client +
+check("set-client: switch1 is now Cisco: after apply a MAB without Call-Check is refused, one with it accepted",
+      code == 0 and "vendor cisco, transport udp" in out and plain == "Access-Reject" and shaped == "Access-Accept"
+      and vlan == "30", (code, out, err, plain, shaped, shaped_out[-300:]))
+radius("set-client", "switch1", "--vendor", "generic", "--no-apply")
+apply_radius()
+
+# sessions, disconnect, reauthenticate (1.11.1.4): from this FreeRADIUS's accounting lines; a stand-in switch answers
+import fabriclib.radius.coa.coa_session as coa_mod  # noqa: E402
+import fabriclib.radius.radius_sessions as sessions_mod  # noqa: E402
+from nas_standin import NasStandin  # noqa: E402
+sessions_mod.list_radius_sessions = lambda records=None: list_radius_sessions(log_records())
+coa_mod.list_radius_sessions = sessions_mod.list_radius_sessions
+coa_mod.load_secrets = lambda: yaml.safe_load(open(SECRETS_FILE))
+coa_mod.write_audit = lambda *a, **k: None
+mab("02-00-00-00-30-01", box="rt-cisco", user="020000003001", extra="Service-Type = Call-Check")  # who: printer1
+acct("Start", "5F3A9C01-00000007", box="rt-unifi")       # the container restarted on apply: sessions afresh
+acct("Start", "0A0B0C0D00000013")
+code, out, err = radius("sessions")
+# covers: cli:radius.sessions +
+check("sessions: the open ones, a Cisco one with its actions, a UniFi one with none",
+      code == 0 and re.search(r"cisco-udp +0A0B0C0D00000013 +printer1 .*bounce, disconnect, reauthenticate", out)
+      and re.search(r"unifi-sw +5F3A9C01-00000007 .*no CoA", out), (code, out, err))
+code, out, err = radius("sessions", "extra")
+# covers: cli:radius.sessions -
+check("sessions with an argument is refused with the usage (exit 2)", code == 2 and "usage:" in err, (code, err))
+code, out, err = radius("disconnect", "unifi-sw", "5F3A9C01-00000007")
+code2, _, err2 = radius("reauthenticate", "unifi-sw", "5F3A9C01-00000007", "--bounce")
+code3, _, err3 = radius("disconnect", "cisco-udp", "NO-SUCH-SESSION")
+# covers: cli:radius.disconnect cli:radius.reauthenticate -
+check("disconnect / reauthenticate refused, nothing sent: a UniFi session (UniFi documents no CoA, and what to do), "
+      "a session that is not open",
+      code == 1 and "UniFi does not document RADIUS CoA" in err and code2 == 1 and "Reconnect" in err2
+      and code3 == 1 and "no open session NO-SUCH-SESSION on cisco-udp" in err3, (err, err2, err3))
+NAS = NasStandin(SECRET, host="0.0.0.0")
+real_profile = coa_mod.nas_profile
+coa_mod.nas_profile = lambda v: (dict(real_profile(v), coa=dict(real_profile(v)["coa"], port=NAS.port))
+                                 if v == "cisco" else real_profile(v))
+coa_mod.list_radius_sessions = lambda records=None: [dict(s, nas_ip="127.0.0.1") for s in
+                                                     list_radius_sessions(log_records())]
+save_vars({**load_vars(VARS_FILE), "radius_clients": [dict(c, address="127.0.0.0/8") if c["name"] == "cisco-udp"
+                                                      else c for c in load_vars(VARS_FILE)["radius_clients"]]},
+          VARS_FILE)                  # the stand-in switch listens on this host's loopback
+code, out, err = radius("disconnect", "cisco-udp", "0A0B0C0D00000013")
+code2, out2, err2 = radius("reauthenticate", "cisco-udp", "0A0B0C0D00000013", "--bounce")
+NAS.stop()
+coa_mod.nas_profile = real_profile
+# covers: cli:radius.disconnect cli:radius.reauthenticate +
+check("disconnect and reauthenticate --bounce: sent to the Cisco session's switch, signed with its secret, "
+      "acknowledged",
+      code == 0 and "Disconnect: printer1" in out and "acknowledged" in out and code2 == 0
+      and "Move VLAN" in out2 and [r["code"] for r in NAS.received] == [40, 43] and all(r["valid"] for r in NAS.received)
+      and b"bounce-host-port" in NAS.received[1]["attrs"][26][0], (out, err, out2, err2, NAS.received))
 
 save_vars({**load_vars(VARS_FILE), "install_freeradius": False}, VARS_FILE)
 before = stored()

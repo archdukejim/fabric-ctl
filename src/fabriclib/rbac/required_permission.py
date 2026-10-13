@@ -11,7 +11,7 @@ GET = {
     ("ipam", "scan"): "dhcp:read",                     # the subnets a scan may cover (2.1.10.26)
     ("ipam", "options", "*"): "dhcp:read", ("ipam", "options", "*", "*"): "dhcp:read",
     ("dns-filter",): "dns:filter",
-    ("radius",): "radius:read", ("radius", "guides"): "radius:read",
+    ("radius",): "radius:read", ("radius", "guides"): "radius:read", ("radius", "sessions"): "radius:read",
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
     ("devices",): "devices:read",
     ("people",): "people:read",
@@ -77,7 +77,9 @@ POST = {
     ("ipam", "options", "org"): "dhcp:org-options", ("ipam", "classes", "org"): "dhcp:org-options",
     ("ipam", "option-defs", "org"): "dhcp:org-options", ("ipam", "option-editors"): "dhcp:org-options",
     ("radius", "clients"): "radius:admin", ("radius", "clients", "*", "rotate"): "radius:admin",
-    ("radius", "clients", "*", "delete"): "radius:admin",
+    ("radius", "clients", "*", "delete"): "radius:admin", ("radius", "clients", "*", "set"): "radius:admin",
+    # cutting a device off is its own permission (2.1.11.8)
+    ("radius", "sessions", "disconnect"): "radius:coa", ("radius", "sessions", "reauthenticate"): "radius:coa",
     ("radius", "people"): "radius:admin", ("radius", "people", "*", "delete"): "radius:admin",
 }
 

@@ -5,6 +5,9 @@ from webui.agentclient.constants import RECORD_TYPES  # noqa: F401
 from webui.agentclient.errors import AgentError, AuthError, PermissionDenied, ValidationError  # noqa: F401
 from webui.agentclient.add_client_class import add_client_class  # noqa: F401
 from webui.agentclient.add_radius_client import add_radius_client  # noqa: F401
+from webui.agentclient.coa_session import coa_session  # noqa: F401
+from webui.agentclient.set_radius_client import set_radius_client  # noqa: F401
+from webui.agentclient.radius_sessions import radius_sessions  # noqa: F401
 from webui.agentclient.add_record import add_record  # noqa: F401
 from webui.agentclient.set_record_link import set_record_link  # noqa: F401
 from webui.agentclient.set_password_policy import set_password_policy  # noqa: F401

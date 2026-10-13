@@ -9,7 +9,7 @@ KINDS = ("(|(objectClass=fabricVlanRecord)(objectClass=fabricNetwork)(objectClas
 ATTRS = ["objectClass", "cn", "fabricSite", "fabricCidr", "fabricVlan", "fabricVlanName", "fabricNetworkKind",
          "fabricAllowOverlap", "description", "fabricPurpose", "fabricAccess", "fabricGateway", "fabricDhcpServed",
          "fabricSubnetId", "fabricRelay", "fabricDhcpOption", "fabricRangeKind", "fabricFirst", "fabricLast",
-         "fabricIp", "fabricAddressKind", "fabricMac", "fabricHostName", "fabricOwner", "fabricDns"]
+         "fabricIp", "fabricAddressKind", "fabricMac", "fabricHostName", "fabricOwner", "fabricDns", "fabricRoleName"]
 
 
 def _site_of(dn):
@@ -121,7 +121,8 @@ def read_plan(samdb, lp, site, of=""):
              [{"id", "name", "purpose", "access", "notes"}], "subnets": [{"name", "cidr", "vlan", "kind", "gateway",
              "dhcp" (bool), "id" (Kea's subnet id or None), "relay", "notes", "allow_overlap", "options", "ranges":
              [{"kind", "first", "last", "notes"}], "addresses": [{"ip", "kind", "name", "mac", "owner", "notes",
-             "dns" (bool), "options", "netboot"}]}], "networks": [{"name", "cidr", "kind", "vlan", "notes",
+             "dns" (bool), "options", "netboot", "role" (a reservation's device role, "" for none:
+             1.11.1.7)}]}], "networks": [{"name", "cidr", "kind", "vlan", "notes",
              "allow_overlap"}]}}, "option_sets": {"org": {"options", "option_defs", "client_classes"} or None,
              <site>: the same}, "org_editors": [site names] (2.1.10.23), "options" (the organisation's options; and
              each plan's "options", the site's: the shape the Networks tab reads, 2.3.10.5.7)}: lists sorted; a site
@@ -182,7 +183,7 @@ def read_plan(samdb, lp, site, of=""):
                                         "name": _one(m, "fabricHostName"), "mac": _one(m, "fabricMac"),
                                         "owner": _one(m, "fabricOwner"), "notes": _one(m, "description"),
                                         "dns": _one(m, "fabricDns").upper() == "TRUE", "options": _options(m)[0],
-                                        "netboot": _options(m)[1]})
+                                        "netboot": _options(m)[1], "role": _one(m, "fabricRoleName")})
     for plan in plans.values():
         plan["vlans"].sort(key=lambda x: x["id"])
         plan["subnets"].sort(key=lambda x: (x["vlan"] or 0, x["name"]))

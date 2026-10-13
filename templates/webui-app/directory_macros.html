@@ -10,7 +10,8 @@
 {% endmacro %}
 {% macro role_fields(r) %}
 <label>Priority (lower wins)<input name="priority" inputmode="numeric" value="{{ r.priority }}"></label>
-<label>VLAN (optional)<input name="vlan" inputmode="numeric" value="{{ r.vlan or '' }}" placeholder="30"></label>
+<label>VLAN (optional{% if data.get('vlan_labels') %}: one of the address plan's{% endif %})<input name="vlan" inputmode="numeric" value="{{ r.vlan or '' }}" placeholder="30" list="plan-vlans"></label>
+{% if data.get('vlan_labels') %}<datalist id="plan-vlans">{% for id, lbl in data.vlan_labels.items() %}<option value="{{ id }}">{{ lbl }}</option>{% endfor %}</datalist>{% endif %}
 <label class="wide">Description<input name="description" value="{{ r.description or '' }}" maxlength="200"></label>
 <fieldset class="wide"><legend>Grants</legend>
 {% for p, info in data.permissions.items() %}<label class="check perm"><input type="checkbox" name="perm_{{ p }}" value="1"{{ ' checked' if p in r.permissions }}> {{ info[0] }} <span class="muted small">· enforced by {{ info[1] }} once installed</span></label>{% endfor %}

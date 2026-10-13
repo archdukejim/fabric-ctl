@@ -15,7 +15,7 @@ radius_clients:
 </nav>
 {% if view == 'overview' %}
 <section class="card"><h2>Server</h2>
-<p>Switches and access points send RADIUS to <code>{{ r.host_ip }}</code> UDP 1812 (accounting 1813). Supplicants check the server certificate <code>{{ r.server_name }}</code>, issued by the fabric CA.</p>
+<p>Switches and access points send RADIUS to <code>{{ r.host_ip }}</code> UDP 1812 (accounting 1813){% if r.clients | selectattr('transport', 'equalto', 'radsec') | list %}, or RadSec on TCP 2083{% endif %}. Supplicants check the server certificate <code>{{ r.server_name }}</code>, issued by the fabric CA.</p>
 <p class="muted">Devices: decided per device on the Directory tab — a role with <code>network:eap-tls</code> (certificate linked to the device) or <code>network:mab</code> (the device's MAC), and optionally a VLAN. A disabled device, or an unlinked certificate, is refused at its next authentication. People and domain machines: by password (EAP-TTLS or PEAP, checked by the domain), only members of the groups below (for machines, e.g. <code>Domain Computers</code>).</p>
 </section>
 <section class="card"><h2>People and domain machines <span class="muted">join by password (EAP-TTLS, PEAP)</span></h2>
@@ -33,21 +33,26 @@ radius_clients:
 <p class="muted small">The password is checked against the directory, so its lockout counts network logins too (5 wrong passwords lock the account for 15 minutes). Network logins have no second factor: map only groups that need it.</p>{% endif %}
 </section>
 <section class="card"><h2>RADIUS clients <span class="muted">switches and access points</span></h2>
-{% if r.clients %}<table><thead><tr><th>Name</th><th>Address</th><th>Message-Authenticator</th><th></th></tr></thead><tbody>
+{% if r.clients %}<table><thead><tr><th>Name</th><th>Address</th><th>Vendor</th><th>Transport</th><th>Message-Authenticator</th><th></th></tr></thead><tbody>
 {% for c in r.clients %}<tr><td>{{ c.name }}</td><td><code>{{ c.address }}</code></td>
+<td>{{ c.vendor }}{% if not c.coa %} <span class="muted small">no CoA</span>{% endif %}</td>
+<td>{% if c.transport == 'radsec' %}RadSec (TCP 2083){% else %}<span class="pill warn">RADIUS/UDP</span>{% endif %}</td>
 <td>{% if c.message_authenticator %}required{% else %}<span class="pill warn">not required</span>{% endif %}</td>
-<td>{% if can('radius:admin') %}<div class="row-actions"><form method="post" action="/freeradius/clients/{{ c.name | urlencode }}/rotate"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost">New secret</button></form>
+<td>{% if can('radius:admin') %}<div class="row-actions"><form method="post" action="/freeradius/clients/{{ c.name | urlencode }}/set"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><select name="vendor" aria-label="Vendor of {{ c.name }}">{% for vd in r.vendors %}<option value="{{ vd }}"{{ ' selected' if vd == c.vendor }}>{{ vd }}</option>{% endfor %}</select><select name="transport" aria-label="Transport of {{ c.name }}"><option value="udp"{{ ' selected' if c.transport != 'radsec' }}>RADIUS/UDP</option><option value="radsec"{{ ' selected' if c.transport == 'radsec' }}>RadSec (Cisco)</option></select><button class="ghost">Change</button></form>
+<form method="post" action="/freeradius/clients/{{ c.name | urlencode }}/rotate"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost">New secret</button></form>
 <form method="post" action="/freeradius/clients/{{ c.name | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Remove</button></form></div>{% endif %}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">No RADIUS clients yet: nothing can ask.</p>{% endif %}
 {% if can('radius:admin') %}<form method="post" action="/freeradius/clients" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Name<input name="name" required pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="switch1"></label>
 <label>Address (IP or network)<input name="address" required placeholder="192.168.4.2"></label>
+<label>Vendor<select name="vendor">{% for vd in r.vendors %}<option value="{{ vd }}"{{ ' selected' if vd == 'unifi' }}>{{ {'unifi': 'UniFi', 'cisco': 'Cisco (IOS-XE)', 'generic': 'Other'}.get(vd, vd) }}</option>{% endfor %}</select></label>
+<label>Transport<select name="transport"><option value="udp" selected>RADIUS/UDP (shared secret, LAN)</option><option value="radsec">RadSec — RADIUS over TLS (Cisco only)</option></select></label>
 <label class="wide">Existing secret (optional — a device that already has one)<input name="secret" type="password" autocomplete="off" placeholder="leave empty to generate"></label>
 <label class="check"><input type="checkbox" name="message_authenticator" value="1" checked> Require Message-Authenticator (BlastRADIUS protection; turn off only for devices that cannot send it)</label>
 <div><button>Add client</button></div>
 </form>
-<p class="muted small">Saved and applied at once; the shared secret is shown once and kept in OpenBao.</p>{% endif %}
+<p class="muted small">Saved and applied at once; the shared secret is shown once and kept in OpenBao. RADIUS/UDP protects the secret with MD5 only, so it is listed as a relaxed setting; RadSec needs the switch's own certificate (Connect a switch → Cisco).</p>{% endif %}
 </section>
 <section class="card"><h2>Recent decisions <span class="muted">{{ r.log | length }}</span></h2>
 {% if r.log_error %}<p class="flash warn">{{ r.log_error }}</p>{% endif %}
@@ -56,8 +61,19 @@ radius_clients:
 <td>{{ e.method }}</td><td>{% if e.person %}<span class="muted">person</span> {% endif %}{{ e.device }}</td><td>{{ e.vlan }}</td><td><code>{{ e.mac }}</code></td><td>{{ e.nas }}</td><td class="muted">{{ e.reason }}</td></tr>{% endfor %}
 </tbody></table>{% elif not r.log_error %}<p class="blank">No authentications yet.</p>{% endif %}
 </section>
+{% elif view == 'sessions' %}
+<section class="card"><h2>Open sessions <span class="muted">{{ s.sessions | length }}</span></h2>
+{% if s.error %}<p class="flash warn">{{ s.error }}</p>{% endif %}
+{% if s.sessions %}<table><thead><tr><th>Who</th><th>MAC</th><th>VLAN</th><th>Switch</th><th>Port</th><th>Since</th><th>Last seen</th><th></th></tr></thead><tbody>
+{% for e in s.sessions %}<tr><td>{% if e.person %}<span class="muted">person</span> {% endif %}{{ e.who }} <span class="muted small">{{ e.method }}</span></td><td><code>{{ e.mac }}</code></td><td>{{ e.vlan }}</td><td>{{ e.client }} <span class="muted small">{{ e.vendor }}</span></td><td>{{ e.port }}</td><td>{{ e.since }}</td><td>{{ e.seen }}</td>
+<td>{% if e.actions %}{% if can('radius:coa') %}<div class="row-actions">
+{% for a, label in [('disconnect', 'Disconnect'), ('reauthenticate', 'Re-authenticate'), ('bounce', 'Move VLAN')] if a in e.actions %}<form method="post" action="/freeradius/sessions/{{ a }}"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="client" value="{{ e.client }}"><input type="hidden" name="session" value="{{ e.session }}"><button class="{{ 'danger' if a == 'disconnect' else 'ghost' }}">{{ label }}</button></form>{% endfor %}
+</div>{% endif %}{% else %}<span class="muted small">no CoA: {{ e.no_coa }}</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table>{% elif not s.error %}<p class="blank">No open sessions. Sessions come from accounting: the switch must send it (Connect a switch).</p>{% endif %}
+<p class="muted small"><strong>Re-authenticate</strong>: the device proves itself again, so a disabled device or a changed role or VLAN applies now. <strong>Move VLAN</strong>: the port is bounced, so the device also asks DHCP again on its new VLAN. Only switches whose vendor accepts CoA (Cisco); for UniFi, disable the device in fabric and reconnect it in UniFi Network.</p>
+</section>
 {% elif view == 'switches' %}
-<section class="card"><h2>Any switch or access point</h2>
+<section class="card" id="generic"><h2>Any switch or access point</h2>
 <p>Give the switch these RADIUS settings (the names differ by vendor):</p>
 <dl class="kv">
 <dt>RADIUS server</dt><dd><code>{{ g.host_ip }}</code></dd>
@@ -74,17 +90,29 @@ radius_clients:
 </ul>
 <p class="muted">Every VLAN a device role or mapped group names must exist on the switch with the same number.</p>
 </section>
-<section class="card"><h2>UniFi (UniFi Network application)</h2>
-<p class="flash warn">Untested with fabric yet: labels can differ between UniFi Network versions.</p>
+<section class="card" id="unifi"><h2>UniFi (UniFi Network application)</h2>
+<p class="flash warn">Untested with fabric yet: labels can differ between UniFi Network versions (manual 4.11.1.2).</p>
 <ol class="steps">
-<li><strong>In fabric:</strong> <a href="/freeradius">Overview</a> → RADIUS clients → add the switch by its management IP (UniFi → Devices → the switch → its IP). Keep the shared secret.</li>
-<li><strong>UniFi → Settings → Profiles → RADIUS → Create New:</strong> name <code>fabric</code>; Authentication server <code>{{ g.host_ip }}</code>, port <code>1812</code>, the shared secret; Accounting server (optional) <code>{{ g.host_ip }}</code>, port <code>1813</code>, the same secret; turn on <em>Wired networks</em> and <em>RADIUS assigned VLAN</em> (wired).</li>
+<li><strong>In fabric:</strong> <a href="/freeradius">Overview</a> → RADIUS clients → add the switch (or the access point) by its management IP (UniFi → Devices → the device → its IP), vendor <em>UniFi</em>, RADIUS/UDP. Keep the shared secret.</li>
+<li><strong>UniFi → Settings → Profiles → RADIUS → Create New:</strong> name <code>fabric</code>; Authentication server <code>{{ g.host_ip }}</code>, port <code>1812</code>, the shared secret; Accounting server <code>{{ g.host_ip }}</code>, port <code>1813</code>, the same secret (fabric's Sessions view needs it), with interim updates on; turn on <em>Wired networks</em> and <em>RADIUS assigned VLAN</em> (wired and, for access points, wireless).</li>
 <li><strong>UniFi → Settings → Networks:</strong> create the VLANs fabric's roles and groups use, same numbers.</li>
 <li><strong>UniFi → Devices → the switch → Settings → Services → 802.1X Control:</strong> on, RADIUS profile <code>fabric</code>. Fallback VLAN: leave empty (refused devices get no network) or a guest VLAN.</li>
 <li><strong>UniFi → the switch → Ports:</strong> per port, <em>802.1X Control</em> — <code>Auto</code> for 802.1X devices, <code>MAC-based</code> for printers and IoT, <code>Force Authorized</code> for uplinks, access points, the fabric host and the UniFi console.</li>
+<li><strong>Wi-Fi (access points):</strong> a WPA2/WPA3-Enterprise network with RADIUS profile <code>fabric</code>; for MAB on Wi-Fi, <em>RADIUS MAC Authentication</em> with MAC format <code>AABBCCDDEEFF</code> (fabric reads any format).</li>
 <li><strong>Check:</strong> plug a device in; <a href="/freeradius">Overview</a> → Recent decisions shows accepted / refused and why.</li>
 </ol>
+<p class="muted">UniFi sends a MAB request with the MAC as both user name and password; fabric refuses one whose password is not the same MAC. UniFi documents no CoA: to cut a device off at once, disable it in fabric, then <em>Client Devices → the client → Reconnect</em> in UniFi Network. RadSec is not offered for UniFi yet (Ubiquiti documents it for Wi-Fi profiles only).</p>
 <p class="muted">MAB devices never show up in Recent decisions? The switch may not send a Message-Authenticator, and fabric drops such requests (BlastRADIUS protection). Remove the switch and add it again with "Require Message-Authenticator" off, only for that switch.</p>
+</section>
+<section class="card" id="cisco"><h2>Cisco Catalyst (IOS-XE)</h2>
+<p class="flash warn">Untested with fabric yet: written from Cisco's IOS-XE 17 guides (manual 4.11.1.3). Read it before pasting; the port range is an example.</p>
+{% set cisco = (g.nas or []) | selectattr('vendor', 'equalto', 'cisco') | list %}
+{% if cisco %}{% for n in cisco %}
+<h3 id="nas-{{ n.name }}">{{ n.name }} <span class="muted">{{ 'RadSec' if n.transport == 'radsec' else 'RADIUS/UDP' }}</span></h3>
+<p>Paste in global configuration mode. <code>&lt;SHARED-SECRET&gt;</code> is the secret shown once when you added {{ n.name }} (lost: <strong>New secret</strong> on Overview); this page never holds it.{% if n.transport == 'radsec' %} The switch makes its own key; sign its request on the <a href="/stepca">Step-CA tab</a> (Sign a CSR) — the common name must be <code>radsec-{{ n.name }}</code>.{% endif %}</p>
+<pre>{{ n.snippet }}</pre>
+{% endfor %}{% else %}<p class="blank">No Cisco client yet: add one on <a href="/freeradius">Overview</a> with vendor Cisco, and its configuration appears here.</p>{% endif %}
+<p class="muted">Disconnect, Re-authenticate and Move VLAN on the Sessions view reach the switch on UDP 3799 from <code>{{ g.host_ip }}</code> (<code>aaa server radius dynamic-author</code> above).</p>
 </section>
 {% elif view == 'windows' %}
 <section class="card"><h2>Windows: this PC joins with its certificate (EAP-TLS)</h2>

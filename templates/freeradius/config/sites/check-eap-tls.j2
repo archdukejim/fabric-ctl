@@ -3,6 +3,9 @@
 # the final Access-Accept.
 server fabric-check-eap-tls {
 	authorize {
+		update request {
+			&Tmp-String-3 := "%{client:shortname}"
+		}
 		fabric_policy
 	}
 }

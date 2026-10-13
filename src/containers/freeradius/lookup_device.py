@@ -1,6 +1,7 @@
 import ldap.filter
 
 from directory import load_config, search, site_dn
+from judge_roles import judge_roles
 
 
 def _vals(attrs, key):
@@ -14,14 +15,14 @@ def _vals(attrs, key):
 
 def lookup_device(attribute, value, permission):
     """Purpose: find the device whose `attribute` is `value` in this site's OU=devices and judge it for `permission`:
-             access is the union of its roles' permissions, nothing while it is disabled; the VLAN comes from the role
-             with the lowest priority number that sets one (ties by name) — the same rules as the web UI
-             (list_devices).
+             nothing while it is disabled, else its roles judged by judge_roles (the union of their permissions; the
+             VLAN of the lowest priority number) — the same rules as the web UI (list_devices).
     Inputs:  attribute — "fabricCertFingerprint" or "macAddress"; value — str (escaped into the filter);
              permission — "network:eap-tls" or "network:mab". Reads the site's OU=devices, and the roles each device
              names (fabricRoleName) from the site's own OU=device-roles and the organisation's (manual 1.6.3.4).
-    Returns: dict {device, allowed, vlan, reason}; device is None if no device, or more than one, has the value.
-             A device without fabricEnabled counts as enabled.
+    Returns: dict {device, allowed, vlan, reason}; device is None if no device, or more than one, has the value
+             (reason "no device has it" or "more than one device has it"). A device without fabricEnabled counts as
+             enabled.
     Fails:   ldap errors from search; ValueError if a role's fabricVlan or fabricPriority is not a number;
              load_config errors. The caller turns any of these into Access-Reject.
     Feeds:   fabric_radius._decide."""
@@ -37,19 +38,4 @@ def lookup_device(attribute, value, permission):
     name = (_vals(attrs, "cn") or ["?"])[0]
     if (_vals(attrs, "fabricEnabled") or ["TRUE"])[0].upper() != "TRUE":
         return {"device": name, "allowed": False, "vlan": None, "reason": "device disabled"}
-    roles = []
-    names = _vals(attrs, "fabricRoleName")
-    wanted = "(|%s)" % "".join("(cn=%s)" % ldap.filter.escape_filter_chars(n) for n in names) if names else None
-    own = (",OU=device-roles," + site).lower()
-    for role_dn, a in (search("OU=sites," + conf["base"], "(&(objectClass=fabricRole)%s)" % wanted,
-                              ["cn", "fabricPermission", "fabricVlan", "fabricPriority"], subtree=True)
-                       if wanted else []):
-        if not role_dn.lower().endswith(own) and ",ou=device-roles,ou=organisation," not in role_dn.lower():
-            continue                     # another site's own role of the same name is not this site's
-        roles.append({"name": (_vals(a, "cn") or [""])[0], "permissions": _vals(a, "fabricPermission"),
-                      "vlan": int((_vals(a, "fabricVlan") or ["0"])[0]) or None,
-                      "priority": int((_vals(a, "fabricPriority") or ["100"])[0])})
-    if not any(permission in r["permissions"] for r in roles):
-        return {"device": name, "allowed": False, "vlan": None, "reason": f"no role grants {permission}"}
-    vlan_role = next((r for r in sorted(roles, key=lambda r: (r["priority"], r["name"])) if r["vlan"]), None)
-    return {"device": name, "allowed": True, "vlan": vlan_role["vlan"] if vlan_role else None, "reason": ""}
+    return {"device": name, **judge_roles(_vals(attrs, "fabricRoleName"), permission)}

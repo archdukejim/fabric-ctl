@@ -18,11 +18,12 @@ from fabriclib.dhcp.client_networks import client_networks
 GUEST_PORTS = "53,853"          # a guest subnet's clients reach the filtering resolver only (DNS, DoT: 2.1.10.4)
 
 
-def _rules(allowed_cidrs, radius_sources=(), guest_cidrs=()):
+def _rules(allowed_cidrs, radius_sources=(), guest_cidrs=(), radsec_sources=()):
     """Purpose: the DOCKER-USER rules, in order.
     Inputs:  allowed_cidrs — sources that may open connections; radius_sources — RADIUS client addresses
              (allowed to UDP 1812/1813 only; default none); guest_cidrs — DHCP's guest subnets (to the published
-             DNS ports only, matched on the port the client asked for: GUEST_PORTS).
+             DNS ports only, matched on the port the client asked for: GUEST_PORTS); radsec_sources — RADIUS
+             clients on RadSec (allowed to TCP 2083 only; manual 1.11.1.3).
     Returns: list of iptables rule argument lists: established traffic, traffic from docker0 and br-* bridges,
              each allowed CIDR and RADIUS source return; any other NEW connection is dropped.
     Fails:   never.
@@ -35,6 +36,7 @@ def _rules(allowed_cidrs, radius_sources=(), guest_cidrs=()):
     # RADIUS clients (switches, APs) may sit outside the LAN: RADIUS ports only
     rules += [["-s", src, "-p", "udp", "-m", "multiport", "--dports", "1812,1813", "-j", "RETURN"]
               for src in radius_sources]
+    rules += [["-s", src, "-p", "tcp", "--dport", "2083", "-j", "RETURN"] for src in radsec_sources]
     rules += [["-s", src, "-p", proto, "-m", "conntrack", "--ctorigdstport", port, "-j", "RETURN"]
               for src in guest_cidrs for proto in ("udp", "tcp") for port in GUEST_PORTS.split(",")
               if not (proto == "udp" and port == "853")]
@@ -45,10 +47,10 @@ def _rules(allowed_cidrs, radius_sources=(), guest_cidrs=()):
 def apply_docker_firewall(vars_file):
     """Purpose: flush and rebuild DOCKER-USER so only the LAN, security.firewall_allow and DHCP's full subnets may
              open new connections to Docker-published ports, DHCP's guest subnets only to the DNS ports, and RADIUS
-             clients (802.1X) only to FreeRADIUS's ports (2.1.10.4).
+             clients (802.1X) only to FreeRADIUS's ports (2.1.10.4; TCP 2083 for RadSec clients, 1.11.1.3).
     Inputs:  vars_file — rendered vars.yaml: lan_cidr, security.firewall (default True),
              security.firewall_allow, install_kea + dhcp.subnets (client_networks), install_freeradius,
-             radius_clients (IPv4 addresses; IPv6 skipped).
+             radius_clients (IPv4 addresses, transport; IPv6 skipped).
     Returns: a summary str: "published ports limited to <cidrs>", or "disabled" when security.firewall is false
              (chain flushed to a single RETURN).
     Fails:   OSError/yaml errors reading vars_file; KeyError without lan_cidr; CalledProcessError from iptables.
@@ -66,9 +68,10 @@ def apply_docker_firewall(vars_file):
     if subprocess.run(["iptables", "-L", "DOCKER-USER", "-n"], capture_output=True).returncode != 0:
         subprocess.run(["iptables", "-N", "DOCKER-USER"], check=True)
     subprocess.run(["iptables", "-F", "DOCKER-USER"], check=True)
-    radius = [c["address"] for c in v.get("radius_clients") or []
+    radius = [c for c in v.get("radius_clients") or []
               if v.get("install_freeradius") and ":" not in str(c.get("address", ""))]
-    for rule in _rules(allowed, radius, dhcp["guest"]):
+    radsec = [c["address"] for c in radius if c.get("transport") == "radsec"]
+    for rule in _rules(allowed, [c["address"] for c in radius], dhcp["guest"], radsec):
         subprocess.run(["iptables", "-A", "DOCKER-USER", *rule], check=True)
     guests = f"; DNS only from {', '.join(dhcp['guest'])}" if dhcp["guest"] else ""
     return f"published ports limited to {', '.join(allowed)}{guests}"

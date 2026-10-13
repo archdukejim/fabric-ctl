@@ -54,6 +54,9 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `quote_segment.py` | URL-quote one path segment with nothing kept safe ("/" becomes %2F), so a name cannot change the route. |
 | `radius_guides.py` | The FreeRADIUS setup guides and Windows scripts, filled in for this host (public data only). Agent route: GET /v1/radius/guides (radius:read). |
 | `radius_overview.py` | What the FreeRADIUS page shows: on/off, clients, password groups, recent decisions. Agent route: GET /v1/radius (radius:read). |
+| `radius_sessions.py` | The open 802.1X sessions (from accounting) and what can be done to each. Agent route: GET /v1/radius/sessions (radius:read). |
+| `set_radius_client.py` | Change a RADIUS client's vendor or transport; saved and applied at once. Agent route: POST /v1/radius/clients/<name>/set (radius:admin), timeout 960 s. |
+| `coa_session.py` | Disconnect a session or make it authenticate again (CoA), sent at once. Agent routes: POST /v1/radius/sessions/disconnect, /reauthenticate (radius:coa), timeout 30 s. |
 | `query_log.py` | Search the DNS query log. Agent route: POST /v1/dns-filter/querylog (dns:querylog). |
 | `read_audit.py` | Recent audit-log lines for the Audit page. Agent route: GET /v1/audit (audit:read). |
 | `remove_radius_client.py` | Remove a RADIUS client; saved and applied at once. Agent route: POST /v1/radius/clients/<name>/delete (radius:admin), timeout 960 s. |

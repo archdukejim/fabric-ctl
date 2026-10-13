@@ -18,7 +18,8 @@ TABS = [
 DNS_FILTER_SECTIONS = [("overview", "Overview"), ("lists", "Lists"), ("rules", "Rules"), ("groups", "Groups"),
                        ("querylog", "Query log"), ("settings", "Settings")]
 # BIND9 tab sections: (view, label)
-FREERADIUS_SECTIONS = [("overview", "Overview"), ("switches", "Connect a switch"), ("windows", "Connect Windows")]
+FREERADIUS_SECTIONS = [("overview", "Overview"), ("sessions", "Sessions"), ("switches", "Connect a switch"),
+                       ("windows", "Connect Windows")]
 BIND9_SECTIONS = [("forward", "Forward zones"), ("landing", "Landing page"), ("reverse", "Reverse zones"),
                   ("dhcp", "DHCP names"),
                   ("tsig", "TSIG keys")]

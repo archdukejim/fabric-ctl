@@ -35,7 +35,8 @@ def show_plan(read, site, leases=None):
             for r in rows:
                 if r["subnet"] == sub["cidr"]:
                     lines.append(f"  {r['ip']:<15} {r['kind']:<14} {r['name']:<16} {r['mac']:<17} {r['owner']}"
-                                 + ("  dns" if r["dns"] else "") + (f"  lease {r['lease']}" if r["lease"] else ""))
+                                 + ("  dns" if r["dns"] else "") + (f"  role {r['role']}" if r.get("role") else "")
+                                 + (f"  lease {r['lease']}" if r["lease"] else ""))
     for n in plan["networks"]:
         lines.append(f"network {n['name']}  {n['cidr']}  ({n['kind']})")
     return "\n".join(lines) + "\n"

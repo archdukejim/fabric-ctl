@@ -16,6 +16,7 @@ server fabric-inner-tunnel {
 		else {
 			update request {
 				&Tmp-String-0 := "fabric-people"
+				&Tmp-String-3 := "%{client:shortname}"
 			}
 			fabric_policy
 		}
@@ -33,6 +34,7 @@ server fabric-inner-tunnel {
 			update request {
 				&Tmp-String-0 := "fabric-peap"
 				&Tmp-String-1 := "%{mschap:User-Name}"
+				&Tmp-String-3 := "%{client:shortname}"
 			}
 			fabric_policy
 		}

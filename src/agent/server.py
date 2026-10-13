@@ -50,9 +50,12 @@ request. Root peers (the host itself) are not asked for a token.
   GET  /v1/ipam/options/<site|->[/<target>] | POST /v1/ipam/options, /v1/ipam/classes, /v1/ipam/option-defs,
        /v1/ipam/netboot (dhcp:write); /v1/ipam/options/org, /classes/org, /option-defs/org, /v1/ipam/option-editors
        (dhcp:org-options)
-  GET  /v1/radius | /v1/radius/guides (setup guides, Windows scripts) | POST /v1/radius/clients {name, address,
-  message_authenticator, secret?}
+  GET  /v1/radius | /v1/radius/guides (setup guides, Windows scripts) | /v1/radius/sessions
+       POST /v1/radius/clients {name, address, message_authenticator, secret?, vendor?, transport?}
        | /v1/radius/clients/<name>/rotate {secret?} | /v1/radius/clients/<name>/delete   (secret returned once)
+       | /v1/radius/clients/<name>/set {vendor?, transport?}
+       | /v1/radius/sessions/disconnect {client, session} | /v1/radius/sessions/reauthenticate {client, session,
+       bounce?}   (radius:coa)
        | /v1/radius/people {group, vlan, priority} | /v1/radius/people/<group>/delete
 """
 import argparse

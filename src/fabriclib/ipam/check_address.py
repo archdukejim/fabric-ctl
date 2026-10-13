@@ -3,6 +3,7 @@ import ipaddress
 from fabriclib.common.errors import ValidationError
 from fabriclib.dhcp.normalize_dhcp import LABEL_RE, MAC_RE
 from fabriclib.dhcp.normalize_options import normalize_options
+from fabriclib.directory.constants import ROLE_NAME_RE
 from fabriclib.ipam.common.fields import ADDRESS_KINDS, host_in, ipv4, notes, one_line
 
 
@@ -12,16 +13,19 @@ def check_address(addr, subnet, plan, current=None):
              range only a reservation; a static address outside every static range is warned about, never refused; a
              reservation has a MAC, unique among the site's reservations; a name is one DNS label, and one published
              in DNS (an A and a PTR in the site's zone, 1.10.4.5; a reservation's too, beside the name DHCP registers
-             in dhcp.<domain>, 2.1.10.17) is unique among the site's.
-    Inputs:  addr — {"ip", "kind", "name", "mac", "owner", "notes", "dns", "options"}; subnet — the subnet's plan entry
-             (cidr, gateway, dhcp, ranges, addresses); plan — the site's plan (every subnet's addresses, for MACs and
-             DNS names); current — the address being changed (its own claim is not a second one), None for a new one.
+             in dhcp.<domain>, 2.1.10.17) is unique among the site's; only a reservation names a device role (MAB from
+             a reservation, 1.11.1.7; whether the role exists is check_address_role's).
+    Inputs:  addr — {"ip", "kind", "name", "mac", "owner", "notes", "dns", "options", "role"}; subnet — the subnet's
+             plan entry (cidr, gateway, dhcp, ranges, addresses); plan — the site's plan (every subnet's addresses, for
+             MACs and DNS names); current — the address being changed (its own claim is not a second one), None for
+             a new one.
     Returns: (the address normalized {"ip", "kind", "name", "mac" (lower-case, colons), "owner", "notes", "dns",
-             "options"}, warnings: list of str).
+             "options", "role"}, warnings: list of str).
     Fails:   ValidationError: not a host of the subnet, an unknown kind, a second claim (named), a non-reservation in a
              dhcp range, a reservation without a MAC or with a MAC another reservation has, a bad MAC or name, DNS
              without a name, a DNS name another address publishes, an owner over one line, notes over 500
-             characters, bad options.
+             characters, bad options, a role on an address that is not a reservation ("--role none" clears it), a
+             role name that is not one.
     Feeds:   add_address, set_address."""
     net = ipaddress.ip_network(subnet["cidr"])
     ip = ipv4(addr.get("ip"), "address")
@@ -49,6 +53,11 @@ def check_address(addr, subnet, plan, current=None):
         taken = next((a for a in others if a["kind"] == "reservation" and a["mac"] == mac), None)
         if taken:
             raise ValidationError(f"MAC {mac} already has a reservation: {taken['ip']}")
+    role = str(addr.get("role") or "").strip().lower()
+    if role and kind != "reservation":
+        raise ValidationError(f"{ip}: only a reservation names a device role (it is {kind}; --role none clears it)")
+    if role and not ROLE_NAME_RE.match(role):
+        raise ValidationError(f"role {addr.get('role')!r}: lowercase letters, digits, '-' and '_'")
     if dns and not name:
         raise ValidationError(f"{ip}: an address published in DNS needs a name (--name)")
     if dns and any(a.get("dns") and a.get("name") == name for a in others):
@@ -66,4 +75,4 @@ def check_address(addr, subnet, plan, current=None):
         warnings.append(f"{subnet['cidr']} is not served by DHCP: the reservation takes effect once it is")
     options = normalize_options(addr.get("options"), f"address {ip}")
     return ({"ip": str(ip), "kind": kind, "name": name, "mac": mac, "owner": one_line(addr.get("owner"), "owner"),
-             "notes": notes(addr.get("notes")), "dns": dns, "options": options}, warnings)
+             "notes": notes(addr.get("notes")), "dns": dns, "options": options, "role": role}, warnings)

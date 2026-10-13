@@ -13,6 +13,7 @@ from webui.routes.networks_scan_post import networks_scan_post
 from webui.routes.options_post import options_post
 from webui.routes.overview_post import overview_post
 from webui.routes.radius_post import radius_post
+from webui.routes.radius_session_post import radius_session_post
 from webui.routes.saved_and_applied import saved_and_applied
 from webui.routes.stepca_post import stepca_post
 from webui.routes.tsig_post import tsig_post
@@ -54,7 +55,7 @@ def post_action(h, sess, path, form):
              /stepca/…; /openbao/…; /directory/…; /kea/… (reservations, subnets, options, classes); /kea/options/…
              (the DHCP options page); /dns-filter/… (lists, rules, upstreams, fetch); /networks/scan[/record] (the
              scan); /networks/<site>/… (the address plan); /overview/… (jobs); /freeradius/clients…;
-             /freeradius/people…; /bind9/tsig/….
+             /freeradius/sessions…; /freeradius/people…; /bind9/tsig/….
     Returns: /logout: session dropped, LOGOUT audited, 303 to Keycloak's logout URL clearing the session cookie;
              /apply: 200 apply result; the rest as their route modules.
     Fails:   404 for an unknown path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
@@ -98,6 +99,8 @@ def post_action(h, sess, path, form):
         return dns_filter_post(h, _segments(path, 2), form)
     if path.startswith("/freeradius/clients"):
         return radius_post(h, sess, _segments(path, 3), form)
+    if path.startswith("/freeradius/sessions"):
+        return radius_session_post(h, _segments(path, 3), form)
     if path.startswith("/freeradius/people"):
         return saved_and_applied(h, "/freeradius", lambda: _radius_people(_segments(path, 3), form))
     if path.startswith("/bind9/tsig/"):

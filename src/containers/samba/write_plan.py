@@ -13,7 +13,9 @@ FIELDS = {
                "allow_overlap": "fabricAllowOverlap", "options": "fabricDhcpOption"},
     "range": {"kind": "fabricRangeKind", "first": "fabricFirst", "last": "fabricLast", "notes": "description"},
     "address": {"ip": "fabricIp", "kind": "fabricAddressKind", "name": "fabricHostName", "mac": "fabricMac",
-                "owner": "fabricOwner", "notes": "description", "dns": "fabricDns", "options": "fabricDhcpOption"},
+                "owner": "fabricOwner", "notes": "description", "dns": "fabricDns", "options": "fabricDhcpOption",
+                # a reservation's device role (MAB from a reservation, 1.11.1.7): AD's auxiliary fabricDeviceRoles
+                "role": "fabricRoleName"},
 }
 CLASSES = {"vlan": ["fabricVlanRecord"], "subnet": ["fabricNetwork", "fabricSubnet"], "range": ["fabricRange"],
            "address": ["fabricAddress"]}
@@ -179,7 +181,8 @@ def write_plan(samdb, lp, site, changes):
             done.append(f"{label} removed")
             continue
         if do == "add":
-            msg = {"dn": dn, "objectClass": CLASSES[what], **{a: v for a, v in fields.items() if v}}
+            classes = CLASSES[what] + (["fabricDeviceRoles"] if fields.get("fabricRoleName") else [])
+            msg = {"dn": dn, "objectClass": classes, **{a: v for a, v in fields.items() if v}}
             if what in ("vlan", "subnet"):
                 msg["fabricSite"] = c["site"]
             samdb.add(msg)
@@ -189,6 +192,11 @@ def write_plan(samdb, lp, site, changes):
             have = samdb.search(base=dn, scope=ldb.SCOPE_BASE, attrs=["objectClass"])[0]
             if "fabricSubnet" not in [str(x) for x in have["objectClass"]]:
                 samdb.modify(ldb.Message.from_dict(samdb, {"dn": str(dn), "objectClass": "fabricSubnet"},
+                                                   ldb.FLAG_MOD_ADD))
+        if what == "address" and fields.get("fabricRoleName"):    # a role named: the auxiliary class first
+            have = samdb.search(base=dn, scope=ldb.SCOPE_BASE, attrs=["objectClass"])[0]
+            if "fabricDeviceRoles" not in [str(x) for x in have["objectClass"]]:
+                samdb.modify(ldb.Message.from_dict(samdb, {"dn": str(dn), "objectClass": "fabricDeviceRoles"},
                                                    ldb.FLAG_MOD_ADD))
         msg = ldb.Message(dn)
         for attr, values in fields.items():
