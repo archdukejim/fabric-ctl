@@ -486,7 +486,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/options/show_netboot.py	62
 file	fabriclib-ipam|src/fabriclib/ipam/options/show_options.py	63	
 file	fabriclib-ipam|src/fabriclib/ipam/options/undefine_plan_option.py	64	
 file	fabriclib-ipam|src/fabriclib/ipam/options/watch_state.py	65	
-file	fabriclib-ipam|src/fabriclib/ipam/options/write_server.py	66	
+file	fabriclib-ipam|src/fabriclib/ipam/options/write_server.py	66	0.7.0 / 2026-10-13
 file	fabriclib-ipam|src/fabriclib/ipam/plan_rows.py	17	
 file	fabriclib-ipam|src/fabriclib/ipam/plan_to_dhcp.py	18	
 file	fabriclib-ipam|src/fabriclib/ipam/planned_subnets.py	19	
@@ -689,6 +689,7 @@ file	fabriclib-samba|src/fabriclib/samba/sso_spns.py	22
 file	fabriclib-samba|src/fabriclib/samba/suggested_ad_domain.py	7	
 file	fabriclib-samba|src/fabriclib/samba/suggested_dc_name.py	27	
 file	fabriclib-samba|src/fabriclib/samba/summarize_roles.py	29	
+file	fabriclib-samba|src/fabriclib/samba/writable_server.py	35	
 file	fabriclib-samba|src/fabriclib/samba/write_bind_dlz.py	6	
 file	fabriclib-secrets|src/fabriclib/secrets/common/read_vault_secrets.py	1	
 file	fabriclib-secrets|src/fabriclib/secrets/common/write_vault_secrets.py	2	
@@ -1838,7 +1839,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/options/show_options.py|show_options	
 function	fabriclib-ipam|src/fabriclib/ipam/options/undefine_plan_option.py|undefine_plan_option	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/watch_state.py|load_watch_state	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/watch_state.py|save_watch_state	2	
-function	fabriclib-ipam|src/fabriclib/ipam/options/write_server.py|write_server	1	
+function	fabriclib-ipam|src/fabriclib/ipam/options/write_server.py|write_server	1	0.7.0 / 2026-10-13
 function	fabriclib-ipam|src/fabriclib/ipam/plan_rows.py|_range_of	1	
 function	fabriclib-ipam|src/fabriclib/ipam/plan_rows.py|plan_rows	2	
 function	fabriclib-ipam|src/fabriclib/ipam/plan_to_dhcp.py|plan_to_dhcp	1	
@@ -2121,6 +2122,7 @@ function	fabriclib-samba|src/fabriclib/samba/suggested_ad_domain.py|suggested_ad
 function	fabriclib-samba|src/fabriclib/samba/suggested_dc_name.py|suggested_dc_name	1	
 function	fabriclib-samba|src/fabriclib/samba/summarize_roles.py|_owner	1	
 function	fabriclib-samba|src/fabriclib/samba/summarize_roles.py|summarize_roles	2	
+function	fabriclib-samba|src/fabriclib/samba/writable_server.py|writable_server	1	
 function	fabriclib-samba|src/fabriclib/samba/write_bind_dlz.py|write_bind_dlz	1	
 function	fabriclib-secrets|src/fabriclib/secrets/common/read_vault_secrets.py|read_vault_secrets	1	
 function	fabriclib-secrets|src/fabriclib/secrets/common/write_vault_secrets.py|write_vault_secrets	1	
