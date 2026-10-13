@@ -1,6 +1,6 @@
 from fabriclib.common.errors import ValidationError
 from fabriclib.ipam.common.edit_options import edit_options
-from fabriclib.ipam.options.catalogue import CATALOGUE, CODES
+from fabriclib.ipam.common.option_codes import CATALOGUE, CODES
 from fabriclib.ipam.options.check_option_set import check_option_set
 from fabriclib.ipam.options.set_owner import set_owner
 

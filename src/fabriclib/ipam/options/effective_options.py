@@ -1,6 +1,6 @@
 from fabriclib.common.errors import ValidationError
 from fabriclib.ipam.common.fields import find_address, find_subnet
-from fabriclib.ipam.options.catalogue import option_label
+from fabriclib.ipam.options.option_label import option_label
 from fabriclib.ipam.options.merge_option_sets import merge_option_sets
 from fabriclib.ipam.options.netboot_classes import netboot_classes
 

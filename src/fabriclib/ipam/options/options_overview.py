@@ -1,7 +1,7 @@
 from fabriclib.common.errors import ValidationError
 from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.ipam.common.site_plan import site_plan
-from fabriclib.ipam.options.catalogue import CATALOGUE
+from fabriclib.ipam.common.option_codes import CATALOGUE
 from fabriclib.ipam.options.effective_options import effective_options
 from fabriclib.ipam.read_plan import read_plan
 

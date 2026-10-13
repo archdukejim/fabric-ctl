@@ -1,5 +1,5 @@
 from fabriclib.ipam.common.edit_options import edit_options
-from fabriclib.ipam.options.catalogue import option_label
+from fabriclib.ipam.options.option_label import option_label
 from fabriclib.ipam.options.check_option_set import check_option_set
 from fabriclib.ipam.options.scope_options import scope_options
 

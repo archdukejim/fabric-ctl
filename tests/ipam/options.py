@@ -25,7 +25,7 @@ import fabriclib.ipam.poll_plan as m_poll  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.dhcp.normalize_dhcp import normalize_dhcp  # noqa: E402
-from fabriclib.ipam.options.catalogue import CATALOGUE, CODES  # noqa: E402
+from fabriclib.ipam.common.option_codes import CATALOGUE, CODES  # noqa: E402
 from fabriclib.ipam.options.check_netboot import check_netboot  # noqa: E402
 from fabriclib.ipam.options.check_option_set import check_option_set  # noqa: E402
 from fabriclib.ipam.options.effective_options import effective_options  # noqa: E402

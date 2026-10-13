@@ -1,4 +1,4 @@
-from fabriclib.ipam.options.catalogue import option_label
+from fabriclib.ipam.options.option_label import option_label
 
 
 def _option(o, defs):

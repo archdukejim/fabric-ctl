@@ -456,7 +456,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/networks_overview.py	43
 file	fabriclib-ipam|src/fabriclib/ipam/networks_view.py	44	
 file	fabriclib-ipam|src/fabriclib/ipam/offer_reservations.py	51	
 file	fabriclib-ipam|src/fabriclib/ipam/options/add_plan_class.py	69	
-file	fabriclib-ipam|src/fabriclib/ipam/options/catalogue.py	70	
+file	fabriclib-ipam|src/fabriclib/ipam/options/catalogue.py	70	0.7.0 / 2026-10-12
 file	fabriclib-ipam|src/fabriclib/ipam/options/check_netboot.py	71	
 file	fabriclib-ipam|src/fabriclib/ipam/options/check_option_set.py	72	
 file	fabriclib-ipam|src/fabriclib/ipam/options/clear_netboot.py	73	
@@ -466,6 +466,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/options/merge_option_sets.py	76
 file	fabriclib-ipam|src/fabriclib/ipam/options/move_options_to_plan.py	77	
 file	fabriclib-ipam|src/fabriclib/ipam/options/netboot_classes.py	78	
 file	fabriclib-ipam|src/fabriclib/ipam/options/netboot_targets.py	79	
+file	fabriclib-ipam|src/fabriclib/ipam/options/option_label.py	85	
 file	fabriclib-ipam|src/fabriclib/ipam/options/options_overview.py	80	
 file	fabriclib-ipam|src/fabriclib/ipam/options/plan_digest.py	81	
 file	fabriclib-ipam|src/fabriclib/ipam/options/read_usn.py	82	
@@ -1778,7 +1779,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/networks_overview.py|networks_overvie
 function	fabriclib-ipam|src/fabriclib/ipam/networks_view.py|networks_view	1	
 function	fabriclib-ipam|src/fabriclib/ipam/offer_reservations.py|offer_reservations	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/add_plan_class.py|add_plan_class	1	
-function	fabriclib-ipam|src/fabriclib/ipam/options/catalogue.py|option_label	1	
+function	fabriclib-ipam|src/fabriclib/ipam/options/catalogue.py|option_label	1	0.7.0 / 2026-10-12
 function	fabriclib-ipam|src/fabriclib/ipam/options/check_netboot.py|_text	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/check_netboot.py|check_netboot	2	
 function	fabriclib-ipam|src/fabriclib/ipam/options/check_option_set.py|_named	1	
@@ -1795,6 +1796,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/options/netboot_classes.py|_classes	2
 function	fabriclib-ipam|src/fabriclib/ipam/options/netboot_classes.py|_kinds	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/netboot_classes.py|netboot_classes	3	
 function	fabriclib-ipam|src/fabriclib/ipam/options/netboot_targets.py|netboot_targets	1	
+function	fabriclib-ipam|src/fabriclib/ipam/options/option_label.py|option_label	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/options_overview.py|_settings	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/options_overview.py|options_overview	2	
 function	fabriclib-ipam|src/fabriclib/ipam/options/plan_digest.py|_hash	1	

@@ -2,7 +2,7 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.dhcp.normalize_client_classes import normalize_client_classes
 from fabriclib.dhcp.normalize_option_defs import normalize_option_defs
 from fabriclib.dhcp.normalize_options import normalize_options
-from fabriclib.ipam.options.catalogue import CATALOGUE, CODES
+from fabriclib.ipam.common.option_codes import CATALOGUE, CODES
 
 PRESET_PREFIX = "fabric-nb-"          # fabric's netboot classes (2.1.10.25): no admin class takes the prefix
 

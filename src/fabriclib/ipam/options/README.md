@@ -6,7 +6,7 @@ provenance of what a client gets, netboot presets, the upgrade from the settings
 
 | File | What |
 |---|---|
-| `catalogue.py` | Kea 3.0's standard DHCPv4 options by code and name; an option's code, name and identity (`option_label`) |
+| `option_label.py` | An option's code, name and identity, by the one option list (`ipam/common/option_codes`) or a definition |
 | `check_option_set.py` | An option set or one level's options checked: known names, definitions, classes (no `fabric-nb-` name) |
 | `check_netboot.py` | A netboot preset checked: a boot server and at least one way to boot; warnings |
 | `merge_option_sets.py` | The global level out of the organisation's, the site's and the settings' sets, the later replacing the earlier |
