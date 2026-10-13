@@ -16,6 +16,16 @@ sys.path.insert(0, os.path.join(REPO, "src"))
 from webui import views  # noqa: E402
 
 PORT = 18765
+START_WAIT = 15                             # seconds a dev server may take to answer (about 6 under WSL's /mnt)
+
+
+def _start_wait():
+    """Yield until START_WAIT seconds have passed: the caller tries the server each time and breaks when it answers."""
+    end = time.time() + START_WAIT
+    while time.time() < end:
+        yield
+
+
 FAILED = 0
 
 
@@ -37,7 +47,7 @@ def req(method, path, form=None):
 proc = subprocess.Popen([sys.executable, os.path.join(UX_WEB, "devserver.py"), "--port", str(PORT)],
                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 try:
-    for _ in range(50):
+    for _ in _start_wait():
         try:
             req("GET", "/static/app.css")
             break
@@ -524,7 +534,7 @@ PORT += 1                                   # people: the helpdesk bundle
 proc = subprocess.Popen([sys.executable, os.path.join(UX_WEB, "devserver.py"), "--port", str(PORT),
                          "--as", "fabric-helpdesk"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 try:
-    for _ in range(50):
+    for _ in _start_wait():
         try:
             req("GET", "/")
             break
@@ -555,7 +565,7 @@ PORT += 1                                   # the preview as a role bundle sees 
 proc = subprocess.Popen([sys.executable, os.path.join(UX_WEB, "devserver.py"), "--port", str(PORT),
                          "--as", "fabric-auditor"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 try:
-    for _ in range(50):
+    for _ in _start_wait():
         try:
             req("GET", "/")
             break

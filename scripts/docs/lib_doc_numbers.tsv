@@ -564,7 +564,7 @@ file	fabriclib-keycloak|src/fabriclib/keycloak/keycloak_admin.py	14
 file	fabriclib-keycloak|src/fabriclib/keycloak/list_app_clients.py	23	
 file	fabriclib-keycloak|src/fabriclib/keycloak/quote.py	15	
 file	fabriclib-keycloak|src/fabriclib/keycloak/remove_app_client.py	24	
-file	fabriclib-keycloak|src/fabriclib/keycloak/remove_retired_client.py	31	
+file	fabriclib-keycloak|src/fabriclib/keycloak/remove_retired_client.py	32	
 file	fabriclib-keycloak|src/fabriclib/keycloak/require_password_change.py	16	0.5.0 / 2026-10-04
 file	fabriclib-keycloak|src/fabriclib/keycloak/reset_sign_in.py	17	0.5.0 / 2026-10-04
 file	fabriclib-keycloak|src/fabriclib/keycloak/retire_old_admin_role.py	31	
@@ -736,8 +736,8 @@ file	fabriclib-samba|src/fabriclib/samba/logon_ou_path.py	30
 file	fabriclib-samba|src/fabriclib/samba/logon_overview.py	31	
 file	fabriclib-samba|src/fabriclib/samba/password_meets_policy.py	24	
 file	fabriclib-samba|src/fabriclib/samba/prepare_site.py	16	
-file	fabriclib-samba|src/fabriclib/samba/read_policy_changes.py	28	
-file	fabriclib-samba|src/fabriclib/samba/refuse_at_read_only_dc.py	37	
+file	fabriclib-samba|src/fabriclib/samba/read_policy_changes.py	36	
+file	fabriclib-samba|src/fabriclib/samba/refuse_at_read_only_dc.py	38	
 file	fabriclib-samba|src/fabriclib/samba/replication_status.py	19	
 file	fabriclib-samba|src/fabriclib/samba/run_converge.py	17	
 file	fabriclib-samba|src/fabriclib/samba/run_domain_command.py	4	
@@ -748,8 +748,8 @@ file	fabriclib-samba|src/fabriclib/samba/set_logon_policy.py	32
 file	fabriclib-samba|src/fabriclib/samba/sso_spns.py	22	
 file	fabriclib-samba|src/fabriclib/samba/suggested_ad_domain.py	7	
 file	fabriclib-samba|src/fabriclib/samba/suggested_dc_name.py	27	
-file	fabriclib-samba|src/fabriclib/samba/summarize_roles.py	29	
-file	fabriclib-samba|src/fabriclib/samba/sync_rodc_cache.py	36	
+file	fabriclib-samba|src/fabriclib/samba/summarize_roles.py	37	
+file	fabriclib-samba|src/fabriclib/samba/sync_rodc_cache.py	39	
 file	fabriclib-samba|src/fabriclib/samba/writable_server.py	35	
 file	fabriclib-samba|src/fabriclib/samba/write_bind_dlz.py	6	
 file	fabriclib-secrets|src/fabriclib/secrets/common/read_vault_secrets.py	1	
@@ -817,7 +817,7 @@ file	fabriclib-setup|src/fabriclib/setup/common/network_problem.py	72
 file	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py	52	
 file	fabriclib-setup|src/fabriclib/setup/common/renew_days.py	79	
 file	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py	7	
-file	fabriclib-setup|src/fabriclib/setup/common/sshd_check.py	82	
+file	fabriclib-setup|src/fabriclib/setup/common/sshd_check.py	84	
 file	fabriclib-setup|src/fabriclib/setup/common/sync_host_managed.py	80	
 file	fabriclib-setup|src/fabriclib/setup/common/valid_setting.py	73	
 file	fabriclib-setup|src/fabriclib/setup/condition_host.py	8	
@@ -838,14 +838,14 @@ file	fabriclib-setup|src/fabriclib/setup/join_federation.py	19
 file	fabriclib-setup|src/fabriclib/setup/join_host_domain.py	53	
 file	fabriclib-setup|src/fabriclib/setup/mint_extra_certs.py	20	
 file	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py	21	
-file	fabriclib-setup|src/fabriclib/setup/move_dns_filter.py	43	
+file	fabriclib-setup|src/fabriclib/setup/move_dns_filter.py	82	
 file	fabriclib-setup|src/fabriclib/setup/permanent_mark.py	49	
 file	fabriclib-setup|src/fabriclib/setup/preflight.py	22	
 file	fabriclib-setup|src/fabriclib/setup/print_first_steps.py	44	
 file	fabriclib-setup|src/fabriclib/setup/read_join_invitation.py	23	
 file	fabriclib-setup|src/fabriclib/setup/renew_service_certs.py	24	
 file	fabriclib-setup|src/fabriclib/setup/restore_install.py	25	
-file	fabriclib-setup|src/fabriclib/setup/retire_adguard.py	44	
+file	fabriclib-setup|src/fabriclib/setup/retire_adguard.py	83	
 file	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py	26	
 file	fabriclib-setup|src/fabriclib/setup/run_restore_command.py	27	
 file	fabriclib-setup|src/fabriclib/setup/run_setup.py	28	
@@ -972,8 +972,8 @@ file	webui|src/webui/agentclient/dhcp_overview.py	19
 file	webui|src/webui/agentclient/dns_filter_change.py	145	
 file	webui|src/webui/agentclient/dns_filter_overview.py	146	
 file	webui|src/webui/agentclient/domain_overview.py	125	
-file	webui|src/webui/agentclient/enrol_apple.py	185	
-file	webui|src/webui/agentclient/enrol_p12.py	186	
+file	webui|src/webui/agentclient/enrol_apple.py	201	
+file	webui|src/webui/agentclient/enrol_p12.py	202	
 file	webui|src/webui/agentclient/federation_overview.py	130	
 file	webui|src/webui/agentclient/gpo_change.py	126	
 file	webui|src/webui/agentclient/gpo_overview.py	127	
@@ -983,7 +983,7 @@ file	webui|src/webui/agentclient/image_rows.py	140
 file	webui|src/webui/agentclient/inspect_pem.py	21	
 file	webui|src/webui/agentclient/issue_key_pair.py	22	
 file	webui|src/webui/agentclient/link_device_cert.py	23	
-file	webui|src/webui/agentclient/list_enrolments.py	187	
+file	webui|src/webui/agentclient/list_enrolments.py	203	
 file	webui|src/webui/agentclient/list_host_groups.py	157	
 file	webui|src/webui/agentclient/list_issued.py	24	
 file	webui|src/webui/agentclient/list_people.py	25	
@@ -1028,9 +1028,9 @@ file	webui|src/webui/agentclient/security_layers.py	133
 file	webui|src/webui/agentclient/service_status.py	43	
 file	webui|src/webui/agentclient/set_dhcp_on.py	152	
 file	webui|src/webui/agentclient/set_option.py	44	
-file	webui|src/webui/agentclient/set_password_policy.py	156	
+file	webui|src/webui/agentclient/set_password_policy.py	184	
 file	webui|src/webui/agentclient/set_radius_client.py	200	
-file	webui|src/webui/agentclient/set_record_link.py	157	
+file	webui|src/webui/agentclient/set_record_link.py	185	
 file	webui|src/webui/agentclient/set_scan_policy.py	181	
 file	webui|src/webui/agentclient/set_ssh_certificates.py	188	
 file	webui|src/webui/agentclient/sign_csr.py	45	
@@ -1068,7 +1068,7 @@ file	webui|src/webui/devpreview/dev_post_network.py	66
 file	webui|src/webui/devpreview/dev_post_networks.py	168	
 file	webui|src/webui/devpreview/dev_post_ssh.py	193	
 file	webui|src/webui/devpreview/dev_state.py	67	
-file	webui|src/webui/devpreview/sample_data.py	153	
+file	webui|src/webui/devpreview/sample_data.py	186	
 file	webui|src/webui/devpreview/sample_radius_guides.py	68	
 file	webui|src/webui/devpreview/sample_result.py	69	
 file	webui|src/webui/handler.py	71	
@@ -1087,7 +1087,7 @@ file	webui|src/webui/routes/dns_filter_post.py	150
 file	webui|src/webui/routes/enrol_post.py	194	
 file	webui|src/webui/routes/get_page.py	80	
 file	webui|src/webui/routes/kea_post.py	81	
-file	webui|src/webui/routes/landing_post.py	158	
+file	webui|src/webui/routes/landing_post.py	187	
 file	webui|src/webui/routes/networks_page.py	169	
 file	webui|src/webui/routes/networks_post.py	162	
 file	webui|src/webui/routes/networks_scan_page.py	173	
@@ -1099,7 +1099,7 @@ file	webui|src/webui/routes/options_post.py	179
 file	webui|src/webui/routes/overview_post.py	143	
 file	webui|src/webui/routes/post_action.py	83	
 file	webui|src/webui/routes/radius_post.py	84	
-file	webui|src/webui/routes/radius_session_post.py	184	
+file	webui|src/webui/routes/radius_session_post.py	204	
 file	webui|src/webui/routes/saved_and_applied.py	85	
 file	webui|src/webui/routes/security_post.py	134	
 file	webui|src/webui/routes/ssh_post.py	195	
