@@ -461,8 +461,9 @@ check "the first admin (in fabric-admins) resolves on the host with the domain's
 check "the first admin signs in to the host with their domain password (PAM)" "pam fabric-admin /root/admin-pw"
 check "a wrong password is refused" "! pam fabric-admin /root/wrong-pw"
 check "the first admin has sudo on the host from the site's rule" "in_box 'sudo -l -U fabric-admin' | grep -q '(ALL) ALL'"
-check "a person outside the fabric admins (bob) resolves but is refused by the host's access rule, and has no sudo" \
-    "in_box 'getent passwd bob' >/dev/null && ! pam bob /dev/null acct_mgmt && pam fabric-admin /dev/null acct_mgmt \
+check "a person outside the fabric admins (bob) resolves but is refused by OU=fabric-hosts' default log-on policy (no access filter of fabric's own, 2.1.6.53), and has no sudo" \
+    "in_box 'getent passwd bob' >/dev/null && ! in_box 'grep -q ad_access_filter /etc/sssd/sssd.conf' \
+     && ! pam bob /dev/null acct_mgmt && pam fabric-admin /dev/null acct_mgmt \
      && in_box 'sudo -l -U bob 2>&1' | grep -q 'not allowed'"
 echo "--- the fabric host as a machine fabric manages (manual 1.6.11.11, 2.1.6.49): Kerberos for SSH, never locked out"
 FM=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=*-fabric-machines)' sAMAccountName" \
@@ -494,6 +495,18 @@ check "a fabric admin signs in over SSH with a Kerberos ticket" "ssh_krb fabric-
 check "a fabric admin's domain password over SSH is refused (domain accounts sign in with Kerberos)" "! ssh_pw fabric-admin /root/admin-pw"
 check "a person outside the fabric admins (bob) gets a ticket but is refused over SSH with it" \
     "in_box 'KRB5CCNAME=FILE:/tmp/cc-bobt kinit bob < /root/bob-pw >/dev/null 2>&1 && kdestroy -c FILE:/tmp/cc-bobt' && ! ssh_krb bob /root/bob-pw"
+echo "--- who signs in to the host is OU=fabric-hosts' log-on policy alone (2.1.6.53): changed there, nothing on the host"
+SITE=${FM%-fabric-machines}
+SSSD_BEFORE=$(in_box 'md5sum /etc/sssd/sssd.conf')
+# covers: cli:domain.logon +
+in_box "fabricctl domain logon set fabric-hosts --console fabric-admins,$SITE-fabric-admins,$SITE-users --remote fabric-admins,$SITE-fabric-admins,$SITE-users" > "$OUT/logon-hosts.log" 2>&1
+sleep 10     # sssd keeps a GPO it read for 5 seconds (ad_gpo_cache_timeout)
+check "an admin grants $SITE-users on OU=fabric-hosts' policy: bob may now sign in to the host (PAM, and SSH with a ticket), no file on the host changed" \
+    "pam bob /dev/null acct_mgmt && ssh_krb bob /root/bob-pw && [ \"\$(in_box 'md5sum /etc/sssd/sssd.conf')\" = '$SSSD_BEFORE' ]"
+in_box 'fabricctl domain logon clear fabric-hosts' >> "$OUT/logon-hosts.log" 2>&1
+sleep 10
+check "...logon clear fabric-hosts puts the default back: bob refused again, the fabric admin still signs in" \
+    "! pam bob /dev/null acct_mgmt && pam fabric-admin /dev/null acct_mgmt"
 in_box 'systemctl stop samba' >/dev/null 2>&1
 check "with the DC stopped: a local account signs in and keeps its sudo, root works, the admin signs in from sssd's cache" \
     "pam localop /root/localop-pw && in_box 'sudo -l -U localop' | grep -q '(ALL : ALL) ALL' \

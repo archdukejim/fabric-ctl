@@ -6,10 +6,24 @@ from ensure_gpo import ensure_gpo
 from legacy_logon_groups import legacy_logon_groups
 from logon_rights_policy import BUILTIN_ADMINISTRATORS, EXTENSIONS, logon_rights_policy
 from remove_gpo import remove_gpo
-from site_roles import role_group
+from site_roles import FABRIC_ADMINS, fabric_admins, role_group
 
 INF = "Machine/Microsoft/Windows NT/SecEdit/GptTmpl.inf"
 ALWAYS = "fabric-break-glass"        # with each machine's local Administrators: never locked out (2.1.7.6)
+HOSTS_OU = "fabric-hosts"            # the site's fabric host (1.6.11.11): a policy of its own by default (2.1.6.53)
+
+
+def _host_default(site):
+    """Purpose: the log-on policy of the site's OU=fabric-hosts while the setting names none (decision 2.1.6.53,
+             manual 1.6.11.11): the fabric admins, at the keyboard and remotely, so the appliance is never open to the
+             site's other people, whatever OU=machines or the site's OU allow. Mirrored by
+             fabriclib/samba/logon_overview (what status shows).
+    Inputs:  site — str.
+    Returns: {"console": [names], "remote": [names]}.
+    Fails:   never.
+    Feeds:   ensure_logon_policies."""
+    groups = [FABRIC_ADMINS, fabric_admins(site)]
+    return {"console": groups, "remote": list(groups)}
 
 
 def _name(site, ou):
@@ -56,8 +70,9 @@ def ensure_logon_policies(samdb, lp, site, policies, admin_group):
              one log-on GPO as before 0.9, on its OU, from legacy_logon_groups (an upgrade changes nothing, 2.1.6.44);
              otherwise one GPO per OU named in `policies`, linked to that OU, granting log-on at the keyboard to its
              console groups and remotely to its remote groups, each with fabric-break-glass and the machine's local
-             Administrators. Either way the site's other fabric log-on GPOs (the legacy one, or an OU's no longer
-             named) are removed. Every GPO also makes the windows-admins of the site and the sites above local
+             Administrators. Either way the site's OU=fabric-hosts carries a policy: the setting's, or by default the
+             fabric admins (_host_default, 2.1.6.53). The site's other fabric log-on GPOs (the legacy one, or an OU's
+             no longer named) are removed. Every GPO also makes the windows-admins of the site and the sites above local
              Administrators. An OU that does not exist is reported and skipped, as is a granted group that no longer
              exists.
     Inputs:  samdb — SamDB (as the system); lp — LoadParm; site — str; policies — None or {ou path: {"console":
@@ -75,7 +90,9 @@ def ensure_logon_policies(samdb, lp, site, policies, admin_group):
         wanted.add(f"fabric: {site} log-on rights")
         done += ensure_gpo(samdb, lp, f"fabric: {site} log-on rights", site_dn, EXTENSIONS,
                            {INF: logon_rights_policy(sids, local_admins)})
-    for ou, entry in sorted((policies or {}).items()):
+    per_ou = dict(policies or {})
+    per_ou.setdefault(HOSTS_OU, _host_default(site))
+    for ou, entry in sorted(per_ou.items()):
         name, where = _name(site, ou), ou or "site"
         wanted.add(name)
         dn = _ou_dn(site_dn, ou)

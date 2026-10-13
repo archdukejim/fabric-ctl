@@ -547,6 +547,7 @@ file	fabriclib-radius|src/fabriclib/radius/windows_lan_profile.py	13
 file	fabriclib-radius|src/fabriclib/radius/windows_setup_script.py	14	
 file	fabriclib-rbac|src/fabriclib/rbac/required_permission.py	1	
 file	fabriclib-rbac|src/fabriclib/rbac/user_permissions.py	2	
+file	fabriclib-samba|src/fabriclib/samba/allow_rodc_cache.py	33	
 file	fabriclib-samba|src/fabriclib/samba/check_logon_policies.py	28	
 file	fabriclib-samba|src/fabriclib/samba/check_password_policy.py	23	
 file	fabriclib-samba|src/fabriclib/samba/clear_gpo_policy.py	11	
@@ -562,6 +563,7 @@ file	fabriclib-samba|src/fabriclib/samba/domain_status.py	3
 file	fabriclib-samba|src/fabriclib/samba/finish_join.py	15	
 file	fabriclib-samba|src/fabriclib/samba/gpo_overview.py	13	
 file	fabriclib-samba|src/fabriclib/samba/gpo_request.py	9	
+file	fabriclib-samba|src/fabriclib/samba/host_logon_default.py	34	
 file	fabriclib-samba|src/fabriclib/samba/id_range.py	8	
 file	fabriclib-samba|src/fabriclib/samba/list_conflicts.py	18	
 file	fabriclib-samba|src/fabriclib/samba/logon_ou_path.py	30	
@@ -1030,6 +1032,7 @@ function	fabricctl-jinja|src/containers/samba/ensure_join_account.py|_filetime	1
 function	fabricctl-jinja|src/containers/samba/ensure_join_account.py|ensure_join_account	2	
 function	fabricctl-jinja|src/containers/samba/ensure_layout.py|_ensure_ou	1	
 function	fabricctl-jinja|src/containers/samba/ensure_layout.py|ensure_layout	2	
+function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|_host_default	5	
 function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|_name	1	
 function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|_ou_dn	2	
 function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|_sids	3	
@@ -1087,6 +1090,7 @@ function	fabricctl-jinja|src/containers/samba/paths.py|organisation_dn	4
 function	fabricctl-jinja|src/containers/samba/paths.py|relative	6	
 function	fabricctl-jinja|src/containers/samba/paths.py|site_dn	1	
 function	fabricctl-jinja|src/containers/samba/paths.py|sites_dn	3	
+function	fabricctl-jinja|src/containers/samba/place_fabric_host.py|_member	2	
 function	fabricctl-jinja|src/containers/samba/place_fabric_host.py|place_fabric_host	1	
 function	fabricctl-jinja|src/containers/samba/policy_entries.py|_element	2	
 function	fabricctl-jinja|src/containers/samba/policy_entries.py|_write	1	
@@ -1131,6 +1135,7 @@ function	fabricctl-jinja|src/containers/samba/share_winbind.py|share_winbind	1
 function	fabricctl-jinja|src/containers/samba/site_info.py|site_info	1	
 function	fabricctl-jinja|src/containers/samba/site_roles.py|fabric_admins	2	
 function	fabricctl-jinja|src/containers/samba/site_roles.py|fabric_machines	3	
+function	fabricctl-jinja|src/containers/samba/site_roles.py|rodc_cache	4	
 function	fabricctl-jinja|src/containers/samba/site_roles.py|role_group	1	
 function	fabricctl-jinja|src/containers/samba/sort_windows_machines.py|sort_windows_machines	1	
 function	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py|_entry	1	
@@ -1756,6 +1761,7 @@ function	fabriclib-radius|src/fabriclib/radius/windows_lan_profile.py|windows_la
 function	fabriclib-radius|src/fabriclib/radius/windows_setup_script.py|windows_setup_script	1	
 function	fabriclib-rbac|src/fabriclib/rbac/required_permission.py|required_permission	1	
 function	fabriclib-rbac|src/fabriclib/rbac/user_permissions.py|user_permissions	1	
+function	fabriclib-samba|src/fabriclib/samba/allow_rodc_cache.py|allow_rodc_cache	1	
 function	fabriclib-samba|src/fabriclib/samba/check_logon_policies.py|_groups	1	
 function	fabriclib-samba|src/fabriclib/samba/check_logon_policies.py|check_logon_policies	2	
 function	fabriclib-samba|src/fabriclib/samba/check_password_policy.py|check_password_policy	1	
@@ -1775,6 +1781,7 @@ function	fabriclib-samba|src/fabriclib/samba/domain_status.py|domain_status	2
 function	fabriclib-samba|src/fabriclib/samba/finish_join.py|finish_join	1	
 function	fabriclib-samba|src/fabriclib/samba/gpo_overview.py|gpo_overview	1	
 function	fabriclib-samba|src/fabriclib/samba/gpo_request.py|gpo_request	1	
+function	fabriclib-samba|src/fabriclib/samba/host_logon_default.py|host_logon_default	1	
 function	fabriclib-samba|src/fabriclib/samba/id_range.py|id_range	1	
 function	fabriclib-samba|src/fabriclib/samba/list_conflicts.py|list_conflicts	1	
 function	fabriclib-samba|src/fabriclib/samba/logon_ou_path.py|logon_ou_path	1	
@@ -1915,7 +1922,7 @@ function	fabriclib-setup|src/fabriclib/setup/common/host_identity.py|_account_na
 function	fabriclib-setup|src/fabriclib/setup/common/host_identity.py|host_identity	2	
 function	fabriclib-setup|src/fabriclib/setup/common/missing_packages.py|missing_packages	1	
 function	fabriclib-setup|src/fabriclib/setup/common/network_problem.py|network_problem	1	
-function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_access	3	
+function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_access	3	0.7.0 / 2026-10-12
 function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_sudo_search_base	1	
 function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|render_member_files	2	
 function	fabriclib-setup|src/fabriclib/setup/common/renew_days.py|renew_days	1	
@@ -1974,8 +1981,10 @@ function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_publish_ca_certs	5
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_single_intermediate	3	
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|run	7	
 function	fabriclib-setup|src/fabriclib/setup/join_federation.py|run	1	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_answers	15	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_keys	1	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_pam_on	5	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_preload	16	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_read	3	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_record	14	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_record_account	12	0.7.0 / 2026-10-12

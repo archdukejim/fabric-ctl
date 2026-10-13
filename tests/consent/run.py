@@ -597,22 +597,20 @@ check("negative: not planned when host_join_domain is false (nothing asked, noth
 pm.missing_packages = _real_missing
 files = render_member_files(mv)
 sssd = files["/etc/sssd/sssd.conf"]
-check("sssd.conf: the host's own name, the OU's log-on policy (GPO access enforcing) and on top of it the fabric "
-      "admins only (nested too), sudo from the domain, this host's own DC, no dynamic DNS (2.1.6.48)",
+check("sssd.conf: the host's own name, the OU's log-on policy (GPO access enforcing) as the one gate, no access "
+      "filter of fabric's own (2.1.6.53), sudo from the domain, this host's own DC, no dynamic DNS (2.1.6.48)",
       "access_provider = ad\n" in sssd and "ad_gpo_access_control = enforcing\n" in sssd
-      and "ad_access_filter = DOM:ad.test:(|(memberOf:1.2.840.113556.1.4.1941:=CN=hq-fabric-admins,OU=groups,OU=hq,OU=sites,"
-          "DC=ad,DC=test)(memberOf:1.2.840.113556.1.4.1941:=CN=fabric-admins,OU=groups,OU=organisation,OU=hq,"
-          "OU=sites,DC=ad,DC=test))\n" in sssd
+      and "ad_access_filter" not in sssd
       and "ad_hostname = fab1.ad.test\n" in sssd and "simple_allow" not in sssd
       and "sudo_provider = ad\n" in sssd and "ad_server = dc-fab1.ad.test\n" in sssd and "dyndns_update = false" in sssd
       and sssd.startswith("# fabric"), sssd)
 renew_sssd = render_member_files(renew)["/etc/sssd/sssd.conf"]
 rodc_sssd = render_member_files({**renew, "ad_dc_type": "rodc"})["/etc/sssd/sssd.conf"]
-check("sssd.conf: the machine password never renewed by default (age 0), renewed at the age set; never for the DC's "
-      "account (a read-only DC's site), whatever is set (1.6.11.12)",
+check("sssd.conf: the machine password never renewed by default (age 0), renewed at the age set, at a read-only "
+      "DC's site too (the host's own account there, 2.1.6.52) (1.6.11.12)",
       "ad_maximum_machine_account_password_age = 0\n" in sssd
       and "ad_maximum_machine_account_password_age = 30\n" in renew_sssd
-      and "ad_maximum_machine_account_password_age = 0\n" in rodc_sssd, (sssd, renew_sssd))
+      and "ad_maximum_machine_account_password_age = 30\n" in rodc_sssd, (sssd, renew_sssd))
 check("its sudo search bases: the site's OU=sudoers, then the organisation's (as the Linux join builds them)",
       "ldap_sudo_search_base = OU=sudoers,OU=hq,OU=sites,DC=ad,DC=test?onelevel??"
       "OU=sudoers,OU=organisation,OU=hq,OU=sites,DC=ad,DC=test?onelevel?\n" in sssd, sssd)
@@ -713,26 +711,29 @@ from fabriclib.setup.common.host_identity import host_identity  # noqa: E402
 
 ident = host_identity(mv)
 check("the host's identity: its own account FAB1$, its host/ names under the AD domain, never the DC's",
-      ident["own"] and ident["account"] == "FAB1" and ident["fqdn"] == "fab1.ad.test"
+      not ident["refused"] and ident["write_server"] is None and ident["account"] == "FAB1" and ident["fqdn"] == "fab1.ad.test"
       and ident["principals"] == ["FAB1$", "host/fab1.ad.test", "host/FAB1"], ident)
 long_name = host_identity({**mv, "hostname": "kitchen-server-0-x"})
 check("a host name past 15 characters is cut as Windows and adcli cut it, without a dash left at the end",
-      long_name["account"] == "KITCHEN-SERVER" and long_name["own"], long_name)
+      long_name["account"] == "KITCHEN-SERVER" and not long_name["refused"], long_name)
 old = host_identity({**mv, "dc_name": "fab1", "hostname_dc": "fab1.ad.test"})
-rodc = host_identity({**mv, "ad_dc_type": "rodc"})
-check("negative: a DC with the host's name is refused, saying why (2.1.6.51: no install from before 0.7.0 to keep); "
-      "the DC's account only where the host cannot have its own (a read-only DC), said why",
-      old["refused"] and "domain controller has this host's name" in old["refused"] and not host_identity(mv)["refused"]
-      and not rodc["own"] and rodc["account"] == "DC-FAB1" and "read-only" in rodc["why"] and not rodc["refused"],
-      (old, rodc))
-rodc_vars = {**mv, "ad_dc_type": "rodc"}
-old_sssd = render_member_files(rodc_vars)["/etc/sssd/sssd.conf"]
-old_plan = pm.plan_member(rodc_vars)
-check("…with the DC's account, sssd keeps the fabric admins only by the simple provider (no OU's policy reaches a DC) "
-      "and the plan names the DC's account and why, creating none and managing nothing",
-      "access_provider = simple\n" in old_sssd and "ad_hostname = dc-fab1.ad.test\n" in old_sssd
-      and not any(x.startswith("the domain:") for x in old_plan) and not any("10-fabric.conf" in x for x in old_plan)
-      and any("domain controller account DC-FAB1$" in x and "read-only" in x for x in old_plan), (old_sssd, old_plan))
+rodc = host_identity({**mv, "ad_dc_type": "rodc", "ad_join_server": "10.0.9.5"})
+lost = host_identity({**mv, "ad_dc_type": "rodc", "ad_join_server": ""})
+check("negative: a DC with the host's name is refused, saying why (2.1.6.51: no install from before 0.7.0 to keep)",
+      old["refused"] and "domain controller has this host's name" in old["refused"] and not host_identity(mv)["refused"],
+      old)
+check("a read-only DC's site: the host's own account too, written at the writable DC it replicates from (2.1.6.52); "
+      "negative: with no writable DC known, refused, saying why",
+      rodc["account"] == "FAB1" and rodc["write_server"] == "10.0.9.5" and not rodc["refused"]
+      and "no writable domain controller" in lost["refused"], (rodc, lost))
+rodc_vars = {**mv, "ad_dc_type": "rodc", "ad_join_server": "10.0.9.5"}
+rodc_sssd = render_member_files(rodc_vars)["/etc/sssd/sssd.conf"]
+rodc_plan = pm.plan_member(rodc_vars)
+check("…its sssd as any member's (the OU's policy, its own name) and the plan says where the account is made and that "
+      "the read-only DC caches it",
+      "access_provider = ad\n" in rodc_sssd and "ad_hostname = fab1.ad.test\n" in rodc_sssd
+      and any(x.startswith("the domain:") and "writable domain controller 10.0.9.5" in x and "hq-rodc-cache" in x
+              for x in rodc_plan), (rodc_sssd, rodc_plan))
 
 # the step on a scratch tree: the host's files in a folder of their own, the DC and the directory faked
 host = tempfile.mkdtemp()
@@ -749,22 +750,22 @@ kt_own = b"\x05\x02" + _entry("FAB1$@AD.TEST", 300, 1, b"o" * 32)
 calls, directory = [], {}
 
 
-def fake_add(v, actor, name, source="cli", secrets=None, container="samba", os=None, managed=True):
-    calls.append(("add", name, os, managed))
+def fake_add(v, actor, name, source="cli", secrets=None, container="samba", os=None, managed=True, server=None):
+    calls.append(("add", name, os, managed) + ((server,) if server else ()))
     directory[name.upper()] = {"dn": f"CN={name.upper()},OU=linux,OU=machines,OU=hq,OU=sites,DC=ad,DC=test",
                                "description": "fabric: unmanaged (manual 1.6.11.6)"}
     return "one-time"
 
 
-def fake_remove(v, actor, name, source="web", secrets=None, container="samba"):
-    calls.append(("remove", name))
+def fake_remove(v, actor, name, source="web", secrets=None, container="samba", server=None):
+    calls.append(("remove", name) + ((server,) if server else ()))
     if directory.pop(name.upper(), None) is None:
         raise ValidationError("no such entry")
     return {"name": name}
 
 
-def fake_place(v, actor, name, source="setup", secrets=None, container="samba"):
-    calls.append(("place", name))
+def fake_place(v, actor, name, source="setup", secrets=None, container="samba", server=None):
+    calls.append(("place", name) + ((server,) if server else ()))
     entry = directory[name.upper()]
     moved = "OU=fabric-hosts," not in entry["dn"]
     entry["dn"] = f"CN={name.upper()},OU=fabric-hosts,OU=hq,OU=sites,DC=ad,DC=test"
@@ -892,6 +893,50 @@ done = rha.remove_host_account(jcfg, renamed, lambda: {})
 check("negative: the DC refusing (or down) is said, with where to remove it, and the record keeps the account",
       "NOT removed (the directory is not reachable)" in done[0] and "Directory → Machines" in done[0]
       and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") == "FAB2", done)
+
+# a read-only DC's site (2.1.6.52): the account at the writable DC, cached by the read-only one; refused when that
+# DC does not answer
+rcfg2 = tempfile.mkdtemp()
+with contextlib.redirect_stdout(io.StringIO()):
+    ask_consent(rcfg2, {"member": pm.plan_member(rodc_vars)}, interactive=False, approve=["member"])
+directory.clear()
+calls.clear()
+preloads, answering = [], {"up": False}
+jh._answers = lambda server: answering["up"]
+jh._preload = lambda account, server: preloads.append((account, server))
+jh.export_keytab = lambda principals: kt_own
+jh.find_computer = lambda account: directory.get(account)
+open(jh.KEYTAB, "wb").write(b"")
+rctx = type("C", (), {"vars": rodc_vars, "config_dir": rcfg2, "offline": False, "secrets": {"ad_agent_password": "x"}})()
+msg = refused(lambda: jh.run(rctx))
+# covers: cli:setup -
+check("negative: a read-only DC's site whose writable DC does not answer: refused, saying why and what to do, before "
+      "anything changes (no account, no record, no fallback to the DC's account)",
+      "does not answer" in msg and "10.0.9.5" in msg and "host_join_domain: false" in msg and not calls
+      and not preloads and not os.path.exists(os.path.join(rcfg2, pm.RECORD)), (msg, calls))
+answering["up"] = True
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    jh.run(rctx)
+# covers: cli:setup +
+check("a read-only DC's site: the host's account made and placed at the writable DC (in hq-rodc-cache), cached by the "
+      "read-only DC, its keys exported there; recorded",
+      calls == [("add", "fab1", "linux", False, "10.0.9.5"), ("place", "FAB1", "10.0.9.5")]
+      and preloads == [("FAB1", "10.0.9.5")] and open(jh.KEYTAB, "rb").read() == kt_own
+      and json.load(open(os.path.join(rcfg2, pm.RECORD))).get("placed") == "FAB1"
+      and "hq-rodc-cache" in out.getvalue(), (calls, preloads, out.getvalue()))
+answering["up"] = False
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    jh.run(rctx)
+check("…a second run, with the writable DC down, changes nothing and needs nothing from it (the read-only DC caches "
+      "the account)", "nothing to change" in out.getvalue() and len(calls) == 2 and len(preloads) == 1, out.getvalue())
+removed_at = []
+rha.remove_machine = lambda v, actor, name, source="web", secrets=None, container="samba", server=None: \
+    removed_at.append((name, server)) or {"name": name}
+check("undo at a read-only DC's site: the account removed at the writable DC (its rodc-cache membership with it)",
+      rha.remove_host_account(rcfg2, rodc_vars, lambda: {})[0].endswith("removed")
+      and removed_at == [("fab1", "10.0.9.5")], removed_at)
 
 # the menu's membership item
 answers = iter(["maybe", "n"])
