@@ -193,7 +193,7 @@ file	fabriclib-deploy|src/fabriclib/deploy/install_service_units.py	16
 file	fabriclib-deploy|src/fabriclib/deploy/install_stepca_templates.py	17	
 file	fabriclib-deploy|src/fabriclib/deploy/install_timers.py	29	
 file	fabriclib-deploy|src/fabriclib/deploy/install_webui_files.py	18	
-file	fabriclib-deploy|src/fabriclib/deploy/keep_old_install.py	30	
+file	fabriclib-deploy|src/fabriclib/deploy/keep_old_install.py	30	0.7.0 / 2026-10-13
 file	fabriclib-deploy|src/fabriclib/deploy/load_link_vars.py	19	
 file	fabriclib-deploy|src/fabriclib/deploy/merge_radius_clients.py	20	
 file	fabriclib-deploy|src/fabriclib/deploy/merge_tsig_keys.py	21	
@@ -1411,7 +1411,7 @@ function	fabriclib-deploy|src/fabriclib/deploy/install_service_units.py|install_
 function	fabriclib-deploy|src/fabriclib/deploy/install_stepca_templates.py|install_stepca_templates	1	
 function	fabriclib-deploy|src/fabriclib/deploy/install_timers.py|install_timers	1	
 function	fabriclib-deploy|src/fabriclib/deploy/install_webui_files.py|install_webui_files	1	
-function	fabriclib-deploy|src/fabriclib/deploy/keep_old_install.py|keep_old_install	1	
+function	fabriclib-deploy|src/fabriclib/deploy/keep_old_install.py|keep_old_install	1	0.7.0 / 2026-10-13
 function	fabriclib-deploy|src/fabriclib/deploy/load_link_vars.py|load_link_vars	1	
 function	fabriclib-deploy|src/fabriclib/deploy/merge_radius_clients.py|merge_radius_clients	1	
 function	fabriclib-deploy|src/fabriclib/deploy/merge_tsig_keys.py|merge_tsig_keys	1	

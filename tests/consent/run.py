@@ -187,8 +187,9 @@ check("previous defaults are dropped (the new accounts apply), an admin's own id
 old = {"hostname": "fab", "cname_certs": "certs", "hostname_certs": "certs.lan.test",
        "dns": {"dynamic_zone_var": {"CNAME": [{"canonical": "fab", "name": "certs"}, {"canonical": "fab", "name": "ca"},
                                              {"canonical": "nas", "name": "certs2"}]}}}
-# (an install from before 0.7.0 also keeps its DC's name: that change is the DC's, 2.1.6.45, counted apart)
 changes = [c for c in upgrade_vars(old, set()) if "certs" in c]
+check("a vars file without dc_name is not given one at the upgrade (keep_old_install deleted 2026-10-13, S10): the "
+      "template's dc-<hostname> applies", "dc_name" not in old, old)
 check("an older install's certs.<domain>: cname_certs, hostname_certs and its CNAME removed, other CNAMEs kept",
       "cname_certs" not in old and "hostname_certs" not in old and len(changes) == 2
       and [r["name"] for r in old["dns"]["dynamic_zone_var"]["CNAME"]] == ["ca", "certs2"], (old, changes))
