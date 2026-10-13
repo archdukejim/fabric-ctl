@@ -9,7 +9,7 @@ KINDS = ("(|(objectClass=fabricVlanRecord)(objectClass=fabricNetwork)(objectClas
 ATTRS = ["objectClass", "cn", "fabricSite", "fabricCidr", "fabricVlan", "fabricVlanName", "fabricNetworkKind",
          "fabricAllowOverlap", "description", "fabricPurpose", "fabricAccess", "fabricGateway", "fabricDhcpServed",
          "fabricSubnetId", "fabricRelay", "fabricDhcpOption", "fabricRangeKind", "fabricFirst", "fabricLast",
-         "fabricIp", "fabricAddressKind", "fabricMac", "fabricHostName", "fabricOwner", "fabricDns"]
+         "fabricIp", "fabricAddressKind", "fabricMac", "fabricHostName", "fabricOwner", "fabricDns", "fabricRoleName"]
 
 
 def _site_of(dn):
@@ -60,7 +60,8 @@ def read_plan(samdb, lp, site, of=""):
              [{"id", "name", "purpose", "access", "notes"}], "subnets": [{"name", "cidr", "vlan", "kind", "gateway",
              "dhcp" (bool), "id" (Kea's subnet id or None), "relay", "notes", "allow_overlap", "options", "ranges":
              [{"kind", "first", "last", "notes"}], "addresses": [{"ip", "kind", "name", "mac", "owner", "notes",
-             "dns" (bool), "options"}]}], "networks": [{"name", "cidr", "kind", "vlan", "notes",
+             "dns" (bool), "options", "role" (a reservation's device role, "" for none: 1.11.1.7)}]}],
+             "networks": [{"name", "cidr", "kind", "vlan", "notes",
              "allow_overlap"}]}}}: lists sorted; a site without entries has no key in plans unless it is `of`.
     Fails:   ldb.LdbError from the searches; ValueError "no such site: <of>".
     Feeds:   directory_ops (op "read_plan")."""
@@ -115,7 +116,8 @@ def read_plan(samdb, lp, site, of=""):
             parent["addresses"].append({"ip": _one(m, "fabricIp"), "kind": _one(m, "fabricAddressKind"),
                                         "name": _one(m, "fabricHostName"), "mac": _one(m, "fabricMac"),
                                         "owner": _one(m, "fabricOwner"), "notes": _one(m, "description"),
-                                        "dns": _one(m, "fabricDns").upper() == "TRUE", "options": _options(m)})
+                                        "dns": _one(m, "fabricDns").upper() == "TRUE", "options": _options(m),
+                                        "role": _one(m, "fabricRoleName")})
     for plan in plans.values():
         plan["vlans"].sort(key=lambda x: x["id"])
         plan["subnets"].sort(key=lambda x: (x["vlan"] or 0, x["name"]))

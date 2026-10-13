@@ -7,8 +7,10 @@ rendered) by `fabriclib/radius/deploy_freeradius.py` to
 
 | File | What |
 |---|---|
-| `fabric_radius.py` | The policy module (`mods/fabric_policy`): EAP-TLS by linked certificate, MAB by MAC in the client vendor's shape, people by password (EAP-TTLS), people and machines after PEAP (post-auth), RadSec's wrong certificate refused; the VLAN; fail closed; one `fabric:` log line per decision, and one `fabric: ACCT` line per accounting request (the sessions) |
-| `lookup_device.py` | Find a device by certificate fingerprint or MAC in the site's `OU=devices` (AD) and judge it (enabled, permission, VLAN by role priority) |
+| `fabric_radius.py` | The policy module (`mods/fabric_policy`): EAP-TLS by linked certificate, MAB by MAC in the client vendor's shape (a device's, else a DHCP reservation's), people by password (EAP-TTLS), people and machines after PEAP (post-auth), RadSec's wrong certificate refused; the VLAN; fail closed; one `fabric:` log line per decision, and one `fabric: ACCT` line per accounting request (the sessions) |
+| `lookup_device.py` | Find a device by certificate fingerprint or MAC in the site's `OU=devices` (AD) and judge it (enabled, then its roles) |
+| `judge_roles.py` | Judge the device roles an entry names for a permission: the union of their permissions, the VLAN by role priority (this site's and the organisation's roles) |
+| `lookup_reservation.py` | MAB from a DHCP reservation (1.11.1.7): the reservation of the site's address plan holding a MAC, judged by the role it names; the VLAN is its subnet's |
 | `check_person.py` | Check a person's password by binding to AD as them (lockout applies) and their mapped groups (VLAN by priority) |
 | `directory.py` | The policy's LDAPS connection to the site's DC: its `fabric-radius-<site>` account per thread, or a bind as a person |
 | `record_fingerprint.py` | EAP-TLS verify command: SHA-256 fingerprint of the presented certificate, stored under its serial in `/run/freeradius/fp` |

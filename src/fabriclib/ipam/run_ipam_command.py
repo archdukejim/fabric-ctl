@@ -41,14 +41,15 @@ USAGE = """usage: fabricctl ipam show [<site>]                    a site's VLANs
        fabricctl ipam range add <vlan> gateway|static|dhcp|reserved <first> <last> [--notes T]
        fabricctl ipam range remove <vlan> <first>
        fabricctl ipam address add <ip> --kind static|reservation|infrastructure [--name N] [--mac M]
-                               [--owner T] [--notes T] [--dns on|off] [--vlan V]
+                               [--owner T] [--notes T] [--dns on|off] [--vlan V] [--role R]
        fabricctl ipam address set <ip> [--kind K] [--name N|none] [--mac M|none] [--owner T] [--notes T]
-                               [--dns on|off]
+                               [--dns on|off] [--role R|none]
+  --role R: a reservation's device role: its MAC is admitted by MAB with it (802.1X, manual 1.11.1.7)
        fabricctl ipam address remove <ip>
    --site S: another site's plan (a site above it may edit it); a change to this site's plan applies at once
    unless --no-apply"""
 FLAGS = {"--site", "--name", "--subnet", "--gateway", "--purpose", "--notes", "--access", "--dhcp", "--relay",
-         "--allow-overlap", "--kind", "--mac", "--owner", "--dns", "--vlan"}
+         "--allow-overlap", "--kind", "--mac", "--owner", "--dns", "--vlan", "--role"}
 BARE = {"--no-subnet", "--no-split", "--force", "--no-apply"}
 
 
@@ -267,14 +268,15 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
             out = add_address(v, "root", rest[0], vals["--kind"], site, vals.get("--name", ""), vals.get("--mac", ""),
                               vals.get("--owner", ""), vals.get("--notes", ""),
                               _on_off(vals["--dns"], "--dns") if "--dns" in vals else False,
-                              vals.get("--vlan"), **common)
+                              vals.get("--vlan"), role=vals.get("--role", ""), **common)
             print(f"{out['result']['ip']} recorded ({out['result']['kind']})")
             return _done(v, out, bare)
         if cmd == "address" and sub == "set" and len(rest) == 1:
             out = set_address(v, "root", rest[0], site, kind=_keep(vals, "--kind"),
                               name=_keep(vals, "--name", clear=True), mac=_keep(vals, "--mac", clear=True),
                               owner=_keep(vals, "--owner"), notes=_keep(vals, "--notes"),
-                              dns=_keep(vals, "--dns", convert=_on_off), **common)
+                              dns=_keep(vals, "--dns", convert=_on_off), role=_keep(vals, "--role", clear=True),
+                              **common)
             print(f"{out['result']['ip']} changed")
             return _done(v, out, bare)
         if cmd == "address" and sub == "remove" and len(rest) == 1:

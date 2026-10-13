@@ -9,7 +9,9 @@ from it at every apply. The rules are pure functions checked before anything is 
 | `check_vlan.py` | A VLAN checked: ID 1-4094 and name, each unique in the site; purpose, notes, access |
 | `check_subnet.py` | A subnet checked: an IPv4 network, its gateway, relay, no overlap in the organisation without a reason |
 | `check_range.py` | A range checked: kind, inside its subnet, no overlap; a dhcp range holds only reservations |
-| `check_address.py` | An address checked: one claim each, only reservations in a dhcp range, MAC and DNS name rules; warnings |
+| `check_address.py` | An address checked: one claim each, only reservations in a dhcp range, MAC and DNS name rules, a role only on a reservation; warnings |
+| `check_address_role.py` | A reservation's device role checked against the directory (1.11.1.7): it must exist here; warnings without `network:mab` or on another VLAN |
+| `vlan_labels.py` | How the plan names each VLAN ("iot, 10.1.20.0/24"), for the Roles page (1.11.1.8) |
 | `check_block.py` | A site's number checked: 1-255, no other site's |
 | `suggestions.py` | What fabric suggests: a VLAN's subnet, the split of a /24, a site's number |
 | `show_plan.py` | One site's plan as text: its number, each VLAN with each of its subnets, ranges and addresses |

@@ -37,6 +37,7 @@ from check_peap import check_peap
 from check_person import check_person
 from directory import load_config
 from lookup_device import lookup_device
+from lookup_reservation import lookup_reservation
 from normalize_mac import normalize_mac
 from vlan_reply import vlan_reply
 
@@ -75,17 +76,25 @@ def _decide(method, attribute, value, permission, where, style="rfc3580"):
              style — the client's VLAN attribute style (vlan_reply).
     Returns: radiusd.RLM_MODULE_REJECT, or (RLM_MODULE_OK, VLAN reply attributes, (("Auth-Type", ":=",
              "Accept"),)).
-    Fails:   never raises — any exception from lookup_device (directory down, bad data) becomes a logged reject.
-    Feeds:   authorize."""
+    Fails:   never raises — any exception from lookup_device or lookup_reservation (directory down, bad data)
+             becomes a logged reject.
+    Feeds:   authorize.
+    Notes:   MAB of a MAC no device has falls back to the site's DHCP reservations (lookup_reservation, manual
+             1.11.1.7), logged source=reservation; a MAC a device has is decided by the device alone."""
+    source = {}
     try:
         found = lookup_device(attribute, value, permission)
+        if method == "mab" and found["device"] is None and found["reason"] == "no device has it":
+            by_reservation = lookup_reservation(value)
+            if by_reservation["device"] is not None or by_reservation["reason"] != "no device has it":
+                found, source = by_reservation, {"source": "reservation"}
     except Exception as exc:          # directory down, bind refused: never let a device in
         _log("REJECT", method, reason="directory_error:" + type(exc).__name__, **where)
         return radiusd.RLM_MODULE_REJECT
     if not found["allowed"]:
-        _log("REJECT", method, device=found["device"] or "-", reason=found["reason"], **where)
+        _log("REJECT", method, device=found["device"] or "-", reason=found["reason"], **source, **where)
         return radiusd.RLM_MODULE_REJECT
-    _log("ACCEPT", method, device=found["device"], vlan=found["vlan"] or "-", **where)
+    _log("ACCEPT", method, device=found["device"], vlan=found["vlan"] or "-", **source, **where)
     return radiusd.RLM_MODULE_OK, vlan_reply(found["vlan"], style), (("Auth-Type", ":=", "Accept"),)
 
 

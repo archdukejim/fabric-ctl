@@ -35,7 +35,7 @@
 <p><a href="/directory?view=devices">← Devices</a></p>
 <section class="card"><h2><span class="light {{ 'ok' if d.enabled else 'bad' }}"></span> {{ d.name }}</h2>
 <dl class="kv"><dt>Roles</dt><dd>{{ d.roles | join(', ') or '—' }}</dd>
-<dt>VLAN</dt><dd>{{ d.vlan or '—' }}{% if d.vlan %} <span class="muted">(from role {{ d.vlan_from }})</span>{% endif %}</dd>
+<dt>VLAN</dt><dd>{{ d.vlan or '—' }}{% set lbl = (data.get('vlan_labels') or {}).get(d.vlan | string) if d.vlan else '' %}{% if lbl %} <span class="muted small">{{ lbl }}</span>{% endif %}{% if d.vlan %} <span class="muted">(from role {{ d.vlan_from }})</span>{% endif %}</dd>
 <dt>May</dt><dd>{% for p in d.permissions %}<div>{{ data.permissions[p][0] }} <span class="muted small">· {{ p }}</span></div>{% else %}{{ 'nothing — disabled' if not d.enabled else 'nothing (no role grants anything)' }}{% endfor %}</dd></dl>
 </section>
 <section class="card"><h2>Edit</h2>
@@ -59,12 +59,12 @@
 
 {% elif view == 'roles' %}
 <section class="card"><h2>Roles <span class="muted">{{ data.roles | length }}</span></h2>
-<p class="muted">A role grants its devices permissions and, optionally, a VLAN. With several roles, permissions add up and the VLAN comes from the role with the lowest priority number.</p>
+<p class="muted">A role grants its devices permissions and, optionally, a VLAN. With several roles, permissions add up and the VLAN comes from the role with the lowest priority number. Once the address plan has VLANs (Networks), a role's VLAN must be one of them. A DHCP reservation may name a role: its MAC then joins by MAB with it.</p>
 {% if data.roles %}
 <table><thead><tr><th>Role</th><th>Priority</th><th>VLAN</th><th>Grants</th><th>Devices</th></tr></thead><tbody>
 {% for r in data.roles %}
 <tr><td><a href="/directory?view=role&name={{ r.name | urlencode }}"><strong>{{ r.name }}</strong></a>{% if r.description %}<div class="muted small">{{ r.description }}</div>{% endif %}</td>
-<td>{{ r.priority }}</td><td>{{ r.vlan or '—' }}</td><td class="small">{{ r.permissions | join(', ') or '—' }}</td><td>{{ r.members | length }}</td></tr>
+<td>{{ r.priority }}</td><td>{{ r.vlan or '—' }}{% set lbl = (data.get('vlan_labels') or {}).get(r.vlan | string) if r.vlan else '' %}{% if lbl %} <span class="muted small">({{ lbl }})</span>{% endif %}</td><td class="small">{{ r.permissions | join(', ') or '—' }}</td><td>{{ r.members | length }}</td></tr>
 {% endfor %}</tbody></table>
 {% else %}<p class="blank">No roles yet.</p>{% endif %}
 </section>

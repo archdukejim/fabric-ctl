@@ -87,7 +87,8 @@ class DevState:
     def overview(self):
         """Purpose: Devices, roles and the RBAC vocabulary, in the shape fabric-agent's GET /v1/devices returns.
         Inputs:  none (reads self.data["directory"]; needs fabriclib's list_devices).
-        Returns: {"devices", "roles" (sorted by priority then name), "types", "permissions"}; None without fabriclib.
+        Returns: {"devices", "roles" (sorted by priority then name), "types", "permissions", "vlan_labels" (a sample
+                 plan's names, 1.11.1.8)}; None without fabriclib.
         Fails:   never in practice — anything list_devices raises propagates.
         Feeds:   Handler.do_GET for /directory and /stepca (device picker).
         """
@@ -95,7 +96,8 @@ class DevState:
             return None
         d = self.data["directory"]
         return {"devices": list_devices({}, d), "roles": sorted(d["roles"], key=lambda r: (r["priority"], r["name"])),
-                "types": DEVICE_TYPES, "permissions": {k: list(v) for k, v in PERMISSIONS.items()}}
+                "types": DEVICE_TYPES, "permissions": {k: list(v) for k, v in PERMISSIONS.items()},
+                "vlan_labels": {"10": "trusted, 10.1.10.0/24", "30": "iot, 10.1.30.0/24"}}
 
     def save(self, kind, name, form):
         """Purpose: Create or edit a device or role in memory, validated by the real fabriclib rules, and log it.

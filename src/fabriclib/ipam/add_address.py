@@ -2,6 +2,7 @@ import ipaddress
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.ipam.check_address import check_address
+from fabriclib.ipam.check_address_role import check_address_role
 from fabriclib.ipam.common.edit_plan import edit_plan
 from fabriclib.ipam.common.fields import find_vlan, ipv4, subnet_holding
 
@@ -26,26 +27,29 @@ def _subnet_for(plan, ip, vid):
 
 
 def add_address(v, actor, ip, kind, site="", name="", mac="", owner="", notes="", dns=False, vid=None,
-                secrets=None, container="samba", source="cli"):
+                secrets=None, container="samba", source="cli", role="", roles=None):
     """Purpose: an address recorded in a site's plan (manual 1.10.4.3, 1.10.4.16): a static address, a reservation (a
              MAC's fixed address, served by Kea) or infrastructure, with its name, MAC, owner and notes, and with
              DNS on an A and a PTR in the site's zone at its next apply (a reservation's beside DHCP's own name in
-             dhcp.<domain>, 2.1.10.17). One claim per address; check_address's rules and warnings.
+             dhcp.<domain>, 2.1.10.17). One claim per address; check_address's rules and warnings. A reservation may
+             name a device role (MAB from a reservation, 1.11.1.7; check_address_role).
     Inputs:  v — fabric vars (site_name, dns: the settings' own records of this site's zone); actor — who asks
              (audit); ip — the address; kind — static, reservation or infrastructure; site — whose plan ("" this
              site's); name, mac, owner, notes — text; dns — bool; vid — the VLAN whose subnet holds it (only needed
-             where subnets overlap); secrets, container, source — as edit_plan.
+             where subnets overlap); secrets, container, source — as edit_plan; role — a device role ("" none);
+             roles — the roles this site may use (tests), default read when a role is named.
     Returns: edit_plan's result; result = the address as recorded; warnings = check_address's (a static address
-             outside the static ranges, a reservation in a subnet DHCP does not serve).
-    Fails:   ValidationError: what _subnet_for or check_address refuses; a DNS name the settings already give this
-             site's zone; what edit_plan refuses.
+             outside the static ranges, a reservation in a subnet DHCP does not serve) and check_address_role's.
+    Fails:   ValidationError: what _subnet_for, check_address or check_address_role refuses; a DNS name the settings
+             already give this site's zone; what edit_plan refuses.
     Feeds:   run_ipam_command (address add)."""
     addr_ip = ipv4(ip, "address")
 
     def change(plan, read, org):
         sub = _subnet_for(plan, addr_ip, vid)
         addr, warnings = check_address({"ip": str(addr_ip), "kind": kind, "name": name, "mac": mac, "owner": owner,
-                                        "notes": notes, "dns": dns}, sub, plan)
+                                        "notes": notes, "dns": dns, "role": role}, sub, plan)
+        warnings = warnings + check_address_role(v, addr, sub, plan["site"], roles, secrets, container)
         if addr["dns"] and plan["site"] == v.get("site_name"):
             zone = ((v.get("dns") or {}).get("dynamic_zone_var") or {}).get("A") or []
             if any(str(r.get("name") or "").lower() == addr["name"] for r in zone):
@@ -53,5 +57,6 @@ def add_address(v, actor, ip, kind, site="", name="", mac="", owner="", notes=""
                                       "that record first, or choose another name")
         changes = [{"do": "add", "what": "address", "site": plan["site"], "subnet": sub["name"], "key": addr["ip"],
                     "fields": addr}]
-        return changes, addr, f"{addr['ip']} kind={addr['kind']} name={addr['name']} mac={addr['mac']}", warnings
+        detail = f"{addr['ip']} kind={addr['kind']} name={addr['name']} mac={addr['mac']}"
+        return changes, addr, detail + (f" role={addr['role']}" if addr["role"] else ""), warnings
     return edit_plan(v, actor, site, "IPAM_ADDRESS_ADD", change, secrets, container, source)

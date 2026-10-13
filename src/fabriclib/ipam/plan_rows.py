@@ -1,7 +1,7 @@
 import ipaddress
 
 COLUMNS = ("site", "vlan", "vlan_name", "subnet", "ip", "kind", "range", "name", "mac", "owner", "dns", "lease",
-           "notes")
+           "notes", "role")
 
 
 def _range_of(subnet, ip):
@@ -35,16 +35,17 @@ def plan_rows(plan, leases=None):
         found = []
         if s.get("gateway"):
             found.append({"ip": s["gateway"], "kind": "gateway", "name": "", "mac": "", "owner": "", "dns": "",
-                          "notes": ""})
+                          "notes": "", "role": ""})
         for a in s.get("addresses") or []:
             found.append({"ip": a["ip"], "kind": a["kind"], "name": a.get("name") or "", "mac": a.get("mac") or "",
                           "owner": a.get("owner") or "", "dns": "yes" if a.get("dns") else "",
-                          "notes": a.get("notes") or ""})
+                          "notes": a.get("notes") or "", "role": a.get("role") or ""})
         recorded = {f["ip"] for f in found}
         for ip, lease in held.items():
             if ipaddress.ip_address(ip) in net and ip not in recorded:
                 found.append({"ip": ip, "kind": "lease", "name": lease.get("hostname") or "",
-                              "mac": lease.get("mac") or "", "owner": "", "dns": "", "notes": ""})
+                              "mac": lease.get("mac") or "", "owner": "", "dns": "", "notes": "",
+                              "role": ""})
         for f in found:
             ip = ipaddress.ip_address(f["ip"])
             lease = held.get(f["ip"])

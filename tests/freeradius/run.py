@@ -29,6 +29,10 @@ fabric makes them:
   logged as sessions, Start then Stop; `fabricctl radius set-client`,
   `sessions`, `disconnect` and `reauthenticate` (a UniFi session refused,
   a Cisco one acknowledged by a stand-in switch: tests/freeradius/nas_standin.py).
+  On the address plan (1.11.1.7, 1.11.1.8): MAB from a DHCP reservation with a
+  role (on the reservation's VLAN), refused without a role or network:mab, a
+  device's MAC decided by the device alone; a role's VLAN outside the plan
+  refused.
 
     sudo python3 tests/freeradius/run.py      (needs Docker, openssl, root)
 """
@@ -487,6 +491,52 @@ code, _, out = mab("02:00:00:00:99:99")
 check("MAB: an unknown MAC is refused", code == "Access-Reject", out[-400:])
 code, _, out = mab("02:00:00:00:30:01", user="alice")
 check("MAB: a User-Name that is not the calling MAC is refused", code == "Access-Reject", out[-400:])
+
+# ------------------------------------------------------------------ MAB from a DHCP reservation (1.11.1.7, 2.3.11.6)
+# written 2026-10-12, not run (the owner's direction for 0.9). The plan's entries are written as `fabricctl ipam`
+# writes them (write_plan, as the site's agent), and removed after, so nothing below sees them.
+from fabriclib.ipam.write_plan import write_plan  # noqa: E402
+SITE = V["site_name"]
+RESERVED = {"10.1.40.50": ("02:00:00:00:40:01", "cam5", "mab-printers"),
+            "10.1.40.51": ("02:00:00:00:40:02", "cam6", ""), "10.1.40.52": ("02:00:00:00:40:03", "cam7", "dns-only"),
+            "10.1.40.53": ("02:00:00:00:30:02", "cam1r", "mab-printers")}    # cam1's MAC: the device decides
+write_plan(V, SECRETS, [{"do": "add", "what": "vlan", "site": SITE, "key": 40, "fields": {"id": 40, "name": "cams"}},
+                        {"do": "add", "what": "subnet", "site": SITE, "key": "cams",
+                         "fields": {"cidr": "10.1.40.0/24", "vlan": 40, "kind": "lan", "gateway": "10.1.40.1",
+                                    "dhcp": True}}]
+           + [{"do": "add", "what": "address", "site": SITE, "subnet": "cams", "key": ip,
+               "fields": {"ip": ip, "kind": "reservation", "mac": mac, "name": name, "role": role}}
+              for ip, (mac, name, role) in RESERVED.items()], container=DC)
+code, vlan, out = mab("02-00-00-00-40-01", box="rt-cisco", user="020000004001", extra="Service-Type = Call-Check")
+check("MAB from a reservation: a MAC no device has, reserved with a role granting network:mab -> Access-Accept on "
+      "the reservation's VLAN (40, not the role's 30), logged source=reservation",
+      code == "Access-Accept" and vlan == "40"
+      and "ACCEPT method=mab device=cam5 vlan=40 source=reservation" in logs(), out[-800:] + logs()[-600:])
+code, _, out = mab("02:00:00:00:40:02")
+check("MAB from a reservation: a reservation without a role is refused, saying so",
+      code == "Access-Reject" and "device=cam6 reason=reservation_has_no_role source=reservation" in logs(),
+      out[-400:] + logs()[-400:])
+code, _, out = mab("02:00:00:00:40:03")
+check("MAB from a reservation: a role without network:mab is refused",
+      code == "Access-Reject" and "device=cam7 reason=no_role_grants_network:mab source=reservation" in logs(),
+      out[-400:] + logs()[-400:])
+code, _, out = mab("02:00:00:00:30:02")
+check("MAB: a MAC a device has is decided by the device alone, whatever its reservation's role grants",
+      code == "Access-Reject" and "device=cam1r" not in logs(), out[-400:] + logs()[-400:])
+# a role's VLAN names a VLAN of the plan (1.11.1.8): the plan now has VLAN 40
+try:
+    add_role_mod.add_role(V, "test", "badvlan", {"permissions": ["network:mab"], "vlan": "77", "priority": 50})
+    refused_vlan = ""
+except Exception as exc:                 # ValidationError
+    refused_vlan = str(exc)
+add_role_mod.add_role(V, "test", "cams-role", {"permissions": ["network:mab"], "vlan": "40", "priority": 50})
+check("a role's VLAN outside the plan is refused, naming the plan's VLANs; one in the plan is saved",
+      "VLAN 77 is not in" in refused_vlan and "40 (cams)" in refused_vlan
+      and "cams-role" in {r["name"] for r in list_roles(V)} and "badvlan" not in {r["name"] for r in list_roles(V)},
+      refused_vlan)
+run_op(V, SECRETS, "remove_role", {"name": "cams-role"}, DC)
+write_plan(V, SECRETS, [{"do": "remove", "what": "subnet", "site": SITE, "key": "cams"},
+                        {"do": "remove", "what": "vlan", "site": SITE, "key": 40}], container=DC)
 
 # ------------------------------------------------------------------ vendors (1.11.1.2)
 code, vlan, out = mab("02-00-00-00-30-01", box="rt-unifi", user="020000003001", password="020000003001")

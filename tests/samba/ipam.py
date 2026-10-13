@@ -26,6 +26,7 @@ from start_dc import POLICY, start_dc  # noqa: E402
 import fabriclib.ipam.common.edit_plan as m_edit  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.dhcp.normalize_dhcp import normalize_dhcp  # noqa: E402
+from fabriclib.directory.run_op import run_op  # noqa: E402
 from fabriclib.ipam.load_address_plan import load_address_plan  # noqa: E402
 from fabriclib.ipam.move_subnets_to_plan import move_subnets_to_plan  # noqa: E402
 from fabriclib.ipam.read_plan import read_plan  # noqa: E402
@@ -106,7 +107,7 @@ check("...keeping the Kea id, router as gateway, notes, options, the pool as a d
                                                                         ("dhcp", "10.1.20.100", "10.1.20.200")]
       and iot["addresses"] == [{"ip": "10.1.20.20", "kind": "reservation", "name": "cam1", "mac": "aa:bb:cc:dd:ee:01",
                                 "owner": "", "notes": "", "dns": False,
-                                "options": [{"name": "boot-file-name", "data": "cam.bin"}]}], iot)
+                                "options": [{"name": "boot-file-name", "data": "cam.bin"}], "role": ""}], iot)
 check("...the guest subnet's access on its VLAN", next(x for x in after["vlans"] if x["id"] == 1)["access"] == "guest")
 check("...the site given its number (its order in the organisation)",
       read_plan(V, SECRETS, container=DC)["sites"][0]["block"] == 1, lines)
@@ -313,6 +314,29 @@ check("address set: the owner changed", code == 0 and any(
     a["owner"] == "office 2" for s in plan()["subnets"] for a in s["addresses"]), out)
 code, out = ipam("address", "set", "10.1.30.11", "--owner", "x", "--no-apply")
 check("refused: address set on an address nobody recorded", code == 1 and "not recorded" in out, out)
+# a reservation's device role: MAB from a reservation (1.11.1.7, 2.3.11.6); written, not run (2026-10-12)
+for role, perms in (("cams", ["network:mab"]), ("laptops", ["network:eap-tls"])):
+    run_op(V, SECRETS, "save_role", {"name": role, "description": "", "permissions": perms, "vlan": 30,
+                                     "priority": 50, "new": True}, container=DC)
+code, out = ipam("address", "set", "10.1.30.150", "--role", "cams", "--no-apply")
+cam2 = next(a for a in sub("cams")["addresses"] if a["ip"] == "10.1.30.150")
+check("address set --role: the reservation names the role (fabricRoleName, the auxiliary class added), no warning",
+      code == 0 and cam2["role"] == "cams" and "warning" not in out, (out, cam2))
+code, out = ipam("address", "set", "10.1.30.150", "--role", "laptops", "--no-apply")
+check("address set --role with a role without network:mab: recorded, with a warning",
+      code == 0 and "does not grant network:mab" in out
+      and next(a for a in sub("cams")["addresses"] if a["ip"] == "10.1.30.150")["role"] == "laptops", out)
+held = plan()
+# covers: cli:ipam.address -
+code, out = ipam("address", "set", "10.1.30.150", "--role", "cameras", "--no-apply")
+check("refused: a role the directory does not have, naming the roles there are; nothing written",
+      code == 1 and "no device role named cameras" in out and "cams" in out and plan() == held, out)
+code, out = ipam("address", "set", "10.1.30.10", "--role", "cams", "--no-apply")
+check("refused: a role on a static address, nothing written",
+      code == 1 and "only a reservation names a device role" in out and plan() == held, out)
+code, out = ipam("address", "set", "10.1.30.150", "--role", "none", "--no-apply")
+check("address set --role none: the reservation names no role", code == 0
+      and next(a for a in sub("cams")["addresses"] if a["ip"] == "10.1.30.150")["role"] == "", out)
 final = {**V, "install_kea": True, "dhcp": copy.deepcopy(saved["dhcp"])}
 load_address_plan(final, SECRETS, container=DC)
 check("at an apply the static address with DNS on is an A record of the site's zone, the reservation Kea's",
