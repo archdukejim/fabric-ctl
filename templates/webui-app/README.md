@@ -15,6 +15,7 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `freeradius.html` | The freeradius page |
 | `dns_filter.html` | The DNS filter tab |
 | `kea.html` | The kea page |
+| `dhcp_options.html` | The DHCP options page under the Kea tab (`/kea/options`, manual 1.10.4.24.6): the organisation's and the site's option sets, subnets and reservations with their options and netboot presets, a target's effective options with their sources |
 | `openbao.html` | The openbao page |
 | `overview.html` | The overview page |
 | `person_result.html` | The person result page |

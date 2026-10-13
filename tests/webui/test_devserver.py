@@ -77,6 +77,20 @@ try:
     st, loc, _, _ = req("POST", "/kea/reservations", {"csrf": "dev", "mac": "02:00:00:00:00:99", "ip": "192.168.1.30",
                                                       "hostname": "nas"})
     check("Kea tab: reserve -> listed", st == 303 and "192.168.1.30" in req("GET", "/kea")[3], loc)
+    # the DHCP options page (2.1.10.23, 2.1.10.25, manual 1.10.4.24.6)
+    st, _, _, page = req("GET", "/kea/options")
+    check("DHCP options page: the organisation's and the site's sets, subnets with netboot forms, the editors at the "
+          "top, linked from the Kea tab", st == 200 and "The organisation (every site)" in page
+          and "Site home (every subnet here)" in page and 'action="/kea/options/netboot"' in page
+          and 'action="/kea/options/option-editors"' in page and "parents" in page
+          and 'href="/kea/options"' in req("GET", "/kea")[3], st)
+    page = req("GET", "/kea/options?target=subnet:lab")[3]
+    check("DHCP options page: a target's effective options with their sources",
+          "What a client gets: subnet lab" in page and "the subnet&#39;s gateway" in page, page[-300:])
+    st, loc, _, _ = req("POST", "/kea/options/options/org", {"csrf": "dev", "action": "set", "scope": "org",
+                                                             "option": "ntp-servers", "data": "10.1.10.1"})
+    check("DHCP options page: a change -> back to the page with a message (dev preview: nothing saved)",
+          st == 303 and (loc or "").startswith("/kea/options?msg="), loc)
     page = req("GET", "/dns-filter")[3]
     check("DNS filter tab: statistics, the most blocked names, its sections",
           "Last 24 hours" in page and "browser.events.data.msn.com" in page and "?view=querylog" in page)

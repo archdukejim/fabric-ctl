@@ -1,5 +1,6 @@
 from webui import views
 from webui.devpreview.sample_data import (RECORD_TYPES, SAMPLE_CA, SAMPLE_DEVICES, SAMPLE_DHCP, SAMPLE_DOMAIN,
+                                          SAMPLE_EFFECTIVE, SAMPLE_OPTIONS,
                                           SAMPLE_FEDERATION, SAMPLE_GPO, SAMPLE_RADIUS, SAMPLE_ACME, SAMPLE_IMAGES,
                                           SAMPLE_SECURITY, SAMPLE_VAULT, SAMPLE_DNS_FILTER, SAMPLE_QUERY_LOG)
 from webui.devpreview.sample_radius_guides import sample_radius_guides
@@ -7,8 +8,8 @@ from webui.devpreview.sample_radius_guides import sample_radius_guides
 
 def dev_get_page(h, path, query):
     """Purpose: Render the real pages (src/webui/views) with sample or in-memory data: /, /bind9, /stepca, /openbao,
-             /directory, /kea, /dns-filter, /freeradius, /audit, /jobs/<id>, /static/app.css, and /preview/denied
-             (what a refused sign-in looks like). No sign-in, no client certificate, no fabric-agent.
+             /directory, /kea, /kea/options, /dns-filter, /freeradius, /audit, /jobs/<id>, /static/app.css, and
+             /preview/denied (what a refused sign-in looks like). No sign-in, no client certificate, no fabric-agent.
     Inputs:  h — the dev handler (send, state, ctx); path — the URL path; query — dict (msg, err, view, zone, device,
              slot, name).
     Returns: None; sends 200 with the page, 403 for /preview/denied, 404 for anything else.
@@ -80,6 +81,10 @@ def dev_get_page(h, path, query):
             log = {"entries": [e for e in log["entries"] if e["blocked"]]}
         return h.send(200, views.dns_filter(ctx, view, SAMPLE_DNS_FILTER, log, search, query.get("msg", ""),
                                             query.get("err", "")))
+    if path == "/kea/options":           # the DHCP options page (1.10.4.24.6); ?target=… shows the sample's sources
+        target = query.get("target", "")
+        sample = {**SAMPLE_OPTIONS, "effective": SAMPLE_EFFECTIVE if target else None}
+        return h.send(200, views.dhcp_options(ctx, sample, target, query.get("msg", ""), query.get("err", "")))
     if path == "/kea":
         # ?off=1: DHCP off, as a first turn-on shows it (manual 1.10.3.5); ?off=resume: off with settings kept
         sample = SAMPLE_DHCP if not query.get("off") else {

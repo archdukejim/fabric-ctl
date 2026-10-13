@@ -4,6 +4,7 @@
 {% macro unset(o, scope, target) %}{% if can('dhcp:write') %}<form method="post" action="/kea/options/delete" class="inline">{{ csrf() }}<input type="hidden" name="option" value="{{ o.name if o.name is defined else o.code }}"><input type="hidden" name="scope" value="{{ scope }}"><input type="hidden" name="target" value="{{ target }}"><button class="ghost">Remove</button></form>{% endif %}{% endmacro %}
 {% block body %}
 <h1>Kea · DHCP</h1>
+<p><a href="/kea/options">DHCP options, client classes and netboot presets of the address plan →</a></p>
 <p class="flash warn">DHCP is a preview in this release: it works as this tab shows, but it is not finished, and 0.8.0 may change it as it finishes it. It stays off unless you turn it on.</p>
 {% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
 {% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
