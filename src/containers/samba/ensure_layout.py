@@ -2,8 +2,10 @@ import ldb
 
 import paths
 
-# every site's OU holds these (manual 1.6.3.4); the root site's also holds OU=organisation
-SITE_OUS = ("people", "groups", "machines", "devices", "device-roles", "networks", "sudoers", "service-accounts")
+# every site's OU holds these (manual 1.6.3.4); the root site's also holds OU=organisation. OU=fabric-hosts: the site's
+# fabric host, beside OU=machines (2.1.6.49, manual 1.6.11.11)
+SITE_OUS = ("people", "groups", "machines", "devices", "device-roles", "networks", "sudoers", "service-accounts",
+            "fabric-hosts")
 ORGANISATION_OUS = ("groups", "device-roles", "sudoers")
 # each site's OU=machines holds one OU per OS family: a machine is placed in its own once (2.1.6.36, 1.6.11.5)
 MACHINE_OUS = ("linux", "windows")

@@ -8,16 +8,19 @@ from fabriclib.common.console import info, ok, warn
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.keep_original import keep_original
 from fabriclib.consent.check_consent import check_consent
-from fabriclib.consent.plan_member import (HOSTS, KEYTAB, MEMBER_PACKAGES, NSSWITCH, RECORD, SSSD_CONF,
-                                           plan_member)
+from fabriclib.consent.plan_member import (HOSTS, KEYTAB, MEMBER_PACKAGES, NSSWITCH, RECORD, RENEW_PACKAGE,
+                                           SSSD_CONF, plan_member)
 from fabriclib.directory.add_machine import add_machine
+from fabriclib.directory.place_fabric_host import place_fabric_host
 from fabriclib.directory.remove_machine import remove_machine
+from fabriclib.setup.common.apply_host_managed import apply_host_managed
 from fabriclib.setup.common.apt_install import apt_install
 from fabriclib.setup.common.export_keytab import export_keytab
 from fabriclib.setup.common.find_computer import find_computer
 from fabriclib.setup.common.host_identity import host_identity
 from fabriclib.setup.common.missing_packages import missing_packages
 from fabriclib.setup.common.render_member_files import render_member_files
+from fabriclib.setup.common.renew_days import renew_days
 from fabriclib.setup.errors import SetupError
 
 NSS_DATABASES = ("passwd", "group", "sudoers")
@@ -61,6 +64,40 @@ def _keys(data):
     except (struct.error, IndexError, UnicodeDecodeError):
         return set()
     return out
+
+
+def _answers(server):
+    """Purpose: whether a writable DC answers over LDAP (its rootDSE, read anonymously from inside this site's DC):
+             a read-only DC's site writes the host's account there (2.1.6.52).
+    Inputs:  server — the writable DC's address.
+    Returns: bool.
+    Fails:   never.
+    Feeds:   run."""
+    try:
+        res = subprocess.run(["docker", "exec", "samba", "ldbsearch", "-H", f"ldap://{server}", "--use-kerberos=off",
+                              "-s", "base", "-b", "", "defaultNamingContext"], capture_output=True, text=True,
+                             timeout=60)
+    except subprocess.TimeoutExpired:
+        return False
+    return res.returncode == 0 and "defaultNamingContext" in res.stdout
+
+
+def _preload(account, server):
+    """Purpose: have this site's read-only DC cache the host's account now (its password included), from the
+             writable DC: the account is in <site>-rodc-cache, on the read-only DC's allow list (2.1.6.52), so the
+             host's keys can be exported here and its sign-ins work with the link down.
+    Inputs:  account — the account's name without its $; server — the writable DC's address.
+    Returns: None.
+    Fails:   SetupError when the read-only DC cannot cache it (the writable DC refuses: not on the allow list).
+    Feeds:   run."""
+    res = subprocess.run(["docker", "exec", "samba", "samba-tool", "rodc", "preload", f"{account}$",
+                          f"--server={server}", "-s", "/data/etc/smb.conf"], capture_output=True, text=True,
+                         timeout=120)
+    if res.returncode != 0:
+        raise SetupError(f"this site's read-only domain controller could not cache {account}$ from {server}: "
+                         f"{(res.stderr or res.stdout).strip()[-300:]} (the site's <site>-rodc-cache group must be on "
+                         "its password replication allow list, which setup writes at the site's join: manual "
+                         "1.6.11.13)")
 
 
 def _with_sss(text):
@@ -155,9 +192,10 @@ def _record_before(config_dir):
         json.dump(before, f)
 
 
-def _recorded_account(config_dir):
-    """Purpose: the host's own computer account fabric made in the domain, as RECORD keeps it.
-    Inputs:  config_dir — the install's config folder (None: tests on a scratch tree).
+def _recorded(config_dir, key):
+    """Purpose: what RECORD keeps under a key: "account", the host's own computer account fabric made in the domain;
+             "placed", the account fabric made the site's fabric host (OU=fabric-hosts, 2.1.6.49), once.
+    Inputs:  config_dir — the install's config folder (None: tests on a scratch tree); key — str.
     Returns: str (e.g. "FAB1") or None.
     Fails:   OSError / ValueError reading a damaged RECORD.
     Feeds:   run."""
@@ -165,13 +203,14 @@ def _recorded_account(config_dir):
     if not config_dir or not os.path.exists(path):
         return None
     with open(path) as f:
-        return json.load(f).get("account")
+        return json.load(f).get(key)
 
 
-def _record_account(config_dir, account):
-    """Purpose: keep the name of the host's own computer account in RECORD (after _record_before), so the undo
-             removes it and a later run knows the account is this host's.
-    Inputs:  config_dir — the install's config folder (None: nothing kept); account — str, or None to forget it.
+def _record(config_dir, key, value):
+    """Purpose: keep a value in RECORD (after _record_before): the host's own account's name ("account"), so the undo
+             removes it and a later run knows the account is this host's; the account placed ("placed"), so it is
+             placed once and an admin's later move is kept.
+    Inputs:  config_dir — the install's config folder (None: nothing kept); key — str; value — str, or None to forget.
     Returns: None; RECORD rewritten (0600).
     Fails:   OSError / ValueError on RECORD.
     Feeds:   run."""
@@ -180,7 +219,7 @@ def _record_account(config_dir, account):
         return
     with open(path) as f:
         record = json.load(f)
-    record["account"] = account
+    record[key] = value
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as f:
         json.dump(record, f)
@@ -202,29 +241,37 @@ def _write(path, data, mode):
 
 
 def run(ctx):
-    """Purpose: make the fabric host a member of its own domain (manual 1.6.11.8, decisions 2.1.6.34, 2.1.6.48): it
-             signs in with its own computer account `<HOSTNAME>$` in the site's OU=machines/OU=linux, pre-created
-             as `fabricctl domain add-machine` makes one (not a fabric-machine), so the site's group policy reaches
-             it; the fabric admins (fabric-admins, <site>-fabric-admins) sign in to it with their domain accounts
-             where the OU's log-on policy allows them, and have sudo from the site's rules. Where the host cannot
-             have its own account (setup/common/host_identity), its DC's account as before 2.1.6.48, said so.
-             Local accounts, root and local sudo are untouched.
-    Inputs:  ctx — SetupContext: vars (host_join_domain, default true; the domain's names: render_member_files,
-             plan_member, host_identity), config_dir (the `member` consent; the kept originals; RECORD), offline,
-             secrets (the site's agent account, which creates the host's account).
+    """Purpose: make the fabric host a member of its own domain (manual 1.6.11.8, decisions 2.1.6.34, 2.1.6.48,
+             2.1.6.49, 2.1.6.52): it signs in with its own computer account `<HOSTNAME>$`, pre-created as `fabricctl
+             domain add-machine` makes one and placed once in the site's OU=fabric-hosts and <site>-fabric-machines, so
+             the site's group policy reaches it; whom that OU's log-on policy allows (the fabric admins by default,
+             2.1.6.53) sign in to it with their domain accounts, with sudo from the site's rules; while the account is
+             in <site>-fabric-machines, fabric manages the host (setup/common/apply_host_managed: Kerberos for SSH, the
+             domain's names from fabric's DNS; local accounts' sign-in untouched). At a site whose DC is read-only, the
+             account is written at the writable DC it replicates from, put in <site>-rodc-cache and cached by the
+             read-only DC (2.1.6.52); with that DC not answering, refused. Local accounts, root and local sudo are
+             untouched.
+    Inputs:  ctx — SetupContext: vars (host_join_domain, default true; host_machine_password_renew_days; the
+             domain's names: render_member_files, plan_member, host_identity), config_dir (the `member` consent; the
+             kept originals; RECORD), offline, secrets (the site's agent account, which creates and places the host's
+             account).
     Returns: None. Skipped (said so) with host_join_domain false or the consent declined. Otherwise, after the
              consent and with each host file kept before its first change (common/keep_original): the packages
-             installed when missing; the host's own account created when missing (recorded in RECORD); an account
-             fabric made for this host under an earlier name removed; /etc/krb5.keytab (0600) with the account's
-             current keys (an install whose keytab held the DC's account moves to its own: the keytab replaced);
-             /etc/krb5.conf and /etc/sssd/sssd.conf (0600); sss in nsswitch.conf for passwd, group and sudoers;
-             PAM's sss and mkhomedir profiles on; the DC's name in /etc/hosts when the host cannot resolve it; the
-             classic sudo where sudo-rs is the default; sssd enabled and restarted when anything changed.
-             Idempotent: a second run changes nothing.
-    Fails:   SetupError: offline with packages missing; a computer of the host's name in the domain that fabric
-             did not make for it; the DC not answering (find_computer) or not exporting the keys (export_keytab);
-             the directory refusing the account (add_machine's ValidationError); apt (apt_install).
-             CalledProcessError from pam-auth-update, update-alternatives or systemctl; OSError on the files.
+             installed when missing (adcli too while the password is renewed); the host's own account created when
+             missing (recorded in RECORD) and placed once (recorded); an account fabric made for this host under an
+             earlier name removed; /etc/krb5.keytab (0600) with the account's current keys (an install whose keytab
+             held the DC's account moves to its own: the keytab replaced); /etc/krb5.conf and /etc/sssd/sssd.conf
+             (0600); sss in nsswitch.conf for passwd, group and sudoers; PAM's sss and mkhomedir profiles on; the
+             DC's name in /etc/hosts when the host cannot resolve it; the classic sudo where sudo-rs is the default;
+             sssd enabled and restarted when anything changed; fabric's management applied or removed as the
+             account's membership says. Idempotent: a second run changes nothing.
+    Fails:   SetupError: a domain controller with this host's name (2.1.6.51), or a read-only DC's site whose writable
+             DC does not answer (2.1.6.52), before anything changes; the read-only DC not caching the account;
+             offline with packages missing; a computer of the host's name in the domain that fabric did not make
+             for it; the DC not answering (find_computer) or not exporting the keys (export_keytab); sshd refusing its
+             configuration (apply_host_managed: nothing loaded); apt (apt_install). ValidationError: the directory
+             refusing the account (add_machine, place_fabric_host). CalledProcessError from pam-auth-update,
+             update-alternatives or systemctl; OSError on the files.
     Feeds:   setup step `member`, run by run_setup via STEPS."""
     v = ctx.vars
     if v.get("host_join_domain", True) is False:
@@ -235,31 +282,50 @@ def run(ctx):
         ok("no AD domain to join")
         return
     ident = host_identity(v)
-    if not ident["own"]:
-        warn(f"this host signs in with its domain controller's account {ident['account']}$, not its own: "
-             f"{ident['why']} (manual 1.6.11.8)")
+    if ident["refused"]:
+        raise SetupError(f"this host cannot be a member of its domain: {ident['refused']} (decisions 2.1.6.51, "
+                         "2.1.6.52). Give the domain controller another name (dc_name) before the domain is made, or "
+                         "leave this host out of it (host_join_domain: false); nothing was changed (manual 1.6.11.8)")
+    server = ident["write_server"]                 # a read-only DC's site: written at its writable partner (2.1.6.52)
     current = _read(KEYTAB, "rb")
-    recorded = _recorded_account(ctx.config_dir)
-    found = find_computer(ident["account"]) if ident["own"] else {"dn": "the DC's"}
-    if found and ident["own"] and recorded != ident["account"] and not any(
+    recorded = _recorded(ctx.config_dir, "account")
+    found = find_computer(ident["account"])
+    if found and recorded != ident["account"] and not any(
             k[0].upper().startswith(f"{ident['account']}$@") for k in _keys(current)):
         raise SetupError(f"the domain already has a computer named {ident['account']} ({found['dn']}) that fabric "
                          "did not make for this host: remove it in the web console (Directory → Machines) or rename "
                          "this host, then run `sudo fabricctl setup --step member` again (manual 1.6.11.8)")
-    missing = missing_packages(MEMBER_PACKAGES)
+    missing = missing_packages(MEMBER_PACKAGES + ([RENEW_PACKAGE] if renew_days(v) else []))
     files = render_member_files(v)
-    keytab = export_keytab(ident["principals"]) if found else None
-    stale = recorded if ident["own"] and recorded and recorded != ident["account"] else None
+    keytab = None
+    if found:
+        try:
+            keytab = export_keytab(ident["principals"])
+        except SetupError:
+            if not server or not _answers(server):     # a read-only DC that does not cache it yet: preloaded below
+                raise
+    stale = recorded if recorded and recorded != ident["account"] else None
     hosts_line = None if _resolves(v["hostname_dc"], v["host_ip"]) else f"{v['host_ip']} {v['hostname_dc']}\n"
     nss = _read(NSSWITCH) or ""
+    # placed once per account (2.1.6.49): an admin's later move, or taking it out of the group, is kept
+    place = _recorded(ctx.config_dir, "placed") != ident["account"]
+    group = f"cn={str(v.get('site_name') or '').lower()}-fabric-machines,"
+    managed = place or any(g.lower().startswith(group) for g in (found or {}).get("member_of", []))
+    host_changes = apply_host_managed(v, managed, dry=True)
     todo = (missing or not found or stale or _keys(keytab) != _keys(current)
             or any(_read(p) != c for p, c in files.items()) or _with_sss(nss) != nss or hosts_line
-            or len(_pam_on()) < 2 or _sudo_rs() or not _sssd_on())
+            or len(_pam_on()) < 2 or _sudo_rs() or not _sssd_on() or place or host_changes)
     if not todo:
         ok("this host is a member of its domain (nothing to change)")
         return
     if missing and ctx.offline:
         raise SetupError(f"offline install but packages are missing: {' '.join(missing)}")
+    if server and (not found or place or stale or keytab is None) and not _answers(server):
+        raise SetupError(f"this site's domain controller is read-only, so the host's account is made at the writable "
+                         f"domain controller it replicates from ({server}), which does not answer. Bring the link "
+                         "back (`fabricctl federation status`), then run `sudo fabricctl setup --step member` again; "
+                         "or leave this host out of its domain (host_join_domain: false). Nothing was changed "
+                         "(decision 2.1.6.52, manual 1.6.11.13)")
     if not check_consent(ctx.config_dir, "member", plan):
         return
     _record_before(ctx.config_dir)
@@ -273,13 +339,25 @@ def run(ctx):
     if not found:
         # a random password the domain's policy accepts, never shown nor kept: the keytab is all the host needs
         add_machine(v, "fabricctl setup", ident["account"].lower(), source="setup", secrets=ctx.secrets,
-                    os="linux", managed=False)
-        _record_account(ctx.config_dir, ident["account"])
+                    os="linux", managed=False, server=server)
+        _record(ctx.config_dir, "account", ident["account"])
+        ok(f"the domain: this host's own computer account {ident['account']}$ made"
+           + (f" at the writable domain controller {server}" if server else ""))
+    elif recorded != ident["account"]:
+        _record(ctx.config_dir, "account", ident["account"])     # made before it was recorded (its keys are here)
+    if place:
+        done = place_fabric_host(v, "fabricctl setup", ident["account"], source="setup", secrets=ctx.secrets,
+                                 server=server)
+        _record(ctx.config_dir, "placed", ident["account"])
+        ok(f"the domain: {ident['account']}$ is {v.get('site_name')}'s fabric host, managed by fabric "
+           f"({'moved into ' if done.get('moved') else 'in '}OU=fabric-hosts, in {v.get('site_name')}-fabric-machines"
+           + (f", in {v.get('site_name')}-rodc-cache" if server else "") + ")")
+    if server and (not found or place or keytab is None):
+        _preload(ident["account"], server)
+        ok(f"this site's read-only domain controller caches {ident['account']}$ "
+           f"(its password replicated from {server})")
+    if not found or keytab is None:
         keytab = export_keytab(ident["principals"])
-        ok(f"the domain: this host's own computer account {ident['account']}$ in {v.get('site_name')}'s "
-           "OU=machines/OU=linux")
-    elif ident["own"] and recorded != ident["account"]:
-        _record_account(ctx.config_dir, ident["account"])      # made before it was recorded (its keys are here)
     if _keys(keytab) != _keys(_read(KEYTAB, "rb")):
         held = {k[0].split("@")[0].upper() for k in _keys(_read(KEYTAB, "rb"))}
         moved = bool(held) and f"{ident['account']}$" not in held
@@ -289,7 +367,7 @@ def run(ctx):
            + (" (it held another account's: replaced)" if moved else ""))
     if stale:
         try:
-            remove_machine(v, "fabricctl setup", stale.lower(), source="setup", secrets=ctx.secrets)
+            remove_machine(v, "fabricctl setup", stale.lower(), source="setup", secrets=ctx.secrets, server=server)
             ok(f"the domain: {stale}$, this host's account under its earlier name, removed")
         except ValidationError as e:
             warn(f"the domain: {stale}$, this host's account under its earlier name, not removed ({e}): remove it "
@@ -318,5 +396,8 @@ def run(ctx):
         subprocess.run(["systemctl", "enable", "sssd"], check=True, capture_output=True)
         subprocess.run(["systemctl", "restart", "sssd"], check=True, capture_output=True)
         ok("sssd enabled and restarted")
-    ok(f"this host is a member of {v['ad_domain']}: fabric-admins and {v.get('site_name')}-fabric-admins sign in "
-       "with their domain accounts")
+    for line in apply_host_managed(v, managed):
+        ok(line)
+    ok(f"this host is a member of {v['ad_domain']}: whom OU=fabric-hosts' log-on policy allows signs in with a "
+       "domain account (the fabric admins by default, 2.1.6.53)"
+       + ("; fabric manages it (manual 1.6.11.11)" if managed else ""))

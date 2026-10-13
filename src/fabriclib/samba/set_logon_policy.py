@@ -7,6 +7,7 @@ from fabriclib.common.vars_lock import vars_lock
 from fabriclib.common.write_audit import write_audit
 from fabriclib.directory.run_op import run_op
 from fabriclib.samba.check_logon_policies import check_logon_policies
+from fabriclib.samba.host_logon_default import HOSTS_OU, host_logon_default
 from fabriclib.samba.logon_ou_path import logon_ou_path
 from fabriclib.secrets.load_secrets import load_secrets
 
@@ -44,7 +45,8 @@ def set_logon_policy(v, actor, ou, console=None, remote=None, source="cli", secr
         if policies is None:                  # the first edit: today's rights become the site OU's policy
             policies = {"": {"console": list(found["legacy"]), "remote": list(found["legacy"])}}
         policies = check_logon_policies(policies)
-        now = policies.get(path) or {"console": [], "remote": []}
+        now = policies.get(path) or (host_logon_default(v.get("site_name", "")) if path == HOSTS_OU
+                                     else {"console": [], "remote": []})
         policies[path] = {"console": now["console"] if console is None else list(console),
                           "remote": now["remote"] if remote is None else list(remote)}
         policies = check_logon_policies(policies)

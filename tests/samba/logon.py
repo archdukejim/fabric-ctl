@@ -110,7 +110,9 @@ for g in samdb.search(base=f"CN=Policies,CN=System,{base}", scope=ldb.SCOPE_ONEL
         "inf": open(inf, "rb").read().decode("utf-16") if os.path.exists(inf) else None}
 print(json.dumps(out))
 """
-GROUPS = ["lan-users", "lan-admins", "lan-machine-admins", "fabric-break-glass", "admins"]
+GROUPS = ["lan-users", "lan-admins", "lan-machine-admins", "fabric-break-glass", "admins", "fabric-admins",
+          "lan-fabric-admins"]
+HOSTS_GPO = "fabric: lan log-on fabric-hosts"     # the site's fabric host's OU: a policy of its own (2.1.6.53)
 
 
 def probe():
@@ -137,7 +139,17 @@ check("logon_policies null: the site's one log-on GPO as before 0.9, linked to t
       "admins both rights (2.1.6.44)",
       legacy.get("links") == [SITE_OU] and SID["lan-users"] in rights(legacy.get("inf"))["console"]
       and rights(legacy.get("inf"))["console"] == rights(legacy.get("inf"))["remote"]
-      and not [n for n in p["gpos"] if n.startswith("fabric: lan log-on ") and n != "fabric: lan log-on rights"], p)
+      and not [n for n in p["gpos"] if n.startswith("fabric: lan log-on ")
+               and n not in ("fabric: lan log-on rights", HOSTS_GPO)], p)
+hosts = p.get("gpos", {}).get(HOSTS_GPO) or {}
+r = rights(hosts.get("inf"))
+check("the site's OU=fabric-hosts carries its own log-on policy by default, also beside the legacy one: the fabric "
+      "admins (fabric-admins, lan-fabric-admins) at the keyboard and remotely, with break-glass and local "
+      "Administrators; the site's people not (2.1.6.53)",
+      hosts.get("links") == [f"OU=fabric-hosts,{SITE_OU}"]
+      and r.get("console") == [SID["fabric-admins"], SID["lan-fabric-admins"], SID["fabric-break-glass"],
+                               "S-1-5-32-544"]
+      and r.get("console") == r.get("remote") and SID["lan-users"] not in r.get("console", []), (hosts, SID))
 
 # an OU below machines for a policy of its own (an admin's sub-OU)
 add = (f"dn: OU=lab,OU=machines,{SITE_OU},{V['ad_base_dn']}\nobjectClass: organizationalUnit\n")
@@ -147,8 +159,10 @@ check("an admin's sub-OU, OU=lab under OU=machines", made.returncode == 0, made.
 
 code, out = domain("logon", "show")
 # covers: cli:domain.logon +
-check("logon show, before any edit: the site's OU with today's rights, read in the domain, and what is always kept",
+check("logon show, before any edit: the site's OU with today's rights, read in the domain, the fabric hosts' OU with "
+      "its default, and what is always kept",
       code == 0 and "before 0.9" in out and "site: console lan-users, lan-admins" in out
+      and "fabric-hosts: console fabric-admins, lan-fabric-admins" in out
       and "fabric-break-glass, BUILTIN\\Administrators" in out, out)
 code, out = domain("logon", "set", "machines", "--console", "lan-admins", "--remote", "lan-admins,lan-machine-admins")
 check("logon set machines: saved, applied", code == 0 and "machines: console lan-admins; remote lan-admins, "
@@ -229,7 +243,7 @@ print("--- the agent's routes (the web console's Machines section)")
 got = m_get.get_route(["domain", "logon"])
 # covers: agent:get.domain.logon +
 check("GET /v1/domain/logon: each OU's policy and what is always kept",
-      [x["ou"] for x in got["policies"]] == ["machines", "machines/lab"] and not got["legacy"]
+      [x["ou"] for x in got["policies"]] == ["fabric-hosts", "machines", "machines/lab"] and not got["legacy"]
       and "fabric-break-glass" in got["always"], got)
 done = m_post.post_domain(["domain", "logon", "set"], "alice",
                           {"ou": "machines/lab", "console": ["lan-admins"], "remote": ["lan-admins"]})
@@ -313,7 +327,20 @@ back = converge_domain(settings(), FED, SECRETS, container=DC)
 gp = probe()["gpos"]
 check("logon_policies null again: the site's legacy log-on GPO, linked to its OU, and no per-OU one left to override "
       "it", (gp.get("fabric: lan log-on rights") or {}).get("links") == [SITE_OU]
-      and [n for n in gp if n.startswith("fabric: lan log-on ")] == ["fabric: lan log-on rights"], back)
+      and sorted(n for n in gp if n.startswith("fabric: lan log-on ")) == [HOSTS_GPO, "fabric: lan log-on rights"],
+      back)
+
+print("--- the fabric hosts' OU: its policy is the one gate on the appliance, changed like any OU's (2.1.6.53)")
+code, out = domain("logon", "set", "fabric-hosts", "--console", "lan-fabric-admins,lan-users")
+r = rights((probe()["gpos"].get(HOSTS_GPO) or {}).get("inf"))
+check("logon set fabric-hosts: the OU's policy replaced by the setting's (the console now lan-fabric-admins and "
+      "lan-users); the right left out keeps the default's groups",
+      code == 0 and r.get("console", [])[:2] == [SID["lan-fabric-admins"], SID["lan-users"]]
+      and r.get("remote", [])[:2] == [SID["fabric-admins"], SID["lan-fabric-admins"]], (out, r))
+code, out = domain("logon", "clear", "fabric-hosts")
+r = rights((probe()["gpos"].get(HOSTS_GPO) or {}).get("inf"))
+check("logon clear fabric-hosts: back to the default (the fabric admins), never to its parent's or nobody",
+      code == 0 and r.get("console", [])[:2] == [SID["fabric-admins"], SID["lan-fabric-admins"]], (out, r))
 
 if not os.environ.get("FABRIC_TEST_KEEP"):
     cleanup()

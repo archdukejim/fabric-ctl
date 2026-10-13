@@ -36,6 +36,7 @@ account, so AD's per-site limits apply to it.
 | `list_machines.py` | This site's machines in the domain (the Directory tab's Machines) |
 | `set_machine_enabled.py` | Disable a machine of this site, or enable it again (audited) |
 | `remove_machine.py` | Remove a machine of this site from the domain (audited) |
+| `place_fabric_host.py` | The fabric host's own account made the site's fabric host: OU=fabric-hosts, <site>-fabric-machines (audited, manual 1.6.11.11) |
 | `list_host_groups.py` | This site's host groups (`<site>-hosts-<name>`), their machines and the sudo rules naming each (1.6.11.7) |
 | `create_host_group.py` | A new host group in this site's OU=groups (audited) |
 | `remove_host_group.py` | Delete a host group, refused while a sudo rule names it (audited) |

@@ -24,6 +24,8 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `set_logon_policy.py` | Who may sign in to one OU's machines, saved (groups checked in the domain; the first edit keeps today's rights as the site OU's; audited) |
 | `clear_logon_policy.py` | One OU's log-on policy removed (it takes its parent's; never leaving the site's machines without one; audited) |
 | `logon_overview.py` | Who may sign in, per OU: `logon show`, domain status, the web console's Machines section |
+| `host_logon_default.py` | The log-on policy of the site's OU=fabric-hosts while the setting names none: the fabric admins (2.1.6.53) |
+| `allow_rodc_cache.py` | At a site whose DC is read-only: puts `<site>-rodc-cache` on that DC's password replication allow list, at the writable DC (2.1.6.52) |
 | `gpo_request.py` | One ADMX-editor operation inside the DC (`gpo_tool.py`), the request on stdin |
 | `run_gpo_command.py` | `fabricctl gpo load / templates / list / show / set / clear / starter` |
 | `domain_overview.py` | The Directory tab's domain section: the DC, the policy, this site's machines |

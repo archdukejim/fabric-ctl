@@ -11,7 +11,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `repair_role_owners.py` | The roles this DC holds named by its current DN (a renamed AD site left the old text, 1.6.5.24) |
 | `ensure_schema.py` | fabric's and sudo's attributes and classes in AD's schema, added once (OIDs AD accepts, Q3) |
 | `ensure_layout.py` | `OU=sites`, the site's OU tree, `OU=organisation` at the root site; new users and computers into it |
-| `ensure_groups.py` | `<site>-users`, `<site>-admins` (gids from the site's block); at the root site fabric's groups (`ldap_groups`, their gids), Domain Users as `users` (5000), `fabric-break-glass` |
+| `ensure_groups.py` | `<site>-users`, `<site>-admins` (gids from the site's block), `<site>-rodc-cache` (the accounts a read-only DC caches, 2.1.6.52); at the root site fabric's groups (`ldap_groups`, their gids), Domain Users as `users` (5000), `fabric-break-glass` |
 | `ensure_site_info.py` | The site's uid/gid block and its high-water mark on its OU (2.1.6.17); a laid-out block's mark per range (2.1.6.46) |
 | `alloc_id.py` | The next number of a site's block for one use (its range, or an older block's one run), taken with one conditional change (never twice) |
 | `ensure_sso_account.py` | The site's `fabric-sso` account: Keycloak's Kerberos SPNs, AES only, its keytab exported to `/data/sso.keytab` |
@@ -25,7 +25,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `ensure_gpo.py` | One of fabric's GPOs created, linked, its SYSVOL files written, its version bumped on change |
 | `root_ca_policy.py` | The Registry.pol that makes fabric's root CA a trusted root on Windows (Q13) |
 | `logon_rights_policy.py` | The GptTmpl.inf granting log-on to a site's machines, at the keyboard and remotely (2.1.6.14, Q16, 1.6.11.4) |
-| `ensure_logon_policies.py` | Who may sign in to the site's machines: one log-on GPO per OU of `logon_policies` (or, null, the site's legacy one), the ones no longer wanted removed (1.6.11.4) |
+| `ensure_logon_policies.py` | Who may sign in to the site's machines: one log-on GPO per OU of `logon_policies` (or, null, the site's legacy one), the ones no longer wanted removed; OU=fabric-hosts always has one, the fabric admins by default (1.6.11.4, 2.1.6.53) |
 | `legacy_logon_groups.py` | The groups a site grants log-on to while it has no per-OU policies (as before 0.9, 2.1.6.44) |
 | `logon_groups.py` | Operation `logon_groups`: which named groups do not exist, and the site's legacy log-on groups (the editor's first edit) |
 | `find_gpo.py` | A GPO found by its display name |
@@ -69,8 +69,9 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `admx_store.py` | The domain's central store: templates saved, and every policy they define read as Windows' editor reads them |
 | `policy_entries.py` | What a policy writes to the registry (enabled with its elements, disabled), and which values are its own |
 | `admin_gpo.py` | The site's `fabric: <site> admin settings` GPO: what it sets, and writing it |
-| `list_machines.py` | Operation `list_machines`: the site's computer accounts (Windows and Linux) with state and last logon |
-| `find_machine.py` | A machine of the site by its name (for set_machine and remove_machine) |
+| `list_machines.py` | Operation `list_machines`: the site's computer accounts (Windows and Linux, and its fabric host) with state and last logon |
+| `find_machine.py` | A machine of the site by its name, in its OU=machines or OU=fabric-hosts (for set_machine, remove_machine, place_fabric_host) |
+| `place_fabric_host.py` | Operation `place_fabric_host`: the site's fabric host's account moved into OU=fabric-hosts, made a member of <site>-fabric-machines (and <site>-rodc-cache at a read-only DC's site, 2.1.6.52), marked as the fabric host (manual 1.6.11.11) |
 | `set_machine.py` | Operation `set_machine`: disable a machine, or enable it again |
 | `remove_machine.py` | Operation `remove_machine`: a machine removed from the domain |
 | `find_person.py` | A person of the site by user name, in its own OU=people (for set_person and remove_person) |
@@ -84,6 +85,6 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `id_layout.py` | The fixed ranges inside a site's id block (offsets by kind) and whether a block is laid out in them (2.1.6.46) |
 | `read_dc_names.py` | The domain's computer names, its DCs apart (a parent refuses a joining site's DC a name in use, 2.1.6.45) |
 | `read_sites.py` | Every site in the domain: its name, where its OU sits and its uid/gid block (a parent hands out a free block, and recognises a site moving under it) |
-| `site_roles.py` | The five roles that administer a site, each its own group (2.1.9.13) |
+| `site_roles.py` | The five roles that administer a site, each its own group (2.1.9.13); the site's rodc-cache group's name (2.1.6.52) |
 | `acl_entries.py` | Access entries added once (compared parsed, object entries by their attribute) and a principal's SID |
 | `remove_ipv6_records.py` | The AD zones on IPv4 only (2.1.6.29): every AAAA record removed (the DC listens on IPv4) |

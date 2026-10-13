@@ -1,0 +1,8 @@
+[Unit]
+Description=fabric: this fabric host's own management, as its account's fabric-machines membership says (manual 1.6.11.11)
+After=docker.service fabric.target sssd.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/fabricctl domain host-managed --scheduled

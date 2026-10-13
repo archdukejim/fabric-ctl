@@ -2,6 +2,7 @@ import datetime
 
 import ldb
 
+from find_machine import MACHINE_OUS
 from paths import site_dn
 
 ACCOUNTDISABLE = 0x2
@@ -25,17 +26,23 @@ def _when(filetime):
 
 def list_machines(samdb, lp, site):
     """Purpose: the site's machines (manual 1.6.7.6, 1.6.5.21 S7.4): the computer accounts in its OU=machines,
-             Windows and Linux alike.
+             Windows and Linux alike, and its fabric host in OU=fabric-hosts (1.6.11.11).
     Inputs:  samdb — SamDB (as the site's agent); lp — LoadParm (unused); site — str.
     Returns: list of {"name" (the host name, lower case), "dns", "os", "enabled", "last_logon" (ISO or ""),
              "created" (ISO), "dn"}, sorted by name.
     Fails:   ldb.LdbError from the search.
     Feeds:   directory_ops (op "list_machines")."""
-    out = []
-    for m in samdb.search(base=f"OU=machines,{site_dn(samdb, site)}", scope=ldb.SCOPE_SUBTREE,
-                          expression="(objectCategory=computer)",
-                          attrs=["sAMAccountName", "dNSHostName", "operatingSystem", "userAccountControl",
-                                 "lastLogonTimestamp", "whenCreated"]):
+    out, found = [], []
+    for ou in MACHINE_OUS:
+        try:
+            found += samdb.search(base=f"OU={ou},{site_dn(samdb, site)}", scope=ldb.SCOPE_SUBTREE,
+                                  expression="(objectCategory=computer)",
+                                  attrs=["sAMAccountName", "dNSHostName", "operatingSystem", "userAccountControl",
+                                         "lastLogonTimestamp", "whenCreated"])
+        except ldb.LdbError as e:
+            if e.args[0] != ldb.ERR_NO_SUCH_OBJECT:      # an OU not converged yet holds nothing
+                raise
+    for m in found:
         one = lambda name: str(m.get(name, idx=0) or "")    # noqa: E731
         created = one("whenCreated")
         out.append({"name": one("sAMAccountName").rstrip("$").lower(), "dns": one("dNSHostName"),

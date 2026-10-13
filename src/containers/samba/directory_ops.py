@@ -11,6 +11,7 @@ from list_machines import list_machines
 from list_sudo_rules import list_sudo_rules
 from logon_groups import logon_groups
 from list_people import list_people
+from place_fabric_host import place_fabric_host
 from read_devices import read_devices
 from read_networks import read_networks
 from read_plan import read_plan
@@ -46,6 +47,7 @@ OPS = {
     "list_sudo_rules": list_sudo_rules,
     "logon_groups": logon_groups,
     "list_people": list_people,
+    "place_fabric_host": place_fabric_host,
     "read_devices": read_devices,
     "read_networks": read_networks,
     "read_plan": read_plan,

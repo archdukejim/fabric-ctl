@@ -1,5 +1,6 @@
 from fabriclib.consent.plan_member import KRB5_CONF, SSSD_CONF
 from fabriclib.setup.common.host_identity import host_identity
+from fabriclib.setup.common.renew_days import renew_days
 
 HEAD = "# fabric: written by fabricctl setup (manual 1.6.11.8); `fabricctl setup --undo member` restores the original\n"
 
@@ -18,35 +19,15 @@ def _sudo_search_base(site_dn, org_dn):
     return "".join(bases) + f"OU=sudoers,{org_dn}?onelevel?"
 
 
-def _access(ident, domain, site, site_dn, org_dn):
-    """Purpose: sssd's access lines. With the host's own account (2.1.6.48): AD's access provider, so the log-on
-             policy of the host's OU applies as on every joined machine (GPO access control enforcing), and on top
-             of it the fabric admins only (an access filter: members, nested too, of `<site>-fabric-admins` or
-             `fabric-admins`). With the DC's account (2.1.6.34; no OU's policy reaches a DC's account): the fabric
-             admins only, by sssd's simple access provider.
-    Inputs:  ident — host_identity's answer; domain — the AD domain; site — the site's name; site_dn, org_dn — the
-             site's and the organisation's OU (full DNs).
-    Returns: str, the access lines of the [domain/…] section.
-    Fails:   never.
-    Feeds:   render_member_files."""
-    if not ident["own"]:
-        return f"access_provider = simple\nsimple_allow_groups = fabric-admins, {site}-fabric-admins\n"
-    chain = "memberOf:1.2.840.113556.1.4.1941:="           # AD's matching rule for nested membership
-    # DOM:<domain>: is required: without it sssd takes the matching rule's colons for a prefix of its own and denies
-    # everyone (found by the sandbox suite)
-    return ("access_provider = ad\n"
-            "ad_gpo_access_control = enforcing\n"
-            f"ad_access_filter = DOM:{domain}:(|({chain}CN={site}-fabric-admins,OU=groups,{site_dn})"
-            f"({chain}CN=fabric-admins,OU=groups,{org_dn}))\n")
-
-
 def render_member_files(v):
     """Purpose: the Kerberos and SSSD files that make the fabric host a member of its own domain (manual 1.6.11.8),
              written as the Linux join writes them (1.6.7.3) but against this host's own DC: with the host's own
-             account (2.1.6.48), the log-on policy of its OU and the fabric admins only (_access); sudo from the
-             site's rules; no dynamic DNS (the DC keeps its own records).
+             account (2.1.6.48), the log-on policy of its OU alone (no access filter, 2.1.6.53); sudo from the
+             site's rules; no dynamic DNS (the DC keeps its own records); the machine password renewed after
+             host_machine_password_renew_days, or never (0, the default, 1.6.11.12).
     Inputs:  v — vars: ad_domain, ad_realm, ad_base_dn, ad_site_ou, ad_org_ou, hostname_dc, site_name (or
-             hostname), and what host_identity reads (hostname, dc_name, ad_dc_type). All of them follow strict
+             hostname), host_machine_password_renew_days, and what host_identity reads (hostname, dc_name,
+             ad_dc_type). All of them follow strict
              rules (domain labels, a site name), so they go in as they are (manual 1.1.5.7).
     Returns: {KRB5_CONF: str, SSSD_CONF: str}, each starting with fabric's marker line (HEAD).
     Fails:   KeyError when ad_domain, ad_realm or hostname_dc is missing.
@@ -77,12 +58,17 @@ def render_member_files(v):
             "services = nss, pam, sudo\n"
             f"\n[domain/{domain}]\n"
             "id_provider = ad\n"
-            + _access(ident, domain, site, f"{site_ou},{base}", f"{org_ou},{base}")
+            # the log-on policy of the host's OU is the one gate (OU=fabric-hosts: the fabric admins by default,
+            # 2.1.6.53), as on every joined machine
+            + "access_provider = ad\n"
+            "ad_gpo_access_control = enforcing\n"
             + "sudo_provider = ad\n"
             f"ad_domain = {domain}\n"
             f"krb5_realm = {realm}\n"
             f"ad_server = {dc}\n"
             f"ad_hostname = {ident['fqdn']}\n"
+            # 0: never renewed; renewal needs adcli (1.6.11.12)
+            f"ad_maximum_machine_account_password_age = {renew_days(v)}\n"
             "dyndns_update = false\n"
             "ldap_id_mapping = false\n"
             "use_fully_qualified_names = false\n"
