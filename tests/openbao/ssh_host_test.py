@@ -14,15 +14,18 @@ tests/samba/linux_join.py.
 """
 import contextlib
 import io
+import json
 import os
 import subprocess
 import sys
 import tempfile
 import time
+import types
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path[0:0] = [os.path.join(REPO, "src")]
 from fabriclib.common.errors import ValidationError  # noqa: E402
+import fabriclib.directory.run_op as run_op_mod  # noqa: E402
 from fabriclib.vault.ssh import apply_host_ssh_cert as ahc  # noqa: E402
 from fabriclib.vault.ssh import sign_ssh_hosts as shs  # noqa: E402
 from fabriclib.vault.ssh.host_principals import host_principals  # noqa: E402
@@ -343,13 +346,23 @@ check("...managed again: signed again and its key no longer revoked", fab1_key n
 print("--- writes at a read-only DC's site go to the writable DC (2.1.6.52)")
 routed = []
 shs.load_secrets = lambda: {"ad_agent_password": "x"}
-shs.run_op = lambda v, secrets, name, args, server=None: routed.append((name, server)) or op(name, args)
+# the real run_op decides where each operation goes (its READS, 2.1.6.52); only the DC's container is a stand-in
+shs.run_op = run_op_mod.run_op
+
+
+def _container(cmd, **kw):
+    req = json.loads(kw["input"])
+    routed.append((req["op"], req.get("server")))
+    return subprocess.CompletedProcess(cmd, 0, json.dumps({"result": op(req["op"], req["args"])}) + "\n", "")
+
+
+run_op_mod.subprocess = types.SimpleNamespace(run=_container)
 rodc_kw = {k: x for k, x in kw.items() if k != "op"}
 shs.sign_ssh_hosts({**run_v, "ad_dc_type": "rodc", "ad_join_server": "10.0.0.5"}, cfg, **rodc_kw)
 check("every write (prepare, keys, certificates) at the writable DC; the list read at this site's own",
       routed and all(srv == "10.0.0.5" for name, srv in routed if name != "list_ssh_hosts")
       and all(srv is None for name, srv in routed if name == "list_ssh_hosts")
-      and {"prepare_ssh_hosts", "set_ssh_host"} <= {name for name, _ in routed}, routed)
+      and {"prepare_ssh_hosts", "set_ssh_host", "list_ssh_hosts"} <= {name for name, _ in routed}, routed)
 routed.clear()
 check("negative: read-only DC, no writable DC known: refused before anything is asked",
       refused(shs.sign_ssh_hosts, {**run_v, "ad_dc_type": "rodc"}, cfg, match="no writable domain controller",

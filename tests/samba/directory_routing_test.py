@@ -61,7 +61,14 @@ def call(v, op, answer=None, server=None):
 # every operation of the DC is either a read (READS) or a write; the reads change nothing
 ops_file = open(os.path.join(REPO, "src", "containers", "samba", "directory_ops.py")).read()
 ops = re.findall(r'^\s+"([a-z_]+)": [a-z_]+,$', ops_file, re.M)
+ops_block = ops_file[ops_file.index("OPS = {"):]
+ops_block = ops_block[:ops_block.index("\n}")]
+check("the DC's whole operations list is read (every OPS entry, none missed by the pattern)",
+      ops and len(ops) == ops_block.count('":') == len(set(ops)), (len(ops), ops_block.count('":')))
 check("READS names only operations the DC has", ops and mod.READS <= set(ops), sorted(mod.READS - set(ops)))
+check("SSH host certificates (2.1.7.13): list_ssh_hosts a read; prepare_ssh_hosts and set_ssh_host writes",
+      {"list_ssh_hosts", "prepare_ssh_hosts", "set_ssh_host"} <= set(ops) and "list_ssh_hosts" in mod.READS
+      and not {"prepare_ssh_hosts", "set_ssh_host"} & mod.READS, sorted(mod.READS))
 writes = [op for op in ops if op not in mod.READS]
 WRITES_CALLS = re.compile(r"\.(modify|add|delete|rename|add_remove_group_members|newuser|newgroup|setpassword)\(")
 for op in sorted(mod.READS):

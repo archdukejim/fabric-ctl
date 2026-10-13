@@ -12,7 +12,6 @@ from fabriclib.vault.common.approle_login import approle_login
 from fabriclib.vault.common.bao_request import bao_request
 from fabriclib.vault.constants import SETUP_CREDS
 from fabriclib.vault.ssh.apply_host_ssh_cert import apply_host_ssh_cert
-from fabriclib.samba.writable_server import writable_server
 from fabriclib.vault.ssh.constants import HOST_MOUNT, HOST_REVOKED
 from fabriclib.vault.ssh.host_principals import host_principals
 from fabriclib.vault.ssh.parse_ssh_cert import parse_ssh_cert
@@ -98,17 +97,17 @@ def sign_ssh_hosts(v, config_dir, actor="fabric", source="timer", login=approle_
     Inputs:  v — rendered vars (ssh_certificates, site_name, ad_domain, domain, hostname, and what bao_request and
              run_op read); config_dir — the install's config folder (RECORD: the host's account); actor, source —
              the audit's; login, op, sign, apply, publish — approle_login, run_op (op(name, args); None: run_op
-             with load_secrets(), its writes at the DC samba/writable_server names: the writable DC at a site whose
-             own is read-only, 2.1.6.52), sign_ssh_host_key, apply_host_ssh_cert, publish_ssh_ca (tests pass their
-             own); host_keys — the glob of this host's host public keys; now — int seconds since 1970 UTC (None:
-             now).
+             with load_secrets(), which sends its writes to the writable DC at a site whose own is read-only and
+             list_ssh_hosts, a read, to this site's own DC: 2.1.6.52), sign_ssh_host_key, apply_host_ssh_cert,
+             publish_ssh_ca (tests pass their own); host_keys — the glob of this host's host public keys; now — int
+             seconds since 1970 UTC (None: now).
     Returns: {"on": bool, "ca_fingerprint", "prepared": [names], "machines": [{"name", "signed", "kept" (ints),
              "refused": [why], "withdrawn": bool, "error": str}], "revoked": [key lines still revoked],
              "host": [what changed on this host]}.
     Fails:   ValidationError: OpenBao locked or unreachable, the host CA not made (turn SSH certificates on again, or
-             run the vault step), a read-only DC's site with no writable DC known (from writable_server, before
-             anything is written), the directory unreachable (from run_op), sshd refusing (from apply_host_ssh_cert);
-             OSError on this host's files or the audit log.
+             run the vault step), a read-only DC's site with no writable DC known (from run_op, at the first write,
+             before anything is written), the directory unreachable (from run_op), sshd refusing (from
+             apply_host_ssh_cert); OSError on this host's files or the audit log.
     Feeds:   samba/run_domain_command (`fabricctl domain ssh-hosts`, fabric-ssh-hosts.timer).
     Notes:   audited SSH_HOST_SIGN (each machine signed: its principals and serials), SSH_HOST_WITHDRAW and
              SSH_HOST_REVOKE."""
@@ -126,9 +125,7 @@ def sign_ssh_hosts(v, config_dir, actor="fabric", source="timer", login=approle_
     ca_fp = parse_ssh_key(ca)["fingerprint"]
     if op is None:
         secrets = load_secrets()
-        write_at = writable_server(v, "write SSH host certificates at")
-        op = lambda name, args: run_op(v, secrets, name, args,       # noqa: E731
-                                       server=None if name == "list_ssh_hosts" else write_at)
+        op = lambda name, args: run_op(v, secrets, name, args)      # noqa: E731 (run_op routes: 2.1.6.52)
     domains = [v.get("ad_domain"), v.get("domain")]
     account = _account(config_dir)
     own_keys = _read_lines(host_keys)
