@@ -19,7 +19,6 @@ provenance of what a client gets, netboot presets, the upgrade from the settings
 | `scope_options.py` | The place an option change works on: organisation, site, subnet, class, address |
 | `set_owner.py` | The option set a definition or class change works on: the organisation's or the site's |
 | `netboot_targets.py` | What a netboot command works on: a VLAN's subnets, a subnet, a reservation |
-| `write_server.py` | The DC an option change is written at: this site's, or a read-only DC's writable partner |
 | `set_plan_option.py` | Set an option at a level of the plan |
 | `remove_plan_option.py` | Remove an option from a level of the plan |
 | `define_plan_option.py` | Define an option Kea has no name for (organisation or site) |

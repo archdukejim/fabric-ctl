@@ -11,9 +11,9 @@ from fabriclib.ipam.common.plan_cache import save_plan_cache
 from fabriclib.ipam.common.plan_holds_subnets import plan_holds_subnets
 from fabriclib.ipam.common.site_plan import site_plan
 from fabriclib.ipam.options.check_option_set import check_option_set
-from fabriclib.ipam.options.write_server import write_server
 from fabriclib.ipam.read_plan import read_plan
 from fabriclib.ipam.write_plan import write_plan
+from fabriclib.samba.writable_server import writable_server
 
 KEYS = ("options", "option_defs", "client_classes")
 
@@ -66,7 +66,7 @@ def move_options_to_plan(v, secrets, container="samba"):
         merged = check_option_set({"options": options, "option_defs": defs, "client_classes": classes}, org_defs,
                                   f"site {site}'s DHCP options")
         write_plan(v, secrets, [{"do": "set", "what": "options", "site": site, "key": site, "fields": merged}],
-                   container=container, server=write_server(v))
+                   container=container, server=writable_server(v, "write the change at: make it at the site above"))
         save_plan_cache(site_plan(read_plan(v, secrets, of=site, container=container), site))
     except (ValidationError, OSError, subprocess.TimeoutExpired) as e:
         return [f"DHCP options: the site's global options stay in the settings for now ({e}); the next apply moves "

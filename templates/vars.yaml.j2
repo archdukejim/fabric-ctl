@@ -180,8 +180,7 @@ ad_realm: "{{ _ad | upper }}"
 ad_base_dn: "{{ _ad.split('.') | map('regex_replace', '^', 'DC=') | join(',') if _ad else '' }}"
 ad_netbios: "{{ (ad_netbios | default(_ad.split('.')[0], true))[:15] | upper }}"
 {# the DC's own name in the domain (2.1.6.45, manual 1.6.5.23), apart from the host's: setup asks it, suggesting
-   dc-<hostname> cut to 15 characters (a NetBIOS name); permanent. An install from before 0.7.0 keeps its host's name
-   (deploy/keep_old_install saves it as dc_name). #}
+   dc-<hostname> cut to 15 characters (a NetBIOS name); permanent. #}
 {% set _dc = (dc_name | default(('dc-' ~ (hostname | lower))[:15].rstrip('-'), true)) | lower %}
 dc_name: "{{ _dc }}"
 hostname_dc: "{{ (_dc ~ '.' ~ _ad) | lower if _ad else '' }}"
@@ -210,7 +209,7 @@ posix_id_range: "{{ posix_id_range | default('', true) }}"
 ad_site_ou: "{{ _site_ou }}"
 ad_org_ou: "{{ ad_org_ou | default('OU=organisation,' ~ _site_ou, true) }}"
 {# uid/gid blocks (2.1.6.46, manual 1.6.3.17): a million per site, site S's from S x 1000000, the root site 1; fixed
-   ranges inside each. Both permanent. An install from before 0.7.0 keeps its own (5001, 100000: keep_old_install). #}
+   ranges inside each. Both permanent. #}
 posix_id_start: {{ posix_id_start | default(1000000) | int }}
 posix_id_block: {{ posix_id_block | default(1000000) | int }}
 # This host as a member of its own domain (manual 1.6.11.8, 2.1.6.34): the fabric admins sign in to it with their domain
