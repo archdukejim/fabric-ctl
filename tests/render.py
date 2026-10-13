@@ -636,7 +636,9 @@ rclients, rembedded = normalize_radius_clients([{"name": "Switch1", "address": "
                                                 {"name": "ap-old", "address": "192.168.7.16/28",
                                                  "message_authenticator": False, "secret": "OldApSecretOldApSecret"}])
 # covers: setting:radius_clients +
-assert rclients[0] == {"name": "switch1", "address": "192.168.7.2", "message_authenticator": True}, rclients
+# a client names no vendor: the generic profile over RADIUS/UDP (2.1.11.4, 2.1.11.5)
+assert rclients[0] == {"name": "switch1", "address": "192.168.7.2", "message_authenticator": True, "vendor": "generic",
+                       "transport": "udp"}, rclients
 assert rembedded == {"ap-old": "OldApSecretOldApSecret"} and "secret" not in rclients[1], "secret must leave vars"
 # covers: setting:radius_clients -
 for bad in ([{"name": "a", "address": "0.0.0.0/0"}], [{"name": "a", "address": "10.0.0.1"}, {"name": "b", "address": "10.0.0.0/24"}],

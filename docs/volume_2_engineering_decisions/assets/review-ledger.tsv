@@ -1742,7 +1742,7 @@ tests/pki/revocation.py	cf80ad8b84912f80b941f8fcf3387825e9ba18e6	2026-10-13
 tests/pki/run.py	f742d7f55891a4c9619d844c331d8fc7aa81817c	2026-10-13	
 tests/pki/scep.py	71a4b98c6c5311a1cde0503e786a7be453b9f697	2026-10-13	
 tests/pki/site_ca.py	6e71ca7798e1aa94ce0f43160716ac57302bec65	2026-10-08	
-tests/render.py	067e0687b6506f75b3b6ba8393a73858c2c6ad27	2026-10-13	
+tests/render.py	8426d8bd662020cc3367f59b837ef7e5e0ae1eaa	2026-10-13	
 tests/resolver/README.md	5deedb8081cac3e1e9090cc764c1db4b1687c442	2026-10-13	
 tests/resolver/console.py	b3ea02ea8da724fc7fc8cf75f809128edfe846cf	2026-10-13	
 tests/resolver/groups.py	13e2709fab07db2cfce3b4a24b13e542b882d45a	2026-10-13	
