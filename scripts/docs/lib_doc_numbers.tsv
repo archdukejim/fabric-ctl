@@ -190,6 +190,7 @@ file	fabriclib-deploy|src/fabriclib/deploy/merge_radius_clients.py	20
 file	fabriclib-deploy|src/fabriclib/deploy/merge_tsig_keys.py	21	
 file	fabriclib-deploy|src/fabriclib/deploy/render_templates.py	22	
 file	fabriclib-deploy|src/fabriclib/deploy/render_vars.py	23	
+file	fabriclib-deploy|src/fabriclib/deploy/renew_landing_cert.py	33	
 file	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py	24	
 file	fabriclib-deploy|src/fabriclib/deploy/service_units.py	25	
 file	fabriclib-deploy|src/fabriclib/deploy/verify_published_images.py	27	
@@ -323,6 +324,7 @@ file	fabriclib-dns|src/fabriclib/dns/add_zone.py	34
 file	fabriclib-dns|src/fabriclib/dns/builtin_acls.py	4	
 file	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py	37	
 file	fabriclib-dns|src/fabriclib/dns/common/landing_link.py	38	
+file	fabriclib-dns|src/fabriclib/dns/common/landing_names.py	40	
 file	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py	5	
 file	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py	6	
 file	fabriclib-dns|src/fabriclib/dns/format_value.py	7	
@@ -492,6 +494,7 @@ file	fabriclib-pki|src/fabriclib/pki/common/ca_files.py	4
 file	fabriclib-pki|src/fabriclib/pki/common/ca_parents_pem.py	5	
 file	fabriclib-pki|src/fabriclib/pki/common/ca_path_len.py	6	
 file	fabriclib-pki|src/fabriclib/pki/common/cert_dates.py	38	
+file	fabriclib-pki|src/fabriclib/pki/common/cert_names.py	49	
 file	fabriclib-pki|src/fabriclib/pki/common/crl_points.py	48	
 file	fabriclib-pki|src/fabriclib/pki/common/describe_cert.py	7	
 file	fabriclib-pki|src/fabriclib/pki/common/openssl.py	8	
@@ -1253,6 +1256,7 @@ function	fabriclib-deploy|src/fabriclib/deploy/render_templates.py|_render	1
 function	fabriclib-deploy|src/fabriclib/deploy/render_templates.py|render_templates	2	
 function	fabriclib-deploy|src/fabriclib/deploy/render_vars.py|_host_ram_gb	2	0.5.0 / 2026-10-06
 function	fabriclib-deploy|src/fabriclib/deploy/render_vars.py|render_vars	1	
+function	fabriclib-deploy|src/fabriclib/deploy/renew_landing_cert.py|renew_landing_cert	1	
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_enabled	2	
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_quiet	1	
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_roll_out	4	
@@ -1449,6 +1453,9 @@ function	fabriclib-dns|src/fabriclib/dns/builtin_acls.py|builtin_acls	1
 function	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py|_names	1	
 function	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py|fabric_record	2	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_link.py|landing_link	1	
+function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|_fqdn	1	
+function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|_service_names	2	
+function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|landing_names	3	
 function	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py|create_zone_tsig_key	1	
 function	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py|find_changed_zones	1	
 function	fabriclib-dns|src/fabriclib/dns/format_value.py|format_value	1	
@@ -1675,6 +1682,7 @@ function	fabriclib-pki|src/fabriclib/pki/common/ca_files.py|ca_files	1
 function	fabriclib-pki|src/fabriclib/pki/common/ca_parents_pem.py|ca_parents_pem	1	
 function	fabriclib-pki|src/fabriclib/pki/common/ca_path_len.py|ca_path_len	1	
 function	fabriclib-pki|src/fabriclib/pki/common/cert_dates.py|cert_dates	1	
+function	fabriclib-pki|src/fabriclib/pki/common/cert_names.py|cert_names	1	
 function	fabriclib-pki|src/fabriclib/pki/common/crl_points.py|crl_points	1	
 function	fabriclib-pki|src/fabriclib/pki/common/describe_cert.py|describe_cert	1	
 function	fabriclib-pki|src/fabriclib/pki/common/openssl.py|openssl	1	
@@ -1972,6 +1980,8 @@ function	fabriclib-setup|src/fabriclib/setup/mint_extra_certs.py|mint_extra_cert
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_crl_moved	5	
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_install_dirsrv_tls	2	0.5.0 / 2026-10-04
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_old_certs_host	4	
+function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_replaced_serial	6	
+function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_revoke_replaced	7	
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_targets	1	
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|run	3	
 function	fabriclib-setup|src/fabriclib/setup/move_dns_filter.py|move_dns_filter	1	

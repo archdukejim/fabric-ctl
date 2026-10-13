@@ -34,6 +34,7 @@ from fabriclib.deploy.merge_radius_clients import merge_radius_clients
 from fabriclib.deploy.merge_tsig_keys import merge_tsig_keys
 from fabriclib.deploy.render_templates import render_templates
 from fabriclib.deploy.render_vars import render_vars
+from fabriclib.deploy.renew_landing_cert import renew_landing_cert
 from fabriclib.deploy.restart_changed import restart_changed
 from fabriclib.deploy.service_units import service_units
 from fabriclib.deploy.verify_published_images import verify_published_images
@@ -80,7 +81,8 @@ def _prepare(paths):
 def _deploy(paths, start_services):
     """Purpose: the deploy engine's steps in order (see apply_deployment).
     Inputs:  paths — deploy_paths(); start_services — bool.
-    Returns: the set of units whose configuration changed (restarted already when start_services).
+    Returns: the set of units whose configuration changed (restarted already when start_services); with
+             start_services, nginx too when the landing page's certificate was issued again (renew_landing_cert).
     Fails:   ValidationError for every refusal; OSError and CalledProcessError from the steps.
     Feeds:   apply_deployment."""
     p = _prepare(paths)
@@ -132,7 +134,11 @@ def _deploy(paths, start_services):
     bind_ids = service_user(final_vars, "bind")
     if not start_services:
         return finish_without_start(paths, state, bind_ids)
-    return restart_changed(paths, final_vars, secrets, state, bind_ids)
+    restarted = restart_changed(paths, final_vars, secrets, state, bind_ids)
+    # the landing page's names follow the zone: a changed alias gets its certificate now, the old one revoked (2.1.4.8)
+    if renew_landing_cert(paths, final_vars):
+        restarted.add("nginx")
+    return restarted
 
 
 def apply_deployment(start_services=True):
@@ -151,7 +157,9 @@ def apply_deployment(start_services=True):
              (OpenBao locked) or saved; invalid TSIG keys, ACL policies, RADIUS clients/people, DHCP or time settings,
              dns_filter; host_ram_capacity under 4; site_name, org_domain or
              ldap_base_dn not valid or not what they were at install; a template that does not render; an image
-             build that fails (start_services=False); BIND9 refusing `rndc reconfig`; a published image
+             build that fails (start_services=False); BIND9 refusing `rndc reconfig`; the landing page's certificate
+             not issued again for changed names, or the one it replaced not revoked (renew_landing_cert, 2.1.4.8,
+             after everything else is applied); a published image
              whose signature does not verify (verify_published_images); fabric's own units (the
              `services` host change) not approved — an install set up before consent existed is not refused. A bad
              link-vars file is only

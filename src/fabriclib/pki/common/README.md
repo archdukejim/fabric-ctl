@@ -20,3 +20,4 @@ Helpers shared by the manual PKI operations.
 | `revoked_serials.py` | The serials revoked so far; serials compared without colons or leading zeros |
 | `crl_points.py` | The CRL distribution points a certificate names (a service certificate naming another is issued again, 1.5.1.6) |
 | `cert_dates.py` | A certificate's validity (not before, not after) |
+| `cert_names.py` | The DNS and IP names a certificate on disk holds (the landing certificate is issued again when they differ from its names, 2.1.4.8) |
