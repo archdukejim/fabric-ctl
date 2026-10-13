@@ -40,6 +40,10 @@ services:
     ports:
       - "{{ host_ip }}:1812:1812/udp"
       - "{{ host_ip }}:1813:1813/udp"
+{% if radius_clients | default([]) | selectattr('transport', 'equalto', 'radsec') | list %}
+      # RadSec (RADIUS over TLS) while a client uses it (manual 1.11.1.3)
+      - "{{ host_ip }}:2083:2083/tcp"
+{% endif %}
     networks:
       fabric_net:
         ipv4_address: "{{ ip_freeradius }}"

@@ -13,7 +13,8 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `dns_filter_page.py` | The DNS filter tab: overview, lists, rules, the query log (dns:querylog), settings |
 | `dns_filter_post.py` | The DNS filter tab's changes: lists, rules (also Allow / Block from the query log), upstreams, fetch now |
 | `kea_post.py` | The Kea tab's changes: reservations, subnets (name, VLAN, notes, pools), options, client classes |
-| `radius_post.py` | RADIUS clients: add, new shared secret, remove — saved and applied at once; a secret is shown once on its own page, never in a URL. |
+| `radius_post.py` | RADIUS clients: add, change vendor or transport, new shared secret, remove — saved and applied at once; a secret is shown once on its own page, never in a URL. |
+| `radius_session_post.py` | A session's Disconnect, Re-authenticate or Move VLAN (CoA to its switch), sent at once; the answer or why it was refused on the Sessions view. |
 | `saved_and_applied.py` | Run a change that fabric-agent saves and applies at once, and go back to its tab with the outcome. |
 | `stepca_page.py` | Render the Step-CA tab for one sub-view, with the CA summary, linkable devices and the issued list where needed. |
 | `stepca_post.py` | Manual PKI: each Step-CA form maps to one fabric-agent operation. |

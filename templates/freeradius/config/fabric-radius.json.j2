@@ -6,5 +6,6 @@
   "bind_dn": "fabric-radius-{{ site_name }}@{{ ad_domain }}",
   "password_file": "/etc/freeradius/fabric/ad-password",
   "ca_file": "/etc/freeradius/certs/ca.pem",
-  "people": {{ radius_people | default([]) | to_json }}
+  "people": {{ radius_people | default([]) | to_json }},
+  "clients": {{ radius_policy_clients | default({}) | to_json }}
 }

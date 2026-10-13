@@ -12,7 +12,8 @@ def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON):
              consent_status instead; Docker's userland proxy is listed here too while the DNS filter has client
              groups, because it hides their addresses (1.12.2.15).
     Inputs:  vars_ — the host's vars (image_signature_check, host_join_domain, the sign-in settings,
-             install_resolver, dns_filter_groups); config_dir — the install's config folder (LOWERED_FILE: sign-in
+             install_resolver, dns_filter_groups, install_freeradius, radius_clients: each client on RADIUS/UDP
+             is listed, 2.1.11.5); config_dir — the install's config folder (LOWERED_FILE: sign-in
              layers lowered with `fabricctl security lower`; default vars.yaml's); daemon_json — Docker's daemon
              settings file.
     Returns: list of {"setting": str, "effect": str}; [] when none is relaxed.
@@ -40,6 +41,12 @@ def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON):
             relaxed.append({"setting": "Docker's userland-proxy is on",
                             "effect": "client addresses hidden: the DNS filter answers every client as everyone, "
                                       "so its client groups do not apply (accept the runtime host change)"})
+    if vars_.get("install_freeradius"):                                 # 2.1.11.5: RadSec where the vendor has it
+        for c in vars_.get("radius_clients") or []:
+            if c.get("transport", "udp") != "radsec":
+                relaxed.append({"setting": f"radius_clients: {c.get('name')} on RADIUS/UDP",
+                                "effect": "its shared secret and the RADIUS it carries are protected by MD5 only: "
+                                          "keep it on a trusted LAN (RadSec where the vendor has it, 1.11.1.3)"})
     for layer, entry in read_lowered(config_dir or os.path.dirname(VARS_FILE)).items():
         relaxed.append({"setting": f"{layer} lowered: {entry['from']} -> {entry['to']}",
                         "effect": f"lowered by {entry['by']} on {entry['at']} (fabricctl security lower); raise it "

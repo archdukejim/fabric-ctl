@@ -14,7 +14,7 @@ def get_page(h, sess, path, query):
              /directory, /openbao, /kea, /dns-filter, /freeradius, /federation, /audit, /security, /jobs/<id>;
              query — dict (view, zone, device, name, slot, msg, err, the query log's search as each page uses them).
     Returns: 200 page (overview with the host changes fabric may make, BIND9, Step-CA, directory, OpenBao, Kea,
-             Federation, FreeRADIUS with its setup guides for view switches / windows, audit log).
+             Federation, FreeRADIUS with its setup guides for view switches / windows and its sessions, audit log).
     Fails:   404 for any other path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
     Feeds:   handler.Handler.handle_request.
     """
@@ -44,8 +44,9 @@ def get_page(h, sess, path, query):
     if path == "/freeradius":
         view = query.get("view", "overview")
         guides = actions.radius_guides() if view in ("switches", "windows") else None
+        sessions = actions.radius_sessions() if view == "sessions" else None
         return h.send(200, views.freeradius(ctx, actions.radius_overview(), query.get("msg", ""),
-                                            query.get("err", ""), view, guides))
+                                            query.get("err", ""), view, guides, sessions))
     if path == "/federation":
         return h.send(200, views.federation(ctx, actions.federation_overview()))
     if path == "/audit":

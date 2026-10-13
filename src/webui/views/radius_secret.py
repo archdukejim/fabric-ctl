@@ -1,7 +1,7 @@
 from webui.views.render_page import render_page
 
 
-def radius_secret(ctx, name, secret, action, host_ip, applied=True, output=""):
+def radius_secret(ctx, name, secret, action, host_ip, applied=True, output="", client=None):
     """Purpose: The page that shows a RADIUS client's shared secret once, after adding it or making a new one.
     Inputs:  ctx — page context; name — client name; secret — str; action — 'added' or 'rotated'; host_ip — the
              RADIUS server address to enter on the device; applied — bool, whether applying worked; output — apply
@@ -11,4 +11,4 @@ def radius_secret(ctx, name, secret, action, host_ip, applied=True, output=""):
     Feeds:   src/webui/routes/radius_post; devserver.
     """
     return render_page("radius_secret", ctx=ctx, tab="freeradius", client=name, secret=secret, action=action,
-                   host_ip=host_ip, applied=applied, output=output[-300:])
+                   host_ip=host_ip, applied=applied, output=output[-300:], c=client or {})

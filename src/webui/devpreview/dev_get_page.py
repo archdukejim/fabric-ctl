@@ -1,6 +1,7 @@
 from webui import views
 from webui.devpreview.sample_data import (RECORD_TYPES, SAMPLE_CA, SAMPLE_DEVICES, SAMPLE_DHCP, SAMPLE_DOMAIN,
                                           SAMPLE_FEDERATION, SAMPLE_GPO, SAMPLE_LOGON, SAMPLE_RADIUS, SAMPLE_ACME,
+                                          SAMPLE_RADIUS_SESSIONS,
                                           SAMPLE_ACCESS,
                                           SAMPLE_IMAGES,
                                           SAMPLE_SECURITY, SAMPLE_VAULT, SAMPLE_DNS_FILTER, SAMPLE_QUERY_LOG)
@@ -96,7 +97,7 @@ def dev_get_page(h, path, query):
         view = query.get("view", "overview")
         guides = sample_radius_guides() if view in ("switches", "windows") else None
         return h.send(200, views.freeradius(ctx, SAMPLE_RADIUS, query.get("msg", ""), query.get("err", ""), view,
-                                            guides))
+                                            guides, SAMPLE_RADIUS_SESSIONS if view == "sessions" else None))
     if path == "/audit":
         return h.send(200, views.audit(ctx, state.data["audit"]))
     if path == "/security":

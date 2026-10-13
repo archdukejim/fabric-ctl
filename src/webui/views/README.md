@@ -13,7 +13,7 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `css.py` | The whole stylesheet (static/webui-app/app.css), served as /static/app.css (light and dark colour schemes). |
 | `directory.py` | The Directory tab: devices, one device, roles, one role, or people and groups. |
 | `error_page.py` | The error page: status, message and a 'Sign in again' link. |
-| `freeradius.py` | The FreeRADIUS tab: overview (server, people groups, RADIUS clients, recent decisions) or a setup guide for switches or Windows. |
+| `freeradius.py` | The FreeRADIUS tab: overview (server, people groups, RADIUS clients with vendor and transport, recent decisions), the open sessions with their CoA buttons, or a setup guide for switches (per vendor) or Windows. |
 | `dns_filter.py` | The DNS filter tab: statistics, lists and AdGuard's catalogue, rules, the query log, upstreams |
 | `kea.py` | The Kea tab: subnets, reservations with add/remove forms, and leases — or how to turn DHCP on. |
 | `openbao.py` | The OpenBao tab: status, unlock methods (with add, rotate and remove views), secrets, disk encryption guide. |

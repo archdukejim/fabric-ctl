@@ -23,14 +23,14 @@ suite needs no Docker or root and also runs alone: `python3 tests/docs/run.py`.
 | `openbao` | [openbao/](openbao/) | OpenBao: unlock methods (key file, USB, security key, KMIP), rotation, fabric's secrets, policies, break glass |
 | `fluentbit` | [fluentbit/](fluentbit/) | Log forwarding to TLS syslog and Elasticsearch receivers |
 | `kea` | [kea/](kea/) | Kea DHCP with DDNS into BIND, real DHCP clients |
-| `freeradius` | [freeradius/](freeradius/) | 802.1X against a real 389-DS: EAP-TLS, EAP-TTLS, MAB, refusals |
+| `freeradius` | [freeradius/](freeradius/) | 802.1X against a real domain controller: EAP-TLS, EAP-TTLS, PEAP, MAB, refusals; vendor profiles (UniFi, Cisco), RadSec, sessions and CoA (unit parts without containers: `nas_test.py`, `coa_test.py`) |
 | `samba` | [samba/](samba/) | The Windows domain controller: settings (2.1.6.11, 2.1.6.13), the rendered container, what changes around it; a real DC converged twice, the policy, the GPOs, BIND serving the AD zone through DLZ with signed updates, and the refusals (unsigned updates, another site, service accounts, short or wrong passwords) |
 | `keycloak` | [keycloak/](keycloak/) | Keycloak on fabric's directory (Samba AD): bootstrap twice, AD federation, a first sign-in through TOTP and a new password that lands in AD, refusals |
 | `hardening` | [hardening/](hardening/) | The core services and OpenBao started from their real compose files work and are hardened |
 | `images` | [images/](images/) | fabric's own images build from `packaging/docker-bake.hcl` with a default host's build inputs and pass the smoke test CI runs before publishing (decision 2.1.1.21) |
 | `sandbox` | [sandbox/](sandbox/) | A full install from the .deb in a disposable systemd + Docker container (about 30 min; not in the default list) |
 
-Not in `run-all.sh`: [host/](host/) (a subset of the sandbox checks on a real machine over SSH) and [lab/](lab/) (DHCP on the Hyper-V lab's isolated network, manual 1.10.3.8).
+Not in `run-all.sh`: [host/](host/) (a subset of the sandbox checks on a real machine over SSH) and [lab/](lab/) (DHCP on the Hyper-V lab's isolated network, manual 1.10.3.8; 802.1X end to end and the Windows checks on the Incus lab, 1.11.1.5).
 
 | File | What |
 |---|---|

@@ -48,7 +48,7 @@ for s in "${SUITES[@]}"; do
         openbao)  run openbao  bash -c "python3 \"$HERE/openbao/run.py\" && python3 \"$HERE/openbao/db_rotation.py\"" ;;
         fluentbit) run fluentbit python3 "$HERE/fluentbit/run.py" ;;
         kea) run kea python3 "$HERE/kea/run.py" ;;
-        freeradius) run freeradius python3 "$HERE/freeradius/run.py" ;;
+        freeradius) run freeradius bash -c "python3 \"$HERE/freeradius/nas_test.py\" && python3 \"$HERE/freeradius/coa_test.py\" && python3 \"$HERE/freeradius/run.py\"" ;;
         samba)    run samba    bash -c "python3 \"$HERE/samba/run.py\" && python3 \"$HERE/samba/dc.py\" && python3 \"$HERE/samba/devices.py\" && python3 \"$HERE/samba/linux_join.py\" && python3 \"$HERE/samba/gpo.py\" && python3 \"$HERE/samba/logon.py\" && python3 \"$HERE/samba/hostgroups.py\" && python3 \"$HERE/samba/site_join.py\"" ;;
         keycloak) run keycloak python3 "$HERE/keycloak/run.py" ;;
         hardening) run hardening bash "$HERE/hardening/run.sh" ;;

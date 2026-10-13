@@ -11,4 +11,7 @@ python3 fabric_policy {
 	func_authorize = authorize
 	mod_post_auth = ${.module}
 	func_post_auth = post_auth
+	# accounting: one `fabric: ACCT` line per request, the sessions the console lists (1.11.1.4)
+	mod_accounting = ${.module}
+	func_accounting = accounting
 }

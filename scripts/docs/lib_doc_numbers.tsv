@@ -23,6 +23,7 @@ file	fabricctl-jinja|packaging/images/samba/entrypoint.sh	11
 file	fabricctl-jinja|packaging/images/samba/set_password.py	12	
 file	fabricctl-jinja|packaging/images/smoke-test.sh	10	
 file	fabricctl-jinja|src/containers/dirsrv/seed.py	2	0.5.0 / 2026-10-04
+file	fabricctl-jinja|src/containers/freeradius/check_mab.py	91	
 file	fabricctl-jinja|src/containers/freeradius/check_peap.py	41	
 file	fabricctl-jinja|src/containers/freeradius/check_person.py	3	
 file	fabricctl-jinja|src/containers/freeradius/directory.py	4	
@@ -31,6 +32,7 @@ file	fabricctl-jinja|src/containers/freeradius/lookup_device.py	6
 file	fabricctl-jinja|src/containers/freeradius/mappings.py	42	
 file	fabricctl-jinja|src/containers/freeradius/normalize_mac.py	7	
 file	fabricctl-jinja|src/containers/freeradius/record_fingerprint.py	8	
+file	fabricctl-jinja|src/containers/freeradius/vlan_reply.py	92	
 file	fabricctl-jinja|src/containers/samba/acl_entries.py	63	
 file	fabricctl-jinja|src/containers/samba/add_group_member.py	29	
 file	fabricctl-jinja|src/containers/samba/add_sudo_rule.py	75	
@@ -533,16 +535,27 @@ file	fabriclib-pki|src/fabriclib/pki/sign_csr.py	33
 file	fabriclib-pki|src/fabriclib/pki/sign_site_ca.py	34	
 file	fabriclib-pki|src/fabriclib/pki/stage_site_ca.py	35	
 file	fabriclib-radius|src/fabriclib/radius/add_radius_client.py	1	
+file	fabriclib-radius|src/fabriclib/radius/coa/attributes.py	15	
+file	fabriclib-radius|src/fabriclib/radius/coa/build_radius_packet.py	16	
+file	fabriclib-radius|src/fabriclib/radius/coa/coa_session.py	17	
+file	fabriclib-radius|src/fabriclib/radius/coa/read_radius_reply.py	18	
+file	fabriclib-radius|src/fabriclib/radius/coa/send_coa.py	19	
 file	fabriclib-radius|src/fabriclib/radius/deploy_freeradius.py	2	
 file	fabriclib-radius|src/fabriclib/radius/list_auth_log.py	3	
+file	fabriclib-radius|src/fabriclib/radius/list_radius_sessions.py	20	
 file	fabriclib-radius|src/fabriclib/radius/map_radius_group.py	4	
+file	fabriclib-radius|src/fabriclib/radius/nas/cisco_snippet.py	21	
+file	fabriclib-radius|src/fabriclib/radius/nas/nas_profile.py	22	
+file	fabriclib-radius|src/fabriclib/radius/nas/policy_clients.py	23	
 file	fabriclib-radius|src/fabriclib/radius/normalize_radius_clients.py	5	
 file	fabriclib-radius|src/fabriclib/radius/normalize_radius_people.py	6	
 file	fabriclib-radius|src/fabriclib/radius/radius_guides.py	7	
 file	fabriclib-radius|src/fabriclib/radius/radius_overview.py	8	
+file	fabriclib-radius|src/fabriclib/radius/radius_sessions.py	24	
 file	fabriclib-radius|src/fabriclib/radius/remove_radius_client.py	9	
 file	fabriclib-radius|src/fabriclib/radius/rotate_radius_secret.py	10	
 file	fabriclib-radius|src/fabriclib/radius/run_radius_command.py	11	
+file	fabriclib-radius|src/fabriclib/radius/set_radius_client.py	25	
 file	fabriclib-radius|src/fabriclib/radius/unmap_radius_group.py	12	
 file	fabriclib-radius|src/fabriclib/radius/windows_lan_profile.py	13	
 file	fabriclib-radius|src/fabriclib/radius/windows_setup_script.py	14	
@@ -765,6 +778,7 @@ file	webui|src/webui/agentclient/apply_changes.py	6
 file	webui|src/webui/agentclient/audit.py	7	
 file	webui|src/webui/agentclient/ca_summary.py	8	
 file	webui|src/webui/agentclient/cert_warnings.py	136	
+file	webui|src/webui/agentclient/coa_session.py	162	
 file	webui|src/webui/agentclient/connection.py	9	
 file	webui|src/webui/agentclient/convert_cert.py	10	
 file	webui|src/webui/agentclient/create_person.py	11	
@@ -803,6 +817,7 @@ file	webui|src/webui/agentclient/query_log.py	147
 file	webui|src/webui/agentclient/quote_segment.py	29	
 file	webui|src/webui/agentclient/radius_guides.py	30	
 file	webui|src/webui/agentclient/radius_overview.py	31	
+file	webui|src/webui/agentclient/radius_sessions.py	163	
 file	webui|src/webui/agentclient/raise_signin_layer.py	132	
 file	webui|src/webui/agentclient/read_audit.py	32	
 file	webui|src/webui/agentclient/read_job.py	141	
@@ -824,6 +839,7 @@ file	webui|src/webui/agentclient/service_status.py	43
 file	webui|src/webui/agentclient/set_dhcp_on.py	152	
 file	webui|src/webui/agentclient/set_option.py	44	
 file	webui|src/webui/agentclient/set_password_policy.py	156	
+file	webui|src/webui/agentclient/set_radius_client.py	164	
 file	webui|src/webui/agentclient/set_record_link.py	157	
 file	webui|src/webui/agentclient/sign_csr.py	45	
 file	webui|src/webui/agentclient/start_job.py	142	
@@ -874,6 +890,7 @@ file	webui|src/webui/routes/openbao_page.py	82
 file	webui|src/webui/routes/overview_post.py	143	
 file	webui|src/webui/routes/post_action.py	83	
 file	webui|src/webui/routes/radius_post.py	84	
+file	webui|src/webui/routes/radius_session_post.py	165	
 file	webui|src/webui/routes/saved_and_applied.py	85	
 file	webui|src/webui/routes/security_post.py	134	
 file	webui|src/webui/routes/stepca_page.py	86	
@@ -964,6 +981,7 @@ function	fabricctl-jinja|src/containers/dirsrv/seed.py|norm	5	0.5.0 / 2026-10-04
 function	fabricctl-jinja|src/containers/dirsrv/seed.py|oids	6	0.5.0 / 2026-10-04
 function	fabricctl-jinja|src/containers/dirsrv/seed.py|parse_ldif	2	0.5.0 / 2026-10-04
 function	fabricctl-jinja|src/containers/dirsrv/seed.py|password_ok	4	0.5.0 / 2026-10-04
+function	fabricctl-jinja|src/containers/freeradius/check_mab.py|check_mab	1	
 function	fabricctl-jinja|src/containers/freeradius/check_peap.py|check_peap	1	
 function	fabricctl-jinja|src/containers/freeradius/check_person.py|check_person	1	
 function	fabricctl-jinja|src/containers/freeradius/check_person.py|person_groups	2	0.5.0 / 2026-10-04
@@ -971,11 +989,15 @@ function	fabricctl-jinja|src/containers/freeradius/directory.py|connect	2
 function	fabricctl-jinja|src/containers/freeradius/directory.py|load_config	1	
 function	fabricctl-jinja|src/containers/freeradius/directory.py|search	3	
 function	fabricctl-jinja|src/containers/freeradius/directory.py|site_dn	4	
+function	fabricctl-jinja|src/containers/freeradius/fabric_radius.py|_client	9	
 function	fabricctl-jinja|src/containers/freeradius/fabric_radius.py|_decide	3	
 function	fabricctl-jinja|src/containers/freeradius/fabric_radius.py|_decide_peap	7	
 function	fabricctl-jinja|src/containers/freeradius/fabric_radius.py|_decide_person	4	
 function	fabricctl-jinja|src/containers/freeradius/fabric_radius.py|_log	1	
-function	fabricctl-jinja|src/containers/freeradius/fabric_radius.py|_reply	2	
+function	fabricctl-jinja|src/containers/freeradius/fabric_radius.py|_pairs	11	
+function	fabricctl-jinja|src/containers/freeradius/fabric_radius.py|_reply	2	0.7.0 / 2026-10-12
+function	fabricctl-jinja|src/containers/freeradius/fabric_radius.py|_where	10	
+function	fabricctl-jinja|src/containers/freeradius/fabric_radius.py|accounting	12	
 function	fabricctl-jinja|src/containers/freeradius/fabric_radius.py|authorize	6	
 function	fabricctl-jinja|src/containers/freeradius/fabric_radius.py|instantiate	5	
 function	fabricctl-jinja|src/containers/freeradius/fabric_radius.py|post_auth	8	
@@ -987,6 +1009,7 @@ function	fabricctl-jinja|src/containers/freeradius/normalize_mac.py|normalize_ma
 function	fabricctl-jinja|src/containers/freeradius/record_fingerprint.py|_tlv	1	
 function	fabricctl-jinja|src/containers/freeradius/record_fingerprint.py|main	3	
 function	fabricctl-jinja|src/containers/freeradius/record_fingerprint.py|serial_of	2	
+function	fabricctl-jinja|src/containers/freeradius/vlan_reply.py|vlan_reply	1	
 function	fabricctl-jinja|src/containers/samba/acl_entries.py|_same	2	
 function	fabricctl-jinja|src/containers/samba/acl_entries.py|ensure_aces	3	
 function	fabricctl-jinja|src/containers/samba/acl_entries.py|sid_of	1	
@@ -1739,18 +1762,33 @@ function	fabriclib-pki|src/fabriclib/pki/sign_site_ca.py|_stage	2
 function	fabriclib-pki|src/fabriclib/pki/sign_site_ca.py|sign_site_ca	3	
 function	fabriclib-pki|src/fabriclib/pki/stage_site_ca.py|stage_site_ca	1	
 function	fabriclib-radius|src/fabriclib/radius/add_radius_client.py|add_radius_client	1	
+function	fabriclib-radius|src/fabriclib/radius/coa/attributes.py|cisco_avpair	4	
+function	fabriclib-radius|src/fabriclib/radius/coa/attributes.py|integer	3	
+function	fabriclib-radius|src/fabriclib/radius/coa/attributes.py|ipv4	2	
+function	fabriclib-radius|src/fabriclib/radius/coa/attributes.py|text	1	
+function	fabriclib-radius|src/fabriclib/radius/coa/build_radius_packet.py|build_radius_packet	1	
+function	fabriclib-radius|src/fabriclib/radius/coa/coa_session.py|coa_session	1	
+function	fabriclib-radius|src/fabriclib/radius/coa/read_radius_reply.py|read_radius_reply	1	
+function	fabriclib-radius|src/fabriclib/radius/coa/send_coa.py|send_coa	1	
 function	fabriclib-radius|src/fabriclib/radius/deploy_freeradius.py|deploy_freeradius	1	
 function	fabriclib-radius|src/fabriclib/radius/list_auth_log.py|list_auth_log	1	
+function	fabriclib-radius|src/fabriclib/radius/list_radius_sessions.py|_journal	1	
+function	fabriclib-radius|src/fabriclib/radius/list_radius_sessions.py|list_radius_sessions	2	
 function	fabriclib-radius|src/fabriclib/radius/map_radius_group.py|map_radius_group	1	
+function	fabriclib-radius|src/fabriclib/radius/nas/cisco_snippet.py|cisco_snippet	1	
+function	fabriclib-radius|src/fabriclib/radius/nas/nas_profile.py|nas_profile	1	
+function	fabriclib-radius|src/fabriclib/radius/nas/policy_clients.py|policy_clients	1	
 function	fabriclib-radius|src/fabriclib/radius/normalize_radius_clients.py|normalize_radius_clients	1	
 function	fabriclib-radius|src/fabriclib/radius/normalize_radius_people.py|normalize_radius_people	1	
 function	fabriclib-radius|src/fabriclib/radius/radius_guides.py|radius_guides	1	
 function	fabriclib-radius|src/fabriclib/radius/radius_overview.py|radius_overview	1	
+function	fabriclib-radius|src/fabriclib/radius/radius_sessions.py|radius_sessions	1	
 function	fabriclib-radius|src/fabriclib/radius/remove_radius_client.py|remove_radius_client	1	
 function	fabriclib-radius|src/fabriclib/radius/rotate_radius_secret.py|rotate_radius_secret	1	
 function	fabriclib-radius|src/fabriclib/radius/run_radius_command.py|_apply	1	
 function	fabriclib-radius|src/fabriclib/radius/run_radius_command.py|_secret	2	
 function	fabriclib-radius|src/fabriclib/radius/run_radius_command.py|run_radius_command	3	
+function	fabriclib-radius|src/fabriclib/radius/set_radius_client.py|set_radius_client	1	
 function	fabriclib-radius|src/fabriclib/radius/unmap_radius_group.py|unmap_radius_group	1	
 function	fabriclib-radius|src/fabriclib/radius/windows_lan_profile.py|windows_lan_profile	1	
 function	fabriclib-radius|src/fabriclib/radius/windows_setup_script.py|windows_setup_script	1	
@@ -2147,6 +2185,7 @@ function	webui|src/webui/agentclient/apply_changes.py|apply_changes	1
 function	webui|src/webui/agentclient/audit.py|audit	1	
 function	webui|src/webui/agentclient/ca_summary.py|ca_summary	1	
 function	webui|src/webui/agentclient/cert_warnings.py|cert_warnings	1	
+function	webui|src/webui/agentclient/coa_session.py|coa_session	1	
 function	webui|src/webui/agentclient/connection.py|_UnixConnection.__init__	3	
 function	webui|src/webui/agentclient/connection.py|_UnixConnection.connect	4	
 function	webui|src/webui/agentclient/connection.py|call_agent	5	
@@ -2189,6 +2228,7 @@ function	webui|src/webui/agentclient/query_log.py|query_log	1
 function	webui|src/webui/agentclient/quote_segment.py|quote_segment	1	
 function	webui|src/webui/agentclient/radius_guides.py|radius_guides	1	
 function	webui|src/webui/agentclient/radius_overview.py|radius_overview	1	
+function	webui|src/webui/agentclient/radius_sessions.py|radius_sessions	1	
 function	webui|src/webui/agentclient/raise_signin_layer.py|raise_signin_layer	1	
 function	webui|src/webui/agentclient/read_audit.py|read_audit	1	
 function	webui|src/webui/agentclient/read_job.py|read_job	1	
@@ -2210,6 +2250,7 @@ function	webui|src/webui/agentclient/service_status.py|service_status	1
 function	webui|src/webui/agentclient/set_dhcp_on.py|set_dhcp_on	1	
 function	webui|src/webui/agentclient/set_option.py|set_option	1	
 function	webui|src/webui/agentclient/set_password_policy.py|set_password_policy	1	
+function	webui|src/webui/agentclient/set_radius_client.py|set_radius_client	1	
 function	webui|src/webui/agentclient/set_record_link.py|set_record_link	1	
 function	webui|src/webui/agentclient/sign_csr.py|sign_csr	1	
 function	webui|src/webui/agentclient/start_job.py|start_job	1	
@@ -2308,6 +2349,7 @@ function	webui|src/webui/routes/post_action.py|_radius_people	2
 function	webui|src/webui/routes/post_action.py|_segments	1	
 function	webui|src/webui/routes/post_action.py|post_action	3	
 function	webui|src/webui/routes/radius_post.py|radius_post	1	
+function	webui|src/webui/routes/radius_session_post.py|radius_session_post	1	
 function	webui|src/webui/routes/saved_and_applied.py|saved_and_applied	1	
 function	webui|src/webui/routes/security_post.py|security_post	1	
 function	webui|src/webui/routes/stepca_page.py|stepca_page	1	

@@ -2,7 +2,8 @@
 # Secrets come from OpenBao (radius_secrets); this file is root:freerad 0640.
 # require_message_authenticator: refuse Access-Requests without one
 # (BlastRADIUS, CVE-2024-3596); limit_proxy_state likewise.
-{% for c in radius_clients | default([]) %}
+# Clients on RADIUS/UDP (manual 1.11.1.3: a relaxation, shown in status):
+{% for c in radius_clients | default([]) if c.transport | default('udp') != 'radsec' %}
 client {{ c.name }} {
 	ipaddr = {{ c.address }}
 	secret = "{{ radius_secrets[c.name] }}"
@@ -11,3 +12,21 @@ client {{ c.name }} {
 	limit_proxy_state = yes
 }
 {% endfor %}
+{% if radius_clients | default([]) | selectattr('transport', 'equalto', 'radsec') | list %}
+# Clients on RadSec (RADIUS over TLS, TCP 2083; sites/radsec): only these may
+# connect there, each with a certificate from the fabric CA whose CN is
+# radsec-<name>. The shared secret inside TLS is "radsec" (RFC 6614); the
+# client's own secret signs the CoA fabric-agent sends it (1.11.1.4).
+clients radsec {
+{% for c in radius_clients if c.transport | default('udp') == 'radsec' %}
+	client {{ c.name }} {
+		ipaddr = {{ c.address }}
+		proto = tls
+		secret = "radsec"
+		shortname = {{ c.name }}
+		require_message_authenticator = {{ 'yes' if c.message_authenticator | default(true) else 'no' }}
+		limit_proxy_state = yes
+	}
+{% endfor %}
+}
+{% endif %}

@@ -1,0 +1,83 @@
+{% set radsec = radius_clients | default([]) | selectattr('transport', 'equalto', 'radsec') | list %}
+# RadSec (RADIUS over TLS, RFC 6614) for the clients that use it (manual
+# 1.11.1.3): TCP 2083, a client certificate from the fabric CA required
+# (revocation checked), and its CN must be radsec-<client name>. Then the
+# same decisions as the server `fabric`. Empty while no client uses RadSec.
+{% if radsec %}
+server fabric-radsec {
+	listen {
+		type = auth+acct
+		ipaddr = *
+		port = 2083
+		proto = tcp
+		clients = radsec
+		limit {
+			max_connections = 16
+			lifetime = 0
+			idle_timeout = 600
+		}
+		tls {
+			certificate_file = ${certdir}/server.pem
+			private_key_file = ${certdir}/server.key
+			ca_file = ${certdir}/ca.pem
+			# revoked switch certificates refused (2.1.5.10), as for EAP-TLS
+			check_crl = yes
+			require_client_cert = yes
+			tls_min_version = "1.2"
+			tls_max_version = "1.2"
+			cipher_list = "DEFAULT"
+			cipher_server_preference = yes
+			fragment_size = 8192
+			cache {
+				enable = no
+			}
+		}
+	}
+
+	authorize {
+		update request {
+			&Tmp-String-3 := "%{client:shortname}"
+		}
+		# the connection's certificate must be this client's own
+		if (!&TLS-Client-Cert-Common-Name || &TLS-Client-Cert-Common-Name != "{{ radsec_cn_prefix | default('radsec-') }}%{client:shortname}") {
+			update request {
+				&Tmp-String-0 := "fabric-radsec-refused"
+			}
+			fabric_policy
+			reject
+		}
+		# the switch's certificate is done with: the policy's EAP-TLS step (by
+		# TLS-Client-Cert-Serial) must see only the device's own
+		update request {
+			&TLS-Client-Cert-Serial !* ANY
+			&TLS-Client-Cert-Common-Name !* ANY
+		}
+		eap {
+			ok = return
+		}
+		fabric_policy
+	}
+
+	authenticate {
+		eap
+	}
+
+	accounting {
+		# no session records from a connection with another client's certificate
+		if (!&TLS-Client-Cert-Common-Name || &TLS-Client-Cert-Common-Name != "{{ radsec_cn_prefix | default('radsec-') }}%{client:shortname}") {
+			reject
+		}
+		update request {
+			&Tmp-String-3 := "%{client:shortname}"
+		}
+		fabric_policy
+		ok
+	}
+
+	post-auth {
+		Post-Auth-Type REJECT {
+			eap
+		}
+	}
+}
+{% endif %}

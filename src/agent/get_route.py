@@ -26,6 +26,7 @@ from fabriclib.samba.domain_overview import domain_overview
 from fabriclib.samba.gpo_overview import gpo_overview
 from fabriclib.samba.logon_overview import logon_overview
 from fabriclib.radius.radius_overview import radius_overview
+from fabriclib.radius.radius_sessions import radius_sessions
 from fabriclib.system.service_status import service_status
 from fabriclib.system.version_info import version_info
 from fabriclib.vault.detect_devices import detect_devices
@@ -63,6 +64,7 @@ READS = {
     ("dns-filter",): lambda: filter_overview(load_vars()),
     ("radius",): lambda: radius_overview(load_vars()),
     ("radius", "guides"): lambda: radius_guides(load_vars()),
+    ("radius", "sessions"): lambda: radius_sessions(load_vars()),
     ("vault",): lambda: vault_status(load_vars()),
     ("vault", "devices"): lambda: detect_devices(v=load_vars()),
     ("images",): lambda: image_status(SetupContext(deploy_base=load_vars()["deploy_base_dir"]).load_state()),

@@ -1394,6 +1394,77 @@ st, loc, _ = web_post("/freeradius/people/lan-users/delete", {}, adm, acsrf)
 # covers: web:post.freeradius.people.*.delete agent:post.radius.people.*.delete -
 check("802.1X: unmapping a group that is not mapped is refused, named, nothing saved",
       "group lan-users is not mapped for 802.1X" in loc and vars_now() == vt, loc)
+# ---- 0.9: a client's vendor and transport, the Sessions view, Disconnect and CoA (manual 1.11.1.2 to 1.11.1.4)
+st, loc, _ = web_post("/freeradius/clients/switch1/set", {"vendor": "cisco", "transport": "radsec"}, adm, acsrf)
+c1 = next((c for c in vars_key("radius_clients") or [] if c.get("name") == "switch1"), {})
+# covers: web:post.freeradius.clients.*.set agent:post.radius.clients.*.set +
+check("802.1X: switch1 becomes a Cisco client on RadSec -> saved, said so",
+      st == 303 and "RADIUS client switch1: vendor cisco, radsec." in loc and c1.get("vendor") == "cisco"
+      and c1.get("transport") == "radsec", (loc, c1))
+vt, st_before = vars_now(), secrets_now()
+st, loc, _ = web_post("/freeradius/clients/switch1/set", {"vendor": "unifi", "transport": "radsec"}, adm, acsrf)
+st2, loc2, _ = web_post("/freeradius/clients/ghost/set", {"vendor": "cisco"}, adm, acsrf)
+st3, loc3, _ = web_post("/freeradius/clients/switch1/set", {"vendor": "juniper"}, adm, acsrf)
+# covers: web:post.freeradius.clients.*.set agent:post.radius.clients.*.set -
+check("802.1X: refused, said why, nothing saved: RadSec for UniFi, a client that does not exist, an unknown vendor",
+      "RadSec is not offered for vendor unifi" in loc and "no RADIUS client ghost" in loc2
+      and "vendor must be one of unifi, cisco, generic" in loc3 and vars_now() == vt and secrets_now() == st_before,
+      (loc, loc2, loc3))
+out = agent_call("POST", "/v1/radius/clients/switch1/set", "carol", AUDITOR_ROLES, {"vendor": "generic"})
+# covers: agent:post.radius.clients.*.set -
+check("auditor token: may not change a client's vendor (403, radius:admin), nothing saved",
+      " 403 " in out and "radius:admin" in out and vars_now() == vt, out)
+web_post("/freeradius/clients/switch1/set", {"vendor": "generic", "transport": "udp"}, adm, acsrf)
+
+# a Cisco client on this host's loopback, a session in FreeRADIUS's journal as the policy logs it, and a stand-in
+# switch answering CoA on UDP 3799 (no real switch here: tests/freeradius/nas_standin.py)
+sys.path.insert(0, os.path.join(REPO, "tests", "freeradius"))
+from nas_standin import NasStandin  # noqa: E402
+st, _, body = web_post("/freeradius/clients", {"name": "lab-nas", "address": "127.0.0.1", "vendor": "cisco",
+                                               "transport": "udp", "message_authenticator": "1"}, adm, acsrf)
+lab_secret = body.split('<pre class="secret">')[1].split("<")[0] if '<pre class="secret">' in body else ""
+check("802.1X: a Cisco client added -> its secret page says where it goes in the generated configuration",
+      st == 200 and lab_secret and "&lt;SHARED-SECRET&gt;" in body, (st, body[-600:]))
+SESSION = "TESTSESSION%08d" % (int(time.time()) % 10 ** 8)
+subprocess.run(["systemd-cat", "-t", "freeradius"], input=(
+    "fabric: ACCEPT method=mab device=printer9 vlan=30 mac=02:00:00:00:99:01 nas=lab-nas client=lab-nas\n"
+    f"fabric: ACCT client=lab-nas mac=02:00:00:00:99:01 status=Start session={SESSION} nas_ip=127.0.0.1 "
+    "port=Gi1%2F0%2F9 user=020000009901 ip=-\n"), text=True, check=False)
+time.sleep(1)
+st, _, _, body = req("GET", "/freeradius?view=sessions", ALICE, cookie=adm)
+# covers: web:get.freeradius agent:get.radius.sessions +
+check("Sessions view: the session from the journal, who it is (printer9, VLAN 30), its Disconnect / Re-authenticate "
+      "/ Move VLAN buttons", st == 200 and SESSION in body and "printer9" in body
+      and 'action="/freeradius/sessions/disconnect"' in body and 'action="/freeradius/sessions/bounce"' in body,
+      (st, body[:400]))
+out = agent_call("GET", "/v1/radius/sessions", "carol", netops)
+# covers: agent:get.radius.sessions -
+check("refused: GET /v1/radius/sessions without radius:read (network operator): 403, the permission named",
+      " 403 " in out and "you need the permission radius:read" in out, out)
+aud, aud_csrf = fresh(AUDITOR_ROLES)
+st, _, body = web_post("/freeradius/sessions/disconnect", {"client": "lab-nas", "session": SESSION}, aud, aud_csrf)
+st2, loc2, _ = web_post("/freeradius/sessions/disconnect", {"client": "lab-nas", "session": "NO-SUCH"}, adm, acsrf)
+# covers: web:post.freeradius.sessions.* -
+check("refused, nothing sent: an auditor's Disconnect (403, radius:coa); a session that is not open (said why)",
+      st == 403 and "radius:coa" in body and st2 == 303 and "no open session NO-SUCH on lab-nas" in loc2,
+      (st, body[:200], loc2))
+try:
+    NAS = NasStandin(lab_secret, host="127.0.0.1", port=3799)
+except OSError as exc:                       # 3799 taken on this machine: say so, never pass silently
+    NAS = None
+    check("the stand-in switch can listen on UDP 3799 (Cisco's CoA port as fabric sets it)", False, exc)
+if NAS:
+    st, loc, _ = web_post("/freeradius/sessions/disconnect", {"client": "lab-nas", "session": SESSION}, adm, acsrf)
+    st2, loc2, _ = web_post("/freeradius/sessions/bounce", {"client": "lab-nas", "session": SESSION}, adm, acsrf)
+    NAS.stop()
+    # covers: web:post.freeradius.sessions.* +
+    check("Disconnect and Move VLAN from the console: sent by fabric-agent to the switch, signed with its secret, "
+          "acknowledged and said so",
+          "Disconnect: printer9" in loc and "acknowledged" in loc and "Move VLAN" in loc2
+          and [r["code"] for r in NAS.received] == [40, 43] and all(r["valid"] for r in NAS.received),
+          (loc, loc2, NAS.received))
+web_post("/freeradius/clients/lab-nas/delete", {}, adm, acsrf)
+
 st, loc, _ = web_post("/freeradius/clients/switch1/delete", {}, adm, acsrf)
 # covers: web:post.freeradius.clients.*.delete agent:post.radius.clients.*.delete +
 check("802.1X: remove the client -> gone from vars.yaml and its secret from the secrets",
