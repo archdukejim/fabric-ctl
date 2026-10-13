@@ -136,7 +136,7 @@ docs/volume_2_engineering_decisions/2.1.9-federation.md	0555c5348dabe3760e7e9941
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	459f67da10006c8ae2fb2432e99d4608d3093dfa	2026-10-13	
-docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	19869ac75c114dfc26b7415b1024bfcad7d3aaa7	2026-10-13	
+docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	81fe794d6b47b579a1e09e0c78553dba587a4477	2026-10-13	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-13	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
@@ -1645,14 +1645,14 @@ tests/resolver/console.py	b3ea02ea8da724fc7fc8cf75f809128edfe846cf	2026-10-13
 tests/resolver/groups.py	13e2709fab07db2cfce3b4a24b13e542b882d45a	2026-10-13	
 tests/resolver/querylog.py	ed2d9be93fc7f7a1973ca78395833c86ba83a2b4	2026-10-13	
 tests/resolver/run.py	cc820dce26a51c5c3aa767c201d70e8c6065d301	2026-10-13	
-tests/run-all.sh	dc9e185db138666d5760e0e39b6651cef2f5acfd	2026-10-13	
-tests/samba/README.md	2267b31d415e7de2d2520352d1bb99c8fcc023a8	2026-10-13	
+tests/run-all.sh	bc72976ca4bfc5a88646d51769a6a647dc6d5b49	2026-10-13	
+tests/samba/README.md	9bbbee866f3eeeef08cdabdf292e57f20bdcded4	2026-10-13	
 tests/samba/dc.py	166a87f369183a7b1e1f80e38311d4ff54c5ac30	2026-10-13	
 tests/samba/devices.py	f1fd095e609b97e395f97de93350afb127d2be54	2026-10-13	
 tests/samba/gpo.py	dc3a4eeaf55fa0a7c892721b4bbaf7ec0355dd79	2026-10-13	
 tests/samba/hostgroups.py	75c932c311f1a2edcdfde133eac604b442b065dd	2026-10-13	
 tests/samba/ipam.py	b2a9f23e7f473eeedb2397501c2f4a2114052854	2026-10-13	
-tests/samba/ipam_two_site.py	46ace8d3229db057f5ba36ca06199780660e146e	2026-10-13	
+tests/samba/ipam_two_site.py	08e5b25cbf31471c1b3583c83708ad6a5c2082af	2026-10-13	
 tests/samba/linux_join.py	72a30299d48f7518328f798376d7bd27a1299969	2026-10-13	
 tests/samba/logon.py	89cb995e97b1e46e10f52a796ad3fc797bdac77d	2026-10-13	
 tests/samba/run.py	54e6e58ce5bb15c041fed6ca92e54578fcc63a0e	2026-10-13	

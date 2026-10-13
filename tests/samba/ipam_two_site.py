@@ -6,11 +6,14 @@ polls its own DC's highest USN every 30 s, renders the change into its Kea confi
 the house's Kea within 30 s of reaching the house's DC (2.1.10.11's contract) and Kea accepts it; refused: a second
 claim on the address at the top is refused there, nothing replicates and the house's Kea is left as it was.
 
-DEPENDS ON the USN poll, built on dev/0.8.0-options: until it is on this branch the suite says NOT RUN and exits 2
-before starting anything. `poll_once` below is the one place to adjust when it lands (its module and function).
+The house's poll is fabric's own (`fabriclib.ipam.poll_plan`, 1.10.4.26, built on dev/0.8.0-options and merged into
+dev/0.8.0-ipam): its read is the real `read_plan` of the house's DC and its render the real `render_kea` into the
+test's folder; only Kea's restart (there is no Kea container here) and the host firewall step are left out, so the test
+host is never touched. `poll_once` below is the one call.
 
     sudo python3 tests/samba/ipam_two_site.py
 """
+import base64
 import importlib
 import os
 import subprocess
@@ -22,8 +25,8 @@ import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
-# the USN poll (2.1.10.11), as dev/0.8.0-options is expected to name it: one poll of the site's own DC, rendering Kea
-# when its OU changed. Adjust these two names to the built function when it lands.
+# the USN poll (2.1.10.11, 2.1.10.24): one poll of the site's own DC, rendering Kea when what Kea is rendered from
+# changed (fabriclib/ipam/poll_plan, manual 1.10.4.26)
 POLL_MODULE, POLL_FUNCTION = "fabriclib.ipam.poll_plan", "poll_plan"
 CONTRACT = 30          # seconds: the poll's interval, 2.1.10.11
 try:
@@ -41,6 +44,7 @@ from fabriclib.federation.next_id_block import next_id_block  # noqa: E402
 from fabriclib.ipam.add_address import add_address  # noqa: E402
 from fabriclib.ipam.add_vlan import add_vlan  # noqa: E402
 from fabriclib.ipam.common.site_plan import site_plan  # noqa: E402
+from fabriclib.ipam.options.render_kea import render_kea  # noqa: E402
 from fabriclib.ipam.read_plan import read_plan  # noqa: E402
 from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
 from fabriclib.samba.deploy_samba import deploy_samba  # noqa: E402
@@ -133,7 +137,29 @@ def kea_conf():
         return ""
 
 
-# ---- the house's fabric polls its own DC, as its timer would (2.1.10.11)
+# ---- the house's fabric polls its own DC, as its timer would (2.1.10.11): its settings, kept state, lock and audit
+# in the test's folder (deploy_paths reads these at each call), never the host's
+os.environ["DEPLOY_BASE_DIR"] = work
+os.environ["CUSTOM_VARS_PATH"] = os.path.join(work, "fabric", "config", "vars.yaml")
+os.makedirs(os.path.dirname(os.environ["CUSTOM_VARS_PATH"]), exist_ok=True)
+with open(os.environ["CUSTOM_VARS_PATH"], "w") as f:
+    yaml.safe_dump(V, f)
+m_poll = importlib.import_module(POLL_MODULE)
+AUDIT = []
+m_poll.write_audit = lambda actor, event, detail, source="cli": AUDIT.append((event, detail))
+_lock = m_poll._try_lock
+m_poll._try_lock = lambda path=None: _lock(os.path.join(work, "fabric", "vars.lock"))
+S["kea_ddns_secret"] = base64.b64encode(os.urandom(32)).decode()     # made per run; DDNS is off here
+
+
+def poll_once():
+    """One run of fabric's poll at the house: the real read and render, Kea's restart and the firewall left out."""
+    return POLL(V, container=SITE_C, secrets=S, read=read_plan,
+                render=lambda secrets, container="samba": render_kea(secrets, container=container,
+                                                                     restart=lambda *a, **k: None),
+                firewall=lambda: (True, "the test host's firewall is never touched"))
+
+
 STOP = threading.Event()
 POLL_ERRORS = []
 
@@ -141,7 +167,7 @@ POLL_ERRORS = []
 def poller():
     while not STOP.is_set():
         try:
-            POLL(V, S, container=SITE_C)
+            poll_once()
         except Exception as exc:          # a test thread: every failure is reported below
             POLL_ERRORS.append(repr(exc))
         STOP.wait(CONTRACT)
@@ -190,7 +216,8 @@ check("refused at the top: a second claim on the reservation's address, naming t
       or RES_IP in why, why)
 time.sleep(CONTRACT + 15)
 check("nothing reached the house: its Kea configuration is unchanged", kea_conf() == before)
-check("the poll ran without errors", not POLL_ERRORS, POLL_ERRORS[-3:])
+check("the poll ran without errors, and audited each render", not POLL_ERRORS
+      and any(e == "IPAM_WATCH_RENDER" for e, _ in AUDIT), (POLL_ERRORS[-3:], AUDIT[-3:]))
 
 STOP.set()
 cleanup()
