@@ -12,8 +12,8 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `ensure_schema.py` | fabric's and sudo's attributes and classes in AD's schema, added once (OIDs AD accepts, Q3) |
 | `ensure_layout.py` | `OU=sites`, the site's OU tree, `OU=organisation` at the root site; new users and computers into it |
 | `ensure_groups.py` | `<site>-users`, `<site>-admins` (gids from the site's block), `<site>-rodc-cache` (the accounts a read-only DC caches, 2.1.6.52); at the root site fabric's groups (`ldap_groups`, their gids), Domain Users as `users` (5000), `fabric-break-glass` |
-| `ensure_site_info.py` | The site's uid/gid block and its high-water mark on its OU (2.1.6.17); a laid-out block's mark per range (2.1.6.46) |
-| `alloc_id.py` | The next number of a site's block for one use (its range, or an older block's one run), taken with one conditional change (never twice) |
+| `ensure_site_info.py` | The site's uid/gid block on its OU (2.1.6.17) and a mark per fixed range (2.1.6.46) |
+| `alloc_id.py` | The next number of a site's block for one use (from its range), taken with one conditional change (never twice) |
 | `ensure_sso_account.py` | The site's `fabric-sso` account: Keycloak's Kerberos SPNs, AES only, its keytab exported to `/data/sso.keytab` |
 | `ensure_service_accounts.py` | The site's `fabric-agent`, `fabric-keycloak`, `fabric-radius` accounts; a password set only when it no longer signs in |
 | `directory_op.py` | fabric-agent's entry point: one directory operation, signed in as the site's agent account (not the system) |
@@ -83,7 +83,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `set_gpo_acl.py` | One GPO folder's file ACLs from its AD object (a site's DC lacks the domain's other GPO folders) |
 | `read_replication.py` | This DC's inbound replication per partition, from its own `repsFrom` (works at a read-only DC too) |
 | `pull_sysvol.py` | The GPO folders this DC does not own, copied over SMB from the DC that owns each (run every 5 minutes by the entrypoint) |
-| `id_layout.py` | The fixed ranges inside a site's id block (offsets by kind) and whether a block is laid out in them (2.1.6.46) |
+| `id_layout.py` | The fixed ranges inside a site's id block (offsets by kind), and the check that a block is a site's: a million ids from a multiple of a million (2.1.6.46) |
 | `read_dc_names.py` | The domain's computer names, its DCs apart (a parent refuses a joining site's DC a name in use, 2.1.6.45) |
 | `read_sites.py` | Every site in the domain: its name, where its OU sits and its uid/gid block (a parent hands out a free block, and recognises a site moving under it) |
 | `site_roles.py` | The five roles that administer a site, each its own group (2.1.9.13); the site's rodc-cache group's name (2.1.6.52) |

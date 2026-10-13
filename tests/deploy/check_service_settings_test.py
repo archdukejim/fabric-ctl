@@ -42,7 +42,7 @@ def refused(**change):
 # covers: setting:image_kea +
 check("the defaults pass: digests, local builds, a pending image, a registry with a port, a million-wide block",
       refused() is None, refused())
-check("an install from before 0.7.0 keeps its ids from 5001", refused(posix_id_start=5001, posix_id_block=10000) is None)
+check("a root block at another million passes", refused(posix_id_start=3000000) is None, refused(posix_id_start=3000000))
 
 # covers: setting:image_adguard setting:image_kea -
 for key, bad in (("image_adguard", "AdGuard/AdGuardHome:latest"), ("image_adguard", "adguard home"),
@@ -63,7 +63,11 @@ check("refused: a fabric_subnet that is not a network", why and "fabric_subnet" 
 for change, said in (({"posix_id_start": 999}, "posix_id_start must be a whole number, at least 1000"),
                      ({"posix_id_start": "1e6"}, "posix_id_start must be a whole number"),
                      ({"posix_id_block": 10}, "posix_id_block must be a whole number, at least 1000"),
-                     ({"posix_id_start": 2147000000}, "goes past 2147483647")):
+                     ({"posix_id_start": 2147000000}, "goes past 2147483647"),
+                     # an install's block from before 0.7.0 is no longer served (2.1.6.51, S11)
+                     ({"posix_id_start": 5001}, "posix_id_start must be a multiple of 1000000"),
+                     ({"posix_id_block": 100000}, "posix_id_block must be 1000000"),
+                     ({"posix_id_start": 5001, "posix_id_block": 10000}, "posix_id_start must be a multiple")):
     why = refused(**change)
     check(f"refused: {change} ({said})", why and said in why, why)
 

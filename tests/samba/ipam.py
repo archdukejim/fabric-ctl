@@ -399,7 +399,7 @@ check("refused: removing a VLAN that is not there", code == 1 and "VLAN 30 is no
 print("--- another site's plan (--site, 2.1.9.13)")
 house = {"site": "house2", "root": False, "parent": "lan", "password_policy": POLICY, "networks": [
     {"name": "lan", "cidr": "10.2.0.0/24", "kind": "lan", "vlan": None, "notes": "", "allow_overlap": ""}],
-    "root_ca_pem": open(dc["root_ca"]).read(), "id_range": "200001-300000", "groups": [], "admin_group": "admins",
+    "root_ca_pem": open(dc["root_ca"]).read(), "id_range": "2000000-2999999", "groups": [], "admin_group": "admins",
     "accounts": {f"fabric-{k}-house2": random_password() for k in ("agent", "keycloak", "radius")}, "radius_gid": 610,
     "lan_profile": ""}
 res = subprocess.run(["docker", "exec", "-i", DC, "python3", "/fabric/converge.py"], input=json.dumps(house),
@@ -597,7 +597,7 @@ except ValidationError as e:
     check("refused: DHCP on with no plan to be had (start the samba service)", "start the samba service" in str(e), e)
 
 print("--- setup's question for the site's number (2.1.10.16)")
-house3 = {**house, "site": "house3", "id_range": "300001-400000", "radius_gid": 611, "networks": [
+house3 = {**house, "site": "house3", "id_range": "3000000-3999999", "radius_gid": 611, "networks": [
     {"name": "lan", "cidr": "10.3.0.0/24", "kind": "lan", "vlan": None, "notes": "", "allow_overlap": ""}],
     "accounts": {f"fabric-{k}-house3": random_password() for k in ("agent", "keycloak", "radius")}}
 res = subprocess.run(["docker", "exec", "-i", DC, "python3", "/fabric/converge.py"], input=json.dumps(house3),
@@ -628,7 +628,7 @@ check("Enter takes the suggestion, house3's order in the organisation (3), shown
       (prompts, lines))
 check("asked only once: a site with a number is not asked again",
       ask_site_number(h3_v, h3_s, False, container=DC) == [])
-house4 = {**house3, "site": "house4", "id_range": "400001-500000", "radius_gid": 612, "networks": [
+house4 = {**house3, "site": "house4", "id_range": "4000000-4999999", "radius_gid": 612, "networks": [
     {"name": "lan", "cidr": "10.4.0.0/24", "kind": "lan", "vlan": None, "notes": "", "allow_overlap": ""}],
     "accounts": {f"fabric-{k}-house4": random_password() for k in ("agent", "keycloak", "radius")}}
 res = subprocess.run(["docker", "exec", "-i", DC, "python3", "/fabric/converge.py"], input=json.dumps(house4),

@@ -1283,7 +1283,8 @@ function	fabricctl-jinja|src/containers/samba/host_groups.py|rule_description	4
 function	fabricctl-jinja|src/containers/samba/host_groups.py|rule_hosts	5	
 function	fabricctl-jinja|src/containers/samba/host_groups.py|site_rules	6	
 function	fabricctl-jinja|src/containers/samba/host_groups.py|text	7	
-function	fabricctl-jinja|src/containers/samba/id_layout.py|laid_out	1	
+function	fabricctl-jinja|src/containers/samba/id_layout.py|check_block	2	
+function	fabricctl-jinja|src/containers/samba/id_layout.py|laid_out	1	0.7.0 / 2026-10-13
 function	fabricctl-jinja|src/containers/samba/is_fabric_admin.py|is_fabric_admin	1	
 function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|_has_group	1	
 function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|legacy_logon_groups	2	
