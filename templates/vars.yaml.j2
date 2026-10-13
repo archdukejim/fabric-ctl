@@ -168,7 +168,8 @@ install_kea: {{ install_kea | default(false) | bool }}
 ip_kea_ddns: {{ ip_kea_ddns | default('10.255.0.97') }}
 kea_mem_limit: {{ _mem.settings.kea_mem_limit | to_json }}
 # interfaces: host interfaces to serve; subnets: [{subnet, pools: ["a - b"], routers,
-# reservations: [{mac, ip, hostname}]}]; ddns (true), ddns_subdomain (dhcp), lease_time (s), dns
+# reservations: [{mac, ip, hostname}]}]; ddns (true), ddns_subdomain (dhcp), lease_time (s), dns;
+# ping_check (true: Kea pings an address before it offers it and skips one that answers, 2.1.10.13)
 dhcp: {{ dhcp | default({}, true) | to_json }}
 # The directory (manual 1.6.3, 1.6.5): a Samba AD domain controller on the host's address, on every install. The
 # domain is chosen once and is permanent (2.1.6.11); the password policy is the admin's, with no defaults (2.1.6.13):

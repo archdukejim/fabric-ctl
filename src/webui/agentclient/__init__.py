@@ -12,6 +12,9 @@ from webui.agentclient.add_zone import add_zone  # noqa: F401
 from webui.agentclient.remove_zone import remove_zone  # noqa: F401
 from webui.agentclient.add_reservation import add_reservation  # noqa: F401
 from webui.agentclient.add_subnet import add_subnet  # noqa: F401
+from webui.agentclient.record_found_address import record_found_address  # noqa: F401
+from webui.agentclient.scan_subnet import scan_subnet  # noqa: F401
+from webui.agentclient.scannable_subnets import scannable_subnets  # noqa: F401
 from webui.agentclient.set_dhcp_on import set_dhcp_on  # noqa: F401
 from webui.agentclient.apply_changes import apply_changes  # noqa: F401
 from webui.agentclient.audit import audit  # noqa: F401

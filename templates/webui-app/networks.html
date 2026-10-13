@@ -42,7 +42,7 @@
 
 {% if open %}{% set vlan, s = open %}
 <section class="card"><h2>VLAN {{ vlan.id }} ({{ vlan.name }}) · subnet {{ s.name }} · {{ s.cidr }}</h2>
-<p><a href="/networks?site={{ n.site | urlencode }}">All VLANs of {{ n.site }}</a></p>
+<p><a href="/networks?site={{ n.site | urlencode }}">All VLANs of {{ n.site }}</a>{% if n.site == n.own and s.dhcp %} · <a href="/networks/scan?subnet={{ s.cidr | urlencode }}">Scan this subnet</a> <span class="muted">(what answers but nobody recorded)</span>{% endif %}</p>
 {{ bar(s, true) }}
 <p class="legend"><span class="key seg-gateway"></span>gateway <span class="key seg-static"></span>static <span class="key seg-dhcp"></span>DHCP <span class="key seg-reserved"></span>reserved <span class="key seg-none"></span>no range <span class="key use"></span>in use</p>
 <p class="muted">Gateway {{ s.gateway or '—' }} · DHCP {{ 'on' if s.dhcp else 'off' }}{% if s.relay %} · relay {{ s.relay }}{% endif %} · {{ s.counts.used }} of {{ s.counts.size }} in use, {{ s.counts.free }} free · {{ s.counts.recorded }} recorded, {{ s.counts.leases }} lease(s){% if s.counts.unrecorded %}, <strong>{{ s.counts.unrecorded }} unrecorded</strong>{% endif %}{% if s.notes %} · {{ s.notes }}{% endif %}</p>

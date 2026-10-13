@@ -4,6 +4,9 @@ answer, with this site's leases beside it (nothing here is real). Changed in mem
 SAMPLE_NETWORK_VARS = {"site_name": "lan", "host_ip": "192.168.1.2", "domain": "home.arpa",
                        "dhcp": {"options": [{"name": "time-offset", "data": "-18000"}]}}
 SAMPLE_NETWORK_SITES = [{"name": "lan", "own": True}, {"name": "parents", "own": False}]
+# the scan page's list (scannable_subnets' shape): the sample's DHCP subnets of this site
+SAMPLE_SCAN_SUBNETS = [{"name": "iot", "cidr": "10.1.20.0/24", "vlan": 20, "hosts": 254},
+                       {"name": "guest", "cidr": "10.1.30.0/24", "vlan": 30, "hosts": 254}]
 SAMPLE_NETWORK_LEASES = [
     {"ip": "10.1.20.120", "mac": "02:11:22:33:44:55", "hostname": "laptop1", "state": "active",
      "expires": "2026-10-13T08:00"},

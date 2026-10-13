@@ -8,6 +8,7 @@ GET = {
     ("audit",): "audit:read",
     ("dhcp",): "dhcp:read",
     ("networks",): "dhcp:read", ("networks", "*"): "dhcp:read", ("networks", "*", "export"): "dhcp:read",
+    ("ipam", "scan"): "dhcp:read",                     # the subnets a scan may cover (2.1.10.26)
     ("dns-filter",): "dns:filter",
     ("radius",): "radius:read", ("radius", "guides"): "radius:read",
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
@@ -67,6 +68,8 @@ POST = {
     ("networks", "*", "subnets", "*", "delete"): "dhcp:write", ("networks", "*", "ranges"): "dhcp:write",
     ("networks", "*", "ranges", "delete"): "dhcp:write", ("networks", "*", "addresses"): "dhcp:write",
     ("networks", "*", "addresses", "*"): "dhcp:write", ("networks", "*", "addresses", "*", "delete"): "dhcp:write",
+    # a scan sends packets onto the site's networks and offers to record what it finds: whoever may change DHCP
+    ("ipam", "scan"): "dhcp:write", ("ipam", "scan", "record"): "dhcp:write",
     ("radius", "clients"): "radius:admin", ("radius", "clients", "*", "rotate"): "radius:admin",
     ("radius", "clients", "*", "delete"): "radius:admin",
     ("radius", "people"): "radius:admin", ("radius", "people", "*", "delete"): "radius:admin",

@@ -3,6 +3,7 @@ from agent.post_directory import post_directory
 from agent.post_dhcp import post_dhcp
 from agent.post_domain import post_domain
 from agent.post_host_access import post_host_access
+from agent.post_ipam_scan import post_ipam_scan
 from agent.post_dns import post_dns
 from agent.post_dns_filter import post_dns_filter
 from agent.post_network import post_network
@@ -39,7 +40,7 @@ def post_route(route, actor, data, perms):
              jobs/doctor and jobs/images (body: action update|rollback, service): {"id"} of a job read with GET
              /v1/jobs/<id> by the person who started it;
              events: {} after the login audit line; dns-filter/...: post_dns_filter's result; networks/<site>/...:
-             post_networks' result (the address plan, 1.10.4.21).
+             post_networks' result (the address plan, 1.10.4.21); ipam/scan[/record]: post_ipam_scan's result.
     Fails:   ValidationError (-> 400) for an unsupported event or what fabriclib refuses; RouteNotFound (-> 404).
     Feeds:   agent/handler.py (dispatch).
     Notes:   POST apply only needs dns:write (rbac/required_permission), though it runs the whole deployment."""
@@ -48,6 +49,8 @@ def post_route(route, actor, data, perms):
         return post_dns(route, actor, data)
     if area == ["dhcp"]:
         return post_dhcp(route, actor, data)
+    if route[:2] == ["ipam", "scan"]:
+        return post_ipam_scan(route, actor, data)
     if area == ["networks"]:
         return post_networks(route, actor, data)
     if area == ["radius"]:

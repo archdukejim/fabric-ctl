@@ -134,6 +134,16 @@ try:
     st, loc, _, _ = req("POST", "/networks/upstairs/vlans", {"csrf": "dev", "id": "50", "name": "x"})
     check("Networks tab refused: a change to a site this console does not show", st == 303 and "err=" in (loc or ""),
           loc)
+    page = req("GET", "/networks?subnet=iot")[3]
+    st, _, _, scan = req("GET", "/networks/scan?subnet=10.1.20.0%2F24")
+    # covers: web:get.networks.scan +
+    check("Networks tab: a served subnet links its scan; the scan page opens with that subnet chosen (1.10.4.22)",
+          'href="/networks/scan?subnet=10.1.20.0/24"' in page and st == 200
+          and '<option value="10.1.20.0/24" selected>' in scan and 'action="/networks/scan"' in scan
+          and 'class="tab active"' in scan and 'href="/networks"' in scan, (st, scan[:300]))
+    page = req("GET", "/networks?site=parents&subnet=iot")[3]
+    check("Networks tab: another site's subnet has no scan link (a scan covers only this site's)",
+          "/networks/scan" not in page)
     page = req("GET", "/kea?plan=1")[3]
     check("Kea tab with the subnets in the plan: links to Networks, no subnet or reservation forms (1.10.4.21)",
           'href="/networks' in page and 'action="/kea/subnets"' not in page

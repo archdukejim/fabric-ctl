@@ -17,6 +17,9 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `unset_option.py` | Remove a DHCP option the admin set |
 | `add_client_class.py` | Add a DHCP client class (Kea expression, network-boot fields) |
 | `remove_client_class.py` | Remove a DHCP client class |
+| `scannable_subnets.py` | The subnets the console may scan (this site's DHCP subnets, at most a /22). Agent route: GET /v1/ipam/scan (dhcp:read). |
+| `scan_subnet.py` | Scan one subnet now: what answers, what nobody recorded. Agent route: POST /v1/ipam/scan (dhcp:write), timeout 180 s. |
+| `record_found_address.py` | Record an address a scan found: a reservation for its MAC, or a static address; applied at once. Agent route: POST /v1/ipam/scan/record (dhcp:write), timeout 300 s. |
 | `apply_changes.py` | Render and apply the configuration (as `fabricctl --apply`) on the host. Agent route: POST /v1/apply (dns:write), timeout 960 s. |
 | `audit.py` | Write a login event to the audit log, best effort so an agent outage never blocks a denial. Agent route: POST /v1/events (session). |
 | `ca_summary.py` | The CA certificates, where devices fetch them, and the signing limits, for the Step-CA page. Agent route: GET /v1/pki/ca (pki:read). |

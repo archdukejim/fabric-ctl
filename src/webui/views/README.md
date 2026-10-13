@@ -15,6 +15,7 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `error_page.py` | The error page: status, message and a 'Sign in again' link. |
 | `freeradius.py` | The FreeRADIUS tab: overview (server, people groups, RADIUS clients, recent decisions) or a setup guide for switches or Windows. |
 | `dns_filter.py` | The DNS filter tab: statistics, lists and AdGuard's catalogue, rules, the query log, upstreams |
+| `ipam_scan.py` | The scan page: pick a subnet this site's DHCP serves, scan it, and record what answers but nobody recorded |
 | `kea.py` | The Kea tab: subnets, reservations with add/remove forms, and leases — or how to turn DHCP on. |
 | `openbao.py` | The OpenBao tab: status, unlock methods (with add, rotate and remove views), secrets, disk encryption guide. |
 | `overview.py` | The Overview tab: one tile per service with a traffic light and a link to its tab. |

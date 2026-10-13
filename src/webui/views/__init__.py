@@ -14,6 +14,7 @@ from webui.views.dns_filter import dns_filter  # noqa: F401
 from webui.views.error_page import error_page  # noqa: F401
 from webui.views.federation import federation  # noqa: F401
 from webui.views.freeradius import freeradius  # noqa: F401
+from webui.views.ipam_scan import ipam_scan  # noqa: F401
 from webui.views.job_page import job_page  # noqa: F401
 from webui.views.kea import kea  # noqa: F401
 from webui.views.machine_result import machine_result  # noqa: F401

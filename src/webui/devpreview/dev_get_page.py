@@ -5,6 +5,7 @@ from webui.devpreview.sample_data import (RECORD_TYPES, SAMPLE_CA, SAMPLE_DEVICE
                                           SAMPLE_IMAGES,
                                           SAMPLE_SECURITY, SAMPLE_VAULT, SAMPLE_DNS_FILTER, SAMPLE_QUERY_LOG)
 from webui.devpreview.dev_networks_page import dev_networks_page
+from webui.devpreview.sample_networks import SAMPLE_SCAN_SUBNETS
 from webui.devpreview.sample_radius_guides import sample_radius_guides
 
 
@@ -90,6 +91,9 @@ def dev_get_page(h, path, query):
                                             query.get("err", ""), query.get("wait", 0)))
     if path in ("/networks", "/networks/export"):
         return dev_networks_page(h, path, query)
+    if path == "/networks/scan":                       # the scan page, before a scan (manual 1.10.4.22)
+        return h.send(200, views.ipam_scan(ctx, SAMPLE_SCAN_SUBNETS, None, query.get("msg", ""), query.get("err", ""),
+                                           query.get("subnet", "")))
     if path == "/kea":
         # ?plan=1: the subnets in the address plan, so the tab links to Networks (manual 1.10.4.21)
         # ?off=1: DHCP off, as a first turn-on shows it (manual 1.10.3.5); ?off=resume: off with settings kept
