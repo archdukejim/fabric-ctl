@@ -31,6 +31,7 @@ from set_machine import set_machine
 from set_person import set_person
 from site_info import site_info
 from sort_windows_machines import sort_windows_machines
+from sync_rodc_cache import sync_rodc_cache
 from write_plan import write_plan
 
 # the operations fabric-agent may ask for (directory_op): each is f(samdb, lp, site, **args) -> JSON-able result
@@ -68,5 +69,6 @@ OPS = {
     "set_person": set_person,
     "site_info": site_info,
     "sort_windows_machines": sort_windows_machines,
+    "sync_rodc_cache": sync_rodc_cache,
     "write_plan": write_plan,
 }

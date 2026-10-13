@@ -7,7 +7,7 @@ account, so AD's per-site limits apply to it.
 | File | What |
 |---|---|
 | `__init__.py` | Package marker |
-| `run_op.py` | Run one directory operation as the site's agent account; refusals as messages safe to show |
+| `run_op.py` | Run one directory operation as the site's agent account; refusals as messages safe to show. The one routing point: at a site whose DC is read-only every write (any operation not in `READS`) goes to the writable DC (2.1.6.52) |
 | `list_people.py` | The People page: every person and group (never a password) and the Keycloak console link |
 | `create_person.py` | A new person in this site (POSIX identity from its block, `<site>-users`, a one-time password) |
 | `reset_sign_in.py` | A new one-time password in AD; TOTP removed and sessions ended in Keycloak (fabric groups: admins only) |

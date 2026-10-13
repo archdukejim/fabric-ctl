@@ -293,6 +293,7 @@
 "cli:domain.host-managed": "src/fabriclib/samba/run_domain_command.py"
 "cli:domain.logon": "src/fabriclib/samba/run_domain_command.py"
 "cli:domain.password-policy": "src/fabriclib/samba/run_domain_command.py"
+"cli:domain.rodc-cache": "src/fabriclib/samba/run_domain_command.py"
 "cli:domain.sort-machines": "src/fabriclib/samba/run_domain_command.py"
 "cli:domain.status": "src/fabriclib/samba/run_domain_command.py"
 "cli:federation": "src/fabriclib/cli.py"

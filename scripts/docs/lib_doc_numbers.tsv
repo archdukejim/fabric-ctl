@@ -121,6 +121,7 @@ file	fabricctl-jinja|src/containers/samba/share_winbind.py	43
 file	fabricctl-jinja|src/containers/samba/site_info.py	28	
 file	fabricctl-jinja|src/containers/samba/site_roles.py	64	
 file	fabricctl-jinja|src/containers/samba/sort_windows_machines.py	90	
+file	fabricctl-jinja|src/containers/samba/sync_rodc_cache.py	102	
 file	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py	48	
 file	fabricctl-jinja|src/containers/samba/write_plan.py	93	
 file	fabricctl-lib|src/federation/server.py	1	
@@ -720,6 +721,7 @@ file	fabriclib-samba|src/fabriclib/samba/logon_overview.py	31
 file	fabriclib-samba|src/fabriclib/samba/password_meets_policy.py	24	
 file	fabriclib-samba|src/fabriclib/samba/prepare_site.py	16	
 file	fabriclib-samba|src/fabriclib/samba/read_policy_changes.py	28	
+file	fabriclib-samba|src/fabriclib/samba/refuse_at_read_only_dc.py	37	
 file	fabriclib-samba|src/fabriclib/samba/replication_status.py	19	
 file	fabriclib-samba|src/fabriclib/samba/run_converge.py	17	
 file	fabriclib-samba|src/fabriclib/samba/run_domain_command.py	4	
@@ -731,6 +733,7 @@ file	fabriclib-samba|src/fabriclib/samba/sso_spns.py	22
 file	fabriclib-samba|src/fabriclib/samba/suggested_ad_domain.py	7	
 file	fabriclib-samba|src/fabriclib/samba/suggested_dc_name.py	27	
 file	fabriclib-samba|src/fabriclib/samba/summarize_roles.py	29	
+file	fabriclib-samba|src/fabriclib/samba/sync_rodc_cache.py	36	
 file	fabriclib-samba|src/fabriclib/samba/writable_server.py	35	
 file	fabriclib-samba|src/fabriclib/samba/write_bind_dlz.py	6	
 file	fabriclib-secrets|src/fabriclib/secrets/common/read_vault_secrets.py	1	
@@ -1363,6 +1366,11 @@ function	fabricctl-jinja|src/containers/samba/site_roles.py|fabric_machines	3
 function	fabricctl-jinja|src/containers/samba/site_roles.py|rodc_cache	4	
 function	fabricctl-jinja|src/containers/samba/site_roles.py|role_group	1	
 function	fabricctl-jinja|src/containers/samba/sort_windows_machines.py|sort_windows_machines	1	
+function	fabricctl-jinja|src/containers/samba/sync_rodc_cache.py|_accounts	4	
+function	fabricctl-jinja|src/containers/samba/sync_rodc_cache.py|_group_dn	1	
+function	fabricctl-jinja|src/containers/samba/sync_rodc_cache.py|_machines	2	
+function	fabricctl-jinja|src/containers/samba/sync_rodc_cache.py|_own	3	
+function	fabricctl-jinja|src/containers/samba/sync_rodc_cache.py|sync_rodc_cache	5	
 function	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py|_entry	1	
 function	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py|windows_baseline_policy	2	
 function	fabricctl-jinja|src/containers/samba/write_plan.py|_dn	2	
@@ -2230,12 +2238,14 @@ function	fabriclib-samba|src/fabriclib/samba/logon_overview.py|logon_overview	1
 function	fabriclib-samba|src/fabriclib/samba/password_meets_policy.py|password_meets_policy	1	
 function	fabriclib-samba|src/fabriclib/samba/prepare_site.py|prepare_site	1	
 function	fabriclib-samba|src/fabriclib/samba/read_policy_changes.py|read_policy_changes	1	
+function	fabriclib-samba|src/fabriclib/samba/refuse_at_read_only_dc.py|refuse_at_read_only_dc	1	
 function	fabriclib-samba|src/fabriclib/samba/replication_status.py|replication_status	1	
 function	fabriclib-samba|src/fabriclib/samba/run_converge.py|run_converge	1	
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_changes	1	
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_groups	3	
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_host_managed	6	
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_logon	5	
+function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_rodc_cache	7	
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_show	4	
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|run_domain_command	2	
 function	fabriclib-samba|src/fabriclib/samba/run_gpo_command.py|_files	1	
@@ -2248,6 +2258,10 @@ function	fabriclib-samba|src/fabriclib/samba/suggested_ad_domain.py|suggested_ad
 function	fabriclib-samba|src/fabriclib/samba/suggested_dc_name.py|suggested_dc_name	1	
 function	fabriclib-samba|src/fabriclib/samba/summarize_roles.py|_owner	1	
 function	fabriclib-samba|src/fabriclib/samba/summarize_roles.py|summarize_roles	2	
+function	fabriclib-samba|src/fabriclib/samba/sync_rodc_cache.py|_check_lists	2	
+function	fabriclib-samba|src/fabriclib/samba/sync_rodc_cache.py|_local	1	
+function	fabriclib-samba|src/fabriclib/samba/sync_rodc_cache.py|_preload	3	
+function	fabriclib-samba|src/fabriclib/samba/sync_rodc_cache.py|sync_rodc_cache	4	
 function	fabriclib-samba|src/fabriclib/samba/writable_server.py|writable_server	1	
 function	fabriclib-samba|src/fabriclib/samba/write_bind_dlz.py|write_bind_dlz	1	
 function	fabriclib-secrets|src/fabriclib/secrets/common/read_vault_secrets.py|read_vault_secrets	1	

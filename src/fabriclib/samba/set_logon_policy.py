@@ -9,6 +9,7 @@ from fabriclib.directory.run_op import run_op
 from fabriclib.samba.check_logon_policies import check_logon_policies
 from fabriclib.samba.host_logon_default import HOSTS_OU, host_logon_default
 from fabriclib.samba.logon_ou_path import logon_ou_path
+from fabriclib.samba.refuse_at_read_only_dc import refuse_at_read_only_dc
 from fabriclib.secrets.load_secrets import load_secrets
 
 
@@ -22,13 +23,15 @@ def set_logon_policy(v, actor, ou, console=None, remote=None, source="cli", secr
              that right as the OU has it (empty for an OU without a policy); source — audit source; secrets —
              fabric's secrets (default: load_secrets()); container — the DC's container.
     Returns: {"ou", "console", "remote"} as saved for that OU, and "policies": the whole saved map.
-    Fails:   ValidationError: an OU path or group name refused, a group not in the domain ("no group … in the
-             domain"), neither right given, the site's OU or OU=machines left granting nobody (check_logon_policies),
-             or the directory's errors (run_op: the DC not running). Nothing is saved then. OSError or
-             yaml.YAMLError from the settings or the audit log.
+    Fails:   ValidationError: at a site whose DC is read-only (its log-on GPOs are never written there: make the
+             change at the site above, 2.1.6.52), an OU path or group name refused, a group not in the domain ("no
+             group … in the domain"), neither right given, the site's OU or OU=machines left granting nobody
+             (check_logon_policies), or the directory's errors (run_op: the DC not running). Nothing is saved then.
+             OSError or yaml.YAMLError from the settings or the audit log.
     Feeds:   samba/run_domain_command (`fabricctl domain logon set`), agent/post_domain (POST /v1/domain/logon/set,
              gpo:admin).
     Notes:   audited as LOGON_POLICY_SET."""
+    refuse_at_read_only_dc(v, "who may sign in is")
     path = logon_ou_path(ou)
     if console is None and remote is None:
         raise ValidationError("give the groups allowed at the console, remotely, or both")

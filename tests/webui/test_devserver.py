@@ -571,6 +571,21 @@ finally:
 
 prod = views.overview({"user": "u", "csrf": "x", "version": {"version": "1", "build": ""}}, [])
 check("production pages never show the banner", "DEV PREVIEW" not in prod)
+# a read-only DC's site (2.1.6.52, revised 2026-10-13): who may sign in is shown, never offered for change; settings
+# saved before the refusal are flagged as never applied
+from webui.devpreview.sample_data import SAMPLE_DOMAIN, SAMPLE_LOGON  # noqa: E402
+rctx = {"user": "u", "csrf": "x", "version": {"version": "1", "build": ""}, "perms": ["gpo:admin", "domain:read"]}
+page = views.directory(rctx, "machines", domain=SAMPLE_DOMAIN, logon={**SAMPLE_LOGON, "read_only": True})
+check("read-only DC's site: who may sign in shown, no set or clear form, the site above named",
+      "machines/linux" in page and 'action="/directory/logon/set"' not in page
+      and 'action="/directory/logon/clear"' not in page and "changed at the site above" in page)
+page = views.directory(rctx, "machines", domain=SAMPLE_DOMAIN, logon={**SAMPLE_LOGON, "read_only": True,
+                                                                     "unapplied": True})
+check("read-only DC's site with per-OU policies saved before: flagged as never applied", "never applies them" in page
+      and 'class="flash bad"' in page)
+page = views.directory(rctx, "machines", domain=SAMPLE_DOMAIN, logon=SAMPLE_LOGON)
+check("writable DC's site: the set and clear forms as before", 'action="/directory/logon/set"' in page
+      and 'action="/directory/logon/clear"' in page and "never applies them" not in page)
 # every production file of the server: src/webui/ but the preview's folder, and its entry point src/ux/web/server.py
 prod_files = [os.path.join(d, f) for d, _, fs in os.walk(WEBUI) for f in fs if f.endswith(".py")
               and "devpreview" not in d and "__pycache__" not in d] + [os.path.join(UX_WEB, "server.py")]

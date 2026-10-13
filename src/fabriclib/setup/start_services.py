@@ -2,7 +2,7 @@ import os
 import subprocess
 import time
 
-from fabriclib.common.console import info, ok
+from fabriclib.common.console import info, ok, warn
 from fabriclib.common.errors import ValidationError
 from fabriclib.deploy.apply_deployment import apply_deployment
 from fabriclib.directory.ensure_default_device_roles import ensure_default_device_roles
@@ -13,7 +13,9 @@ from fabriclib.ipam.move_subnets_to_plan import move_subnets_to_plan
 from fabriclib.samba.converge_domain import converge_domain
 from fabriclib.samba.allow_rodc_cache import allow_rodc_cache
 from fabriclib.samba.finish_join import finish_join
+from fabriclib.samba.sync_rodc_cache import sync_rodc_cache
 from fabriclib.samba.write_bind_dlz import write_bind_dlz
+from fabriclib.secrets.load_secrets import load_secrets
 from fabriclib.secrets.save_secrets import save_secrets
 from fabriclib.setup.ask_site_number import ask_site_number
 from fabriclib.setup.errors import SetupError
@@ -35,9 +37,9 @@ def run(ctx):
              filter's certificate arrived after it (DoT and DoH, 1.12.2.16); every enabled unit running and its
              container healthy; the domain converged; the site's number asked once, while it has none (2.1.10.16;
              unattended, the suggestion); 0.7's DHCP subnets moved into the address plan (1.10.4.15);
-             Keycloak given the DC's Kerberos keytab; Keycloak configured (up to 6 tries, 15 s apart); fabric-agent,
-             fabric-web and fabric-scep-hook running when the web UI is on; fabric-federation running when
-             federation_endpoint is on.
+             at a read-only DC's site its people and machines cached there (2.1.6.55); Keycloak given the DC's
+             Kerberos keytab; Keycloak configured (up to 6 tries, 15 s apart); fabric-agent, fabric-web and
+             fabric-scep-hook running when the web UI is on; fabric-federation running when federation_endpoint is on.
              Once Keycloak's password is OpenBao's, Postgres's roles are made to match fabric's secrets before
              Keycloak starts (a reinstall's fresh data folder, 2.1.7.4).
     Fails:   SetupError when a container is not healthy (start_unit), the domain cannot be converged, the default
@@ -83,6 +85,12 @@ def run(ctx):
             ctx.secrets = None
         except ValidationError as e:
             raise SetupError(str(e))
+    if v.get("ad_dc_type") == "rodc":             # the site's people and machines cached at its read-only DC (2.1.6.55)
+        try:
+            for line in sync_rodc_cache(v, ctx.secrets if ctx.secrets is not None else load_secrets(ctx.secrets_file)):
+                ok(line)
+        except ValidationError as e:              # said loudly; setup goes on (the next apply and the timer retry)
+            warn(f"the site's people and machines are not all cached at its read-only DC: {e}")
     if write_bind_dlz(v):                         # the first provisioning: BIND now serves the AD zone
         ok(f"bind9: {start_unit('bind9', 'bind9', True)} (the AD zone through DLZ)")
     if is_root_site(os.path.join(ctx.config_dir, "federation.yaml")):    # the root site: fabric's defaults

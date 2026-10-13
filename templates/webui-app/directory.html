@@ -194,12 +194,13 @@ writes a saved policy into the domain.</p>
 {% if logon %}<section class="card"><h2>Who may sign in</h2>
 <p class="muted">Each OU's log-on policy names the groups allowed at the keyboard and remotely (RDP, SSH); an OU without its own takes its parent's. {% if logon.always %}Always allowed, everywhere: {{ logon.always | join(', ') }}.{% endif %}</p>
 {% if logon.legacy %}<p class="muted small">This site still has its log-on rights of before 0.9, on the site's OU. The first change makes them the site OU's policy, then applies only what you changed.</p>{% endif %}
+{% if logon.unapplied %}<p class="flash bad">These per-OU policies are in this site's settings, but its domain controller is read-only and never applies them (they were saved before such changes were refused): they have no effect. Make them at the site above, and remove them from this site's settings.</p>{% elif logon.read_only %}<p class="muted small">This site's domain controller is read-only: who may sign in is changed at the site above, whose policies reach this site.</p>{% endif %}
 {% if logon.error %}<p class="flash bad">Who may sign in could not be read: {{ logon.error }}</p>{% endif %}
 {% if logon.policies %}<table><thead><tr><th>OU</th><th>At the keyboard</th><th>Remotely</th><th></th></tr></thead><tbody>
 {% for p in logon.policies %}<tr><td><strong>{{ p.ou or 'site' }}</strong></td><td>{{ p.console | join(', ') or 'nobody' }}</td><td>{{ p.remote | join(', ') or 'nobody' }}</td>
-<td class="num">{% if can('gpo:admin') and not logon.legacy %}<form method="post" action="/directory/logon/clear"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="ou" value="{{ p.ou or 'site' }}"><button class="ghost" title="the OU takes its parent's policy again">Clear</button></form>{% endif %}</td></tr>{% endfor %}
+<td class="num">{% if can('gpo:admin') and not logon.legacy and not logon.read_only %}<form method="post" action="/directory/logon/clear"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="ou" value="{{ p.ou or 'site' }}"><button class="ghost" title="the OU takes its parent's policy again">Clear</button></form>{% endif %}</td></tr>{% endfor %}
 </tbody></table>{% endif %}
-{% if can('gpo:admin') %}<form method="post" action="/directory/logon/set" class="grid">
+{% if can('gpo:admin') and not logon.read_only %}<form method="post" action="/directory/logon/set" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>OU<input name="ou" required placeholder="machines/linux" title="a path below the site's OU; site for the site's OU itself"></label>
 <label>At the keyboard<input name="console" placeholder="lan-machine-admins, lan-users" title="group names, separated by commas"></label>

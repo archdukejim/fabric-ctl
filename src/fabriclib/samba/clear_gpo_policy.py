@@ -12,6 +12,6 @@ def clear_gpo_policy(v, actor, policy, source="cli", container="samba", control=
     Feeds:   samba/run_gpo_command (`fabricctl gpo clear`); agent route POST /v1/gpo/clear (gpo:admin).
     Notes:   audited as GPO_CLEAR."""
     site = v["site_name"]
-    done = gpo_request({"op": "clear", "site": site, "policy": policy, "control": bool(control)}, container)
+    done = gpo_request({"op": "clear", "site": site, "policy": policy, "control": bool(control)}, container, v)
     write_audit(actor, "GPO_CLEAR", f"site={site} policy={policy}" + (" control" if control else ""), source)
     return done

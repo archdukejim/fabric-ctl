@@ -35,7 +35,7 @@ for s in "${SUITES[@]}"; do
         docs)     run docs     python3 "$HERE/docs/run.py" ;;
         lint)     run lint     bash "$HERE/lint/run.sh" ;;
         deploy)   run deploy   bash -c "python3 \"$HERE/deploy/restart_changed_test.py\" && python3 \"$HERE/deploy/check_service_settings_test.py\"" ;;
-        consent)  run consent  bash -c "python3 \"$HERE/consent/run.py\" && python3 \"$HERE/common/ask.py\" && python3 \"$HERE/samba/writable_server_test.py\" && python3 \"$HERE/samba/id_layout_test.py\"" ;;
+        consent)  run consent  bash -c "python3 \"$HERE/consent/run.py\" && python3 \"$HERE/common/ask.py\" && python3 \"$HERE/samba/writable_server_test.py\" && python3 \"$HERE/samba/sync_rodc_cache_test.py\" && python3 \"$HERE/samba/directory_routing_test.py\" && python3 \"$HERE/samba/logon_read_only_test.py\" && python3 \"$HERE/samba/id_layout_test.py\"" ;;
         render)   run render   python3 "$HERE/render.py" "$FABRIC_TEST_OUT/rendered" ;;
         nginx)    run nginx    bash "$HERE/nginx_check.sh" "$FABRIC_TEST_OUT/rendered" ;;
         zone)     run zone     python3 "$HERE/zone_test.py" ;;

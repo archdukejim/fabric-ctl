@@ -9,14 +9,17 @@ TIMERS = ["fabric-certs", "fabric-db-rotate", "fabric-machines", "fabric-host-ma
 OPTIONAL = {"fabric-dns-lists": ("install_resolver",),                    # the lists, daily (manual 1.12.2.10)
             "fabric-dns-log": ("install_resolver", "install_keycloak"),  # the query log, 5 min (1.12.2.13)
             "fabric-dhcp-names": ("install_kea",),    # DHCP names left behind, hourly (1.10.4.20, 2.1.10.22)
-            "fabric-plan-watch": ("install_kea",)}    # the plan poll, every 30 s (1.10.4.26, 2.1.10.24)
+            "fabric-plan-watch": ("install_kea",),    # the plan poll, every 30 s (1.10.4.26, 2.1.10.24)
+            # a read-only DC's site: its people and machines cached there, hourly (1.6.11.14, 2.1.6.55)
+            "fabric-rodc-cache": (lambda v: v.get("ad_dc_type") == "rodc",)}
 
 
 def install_timers(paths, v=None):
     """Purpose: install fabric's timers and their services and keep them enabled; an optional part's timer only
              while every part it needs is on (removed when one is turned off).
     Inputs:  paths — deploy_paths() (jinja: the templates folder); v — rendered vars (the install_* flags of
-             OPTIONAL); None: the optional timers are left as they are.
+             OPTIONAL, or a test of the vars such as ad_dc_type for fabric-rodc-cache); None: the optional timers
+             are left as they are.
     Returns: True if a unit file changed (systemd reloaded here).
     Fails:   OSError copying or removing the files; systemctl failures are not raised (a host without systemd running,
              such as a render test, keeps the files).
@@ -25,7 +28,7 @@ def install_timers(paths, v=None):
     off = []
     if v is not None:
         for name, flags in OPTIONAL.items():
-            (on if all(v.get(f) for f in flags) else off).append(name)
+            (on if all(f(v) if callable(f) else v.get(f) for f in flags) else off).append(name)
     changed = False
     for name in on:
         for kind in ("service", "timer"):

@@ -54,6 +54,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `plan_cidrs.py` | The networks of the site's plan subnets, for its AD site |
 | `create_machine.py` | Operation `create_machine`: a machine pre-created in the site's OU=machines with a one-time join password |
 | `sort_windows_machines.py` | Operation `sort_windows_machines`: Windows machines that joined themselves into OU=machines moved into OU=windows, those moved before skipped (manual 1.6.11.5) |
+| `sync_rodc_cache.py` | Operation `sync_rodc_cache`: `<site>-rodc-cache` holding exactly the site's `<site>-users` and `<site>-admins` (nested) and its computer accounts, anything else taken out; returns the site's own accounts it reaches (to preload) and any other account reached (reported) (2.1.6.55, manual 1.6.11.14) |
 | `adopt_linux_machines.py` | Operation `adopt_linux_machines`: Linux machines joined into OU=linux with an admin's password made members of <site>-fabric-machines, once, unless their join said unmanaged (manual 1.6.11.6) |
 | `ensure_sudo_rule.py` | The site's default sudo rule: its admins and the admin group may run anything on its machines (2.1.9.13) |
 | `host_groups.py` | Host groups and fabric's sudo rules (1.6.11.7): their names, marks, a host group's machines as sudo host names, the site's rules |
