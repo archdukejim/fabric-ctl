@@ -12,7 +12,8 @@ the domain (`fabriclib/directory`); the policy itself runs in the container
 | `map_radius_group.py` | Let a group's members join by password (EAP-TTLS), optionally on a VLAN (locked, audited) |
 | `unmap_radius_group.py` | Stop a group joining by password (locked, audited) |
 | `normalize_radius_clients.py` | Check `radius_clients` (name, address or network, no overlaps, Message-Authenticator, vendor, transport); a secret in the vars file is taken out for OpenBao |
-| `deploy_freeradius.py` | FreeRADIUS's config (client secrets, the directory account) and the policy code under `<deploy_base>/freeradius` (its certificates and CA bundle come from setup's certificate step) |
+| `deploy_freeradius.py` | FreeRADIUS's config (client secrets, the directory account) and the policy code under `<deploy_base>/freeradius` (its certificates and CA bundle come from setup's certificate step); refuses first a `radius_people` VLAN outside the plan |
+| `check_people_vlans.py` | The groups mapped for password logins name VLANs of this site's address plan, once it has any (2.1.11.9) |
 | `add_radius_client.py` | Add a switch or access point; its secret (given, or new) into fabric's secrets (OpenBao); locked, audited |
 | `rotate_radius_secret.py` | A new shared secret for a client (given, or random); audited |
 | `remove_radius_client.py` | Remove a client and delete its secret; audited |

@@ -589,6 +589,7 @@ file	fabriclib-pki|src/fabriclib/pki/sign_csr.py	33
 file	fabriclib-pki|src/fabriclib/pki/sign_site_ca.py	34	
 file	fabriclib-pki|src/fabriclib/pki/stage_site_ca.py	35	
 file	fabriclib-radius|src/fabriclib/radius/add_radius_client.py	1	
+file	fabriclib-radius|src/fabriclib/radius/check_people_vlans.py	26	
 file	fabriclib-radius|src/fabriclib/radius/coa/attributes.py	15	
 file	fabriclib-radius|src/fabriclib/radius/coa/build_radius_packet.py	16	
 file	fabriclib-radius|src/fabriclib/radius/coa/coa_session.py	17	
@@ -1908,6 +1909,7 @@ function	fabriclib-pki|src/fabriclib/pki/sign_site_ca.py|_stage	2
 function	fabriclib-pki|src/fabriclib/pki/sign_site_ca.py|sign_site_ca	3	
 function	fabriclib-pki|src/fabriclib/pki/stage_site_ca.py|stage_site_ca	1	
 function	fabriclib-radius|src/fabriclib/radius/add_radius_client.py|add_radius_client	1	
+function	fabriclib-radius|src/fabriclib/radius/check_people_vlans.py|check_people_vlans	1	
 function	fabriclib-radius|src/fabriclib/radius/coa/attributes.py|cisco_avpair	4	
 function	fabriclib-radius|src/fabriclib/radius/coa/attributes.py|integer	3	
 function	fabriclib-radius|src/fabriclib/radius/coa/attributes.py|ipv4	2	

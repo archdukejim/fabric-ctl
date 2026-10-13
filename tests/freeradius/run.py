@@ -499,7 +499,9 @@ from fabriclib.ipam.write_plan import write_plan  # noqa: E402
 SITE = V["site_name"]
 RESERVED = {"10.1.40.50": ("02:00:00:00:40:01", "cam5", "mab-printers"),
             "10.1.40.51": ("02:00:00:00:40:02", "cam6", ""), "10.1.40.52": ("02:00:00:00:40:03", "cam7", "dns-only"),
-            "10.1.40.53": ("02:00:00:00:30:02", "cam1r", "mab-printers")}    # cam1's MAC: the device decides
+            "10.1.40.53": ("02:00:00:00:30:02", "cam1r", "mab-printers"),    # cam1's MAC: the device decides
+            "10.1.40.54": ("02:00:00:00:40:04", "cam8", "res-only")}         # a role only a reservation names
+add_role_mod.add_role(V, "test", "res-only", {"permissions": ["network:mab"], "priority": 50})
 write_plan(V, SECRETS, [{"do": "add", "what": "vlan", "site": SITE, "key": 40, "fields": {"id": 40, "name": "cams"}},
                         {"do": "add", "what": "subnet", "site": SITE, "key": "cams",
                          "fields": {"cidr": "10.1.40.0/24", "vlan": 40, "kind": "lan", "gateway": "10.1.40.1",
@@ -535,6 +537,19 @@ check("a role's VLAN outside the plan is refused, naming the plan's VLANs; one i
       and "cams-role" in {r["name"] for r in list_roles(V)} and "badvlan" not in {r["name"] for r in list_roles(V)},
       refused_vlan)
 run_op(V, SECRETS, "remove_role", {"name": "cams-role"}, DC)
+# removing a role a reservation names is refused, naming it (2.1.11.9); once taken off, the role is removed
+try:
+    run_op(V, SECRETS, "remove_role", {"name": "res-only"}, DC)
+    refused_remove = ""
+except Exception as exc:                 # ValidationError
+    refused_remove = str(exc)
+check("remove a role a reservation names: refused, naming the reservation and how to take the role off",
+      "role res-only is named by 1 reservation(s): 10.1.40.54 (cam8)" in refused_remove
+      and "--role none" in refused_remove and "res-only" in {r["name"] for r in list_roles(V)}, refused_remove)
+write_plan(V, SECRETS, [{"do": "set", "what": "address", "site": SITE, "subnet": "cams", "key": "10.1.40.54",
+                         "fields": {"role": ""}}], container=DC)
+run_op(V, SECRETS, "remove_role", {"name": "res-only"}, DC)
+check("...and removed once no reservation names it", "res-only" not in {r["name"] for r in list_roles(V)})
 write_plan(V, SECRETS, [{"do": "remove", "what": "subnet", "site": SITE, "key": "cams"},
                         {"do": "remove", "what": "vlan", "site": SITE, "key": 40}], container=DC)
 

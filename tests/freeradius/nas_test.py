@@ -132,5 +132,28 @@ check("relaxed settings: nothing for RADIUS while 802.1X is off",
                                                                     config_dir=REPO + "/no-such-dir",
                                                                     daemon_json=REPO + "/no-such-file")))
 
+# ------------------------------------------------------------------ radius_people VLANs from the plan (2.1.11.9)
+from fabriclib.radius.check_people_vlans import check_people_vlans  # noqa: E402
+from fabriclib.radius.deploy_freeradius import deploy_freeradius  # noqa: E402
+import tempfile  # noqa: E402
+PLAN = {"site": "lan", "vlans": [{"id": 20, "name": "staff"}, {"id": 50, "name": "guests"}], "subnets": []}
+PEOPLE = [{"group": "staff", "vlan": 20, "priority": 50}, {"group": "guests", "vlan": "50", "priority": 60},
+          {"group": "anywhere", "vlan": None, "priority": 70}]
+# covers: setting:radius_people +
+check("radius_people at apply: VLANs of the plan, no VLAN, a plan without VLANs and no plan kept are accepted",
+      check_people_vlans(PEOPLE, PLAN) is None and check_people_vlans([{"group": "x", "vlan": 99}],
+                                                                      {"site": "lan", "vlans": []}) is None
+      and check_people_vlans([{"group": "x", "vlan": 99}], None) is None and check_people_vlans(None, PLAN) is None)
+msg = refused(check_people_vlans, PEOPLE + [{"group": "contractors", "vlan": 99}, {"group": "sales", "vlan": 30}], PLAN)
+check("radius_people at apply: a mapping on a VLAN outside the plan is refused, naming every such group and the "
+      "plan's VLANs", "contractors names VLAN 99, sales names VLAN 30" in msg and "20 (staff), 50 (guests)" in msg
+      and "fabricctl ipam vlan add" in msg and "staff names" not in msg, msg)
+with tempfile.TemporaryDirectory() as tmp:
+    bad = {"deploy_base_dir": tmp, "radius_people": [{"group": "contractors", "vlan": 99, "priority": 1}]}
+    # covers: setting:radius_people -
+    msg = refused(deploy_freeradius, bad, {}, None, PLAN)
+    check("deploy_freeradius refuses such a mapping before writing anything",
+          "contractors names VLAN 99" in msg and os.listdir(tmp) == [], (msg, os.listdir(tmp)))
+
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

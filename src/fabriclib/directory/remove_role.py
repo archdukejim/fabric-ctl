@@ -6,12 +6,12 @@ from fabriclib.directory.constants import ROLE_NAME_RE
 
 
 def remove_role(v, actor, name, source="web"):
-    """Purpose: Delete a device role, refused while any of this site's devices still names it
-             (fabricRoleName) so no device silently loses (or keeps) access.
+    """Purpose: Delete a device role, refused while any of this site's devices, or any reservation of its address
+             plan (1.11.1.7), still names it (fabricRoleName) so no device silently loses (or keeps) access.
     Inputs:  v — fabric vars; actor — str, for the audit; name — ROLE_NAME_RE; source — default "web".
     Returns: None.
     Fails:   ValidationError "invalid role name: ..."; "role <name> still has <n> device(s); take them out
-             first"; "no such entry";
+             first"; "role <name> is named by <n> reservation(s): <ip> (<name>), …"; "no such entry";
              run_op's errors (the directory unreachable, or refusing: e.g. another site's object).
     Feeds:   agent/ (fabric-agent) Handler.directory (POST /v1/roles/<name>/delete) -> webui agentclient.delete_role.
     Notes:   audited as ROLE_REMOVE.
