@@ -2,10 +2,10 @@
 """The landing page's certificate follows the zone (decision 2.1.4.8, manual 1.4.2.6), against the real Step-CA image
 running as setup runs it (a container named step-ca, the JWK provisioner `admin`): setup's `certs` step issues it for
 the host's own name, <domain> and the admin's aliases of the host; an apply that finds its names changed (the info
-alias renamed) issues it again at once, without the old name, and revokes the one it replaced (the CRL lists it); and
-the refusals: nothing issued while the names are current or before the first certificate exists, a record pointing
-at another machine or one of fabric's own names never on it, a revocation that fails reported loudly with the new
-certificate kept.
+alias renamed) issues it again at once, without the old name, and does not revoke the one it replaced (2.1.4.8,
+revised 2026-10-12: it expires; the CRL does not list it); and the refusals: nothing issued while the names are
+current or before the first certificate exists, a record pointing at another machine or one of fabric's own names
+never on it, an apply whose certificate cannot be issued failing loudly with the certificate unchanged.
 
     sudo python3 tests/pki/landing.py          (needs Docker, openssl, root; uses the container name step-ca)
 """
@@ -183,41 +183,44 @@ names = cert_names(LAND)
 check("the apply after a rename issues the certificate again at once, for welcome and without info",
       done is True and names == {f"fab.{DOMAIN}", DOMAIN, f"welcome.{DOMAIN}"} and serial() != first,
       (names, out.getvalue()[-800:]))
-rec = revoked()
-check("...and revokes the one it replaced (superseded), recorded by fabric",
-      len(rec) == 1 and rec[0]["serial"].replace(":", "").lower().lstrip("0") == first.replace(":", "").lower()
-      .lstrip("0") and rec[0]["reason"] == "superseded" and rec[0]["actor"] == "fabric", rec)
-check("...published at once: the CRL lists it; checked against it, the old one is refused and the new one passes",
-      crl_lists(first) and not verifies_with_crl(OLD) and verifies_with_crl(LAND), (first, sh(["openssl", "crl", "-in", CRL, "-noout", "-text"],
-                                                              ok=False).stdout[-600:]))
+# revised 2026-10-12 by the owner (2.1.4.8): the replaced certificate is not revoked, it expires
+check("...and does not revoke the one it replaced: nothing in the revocation record",
+      revoked() == [], revoked())
+check("...nor in the published CRL: checked against it, the old one still verifies, and so does the new one",
+      os.path.exists(CRL) and not crl_lists(first) and verifies_with_crl(OLD) and verifies_with_crl(LAND),
+      (first, sh(["openssl", "crl", "-in", CRL, "-noout", "-text"], ok=False).stdout[-600:]))
 record = json.load(open(CERT_RENEWAL_FILE))
 check("...the renewal record says it went well, nginx took the new certificate",
       record["ok"] and record["services"].get("nginx") == "reloaded", record)
 
-# ---------------------------------------------------------------- a revocation that fails
+# ---------------------------------------------------------------- the alias repointed at another machine
 V3 = json.loads(json.dumps(V2))
-V3["dns"]["dynamic_zone_var"]["CNAME"][0] = {"name": "welcome", "canonical": "printer"}     # repointed elsewhere
+V3["dns"]["dynamic_zone_var"]["CNAME"][0] = {"name": "welcome", "canonical": "printer"}
 save(V3)
 second = serial()
-with open(REVOKED_CERTS_FILE, "a") as f:            # already revoked by hand: revoke_cert refuses it again
-    f.write(json.dumps({"serial": second, "when": "2026-10-12T00:00:00+00:00", "actor": "admin", "source": "cli",
-                        "reason": "keyCompromise", "issuer": "intermediate", "subject": "", "not_after": ""}) + "\n")
-err = io.StringIO()
+with contextlib.redirect_stdout(io.StringIO()):
+    done = renew_landing_cert(PATHS, V3)
+names = cert_names(LAND)
+check("negative: an alias repointed at another machine leaves the certificate at the next apply (fabric's names only)",
+      done is True and names == {f"fab.{DOMAIN}", DOMAIN} and serial() != second and revoked() == [], names)
+
+# ---------------------------------------------------------------- the CA down: the apply fails loudly
+V4 = json.loads(json.dumps(V3))
+V4["dns"]["dynamic_zone_var"]["CNAME"][0] = {"name": "hello", "canonical": "fab"}
+save(V4)
+third = serial()
+sh(["docker", "stop", "step-ca"], ok=False)
 refusal = ""
-with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+with contextlib.redirect_stdout(io.StringIO()):
     try:
-        renew_landing_cert(PATHS, V3)
+        renew_landing_cert(PATHS, V4)
     except ValidationError as e:
         refusal = str(e)
-names = cert_names(LAND)
-check("negative: a replaced certificate that cannot be revoked fails the apply loudly, naming the command to run",
-      "could not be revoked" in refusal and f"fabricctl certs revoke {second}" in refusal
-      and "could not be revoked" in err.getvalue(), (refusal, err.getvalue()[-400:]))
-check("...the new certificate is kept (welcome repointed elsewhere: only fabric's names now)",
-      names == {f"fab.{DOMAIN}", DOMAIN} and serial() != second, names)
+check("negative: names changed but the CA cannot issue: the apply fails, saying so; the certificate is unchanged",
+      "could not be issued again" in refusal and serial() == third, refusal)
 record = json.load(open(CERT_RENEWAL_FILE))
-check("...and the renewal record holds the failure for status and doctor",
-      not record["ok"] and "could not be revoked" in record["error"], record)
+check("...and the renewal record holds the failure for status and doctor", not record["ok"] and record["error"],
+      record)
 
 cleanup()
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")

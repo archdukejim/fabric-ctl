@@ -135,7 +135,7 @@ def _deploy(paths, start_services):
     if not start_services:
         return finish_without_start(paths, state, bind_ids)
     restarted = restart_changed(paths, final_vars, secrets, state, bind_ids)
-    # the landing page's names follow the zone: a changed alias gets its certificate now, the old one revoked (2.1.4.8)
+    # the landing page's names follow the zone: a changed alias gets its certificate now; the old one expires (2.1.4.8)
     if renew_landing_cert(paths, final_vars):
         restarted.add("nginx")
     return restarted
@@ -158,9 +158,8 @@ def apply_deployment(start_services=True):
              dns_filter; host_ram_capacity under 4; site_name, org_domain or
              ldap_base_dn not valid or not what they were at install; a template that does not render; an image
              build that fails (start_services=False); BIND9 refusing `rndc reconfig`; the landing page's certificate
-             not issued again for changed names, or the one it replaced not revoked (renew_landing_cert, 2.1.4.8,
-             after everything else is applied); a published image
-             whose signature does not verify (verify_published_images); fabric's own units (the
+             not issued again for changed names (renew_landing_cert, 2.1.4.8, after everything else is applied); a
+             published image whose signature does not verify (verify_published_images); fabric's own units (the
              `services` host change) not approved — an install set up before consent existed is not refused. A bad
              link-vars file is only
              reported. OSError from file operations propagates.

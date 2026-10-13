@@ -1,18 +1,14 @@
 import os
 import shutil
-import subprocess
 
-from fabriclib.common.console import err, ok
-from fabriclib.common.errors import ValidationError
+from fabriclib.common.console import ok
 from fabriclib.dns.common.landing_names import landing_names
 from fabriclib.pki.common.cert_names import cert_names
 from fabriclib.pki.common.crl_points import crl_points
-from fabriclib.pki.common.describe_cert import describe_cert
 from fabriclib.pki.install_cert import install_cert
 from fabriclib.pki.mint_cert import mint_cert
 from fabriclib.pki.needs_renewal import needs_renewal
 from fabriclib.pki.publish_crl import publish_crl
-from fabriclib.pki.revoke_cert import revoke_cert
 from fabriclib.setup.mint_extra_certs import mint_extra_certs
 
 
@@ -73,46 +69,6 @@ def _targets(ctx):
     return [(*x, False) if len(x) == 4 else x for x in t]
 
 
-def _replaced_serial(cert_path, ca_certs):
-    """Purpose: the serial of a certificate about to be replaced because its names changed, so it can be revoked
-             once the new one is in place (decision 2.1.4.8).
-    Inputs:  cert_path — the certificate on disk; ca_certs — (root, intermediate) of this CA.
-    Returns: the serial (hex) when the certificate is there and was issued by this CA; None otherwise (one from a
-             replaced CA is not this CA's to revoke).
-    Fails:   never for a bad certificate (None); FileNotFoundError only if openssl is not installed.
-    Feeds:   run."""
-    root, intermediate = ca_certs
-    if subprocess.run(["openssl", "verify", "-CAfile", root, "-untrusted", intermediate, cert_path],
-                      capture_output=True).returncode != 0:
-        return None
-    try:
-        with open(cert_path) as f:
-            return describe_cert(f.read())["serial"] or None
-    except (OSError, ValidationError):
-        return None
-
-
-def _revoke_replaced(ctx, serial, cn):
-    """Purpose: revoke the certificate a name change replaced (decision 2.1.4.8, reason superseded), so the old
-             alias's certificate is not left valid; run publishes the CRL right after. A refusal is said loudly and
-             kept for the renewal record (status, doctor), and the new certificate stays: the new names are what the
-             page needs, the revocation is the clean-up.
-    Inputs:  ctx — SetupContext (vars: deploy_base_dir; cert_problems collects the failure); serial — the replaced
-             certificate's; cn — its CN, for the messages.
-    Returns: None.
-    Fails:   never: ValidationError, OSError and CalledProcessError from revoke_cert are reported, not raised.
-    Feeds:   run."""
-    try:
-        revoke_cert(ctx.vars, "fabric", serial, reason="superseded", source="cli", publish=False)
-        ok(f"{cn}: the certificate it replaced ({serial}) is revoked (superseded)")
-    except (ValidationError, OSError, subprocess.CalledProcessError) as e:
-        msg = (f"{cn}: the certificate it replaced ({serial}) could not be revoked: {e}. The new one is in use; "
-               f"revoke the old one with `sudo fabricctl certs revoke {serial} --reason superseded`")
-        err(msg)
-        if isinstance(getattr(ctx, "cert_problems", None), list):
-            ctx.cert_problems.append(msg)
-
-
 def _crl_moved(ctx, cert_path):
     """Purpose: whether a service certificate names a CRL point other than the one fabric's certificates name now
              (http://<hostname_stepca>/certs/crl/intermediate.crl, 1.5.1.6): one issued by 0.7.0 names info.<domain>,
@@ -154,14 +110,13 @@ def run(ctx):
              cert_renew_after_days and live no longer than cert_service_days (manual 2.1.5.4, 2.1.5.7) are left
              alone unless force_certs, unless one of their destinations has no copy yet, or unless they name another
              CRL point than fabric's current one (_crl_moved, 1.5.1.6). The landing page's certificate is also
-             issued again at once when its names differ from landing_names in any way, and the one it replaces is
-             revoked (superseded; a refusal reported loudly, the new one kept: _revoke_replaced, 2.1.4.8). The old
+             issued again at once when its names differ from landing_names in any way; the one it replaces is not
+             revoked, it expires (2.1.4.8, revised 2026-10-12). The old
              certs.<domain> certificate, still there after an upgrade to 0.7.0, is deleted (_old_certs_host,
              1.5.1.5). The web UI client-CA bundle is rewritten on every run; the CRLs are published every run
              (publish_crl: FreeRADIUS's ca.pem with them). Services whose certificates changed are added to
              ctx.restart_services.
-    Fails:   SetupError from mint_cert (step-ca refused); OSError/CalledProcessError installing files (a failed
-             revocation of a replaced certificate is reported, never raised);
+    Fails:   SetupError from mint_cert (step-ca refused); OSError/CalledProcessError installing files;
              ValidationError from mint_extra_certs; KeyError for missing hostname vars.
     Feeds:   setup step `certs`, run by run_setup via STEPS; renew_service_certs (`fabricctl certs`)."""
     certs_dir = ctx.path("stepca", "data", "certs")
@@ -188,7 +143,6 @@ def run(ctx):
                 check, [cn, *sans], (root_ca, intermediate), renew_after_days=renew_after, max_days=lifetime):
             ok(f"{cn}: current")
             continue
-        replaced = _replaced_serial(check, (root_ca, intermediate)) if renamed else None
         crt, key = mint_cert(ctx, cn, sans, cn.replace(".", "-"))
         for dest, user in dests:
             if user == "freeradius:eap":
@@ -200,8 +154,6 @@ def run(ctx):
         restart.update(services)
         ok(f"{cn}: issued" + (" (its CRL point moved to the CA's own name, 1.5.1.6)" if moved else "")
            + (f" (its names changed: {', '.join([cn, *sans])}; 2.1.4.8)" if renamed else ""))
-        if replaced:
-            _revoke_replaced(ctx, replaced, cn)
     if old_certs:
         shutil.rmtree(old_certs)
         ok(f"{os.path.basename(old_certs)}: old certificate deleted (the CA is at /certs/, 1.5.1.5)")
