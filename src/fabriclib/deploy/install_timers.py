@@ -7,7 +7,8 @@ TIMERS = ["fabric-certs", "fabric-db-rotate", "fabric-machines"]   # fabric's sc
 # 2.1.5.4, 2.1.7.4, 1.6.11.5
 # timers of an optional part: installed while all its flags are on, removed when one is off
 OPTIONAL = {"fabric-dns-lists": ("install_resolver",),                    # the lists, daily (manual 1.12.2.10)
-            "fabric-dns-log": ("install_resolver", "install_keycloak")}  # the query log, 5 min (1.12.2.13)
+            "fabric-dns-log": ("install_resolver", "install_keycloak"),  # the query log, 5 min (1.12.2.13)
+            "fabric-dhcp-names": ("install_kea",)}    # DHCP names left behind, hourly (1.10.4.20, 2.1.10.22)
 
 
 def install_timers(paths, v=None):

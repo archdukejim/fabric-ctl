@@ -1,6 +1,15 @@
 // Kea DHCPv4 — rendered by fabricctl (fabric/jinja/kea/kea-dhcp4.conf.j2) from `dhcp:` in vars.yaml.
 {% set d = dhcp | default({}) %}
 {% set ddns_zone = (d.ddns_subdomain | default('dhcp')) ~ '.' ~ domain %}
+{# a reservation whose names are set by hand ("ddns": false: the address manager's published names, or an address a
+   record of `dns:` names) is put in the SKIP_DDNS class, and the ddns-tuning hook makes Kea send no DNS update for
+   it, forward or reverse: a name set by hand is never replaced by DHCP's (2.1.10.20) #}
+{% set skip = namespace(on=false) %}
+{% for s in d.subnets | default([]) %}{% for r in s.reservations | default([]) %}{% if d.ddns | default(true) and r.ddns is defined and not r.ddns %}{% set skip.on = true %}{% endif %}{% endfor %}{% endfor %}
+{% set classes = kea_client_classes(d.client_classes) if d.client_classes | default([]) else [] %}
+{% if skip.on and 'SKIP_DDNS' not in classes | map(attribute='name') | list %}
+{% set _ = classes.append({"name": "SKIP_DDNS"}) %}
+{% endif %}
 {
 "Dhcp4": {
     "interfaces-config": {
@@ -11,6 +20,10 @@
     "lease-database": { "type": "memfile", "persist": true, "name": "/var/lib/kea/kea-leases4.csv", "lfc-interval": 3600 },
     "hooks-libraries": [
         { "library": "libdhcp_lease_cmds.so" },
+{% if skip.on %}
+        // the hook refuses to load without a parameters map, which `kea-dhcp4 -t` does not catch
+        { "library": "libdhcp_ddns_tuning.so", "parameters": {} },
+{% endif %}
         { "library": "libdhcp_stat_cmds.so" }
     ],
     "valid-lifetime": {{ d.lease_time | default(86400) }},
@@ -44,8 +57,8 @@
 {% if d.option_defs | default([]) %}
     "option-def": {{ kea_option_defs(d.option_defs) | to_json }},
 {% endif %}
-{% if d.client_classes | default([]) %}
-    "client-classes": {{ kea_client_classes(d.client_classes) | to_json }},
+{% if classes %}
+    "client-classes": {{ classes | to_json }},
 {% endif %}
     "subnet4": [
 {% for s in d.subnets | default([]) %}
@@ -80,7 +93,7 @@
             "option-data": {{ kea_option_data(sub_defaults, s.options) | to_json }},
             "reservations": [
 {% for r in s.reservations | default([]) %}
-                { "hw-address": "{{ r.mac | lower }}", "ip-address": "{{ r.ip }}"{% if r.hostname is defined and r.hostname %}, "hostname": "{{ r.hostname }}"{% endif %}{% if r.options is defined and r.options %}, "option-data": {{ kea_option_data([], r.options) | to_json }}{% endif %} }{{ ',' if not loop.last }}
+                { "hw-address": "{{ r.mac | lower }}", "ip-address": "{{ r.ip }}"{% if r.hostname is defined and r.hostname %}, "hostname": "{{ r.hostname }}"{% endif %}{% if r.options is defined and r.options %}, "option-data": {{ kea_option_data([], r.options) | to_json }}{% endif %}{% if skip.on and r.ddns is defined and not r.ddns %}, "client-classes": [ "SKIP_DDNS" ]{% endif %} }{{ ',' if not loop.last }}
 {% endfor %}
             ]
         }{{ ',' if not loop.last }}

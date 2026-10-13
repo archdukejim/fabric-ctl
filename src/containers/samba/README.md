@@ -46,6 +46,9 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `share_winbind.py` | winbind's privileged pipe in FreeRADIUS's group (root, 0750), for PEAP through `ntlm_auth` |
 | `ensure_networks.py` | The site's networks as `fabricNetwork` entries in its OU=networks (the address plan), kept to match |
 | `read_networks.py` | Operation `read_networks`: the address plan, every site's networks in one search |
+| `read_plan.py` | Operation `read_plan`: the address manager's plan, one site's or every site's, and every site's number |
+| `write_plan.py` | Operation `write_plan`: checked changes to a site's plan (VLANs, subnets, ranges, addresses, its number) |
+| `plan_cidrs.py` | The networks of the site's plan subnets, for its AD site |
 | `create_machine.py` | Operation `create_machine`: a machine pre-created in the site's OU=machines with a one-time join password |
 | `sort_windows_machines.py` | Operation `sort_windows_machines`: Windows machines that joined themselves into OU=machines moved into OU=windows, those moved before skipped (manual 1.6.11.5) |
 | `adopt_linux_machines.py` | Operation `adopt_linux_machines`: Linux machines joined into OU=linux with an admin's password made members of <site>-fabric-machines, once, unless their join said unmanaged (manual 1.6.11.6) |

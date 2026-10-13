@@ -31,6 +31,7 @@ from fabriclib.dhcp.deploy_kea import deploy_kea  # noqa: E402
 from fabriclib.dhcp.list_leases import list_leases  # noqa: E402
 from fabriclib.dhcp.dhcp_reverse_zones import dhcp_reverse_zones  # noqa: E402
 from fabriclib.dhcp.normalize_dhcp import normalize_dhcp  # noqa: E402
+from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp  # noqa: E402
 
 
 def check(name, cond, detail=""):
@@ -56,7 +57,7 @@ def until(pred, timeout=60):
 
 
 def cleanup():
-    sh("docker rm -f kt-dhcp4 kt-ddns kt-bind kt-c1 kt-c2 kt-c3 kt-boot >/dev/null 2>&1", ok=False)
+    sh("docker rm -f kt-dhcp4 kt-ddns kt-bind kt-c1 kt-c2 kt-c3 kt-c4 kt-boot >/dev/null 2>&1", ok=False)
     sh(f"docker network rm {NET} >/dev/null 2>&1", ok=False)
 
 
@@ -98,7 +99,10 @@ V = {"deploy_base_dir": W, "domain": "lan.test", "install_kea": True, "ip_kea_dd
               "subnets": [{"subnet": SUBNET, "name": "lab", "vlan": 23, "notes": "the test bridge", "id": 7,
                            "pools": ["10.254.23.100 - 10.254.23.150"], "routers": "10.254.23.1",
                            "reservations": [{"mac": "02:00:00:00:00:42", "ip": "10.254.23.42",
-                                             "hostname": "printer"}]}]}}
+                                             "hostname": "printer"},
+                                            # its names are set by hand: DHCP never registers them (2.1.10.20)
+                                            {"mac": "02:00:00:00:00:44", "ip": "10.254.23.44",
+                                             "hostname": "cam3", "ddns": False}]}]}}
 V["dhcp"] = normalize_dhcp(V)
 V["dhcp_reverse_zones"] = dhcp_reverse_zones(V)          # as check_settings sets it (2.1.10.7)
 REV = V["dhcp_reverse_zones"][0]
@@ -109,8 +113,11 @@ check("Kea's configs, lease and socket folders, and the DHCP subzone file writte
       and oct(os.stat(f"{W}/kea/config/kea-dhcp-ddns.conf").st_mode & 0o777) == "0o640")
 cfg4 = open(f"{W}/kea/config/kea-dhcp4.conf").read()
 # covers: setting:dhcp +
-check("Kea checked them first (kea-dhcp4 -t) and accepted: options, a client class, the subnet's id, name, VLAN",
+check("Kea checked them first (kea-dhcp4 -t) and accepted: options, a client class, the subnet's id, name, VLAN, "
+      "the reservation whose names are set by hand in SKIP_DDNS with the ddns-tuning hook (2.1.10.20)",
       check_kea_config("fabric/kea:test", "kea-dhcp4.conf", cfg4) is True and '"id": 7' in cfg4
+      and "libdhcp_ddns_tuning.so" in cfg4 and '"SKIP_DDNS"' in cfg4.split('"10.254.23.44"')[1].split("}")[0]
+      and '"SKIP_DDNS"' not in cfg4.split('"10.254.23.42"')[1].split("}")[0]
       and '"vlan": 23' in cfg4 and '"boot-test"' in cfg4)
 bad_v = {**V, "dhcp": normalize_dhcp({**V, "dhcp": {**V["dhcp"], "options": [{"name": "no-such-option", "data": "1"}]}})}
 try:
@@ -121,6 +128,44 @@ except ValidationError as e:
 # covers: setting:dhcp -
 check("an option Kea does not know is refused by Kea's own check, and nothing is written",
       "Kea refused" in refused and open(f"{W}/kea/config/kea-dhcp4.conf").read() == cfg4, refused[-300:])
+# the address manager (1.10.4.14): Kea rendered from a site's plan; a reservation inside a dhcp range (1.10.4.3.2)
+PLAN = {"vlans": [{"id": 23, "name": "lab", "access": "full"}, {"id": 24, "name": "guests", "access": "guest"}],
+        "subnets": [{"name": "lab", "cidr": SUBNET, "vlan": 23, "gateway": "10.254.23.1", "dhcp": True, "id": 7,
+                     "relay": "", "notes": "", "allow_overlap": "", "options": [{"name": "time-offset", "data": "60"}],
+                     "ranges": [{"kind": "dhcp", "first": "10.254.23.100", "last": "10.254.23.150"}],
+                     "addresses": [{"ip": "10.254.23.120", "kind": "reservation", "name": "inpool",
+                                    "mac": "02:00:00:00:00:43", "dns": True,
+                                    "options": [{"name": "boot-file-name", "data": "x.efi"}]},
+                                   {"ip": "10.254.23.9", "kind": "static", "name": "nas", "mac": "", "dns": True,
+                                    "options": []}]},
+                    {"name": "guests", "cidr": "10.254.24.0/24", "vlan": 24, "gateway": "10.254.24.1", "dhcp": True,
+                     "id": 8, "relay": "", "notes": "", "allow_overlap": "", "options": [],
+                     "ranges": [{"kind": "dhcp", "first": "10.254.24.100", "last": "10.254.24.200"}],
+                     "addresses": []},
+                    {"name": "lab-2", "cidr": "10.254.25.0/24", "vlan": 23, "gateway": "10.254.25.1", "dhcp": True,
+                     "id": 9, "relay": "", "notes": "", "allow_overlap": "", "options": [],
+                     "ranges": [{"kind": "dhcp", "first": "10.254.25.100", "last": "10.254.25.200"}],
+                     "addresses": []}]}
+RENDERED = plan_to_dhcp(PLAN)        # a reservation published in DNS (2.1.10.17); two subnets on VLAN 23 (2.1.10.18)
+pv = {**V, "dns": {"dynamic_zone_var": {"A": RENDERED["records"]}}}
+pv["dhcp"] = normalize_dhcp({**pv, "dhcp": {**V["dhcp"], "subnets": RENDERED["subnets"]}})
+plan_cfg = env.get_template("kea/kea-dhcp4.conf.j2").render(**pv)
+try:
+    plan_ok = check_kea_config("fabric/kea:test", "kea-dhcp4.conf", plan_cfg) is True
+except ValidationError as e:
+    plan_ok = str(e)
+try:      # why the class and the hook: Kea 3.0 takes no DDNS settings in a client class (2.1.10.20)
+    in_class = check_kea_config("fabric/kea:test", "kea-dhcp4.conf", plan_cfg.replace(
+        '"name": "SKIP_DDNS"', '"name": "SKIP_DDNS", "ddns-send-updates": false'))
+except ValidationError as e:
+    in_class = str(e)
+check("Kea 3.0 refuses ddns-send-updates in a client class: a reservation's DNS updates are skipped through the "
+      "SKIP_DDNS class and the ddns-tuning hook instead", "ddns-send-updates" in str(in_class)
+      and '"SKIP_DDNS"' in plan_cfg and "libdhcp_ddns_tuning.so" in plan_cfg, in_class)
+check("Kea accepts a configuration rendered from an address plan: three subnets (two on one VLAN), a reservation "
+      "inside the DHCP range published in the site's zone, options on a subnet and a reservation",
+      plan_ok is True and '"10.254.23.120"' in plan_cfg and '"id": 9' in plan_cfg
+      and {"name": "inpool", "ip": "10.254.23.120"} in RENDERED["records"], plan_ok)
 try:                                                  # ip_kea_ddns: Kea's own check refuses what is no address
     deploy_kea({**V, "ip_kea_ddns": "10.254.23.300"}, {"kea_ddns_secret": secret}, env, 53, 53)
     refused = ""
@@ -140,9 +185,10 @@ check("install_kea: true without a subnet to serve is refused before anything is
       "at least one subnet with a pool" in refused, refused)
 os.makedirs(f"{W}/bind9/config", exist_ok=True)
 bv = {**V, "dns": {}, "bind_acls": {"lan": ["any"]}, "tsig_keys": [], "tsig_secrets": {}, "kea_ddns_secret": secret,
-      "reverse_zone_names": [REV]}
+      "reverse_zone_names": [REV], "reverse_by_hand": {REV: ["9"]}}
+# a PTR set by hand (from a forward record of fabric's zones): 10.254.23.9 is nas.lan.test (2.1.10.20)
 open(f"{W}/bind9/data/db.{REV}", "w").write(env.get_template("bind9/data/reverse-zone.j2").render(
-    **bv, reverse_zone_name=REV, ptr_records=[]))
+    **bv, reverse_zone_name=REV, ptr_records=[{"label": "9", "target": "nas.lan.test."}]))
 open(f"{W}/bind9/config/named.conf", "w").write(
     'options { directory "/var/cache/bind"; listen-on { any; }; listen-on-v6 { none; }; recursion no; };\n'
     'acl "lan" { any; };\n'
@@ -226,6 +272,23 @@ check(f"the lease's PTR is registered too, in fabric's reverse zone {REV} (2.1.1
       until(lambda: sh(["dig", "+short", f"@{BIND_IP}", "-x", ip1], ok=False).stdout.strip()
             == "laptop1.dhcp.lan.test.", 30), (sh(["dig", "+short", f"@{BIND_IP}", "-x", ip1], ok=False).stdout,
                                                sh("docker logs kt-ddns", ok=False).stdout[-600:]))
+check("a reservation DHCP registers: its name and PTR come from Kea (the reserved hostname)",
+      until(lambda: dig("printer.dhcp.lan.test") == "10.254.23.42"
+            and sh(["dig", "+short", f"@{BIND_IP}", "-x", "10.254.23.42"], ok=False).stdout.strip()
+            == "printer.dhcp.lan.test.", 30), sh("docker logs kt-ddns", ok=False).stdout[-600:])
+# covers: cli:ipam.address +
+ip4, out4 = client("kt-c4", "02:00:00:00:00:44", "cam3")
+time.sleep(8)                                        # longer than the printer's registration took
+check("a reservation whose names are set by hand gets its address, and Kea registers nothing for it, forward or "
+      "reverse (2.1.10.20)", ip4 == "10.254.23.44" and dig("cam3.dhcp.lan.test") == ""
+      and sh(["dig", "+short", f"@{BIND_IP}", "-x", "10.254.23.44"], ok=False).stdout.strip() == "",
+      (ip4, dig("cam3.dhcp.lan.test"), sh("docker logs kt-dhcp4", ok=False).stdout[-800:]))
+# covers: cli:ipam.address -
+grab = sh(f"printf 'server {BIND_IP}\\nzone {REV}\\nupdate delete 9.{REV} PTR\\nupdate add 9.{REV} 60 PTR "
+          f"evil.dhcp.lan.test.\\nsend\\n' | nsupdate -y hmac-sha256:kea-ddns:{secret} 2>&1", ok=False).stdout
+check("refused: DHCP's key replacing a PTR set by hand (BIND denies it that name); the hand-set PTR stays",
+      "REFUSED" in grab and sh(["dig", "+short", f"@{BIND_IP}", "-x", "10.254.23.9"], ok=False).stdout.strip()
+      == "nas.lan.test.", grab[-300:])
 ip3, out3 = client("kt-c3", "02:00:00:00:00:13", "laptop1")
 time.sleep(3)
 check("another client asking for the same name cannot take it over (DHCID)", ip3 and ip3 != ip1
@@ -239,6 +302,111 @@ check("the key may not touch anything but the DHCP subzone", "REFUSED" in evil o
 evil_rev = sh(f"printf 'server {BIND_IP}\\nzone {REV}\\nupdate add 9.{REV} 60 TXT evil\\nsend\\n' "
               f"| nsupdate -y hmac-sha256:kea-ddns:{secret} 2>&1", ok=False).stdout
 check("in the reverse zone the key may write PTR and DHCID only (a TXT refused)", "REFUSED" in evil_rev, evil_rev[-300:])
+
+
+# ------------------------------------------------------------------ DHCP names left behind (2.1.10.22, manual 1.10.4.20)
+import fabriclib.dhcp.clean_dhcp_names as cdn  # noqa: E402
+import fabriclib.dhcp.clear_stale_dhcp_names as csn  # noqa: E402
+import fabriclib.dns.constants as dns_constants  # noqa: E402
+from fabriclib.dhcp.hand_set_addresses import hand_set_addresses  # noqa: E402
+from fabriclib.dhcp.keep_hand_set_addresses import keep_hand_set_addresses  # noqa: E402
+from fabriclib.dhcp.run_dhcp_command import run_dhcp_command  # noqa: E402
+from fabriclib.dns.merge_dynamic_records import merge_dynamic_records  # noqa: E402
+dns_constants.BIND_CONTAINER = "kt-bind"              # BIND's container here; production's is bind9
+CLEARED = []
+csn.write_audit = lambda actor, action, detail, source, path=None: CLEARED.append((action, detail, source))
+cdn.load_secrets = lambda: {"kea_ddns_secret": secret}
+KEYFILE = f"{W}/kea-ddns.key"                         # the test's own updates: the key in a 0600 file
+fd = os.open(KEYFILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+with os.fdopen(fd, "w") as f:
+    f.write(f'key "kea-ddns" {{ algorithm hmac-sha256; secret "{secret}"; }};\n')
+DHCID = "AAIBY2/AuCccgoJbsaxcQc9TUapptP69lOjxfNuVAA2kjEA="     # RFC 4701's example
+
+
+def kea_update(*lines):
+    """What Kea would have registered: an update signed with its key."""
+    text = "\n".join([f"server {BIND_IP}", "zone dhcp.lan.test", *lines, "send", ""])
+    return sh(["nsupdate", "-k", KEYFILE], ok=False, input=text)
+
+
+def dig_t(rtype, name):
+    return sh(["dig", "+short", f"@{BIND_IP}", rtype, name], ok=False).stdout.strip()
+
+
+def call(fn):
+    try:
+        return fn(), ""
+    except ValidationError as e:
+        return None, str(e)
+
+
+# the printer was registered by Kea above; now an admin names 10.254.23.42 by hand (printer.lan.test)
+HV = {**V, "dns": {"dynamic_zone_var": {"A": [{"name": "printer", "ip": "10.254.23.42"},
+                                              {"name": "nas", "ip": "10.254.23.9"}]}}}
+check("before: Kea's name and DHCID for the address now named by hand are in dhcp.lan.test",
+      dig("printer.dhcp.lan.test") == "10.254.23.42" and dig_t("DHCID", "printer.dhcp.lan.test") != "",
+      dig("printer.dhcp.lan.test"))
+gone, err = call(lambda: csn.clear_stale_dhcp_names(HV, hand_set_addresses(HV), secret, "root", "apply"))
+check("at the apply: Kea's name for an address named by hand is deleted, its DHCID with it, and audited",
+      err == "" and dig("printer.dhcp.lan.test") == "" and dig_t("DHCID", "printer.dhcp.lan.test") == ""
+      and [c[0] for c in CLEARED] == ["DHCP_NAME_CLEAR", "DHCP_NAME_CLEAR"]
+      and all(c[2] == "apply" for c in CLEARED) and "printer.dhcp.lan.test A 10.254.23.42" in CLEARED[0][1],
+      (err, gone, CLEARED))
+check("not deleted: a DHCP name whose address nothing names by hand (laptop1 keeps its name)",
+      dig("laptop1.dhcp.lan.test") == ip1, dig("laptop1.dhcp.lan.test"))
+check("not touched: the PTR set by hand (nas.lan.test), a record outside DHCP's zone",
+      sh(["dig", "+short", f"@{BIND_IP}", "-x", "10.254.23.9"], ok=False).stdout.strip() == "nas.lan.test.")
+again, err = call(lambda: csn.clear_stale_dhcp_names(HV, hand_set_addresses(HV), secret, "root", "apply"))
+check("a second run finds nothing and sends nothing (idempotent)", again == [] and err == "" and len(CLEARED) == 2,
+      (again, err, CLEARED))
+merged = merge_dynamic_records(REV, env.get_template("bind9/data/reverse-zone.j2").render(
+    **bv, reverse_zone_name=REV, ptr_records=[{"label": "9", "target": "nas.lan.test."},
+                                             {"label": "42", "target": "printer.lan.test."}]),
+    csn._served_zone(REV))
+check("Kea's PTR for that address: the apply's regenerated reverse zone drops it for the PTR set by hand "
+      "(the zone as BIND serves it), and keeps laptop1's", "printer.dhcp" not in merged
+      and "laptop1.dhcp.lan.test." in merged, merged[-600:])
+
+# the hourly timer's run: what its unit starts, with the addresses the apply kept
+unit = open(f"{REPO}/templates/systemd/fabric-dhcp-names.service").read()
+timer = open(f"{REPO}/templates/systemd/fabric-dhcp-names.timer").read()
+argv = [ln.split("=", 1)[1].split() for ln in unit.splitlines() if ln.startswith("ExecStart=")][0]
+check("the timer runs hourly and its unit runs the cleanup alone (`fabricctl dhcp clean-names --scheduled`)",
+      argv == ["/usr/bin/fabricctl", "dhcp", "clean-names", "--scheduled"] and "OnUnitActiveSec=1h" in timer, argv)
+HV2 = {**HV, "dns": {"dynamic_zone_var": {"A": HV["dns"]["dynamic_zone_var"]["A"]
+                                          + [{"name": "cam3", "ip": "10.254.23.44"}]}}}
+kept = keep_hand_set_addresses(HV2)
+check("the apply keeps its addresses set by hand for the timer (root only, 0600)",
+      kept and oct(os.stat(kept).st_mode & 0o777) == "0o600"
+      and json.load(open(kept))["addresses"] == ["10.254.23.42", "10.254.23.44", "10.254.23.9"], kept)
+planted = kea_update("update add old-cam.dhcp.lan.test 300 A 10.254.23.44",
+                     f"update add old-cam.dhcp.lan.test 300 DHCID {DHCID}")
+check("(set up: a name Kea registered for cam3's address before it was named by hand)",
+      planted.returncode == 0 and dig("old-cam.dhcp.lan.test") == "10.254.23.44", planted.stdout + planted.stderr)
+# covers: cli:dhcp.clean-names +
+rc = run_dhcp_command(HV2, argv[2:])
+check("by the timer's unit: the name left behind is deleted, audited as the timer's; laptop1 left alone",
+      rc == 0 and dig("old-cam.dhcp.lan.test") == "" and dig_t("DHCID", "old-cam.dhcp.lan.test") == ""
+      and dig("laptop1.dhcp.lan.test") == ip1 and CLEARED[-1][2] == "timer", (rc, CLEARED[-2:]))
+# covers: cli:dhcp.clean-names -
+kea_update("update add old-cam2.dhcp.lan.test 300 A 10.254.23.44")
+before = len(CLEARED)
+cdn.load_secrets = lambda: {"kea_ddns_secret": sh("openssl rand -base64 32").stdout.strip()}
+rc_bad = run_dhcp_command(HV2, ["clean-names", "--scheduled"])
+_, err = call(lambda: csn.clear_stale_dhcp_names(HV2, ["10.254.23.44"], "x" + secret[1:], "root", "cli"))
+check("refused: BIND refusing the update (a key it does not know) fails the run (exit 1) and says so; the name "
+      "stays, nothing audited", rc_bad == 1 and "BIND refused" in err and "nothing was deleted" in err
+      and dig("old-cam2.dhcp.lan.test") == "10.254.23.44" and len(CLEARED) == before, (rc_bad, err))
+cdn.load_secrets = lambda: {"kea_ddns_secret": secret}
+os.remove(kept)
+check("refused: no apply has kept the addresses yet (exit 1); a stray argument is a usage error (2)",
+      run_dhcp_command(HV2, ["clean-names"]) == 1 and run_dhcp_command(HV2, ["clean-names", "now"]) == 2
+      and dig("old-cam2.dhcp.lan.test") == "10.254.23.44")
+off = {**HV2, "dhcp": {**HV2["dhcp"], "ddns": False}}
+keep_hand_set_addresses(HV2)
+check("with DHCP's DNS registration off: nothing kept, nothing to clean (exit 0), nothing deleted",
+      keep_hand_set_addresses(off) is None and not os.path.exists(kept) and run_dhcp_command(off, ["clean-names"]) == 0
+      and dig("old-cam2.dhcp.lan.test") == "10.254.23.44")
 
 
 def leases_or_none():
@@ -317,11 +485,14 @@ check("remove-subnet: the others keep their ids (their leases stay theirs)",
 check("remove-subnet with active leases in it is refused without --force; Kea not answering needs --force too",
       "active lease" in refused(lambda: remove_subnet("root", "iot", [{"ip": "10.4.0.120", "state": "active"}]))
       and "--force" in refused(lambda: remove_subnet("root", "iot", None)))
-check("a name or VLAN already in use, an overlapping pool, and a missing subnet are refused",
+check("a name already in use, an overlapping pool, and a missing subnet are refused",
       "unique" in refused(lambda: add_subnet("root", "10.5.0.0/24", "iot"))
-      and "unique" in refused(lambda: add_subnet("root", "10.5.0.0/24", "cams", vlan=40))
       and "overlaps" in refused(lambda: update_subnet("root", "iot", add_pools=["10.4.0.150 - 10.4.0.220"]))
       and "no DHCP subnet" in refused(lambda: update_subnet("root", "nope", notes="x")))
+add_subnet("root", "10.5.0.0/24", "cams", vlan=40, pools=["10.5.0.100 - 10.5.0.200"])
+check("a second subnet on a VLAN already in use is accepted (2.1.10.18)",
+      subnets()["10.5.0.0/24"]["vlan"] == 40 and subnets()["10.4.0.0/24"]["vlan"] == 40, subnets())
+remove_subnet("root", "cams", [])
 update_subnet("root", "iot", vlan=41, notes=None, remove_pools=["10.4.0.100 - 10.4.0.200"],
               add_pools=["10.4.0.50 - 10.4.0.60"])
 s4 = subnets()["10.4.0.0/24"]
@@ -347,7 +518,7 @@ remove_client_class("root", "pxe-uefi")
 check("option unset and class removal; unsetting an option that is not set is refused",
       "options" not in STORE["vars"]["dhcp"] and "client_classes" not in STORE["vars"]["dhcp"]
       and "not set" in refused(lambda: unset_option("root", "66")))
-check("every change was audited", AUDIT.count("DHCP_SUBNET_ADD") == 1 and "DHCP_CLASS_REMOVE" in AUDIT
+check("every change was audited", AUDIT.count("DHCP_SUBNET_ADD") == 2 and "DHCP_CLASS_REMOVE" in AUDIT
       and "DHCP_OPTION_SET" in AUDIT, AUDIT)
 
 # ---- fabricctl dhcp … as the CLI routes it (run_dhcp_command), on the same scratch STORE; changes with --no-apply
@@ -403,12 +574,14 @@ check("dhcp reserve: saved in the subnet holding the address; recorded, not appl
       code == 0 and "reserved 10.1.0.20 for 02:00:00:00:00:77" in out and "recorded" in out
       and r10 == [{"mac": "02:00:00:00:00:77", "ip": "10.1.0.20", "hostname": "cam1"}], (code, out, err, r10))
 code, err, same = refused_cli(V, "reserve", "02:00:00:00:00:78", "10.9.0.5", "--no-apply")
-code2, err2, same2 = refused_cli(V, "reserve", "02:00:00:00:00:78", "10.1.0.120", "--no-apply")
+# a reservation inside a pool is allowed since 0.8.0 (manual 1.10.4.3.2): the second refusal is a MAC that is no MAC
+code2, err2, same2 = refused_cli(V, "reserve", "02:00:00:00:00", "10.1.0.21", "--no-apply")
 code3, err3, same3 = refused_cli(V, "reserve", "02:00:00:00:00:78", "10.1.0.20", "--no-apply")
 # covers: cli:dhcp.reserve -
-check("dhcp reserve refuses an address in no subnet, one inside a pool, one already reserved; nothing saved",
+check("dhcp reserve refuses an address in no subnet, a MAC that is no MAC, one already reserved; nothing saved",
       (code, code2, code3) == (1, 1, 1) and "10.9.0.5 is in none of the DHCP subnets" in err
-      and "outside its pools" in err2 and "must be unique" in err3 and same and same2 and same3, (err, err2, err3))
+      and "MAC like aa:bb:cc:dd:ee:ff" in err2 and "must be unique" in err3 and same and same2 and same3,
+      (err, err2, err3))
 code, out, err = dhcp_cli(V, "unreserve", "02-00-00-00-00-77", "--no-apply")
 # covers: cli:dhcp.unreserve +
 check("dhcp unreserve (any MAC spelling): the reservation is gone",

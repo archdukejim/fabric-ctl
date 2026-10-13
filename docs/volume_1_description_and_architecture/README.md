@@ -90,6 +90,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.10.1 Kea DHCP](1.10.1-kea-design.md)
 - [1.10.2 DHCP management and the address plan](1.10.2-dhcp-management.md)
 - [1.10.3 Serving networks beyond the host's LAN (0.8)](1.10.3-serving-networks.md)
+- [1.10.4 The address manager (0.8.0)](1.10.4-address-manager.md)
 
 ## 1.11 802.1X: FreeRADIUS
 
@@ -153,4 +154,5 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.17.29 webui](1.17.29-webui.md) — fabric-ctl web UI: server, pages, fabric-agent client, OIDC, CA-pinned TLS, dev preview
 - [1.17.30 fabriclib-samba](1.17.30-fabriclib-samba.md)
 - [1.17.31 fabriclib-directory](1.17.31-fabriclib-directory.md)
+- [1.17.32 fabriclib-ipam](1.17.32-fabriclib-ipam.md)
 <!-- end of generated 1.17 -->

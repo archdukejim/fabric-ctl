@@ -9,18 +9,26 @@ FIELDS = {"fabricCidr": "cidr", "fabricNetworkKind": "kind", "fabricVlan": "vlan
 
 def ensure_networks(samdb, site, networks):
     """Purpose: the site's networks as `fabricNetwork` entries in its OU=networks (manual 1.10.2.8, S4.1), the address
-             plan every site reads: added, changed to match, and removed when the site no longer has them.
+             plan every site reads: added, changed to match, and removed when the site no longer has them. A subnet
+             of the address manager's plan (an entry with the fabricSubnet class, 1.10.4.13) is the plan's own:
+             never changed or removed here, and a network of the same name or network is left to it.
     Inputs:  samdb — SamDB (as the system); site — str; networks — site_networks' list of {name, cidr, kind, vlan,
              notes, allow_overlap}.
     Returns: list of str, what changed.
     Fails:   ldb.LdbError for a change AD refuses (e.g. OU=networks missing: ensure_layout makes it first).
     Feeds:   converge."""
     base = f"OU=networks,{paths.site_dn(samdb, site)}"
-    have = {str(m["cn"][0]).lower(): m for m in samdb.search(
-        base=base, scope=ldb.SCOPE_ONELEVEL, expression="(objectClass=fabricNetwork)",
-        attrs=["cn", "fabricSite", *FIELDS])}
+    have, planned = {}, set()
+    for m in samdb.search(base=base, scope=ldb.SCOPE_ONELEVEL, expression="(objectClass=fabricNetwork)",
+                          attrs=["cn", "objectClass", "fabricSite", *FIELDS]):
+        if "fabricSubnet" in [str(c) for c in m["objectClass"]]:
+            planned |= {str(m["cn"][0]).lower(), str(m.get("fabricCidr", idx=0) or "")}
+        else:
+            have[str(m["cn"][0]).lower()] = m
     done = []
     for n in networks:
+        if n["name"].lower() in planned or n["cidr"] in planned:
+            continue
         want = {attr: str(n.get(key) or "") for attr, key in FIELDS.items()}
         want["fabricSite"] = site
         old = have.pop(n["name"].lower(), None)

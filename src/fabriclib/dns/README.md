@@ -10,6 +10,7 @@ seconds (`publish_zone_list.py`).
 | File | What |
 |---|---|
 | `constants.py` | Supported record types; the private-use top-level domains (a zone under them hides no public name) |
+| `common/` | Helpers shared with other operations: reading a zone file's records |
 | `zone_name.py` | Zone key → zone name (`dynamic_zone_var` is the main domain) |
 | `validate_record.py` | Build a record dict from user input (one value or the type's own fields), rejecting anything unsafe for a zone file |
 | `format_value.py` | Human-readable right-hand side of a record (as rendered in the zone file) |
@@ -23,6 +24,7 @@ seconds (`publish_zone_list.py`).
 | `list_zones.py` | Zones with record counts (flagging hand-written reverse zones) |
 | `ptr_for_ip.py` | Reverse zone and PTR label for an address — or why it gets none (public, loopback, link-local) |
 | `reverse_zones.py` | Reverse zones + PTRs generated from all forward A/AAAA records (one per address); used by apply and the web UI |
+| `reverse_by_hand.py` | The reverse names whose PTR is set by hand, by zone (DHCP's key is denied them, 2.1.10.20) |
 | `zone_detail.py` | One zone's records (A/AAAA with their automatic PTR, fabric's own names marked, landing links) and sync status (`docker exec … rndc zonestatus`) |
 | `add_record.py` | Validate and add a record (locked, audited) |
 | `remove_record.py` | Remove a record, refusing if it changed since it was shown or is one of fabric's own names (locked, audited) |

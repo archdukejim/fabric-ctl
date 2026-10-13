@@ -27,6 +27,7 @@ from ensure_sso_account import ensure_sso_account
 from ensure_sudo_rule import ensure_sudo_rule
 from refresh_sudo_hosts import refresh_sudo_hosts
 from open_samdb import open_samdb
+from plan_cidrs import plan_cidrs
 from remove_ipv6_records import remove_ipv6_records
 from repair_role_owners import repair_role_owners
 from root_ca_policy import EXTENSIONS as TRUST_EXTENSIONS, root_ca_policy
@@ -44,9 +45,9 @@ def converge(state):
              groups, the site's service accounts, the AD zones on IPv4 only (2.1.6.29), its access entries, its networks
              (the address plan), its default
              sudo rule and the host names of fabric's sudo rules on host groups (1.6.11.7), the AD site and its
-             subnets, the password policy, the domain's trust GPO (fabric's root CA),
-             the site's log-on GPOs (one per OU, 1.6.11.4), its Windows baseline GPO and winbind's privileged pipe
-             for FreeRADIUS. Each part changes only what differs, so a second run changes nothing.
+             subnets (the plan's among them, 1.10.4.13), the password policy, the domain's trust GPO (fabric's root
+             CA), the site's log-on GPOs (one per OU, 1.6.11.4), its Windows baseline GPO and winbind's privileged
+             pipe for FreeRADIUS. Each part changes only what differs, so a second run changes nothing.
     Inputs:  state — dict: site (str), root (bool: the root site, which also holds the organisation's items and the
              domain-wide trust GPO), password_policy (dict, every key), networks (site_networks' list), root_ca_pem
              (str), id_range ("first-last"), groups (fabric's ldap_groups), admin_group (the web UI's admin group, in
@@ -84,7 +85,8 @@ def converge(state):
     changed += ensure_networks(samdb, site, state["networks"])
     changed += ensure_sudo_rule(samdb, site, state["admin_group"], root)
     changed += refresh_sudo_hosts(samdb, site)          # fabric's sudo rules follow their host groups (1.6.11.7)
-    changed += ensure_ad_site(samdb, site, [n["cidr"] for n in state["networks"]])
+    cidrs = [n["cidr"] for n in state["networks"]]
+    changed += ensure_ad_site(samdb, site, cidrs + [c for c in plan_cidrs(samdb, site) if c not in cidrs])
     changed += repair_role_owners(samdb)  # a renamed AD site moved the DC: its roles follow it
     if state.get("parent"):               # a site: its AD site linked to its parent's (manual 1.9.8.5)
         changed += ensure_site_link(samdb, site, state["parent"])

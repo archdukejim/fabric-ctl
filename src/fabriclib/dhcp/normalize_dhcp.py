@@ -71,11 +71,12 @@ def _subnet_ids(subnets):
 def normalize_dhcp(v):
     """Purpose: Check `dhcp:` (and that nothing static collides with it) before anything is rendered.
     Inputs:  v — the vars dict: install_kea; dhcp {interfaces (names up to 15 characters), subnets [{subnet (IPv4
-             network, host bits zero), id (Kea's subnet id), name (one DNS label, unique), vlan (1-4094, unique: a
-             record, fabric configures no switch), notes (at most 500 characters), allow_overlap (why it may
-             overlap another site's network, at most 200 characters), access ("full", the default, or "guest":
-             DNS and NTP only, 2.1.10.4), relay (the DHCP relay's address when it lies outside the subnet: Kea
-             picks a relayed subnet by that address, manual 1.10.3.2), pools, routers, options,
+             network, host bits zero), id (Kea's subnet id), name (one DNS label, unique), vlan (1-4094: a record,
+             fabric configures no switch; several subnets may share one, 2.1.10.18), notes (at most 500
+             characters), allow_overlap (why it may overlap another site's network, at most 200 characters),
+             access ("full", the default, or "guest": DNS and NTP only, 2.1.10.4), relay (the DHCP relay's
+             address when it lies outside the subnet: Kea picks a relayed subnet by that address, manual
+             1.10.3.2), pools, routers, options,
              reservations [{mac, ip, hostname, options}]}], options (every subnet), option_defs, client_classes
              (manual 1.10.2.3), ddns_subdomain (one label, default dhcp), ntp (IPv4 addresses, default
              this host), lease_time (int 300-2592000, default 86400)}; dns (its A records); fabric_subnet
@@ -83,15 +84,20 @@ def normalize_dhcp(v):
     Returns: a copy of `dhcp`, unchecked, when install_kea is off; else `dhcp` normalized: every subnet with its id
              (_subnet_ids: existing installs keep the ids their position gave them), subnet as str, name/vlan/
              notes/options only when set, reservations with lower-case colon MACs and a hostname / options only
-             when set; options, option_defs and client_classes normalized (left out when empty).
+             when set, and `"ddns": False` on a reservation DHCP must not register in DNS: one that says so, and
+             every one whose address a record set by hand names (an A record of any zone in `dns`, the address
+             manager's published names among them): a name set by hand wins over DHCP's updates (2.1.10.20);
+             options, option_defs and client_classes normalized (left out when empty).
     Fails:   ValidationError for missing or bad interfaces, bad ddns_subdomain, bad lease_time, a bad or non-IPv4
-             subnet, a subnet overlapping fabric_subnet, a bad or repeated id, name or vlan, notes or
+             subnet, a subnet overlapping fabric_subnet, a bad or repeated id or name, a bad vlan, notes or
              allow_overlap too long, an access that is not full or guest, a relay that is not an IPv4 address, a
              bad pool or two pools overlapping
-             (in any subnet), a router outside its subnet, a bad MAC, a reservation outside its subnet or inside a
-             pool, a duplicate MAC or address, a bad hostname, no subnets, or a static A record inside a pool; a plain
-             ValueError (not a ValidationError) if routers is not an IP address; errors of normalize_options,
-             normalize_option_defs and normalize_client_classes.
+             (in any subnet), a router outside its subnet, a bad MAC, a reservation outside its subnet (inside a
+             pool it is allowed since 0.8.0, manual 1.10.4.3.2), a duplicate MAC or address, a bad hostname, a
+             reservation's ddns that is not true or false, no
+             subnets, or a static A record inside a pool (unless the address is a reservation's, whose name the
+             address manager may publish, 2.1.10.17); a plain ValueError (not a ValidationError) if routers is
+             not an IP address; errors of normalize_options, normalize_option_defs and normalize_client_classes.
     Feeds:   deploy/check_settings (apply, before rendering), add_reservation; tests/kea/run.py, tests/render.py.
     Notes:   a static A record inside a pool is refused because Kea would hand that address out.
     """
@@ -112,7 +118,7 @@ def normalize_dhcp(v):
     raw = d.get("subnets") or []
     if not isinstance(raw, list) or not all(isinstance(s, dict) for s in raw):
         raise ValidationError("dhcp.subnets: a list of subnets")
-    subnets, pools_all, seen_ips, seen_macs, names, vlans = [], [], set(), set(), set(), set()
+    subnets, pools_all, seen_ips, seen_macs, names = [], [], set(), set(), set()
     fabric_net = ipaddress.ip_network(str(v.get("fabric_subnet") or "10.255.0.0/24"), strict=False)
     for s, sid in zip(raw, _subnet_ids(raw)):
         try:
@@ -130,10 +136,9 @@ def normalize_dhcp(v):
             meta["name"] = name
         if s.get("vlan") is not None:
             vlan = s["vlan"]
-            if isinstance(vlan, bool) or not isinstance(vlan, int) or not 1 <= vlan <= 4094 or vlan in vlans:
-                raise ValidationError(f"{net}: vlan {vlan!r} is a number from 1 to 4094, unique on this site")
-            vlans.add(vlan)
-            meta["vlan"] = vlan
+            if isinstance(vlan, bool) or not isinstance(vlan, int) or not 1 <= vlan <= 4094:
+                raise ValidationError(f"{net}: vlan {vlan!r} is a number from 1 to 4094")
+            meta["vlan"] = vlan            # a VLAN may have several subnets (2.1.10.18)
         if s.get("notes"):
             notes = str(s["notes"])
             if len(notes) > NOTES_MAX:
@@ -178,8 +183,8 @@ def normalize_dhcp(v):
                 ip = ipaddress.ip_address(str(r.get("ip", "")))
             except ValueError:
                 raise ValidationError(f"reservation {mac}: address {r.get('ip')!r} is not an IPv4 address")
-            if ip not in net or any(lo <= ip <= hi for lo, hi in pools):
-                raise ValidationError(f"reservation {ip}: inside {net} but outside its pools")
+            if ip not in net:              # inside a pool is allowed: Kea hands it only to its MAC (1.10.4.3.2)
+                raise ValidationError(f"reservation {ip}: must lie inside {net}")
             if ip in seen_ips or mac in seen_macs:
                 raise ValidationError(f"reservation {mac} / {ip}: MAC and address must be unique")
             seen_ips.add(ip)
@@ -188,8 +193,12 @@ def normalize_dhcp(v):
             if host and not LABEL_RE.match(host):
                 raise ValidationError(f"reservation hostname {host!r}: one DNS label")
             ropts = normalize_options(r.get("options"), f"reservation {mac}")
+            if not isinstance(r.get("ddns", True), bool):
+                raise ValidationError(f"reservation {mac}: ddns is true (DHCP registers its name, the default) or "
+                                      "false")
             reservations.append({"mac": mac, "ip": str(ip), **({"hostname": host} if host else {}),
-                                 **({"options": ropts} if ropts else {})})
+                                 **({"options": ropts} if ropts else {}),
+                                 **({"ddns": False} if r.get("ddns") is False else {})})
         sopts = normalize_options(s.get("options"), f"subnet {meta.get('name', net)}")
         own = ("name", "vlan", "notes", "options", "allow_overlap", "access", "relay")
         subnets.append({**{k: x for k, x in s.items() if k not in own},
@@ -197,15 +206,21 @@ def normalize_dhcp(v):
                         **({"options": sopts} if sopts else {})})
     if not subnets:
         raise ValidationError("dhcp.subnets: at least one subnet with a pool")
+    by_hand = set()
     for zone in (v.get("dns") or {}).values():
         for rec in (zone or {}).get("A") or []:
             try:
                 ip = ipaddress.ip_address(str(rec.get("ip")))
             except ValueError:
                 continue
-            if any(lo <= ip <= hi for lo, hi in pools_all):
+            if ip not in seen_ips and any(lo <= ip <= hi for lo, hi in pools_all):   # a reservation's: 2.1.10.17
                 raise ValidationError(f"DNS record {rec.get('name')} = {ip} is inside a DHCP pool: make it a "
                                       "DHCP reservation, or move the pool")
+            by_hand.add(str(ip))
+    for s in subnets:                      # a name set by hand is never replaced by DHCP's (2.1.10.20)
+        for r in s["reservations"]:
+            if r["ip"] in by_hand:
+                r["ddns"] = False
     out = {**d, "subnets": subnets}
     for key, fn in (("options", lambda x: normalize_options(x, "dhcp.options")),
                     ("option_defs", normalize_option_defs), ("client_classes", normalize_client_classes)):

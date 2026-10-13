@@ -7,7 +7,7 @@
 | `read_images_lock.py` | The validated, digest-pinned images (`config/images.lock.yaml`) with their refs |
 | `read_packages_lock.py` | The pinned packages built into fabric's own images (`packages:` in `images.lock.yaml`: Kea from ISC's repository, key fingerprint, version) |
 | `jinja_env.py` | The Jinja environment deploy and the tests render with (Ansible-style filters, `images_lock` / `packages_lock` globals) |
-| `errors.py` | `ValidationError` — input rejected; message is safe to show to users |
+| `errors.py` | `ValidationError` — input rejected; message is safe to show to users. `NotPublished` — a quick zone publish refused before writing anything |
 | `load_vars.py` | Read `vars.yaml` (empty dict if missing) |
 | `save_vars.py` | Write `vars.yaml`, empty strings stored as null |
 | `vars_lock.py` | Exclusive lock around read-modify-write of `vars.yaml` |

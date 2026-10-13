@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------
 # Run fabric's test suites against real containers.
 #
-#   sudo tests/run-all.sh [suite ...]      suites: docs lint deploy consent render nginx zone zones webui pki federation resolver ntp openbao fluentbit kea freeradius samba keycloak hardening images
+#   sudo tests/run-all.sh [suite ...]      suites: docs lint deploy consent render nginx zone zones webui pki federation resolver ntp openbao fluentbit kea ipam freeradius samba keycloak hardening images
 #   sudo tests/run-all.sh sandbox          opt-in: full install in a systemd + Docker sandbox (about 30 min)
 #
 # Needs: Linux (amd64 or arm64), Docker with buildx, python3 with yaml +
@@ -14,7 +14,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 export FABRIC_TEST_OUT="${FABRIC_TEST_OUT:-/tmp/fabric-tests}"
 SUITES=("$@")
-[ ${#SUITES[@]} -eq 0 ] && SUITES=(docs lint deploy consent render nginx zone zones webui pki federation resolver ntp openbao fluentbit kea freeradius samba keycloak hardening images)
+[ ${#SUITES[@]} -eq 0 ] && SUITES=(docs lint deploy consent render nginx zone zones webui pki federation resolver ntp openbao fluentbit kea ipam freeradius samba keycloak hardening images)
 
 [ "$(id -u)" -eq 0 ] || { echo "Run as root (sudo)." >&2; exit 2; }
 rm -rf "$FABRIC_TEST_OUT"; mkdir -p "$FABRIC_TEST_OUT"
@@ -48,8 +48,9 @@ for s in "${SUITES[@]}"; do
         openbao)  run openbao  bash -c "python3 \"$HERE/openbao/run.py\" && python3 \"$HERE/openbao/db_rotation.py\"" ;;
         fluentbit) run fluentbit python3 "$HERE/fluentbit/run.py" ;;
         kea) run kea python3 "$HERE/kea/run.py" ;;
+        ipam)     run ipam     python3 "$HERE/ipam/run.py" ;;
         freeradius) run freeradius bash -c "python3 \"$HERE/freeradius/nas_test.py\" && python3 \"$HERE/freeradius/coa_test.py\" && python3 \"$HERE/freeradius/run.py\"" ;;
-        samba)    run samba    bash -c "python3 \"$HERE/samba/run.py\" && python3 \"$HERE/samba/dc.py\" && python3 \"$HERE/samba/devices.py\" && python3 \"$HERE/samba/linux_join.py\" && python3 \"$HERE/samba/gpo.py\" && python3 \"$HERE/samba/logon.py\" && python3 \"$HERE/samba/hostgroups.py\" && python3 \"$HERE/samba/site_join.py\"" ;;
+        samba)    run samba    bash -c "python3 \"$HERE/samba/run.py\" && python3 \"$HERE/samba/dc.py\" && python3 \"$HERE/samba/devices.py\" && python3 \"$HERE/samba/linux_join.py\" && python3 \"$HERE/samba/gpo.py\" && python3 \"$HERE/samba/logon.py\" && python3 \"$HERE/samba/hostgroups.py\" && python3 \"$HERE/samba/site_join.py\" && python3 \"$HERE/samba/ipam.py\"" ;;
         keycloak) run keycloak python3 "$HERE/keycloak/run.py" ;;
         hardening) run hardening bash "$HERE/hardening/run.sh" ;;
         images)   run images   bash "$HERE/images/run.sh" ;;

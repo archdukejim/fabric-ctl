@@ -1,12 +1,14 @@
 from fabriclib.common.errors import ValidationError
 from fabriclib.dhcp.list_leases import list_leases
+from fabriclib.ipam.planned_subnets import planned_subnets
 from fabriclib.system.host_networks import host_networks
 
 
 def dhcp_overview(v, networks=None):
     """Purpose: What the Kea tab and `fabricctl dhcp` show: whether DHCP is on, its interfaces, subnets (pools, router,
              reservations), lease time, the DHCP subzone and the live leases. Read-only.
-    Inputs:  v — the vars dict (install_kea, dhcp, domain); networks — host_networks() (None: read this host's). Asks
+    Inputs:  v — the vars dict (install_kea, dhcp, domain; its subnets, or the plan's once they live there:
+             planned_subnets, manual 1.10.4.14); networks — host_networks() (None: read this host's). Asks
              Kea's control socket when DHCP is on.
     Returns: {"enabled", "interfaces", "subnets" (with id, name, vlan, notes, options as stored), "lease_time",
              "ddns_zone" ("" when DDNS is off), "options" (the admin's, every subnet), "overrides" (names of the
@@ -21,11 +23,11 @@ def dhcp_overview(v, networks=None):
     """
     d = v.get("dhcp") or {}
     out = {"enabled": bool(v.get("install_kea")), "interfaces": d.get("interfaces") or [],
-           "subnets": d.get("subnets") or [], "lease_time": d.get("lease_time", 86400),
+           "subnets": planned_subnets(v), "lease_time": d.get("lease_time", 86400),
            "ddns_zone": f"{d.get('ddns_subdomain', 'dhcp')}.{v.get('domain', '')}" if d.get("ddns", True) else "",
            "options": d.get("options") or [], "option_defs": d.get("option_defs") or [],
            "client_classes": d.get("client_classes") or [], "leases": [], "leases_error": "",
-           "has_settings": bool(d.get("subnets"))}
+           "has_settings": bool(planned_subnets(v))}
     nets = host_networks() if networks is None else networks
     out["host_interfaces"] = [{"name": name, "address": str(a.ip), "network": str(a.network)}
                               for name, addrs in sorted(nets.items())

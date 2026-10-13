@@ -27,6 +27,7 @@ from fabriclib.deploy.install_runtime_dirs import install_runtime_dirs
 from fabriclib.deploy.install_service_units import install_service_units
 from fabriclib.deploy.install_stepca_templates import install_stepca_templates
 from fabriclib.deploy.install_timers import install_timers
+from fabriclib.dhcp.keep_hand_set_addresses import keep_hand_set_addresses
 from fabriclib.deploy.install_webui_files import install_webui_files
 from fabriclib.deploy.keep_old_install import keep_old_install
 from fabriclib.deploy.load_link_vars import load_link_vars
@@ -34,7 +35,6 @@ from fabriclib.deploy.merge_radius_clients import merge_radius_clients
 from fabriclib.deploy.merge_tsig_keys import merge_tsig_keys
 from fabriclib.deploy.render_templates import render_templates
 from fabriclib.deploy.render_vars import render_vars
-from fabriclib.deploy.renew_landing_cert import renew_landing_cert
 from fabriclib.deploy.restart_changed import restart_changed
 from fabriclib.deploy.service_units import service_units
 from fabriclib.deploy.verify_published_images import verify_published_images
@@ -44,8 +44,9 @@ from fabriclib.secrets.save_secrets import save_secrets
 
 
 def _prepare(paths):
-    """Purpose: everything up to the render: secrets, the checked settings and the render context (check_rendered,
-             shared with the quick zone path: 2.1.4.7).
+    """Purpose: everything up to the render: secrets, the checked settings (the DHCP subnets and static names from the
+             site's address plan in the domain, manual 1.10.4.14) and the render context (check_rendered, shared with
+             the quick zone path: 2.1.4.7, 2.1.10.21).
     Inputs:  paths — deploy_paths().
     Returns: dict with secrets, final_vars, context, tsig_keys, jinja_env, reverse (reverse_zones()).
     Fails:   ValidationError (settings, secrets that cannot be loaded or saved, fixed identity).
@@ -72,8 +73,12 @@ def _prepare(paths):
     final_vars, context = render_vars(jinja_env, secrets, custom_vars)
     archive_vars(paths["target"])
     check_fixed_identity(final_vars, paths["config"])
-    # the settings check and BIND's zone-list context: shared with the quick zone path (dns/publish_zone_list, 2.1.4.7)
+    # the plan's subnets and static names (1.10.4.14), the settings check and BIND's zone-list context: shared with
+    # the quick zone path (dns/publish_zone_list, 2.1.4.7,
+    # 2.1.10.21)
     checked = check_rendered(final_vars, secrets, context, paths["federation"])
+    for line in checked["lines"]:
+        print(line)
     return {"secrets": secrets, "final_vars": final_vars, "context": context, "tsig_keys": tsig_keys,
             "jinja_env": jinja_env, "reverse": checked["reverse"]}
 
@@ -81,8 +86,7 @@ def _prepare(paths):
 def _deploy(paths, start_services):
     """Purpose: the deploy engine's steps in order (see apply_deployment).
     Inputs:  paths — deploy_paths(); start_services — bool.
-    Returns: the set of units whose configuration changed (restarted already when start_services); with
-             start_services, nginx too when the landing page's certificate was issued again (renew_landing_cert).
+    Returns: the set of units whose configuration changed (restarted already when start_services).
     Fails:   ValidationError for every refusal; OSError and CalledProcessError from the steps.
     Feeds:   apply_deployment."""
     p = _prepare(paths)
@@ -101,7 +105,7 @@ def _deploy(paths, start_services):
         pass
     load_link_vars(paths, jinja_env, context)
     units = service_units(paths["base"], final_vars)
-    reverse = p["reverse"]                 # with reverse_zone_names and federation_links (check_rendered)
+    reverse = p["reverse"]                 # with reverse_zone_names, reverse_by_hand, federation_links (check_rendered)
     print("Rendering Jinja2 templates...")
     render_templates(paths, jinja_env, context, final_vars, secrets, p["tsig_keys"], units, reverse)
     if verify_published_images(paths, final_vars):  # nothing installed yet: a refusal changes nothing
@@ -125,6 +129,7 @@ def _deploy(paths, start_services):
         restart.add("stepca")
     install_runtime_dirs(paths, final_vars, p["tsig_keys"])
     install_timers(paths, final_vars)
+    keep_hand_set_addresses(final_vars)    # for the hourly cleanup of DHCP names left behind (2.1.10.22)
 
     state = {"restart": restart, "rebuild": svc["rebuild"],
              "daemon_reload": svc["daemon_reload"] or ngx["daemon_reload"] or web["agent"]
@@ -134,11 +139,7 @@ def _deploy(paths, start_services):
     bind_ids = service_user(final_vars, "bind")
     if not start_services:
         return finish_without_start(paths, state, bind_ids)
-    restarted = restart_changed(paths, final_vars, secrets, state, bind_ids)
-    # the landing page's names follow the zone: a changed alias gets its certificate now; the old one expires (2.1.4.8)
-    if renew_landing_cert(paths, final_vars):
-        restarted.add("nginx")
-    return restarted
+    return restart_changed(paths, final_vars, secrets, state, bind_ids)
 
 
 def apply_deployment(start_services=True):
@@ -157,9 +158,8 @@ def apply_deployment(start_services=True):
              (OpenBao locked) or saved; invalid TSIG keys, ACL policies, RADIUS clients/people, DHCP or time settings,
              dns_filter; host_ram_capacity under 4; site_name, org_domain or
              ldap_base_dn not valid or not what they were at install; a template that does not render; an image
-             build that fails (start_services=False); BIND9 refusing `rndc reconfig`; the landing page's certificate
-             not issued again for changed names (renew_landing_cert, 2.1.4.8, after everything else is applied); a
-             published image whose signature does not verify (verify_published_images); fabric's own units (the
+             build that fails (start_services=False); BIND9 refusing `rndc reconfig`; a published image
+             whose signature does not verify (verify_published_images); fabric's own units (the
              `services` host change) not approved — an install set up before consent existed is not refused. A bad
              link-vars file is only
              reported. OSError from file operations propagates.

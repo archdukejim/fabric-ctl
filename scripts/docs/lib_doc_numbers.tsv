@@ -76,12 +76,14 @@ file	fabricctl-jinja|src/containers/samba/logon_groups.py	84
 file	fabricctl-jinja|src/containers/samba/logon_rights_policy.py	20	
 file	fabricctl-jinja|src/containers/samba/open_samdb.py	21	
 file	fabricctl-jinja|src/containers/samba/paths.py	35	
+file	fabricctl-jinja|src/containers/samba/plan_cidrs.py	91	
 file	fabricctl-jinja|src/containers/samba/policy_entries.py	52	
 file	fabricctl-jinja|src/containers/samba/pull_sysvol.py	61	
 file	fabricctl-jinja|src/containers/samba/read_dc_names.py	72	
 file	fabricctl-jinja|src/containers/samba/read_devices.py	36	
 file	fabricctl-jinja|src/containers/samba/read_id_blocks.py	62	0.5.0 / 2026-10-05
 file	fabricctl-jinja|src/containers/samba/read_networks.py	45	
+file	fabricctl-jinja|src/containers/samba/read_plan.py	92	
 file	fabricctl-jinja|src/containers/samba/read_replication.py	60	
 file	fabricctl-jinja|src/containers/samba/read_sites.py	65	
 file	fabricctl-jinja|src/containers/samba/refresh_sudo_hosts.py	85	
@@ -109,6 +111,7 @@ file	fabricctl-jinja|src/containers/samba/site_info.py	28
 file	fabricctl-jinja|src/containers/samba/site_roles.py	64	
 file	fabricctl-jinja|src/containers/samba/sort_windows_machines.py	90	
 file	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py	48	
+file	fabricctl-jinja|src/containers/samba/write_plan.py	93	
 file	fabricctl-lib|src/federation/server.py	1	
 file	fabricctl-lib|src/ux/cli/keycloak_bootstrap.py	2	
 file	fabriclib-common|src/fabriclib/common/ask.py	28	
@@ -200,19 +203,25 @@ file	fabriclib-dhcp|src/fabriclib/dhcp/add_client_class.py	1
 file	fabriclib-dhcp|src/fabriclib/dhcp/add_reservation.py	2	
 file	fabriclib-dhcp|src/fabriclib/dhcp/add_subnet.py	3	
 file	fabriclib-dhcp|src/fabriclib/dhcp/check_kea_config.py	4	
+file	fabriclib-dhcp|src/fabriclib/dhcp/clean_dhcp_names.py	33	
+file	fabriclib-dhcp|src/fabriclib/dhcp/clear_stale_dhcp_names.py	34	
 file	fabriclib-dhcp|src/fabriclib/dhcp/client_networks.py	28	
+file	fabriclib-dhcp|src/fabriclib/dhcp/common/apply_dhcp_change.py	32	
 file	fabriclib-dhcp|src/fabriclib/dhcp/common/edit_dhcp.py	5	
 file	fabriclib-dhcp|src/fabriclib/dhcp/common/find_subnet.py	6	
+file	fabriclib-dhcp|src/fabriclib/dhcp/common/hand_set_path.py	35	
 file	fabriclib-dhcp|src/fabriclib/dhcp/common/kea_image.py	27	
 file	fabriclib-dhcp|src/fabriclib/dhcp/common/option_target.py	7	
 file	fabriclib-dhcp|src/fabriclib/dhcp/deploy_kea.py	8	
 file	fabriclib-dhcp|src/fabriclib/dhcp/dhcp_overview.py	9	
 file	fabriclib-dhcp|src/fabriclib/dhcp/dhcp_reverse_zones.py	30	
 file	fabriclib-dhcp|src/fabriclib/dhcp/ensure_ddns_zone.py	10	
+file	fabriclib-dhcp|src/fabriclib/dhcp/hand_set_addresses.py	36	
 file	fabriclib-dhcp|src/fabriclib/dhcp/kea_client_classes.py	11	
 file	fabriclib-dhcp|src/fabriclib/dhcp/kea_command.py	12	
 file	fabriclib-dhcp|src/fabriclib/dhcp/kea_option_data.py	13	
 file	fabriclib-dhcp|src/fabriclib/dhcp/kea_option_defs.py	14	
+file	fabriclib-dhcp|src/fabriclib/dhcp/keep_hand_set_addresses.py	37	
 file	fabriclib-dhcp|src/fabriclib/dhcp/list_leases.py	15	
 file	fabriclib-dhcp|src/fabriclib/dhcp/normalize_client_classes.py	16	
 file	fabriclib-dhcp|src/fabriclib/dhcp/normalize_dhcp.py	17	
@@ -225,6 +234,7 @@ file	fabriclib-dhcp|src/fabriclib/dhcp/remove_subnet.py	22
 file	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py	23	
 file	fabriclib-dhcp|src/fabriclib/dhcp/set_dhcp_on.py	31	
 file	fabriclib-dhcp|src/fabriclib/dhcp/set_option.py	24	
+file	fabriclib-dhcp|src/fabriclib/dhcp/stale_dhcp_names.py	38	
 file	fabriclib-dhcp|src/fabriclib/dhcp/unset_option.py	25	
 file	fabriclib-dhcp|src/fabriclib/dhcp/update_subnet.py	26	
 file	fabriclib-directory|src/fabriclib/directory/add_device.py	7	
@@ -327,6 +337,7 @@ file	fabriclib-dns|src/fabriclib/dns/builtin_acls.py	4
 file	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py	37	
 file	fabriclib-dns|src/fabriclib/dns/common/landing_link.py	38	
 file	fabriclib-dns|src/fabriclib/dns/common/landing_names.py	40	
+file	fabriclib-dns|src/fabriclib/dns/common/zone_records.py	41	
 file	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py	5	
 file	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py	6	
 file	fabriclib-dns|src/fabriclib/dns/format_value.py	7	
@@ -344,6 +355,7 @@ file	fabriclib-dns|src/fabriclib/dns/remove_record.py	16
 file	fabriclib-dns|src/fabriclib/dns/remove_tsig_key.py	17	
 file	fabriclib-dns|src/fabriclib/dns/remove_zone.py	36	
 file	fabriclib-dns|src/fabriclib/dns/replace_tsig_secret.py	18	
+file	fabriclib-dns|src/fabriclib/dns/reverse_by_hand.py	42	
 file	fabriclib-dns|src/fabriclib/dns/reverse_zones.py	19	
 file	fabriclib-dns|src/fabriclib/dns/rfc2136_settings.py	20	
 file	fabriclib-dns|src/fabriclib/dns/rndc.py	21	
@@ -409,6 +421,43 @@ file	fabriclib-images|src/fabriclib/images/running_image.py	8
 file	fabriclib-images|src/fabriclib/images/switch_image.py	9	
 file	fabriclib-images|src/fabriclib/images/update_images.py	10	
 file	fabriclib-images|src/fabriclib/images/verify_signature.py	13	
+file	fabriclib-ipam|src/fabriclib/ipam/add_address.py	1	
+file	fabriclib-ipam|src/fabriclib/ipam/add_range.py	2	
+file	fabriclib-ipam|src/fabriclib/ipam/add_subnet.py	30	
+file	fabriclib-ipam|src/fabriclib/ipam/add_vlan.py	3	
+file	fabriclib-ipam|src/fabriclib/ipam/check_address.py	4	
+file	fabriclib-ipam|src/fabriclib/ipam/check_block.py	31	
+file	fabriclib-ipam|src/fabriclib/ipam/check_range.py	5	
+file	fabriclib-ipam|src/fabriclib/ipam/check_subnet.py	6	
+file	fabriclib-ipam|src/fabriclib/ipam/check_vlan.py	7	
+file	fabriclib-ipam|src/fabriclib/ipam/common/change_subnet.py	32	
+file	fabriclib-ipam|src/fabriclib/ipam/common/edit_plan.py	8	
+file	fabriclib-ipam|src/fabriclib/ipam/common/fields.py	9	
+file	fabriclib-ipam|src/fabriclib/ipam/common/new_subnet.py	33	
+file	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py	10	
+file	fabriclib-ipam|src/fabriclib/ipam/common/plan_holds_subnets.py	11	
+file	fabriclib-ipam|src/fabriclib/ipam/common/site_plan.py	12	
+file	fabriclib-ipam|src/fabriclib/ipam/export_plan.py	13	
+file	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py	14	
+file	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py	15	
+file	fabriclib-ipam|src/fabriclib/ipam/move_subnets_to_plan.py	16	
+file	fabriclib-ipam|src/fabriclib/ipam/plan_rows.py	17	
+file	fabriclib-ipam|src/fabriclib/ipam/plan_to_dhcp.py	18	
+file	fabriclib-ipam|src/fabriclib/ipam/planned_subnets.py	19	
+file	fabriclib-ipam|src/fabriclib/ipam/read_plan.py	20	
+file	fabriclib-ipam|src/fabriclib/ipam/remove_address.py	21	
+file	fabriclib-ipam|src/fabriclib/ipam/remove_range.py	22	
+file	fabriclib-ipam|src/fabriclib/ipam/remove_subnet.py	34	
+file	fabriclib-ipam|src/fabriclib/ipam/remove_vlan.py	23	
+file	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py	24	
+file	fabriclib-ipam|src/fabriclib/ipam/set_address.py	25	
+file	fabriclib-ipam|src/fabriclib/ipam/set_block.py	35	
+file	fabriclib-ipam|src/fabriclib/ipam/set_subnet.py	36	
+file	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py	26	
+file	fabriclib-ipam|src/fabriclib/ipam/show_plan.py	37	
+file	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py	27	
+file	fabriclib-ipam|src/fabriclib/ipam/suggestions.py	28	
+file	fabriclib-ipam|src/fabriclib/ipam/write_plan.py	29	
 file	fabriclib-keycloak|src/fabriclib/keycloak/add_app_client.py	21	
 file	fabriclib-keycloak|src/fabriclib/keycloak/admin_client.py	1	
 file	fabriclib-keycloak|src/fabriclib/keycloak/app_client_id.py	22	
@@ -637,6 +686,7 @@ file	fabriclib-setup|src/fabriclib/setup/ask_dc_name.py	48
 file	fabriclib-setup|src/fabriclib/setup/ask_first_admin.py	45	
 file	fabriclib-setup|src/fabriclib/setup/ask_kerberos.py	46	0.6.4 / 2026-10-09
 file	fabriclib-setup|src/fabriclib/setup/ask_ram.py	40	0.6.4 / 2026-10-09
+file	fabriclib-setup|src/fabriclib/setup/ask_site_number.py	78	
 file	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py	38	0.5.0 / 2026-10-04
 file	fabriclib-setup|src/fabriclib/setup/backup_install.py	1	
 file	fabriclib-setup|src/fabriclib/setup/check_export_dir.py	2	
@@ -1108,6 +1158,7 @@ function	fabricctl-jinja|src/containers/samba/paths.py|organisation_dn	4
 function	fabricctl-jinja|src/containers/samba/paths.py|relative	6	
 function	fabricctl-jinja|src/containers/samba/paths.py|site_dn	1	
 function	fabricctl-jinja|src/containers/samba/paths.py|sites_dn	3	
+function	fabricctl-jinja|src/containers/samba/plan_cidrs.py|plan_cidrs	1	
 function	fabricctl-jinja|src/containers/samba/policy_entries.py|_element	2	
 function	fabricctl-jinja|src/containers/samba/policy_entries.py|_write	1	
 function	fabricctl-jinja|src/containers/samba/policy_entries.py|policy_entries	3	
@@ -1122,6 +1173,10 @@ function	fabricctl-jinja|src/containers/samba/read_devices.py|_one	1
 function	fabricctl-jinja|src/containers/samba/read_devices.py|read_devices	2	
 function	fabricctl-jinja|src/containers/samba/read_id_blocks.py|read_id_blocks	1	0.5.0 / 2026-10-05
 function	fabricctl-jinja|src/containers/samba/read_networks.py|read_networks	1	
+function	fabricctl-jinja|src/containers/samba/read_plan.py|_one	2	
+function	fabricctl-jinja|src/containers/samba/read_plan.py|_options	3	
+function	fabricctl-jinja|src/containers/samba/read_plan.py|_site_of	1	
+function	fabricctl-jinja|src/containers/samba/read_plan.py|read_plan	4	
 function	fabricctl-jinja|src/containers/samba/read_replication.py|_when	1	
 function	fabricctl-jinja|src/containers/samba/read_replication.py|read_replication	2	
 function	fabricctl-jinja|src/containers/samba/read_sites.py|read_sites	1	
@@ -1155,6 +1210,9 @@ function	fabricctl-jinja|src/containers/samba/site_roles.py|role_group	1
 function	fabricctl-jinja|src/containers/samba/sort_windows_machines.py|sort_windows_machines	1	
 function	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py|_entry	1	
 function	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py|windows_baseline_policy	2	
+function	fabricctl-jinja|src/containers/samba/write_plan.py|_dn	2	
+function	fabricctl-jinja|src/containers/samba/write_plan.py|_values	1	
+function	fabricctl-jinja|src/containers/samba/write_plan.py|write_plan	3	
 function	fabricctl-lib|src/federation/server.py|Handler.after_join	1	
 function	fabricctl-lib|src/federation/server.py|Handler.client_ip	3	
 function	fabricctl-lib|src/federation/server.py|Handler.do_GET	5	
@@ -1290,21 +1348,29 @@ function	fabriclib-dhcp|src/fabriclib/dhcp/add_client_class.py|add_client_class	
 function	fabriclib-dhcp|src/fabriclib/dhcp/add_reservation.py|add_reservation	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/add_subnet.py|add_subnet	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/check_kea_config.py|check_kea_config	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/clean_dhcp_names.py|clean_dhcp_names	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/clear_stale_dhcp_names.py|_first_line	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/clear_stale_dhcp_names.py|_served_zone	2	
+function	fabriclib-dhcp|src/fabriclib/dhcp/clear_stale_dhcp_names.py|clear_stale_dhcp_names	3	
 function	fabriclib-dhcp|src/fabriclib/dhcp/client_networks.py|client_networks	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/common/apply_dhcp_change.py|apply_dhcp_change	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/common/edit_dhcp.py|_check_address_plan	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/common/edit_dhcp.py|edit_dhcp	2	
 function	fabriclib-dhcp|src/fabriclib/dhcp/common/find_subnet.py|find_subnet	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/common/hand_set_path.py|hand_set_path	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/common/kea_image.py|kea_image	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/common/option_target.py|option_target	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/deploy_kea.py|deploy_kea	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/dhcp_overview.py|dhcp_overview	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/dhcp_reverse_zones.py|dhcp_reverse_zones	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/ensure_ddns_zone.py|ensure_ddns_zone	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/hand_set_addresses.py|hand_set_addresses	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/kea_client_classes.py|kea_client_classes	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/kea_command.py|kea_command	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/kea_option_data.py|_key	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/kea_option_data.py|kea_option_data	2	
 function	fabriclib-dhcp|src/fabriclib/dhcp/kea_option_defs.py|kea_option_defs	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/keep_hand_set_addresses.py|keep_hand_set_addresses	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/list_leases.py|list_leases	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/normalize_client_classes.py|normalize_client_classes	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/normalize_dhcp.py|_is_v4	2	
@@ -1317,7 +1383,7 @@ function	fabriclib-dhcp|src/fabriclib/dhcp/place_subnets.py|place_subnets	1
 function	fabriclib-dhcp|src/fabriclib/dhcp/remove_client_class.py|remove_client_class	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/remove_reservation.py|remove_reservation	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/remove_subnet.py|remove_subnet	1	
-function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|_apply	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|_apply	1	0.7.0 / 2026-10-12
 function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|_keep	5	
 function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|_parse	2	
 function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|_show	4	
@@ -1325,6 +1391,8 @@ function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|_vlan	3
 function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|run_dhcp_command	6	
 function	fabriclib-dhcp|src/fabriclib/dhcp/set_dhcp_on.py|set_dhcp_on	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/set_option.py|set_option	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/stale_dhcp_names.py|_canonical	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/stale_dhcp_names.py|stale_dhcp_names	2	
 function	fabriclib-dhcp|src/fabriclib/dhcp/unset_option.py|unset_option	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/update_subnet.py|update_subnet	1	
 function	fabriclib-directory|src/fabriclib/directory/add_device.py|add_device	1	
@@ -1479,6 +1547,7 @@ function	fabriclib-dns|src/fabriclib/dns/common/landing_link.py|landing_link	1
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|_fqdn	1	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|_service_names	2	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|landing_names	3	
+function	fabriclib-dns|src/fabriclib/dns/common/zone_records.py|zone_records	1	
 function	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py|create_zone_tsig_key	1	
 function	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py|find_changed_zones	1	
 function	fabriclib-dns|src/fabriclib/dns/format_value.py|format_value	1	
@@ -1486,7 +1555,7 @@ function	fabriclib-dns|src/fabriclib/dns/install_zone_file.py|install_zone_file	
 function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|_names	1	
 function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|list_tsig_keys	2	
 function	fabriclib-dns|src/fabriclib/dns/list_zones.py|list_zones	1	
-function	fabriclib-dns|src/fabriclib/dns/merge_dynamic_records.py|_records	1	
+function	fabriclib-dns|src/fabriclib/dns/merge_dynamic_records.py|_records	1	0.7.0 / 2026-10-12
 function	fabriclib-dns|src/fabriclib/dns/merge_dynamic_records.py|merge_dynamic_records	2	
 function	fabriclib-dns|src/fabriclib/dns/normalize_acl_policies.py|normalize_acl_policies	1	
 function	fabriclib-dns|src/fabriclib/dns/normalize_tsig_keys.py|normalize_tsig_keys	1	
@@ -1502,6 +1571,7 @@ function	fabriclib-dns|src/fabriclib/dns/remove_tsig_key.py|remove_tsig_key	1
 function	fabriclib-dns|src/fabriclib/dns/remove_zone.py|_named_by	1	
 function	fabriclib-dns|src/fabriclib/dns/remove_zone.py|remove_zone	2	
 function	fabriclib-dns|src/fabriclib/dns/replace_tsig_secret.py|replace_tsig_secret	1	
+function	fabriclib-dns|src/fabriclib/dns/reverse_by_hand.py|reverse_by_hand	1	
 function	fabriclib-dns|src/fabriclib/dns/reverse_zones.py|reverse_zones	1	
 function	fabriclib-dns|src/fabriclib/dns/rfc2136_settings.py|rfc2136_settings	1	
 function	fabriclib-dns|src/fabriclib/dns/rndc.py|rndc	1	
@@ -1590,6 +1660,70 @@ function	fabriclib-images|src/fabriclib/images/switch_image.py|switch_image	2
 function	fabriclib-images|src/fabriclib/images/update_images.py|update_images	1	
 function	fabriclib-images|src/fabriclib/images/verify_signature.py|_remembered	1	
 function	fabriclib-images|src/fabriclib/images/verify_signature.py|verify_signature	2	
+function	fabriclib-ipam|src/fabriclib/ipam/add_address.py|_subnet_for	1	
+function	fabriclib-ipam|src/fabriclib/ipam/add_address.py|add_address	2	
+function	fabriclib-ipam|src/fabriclib/ipam/add_range.py|add_range	1	
+function	fabriclib-ipam|src/fabriclib/ipam/add_subnet.py|_free_name	1	
+function	fabriclib-ipam|src/fabriclib/ipam/add_subnet.py|add_subnet	2	
+function	fabriclib-ipam|src/fabriclib/ipam/add_vlan.py|add_vlan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/check_address.py|check_address	1	
+function	fabriclib-ipam|src/fabriclib/ipam/check_block.py|check_block	1	
+function	fabriclib-ipam|src/fabriclib/ipam/check_range.py|check_range	1	
+function	fabriclib-ipam|src/fabriclib/ipam/check_subnet.py|_overlap_message	1	
+function	fabriclib-ipam|src/fabriclib/ipam/check_subnet.py|check_subnet	2	
+function	fabriclib-ipam|src/fabriclib/ipam/check_vlan.py|check_vlan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/change_subnet.py|_gateway_claim	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/change_subnet.py|change_subnet	2	
+function	fabriclib-ipam|src/fabriclib/ipam/common/edit_plan.py|edit_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|find_address	6	
+function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|find_subnet	8	
+function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|find_vlan	5	
+function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|host_in	4	
+function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|ipv4	3	
+function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|notes	2	
+function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|one_line	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/fields.py|subnet_holding	7	
+function	fabriclib-ipam|src/fabriclib/ipam/common/new_subnet.py|new_subnet	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|load_plan_cache	2	
+function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|plan_cache_path	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|save_plan_cache	3	
+function	fabriclib-ipam|src/fabriclib/ipam/common/plan_holds_subnets.py|plan_holds_subnets	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/site_plan.py|site_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/export_plan.py|export_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py|find_in_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|_add_records	1	
+function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|load_address_plan	2	
+function	fabriclib-ipam|src/fabriclib/ipam/move_subnets_to_plan.py|move_subnets_to_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/plan_rows.py|_range_of	1	
+function	fabriclib-ipam|src/fabriclib/ipam/plan_rows.py|plan_rows	2	
+function	fabriclib-ipam|src/fabriclib/ipam/plan_to_dhcp.py|plan_to_dhcp	1	
+function	fabriclib-ipam|src/fabriclib/ipam/planned_subnets.py|planned_subnets	1	
+function	fabriclib-ipam|src/fabriclib/ipam/read_plan.py|read_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/remove_address.py|remove_address	1	
+function	fabriclib-ipam|src/fabriclib/ipam/remove_range.py|remove_range	1	
+function	fabriclib-ipam|src/fabriclib/ipam/remove_subnet.py|remove_subnet	1	
+function	fabriclib-ipam|src/fabriclib/ipam/remove_vlan.py|remove_vlan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_done	7	
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_keep	3	
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_leases	4	
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_on_off	2	
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_parse	1	
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_print_rows	6	
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_show	5	0.7.0 / 2026-10-12
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_subnet_line	9	
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|run_ipam_command	8	
+function	fabriclib-ipam|src/fabriclib/ipam/set_address.py|set_address	1	
+function	fabriclib-ipam|src/fabriclib/ipam/set_block.py|set_block	1	
+function	fabriclib-ipam|src/fabriclib/ipam/set_subnet.py|set_subnet	1	
+function	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py|_gateway_claim	1	0.7.0 / 2026-10-12
+function	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py|set_vlan	2	
+function	fabriclib-ipam|src/fabriclib/ipam/show_plan.py|show_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py|_label	1	
+function	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py|subnets_to_plan	2	
+function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_block	3	
+function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_split	2	
+function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_subnet	1	
+function	fabriclib-ipam|src/fabriclib/ipam/write_plan.py|write_plan	1	
 function	fabriclib-keycloak|src/fabriclib/keycloak/add_app_client.py|_redirects	1	
 function	fabriclib-keycloak|src/fabriclib/keycloak/add_app_client.py|add_app_client	2	
 function	fabriclib-keycloak|src/fabriclib/keycloak/admin_client.py|Admin.__init__	1	
@@ -1905,6 +2039,7 @@ function	fabriclib-setup|src/fabriclib/setup/ask_first_admin.py|ask_first_admin	
 function	fabriclib-setup|src/fabriclib/setup/ask_kerberos.py|ask_kerberos	1	0.6.4 / 2026-10-09
 function	fabriclib-setup|src/fabriclib/setup/ask_ram.py|_plan	1	0.6.4 / 2026-10-09
 function	fabriclib-setup|src/fabriclib/setup/ask_ram.py|ask_ram	2	0.6.4 / 2026-10-09
+function	fabriclib-setup|src/fabriclib/setup/ask_site_number.py|ask_site_number	1	
 function	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py|_number	1	0.5.0 / 2026-10-04
 function	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py|ask_windows_domain	2	0.5.0 / 2026-10-04
 function	fabriclib-setup|src/fabriclib/setup/backup_install.py|backup_install	1	
@@ -2410,6 +2545,7 @@ page	fabriclib-dns	10
 page	fabriclib-dns_filter	11	
 page	fabriclib-federation	12	
 page	fabriclib-images	13	
+page	fabriclib-ipam	32	
 page	fabriclib-keycloak	14	
 page	fabriclib-ldap	15	0.5.0 / 2026-10-04
 page	fabriclib-logs	16	
