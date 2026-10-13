@@ -446,7 +446,7 @@ check("BIND still runs as its own user with no capabilities", bind_info["Config"
 LAB_NETS = [{"name": "lan", "cidr": "10.77.0.0/24", "kind": "lan", "vlan": None, "notes": "", "allow_overlap": ""},
             {"name": "iot", "cidr": "10.78.0.0/24", "kind": "dhcp", "vlan": 21, "notes": "cameras", "allow_overlap": ""}]
 lab = {"site": "lab", "root": False, "parent": "lan", "password_policy": POLICY, "networks": LAB_NETS,
-       "root_ca_pem": open(f"{pki}/root_ca.crt").read(), "id_range": "200001-300000", "groups": [],
+       "root_ca_pem": open(f"{pki}/root_ca.crt").read(), "id_range": "2000000-2999999", "groups": [],
        "admin_group": "admins",
        "accounts": {f"fabric-{k}-lab": random_password() for k in ("agent", "keycloak", "radius")}, "radius_gid": 610,
        "lan_profile": windows_lan_profile("peap", "radius.lab.lan.test", "aa " * 19 + "aa")}
@@ -689,21 +689,15 @@ first = alice["uidNumber"]
 dc("samba-tool", "user", "delete", "alice", "-s", "/data/etc/smb.conf")
 carol = mk("carol")
 check("ids are never reused: after alice is deleted, carol gets a higher number", carol["uidNumber"] > first, carol)
-# a tiny site whose block is used up: its 8 groups (users, admins, the four roles, the two host groups of 1.6.11.2)
-# take 900-907, one person 908
+# a block that is not a site's (one from before 0.7.0, handed out in one run until 2026-10-13: S11) is refused
+# before anything is written: no OU, no groups
 tiny = {**lab, "site": "tiny", "id_range": "900-908", "networks": [],
         "accounts": {f"fabric-{k}-tiny": random_password() for k in ("agent", "keycloak", "radius")}, "radius_gid": 610}
-dc("python3", "/fabric/converge.py", stdin=json.dumps(tiny))
-tiny_v, tiny_s = {**v, "site_name": "tiny"}, {**SECRETS, "ad_agent_password": tiny["accounts"]["fabric-agent-tiny"]}
-first_tiny = mk("tina", site_v=tiny_v, sec=tiny_s)
-# 908, one more than 0.7.0's 907: since 0.7.1 a new site also gets its host-access groups (1.6.11.2)
-check("a site's people take numbers from that site's own block (a block from before 0.7.0: one run, as before)",
-      first_tiny["uidNumber"] == 908, first_tiny)
-try:
-    mk("tim", site_v=tiny_v, sec=tiny_s)
-    check("refused: a person when the site's block is full", False)
-except ValidationError as e:
-    check("refused: a person when the site's block is full", "full" in str(e), e)
+tiny_run = dc("python3", "/fabric/converge.py", stdin=json.dumps(tiny))
+check("refused: a site block that is not a million from a multiple of a million, nothing written",
+      tiny_run.returncode != 0 and "not a site's block" in tiny_run.stdout + tiny_run.stderr
+      and attr("(&(objectClass=organizationalUnit)(ou=tiny))", "dn") == [],
+      (tiny_run.stdout + tiny_run.stderr)[-300:])
 
 # 2.1.6.46 (manual 1.6.3.17): each kind of account in its range; a full range refused, naming it; the 1000th block
 def mk_kind(uid, kind):
@@ -750,8 +744,8 @@ check("a range's last id is taken, then the range is refused as full, naming it;
       last_guest["uidNumber"] == 1949999 and "guest range 1900001-1949999" in why and "full" in why
       and 1100001 <= mk("after")["uidNumber"] <= 1899999, (last_guest, why))
 from fabriclib.federation.next_id_block import next_id_block  # noqa: E402
-check("the next site's block follows the domain's: site 2's after the root's (2000000-2999999)",
-      next_id_block(v, {"sites": {}}, container=DC) == "2000000-2999999", next_id_block(v, {"sites": {}}, container=DC))
+check("the next site's block follows the domain's: after the root's and lab's (site 2's), site 3's",
+      next_id_block(v, {"sites": {}}, container=DC) == "3000000-3999999", next_id_block(v, {"sites": {}}, container=DC))
 try:
     next_id_block(v, {"sites": {"s999": {"id_range": "999000000-999999999"}}}, container=DC)
     why = ""

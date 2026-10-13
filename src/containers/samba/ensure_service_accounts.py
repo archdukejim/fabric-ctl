@@ -3,7 +3,6 @@ from samba.credentials import DONT_USE_KERBEROS, Credentials
 from samba.samdb import SamDB
 
 from alloc_id import alloc_id
-from id_layout import laid_out
 import paths
 
 DONT_EXPIRE_PASSWORD = 0x10000          # userAccountControl: a service account's password does not expire
@@ -31,9 +30,8 @@ def _signs_in(lp, account, password):
 def ensure_service_accounts(samdb, lp, site, accounts):
     """Purpose: a site's service accounts in the directory (manual 1.6.3.7) — fabric-agent, Keycloak, FreeRADIUS — in
              its OU=service-accounts, their passwords never expiring, each signing in with the password fabric keeps
-             for it (set only when a sign-in with it fails: a new account, or a password fabric changed). In a block
-             laid out in ranges (new installs from 0.7.0) each also gets a uid from the service range, primary gid
-             fabric's users (2.1.6.46); an older block's accounts stay without POSIX ids, as before.
+             for it (set only when a sign-in with it fails: a new account, or a password fabric changed). Each also
+             gets a uid from the site block's service range, primary gid fabric's users (2.1.6.46).
     Inputs:  samdb — SamDB (system); lp — LoadParm; site — str; accounts — {sAMAccountName: password}.
     Returns: list of str, what was created or set.
     Fails:   ldb.LdbError from a creation or change AD refuses; ValueError from alloc_id (the service range full).
@@ -41,7 +39,7 @@ def ensure_service_accounts(samdb, lp, site, accounts):
     done = []
     site_dn = paths.site_dn(samdb, site)
     block = samdb.search(base=site_dn, scope=ldb.SCOPE_BASE, attrs=["fabricIdRange"])[0].get("fabricIdRange")
-    ranged = bool(block) and laid_out(*(int(x) for x in str(block[0]).split("-")))
+    ranged = bool(block)
     users_gid = samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_SUBTREE,
                              expression=f"(objectSid={samdb.get_domain_sid()}-513)", attrs=["gidNumber"])
     users_gid = str(users_gid[0].get("gidNumber", [""])[0]) if users_gid else ""

@@ -9,6 +9,7 @@ IMAGE_RE = re.compile(r"^(?:[a-z0-9.-]+(?::[0-9]+)?/)?[a-z0-9]+(?:[._-][a-z0-9]+
 # image_* settings that are not one image
 NOT_IMAGES = {"image_pins", "image_prune", "image_rolled_back", "image_signature_check"}
 ID_MAX = 2 ** 31 - 1                    # the largest uid/gid Linux and AD both take
+BLOCK = 1_000_000                       # a site's id block: a million ids from a multiple of a million (2.1.6.46)
 
 
 def _whole(v, key, low):
@@ -33,7 +34,9 @@ def check_service_settings(v):
     Fails:   ValidationError naming the setting: an image that is not an image reference; an ip_ that is not an IPv4
              address inside fabric_subnet (its network or broadcast address included), or one two services share;
              posix_id_start under 1000 (the system's own ids) or posix_id_block under 1000, or a first block that
-             does not fit under 2^31 - 1.
+             does not fit under 2^31 - 1; a posix_id_start that is not a multiple of 1000000 or a posix_id_block other
+             than 1000000 (a site's block, whose fixed ranges the DC hands ids from, 2.1.6.46; the one-run block of an
+             install from before 0.7.0 is no longer served, 2.1.6.51, S11).
     Feeds:   deploy/check_settings."""
     for key in sorted(k for k in v if k.startswith("image_") and k not in NOT_IMAGES):
         ref = v.get(key)
@@ -63,3 +66,9 @@ def check_service_settings(v):
     if start is not None and start + (block or 0) - 1 > ID_MAX:
         raise ValidationError(f"posix_id_start {start} with posix_id_block {block} goes past {ID_MAX}, the largest "
                               "uid and gid Linux and AD take")
+    if start is not None and start % BLOCK:
+        raise ValidationError(f"posix_id_start must be a multiple of {BLOCK} (got {start}): a site's id block starts "
+                              "there (2.1.6.46)")
+    if block is not None and block != BLOCK:
+        raise ValidationError(f"posix_id_block must be {BLOCK} (got {block}): every site's id block is a million long "
+                              "(2.1.6.46)")
