@@ -39,3 +39,4 @@ zone `dhcp.<domain>` through kea-dhcp-ddns.
 | `stale_dhcp_names.py` | The records of `dhcp.<domain>` left behind for addresses now named by hand: their A/AAAA, a name's DHCID once no address is left |
 | `clear_stale_dhcp_names.py` | Delete them: the zone read as BIND serves it (`named-compilezone -j` in its container), one `nsupdate` signed with Kea's key (0600 key file), each removal audited (2.1.10.22) |
 | `clean_dhcp_names.py` | `fabricctl dhcp clean-names [--scheduled]`, the hourly fabric-dhcp-names timer: the cleanup from the last apply's addresses |
+| `run_dhcp_alias.py` | 0.7's add-subnet, set-subnet, remove-subnet, reserve and unreserve as aliases of `fabricctl ipam` once the subnets live in the plan |

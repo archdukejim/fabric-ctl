@@ -11,10 +11,14 @@ try:
     from fabriclib.directory.common.check_role_fields import check_role_fields  # noqa: F401
     from fabriclib.directory.constants import DEVICE_NAME_RE, DEVICE_TYPES, PERMISSIONS, ROLE_NAME_RE  # noqa: F401
     from fabriclib.directory.list_devices import list_devices  # noqa: F401
+    from fabriclib.ipam.export_plan import export_plan  # noqa: F401
+    from fabriclib.ipam.networks_view import networks_view  # noqa: F401
+    from fabriclib.ipam.suggestions import suggest_split, suggest_subnet  # noqa: F401
     from fabriclib.rbac.permissions import BUNDLES, PERMISSIONS as FABRIC_PERMISSIONS  # noqa: F401
 except ImportError:
     ValidationError = ValueError
     ptr_for_ip = reverse_zones = list_devices = check_device_fields = check_role_fields = None
+    export_plan = networks_view = suggest_split = suggest_subnet = None
     DEVICE_NAME_RE = ROLE_NAME_RE = None
     PRIVATE_TLDS = ()                       # without fabriclib every name counts as public in the preview
     DEVICE_TYPES, PERMISSIONS = [], {}

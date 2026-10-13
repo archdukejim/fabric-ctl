@@ -30,10 +30,11 @@
 {% if can('dhcp:write') %}<section class="card"><h2>Turn DHCP off</h2>
 <form method="post" action="/kea/off" class="inline">{{ csrf() }}<p class="muted">Kea stops; its DNS key and zones and its subnets' firewall rules go. Its settings and leases are kept, so turning it on again resumes.</p><button class="ghost">Turn DHCP off</button></form></section>{% endif %}
 <section class="card"><h2>Subnets</h2>
+{% if d.in_plan %}<p class="flash ok">This site's subnets, pools and reservations live in the address plan: see and change them in the <a href="/networks">Networks</a> tab (each subnet below opens there).</p>{% endif %}
 <p class="muted">Serving on {{ d.interfaces | join(', ') }} · lease {{ d.lease_time }} s{% if d.ddns_zone %} · hostnames registered in <code>{{ d.ddns_zone }}</code>{% endif %}. A VLAN here is a record of what the network is for: fabric does not configure switches.</p>
 <table><thead><tr><th>Subnet</th><th>Name</th><th>VLAN</th><th>Pools</th><th>Router</th><th>Notes</th><th>Reservations</th></tr></thead><tbody>
-{% for s in d.subnets %}<tr><td>{{ s.subnet }}</td><td>{{ s.name or '—' }}</td><td>{{ s.vlan or '—' }}</td><td>{{ (s.pools or []) | join(', ') or '—' }}</td><td>{{ s.routers or '—' }}</td><td>{{ s.notes or '' }}</td><td class="num">{{ (s.reservations or []) | length }}</td></tr>
-{% if can('dhcp:write') %}<tr><td colspan="7"><details><summary>Edit {{ s.name or s.subnet }}</summary>
+{% for s in d.subnets %}<tr><td>{% if d.in_plan %}<a href="/networks?subnet={{ (s.name or '') | urlencode }}">{{ s.subnet }}</a>{% else %}{{ s.subnet }}{% endif %}</td><td>{{ s.name or '—' }}</td><td>{{ s.vlan or '—' }}</td><td>{{ (s.pools or []) | join(', ') or '—' }}</td><td>{{ s.routers or '—' }}</td><td>{{ s.notes or '' }}</td><td class="num">{{ (s.reservations or []) | length }}</td></tr>
+{% if can('dhcp:write') and not d.in_plan %}<tr><td colspan="7"><details><summary>Edit {{ s.name or s.subnet }}</summary>
 <form method="post" action="/kea/subnets/update" class="grid">{{ csrf() }}<input type="hidden" name="subnet" value="{{ s.subnet }}">
 <label>Name<input name="name" value="{{ s.name or '' }}" placeholder="iot"></label>
 <label>VLAN (1–4094, empty: none)<input name="vlan" value="{{ s.vlan or '' }}"></label>
@@ -49,7 +50,7 @@
 </details></td></tr>{% endif %}
 {% endfor %}
 </tbody></table>
-{% if can('dhcp:write') %}<details><summary>Add a subnet</summary>
+{% if can('dhcp:write') and not d.in_plan %}<details><summary>Add a subnet</summary>
 <form method="post" action="/kea/subnets" class="grid">{{ csrf() }}
 <label>Network<input name="network" required placeholder="192.168.20.0/24"></label>
 <label>Name (one word, unique)<input name="name" required placeholder="iot"></label>
@@ -97,11 +98,12 @@
 </section>
 
 <section class="card"><h2>Reservations</h2>
+{% if d.in_plan %}<p class="muted">Reservations are addresses of the plan: record, change or remove one in the <a href="/networks">Networks</a> tab.</p>{% endif %}
 <table><thead><tr><th>MAC</th><th>Address</th><th>Hostname</th><th></th></tr></thead><tbody>
 {% for s in d.subnets %}{% for r in s.reservations or [] %}<tr><td><code>{{ r.mac }}</code></td><td>{{ r.ip }}</td><td>{{ r.hostname or '—' }}</td>
-<td class="num">{% if can('dhcp:write') %}<form method="post" action="/kea/reservations/{{ r.mac | urlencode }}/delete">{{ csrf() }}<button class="ghost">Remove</button></form>{% endif %}</td></tr>{% endfor %}{% endfor %}
+<td class="num">{% if can('dhcp:write') and not d.in_plan %}<form method="post" action="/kea/reservations/{{ r.mac | urlencode }}/delete">{{ csrf() }}<button class="ghost">Remove</button></form>{% endif %}</td></tr>{% endfor %}{% endfor %}
 </tbody></table>
-{% if can('dhcp:write') %}<form method="post" action="/kea/reservations" class="grid">{{ csrf() }}
+{% if can('dhcp:write') and not d.in_plan %}<form method="post" action="/kea/reservations" class="grid">{{ csrf() }}
 <label>MAC<input name="mac" required placeholder="aa:bb:cc:dd:ee:ff"></label>
 <label>Address (inside a subnet, outside its pools)<input name="ip" required placeholder="192.168.4.20"></label>
 <label>Hostname (optional)<input name="hostname" placeholder="printer"></label>

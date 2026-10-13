@@ -11,6 +11,8 @@ from fabriclib.dns.list_zones import list_zones
 from fabriclib.dns.reverse_zones import reverse_zones
 from fabriclib.dns.zone_detail import zone_detail
 from fabriclib.dns_filter.filter_overview import filter_overview
+from fabriclib.ipam.networks_csv import networks_csv
+from fabriclib.ipam.networks_overview import networks_overview
 from fabriclib.federation.federation_overview import federation_overview
 from fabriclib.directory.device_overview import device_overview
 from fabriclib.directory.list_people import list_people
@@ -54,6 +56,7 @@ READS = {
     ("gpo",): lambda: gpo_overview(load_vars()),
     ("federation",): lambda: federation_overview(load_vars()),
     ("dhcp",): lambda: dhcp_overview(load_vars()),
+    ("networks",): lambda: networks_overview(load_vars()),
     ("dns-filter",): lambda: filter_overview(load_vars()),
     ("radius",): lambda: radius_overview(load_vars()),
     ("radius", "guides"): lambda: radius_guides(load_vars()),
@@ -70,13 +73,19 @@ def get_route(route, user=None):
     Inputs:  route — list of path segments after /v1/ (already authorized by the handler); user — the token's user
              (None for root): a job is read only by the person who started it.
     Returns: the operation's JSON-serialisable result. zones/<key>: zone_detail; vault/slots: the unlock methods with
-             this host's name; images: the image status rows; pki/acme: {info, machines, domain}; jobs/<id>: the job.
+             this host's name; images: the image status rows; pki/acme: {info, machines, domain}; jobs/<id>: the job;
+             networks[/<site>]: networks_overview (the Networks tab, a site this console shows); networks/<site>/export:
+             networks_csv ({"csv", "name"}).
     Fails:   RouteNotFound for any other route (-> 404); whatever the operation raises (ValidationError -> 400).
     Feeds:   agent/handler.py (dispatch)."""
     if tuple(route) in READS:
         return READS[tuple(route)]()
     if len(route) == 2 and route[0] == "zones":
         return zone_detail(route[1])
+    if len(route) == 2 and route[0] == "networks":
+        return networks_overview(load_vars(), route[1])
+    if len(route) == 3 and route[0] == "networks" and route[2] == "export":
+        return networks_csv(load_vars(), route[1])
     if len(route) == 2 and route[0] == "jobs":
         return JOBS.read(route[1], user)
     if route == ["vault", "slots"]:

@@ -29,3 +29,4 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `federation.py` | The Federation tab: sites, replication, conflicts, limits, the address plan. |
 | `security.py` | The Security page: the sign-in layers and their raises |
 | `job_page.py` | A background job's page: doctor's checks or what an image change did; refreshes itself while it runs |
+| `networks.py` | The Networks tab: sites, VLANs, subnet maps, one subnet's address table and options with their sources, a search, the forms. |

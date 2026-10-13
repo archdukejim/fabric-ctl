@@ -2,6 +2,7 @@ from webui import views
 from webui.devpreview.sample_data import (RECORD_TYPES, SAMPLE_CA, SAMPLE_DEVICES, SAMPLE_DHCP, SAMPLE_DOMAIN,
                                           SAMPLE_FEDERATION, SAMPLE_GPO, SAMPLE_RADIUS, SAMPLE_ACME, SAMPLE_IMAGES,
                                           SAMPLE_SECURITY, SAMPLE_VAULT, SAMPLE_DNS_FILTER, SAMPLE_QUERY_LOG)
+from webui.devpreview.dev_networks_page import dev_networks_page
 from webui.devpreview.sample_radius_guides import sample_radius_guides
 
 
@@ -80,10 +81,14 @@ def dev_get_page(h, path, query):
             log = {"entries": [e for e in log["entries"] if e["blocked"]]}
         return h.send(200, views.dns_filter(ctx, view, SAMPLE_DNS_FILTER, log, search, query.get("msg", ""),
                                             query.get("err", "")))
+    if path in ("/networks", "/networks/export"):
+        return dev_networks_page(h, path, query)
     if path == "/kea":
+        # ?plan=1: the subnets in the address plan, so the tab links to Networks (manual 1.10.4.21)
         # ?off=1: DHCP off, as a first turn-on shows it (manual 1.10.3.5); ?off=resume: off with settings kept
         sample = SAMPLE_DHCP if not query.get("off") else {
             **SAMPLE_DHCP, "enabled": False, "has_settings": query.get("off") == "resume", "leases": []}
+        sample = {**sample, "in_plan": True} if query.get("plan") else sample
         return h.send(200, views.kea(ctx, sample, query.get("msg", ""), query.get("err", "")))
     if path == "/freeradius":
         view = query.get("view", "overview")

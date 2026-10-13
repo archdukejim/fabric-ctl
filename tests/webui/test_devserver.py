@@ -86,6 +86,58 @@ try:
           st == 303 and "view=querylog" in (loc or "")
           and "www.wikipedia.org" in req("GET", "/dns-filter?view=rules")[3], loc)
     check("every service tab renders", tabs_ok)
+    # the Networks tab (manual 1.10.4.21) over the sample plan
+    # covers: web:GET /networks +
+    st, _, _, page = req("GET", "/networks")
+    check("Networks tab: the sites with their numbers, the site's VLANs, each subnet's bar map, the add form",
+          st == 200 and "parents" in page and "below this site" in page and "10.1.20.0/24" in page
+          and 'class="netbar' in page and 'action="/networks/lan/vlans"' in page
+          and 'href="/networks"' in req("GET", "/")[3], st)
+    page = req("GET", "/networks?subnet=iot")[3]
+    check("Networks tab: a subnet's ranges, address table (recorded, the lease beside a reservation, an unrecorded "
+          "lease, free runs) and its options with their sources and fabric's marker",
+          "nas" in page and "cam1" in page and "lease · unrecorded" in page and "10.1.20.120" in page
+          and "free" in page and "provided by fabric" in page and "overridden by subnet" in page
+          and "boot-file-name" in page and "Record 10.1.20.120" in page, page[:300])
+    page = req("GET", "/networks?q=aa:bb:cc")[3]
+    check("Networks tab: a search by part of a MAC finds the reservation", "cam1" in page and "Matching" in page)
+    page = req("GET", "/networks?q=nothing-here")[3]
+    check("Networks tab: a search that finds nothing says so", "Nothing in lan" in page)
+    st, _, _, page = req("GET", "/networks?site=parents")
+    check("Networks tab: the house below, without this site's leases", st == 200 and "10.2.20.0/24" in page
+          and "leases are shown at their own site" in page, st)
+    # covers: web:GET /networks -
+    st, _, _, page = req("GET", "/networks?site=upstairs")
+    check("Networks tab refused: a site that is not this one or below it (400, saying why)",
+          st == 400 and "not this site or one below it" in page, st)
+    # covers: web:GET /networks/export +
+    st, _, _, page = req("GET", "/networks/export")
+    check("Networks tab: the CSV export", st == 200 and page.startswith("site,vlan") and "10.1.20.150" in page, st)
+    # covers: web:POST /networks/<site>/vlans +
+    st, loc, _, _ = req("POST", "/networks/lan/vlans", {"csrf": "dev", "id": "40", "name": "lab"})
+    check("Networks tab: add a VLAN -> its suggested subnet and split listed",
+          st == 303 and "msg=" in (loc or "") and "10.1.40.0/24" in req("GET", "/networks")[3], loc)
+    # covers: web:POST /networks/<site>/vlans -
+    for form, why in (({"id": "abc", "name": "x"}, "1 to 4094"), ({"id": "40", "name": "again"}, "already")):
+        st, loc, _, _ = req("POST", "/networks/lan/vlans", {"csrf": "dev", **form})
+        check(f"Networks tab refused: a VLAN ({why}), saying why", st == 303 and "err=" in (loc or "")
+              and why in urllib.parse.unquote_plus(loc or ""), loc)
+    # covers: web:POST /networks/<site>/addresses +
+    st, loc, _, _ = req("POST", "/networks/lan/addresses", {"csrf": "dev", "ip": "10.1.20.11", "vlan": "20",
+                                                             "kind": "static", "name": "printer", "back": "iot"})
+    check("Networks tab: record an address -> back on its subnet, listed", st == 303 and "subnet=iot" in (loc or "")
+          and "printer" in req("GET", "/networks?subnet=iot")[3], loc)
+    # covers: web:POST /networks/<site>/addresses -
+    st, loc, _, _ = req("POST", "/networks/lan/addresses", {"csrf": "dev", "ip": "10.1.20.11", "vlan": "20",
+                                                             "kind": "static"})
+    check("Networks tab refused: an address claimed twice", st == 303 and "already+claimed" in (loc or ""), loc)
+    st, loc, _, _ = req("POST", "/networks/upstairs/vlans", {"csrf": "dev", "id": "50", "name": "x"})
+    check("Networks tab refused: a change to a site this console does not show", st == 303 and "err=" in (loc or ""),
+          loc)
+    page = req("GET", "/kea?plan=1")[3]
+    check("Kea tab with the subnets in the plan: links to Networks, no subnet or reservation forms (1.10.4.21)",
+          'href="/networks' in page and 'action="/kea/subnets"' not in page
+          and 'action="/kea/reservations"' not in page and "/kea/subnets/update" not in page)
     check("strict Content-Security-Policy, like production", csp and "default-src 'none'" in csp, csp)
     st, _, _, page = req("GET", "/bind9?zone=dynamic_zone_var")
     check("BIND9 tab shows records and the add form", st == 200 and "nas" in page and "192.168.1.10" in page, st)
@@ -318,6 +370,9 @@ try:
           'action="/overview/doctor"' in page and "<h2>Updates</h2>" in page and "/overview/images/" not in page)
     st, _, _, _ = req("POST", "/overview/images/postgres/update", {"csrf": "dev"})
     check("--as fabric-auditor: refused: an image update (403, images:update)", st == 403)
+    page = req("GET", "/networks?subnet=iot")[3]
+    check("--as fabric-auditor: the Networks tab and a subnet's table, without a single change form",
+          "cam1" in page and "/networks/lan/" not in page and "Add a VLAN" not in page)
     page = req("GET", "/stepca?view=acme")[3]
     check("--as fabric-auditor: the ACME view without enroll or withdraw", "nas.home.arpa" in page
           and "/stepca/acme/enroll" not in page and "/delete" not in page)

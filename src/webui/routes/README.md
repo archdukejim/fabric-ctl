@@ -24,3 +24,5 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `__init__.py` | Empty; makes it a package |
 | `security_post.py` | The Security page's changes: a recent sign-in, the admin's own certificate before turning it on, then the agent |
 | `overview_post.py` | The Overview's jobs: Run doctor, and update or roll back one service's image; then the job's page |
+| `networks_page.py` | The Networks tab: a site's VLANs and subnet maps, one subnet's address table, a search, the CSV export |
+| `networks_post.py` | The Networks tab's changes: the site's number, VLANs, subnets, ranges, addresses; back to the tab with the outcome |

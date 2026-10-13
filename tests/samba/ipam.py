@@ -4,8 +4,9 @@ their own, nothing served changed, a second run changing nothing, convergence le
 at an apply and, with the DC not answering, the copy kept; and `fabricctl ipam` against the domain as the site's
 agent: every command's positive case and its refusals (each changing nothing), a site above writing a nested site's
 plan and the nested site refused its parent's; the site's number (`ipam block` and setup's question, 2.1.10.16), a
-reservation published in DNS (2.1.10.17) and several subnets on one VLAN (`ipam subnet`, 2.1.10.18). fabric's audit
-log is stood in for, and setup's answers are typed through input().
+reservation published in DNS (2.1.10.17) and several subnets on one VLAN (`ipam subnet`, 2.1.10.18); the Networks
+tab's reads (a site's view, the CSV, the site scope) and the 0.7 subnet commands as aliases (1.10.4.21), each
+positive case and its refusals. fabric's audit log is stood in for, and setup's answers are typed through input().
     sudo python3 tests/samba/ipam.py
 """
 import builtins
@@ -24,12 +25,20 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
 from start_dc import POLICY, start_dc  # noqa: E402
 import fabriclib.ipam.common.edit_plan as m_edit  # noqa: E402
+import fabriclib.ipam.visible_sites as m_vis  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.dhcp.normalize_dhcp import normalize_dhcp  # noqa: E402
+from fabriclib.ipam.add_address import add_address  # noqa: E402
+from fabriclib.ipam.add_dhcp_subnet import add_dhcp_subnet  # noqa: E402
 from fabriclib.ipam.load_address_plan import load_address_plan  # noqa: E402
 from fabriclib.ipam.move_subnets_to_plan import move_subnets_to_plan  # noqa: E402
+from fabriclib.ipam.networks_csv import networks_csv  # noqa: E402
+from fabriclib.ipam.networks_overview import networks_overview  # noqa: E402
 from fabriclib.ipam.read_plan import read_plan  # noqa: E402
+from fabriclib.ipam.remove_reservation_mac import remove_reservation_mac  # noqa: E402
+from fabriclib.ipam.remove_vlan import remove_vlan  # noqa: E402
 from fabriclib.ipam.run_ipam_command import run_ipam_command  # noqa: E402
+from fabriclib.ipam.set_dhcp_subnet import set_dhcp_subnet  # noqa: E402
 from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 from fabriclib.setup.ask_site_number import ask_site_number  # noqa: E402
@@ -457,6 +466,80 @@ check("unattended, a site with no number takes the suggestion without asking (ho
       and ask_site_number(house_v, house_s, True, container=DC) == [] and block("house2") == 7, (res.stderr, lines))
 check("every change audited", [e for e, _ in AUDIT].count("IPAM_VLAN_ADD") >= 4 and "IPAM_ADDRESS_ADD" in
       [e for e, _ in AUDIT], AUDIT)
+
+print("--- the Networks tab's reads against the domain (1.10.4.21)")
+OWN = V["site_name"]
+DCK = {"secrets": SECRETS, "container": DC}
+m_vis.load_registry = lambda: {"sites": {"house3": {}}, "upstream": None}     # house3 joined below this site
+# covers: agent:GET /v1/networks +
+ov = networks_overview(V, "", **DCK)
+check("this site's view from the domain: its VLANs as the plan has them, the sites shown, nothing stale",
+      ov["site"] == OWN and [x["id"] for x in ov["vlans"]] == [x["id"] for x in plan(OWN)["vlans"]]
+      and [s["name"] for s in ov["sites"]] == [OWN, "house3"] and not ov["stale"] and not ov["error"], ov.get("error"))
+ov3 = networks_overview(V, "house3", **DCK)
+check("a site below this one is shown from the top (2.1.9.19)", ov3["site"] == "house3" and not ov3["error"],
+      ov3.get("error"))
+# covers: agent:GET /v1/networks/<site> -
+try:
+    networks_overview(V, "house4", **DCK)
+    why = "not refused"
+except ValidationError as e:
+    why = str(e)
+check("refused: a site that did not join below this one (house4), whatever the request says",
+      "not this site or one below it" in why, why)
+# covers: agent:GET /v1/networks/<site>/export +
+exported = networks_csv(V, OWN, **DCK)
+check("the CSV export: the address table's header and a file name of the site's",
+      exported["csv"].startswith("site,vlan,vlan_name,subnet,ip") and exported["name"] == f"{OWN}-addresses.csv",
+      exported)
+
+print("--- the 0.7 subnet commands as aliases, written to the domain (1.10.4.21, 2.1.10.27)")
+# covers: cli:dhcp.add-subnet +
+out = add_dhcp_subnet(V, "tester", "10.250.39.0/24", "alias39", 3939, "10.250.39.1",
+                      ["10.250.39.100 - 10.250.39.150"], "via 0.7", **DCK)
+s39 = sub("alias39", OWN)
+check("add-subnet: a new VLAN named after the subnet, the subnet with its gateway, its pool a dhcp range, no split",
+      out["result"]["vlan_added"] and any(x["id"] == 3939 and x["name"] == "alias39" for x in plan(OWN)["vlans"])
+      and s39 and s39["gateway"] == "10.250.39.1" and s39["dhcp"]
+      and [(r["kind"], r["first"], r["last"]) for r in s39["ranges"]] == [("dhcp", "10.250.39.100", "10.250.39.150")],
+      s39)
+before = plan(OWN)
+try:
+    add_dhcp_subnet(V, "tester", "10.250.39.128/25", "alias39b", 3939, None, [], "", **DCK)
+    why = "not refused"
+except ValidationError as e:
+    why = str(e)
+check("refused: a subnet overlapping one of the plan's, naming it, nothing written",
+      "overlap" in why and plan(OWN) == before, why)
+# covers: cli:dhcp.set-subnet +
+set_dhcp_subnet(V, "tester", "alias39", notes="moved", remove_pools=["10.250.39.100 - 10.250.39.150"],
+                add_pools=["10.250.39.160 - 10.250.39.200"], **DCK)
+s39 = sub("alias39", OWN)
+check("set-subnet: one pool removed and another added, the notes changed, in one change",
+      [(r["first"], r["last"]) for r in s39["ranges"] if r["kind"] == "dhcp"] == [("10.250.39.160", "10.250.39.200")]
+      and s39["notes"] == "moved", s39)
+before = plan(OWN)
+try:
+    set_dhcp_subnet(V, "tester", "alias39", remove_pools=["10.250.39.1 - 10.250.39.9"], notes="x", **DCK)
+    why = "not refused"
+except ValidationError as e:
+    why = str(e)
+check("refused: removing a pool the subnet does not have, nothing written (not even the notes)",
+      "no DHCP pool" in why and plan(OWN) == before, why)
+add_address(V, "tester", "10.250.39.170", "reservation", "", "cam39", "02:00:00:00:39:01", secrets=SECRETS,
+            container=DC)
+# covers: cli:dhcp.unreserve +
+remove_reservation_mac(V, "tester", "02-00-00-00-39-01", **DCK)
+check("unreserve: the reservation that MAC holds is removed (MAC given with dashes)",
+      not any(a["ip"] == "10.250.39.170" for a in sub("alias39", OWN)["addresses"]))
+try:
+    remove_reservation_mac(V, "tester", "02:00:00:00:39:99", **DCK)
+    why = "not refused"
+except ValidationError as e:
+    why = str(e)
+check("refused: unreserve for a MAC no reservation holds", "no reservation for 02:00:00:00:39:99" in why, why)
+remove_vlan(V, "tester", 3939, "", True, **DCK)
+check("the alias VLAN removed again with its subnet", sub("alias39", OWN) is None)
 
 subprocess.run(["docker", "rm", "-f", DC], capture_output=True)
 subprocess.run(["docker", "network", "rm", NET], capture_output=True)

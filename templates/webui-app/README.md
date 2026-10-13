@@ -26,3 +26,4 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `federation.html` | The Federation tab |
 | `security.html` | The Security page (sign-in layers, raises, Kerberos on/off; lowering shown as the host command) |
 | `job.html` | A background job (doctor, an image update), with a meta refresh while it runs |
+| `networks.html` | The Networks tab: sites and their numbers, VLANs with their subnets' bar maps, one subnet's ranges, address table and options with their sources, a search, the forms |

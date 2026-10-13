@@ -37,3 +37,13 @@ from it at every apply. The rules are pure functions checked before anything is 
 | `remove_address.py` | Remove a recorded address |
 | `run_ipam_command.py` | `fabricctl ipam show / find / export / block / vlan / subnet / range / address` (applies a change to this site unless `--no-apply`) |
 | `common/` | Helpers shared by the commands: the checked edit, the plan's fields, the kept copy |
+| `visible_sites.py` | The sites this console shows and edits: its own, then those that joined below it |
+| `subnet_map.py` | A subnet as the Networks tab draws it: its ranges as a bar, its counts, every address (free runs too) |
+| `fabric_options.py` | The options fabric provides at a subnet: router, DNS, NTP, the domain, its search list |
+| `subnet_options.py` | The options a subnet ends up with and where each came from (provided by fabric, overridden) |
+| `networks_view.py` | What the Networks tab shows of one site, drawn from a plan (pure) |
+| `networks_overview.py` | The Networks tab's read: a site's plan from the domain (or the kept copy), its leases, drawn |
+| `networks_csv.py` | The Networks tab's CSV export of a site's address table |
+| `add_dhcp_subnet.py` | 0.7's `dhcp add-subnet` as one plan change: the VLAN if new, the subnet, its pools as ranges |
+| `set_dhcp_subnet.py` | 0.7's `dhcp set-subnet` as one plan change: router, notes, overlap reason, pools added and removed |
+| `remove_reservation_mac.py` | 0.7's `dhcp unreserve <mac>`: the reservation that MAC holds removed from the plan |

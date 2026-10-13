@@ -87,3 +87,6 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `start_job.py` | Start a background job: doctor, or one service's image update or rollback. Agent routes: POST /v1/jobs/doctor (status:read), /v1/jobs/images (images:update). |
 | `read_job.py` | A job the signed-in person started. Agent route: GET /v1/jobs/<id>. |
 | `acme_overview.py` | ACME for LAN machines: the directory and how, the machines enrolled for DNS-01. Agent route: GET /v1/pki/acme (pki:read). |
+| `networks_overview.py` | What the Networks tab shows of one site (VLANs, subnet maps, address table, options and their sources). Agent route: GET /v1/networks[/<site>] (dhcp:read). |
+| `networks_export.py` | A site's address table as CSV. Agent route: GET /v1/networks/<site>/export (dhcp:read). |
+| `networks_change.py` | One change to a site's address plan (number, VLANs, subnets, ranges, addresses); this site's applied at once. Agent routes: POST /v1/networks/<site>/... (dhcp:write), timeout 300 s. |

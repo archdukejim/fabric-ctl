@@ -6,6 +6,7 @@ from webui.devpreview.dev_post_dns import dev_post_dns
 from webui.devpreview.dev_post_dhcp import dev_post_dhcp
 from webui.devpreview.dev_post_dns_filter import dev_post_dns_filter
 from webui.devpreview.dev_post_network import dev_post_network
+from webui.devpreview.dev_post_networks import dev_post_networks
 from webui.devpreview.sample_data import SAMPLE_CA, SAMPLE_DOCTOR, SAMPLE_INFO, SAMPLE_PEM
 from webui.devpreview.sample_result import sample_result
 
@@ -49,7 +50,7 @@ def dev_post_action(h, path, form):
     if path.startswith("/openbao/"):
         return h.send(303, b"", location="/openbao?" + urllib.parse.urlencode(
             {"view": "unlock", **state.vault_action(path.split("/")[2:], form)}))
-    for area in (dev_post_dhcp, dev_post_dns_filter, dev_post_network, dev_post_directory):
+    for area in (dev_post_dhcp, dev_post_networks, dev_post_dns_filter, dev_post_network, dev_post_directory):
         if area(h, path, form):
             return None
     if path == "/stepca/sign/review":

@@ -17,6 +17,7 @@ from webui.views.freeradius import freeradius  # noqa: F401
 from webui.views.job_page import job_page  # noqa: F401
 from webui.views.kea import kea  # noqa: F401
 from webui.views.machine_result import machine_result  # noqa: F401
+from webui.views.networks import networks  # noqa: F401
 from webui.views.openbao import openbao  # noqa: F401
 from webui.views.overview import overview  # noqa: F401
 from webui.views.person_result import person_result  # noqa: F401

@@ -77,6 +77,9 @@ from webui.agentclient.gpo_change import gpo_change  # noqa: F401
 from webui.agentclient.add_machine import add_machine  # noqa: F401
 from webui.agentclient.machine_action import machine_action  # noqa: F401
 from webui.agentclient.federation_overview import federation_overview  # noqa: F401
+from webui.agentclient.networks_change import networks_change  # noqa: F401
+from webui.agentclient.networks_export import networks_export  # noqa: F401
+from webui.agentclient.networks_overview import networks_overview  # noqa: F401
 from webui.agentclient.image_rows import image_rows  # noqa: F401
 from webui.agentclient.start_job import start_job  # noqa: F401
 from webui.agentclient.read_job import read_job  # noqa: F401

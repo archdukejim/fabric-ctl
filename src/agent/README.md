@@ -11,12 +11,13 @@ arbitrary commands.
 |---|---|
 | `server.py` | Entry point (systemd): the socket server (root:webui 0660) and the route list |
 | `handler.py` | One request: peer uid (SO_PEERCRED), token and permission (`fabriclib/rbac`), body and actor, errors as JSON replies |
-| `get_route.py` | GET routes: one fabriclib read each |
+| `get_route.py` | GET routes: one fabriclib read each (the Networks tab: `/v1/networks[/<site>[/export]]`) |
 | `post_route.py` | POST routes by area; apply, people, login events |
 | `post_dns.py` | Zones (add, remove), their records, TSIG keys |
 | `post_dns_filter.py` | The DNS filter's lists, rules and upstreams (saved and applied), the lists job, the query-log search |
 | `post_dhcp.py` | DHCP: reservations, subnets (name, VLAN, notes, pools), options, client classes, each applied at once |
 | `post_network.py` | 802.1X settings, each applied at once |
+| `post_networks.py` | The Networks tab: a site's number, VLANs, subnets, ranges and addresses (this site's applied at once; a site this console does not show refused) |
 | `post_pki.py` | Manual PKI: describe or sign a CSR, issue, inspect, convert |
 | `post_vault.py` | OpenBao's unlock methods, rotating the vault key |
 | `post_directory.py` | Devices and device roles in the domain |
