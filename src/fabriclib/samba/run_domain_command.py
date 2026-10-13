@@ -88,6 +88,12 @@ def _show(o):
     print(f"who may sign in to the machines of {o['site']}" + (
         " (the log-on rights of before 0.9, on the site's OU: the first change makes them its policy)"
         if o["legacy"] else "") + ":")
+    if o.get("unapplied"):
+        print("  warning: these per-OU policies are in this site's settings, but its domain controller is read-only "
+              "and never applies them (saved before such changes were refused): they have no effect. Make them at "
+              "the site above, and remove logon_policies from this site's settings (2.1.6.52)")
+    elif o.get("read_only"):
+        print("  this site's domain controller is read-only: who may sign in is changed at the site above")
     if o["error"]:
         print(f"  could not be read: {o['error']}")
     for p in o["policies"]:
@@ -113,7 +119,7 @@ def _logon(v, args):
             _show(logon_overview(v, rest[0] if rest else None))
             return 0
         if op == "clear" and len(rest) == 1:
-            clear_logon_policy(getpass.getuser(), rest[0])
+            clear_logon_policy(getpass.getuser(), rest[0], v=v)
             print(f"{rest[0]}: its own log-on policy cleared ("
                   + ("back to the default: the fabric admins, 2.1.6.53)" if rest[0].strip("/").lower() == HOSTS_OU
                      else "it takes its parent's)"))

@@ -16,13 +16,18 @@ def logon_overview(v, ou=None, secrets=None, container="samba"):
     Inputs:  v — fabric vars (site_name, logon_policies, webui_admin_group); ou — one OU's path to show, None for
              all; secrets — fabric's secrets (default: load_secrets(), only while the setting is null); container —
              the DC's container.
-    Returns: {"site", "legacy": bool (no per-OU policies yet), "always": the groups every policy keeps, "policies":
+    Returns: {"site", "legacy": bool (no per-OU policies yet), "read_only": bool (the site's DC is read-only: who may
+             sign in is changed at the site above, 2.1.6.52), "unapplied": bool (a read-only DC's site whose settings
+             hold per-OU policies, saved before such changes were refused: its DC never applies them), "always": the
+             groups every policy keeps, "policies":
              [{"ou" (path, "" the site's OU), "console", "remote"}] sorted by OU, "error": "" or why the legacy
              list could not be read (then its lists are empty)}.
     Fails:   ValidationError for an OU path refused, or a setting check_logon_policies refuses.
     Feeds:   samba/run_domain_command (logon show, status), agent route GET /v1/domain/logon (domain:read)."""
     policies = check_logon_policies(v.get("logon_policies"))
-    out = {"site": v.get("site_name", ""), "legacy": policies is None, "always": ALWAYS, "policies": [], "error": ""}
+    read_only = v.get("ad_dc_type") == "rodc"
+    out = {"site": v.get("site_name", ""), "legacy": policies is None, "read_only": read_only,
+           "unapplied": read_only and policies is not None, "always": ALWAYS, "policies": [], "error": ""}
     if policies is None:
         try:
             legacy = run_op(v, secrets if secrets is not None else load_secrets(), "logon_groups",

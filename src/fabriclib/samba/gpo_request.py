@@ -2,6 +2,7 @@ import json
 import subprocess
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.samba.refuse_at_read_only_dc import refuse_at_read_only_dc
 
 
 # the editor's operations that change the domain or SYSVOL; the others only read
@@ -20,10 +21,8 @@ def gpo_request(request, container="samba", v=None):
              controller is not running", or for a change at a read-only DC's site why it is refused;
              subprocess.TimeoutExpired after 5 minutes.
     Feeds:   samba/run_gpo_command, set_gpo_policy, clear_gpo_policy, gpo_overview; tests/samba/gpo.py."""
-    if request.get("op") in WRITES and (v or {}).get("ad_dc_type") == "rodc":
-        raise ValidationError("this site's domain controller is read-only, and Group Policy is edited on a writable "
-                              "domain controller's own copy: make the change at the site above (its GPOs reach this "
-                              "site); nothing was changed")
+    if request.get("op") in WRITES:
+        refuse_at_read_only_dc(v, "Group Policy is")
     res = subprocess.run(["docker", "exec", "-i", "-e", "PYTHONDONTWRITEBYTECODE=1", container,
                           "python3", "/fabric/gpo_tool.py"], input=json.dumps(request), capture_output=True,
                          text=True, timeout=300)

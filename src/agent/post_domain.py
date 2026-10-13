@@ -63,7 +63,7 @@ def post_domain(route, actor, data):
                                 read_strings(data, "console") if "console" in data else None,
                                 read_strings(data, "remote") if "remote" in data else None, source="web")
     elif route == ["domain", "logon", "clear"]:
-        done = clear_logon_policy(actor, read_text(data, "ou"), source="web")
+        done = clear_logon_policy(actor, read_text(data, "ou"), source="web", v=v)
     else:
         raise ValidationError("unknown operation")
     ok, output = apply_changes(actor, source="web")

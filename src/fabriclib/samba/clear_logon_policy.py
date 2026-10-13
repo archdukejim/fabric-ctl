@@ -7,21 +7,24 @@ from fabriclib.common.vars_lock import vars_lock
 from fabriclib.common.write_audit import write_audit
 from fabriclib.samba.check_logon_policies import check_logon_policies
 from fabriclib.samba.logon_ou_path import logon_ou_path
+from fabriclib.samba.refuse_at_read_only_dc import refuse_at_read_only_dc
 
 
-def clear_logon_policy(actor, ou, source="cli"):
+def clear_logon_policy(actor, ou, source="cli", v=None):
     """Purpose: one OU's log-on policy removed from `logon_policies` (manual 1.6.11.4): the OU takes its parent's again;
              the next apply removes its GPO.
     Inputs:  actor — str, for the audit; ou — the OU's path below the site's OU ("site" or "" for the site's OU);
-             source — audit source.
+             source — audit source; v — fabric vars (ad_dc_type), default: the saved settings.
     Returns: {"ou", "policies": the whole saved map}.
-    Fails:   ValidationError: an OU path refused; the OU has no policy of its own (the site's log-on rights of before
+    Fails:   ValidationError: at a site whose DC is read-only (make the change at the site above, 2.1.6.52); an OU
+             path refused; the OU has no policy of its own (the site's log-on rights of before
              0.9 included: they are changed with set); clearing it would leave the site's machines without a policy
              (neither the site's OU nor OU=machines would have one: check_logon_policies). Nothing is saved then.
              OSError or yaml.YAMLError from the settings or the audit log.
     Feeds:   samba/run_domain_command (`fabricctl domain logon clear`), agent/post_domain (POST
              /v1/domain/logon/clear, gpo:admin).
     Notes:   audited as LOGON_POLICY_CLEAR."""
+    refuse_at_read_only_dc(v if v is not None else load_vars(), "who may sign in is")
     path = logon_ou_path(ou)
     with vars_lock():
         data = load_vars()

@@ -25,6 +25,8 @@ from fabriclib.radius.windows_lan_profile import windows_lan_profile  # noqa: E4
 from fabriclib.samba.allow_rodc_cache import allow_rodc_cache  # noqa: E402
 from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
 from fabriclib.samba.deploy_samba import deploy_samba  # noqa: E402
+from fabriclib.samba.set_gpo_policy import set_gpo_policy  # noqa: E402
+from fabriclib.samba.set_logon_policy import set_logon_policy  # noqa: E402
 from fabriclib.samba.sync_rodc_cache import sync_rodc_cache  # noqa: E402
 from fabriclib.samba.write_bind_dlz import write_bind_dlz  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
@@ -985,6 +987,21 @@ except ValidationError as e:
     why = str(e)
 check("negative: a write with the writable DC not answering: said plainly, naming it", "10.254.30.99 does not answer"
       in why, why)
+gpo_before = sh(["docker", "exec", RODC, "find", "/data/state/sysvol", "-newer", "/data/etc/smb.conf", "-type", "f"],
+                ok=False).stdout
+for name, change in (("who may sign in", lambda: set_logon_policy(rcv, "tester", "machines", ["lab-users"], None,
+                                                                  secrets=lab_sec, container=RODC)),
+                     ("Group Policy", lambda: set_gpo_policy(rcv, "tester", "anything", {}, container=RODC))):
+    try:
+        change()
+        why = ""
+    except ValidationError as e:
+        why = str(e)
+    check(f"negative: {name} changed at the read-only DC's site: refused, saying to make it at the site above "
+          "(2.3.6.9.4 point 4)", "site above" in why, why)
+check("...and the read-only DC's SYSVOL untouched", sh(["docker", "exec", RODC, "find", "/data/state/sysvol", "-newer",
+                                                       "/data/etc/smb.conf", "-type", "f"], ok=False).stdout
+      == gpo_before)
 sh(["docker", "stop", DC])
 try:
     run_op(rcv, lab_sec, "create_person", {"uid": "linkdown", "first": "L", "last": "D", "email": "ld@lan.test",
