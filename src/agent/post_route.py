@@ -6,11 +6,13 @@ from agent.post_host_access import post_host_access
 from agent.post_ipam_scan import post_ipam_scan
 from agent.post_dns import post_dns
 from agent.post_dns_filter import post_dns_filter
+from agent.post_enrol import post_enrol
 from agent.post_network import post_network
 from agent.post_networks import post_networks
 from agent.post_options import post_options
 from agent.post_pki import post_pki
 from agent.post_security import post_security
+from agent.post_ssh import post_ssh
 from agent.post_vault import post_vault
 from agent.read_text import read_text
 from agent.route_not_found import RouteNotFound
@@ -42,7 +44,9 @@ def post_route(route, actor, data, perms):
              /v1/jobs/<id> by the person who started it;
              events: {} after the login audit line; dns-filter/...: post_dns_filter's result; networks/<site>/...:
              post_networks' result (the address plan, 1.10.4.21); ipam/scan[/record]: post_ipam_scan's result;
-             ipam/... (the rest): post_options' result (the DHCP options in the plan, 1.10.4.24.6).
+             ipam/... (the rest): post_options' result (the DHCP options in the plan, 1.10.4.24.6);
+             pki/enrol/...,
+             pki/enrolments/<id>/withdraw: post_enrol's; ssh/...: post_ssh's.
     Fails:   ValidationError (-> 400) for an unsupported event or what fabriclib refuses; RouteNotFound (-> 404).
     Feeds:   agent/handler.py (dispatch).
     Notes:   POST apply only needs dns:write (rbac/required_permission), though it runs the whole deployment."""
@@ -59,8 +63,12 @@ def post_route(route, actor, data, perms):
         return post_options(route, actor, data)
     if area == ["radius"]:
         return post_network(route, actor, data)
+    if area == ["pki"] and len(route) > 2 and route[1] in ("enrol", "enrolments"):     # device enrolment (1.5.3)
+        return post_enrol(route, actor, data, perms)
     if area == ["pki"] and len(route) == 2:
         return post_pki(route[1], actor, data)
+    if area == ["ssh"]:                                       # SSH certificates (1.6.11.9)
+        return post_ssh(route, actor, data)
     if area == ["vault"]:
         return post_vault(route[1:], actor, data)
     if area in (["devices"], ["roles"]):

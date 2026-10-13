@@ -70,6 +70,7 @@ def render_templates(paths, jinja_env, context, final_vars, secrets, tsig_keys, 
     if final_vars.get("install_webui"):
         render("webui/webui.json.j2", "webui/webui.json")
         render("systemd/fabric-agent.service.j2", "systemd/fabric-agent.service")
+        render("systemd/fabric-scep-hook.service.j2", "systemd/fabric-scep-hook.service")    # manual 1.5.3.3
     if final_vars.get("federation_endpoint"):
         render("systemd/fabric-federation.service.j2", "systemd/fabric-federation.service")
     render("openbao/openbao.hcl.j2", "openbao/config/openbao.hcl")

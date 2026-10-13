@@ -21,6 +21,8 @@ arbitrary commands.
 | `post_network.py` | 802.1X settings, each applied at once |
 | `post_networks.py` | The Networks tab: a site's number, VLANs, subnets, ranges and addresses (this site's applied at once; a site this console does not show refused) |
 | `post_pki.py` | Manual PKI: describe or sign a CSR, issue, inspect, convert |
+| `post_enrol.py` | Device enrolment: an Apple profile with a one-time SCEP challenge, a PKCS#12, withdrawing an unused profile (1.5.3) |
+| `post_ssh.py` | SSH certificates: sign a fabric admin's key, turn them on or off (1.6.11.9) |
 | `post_vault.py` | OpenBao's unlock methods, rotating the vault key |
 | `post_directory.py` | Devices and device roles in the domain |
 | `read_text.py` / `read_strings.py` / `read_fields.py` | Checked fields of a request body |

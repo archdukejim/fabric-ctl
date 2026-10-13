@@ -16,7 +16,8 @@ from fabriclib.undo.undo_trust import undo_trust
 # ldap, fabric-directory-sync and dirsrv: 389-DS, gone since 0.5.0 (S7); still removed where an older install
 # left them
 UNITS = ["fabric-web", "webui", "fluentbit", "kea", "freeradius", "samba", "adguard", "adguard-auth", "bind9-resolver",
-         "adguard-filter", "fabric-agent", "fabric-federation", "fabric-directory-sync", "nginx", "openbao", "keycloak",
+         "adguard-filter", "fabric-agent", "fabric-federation", "fabric-scep-hook", "fabric-directory-sync", "nginx",
+         "openbao", "keycloak",
          "postgres",
          "ldap", "stepca", "bind9", "fabric-firewall", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists",
          "fabric-dns-log", "fabric-machines", "fabric-dhcp-names", "fabric-plan-watch", "fabric-host-managed"]

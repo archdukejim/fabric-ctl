@@ -7,6 +7,7 @@ file	fabricctl-agent|src/agent/post_directory.py	4
 file	fabricctl-agent|src/agent/post_dns.py	5	
 file	fabricctl-agent|src/agent/post_dns_filter.py	17	
 file	fabricctl-agent|src/agent/post_domain.py	14	
+file	fabricctl-agent|src/agent/post_enrol.py	22	
 file	fabricctl-agent|src/agent/post_host_access.py	18	
 file	fabricctl-agent|src/agent/post_ipam_scan.py	20	
 file	fabricctl-agent|src/agent/post_network.py	6	
@@ -15,6 +16,7 @@ file	fabricctl-agent|src/agent/post_options.py	21
 file	fabricctl-agent|src/agent/post_pki.py	7	
 file	fabricctl-agent|src/agent/post_route.py	8	
 file	fabricctl-agent|src/agent/post_security.py	15	
+file	fabricctl-agent|src/agent/post_ssh.py	23	
 file	fabricctl-agent|src/agent/post_vault.py	9	
 file	fabricctl-agent|src/agent/read_fields.py	10	
 file	fabricctl-agent|src/agent/read_strings.py	11	
@@ -72,6 +74,7 @@ file	fabricctl-jinja|src/containers/samba/get_person.py	31
 file	fabricctl-jinja|src/containers/samba/gpo_tool.py	51	
 file	fabricctl-jinja|src/containers/samba/host_groups.py	80	
 file	fabricctl-jinja|src/containers/samba/id_layout.py	73	
+file	fabricctl-jinja|src/containers/samba/is_fabric_admin.py	101	
 file	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py	81	
 file	fabricctl-jinja|src/containers/samba/link_device_cert.py	34	
 file	fabricctl-jinja|src/containers/samba/list_host_groups.py	82	
@@ -121,6 +124,7 @@ file	fabricctl-jinja|src/containers/samba/sort_windows_machines.py	90
 file	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py	48	
 file	fabricctl-jinja|src/containers/samba/write_plan.py	93	
 file	fabricctl-lib|src/federation/server.py	1	
+file	fabricctl-lib|src/scephook/server.py	3	
 file	fabricctl-lib|src/ux/cli/keycloak_bootstrap.py	2	
 file	fabriclib-common|src/fabriclib/common/ask.py	28	
 file	fabriclib-common|src/fabriclib/common/console.py	1	
@@ -263,6 +267,7 @@ file	fabriclib-directory|src/fabriclib/directory/create_person.py	2
 file	fabriclib-directory|src/fabriclib/directory/device_overview.py	13	
 file	fabriclib-directory|src/fabriclib/directory/ensure_admin.py	3	
 file	fabriclib-directory|src/fabriclib/directory/ensure_default_device_roles.py	14	
+file	fabriclib-directory|src/fabriclib/directory/is_fabric_admin.py	46	
 file	fabriclib-directory|src/fabriclib/directory/link_device_cert.py	15	
 file	fabriclib-directory|src/fabriclib/directory/list_devices.py	16	
 file	fabriclib-directory|src/fabriclib/directory/list_host_groups.py	36	
@@ -641,6 +646,24 @@ file	fabriclib-pki|src/fabriclib/pki/run_acme_command.py	45
 file	fabriclib-pki|src/fabriclib/pki/run_certs_command.py	44	
 file	fabriclib-pki|src/fabriclib/pki/run_mint_certs_command.py	31	
 file	fabriclib-pki|src/fabriclib/pki/run_service_cert_command.py	32	
+file	fabriclib-pki|src/fabriclib/pki/scep/answer_hook.py	50	
+file	fabriclib-pki|src/fabriclib/pki/scep/check_challenge.py	51	
+file	fabriclib-pki|src/fabriclib/pki/scep/check_scep_settings.py	52	
+file	fabriclib-pki|src/fabriclib/pki/scep/common/challenge_lock.py	53	
+file	fabriclib-pki|src/fabriclib/pki/scep/common/enrol_inputs.py	54	
+file	fabriclib-pki|src/fabriclib/pki/scep/common/hash_challenge.py	55	
+file	fabriclib-pki|src/fabriclib/pki/scep/common/read_challenges.py	56	
+file	fabriclib-pki|src/fabriclib/pki/scep/common/write_challenges.py	57	
+file	fabriclib-pki|src/fabriclib/pki/scep/configure_scep_provisioner.py	58	
+file	fabriclib-pki|src/fabriclib/pki/scep/create_challenge.py	59	
+file	fabriclib-pki|src/fabriclib/pki/scep/deploy_scep_hook.py	60	
+file	fabriclib-pki|src/fabriclib/pki/scep/enrol_apple.py	61	
+file	fabriclib-pki|src/fabriclib/pki/scep/enrol_p12.py	62	
+file	fabriclib-pki|src/fabriclib/pki/scep/ensure_scep_ra.py	63	
+file	fabriclib-pki|src/fabriclib/pki/scep/list_enrolments.py	64	
+file	fabriclib-pki|src/fabriclib/pki/scep/make_mobileconfig.py	65	
+file	fabriclib-pki|src/fabriclib/pki/scep/record_scep_issue.py	66	
+file	fabriclib-pki|src/fabriclib/pki/scep/withdraw_challenge.py	67	
 file	fabriclib-pki|src/fabriclib/pki/show_cert_warnings.py	40	
 file	fabriclib-pki|src/fabriclib/pki/sign_csr.py	33	
 file	fabriclib-pki|src/fabriclib/pki/sign_site_ca.py	34	
@@ -875,6 +898,12 @@ file	fabriclib-vault|src/fabriclib/vault/slots/kmip.py	34
 file	fabriclib-vault|src/fabriclib/vault/slots/local.py	35	
 file	fabriclib-vault|src/fabriclib/vault/slots/pkcs11.py	36	
 file	fabriclib-vault|src/fabriclib/vault/slots/usb.py	37	
+file	fabriclib-vault|src/fabriclib/vault/ssh/converge_ssh_ca.py	45	
+file	fabriclib-vault|src/fabriclib/vault/ssh/parse_ssh_key.py	46	
+file	fabriclib-vault|src/fabriclib/vault/ssh/publish_ssh_ca.py	47	
+file	fabriclib-vault|src/fabriclib/vault/ssh/set_ssh_certificates.py	48	
+file	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_key.py	49	
+file	fabriclib-vault|src/fabriclib/vault/ssh/ssh_overview.py	50	
 file	fabriclib-vault|src/fabriclib/vault/test_slot.py	38	
 file	fabriclib-vault|src/fabriclib/vault/unlock_vault.py	39	
 file	fabriclib-vault|src/fabriclib/vault/vault_device_event.py	40	
@@ -911,6 +940,8 @@ file	webui|src/webui/agentclient/dhcp_overview.py	19
 file	webui|src/webui/agentclient/dns_filter_change.py	145	
 file	webui|src/webui/agentclient/dns_filter_overview.py	146	
 file	webui|src/webui/agentclient/domain_overview.py	125	
+file	webui|src/webui/agentclient/enrol_apple.py	185	
+file	webui|src/webui/agentclient/enrol_p12.py	186	
 file	webui|src/webui/agentclient/federation_overview.py	130	
 file	webui|src/webui/agentclient/gpo_change.py	126	
 file	webui|src/webui/agentclient/gpo_overview.py	127	
@@ -920,6 +951,7 @@ file	webui|src/webui/agentclient/image_rows.py	140
 file	webui|src/webui/agentclient/inspect_pem.py	21	
 file	webui|src/webui/agentclient/issue_key_pair.py	22	
 file	webui|src/webui/agentclient/link_device_cert.py	23	
+file	webui|src/webui/agentclient/list_enrolments.py	187	
 file	webui|src/webui/agentclient/list_host_groups.py	157	
 file	webui|src/webui/agentclient/list_issued.py	24	
 file	webui|src/webui/agentclient/list_people.py	25	
@@ -967,7 +999,10 @@ file	webui|src/webui/agentclient/set_option.py	44
 file	webui|src/webui/agentclient/set_password_policy.py	156	
 file	webui|src/webui/agentclient/set_radius_client.py	183	
 file	webui|src/webui/agentclient/set_record_link.py	157	
+file	webui|src/webui/agentclient/set_ssh_certificates.py	188	
 file	webui|src/webui/agentclient/sign_csr.py	45	
+file	webui|src/webui/agentclient/sign_ssh_key.py	189	
+file	webui|src/webui/agentclient/ssh_overview.py	190	
 file	webui|src/webui/agentclient/start_job.py	142	
 file	webui|src/webui/agentclient/sudo_rule_change.py	161	
 file	webui|src/webui/agentclient/unmap_radius_group.py	46	
@@ -982,6 +1017,7 @@ file	webui|src/webui/agentclient/vault_slot_action.py	54
 file	webui|src/webui/agentclient/vault_slots.py	55	
 file	webui|src/webui/agentclient/vault_status.py	56	
 file	webui|src/webui/agentclient/version_info.py	57	
+file	webui|src/webui/agentclient/withdraw_enrolment.py	191	
 file	webui|src/webui/agentclient/zone_detail.py	58	
 file	webui|src/webui/app_state.py	59	
 file	webui|src/webui/devpreview/dev_get_page.py	60	
@@ -992,8 +1028,10 @@ file	webui|src/webui/devpreview/dev_post_dhcp.py	63
 file	webui|src/webui/devpreview/dev_post_directory.py	64	
 file	webui|src/webui/devpreview/dev_post_dns.py	65	
 file	webui|src/webui/devpreview/dev_post_dns_filter.py	148	
+file	webui|src/webui/devpreview/dev_post_enrol.py	192	
 file	webui|src/webui/devpreview/dev_post_network.py	66	
 file	webui|src/webui/devpreview/dev_post_networks.py	168	
+file	webui|src/webui/devpreview/dev_post_ssh.py	193	
 file	webui|src/webui/devpreview/dev_state.py	67	
 file	webui|src/webui/devpreview/sample_data.py	153	
 file	webui|src/webui/devpreview/sample_radius_guides.py	68	
@@ -1011,6 +1049,7 @@ file	webui|src/webui/routes/dirsrv_page.py	78	0.5.0 / 2026-10-05
 file	webui|src/webui/routes/dirsrv_post.py	79	0.5.0 / 2026-10-05
 file	webui|src/webui/routes/dns_filter_page.py	149	
 file	webui|src/webui/routes/dns_filter_post.py	150	
+file	webui|src/webui/routes/enrol_post.py	194	
 file	webui|src/webui/routes/get_page.py	80	
 file	webui|src/webui/routes/kea_post.py	81	
 file	webui|src/webui/routes/landing_post.py	158	
@@ -1027,6 +1066,7 @@ file	webui|src/webui/routes/radius_post.py	84
 file	webui|src/webui/routes/radius_session_post.py	184	
 file	webui|src/webui/routes/saved_and_applied.py	85	
 file	webui|src/webui/routes/security_post.py	134	
+file	webui|src/webui/routes/ssh_post.py	195	
 file	webui|src/webui/routes/stepca_page.py	86	
 file	webui|src/webui/routes/stepca_post.py	87	
 file	webui|src/webui/routes/tsig_post.py	88	
@@ -1068,6 +1108,7 @@ file	webui|src/webui/views/pki_result.py	115
 file	webui|src/webui/views/radius_secret.py	116	
 file	webui|src/webui/views/render_page.py	117	
 file	webui|src/webui/views/security.py	135	
+file	webui|src/webui/views/ssh.py	196	
 file	webui|src/webui/views/stepca.py	118	
 file	webui|src/webui/views/tsig_result.py	119	
 function	fabricctl-agent|src/agent/get_route.py|get_route	1	
@@ -1092,6 +1133,7 @@ function	fabricctl-agent|src/agent/post_dns.py|post_dns	1
 function	fabricctl-agent|src/agent/post_dns_filter.py|_on	2	
 function	fabricctl-agent|src/agent/post_dns_filter.py|post_dns_filter	1	
 function	fabricctl-agent|src/agent/post_domain.py|post_domain	1	
+function	fabricctl-agent|src/agent/post_enrol.py|post_enrol	1	
 function	fabricctl-agent|src/agent/post_host_access.py|post_host_access	1	
 function	fabricctl-agent|src/agent/post_ipam_scan.py|post_ipam_scan	1	
 function	fabricctl-agent|src/agent/post_network.py|post_network	1	
@@ -1106,6 +1148,7 @@ function	fabricctl-agent|src/agent/post_options.py|post_options	3
 function	fabricctl-agent|src/agent/post_pki.py|post_pki	1	
 function	fabricctl-agent|src/agent/post_route.py|post_route	1	
 function	fabricctl-agent|src/agent/post_security.py|post_security	1	
+function	fabricctl-agent|src/agent/post_ssh.py|post_ssh	1	
 function	fabricctl-agent|src/agent/post_vault.py|post_vault	1	
 function	fabricctl-agent|src/agent/read_fields.py|read_fields	1	
 function	fabricctl-agent|src/agent/read_strings.py|read_strings	1	
@@ -1240,6 +1283,7 @@ function	fabricctl-jinja|src/containers/samba/host_groups.py|rule_hosts	5
 function	fabricctl-jinja|src/containers/samba/host_groups.py|site_rules	6	
 function	fabricctl-jinja|src/containers/samba/host_groups.py|text	7	
 function	fabricctl-jinja|src/containers/samba/id_layout.py|laid_out	1	
+function	fabricctl-jinja|src/containers/samba/is_fabric_admin.py|is_fabric_admin	1	
 function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|_has_group	1	
 function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|legacy_logon_groups	2	
 function	fabricctl-jinja|src/containers/samba/link_device_cert.py|link_device_cert	1	
@@ -1333,6 +1377,12 @@ function	fabricctl-lib|src/federation/server.py|Handler.log_message	2
 function	fabricctl-lib|src/federation/server.py|Handler.reply	4	
 function	fabricctl-lib|src/federation/server.py|UnixServer.verify_request	7	
 function	fabricctl-lib|src/federation/server.py|main	8	
+function	fabricctl-lib|src/scephook/server.py|Handler.do_GET	3	
+function	fabricctl-lib|src/scephook/server.py|Handler.do_POST	4	
+function	fabricctl-lib|src/scephook/server.py|Handler.log_message	1	
+function	fabricctl-lib|src/scephook/server.py|Handler.reply	2	
+function	fabricctl-lib|src/scephook/server.py|UnixServer.verify_request	5	
+function	fabricctl-lib|src/scephook/server.py|main	6	
 function	fabricctl-lib|src/ux/cli/keycloak_bootstrap.py|main	1	
 function	fabriclib-common|src/fabriclib/common/ask.py|_check	1	
 function	fabriclib-common|src/fabriclib/common/ask.py|ask	2	
@@ -1530,6 +1580,7 @@ function	fabriclib-directory|src/fabriclib/directory/device_overview.py|_labels	
 function	fabriclib-directory|src/fabriclib/directory/device_overview.py|device_overview	1	
 function	fabriclib-directory|src/fabriclib/directory/ensure_admin.py|ensure_admin	1	
 function	fabriclib-directory|src/fabriclib/directory/ensure_default_device_roles.py|ensure_default_device_roles	1	
+function	fabriclib-directory|src/fabriclib/directory/is_fabric_admin.py|is_fabric_admin	1	
 function	fabriclib-directory|src/fabriclib/directory/link_device_cert.py|link_device_cert	1	
 function	fabriclib-directory|src/fabriclib/directory/list_devices.py|list_devices	1	
 function	fabriclib-directory|src/fabriclib/directory/list_host_groups.py|list_host_groups	1	
@@ -2087,6 +2138,28 @@ function	fabriclib-pki|src/fabriclib/pki/run_mint_certs_command.py|_prompt	4
 function	fabriclib-pki|src/fabriclib/pki/run_mint_certs_command.py|_show	2	
 function	fabriclib-pki|src/fabriclib/pki/run_mint_certs_command.py|run_mint_certs_command	3	
 function	fabriclib-pki|src/fabriclib/pki/run_service_cert_command.py|run_service_cert_command	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/answer_hook.py|_is_stepca	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/answer_hook.py|answer_hook	2	
+function	fabriclib-pki|src/fabriclib/pki/scep/check_challenge.py|_cn_of	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/check_challenge.py|check_challenge	2	
+function	fabriclib-pki|src/fabriclib/pki/scep/check_scep_settings.py|check_scep_settings	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/common/challenge_lock.py|challenge_lock	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/common/enrol_inputs.py|enrol_inputs	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/common/hash_challenge.py|hash_challenge	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/common/read_challenges.py|read_challenges	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/common/write_challenges.py|write_challenges	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/configure_scep_provisioner.py|configure_scep_provisioner	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/create_challenge.py|create_challenge	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/deploy_scep_hook.py|deploy_scep_hook	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/enrol_apple.py|enrol_apple	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/enrol_p12.py|enrol_p12	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/ensure_scep_ra.py|_current	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/ensure_scep_ra.py|ensure_scep_ra	2	
+function	fabriclib-pki|src/fabriclib/pki/scep/list_enrolments.py|list_enrolments	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/make_mobileconfig.py|_payload	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/make_mobileconfig.py|make_mobileconfig	2	
+function	fabriclib-pki|src/fabriclib/pki/scep/record_scep_issue.py|record_scep_issue	1	
+function	fabriclib-pki|src/fabriclib/pki/scep/withdraw_challenge.py|withdraw_challenge	1	
 function	fabriclib-pki|src/fabriclib/pki/show_cert_warnings.py|show_cert_warnings	1	
 function	fabriclib-pki|src/fabriclib/pki/sign_csr.py|sign_csr	1	
 function	fabriclib-pki|src/fabriclib/pki/sign_site_ca.py|_hours_left	1	
@@ -2345,6 +2418,7 @@ function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_intermediate_for_root	
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_make_root	4	
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_public_certs_readable	6	
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_publish_ca_certs	5	
+function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_scep_ra	10	
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_single_intermediate	3	
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|run	7	
 function	fabriclib-setup|src/fabriclib/setup/join_federation.py|run	1	
@@ -2512,6 +2586,14 @@ function	fabriclib-vault|src/fabriclib/vault/slots/usb.py|forget	5
 function	fabriclib-vault|src/fabriclib/vault/slots/usb.py|present	4	
 function	fabriclib-vault|src/fabriclib/vault/slots/usb.py|unwrap	3	
 function	fabriclib-vault|src/fabriclib/vault/slots/usb.py|wrap	2	
+function	fabriclib-vault|src/fabriclib/vault/ssh/converge_ssh_ca.py|_call	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/converge_ssh_ca.py|converge_ssh_ca	2	
+function	fabriclib-vault|src/fabriclib/vault/ssh/parse_ssh_key.py|_strings	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/parse_ssh_key.py|parse_ssh_key	2	
+function	fabriclib-vault|src/fabriclib/vault/ssh/publish_ssh_ca.py|publish_ssh_ca	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/set_ssh_certificates.py|set_ssh_certificates	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_key.py|sign_ssh_key	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/ssh_overview.py|ssh_overview	1	
 function	fabriclib-vault|src/fabriclib/vault/test_slot.py|test_slot	1	
 function	fabriclib-vault|src/fabriclib/vault/unlock_vault.py|unlock_vault	1	
 function	fabriclib-vault|src/fabriclib/vault/vault_device_event.py|vault_device_event	1	
@@ -2554,6 +2636,8 @@ function	webui|src/webui/agentclient/dhcp_overview.py|dhcp_overview	1
 function	webui|src/webui/agentclient/dns_filter_change.py|dns_filter_change	1	
 function	webui|src/webui/agentclient/dns_filter_overview.py|dns_filter_overview	1	
 function	webui|src/webui/agentclient/domain_overview.py|domain_overview	1	
+function	webui|src/webui/agentclient/enrol_apple.py|enrol_apple	1	
+function	webui|src/webui/agentclient/enrol_p12.py|enrol_p12	1	
 function	webui|src/webui/agentclient/federation_overview.py|federation_overview	1	
 function	webui|src/webui/agentclient/gpo_change.py|gpo_change	1	
 function	webui|src/webui/agentclient/gpo_overview.py|gpo_overview	1	
@@ -2563,6 +2647,7 @@ function	webui|src/webui/agentclient/image_rows.py|image_rows	1
 function	webui|src/webui/agentclient/inspect_pem.py|inspect_pem	1	
 function	webui|src/webui/agentclient/issue_key_pair.py|issue_key_pair	1	
 function	webui|src/webui/agentclient/link_device_cert.py|link_device_cert	1	
+function	webui|src/webui/agentclient/list_enrolments.py|list_enrolments	1	
 function	webui|src/webui/agentclient/list_host_groups.py|list_host_groups	1	
 function	webui|src/webui/agentclient/list_issued.py|list_issued	1	
 function	webui|src/webui/agentclient/list_people.py|list_people	1	
@@ -2610,7 +2695,10 @@ function	webui|src/webui/agentclient/set_option.py|set_option	1
 function	webui|src/webui/agentclient/set_password_policy.py|set_password_policy	1	
 function	webui|src/webui/agentclient/set_radius_client.py|set_radius_client	1	
 function	webui|src/webui/agentclient/set_record_link.py|set_record_link	1	
+function	webui|src/webui/agentclient/set_ssh_certificates.py|set_ssh_certificates	1	
 function	webui|src/webui/agentclient/sign_csr.py|sign_csr	1	
+function	webui|src/webui/agentclient/sign_ssh_key.py|sign_ssh_key	1	
+function	webui|src/webui/agentclient/ssh_overview.py|ssh_overview	1	
 function	webui|src/webui/agentclient/start_job.py|start_job	1	
 function	webui|src/webui/agentclient/sudo_rule_change.py|sudo_rule_change	1	
 function	webui|src/webui/agentclient/unmap_radius_group.py|unmap_radius_group	1	
@@ -2625,6 +2713,7 @@ function	webui|src/webui/agentclient/vault_slot_action.py|vault_slot_action	1
 function	webui|src/webui/agentclient/vault_slots.py|vault_slots	1	
 function	webui|src/webui/agentclient/vault_status.py|vault_status	1	
 function	webui|src/webui/agentclient/version_info.py|version_info	1	
+function	webui|src/webui/agentclient/withdraw_enrolment.py|withdraw_enrolment	1	
 function	webui|src/webui/agentclient/zone_detail.py|zone_detail	1	
 function	webui|src/webui/app_state.py|App.__init__	1	
 function	webui|src/webui/app_state.py|App.sweep	2	
@@ -2646,9 +2735,11 @@ function	webui|src/webui/devpreview/dev_post_dns.py|_zones	2
 function	webui|src/webui/devpreview/dev_post_dns.py|dev_post_dns	1	
 function	webui|src/webui/devpreview/dev_post_dns_filter.py|_target	2	
 function	webui|src/webui/devpreview/dev_post_dns_filter.py|dev_post_dns_filter	1	
+function	webui|src/webui/devpreview/dev_post_enrol.py|dev_post_enrol	1	
 function	webui|src/webui/devpreview/dev_post_network.py|dev_post_network	1	
 function	webui|src/webui/devpreview/dev_post_networks.py|_act	1	
 function	webui|src/webui/devpreview/dev_post_networks.py|dev_post_networks	2	
+function	webui|src/webui/devpreview/dev_post_ssh.py|dev_post_ssh	1	
 function	webui|src/webui/devpreview/dev_state.py|DevState.__init__	1	
 function	webui|src/webui/devpreview/dev_state.py|DevState._ptr	5	
 function	webui|src/webui/devpreview/dev_state.py|DevState.log	9	
@@ -2698,6 +2789,7 @@ function	webui|src/webui/routes/dirsrv_post.py|dirsrv_post	3	0.5.0 / 2026-10-05
 function	webui|src/webui/routes/dns_filter_page.py|dns_filter_page	1	
 function	webui|src/webui/routes/dns_filter_post.py|_message	1	
 function	webui|src/webui/routes/dns_filter_post.py|dns_filter_post	2	
+function	webui|src/webui/routes/enrol_post.py|enrol_post	1	
 function	webui|src/webui/routes/get_page.py|get_page	1	
 function	webui|src/webui/routes/kea_post.py|_kea	3	
 function	webui|src/webui/routes/kea_post.py|_pools	1	
@@ -2722,6 +2814,7 @@ function	webui|src/webui/routes/radius_post.py|radius_post	1
 function	webui|src/webui/routes/radius_session_post.py|radius_session_post	1	
 function	webui|src/webui/routes/saved_and_applied.py|saved_and_applied	1	
 function	webui|src/webui/routes/security_post.py|security_post	1	
+function	webui|src/webui/routes/ssh_post.py|ssh_post	1	
 function	webui|src/webui/routes/stepca_page.py|stepca_page	1	
 function	webui|src/webui/routes/stepca_post.py|stepca_post	1	
 function	webui|src/webui/routes/tsig_post.py|tsig_post	1	
@@ -2769,6 +2862,7 @@ function	webui|src/webui/views/pki_result.py|pki_result	1
 function	webui|src/webui/views/radius_secret.py|radius_secret	1	
 function	webui|src/webui/views/render_page.py|render_page	1	
 function	webui|src/webui/views/security.py|security	1	
+function	webui|src/webui/views/ssh.py|ssh	1	
 function	webui|src/webui/views/stepca.py|stepca	1	
 function	webui|src/webui/views/tsig_result.py|tsig_result	1	
 page	fabricctl-agent	2	

@@ -1,0 +1,41 @@
+[Unit]
+Description=fabric-scep-hook — Step-CA's SCEP webhooks: one-time challenges, issued certificates (unix socket behind nginx)
+After=network-online.target docker.service
+Wants=network-online.target
+PartOf=fabric.target
+Before=fabric.target
+
+[Service]
+Type=simple
+# Root is required: a notification links the certificate to its device in the directory (docker exec into the DC
+# with the site's agent account) and records it in fabric's ledger (manual 1.5.3.3). It has no network listener — only
+# a unix socket mounted into the nginx container (the web console's name, /hooks/scep/), accepting nginx's uid
+# ({{ service_users.nginx.uid }}) and root; it answers only Step-CA's own client certificate (lib/scephook/server.py).
+ExecStart=/usr/bin/python3 {{ deploy_base_dir }}/fabric/lib/scephook/server.py \
+    --socket {{ deploy_base_dir }}/scephook/run/scep-hook.sock \
+    --socket-gid {{ service_users.nginx.gid }} \
+    --allow-uid {{ service_users.nginx.uid }}
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictNamespaces=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+SystemCallArchitectures=native
+IPAddressDeny=any
+IPAddressAllow=localhost {{ fabric_subnet }}
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target fabric.target

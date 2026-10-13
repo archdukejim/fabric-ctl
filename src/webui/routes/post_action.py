@@ -18,6 +18,7 @@ from webui.routes.saved_and_applied import saved_and_applied
 from webui.routes.stepca_post import stepca_post
 from webui.routes.tsig_post import tsig_post
 from webui.routes.security_post import security_post
+from webui.routes.ssh_post import ssh_post
 from webui.routes.vault_post import vault_post
 from webui.routes.zone_post import zone_post
 from webui.routes.zones_post import zones_post
@@ -55,7 +56,7 @@ def post_action(h, sess, path, form):
              /stepca/…; /openbao/…; /directory/…; /kea/… (reservations, subnets, options, classes); /kea/options/…
              (the DHCP options page); /dns-filter/… (lists, rules, upstreams, fetch); /networks/scan[/record] (the
              scan); /networks/<site>/… (the address plan); /overview/… (jobs); /freeradius/clients…;
-             /freeradius/sessions…; /freeradius/people…; /bind9/tsig/….
+             /freeradius/sessions…; /freeradius/people…; /bind9/tsig/…; /ssh/… (sign, on, off).
     Returns: /logout: session dropped, LOGOUT audited, 303 to Keycloak's logout URL clearing the session cookie;
              /apply: 200 apply result; the rest as their route modules.
     Fails:   404 for an unknown path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
@@ -83,6 +84,8 @@ def post_action(h, sess, path, form):
         return stepca_post(h, sess, path[len("/stepca/"):], form)
     if path.startswith("/openbao/"):
         return vault_post(h, sess, _segments(path, 2), form)
+    if path.startswith("/ssh/"):
+        return ssh_post(h, sess, _segments(path, 2), form)
     if path.startswith("/security/"):
         return security_post(h, sess, _segments(path, 2), form)
     if path.startswith("/directory/"):

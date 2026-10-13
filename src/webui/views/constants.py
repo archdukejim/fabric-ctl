@@ -13,6 +13,7 @@ TABS = [
     ("openbao", "/openbao", "OpenBao · Secrets", False),
     ("federation", "/federation", "Federation", False),
     ("security", "/security", "Security", False),
+    ("ssh", "/ssh", "SSH", False),
 ]
 # DNS filter tab sections: (view, label); the query log needs dns:querylog (MENU_PERMS)
 DNS_FILTER_SECTIONS = [("overview", "Overview"), ("lists", "Lists"), ("rules", "Rules"), ("groups", "Groups"),
@@ -49,7 +50,7 @@ DIRECTORY_SECTIONS = [("devices", "Devices"), ("roles", "Roles"), ("people", "Pe
 # Step-CA tab sub-menu: (view, label)
 STEPCA_MENU = [("ca", "Certificate authority"), ("sign", "Sign a CSR"), ("issue", "New key + certificate"),
                ("inspect", "Inspect"), ("convert", "Convert"), ("issued", "Issued"),
-               ("acme", "ACME")]
+               ("acme", "ACME"), ("enrol", "Enrol a device")]
 STEPCA_VIEWS = {v for v, _ in STEPCA_MENU}
 KEY_TYPES = ["RSA-2048", "RSA-3072", "RSA-4096", "EC-P256", "EC-P384"]
 TSIG_SCOPES = [("acme-hosts", "Certbot DNS-01 for listed hosts only (TXT)"),
@@ -67,7 +68,7 @@ SERVICES = {
 # every permission a page asks about (the dev preview's fallback when it runs without fabriclib)
 PREVIEW_PERMS = ["status:read", "dns:read", "dns:write", "tsig:manage", "dhcp:read", "dhcp:write", "dhcp:org-options",
                  "pki:read",
-                 "pki:issue", "pki:sign",
+                 "pki:issue", "pki:sign", "pki:enrol",
                  "pki:link-device", "devices:read", "devices:enroll", "devices:admin", "roles:admin", "radius:read",
                  "radius:admin",
                  "people:read", "domain:read", "domain:admin", "machines:admin", "sudo:admin", "gpo:admin",
@@ -79,8 +80,8 @@ TAB_PERMS = {"overview": ("status:read",), "bind9": ("dns:read",), "kea": ("dhcp
              "dnsfilter": ("dns:filter", "dns:querylog"),
              "directory": ("devices:read", "people:read", "domain:read"), "freeradius": ("radius:read",),
              "openbao": ("vault:status",), "federation": ("federation:read",),
-             "security": ("security:raise",)}
+             "security": ("security:raise",), "ssh": ("*",)}       # "*": any signed-in person (2.1.7.12)
 MENU_PERMS = {"sign": "pki:sign", "issue": "pki:issue", "convert": "pki:issue", "people": "people:read",
               "devices": "devices:read", "roles": "devices:read", "unlock": "vault:status", "disk": "vault:status",
               "domain": "domain:read", "machines": "domain:read", "gpo": "domain:read", "querylog": "dns:querylog",
-              "lists": "dns:filter", "rules": "dns:filter", "settings": "dns:filter"}
+              "lists": "dns:filter", "rules": "dns:filter", "settings": "dns:filter", "enrol": "pki:enrol"}

@@ -219,6 +219,9 @@ host_join_domain: {{ host_join_domain | default(true) | to_json }}
 # After how many days sssd renews this host's machine password with adcli (manual 1.6.11.12, 2.1.6.50): 0 never (the
 # default: the password is set once); a whole number from 1 to 999 turns it on (setup's member step installs adcli).
 host_machine_password_renew_days: {{ host_machine_password_renew_days | default(0) | to_json }}
+# SSH certificates from OpenBao for the fabric admins (manual 1.6.11.9, 2.1.6.39): off by default; turned on and off in
+# the web console's SSH page, shown with the relaxed settings while on.
+ssh_certificates: {{ ssh_certificates | default(false) | to_json }}
 samba_mem_limit: {{ _mem.settings.samba_mem_limit | to_json }}
 # 802.1X (optional, design §6): FreeRADIUS 3.2 checks each device against the site's DC
 # (EAP-TLS by linked certificate, MAB by MAC) and returns its role's VLAN.
@@ -396,6 +399,10 @@ cert_service_days: {{ cert_service_days | default(47) }}
 cert_renew_after_days: {{ cert_renew_after_days | default(30) }}
 # Longest validity the web UI's Step-CA tab issues (CSR signing, generated key pairs).
 pki_manual_max_days: {{ pki_manual_max_days | default(1825) }}
+# Device enrolment (manual 1.5.3): how long an Apple profile's one-time challenge may be used, and how long the
+# certificates enrolment gives live.
+scep_challenge_minutes: {{ scep_challenge_minutes | default(60) }}
+scep_cert_days: {{ scep_cert_days | default(365) }}
 
 # ============================================================
 # STEP-CA

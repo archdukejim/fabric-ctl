@@ -17,6 +17,8 @@ from fabriclib.vault.unlock_vault import unlock_vault
 from fabriclib.vault.wipe_runtime_keys import wipe_runtime_keys
 from fabriclib.vault.init_openbao import init_openbao
 from fabriclib.vault.revoke_token import revoke_token
+from fabriclib.vault.ssh.converge_ssh_ca import converge_ssh_ca
+from fabriclib.vault.ssh.publish_ssh_ca import publish_ssh_ca
 from fabriclib.vault.vault_status import vault_status
 
 RECOVERY = """OpenBao recovery key(s) — fabric at {host}
@@ -62,12 +64,13 @@ def _save_recovery(v, keys):
 def run(ctx):
     """Purpose: OpenBao (core): vault key, unlock, start, first-time init (recovery keys to ~/fabric-admin, root
              token used once and revoked), converge its configuration as fabric's own AppRole, optional Keycloak
-             sign-in, and move fabric's secrets file into OpenBao.
+             sign-in, SSH certificates as ssh_certificates says (manual 1.6.11.9), and move fabric's secrets file into
+             OpenBao.
     Inputs:  ctx — SetupContext: vars (openbao_key_dir, hostname_openbao, install_keycloak, ...),
              restart_services, secrets_file, secrets.openbao_oidc_secret (Keycloak sign-in only).
     Returns: None. OpenBao initialised, unsealed and configured; the bootstrap root token revoked and removed;
-             runtime key copies wiped; the secrets file imported and shredded when present. Keycloak sign-in
-             failures are only warned about.
+             runtime key copies wiped; the secrets file imported and shredded when present. Keycloak sign-in and SSH
+             certificate failures are only warned about.
     Fails:   SetupError: no unlock method present; root token not revoked; OpenBao not unsealed at the end; any
              ValidationError from the vault helpers ("OpenBao: ..."). SetupError from start_unit when the
              container is not healthy; CalledProcessError from systemctl.
@@ -110,6 +113,13 @@ def run(ctx):
             except (ValidationError, KeyError) as exc:
                 warn(f"OpenBao sign-in with Keycloak not configured ({exc}); "
                      "re-run `sudo fabricctl setup --step vault`")
+        try:                 # SSH certificates for the fabric admins, as the setting says (manual 1.6.11.9)
+            ssh = converge_ssh_ca(v, token, bool(v.get("ssh_certificates")))
+            publish_ssh_ca(v, ssh["public_key"] if ssh["on"] else "")
+            if ssh["on"]:
+                ok("SSH certificates for the fabric admins: on (OpenBao's SSH CA, published for managed machines)")
+        except ValidationError as exc:
+            warn(f"SSH certificates not converged ({exc}); re-run `sudo fabricctl setup --step vault`")
         if os.path.exists(bootstrap):
             if not revoke_token(v, token):
                 raise SetupError("the initial root token could not be revoked")

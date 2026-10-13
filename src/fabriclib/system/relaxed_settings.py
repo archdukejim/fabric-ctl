@@ -11,7 +11,7 @@ def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON):
              while they are active (global Rule 10; manual 1.2.8). Host changes the admin declined are listed by
              consent_status instead; Docker's userland proxy is listed here too while the DNS filter has client
              groups, because it hides their addresses (1.12.2.15).
-    Inputs:  vars_ — the host's vars (image_signature_check, host_join_domain, the sign-in settings,
+    Inputs:  vars_ — the host's vars (image_signature_check, host_join_domain, ssh_certificates, the sign-in settings,
              install_resolver, dns_filter_groups, install_freeradius, radius_clients: each client on RADIUS/UDP
              is listed, 2.1.11.5); config_dir — the install's config folder (LOWERED_FILE: sign-in
              layers lowered with `fabricctl security lower`; default vars.yaml's); daemon_json — Docker's daemon
@@ -28,6 +28,10 @@ def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON):
         relaxed.append({"setting": "host_join_domain: false",
                         "effect": "this host is not a member of its domain: fabric admins sign in to it with local "
                                   "accounts only, and sudo here does not follow the domain's rules (1.6.11.8)"})
+    if vars_.get("ssh_certificates") is True:                         # 2.1.6.39: an option, shown while on
+        relaxed.append({"setting": "ssh_certificates: true",
+                        "effect": "fabric admins may sign in to managed machines with 8-hour SSH certificates from "
+                                  "OpenBao, beside Kerberos (1.6.11.9)"})
     if vars_.get("install_keycloak") and admin_level(vars_) == "none":     # 2.1.6.23: a password only, by default
         relaxed.append({"setting": "signin_admin_second_factor: none",
                         "effect": "the web console and OpenBao ask for a password only; raise a "

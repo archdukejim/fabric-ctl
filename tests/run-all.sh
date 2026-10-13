@@ -45,7 +45,7 @@ for s in "${SUITES[@]}"; do
         federation) run federation python3 "$HERE/federation/run.py" ;;
         resolver) run resolver bash -c "python3 \"$HERE/resolver/run.py\" && python3 \"$HERE/resolver/groups.py\" && python3 \"$HERE/resolver/querylog.py\" && python3 \"$HERE/resolver/console.py\"" ;;
         ntp)      run ntp      python3 "$HERE/ntp/run.py" ;;
-        openbao)  run openbao  bash -c "python3 \"$HERE/openbao/run.py\" && python3 \"$HERE/openbao/db_rotation.py\"" ;;
+        openbao)  run openbao  bash -c "python3 \"$HERE/openbao/run.py\" && python3 \"$HERE/openbao/db_rotation.py\" && python3 \"$HERE/openbao/ssh_ca.py\"" ;;
         fluentbit) run fluentbit python3 "$HERE/fluentbit/run.py" ;;
         kea) run kea bash -c "python3 \"$HERE/kea/run.py\" && python3 \"$HERE/kea/scan.py\" && python3 \"$HERE/kea/relay.py\"" ;;
         ipam)     run ipam     bash -c "python3 \"$HERE/ipam/run.py\" && python3 \"$HERE/ipam/networks.py\" && python3 \"$HERE/ipam/scan.py\" && python3 \"$HERE/ipam/options.py\" && python3 \"$HERE/ipam/role_test.py\"" ;;

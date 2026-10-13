@@ -5,6 +5,7 @@ from create_host_group import create_host_group
 from create_machine import create_machine
 from create_person import create_person
 from get_person import get_person
+from is_fabric_admin import is_fabric_admin
 from link_device_cert import link_device_cert
 from list_host_groups import list_host_groups
 from list_machines import list_machines
@@ -41,6 +42,7 @@ OPS = {
     "create_machine": create_machine,
     "create_person": create_person,
     "get_person": get_person,
+    "is_fabric_admin": is_fabric_admin,
     "link_device_cert": link_device_cert,
     "list_host_groups": list_host_groups,
     "list_machines": list_machines,

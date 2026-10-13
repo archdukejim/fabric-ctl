@@ -76,8 +76,10 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
     """Purpose: the end of an apply on a running install: build changed images, restart what changed, reload BIND's
              configuration and zones and nginx live, converge the domain (and move 0.7's DHCP subnets into the address
              plan once, 1.10.4.15), delete DHCP names left behind for addresses set by hand (2.1.10.22), and restart
-             fabric-agent, the federation endpoint and the web UI last without blocking.
+             fabric-agent, the federation endpoint, the SCEP hook (with the web UI) and the web UI last without
+             blocking.
     Inputs:  paths — deploy_paths() (base, target, federation); final_vars — rendered settings (federation_endpoint,
+             install_webui,
              and what converge_domain reads); secrets — fabric's secrets (the domain's service accounts); state —
              what the install steps found (see finish_without_start); bind_ids — the bind user's ids.
     Returns: the set of units restarted (fabric-web included when it was queued).
@@ -160,6 +162,11 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
         print("Starting the federation endpoint...")
         subprocess.run(["systemctl", "enable", "fabric-federation"], capture_output=True, timeout=30)
         subprocess.run(["systemctl", "restart", "fabric-federation"], timeout=30)
+    if final_vars.get("install_webui") and (state.get("scephook_unit") or subprocess.run(
+            ["systemctl", "is-active", "--quiet", "fabric-scep-hook"]).returncode != 0):
+        print("Starting the SCEP hook (device enrolment)...")
+        subprocess.run(["systemctl", "enable", "fabric-scep-hook"], capture_output=True, timeout=30)
+        subprocess.run(["systemctl", "restart", "fabric-scep-hook"], timeout=30)
     if restart_webui and _enabled("fabric-web"):
         print("Restarting webui (queued)...")
         subprocess.run(["systemctl", "restart", "--no-block", "fabric-web"], timeout=15)

@@ -237,7 +237,8 @@ def checks(ctx):
     add("certificates: renewal working, none about to expire (2.1.5.4)", not failing, "; ".join(failing))
     for unit in ("bind9", "stepca", "nginx", "samba", "postgres", "keycloak", "openbao", "kea", "freeradius",
                  "samba", "fluentbit",
-                 "bind9-resolver", "adguard-filter", "fabric-agent", "fabric-federation", "fabric-web",
+                 "bind9-resolver", "adguard-filter", "fabric-agent", "fabric-federation", "fabric-scep-hook",
+                 "fabric-web",
                  "fabric-firewall"):
         if os.path.exists(f"/etc/systemd/system/{unit}.service"):
             active = subprocess.run(["systemctl", "is-active", unit], capture_output=True, text=True).stdout.strip()

@@ -48,6 +48,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 
 - [1.5.1 PKI chain and certificate relay](1.5.1-pki-chain.md)
 - [1.5.2 PKI and certificates](1.5.2-pki.md)
+- [1.5.3 Enrolling phones, tablets and laptops](1.5.3-device-enrolment.md)
 
 ## 1.6 Identity: the directory and sign-in
 

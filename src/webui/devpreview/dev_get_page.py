@@ -3,7 +3,7 @@ from webui.devpreview.sample_data import (RECORD_TYPES, SAMPLE_CA, SAMPLE_DEVICE
                                           SAMPLE_EFFECTIVE, SAMPLE_OPTIONS,
                                           SAMPLE_FEDERATION, SAMPLE_GPO, SAMPLE_LOGON, SAMPLE_RADIUS, SAMPLE_ACME,
                                           SAMPLE_RADIUS_SESSIONS,
-                                          SAMPLE_ACCESS,
+                                          SAMPLE_ACCESS, SAMPLE_ENROLMENTS, SAMPLE_SSH,
                                           SAMPLE_IMAGES,
                                           SAMPLE_SECURITY, SAMPLE_VAULT, SAMPLE_DNS_FILTER, SAMPLE_QUERY_LOG)
 from webui.devpreview.dev_networks_page import dev_networks_page
@@ -13,7 +13,7 @@ from webui.devpreview.sample_radius_guides import sample_radius_guides
 
 def dev_get_page(h, path, query):
     """Purpose: Render the real pages (src/webui/views) with sample or in-memory data: /, /bind9, /stepca, /openbao,
-             /directory, /kea, /kea/options, /dns-filter, /freeradius, /audit, /jobs/<id>, /static/app.css, and
+             /directory, /kea, /kea/options, /dns-filter, /freeradius, /audit, /ssh, /jobs/<id>, /static/app.css, and
              /preview/denied (what a refused sign-in looks like). No sign-in, no client certificate, no fabric-agent.
     Inputs:  h — the dev handler (send, state, ctx); path — the URL path; query — dict (msg, err, view, zone, device,
              slot, name; /dns-filter: wait, and fresh=1 for a fresh install's first fetch still running).
@@ -48,7 +48,10 @@ def dev_get_page(h, path, query):
         ov = state.overview()
         return h.send(200, views.stepca(ctx, view, SAMPLE_CA, issued=state.data["issued"],
                                         devices=ov["devices"] if ov else [], device=query.get("device", ""),
-                                        acme=SAMPLE_ACME if view == "acme" else None))
+                                        acme=SAMPLE_ACME if view == "acme" else None,
+                                        enrolments=SAMPLE_ENROLMENTS if view == "enrol" else None))
+    if path == "/ssh":
+        return h.send(200, views.ssh(ctx, SAMPLE_SSH, msg=query.get("msg", ""), err=query.get("err", "")))
     if path == "/openbao":
         view = query.get("view") if query.get("view") in views.OPENBAO_VIEWS else "status"
         return h.send(200, views.openbao(ctx, SAMPLE_VAULT, view, state.data["slots"], SAMPLE_DEVICES,

@@ -40,6 +40,8 @@ services:
 {% if install_webui | default(false) | bool %}
       # webui container's unix socket (dir webui:nginx 0750, socket 0660)
       - {{ deploy_base_dir }}/webui/run:/srv/webui:ro
+      # fabric-scep-hook's unix socket: Step-CA's SCEP webhooks (dir root:nginx 0750, socket 0660; manual 1.5.3.3)
+      - {{ deploy_base_dir }}/scephook/run:/srv/scephook:ro
 {% endif %}
     networks:
       fabric_net:

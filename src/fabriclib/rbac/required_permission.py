@@ -13,6 +13,8 @@ GET = {
     ("dns-filter",): "dns:filter",
     ("radius",): "radius:read", ("radius", "guides"): "radius:read", ("radius", "sessions"): "radius:read",
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
+    ("pki", "enrolments"): "pki:read",
+    ("ssh",): "session",                # SSH certificates: anyone may look; signing is for fabric admins (2.1.7.12)
     ("devices",): "devices:read",
     ("people",): "people:read",
     ("domain",): "domain:read", ("domain", "logon"): "domain:read", ("gpo",): "domain:read",
@@ -38,6 +40,10 @@ POST = {
     ("pki", "describe-csr"): "pki:read", ("pki", "inspect"): "pki:read",
     ("pki", "sign"): "pki:sign", ("pki", "revoke"): "pki:revoke",
     ("pki", "issue"): "pki:issue", ("pki", "convert"): "pki:issue",
+    ("pki", "enrol", "apple"): "pki:enrol", ("pki", "enrol", "p12"): "pki:enrol",
+    ("pki", "enrolments", "*", "withdraw"): "pki:enrol",
+    ("ssh", "sign"): "session",         # refused inside unless the person is a fabric admin (2.1.7.12)
+    ("ssh", "on"): "system:admin", ("ssh", "off"): "system:admin",
     ("tsig",): "tsig:manage", ("tsig", "*", "rotate"): "tsig:manage", ("tsig", "*", "delete"): "tsig:manage",
     ("vault", "rotate"): "vault:unlock", ("vault", "slots", "add-usb"): "vault:unlock",
     ("vault", "slots", "add-security-key"): "vault:unlock", ("vault", "slots", "add-hsm"): "vault:unlock",

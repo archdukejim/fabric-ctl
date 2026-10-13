@@ -100,3 +100,10 @@ from webui.agentclient.image_rows import image_rows  # noqa: F401
 from webui.agentclient.start_job import start_job  # noqa: F401
 from webui.agentclient.read_job import read_job  # noqa: F401
 from webui.agentclient.acme_overview import acme_overview  # noqa: F401
+from webui.agentclient.enrol_apple import enrol_apple  # noqa: F401
+from webui.agentclient.enrol_p12 import enrol_p12  # noqa: F401
+from webui.agentclient.list_enrolments import list_enrolments  # noqa: F401
+from webui.agentclient.withdraw_enrolment import withdraw_enrolment  # noqa: F401
+from webui.agentclient.ssh_overview import ssh_overview  # noqa: F401
+from webui.agentclient.sign_ssh_key import sign_ssh_key  # noqa: F401
+from webui.agentclient.set_ssh_certificates import set_ssh_certificates  # noqa: F401

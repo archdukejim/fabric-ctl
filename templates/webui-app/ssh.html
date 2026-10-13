@@ -1,0 +1,40 @@
+{% extends "base.html" %}{% block body %}
+<h1>SSH · Certificates for fabric admins</h1>
+{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
+{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
+<section class="card"><h2>Status</h2>
+<p>SSH certificates are <span class="pill {{ 'ok' if ov.on else 'warn' }}">{{ 'on' if ov.on else 'off' }}</span></p>
+<p class="muted">When on, OpenBao signs short-lived ({{ ov.hours }}-hour) SSH user certificates for the fabric admins (members of <code>fabric-admins</code> or the site's <code>&lt;site&gt;-fabric-admins</code>), and every Linux machine joined to the domain trusts them at its next fabric-managed run. Passwords and keys already on a machine keep working (manual 1.6.11.9).</p>
+{% if ov.on and ov.public_key %}
+<dl class="kv"><dt>CA key</dt><dd><code class="fp">{{ ov.fingerprint }}</code></dd>
+<dt>Published</dt><dd><code>/certs/ssh-user-ca.pub</code> on the console's name</dd></dl>
+<details><summary>CA public key</summary><textarea readonly rows="3">{{ ov.public_key }}</textarea></details>
+{% endif %}
+{% if can('system:admin') %}
+<form method="post" action="/ssh/{{ 'off' if ov.on else 'on' }}"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<button type="submit"{{ ' class=danger' if ov.on }}>Turn SSH certificates {{ 'off' if ov.on else 'on' }}</button></form>
+<p class="muted small">Turning off withdraws the published CA key: machines stop trusting it at their next run; certificates already handed out expire within {{ ov.hours }} hours.</p>
+{% endif %}
+</section>
+
+{% if signed %}
+<section class="card"><h2>Your certificate</h2>
+<p class="flash ok">Signed for <code>{{ signed.principal }}</code>, valid {{ signed.valid_hours }} hours (key {{ signed.type }} {{ signed.fingerprint }}, serial {{ signed.serial }}).</p>
+<p><a class="btn" href="data:text/plain;base64,{{ cert_b64 }}" download="id-cert.pub">Download certificate</a>
+<span class="muted">Save it next to your private key with the same name plus <code>-cert.pub</code> (e.g. <code>~/.ssh/id_ed25519-cert.pub</code>); <code>ssh</code> then offers it by itself.</span></p>
+<textarea readonly rows="4">{{ signed.certificate }}</textarea>
+</section>
+{% endif %}
+
+{% if ov.on %}
+<section class="card"><h2>Get a certificate</h2>
+{% if ov.may_sign %}
+<p class="muted">Paste your <strong>public</strong> key (<code>~/.ssh/id_ed25519.pub</code>; Ed25519, ECDSA, or RSA of 3072 bits or more). Never paste a private key. The certificate names you, <code>{{ ctx.user }}</code>, as the only login.</p>
+<form method="post" action="/ssh/sign" class="stack"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label>Public key<textarea name="public_key" rows="3" required placeholder="ssh-ed25519 AAAA… you@laptop"></textarea></label>
+<div><button>Sign for {{ ov.hours }} hours</button></div>
+</form>
+{% else %}<p class="blank">{{ ov.why_not }}.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

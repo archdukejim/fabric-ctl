@@ -28,6 +28,7 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 
 - [4.5.1 Certificates from the command line](4.5.1-certificates.md)
 - [4.5.2 Manual certificates in the web UI](4.5.2-manual-certificates.md)
+- [4.5.3 Enrolling phones, tablets and laptops](4.5.3-enrolling-devices.md)
 
 ## 4.6 Identity: the directory and sign-in
 

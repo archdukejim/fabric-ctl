@@ -8,6 +8,7 @@ from fabriclib.dhcp.place_subnets import place_subnets
 from fabriclib.dns_filter.check_filter_settings import check_filter_settings
 from fabriclib.keycloak.signin_levels import signin_level
 from fabriclib.ntp.normalize_ntp import normalize_ntp
+from fabriclib.pki.scep.check_scep_settings import check_scep_settings
 from fabriclib.samba.check_logon_policies import check_logon_policies
 from fabriclib.system.host_networks import host_networks
 
@@ -27,8 +28,9 @@ def check_settings(final_vars):
              check_filter_settings (the BIND resolver's lists,
              rules and upstreams), from signin_level (a second factor that is not a level), or from
              check_logon_policies (who may sign in per OU, manual 1.6.11.4), or for a pki_manual_max_days that is not
-             a whole number of days, or from check_service_settings (images, fabric's container addresses, the
-             uid/gid block).
+             a whole number of days, or from check_scep_settings (scep_challenge_minutes, scep_cert_days: manual
+             1.5.3.9), or from check_service_settings (images, fabric's container addresses, the uid/gid block), or
+             for an ssh_certificates that is not true or false (1.6.11.9).
     Feeds:   apply_deployment."""
     check_service_settings(final_vars)
     final_vars["dhcp"] = normalize_dhcp(final_vars)
@@ -52,3 +54,6 @@ def check_settings(final_vars):
     if not days.isdigit() or int(days) < 1:          # the cap on certificates issued by hand (pki/common/valid_days)
         raise ValidationError(f"pki_manual_max_days must be a whole number of days, at least 1 (got {days!r})")
     final_vars["pki_manual_max_days"] = int(days)
+    check_scep_settings(final_vars)
+    if not isinstance(final_vars.get("ssh_certificates", False), bool):      # an option, off by default (2.1.6.39)
+        raise ValidationError(f"ssh_certificates must be true or false (got {final_vars.get('ssh_certificates')!r})")

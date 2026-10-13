@@ -429,6 +429,18 @@ for bad in ("abc", "0", "-5", "12.5"):
 _ok = {**v, "dns_filter": "none", "pki_manual_max_days": "90"}
 check_settings(_ok)
 check("...and a whole number is accepted, as a number", _ok["pki_manual_max_days"] == 90, _ok["pki_manual_max_days"])
+# ssh_certificates (1.6.11.9.1; 0.9, written and not run yet): an option, true or false only
+for bad in ("yes", 1, "true"):
+    try:
+        check_settings({**v, "dns_filter": "none", "ssh_certificates": bad})
+        said = "accepted"
+    except ValidationError as e:
+        said = str(e)
+    # covers: setting:ssh_certificates -
+    check(f"refused at apply: ssh_certificates {bad!r}, saying it must be true or false",
+          "ssh_certificates must be true or false" in said, said)
+check_settings({**v, "dns_filter": "none", "ssh_certificates": True})
+check("...true and false are accepted", True)
 
 tmp = tempfile.mkdtemp()
 answers = os.path.join(tmp, "answers.yaml")

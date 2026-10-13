@@ -21,6 +21,8 @@ PERMISSIONS = {
     "pki:sign": "sign uploaded CSRs",
     "pki:revoke": "revoke issued certificates (published in the CRL at once, 2.1.5.10)",
     "pki:link-device": "link a certificate to a device",
+    "pki:enrol": "enrol a phone, tablet or laptop: an Apple profile with a one-time SCEP challenge, or a PKCS#12 "
+                 "(1.5.3)",
     "devices:read": "see devices and device roles",
     "devices:enroll": "add devices",
     "devices:admin": "change, disable and delete devices",
@@ -63,12 +65,12 @@ BUNDLES = {
     "fabric-network-operator": ["status:read", "dns:read", "dns:write", "tsig:manage", "dns:filter", "dhcp:read",
                                 "dhcp:write",
                                 "pki:read", "vault:status"],
-    "fabric-equipment-operator": ["status:read", "dns:read", "pki:read", "pki:link-device", "devices:read",
+    "fabric-equipment-operator": ["status:read", "dns:read", "pki:read", "pki:link-device", "pki:enrol", "devices:read",
                                   "devices:enroll", "devices:admin", "roles:admin", "radius:read", "radius:admin",
                                   "radius:coa",
                                   "domain:read", "machines:admin"],
     "fabric-pki-operator": ["status:read", "pki:read", "pki:issue", "pki:sign", "pki:revoke", "pki:link-device",
-                           "devices:read"],
+                           "pki:enrol", "devices:read"],
     "fabric-helpdesk": ["status:read", "dns:read", "pki:read", "devices:read", "devices:enroll", "people:read",
                         "people:create", "people:reset", "people:disable", "domain:read"],
 }

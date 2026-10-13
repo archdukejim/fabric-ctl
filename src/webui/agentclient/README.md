@@ -106,3 +106,10 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `networks_overview.py` | What the Networks tab shows of one site (VLANs, subnet maps, address table, options and their sources). Agent route: GET /v1/networks[/<site>] (dhcp:read). |
 | `networks_export.py` | A site's address table as CSV. Agent route: GET /v1/networks/<site>/export (dhcp:read). |
 | `networks_change.py` | One change to a site's address plan (number, VLANs, subnets, ranges, addresses); this site's applied at once. Agent routes: POST /v1/networks/<site>/... (dhcp:write), timeout 300 s. |
+| `enrol_apple.py` | POST /v1/pki/enrol/apple: an Apple profile with a one-time SCEP challenge |
+| `enrol_p12.py` | POST /v1/pki/enrol/p12: a PKCS#12 for one Android or other device |
+| `list_enrolments.py` | GET /v1/pki/enrolments: open profiles and certificates from enrolment |
+| `withdraw_enrolment.py` | POST /v1/pki/enrolments/<id>/withdraw: withdraw an unused profile |
+| `ssh_overview.py` | GET /v1/ssh: SSH certificates on or off, the CA key, whether this person may sign |
+| `sign_ssh_key.py` | POST /v1/ssh/sign: an 8-hour SSH certificate for a fabric admin |
+| `set_ssh_certificates.py` | POST /v1/ssh/on, /v1/ssh/off: turn SSH certificates on or off |
