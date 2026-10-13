@@ -14,6 +14,8 @@
 {% endfor %}
 </ul>
 {% if r.p12_password %}<p>.p12 password: <code class="secret">{{ r.p12_password }}</code> <span class="muted">(shown once)</span></p>{% endif %}
+{% if back == 'enrol' %}<p class="flash warn">Copy the password now: it is not stored anywhere and cannot be shown again. The .p12 holds the device's private key: send it only over a channel you trust, and delete the copies once it is installed (manual 4.5.3.4).</p>
+{% if r.legacy %}<p class="muted">Made for Android 11 and older: 3DES and a SHA-1 MAC, the only form those versions read (weaker; the long random password is what protects it).</p>{% endif %}{% endif %}
 </section>
 <section class="card"><h2>Certificate (PEM)</h2><textarea readonly rows="10">{{ r.cert }}</textarea></section>
 {% if r.fullchain %}<section class="card"><h2>Full chain (PEM)</h2><textarea readonly rows="10">{{ r.fullchain }}</textarea></section>{% endif %}

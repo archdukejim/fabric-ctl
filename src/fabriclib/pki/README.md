@@ -37,3 +37,4 @@ Certificates from fabric's Step-CA.
 | `show_cert_warnings.py` | `fabricctl status`'s certificates section |
 | `acme_info.py` | What a LAN machine's ACME client needs: the directory, trusting the root, names, http-01 and dns-01 |
 | `acme_machines.py` | The machines enrolled for ACME DNS-01 (TSIG keys `acme-<name>`) |
+| `scep/` | Enrolling phones, tablets and laptops (manual 1.5.3): Apple profiles over SCEP with one-time challenges, PKCS#12 for Android, the hook Step-CA calls (see its README) |

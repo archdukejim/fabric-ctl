@@ -3,7 +3,8 @@ from fabriclib.secrets.random_secret import random_secret
 
 BASE64 = {"ca_password": 32, "rndc_secret": 32, "keycloak_admin_password": 24, "keycloak_db_password": 32,
           "kea_ddns_secret": 32,                     # HMAC-SHA256 TSIG key for Kea's DDNS
-          "resolver_rndc_secret": 32}                # the BIND resolver's own control key (manual 1.12.2.4)
+          "resolver_rndc_secret": 32,                # the BIND resolver's own control key (manual 1.12.2.4)
+          "scep_ra_password": 32}                    # the SCEP decrypter key's, made per install (manual 1.5.3.3)
 # alphanumeric: safe inside JSON and configuration files without quoting
 ALNUM = ("webui_oidc_secret", "openbao_oidc_secret",
          "adguard_api_password")                    # fabric-agent's account in AdGuard Home (manual 1.12.3.4)

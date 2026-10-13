@@ -18,6 +18,8 @@ CERTS="http://{{ hostname_stepca }}/certs"
 NTP="{{ hostname_ntp }}"
 FABRIC_DNS="{{ host_ip }}"
 DOMAIN="{{ domain }}"
+# the fabric host's own name: its SSH user CA (manual 1.6.11.9.4) is fetched from it over verified HTTPS
+FABRIC_HOST="{{ (hostname ~ '.' ~ domain) | lower }}"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 usage() { sed -n '2,8p' "$0" | cut -c3-; exit 2; }
@@ -257,6 +259,7 @@ BASE_DN=$BASE_DN
 AD_DOMAIN=$AD_DOMAIN
 DOMAIN=$DOMAIN
 FABRIC_DNS=$FABRIC_DNS
+FABRIC_HOST=$FABRIC_HOST
 EOF
 cat > /usr/local/sbin/fabric-managed <<'MANAGED'
 #!/bin/bash
@@ -267,6 +270,7 @@ set -euo pipefail
 # 10-: sshd keeps the first value it reads, and Ubuntu's cloud images set passwords on in 50-cloud-init.conf
 SSHD=/etc/ssh/sshd_config.d/10-fabric.conf
 RESOLVED=/etc/systemd/resolved.conf.d/fabric.conf
+SSH_CA=/etc/ssh/fabric-user-ca.pub      # fabric's SSH user CA (manual 1.6.11.9.4), while SSH certificates are on
 
 reload() {
     systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
@@ -278,12 +282,34 @@ write() {   # write $1 from stdin if it differs; true when it changed
     if cmp -s "$tmp" "$1"; then rm -f "$tmp"; return 1; fi
     mv "$tmp" "$1"
 }
+ssh_ca() {  # fabric's SSH user CA (manual 1.6.11.9.4): 0 published (in $1), 1 not published (off), 2 unknown
+    local code
+    [[ -n ${FABRIC_HOST:-} ]] || return 2   # joined before 0.9: re-run the join to learn the host's name
+    code=$(curl -sS --max-time 20 -o "$1" -w '%{http_code}' "https://$FABRIC_HOST/certs/ssh-user-ca.pub" 2>/dev/null) \
+        || return 2                      # unreachable, or its certificate not fabric's: unknown, nothing changes
+    if [[ $code == 404 ]]; then return 1; fi
+    [[ $code == 200 ]] && grep -qE '^(ssh-ed25519|ecdsa-sha2-nistp[0-9]+|ssh-rsa) [A-Za-z0-9+/=]+( .*)?$' "$1" \
+        && [[ $(wc -l < "$1") -le 1 ]] || return 2
+}
 apply() {
-    local changed=0
+    local changed=0 ca_rc=0 ca_file
+    ca_file=$(mktemp)
+    ssh_ca "$ca_file" || ca_rc=$?
+    if [[ $ca_rc -eq 0 ]]; then
+        write "$SSH_CA" < "$ca_file" && changed=1
+        chmod 0644 "$SSH_CA"
+    elif [[ $ca_rc -eq 1 && -e $SSH_CA ]]; then
+        rm -f "$SSH_CA"; changed=1
+    fi
+    rm -f "$ca_file"
     if [[ -d /etc/ssh/sshd_config.d ]]; then
-        printf '%s\n' "# fabric (manual 1.6.11.6): domain sign-in with Kerberos; who may sign in is the OU's log-on policy" \
+        { printf '%s\n' "# fabric (manual 1.6.11.6): domain sign-in with Kerberos; who may sign in is the OU's log-on policy" \
             "GSSAPIAuthentication yes" "GSSAPICleanupCredentials yes" "PasswordAuthentication no" \
-            "KbdInteractiveAuthentication no" "UsePAM yes" | write "$SSHD" && changed=1
+            "KbdInteractiveAuthentication no" "UsePAM yes"
+          if [[ -e $SSH_CA ]]; then
+              printf '%s\n' "# fabric (manual 1.6.11.9): 8-hour certificates for the fabric admins, signed by fabric's SSH CA" \
+                  "TrustedUserCAKeys $SSH_CA"
+          fi; } | write "$SSHD" && changed=1
     fi
     mkdir -p /etc/systemd/resolved.conf.d
     printf '[Resolve]\n# fabric (manual 1.6.11.6): the domain names from fabric; other names as the machine had them\nDNS=%s\nDomains=~%s ~%s\n' \
@@ -291,8 +317,8 @@ apply() {
     if [[ $changed -eq 1 ]]; then reload; echo "fabric-managed: applied"; fi
 }
 remove() {
-    if [[ -e $SSHD || -e $RESOLVED ]]; then
-        rm -f "$SSHD" "$RESOLVED"
+    if [[ -e $SSHD || -e $RESOLVED || -e $SSH_CA ]]; then
+        rm -f "$SSHD" "$RESOLVED" "$SSH_CA"
         reload
         echo "fabric-managed: removed (no longer in $SITE-fabric-machines)"
     fi

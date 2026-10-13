@@ -15,7 +15,7 @@ Repository → host:
 
 | Repository | On the host |
 |---|---|
-| `src/fabriclib/`, `src/agent/`, `src/federation/`, the CLI's scripts in `src/ux/cli/` | `/usr/lib/fabricctl/fabric/lib/` |
+| `src/fabriclib/`, `src/agent/`, `src/federation/`, `src/scephook/`, the CLI's scripts in `src/ux/cli/` | `/usr/lib/fabricctl/fabric/lib/` |
 | `src/webui/`, `src/ux/web/`, `templates/webui-app/`, `static/webui-app/` | `/usr/lib/fabricctl/fabric/lib/webui/` |
 | `templates/` (the service templates), `src/containers/`, `static/vendor/`, `static/nginx/` | `/usr/lib/fabricctl/fabric/jinja/` |
 | `packaging/images/<service>/` | `/usr/lib/fabricctl/fabric/jinja/<service>/build/` |

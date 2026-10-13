@@ -12,6 +12,8 @@ from fabriclib.consent.plan_trust import plan_trust
 from fabriclib.pki.common.cert_dates import cert_dates
 from fabriclib.pki.common.ca_path_len import ca_path_len
 from fabriclib.pki.publish_ca_certs import publish_ca_certs
+from fabriclib.pki.scep.configure_scep_provisioner import configure_scep_provisioner
+from fabriclib.pki.scep.ensure_scep_ra import ensure_scep_ra
 from fabriclib.setup.errors import SetupError
 
 LIFETIME_FILE = "ca-lifetime"        # in the config folder: the root lifetime chosen (2.1.5.6)
@@ -28,12 +30,15 @@ def _chown_tree(path, uid, gid):
             os.chown(name, uid, gid)
 
 
-def _configure_ca_json(ca_json, v):
+def _configure_ca_json(ca_json, v, scep_password=None):
     """Purpose: converge Step-CA's ca.json after `step ca init`: bring-your-own chain paths, DNS names,
-             certificate lifetimes, an ACME provisioner with fabric's ACME template, and fabric's leaf template on
-             the JWK provisioner (setup's service certificates name the CRL, manual 1.5.1.3).
+             certificate lifetimes, an ACME provisioner with fabric's ACME template, fabric's leaf template on
+             the JWK provisioner (setup's service certificates name the CRL, manual 1.5.1.3), and the SCEP provisioner
+             of device enrolment with the web console (configure_scep_provisioner, manual 1.5.3.3).
     Inputs:  ca_json — path to ca.json; v — vars: byoc, hostname_stepca, domain, stepca_cert_max_lifetime_hours
-             (default 131400h), stepca_cert_allow_subordinate_ca, cert_acme_lifetime_hours (default 1128h).
+             (default 131400h), stepca_cert_allow_subordinate_ca, cert_acme_lifetime_hours (default 1128h),
+             install_webui, hostname_mgr, scep_cert_days; scep_password — the SCEP decrypter key's password
+             (scep_ra_password), None when there is none (the SCEP provisioner is then left out).
     Returns: True if ca.json changed (rewritten, tab-indented; restart Step-CA). The ACME provisioner's template issues
              for names under the domain only (2.1.5.8, acme.tpl). With byoc its crt is certs/intermediate_chain.crt (the
              intermediate followed by its parent CAs, so a nested site's certificates carry the whole chain).
@@ -67,12 +72,14 @@ def _configure_ca_json(ca_json, v):
             # rest (a self-hosted Step-CA enforces policies only for the whole authority)
             p.setdefault("options", {})["x509"] = {"templateFile": "/home/step/templates/certs/acme.tpl"}
             p.pop("policy", None)
+    configure_scep_provisioner(cfg, v, os.path.dirname(os.path.dirname(ca_json)), scep_password)
     text = json.dumps(cfg, indent="\t")
     with open(ca_json) as f:
         if f.read() == text:
             return False
     with open(ca_json, "w") as f:
         f.write(text)
+    os.chmod(ca_json, 0o600)             # it holds the SCEP decrypter key and its password (manual 1.5.3.3)
     return True
 
 
@@ -221,6 +228,25 @@ def _public_certs_readable(certs_dir):
             os.chmod(os.path.join(certs_dir, name), 0o644)
 
 
+def _scep_ra(ctx, uid, gid):
+    """Purpose: the SCEP provisioner's RSA decrypter, made or renewed per install when the web console is on (device
+             enrolment lives there, manual 1.5.3.3).
+    Inputs:  ctx — SetupContext: vars install_webui and ensure_scep_ra's; secrets.scep_ra_password; uid, gid — the
+             step user.
+    Returns: the RA key's password (str) when SCEP is to be configured, else None.
+    Fails:   SetupError when scep_ra_password is missing; ValidationError from ensure_scep_ra (step refused) or from
+             ctx.secrets (OpenBao locked); CalledProcessError from openssl.
+    Feeds:   run (before ca.json is converged)."""
+    if not ctx.vars.get("install_webui"):
+        return None
+    password = ctx.secrets.get("scep_ra_password")
+    if not password:                      # made by the deploy step (generate_missing_secrets); never a default here
+        raise SetupError("scep_ra_password is missing from fabric's secrets: run `sudo fabricctl setup --step deploy`")
+    if ensure_scep_ra(ctx.vars, password, uid, gid):
+        ok("SCEP: the decrypter key and certificate made for device enrolment (manual 1.5.3.3)")
+    return password
+
+
 def run(ctx):
     """Purpose: initialise Step-CA once (its own root, or a bring-your-own root + intermediate when byoc),
              configure ca.json, publish the CA certificates and trust them on the host.
@@ -236,8 +262,10 @@ def run(ctx):
              key may be encrypted with ca_password (a federation site's is) or not; the root key `step ca
              init` generated is removed, since it does not belong to the brought-in root. With an existing ca.json only
              the
-             permissions, publishing and trust are (re)done.
-    Fails:   SetupError when byoc files are missing, `step ca init` fails, or an existing CA's lifetime differs
+             permissions, publishing and trust are (re)done. With the web console the SCEP provisioner's RSA
+             decrypter is made (or renewed) and the provisioner converged into ca.json (manual 1.5.3.3).
+    Fails:   SetupError when byoc files are missing, scep_ra_password is missing with the web console, `step ca
+             init` fails, or an existing CA's lifetime differs
              from cert_root_ca_days (_check_root_lifetime); CalledProcessError when
              `openssl verify` rejects the intermediate or from publishing; ValidationError from ctx.secrets
              when the secrets are in a locked OpenBao (not converted to SetupError); KeyError for missing vars.
@@ -251,7 +279,7 @@ def run(ctx):
     uid, gid = ctx.uid("step")
     if os.path.exists(ca_json):
         _check_root_lifetime(v, os.path.join(data, "certs"), ctx.config_dir)
-        if _configure_ca_json(ca_json, v):
+        if _configure_ca_json(ca_json, v, _scep_ra(ctx, uid, gid)):
             _chown_tree(os.path.join(data, "config"), uid, gid)
             ctx.restart_services.add("stepca")
             ok("Step-CA's configuration converged (lifetimes, ACME for names under the domain)")
@@ -317,7 +345,8 @@ def run(ctx):
         # `step ca init` made a root of its own: its key signs nothing that chains to the brought-in root
         os.remove(os.path.join(data, "secrets", "root_ca_key"))
 
-    _configure_ca_json(ca_json, v)
+    _chown_tree(data, uid, gid)
+    _configure_ca_json(ca_json, v, _scep_ra(ctx, uid, gid))
     _chown_tree(data, uid, gid)
     _public_certs_readable(certs)
     parents_file = os.path.join(certs, "ca_parents.crt")

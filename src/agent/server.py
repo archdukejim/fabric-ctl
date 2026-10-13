@@ -31,6 +31,9 @@ request. Root peers (the host itself) are not asked for a token.
   POST /v1/pki/issue                    {actor, cn, sans, key_type, days}
   POST /v1/pki/inspect                  {actor, data}
   POST /v1/pki/convert                  {actor, cert, key}
+  GET  /v1/pki/enrolments | POST /v1/pki/enrol/apple {name, device, ssid, wired} | /v1/pki/enrol/p12 {name, device,
+       legacy} | /v1/pki/enrolments/<id>/withdraw   (device enrolment, manual 1.5.3)
+  GET  /v1/ssh | POST /v1/ssh/sign {public_key} | /v1/ssh/on | /v1/ssh/off   (SSH certificates, manual 1.6.11.9)
   POST /v1/tsig                         {actor, name, zone, scope, hosts, types, secret}
   POST /v1/tsig/<name>/rotate | /v1/tsig/<name>/delete   {actor}
   GET  /v1/devices | /v1/people | /v1/vault | /v1/vault/slots | /v1/vault/devices

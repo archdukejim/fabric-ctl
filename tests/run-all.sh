@@ -45,7 +45,7 @@ for s in "${SUITES[@]}"; do
         federation) run federation python3 "$HERE/federation/run.py" ;;
         resolver) run resolver bash -c "python3 \"$HERE/resolver/run.py\" && python3 \"$HERE/resolver/groups.py\" && python3 \"$HERE/resolver/querylog.py\" && python3 \"$HERE/resolver/console.py\"" ;;
         ntp)      run ntp      python3 "$HERE/ntp/run.py" ;;
-        openbao)  run openbao  bash -c "python3 \"$HERE/openbao/run.py\" && python3 \"$HERE/openbao/db_rotation.py\"" ;;
+        openbao)  run openbao  bash -c "python3 \"$HERE/openbao/run.py\" && python3 \"$HERE/openbao/db_rotation.py\" && python3 \"$HERE/openbao/ssh_ca.py\"" ;;
         fluentbit) run fluentbit python3 "$HERE/fluentbit/run.py" ;;
         kea) run kea python3 "$HERE/kea/run.py" ;;
         freeradius) run freeradius python3 "$HERE/freeradius/run.py" ;;

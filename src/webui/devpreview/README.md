@@ -12,6 +12,8 @@ The dev preview (`devserver.py`): the real pages over in-memory sample data; no 
 | `dev_post_dns_filter.py` | The DNS filter tab's changes (lists, rules, upstreams) on the sample data |
 | `dev_post_dhcp.py` | The Kea tab's changes (reservations, subnets, options, classes) on the sample data |
 | `dev_post_network.py` | RADIUS groups and clients, acted out on the sample data in memory. |
+| `dev_post_enrol.py` | Step-CA → Enrol a device, acted out in memory: a .p12 result with a throwaway password, withdrawing a sample profile. |
+| `dev_post_ssh.py` | The SSH page, acted out in memory: on and off, a placeholder certificate for an Ed25519 key. |
 | `dev_state.py` | In-memory sample data; nothing leaves this process. |
 | `fabric_rules.py` | fabriclib's real rules when the dev preview runs from a checkout (devserver.py puts src on the path); the webui image carries only src/webui/, so without them the preview shows sample data and skips the directory forms. |
 | `sample_data.py` | The dev preview's sample data: what a small home install looks like (nothing here is real). |

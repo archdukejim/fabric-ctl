@@ -21,6 +21,8 @@ from fabriclib.pki.acme_info import acme_info
 from fabriclib.pki.acme_machines import acme_machines
 from fabriclib.pki.ca_summary import ca_summary
 from fabriclib.pki.list_issued import list_issued
+from fabriclib.pki.scep.list_enrolments import list_enrolments
+from fabriclib.vault.ssh.ssh_overview import ssh_overview
 from fabriclib.radius.radius_guides import radius_guides
 from fabriclib.samba.domain_overview import domain_overview
 from fabriclib.samba.gpo_overview import gpo_overview
@@ -49,6 +51,7 @@ READS = {
     ("audit",): lambda: read_audit(),
     ("pki", "ca"): lambda: ca_summary(load_vars()),
     ("pki", "issued"): lambda: list_issued(),
+    ("pki", "enrolments"): lambda: list_enrolments(),
     ("tsig",): lambda: list_tsig_keys(),
     ("reverse-zones",): lambda: reverse_zones(load_vars()),
     ("devices",): lambda: device_overview(load_vars()),
@@ -76,7 +79,8 @@ def get_route(route, user=None):
     Inputs:  route — list of path segments after /v1/ (already authorized by the handler); user — the token's user
              (None for root): a job is read only by the person who started it.
     Returns: the operation's JSON-serialisable result. zones/<key>: zone_detail; vault/slots: the unlock methods with
-             this host's name; images: the image status rows; pki/acme: {info, machines, domain}; jobs/<id>: the job.
+             this host's name; images: the image status rows; pki/acme: {info, machines, domain}; jobs/<id>: the job;
+             pki/enrolments: list_enrolments; ssh: ssh_overview for the token's user.
     Fails:   RouteNotFound for any other route (-> 404); whatever the operation raises (ValidationError -> 400).
     Feeds:   agent/handler.py (dispatch)."""
     if tuple(route) in READS:
@@ -85,6 +89,8 @@ def get_route(route, user=None):
         return zone_detail(route[1])
     if len(route) == 2 and route[0] == "jobs":
         return JOBS.read(route[1], user)
+    if route == ["ssh"]:                     # SSH certificates: may this person sign? (1.6.11.9)
+        return ssh_overview(load_vars(), user)
     if route == ["vault", "slots"]:
         v = load_vars()
         return {"slots": list_slots(v), "host": v.get("hostname", "")}

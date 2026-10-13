@@ -5,7 +5,8 @@
 # onto it (the .deb build and the tests that need an installed-looking
 # tree both use it):
 #
-#   src/fabriclib, src/agent, src/federation      -> <dest>/fabric/lib/…
+#   src/fabriclib, src/agent, src/federation,
+#   src/scephook                                  -> <dest>/fabric/lib/…
 #   src/ux/cli/{deploy.py,interactive.py,keycloak_bootstrap.py,manage.sh}
 #                                                 -> <dest>/fabric/lib/
 #   src/webui, src/ux/web/{server,devserver}.py   -> <dest>/fabric/lib/webui/
@@ -52,7 +53,7 @@ copy() {  # copy <tar --transform expression> <paths...>
     files "$@" | (cd "$REPO" && tar --null -T - -cf -) | tar -xf - -C "$DEST" --transform "$expr"
 }
 
-copy 's,^src/,fabric/lib/,' src/fabriclib src/agent src/federation
+copy 's,^src/,fabric/lib/,' src/fabriclib src/agent src/federation src/scephook
 copy 's,^src/ux/cli/,fabric/lib/,' src/ux/cli/deploy.py src/ux/cli/interactive.py src/ux/cli/keycloak_bootstrap.py \
     src/ux/cli/manage.sh
 copy 's,^src/webui/,fabric/lib/webui/,' src/webui

@@ -5,9 +5,10 @@ from webui.views.render_page import render_page
 def pki_result(ctx, kind, r):
     """Purpose: The result page after signing, issuing or converting a certificate: details and every format as a
              download.
-    Inputs:  ctx — page context; kind — 'sign' | 'issue' | 'convert'; r — the agent's result: name, cert, der_b64,
+    Inputs:  ctx — page context; kind — 'sign' | 'issue' | 'convert' | 'enrol' (a PKCS#12 from enrolment, 1.5.3.6);
+             r — the agent's result: name, cert, der_b64,
              fullchain, info (subject, sans, key, not_before, not_after, serial, sha256), and optionally p7b_b64,
-             key, p12_b64, p12_password, device.
+             key, p12_b64, p12_password, legacy, device.
     Returns: HTML str with .crt, .cer, -fullchain.pem and, when present, .p7b, .key and .p12 downloads.
     Fails:   KeyError for another kind or when name, cert, der_b64 or fullchain is missing; other jinja2 errors
              propagate (e.g. UndefinedError when the template reads an attribute of a value the caller left out).
@@ -26,5 +27,5 @@ def pki_result(ctx, kind, r):
     if r.get("p12_b64"):
         files.append((f"{n}.p12", "application/x-pkcs12", r["p12_b64"], "certificate + key + chain, PKCS#12"))
     title = {"sign": "Certificate signed", "issue": "Key and certificate generated",
-             "convert": "Certificate converted"}[kind]
+             "convert": "Certificate converted", "enrol": "Device file made"}[kind]
     return render_page("pki_result", ctx=ctx, tab="stepca", title=title, r=r, files=files, back=kind)

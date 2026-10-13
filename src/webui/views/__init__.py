@@ -23,5 +23,6 @@ from webui.views.person_result import person_result  # noqa: F401
 from webui.views.pki_result import pki_result  # noqa: F401
 from webui.views.radius_secret import radius_secret  # noqa: F401
 from webui.views.security import security  # noqa: F401
+from webui.views.ssh import ssh  # noqa: F401
 from webui.views.stepca import stepca  # noqa: F401
 from webui.views.tsig_result import tsig_result  # noqa: F401

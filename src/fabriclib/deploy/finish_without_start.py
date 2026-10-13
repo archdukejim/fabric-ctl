@@ -12,7 +12,8 @@ def finish_without_start(paths, state, bind_ids):
     """Purpose: the end of a deploy run by `fabricctl setup`: start nothing, but leave a live stack consistent —
              zones swapped safely, changed images built — and say which services setup must restart.
     Inputs:  paths — deploy_paths() (base); state — what the install steps found: restart (set), rebuild (folders),
-             daemon_reload, bind9_config, zones [(zone, src, dst)], nginx, webui, agent, federation_unit (bools);
+             daemon_reload, bind9_config, zones [(zone, src, dst)], nginx, webui, agent, federation_unit, scephook_unit
+             (bools);
              bind_ids — (uid, gid) of the bind user.
     Returns: the set of units to restart (setup's start step restarts them).
     Fails:   ValidationError when an image build fails (with the end of its output).
@@ -35,7 +36,7 @@ def finish_without_start(paths, state, bind_ids):
         for zone, src, dst in state["zones"]:
             install_zone_file(src, dst, *bind_ids)
     for flag, unit in (("nginx", "nginx"), ("webui", "fabric-web"), ("agent", "fabric-agent"),
-                       ("federation_unit", "fabric-federation")):
+                       ("federation_unit", "fabric-federation"), ("scephook_unit", "fabric-scep-hook")):
         if state[flag]:
             restart.add(unit)
     if state["daemon_reload"]:

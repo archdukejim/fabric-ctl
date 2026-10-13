@@ -235,6 +235,17 @@ SAMPLE_ACME = {"domain": "home.arpa", "machines": [{"name": "nas", "fqdn": "nas.
                         "names: <name>.home.arpa only; certificates live 47 days: let the client renew at 30 days old",
                         "http-01: the machine answers on port 80 for its name (nothing to enroll)",
                         "dns-01: enroll it below; its client sends RFC2136 updates with its key"]}
+SAMPLE_ENROLMENTS = {"challenges": [{"id": "c0ffee12", "by": "admin", "made": "2026-10-12T09:00:00+00:00",
+                                    "expires": "2026-10-12T10:00:00+00:00", "cn": "jims-iphone", "device": ""}],
+                     "issued": [{"subject": "CN=jims-pixel", "kind": "enrol-p12", "device": "jims-pixel",
+                                 "status": "valid", "not_after": "2027-10-12", "actor": "admin",
+                                 "when": "2026-10-11 18:02", "serial": "4242", "link_error": ""},
+                                {"subject": "CN=jims-mac", "kind": "scep", "device": "", "status": "valid",
+                                 "not_after": "2027-10-10", "actor": "admin", "when": "2026-10-10 12:40",
+                                 "serial": "4241", "link_error": "DEV PREVIEW: no device named jims-mac"}]}
+SAMPLE_SSH = {"on": True, "public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDEVPREVIEWDEVPREVIEWDEVPREVIEWx",
+              "fingerprint": "SHA256:DEVPREVIEWdevpreviewDEVPREVIEWdevpreview00", "may_sign": True, "why_not": "",
+              "hours": 8}
 _REG_LIST = "https://adguardteam.github.io/HostlistsRegistry/assets/filter_{}.txt"
 _ZONE = "8f1c2d3e4a5b.list.rpz"
 _NOW = int(time.time())          # the sample's lists were fetched a few hours ago

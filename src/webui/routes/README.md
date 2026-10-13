@@ -15,7 +15,9 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `kea_post.py` | The Kea tab's changes: reservations, subnets (name, VLAN, notes, pools), options, client classes |
 | `radius_post.py` | RADIUS clients: add, new shared secret, remove — saved and applied at once; a secret is shown once on its own page, never in a URL. |
 | `saved_and_applied.py` | Run a change that fabric-agent saves and applies at once, and go back to its tab with the outcome. |
-| `stepca_page.py` | Render the Step-CA tab for one sub-view, with the CA summary, linkable devices and the issued list where needed. |
+| `enrol_post.py` | Step-CA → Enrol a device: an Apple profile (download), a .p12 (shown once), withdraw an open profile. |
+| `ssh_post.py` | The SSH page's changes: sign a fabric admin's public key, turn SSH certificates on or off (after a recent sign-in). |
+| `stepca_page.py` | Render the Step-CA tab for one sub-view, with the CA summary, linkable devices, the issued list and the enrolments where needed. |
 | `stepca_post.py` | Manual PKI: each Step-CA form maps to one fabric-agent operation. |
 | `tsig_post.py` | TSIG keys: create, rotate, delete (Apply publishes them to BIND9). |
 | `vault_post.py` | Change the vault's unlock methods: rotate the key, test or remove a method, or add a USB stick, security key or KMIP HSM — each one fabric-agent call after a recent sign-in and the host name typed as confirmation. |

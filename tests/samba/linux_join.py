@@ -5,11 +5,15 @@ root-CA fingerprint and changes nothing; a join with a site admin's password and
 sudo for a site admin (2.1.9.13's rule) and none for a person; a person of another site refused by the site's log-on
 GPO; cached logons with the DC stopped; then a log-on policy on OU=machines (manual 1.6.11.4) naming a group adam is in
 and alice is not: adam logs on, alice is refused; and a sudo rule on a host group (1.6.11.7) holding the 24.04 machine:
-it applies there and not on the 26.04 one. The containers have no systemd: a stand-in `systemctl` starts sssd.
+it applies there and not on the 26.04 one; SSH certificates (1.6.11.9.4, 0.9, written and not run yet): the user CA
+fetched from the fabric host's own name over HTTPS and trusted while published, a certificate signed for adam signing
+him in and no one else, the trust kept while the host is unreachable and removed when withdrawn or taken out. The
+containers have no systemd: a stand-in `systemctl` starts sssd.
     sudo python3 tests/samba/linux_join.py
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -25,6 +29,7 @@ from fabriclib.secrets.random_password import random_password  # noqa: E402
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-linux-join")
 NET, SUBNET, IP, WEB_IP = "linuxjoin_net", "10.254.33.0/24", "10.254.33.10", "10.254.33.20"
 DC, WEB = "ljdc", "lj-certs"
+HTTPS, HTTPS_IP = "lj-https", "10.254.33.21"       # the fabric host's own name over HTTPS: its SSH user CA (1.6.11.9.4)
 # release -> (container image, machine name): Ubuntu, and Debian (what Proxmox VE 8 and 9 are built on)
 IMAGES = {"24.04": "ubuntu:24.04", "26.04": "ubuntu:26.04", "debian-12": "debian:12", "debian-13": "debian:13"}
 RELEASES = {"24.04": "ws2404", "26.04": "ws2604", "debian-12": "wsdeb12", "debian-13": "wsdeb13"}
@@ -57,7 +62,7 @@ def dc_healthy():
 
 
 def cleanup():
-    sh(["docker", "rm", "-f", DC, WEB, *[f"lj-{r}" for r in RELEASES.values()]], ok=False)
+    sh(["docker", "rm", "-f", DC, WEB, HTTPS, *[f"lj-{r}" for r in RELEASES.values()]], ok=False)
     sh(["docker", "network", "rm", NET], ok=False)
 
 
@@ -132,8 +137,29 @@ exit 0
 with open(os.path.join(W, "systemctl"), "w") as f:
     f.write(SHIM)
 os.chmod(os.path.join(W, "systemctl"), 0o755)
+FABRIC_HOST = f"{V['hostname']}.{V['domain']}".lower()
 hosts = [f"--add-host={V['hostname_dc']}:{IP}", f"--add-host={V['hostname_stepca']}:{WEB_IP}",
-         f"--add-host={V['hostname_ntp']}:{IP}"]
+         f"--add-host={V['hostname_ntp']}:{IP}", f"--add-host={FABRIC_HOST}:{HTTPS_IP}"]
+
+# the fabric host's own name over HTTPS with a certificate from the test root, serving /certs/ as nginx does: where
+# fabric-managed fetches the SSH user CA (0.9; written, not run yet: notes 2.3.7.3)
+TLS = os.path.join(W, "https")
+os.makedirs(os.path.join(TLS, "www", "certs"), exist_ok=True)
+sh(["openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", f"{TLS}/key.pem", "-out", f"{TLS}/host.csr",
+    "-subj", f"/CN={FABRIC_HOST}"])
+with open(f"{TLS}/host.ext", "w") as f:
+    f.write(f"subjectAltName=DNS:{FABRIC_HOST}\nextendedKeyUsage=serverAuth\n")
+sh(["openssl", "x509", "-req", "-in", f"{TLS}/host.csr", "-CA", dc["root_ca"], "-CAkey", dc["root_key"],
+    "-CAcreateserial", "-out", f"{TLS}/cert.pem", "-days", "2", "-extfile", f"{TLS}/host.ext"])
+os.chmod(f"{TLS}/key.pem", 0o644)                 # read by the server container's user
+SERVE = ("import http.server, ssl; s = http.server.ThreadingHTTPServer(('', 443), lambda *a: "
+         "http.server.SimpleHTTPRequestHandler(*a, directory='/srv/www')); c = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); "
+         "c.load_cert_chain('/srv/cert.pem', '/srv/key.pem'); s.socket = c.wrap_socket(s.socket, server_side=True); "
+         "s.serve_forever()")
+sh(["docker", "run", "-d", "--name", HTTPS, "--network", NET, "--ip", HTTPS_IP, "-v", f"{TLS}:/srv:ro", "--user", "0:0",
+    "--entrypoint", "python3", "fabric/samba:test", "-c", SERVE])
+SSH_CA_KEY = os.path.join(W, "ssh_ca")
+sh(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "fabric test SSH CA", "-f", SSH_CA_KEY])
 
 
 def client(release, name):
@@ -225,11 +251,53 @@ placed = m_sort.sort_machines(V, secrets=SECRETS, container=DC, record=record)
 code, out = on(box, "fabric-managed check; echo rc=$?; ls /etc/ssh/sshd_config.d/10-fabric.conf")
 check("24.04: the sort adopts it (lan-fabric-machines) and its hourly check keeps the configuration",
       RELEASES["24.04"] in placed["adopted"] and "rc=0" in out and "10-fabric.conf" in out, (placed, out))
+# SSH certificates (manual 1.6.11.9.4): published -> trusted; signed for adam -> adam signs in with it; withdrawn -> not
+code, out = on(box, "fabric-managed check; echo rc=$?; ls /etc/ssh/fabric-user-ca.pub 2>&1")
+check("24.04: SSH certificates off (nothing published, 404): no CA trusted", "rc=0" in out and "No such file" in out,
+      out)
+shutil.copy(SSH_CA_KEY + ".pub", os.path.join(TLS, "www", "certs", "ssh-user-ca.pub"))
+code, out = on(box, "fabric-managed check; echo rc=$?; cat /etc/ssh/fabric-user-ca.pub; "
+                    "sshd -T 2>/dev/null | grep -i '^trustedusercakeys '")
+check("24.04: published: fetched over HTTPS checked against fabric's root, kept as /etc/ssh/fabric-user-ca.pub, sshd "
+      "trusts it (TrustedUserCAKeys)", "rc=0" in out and open(SSH_CA_KEY + ".pub").read().split()[1] in out
+      and "trustedusercakeys /etc/ssh/fabric-user-ca.pub" in out.lower(), out)
+on(box, "ssh-keygen -q -t ed25519 -N '' -f /root/adam_key && pkill -x sshd; /usr/sbin/sshd")
+user_pub = on(box, "cat /root/adam_key.pub")[1].strip()
+with open(os.path.join(W, "adam_key.pub"), "w") as f:
+    f.write(user_pub + "\n")
+sh(["ssh-keygen", "-q", "-s", SSH_CA_KEY, "-I", "fabric:adam:test", "-n", "adam", "-V", "+1h",
+    os.path.join(W, "adam_key.pub")])
+sh(["docker", "cp", os.path.join(W, "adam_key-cert.pub"), f"{box}:/root/adam_key-cert.pub"])
+SSH = ("ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o GSSAPIAuthentication=no "
+       "-o PreferredAuthentications=publickey -o IdentitiesOnly=yes -i /root/adam_key")
+code, out = on(box, f"{SSH} adam@localhost id -un")
+check("24.04: adam (a fabric admin) signs in with a certificate fabric's CA signed for him",
+      code == 0 and out.strip().endswith("adam"), out[-400:])
+code, out = on(box, f"{SSH} alice@localhost id -un")
+check("negative: the same certificate does not sign in as alice (not its principal)", code != 0, out[-300:])
+on(box, "mv /root/adam_key-cert.pub /root/adam_key-cert.off")
+code, out = on(box, f"{SSH} adam@localhost id -un")
+check("negative: the key without its certificate is refused (no authorized_keys entry)", code != 0, out[-300:])
+on(box, "mv /root/adam_key-cert.off /root/adam_key-cert.pub")
+sh(["docker", "stop", HTTPS])
+code, out = on(box, "fabric-managed check; echo rc=$?; ls /etc/ssh/fabric-user-ca.pub")
+check("24.04: the host unreachable: the trust is left as it is", "rc=0" in out and "No such file" not in out, out)
+sh(["docker", "start", HTTPS])
+time.sleep(2)
+os.remove(os.path.join(TLS, "www", "certs", "ssh-user-ca.pub"))
+code, out = on(box, f"fabric-managed check; echo rc=$?; ls /etc/ssh/fabric-user-ca.pub 2>&1; "
+                    f"grep -c TrustedUserCAKeys /etc/ssh/sshd_config.d/10-fabric.conf; pkill -x sshd; /usr/sbin/sshd; "
+                    f"{SSH} adam@localhost id -un; echo ssh=$?")
+check("24.04: withdrawn (turned off, 404): the CA file and TrustedUserCAKeys removed, the certificate refused",
+      "rc=0" in out and "No such file" in out and "\n0\n" in out and "ssh=0" not in out, out)
+shutil.copy(SSH_CA_KEY + ".pub", os.path.join(TLS, "www", "certs", "ssh-user-ca.pub"))
+on(box, "fabric-managed check")
 sh(["docker", "exec", DC, "samba-tool", "group", "removemembers", "lan-fabric-machines", f"{RELEASES['24.04'].upper()}$",
     "-s", "/data/etc/smb.conf"])
-code, out = on(box, "fabric-managed check; ls /etc/ssh/sshd_config.d/ /etc/systemd/resolved.conf.d/ 2>&1")
-check("24.04: taken out of lan-fabric-machines, its next check removes fabric's SSH and DNS configuration",
-      "removed" in out and "10-fabric.conf" not in out and "fabric.conf" not in out, out)
+code, out = on(box, "fabric-managed check; ls /etc/ssh/sshd_config.d/ /etc/systemd/resolved.conf.d/ /etc/ssh/ 2>&1")
+check("24.04: taken out of lan-fabric-machines, its next check removes fabric's SSH and DNS configuration, the SSH CA "
+      "with them", "removed" in out and "10-fabric.conf" not in out and "fabric.conf" not in out
+      and "fabric-user-ca.pub" not in out, out)
 
 # 26.04: pre-created by fabricctl domain add-machine, joined with the one-time password
 box, ok = client("26.04", RELEASES["26.04"])

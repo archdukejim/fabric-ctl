@@ -36,4 +36,5 @@ start, and it is wiped once OpenBao is unsealed.
 | `run_vault_command.py` | `fabricctl vault status / slots / test / remove / rotate / add-usb / add-kmip / tokens / add-key / break-glass / revoke-token / unlock / wipe-key / device-event` |
 | `slots/` | One file per unlock-method type: `wrap`, `unwrap`, `present`, `forget` and what it was `TESTED` against |
 | `common/` | Helpers shared by the operations above (see its README) |
+| `ssh/` | OpenBao's SSH certificate authority for the fabric admins: the toggle, signing, the published CA key (manual 1.6.11.9; see its README) |
 | `rotate_db_password.py` | Keycloak's database password rotated by OpenBao, saved, Keycloak applied and healthy again; recorded for doctor (`fabricctl vault rotate-db`) |

@@ -16,7 +16,7 @@ _env = jinja2.Environment(loader=jinja2.FileSystemLoader(_TEMPLATES), autoescape
 
 def render_page(name, **kw):
     """Purpose: Render one template with the common page variables, hiding the tabs, sub-menus and forms the signed-in
-             person has no permission for.
+             person has no permission for ("*" in TAB_PERMS: any signed-in person).
     Inputs:  name — a template in templates/webui-app (without .html); kw — the template's variables: ctx (dict with
              user, csrf, perms, version;
              default None = no header, tabs or footer), tab (active tab id; default None), menu / sections (lists of
@@ -33,7 +33,7 @@ def render_page(name, **kw):
     perms = set((kw["ctx"] or {}).get("perms") or ())
 
     def can(perm):
-        return perm in perms
+        return perm in perms or (perm == "*" and bool(kw["ctx"]))       # "*": any signed-in person
     kw["can"] = can
     kw["tabs"] = [t for t in TABS if any(can(q) for q in TAB_PERMS.get(t[0], ()))]
     for key in ("menu", "sections"):

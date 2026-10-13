@@ -31,7 +31,8 @@ def run(ctx):
     Returns: None. fabric.target enabled and started; renamed units retired; the deploy rendered again when the DNS
              filter's certificate arrived after it (DoT and DoH, 1.12.2.16); every enabled unit running and its
              container healthy; the domain converged; Keycloak given the DC's Kerberos keytab; Keycloak configured (up
-             to 6 tries, 15 s apart); fabric-agent and fabric-web running when the web UI is on; fabric-federation
+             to 6 tries, 15 s apart); fabric-agent, fabric-web and fabric-scep-hook running when the web UI is on;
+             fabric-federation
              running when federation_endpoint is on. Once Keycloak's password is OpenBao's, Postgres's roles are
              made to match fabric's secrets before Keycloak starts (a reinstall's fresh data folder, 2.1.7.4).
     Fails:   SetupError when a container is not healthy (start_unit), the domain cannot be converged, the default
@@ -99,6 +100,10 @@ def run(ctx):
             subprocess.run(["systemctl", "restart", "fabric-agent"], check=True)
         ok(f"fabric-agent: {'restarted' if 'fabric-agent' in ctx.restart_services else 'running'}")
         ok(f"fabric-web: {start_unit('fabric-web', 'fabric-web', 'fabric-web' in ctx.restart_services)}")
+        subprocess.run(["systemctl", "enable", "--now", "fabric-scep-hook"], check=True, capture_output=True)
+        if "fabric-scep-hook" in ctx.restart_services:
+            subprocess.run(["systemctl", "restart", "fabric-scep-hook"], check=True)
+        ok("fabric-scep-hook (device enrolment's SCEP webhooks): running")
 
     if v.get("federation_endpoint"):
         subprocess.run(["systemctl", "enable", "--now", "fabric-federation"], check=True, capture_output=True)

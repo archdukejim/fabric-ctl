@@ -20,6 +20,7 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `person_result.html` | The person result page |
 | `pki_result.html` | The pki result page |
 | `radius_secret.html` | The radius secret page |
+| `ssh.html` | The SSH page |
 | `stepca.html` | The stepca page |
 | `tsig_result.html` | The tsig result page |
 | `machine_result.html` | A pre-created machine's one-time join password |

@@ -779,6 +779,32 @@ assert off_txt.index('find fabric') < off_txt.index('Trust the root CA') < off_t
 assert 'jim.p12' in on_txt and '\n4. Import jim.p12' in on_txt and '\n5. Open https://' in on_txt and 'authenticator app (TOTP)' in on_txt
 print('sign-in: no client certificate by default (nginx, webui.json, the admin kit); with it, mutual TLS and the .p12')
 
+# device enrolment and SSH certificates (manual 1.5.3.3, 1.6.11.9; 0.9, written and not run yet): with the web console,
+# SCEP over plain HTTP to Step-CA's own listener, the webhooks on the console's name to fabric-scep-hook with nginx's
+# verification of the caller's certificate (never the client's own headers), its socket mounted, its unit hardened;
+# the SSH CA's .pub served as text; without the web console none of it
+assert 'location /scep/' in ngx_off and f'http://{full["ip_stepca"]}:9080' in ngx_off, 'SCEP to Step-CA on :9080'
+assert 'location /hooks/scep/' in ngx_off and 'proxy_pass http://unix:/srv/scephook/scep-hook.sock:;' in ngx_off
+assert 'proxy_set_header X-SSL-Client-Verify $ssl_client_verify;' in ngx_off.split('location /hooks/scep/')[1].split('}')[0]
+assert 'proxy_set_header X-SSL-Client-Cert $ssl_client_escaped_cert;' in ngx_off.split('location /hooks/scep/')[1].split('}')[0]
+assert r'location ~ \.pub$' in ngx_off and 'default_type text/plain;' in ngx_off.split(r'location ~ \.pub$')[1].split('}')[0]
+_plain = env.get_template('nginx/nginx.conf.j2').render(**{**full, 'install_webui': False})
+assert 'location /scep/' not in _plain and '/hooks/scep/' not in _plain, 'no SCEP without the web console'
+_compose = env.get_template('nginx/docker-compose.yml.j2').render(**{**secrets, **full, 'install_webui': True})
+assert 'scephook/run:/srv/scephook:ro' in _compose, _compose
+assert 'scephook' not in env.get_template('nginx/docker-compose.yml.j2').render(**{**secrets, **full, 'install_webui': False})
+_unit = env.get_template('systemd/fabric-scep-hook.service.j2').render(**full)
+assert 'lib/scephook/server.py' in _unit and f"--allow-uid {full['service_users']['nginx']['uid']}" in _unit
+assert 'NoNewPrivileges=true' in _unit and 'IPAddressDeny=any' in _unit and 'MemoryMax=' in _unit, _unit
+# covers: setting:ssh_certificates +
+assert v2['ssh_certificates'] is False and v2['scep_challenge_minutes'] == 60 and v2['scep_cert_days'] == 365,     (v2['ssh_certificates'], v2['scep_challenge_minutes'], v2['scep_cert_days'])
+_ssh_on = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ssh_certificates': True}))
+assert _ssh_on['ssh_certificates'] is True, 'an operator-set true survives a render'
+_join = env.get_template('nginx/www/certs/join-linux.sh.j2').render(**full)
+assert f'FABRIC_HOST="{(full["hostname"] + "." + full["domain"]).lower()}"' in _join and 'FABRIC_HOST=$FABRIC_HOST' in _join
+assert 'TrustedUserCAKeys $SSH_CA' in _join and 'https://$FABRIC_HOST/certs/ssh-user-ca.pub' in _join, 'the managed SSH CA'
+print('enrolment and SSH certificates: SCEP and its hooks only with the web console; the hook unit; the managed SSH CA')
+
 # landing-page links from DNS records (manual 1.4.2.2, 2.1.4.2): only marked A/AAAA/CNAME records, https with port and
 # path, never a wildcard; the zone file is unchanged by the mark; the validator refuses what could break the page
 from fabriclib.dns.validate_record import validate_record  # noqa: E402

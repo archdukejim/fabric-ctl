@@ -33,6 +33,12 @@
                 add_header Content-Disposition 'attachment' always;
                 add_header X-Content-Type-Options nosniff always;
             }
+            location ~ \.pub$ {
+                # the SSH user CA's public key (manual 1.6.11.9): text, read by managed machines over HTTPS
+                default_type text/plain;
+                types { }
+                charset utf-8;
+            }
             location ~ \.sh$ {
                 default_type text/x-shellscript;
                 types { }
@@ -124,6 +130,17 @@ http {
         location = /style.css {
             root /srv/www/shared;
         }
+{% if install_webui | default(false) | bool %}
+        # SCEP for device enrolment (manual 1.5.3.3): plain HTTP, as SCEP clients speak it (its messages are signed
+        # and encrypted; a request needs a one-time challenge), to Step-CA's own HTTP listener inside fabric_net
+        location /scep/ {
+            set $scep_backend "http://{{ ip_stepca }}:9080";
+            proxy_pass $scep_backend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            client_max_body_size 64k;
+        }
+{% endif %}
 {{ landing_path() }}
         # the page's manual link: HTTPS at the host's own name (this name or address may have no certificate)
         location /manual/ {
@@ -372,6 +389,16 @@ http {
 
         add_header Strict-Transport-Security "max-age=31536000" always;
         client_max_body_size 64k;
+
+        # Step-CA's SCEP webhooks (manual 1.5.3.3): fabric-scep-hook answers only Step-CA's own client certificate,
+        # verified here against this CA; both headers always overwritten, so a client can never supply them
+        location /hooks/scep/ {
+            proxy_pass http://unix:/srv/scephook/scep-hook.sock:;
+            proxy_read_timeout 60s;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-SSL-Client-Verify $ssl_client_verify;
+            proxy_set_header X-SSL-Client-Cert $ssl_client_escaped_cert;
+        }
 
         location / {
             proxy_pass http://unix:/srv/webui/web.sock:;

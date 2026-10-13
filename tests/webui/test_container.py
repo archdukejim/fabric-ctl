@@ -709,6 +709,75 @@ st, hd, sc, body = req("POST", "/stepca/acme/enroll", POSTH, {"csrf": csrf, "hos
 # covers: web:post.stepca.acme.enroll -
 check("ACME enroll for a zone fabric does not serve -> the ACME view again with the reason (400), no key made",
       st == 400 and "forward zones" in body and open(f"{W}/fabric/config/vars.yaml").read() == vt, (st, body[:300]))
+# ---- Step-CA → Enrol a device, and the SSH page (0.9: written, not run yet; notes 2.3.5.4, 2.3.7.3)
+vt = open(f"{W}/fabric/config/vars.yaml").read()
+with open(f"{W}/fabric/config/vars.yaml", "a") as f:
+    f.write("install_webui: true\nhostname_radius: radius.lan.test\n")      # enrolment lives with the web console
+shutil.copy(f"{W}/int.crt", f"{W}/stepca/data/certs/scep_ra.crt")         # what the agent checks SCEP is set up by
+STORE = f"{W}/fabric/archive/scep-challenges.json"
+st, hd, sc, body = req("GET", "/stepca?view=enrol", ALICE, cookie=session)
+check("Enrol a device renders: the Apple and the .p12 forms", st == 200 and 'action="/stepca/enrol/apple"' in body
+      and 'action="/stepca/enrol/p12"' in body, (st, body[:300]))
+st, hd, sc, body = req("POST", "/stepca/enrol/apple", POSTH, {"csrf": csrf, "name": "alice-iphone",
+                                                              "ssid": "home-secure"}, cookie=session)
+# covers: web:post.stepca.enrol.apple +
+check("Apple profile: downloaded as alice-iphone.mobileconfig (the profile type), SCEP and Wi-Fi inside, no-store",
+      st == 200 and hd.get("Content-Type") == "application/x-apple-aspen-config"
+      and 'filename="alice-iphone.mobileconfig"' in hd.get("Content-Disposition", "")
+      and "com.apple.security.scep" in body and "home-secure" in body and hd.get("Cache-Control") == "no-store",
+      (st, hd))
+challenge = body.split("<key>Challenge</key>")[1].split("<string>")[1].split("<")[0] if "<key>Challenge" in body else ""
+check("...its challenge kept only as a hash", challenge and challenge not in open(STORE).read(), challenge)
+before = open(STORE).read()
+st, hd, sc, body = req("POST", "/stepca/enrol/apple", POSTH, {"csrf": csrf, "name": "bad name!"}, cookie=session)
+# covers: web:post.stepca.enrol.apple -
+check("Apple profile refused for a bad name: the enrol view with the reason (400), no challenge made",
+      st == 400 and "letters, digits and dashes" in body and open(STORE).read() == before, (st, body[:300]))
+st, hd, sc, body = req("POST", "/stepca/enrol/apple", POSTH, {"csrf": "nope", "name": "alice-ipad"}, cookie=session)
+check("Apple profile with a bad CSRF token -> 403, no challenge made", st == 403 and open(STORE).read() == before, st)
+st, hd, sc, body = req("GET", "/stepca?view=enrol", ALICE, cookie=session)
+cid = body.split('action="/stepca/enrol/')[1].split("/withdraw")[0] if "/withdraw" in body else ""
+check("the open profile is listed with Withdraw", st == 200 and "alice-iphone" in body and cid, (st, body[:300]))
+st, hd, sc, body = req("POST", f"/stepca/enrol/{cid}/withdraw", POSTH, {"csrf": csrf}, cookie=session)
+# covers: web:post.stepca.enrol.*.withdraw +
+check("withdraw it: said, gone from the list", st == 200 and "Withdrew the profile for alice-iphone" in body
+      and f"/stepca/enrol/{cid}/withdraw" not in body, (st, body[:300]))
+st, hd, sc, body = req("POST", f"/stepca/enrol/{cid}/withdraw", POSTH, {"csrf": csrf}, cookie=session)
+# covers: web:post.stepca.enrol.*.withdraw -
+check("withdrawing it again is refused, saying why (400)", st == 400 and "can no longer be used" in body,
+      (st, body[:300]))
+st, hd, sc, body = req("POST", "/stepca/enrol/p12", POSTH, {"csrf": csrf, "name": "bad name!"}, cookie=session)
+# covers: web:post.stepca.enrol.p12 -
+check(".p12 refused for a bad name, saying why (400)", st == 400 and "letters, digits and dashes" in body,
+      (st, body[:300]))
+st, hd, sc, body = req("POST", "/stepca/enrol/nonsense", POSTH, {"csrf": csrf}, cookie=session)
+check("an unknown enrolment action -> 404", st == 404, st)
+os.remove(f"{W}/stepca/data/certs/scep_ra.crt")
+open(f"{W}/fabric/config/vars.yaml", "w").write(vt)
+
+(st, hd, sc, body), _, _ = login()                     # SSH changes need a sign-in from the last 5 minutes
+fresh = cookie_val(sc, "__Host-webui")
+st, hd, sc, body = req("GET", "/ssh", ALICE, cookie=fresh)
+fresh_csrf = body.split('name="csrf" value="')[1].split('"')[0] if 'name="csrf"' in body else ""
+# covers: web:get.ssh agent:get.ssh +
+check("the SSH page: off by default, with the toggle for an admin and no form to sign",
+      st == 200 and "SSH certificates are" in body and 'action="/ssh/on"' in body and 'action="/ssh/sign"' not in body,
+      (st, body[:300]))
+st, hd, sc, body = req("GET", "/ssh", ALICE)
+# covers: web:get.ssh -
+check("the SSH page without a session -> sign in first", st in (302, 303) and "/login" in hd.get("Location", ""), st)
+st, hd, *_ = req("POST", "/ssh/on", POSTH, {"csrf": fresh_csrf}, cookie=fresh)
+# covers: web:post.ssh.* agent:post.ssh.on -
+check("turning them on with no OpenBao here: refused, saying why; the setting unchanged",
+      st == 303 and "err=" in hd.get("Location", "") and "ssh_certificates: true" not in
+      open(f"{W}/fabric/config/vars.yaml").read(), hd)
+st, hd, sc, body = req("POST", "/ssh/sign", POSTH, {"csrf": fresh_csrf, "public_key": "ssh-ed25519 AAAA x"},
+                       cookie=fresh)
+# covers: web:post.ssh.sign agent:post.ssh.sign -
+check("signing while off: refused, saying so (400)", st == 400 and "are off" in body, (st, body[:300]))
+st, hd, sc, body = req("POST", "/ssh/sideways", POSTH, {"csrf": fresh_csrf}, cookie=fresh)
+check("an unknown SSH action -> 404", st == 404, st)
+
 st, hd, sc, body = req("GET", "/audit", ALICE, cookie=session)
 check("audit log records TSIG and PKI actions", "TSIG_ADD" in body and "TSIG_SECRET" in body
       and "PKI_CONVERT" in body, body[:300])

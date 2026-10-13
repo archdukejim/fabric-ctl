@@ -427,6 +427,36 @@ check("a host group's Remove: removed", "host group lan-hosts-ops removed" in lo
 code, loc = form(["hostgroups", "_new", "x"], {})
 check("an unknown host group form: refused, saying so", "unknown operation" in loc, loc)
 
+# ---- who is a fabric admin (manual 1.6.11.9.3; 0.9: written, not run yet, notes 2.3.7.3): SSH certificates are
+# signed only for members, nested too, of fabric-admins or the site's lan-fabric-admins
+import fabriclib.directory.is_fabric_admin as m_admin  # noqa: E402
+m_admin.run_op = lambda v, s, op, args=None, container="samba": run_op(v, s, op, args, DC)
+m_admin.load_secrets = lambda: SECRETS
+run_op(V, SECRETS, "create_person", {"uid": "carol", "first": "Carol", "last": "Test", "email": "carol@lan.test",
+                                     "password": "Ot-" + random_password(20), "gid": 5000, "home_base": "/home",
+                                     "shell": "/bin/bash"}, DC)
+for argv in (["group", "addmembers", "lan-fabric-admins", "alice"], ["group", "add", "ssh-ops"],
+             ["group", "addmembers", "ssh-ops", "bob"], ["group", "addmembers", "lan-fabric-admins", "ssh-ops"]):
+    subprocess.run(["docker", "exec", DC, "samba-tool", *argv], capture_output=True, check=True)
+got = {u: run_op(V, SECRETS, "is_fabric_admin", {"uid": u}, DC) for u in ("alice", "bob", "carol")}
+check("is_fabric_admin: alice (a member) and bob (through a nested group) are, carol is not",
+      got["alice"]["fabric_admin"] and got["alice"]["via"] == ["lan-fabric-admins"] and got["bob"]["fabric_admin"]
+      and not got["carol"]["fabric_admin"], got)
+check("...and fabriclib asks the same", m_admin.is_fabric_admin(V, "bob") is True
+      and m_admin.is_fabric_admin(V, "carol") is False)
+try:
+    m_admin.is_fabric_admin(V, "ghost")
+    said = "answered"
+except ValidationError as exc:
+    said = str(exc)
+check("negative: a name that is not a person is refused, not answered no", "no such user" in said, said)
+try:
+    m_admin.is_fabric_admin(V, "lan-fabric-admins")
+    said = "answered"
+except ValidationError as exc:
+    said = str(exc)
+check("negative: a group's name is not a person", "no such user" in said, said)
+
 if not os.environ.get("FABRIC_TEST_KEEP"):
     cleanup()
 print(f"\n{FAILED and 'FAILED' or 'all passed'} ({FAILED} failures)")

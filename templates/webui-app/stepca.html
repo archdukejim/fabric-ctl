@@ -105,12 +105,56 @@
 {% if issued %}
 <table><thead><tr><th>Subject</th><th>Names</th><th>How</th><th>Expires</th><th>By</th>{% if can('pki:revoke') %}<th>Revoke</th>{% endif %}</tr></thead><tbody>
 {% for c in issued %}
-<tr><td>{{ c.subject }}</td><td>{{ (c.sans or []) | join(', ') }}</td><td>{{ {'csr': 'CSR', 'keypair': 'key + cert', 'client': 'client certificate', 'site-ca': 'site CA'}.get(c.kind, c.kind) }}</td>
+<tr><td>{{ c.subject }}</td><td>{{ (c.sans or []) | join(', ') }}</td><td>{{ {'csr': 'CSR', 'keypair': 'key + cert', 'client': 'client certificate', 'site-ca': 'site CA', 'scep': 'enrolled (Apple profile)', 'enrol-p12': 'enrolled (.p12)'}.get(c.kind, c.kind) }}</td>
 <td><span class="pill {{ 'ok' if c.status == 'valid' else ('warn' if c.status == 'expires soon' else 'bad') }}">{{ c.status }}</span> <span class="muted">{{ c.not_after }}</span></td>
 <td>{{ c.actor }} <span class="muted">{{ c.when }}</span></td>{% if can('pki:revoke') %}<td>{% if c.status in ('valid', 'expires soon') %}<form method="post" action="/stepca/revoke"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="target" value="{{ c.serial }}"><select name="reason" aria-label="Reason"><option>unspecified</option><option>keyCompromise</option><option>superseded</option><option>cessationOfOperation</option><option>affiliationChanged</option></select> <button class="danger">Revoke</button></form>{% endif %}</td>{% endif %}</tr>
 {% endfor %}</tbody></table>
 {% else %}<p class="blank">Nothing issued by hand yet.</p>{% endif %}
 </section>
+
+{% elif view == 'enrol' %}
+<section class="card"><h2>Enrol a phone, tablet or laptop</h2>
+<p class="muted">Gives one device its own certificate for Wi-Fi (EAP-TLS) and the services that check one. Download the file here and install it on the device by hand (manual 4.5.3). A certificate can be revoked below at any time.</p></section>
+{% if can('pki:enrol') %}
+<section class="card"><h2>iPhone, iPad or Mac: a configuration profile</h2>
+<p class="muted">The profile holds fabric's root CA, a one-time enrolment challenge and, if you name it, the Wi-Fi network. The device makes its own key and asks Step-CA for its certificate (SCEP); the key never leaves the device. The challenge works once, only for this name, and expires unused after the time shown on the open profile below.</p>
+<form method="post" action="/stepca/enrol/apple" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label>Certificate name<input name="name" required pattern="[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?" maxlength="63" placeholder="jims-iphone"></label>
+{{ device_select() }}
+<label>Wi-Fi network (SSID, optional)<input name="ssid" maxlength="32" placeholder="home-secure"></label>
+<label class="check"><input type="checkbox" name="wired"> Mac on a wired 802.1X port</label>
+<div><button>Download profile</button></div>
+</form></section>
+<section class="card"><h2>Android and other devices: a .p12 file</h2>
+<p class="muted">The key and certificate are made here and handed over once as a password-protected PKCS#12 (AES-256). The password is shown once and never stored.</p>
+<form method="post" action="/stepca/enrol/p12" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label>Certificate name<input name="name" required pattern="[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?" maxlength="63" placeholder="jims-pixel"></label>
+{{ device_select() }}
+<label class="check"><input type="checkbox" name="legacy"> Android 11 or older (3DES and SHA-1: weaker, only for devices that read nothing else)</label>
+<div><button>Make .p12</button></div>
+</form></section>
+{% endif %}
+{% if enrolments %}
+<section class="card"><h2>Profiles not yet used <span class="muted">{{ enrolments.challenges | length }}</span></h2>
+{% if enrolments.challenges %}
+<table><thead><tr><th>Name</th><th>Device</th><th>Made by</th><th>Expires</th>{% if can('pki:enrol') %}<th></th>{% endif %}</tr></thead><tbody>
+{% for c in enrolments.challenges %}<tr><td>{{ c.cn }}</td><td>{{ c.device or '—' }}</td><td>{{ c.by }} <span class="muted">{{ c.made }}</span></td><td>{{ c.expires }}</td>
+{% if can('pki:enrol') %}<td class="num">{% if c.by == ctx.user or can('pki:revoke') %}<form method="post" action="/stepca/enrol/{{ c.id | urlencode }}/withdraw"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Withdraw</button></form>{% endif %}</td>{% endif %}</tr>{% endfor %}
+</tbody></table>{% else %}<p class="blank">No open profiles.</p>{% endif %}</section>
+<section class="card"><h2>Certificates from enrolment <span class="muted">{{ enrolments.issued | length }}</span></h2>
+<p class="muted">A revoked certificate is refused by FreeRADIUS and the web console at once.</p>
+{% if enrolments.issued %}
+<table><thead><tr><th>Subject</th><th>How</th><th>Device</th><th>Expires</th><th>By</th>{% if can('pki:revoke') %}<th>Revoke</th>{% endif %}</tr></thead><tbody>
+{% for c in enrolments.issued %}
+<tr><td>{{ c.subject }}</td><td>{{ 'Apple profile (SCEP)' if c.kind == 'scep' else '.p12' }}</td>
+<td>{{ c.device or '—' }}{% if c.link_error %} <span class="pill warn" title="{{ c.link_error }}">not linked</span>{% endif %}</td>
+<td><span class="pill {{ 'ok' if c.status == 'valid' else ('warn' if c.status == 'expires soon' else 'bad') }}">{{ c.status }}</span> <span class="muted">{{ c.not_after }}</span></td>
+<td>{{ c.actor }} <span class="muted">{{ c.when }}</span></td>{% if can('pki:revoke') %}<td>{% if c.status in ('valid', 'expires soon') %}<form method="post" action="/stepca/revoke"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="target" value="{{ c.serial }}"><select name="reason" aria-label="Reason"><option>unspecified</option><option>keyCompromise</option><option>superseded</option><option>cessationOfOperation</option><option>affiliationChanged</option></select> <button class="danger">Revoke</button></form>{% endif %}</td>{% endif %}</tr>
+{% endfor %}</tbody></table>
+{% else %}<p class="blank">No certificate issued by enrolment yet.</p>{% endif %}</section>
+{% endif %}
 
 {% elif view == 'acme' %}
 <section class="card"><h2>ACME for machines on the LAN</h2>

@@ -95,3 +95,10 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `start_job.py` | Start a background job: doctor, or one service's image update or rollback. Agent routes: POST /v1/jobs/doctor (status:read), /v1/jobs/images (images:update). |
 | `read_job.py` | A job the signed-in person started. Agent route: GET /v1/jobs/<id>. |
 | `acme_overview.py` | ACME for LAN machines: the directory and how, the machines enrolled for DNS-01. Agent route: GET /v1/pki/acme (pki:read). |
+| `enrol_apple.py` | POST /v1/pki/enrol/apple: an Apple profile with a one-time SCEP challenge |
+| `enrol_p12.py` | POST /v1/pki/enrol/p12: a PKCS#12 for one Android or other device |
+| `list_enrolments.py` | GET /v1/pki/enrolments: open profiles and certificates from enrolment |
+| `withdraw_enrolment.py` | POST /v1/pki/enrolments/<id>/withdraw: withdraw an unused profile |
+| `ssh_overview.py` | GET /v1/ssh: SSH certificates on or off, the CA key, whether this person may sign |
+| `sign_ssh_key.py` | POST /v1/ssh/sign: an 8-hour SSH certificate for a fabric admin |
+| `set_ssh_certificates.py` | POST /v1/ssh/on, /v1/ssh/off: turn SSH certificates on or off |

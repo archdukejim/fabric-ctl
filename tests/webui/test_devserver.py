@@ -192,6 +192,36 @@ try:
     pages = [req("GET", f"/stepca?view={v}") for v in ("ca", "sign", "issue", "inspect", "convert", "issued")]
     check("every Step-CA menu page renders", all(p[0] == 200 for p in pages) and "Fabric Root CA" in pages[0][3]
           and "switch-core.home.arpa" in pages[5][3])
+    # device enrolment and SSH certificates (0.9; written, not run yet: notes 2.3.5.4, 2.3.7.3)
+    st, _, _, page = req("GET", "/stepca?view=enrol")
+    check("Enrol a device: the Apple and the .p12 forms, the open profile with Withdraw, the certificates with Revoke",
+          st == 200 and 'action="/stepca/enrol/apple"' in page and 'action="/stepca/enrol/p12"' in page
+          and 'action="/stepca/enrol/c0ffee12/withdraw"' in page and "jims-pixel" in page and "not linked" in page)
+    st, _, _, page = req("POST", "/stepca/enrol/p12", {"csrf": "dev", "name": "Jims-Pixel", "legacy": "on"})
+    # covers: web:post.stepca.enrol.p12 +
+    check(".p12: the result page with the file, its password once, the warning to copy it, the legacy note",
+          st == 200 and 'download="jims-pixel.p12"' in page and "shown once" in page and "not stored anywhere" in page
+          and "Android 11 and older" in page and "only copy of the private key" not in page)
+    st, _, _, page = req("POST", "/stepca/enrol/p12", {"csrf": "dev", "name": "bad name!"})
+    check(".p12 refused for a bad name, saying why (400)", st == 400 and "letters, digits and dashes" in page)
+    st, _, _, page = req("POST", "/stepca/enrol/c0ffee12/withdraw", {"csrf": "dev"})
+    check("withdraw the sample profile: gone from the list", st == 200 and "c0ffee12" not in page)
+    st, _, _, page = req("GET", "/ssh")
+    check("the SSH page: on, the CA's fingerprint, the toggle and the form to sign",
+          st == 200 and 'action="/ssh/off"' in page and 'action="/ssh/sign"' in page and "SHA256:" in page)
+    st, _, _, page = req("POST", "/ssh/sign", {"csrf": "dev", "public_key": "ssh-ed25519 AAAAC3Nza dev@laptop"})
+    # covers: web:post.ssh.sign +
+    check("sign a public key: the certificate shown once, as a download", st == 200
+          and 'download="id-cert.pub"' in page and "ssh-ed25519-cert-v01@openssh.com" in page)
+    st, _, _, page = req("POST", "/ssh/sign", {"csrf": "dev", "public_key": "-----BEGIN OPENSSH PRIVATE KEY-----"})
+    check("a private key pasted is refused, saying why (400)", st == 400 and "one public key" in page)
+    st, loc, _, _ = req("POST", "/ssh/off", {"csrf": "dev"})
+    page = req("GET", loc or "/ssh")[3]
+    # covers: web:post.ssh.* +
+    check("turn SSH certificates off: said, the toggle offers on, no form to sign",
+          st == 303 and "are off" in page and 'action="/ssh/on"' in page and 'action="/ssh/sign"' not in page)
+    st, loc, _, _ = req("POST", "/ssh/on", {"csrf": "dev"})
+    check("...and on again", st == 303 and 'action="/ssh/sign"' in req("GET", loc or "/ssh")[3])
     st, _, _, page = req("POST", "/stepca/issue", {"csrf": "dev", "cn": "x"})
     check("generate shows sample downloads and the one-time key warning",
           st == 200 and 'download="device.home.arpa.key"' in page and "only copy of the private key" in page)

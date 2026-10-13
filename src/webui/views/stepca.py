@@ -3,14 +3,15 @@ from webui.views.render_page import render_page
 
 
 def stepca(ctx, view, ca, issued=None, review=None, inspected=None, err="", devices=None, device="", msg="",
-           acme=None):
-    """Purpose: The Step-CA tab: CA details, sign a CSR, new key + certificate, inspect, convert, the issued list, or
-             ACME for LAN machines.
+           acme=None, enrolments=None):
+    """Purpose: The Step-CA tab: CA details, sign a CSR, new key + certificate, inspect, convert, the issued list,
+             ACME for LAN machines, or enrolling a phone, tablet or laptop.
     Inputs:  ctx — page context; view — one of STEPCA_VIEWS; ca — ca_summary() dict or None when unreadable; issued —
              list_issued() for the issued view; review — describe_csr() result to confirm before signing; inspected —
              inspect_pem() result; err — error text; devices — directory devices a certificate can be linked to (sign
              / issue); device — preselected device name; msg — what was done (a revocation); acme — acme_overview()
-             for the acme view.
+             for the acme view; enrolments — list_enrolments() for the enrol view (open profiles, certificates
+             from enrolment; manual 1.5.3).
     Returns: HTML str.
     Fails:   Jinja2 errors propagate (e.g. UndefinedError when the template reads an attribute of a value the caller
              left out).
@@ -18,4 +19,4 @@ def stepca(ctx, view, ca, issued=None, review=None, inspected=None, err="", devi
     """
     return render_page("stepca", ctx=ctx, tab="stepca", view=view, menu=STEPCA_MENU, ca=ca, issued=issued,
                    review=review, inspected=inspected, err=err, key_types=KEY_TYPES, devices=devices or [],
-                   device=device, msg=msg, acme=acme)
+                   device=device, msg=msg, acme=acme, enrolments=enrolments)

@@ -3,6 +3,7 @@ import re
 from webui import agentclient as actions
 from webui import views
 from webui.httpio.upload_value import upload_value
+from webui.routes.enrol_post import enrol_post
 from webui.routes.stepca_page import stepca_page
 from webui.session.page_context import page_context
 
@@ -12,7 +13,8 @@ def stepca_post(h, sess, op, form):
     Inputs:  h — the request handler (send, deny); sess — dict from find_session; op — str after /stepca/:
              'sign/review' (csr_file or csr, device), 'sign' (csr, days, device), 'issue' (cn, sans split on
              spaces/commas, key_type, days, device), 'inspect' (file or data), 'convert' (cert_file or cert, key_file or
-             key), 'revoke' (target, reason), 'acme/enroll' (host, domain: a DNS-01 key for one machine); form —
+             key), 'revoke' (target, reason), 'acme/enroll' (host, domain: a DNS-01 key for one machine),
+             'enrol/...' (enrol_post: device enrolment); form —
              dict from read_form.
     Returns: sign/review: Step-CA sign view with the decoded request; inspect: inspect view with the result;
              revoke: the issued view with what was revoked; acme/enroll: the TSIG key page (its secret and
@@ -23,6 +25,8 @@ def stepca_post(h, sess, op, form):
     Feeds:   post_action (/stepca/…).
     """
     ctx, user = page_context(sess), sess["user"]
+    if op.startswith("enrol/"):              # enrolling a phone, tablet or laptop (manual 1.5.3)
+        return enrol_post(h, sess, op[len("enrol/"):], form)
     back = {"sign/review": "sign", "sign": "sign", "issue": "issue", "inspect": "inspect", "convert": "convert",
             "revoke": "issued", "acme/enroll": "acme"}.get(op)
     if not back:

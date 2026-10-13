@@ -412,6 +412,72 @@ st, res = agent_call("POST", "/v1/tsig/ghost/delete")
 # covers: agent:post.tsig.*.delete -
 check("agent: deleting a TSIG key that does not exist is refused (400, names it), nothing changed",
       st == 400 and "no TSIG key named 'ghost'" in res.get("error", "") and config_files() == before, (st, res))
+# ---- device enrolment through the agent (manual 1.5.3; 0.9: written, not run yet)
+print("--- device enrolment through the agent (1.5.3)")
+vars_before = open(f"{W}/fabric/config/vars.yaml").read()
+with open(f"{W}/fabric/config/vars.yaml", "a") as f:
+    f.write("install_webui: true\nhostname_radius: radius.lan.test\n")     # enrolment lives with the web console
+st, res = agent_call("POST", "/v1/pki/enrol/apple", {"name": "alice-iphone", "ssid": "home-secure"})
+check("agent: no Apple profile before setup made the SCEP decrypter (400, says to run setup)",
+      st == 400 and "not set up" in res.get("error", ""), (st, res))
+shutil.copy(INTER, f"{data}/certs/scep_ra.crt")             # what enrol_apple checks for; scep.py makes the real one
+STORE = f"{W}/fabric/archive/scep-challenges.json"
+st, res = agent_call("POST", "/v1/pki/enrol/apple", {"name": "alice-iphone", "ssid": "home-secure"})
+# covers: agent:post.pki.enrol.apple +
+check("agent: POST /v1/pki/enrol/apple: a profile with a one-time challenge, only its hash kept (0600)",
+      st == 200 and res["filename"] == "alice-iphone.mobileconfig"
+      and b"<string>com.apple.security.scep</string>" in base64.b64decode(res["profile_b64"])
+      and oct(os.stat(STORE).st_mode & 0o777) == "0o600", (st, str(res)[:300]))
+before = open(STORE).read()
+st, res2 = agent_call("POST", "/v1/pki/enrol/apple", {"name": "bad name!"})
+# covers: agent:post.pki.enrol.apple -
+check("agent: a bad name is refused (400, says why), no challenge made",
+      st == 400 and "letters, digits and dashes" in res2.get("error", "") and open(STORE).read() == before, (st, res2))
+st, listed = agent_call("GET", "/v1/pki/enrolments")
+# covers: agent:get.pki.enrolments +
+check("agent: GET /v1/pki/enrolments lists the open profile (never its hash)",
+      st == 200 and [c["cn"] for c in listed["challenges"]] == ["alice-iphone"] and "hash" not in json.dumps(listed),
+      (st, listed))
+cid = res["id"]
+st, res2 = agent_call("POST", f"/v1/pki/enrolments/{cid}/withdraw")
+# covers: agent:post.pki.enrolments.*.withdraw +
+check("agent: withdraw the profile: gone from the list", st == 200 and res2["cn"] == "alice-iphone"
+      and agent_call("GET", "/v1/pki/enrolments")[1]["challenges"] == [], (st, res2))
+st, res2 = agent_call("POST", f"/v1/pki/enrolments/{cid}/withdraw")
+# covers: agent:post.pki.enrolments.*.withdraw -
+check("agent: withdrawing it again is refused (400, says why)",
+      st == 400 and "can no longer be used" in res2.get("error", ""), (st, res2))
+before = ledger_text()
+st, res = agent_call("POST", "/v1/pki/enrol/p12", {"name": "alice-pixel"})
+pw_path = f"{T}/p12.pw"
+with open(pw_path, "w") as f:
+    f.write(res.get("p12_password", "") if st == 200 else "")
+open(f"{T}/alice.p12", "wb").write(base64.b64decode(res.get("p12_b64", "")) if st == 200 else b"")
+opened = sh(["openssl", "pkcs12", "-in", f"{T}/alice.p12", "-passin", f"file:{pw_path}", "-nokeys"], ok=False)
+# covers: agent:post.pki.enrol.p12 +
+check("agent: POST /v1/pki/enrol/p12: a .p12 that opens with its password, the certificate chains to the root, "
+      "recorded as enrol-p12, the password nowhere in the ledger",
+      st == 200 and opened.returncode == 0 and verifies(res["fullchain"])
+      and '"kind": "enrol-p12"' in ledger_text() and res["p12_password"] not in ledger_text(), (st, str(res)[:300]))
+with open(pw_path, "w") as f:
+    f.write("wrong-password")
+check("agent: ...and refused with a wrong password", sh(["openssl", "pkcs12", "-in", f"{T}/alice.p12", "-passin",
+                                                         f"file:{pw_path}", "-nokeys"], ok=False).returncode != 0)
+before = ledger_text()
+st, res = agent_call("POST", "/v1/pki/enrol/p12", {"name": "alice-pixel", "device": "no-such-device"})
+# covers: agent:post.pki.enrol.p12 -
+check("agent: a .p12 for a device the directory cannot confirm (no DC here) is refused, nothing issued",
+      st in (400, 503) and ledger_text() == before, (st, res))
+os.remove(f"{data}/certs/scep_ra.crt")
+with open(STORE, "w") as f:
+    f.write("{damaged")
+st, res = agent_call("GET", "/v1/pki/enrolments")
+# covers: agent:get.pki.enrolments -
+check("agent: a damaged challenge store is an error, never an empty list", st >= 400, (st, res))
+os.remove(STORE)
+with open(f"{W}/fabric/config/vars.yaml", "w") as f:
+    f.write(vars_before)
+
 agent.terminate()
 agent.wait()
 
@@ -582,6 +648,18 @@ land = subprocess.run([sys.executable, os.path.join(REPO, "tests", "pki", "landi
 print("\n".join(line for line in land.stdout.splitlines() if line.startswith(("PASS", "FAIL")))
       or land.stdout[-2000:] + land.stderr[-2000:])
 check("landing certificate: landing.py passed", land.returncode == 0, land.stderr[-400:])
+
+print("--- device enrolment without containers (enrol.py)")
+enr = subprocess.run([sys.executable, os.path.join(REPO, "tests", "pki", "enrol.py")], capture_output=True, text=True)
+print("\n".join(line for line in enr.stdout.splitlines() if line.startswith(("PASS", "FAIL")))
+      or enr.stdout[-2000:] + enr.stderr[-2000:])
+check("device enrolment: enrol.py passed", enr.returncode == 0, enr.stderr[-400:])
+
+print("--- Step-CA's SCEP provisioner (scep.py)")
+sc_run = subprocess.run([sys.executable, os.path.join(REPO, "tests", "pki", "scep.py")], capture_output=True, text=True)
+print("\n".join(line for line in sc_run.stdout.splitlines() if line.startswith(("PASS", "FAIL")))
+      or sc_run.stdout[-2000:] + sc_run.stderr[-2000:])
+check("SCEP: scep.py passed", sc_run.returncode == 0, sc_run.stderr[-400:])
 
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

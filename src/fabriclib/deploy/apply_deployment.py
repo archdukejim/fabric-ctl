@@ -39,6 +39,7 @@ from fabriclib.deploy.restart_changed import restart_changed
 from fabriclib.deploy.service_units import service_units
 from fabriclib.deploy.verify_published_images import verify_published_images
 from fabriclib.federation.deploy_federation_endpoint import deploy_federation_endpoint
+from fabriclib.pki.scep.deploy_scep_hook import deploy_scep_hook
 from fabriclib.secrets.load_secrets import load_secrets
 from fabriclib.secrets.save_secrets import save_secrets
 
@@ -121,6 +122,7 @@ def _deploy(paths, start_services):
     restart |= optional["restart"]
     web = install_webui_files(paths, final_vars)
     fed = deploy_federation_endpoint(final_vars, out, paths["base"])   # host unit + nginx's socket folder, or removal
+    hook = deploy_scep_hook(final_vars, out, paths["base"])            # Step-CA's SCEP webhooks, with the console
     if install_stepca_templates(paths, final_vars):
         restart.add("stepca")
     install_runtime_dirs(paths, final_vars, p["tsig_keys"])
@@ -128,9 +130,10 @@ def _deploy(paths, start_services):
 
     state = {"restart": restart, "rebuild": svc["rebuild"],
              "daemon_reload": svc["daemon_reload"] or ngx["daemon_reload"] or web["agent"]
-             or fed["unit_changed"] or fed["removed"],
+             or fed["unit_changed"] or fed["removed"] or hook["unit_changed"] or hook["removed"],
              "bind9_config": bind["config"], "zones": bind["zones"], "nginx": ngx["nginx"],
-             "webui": web["webui"], "agent": web["agent"], "federation_unit": fed["unit_changed"]}
+             "webui": web["webui"], "agent": web["agent"], "federation_unit": fed["unit_changed"],
+             "scephook_unit": hook["unit_changed"]}
     bind_ids = service_user(final_vars, "bind")
     if not start_services:
         return finish_without_start(paths, state, bind_ids)
