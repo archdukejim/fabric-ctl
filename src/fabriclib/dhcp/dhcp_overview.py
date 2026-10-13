@@ -1,5 +1,6 @@
 from fabriclib.common.errors import ValidationError
 from fabriclib.dhcp.list_leases import list_leases
+from fabriclib.ipam.common.plan_holds_subnets import plan_holds_subnets
 from fabriclib.ipam.planned_subnets import planned_subnets
 from fabriclib.system.host_networks import host_networks
 
@@ -16,7 +17,9 @@ def dhcp_overview(v, networks=None):
              domain-search, routers — shown so a replaced default is never a surprise), "option_defs",
              "client_classes", "leases" (see list_leases), "leases_error" (why leases could not be read, else ""),
              "host_interfaces" ([{"name", "address", "network"}]: what DHCP could serve, Docker's own left out),
-             "has_settings" (bool: subnets kept from before, so turning DHCP on resumes them; manual 1.10.3.5)}.
+             "has_settings" (bool: subnets kept from before, so turning DHCP on resumes them; manual 1.10.3.5),
+             "in_plan" (bool: the subnets live in the address plan, so the Kea tab links to the Networks tab
+             instead of editing them, 1.10.4.21)}.
     Fails:   never for Kea problems — a ValidationError from list_leases goes into leases_error; other errors propagate.
     Feeds:   agent route GET /v1/dhcp (fabric-agent, src/agent/, called by the web UI); run_dhcp_command
              (status, leases).
@@ -27,7 +30,7 @@ def dhcp_overview(v, networks=None):
            "ddns_zone": f"{d.get('ddns_subdomain', 'dhcp')}.{v.get('domain', '')}" if d.get("ddns", True) else "",
            "options": d.get("options") or [], "option_defs": d.get("option_defs") or [],
            "client_classes": d.get("client_classes") or [], "leases": [], "leases_error": "",
-           "has_settings": bool(planned_subnets(v))}
+           "has_settings": bool(planned_subnets(v)), "in_plan": plan_holds_subnets(v)}
     nets = host_networks() if networks is None else networks
     out["host_interfaces"] = [{"name": name, "address": str(a.ip), "network": str(a.network)}
                               for name, addrs in sorted(nets.items())

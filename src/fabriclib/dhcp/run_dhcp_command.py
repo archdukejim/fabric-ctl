@@ -2,6 +2,7 @@ import getpass
 import sys
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.common.load_vars import load_vars
 from fabriclib.dhcp.add_client_class import add_client_class
 from fabriclib.dhcp.add_reservation import add_reservation
 from fabriclib.dhcp.add_subnet import add_subnet
@@ -12,10 +13,12 @@ from fabriclib.dhcp.list_leases import list_leases
 from fabriclib.dhcp.remove_client_class import remove_client_class
 from fabriclib.dhcp.remove_reservation import remove_reservation
 from fabriclib.dhcp.remove_subnet import remove_subnet
+from fabriclib.dhcp.run_dhcp_alias import ALIASES, run_dhcp_alias
 from fabriclib.dhcp.set_dhcp_on import set_dhcp_on
 from fabriclib.dhcp.set_option import set_option
 from fabriclib.dhcp.unset_option import unset_option
 from fabriclib.dhcp.update_subnet import KEEP, update_subnet
+from fabriclib.ipam.common.plan_holds_subnets import plan_holds_subnets
 
 USAGE = """usage: fabricctl dhcp status                       subnets (name, VLAN, notes), pools, options, classes
        fabricctl dhcp on [--interface I --subnet N --pool "a - b" [--router IP]]
@@ -35,7 +38,9 @@ USAGE = """usage: fabricctl dhcp status                       subnets (name, VLA
        fabricctl dhcp class remove <name>
        fabricctl dhcp clean-names [--scheduled]   delete DHCP names left behind for addresses named by hand
                                                    (also hourly, by fabric-dhcp-names.timer: 2.1.10.22)
-   every change applies at once unless --no-apply"""
+   every change applies at once unless --no-apply
+   after the upgrade to the address plan, add-subnet, set-subnet, remove-subnet, reserve and unreserve are
+   aliases of fabricctl ipam (for one release; --name and --vlan of set-subnet are refused)"""
 FLAGS = {"--name", "--vlan", "--router", "--pool", "--notes", "--add-pool", "--remove-pool", "--subnet", "--class",
          "--mac", "--test", "--next-server", "--boot-file", "--allow-overlap", "--interface"}
 
@@ -119,7 +124,9 @@ def _keep(one, flag):
 def run_dhcp_command(v, argv):
     """Purpose: `fabricctl dhcp …` — the Kea tab's operations without the web UI: status, leases, reservations,
              subnets (name, VLAN record, notes, router, pools), options at every level, client classes (manual
-             1.10.2.5); and `clean-names`, the DHCP names left behind for addresses named by hand (1.10.4.20).
+             1.10.2.5); and `clean-names`, the DHCP names left behind for addresses named by hand (1.10.4.20). Once
+             this site's subnets live in the address plan, add-subnet, set-subnet, remove-subnet, reserve and
+             unreserve are aliases of `fabricctl ipam` (run_dhcp_alias, 1.10.4.21).
     Inputs:  v — the rendered vars (SetupContext.load_state().vars); argv — list of str after "dhcp" (default
              status); see USAGE. Every change applies at once unless --no-apply.
     Returns: exit status: 0 success; 1 a ValidationError, unreadable leases or a failed apply; 2 usage (printed to
@@ -131,6 +138,12 @@ def run_dhcp_command(v, argv):
         pos, vals, bare = _parse(args)
         one = {k: x[-1] for k, x in vals.items()}
         where = {"subnet": one.get("--subnet"), "client_class": one.get("--class"), "mac": one.get("--mac")}
+        if cmd in ALIASES and plan_holds_subnets(load_vars()):     # aliases of fabricctl ipam (1.10.4.21)
+            status = run_dhcp_alias(v, cmd, pos, one, vals, bare, args)
+            if status is not None:
+                return status
+            print(USAGE, file=sys.stderr)
+            return 2
         if cmd in ("status", "leases") and not pos:
             d = dhcp_overview(v)
             if not d["enabled"]:

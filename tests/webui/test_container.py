@@ -1427,6 +1427,54 @@ for action in ("update", "rollback"):
     # covers: web:post.overview.images.*.update web:post.overview.images.*.rollback -
     check(f"auditor: an image {action} from the Overview is refused by fabric-agent (403, images:update)",
           st == 403 and "images:update" in body, (st, body[:200]))
+print("--- the Networks tab through fabric-agent (manual 1.10.4.21): permissions, the site, bad input")
+with open(f"{W}/fabric/config/vars.yaml", "a") as f:     # the site this install is (no domain here: reads say so)
+    f.write("site_name: lan\n")
+NETOPS = bundle_roles("fabric-network-operator")
+# covers: agent:get.networks +
+out = agent_call("GET", "/v1/networks", "carol", AUDITOR_ROLES)
+check("auditor token: may read the Networks tab (dhcp:read); with no domain it says why, never fails",
+      " 200 " in out and '"error": "the plan could not be read' in out and '"site": "lan"' in out, out)
+out = agent_call("GET", "/v1/networks/lan/export", "carol", AUDITOR_ROLES)
+check("refused through the agent: an export with no domain to read (400, never a stale copy)", " 400 " in out, out)
+# covers: agent:post.networks.*.vlans -
+for path, body in (("/v1/networks/lan/vlans", {"id": "20", "name": "iot"}), ("/v1/networks/lan/block", {"number": "3"}),
+                   ("/v1/networks/lan/addresses/10.1.20.5/delete", {}), ("/v1/networks/lan/subnets/iot", {"notes": "x"}),
+                   ("/v1/networks/lan/ranges", {"vlan": "20", "kind": "static", "first": "10.1.20.2",
+                                                "last": "10.1.20.9"})):
+    out = agent_call("POST", path, "carol", AUDITOR_ROLES, body)
+    check(f"auditor token: may not change the plan: {path} (403, dhcp:write)", " 403 " in out and "dhcp:write" in out,
+          out)
+out = agent_call("GET", "/v1/networks", "carol", ["fabric-console-admin"])
+check("a token with no fabric permission may not even read it (403, dhcp:read)", " 403 " in out and "dhcp:read" in out,
+      out)
+# covers: agent:get.networks.* -
+out = agent_call("GET", "/v1/networks/upstairs", "dan", NETOPS)
+check("refused: a site that is not this one or below it (400, naming why)",
+      " 400 " in out and "not this site or one below it" in out, out)
+out = agent_call("POST", "/v1/networks/upstairs/vlans", "dan", NETOPS, {"id": "20", "name": "iot"})
+check("refused: a change to such a site, before anything is read or written (400)",
+      " 400 " in out and "not this site or one below it" in out, out)
+for body, why in (({"id": "abc", "name": "iot"}, "1 to 4094"), ({"id": "20", "name": "iot", "dhcp": "maybe"},
+                                                                 "dhcp is on or off"),
+                  ({"id": 20, "name": "iot"}, "id must be text")):
+    out = agent_call("POST", "/v1/networks/lan/vlans", "dan", NETOPS, body)
+    check(f"refused: bad input ({why}), 400 saying why", " 400 " in out and why in out, out)
+out = agent_call("POST", "/v1/networks/lan/vlans/20/move", "dan", NETOPS, {})
+check("refused: a route the permission table does not list (403)", " 403 " in out, out)
+# covers: web:get.networks +
+st, _, _, body = req("GET", "/networks", ALICE, cookie=aud)
+check("auditor: the Networks tab renders (the domain's absence shown), no change forms",
+      st == 200 and "the plan could not be read" in body and "/networks/lan/vlans" not in body
+      and 'href="/networks"' in body, (st, body[:300]))
+# covers: web:post.networks.*.vlans -
+st, _, _, body = req("POST", "/networks/lan/vlans", POSTH, {"csrf": cookie_csrf(aud), "id": "20", "name": "iot"},
+                     cookie=aud)
+check("auditor: a crafted Networks change is refused by fabric-agent (403, dhcp:write)",
+      st == 403 and "dhcp:write" in body, (st, body[:200]))
+st, _, _, body = req("GET", "/networks?site=upstairs", ALICE, cookie=aud)
+check("auditor: a site this console does not show is refused (400)", st == 400 and "not this site" in body,
+      (st, body[:200]))
 # ---------------------------------------------- without a client certificate (webui_client_cert off, manual 2.3.6.2.6.3)
 json.dump({**cfg, "client_cert": False}, open(f"{W}/config/webui.json", "w"))
 os.remove(f"{W}/run/web.sock")

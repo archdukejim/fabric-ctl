@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
+{% macro back(name) %}<input type="hidden" name="back" value="{{ name }}">{% endmacro %}
+{% macro bar(s, tall) %}<svg class="netbar{{ ' tall' if tall }}" viewBox="0 0 1000 24" preserveAspectRatio="none" role="img" aria-label="{{ s.cidr }}: {{ s.counts.used }} of {{ s.counts.size }} addresses in use">
+{% for seg in s.bar %}<rect class="seg seg-{{ seg.kind }}" x="{{ seg.x }}" y="0" width="{{ seg.w }}" height="24"><title>{{ seg.kind if seg.kind != 'none' else 'no range' }} {{ seg.first }} - {{ seg.last }}: {{ seg.used }} of {{ seg.size }} in use</title></rect>
+{% if seg.uw %}<rect class="use" x="{{ seg.x }}" y="17" width="{{ seg.uw }}" height="7"></rect>{% endif %}
+{% endfor %}</svg>{% endmacro %}
+{% macro kind_pill(r) %}{% if r.kind == 'lease' %}<span class="pill warn">lease · unrecorded</span>{% elif r.kind == 'free' %}<span class="pill">free</span>{% elif r.kind == 'gateway' %}<span class="pill ok">gateway</span>{% else %}<span class="pill">{{ r.kind }}</span>{% endif %}{% endmacro %}
+{% block body %}
+<h1>Networks</h1>
+<p class="muted">The address plan: every site's VLANs, their subnets and ranges, and every address — recorded, leased or free. It lives in the domain, so the site above edits the sites below it.</p>
+{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
+{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
+{% if n.stale %}<p class="flash warn">{{ n.stale }}</p>{% endif %}
+{% if n.error %}<p class="flash bad">{{ n.error }}</p>{% endif %}
+
+<section class="card"><h2>Sites</h2>
+<table><thead><tr><th>Site</th><th>Number</th><th></th><th></th></tr></thead><tbody>
+{% for s in n.sites %}<tr{% if s.name == n.site %} class="current"{% endif %}><td><a href="/networks?site={{ s.name | urlencode }}">{{ s.name }}</a> {% if s.own %}<span class="pill ok">this site</span>{% else %}<span class="pill">below this site</span>{% endif %}</td>
+<td>{% if s.block %}{{ s.block }} <span class="muted">(10.{{ s.block }}.&lt;VLAN&gt;.0/24)</span>{% else %}<span class="muted">none (suggested {{ s.suggested or '—' }})</span>{% endif %}</td>
+<td>{% if can('dhcp:write') %}<details><summary>Set its number</summary>
+<form method="post" action="/networks/{{ s.name | urlencode }}/block" class="grid">{{ csrf() }}
+<label>Number (1–255, unique in the organisation)<input name="number" required inputmode="numeric" value="{{ s.block or s.suggested or '' }}"></label>
+<div><button>Set number</button></div></form>
+<p class="muted small">It shapes only what fabric suggests from now on; subnets already in the plan keep their networks.</p></details>{% endif %}</td>
+<td class="num"><a href="/networks?site={{ s.name | urlencode }}">Show</a></td></tr>
+{% endfor %}
+</tbody></table>
+<p class="muted small">A site joins or leaves the organisation in the <a href="/federation">Federation</a> tab.</p>
+</section>
+
+<section class="card"><h2>Site {{ n.site }}{% if n.block %} · number {{ n.block }}{% endif %}</h2>
+<form method="get" action="/networks" class="grid"><input type="hidden" name="site" value="{{ n.site }}">
+<label>Search (an address, a name or a MAC, or part of one)<input name="q" value="{{ q }}" placeholder="10.1.20.15, cam, aa:bb"></label>
+<div><button>Search</button></div></form>
+<p><a href="/networks/export?site={{ n.site | urlencode }}" download>Export the address table (CSV)</a>{% if not n.leases_shown %} <span class="muted">· leases are shown at their own site's console{% if n.leases_error %}; Kea did not answer: {{ n.leases_error }}{% endif %}</span>{% endif %}</p>
+{% if hits is not none %}<h2>Matching {{ q }} <span class="muted">{{ hits | length }}</span></h2>
+{% if hits %}<table><thead><tr><th>Address</th><th>Kind</th><th>Name</th><th>MAC</th><th>Subnet</th><th>Range</th><th>Lease</th></tr></thead><tbody>
+{% for sub, r in hits %}<tr><td>{{ r.ip }}</td><td>{{ kind_pill(r) }}</td><td>{{ r.name or '—' }}</td><td><code>{{ r.mac or '—' }}</code></td><td><a href="/networks?site={{ n.site | urlencode }}&amp;subnet={{ sub | urlencode }}">{{ sub }}</a> {{ r.subnet }}</td><td>{{ r.range or '—' }}</td><td>{{ r.lease or '—' }}</td></tr>{% endfor %}
+</tbody></table>{% else %}<p class="blank">Nothing in {{ n.site }}'s plan or leases matches. <code>fabricctl ipam find</code> searches every site.</p>{% endif %}{% endif %}
+</section>
+
+{% if open %}{% set vlan, s = open %}
+<section class="card"><h2>VLAN {{ vlan.id }} ({{ vlan.name }}) · subnet {{ s.name }} · {{ s.cidr }}</h2>
+<p><a href="/networks?site={{ n.site | urlencode }}">All VLANs of {{ n.site }}</a></p>
+{{ bar(s, true) }}
+<p class="legend"><span class="key seg-gateway"></span>gateway <span class="key seg-static"></span>static <span class="key seg-dhcp"></span>DHCP <span class="key seg-reserved"></span>reserved <span class="key seg-none"></span>no range <span class="key use"></span>in use</p>
+<p class="muted">Gateway {{ s.gateway or '—' }} · DHCP {{ 'on' if s.dhcp else 'off' }}{% if s.relay %} · relay {{ s.relay }}{% endif %} · {{ s.counts.used }} of {{ s.counts.size }} in use, {{ s.counts.free }} free · {{ s.counts.recorded }} recorded, {{ s.counts.leases }} lease(s){% if s.counts.unrecorded %}, <strong>{{ s.counts.unrecorded }} unrecorded</strong>{% endif %}{% if s.notes %} · {{ s.notes }}{% endif %}</p>
+{% if can('dhcp:write') %}<details><summary>Change this subnet</summary>
+<form method="post" action="/networks/{{ n.site | urlencode }}/subnets/{{ s.name | urlencode }}" class="grid">{{ csrf() }}{{ back(s.name) }}
+<label>Gateway (empty: none)<input name="gateway" value="{{ s.gateway or '' }}"></label>
+<label>Served by DHCP<select name="dhcp"><option value="on"{{ ' selected' if s.dhcp }}>on</option><option value="off"{{ ' selected' if not s.dhcp }}>off</option></select></label>
+<label>Relay (only when it lies outside the subnet)<input name="relay" value="{{ s.relay or '' }}"></label>
+<label>Notes<input name="notes" value="{{ s.notes or '' }}" maxlength="500"></label>
+<label>May overlap another network because… (empty: never)<input name="allow_overlap" value="{{ s.allow_overlap or '' }}" maxlength="200"></label>
+<div><button>Save subnet</button></div></form>
+<form method="post" action="/networks/{{ n.site | urlencode }}/subnets/{{ s.name | urlencode }}/delete" class="grid">{{ csrf() }}
+<label><input type="checkbox" name="force" value="on"> with its recorded addresses</label>
+<div><button class="ghost">Remove subnet</button></div></form></details>{% endif %}
+
+<h2>Ranges</h2>
+{% if s.ranges %}<table><thead><tr><th>Kind</th><th>First</th><th>Last</th><th>Notes</th><th></th></tr></thead><tbody>
+{% for r in s.ranges %}<tr><td><span class="key seg-{{ r.kind }}"></span>{{ r.kind }}</td><td>{{ r.first }}</td><td>{{ r.last }}</td><td>{{ r.notes or '' }}</td>
+<td class="num">{% if can('dhcp:write') %}<form method="post" action="/networks/{{ n.site | urlencode }}/ranges/delete" class="inline">{{ csrf() }}{{ back(s.name) }}<input type="hidden" name="vlan" value="{{ vlan.id }}"><input type="hidden" name="first" value="{{ r.first }}"><button class="ghost">Remove</button></form>{% endif %}</td></tr>{% endfor %}
+</tbody></table>{% else %}<p class="blank">No ranges.</p>{% endif %}
+{% if can('dhcp:write') %}<details><summary>Add a range</summary>
+<form method="post" action="/networks/{{ n.site | urlencode }}/ranges" class="grid">{{ csrf() }}{{ back(s.name) }}<input type="hidden" name="vlan" value="{{ vlan.id }}">
+<label>Kind<select name="kind"><option>static</option><option>dhcp</option><option>reserved</option><option>gateway</option></select></label>
+<label>First<input name="first" required></label>
+<label>Last<input name="last" required></label>
+<label>Notes<input name="notes" maxlength="500"></label>
+<div><button>Add range</button></div></form></details>{% endif %}
+
+<h2>Addresses</h2>
+<table><thead><tr><th>Address</th><th>Kind</th><th>Range</th><th>Name</th><th>MAC</th><th>Owner</th><th>DNS</th><th>Lease</th><th>Notes</th></tr></thead><tbody>
+{% for r in s.rows %}<tr class="row-{{ r.kind }}">
+{% if r.kind == 'free' %}<td>{{ r.ip }}{% if r.count > 1 %} – {{ r.last }}{% endif %}</td><td>{{ kind_pill(r) }}</td><td>{{ r.range or '—' }}</td><td colspan="6" class="muted">{{ r.count }} address{{ 'es' if r.count != 1 }}</td>
+{% else %}<td>{{ r.ip }}</td><td>{{ kind_pill(r) }}</td><td>{{ r.range or '—' }}</td><td>{{ r.name or '—' }}</td><td><code>{{ r.mac or '—' }}</code></td><td>{{ r.owner or '' }}</td><td>{{ 'yes' if r.dns else '' }}</td><td>{{ r.lease or '' }}</td><td>{{ r.notes or '' }}</td>{% endif %}</tr>
+{% if can('dhcp:write') and r.kind in ('static', 'reservation', 'infrastructure') %}<tr><td colspan="9"><details><summary>Change {{ r.ip }}</summary>
+<form method="post" action="/networks/{{ n.site | urlencode }}/addresses/{{ r.ip | urlencode }}" class="grid">{{ csrf() }}{{ back(s.name) }}
+<label>Kind<select name="kind">{% for k in ('static', 'reservation', 'infrastructure') %}<option{{ ' selected' if k == r.kind }}>{{ k }}</option>{% endfor %}</select></label>
+<label>Name (one DNS label; empty: none)<input name="name" value="{{ r.name or '' }}"></label>
+<label>MAC (a reservation's; empty: none)<input name="mac" value="{{ r.mac or '' }}"></label>
+<label>Owner<input name="owner" value="{{ r.owner or '' }}" maxlength="200"></label>
+<label>Notes<input name="notes" value="{{ r.notes or '' }}" maxlength="500"></label>
+<label>In DNS (A and PTR in the site's zone)<select name="dns"><option value="off"{{ ' selected' if not r.dns }}>off</option><option value="on"{{ ' selected' if r.dns }}>on</option></select></label>
+<div><button>Save address</button></div></form>
+<form method="post" action="/networks/{{ n.site | urlencode }}/addresses/{{ r.ip | urlencode }}/delete" class="inline">{{ csrf() }}{{ back(s.name) }}<button class="ghost">Remove {{ r.ip }}</button></form>
+</details></td></tr>{% endif %}
+{% if can('dhcp:write') and r.kind == 'lease' %}<tr><td colspan="9"><details><summary>Record {{ r.ip }}</summary>
+<form method="post" action="/networks/{{ n.site | urlencode }}/addresses" class="grid">{{ csrf() }}{{ back(s.name) }}<input type="hidden" name="ip" value="{{ r.ip }}"><input type="hidden" name="vlan" value="{{ vlan.id }}">
+<label>As<select name="kind"><option value="reservation">a reservation for this device</option><option value="static">a static record</option></select></label>
+<label>MAC<input name="mac" value="{{ r.mac or '' }}"></label>
+<label>Name<input name="name" value="{{ r.name or '' }}"></label>
+<label>Owner<input name="owner" maxlength="200"></label>
+<div><button>Record it</button></div></form></details></td></tr>{% endif %}
+{% endfor %}
+</tbody></table>
+{% if can('dhcp:write') %}<details><summary>Record an address</summary>
+<form method="post" action="/networks/{{ n.site | urlencode }}/addresses" class="grid">{{ csrf() }}{{ back(s.name) }}<input type="hidden" name="vlan" value="{{ vlan.id }}">
+<label>Address<input name="ip" required placeholder="{{ s.gateway or s.cidr }}"></label>
+<label>Kind<select name="kind"><option>static</option><option>reservation</option><option>infrastructure</option></select></label>
+<label>Name (one DNS label)<input name="name"></label>
+<label>MAC (needed for a reservation)<input name="mac" placeholder="aa:bb:cc:dd:ee:ff"></label>
+<label>Owner<input name="owner" maxlength="200"></label>
+<label>Notes<input name="notes" maxlength="500"></label>
+<label>In DNS<select name="dns"><option value="off">off</option><option value="on">on</option></select></label>
+<div><button>Record address</button></div></form>
+<p class="muted small">One claim per address; inside a DHCP range only a reservation. Applied at once at this site.</p></details>{% endif %}
+
+<h2>Options</h2>
+<p class="muted">What this subnet's clients get and where each option comes from; the most specific level wins.</p>
+{% if s.options %}<table><thead><tr><th>Option</th><th>Code</th><th>Value</th><th>From</th><th></th></tr></thead><tbody>
+{% for o in s.options %}<tr{% if o.overridden %} class="overridden"{% endif %}><td>{{ o.name or '—' }}</td><td class="num">{{ o.code or '—' }}</td><td><code>{{ o.data }}</code></td><td>{{ o.source }}</td>
+<td>{% if o.provided %}<span class="pill ok">provided by fabric</span>{% endif %}{% if o.overridden %} <span class="pill warn">overridden by {{ o.overridden }}</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table>{% else %}<p class="blank">No options.</p>{% endif %}
+{% for ip, rows in (s.reservation_options or {}).items() %}<h3>Reservation {{ ip }}</h3>
+<table><tbody>{% for o in rows if o.source == 'reservation' %}<tr><td>{{ o.name or '—' }}</td><td class="num">{{ o.code or '—' }}</td><td><code>{{ o.data }}</code></td><td>reservation</td></tr>{% endfor %}</tbody></table>{% endfor %}
+</section>
+{% else %}
+
+<section class="card"><h2>VLANs</h2>
+{% if n.vlans %}<table><thead><tr><th>VLAN</th><th>Name</th><th>Access</th><th>Purpose</th><th>Subnets</th></tr></thead><tbody>
+{% for vlan in n.vlans %}<tr><td class="num">{{ vlan.id }}</td><td>{{ vlan.name }}</td><td>{{ vlan.access }}</td><td>{{ vlan.purpose or '' }}</td>
+<td>{% for s in vlan.subnets %}<div class="subnet"><a href="/networks?site={{ n.site | urlencode }}&amp;subnet={{ s.name | urlencode }}">{{ s.cidr }}</a>{% if s.name != vlan.name %} ({{ s.name }}){% endif %} <span class="muted">{{ s.counts.used }}/{{ s.counts.size }} in use{% if s.counts.unrecorded %} · {{ s.counts.unrecorded }} unrecorded{% endif %}{% if not s.dhcp %} · DHCP off{% endif %}</span>{{ bar(s, false) }}</div>{% else %}<span class="muted">a record only (no subnet)</span>{% endfor %}</td></tr>
+{% if can('dhcp:write') %}<tr><td colspan="5"><details><summary>Change VLAN {{ vlan.id }}</summary>
+<form method="post" action="/networks/{{ n.site | urlencode }}/vlans/{{ vlan.id }}" class="grid">{{ csrf() }}
+<label>Name<input name="name" value="{{ vlan.name }}" required></label>
+<label>Purpose<input name="purpose" value="{{ vlan.purpose or '' }}" maxlength="200"></label>
+<label>Notes<input name="notes" value="{{ vlan.notes or '' }}" maxlength="500"></label>
+<label>Access<select name="access"><option value="full"{{ ' selected' if vlan.access == 'full' }}>full (fabric's services)</option><option value="guest"{{ ' selected' if vlan.access == 'guest' }}>guest (DNS and NTP only)</option></select></label>
+<div><button>Save VLAN</button></div></form>
+<form method="post" action="/networks/{{ n.site | urlencode }}/subnets" class="grid">{{ csrf() }}<input type="hidden" name="vlan" value="{{ vlan.id }}">
+<label>Another subnet<input name="cidr" required placeholder="10.{{ n.block or 'n' }}.{{ vlan.id }}.0/24"></label>
+<label>Its name (empty: the VLAN's, or &lt;name&gt;-2)<input name="name"></label>
+<label>Gateway (empty: the first host)<input name="gateway"></label>
+<label>Served by DHCP<select name="dhcp"><option value="on">on</option><option value="off">off</option></select></label>
+<label>Suggested ranges in a /24<select name="split"><option value="on">add them</option><option value="off">none</option></select></label>
+<label>May overlap another network because…<input name="allow_overlap" maxlength="200"></label>
+<div><button>Add subnet</button></div></form>
+<form method="post" action="/networks/{{ n.site | urlencode }}/vlans/{{ vlan.id }}/delete" class="grid">{{ csrf() }}
+<label><input type="checkbox" name="force" value="on"> with its subnets' recorded addresses</label>
+<div><button class="ghost">Remove VLAN {{ vlan.id }}</button></div></form>
+</details></td></tr>{% endif %}
+{% endfor %}
+</tbody></table>{% else %}<p class="blank">No VLANs in {{ n.site }}'s plan yet.</p>{% endif %}
+{% if can('dhcp:write') %}<details><summary>Add a VLAN</summary>
+<form method="post" action="/networks/{{ n.site | urlencode }}/vlans" class="grid">{{ csrf() }}
+<label>VLAN ID (1–4094)<input name="id" required inputmode="numeric" placeholder="20"></label>
+<label>Name (one DNS label)<input name="name" required placeholder="iot"></label>
+<label>Subnet (empty: 10.{{ n.block or n.suggested_block or 'n' }}.&lt;VLAN&gt;.0/24)<input name="subnet"></label>
+<label>No subnet (a record only)<select name="no_subnet"><option value="off">no: give it a subnet</option><option value="on">yes</option></select></label>
+<label>Gateway (empty: the first host)<input name="gateway"></label>
+<label>Access<select name="access"><option value="full">full (fabric's services)</option><option value="guest">guest (DNS and NTP only)</option></select></label>
+<label>Served by DHCP<select name="dhcp"><option value="on">on</option><option value="off">off</option></select></label>
+<label>Suggested ranges in a /24<select name="split"><option value="on">add them</option><option value="off">none</option></select></label>
+<label>Relay (only when it lies outside the subnet)<input name="relay"></label>
+<label>Purpose<input name="purpose" maxlength="200"></label>
+<label>Notes<input name="notes" maxlength="500"></label>
+<label>May overlap another network because…<input name="allow_overlap" maxlength="200"></label>
+<div><button>Add VLAN</button></div></form>
+<p class="muted small">In a /24, fabric suggests gateway .1, static .2–.99, DHCP .100–.249, reserved .250–.254. A change to this site is applied at once; another site's at its next apply.</p></details>{% endif %}
+</section>
+{% if n.networks %}<section class="card"><h2>The site's other networks</h2>
+<table><thead><tr><th>Name</th><th>Network</th><th>Kind</th></tr></thead><tbody>
+{% for x in n.networks %}<tr><td>{{ x.name }}</td><td>{{ x.cidr }}</td><td>{{ x.kind }}</td></tr>{% endfor %}
+</tbody></table></section>{% endif %}
+{% endif %}
+{% endblock %}

@@ -18,3 +18,6 @@ The dev preview (`devserver.py`): the real pages over in-memory sample data; no 
 | `sample_radius_guides.py` | The FreeRADIUS setup guides as fabric-agent fills them in, built from the sample RADIUS data and the dev preview's own throwaway CA (SAMPLE_ROOT_PEM). Sample only; nothing is read from a host. |
 | `sample_result.py` | A fake PKI result for the sign/issue/convert result page, shaped like fabric-agent's reply. |
 | `__init__.py` | Empty; makes it a package |
+| `dev_networks_page.py` | The Networks tab over the sample address plan (drawn by fabriclib's networks_view from a checkout), and its CSV export |
+| `dev_post_networks.py` | The Networks tab's changes on the sample plan in memory: the site's number, VLANs, addresses |
+| `sample_networks.py` | The sample address plan: a top site with a house below it, and this site's leases |

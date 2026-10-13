@@ -4,6 +4,7 @@
 TABS = [
     ("overview", "/", "Overview", False),
     ("bind9", "/bind9", "BIND9 · DNS", False),
+    ("networks", "/networks", "Networks", True),
     ("kea", "/kea", "Kea · DHCP", True),
     ("dnsfilter", "/dns-filter", "DNS filter", True),
     ("stepca", "/stepca", "Step-CA · PKI", False),
@@ -71,7 +72,8 @@ PREVIEW_PERMS = ["status:read", "dns:read", "dns:write", "tsig:manage", "dhcp:re
                  "federation:read",
                  "vault:status", "vault:unlock", "audit:read", "dns:filter", "dns:querylog"]
 # tab -> the permission(s) that show it (any of them)
-TAB_PERMS = {"overview": ("status:read",), "bind9": ("dns:read",), "kea": ("dhcp:read",), "stepca": ("pki:read",),
+TAB_PERMS = {"overview": ("status:read",), "bind9": ("dns:read",), "kea": ("dhcp:read",), "networks": ("dhcp:read",),
+             "stepca": ("pki:read",),
              "dnsfilter": ("dns:filter", "dns:querylog"),
              "directory": ("devices:read", "people:read", "domain:read"), "freeradius": ("radius:read",),
              "openbao": ("vault:status",), "federation": ("federation:read",),
