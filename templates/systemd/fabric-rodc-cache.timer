@@ -1,0 +1,10 @@
+[Unit]
+Description=fabric: keep the read-only DC's cached accounts in step with the site, hourly (manual 1.6.11.14, 2.1.6.55)
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=1h
+AccuracySec=5min
+
+[Install]
+WantedBy=timers.target

@@ -12,6 +12,7 @@ from fabriclib.keycloak.install_sso_keytab import install_sso_keytab
 from fabriclib.ipam.move_subnets_to_plan import move_subnets_to_plan
 from fabriclib.ipam.options.move_options_to_plan import move_options_to_plan
 from fabriclib.samba.converge_domain import converge_domain
+from fabriclib.samba.sync_rodc_cache import sync_rodc_cache
 from fabriclib.samba.write_bind_dlz import write_bind_dlz
 from fabriclib.setup.errors import SetupError
 from fabriclib.setup.service_order import ORDER
@@ -75,9 +76,9 @@ def _enabled(unit):
 def restart_changed(paths, final_vars, secrets, state, bind_ids):
     """Purpose: the end of an apply on a running install: build changed images, restart what changed, reload BIND's
              configuration and zones and nginx live, converge the domain (and move 0.7's DHCP subnets into the address
-             plan once, 1.10.4.15), delete DHCP names left behind for addresses set by hand (2.1.10.22), and restart
-             fabric-agent, the federation endpoint, the SCEP hook (with the web UI) and the web UI last without
-             blocking.
+             plan once, 1.10.4.15; at a read-only DC's site cache its people and machines there, 2.1.6.55), delete
+             DHCP names left behind for addresses set by hand (2.1.10.22), and restart fabric-agent, the federation
+             endpoint, the SCEP hook (with the web UI) and the web UI last without blocking.
     Inputs:  paths — deploy_paths() (base, target, federation); final_vars — rendered settings (federation_endpoint,
              install_webui,
              and what converge_domain reads); secrets — fabric's secrets (the domain's service accounts); state —
@@ -86,8 +87,8 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
     Fails:   ValidationError when a restarted service does not come back healthy (the rollout stops there, nothing
              after it runs: 2.1.14.15) or BIND refuses `rndc reconfig` (a silent failure would leave a removed TSIG
              key working), or refuses deleting a DHCP name left behind (raised last, the rest of the apply done:
-             2.1.10.22). Timeouts of other systemctl/docker calls and a domain that cannot be converged are
-             reported, not raised.
+             2.1.10.22). Timeouts of other systemctl/docker calls and a domain that cannot be converged (or a
+             read-only DC that cannot cache the site's accounts) are reported, not raised.
     Feeds:   apply_deployment (start_services=True: `fabricctl --apply`, the web UI's Apply).
     Notes:   restarts go one at a time in dependency order, each health-gated (_roll_out). BIND down or about to
              restart reads its zone files on start, so they are installed first (a running
@@ -138,6 +139,11 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
                 print(line)
             for line in move_options_to_plan(final_vars, secrets):    # once: the global options too (2.1.10.23)
                 print(line)
+            try:                                  # a read-only DC's site: its people and machines cached (2.1.6.55)
+                for line in sync_rodc_cache(final_vars, secrets):
+                    print(line)
+            except ValidationError as e:
+                print(f"Warning: the site's people and machines are not all cached at its read-only DC: {e}")
             if final_vars.get("install_keycloak") and install_sso_keytab(final_vars) and "keycloak" in running:
                 print("Restarting Keycloak (Kerberos sign-in keytab)...")
                 _quiet(["systemctl", "restart", "keycloak"], "Restart of keycloak", 180)

@@ -27,6 +27,7 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `host_logon_default.py` | The log-on policy of the site's OU=fabric-hosts while the setting names none: the fabric admins (2.1.6.53) |
 | `writable_server.py` | The DC a write to the domain goes to: this site's, or a read-only DC's writable partner (`ad_join_server`); refused with none known (2.1.6.52, 2.1.10.23) |
 | `allow_rodc_cache.py` | At a site whose DC is read-only: puts `<site>-rodc-cache` on that DC's password replication allow list, at the writable DC (2.1.6.52) |
+| `sync_rodc_cache.py` | At a site whose DC is read-only: the DC's lists checked (the cache group allowed, the denied list whole), `<site>-rodc-cache` kept at the writable DC (the site's people groups nested, its machines members), the site's own accounts preloaded (2.1.6.55) |
 | `gpo_request.py` | One ADMX-editor operation inside the DC (`gpo_tool.py`), the request on stdin |
 | `run_gpo_command.py` | `fabricctl gpo load / templates / list / show / set / clear / starter` |
 | `domain_overview.py` | The Directory tab's domain section: the DC, the policy, this site's machines |

@@ -1,0 +1,8 @@
+[Unit]
+Description=fabric: cache the site's people and machines at its read-only DC (manual 1.6.11.14)
+After=docker.service fabric.target
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/fabricctl domain rodc-cache --scheduled

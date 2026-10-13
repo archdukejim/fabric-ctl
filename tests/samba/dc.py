@@ -25,6 +25,7 @@ from fabriclib.radius.windows_lan_profile import windows_lan_profile  # noqa: E4
 from fabriclib.samba.allow_rodc_cache import allow_rodc_cache  # noqa: E402
 from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
 from fabriclib.samba.deploy_samba import deploy_samba  # noqa: E402
+from fabriclib.samba.sync_rodc_cache import sync_rodc_cache  # noqa: E402
 from fabriclib.samba.write_bind_dlz import write_bind_dlz  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
@@ -876,11 +877,93 @@ pre_other = sh(["docker", "exec", RODC, "samba-tool", "rodc", "preload", "LABOTH
                 "/data/etc/smb.conf"], ok=False)
 check("negative: a machine outside lab-rodc-cache is not cached (the allow list holds the group, not every machine)",
       pre_other.returncode != 0, (pre_other.stdout + pre_other.stderr)[-400:])
+
+# the site's people and machines cached at its read-only DC (decision 2.1.6.55, manual 1.6.11.14): lab-users and
+# lab-admins nested in lab-rodc-cache, the site's machines members, nothing else; the site's own accounts preloaded;
+# privileged accounts never cached (the denied list wins); a person removed from the site cached no more
+CONF = "/data/etc/smb.conf"
+people_pw = {name: random_password(20) for name in ("stayer", "leaver", "taker", "labboss", "outsider")}
+for name in ("stayer", "leaver", "taker", "labboss"):
+    dc("samba-tool", "user", "create", name, people_pw[name], "--userou=OU=people,OU=lab,OU=lan,OU=sites", "-s", CONF)
+for name in ("stayer", "leaver", "taker"):
+    dc("samba-tool", "group", "addmembers", "lab-users", name, "-s", CONF)
+dc("samba-tool", "group", "addmembers", "lab-admins", "labboss", "-s", CONF)
+dc("samba-tool", "group", "addmembers", "Domain Admins", "labboss", "-s", CONF)
+dc("samba-tool", "user", "create", "outsider", people_pw["outsider"], "--userou=OU=people,OU=lan,OU=sites", "-s", CONF)
+dc("samba-tool", "group", "addmembers", "lab-rodc-cache", "outsider", "-s", CONF)    # by hand: fabric takes it out
+rcv = {**v, **rv}
+
+
+def rodc_sync():
+    try:
+        return sync_rodc_cache(rcv, lab_sec, container=RODC), ""
+    except ValidationError as e:
+        return None, str(e)
+
+
+def preload_at_rodc(account):
+    return sh(["docker", "exec", RODC, "samba-tool", "rodc", "preload", account, f"--server={IP}", "-s", CONF],
+              ok=False)
+
+
+def replicate_to_rodc():
+    sh(["docker", "exec", RODC, "samba-tool", "drs", "replicate", "rodc1.ad.lan.test", "dc1.ad.lan.test", BASE,
+        "--local", "-s", CONF], ok=False)
+
+
+synced, why = rodc_sync()
+cache = members("lab-rodc-cache")
+check("sync_rodc_cache: lab-users and lab-admins nested in lab-rodc-cache, the site's machines members (2.1.6.55)",
+      synced is not None and {"lab-users", "lab-admins", "labhost", "labother"} <= cache, (synced, why, cache))
+check("...a direct member fabric did not put there (another site's person, added by hand) taken out",
+      "outsider" not in cache and any("outsider taken out" in x for x in synced or []), (synced, cache))
+check("...the site's people preloaded: stayer and the site admin labadmin (through lab-admins)",
+      preload_at_rodc("stayer").returncode == 0 and any("of the site's accounts cached" in x for x in synced or []),
+      synced)
+check("negative: a Domain Admin among the site's admins is never cached (the denied list wins over the nesting)",
+      any("not cached (refused by its denied list)" in x and "labboss" in x.lower() for x in synced or [])
+      and preload_at_rodc("labboss").returncode != 0, synced)
+again, why = rodc_sync()
+check("...a second sync changes no membership", again is not None
+      and not [x for x in again if "added" in x or "taken out" in x], (again, why))
+dc("samba-tool", "group", "addmembers", "lab-users", "outsider", "-s", CONF)
+nested, why = rodc_sync()
+check("negative: another site's person nested in lab-users: refused loudly, named with the group, never preloaded",
+      nested is None and "outsider" in why.lower() and "through lab-users" in why, why)
+dc("samba-tool", "group", "removemembers", "lab-users", "outsider", "-s", CONF)
+check("negative: the Administrator is never cached, whatever fabric's groups hold",
+      preload_at_rodc("Administrator").returncode != 0)
+# a person removed from the site (fabric deletes the account at the writable DC) and one taken out of lab-users
+run_op({**v, "site_name": "lab"}, lab_sec, "remove_person", {"uid": "leaver"}, DC, IP)
+dc("samba-tool", "group", "removemembers", "lab-users", "taker", "-s", CONF)
+replicate_to_rodc()
+after, why = rodc_sync()
+check("a person removed from the site is no longer in the RODC's copy (the deletion replicated) nor preloadable",
+      after is not None and "leaver" not in sh(["docker", "exec", RODC, "ldbsearch", "-H", "/data/private/sam.ldb",
+                                                 "(sAMAccountName=leaver)", "dn"], ok=False).stdout
+      and preload_at_rodc("leaver").returncode != 0, (after, why))
+check("negative: a person taken out of lab-users is refused by the writable DC at a preload (no longer allowed)",
+      preload_at_rodc("taker").returncode != 0)
+try:
+    sync_rodc_cache({**rcv, "ad_join_server": "10.254.30.99"}, lab_sec, container=RODC)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: sync_rodc_cache with the writable DC not answering: refused", why != "", why)
 sh(["docker", "stop", DC])
 check("with the writable DC down: a cached person signs in at the RODC", ntlm_at_rodc("cachy", cached_pw))
+check("with the writable DC down: a person of the site, cached through lab-users, signs in at the RODC (2.1.6.55)",
+      ntlm_at_rodc("stayer", people_pw["stayer"]))
+check("with the writable DC down: the site's admin, cached through lab-admins, signs in at the RODC",
+      ntlm_at_rodc("labadmin", lab_pw))
 check("with the writable DC down: refused, the Administrator (never cached)", not ntlm_at_rodc("Administrator",
                                                                                                admin_pw))
-check("with the writable DC down: refused, a person the RODC does not cache", not ntlm_at_rodc("labadmin", lab_pw))
+check("with the writable DC down: refused, a Domain Admin among the site's admins (never cached)",
+      not ntlm_at_rodc("labboss", people_pw["labboss"]))
+check("with the writable DC down: refused, a person removed from the site", not ntlm_at_rodc("leaver",
+                                                                                             people_pw["leaver"]))
+check("with the writable DC down: refused, another site's person the RODC does not cache",
+      not ntlm_at_rodc("outsider", people_pw["outsider"]))
 check("with the writable DC down: the fabric host's account, cached, signs in at the RODC (2.1.6.52)",
       ntlm_at_rodc("LABHOST$", host_pw))
 with open(os.path.join(W, "op.ldif"), "w") as f:
