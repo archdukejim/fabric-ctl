@@ -68,7 +68,7 @@ def run_gpo_command(v, args, container="samba"):
             if len(rest) != 1:
                 print(USAGE)
                 return 2
-            done = gpo_request({"op": "load", "site": site, "files": _files(rest[0])}, container)
+            done = gpo_request({"op": "load", "site": site, "files": _files(rest[0])}, container, v)
             write_audit(getpass.getuser(), "GPO_TEMPLATES_LOAD", "files=" + ",".join(done), "cli")
             print("loaded: " + ", ".join(done))
         elif op == "templates":

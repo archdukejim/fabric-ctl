@@ -14,7 +14,7 @@ def set_gpo_policy(v, actor, policy, values, enabled=True, source="cli", contain
     Notes:   audited as GPO_SET."""
     site = v["site_name"]
     done = gpo_request({"op": "set", "site": site, "policy": policy, "values": values or {}, "enabled": bool(enabled),
-                        "control": bool(control)}, container)
+                        "control": bool(control)}, container, v)
     write_audit(actor, "GPO_SET", f"site={site} policy={policy}" + ("" if enabled else " disabled")
                 + (" control" if control else ""), source)
     return done

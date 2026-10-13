@@ -4,9 +4,9 @@ site's fabric-agent account — so AD's per-site limits apply to it (1.6.3.6) �
 The request on stdin (never a command line: it holds the account's password): {"op", "args" {…}, "site", "account",
 "password", optional "server" (another DC's address: a read-only DC's site writes at its writable partner,
 2.1.6.52)}. Prints one JSON object: {"result": …} or {"error": message, "kind":
-refused|exists|missing|rejected|invalid|other} (exit 0 either way: the caller maps the kind to its own errors). An
-operation's own refusal (a ValueError: "no such user: …") is kind "invalid", its message meant for the person
-asking."""
+refused|exists|missing|rejected|invalid|unreachable|other} ("unreachable": another DC named by "server" did not
+answer) (exit 0 either way: the caller maps the kind to its own errors). An operation's own refusal (a ValueError:
+"no such user: …") is kind "invalid", its message meant for the person asking."""
 import json
 import sys
 
@@ -47,7 +47,8 @@ def run(request):
     """Purpose: one operation of directory_ops.OPS, as the request's account.
     Inputs:  request — dict: op (a key of OPS), args (dict), site, account, password, server (optional).
     Returns: dict {"result": the operation's result} or {"error", "kind"}.
-    Fails:   never: errors become {"error", "kind"} (an unknown op: kind "invalid").
+    Fails:   never: errors become {"error", "kind"} (an unknown op: kind "invalid"; another DC that does not answer
+             the sign-in: kind "unreachable").
     Feeds:   this script's main."""
     op = OPS.get(request.get("op"))
     if op is None:
@@ -55,6 +56,12 @@ def run(request):
     try:
         samdb, lp = connect(request["site"], request["account"], request["password"],
                             request.get("server") or "127.0.0.1")
+    except ldb.LdbError as e:
+        code, message = e.args[0], (e.args[1] if len(e.args) > 1 else str(e))
+        if request.get("server") and code != ldb.ERR_INVALID_CREDENTIALS:     # the writable DC did not answer
+            return {"error": message, "kind": "unreachable"}
+        return {"error": message, "kind": KINDS.get(code, "other")}
+    try:
         return {"result": op(samdb, lp, request["site"], **(request.get("args") or {}))}
     except ldb.LdbError as e:
         code, message = e.args[0], (e.args[1] if len(e.args) > 1 else str(e))

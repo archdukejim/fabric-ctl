@@ -950,7 +950,53 @@ try:
 except ValidationError as e:
     why = str(e)
 check("negative: sync_rodc_cache with the writable DC not answering: refused", why != "", why)
+
+# every directory write at the read-only DC's site goes to its writable DC through the one routing point, run_op
+# (2.1.6.52, revised 2026-10-13): no server named by the caller, the vars say the DC is read-only
+routed_pw = "Pw-" + random_password(20)
+made = run_op(rcv, lab_sec, "create_person", {"uid": "routed", "first": "Routed", "last": "Test",
+                                              "email": "routed@lan.test", "password": routed_pw, "gid": 5000,
+                                              "home_base": "/home", "shell": "/bin/bash"}, RODC)
+check("a person made at the read-only DC's site (as its console does) is made at the writable DC",
+      "dn: CN=routed," in dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=routed)", "dn").stdout, made)
+run_op(rcv, lab_sec, "set_person", {"uid": "routed", "enabled": False}, RODC)
+uac = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=routed)", "userAccountControl").stdout
+check("...disabled there too (set_person routed)", any(int(x.split(": ")[1]) & 2 for x in uac.splitlines()
+                                                      if x.startswith("userAccountControl: ")), uac)
+replicate_to_rodc()
+listed = run_op(rcv, lab_sec, "list_people", {}, RODC)
+check("...a read (list_people) answered by the read-only DC itself, after replication",
+      any(p.get("uid") == "routed" for p in listed["users"]), listed)
+run_op(rcv, lab_sec, "remove_person", {"uid": "routed"}, RODC)
+check("...removed at the writable DC (remove_person routed)",
+      "routed" not in dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=routed)", "dn").stdout)
+try:
+    run_op({**rcv, "ad_join_server": ""}, lab_sec, "create_person", {"uid": "nowhere"}, RODC)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: a write at the read-only DC's site with no writable DC known: refused, nothing asked",
+      "read-only" in why and "nowhere" not in dc("ldbsearch", "-H", "/data/private/sam.ldb",
+                                                 "(sAMAccountName=nowhere)", "dn").stdout, why)
+try:
+    run_op({**rcv, "ad_join_server": "10.254.30.99"}, lab_sec, "save_device", {"name": "x"}, RODC)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: a write with the writable DC not answering: said plainly, naming it", "10.254.30.99 does not answer"
+      in why, why)
 sh(["docker", "stop", DC])
+try:
+    run_op(rcv, lab_sec, "create_person", {"uid": "linkdown", "first": "L", "last": "D", "email": "ld@lan.test",
+                                           "password": routed_pw, "gid": 5000, "home_base": "/home",
+                                           "shell": "/bin/bash"}, RODC)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: with the writable DC down, a write at the read-only DC's site is refused, nothing changed",
+      "does not answer" in why, why)
+check("with the writable DC down: a read at the read-only DC's site still works",
+      isinstance(run_op(rcv, lab_sec, "list_people", {}, RODC).get("users"), list))
 check("with the writable DC down: a cached person signs in at the RODC", ntlm_at_rodc("cachy", cached_pw))
 check("with the writable DC down: a person of the site, cached through lab-users, signs in at the RODC (2.1.6.55)",
       ntlm_at_rodc("stayer", people_pw["stayer"]))
