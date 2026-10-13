@@ -302,8 +302,9 @@ except ValidationError as e:
 ous = dc("ldbsearch", "-H", "/data/private/sam.ldb", "-b", f"OU=sites,{BASE}", "(objectClass=organizationalUnit)",
          "dn").stdout
 check("the site's OU tree under OU=sites, with OU=organisation at the root site",
-      # sites, lan, its eight OUs and OU=machines' linux and windows (1.6.11.5), organisation and its three
-      ous.count("dn: ") == 16 and f"OU=organisation,OU=lan,OU=sites,{BASE}" in ous, ous.count("dn: "))
+      # sites, lan, its nine OUs (OU=fabric-hosts since 0.7.1, 1.6.11.11) and OU=machines' linux and windows
+      # (1.6.11.5), organisation and its three
+      ous.count("dn: ") == 17 and f"OU=organisation,OU=lan,OU=sites,{BASE}" in ous, ous.count("dn: "))
 check("the directory is consistent (dbcheck)", "(0 errors)" in dc("samba-tool", "dbcheck", "-s", "/data/etc/smb.conf",
                                                                   "--cross-ncs").stdout)
 policy = dc("samba-tool", "domain", "passwordsettings", "show", "-s", "/data/etc/smb.conf").stdout

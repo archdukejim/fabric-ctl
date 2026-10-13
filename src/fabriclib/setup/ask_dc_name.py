@@ -14,8 +14,8 @@ def ask_dc_name(ctx):
     Inputs:  ctx — SetupContext: vars (dc_name, hostname, ad_domain, ad_netbios), non_interactive. Interactive unless
              non_interactive.
     Returns: None; ctx.vars["dc_name"] set, lower case: a valid name already set is kept; unattended, a missing one
-             takes the suggestion; asked (marked "⚠ Permanent", 2.1.2.20), Enter takes the suggestion and a name
-             the DC cannot have is refused, saying why, and asked again.
+             takes the suggestion; asked (one set but unusable said why first; marked "⚠ Permanent", 2.1.2.20),
+             Enter takes the suggestion and a name the DC cannot have is refused, saying why, and asked again.
     Fails:   SetupError unattended for a dc_name set but invalid (dc_name_problem); EOFError from ask().
     Feeds:   setup/collect_vars (after the AD domain)."""
     v = ctx.vars
@@ -33,6 +33,8 @@ def ask_dc_name(ctx):
             raise SetupError(f"dc_name: {dc_name_problem(current, netbios, host)} (manual 1.6.5.23)")
         v["dc_name"] = suggestion
         return
+    if current:                                    # set but not usable (e.g. the host's own name): said, then asked
+        print(f"    {YELLOW}dc_name {dc_name_problem(current, netbios, host)}{NC}")
     while True:
         answer = ask("setup.dc_name", f"    Domain controller's name{permanent_mark('dc_name')}"
                      f"{f' [{suggestion}]' if suggestion else ''}: ").lower()

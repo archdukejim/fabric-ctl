@@ -200,8 +200,11 @@ got, said = ask_dc(["a-name-far-too-long", "ad", "12", "DC-Kitchen"])
 check("negative: too long, the domain's NetBIOS name, only digits each refused saying why, then any valid name taken",
       got == "dc-kitchen" and "1-15 letters" in said and "NetBIOS name" in said and "only digits" in said,
       (got, said))
-got, said = ask_dc([], {"dc_name": "pi-core"})
-check("an install that has its DC's name keeps it, nothing asked", got == "pi-core" and said == "", (got, said))
+got, said = ask_dc([], {"dc_name": "dc-kitchen"})
+check("an install that has its DC's name keeps it, nothing asked", got == "dc-kitchen" and said == "", (got, said))
+got, said = ask_dc(["", ], {"dc_name": "pi-core"})
+check("negative: a DC's name equal to the host's is asked again, saying why (2.1.6.51), the suggestion taken",
+      got == "dc-pi-core" and "host" in said, (got, said))
 got, said = ask_dc([], unattended=True)
 check("unattended: the suggestion is taken", got == "dc-pi-core", (got, said))
 got, said = ask_dc([], {"dc_name": "not valid!"}, unattended=True)

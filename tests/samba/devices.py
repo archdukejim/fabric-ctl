@@ -310,7 +310,7 @@ check("the fabric host is one of the site's machines: listed (Directory → Mach
       "fabhost" in [m["name"] for m in list_machines(V, SECRETS, DC)]
       and m_set_machine.set_machine_enabled(V, "alice", "fabhost", True, secrets=SECRETS, container=DC) is not None)
 check("refused: placing a machine the site does not have (nothing made)",
-      refused(m_place.place_fabric_host, V, "setup", "nosuchhost", match="no such")
+      refused(m_place.place_fabric_host, V, "setup", "nosuchhost", "setup", SECRETS, DC, match="no such")
       and "NOSUCHHOST" not in dn_of("nosuchhost"))
 m_remove_machine.remove_machine(V, "setup", "fabhost", secrets=SECRETS, container=DC)
 check("the fabric host's account is removed as other machines are (the undo of setup's member step)",
