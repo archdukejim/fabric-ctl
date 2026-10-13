@@ -7,6 +7,7 @@ file	fabricctl-agent|src/agent/post_directory.py	4
 file	fabricctl-agent|src/agent/post_dns.py	5	
 file	fabricctl-agent|src/agent/post_dns_filter.py	17	
 file	fabricctl-agent|src/agent/post_domain.py	14	
+file	fabricctl-agent|src/agent/post_ipam_scan.py	18	
 file	fabricctl-agent|src/agent/post_network.py	6	
 file	fabricctl-agent|src/agent/post_pki.py	7	
 file	fabricctl-agent|src/agent/post_route.py	8	
@@ -397,11 +398,13 @@ file	fabriclib-ipam|src/fabriclib/ipam/common/fields.py	9
 file	fabriclib-ipam|src/fabriclib/ipam/common/new_subnet.py	33	
 file	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py	10	
 file	fabriclib-ipam|src/fabriclib/ipam/common/plan_holds_subnets.py	11	
+file	fabriclib-ipam|src/fabriclib/ipam/common/probe_subnet.py	38	
 file	fabriclib-ipam|src/fabriclib/ipam/common/site_plan.py	12	
 file	fabriclib-ipam|src/fabriclib/ipam/export_plan.py	13	
 file	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py	14	
 file	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py	15	
 file	fabriclib-ipam|src/fabriclib/ipam/move_subnets_to_plan.py	16	
+file	fabriclib-ipam|src/fabriclib/ipam/offer_reservations.py	39	
 file	fabriclib-ipam|src/fabriclib/ipam/plan_rows.py	17	
 file	fabriclib-ipam|src/fabriclib/ipam/plan_to_dhcp.py	18	
 file	fabriclib-ipam|src/fabriclib/ipam/planned_subnets.py	19	
@@ -411,11 +414,14 @@ file	fabriclib-ipam|src/fabriclib/ipam/remove_range.py	22
 file	fabriclib-ipam|src/fabriclib/ipam/remove_subnet.py	34	
 file	fabriclib-ipam|src/fabriclib/ipam/remove_vlan.py	23	
 file	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py	24	
+file	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py	40	
+file	fabriclib-ipam|src/fabriclib/ipam/scannable_subnets.py	41	
 file	fabriclib-ipam|src/fabriclib/ipam/set_address.py	25	
 file	fabriclib-ipam|src/fabriclib/ipam/set_block.py	35	
 file	fabriclib-ipam|src/fabriclib/ipam/set_subnet.py	36	
 file	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py	26	
 file	fabriclib-ipam|src/fabriclib/ipam/show_plan.py	37	
+file	fabriclib-ipam|src/fabriclib/ipam/show_scan.py	42	
 file	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py	27	
 file	fabriclib-ipam|src/fabriclib/ipam/suggestions.py	28	
 file	fabriclib-ipam|src/fabriclib/ipam/write_plan.py	29	
@@ -771,6 +777,7 @@ file	webui|src/webui/agentclient/radius_overview.py	31
 file	webui|src/webui/agentclient/raise_signin_layer.py	132	
 file	webui|src/webui/agentclient/read_audit.py	32	
 file	webui|src/webui/agentclient/read_job.py	141	
+file	webui|src/webui/agentclient/record_found_address.py	156	
 file	webui|src/webui/agentclient/relaxed_settings.py	120	
 file	webui|src/webui/agentclient/remove_client_class.py	33	
 file	webui|src/webui/agentclient/remove_radius_client.py	34	
@@ -784,6 +791,8 @@ file	webui|src/webui/agentclient/rotate_radius_secret.py	39
 file	webui|src/webui/agentclient/rotate_tsig_key.py	40	
 file	webui|src/webui/agentclient/save_device.py	41	
 file	webui|src/webui/agentclient/save_role.py	42	
+file	webui|src/webui/agentclient/scan_subnet.py	157	
+file	webui|src/webui/agentclient/scannable_subnets.py	158	
 file	webui|src/webui/agentclient/security_layers.py	133	
 file	webui|src/webui/agentclient/service_status.py	43	
 file	webui|src/webui/agentclient/set_dhcp_on.py	152	
@@ -831,6 +840,8 @@ file	webui|src/webui/routes/dns_filter_page.py	149
 file	webui|src/webui/routes/dns_filter_post.py	150	
 file	webui|src/webui/routes/get_page.py	80	
 file	webui|src/webui/routes/kea_post.py	81	
+file	webui|src/webui/routes/networks_scan_page.py	159	
+file	webui|src/webui/routes/networks_scan_post.py	160	
 file	webui|src/webui/routes/openbao_page.py	82	
 file	webui|src/webui/routes/overview_post.py	143	
 file	webui|src/webui/routes/post_action.py	83	
@@ -865,6 +876,7 @@ file	webui|src/webui/views/dns_filter.py	151
 file	webui|src/webui/views/error_page.py	109	
 file	webui|src/webui/views/federation.py	131	
 file	webui|src/webui/views/freeradius.py	110	
+file	webui|src/webui/views/ipam_scan.py	161	
 file	webui|src/webui/views/job_page.py	144	
 file	webui|src/webui/views/kea.py	111	
 file	webui|src/webui/views/machine_result.py	129	
@@ -899,6 +911,7 @@ function	fabricctl-agent|src/agent/post_dns.py|post_dns	1
 function	fabricctl-agent|src/agent/post_dns_filter.py|_on	2	
 function	fabricctl-agent|src/agent/post_dns_filter.py|post_dns_filter	1	
 function	fabricctl-agent|src/agent/post_domain.py|post_domain	1	
+function	fabricctl-agent|src/agent/post_ipam_scan.py|post_ipam_scan	1	
 function	fabricctl-agent|src/agent/post_network.py|post_network	1	
 function	fabricctl-agent|src/agent/post_pki.py|post_pki	1	
 function	fabricctl-agent|src/agent/post_route.py|post_route	1	
@@ -1512,12 +1525,16 @@ function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|load_plan_cache	
 function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|plan_cache_path	1	
 function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|save_plan_cache	3	
 function	fabriclib-ipam|src/fabriclib/ipam/common/plan_holds_subnets.py|plan_holds_subnets	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/probe_subnet.py|_exec	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/probe_subnet.py|_neighbours	2	
+function	fabriclib-ipam|src/fabriclib/ipam/common/probe_subnet.py|probe_subnet	3	
 function	fabriclib-ipam|src/fabriclib/ipam/common/site_plan.py|site_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/export_plan.py|export_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py|find_in_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|_add_records	1	
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|load_address_plan	2	
 function	fabriclib-ipam|src/fabriclib/ipam/move_subnets_to_plan.py|move_subnets_to_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/offer_reservations.py|offer_reservations	1	
 function	fabriclib-ipam|src/fabriclib/ipam/plan_rows.py|_range_of	1	
 function	fabriclib-ipam|src/fabriclib/ipam/plan_rows.py|plan_rows	2	
 function	fabriclib-ipam|src/fabriclib/ipam/plan_to_dhcp.py|plan_to_dhcp	1	
@@ -1536,12 +1553,18 @@ function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_print_rows	6
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_show	5	0.7.0 / 2026-10-12
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_subnet_line	9	
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|run_ipam_command	8	
+function	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py|_classify	3	
+function	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py|_slot	2	
+function	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py|_which	1	
+function	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py|scan_subnet	4	
+function	fabriclib-ipam|src/fabriclib/ipam/scannable_subnets.py|scannable_subnets	1	
 function	fabriclib-ipam|src/fabriclib/ipam/set_address.py|set_address	1	
 function	fabriclib-ipam|src/fabriclib/ipam/set_block.py|set_block	1	
 function	fabriclib-ipam|src/fabriclib/ipam/set_subnet.py|set_subnet	1	
 function	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py|_gateway_claim	1	0.7.0 / 2026-10-12
 function	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py|set_vlan	2	
 function	fabriclib-ipam|src/fabriclib/ipam/show_plan.py|show_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/show_scan.py|show_scan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py|_label	1	
 function	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py|subnets_to_plan	2	
 function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_block	3	
@@ -2085,6 +2108,7 @@ function	webui|src/webui/agentclient/radius_overview.py|radius_overview	1
 function	webui|src/webui/agentclient/raise_signin_layer.py|raise_signin_layer	1	
 function	webui|src/webui/agentclient/read_audit.py|read_audit	1	
 function	webui|src/webui/agentclient/read_job.py|read_job	1	
+function	webui|src/webui/agentclient/record_found_address.py|record_found_address	1	
 function	webui|src/webui/agentclient/relaxed_settings.py|relaxed_settings	1	
 function	webui|src/webui/agentclient/remove_client_class.py|remove_client_class	1	
 function	webui|src/webui/agentclient/remove_radius_client.py|remove_radius_client	1	
@@ -2098,6 +2122,8 @@ function	webui|src/webui/agentclient/rotate_radius_secret.py|rotate_radius_secre
 function	webui|src/webui/agentclient/rotate_tsig_key.py|rotate_tsig_key	1	
 function	webui|src/webui/agentclient/save_device.py|save_device	1	
 function	webui|src/webui/agentclient/save_role.py|save_role	1	
+function	webui|src/webui/agentclient/scan_subnet.py|scan_subnet	1	
+function	webui|src/webui/agentclient/scannable_subnets.py|scannable_subnets	1	
 function	webui|src/webui/agentclient/security_layers.py|security_layers	1	
 function	webui|src/webui/agentclient/service_status.py|service_status	1	
 function	webui|src/webui/agentclient/set_dhcp_on.py|set_dhcp_on	1	
@@ -2187,6 +2213,9 @@ function	webui|src/webui/routes/kea_post.py|_kea	3
 function	webui|src/webui/routes/kea_post.py|_pools	1	
 function	webui|src/webui/routes/kea_post.py|_where	2	
 function	webui|src/webui/routes/kea_post.py|kea_post	4	
+function	webui|src/webui/routes/networks_scan_page.py|networks_scan_page	1	
+function	webui|src/webui/routes/networks_scan_post.py|_record	1	
+function	webui|src/webui/routes/networks_scan_post.py|networks_scan_post	2	
 function	webui|src/webui/routes/openbao_page.py|openbao_page	1	
 function	webui|src/webui/routes/overview_post.py|overview_post	1	
 function	webui|src/webui/routes/post_action.py|_radius_people	2	
@@ -2227,6 +2256,7 @@ function	webui|src/webui/views/dns_filter.py|dns_filter	2
 function	webui|src/webui/views/error_page.py|error_page	1	
 function	webui|src/webui/views/federation.py|federation	1	
 function	webui|src/webui/views/freeradius.py|freeradius	1	
+function	webui|src/webui/views/ipam_scan.py|ipam_scan	1	
 function	webui|src/webui/views/job_page.py|job_page	1	
 function	webui|src/webui/views/kea.py|kea	1	
 function	webui|src/webui/views/machine_result.py|machine_result	1	

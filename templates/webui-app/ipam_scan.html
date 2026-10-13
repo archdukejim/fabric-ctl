@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
+{% block body %}
+<h1>Networks · Scan a subnet</h1>
+{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
+{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
+<section class="card"><h2>Scan</h2>
+<p class="muted">Pings every address of one subnet this site's DHCP serves and reads which devices answered ARP: what answers but nobody recorded is shown, and you may record it. A scan never blocks anything. A routed VLAN answers only what its gateway lets through, and shows no MAC. One scan at a time; the same subnet once a minute; at most a /22.</p>
+{% if not subnets %}<p class="muted">Nothing to scan: DHCP serves no subnet on this site.</p>
+{% elif can('dhcp:write') %}
+<form method="post" action="/networks/scan" class="grid">{{ csrf() }}
+<label>Subnet<select name="subnet" required>{% for s in subnets %}<option value="{{ s.cidr }}"{% if result and result.subnet.cidr == s.cidr %} selected{% endif %}>{{ s.cidr }}{% if s.name %} — {{ s.name }}{% endif %}{% if s.vlan %} (VLAN {{ s.vlan }}){% endif %}</option>{% endfor %}</select></label>
+<div><button>Scan now</button></div></form>
+{% else %}<p class="muted">Scanning needs the <code>dhcp:write</code> permission.</p>{% endif %}
+</section>
+{% if result %}
+<section class="card"><h2>{{ result.subnet.cidr }}{% if result.subnet.name %} · {{ result.subnet.name }}{% endif %}</h2>
+<p class="muted">Scanned {{ result.at }}: {{ result.scanned }} addresses, {{ result.answering | length }} answering, {{ result.unrecorded }} in use but unrecorded.</p>
+<table><thead><tr><th>Address</th><th>MAC</th><th>Answered</th><th>In the plan</th><th></th></tr></thead><tbody>
+{% for f in result.answering %}<tr>
+<td>{{ f.ip }}</td><td>{{ f.mac or '—' }}</td><td>{{ f.how }}</td>
+<td>{% if f.status == 'unrecorded' %}<strong>In use, unrecorded</strong>{% elif f.status == 'lease' %}lease {{ f.name }}{% else %}{{ f.kind }} {{ f.name }}{% endif %}{% if f.note %} <span class="muted">({{ f.note }})</span>{% endif %}</td>
+<td>{% if f.status == 'unrecorded' and can('dhcp:write') %}<details><summary>{{ 'Make it a reservation?' if f.mac else 'Record it as a static address?' }}</summary>
+<form method="post" action="/networks/scan/record" class="grid">{{ csrf() }}
+<input type="hidden" name="ip" value="{{ f.ip }}"><input type="hidden" name="mac" value="{{ f.mac }}"><input type="hidden" name="kind" value="{{ 'reservation' if f.mac else 'static' }}">
+<label>Name (one DNS label, optional)<input name="name" maxlength="63" placeholder="cam4"></label>
+<div><button>{{ 'Reserve ' ~ f.ip ~ ' for ' ~ f.mac if f.mac else 'Record ' ~ f.ip }}</button> <span class="muted">or leave it: nothing changes</span></div></form>
+</details>{% endif %}</td></tr>
+{% else %}<tr><td colspan="5" class="muted">Nothing answered.</td></tr>{% endfor %}
+</tbody></table>
+</section>
+{% endif %}
+{% endblock %}

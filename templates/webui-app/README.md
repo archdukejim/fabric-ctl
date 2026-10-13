@@ -15,6 +15,7 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `freeradius.html` | The freeradius page |
 | `dns_filter.html` | The DNS filter tab |
 | `kea.html` | The kea page |
+| `ipam_scan.html` | The scan page: scan a subnet this site's DHCP serves, and record what answers but nobody recorded (for the Networks tab) |
 | `openbao.html` | The openbao page |
 | `overview.html` | The overview page |
 | `person_result.html` | The person result page |

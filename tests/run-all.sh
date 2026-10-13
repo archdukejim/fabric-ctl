@@ -47,8 +47,8 @@ for s in "${SUITES[@]}"; do
         ntp)      run ntp      python3 "$HERE/ntp/run.py" ;;
         openbao)  run openbao  bash -c "python3 \"$HERE/openbao/run.py\" && python3 \"$HERE/openbao/db_rotation.py\"" ;;
         fluentbit) run fluentbit python3 "$HERE/fluentbit/run.py" ;;
-        kea) run kea python3 "$HERE/kea/run.py" ;;
-        ipam)     run ipam     python3 "$HERE/ipam/run.py" ;;
+        kea) run kea bash -c "python3 \"$HERE/kea/run.py\" && python3 \"$HERE/kea/scan.py\" && python3 \"$HERE/kea/relay.py\"" ;;
+        ipam)     run ipam     bash -c "python3 \"$HERE/ipam/run.py\" && python3 \"$HERE/ipam/scan.py\"" ;;
         freeradius) run freeradius python3 "$HERE/freeradius/run.py" ;;
         samba)    run samba    bash -c "python3 \"$HERE/samba/run.py\" && python3 \"$HERE/samba/dc.py\" && python3 \"$HERE/samba/devices.py\" && python3 \"$HERE/samba/linux_join.py\" && python3 \"$HERE/samba/gpo.py\" && python3 \"$HERE/samba/site_join.py\" && python3 \"$HERE/samba/ipam.py\"" ;;
         keycloak) run keycloak python3 "$HERE/keycloak/run.py" ;;

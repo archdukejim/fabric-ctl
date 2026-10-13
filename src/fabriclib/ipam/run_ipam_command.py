@@ -11,6 +11,7 @@ from fabriclib.ipam.common.fields import KEEP
 from fabriclib.ipam.common.site_plan import site_plan
 from fabriclib.ipam.export_plan import export_plan
 from fabriclib.ipam.find_in_plan import find_in_plan
+from fabriclib.ipam.offer_reservations import offer_reservations
 from fabriclib.ipam.read_plan import read_plan
 from fabriclib.ipam.remove_address import remove_address
 from fabriclib.ipam.remove_range import remove_range
@@ -19,8 +20,10 @@ from fabriclib.ipam.remove_vlan import remove_vlan
 from fabriclib.ipam.set_address import set_address
 from fabriclib.ipam.set_block import set_block
 from fabriclib.ipam.set_subnet import set_subnet
+from fabriclib.ipam.scan_subnet import scan_subnet
 from fabriclib.ipam.set_vlan import set_vlan
 from fabriclib.ipam.show_plan import show_plan
+from fabriclib.ipam.show_scan import show_scan
 from fabriclib.ipam.suggestions import suggest_block
 
 USAGE = """usage: fabricctl ipam show [<site>]                    a site's VLANs, subnets, ranges, addresses, leases
@@ -45,11 +48,13 @@ USAGE = """usage: fabricctl ipam show [<site>]                    a site's VLANs
        fabricctl ipam address set <ip> [--kind K] [--name N|none] [--mac M|none] [--owner T] [--notes T]
                                [--dns on|off]
        fabricctl ipam address remove <ip>
+       fabricctl ipam scan <subnet> [--no-ask]         which addresses answer, and which nobody recorded: offers to
+                                                       record each (a subnet this site's DHCP serves; name or network)
    --site S: another site's plan (a site above it may edit it); a change to this site's plan applies at once
    unless --no-apply"""
 FLAGS = {"--site", "--name", "--subnet", "--gateway", "--purpose", "--notes", "--access", "--dhcp", "--relay",
          "--allow-overlap", "--kind", "--mac", "--owner", "--dns", "--vlan"}
-BARE = {"--no-subnet", "--no-split", "--force", "--no-apply"}
+BARE = {"--no-subnet", "--no-split", "--force", "--no-apply", "--no-ask"}
 
 
 def _parse(args):
@@ -155,8 +160,9 @@ def _subnet_line(out):
 def run_ipam_command(v, argv, secrets=None, container="samba"):
     """Purpose: `fabricctl ipam …` — the address manager's plan from the command line (manual 1.10.4.9, 1.10.4.16;
              Volume 4: 4.10.2): show, find and export, the site's number, and changes to VLANs, subnets (several
-             per VLAN, 2.1.10.18), ranges and addresses, this site's or (--site) a site below it. Routes only: every
-             rule is in the function each command calls.
+             per VLAN, 2.1.10.18), ranges and addresses, this site's or (--site) a site below it; a scan of one of
+             this site's subnets, offering to record what nobody did (2.1.10.26). Routes only: every rule is in the
+             function each command calls.
     Inputs:  v — the rendered vars (SetupContext.load_state().vars); argv — list of str after "ipam" (default
              show); secrets — fabric's secrets (default: loaded by the functions); container — the DC's container
              (tests name their own). See USAGE.
@@ -203,6 +209,15 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
             print(f"site {out['site']} is number {r['block']}" + (f" (was {r['was']})" if r["was"] else "")
                   + ": what fabric suggests from now on is 10." + str(r["block"])
                   + ".<VLAN>.0/24; subnets already in the plan keep their networks")
+            return 0
+        if cmd == "scan" and len(pos) == 1:
+            if site:
+                raise ValidationError("a scan covers only this site's own subnets: run it at that site")
+            result = scan_subnet(v, "root", pos[0])
+            sys.stdout.write(show_scan(result))
+            if result["unrecorded"] and "--no-ask" not in bare and sys.stdin.isatty():
+                if offer_reservations(v, result, **common):
+                    return apply_dhcp_change(["--no-apply"] if "--no-apply" in bare else [])
             return 0
         sub, rest = (pos[0], pos[1:]) if pos else ("", [])
         if cmd == "vlan" and sub == "add" and len(rest) == 1 and "--name" in vals:

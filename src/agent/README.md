@@ -16,6 +16,7 @@ arbitrary commands.
 | `post_dns.py` | Zones (add, remove), their records, TSIG keys |
 | `post_dns_filter.py` | The DNS filter's lists, rules and upstreams (saved and applied), the lists job, the query-log search |
 | `post_dhcp.py` | DHCP: reservations, subnets (name, VLAN, notes, pools), options, client classes, each applied at once |
+| `post_ipam_scan.py` | The scan of a subnet, and recording an address it found (a reservation for its MAC, or static), applied at once |
 | `post_network.py` | 802.1X settings, each applied at once |
 | `post_pki.py` | Manual PKI: describe or sign a CSR, issue, inspect, convert |
 | `post_vault.py` | OpenBao's unlock methods, rotating the vault key |

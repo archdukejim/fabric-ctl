@@ -12,6 +12,7 @@ from fabriclib.dns.reverse_zones import reverse_zones
 from fabriclib.dns.zone_detail import zone_detail
 from fabriclib.dns_filter.filter_overview import filter_overview
 from fabriclib.federation.federation_overview import federation_overview
+from fabriclib.ipam.scannable_subnets import scannable_subnets
 from fabriclib.directory.device_overview import device_overview
 from fabriclib.directory.list_people import list_people
 from fabriclib.images.image_status import image_status
@@ -54,6 +55,7 @@ READS = {
     ("gpo",): lambda: gpo_overview(load_vars()),
     ("federation",): lambda: federation_overview(load_vars()),
     ("dhcp",): lambda: dhcp_overview(load_vars()),
+    ("ipam", "scan"): lambda: {"subnets": scannable_subnets(load_vars())},
     ("dns-filter",): lambda: filter_overview(load_vars()),
     ("radius",): lambda: radius_overview(load_vars()),
     ("radius", "guides"): lambda: radius_guides(load_vars()),

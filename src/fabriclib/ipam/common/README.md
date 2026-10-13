@@ -10,4 +10,5 @@ Helpers shared by the address manager's commands.
 | `fields.py` | The plan's fields and shared checks: one-line text, notes, addresses, finding a VLAN, a subnet or an address |
 | `site_plan.py` | One site's plan and number out of what the domain answered |
 | `plan_cache.py` | The last plan this site read (`<config>/address-plan.json`): where, read, write |
+| `probe_subnet.py` | The scan's network probe: fping and the neighbour table inside Kea's container, by fixed commands |
 | `plan_holds_subnets.py` | Whether the subnets live in the plan (0.7's subnet commands refuse then) |

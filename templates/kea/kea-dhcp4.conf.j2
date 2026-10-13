@@ -20,6 +20,12 @@
     "lease-database": { "type": "memfile", "persist": true, "name": "/var/lib/kea/kea-leases4.csv", "lfc-interval": 3600 },
     "hooks-libraries": [
         { "library": "libdhcp_lease_cmds.so" },
+{% if d.ping_check | default(true) %}
+        // an address that answers a ping is not offered: Kea declines it and offers another (ping_check hook, open
+        // source since Kea 2.5.4; 2.1.10.13). Global parameters only: the per-subnet form is disputed upstream
+        { "library": "libdhcp_ping_check.so", "parameters": { "enable-ping-check": true, "min-ping-requests": 1,
+          "reply-timeout": 100, "ping-cltt-secs": 60, "ping-channel-threads": 0 } },
+{% endif %}
 {% if skip.on %}
         // the hook refuses to load without a parameters map, which `kea-dhcp4 -t` does not catch
         { "library": "libdhcp_ddns_tuning.so", "parameters": {} },
