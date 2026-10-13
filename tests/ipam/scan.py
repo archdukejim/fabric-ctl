@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""The `ipam` suite, the scan and ping-check with no container (manual 1.10.4.22, decisions 2.1.10.13 and 2.1.10.26):
-a scan's subnet chosen only among those this site's DHCP serves (by name or exact network; bad input, a subnet fabric
-does not serve, one larger than a /22 and DHCP off refused), one scan at a time and once a minute per subnet, what
+"""The `ipam` suite, the scan and ping-check with no container (manual 1.10.4.22, 1.10.4.27; decisions 2.1.10.13,
+2.1.10.26 and 2.1.10.28): a scan's subnet chosen among every subnet of this site's plan, DHCP on or off (by name or
+exact network; bad input, a subnet not in the plan, one larger than a /22 and a site without Kea refused), the scan
+policy asked before anything is probed (its own cases: tests/ipam/scan_policy.py), one scan at a time and once a minute per subnet, what
 answered classified against the plan and Kea's leases (a declined lease is in use, unrecorded), audited; the network
 probe's fixed argument list run in Kea's container; the neighbour table read; the text shown; the terminal's offer to
 record each find through the reservation unit; `fabricctl ipam scan`'s refusals; the agent's permissions (a user
@@ -64,7 +65,13 @@ PLAN = {"site": "home", "block": 1, "vlans": [{"id": 20, "name": "iot", "access"
                                     "mac": "aa:bb:cc:00:00:01", "dns": False, "options": []}]},
                     {"name": "big", "cidr": "10.1.32.0/21", "vlan": 30, "gateway": "10.1.32.1", "dhcp": True, "id": 2,
                      "relay": "", "notes": "", "allow_overlap": "", "options": [],
-                     "ranges": [{"kind": "dhcp", "first": "10.1.33.0", "last": "10.1.36.255"}], "addresses": []}]}
+                     "ranges": [{"kind": "dhcp", "first": "10.1.33.0", "last": "10.1.36.255"}], "addresses": []},
+                    # a static-only VLAN: DHCP off, devices set by hand (2.1.10.28)
+                    {"name": "lab", "cidr": "10.1.40.0/24", "vlan": 40, "gateway": "10.1.40.1", "dhcp": False,
+                     "id": 3, "relay": "", "notes": "", "allow_overlap": "", "options": [],
+                     "ranges": [{"kind": "static", "first": "10.1.40.2", "last": "10.1.40.254"}],
+                     "addresses": [{"ip": "10.1.40.10", "kind": "static", "name": "plc", "mac": "", "dns": False,
+                                    "options": []}]}]}
 V = {"site_name": "home", "install_kea": True,
      "dhcp": {"interfaces": ["eth0"], "subnets": plan_to_dhcp(PLAN)["subnets"]}}
 LEASES = [{"ip": "10.1.20.120", "mac": "aa:bb:cc:00:00:20", "hostname": "phone", "state": "active",
@@ -82,6 +89,8 @@ AUDIT, PROBED = [], []
 m_scan.write_audit = lambda actor, action, detail, source="cli", path=None: AUDIT.append((actor, action, detail,
                                                                                          source))
 m_scan.load_plan_cache = lambda: PLAN
+ALLOW = {"site": "home", "allowed": True, "policy": "allow", "source": "default", "why": "", "stale": "",
+         "org": {"policy": "", "enforced": False}, "site_level": {"policy": ""}}
 
 
 def probe(cidr, container):
@@ -90,17 +99,22 @@ def probe(cidr, container):
 
 
 def scan(subnet, state=None, **kw):
+    kw.setdefault("policy", lambda v: ALLOW)
     return m_scan.scan_subnet(V, "alice", subnet, source="web", container="kt-kea", state_dir=state or
                               os.path.join(TMP, f"state-{len(PROBED)}-{len(AUDIT)}"), probe=probe,
                               leases=LEASES, **kw)
 
 
-# ---- which subnets: only the ones this site's DHCP serves
+# ---- which subnets: every subnet of this site's plan, DHCP on or off (2.1.10.28)
 # covers: agent:get.ipam.scan +
-listed = scannable_subnets(V)
-check("the subnets a scan may cover: those this site's DHCP serves, a /22 at most (the /21 left out)",
-      [s["cidr"] for s in listed] == ["10.1.20.0/24"] and listed[0]["hosts"] == 254, listed)
-check("with DHCP off nothing may be scanned", scannable_subnets({**V, "install_kea": False}) == [])
+listed = scannable_subnets(V, cache=lambda: PLAN)
+check("the subnets a scan may cover: every subnet of the plan, DHCP off too, a /22 at most (the /21 left out)",
+      [(s["cidr"], s["dhcp"]) for s in listed] == [("10.1.20.0/24", True), ("10.1.40.0/24", False)]
+      and listed[0]["hosts"] == 254, listed)
+check("another site's kept plan adds nothing", [s["cidr"] for s in scannable_subnets(
+    V, cache=lambda: {**PLAN, "site": "lab"})] == ["10.1.20.0/24"])
+check("with Kea not installed nothing may be scanned (the scan runs in its container)",
+      scannable_subnets({**V, "install_kea": False}, cache=lambda: PLAN) == [])
 # covers: cli:ipam.scan agent:post.ipam.scan +
 res = scan("10.1.20.0/24")
 by = {f["ip"]: f for f in res["answering"]}
@@ -125,12 +139,17 @@ check("the count of unrecorded addresses, and the scan audited (who, which subne
       res["unrecorded"] == 4 and AUDIT[-1][:2] == ("alice", "IPAM_SCAN") and "subnet=10.1.20.0/24" in AUDIT[-1][2]
       and "unrecorded=4" in AUDIT[-1][2] and AUDIT[-1][3] == "web", (res["unrecorded"], AUDIT[-1:]))
 check("a scan by the subnet's name is the same scan", scan("iot")["subnet"]["cidr"] == "10.1.20.0/24")
+lab = scan("lab")
+check("a subnet DHCP does not serve is scanned too (2.1.10.28): its static address recorded, the rest unrecorded",
+      lab["subnet"] == {"name": "lab", "cidr": "10.1.40.0/24"} and PROBED[-1] == ("10.1.40.0/24", "kt-kea")
+      and lab["policy"]["source"] == "default", lab)
 OLD = {**V, "dhcp": {"interfaces": ["eth0"], "subnets": [{"subnet": "10.1.20.0/24", "name": "iot",
                                                           "routers": "10.1.20.1",
                                                           "reservations": [{"mac": "aa:bb:cc:00:00:55",
                                                                             "ip": "10.1.20.55"}]}]}}
 m_scan.load_plan_cache = lambda: None
-old = m_scan.scan_subnet(OLD, "root", "iot", state_dir=os.path.join(TMP, "old"), probe=probe, leases=[])
+old = m_scan.scan_subnet(OLD, "root", "iot", state_dir=os.path.join(TMP, "old"), probe=probe, leases=[],
+                         policy=lambda v: ALLOW)
 m_scan.load_plan_cache = lambda: PLAN
 check("a site not yet upgraded: its reservations and router in the settings count as recorded",
       {f["ip"]: f["status"] for f in old["answering"]}.get("10.1.20.55") == "recorded"
@@ -139,13 +158,14 @@ check("a site not yet upgraded: its reservations and router in the settings coun
 # ---- refusals: nothing probed, nothing audited
 # covers: cli:ipam.scan agent:post.ipam.scan -
 before = (len(PROBED), len(AUDIT))
-for typed, words in (("10.9.9.0/24", "not a subnet this site's DHCP serves"), ("lab", "not a subnet this site's"),
+for typed, words in (("10.9.9.0/24", "not a subnet of this site's plan"), ("nosuch", "not a subnet of this site's"),
                      ("10.1.20.5/24", "host bits zero"), ("10.1.20.0/33", "not a network"), ("", "name the subnet"),
-                     ("10.1.20.0/25", "not a subnet this site's"), ("10.1.32.0/21", "larger than a /22")):
+                     ("10.1.20.0/25", "not a subnet of this site's"), ("10.1.32.0/21", "larger than a /22")):
     check(f"refused: a scan of {typed!r}, saying why", refused(lambda: scan(typed), words) is True,
           refused(lambda: scan(typed), words))
-check("refused: a scan with DHCP off", refused(lambda: m_scan.scan_subnet({**V, "install_kea": False}, "a", "iot",
-                                                                          probe=probe), "DHCP is off") is True)
+check("refused: a scan at a site without Kea (its container runs the scan)", refused(
+    lambda: m_scan.scan_subnet({**V, "install_kea": False}, "a", "iot", probe=probe, policy=lambda v: ALLOW),
+    "DHCP is off at this site") is True)
 check("nothing was probed or audited for a refused scan", (len(PROBED), len(AUDIT)) == before, (PROBED, AUDIT))
 state = os.path.join(TMP, "cool")
 scan("iot", state)
@@ -271,8 +291,8 @@ check("fabricctl ipam scan: the result, nothing asked with --no-ask (exit 0)", c
       "(iot)" in o and "IN USE, UNRECORDED" in o, (code, o, e))
 m_cmd.scan_subnet = m_scan.scan_subnet
 code, o, e = cli("scan", "10.9.9.0/24")
-check("fabricctl ipam scan of a subnet fabric does not serve: refused, saying why (exit 1)",
-      code == 1 and "not a subnet this site's DHCP serves" in e, (code, e))
+check("fabricctl ipam scan of a subnet not in the plan: refused, saying why (exit 1)",
+      code == 1 and "not a subnet of this site's plan" in e, (code, e))
 code, o, e = cli("scan", "iot", "--site", "lab")
 check("fabricctl ipam scan of another site: refused (a scan covers this site's own subnets)",
       code == 1 and "only this site's own subnets" in e, (code, e))
@@ -351,13 +371,14 @@ class H:
 if web_ok:
     CTX = {"user": "alice", "csrf": "tok", "perms": ["dhcp:read", "dhcp:write"], "version": "0.8.0"}
     m_post.page_context = lambda sess: CTX
-    actions.scannable_subnets = lambda: {"subnets": listed}
+    actions.scannable_subnets = lambda: {"subnets": listed, "policy": ALLOW, "policy_error": ""}
     actions.scan_subnet = lambda subnet: res
     h = H()
     # covers: web:get.networks.scan +
     m_page.networks_scan_page(h, CTX, {})
-    check("the scan page lists the subnets this site's DHCP serves, with the scan button",
-          h.sent[0] == 200 and "10.1.20.0/24 — iot" in h.sent[1] and "Scan now" in h.sent[1], h.sent)
+    check("the scan page lists every subnet of the plan (DHCP off marked), the policy and its source, and the button",
+          h.sent[0] == 200 and "10.1.20.0/24 — iot" in h.sent[1] and "10.1.40.0/24 — lab (VLAN 40) · DHCP off"
+          in h.sent[1] and "Scan now" in h.sent[1] and "allowed" in h.sent[1] and "(default;" in h.sent[1], h.sent)
     h = H()
     # covers: web:post.networks.scan +
     m_post.networks_scan_post(h, {}, [], {"subnet": "10.1.20.0/24", "csrf": "tok"})

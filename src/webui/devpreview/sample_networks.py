@@ -5,8 +5,21 @@ SAMPLE_NETWORK_VARS = {"site_name": "lan", "host_ip": "192.168.1.2", "domain": "
                        "dhcp": {"options": [{"name": "time-offset", "data": "-18000"}]}}
 SAMPLE_NETWORK_SITES = [{"name": "lan", "own": True}, {"name": "parents", "own": False}]
 # the scan page's list (scannable_subnets' shape): the sample's DHCP subnets of this site
-SAMPLE_SCAN_SUBNETS = [{"name": "iot", "cidr": "10.1.20.0/24", "vlan": 20, "hosts": 254},
-                       {"name": "guest", "cidr": "10.1.30.0/24", "vlan": 30, "hosts": 254}]
+SAMPLE_SCAN_SUBNETS = [{"name": "iot", "cidr": "10.1.20.0/24", "vlan": 20, "dhcp": True, "hosts": 254},
+                       {"name": "guest", "cidr": "10.1.30.0/24", "vlan": 30, "dhcp": True, "hosts": 254},
+                       {"name": "servers", "cidr": "10.1.40.0/24", "vlan": 40, "dhcp": False, "hosts": 254}]
+# the scan policy as the scan page and the Networks tab show it (manual 1.10.4.27): the organisation's level unset, the
+# site's denying scans of itself is the second sample
+SAMPLE_SCAN_POLICY = {"site": "lan", "allowed": True, "policy": "allow", "source": "default",
+                      "org": {"policy": "", "enforced": False}, "site_level": {"policy": ""}, "why": "", "stale": "",
+                      "org_editable": True}
+SAMPLE_SCAN_POLICY_DENIED = {"site": "parents", "allowed": False, "policy": "deny", "source": "site parents",
+                             "org": {"policy": "allow", "enforced": False}, "site_level": {"policy": "deny"},
+                             "why": "scanning is denied at parents by its own scan policy: fabricctl ipam scan-policy "
+                                    "set site allow (or inherit), at parents or a site above it", "stale": "",
+                             "org_editable": True}
+# what the plan poll last reported, beside the Sync now button (manual 1.10.4.28)
+SAMPLE_SYNC = {"kea": True, "polled": True, "usn": 4711, "rendered": "2026-10-13 09:30:00", "dns_pending": True}
 SAMPLE_NETWORK_LEASES = [
     {"ip": "10.1.20.120", "mac": "02:11:22:33:44:55", "hostname": "laptop1", "state": "active",
      "expires": "2026-10-13T08:00"},

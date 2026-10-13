@@ -10,46 +10,46 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.common.write_audit import write_audit
 from fabriclib.dhcp.list_leases import list_leases
 from fabriclib.ipam.common.plan_cache import load_plan_cache
+from fabriclib.ipam.common.plan_subnets import plan_subnets
 from fabriclib.ipam.common.probe_subnet import KEA_CONTAINER, probe_subnet
 from fabriclib.ipam.plan_rows import plan_rows
-from fabriclib.ipam.planned_subnets import planned_subnets
 from fabriclib.ipam.scannable_subnets import LARGEST
+from fabriclib.ipam.scanpolicy.read_scan_policy import read_scan_policy
 
 STATE_DIR = "/run/fabric-ipam-scan"   # root's, 0700: the lock and when each subnet was last scanned (gone at boot)
 COOLDOWN = 60                         # seconds before the same subnet is scanned again
 RECORDED = ("gateway", "static", "reservation", "infrastructure")
 
 
-def _which(v, text):
-    """Purpose: the subnet a scan names, by its name or its exact network, among those this site's Kea serves.
-    Inputs:  v — fabric vars; text — what was typed.
-    Returns: {"name", "cidr", "entry"}: the served subnet, entry its dhcp.subnets form (reservations, routers).
-    Fails:   ValidationError: nothing typed, DHCP off, a network written wrong, one fabric does not serve (named),
-             one larger than a /22.
+def _which(v, text, cache):
+    """Purpose: the subnet a scan names, by its name or its exact network, among every subnet of this site's plan, DHCP
+             on or off (decision 2.1.10.28, manual 1.10.4.27.1).
+    Inputs:  v — fabric vars; text — what was typed; cache — function() -> the kept plan (plan_subnets).
+    Returns: {"name", "cidr", "entry"}: entry its dhcp.subnets form when Kea serves it (reservations, routers), else {}.
+    Fails:   ValidationError: nothing typed, Kea not installed (the scan runs in its container), a network written
+             wrong, one not in this site's plan (the ones that are named), one larger than a /22.
     Feeds:   scan_subnet."""
     text = str(text or "").strip()
     if not text:
         raise ValidationError("name the subnet to scan: its name or its network (fabricctl ipam show lists them)")
     if not v.get("install_kea"):
-        raise ValidationError("DHCP is off: fabric serves no subnet to scan")
-    served = [{"name": str(s.get("name") or ""), "cidr": str(ipaddress.ip_network(str(s.get("subnet")),
-                                                                               strict=False)), "entry": s}
-              for s in planned_subnets(v)]
+        raise ValidationError("DHCP is off at this site: the scan runs in Kea's container, so nothing is scanned here")
+    known = plan_subnets(v, cache)
     if "/" in text:
         try:
             net = str(ipaddress.ip_network(text, strict=True))
         except ValueError:
             raise ValidationError(f"{text!r} is not a network like 10.1.20.0/24 (host bits zero)")
-        found = [s for s in served if s["cidr"] == net]
+        found = [s for s in known if s["cidr"] == net]
     else:
-        found = [s for s in served if s["name"] and s["name"] == text.lower()]
+        found = [s for s in known if s["name"] and s["name"] == text.lower()]
     if not found:
-        raise ValidationError(f"{text} is not a subnet this site's DHCP serves: only those are scanned "
-                              f"({', '.join(s['cidr'] for s in served) or 'none'})")
-    net = ipaddress.ip_network(found[0]["cidr"])
-    if net.num_addresses - 2 > LARGEST:
-        raise ValidationError(f"{net} is larger than a /22: at most {LARGEST} addresses are scanned at once")
-    return found[0]
+        raise ValidationError(f"{text} is not a subnet of this site's plan: only those are scanned "
+                              f"({', '.join(s['cidr'] for s in known if s['hosts'] <= LARGEST) or 'none'})")
+    if found[0]["hosts"] > LARGEST:
+        raise ValidationError(f"{found[0]['cidr']} is larger than a /22: at most {LARGEST} addresses are scanned "
+                              "at once")
+    return {"name": found[0]["name"], "cidr": found[0]["cidr"], "entry": found[0]["entry"]}
 
 
 @contextlib.contextmanager
@@ -106,22 +106,30 @@ def _classify(ip, seen, row):
 
 
 def scan_subnet(v, actor, subnet, source="cli", container=KEA_CONTAINER, state_dir=STATE_DIR, probe=None,
-                leases=None):
+                leases=None, policy=None, cache=None):
     """Purpose: scan one subnet on request (manual 1.10.4.22, decisions 2.1.10.13 and 2.1.10.26): which addresses
              answer, and which of them nobody recorded — neither a gateway, static, reservation or infrastructure
              address of the plan nor an active lease ("in use, unrecorded", with the MAC when ARP saw it), so the
-             admin may make one a reservation. It only informs: nothing is recorded or blocked. Only a subnet this
-             site's Kea serves, at most a /22, one scan at a time, the same subnet once a minute; audited.
+             admin may make one a reservation. It only informs: nothing is recorded or blocked. Any subnet of this
+             site's plan, DHCP on or off (2.1.10.28), at most a /22, only where the scan policy allows it (checked
+             before anything is probed), one scan at a time, the same subnet once a minute; audited.
     Inputs:  v — fabric vars (install_kea, dhcp, site_name); actor — who asks (audit); subnet — its name or exact
              network; source — "cli" or "web"; container — Kea's container; state_dir — the lock's folder; probe —
              function(cidr, container) -> probe_subnet's result (tests); leases — list_leases' rows (default: Kea's,
-             none when Kea does not answer).
+             none when Kea does not answer); policy — function(v) -> read_scan_policy's result (default
+             read_scan_policy: the DC, or this site's kept copy); cache — function() -> the kept plan (default
+             load_plan_cache).
     Returns: {"subnet": {"name", "cidr"}, "scanned" (int, addresses probed), "answering": [_classify's rows],
-             "unrecorded" (int), "at" (ISO time)}.
-    Fails:   ValidationError: _which's refusals, _slot's (a scan running, too soon), probe_subnet's; OSError from the
-             audit log or the state folder.
+             "unrecorded" (int), "at" (ISO time), "policy": {"source", "stale"} (which level allowed it)}.
+    Fails:   ValidationError: _which's refusals, the scan policy denying it (which level, read_scan_policy's "why") or
+             not readable, _slot's (a scan running, too soon), probe_subnet's; OSError from the audit log or the
+             state folder. A refused scan probes nothing and audits nothing.
     Feeds:   run_ipam_command (scan); agent POST /v1/ipam/scan."""
-    sub = _which(v, subnet)
+    cache = cache or load_plan_cache
+    sub = _which(v, subnet, cache)
+    allowed = (policy or read_scan_policy)(v)
+    if not allowed["allowed"]:
+        raise ValidationError(allowed["why"])
     net = ipaddress.ip_network(sub["cidr"])
     if leases is None:
         try:
@@ -130,7 +138,7 @@ def scan_subnet(v, actor, subnet, source="cli", container=KEA_CONTAINER, state_d
             leases = []
     with _slot(sub["cidr"], state_dir):
         seen = (probe or probe_subnet)(sub["cidr"], container)
-    plan = load_plan_cache() or {"site": v.get("site_name", ""), "vlans": [], "subnets": []}
+    plan = cache() or {"site": v.get("site_name", ""), "vlans": [], "subnets": []}
     rows = {r["ip"]: r for r in plan_rows(plan, leases) if ipaddress.ip_address(r["ip"]) in net}
     entry = sub.pop("entry")          # what Kea serves: a site not yet upgraded keeps its reservations there
     for r in entry.get("reservations") or []:
@@ -145,4 +153,5 @@ def scan_subnet(v, actor, subnet, source="cli", container=KEA_CONTAINER, state_d
                 f"unrecorded={unrecorded}", source)
     return {"subnet": sub, "scanned": net.num_addresses - 2 if net.prefixlen < 31 else net.num_addresses,
             "answering": found, "unrecorded": unrecorded,
-            "at": datetime.datetime.now().isoformat(timespec="seconds")}
+            "at": datetime.datetime.now().isoformat(timespec="seconds"),
+            "policy": {"source": allowed["source"], "stale": allowed.get("stale", "")}}

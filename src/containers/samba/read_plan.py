@@ -111,6 +111,36 @@ def _option_sets(samdb, of):
     return sets, sorted(editors)
 
 
+def _scan_policies(samdb, of):
+    """Purpose: the scan policy's two levels (decision 2.1.10.28, manual 1.10.4.27.2): the organisation's and each
+             site's (or `of`'s alone), kept on their option set's entry.
+    Inputs:  samdb — SamDB; of — a site's name, or "" for every site.
+    Returns: {"org": {"policy" ("allow", "deny" or "" unset), "enforced" (bool)}, <site>: the same}; "org" always
+             there, `of` too when given (unset when it has no entry).
+    Fails:   ldb.LdbError from the search.
+    Feeds:   read_plan."""
+    try:
+        org = organisation_dn(samdb).lower()
+    except LookupError:
+        org = ""
+    unset = {"policy": "", "enforced": False}
+    out = {"org": dict(unset)}
+    for m in samdb.search(base=sites_dn(samdb), scope=ldb.SCOPE_SUBTREE, expression="(objectClass=fabricOptionSet)",
+                          attrs=["fabricScanPolicy", "fabricScanEnforced"]):
+        value = {"policy": _one(m, "fabricScanPolicy").lower(),
+                 "enforced": _one(m, "fabricScanEnforced").upper() == "TRUE"}
+        parent = str(m.dn.parent())
+        if parent.lower() == org:
+            out["org"] = value
+            continue
+        owner = parent.split(",", 1)[0].split("=", 1)[1]
+        if not of or owner == of:
+            out[owner] = value
+    if of:
+        out.setdefault(of, dict(unset))
+    return out
+
+
 def read_plan(samdb, lp, site, of=""):
     """Purpose: the address plan of the address manager (manual 1.10.4.4, 1.10.4.13): each site's VLANs, subnets with
              their ranges and addresses, and its other networks (the LAN convergence writes), plus every site's
@@ -124,7 +154,8 @@ def read_plan(samdb, lp, site, of=""):
              "dns" (bool), "options", "netboot"}]}], "networks": [{"name", "cidr", "kind", "vlan", "notes",
              "allow_overlap"}]}}, "option_sets": {"org": {"options", "option_defs", "client_classes"} or None,
              <site>: the same}, "org_editors": [site names] (2.1.10.23), "options" (the organisation's options; and
-             each plan's "options", the site's: the shape the Networks tab reads, 2.3.10.5.7)}: lists sorted; a site
+             each plan's "options", the site's: the shape the Networks tab reads, 2.3.10.5.7), "scan_policy" (the scan
+             policy's levels, _scan_policies, 2.1.10.28)}: lists sorted; a site
              without entries has no key in plans unless it is `of`; a subnet's and an address's "netboot" is its
              preset or None (2.1.10.25).
     Fails:   ldb.LdbError from the searches; ValueError "no such site: <of>".
@@ -195,4 +226,4 @@ def read_plan(samdb, lp, site, of=""):
         plan["options"] = (option_sets.get(name) or {}).get("options") or []
     return {"sites": sorted(sites, key=lambda x: (x["created"], x["name"])), "plans": plans,
             "options": (option_sets.get("org") or {}).get("options") or [],
-            "option_sets": option_sets, "org_editors": editors}
+            "option_sets": option_sets, "org_editors": editors, "scan_policy": _scan_policies(samdb, of)}

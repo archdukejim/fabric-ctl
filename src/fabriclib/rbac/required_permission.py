@@ -71,6 +71,10 @@ POST = {
     ("networks", "*", "addresses", "*"): "dhcp:write", ("networks", "*", "addresses", "*", "delete"): "dhcp:write",
     # a scan sends packets onto the site's networks and offers to record what it finds: whoever may change DHCP
     ("ipam", "scan"): "dhcp:write", ("ipam", "scan", "record"): "dhcp:write",
+    # the scan policy (2.1.10.28): a site's level with dhcp:write, the organisation's as its DHCP options are set
+    ("ipam", "scan-policy"): "dhcp:write", ("ipam", "scan-policy", "org"): "dhcp:org-options",
+    # Sync now (2.1.10.29): the plan poll at once and BIND's records, never an apply
+    ("ipam", "sync"): "dhcp:write",
     # the address manager's DHCP options (2.1.10.23): a site's with dhcp:write, the organisation's with dhcp:org-options
     ("ipam", "options"): "dhcp:write", ("ipam", "classes"): "dhcp:write", ("ipam", "option-defs"): "dhcp:write",
     ("ipam", "netboot"): "dhcp:write",

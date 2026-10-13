@@ -249,6 +249,11 @@ check("the first run renders Kea and brings the firewall in line (the served sub
       first["state"] == "rendered" and calls == {"render": 1, "firewall": 1}
       and audit and audit[-1][0] == "IPAM_WATCH_RENDER", (first, calls, audit))
 check("unchanged: the USN did not move, nothing read", poll(read_plan=lambda *a, **k: 1 / 0)["state"] == "unchanged")
+forced = m_poll.poll_plan({"site_name": "lan", "install_kea": True}, container="none", secrets={}, render=render,
+                         firewall=firewall, usn=lambda c: USN["n"], read=answer(SITE), force=True,
+                         take_lock=lambda: io.StringIO())
+check("forced (Sync now, 2.1.10.29): the USN did not move, yet the plan is read; Kea's input unchanged, nothing "
+      "rendered", forced["state"] == "same plan" and calls["render"] == 1, (forced, calls))
 USN["n"] = 101
 check("same plan: the USN moved, Kea's input did not", poll()["state"] == "same plan" and calls["render"] == 1)
 USN["n"] = 102

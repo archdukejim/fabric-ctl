@@ -16,3 +16,4 @@ Helpers shared by the address manager's commands.
 | `pool_text.py` | A 0.7 pool as typed ("first - last") split into its two addresses |
 | `site_scope.py` | The site a console request names, refused unless it is this one or one below it |
 | `probe_subnet.py` | The scan's network probe: fping and the neighbour table inside Kea's container, by fixed commands |
+| `plan_subnets.py` | Every subnet of this site's plan, DHCP on or off, with the ones DHCP serves (what a scan may name) |
