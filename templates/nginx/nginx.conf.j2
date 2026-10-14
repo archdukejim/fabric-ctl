@@ -354,6 +354,15 @@ http {
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
         }
+        # a site redeeming its DC type change token (2.1.9.23): limited as a join is
+        location = /v1/dc-type {
+            limit_req zone=federation burst=3 nodelay;
+            limit_req_status 429;
+            proxy_pass http://unix:/srv/federation/federation.sock:;
+            proxy_read_timeout 180s;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
         location / {
             return 404;
         }

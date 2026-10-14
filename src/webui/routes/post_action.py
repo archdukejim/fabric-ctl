@@ -60,7 +60,8 @@ def post_action(h, sess, path, form):
              scan); /networks/scan/request and /local (scans from the top down); /networks/sync (Sync now);
              /networks/<site>/… (the address plan); /overview/… (jobs); /freeradius/clients…; /freeradius/sessions…;
              /freeradius/people…; /bind9/tsig/…; /ssh/… (sign, on, off); /federation/roles (a role at a site below,
-             2.1.9.21).
+             2.1.9.21), /federation/dc-type (a DC type change asked of a site below, 2.1.9.23),
+             /federation/rodc-lost/<site> (a lost read-only DC, 2.1.6.58).
     Returns: /logout: session dropped, LOGOUT audited, 303 to Keycloak's logout URL clearing the session cookie;
              /apply: 200 apply result; the rest as their route modules.
     Fails:   404 for an unknown path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
@@ -90,12 +91,12 @@ def post_action(h, sess, path, form):
         return vault_post(h, sess, _segments(path, 2), form)
     if path.startswith("/ssh/"):
         return ssh_post(h, sess, _segments(path, 2), form)
+    if path.startswith("/federation/"):
+        return federation_post(h, sess, _segments(path, 2), form)
     if path.startswith("/security/"):
         return security_post(h, sess, _segments(path, 2), form)
     if path.startswith("/directory/"):
         return directory_post(h, sess, _segments(path, 2), form)
-    if path == "/federation/roles":                    # grant or revoke a role at a site below (2.1.9.21)
-        return federation_post(h, form)
     if path.startswith("/kea/options/") and path != "/kea/options/delete":   # the 0.7 form keeps its own
         return options_post(h, _segments(path, 3), form)
     if path.startswith("/kea/"):

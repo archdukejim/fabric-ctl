@@ -31,8 +31,9 @@ account, so AD's per-site limits apply to it.
 | `remove_role.py` | Delete a role — refused while devices are in it (audited) |
 | `common/` | Helpers shared by the device and role operations (see its README) |
 | `ensure_default_device_roles.py` | Create fabric's default device roles once, in the organisation's `OU=device-roles` (a marker file keeps a deleted one from coming back) |
-| `add_machine.py` | A machine pre-created in this site with a one-time join password (`fabricctl domain add-machine`) |
-| `sort_machines.py` | Windows machines that joined themselves moved into OU=windows, once each, recorded in config/machines-sorted.json (`fabricctl domain sort-machines`, the fabric-machines timer) |
+| `add_machine.py` | A machine pre-created in this site with a one-time join password, in its class's OS OU (`fabricctl domain add-machine`) |
+| `set_machine_class.py` | A machine moved to the server or desktop class: who may sign in to it remotely (`fabricctl domain machine class`, audited; 2.1.6.36 as revised 2026-10-13) |
+| `sort_machines.py` | Windows machines that joined themselves moved into their class's OU=windows, once each, recorded in config/machines-sorted.json (`fabricctl domain sort-machines`, the fabric-machines timer) |
 | `list_machines.py` | This site's machines in the domain (the Directory tab's Machines) |
 | `set_machine_enabled.py` | Disable a machine of this site, or enable it again (audited) |
 | `remove_machine.py` | Remove a machine of this site from the domain (audited) |
@@ -46,6 +47,6 @@ account, so AD's per-site limits apply to it.
 | `add_sudo_rule.py` | A sudo rule: who, which commands, as whom, on which host group; ALL commands to everyone refused (audited) |
 | `remove_sudo_rule.py` | Remove one of fabric's editor-made sudo rules; never the site default or an admin's own (audited) |
 | `run_sudo_command.py` | `fabricctl sudo`: routes to the sudo rule functions |
-| `is_fabric_admin.py` | Whether a person is a fabric admin (`fabric-admins` or `<site>-fabric-admins`, nested too): who may get an SSH certificate (1.6.11.9) |
 | `unlock_person.py` | Clear a person's lockout in AD and Keycloak, their password kept (`people:unlock`; the site helpdesk: own site only; audited) |
 | `move_person.py` | Move a person's account to another site (`fabricctl people move`), from a site above both; audited (2.1.9.24) |
+| `ssh_user_sites.py` | The sites and classes whose remote users group a person is in, nested too: the principals `<user>@<site>-<class>` of their SSH certificate (2.1.7.14) |

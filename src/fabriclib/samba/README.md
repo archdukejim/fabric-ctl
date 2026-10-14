@@ -24,8 +24,10 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `set_logon_policy.py` | Who may sign in to one OU's machines, saved (groups checked in the domain; the first edit keeps today's rights as the site OU's; audited) |
 | `clear_logon_policy.py` | One OU's log-on policy removed (it takes its parent's; never leaving the site's machines without one; audited) |
 | `logon_overview.py` | Who may sign in, per OU: `logon show`, domain status, the web console's Machines section |
+| `plan_class_logon.py` | The per-OU log-on policies the DC writes, the machine class OUs' included, as status shows them (the host's mirror of the DC's plan_logon_entries; 2.1.7.14) |
 | `host_logon_default.py` | The log-on policy of the site's OU=fabric-hosts while the setting names none: the fabric admins (2.1.6.53) |
-| `writable_server.py` | The DC a write to the domain goes to: this site's, or a read-only DC's writable partner (`ad_join_server`); refused with none known (2.1.6.52, 2.1.10.23) |
+| `writable_server.py` | The DC a write to the domain goes to: this site's, or at a read-only DC's site the first of its writable DCs that answers (`ad_writable_servers`, else `ad_join_server`); refused with none known or none answering, naming each (2.1.6.52, 2.1.6.57, 2.1.10.23) |
+| `check_writable_servers.py` | The setting `ad_writable_servers` checked at apply: a list of at most 8 names or addresses, no repeats (2.1.6.57) |
 | `allow_rodc_cache.py` | At a site whose DC is read-only: puts `<site>-rodc-cache` on that DC's password replication allow list, at the writable DC (2.1.6.52) |
 | `sync_rodc_cache.py` | At a site whose DC is read-only: the DC's lists checked (the cache group allowed, the denied list whole), `<site>-rodc-cache` kept at the writable DC (the site's people groups nested, its machines members), the site's own accounts preloaded (2.1.6.55) |
 | `refuse_at_read_only_dc.py` | The one refusal of a change only a writable DC's own copy takes (Group Policy, who may sign in per OU) at a site whose DC is read-only (2.1.6.52) |
@@ -39,6 +41,8 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `prepare_site.py` | At the root, before answering a join: the new site converged in the domain, and its join account |
 | `finish_join.py` | After this site's DC joined: its join account deleted at the root |
 | `replication_status.py` | This DC's inbound replication per partition, read from its own `repsFrom` inside the DC |
+| `replication_healthy.py` | Whether this DC's replication is healthy enough to change a DC's type: every partner succeeded within the hour, no failure since (2.1.9.23) |
+| `run_rodc_lost.py` | One step of handling a lost read-only DC, run inside this site's writable DC as the system (2.1.6.58) |
 | `domain_sites.py` | Every site in the domain, read inside this site's DC (the next id block a join hands out; a site moving here) |
 | `list_conflicts.py` | AD's `CNF:` objects: names made on two DCs while apart |
 | `check_password_policy.py` | The password policy as AD takes it (ranges, minimum age below maximum, lockout at least its window); setup asks again at once, deploy refuses |

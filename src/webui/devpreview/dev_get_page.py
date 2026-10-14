@@ -2,6 +2,7 @@ from webui import views
 from webui.devpreview.sample_data import (RECORD_TYPES, SAMPLE_CA, SAMPLE_DEVICES, SAMPLE_DHCP, SAMPLE_DOMAIN,
                                           SAMPLE_EFFECTIVE, SAMPLE_OPTIONS,
                                           SAMPLE_FEDERATION, SAMPLE_GPO, SAMPLE_LOGON, SAMPLE_RADIUS, SAMPLE_ACME,
+                                          SAMPLE_RODC_LOST,
                                           SAMPLE_RADIUS_SESSIONS,
                                           SAMPLE_ACCESS, SAMPLE_ENROLMENTS, SAMPLE_SSH, SAMPLE_SSH_HOSTS,
                                           SAMPLE_IMAGES,
@@ -83,7 +84,8 @@ def dev_get_page(h, path, query):
             view = view if kw["role"] else "roles"
         return h.send(200, views.directory(ctx, view, data=data, **kw))
     if path == "/federation":
-        return h.send(200, views.federation(ctx, SAMPLE_FEDERATION))
+        lost = SAMPLE_RODC_LOST if query.get("rodc_lost") == "edge" else None
+        return h.send(200, views.federation(ctx, SAMPLE_FEDERATION, query.get("msg", ""), query.get("err", ""), lost))
     if path == "/dns-filter":
         view = query.get("view") if query.get("view") in [s for s, _ in views.DNS_FILTER_SECTIONS] else "overview"
         search = {k: query.get(k, "") for k in ("client", "name", "blocked", "limit")}

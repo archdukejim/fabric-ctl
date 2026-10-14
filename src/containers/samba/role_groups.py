@@ -5,7 +5,8 @@ import ldb
 from acl_entries import owner_of, sid_of
 from alloc_id import alloc_id
 import paths
-from site_roles import CONSOLE_ROLES, FABRIC_ADMINS, ROLES
+from remote_defaults import remote_defaults
+from site_roles import CLASSES, CONSOLE_ROLES, FABRIC_ADMINS, REMOTE_ROLES, ROLES
 
 HOST_ADMINS = "Manage the site's hosts: root through sudo, fabricctl (manual 1.6.11)"   # as ensure_groups says it
 
@@ -31,18 +32,31 @@ def branch_made(samdb, target, dn):
                                                               f"{target}-admins")}
 
 
+def _exists(samdb, name):
+    """Purpose: whether a group exists anywhere in the domain (a default member not made yet, as at a root not
+             converged to 0.9, is left out, as ensure_groups leaves it).
+    Inputs:  samdb — SamDB; name — sAMAccountName.
+    Returns: bool.
+    Fails:   ldb.LdbError from the search.
+    Feeds:   make_group."""
+    return bool(samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_SUBTREE, attrs=["dn"],
+                             expression=f"(&(objectClass=group)(sAMAccountName={ldb.binary_encode(name)}))"))
+
+
 def make_group(samdb, target, role, name, groups):
     """Purpose: a role's group made in the target's OU=groups, empty, as ensure_groups makes it: a console role's
-             without a gid; an AD role's, the host admins' and the site's admins' with a gid from the site's block; the
-             host admins with the organisation's `fabric-admins` in it; the site's admins in `<target>-users` (so
-             Keycloak admits them, 2.1.9.21).
+             without a gid; an AD role's, the host admins', a remote-users role's and the site's admins' with a gid
+             from the site's block; the host admins with the organisation's `fabric-admins` in it; a remote-users
+             group (2.1.7.14 as revised 2026-10-13) with its description from REMOTE_ROLES and its layered default
+             nested again (remote_defaults: those of its groups that exist), so a remade group keeps what ensure_groups
+             gave it; the site's admins in `<target>-users` (so Keycloak admits them, 2.1.9.21).
     Inputs:  samdb — SamDB (as a site above's agent); target — the site; role — str ("admins" for `<target>-admins`);
              name — the group's name; groups — the OU=groups DN.
     Returns: None.
     Fails:   ldb.LdbError from a change; ValueError from alloc_id (the block's range full).
     Feeds:   grant_site_role, remake_site_group."""
-    description = (CONSOLE_ROLES[role][1] if role in CONSOLE_ROLES else
-                   "" if role == "admins" else ROLES.get(role, HOST_ADMINS))
+    description = (CONSOLE_ROLES[role][1] if role in CONSOLE_ROLES else REMOTE_ROLES[role] if role in REMOTE_ROLES
+                   else "" if role == "admins" else ROLES.get(role, HOST_ADMINS))
     samdb.newgroup(name, groupou=paths.relative(samdb, groups), description=description or None)
     if role in CONSOLE_ROLES:
         return
@@ -51,5 +65,10 @@ def make_group(samdb, target, role, name, groups):
                                        ldb.FLAG_MOD_REPLACE))
     if role == FABRIC_ADMINS:
         samdb.add_remove_group_members(name, [FABRIC_ADMINS], add_members_operation=True)
+    if role in REMOTE_ROLES:
+        cls = next(c for c in CLASSES if f"{c}-remote-users" == role)
+        members = [m for m in remote_defaults(samdb, target, cls) if _exists(samdb, m)]
+        if members:
+            samdb.add_remove_group_members(name, members, add_members_operation=True)
     if role == "admins" and find_group(samdb, groups, f"{target}-users"):
         samdb.add_remove_group_members(f"{target}-users", [name], add_members_operation=True)

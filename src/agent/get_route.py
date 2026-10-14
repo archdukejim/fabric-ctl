@@ -14,6 +14,7 @@ from fabriclib.dns_filter.filter_overview import filter_overview
 from fabriclib.ipam.networks_csv import networks_csv
 from fabriclib.ipam.networks_overview import networks_overview
 from fabriclib.federation.federation_overview import federation_overview
+from fabriclib.federation.rodc_lost import rodc_lost
 from fabriclib.ipam.scan_overview import scan_overview
 from fabriclib.ipam.options.options_overview import options_overview
 from fabriclib.directory.device_overview import device_overview
@@ -95,6 +96,8 @@ def get_route(route, user=None, perms=None):
              given a target, its effective options with their sources, 1.10.4.24.3);
              pki/enrolments: list_enrolments; ssh: ssh_overview for the token's user; ssh/hosts: ssh_hosts_overview;
              people: list_people (this site's own people only when people:read is held only as site:people:read).
+             federation/rodc-lost/<site>: plan_rodc_lost's answer (every account the site's read-only DC held, listed
+             and audited; nothing changed).
     Fails:   RouteNotFound for any other route (-> 404); whatever the operation raises (ValidationError -> 400).
     Feeds:   agent/handler.py (dispatch)."""
     if tuple(route) in READS:
@@ -112,6 +115,8 @@ def get_route(route, user=None, perms=None):
         return options_overview(load_vars(), "" if route[2] == "-" else route[2], route[3] if len(route) == 4 else "")
     if len(route) == 2 and route[0] == "jobs":
         return JOBS.read(route[1], user)
+    if len(route) == 3 and route[:2] == ["federation", "rodc-lost"]:     # a lost read-only DC's accounts (2.1.6.58)
+        return rodc_lost(load_vars(), os.path.dirname(VARS_FILE), user or "root", route[2], source="web")["plan"]
     if route == ["ssh"]:                     # SSH certificates: may this person sign? (1.6.11.9)
         return ssh_overview(load_vars(), user)
     if route == ["ssh", "hosts"]:            # SSH host certificates, per machine (1.6.11.9.11)

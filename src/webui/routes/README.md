@@ -23,6 +23,8 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `saved_and_applied.py` | Run a change that fabric-agent saves and applies at once, and go back to its tab with the outcome. |
 | `enrol_post.py` | Step-CA → Enrol a device: an Apple profile (download), a .p12 (shown once), withdraw an open profile. |
 | `ssh_post.py` | The SSH page's changes: sign a fabric admin's public key, turn SSH certificates on or off (after a recent sign-in). |
+| `federation_page.py` | The Federation tab, and a lost read-only DC's accounts with the form that handles it (2.1.6.58). |
+| `federation_post.py` | The Federation tab's changes (`federation:admin`): a role at a site below granted, revoked or its group remade (2.1.9.21); a DC type change asked of a site below, its token shown once (2.1.9.23); a lost read-only DC handled, the site's name typed (2.1.6.58); the last two after a recent sign-in |
 | `stepca_page.py` | Render the Step-CA tab for one sub-view, with the CA summary, linkable devices, the issued list and the enrolments where needed. |
 | `stepca_post.py` | Manual PKI: each Step-CA form maps to one fabric-agent operation. |
 | `tsig_post.py` | TSIG keys: create, rotate, delete (Apply publishes them to BIND9). |
@@ -35,4 +37,3 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `overview_post.py` | The Overview's jobs: Run doctor, and update or roll back one service's image; then the job's page |
 | `networks_page.py` | The Networks tab: a site's VLANs and subnet maps, one subnet's address table, a search, the CSV export |
 | `networks_post.py` | The Networks tab's changes: the site's number, VLANs, subnets, ranges, addresses; back to the tab with the outcome |
-| `federation_post.py` | The Federation tab's role form: grant or revoke a role at a site below this one; back to the tab with the outcome |

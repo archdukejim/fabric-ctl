@@ -202,6 +202,10 @@ ad_rpc_ports: "{{ ad_rpc_ports | default('49152-49251', true) }}"
 ad_dc_type: {{ ad_dc_type | default('writable', true) }}
 ad_join_server: "{{ ad_join_server | default('', true) }}"
 ad_join_server_name: "{{ ad_join_server_name | default('', true) }}"
+{# At a site whose DC is read-only: the writable DCs its writes go to, tried in order, the first that answers taking the
+   write (2.1.6.57, manual 1.6.11.13.1); [] means [ad_join_server]. DNS names (machines use Kerberos) or addresses, at
+   most 8. #}
+ad_writable_servers: {{ ad_writable_servers | default([], true) | to_json }}
 posix_id_range: "{{ posix_id_range | default('', true) }}"
 {# Where this site's OU and the organisation's sit in the domain, below ad_base_dn (2.1.6.20, manual 1.9.8.14): sites nest,
    each in its parent's OU, so a joining site gets both from the join; the root's are its own. #}

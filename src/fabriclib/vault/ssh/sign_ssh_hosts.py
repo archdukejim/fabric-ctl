@@ -12,8 +12,9 @@ from fabriclib.vault.common.approle_login import approle_login
 from fabriclib.vault.common.bao_request import bao_request
 from fabriclib.vault.constants import SETUP_CREDS
 from fabriclib.vault.ssh.apply_host_ssh_cert import apply_host_ssh_cert
-from fabriclib.vault.ssh.constants import HOST_MOUNT, HOST_REVOKED
+from fabriclib.vault.ssh.constants import HOST_CAS_PUBLISHED, HOST_MOUNT, HOST_REVOKED, MOUNT, USER_CAS_PUBLISHED
 from fabriclib.vault.ssh.host_principals import host_principals
+from fabriclib.vault.ssh.org_ssh_trust import org_ssh_trust
 from fabriclib.vault.ssh.parse_ssh_cert import parse_ssh_cert
 from fabriclib.vault.ssh.parse_ssh_key import parse_ssh_key
 from fabriclib.vault.ssh.plan_host_certs import plan_host_certs
@@ -93,7 +94,11 @@ def sign_ssh_hosts(v, config_dir, actor="fabric", source="timer", login=approle_
              HOST_REVOKED for every client's @revoked lines, 1.6.11.9.12); then this host's own certificate and
              its trust of the host CA applied
              (apply_host_ssh_cert) while the host is a managed member of its domain (as the `member` step's consent
-             says, 1.6.11.11), removed otherwise. One machine's refusal never stops the others.
+             says, 1.6.11.11), removed otherwise. One machine's refusal never stops the others. Also (2.1.7.14,
+             1.6.11.9.16): this site's user and host CA keys and domain written to AD (`set_ssh_cas`), every site's
+             read back (`read_ssh_cas`) and what this site's machines trust published (org_ssh_trust:
+             USER_CAS_PUBLISHED, HOST_CAS_PUBLISHED), the host's own known-hosts block from the same lines; a
+             failure there is reported in "org_error" and leaves the last published lists as they are.
     Inputs:  v — rendered vars (ssh_certificates, site_name, ad_domain, domain, hostname, and what bao_request and
              run_op read); config_dir — the install's config folder (RECORD: the host's account); actor, source —
              the audit's; login, op, sign, apply, publish — approle_login, run_op (op(name, args); None: run_op
@@ -103,7 +108,8 @@ def sign_ssh_hosts(v, config_dir, actor="fabric", source="timer", login=approle_
              seconds since 1970 UTC (None: now).
     Returns: {"on": bool, "ca_fingerprint", "prepared": [names], "machines": [{"name", "signed", "kept" (ints),
              "refused": [why], "withdrawn": bool, "error": str}], "revoked": [key lines still revoked],
-             "host": [what changed on this host]}.
+             "host": [what changed on this host], "org": {"host_cas", "user_cas"} (how many trusted; {} when off or
+             not published), "org_error": "" or why the organisation's CAs could not be published}.
     Fails:   ValidationError: OpenBao locked or unreachable, the host CA not made (turn SSH certificates on again, or
              run the vault step), a read-only DC's site with no writable DC known (from run_op, at the first write,
              before anything is written), the directory unreachable (from run_op), sshd refusing (from
@@ -112,8 +118,10 @@ def sign_ssh_hosts(v, config_dir, actor="fabric", source="timer", login=approle_
     Notes:   audited SSH_HOST_SIGN (each machine signed: its principals and serials), SSH_HOST_WITHDRAW and
              SSH_HOST_REVOKE."""
     if not v.get("ssh_certificates"):
+        publish(v, "", USER_CAS_PUBLISHED)          # this site's machines trust no fabric CA while off (2.1.7.14)
+        publish(v, "", HOST_CAS_PUBLISHED)
         return {"on": False, "ca_fingerprint": "", "prepared": [], "machines": [], "revoked": [],
-                "host": apply(v, [], "")}
+                "host": apply(v, [], ""), "org": {}, "org_error": ""}
     now = int(now if now is not None else datetime.datetime.now(datetime.timezone.utc).timestamp())
     stamp = datetime.datetime.fromtimestamp(now, datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     token = login(v, SETUP_CREDS)
@@ -168,6 +176,18 @@ def sign_ssh_hosts(v, config_dir, actor="fabric", source="timer", login=approle_
                     source)
     revoked = update_revoked_keys(config_dir, revoke, signed_keys, now)
     publish(v, "\n".join(revoked), HOST_REVOKED)        # none: withdrawn, so clients drop their @revoked lines
+    org, org_error, org_lines = {}, "", None
+    try:                    # the organisation's CAs (2.1.7.14): ours into AD, everyone's back, our machines' trust
+        status, data = bao_request(v, "GET", f"{MOUNT}/config/ca", token=token)
+        user_ca = ((data.get("data") or {}).get("public_key") or "").strip() if status == 200 else ""
+        op("set_ssh_cas", {"user_ca": user_ca, "host_ca": ca, "domain": v.get("domain") or ""})
+        trust = org_ssh_trust(v, user_ca, ca, op("read_ssh_cas", {})["sites"])
+        publish(v, "\n".join(trust["user_cas"]), USER_CAS_PUBLISHED)
+        publish(v, "\n".join(trust["known"]), HOST_CAS_PUBLISHED)
+        org, org_lines = {"host_cas": len(trust["known"]) - 1, "user_cas": len(trust["user_cas"])}, trust["known"]
+    except ValidationError as exc:
+        org_error = f"the organisation's SSH CAs were not published (the last lists stay): {exc}"
     # this host's own part only while it is a managed member (the `member` step's consent, 1.2.9.3): else removed
     return {"on": True, "ca_fingerprint": ca_fp, "prepared": prepared, "machines": machines, "revoked": revoked,
-            "host": apply(v, host_certs, ca, revoked) if host_certs is not None else apply(v, [], "")}
+            "host": (apply(v, host_certs, ca, revoked, org_lines=org_lines) if host_certs is not None
+                     else apply(v, [], "")), "org": org, "org_error": org_error}

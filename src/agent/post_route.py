@@ -36,8 +36,9 @@ def post_route(route, actor, data, perms):
              JSON body; perms — the token's permissions (None for a root peer).
     Returns: the operation's JSON-serialisable result. apply: {"ok", "output"}; people: {"password"} (one-time,
              shown once) and people/<uid>/reset|unlock|disable|enable|delete|groups: post_people's (the site
-             helpdesk narrowed to this site's own people, 2.1.9.21); federation/roles: post_federation's (a role
-             granted or revoked at a site below);
+             helpdesk narrowed to this site's own people, 2.1.9.21); federation/roles, federation/dc-type/<site>
+             and federation/rodc-lost/<site>: post_federation's (a role at a site below, a DC type change asked of
+             one, a lost read-only DC);
              jobs/doctor and jobs/images (body: action update|rollback, service): {"id"} of a job read with GET
              /v1/jobs/<id> by the person who started it;
              events: {} after the login audit line; dns-filter/...: post_dns_filter's result; networks/<site>/...:
@@ -70,6 +71,8 @@ def post_route(route, actor, data, perms):
         return post_enrol(route, actor, data, perms)
     if area == ["pki"] and len(route) == 2:
         return post_pki(route[1], actor, data)
+    if area == ["federation"]:      # roles (2.1.9.21), a DC type change (2.1.9.23), a lost read-only DC (2.1.6.58)
+        return post_federation(route, actor, data)
     if area == ["ssh"]:                                       # SSH certificates (1.6.11.9)
         return post_ssh(route, actor, data)
     if area == ["vault"]:
@@ -89,8 +92,6 @@ def post_route(route, actor, data, perms):
         return {"ok": ok, "output": output}
     if area == ["people"]:
         return post_people(route, actor, data, perms)
-    if area == ["federation"]:
-        return post_federation(route, actor, data)
     owner = actor if perms is not None else None    # a job is read by whoever started it (root: any)
     if route == ["jobs", "doctor"]:              # doctor's checks take seconds to a minute: a job the page follows
         base = load_vars()["deploy_base_dir"]

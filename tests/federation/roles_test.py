@@ -433,11 +433,11 @@ if federation_post:
 
     web_actions.site_role_change = role_change
     # covers: web:post.federation.roles +
-    res = federation_post(FakeHandler(), {"site": "house1a", "role": "helpdesk", "member": "", "action": "grant"})
+    res = federation_post(FakeHandler(), {}, ["roles"], {"site": "house1a", "role": "helpdesk", "member": "", "action": "grant"})
     check("Federation tab: a grant at a site below goes back to the tab saying what was granted",
           res[0] == "redirect" and "msg=" in res[1] and "house1a-admins" in urllib_unquote(res[1]), res)
     # covers: web:post.federation.roles -
-    res = federation_post(FakeHandler(), {"site": "house2", "role": "helpdesk", "member": "", "action": "grant"})
+    res = federation_post(FakeHandler(), {}, ["roles"], {"site": "house2", "role": "helpdesk", "member": "", "action": "grant"})
     check("refused: a grant at a site not below goes back with why", res[0] == "redirect" and "err=" in res[1]
           and "only a site above" in urllib_unquote(res[1]), res)
     web_actions.site_role_change = lambda site, role, member, action: (
@@ -445,11 +445,11 @@ if federation_post:
         if site == "house1a" else (_ for _ in ()).throw(web_actions.ValidationError(
             f"only a site above {site} may make its groups again")))
     # covers: web:post.federation.roles +
-    res = federation_post(FakeHandler(), {"site": "house1a", "role": "admins", "member": "", "action": "remake"})
+    res = federation_post(FakeHandler(), {}, ["roles"], {"site": "house1a", "role": "admins", "member": "", "action": "remake"})
     check("Federation tab: remake goes back to the tab saying the group was replaced",
           res[0] == "redirect" and "house1a-admins replaced" in urllib_unquote(res[1]), res)
     # covers: web:post.federation.roles -
-    res = federation_post(FakeHandler(), {"site": "lan", "role": "admins", "member": "", "action": "remake"})
+    res = federation_post(FakeHandler(), {}, ["roles"], {"site": "lan", "role": "admins", "member": "", "action": "remake"})
     check("refused: remake at a site not below goes back with why", "err=" in res[1]
           and "only a site above lan" in urllib_unquote(res[1]), res)
 

@@ -43,7 +43,8 @@ PERMISSIONS = {
     "sudo:admin": "add and remove the site's sudo rules on its Linux machines (admin bundle, 1.6.11.7)",
     "gpo:admin": "set and clear policies in the site's admin settings GPO, and who may sign in to its machines",
     "federation:read": "see the federation: sites, DC replication and conflicts, limits, the address plan",
-    "federation:admin": "grant and revoke roles at the sites below this one (2.1.9.21)",
+    "federation:admin": "the sites below this one: grant and revoke their roles (2.1.9.21), ask one to change its DC "
+                        "type (2.1.9.23), handle its lost read-only DC (2.1.6.58)",
     # the site helpdesk (2.1.9.21, manual 1.6.8.2): the same actions, on this site's own people who hold no role only
     "site:people:read": "see this site's own people (the site helpdesk)",
     "site:people:create": "add a person to this site (the site helpdesk)",

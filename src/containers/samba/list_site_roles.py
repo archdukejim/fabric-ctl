@@ -2,7 +2,7 @@ import ldb
 
 from levels import misplaced
 import paths
-from site_roles import CONSOLE_ROLES, GRANT_MARK, grant_group, grantable
+from site_roles import CONSOLE_ROLES, GRANT_MARK, REMOTE_ROLES, grant_group, grantable
 
 
 def _cn(dn):
@@ -20,8 +20,9 @@ def list_site_roles(samdb, lp, site, privileged=None):
     Inputs:  samdb — SamDB (as the site's agent); lp — LoadParm (unused); site — str, this install's site; privileged —
              the organisation's fabric groups (roles at the top site), or None.
     Returns: {"sites": [{"site", "own" (bool: this site, whose roles only a site above grants), "roles": [{"role",
-             "kind" ("ad" or "console"), "bundle" (the console's bundle, "" for an AD role), "group", "exists",
-             "members" [names], "admins" (bool: the site's own admins hold it), "pending" (bool: they hold an AD role
+             "kind" ("ad", "console" or "remote": a remote-users role, 2.1.7.14), "bundle" (the console's bundle, ""
+             otherwise), "group", "exists", "members" [names], "admins" (bool: the site's own admins hold it),
+             "pending" (bool: they hold an AD role
              without a grant: an older default the next convergence takes away)}], "misplaced": [{"uid", "lives",
              "holds": {site: [groups]}}] (people of the site holding a role beyond it, 2.1.9.24: reported, never
              moved)}]}, this site first.
@@ -40,10 +41,11 @@ def list_site_roles(samdb, lp, site, privileged=None):
             held = admins in [m.lower() for m in members]
             marked = bool(res) and str(res[0].get("adminDescription", [""])[0]) == GRANT_MARK
             console = role in CONSOLE_ROLES
-            roles.append({"role": role, "kind": "console" if console else "ad",
+            kind = "console" if console else "remote" if role in REMOTE_ROLES else "ad"
+            roles.append({"role": role, "kind": kind,
                           "bundle": CONSOLE_ROLES[role][0] if console else "", "group": name, "exists": bool(res),
                           "members": sorted(_cn(m) for m in members), "admins": held,
-                          "pending": held and not console and not marked})
+                          "pending": held and kind == "ad" and not marked})
         lost = [{k: m[k] for k in ("uid", "lives", "holds")} for m in misplaced(samdb, each, privileged or [])]
         out.append({"site": each, "own": each == site, "roles": roles, "misplaced": lost})
     return {"sites": out}

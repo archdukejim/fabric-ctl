@@ -79,9 +79,13 @@ def mark(db, group):
 
 
 print("--- the roles a site above may grant (site_roles)")
-check("grantable: the four AD roles, the host admins and the five console roles",
+check("grantable: the four AD roles, the host admins, the five console roles and the two remote-users roles",
       site_roles.grantable() == ["ou-admins", "machine-admins", "gpo-admins", "windows-admins", "fabric-admins",
-                                 "network-operators", "equipment-operators", "pki-operators", "helpdesk", "auditors"])
+                                 "network-operators", "equipment-operators", "pki-operators", "helpdesk", "auditors",
+                                 "server-remote-users", "desktop-remote-users"])
+check("a remote-users role's group is the one remote access reads (2.1.7.14)",
+      site_roles.grant_group("house1", "server-remote-users") == site_roles.remote_users("house1", "server")
+      and site_roles.grant_group("house1", "desktop-remote-users") == site_roles.remote_users("house1", "desktop"))
 check("a role's group: <site>-<role>", site_roles.grant_group("house1", "helpdesk") == "house1-helpdesk")
 check("refused: the site's own admins group, or a made-up role, is not a grantable role",
       refused(site_roles.grant_group, "house1", "admins") and refused(site_roles.grant_group, "house1", "domain-admins"))
@@ -241,6 +245,42 @@ for args, why in ((("house1", "house1", "admins"), "a site cannot repair its own
                   (("house1a", "house1", "admins"), "house1a is not above it"),
                   (("lan", "house1", "users"), "not a group a site above can make again")):
     check(f"refused: remake {args[1]}'s {args[2]} from {args[0]} ({why})", why in refused(remake, db, None, *args))
+
+print("--- the remote-users groups as a role (2.1.7.14 as revised 2026-10-13, integrated with 2.1.9.21)")
+db = domain()
+done = remake(db, None, "lan", "house1", "desktop-remote-users")
+G1 = f"OU=groups,OU=house1,OU=lan,{SITES}"
+desk = db.objects.get(f"CN=house1-desktop-remote-users,{G1}", {})
+check("a missing desktop remote-users group made from above: REMOTE_ROLES' description, a gid, its layered default "
+      "nested (central IT's lan-admins, the site's own admins; the organisation's fabric-admins not made here yet)",
+      done["made"] and desk.get("description") == [site_roles.REMOTE_ROLES["desktop-remote-users"]]
+      and desk.get("gidnumber") and members(db, "house1-desktop-remote-users") == ["lan-admins", "house1-admins"],
+      (done, desk))
+db.add_entry(f"CN=fabric-admins,OU=groups,OU=organisation,OU=lan,{SITES}", objectClass=["group"],
+             sAMAccountName="fabric-admins")
+remake(db, None, "lan", "house1", "server-remote-users")
+check("...the server group: fabric-admins, lan-admins and the site's own host admins",
+      members(db, "house1-server-remote-users") == ["fabric-admins", "lan-admins", "house1-fabric-admins"],
+      members(db, "house1-server-remote-users"))
+db.objects[f"CN=house1-desktop-remote-users,{G1}"]["_owner"] = ["SID-fabric-agent-house1"]   # the branch re-made it
+db.objects[f"CN=house1-desktop-remote-users,{G1}"]["member"] = []
+done = remake(db, None, "lan", "house1", "desktop-remote-users")
+check("...one the branch re-made (and emptied) is replaced, its default nesting back",
+      done["remade"] and members(db, "house1-desktop-remote-users") == ["fabric-admins", "lan-admins",
+                                                                        "house1-admins"], done)
+narrowed = narrow_site_admins(db, "house1", False, "admins")
+check("narrow_site_admins leaves the remote-users groups: house1-admins in the desktop one is their default",
+      "house1-admins" in members(db, "house1-desktop-remote-users")
+      and not any("remote-users" in line for line in narrowed), narrowed)
+grant_site_role(db, None, "lan", "house1", "server-remote-users", "jdoe")
+check("a site above grants the server remote-users role to a person", "jdoe" in members(db,
+                                                                                      "house1-server-remote-users"))
+check("refused: a site granting its own remote-users role",
+      "cannot grant itself" in refused(grant_site_role, db, None, "house1", "house1", "server-remote-users"))
+roles = {r["role"]: r for r in list_site_roles(db, None, "lan")["sites"][1]["roles"]}
+check("listed as remote sign-in, never pending (house1-admins there is the default, not a 0.8 leftover)",
+      roles["desktop-remote-users"]["kind"] == "remote" and roles["desktop-remote-users"]["admins"]
+      and not roles["desktop-remote-users"]["pending"], roles["desktop-remote-users"])
 
 print("--- list_site_roles (the Roles card, fabricctl federation roles; 2.1.9.22)")
 db = domain()

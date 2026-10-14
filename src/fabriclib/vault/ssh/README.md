@@ -13,7 +13,9 @@ account, trusted by clients through `@cert-authority` lines.
 | `converge_ssh_ca.py` | OpenBao to the setting: on (engine, CA key once, role) or off (role deleted; CA kept) |
 | `publish_ssh_ca.py` | The CA's public key at `/certs/ssh-user-ca.pub`, or removed (machines then stop trusting it) |
 | `sign_ssh_key.py` | An 8-hour certificate for a fabric admin's public key; everyone else refused and audited |
-| `ssh_overview.py` | The SSH page: on or off, the CA key and fingerprint, whether this person may sign |
+| `ssh_overview.py` | The SSH page: on or off, the CA key and fingerprint, whether this person may sign and which sites the certificate names (2.1.7.14) |
+| `org_ssh_trust.py` | What a site's machines trust from the organisation's CAs: every site's host CA for its names, the user CAs of this site and the writable-DC sites (2.1.7.14) |
+| `signable_sites.py` | Which of a person's SSH sites this site's user CA signs for: itself and the sites below it (2.1.7.14, revised) |
 | `parse_ssh_key.py` | Read and judge one OpenSSH public key (Ed25519, ECDSA, RSA of 3072 bits and more) |
 | `bao_call.py` | One OpenBao call of the SSH engines that must succeed; a refusal of setup's policy says to run the vault step |
 | `converge_ssh_host_ca.py` | OpenBao's host CA to the setting: on (engine `ssh-host/`, CA key once, role `fabric-host`) or off (role deleted; CA kept) |

@@ -100,6 +100,9 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `list_sudo_rules.py` | The site's sudo rules, each fabric's, the default or an admin's own. Agent route: GET /v1/sudo (domain:read). |
 | `sudo_rule_change.py` | Add a sudo rule or remove one of fabric's. Agent routes: POST /v1/sudo, /v1/sudo/<name>/delete (sudo:admin). |
 | `federation_overview.py` | The federation's sites, replication, conflicts, limits and address plan. Agent route: GET /v1/federation (federation:read). |
+| `rodc_lost_plan.py` | A lost read-only DC's accounts and what handling it does. Agent route: GET /v1/federation/rodc-lost/<site> (federation:admin). |
+| `rodc_lost.py` | Handle a lost read-only DC: reset its accounts, remove it. Agent route: POST /v1/federation/rodc-lost/<site> (federation:admin). |
+| `dc_type_request.py` | Ask a site below to change its DC type; answers its one-time change token, shown once. Agent route: POST /v1/federation/dc-type/<site> (federation:admin). |
 | `security_layers.py` | GET /v1/security: the sign-in layers |
 | `raise_signin_layer.py` | POST /v1/security/raise or /kerberos |
 | `image_rows.py` | Each service's image: running, validated, update available. Agent route: GET /v1/images (status:read). |

@@ -234,8 +234,9 @@ check("negative: a local user whose subordinate ids overlap no block is not name
       join_out[-800:])
 where = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={RELEASES['24.04']}$)",
             "distinguishedName", "operatingSystem", "operatingSystemVersion"], ok=False).stdout
-check("24.04: its computer account is in OU=linux,OU=machines,OU=lan, recording its OS (1.6.11.5, 2.1.6.36)",
-      "OU=linux,OU=machines,OU=lan,OU=sites" in where and "operatingSystem: Ubuntu" in where
+check("24.04: no desktop installed, so a server: its computer account is in OU=linux,OU=servers,OU=machines,OU=lan, "
+      "recording its OS (1.6.11.5, 2.1.6.36 as revised 2026-10-13)", "class: server" in join_out
+      and "OU=linux,OU=servers,OU=machines,OU=lan,OU=sites" in where and "operatingSystem: Ubuntu" in where
       and "operatingSystemVersion: 24.04" in where, where)
 time.sleep(5)
 checks(box, "24.04")
@@ -270,7 +271,21 @@ on(box, "ssh-keygen -q -t ed25519 -N '' -f /root/adam_key && pkill -x sshd; /usr
 user_pub = on(box, "cat /root/adam_key.pub")[1].strip()
 with open(os.path.join(W, "adam_key.pub"), "w") as f:
     f.write(user_pub + "\n")
-sh(["ssh-keygen", "-q", "-s", SSH_CA_KEY, "-I", "fabric:adam:test", "-n", "adam", "-V", "+1h",
+# the principal is <user>@<site>-<class> (2.1.7.14 as revised 2026-10-13): this server's principals command accepts
+# adam@lan-server for adam, nothing else
+check("24.04: its class, read from its account's OU by fabric-managed, is server",
+      on(box, "cat /etc/fabric/machine-class")[1].strip() == "server")
+shutil.copy(os.path.join(W, "adam_key.pub"), os.path.join(W, "adam_desk.pub"))
+sh(["ssh-keygen", "-q", "-s", SSH_CA_KEY, "-I", "fabric:adam:desk", "-n", "adam@lan-desktop,adam@lan", "-V", "+1h",
+    os.path.join(W, "adam_desk.pub")])
+sh(["docker", "cp", os.path.join(W, "adam_desk-cert.pub"), f"{box}:/root/adam_key-cert.pub"])
+on(box, "pkill -x sshd; /usr/sbin/sshd")
+code, out = on(box, "ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
+                    "-o GSSAPIAuthentication=no -o PreferredAuthentications=publickey -o IdentitiesOnly=yes "
+                    "-i /root/adam_key adam@localhost id -un")
+check("negative: a certificate naming adam@lan-desktop (and the bare site) does not sign in at a lan server",
+      code != 0, out[-300:])
+sh(["ssh-keygen", "-q", "-s", SSH_CA_KEY, "-I", "fabric:adam:test", "-n", "adam@lan-server", "-V", "+1h",
     os.path.join(W, "adam_key.pub")])
 sh(["docker", "cp", os.path.join(W, "adam_key-cert.pub"), f"{box}:/root/adam_key-cert.pub"])
 SSH = ("ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o GSSAPIAuthentication=no "
@@ -280,6 +295,34 @@ check("24.04: adam (a fabric admin) signs in with a certificate fabric's CA sign
       code == 0 and out.strip().endswith("adam"), out[-400:])
 code, out = on(box, f"{SSH} alice@localhost id -un")
 check("negative: the same certificate does not sign in as alice (not its principal)", code != 0, out[-300:])
+# SSH between sites (2.1.7.14, 1.6.11.9.15): a certificate naming another site's principal only is refused here; one
+# signed by another writable site's user CA, published in the organisation's list, is accepted for lan's principal
+shutil.copy(os.path.join(W, "adam_key.pub"), os.path.join(W, "adam_s3.pub"))
+sh(["ssh-keygen", "-q", "-s", SSH_CA_KEY, "-I", "fabric:adam:site3", "-n", "adam@site3-server", "-V", "+1h",
+    os.path.join(W, "adam_s3.pub")])
+on(box, "cp /root/adam_key-cert.pub /root/adam_key-cert.lan")
+sh(["docker", "cp", os.path.join(W, "adam_s3-cert.pub"), f"{box}:/root/adam_key-cert.pub"])
+code, out = on(box, f"{SSH} adam@localhost id -un; grep fabric-ssh-principals /var/log/auth.log 2>/dev/null | tail -2")
+check("negative: a certificate naming adam@site3-server only does not sign in at a lan machine (a non-member of "
+      "lan-server-remote-users gets no lan principal)", code != 0 or not out.strip().splitlines()[0].endswith("adam"), out[-400:])
+SITE3_USER_CA = os.path.join(W, "site3_user_ca")
+sh(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", SITE3_USER_CA])
+shutil.copy(os.path.join(W, "adam_key.pub"), os.path.join(W, "adam_by3.pub"))
+sh(["ssh-keygen", "-q", "-s", SITE3_USER_CA, "-I", "fabric:adam:by-site3", "-n", "adam@lan-server", "-V", "+1h",
+    os.path.join(W, "adam_by3.pub")])
+sh(["docker", "cp", os.path.join(W, "adam_by3-cert.pub"), f"{box}:/root/adam_key-cert.pub"])
+code, out = on(box, f"{SSH} adam@localhost id -un")
+check("negative: a certificate from a CA not in the organisation's list is refused", code != 0, out[-300:])
+with open(os.path.join(TLS, "www", "certs", "ssh-user-cas.pub"), "w") as f:
+    f.write(open(SSH_CA_KEY + ".pub").read().strip() + "\n" + open(SITE3_USER_CA + ".pub").read().strip() + "\n")
+code, out = on(box, f"fabric-managed check; pkill -x sshd; /usr/sbin/sshd; wc -l < /etc/ssh/fabric-user-ca.pub; "
+                    f"{SSH} adam@localhost id -un")
+check("the organisation's user CAs published (lan's and site3's): adam, signed at site3 for lan, signs in at lan",
+      code == 0 and out.strip().endswith("adam") and out.split()[0] == "2", out[-400:])
+os.remove(os.path.join(TLS, "www", "certs", "ssh-user-cas.pub"))
+on(box, "fabric-managed check; cp /root/adam_key-cert.lan /root/adam_key-cert.pub; pkill -x sshd; /usr/sbin/sshd")
+code, out = on(box, f"{SSH} adam@localhost id -un")
+check("the list withdrawn (404): back to lan's own CA; lan's certificate still signs in", code == 0, out[-300:])
 on(box, "mv /root/adam_key-cert.pub /root/adam_key-cert.off")
 code, out = on(box, f"{SSH} adam@localhost id -un")
 check("negative: the key without its certificate is refused (no authorized_keys entry)", code != 0, out[-300:])
@@ -388,6 +431,34 @@ check("24.04: ssh by its name, strict host key checking, only the system known-h
       code == 0 and out.strip().endswith("adam"), out[-400:])
 code, out = on(box, f"{STRICT} adam@{NAME} id -un")
 check("24.04: by its short name too (the short-name line)", code == 0 and out.strip().endswith("adam"), out[-400:])
+# every site's host CA (2.1.7.14, 1.6.11.9.16): a site3 machine (here: a second sshd presenting a certificate from
+# site3's host CA for <name>.site3.test) is verified by a client of lan through site3's line, for site3's names only
+SITE3_HOST_CA = os.path.join(W, "site3_host_ca")
+sh(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", SITE3_HOST_CA])
+host_key = on(box, "cat /etc/ssh/ssh_host_ed25519_key.pub")[1].strip()
+with open(os.path.join(W, "s3host.pub"), "w") as f:
+    f.write(host_key + "\n")
+sh(["ssh-keygen", "-q", "-s", SITE3_HOST_CA, "-h", "-I", "fabric-host:s3", "-n", f"{NAME}.site3.test", "-V", "+1h",
+    os.path.join(W, "s3host.pub")])
+sh(["docker", "cp", os.path.join(W, "s3host-cert.pub"), f"{box}:/etc/ssh/site3-host-cert.pub"])
+own = open(HOST_CA + ".pub").read().split()
+site3 = open(SITE3_HOST_CA + ".pub").read().split()
+with open(os.path.join(TLS, "www", "certs", "ssh-host-cas.known"), "w") as f:
+    f.write(f"@cert-authority *.ad.lan.test,*.lan.test {own[0]} {own[1]}\n@cert-authority *,!*.*,!*:* {own[0]} {own[1]}\n"
+            f"@cert-authority *.ad.lan.test,*.site3.test {site3[0]} {site3[1]}\n")
+code, out = on(box, "fabric-managed check; cat /etc/ssh/ssh_known_hosts; /usr/sbin/sshd -p 2222 "
+                    "-o HostCertificate=/etc/ssh/site3-host-cert.pub")
+check("the organisation's host CAs: site3's line in fabric's known-hosts block, for site3's names",
+      f"*.site3.test {site3[0]} {site3[1]}" in out, out[-500:])
+code, out = on(box, f"{STRICT} -p 2222 -o HostKeyAlias={NAME}.site3.test adam@127.0.0.1 id -un")
+check("a site3 machine's host certificate verified through site3's host CA (strict checking, no prompt)",
+      code == 0 and out.strip().endswith("adam"), out[-400:])
+code, out = on(box, f"{STRICT} -p 2222 -o HostKeyAlias={NAME}.site9.test adam@127.0.0.1 id -un")
+check("negative: the same certificate for a name outside site3's (site9.test): not trusted",
+      code != 0 and "host key verification failed" in out.lower(), out[-400:])
+on(box, "pkill -f 'sshd -p 2222'; rm -f /etc/ssh/site3-host-cert.pub")
+os.remove(os.path.join(TLS, "www", "certs", "ssh-host-cas.known"))
+on(box, "fabric-managed check")
 code, out = on(box, f"{STRICT} adam@127.0.0.1 id -un")
 check("negative: by an IP address the host CA vouches for nothing: the host key is not trusted",
       code != 0 and "host key verification failed" in out.lower(), out[-400:])
@@ -458,8 +529,8 @@ check("26.04: joins with a one-time join password, no admin password on the mach
 where = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={RELEASES['26.04']}$)",
             "distinguishedName", "operatingSystem"], ok=False).stdout
 # the OS is not recorded here: a one-time join signs in as the computer, which AD does not let write it (1.6.11.5)
-check("26.04: it stays where add-machine --os linux put it (OU=linux)",
-      "OU=linux,OU=machines,OU=lan,OU=sites" in where, where)
+check("26.04: it stays where add-machine --os linux put it (OU=linux,OU=servers: a server by default)",
+      "OU=linux,OU=servers,OU=machines,OU=lan,OU=sites" in where, where)
 time.sleep(5)
 checks(box, "26.04")
 code, out = on(box, "fabric-managed check; echo rc=$?; cat /etc/systemd/resolved.conf.d/fabric.conf")
@@ -470,7 +541,7 @@ check("26.04: pre-created managed (add-machine's default), its check finds it a 
 for release in ("debian-12", "debian-13"):
     box_d, ok = client(release, RELEASES[release])
     check(f"{release}: the client container is ready ({IMAGES[release]})", ok)
-    flag = " --unmanaged" if release == "debian-12" else ""
+    flag = " --unmanaged" if release == "debian-12" else " --class desktop"
     code, out = on(box_d, f"bash /root/join-linux.sh {fp} --user adam{flag}", stdin=PW + "\n")
     check(f"{release}: joins with a site admin's password{flag} (sudo installed with it: Debian has none)",
           code == 0 and "joined" in out and on(box_d, "command -v sudo")[0] == 0, out[-600:])
@@ -480,8 +551,18 @@ for release in ("debian-12", "debian-13"):
         check(f"{release}: --unmanaged: fabric configures neither SSH nor DNS, and the account says unmanaged",
               on(box_d, "test -e /etc/systemd/resolved.conf.d/fabric.conf")[0] != 0
               and "description: fabric: unmanaged (manual 1.6.11.6)" in desc, desc)
+    if release == "debian-13":      # a desktop by its join's choice (2.1.6.36 as revised 2026-10-13)
+        where = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb",
+                    f"(sAMAccountName={RELEASES[release]}$)", "distinguishedName"], ok=False).stdout
+        check(f"{release}: --class desktop: in OU=linux,OU=desktops,OU=machines; its class file says desktop",
+              "OU=linux,OU=desktops,OU=machines,OU=lan,OU=sites" in where
+              and on(box_d, "fabric-managed check >/dev/null 2>&1; cat /etc/fabric/machine-class")[1].strip()
+              in ("desktop", ""), where)
     time.sleep(5)
     checks(box_d, release)
+code, out = on(box, f"bash /root/join-linux.sh {fp} --one-time --class desktop", stdin="x\n")
+check("negative: --class with --one-time is refused before anything changes (the account's class is add-machine's)",
+      code != 0 and "--class does not go with --one-time" in out, out[-400:])
 
 # the DC away: a person who logged on before still can (cached credentials)
 sh(["docker", "stop", DC])

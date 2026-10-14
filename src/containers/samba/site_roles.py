@@ -60,20 +60,43 @@ def fabric_machines(site):
     return f"{site}-fabric-machines"
 
 
+# a machine's class (decision 2.1.7.14, second revision; 2.1.6.36's revision): what remote access follows, not its OS.
+# class -> its OU below the site's OU=machines (each holding OU=linux and OU=windows)
+CLASSES = {"server": "servers", "desktop": "desktops"}
+# the remote-users roles (2.1.7.14 as revised 2026-10-13): role -> its group's description. Granted only from above,
+# like the site's AD roles (2.1.9.21): grantable() lists them, so a branch's own agent is denied writing them and a
+# site above grants, revokes and remakes them (a remade one gets remote_defaults' nesting again)
+REMOTE_ROLES = {f"{cls}-remote-users": f"May sign in remotely (SSH, RDP) to the site's {cls}s (manual 1.6.11.9.13)"
+                for cls in CLASSES}
+
+
+def remote_users(site, machine_class):
+    """Purpose: the group of who may sign in remotely (SSH through SSSD, RDP) to a site's machines of one class
+             (decision 2.1.7.14, revised 2026-10-13; manual 1.6.11.9.13).
+    Inputs:  site — str; machine_class — a key of CLASSES.
+    Returns: str "<site>-server-remote-users" or "<site>-desktop-remote-users" (grant_group's name for the role).
+    Fails:   KeyError for an unknown class.
+    Feeds:   ensure_groups, ensure_logon_policies, ssh_user_sites."""
+    CLASSES[machine_class]
+    return f"{site}-{machine_class}-remote-users"
+
+
 def grantable():
     """Purpose: every role a site above may grant at a site (2.1.9.21): the AD roles (ROLES, and the site's host
-             admins, fabric-admins) and the console roles (CONSOLE_ROLES).
+             admins, fabric-admins), the console roles (CONSOLE_ROLES) and the remote-users roles (REMOTE_ROLES,
+             2.1.7.14 as revised 2026-10-13).
     Inputs:  none.
     Returns: list of str role names, AD roles first.
     Fails:   never.
-    Feeds:   grant_site_role, list_site_roles, ensure_site_acl, narrow_site_admins."""
-    return list(ROLES) + [FABRIC_ADMINS] + list(CONSOLE_ROLES)
+    Feeds:   grant_site_role, list_site_roles, ensure_site_acl, narrow_site_admins, role_groups."""
+    return list(ROLES) + [FABRIC_ADMINS] + list(CONSOLE_ROLES) + list(REMOTE_ROLES)
 
 
 def grant_group(site, role):
     """Purpose: the group of a grantable role at a site (2.1.9.21).
     Inputs:  site — str; role — one of grantable().
-    Returns: str "<site>-<role>" ("<site>-fabric-admins" for fabric-admins).
+    Returns: str "<site>-<role>" ("<site>-fabric-admins" for fabric-admins; "<site>-server-remote-users" is
+             remote_users(site, "server")).
     Fails:   KeyError for a role that cannot be granted.
     Feeds:   grant_site_role, list_site_roles, ensure_site_acl, narrow_site_admins, ensure_groups."""
     if role not in grantable():
@@ -89,3 +112,25 @@ def role_group(site, role):
     Feeds:   ensure_groups, ensure_site_acl, ensure_sudo_rule, converge."""
     ROLES[role]
     return f"{site}-{role}"
+
+
+# the class a machine gets when nobody names one (2.1.6.36's revision): by its OS family, Linux machines are servers
+# (a Linux desktop says so at its join, join-linux.sh --class desktop) and Windows ones desktops (a Windows Server is
+# sorted by its operatingSystem, sort_windows_machines)
+DEFAULT_CLASS = {"linux": "server", "windows": "desktop"}
+
+
+def class_of(dn):
+    """Purpose: a machine's class read from where its account sits (2.1.6.36's revision, manual 1.6.11.5): the class
+             OU above it below OU=machines.
+    Inputs:  dn — the computer account's DN (str).
+    Returns: "server", "desktop", or "" (in no class OU: OU=machines itself, OU=fabric-hosts, elsewhere).
+    Fails:   never.
+    Feeds:   list_machines, set_machine_class."""
+    parts = [p.strip().lower() for p in str(dn).split(",")]
+    for i, part in enumerate(parts[:-1]):
+        if parts[i + 1] == "ou=machines":
+            for cls, ou in CLASSES.items():
+                if part == f"ou={ou}":
+                    return cls
+    return ""

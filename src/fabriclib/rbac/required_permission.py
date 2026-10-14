@@ -14,13 +14,16 @@ GET = {
     ("radius",): "radius:read", ("radius", "guides"): "radius:read", ("radius", "sessions"): "radius:read",
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
     ("pki", "enrolments"): "pki:read",
-    ("ssh",): "session",                # SSH certificates: anyone may look; signing is for fabric admins (2.1.7.12)
+    ("ssh",): "session",                # SSH certificates: anyone may look; signing for site SSH users (2.1.7.14)
     ("ssh", "hosts"): "domain:read",    # each machine's SSH host certificate (1.6.11.9.11): the site's machines
     ("devices",): "devices:read",
     ("people",): "people:read",
     ("domain",): "domain:read", ("domain", "logon"): "domain:read", ("gpo",): "domain:read",
     ("host-groups",): "domain:read", ("sudo",): "domain:read",
     ("federation",): "federation:read",
+    # a lost read-only DC's revealed accounts (2.1.6.58, revised 2026-10-14): central IT's federation:admin, at a site
+    # above it
+    ("federation", "rodc-lost", "*"): "federation:admin",
     ("vault",): "vault:status", ("vault", "slots"): "vault:status", ("vault", "devices"): "vault:status",
     ("security",): "security:raise",
 }
@@ -43,8 +46,11 @@ POST = {
     ("pki", "issue"): "pki:issue", ("pki", "convert"): "pki:issue",
     ("pki", "enrol", "apple"): "pki:enrol", ("pki", "enrol", "p12"): "pki:enrol",
     ("pki", "enrolments", "*", "withdraw"): "pki:enrol",
-    ("ssh", "sign"): "session",         # refused inside unless the person is a fabric admin (2.1.7.12)
+    ("ssh", "sign"): "session",         # refused inside unless in a site's remote users group (2.1.7.14)
     ("ssh", "on"): "system:admin", ("ssh", "off"): "system:admin",
+    # a lost read-only DC (2.1.6.58, revised 2026-10-14): resets every account it held, removes it — central IT's
+    # federation:admin, at a site above it; a site below asked to change its DC type (2.1.9.23, revised 2026-10-14)
+    ("federation", "rodc-lost", "*"): "federation:admin", ("federation", "dc-type", "*"): "federation:admin",
     ("tsig",): "tsig:manage", ("tsig", "*", "rotate"): "tsig:manage", ("tsig", "*", "delete"): "tsig:manage",
     ("vault", "rotate"): "vault:unlock", ("vault", "slots", "add-usb"): "vault:unlock",
     ("vault", "slots", "add-security-key"): "vault:unlock", ("vault", "slots", "add-hsm"): "vault:unlock",

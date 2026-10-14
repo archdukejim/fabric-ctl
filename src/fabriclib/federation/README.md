@@ -8,6 +8,15 @@ their own local network (design [1.9.1](../../../docs/volume_1_description_and_a
 | `constants.py` | The site-name, domain and base-DN rules, the invitation format and lifetime, the join body limit |
 | `create_invitation.py` | Upstream: a one-time invitation for a new site (only a hash of its secret is kept; audited) |
 | `list_invitations.py` | Upstream: the open invitations, without their secrets |
+| `request_dc_type.py` | At a site above: ask a site below to change its DC type; the request in AD, a one-time change token (2.1.9.23) |
+| `accept_dc_type.py` | At the site above (the endpoint's POST /v1/dc-type): the change token redeemed for the temporary join account (2.1.9.23) |
+| `plan_dc_type_change.py` | At the site: what accepting a DC type change does, or why it may not (pure, 2.1.9.23) |
+| `change_dc_type.py` | At the site: the DC type change carried out step by step, each recorded (2.1.9.23) |
+| `read_change_token.py` | The change token from a file, stdin or a hidden prompt, never the command line (2.1.9.23) |
+| `confirm_plan.py` | Show what a federation command will change and have the person type a word to go on (2.1.9.23, 2.1.6.58) |
+| `site_below.py` | Whether a site sits below this one in the domain (its OU inside this site's) |
+| `plan_rodc_lost.py` | What handling a site's lost read-only DC does, or why it may not (pure, 2.1.6.58) |
+| `rodc_lost.py` | A site's read-only DC lost or stolen: the accounts it held listed, reset on confirmation, the DC removed, all recorded and audited (2.1.6.58) |
 | `revoke_invitation.py` | Upstream: withdraw an open invitation (audited) |
 | `accept_join.py` | Upstream: an invited site joins — check the invitation, sign the site's CA with the root key, record the site |
 | `decode_invitation.py` | Joining node: read and check an invitation (no network) |

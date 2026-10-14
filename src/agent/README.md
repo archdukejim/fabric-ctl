@@ -25,6 +25,7 @@ arbitrary commands.
 | `post_pki.py` | Manual PKI: describe or sign a CSR, issue, inspect, convert |
 | `post_enrol.py` | Device enrolment: an Apple profile with a one-time SCEP challenge, a PKCS#12, withdrawing an unused profile (1.5.3) |
 | `post_ssh.py` | SSH certificates: sign a fabric admin's key, turn them on or off (1.6.11.9) |
+| `post_federation.py` | The federation's changes for `federation:admin`: POST /v1/federation/roles (a role at a site below, 2.1.9.21); /dc-type/<site> (a DC type change asked of a site below, its token answered once, 2.1.9.23); /rodc-lost/<site> (a lost read-only DC: every account it held reset and the DC removed, the site's name typed back, 2.1.6.58) |
 | `post_vault.py` | OpenBao's unlock methods, rotating the vault key |
 | `post_directory.py` | Devices and device roles in the domain |
 | `read_text.py` / `read_strings.py` / `read_fields.py` | Checked fields of a request body |
@@ -36,4 +37,3 @@ arbitrary commands.
 | `post_security.py` | POST /v1/security/raise and /kerberos: raise a sign-in layer or turn Kerberos sign-in on or off, then apply |
 | `job_store.py` | Background jobs (doctor, an image update): started by one call, followed by id, read only by who started them; kept in memory |
 | `post_people.py` | POST /v1/people[/<uid>/<action>]: add, reset, unlock, disable or enable, remove, regroup a person; the site helpdesk narrowed to this site's own people who hold no role (2.1.9.21) |
-| `post_federation.py` | POST /v1/federation/roles: grant or revoke a role at a site below this one (federation:admin, 2.1.9.21) |

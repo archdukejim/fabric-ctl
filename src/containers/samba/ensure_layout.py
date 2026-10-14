@@ -7,7 +7,9 @@ import paths
 SITE_OUS = ("people", "groups", "machines", "devices", "device-roles", "networks", "sudoers", "service-accounts",
             "fabric-hosts")
 ORGANISATION_OUS = ("groups", "device-roles", "sudoers")
-# each site's OU=machines holds one OU per OS family: a machine is placed in its own once (2.1.6.36, 1.6.11.5)
+# each site's OU=machines holds one OU per machine class, each with one OU per OS family: a machine is placed once
+# (2.1.6.36 as revised 2026-10-13, 1.6.11.5): OU=<linux|windows>,OU=<servers|desktops>,OU=machines
+CLASS_OUS = ("servers", "desktops")
 MACHINE_OUS = ("linux", "windows")
 # AD's well-known containers for new users and computers (redirusr, redircmp)
 WELL_KNOWN = {"A9D1CA15768811D1ADED00C04FD8D5CD": "people", "AA312825768811D1ADED00C04FD8D5CD": "machines"}
@@ -70,7 +72,10 @@ def ensure_layout(samdb, site, root, parent=""):
             done.append(site_dn)
         # the mark first, on its own (the id block comes with ensure_site_info): the OU is found by it from now on
         samdb.modify(ldb.Message.from_dict(samdb, {"dn": site_dn, "objectClass": "fabricSiteInfo"}, ldb.FLAG_MOD_ADD))
-    wanted = [f"OU={ou},{site_dn}" for ou in SITE_OUS] + [f"OU={ou},OU=machines,{site_dn}" for ou in MACHINE_OUS]
+    wanted = [f"OU={ou},{site_dn}" for ou in SITE_OUS]
+    for cls in CLASS_OUS:
+        wanted += [f"OU={cls},OU=machines,{site_dn}"]
+        wanted += [f"OU={ou},OU={cls},OU=machines,{site_dn}" for ou in MACHINE_OUS]
     if root:
         wanted += [f"OU=organisation,{site_dn}"] + [f"OU={ou},OU=organisation,{site_dn}" for ou in ORGANISATION_OUS]
     done += [dn for dn in wanted if _ensure_ou(samdb, dn)]

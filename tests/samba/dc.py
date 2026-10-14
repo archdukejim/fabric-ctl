@@ -348,8 +348,10 @@ check("the host groups: fabric-admins (organisation), lan-fabric-admins and lan-
                                        "sAMAccountName").stdout
           for g in ("fabric-admins", "lan-fabric-admins", "lan-fabric-machines")))
 _ous = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(objectClass=organizationalUnit)", "dn").stdout
-check("each site's OU=machines holds OU=linux and OU=windows (1.6.11.5, 2.1.6.36)",
-      "OU=linux,OU=machines,OU=lan," in _ous and "OU=windows,OU=machines,OU=lan," in _ous, _ous[-400:])
+check("each site's OU=machines holds OU=servers and OU=desktops, each with OU=linux and OU=windows (1.6.11.5, "
+      "2.1.6.36 as revised 2026-10-13)",
+      all(f"OU={os_},OU={cls},OU=machines,OU=lan," in _ous for cls in ("servers", "desktops")
+          for os_ in ("linux", "windows")), _ous[-400:])
 check("a new site's lan-fabric-admins is a member of lan-machine-admins (2.1.6.38); fabric-admins of lan-fabric-admins",
       "lan-fabric-admins" in members("lan-machine-admins") and "fabric-admins" in members("lan-fabric-admins"),
       (members("lan-machine-admins"), members("lan-fabric-admins")))
@@ -987,9 +989,94 @@ try:
     why = ""
 except ValidationError as e:
     why = str(e)
-check("negative: a write with the writable DC not answering: said plainly, naming it", "10.254.30.99 does not answer"
+check("negative: a write with the writable DC not answering: said plainly, naming it", "10.254.30.99: did not answer"
       in why, why)
-gpo_before = sh(["docker", "exec", RODC, "find", "/data/state/sysvol", "-newer", "/data/etc/smb.conf", "-type", "f"],
+# several writable DCs, tried in order (2.1.6.57): the first does not answer, the second (the real one) takes it
+import fabriclib.samba.writable_server as ws_mod  # noqa: E402
+ws_mod._seen.clear()
+listed_v = {**rcv, "ad_writable_servers": ["10.254.30.99", IP]}
+run_op(listed_v, lab_sec, "create_person", {"uid": "listed", "first": "Listed", "last": "Test",
+                                            "email": "listed@lan.test", "password": "Pw-" + random_password(20),
+                                            "gid": 5000, "home_base": "/home", "shell": "/bin/bash"}, RODC)
+check("the list falls through to the second writable DC when the first does not answer",
+      "dn: CN=listed," in dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=listed)", "dn").stdout)
+run_op(listed_v, lab_sec, "remove_person", {"uid": "listed"}, RODC)
+try:
+    ws_mod._seen.clear()
+    run_op({**rcv, "ad_writable_servers": ["10.254.30.99", "10.254.30.98"]}, lab_sec, "save_device", {"name": "x"},
+           RODC)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: every writable DC down: refused, naming each one tried",
+      "10.254.30.99: did not answer; 10.254.30.98: did not answer" in why, why)
+
+# SSH between sites (2.1.7.14 as revised 2026-10-13): each site's <site>-server-remote-users and
+# <site>-desktop-remote-users, the layered default in them, who is in them, the organisation's CAs through AD, and
+# each site's DC type from the configuration partition
+lab_v = {**v, "site_name": "lab"}
+members = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=lab-server-remote-users)", "member").stdout
+check("lab-server-remote-users made with the site's groups: central IT (fabric-admins, the root's admins) and "
+      "lab-fabric-admins nested in it", "CN=lab-fabric-admins," in members and "CN=fabric-admins," in members
+      and "CN=lan-admins," in members and "CN=lab-admins," not in members, members)
+members = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=lab-desktop-remote-users)", "member").stdout
+check("lab-desktop-remote-users: central IT and lab-admins nested in it, not lab-fabric-admins",
+      "CN=lab-admins," in members and "CN=fabric-admins," in members and "CN=lan-admins," in members
+      and "CN=lab-fabric-admins," not in members, members)
+dc("samba-tool", "group", "addmembers", "lab-server-remote-users", "stayer", "-s", CONF)
+check("a member of lab-server-remote-users: the op grants lab's servers (the certificate carries stayer@lab-server)",
+      {"site": "lab", "class": "server"} in run_op(lab_v, lab_sec, "ssh_user_sites", {"uid": "stayer"}, DC)["grants"])
+check("negative: ...and not lab's desktops", {"site": "lab", "class": "desktop"} not in run_op(
+    lab_v, lab_sec, "ssh_user_sites", {"uid": "stayer"}, DC)["grants"])
+check("negative: a person in no remote users group: nothing", run_op(lab_v, lab_sec, "ssh_user_sites",
+                                                                       {"uid": "outsider"}, DC)["grants"] == [])
+dc("samba-tool", "group", "add", "lan2-server-remote-users", "-s", CONF)   # in CN=Users, not a site's OU=groups
+dc("samba-tool", "group", "addmembers", "lan2-server-remote-users", "outsider", "-s", CONF)
+check("negative: a group of that name outside a site's OU=groups counts for nothing",
+      run_op(lab_v, lab_sec, "ssh_user_sites", {"uid": "outsider"}, DC)["grants"] == [])
+UCA = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeUserCaFakeUserCaFakeUserCaFakeUserCa00"
+HCA = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeHostCaFakeHostCaFakeHostCaFakeHostCa00"
+run_op(lab_v, lab_sec, "set_ssh_cas", {"user_ca": UCA, "host_ca": HCA, "domain": "lab.lan.test"}, DC)
+cas = {s["site"]: s for s in run_op(v, SECRETS, "read_ssh_cas", {}, DC)["sites"]}
+check("a site's CAs published in its own OU, read back by another site with the site's DC type from AD's "
+      "configuration (lab's DC is read-only: its user CA is not trusted elsewhere)",
+      cas.get("lab", {}).get("host_ca") == HCA and cas["lab"]["user_ca"] == UCA and cas["lab"]["writable"] is False,
+      cas)
+types_ = run_op(v, SECRETS, "read_site_dcs", {}, DC)["sites"]
+check("read_site_dcs: lan writable, lab read-only (userAccountControl's PARTIAL_SECRETS_ACCOUNT)",
+      types_.get("lan", {}).get("type") == "writable" and types_.get("lab", {}).get("type") == "rodc", types_)
+try:
+    run_op(lab_v, lab_sec, "set_ssh_cas", {"user_ca": "not a key"}, DC)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: a CA that is not a key is refused", "not an SSH public key" in why, why)
+run_op(lab_v, lab_sec, "set_ssh_cas", {}, DC)
+check("no keys: the site's object removed", "lab" not in {s["site"] for s in run_op(v, SECRETS, "read_ssh_cas", {},
+                                                                                    DC)["sites"]})
+# a site's DC type change asked from above (2.1.9.23): the request kept in the site's own OU by the site above's agent
+# (its inherited rights), read back at the site; a site below may not write one for the site above (AD refuses)
+dct = {"to": "writable", "by": "lan", "actor": "tester", "at": "2026-10-13T09:00:00Z", "id": "abc123def456"}
+run_op(v, SECRETS, "set_dc_type_request", {"target": "lab", "request": dct}, DC)
+check("dc-type: the request from the site above, in lab's OU, read back at lab",
+      run_op(lab_v, lab_sec, "read_dc_type_request", {}, DC)["request"] == dct)
+try:
+    run_op(lab_v, lab_sec, "set_dc_type_request", {"target": "lan", "request": {**dct, "to": "rodc", "by": "lab"}}, DC)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: dc-type: a site below writing a request for the site above is refused by AD", "refused" in why,
+      why)
+try:
+    run_op(v, SECRETS, "set_dc_type_request", {"target": "lab", "request": {**dct, "to": "none"}}, DC)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: dc-type: a type that is not writable or rodc is refused", "writable or rodc" in why, why)
+run_op(lab_v, lab_sec, "set_dc_type_request", {"target": "lab", "request": None}, DC)
+check("dc-type: the site removes its own request once done", run_op(v, SECRETS, "read_dc_type_request",
+                                                                   {"target": "lab"}, DC)["request"] is None)
+gpo_before =sh(["docker", "exec", RODC, "find", "/data/state/sysvol", "-newer", "/data/etc/smb.conf", "-type", "f"],
                 ok=False).stdout
 for name, change in (("who may sign in", lambda: set_logon_policy(rcv, "tester", "machines", ["lab-users"], None,
                                                                   secrets=lab_sec, container=RODC)),
@@ -1042,6 +1129,54 @@ rinfo = json.loads(sh(["docker", "inspect", RODC]).stdout)[0]["HostConfig"]
 check("the RODC is hardened like the DC (the six capabilities, read-only, a limit)",
       len(rinfo["CapAdd"]) == 6 and rinfo["ReadonlyRootfs"] and rinfo["Memory"] > 0)
 print("RODC memory: " + sh(["docker", "stats", "--no-stream", "--format", "{{.MemUsage}}", RODC], ok=False).stdout.strip())
+
+# the branch's read-only DC is lost or stolen (2.1.6.58): at the writable DC, every account the RODC was told the
+# password of (msDS-RevealedUsers), reset; nothing else touched; then the RODC removed as Samba removes a dead DC
+import time  # noqa: E402
+from fabriclib.samba.run_rodc_lost import run_rodc_lost  # noqa: E402
+sh(["docker", "stop", RODC])                       # lost: it never answers again
+sh(["docker", "start", DC])
+for _ in range(60):
+    if dc("ldbsearch", "-H", f"ldap://{IP}", "-U", f"Administrator%{admin_pw}", "-b", BASE, "-s", "base",
+          "dn").returncode == 0:
+        break
+    time.sleep(2)
+rodcs = run_rodc_lost({"action": "list", "site": "lab"}, container=DC)["rodcs"]
+held = {a["name"].lower(): a for r in rodcs for a in r["accounts"]}
+check("rodc-lost: the site's read-only DC found, with its own krbtgt account",
+      [r["name"].lower() for r in rodcs] == ["rodc1"] and rodcs[0]["krbtgt"].lower().startswith("cn=krbtgt_"), rodcs)
+check("rodc-lost: the list holds the accounts the RODC was told (preloaded, signed in there), with their kinds",
+      held.get("cachy", {}).get("kind") == "person" and held.get("stayer", {}).get("kind") == "person"
+      and held.get("labhost$", {}).get("kind") == "machine", sorted(held))
+check("negative: rodc-lost: accounts the RODC never held are not listed (the Administrator, another site's person)",
+      "administrator" not in held and "outsider" not in held and "labboss" not in held, sorted(held))
+try:
+    run_rodc_lost({"action": "reset", "site": "lab", "accounts": [
+        {"dn": f"CN=outsider,{BASE}", "kind": "person"}]}, container=DC)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: rodc-lost: an account outside the revealed list is never reset (the DC refuses it)",
+      "not in the read-only DC's revealed list" in why, why)
+to_reset = [{"dn": a["dn"], "kind": a["kind"]} for a in held.values() if a["kind"] in ("person", "machine", "service")]
+done = run_rodc_lost({"action": "reset", "site": "lab", "accounts": to_reset}, container=DC)["reset"]
+check("rodc-lost: every revealed person and machine reset", len(done) == len(to_reset) > 2, done)
+check("rodc-lost: a reset person's old password no longer signs in at the writable DC",
+      as_user("cachy", cached_pw, "ldbsearch").returncode != 0)
+check("rodc-lost: a reset person must change the password at the next sign-in (pwdLastSet 0)",
+      "pwdLastSet: 0" in dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=stayer)", "pwdLastSet").stdout)
+check("negative: rodc-lost: a person the RODC never held still signs in with their password",
+      as_user("outsider", people_pw["outsider"], "ldbsearch").returncode == 0)
+krbtgt = rodcs[0]["krbtgt"]
+gone = run_rodc_lost({"action": "remove", "site": "lab", "name": "RODC1"}, container=DC)
+after = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(|(sAMAccountName=rodc1$)(distinguishedName=" + krbtgt + "))",
+           "dn").stdout
+check("rodc-lost: the RODC removed: its computer account (and allow list) and its own krbtgt account gone",
+      gone["removed"] and "dn: " not in after, after)
+check("rodc-lost: the site has no DC now (read_site_dcs)", run_op(v, SECRETS, "read_site_dcs", {"sites": ["lab"]},
+                                                                  DC)["sites"]["lab"]["type"] == "none")
+check("rodc-lost: a second removal finds nothing left", run_rodc_lost({"action": "remove", "site": "lab",
+                                                                     "name": "RODC1"}, container=DC)["removed"] is False)
 
 if not os.environ.get("SAMBA_TEST_KEEP"):        # keep the containers to look into a failure
     cleanup()

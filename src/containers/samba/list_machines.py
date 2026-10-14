@@ -4,6 +4,7 @@ import ldb
 
 from find_machine import MACHINE_OUS
 from paths import site_dn
+from site_roles import class_of
 
 ACCOUNTDISABLE = 0x2
 
@@ -29,7 +30,8 @@ def list_machines(samdb, lp, site):
              Windows and Linux alike, and its fabric host in OU=fabric-hosts (1.6.11.11).
     Inputs:  samdb — SamDB (as the site's agent); lp — LoadParm (unused); site — str.
     Returns: list of {"name" (the host name, lower case), "dns", "os", "enabled", "last_logon" (ISO or ""),
-             "created" (ISO), "dn"}, sorted by name.
+             "created" (ISO), "dn", "class" ("server", "desktop", or "" outside the class OUs:
+             2.1.6.36's revision)}, sorted by name.
     Fails:   ldb.LdbError from the search.
     Feeds:   directory_ops (op "list_machines")."""
     out, found = [], []
@@ -49,5 +51,5 @@ def list_machines(samdb, lp, site):
                     "os": one("operatingSystem"), "enabled": not int(one("userAccountControl") or 0) & ACCOUNTDISABLE,
                     "last_logon": _when(one("lastLogonTimestamp")),
                     "created": f"{created[0:4]}-{created[4:6]}-{created[6:8]}" if len(created) >= 8 else "",
-                    "dn": str(m.dn)})
+                    "dn": str(m.dn), "class": class_of(m.dn)})
     return sorted(out, key=lambda x: x["name"])
