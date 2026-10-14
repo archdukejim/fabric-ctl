@@ -133,7 +133,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	26448992ddd38c08ba2df0df2bfbd
 docs/volume_2_engineering_decisions/2.1.9-federation.md	12242c0751465f3995c9e7494b3ec70d7664283e	2026-10-12	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	b41840be4cf12088d10cb2852a165072e1ccbbf0	2026-10-14	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	4c9b7b0403cc85bd9ffe9d9037589d437dcbaada	2026-10-14	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -1322,8 +1322,8 @@ templates/bind9/config/named.conf.tls.j2	3768e62bbe449e9c44c8bd22488cf3aca06a1b9
 templates/bind9/config/named.conf.zones.j2	eeb5918915c49028c198c6190f038b25706190b1	2026-10-10	
 templates/bind9/config/rndc.key.j2	e692cfc3b3b87538e86e2fcbc5d50207ea9035d2	2026-09-30	
 templates/bind9/data/README.md	00b4ac488dddc373fdb98d65da07873c99632ee1	2026-10-01	
-templates/bind9/data/reverse-zone.j2	688fabff1b6900ecfb57a34688cb45b9958cdb39	2026-10-10	
-templates/bind9/data/zone.j2	0e119cc4b8f987953ca804f89687998fe5e2e95e	2026-10-08	
+templates/bind9/data/reverse-zone.j2	68fe17aa309d0c4f4c002d8eca732aeb3294f602	2026-10-14	
+templates/bind9/data/zone.j2	979d98f6e57e8ae1d6d055a6d5c49533ecaf44f3	2026-10-14	
 templates/bind9/docker-compose.yml.j2	c4c7688ea4f0ac2064c8e7af1df581016d2ddf62	2026-10-12	
 templates/chrony/README.md	6e4d960637363eb5cd2fc94e84f41d4fa6acfbd2	2026-10-08	
 templates/chrony/chrony.conf.j2	214a300a689d1189a0aa4c18d8f877509d316cf8	2026-10-08	
@@ -1471,7 +1471,7 @@ tests/freeradius/run.py	4c3e29ceb2d6d41310bad6f14d7054b8ff605594	2026-10-12
 tests/hardening/README.md	514afa897a841c34383af1ef74949610d5dd333d	2026-10-05	
 tests/hardening/run.sh	1ff8e633bf2f96af2a856b354aa722ffba1c5b00	2026-10-12	
 tests/host/README.md	d91d09e7d17622b432063f1b74256e96f6d940cd	2026-10-09	
-tests/host/installer.py	c8cc20e1c3ae371709a4d37eecdfb121a8c1c7aa	2026-10-12	
+tests/host/installer.py	3dcc26e6ac4fc2f56a440ab11258dc4c2b5158dc	2026-10-14	
 tests/host/reset_user.py	36415b5b1fef5a58eb441687393d6062644b34e7	2026-10-05	
 tests/host/run.sh	5f0fa2874a88210cb93d106d5848f9376887e26a	2026-10-12	
 tests/host/upgrade.sh	85dd33fc7ea57cc3f7bcc0627f46e5dbbed5bde5	2026-10-09	
@@ -1510,7 +1510,7 @@ tests/pki/renewal.py	202d8fca898ca32e22ac5d487f4fe7ed5630a8fe	2026-10-12
 tests/pki/revocation.py	cf80ad8b84912f80b941f8fcf3387825e9ba18e6	2026-10-12	
 tests/pki/run.py	3ac7f08379bf8506c62d8333fed3ebab430472af	2026-10-13	
 tests/pki/site_ca.py	6e71ca7798e1aa94ce0f43160716ac57302bec65	2026-10-08	
-tests/render.py	8113af49ae98757c3123136a8c3e14e9fe1ff81e	2026-10-14	
+tests/render.py	0f023c319cd1835fcc723f862c396ab6484164db	2026-10-14	
 tests/resolver/README.md	5deedb8081cac3e1e9090cc764c1db4b1687c442	2026-10-12	
 tests/resolver/console.py	b3ea02ea8da724fc7fc8cf75f809128edfe846cf	2026-10-12	
 tests/resolver/groups.py	13e2709fab07db2cfce3b4a24b13e542b882d45a	2026-10-12	

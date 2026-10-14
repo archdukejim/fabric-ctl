@@ -28,6 +28,7 @@ HOST_IP, DOMAIN = os.environ["HOST_IP"], os.environ.get("DOMAIN", "home.arpa")
 FOREIGN_IP = os.environ.get("FOREIGN_IP", "192.168.7.250")    # in the host's subnet, but not one of its addresses
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "src"))
 from fabriclib.samba.suggested_ad_domain import suggested_ad_domain  # noqa: E402
+from fabriclib.samba.suggested_dc_name import suggested_dc_name  # noqa: E402
 AD = suggested_ad_domain(DOMAIN)        # what Enter takes (2.1.6.11: a sibling of a domain of three labels or more)
 OUT = os.environ.get("OUT", "/tmp/fabric-tests/installer")
 SSH = ["ssh", "-o", "BatchMode=yes", "-i", KEY, TARGET]
@@ -130,7 +131,7 @@ guess_net = R("ip -4 route show default").split()
 # ---- run 1: every wrong answer refused, then the firewall declined
 bad = {
     "domain": ["lan", "home.local", "bad_name.arpa", "-x.arpa", DOMAIN],
-    "hostname": ["has.dot", "averyveryverylonghostname", "localhost", "bad_name", ""],
+    "hostname": ["has.dot", "a" * 64, "localhost", "bad_name", ""],
     "host_ip": ["999.1.1.1", "abc", FOREIGN_IP, "", ""],
     "lan_cidr": ["192.168.4.0/33", "nope", "", "", ""],
     "lan_gateway": ["300.1.1.1", "", HOST_IP, ""],
@@ -143,13 +144,13 @@ bad = {
     "mode": ["x", "g"],
     # the plan: no choice, then the menu (a number not on the list, the ports turned off), then Proceed
     "plan": ["x", "m", "p"],
-    "menu": ["99", "14", "p"],
+    "menu": ["99", "15", "p"],          # 15: the ports fabric needs
     "yesno": ["n"],
 }
 code, text, asked = drive(bad, f"{OUT}/run1.log")
 EXPECT = [
     ("a single label, .local, an underscore, a leading hyphen: refused as a domain", "not a valid domain", 4),
-    ("a dot, 25 characters (over NetBIOS's 15), localhost, an underscore: refused as the host name",
+    ("a dot, 64 characters (over a DNS label's 63), localhost, an underscore: refused as the host name",
      "not a valid hostname", 4),
     ("an impossible address, text: refused as the host's address", "not a valid host_ip", 2),
     ("a /33, text: refused as the subnet", "not a valid lan_cidr", 2),
@@ -200,14 +201,14 @@ good = {
     "mode": ["a"],
     # Proceed before the required items have values (refused), the domain, the organisation, the first admin; the host's
     # own rules turned on (the ports and securing come back with them), then off again (kept beside fabric's)
-    "menu": ["p", "1", "3", "6", "16", "16", "p"],
+    "menu": ["p", "1", "3", "7", "17", "17", "p"],    # 7: the first admin; 17: the host's own rules
     "yesno": ["y", "n"],
     "domain": [DOMAIN], "friendly_name": ["Fabric Installer Test"], "admin": [""], "plan": ["p"],
     "admin_pw": ["Good-Pass-1234"], "admin_pw2": ["Good-Pass-1234"],
 }
 code, text, asked = drive(good, f"{OUT}/run2.log")
 check("Advanced: the menu's Proceed waits for the organisation and the first admin's password, naming them",
-      "not yet: 3, 6 need an answer" in text, text[:3000])
+      "not yet: 3, 7 need an answer" in text, text[:3000])
 check("the plan lists the ports and securing, in order, and the host's own rules under Not made (kept)",
       0 <= text.rfind("Ports fabric needs (recommended)") < text.rfind("Secure this host (recommended)")
       and "The host's own firewall rules: the host's own rules stay" in text, text[-3000:])
@@ -235,6 +236,8 @@ check("Enter took fabric-admin as the first admin; the console's role is fabric-
       and int(saved.get("host_ram_capacity") or 0) >= 4,
       {k: saved.get(k) for k in ("webui_admin_user", "webui_admin_role", "signin_kerberos", "ad_password_policy",
                                  "host_ram_capacity")})
+check("Advanced with the DC's name left alone: the DC takes dc-<hostname>, never the host's own name (2.3.1.21.2)",
+      saved.get("dc_name") == suggested_dc_name(guess_host) != guess_host, saved.get("dc_name"))
 check("the first admin was created with the chosen password; none written to the login kit",
       "created in the directory with the password chosen in setup" in text
       and not R("find /home /root -path '*/fabric-admin/initial-password.txt' -newer /opt/fabric/config/fabric.yaml "

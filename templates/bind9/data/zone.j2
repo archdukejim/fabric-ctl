@@ -18,13 +18,13 @@ $ORIGIN {{ zone_name }}.
 @       IN      NS      ns.{{ domain }}.
 {% if zone_name == domain and install_kea | default(false) and (dhcp | default({})).ddns | default(true) %}
 ; DHCP-registered hosts live in their own zone on this server (design 2.1.4.1)
-{{ "%-24s" | format((dhcp | default({})).ddns_subdomain | default('dhcp')) }}NS      ns.{{ domain }}.
+{{ "%-23s " | format((dhcp | default({})).ddns_subdomain | default('dhcp')) }}NS      ns.{{ domain }}.
 {% endif %}
 {% if zone_name == domain %}
 {% for child in (federation_links | default({'children': []})).children if child.delegate %}
 ; federation: site {{ child.site }} answers for {{ child.domain }} (manual 1.9 M4)
-{{ "%-24s" | format(child.label) }}NS      ns.{{ child.domain }}.
-{{ "%-24s" | format("ns." ~ child.label) }}A       {{ child.address }}
+{{ "%-23s " | format(child.label) }}NS      ns.{{ child.domain }}.
+{{ "%-23s " | format("ns." ~ child.label) }}A       {{ child.address }}
 {% endfor %}
 {% endif %}
 
@@ -32,11 +32,11 @@ $ORIGIN {{ zone_name }}.
 ; A Records
 ;-----------------------------------------------------------------
 {% if zone_records.zone_authority is defined and zone_records.zone_authority %}
-{{ "%-24s" | format("ns") }}A       {{ host_ip }}
+{{ "%-23s " | format("ns") }}A       {{ host_ip }}
 {% endif %}
 {% if zone_records.A is defined %}
 {% for rec in zone_records.A %}
-{{ "%-24s" | format(rec.name) }}A       {{ rec.ip }}
+{{ "%-23s " | format(rec.name) }}A       {{ rec.ip }}
 {% endfor %}
 {% endif %}
 
@@ -45,7 +45,7 @@ $ORIGIN {{ zone_name }}.
 ;-----------------------------------------------------------------
 {% if zone_records.AAAA is defined %}
 {% for rec in zone_records.AAAA %}
-{{ "%-24s" | format(rec.name) }}AAAA    {{ rec.ip }}
+{{ "%-23s " | format(rec.name) }}AAAA    {{ rec.ip }}
 {% endfor %}
 {% endif %}
 
@@ -54,7 +54,7 @@ $ORIGIN {{ zone_name }}.
 ;-----------------------------------------------------------------
 {% if zone_records.CNAME is defined %}
 {% for rec in zone_records.CNAME %}
-{{ "%-24s" | format(rec.name) }}CNAME   {{ rec.canonical }}
+{{ "%-23s " | format(rec.name) }}CNAME   {{ rec.canonical }}
 {% endfor %}
 {% endif %}
 
@@ -63,7 +63,7 @@ $ORIGIN {{ zone_name }}.
 ;-----------------------------------------------------------------
 {% if zone_records.MX is defined %}
 {% for rec in zone_records.MX %}
-{{ "%-24s" | format(rec.name) }}MX      {{ rec.priority }} {{ rec.exchange }}
+{{ "%-23s " | format(rec.name) }}MX      {{ rec.priority }} {{ rec.exchange }}
 {% endfor %}
 {% endif %}
 
@@ -72,7 +72,7 @@ $ORIGIN {{ zone_name }}.
 ;-----------------------------------------------------------------
 {% if zone_records.TXT is defined %}
 {% for rec in zone_records.TXT %}
-{{ "%-24s" | format(rec.name) }}TXT     "{{ rec.text }}"
+{{ "%-23s " | format(rec.name) }}TXT     "{{ rec.text }}"
 {% endfor %}
 {% endif %}
 
@@ -81,6 +81,6 @@ $ORIGIN {{ zone_name }}.
 ;-----------------------------------------------------------------
 {% if zone_records.SRV is defined %}
 {% for rec in zone_records.SRV %}
-{{ "%-24s" | format(rec.name) }}SRV     {{ rec.priority }} {{ rec.weight }} {{ rec.port }} {{ rec.target }}
+{{ "%-23s " | format(rec.name) }}SRV     {{ rec.priority }} {{ rec.weight }} {{ rec.port }} {{ rec.target }}
 {% endfor %}
 {% endif %}

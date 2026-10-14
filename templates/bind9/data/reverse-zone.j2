@@ -22,5 +22,5 @@ $ORIGIN {{ reverse_zone_name }}.
 ; (fabriclib/dns/reverse_zones.py): one per address, private ranges only
 ;-----------------------------------------------------------------
 {% for rec in ptr_records %}
-{{ "%-24s" | format(rec.label) }}PTR     {{ rec.target }}
+{{ "%-23s " | format(rec.label) }}PTR     {{ rec.target }}
 {% endfor %}
