@@ -67,9 +67,11 @@ def main(argv=None):
                     help="accept the plan without the Proceed prompt (approves no host change: see --approve)")
     ap.add_argument("--approve", action="append", metavar="GROUPS",
                     help="allow these host changes without asking: packages, runtime, services, accounts, resolver, "
-                         "firewall, trust, time, member (comma-separated, repeatable) or all")
+                         "ports, firewall, own_rules (removes the host's own ufw rules), trust, time, member "
+                         "(comma-separated, repeatable) or all")
     ap.add_argument("--decline", action="append", metavar="GROUPS",
-                    help="refuse these host changes (recommended ones are then left unmanaged and shown in status)")
+                    help="refuse these host changes (recommended ones are then left unmanaged and shown in status); "
+                         "--decline own_rules keeps the host's own ufw rules")
     ap.add_argument("--step", action="append", help="run only this step (repeatable)")
     ap.add_argument("--admin-password-file", metavar="FILE",
                     help="the first admin's password, read from FILE (unattended; never on the command line)")

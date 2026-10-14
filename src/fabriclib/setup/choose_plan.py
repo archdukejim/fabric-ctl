@@ -90,8 +90,9 @@ def _decide(ctx, changes):
 
 def _show_host_changes(changes, decided, recorded):
     """Purpose: the plan's host changes (manual 1.2.9.11.4): every group that is on, with its changes — a group whose
-             changes differ from what was allowed before marked, its new lines with "+" — then those turned off, each
-             with what that means.
+             changes differ from what was allowed before marked, its new lines with "+" — then the host's own firewall
+             rules it removes said apart, one by one, with how to keep them (own_rules, 2.1.2.24) — then those turned
+             off, each with what that means.
     Inputs:  changes — {group: [change, ...]}; decided — _decide's result (None: unattended, every group shown as
              planned); recorded — consent.yaml's groups ({group: {answer, changes}}).
     Returns: None; prints.
@@ -109,6 +110,14 @@ def _show_host_changes(changes, decided, recorded):
                                                             else ""))
         for c in lines:
             print(f"    {'+' if changed and c in new else '-'} {c}")
+    own = changes.get("own_rules") or []
+    if own and (decided is None or decided.get("own_rules")):
+        # rules fabric did not add are said apart, one by one, with how to keep them (2.1.2.24)
+        print(f"  {YELLOW}{BOLD}Firewall rules of this host's own that fabric will REMOVE ({len(own)}):{NC}")
+        for c in own:
+            print(f"    {YELLOW}x {c}{NC}")
+        print(f"    {YELLOW}To keep them: [M]enu, then turn off '{GROUPS['own_rules']['title']}' "
+              f"(unattended: --decline own_rules). Uninstall puts removed ones back.{NC}")
     off = [g for g, on in (decided or {}).items() if not on]
     if off:
         print(f"  {BOLD}Not made{NC} (declined; [M]enu to change):")

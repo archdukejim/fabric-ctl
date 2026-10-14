@@ -1272,6 +1272,9 @@ check("…it lists the memory split and every host change on, with its changes; 
       "kept for the host" in out and "Packages (required)  changed since it was allowed" in out
       and "+ apt: install y" in out and "- apt: install x" in out and "Not made (declined; [M]enu to change):" in out
       and "Docker daemon settings: the Docker daemon is not hardened" in out, out[-2500:])
+check("…the host's own firewall rules it removes said apart, one by one, with how to keep them (2.1.2.24)",
+      "Firewall rules of this host's own that fabric will REMOVE (1):" in out and "x o" in out
+      and "--decline own_rules" in out, out[-2500:])
 check("…and the menu's changes were saved with the settings (fabric.yaml)",
       os.path.exists(os.path.join(pc.config_dir, "fabric.yaml")))
 
@@ -1287,6 +1290,13 @@ pc.non_interactive = True
 got, out, left = drive(lambda: choose_plan(pc, lambda: (mv, changes)), ["p"])
 check("unattended: the plan and its host changes shown, nothing asked (--approve / --decline answer)",
       got is None and left == ["p"] and "Packages (required)" in out, (got, left))
+pc.host_choices = {**pc.host_choices, "own_rules": False}
+pc.non_interactive = False
+got, out, left = drive(lambda: choose_plan(pc, lambda: (mv, changes)), ["p"])
+check("negative: the host's own rules turned off: no REMOVE block; they show under Not made, kept",
+      "will REMOVE" not in out and "the host's own rules stay" in out and got["own_rules"] is False, (got, out[-1500:]))
+pc.host_choices = {**pc.host_choices, "own_rules": True}
+pc.non_interactive = True
 pc.non_interactive = False
 
 # where the menu's host changes start: earlier answers, --approve, --decline; what needs a declined one is off too
