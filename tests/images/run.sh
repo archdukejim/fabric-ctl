@@ -32,6 +32,8 @@ python3 tests/images/published.py
 python3 tests/images/verify.py
 # fabricctl images: routing, refusals, and prune on images only it makes (real Docker)
 python3 tests/images/commands.py
+# an image switch waits for the services restarted with the moved one (2.3.1.21.1)
+python3 tests/images/switch_image_test.py
 
 check "the build contexts stage from the assembled tree" "bash packaging/images/stage-contexts.sh \"\$CONTEXTS\" >/dev/null"
 "${BAKE[@]}" --print >"$W/plan.json" 2>/dev/null

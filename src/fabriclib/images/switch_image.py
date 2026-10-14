@@ -5,7 +5,8 @@ import subprocess
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.read_published_lock import read_published_lock
 from fabriclib.common.write_audit import write_audit
-from fabriclib.images.constants import STATE
+from fabriclib.common.wait_healthy import wait_healthy
+from fabriclib.images.constants import DEPENDENTS, STATE
 from fabriclib.images.installed_services import installed_services
 from fabriclib.images.running_image import running_image
 from fabriclib.setup import deploy_config
@@ -15,13 +16,15 @@ from fabriclib.setup.start_unit import start_unit
 
 def _apply(ctx, var, ref, services):
     """Purpose: render and deploy with image var `var` set to `ref` (local images rebuild on the new base),
-             then restart each service through its systemd unit and wait until it is healthy.
+             then restart each service through its systemd unit and wait until it is healthy, and wait for the
+             services systemd restarted with them (DEPENDENTS: keycloak behind postgres) to be healthy again.
     Inputs:  ctx — SetupContext (ctx.vars is changed in place and persisted by deploy_config); var — str image var;
              ref — str image ref; services — list of SERVICES entries to restart, in order. A published image of
              fabric's (image_fabric_*) follows the lock unless held: one moved to a ref other than the lock's is listed
              in image_rolled_back (vars.yaml.j2 keeps it there), one moved back to the lock's leaves the list.
     Returns: None.
-    Fails:   SetupError from start_unit when a container does not become healthy; subprocess.CalledProcessError
+    Fails:   SetupError from start_unit when a container does not become healthy, or when a dependent does not
+             become healthy again within 900 s; subprocess.CalledProcessError
              from systemctl; anything deploy_config.run / the deploy engine raises (SystemExit on a deploy failure).
     Feeds:   switch_image (update and its rollback)."""
     ctx.vars[var] = ref
@@ -34,6 +37,15 @@ def _apply(ctx, var, ref, services):
     deploy_config.run(ctx)
     for s in services:
         start_unit(s["unit"], s["container"], restart=True)
+    # a unit that Requires= a restarted one was restarted with it by systemd: health-gated too, so the switch
+    # returns (or rolls back) only once those are back (keycloak behind postgres, 2.3.1.21.1)
+    moved = {s["name"] for s in services}
+    for d in installed_services(ctx):
+        if d["name"] not in moved and any(d["name"] in DEPENDENTS.get(s["name"], []) for s in services):
+            healthy, why = wait_healthy(d["container"], timeout=900)
+            if not healthy:
+                raise SetupError(f"{d['container']}, which needs {', '.join(sorted(moved))}, did not become "
+                                 f"healthy again ({why})")
 
 
 def switch_image(ctx, var, target, actor="root", source="cli"):
