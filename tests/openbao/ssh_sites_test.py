@@ -21,6 +21,7 @@ from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.vault.ssh import sign_ssh_key as ssk  # noqa: E402
 from fabriclib.vault.ssh.known_hosts_block import BEGIN, END, known_hosts_block  # noqa: E402
 from fabriclib.vault.ssh.org_ssh_trust import org_ssh_trust  # noqa: E402
+from fabriclib.vault.ssh.signable_sites import signable_sites  # noqa: E402
 from fabriclib.vault.ssh.ssh_overview import ssh_overview  # noqa: E402
 
 FAILED = 0
@@ -51,7 +52,18 @@ def keygen(name):
 
 # ---------------------------------------------------------------- the certificate's principals
 print("--- who gets a certificate, naming which sites")
-GROUPS = {"alice": ["site3", "site2"], "carol": ["site2"], "bob": []}    # each person's sites' SSH users groups
+GROUPS = {"alice": ["site3", "site2"], "carol": ["site2"], "bob": [], "dave": ["site3"],
+          "erin": ["branch", "site3"]}    # each person's sites' SSH users groups
+# the domain's tree: site2 and site3 below the top (org), branch below site2 (2.1.7.14 revised: a site's CA signs for
+# itself and the sites below it)
+DOMAIN = [{"site": "org", "dn": "OU=org,OU=sites,DC=ad"}, {"site": "site2", "dn": "OU=site2,OU=org,OU=sites,DC=ad"},
+          {"site": "site3", "dn": "OU=site3,OU=org,OU=sites,DC=ad"},
+          {"site": "branch", "dn": "OU=branch,OU=site2,OU=org,OU=sites,DC=ad"}]
+
+
+def scope(v, sites):
+    return signable_sites(v, sites, domain=DOMAIN)
+
 asked = []
 
 
@@ -70,38 +82,55 @@ login = lambda v, creds: "token"    # noqa: E731
 V = {"ssh_certificates": True, "site_name": "site2", "ad_domain": "ad.test", "domain": "site2.test"}
 alice_pub = keygen("alice")
 # covers: agent:post.ssh.sign +
-cert = ssk.sign_ssh_key(V, "alice", alice_pub, sites_check=sites_check, login=login)
-check("a member of site2's and site3's SSH users groups (asking at site2): one certificate naming alice@site2 and "
-      "alice@site3, sorted, audited with them",
+cert = ssk.sign_ssh_key({**V, "site_name": "org"}, "alice", alice_pub, sites_check=sites_check, scope=scope,
+                        login=login)
+check("at the top (central IT), a member of site2's and site3's SSH users groups: one certificate naming "
+      "alice@site2 and alice@site3, sorted, audited with them",
       cert["principals"] == ["alice@site2", "alice@site3"] and asked[-1][1]["valid_principals"]
       == "alice@site2,alice@site3" and asked[-1][1]["cert_type"] == "user" and AUDIT[-1][:2] == ("alice", "SSH_SIGN")
       and "alice@site2,alice@site3" in AUDIT[-1][2], (cert, asked[-1], AUDIT[-1]))
+cert = ssk.sign_ssh_key(V, "alice", alice_pub, sites_check=sites_check, scope=scope, login=login)
+check("at site2, the same person: alice@site2 only (site3 is beside site2: its CA does not sign for it)",
+      cert["principals"] == ["alice@site2"] and asked[-1][1]["valid_principals"] == "alice@site2", cert)
 check("never the bare user name (a machine with no principals check would take it for any site)",
       "alice" not in asked[-1][1]["valid_principals"].split(","), asked[-1])
-cert = ssk.sign_ssh_key(V, "carol", alice_pub, sites_check=sites_check, login=login)
+cert = ssk.sign_ssh_key(V, "erin", alice_pub, sites_check=sites_check, scope=scope, login=login)
+check("at site2, a member of branch's (below site2) and site3's groups: erin@branch only", cert["principals"]
+      == ["erin@branch"], cert)
+asked.clear()
+check("negative: at site2, dave, only in site3's group: refused, naming site3, audited, OpenBao never asked",
+      refused(ssk.sign_ssh_key, V, "dave", alice_pub, sites_check=sites_check, scope=scope, login=login,
+              match="site3") and AUDIT[-1][:2] == ("dave", "SSH_SIGN_REFUSED") and not asked, AUDIT[-1])
+check("negative: at a branch, its CA never signs for the site above it",
+      signable_sites({"site_name": "branch"}, ["site2", "branch"], domain=DOMAIN) == (["branch"], ["site2"]))
+cert = ssk.sign_ssh_key(V, "carol", alice_pub, sites_check=sites_check, scope=scope, login=login)
 check("a member of site2's only: carol@site2 only (site3's machines will refuse her)", cert["principals"]
       == ["carol@site2"], cert)
 asked.clear()
 # covers: agent:post.ssh.sign -
 check("negative: bob, in no site's SSH users group: refused, saying where to ask, audited, OpenBao never asked",
-      refused(ssk.sign_ssh_key, V, "bob", alice_pub, sites_check=sites_check, login=login, match="SSH users group")
+      refused(ssk.sign_ssh_key, V, "bob", alice_pub, sites_check=sites_check, scope=scope, login=login,
+              match="SSH users group")
       and AUDIT[-1][:2] == ("bob", "SSH_SIGN_REFUSED") and not asked, AUDIT[-1])
 GROUPS["root"] = ["site2"]
 check("negative: a user named root: refused even in a group, audited",
-      refused(ssk.sign_ssh_key, V, "rOOt", alice_pub, sites_check=sites_check, login=login, match="root")
+      refused(ssk.sign_ssh_key, V, "rOOt", alice_pub, sites_check=sites_check, scope=scope, login=login, match="root")
       and AUDIT[-1][1] == "SSH_SIGN_REFUSED" and not asked)
 check("negative: SSH certificates off: refused", refused(ssk.sign_ssh_key, {**V, "ssh_certificates": False}, "alice",
-                                                         alice_pub, sites_check=sites_check, login=login, match="off"))
+                                                         alice_pub, sites_check=sites_check, scope=scope, login=login, match="off"))
 check("negative: a private key: refused before the directory is asked",
-      refused(ssk.sign_ssh_key, V, "alice", open(os.path.join(W, "alice")).read(), sites_check=sites_check,
+      refused(ssk.sign_ssh_key, V, "alice", open(os.path.join(W, "alice")).read(), sites_check=sites_check, scope=scope,
               login=login, match="private key"))
 
 print("--- the SSH page")
 DEPLOY = os.path.join(W, "deploy")
 os.makedirs(os.path.join(DEPLOY, "nginx", "www", "certs"))
-ov = ssh_overview({**V, "deploy_base_dir": DEPLOY}, "alice", sites_check=sites_check)
-check("alice may sign; the page names her sites", ov["may_sign"] and ov["sites"] == ["site2", "site3"], ov)
-ov = ssh_overview({**V, "deploy_base_dir": DEPLOY}, "bob", sites_check=sites_check)
+ov = ssh_overview({**V, "deploy_base_dir": DEPLOY}, "alice", sites_check=sites_check, scope=scope)
+check("alice may sign at site2; the page names site2 and says site3 is signed elsewhere", ov["may_sign"]
+      and ov["sites"] == ["site2"] and ov["elsewhere"] == ["site3"], ov)
+ov = ssh_overview({**V, "deploy_base_dir": DEPLOY}, "dave", sites_check=sites_check, scope=scope)
+check("negative: dave may not at site2, told where to go", not ov["may_sign"] and "site3" in ov["why_not"], ov)
+ov = ssh_overview({**V, "deploy_base_dir": DEPLOY}, "bob", sites_check=sites_check, scope=scope)
 check("negative: bob may not, and is told why", not ov["may_sign"] and ov["sites"] == []
       and "SSH users group" in ov["why_not"], ov)
 

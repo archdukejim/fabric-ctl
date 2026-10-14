@@ -54,6 +54,16 @@ ssk.write_audit = lambda actor, event, detail, source="web", **kw: AUDIT.append(
 SSH_SITES = {"alice": ["lab", "site3"]}       # alice in lab-ssh-users and site3-ssh-users (2.1.7.14); bob in none
 
 
+# the domain's sites: site3 sits below lab, so lab's CA signs for both (2.1.7.14 revised: this site and below)
+DOMAIN = [{"site": "lab", "dn": "OU=lab,OU=sites,DC=ad"}, {"site": "site3", "dn": "OU=site3,OU=lab,OU=sites,DC=ad"}]
+
+
+def scope(v, sites):
+    """The sites lab's CA signs for, with the domain's tree given (signable_sites)."""
+    from fabriclib.vault.ssh.signable_sites import signable_sites
+    return signable_sites(v, sites, domain=DOMAIN)
+
+
 def admin_check(v, user):
     """Stands in for the directory's in-chain membership of every site's SSH users group (ssh_user_sites)."""
     return SSH_SITES.get(user, [])
@@ -222,7 +232,7 @@ v_on = {**V, "ssh_certificates": True}
 os.makedirs(f"{W}/user", mode=0o700)
 sh(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "alice@laptop", "-f", f"{W}/user/id_ed25519"])
 alice_pub = open(f"{W}/user/id_ed25519.pub").read()
-cert = ssk.sign_ssh_key(v_on, "alice", alice_pub, sites_check=admin_check)
+cert = ssk.sign_ssh_key(v_on, "alice", alice_pub, sites_check=admin_check, scope=scope)
 open(f"{W}/user/id_ed25519-cert.pub", "w").write(cert["certificate"] + "\n")
 shown = sh(["ssh-keygen", "-L", "-f", f"{W}/user/id_ed25519-cert.pub"], ok=False).stdout
 principals = shown.split("Principals:")[1].split("Critical Options:")[0].split() if "Principals:" in shown else []
@@ -233,10 +243,10 @@ check("signed: a user certificate, a principal per site alice's SSH groups name 
       "user certificate" in shown and principals == ["alice@lab", "alice@site3"] and 'Key ID: "fabric:alice:' in shown
       and CA_FP in shown and AUDIT[-1][:2] == ("alice", "SSH_SIGN"), shown)
 check("valid 8 hours (from - to)", cert["valid_hours"] == 8 and valid.count("T") == 2, valid)
-ov = ssh_overview(v_on, "alice", sites_check=admin_check)
+ov = ssh_overview(v_on, "alice", sites_check=admin_check, scope=scope)
 check("the SSH page for alice: on, the CA key and fingerprint, may sign",
       ov["on"] and ov["public_key"] == CA_KEY and ov["fingerprint"] == CA_FP and ov["may_sign"], ov)
-ov = ssh_overview(v_on, "bob", sites_check=admin_check)
+ov = ssh_overview(v_on, "bob", sites_check=admin_check, scope=scope)
 check("...for bob: may not, and says why", not ov["may_sign"] and "SSH users group" in ov["why_not"], ov)
 
 print("--- a host key signed by the host CA")
@@ -262,23 +272,23 @@ check("negative: the user CA's role signs no host certificate", host_bad[0] >= 4
 print("--- refusals")
 # covers: agent:post.ssh.sign -
 check("negative: bob is in no site's SSH users group: refused, audited SSH_SIGN_REFUSED",
-      refused(ssk.sign_ssh_key, v_on, "bob", alice_pub, sites_check=admin_check, match="SSH users group")
+      refused(ssk.sign_ssh_key, v_on, "bob", alice_pub, sites_check=admin_check, scope=scope, match="SSH users group")
       and AUDIT[-1][:2] == ("bob", "SSH_SIGN_REFUSED"))
 check("negative: root, not a person: refused",
-      refused(ssk.sign_ssh_key, v_on, "root", alice_pub, sites_check=admin_check, match="for a person"))
+      refused(ssk.sign_ssh_key, v_on, "root", alice_pub, sites_check=admin_check, scope=scope, match="for a person"))
 check("negative: a private key pasted: refused, never echoed",
-      refused(ssk.sign_ssh_key, v_on, "alice", open(f"{W}/user/id_ed25519").read(), sites_check=admin_check,
+      refused(ssk.sign_ssh_key, v_on, "alice", open(f"{W}/user/id_ed25519").read(), sites_check=admin_check, scope=scope,
               match="private key"))
 sh(["ssh-keygen", "-q", "-t", "rsa", "-b", "2048", "-N", "", "-f", f"{W}/user/id_rsa"])
 check("negative: RSA under 3072 bits: refused",
-      refused(ssk.sign_ssh_key, v_on, "alice", open(f"{W}/user/id_rsa.pub").read(), sites_check=admin_check,
+      refused(ssk.sign_ssh_key, v_on, "alice", open(f"{W}/user/id_rsa.pub").read(), sites_check=admin_check, scope=scope,
               match="3072"))
 check("negative: a DSA key: refused", refused(ssk.sign_ssh_key, v_on, "alice", "ssh-dss AAAAB3NzaC1kc3MAAACBAP== x",
-                                              sites_check=admin_check, match="not signed"))
+                                              sites_check=admin_check, scope=scope, match="not signed"))
 check("negative: two keys at once: refused", refused(ssk.sign_ssh_key, v_on, "alice", alice_pub + alice_pub,
-                                                    sites_check=admin_check, match="one public key"))
+                                                    sites_check=admin_check, scope=scope, match="one public key"))
 check("negative: a certificate instead of a key: refused",
-      refused(ssk.sign_ssh_key, v_on, "alice", cert["certificate"], sites_check=admin_check, match="not signed"))
+      refused(ssk.sign_ssh_key, v_on, "alice", cert["certificate"], sites_check=admin_check, scope=scope, match="not signed"))
 st, res = agent_call("POST", "/v1/ssh/sign", {"public_key": "nonsense"})
 check("negative: the agent's route refuses what is not a key (400, says why)", st == 400 and "public key" in
       res.get("error", ""), (st, res))
@@ -308,7 +318,7 @@ check("off: the host CA's role deleted and its published key withdrawn; its CA k
 check("negative: off: no host certificate is signed",
       refused(sign_ssh_host_key, V, approle_login(V, "setup-approle.json"), host_pub, names, "fabric-host:ws1:off",
               match="did not sign"))
-check("negative: off: nothing is signed", refused(ssk.sign_ssh_key, V, "alice", alice_pub, sites_check=admin_check,
+check("negative: off: nothing is signed", refused(ssk.sign_ssh_key, V, "alice", alice_pub, sites_check=admin_check, scope=scope,
                                                   match="off"))
 st, res = agent_call("POST", "/v1/ssh/sign", {"public_key": alice_pub})
 check("negative: off: the agent's route refuses too (400)", st == 400 and "off" in res.get("error", ""), (st, res))

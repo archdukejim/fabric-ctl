@@ -47,4 +47,3 @@ account, so AD's per-site limits apply to it.
 | `remove_sudo_rule.py` | Remove one of fabric's editor-made sudo rules; never the site default or an admin's own (audited) |
 | `run_sudo_command.py` | `fabricctl sudo`: routes to the sudo rule functions |
 | `ssh_user_sites.py` | The sites whose SSH users group a person is in, nested too: the principals `<user>@<site>` of their SSH certificate (2.1.7.14) |
-| `is_fabric_admin.py` | Whether a person is a fabric admin (`fabric-admins` or `<site>-fabric-admins`, nested too): who may get an SSH certificate (1.6.11.9) |

@@ -51,7 +51,7 @@
 {% if ov.on %}
 <section class="card"><h2>Get a certificate</h2>
 {% if ov.may_sign %}
-<p class="muted">Paste your <strong>public</strong> key (<code>~/.ssh/id_ed25519.pub</code>; Ed25519, ECDSA, or RSA of 3072 bits or more). Never paste a private key. The certificate names you at each site whose SSH users group you are in: {% for s in ov.sites %}<code>{{ ctx.user }}@{{ s }}</code>{{ ', ' if not loop.last }}{% endfor %}.</p>
+<p class="muted">Paste your <strong>public</strong> key (<code>~/.ssh/id_ed25519.pub</code>; Ed25519, ECDSA, or RSA of 3072 bits or more). Never paste a private key. The certificate names you at each site whose SSH users group you are in: {% for s in ov.sites %}<code>{{ ctx.user }}@{{ s }}</code>{{ ', ' if not loop.last }}{% endfor %}.{% if ov.elsewhere %} This site signs only for itself and the sites below it: for {{ ov.elsewhere | join(', ') }}, get a certificate there or at a site above it.{% endif %}</p>
 <form method="post" action="/ssh/sign" class="stack"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Public key<textarea name="public_key" rows="3" required placeholder="ssh-ed25519 AAAA… you@laptop"></textarea></label>
 <div><button>Sign for {{ ov.hours }} hours</button></div>

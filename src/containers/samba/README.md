@@ -33,7 +33,6 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `list_people.py` | Operation `list_people`: people and groups under OU=sites (service accounts left out) |
 | `create_person.py` | Operation `create_person`: a person in the site's OU=people, a uid from its block, in `<site>-users`, must change their password |
 | `get_person.py` | Operation `get_person`: where a person lives and their groups |
-| `is_fabric_admin.py` | Whether a person is a fabric admin: a member, nested too, of `fabric-admins` or `<site>-fabric-admins` (who may get an SSH certificate, manual 1.6.11.9) |
 | `reset_password.py` | Operation `reset_password`: a new one-time password, the account unlocked |
 | `add_group_member.py` | Operation `add_group_member`: a person in a group, once |
 | `remove_group_member.py` | Operation `remove_group_member`: a person out of a group, once |

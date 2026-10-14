@@ -77,7 +77,7 @@ file	fabricctl-jinja|src/containers/samba/get_person.py	31
 file	fabricctl-jinja|src/containers/samba/gpo_tool.py	51	
 file	fabricctl-jinja|src/containers/samba/host_groups.py	80	
 file	fabricctl-jinja|src/containers/samba/id_layout.py	73	
-file	fabricctl-jinja|src/containers/samba/is_fabric_admin.py	101	
+file	fabricctl-jinja|src/containers/samba/is_fabric_admin.py	101	0.7.0 / 2026-10-13
 file	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py	81	
 file	fabricctl-jinja|src/containers/samba/link_device_cert.py	34	
 file	fabricctl-jinja|src/containers/samba/list_host_groups.py	82	
@@ -282,7 +282,7 @@ file	fabriclib-directory|src/fabriclib/directory/create_person.py	2
 file	fabriclib-directory|src/fabriclib/directory/device_overview.py	13	
 file	fabriclib-directory|src/fabriclib/directory/ensure_admin.py	3	
 file	fabriclib-directory|src/fabriclib/directory/ensure_default_device_roles.py	14	
-file	fabriclib-directory|src/fabriclib/directory/is_fabric_admin.py	46	
+file	fabriclib-directory|src/fabriclib/directory/is_fabric_admin.py	46	0.7.0 / 2026-10-13
 file	fabriclib-directory|src/fabriclib/directory/link_device_cert.py	15	
 file	fabriclib-directory|src/fabriclib/directory/list_devices.py	16	
 file	fabriclib-directory|src/fabriclib/directory/list_host_groups.py	36	
@@ -955,6 +955,7 @@ file	fabriclib-vault|src/fabriclib/vault/ssh/set_ssh_certificates.py	48
 file	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_host_key.py	58	
 file	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_hosts.py	59	
 file	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_key.py	49	
+file	fabriclib-vault|src/fabriclib/vault/ssh/signable_sites.py	63	
 file	fabriclib-vault|src/fabriclib/vault/ssh/ssh_hosts_overview.py	60	
 file	fabriclib-vault|src/fabriclib/vault/ssh/ssh_overview.py	50	
 file	fabriclib-vault|src/fabriclib/vault/ssh/update_revoked_keys.py	61	
@@ -1350,7 +1351,7 @@ function	fabricctl-jinja|src/containers/samba/host_groups.py|site_rules	6
 function	fabricctl-jinja|src/containers/samba/host_groups.py|text	7	
 function	fabricctl-jinja|src/containers/samba/id_layout.py|check_block	2	
 function	fabricctl-jinja|src/containers/samba/id_layout.py|laid_out	1	0.7.0 / 2026-10-13
-function	fabricctl-jinja|src/containers/samba/is_fabric_admin.py|is_fabric_admin	1	
+function	fabricctl-jinja|src/containers/samba/is_fabric_admin.py|is_fabric_admin	1	0.7.0 / 2026-10-13
 function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|_has_group	1	
 function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|legacy_logon_groups	2	
 function	fabricctl-jinja|src/containers/samba/link_device_cert.py|link_device_cert	1	
@@ -1671,7 +1672,7 @@ function	fabriclib-directory|src/fabriclib/directory/device_overview.py|_labels	
 function	fabriclib-directory|src/fabriclib/directory/device_overview.py|device_overview	1	
 function	fabriclib-directory|src/fabriclib/directory/ensure_admin.py|ensure_admin	1	
 function	fabriclib-directory|src/fabriclib/directory/ensure_default_device_roles.py|ensure_default_device_roles	1	
-function	fabriclib-directory|src/fabriclib/directory/is_fabric_admin.py|is_fabric_admin	1	
+function	fabriclib-directory|src/fabriclib/directory/is_fabric_admin.py|is_fabric_admin	1	0.7.0 / 2026-10-13
 function	fabriclib-directory|src/fabriclib/directory/link_device_cert.py|link_device_cert	1	
 function	fabriclib-directory|src/fabriclib/directory/list_devices.py|list_devices	1	
 function	fabriclib-directory|src/fabriclib/directory/list_host_groups.py|list_host_groups	1	
@@ -2758,6 +2759,7 @@ function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_hosts.py|_gone	4
 function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_hosts.py|_read_lines	1	
 function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_hosts.py|sign_ssh_hosts	3	
 function	fabriclib-vault|src/fabriclib/vault/ssh/sign_ssh_key.py|sign_ssh_key	1	
+function	fabriclib-vault|src/fabriclib/vault/ssh/signable_sites.py|signable_sites	1	
 function	fabriclib-vault|src/fabriclib/vault/ssh/ssh_hosts_overview.py|_state	1	
 function	fabriclib-vault|src/fabriclib/vault/ssh/ssh_hosts_overview.py|ssh_hosts_overview	2	
 function	fabriclib-vault|src/fabriclib/vault/ssh/ssh_overview.py|_published	2	
