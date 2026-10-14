@@ -1,5 +1,8 @@
 {% extends "base.html" %}{% block body %}
+{% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
 <h1>Federation</h1>
+{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
+{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
 <section class="card"><h2>This site <span class="muted">{{ f.site }}</span></h2>
 {% if f.upstream %}<p>A site of <strong>{{ f.upstream.site_name }}</strong> ({{ f.upstream.domain }}){% if f.upstream.relay %}, through {{ f.upstream.relay.site }}{% endif %}.</p>
 {% else %}<p>{{ 'The root site of this fabric.' if f.sites else 'Standalone: no site has joined, and this install joined none.' }}</p>{% endif %}
@@ -30,12 +33,33 @@
 <p class="muted small">Overrides and access grants between sites come later (manual 1.9.8.9).</p>
 </section>
 
-<section class="card"><h2>Address plan <span class="muted">every site's networks</span></h2>
+<section class="card"><h2>Roles <span class="muted">who holds what at this site and the sites below it</span></h2>
+<p class="muted small">A site's own <code>&lt;site&gt;-admins</code> are its helpdesk: they unlock, reset, add and disable that site's own people, nothing else. Everything more is granted from a site above, at one site: a console role gives its bundle in that site's console only; an AD role its rights in that site's OU (manual 1.9.8.20).</p>
+{% if f.roles_error %}<p class="flash bad">The roles could not be read: {{ f.roles_error }}</p>
+{% elif f.roles %}{% for s in f.roles %}<h3>{{ s.site }}{% if s.own %} <span class="muted small">this site: only a site above grants its roles</span>{% endif %}</h3>
+<table><thead><tr><th>Role</th><th>Gives</th><th>Held by</th></tr></thead><tbody>
+{% for r in s.roles %}<tr><td><code class="small">{{ r.group }}</code></td><td>{{ 'bundle ' ~ r.bundle if r.kind == 'console' else 'AD role' }}</td>
+<td>{{ r.members | join(', ') if r.members else '—' }}{% if r.pending %} <span class="muted small">(an older default: taken away at the next convergence)</span>{% endif %}{% if not r.exists %} <span class="muted small">(not made yet)</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table>{% endfor %}
+{% set below = f.roles | rejectattr('own') | list %}
+{% if can('federation:admin') and below %}<form method="post" action="/federation/roles" class="grid">{{ csrf() }}
+<label>Site<select name="site" required>{% for s in below %}<option>{{ s.site }}</option>{% endfor %}</select></label>
+<label>Role<select name="role" required>{% for r in below[0].roles %}<option>{{ r.role }}</option>{% endfor %}</select></label>
+<label>To or from<input name="member" placeholder="the site's own admins" maxlength="64"></label>
+<label>Action<select name="action"><option value="grant">grant</option><option value="revoke">revoke</option></select></label>
+<button>Apply</button></form>
+<p class="muted small">Only the sites below this one can be given roles here; a site never grants itself.</p>
+{% elif not below %}<p class="muted small">No site below this one: roles here are granted from a site above.</p>{% endif %}
+{% else %}<p class="blank">No roles yet.</p>{% endif %}
+</section>
+
+<section class="card"><h2>Address plan <span class="muted">{{ "every site's networks" if not f.upstream else "this site's and the sites' below it" }}</span></h2>
 {% if f.plan_error %}<p class="flash bad">The plan could not be read: {{ f.plan_error }}</p>
 {% elif f.plan %}<table><thead><tr><th>Site</th><th>Network</th><th>Name</th><th>VLAN</th><th>Notes</th></tr></thead><tbody>
 {% for n in f.plan %}<tr><td>{{ n.site }}</td><td><code>{{ n.cidr }}</code></td><td>{{ n.name }}</td><td>{{ n.vlan or '—' }}</td><td>{{ n.notes or '' }}</td></tr>{% endfor %}
 </tbody></table>
 {% for c in f.overlaps %}<p class="flash {{ 'ok' if c.allowed else 'bad' }}">{{ c.site }}: {{ c.cidr }} overlaps {{ c.other_cidr }} of {{ c.other_site }}{% if c.allowed %} (allowed: {{ c.allowed }}){% endif %}</p>{% endfor %}
 {% else %}<p class="blank">No networks yet.</p>{% endif %}
+{% if f.hidden_overlaps %}<p class="flash bad">{{ f.hidden_overlaps }} overlap(s) with a site this one does not show: ask the top site.</p>{% endif %}
 </section>
 {% endblock %}

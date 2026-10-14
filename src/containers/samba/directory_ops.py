@@ -5,6 +5,7 @@ from create_host_group import create_host_group
 from create_machine import create_machine
 from create_person import create_person
 from get_person import get_person
+from grant_site_role import grant_site_role
 from is_fabric_admin import is_fabric_admin
 from link_device_cert import link_device_cert
 from list_host_groups import list_host_groups
@@ -13,6 +14,7 @@ from list_ssh_hosts import list_ssh_hosts
 from list_sudo_rules import list_sudo_rules
 from logon_groups import logon_groups
 from list_people import list_people
+from list_site_roles import list_site_roles
 from place_fabric_host import place_fabric_host
 from prepare_ssh_hosts import prepare_ssh_hosts
 from read_devices import read_devices
@@ -35,6 +37,7 @@ from set_ssh_host import set_ssh_host
 from site_info import site_info
 from sort_windows_machines import sort_windows_machines
 from sync_rodc_cache import sync_rodc_cache
+from unlock_person import unlock_person
 from write_plan import write_plan
 
 # the operations fabric-agent may ask for (directory_op): each is f(samdb, lp, site, **args) -> JSON-able result
@@ -46,6 +49,7 @@ OPS = {
     "create_machine": create_machine,
     "create_person": create_person,
     "get_person": get_person,
+    "grant_site_role": grant_site_role,
     "is_fabric_admin": is_fabric_admin,
     "link_device_cert": link_device_cert,
     "list_host_groups": list_host_groups,
@@ -54,6 +58,7 @@ OPS = {
     "list_sudo_rules": list_sudo_rules,
     "logon_groups": logon_groups,
     "list_people": list_people,
+    "list_site_roles": list_site_roles,
     "place_fabric_host": place_fabric_host,
     "prepare_ssh_hosts": prepare_ssh_hosts,
     "read_devices": read_devices,
@@ -76,5 +81,6 @@ OPS = {
     "site_info": site_info,
     "sort_windows_machines": sort_windows_machines,
     "sync_rodc_cache": sync_rodc_cache,
+    "unlock_person": unlock_person,
     "write_plan": write_plan,
 }

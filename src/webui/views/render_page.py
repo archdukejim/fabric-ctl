@@ -32,8 +32,8 @@ def render_page(name, **kw):
     kw.setdefault("tab", None)
     perms = set((kw["ctx"] or {}).get("perms") or ())
 
-    def can(perm):
-        return perm in perms or (perm == "*" and bool(kw["ctx"]))       # "*": any signed-in person
+    def can(perm):          # "*": any signed-in person; a site helpdesk form counts for its permission (2.1.9.21)
+        return perm in perms or f"site:{perm}" in perms or (perm == "*" and bool(kw["ctx"]))
     kw["can"] = can
     kw["tabs"] = [t for t in TABS if any(can(q) for q in TAB_PERMS.get(t[0], ()))]
     for key in ("menu", "sections"):

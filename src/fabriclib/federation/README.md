@@ -28,3 +28,6 @@ their own local network (design [1.9.1](../../../docs/volume_1_description_and_a
 | `common/` | Helpers shared by the operations above (see its README) |
 | `next_id_block.py` | The uid/gid block a new site gets at its join: the next after every block handed out |
 | `federation_overview.py` | The Federation tab: sites, replication, conflicts, limits, the address plan |
+| `site_roles.py` | The roles granted at this site and the sites below it, from the domain (2.1.9.21) |
+| `change_site_role.py` | Grant a role at a site below this one, or take it back (audited, 2.1.9.21) |
+| `run_roles_command.py` | `fabricctl federation roles [<site>] / grant / revoke` |

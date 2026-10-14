@@ -1,5 +1,6 @@
 import os
 
+from fabriclib.keycloak.fabric_groups import fabric_groups
 from fabriclib.samba.run_converge import run_converge
 
 
@@ -26,6 +27,7 @@ def prepare_site(v, site, networks, id_block, accounts, join_password, container
     state = {"site": site, "root": False, "password_policy": v["ad_password_policy"], "networks": nets,
              "root_ca_pem": open(root_ca).read(), "id_range": id_block, "groups": [],
              "admin_group": v.get("webui_admin_group") or "admins",
+             "privileged_groups": sorted(fabric_groups(v) | {"fabric-admins", "fabric-break-glass"}),
              # a site moving here keeps its service accounts and their passwords (convergence would reset them)
              "accounts": {} if join_password is None else
                          {f"fabric-{kind}-{site}": accounts[kind] for kind in ("agent", "keycloak", "radius")},

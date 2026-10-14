@@ -8,12 +8,14 @@ from fabriclib.directory.remove_person import remove_person
 from fabriclib.directory.reset_sign_in import reset_sign_in
 from fabriclib.directory.set_person_enabled import set_person_enabled
 from fabriclib.directory.set_person_group import set_person_group
+from fabriclib.directory.unlock_person import unlock_person
 
 USAGE = """usage: fabricctl people list                      every person: user name, name, site, state, groups
        fabricctl people show <uid>                one person
        fabricctl people add <uid> --first F --last L --email E
                                                   a new person of this site; prints their one-time password once
        fabricctl people reset <uid>               a new one-time password, TOTP removed, sessions ended
+       fabricctl people unlock <uid>              clear a lockout after too many wrong passwords (password kept)
        fabricctl people disable|enable <uid>      block every sign-in at once (sessions end), or allow it again
        fabricctl people remove <uid> [--confirm <uid>]
                                                   remove them and revoke their certificates (asks for the user name
@@ -84,6 +86,10 @@ def _run(v, args, actor):
         password = reset_sign_in(v, actor, rest[0], privileged=True, source="cli")
         print(f"{rest[0]}: new one-time password (shown once), TOTP removed, sessions ended:\n{password}")
         return 0
+    if cmd == "unlock" and len(rest) == 1:
+        done = unlock_person(v, actor, rest[0], privileged=True, source="cli")
+        print(f"{rest[0]}: unlocked" if done["unlocked"] else f"{rest[0]}: was not locked")
+        return 0
     if cmd in ("disable", "enable") and len(rest) == 1:
         done = set_person_enabled(v, actor, rest[0], cmd == "enable", privileged=True, source="cli")
         print(f"{rest[0]}: {cmd}d" if done["changed"] else f"{rest[0]}: already {cmd}d")
@@ -115,7 +121,8 @@ def run_people_command(v, args):
     Returns: exit status: 0 ok, 1 a refused change, 2 usage.
     Fails:   OSError from the audit log; OpenBao sealed (load_secrets) propagate.
     Feeds:   cli.main."""
-    if not args or args[0] not in ("list", "show", "add", "reset", "disable", "enable", "remove", "groups", "group"):
+    if not args or args[0] not in ("list", "show", "add", "reset", "unlock", "disable", "enable", "remove", "groups",
+                                   "group"):
         print(USAGE)
         return 2
     try:

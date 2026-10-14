@@ -92,12 +92,14 @@
 
 {% elif view == 'people' %}
 <section class="card"><h2>People <span class="muted">{{ people.users | length }}</span></h2>
+{% if can('site:people:read') and 'people:read' not in ctx.perms %}<p class="flash warn">As this site's helpdesk you see and change this site's own people only, and never one who holds a role (manual 4.6.1.4).</p>{% endif %}
 <p class="muted">People live in the domain (Keycloak signs them in from it). New people join their site's <code>&lt;site&gt;-users</code>; fabric roles come from the fabric groups (admins, auditors, operators, helpdesk), which an administrator manages in <a href="{{ people.keycloak_url }}">the Keycloak admin console</a>.</p>
 {% if people.users %}
 <table><thead><tr><th></th><th>User</th><th>Name</th><th>E-mail</th><th>Groups</th><th></th></tr></thead><tbody>
 {% for u in people.users %}<tr><td><span class="light {{ 'bad' if u.locked else 'ok' }}" title="{{ 'locked' if u.locked else 'active' }}"></span></td>
 <td>{{ u.uid }}</td><td>{{ u.name }}</td><td>{{ u.mail or '—' }}</td><td>{{ u.groups | join(', ') or '—' }}</td>
 <td class="num">{% if can('people:reset') %}<form method="post" action="/directory/people/{{ u.uid | urlencode }}/reset"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost" title="new one-time password, TOTP enrolled again, sessions ended">Reset sign-in</button></form>{% endif %}
+{% if can('people:unlock') and u.locked %}<form method="post" action="/directory/people/{{ u.uid | urlencode }}/unlock"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost" title="clear a lockout after too many wrong passwords; their password stays">Unlock</button></form>{% endif %}
 {% if can('people:disable') %}{% set act = 'enable' if u.locked else 'disable' %}<form method="post" action="/directory/people/{{ u.uid | urlencode }}/{{ act }}"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost" title="{{ 'allow sign-in again' if u.locked else 'block every sign-in at once; their sessions end' }}">{{ act | capitalize }}</button></form>{% endif %}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">No users.</p>{% endif %}
 </section>

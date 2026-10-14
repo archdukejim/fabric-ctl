@@ -47,3 +47,4 @@ account, so AD's per-site limits apply to it.
 | `remove_sudo_rule.py` | Remove one of fabric's editor-made sudo rules; never the site default or an admin's own (audited) |
 | `run_sudo_command.py` | `fabricctl sudo`: routes to the sudo rule functions |
 | `is_fabric_admin.py` | Whether a person is a fabric admin (`fabric-admins` or `<site>-fabric-admins`, nested too): who may get an SSH certificate (1.6.11.9) |
+| `unlock_person.py` | Clear a person's lockout in AD and Keycloak, their password kept (`people:unlock`; the site helpdesk: own site only; audited) |

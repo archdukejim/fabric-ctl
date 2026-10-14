@@ -8,10 +8,12 @@ from agent.post_ipam_sync import post_ipam_sync
 from agent.post_dns import post_dns
 from agent.post_dns_filter import post_dns_filter
 from agent.post_enrol import post_enrol
+from agent.post_federation import post_federation
 from agent.post_network import post_network
 from agent.post_networks import post_networks
 from agent.post_scan_policy import post_scan_policy
 from agent.post_options import post_options
+from agent.post_people import post_people
 from agent.post_pki import post_pki
 from agent.post_security import post_security
 from agent.post_ssh import post_ssh
@@ -21,11 +23,6 @@ from agent.route_not_found import RouteNotFound
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
 from fabriclib.common.write_audit import write_audit
-from fabriclib.directory.create_person import create_person
-from fabriclib.directory.remove_person import remove_person
-from fabriclib.directory.reset_sign_in import reset_sign_in
-from fabriclib.directory.set_person_enabled import set_person_enabled
-from fabriclib.directory.set_person_group import set_person_group
 from fabriclib.images.apply_image_action import apply_image_action
 from fabriclib.setup.doctor_report import doctor_report
 from fabriclib.system.apply_changes import apply_changes
@@ -38,10 +35,9 @@ def post_route(route, actor, data, perms):
     Inputs:  route — segments after /v1/ (already authorized); actor — the user recorded in the audit log; data — the
              JSON body; perms — the token's permissions (None for a root peer).
     Returns: the operation's JSON-serialisable result. apply: {"ok", "output"}; people: {"password"} (one-time,
-             shown once); people/<uid>/reset: {"password"} — fabric-group members only with system:admin (or root);
-             people/<uid>/disable|enable: {"uid", "enabled", "changed"}; people/<uid>/delete (body: confirm, the
-             user name typed back): {"uid", "revoked"}; people/<uid>/groups (body: action add|remove, group):
-             {"uid", "group", "member", "changed"} — each a fabric-group member's only with system:admin (or root);
+             shown once) and people/<uid>/reset|unlock|disable|enable|delete|groups: post_people's (the site
+             helpdesk narrowed to this site's own people, 2.1.9.21); federation/roles: post_federation's (a role
+             granted or revoked at a site below);
              jobs/doctor and jobs/images (body: action update|rollback, service): {"id"} of a job read with GET
              /v1/jobs/<id> by the person who started it;
              events: {} after the login audit line; dns-filter/...: post_dns_filter's result; networks/<site>/...:
@@ -91,24 +87,10 @@ def post_route(route, actor, data, perms):
     if route == ["apply"]:
         ok, output = apply_changes(actor, source="web")
         return {"ok": ok, "output": output}
-    if route == ["people"]:
-        return {"password": create_person(load_vars(), actor, read_text(data, "uid"), read_text(data, "first"),
-                                          read_text(data, "last"), read_text(data, "email"))}
-    if len(route) == 3 and route[0] == "people" and route[2] == "reset":
-        privileged = perms is None or "system:admin" in perms     # root, or the admin bundle
-        return {"password": reset_sign_in(load_vars(), actor, route[1], privileged)}
-    if len(route) == 3 and route[0] == "people" and route[2] in ("disable", "enable"):
-        privileged = perms is None or "system:admin" in perms
-        return set_person_enabled(load_vars(), actor, route[1], route[2] == "enable", privileged)
-    if len(route) == 3 and route[0] == "people" and route[2] == "delete":
-        privileged = perms is None or "system:admin" in perms
-        return remove_person(load_vars(), actor, route[1], read_text(data, "confirm"), privileged)
-    if len(route) == 3 and route[0] == "people" and route[2] == "groups":
-        privileged = perms is None or "system:admin" in perms
-        action = data.get("action")
-        if action not in ("add", "remove"):
-            raise ValidationError("action: add or remove")
-        return set_person_group(load_vars(), actor, read_text(data, "group"), route[1], action == "add", privileged)
+    if area == ["people"]:
+        return post_people(route, actor, data, perms)
+    if area == ["federation"]:
+        return post_federation(route, actor, data)
     owner = actor if perms is not None else None    # a job is read by whoever started it (root: any)
     if route == ["jobs", "doctor"]:              # doctor's checks take seconds to a minute: a job the page follows
         base = load_vars()["deploy_base_dir"]

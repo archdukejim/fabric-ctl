@@ -235,6 +235,38 @@ if users:
     roles = kc.call("GET", f"{R}/users/{users[0]['id']}/role-mappings/realm/composite")[1]
     check("jim gets fabric-console-admin through AD's admins group", any(r["name"] == "fabric-console-admin" for r in roles),
           [r["name"] for r in roles])
+
+# ---- layered roles (2.1.9.21, manual 1.6.8.2): the site's own groups mapped here, read only, nested membership
+mappers = kc.call("GET", f"{R}/components?parent={ldap[0]['id']}&type=org.keycloak.storage.ldap.mappers.LDAPStorageMapper")[1]
+site_mapper = [m for m in mappers if m.get("name") == "fabric site groups"]
+check("a second group mapper for the site's own role groups: read only, nested membership, the site's OU=groups only",
+      len(site_mapper) == 1 and site_mapper[0]["config"]["mode"] == ["READ_ONLY"]
+      and site_mapper[0]["config"]["user.roles.retrieve.strategy"] == ["LOAD_GROUPS_BY_MEMBER_ATTRIBUTE_RECURSIVELY"]
+      and site_mapper[0]["config"]["groups.dn"][0].startswith("OU=groups,OU=lan,OU=sites,"),
+      site_mapper and site_mapper[0]["config"])
+check("...and the organisation's mapper is still its own (not taken over)",
+      len([m for m in mappers if m.get("providerId") == "group-ldap-mapper"]) == 2)
+run_op(v, secrets, "create_person", {"uid": "lena", "first": "Lena", "last": "T", "email": "lena@lan.j-j.family",
+                                    "password": "Tst-" + random_password(20), "gid": 5000, "home_base": "/home",
+                                    "shell": "/bin/bash"}, DC)
+run_op(v, secrets, "add_group_member", {"group": "lan-admins", "uid": "lena"}, DC)
+sh(["docker", "exec", DC, "samba-tool", "group", "add", "house2-network-operators", "-s", "/data/etc/smb.conf"])
+sh(["docker", "exec", DC, "samba-tool", "group", "addmembers", "house2-network-operators", "lena", "-s",
+    "/data/etc/smb.conf"])
+sh(boot, ok=False, env=env)
+lena = kc.call("GET", f"{R}/users?username=lena&exact=true")[1]
+names = {r["name"] for r in kc.call("GET", f"{R}/users/{lena[0]['id']}/role-mappings/realm/composite")[1]} if lena else set()
+check("a site's admin (lena, in lan-admins) gets the site helpdesk here: the site forms only, never the plain ones",
+      "fabric-site-helpdesk" in names and "fabric:site:people:reset" in names and "fabric:people:reset" not in names
+      and "fabric:machines:admin" not in names and "fabric-console-admin" not in names, sorted(names))
+check("refused: another site's role group gives nothing here (house2-network-operators is not mapped)",
+      "fabric-network-operator" not in names
+      and kc.call("GET", f"{R}/groups?search=house2-network-operators&exact=true")[1] == [], sorted(names))
+sh(["docker", "exec", DC, "samba-tool", "group", "addmembers", "lan-network-operators", "lan-admins", "-s",
+    "/data/etc/smb.conf"])          # a grant: the site's admins nested in the role's group
+names = {r["name"] for r in kc.call("GET", f"{R}/users/{lena[0]['id']}/role-mappings/realm/composite")[1]} if lena else set()
+check("a granted role (lan-admins nested in lan-network-operators) gives its bundle here, through the nesting",
+      "fabric-network-operator" in names and "fabric:dns:write" in names, sorted(names))
 client = kc.call("GET", f"{R}/clients?clientId=fabric-webui")[1][0]
 check("client: confidential, code flow only, exact redirect, PKCE S256, fullScopeAllowed off",
       not client["publicClient"] and client["standardFlowEnabled"] and not client["implicitFlowEnabled"]

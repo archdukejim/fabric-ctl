@@ -10,6 +10,7 @@ from fabriclib.ipam.add_vlan import add_vlan
 from fabriclib.ipam.common.fields import KEEP
 from fabriclib.ipam.common.site_plan import site_plan
 from fabriclib.ipam.export_plan import export_plan
+from fabriclib.federation.common.sites_shown import sites_shown
 from fabriclib.ipam.find_in_plan import find_in_plan
 from fabriclib.ipam.offer_reservations import offer_reservations
 from fabriclib.ipam.read_plan import read_plan
@@ -30,7 +31,8 @@ from fabriclib.ipam.suggestions import suggest_block
 from fabriclib.ipam.sync.sync_plan import sync_plan
 
 USAGE = """usage: fabricctl ipam show [<site>]                    a site's VLANs, subnets, ranges, addresses, leases
-       fabricctl ipam find <ip|name|mac>               where an address, a name or a MAC is, in every site
+       fabricctl ipam find <ip|name|mac>               where an address, a name or a MAC is: in every site at
+                                                       the top, else in this site and the sites below it
        fabricctl ipam export [<site>]                  the address table as CSV (every site without one)
        fabricctl ipam block [<n>]                      the site's number (1-255): shown, or set
        fabricctl ipam vlan add <id> --name N [--subnet CIDR | --no-subnet] [--gateway IP] [--purpose T]
@@ -202,6 +204,9 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
         if cmd == "find" and len(pos) == 1 and not site:
             read = read_plan(v, secrets, container=container)
             rows = find_in_plan(read, pos[0], _leases(v, ""), v["site_name"])
+            shown = sites_shown(v)          # 2.1.9.22: never a sibling's or a parent's plan (the top: every site)
+            if shown is not None:
+                rows = [r for r in rows if str(r.get("site", "")).lower() in {n.lower() for n in shown}]
             if not rows:
                 print(f"{pos[0]}: not in any site's plan")
                 return 1

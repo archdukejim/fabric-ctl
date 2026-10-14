@@ -75,7 +75,8 @@ def get_page(h, sess, path, query):
         return h.send(200, views.freeradius(ctx, actions.radius_overview(), query.get("msg", ""),
                                             query.get("err", ""), view, guides, sessions))
     if path == "/federation":
-        return h.send(200, views.federation(ctx, actions.federation_overview()))
+        return h.send(200, views.federation(ctx, actions.federation_overview(), query.get("msg", ""),
+                                            query.get("err", "")))
     if path == "/audit":
         return h.send(200, views.audit(ctx, actions.read_audit()))
     if path == "/ssh":

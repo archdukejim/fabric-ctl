@@ -35,3 +35,5 @@ arbitrary commands.
 | `post_host_access.py` | Host groups (create, delete, machines in and out) and sudo rules (add, remove), in the directory at once (1.6.11.7) |
 | `post_security.py` | POST /v1/security/raise and /kerberos: raise a sign-in layer or turn Kerberos sign-in on or off, then apply |
 | `job_store.py` | Background jobs (doctor, an image update): started by one call, followed by id, read only by who started them; kept in memory |
+| `post_people.py` | POST /v1/people[/<uid>/<action>]: add, reset, unlock, disable or enable, remove, regroup a person; the site helpdesk narrowed to this site's own people who hold no role (2.1.9.21) |
+| `post_federation.py` | POST /v1/federation/roles: grant or revoke a role at a site below this one (federation:admin, 2.1.9.21) |

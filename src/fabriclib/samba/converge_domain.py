@@ -5,6 +5,7 @@ import ssl
 from fabriclib.federation.site_networks import site_networks
 from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.federation.common.load_registry import load_registry
+from fabriclib.keycloak.fabric_groups import fabric_groups
 from fabriclib.radius.windows_lan_profile import windows_lan_profile
 from fabriclib.samba.check_logon_policies import check_logon_policies
 from fabriclib.samba.id_range import id_range
@@ -21,7 +22,8 @@ def converge_domain(v, federation_file, secrets, container="samba"):
              service_users (FreeRADIUS's gid), install_freeradius, radius_people and hostname_radius (the Windows
              baseline's 802.1X profile), the id block (id_range), what
              sso_spns reads (Keycloak's Kerberos sign-in account), logon_policies (who may sign in per OU, 1.6.11.4;
-             null: the site's log-on rights as before 0.9);
+             null: the site's log-on rights as before 0.9), the fabric groups (fabric_groups: whose members the site
+             helpdesk may not touch, 2.1.9.21);
              federation_file — the federation registry (whether this is the root site); secrets — fabric's secrets
              (the service accounts' passwords: ad_agent_password, ad_keycloak_password, ad_radius_password);
              container — the DC's container.
@@ -39,6 +41,8 @@ def converge_domain(v, federation_file, secrets, container="samba"):
              "groups": [{"name": g["name"], "gidNumber": g["gidNumber"], "description": g.get("description", "")}
                         for g in v.get("ldap_groups") or []],
              "admin_group": v.get("webui_admin_group") or "admins",
+             # whose members the site helpdesk may not touch (2.1.9.21)
+             "privileged_groups": sorted(fabric_groups(v) | {"fabric-admins", "fabric-break-glass"}),
              "accounts": {f"fabric-{kind}-{v['site_name']}": secrets[f"ad_{kind}_password"]
                           for kind in ("agent", "keycloak", "radius")},
              "radius_gid": v["service_users"]["freeradius"]["gid"], "lan_profile": _lan_profile(v, root_ca),

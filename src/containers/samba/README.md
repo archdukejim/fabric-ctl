@@ -19,7 +19,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `directory_op.py` | fabric-agent's entry point: one directory operation, signed in as the site's agent account (not the system) |
 | `directory_ops.py` | The operations fabric-agent may ask for |
 | `site_info.py` | Operation `site_info`: a site's OU, id block and its ranges' marks |
-| `ensure_site_acl.py` | The site's admins and agent: full control of their site's OU, nothing on its service accounts (Q4); Keycloak: the site's people |
+| `ensure_site_acl.py` | The site's role groups and agent: full control of their site's OU, nothing on its service accounts (Q4); its `<site>-admins` the helpdesk rights on its people (2.1.9.21); no self-grant below the root; Keycloak: the site's people |
 | `ensure_ad_site.py` | The AD site of this fabric site and its subnets from the address plan |
 | `set_password_policy.py` | The admin's password policy on the domain object (2.1.6.13) |
 | `ensure_gpo.py` | One of fabric's GPOs created, linked, its SYSVOL files written, its version bumped on change |
@@ -37,7 +37,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `reset_password.py` | Operation `reset_password`: a new one-time password, the account unlocked |
 | `add_group_member.py` | Operation `add_group_member`: a person in a group, once |
 | `remove_group_member.py` | Operation `remove_group_member`: a person out of a group, once |
-| `paths.py` | The DNs of `OU=sites`, a site's OU and its `OU=devices` |
+| `paths.py` | The DNs of `OU=sites`, a site's OU and its `OU=devices`; the sites above and below a site |
 | `read_devices.py` | Operation `read_devices`: the site's devices and the roles it may use (its own and the organisation's) |
 | `save_device.py` | Operation `save_device`: a device created or replaced in the site's `OU=devices`, its roles by name |
 | `remove_device.py` | Operation `remove_device`: a device deleted |
@@ -90,6 +90,11 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `id_layout.py` | The fixed ranges inside a site's id block (offsets by kind), and the check that a block is a site's: a million ids from a multiple of a million (2.1.6.46) |
 | `read_dc_names.py` | The domain's computer names, its DCs apart (a parent refuses a joining site's DC a name in use, 2.1.6.45) |
 | `read_sites.py` | Every site in the domain: its name, where its OU sits and its uid/gid block (a parent hands out a free block, and recognises a site moving under it) |
-| `site_roles.py` | The five roles that administer a site, each its own group (2.1.9.13); the site's rodc-cache group's name (2.1.6.52) |
-| `acl_entries.py` | Access entries added once (compared parsed, object entries by their attribute) and a principal's SID |
+| `site_roles.py` | The roles that administer a site, each its own group (2.1.9.13), the console roles and what may be granted from above (2.1.9.21); the site's rodc-cache group's name (2.1.6.52) |
+| `acl_entries.py` | Access entries added once or removed (compared parsed, object entries by their attribute), a principal's SID and a schema GUID |
 | `remove_ipv6_records.py` | The AD zones on IPv4 only (2.1.6.29): every AAAA record removed (the DC listens on IPv4) |
+| `narrow_site_admins.py` | `<site>-admins` taken out of the site's AD role groups and host admins unless a site above granted them (2.1.9.21); at the root the organisation's admin group kept in the root's AD roles (Central IT) |
+| `protect_privileged_people.py` | Explicit denies that keep the site helpdesk from its people who hold a role (fabric groups, the domain's administrators, any site's admin or role group), taken off when they no longer do (2.1.9.21) |
+| `unlock_person.py` | Operation `unlock_person`: a person's lockout cleared, their password kept (2.1.9.21) |
+| `list_site_roles.py` | Operation `list_site_roles`: the roles at this site and every site below it, their groups and members (never a sibling's, 2.1.9.22) |
+| `grant_site_role.py` | Operation `grant_site_role`: a role at a site below granted to a group or person, or revoked; refused at this site itself and outside the sites below (2.1.9.21) |

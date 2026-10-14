@@ -72,7 +72,7 @@ PREVIEW_PERMS = ["status:read", "dns:read", "dns:write", "tsig:manage", "dhcp:re
                  "pki:link-device", "devices:read", "devices:enroll", "devices:admin", "roles:admin", "radius:read",
                  "radius:admin",
                  "people:read", "domain:read", "domain:admin", "machines:admin", "sudo:admin", "gpo:admin",
-                 "federation:read",
+                 "federation:read", "federation:admin", "people:unlock",
                  "vault:status", "vault:unlock", "audit:read", "dns:filter", "dns:querylog"]
 # tab -> the permission(s) that show it (any of them)
 TAB_PERMS = {"overview": ("status:read",), "bind9": ("dns:read",), "kea": ("dhcp:read",), "networks": ("dhcp:read",),

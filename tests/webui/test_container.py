@@ -963,6 +963,27 @@ for route, perm in (("disable", "people:disable"), ("enable", "people:disable"),
     out = agent_call("POST", f"/v1/people/alice/{route}", "carol", AUDITOR_ROLES, {"confirm": "alice"})
     # covers: agent:post.people.*.disable agent:post.people.*.enable agent:post.people.*.delete agent:post.people.*.groups -
     check(f"auditor token: may not {route} a person (403, {perm})", " 403 " in out and perm in out, out)
+# the site helpdesk (2.1.9.21): its site forms pass the people routes' check (the person is narrowed inside, tests/samba);
+# nothing else does
+SITE_DESK_ROLES = bundle_roles("fabric-site-helpdesk")
+out = agent_call("POST", "/v1/people/alice/unlock", "carol", AUDITOR_ROLES)
+# covers: agent:post.people.*.unlock -
+check("auditor token: may not unlock a person (403, people:unlock)", " 403 " in out and "people:unlock" in out, out)
+for method, route in (("POST", "/v1/people/alice/unlock"), ("POST", "/v1/people/alice/reset"), ("GET", "/v1/people")):
+    out = agent_call(method, route, "deskh1", SITE_DESK_ROLES)
+    check(f"site helpdesk token: {method} {route} passes the permission check (its site form counts)",
+          " 403 " not in out, out)
+for method, route, perm in (("POST", "/v1/people/alice/delete", "people:remove"),
+                            ("POST", "/v1/people/alice/groups", "people:groups"),
+                            ("POST", "/v1/machines", "machines:admin"), ("POST", "/v1/gpo/set", "gpo:admin"),
+                            ("POST", "/v1/dhcp/reservations", "dhcp:write"), ("GET", "/v1/devices", "devices:read"),
+                            ("POST", "/v1/federation/roles", "federation:admin")):
+    out = agent_call(method, route, "deskh1", SITE_DESK_ROLES, {"confirm": "alice"})
+    check(f"site helpdesk token: refused {method} {route} (403, {perm})", " 403 " in out and perm in out, out)
+out = agent_call("POST", "/v1/federation/roles", "carol", AUDITOR_ROLES, {"site": "x", "role": "helpdesk",
+                                                                         "action": "grant"})
+# covers: agent:post.federation.roles -
+check("auditor token: may not grant a role (403, federation:admin)", " 403 " in out and "federation:admin" in out, out)
 out = agent_call("POST", "/v1/jobs/images", "carol", AUDITOR_ROLES, {"action": "update", "service": "nginx"})
 # covers: agent:post.jobs.images -
 check("auditor token: may not update an image (403, images:update)", " 403 " in out and "images:update" in out, out)

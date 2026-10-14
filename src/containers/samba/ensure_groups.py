@@ -2,7 +2,8 @@ import ldb
 
 from alloc_id import alloc_id
 import paths
-from site_roles import FABRIC_ADMINS, ROLES, fabric_admins, fabric_machines, rodc_cache, role_group
+from site_roles import CONSOLE_ROLES, FABRIC_ADMINS, ROLES, fabric_admins, fabric_machines, grant_group, rodc_cache, \
+    role_group
 
 DOMAIN_USERS_RID = 513          # AD's Domain Users: fabric's everyone-group `users` (Q11)
 
@@ -60,8 +61,10 @@ def _add_member(samdb, group, member, done):
 
 def ensure_groups(samdb, site, root, org_groups):
     """Purpose: the groups access is built on (manual 1.6.3.6, 1.6.3.10), with their gid numbers (1.6.3.9): the site's
-             people and admins, and its five role groups with `<site>-admins` in each (2.1.9.13) (gids from the
-             built-in range of the site's block, 2.1.6.46), and at the root site, first, the organisation's groups —
+             people and admins, its four AD role groups (2.1.9.13) (gids from the built-in range of the site's block,
+             2.1.6.46) and its console role groups (no gid: not POSIX), all empty: since 0.9 `<site>-admins` is in
+             none of them unless a site above grants it (2.1.9.21; narrow_site_admins takes an older site's out), and
+             at the root site, first, the organisation's groups —
              fabric's `ldap_groups` (the web UI's admin group, the RBAC bundle groups, the 802.1X groups) with their
              own gids, `users` as AD's Domain Users, and `fabric-break-glass` (in every site's log-on policy). The host
              groups (manual 1.6.11.2): the organisation's `fabric-admins` (at the root), each site's
@@ -97,14 +100,10 @@ def ensure_groups(samdb, site, root, org_groups):
     for name in (f"{site}-users", f"{site}-admins"):
         _ensure(samdb, name, groups, builtin, "", done)
     new_site = f"group {site}-users created" in done
-    admins = str(_group(samdb, f"{site}-admins").dn)
-    for role, description in ROLES.items():      # the site's roles, <site>-admins in each (2.1.9.13)
-        name = role_group(site, role)
-        _ensure(samdb, name, groups, builtin, description, done)
-        members = samdb.search(base=str(_group(samdb, name).dn), scope=ldb.SCOPE_BASE, attrs=["member"])[0]
-        if admins.lower() not in [str(m).lower() for m in members.get("member", [])]:
-            samdb.add_remove_group_members(name, [f"{site}-admins"], add_members_operation=True)
-            done.append(f"group {name}: {site}-admins a member")
+    for role, description in ROLES.items():      # the site's AD roles (2.1.9.13), granted from above (2.1.9.21)
+        _ensure(samdb, role_group(site, role), groups, builtin, description, done)
+    for role, (_, description) in CONSOLE_ROLES.items():     # the console roles a site above may grant (2.1.9.21)
+        _ensure(samdb, grant_group(site, role), groups, None, description, done)
     if root:
         _ensure(samdb, "fabric-break-glass", org, builtin,
                 "May log on to every site's machines: for when everything else fails", done)
