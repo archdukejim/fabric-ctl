@@ -265,16 +265,18 @@ check("secured: ufw on, incoming denied by default", "Default: deny (incoming)" 
 own_added = [ln for ln in R("ufw show added").splitlines() if ln.startswith("ufw ")]
 R("fabricctl setup --step firewall --non-interactive --approve own_rules >/tmp/own-rules.log 2>&1")
 added = [ln for ln in R("ufw show added").splitlines() if ln.startswith("ufw ")]
-check("own rules removed (yes): only fabric's ports and SSH left, the 9090 and OpenSSH rules gone",
-      len(added) < len(own_added) and not any("9090" in ln or "OpenSSH" in ln for ln in added), added)
+# the host's own rules are whatever it had (rehearsal 3 found a host without the OpenSSH rule a check had assumed)
+removed = [ln for ln in own_added if ln not in added]
+check("own rules removed (yes): only fabric's ports and SSH left, the host's own rules gone",
+      removed and not any(ln in added for ln in removed), (removed, added))
 check("…and SSH still works (fabric's SSH rule from the LAN)", R("echo ok").strip() == "ok")
 R("fabricctl setup --undo firewall --yes >/tmp/undo-firewall.log 2>&1")
 back = [ln for ln in R("ufw show added").splitlines() if ln.startswith("ufw ")]
-check("undoing the firewall puts the host's own rules back", any("9090" in ln for ln in back)
-      and any("OpenSSH" in ln for ln in back), back)
+check("undoing the firewall puts the host's own rules back, every one removed", removed
+      and all(ln in back for ln in removed), (removed, back))
 R("fabricctl setup --step firewall --non-interactive --approve ports,firewall --decline own_rules >/dev/null 2>&1")
 check("the firewall set up again for the person to use (own rules kept)",
-      "Default: deny (incoming)" in R("ufw status verbose") and any("9090" in ln for ln in
-                                                                    R("ufw show added").splitlines()))
+      "Default: deny (incoming)" in R("ufw status verbose")
+      and all(ln in R("ufw show added").splitlines() for ln in removed))
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)
