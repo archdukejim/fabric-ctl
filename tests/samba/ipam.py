@@ -832,6 +832,17 @@ below("house6")
 code, out = ipam("local-scan", "allow", "--site", "house6", v=house_v, secrets=house_s)
 check("refused: the region changing the top's value, naming the top; nothing written (the agent enforces it: AD "
       "cannot)", code == 1 and "were set by lan, above house2" in out and not local("house6")["allowed"], out)
+code, out = ipam("local-scan", "clear", "--site", "house6", v=house_v, secrets=house_s)
+check("refused: the region clearing the top's value, naming lan", code == 1 and "were set by lan" in out
+      and local("house6")["set_by"].startswith("lan "), out)
+below("house2", "house5", "house6")
+code, out = ipam("local-scan", "clear", "--site", "house6")
+check("the top clears it: both attributes removed, off by default, audited", code == 0
+      and local("house6")["set_by"] == "" and not local("house6")["allowed"]
+      and any(e == "IPAM_LOCAL_SCAN_CLEAR" for e, _ in AUDIT), out)
+below("house6")
+code, out = ipam("local-scan", "allow", "--site", "house6", v=house_v, secrets=house_s)
+check("then the region may set it again", code == 0 and local("house6")["set_by"].startswith("house2 "), out)
 below("house3")
 
 subprocess.run(["docker", "rm", "-f", DC], capture_output=True)

@@ -46,6 +46,7 @@
 {% if ls.settable and can('dhcp:write') %}<form method="post" action="/networks/scan/local" class="grid">{{ csrf() }}<input type="hidden" name="site" value="{{ n.site }}">
 <label>{{ n.site }}'s own admins may scan its subnets<select name="allowed"><option value="off"{{ ' selected' if not ls.allowed }}>no</option><option value="on"{{ ' selected' if ls.allowed }}>yes</option></select></label>
 <div><button>Set local scans at {{ n.site }}</button></div></form>
+{% if ls.set_by %}<form method="post" action="/networks/scan/local" class="inline">{{ csrf() }}<input type="hidden" name="site" value="{{ n.site }}"><input type="hidden" name="allowed" value="clear"><button class="ghost">Clear</button> <span class="muted small">back to off by default; only {{ ls.set_by.split(' ')[0] }} or a site above it may</span></form>{% endif %}
 {% elif not ls.settable and not ls.top %}<p class="muted small">Set by the sites above {{ n.site }}, on their Networks tab.</p>{% endif %}
 {% if ls.settable %}<h3>Scans requested at {{ n.site }}</h3>
 {% if n.scan_requests_error %}<p class="flash bad">{{ n.scan_requests_error }}</p>{% endif %}

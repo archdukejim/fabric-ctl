@@ -82,7 +82,8 @@ def _write_local_scan(samdb, change):
     """Purpose: whether a site's own admins may start scans, written on the site's OU by a site above (decision
              2.1.10.30, manual 1.10.4.29.4): the OU given the auxiliary class fabricLocalScanSet when it lacks it, then
              fabricLocalScan and who set it. AD denies the site's own agent and OU admins (ensure_site_acl).
-    Inputs:  samdb — SamDB (as the site's agent); change — {"site", "fields": {"allowed" (bool), "by" (text)}}.
+    Inputs:  samdb — SamDB (as the site's agent); change — {"site", "fields": {"allowed" (bool, or None to clear
+             both attributes), "by" (text)}}.
     Returns: str, what changed.
     Fails:   ValueError "no such site"; ldb.LdbError when AD refuses (the site itself, a sibling, a site below).
     Feeds:   write_plan."""
@@ -95,11 +96,14 @@ def _write_local_scan(samdb, change):
     if "fabricLocalScanSet" not in [str(c) for c in have["objectClass"]]:
         samdb.modify(ldb.Message.from_dict(samdb, {"dn": dn, "objectClass": "fabricLocalScanSet"}, ldb.FLAG_MOD_ADD))
     msg = ldb.Message(ldb.Dn(samdb, dn))
-    msg["fabricLocalScan"] = ldb.MessageElement(_values(bool(given.get("allowed"))), ldb.FLAG_MOD_REPLACE,
-                                                "fabricLocalScan")
+    cleared = given.get("allowed") is None          # clear: both removed, the branch back to the default (off)
+    msg["fabricLocalScan"] = ldb.MessageElement([] if cleared else _values(bool(given.get("allowed"))),
+                                                ldb.FLAG_MOD_REPLACE, "fabricLocalScan")
     msg["fabricLocalScanBy"] = ldb.MessageElement(_values(str(given.get("by") or "")), ldb.FLAG_MOD_REPLACE,
                                                   "fabricLocalScanBy")
     samdb.modify(msg)
+    if cleared:
+        return f"local scans at {change['site']} cleared (off by default)"
     return f"local scans at {change['site']} {'allowed' if given.get('allowed') else 'off'}"
 
 

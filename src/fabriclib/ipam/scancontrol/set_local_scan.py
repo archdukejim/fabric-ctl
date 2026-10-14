@@ -6,9 +6,9 @@ from fabriclib.ipam.common.site_scope import site_scope
 
 
 def _allowed(value):
-    """Purpose: the setting as typed: allow/on/true or deny/off/false.
+    """Purpose: the setting as typed: allow/on/true, deny/off/false, or clear (the value removed, revised 2026-10-13).
     Inputs:  value — str or bool.
-    Returns: bool.
+    Returns: bool, or None for clear.
     Fails:   ValidationError for anything else.
     Feeds:   set_local_scan."""
     if isinstance(value, bool):
@@ -18,7 +18,9 @@ def _allowed(value):
         return True
     if text in ("deny", "off", "false"):
         return False
-    raise ValidationError(f"local scans are allowed or denied: allow or deny, on or off (got {value!r})")
+    if text == "clear":
+        return None
+    raise ValidationError(f"local scans are allowed, denied or cleared: allow, deny or clear (got {value!r})")
 
 
 def _outranked(here, entry, site):
@@ -48,16 +50,20 @@ def set_local_scan(v, actor, site, allowed, secrets=None, container="samba", sou
              set it, at a writable DC, and audited (IPAM_LOCAL_SCAN_SET) through common/edit_options. The highest
              site above that set it wins: a lower one may set it only where no higher one has (_outranked, enforced
              here; revised 2026-10-13). AD refuses the site's own agent and OU admins too (ensure_site_acl). Nothing is
-             applied: the next scan reads it.
+             applied: the next scan reads it. "clear" removes the value (the site that set it or one above it, as for
+             a change; nothing set: refused), so the branch is back to the default (off) and a lower site may set
+             it again; only one value is kept, so no lower site's earlier value comes back. Audited
+             IPAM_LOCAL_SCAN_CLEAR.
     Inputs:  v — fabric vars (site_name, ad_dc_type, ad_join_server); actor — who asks (audit, and the "set by" text);
-             site — the site below; allowed — "allow"/"deny", "on"/"off" or bool; secrets, container — as read_plan;
-             source — "cli" or "web"; edit, scope — edit_options and site_scope (tests give their own).
-    Returns: edit_options' result; its "result": {"site", "allowed" (bool), "set_by"}.
+             site — the site below; allowed — "allow"/"deny", "on"/"off", bool, or "clear"; secrets, container — as
+             read_plan; source — "cli" or "web"; edit, scope — edit_options and site_scope (tests give their own).
+    Returns: edit_options' result; its "result": {"site", "allowed" (bool, None when cleared), "set_by" ("" when
+             cleared)}.
     Fails:   ValidationError: no site named; this site ("set by the sites above it"); a site this install does not see
              below it (site_scope: a sibling, a parent); a value that is neither; a value set by a site higher up
              (naming it), or this site not above the branch in the domain; the directory refusing ("not
              permitted for this site"); the DC not answering; a read-only DC with no writable partner.
-    Feeds:   run_scan_command (local-scan allow|deny), agent POST /v1/ipam/local-scan."""
+    Feeds:   run_scan_command (local-scan allow|deny|clear), agent POST /v1/ipam/local-scan."""
     own = v["site_name"]
     if not str(site or "").strip():
         raise ValidationError("name the site below this one whose local scans you set (--site S)")
@@ -68,11 +74,18 @@ def set_local_scan(v, actor, site, allowed, secrets=None, container="samba", sou
     by = f"{own} {actor} {time.strftime('%Y-%m-%d %H:%M')}"
 
     def change(plan):
-        why = _outranked(own, plan.get("local_scan") or {}, target)
+        entry = plan.get("local_scan") or {}
+        why = _outranked(own, entry, target)
         if why:
             raise ValidationError(why)
-        result = {"site": target, "allowed": value, "set_by": by}
+        if value is None and not entry.get("set_by"):
+            raise ValidationError(f"local scans at {target} are not set by any site above it: nothing to clear "
+                                  "(off by default)")
+        by_now = "" if value is None else by
+        result = {"site": target, "allowed": value, "set_by": by_now}
+        detail = f"cleared (was {entry.get('set_by')})" if value is None else f"allowed={value}"
         return ([{"do": "set", "what": "local_scan", "site": target, "key": target,
-                  "fields": {"allowed": value, "by": by}}], result, f"allowed={value}", [])
+                  "fields": {"allowed": value, "by": by_now}}], result, detail, [])
 
-    return edit(v, actor, target, "IPAM_LOCAL_SCAN_SET", change, secrets, container, source)
+    event = "IPAM_LOCAL_SCAN_CLEAR" if value is None else "IPAM_LOCAL_SCAN_SET"
+    return edit(v, actor, target, event, change, secrets, container, source)

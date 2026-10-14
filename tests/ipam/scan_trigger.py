@@ -211,7 +211,7 @@ for v, site, value, words in ((HOUSE, "house", "allow", "set by the sites above 
                               (HOUSE, "cabin", "allow", "not this site or one below it"),
                               (HOUSE, "mid", "allow", "not this site or one below it"),
                               (MID, "", "allow", "name the site below"),
-                              (MID, "house", "maybe", "allowed or denied")):
+                              (MID, "house", "maybe", "allowed, denied or cleared")):
     check(f"refused: {v['site_name']} setting {site or '(none)'}'s local scans to {value}, saying why",
           refused(lambda: set_local_scan(v, "x", site, value, edit=fake_edit, scope=scope), words) is True)
 check("a refused setting writes nothing", len(EDITS) == before)
@@ -241,6 +241,27 @@ check("the top overrides the region's value (and from then on holds it)", LOCAL[
 check("refused: a site that is not above the branch in the domain (the registry and AD disagreeing)", refused(
     lambda: set_local_scan(MID, "a", "house", "allow", edit=lambda v, a, s, e, change, *x, **k: change(
         {"local_scan": {"above": ["region2", "top"]}}), scope=scope), "mid is not above house in the domain") is True)
+# clear (the coordinator, 2026-10-13): whoever may set it may remove it
+EV = []
+set_local_scan(TOP, "bob", "house", "clear", edit=lambda v, a, s, e, change, *x, **k: EV.append(e) or fake_edit(
+    v, a, s, e, change, *x, **k), scope=scope)
+check("the top clears its own value: removed (off by default), audited IPAM_LOCAL_SCAN_CLEAR, what it was in the "
+      "audit", LOCAL["house"] == {"allowed": None, "set_by": ""} and EV == ["IPAM_LOCAL_SCAN_CLEAR"]
+      and EDITS[-1][5].startswith("cleared (was top bob"), (LOCAL, EV, EDITS[-1]))
+set_local_scan(MID, "alice", "house", "allow", edit=fake_edit, scope=scope)
+check("then the region may set it again", LOCAL["house"]["set_by"].startswith("mid"), LOCAL)
+set_local_scan(TOP, "bob", "house", "deny", edit=fake_edit, scope=scope)
+before = len(EDITS)
+check("refused: the region clearing the top's value, naming the top; nothing written", refused(
+    lambda: set_local_scan(MID, "a", "house", "clear", edit=fake_edit, scope=scope), "were set by top") is True
+    and len(EDITS) == before)
+LOCAL["cabin"] = {"allowed": True, "set_by": "mid alice 2026-10-13 10:00"}
+set_local_scan(TOP, "bob", "cabin", "clear", edit=fake_edit, scope=scope)
+check("the top clears a value the region set (a site above the setter)", LOCAL["cabin"]["set_by"] == "", LOCAL)
+before = len(EDITS)
+check("refused: clearing where nothing is set, saying so", refused(
+    lambda: set_local_scan(TOP, "bob", "cabin", "clear", edit=fake_edit, scope=scope), "nothing to clear") is True
+    and len(EDITS) == before)
 LOCAL.clear()
 
 
@@ -519,6 +540,11 @@ check("fabricctl ipam local-scan: here, allowed or not and who set it", code == 
 code, o, e = cli(MID, "local-scan", "allow", "--site", "house")
 check("fabricctl ipam local-scan allow --site house, from above", code == 0 and "local scans at house: allowed" in o
       and EDITS[-1][4][0]["fields"]["allowed"] is True, (o, e))
+code, o, e = cli(MID, "local-scan", "clear", "--site", "house")
+check("fabricctl ipam local-scan clear --site house, by the site that set it", code == 0 and "cleared" in o
+      and LOCAL["house"]["set_by"] == "", (o, e))
+code, o, e = cli(MID, "local-scan", "clear", "--site", "house")
+check("local-scan clear with nothing set: refused (exit 1)", code == 1 and "nothing to clear" in e, e)
 # covers: cli:ipam.local-scan -
 for v, argv, words, want in ((HOUSE, ("local-scan", "allow", "--site", "house"), "set by the sites above it", 1),
                              (HOUSE, ("local-scan", "allow", "--site", "cabin"), "not this site or one below", 1),
@@ -571,6 +597,8 @@ if agent_ok:
     # covers: agent:post.ipam.local-scan +
     m_agent_local.post_local_scan(["ipam", "local-scan"], "alice", {"site": "house", "allowed": "on"})
     check("POST /v1/ipam/local-scan: on", CALLS[-1] == ("local", "alice", "house", True, "web"), CALLS[-1:])
+    m_agent_local.post_local_scan(["ipam", "local-scan"], "alice", {"site": "house", "allowed": "clear"})
+    check("POST /v1/ipam/local-scan: clear", CALLS[-1] == ("local", "alice", "house", "clear", "web"), CALLS[-1:])
     n = len(CALLS)
     # covers: agent:post.ipam.scan.request -
     m_agent_scan.load_vars = m_agent_local.load_vars = lambda: HOUSE
@@ -581,7 +609,7 @@ if agent_ok:
         ["ipam", "scan", "request"], "alice", {"site": ["house"], "subnet": "iot"}), "must be text") is True)
     # covers: agent:post.ipam.local-scan -
     check("refused: allowed neither on nor off", refused(lambda: m_agent_local.post_local_scan(
-        ["ipam", "local-scan"], "alice", {"site": "house", "allowed": "yes"}), "allowed is on or off") is True
+        ["ipam", "local-scan"], "alice", {"site": "house", "allowed": "yes"}), "allowed is on, off or clear") is True
         and len(CALLS) == n)
     check("refused: a sibling's local scans", refused(lambda: m_agent_local.post_local_scan(
         ["ipam", "local-scan"], "alice", {"site": "cabin", "allowed": "on"}), "not this site") is True)
@@ -645,6 +673,10 @@ if web_ok:
                                                            "/networks/scan/request", "unrecorded", "root@top")
                                                  if w not in page])
     # covers: web:post.networks.scan.request web:post.networks.scan.local -
+    page = tab("house", {**below, "set_by": "top bob 2026-10-13 10:00"}, CTX["perms"], DONE)
+    check("a value set from above: the card's Clear button, naming who may clear it", 'value="clear"' in page
+          and "only top or a site above it may" in page)
+    check("nothing set: no Clear button", 'value="clear"' not in tab("house", below, CTX["perms"], DONE))
     page = tab("house", below, ["dhcp:read"], DONE)
     check("without dhcp:write: the card and the answers read-only, no form, no Scan at button",
           "Scans at house" in page and "/networks/scan/local" not in page and "/networks/scan/request" not in page)
@@ -692,6 +724,11 @@ if web_ok:
     m_post.networks_scan_post(h, {}, ["local"], {"site": "house", "allowed": "on"})
     check("the local scans form: set, back to the site saying what it is now", ASKED[-1] == ("house", "on")
           and h.to.startswith("/networks?site=house&msg=") and "allowed" in h.to, h.to)
+    h = H()
+    actions.set_local_scan = lambda site, allowed: {"result": {"site": site, "allowed": None, "set_by": ""}}
+    m_post.networks_scan_post(h, {}, ["local"], {"site": "house", "allowed": "clear"})
+    check("the Clear button: back to the site saying it is off by default", "cleared" in h.to, h.to)
+    actions.set_local_scan = fake_set
     h = H()
     m_post.networks_scan_post(h, {}, ["local"], {"site": "house", "allowed": "maybe"})
     check("a value the agent refuses: back with why", "err=" in h.to and "on+or+off" in h.to, h.to)

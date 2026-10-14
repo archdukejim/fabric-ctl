@@ -1493,7 +1493,8 @@ out = agent_call("POST", "/v1/ipam/local-scan", "dan", NETOPS, {"site": "lan", "
 check("refused: this site setting its own local scans (400: set by the sites above it)",
       " 400 " in out and "set by the sites above it" in out, out)
 out = agent_call("POST", "/v1/ipam/local-scan", "dan", NETOPS, {"site": "lan", "allowed": "maybe"})
-check("refused: allowed neither on nor off (400)", " 400 " in out and "allowed is on or off" in out, out)
+check("refused: allowed neither on, off nor clear (400)", " 400 " in out and "allowed is on, off or clear" in out,
+      out)
 out = agent_call("POST", "/v1/ipam/scan-policy", "dan", NETOPS, {"site": "lan", "policy": "deny"})
 check("the old scan policy route is gone (403 not allowed: no permission lists it, default deny)",
       " 403 " in out and "not allowed" in out, out)

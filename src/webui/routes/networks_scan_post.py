@@ -50,7 +50,7 @@ def _request(h, form):
 def _local(h, form):
     """Purpose: set whether a site below may scan locally through the agent (manual 1.10.4.29.4), and go back to the
              Networks tab on that site saying what it is now.
-    Inputs:  h — the request handler (redirect); form — dict (site, allowed: on or off).
+    Inputs:  h — the request handler (redirect); form — dict (site, allowed: on, off or clear).
     Returns: 303 with msg or err.
     Fails:   AgentError, PermissionDenied and AuthError propagate to handle_request.
     Feeds:   networks_scan_post."""
@@ -59,9 +59,10 @@ def _local(h, form):
         r = actions.set_local_scan(site, form.get("allowed", ""))["result"]
     except actions.ValidationError as exc:
         return h.redirect(_back(site) + urllib.parse.urlencode({"err": str(exc)}))
-    return h.redirect(_back(site) + urllib.parse.urlencode({"msg": (
-        f"Local scans at {r['site']}: {'allowed' if r['allowed'] else 'off'} (set by {r['set_by']}). The next scan "
-        "there reads it.")}))
+    msg = (f"Local scans at {r['site']} cleared: off by default until a site above sets them." if r["allowed"] is None
+           else f"Local scans at {r['site']}: {'allowed' if r['allowed'] else 'off'} (set by {r['set_by']}). The next "
+           "scan there reads it.")
+    return h.redirect(_back(site) + urllib.parse.urlencode({"msg": msg}))
 
 
 def networks_scan_post(h, sess, parts, form):

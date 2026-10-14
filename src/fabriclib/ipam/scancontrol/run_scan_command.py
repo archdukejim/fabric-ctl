@@ -13,7 +13,8 @@ from fabriclib.ipam.scancontrol.show_scan_requests import show_scan_requests
 USAGE = """usage: fabricctl ipam scan <subnet> --site S [--no-wait]   a scan at S, a site below: requested, then awaited
        fabricctl ipam scan-requests [--site S]           S's (this site's) scan requests and their answers
        fabricctl ipam local-scan [show] [--site S]       whether S's (this site's) own admins may scan, and who set it
-       fabricctl ipam local-scan allow|deny --site S     set it for S, a site below this one"""
+       fabricctl ipam local-scan allow|deny --site S     set it for S, a site below this one
+       fabricctl ipam local-scan clear --site S          remove it (back to off; the setter or a site above it)"""
 FLAGS = ("--site",)
 BARE = ("--no-wait",)
 
@@ -96,9 +97,12 @@ def run_scan_command(v, cmd, args, secrets=None, container="samba", sleep=time.s
         if cmd == "local-scan" and pos in ([], ["show"]) and not bare:
             print(show_local_scan(read_local_scan(v, site, secrets, container)), end="")
             return 0
-        if cmd == "local-scan" and len(pos) == 1 and pos[0] in ("allow", "deny") and not bare:
+        if cmd == "local-scan" and len(pos) == 1 and pos[0] in ("allow", "deny", "clear") and not bare:
             out = set_local_scan(v, "root", site, pos[0], secrets, container)
             r = out["result"]
+            if r["allowed"] is None:
+                print(f"local scans at {r['site']} cleared: off by default until a site above sets them")
+                return 0
             print(f"local scans at {r['site']}: {'allowed' if r['allowed'] else 'off'} (set by {r['set_by']}); the "
                   "next scan there reads it")
             return 0
