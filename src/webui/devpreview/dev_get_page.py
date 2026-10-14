@@ -6,7 +6,7 @@ from webui.devpreview.sample_data import (RECORD_TYPES, SAMPLE_CA, SAMPLE_DEVICE
                                           SAMPLE_IMAGES,
                                           SAMPLE_SECURITY, SAMPLE_VAULT, SAMPLE_DNS_FILTER, SAMPLE_QUERY_LOG)
 from webui.devpreview.dev_networks_page import dev_networks_page
-from webui.devpreview.sample_networks import SAMPLE_SCAN_POLICY, SAMPLE_SCAN_SUBNETS
+from webui.devpreview.sample_networks import SAMPLE_LOCAL_SCAN, SAMPLE_SCAN_SUBNETS
 from webui.devpreview.sample_radius_guides import sample_radius_guides
 
 
@@ -94,7 +94,7 @@ def dev_get_page(h, path, query):
         return dev_networks_page(h, path, query)
     if path == "/networks/scan":                       # the scan page, before a scan (manual 1.10.4.22)
         return h.send(200, views.ipam_scan(ctx, SAMPLE_SCAN_SUBNETS, None, query.get("msg", ""), query.get("err", ""),
-                                           query.get("subnet", ""), SAMPLE_SCAN_POLICY))
+                                           query.get("subnet", ""), SAMPLE_LOCAL_SCAN))
     if path == "/kea/options":           # the DHCP options page (1.10.4.24.6); ?target=… shows the sample's sources
         target = query.get("target", "")
         sample = {**SAMPLE_OPTIONS, "effective": SAMPLE_EFFECTIVE if target else None}

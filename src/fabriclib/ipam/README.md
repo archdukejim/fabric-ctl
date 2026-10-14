@@ -36,15 +36,15 @@ from it at every apply. The rules are pure functions checked before anything is 
 | `set_address.py` | Change a recorded address |
 | `remove_address.py` | Remove a recorded address |
 | `scannable_subnets.py` | The subnets a scan may cover: every subnet of this site's plan (DHCP on or off), each at most a /22 |
-| `scan_subnet.py` | Scan one subnet of the plan on request, where the scan policy allows: what answers, set beside the plan and Kea's leases; one at a time, once a minute; audited |
-| `scan_overview.py` | The scan page's read: the subnets a scan may cover and the scan policy in force here |
+| `scan_subnet.py` | Scan one subnet of the plan, locally where the sites above allow it or on a request from above: what answers, set beside the plan and Kea's leases; one at a time, once a minute; audited |
+| `scan_overview.py` | The scan page's read: the subnets a scan may cover and whether local scans are allowed here |
 | `show_scan.py` | A scan's result as text, with the command that would record each find |
 | `offer_reservations.py` | After a scan on a terminal: "make it a reservation?" (or static) for each find, through `add_address` |
-| `run_ipam_command.py` | `fabricctl ipam show / find / export / block / vlan / subnet / range / address / scan / scan-policy / sync / option / class / netboot / option-editors / watch` (applies a change to this site unless `--no-apply`) |
+| `run_ipam_command.py` | `fabricctl ipam show / find / export / block / vlan / subnet / range / address / scan / scan-requests / local-scan / sync / option / class / netboot / option-editors / watch` (applies a change to this site unless `--no-apply`) |
 | `poll_plan.py` | One run of the plan poll (fabric-plan-watch.timer): the USN, then Kea alone re-rendered when its input changed |
 | `options/` | The DHCP options in the plan: option sets, levels, classes, definitions, provenance, netboot presets, the poll's parts |
 | `common/` | Helpers shared by the commands: the checked edit, the plan's fields, the kept copy |
-| `scanpolicy/` | The scan policy: the organisation's and each site's level, the policy in force, `fabricctl ipam scan-policy` |
+| `scancontrol/` | Scans from the top down: a scan requested from above and answered through AD, and whether a site's own admins may scan (set from above) |
 | `sync/` | Sync now: the plan poll at once and BIND's records by the quick path; what the poll last reported |
 | `visible_sites.py` | The sites this console shows and edits: its own, then those that joined below it |
 | `subnet_map.py` | A subnet as the Networks tab draws it: its ranges as a bar, its counts, every address (free runs too) |

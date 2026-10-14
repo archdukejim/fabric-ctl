@@ -19,7 +19,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `directory_op.py` | fabric-agent's entry point: one directory operation, signed in as the site's agent account (not the system) |
 | `directory_ops.py` | The operations fabric-agent may ask for |
 | `site_info.py` | Operation `site_info`: a site's OU, id block and its ranges' marks |
-| `ensure_site_acl.py` | The site's admins and agent: full control of their site's OU, nothing on its service accounts (Q4); Keycloak: the site's people |
+| `ensure_site_acl.py` | The site's admins and agent: full control of their site's OU, nothing on its service accounts (Q4); Keycloak: the site's people; below the root, the site denied what the sites above decide for it (its local scans, a scan request in its plan) |
 | `ensure_ad_site.py` | The AD site of this fabric site and its subnets from the address plan |
 | `set_password_policy.py` | The admin's password policy on the domain object (2.1.6.13) |
 | `ensure_gpo.py` | One of fabric's GPOs created, linked, its SYSVOL files written, its version bumped on change |
@@ -47,7 +47,10 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `ensure_networks.py` | The site's networks as `fabricNetwork` entries in its OU=networks (the address plan), kept to match |
 | `read_networks.py` | Operation `read_networks`: the address plan, every site's networks in one search |
 | `read_plan.py` | Operation `read_plan`: the address manager's plan, one site's or every site's, and every site's number |
-| `write_plan.py` | Operation `write_plan`: checked changes to a site's plan (VLANs, subnets, ranges, addresses, its number) |
+| `write_plan.py` | Operation `write_plan`: checked changes to a site's plan (VLANs, subnets, ranges, addresses, its number, whether a site below may scan locally) |
+| `read_scan_requests.py` | Operation `read_scan_requests`: the scan requests in a site's plan, their answers and whether a site above made each (2.1.10.30) |
+| `write_scan_request.py` | Operation `write_scan_request`: a scan request added by a site above, answered or removed by the branch (2.1.10.30) |
+| `schema_guid.py` | An attribute's or class's schemaIDGUID, as an access entry names it |
 | `ensure_org_options.py` | At the top site: the organisation's DHCP options entry, the group `fabric-dhcp-org-editors` and its access to it |
 | `read_usn.py` | Print the DC's highest committed USN (an anonymous root DSE read): the plan poll's first step |
 | `plan_cidrs.py` | The networks of the site's plan subnets, for its AD site |

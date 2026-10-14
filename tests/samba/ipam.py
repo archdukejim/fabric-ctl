@@ -6,7 +6,9 @@ agent: every command's positive case and its refusals (each changing nothing), a
 plan and the nested site refused its parent's; the site's number (`ipam block` and setup's question, 2.1.10.16), a
 reservation published in DNS (2.1.10.17) and several subnets on one VLAN (`ipam subnet`, 2.1.10.18); the Networks
 tab's reads (a site's view, the CSV, the site scope) and the 0.7 subnet commands as aliases (1.10.4.21), each
-positive case and its refusals. fabric's audit log is stood in for, and setup's answers are typed through input().
+positive case and its refusals; scans from the top down (1.10.4.29): a branch's local scans set from above and refused
+to the branch and its sibling by AD, a scan asked from above, refused to the branch and its sibling by AD, answered by
+the branch's poll (the probe stubbed) and read back at the top, removed a day on. fabric's audit log is stood in for, and setup's answers are typed through input().
     sudo python3 tests/samba/ipam.py
 """
 import builtins
@@ -17,6 +19,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from contextlib import redirect_stderr, redirect_stdout
 
 import yaml
@@ -695,47 +698,152 @@ check("refused: unreserve for a MAC no reservation holds", "no reservation for 0
 remove_vlan(V, "tester", 3939, "", True, **DCK)
 check("the alias VLAN removed again with its subnet", sub("alias39", OWN) is None)
 
-print("--- the scan policy at a real DC (2.1.10.28, manual 1.10.4.27)")
-from fabriclib.ipam.scanpolicy.read_scan_policy import read_scan_policy  # noqa: E402
+print("--- scans from the top down at a real DC (2.1.10.30, manual 1.10.4.29)")
+import fabriclib.ipam.scancontrol.request_scan as m_req  # noqa: E402
+import fabriclib.ipam.scancontrol.run_scan_requests as m_ans  # noqa: E402
+from fabriclib.ipam.scancontrol.list_scan_requests import list_scan_requests  # noqa: E402
+from fabriclib.ipam.scancontrol.read_local_scan import read_local_scan  # noqa: E402
+from fabriclib.ipam.scancontrol.read_scan_requests import read_scan_requests  # noqa: E402
+from fabriclib.ipam.scancontrol.write_scan_request import write_scan_request  # noqa: E402
+from fabriclib.ipam.write_plan import write_plan  # noqa: E402
+m_req.write_audit = m_ans.write_audit = lambda actor, event, detail, source: AUDIT.append((event, detail))
+# house5: house2's sibling below lan, with its own agent
+sib = {**house, "site": "house5", "id_range": "5000000-5999999", "radius_gid": 650,
+       "networks": [{"name": "lan", "cidr": "10.5.0.0/24", "kind": "lan", "vlan": None, "notes": "",
+                     "allow_overlap": ""}],
+       "accounts": {f"fabric-{k}-house5": random_password() for k in ("agent", "keycloak", "radius")}}
+res = subprocess.run(["docker", "exec", "-i", DC, "python3", "/fabric/converge.py"], input=json.dumps(sib),
+                     capture_output=True, text=True)
+check("house5, house2's sibling below lan", res.returncode == 0, res.stderr[-400:])
+sib_v = {**V, "site_name": "house5"}
+sib_s = {**SECRETS, "ad_agent_password": sib["accounts"]["fabric-agent-house5"]}
 
 
-def pol(site="lan"):
-    return read_scan_policy(V, site, SECRETS, container=DC)
+def below(*names):            # the federation registry this install keeps (the Networks tab's scope)
+    m_vis.load_registry = lambda: {"sites": {n: {} for n in names}, "upstream": None}
 
 
-check("nothing set: scans allowed by default at both sites", pol()["allowed"] and pol()["source"] == "default"
-      and pol("house2")["allowed"], (pol(), pol("house2")))
-# covers: cli:ipam.scan-policy +
-code, out = ipam("scan-policy", "set", "site", "deny", "--site", "house2")
-check("the top denies house2's own level: written, read back as denied by house2's own policy", code == 0
-      and not pol("house2")["allowed"] and pol("house2")["source"] == "site house2" and pol()["allowed"], out)
-code, out = ipam("scan-policy", "set", "site", "allow", v=house_v, secrets=house_s)
-check("house2's own admins set its level (the site's level is the site's, as a GPO's link)", code == 0
-      and pol("house2")["allowed"] and pol("house2")["source"] == "site house2", out)
-code, out = ipam("scan-policy", "set", "org", "deny", "--enforced", "on")
-check("the top denies scanning everywhere, enforced: house2's own allow no longer counts, the top's neither",
-      code == 0 and not pol("house2")["allowed"] and pol("house2")["source"] == "organisation (enforced)"
-      and not pol()["allowed"], out)
-code, out = ipam("scan-policy", v=house_v, secrets=house_s)
-check("house2 sees why: denied by the enforced organisation's level, its own allow shown", code == 0
-      and "denied (organisation (enforced))" in out and "site house2: allow" in out, out)
-# covers: cli:ipam.scan-policy -
-code, out = ipam("scan-policy", "set", "org", "allow", "--enforced", "off", v=house_v, secrets=house_s)
-check("refused by AD: house2, not among the organisation's editors, lifting the organisation's level; nothing changed",
-      code == 1 and "not permitted" in out and pol()["org"] == {"policy": "deny", "enforced": True}, out)
-code, out = ipam("scan-policy", "set", "site", "allow", "--site", "lan", v=house_v, secrets=house_s)
-check("refused by AD: house2 setting its parent's level", code == 1 and "not permitted" in out
-      and pol()["site_level"]["policy"] == "", out)
-set_option_editor(V, "root", "house2", True, secrets=SECRETS, container=DC, root=True)
-code, out = ipam("scan-policy", "set", "org", "deny", "--enforced", "off", v=house_v, secrets=house_s)
-check("a site the top lets edit the organisation's settings may set its scan policy too (2.1.10.23's holders)",
-      code == 0 and pol()["org"] == {"policy": "deny", "enforced": False} and pol("house2")["allowed"], out)
-set_option_editor(V, "root", "house2", False, secrets=SECRETS, container=DC, root=True)
-code, out = ipam("scan-policy", "set", "org", "allow")
-check("the top puts it back: the enforcement kept as it was (off), scans allowed", code == 0 and pol()["allowed"]
-      and pol()["org"] == {"policy": "allow", "enforced": False}, out)
-check("every change audited (IPAM_SCAN_POLICY_SET, with the level and the site)",
-      sum(1 for e, d in AUDIT if e == "IPAM_SCAN_POLICY_SET" and "level=" in d) >= 5, AUDIT[-6:])
+def local(site="house2", v=None, secrets=None):
+    return read_local_scan(v or V, site, secrets or SECRETS, container=DC)
+
+
+below("house2", "house5")
+check("the top site: local scans always allowed; house2, nothing set: off by default", local("lan")["allowed"]
+      and local("lan")["top"] and not local()["allowed"] and local()["source"] == "default (off)",
+      (local("lan"), local()))
+# covers: cli:ipam.local-scan +
+code, out = ipam("local-scan", "allow", "--site", "house2")
+check("lan allows house2's own admins to scan: written on house2's OU with who set it", code == 0
+      and local()["allowed"] and local()["set_by"].startswith("lan root "), (out, local()))
+below()
+code, out = ipam("local-scan", v=house_v, secrets=house_s)
+check("house2 sees it, and who set it", code == 0 and "local scans at house2: allowed (set from above: lan root" in out,
+      out)
+# covers: cli:ipam.local-scan -
+code, out = ipam("local-scan", "deny", "--site", "house2", v=house_v, secrets=house_s)
+check("refused by fabric: house2 setting its own local scans", code == 1 and "set by the sites above it" in out, out)
+for who, v_, s_ in (("house2 itself", house_v, house_s), ("its sibling house5", sib_v, sib_s)):
+    try:
+        write_plan(v_, s_, [{"do": "set", "what": "local_scan", "site": "house2", "key": "house2",
+                             "fields": {"allowed": False, "by": "x"}}], container=DC)
+        why = "not refused"
+    except ValidationError as e:
+        why = str(e)
+    check(f"refused by AD: {who} writing house2's local-scan setting past fabric-agent (the explicit deny on house2's "
+          "OU; no access in a sibling's)", "not permitted" in why and local()["allowed"], why)
+below("house2", "house5")
+code, out = ipam("local-scan", "deny", "--site", "house2")
+check("lan sets it back to off", code == 0 and not local()["allowed"], out)
+check("audited at lan (IPAM_LOCAL_SCAN_SET)", sum(1 for e, d in AUDIT if e == "IPAM_LOCAL_SCAN_SET"
+                                                  and "site=house2" in d) == 2, AUDIT[-4:])
+
+# a scan asked from above, answered by house2's poll (the probe stubbed: no network here)
+# covers: cli:ipam.scan +
+code, out = ipam("scan", "mgmt", "--site", "house2", "--no-wait")
+reqs = read_scan_requests(V, "house2", SECRETS, container=DC)
+check("lan asks house2 to scan mgmt: a request in AD below the subnet's entry, pending, made by lan's agent, audited",
+      code == 0 and len(reqs) == 1 and reqs[0]["state"] == "pending" and reqs[0]["cidr"] == "10.2.10.0/24"
+      and reqs[0]["owner"] == "fabric-agent-lan" and reqs[0]["requested_by"] == "lan" and reqs[0]["from_above"]
+      and reqs[0]["created_at"] > 0 and any(e == "IPAM_SCAN_REQUEST" for e, _ in AUDIT), (out, reqs))
+rid = reqs[0]["id"]
+# covers: cli:ipam.scan -
+code, out = ipam("scan", "mgmt", "--site", "house2", "--no-wait")
+check("refused: a second request for the same subnet while one is pending", code == 1 and "already pending" in out,
+      out)
+below()
+code, out = ipam("scan", "mgmt", "--site", "house5", v=house_v, secrets=house_s)
+check("refused by fabric: house2 asking its sibling", code == 1 and "not this site or one below it" in out, out)
+for who, v_, s_ in (("house2 in its own plan", house_v, house_s), ("its sibling house5", sib_v, sib_s)):
+    try:
+        write_scan_request(v_, s_, "add", "house2", "mgmt", "scan-20261013120000-00ff00",
+                           {"cidr": "10.2.10.0/24", "actor": "eve"}, container=DC)
+        why = "not refused"
+    except ValidationError as e:
+        why = str(e)
+    check(f"refused by AD: {who} creating a scan request at house2 past fabric-agent", "not permitted" in why
+          and len(read_scan_requests(V, "house2", SECRETS, container=DC)) == 1, why)
+FOUND = {"subnet": {"name": "mgmt", "cidr": "10.2.10.0/24"}, "scanned": 254, "unrecorded": 1,
+         "at": "2026-10-13T12:00:00", "allowed": {"by": "a request from lan", "stale": ""},
+         "answering": [{"ip": "10.2.10.77", "mac": "aa:bb:cc:00:00:77", "how": "ping+arp", "status": "unrecorded",
+                        "kind": "", "name": "", "note": ""}]}
+RAN = []
+
+
+def stub_scan(v, actor, subnet, source="cli", requested=None):
+    RAN.append((v["site_name"], actor, subnet, source, requested))
+    return FOUND
+
+
+out = m_ans.run_scan_requests({**house_v, "install_kea": True}, house_s, container=DC, scan=stub_scan)
+reqs = list_scan_requests(V, "house2", SECRETS, container=DC)
+check("house2's poll runs it as lan's person, writes the answer back into AD; lan reads it there (the round trip)",
+      out["ran"] == [rid] and RAN[-1][:4] == ("house2", "root@lan", "10.2.10.0/24", "request")
+      and reqs[0]["state"] == "done" and reqs[0]["result"]["rows"][0]["ip"] == "10.2.10.77"
+      and reqs[0]["result"]["truncated"] == 0 and reqs[0]["done_at"], (out, reqs))
+code, out = ipam("scan-requests", "--site", "house2")
+check("fabricctl ipam scan-requests --site house2 at lan: the answer", code == 0 and ": done" in out
+      and "IN USE, UNRECORDED" in out, out)
+check("answered once: the next poll runs nothing", m_ans.run_scan_requests(
+    {**house_v, "install_kea": True}, house_s, container=DC, scan=stub_scan)["ran"] == [] and len(RAN) == 1)
+out = m_ans.run_scan_requests({**house_v, "install_kea": True}, house_s, container=DC, scan=stub_scan,
+                              now=lambda: time.time() + 2 * 86400)
+check("a day on: house2's poll removes the request from AD", out["removed"] == [rid]
+      and read_scan_requests(V, "house2", SECRETS, container=DC) == [], out)
+
+# the highest site above that set it wins (2.1.10.30 revised): house6 below house2 below lan
+deep = {**house, "site": "house6", "parent": "house2", "id_range": "6000000-6999999", "radius_gid": 660,
+        "networks": [{"name": "lan", "cidr": "10.6.0.0/24", "kind": "lan", "vlan": None, "notes": "",
+                      "allow_overlap": ""}],
+        "accounts": {f"fabric-{k}-house6": random_password() for k in ("agent", "keycloak", "radius")}}
+res = subprocess.run(["docker", "exec", "-i", DC, "python3", "/fabric/converge.py"], input=json.dumps(deep),
+                     capture_output=True, text=True)
+check("house6, below house2", res.returncode == 0, res.stderr[-400:])
+check("house6's sites above, nearest first, read with its setting", local("house6")["allowed"] is False
+      and read_plan(V, SECRETS, of="house6", container=DC)["local_scan"]["house6"]["above"] == ["house2", "lan"])
+below("house6")
+code, out = ipam("local-scan", "allow", "--site", "house6", v=house_v, secrets=house_s)
+check("house2 (the region) sets house6 where the top has not", code == 0 and local("house6")["allowed"]
+      and local("house6")["set_by"].startswith("house2 "), out)
+below("house2", "house5", "house6")
+code, out = ipam("local-scan", "deny", "--site", "house6")
+check("the top's deny beats the region's allow", code == 0 and not local("house6")["allowed"]
+      and local("house6")["set_by"].startswith("lan "), out)
+below("house6")
+code, out = ipam("local-scan", "allow", "--site", "house6", v=house_v, secrets=house_s)
+check("refused: the region changing the top's value, naming the top; nothing written (the agent enforces it: AD "
+      "cannot)", code == 1 and "were set by lan, above house2" in out and not local("house6")["allowed"], out)
+code, out = ipam("local-scan", "clear", "--site", "house6", v=house_v, secrets=house_s)
+check("refused: the region clearing the top's value, naming lan", code == 1 and "were set by lan" in out
+      and local("house6")["set_by"].startswith("lan "), out)
+below("house2", "house5", "house6")
+code, out = ipam("local-scan", "clear", "--site", "house6")
+check("the top clears it: both attributes removed, off by default, audited", code == 0
+      and local("house6")["set_by"] == "" and not local("house6")["allowed"]
+      and any(e == "IPAM_LOCAL_SCAN_CLEAR" for e, _ in AUDIT), out)
+below("house6")
+code, out = ipam("local-scan", "allow", "--site", "house6", v=house_v, secrets=house_s)
+check("then the region may set it again", code == 0 and local("house6")["set_by"].startswith("house2 "), out)
+below("house3")
 
 subprocess.run(["docker", "rm", "-f", DC], capture_output=True)
 subprocess.run(["docker", "network", "rm", NET], capture_output=True)

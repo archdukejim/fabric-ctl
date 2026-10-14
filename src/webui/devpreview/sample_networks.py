@@ -8,16 +8,28 @@ SAMPLE_NETWORK_SITES = [{"name": "lan", "own": True}, {"name": "parents", "own":
 SAMPLE_SCAN_SUBNETS = [{"name": "iot", "cidr": "10.1.20.0/24", "vlan": 20, "dhcp": True, "hosts": 254},
                        {"name": "guest", "cidr": "10.1.30.0/24", "vlan": 30, "dhcp": True, "hosts": 254},
                        {"name": "servers", "cidr": "10.1.40.0/24", "vlan": 40, "dhcp": False, "hosts": 254}]
-# the scan policy as the scan page and the Networks tab show it (manual 1.10.4.27): the organisation's level unset, the
-# site's denying scans of itself is the second sample
-SAMPLE_SCAN_POLICY = {"site": "lan", "allowed": True, "policy": "allow", "source": "default",
-                      "org": {"policy": "", "enforced": False}, "site_level": {"policy": ""}, "why": "", "stale": "",
-                      "org_editable": True}
-SAMPLE_SCAN_POLICY_DENIED = {"site": "parents", "allowed": False, "policy": "deny", "source": "site parents",
-                             "org": {"policy": "allow", "enforced": False}, "site_level": {"policy": "deny"},
-                             "why": "scanning is denied at parents by its own scan policy: fabricctl ipam scan-policy "
-                                    "set site allow (or inherit), at parents or a site above it", "stale": "",
-                             "org_editable": True}
+# whether a site's own admins may scan (manual 1.10.4.29.4), as the scan page and the Networks tab show it: lan is the
+# top (always), parents a site below with local scans off (the default)
+SAMPLE_LOCAL_SCAN = {"site": "lan", "top": True, "allowed": True, "set_by": "", "source": "the top site", "why": "",
+                     "stale": "", "settable": False}
+SAMPLE_LOCAL_SCAN_BELOW = {"site": "parents", "top": False, "allowed": False, "set_by": "", "source": "default (off)",
+                           "why": "local scans at parents are off: the sites above it decide (not set: off by "
+                                  "default); a site above may scan here: Scan at parents on its Networks tab, or "
+                                  "fabricctl ipam scan <subnet> --site parents", "stale": "", "settable": True}
+# the scans lan asked at parents (list_scan_requests' shape, 1.10.4.29.3): one answered, one pending
+SAMPLE_SCAN_REQUESTS = [
+    {"id": "scan-20261013093000-a1b2c3", "site": "parents", "subnet": "iot", "cidr": "10.2.20.0/24",
+     "requested_by": "lan", "actor": "alice", "state": "done", "created": "2026-10-13T09:30:00Z", "created_at": 0,
+     "done_at": "2026-10-13T09:30:21", "owner": "fabric-agent-lan", "from_above": True, "age": 600, "late": False,
+     "result": {"subnet": {"name": "iot", "cidr": "10.2.20.0/24"}, "at": "2026-10-13T09:30:20", "scanned": 254,
+                "answering": 2, "unrecorded": 1, "truncated": 0,
+                "rows": [{"ip": "10.2.20.77", "mac": "aa:bb:cc:00:00:77", "how": "ping+arp", "status": "unrecorded",
+                          "kind": "", "name": "", "note": ""},
+                         {"ip": "10.2.20.1", "mac": "", "how": "ping", "status": "recorded", "kind": "gateway",
+                          "name": "", "note": ""}]}},
+    {"id": "scan-20261013094000-d4e5f6", "site": "parents", "subnet": "iot", "cidr": "10.2.20.0/24",
+     "requested_by": "lan", "actor": "alice", "state": "pending", "created": "2026-10-13T09:40:00Z", "created_at": 0,
+     "done_at": "", "owner": "fabric-agent-lan", "from_above": True, "age": 20, "late": False, "result": None}]
 # what the plan poll last reported, beside the Sync now button (manual 1.10.4.28)
 SAMPLE_SYNC = {"kea": True, "polled": True, "usn": 4711, "rendered": "2026-10-13 09:30:00", "dns_pending": True}
 SAMPLE_NETWORK_LEASES = [

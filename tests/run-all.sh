@@ -35,7 +35,7 @@ for s in "${SUITES[@]}"; do
         docs)     run docs     python3 "$HERE/docs/run.py" ;;
         lint)     run lint     bash "$HERE/lint/run.sh" ;;
         deploy)   run deploy   bash -c "python3 \"$HERE/deploy/restart_changed_test.py\" && python3 \"$HERE/deploy/check_service_settings_test.py\"" ;;
-        consent)  run consent  bash -c "python3 \"$HERE/consent/run.py\" && python3 \"$HERE/common/ask.py\" && python3 \"$HERE/samba/writable_server_test.py\" && python3 \"$HERE/samba/id_layout_test.py\"" ;;
+        consent)  run consent  bash -c "python3 \"$HERE/consent/run.py\" && python3 \"$HERE/common/ask.py\" && python3 \"$HERE/samba/writable_server_test.py\" && python3 \"$HERE/samba/id_layout_test.py\" && python3 \"$HERE/samba/ensure_schema_test.py\"" ;;
         render)   run render   python3 "$HERE/render.py" "$FABRIC_TEST_OUT/rendered" ;;
         nginx)    run nginx    bash "$HERE/nginx_check.sh" "$FABRIC_TEST_OUT/rendered" ;;
         zone)     run zone     python3 "$HERE/zone_test.py" ;;
@@ -48,7 +48,7 @@ for s in "${SUITES[@]}"; do
         openbao)  run openbao  bash -c "python3 \"$HERE/openbao/run.py\" && python3 \"$HERE/openbao/db_rotation.py\"" ;;
         fluentbit) run fluentbit python3 "$HERE/fluentbit/run.py" ;;
         kea) run kea bash -c "python3 \"$HERE/kea/run.py\" && python3 \"$HERE/kea/scan.py\" && python3 \"$HERE/kea/relay.py\"" ;;
-        ipam)     run ipam     bash -c "python3 \"$HERE/ipam/run.py\" && python3 \"$HERE/ipam/networks.py\" && python3 \"$HERE/ipam/scan.py\" && python3 \"$HERE/ipam/options.py\" && python3 \"$HERE/ipam/scan_policy.py\" && python3 \"$HERE/ipam/sync.py\"" ;;
+        ipam)     run ipam     bash -c "python3 \"$HERE/ipam/run.py\" && python3 \"$HERE/ipam/networks.py\" && python3 \"$HERE/ipam/scan.py\" && python3 \"$HERE/ipam/options.py\" && python3 \"$HERE/ipam/scan_trigger.py\" && python3 \"$HERE/ipam/sync.py\"" ;;
         freeradius) run freeradius python3 "$HERE/freeradius/run.py" ;;
         samba)    run samba    bash -c "python3 \"$HERE/samba/run.py\" && python3 \"$HERE/samba/dc.py\" && python3 \"$HERE/samba/devices.py\" && python3 \"$HERE/samba/linux_join.py\" && python3 \"$HERE/samba/gpo.py\" && python3 \"$HERE/samba/logon.py\" && python3 \"$HERE/samba/hostgroups.py\" && python3 \"$HERE/samba/site_join.py\" && python3 \"$HERE/samba/ipam.py\" && python3 \"$HERE/samba/ipam_two_site.py\"" ;;
         keycloak) run keycloak python3 "$HERE/keycloak/run.py" ;;

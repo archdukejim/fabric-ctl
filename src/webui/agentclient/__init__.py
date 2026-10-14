@@ -15,7 +15,8 @@ from webui.agentclient.add_subnet import add_subnet  # noqa: F401
 from webui.agentclient.record_found_address import record_found_address  # noqa: F401
 from webui.agentclient.scan_subnet import scan_subnet  # noqa: F401
 from webui.agentclient.scannable_subnets import scannable_subnets  # noqa: F401
-from webui.agentclient.set_scan_policy import set_scan_policy  # noqa: F401
+from webui.agentclient.request_scan import request_scan  # noqa: F401
+from webui.agentclient.set_local_scan import set_local_scan  # noqa: F401
 from webui.agentclient.sync_now import sync_now  # noqa: F401
 from webui.agentclient.set_dhcp_on import set_dhcp_on  # noqa: F401
 from webui.agentclient.apply_changes import apply_changes  # noqa: F401

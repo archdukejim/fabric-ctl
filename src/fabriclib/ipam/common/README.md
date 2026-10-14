@@ -17,3 +17,4 @@ Helpers shared by the address manager's commands.
 | `site_scope.py` | The site a console request names, refused unless it is this one or one below it |
 | `probe_subnet.py` | The scan's network probe: fping and the neighbour table inside Kea's container, by fixed commands |
 | `plan_subnets.py` | Every subnet of this site's plan, DHCP on or off, with the ones DHCP serves (what a scan may name) |
+| `scan_busy.py` | `ScanBusy`: a scan refused only for now (one running, the same subnet within the minute); a request from above stays pending |

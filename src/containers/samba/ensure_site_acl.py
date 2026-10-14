@@ -1,5 +1,6 @@
 from acl_entries import ensure_aces, sid_of
 import paths
+from schema_guid import schema_guid
 from site_roles import role_group
 
 # read, write, create and delete children, list, read permissions, delete — inherited below the OU (Q4); never
@@ -10,6 +11,28 @@ FULL = "RPWPCRCCDCLCLORCSDDTSW"
 SERVICE_DENY = "WPCCDCWDWOSDDT"
 # the attributes a site's GPO admins write on its OU: its GPO links and its blocked inheritance (schema GUIDs)
 GP_LINK, GP_OPTIONS = "f30e3bbe-9ff0-11d1-b603-0000f80367c1", "f30e3bbf-9ff0-11d1-b603-0000f80367c1"
+# set from above, never by the site itself (2.1.10.30): whether its own admins may scan, on its OU; a scan request,
+# created only by a site above in the site's plan
+LOCAL_SCAN_ATTRS, SCAN_REQUEST = ("fabricLocalScan", "fabricLocalScanBy"), "fabricScanRequest"
+
+
+def _top_down(samdb, site, site_dn):
+    """Purpose: the access entries that keep a site's scans top down (decision 2.1.10.30, manual 1.10.4.29.2): its own
+             agent and OU admins denied writing the local-scan setting on its OU (explicit, not inherited: evaluated
+             before the full control they inherit there, and the site still sets it on the sites below it) and denied
+             creating a scan request in its own OU=networks (inherited by its subnets' entries). The sites above keep
+             their inherited full control, so they set it and ask.
+    Inputs:  samdb — SamDB; site — str; site_dn — its OU.
+    Returns: list of (dn, SDDL entry) for ensure_aces.
+    Fails:   IndexError when the schema lacks the attributes or the class (ensure_schema adds them first);
+             ldb.LdbError.
+    Feeds:   ensure_site_acl (every site but the root)."""
+    entries = []
+    for principal in (role_group(site, "ou-admins"), f"fabric-agent-{site}"):
+        sid = sid_of(samdb, principal)
+        entries += [(site_dn, f"(OD;;WP;{schema_guid(samdb, attr)};;{sid})") for attr in LOCAL_SCAN_ATTRS]
+        entries.append((f"OU=networks,{site_dn}", f"(OD;CI;CC;{schema_guid(samdb, SCAN_REQUEST)};;{sid})"))
+    return entries
 
 
 def ensure_site_acl(samdb, site, root):
@@ -19,7 +42,9 @@ def ensure_site_acl(samdb, site, root):
              devices; its `<site>-gpo-admins` its OU's GPO links and blocked inheritance (their own GPOs: admin_gpo);
              none of them over permissions, nor over its own or a nested site's service accounts; its Keycloak account
              full control of the site's people only (sign-in changes passwords and lockouts), and at the root site
-             the members of the organisation's groups (Keycloak's group mapper).
+             the members of the organisation's groups (Keycloak's group mapper); below the root, its agent and OU
+             admins denied what the sites above decide for it (_top_down: its local-scan setting, a scan request in
+             its plan, 2.1.10.30).
     Inputs:  samdb — SamDB; site — str (its groups and service accounts exist: ensure_groups,
              ensure_service_accounts); root — bool.
     Returns: list of str, the access entries added.
@@ -43,4 +68,6 @@ def ensure_site_acl(samdb, site, root):
     entries.append((f"OU=people,{site_dn}", f"(A;CI;{FULL};;;{keycloak})"))
     if root:            # Keycloak's group mapper writes memberships of the organisation's groups (LDAP_ONLY)
         entries.append((f"OU=groups,{paths.organisation_dn(samdb)}", f"(A;CI;RPWPLCLORC;;;{keycloak})"))
+    else:               # scans are set and asked from above (2.1.10.30): the root has no site above it
+        entries += _top_down(samdb, site, site_dn)
     return ensure_aces(samdb, entries)
