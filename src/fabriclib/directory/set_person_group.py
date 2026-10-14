@@ -1,5 +1,6 @@
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.write_audit import write_audit
+from fabriclib.directory.common.granted_from_above import granted_from_above
 from fabriclib.directory.common.person_guard import person_guard
 from fabriclib.directory.run_op import run_op
 from fabriclib.keycloak.fabric_groups import fabric_groups
@@ -15,12 +16,17 @@ def set_person_group(v, actor, group, uid, member, privileged=False, source="web
              system:admin; source — audit source; secrets — fabric's secrets (default: load_secrets()); container —
              the DC's container.
     Returns: {"uid", "group", "member", "changed"}.
-    Fails:   ValidationError "<group> carries fabric permissions: only an admin can change its members"; person_guard's
+    Fails:   ValidationError "<group> is granted only from a site above" (at a site with an upstream: its own admins,
+             role and console role groups, before anything is asked); ValidationError "<group> carries fabric
+             permissions: only an admin can change its members"; person_guard's
              (no such person; the last admin who can sign in); run_op's ("no such entry": no such group;
              "the directory refused the change …": a group this site may not change); load_secrets' errors.
     Feeds:   agent route POST /v1/people/<uid>/groups (people:groups); directory/run_people_command.
     Notes:   audited as PERSON_GROUP_ADD / PERSON_GROUP_REMOVE when it changed something. Keycloak reads the groups
              from the directory at the person's next sign-in."""
+    if granted_from_above(v, group):
+        raise ValidationError(f"{group} is granted only from a site above (2.1.9.21): there, fabricctl federation "
+                              f"roles grant {v['site_name']} <role>, or the People page of a site above")
     secrets = secrets if secrets is not None else load_secrets()
     if group in fabric_groups(v) and not privileged:
         raise ValidationError(f"{group} carries fabric permissions: only an admin can change its members")

@@ -49,7 +49,7 @@ def refused(fn, *args, **kw):
 
 def run(fn, *args):
     out = io.StringIO()
-    with redirect_stdout(out):
+    with redirect_stdout(out), redirect_stderr(out):
         code = fn(*args)
     return code, out.getvalue()
 
@@ -141,6 +141,11 @@ check("roles grant <site> <role>: to the site's admins", code == 0 and
       "network-operators at house1a granted to house1a-admins" in out, out)
 code, out = run(roles_cli.run_roles_command, V, ["revoke", "house1a", "pki-operators", "--from", "jdoe"])
 check("roles revoke <site> <role> --from <member>", code == 0 and "revoked from jdoe" in out, out)
+grant_cli = roles_cli.change_site_role
+roles_cli.change_site_role = lambda *a, **kw: {**grant_cli(*a, **kw), "remade": True}
+code, out = run(roles_cli.run_roles_command, V, ["grant", "house1a", "gpo-admins"])
+check("a grant that replaced a group the site had made itself says so", code == 0 and "remade:" in out, out)
+roles_cli.change_site_role = grant_cli
 code, out = run(roles_cli.run_roles_command, V, [])
 check("roles: each site's held roles, its own marked, an old default marked pending, the empty ones left out",
       code == 0 and "site house1 (this site" in out and "an older default" in out and "house1a-admins" in out
@@ -213,6 +218,38 @@ ipam_cli.find_in_plan = lambda read, text, leases, site: [r for r in ROWS if r["
 code, out = run(ipam_cli.run_ipam_command, {"site_name": "house2"}, ["find", "nas"], {}, "samba")
 check("ipam find at house2 for a name only its sibling has: not found (exit 1), the sibling not named",
       code == 1 and "not in any site's plan" in out and "house1" not in out, out)
+
+print("--- sibling isolation: fabricctl ipam show <site> and ipam export [<site>]")
+READS = []
+ipam_cli.read_plan = lambda v, secrets=None, of="", container="samba": READS.append(of) or {
+    "plans": {n: {} for n in ("lan", "house1", "house1a", "house2")}}
+ipam_cli.show_plan = lambda read, which, leases: f"plan of {which}\n"
+ipam_cli.export_plan = lambda read, site, leases, own: "sites:" + ",".join(sorted(read["plans"])) + "\n"
+ipam_cli.sites_shown = lambda v: ["house1", "house1a"]
+H1 = {"site_name": "house1"}
+# covers: cli:ipam.show +
+code, out = run(ipam_cli.run_ipam_command, H1, ["show", "house1a"], {}, "samba")
+check("ipam show at house1 of house1a (a site below): shown", code == 0 and "plan of house1a" in out, out)
+for name in ("house2", "lan", "nowhere"):
+    n = len(READS)
+    # covers: cli:ipam.show -
+    code, out = run(ipam_cli.run_ipam_command, H1, ["show", name], {}, "samba")
+    check(f"refused: ipam show at house1 of {name} (a sibling, the parent, unknown), before AD is read",
+          code == 1 and "shows only itself and the sites below it" in out and len(READS) == n, out)
+# covers: cli:ipam.export +
+code, out = run(ipam_cli.run_ipam_command, H1, ["export"], {}, "samba")
+check("ipam export at house1 without a site: only house1 and house1a", code == 0
+      and "sites:house1,house1a" in out, out)
+n = len(READS)
+# covers: cli:ipam.export -
+code, out = run(ipam_cli.run_ipam_command, H1, ["export", "house2"], {}, "samba")
+check("refused: ipam export at house1 of its sibling house2, before AD is read",
+      code == 1 and "shows only itself" in out and len(READS) == n, out)
+ipam_cli.sites_shown = lambda v: None
+code, out = run(ipam_cli.run_ipam_command, {"site_name": "lan"}, ["export"], {}, "samba")
+check("ipam export at the top: every site", code == 0 and "sites:house1,house1a,house2,lan" in out, out)
+code, out = run(ipam_cli.run_ipam_command, {"site_name": "lan"}, ["show", "house2"], {}, "samba")
+check("ipam show at the top of any site", code == 0 and "plan of house2" in out, out)
 
 print("--- the console: the Roles card and the People note")
 try:

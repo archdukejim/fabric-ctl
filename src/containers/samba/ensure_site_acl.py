@@ -1,6 +1,6 @@
 import ldb
 
-from acl_entries import ensure_aces, schema_guid, sid_of
+from acl_entries import ensure_aces, owner_of, schema_guid, sid_of
 import paths
 from site_roles import grant_group, grantable, role_group
 
@@ -17,6 +17,9 @@ HOST_KEY = "fabricSshHostKey"                         # a machine publishes its 
 RESET_PASSWORD = "00299570-246d-11d0-a768-00aa006e0529"  # the control access right User-Force-Change-Password
 # what the site's helpdesk (`<site>-admins`, 2.1.9.21) writes on its people: unlock, disable or enable, must-change
 HELPDESK_ATTRS = ("lockoutTime", "userAccountControl", "pwdLastSet")
+# what a branch's own fabric-agent account and `<site>-ou-admins` may not do to the site's role groups (2.1.9.21,
+# revised 2026-10-13): write any attribute (members, name), delete, delete the tree, change permissions or owner
+ROLE_GROUP_DENY = "WPSDDTWDWO"
 
 
 def _exists(samdb, dn):
@@ -34,6 +37,25 @@ def _exists(samdb, dn):
         raise
 
 
+def _check_owners(samdb, groups, branch):
+    """Purpose: refuse to give a role's rights to a group the branch itself made (2.1.9.21, revised 2026-10-13): its
+             agent or `<site>-ou-admins` may still delete a role group through their right to delete children of the
+             OU, and make one of the same name with themselves as its owner; convergence would then grant the new
+             group the role's rights by name. A group fabric made is owned by the domain's administrators (the
+             system, or a site above's agent for a console role it granted).
+    Inputs:  samdb — SamDB; groups — list of DN str (existing); branch — {sid: name} of the branch's own principals.
+    Returns: None.
+    Fails:   PermissionError naming the group and its owner (convergence stops loudly; from a site above it is reported
+             for that site); ldb.LdbError reading a security descriptor.
+    Feeds:   ensure_site_acl."""
+    for dn in groups:
+        owner = owner_of(samdb, dn)
+        if owner in branch:
+            raise PermissionError(f"{dn.split(',')[0][3:]} was made by {branch[owner]}, not by fabric: a role group a "
+                                  "branch re-made is not given the role's rights (2.1.9.21). Delete it as a domain "
+                                  "administrator, then make it again as manual 4.9.1.2 says")
+
+
 def ensure_site_acl(samdb, site, root):
     """Purpose: who may write what in a site (S2, 2.1.9.13, manual 1.6.3.6), checked by every DC, offline too (Q4, Q12):
              its `<site>-ou-admins` and its fabric-agent account have full control below the site's OU, inherited
@@ -49,15 +71,25 @@ def ensure_site_acl(samdb, site, root):
              pwdLastSet; write the members of `<site>-users` (a new person joins it); nothing else (a person who holds
              a role is kept from it: protect_privileged_people). Below the root, neither `<site>-admins` nor
              `<site>-ou-admins` may write the members of the site's grantable role groups or of `<site>-admins` (an
-             explicit deny: a branch cannot grant itself; a site above can, through its inherited rights).
+             explicit deny: a branch cannot grant itself; a site above can, through its inherited rights). Its own
+             fabric-agent account and `<site>-ou-admins` are also denied every other write on those groups (their
+             name, deleting them, their permissions and owner: ROLE_GROUP_DENY), so root on a branch host cannot
+             grant through the agent's credentials either; a role group the branch re-made (owned by one of them) is
+             refused before any right is given to it (_check_owners). Grants come only from a site above's agent.
     Inputs:  samdb — SamDB; site — str (its groups and service accounts exist: ensure_groups,
              ensure_service_accounts); root — bool.
     Returns: list of str, the access entries added.
-    Fails:   ldb.LdbError reading a principal or changing a security descriptor; IndexError if one is missing.
+    Fails:   ldb.LdbError reading a principal or changing a security descriptor; IndexError if one is missing;
+             PermissionError for a role group the branch re-made (_check_owners).
     Feeds:   converge."""
     site_dn = paths.site_dn(samdb, site)
     services = f"OU=service-accounts,{site_dn}"
     entries = []
+    protected = [] if root else [dn for dn in (f"CN={name},OU=groups,{site_dn}" for name in
+                                               [grant_group(site, r) for r in grantable()] + [f"{site}-admins"])
+                                 if _exists(samdb, dn)]     # a site below not converged to 0.9 lacks its console roles
+    branch = {sid_of(samdb, n): n for n in (f"fabric-agent-{site}", role_group(site, "ou-admins"), f"{site}-admins")}
+    _check_owners(samdb, protected, branch)
     for principal in (role_group(site, "ou-admins"), f"fabric-agent-{site}"):
         entries.append((site_dn, f"(A;CI;{FULL};;;{sid_of(samdb, principal)})"))
     machines = sid_of(samdb, role_group(site, "machine-admins"))
@@ -80,12 +112,12 @@ def ensure_site_acl(samdb, site, root):
     entries += [(people, f"(OA;CIIO;RPWP;{schema_guid(samdb, a)};{user};{admins})") for a in HELPDESK_ATTRS]
     member = schema_guid(samdb, "member")
     entries.append((f"CN={site}-users,OU=groups,{site_dn}", f"(OA;;RPWP;{member};;{admins})"))
-    if not root:        # only a site above grants a site's roles: its own admins are denied the memberships
-        ou_admins = sid_of(samdb, role_group(site, "ou-admins"))
-        for name in [grant_group(site, r) for r in grantable()] + [f"{site}-admins"]:
-            group = f"CN={name},OU=groups,{site_dn}"
-            if _exists(samdb, group):       # a site below that has not converged 0.9 yet lacks its console roles
-                entries += [(group, f"(OD;;WP;{member};;{sid})") for sid in (admins, ou_admins)]
+    # only a site above grants a site's roles: its own admins, OU admins and agent are denied the memberships, and the
+    # OU admins and agent every other write on those groups (none at the root: Central IT grants there)
+    ou_admins, agent = sid_of(samdb, role_group(site, "ou-admins")), sid_of(samdb, f"fabric-agent-{site}")
+    for group in protected:
+        entries += [(group, f"(OD;;WP;{member};;{sid})") for sid in (admins, ou_admins, agent)]
+        entries += [(group, f"(D;;{ROLE_GROUP_DENY};;;{sid})") for sid in (ou_admins, agent)]
     if root:            # Keycloak's group mapper writes memberships of the organisation's groups (LDAP_ONLY)
         entries.append((f"OU=groups,{paths.organisation_dn(samdb)}", f"(A;CI;RPWPLCLORC;;;{keycloak})"))
     return ensure_aces(samdb, entries)

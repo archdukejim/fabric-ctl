@@ -18,5 +18,6 @@ def federation_post(h, form):
     except actions.ValidationError as exc:
         return h.redirect("/federation?" + urllib.parse.urlencode({"err": str(exc)}))
     msg = (f"{done['role']} at {done['site']} {'granted to' if done['granted'] else 'revoked from'} {done['member']}"
-           + ("." if done["changed"] else " (no change)."))
+           + ("." if done["changed"] else " (no change).")
+           + (" The group the site had made itself was replaced." if done.get("remade") else ""))
     return h.redirect("/federation?" + urllib.parse.urlencode({"msg": msg}))

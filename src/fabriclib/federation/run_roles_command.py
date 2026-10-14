@@ -43,6 +43,7 @@ def run_roles_command(v, args, actor="root"):
                                 source="cli")
         state = "granted to" if done["granted"] else "revoked from"
         print(f"{done['role']} at {done['site']} {state} {done['member']} (group {done['group']})"
-              + ("" if done["changed"] else " — no change"))
+              + ("" if done["changed"] else " — no change")
+              + ("; remade: the group the site had made itself was replaced (2.1.9.21)" if done.get("remade") else ""))
         return 0
     return 2

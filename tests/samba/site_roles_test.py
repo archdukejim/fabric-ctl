@@ -48,6 +48,7 @@ def domain():
         db.add_entry(groups, objectClass=["organizationalUnit"], ou="groups")
         db.add_entry(f"OU=people,{dn}", objectClass=["organizationalUnit"], ou="people")
         db.add_entry(f"CN={site}-admins,{groups}", objectClass=["group"], sAMAccountName=f"{site}-admins")
+        db.add_entry(f"CN={site}-users,{groups}", objectClass=["group"], sAMAccountName=f"{site}-users")
         for role in list(site_roles.ROLES) + ["fabric-admins"]:
             db.add_entry(f"CN={site}-{role},{groups}", objectClass=["group"], sAMAccountName=f"{site}-{role}",
                          member=[f"CN={site}-admins,{groups}"])
@@ -138,12 +139,61 @@ check("house1-admins taken out of the AD roles and the host admins it held by de
                                                                        "fabric-admins"))
       and len([c for c in changed if "house1-admins removed (2.1.9.21" in c]) == 4, changed)
 check("...but kept where a site above granted it (gpo-admins, marked)", "house1-admins" in members(db, "house1-gpo-admins"))
+check("house1-admins nested in house1-users (Keycloak admits the site's users), said why",
+      members(db, "house1-users") == ["house1-admins"]
+      and any(c.startswith("group house1-users: house1-admins a member") for c in changed), changed)
 check("a second run changes nothing", narrow_site_admins(db, "house1", False, "admins") == [])
 root = narrow_site_admins(db, "lan", True, "admins")
 check("at the root: lan-admins out, the organisation's admins in the root's four AD roles (Central IT everywhere)",
       all("admins" in members(db, f"lan-{r}") and "lan-admins" not in members(db, f"lan-{r}") for r in site_roles.ROLES)
       and "admins" not in members(db, "lan-fabric-admins") and any("Central IT" in c for c in root), root)
+check("...and at the root too: lan-admins nested in lan-users", members(db, "lan-users") == ["lan-admins"])
+db.add_remove_group_members("house1-users", ["house1-admins"], add_members_operation=False)
+again = narrow_site_admins(db, "house1", False, "admins")
+check("taken out of house1-users by hand: put back at the next convergence, nothing else changed",
+      members(db, "house1-users") == ["house1-admins"] and len(again) == 1, again)
 check("a site without its groups yet: nothing to do, no error", narrow_site_admins(db, "nowhere", False, "admins") == [])
+
+print("--- a branch cannot grant through its agent's credentials (ensure_site_acl; 2.1.9.21 revised 2026-10-13)")
+ensure_site_acl_mod = importlib.import_module("ensure_site_acl")
+db = domain()
+db.add_entry(f"CN=house1-helpdesk,OU=groups,OU=house1,OU=lan,{SITES}", objectClass=["group"],
+             sAMAccountName="house1-helpdesk")
+acl = ensure_site_acl_mod.ensure_site_acl(db, "house1", False)
+G1 = f"OU=groups,OU=house1,OU=lan,{SITES}"
+for group in ("house1-ou-admins", "house1-fabric-admins", "house1-helpdesk", "house1-admins"):
+    check(f"{group}: house1's agent and OU admins denied every write (members, name, delete, permissions)",
+          f"CN={group},{G1}: (D;;WPSDDTWDWO;;;SID-fabric-agent-house1)" in acl
+          and f"CN={group},{G1}: (D;;WPSDDTWDWO;;;SID-house1-ou-admins)" in acl
+          and f"CN={group},{G1}: (OD;;WP;GUID-member;;SID-fabric-agent-house1)" in acl, [a for a in acl if group in a])
+check("...a console role group not made yet is skipped (house1-auditors)", not any("house1-auditors" in a for a in acl))
+check("...house1-users stays the agent's (a new person joins it): no deny there",
+      not any(a.startswith(f"CN=house1-users,{G1}: (D") or a.startswith(f"CN=house1-users,{G1}: (OD") for a in acl))
+check("...the agent keeps its full control of the site's OU (its per-site rights unchanged)",
+      f"OU=house1,OU=lan,{SITES}: (A;CI;{ensure_site_acl_mod.FULL};;;SID-fabric-agent-house1)" in acl)
+db.add_entry(f"OU=organisation,OU=lan,{SITES}", objectClass=["organizationalUnit"], ou="organisation")
+root = ensure_site_acl_mod.ensure_site_acl(db, "lan", True)
+check("at the top no such deny (Central IT grants there)", not any("WPSDDTWDWO" in a for a in root))
+db.objects[f"CN=house1-gpo-admins,{G1}"]["_owner"] = ["SID-fabric-agent-house1"]   # deleted and made again
+why = ""
+try:
+    ensure_site_acl_mod.ensure_site_acl(db, "house1", False)
+except PermissionError as e:
+    why = str(e)
+check("refused: a role group house1's agent made itself is given no rights, said why",
+      "house1-gpo-admins was made by fabric-agent-house1" in why and "4.9.1.2" in why, why)
+remade = grant_site_role(db, None, "lan", "house1", "gpo-admins")
+check("the top's grant replaces it: deleted, made again empty with a gid, then granted (owned by the system here)",
+      remade["remade"] and remade["changed"] and members(db, "house1-gpo-admins") == ["house1-admins"]
+      and ("delete", f"CN=house1-gpo-admins,{G1}") in db.log
+      and db.objects[f"CN=house1-gpo-admins,{G1}"].get("gidnumber"), (remade, db.log[-5:]))
+check("...and convergence takes it again", ensure_site_acl_mod.ensure_site_acl(db, "house1", False) != [])
+db.delete(f"CN=house1-fabric-admins,{G1}")
+db.add_entry(f"CN=fabric-admins,OU=groups,OU=organisation,OU=lan,{SITES}", objectClass=["group"],
+             sAMAccountName="fabric-admins")
+made = grant_site_role(db, None, "lan", "house1", "fabric-admins", "jdoe")
+check("a missing host admins group is made by the grant, the organisation's fabric-admins in it",
+      not made["remade"] and sorted(members(db, "house1-fabric-admins")) == ["fabric-admins", "jdoe"], made)
 
 print("--- list_site_roles (the Roles card, fabricctl federation roles; 2.1.9.22)")
 db = domain()

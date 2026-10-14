@@ -43,6 +43,18 @@ def install():
         setattr(mod, name, globals()[name])
     mod.binary_encode = lambda s: s
     sys.modules["ldb"] = mod
+    # the DC's security descriptor helpers and id allocator, as the operations use them: an owner per object ("_owner",
+    # the creator's "SID-<name>"; the system's when fabric made it), a SID per name, a gid counter
+    acl = types.ModuleType("acl_entries")
+    acl.sid_of = lambda samdb, name: f"SID-{name}"
+    acl.owner_of = lambda samdb, dn: samdb.objects[dn].get("_owner", ["SID-system"])[0]
+    acl.schema_guid = lambda samdb, name: f"GUID-{name}"
+    acl.ensure_aces = lambda samdb, entries: [f"{dn}: {ace}" for dn, ace in entries]     # every entry, as wanted
+    acl.remove_aces = lambda samdb, entries: []
+    sys.modules["acl_entries"] = acl
+    ids = types.ModuleType("alloc_id")
+    ids.alloc_id = lambda samdb, site_dn, kind="person": samdb.next_id()
+    sys.modules["alloc_id"] = ids
 
 
 class Entry:
@@ -101,6 +113,7 @@ class FakeSamDB:
 
     def __init__(self, base="DC=ad,DC=test"):
         self.base, self.objects, self.log = base, {}, []
+        self.actor, self.ids = "SID-system", 2000
 
     def domain_dn(self):
         return self.base
@@ -150,6 +163,14 @@ class FakeSamDB:
 
     def newgroup(self, name, groupou=None, description=None):
         dn = f"CN={name},{groupou},{self.base}"
-        self.add_entry(dn, objectClass=["top", "group"], sAMAccountName=name, cn=name,
+        self.add_entry(dn, objectClass=["top", "group"], sAMAccountName=name, cn=name, _owner=self.actor,
                        **({"description": description} if description else {}))
         self.log.append(("newgroup", name))
+
+    def delete(self, dn):
+        del self.objects[dn]
+        self.log.append(("delete", dn))
+
+    def next_id(self):
+        self.ids += 1
+        return self.ids

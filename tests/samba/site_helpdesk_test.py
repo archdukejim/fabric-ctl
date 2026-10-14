@@ -194,5 +194,36 @@ check("people unlock <uid>: unlocked; without a user name: usage (exit 2)",
       ok == 0 and "ann: unlocked" in out.getvalue() and bad == 2 and "people unlock <uid>" in out.getvalue(),
       out.getvalue()[-300:])
 
+print("--- a site's role groups are granted only from above (set_person_group; 2.1.9.21, revised 2026-10-13)")
+import fabriclib.directory.common.granted_from_above as above_mod  # noqa: E402
+import fabriclib.directory.set_person_group as group_mod  # noqa: E402
+ASKED = []
+group_mod.run_op = lambda v, secrets, op, args, container: ASKED.append((op, args["group"])) or {"added": True,
+                                                                                               "removed": True}
+group_mod.person_guard = lambda *a, **kw: None
+group_mod.write_audit = lambda *a: None
+above_mod.load_registry = lambda: {"sites": {}, "upstream": {"site": "lan"}}
+for group in ("house1-ou-admins", "house1-fabric-admins", "house1-network-operators", "house1-admins",
+              "HOUSE1-Helpdesk"):
+    # covers: agent:post.people.*.groups -
+    why = refused(group_mod.set_person_group, V, "root", group, "ann", True, privileged=True, secrets={})
+    check(f"refused at a branch, even for root: {group} (granted from a site above), before the DC is asked",
+          "granted only from a site above" in why and not ASKED, why)
+out = io.StringIO()
+with redirect_stdout(out):
+    # covers: cli:people.group -
+    code = cli_mod.run_people_command(V, ["group", "add", "house1-ou-admins", "ann"])
+check("fabricctl people group add house1-ou-admins at a branch: refused (exit 1), saying where it is granted",
+      code == 1 and "granted only from a site above" in out.getvalue() and not ASKED, out.getvalue()[-300:])
+done = group_mod.set_person_group(V, "root", "house1-users", "ann", True, privileged=True, secrets={})
+check("a branch still changes its other groups (house1-users)",
+      done["changed"] and ASKED == [("add_group_member", "house1-users")], ASKED)
+check("...the sub-site's role group is not this rule's (house1 grants house1a's roles)",
+      not above_mod.granted_from_above(V, "house1a-ou-admins"))
+above_mod.load_registry = lambda: {"sites": {"house1": {}}, "upstream": None}
+done = group_mod.set_person_group({**V, "site_name": "lan"}, "root", "lan-ou-admins", "it", True, privileged=True,
+                                  secrets={})
+check("at the top (no upstream) Central IT changes its own role groups", done["changed"], done)
+
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

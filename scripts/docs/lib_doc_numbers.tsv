@@ -273,6 +273,7 @@ file	fabriclib-directory|src/fabriclib/directory/common/check_host_group_name.py
 file	fabriclib-directory|src/fabriclib/directory/common/check_role_fields.py	10	
 file	fabriclib-directory|src/fabriclib/directory/common/check_role_vlan.py	45	
 file	fabriclib-directory|src/fabriclib/directory/common/check_sudo_rule.py	34	
+file	fabriclib-directory|src/fabriclib/directory/common/granted_from_above.py	49	
 file	fabriclib-directory|src/fabriclib/directory/common/normalize_mac.py	11	
 file	fabriclib-directory|src/fabriclib/directory/common/person_guard.py	27	
 file	fabriclib-directory|src/fabriclib/directory/common/read_directory.py	12	
@@ -1264,6 +1265,7 @@ function	fabricctl-jinja|src/containers/freeradius/record_fingerprint.py|serial_
 function	fabricctl-jinja|src/containers/freeradius/vlan_reply.py|vlan_reply	1	
 function	fabricctl-jinja|src/containers/samba/acl_entries.py|_same	2	
 function	fabricctl-jinja|src/containers/samba/acl_entries.py|ensure_aces	3	
+function	fabricctl-jinja|src/containers/samba/acl_entries.py|owner_of	6	
 function	fabricctl-jinja|src/containers/samba/acl_entries.py|remove_aces	5	
 function	fabricctl-jinja|src/containers/samba/acl_entries.py|schema_guid	4	
 function	fabricctl-jinja|src/containers/samba/acl_entries.py|sid_of	1	
@@ -1319,6 +1321,7 @@ function	fabricctl-jinja|src/containers/samba/ensure_schema.py|_present	2
 function	fabricctl-jinja|src/containers/samba/ensure_schema.py|ensure_schema	3	
 function	fabricctl-jinja|src/containers/samba/ensure_service_accounts.py|_signs_in	1	
 function	fabricctl-jinja|src/containers/samba/ensure_service_accounts.py|ensure_service_accounts	2	
+function	fabricctl-jinja|src/containers/samba/ensure_site_acl.py|_check_owners	6	
 function	fabricctl-jinja|src/containers/samba/ensure_site_acl.py|_exists	5	
 function	fabricctl-jinja|src/containers/samba/ensure_site_acl.py|_has_ace	1	0.5.0 / 2026-10-05
 function	fabricctl-jinja|src/containers/samba/ensure_site_acl.py|_schema_guid	4	0.7.0 / 2026-10-13
@@ -1340,6 +1343,9 @@ function	fabricctl-jinja|src/containers/samba/get_person.py|get_person	1
 function	fabricctl-jinja|src/containers/samba/gpo_tool.py|_policy	1	
 function	fabricctl-jinja|src/containers/samba/gpo_tool.py|_without	2	
 function	fabricctl-jinja|src/containers/samba/gpo_tool.py|run	3	
+function	fabricctl-jinja|src/containers/samba/grant_site_role.py|_branch_made	4	
+function	fabricctl-jinja|src/containers/samba/grant_site_role.py|_find	3	
+function	fabricctl-jinja|src/containers/samba/grant_site_role.py|_make	5	
 function	fabricctl-jinja|src/containers/samba/grant_site_role.py|_member_dn	1	
 function	fabricctl-jinja|src/containers/samba/grant_site_role.py|grant_site_role	2	
 function	fabricctl-jinja|src/containers/samba/host_groups.py|find_host_group	2	
@@ -1660,6 +1666,7 @@ function	fabriclib-directory|src/fabriclib/directory/common/check_role_fields.py
 function	fabriclib-directory|src/fabriclib/directory/common/check_role_vlan.py|check_role_vlan	1	
 function	fabriclib-directory|src/fabriclib/directory/common/check_sudo_rule.py|_who	1	
 function	fabriclib-directory|src/fabriclib/directory/common/check_sudo_rule.py|check_sudo_rule	2	
+function	fabriclib-directory|src/fabriclib/directory/common/granted_from_above.py|granted_from_above	1	
 function	fabriclib-directory|src/fabriclib/directory/common/normalize_mac.py|normalize_mac	1	
 function	fabriclib-directory|src/fabriclib/directory/common/person_guard.py|_other_admins	1	
 function	fabriclib-directory|src/fabriclib/directory/common/person_guard.py|person_guard	2	
@@ -2046,6 +2053,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_on_off	2
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_parse	1	
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_print_rows	6	
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_show	5	0.7.0 / 2026-10-12
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_shown	10	
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_subnet_line	9	
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|run_ipam_command	8	
 function	fabriclib-ipam|src/fabriclib/ipam/scan_overview.py|scan_overview	1	

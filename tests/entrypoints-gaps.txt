@@ -231,7 +231,6 @@ cli:people.add -
 cli:people.disable +
 cli:people.disable -
 cli:people.group +
-cli:people.group -
 cli:people.groups +
 cli:people.groups -
 cli:people.list +

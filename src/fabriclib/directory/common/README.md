@@ -12,4 +12,5 @@ Helpers shared by the device, role, people, host group and sudo rule operations.
 | `check_host_group_name.py` | A host group's short name, given short or as `<site>-hosts-<name>` (1.6.11.7) |
 | `check_sudo_rule.py` | Validate a sudo rule's name, who, commands, as whom and host group (1.6.11.7) |
 | `person_guard.py` | Who may change a person's sign-in: fabric groups only by an admin, never yourself, never the last admin |
+| `granted_from_above.py` | Whether a group's members are granted only from a site above: at a site with an upstream, its own admins, AD role and console role groups (2.1.9.21) |
 | `site_helpdesk_refusal.py` | Why the site helpdesk may not change a person: not of this site's own OU=people, or holding a role (2.1.9.21) |

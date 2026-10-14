@@ -30,6 +30,15 @@ def schema_guid(samdb, name):
     return str(samdb.schema_format_value("schemaIDGUID", res[0]["schemaIDGUID"][0]), "utf-8")
 
 
+def owner_of(samdb, dn):
+    """Purpose: an object's owner, from its security descriptor.
+    Inputs:  samdb — SamDB; dn — str.
+    Returns: str, the owner's SID.
+    Fails:   ldb.LdbError reading the security descriptor (no such object).
+    Feeds:   ensure_site_acl (_check_owners)."""
+    return str(SDUtils(samdb).read_sd_on_dn(dn).owner_sid)
+
+
 def _same(a, b):
     """Purpose: whether two parsed access entries grant the same thing to the same principal.
     Inputs:  a, b — security.ace.

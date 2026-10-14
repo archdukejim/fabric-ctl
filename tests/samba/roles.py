@@ -204,6 +204,44 @@ back = run_op(RV, RS, "grant_site_role", {"target": "house1", "role": "machine-a
               DC)
 check("the top takes it back", back["changed"] and "house1-admins" not in members("house1-machine-admins"))
 
+print("--- root on a branch host cannot grant through the agent's credentials (2.1.9.21, revised 2026-10-13)")
+AG = "fabric-agent-house1"
+deskdn = f"CN=deskh1,OU=people,{H1},{BASE}"
+for group in ("house1-ou-admins", "house1-fabric-admins", "house1-network-operators", "house1-admins"):
+    add = as_user(AG, AGENTS["house1"], "ldbmodify", f"dn: CN={group},OU=groups,{H1},{BASE}\nchangetype: modify\n"
+                  f"add: member\nmember: {deskdn}\n")
+    check(f"refused: house1's agent adding a member to {group}", not ok(add) and "deskh1" not in members(group),
+          add.stderr[-300:])
+why = refused(run_op, H1V, H1S, "add_group_member", {"group": "house1-machine-admins", "uid": "deskh1"}, DC)
+check("refused: ...nor through fabric's own operation (add_group_member as house1's agent)", why != "", why)
+ren = as_user(AG, AGENTS["house1"], "ldbmodify", f"dn: CN=house1-gpo-admins,OU=groups,{H1},{BASE}\n"
+              "changetype: modify\nreplace: sAMAccountName\nsAMAccountName: house1-gpo-old\n")
+check("refused: house1's agent renaming a role group (so it could make another of that name)", not ok(ren))
+mine = as_user(AG, AGENTS["house1"], "ldbmodify", f"dn: CN=house1-users,OU=groups,{H1},{BASE}\nchangetype: modify\n"
+               f"add: member\nmember: {deskdn}\n")
+check("house1's agent still adds people to house1-users (a new person joins it)", ok(mine), mine.stderr[-300:])
+g = run_op(H1V, H1S, "grant_site_role", {"target": "house1a", "role": "machine-admins", "member": "", "grant": True},
+           DC)
+check("house1's agent still grants the site below it (house1a machine-admins)", g["changed"], g)
+run_op(H1V, H1S, "grant_site_role", {"target": "house1a", "role": "machine-admins", "member": "", "grant": False}, DC)
+check("the top still converges house1's groups as the system: house1-admins nested in house1-users",
+      "house1-admins" in members("house1-users"))
+gone = as_user(AG, AGENTS["house1"], "ldbdel", None, f"CN=house1-windows-admins,OU=groups,{H1},{BASE}")
+if gone.returncode == 0:        # its right to delete the OU's children reaches the group: re-made, then refused
+    made = as_user(AG, AGENTS["house1"], "ldbadd", f"dn: CN=house1-windows-admins,OU=groups,{H1},{BASE}\n"
+                   f"objectClass: group\nsAMAccountName: house1-windows-admins\nmember: {deskdn}\n")
+    changed = converge_domain(RV, os.path.join(W, "dc", "federation.yaml"), RS, container=DC)
+    check("a role group house1's agent deleted and re-made is refused by the top's convergence, said why",
+          ok(made) and any("was made by fabric-agent-house1" in c for c in changed), changed)
+    back = run_op(RV, RS, "grant_site_role", {"target": "house1", "role": "windows-admins", "member": "",
+                                              "grant": True}, DC)
+    changed = converge_domain(RV, os.path.join(W, "dc", "federation.yaml"), RS, container=DC)
+    check("the top's grant replaces it (deskh1 gone, house1-admins in it) and convergence takes it again",
+          back["remade"] and members("house1-windows-admins") == {"house1-admins"}
+          and not any("was made by" in c for c in changed), (back, changed))
+else:
+    check("house1's agent cannot delete a role group either", gone.returncode != 0)
+
 print("--- unlock_person (the agent's operation)")
 dc("ldbmodify", "-H", "/data/private/sam.ldb", input=f"dn: CN=ann,OU=people,{H1},{BASE}\nchangetype: modify\n"
    "replace: lockoutTime\nlockoutTime: 132000000000000000\n")
