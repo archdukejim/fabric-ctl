@@ -1,5 +1,5 @@
-"""An image switch waits for the services systemd restarts with the ones it moves (2.3.1.21.1): Keycloak behind
-Postgres. Pure logic: the deploy, systemd and Docker are stubbed.
+"""An image switch restarts, health-gated, the services that need the ones it moves (2.3.1.21.1): Keycloak behind
+Postgres. Pure logic: the deploy and systemd are stubbed.
     python3 tests/images/switch_image_test.py"""
 import os
 import sys
@@ -33,12 +33,16 @@ KEYCLOAK = {"name": "keycloak", "unit": "keycloak", "container": "keycloak", "va
 NGINX = {"name": "nginx", "unit": "nginx", "container": "nginx", "var": "image_nginx"}
 
 
-def run(services, installed, healthy=True):
-    calls = {"started": [], "waited": []}
+def run(services, installed, unhealthy=()):
+    calls = {"started": []}
+
+    def start_unit(unit, container, restart):
+        calls["started"].append(unit)
+        if container in unhealthy:
+            raise SetupError(f"{container} did not become healthy (unhealthy)")
     sw.deploy_config.run = lambda ctx: None
-    sw.start_unit = lambda unit, container, restart: calls["started"].append(unit)
+    sw.start_unit = start_unit
     sw.installed_services = lambda ctx: installed
-    sw.wait_healthy = lambda container, timeout: (calls["waited"].append(container) or (healthy, "unhealthy"))
     try:
         sw._apply(Ctx(), services[0]["var"], "x@sha256:" + "a" * 64, services)
         calls["error"] = None
@@ -48,17 +52,17 @@ def run(services, installed, healthy=True):
 
 
 r = run([POSTGRES], [POSTGRES, KEYCLOAK, NGINX])
-check("postgres moved: keycloak, restarted with it by systemd, is waited for", r["waited"] == ["keycloak"]
-      and r["started"] == ["postgres"] and r["error"] is None, r)
+check("postgres moved: keycloak, which needs it, is restarted after it", r["started"] == ["postgres", "keycloak"]
+      and r["error"] is None, r)
 r = run([POSTGRES], [POSTGRES, NGINX])
-check("postgres moved without keycloak installed: nothing else waited for", r["waited"] == [], r)
+check("postgres moved without keycloak installed: nothing else restarted", r["started"] == ["postgres"], r)
 r = run([NGINX], [POSTGRES, KEYCLOAK, NGINX])
-check("nginx moved: no dependent, nothing else waited for", r["waited"] == [], r)
+check("nginx moved: no dependent, nothing else restarted", r["started"] == ["nginx"], r)
 r = run([KEYCLOAK], [POSTGRES, KEYCLOAK])
-check("keycloak moved by itself: not waited for twice", r["waited"] == [] and r["started"] == ["keycloak"], r)
-r = run([POSTGRES], [POSTGRES, KEYCLOAK], healthy=False)
+check("keycloak moved by itself: restarted once", r["started"] == ["keycloak"], r)
+r = run([POSTGRES], [POSTGRES, KEYCLOAK], unhealthy=("keycloak",))
 check("keycloak not healthy again: the switch fails (and so rolls back), naming it",
-      r["error"] and "keycloak" in r["error"] and "postgres" in r["error"], r)
+      r["error"] and "keycloak" in r["error"], r)
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

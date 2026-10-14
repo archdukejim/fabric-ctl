@@ -41,8 +41,8 @@ SERVICES = [
      "build": "fabric/web:local",
      "published": "webui"},
 ]
-# services whose unit Requires= another's (deploy/service_units.py): systemd restarts them with it, so an image
-# switch waits for them to be healthy again too (2.3.1.21.1)
+# services whose unit Requires= another's (deploy/service_units.py): an image switch restarts them, health-gated,
+# after it (2.3.1.21.1)
 DEPENDENTS = {"postgres": ["keycloak"]}
 STATE = "/etc/fabric/images/state.json"      # previous ref per image var (for rollback), root 0600
 VERIFIED = "/etc/fabric/images/verified.json"  # digests whose signature verified (manual 1.14.3.4), root 0600
