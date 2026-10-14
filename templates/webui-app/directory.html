@@ -186,23 +186,24 @@ writes a saved policy into the domain.</p>
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Host name<input name="name" required pattern="[a-z0-9]([a-z0-9-]{0,13}[a-z0-9])?" placeholder="ws01"></label>
 <label>Operating system<select name="os"><option value="">not given (OU=machines)</option><option value="linux">Linux (OU=linux)</option><option value="windows">Windows (OU=windows)</option></select></label>
+<label>Class<select name="class"><option value="">by its operating system (Linux a server, Windows a desktop)</option><option value="server">Server (OU=servers: the server remote users)</option><option value="desktop">Desktop (OU=desktops: the desktop remote users)</option></select></label>
 <label><input type="checkbox" name="managed" value="yes" checked> Managed by fabric (SSH with Kerberos, DNS; manual 1.6.11.6)</label>
 <div><button>Add</button></div>
 </form>
 <p class="muted small">It gets a one-time join password (shown once): give it to <code>join-linux.sh --one-time</code> on a Linux machine (manual 4.6.6). Windows machines join with a site admin's account (4.6.7).</p>
 </section>{% endif %}
 {% if logon %}<section class="card"><h2>Who may sign in</h2>
-<p class="muted">Each OU's log-on policy names the groups allowed at the keyboard and remotely (RDP, SSH); an OU without its own takes its parent's. {% if logon.always %}Always allowed, everywhere: {{ logon.always | join(', ') }}.{% endif %}{% if logon.remote_always %} Always allowed remotely (SSH), everywhere but the fabric host's OU: {{ logon.remote_always | join(', ') }}.{% endif %}</p>
+<p class="muted">Each OU's log-on policy names the groups allowed at the keyboard and remotely (RDP, SSH); an OU without its own takes its parent's. {% if logon.always %}Always allowed, everywhere: {{ logon.always | join(', ') }}.{% endif %} Remote sign-in follows the machine's class: <code>machines/servers</code> adds the site's server remote users, <code>machines/desktops</code> its desktop remote users.</p>
 {% if logon.legacy %}<p class="muted small">This site still has its log-on rights of before 0.9, on the site's OU. The first change makes them the site OU's policy, then applies only what you changed.</p>{% endif %}
 {% if logon.unapplied %}<p class="flash bad">These per-OU policies are in this site's settings, but its domain controller is read-only and never applies them (they were saved before such changes were refused): they have no effect. Make them at the site above, and remove them from this site's settings.</p>{% elif logon.read_only %}<p class="muted small">This site's domain controller is read-only: who may sign in is changed at the site above, whose policies reach this site.</p>{% endif %}
 {% if logon.error %}<p class="flash bad">Who may sign in could not be read: {{ logon.error }}</p>{% endif %}
 {% if logon.policies %}<table><thead><tr><th>OU</th><th>At the keyboard</th><th>Remotely</th><th></th></tr></thead><tbody>
-{% for p in logon.policies %}<tr><td><strong>{{ p.ou or 'site' }}</strong></td><td>{{ p.console | join(', ') or 'nobody' }}</td><td>{{ p.remote | join(', ') or 'nobody' }}</td>
+{% for p in logon.policies %}<tr><td><strong>{{ p.ou or 'site' }}</strong></td><td>{% if p.console is none %}as above{% else %}{{ p.console | join(', ') or 'nobody' }}{% endif %}</td><td>{{ p.remote | join(', ') or 'nobody' }}</td>
 <td class="num">{% if can('gpo:admin') and not logon.legacy and not logon.read_only %}<form method="post" action="/directory/logon/clear"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="ou" value="{{ p.ou or 'site' }}"><button class="ghost" title="the OU takes its parent's policy again">Clear</button></form>{% endif %}</td></tr>{% endfor %}
 </tbody></table>{% endif %}
 {% if can('gpo:admin') and not logon.read_only %}<form method="post" action="/directory/logon/set" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<label>OU<input name="ou" required placeholder="machines/linux" title="a path below the site's OU; site for the site's OU itself"></label>
+<label>OU<input name="ou" required placeholder="machines/servers" title="a path below the site's OU; site for the site's OU itself"></label>
 <label>At the keyboard<input name="console" placeholder="lan-machine-admins, lan-users" title="group names, separated by commas"></label>
 <label>Remotely<input name="remote" placeholder="lan-machine-admins" title="group names, separated by commas"></label>
 <div><button>Set</button></div>

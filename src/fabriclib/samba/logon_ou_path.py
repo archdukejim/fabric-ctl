@@ -11,7 +11,7 @@ def logon_ou_path(text):
              digits, dots, dashes and underscores, separated by "/", lower case (AD's names do not care); "", "site"
              or "/" for the site's OU itself, kept as "".
     Inputs:  text — str (or None).
-    Returns: str, e.g. "machines/linux", or "".
+    Returns: str, e.g. "machines/servers/linux", or "".
     Fails:   ValidationError for a segment outside that rule, an empty segment, more than 8 levels, or "rights" (the
              name of the site's log-on GPO before per-OU policies).
     Feeds:   check_logon_policies, set_logon_policy, clear_logon_policy, logon_overview."""
@@ -20,7 +20,7 @@ def logon_ou_path(text):
         return ""
     segs = path.strip("/").split("/")
     if len(segs) > 8 or not all(_SEGMENT.match(s) for s in segs):
-        raise ValidationError(f"OU {text!r}: a path below the site's OU such as machines or machines/linux (letters, "
+        raise ValidationError(f"OU {text!r}: a path below the site's OU such as machines or machines/servers (letters, "
                               "digits, . - _ in each part, at most 8 levels), or site for the site's OU itself")
     if segs == ["rights"]:
         raise ValidationError("OU rights: that name is the site's log-on GPO from before per-OU policies; "

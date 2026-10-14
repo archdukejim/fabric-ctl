@@ -45,7 +45,7 @@ POST = {
     ("pki", "issue"): "pki:issue", ("pki", "convert"): "pki:issue",
     ("pki", "enrol", "apple"): "pki:enrol", ("pki", "enrol", "p12"): "pki:enrol",
     ("pki", "enrolments", "*", "withdraw"): "pki:enrol",
-    ("ssh", "sign"): "session",         # refused inside unless in a site's SSH users group (2.1.7.14)
+    ("ssh", "sign"): "session",         # refused inside unless in a site's remote users group (2.1.7.14)
     ("ssh", "on"): "system:admin", ("ssh", "off"): "system:admin",
     # a lost read-only DC (2.1.6.58): resets every account it held, removes it — the admin bundle, a site above it
     ("federation", "rodc-lost", "*"): "system:admin",

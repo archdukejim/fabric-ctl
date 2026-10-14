@@ -25,6 +25,8 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `ensure_gpo.py` | One of fabric's GPOs created, linked, its SYSVOL files written, its version bumped on change |
 | `root_ca_policy.py` | The Registry.pol that makes fabric's root CA a trusted root on Windows (Q13) |
 | `logon_rights_policy.py` | The GptTmpl.inf granting log-on to a site's machines, at the keyboard and remotely (2.1.6.14, Q16, 1.6.11.4) |
+| `plan_logon_entries.py` | The per-OU log-on GPOs of a site: the setting's, OU=fabric-hosts's default, and each machine class OU's, granting its `<site>-<class>-remote-users` remotely on top of what it inherits (2.1.7.14 as revised 2026-10-13, 1.6.11.9.13) |
+| `remote_defaults.py` | The layered default of a site's remote users groups: central IT in both, the site's fabric admins in its server group, its admins in its desktop group (2.1.7.14) |
 | `ensure_logon_policies.py` | Who may sign in to the site's machines: one log-on GPO per OU of `logon_policies` (or, null, the site's legacy one), the ones no longer wanted removed; OU=fabric-hosts always has one, the fabric admins by default (1.6.11.4, 2.1.6.53) |
 | `legacy_logon_groups.py` | The groups a site grants log-on to while it has no per-OU policies (as before 0.9, 2.1.6.44) |
 | `logon_groups.py` | Operation `logon_groups`: which named groups do not exist, and the site's legacy log-on groups (the editor's first edit) |
@@ -51,16 +53,17 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `ensure_org_options.py` | At the top site: the organisation's DHCP options entry, the group `fabric-dhcp-org-editors` and its access to it |
 | `read_usn.py` | Print the DC's highest committed USN (an anonymous root DSE read): the plan poll's first step |
 | `plan_cidrs.py` | The networks of the site's plan subnets, for its AD site |
-| `create_machine.py` | Operation `create_machine`: a machine pre-created in the site's OU=machines with a one-time join password |
-| `sort_windows_machines.py` | Operation `sort_windows_machines`: Windows machines that joined themselves into OU=machines moved into OU=windows, those moved before skipped (manual 1.6.11.5) |
-| `ssh_user_sites.py` | Operation `ssh_user_sites` (a read): the sites whose `<site>-ssh-users` a person is in, nested too, only groups in a site's own `OU=groups` (2.1.7.14, manual 1.6.11.9.14) |
+| `create_machine.py` | Operation `create_machine`: a machine pre-created in the site's OU=machines (its class's OS OU) with a one-time join password |
+| `sort_windows_machines.py` | Operation `sort_windows_machines`: Windows machines that joined themselves into OU=machines moved into their class's OU=windows (Windows Server a server, else a desktop), those moved before skipped (manual 1.6.11.5) |
+| `set_machine_class.py` | Operation `set_machine_class` (a write): a machine moved into the other class's OU, its OS family kept; the fabric host refused (2.1.6.36 as revised 2026-10-13) |
+| `ssh_user_sites.py` | Operation `ssh_user_sites` (a read): the sites and classes whose `<site>-<class>-remote-users` a person is in, nested too, only groups in a site's own `OU=groups` (2.1.7.14, manual 1.6.11.9.14) |
 | `set_ssh_cas.py` | Operation `set_ssh_cas`: this site's SSH CA public keys and domain on `CN=fabric-ssh-cas` in its own OU; no keys removes it (2.1.7.14) |
 | `read_ssh_cas.py` | Operation `read_ssh_cas` (a read): every site's `CN=fabric-ssh-cas`, its site from where it sits, its DC type from the configuration partition (2.1.7.14) |
 | `read_site_dcs.py` | Operation `read_site_dcs` (a read): each AD site's DCs and whether each is read-only (`userAccountControl`), from the configuration partition (2.1.9.23, 2.1.7.14) |
 | `set_dc_type_request.py` | Operation `set_dc_type_request`: the request to change a site's DC type, `CN=fabric-dc-type-request` in that site's OU; None removes it (2.1.9.23) |
 | `read_dc_type_request.py` | Operation `read_dc_type_request` (a read): a site's pending DC type request (2.1.9.23) |
 | `sync_rodc_cache.py` | Operation `sync_rodc_cache`: `<site>-rodc-cache` holding exactly the site's `<site>-users` and `<site>-admins` (nested) and its computer accounts, anything else taken out; returns the site's own accounts it reaches (to preload) and any other account reached (reported) (2.1.6.55, manual 1.6.11.14) |
-| `adopt_linux_machines.py` | Operation `adopt_linux_machines`: Linux machines joined into OU=linux with an admin's password made members of <site>-fabric-machines, once, unless their join said unmanaged (manual 1.6.11.6) |
+| `adopt_linux_machines.py` | Operation `adopt_linux_machines`: Linux machines joined into a class's OU=linux with an admin's password made members of <site>-fabric-machines, once, unless their join said unmanaged (manual 1.6.11.6) |
 | `ensure_sudo_rule.py` | The site's default sudo rule: its admins and the admin group may run anything on its machines (2.1.9.13) |
 | `host_groups.py` | Host groups and fabric's sudo rules (1.6.11.7): their names, marks, a host group's machines as sudo host names, the site's rules |
 | `list_host_groups.py` | Operation `list_host_groups`: the site's `<site>-hosts-<name>` groups, their machines and the sudo rules naming each |
@@ -96,6 +99,6 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `id_layout.py` | The fixed ranges inside a site's id block (offsets by kind), and the check that a block is a site's: a million ids from a multiple of a million (2.1.6.46) |
 | `read_dc_names.py` | The domain's computer names, its DCs apart (a parent refuses a joining site's DC a name in use, 2.1.6.45) |
 | `read_sites.py` | Every site in the domain: its name, where its OU sits and its uid/gid block (a parent hands out a free block, and recognises a site moving under it) |
-| `site_roles.py` | The five roles that administer a site, each its own group (2.1.9.13); the site's rodc-cache group's name (2.1.6.52) |
+| `site_roles.py` | The five roles that administer a site, each its own group (2.1.9.13); the site's rodc-cache group's name (2.1.6.52); the machine classes, their remote users groups and roles, a machine's class from its DN (2.1.7.14, 2.1.6.36) |
 | `acl_entries.py` | Access entries added once (compared parsed, object entries by their attribute) and a principal's SID |
 | `remove_ipv6_records.py` | The AD zones on IPv4 only (2.1.6.29): every AAAA record removed (the DC listens on IPv4) |

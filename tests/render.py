@@ -831,8 +831,15 @@ assert 'WRITE_DCS="dc-a.ad.lan.test dc-b.ad.lan.test"' in _join_list and 'WRITE_
 # organisation's user CAs and every site's host CA lines fetched as lists, each line checked
 assert 'AuthorizedPrincipalsCommand $PRINCIPALS %u' in _join and 'AuthorizedPrincipalsCommandUser nobody' in _join \
     and 'PRINCIPALS=/usr/local/sbin/fabric-ssh-principals' in _join, 'the principals command in the drop-in'
-assert 'printf \'%s\\n\' "\\$u@$SITE"' in _join and '^[A-Za-z0-9._-]+' in _join \
-    and 'authpriv.info' in _join, 'the command answers <user>@<site> for a plain name, logged'
+assert 'printf \'%s\\n\' "\\$u@$SITE-\\$c"' in _join and '^[A-Za-z0-9._-]+' in _join \
+    and 'authpriv.info' in _join, 'the command answers <user>@<site>-<class> for a plain name, logged'
+# the machine's class (2.1.7.14 as revised 2026-10-13, 2.1.6.36): chosen at the join (--class, else by a desktop
+# session installed), the account placed in its class's OU=linux, the class refreshed from the account's DN
+assert '--domain-ou="OU=linux,OU=${CLASS}s,OU=machines,$SITE_DN"' in _join and '--class) CLASS=' in _join \
+    and '--class does not go with --one-time' in _join and '"--class is server or desktop, not $CLASS"' in _join
+assert '*",ou=servers,ou=machines,"*) cls=server ;;' in _join and '*",ou=desktops,ou=machines,"*) cls=desktop ;;' \
+    in _join and 'refresh_class\n        write_principals' in _join and '"$PRINCIPALS" "$CLASS_FILE"' in _join
+# the principals command itself is run in tests/openbao/ssh_sites_test.py (every class, the refusals)
 assert 'org_list "$ca_file.org" ssh-user-cas.pub' in _join and 'org_list "$ca_file.org" ssh-host-cas.known' in _join \
     and "'^@cert-authority [A-Za-z0-9*.,!:-]+ " in _join and 'cat "$HOST_CAS"' in _join, 'the organisation lists'
 assert '"$HOST_CAS" "$PRINCIPALS"' in _join, 'removed with the rest when the machine leaves management'

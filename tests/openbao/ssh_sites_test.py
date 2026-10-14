@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """SSH between sites (decision 2.1.7.14; manual 1.6.11.9.13 to 1.6.11.9.16), container-free: who gets a certificate and
-which principals it names (`<user>@<site>`, one per site whose `<site>-ssh-users` the person is in), refused for
+which principals it names (`<user>@<site>-<class>`, one per `<site>-<class>-remote-users` the person is in, class
+server or desktop: 2.1.7.14 as revised 2026-10-13), refused for
 anyone in no such group, for root and while off; the SSH page's answer; what a site's machines trust from the
 organisation's CAs (every site's host CA for its own names, the user CAs of this site and of the writable-DC sites
 only); the known-hosts block from those lines; and the machines' principals command, rendered from the join script
-and run: `<user>@<its site>` for a plain name, nothing otherwise. The real DC and machines: tests/samba/linux_join.py
+and run: `<user>@<its site>-<its class>` for a plain name and a known class, nothing otherwise. The real DC and machines: tests/samba/linux_join.py
 and tests/samba/dc.py (written, not run).
 
     python3 tests/openbao/ssh_sites_test.py         (needs ssh-keygen and bash; on Linux: the audit log uses syslog)
@@ -52,8 +53,10 @@ def keygen(name):
 
 # ---------------------------------------------------------------- the certificate's principals
 print("--- who gets a certificate, naming which sites")
-GROUPS = {"alice": ["site3", "site2"], "carol": ["site2"], "bob": [], "dave": ["site3"],
-          "erin": ["branch", "site3"]}    # each person's sites' SSH users groups
+# each person's remote users groups, as (site, class): ssh_user_sites' grants
+GROUPS = {"alice": [("site3", "server"), ("site2", "server")], "carol": [("site2", "desktop")], "bob": [],
+          "dave": [("site3", "server")], "erin": [("branch", "server"), ("site3", "desktop")],
+          "fay": [("site2", "server"), ("site2", "desktop")]}
 # the domain's tree: site2 and site3 below the top (org), branch below site2 (2.1.7.14 revised: a site's CA signs for
 # itself and the sites below it)
 DOMAIN = [{"site": "org", "dn": "OU=org,OU=sites,DC=ad"}, {"site": "site2", "dn": "OU=site2,OU=org,OU=sites,DC=ad"},
@@ -68,8 +71,8 @@ asked = []
 
 
 def sites_check(v, user):
-    """Stands in for the directory's in-chain membership of every site's <site>-ssh-users (ssh_user_sites)."""
-    return GROUPS.get(user, [])
+    """Stands in for the directory's in-chain membership of every site's remote users groups (ssh_user_sites)."""
+    return [{"site": s, "class": c} for s, c in GROUPS.get(user, [])]
 
 
 def bao(v, method, path, token=None, body=None):
@@ -84,19 +87,27 @@ alice_pub = keygen("alice")
 # covers: agent:post.ssh.sign +
 cert = ssk.sign_ssh_key({**V, "site_name": "org"}, "alice", alice_pub, sites_check=sites_check, scope=scope,
                         login=login)
-check("at the top (central IT), a member of site2's and site3's SSH users groups: one certificate naming "
-      "alice@site2 and alice@site3, sorted, audited with them",
-      cert["principals"] == ["alice@site2", "alice@site3"] and asked[-1][1]["valid_principals"]
-      == "alice@site2,alice@site3" and asked[-1][1]["cert_type"] == "user" and AUDIT[-1][:2] == ("alice", "SSH_SIGN")
-      and "alice@site2,alice@site3" in AUDIT[-1][2], (cert, asked[-1], AUDIT[-1]))
+check("at the top (central IT), a member of site2's and site3's server remote users: one certificate naming "
+      "alice@site2-server and alice@site3-server, sorted, audited with them",
+      cert["principals"] == ["alice@site2-server", "alice@site3-server"] and asked[-1][1]["valid_principals"]
+      == "alice@site2-server,alice@site3-server" and asked[-1][1]["cert_type"] == "user"
+      and AUDIT[-1][:2] == ("alice", "SSH_SIGN") and "alice@site2-server,alice@site3-server" in AUDIT[-1][2],
+      (cert, asked[-1], AUDIT[-1]))
 cert = ssk.sign_ssh_key(V, "alice", alice_pub, sites_check=sites_check, scope=scope, login=login)
-check("at site2, the same person: alice@site2 only (site3 is beside site2: its CA does not sign for it)",
-      cert["principals"] == ["alice@site2"] and asked[-1][1]["valid_principals"] == "alice@site2", cert)
-check("never the bare user name (a machine with no principals check would take it for any site)",
-      "alice" not in asked[-1][1]["valid_principals"].split(","), asked[-1])
+check("at site2, the same person: alice@site2-server only (site3 is beside site2: its CA does not sign for it)",
+      cert["principals"] == ["alice@site2-server"] and asked[-1][1]["valid_principals"] == "alice@site2-server",
+      cert)
+check("negative: a server group member's certificate names no desktop principal (a desktop refuses it)",
+      not any(p.endswith("-desktop") for p in cert["principals"]), cert)
+check("never the bare user name, nor a bare site (an older machine would take <user>@<site> for every class)",
+      not {"alice", "alice@site2"} & set(asked[-1][1]["valid_principals"].split(",")), asked[-1])
+cert = ssk.sign_ssh_key(V, "fay", alice_pub, sites_check=sites_check, scope=scope, login=login)
+check("a member of both of site2's groups (central IT is nested in both): fay@site2-desktop and fay@site2-server",
+      cert["principals"] == ["fay@site2-desktop", "fay@site2-server"]
+      and cert["sites"] == ["site2-desktop", "site2-server"], cert)
 cert = ssk.sign_ssh_key(V, "erin", alice_pub, sites_check=sites_check, scope=scope, login=login)
-check("at site2, a member of branch's (below site2) and site3's groups: erin@branch only", cert["principals"]
-      == ["erin@branch"], cert)
+check("at site2, a member of branch's (below site2) and site3's groups: erin@branch-server only",
+      cert["principals"] == ["erin@branch-server"], cert)
 asked.clear()
 check("negative: at site2, dave, only in site3's group: refused, naming site3, audited, OpenBao never asked",
       refused(ssk.sign_ssh_key, V, "dave", alice_pub, sites_check=sites_check, scope=scope, login=login,
@@ -104,15 +115,15 @@ check("negative: at site2, dave, only in site3's group: refused, naming site3, a
 check("negative: at a branch, its CA never signs for the site above it",
       signable_sites({"site_name": "branch"}, ["site2", "branch"], domain=DOMAIN) == (["branch"], ["site2"]))
 cert = ssk.sign_ssh_key(V, "carol", alice_pub, sites_check=sites_check, scope=scope, login=login)
-check("a member of site2's only: carol@site2 only (site3's machines will refuse her)", cert["principals"]
-      == ["carol@site2"], cert)
+check("a member of site2's desktop group only: carol@site2-desktop only (site2's servers refuse her)",
+      cert["principals"] == ["carol@site2-desktop"], cert)
 asked.clear()
 # covers: agent:post.ssh.sign -
-check("negative: bob, in no site's SSH users group: refused, saying where to ask, audited, OpenBao never asked",
-      refused(ssk.sign_ssh_key, V, "bob", alice_pub, sites_check=sites_check, scope=scope, login=login,
-              match="SSH users group")
+check("negative: bob, in no site's remote users group: refused, saying where to ask, audited, OpenBao never "
+      "asked", refused(ssk.sign_ssh_key, V, "bob", alice_pub, sites_check=sites_check, scope=scope, login=login,
+                       match="remote users group")
       and AUDIT[-1][:2] == ("bob", "SSH_SIGN_REFUSED") and not asked, AUDIT[-1])
-GROUPS["root"] = ["site2"]
+GROUPS["root"] = [("site2", "server")]
 check("negative: a user named root: refused even in a group, audited",
       refused(ssk.sign_ssh_key, V, "rOOt", alice_pub, sites_check=sites_check, scope=scope, login=login, match="root")
       and AUDIT[-1][1] == "SSH_SIGN_REFUSED" and not asked)
@@ -126,13 +137,13 @@ print("--- the SSH page")
 DEPLOY = os.path.join(W, "deploy")
 os.makedirs(os.path.join(DEPLOY, "nginx", "www", "certs"))
 ov = ssh_overview({**V, "deploy_base_dir": DEPLOY}, "alice", sites_check=sites_check, scope=scope)
-check("alice may sign at site2; the page names site2 and says site3 is signed elsewhere", ov["may_sign"]
-      and ov["sites"] == ["site2"] and ov["elsewhere"] == ["site3"], ov)
+check("alice may sign at site2; the page names site2-server and says site3 is signed elsewhere", ov["may_sign"]
+      and ov["sites"] == ["site2-server"] and ov["elsewhere"] == ["site3"], ov)
 ov = ssh_overview({**V, "deploy_base_dir": DEPLOY}, "dave", sites_check=sites_check, scope=scope)
 check("negative: dave may not at site2, told where to go", not ov["may_sign"] and "site3" in ov["why_not"], ov)
 ov = ssh_overview({**V, "deploy_base_dir": DEPLOY}, "bob", sites_check=sites_check, scope=scope)
 check("negative: bob may not, and is told why", not ov["may_sign"] and ov["sites"] == []
-      and "SSH users group" in ov["why_not"], ov)
+      and "remote users group" in ov["why_not"], ov)
 
 
 def broken(v, user):
@@ -190,20 +201,32 @@ print("--- the principals command on a site's machines")
 text = open(os.path.join(REPO, "templates", "nginx", "www", "certs", "join-linux.sh.j2"), encoding="utf-8").read()
 body = re.search(r"<<PRINCIPALS_EOF \|\| true\n(.*?)\nPRINCIPALS_EOF\n", text, re.S).group(1)
 script = os.path.join(W, "fabric-ssh-principals")
+CLASS_FILE = os.path.join(W, "machine-class")
 made = subprocess.run(["bash", "-c", f"cat <<PRINCIPALS_EOF\n{body}\nPRINCIPALS_EOF\n"], capture_output=True,
-                      text=True, env={**os.environ, "SITE": "site3"})
+                      text=True, env={**os.environ, "SITE": "site3", "CLASS_FILE": CLASS_FILE})
 with open(script, "w") as f:
     f.write(made.stdout)
 
 
-def principals(user):
+def principals(user, cls="server"):
+    if cls is None:
+        if os.path.exists(CLASS_FILE):
+            os.remove(CLASS_FILE)
+    else:
+        with open(CLASS_FILE, "w") as f:
+            f.write(cls + "\n")
     return subprocess.run(["bash", script, user], capture_output=True, text=True).stdout
 
 
-check("site3's machine accepts alice@site3 for alice (the principal alice's certificate carries)",
-      principals("alice") == "alice@site3\n", principals("alice"))
-check("negative: carol's certificate (carol@site2 only) matches nothing site3 accepts for carol",
-      "carol@site2" not in principals("carol"))
+check("site3's server accepts alice@site3-server for alice (the principal her certificate carries)",
+      principals("alice") == "alice@site3-server\n", principals("alice"))
+check("site3's desktop accepts alice@site3-desktop only: her server certificate is refused there",
+      principals("alice", "desktop") == "alice@site3-desktop\n", principals("alice", "desktop"))
+check("negative: carol's certificate (carol@site2-desktop only) matches nothing site3 accepts for carol",
+      "carol@site2-desktop" not in principals("carol", "desktop"))
+for cls in (None, "", "laptop", "server desktop"):
+    check(f"negative: the machine's class not known ({cls!r}): no principal at all, nobody signs in",
+          principals("alice", cls) == "", principals("alice", cls))
 for bad in ("", "a b", "x;rm", "a\nb", "$(id)"):
     check(f"negative: a user name that is not plain ({bad!r}): no principal at all", principals(bad) == "",
           principals(bad))

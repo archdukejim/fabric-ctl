@@ -111,7 +111,7 @@ for g in samdb.search(base=f"CN=Policies,CN=System,{base}", scope=ldb.SCOPE_ONEL
 print(json.dumps(out))
 """
 GROUPS = ["lan-users", "lan-admins", "lan-machine-admins", "fabric-break-glass", "admins", "fabric-admins",
-          "lan-fabric-admins", "lan-ssh-users"]
+          "lan-fabric-admins", "lan-server-remote-users", "lan-desktop-remote-users"]
 HOSTS_GPO = "fabric: lan log-on fabric-hosts"     # the site's fabric host's OU: a policy of its own (2.1.6.53)
 
 
@@ -134,17 +134,32 @@ def rights(inf):
 SITE_OU = "OU=lan,OU=sites"
 p = probe()
 SID = p.get("sids", {})
-SSH = [SID.get("lan-ssh-users")]       # every log-on policy but fabric-hosts' also grants it remotely (2.1.7.14)
+# remote access by machine class (2.1.7.14 as revised 2026-10-13): a GPO on each class OU, its class's group added
+SERVERS, DESKTOPS = "fabric: lan log-on machines/servers", "fabric: lan log-on machines/desktops"
+SRV, DSK = SID.get("lan-server-remote-users"), SID.get("lan-desktop-remote-users")
 legacy = p.get("gpos", {}).get("fabric: lan log-on rights") or {}
 check("logon_policies null: the site's one log-on GPO as before 0.9, linked to the site's OU, granting its users and "
       "admins both rights (2.1.6.44)",
       legacy.get("links") == [SITE_OU] and SID["lan-users"] in rights(legacy.get("inf"))["console"]
-      and rights(legacy.get("inf"))["console"] + SSH == rights(legacy.get("inf"))["remote"]
+      and rights(legacy.get("inf"))["console"] == rights(legacy.get("inf"))["remote"]
       and not [n for n in p["gpos"] if n.startswith("fabric: lan log-on ")
-               and n not in ("fabric: lan log-on rights", HOSTS_GPO)], p)
-check("the site's SSH users group (2.1.7.14) exists, and the legacy policy grants it the remote right only",
-      SID.get("lan-ssh-users") and SID["lan-ssh-users"] in rights(legacy.get("inf"))["remote"]
-      and SID["lan-ssh-users"] not in rights(legacy.get("inf"))["console"], (SID, legacy.get("inf")))
+               and n not in ("fabric: lan log-on rights", HOSTS_GPO, SERVERS, DESKTOPS)], p)
+srv, dsk = p["gpos"].get(SERVERS) or {}, p["gpos"].get(DESKTOPS) or {}
+rs, rd, rl = rights(srv.get("inf")), rights(dsk.get("inf")), rights(legacy.get("inf"))
+check("beside the legacy policy, each class OU has its own, linked there: the legacy groups at the keyboard and "
+      "remotely (rights are not merged between GPOs) plus the class's remote users, remotely only",
+      srv.get("links") == [f"OU=servers,OU=machines,{SITE_OU}"] and dsk.get("links") == [
+          f"OU=desktops,OU=machines,{SITE_OU}"] and SRV and DSK
+      and set(rs.get("console", [])) == set(rl["console"]) and set(rs.get("remote", [])) == set(rl["remote"]) | {SRV}
+      and set(rd.get("remote", [])) == set(rl["remote"]) | {DSK}, (srv, dsk, SID))
+check("each class GPO makes its remote users group a member of every machine's Remote Desktop Users (RDP needs it), "
+      "the legacy one makes nobody", f"*{SRV}__Memberof = *S-1-5-32-555" in (srv.get("inf") or "")
+      and f"*{DSK}__Memberof = *S-1-5-32-555" in (dsk.get("inf") or "")
+      and f"*{SRV}__Memberof" not in (dsk.get("inf") or "") and "S-1-5-32-555" not in (legacy.get("inf") or ""),
+      (srv.get("inf"), dsk.get("inf")))
+check("negative: the server group is not granted on desktops, nor the desktop group on servers, nor either at the "
+      "keyboard or on the site's OU", SRV not in rd.get("remote", []) and DSK not in rs.get("remote", [])
+      and SRV not in rs.get("console", []) and SRV not in rl["remote"] and DSK not in rl["remote"], (rs, rd))
 hosts = p.get("gpos", {}).get(HOSTS_GPO) or {}
 r = rights(hosts.get("inf"))
 check("the site's OU=fabric-hosts carries its own log-on policy by default, also beside the legacy one: the fabric "
@@ -154,8 +169,8 @@ check("the site's OU=fabric-hosts carries its own log-on policy by default, also
       and r.get("console") == [SID["fabric-admins"], SID["lan-fabric-admins"], SID["fabric-break-glass"],
                                "S-1-5-32-544"]
       and r.get("console") == r.get("remote") and SID["lan-users"] not in r.get("console", []), (hosts, SID))
-check("negative: the fabric host's OU never grants the site's SSH users (its policy stays the fabric admins', 2.1.6.53)",
-      SID.get("lan-ssh-users") not in r.get("remote", []), r)
+check("negative: the fabric host's OU never grants a class's remote users (its policy stays the fabric admins', "
+      "2.1.6.53)", SRV not in r.get("remote", []) and DSK not in r.get("remote", []), r)
 
 # an OU below machines for a policy of its own (an admin's sub-OU)
 add = (f"dn: OU=lab,OU=machines,{SITE_OU},{V['ad_base_dn']}\nobjectClass: organizationalUnit\n")
@@ -189,7 +204,12 @@ check("one GPO per OU, each linked to its OU: fabric: lan log-on machines and fa
 r = rights(mach.get("inf"))
 check("OU=machines' GPO: its console and remote groups, each with fabric-break-glass and local Administrators "
       "(never locked out)", r.get("console") == [SID["lan-admins"]] + always
-      and r.get("remote") == [SID["lan-admins"], SID["lan-machine-admins"]] + always + SSH, (r, SID))
+      and r.get("remote") == [SID["lan-admins"], SID["lan-machine-admins"]] + always, (r, SID))
+rs = rights((gp.get(SERVERS) or {}).get("inf"))
+check("...and OU=servers' GPO repeats it, plus lan-server-remote-users remotely (a server group member reaches a "
+      "server by RDP, and by SSH through SSSD's mapping of the same right)",
+      rs.get("console") == [SID["lan-admins"]] + always
+      and rs.get("remote") == [SID["lan-admins"], SID["lan-machine-admins"], SRV] + always, rs)
 check("...and the windows-admins role made local Administrators, as before (2.1.9.13)",
       "__Memberof = *S-1-5-32-544" in (mach.get("inf") or ""), mach.get("inf"))
 check("the legacy GPO is gone: unlinked from the site's OU, its container deleted, its SYSVOL folder removed",
@@ -206,7 +226,7 @@ check("logon set machines/lab: the people at the keyboard, nobody remotely but t
       code == 0 and "machines/lab: console lan-users; remote (nobody)" in out, out)
 r = rights((probe()["gpos"].get("fabric: lan log-on machines/lab") or {}).get("inf"))
 check("OU=lab's GPO: lan-users at the keyboard; remotely only break-glass and local Administrators",
-      r.get("console") == [SID["lan-users"]] + always and r.get("remote") == always + SSH, r)
+      r.get("console") == [SID["lan-users"]] + always and r.get("remote") == always, r)
 code, out = domain("logon", "set", "machines/lab", "--remote", "lan-machine-admins")
 check("a right left out is kept: --remote alone leaves the console as it was",
       code == 0 and STORE["vars"]["logon_policies"]["machines/lab"] == {"console": ["lan-users"],
@@ -249,7 +269,8 @@ print("--- the agent's routes (the web console's Machines section)")
 got = m_get.get_route(["domain", "logon"])
 # covers: agent:get.domain.logon +
 check("GET /v1/domain/logon: each OU's policy and what is always kept",
-      [x["ou"] for x in got["policies"]] == ["fabric-hosts", "machines", "machines/lab"] and not got["legacy"]
+      [x["ou"] for x in got["policies"]] == ["fabric-hosts", "machines", "machines/desktops", "machines/lab",
+                                             "machines/servers"] and not got["legacy"]
       and "fabric-break-glass" in got["always"], got)
 done = m_post.post_domain(["domain", "logon", "set"], "alice",
                           {"ou": "machines/lab", "console": ["lan-admins"], "remote": ["lan-admins"]})
@@ -257,7 +278,7 @@ done = m_post.post_domain(["domain", "logon", "set"], "alice",
 check("POST /v1/domain/logon/set: saved and applied, audited from the web",
       done["applied"] and done["console"] == ["lan-admins"] and AUDIT[-1][2] == "web"
       and rights(probe()["gpos"]["fabric: lan log-on machines/lab"]["inf"]).get("remote") == [SID["lan-admins"]]
-      + always + SSH, done)
+      + always, done)
 done = m_post.post_domain(["domain", "logon", "clear"], "alice", {"ou": "machines/lab"})
 # covers: agent:post.domain.logon.clear +
 check("POST /v1/domain/logon/clear: the OU's policy and GPO gone",

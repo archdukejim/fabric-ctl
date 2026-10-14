@@ -45,13 +45,25 @@ def fabric_machines(site):
     return f"{site}-fabric-machines"
 
 
-def ssh_users(site):
-    """Purpose: the group of who may SSH to a site's managed machines (decision 2.1.7.14, manual 1.6.11.9.13).
-    Inputs:  site — str.
-    Returns: str "<site>-ssh-users".
-    Fails:   never.
+# a machine's class (decision 2.1.7.14, second revision; 2.1.6.36's revision): what remote access follows, not its OS.
+# class -> its OU below the site's OU=machines (each holding OU=linux and OU=windows)
+CLASSES = {"server": "servers", "desktop": "desktops"}
+# the remote-users roles (2.1.7.14 as revised 2026-10-13): role -> its group's description. Granted only from above,
+# like the site's AD roles (2.1.9.21): on dev/0.9.0-roles, site_roles.grantable() lists them too (`+ list(REMOTE_ROLES)`
+# at integration), so a branch's own agent is denied writing them and a site above grants, revokes and remakes them
+REMOTE_ROLES = {f"{cls}-remote-users": f"May sign in remotely (SSH, RDP) to the site's {cls}s (manual 1.6.11.9.13)"
+                for cls in CLASSES}
+
+
+def remote_users(site, machine_class):
+    """Purpose: the group of who may sign in remotely (SSH through SSSD, RDP) to a site's machines of one class
+             (decision 2.1.7.14, revised 2026-10-13; manual 1.6.11.9.13).
+    Inputs:  site — str; machine_class — a key of CLASSES.
+    Returns: str "<site>-server-remote-users" or "<site>-desktop-remote-users".
+    Fails:   KeyError for an unknown class.
     Feeds:   ensure_groups, ensure_logon_policies, ssh_user_sites."""
-    return f"{site}-ssh-users"
+    CLASSES[machine_class]
+    return f"{site}-{machine_class}-remote-users"
 
 
 def role_group(site, role):
@@ -62,3 +74,25 @@ def role_group(site, role):
     Feeds:   ensure_groups, ensure_site_acl, ensure_sudo_rule, converge."""
     ROLES[role]
     return f"{site}-{role}"
+
+
+# the class a machine gets when nobody names one (2.1.6.36's revision): by its OS family, Linux machines are servers
+# (a Linux desktop says so at its join, join-linux.sh --class desktop) and Windows ones desktops (a Windows Server is
+# sorted by its operatingSystem, sort_windows_machines)
+DEFAULT_CLASS = {"linux": "server", "windows": "desktop"}
+
+
+def class_of(dn):
+    """Purpose: a machine's class read from where its account sits (2.1.6.36's revision, manual 1.6.11.5): the class
+             OU above it below OU=machines.
+    Inputs:  dn — the computer account's DN (str).
+    Returns: "server", "desktop", or "" (in no class OU: OU=machines itself, OU=fabric-hosts, elsewhere).
+    Fails:   never.
+    Feeds:   list_machines, set_machine_class."""
+    parts = [p.strip().lower() for p in str(dn).split(",")]
+    for i, part in enumerate(parts[:-1]):
+        if parts[i + 1] == "ou=machines":
+            for cls, ou in CLASSES.items():
+                if part == f"ou={ou}":
+                    return cls
+    return ""

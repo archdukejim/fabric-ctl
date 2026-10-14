@@ -184,8 +184,12 @@ SAMPLE_DOMAIN = {"status": {"domain": "ad.home.arpa", "realm": "AD.HOME.ARPA", "
 SAMPLE_LOGON = {"site": "lan", "legacy": False, "read_only": False, "unapplied": False, "error": "",
                 "always": ["fabric-break-glass", "BUILTIN\\Administrators"],
                 "policies": [{"ou": "machines", "console": ["lan-machine-admins"], "remote": ["lan-machine-admins"]},
-                             {"ou": "machines/linux", "console": ["lan-machine-admins", "lan-devs"],
-                              "remote": ["lan-devs"]}]}
+                             {"ou": "machines/desktops", "console": None,
+                              "remote": ["lan-machine-admins", "lan-desktop-remote-users"]},
+                             {"ou": "machines/servers", "console": None,
+                              "remote": ["lan-machine-admins", "lan-server-remote-users"]},
+                             {"ou": "machines/servers/linux", "console": ["lan-machine-admins", "lan-devs"],
+                              "remote": ["lan-devs", "lan-server-remote-users"]}]}
 SAMPLE_ACCESS = {"error": "",
                  "groups": [{"name": "lan-hosts-web", "short": "web", "machines": ["host-1"], "other_members": [],
                              "rules": ["web-restart"], "hosts": ["host-1", "host-1.ad.home.arpa"], "fabric": True}],

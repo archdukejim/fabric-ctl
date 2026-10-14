@@ -51,7 +51,8 @@ NET, SUBNET, BAO_IP, BAO, HOST = "sshca_net", "10.254.46.0/24", "10.254.46.90", 
 FAILED = 0
 AUDIT = []
 ssk.write_audit = lambda actor, event, detail, source="web", **kw: AUDIT.append((actor, event, detail))
-SSH_SITES = {"alice": ["lab", "site3"]}       # alice in lab-ssh-users and site3-ssh-users (2.1.7.14); bob in none
+# alice in lab-server-remote-users and site3-desktop-remote-users (2.1.7.14 as revised 2026-10-13); bob in none
+SSH_SITES = {"alice": [{"site": "lab", "class": "server"}, {"site": "site3", "class": "desktop"}]}
 
 
 # the domain's sites: site3 sits below lab, so lab's CA signs for both (2.1.7.14 revised: this site and below)
@@ -65,7 +66,7 @@ def scope(v, sites):
 
 
 def admin_check(v, user):
-    """Stands in for the directory's in-chain membership of every site's SSH users group (ssh_user_sites)."""
+    """Stands in for the directory's in-chain membership of every site's remote users groups (ssh_user_sites)."""
     return SSH_SITES.get(user, [])
 
 
@@ -238,16 +239,16 @@ shown = sh(["ssh-keygen", "-L", "-f", f"{W}/user/id_ed25519-cert.pub"], ok=False
 principals = shown.split("Principals:")[1].split("Critical Options:")[0].split() if "Principals:" in shown else []
 valid = shown.split("Valid:")[1].splitlines()[0] if "Valid:" in shown else ""
 # covers: agent:post.ssh.sign +
-check("signed: a user certificate, a principal per site alice's SSH groups name (alice@lab, alice@site3), the key "
-      "id names her, signed by fabric's CA, audited",
-      "user certificate" in shown and principals == ["alice@lab", "alice@site3"] and 'Key ID: "fabric:alice:' in shown
+check("signed: a user certificate, a principal per remote users group alice is in (alice@lab-server, "
+      "alice@site3-desktop), the key id names her, signed by fabric's CA, audited",
+      "user certificate" in shown and principals == ["alice@lab-server", "alice@site3-desktop"] and 'Key ID: "fabric:alice:' in shown
       and CA_FP in shown and AUDIT[-1][:2] == ("alice", "SSH_SIGN"), shown)
 check("valid 8 hours (from - to)", cert["valid_hours"] == 8 and valid.count("T") == 2, valid)
 ov = ssh_overview(v_on, "alice", sites_check=admin_check, scope=scope)
 check("the SSH page for alice: on, the CA key and fingerprint, may sign",
       ov["on"] and ov["public_key"] == CA_KEY and ov["fingerprint"] == CA_FP and ov["may_sign"], ov)
 ov = ssh_overview(v_on, "bob", sites_check=admin_check, scope=scope)
-check("...for bob: may not, and says why", not ov["may_sign"] and "SSH users group" in ov["why_not"], ov)
+check("...for bob: may not, and says why", not ov["may_sign"] and "remote users group" in ov["why_not"], ov)
 
 print("--- a host key signed by the host CA")
 os.makedirs(f"{W}/host", mode=0o700)
@@ -271,8 +272,8 @@ check("negative: the user CA's role signs no host certificate", host_bad[0] >= 4
 
 print("--- refusals")
 # covers: agent:post.ssh.sign -
-check("negative: bob is in no site's SSH users group: refused, audited SSH_SIGN_REFUSED",
-      refused(ssk.sign_ssh_key, v_on, "bob", alice_pub, sites_check=admin_check, scope=scope, match="SSH users group")
+check("negative: bob is in no site's remote users group: refused, audited SSH_SIGN_REFUSED",
+      refused(ssk.sign_ssh_key, v_on, "bob", alice_pub, sites_check=admin_check, scope=scope, match="remote users group")
       and AUDIT[-1][:2] == ("bob", "SSH_SIGN_REFUSED"))
 check("negative: root, not a person: refused",
       refused(ssk.sign_ssh_key, v_on, "root", alice_pub, sites_check=admin_check, scope=scope, match="for a person"))

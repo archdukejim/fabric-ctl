@@ -547,9 +547,10 @@ check "negative: sshd already refusing its configuration: host-managed refuses (
 in_box 'rm -f /etc/ssh/sshd_config.d/00-broken.conf; fabricctl domain host-managed' > "$OUT/host-managed-fixed.log" 2>&1
 check "…fixed: applied again, and the fabric admin signs in with Kerberos" \
     "grep -q 'is in $FM' '$OUT/host-managed-fixed.log' && ssh_krb fabric-admin /root/admin-pw"
-# an account of 0.7.1's first build: in OU=machines/OU=linux, never placed (the record without "placed")
+# an account of 0.7.1's first build: in OU=machines/OU=linux, never placed (the record without "placed");
+# OU=linux right under OU=machines is no longer made (2.1.6.36 as revised 2026-10-13): a class OU's stands in
 SITE_OU=$(host_account | sed -n 's/^dn: CN=FABRIC-SBX,OU=fabric-hosts,\(.*\),DC=ad,DC=test$/\1/p')
-samba_tool computer move FABRIC-SBX "OU=linux,OU=machines,$SITE_OU"
+samba_tool computer move FABRIC-SBX "OU=linux,OU=servers,OU=machines,$SITE_OU"
 in_box "python3 -c \"import json; p='/opt/fabric/config/member.json'; r=json.load(open(p)); r.pop('placed', None); json.dump(r, open(p, 'w'))\""
 in_box 'fabricctl setup --step member --non-interactive --yes' > "$OUT/member-move.log" 2>&1
 in_box 'fabricctl setup --step member --non-interactive --yes' > "$OUT/member-move2.log" 2>&1

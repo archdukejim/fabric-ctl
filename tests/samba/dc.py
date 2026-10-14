@@ -346,8 +346,10 @@ check("the host groups: fabric-admins (organisation), lan-fabric-admins and lan-
                                        "sAMAccountName").stdout
           for g in ("fabric-admins", "lan-fabric-admins", "lan-fabric-machines")))
 _ous = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(objectClass=organizationalUnit)", "dn").stdout
-check("each site's OU=machines holds OU=linux and OU=windows (1.6.11.5, 2.1.6.36)",
-      "OU=linux,OU=machines,OU=lan," in _ous and "OU=windows,OU=machines,OU=lan," in _ous, _ous[-400:])
+check("each site's OU=machines holds OU=servers and OU=desktops, each with OU=linux and OU=windows (1.6.11.5, "
+      "2.1.6.36 as revised 2026-10-13)",
+      all(f"OU={os_},OU={cls},OU=machines,OU=lan," in _ous for cls in ("servers", "desktops")
+          for os_ in ("linux", "windows")), _ous[-400:])
 check("a new site's lan-fabric-admins is a member of lan-machine-admins (2.1.6.38); fabric-admins of lan-fabric-admins",
       "lan-fabric-admins" in members("lan-machine-admins") and "fabric-admins" in members("lan-fabric-admins"),
       (members("lan-machine-admins"), members("lan-fabric-admins")))
@@ -1007,21 +1009,29 @@ except ValidationError as e:
 check("negative: every writable DC down: refused, naming each one tried",
       "10.254.30.99: did not answer; 10.254.30.98: did not answer" in why, why)
 
-# SSH between sites (2.1.7.14): each site's <site>-ssh-users, who is in it, the organisation's CAs through AD, and
+# SSH between sites (2.1.7.14 as revised 2026-10-13): each site's <site>-server-remote-users and
+# <site>-desktop-remote-users, the layered default in them, who is in them, the organisation's CAs through AD, and
 # each site's DC type from the configuration partition
 lab_v = {**v, "site_name": "lab"}
-members = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=lab-ssh-users)", "member").stdout
-check("lab-ssh-users made with the site's groups, lab-fabric-admins and fabric-admins nested in it",
-      "CN=lab-fabric-admins," in members and "CN=fabric-admins," in members, members)
-dc("samba-tool", "group", "addmembers", "lab-ssh-users", "stayer", "-s", CONF)
-check("a member of lab-ssh-users: the op names lab (so the certificate carries stayer@lab)",
-      "lab" in run_op(lab_v, lab_sec, "ssh_user_sites", {"uid": "stayer"}, DC)["sites"])
-check("negative: a person in no SSH users group: no site", run_op(lab_v, lab_sec, "ssh_user_sites",
-                                                                    {"uid": "outsider"}, DC)["sites"] == [])
-dc("samba-tool", "group", "add", "lan2-ssh-users", "-s", CONF)          # in CN=Users, not a site's OU=groups
-dc("samba-tool", "group", "addmembers", "lan2-ssh-users", "outsider", "-s", CONF)
+members = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=lab-server-remote-users)", "member").stdout
+check("lab-server-remote-users made with the site's groups: central IT (fabric-admins, the root's admins) and "
+      "lab-fabric-admins nested in it", "CN=lab-fabric-admins," in members and "CN=fabric-admins," in members
+      and "CN=lan-admins," in members and "CN=lab-admins," not in members, members)
+members = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=lab-desktop-remote-users)", "member").stdout
+check("lab-desktop-remote-users: central IT and lab-admins nested in it, not lab-fabric-admins",
+      "CN=lab-admins," in members and "CN=fabric-admins," in members and "CN=lan-admins," in members
+      and "CN=lab-fabric-admins," not in members, members)
+dc("samba-tool", "group", "addmembers", "lab-server-remote-users", "stayer", "-s", CONF)
+check("a member of lab-server-remote-users: the op grants lab's servers (the certificate carries stayer@lab-server)",
+      {"site": "lab", "class": "server"} in run_op(lab_v, lab_sec, "ssh_user_sites", {"uid": "stayer"}, DC)["grants"])
+check("negative: ...and not lab's desktops", {"site": "lab", "class": "desktop"} not in run_op(
+    lab_v, lab_sec, "ssh_user_sites", {"uid": "stayer"}, DC)["grants"])
+check("negative: a person in no remote users group: nothing", run_op(lab_v, lab_sec, "ssh_user_sites",
+                                                                       {"uid": "outsider"}, DC)["grants"] == [])
+dc("samba-tool", "group", "add", "lan2-server-remote-users", "-s", CONF)   # in CN=Users, not a site's OU=groups
+dc("samba-tool", "group", "addmembers", "lan2-server-remote-users", "outsider", "-s", CONF)
 check("negative: a group of that name outside a site's OU=groups counts for nothing",
-      run_op(lab_v, lab_sec, "ssh_user_sites", {"uid": "outsider"}, DC)["sites"] == [])
+      run_op(lab_v, lab_sec, "ssh_user_sites", {"uid": "outsider"}, DC)["grants"] == [])
 UCA = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeUserCaFakeUserCaFakeUserCaFakeUserCa00"
 HCA = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeHostCaFakeHostCaFakeHostCaFakeHostCa00"
 run_op(lab_v, lab_sec, "set_ssh_cas", {"user_ca": UCA, "host_ca": HCA, "domain": "lab.lan.test"}, DC)

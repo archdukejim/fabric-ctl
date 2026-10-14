@@ -11,7 +11,8 @@ SORTED = os.path.join(INSTALL_DIR, "config", "machines-sorted.json")   # what wa
 
 def sort_machines(v, actor="fabric", source="timer", secrets=None, container="samba", record=SORTED):
     """Purpose: the site's machines placed, each once: a Windows machine that joined itself into OU=machines moved
-             into OU=windows (manual 1.6.11.5, 2.1.6.36), and a Linux machine joined into OU=linux with an admin's
+             into its class's OU=windows (Windows Server a server, else a desktop; manual 1.6.11.5, 2.1.6.36 as revised
+             2026-10-13), and a Linux machine joined into its class's OU=linux with an admin's
              password made a member of <site>-fabric-machines unless its join said unmanaged (1.6.11.6, 2.1.6.40).
              The DC does both; this records which machines, so one an admin moves back or takes out is left so.
     Inputs:  v — fabric vars (site_name); actor, source — for the audit; secrets — fabric's secrets (default:

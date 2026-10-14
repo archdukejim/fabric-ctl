@@ -475,9 +475,11 @@ try:
           "host-1" in page and "/directory/machines/host-1/disable" in page and "/directory/machines/ws2404/enable" in page
           and "/directory/machines/_new" in page)
     check("machines section (admin): who may sign in per OU, each with a clear form, and the set form (1.6.11.4)",
-          "Who may sign in" in page and "machines/linux" in page and "lan-machine-admins" in page
+          "Who may sign in" in page and "machines/servers/linux" in page and "lan-machine-admins" in page
           and 'action="/directory/logon/clear"' in page and 'action="/directory/logon/set"' in page
           and "fabric-break-glass" in page)
+    check("...each class OU's remote users, its console right as above (2.1.7.14 revised)",
+          "lan-server-remote-users" in page and "lan-desktop-remote-users" in page and "as above" in page)
     check("machines section (admin): host groups with their machines and a remove form, the membership and new-group "
           "forms; sudo rules with who made each, remove only for fabric's, the add form (1.6.11.7)",
           "lan-hosts-web" in page and 'action="/directory/hostgroups/web/delete"' in page
@@ -615,7 +617,7 @@ from webui.devpreview.sample_data import SAMPLE_DOMAIN, SAMPLE_LOGON  # noqa: E4
 rctx = {"user": "u", "csrf": "x", "version": {"version": "1", "build": ""}, "perms": ["gpo:admin", "domain:read"]}
 page = views.directory(rctx, "machines", domain=SAMPLE_DOMAIN, logon={**SAMPLE_LOGON, "read_only": True})
 check("read-only DC's site: who may sign in shown, no set or clear form, the site above named",
-      "machines/linux" in page and 'action="/directory/logon/set"' not in page
+      "machines/servers/linux" in page and 'action="/directory/logon/set"' not in page
       and 'action="/directory/logon/clear"' not in page and "changed at the site above" in page)
 page = views.directory(rctx, "machines", domain=SAMPLE_DOMAIN, logon={**SAMPLE_LOGON, "read_only": True,
                                                                      "unapplied": True})

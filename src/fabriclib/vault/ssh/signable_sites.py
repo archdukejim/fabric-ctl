@@ -6,7 +6,7 @@ def signable_sites(v, sites, domain=None):
     """Purpose: which of a person's SSH sites this site's user CA may sign for (decision 2.1.7.14, revised
              2026-10-13; manual 1.6.11.9.14): this site itself and the sites below it (their OUs inside this site's
              OU, 1.9.8.14) — so central IT at the top signs for every site, a branch only for its own.
-    Inputs:  v — settings: site_name; sites — the sites whose `<site>-ssh-users` the person is in; domain — the
+    Inputs:  v — settings: site_name; sites — the sites whose remote users groups the person is in; domain — the
              domain's sites ([{"site", "dn"}], default domain_sites(): read from this site's DC).
     Returns: (in_scope, elsewhere): two sorted lists of site names.
     Fails:   ValidationError from domain_sites (the DC does not answer).

@@ -4,6 +4,7 @@ import os
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.paths import INSTALL_DIR
 from fabriclib.directory.add_machine import add_machine
+from fabriclib.directory.set_machine_class import set_machine_class
 from fabriclib.directory.sort_machines import sort_machines
 from fabriclib.samba.clear_logon_policy import clear_logon_policy
 from fabriclib.samba.domain_status import domain_status
@@ -21,9 +22,13 @@ USAGE = """usage: fabricctl domain status                    the Windows domain:
        fabricctl domain password-policy [--minimum-length N] [--complexity on|off] [--history N]
            [--minimum-age-days N] [--maximum-age-days N] [--lockout-threshold N] [--lockout-minutes N]
            [--lockout-window-minutes N] [--no-apply]
-       fabricctl domain add-machine <name> [--os linux|windows] [--unmanaged]   pre-create a machine (in its OS
-           family's OU; managed by fabric unless --unmanaged) with a one-time join password
-       fabricctl domain sort-machines [--scheduled]   Windows machines that joined themselves into OU=windows; Linux
+       fabricctl domain add-machine <name> [--os linux|windows] [--class server|desktop] [--unmanaged]
+           pre-create a machine (in its class's OS OU, the class by OS unless given: Linux a server, Windows a
+           desktop; managed by fabric unless --unmanaged) with a one-time join password
+       fabricctl domain machine class <name> server|desktop   move a machine to that class: who may sign in to it
+           remotely (SSH, RDP) is that class's <site>-<class>-remote-users
+       fabricctl domain sort-machines [--scheduled]   Windows machines that joined themselves into their class's
+           OU=windows (Windows Server a server, else a desktop); Linux
            machines joined with an admin's password into <site>-fabric-machines (each once)
        fabricctl domain host-managed [--scheduled]   this fabric host's management (Kerberos for SSH, the
            domain's names from fabric's DNS) applied or removed as its account's <site>-fabric-machines membership says
@@ -36,7 +41,8 @@ USAGE = """usage: fabricctl domain status                    the Windows domain:
        fabricctl domain logon clear <ou> [--no-apply]
   password-policy without options shows the policy in the settings; with options it changes those values (the whole
   policy is checked again) and applies them. add-machine prints the password once: give it to join-linux.sh
-  --one-time on the machine (manual 4.6.6). logon: <ou> is a path below the site's OU (machines, machines/linux, …;
+  --one-time on the machine (manual 4.6.6). logon: <ou> is a path below the site's OU (machines, machines/servers,
+  machines/desktops/windows, …;
   site for the site's OU itself); set names the groups allowed at the keyboard (--console) and remotely (--remote:
   RDP, SSH), a right left out kept as it is; clear lets the OU take its parent's policy again. fabric-break-glass and
   each machine's local Administrators are always allowed (manual 4.6.8)."""
@@ -100,13 +106,12 @@ def _show(o):
     if o["error"]:
         print(f"  could not be read: {o['error']}")
     for p in o["policies"]:
-        print(f"  {p['ou'] or 'site'}: console {', '.join(p['console']) or '(nobody)'}; "
+        console = "(as above)" if p["console"] is None else ", ".join(p["console"]) or "(nobody)"
+        print(f"  {p['ou'] or 'site'}: console {console}; "
               f"remote {', '.join(p['remote']) or '(nobody)'}")
     if not o["policies"]:
         print("  that OU has no policy of its own: it takes its parent's")
     print(f"  always, everywhere: {', '.join(o['always'])}")
-    if o.get("remote_always"):
-        print(f"  always remotely (SSH), everywhere but fabric-hosts: {', '.join(o['remote_always'])}")
 
 
 def _logon(v, args):
@@ -235,13 +240,33 @@ def _ssh_hosts(v, args):
     return 1 if any(m["error"] for m in done["machines"]) else 0
 
 
+def _machine(v, args):
+    """Purpose: `fabricctl domain machine class <name> server|desktop` (manual 4.6.6): only routes to
+             set_machine_class (2.1.6.36 as revised 2026-10-13).
+    Inputs:  v — rendered vars; args — list of str after `machine`.
+    Returns: exit status: 0 done (or already so), 1 refused, 2 usage.
+    Fails:   OSError from the audit log (propagates).
+    Feeds:   run_domain_command."""
+    if len(args) != 3 or args[0] != "class" or args[1].startswith("-"):
+        print(USAGE)
+        return 2
+    try:
+        done = set_machine_class(v, getpass.getuser(), args[1], args[2])
+    except ValidationError as e:
+        print(f"refused: {e}")
+        return 1
+    print(f"{done['name']} is a {done['class']} {'now' if done['changed'] else 'already'} ({done['dn']}); who may "
+          f"sign in to it remotely: {v['site_name']}-{done['class']}-remote-users and the groups nested in it")
+    return 0
+
+
 def run_domain_command(v, args):
     """Purpose: `fabricctl domain …` (manual 4.6.5): only routes to the domain functions.
     Inputs:  v — rendered vars; args — list of str after `domain`.
     Returns: exit status: 0 ok, 1 a refused change or a failed apply, 2 usage.
     Fails:   OSError from the vars file or the audit log (propagates).
     Feeds:   cli.main."""
-    if not args or args[0] not in ("status", "password-policy", "add-machine", "sort-machines", "logon",
+    if not args or args[0] not in ("status", "password-policy", "add-machine", "machine", "sort-machines", "logon",
                                    "host-managed", "rodc-cache", "ssh-hosts"):
         print(USAGE)
         return 2
@@ -253,6 +278,8 @@ def run_domain_command(v, args):
         return _host_managed(v, args[1:])
     if args[0] == "logon":
         return _logon(v, args[1:])
+    if args[0] == "machine":
+        return _machine(v, args[1:])
     if args[0] == "sort-machines":
         if args[1:] not in ([], ["--scheduled"]):
             print(USAGE)
@@ -263,7 +290,7 @@ def run_domain_command(v, args):
             print(f"refused: {e}")
             return 1
         if moved["sorted"]:
-            print(f"moved into OU=windows: {', '.join(moved['sorted'])}")
+            print(f"moved into their class's OU=windows: {', '.join(moved['sorted'])}")
         if moved["adopted"]:
             print(f"managed by fabric now (in {v['site_name']}-fabric-machines): {', '.join(moved['adopted'])}")
         if not moved["sorted"] and not moved["adopted"]:
@@ -273,12 +300,14 @@ def run_domain_command(v, args):
         rest = args[2:]
         managed = "--unmanaged" not in rest
         rest = [a for a in rest if a != "--unmanaged"]
-        os_family = rest[1] if len(rest) == 2 and rest[0] == "--os" else None
-        if len(args) < 2 or args[1].startswith("-") or (rest and os_family is None):
+        given = dict(zip(rest[::2], rest[1::2]))
+        if len(args) < 2 or args[1].startswith("-") or len(rest) % 2 or set(given) - {"--os", "--class"} \
+                or len(given) * 2 != len(rest):
             print(USAGE)
             return 2
         try:
-            password = add_machine(v, getpass.getuser(), args[1], os=os_family, managed=managed)
+            password = add_machine(v, getpass.getuser(), args[1], os=given.get("--os"), managed=managed,
+                                   machine_class=given.get("--class"))
         except ValidationError as e:
             print(f"refused: {e}")
             return 1

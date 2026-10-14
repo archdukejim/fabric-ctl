@@ -213,13 +213,40 @@ def samba_tool(*argv):
 m_domain.add_machine = functools.partial(m_add_machine.add_machine, secrets=SECRETS, container=DC)
 _record = os.path.join(tempfile.mkdtemp(), "machines-sorted.json")
 m_domain.sort_machines = functools.partial(m_sort.sort_machines, secrets=SECRETS, container=DC, record=_record)
+import fabriclib.directory.set_machine_class as m_class  # noqa: E402
+m_domain.set_machine_class = functools.partial(m_class.set_machine_class, secrets=SECRETS, container=DC)
+m_class.write_audit = lambda actor, event, detail, source: AUDIT.append(event)
 m_sort.write_audit = lambda actor, event, detail, source: AUDIT.append(event)
 code, out = domain("add-machine", "lx01", "--os", "linux")
 # covers: cli:domain.add-machine +
-check("add-machine --os linux: pre-created in OU=linux,OU=machines (1.6.11.5)",
-      code == 0 and "OU=linux,OU=machines,OU=lan" in dn_of("lx01"), (code, out, dn_of("lx01")))
+check("add-machine --os linux: pre-created as a server, in OU=linux,OU=servers,OU=machines (1.6.11.5, 2.1.6.36)",
+      code == 0 and "OU=linux,OU=servers,OU=machines,OU=lan" in dn_of("lx01"), (code, out, dn_of("lx01")))
 m_add_machine.add_machine(V, "alice", "win01", secrets=SECRETS, container=DC, os="windows")
-check("...and os windows in OU=windows,OU=machines", "OU=windows,OU=machines,OU=lan" in dn_of("win01"), dn_of("win01"))
+check("...and os windows a desktop, in OU=windows,OU=desktops,OU=machines",
+      "OU=windows,OU=desktops,OU=machines,OU=lan" in dn_of("win01"), dn_of("win01"))
+code, out = domain("add-machine", "kiosk01", "--os", "linux", "--class", "desktop")
+check("add-machine --class desktop: a Linux desktop, in OU=linux,OU=desktops,OU=machines",
+      code == 0 and "OU=linux,OU=desktops,OU=machines,OU=lan" in dn_of("kiosk01"), (code, out, dn_of("kiosk01")))
+code, out = domain("add-machine", "lx09", "--os", "linux", "--class", "laptop")
+check("refused: a class that is not server or desktop; nothing created",
+      code == 1 and "class: one of server, desktop" in out and "LX09" not in dn_of("lx09"), (code, out))
+# the machine class command (2.1.6.36 as revised 2026-10-13): moved into the other class's OU, its OS kept
+# covers: cli:domain.machine +
+code, out = domain("machine", "class", "lx01", "desktop")
+check("machine class lx01 desktop: moved to OU=linux,OU=desktops, saying who may sign in to it now",
+      code == 0 and "OU=linux,OU=desktops,OU=machines,OU=lan" in dn_of("lx01") and "lan-desktop-remote-users" in out,
+      (code, out, dn_of("lx01")))
+code, out = domain("machine", "class", "lx01", "desktop")
+check("...again: already so, nothing moved", code == 0 and "already" in out, out)
+domain("machine", "class", "lx01", "server")
+# covers: cli:domain.machine -
+code, out = domain("machine", "class", "lx01", "laptop")
+check("refused: another class (exit 1), the machine where it was", code == 1 and "class:" in out
+      and "OU=linux,OU=servers,OU=machines,OU=lan" in dn_of("lx01"), (code, out))
+code, out = domain("machine", "class", "nosuch", "server")
+check("refused: not a machine of the site (exit 1)", code == 1, (code, out))
+code, out = domain("machine", "class", "lx01")
+check("refused: a missing class is a usage error (exit 2)", code == 2 and "usage:" in out, (code, out))
 code, out = domain("add-machine", "mac01", "--os", "mac")
 # covers: cli:domain.add-machine -
 check("refused: an OS family fabric has no OU for, saying which there are; nothing created",
@@ -227,7 +254,7 @@ check("refused: an OS family fabric has no OU for, saying which there are; nothi
 code, out = domain("add-machine", "lx02", "--os")
 check("refused: --os without a family is a usage error (exit 2)", code == 2 and "usage:" in out, (code, out))
 # a Windows machine that joined itself lands in OU=machines; a Linux one made there by hand is not Windows'
-for name, osname in (("SELFJOIN", "Windows 11 Pro"), ("PLAINBOX", "Ubuntu")):
+for name, osname in (("SELFJOIN", "Windows 11 Pro"), ("PLAINBOX", "Ubuntu"), ("WINSRV", "Windows Server 2022 Standard")):
     samba_tool("computer", "add", name, "--computerou=OU=machines,OU=lan,OU=sites")
     where = dn_of(name).split("dn: ", 1)[1].split("\n")[0].strip()
     subprocess.run(["docker", "exec", "-i", DC, "ldbmodify", "-H", "/data/private/sam.ldb"], capture_output=True,
@@ -235,14 +262,16 @@ for name, osname in (("SELFJOIN", "Windows 11 Pro"), ("PLAINBOX", "Ubuntu")):
                                     f"operatingSystem: {osname}\n")
 code, out = domain("sort-machines")
 # covers: cli:domain.sort-machines +
-check("sort-machines: a Windows machine in OU=machines moves to OU=windows, audited; a Linux one stays",
-      code == 0 and "selfjoin" in out and "OU=windows,OU=machines,OU=lan" in dn_of("selfjoin")
+check("sort-machines: a Windows 11 machine in OU=machines moves to OU=windows,OU=desktops, audited; a Linux one "
+      "stays", code == 0 and "selfjoin" in out and "OU=windows,OU=desktops,OU=machines,OU=lan" in dn_of("selfjoin")
       and "OU=windows" not in dn_of("plainbox") and "MACHINE_SORT" in AUDIT, (code, out, dn_of("selfjoin")))
+check("...a Windows Server edition to OU=windows,OU=servers (a server by its operatingSystem)",
+      "OU=windows,OU=servers,OU=machines,OU=lan" in dn_of("winsrv"), dn_of("winsrv"))
 samba_tool("computer", "move", "SELFJOIN", "OU=machines,OU=lan,OU=sites")
 code, out = domain("sort-machines", "--scheduled")
 check("...once: an admin's move back to OU=machines is kept (the record), the timer's run changes nothing",
       code == 0 and "nothing to sort" in out and "OU=windows" not in dn_of("selfjoin")
-      and len(_json.load(open(_record))["sorted"]) == 1, (code, out, dn_of("selfjoin")))
+      and len(_json.load(open(_record))["sorted"]) == 2, (code, out, dn_of("selfjoin")))
 code, out = domain("sort-machines", "--now")
 # covers: cli:domain.sort-machines -
 check("refused: sort-machines with an option it does not take (usage, exit 2), nothing moved",
@@ -274,7 +303,7 @@ check("add-machine --unmanaged: not in lan-fabric-machines, marked unmanaged on 
 code, out = domain("add-machine", "--unmanaged")
 check("refused: add-machine without a name (usage, exit 2)", code == 2 and "usage:" in out, (code, out))
 for name in ("ADMINJOIN", "PLAINJOIN"):      # joined with an admin's password: land in OU=linux on their own
-    samba_tool("computer", "add", name, "--computerou=OU=linux,OU=machines,OU=lan,OU=sites",
+    samba_tool("computer", "add", name, "--computerou=OU=linux,OU=servers,OU=machines,OU=lan,OU=sites",
                *(["--description=fabric: unmanaged (manual 1.6.11.6)"] if name == "PLAINJOIN" else []))
 code, out = domain("sort-machines")
 check("sort-machines: an admin-joined Linux machine becomes managed (lan-fabric-machines), audited; one whose join said "

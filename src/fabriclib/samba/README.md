@@ -24,6 +24,7 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `set_logon_policy.py` | Who may sign in to one OU's machines, saved (groups checked in the domain; the first edit keeps today's rights as the site OU's; audited) |
 | `clear_logon_policy.py` | One OU's log-on policy removed (it takes its parent's; never leaving the site's machines without one; audited) |
 | `logon_overview.py` | Who may sign in, per OU: `logon show`, domain status, the web console's Machines section |
+| `plan_class_logon.py` | The per-OU log-on policies the DC writes, the machine class OUs' included, as status shows them (the host's mirror of the DC's plan_logon_entries; 2.1.7.14) |
 | `host_logon_default.py` | The log-on policy of the site's OU=fabric-hosts while the setting names none: the fabric admins (2.1.6.53) |
 | `writable_server.py` | The DC a write to the domain goes to: this site's, or at a read-only DC's site the first of its writable DCs that answers (`ad_writable_servers`, else `ad_join_server`); refused with none known or none answering, naming each (2.1.6.52, 2.1.6.57, 2.1.10.23) |
 | `check_writable_servers.py` | The setting `ad_writable_servers` checked at apply: a list of at most 8 names or addresses, no repeats (2.1.6.57) |

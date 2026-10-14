@@ -33,6 +33,7 @@ from save_role import save_role
 from set_dc_type_request import set_dc_type_request
 from set_host_group_member import set_host_group_member
 from set_machine import set_machine
+from set_machine_class import set_machine_class
 from set_person import set_person
 from set_ssh_cas import set_ssh_cas
 from set_ssh_host import set_ssh_host
@@ -79,6 +80,7 @@ OPS = {
     "set_dc_type_request": set_dc_type_request,
     "set_host_group_member": set_host_group_member,
     "set_machine": set_machine,
+    "set_machine_class": set_machine_class,
     "set_person": set_person,
     "set_ssh_cas": set_ssh_cas,
     "set_ssh_host": set_ssh_host,

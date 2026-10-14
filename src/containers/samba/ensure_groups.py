@@ -2,7 +2,9 @@ import ldb
 
 from alloc_id import alloc_id
 import paths
-from site_roles import FABRIC_ADMINS, ROLES, fabric_admins, fabric_machines, rodc_cache, role_group, ssh_users
+from remote_defaults import remote_defaults
+from site_roles import FABRIC_ADMINS, REMOTE_ROLES, ROLES, fabric_admins, fabric_machines, remote_users, rodc_cache, \
+    role_group
 
 DOMAIN_USERS_RID = 513          # AD's Domain Users: fabric's everyone-group `users` (Q11)
 
@@ -66,7 +68,8 @@ def ensure_groups(samdb, site, root, org_groups):
              own gids, `users` as AD's Domain Users, and `fabric-break-glass` (in every site's log-on policy). The host
              groups (manual 1.6.11.2): the organisation's `fabric-admins` (at the root), each site's
              `<site>-fabric-admins` with `fabric-admins` in it, `<site>-fabric-machines`, and `<site>-rodc-cache`
-             (what a read-only DC of the site may cache, 2.1.6.52); a new site's
+             (what a read-only DC of the site may cache, 2.1.6.52), `<site>-server-remote-users` and
+             `<site>-desktop-remote-users` (who may sign in remotely to each class of machine, 2.1.7.14); a new site's
              `<site>-fabric-admins` starts as a member of `<site>-machine-admins` (2.1.6.38), an existing site's is
              never nested by an upgrade.
     Inputs:  samdb — SamDB; site — str; root — bool; org_groups — list of {name, gidNumber, description?} (fabric's
@@ -120,12 +123,14 @@ def ensure_groups(samdb, site, root, org_groups):
         _add_member(samdb, fabric_admins(site), FABRIC_ADMINS, done)
     if new_site:
         _add_member(samdb, role_group(site, "machine-admins"), fabric_admins(site), done)
-    # who may SSH to the site's machines (decision 2.1.7.14, manual 1.6.11.9.13): the site's fabric admins and the
-    # organisation's nested in by default, when the group is made (an upgrade's too); an admin's later change is kept
-    _ensure(samdb, ssh_users(site), groups, builtin,
-            f"{site.capitalize()} SSH users: may SSH to the site's managed machines (manual 1.6.11.9.13)", done)
-    if f"group {ssh_users(site)} created" in done:
-        _add_member(samdb, ssh_users(site), fabric_admins(site), done)
-        if _group(samdb, FABRIC_ADMINS) is not None:
-            _add_member(samdb, ssh_users(site), FABRIC_ADMINS, done)
+    # who may sign in remotely (SSH through SSSD, RDP) to the site's machines of each class (decision 2.1.7.14 as
+    # revised 2026-10-13, manual 1.6.11.9.13): made here only (convergence, as the system; never by a branch's agent),
+    # the layered default nested when the group is made (an upgrade's too); a later change from above is kept
+    for cls in ("server", "desktop"):
+        name = remote_users(site, cls)
+        _ensure(samdb, name, groups, builtin, REMOTE_ROLES[f"{cls}-remote-users"], done)
+        if f"group {name} created" in done:
+            for member in remote_defaults(samdb, site, cls):
+                if _group(samdb, member) is not None:      # the root's not converged yet: added at its next run
+                    _add_member(samdb, name, member, done)
     return done

@@ -29,12 +29,12 @@ def ssh_overview(v, user, sites_check=ssh_user_sites, scope=signable_sites):
              public key and fingerprint as machines see it, and whether this person may get one and which sites it
              would name.
     Inputs:  v — settings: ssh_certificates, deploy_base_dir; user — the signed-in person (None for a root peer);
-             sites_check, scope — the sites' SSH users groups check and the sites this CA signs for (this one and
+             sites_check, scope — the sites' remote users groups check and the sites this CA signs for (this one and
              those below it: signable_sites) (tests pass their own).
     Returns: {"on": bool, "public_key" (the published one, "" when off), "fingerprint", "host_public_key",
              "host_fingerprint" (the host CA's, published for clients: 1.6.11.9.11; "" when off), "may_sign": bool,
-             "sites": [the sites the certificate would name], "elsewhere": [sites whose group the person is in but
-             this site does not sign for], "why_not" (str: why may_sign is False, "" otherwise),
+             "sites": [the `<site>-<class>` labels the certificate would name], "elsewhere": [sites whose group the
+             person is in but this site does not sign for], "why_not" (str: why may_sign is False, "" otherwise),
              "hours": 8}.
     Fails:   OSError reading the published key; a published key parse_ssh_key refuses shows as no key, never raises.
     Feeds:   agent route GET /v1/ssh."""
@@ -48,9 +48,12 @@ def ssh_overview(v, user, sites_check=ssh_user_sites, scope=signable_sites):
         why = "no signed-in person"
     else:
         try:
-            sites, elsewhere = scope(v, sorted(set(sites_check(v, user))))
+            grants = list(sites_check(v, user))
+            mine, elsewhere = scope(v, sorted({g["site"] for g in grants}))
+            sites = sorted(f"{g['site']}-{g['class']}" for g in grants if g["site"] in mine)
             may = bool(sites)
-            why = "" if may else ("you are not in any site's SSH users group (<site>-ssh-users)" if not elsewhere
+            why = "" if may else ("you are not in any site's remote users group (<site>-server-remote-users, "
+                                  "<site>-desktop-remote-users)" if not elsewhere
                                   else "this site signs only for itself and the sites below it: get your certificate "
                                   f"at {', '.join(elsewhere)} or a site above it")
         except ValidationError as exc:
