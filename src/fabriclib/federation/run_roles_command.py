@@ -23,6 +23,9 @@ def _show(v, only):
             what = f"bundle {r['bundle']}" if r["kind"] == "console" else "AD role"
             note = "  (an older default: the next convergence takes it away)" if r["pending"] else ""
             print(f"  {r['role']:<20} {what:<34} {', '.join(r['members'])}{note}")
+        for m in s.get("misplaced") or []:     # 2.1.9.24: reported, never moved
+            print(f"  MISPLACED {m['uid']} lives at {m['lives']} but holds a role at {', '.join(sorted(m['holds']))}:"
+                  f" move it from a site above (fabricctl people move {m['uid']} --site {sorted(m['holds'])[0]})")
     return 0
 
 

@@ -4,6 +4,7 @@ from fabriclib.common.ask import ask
 from fabriclib.common.errors import ValidationError
 from fabriclib.directory.create_person import create_person
 from fabriclib.directory.list_people import list_people
+from fabriclib.directory.move_person import move_person
 from fabriclib.directory.remove_person import remove_person
 from fabriclib.directory.reset_sign_in import reset_sign_in
 from fabriclib.directory.set_person_enabled import set_person_enabled
@@ -22,6 +23,9 @@ USAGE = """usage: fabricctl people list                      every person: user 
                                                   typed back; --confirm gives it unattended)
        fabricctl people groups <uid>              the groups they are in
        fabricctl people group add|remove <group> <uid>
+       fabricctl people move <uid> --site <site>  move their account to a site at or below this one, from a site
+                                                  above both (an account holds roles only at its own level or
+                                                  below: 2.1.9.24)
   Only this site's people can be changed. A one-time password is shown on this terminal only, never logged."""
 
 
@@ -105,6 +109,11 @@ def _run(v, args, actor):
         done = remove_person(v, actor, rest[0], confirm, privileged=True, source="cli")
         print(f"{rest[0]} removed; certificates revoked: {', '.join(done['revoked']) or 'none'}")
         return 0
+    if cmd == "move" and len(rest) == 3:
+        done = move_person(v, actor, rest[0], _options(rest[1:], ("--site",)).get("--site", ""))
+        print(f"{done['uid']}: " + (f"moved from {done['from']} to {done['to']}" if done["moved"] else
+                                    f"already lives at {done['to']}"))
+        return 0
     if cmd == "group" and len(rest) == 3 and rest[0] in ("add", "remove"):
         done = set_person_group(v, actor, rest[1], rest[2], rest[0] == "add", privileged=True, source="cli")
         state = "in" if done["member"] else "out of"
@@ -122,7 +131,7 @@ def run_people_command(v, args):
     Fails:   OSError from the audit log; OpenBao sealed (load_secrets) propagate.
     Feeds:   cli.main."""
     if not args or args[0] not in ("list", "show", "add", "reset", "unlock", "disable", "enable", "remove", "groups",
-                                   "group"):
+                                   "group", "move"):
         print(USAGE)
         return 2
     try:

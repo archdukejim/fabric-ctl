@@ -15,6 +15,7 @@ from list_sudo_rules import list_sudo_rules
 from logon_groups import logon_groups
 from list_people import list_people
 from list_site_roles import list_site_roles
+from move_person import move_person
 from place_fabric_host import place_fabric_host
 from prepare_ssh_hosts import prepare_ssh_hosts
 from read_devices import read_devices
@@ -60,6 +61,7 @@ OPS = {
     "logon_groups": logon_groups,
     "list_people": list_people,
     "list_site_roles": list_site_roles,
+    "move_person": move_person,
     "place_fabric_host": place_fabric_host,
     "prepare_ssh_hosts": prepare_ssh_hosts,
     "read_devices": read_devices,

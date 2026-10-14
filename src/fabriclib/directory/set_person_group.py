@@ -2,6 +2,7 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.common.write_audit import write_audit
 from fabriclib.directory.common.granted_from_above import granted_from_above
 from fabriclib.directory.common.person_guard import person_guard
+from fabriclib.directory.common.privileged_groups import privileged_groups
 from fabriclib.directory.run_op import run_op
 from fabriclib.keycloak.fabric_groups import fabric_groups
 from fabriclib.secrets.load_secrets import load_secrets
@@ -34,7 +35,8 @@ def set_person_group(v, actor, group, uid, member, privileged=False, source="web
     person_guard(v, secrets, uid, True, "change their groups", last_admin=not member and group == admin_group,
                  container=container)
     if member:
-        changed = run_op(v, secrets, "add_group_member", {"group": group, "uid": uid}, container)["added"]
+        changed = run_op(v, secrets, "add_group_member", {"group": group, "uid": uid,       # placement: 2.1.9.24
+                                                          "privileged": privileged_groups(v)}, container)["added"]
     else:
         changed = run_op(v, secrets, "remove_group_member", {"group": group, "uid": uid}, container)["removed"]
     if changed:

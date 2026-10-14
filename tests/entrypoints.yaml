@@ -356,6 +356,7 @@
 "cli:people.group": "src/fabriclib/directory/run_people_command.py"
 "cli:people.groups": "src/fabriclib/directory/run_people_command.py"
 "cli:people.list": "src/fabriclib/directory/run_people_command.py"
+"cli:people.move": "src/fabriclib/directory/run_people_command.py"
 "cli:people.remove": "src/fabriclib/directory/run_people_command.py"
 "cli:people.reset": "src/fabriclib/directory/run_people_command.py"
 "cli:people.show": "src/fabriclib/directory/run_people_command.py"

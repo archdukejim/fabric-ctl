@@ -40,7 +40,8 @@
 <table><thead><tr><th>Role</th><th>Gives</th><th>Held by</th></tr></thead><tbody>
 {% for r in s.roles %}<tr><td><code class="small">{{ r.group }}</code></td><td>{{ 'bundle ' ~ r.bundle if r.kind == 'console' else 'AD role' }}</td>
 <td>{{ r.members | join(', ') if r.members else '—' }}{% if r.pending %} <span class="muted small">(an older default: taken away at the next convergence)</span>{% endif %}{% if not r.exists %} <span class="muted small">(not made yet)</span>{% endif %}</td></tr>{% endfor %}
-</tbody></table>{% endfor %}
+</tbody></table>
+{% for m in s.misplaced or [] %}<p class="flash bad">{{ m.uid }} lives at {{ m.lives }} but holds a role at {{ m.holds | list | sort | join(', ') }}: move the account from a site above (<code>fabricctl people move {{ m.uid }} --site {{ (m.holds | list | sort)[0] }}</code>) or take the role away (2.1.9.24).</p>{% endfor %}{% endfor %}
 {% set below = f.roles | rejectattr('own') | list %}
 {% if can('federation:admin') and below %}<form method="post" action="/federation/roles" class="grid">{{ csrf() }}
 <label>Site<select name="site" required>{% for s in below %}<option>{{ s.site }}</option>{% endfor %}</select></label>

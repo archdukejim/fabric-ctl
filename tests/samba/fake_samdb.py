@@ -86,7 +86,8 @@ def _parse(f):
                 start = i + 1
         return ("!", parts[0]) if body[0] == "!" else (body[0], parts)
     attr, value = body.split("=", 1)
-    return ("=", attr.split(":")[0].lower(), value)
+    chain = "1.2.840.113556.1.4.1941" in attr          # LDAP_MATCHING_RULE_IN_CHAIN: nested membership
+    return ("=", attr.split(":")[0].lower() + ("@chain" if chain else ""), value)
 
 
 def _match(node, entry):
@@ -124,7 +125,9 @@ class FakeSamDB:
     def search(self, base, scope=SCOPE_SUBTREE, expression="(objectClass=*)", attrs=None):
         tree = _parse(expression)
         out = []
+        virtual = self._memberships()
         for dn, a in self.objects.items():
+            a = {**a, **virtual.get(dn, {})}
             low, b = dn.lower(), base.lower()
             inside = (low == b if scope == SCOPE_BASE else
                       low.endswith("," + b) and low[:-len(b) - 1].count(",") == 0 if scope == SCOPE_ONELEVEL else
@@ -134,6 +137,40 @@ class FakeSamDB:
         if scope == SCOPE_BASE and not out and base not in self.objects:
             raise LdbError(ERR_NO_SUCH_OBJECT, base)
         return out
+
+    def _memberships(self):
+        """memberOf (direct), and member / memberOf through nesting ("@chain"), per DN, computed from member."""
+        direct = {dn: [m for m in a.get("member", [])] for dn, a in self.objects.items()}
+        parents = {}
+        for g, ms in direct.items():
+            for m in ms:
+                parents.setdefault(m, []).append(g)
+
+        def closure(start, edges):
+            seen, todo = [], list(edges.get(start, []))
+            while todo:
+                x = todo.pop()
+                if x not in seen:
+                    seen.append(x)
+                    todo += edges.get(x, [])
+            return seen
+        out = {}
+        for dn in self.objects:
+            out[dn] = {"memberof": parents.get(dn, []), "memberof@chain": closure(dn, parents),
+                       "member@chain": closure(dn, direct)}
+            if dn.upper().startswith("CN=") and "cn" not in self.objects[dn]:      # AD's cn, the DN's first value
+                out[dn]["cn"] = [dn.split(",", 1)[0][3:]]
+        return out
+
+    def get_domain_sid(self):
+        return "S-1-5-21-1"
+
+    def rename(self, old, new):
+        self.objects[new] = self.objects.pop(old)
+        for a in self.objects.values():
+            if "member" in a:
+                a["member"] = [new if m.lower() == old.lower() else m for m in a["member"]]
+        self.log.append(("rename", old, new))
 
     def _by_name(self, name):
         found = [dn for dn, a in self.objects.items() if name.lower() in [x.lower() for x in a.get("samaccountname", [])]]

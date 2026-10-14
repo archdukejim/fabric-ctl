@@ -1,5 +1,6 @@
 import ldb
 
+from levels import IN_CHAIN, placement_refusal
 import paths
 from role_groups import branch_made, find_group, make_group
 from site_roles import GRANT_MARK, grant_group, grantable
@@ -20,6 +21,16 @@ def _member_dn(samdb, name):
     return str(res[0].dn)
 
 
+def _is_person(samdb, dn):
+    """Purpose: whether a DN is a person's (not a group's).
+    Inputs:  samdb — SamDB; dn — str.
+    Returns: bool.
+    Fails:   ldb.LdbError from the search.
+    Feeds:   grant_site_role."""
+    return bool(samdb.search(base=dn, scope=ldb.SCOPE_BASE, attrs=["dn"],
+                             expression="(&(objectCategory=person)(objectClass=user))"))
+
+
 def grant_site_role(samdb, lp, site, target, role, member="", grant=True):
     """Purpose: a role at a site below granted to a group or person, or taken back (2.1.9.21, manual 1.9.8.20): the
              member put in, or taken out of, the role's group `<target>-<role>` in the target's OU=groups (a console
@@ -28,7 +39,8 @@ def grant_site_role(samdb, lp, site, target, role, member="", grant=True):
              the target's own `<target>-admins` marks the group (GRANT_MARK), so convergence keeps it; revoking it
              clears the mark. A role group the target made itself (owned by its own agent, OU admins or admins: one it
              deleted and made again) is deleted and made again here, empty, first; and a missing one is made (2.1.9.21,
-             revised 2026-10-13): the way back from convergence's refusal (manual 4.9.1.2).
+             revised 2026-10-13): the way back from convergence's refusal (manual 4.9.1.2). A grant is refused unless
+             the person, or every person in the group (nested too), lives at the target or a site above it (2.1.9.24).
     Inputs:  samdb — SamDB (as the site's agent: AD refuses a write outside its site's OU too); lp — LoadParm
              (unused); site — str, this install's site (the one granting); target — str, the site the role is at;
              role — one of site_roles.grantable(); member — a group or person name ("" for `<target>-admins`);
@@ -36,8 +48,8 @@ def grant_site_role(samdb, lp, site, target, role, member="", grant=True):
     Returns: {"site": target, "role", "group", "member", "granted" (bool), "changed" (bool), "remade" (bool: a group
              the target had made was replaced)}.
     Fails:   ValueError "<role> is not a role a site can be granted (…)", "only a site above <target> may grant its
-             roles…", "no group or person …"; ValueError from alloc_id; LookupError for an unknown
-             site; ldb.LdbError (ERR_INSUFFICIENT_ACCESS_RIGHTS outside the agent's site).
+             roles…", "no group or person …", "<uid> lives at …" (placement_refusal); ValueError from alloc_id;
+             LookupError for an unknown site; ldb.LdbError (ERR_INSUFFICIENT_ACCESS_RIGHTS outside the agent's site).
     Feeds:   directory_ops (op "grant_site_role")."""
     if role not in grantable():
         raise ValueError(f"{role} is not a role a site can be granted ({', '.join(grantable())})")
@@ -46,6 +58,15 @@ def grant_site_role(samdb, lp, site, target, role, member="", grant=True):
                          + (" (a site cannot grant itself)" if target == site else ""))
     member = member or f"{target}-admins"
     who = _member_dn(samdb, member)
+    if grant:                   # who may hold a role at the target: people living there or above (2.1.9.24)
+        people = [who] if _is_person(samdb, who) else [
+            str(m.dn) for m in samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_SUBTREE, attrs=["dn"],
+                                            expression=f"(&(objectCategory=person)(objectClass=user)"
+                                                       f"(memberOf:{IN_CHAIN}:={ldb.binary_encode(who)}))")]
+        for dn in people:
+            why = placement_refusal(samdb, dn, [target])
+            if why:
+                raise ValueError(why)
     name = grant_group(target, role)
     groups = f"OU=groups,{paths.site_dn(samdb, target)}"
     res = find_group(samdb, groups, name)

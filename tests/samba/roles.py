@@ -269,6 +269,31 @@ else:
     check("house1's agent cannot delete its admins group; the top's remake leaves fabric's group as it is",
           not r["changed"], r)
 
+print("--- an account holds a role only at its own level (2.1.9.24)")
+changed = converge_domain(RV, os.path.join(W, "dc", "federation.yaml"), RS, container=DC)
+check("convergence reports itguy (Central IT living at house1), moving nobody",
+      any(c.startswith("misplaced: itguy lives at house1") for c in changed)
+      and "CN=itguy,OU=people," + H1 in dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=itguy)",
+                                           "dn").stdout, changed)
+pw = as_user(AG, AGENTS["house1"], "samba-tool", None, "user", "setpassword", "itguy", "--random-password")
+check("refused: house1's own agent resetting itguy's password (every write denied)", pw.returncode != 0,
+      (pw.stdout + pw.stderr)[-300:])
+pw = as_user(AG, AGENTS["house1"], "samba-tool", None, "user", "setpassword", "ann", "--random-password")
+check("...but it still resets ann's (house1's own person, no role beyond house1)", pw.returncode == 0,
+      (pw.stdout + pw.stderr)[-300:])
+why = refused(run_op, RV, RS, "grant_site_role", {"target": "house1", "role": "helpdesk", "member": "kid",
+                                                  "grant": True}, DC)
+check("refused: a role at house1 granted to kid, who lives at house1a, naming the move", "kid lives at house1a" in why
+      and "fabricctl people move kid --site house1" in why, why)
+why = refused(run_op, RV, RS, "add_group_member", {"group": "house1-gpo-admins", "uid": "kid"}, DC)
+check("refused: kid put in house1-gpo-admins", "kid lives at house1a" in why, why)
+why = refused(run_op, H1V, H1S, "move_person", {"uid": "itguy", "target": "lan"}, DC)
+check("refused: house1 moving itguy up to lan (from below)", "only a site above both" in why, why)
+mv = run_op(RV, RS, "move_person", {"uid": "itguy", "target": "lan", "privileged": ["admins"]}, DC)
+changed = converge_domain(RV, os.path.join(W, "dc", "federation.yaml"), RS, container=DC)
+check("the top moves itguy to lan; convergence reports nobody now",
+      mv["moved"] and not any(c.startswith("misplaced: itguy") for c in changed), (mv, changed))
+
 print("--- unlock_person (the agent's operation)")
 dc("ldbmodify", "-H", "/data/private/sam.ldb", input=f"dn: CN=ann,OU=people,{H1},{BASE}\nchangetype: modify\n"
    "replace: lockoutTime\nlockoutTime: 132000000000000000\n")

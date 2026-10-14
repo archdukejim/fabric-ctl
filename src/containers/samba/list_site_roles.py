@@ -1,5 +1,6 @@
 import ldb
 
+from levels import misplaced
 import paths
 from site_roles import CONSOLE_ROLES, GRANT_MARK, grant_group, grantable
 
@@ -13,14 +14,17 @@ def _cn(dn):
     return dn.split(",", 1)[0].split("=", 1)[1]
 
 
-def list_site_roles(samdb, lp, site):
+def list_site_roles(samdb, lp, site, privileged=None):
     """Purpose: the roles granted at this site and at every site below it (2.1.9.21, manual 1.9.8.20): for each
              grantable role its group and who is in it; never a sibling's or a parent's (2.1.9.22).
-    Inputs:  samdb — SamDB (as the site's agent); lp — LoadParm (unused); site — str, this install's site.
+    Inputs:  samdb — SamDB (as the site's agent); lp — LoadParm (unused); site — str, this install's site; privileged —
+             the organisation's fabric groups (roles at the top site), or None.
     Returns: {"sites": [{"site", "own" (bool: this site, whose roles only a site above grants), "roles": [{"role",
              "kind" ("ad" or "console"), "bundle" (the console's bundle, "" for an AD role), "group", "exists",
              "members" [names], "admins" (bool: the site's own admins hold it), "pending" (bool: they hold an AD role
-             without a grant: an older default the next convergence takes away)}]}]}, this site first.
+             without a grant: an older default the next convergence takes away)}], "misplaced": [{"uid", "lives",
+             "holds": {site: [groups]}}] (people of the site holding a role beyond it, 2.1.9.24: reported, never
+             moved)}]}, this site first.
     Fails:   LookupError when this site has no OU; ldb.LdbError from a search.
     Feeds:   directory_ops (op "list_site_roles")."""
     out = []
@@ -40,5 +44,6 @@ def list_site_roles(samdb, lp, site):
                           "bundle": CONSOLE_ROLES[role][0] if console else "", "group": name, "exists": bool(res),
                           "members": sorted(_cn(m) for m in members), "admins": held,
                           "pending": held and not console and not marked})
-        out.append({"site": each, "own": each == site, "roles": roles})
+        lost = [{k: m[k] for k in ("uid", "lives", "holds")} for m in misplaced(samdb, each, privileged or [])]
+        out.append({"site": each, "own": each == site, "roles": roles, "misplaced": lost})
     return {"sites": out}

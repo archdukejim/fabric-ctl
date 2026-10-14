@@ -288,6 +288,29 @@ check("refused there: lan's own helpdesk (lan-admins) is lan's only, and a sibli
       "(cn=lan-admins)" not in kid_mapper["config"]["groups.ldap.filter"][0]
       and "house2" not in kid_mapper["config"]["groups.ldap.filter"][0], kid_mapper["config"])
 ensure_site_group_mapper(kc, REALM, ldap[0]["id"], LAN_V)       # back to lan's own mapping
+# 2.1.9.24: a person whose role reaches beyond a branch is denied to that branch's Keycloak account (the deny
+# protect_privileged_people puts there): Keycloak then cannot store a password for them, so they change it at a sign-in
+# page of their own level. Here the deny is put on one person for lan's own Keycloak account, as a branch's would be.
+run_op(v, secrets, "create_person", {"uid": "faraway", "first": "Far", "last": "Away", "email": "far@lan.j-j.family",
+                                    "password": "Tst-" + random_password(20), "gid": 5000, "home_base": "/home",
+                                    "shell": "/bin/bash"}, DC)
+found = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=fabric-keycloak-lan)",
+            "objectSid"]).stdout
+kc_sid = found.split("objectSid: ")[1].split()[0]
+far_dn = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=faraway)", "dn"]
+            ).stdout.split("dn: ")[1].split("\n")[0].strip()
+sh(["docker", "exec", DC, "samba-tool", "dsacl", "set", f"--objectdn={far_dn}", f"--sddl=(D;;WPCRSDDTWDWO;;;{kc_sid})",
+    "-s", "/data/etc/smb.conf"])
+far = kc.call("GET", f"{R}/users?username=faraway&exact=true")[1]
+st, _ = kc.call("PUT", f"{R}/users/{far[0]['id']}/reset-password", {"type": "password", "temporary": False,
+                                                                     "value": "Tst-" + random_password(20)},
+                allow=(400, 403, 500, 502)) if far else (0, None)
+check("refused: Keycloak cannot store a password for a person its account is denied (2.1.9.24: they change it at "
+      "their own level)", far and st not in (200, 204), (st, far))
+st, _ = kc.call("PUT", f"{R}/users/{lena[0]['id']}/reset-password", {"type": "password", "temporary": True,
+                                                                      "value": "Tst-" + random_password(20)},
+                allow=(400, 403, 500, 502)) if lena else (0, None)
+check("...and still stores one for a person it is not denied (lena)", st in (200, 204), st)
 client = kc.call("GET", f"{R}/clients?clientId=fabric-webui")[1][0]
 check("client: confidential, code flow only, exact redirect, PKCE S256, fullScopeAllowed off",
       not client["publicClient"] and client["standardFlowEnabled"] and not client["implicitFlowEnabled"]

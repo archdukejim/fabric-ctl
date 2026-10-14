@@ -257,5 +257,81 @@ check("an AD role still held through the 0.8 default is pending; a console role 
 top = [s["site"] for s in list_site_roles(db, None, "lan")["sites"]]
 check("the top lists every site", top == ["lan", "house1", "house1a", "house2"], top)
 
+print("--- an account holds a role only at its own level or below (2.1.9.24)")
+add_member = importlib.import_module("add_group_member").add_group_member
+move = importlib.import_module("move_person").move_person
+protect = importlib.import_module("protect_privileged_people").protect_privileged_people
+levels = importlib.import_module("levels")
+db = domain()
+PEOPLE = {s: f"OU=people,{dn}" for s, dn in (("lan", f"OU=lan,{SITES}"), ("house1", f"OU=house1,OU=lan,{SITES}"),
+                                              ("house1a", f"OU=house1a,OU=house1,OU=lan,{SITES}"),
+                                              ("house2", f"OU=house2,OU=lan,{SITES}"))}
+for uid, where in (("kid", "house1a"), ("sib", "house2"), ("topper", "lan"), ("itguy", "house1")):
+    db.add_entry(f"CN={uid},{PEOPLE[where]}", objectClass=["user"], objectCategory="person", sAMAccountName=uid)
+for site in ("house1", "house1a", "house2"):
+    for kind in ("agent", "keycloak"):
+        db.add_entry(f"CN=fabric-{kind}-{site},OU=service-accounts,OU={site},{SITES}", objectClass=["user"],
+                     sAMAccountName=f"fabric-{kind}-{site}")
+check("site_of: where an account lives (its nearest site OU)",
+      levels.site_of(db, f"CN=kid,{PEOPLE['house1a']}") == "house1a"
+      and levels.site_of(db, f"CN=x,CN=Users,{BASE}") == "")
+done = grant_site_role(db, None, "lan", "house1a", "machine-admins", "jdoe")
+check("a role at house1a granted to jdoe, who lives above it (house1): allowed", done["changed"], done)
+why = refused(grant_site_role, db, None, "lan", "house1", "machine-admins", "kid")
+check("refused: a role at house1 granted to kid, who lives below it (house1a), naming where and how to move",
+      "kid lives at house1a" in why and "house1, lan" in why and "fabricctl people move kid --site house1" in why, why)
+db.add_remove_group_members("house1a-users", ["kid"])
+why = refused(grant_site_role, db, None, "lan", "house1", "network-operators", "house1a-users")
+check("refused: a role at house1 granted to a group with a member living below it (kid in house1a-users)",
+      "kid lives at house1a" in why, why)
+check("refused: a role at house2 granted to jdoe of house1 (a sibling's role)",
+      "jdoe lives at house1" in refused(grant_site_role, db, None, "lan", "house2", "gpo-admins", "jdoe"))
+why = refused(add_member, db, None, "house1", "house1-machine-admins", "kid")
+check("refused: kid (house1a) put in house1-machine-admins, before anything changes",
+      "kid lives at house1a" in why and "kid" not in members(db, "house1-machine-admins"), why)
+db.add_entry(f"CN=house1-ops,OU=groups,OU=house1,OU=lan,{SITES}", objectClass=["group"], sAMAccountName="house1-ops")
+db.add_remove_group_members("house1-ou-admins", ["house1-ops"])
+check("refused: kid put in a plain group nested in a role group (house1-ops in house1-ou-admins)",
+      "kid lives at house1a" in refused(add_member, db, None, "house1", "house1-ops", "kid"))
+check("refused: itguy (house1) put in the organisation's admins (a role at the top, lan)",
+      "itguy lives at house1" in refused(add_member, db, None, "lan", "admins", "itguy", ["admins"]))
+check("jdoe (house1) put in house1a-ou-admins (below its level): allowed",
+      add_member(db, None, "house1", "house1a-ou-admins", "jdoe") == {"added": True})
+check("kid put in a group that gives no role (house1-users): allowed",
+      add_member(db, None, "house1a", "house1-users", "kid") == {"added": True})
+
+print("--- misplaced people, and move_person (fabricctl people move)")
+db.add_remove_group_members("admins", ["itguy"])            # Central IT living at a branch: placed before the rule
+lost = levels.misplaced(db, "house1", ["admins"])
+check("misplaced: itguy at house1 holds a role at the top (lan); reported, nobody moved",
+      [(m["uid"], m["lives"], sorted(m["holds"])) for m in lost] == [("itguy", "house1", ["lan"])]
+      and f"CN=itguy,{PEOPLE['house1']}" in db.objects, lost)
+listed = list_site_roles(db, None, "lan", ["admins"])
+check("the roles listing shows it for house1 (the Roles card, fabricctl federation roles)",
+      [m["uid"] for s in listed["sites"] if s["site"] == "house1" for m in s["misplaced"]] == ["itguy"], listed)
+acl = protect(db, "house1", ["admins"])
+check("house1's own agent and Keycloak accounts denied every write on itguy, not on jdoe (house1's own roles)",
+      f"CN=itguy,{PEOPLE['house1']}: (D;;WPCRSDDTWDWO;;;SID-fabric-agent-house1)" in acl
+      and f"CN=itguy,{PEOPLE['house1']}: (D;;WPCRSDDTWDWO;;;SID-fabric-keycloak-house1)" in acl
+      and not any(a.startswith("CN=jdoe,") and "WPCRSDDTWDWO" in a for a in acl), [a for a in acl if "D;;WPCR" in a])
+why = refused(move, db, None, "house1", "itguy", "lan", ["admins"])
+check("refused: house1 moving itguy up to lan (a branch cannot move anyone above itself)",
+      "only a site above both" in why and "house1 is not above lan" in why, why)
+check("refused: house2 moving kid (house1a is not below house2)",
+      "only a site above both" in refused(move, db, None, "house2", "kid", "house2"))
+check("refused: moving itguy below a site where it holds a role (admins at lan; house1a)",
+      "holds a role at lan" in refused(move, db, None, "lan", "itguy", "house1a", ["admins"]))
+check("refused: an unknown person, or a service account",
+      "no person" in refused(move, db, None, "lan", "nobody", "lan")
+      and "no person" in refused(move, db, None, "lan", "fabric-agent-house1", "lan"))
+done = move(db, None, "lan", "itguy", "lan", ["admins"])
+check("the top moves itguy to lan: its account now lives there, in lan-users, no longer misplaced",
+      done == {"uid": "itguy", "from": "house1", "to": "lan", "moved": True}
+      and f"CN=itguy,{PEOPLE['lan']}" in db.objects and "itguy" in members(db, "lan-users")
+      and levels.misplaced(db, "house1", ["admins"]) == [], done)
+check("moving again changes nothing", not move(db, None, "lan", "itguy", "lan", ["admins"])["moved"])
+check("house1 moves kid up from house1a to house1 (both at or below it)",
+      move(db, None, "house1", "kid", "house1")["moved"] and f"CN=kid,{PEOPLE['house1']}" in db.objects)
+
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

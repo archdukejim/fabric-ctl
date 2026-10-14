@@ -48,3 +48,4 @@ account, so AD's per-site limits apply to it.
 | `run_sudo_command.py` | `fabricctl sudo`: routes to the sudo rule functions |
 | `is_fabric_admin.py` | Whether a person is a fabric admin (`fabric-admins` or `<site>-fabric-admins`, nested too): who may get an SSH certificate (1.6.11.9) |
 | `unlock_person.py` | Clear a person's lockout in AD and Keycloak, their password kept (`people:unlock`; the site helpdesk: own site only; audited) |
+| `move_person.py` | Move a person's account to another site (`fabricctl people move`), from a site above both; audited (2.1.9.24) |

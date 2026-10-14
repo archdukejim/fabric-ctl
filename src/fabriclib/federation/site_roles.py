@@ -1,3 +1,4 @@
+from fabriclib.directory.common.privileged_groups import privileged_groups
 from fabriclib.directory.run_op import run_op
 from fabriclib.secrets.load_secrets import load_secrets
 
@@ -9,7 +10,9 @@ def site_roles(v, secrets=None, container="samba"):
     Inputs:  v — fabric vars (site_name); secrets — fabric's secrets (default: load_secrets()); container — the DC's
              container.
     Returns: {"sites": [{"site", "own", "roles": [{"role", "kind", "bundle", "group", "exists", "members", "admins",
-             "pending"}]}]} (the DC's list_site_roles), this site first.
+             "pending"}], "misplaced": [{"uid", "lives", "holds"}]}]} (the DC's list_site_roles; misplaced: people
+             holding a role beyond their own level, 2.1.9.24), this site first.
     Fails:   ValidationError from run_op (the DC not reachable) or load_secrets.
     Feeds:   federation_overview, federation/run_federation_command (`roles`)."""
-    return run_op(v, secrets if secrets is not None else load_secrets(), "list_site_roles", container=container)
+    return run_op(v, secrets if secrets is not None else load_secrets(), "list_site_roles",
+                  {"privileged": privileged_groups(v)}, container=container)

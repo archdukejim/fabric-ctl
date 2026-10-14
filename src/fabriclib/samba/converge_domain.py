@@ -5,7 +5,7 @@ import ssl
 from fabriclib.federation.site_networks import site_networks
 from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.federation.common.load_registry import load_registry
-from fabriclib.keycloak.fabric_groups import fabric_groups
+from fabriclib.directory.common.privileged_groups import privileged_groups
 from fabriclib.radius.windows_lan_profile import windows_lan_profile
 from fabriclib.samba.check_logon_policies import check_logon_policies
 from fabriclib.samba.id_range import id_range
@@ -42,7 +42,7 @@ def converge_domain(v, federation_file, secrets, container="samba"):
                         for g in v.get("ldap_groups") or []],
              "admin_group": v.get("webui_admin_group") or "admins",
              # whose members the site helpdesk may not touch (2.1.9.21)
-             "privileged_groups": sorted(fabric_groups(v) | {"fabric-admins", "fabric-break-glass"}),
+             "privileged_groups": privileged_groups(v),
              "accounts": {f"fabric-{kind}-{v['site_name']}": secrets[f"ad_{kind}_password"]
                           for kind in ("agent", "keycloak", "radius")},
              "radius_gid": v["service_users"]["freeradius"]["gid"], "lan_profile": _lan_profile(v, root_ca),

@@ -225,5 +225,38 @@ done = group_mod.set_person_group({**V, "site_name": "lan"}, "root", "lan-ou-adm
                                   secrets={})
 check("at the top (no upstream) Central IT changes its own role groups", done["changed"], done)
 
+print("--- an account holds a role only at its own level (2.1.9.24): the placement asked of the DC, people move")
+SEEN_ARGS = []
+group_mod.run_op = lambda v, secrets, op, args, container: SEEN_ARGS.append(args) or {"added": True}
+group_mod.set_person_group({**V, "site_name": "lan"}, "root", "lan-ou-admins", "it", True, privileged=True,
+                           secrets={})
+check("a group add passes the organisation's fabric groups to the DC (roles at the top count for placement)",
+      "admins" in SEEN_ARGS[-1]["privileged"] and "fabric-admins" in SEEN_ARGS[-1]["privileged"], SEEN_ARGS[-1])
+import fabriclib.directory.move_person as move_mod  # noqa: E402
+MOVED, AUDITED = [], []
+move_mod.write_audit = lambda *a: AUDITED.append(a)
+move_mod.run_op = lambda v, secrets, op, args, container: MOVED.append((op, args)) or (
+    {"uid": args["uid"], "from": "house1", "to": args["target"], "moved": True} if args["target"] == "lan"
+    else (_ for _ in ()).throw(ValidationError("only a site above both may move ann from house1 to house2")))
+done = move_mod.move_person({**V, "site_name": "lan"}, "root", "ann", "lan", secrets={})
+check("move_person asks the DC's move_person (with the fabric groups) and is audited as PERSON_MOVE",
+      done["moved"] and MOVED[-1][0] == "move_person" and "admins" in MOVED[-1][1]["privileged"]
+      and AUDITED[-1][1] == "PERSON_MOVE" and "from=house1 to=lan" in AUDITED[-1][2], (MOVED[-1], AUDITED))
+n = len(MOVED)
+check("refused before the DC is asked: a malformed user name or site",
+      "letters, digits" in refused(move_mod.move_person, V, "root", "ann;x", "lan", secrets={})
+      and "letters, digits" in refused(move_mod.move_person, V, "root", "ann", "", secrets={}) and len(MOVED) == n)
+cli_mod.move_person = lambda v, actor, uid, target: move_mod.move_person(v, actor, uid, target, secrets={})
+out = io.StringIO()
+with redirect_stdout(out):
+    # covers: cli:people.move +
+    ok = cli_mod.run_people_command({**V, "site_name": "lan"}, ["move", "ann", "--site", "lan"])
+    # covers: cli:people.move -
+    bad = cli_mod.run_people_command(V, ["move", "ann", "--site", "house2"])
+    usage = cli_mod.run_people_command(V, ["move", "ann"])
+check("people move <uid> --site <site>: moved; from below: refused (exit 1); without --site: usage (exit 2)",
+      ok == 0 and "ann: moved from house1 to lan" in out.getvalue() and bad == 1
+      and "only a site above both" in out.getvalue() and usage == 2, out.getvalue()[-400:])
+
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

@@ -237,7 +237,8 @@ roles_cli.site_roles = lambda v: {"sites": [
     {"site": "house1a", "own": False, "roles": [{"role": "network-operators", "kind": "console",
                                                  "bundle": "fabric-network-operator", "exists": True,
                                                  "group": "house1a-network-operators", "members": ["house1a-admins"],
-                                                 "pending": False}]}]}
+                                                 "pending": False}],
+     "misplaced": [{"uid": "itguy", "lives": "house1a", "holds": {"lan": ["admins"]}}]}]}
 # covers: cli:federation.roles +
 code, out = run(roles_cli.run_roles_command, V, ["grant", "house1a", "network-operators"])
 check("roles grant <site> <role>: to the site's admins", code == 0 and
@@ -265,6 +266,9 @@ code, out = run(roles_cli.run_roles_command, V, [])
 check("roles: each site's held roles, its own marked, an old default marked pending, the empty ones left out",
       code == 0 and "site house1 (this site" in out and "an older default" in out and "house1a-admins" in out
       and "helpdesk" not in out.split("site house1a")[0].split("\n", 1)[1], out)
+check("roles: a person holding a role beyond their level is reported with how to move them (2.1.9.24)",
+      "MISPLACED itguy lives at house1a but holds a role at lan" in out
+      and "fabricctl people move itguy --site lan" in out, out)
 # covers: cli:federation.roles -
 code, out = run(roles_cli.run_roles_command, V, ["grant", "house1a"])
 code2, _ = run(roles_cli.run_roles_command, V, ["grant", "house1a", "helpdesk", "--from", "jdoe"])
@@ -383,6 +387,8 @@ if federation:
     check("the Roles card lists each site's roles, this site marked, a pending default said",
           "house1-ou-admins" in page and "house1a-network-operators" in page and "only a site above grants" in page
           and "taken away at the next convergence" in page, page[-2000:])
+    check("...a misplaced person reported on the card with how to move them (2.1.9.24)",
+          "itguy lives at house1a but holds a role at lan" in page and "people move itguy --site lan" in page)
     form = page.split('action="/federation/roles"')[1].split("</form>")[0] if 'action="/federation/roles"' in page \
         else ""
     check("...the grant form for federation:admin, its sites only those below",

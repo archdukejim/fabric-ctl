@@ -32,6 +32,7 @@ from refresh_sudo_hosts import refresh_sudo_hosts
 from open_samdb import open_samdb
 from plan_cidrs import plan_cidrs
 from protect_privileged_people import protect_privileged_people
+from levels import misplaced
 from remove_ipv6_records import remove_ipv6_records
 from repair_role_owners import repair_role_owners
 from root_ca_policy import EXTENSIONS as TRUST_EXTENSIONS, root_ca_policy
@@ -41,6 +42,18 @@ from windows_baseline_policy import windows_baseline_policy
 import paths
 
 CONF = "/data/etc/smb.conf"
+
+
+def _misplaced_lines(samdb, site, privileged):
+    """Purpose: a line per person of a site who holds a role beyond it (2.1.9.24, manual 1.6.3.18.8): reported at
+             every convergence, never moved.
+    Inputs:  samdb — SamDB; site — str; privileged — list of str, the fabric groups.
+    Returns: list of str.
+    Fails:   ldb.LdbError from a search.
+    Feeds:   converge, _sites_below."""
+    return [f"misplaced: {m['uid']} lives at {m['lives']} but holds a role at {', '.join(sorted(m['holds']))} "
+            f"(2.1.9.24): move it from a site above (fabricctl people move {m['uid']} --site "
+            f"{sorted(m['holds'])[0]}) or take the role away" for m in misplaced(samdb, site, privileged)]
 
 
 def _sites_below(samdb, site, admin_group, privileged):
@@ -59,6 +72,7 @@ def _sites_below(samdb, site, admin_group, privileged):
             done += narrow_site_admins(samdb, each, False, admin_group)
             done += ensure_site_acl(samdb, each, False)
             done += protect_privileged_people(samdb, each, privileged)
+            done += _misplaced_lines(samdb, each, privileged)
         except Exception as e:          # one site below must not stop this site's convergence
             done.append(f"site {each}: layered roles not applied from here ({type(e).__name__}: {e}); "
                         "its own convergence applies them (2.1.9.21)")
@@ -116,6 +130,7 @@ def converge(state):
     privileged = state.get("privileged_groups") or [state["admin_group"]]
     changed += ensure_site_acl(samdb, site, root)
     changed += protect_privileged_people(samdb, site, privileged)
+    changed += _misplaced_lines(samdb, site, privileged)
     changed += _sites_below(samdb, site, state["admin_group"], privileged)
     changed += ensure_networks(samdb, site, state["networks"])
     changed += ensure_sudo_rule(samdb, site, state["admin_group"], root)
