@@ -1,6 +1,7 @@
 from fabriclib.common.ask import ask
 from fabriclib.common.console import BOLD, NC, YELLOW, heading
 from fabriclib.samba.suggested_ad_domain import suggested_ad_domain
+from fabriclib.samba.suggested_dc_name import suggested_dc_name
 from fabriclib.setup.advanced.menu_items import menu_items
 from fabriclib.setup.common.network_problem import network_problem
 from fabriclib.setup.common.valid_setting import FIRST_ADMIN, valid_setting
@@ -54,8 +55,8 @@ def setup_menu(ctx, networks=None):
              changes nothing. Something not on the list is refused, saying which numbers are.
     Inputs:  ctx — SetupContext: vars, origins, host_choices, admin_password (all changed by the items); networks —
              host_networks() for DHCP's questions (None: this host's). Interactive.
-    Returns: None, on Proceed: every required setting valid, the AD domain set (its suggestion taken when none was
-             chosen), the network's answers fitting together.
+    Returns: None, on Proceed: every required setting valid, the AD domain and the DC's name set (their suggestions
+             taken when none was chosen), the network's answers fitting together.
     Fails:   SystemExit("setup cancelled") on Quit; EOFError from input().
     Feeds:   setup/run_setup (Advanced at the start), setup/choose_plan ([M]enu)."""
     _fill_found(ctx)
@@ -79,6 +80,10 @@ def setup_menu(ctx, networks=None):
                 continue
             if not ctx.vars.get("ad_domain"):
                 ctx.vars["ad_domain"] = suggested_ad_domain(str(ctx.vars.get("domain") or ""))
+            # the DC's name is permanent (2.1.6.45): the suggestion shown is saved, so a later host rename never
+            # moves it (the 0.7.1 candidate's install left it unset, 2.3.1.21.2)
+            if not ctx.vars.get("dc_name"):
+                ctx.vars["dc_name"] = suggested_dc_name(ctx.vars.get("hostname"))
             return
         if answer.isdigit() and 1 <= int(answer) <= len(items):
             items[int(answer) - 1]["ask"]()

@@ -51,7 +51,9 @@ def _prepare(paths):
     Fails:   ValidationError (settings, secrets that cannot be loaded or saved, fixed identity).
     Feeds:   apply_deployment."""
     custom_vars = load_vars(paths["vars"])
-    for line in keep_old_install(custom_vars):     # an install from before 0.7.0, applied before setup ran (2.1.6.45)
+    provisioned = os.path.exists(os.path.join(paths["base"], "samba", "data", ".fabric-provisioned"))
+    for line in keep_old_install(custom_vars, provisioned):   # an install from before 0.7.0, applied before setup
+        # ran (2.1.6.45)
         print(line)
     try:
         secrets = load_secrets(paths["secrets"])

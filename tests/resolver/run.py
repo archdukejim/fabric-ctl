@@ -156,12 +156,12 @@ check("settings: rules are normalised (lowercase, no trailing dot, no duplicates
 # ---- the 0.7.0 upgrade of the vars (1.12.3.11)
 up = {"resolver_mem_limit": "384m", "dns_filter_groups": [{"name": "kids", "clients": ["192.168.77.5"],
                                                             "lists": [{"name": "Adult", "url": "https://x/a"}]}]}
-changes = upgrade_vars(up, set())
+changes = upgrade_vars(up, set(), True)
 check("upgrade: the resolver's old 384m default goes (128m now); a group's own lists are taken out and named",
       "resolver_mem_limit" not in up and "lists" not in up["dns_filter_groups"][0]
       and any("Adult" in c for c in changes), (up, changes))
 kept = {"resolver_mem_limit": "512m"}
-upgrade_vars(kept, set())
+upgrade_vars(kept, set(), True)
 check("upgrade: a resolver limit the admin set is kept", kept == {"resolver_mem_limit": "512m"}, kept)
 
 # ---- the move from 0.6's AdGuard Home (manual 2.3.12.1.9, 1.12.3.11)

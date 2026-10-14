@@ -90,8 +90,8 @@ def collect_vars(ctx, ask=True):
     data = {}
     user_file = ctx.user_vars_file
     # a fresh install: no settings yet and no domain provisioned (an upgrade or a reinstall keeps its log-on rights)
-    fresh = not os.path.exists(ctx.vars_file) and not os.path.exists(
-        os.path.join(ctx.deploy_base, "samba", "data", ".fabric-provisioned"))
+    provisioned = os.path.exists(os.path.join(ctx.deploy_base, "samba", "data", ".fabric-provisioned"))
+    fresh = not os.path.exists(ctx.vars_file) and not provisioned
     repo_vars = os.path.join(os.path.dirname(ctx.source_dir), "custom-vars.yaml")
     user = _load(user_file) if user_file else {}
     if os.path.exists(ctx.vars_file):
@@ -106,7 +106,7 @@ def collect_vars(ctx, ask=True):
         explicit = {**_load(repo_vars), **user}
         pins = set(data.get("image_pins") or []) | {k for k in explicit if k.startswith("image_")}
         data["image_pins"] = sorted(pins)
-        for change in upgrade_vars(data, {k: True for k in pins}):
+        for change in upgrade_vars(data, {k: True for k in pins}, provisioned):
             info(change)
     elif not user_file and os.path.exists(repo_vars):
         # Fresh install from a checkout with the classic custom-vars.yaml.

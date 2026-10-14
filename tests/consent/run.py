@@ -180,7 +180,7 @@ check("an install with the previous bind (53) account: create fabric-dns, move i
 
 print("--- upgrading an older install's settings")
 old = {"service_users": {"bind": {"uid": 53, "gid": 53}, "nginx": {"uid": 1443, "gid": 1443}}}
-changes = upgrade_vars(old, set())
+changes = upgrade_vars(old, set(), True)
 check("previous defaults are dropped (the new accounts apply), an admin's own ids are kept",
       old["service_users"] == {"nginx": {"uid": 1443, "gid": 1443}} and len(changes) == 1, (old, changes))
 # certs.<domain> dropped (1.5.1.5): its keys and the default CNAME go; an admin's other records stay
@@ -188,12 +188,12 @@ old = {"hostname": "fab", "cname_certs": "certs", "hostname_certs": "certs.lan.t
        "dns": {"dynamic_zone_var": {"CNAME": [{"canonical": "fab", "name": "certs"}, {"canonical": "fab", "name": "ca"},
                                              {"canonical": "nas", "name": "certs2"}]}}}
 # (an install from before 0.7.0 also keeps its DC's name: that change is the DC's, 2.1.6.45, counted apart)
-changes = [c for c in upgrade_vars(old, set()) if "certs" in c]
+changes = [c for c in upgrade_vars(old, set(), True) if "certs" in c]
 check("an older install's certs.<domain>: cname_certs, hostname_certs and its CNAME removed, other CNAMEs kept",
       "cname_certs" not in old and "hostname_certs" not in old and len(changes) == 2
       and [r["name"] for r in old["dns"]["dynamic_zone_var"]["CNAME"]] == ["ca", "certs2"], (old, changes))
 old = {"hostname": "fab", "dns": {"dynamic_zone_var": {"CNAME": [{"canonical": "elsewhere", "name": "certs"}]}}}
-changes = [c for c in upgrade_vars(old, set()) if "certs" in c]
+changes = [c for c in upgrade_vars(old, set(), True) if "certs" in c]
 check("…but a certs record the admin pointed elsewhere is not the old default: kept, nothing reported",
       old["dns"]["dynamic_zone_var"]["CNAME"] == [{"canonical": "elsewhere", "name": "certs"}] and changes == [],
       (old, changes))
@@ -1221,6 +1221,12 @@ check("host changes: the ports turned off show what that means and take securing
       and "If no: ufw is not told about fabric's ports" in out and "also off: Secure this host" in out
       and "also off: The host's own firewall rules" in out and "also on: Ports fabric needs" in out
       and "also on: Secure this host" in out, (c.host_choices, out[-2500:]))
+c = new_ctx()
+got, out, left = drive(lambda: m_menu.setup_menu(c, NETS), ["3", "Acme", "7", "", "p"],
+                       secrets=["Good-Pass-12345", "Good-Pass-12345"])
+check("Proceed with the DC's name item left alone saves its suggestion, dc-<hostname> (the 0.7.1 candidate's install "
+      "left it unset and the DC took the host's name, 2.3.1.21.2)",
+      got is None and not left and c.vars.get("dc_name") == "dc-fab1", (c.vars.get("dc_name"), left, out[-1500:]))
 got, _, _ = drive(lambda: m_menu.setup_menu(new_ctx(), NETS), ["q"])
 check("negative: Quit in the menu changes nothing and stops setup", isinstance(got, SystemExit), got)
 

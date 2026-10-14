@@ -195,8 +195,12 @@ for host, want in (('Kitchen-Server01', 'dc-kitchen-serv'), ('raspberrypi-4b', '
     assert _dc(hostname=host)[0] == want == suggested_dc_name(host), (host, _dc(hostname=host))
 assert _dc(dc_name='DC1') == ('dc1', 'dc1.ad.j-j.family', 'dc1'), _dc(dc_name='DC1')
 old = {**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family'}
-assert keep_old_install(old) and old['dc_name'] == 'pi-core' and _dc(dc_name=old['dc_name'])[1] == 'pi-core.ad.j-j.family'
-assert keep_old_install(old) == [] and keep_old_install({'dc_name': 'dc-x', 'hostname': 'x'}) == [], 'kept once only'
+fresh = {**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family'}
+assert keep_old_install(fresh, provisioned=False) == [] and 'dc_name' not in fresh and _dc()[0] == 'dc-pi-core', \
+    'a fresh install (no domain yet) keeps nothing: dc-<hostname> (2.3.1.21.2)'
+assert keep_old_install(old, provisioned=True) and old['dc_name'] == 'pi-core' and _dc(dc_name=old['dc_name'])[1] == 'pi-core.ad.j-j.family'
+assert keep_old_install(old, True) == [] and keep_old_install({'dc_name': 'dc-x', 'hostname': 'x'}, True) == [], \
+    'kept once only'
 renamed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family',
                                                                      'dc_name': 'dc-pi-core', 'hostname': 'kitchen'}))
 assert renamed['hostname_dc'] == 'dc-pi-core.ad.j-j.family' and {'ip': renamed['host_ip'], 'name': 'kitchen'} in \
@@ -216,7 +220,7 @@ assert 'hosts' not in [o['name'] for o in v2['ldap_organizational_units']] \
 old = {**copy.deepcopy(PRISTINE), 'ldap_organizational_units': [
     {'name': 'users', 'parent': 'accounts', 'uid_range': '5001-50000'}, {'name': 'hosts', 'uid_range': '2000-4900'}],
        'ldap_groups': [{'gidNumber': 1100, 'name': 'admins'}, {'gidNumber': 5000, 'name': 'users'}]}
-keep_old_install(old)
+keep_old_install(old, provisioned=True)
 was = yaml.safe_load(env.get_template('vars.yaml.j2').render(**old))
 was_gids = {g['name']: g['gidNumber'] for g in was['ldap_groups']}
 assert id_range(was) == '5001-105000' and was_gids['admins'] == 1100 and was_gids['users'] == 5000 \
