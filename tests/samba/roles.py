@@ -188,6 +188,14 @@ pc3 = as_user("deskh1", desk_pw, "ldbadd", f"dn: CN=PC7,OU=machines,{H2},{BASE}\
 check("refused: ...but not at house2 (a granted role works at that site only)", not ok(pc3))
 converge_domain(RV, os.path.join(W, "dc", "federation.yaml"), RS, container=DC)
 check("the grant survives convergence (marked)", "house1-admins" in members("house1-machine-admins"))
+# a role granted at a site works at every site below it (2.1.9.21, revised 2026-10-13): the top's convergence gave
+# house1-machine-admins house1a's machines (ensure_site_acl for each site below)
+pc4 = as_user("deskh1", desk_pw, "ldbadd", f"dn: CN=PC6,OU=machines,{H1A},{BASE}\nobjectClass: computer\n"
+              "sAMAccountName: PC6$\nuserAccountControl: 4096\n")
+check("...house1's admin adds a machine at house1a, the site below house1", ok(pc4), pc4.stderr[-300:])
+pc5 = as_user("deskh1", desk_pw, "ldbadd", f"dn: CN=PC5,OU=machines,{LAN},{BASE}\nobjectClass: computer\n"
+              "sAMAccountName: PC5$\nuserAccountControl: 4096\n")
+check("refused: ...but not at the top (lan), the site above", not ok(pc5))
 # covers: agent:post.federation.roles -
 why = refused(run_op, H1V, H1S, "grant_site_role", {"target": "house1", "role": "ou-admins", "member": "",
                                                     "grant": True}, DC)

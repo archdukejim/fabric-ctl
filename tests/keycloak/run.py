@@ -242,7 +242,7 @@ site_mapper = [m for m in mappers if m.get("name") == "fabric site groups"]
 check("a second group mapper for the site's own role groups: read only, nested membership, the site's OU=groups only",
       len(site_mapper) == 1 and site_mapper[0]["config"]["mode"] == ["READ_ONLY"]
       and site_mapper[0]["config"]["user.roles.retrieve.strategy"] == ["LOAD_GROUPS_BY_MEMBER_ATTRIBUTE_RECURSIVELY"]
-      and site_mapper[0]["config"]["groups.dn"][0].startswith("OU=groups,OU=lan,OU=sites,"),
+      and site_mapper[0]["config"]["groups.dn"][0].startswith("OU=lan,OU=sites,"),
       site_mapper and site_mapper[0]["config"])
 check("...and the organisation's mapper is still its own (not taken over)",
       len([m for m in mappers if m.get("providerId") == "group-ldap-mapper"]) == 2)
@@ -267,6 +267,27 @@ sh(["docker", "exec", DC, "samba-tool", "group", "addmembers", "lan-network-oper
 names = {r["name"] for r in kc.call("GET", f"{R}/users/{lena[0]['id']}/role-mappings/realm/composite")[1]} if lena else set()
 check("a granted role (lan-admins nested in lan-network-operators) gives its bundle here, through the nesting",
       "fabric-network-operator" in names and "fabric:dns:write" in names, sorted(names))
+# a role granted at a site works at every site below it (2.1.9.21, revised 2026-10-13): this realm mapped as if it
+# were the Keycloak of `kid`, a site below lan (its groups searched from the top site's OU, the filter naming kid's own
+# groups and lan's console role groups), then put back
+from fabriclib.keycloak.ensure_site_group_mapper import ensure_site_group_mapper  # noqa: E402
+from fabriclib.keycloak.grant_role_to_group import grant_role_to_group  # noqa: E402
+from fabriclib.keycloak.site_bundle_grants import site_bundle_grants  # noqa: E402
+LAN_V = {**v, "ad_site_ou": v.get("ad_site_ou") or "OU=lan,OU=sites"}
+KID = {**LAN_V, "site_name": "kid", "ad_site_ou": "OU=kid," + LAN_V["ad_site_ou"]}
+ensure_site_group_mapper(kc, REALM, ldap[0]["id"], KID)
+for group, bundle in site_bundle_grants("kid", ["lan"]):
+    grant_role_to_group(kc, REALM, kc.call("GET", f"{R}/roles/{bundle}")[1], group)
+kid_mapper = [m for m in kc.call("GET", f"{R}/components?parent={ldap[0]['id']}&type=org.keycloak.storage.ldap."
+                                       "mappers.LDAPStorageMapper")[1] if m.get("name") == "fabric site groups"][0]
+names = {r["name"] for r in kc.call("GET", f"{R}/users/{lena[0]['id']}/role-mappings/realm/composite")[1]} if lena else set()
+check("at a site below lan, lan's granted role (lan-network-operators) still gives its bundle",
+      "fabric-network-operator" in names and "(cn=lan-network-operators)" in kid_mapper["config"]["groups.ldap.filter"][0]
+      and kid_mapper["config"]["groups.dn"][0].startswith("OU=lan,OU=sites,"), (sorted(names), kid_mapper["config"]))
+check("refused there: lan's own helpdesk (lan-admins) is lan's only, and a sibling's role (house2-) is never mapped",
+      "(cn=lan-admins)" not in kid_mapper["config"]["groups.ldap.filter"][0]
+      and "house2" not in kid_mapper["config"]["groups.ldap.filter"][0], kid_mapper["config"])
+ensure_site_group_mapper(kc, REALM, ldap[0]["id"], LAN_V)       # back to lan's own mapping
 client = kc.call("GET", f"{R}/clients?clientId=fabric-webui")[1][0]
 check("client: confidential, code flow only, exact redirect, PKCE S256, fullScopeAllowed off",
       not client["publicClient"] and client["standardFlowEnabled"] and not client["implicitFlowEnabled"]

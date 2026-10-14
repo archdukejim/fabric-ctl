@@ -589,6 +589,7 @@ file	fabriclib-keycloak|src/fabriclib/keycloak/run_sso_command.py	25
 file	fabriclib-keycloak|src/fabriclib/keycloak/sign_out_person.py	29	
 file	fabriclib-keycloak|src/fabriclib/keycloak/signin_levels.py	28	
 file	fabriclib-keycloak|src/fabriclib/keycloak/site_bundle_grants.py	35	
+file	fabriclib-keycloak|src/fabriclib/keycloak/site_lineage.py	36	
 file	fabriclib-keycloak|src/fabriclib/keycloak/step.py	18	
 file	fabriclib-keycloak|src/fabriclib/keycloak/user_has_role.py	19	
 file	fabriclib-keycloak|src/fabriclib/keycloak/verify_user_token.py	20	
@@ -2142,6 +2143,7 @@ function	fabriclib-keycloak|src/fabriclib/keycloak/sign_out_person.py|sign_out_p
 function	fabriclib-keycloak|src/fabriclib/keycloak/signin_levels.py|admin_level	2	
 function	fabriclib-keycloak|src/fabriclib/keycloak/signin_levels.py|signin_level	1	
 function	fabriclib-keycloak|src/fabriclib/keycloak/site_bundle_grants.py|site_bundle_grants	1	
+function	fabriclib-keycloak|src/fabriclib/keycloak/site_lineage.py|site_lineage	1	
 function	fabriclib-keycloak|src/fabriclib/keycloak/step.py|step	1	
 function	fabriclib-keycloak|src/fabriclib/keycloak/user_has_role.py|user_has_role	1	
 function	fabriclib-keycloak|src/fabriclib/keycloak/verify_user_token.py|_client	1	

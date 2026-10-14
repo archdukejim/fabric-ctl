@@ -984,6 +984,16 @@ out = agent_call("POST", "/v1/federation/roles", "carol", AUDITOR_ROLES, {"site"
                                                                          "action": "grant"})
 # covers: agent:post.federation.roles -
 check("auditor token: may not grant a role (403, federation:admin)", " 403 " in out and "federation:admin" in out, out)
+# a role granted at a site above (2.1.9.21, revised 2026-10-13): this site's Keycloak puts its bundle in the token like
+# any other, and the agent takes it as it is — no site of origin is checked here (tests/keycloak maps it)
+REGION_NETOPS = bundle_roles("fabric-network-operator")
+out = agent_call("GET", "/v1/dhcp", "regionop", REGION_NETOPS)
+check("a region's network operator at this site: passes dhcp:read", " 403 " not in out, out)
+for method, route, perm in (("GET", "/v1/devices", "devices:read"), ("POST", "/v1/federation/roles",
+                                                                    "federation:admin")):
+    out = agent_call(method, route, "regionop", REGION_NETOPS, {})
+    check(f"refused: ...but not {method} {route} ({perm}: not in the bundle granted)", " 403 " in out and perm in out,
+          out)
 out = agent_call("POST", "/v1/jobs/images", "carol", AUDITOR_ROLES, {"action": "update", "service": "nginx"})
 # covers: agent:post.jobs.images -
 check("auditor token: may not update an image (403, images:update)", " 403 " in out and "images:update" in out, out)

@@ -1,6 +1,7 @@
 from fabriclib.keycloak.ensure_group_mapper import LDAP_MAPPER, SITE_MAPPER as NAME
 from fabriclib.keycloak.quote import q
 from fabriclib.keycloak.site_bundle_grants import site_bundle_grants
+from fabriclib.keycloak.site_lineage import site_lineage
 from fabriclib.keycloak.step import step
 
 
@@ -9,17 +10,21 @@ def ensure_site_group_mapper(kc, realm, ldap_id, v):
              site_bundle_grants (`<site>-admins`, `<site>-network-operators`, ...) in the site's OU=groups, read only
              (Keycloak never writes them), membership found through nesting (AD's LDAP_MATCHING_RULE_IN_CHAIN,
              Keycloak's LOAD_GROUPS_BY_MEMBER_ATTRIBUTE_RECURSIVELY: a grant usually nests `<site>-admins` in the
-             role's group), then synced so configure_keycloak can grant each its bundle. No other site's groups are
-             mapped.
+             role's group), then synced so configure_keycloak can grant each its bundle. Since the revision of
+             2026-10-13 also the console role groups of every site above this one (a role granted at a site works at
+             every site below it): the search starts at the top site's OU, the filter names exactly those groups, so
+             a sibling's or a site below's are never mapped.
     Inputs:  kc — Admin; realm — realm name; ldap_id — federation id from ensure_ldap_federation; v — vars
              (ad_base_dn, ad_site_ou, site_name).
     Returns: None.
-    Fails:   SystemExit from Admin.call (including a failed sync); KeyError if a var is missing; StopIteration if a
-             created mapper cannot be found again.
+    Fails:   SystemExit from Admin.call (including a failed sync); KeyError if a var is missing; ValueError from
+             site_lineage (an ad_site_ou that is not the site's); StopIteration if a created mapper cannot be found
+             again.
     Feeds:   configure_keycloak."""
-    names = "".join(f"(cn={g})" for g, _ in site_bundle_grants(v["site_name"]))
+    lineage, top = site_lineage(v)
+    names = "".join(f"(cn={g})" for g, _ in site_bundle_grants(v["site_name"], lineage[1:]))
     config = {
-        "groups.dn": [f"OU=groups,{v['ad_site_ou']},{v['ad_base_dn']}"],
+        "groups.dn": [f"{top},{v['ad_base_dn']}"],        # the whole tree, searched below; the filter picks
         "groups.ldap.filter": [f"(|{names})"],
         "group.name.ldap.attribute": ["cn"],
         "group.object.classes": ["group"],

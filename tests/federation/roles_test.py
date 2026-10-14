@@ -71,6 +71,69 @@ check("...so a role granted at house1 gives nothing at house2 (house2 maps none 
       not set(dict(site_bundle_grants("house2"))) & set(grants))
 check("every mapped bundle is one fabric makes", all(b in BUNDLES for b in grants.values()))
 
+print("--- a role granted at a site works at every site below it (2.1.9.21, revised 2026-10-13)")
+from fabriclib.keycloak.site_lineage import site_lineage  # noqa: E402
+import fabriclib.keycloak.ensure_site_group_mapper as mapper_mod  # noqa: E402
+OU = {"lan": "OU=lan,OU=sites", "house1": "OU=house1,OU=lan,OU=sites", "house2": "OU=house2,OU=lan,OU=sites",
+      "house1a": "OU=house1a,OU=house1,OU=lan,OU=sites", "house2a": "OU=house2a,OU=house2,OU=lan,OU=sites"}
+
+
+def mapped(site):
+    lineage, _ = site_lineage({"site_name": site, "ad_site_ou": OU[site]})
+    return dict(site_bundle_grants(site, lineage[1:]))
+
+
+check("site_lineage: the site, then each site above it, nearest first; and the top site's OU",
+      site_lineage({"site_name": "house1a", "ad_site_ou": OU["house1a"]}) == (["house1a", "house1", "lan"],
+                                                                               "OU=lan,OU=sites"))
+def lineage_refused(v):
+    try:
+        site_lineage(v)
+    except ValueError as e:
+        return str(e)
+    return ""
+
+
+check("refused: an ad_site_ou that is not the site's, or not under OU=sites",
+      "is not site house2's OU" in lineage_refused({"site_name": "house2", "ad_site_ou": OU["house1"]})
+      and "not a site's OU" in lineage_refused({"site_name": "x", "ad_site_ou": "OU=x,DC=ad"}))
+check("the region's role (house1-network-operators) works at its branch house1a",
+      mapped("house1a").get("house1-network-operators") == "fabric-network-operator")
+check("...and at the region itself", mapped("house1").get("house1-network-operators") == "fabric-network-operator")
+check("refused: not at a branch of another region (house2a), nor at that region (house2)",
+      "house1-network-operators" not in mapped("house2a") and "house1-network-operators" not in mapped("house2"))
+check("refused: not at the top (lan maps no region's groups)", not any(g.startswith("house1") for g in mapped("lan")))
+check("the top's own granted roles reach every site (lan-helpdesk at house2a)",
+      mapped("house2a").get("lan-helpdesk") == "fabric-helpdesk")
+check("refused: a site's own helpdesk (<site>-admins) never reaches below it",
+      "house1-admins" not in mapped("house1a") and mapped("house1a").get("house1a-admins") == "fabric-site-helpdesk")
+
+
+class FakeKc:
+    """Purpose: Keycloak's admin API, as ensure_site_group_mapper calls it, recorded. Inputs: none. Returns: per call.
+    Fails: never. Feeds: the mapper checks below."""
+    def __init__(self):
+        self.made = []
+
+    def call(self, method, path, body=None):
+        if method == "POST" and path.endswith("/components"):
+            self.made.append(body)
+        return 200, [dict(m, id="m1") for m in self.made]
+
+
+mapper_mod.step = lambda text: None
+fake = FakeKc()
+mapper_mod.ensure_site_group_mapper(fake, "r", "ldap1", {"site_name": "house1a", "ad_site_ou": OU["house1a"],
+                                                          "ad_base_dn": "DC=ad,DC=test"})
+cfg = fake.made[0]["config"]
+check("house1a's Keycloak searches from the top site's OU and names its own groups and its ancestors' role groups",
+      cfg["groups.dn"] == ["OU=lan,OU=sites,DC=ad,DC=test"] and "(cn=house1a-admins)" in cfg["groups.ldap.filter"][0]
+      and "(cn=house1-pki-operators)" in cfg["groups.ldap.filter"][0]
+      and "(cn=lan-auditors)" in cfg["groups.ldap.filter"][0], cfg)
+check("...never a sibling's, a site below's, or an ancestor's helpdesk",
+      "house2" not in cfg["groups.ldap.filter"][0] and "(cn=house1-admins)" not in cfg["groups.ldap.filter"][0]
+      and "(cn=lan-admins)" not in cfg["groups.ldap.filter"][0], cfg)
+
 print("--- change_site_role (fabriclib)")
 CALLS, AUDIT = [], []
 change_mod.write_audit = lambda *a: AUDIT.append(a)

@@ -15,6 +15,7 @@ from fabriclib.keycloak.grant_role_to_group import grant_role_to_group
 from fabriclib.keycloak.remove_retired_client import remove_retired_client
 from fabriclib.keycloak.retire_old_admin_role import retire_old_admin_role
 from fabriclib.keycloak.site_bundle_grants import site_bundle_grants
+from fabriclib.keycloak.site_lineage import site_lineage
 from fabriclib.keycloak.step import step
 from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.rbac.permissions import ADMIN_ROLE, OLD_ADMIN_ROLE
@@ -62,7 +63,8 @@ def configure_keycloak(vars_path, secrets_path):
     for group in v.get("ldap_groups") or []:
         if group.get("bundle") in reps:
             grant_role_to_group(kc, realm, reps[group["bundle"]], group["name"])
-    for group, bundle in site_bundle_grants(v["site_name"]):    # at this site only: its helpdesk, granted roles
+    # its helpdesk, the roles granted at this site and at every site above it (2.1.9.21, revised 2026-10-13)
+    for group, bundle in site_bundle_grants(v["site_name"], site_lineage(v)[0][1:]):
         grant_role_to_group(kc, realm, reps[bundle], group)
     flow_id = ensure_signin_flows(kc, realm, {**v, "signin_kerberos": kerberos})
     roles = list(reps.values())

@@ -36,5 +36,6 @@ client these files use.
 | `remove_app_client.py` | `fabricctl sso remove`: an app's client gone |
 | `run_sso_command.py` | `fabricctl sso`: routes to the above and prints |
 | `ensure_site_group_mapper.py` | A read-only LDAP group mapper for this site's own role groups (nested membership), synced (2.1.9.21) |
-| `site_bundle_grants.py` | This site's groups and the bundle each gives here only: `<site>-admins` the site helpdesk, the granted console roles (2.1.9.21) |
+| `site_bundle_grants.py` | The site groups and the bundle each gives here: this site's `<site>-admins` the site helpdesk, the console roles granted at this site and at every site above it (2.1.9.21) |
+| `site_lineage.py` | This site and the sites above it, nearest first, and the top site's OU, read from `ad_site_ou` |
 | `clear_lockout.py` | Keycloak's brute-force lockout of a person cleared (an unlock) |

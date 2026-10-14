@@ -58,24 +58,26 @@ def _check_owners(samdb, groups, branch):
 
 def ensure_site_acl(samdb, site, root):
     """Purpose: who may write what in a site (S2, 2.1.9.13, manual 1.6.3.6), checked by every DC, offline too (Q4, Q12):
-             its `<site>-ou-admins` and its fabric-agent account have full control below the site's OU, inherited
-             (so into the sites nested below it, 2.1.6.20); its `<site>-machine-admins` full control of its machines and
+             its `<site>-ou-admins` and its fabric-agent account have full control below the site's OU, inherited (so
+             into the sites nested below it, 2.1.6.20); its `<site>-machine-admins` full control of its machines and
              devices; its `<site>-gpo-admins` its OU's GPO links and blocked inheritance (their own GPOs: admin_gpo);
              none of them over permissions, nor over its own or a nested site's service accounts; its Keycloak account
-             full control of the site's people only (sign-in changes passwords and lockouts), and at the root site
-             the members of the organisation's groups (Keycloak's group mapper); and each computer account below its
-             OU=machines may write its own SSH host keys (SELF, fabricSshHostKey only: manual 1.6.11.9.7), nothing
-             else of fabric's. Its `<site>-admins`, the site helpdesk (2.1.9.21, manual 1.6.3.18): exactly what
+             full control of the site's people only (sign-in changes passwords and lockouts), and at the root site the
+             members of the organisation's groups (Keycloak's group mapper); and each computer account below its
+             OU=machines may write its own SSH host keys (SELF, fabricSshHostKey only: manual 1.6.11.9.7), nothing else
+             of fabric's. The machine and GPO admins of every site above get the same entries on this site's machines,
+             devices and OU (a role granted at a site works below it: 2.1.9.21, revised 2026-10-13; the OU admins' reach
+             it by inheritance). Its `<site>-admins`, the site helpdesk (2.1.9.21, manual 1.6.3.18): exactly what
              unlocking, resetting a password, adding and disabling the site's own people need — create user objects in
              its OU=people; on the users there (inherit-only) reset password, write lockoutTime, userAccountControl and
-             pwdLastSet; write the members of `<site>-users` (a new person joins it); nothing else (a person who holds
-             a role is kept from it: protect_privileged_people). Below the root, neither `<site>-admins` nor
+             pwdLastSet; write the members of `<site>-users` (a new person joins it); nothing else (a person who holds a
+             role is kept from it: protect_privileged_people). Below the root, neither `<site>-admins` nor
              `<site>-ou-admins` may write the members of the site's grantable role groups or of `<site>-admins` (an
              explicit deny: a branch cannot grant itself; a site above can, through its inherited rights). Its own
-             fabric-agent account and `<site>-ou-admins` are also denied every other write on those groups (their
-             name, deleting them, their permissions and owner: ROLE_GROUP_DENY), so root on a branch host cannot
-             grant through the agent's credentials either; a role group the branch re-made (owned by one of them) is
-             refused before any right is given to it (_check_owners). Grants come only from a site above's agent.
+             fabric-agent account and `<site>-ou-admins` are also denied every other write on those groups (their name,
+             deleting them, their permissions and owner: ROLE_GROUP_DENY), so root on a branch host cannot grant through
+             the agent's credentials either; a role group the branch re-made (owned by one of them) is refused before
+             any right is given to it (_check_owners). Grants come only from a site above's agent.
     Inputs:  samdb — SamDB; site — str (its groups and service accounts exist: ensure_groups,
              ensure_service_accounts); root — bool.
     Returns: list of str, the access entries added.
@@ -92,12 +94,18 @@ def ensure_site_acl(samdb, site, root):
     _check_owners(samdb, protected, branch)
     for principal in (role_group(site, "ou-admins"), f"fabric-agent-{site}"):
         entries.append((site_dn, f"(A;CI;{FULL};;;{sid_of(samdb, principal)})"))
-    machines = sid_of(samdb, role_group(site, "machine-admins"))
-    entries += [(f"OU={ou},{site_dn}", f"(A;CI;{FULL};;;{machines})") for ou in ("machines", "devices")]
+    # a role granted at a site works at every site below it (2.1.9.21, revised 2026-10-13): `ou-admins` by inheritance
+    # (CI on the site's OU, which holds the sites below); the machine and GPO admins of each site above are given
+    # this site's machines, devices and GPO links here, since their own entries sit on OUs the sites below are not in
+    lineage = [site] + paths.ancestors(samdb, site)
+    for owner in lineage:
+        machines = sid_of(samdb, role_group(owner, "machine-admins"))
+        entries += [(f"OU={ou},{site_dn}", f"(A;CI;{FULL};;;{machines})") for ou in ("machines", "devices")]
     # a machine publishes its own SSH host keys: SELF (PS) may write that one attribute, on computer objects only
     entries.append((f"OU=machines,{site_dn}", f"(OA;CIIO;WP;{schema_guid(samdb, HOST_KEY)};{COMPUTER};PS)"))
-    gpo = sid_of(samdb, role_group(site, "gpo-admins"))
-    entries += [(site_dn, f"(OA;;RPWP;{attr};;{gpo})") for attr in (GP_LINK, GP_OPTIONS)]
+    for owner in lineage:
+        gpo = sid_of(samdb, role_group(owner, "gpo-admins"))
+        entries += [(site_dn, f"(OA;;RPWP;{attr};;{gpo})") for attr in (GP_LINK, GP_OPTIONS)]
     # the service accounts are fabric's: no one's inherited access reaches them, this site's or a parent's
     for owner in [site] + paths.ancestors(samdb, site):
         for principal in (role_group(owner, "ou-admins"), role_group(owner, "machine-admins"), f"{owner}-admins",

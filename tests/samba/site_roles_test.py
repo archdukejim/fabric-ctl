@@ -195,6 +195,27 @@ made = grant_site_role(db, None, "lan", "house1", "fabric-admins", "jdoe")
 check("a missing host admins group is made by the grant, the organisation's fabric-admins in it",
       not made["remade"] and sorted(members(db, "house1-fabric-admins")) == ["fabric-admins", "jdoe"], made)
 
+print("--- an AD role granted at a site works at every site below it (ensure_site_acl; 2.1.9.21 revised 2026-10-13)")
+db = domain()
+A1A = f"OU=house1a,OU=house1,OU=lan,{SITES}"
+sub = ensure_site_acl_mod.ensure_site_acl(db, "house1a", False)
+FULL = ensure_site_acl_mod.FULL
+for owner in ("house1a", "house1", "lan"):
+    check(f"house1a's machines and devices: {owner}-machine-admins full control there",
+          all(f"OU={ou},{A1A}: (A;CI;{FULL};;;SID-{owner}-machine-admins)" in sub for ou in ("machines", "devices")),
+          [a for a in sub if "machine-admins" in a])
+    check(f"house1a's GPO links: {owner}-gpo-admins may write them",
+          f"{A1A}: (OA;;RPWP;{ensure_site_acl_mod.GP_LINK};;SID-{owner}-gpo-admins)" in sub)
+check("the OU admins reach it by inheritance only: house1's entry sits on house1's OU, with CI (none added here)",
+      not any("house1-ou-admins)" in a and "(A;CI" in a for a in sub)
+      and f"OU=house1,OU=lan,{SITES}: (A;CI;{FULL};;;SID-house1-ou-admins)"
+      in ensure_site_acl_mod.ensure_site_acl(db, "house1", False))
+sib = ensure_site_acl_mod.ensure_site_acl(db, "house2", False)
+check("refused: a region's machine and GPO admins get nothing at a site of another region (house2)",
+      not any("SID-house1-" in a or "SID-house1a-" in a for a in sib), [a for a in sib if "house1" in a])
+check("refused: a site below gets nothing at the site above it (house1a's roles at house1)",
+      not any("SID-house1a-" in a for a in ensure_site_acl_mod.ensure_site_acl(db, "house1", False)))
+
 print("--- list_site_roles (the Roles card, fabricctl federation roles; 2.1.9.22)")
 db = domain()
 grant_site_role(db, None, "lan", "house1", "network-operators")
