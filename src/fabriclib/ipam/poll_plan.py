@@ -12,28 +12,49 @@ from fabriclib.ipam.options.render_kea import render_kea
 from fabriclib.ipam.options.watch_state import load_watch_state, save_watch_state
 from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp
 from fabriclib.ipam.read_plan import read_plan
+from fabriclib.ipam.scancontrol.run_scan_requests import run_scan_requests
 from fabriclib.secrets.load_secrets import load_secrets
 from fabriclib.security.refresh_firewall import refresh_firewall
 
 
+def _scans_done(out):
+    """Purpose: a run's result, failing loudly when the scan requests could not be answered (after Kea's part, so Kea
+             is never held back by them): the unit fails and its status says why.
+    Inputs:  out — poll_plan's result, with "scans".
+    Returns: out.
+    Fails:   ValidationError "the scan requests from above were not answered: …".
+    Feeds:   poll_plan."""
+    if "error" in (out.get("scans") or {}):
+        raise ValidationError(f"the plan poll ran ({out['state']}), but the scan requests from above were not "
+                              f"answered: {out['scans']['error']}")
+    return out
+
+
 def poll_plan(v, container="samba", secrets=None, render=render_kea, firewall=refresh_firewall, usn=read_usn,
-              read=read_plan, force=False, take_lock=None):
+              read=read_plan, force=False, take_lock=None, scans=None):
     """Purpose: one run of the plan poll (decision 2.1.10.24, manual 1.10.4.26): the DC's USN read; when it moved, the
              site's plan and option sets read and, when what Kea is rendered from changed, Kea alone re-rendered and
              restarted (render_kea) and the host firewall brought in line when the served subnets changed. Never a
              full apply: a change DNS needs is reported and waits for the next apply. Audited when Kea is re-rendered.
+             Each run that reads the domain (the USN moved, Sync now, or a request still pending) also answers the
+             scans requested from above (decision 2.1.10.30, scancontrol/run_scan_requests), before Kea.
     Inputs:  v — fabric vars (site_name, install_kea); container — the DC's container; secrets — fabric's secrets
              (default loaded only once the USN moved); render, firewall, usn, read — the steps (render_kea,
              refresh_firewall, read_usn, read_plan; tests give their own); force — read the plan even when the USN
              did not move (Sync now, decision 2.1.10.29); take_lock — function() -> the held settings' lock or None
-             (default common/try_vars_lock; Sync now, which already holds it, gives one that hands it back).
+             (default common/try_vars_lock; Sync now, which already holds it, gives one that hands it back); scans —
+             function(v, secrets, container) -> run_scan_requests' result (default run_scan_requests; tests give
+             their own).
     Returns: {"state": "off" (Kea not installed), "not upgraded" (the subnets still in the settings), "unchanged" (the
              USN did not move), "same plan" (it moved, Kea's input did not), "busy" (an apply holds the settings),
              "rendered"; "kea_restarted" (bool), "firewall" (bool: brought in line), "dns_pending" (bool: published
-             names or subnets changed since the last apply rendered DNS), "usn"}.
+             names or subnets changed since the last apply rendered DNS), "usn", "scans" (run_scan_requests' result,
+             or {"error": why} when the requests could not be answered; absent when the domain was not read)}.
     Fails:   ValidationError: the DC not giving its USN, the plan not readable, OpenBao locked (load_secrets), the
-             settings or Kea's check refusing (render_kea), the firewall step failing; SetupError when Kea does not
-             come back healthy. The USN is kept only after a run that succeeded, so the next run tries again.
+             settings or Kea's check refusing (render_kea), the firewall step failing, the scan requests not answered
+             (raised after Kea's part, so the unit fails and shows it; they are read again next run); SetupError when
+             Kea does not come back healthy. The USN is kept only after a run that succeeded, so the next run tries
+             again.
     Feeds:   run_option_command (`fabricctl ipam watch [--scheduled]`, fabric-plan-watch.timer); ipam/sync/sync_plan
              (Sync now, force=True)."""
     if not v.get("install_kea"):
@@ -42,20 +63,31 @@ def poll_plan(v, container="samba", secrets=None, render=render_kea, firewall=re
         return {"state": "not upgraded"}
     state = load_watch_state("plan-watch")
     now = usn(container)
-    if now == state.get("usn") and not force:
+    moved = now != state.get("usn") or force
+    if not moved and not state.get("scan_pending"):
         pending = bool(state.get("dns")) and state["dns"] != load_watch_state("plan-dns").get("dns")
         return {"state": "unchanged", "usn": now, "dns_pending": pending}
     secrets = secrets if secrets is not None else load_secrets()
+    try:
+        asked = (scans or run_scan_requests)(v, secrets, container=container)
+    except ValidationError as exc:
+        asked = {"error": str(exc), "pending": True}
+    state = {**state, "scan_pending": bool(asked.get("pending"))}
+    if not moved:
+        save_watch_state("plan-watch", state)
+        pending = bool(state.get("dns")) and state["dns"] != load_watch_state("plan-dns").get("dns")
+        return _scans_done({"state": "unchanged", "usn": now, "dns_pending": pending, "scans": asked})
     site = v["site_name"]
     digest = plan_digest(plan_to_dhcp(site_plan(read(v, secrets, of=site, container=container), site)))
     dns_pending = digest["dns"] != load_watch_state("plan-dns").get("dns")
-    out = {"usn": now, "dns_pending": dns_pending, "kea_restarted": False, "firewall": False}
+    out = {"usn": now, "dns_pending": dns_pending, "kea_restarted": False, "firewall": False, "scans": asked}
     if digest["kea"] == state.get("kea"):
         save_watch_state("plan-watch", {**state, "usn": now, "dns": digest["dns"]})
-        return {**out, "state": "same plan"}
+        return _scans_done({**out, "state": "same plan"})
     lock = (take_lock or _try_lock)()
     if lock is None:
-        return {**out, "state": "busy"}
+        save_watch_state("plan-watch", state)
+        return _scans_done({**out, "state": "busy"})
     try:
         done = render(secrets, container=container)
     finally:
@@ -68,7 +100,8 @@ def poll_plan(v, container="samba", secrets=None, render=render_kea, firewall=re
                                   f"{output[-500:]}")
         out["firewall"] = True
     save_watch_state("plan-watch", {"usn": now, "kea": digest["kea"], "subnets": done["subnets"], "dns": digest["dns"],
-                                    "rendered": time.strftime("%Y-%m-%d %H:%M:%S")})
+                                    "rendered": time.strftime("%Y-%m-%d %H:%M:%S"),
+                                    "scan_pending": state["scan_pending"]})
     write_audit("root", "IPAM_WATCH_RENDER", f"site={site} usn={now} kea_restarted={out['kea_restarted']} "
                 f"firewall={out['firewall']} dns_pending={dns_pending}", "timer")
-    return {**out, "state": "rendered"}
+    return _scans_done({**out, "state": "rendered"})

@@ -204,7 +204,7 @@ class H:
 
 if web_ok:
     OV = {"site": "home", "own": "home", "sites": [], "vlans": [], "networks": [], "leases_shown": True, "stale": "",
-          "leases_error": "", "block": 1, "suggested_block": 1, "error": "", "scan_policy": None,
+          "leases_error": "", "block": 1, "suggested_block": 1, "error": "", "local_scan": None,
           "sync": {"kea": True, "polled": True, "usn": 7, "rendered": "2026-10-13 09:30:00", "dns_pending": True}}
     CTX = {"user": "alice", "csrf": "tok", "perms": ["dhcp:read", "dhcp:write"], "version": "0.8.0"}
     page = views.networks(CTX, OV)

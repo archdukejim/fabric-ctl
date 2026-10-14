@@ -22,7 +22,7 @@ from fabriclib.ipam.set_address import set_address
 from fabriclib.ipam.set_block import set_block
 from fabriclib.ipam.set_subnet import set_subnet
 from fabriclib.ipam.scan_subnet import scan_subnet
-from fabriclib.ipam.scanpolicy.run_scan_policy_command import run_scan_policy_command
+from fabriclib.ipam.scancontrol.run_scan_command import run_scan_command
 from fabriclib.ipam.set_vlan import set_vlan
 from fabriclib.ipam.show_plan import show_plan
 from fabriclib.ipam.show_scan import show_scan
@@ -52,9 +52,11 @@ USAGE = """usage: fabricctl ipam show [<site>]                    a site's VLANs
                                [--dns on|off]
        fabricctl ipam address remove <ip>
        fabricctl ipam scan <subnet> [--no-ask]         which addresses answer, and which nobody recorded: offers to
-                                                       record each (a subnet of this site's plan; name or network)
-       fabricctl ipam scan-policy …                    whether scans may run, set like a group policy
-                                                       (fabricctl ipam scan-policy --help)
+                                                       record each (a subnet of this site's plan; name or network;
+                                                       where local scans are allowed)
+       fabricctl ipam scan <subnet> --site S, scan-requests, local-scan …   scans from the top down: a scan at a
+                                                       site below, its answers, whether a site's admins may scan
+                                                       (fabricctl ipam local-scan --help)
        fabricctl ipam sync                             Sync now: the plan poll at once, and BIND's records when DNS
                                                        waits (never an apply; only Kea restarts)
        fabricctl ipam option|class|netboot|option-editors|watch …   DHCP options, netboot, the plan poll
@@ -171,8 +173,8 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
              Volume 4: 4.10.2): show, find and export, the site's number, and changes to VLANs, subnets (several
              per VLAN, 2.1.10.18), ranges and addresses, this site's or (--site) a site below it; a scan of one of
              this site's subnets, offering to record what nobody did (2.1.10.26); the DHCP options, netboot and the
-             plan poll through run_option_command (1.10.4.24 to 1.10.4.26); the scan policy through
-             run_scan_policy_command (1.10.4.27) and Sync now (sync_plan, 1.10.4.28). Routes only: every rule is in the
+             plan poll through run_option_command (1.10.4.24 to 1.10.4.26); scans from the top down through
+             run_scan_command (1.10.4.29) and Sync now (sync_plan, 1.10.4.28). Routes only: every rule is in the
              function each command calls.
     Inputs:  v — the rendered vars (SetupContext.load_state().vars); argv — list of str after "ipam" (default
              show); secrets — fabric's secrets (default: loaded by the functions); container — the DC's container
@@ -187,8 +189,8 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
     cmd, args = (argv[0], argv[1:]) if argv else ("show", [])
     if cmd in ("option", "class", "netboot", "option-editors", "watch"):   # the options (1.10.4.24 to 1.10.4.26)
         return run_option_command(v, cmd, args, secrets, container)
-    if cmd == "scan-policy":                                               # the scan policy (1.10.4.27)
-        return run_scan_policy_command(v, args, secrets, container)
+    if cmd in ("scan-requests", "local-scan") or (cmd == "scan" and "--site" in args):   # top down (1.10.4.29)
+        return run_scan_command(v, cmd, args, secrets, container)
     common = {"secrets": secrets, "container": container}
     try:
         pos, vals, bare = _parse(args)
@@ -235,8 +237,6 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
                              if out["dns"] else "already in line with the plan"))
             return 0
         if cmd == "scan" and len(pos) == 1:
-            if site:
-                raise ValidationError("a scan covers only this site's own subnets: run it at that site")
             result = scan_subnet(v, "root", pos[0])
             sys.stdout.write(show_scan(result))
             if result["unrecorded"] and "--no-ask" not in bare and sys.stdin.isatty():

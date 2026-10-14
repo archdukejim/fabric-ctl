@@ -175,22 +175,28 @@ try:
     page = req("GET", "/networks?site=parents&subnet=iot")[3]
     check("Networks tab: another site's subnet has no scan link (a scan covers only this site's)",
           'href="/networks/scan?' not in page and "Scan this subnet" not in page)
-    check("Networks tab: another site's scan policy card (its own level denying, 1.10.4.27) and no Sync now card",
-          "Scan policy · parents" in page and "decided by site parents" in page
-          and 'action="/networks/scan/policy"' in page and 'action="/networks/sync"' not in page, page[:3000])
+    check("Networks tab: a site below's Scans card (local scans off by default, its form, the requests and an "
+          "answer, 1.10.4.29), the subnet's Scan at button, no Sync now card",
+          "Scans at parents" in page and "off by default" in page and 'action="/networks/scan/local"' in page
+          and 'action="/networks/scan/request"' in page and "Scan at parents" in page and "alice@lan" in page
+          and "10.2.20.77" in page and 'action="/networks/sync"' not in page, page[:3000])
     page = req("GET", "/networks")[3]
-    check("Networks tab: this site's Sync now card with DNS pending (1.10.4.28) and its scan policy",
-          'action="/networks/sync"' in page and "DNS waits for an apply or Sync now" in page
-          and "Scan policy · lan" in page and 'action="/networks/scan/policy/org"' in page, page[:3000])
+    check("Networks tab: this site's Sync now card with DNS pending (1.10.4.28) and its Scans card (the top: always, "
+          "no form)", 'action="/networks/sync"' in page and "DNS waits for an apply or Sync now" in page
+          and "Scans at lan" in page and "may always scan" in page and 'action="/networks/scan/local"' not in page,
+          page[:3000])
     st, loc, _, _ = req("POST", "/networks/sync", {"csrf": "dev"})
     check("Sync now in the dev preview: back to the tab, nothing synced", st == 303 and "msg=Synced" in (loc or ""),
           loc)
-    st, loc, _, _ = req("POST", "/networks/scan/policy", {"csrf": "dev", "site": "lan", "policy": "deny"})
-    check("the scan policy's form in the dev preview: back to the tab on that site", st == 303
-          and "site=lan" in (loc or "") and "msg=Scan+policy+set" in (loc or ""), loc)
+    st, loc, _, _ = req("POST", "/networks/scan/request", {"csrf": "dev", "site": "parents", "subnet": "iot"})
+    check("Scan at parents in the dev preview: back to the tab on that site", st == 303
+          and "site=parents" in (loc or "") and "msg=Scan+requested" in (loc or ""), loc)
+    st, loc, _, _ = req("POST", "/networks/scan/local", {"csrf": "dev", "site": "parents", "allowed": "on"})
+    check("the local scans form in the dev preview: back to the tab on that site", st == 303
+          and "site=parents" in (loc or "") and "msg=Local+scans+set" in (loc or ""), loc)
     scan = req("GET", "/networks/scan")[3]
-    check("the scan page: the policy here and a subnet DHCP does not serve, marked", "Scan policy here" in scan
-          and "DHCP off" in scan, scan[:1500])
+    check("the scan page: local scans here (the top: always) and a subnet DHCP does not serve, marked",
+          "Local scans at lan" in scan and "DHCP off" in scan, scan[:1500])
     page = req("GET", "/kea?plan=1")[3]
     check("Kea tab with the subnets in the plan: links to Networks, no subnet or reservation forms (1.10.4.21)",
           'href="/networks' in page and 'action="/kea/subnets"' not in page

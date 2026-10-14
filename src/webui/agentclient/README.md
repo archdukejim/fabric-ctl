@@ -17,8 +17,9 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `unset_option.py` | Remove a DHCP option the admin set |
 | `add_client_class.py` | Add a DHCP client class (Kea expression, network-boot fields) |
 | `remove_client_class.py` | Remove a DHCP client class |
-| `scannable_subnets.py` | The subnets the console may scan (every subnet of this site's plan, at most a /22) and the scan policy here. Agent route: GET /v1/ipam/scan (dhcp:read). |
-| `set_scan_policy.py` | Set a site's level of the scan policy (POST /v1/ipam/scan-policy, dhcp:write) or the organisation's (POST /v1/ipam/scan-policy/org, dhcp:org-options). |
+| `scannable_subnets.py` | The subnets the console may scan (every subnet of this site's plan, at most a /22) and whether local scans are allowed here. Agent route: GET /v1/ipam/scan (dhcp:read). |
+| `request_scan.py` | Ask a site below to scan one of its subnets; its plan poll answers through AD. Agent route: POST /v1/ipam/scan/request (dhcp:write). |
+| `set_local_scan.py` | Set whether a site below may scan locally. Agent route: POST /v1/ipam/local-scan (dhcp:write). |
 | `sync_now.py` | Sync now: the plan poll at once and BIND's records. Agent route: POST /v1/ipam/sync (dhcp:write), timeout 300 s. |
 | `scan_subnet.py` | Scan one subnet now: what answers, what nobody recorded. Agent route: POST /v1/ipam/scan (dhcp:write), timeout 180 s. |
 | `record_found_address.py` | Record an address a scan found: a reservation for its MAC, or a static address; applied at once. Agent route: POST /v1/ipam/scan/record (dhcp:write), timeout 300 s. |
