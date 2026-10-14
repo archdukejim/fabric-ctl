@@ -45,6 +45,15 @@ def fabric_machines(site):
     return f"{site}-fabric-machines"
 
 
+def ssh_users(site):
+    """Purpose: the group of who may SSH to a site's managed machines (decision 2.1.7.14, manual 1.6.11.9.13).
+    Inputs:  site — str.
+    Returns: str "<site>-ssh-users".
+    Fails:   never.
+    Feeds:   ensure_groups, ensure_logon_policies, ssh_user_sites."""
+    return f"{site}-ssh-users"
+
+
 def role_group(site, role):
     """Purpose: a role's group name.
     Inputs:  site — str; role — a key of ROLES.

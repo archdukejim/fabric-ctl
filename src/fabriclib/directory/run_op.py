@@ -11,8 +11,8 @@ MESSAGES = {"exists": "that name is already taken", "missing": "no such entry",
 # at a site whose DC is read-only, goes to the writable DC (2.1.6.52, revised 2026-10-13); a new operation not listed
 # here is a write, so it can never be sent to a read-only DC by mistake
 READS = frozenset({"get_person", "is_fabric_admin", "list_host_groups", "list_machines", "list_people",
-                   "list_ssh_hosts", "list_sudo_rules", "logon_groups", "read_devices", "read_networks", "read_plan",
-                   "site_info"})
+                   "list_ssh_hosts", "list_sudo_rules", "logon_groups", "read_dc_type_request", "read_devices",
+                   "read_networks", "read_plan", "read_site_dcs", "read_ssh_cas", "site_info", "ssh_user_sites"})
 
 
 def run_op(v, secrets, op, args=None, container="samba", server=None):

@@ -261,7 +261,8 @@ SAMPLE_ENROLMENTS = {"challenges": [{"id": "c0ffee12", "by": "admin", "made": "2
                                  "not_after": "2027-10-10", "actor": "admin", "when": "2026-10-10 12:40",
                                  "serial": "4241", "link_error": "DEV PREVIEW: no device named jims-mac"}]}
 SAMPLE_SSH = {"on": True, "public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDEVPREVIEWDEVPREVIEWDEVPREVIEWx",
-              "fingerprint": "SHA256:DEVPREVIEWdevpreviewDEVPREVIEWdevpreview00", "may_sign": True, "why_not": "",
+              "fingerprint": "SHA256:DEVPREVIEWdevpreviewDEVPREVIEWdevpreview00", "may_sign": True,
+              "sites": ["lan", "site3"], "why_not": "",
               "hours": 8, "host_public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHOSTCADEVPREVIEWHOSTCADEVPREVIEWx",
               "host_fingerprint": "SHA256:HOSTCAdevpreviewHOSTCAdevpreviewHOSTCA0000"}
 # the SSH page's host certificates (manual 1.6.11.9.11): one machine of each state the page shows

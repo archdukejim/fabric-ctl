@@ -9,7 +9,20 @@ import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
 from fabriclib.common.errors import ValidationError  # noqa: E402
+import fabriclib.samba.writable_server as ws  # noqa: E402
 from fabriclib.samba.writable_server import writable_server  # noqa: E402
+
+UP = set()                       # the DCs that answer in this test; every other "does not answer"
+ASKED = []
+
+
+def _answers(server):
+    ASKED.append(server)
+    return server in UP
+
+
+ws._answers = _answers
+UP.update({"10.0.9.5"})
 
 PASS = FAIL = 0
 
@@ -43,10 +56,64 @@ for blank in ("", "   ", None):
     server, why = refused({"ad_dc_type": "rodc", "ad_join_server": blank}, "make the host's account at")
     check(f"a read-only DC's site with ad_join_server={blank!r} is refused, naming the setting and the write",
           server is None and why == "this site's domain controller is read-only and no writable domain controller is "
-          "known (ad_join_server) to make the host's account at", why)
+          "known (ad_writable_servers, ad_join_server) to make the host's account at", why)
 server, why = refused({"ad_dc_type": "rodc"})
 check("a read-only DC's site with no ad_join_server at all is refused", server is None and "read-only" in (why or ""))
 
+# the list of writable DCs, tried in order (2.1.6.57)
+# covers: setting:ad_writable_servers +
+UP.clear()
+UP.update({"dc-b.ad.test"})
+ws._seen.clear()
+ASKED.clear()
+rv = {"ad_dc_type": "rodc", "ad_join_server": "10.0.9.5", "ad_writable_servers": ["dc-a.ad.test", "dc-b.ad.test"]}
+check("the list falls through to the second DC when the first does not answer",
+      refused(rv, "write it at") == ("dc-b.ad.test", None) and ASKED == ["dc-a.ad.test", "dc-b.ad.test"], ASKED)
+ASKED.clear()
+check("an answer is remembered briefly: a second write asks nothing", refused(rv) == ("dc-b.ad.test", None)
+      and ASKED == [], ASKED)
+ASKED.clear()
+check("...and asked again once the cache is old", writable_server(rv, "x", now=ws.time.time() + ws.CACHE_SECONDS + 5)
+      == "dc-b.ad.test" and ASKED == ["dc-a.ad.test", "dc-b.ad.test"], ASKED)
+UP.update({"dc-a.ad.test"})
+ws._seen.clear()
+check("the first that answers wins (the list's order)", refused(rv) == ("dc-a.ad.test", None))
+check("the list replaces ad_join_server (never tried when the list is set)", "10.0.9.5" not in ASKED, ASKED)
+UP.clear()
+ws._seen.clear()
+server, why = refused(rv, "make this change (create person) at")
+check("negative: every DC down: refused, naming each DC tried and why, nothing chosen",
+      server is None and "dc-a.ad.test: did not answer; dc-b.ad.test: did not answer" in why
+      and "nothing was changed" in why and "create person" in why, why)
+ws._seen.clear()
+server, why = refused({"ad_dc_type": "rodc", "ad_join_server": "10.0.9.5"})
+check("negative: the one default DC down: refused, naming it", server is None and "10.0.9.5: did not answer" in why, why)
+ws._seen.clear()
+UP.update({"10.0.9.5"})
+check("an empty list means [ad_join_server]", refused({"ad_dc_type": "rodc", "ad_join_server": "10.0.9.5",
+                                                       "ad_writable_servers": []}) == ("10.0.9.5", None))
+check("repeats are tried once", ws._candidates({"ad_writable_servers": ["a", " a ", "b"]}) == ["a", "b"])
+check("a writable DC's site ignores the list", refused({"ad_dc_type": "dc", "ad_writable_servers": ["dc-a"]})
+      == (None, None))
+
+# the setting, checked at apply (samba/check_writable_servers)
+from fabriclib.samba.check_writable_servers import check_writable_servers  # noqa: E402
+
+check("the setting: names and addresses accepted, trimmed",
+      check_writable_servers([" dc-a.ad.test ", "10.0.9.5", "fd00::5"]) == ["dc-a.ad.test", "10.0.9.5", "fd00::5"])
+check("the setting: null and empty are []", check_writable_servers(None) == [] and check_writable_servers([]) == [])
+# covers: setting:ad_writable_servers -
+for bad, word in (("dc-a", "a list"), ([1], "name or an IP"), (["dc a"], "name or an IP"), (["-x.ad"], "name or an IP"),
+                  (["a", "a"], "twice"), ([f"dc{i}" for i in range(9)], "at most 8"), ([""], "name or an IP")):
+    try:
+        check_writable_servers(bad)
+        why = ""
+    except ValidationError as e:
+        why = str(e)
+    check(f"negative: the setting {bad!r} refused ({word})", word in why and "ad_writable_servers" in why, why)
+
+UP.update({"10.0.9.5"})
+ws._seen.clear()
 # the host's account (setup/common/host_identity): unchanged answers
 from fabriclib.setup.common.host_identity import host_identity  # noqa: E402
 
@@ -60,7 +127,7 @@ check("host_identity: a read-only DC's site writes at its partner",
 ident = host_identity({**mv, "ad_dc_type": "rodc", "ad_join_server": ""})
 check("host_identity: a read-only DC's site with no partner is refused with the old message",
       ident["write_server"] is None and ident["refused"] == "this site's domain controller is read-only and no writable "
-      "domain controller is known (ad_join_server) to make the host's account at", ident)
+      "domain controller is known (ad_writable_servers, ad_join_server) to make the host's account at", ident)
 ident = host_identity({**mv, "dc_name": "fab1", "ad_dc_type": "rodc", "ad_join_server": ""})
 check("host_identity: the DC's name taking the host's is still said first",
       "domain controller has this host's name" in ident["refused"], ident)

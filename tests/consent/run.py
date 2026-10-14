@@ -14,6 +14,8 @@ import yaml
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, "src"))
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
+import fabriclib.samba.writable_server as _ws  # noqa: E402
+_ws._answers = lambda server: True  # a pure test reaches no DC: every listed writable DC answers (2.1.6.57)
 from fabriclib.common.keep_original import keep_original  # noqa: E402
 from fabriclib.common.restore_original import restore_original  # noqa: E402
 from fabriclib.consent import plan_accounts as pa  # noqa: E402

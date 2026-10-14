@@ -32,3 +32,7 @@ HOST_KEY_TYPES = ("ssh-ed25519", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "
 HOST_ROLE_SETTINGS = {"key_type": "ca", "allow_user_certificates": False, "allow_host_certificates": True,
                       "allowed_domains": "*", "allow_subdomains": True, "allow_bare_domains": True,
                       "ttl": HOST_TTL, "max_ttl": HOST_TTL, "allow_user_key_ids": True}
+# the organisation's SSH CAs (decision 2.1.7.14, manual 1.6.11.9.16), published for this site's machines: the user CAs
+# they trust (one key a line), and the @cert-authority lines of every site's host CA
+USER_CAS_PUBLISHED = "ssh-user-cas.pub"
+HOST_CAS_PUBLISHED = "ssh-host-cas.known"

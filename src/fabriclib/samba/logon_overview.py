@@ -19,7 +19,8 @@ def logon_overview(v, ou=None, secrets=None, container="samba"):
     Returns: {"site", "legacy": bool (no per-OU policies yet), "read_only": bool (the site's DC is read-only: who may
              sign in is changed at the site above, 2.1.6.52), "unapplied": bool (a read-only DC's site whose settings
              hold per-OU policies, saved before such changes were refused: its DC never applies them), "always": the
-             groups every policy keeps, "policies":
+             groups every policy keeps, "remote_always": the groups every policy but OU=fabric-hosts's allows remotely
+             (the site's SSH users, 2.1.7.14), "policies":
              [{"ou" (path, "" the site's OU), "console", "remote"}] sorted by OU, "error": "" or why the legacy
              list could not be read (then its lists are empty)}.
     Fails:   ValidationError for an OU path refused, or a setting check_logon_policies refuses.
@@ -27,7 +28,8 @@ def logon_overview(v, ou=None, secrets=None, container="samba"):
     policies = check_logon_policies(v.get("logon_policies"))
     read_only = v.get("ad_dc_type") == "rodc"
     out = {"site": v.get("site_name", ""), "legacy": policies is None, "read_only": read_only,
-           "unapplied": read_only and policies is not None, "always": ALWAYS, "policies": [], "error": ""}
+           "unapplied": read_only and policies is not None, "always": ALWAYS,
+           "remote_always": [f"{v.get('site_name', '')}-ssh-users"], "policies": [], "error": ""}
     if policies is None:
         try:
             legacy = run_op(v, secrets if secrets is not None else load_secrets(), "logon_groups",

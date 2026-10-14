@@ -6,7 +6,7 @@ from ensure_gpo import ensure_gpo
 from legacy_logon_groups import legacy_logon_groups
 from logon_rights_policy import BUILTIN_ADMINISTRATORS, EXTENSIONS, logon_rights_policy
 from remove_gpo import remove_gpo
-from site_roles import FABRIC_ADMINS, fabric_admins, role_group
+from site_roles import FABRIC_ADMINS, fabric_admins, role_group, ssh_users
 
 INF = "Machine/Microsoft/Windows NT/SecEdit/GptTmpl.inf"
 ALWAYS = "fabric-break-glass"        # with each machine's local Administrators: never locked out (2.1.7.6)
@@ -70,7 +70,8 @@ def ensure_logon_policies(samdb, lp, site, policies, admin_group):
              one log-on GPO as before 0.9, on its OU, from legacy_logon_groups (an upgrade changes nothing, 2.1.6.44);
              otherwise one GPO per OU named in `policies`, linked to that OU, granting log-on at the keyboard to its
              console groups and remotely to its remote groups, each with fabric-break-glass and the machine's local
-             Administrators. Either way the site's OU=fabric-hosts carries a policy: the setting's, or by default the
+             Administrators; the remote right of each, but OU=fabric-hosts's, also names the site's `<site>-ssh-users`
+             (2.1.7.14). Either way the site's OU=fabric-hosts carries a policy: the setting's, or by default the
              fabric admins (_host_default, 2.1.6.53). The site's other fabric log-on GPOs (the legacy one, or an OU's
              no longer named) are removed. Every GPO also makes the windows-admins of the site and the sites above local
              Administrators. An OU that does not exist is reported and skipped, as is a granted group that no longer
@@ -85,11 +86,18 @@ def ensure_logon_policies(samdb, lp, site, policies, admin_group):
     local_admins = [sid_of(samdb, role_group(o, "windows-admins")) for o in owners]
     site_dn = paths.site_dn(samdb, site)
     done, wanted = [], set()
+    # the site's SSH users may sign in remotely (SSH through sssd) wherever fabric writes a log-on policy, except the
+    # fabric host's own OU (decision 2.1.7.14, manual 1.6.11.9.13); left out, and said, while the group is missing
+    ssh = []
+    try:
+        ssh = [sid_of(samdb, ssh_users(site))]
+    except IndexError:
+        done.append(f"log-on: no group {ssh_users(site)} in the domain yet, left out")
     if policies is None:
         sids = [sid_of(samdb, g) for g in legacy_logon_groups(samdb, site, admin_group)] + [BUILTIN_ADMINISTRATORS]
         wanted.add(f"fabric: {site} log-on rights")
         done += ensure_gpo(samdb, lp, f"fabric: {site} log-on rights", site_dn, EXTENSIONS,
-                           {INF: logon_rights_policy(sids, local_admins)})
+                           {INF: logon_rights_policy(sids, local_admins, sids + [s for s in ssh if s not in sids])})
     per_ou = dict(policies or {})
     per_ou.setdefault(HOSTS_OU, _host_default(site))
     for ou, entry in sorted(per_ou.items()):
@@ -105,6 +113,8 @@ def ensure_logon_policies(samdb, lp, site, policies, admin_group):
             continue
         console = _sids(samdb, entry.get("console") or [], done, where)
         remote = _sids(samdb, entry.get("remote") or [], done, where)
+        if ou != HOSTS_OU:
+            remote += [s for s in ssh if s not in remote]
         done += ensure_gpo(samdb, lp, name, dn, EXTENSIONS, {INF: logon_rights_policy(console, local_admins, remote)})
     prefix = f"fabric: {site} log-on "
     for gpo in samdb.search(base=f"CN=Policies,CN=System,{samdb.domain_dn()}", scope=ldb.SCOPE_ONELEVEL,

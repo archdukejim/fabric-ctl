@@ -14,7 +14,7 @@ GET = {
     ("radius",): "radius:read", ("radius", "guides"): "radius:read", ("radius", "sessions"): "radius:read",
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
     ("pki", "enrolments"): "pki:read",
-    ("ssh",): "session",                # SSH certificates: anyone may look; signing is for fabric admins (2.1.7.12)
+    ("ssh",): "session",                # SSH certificates: anyone may look; signing for site SSH users (2.1.7.14)
     ("ssh", "hosts"): "domain:read",    # each machine's SSH host certificate (1.6.11.9.11): the site's machines
     ("devices",): "devices:read",
     ("people",): "people:read",
@@ -43,7 +43,7 @@ POST = {
     ("pki", "issue"): "pki:issue", ("pki", "convert"): "pki:issue",
     ("pki", "enrol", "apple"): "pki:enrol", ("pki", "enrol", "p12"): "pki:enrol",
     ("pki", "enrolments", "*", "withdraw"): "pki:enrol",
-    ("ssh", "sign"): "session",         # refused inside unless the person is a fabric admin (2.1.7.12)
+    ("ssh", "sign"): "session",         # refused inside unless in a site's SSH users group (2.1.7.14)
     ("ssh", "on"): "system:admin", ("ssh", "off"): "system:admin",
     ("tsig",): "tsig:manage", ("tsig", "*", "rotate"): "tsig:manage", ("tsig", "*", "delete"): "tsig:manage",
     ("vault", "rotate"): "vault:unlock", ("vault", "slots", "add-usb"): "vault:unlock",

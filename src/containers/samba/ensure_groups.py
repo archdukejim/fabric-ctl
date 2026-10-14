@@ -2,7 +2,7 @@ import ldb
 
 from alloc_id import alloc_id
 import paths
-from site_roles import FABRIC_ADMINS, ROLES, fabric_admins, fabric_machines, rodc_cache, role_group
+from site_roles import FABRIC_ADMINS, ROLES, fabric_admins, fabric_machines, rodc_cache, role_group, ssh_users
 
 DOMAIN_USERS_RID = 513          # AD's Domain Users: fabric's everyone-group `users` (Q11)
 
@@ -120,4 +120,12 @@ def ensure_groups(samdb, site, root, org_groups):
         _add_member(samdb, fabric_admins(site), FABRIC_ADMINS, done)
     if new_site:
         _add_member(samdb, role_group(site, "machine-admins"), fabric_admins(site), done)
+    # who may SSH to the site's machines (decision 2.1.7.14, manual 1.6.11.9.13): the site's fabric admins and the
+    # organisation's nested in by default, when the group is made (an upgrade's too); an admin's later change is kept
+    _ensure(samdb, ssh_users(site), groups, builtin,
+            f"{site.capitalize()} SSH users: may SSH to the site's managed machines (manual 1.6.11.9.13)", done)
+    if f"group {ssh_users(site)} created" in done:
+        _add_member(samdb, ssh_users(site), fabric_admins(site), done)
+        if _group(samdb, FABRIC_ADMINS) is not None:
+            _add_member(samdb, ssh_users(site), FABRIC_ADMINS, done)
     return done

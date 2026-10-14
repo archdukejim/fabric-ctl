@@ -54,6 +54,12 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `plan_cidrs.py` | The networks of the site's plan subnets, for its AD site |
 | `create_machine.py` | Operation `create_machine`: a machine pre-created in the site's OU=machines with a one-time join password |
 | `sort_windows_machines.py` | Operation `sort_windows_machines`: Windows machines that joined themselves into OU=machines moved into OU=windows, those moved before skipped (manual 1.6.11.5) |
+| `ssh_user_sites.py` | Operation `ssh_user_sites` (a read): the sites whose `<site>-ssh-users` a person is in, nested too, only groups in a site's own `OU=groups` (2.1.7.14, manual 1.6.11.9.14) |
+| `set_ssh_cas.py` | Operation `set_ssh_cas`: this site's SSH CA public keys and domain on `CN=fabric-ssh-cas` in its own OU; no keys removes it (2.1.7.14) |
+| `read_ssh_cas.py` | Operation `read_ssh_cas` (a read): every site's `CN=fabric-ssh-cas`, its site from where it sits, its DC type from the configuration partition (2.1.7.14) |
+| `read_site_dcs.py` | Operation `read_site_dcs` (a read): each AD site's DCs and whether each is read-only (`userAccountControl`), from the configuration partition (2.1.9.23, 2.1.7.14) |
+| `set_dc_type_request.py` | Operation `set_dc_type_request`: the request to change a site's DC type, `CN=fabric-dc-type-request` in that site's OU; None removes it (2.1.9.23) |
+| `read_dc_type_request.py` | Operation `read_dc_type_request` (a read): a site's pending DC type request (2.1.9.23) |
 | `sync_rodc_cache.py` | Operation `sync_rodc_cache`: `<site>-rodc-cache` holding exactly the site's `<site>-users` and `<site>-admins` (nested) and its computer accounts, anything else taken out; returns the site's own accounts it reaches (to preload) and any other account reached (reported) (2.1.6.55, manual 1.6.11.14) |
 | `adopt_linux_machines.py` | Operation `adopt_linux_machines`: Linux machines joined into OU=linux with an admin's password made members of <site>-fabric-machines, once, unless their join said unmanaged (manual 1.6.11.6) |
 | `ensure_sudo_rule.py` | The site's default sudo rule: its admins and the admin group may run anything on its machines (2.1.9.13) |

@@ -27,8 +27,10 @@ def dev_post_ssh(h, path, form):
         else:
             h.send(200, views.ssh(h.ctx, SAMPLE_SSH, signed={
                 "certificate": "ssh-ed25519-cert-v01@openssh.com AAAADEVPREVIEW not-a-real-certificate",
-                "principal": h.ctx["user"], "valid_hours": 8, "type": "ssh-ed25519", "serial": "0",
-                "fingerprint": "SHA256:DEVPREVIEW", "key_id": "fabric:dev:preview"}))
+                "principal": ",".join(f"{h.ctx['user']}@{s}" for s in SAMPLE_SSH["sites"]),
+                "principals": [f"{h.ctx['user']}@{s}" for s in SAMPLE_SSH["sites"]], "valid_hours": 8,
+                "type": "ssh-ed25519", "serial": "0", "fingerprint": "SHA256:DEVPREVIEW",
+                "key_id": "fabric:dev:preview"}))
     else:
         h.send(404, views.error_page(404, "Not found."))
     return True

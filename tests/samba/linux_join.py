@@ -270,7 +270,8 @@ on(box, "ssh-keygen -q -t ed25519 -N '' -f /root/adam_key && pkill -x sshd; /usr
 user_pub = on(box, "cat /root/adam_key.pub")[1].strip()
 with open(os.path.join(W, "adam_key.pub"), "w") as f:
     f.write(user_pub + "\n")
-sh(["ssh-keygen", "-q", "-s", SSH_CA_KEY, "-I", "fabric:adam:test", "-n", "adam", "-V", "+1h",
+# the principal is <user>@<site> (2.1.7.14): the machine's principals command accepts adam@lan for adam, nothing else
+sh(["ssh-keygen", "-q", "-s", SSH_CA_KEY, "-I", "fabric:adam:test", "-n", "adam@lan", "-V", "+1h",
     os.path.join(W, "adam_key.pub")])
 sh(["docker", "cp", os.path.join(W, "adam_key-cert.pub"), f"{box}:/root/adam_key-cert.pub"])
 SSH = ("ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o GSSAPIAuthentication=no "
@@ -280,6 +281,34 @@ check("24.04: adam (a fabric admin) signs in with a certificate fabric's CA sign
       code == 0 and out.strip().endswith("adam"), out[-400:])
 code, out = on(box, f"{SSH} alice@localhost id -un")
 check("negative: the same certificate does not sign in as alice (not its principal)", code != 0, out[-300:])
+# SSH between sites (2.1.7.14, 1.6.11.9.15): a certificate naming another site's principal only is refused here; one
+# signed by another writable site's user CA, published in the organisation's list, is accepted for lan's principal
+shutil.copy(os.path.join(W, "adam_key.pub"), os.path.join(W, "adam_s3.pub"))
+sh(["ssh-keygen", "-q", "-s", SSH_CA_KEY, "-I", "fabric:adam:site3", "-n", "adam@site3", "-V", "+1h",
+    os.path.join(W, "adam_s3.pub")])
+on(box, "cp /root/adam_key-cert.pub /root/adam_key-cert.lan")
+sh(["docker", "cp", os.path.join(W, "adam_s3-cert.pub"), f"{box}:/root/adam_key-cert.pub"])
+code, out = on(box, f"{SSH} adam@localhost id -un; grep fabric-ssh-principals /var/log/auth.log 2>/dev/null | tail -2")
+check("negative: a certificate naming adam@site3 only does not sign in at a lan machine (a non-member of "
+      "lan-ssh-users gets no lan principal)", code != 0 or not out.strip().splitlines()[0].endswith("adam"), out[-400:])
+SITE3_USER_CA = os.path.join(W, "site3_user_ca")
+sh(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", SITE3_USER_CA])
+shutil.copy(os.path.join(W, "adam_key.pub"), os.path.join(W, "adam_by3.pub"))
+sh(["ssh-keygen", "-q", "-s", SITE3_USER_CA, "-I", "fabric:adam:by-site3", "-n", "adam@lan", "-V", "+1h",
+    os.path.join(W, "adam_by3.pub")])
+sh(["docker", "cp", os.path.join(W, "adam_by3-cert.pub"), f"{box}:/root/adam_key-cert.pub"])
+code, out = on(box, f"{SSH} adam@localhost id -un")
+check("negative: a certificate from a CA not in the organisation's list is refused", code != 0, out[-300:])
+with open(os.path.join(TLS, "www", "certs", "ssh-user-cas.pub"), "w") as f:
+    f.write(open(SSH_CA_KEY + ".pub").read().strip() + "\n" + open(SITE3_USER_CA + ".pub").read().strip() + "\n")
+code, out = on(box, f"fabric-managed check; pkill -x sshd; /usr/sbin/sshd; wc -l < /etc/ssh/fabric-user-ca.pub; "
+                    f"{SSH} adam@localhost id -un")
+check("the organisation's user CAs published (lan's and site3's): adam, signed at site3 for lan, signs in at lan",
+      code == 0 and out.strip().endswith("adam") and out.split()[0] == "2", out[-400:])
+os.remove(os.path.join(TLS, "www", "certs", "ssh-user-cas.pub"))
+on(box, "fabric-managed check; cp /root/adam_key-cert.lan /root/adam_key-cert.pub; pkill -x sshd; /usr/sbin/sshd")
+code, out = on(box, f"{SSH} adam@localhost id -un")
+check("the list withdrawn (404): back to lan's own CA; lan's certificate still signs in", code == 0, out[-300:])
 on(box, "mv /root/adam_key-cert.pub /root/adam_key-cert.off")
 code, out = on(box, f"{SSH} adam@localhost id -un")
 check("negative: the key without its certificate is refused (no authorized_keys entry)", code != 0, out[-300:])
@@ -388,6 +417,34 @@ check("24.04: ssh by its name, strict host key checking, only the system known-h
       code == 0 and out.strip().endswith("adam"), out[-400:])
 code, out = on(box, f"{STRICT} adam@{NAME} id -un")
 check("24.04: by its short name too (the short-name line)", code == 0 and out.strip().endswith("adam"), out[-400:])
+# every site's host CA (2.1.7.14, 1.6.11.9.16): a site3 machine (here: a second sshd presenting a certificate from
+# site3's host CA for <name>.site3.test) is verified by a client of lan through site3's line, for site3's names only
+SITE3_HOST_CA = os.path.join(W, "site3_host_ca")
+sh(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", SITE3_HOST_CA])
+host_key = on(box, "cat /etc/ssh/ssh_host_ed25519_key.pub")[1].strip()
+with open(os.path.join(W, "s3host.pub"), "w") as f:
+    f.write(host_key + "\n")
+sh(["ssh-keygen", "-q", "-s", SITE3_HOST_CA, "-h", "-I", "fabric-host:s3", "-n", f"{NAME}.site3.test", "-V", "+1h",
+    os.path.join(W, "s3host.pub")])
+sh(["docker", "cp", os.path.join(W, "s3host-cert.pub"), f"{box}:/etc/ssh/site3-host-cert.pub"])
+own = open(HOST_CA + ".pub").read().split()
+site3 = open(SITE3_HOST_CA + ".pub").read().split()
+with open(os.path.join(TLS, "www", "certs", "ssh-host-cas.known"), "w") as f:
+    f.write(f"@cert-authority *.ad.lan.test,*.lan.test {own[0]} {own[1]}\n@cert-authority *,!*.*,!*:* {own[0]} {own[1]}\n"
+            f"@cert-authority *.ad.lan.test,*.site3.test {site3[0]} {site3[1]}\n")
+code, out = on(box, "fabric-managed check; cat /etc/ssh/ssh_known_hosts; /usr/sbin/sshd -p 2222 "
+                    "-o HostCertificate=/etc/ssh/site3-host-cert.pub")
+check("the organisation's host CAs: site3's line in fabric's known-hosts block, for site3's names",
+      f"*.site3.test {site3[0]} {site3[1]}" in out, out[-500:])
+code, out = on(box, f"{STRICT} -p 2222 -o HostKeyAlias={NAME}.site3.test adam@127.0.0.1 id -un")
+check("a site3 machine's host certificate verified through site3's host CA (strict checking, no prompt)",
+      code == 0 and out.strip().endswith("adam"), out[-400:])
+code, out = on(box, f"{STRICT} -p 2222 -o HostKeyAlias={NAME}.site9.test adam@127.0.0.1 id -un")
+check("negative: the same certificate for a name outside site3's (site9.test): not trusted",
+      code != 0 and "host key verification failed" in out.lower(), out[-400:])
+on(box, "pkill -f 'sshd -p 2222'; rm -f /etc/ssh/site3-host-cert.pub")
+os.remove(os.path.join(TLS, "www", "certs", "ssh-host-cas.known"))
+on(box, "fabric-managed check")
 code, out = on(box, f"{STRICT} adam@127.0.0.1 id -un")
 check("negative: by an IP address the host CA vouches for nothing: the host key is not trusted",
       code != 0 and "host key verification failed" in out.lower(), out[-400:])

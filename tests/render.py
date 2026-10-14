@@ -812,13 +812,30 @@ assert 'HostCertificate $f' in _join and "grep -q 'host certificate$'" in _join 
 assert '@cert-authority *.${AD_DOMAIN,,},*.${DOMAIN,,} $key' in _join and '@cert-authority *,!*.*,!*:* $key' in _join
 from fabriclib.vault.ssh.known_hosts_block import BEGIN as _KH_BEGIN, END as _KH_END  # noqa: E402
 assert f'BEGIN="{_KH_BEGIN}"' in _join and f'END="{_KH_END}"' in _join, 'the same markers as the fabric host writes'
-assert 'RODC=0' in _join and 'WRITE_DC=""' in _join and 'fetch_revoked' in _join \
+assert 'RODC=0' in _join and 'WRITE_DCS=""' in _join and 'fetch_revoked' in _join \
     and "sed 's/^/@revoked * /'" in _join, 'a writable site; revoked keys as @revoked lines (1.6.11.9.12)'
 # at a read-only DC's site the machine writes its host keys at the writable DC, by name for Kerberos (2.1.6.52)
 _join_ro = env.get_template('nginx/www/certs/join-linux.sh.j2').render(
     **{**full, 'ad_dc_type': 'rodc', 'ad_join_server': '10.9.9.9', 'ad_join_server_name': 'root-dc.ad.lan.test'})
-assert 'RODC=1' in _join_ro and 'WRITE_DC="root-dc.ad.lan.test"' in _join_ro and 'TARGET=$at as_machine ldapmodify' \
+assert 'RODC=1' in _join_ro and 'WRITE_DCS="root-dc.ad.lan.test"' in _join_ro and 'TARGET=$at as_machine ldapmodify' \
     in _join_ro and 'REFUSED' in _join_ro, 'the writable DC named for the write; a refusal said loudly'
+# several writable DCs, tried in order (2.1.6.57): the list as names; the machine goes on past one that does not answer
+# covers: setting:ad_writable_servers +
+_join_list = env.get_template('nginx/www/certs/join-linux.sh.j2').render(
+    **{**full, 'ad_dc_type': 'rodc', 'ad_join_server': '10.9.9.9', 'ad_join_server_name': 'root-dc.ad.lan.test',
+       'ad_writable_servers': ['dc-a.ad.lan.test', 'dc-b.ad.lan.test']})
+assert 'WRITE_DCS="dc-a.ad.lan.test dc-b.ad.lan.test"' in _join_list and 'WRITE_DCS="$WRITE_DCS"' in _join_list \
+    and 'for at in $targets; do' in _join_list and 'none of the writable domain controllers answers ($tried)' \
+    in _join_list and '${WRITE_DCS:-${WRITE_DC:-}}' in _join_list, 'the list, tried in order; all down named'
+# SSH between sites (2.1.7.14, 1.6.11.9.15 and .16): sshd asks fabric-ssh-principals, which answers <user>@<site>; the
+# organisation's user CAs and every site's host CA lines fetched as lists, each line checked
+assert 'AuthorizedPrincipalsCommand $PRINCIPALS %u' in _join and 'AuthorizedPrincipalsCommandUser nobody' in _join \
+    and 'PRINCIPALS=/usr/local/sbin/fabric-ssh-principals' in _join, 'the principals command in the drop-in'
+assert 'printf \'%s\\n\' "\\$u@$SITE"' in _join and '^[A-Za-z0-9._-]+' in _join \
+    and 'authpriv.info' in _join, 'the command answers <user>@<site> for a plain name, logged'
+assert 'org_list "$ca_file.org" ssh-user-cas.pub' in _join and 'org_list "$ca_file.org" ssh-host-cas.known' in _join \
+    and "'^@cert-authority [A-Za-z0-9*.,!:-]+ " in _join and 'cat "$HOST_CAS"' in _join, 'the organisation lists'
+assert '"$HOST_CAS" "$PRINCIPALS"' in _join, 'removed with the rest when the machine leaves management'
 _managed = _join.split("<<'MANAGED'\n", 1)[1].split("\nMANAGED\n", 1)[0]
 _bash = _sp.run(['bash', '-n'], input=_managed, capture_output=True, text=True)
 assert _bash.returncode == 0, _bash.stderr

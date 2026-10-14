@@ -427,6 +427,7 @@
 "setting:ad_realm": "templates/vars.yaml.j2"
 "setting:ad_rpc_ports": "templates/vars.yaml.j2"
 "setting:ad_site_ou": "templates/vars.yaml.j2"
+"setting:ad_writable_servers": "templates/vars.yaml.j2"
 "setting:address_line1": "templates/vars.yaml.j2"
 "setting:address_line2": "templates/vars.yaml.j2"
 "setting:adguard_mem_limit": "templates/vars.yaml.j2"

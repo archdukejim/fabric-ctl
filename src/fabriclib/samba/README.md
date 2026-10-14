@@ -25,7 +25,8 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `clear_logon_policy.py` | One OU's log-on policy removed (it takes its parent's; never leaving the site's machines without one; audited) |
 | `logon_overview.py` | Who may sign in, per OU: `logon show`, domain status, the web console's Machines section |
 | `host_logon_default.py` | The log-on policy of the site's OU=fabric-hosts while the setting names none: the fabric admins (2.1.6.53) |
-| `writable_server.py` | The DC a write to the domain goes to: this site's, or a read-only DC's writable partner (`ad_join_server`); refused with none known (2.1.6.52, 2.1.10.23) |
+| `writable_server.py` | The DC a write to the domain goes to: this site's, or at a read-only DC's site the first of its writable DCs that answers (`ad_writable_servers`, else `ad_join_server`); refused with none known or none answering, naming each (2.1.6.52, 2.1.6.57, 2.1.10.23) |
+| `check_writable_servers.py` | The setting `ad_writable_servers` checked at apply: a list of at most 8 names or addresses, no repeats (2.1.6.57) |
 | `allow_rodc_cache.py` | At a site whose DC is read-only: puts `<site>-rodc-cache` on that DC's password replication allow list, at the writable DC (2.1.6.52) |
 | `sync_rodc_cache.py` | At a site whose DC is read-only: the DC's lists checked (the cache group allowed, the denied list whole), `<site>-rodc-cache` kept at the writable DC (the site's people groups nested, its machines members), the site's own accounts preloaded (2.1.6.55) |
 | `refuse_at_read_only_dc.py` | The one refusal of a change only a writable DC's own copy takes (Group Policy, who may sign in per OU) at a site whose DC is read-only (2.1.6.52) |

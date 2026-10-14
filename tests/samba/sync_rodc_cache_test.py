@@ -14,6 +14,8 @@ import types
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
 from fabriclib.common.errors import ValidationError  # noqa: E402
+import fabriclib.samba.writable_server as _ws  # noqa: E402
+_ws._answers = lambda server: True  # a pure test reaches no DC: every listed writable DC answers (2.1.6.57)
 import fabriclib.samba.sync_rodc_cache as mod  # noqa: E402
 import fabriclib.samba.run_domain_command as cli  # noqa: E402
 

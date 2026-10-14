@@ -25,6 +25,8 @@ import types
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path[0:0] = [os.path.join(REPO, "src")]
 from fabriclib.common.errors import ValidationError  # noqa: E402
+import fabriclib.samba.writable_server as _ws  # noqa: E402
+_ws._answers = lambda server: True  # a pure test reaches no DC: every listed writable DC answers (2.1.6.57)
 import fabriclib.directory.run_op as run_op_mod  # noqa: E402
 from fabriclib.vault.ssh import apply_host_ssh_cert as ahc  # noqa: E402
 from fabriclib.vault.ssh import sign_ssh_hosts as shs  # noqa: E402
@@ -272,6 +274,10 @@ def op(name, args):
         if "certs" in args:
             h["certs"] = list(args["certs"])
         return {"name": args["name"], "changed": True}
+    if name == "set_ssh_cas":                  # the organisation's CAs (2.1.7.14): tests/openbao/ssh_sites_test.py
+        return {"changed": False, "dn": "CN=fabric-ssh-cas"}
+    if name == "read_ssh_cas":
+        return {"sites": []}
     raise AssertionError(name)
 
 
@@ -289,7 +295,7 @@ run_v = {"ssh_certificates": True, "ad_domain": "ad.lan.test", "domain": "lan.te
          "site_name": "lan"}
 published = {}
 kw = dict(login=lambda v, creds: "token", op=op, sign=sign,
-          apply=lambda v, certs, ca, revoked=(): applied.append((list(certs), ca, list(revoked))) or ["applied"],
+          apply=lambda v, certs, ca, revoked=(), org_lines=None: applied.append((list(certs), ca, list(revoked))) or ["applied"],
           host_keys=os.path.join(hostkeys, "ssh_host_*_key.pub"), now=NOW,
           publish=lambda v, text, name: published.__setitem__(name, text))
 off = shs.sign_ssh_hosts({**run_v, "ssh_certificates": False}, cfg, **kw)
@@ -359,10 +365,12 @@ def _container(cmd, **kw):
 run_op_mod.subprocess = types.SimpleNamespace(run=_container)
 rodc_kw = {k: x for k, x in kw.items() if k != "op"}
 shs.sign_ssh_hosts({**run_v, "ad_dc_type": "rodc", "ad_join_server": "10.0.0.5"}, cfg, **rodc_kw)
-check("every write (prepare, keys, certificates) at the writable DC; the list read at this site's own",
-      routed and all(srv == "10.0.0.5" for name, srv in routed if name != "list_ssh_hosts")
-      and all(srv is None for name, srv in routed if name == "list_ssh_hosts")
-      and {"prepare_ssh_hosts", "set_ssh_host", "list_ssh_hosts"} <= {name for name, _ in routed}, routed)
+check("every write (prepare, keys, certificates, the site's CAs) at the writable DC; the reads (the list, the "
+      "organisation's CAs) at this site's own",
+      routed and all(srv == "10.0.0.5" for name, srv in routed if name not in ("list_ssh_hosts", "read_ssh_cas"))
+      and all(srv is None for name, srv in routed if name in ("list_ssh_hosts", "read_ssh_cas"))
+      and {"prepare_ssh_hosts", "set_ssh_host", "list_ssh_hosts", "set_ssh_cas", "read_ssh_cas"}
+      <= {name for name, _ in routed}, routed)
 routed.clear()
 check("negative: read-only DC, no writable DC known: refused before anything is asked",
       refused(shs.sign_ssh_hosts, {**run_v, "ad_dc_type": "rodc"}, cfg, match="no writable domain controller",

@@ -985,9 +985,64 @@ try:
     why = ""
 except ValidationError as e:
     why = str(e)
-check("negative: a write with the writable DC not answering: said plainly, naming it", "10.254.30.99 does not answer"
+check("negative: a write with the writable DC not answering: said plainly, naming it", "10.254.30.99: did not answer"
       in why, why)
-gpo_before = sh(["docker", "exec", RODC, "find", "/data/state/sysvol", "-newer", "/data/etc/smb.conf", "-type", "f"],
+# several writable DCs, tried in order (2.1.6.57): the first does not answer, the second (the real one) takes it
+import fabriclib.samba.writable_server as ws_mod  # noqa: E402
+ws_mod._seen.clear()
+listed_v = {**rcv, "ad_writable_servers": ["10.254.30.99", IP]}
+run_op(listed_v, lab_sec, "create_person", {"uid": "listed", "first": "Listed", "last": "Test",
+                                            "email": "listed@lan.test", "password": "Pw-" + random_password(20),
+                                            "gid": 5000, "home_base": "/home", "shell": "/bin/bash"}, RODC)
+check("the list falls through to the second writable DC when the first does not answer",
+      "dn: CN=listed," in dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=listed)", "dn").stdout)
+run_op(listed_v, lab_sec, "remove_person", {"uid": "listed"}, RODC)
+try:
+    ws_mod._seen.clear()
+    run_op({**rcv, "ad_writable_servers": ["10.254.30.99", "10.254.30.98"]}, lab_sec, "save_device", {"name": "x"},
+           RODC)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: every writable DC down: refused, naming each one tried",
+      "10.254.30.99: did not answer; 10.254.30.98: did not answer" in why, why)
+
+# SSH between sites (2.1.7.14): each site's <site>-ssh-users, who is in it, the organisation's CAs through AD, and
+# each site's DC type from the configuration partition
+lab_v = {**v, "site_name": "lab"}
+members = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=lab-ssh-users)", "member").stdout
+check("lab-ssh-users made with the site's groups, lab-fabric-admins and fabric-admins nested in it",
+      "CN=lab-fabric-admins," in members and "CN=fabric-admins," in members, members)
+dc("samba-tool", "group", "addmembers", "lab-ssh-users", "stayer", "-s", CONF)
+check("a member of lab-ssh-users: the op names lab (so the certificate carries stayer@lab)",
+      "lab" in run_op(lab_v, lab_sec, "ssh_user_sites", {"uid": "stayer"}, DC)["sites"])
+check("negative: a person in no SSH users group: no site", run_op(lab_v, lab_sec, "ssh_user_sites",
+                                                                    {"uid": "outsider"}, DC)["sites"] == [])
+dc("samba-tool", "group", "add", "lan2-ssh-users", "-s", CONF)          # in CN=Users, not a site's OU=groups
+dc("samba-tool", "group", "addmembers", "lan2-ssh-users", "outsider", "-s", CONF)
+check("negative: a group of that name outside a site's OU=groups counts for nothing",
+      run_op(lab_v, lab_sec, "ssh_user_sites", {"uid": "outsider"}, DC)["sites"] == [])
+UCA = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeUserCaFakeUserCaFakeUserCaFakeUserCa00"
+HCA = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeHostCaFakeHostCaFakeHostCaFakeHostCa00"
+run_op(lab_v, lab_sec, "set_ssh_cas", {"user_ca": UCA, "host_ca": HCA, "domain": "lab.lan.test"}, DC)
+cas = {s["site"]: s for s in run_op(v, SECRETS, "read_ssh_cas", {}, DC)["sites"]}
+check("a site's CAs published in its own OU, read back by another site with the site's DC type from AD's "
+      "configuration (lab's DC is read-only: its user CA is not trusted elsewhere)",
+      cas.get("lab", {}).get("host_ca") == HCA and cas["lab"]["user_ca"] == UCA and cas["lab"]["writable"] is False,
+      cas)
+types_ = run_op(v, SECRETS, "read_site_dcs", {}, DC)["sites"]
+check("read_site_dcs: lan writable, lab read-only (userAccountControl's PARTIAL_SECRETS_ACCOUNT)",
+      types_.get("lan", {}).get("type") == "writable" and types_.get("lab", {}).get("type") == "rodc", types_)
+try:
+    run_op(lab_v, lab_sec, "set_ssh_cas", {"user_ca": "not a key"}, DC)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: a CA that is not a key is refused", "not an SSH public key" in why, why)
+run_op(lab_v, lab_sec, "set_ssh_cas", {}, DC)
+check("no keys: the site's object removed", "lab" not in {s["site"] for s in run_op(v, SECRETS, "read_ssh_cas", {},
+                                                                                    DC)["sites"]})
+gpo_before =sh(["docker", "exec", RODC, "find", "/data/state/sysvol", "-newer", "/data/etc/smb.conf", "-type", "f"],
                 ok=False).stdout
 for name, change in (("who may sign in", lambda: set_logon_policy(rcv, "tester", "machines", ["lab-users"], None,
                                                                   secrets=lab_sec, container=RODC)),

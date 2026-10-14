@@ -105,6 +105,8 @@ def _show(o):
     if not o["policies"]:
         print("  that OU has no policy of its own: it takes its parent's")
     print(f"  always, everywhere: {', '.join(o['always'])}")
+    if o.get("remote_always"):
+        print(f"  always remotely (SSH), everywhere but fabric-hosts: {', '.join(o['remote_always'])}")
 
 
 def _logon(v, args):

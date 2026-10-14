@@ -20,12 +20,13 @@ FABRIC_DNS="{{ host_ip }}"
 DOMAIN="{{ domain }}"
 # the fabric host's own name: its SSH user CA (manual 1.6.11.9.4) is fetched from it over verified HTTPS
 FABRIC_HOST="{{ (hostname ~ '.' ~ domain) | lower }}"
-# a site whose DC is read-only takes no writes: a machine writes its SSH host keys at the writable DC instead (manual
-# 1.6.11.9.7; the same DC fabric writes at, samba/writable_server, 2.1.6.52); its name, for Kerberos
+# a site whose DC is read-only takes no writes: a machine writes its SSH host keys at a writable DC instead (manual
+# 1.6.11.9.7; the DCs fabric writes at, samba/writable_server, 2.1.6.52), the first of the list that answers (2.1.6.57,
+# 1.6.11.13.1); names, for Kerberos
 {% if ad_dc_type | default('writable', true) == 'rodc' %}RODC=1
-WRITE_DC="{{ ad_join_server_name | default('', true) or ad_join_server | default('', true) }}"
+WRITE_DCS="{{ (ad_writable_servers | default([], true) or [ad_join_server_name | default('', true) or ad_join_server | default('', true)]) | join(' ') }}"
 {% else %}RODC=0
-WRITE_DC=""
+WRITE_DCS=""
 {% endif %}
 die() { echo "ERROR: $*" >&2; exit 1; }
 usage() { sed -n '2,8p' "$0" | cut -c3-; exit 2; }
@@ -267,7 +268,7 @@ DOMAIN=$DOMAIN
 FABRIC_DNS=$FABRIC_DNS
 FABRIC_HOST=$FABRIC_HOST
 RODC=$RODC
-WRITE_DC=$WRITE_DC
+WRITE_DCS="$WRITE_DCS"
 EOF
 cat > /usr/local/sbin/fabric-managed <<'MANAGED'
 #!/bin/bash
@@ -282,6 +283,10 @@ SSH_CA=/etc/ssh/fabric-user-ca.pub      # fabric's SSH user CA (manual 1.6.11.9.
 HOST_CA=/etc/ssh/fabric-host-ca.pub     # fabric's SSH host CA (manual 1.6.11.9.9), while SSH certificates are on
 REVOKED=/etc/ssh/fabric-host-revoked.pub  # host keys whose certificates fabric withdrew (1.6.11.9.12): @revoked
 HOST_CERT=/etc/ssh/fabric-host-cert     # + -<ed25519|ecdsa|rsa>.pub: this machine's host certificates (1.6.11.9.8)
+# the organisation's CAs, as this site's fabric host publishes them (2.1.7.14, 1.6.11.9.16): every site's host CA for
+# its own names; the user CAs this site's machines trust
+HOST_CAS=/etc/ssh/fabric-host-cas.known
+PRINCIPALS=/usr/local/sbin/fabric-ssh-principals   # answers sshd: <user>@<this site> (1.6.11.9.15)
 KNOWN=/etc/ssh/ssh_known_hosts
 BEGIN="# fabric: SSH host CA, begin (manual 1.6.11.9.9; written by fabric, kept in step with SSH certificates)"
 END="# fabric: SSH host CA, end"
@@ -307,6 +312,29 @@ ssh_ca() {  # one of fabric's SSH CAs ($2: ssh-user-ca.pub 1.6.11.9.4, ssh-host-
     if [[ $code == 404 ]]; then return 1; fi
     [[ $code == 200 ]] && grep -qE '^(ssh-ed25519|ecdsa-sha2-nistp[0-9]+|ssh-rsa) [A-Za-z0-9+/=]+( .*)?$' "$1" \
         && [[ $(wc -l < "$1") -le 1 ]] || return 2
+}
+org_list() {  # one of the organisation's lists ($2: ssh-user-cas.pub, ssh-host-cas.known; 2.1.7.14), every line
+              # checked against $3: 0 published (in $1), 1 not published (a fabric host before it, or off), 2 unknown
+    local code
+    [[ -n ${FABRIC_HOST:-} ]] || return 2
+    code=$(curl -sS --max-time 20 -o "$1" -w '%{http_code}' "https://$FABRIC_HOST/certs/$2" 2>/dev/null) || return 2
+    if [[ $code == 404 ]]; then return 1; fi
+    [[ $code == 200 && -s $1 ]] && ! grep -qvE "$3" "$1" || return 2
+}
+write_principals() {  # sshd's AuthorizedPrincipalsCommand (2.1.7.14): <user>@<this site>, for a plain user name only
+    write "$PRINCIPALS" <<PRINCIPALS_EOF || true
+#!/bin/bash
+# fabric (manual 1.6.11.9.15): the one principal a certificate must name to sign in here as \$1: \$1@$SITE
+u=\${1:-}
+if [[ ! \$u =~ ^[A-Za-z0-9._-]+\$ ]]; then
+    logger -t fabric-ssh-principals -p authpriv.notice "refused: a user name that is not plain" 2>/dev/null || true
+    exit 0
+fi
+logger -t fabric-ssh-principals -p authpriv.info "\$u: accepting \$u@$SITE" 2>/dev/null || true
+printf '%s\n' "\$u@$SITE"
+PRINCIPALS_EOF
+    chown root:root "$PRINCIPALS"
+    chmod 0755 "$PRINCIPALS"
 }
 as_machine() {  # an LDAP tool ($1) against the DC, signed in as this machine (its keytab), one ticket per run
     if [[ -z $CC ]]; then
@@ -341,7 +369,12 @@ fetch_revoked() {  # fabric's revoked host keys (1.6.11.9.12) into $REVOKED: 200
 known_block() {   # $1: the host CA's key file -> fabric's known-hosts lines (the domain's names, then short names)
     local key
     key=$(awk '{print $1" "$2}' "$1")
-    printf '%s\n' "$BEGIN" "@cert-authority *.${AD_DOMAIN,,},*.${DOMAIN,,} $key" "@cert-authority *,!*.*,!*:* $key"
+    if [[ -s $HOST_CAS ]]; then     # the organisation's: every site's host CA for its own names (2.1.7.14)
+        printf '%s\n' "$BEGIN"
+        cat "$HOST_CAS"
+    else
+        printf '%s\n' "$BEGIN" "@cert-authority *.${AD_DOMAIN,,},*.${DOMAIN,,} $key" "@cert-authority *,!*.*,!*:* $key"
+    fi
     if [[ -s $REVOKED ]]; then sort -u "$REVOKED" | sed 's/^/@revoked * /'; fi
     printf '%s\n' "$END"
 }
@@ -372,21 +405,32 @@ host_certs() {    # this machine's host keys published on its own account; the c
     want=$(for f in /etc/ssh/ssh_host_ed25519_key.pub /etc/ssh/ssh_host_ecdsa_key.pub /etc/ssh/ssh_host_rsa_key.pub; do
                if [[ -r $f ]]; then awk '{print $1" "$2}' "$f"; fi; done | sort)
     if [[ -n $want && $want != "$have" ]]; then
-        local at=$DC rc=0
-        if [[ ${RODC:-0} == 1 ]]; then at=${WRITE_DC:-}; fi   # a read-only DC takes no writes: the writable one (2.1.6.52)
-        if [[ -z $at ]]; then
+        local at rc tried="" targets=$DC
+        # a read-only DC takes no writes: the writable ones, in order, the first that answers (2.1.6.52, 2.1.6.57); a
+        # machine joined before the list keeps its one WRITE_DC
+        if [[ ${RODC:-0} == 1 ]]; then targets=${WRITE_DCS:-${WRITE_DC:-}}; fi
+        if [[ -z $targets ]]; then
             loud "this site's domain controller is read-only and no writable one is known: host keys not published" \
                 "(join the machine again with the current installer)"
         else
-            { printf 'dn: %s\nchangetype: modify\nreplace: fabricSshHostKey\n' "$dn"
-              printf '%s\n' "$want" | sed 's/^/fabricSshHostKey: /'
-              printf -- '-\n'; } | TARGET=$at as_machine ldapmodify >/dev/null 2>&1 || rc=$?
+            for at in $targets; do
+                rc=0
+                { printf 'dn: %s\nchangetype: modify\nreplace: fabricSshHostKey\n' "$dn"
+                  printf '%s\n' "$want" | sed 's/^/fabricSshHostKey: /'
+                  printf -- '-\n'; } | TARGET=$at as_machine ldapmodify >/dev/null 2>&1 || rc=$?
+                if [[ $rc -eq 255 || $rc -eq 2 ]]; then     # did not answer: the next one
+                    tried="${tried:+$tried; }$at: no answer"
+                    continue
+                fi
+                break
+            done
             if [[ $rc -eq 0 ]]; then
                 echo "fabric-managed: host keys published for signing (at $at)"
             elif [[ $rc -eq 255 || $rc -eq 2 ]]; then
-                loud "the domain controller $at does not answer: host keys not published (nothing changed)"
+                loud "none of the writable domain controllers answers ($tried): host keys not published (nothing changed)"
             elif [[ $rc -eq 10 ]]; then     # a referral: a read-only DC this machine was not told about
-                loud "the domain controller $at is read-only: host keys not published; join the machine again with"                     "the current installer, which names the writable one"
+                loud "the domain controller $at is read-only: host keys not published; join the machine again with" \
+                    "the current installer, which names the writable ones"
             else
                 echo "fabric-managed: host keys not published yet (fabric prepares this machine's account within the hour)" >&2
             fi
@@ -429,8 +473,10 @@ sshd_text() {     # the drop-in, from what is on disk now
         "GSSAPIAuthentication yes" "GSSAPICleanupCredentials yes" "PasswordAuthentication no" \
         "KbdInteractiveAuthentication no" "UsePAM yes"
     if [[ -e $SSH_CA ]]; then
-        printf '%s\n' "# fabric (manual 1.6.11.9): 8-hour certificates for the fabric admins, signed by fabric's SSH CA" \
-            "TrustedUserCAKeys $SSH_CA"
+        printf '%s\n' "# fabric (manual 1.6.11.9): 8-hour certificates for each site's SSH users, signed by fabric's CAs" \
+            "TrustedUserCAKeys $SSH_CA" \
+            "# fabric (manual 1.6.11.9.15): a certificate signs in here only naming <user>@$SITE (2.1.7.14)" \
+            "AuthorizedPrincipalsCommand $PRINCIPALS %u" "AuthorizedPrincipalsCommandUser nobody"
     fi
     for f in "$HOST_CERT"-*.pub; do
         if [[ -e $f ]]; then
@@ -443,15 +489,31 @@ apply() {
     ca_file=$(mktemp)
     ssh_ca "$ca_file" ssh-user-ca.pub || ca_rc=$?
     if [[ $ca_rc -eq 0 ]]; then
+        # the user CAs this site's machines trust (2.1.7.14): the organisation's list, else this site's own
+        org_list "$ca_file.org" ssh-user-cas.pub '^(ssh-ed25519|ecdsa-sha2-nistp[0-9]+|ssh-rsa) [A-Za-z0-9+/=]+$' \
+            && mv "$ca_file.org" "$ca_file"
+        rm -f "$ca_file.org"
         write "$SSH_CA" < "$ca_file" && changed=1
         chmod 0644 "$SSH_CA"
+        write_principals
     elif [[ $ca_rc -eq 1 && -e $SSH_CA ]]; then
-        rm -f "$SSH_CA"; changed=1
+        rm -f "$SSH_CA" "$PRINCIPALS"; changed=1
     fi
     ssh_ca "$ca_file" ssh-host-ca.pub || host_rc=$?
     if [[ $host_rc -eq 0 ]]; then              # on: the host CA trusted as a client; this machine's certificates
         write "$HOST_CA" < "$ca_file" && changed=1
         chmod 0644 "$HOST_CA"
+        local org_rc=0                         # every site's host CA for its names (2.1.7.14)
+        org_list "$ca_file.org" ssh-host-cas.known \
+            '^@cert-authority [A-Za-z0-9*.,!:-]+ (ssh-ed25519|ecdsa-sha2-nistp[0-9]+|ssh-rsa) [A-Za-z0-9+/=]+$' \
+            || org_rc=$?
+        if [[ $org_rc -eq 0 ]]; then
+            write "$HOST_CAS" < "$ca_file.org" || true
+            chmod 0644 "$HOST_CAS"
+        elif [[ $org_rc -eq 1 ]]; then
+            rm -f "$HOST_CAS"
+        fi
+        rm -f "$ca_file.org"
         fetch_revoked
         set_known "$HOST_CA" && changed=1
         if [[ -d /etc/ssh/sshd_config.d ]] && host_certs; then changed=1; fi
@@ -459,7 +521,7 @@ apply() {
         if [[ -e $HOST_CA ]] || compgen -G "$HOST_CERT-*.pub" >/dev/null; then
             rm -f "$HOST_CA" "$HOST_CERT"-*.pub; changed=1
         fi
-        rm -f "$REVOKED"
+        rm -f "$REVOKED" "$HOST_CAS"
         set_known "" && changed=1
     fi
     rm -f "$ca_file"
@@ -478,7 +540,7 @@ apply() {
 }
 remove() {
     if [[ -e $SSHD || -e $RESOLVED || -e $SSH_CA || -e $HOST_CA ]] || compgen -G "$HOST_CERT-*.pub" >/dev/null; then
-        rm -f "$SSHD" "$RESOLVED" "$SSH_CA" "$HOST_CA" "$REVOKED" "$HOST_CERT"-*.pub
+        rm -f "$SSHD" "$RESOLVED" "$SSH_CA" "$HOST_CA" "$REVOKED" "$HOST_CAS" "$PRINCIPALS" "$HOST_CERT"-*.pub
         set_known "" || true
         reload
         echo "fabric-managed: removed (no longer in $SITE-fabric-machines)"
