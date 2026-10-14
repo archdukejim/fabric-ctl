@@ -691,6 +691,7 @@ file	fabriclib-setup|src/fabriclib/setup/start_unit.py	34
 file	fabriclib-setup|src/fabriclib/setup/uninstall.py	35	
 file	fabriclib-setup|src/fabriclib/setup/upgrade_vars.py	36	
 file	fabriclib-setup|src/fabriclib/setup/verify_install.py	37	
+file	fabriclib-setup|src/fabriclib/setup/wait_ready.py	81	
 file	fabriclib-system|src/fabriclib/system/apply_changes.py	1	
 file	fabriclib-system|src/fabriclib/system/common/parse_mem_mb.py	10	
 file	fabriclib-system|src/fabriclib/system/control_stack.py	2	
@@ -2048,6 +2049,11 @@ function	fabriclib-setup|src/fabriclib/setup/verify_install.py|_ldap_bind	2	0.5.
 function	fabriclib-setup|src/fabriclib/setup/verify_install.py|_records	6	
 function	fabriclib-setup|src/fabriclib/setup/verify_install.py|checks	3	
 function	fabriclib-setup|src/fabriclib/setup/verify_install.py|run	4	
+function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|_code	1	
+function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|_refusals	2	
+function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|probes	3	
+function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|run	5	
+function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|wait_ready	4	
 function	fabriclib-system|src/fabriclib/system/apply_changes.py|apply_changes	1	
 function	fabriclib-system|src/fabriclib/system/common/parse_mem_mb.py|parse_mem_mb	1	
 function	fabriclib-system|src/fabriclib/system/control_stack.py|control_stack	1	

@@ -316,6 +316,13 @@ _rz = env.get_template('bind9/data/reverse-zone.j2').render(**full, reverse_zone
                                                             ptr_records=[{'label': 'x' * 30, 'target': 'a.b.'}])
 assert f'{_long} A       192.0.2.7' in _lz and f'{"x" * 40} CNAME   {_long}' in _lz and f'{"x" * 30} PTR' in _rz, _lz
 print('zone files: a name of 24 characters or more stays apart from its record type')
+# Postgres's health probe signs in as Keycloak's own role once OpenBao has it: the bootstrap role is locked then, and a
+# probe as it was refused every 10 s (2.3.1.21.4)
+_pg = lambda **s: yaml.safe_load(env.get_template('postgres/docker-compose.yml.j2').render(**full, **s))[  # noqa: E731
+    'services']['postgres']['healthcheck']['test'][1]
+assert _pg() == 'pg_isready -U keycloak -d keycloak' and \
+    _pg(keycloak_db_user='keycloak_db') == 'pg_isready -U keycloak_db -d keycloak', (_pg(), _pg(keycloak_db_user='x'))
+print("Postgres's health probe: the bootstrap role before the take-over, Keycloak's own after")
 # DNS filter (manual 1.12.2): on by default (2.1.12.3) -> the BIND resolver on 53, BIND on 5053 (even when vars.yaml
 # had 53), its own account, no capabilities, no requires; off -> BIND keeps the port vars say
 assert v2['dns_filter'] == user.get('dns_filter', 'bind') and v2['install_resolver'] is (v2['dns_filter'] == 'bind')
