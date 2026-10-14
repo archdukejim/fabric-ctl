@@ -48,7 +48,7 @@ for s in "${SUITES[@]}"; do
         openbao)  run openbao  bash -c "python3 \"$HERE/openbao/run.py\" && python3 \"$HERE/openbao/db_rotation.py\" && python3 \"$HERE/openbao/ssh_ca.py\" && python3 \"$HERE/openbao/ssh_host_test.py\"" ;;
         fluentbit) run fluentbit python3 "$HERE/fluentbit/run.py" ;;
         kea) run kea bash -c "python3 \"$HERE/kea/run.py\" && python3 \"$HERE/kea/scan.py\" && python3 \"$HERE/kea/relay.py\"" ;;
-        ipam)     run ipam     bash -c "python3 \"$HERE/ipam/run.py\" && python3 \"$HERE/ipam/networks.py\" && python3 \"$HERE/ipam/scan.py\" && python3 \"$HERE/ipam/options.py\" && python3 \"$HERE/ipam/scan_policy.py\" && python3 \"$HERE/ipam/sync.py\" && python3 \"$HERE/ipam/role_test.py\"" ;;
+        ipam)     run ipam     bash -c "python3 \"$HERE/ipam/run.py\" && python3 \"$HERE/ipam/networks.py\" && python3 \"$HERE/ipam/scan.py\" && python3 \"$HERE/ipam/options.py\" && python3 \"$HERE/ipam/scan_trigger.py\" && python3 \"$HERE/ipam/sync.py\" && python3 \"$HERE/ipam/role_test.py\"" ;;
         freeradius) run freeradius bash -c "python3 \"$HERE/freeradius/nas_test.py\" && python3 \"$HERE/freeradius/coa_test.py\" && python3 \"$HERE/freeradius/run.py\"" ;;
         samba)    run samba    bash -c "python3 \"$HERE/samba/run.py\" && python3 \"$HERE/samba/dc.py\" && python3 \"$HERE/samba/devices.py\" && python3 \"$HERE/samba/linux_join.py\" && python3 \"$HERE/samba/gpo.py\" && python3 \"$HERE/samba/logon.py\" && python3 \"$HERE/samba/hostgroups.py\" && python3 \"$HERE/samba/site_join.py\" && python3 \"$HERE/samba/ipam.py\" && python3 \"$HERE/samba/ipam_two_site.py\"" ;;
         keycloak) run keycloak python3 "$HERE/keycloak/run.py" ;;

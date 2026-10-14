@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """The web UI dev preview: real pages with sample data, edits in memory only,
 and no way to switch it on in the production server."""
+import atexit
 import http.client
 import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.parse
 
@@ -13,7 +15,27 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 WEBUI = os.path.join(REPO, "src", "webui")
 UX_WEB = os.path.join(REPO, "src", "ux", "web")          # server.py and the dev preview's devserver.py
 sys.path.insert(0, os.path.join(REPO, "src"))
+
+PASSED = FAILED = 0
+
+
+def _summary():
+    """The summary line, printed however the run ends: after the last check, or after a crash (an import that fails, a
+    server that never answers), which counts as one failure, so a run never ends without its counts."""
+    print(f"\n{PASSED} passed, {FAILED} failed")
+
+
+def _crashed(kind, value, tb):
+    global FAILED
+    FAILED += 1
+    sys.__excepthook__(kind, value, tb)
+
+
+sys.excepthook = _crashed
+atexit.register(_summary)
 from webui import views  # noqa: E402
+# the dev servers' output goes to a file, never an unread pipe (a full pipe would stall the server mid-run)
+SERVER_LOG = tempfile.TemporaryFile(mode="w+")
 
 PORT = 18765
 START_WAIT = 15                             # seconds a dev server may take to answer (about 6 under WSL's /mnt)
@@ -26,13 +48,21 @@ def _start_wait():
         yield
 
 
-FAILED = 0
-
-
 def check(name, cond, detail=""):
-    global FAILED
+    global PASSED, FAILED
+    PASSED += bool(cond)
     FAILED += not cond
     print(("PASS " if cond else "FAIL ") + name + ("" if cond else f"  -> {str(detail)[:300]}"))
+
+
+def _stop(server):
+    """Stop a dev server: terminate, and kill it when it has not gone within five seconds."""
+    server.terminate()
+    try:
+        server.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        server.kill()
+        server.wait()
 
 
 def req(method, path, form=None):
@@ -45,7 +75,7 @@ def req(method, path, form=None):
 
 
 proc = subprocess.Popen([sys.executable, os.path.join(UX_WEB, "devserver.py"), "--port", str(PORT)],
-                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                        stdout=SERVER_LOG, stderr=subprocess.STDOUT, text=True)
 try:
     for _ in _start_wait():
         try:
@@ -195,22 +225,28 @@ try:
     page = req("GET", "/networks?site=parents&subnet=iot")[3]
     check("Networks tab: another site's subnet has no scan link (a scan covers only this site's)",
           'href="/networks/scan?' not in page and "Scan this subnet" not in page)
-    check("Networks tab: another site's scan policy card (its own level denying, 1.10.4.27) and no Sync now card",
-          "Scan policy · parents" in page and "decided by site parents" in page
-          and 'action="/networks/scan/policy"' in page and 'action="/networks/sync"' not in page, page[:3000])
+    check("Networks tab: a site below's Scans card (local scans off by default, its form, the requests and an "
+          "answer, 1.10.4.29), the subnet's Scan at button, no Sync now card",
+          "Scans at parents" in page and "off by default" in page and 'action="/networks/scan/local"' in page
+          and 'action="/networks/scan/request"' in page and "Scan at parents" in page and "alice@lan" in page
+          and "10.2.20.77" in page and 'action="/networks/sync"' not in page, page[:3000])
     page = req("GET", "/networks")[3]
-    check("Networks tab: this site's Sync now card with DNS pending (1.10.4.28) and its scan policy",
-          'action="/networks/sync"' in page and "DNS waits for an apply or Sync now" in page
-          and "Scan policy · lan" in page and 'action="/networks/scan/policy/org"' in page, page[:3000])
+    check("Networks tab: this site's Sync now card with DNS pending (1.10.4.28) and its Scans card (the top: always, "
+          "no form)", 'action="/networks/sync"' in page and "DNS waits for an apply or Sync now" in page
+          and "Scans at lan" in page and "may always scan" in page and 'action="/networks/scan/local"' not in page,
+          page[:3000])
     st, loc, _, _ = req("POST", "/networks/sync", {"csrf": "dev"})
     check("Sync now in the dev preview: back to the tab, nothing synced", st == 303 and "msg=Synced" in (loc or ""),
           loc)
-    st, loc, _, _ = req("POST", "/networks/scan/policy", {"csrf": "dev", "site": "lan", "policy": "deny"})
-    check("the scan policy's form in the dev preview: back to the tab on that site", st == 303
-          and "site=lan" in (loc or "") and "msg=Scan+policy+set" in (loc or ""), loc)
+    st, loc, _, _ = req("POST", "/networks/scan/request", {"csrf": "dev", "site": "parents", "subnet": "iot"})
+    check("Scan at parents in the dev preview: back to the tab on that site", st == 303
+          and "site=parents" in (loc or "") and "msg=Scan+requested" in (loc or ""), loc)
+    st, loc, _, _ = req("POST", "/networks/scan/local", {"csrf": "dev", "site": "parents", "allowed": "on"})
+    check("the local scans form in the dev preview: back to the tab on that site", st == 303
+          and "site=parents" in (loc or "") and "msg=Local+scans+set" in (loc or ""), loc)
     scan = req("GET", "/networks/scan")[3]
-    check("the scan page: the policy here and a subnet DHCP does not serve, marked", "Scan policy here" in scan
-          and "DHCP off" in scan, scan[:1500])
+    check("the scan page: local scans here (the top: always) and a subnet DHCP does not serve, marked",
+          "Local scans at lan" in scan and "DHCP off" in scan, scan[:1500])
     page = req("GET", "/kea?plan=1")[3]
     check("Kea tab with the subnets in the plan: links to Networks, no subnet or reservation forms (1.10.4.21)",
           'href="/networks' in page and 'action="/kea/subnets"' not in page
@@ -527,12 +563,11 @@ try:
     st, _, _, page = req("GET", "/preview/denied")
     check("preview of a refused sign-in", st == 403 and "fabric-console-admin" in page)
 finally:
-    proc.terminate()
-    proc.wait(timeout=5)
+    _stop(proc)
 
 PORT += 1                                   # people: the helpdesk bundle
 proc = subprocess.Popen([sys.executable, os.path.join(UX_WEB, "devserver.py"), "--port", str(PORT),
-                         "--as", "fabric-helpdesk"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                         "--as", "fabric-helpdesk"], stdout=SERVER_LOG, stderr=subprocess.STDOUT, text=True)
 try:
     for _ in _start_wait():
         try:
@@ -558,12 +593,11 @@ try:
     st, loc, _, _ = req("POST", "/directory/people/jim/disable", {"csrf": "dev"})
     check("helpdesk: refused: disabling an admin", st == 303 and "only+an+admin" in (loc or ""), loc)
 finally:
-    proc.terminate()
-    proc.wait(timeout=5)
+    _stop(proc)
 
 PORT += 1                                   # the preview as a role bundle sees it
 proc = subprocess.Popen([sys.executable, os.path.join(UX_WEB, "devserver.py"), "--port", str(PORT),
-                         "--as", "fabric-auditor"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                         "--as", "fabric-auditor"], stdout=SERVER_LOG, stderr=subprocess.STDOUT, text=True)
 try:
     for _ in _start_wait():
         try:
@@ -597,8 +631,7 @@ try:
     check("--as fabric-auditor: the ACME view without enroll or withdraw", "nas.home.arpa" in page
           and "/stepca/acme/enroll" not in page and "/delete" not in page)
 finally:
-    proc.terminate()
-    proc.wait(timeout=5)
+    _stop(proc)
 
 prod = views.overview({"user": "u", "csrf": "x", "version": {"version": "1", "build": ""}}, [])
 check("production pages never show the banner", "DEV PREVIEW" not in prod)

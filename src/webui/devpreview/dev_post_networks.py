@@ -79,15 +79,17 @@ def _act(plan, site, rest, form):
 def dev_post_networks(h, path, form):
     """Purpose: the Networks tab's changes acted out on the sample plan in memory (nothing written or applied): the
              site's number, a VLAN added or removed, an address recorded, changed or removed (a device role only on
-             a reservation); the other forms (Sync now and the scan policy's included) say saved.
+             a reservation); the other forms (Sync now, a scan asked at a site below and its local scans included)
+             say saved.
     Inputs:  h — the dev handler (send); path — /networks/<site>/…; form — dict.
     Returns: True when the path was handled (303 back to the tab with msg or err); None otherwise.
     Fails:   never for form values.
     Feeds:   dev_post_action."""
     if not path.startswith("/networks/"):
         return None
-    if path == "/networks/sync" or path in ("/networks/scan/policy", "/networks/scan/policy/org"):
-        what = "Synced" if path == "/networks/sync" else "Scan policy set"
+    if path in ("/networks/sync", "/networks/scan/request", "/networks/scan/local"):
+        what = {"/networks/sync": "Synced", "/networks/scan/request": "Scan requested",
+                "/networks/scan/local": "Local scans set"}[path]
         site = {"site": form["site"]} if form.get("site") else {}
         h.send(303, b"", location="/networks?" + urllib.parse.urlencode(
             {**site, "msg": f"{what} (dev preview: nothing written, synced or applied)."}))

@@ -111,34 +111,23 @@ def _option_sets(samdb, of):
     return sets, sorted(editors)
 
 
-def _scan_policies(samdb, of):
-    """Purpose: the scan policy's two levels (decision 2.1.10.28, manual 1.10.4.27.2): the organisation's and each
-             site's (or `of`'s alone), kept on their option set's entry.
-    Inputs:  samdb — SamDB; of — a site's name, or "" for every site.
-    Returns: {"org": {"policy" ("allow", "deny" or "" unset), "enforced" (bool)}, <site>: the same}; "org" always
-             there, `of` too when given (unset when it has no entry).
-    Fails:   ldb.LdbError from the search.
+def _local_scan(m, top_dn):
+    """Purpose: whether a site's own admins may start scans there (decision 2.1.10.30, manual 1.10.4.29.4): set from
+             above on its OU, off when unset; the top site has no site above it and always may. With the sites above
+             it, nearest first, read from its OU's place (sites nest, 2.1.6.20): who may change a value set from higher
+             up is decided by them (2.1.10.30's revision: the highest ancestor that set it wins).
+    Inputs:  m — ldb.Message of a site's OU (fabricLocalScan, fabricLocalScanBy); top_dn — "OU=sites,<domain>",
+             lower case.
+    Returns: {"allowed" (bool: the setting, TRUE only), "set_by" (text, "" unset), "top" (bool: right below
+             OU=sites), "above" (list of site names, nearest first; [] at the top)}.
+    Fails:   never.
     Feeds:   read_plan."""
-    try:
-        org = organisation_dn(samdb).lower()
-    except LookupError:
-        org = ""
-    unset = {"policy": "", "enforced": False}
-    out = {"org": dict(unset)}
-    for m in samdb.search(base=sites_dn(samdb), scope=ldb.SCOPE_SUBTREE, expression="(objectClass=fabricOptionSet)",
-                          attrs=["fabricScanPolicy", "fabricScanEnforced"]):
-        value = {"policy": _one(m, "fabricScanPolicy").lower(),
-                 "enforced": _one(m, "fabricScanEnforced").upper() == "TRUE"}
-        parent = str(m.dn.parent())
-        if parent.lower() == org:
-            out["org"] = value
-            continue
-        owner = parent.split(",", 1)[0].split("=", 1)[1]
-        if not of or owner == of:
-            out[owner] = value
-    if of:
-        out.setdefault(of, dict(unset))
-    return out
+    above, dn = [], str(m.dn).split(",", 1)[1]
+    while dn.lower() != top_dn and dn.upper().startswith("OU="):
+        above.append(dn.split(",", 1)[0].split("=", 1)[1])
+        dn = dn.split(",", 1)[1]
+    return {"allowed": _one(m, "fabricLocalScan").upper() == "TRUE", "set_by": _one(m, "fabricLocalScanBy"),
+            "top": not above, "above": above}
 
 
 def read_plan(samdb, lp, site, of=""):
@@ -155,17 +144,19 @@ def read_plan(samdb, lp, site, of=""):
              1.11.1.7)}]}], "networks": [{"name", "cidr", "kind", "vlan", "notes",
              "allow_overlap"}]}}, "option_sets": {"org": {"options", "option_defs", "client_classes"} or None,
              <site>: the same}, "org_editors": [site names] (2.1.10.23), "options" (the organisation's options; and
-             each plan's "options", the site's: the shape the Networks tab reads, 2.3.10.5.7), "scan_policy" (the scan
-             policy's levels, _scan_policies, 2.1.10.28)}: lists sorted; a site
+             each plan's "options", the site's: the shape the Networks tab reads, 2.3.10.5.7), "local_scan" ({site:
+             _local_scan's}, every site's, 2.1.10.30)}: lists sorted; a site
              without entries has no key in plans unless it is `of`; a subnet's and an address's "netboot" is its
              preset or None (2.1.10.25).
     Fails:   ldb.LdbError from the searches; ValueError "no such site: <of>".
     Feeds:   directory_ops (op "read_plan")."""
-    sites = []
+    sites, local = [], {}
+    top_dn = sites_dn(samdb).lower()
     for m in samdb.search(base=sites_dn(samdb), scope=ldb.SCOPE_SUBTREE, expression="(objectClass=fabricSiteInfo)",
-                          attrs=["ou", "whenCreated", "fabricBlock"]):
+                          attrs=["ou", "whenCreated", "fabricBlock", "fabricLocalScan", "fabricLocalScanBy"]):
         sites.append({"name": _one(m, "ou"), "created": _one(m, "whenCreated"),
                       "block": int(_one(m, "fabricBlock")) if _one(m, "fabricBlock") else None})
+        local[_one(m, "ou")] = _local_scan(m, top_dn)
     try:
         base = f"OU=networks,{site_dn(samdb, of)}" if of else sites_dn(samdb)
     except LookupError:
@@ -227,4 +218,4 @@ def read_plan(samdb, lp, site, of=""):
         plan["options"] = (option_sets.get(name) or {}).get("options") or []
     return {"sites": sorted(sites, key=lambda x: (x["created"], x["name"])), "plans": plans,
             "options": (option_sets.get("org") or {}).get("options") or [],
-            "option_sets": option_sets, "org_editors": editors, "scan_policy": _scan_policies(samdb, of)}
+            "option_sets": option_sets, "org_editors": editors, "local_scan": local}
