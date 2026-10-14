@@ -328,9 +328,11 @@ check("...and makes the site's windows-admins role a member of each machine's Ad
       "__Memberof = *S-1-5-32-544".encode("utf-16-le") in inf and "[Group Membership]".encode("utf-16-le") in inf)
 roles = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(&(objectClass=group)(sAMAccountName=lan-*))",
            "sAMAccountName", "member").stdout
-check("the site's four role groups, lan-admins a member of each (2.1.9.13; linux-sudo replaced, 2.1.6.37)",
+check("the site's four role groups (2.1.9.13; linux-sudo replaced, 2.1.6.37), lan-admins in none of them (2.1.9.21) "
+      "and, at the root, the organisation's admins in each (Central IT)",
       all(f"sAMAccountName: lan-{r}" in roles for r in ("ou-admins", "machine-admins", "gpo-admins", "windows-admins"))
-      and "sAMAccountName: lan-linux-sudo" not in roles and roles.count("member: CN=lan-admins,") == 4, roles[-600:])
+      and "sAMAccountName: lan-linux-sudo" not in roles and "member: CN=lan-admins," not in roles
+      and roles.count("member: CN=admins,") == 4, roles[-600:])
 
 
 def members(group):

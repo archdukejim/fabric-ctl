@@ -33,6 +33,7 @@ PERMISSIONS = {
     "people:read": "see realm users",
     "people:create": "create realm users",
     "people:reset": "reset a user's sign-in (password, TOTP)",
+    "people:unlock": "clear a user's lockout after too many wrong passwords (their password stays, 2.1.9.21)",
     "people:disable": "disable a user's sign-in everywhere at once, or enable it again",
     "people:remove": "remove a user and revoke their certificates",
     "people:groups": "change which groups a user is in",
@@ -42,6 +43,13 @@ PERMISSIONS = {
     "sudo:admin": "add and remove the site's sudo rules on its Linux machines (admin bundle, 1.6.11.7)",
     "gpo:admin": "set and clear policies in the site's admin settings GPO, and who may sign in to its machines",
     "federation:read": "see the federation: sites, DC replication and conflicts, limits, the address plan",
+    "federation:admin": "grant and revoke roles at the sites below this one (2.1.9.21)",
+    # the site helpdesk (2.1.9.21, manual 1.6.8.2): the same actions, on this site's own people who hold no role only
+    "site:people:read": "see this site's own people (the site helpdesk)",
+    "site:people:create": "add a person to this site (the site helpdesk)",
+    "site:people:reset": "reset the sign-in of this site's own people who hold no role (the site helpdesk)",
+    "site:people:unlock": "unlock this site's own people who hold no role (the site helpdesk)",
+    "site:people:disable": "disable or enable this site's own people who hold no role (the site helpdesk)",
     "vault:status": "see OpenBao's state and unlock methods",
     "vault:unlock": "add, test, remove unlock methods; rotate the vault key",
     "audit:read": "read the audit log",
@@ -72,5 +80,19 @@ BUNDLES = {
     "fabric-pki-operator": ["status:read", "pki:read", "pki:issue", "pki:sign", "pki:revoke", "pki:link-device",
                            "pki:enrol", "devices:read"],
     "fabric-helpdesk": ["status:read", "dns:read", "pki:read", "devices:read", "devices:enroll", "people:read",
-                        "people:create", "people:reset", "people:disable", "domain:read"],
+                        "people:create", "people:reset", "people:unlock", "people:disable", "domain:read"],
+    # a site's own admins at that site (2.1.9.21): unlock, reset, add and disable the site's own people, nothing else
+    "fabric-site-helpdesk": ["status:read", "site:people:read", "site:people:create", "site:people:reset",
+                             "site:people:unlock", "site:people:disable"],
 }
+# a site's groups -> the bundle each gives in that site's own console only (2.1.9.21, manual 1.6.8.2): `<site>-admins`
+# the site helpdesk by default, the others when a site above grants them (the DC's site_roles.CONSOLE_ROLES keeps the
+# same list; tests/rbac/site_roles_test.py checks they agree)
+SITE_ROLE_BUNDLES = {"admins": "fabric-site-helpdesk", "network-operators": "fabric-network-operator",
+                     "equipment-operators": "fabric-equipment-operator", "pki-operators": "fabric-pki-operator",
+                     "helpdesk": "fabric-helpdesk", "auditors": "fabric-auditor"}
+# a permission -> its site helpdesk form, which grants the same route on this site's own people only (2.1.9.21): the
+# agent accepts the form (rbac/holds_permission) and the route narrows to them (agent/post_people, get_route)
+SITE_SCOPED = {"people:read": "site:people:read", "people:create": "site:people:create",
+               "people:reset": "site:people:reset", "people:unlock": "site:people:unlock",
+               "people:disable": "site:people:disable"}

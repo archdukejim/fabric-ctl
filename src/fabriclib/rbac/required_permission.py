@@ -52,7 +52,7 @@ POST = {
     ("devices",): "devices:enroll", ("devices", "*"): "devices:admin", ("devices", "*", "delete"): "devices:admin",
     ("devices", "*", "certs"): "pki:link-device",
     ("roles",): "roles:admin", ("roles", "*"): "roles:admin", ("roles", "*", "delete"): "roles:admin",
-    ("people",): "people:create", ("people", "*", "reset"): "people:reset",
+    ("people",): "people:create", ("people", "*", "reset"): "people:reset", ("people", "*", "unlock"): "people:unlock",
     ("people", "*", "disable"): "people:disable", ("people", "*", "enable"): "people:disable",
     ("people", "*", "delete"): "people:remove", ("people", "*", "groups"): "people:groups",
     ("machines",): "machines:admin", ("machines", "*", "enable"): "machines:admin",
@@ -63,6 +63,7 @@ POST = {
     ("host-groups",): "machines:admin", ("host-groups", "*", "delete"): "machines:admin",
     ("host-groups", "*", "members"): "machines:admin",
     ("sudo",): "sudo:admin", ("sudo", "*", "delete"): "sudo:admin",
+    ("federation", "roles"): "federation:admin",     # grant or revoke a role at a site below (2.1.9.21)
     ("dhcp", "on"): "dhcp:write", ("dhcp", "off"): "dhcp:write",
     ("dhcp", "reservations"): "dhcp:write", ("dhcp", "reservations", "*", "delete"): "dhcp:write",
     ("dhcp", "subnets"): "dhcp:write", ("dhcp", "subnets", "update"): "dhcp:write",

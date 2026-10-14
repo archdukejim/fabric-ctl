@@ -13,6 +13,7 @@ from agent.route_not_found import RouteNotFound
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
 from fabriclib.keycloak.verify_user_token import verify_user_token
+from fabriclib.rbac.holds_permission import holds_permission
 from fabriclib.rbac.required_permission import required_permission
 from fabriclib.rbac.user_permissions import user_permissions
 
@@ -75,8 +76,8 @@ class Handler(BaseHTTPRequestHandler):
         Returns: None when allowed, with self.user = the token's preferred_username and self.perms = its permission set
                  (both None for a root peer); otherwise (status, error): (401, reason) when verify_user_token rejects
                  the token or it is missing; (403, "not allowed") when required_permission lists no permission for the
-                 route (default deny); (403, "you need the permission <p>") when the token lacks it ("session" needs
-                 none).
+                 route (default deny); (403, "you need the permission <p>") when the token lacks it and its site
+                 helpdesk form (holds_permission; "session" needs none).
         Fails:   exceptions other than ValidationError (e.g. KeyError on a token without preferred_username, OSError
                  from load_vars) propagate to dispatch, which answers 500.
         Feeds:   dispatch; self.user feeds actor, self.perms the people-reset privilege check."""
@@ -91,7 +92,7 @@ class Handler(BaseHTTPRequestHandler):
         need = required_permission(method, route)
         if need is None:
             return 403, "not allowed"
-        if need != "session" and need not in user_permissions(claims):
+        if not holds_permission(user_permissions(claims), need):     # its site helpdesk form counts (2.1.9.21)
             return 403, f"you need the permission {need}"
         self.user, self.perms = claims["preferred_username"], user_permissions(claims)
         return None
@@ -163,7 +164,7 @@ class Handler(BaseHTTPRequestHandler):
             if refused:
                 return self.reply(refused[0], {"error": refused[1]})
             if method == "GET":
-                return self.reply(200, get_route(route, self.user))
+                return self.reply(200, get_route(route, self.user, self.perms))
             data = self.body()
             return self.reply(200, post_route(route, self.actor(data), data, self.perms))
         except RouteNotFound:

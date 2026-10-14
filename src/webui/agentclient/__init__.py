@@ -96,6 +96,7 @@ from webui.agentclient.host_group_change import host_group_change  # noqa: F401
 from webui.agentclient.list_sudo_rules import list_sudo_rules  # noqa: F401
 from webui.agentclient.sudo_rule_change import sudo_rule_change  # noqa: F401
 from webui.agentclient.federation_overview import federation_overview  # noqa: F401
+from webui.agentclient.site_role_change import site_role_change  # noqa: F401
 from webui.agentclient.networks_change import networks_change  # noqa: F401
 from webui.agentclient.networks_export import networks_export  # noqa: F401
 from webui.agentclient.networks_overview import networks_overview  # noqa: F401

@@ -9,7 +9,9 @@ from fabriclib.federation.list_invitations import list_invitations
 from fabriclib.federation.remove_site import remove_site
 from fabriclib.federation.reparent_site import reparent_site
 from fabriclib.federation.revoke_invitation import revoke_invitation
+from fabriclib.federation.run_roles_command import run_roles_command
 from fabriclib.federation.show_networks import show_networks
+from fabriclib.federation.site_roles import site_roles
 from fabriclib.federation.set_federation_endpoint import set_federation_endpoint
 from fabriclib.setup.errors import SetupError
 from fabriclib.system.apply_changes import apply_changes
@@ -30,6 +32,17 @@ USAGE = """usage: fabricctl federation status                 this install's pla
        fabricctl federation remove <site>          forget a site that joined here (its CA revoked)
        fabricctl federation reparent [@FILE|-]     on a site: move under the parent whose invitation you paste
        fabricctl federation revoke <id|site>       withdraw an open invitation
+       fabricctl federation roles [<site>]         the roles granted at this site and the sites below it
+       fabricctl federation roles grant <site> <role> [--to <group|person>]
+                                                   a role at a site below this one (default: to <site>-admins):
+                                                   network-operators, equipment-operators, pki-operators,
+                                                   helpdesk, auditors (the site's web console); ou-admins,
+                                                   machine-admins, gpo-admins, windows-admins, fabric-admins (AD)
+       fabricctl federation roles revoke <site> <role> [--from <group|person>]
+                                                   take it back
+       fabricctl federation roles remake <site> <role|admins>
+                                                   make a site below's group again: one the site made
+                                                   itself (refused by convergence), or a missing one
   On the new site: sudo fabricctl setup --join   (a fresh install; paste the invitation at the prompt)"""
 
 
@@ -44,7 +57,7 @@ def _when(epoch):
 
 def run_federation_command(ctx, argv):
     """Purpose: `fabricctl federation status | enable | disable | invite | invitations | revoke | remove | reparent |
-             relay | networks` —
+             relay | networks | roles` —
              joining sites to
              this install without the web UI (manual 1.9.4.1).
     Inputs:  ctx — SetupContext with state loaded (ctx.vars: the rendered vars); argv — list of str after
@@ -73,6 +86,12 @@ def run_federation_command(ctx, argv):
                 print("  no sites yet" + ("" if s["endpoint"] else ": fabricctl federation enable, then invite <site>"))
             for i in s["invitations"]:
                 print(f"  invitation {i['id']} for {i['site']}, open until {_when(i['expires'])}")
+            try:                                    # the roles granted here and below (2.1.9.21)
+                for site in site_roles(v)["sites"]:
+                    held = [f"{r['role']} ({', '.join(r['members'])})" for r in site["roles"] if r["members"]]
+                    print(f"  roles at {site['site']}: {'; '.join(held) or 'none granted'}")
+            except ValidationError as e:
+                print(f"  roles: the directory could not be asked ({e})")
             return 0
         if cmd in ("enable", "disable") and not args:
             ok, output = set_federation_endpoint(ctx, "root", cmd == "enable")
@@ -124,6 +143,11 @@ def run_federation_command(ctx, argv):
             if not res["applied"]:
                 print(res["output"])
             return 0 if res["applied"] else 1
+        if cmd == "roles":                          # layered roles (2.1.9.21)
+            code = run_roles_command(v, args)
+            if code == 2:
+                print(USAGE, file=sys.stderr)
+            return code
         if cmd == "revoke" and len(args) == 1:
             print(f"withdrawn: {revoke_invitation(v, 'root', args[0])} invitation(s)")
             return 0

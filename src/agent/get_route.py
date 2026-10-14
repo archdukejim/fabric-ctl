@@ -19,6 +19,7 @@ from fabriclib.ipam.options.options_overview import options_overview
 from fabriclib.directory.device_overview import device_overview
 from fabriclib.directory.list_host_groups import list_host_groups
 from fabriclib.directory.list_people import list_people
+from fabriclib.rbac.holds_permission import holds_permission
 from fabriclib.directory.list_sudo_rules import list_sudo_rules
 from fabriclib.images.image_status import image_status
 from fabriclib.pki.acme_info import acme_info
@@ -61,7 +62,6 @@ READS = {
     ("tsig",): lambda: list_tsig_keys(),
     ("reverse-zones",): lambda: reverse_zones(load_vars()),
     ("devices",): lambda: device_overview(load_vars()),
-    ("people",): lambda: list_people(load_vars()),
     ("domain",): lambda: domain_overview(load_vars()),
     ("domain", "logon"): lambda: logon_overview(load_vars()),
     ("host-groups",): lambda: list_host_groups(load_vars()),
@@ -83,20 +83,25 @@ READS = {
 }
 
 
-def get_route(route, user=None):
+def get_route(route, user=None, perms=None):
     """Purpose: answer GET /v1/<route>: one fabriclib read operation per route.
     Inputs:  route — list of path segments after /v1/ (already authorized by the handler); user — the token's user
-             (None for root): a job is read only by the person who started it.
+             (None for root): a job is read only by the person who started it; perms — the token's permissions (None
+             for root): people is narrowed to this site's own for the site helpdesk (2.1.9.21).
     Returns: the operation's JSON-serialisable result. zones/<key>: zone_detail; vault/slots: the unlock methods with
              this host's name; images: the image status rows; pki/acme: {info, machines, domain}; jobs/<id>: the job;
              networks[/<site>]: networks_overview (the Networks tab, a site this console shows); networks/<site>/export:
              networks_csv ({"csv", "name"}); ipam/options/<site>[/<target>]: options_overview (the DHCP options and,
              given a target, its effective options with their sources, 1.10.4.24.3);
-             pki/enrolments: list_enrolments; ssh: ssh_overview for the token's user; ssh/hosts: ssh_hosts_overview.
+             pki/enrolments: list_enrolments; ssh: ssh_overview for the token's user; ssh/hosts: ssh_hosts_overview;
+             people: list_people (this site's own people only when people:read is held only as site:people:read).
     Fails:   RouteNotFound for any other route (-> 404); whatever the operation raises (ValidationError -> 400).
     Feeds:   agent/handler.py (dispatch)."""
     if tuple(route) in READS:
         return READS[tuple(route)]()
+    if route == ["people"]:
+        own = perms is not None and holds_permission(perms, "people:read") == "site"
+        return list_people(load_vars(), own_site=own)
     if len(route) == 2 and route[0] == "zones":
         return zone_detail(route[1])
     if len(route) == 2 and route[0] == "networks":

@@ -117,3 +117,4 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `ssh_hosts.py` | GET /v1/ssh/hosts: the SSH host CA and each machine's host certificate state (domain:read) |
 | `sign_ssh_key.py` | POST /v1/ssh/sign: an 8-hour SSH certificate for a fabric admin |
 | `set_ssh_certificates.py` | POST /v1/ssh/on, /v1/ssh/off: turn SSH certificates on or off |
+| `site_role_change.py` | POST /v1/federation/roles: grant or revoke a role at a site below this one (2.1.9.21) |

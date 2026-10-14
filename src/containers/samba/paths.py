@@ -56,6 +56,18 @@ def ancestors(samdb, site):
     return out
 
 
+def below(samdb, site):
+    """Purpose: the sites nested below a site, at any depth (their OUs inside its OU, 2.1.6.20): what a site may grant
+             roles at (2.1.9.21) and the only other sites it lists (2.1.9.22).
+    Inputs:  samdb — SamDB; site — str.
+    Returns: list of str, site names, sorted ([] when none).
+    Fails:   as site_dn; ldb.LdbError from the search.
+    Feeds:   converge (narrow_site_admins), list_site_roles, grant_site_role."""
+    top = site_dn(samdb, site)
+    res = samdb.search(base=top, scope=ldb.SCOPE_SUBTREE, attrs=["ou"], expression="(objectClass=fabricSiteInfo)")
+    return sorted(str(m["ou"][0]) for m in res if str(m.dn).lower() != top.lower())
+
+
 def relative(samdb, dn):
     """Purpose: a DN without the domain's own part, as samba's newuser and newcomputer take their container.
     Inputs:  samdb — SamDB; dn — str, inside the domain.

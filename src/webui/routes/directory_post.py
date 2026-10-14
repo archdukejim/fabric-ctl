@@ -32,9 +32,9 @@ def _role_fields(form):
 
 
 def _person_change(uid, op, form):
-    """Purpose: Disable, enable or remove a person, or change their groups, through fabric-agent.
-    Inputs:  uid — the user name; op — "disable", "enable", "delete" (form confirm: the user name typed back) or
-             "groups" (form action add|remove, group); form — dict.
+    """Purpose: Disable, enable, unlock or remove a person, or change their groups, through fabric-agent.
+    Inputs:  uid — the user name; op — "disable", "enable", "unlock", "delete" (form confirm: the user name typed
+             back) or "groups" (form action add|remove, group); form — dict.
     Returns: str, the message for the people list.
     Fails:   the agentclient exceptions (ValidationError for a refusal).
     Feeds:   directory_post."""
@@ -45,7 +45,11 @@ def _person_change(uid, op, form):
         done = actions.person_action(uid, "groups", {"action": form.get("action", ""), "group": form.get("group", "")})
         return f"{uid} {'added to' if done['member'] else 'removed from'} {done['group']}" + (
             "." if done["changed"] else " (no change).")
-    actions.person_action(uid, op)
+    done = actions.person_action(uid, op)
+    if op == "unlock":
+        if not done.get("unlocked"):
+            return f"{uid} was not locked."
+        return f"{uid} unlocked: they can sign in with their password."
     return f"{uid} {op}d: " + ("their sessions ended." if op == "disable" else "they can sign in again.")
 
 
@@ -82,7 +86,7 @@ def directory_post(h, sess, parts, form):
     """Purpose: Devices, device roles, people, machines and Group Policy: each form maps to one fabric-agent call.
     Inputs:  h — the request handler (send, redirect, deny); sess — dict from find_session; parts — path segments after
              /directory/: ['people', '_new'] (form uid, first, last, email), ['people', <uid>, 'reset'],
-             ['people', <uid> or '_form' (form uid), 'disable'|'enable'|'delete'|'groups'] (_person_change's
+             ['people', <uid> or '_form' (form uid), 'disable'|'enable'|'unlock'|'delete'|'groups'] (_person_change's
              form),
              ['devices'|'roles', '_new'] (form name + fields), ['devices'|'roles', <name>] (save), [..., <name>,
              'delete'], ['devices', <name>, 'certs', …] (unlink the certificate in form sha256), ['machines',
@@ -112,7 +116,7 @@ def directory_post(h, sess, parts, form):
             elif name and op == "reset":
                 uid, what = name, "reset"
                 password = actions.reset_sign_in(uid)
-            elif name and op in ("disable", "enable", "delete", "groups"):
+            elif name and op in ("disable", "enable", "unlock", "delete", "groups"):
                 uid = form.get("uid", "") if name == "_form" else name     # the forms that pick the person
                 return h.redirect("/directory?" + urllib.parse.urlencode(
                     {"view": "people", "msg": _person_change(uid, op, form)}))

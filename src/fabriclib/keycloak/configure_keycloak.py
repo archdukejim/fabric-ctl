@@ -9,10 +9,13 @@ from fabriclib.keycloak.ensure_openbao_client import ensure_openbao_client
 from fabriclib.keycloak.ensure_rbac_roles import ensure_rbac_roles
 from fabriclib.keycloak.ensure_realm import ensure_realm
 from fabriclib.keycloak.ensure_signin_flows import ensure_signin_flows
+from fabriclib.keycloak.ensure_site_group_mapper import ensure_site_group_mapper
 from fabriclib.keycloak.ensure_webui_client import ensure_webui_client
 from fabriclib.keycloak.grant_role_to_group import grant_role_to_group
 from fabriclib.keycloak.remove_retired_client import remove_retired_client
 from fabriclib.keycloak.retire_old_admin_role import retire_old_admin_role
+from fabriclib.keycloak.site_bundle_grants import site_bundle_grants
+from fabriclib.keycloak.site_lineage import site_lineage
 from fabriclib.keycloak.step import step
 from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.rbac.permissions import ADMIN_ROLE, OLD_ADMIN_ROLE
@@ -20,10 +23,11 @@ from fabriclib.secrets.load_secrets import load_secrets
 
 
 def configure_keycloak(vars_path, secrets_path):
-    """Purpose: configure Keycloak for fabric, idempotently: realm, LDAP federation and group sync, fabric's permission
-             and bundle roles with their group grants, fabric's sign-in flows (Kerberos, the second factors), and the
-             fabric-webui / fabric-openbao clients; the fabric-adguard client of 0.6 is removed (AdGuard Home
-             retired in 0.7).
+    """Purpose: configure Keycloak for fabric, idempotently: realm, LDAP federation and group sync (the organisation's
+             groups, and this site's own role groups, 2.1.9.21), fabric's permission and bundle roles with their group
+             grants (the site's groups give their bundles here only), fabric's sign-in flows (Kerberos, the second
+             factors), and the fabric-webui / fabric-openbao clients; the fabric-adguard client of 0.6 is removed
+             (AdGuard Home retired in 0.7).
     Inputs:  vars_path — vars.yaml; secrets_path — the secrets file (or OpenBao once imported: load_secrets). Talks to
              ip_keycloak:8443 with TLS pinned to <deploy_base_dir>/stepca/data/certs/root_ca.crt.
     Returns: None; prints progress and "Keycloak configuration complete.".
@@ -46,7 +50,9 @@ def configure_keycloak(vars_path, secrets_path):
     # Kerberos sign-in (manual 2.3.6.2.6.2) once the site's DC has exported its keytab (a read-only DC cannot make one)
     kerberos = bool(v.get("signin_kerberos", False)) and os.path.exists(
         os.path.join(v["deploy_base_dir"], "keycloak", "kerberos", "sso.keytab"))
-    ensure_group_mapper(kc, realm, ensure_ldap_federation(kc, realm, realm_id, v, s, writable, kerberos), v)
+    ldap_id = ensure_ldap_federation(kc, realm, realm_id, v, s, writable, kerberos)
+    ensure_group_mapper(kc, realm, ldap_id, v)
+    ensure_site_group_mapper(kc, realm, ldap_id, v)     # this site's own role groups (2.1.9.21)
     # The admin role and the admin sign-in flow serve the web UI and OpenBao's UI.
     admin_role = v.get("webui_admin_role", ADMIN_ROLE)
     reps = ensure_rbac_roles(kc, realm, admin_role)
@@ -57,6 +63,9 @@ def configure_keycloak(vars_path, secrets_path):
     for group in v.get("ldap_groups") or []:
         if group.get("bundle") in reps:
             grant_role_to_group(kc, realm, reps[group["bundle"]], group["name"])
+    # its helpdesk, the roles granted at this site and at every site above it (2.1.9.21, revised 2026-10-13)
+    for group, bundle in site_bundle_grants(v["site_name"], site_lineage(v)[0][1:]):
+        grant_role_to_group(kc, realm, reps[bundle], group)
     flow_id = ensure_signin_flows(kc, realm, {**v, "signin_kerberos": kerberos})
     roles = list(reps.values())
     if v.get("install_webui"):

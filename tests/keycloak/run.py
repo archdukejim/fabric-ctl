@@ -235,6 +235,82 @@ if users:
     roles = kc.call("GET", f"{R}/users/{users[0]['id']}/role-mappings/realm/composite")[1]
     check("jim gets fabric-console-admin through AD's admins group", any(r["name"] == "fabric-console-admin" for r in roles),
           [r["name"] for r in roles])
+
+# ---- layered roles (2.1.9.21, manual 1.6.8.2): the site's own groups mapped here, read only, nested membership
+mappers = kc.call("GET", f"{R}/components?parent={ldap[0]['id']}&type=org.keycloak.storage.ldap.mappers.LDAPStorageMapper")[1]
+site_mapper = [m for m in mappers if m.get("name") == "fabric site groups"]
+check("a second group mapper for the site's own role groups: read only, nested membership, the site's OU=groups only",
+      len(site_mapper) == 1 and site_mapper[0]["config"]["mode"] == ["READ_ONLY"]
+      and site_mapper[0]["config"]["user.roles.retrieve.strategy"] == ["LOAD_GROUPS_BY_MEMBER_ATTRIBUTE_RECURSIVELY"]
+      and site_mapper[0]["config"]["groups.dn"][0].startswith("OU=lan,OU=sites,"),
+      site_mapper and site_mapper[0]["config"])
+check("...and the organisation's mapper is still its own (not taken over)",
+      len([m for m in mappers if m.get("providerId") == "group-ldap-mapper"]) == 2)
+run_op(v, secrets, "create_person", {"uid": "lena", "first": "Lena", "last": "T", "email": "lena@lan.j-j.family",
+                                    "password": "Tst-" + random_password(20), "gid": 5000, "home_base": "/home",
+                                    "shell": "/bin/bash"}, DC)
+run_op(v, secrets, "add_group_member", {"group": "lan-admins", "uid": "lena"}, DC)
+sh(["docker", "exec", DC, "samba-tool", "group", "add", "house2-network-operators", "-s", "/data/etc/smb.conf"])
+sh(["docker", "exec", DC, "samba-tool", "group", "addmembers", "house2-network-operators", "lena", "-s",
+    "/data/etc/smb.conf"])
+sh(boot, ok=False, env=env)
+lena = kc.call("GET", f"{R}/users?username=lena&exact=true")[1]
+names = {r["name"] for r in kc.call("GET", f"{R}/users/{lena[0]['id']}/role-mappings/realm/composite")[1]} if lena else set()
+check("a site's admin (lena, in lan-admins) gets the site helpdesk here: the site forms only, never the plain ones",
+      "fabric-site-helpdesk" in names and "fabric:site:people:reset" in names and "fabric:people:reset" not in names
+      and "fabric:machines:admin" not in names and "fabric-console-admin" not in names, sorted(names))
+check("refused: another site's role group gives nothing here (house2-network-operators is not mapped)",
+      "fabric-network-operator" not in names
+      and kc.call("GET", f"{R}/groups?search=house2-network-operators&exact=true")[1] == [], sorted(names))
+sh(["docker", "exec", DC, "samba-tool", "group", "addmembers", "lan-network-operators", "lan-admins", "-s",
+    "/data/etc/smb.conf"])          # a grant: the site's admins nested in the role's group
+names = {r["name"] for r in kc.call("GET", f"{R}/users/{lena[0]['id']}/role-mappings/realm/composite")[1]} if lena else set()
+check("a granted role (lan-admins nested in lan-network-operators) gives its bundle here, through the nesting",
+      "fabric-network-operator" in names and "fabric:dns:write" in names, sorted(names))
+# a role granted at a site works at every site below it (2.1.9.21, revised 2026-10-13): this realm mapped as if it
+# were the Keycloak of `kid`, a site below lan (its groups searched from the top site's OU, the filter naming kid's own
+# groups and lan's console role groups), then put back
+from fabriclib.keycloak.ensure_site_group_mapper import ensure_site_group_mapper  # noqa: E402
+from fabriclib.keycloak.grant_role_to_group import grant_role_to_group  # noqa: E402
+from fabriclib.keycloak.site_bundle_grants import site_bundle_grants  # noqa: E402
+LAN_V = {**v, "ad_site_ou": v.get("ad_site_ou") or "OU=lan,OU=sites"}
+KID = {**LAN_V, "site_name": "kid", "ad_site_ou": "OU=kid," + LAN_V["ad_site_ou"]}
+ensure_site_group_mapper(kc, REALM, ldap[0]["id"], KID)
+for group, bundle in site_bundle_grants("kid", ["lan"]):
+    grant_role_to_group(kc, REALM, kc.call("GET", f"{R}/roles/{bundle}")[1], group)
+kid_mapper = [m for m in kc.call("GET", f"{R}/components?parent={ldap[0]['id']}&type=org.keycloak.storage.ldap."
+                                       "mappers.LDAPStorageMapper")[1] if m.get("name") == "fabric site groups"][0]
+names = {r["name"] for r in kc.call("GET", f"{R}/users/{lena[0]['id']}/role-mappings/realm/composite")[1]} if lena else set()
+check("at a site below lan, lan's granted role (lan-network-operators) still gives its bundle",
+      "fabric-network-operator" in names and "(cn=lan-network-operators)" in kid_mapper["config"]["groups.ldap.filter"][0]
+      and kid_mapper["config"]["groups.dn"][0].startswith("OU=lan,OU=sites,"), (sorted(names), kid_mapper["config"]))
+check("refused there: lan's own helpdesk (lan-admins) is lan's only, and a sibling's role (house2-) is never mapped",
+      "(cn=lan-admins)" not in kid_mapper["config"]["groups.ldap.filter"][0]
+      and "house2" not in kid_mapper["config"]["groups.ldap.filter"][0], kid_mapper["config"])
+ensure_site_group_mapper(kc, REALM, ldap[0]["id"], LAN_V)       # back to lan's own mapping
+# 2.1.9.24: a person whose role reaches beyond a branch is denied to that branch's Keycloak account (the deny
+# protect_privileged_people puts there): Keycloak then cannot store a password for them, so they change it at a sign-in
+# page of their own level. Here the deny is put on one person for lan's own Keycloak account, as a branch's would be.
+run_op(v, secrets, "create_person", {"uid": "faraway", "first": "Far", "last": "Away", "email": "far@lan.j-j.family",
+                                    "password": "Tst-" + random_password(20), "gid": 5000, "home_base": "/home",
+                                    "shell": "/bin/bash"}, DC)
+found = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=fabric-keycloak-lan)",
+            "objectSid"]).stdout
+kc_sid = found.split("objectSid: ")[1].split()[0]
+far_dn = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=faraway)", "dn"]
+            ).stdout.split("dn: ")[1].split("\n")[0].strip()
+sh(["docker", "exec", DC, "samba-tool", "dsacl", "set", f"--objectdn={far_dn}", f"--sddl=(D;;WPCRSDDTWDWO;;;{kc_sid})",
+    "-s", "/data/etc/smb.conf"])
+far = kc.call("GET", f"{R}/users?username=faraway&exact=true")[1]
+st, _ = kc.call("PUT", f"{R}/users/{far[0]['id']}/reset-password", {"type": "password", "temporary": False,
+                                                                     "value": "Tst-" + random_password(20)},
+                allow=(400, 403, 500, 502)) if far else (0, None)
+check("refused: Keycloak cannot store a password for a person its account is denied (2.1.9.24: they change it at "
+      "their own level)", far and st not in (200, 204), (st, far))
+st, _ = kc.call("PUT", f"{R}/users/{lena[0]['id']}/reset-password", {"type": "password", "temporary": True,
+                                                                      "value": "Tst-" + random_password(20)},
+                allow=(400, 403, 500, 502)) if lena else (0, None)
+check("...and still stores one for a person it is not denied (lena)", st in (200, 204), st)
 client = kc.call("GET", f"{R}/clients?clientId=fabric-webui")[1][0]
 check("client: confidential, code flow only, exact redirect, PKCE S256, fullScopeAllowed off",
       not client["publicClient"] and client["standardFlowEnabled"] and not client["implicitFlowEnabled"]

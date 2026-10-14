@@ -10,6 +10,7 @@ from fabriclib.ipam.add_vlan import add_vlan
 from fabriclib.ipam.common.fields import KEEP
 from fabriclib.ipam.common.site_plan import site_plan
 from fabriclib.ipam.export_plan import export_plan
+from fabriclib.federation.common.sites_shown import sites_shown
 from fabriclib.ipam.find_in_plan import find_in_plan
 from fabriclib.ipam.offer_reservations import offer_reservations
 from fabriclib.ipam.read_plan import read_plan
@@ -30,8 +31,11 @@ from fabriclib.ipam.suggestions import suggest_block
 from fabriclib.ipam.sync.sync_plan import sync_plan
 
 USAGE = """usage: fabricctl ipam show [<site>]                    a site's VLANs, subnets, ranges, addresses, leases
-       fabricctl ipam find <ip|name|mac>               where an address, a name or a MAC is, in every site
-       fabricctl ipam export [<site>]                  the address table as CSV (every site without one)
+                                                       (this site or one below it; every site at the top)
+       fabricctl ipam find <ip|name|mac>               where an address, a name or a MAC is: in every site at
+                                                       the top, else in this site and the sites below it
+       fabricctl ipam export [<site>]                  the address table as CSV (without a site: every site
+                                                       this one shows)
        fabricctl ipam block [<n>]                      the site's number (1-255): shown, or set
        fabricctl ipam vlan add <id> --name N [--subnet CIDR | --no-subnet] [--gateway IP] [--purpose T]
                                [--notes T] [--access full|guest] [--dhcp on|off] [--relay IP] [--no-split]
@@ -119,6 +123,22 @@ def _keep(vals, flag, clear=False, convert=None):
     return convert(vals[flag], flag) if convert else vals[flag]
 
 
+def _shown(v, which):
+    """Purpose: the sites `ipam show`, `find` and `export` may read (2.1.9.22, manual 1.9.8.20): None at the top (every
+             site), else this site and the sites below it; a named site outside them refused before AD is read.
+    Inputs:  v — fabric vars (site_name); which — the site named ("" none).
+    Returns: None (every site) or a set of lower-case site names.
+    Fails:   ValidationError for a site that is not this one or below it (a sibling, a parent, an unknown name).
+    Feeds:   run_ipam_command (show, find, export)."""
+    shown = sites_shown(v)
+    if shown is None:
+        return None
+    names = {n.lower() for n in shown}
+    if which and which.lower() not in names:
+        raise ValidationError(f"site {which}: this site shows only itself and the sites below it (2.1.9.22)")
+    return names
+
+
 def _leases(v, site):
     """Purpose: this site's live leases for show, find and export; none for another site or with DHCP off.
     Inputs:  v — fabric vars (install_kea, site_name); site — the site shown ("" this one).
@@ -198,19 +218,26 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
         site = vals.get("--site", "")
         if cmd == "show" and len(pos) <= 1 and not site:
             which = pos[0] if pos else v["site_name"]
+            _shown(v, which)
             read = read_plan(v, secrets, of=which, container=container)
             sys.stdout.write(show_plan(read, which, _leases(v, which)))
             return 0
         if cmd == "find" and len(pos) == 1 and not site:
             read = read_plan(v, secrets, container=container)
             rows = find_in_plan(read, pos[0], _leases(v, ""), v["site_name"])
+            shown = _shown(v, "")           # 2.1.9.22: never a sibling's or a parent's plan (the top: every site)
+            if shown is not None:
+                rows = [r for r in rows if str(r.get("site", "")).lower() in shown]
             if not rows:
                 print(f"{pos[0]}: not in any site's plan")
                 return 1
             _print_rows(rows)
             return 0
         if cmd == "export" and len(pos) <= 1 and not site:
+            shown = _shown(v, pos[0] if pos else "")
             read = read_plan(v, secrets, of=pos[0] if pos else "", container=container)
+            if shown is not None and not pos:          # every site this one shows, never a sibling's or a parent's
+                read = {**read, "plans": {k: p for k, p in (read.get("plans") or {}).items() if k.lower() in shown}}
             sys.stdout.write(export_plan(read, pos[0] if pos else "", _leases(v, pos[0] if pos else ""),
                                          v["site_name"]))
             return 0

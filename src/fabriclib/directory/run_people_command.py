@@ -4,22 +4,28 @@ from fabriclib.common.ask import ask
 from fabriclib.common.errors import ValidationError
 from fabriclib.directory.create_person import create_person
 from fabriclib.directory.list_people import list_people
+from fabriclib.directory.move_person import move_person
 from fabriclib.directory.remove_person import remove_person
 from fabriclib.directory.reset_sign_in import reset_sign_in
 from fabriclib.directory.set_person_enabled import set_person_enabled
 from fabriclib.directory.set_person_group import set_person_group
+from fabriclib.directory.unlock_person import unlock_person
 
 USAGE = """usage: fabricctl people list                      every person: user name, name, site, state, groups
        fabricctl people show <uid>                one person
        fabricctl people add <uid> --first F --last L --email E
                                                   a new person of this site; prints their one-time password once
        fabricctl people reset <uid>               a new one-time password, TOTP removed, sessions ended
+       fabricctl people unlock <uid>              clear a lockout after too many wrong passwords (password kept)
        fabricctl people disable|enable <uid>      block every sign-in at once (sessions end), or allow it again
        fabricctl people remove <uid> [--confirm <uid>]
                                                   remove them and revoke their certificates (asks for the user name
                                                   typed back; --confirm gives it unattended)
        fabricctl people groups <uid>              the groups they are in
        fabricctl people group add|remove <group> <uid>
+       fabricctl people move <uid> --site <site>  move their account to a site at or below this one, from a site
+                                                  above both (an account holds roles only at its own level or
+                                                  below: 2.1.9.24)
   Only this site's people can be changed. A one-time password is shown on this terminal only, never logged."""
 
 
@@ -84,6 +90,10 @@ def _run(v, args, actor):
         password = reset_sign_in(v, actor, rest[0], privileged=True, source="cli")
         print(f"{rest[0]}: new one-time password (shown once), TOTP removed, sessions ended:\n{password}")
         return 0
+    if cmd == "unlock" and len(rest) == 1:
+        done = unlock_person(v, actor, rest[0], privileged=True, source="cli")
+        print(f"{rest[0]}: unlocked" if done["unlocked"] else f"{rest[0]}: was not locked")
+        return 0
     if cmd in ("disable", "enable") and len(rest) == 1:
         done = set_person_enabled(v, actor, rest[0], cmd == "enable", privileged=True, source="cli")
         print(f"{rest[0]}: {cmd}d" if done["changed"] else f"{rest[0]}: already {cmd}d")
@@ -98,6 +108,11 @@ def _run(v, args, actor):
                 confirm = ""
         done = remove_person(v, actor, rest[0], confirm, privileged=True, source="cli")
         print(f"{rest[0]} removed; certificates revoked: {', '.join(done['revoked']) or 'none'}")
+        return 0
+    if cmd == "move" and len(rest) == 3:
+        done = move_person(v, actor, rest[0], _options(rest[1:], ("--site",)).get("--site", ""))
+        print(f"{done['uid']}: " + (f"moved from {done['from']} to {done['to']}" if done["moved"] else
+                                    f"already lives at {done['to']}"))
         return 0
     if cmd == "group" and len(rest) == 3 and rest[0] in ("add", "remove"):
         done = set_person_group(v, actor, rest[1], rest[2], rest[0] == "add", privileged=True, source="cli")
@@ -115,7 +130,8 @@ def run_people_command(v, args):
     Returns: exit status: 0 ok, 1 a refused change, 2 usage.
     Fails:   OSError from the audit log; OpenBao sealed (load_secrets) propagate.
     Feeds:   cli.main."""
-    if not args or args[0] not in ("list", "show", "add", "reset", "disable", "enable", "remove", "groups", "group"):
+    if not args or args[0] not in ("list", "show", "add", "reset", "unlock", "disable", "enable", "remove", "groups",
+                                   "group", "move"):
         print(USAGE)
         return 2
     try:
