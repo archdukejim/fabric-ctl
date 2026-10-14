@@ -218,7 +218,20 @@ SAMPLE_FEDERATION = {
     "overlaps": [], "plan_error": "",
     "dc_type_request": {"to": "rodc", "by": "org", "actor": "alice", "at": "2026-10-13T09:00:00Z",
                         "id": "a1b2c3d4e5f6"},
-    "dc_type_error": ""}
+    "dc_type_error": "",
+    # the Roles card (2.1.9.21): this site and the sites below it, as federation/site_roles lists them; also the
+    # sites the DC type form offers (every site below, 2.1.9.23)
+    "roles": [{"site": "lan", "own": True, "misplaced": [], "roles": []}] + [
+              {"site": s, "own": False, "misplaced": [],
+               "roles": [{"role": "network-operators", "kind": "console", "bundle": "fabric-network-operator",
+                          "group": f"{s}-network-operators", "exists": True, "members": [f"{s}-admins"],
+                          "admins": True, "pending": False},
+                         {"role": "desktop-remote-users", "kind": "remote", "bundle": "",
+                          "group": f"{s}-desktop-remote-users", "exists": True,
+                          "members": ["fabric-admins", "lan-admins", f"{s}-admins"], "admins": True,
+                          "pending": False}]}
+              for s in ("lab", "lab1a", "edge")],
+    "roles_error": "", "hidden_overlaps": 0}
 # a lost read-only DC's accounts (2.1.6.58): /federation?rodc_lost=edge
 SAMPLE_RODC_LOST = {
     "site": "edge", "refused": "", "noop": False, "rodcs": ["DC-EDGE"],

@@ -456,8 +456,18 @@ if federation_post:
     check("...any other path: not found", res[:2] == ("deny", 404), res)
     page = views.federation({"csrf": "t", "user": "alice", "perms": ["federation:read", "federation:admin"],
                              "version": {"version": "1", "build": ""}}, SAMPLE_FEDERATION)
-    check("the tab offers the request form to federation:admin, over the sites that joined here",
-          'action="/federation/dc-type"' in page and 'name="to"' in page, page[:400])
+    marker = 'action="/federation/dc-type"'
+    form = page.split(marker)[1].split("</form>")[0] if marker in page else ""
+    check("the tab offers the request form to federation:admin, over every site below this one (the roles "
+          "listing's: lab1a too, though it joined through lab), never this site itself",
+          'name="to"' in form and all(f"<option>{s}</option>" in form for s in ("lab", "lab1a", "edge"))
+          and "<option>lan</option>" not in form, form[:600])
+    page = views.federation({"csrf": "t", "user": "alice", "perms": ["federation:read", "federation:admin"],
+                             "version": {"version": "1", "build": ""}},
+                            {**SAMPLE_FEDERATION, "roles": [{"site": "lan", "own": True, "misplaced": [],
+                                                             "roles": []}]})
+    check("...no site below: no form (only the command is named)", 'action="/federation/dc-type"' not in page
+          and "fabricctl federation dc-type" in page)
     page = views.federation({"csrf": "t", "user": "bob", "perms": ["federation:read", "system:admin"],
                              "version": {"version": "1", "build": ""}}, SAMPLE_FEDERATION)
     check("...without federation:admin only the command is named", 'action="/federation/dc-type"' not in page

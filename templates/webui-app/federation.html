@@ -37,8 +37,9 @@
 {% for s in f.sites %}<tr><td><strong>{{ s.name }}</strong><div class="muted small">{{ s.domain }}{% if s.via %} · via {{ s.via }}{% endif %}</div></td>
 <td>{{ s.address }}</td><td>{{ {'writable': 'writable', 'rodc': 'read-only'}.get(s.dc, '—') }}</td><td>{{ s.id_range or '—' }}</td><td>{{ (s.joined or '')[:10] or '—' }}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">None.</p>{% endif %}
-{% if can('federation:admin') and f.sites %}<form method="post" action="/federation/dc-type" class="grid" data-dc-type>{{ csrf() }}
-<label>Change a site's DC type: site<select name="site" required>{% for s in f.sites %}<option>{{ s.name }}</option>{% endfor %}</select></label>
+{% set dc_below = (f.roles or []) | rejectattr('own') | list %}
+{% if can('federation:admin') and dc_below %}<form method="post" action="/federation/dc-type" class="grid" data-dc-type>{{ csrf() }}
+<label>Change a site's DC type: site<select name="site" required>{% for s in dc_below %}<option>{{ s.site }}</option>{% endfor %}</select></label>
 <label>To<select name="to"><option value="writable">writable</option><option value="rodc">read-only</option></select></label>
 <button>Ask the site</button></form>
 <p class="muted small">The site's own admin accepts it at the site, with the one-time change token shown here once (manual 4.9.1.4). Needs a sign-in from the last 5 minutes. Or on the fabric host: <code>sudo fabricctl federation dc-type &lt;site&gt; writable|rodc</code>.</p>

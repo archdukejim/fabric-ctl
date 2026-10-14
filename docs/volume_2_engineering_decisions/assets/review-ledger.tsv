@@ -116,7 +116,7 @@ docs/volume_1_description_and_architecture/1.9.4-joining.md	d18b95abb76d79e69eeb
 docs/volume_1_description_and_architecture/1.9.5-attachment.md	e5801ff46a17fb28295a4087addb99bf1941b3bb	2026-10-08	
 docs/volume_1_description_and_architecture/1.9.6-changes.md	24d59d43f2df3487eec0ba45bffebe29488f2dfd	2026-10-14	
 docs/volume_1_description_and_architecture/1.9.7-milestones.md	e58afe5eb9d02da03a309c838c2b86be04419123	2026-10-13	
-docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	af26e8f6be69252fc6c5cf391f4d1a061b01cfba	2026-10-14	
+docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	40d13399aaf3f93735f79a6864b8063d0c0c6414	2026-10-14	
 docs/volume_1_description_and_architecture/README.md	c55c2775904d50bb12de9d7f501bf000dd428c81	2026-10-13	
 docs/volume_2_engineering_decisions/2.1.1-product.md	77dbeaf6632009d33955ac50b641966b54db3653	2026-10-13	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	0a117bf9c5f272c25ec3e43d35d1307dd115ef43	2026-10-14	
@@ -133,7 +133,7 @@ docs/volume_2_engineering_decisions/2.1.5-certificates.md	06f7cf037f8ea86f54ec2c
 docs/volume_2_engineering_decisions/2.1.6-identity.md	6739138ad96bfbad463033b9695e71e875b0be89	2026-10-14	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	e6ad5d891c611089c2fac108ab5135b7a81da64b	2026-10-14	
 docs/volume_2_engineering_decisions/2.1.8-webui.md	26448992ddd38c08ba2df0df2bfbd4171a433a41	2026-10-13	
-docs/volume_2_engineering_decisions/2.1.9-federation.md	411ccf68d4051b10dd2b085efff4758d86c57681	2026-10-14	
+docs/volume_2_engineering_decisions/2.1.9-federation.md	c79294bd385b5039b2ef19657488bd2b9825c006	2026-10-14	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	cb345b3e933f8ed78de5c2711305a7368fee3878	2026-10-13	
@@ -199,7 +199,7 @@ docs/volume_4_operations/4.6.8-group-policy.md	d56ac72826df7c02aee083fa25a785a56
 docs/volume_4_operations/4.7.1-openbao.md	8de99def91be57315a3d0685c1c87e9b08af96c8	2026-10-13	
 docs/volume_4_operations/4.8.1-features.md	7988aec33a3b920aaefa3844c51da4f5c5417d1e	2026-10-11	
 docs/volume_4_operations/4.8.2-device-access.md	f2dc02d5bb115303532492e15e9e4d29a82c3124	2026-10-08	
-docs/volume_4_operations/4.9.1-federation.md	ee9a1069e386f67dfc3c68c6b5cf8dec317b7d6d	2026-10-14	
+docs/volume_4_operations/4.9.1-federation.md	c716b91093ab9ab9d3c85eaa24e23a4a07e2b921	2026-10-14	
 docs/volume_4_operations/4.9.2-address-plan.md	695bf8e260b9df9fd7d41a9e9d13019664765a25	2026-10-08	
 docs/volume_4_operations/README.md	14e5d017b4ed90de97cd267db9d7adbb26520444	2026-10-13	
 examples/README.md	8350c988c36d9098f3a1ae7945d585541264ea22	2026-10-03	
@@ -1524,7 +1524,7 @@ src/webui/devpreview/dev_post_networks.py	c78f27c923df19bb240659ecb6799a46573f71
 src/webui/devpreview/dev_post_ssh.py	c86b0f7a24e940009d9a2fda756f97bc5df6cd4e	2026-10-14	
 src/webui/devpreview/dev_state.py	a901cd4dfa597d9b0a391769b857ba4eddb9a652	2026-10-13	
 src/webui/devpreview/fabric_rules.py	eafb15259c771cc0f4ef3a3c03c5f061c2227f16	2026-10-13	
-src/webui/devpreview/sample_data.py	672d120b7914bf2195fdaf8990644eb99b20b0d7	2026-10-14	
+src/webui/devpreview/sample_data.py	2271d7043f26d742914bbce339def5863309b021	2026-10-14	
 src/webui/devpreview/sample_networks.py	b85acf9437183feb7130a18a471c554690bc129a	2026-10-14	
 src/webui/devpreview/sample_radius_guides.py	862106ee28f034e2c57b6725fb2edc7c23969cde	2026-10-13	
 src/webui/devpreview/sample_result.py	dbac8d00eeb06164ebb3f38b15bae7a22cc2817a	2026-10-02	
@@ -1748,7 +1748,7 @@ templates/webui-app/directory.html	c14ecb1aa10540255a113a6a7d256fdacd19da2e	2026
 templates/webui-app/directory_macros.html	e05b403103828948c02713d3fcfead5daaa8eb74	2026-10-13	
 templates/webui-app/dns_filter.html	2967839bdaae347a4f144717de2ddf9441b3631c	2026-10-13	
 templates/webui-app/error.html	509e885a7989108d54fa8694b1678499cf20e205	2026-10-02	
-templates/webui-app/federation.html	919909b751e778b0ce380c64bae0fc0d7a869efc	2026-10-14	
+templates/webui-app/federation.html	6e9a1645a6d8a0b4530f6cc0f155698eece0e39a	2026-10-14	
 templates/webui-app/freeradius.html	bd494b5f25cc2b4519f591d35c592f7ac7b72fae	2026-10-13	
 templates/webui-app/ipam_scan.html	22832f637ace0f7c8b5e69147f0927756786323e	2026-10-14	
 templates/webui-app/job.html	626dda99e1958b7a289827cac344752ecabc9a30	2026-10-09	
@@ -1787,7 +1787,7 @@ tests/entrypoints-reasons.yaml	fd19dcae1f8c4708e37dbe8a3cc43e366d9c08d1	2026-10-
 tests/entrypoints.yaml	800c8b9b6f0094ef3cccccf6576c688d702fd02c	2026-10-14	
 tests/federation/README.md	9302b2381587de81ae7cd054304050c87334fac0	2026-10-14	
 tests/federation/address_plan.py	353d827caa3bd6b24884c785e238d859d9f16066	2026-10-08	
-tests/federation/dc_type_test.py	59b941ba490a657ea6af39b3a6b29778e5da064a	2026-10-14	
+tests/federation/dc_type_test.py	767176c61d069731cbfc4480746ad279a7a6c92b	2026-10-14	
 tests/federation/dns.py	981ee957598457d81569b910514ce665472c18c3	2026-10-09	
 tests/federation/nested.py	a5b8d62501d593cd78c2fcf1e69ee487839da713	2026-10-08	
 tests/federation/rodc_lost_test.py	8b24722a0d427b68e7a2f68a708c8f462b0e3b24	2026-10-14	
