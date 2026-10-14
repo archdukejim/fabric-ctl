@@ -40,6 +40,8 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `prepare_site.py` | At the root, before answering a join: the new site converged in the domain, and its join account |
 | `finish_join.py` | After this site's DC joined: its join account deleted at the root |
 | `replication_status.py` | This DC's inbound replication per partition, read from its own `repsFrom` inside the DC |
+| `replication_healthy.py` | Whether this DC's replication is healthy enough to change a DC's type: every partner succeeded within the hour, no failure since (2.1.9.23) |
+| `run_rodc_lost.py` | One step of handling a lost read-only DC, run inside this site's writable DC as the system (2.1.6.58) |
 | `domain_sites.py` | Every site in the domain, read inside this site's DC (the next id block a join hands out; a site moving here) |
 | `list_conflicts.py` | AD's `CNF:` objects: names made on two DCs while apart |
 | `check_password_policy.py` | The password policy as AD takes it (ranges, minimum age below maximum, lockout at least its window); setup asks again at once, deploy refuses |

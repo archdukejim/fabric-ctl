@@ -3,6 +3,7 @@ from webui import views
 from webui.routes.bind9_page import bind9_page
 from webui.routes.directory_page import directory_page
 from webui.routes.dns_filter_page import dns_filter_page
+from webui.routes.federation_page import federation_page
 from webui.routes.networks_page import networks_page
 from webui.routes.networks_scan_page import networks_scan_page
 from webui.routes.openbao_page import openbao_page
@@ -75,7 +76,7 @@ def get_page(h, sess, path, query):
         return h.send(200, views.freeradius(ctx, actions.radius_overview(), query.get("msg", ""),
                                             query.get("err", ""), view, guides, sessions))
     if path == "/federation":
-        return h.send(200, views.federation(ctx, actions.federation_overview()))
+        return federation_page(h, ctx, query)
     if path == "/audit":
         return h.send(200, views.audit(ctx, actions.read_audit()))
     if path == "/ssh":

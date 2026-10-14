@@ -1,12 +1,19 @@
 import datetime
+import os
 import sys
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.common.paths import VARS_FILE
+from fabriclib.federation.change_dc_type import change_dc_type
+from fabriclib.federation.confirm_plan import confirm_plan
 from fabriclib.federation.create_invitation import create_invitation
 from fabriclib.federation.federation_status import federation_status
 from fabriclib.federation.drop_relay import drop_relay
 from fabriclib.federation.list_invitations import list_invitations
+from fabriclib.federation.read_change_token import read_change_token
 from fabriclib.federation.remove_site import remove_site
+from fabriclib.federation.request_dc_type import request_dc_type
+from fabriclib.federation.rodc_lost import rodc_lost
 from fabriclib.federation.reparent_site import reparent_site
 from fabriclib.federation.revoke_invitation import revoke_invitation
 from fabriclib.federation.show_networks import show_networks
@@ -25,7 +32,17 @@ USAGE = """usage: fabricctl federation status                 this install's pla
                                                    talks) through that site, which only relays; --dc: the site's
                                                    domain controller joins writable (default) or read-only
        fabricctl federation relay direct           on a site: stop using its relay node, talk to the upstream
-       fabricctl federation invitations            open invitations
+       fabricctl federation invitations            open invitations (and DC type change tokens)
+       fabricctl federation dc-type <site> writable|rodc
+                                                   from a site above: ask for that site's DC to change type; prints
+                                                   a one-time change token (one hour) for the site's admin
+       fabricctl federation rodc-lost <site>       from a site above, at a writable DC: that site's read-only DC
+                                                   is lost or stolen: list every account whose password it held,
+                                                   then (the site's name typed) reset them and remove the DC
+       fabricctl federation dc-type show           at the site: the change asked for, and what accepting it does
+       fabricctl federation dc-type accept [@FILE|-] [--yes]
+                                                   at the site: carry the change out (the token at the prompt, from
+                                                   a file or stdin; consent typed, or --yes); run again to go on
        fabricctl federation networks               the address plan: every site's networks, VLANs, notes, overlaps
        fabricctl federation remove <site>          forget a site that joined here (its CA revoked)
        fabricctl federation reparent [@FILE|-]     on a site: move under the parent whose invitation you paste
@@ -42,9 +59,24 @@ def _when(epoch):
     return datetime.datetime.fromtimestamp(int(epoch)).strftime("%Y-%m-%d %H:%M")
 
 
+def _show_accounts(plan):
+    """Purpose: print every account a lost read-only DC held the password of, and what happens to each.
+    Inputs:  plan � plan_rodc_lost's answer.
+    Returns: True (so it chains before the confirmation).
+    Fails:   never.
+    Feeds:   run_federation_command (rodc-lost)."""
+    print(f"read-only DC(s): {', '.join(plan['rodcs']) or 'none left'}; {len(plan['accounts'])} account(s) revealed:")
+    left = {a["dn"].lower() for a in plan["reset_left"]}
+    for a in plan["accounts"]:
+        what = "reset" if a["dn"].lower() in left else next((s["why"] for s in plan["skipped"]
+                                                              if s["dn"] == a["dn"]), "reset already")
+        print(f"  {a['kind']:<9} {a.get('name') or '-':<24} {what}  ({a['dn']})")
+    return True
+
+
 def run_federation_command(ctx, argv):
     """Purpose: `fabricctl federation status | enable | disable | invite | invitations | revoke | remove | reparent |
-             relay | networks` —
+             relay | networks | dc-type | rodc-lost` —
              joining sites to
              this install without the web UI (manual 1.9.4.1).
     Inputs:  ctx — SetupContext with state loaded (ctx.vars: the rendered vars); argv — list of str after
@@ -94,10 +126,40 @@ def run_federation_command(ctx, argv):
                   "file and use --join @FILE). It carries a secret: send it over a channel you trust and never put\n"
                   f"it on a command line. Withdraw it with: fabricctl federation revoke {inv['id']}")
             return 0
+        if cmd == "dc-type" and len(args) == 2 and args[0] not in ("show", "accept"):
+            req = request_dc_type(v, "root", args[0], args[1])
+            print(f"Site {req['site']}'s DC ({req['was']}) is asked to become {req['to']}. Change token (one use, "
+                  f"until {_when(req['expires'])}):\n\n  {req['token']}\n")
+            print(f"On {req['site']} run `sudo fabricctl federation dc-type accept` and paste it at the prompt. It "
+                  "carries a secret: send it over a channel you trust and never put it on a command line. Withdraw "
+                  f"it with: fabricctl federation revoke {req['id']}")
+            return 0
+        if cmd == "rodc-lost" and len(args) == 1:
+            site = args[0].strip().lower()
+            res = rodc_lost(v, os.path.dirname(VARS_FILE), "root", site,
+                            confirmed=lambda plan: _show_accounts(plan) and confirm_plan(plan["lines"], site))
+            print("\n".join(res["plan"]["lines"]) if not res["changed"] else
+                  f"done: {len(res['reset'])} account(s) reset, read-only DC(s) removed: "
+                  f"{', '.join(res['removed']) or 'none left'}; the record: config/rodc-lost-{site}.json")
+            return 0
+        if cmd == "dc-type" and args == ["show"]:
+            plan = change_dc_type(v, os.path.dirname(VARS_FILE), "root")["plan"]
+            print(f"requested: this site's DC becomes {plan['to']}")
+            for n, line in enumerate(plan["lines"], 1):
+                print(f"  {n}. {line}")
+            return 0
+        if cmd == "dc-type" and args[:1] == ["accept"] and len(args) <= 3 and \
+                all(a == "--yes" or a == "-" or a.startswith("@") for a in args[1:]):
+            source = next((a for a in args[1:] if a != "--yes"), "")
+            res = change_dc_type(v, os.path.dirname(VARS_FILE), "root", token_text=read_change_token(source),
+                                 consent=lambda lines: confirm_plan(lines, "yes", yes="--yes" in args))
+            print(f"done: this site's DC is {res['plan']['to']} (steps this run: {', '.join(res['done']) or 'none'})")
+            return 0
         if cmd == "invitations" and not args:
             rows = list_invitations(v)
             for i in rows:
-                print(f"{i['id']}  site {i['site']:<16} open until {_when(i['expires'])}  by {i['actor']}")
+                print(f"{i['id']}  site {i['site']:<16} open until {_when(i['expires'])}  by {i['actor']}"
+                      + ("  (DC type change)" if i.get("kind") == "dc-type" else ""))
             if not rows:
                 print("no open invitations")
             return 0

@@ -12,6 +12,8 @@ root:<nginx gid> permissions. Every route maps to one fabriclib operation.
   POST /v1/join      {id, secret, site, csr, domain, address, federation_host, via}
                      -> fabriclib/federation/accept_join (the invitation's one-time secret authenticates the
                      call), or relay_join when "via" names this site (it forwards to its upstream)
+  POST /v1/dc-type   {id, secret, site, to} -> fabriclib/federation/accept_dc_type (a site's DC type change,
+                     2.1.9.23: the change token's one-time secret authenticates the call)
 """
 import argparse
 import json
@@ -27,6 +29,7 @@ from http.server import BaseHTTPRequestHandler
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.common.load_vars import load_vars  # noqa: E402
+from fabriclib.federation.accept_dc_type import accept_dc_type  # noqa: E402
 from fabriclib.federation.accept_join import accept_join  # noqa: E402
 from fabriclib.federation.constants import JOIN_BODY_MAX  # noqa: E402
 from fabriclib.federation.relay_join import relay_join  # noqa: E402
@@ -101,8 +104,9 @@ class Handler(BaseHTTPRequestHandler):
                  bad body; 413 when too large; 404 for any other path; 500 {"error": "internal error"} otherwise
                  (details only in the journal).
         Fails:   OSError writing the reply.
-        Feeds:   nginx (federation.<domain>) <- join_upstream on the joining node."""
-        if self.path != "/v1/join":
+        Feeds:   nginx (federation.<domain>) <- join_upstream on the joining node; POST /v1/dc-type (a site's DC type
+                 change, 2.1.9.23: accept_dc_type, its token authenticating the call) <- federation/change_dc_type."""
+        if self.path not in ("/v1/join", "/v1/dc-type"):
             return self.reply(404, {"error": "not found"})
         try:
             length = int(self.headers.get("Content-Length") or 0)
@@ -113,7 +117,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             req = json.loads(self.rfile.read(length) or b"{}")
             v = load_vars()
-            relay = isinstance(req, dict) and req.get("via") and req.get("via") == v.get("site_name")
+            if self.path == "/v1/dc-type":
+                return self.reply(200, accept_dc_type(v, req, client_ip=self.client_ip()))
+            relay =isinstance(req, dict) and req.get("via") and req.get("via") == v.get("site_name")
             self.reply(200, (relay_join if relay else accept_join)(v, req, client_ip=self.client_ip()))
             if not relay and self.after_join:     # the new site's delegation, secondary zone and key
                 self.after_join(req.get("site", "?"))

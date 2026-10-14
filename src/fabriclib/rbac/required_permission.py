@@ -21,6 +21,8 @@ GET = {
     ("domain",): "domain:read", ("domain", "logon"): "domain:read", ("gpo",): "domain:read",
     ("host-groups",): "domain:read", ("sudo",): "domain:read",
     ("federation",): "federation:read",
+    # a lost read-only DC's revealed accounts (2.1.6.58): listed only for the admin bundle, at a site above it
+    ("federation", "rodc-lost", "*"): "system:admin",
     ("vault",): "vault:status", ("vault", "slots"): "vault:status", ("vault", "devices"): "vault:status",
     ("security",): "security:raise",
 }
@@ -45,6 +47,8 @@ POST = {
     ("pki", "enrolments", "*", "withdraw"): "pki:enrol",
     ("ssh", "sign"): "session",         # refused inside unless in a site's SSH users group (2.1.7.14)
     ("ssh", "on"): "system:admin", ("ssh", "off"): "system:admin",
+    # a lost read-only DC (2.1.6.58): resets every account it held, removes it — the admin bundle, a site above it
+    ("federation", "rodc-lost", "*"): "system:admin",
     ("tsig",): "tsig:manage", ("tsig", "*", "rotate"): "tsig:manage", ("tsig", "*", "delete"): "tsig:manage",
     ("vault", "rotate"): "vault:unlock", ("vault", "slots", "add-usb"): "vault:unlock",
     ("vault", "slots", "add-security-key"): "vault:unlock", ("vault", "slots", "add-hsm"): "vault:unlock",

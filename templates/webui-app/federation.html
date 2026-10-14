@@ -1,5 +1,25 @@
 {% extends "base.html" %}{% block body %}
 <h1>Federation</h1>
+{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
+{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
+{% if f.dc_type_request %}<section class="card"><h2>DC type change requested <span class="muted">by {{ f.dc_type_request.by }}</span></h2>
+<p>{{ f.dc_type_request.actor }} at {{ f.dc_type_request.by }} asked on {{ f.dc_type_request.at }} for this site's domain controller to become <strong>{{ 'writable' if f.dc_type_request.to == 'writable' else 'read-only' }}</strong> (manual 4.9.1.2).</p>
+<p class="muted small">On the fabric host: <code>sudo fabricctl federation dc-type show</code>, then <code>sudo fabricctl federation dc-type accept</code> with the change token from {{ f.dc_type_request.by }}.</p>
+</section>{% elif f.dc_type_error %}<p class="muted small">A pending DC type change could not be read: {{ f.dc_type_error }}</p>{% endif %}
+{% if lost %}<section class="card"><h2>Lost or stolen read-only DC <span class="muted">site {{ lost.site }}</span></h2>
+{% if lost.noop %}<p>{{ lost.lines | join(' ') }}</p>{% else %}
+<p>Read-only DC(s): <strong>{{ lost.rodcs | join(', ') or 'none left' }}</strong>. It was told the password of {{ lost.accounts | length }} account(s); only these are changed (manual 4.9.1.3).</p>
+<table><thead><tr><th>Kind</th><th>Account</th><th>What happens</th></tr></thead><tbody>
+{% set left = lost.reset_left | map(attribute='dn') | list %}
+{% for a in lost.accounts %}<tr><td>{{ a.kind }}</td><td>{{ a.name or '—' }}<div class="muted small">{{ a.dn }}</div></td>
+<td>{% if a.dn in left %}reset{% else %}{% for s in lost.skipped if s.dn == a.dn %}{{ s.why }}{% else %}reset already{% endfor %}{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+<ol class="small">{% for line in lost.lines %}<li>{{ line }}</li>{% endfor %}</ol>
+<form method="post" action="/federation/rodc-lost/{{ lost.site | urlencode }}"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label>Type the site's name ({{ lost.site }}) to confirm <input name="confirm" autocomplete="off" required></label>
+<button class="danger">Reset these accounts and remove the DC</button></form>
+<p class="muted small">Needs a sign-in from the last 5 minutes. Every step is audited; running it again carries on where it stopped.</p>{% endif %}
+</section>{% endif %}
 <section class="card"><h2>This site <span class="muted">{{ f.site }}</span></h2>
 {% if f.upstream %}<p>A site of <strong>{{ f.upstream.site_name }}</strong> ({{ f.upstream.domain }}){% if f.upstream.relay %}, through {{ f.upstream.relay.site }}{% endif %}.</p>
 {% else %}<p>{{ 'The root site of this fabric.' if f.sites else 'Standalone: no site has joined, and this install joined none.' }}</p>{% endif %}
@@ -11,6 +31,8 @@
 {% for s in f.sites %}<tr><td><strong>{{ s.name }}</strong><div class="muted small">{{ s.domain }}{% if s.via %} · via {{ s.via }}{% endif %}</div></td>
 <td>{{ s.address }}</td><td>{{ {'writable': 'writable', 'rodc': 'read-only'}.get(s.dc, '—') }}</td><td>{{ s.id_range or '—' }}</td><td>{{ (s.joined or '')[:10] or '—' }}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">None.</p>{% endif %}
+<p class="muted small">Change a site's DC type: <code>sudo fabricctl federation dc-type &lt;site&gt; writable|rodc</code> (manual 4.9.1.2).</p>
+{% if can('system:admin') %}<form method="get" action="/federation"><label>A site's read-only DC is lost or stolen: site <input name="rodc_lost" autocomplete="off" required></label> <button class="ghost">List the accounts it held</button></form>{% endif %}
 </section>
 
 <section class="card"><h2>Replication <span class="muted">this site's domain controller</span></h2>

@@ -8,6 +8,7 @@ from agent.post_ipam_sync import post_ipam_sync
 from agent.post_dns import post_dns
 from agent.post_dns_filter import post_dns_filter
 from agent.post_enrol import post_enrol
+from agent.post_federation import post_federation
 from agent.post_network import post_network
 from agent.post_networks import post_networks
 from agent.post_scan_policy import post_scan_policy
@@ -49,7 +50,7 @@ def post_route(route, actor, data, perms):
              ipam/scan-policy[/org]: post_scan_policy's (1.10.4.27); ipam/sync: post_ipam_sync's (Sync now, 1.10.4.28);
              ipam/... (the rest): post_options' result (the DHCP options in the plan, 1.10.4.24.6);
              pki/enrol/...,
-             pki/enrolments/<id>/withdraw: post_enrol's; ssh/...: post_ssh's.
+             pki/enrolments/<id>/withdraw: post_enrol's; ssh/...: post_ssh's; federation/...: post_federation's.
     Fails:   ValidationError (-> 400) for an unsupported event or what fabriclib refuses; RouteNotFound (-> 404).
     Feeds:   agent/handler.py (dispatch).
     Notes:   POST apply only needs dns:write (rbac/required_permission), though it runs the whole deployment."""
@@ -74,6 +75,8 @@ def post_route(route, actor, data, perms):
         return post_enrol(route, actor, data, perms)
     if area == ["pki"] and len(route) == 2:
         return post_pki(route[1], actor, data)
+    if area == ["federation"]:                                # a lost read-only DC (2.1.6.58)
+        return post_federation(route, actor, data)
     if area == ["ssh"]:                                       # SSH certificates (1.6.11.9)
         return post_ssh(route, actor, data)
     if area == ["vault"]:

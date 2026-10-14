@@ -25,6 +25,7 @@ arbitrary commands.
 | `post_pki.py` | Manual PKI: describe or sign a CSR, issue, inspect, convert |
 | `post_enrol.py` | Device enrolment: an Apple profile with a one-time SCEP challenge, a PKCS#12, withdrawing an unused profile (1.5.3) |
 | `post_ssh.py` | SSH certificates: sign a fabric admin's key, turn them on or off (1.6.11.9) |
+| `post_federation.py` | A site's lost read-only DC: every account it held reset and the DC removed, the site's name typed back (2.1.6.58) |
 | `post_vault.py` | OpenBao's unlock methods, rotating the vault key |
 | `post_directory.py` | Devices and device roles in the domain |
 | `read_text.py` / `read_strings.py` / `read_fields.py` | Checked fields of a request body |

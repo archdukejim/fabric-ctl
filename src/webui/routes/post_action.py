@@ -6,6 +6,7 @@ from webui.constants import SESSION_COOKIE
 from webui.httpio.cookie_header import cookie_header
 from webui.routes.directory_post import directory_post
 from webui.routes.dns_filter_post import dns_filter_post
+from webui.routes.federation_post import federation_post
 from webui.routes.kea_post import kea_post
 from webui.routes.landing_post import landing_post
 from webui.routes.networks_post import networks_post
@@ -58,7 +59,7 @@ def post_action(h, sess, path, form):
              (the DHCP options page); /dns-filter/… (lists, rules, upstreams, fetch); /networks/scan[/record] (the
              scan); /networks/scan/policy[/org] (the scan policy); /networks/sync (Sync now); /networks/<site>/… (the
              address plan); /overview/… (jobs); /freeradius/clients…; /freeradius/sessions…; /freeradius/people…;
-             /bind9/tsig/…; /ssh/… (sign, on, off).
+             /bind9/tsig/…; /ssh/… (sign, on, off); /federation/rodc-lost/<site> (a lost read-only DC).
     Returns: /logout: session dropped, LOGOUT audited, 303 to Keycloak's logout URL clearing the session cookie;
              /apply: 200 apply result; the rest as their route modules.
     Fails:   404 for an unknown path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
@@ -88,6 +89,8 @@ def post_action(h, sess, path, form):
         return vault_post(h, sess, _segments(path, 2), form)
     if path.startswith("/ssh/"):
         return ssh_post(h, sess, _segments(path, 2), form)
+    if path.startswith("/federation/"):
+        return federation_post(h, sess, _segments(path, 2), form)
     if path.startswith("/security/"):
         return security_post(h, sess, _segments(path, 2), form)
     if path.startswith("/directory/"):

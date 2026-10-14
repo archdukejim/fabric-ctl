@@ -23,6 +23,8 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `saved_and_applied.py` | Run a change that fabric-agent saves and applies at once, and go back to its tab with the outcome. |
 | `enrol_post.py` | Step-CA → Enrol a device: an Apple profile (download), a .p12 (shown once), withdraw an open profile. |
 | `ssh_post.py` | The SSH page's changes: sign a fabric admin's public key, turn SSH certificates on or off (after a recent sign-in). |
+| `federation_page.py` | The Federation tab, and a lost read-only DC's accounts with the form that handles it (2.1.6.58). |
+| `federation_post.py` | The Federation page's change: a lost read-only DC handled after a recent sign-in, the site's name typed (2.1.6.58). |
 | `stepca_page.py` | Render the Step-CA tab for one sub-view, with the CA summary, linkable devices, the issued list and the enrolments where needed. |
 | `stepca_post.py` | Manual PKI: each Step-CA form maps to one fabric-agent operation. |
 | `tsig_post.py` | TSIG keys: create, rotate, delete (Apply publishes them to BIND9). |

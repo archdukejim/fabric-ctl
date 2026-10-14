@@ -92,6 +92,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `ensure_site_link.py` | A site's AD site link to its parent (cost 100, 15 minutes, change notification) |
 | `set_gpo_acl.py` | One GPO folder's file ACLs from its AD object (a site's DC lacks the domain's other GPO folders) |
 | `read_replication.py` | This DC's inbound replication per partition, from its own `repsFrom` (works at a read-only DC too) |
+| `rodc_lost.py` | A lost read-only DC (2.1.6.58), as the system at a writable DC: its revealed accounts listed with their kinds (`msDS-RevealedUsers`), only those reset, the DC removed as Samba removes a dead DC |
 | `pull_sysvol.py` | The GPO folders this DC does not own, copied over SMB from the DC that owns each (run every 5 minutes by the entrypoint) |
 | `id_layout.py` | The fixed ranges inside a site's id block (offsets by kind), and the check that a block is a site's: a million ids from a multiple of a million (2.1.6.46) |
 | `read_dc_names.py` | The domain's computer names, its DCs apart (a parent refuses a joining site's DC a name in use, 2.1.6.45) |

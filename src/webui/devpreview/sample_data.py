@@ -211,7 +211,25 @@ SAMPLE_FEDERATION = {
     "limits": [["fabric-agent-<site>, <site>-admins", "its own OU=<site>", "read only"]],
     "plan": [{"site": "lab", "name": "lan", "cidr": "192.168.20.0/24", "vlan": None, "notes": ""},
              {"site": "lan", "name": "lan", "cidr": "192.168.1.0/24", "vlan": None, "notes": ""}],
-    "overlaps": [], "plan_error": ""}
+    "overlaps": [], "plan_error": "",
+    "dc_type_request": {"to": "rodc", "by": "org", "actor": "alice", "at": "2026-10-13T09:00:00Z",
+                        "id": "a1b2c3d4e5f6"},
+    "dc_type_error": ""}
+# a lost read-only DC's accounts (2.1.6.58): /federation?rodc_lost=edge
+SAMPLE_RODC_LOST = {
+    "site": "edge", "refused": "", "noop": False, "rodcs": ["DC-EDGE"],
+    "accounts": [{"dn": "CN=bob,OU=people,OU=edge,OU=sites,DC=ad,DC=home,DC=arpa", "name": "bob", "kind": "person"},
+                 {"dn": "CN=PC-EDGE-1,OU=machines,OU=edge,OU=sites,DC=ad,DC=home,DC=arpa", "name": "PC-EDGE-1$",
+                  "kind": "machine"},
+                 {"dn": "CN=krbtgt_31337,CN=Users,DC=ad,DC=home,DC=arpa", "name": "", "kind": "krbtgt"}],
+    "reset_left": [{"dn": "CN=bob,OU=people,OU=edge,OU=sites,DC=ad,DC=home,DC=arpa", "kind": "person"},
+                   {"dn": "CN=PC-EDGE-1,OU=machines,OU=edge,OU=sites,DC=ad,DC=home,DC=arpa", "kind": "machine"}],
+    "remove_left": ["DC-EDGE"],
+    "skipped": [{"dn": "CN=krbtgt_31337,CN=Users,DC=ad,DC=home,DC=arpa", "name": "", "kind": "krbtgt",
+                 "why": "the read-only DC's own krbtgt account (removed with it)"}],
+    "lines": ["reset 1 person(s)' password to a random one nobody is told, to be changed at the next sign-in",
+              "rotate 1 machine account(s)' password: each machine signs in again only once it is joined again",
+              "remove the read-only DC DC-EDGE (computer account, edge-rodc-cache allowance, krbtgt, server, DNS)"]}
 SAMPLE_GPO = {"site": "lan", "templates": ["fabric-starter", "samba"], "match": "",
               "settings": {"machine": [["Software\\Policies\\Example\\Starter", "ExampleText", 1, "hello"]],
                            "user": []},

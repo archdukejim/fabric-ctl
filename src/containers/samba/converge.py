@@ -64,10 +64,14 @@ def converge(state):
              HTTP SPNs of the site's Kerberos sign-in account; none, no account), sso_host (str, optional: Keycloak's
              name, which the Windows baseline lets browsers use Kerberos for; "" or none, no allowlist), logon_policies
              (optional: {ou path: {console, remote}}, who may sign in per OU; none, the site's log-on GPO as before
-             0.9).
+             0.9); join_only (bool, optional: a site's DC type change, 2.1.9.23: only join_account is made, nothing
+             else converged).
     Returns: list of str, what changed.
     Fails:   KeyError for a missing state key; whatever a part raises (ldb.LdbError, OSError, CalledProcessError).
     Feeds:   this script's main."""
+    if state.get("join_only"):            # a site re-joining under its own name (2.1.9.23): its join account alone
+        samdb, _ = open_samdb(CONF)
+        return ensure_join_account(samdb, state["join_account"]["name"], state["join_account"]["password"])
     site, root = state["site"], bool(state["root"])
     if state.get("rodc"):                 # a read-only DC holds the domain's copy: only what is local to it
         _, lp = open_samdb(CONF)

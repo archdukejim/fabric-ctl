@@ -117,7 +117,9 @@ def accept_join(v, req, client_ip="", now=None):
         invites = load_secrets(v=v).get("federation_invitations") or {}
         entry = invites.get(req["id"]) or {}
         digest = hashlib.sha256(req["secret"].encode()).hexdigest()
-        if not (entry and entry.get("expires", 0) > now and hmac.compare_digest(entry.get("sha256", ""), digest)):
+        # a DC type change token (2.1.9.23, kind "dc-type") is never a join invitation
+        if not (entry and not entry.get("kind") and entry.get("expires", 0) > now
+                and hmac.compare_digest(entry.get("sha256", ""), digest)):
             write_audit(f"site:{site}", "FED_JOIN_REFUSED", f"id={req['id'][:16]} from={client_ip}", "federation")
             raise ValidationError(REFUSED)
         if entry.get("site") != site:
