@@ -111,16 +111,23 @@ def _option_sets(samdb, of):
     return sets, sorted(editors)
 
 
-def _local_scan(m, top):
+def _local_scan(m, top_dn):
     """Purpose: whether a site's own admins may start scans there (decision 2.1.10.30, manual 1.10.4.29.4): set from
-             above on its OU, off when unset; the top site has no site above it and always may.
-    Inputs:  m — ldb.Message of a site's OU (fabricLocalScan, fabricLocalScanBy); top — bool, the site's OU is right
-             below OU=sites.
-    Returns: {"allowed" (bool: the setting, TRUE only), "set_by" (text, "" unset), "top" (bool)}.
+             above on its OU, off when unset; the top site has no site above it and always may. With the sites above
+             it, nearest first, read from its OU's place (sites nest, 2.1.6.20): who may change a value set from higher
+             up is decided by them (2.1.10.30's revision: the highest ancestor that set it wins).
+    Inputs:  m — ldb.Message of a site's OU (fabricLocalScan, fabricLocalScanBy); top_dn — "OU=sites,<domain>",
+             lower case.
+    Returns: {"allowed" (bool: the setting, TRUE only), "set_by" (text, "" unset), "top" (bool: right below
+             OU=sites), "above" (list of site names, nearest first; [] at the top)}.
     Fails:   never.
     Feeds:   read_plan."""
+    above, dn = [], str(m.dn).split(",", 1)[1]
+    while dn.lower() != top_dn and dn.upper().startswith("OU="):
+        above.append(dn.split(",", 1)[0].split("=", 1)[1])
+        dn = dn.split(",", 1)[1]
     return {"allowed": _one(m, "fabricLocalScan").upper() == "TRUE", "set_by": _one(m, "fabricLocalScanBy"),
-            "top": top}
+            "top": not above, "above": above}
 
 
 def read_plan(samdb, lp, site, of=""):
@@ -148,7 +155,7 @@ def read_plan(samdb, lp, site, of=""):
                           attrs=["ou", "whenCreated", "fabricBlock", "fabricLocalScan", "fabricLocalScanBy"]):
         sites.append({"name": _one(m, "ou"), "created": _one(m, "whenCreated"),
                       "block": int(_one(m, "fabricBlock")) if _one(m, "fabricBlock") else None})
-        local[_one(m, "ou")] = _local_scan(m, str(m.dn.parent()).lower() == top_dn)
+        local[_one(m, "ou")] = _local_scan(m, top_dn)
     try:
         base = f"OU=networks,{site_dn(samdb, of)}" if of else sites_dn(samdb)
     except LookupError:

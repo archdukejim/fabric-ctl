@@ -809,6 +809,29 @@ out = m_ans.run_scan_requests({**house_v, "install_kea": True}, house_s, contain
                               now=lambda: time.time() + 2 * 86400)
 check("a day on: house2's poll removes the request from AD", out["removed"] == [rid]
       and read_scan_requests(V, "house2", SECRETS, container=DC) == [], out)
+
+# the highest site above that set it wins (2.1.10.30 revised): house6 below house2 below lan
+deep = {**house, "site": "house6", "parent": "house2", "id_range": "6000000-6999999", "radius_gid": 660,
+        "networks": [{"name": "lan", "cidr": "10.6.0.0/24", "kind": "lan", "vlan": None, "notes": "",
+                      "allow_overlap": ""}],
+        "accounts": {f"fabric-{k}-house6": random_password() for k in ("agent", "keycloak", "radius")}}
+res = subprocess.run(["docker", "exec", "-i", DC, "python3", "/fabric/converge.py"], input=json.dumps(deep),
+                     capture_output=True, text=True)
+check("house6, below house2", res.returncode == 0, res.stderr[-400:])
+check("house6's sites above, nearest first, read with its setting", local("house6")["allowed"] is False
+      and read_plan(V, SECRETS, of="house6", container=DC)["local_scan"]["house6"]["above"] == ["house2", "lan"])
+below("house6")
+code, out = ipam("local-scan", "allow", "--site", "house6", v=house_v, secrets=house_s)
+check("house2 (the region) sets house6 where the top has not", code == 0 and local("house6")["allowed"]
+      and local("house6")["set_by"].startswith("house2 "), out)
+below("house2", "house5", "house6")
+code, out = ipam("local-scan", "deny", "--site", "house6")
+check("the top's deny beats the region's allow", code == 0 and not local("house6")["allowed"]
+      and local("house6")["set_by"].startswith("lan "), out)
+below("house6")
+code, out = ipam("local-scan", "allow", "--site", "house6", v=house_v, secrets=house_s)
+check("refused: the region changing the top's value, naming the top; nothing written (the agent enforces it: AD "
+      "cannot)", code == 1 and "were set by lan, above house2" in out and not local("house6")["allowed"], out)
 below("house3")
 
 subprocess.run(["docker", "rm", "-f", DC], capture_output=True)

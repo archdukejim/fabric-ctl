@@ -1934,6 +1934,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/scancontrol/run_scan_command.py|run_s
 function	fabriclib-ipam|src/fabriclib/ipam/scancontrol/run_scan_requests.py|_answer	1	
 function	fabriclib-ipam|src/fabriclib/ipam/scancontrol/run_scan_requests.py|run_scan_requests	2	
 function	fabriclib-ipam|src/fabriclib/ipam/scancontrol/set_local_scan.py|_allowed	1	
+function	fabriclib-ipam|src/fabriclib/ipam/scancontrol/set_local_scan.py|_outranked	3	
 function	fabriclib-ipam|src/fabriclib/ipam/scancontrol/set_local_scan.py|set_local_scan	2	
 function	fabriclib-ipam|src/fabriclib/ipam/scancontrol/show_local_scan.py|show_local_scan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/scancontrol/show_scan_requests.py|show_scan_requests	1	

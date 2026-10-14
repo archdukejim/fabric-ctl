@@ -186,9 +186,14 @@ check("the same subnet within the minute: refused only for now (ScanBusy, a Vali
 EDITS = []
 
 
+LOCAL = {}                    # each branch's setting as AD keeps it (the value and who set it)
+
+
 def fake_edit(v, actor, site, event, change, secrets=None, container="samba", source="cli"):
-    changes, result, detail, warnings = change({})
+    """edit_options' stand-in: the branch's plan read with its local_scan (and the sites above it, nearest first)."""
+    changes, result, detail, warnings = change({"local_scan": {**LOCAL.get(site, {}), "above": ABOVE.get(site, [])}})
     EDITS.append((v["site_name"], actor, site, event, changes, detail, source))
+    LOCAL[site] = {"allowed": changes[0]["fields"]["allowed"], "set_by": changes[0]["fields"]["by"]}
     return {"result": result, "warnings": warnings, "done": ["set"], "site": site}
 
 
@@ -210,6 +215,33 @@ for v, site, value, words in ((HOUSE, "house", "allow", "set by the sites above 
     check(f"refused: {v['site_name']} setting {site or '(none)'}'s local scans to {value}, saying why",
           refused(lambda: set_local_scan(v, "x", site, value, edit=fake_edit, scope=scope), words) is True)
 check("a refused setting writes nothing", len(EDITS) == before)
+
+# the highest site above that set it wins (the owner's answer of 2026-10-13, 2.1.10.30 revised)
+LOCAL.clear()
+set_local_scan(MID, "alice", "house", "allow", edit=fake_edit, scope=scope)
+set_local_scan(TOP, "bob", "house", "deny", edit=fake_edit, scope=scope)
+s = local_scan_state({"house": {**LOCAL["house"], "top": False}}, "house")
+check("the top's deny beats the region's allow: off, set by the top", not s["allowed"]
+      and s["set_by"].startswith("top bob"), s)
+before = len(EDITS)
+why = refused(lambda: set_local_scan(MID, "alice", "house", "allow", edit=fake_edit, scope=scope),
+              "were set by top, above mid: only top or a site above it may change them")
+check("refused: the region changing a value the top set, naming the top; nothing written", why is True
+      and len(EDITS) == before and LOCAL["house"]["set_by"].startswith("top"), why)
+set_local_scan(TOP, "bob", "house", "allow", edit=fake_edit, scope=scope)
+check("the top changes its own value", LOCAL["house"]["allowed"] is True, LOCAL)
+set_local_scan(MID, "alice", "cabin", "allow", edit=fake_edit, scope=scope)
+set_local_scan(MID, "alice", "cabin", "deny", edit=fake_edit, scope=scope)
+check("the region sets a branch where the top has not, and changes its own value", LOCAL["cabin"]["allowed"] is False
+      and LOCAL["cabin"]["set_by"].startswith("mid alice"), LOCAL)
+set_local_scan(TOP, "bob", "cabin", "allow", edit=fake_edit, scope=scope)
+check("the top overrides the region's value (and from then on holds it)", LOCAL["cabin"]["set_by"].startswith("top")
+      and refused(lambda: set_local_scan(MID, "a", "cabin", "deny", edit=fake_edit, scope=scope), "set by top")
+      is True, LOCAL)
+check("refused: a site that is not above the branch in the domain (the registry and AD disagreeing)", refused(
+    lambda: set_local_scan(MID, "a", "house", "allow", edit=lambda v, a, s, e, change, *x, **k: change(
+        {"local_scan": {"above": ["region2", "top"]}}), scope=scope), "mid is not above house in the domain") is True)
+LOCAL.clear()
 
 
 # ---- a stand-in for AD's requests (the DC's read_scan_requests and write_scan_request, 1.10.4.29.2)
