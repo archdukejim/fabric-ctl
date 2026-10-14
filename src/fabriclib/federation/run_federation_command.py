@@ -40,6 +40,9 @@ USAGE = """usage: fabricctl federation status                 this install's pla
                                                    machine-admins, gpo-admins, windows-admins, fabric-admins (AD)
        fabricctl federation roles revoke <site> <role> [--from <group|person>]
                                                    take it back
+       fabricctl federation roles remake <site> <role|admins>
+                                                   make a site below's group again: one the site made
+                                                   itself (refused by convergence), or a missing one
   On the new site: sudo fabricctl setup --join   (a fresh install; paste the invitation at the prompt)"""
 
 

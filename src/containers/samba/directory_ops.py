@@ -20,6 +20,7 @@ from prepare_ssh_hosts import prepare_ssh_hosts
 from read_devices import read_devices
 from read_networks import read_networks
 from read_plan import read_plan
+from remake_site_group import remake_site_group
 from remove_device import remove_device
 from remove_group_member import remove_group_member
 from remove_host_group import remove_host_group
@@ -64,6 +65,7 @@ OPS = {
     "read_devices": read_devices,
     "read_networks": read_networks,
     "read_plan": read_plan,
+    "remake_site_group": remake_site_group,
     "remove_device": remove_device,
     "remove_group_member": remove_group_member,
     "remove_host_group": remove_host_group,

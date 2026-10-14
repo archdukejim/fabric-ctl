@@ -108,6 +108,7 @@ file	fabricctl-jinja|src/containers/samba/read_replication.py	60
 file	fabricctl-jinja|src/containers/samba/read_sites.py	65	
 file	fabricctl-jinja|src/containers/samba/read_usn.py	95	
 file	fabricctl-jinja|src/containers/samba/refresh_sudo_hosts.py	85	
+file	fabricctl-jinja|src/containers/samba/remake_site_group.py	111	
 file	fabricctl-jinja|src/containers/samba/remove_device.py	37	
 file	fabricctl-jinja|src/containers/samba/remove_gpo.py	86	
 file	fabricctl-jinja|src/containers/samba/remove_group_member.py	69	
@@ -119,6 +120,7 @@ file	fabricctl-jinja|src/containers/samba/remove_role.py	38
 file	fabricctl-jinja|src/containers/samba/remove_sudo_rule.py	88	
 file	fabricctl-jinja|src/containers/samba/repair_role_owners.py	74	
 file	fabricctl-jinja|src/containers/samba/reset_password.py	33	
+file	fabricctl-jinja|src/containers/samba/role_groups.py	112	
 file	fabricctl-jinja|src/containers/samba/root_ca_policy.py	22	
 file	fabricctl-jinja|src/containers/samba/save_device.py	39	
 file	fabricctl-jinja|src/containers/samba/save_role.py	40	
@@ -437,6 +439,7 @@ file	fabriclib-federation|src/fabriclib/federation/publish_address_plan.py	23	0.
 file	fabriclib-federation|src/fabriclib/federation/publish_site_networks.py	24	0.5.0 / 2026-10-04
 file	fabriclib-federation|src/fabriclib/federation/read_address_plan.py	25	
 file	fabriclib-federation|src/fabriclib/federation/relay_join.py	26	
+file	fabriclib-federation|src/fabriclib/federation/remake_site_group.py	42	
 file	fabriclib-federation|src/fabriclib/federation/remove_site.py	27	
 file	fabriclib-federation|src/fabriclib/federation/reparent_site.py	28	
 file	fabriclib-federation|src/fabriclib/federation/revoke_invitation.py	29	
@@ -1344,9 +1347,9 @@ function	fabricctl-jinja|src/containers/samba/get_person.py|get_person	1
 function	fabricctl-jinja|src/containers/samba/gpo_tool.py|_policy	1	
 function	fabricctl-jinja|src/containers/samba/gpo_tool.py|_without	2	
 function	fabricctl-jinja|src/containers/samba/gpo_tool.py|run	3	
-function	fabricctl-jinja|src/containers/samba/grant_site_role.py|_branch_made	4	
-function	fabricctl-jinja|src/containers/samba/grant_site_role.py|_find	3	
-function	fabricctl-jinja|src/containers/samba/grant_site_role.py|_make	5	
+function	fabricctl-jinja|src/containers/samba/grant_site_role.py|_branch_made	4	0.7.0 / 2026-10-13
+function	fabricctl-jinja|src/containers/samba/grant_site_role.py|_find	3	0.7.0 / 2026-10-13
+function	fabricctl-jinja|src/containers/samba/grant_site_role.py|_make	5	0.7.0 / 2026-10-13
 function	fabricctl-jinja|src/containers/samba/grant_site_role.py|_member_dn	1	
 function	fabricctl-jinja|src/containers/samba/grant_site_role.py|grant_site_role	2	
 function	fabricctl-jinja|src/containers/samba/host_groups.py|find_host_group	2	
@@ -1418,6 +1421,7 @@ function	fabricctl-jinja|src/containers/samba/read_replication.py|read_replicati
 function	fabricctl-jinja|src/containers/samba/read_sites.py|read_sites	1	
 function	fabricctl-jinja|src/containers/samba/read_usn.py|read_usn	1	
 function	fabricctl-jinja|src/containers/samba/refresh_sudo_hosts.py|refresh_sudo_hosts	1	
+function	fabricctl-jinja|src/containers/samba/remake_site_group.py|remake_site_group	1	
 function	fabricctl-jinja|src/containers/samba/remove_device.py|remove_device	1	
 function	fabricctl-jinja|src/containers/samba/remove_gpo.py|remove_gpo	1	
 function	fabricctl-jinja|src/containers/samba/remove_group_member.py|remove_group_member	1	
@@ -1429,6 +1433,9 @@ function	fabricctl-jinja|src/containers/samba/remove_role.py|remove_role	1
 function	fabricctl-jinja|src/containers/samba/remove_sudo_rule.py|remove_sudo_rule	1	
 function	fabricctl-jinja|src/containers/samba/repair_role_owners.py|repair_role_owners	1	
 function	fabricctl-jinja|src/containers/samba/reset_password.py|reset_password	1	
+function	fabricctl-jinja|src/containers/samba/role_groups.py|branch_made	2	
+function	fabricctl-jinja|src/containers/samba/role_groups.py|find_group	1	
+function	fabricctl-jinja|src/containers/samba/role_groups.py|make_group	3	
 function	fabricctl-jinja|src/containers/samba/root_ca_policy.py|root_ca_policy	1	
 function	fabricctl-jinja|src/containers/samba/save_device.py|_owner_dn	1	
 function	fabricctl-jinja|src/containers/samba/save_device.py|save_device	2	
@@ -1908,6 +1915,7 @@ function	fabriclib-federation|src/fabriclib/federation/publish_address_plan.py|p
 function	fabriclib-federation|src/fabriclib/federation/publish_site_networks.py|publish_site_networks	1	0.5.0 / 2026-10-04
 function	fabriclib-federation|src/fabriclib/federation/read_address_plan.py|read_address_plan	1	
 function	fabriclib-federation|src/fabriclib/federation/relay_join.py|relay_join	1	
+function	fabriclib-federation|src/fabriclib/federation/remake_site_group.py|remake_site_group	1	
 function	fabriclib-federation|src/fabriclib/federation/remove_site.py|remove_site	1	
 function	fabriclib-federation|src/fabriclib/federation/reparent_site.py|reparent_site	1	
 function	fabriclib-federation|src/fabriclib/federation/revoke_invitation.py|revoke_invitation	1	

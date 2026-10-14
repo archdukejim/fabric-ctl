@@ -250,6 +250,25 @@ if gone.returncode == 0:        # its right to delete the OU's children reaches 
 else:
     check("house1's agent cannot delete a role group either", gone.returncode != 0)
 
+print("--- remake_site_group: house1-admins made again from above (2.3.9.2.8 option (a))")
+# covers: agent:post.federation.roles -
+why = refused(run_op, H1V, H1S, "remake_site_group", {"target": "house1", "role": "admins"}, DC)
+check("refused: house1 remaking its own admins group", "cannot repair its own" in why, why)
+gone = as_user(AG, AGENTS["house1"], "ldbdel", None, f"CN=house1-admins,OU=groups,{H1},{BASE}")
+if gone.returncode == 0:
+    as_user(AG, AGENTS["house1"], "ldbadd", f"dn: CN=house1-admins,OU=groups,{H1},{BASE}\nobjectClass: group\n"
+            f"sAMAccountName: house1-admins\nmember: {deskdn}\n")
+    # covers: agent:post.federation.roles +
+    r = run_op(RV, RS, "remake_site_group", {"target": "house1", "role": "admins"}, DC)
+    changed = converge_domain(RV, os.path.join(W, "dc", "federation.yaml"), RS, container=DC)
+    check("the top remakes it: replaced empty, in house1-users, and the next convergence takes it again",
+          r["remade"] and members("house1-admins") == set() and "house1-admins" in members("house1-users")
+          and not any("was made by" in c for c in changed), (r, changed))
+else:
+    r = run_op(RV, RS, "remake_site_group", {"target": "house1", "role": "admins"}, DC)
+    check("house1's agent cannot delete its admins group; the top's remake leaves fabric's group as it is",
+          not r["changed"], r)
+
 print("--- unlock_person (the agent's operation)")
 dc("ldbmodify", "-H", "/data/private/sam.ldb", input=f"dn: CN=ann,OU=people,{H1},{BASE}\nchangetype: modify\n"
    "replace: lockoutTime\nlockoutTime: 132000000000000000\n")

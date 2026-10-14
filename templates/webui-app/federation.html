@@ -44,11 +44,11 @@
 {% set below = f.roles | rejectattr('own') | list %}
 {% if can('federation:admin') and below %}<form method="post" action="/federation/roles" class="grid">{{ csrf() }}
 <label>Site<select name="site" required>{% for s in below %}<option>{{ s.site }}</option>{% endfor %}</select></label>
-<label>Role<select name="role" required>{% for r in below[0].roles %}<option>{{ r.role }}</option>{% endfor %}</select></label>
+<label>Role<select name="role" required>{% for r in below[0].roles %}<option>{{ r.role }}</option>{% endfor %}<option value="admins">admins (remake only)</option></select></label>
 <label>To or from<input name="member" placeholder="the site's own admins" maxlength="64"></label>
-<label>Action<select name="action"><option value="grant">grant</option><option value="revoke">revoke</option></select></label>
+<label>Action<select name="action"><option value="grant">grant</option><option value="revoke">revoke</option><option value="remake">remake the group</option></select></label>
 <button>Apply</button></form>
-<p class="muted small">Only the sites below this one can be given roles here; a site never grants itself.</p>
+<p class="muted small">Only the sites below this one can be given roles here; a site never grants itself. Remake replaces a group the site made itself, or makes a missing one.</p>
 {% elif not below %}<p class="muted small">No site below this one: roles here are granted from a site above.</p>{% endif %}
 {% else %}<p class="blank">No roles yet.</p>{% endif %}
 </section>

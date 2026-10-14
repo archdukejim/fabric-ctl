@@ -216,6 +216,32 @@ check("refused: a region's machine and GPO admins get nothing at a site of anoth
 check("refused: a site below gets nothing at the site above it (house1a's roles at house1)",
       not any("SID-house1a-" in a for a in ensure_site_acl_mod.ensure_site_acl(db, "house1", False)))
 
+print("--- remake_site_group (fabricctl federation roles remake; 2.3.9.2.8 option (a))")
+remake = importlib.import_module("remake_site_group").remake_site_group
+db = domain()
+G1 = f"OU=groups,OU=house1,OU=lan,{SITES}"
+db.objects[f"CN=house1-admins,{G1}"]["_owner"] = ["SID-fabric-agent-house1"]      # the branch re-made it
+db.objects[f"CN=house1-admins,{G1}"]["member"] = [f"CN=jdoe,OU=people,OU=house1,OU=lan,{SITES}"]
+done = remake(db, None, "lan", "house1", "admins")
+check("the top remakes house1-admins the branch had made: replaced, empty, a gid, nested in house1-users",
+      done["remade"] and done["changed"] and members(db, "house1-admins") == []
+      and db.objects[f"CN=house1-admins,{G1}"].get("gidnumber") and "house1-admins" in members(db, "house1-users")
+      and db.objects[f"CN=house1-admins,{G1}"]["_owner"] == ["SID-system"], (done, db.log[-4:]))
+
+done = remake(db, None, "lan", "house1", "helpdesk")
+check("a missing console role group is made", done["made"] and not done["remade"]
+      and f"CN=house1-helpdesk,{G1}" in db.objects, done)
+done = remake(db, None, "lan", "house1", "ou-admins")
+check("a group fabric made is left as it is (nothing changed)", not done["changed"]
+      and members(db, "house1-ou-admins") == ["house1-admins"], done)
+check("a site remakes the group of the site below it (house1 -> house1a)",
+      not remake(db, None, "house1", "house1a", "gpo-admins")["remade"])
+for args, why in ((("house1", "house1", "admins"), "a site cannot repair its own"),
+                  (("house1", "house2", "admins"), "house1 is not above it"),
+                  (("house1a", "house1", "admins"), "house1a is not above it"),
+                  (("lan", "house1", "users"), "not a group a site above can make again")):
+    check(f"refused: remake {args[1]}'s {args[2]} from {args[0]} ({why})", why in refused(remake, db, None, *args))
+
 print("--- list_site_roles (the Roles card, fabricctl federation roles; 2.1.9.22)")
 db = domain()
 grant_site_role(db, None, "lan", "house1", "network-operators")

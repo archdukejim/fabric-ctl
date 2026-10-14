@@ -173,16 +173,56 @@ res = post_fed.post_federation(["federation", "roles"], "owner", {"site": "house
                                                                   "member": "", "action": "grant"})
 check("grant through the agent route", res["granted"] and res["group"] == "house1-helpdesk", res)
 # covers: agent:post.federation.roles -
-check("refused: no action, or one that is not grant or revoke",
-      "grant or revoke" in refused(post_fed.post_federation, ["federation", "roles"], "o", {"site": "house1",
+check("refused: no action, or one that is not grant, revoke or remake",
+      "grant, revoke or remake" in refused(post_fed.post_federation, ["federation", "roles"], "o", {"site": "house1",
                                                                                          "role": "helpdesk"})
-      and "grant or revoke" in refused(post_fed.post_federation, ["federation", "roles"], "o",
+      and "grant, revoke or remake" in refused(post_fed.post_federation, ["federation", "roles"], "o",
                                        {"site": "house1", "role": "helpdesk", "action": "give"}))
 check("refused: a site granting itself through the route (the DC's refusal)",
       "cannot grant itself" in refused(post_fed.post_federation, ["federation", "roles"], "o",
                                        {"site": "lan", "role": "helpdesk", "action": "grant"}))
 check("refused: another federation route", refused(post_fed.post_federation, ["federation", "x"], "o", {})
       == "RouteNotFound")
+
+print("--- remake a site below's group (fabriclib, the agent route, the CLI; 2.3.9.2.8 option (a))")
+import fabriclib.federation.remake_site_group as remake_mod  # noqa: E402
+remake_mod.write_audit = lambda *a: AUDIT.append(a)
+
+
+def dc_remake(v, secrets, op, args=None, container="samba", server=None):
+    CALLS.append((op, args))
+    if args["target"] == v["site_name"]:
+        raise ValidationError(f"only a site above {args['target']} may make its groups again: {v['site_name']} is "
+                              "not above it (a site cannot repair its own)")
+    return {"site": args["target"], "role": args["role"], "group": f"{args['target']}-{args['role']}",
+            "remade": args["role"] == "admins", "made": False, "changed": args["role"] == "admins"}
+
+
+remake_mod.run_op = dc_remake
+done = remake_mod.remake_site_group(V, "owner", "house1", "admins", secrets={})
+check("remake asks the DC's remake_site_group and is audited as SITE_GROUP_REMAKE",
+      CALLS[-1] == ("remake_site_group", {"target": "house1", "role": "admins"}) and done["remade"]
+      and AUDIT[-1][1] == "SITE_GROUP_REMAKE" and "remade=yes" in AUDIT[-1][2], AUDIT[-1])
+n_audit = len(AUDIT)
+remake_mod.remake_site_group(V, "owner", "house1", "ou-admins", secrets={})
+check("...nothing audited when nothing changed", len(AUDIT) == n_audit)
+n = len(CALLS)
+check("refused before the DC is asked: a malformed site or role",
+      "letters, digits" in refused(remake_mod.remake_site_group, V, "o", "house 1", "admins", secrets={})
+      and len(CALLS) == n)
+check("refused: a site remaking its own group (the DC's refusal passed on, nothing audited)",
+      "cannot repair its own" in refused(remake_mod.remake_site_group, {"site_name": "house1"}, "o", "house1",
+                                         "admins", secrets={}) and len(AUDIT) == n_audit)
+post_fed.remake_site_group = lambda v, actor, site, role: remake_mod.remake_site_group(v, actor, site, role,
+                                                                                     secrets={})
+# covers: agent:post.federation.roles +
+res = post_fed.post_federation(["federation", "roles"], "owner", {"site": "house1", "role": "admins",
+                                                                  "action": "remake"})
+check("remake through the agent route", res["remade"] and res["group"] == "house1-admins", res)
+# covers: agent:post.federation.roles -
+check("refused: remake of this site's own group through the route",
+      "cannot repair its own" in refused(post_fed.post_federation, ["federation", "roles"], "o",
+                                         {"site": "lan", "role": "admins", "action": "remake"}))
 
 print("--- fabricctl federation roles")
 roles_cli.change_site_role = lambda v, actor, site, role, member, grant, source="web": {
@@ -209,6 +249,18 @@ roles_cli.change_site_role = lambda *a, **kw: {**grant_cli(*a, **kw), "remade": 
 code, out = run(roles_cli.run_roles_command, V, ["grant", "house1a", "gpo-admins"])
 check("a grant that replaced a group the site had made itself says so", code == 0 and "remade:" in out, out)
 roles_cli.change_site_role = grant_cli
+roles_cli.remake_site_group = lambda v, actor, site, role, source="web": (
+    {"site": site, "role": role, "group": f"{site}-{role}", "remade": True, "made": False, "changed": True}
+    if site != "lan" else (_ for _ in ()).throw(ValidationError("only a site above lan may make its groups again")))
+# covers: cli:federation.roles +
+code, out = run(roles_cli.run_roles_command, V, ["remake", "house1a", "admins"])
+check("roles remake <site> admins: the group the site had made replaced, said so",
+      code == 0 and "group house1a-admins at house1a replaced" in out, out)
+# covers: cli:federation.roles -
+code, out = run(roles_cli.run_roles_command, V, ["remake", "house1a"])
+check("refused: remake without a role (usage, exit 2)", code == 2, out)
+check("refused: remake of the site's own group (the refusal passed on)",
+      "only a site above lan" in refused(roles_cli.run_roles_command, V, ["remake", "lan", "admins"]))
 code, out = run(roles_cli.run_roles_command, V, [])
 check("roles: each site's held roles, its own marked, an old default marked pending, the empty ones left out",
       code == 0 and "site house1 (this site" in out and "an older default" in out and "house1a-admins" in out
@@ -382,6 +434,18 @@ if federation_post:
     res = federation_post(FakeHandler(), {"site": "house2", "role": "helpdesk", "member": "", "action": "grant"})
     check("refused: a grant at a site not below goes back with why", res[0] == "redirect" and "err=" in res[1]
           and "only a site above" in urllib_unquote(res[1]), res)
+    web_actions.site_role_change = lambda site, role, member, action: (
+        {"site": site, "role": role, "group": f"{site}-{role}", "remade": True, "made": False, "changed": True}
+        if site == "house1a" else (_ for _ in ()).throw(web_actions.ValidationError(
+            f"only a site above {site} may make its groups again")))
+    # covers: web:post.federation.roles +
+    res = federation_post(FakeHandler(), {"site": "house1a", "role": "admins", "member": "", "action": "remake"})
+    check("Federation tab: remake goes back to the tab saying the group was replaced",
+          res[0] == "redirect" and "house1a-admins replaced" in urllib_unquote(res[1]), res)
+    # covers: web:post.federation.roles -
+    res = federation_post(FakeHandler(), {"site": "lan", "role": "admins", "member": "", "action": "remake"})
+    check("refused: remake at a site not below goes back with why", "err=" in res[1]
+          and "only a site above lan" in urllib_unquote(res[1]), res)
 
     def person_action(uid, op, extra=None):
         if uid != "ann":

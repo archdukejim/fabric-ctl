@@ -1,5 +1,6 @@
 from fabriclib.common.errors import ValidationError
 from fabriclib.federation.change_site_role import change_site_role
+from fabriclib.federation.remake_site_group import remake_site_group
 from fabriclib.federation.site_roles import site_roles
 
 
@@ -26,14 +27,21 @@ def _show(v, only):
 
 
 def run_roles_command(v, args, actor="root"):
-    """Purpose: `fabricctl federation roles [<site>] | grant <site> <role> [--to M] | revoke <site> <role> [--from M]`
-             (manual 4.9.1.2, 2.1.9.21): show the roles granted at this site and the sites below it, grant one at a
-             site below, or take it back. Only routes.
+    """Purpose: `fabricctl federation roles [<site>] | grant <site> <role> [--to M] | revoke <site> <role> [--from M]
+             | remake <site> <role|admins>` (manual 4.9.1.2, 2.1.9.21): show the roles granted at this site and the
+             sites below it, grant one at a site below, take it back, or make a site below's group again. Only routes.
     Inputs:  v — fabric vars; args — list of str after `roles`; actor — the audit's name (the CLI runs as root).
     Returns: exit status: 0 done; 2 usage (the caller prints it).
     Fails:   ValidationError from site_roles or change_site_role (the caller prints it, exit 1).
     Feeds:   federation/run_federation_command (`roles`)."""
-    if len(args) <= 1 and (not args or args[0] not in ("grant", "revoke")):
+    if args[:1] == ["remake"] and len(args) == 3:
+        done = remake_site_group(v, actor, args[1], args[2], source="cli")
+        what = ("replaced: the site had made it itself" if done["remade"] else "made: it was missing"
+                if done["made"] else "left as it is: fabric made it")
+        print(f"group {done['group']} at {done['site']} {what}"
+              + ("; it gets its rights at the next convergence" if done["changed"] else ""))
+        return 0
+    if len(args) <= 1 and (not args or args[0] not in ("grant", "revoke", "remake")):
         return _show(v, args[0] if args else "")
     if args[0] in ("grant", "revoke") and len(args) in (3, 5):
         flag = "--to" if args[0] == "grant" else "--from"

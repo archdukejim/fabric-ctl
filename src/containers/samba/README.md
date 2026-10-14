@@ -98,3 +98,5 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `unlock_person.py` | Operation `unlock_person`: a person's lockout cleared, their password kept (2.1.9.21) |
 | `list_site_roles.py` | Operation `list_site_roles`: the roles at this site and every site below it, their groups and members (never a sibling's, 2.1.9.22) |
 | `grant_site_role.py` | Operation `grant_site_role`: a role at a site below granted to a group or person, or revoked; refused at this site itself and outside the sites below (2.1.9.21) |
+| `remake_site_group.py` | Operation `remake_site_group`: a site above makes a site's role group (or `<site>-admins`) again, when the site made it itself or it is missing; refused at this site itself and outside the sites below (2.1.9.21, 2.3.9.2.8) |
+| `role_groups.py` | A site's role groups as a site above handles them: found, recognised as made by the site itself, made again (shared by `grant_site_role` and `remake_site_group`) |
