@@ -5,7 +5,7 @@ import subprocess
 
 from fabriclib.common.console import info, ok, warn
 from fabriclib.images.constants import STATE as IMAGE_STATE
-from fabriclib.setup.detach.constants import HANDOFF_DIR, HANDOFF_SUFFIX, UNIT as SETUP_UNIT
+from fabriclib.setup.detach.constants import HANDOFF_DIR, UNIT as SETUP_UNIT
 from fabriclib.setup.detach.unit_running import unit_running
 from fabriclib.setup.common.service_account_name import service_account_name
 from fabriclib.undo.remove_host_account import remove_host_account
@@ -53,8 +53,7 @@ def uninstall(ctx):
     if unit_running():
         subprocess.run(["systemctl", "stop", SETUP_UNIT], capture_output=True)
         ok(f"stopped {SETUP_UNIT} (a setup that was running)")
-    for path in glob.glob(os.path.join(HANDOFF_DIR, f"setup-*{HANDOFF_SUFFIX}")):
-        os.remove(path)                        # secrets a run never read (1.3.2.3.4)
+    shutil.rmtree(HANDOFF_DIR, ignore_errors=True)     # secrets a run never read (1.3.2.3.4)
     ctx.load_state()
     v = ctx.vars
 
