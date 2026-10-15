@@ -20,7 +20,7 @@ def print_first_steps(ctx, guided=False):
              until the wizard has been applied once or dismissed: ctx.config_dir).
     Returns: None; prints. Without the web UI: only the doctor line.
     Fails:   never for a missing ca-certs.json (the fingerprint is left out).
-    Feeds:   setup/run_setup (after every step)."""
+    Feeds:   setup/run_steps (after every step)."""
     v = ctx.vars
     if v.get("install_webui"):
         _, home, _, _ = sudo_owner()
