@@ -2,7 +2,11 @@ import glob
 import os
 import subprocess
 
+from fabriclib.common.ask import ask
 from fabriclib.setup.renew_service_certs import renew_service_certs
+
+USAGE = """usage: fabricctl --service-cert                   their expiry dates, then asks to re-issue them all
+       fabricctl --service-cert --apply           re-issue every service certificate without asking"""
 
 
 def run_service_cert_command(ctx, args):
@@ -22,7 +26,7 @@ def run_service_cert_command(ctx, args):
                                  text=True).stdout.strip().partition("=")[2]
             print(f"  {os.path.basename(os.path.dirname(cert)):<30} expires {end or '?'}")
         print("\n[!] Re-issuing replaces every service certificate and restarts the affected services.")
-        if input("  Re-issue all service certificates? [y/N] ").strip().lower() not in ("y", "yes"):
+        if ask("service_cert.confirm", "  Re-issue all service certificates? [y/N] ").lower() not in ("y", "yes"):
             print("[*] Cancelled.")
             return 0
     if renew_service_certs(ctx, force=True) != 0:

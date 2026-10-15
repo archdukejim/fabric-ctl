@@ -11,7 +11,7 @@ Suggests: docker.io, docker-compose-v2, docker-buildx, ykcs11, opensc-pkcs11, pc
 Description: install, secure and run a small network fabric
  fabricctl sets up and manages fabric on this host: authoritative DNS
  (BIND9) with RFC2136/TSIG, an internal PKI (Step-CA), secrets (OpenBao),
- 389 Directory Server, Keycloak SSO and the Open Fabric web UI behind
+ 389 Directory Server, Keycloak SSO and the fabric-ctl web UI behind
  client certificates and OIDC; optionally Kea DHCP, 802.1X (FreeRADIUS)
  and log forwarding (Fluent Bit) — every service in a hardened container
  under systemd (fabric.target). Installing the package changes nothing; run

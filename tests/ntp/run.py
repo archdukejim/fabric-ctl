@@ -17,9 +17,9 @@ import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/ntp"
-NET_A, SUB_A, SRV_A = "ntp_test_lan", "10.254.42.0/24", "10.254.42.10"
-NET_B, SUB_B, SRV_B = "ntp_test_other", "10.254.43.0/24", "10.254.43.10"
-SITE_IP = "10.254.42.20"
+NET_A, SUB_A, SRV_A = "ntp_test_lan", "10.254.46.0/24", "10.254.46.10"
+NET_B, SUB_B, SRV_B = "ntp_test_other", "10.254.47.0/24", "10.254.47.10"
+SITE_IP = "10.254.46.20"
 IMAGE = "fabric/chrony:test"
 FAILED = 0
 
@@ -83,13 +83,16 @@ for bad, why in ((["bad host!"], "a bad host"), (["time.example nts nts"], "a re
         normalize_ntp({"ntp_servers": bad})
         check(f"settings: {why} is refused", False, bad)
     except ValidationError:
+        # covers: setting:ntp_servers -
         check(f"settings: {why} is refused", True)
 try:
     normalize_ntp({"ntp_servers": [], "ntp_serve": "yes"})
     check("settings: ntp_serve must be a boolean", False)
 except ValidationError:
+    # covers: setting:ntp_serve -
     check("settings: ntp_serve must be a boolean", True)
 got = normalize_ntp({"ntp_servers": ["time.cloudflare.com nts", "192.168.4.1 prefer", "pool.ntp.org pool"]})
+# covers: setting:ntp_servers +
 check("settings: hosts, addresses and flags parsed",
       got == [{"host": "time.cloudflare.com", "nts": True, "pool": False, "prefer": False},
               {"host": "192.168.4.1", "nts": False, "pool": False, "prefer": True},
@@ -105,6 +108,7 @@ site_v = {"ntp_servers": ["time.cloudflare.com nts"], "lan_cidr": SUB_A, "instal
 st = chrony_settings(site_v, reg)
 check("a site asks its upstream site first, then its own sources",
       [s["host"] for s in st["sources"]] == [SRV_A, "time.cloudflare.com"] and st["sources"][0]["prefer"], st)
+# covers: setting:security +
 check("it serves the LAN, the VPN and every DHCP subnet, nothing else",
       st["allow"] == [SUB_A, "10.8.0.0/24", "192.168.20.0/24"], st["allow"])
 
@@ -113,11 +117,13 @@ srv_root, site_root = os.path.join(W, "srv"), os.path.join(W, "site")
 srv_v = {"ntp_servers": [], "lan_cidr": SUB_A, "ntp_serve": True, "ntp_set_clock": False}
 changed = deploy_chrony(srv_v, os.path.join(W, "none.yaml"), env, root=srv_root, manage_units=False)
 conf = open(os.path.join(srv_root, "etc/chrony/chrony.conf")).read()
+# covers: setting:lan_cidr setting:ntp_serve +
 check("deploy: chrony.conf written; answers the LAN only; own clock as the last resort",
       changed and f"allow {SUB_A}" in conf and SUB_B not in conf and "local stratum 10 orphan" in conf
       and "server " not in conf, conf)
 check("deploy: Windows members' time is signed through the DC's socket, in the folder AppArmor allows (2.1.13.1)",
       "ntpsigndsocket /var/lib/samba/ntp_signd" in conf, conf)
+# covers: setting:ntp_set_clock +
 check("deploy: chrony is told never to set the clock here (-x)",
       '"-F 1 -x"' in open(os.path.join(srv_root, "etc/default/chrony")).read())
 check("deploy: chrony-wait never blocks start-up forever",

@@ -193,7 +193,7 @@ def _check_root_lifetime(v, certs_dir, config_dir):
 
 
 def _publish_ca_certs(ctx, certs_dir):
-    """Purpose: publish every CA format at info.<domain>/certs/ (and <host_ip>/certs/) and trust the CA on this
+    """Purpose: publish every CA format at /certs/ (ca.<domain>, <host_ip>; 1.5.1.6) and trust the CA on this
              host; done on every setup, since a reinstall keeps the CA but not /opt/nginx or the host trust entries.
     Inputs:  ctx — SetupContext: vars.domain_file, service user nginx (uid/gid), config_dir (the `trust` consent:
              without it the CA is published but not added to the host's trust store); certs_dir — Step-CA certs

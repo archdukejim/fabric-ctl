@@ -96,6 +96,61 @@ try:
     req("POST", "/bind9/zone/dynamic_zone_var/delete", {"type": "A", "index": idx.group(1) if idx else "-1", "name": "preview"})
     st, _, _, page = req("GET", "/bind9?zone=dynamic_zone_var")
     check("deleting a record works (in memory)", "192.168.1.99" not in page)
+    # 2.1.2.22: the record form asks type, name, value; priority for MX, weight and port for SRV (the stylesheet
+    # shows them only for those types, no script); fabric's own names marked and their delete refused
+    form = page.split('/bind9/zone/dynamic_zone_var/add"')[1].split("</form>")[0]
+    css = req("GET", "/static/app.css")[3]
+    check("record form: type, name, value; priority, weight, port only for MX/SRV; no landing-page fields",
+          'name="value"' in form and 'class="f-prio"' in form and form.count('class="f-srv"') == 2
+          and 'name="ip"' not in form and 'name="link"' not in form and '<option value="SRV">' in form
+          and 'option[value="SRV"]:checked' in css and ".f-srv{display:none}" in css, form)
+    st, loc, _, _ = req("POST", "/bind9/zone/dynamic_zone_var/add", {"csrf": "dev", "type": "MX", "name": "@",
+                                                                    "value": "mail2", "priority": "20"})
+    check("record form: an MX record from value and priority", st == 303 and "10 mail" in req(
+        "GET", "/bind9?zone=dynamic_zone_var")[3] and "20 mail2" in req("GET", "/bind9?zone=dynamic_zone_var")[3], loc)
+    st, loc, _, _ = req("POST", "/bind9/zone/dynamic_zone_var/add", {"csrf": "dev", "type": "SRV", "name": "_sip._tcp",
+                                                                    "value": "pbx", "priority": "0", "weight": "5"})
+    check("record form refused: an SRV record without its port, saying why",
+          st == 303 and "port must be a number" in urllib.parse.unquote(loc or ""), loc)
+    page = req("GET", "/bind9?zone=dynamic_zone_var")[3]
+    rows = page.split("<tr>")
+    ca_row = [row.split("</tr>")[0] for row in rows if ">ca " in row][0]
+    info_rows = [row.split("</tr>")[0] for row in rows if ">info<" in row]
+    check("fabric's own names marked 'provided by fabric', with the setting instead of a Delete button; the landing "
+          "page's info is the admin's since 0.7.1 (2.1.4.6), with its Delete button",
+          "provided by fabric" in ca_row and "cname_ca" in ca_row and "Delete</button>" not in ca_row
+          and info_rows and all("provided by fabric" not in r and "Delete</button>" in r for r in info_rows),
+          (info_rows, ca_row))
+    st, loc, _, _ = req("POST", "/bind9/zone/dynamic_zone_var/delete", {"csrf": "dev", "type": "CNAME", "index": "3",
+                                                                       "name": "ca"})
+    check("deleting fabric's own name (ca) is refused, naming its setting",
+          st == 303 and "provided by fabric" in urllib.parse.unquote(loc or "")
+          and "cname_ca" in urllib.parse.unquote(loc or "")
+          and ">ca " in req("GET", "/bind9?zone=dynamic_zone_var")[3], loc)
+    st, loc, _, _ = req("POST", "/bind9/zone/dynamic_zone_var/delete", {"csrf": "dev", "type": "CNAME", "index": "10",
+                                                                       "name": "info"})
+    after = [row for row in req("GET", "/bind9?zone=dynamic_zone_var")[3].split("<tr>") if ">info<" in row]
+    check("deleting an info record works (the admin's since 0.7.1)",
+          st == 303 and "Record deleted" in urllib.parse.unquote(loc or "") and len(after) == len(info_rows) - 1, loc)
+    # 2.1.2.22 item 4: the landing page's links in a section of their own
+    page = req("GET", "/bind9?view=landing")[3]
+    check("Landing page section: what the page is, its links (label, address), the add form with the zone's records",
+          "Landing page" in page and "fabric's start page" in page and "https://nas.home.arpa:5001/" in page
+          and 'action="/bind9/landing/add"' in page and 'value="A|6|printer"' in page
+          and 'action="/bind9/landing/remove"' in page, page[-1500:])
+    st, loc, _, _ = req("POST", "/bind9/landing/add", {"csrf": "dev", "record": "A|6|printer", "link_label": "Printer",
+                                                       "link_port": "631", "link_path": "/"})
+    check("link a record from the landing page -> listed with its port", st == 303 and "msg=" in (loc or "")
+          and "https://printer.home.arpa:631/" in req("GET", "/bind9?view=landing")[3], loc)
+    for form, why in (({"record": "A|6|printer", "link_port": "70000"}, "link port must be"),
+                      ({"record": ""}, "pick a record"), ({"record": "MX|12|@"}, "only A, AAAA and CNAME"),
+                      ({"record": "A|5|nas"}, "record changed")):
+        st, loc, _, _ = req("POST", "/bind9/landing/add", {"csrf": "dev", **form})
+        check(f"link refused ({why}), saying why", st == 303 and why in urllib.parse.unquote(loc or ""), loc)
+    st, loc, _, _ = req("POST", "/bind9/landing/remove", {"csrf": "dev", "type": "A", "index": "6", "name": "printer"})
+    check("stop linking a record -> gone from the landing page's list", st == 303
+          and "printer.home.arpa:631" not in req("GET", "/bind9?view=landing")[3], loc)
+    page = req("GET", "/bind9?zone=dynamic_zone_var")[3]
     # zones (manual 1.4.1.3): the New zone form everywhere, Remove zone on every zone but the site's own
     check("BIND9 tab: New zone form with 'Hide the public name'; no Remove on the site's own zone",
           'action="/bind9/zones/new"' in page and 'name="hide_public"' in page
@@ -105,21 +160,25 @@ try:
           'action="/bind9/zones/iot.home.arpa/remove"' in page and "3 record(s)" in page and 'name="confirm"' in page)
     st, loc, _, _ = req("POST", "/bind9/zones/new", {"csrf": "dev", "name": "Lab.LAN"})
     page = req("GET", loc or "/bind9")[3]
+    # covers: web:post.bind9.zones.new +
     check("New zone: added (normalised) and opened", st == 303 and "zone=lab.lan" in (loc or "")
           and "Zone lab.lan added" in page and "lab.lan" in page, (st, loc))
     for form, why in (({"name": "nodots"}, "two labels"), ({"name": "lab.lan"}, "already a zone"),
                       ({"name": "shop.example.com"}, "Hide the public name")):
         st, loc, _, _ = req("POST", "/bind9/zones/new", {"csrf": "dev", **form})
+        # covers: web:post.bind9.zones.new -
         check(f"New zone refused ({why}), saying why", st == 303 and "err=" in (loc or "")
               and why in urllib.parse.unquote(loc or ""), loc)
     st, loc, _, _ = req("POST", "/bind9/zones/new", {"csrf": "dev", "name": "shop.example.com", "hide_public": "on"})
     check("New zone: a public name with the tick is added", st == 303 and "msg=" in (loc or ""), loc)
     st, loc, _, _ = req("POST", "/bind9/zones/lab.lan/remove", {"csrf": "dev", "confirm": "lab.la"})
+    # covers: web:post.bind9.zones.*.remove -
     check("Remove zone refused when the name is typed wrong", st == 303 and "err=" in (loc or ""), loc)
     st, loc, _, _ = req("POST", "/bind9/zones/dynamic_zone_var/remove", {"csrf": "dev", "confirm": "home.arpa"})
     check("Remove zone refused for the site's own zone", st == 303 and "cannot be removed" in
           urllib.parse.unquote(loc or ""), loc)
     st, loc, _, _ = req("POST", "/bind9/zones/lab.lan/remove", {"csrf": "dev", "confirm": "lab.lan"})
+    # covers: web:post.bind9.zones.*.remove +
     check("Remove zone: removed once its name is typed again", st == 303 and "msg=" in (loc or "")
           and "zone=lab.lan" not in req("GET", "/bind9")[3], loc)
     st, _, _, page = req("POST", "/apply", {"csrf": "dev"})
@@ -216,11 +275,52 @@ try:
           and "removed" in (loc or "") and "sam@home.arpa" not in req("GET", "/directory?view=people")[3], loc)
     page = req("GET", "/directory?view=domain")[3]
     check("domain section: the domain, its controller running, the password policy",
-          "ad.home.arpa" in page and "pi-core.ad.home.arpa" in page and "minimum length" in page, page[-600:])
+          "ad.home.arpa" in page and "pi-core.ad.home.arpa" in page and "Minimum length" in page, page[-600:])
+    check("domain section: the roles named plainly, no role's DN (2.1.2.22)",
+          "This controller holds all five roles" in page and "NTDS Settings" not in page, page[-1500:])
+    check("domain section (admin): the password policy form and Apply (2.1.2.22)",
+          'action="/directory/domain/password-policy"' in page and 'name="lockout_window_minutes"' in page
+          and 'name="complexity"' in page and 'action="/apply"' in page)
+    st, loc, _, _ = req("POST", "/directory/domain/password-policy",
+                        {"csrf": "dev", "minimum_length": "16", "history": "24", "minimum_age_days": "0",
+                         "maximum_age_days": "0", "lockout_threshold": "5", "lockout_minutes": "15",
+                         "lockout_window_minutes": "15", "complexity": "on"})
+    check("password policy saved -> shown", st == 303 and "msg=" in (loc or "")
+          and 'name="minimum_length" required inputmode="numeric" pattern="[0-9]+" value="16"' in req(
+                  "GET", "/directory?view=domain")[3], loc)
+    for form, why in (({"lockout_minutes": "5", "lockout_window_minutes": "15"}, "at least as long"),
+                      ({"minimum_length": "99"}, "from 0 to 64"), ({"history": "lots"}, "whole number")):
+        st, loc, _, _ = req("POST", "/directory/domain/password-policy", {"csrf": "dev", **form})
+        check(f"password policy refused ({why}), saying why, nothing changed",
+              st == 303 and why in urllib.parse.unquote_plus(loc or "")
+              and 'name="minimum_length" required inputmode="numeric" pattern="[0-9]+" value="16"' in req(
+                  "GET", "/directory?view=domain")[3], loc)
+    # 2.1.2.22 item 1: while a fresh install's first fetch runs the tab refreshes itself, then stops
+    page = req("GET", "/dns-filter?view=lists&fresh=1")[3]
+    check("DNS filter, first fetch running: the page refreshes itself (a meta refresh, no script) and says so",
+          '<meta http-equiv="refresh" content="10;url=/dns-filter?view=lists&amp;wait=1">' in page
+          and "still being fetched" in page and "<script" not in page, page[:800])
+    page = req("GET", "/dns-filter?view=lists&fresh=1&wait=30")[3]
+    check("DNS filter: after 30 refreshes it stops and says what to do", 'http-equiv="refresh"' not in page
+          and "Fetch every list now" in page and "after five minutes" in page)
+    page = req("GET", "/dns-filter?view=lists")[3]
+    check("DNS filter: every ticked list has a copy and the catalogue is read -> no refresh",
+          'http-equiv="refresh"' not in page and "still being fetched" not in page)
     page = req("GET", "/directory?view=machines")[3]
     check("machines section (admin): machines with state, disable/enable and remove, the add form",
           "host-1" in page and "/directory/machines/host-1/disable" in page and "/directory/machines/ws2404/enable" in page
           and "/directory/machines/_new" in page)
+    check("machines section (admin): who may sign in per OU, each with a clear form, and the set form (1.6.11.4)",
+          "Who may sign in" in page and "machines/linux" in page and "lan-machine-admins" in page
+          and 'action="/directory/logon/clear"' in page and 'action="/directory/logon/set"' in page
+          and "fabric-break-glass" in page)
+    check("machines section (admin): host groups with their machines and a remove form, the membership and new-group "
+          "forms; sudo rules with who made each, remove only for fabric's, the add form (1.6.11.7)",
+          "lan-hosts-web" in page and 'action="/directory/hostgroups/web/delete"' in page
+          and 'action="/directory/hostgroups/_form/members"' in page and 'action="/directory/hostgroups/_new"' in page
+          and 'action="/directory/sudo/web-restart/delete"' in page and "/directory/sudo/backup/delete" not in page
+          and "/directory/sudo/lan-fabric-admins/delete" not in page and 'action="/directory/sudo/_new"' in page
+          and "/usr/bin/systemctl restart nginx" in page and "read-only" in page)
     page = req("GET", "/directory?view=gpo&match=example")[3]
     check("Group Policy section (admin): what is set, a search with a set form per policy",
           "ExampleText" in page and "/directory/gpo/set" in page and "Example setting" in page)
@@ -309,6 +409,14 @@ try:
             time.sleep(0.2)
     page = req("GET", "/bind9")[3]
     check("--as fabric-auditor: records shown, no add form", "nas" in page and "/add" not in page and "as fabric-auditor" in page)
+    page = req("GET", "/bind9?view=landing")[3]
+    check("--as fabric-auditor: the landing page's links shown, no add or remove form",
+          "https://nas.home.arpa:5001/" in page and "/bind9/landing/" not in page)
+    page = req("GET", "/directory?view=domain")[3]
+    check("--as fabric-auditor: the password policy shown, no form (domain:admin)",
+          "minimum length" in page and "/directory/domain/password-policy" not in page)
+    st, _, _, _ = req("POST", "/directory/domain/password-policy", {"csrf": "dev", "minimum_length": "4"})
+    check("--as fabric-auditor: refused: changing the password policy (403, domain:admin)", st == 403)
     page = req("GET", "/directory?view=people")[3]
     check("--as fabric-auditor: people listed, no add form or reset buttons",
           "jim@home.arpa" in page and "/directory/people/_new" not in page and "Reset sign-in" not in page

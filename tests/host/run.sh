@@ -137,6 +137,7 @@ check "status shows the password-only sign-in as a relaxation (Rule 10, 2.1.6.23
 
 echo "--- raising sign-in security (fabricctl security raise: the apply and Keycloak, as the Security page does)"
 R 'fabricctl security raise admin-2fa totp && fabricctl security raise client-cert on' > "$OUT/raise.log" 2>&1
+# covers: cli:security.raise cli:security +
 check "raise: TOTP for the admin tools and the client certificate, applied" \
     "[ \"\$(grep -c '^done: ' '$OUT/raise.log')\" -eq 2 ] && R 'fabricctl security' | grep -qE '^admin-2fa +totp' && \
      R 'fabricctl security' | grep -qE '^client-cert +on'"
@@ -159,9 +160,11 @@ echo "--- lowering (only on the host, the layer's name typed back at a terminal)
 R "printf 'nope\n' | script -qec 'fabricctl security lower client-cert' /dev/null; fabricctl security" > "$OUT/lower1.log" 2>&1
 check "lower: a wrong name typed back changes nothing" "grep -qE '^client-cert +on' '$OUT/lower1.log'"
 R "fabricctl security lower client-cert --yes" > "$OUT/lower2.log" 2>&1
+# covers: cli:security.lower -
 check "lower: --yes is refused" "grep -q 'never by --yes' '$OUT/lower2.log'"
 R "printf 'client-cert\n' | script -qec 'fabricctl security lower client-cert' /dev/null" > "$OUT/lower3.log" 2>&1
 R 'fabricctl doctor' > "$OUT/doctor-lowered.log" 2>&1
+# covers: cli:security.lower ask:security.lower.confirm +
 check "lower: the name typed back lowers it; doctor warns about it (and still passes)" \
     "grep -q '^done: ' '$OUT/lower3.log' && grep -q 'client-cert lowered: on -> off' '$OUT/doctor-lowered.log' && \
      ! grep -q '✗' '$OUT/doctor-lowered.log' && R \"grep -q 'SECURITY_LOWER' /opt/fabric/archive/audit.log\""

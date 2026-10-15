@@ -180,8 +180,141 @@ try:
 except ValidationError as e:
     gone = "no such" in str(e).lower() or "no machine" in str(e).lower()
 check("refused: removing a machine the site does not have", gone)
+
+# ---- machines sorted by OS family (manual 1.6.11.5, 2.1.6.36): OU=linux and OU=windows; add-machine --os; the sort
+import functools  # noqa: E402
+import io  # noqa: E402
+import json as _json  # noqa: E402
+import tempfile  # noqa: E402
+from contextlib import redirect_stdout  # noqa: E402
+import fabriclib.directory.sort_machines as m_sort  # noqa: E402
+import fabriclib.samba.run_domain_command as m_domain  # noqa: E402
+
+
+def domain(*argv):
+    """fabricctl domain …, as the CLI routes it: its exit status and output."""
+    out = io.StringIO()
+    with redirect_stdout(out):
+        code = m_domain.run_domain_command(V, list(argv))
+    return code, out.getvalue()
+
+
+def dn_of(name):
+    """A computer account's DN line, or "" when there is none."""
+    return subprocess.run(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb",
+                           f"(sAMAccountName={name.upper()}$)", "dn"], capture_output=True, text=True).stdout
+
+
+def samba_tool(*argv):
+    return subprocess.run(["docker", "exec", DC, "samba-tool", *argv, "-s", "/data/etc/smb.conf"],
+                          capture_output=True, text=True)
+
+
+m_domain.add_machine = functools.partial(m_add_machine.add_machine, secrets=SECRETS, container=DC)
+_record = os.path.join(tempfile.mkdtemp(), "machines-sorted.json")
+m_domain.sort_machines = functools.partial(m_sort.sort_machines, secrets=SECRETS, container=DC, record=_record)
+m_sort.write_audit = lambda actor, event, detail, source: AUDIT.append(event)
+code, out = domain("add-machine", "lx01", "--os", "linux")
+# covers: cli:domain.add-machine +
+check("add-machine --os linux: pre-created in OU=linux,OU=machines (1.6.11.5)",
+      code == 0 and "OU=linux,OU=machines,OU=lan" in dn_of("lx01"), (code, out, dn_of("lx01")))
+m_add_machine.add_machine(V, "alice", "win01", secrets=SECRETS, container=DC, os="windows")
+check("...and os windows in OU=windows,OU=machines", "OU=windows,OU=machines,OU=lan" in dn_of("win01"), dn_of("win01"))
+code, out = domain("add-machine", "mac01", "--os", "mac")
+# covers: cli:domain.add-machine -
+check("refused: an OS family fabric has no OU for, saying which there are; nothing created",
+      code == 1 and "os: one of linux, windows" in out and "MAC01" not in dn_of("mac01"), (code, out))
+code, out = domain("add-machine", "lx02", "--os")
+check("refused: --os without a family is a usage error (exit 2)", code == 2 and "usage:" in out, (code, out))
+# a Windows machine that joined itself lands in OU=machines; a Linux one made there by hand is not Windows'
+for name, osname in (("SELFJOIN", "Windows 11 Pro"), ("PLAINBOX", "Ubuntu")):
+    samba_tool("computer", "add", name, "--computerou=OU=machines,OU=lan,OU=sites")
+    where = dn_of(name).split("dn: ", 1)[1].split("\n")[0].strip()
+    subprocess.run(["docker", "exec", "-i", DC, "ldbmodify", "-H", "/data/private/sam.ldb"], capture_output=True,
+                   text=True, input=f"dn: {where}\nchangetype: modify\nreplace: operatingSystem\n"
+                                    f"operatingSystem: {osname}\n")
+code, out = domain("sort-machines")
+# covers: cli:domain.sort-machines +
+check("sort-machines: a Windows machine in OU=machines moves to OU=windows, audited; a Linux one stays",
+      code == 0 and "selfjoin" in out and "OU=windows,OU=machines,OU=lan" in dn_of("selfjoin")
+      and "OU=windows" not in dn_of("plainbox") and "MACHINE_SORT" in AUDIT, (code, out, dn_of("selfjoin")))
+samba_tool("computer", "move", "SELFJOIN", "OU=machines,OU=lan,OU=sites")
+code, out = domain("sort-machines", "--scheduled")
+check("...once: an admin's move back to OU=machines is kept (the record), the timer's run changes nothing",
+      code == 0 and "nothing to sort" in out and "OU=windows" not in dn_of("selfjoin")
+      and len(_json.load(open(_record))["sorted"]) == 1, (code, out, dn_of("selfjoin")))
+code, out = domain("sort-machines", "--now")
+# covers: cli:domain.sort-machines -
+check("refused: sort-machines with an option it does not take (usage, exit 2), nothing moved",
+      code == 2 and "usage:" in out and "OU=windows" not in dn_of("selfjoin"), (code, out))
 check("machine changes audited", {"MACHINE_CREATE", "MACHINE_DISABLE", "MACHINE_ENABLE", "MACHINE_REMOVE"} <= set(AUDIT),
       AUDIT)
+
+
+# ---- machines fabric manages (manual 1.6.11.6, 2.1.6.40): pre-created ones in lan-fabric-machines unless --unmanaged;
+# Linux machines an admin joined into OU=linux adopted by the sort, once; an unmanaged join's mark respected
+def members_of(group):
+    out = subprocess.run(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={group})",
+                          "member"], capture_output=True, text=True).stdout
+    return {line.split("CN=", 1)[1].split(",", 1)[0].lower() for line in out.splitlines() if line.startswith("member:")}
+
+
+def description(name):
+    out = subprocess.run(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb",
+                          f"(sAMAccountName={name.upper()}$)", "description"], capture_output=True, text=True).stdout
+    return next((line.split(": ", 1)[1] for line in out.splitlines() if line.startswith("description:")), "")
+
+
+check("add-machine: a pre-created machine is managed by default (in lan-fabric-machines)",
+      "lx01" in members_of("lan-fabric-machines"), members_of("lan-fabric-machines"))
+code, out = domain("add-machine", "lx03", "--os", "linux", "--unmanaged")
+check("add-machine --unmanaged: not in lan-fabric-machines, marked unmanaged on its account",
+      code == 0 and "lx03" not in members_of("lan-fabric-machines")
+      and description("lx03") == "fabric: unmanaged (manual 1.6.11.6)", (code, out, description("lx03")))
+code, out = domain("add-machine", "--unmanaged")
+check("refused: add-machine without a name (usage, exit 2)", code == 2 and "usage:" in out, (code, out))
+for name in ("ADMINJOIN", "PLAINJOIN"):      # joined with an admin's password: land in OU=linux on their own
+    samba_tool("computer", "add", name, "--computerou=OU=linux,OU=machines,OU=lan,OU=sites",
+               *(["--description=fabric: unmanaged (manual 1.6.11.6)"] if name == "PLAINJOIN" else []))
+code, out = domain("sort-machines")
+check("sort-machines: an admin-joined Linux machine becomes managed (lan-fabric-machines), audited; one whose join said "
+      "unmanaged does not", code == 0 and "adminjoin" in out and "adminjoin" in members_of("lan-fabric-machines")
+      and "plainjoin" not in members_of("lan-fabric-machines") and "MACHINE_ADOPT" in AUDIT, (code, out))
+samba_tool("group", "removemembers", "lan-fabric-machines", "ADMINJOIN$")
+code, out = domain("sort-machines", "--scheduled")
+check("...once: a machine an admin took out of lan-fabric-machines stays out",
+      code == 0 and "adminjoin" not in members_of("lan-fabric-machines")
+      and len(_json.load(open(_record))["adopted"]) == 1, (code, out))
+
+# ---- the site's fabric host (manual 1.6.11.11, 2.1.6.49): its own OU beside OU=machines, placed once, managed
+import fabriclib.directory.place_fabric_host as m_place  # noqa: E402
+
+m_place.write_audit = lambda actor, event, detail, source: AUDIT.append(event)
+ou = subprocess.run(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb",
+                     "(&(objectClass=organizationalUnit)(ou=fabric-hosts))", "dn"], capture_output=True, text=True)
+check("the site's OU=fabric-hosts exists beside OU=machines (made by the convergence)",
+      "dn: OU=fabric-hosts,OU=lan,OU=sites," in ou.stdout, ou.stdout + ou.stderr)
+m_add_machine.add_machine(V, "setup", "fabhost", secrets=SECRETS, container=DC, os="linux", managed=False)
+placed = m_place.place_fabric_host(V, "setup", "FABHOST", secrets=SECRETS, container=DC)
+check("place_fabric_host: the host's account (made in OU=linux, unmanaged) moved into OU=fabric-hosts, made a member "
+      "of lan-fabric-machines, marked as the fabric host, audited",
+      placed["moved"] and placed["joined"] and "OU=fabric-hosts,OU=lan,OU=sites" in dn_of("fabhost")
+      and "fabhost" in members_of("lan-fabric-machines") and description("fabhost").startswith("fabric: this site's "
+                                                                                                "fabric host")
+      and "MACHINE_PLACE" in AUDIT, (placed, dn_of("fabhost"), description("fabhost")))
+AUDIT.clear()
+again = m_place.place_fabric_host(V, "setup", "fabhost", secrets=SECRETS, container=DC)
+check("...a second time changes nothing and audits nothing", not again["moved"] and not again["joined"]
+      and "MACHINE_PLACE" not in AUDIT, again)
+check("the fabric host is one of the site's machines: listed (Directory → Machines), found to disable",
+      "fabhost" in [m["name"] for m in list_machines(V, SECRETS, DC)]
+      and m_set_machine.set_machine_enabled(V, "alice", "fabhost", True, secrets=SECRETS, container=DC) is not None)
+check("refused: placing a machine the site does not have (nothing made)",
+      refused(m_place.place_fabric_host, V, "setup", "nosuchhost", "setup", SECRETS, DC, match="no such")
+      and "NOSUCHHOST" not in dn_of("nosuchhost"))
+m_remove_machine.remove_machine(V, "setup", "fabhost", secrets=SECRETS, container=DC)
+check("the fabric host's account is removed as other machines are (the undo of setup's member step)",
+      "FABHOST" not in dn_of("fabhost"), dn_of("fabhost"))
 
 subprocess.run(["docker", "rm", "-f", DC], capture_output=True)
 subprocess.run(["docker", "network", "rm", NET], capture_output=True)

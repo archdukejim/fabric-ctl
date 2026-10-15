@@ -35,8 +35,11 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 </div>{% endfor %}
 </div>
 {% endmacro %}
+{% block head %}{% if refresh %}<meta http-equiv="refresh" content="{{ refresh.seconds }};url={{ refresh.url }}">{% endif %}{% endblock %}
 {% block body %}
 <h1>DNS filter</h1>
+{% if refresh %}<p class="flash warn">The first lists are still being fetched (a minute or so after setup): this page refreshes itself until every ticked list has a copy and AdGuard's catalogue is read.</p>
+{% elif stalled %}<p class="flash bad">Still no copy of every ticked list, or no catalogue, after five minutes: press <em>Fetch every list now</em> on Lists, or see <code>sudo fabricctl dns-filter status</code> on the host.</p>{% endif %}
 {% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
 {% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
 {% if d is not none and not d.on %}

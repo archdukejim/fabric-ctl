@@ -40,7 +40,7 @@ services:
         ipv4_address: "{{ ip_adguard }}"
         aliases:
           - adguard-filter
-    mem_limit: {{ adguard_mem_limit }}
+    mem_limit: {{ memory_mb('adguard') }}m       # its share of the budget x 2.5: compiling its lists fits (2.1.12.8)
     healthcheck:
       # its sign-in page: answers once the lists are loaded; no credentials on a command line
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/login.html"]

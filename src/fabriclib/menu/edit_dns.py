@@ -1,5 +1,6 @@
 import os
 
+from fabriclib.common.ask import ask
 from fabriclib.common.console import BOLD, GREEN, NC, RED
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
@@ -23,15 +24,15 @@ def _add(data):
     """Purpose: ask for a new zone's name (and, for a public name, whether it hides the real one) and add it.
     Inputs:  data — the vars working copy; its `dns` is refreshed from vars.yaml after the change.
     Returns: None; the outcome is printed.
-    Fails:   EOFError from input(); a refusal (ValidationError) is printed.
+    Fails:   EOFError from ask(); a refusal (ValidationError) is printed.
     Feeds:   edit_dns."""
-    name = input("New zone name: ").strip().rstrip(".").lower()
+    name = ask("menu.dns.new_zone", "New zone name: ").rstrip(".").lower()
     hide = False
     private = name == "home.arpa" or name.endswith(".home.arpa") or name.rsplit(".", 1)[-1] in PRIVATE_TLDS
     if name and not private:
         print("This name is under a public top-level domain: every client of this site would get this zone's "
               "answers instead of the real ones.")
-        hide = input("Hide the public name? [y/N]: ").strip().lower() == "y"
+        hide = ask("menu.dns.hide_public", "Hide the public name? [y/N]: ").lower() == "y"
     try:
         res = add_zone(menu_actor(), name, hide_public=hide)
         print(f"{GREEN}Zone {res['name']} added: BIND answers for it now.{NC}")
@@ -45,15 +46,15 @@ def _remove(data, zones):
     Inputs:  data — the vars working copy; its `dns` is refreshed from vars.yaml after the change; zones — the keys
              listed (the site's own first).
     Returns: None; the outcome is printed.
-    Fails:   EOFError from input(); a refusal (ValidationError) is printed.
+    Fails:   EOFError from ask(); a refusal (ValidationError) is printed.
     Feeds:   edit_dns."""
-    choice = input(f"Zone to remove (2-{len(zones)}): ").strip()
+    choice = ask("menu.dns.remove_pick", f"Zone to remove (2-{len(zones)}): ")
     if not choice.isdigit() or not 2 <= int(choice) <= len(zones):
         print(f"{RED}Pick one of the added zones (the site's own zone cannot be removed).{NC}")
         return
     key = zones[int(choice) - 1]
     print(f"Removing {key} removes its {_count((data.get('dns') or {}).get(key))} record(s).")
-    confirm = input(f"Type the zone's name ({key}) to confirm: ").strip()
+    confirm = ask("menu.dns.remove_confirm", f"Type the zone's name ({key}) to confirm: ")
     try:
         res = remove_zone(menu_actor(), key, confirm)
         print(f"{GREEN}Zone {res['name']} removed with its {res['records']} record(s).{NC}")
@@ -68,7 +69,7 @@ def edit_dns(data):
     Inputs:  data — the vars working copy; its `dns` is refreshed from vars.yaml after a zone change.
     Returns: None when "b" is picked.
     Fails:   a refused name or removal (ValidationError: the reason) is shown and the menu goes on; EOFError from
-             input().
+             ask().
     Feeds:   run_vars_menu (menu 1), edit_complex_variable (key dns)."""
     while True:
         zones_data = data.get("dns") if isinstance(data.get("dns"), dict) else {}
@@ -85,14 +86,14 @@ def edit_dns(data):
         print("\n  a) Add a new zone")
         print("  r) Remove a zone")
         print("  b) Back to variables")
-        choice = input(f"Select a zone (1-{len(zones)}), 'a', 'r', or 'b': ").strip().lower()
+        choice = ask("menu.dns.zone_pick", f"Select a zone (1-{len(zones)}), 'a', 'r', or 'b': ").lower()
         if choice == "b":
             return
         if choice == "a":
             _add(data)
-            input("Press Enter to continue...")
+            ask("menu.continue", "Press Enter to continue...")
         elif choice == "r":
             _remove(data, zones)
-            input("Press Enter to continue...")
+            ask("menu.continue", "Press Enter to continue...")
         elif choice.isdigit() and 1 <= int(choice) <= len(zones):
             edit_dns_zone(data, zones[int(choice) - 1], domain)

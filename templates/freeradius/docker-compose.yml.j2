@@ -43,7 +43,7 @@ services:
     networks:
       fabric_net:
         ipv4_address: "{{ ip_freeradius }}"
-    mem_limit: {{ freeradius_mem_limit }}
+    mem_limit: {{ memory_mb('freeradius') }}m
     healthcheck:
       test: ["CMD", "sh", "-c", "kill -0 1"]
       interval: 30s

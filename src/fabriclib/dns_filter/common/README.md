@@ -9,7 +9,6 @@ Helpers shared by the DNS filter's files (manual [1.12.2](../../../../docs/volum
 | `list_id.py` | A list's id, from its URL (stable when lists are reordered or renamed): its copy's file name |
 | `list_zone.py` | The zone name the query log gives a list's block (`<id>.list.rpz`) |
 | `list_memory.py` | The memory rule: the ticked lists' estimate and peak against AdGuard's limit |
-| `mem_mb.py` | A memory limit (`1024m`, `1g`, bytes) in MiB |
 | `adguard_paths.py` | AdGuard Home's folders and fabric's files beside them (state, catalogue, render digest) |
 | `adguard_api.py` | AdGuard Home's API as fabric-agent's account |
 | `adguard_password.py` | That account's password, from fabric's secrets |

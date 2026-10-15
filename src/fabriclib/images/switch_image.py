@@ -5,7 +5,7 @@ import subprocess
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.read_published_lock import read_published_lock
 from fabriclib.common.write_audit import write_audit
-from fabriclib.images.constants import STATE
+from fabriclib.images.constants import DEPENDENTS, STATE
 from fabriclib.images.installed_services import installed_services
 from fabriclib.images.running_image import running_image
 from fabriclib.setup import deploy_config
@@ -15,13 +15,15 @@ from fabriclib.setup.start_unit import start_unit
 
 def _apply(ctx, var, ref, services):
     """Purpose: render and deploy with image var `var` set to `ref` (local images rebuild on the new base),
-             then restart each service through its systemd unit and wait until it is healthy.
+             then restart each service through its systemd unit and wait until it is healthy, then restart the
+             installed services that need them (DEPENDENTS: keycloak behind postgres) the same way.
     Inputs:  ctx — SetupContext (ctx.vars is changed in place and persisted by deploy_config); var — str image var;
              ref — str image ref; services — list of SERVICES entries to restart, in order. A published image of
              fabric's (image_fabric_*) follows the lock unless held: one moved to a ref other than the lock's is listed
              in image_rolled_back (vars.yaml.j2 keeps it there), one moved back to the lock's leaves the list.
     Returns: None.
-    Fails:   SetupError from start_unit when a container does not become healthy; subprocess.CalledProcessError
+    Fails:   SetupError from start_unit when a container (a moved one or a dependent) does not become healthy
+             within 900 s; subprocess.CalledProcessError
              from systemctl; anything deploy_config.run / the deploy engine raises (SystemExit on a deploy failure).
     Feeds:   switch_image (update and its rollback)."""
     ctx.vars[var] = ref
@@ -34,6 +36,13 @@ def _apply(ctx, var, ref, services):
     deploy_config.run(ctx)
     for s in services:
         start_unit(s["unit"], s["container"], restart=True)
+    # a unit that Requires= a restarted one loses it mid-run (keycloak behind postgres): it is restarted here too, once
+    # what it needs is healthy, and health-gated the same way, so the switch returns (or rolls back) only once it is
+    # back. Waiting for systemd's own cascade read the old container's "unhealthy" (2.3.1.21.1)
+    moved = {s["name"] for s in services}
+    for d in installed_services(ctx):
+        if d["name"] not in moved and any(d["name"] in DEPENDENTS.get(s["name"], []) for s in services):
+            start_unit(d["unit"], d["container"], restart=True)
 
 
 def switch_image(ctx, var, target, actor="root", source="cli"):

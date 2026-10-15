@@ -1,8 +1,8 @@
-import getpass
 import os
 import subprocess
 import sys
 
+from fabriclib.common.ask import ask_secret
 from fabriclib.common.errors import ValidationError
 from fabriclib.logs.log_status import log_status
 
@@ -41,7 +41,7 @@ def run_logs_command(ctx, argv):
             return 0
         if cmd == "set-password" and args == ["elastic"]:
             from fabriclib.secrets.save_secrets import save_secrets
-            pw = (getpass.getpass("Elasticsearch password: ") if sys.stdin.isatty()
+            pw = (ask_secret("logs.elastic_password", "Elasticsearch password: ") if sys.stdin.isatty()
                   else sys.stdin.readline().rstrip("\n"))
             if not pw:
                 raise ValidationError("empty password")

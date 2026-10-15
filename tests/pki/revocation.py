@@ -186,11 +186,13 @@ for argv, code, text in ((["revoke"], 2, "usage"), (["revoke", "a", "b"], 2, "us
     err, out = io.StringIO(), io.StringIO()
     with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
         got = rcc.run_certs_command(Ctx(), argv)
+    # covers: cli:certs +-
     check(f"fabricctl certs {' '.join(argv)}: exit {code}" + (" (refused)" if code else ""),
           got == code and text in (err.getvalue() + out.getvalue()), (got, err.getvalue()[-200:]))
 pr = describe_cert(open(leaves["printer"]).read())["serial"]
 with contextlib.redirect_stdout(io.StringIO()) as out:
     got = rcc.run_certs_command(Ctx(), ["revoke", pr, "--reason", "superseded"])
+# covers: cli:certs +
 check("fabricctl certs revoke <serial> --reason superseded: done, refused by openssl",
       got == 0 and "revoked" in out.getvalue() and not verify(leaves["printer"])[0], out.getvalue())
 

@@ -31,7 +31,7 @@ def renew_service_certs(ctx, force=False, scheduled=False, record=CERT_RENEWAL_F
     Returns: exit status: 0 done, 1 a certificate or a service failed (the outcome recorded either way: when, ok,
              renewed services, what each did, the error).
     Fails:   never raises for a renewal failure (recorded and returned as 1); OSError writing the record.
-    Feeds:   cli main (`certs`)."""
+    Feeds:   cli main (`certs`), deploy/renew_landing_cert (an apply that changed the landing page's names)."""
     started = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     result = {"when": started, "scheduled": scheduled, "ok": True, "services": {}, "error": ""}
     try:

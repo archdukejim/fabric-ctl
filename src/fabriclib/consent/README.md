@@ -6,8 +6,9 @@ recorded answers; the check every step makes before it changes the host.
 
 | File | What |
 |---|---|
-| `groups.py` | The groups (packages, runtime, services, accounts, resolver, firewall, trust, time): title, level (required / recommended / choice), what saying no means |
+| `groups.py` | The groups (packages, runtime, services, accounts, resolver, ports, firewall, own_rules, trust, time, member): title, level (required / recommended / choice), what saying no means |
 | `plan_host_changes.py` | Every planned change, by group, for the steps that will run |
+| `initial_host_choices.py` | Whether each recommended host change starts on in setup's menu and plan (earlier answers, `--approve` / `--decline`) |
 | `planned_vars.py` | The settings setup will render, before anything is deployed (so the questions come first) |
 | `plan_packages.py` | apt packages to install, all from the host's own sources (Ubuntu's `docker.io`, no apt source added) |
 | `plan_runtime.py` | The `daemon.json` keys hardening changes, and the Docker restart it needs |
@@ -17,6 +18,7 @@ recorded answers; the check every step makes before it changes the host.
 | `plan_firewall.py` | The host firewall, rule by rule |
 | `plan_trust.py` | fabric's CA in the host's trust store |
 | `plan_time.py` | chrony's configuration, asked once as a kind |
+| `plan_member.py` | This host as a member of its domain (1.6.11.8): the packages, the keytab and the files sssd needs; nothing with `host_join_domain: false` |
 | `carry_over_splits.py` | An answer given before a group was split, carried to the groups it covered (2.1.2.14) |
 | `ask_consent.py` | The questions (interactive, or `--approve` / `--decline`), recorded; stops on a declined required group or an unanswered one |
 | `allowed_to_change.py` | Whether changes were approved (subset of what the group's yes covered); never asks |

@@ -122,5 +122,5 @@ def run_dc(v, container, network, env, tries=60):
 
 
 if __name__ == "__main__":          # a quick look: start one and print what a suite gets
-    out = start_dc("/tmp/start-dc", "startdc-test", "startdc_net", "10.254.31.0/24", "10.254.31.10")
+    out = start_dc("/tmp/start-dc", "startdc-test", "startdc_net", "10.254.48.0/24", "10.254.48.10")
     print(json.dumps({k: out[k] for k in ("root_ca", "container")}))

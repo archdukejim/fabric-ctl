@@ -1,0 +1,103 @@
+# The real-container suites in CI (decision 2.1.1.37, notes 2.3.1.11.1, manual 3.1.2): every suite of
+# `tests/run-all.sh` on amd64 and arm64 runners, one job per suite and architecture so a failure names both. Nightly,
+# by hand, and on a pull request to main: the sandbox (a full install) and the image-update test on it too. The checks
+# a merge to main needs are set in the repository's branch protection by the owner (3.1.2). docs and lint have their
+# own workflow (lint.yml); docs runs here as well, as run-all does.
+name: suites
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * *"      # nightly, 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Also the sandbox and the image-update test
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: suites-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  suite:
+    name: ${{ matrix.suite }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+        # "render nginx": nginx checks what render wrote, so the two run in one job
+        suite: [docs, consent, "render nginx", zone, webui, pki, federation, resolver, ntp, openbao, fluentbit, kea,
+                freeradius, samba, keycloak, hardening, images]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: What the suites need (3.1.2)
+        # openbao's HSM and KMIP unlock tests: SoftHSM2 with PyKCS11, and PyKMIP's client and server
+        run: sudo apt-get install -y -qq python3-yaml python3-jinja2 softhsm2 python3-pykcs11 python3-pykmip >/dev/null
+      - name: sudo tests/run-all.sh ${{ matrix.suite }}
+        env:
+          FABRIC_TEST_OUT: /tmp/fabric-tests
+        run: sudo -E tests/run-all.sh ${{ matrix.suite }}
+      # only the logs: the rest of /tmp/fabric-tests holds the run's keys and secrets (root only), which an artifact
+      # would hand to anyone who can download it
+      - name: Keep the suite's log (30 days)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: suite-${{ matrix.arch }}-${{ matrix.suite }}
+          path: /tmp/fabric-tests/*.log
+          retention-days: 30
+          if-no-files-found: ignore
+
+  full:
+    # the sandbox and the image-update test: nightly, by hand, and on a pull request to main
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.full) ||
+      (github.event_name == 'pull_request' && github.base_ref == 'main')
+    name: sandbox and image update (${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Room for a full install (the runner's preinstalled toolchains fabric does not use)
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+      - name: What the suites need (3.1.2)
+        run: sudo apt-get install -y -qq python3-yaml python3-jinja2 >/dev/null
+      - name: The sandbox, kept for the image-update test
+        env:
+          FABRIC_TEST_OUT: /tmp/fabric-tests
+          KEEP: "1"
+        run: sudo -E tests/run-all.sh sandbox
+      - name: The image-update test on the sandbox
+        shell: bash     # with pipefail: tee keeps the test's own exit status; sudo: the folder is root's
+        run: sudo tests/images/update.sh --box fabric-sandbox 2>&1 | sudo tee /tmp/fabric-tests/image-update.log
+      # every log the sandbox and the image-update test write, each step's own included (the owner, 2026-10-14: a
+      # failed uninstall in CI could not be read); never the run's keys and passwords, and no log holding one (3.1.2.4)
+      - name: No secret in the logs
+        if: always()
+        run: |
+          sudo find /tmp/fabric-tests -type d -exec chmod a+x {} + -o -name '*.log' -exec chmod a+r {} +
+          sudo python3 scripts/ci/logs_secret_free.py /tmp/fabric-tests
+      - name: Keep the logs (30 days)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: full-${{ matrix.arch }}
+          path: /tmp/fabric-tests/**/*.log
+          retention-days: 30
+          if-no-files-found: ignore

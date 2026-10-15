@@ -1,5 +1,6 @@
 import os
 
+from fabriclib.common.ask import ask
 from fabriclib.common.console import BOLD, NC, YELLOW
 from fabriclib.common.paths import VARS_FILE
 from fabriclib.menu.save_menu_change import save_menu_change
@@ -41,17 +42,18 @@ def edit_list_of_dicts(key, data, schema):
             print("  m) Modify entry")
             print("  d) Delete entry")
         print("  b) Back to variables")
-        choice = input("Select an option: ").strip().lower()
+        choice = ask(f"menu.list.{key}.option", "Select an option: ").lower()
         if choice == "b":
             return
         if choice == "a":
             print(f"\nAdding new entry to {key}:")
-            new = {f: _typed(val) for f in schema if (val := input(f"  {f}: ").strip())}
+            new = {f: _typed(val) for f in schema if (val := ask(f"menu.list.{key}.add.{f}", f"  {f}: "))}
             if new:
                 items.append(new)
                 save_menu_change(VARS_FILE, data, key, "None", str(new))
         elif choice in ("m", "d") and items:
-            pick = input(f"Enter item number to {'modify' if choice == 'm' else 'delete'} (1-{len(items)}): ").strip()
+            pick = ask(f"menu.list.{key}.pick",
+                       f"Enter item number to {'modify' if choice == 'm' else 'delete'} (1-{len(items)}): ")
             if not (pick.isdigit() and 1 <= int(pick) <= len(items)):
                 continue
             idx = int(pick) - 1
@@ -62,7 +64,7 @@ def edit_list_of_dicts(key, data, schema):
             item = items[idx]
             print(f"\nModifying entry {idx + 1}:")
             for f in schema:
-                val = input(f"  {f} [{item.get(f, '')}]: ").strip()
+                val = ask(f"menu.list.{key}.edit.{f}", f"  {f} [{item.get(f, '')}]: ")
                 if val:
                     item[f] = _typed(val)
             save_menu_change(VARS_FILE, data, key, "old", str(item))

@@ -1,6 +1,6 @@
-import getpass
 import sys
 
+from fabriclib.common.ask import ask_secret
 from fabriclib.common.errors import ValidationError
 from fabriclib.radius.add_radius_client import add_radius_client
 from fabriclib.radius.list_auth_log import list_auth_log
@@ -44,7 +44,7 @@ def _secret(args):
     Fails:   EOFError / KeyboardInterrupt from getpass propagate.
     Feeds:   run_radius_command (add-client, rotate-secret).
     """
-    return getpass.getpass("shared secret (hidden): ").strip() if "--secret-prompt" in args else None
+    return ask_secret("radius.secret", "shared secret (hidden): ").strip() if "--secret-prompt" in args else None
 
 
 def run_radius_command(v, argv):

@@ -33,7 +33,7 @@ from fabriclib.setup.ensure_db_rotation import configure_db_engine  # noqa: E402
 from fabriclib.vault.common.bao_request import bao_request  # noqa: E402
 
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/dbrotation"
-NET, SUBNET, PG_IP, BAO_IP = "dbrot_net", "10.254.23.0/24", "10.254.23.70", "10.254.23.90"
+NET, SUBNET, PG_IP, BAO_IP = "dbrot_net", "10.254.45.0/24", "10.254.45.70", "10.254.45.90"
 PG, BAO, HOST = "dbrot-postgres", "dbrot-bao", "vault.lan.test"
 FAILED = 0
 AUDIT = []

@@ -6,7 +6,8 @@ from webui.views.constants import DNS_FILTER_SECTIONS
 def dns_filter_page(h, ctx, query):
     """Purpose: Render the DNS filter tab (manual 1.12.2.14): overview, lists, rules, the query log, settings.
     Inputs:  h — the request handler (send); ctx — page context; query — dict: view (a DNS_FILTER_SECTIONS id; anything
-             else is the overview), the query log's search (client, name, blocked "on", limit), msg, err.
+             else is the overview), the query log's search (client, name, blocked "on", limit), msg, err, wait (how
+             often the page has refreshed itself while a fresh install's first fetch runs, 2.1.2.22).
     Returns: the page (200). Without dns:filter the overview is None (the query log still shows with dns:querylog);
              a search the agent refuses shows its reason in place of the results.
     Fails:   agent errors other than those two propagate to handle_request (redirect to /login, 503).
@@ -28,4 +29,4 @@ def dns_filter_page(h, ctx, query):
         except (actions.ValidationError, actions.PermissionDenied) as e:
             log_err = str(e)
     return h.send(200, views.dns_filter(ctx, section, overview, log, search, query.get("msg", ""),
-                                        query.get("err", "") or log_err))
+                                        query.get("err", "") or log_err, query.get("wait", 0)))

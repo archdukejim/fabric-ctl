@@ -5,6 +5,21 @@ Helpers shared by setup steps and the consent plans.
 | File | What |
 |---|---|
 | `missing_packages.py` | Which Debian packages are not installed |
+| `apt_install.py` | Install packages from the host's own apt sources (noninteractive) |
+| `render_member_files.py` | The host's krb5.conf and sssd.conf as a member of its own domain: the fabric admins only (and the log-on policy of its OU), sudo from the site's rules |
+| `host_identity.py` | Which domain account the host signs in with: its own `<HOSTNAME>$` (2.1.6.48), or its DC's where it cannot have its own; a DC with the host's name refused (2.1.6.51) |
+| `find_computer.py` | Whether the domain has a computer account of a name, where, and its groups (read inside the DC) |
+| `apply_host_managed.py` | fabric's management of the fabric host itself, applied or removed: Kerberos for SSH, a domain password refused over SSH, the domain's names from fabric's DNS; local accounts untouched, sshd's configuration checked (1.6.11.11) |
+| `sync_host_managed.py` | The host's management kept in step with its account's membership of `<site>-fabric-machines` (`fabricctl domain host-managed`, the timer) |
+| `renew_days.py` | After how many days the host's machine password is renewed (`host_machine_password_renew_days`, 0 = never) |
+| `export_keytab.py` | The keys of the host's domain account and its host/ names (never the whole domain's), read from the samba container |
 | `docker_ready.py` | Whether Docker, compose v2 and buildx answer |
 | `service_account_name.py` | A service's host account name (`fabric-dns`, …): `service_users.<key>.name` or fabric's default |
+| `valid_setting.py` | The checks of the asked settings (domain, host name, network, organisation, first admin) and their labels |
+| `ask_setting.py` | Ask one setting until its answer is valid (guided mode and the menu) |
+| `network_problem.py` | What is wrong with the host's address, subnet and gateway taken together |
+| `ca_exists.py` | Whether this install's CA exists (its lifetime is then fixed) |
+| `first_admin_needed.py` | Whether setup creates the first admin and so needs their password |
+| `plan_items.py` | The plan's hardened defaults (the firewall, Docker's hardening, membership, Keycloak, the web console) |
+| `dotted_keys.py` | Read and write a dotted settings key (`security.firewall`) |
 | `previous_accounts.py` | The service accounts of releases before 2026-10 (names, ids), which setup moves away from |

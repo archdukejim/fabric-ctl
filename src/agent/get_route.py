@@ -13,7 +13,9 @@ from fabriclib.dns.zone_detail import zone_detail
 from fabriclib.dns_filter.filter_overview import filter_overview
 from fabriclib.federation.federation_overview import federation_overview
 from fabriclib.directory.device_overview import device_overview
+from fabriclib.directory.list_host_groups import list_host_groups
 from fabriclib.directory.list_people import list_people
+from fabriclib.directory.list_sudo_rules import list_sudo_rules
 from fabriclib.images.image_status import image_status
 from fabriclib.pki.acme_info import acme_info
 from fabriclib.pki.acme_machines import acme_machines
@@ -22,6 +24,7 @@ from fabriclib.pki.list_issued import list_issued
 from fabriclib.radius.radius_guides import radius_guides
 from fabriclib.samba.domain_overview import domain_overview
 from fabriclib.samba.gpo_overview import gpo_overview
+from fabriclib.samba.logon_overview import logon_overview
 from fabriclib.radius.radius_overview import radius_overview
 from fabriclib.system.service_status import service_status
 from fabriclib.system.version_info import version_info
@@ -51,6 +54,9 @@ READS = {
     ("devices",): lambda: device_overview(load_vars()),
     ("people",): lambda: list_people(load_vars()),
     ("domain",): lambda: domain_overview(load_vars()),
+    ("domain", "logon"): lambda: logon_overview(load_vars()),
+    ("host-groups",): lambda: list_host_groups(load_vars()),
+    ("sudo",): lambda: list_sudo_rules(load_vars()),
     ("gpo",): lambda: gpo_overview(load_vars()),
     ("federation",): lambda: federation_overview(load_vars()),
     ("dhcp",): lambda: dhcp_overview(load_vars()),

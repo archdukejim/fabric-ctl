@@ -1,11 +1,13 @@
 """The installer test (manual 3.1.2): `sudo fabricctl setup` driven through a real terminal on a test host, as a
 person who gets things wrong would — every question first given answers it must refuse, each refusal checked by its
-message, then the good answer. Two runs:
-  1. a fresh host with ufw already on: every refusal, then the host firewall declined — setup must stop before any
-     step, saying why (2.1.2.12), with nothing started;
-  2. the same host again: valid answers (an invalid plan choice and consent answer first), everything allowed —
-     setup must finish, then doctor, and the checks a person would make (the domain on IPv4 only, 2.1.6.29; the landing
-     page at the host's own name; the host's own ufw rules kept beside fabric's).
+message, then the good answer. Two runs (setup's start, menu and plan: manual 1.2.9.11):
+  1. a fresh host with ufw already on, Guided: every refusal, then the plan's Menu, where the ports fabric needs are
+     turned off (securing and the host's own rules go with them), and Proceed — setup must stop before any step,
+     saying why (2.1.2.12), with nothing started;
+  2. the same host again, Advanced: the menu (Proceed refused until the required items have values; the ports turned
+     back on, the host's own rules kept), the plan's one yes — setup must finish, then doctor, and the checks a person
+     would make (the domain on IPv4 only, 2.1.6.29; the landing page at the host's own name; the host's own ufw rules
+     kept beside fabric's).
 The host is left installed for a person to look at. Run from a Linux machine that reaches the host with a key:
     TARGET=tempuser@192.168.5.57 KEY=~/.ssh/fabric-test_ed25519 HOST_IP=192.168.5.57 DOMAIN=home.arpa \\
         python3 tests/host/installer.py
@@ -26,6 +28,7 @@ HOST_IP, DOMAIN = os.environ["HOST_IP"], os.environ.get("DOMAIN", "home.arpa")
 FOREIGN_IP = os.environ.get("FOREIGN_IP", "192.168.7.250")    # in the host's subnet, but not one of its addresses
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "src"))
 from fabriclib.samba.suggested_ad_domain import suggested_ad_domain  # noqa: E402
+from fabriclib.samba.suggested_dc_name import suggested_dc_name  # noqa: E402
 AD = suggested_ad_domain(DOMAIN)        # what Enter takes (2.1.6.11: a sibling of a domain of three labels or more)
 OUT = os.environ.get("OUT", "/tmp/fabric-tests/installer")
 SSH = ["ssh", "-o", "BatchMode=yes", "-i", KEY, TARGET]
@@ -46,14 +49,15 @@ def R(cmd):
 
 # (question, the end of its prompt) — matched against the last characters on the screen
 PROMPTS = [
-    ("domain", r"DNS domain for this network.*\]: $"),
-    ("hostname", r"Name of this host.*\]: $"),
-    ("host_ip", r"LAN IP address of this host.*\]: $"),
+    ("domain", r"DNS domain \(e\.g\. home\.arpa\).*\]: $"),
+    ("hostname", r"This host's name.*\]: $"),
+    ("host_ip", r"This host's LAN address.*\]: $"),
     ("lan_cidr", r"LAN subnet \(CIDR\).*\]: $"),
-    ("lan_gateway", r"LAN gateway \(router\) IP.*\]: $"),
-    ("friendly_name", r"Organisation / network name.*\]: $"),
-    ("admin", r"Username of the first web UI admin.*\]: $"),
-    ("ad_domain", r"AD domain( \[[^\]]*\])?: $"),
+    ("lan_gateway", r"LAN gateway \(router\).*\]: $"),
+    ("friendly_name", r"Organisation's name.*\]: $"),
+    ("admin", r"First admin's user name.*\]: $"),
+    ("ad_domain", r"Windows \(AD\) domain.*: $"),
+    ("dc_name", r"Domain controller's name.*: $"),
     ("min_length", r"Minimum password length.*: $"),
     ("history", r"Previous passwords remembered.*: $"),
     ("min_age", r"Days before a new password may be changed.*: $"),
@@ -64,21 +68,22 @@ PROMPTS = [
     ("complexity", r"\(complexity\) \[y/n\].*: $"),
     ("memory", r"GB of memory fabric may use \[\d+\]: $"),
     ("kerberos", r"Turn it on now\? \[y/N\]: $"),
-    ("admin_pw", r"Password for [^:\n]+: $"),
+    ("admin_pw", r"Password for [^\n]+\(web console sign-in, not shown\): $"),
     ("admin_pw2", r"The same again: $"),
+    ("mode", r"Guided, Advanced or Quit\? \[G/a/q\] $"),
+    ("menu", r"\[P\]roceed.*a number to change it, or \[Q\]uit: $"),
     ("plan", r"\[P\]roceed.*\[Q\]uit\? $"),
-    ("consent", r"Allow these changes\? \[y/n\] $"),
+    ("yesno", r"\? \[[Yy]/[nN]\] $"),
 ]
 
 
-def drive(answers, consent, log):
+def drive(answers, log):
     """Run `sudo fabricctl setup` in a terminal, answering each question from answers[name] in turn ("" = Enter
-    when a list runs out; consent(title) for the host-change questions). Returns (exit status, transcript, the
-    questions in the order asked)."""
+    when a list runs out). Returns (exit status, transcript, the questions in the order asked)."""
     pid, fd = pty.fork()
     if pid == 0:
         os.execvp("ssh", ["ssh", "-tt", "-o", "BatchMode=yes", "-i", KEY, TARGET, "sudo fabricctl setup"])
-    screen, transcript, asked, last, last_title = "", "", [], time.time(), ""
+    screen, transcript, asked, last = "", "", [], time.time()
     with open(log, "w") as out:
         while True:
             r, _, _ = select.select([fd], [], [], 1)
@@ -97,15 +102,8 @@ def drive(answers, consent, log):
                 tail = re.sub(r"\x1b\[[0-9;]*m", "", screen[-500:])
                 for name, pattern in PROMPTS:
                     if re.search(pattern, tail):
-                        if name == "consent":
-                            title = re.findall(r"\n  (\S[^\n(]*?) \((?:required|recommended|optional|choice)",
-                                               re.sub(r"\x1b\[[0-9;]*m", "", screen))
-                            if title:
-                                last_title = title[-1].strip()      # a question asked again shows no title
-                            answer = consent(last_title)
-                        else:
-                            queue = answers.get(name, [])
-                            answer = queue.pop(0) if queue else ""
+                        queue = answers.get(name, [])
+                        answer = queue.pop(0) if queue else ""
                         asked.append((name, answer))
                         os.write(fd, (answer + "\r").encode())
                         screen = ""
@@ -133,7 +131,7 @@ guess_net = R("ip -4 route show default").split()
 # ---- run 1: every wrong answer refused, then the firewall declined
 bad = {
     "domain": ["lan", "home.local", "bad_name.arpa", "-x.arpa", DOMAIN],
-    "hostname": ["has.dot", "averyveryverylonghostname", "localhost", "bad_name", ""],
+    "hostname": ["has.dot", "a" * 64, "localhost", "bad_name", ""],
     "host_ip": ["999.1.1.1", "abc", FOREIGN_IP, "", ""],
     "lan_cidr": ["192.168.4.0/33", "nope", "", "", ""],
     "lan_gateway": ["300.1.1.1", "", HOST_IP, ""],
@@ -143,22 +141,16 @@ bad = {
     # too short (the default policy: 12), containing the user name, then two that differ, then a good one twice
     "admin_pw": ["short", "xFabric-Admin-9", "Good-Pass-1234", "Good-Pass-1234"],
     "admin_pw2": ["nope", "Good-Pass-1234"],
-    "plan": ["x", "p"],
+    "mode": ["x", "g"],
+    # the plan: no choice, then the menu (a number not on the list, the ports turned off), then Proceed
+    "plan": ["x", "m", "p"],
+    "menu": ["99", "15", "p"],          # 15: the ports fabric needs
+    "yesno": ["n"],
 }
-consent_seen = []
-
-
-def decline_firewall(title):
-    consent_seen.append(title)
-    if len(consent_seen) == 1:
-        return "maybe"                 # not y or n: asked again
-    return "n" if title == "Ports fabric needs" else "y"
-
-
-code, text, asked = drive(bad, decline_firewall, f"{OUT}/run1.log")
+code, text, asked = drive(bad, f"{OUT}/run1.log")
 EXPECT = [
     ("a single label, .local, an underscore, a leading hyphen: refused as a domain", "not a valid domain", 4),
-    ("a dot, 25 characters (over NetBIOS's 15), localhost, an underscore: refused as the host name",
+    ("a dot, 64 characters (over a DNS label's 63), localhost, an underscore: refused as the host name",
      "not a valid hostname", 4),
     ("an impossible address, text: refused as the host's address", "not a valid host_ip", 2),
     ("a /33, text: refused as the subnet", "not a valid lan_cidr", 2),
@@ -175,42 +167,53 @@ EXPECT = [
     ("...typed differently the second time, asked again", "the two differ", 1),
 ]
 for name, needle, count in EXPECT:
+    # covers: ask:setup.vars.* ask:setup.ad_domain ask:setup.admin_password ask:setup.admin_password_again -
+    # covers: setting:domain setting:hostname setting:host_ip setting:lan_cidr setting:lan_gateway -
+    # covers: setting:friendly_name setting:webui_admin_user setting:ad_domain -
     check(name, text.count(needle) >= count, (text.count(needle), needle))
 names = [n for n, _ in asked]
 check("only what cannot change later is asked (2.1.2.16): no password policy, memory or Kerberos question",
       not {"min_length", "history", "min_age", "max_age", "threshold", "window", "lock", "complexity", "memory",
            "kerberos"} & set(names) and "password policy: fabric's default" in text, names)
-check("the plan asked again after an answer that is no choice", names.count("plan") == 2, names.count("plan"))
-check("a consent question asked again after an answer that is not y or n",
-      len(consent_seen) >= 2 and consent_seen[0] == consent_seen[1], consent_seen[:3])
+# covers: ask:setup.mode ask:setup.plan ask:setup.menu ask:setup.consent.* -
+check("the start, the plan and the menu ask again after an answer that is no choice, saying which",
+      names.count("mode") == 2 and "answer g (guided), a (advanced) or q (quit)" in text
+      and names.count("plan") == 3 and "'x': answer p, m or q" in text
+      and "'99' is not on the list: a number from 1 to" in text, names)
+check("no separate consent question: the plan lists every host change and Proceed is the one yes (2.1.2.18)",
+      "consent" not in names and "Packages (required)" in text and "[P]roceed allows all of these" in text, names)
 check(f"the Enter defaults: the suggested AD domain ({AD}) and the host name it found",
       f"[{AD}]" in text and guess_host in text, (AD, guess_host))
-check("declining the ports fabric needs with ufw on stops setup before any step, saying why (2.1.2.12, 2.1.2.13)",
+# covers: cli:setup -
+check("declining the ports fabric needs in the menu with ufw on stops setup before any step, saying why "
+      "(2.1.2.12, 2.1.2.13)",
       code != 0 and "ufw is on, and without fabric's firewall rules it blocks" in text and "[preflight]" not in text,
       (code, text[-800:]))
-check("…and securing and the host's own rules were not asked (they need the ports)",
-      "Secure this host" not in consent_seen and "The host's own firewall rules" not in consent_seen, consent_seen)
+check("…the menu said what declining them means, and took securing and the host's own rules along (they need the "
+      "ports)", "If no: ufw is not told about fabric's ports" in text and "also off: Secure this host" in text
+      and "also off: The host's own firewall rules" in text, text[-1500:])
 check("…and nothing was started or changed: no containers, ufw's rules as they were",
       R("docker ps -q | wc -l").strip() == "0"
       and R("ufw status | grep -iE 'ALLOW|DENY' | grep -v '(v6)'") == own_rules)
 
 # ---- run 2: valid answers, everything allowed; the install finished and looked at
 good = {
-    "domain": [DOMAIN], "friendly_name": ["Fabric Installer Test"], "plan": ["p"], "admin_pw": ["Good-Pass-1234"],
-    "admin_pw2": ["Good-Pass-1234"],
+    "mode": ["a"],
+    # Proceed before the required items have values (refused), the domain, the organisation, the first admin; the host's
+    # own rules turned on (the ports and securing come back with them), then off again (kept beside fabric's)
+    "menu": ["p", "1", "3", "7", "17", "17", "p"],    # 7: the first admin; 17: the host's own rules
+    "yesno": ["y", "n"],
+    "domain": [DOMAIN], "friendly_name": ["Fabric Installer Test"], "admin": [""], "plan": ["p"],
+    "admin_pw": ["Good-Pass-1234"], "admin_pw2": ["Good-Pass-1234"],
 }
-seen2 = []
-
-
-def keep_own(title):
-    seen2.append(title)
-    return "n" if title == "The host's own firewall rules" else "y"
-
-
-code, text, asked = drive(good, keep_own, f"{OUT}/run2.log")
-check("the three firewall questions, in order: the ports, securing, then the host's own rules (they exist here)",
-      [t for t in seen2 if t in ("Ports fabric needs", "Secure this host", "The host's own firewall rules")]
-      == ["Ports fabric needs", "Secure this host", "The host's own firewall rules"], seen2)
+code, text, asked = drive(good, f"{OUT}/run2.log")
+check("Advanced: the menu's Proceed waits for the organisation and the first admin's password, naming them",
+      "not yet: 3, 7 need an answer" in text, text[:3000])
+check("the plan lists the ports and securing, in order, and the host's own rules under Not made (kept)",
+      0 <= text.rfind("Ports fabric needs (recommended)") < text.rfind("Secure this host (recommended)")
+      and "The host's own firewall rules: the host's own rules stay" in text, text[-3000:])
+# covers: cli:setup ask:setup.mode ask:setup.menu ask:setup.consent.* ask:setup.vars.* ask:setup.ad_domain +
+# covers: ask:setup.admin_password ask:setup.admin_password_again ask:setup.plan +
 check("with everything allowed, setup finishes (fabric is ready)", code == 0 and "fabric is ready" in text,
       (code, text[-1500:]))
 names, first, signin = (text.find("FIRST point the computer"), text.find("install fabric's root certificate"),
@@ -224,6 +227,7 @@ check("setup's last words: FIRST fabric's names (its DNS at the host's address, 
       and fingerprint.strip() and fingerprint.strip() in text[first:signin]
       and f"https://fabric.{DOMAIN}" in text[signin:], text[-1500:])
 saved = yaml.safe_load(R("cat /opt/fabric/config/vars.yaml")) or {}
+# covers: setting:webui_admin_user +
 check("Enter took fabric-admin as the first admin; the console's role is fabric-console-admin; Kerberos off; the "
       "default policy; all the memory (2.1.2.16, 2.1.6.32, 2.1.6.33, 2.1.6.35)",
       saved.get("webui_admin_user") == "fabric-admin" and saved.get("webui_admin_role") == "fabric-console-admin"
@@ -232,6 +236,8 @@ check("Enter took fabric-admin as the first admin; the console's role is fabric-
       and int(saved.get("host_ram_capacity") or 0) >= 4,
       {k: saved.get(k) for k in ("webui_admin_user", "webui_admin_role", "signin_kerberos", "ad_password_policy",
                                  "host_ram_capacity")})
+check("Advanced with the DC's name left alone: the DC takes dc-<hostname>, never the host's own name (2.3.1.21.2)",
+      saved.get("dc_name") == suggested_dc_name(guess_host) != guess_host, saved.get("dc_name"))
 check("the first admin was created with the chosen password; none written to the login kit",
       "created in the directory with the password chosen in setup" in text
       and not R("find /home /root -path '*/fabric-admin/initial-password.txt' -newer /opt/fabric/config/fabric.yaml "
@@ -259,16 +265,18 @@ check("secured: ufw on, incoming denied by default", "Default: deny (incoming)" 
 own_added = [ln for ln in R("ufw show added").splitlines() if ln.startswith("ufw ")]
 R("fabricctl setup --step firewall --non-interactive --approve own_rules >/tmp/own-rules.log 2>&1")
 added = [ln for ln in R("ufw show added").splitlines() if ln.startswith("ufw ")]
-check("own rules removed (yes): only fabric's ports and SSH left, the 9090 and OpenSSH rules gone",
-      len(added) < len(own_added) and not any("9090" in ln or "OpenSSH" in ln for ln in added), added)
+# the host's own rules are whatever it had (rehearsal 3 found a host without the OpenSSH rule a check had assumed)
+removed = [ln for ln in own_added if ln not in added]
+check("own rules removed (yes): only fabric's ports and SSH left, the host's own rules gone",
+      removed and not any(ln in added for ln in removed), (removed, added))
 check("…and SSH still works (fabric's SSH rule from the LAN)", R("echo ok").strip() == "ok")
 R("fabricctl setup --undo firewall --yes >/tmp/undo-firewall.log 2>&1")
 back = [ln for ln in R("ufw show added").splitlines() if ln.startswith("ufw ")]
-check("undoing the firewall puts the host's own rules back", any("9090" in ln for ln in back)
-      and any("OpenSSH" in ln for ln in back), back)
+check("undoing the firewall puts the host's own rules back, every one removed", removed
+      and all(ln in back for ln in removed), (removed, back))
 R("fabricctl setup --step firewall --non-interactive --approve ports,firewall --decline own_rules >/dev/null 2>&1")
 check("the firewall set up again for the person to use (own rules kept)",
-      "Default: deny (incoming)" in R("ufw status verbose") and any("9090" in ln for ln in
-                                                                    R("ufw show added").splitlines()))
+      "Default: deny (incoming)" in R("ufw status verbose")
+      and all(ln in R("ufw show added").splitlines() for ln in removed))
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

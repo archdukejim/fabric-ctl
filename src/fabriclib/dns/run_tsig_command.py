@@ -1,7 +1,7 @@
 import argparse
-import getpass
 import sys
 
+from fabriclib.common.ask import ask_secret
 from fabriclib.common.errors import ValidationError
 from fabriclib.dns.add_tsig_key import add_tsig_key
 from fabriclib.dns.list_tsig_keys import list_tsig_keys
@@ -10,6 +10,18 @@ from fabriclib.dns.replace_tsig_secret import replace_tsig_secret
 from fabriclib.dns.set_key_acls import set_key_acls
 from fabriclib.dns.update_tsig_key import update_tsig_key
 from fabriclib.system.apply_changes import apply_changes
+
+USAGE = """usage: fabricctl tsig list                        every TSIG key: algorithm, types, what it may update, ACLs
+       fabricctl tsig add <name> [scope] [--secret-file F | --secret-prompt]
+                                                  add a key (a new secret, or an existing one you give)
+       fabricctl tsig update <name> [scope] [--drop-acl A]
+                                                  change what a key may update (secret untouched)
+       fabricctl tsig set-secret <name> --secret-file F | --secret-prompt
+                                                  replace a key's secret with one you give
+       fabricctl tsig rotate <name>               give a key a newly generated secret
+       fabricctl tsig remove <name>               remove a key
+  scope: --domain Z --record HOST (repeatable) | --any-name, --types T,.. --algorithm A --out FILE --acl A
+  (repeatable). Every change is applied at once unless --no-apply. A secret never goes on the command line."""
 
 
 def _secret(args):
@@ -24,7 +36,7 @@ def _secret(args):
         with open(args.secret_file) as f:
             return f.read().strip()
     if getattr(args, "secret_prompt", False):
-        return getpass.getpass("TSIG secret (base64): ").strip()
+        return ask_secret("tsig.secret", "TSIG secret (base64): ").strip()
     return None
 
 
@@ -102,6 +114,7 @@ def run_tsig_command(argv):
     rm.add_argument("name")
     for p in (add, upd, setp, rot, rm):
         p.add_argument("--no-apply", action="store_true", help="only record the change; apply later")
+    ap.usage = USAGE.removeprefix("usage: ")    # after the subparsers: they take their prog from it
     args = ap.parse_args(argv)
 
     try:

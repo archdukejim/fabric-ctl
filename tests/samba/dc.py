@@ -22,6 +22,7 @@ from fabriclib.directory.run_op import run_op  # noqa: E402
 from fabriclib.federation.network_conflicts import network_conflicts  # noqa: E402
 from fabriclib.federation.read_address_plan import read_address_plan  # noqa: E402
 from fabriclib.radius.windows_lan_profile import windows_lan_profile  # noqa: E402
+from fabriclib.samba.allow_rodc_cache import allow_rodc_cache  # noqa: E402
 from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
 from fabriclib.samba.deploy_samba import deploy_samba  # noqa: E402
 from fabriclib.samba.write_bind_dlz import write_bind_dlz  # noqa: E402
@@ -246,6 +247,7 @@ check("converge wrote the site's networks into its OU=networks (the address plan
 
 # S2.2: the site's service accounts, its id block, fabric's groups with their gids, the agent's own sign-in
 info_ = run_op(v, SECRETS, "site_info", container=DC)
+# covers: setting:posix_id_block +
 check("the agent signs in as fabric-agent-lan and reads its site's id block: site 1's, 1000000-1999999, laid out in "
       "ranges, one mark each (2.1.6.46)", info_["id_range"] == "1000000-1999999"
       and set(info_["id_marks"]) == {"first_admin", "admin", "service", "builtin_group", "group", "person", "guest"},
@@ -278,6 +280,7 @@ check("winbind's privileged pipe: FreeRADIUS's group only (root, 0750); its sock
       and os.path.exists(os.path.join(W, "samba", "winbindd", "pipe")),
       (priv.st_uid, priv.st_gid, oct(priv.st_mode)))
 signd = os.stat(os.path.join(W, "ntp_signd"))
+# covers: setting:ad_ntp_signd_dir +
 check("the DC's time-signing socket in the folder the host's chrony reaches (2.1.13.1): root, 0750",
       os.path.exists(os.path.join(W, "ntp_signd", "socket")) and signd.st_uid == 0
       and signd.st_mode & 0o7777 == 0o750, oct(signd.st_mode))
@@ -299,10 +302,13 @@ except ValidationError as e:
 ous = dc("ldbsearch", "-H", "/data/private/sam.ldb", "-b", f"OU=sites,{BASE}", "(objectClass=organizationalUnit)",
          "dn").stdout
 check("the site's OU tree under OU=sites, with OU=organisation at the root site",
-      ous.count("dn: ") == 14 and f"OU=organisation,OU=lan,OU=sites,{BASE}" in ous, ous.count("dn: "))
+      # sites, lan, its nine OUs (OU=fabric-hosts since 0.7.1, 1.6.11.11) and OU=machines' linux and windows
+      # (1.6.11.5), organisation and its three
+      ous.count("dn: ") == 17 and f"OU=organisation,OU=lan,OU=sites,{BASE}" in ous, ous.count("dn: "))
 check("the directory is consistent (dbcheck)", "(0 errors)" in dc("samba-tool", "dbcheck", "-s", "/data/etc/smb.conf",
                                                                   "--cross-ncs").stdout)
 policy = dc("samba-tool", "domain", "passwordsettings", "show", "-s", "/data/etc/smb.conf").stdout
+# covers: setting:ad_password_policy +
 check("the admin's password policy is the domain's",
       "Minimum password length: 14" in policy and "Password complexity: on" in policy
       and "Account lockout threshold (attempts): 5" in policy, policy)
@@ -319,10 +325,55 @@ check("...and makes the site's windows-admins role a member of each machine's Ad
       "__Memberof = *S-1-5-32-544".encode("utf-16-le") in inf and "[Group Membership]".encode("utf-16-le") in inf)
 roles = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(&(objectClass=group)(sAMAccountName=lan-*))",
            "sAMAccountName", "member").stdout
-check("the site's five role groups, lan-admins a member of each (2.1.9.13)",
-      all(f"sAMAccountName: lan-{r}" in roles for r in ("ou-admins", "machine-admins", "gpo-admins", "linux-sudo",
-                                                      "windows-admins"))
-      and roles.count("member: CN=lan-admins,") == 5, roles[-600:])
+check("the site's four role groups, lan-admins a member of each (2.1.9.13; linux-sudo replaced, 2.1.6.37)",
+      all(f"sAMAccountName: lan-{r}" in roles for r in ("ou-admins", "machine-admins", "gpo-admins", "windows-admins"))
+      and "sAMAccountName: lan-linux-sudo" not in roles and roles.count("member: CN=lan-admins,") == 4, roles[-600:])
+
+
+def members(group):
+    """The member DNs' first RDN values of a group (lower case)."""
+    out = dc("ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={group})", "member").stdout
+    return {line.split(":", 1)[1].strip().split(",")[0][3:].lower() for line in out.splitlines()
+            if line.startswith("member:")}
+
+
+# the host groups (manual 1.6.11.2): a new site's fabric-admins start inside its machine-admins; the organisation's in each
+check("the host groups: fabric-admins (organisation), lan-fabric-admins and lan-fabric-machines (1.6.11.2)",
+      all(f"sAMAccountName: {g}" in dc("ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={g})",
+                                       "sAMAccountName").stdout
+          for g in ("fabric-admins", "lan-fabric-admins", "lan-fabric-machines")))
+_ous = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(objectClass=organizationalUnit)", "dn").stdout
+check("each site's OU=machines holds OU=linux and OU=windows (1.6.11.5, 2.1.6.36)",
+      "OU=linux,OU=machines,OU=lan," in _ous and "OU=windows,OU=machines,OU=lan," in _ous, _ous[-400:])
+check("a new site's lan-fabric-admins is a member of lan-machine-admins (2.1.6.38); fabric-admins of lan-fabric-admins",
+      "lan-fabric-admins" in members("lan-machine-admins") and "fabric-admins" in members("lan-fabric-admins"),
+      (members("lan-machine-admins"), members("lan-fabric-admins")))
+
+# the move from the linux-sudo role (2.1.6.37, 2.1.6.44): an install from before it, its role and rule put back as they
+# were with a member, then converged: the member keeps sudo through lan-fabric-admins, the old role and rule are gone
+_site = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(&(objectClass=organizationalUnit)(ou=sudoers))", "dn").stdout
+_sudoers = next(line.split(":", 1)[1].strip() for line in _site.splitlines()     # the site's, not the organisation's
+                if line.startswith("dn: OU=sudoers,OU=lan,OU=sites,"))
+dc("samba-tool", "group", "add", "lan-linux-sudo", "-s", "/data/etc/smb.conf")
+dc("samba-tool", "user", "add", "olga", "--random-password", "-s", "/data/etc/smb.conf")
+dc("samba-tool", "group", "addmembers", "lan-linux-sudo", "olga", "-s", "/data/etc/smb.conf")
+dc("samba-tool", "group", "addmembers", "admins", "olga", "-s", "/data/etc/smb.conf")
+dc("ldbadd", "-H", "/data/private/sam.ldb", stdin=(
+    f"dn: CN=lan-linux-sudo,{_sudoers}\nobjectClass: sudoRole\nsudoUser: %lan-linux-sudo\nsudoUser: %admins\n"
+    "sudoHost: ALL\nsudoCommand: ALL\nsudoRunAsUser: ALL\ndescription: fabric: the site's linux-sudo role (2.1.9.13)\n"))
+moved = converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS, container=DC)
+rules = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(objectClass=sudoRole)", "cn", "sudoUser").stdout
+check("upgrade: the linux-sudo role's member is now in lan-fabric-admins, and (at the root) the old rule's admin group's"
+      " member in fabric-admins: nobody loses sudo (2.1.6.44)",
+      "olga" in members("lan-fabric-admins") and "olga" in members("fabric-admins"), (moved, members("fabric-admins")))
+check("upgrade: the old rule and the linux-sudo group are gone; the fabric-admins rule is there",
+      "cn: lan-linux-sudo" not in rules and "cn: lan-fabric-admins" in rules
+      and "sAMAccountName: lan-linux-sudo" not in dc("ldbsearch", "-H", "/data/private/sam.ldb",
+                                                     "(sAMAccountName=lan-linux-sudo)", "sAMAccountName").stdout, rules)
+check("upgrade: an existing site's lan-fabric-admins is not nested anew (machine-admins unchanged by the move)",
+      not any("machine-admins" in c for c in moved), moved)
+check("and the next converge changes nothing", converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS,
+                                                               container=DC) == [])
 
 # BIND serves the AD zone from the DC's database through DLZ (manual 1.6.5.6, Q2): fabric's BIND image with the
 # files write_bind_dlz makes, mounted as the rendered compose file mounts them; a minimal named.conf around them
@@ -638,14 +689,16 @@ first = alice["uidNumber"]
 dc("samba-tool", "user", "delete", "alice", "-s", "/data/etc/smb.conf")
 carol = mk("carol")
 check("ids are never reused: after alice is deleted, carol gets a higher number", carol["uidNumber"] > first, carol)
-# a tiny site whose block is used up: its 7 groups (users, admins, the five roles) take 900-906, one person 907
-tiny = {**lab, "site": "tiny", "id_range": "900-907", "networks": [],
+# a tiny site whose block is used up: its 8 groups (users, admins, the four roles, the two host groups of 1.6.11.2)
+# take 900-907, one person 908
+tiny = {**lab, "site": "tiny", "id_range": "900-908", "networks": [],
         "accounts": {f"fabric-{k}-tiny": random_password() for k in ("agent", "keycloak", "radius")}, "radius_gid": 610}
 dc("python3", "/fabric/converge.py", stdin=json.dumps(tiny))
 tiny_v, tiny_s = {**v, "site_name": "tiny"}, {**SECRETS, "ad_agent_password": tiny["accounts"]["fabric-agent-tiny"]}
 first_tiny = mk("tina", site_v=tiny_v, sec=tiny_s)
+# 908, one more than 0.7.0's 907: since 0.7.1 a new site also gets its host-access groups (1.6.11.2)
 check("a site's people take numbers from that site's own block (a block from before 0.7.0: one run, as before)",
-      first_tiny["uidNumber"] == 907, first_tiny)
+      first_tiny["uidNumber"] == 908, first_tiny)
 try:
     mk("tim", site_v=tiny_v, sec=tiny_s)
     check("refused: a person when the site's block is full", False)
@@ -763,11 +816,79 @@ dc("samba-tool", "group", "addmembers", "Allowed RODC Password Replication Group
 pre = sh(["docker", "exec", RODC, "samba-tool", "rodc", "preload", "cachy", "-s", "/data/etc/smb.conf",
           "--server=dc1.ad.lan.test"], ok=False)
 check("a site person's password is preloaded at the RODC", pre.returncode == 0, pre.stderr[-300:])
+
+# the fabric host at a read-only DC's site (decision 2.1.6.52, manual 1.6.11.13): the site's rodc-cache group on the
+# read-only DC's allow list, written at the writable DC with the join account from inside the read-only DC (as setup
+# does at the join); the host's account made and placed at the writable DC by the site's agent; cached at once
+rv = {"ad_dc_type": "rodc", "ad_join_server": IP, "dc_name": "rodc1", "site_name": "lab", "ad_domain": "ad.lan.test",
+      "ad_base_dn": BASE, "ad_site_ou": "OU=lab,OU=lan,OU=sites"}
+LAB_CACHE = f"CN=lab-rodc-cache,OU=groups,OU=lab,OU=lan,OU=sites,{BASE}"
+
+
+def reveal_list():
+    out = dc("ldbsearch", "-H", "/data/private/sam.ldb", "-b", f"CN=RODC1,OU=Domain Controllers,{BASE}", "-s", "base",
+             "msDS-RevealOnDemandGroup").stdout.replace("\n ", "")
+    return [x.split(": ", 1)[1] for x in out.splitlines() if x.startswith("msDS-RevealOnDemandGroup: ")]
+
+
+check("the site's lab-rodc-cache group exists (converged with the site's groups) and is not yet on the RODC's allow "
+      "list", "dn: " + LAB_CACHE in dc("ldbsearch", "-H", "/data/private/sam.ldb", "(cn=lab-rodc-cache)", "dn").stdout
+      and LAB_CACHE.lower() not in [x.lower() for x in reveal_list()], reveal_list())
+said = allow_rodc_cache(rv, container=RODC)
+check("allow_rodc_cache: the group put on the read-only DC's allow list at the writable DC (the default entry kept)",
+      said and LAB_CACHE.lower() in [x.lower() for x in reveal_list()] and len(reveal_list()) == 2, (said, reveal_list()))
+check("...a second run writes nothing", allow_rodc_cache(rv, container=RODC) == "", reveal_list())
+check("...nothing to do where the site's DC is writable", allow_rodc_cache({**rv, "ad_dc_type": "writable"}) == "")
+try:
+    allow_rodc_cache({**rv, "ad_join_server": "10.254.30.99"}, container=RODC)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: allow_rodc_cache with the writable DC not answering: refused, saying where", "10.254.30.99" in why, why)
+lab_sec = {**SECRETS, "ad_agent_password": lab["accounts"]["fabric-agent-lab"]}
+host_pw = random_password(24)
+run_op({**v, "site_name": "lab"}, lab_sec, "create_machine",
+       {"name": "labhost", "password": host_pw, "os": "linux", "managed": False}, DC, IP)
+placed = run_op({**v, "site_name": "lab"}, lab_sec, "place_fabric_host", {"name": "LABHOST", "rodc_cache": True}, DC, IP)
+check("the host's account made and placed at the writable DC by the site's agent: in OU=fabric-hosts, in "
+      "lab-fabric-machines and lab-rodc-cache",
+      placed["moved"] and placed["joined"] and placed["cached"]
+      and placed["dn"] == f"CN=LABHOST,OU=fabric-hosts,OU=lab,OU=lan,OU=sites,{BASE}"
+      and LAB_CACHE in dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=LABHOST$)",
+                          "memberOf").stdout.replace("\n ", ""), placed)
+again = run_op({**v, "site_name": "lab"}, lab_sec, "place_fabric_host", {"name": "LABHOST", "rodc_cache": True}, DC, IP)
+check("...a second placing changes nothing", not (again["moved"] or again["joined"] or again["cached"]), again)
+try:
+    run_op({**v, "site_name": "lab"}, lab_sec, "create_machine", {"name": "labrw", "password": host_pw}, DC, RODC_IP)
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: the same write at the read-only DC is refused (why the account is made at the writable one)",
+      why != "" and "labrw" not in dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=labrw$)",
+                                      "dn").stdout, why)
+try:
+    run_op({**v, "site_name": "lab"}, lab_sec, "place_fabric_host", {"name": "LABHOST"}, DC, "10.254.30.99")
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: a writable DC that does not answer: refused, nothing changed", why != "", why)
+pre_host = sh(["docker", "exec", RODC, "samba-tool", "rodc", "preload", "LABHOST$", f"--server={IP}", "-s",
+               "/data/etc/smb.conf"], ok=False)
+check("the read-only DC caches the host's account at once (rodc preload, as the member step asks it, by the writable "
+      "DC's address)", pre_host.returncode == 0, (pre_host.stdout + pre_host.stderr)[-400:])
+run_op({**v, "site_name": "lab"}, lab_sec, "create_machine",
+       {"name": "labother", "password": host_pw, "os": "linux"}, DC, IP)
+pre_other = sh(["docker", "exec", RODC, "samba-tool", "rodc", "preload", "LABOTHER$", f"--server={IP}", "-s",
+                "/data/etc/smb.conf"], ok=False)
+check("negative: a machine outside lab-rodc-cache is not cached (the allow list holds the group, not every machine)",
+      pre_other.returncode != 0, (pre_other.stdout + pre_other.stderr)[-400:])
 sh(["docker", "stop", DC])
 check("with the writable DC down: a cached person signs in at the RODC", ntlm_at_rodc("cachy", cached_pw))
 check("with the writable DC down: refused, the Administrator (never cached)", not ntlm_at_rodc("Administrator",
                                                                                                admin_pw))
 check("with the writable DC down: refused, a person the RODC does not cache", not ntlm_at_rodc("labadmin", lab_pw))
+check("with the writable DC down: the fabric host's account, cached, signs in at the RODC (2.1.6.52)",
+      ntlm_at_rodc("LABHOST$", host_pw))
 with open(os.path.join(W, "op.ldif"), "w") as f:
     f.write(f"dn: CN=cachy,OU=people,OU=lab,OU=lan,OU=sites,{BASE}\nchangetype: modify\nreplace: description\n"
             "description: written at the RODC\n")

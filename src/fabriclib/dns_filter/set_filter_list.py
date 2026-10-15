@@ -7,7 +7,7 @@ from fabriclib.common.vars_lock import vars_lock
 from fabriclib.common.write_audit import write_audit
 from fabriclib.dns_filter.check_filter_settings import check_filter_settings
 from fabriclib.dns_filter.common.list_id import list_id
-from fabriclib.dns_filter.common.list_memory import list_memory
+from fabriclib.dns_filter.common.list_memory import PEAK, list_memory
 
 
 def set_filter_list(actor, url, enabled=True, name="", source="cli"):
@@ -41,8 +41,9 @@ def set_filter_list(actor, url, enabled=True, name="", source="cli"):
         if enabled and not memory["fits"]:
             raise ValidationError(
                 f"{current['name']} does not fit: the ticked lists would take about {memory['estimate_mb']:.0f} MiB, "
-                f"{memory['peak_mb']:.0f} MiB while AdGuard Home compiles them, past its limit of "
-                f"{memory['limit_mb']:.0f} MiB (adguard_mem_limit); untick a list first")
+                f"past AdGuard Home's share of fabric's memory budget ({memory['limit_mb'] / PEAK:.0f} MiB; "
+                f"{memory['limit_mb']:.0f} MiB while it compiles them); untick a list first, or give fabric more "
+                f"memory (host_ram_capacity, memory_floors.adguard; manual 1.2.4.3)")
         save_vars(data)
     write_audit(actor, "DNS_FILTER_LIST_" + ("ADD" if added else "ON" if enabled else "OFF"),
                 f"{current['name']} {url}", source)

@@ -9,6 +9,13 @@ from fabriclib.dns.remove_acl_entries import remove_acl_entries
 from fabriclib.dns.set_acl_policy import set_acl_policy
 from fabriclib.system.apply_changes import apply_changes
 
+USAGE = """usage: fabricctl acl list                         every BIND ACL, its entries and its update policy
+       fabricctl acl add <acl> <entry>...         create an ACL or add entries (IP, CIDR, 'key <tsig-key>', an ACL)
+       fabricctl acl remove <acl> [<entry>...]    remove entries, or the whole ACL and its policy
+       fabricctl acl policy <acl> --record HOST (repeatable) | --any-name [--types T,..] [--domain Z] | --clear
+                                                  what the ACL's TSIG keys may update
+  Every change is applied at once unless --no-apply."""
+
 
 def _describe(policy):
     """Purpose: One line saying what the TSIG keys in an ACL may update under its policy.
@@ -55,6 +62,7 @@ def run_acl_command(argv):
     pol.add_argument("--clear", action="store_true", help="remove the policy (members lose these rights)")
     for p in (add, rm, pol):
         p.add_argument("--no-apply", action="store_true", help="only record the change; apply later")
+    ap.usage = USAGE.removeprefix("usage: ")    # after the subparsers: they take their prog from it
     args = ap.parse_args(argv)
 
     try:

@@ -3,11 +3,11 @@ from fabriclib.rbac.permissions import ADMIN_ROLE, OLD_ADMIN_ROLE
 from fabriclib.setup.common.previous_accounts import PREVIOUS_ACCOUNTS
 
 
-def upgrade_vars(data, pinned):
+def upgrade_vars(data, pinned, provisioned):
     """Purpose: adjust an existing install's vars before a newer fabric re-renders them, so an upgrade never
              changes a running image, and gets this release's service accounts.
     Inputs:  data — the existing vars dict (modified in place); pinned — collection of image_* keys the admin
-             set explicitly (left alone).
+             set explicitly (left alone); provisioned — bool, this host's domain exists (keep_old_install).
     Returns: list of change descriptions (str), one per image_* key dropped and one per service account moved.
              Keys pinned by digest ("@sha256:") are kept; unpinned refs and local build names not in `pinned` are
              deleted, so the release's validated, digest-pinned default applies. service_users entries that are
@@ -23,7 +23,7 @@ def upgrade_vars(data, pinned):
     Fails:   never — dict operations only.
     Feeds:   collect_vars (logs each change).
     Notes:   `fabricctl images update` is what changes images (design 2.1.14.3)."""
-    changes = keep_old_install(data)
+    changes = keep_old_install(data, provisioned)
     for key in [k for k in data if k.startswith("image_") and k != "image_pins" and k not in pinned]:
         if isinstance(data[key], str) and "@sha256:" in data[key]:
             continue

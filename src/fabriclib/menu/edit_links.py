@@ -1,5 +1,6 @@
 import os
 
+from fabriclib.common.ask import ask
 from fabriclib.common.console import BOLD, NC, YELLOW
 from fabriclib.common.load_vars import load_vars
 from fabriclib.common.paths import DEPLOY_BASE_DIR, INSTALL_DIR
@@ -40,17 +41,18 @@ def edit_links():
             print("  m) Modify link")
             print("  d) Delete link")
         print("  b) Back to main menu")
-        choice = input("Select an option: ").strip().lower()
+        choice = ask("menu.links.option", "Select an option: ").lower()
         if choice == "b":
             return
         if choice == "a":
-            name = input("\n  Name: ").strip()
-            link = input("  Link (e.g. nas.{{ domain }}): ").strip()
+            name = ask("menu.links.name", "\n  Name: ")
+            link = ask("menu.links.link", "  Link (e.g. nas.{{ domain }}): ")
             if name and link:
                 links.append({"name": name, "link": link})
                 save_menu_change(path, data, "links", "None", f"Added {name}")
         elif choice in ("m", "d") and links:
-            pick = input(f"Enter link number to {'modify' if choice == 'm' else 'delete'} (1-{len(links)}): ").strip()
+            pick = ask("menu.links.pick",
+                       f"Enter link number to {'modify' if choice == 'm' else 'delete'} (1-{len(links)}): ")
             if not (pick.isdigit() and 1 <= int(pick) <= len(links)):
                 continue
             idx = int(pick) - 1
@@ -60,7 +62,7 @@ def edit_links():
                 continue
             item = links[idx]
             print(f"\nModifying entry {idx + 1}:")
-            name = input(f"  Name [{item.get('name', '')}]: ").strip()
-            link = input(f"  Link [{item.get('link', '')}]: ").strip()
+            name = ask("menu.links.edit_name", f"  Name [{item.get('name', '')}]: ")
+            link = ask("menu.links.edit_link", f"  Link [{item.get('link', '')}]: ")
             item.update({k: v for k, v in (("name", name), ("link", link)) if v})
             save_menu_change(path, data, "links", "old", f"Modified {item.get('name')}")

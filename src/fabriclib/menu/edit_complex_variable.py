@@ -1,3 +1,4 @@
+from fabriclib.common.ask import ask
 from fabriclib.common.console import NC, YELLOW
 from fabriclib.common.paths import VARS_FILE
 from fabriclib.menu.constants import LIST_SCHEMAS
@@ -18,4 +19,4 @@ def edit_complex_variable(key, data):
         edit_list_of_dicts(key, data, LIST_SCHEMAS[key])
     else:
         print(f"\n{YELLOW}No interactive editor exists for {key}. Please edit manually in {VARS_FILE}{NC}")
-        input("Press Enter to continue...")
+        ask("menu.continue", "Press Enter to continue...")

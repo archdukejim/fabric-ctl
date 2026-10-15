@@ -13,15 +13,16 @@
 domain: {{ domain }}
 domain_file: {{ domain_file | default(domain | replace('.', '_')) }}
 hostname: {{ hostname }}
-friendly_name: {{ friendly_name | default("Example Org", true) }}
-service_mark: {{ service_mark | default('null', true) }}
-care_of: {{ care_of | default('null', true) }}
-trademark: {{ trademark | default('null', true) }}
-copyright: {{ copyright | default('null', true) }}
-contact_email: {{ contact_email | default('null', true) }}
-contact_phone: {{ contact_phone | default('null', true) }}
-address_line1: {{ address_line1 | default('null', true) }}
-address_line2: {{ address_line2 | default('null', true) }}
+{# free text (organisation labels): written as JSON strings, valid YAML whatever they hold (manual 1.1.5.7) #}
+friendly_name: {{ (friendly_name | default("Example Org", true)) | to_json }}
+service_mark: {{ (service_mark | default(none, true)) | to_json }}
+care_of: {{ (care_of | default(none, true)) | to_json }}
+trademark: {{ (trademark | default(none, true)) | to_json }}
+copyright: {{ (copyright | default(none, true)) | to_json }}
+contact_email: {{ (contact_email | default(none, true)) | to_json }}
+contact_phone: {{ (contact_phone | default(none, true)) | to_json }}
+address_line1: {{ (address_line1 | default(none, true)) | to_json }}
+address_line2: {{ (address_line2 | default(none, true)) | to_json }}
 system_timezone: {{ system_timezone | default('America/New_York') }}
 deploy_base_dir: {{ deploy_base_dir | default('/opt') }}
 
@@ -53,7 +54,9 @@ ip_openbao: {{ ip_openbao | default('10.255.0.90') }}
 # SERVICE HOSTNAMES
 # ============================================================
 cname_ca: {{ cname_ca | default('ca') }}
-# The info page's name (2.1.4.3): info.<domain> by default; <domain> and the host's own name redirect to it.
+# The landing page's alias (2.1.4.6, manual 1.4.2.5): the install's first render adds <landing_page_cname>.<domain>
+# (info by default) as an ordinary record, which the admin may rename, repoint or delete; the page itself is at
+# http://<host_ip>/info/ and on <domain>, the host's own name and hostname_landing.
 landing_page_cname: {{ landing_page_cname | default('info', true) }}
 cname_dns: {{ cname_dns | default('dns') }}
 cname_sso: {{ cname_sso | default('sso') }}
@@ -70,8 +73,9 @@ hostname_landing: {{ hostname_landing | default((landing_page_cname | default('i
 hostname_keycloak: {{ hostname_keycloak | default((cname_sso | default('sso')) ~ '.' ~ domain) }}
 {% set _hostname_mgr = (webui_hostname | default('', true) or ((cname_mgr | default('fabric')) ~ '.' ~ domain)) | lower %}
 hostname_mgr: {{ _hostname_mgr }}
-{# CA certificates for every system: info.<domain>/certs/ (hostname_landing) and http://<host_ip>/certs/; certs.<domain>
-   was dropped in 0.7.0 (1.5.1.5). ca.<domain> is Step-CA's API. #}
+{# CA certificates for every system: http://<hostname_stepca>/certs/ (fabric's texts and scripts, and the CRL point:
+   1.5.1.6), http://<host_ip>/certs/, and every other name nginx answers; certs.<domain> was dropped in 0.7.0 (1.5.1.5).
+   ca.<domain> over HTTPS is Step-CA's API. #}
 hostname_openbao: {{ ((cname_openbao | default('vault')) ~ '.' ~ domain) | lower }}
 hostname_radius: {{ ((cname_radius | default('radius')) ~ '.' ~ domain) | lower }}
 hostname_ntp: {{ ((cname_ntp | default('ntp')) ~ '.' ~ domain) | lower }}
@@ -130,7 +134,24 @@ openbao_runtime_dir: {{ openbao_runtime_dir | default('/run/fabric/openbao') }}
 # RAM-only: OpenBao's break-glass socket (generate-root), root and the openbao user only.
 openbao_admin_dir: {{ openbao_admin_dir | default('/run/fabric/openbao-admin') }}
 openbao_seal_key_id: {{ openbao_seal_key_id | default('fabric-1') }}
-openbao_mem_limit: {{ openbao_mem_limit | default('256m') }}
+{# Memory as a budget (manual 1.2.4.3, 2.1.1.47): every installed service's limit, planned here from host_ram_capacity,
+   the parts that are on and memory_floors / memory_weights. A `*_mem_limit` below is kept only when the admin set it
+   (its pre-0.9 default counts as not set): it fixes that service's limit. #}
+{% set _mem = plan_memory({
+  'host_ram_capacity': host_ram_capacity | default(host_ram_detected | default(4), true) | int,
+  'install_keycloak': install_keycloak | default(false) | bool,
+  'install_webui': (install_webui | default(true) | bool) and (install_keycloak | default(false) | bool),
+  'install_kea': install_kea | default(false) | bool,
+  'install_freeradius': install_freeradius | default(false) | bool,
+  'install_fluentbit': install_fluentbit | default(false) | bool,
+  'dns_filter': dns_filter | default('bind', true) | lower,
+  'memory_floors': memory_floors | default({}, true), 'memory_weights': memory_weights | default({}, true),
+  'openbao_mem_limit': openbao_mem_limit | default(none), 'kea_mem_limit': kea_mem_limit | default(none),
+  'samba_mem_limit': samba_mem_limit | default(none), 'freeradius_mem_limit': freeradius_mem_limit | default(none),
+  'fluentbit_mem_limit': fluentbit_mem_limit | default(none), 'resolver_mem_limit': resolver_mem_limit | default(none),
+  'adguard_mem_limit': adguard_mem_limit | default(none),
+}) %}
+openbao_mem_limit: {{ _mem.settings.openbao_mem_limit | to_json }}
 # PKCS#11 libraries fabric may load for security-key unlock methods (paths or globs; they run as root).
 # Empty: ykcs11 (YubiKey), OpenSC and SoftHSM2 at their Debian/Ubuntu paths.
 openbao_pkcs11_modules: {{ openbao_pkcs11_modules | default([], true) | to_json }}
@@ -145,7 +166,7 @@ install_fluentbit: {{ install_fluentbit | default(false) | bool }}
 # to their own dynamic zone <ddns_subdomain>.<domain> (2.1.4.1).
 install_kea: {{ install_kea | default(false) | bool }}
 ip_kea_ddns: {{ ip_kea_ddns | default('10.255.0.97') }}
-kea_mem_limit: {{ kea_mem_limit | default('128m') }}
+kea_mem_limit: {{ _mem.settings.kea_mem_limit | to_json }}
 # interfaces: host interfaces to serve; subnets: [{subnet, pools: ["a - b"], routers,
 # reservations: [{mac, ip, hostname}]}]; ddns (true), ddns_subdomain (dhcp), lease_time (s), dns
 dhcp: {{ dhcp | default({}, true) | to_json }}
@@ -167,6 +188,11 @@ hostname_dc: "{{ (_dc ~ '.' ~ _ad) | lower if _ad else '' }}"
 # lockout_minutes, lockout_window_minutes: every key required
 ad_password_policy: {{ ad_password_policy | default({}, true) | to_json }}
 ad_old_password_minutes: {{ ad_old_password_minutes | default(0) | int }}
+# Who may sign in to the site's joined machines, per OU (manual 1.6.11.4): {<OU path below the site's OU, "" for the
+# site's OU>: {console: [groups], remote: [groups]}}; fabric-break-glass and local Administrators are always added.
+# null: the site's log-on rights as before 0.9 (an upgrade keeps them, 2.1.6.44); a fresh install starts with
+# {machines: {console: [<site>-machine-admins], remote: [<site>-machine-admins]}}. Edit: fabricctl domain logon.
+logon_policies: {{ (logon_policies if logon_policies is defined else none) | to_json }}
 {# the DC's signing socket for Windows members' time (2.1.13.1), where the host's chrony reaches it: the one path
    Ubuntu's AppArmor profile for chronyd allows (manual 1.6.5.8) #}
 ad_ntp_signd_dir: {{ ad_ntp_signd_dir | default('/var/lib/samba/ntp_signd', true) }}
@@ -186,12 +212,18 @@ ad_org_ou: "{{ ad_org_ou | default('OU=organisation,' ~ _site_ou, true) }}"
    ranges inside each. Both permanent. An install from before 0.7.0 keeps its own (5001, 100000: keep_old_install). #}
 posix_id_start: {{ posix_id_start | default(1000000) | int }}
 posix_id_block: {{ posix_id_block | default(1000000) | int }}
-samba_mem_limit: {{ samba_mem_limit | default(((512 * ((host_ram_capacity | default(host_ram_detected | default(4), true) | int) / 4)) | int) ~ 'm', true) }}
+# This host as a member of its own domain (manual 1.6.11.8, 2.1.6.34): the fabric admins sign in to it with their domain
+# accounts; local accounts are untouched. Asked in setup's Advanced; false leaves the host out (status shows it).
+host_join_domain: {{ host_join_domain | default(true) | to_json }}
+# After how many days sssd renews this host's machine password with adcli (manual 1.6.11.12, 2.1.6.50): 0 never (the
+# default: the password is set once); a whole number from 1 to 999 turns it on (setup's member step installs adcli).
+host_machine_password_renew_days: {{ host_machine_password_renew_days | default(0) | to_json }}
+samba_mem_limit: {{ _mem.settings.samba_mem_limit | to_json }}
 # 802.1X (optional, design §6): FreeRADIUS 3.2 checks each device against the site's DC
 # (EAP-TLS by linked certificate, MAB by MAC) and returns its role's VLAN.
 install_freeradius: {{ install_freeradius | default(false) | bool }}
 ip_freeradius: {{ ip_freeradius | default('10.255.0.98') }}
-freeradius_mem_limit: {{ freeradius_mem_limit | default('128m') }}
+freeradius_mem_limit: {{ _mem.settings.freeradius_mem_limit | to_json }}
 # The switches and access points that ask: [{name, address (IP or CIDR), message_authenticator (true)}].
 # Each one's shared secret is generated and kept in OpenBao (fabricctl secrets show radius_secrets).
 radius_clients: {{ radius_clients | default([], true) | to_json }}
@@ -201,18 +233,20 @@ radius_clients: {{ radius_clients | default([], true) | to_json }}
 radius_people: {{ radius_people | default([{'group': 'network-staff', 'vlan': none, 'priority': 50},
                                           {'group': 'network-guests', 'vlan': none, 'priority': 100}]) | to_json }}
 ip_fluentbit: {{ ip_fluentbit | default('10.255.0.95') }}
-fluentbit_mem_limit: {{ fluentbit_mem_limit | default('64m') }}
+fluentbit_mem_limit: {{ _mem.settings.fluentbit_mem_limit | to_json }}
 # DNS filter (manual 1.12.2, 1.12.3; on by default, 2.1.12.3): a BIND resolver answers clients on host_ip:53 (the
 # owner's rules, safe search, groups); AdGuard Home behind it matches the lists (2.1.12.6); BIND moves to
 # bind_dns_port (5053); fabric's zones go to it, never filtered. none turns it off.
 dns_filter: {{ dns_filter | default('bind', true) | lower }}
 install_resolver: {{ (dns_filter | default('bind', true) | lower) == 'bind' }}
 ip_resolver: {{ ip_resolver | default('10.255.0.33') }}
-resolver_mem_limit: {{ resolver_mem_limit | default('128m') }}
+resolver_mem_limit: {{ _mem.settings.resolver_mem_limit | to_json }}
 # AdGuard Home behind the resolver (manual 1.12.3): on fabric_net only, driven through its API by fabric.
-# Its memory limit follows the host's (1 GiB at 4 GB: the owner's 16 lists peaked at 751 MiB on the test Pi).
+# Its memory is planned with the others (1.2.4.3, 2.1.12.8): the budget counts its lists' steady size, and its limit is
+# 2.5 times that so compiling them fits (the owner's 16 lists: 380 MiB steady, 751 MiB at their peak); set, the
+# limit is fixed and the budget counts it / 2.5.
 ip_adguard: {{ ip_adguard | default('10.255.0.34') }}
-adguard_mem_limit: {{ adguard_mem_limit | default(((1024 * ((host_ram_capacity | default(host_ram_detected | default(4), true) | int) / 4)) | int) ~ 'm', true) }}
+adguard_mem_limit: {{ _mem.settings.adguard_mem_limit | to_json }}
 # Lists [{name, url, enabled}] (hosts, domains or AdGuard syntax), every one kept fetched; [] = none.
 # Default: AdGuard's DNS filter.
 dns_filter_lists: {{ (dns_filter_lists if dns_filter_lists is defined and dns_filter_lists is not none else [{'name': 'AdGuard DNS filter', 'url': 'https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt', 'enabled': true}]) | to_json }}
@@ -267,8 +301,17 @@ security:
 # DOCKER / SERVICE INFRASTRUCTURE
 # ============================================================
 {# the host's memory in GB (2.1.2.3: 4 at least): the admin's value, else what setup measured (render_vars); every
-   container's memory limit follows from it (manual 1.2.4.2) #}
+   container's memory limit follows from it (manual 1.2.4.3) #}
 host_ram_capacity: {{ host_ram_capacity | default(host_ram_detected | default(4), true) | int }}
+# Each service's memory floor in MB and its weight in what is left (manual 1.2.4.3.2), e.g. {keycloak: 1536} and
+# {samba: 4}: services keycloak, samba, resolver, postgres, bind9, nginx, openbao, stepca, webui, kea, freeradius,
+# fluentbit. Empty: fabric's own.
+memory_floors: {{ memory_floors | default({}, true) | to_json }}
+memory_weights: {{ memory_weights | default({}, true) | to_json }}
+{# derived on every render, never set: the budget, the reserve and each service's limit (MB) #}
+memory_plan: {{ {'capacity_mb': _mem.capacity_mb, 'reserve_mb': _mem.reserve_mb, 'budget_mb': _mem.budget_mb,
+                 'limits': _mem.limits, 'containers': _mem.containers, 'explicit': _mem.explicit,
+                 'unassigned_mb': _mem.unassigned_mb, 'bursts': _mem.bursts, 'over_mb': _mem.over_mb} | to_json }}
 compose_file: {{ compose_file | default((deploy_base_dir | default('/opt')) ~ '/fabric/docker-compose.yml') }}
 keycloak_data_dir: {{ keycloak_data_dir | default((deploy_base_dir | default('/opt')) ~ '/keycloak/data') }}
 postgres_data_dir: {{ postgres_data_dir | default((deploy_base_dir | default('/opt')) ~ '/postgres/data') }}
@@ -331,7 +374,7 @@ ica_parents_path: {{ ica_parents_path }}
 {% endif %}
 site_ca_depth: {{ site_ca_depth | default(0) | int }}
 ca_nest_depth: {{ ca_nest_depth | default(1) | int }}
-ca_name: {{ ca_name | default(friendly_name ~ ' CA') }}
+ca_name: {{ (ca_name | default(friendly_name ~ ' CA')) | to_json }}
 cert_country: {{ cert_country | default('US') }}
 cert_province: {{ cert_province | default('State') }}
 cert_city: {{ cert_city | default('City') }}
@@ -415,21 +458,23 @@ bind_acl_policies:
 {% if (install_webui | default(true) | bool) and (install_keycloak | default(false) | bool) and _mgr_label and _mgr_label != hostname %}
 {% set _ = default_cnames.append({ 'canonical': hostname, 'name': _mgr_label }) %}
 {% endif %}
-{% if landing_page_cname | default('info', true) %}
-{% set _ = default_cnames.append({ 'canonical': hostname, 'name': landing_page_cname | default('info', true) }) %}
-{% endif %}
 {% if federation_endpoint | default(false) | bool %}
 {% set _ = default_cnames.append({ 'canonical': hostname, 'name': cname_federation | default('federation') }) %}
 {% endif %}
 {# ntp.<domain> for clients; an install that already has a record of that name keeps its own #}
 {% set _own = ((dns | default({})).get('dynamic_zone_var', {}).get('A', []) + (dns | default({})).get('dynamic_zone_var', {}).get('CNAME', [])) | map(attribute='name') | list %}
+{# the landing page's alias (2.1.4.6): added once, by the render that installs the site (the one that also fixes
+   hostname_landing); from then on it is the admin's record, never added back #}
+{% if hostname_landing is not defined and (landing_page_cname | default('info', true)) not in _own %}
+{% set _ = default_cnames.append({ 'canonical': hostname, 'name': landing_page_cname | default('info', true) }) %}
+{% endif %}
 {% if ntp_serve | default(true) | bool and (cname_ntp | default('ntp')) not in _own %}
 {% set _ = default_cnames.append({ 'canonical': hostname, 'name': cname_ntp | default('ntp') }) %}
 {% endif %}
 {% set default_a = [
   { 'ip': host_ip, 'name': hostname }
 ] %}
-{# <domain> itself answers on this host (it redirects to the info page, 2.1.4.3) unless the admin's own records name it #}
+{# <domain> itself answers on this host (it serves the landing page, 2.1.4.6) unless the admin's own records name it #}
 {% if '@' not in _own %}
 {% set _ = default_a.append({ 'ip': host_ip, 'name': '@' }) %}
 {% endif %}

@@ -3,7 +3,8 @@ from webui.views.render_page import render_page
 
 
 def overview(ctx, services, host_changes=(), relaxed=(), certs=(), images=None, err=""):
-    """Purpose: The Overview tab: one tile per service with a traffic light and a link to its tab; then
+    """Purpose: The Overview tab: one tile per service with a traffic light and a link to its tab (only one
+             its viewer may open); then
              the host changes fabric may make (approved, declined with what that leaves unmanaged).
     Inputs:  ctx — page context (src/webui/session/page_context); services — list of (name, systemd state, container
              health) from

@@ -6,8 +6,10 @@ from webui import agentclient as actions
 def zone_post(h, user, path, form):
     """Purpose: DNS records: add one to a zone, or delete one (published by the next Apply).
     Inputs:  h — the request handler (redirect, deny); user — the signed-in person; path — /bind9/zone/<key>/add (form:
-             type, name, ip, target, text, priority, weight, port) or …/delete (type, index, name); form — dict.
-    Returns: 303 back to /bind9?zone=<key> with msg, or err on a ValidationError.
+             type, name, value, and priority for MX, priority, weight and port for SRV; ip, target and text are still
+             read) or …/delete (type, index, name); form — dict.
+    Returns: 303 back to /bind9?zone=<key> with msg, or err on a ValidationError (fabric's own names among them:
+             their delete is refused, naming the setting they follow, 2.1.2.22).
     Fails:   404 for another operation; a non-numeric index raises ValueError (500); AgentError, PermissionDenied and
              AuthError propagate to handle_request.
     Feeds:   post_action (/bind9/zone/…)."""

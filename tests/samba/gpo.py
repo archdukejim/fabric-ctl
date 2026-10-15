@@ -67,9 +67,11 @@ for extra in ("GNOME_Settings.admx", "ru-RU"):              # Samba's own templa
 subprocess.run(["rm", "-f", os.path.join(admx, "en-US", "GNOME_Settings.adml")], check=True)
 
 code, out = gpo("load", admx)
+# covers: cli:gpo.load +
 check("Samba's own template loads into the central store", code == 0 and "samba.admx" in out, out)
 starter = os.path.join(W, "starter")
 code, out = gpo("starter", starter)
+# covers: cli:gpo.starter +
 check("fabric's starter template is copied out for editing",
       code == 0 and os.path.exists(os.path.join(starter, "fabric-starter.admx"))
       and os.path.exists(os.path.join(starter, "en-US", "fabric-starter.adml")), out)
@@ -86,6 +88,7 @@ def machine():
 
 
 code, out = gpo("set", TEXT_POL, f"{TEXT_EL}=dc-alias.example.org")
+# covers: cli:gpo.set +
 check("a text policy is set in lan's admin settings GPO", code == 0 and "admin settings" in out
       and [SMB + "\\additional dns hostnames", "additional dns hostnames", 1, "dc-alias.example.org"] in machine(),
       (out, machine()))
@@ -105,6 +108,7 @@ check("a disabled policy deletes its value (**del.)",
       code == 0 and [SMB + "\\additional dns hostnames", "**del.additional dns hostnames", 1, " "] in machine()
       and not [e for e in machine() if e[1] == "additional dns hostnames"], machine())
 code, out = gpo("clear", TEXT_POL)
+# covers: cli:gpo.clear +
 check("clearing a policy leaves nothing of it, the others untouched",
       code == 0 and not [e for e in machine() if "additional dns" in e[1]] and len(machine()) == 4, machine())
 code, out = gpo("set", "ExampleSetting", "ExampleText=hello")
