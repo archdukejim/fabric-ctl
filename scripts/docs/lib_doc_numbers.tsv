@@ -211,6 +211,7 @@ file	fabriclib-deploy|src/fabriclib/deploy/render_vars.py	23
 file	fabriclib-deploy|src/fabriclib/deploy/renew_landing_cert.py	33	
 file	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py	24	
 file	fabriclib-deploy|src/fabriclib/deploy/service_units.py	25	
+file	fabriclib-deploy|src/fabriclib/deploy/vars_to_save.py	34	
 file	fabriclib-deploy|src/fabriclib/deploy/verify_published_images.py	27	
 file	fabriclib-dhcp|src/fabriclib/dhcp/add_client_class.py	1	
 file	fabriclib-dhcp|src/fabriclib/dhcp/add_reservation.py	2	
@@ -358,6 +359,7 @@ file	fabriclib-dns|src/fabriclib/dns/common/zone_records.py	41
 file	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py	5	
 file	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py	6	
 file	fabriclib-dns|src/fabriclib/dns/format_value.py	7	
+file	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py	44	
 file	fabriclib-dns|src/fabriclib/dns/install_zone_file.py	8	
 file	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py	9	
 file	fabriclib-dns|src/fabriclib/dns/list_zones.py	10	
@@ -1523,6 +1525,7 @@ function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_quiet	1
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_roll_out	4	
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|restart_changed	3	
 function	fabriclib-deploy|src/fabriclib/deploy/service_units.py|service_units	1	
+function	fabriclib-deploy|src/fabriclib/deploy/vars_to_save.py|vars_to_save	1	
 function	fabriclib-deploy|src/fabriclib/deploy/verify_published_images.py|verify_published_images	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/add_client_class.py|add_client_class	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/add_reservation.py|add_reservation	1	
@@ -1736,6 +1739,8 @@ function	fabriclib-dns|src/fabriclib/dns/common/zone_records.py|zone_records	1
 function	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py|create_zone_tsig_key	1	
 function	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py|find_changed_zones	1	
 function	fabriclib-dns|src/fabriclib/dns/format_value.py|format_value	1	
+function	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py|_mtime	1	
+function	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py|freeze_and_install	2	
 function	fabriclib-dns|src/fabriclib/dns/install_zone_file.py|install_zone_file	1	
 function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|_names	1	
 function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|list_tsig_keys	2	

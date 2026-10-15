@@ -3,9 +3,9 @@ import subprocess
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.deploy.compose_builds import compose_builds
+from fabriclib.dns.freeze_and_install import freeze_and_install
 from fabriclib.dns.install_zone_file import install_zone_file
 from fabriclib.dns.reload_zone import reload_zone
-from fabriclib.dns.rndc import rndc
 
 
 def finish_without_start(paths, state, bind_ids):
@@ -25,8 +25,8 @@ def finish_without_start(paths, state, bind_ids):
                               capture_output=True, text=True).stdout.strip() == "true"
     if bind9_up and (state["bind9_config"] or "bind9" in restart):
         for zone, src, dst in state["zones"]:
-            rndc(["freeze", zone])           # sync the journal; the restart loads the new file
-            install_zone_file(src, dst, *bind_ids)
+            # sync the journal and wait for BIND's write before the new file goes in; the restart loads it
+            freeze_and_install(zone, src, dst, *bind_ids)
         restart.add("bind9")
     elif bind9_up:
         for zone, src, dst in state["zones"]:

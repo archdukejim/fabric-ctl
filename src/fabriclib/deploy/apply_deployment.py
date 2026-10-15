@@ -37,6 +37,7 @@ from fabriclib.deploy.render_vars import render_vars
 from fabriclib.deploy.restart_changed import restart_changed
 from fabriclib.deploy.service_units import service_units
 from fabriclib.deploy.verify_published_images import verify_published_images
+from fabriclib.deploy.vars_to_save import vars_to_save
 from fabriclib.federation.deploy_federation_endpoint import deploy_federation_endpoint
 from fabriclib.ipam.options.watch_state import save_watch_state
 from fabriclib.secrets.load_secrets import load_secrets
@@ -48,7 +49,8 @@ def _prepare(paths):
              site's address plan in the domain, manual 1.10.4.14) and the render context (check_rendered, shared with
              the quick zone path: 2.1.4.7, 2.1.10.21).
     Inputs:  paths — deploy_paths().
-    Returns: dict with secrets, final_vars, context, tsig_keys, jinja_env, reverse (reverse_zones()), dns_digest
+    Returns: dict with secrets, final_vars, context, tsig_keys, jinja_env, reverse (reverse_zones()), settings (the
+             settings before the plan was laid over them: vars_to_save keeps vars.yaml to them), dns_digest
              (what DNS is rendered from out of the plan, or None: kept once BIND took it, 2.3.10.5.6).
     Fails:   ValidationError (settings, secrets that cannot be loaded or saved, fixed identity).
     Feeds:   apply_deployment."""
@@ -72,6 +74,7 @@ def _prepare(paths):
     final_vars, context = render_vars(jinja_env, secrets, custom_vars)
     archive_vars(paths["target"])
     check_fixed_identity(final_vars, paths["config"])
+    settings = copy.deepcopy(final_vars)   # before the plan is laid over them: what vars.yaml keeps (vars_to_save)
     # the plan's subnets and static names (1.10.4.14), the settings check and BIND's zone-list context: shared with
     # the quick zone path (dns/publish_zone_list, 2.1.4.7,
     # 2.1.10.21)
@@ -79,7 +82,8 @@ def _prepare(paths):
     for line in checked["lines"]:
         print(line)
     return {"secrets": secrets, "final_vars": final_vars, "context": context, "tsig_keys": tsig_keys,
-            "jinja_env": jinja_env, "reverse": checked["reverse"], "dns_digest": checked["dns_digest"]}
+            "jinja_env": jinja_env, "reverse": checked["reverse"], "dns_digest": checked["dns_digest"],
+            "settings": settings}
 
 
 def _deploy(paths, start_services):
@@ -96,7 +100,7 @@ def _deploy(paths, start_services):
         shutil.rmtree(out)
     os.makedirs(out, exist_ok=True)
     with open(os.path.join(out, "vars.yaml"), "w") as f:
-        yaml.safe_dump(final_vars, f, default_flow_style=False)
+        yaml.safe_dump(vars_to_save(final_vars, p["settings"]), f, default_flow_style=False)
     context.update(final_vars)
     try:                                   # Fluent Bit reads the journal through this group
         context.setdefault("journal_gid", grp.getgrnam("systemd-journal").gr_gid)

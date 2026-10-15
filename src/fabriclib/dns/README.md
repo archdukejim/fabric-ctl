@@ -18,6 +18,7 @@ seconds (`publish_zone_list.py`).
 | `rndc.py` | Run `rndc` inside the bind9 container (argument list, never a shell) |
 | `zone_content_changed.py` | Rendered vs deployed zone file, ignoring the SOA serial |
 | `find_changed_zones.py` | The rendered zones whose records changed (the deploy engine installs them) |
+| `freeze_and_install.py` | Before BIND restarts: freeze a changed zone, wait for BIND's own write of its journal, then put the new file in place (manual 1.4.1.5) |
 | `install_zone_file.py` | Put a zone file in place with a fresh mtime and drop its stale journal; a reverse zone keeps the PTRs DHCP registered |
 | `merge_dynamic_records.py` | Kea's PTR and DHCID records from the file being replaced, merged into fabric's regenerated reverse zone (2.1.10.7) |
 | `reload_zone.py` | Swap a zone under a running BIND (freeze/thaw, or reload for static zones) until it serves the new serial |

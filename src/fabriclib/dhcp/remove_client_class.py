@@ -14,4 +14,4 @@ def remove_client_class(actor, name, source="cli"):
             raise ValidationError(f"no client class {name!r}")
         dhcp["client_classes"] = [c for c in classes if c["name"] != name]
         return None, f"class={name}"
-    edit_dhcp(actor, "DHCP_CLASS_REMOVE", change, source)
+    edit_dhcp(actor, "DHCP_CLASS_REMOVE", change, source, global_level=True)

@@ -271,8 +271,28 @@ check("Keycloak required TOTP enrolment (and a new password only after a reset)"
       and "configure-totp" in seen, seen)
 check("admin: callback accepted (cert CN = user, the console's admin role)",
       st == 200 and "__Host-webui" in b.cookies.get(MGR, {}), (st, page[:300]))
+# the setup wizard (manual 1.8.5.3, 1.8.5.10 "Finished"): until it is applied once or dismissed, the first Overview of
+# each sign-in of an admin opens it; the admin dismisses it, as a real one would, through the console's own route.
+# WIZARD=open (a fresh install: the sandbox) requires it to open; a reused host (tests/host) may have finished it.
+st, loc, _ = b.request("GET", f"https://{MGR}/")
+if os.environ.get("WIZARD") == "open" or (st == 303 and (loc or "").endswith("/settings")):
+    # covers: web:get.settings agent:get.settings +
+    check("setup wizard: a fresh install's first Overview of a sign-in is sent to Settings (303)",
+          st == 303 and (loc or "").endswith("/settings"), (st, loc))
+    st, _, page = b.request("GET", f"https://{MGR}/settings")
+    check("setup wizard: its first step, with Dismiss", st == 200 and 'action="/settings/dismiss"' in page,
+          (st, page[:300]))
+    wcsrf = page.split('name="csrf" value="')[1].split('"')[0] if 'name="csrf"' in page else ""
+    st, loc, _ = b.request("POST", f"https://{MGR}/settings/dismiss", {"csrf": wcsrf})
+    # covers: web:post.settings.dismiss agent:post.settings.dismiss +
+    check("setup wizard: Dismiss -> back to the Overview", st == 303 and (loc or "").rstrip("/") == f"https://{MGR}",
+          (st, loc))
+else:
+    print(f"    (the setup wizard did not open: finished on this host before; first Overview answered {st})")
 st, _, page = b.request("GET", f"https://{MGR}/")
 check("admin: overview renders", st == 200 and "services healthy" in page and ADMIN in page, (st, page[:300]))
+check("setup wizard finished: the Overview no longer offers Finish setting up", "Finish setting up" not in page,
+      page[:300])
 
 # -- everyone else is refused -----------------------------------------------------------
 st, page, seen = login(Browser(other_pem), OTHER, OTHER_PW)
