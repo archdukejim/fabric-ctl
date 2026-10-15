@@ -6,7 +6,7 @@
 .github/workflows/images.yml	74c6608952aff3c029e5bd9dd2ae386123e31817	2026-10-09	
 .github/workflows/lint.yml	6fb8189ef0d87af6ece1858b97c5bac089c01cce	2026-10-08	
 .github/workflows/package.yml	7fbc29997f4d3708bab3011e302b521330dd2d0e	2026-10-09	
-.github/workflows/suites.yml	b4b2e7ce99f0a1f5c3c6e194c56a27c0b819f2c4	2026-10-13	
+.github/workflows/suites.yml	9c3affa894dfaa5d56de0fabeb3ad34e3991720b	2026-10-15	
 .gitignore	e64a8baa6ed6ded642108a90c470c3c3bcd35c9e	2026-10-09	
 AGENTS.md	1c136916d77a5eb65db37dc93dc9c206a1131761	2026-10-09	
 CLAUDE.md	43c994c2d3617f947bcb5adf1933e21dabe46bb5	2026-09-30	
@@ -147,12 +147,12 @@ docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f487
 docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a9aeb2e856f39e5f862e36bf6273c583af26d627	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	8977b5820678511ef6b4d3b930afb240ddacff1b	2026-10-13	
 docs/volume_2_engineering_decisions/2.3.7-openbao-notes.md	2add3dd1b079800abeff3e4028929f019016268b	2026-10-13	
-docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	217ba4f704e5b135aab8b1cd3ff0456cbadba1b3	2026-10-15	
+docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	c59164d90eab470e3899cd8452cdd6e660b5ab68	2026-10-15	
 docs/volume_2_engineering_decisions/2.3.9-federation-notes.md	589194fbf33eda431862f1414dabc04a3181edc9	2026-10-08	
 docs/volume_2_engineering_decisions/README.md	b9506a7244041f7e5a9da3b636290faa843321ee	2026-10-15	
 docs/volume_2_engineering_decisions/assets/README.md	3fd72f26d985cf1827afa0868c6c138dfec9d627	2026-10-08	
 docs/volume_3_installation/3.1.1-manual-test-plan.md	e251b002185d4a3bf538cc11200632b67cc231fe	2026-10-13	
-docs/volume_3_installation/3.1.2-automated-tests.md	f6d2174b2d1529142dce5ca121c9698afae85e7f	2026-10-13	
+docs/volume_3_installation/3.1.2-automated-tests.md	33a3b3c37593e5c4dc7497aef9c24fd7a656c4c4	2026-10-15	
 docs/volume_3_installation/3.1.3-dev-preview.md	f913e6ed5b5f0e0428479a417dc655071b3b2f42	2026-10-08	
 docs/volume_3_installation/3.1.4-working-on-fabric.md	f0aa02dae628fc02838839f4887bb5d6baa1e857	2026-10-08	
 docs/volume_3_installation/3.10.1-dhcp-options-install.md	712181cf29ecd438139e77261c3b94db25ec49ee	2026-10-13	
@@ -1778,7 +1778,7 @@ tests/settings/run.py	11682a454e61569f8361b514568a9cf3ea7143c9	2026-10-15
 tests/setup/README.md	09b4c3a28de69ad7a3f82c3a055b51ffe3bf3671	2026-10-15	
 tests/setup/wait_ready_test.py	61ce85dad1bd1e8d7f33d15ac2e4ecda97221ffc	2026-10-15	
 tests/webui/README.md	eb49f91b290d88640f7a0120273e1856d5abcb1f	2026-10-13	
-tests/webui/test_container.py	f3474f3725c57bbc565d6ac6a3dc4f8d5200413c	2026-10-14	
+tests/webui/test_container.py	4f1658fee6e34dfe9beb85ee7d59acf99daece40	2026-10-15	
 tests/webui/test_devserver.py	e04ecde19dff21bbc8ac928030f33313b58b465c	2026-10-15	
 tests/zone_test.py	4bed30787288ab1c63799bf296c8bb14de230708	2026-10-10	
 tests/zones/README.md	e5c1bdb75dc56c9fa3011aa81af29ad1975f5d78	2026-10-13	
