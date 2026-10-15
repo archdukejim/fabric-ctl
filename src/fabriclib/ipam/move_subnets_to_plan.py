@@ -23,8 +23,9 @@ def move_subnets_to_plan(v, secrets, container="samba"):
              (subnets_to_plan: nothing it serves changes), gives the site its number when it has none
              (suggest_block), keeps the plan read back, writes the record <config>/ipam-upgrade-<time>.json (what
              moved, the VLAN IDs fabric chose, what could not be carried, the subnets as they were) and removes
-             `dhcp.subnets` from vars.yaml, which keeps dhcp.interfaces and the global defaults. Idempotent: a subnet
-             the plan has is left alone, and settings without subnets change nothing.
+             `dhcp.subnets` from vars.yaml, which keeps dhcp.interfaces and the global defaults (during setup, from
+             fabric.yaml and from the vars.yaml its deploy installed, so neither reads as the settings' own afterwards).
+             Idempotent: a subnet the plan has is left alone, and settings without subnets change nothing.
     Inputs:  v — rendered settings (site_name); secrets — fabric's secrets (ad_agent_password); container — the DC's
              container. Reads and writes vars.yaml at deploy_paths()["vars"] without the vars lock: an apply started
              from the console or a command already holds it (system/apply_changes).
@@ -64,6 +65,13 @@ def move_subnets_to_plan(v, secrets, container="samba"):
         json.dump(record, f, indent=1, default=str)
     data["dhcp"] = {k: val for k, val in (data.get("dhcp") or {}).items() if k != "subnets"}
     save_vars(data, path)
+    installed = os.path.join(deploy_paths()["config"], "vars.yaml")
+    if os.path.realpath(installed) != os.path.realpath(path) and os.path.exists(installed):
+        # setup works from fabric.yaml; the vars.yaml its deploy installed still carries them (2.3.10.10.4)
+        kept = load_vars(installed)
+        if "subnets" in (kept.get("dhcp") or {}):
+            kept["dhcp"] = {k: val for k, val in kept["dhcp"].items() if k != "subnets"}
+            save_vars(kept, installed)
     lines = [f"address plan: {len(moved['moved'])} DHCP subnet(s) moved from the settings into {site}'s plan "
              f"(site number {block})"]
     lines += [f"  {a['subnet']} had no VLAN: it is VLAN {a['vlan']} now (check it: fabricctl ipam show)"

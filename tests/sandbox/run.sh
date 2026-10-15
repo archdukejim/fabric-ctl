@@ -232,28 +232,41 @@ check "kea: its hostname is registered in dhcp.lan.test (delegated from lan.test
     "for _ in 1 2 3 4 5; do in_box 'dig +short @$IP sbxclient.dhcp.lan.test' | grep -q '^10\.77\.0\.2' && exit 0; sleep 2; done; exit 1"
 # covers: cli:dhcp.leases +
 check "kea: fabricctl dhcp leases lists the client's lease" "in_box 'fabricctl dhcp leases' | grep -q 'sbxclient.dhcp.lan.test'"
+# 0.8.0: the subnets live in the address plan once setup has run (1.10.4.10); vars.yaml must not carry them again, or
+# the 0.7 commands below edit vars.yaml and the next apply drops the edit (2.3.10.10.4)
+check "kea: after setup the subnets live in the address plan only (vars.yaml carries none)"     "in_box 'grep -q ^dhcp: /opt/fabric/config/vars.yaml' && ! in_box \"sed -n '/^dhcp:/,/^[^ ]/p' /opt/fabric/config/vars.yaml\" | grep -q '^  subnets:'"
 in_box 'fabricctl dhcp reserve 02:00:00:00:77:01 10.77.0.50 sbxprinter' > "$OUT/dhcp-reserve.log" 2>&1
 # covers: cli:dhcp.reserve cli:dhcp.status +
-check "kea: fabricctl dhcp reserve saves and applies; status lists it"     "grep -q 'applied' '$OUT/dhcp-reserve.log' && in_box 'fabricctl dhcp status' | grep -q '02:00:00:00:77:01  10.77.0.50'"
-check "kea: a reservation inside the pool is refused"     "! in_box 'fabricctl dhcp reserve 02:00:00:00:77:02 10.77.0.205 --no-apply' >/dev/null 2>&1"
-# DHCP management (manual 1.10.2): subnets with name/VLAN/notes, options, a client class, Kea's own check
+check "kea: fabricctl dhcp reserve (an alias of ipam address add, 1.10.4.21.6) saves and applies; status lists it" \
+    "grep -q 'alias of fabricctl ipam address add' '$OUT/dhcp-reserve.log' && grep -q 'applied' '$OUT/dhcp-reserve.log' \
+     && in_box 'fabricctl dhcp status' | grep -q '02:00:00:00:77:01  10.77.0.50'"
+# 0.8.0: a reservation inside the pool is allowed (1.10.4.3.2); a second claim on an address is not
+# covers: cli:dhcp.reserve -
+check "kea: a second claim on a reserved address is refused; one inside the pool is a reservation (1.10.4.3.2)" \
+    "! in_box 'fabricctl dhcp reserve 02:00:00:00:77:03 10.77.0.50 --no-apply' >/dev/null 2>&1 \
+     && in_box 'fabricctl dhcp reserve 02:00:00:00:77:02 10.77.0.205 --no-apply' >/dev/null 2>&1"
+# DHCP management (manual 1.10.4.21.6, 1.10.4.24.5): a subnet through the 0.7 alias, a client class and its option in
+# the site's set of the plan, Kea's own check
 in_box 'fabricctl dhcp add-subnet 10.78.0.0/24 --name lab2 --vlan 78 --router 10.78.0.1 --pool "10.78.0.100 - 10.78.0.150" --notes "second lab"' > "$OUT/dhcp-subnet.log" 2>&1
-in_box 'fabricctl dhcp class add pxe-uefi --test "option[93].hex == 0x0007" --next-server 10.77.0.30 --boot-file ipxe.efi' >> "$OUT/dhcp-subnet.log" 2>&1
-in_box 'fabricctl dhcp option set tftp-server-name 10.77.0.30 --class pxe-uefi' >> "$OUT/dhcp-subnet.log" 2>&1
-# covers: cli:dhcp.add-subnet cli:dhcp.class cli:dhcp.option +
-check "kea: add-subnet, a client class and an option are saved, applied, and Kea runs them" \
+in_box 'fabricctl ipam class add site pxe-uefi --test "option[93].hex == 0x0007" --next-server 10.77.0.30 --boot-file ipxe.efi' >> "$OUT/dhcp-subnet.log" 2>&1
+in_box 'fabricctl ipam option set class pxe-uefi tftp-server-name 10.77.0.30' >> "$OUT/dhcp-subnet.log" 2>&1
+# covers: cli:dhcp.add-subnet cli:ipam.class cli:ipam.option +
+check "kea: add-subnet (alias), ipam class add and ipam option set are saved, applied, and Kea runs them" \
     "grep -c 'applied' '$OUT/dhcp-subnet.log' | grep -qx 3 && in_box 'systemctl is-active kea' | grep -qx active \
-     && in_box 'fabricctl dhcp status' | grep -q 'lab2.*VLAN 78' && in_box 'cat /opt/kea/config/kea-dhcp4.conf' | grep -q 'pxe-uefi'"
-in_box 'fabricctl dhcp option set no-such-option 1' > "$OUT/dhcp-badopt.log" 2>&1
-# covers: cli:dhcp.option -
-check "kea: an option Kea does not know is refused before it is saved; the next apply is clean" \
-    "grep -q 'Kea refused' '$OUT/dhcp-badopt.log' && ! in_box 'grep -q no-such-option /opt/fabric/config/vars.yaml' \
+     && in_box 'fabricctl dhcp status' | grep -q 'lab2.*VLAN 78' && in_box 'cat /opt/kea/config/kea-dhcp4.conf' | grep -q 'pxe-uefi' \
+     && in_box 'fabricctl ipam option show site' | grep -q 'tftp-server-name'"
+in_box 'fabricctl ipam option set site no-such-option 1' > "$OUT/dhcp-badopt.log" 2>&1
+in_box 'fabricctl dhcp option set tftp-server-name 10.77.0.31 --class pxe-uefi' > "$OUT/dhcp-oldopt.log" 2>&1
+# covers: cli:ipam.option cli:dhcp.option -
+check "kea: an option Kea does not know is refused before it is saved; the 0.7 option command names ipam; the next apply is clean" \
+    "grep -q 'not one Kea knows' '$OUT/dhcp-badopt.log' && ! in_box 'fabricctl ipam option show site' | grep -q no-such-option \
+     && grep -q 'change them with fabricctl ipam option' '$OUT/dhcp-oldopt.log' \
      && in_box 'fabricctl --apply' > '$OUT/dhcp-apply.log' 2>&1"
-in_box 'fabricctl dhcp remove-subnet lab2 && fabricctl dhcp class remove pxe-uefi' > "$OUT/dhcp-remove.log" 2>&1
-# covers: cli:dhcp.remove-subnet +
-check "kea: remove-subnet and class remove apply; the first subnet keeps its id (its leases stay)" \
+in_box 'fabricctl dhcp remove-subnet lab2 && fabricctl ipam class remove site pxe-uefi' > "$OUT/dhcp-remove.log" 2>&1
+# covers: cli:dhcp.remove-subnet cli:ipam.class +
+check "kea: remove-subnet (alias) and ipam class remove apply; the first subnet keeps its id (its leases stay)" \
     "grep -c 'applied' '$OUT/dhcp-remove.log' | grep -qx 2 && in_box 'cat /opt/kea/config/kea-dhcp4.conf' | grep -qF '\"id\": 1,' \
-     && in_box 'fabricctl dhcp leases' | grep -q 'sbxclient.dhcp.lan.test'"
+     && ! in_box 'cat /opt/kea/config/kea-dhcp4.conf' | grep -q 'pxe-uefi' && in_box 'fabricctl dhcp leases' | grep -q 'sbxclient.dhcp.lan.test'"
 echo "--- 802.1X: FreeRADIUS answers a switch from the directory"
 in_box 'fabricctl radius add-client sbxswitch 10.77.0.1' > "$OUT/radius-add.log" 2>&1
 RADIUS_SECRET=$(grep -A1 'shown once' "$OUT/radius-add.log" | tail -1)
@@ -618,7 +631,7 @@ in_box 'fabricctl vault rotate-db' > "$OUT/rotate-db.log" 2>&1
 check "fabricctl vault rotate-db: rotated, Keycloak restarted with it and healthy; doctor's rotation check passes"     "grep -q 'Keycloak restarted with it and healthy' '$OUT/rotate-db.log' && in_box 'fabricctl doctor' | grep -q 'rotated by OpenBao in the last 40 days'"
 check "the monthly fabric-db-rotate timer is on" "in_box 'systemctl is-enabled fabric-db-rotate.timer' | grep -qx enabled"
 docker cp "$REPO/tests/sandbox/login_test.py" "$NAME:/root/login_test.py"
-in_box "FABRIC_ADMIN_PW='$ADMIN_PW' CAROL_PW='$CAROL_PW' CAROL_P12_PW='$CAROL_P12_PW' python3 /root/login_test.py /opt/fabric/config/vars.yaml bob '$BOB_PW' '$BOB_P12_PW'" 2>&1 | tee "$OUT/login.log"
+in_box "WIZARD=open FABRIC_ADMIN_PW='$ADMIN_PW' CAROL_PW='$CAROL_PW' CAROL_P12_PW='$CAROL_P12_PW' python3 /root/login_test.py /opt/fabric/config/vars.yaml bob '$BOB_PW' '$BOB_P12_PW'" 2>&1 | tee "$OUT/login.log"
 in_box 'journalctl --no-pager CONTAINER_NAME=nginx | grep -iE "oidc|error" | tail -40'     > "$OUT/login-nginx.log" 2>&1     # diagnosis when a sign-in check fails
 cat > "$OUT/reset_guard.py" <<'PY'
 import sys, yaml
@@ -637,6 +650,13 @@ check "people: without the admin bundle, a fabric-group member's sign-in cannot 
     "in_box 'python3 /root/reset_guard.py' | grep -q 'only an admin can reset'"
 check "sign-in: admin gets in; HTTP, missing/foreign certs, non-admins and borrowed certs are refused" \
     "! grep -q '^FAIL' '$OUT/login.log' && [ \"\$(grep -c '^PASS' '$OUT/login.log')\" -ge 11 ]"
+# the setup wizard (manual 1.8.5.10 "Finished"): a fresh install opens it on the admin's first Overview of a sign-in
+# (login_test.py with WIZARD=open requires it), the admin dismisses it through the console, recorded beside the settings
+# covers: web:get.settings web:post.settings.dismiss +
+check "setup wizard: the admin's first Overview opens it (303 to Settings); Dismiss through the console ends it" \
+    "grep -q '^PASS setup wizard: a fresh install' '$OUT/login.log' && grep -q '^PASS setup wizard: Dismiss' '$OUT/login.log' \
+     && grep -q '^PASS setup wizard finished' '$OUT/login.log' \
+     && in_box 'grep -q dismissed /opt/fabric/config/settings-wizard.json'"
 
 echo "--- container images: pinned, status, update (compose down/up, health-gated)"
 NGX_OLD=sha256:d5792f71a9496b833bc08ea834a758c46e2b6a6306c10f4be926f38a656cdc1c     # nginx 1.30.4

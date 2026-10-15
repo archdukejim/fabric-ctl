@@ -702,6 +702,24 @@ check("dhcp class refuses removing a class that does not exist, an expression Ke
       "and add without --test (usage); nothing saved", code == 1 and "no client class 'nosuch'" in err
       and code2 == 1 and "Kea refused" in err2 and same and same2 and code3 == 2 and "usage:" in err3
       and "client_classes" not in STORE["vars"]["dhcp"], (err, err2[-300:], code3))
+# the settings' own classes and options (a site whose subnets are not in an address plan: 1.10.4.24.4; the sandbox
+# runs the plan's, `fabricctl ipam class` and `ipam option`)
+code, out, err = dhcp_cli(V, "class", "add", "pxe-uefi", "--test", "option[93].hex == 0x0007", "--next-server",
+                          "10.4.0.30", "--boot-file", "ipxe.efi", "--no-apply")
+code2, out2, err2 = dhcp_cli(V, "option", "set", "tftp-server-name", "10.4.0.30", "--class", "pxe-uefi", "--no-apply")
+pxe = next((c for c in STORE["vars"]["dhcp"].get("client_classes") or [] if c["name"] == "pxe-uefi"), {})
+# covers: cli:dhcp.class cli:dhcp.option +
+check("dhcp class add and option set --class: the class saved with its boot fields and the option, Kea's check passed",
+      code == 0 and code2 == 0 and "client class pxe-uefi added" in out and "recorded" in out2
+      and pxe.get("next_server") == "10.4.0.30" and pxe.get("boot_file_name") == "ipxe.efi"
+      and [o.get("name") for o in pxe.get("options") or []] == ["tftp-server-name"], (out, err, out2, err2, pxe))
+code, err, same = refused_cli(V, "option", "set", "no-such-option", "1", "--no-apply")
+# covers: cli:dhcp.option -
+check("dhcp option set refuses an option Kea does not know (Kea's own check); nothing saved",
+      code == 1 and "Kea refused" in err and same, err[-300:])
+code, out, err = dhcp_cli(V, "class", "remove", "pxe-uefi", "--no-apply")
+check("dhcp class remove: the class and its option gone", code == 0 and not any(
+    c["name"] == "pxe-uefi" for c in STORE["vars"]["dhcp"].get("client_classes") or []), (out, err))
 
 code, err, same = refused_cli(V, "on", "--no-apply")
 check("dhcp on while it is on is refused; nothing saved", code == 1 and "DHCP is already on" in err and same, err)

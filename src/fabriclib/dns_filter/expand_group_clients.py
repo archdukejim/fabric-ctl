@@ -1,4 +1,5 @@
 from fabriclib.common.errors import ValidationError
+from fabriclib.ipam.planned_subnets import planned_subnets
 
 KINDS = ("dhcp", "device", "vlan")
 
@@ -10,7 +11,8 @@ def expand_group_clients(raw, name, v):
              its devices). Plain addresses and subnets pass through.
     Inputs:  raw — the group's clients setting (a list, or anything: left for _clients to refuse); name — the group
              (for the messages); v — rendered vars: install_kea, dhcp.subnets [{subnet, name, vlan, reservations
-             [{mac, ip, hostname}]}].
+             [{mac, ip, hostname}]}], or the plan's once the subnets live there (planned_subnets: vars.yaml keeps
+             none, 2.3.10.10.4).
     Returns: the list with every reference replaced by its addresses (in order), or raw unchanged when it is not a
              list.
     Fails:   ValidationError: a reference while DHCP is off, an unknown kind, or one naming no subnet, reservation or
@@ -18,7 +20,7 @@ def expand_group_clients(raw, name, v):
     Feeds:   dns_filter/check_filter_groups."""
     if not isinstance(raw, list):
         return raw
-    subnets = (v.get("dhcp") or {}).get("subnets") or [] if v.get("install_kea") else []
+    subnets = planned_subnets(v) if v.get("install_kea") else []     # the plan's once they live there
     out = []
     for item in raw:
         text = str(item).strip()

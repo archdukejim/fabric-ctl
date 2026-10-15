@@ -46,13 +46,17 @@ def _check_address_plan(before, data):
                                 "never routed together")
 
 
-def edit_dhcp(actor, event, change, source="cli"):
+def edit_dhcp(actor, event, change, source="cli", global_level=False):
     """Purpose: one change to `dhcp:` in vars.yaml, the way every DHCP command makes it: under the vars lock, on
              the normalized settings (so every subnet keeps a stored id), the whole block checked again — by fabric
              and, when DHCP is on, by Kea itself on the configuration it would get — before it is saved, then
              audited. Applied by the next apply.
     Inputs:  actor — who asks (audit); event — the audit event (e.g. "DHCP_SUBNET_ADD"); change — function(dhcp)
-             that changes the dict in place and returns (result, audit detail str); source — "cli" or "web".
+             that changes the dict in place and returns (result, audit detail str); source — "cli" or "web";
+             global_level — the change is to the global options or a client class (not a subnet or reservation):
+             once the subnets live in the plan it is refused with MOVED_OPTIONS before `change` runs, so the refusal
+             names the commands that make it (`ipam option`, `ipam class`) whatever `change` would have said (a
+             class the settings do not hold: 2.3.10.10.4).
     Returns: (result of change, the saved dhcp block).
     Fails:   ValidationError from change, normalize_dhcp or Kea's check (check_kea_config: an option Kea does not
              know, data that does not fit, a class expression it cannot parse) or the address plan (a subnet
@@ -66,6 +70,8 @@ def edit_dhcp(actor, event, change, source="cli"):
     with vars_lock():
         data = load_vars()
         planned = plan_holds_subnets(data)
+        if planned and global_level:          # the plan's since 0.8.0 (2.1.10.23, manual 1.10.4.24.4)
+            raise ValidationError(MOVED_OPTIONS)
         if planned:                          # checked with the plan's subnets, saved without them (1.10.4.9)
             data["dhcp"] = {**(data.get("dhcp") or {}), "subnets": planned_subnets(data)}
         before = copy.deepcopy(data)
