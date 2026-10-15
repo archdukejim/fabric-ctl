@@ -6,7 +6,7 @@
 .github/workflows/images.yml	74c6608952aff3c029e5bd9dd2ae386123e31817	2026-10-09	
 .github/workflows/lint.yml	6fb8189ef0d87af6ece1858b97c5bac089c01cce	2026-10-08	
 .github/workflows/package.yml	7fbc29997f4d3708bab3011e302b521330dd2d0e	2026-10-09	
-.github/workflows/suites.yml	b4b2e7ce99f0a1f5c3c6e194c56a27c0b819f2c4	2026-10-12	
+.github/workflows/suites.yml	cee7f24c7d3ced36357c6bae17aff4e2b2bb572a	2026-10-15	
 .gitignore	e64a8baa6ed6ded642108a90c470c3c3bcd35c9e	2026-10-09	
 AGENTS.md	1c136916d77a5eb65db37dc93dc9c206a1131761	2026-10-09	
 CLAUDE.md	43c994c2d3617f947bcb5adf1933e21dabe46bb5	2026-09-30	
@@ -147,7 +147,7 @@ docs/volume_2_engineering_decisions/2.3.9-federation-notes.md	589194fbf33eda4318
 docs/volume_2_engineering_decisions/README.md	0b12a7eb3eb09214bb281eac2cd9d6cbf6d02b15	2026-10-09	
 docs/volume_2_engineering_decisions/assets/README.md	3fd72f26d985cf1827afa0868c6c138dfec9d627	2026-10-08	
 docs/volume_3_installation/3.1.1-manual-test-plan.md	e251b002185d4a3bf538cc11200632b67cc231fe	2026-10-12	
-docs/volume_3_installation/3.1.2-automated-tests.md	f6d2174b2d1529142dce5ca121c9698afae85e7f	2026-10-12	
+docs/volume_3_installation/3.1.2-automated-tests.md	ffdba0e8ccee9489d71ffed88f0ee15c842a68d2	2026-10-15	
 docs/volume_3_installation/3.1.3-dev-preview.md	f913e6ed5b5f0e0428479a417dc655071b3b2f42	2026-10-08	
 docs/volume_3_installation/3.1.4-working-on-fabric.md	f0aa02dae628fc02838839f4887bb5d6baa1e857	2026-10-08	
 docs/volume_3_installation/3.14.1-building-images.md	33f7cff075383def2165fc719b9e33be337442d9	2026-10-14	
@@ -233,7 +233,9 @@ packaging/images/webui/.dockerignore	76683618065e127abc520ec990844339e7677973	20
 packaging/images/webui/Dockerfile	56b6a171c42c4fc3537773745ac04de07d20d534	2026-10-02	
 packaging/images/webui/README.md	eeec6c95c1553b73cf8ce2761b4c52b35e4506b7	2026-10-03	
 pyproject.toml	591b424c9e7c60e5b37c36662ebc707d35054947	2026-10-08	
-scripts/README.md	dd36e9248260e4f936662417c4d10511c3cdb00a	2026-10-08	
+scripts/README.md	cefe3ef63aefed1274cd8e46470f9a5059d76ab2	2026-10-15	
+scripts/ci/README.md	af471c7d5126df0a3b628eba3ecbb806f808dfc0	2026-10-15	
+scripts/ci/logs_secret_free.py	0d94aca3e7c42ce5d5304c4d0b70792e1c7bcbc2	2026-10-15	
 scripts/docs/README.md	e391ec81d122ee82ea285ffaf04eac6a8dd44372	2026-10-12	
 scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03	
 scripts/docs/entrypoints.py	dc5d59bf1075fafa9d278dde8cdd1a90b8a13fea	2026-10-12	
@@ -1442,7 +1444,9 @@ templates/webui-app/tsig_result.html	5f07121950d439c355fe9d3f2cbff9b30f2ab866	20
 templates/webui/README.md	18afb94efe023f28a4367b553e784c19970a9355	2026-10-03	
 templates/webui/docker-compose.yml.j2	2cef615a03ee1e58167c9dede4a3f06ca3291bcb	2026-10-12	
 templates/webui/webui.json.j2	1161c507f612f4f256b7208bf12db143692a175d	2026-10-07	
-tests/README.md	243dff9c54110231d598fd849ab86c96c469b40c	2026-10-14	
+tests/README.md	fc5c32e94bf6f319eb2c3339ac1cd89672275adf	2026-10-15	
+tests/ci/README.md	78278efb5a511e089fd82def756c3be5bfeca8df	2026-10-15	
+tests/ci/logs_secret_free_test.py	e710a2ffadd9a5adc4e9750edf4a52bb43c512ec	2026-10-15	
 tests/common/README.md	f80eb9544ae48082b2da9341fa267c0297bc3d46	2026-10-12	
 tests/common/ask.py	52a510850e39121e2bec244890dabb189195a748	2026-10-12	
 tests/consent/README.md	e145a0d2d43d16682fc9dda3e46179d6530c5a03	2026-10-08	
@@ -1517,7 +1521,7 @@ tests/resolver/console.py	b3ea02ea8da724fc7fc8cf75f809128edfe846cf	2026-10-12
 tests/resolver/groups.py	13e2709fab07db2cfce3b4a24b13e542b882d45a	2026-10-12	
 tests/resolver/querylog.py	ed2d9be93fc7f7a1973ca78395833c86ba83a2b4	2026-10-12	
 tests/resolver/run.py	9d3e07f6ccb6aec74c4e39b5bb13f7fc343edee6	2026-10-14	
-tests/run-all.sh	eeeec32cadf9d455abb34cbefc0a4cbc3e51c4cc	2026-10-14	
+tests/run-all.sh	68f446d3e3ce946f389edfd3a6ef4847d29ec13d	2026-10-15	
 tests/samba/README.md	a6eadf846775fa6ec4583e08e3e6005e59fa693a	2026-10-12	
 tests/samba/dc.py	a5da95e5ed9e6357670e43c50184f12c2eccb428	2026-10-13	
 tests/samba/devices.py	bd71b4b019421a3683be413c08e67f40a4af8c98	2026-10-13	

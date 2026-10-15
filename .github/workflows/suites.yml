@@ -86,11 +86,18 @@ jobs:
       - name: The image-update test on the sandbox
         shell: bash     # with pipefail: tee keeps the test's own exit status; sudo: the folder is root's
         run: sudo tests/images/update.sh --box fabric-sandbox 2>&1 | sudo tee /tmp/fabric-tests/image-update.log
+      # every log the sandbox and the image-update test write, each step's own included (the owner, 2026-10-14: a
+      # failed uninstall in CI could not be read); never the run's keys and passwords, and no log holding one (3.1.2.4)
+      - name: No secret in the logs
+        if: always()
+        run: |
+          sudo find /tmp/fabric-tests -type d -exec chmod a+x {} + -o -name '*.log' -exec chmod a+r {} +
+          sudo python3 scripts/ci/logs_secret_free.py /tmp/fabric-tests
       - name: Keep the logs (30 days)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: full-${{ matrix.arch }}
-          path: /tmp/fabric-tests/*.log
+          path: /tmp/fabric-tests/**/*.log
           retention-days: 30
           if-no-files-found: ignore
