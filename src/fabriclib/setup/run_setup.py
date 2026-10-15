@@ -114,7 +114,7 @@ def main(argv=None):
         if unknown:
             raise SetupError(f"unknown step(s): {', '.join(sorted(unknown))} (see --list)")
         jinja = os.path.join(ctx.source_dir, "jinja")
-        decided = None
+        decided, mode = None, None
         if any(s in NEEDS_INPUT for s in selected):
             heading("fabric setup")
             mode = choose_mode(ctx) if args.step is None else "guided"
@@ -154,7 +154,7 @@ def main(argv=None):
             if name == "deploy":
                 ctx.load_state()
         heading(f"{BOLD}fabric is ready{NC} ({time.monotonic() - start:.0f}s)")
-        print_first_steps(ctx)
+        print_first_steps(ctx, guided=mode == "guided")
         return 0
     except SetupError as e:
         err(str(e))

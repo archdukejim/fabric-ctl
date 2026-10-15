@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% block head %}{% if job.state == 'running' %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}{% block body %}
-{% set title = {'doctor': 'Doctor', 'images': 'Image ' ~ ((job.result or {}).get('action') or 'change')}.get(job.kind, job.kind) %}
+{% set title = {'doctor': 'Doctor', 'images': 'Image ' ~ ((job.result or {}).get('action') or 'change'), 'settings': 'Settings · apply'}.get(job.kind, job.kind) %}
 <h1>{{ title }}</h1>
-<p><a href="/">← Overview</a></p>
+<p>{% if job.kind == 'settings' %}<a href="/settings">← Settings</a> · {% endif %}<a href="/">← Overview</a></p>
 {% if job.state == 'running' %}
 <section class="card"><p><span class="light warn"></span> Running… this page refreshes itself.</p></section>
 {% elif job.state == 'failed' %}
@@ -13,6 +13,7 @@
 {% for c in r.checks %}<tr><td><span class="light {{ 'ok' if c.ok else 'bad' }}" role="img" aria-label="{{ 'passed' if c.ok else 'failed' }}"></span></td><td>{{ c.name }}</td><td class="muted">{{ c.detail }}</td></tr>{% endfor %}
 </tbody></table></section>
 {% else %}
-<section class="card"><p class="flash ok">{{ job.result.message }}</p></section>
+<section class="card"><p class="flash ok">{{ job.result.message }}</p>
+{% if job.result.output %}<details><summary>The apply's output</summary><pre>{{ job.result.output }}</pre></details>{% endif %}</section>
 {% endif %}
 {% endblock %}

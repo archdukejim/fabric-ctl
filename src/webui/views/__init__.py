@@ -3,7 +3,8 @@ static/webui-app): one file per page, all importable from here (`from webui impo
 from webui.views.constants import (TABS, FREERADIUS_SECTIONS, BIND9_SECTIONS, OPENBAO_SECTIONS,  # noqa: F401
                                    DNS_FILTER_SECTIONS,
                                    OPENBAO_VIEWS, SLOT_TYPES, DIRECTORY_SECTIONS, STEPCA_MENU, STEPCA_VIEWS, KEY_TYPES,
-                                   TSIG_SCOPES, TSIG_ANY_TYPES, SERVICES, PREVIEW_PERMS, TAB_PERMS, MENU_PERMS)
+                                   TSIG_SCOPES, TSIG_ANY_TYPES, SERVICES, PREVIEW_PERMS, TAB_PERMS, MENU_PERMS,
+                                   WIZARD_STEPS, WIZARD_FIELDS)
 from webui.views.apply_result import apply_result  # noqa: F401
 from webui.views.audit import audit  # noqa: F401
 from webui.views.bind9 import bind9  # noqa: F401
@@ -26,5 +27,7 @@ from webui.views.person_result import person_result  # noqa: F401
 from webui.views.pki_result import pki_result  # noqa: F401
 from webui.views.radius_secret import radius_secret  # noqa: F401
 from webui.views.security import security  # noqa: F401
+from webui.views.settings import settings  # noqa: F401
+from webui.views.settings_plan import settings_plan  # noqa: F401
 from webui.views.stepca import stepca  # noqa: F401
 from webui.views.tsig_result import tsig_result  # noqa: F401

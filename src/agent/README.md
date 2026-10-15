@@ -33,3 +33,5 @@ arbitrary commands.
 | `post_host_access.py` | Host groups (create, delete, machines in and out) and sudo rules (add, remove), in the directory at once (1.6.11.7) |
 | `post_security.py` | POST /v1/security/raise and /kerberos: raise a sign-in layer or turn Kerberos sign-in on or off, then apply |
 | `job_store.py` | Background jobs (doctor, an image update): started by one call, followed by id, read only by who started them; kept in memory |
+| `post_settings.py` | POST /v1/settings/plan, /apply and /dismiss: the setup wizard's plan, its apply as a job (a stale plan made again), the wizard dismissed |
+| `plan_store.py` | The setup wizard's plans waiting for their Apply: by id, only for who made them, 15 minutes; kept in memory |

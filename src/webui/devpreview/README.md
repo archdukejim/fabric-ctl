@@ -21,3 +21,5 @@ The dev preview (`devserver.py`): the real pages over in-memory sample data; no 
 | `dev_networks_page.py` | The Networks tab over the sample address plan (drawn by fabriclib's networks_view from a checkout), and its CSV export |
 | `dev_post_networks.py` | The Networks tab's changes on the sample plan in memory: the site's number, VLANs, addresses |
 | `sample_networks.py` | The sample address plan: a top site with a house below it, and this site's leases |
+| `dev_settings.py` | The setup wizard over sample data: its steps, a sample plan, an apply finished in memory, the export |
+| `sample_settings.py` | The setup wizard's sample settings, plan and settings file |

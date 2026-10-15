@@ -18,6 +18,7 @@ from webui.routes.saved_and_applied import saved_and_applied
 from webui.routes.stepca_post import stepca_post
 from webui.routes.tsig_post import tsig_post
 from webui.routes.security_post import security_post
+from webui.routes.settings_post import settings_post
 from webui.routes.vault_post import vault_post
 from webui.routes.zone_post import zone_post
 from webui.routes.zones_post import zones_post
@@ -56,7 +57,7 @@ def post_action(h, sess, path, form):
              (the DHCP options page); /dns-filter/… (lists, rules, upstreams, fetch); /networks/scan[/record] (the
              scan); /networks/scan/request and /local (scans from the top down); /networks/sync (Sync now);
              /networks/<site>/… (the address plan); /overview/… (jobs); /freeradius/clients…; /freeradius/people…;
-             /bind9/tsig/….
+             /bind9/tsig/…; /settings/… (the setup wizard: step, plan, import, apply, dismiss).
     Returns: /logout: session dropped, LOGOUT audited, 303 to Keycloak's logout URL clearing the session cookie;
              /apply: 200 apply result; the rest as their route modules.
     Fails:   404 for an unknown path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
@@ -86,6 +87,8 @@ def post_action(h, sess, path, form):
         return vault_post(h, sess, _segments(path, 2), form)
     if path.startswith("/security/"):
         return security_post(h, sess, _segments(path, 2), form)
+    if path.startswith("/settings/"):
+        return settings_post(h, sess, _segments(path, 2), form)
     if path.startswith("/directory/"):
         return directory_post(h, sess, _segments(path, 2), form)
     if path.startswith("/kea/options/") and path != "/kea/options/delete":   # the 0.7 form keeps its own

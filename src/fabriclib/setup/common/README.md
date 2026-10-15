@@ -23,3 +23,4 @@ Helpers shared by setup steps and the consent plans.
 | `plan_items.py` | The plan's hardened defaults (the firewall, Docker's hardening, membership, Keycloak, the web console) |
 | `dotted_keys.py` | Read and write a dotted settings key (`security.firewall`) |
 | `previous_accounts.py` | The service accounts of releases before 2026-10 (names, ids), which setup moves away from |
+| `parse_log_target.py` | Where log forwarding sends the logs, from one line: a syslog server or an Elasticsearch URL |

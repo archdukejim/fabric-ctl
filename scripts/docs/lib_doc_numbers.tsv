@@ -2,6 +2,7 @@
 file	fabricctl-agent|src/agent/get_route.py	1	
 file	fabricctl-agent|src/agent/handler.py	2	
 file	fabricctl-agent|src/agent/job_store.py	16	
+file	fabricctl-agent|src/agent/plan_store.py	25	
 file	fabricctl-agent|src/agent/post_dhcp.py	3	
 file	fabricctl-agent|src/agent/post_directory.py	4	
 file	fabricctl-agent|src/agent/post_dns.py	5	
@@ -18,6 +19,7 @@ file	fabricctl-agent|src/agent/post_pki.py	7
 file	fabricctl-agent|src/agent/post_route.py	8	
 file	fabricctl-agent|src/agent/post_scan_policy.py	23	0.7.0 / 2026-10-13
 file	fabricctl-agent|src/agent/post_security.py	15	
+file	fabricctl-agent|src/agent/post_settings.py	26	
 file	fabricctl-agent|src/agent/post_vault.py	9	
 file	fabricctl-agent|src/agent/read_fields.py	10	
 file	fabricctl-agent|src/agent/read_strings.py	11	
@@ -223,6 +225,7 @@ file	fabriclib-dhcp|src/fabriclib/dhcp/common/find_subnet.py	6
 file	fabriclib-dhcp|src/fabriclib/dhcp/common/hand_set_path.py	35	
 file	fabriclib-dhcp|src/fabriclib/dhcp/common/kea_image.py	27	
 file	fabriclib-dhcp|src/fabriclib/dhcp/common/option_target.py	7	
+file	fabriclib-dhcp|src/fabriclib/dhcp/common/turn_dhcp_on.py	40	
 file	fabriclib-dhcp|src/fabriclib/dhcp/deploy_kea.py	8	
 file	fabriclib-dhcp|src/fabriclib/dhcp/dhcp_overview.py	9	
 file	fabriclib-dhcp|src/fabriclib/dhcp/dhcp_reverse_zones.py	30	
@@ -311,6 +314,7 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_id.py	44
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_memory.py	45	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_zone.py	5	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py	46	0.7.0 / 2026-10-12
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/parse_upstreams.py	50	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_paths.py	6	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_rndc.py	7	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/rule_names.py	31	
@@ -743,6 +747,19 @@ file	fabriclib-security|src/fabriclib/security/signin_layers.py	9
 file	fabriclib-security|src/fabriclib/security/ssh_ports.py	5	
 file	fabriclib-security|src/fabriclib/security/ufw_active.py	11	
 file	fabriclib-security|src/fabriclib/security/ufw_rule.py	4	
+file	fabriclib-settings|src/fabriclib/settings/apply_settings.py	1	
+file	fabriclib-settings|src/fabriclib/settings/check_wizard_value.py	2	
+file	fabriclib-settings|src/fabriclib/settings/export_settings.py	3	
+file	fabriclib-settings|src/fabriclib/settings/form_from_settings.py	4	
+file	fabriclib-settings|src/fabriclib/settings/mark_wizard_finished.py	5	
+file	fabriclib-settings|src/fabriclib/settings/parse_settings_file.py	6	
+file	fabriclib-settings|src/fabriclib/settings/plan_is_current.py	7	
+file	fabriclib-settings|src/fabriclib/settings/plan_settings.py	8	
+file	fabriclib-settings|src/fabriclib/settings/read_settings.py	9	
+file	fabriclib-settings|src/fabriclib/settings/run_settings_command.py	10	
+file	fabriclib-settings|src/fabriclib/settings/settings_from_form.py	11	
+file	fabriclib-settings|src/fabriclib/settings/settings_overview.py	12	
+file	fabriclib-settings|src/fabriclib/settings/wizard_finished.py	13	
 file	fabriclib-setup|src/fabriclib/setup/adopt_stray_records.py	43	
 file	fabriclib-setup|src/fabriclib/setup/advanced/ask_ca_lifetime.py	54	
 file	fabriclib-setup|src/fabriclib/setup/advanced/ask_dhcp_settings.py	55	
@@ -782,6 +799,7 @@ file	fabriclib-setup|src/fabriclib/setup/common/first_admin_needed.py	71
 file	fabriclib-setup|src/fabriclib/setup/common/host_identity.py	77	
 file	fabriclib-setup|src/fabriclib/setup/common/missing_packages.py	6	
 file	fabriclib-setup|src/fabriclib/setup/common/network_problem.py	72	
+file	fabriclib-setup|src/fabriclib/setup/common/parse_log_target.py	85	
 file	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py	52	
 file	fabriclib-setup|src/fabriclib/setup/common/renew_days.py	79	
 file	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py	7	
@@ -979,6 +997,11 @@ file	webui|src/webui/agentclient/set_option.py	44
 file	webui|src/webui/agentclient/set_password_policy.py	184	
 file	webui|src/webui/agentclient/set_record_link.py	185	
 file	webui|src/webui/agentclient/set_scan_policy.py	181	0.7.0 / 2026-10-13
+file	webui|src/webui/agentclient/settings_apply.py	190	
+file	webui|src/webui/agentclient/settings_dismiss.py	191	
+file	webui|src/webui/agentclient/settings_export.py	192	
+file	webui|src/webui/agentclient/settings_overview.py	193	
+file	webui|src/webui/agentclient/settings_plan.py	194	
 file	webui|src/webui/agentclient/sign_csr.py	45	
 file	webui|src/webui/agentclient/start_job.py	142	
 file	webui|src/webui/agentclient/sudo_rule_change.py	161	
@@ -1007,6 +1030,7 @@ file	webui|src/webui/devpreview/dev_post_dns.py	65
 file	webui|src/webui/devpreview/dev_post_dns_filter.py	148	
 file	webui|src/webui/devpreview/dev_post_network.py	66	
 file	webui|src/webui/devpreview/dev_post_networks.py	168	
+file	webui|src/webui/devpreview/dev_settings.py	195	
 file	webui|src/webui/devpreview/dev_state.py	67	
 file	webui|src/webui/devpreview/sample_data.py	186	
 file	webui|src/webui/devpreview/sample_radius_guides.py	68	
@@ -1024,6 +1048,7 @@ file	webui|src/webui/routes/dirsrv_page.py	78	0.5.0 / 2026-10-05
 file	webui|src/webui/routes/dirsrv_post.py	79	0.5.0 / 2026-10-05
 file	webui|src/webui/routes/dns_filter_page.py	149	
 file	webui|src/webui/routes/dns_filter_post.py	150	
+file	webui|src/webui/routes/finish_setting_up.py	196	
 file	webui|src/webui/routes/get_page.py	80	
 file	webui|src/webui/routes/kea_post.py	81	
 file	webui|src/webui/routes/landing_post.py	187	
@@ -1040,6 +1065,8 @@ file	webui|src/webui/routes/post_action.py	83
 file	webui|src/webui/routes/radius_post.py	84	
 file	webui|src/webui/routes/saved_and_applied.py	85	
 file	webui|src/webui/routes/security_post.py	134	
+file	webui|src/webui/routes/settings_page.py	197	
+file	webui|src/webui/routes/settings_post.py	198	
 file	webui|src/webui/routes/stepca_page.py	86	
 file	webui|src/webui/routes/stepca_post.py	87	
 file	webui|src/webui/routes/tsig_post.py	88	
@@ -1081,6 +1108,8 @@ file	webui|src/webui/views/pki_result.py	115
 file	webui|src/webui/views/radius_secret.py	116	
 file	webui|src/webui/views/render_page.py	117	
 file	webui|src/webui/views/security.py	135	
+file	webui|src/webui/views/settings.py	199	
+file	webui|src/webui/views/settings_plan.py	200	
 file	webui|src/webui/views/stepca.py	118	
 file	webui|src/webui/views/tsig_result.py	119	
 function	fabricctl-agent|src/agent/get_route.py|get_route	1	
@@ -1097,6 +1126,9 @@ function	fabricctl-agent|src/agent/handler.py|Handler.reply	3
 function	fabricctl-agent|src/agent/job_store.py|JobStore.__init__	1	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.read	3	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.start	2	
+function	fabricctl-agent|src/agent/plan_store.py|PlanStore.__init__	1	
+function	fabricctl-agent|src/agent/plan_store.py|PlanStore.put	2	
+function	fabricctl-agent|src/agent/plan_store.py|PlanStore.take	3	
 function	fabricctl-agent|src/agent/post_dhcp.py|_vlan	1	
 function	fabricctl-agent|src/agent/post_dhcp.py|_where	2	
 function	fabricctl-agent|src/agent/post_dhcp.py|post_dhcp	3	
@@ -1122,6 +1154,8 @@ function	fabricctl-agent|src/agent/post_pki.py|post_pki	1
 function	fabricctl-agent|src/agent/post_route.py|post_route	1	
 function	fabricctl-agent|src/agent/post_scan_policy.py|post_scan_policy	1	0.7.0 / 2026-10-13
 function	fabricctl-agent|src/agent/post_security.py|post_security	1	
+function	fabricctl-agent|src/agent/post_settings.py|_applied	1	
+function	fabricctl-agent|src/agent/post_settings.py|post_settings	2	
 function	fabricctl-agent|src/agent/post_vault.py|post_vault	1	
 function	fabricctl-agent|src/agent/read_fields.py|read_fields	1	
 function	fabricctl-agent|src/agent/read_strings.py|read_strings	1	
@@ -1493,6 +1527,7 @@ function	fabriclib-dhcp|src/fabriclib/dhcp/common/find_subnet.py|find_subnet	1
 function	fabriclib-dhcp|src/fabriclib/dhcp/common/hand_set_path.py|hand_set_path	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/common/kea_image.py|kea_image	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/common/option_target.py|option_target	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/common/turn_dhcp_on.py|turn_dhcp_on	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/deploy_kea.py|deploy_kea	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/dhcp_overview.py|dhcp_overview	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/dhcp_reverse_zones.py|dhcp_reverse_zones	1	
@@ -1603,6 +1638,7 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_id.py|list_id
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_memory.py|list_memory	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_zone.py|list_zone	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py|mem_mb	1	0.7.0 / 2026-10-12
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/parse_upstreams.py|parse_upstreams	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_paths.py|resolver_paths	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_rndc.py|resolver_rndc	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/rule_names.py|rule_names	1	
@@ -2247,13 +2283,42 @@ function	fabriclib-security|src/fabriclib/security/signin_layers.py|signin_rows	
 function	fabriclib-security|src/fabriclib/security/ssh_ports.py|ssh_ports	1	
 function	fabriclib-security|src/fabriclib/security/ufw_active.py|ufw_active	1	
 function	fabriclib-security|src/fabriclib/security/ufw_rule.py|ufw_rule	1	
+function	fabriclib-settings|src/fabriclib/settings/apply_settings.py|_log_forwarding	1	
+function	fabriclib-settings|src/fabriclib/settings/apply_settings.py|apply_settings	2	
+function	fabriclib-settings|src/fabriclib/settings/check_wizard_value.py|_dhcp	2	
+function	fabriclib-settings|src/fabriclib/settings/check_wizard_value.py|_flag	1	
+function	fabriclib-settings|src/fabriclib/settings/check_wizard_value.py|_log_forwarding	3	
+function	fabriclib-settings|src/fabriclib/settings/check_wizard_value.py|_memory	4	
+function	fabriclib-settings|src/fabriclib/settings/check_wizard_value.py|check_wizard_value	5	
+function	fabriclib-settings|src/fabriclib/settings/export_settings.py|export_settings	1	
+function	fabriclib-settings|src/fabriclib/settings/form_from_settings.py|_log_target	1	
+function	fabriclib-settings|src/fabriclib/settings/form_from_settings.py|form_from_settings	2	
+function	fabriclib-settings|src/fabriclib/settings/mark_wizard_finished.py|mark_wizard_finished	1	
+function	fabriclib-settings|src/fabriclib/settings/parse_settings_file.py|parse_settings_file	1	
+function	fabriclib-settings|src/fabriclib/settings/plan_is_current.py|plan_is_current	1	
+function	fabriclib-settings|src/fabriclib/settings/plan_settings.py|_limits	3	
+function	fabriclib-settings|src/fabriclib/settings/plan_settings.py|_same	1	
+function	fabriclib-settings|src/fabriclib/settings/plan_settings.py|_show	2	
+function	fabriclib-settings|src/fabriclib/settings/plan_settings.py|plan_settings	4	
+function	fabriclib-settings|src/fabriclib/settings/read_settings.py|_first_subnet	1	
+function	fabriclib-settings|src/fabriclib/settings/read_settings.py|read_settings	2	
+function	fabriclib-settings|src/fabriclib/settings/run_settings_command.py|_actor	1	
+function	fabriclib-settings|src/fabriclib/settings/run_settings_command.py|_print_plan	2	
+function	fabriclib-settings|src/fabriclib/settings/run_settings_command.py|run_settings_command	3	
+function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|_flag	1	
+function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|_log_forwarding	3	
+function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|_logon_policies	4	
+function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|_whole	2	
+function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|settings_from_form	5	
+function	fabriclib-settings|src/fabriclib/settings/settings_overview.py|settings_overview	1	
+function	fabriclib-settings|src/fabriclib/settings/wizard_finished.py|wizard_finished	1	
 function	fabriclib-setup|src/fabriclib/setup/adopt_stray_records.py|adopt_stray_records	1	
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_ca_lifetime.py|ask_ca_lifetime	1	
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_dhcp_settings.py|_suggested_pool	1	
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_dhcp_settings.py|ask_dhcp_settings	2	
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_first_admin_item.py|ask_first_admin_item	1	
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_host_change.py|ask_host_change	1	
-function	fabriclib-setup|src/fabriclib/setup/advanced/ask_log_target.py|_host_ok	1	
+function	fabriclib-setup|src/fabriclib/setup/advanced/ask_log_target.py|_host_ok	1	0.7.1 / 2026-10-14
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_log_target.py|ask_log_target	2	
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_memory.py|ask_memory	1	
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_network.py|ask_network	1	
@@ -2325,6 +2390,8 @@ function	fabriclib-setup|src/fabriclib/setup/common/host_identity.py|_account_na
 function	fabriclib-setup|src/fabriclib/setup/common/host_identity.py|host_identity	2	
 function	fabriclib-setup|src/fabriclib/setup/common/missing_packages.py|missing_packages	1	
 function	fabriclib-setup|src/fabriclib/setup/common/network_problem.py|network_problem	1	
+function	fabriclib-setup|src/fabriclib/setup/common/parse_log_target.py|_host_ok	1	
+function	fabriclib-setup|src/fabriclib/setup/common/parse_log_target.py|parse_log_target	2	
 function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_access	3	0.7.0 / 2026-10-12
 function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_sudo_search_base	1	
 function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|render_member_files	2	
@@ -2651,6 +2718,11 @@ function	webui|src/webui/agentclient/set_option.py|set_option	1
 function	webui|src/webui/agentclient/set_password_policy.py|set_password_policy	1	
 function	webui|src/webui/agentclient/set_record_link.py|set_record_link	1	
 function	webui|src/webui/agentclient/set_scan_policy.py|set_scan_policy	1	0.7.0 / 2026-10-13
+function	webui|src/webui/agentclient/settings_apply.py|settings_apply	1	
+function	webui|src/webui/agentclient/settings_dismiss.py|settings_dismiss	1	
+function	webui|src/webui/agentclient/settings_export.py|settings_export	1	
+function	webui|src/webui/agentclient/settings_overview.py|settings_overview	1	
+function	webui|src/webui/agentclient/settings_plan.py|settings_plan	1	
 function	webui|src/webui/agentclient/sign_csr.py|sign_csr	1	
 function	webui|src/webui/agentclient/start_job.py|start_job	1	
 function	webui|src/webui/agentclient/sudo_rule_change.py|sudo_rule_change	1	
@@ -2691,6 +2763,7 @@ function	webui|src/webui/devpreview/dev_post_dns_filter.py|dev_post_dns_filter	1
 function	webui|src/webui/devpreview/dev_post_network.py|dev_post_network	1	
 function	webui|src/webui/devpreview/dev_post_networks.py|_act	1	
 function	webui|src/webui/devpreview/dev_post_networks.py|dev_post_networks	2	
+function	webui|src/webui/devpreview/dev_settings.py|dev_settings	1	
 function	webui|src/webui/devpreview/dev_state.py|DevState.__init__	1	
 function	webui|src/webui/devpreview/dev_state.py|DevState._ptr	5	
 function	webui|src/webui/devpreview/dev_state.py|DevState.log	9	
@@ -2740,6 +2813,7 @@ function	webui|src/webui/routes/dirsrv_post.py|dirsrv_post	3	0.5.0 / 2026-10-05
 function	webui|src/webui/routes/dns_filter_page.py|dns_filter_page	1	
 function	webui|src/webui/routes/dns_filter_post.py|_message	1	
 function	webui|src/webui/routes/dns_filter_post.py|dns_filter_post	2	
+function	webui|src/webui/routes/finish_setting_up.py|finish_setting_up	1	
 function	webui|src/webui/routes/get_page.py|get_page	1	
 function	webui|src/webui/routes/kea_post.py|_kea	3	
 function	webui|src/webui/routes/kea_post.py|_pools	1	
@@ -2768,6 +2842,9 @@ function	webui|src/webui/routes/post_action.py|post_action	3
 function	webui|src/webui/routes/radius_post.py|radius_post	1	
 function	webui|src/webui/routes/saved_and_applied.py|saved_and_applied	1	
 function	webui|src/webui/routes/security_post.py|security_post	1	
+function	webui|src/webui/routes/settings_page.py|settings_page	1	
+function	webui|src/webui/routes/settings_post.py|_file_text	1	
+function	webui|src/webui/routes/settings_post.py|settings_post	2	
 function	webui|src/webui/routes/stepca_page.py|stepca_page	1	
 function	webui|src/webui/routes/stepca_post.py|stepca_post	1	
 function	webui|src/webui/routes/tsig_post.py|tsig_post	1	
@@ -2815,6 +2892,8 @@ function	webui|src/webui/views/pki_result.py|pki_result	1
 function	webui|src/webui/views/radius_secret.py|radius_secret	1	
 function	webui|src/webui/views/render_page.py|render_page	1	
 function	webui|src/webui/views/security.py|security	1	
+function	webui|src/webui/views/settings.py|settings	1	
+function	webui|src/webui/views/settings_plan.py|settings_plan	1	
 function	webui|src/webui/views/stepca.py|stepca	1	
 function	webui|src/webui/views/tsig_result.py|tsig_result	1	
 page	fabricctl-agent	2	
@@ -2842,6 +2921,7 @@ page	fabriclib-rbac	21
 page	fabriclib-samba	30	
 page	fabriclib-secrets	22	
 page	fabriclib-security	23	
+page	fabriclib-settings	33	
 page	fabriclib-setup	24	
 page	fabriclib-system	25	
 page	fabriclib-undo	26	

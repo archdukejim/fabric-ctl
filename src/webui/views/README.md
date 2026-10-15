@@ -32,3 +32,5 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `security.py` | The Security page: the sign-in layers and their raises |
 | `job_page.py` | A background job's page: doctor's checks or what an image change did; refreshes itself while it runs |
 | `networks.py` | The Networks tab: sites, VLANs, subnet maps, one subnet's address table and options with their sources, a search, the forms. |
+| `settings.py` | The setup wizard: one step (optional parts, memory, passwords and sign-in, the upstreams, review), the rest carried hidden; the console-only settings read only |
+| `settings_plan.py` | A plan of the setup wizard: each change old to new, the parts and memory, what an import ignored; Apply |

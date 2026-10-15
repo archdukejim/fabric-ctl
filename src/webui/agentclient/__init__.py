@@ -100,3 +100,8 @@ from webui.agentclient.image_rows import image_rows  # noqa: F401
 from webui.agentclient.start_job import start_job  # noqa: F401
 from webui.agentclient.read_job import read_job  # noqa: F401
 from webui.agentclient.acme_overview import acme_overview  # noqa: F401
+from webui.agentclient.settings_overview import settings_overview  # noqa: F401
+from webui.agentclient.settings_export import settings_export  # noqa: F401
+from webui.agentclient.settings_plan import settings_plan  # noqa: F401
+from webui.agentclient.settings_apply import settings_apply  # noqa: F401
+from webui.agentclient.settings_dismiss import settings_dismiss  # noqa: F401

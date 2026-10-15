@@ -13,6 +13,7 @@ TABS = [
     ("openbao", "/openbao", "OpenBao · Secrets", False),
     ("federation", "/federation", "Federation", False),
     ("security", "/security", "Security", False),
+    ("settings", "/settings", "Settings", False),
 ]
 # DNS filter tab sections: (view, label); the query log needs dns:querylog (MENU_PERMS)
 DNS_FILTER_SECTIONS = [("overview", "Overview"), ("lists", "Lists"), ("rules", "Rules"), ("groups", "Groups"),
@@ -71,15 +72,26 @@ PREVIEW_PERMS = ["status:read", "dns:read", "dns:write", "tsig:manage", "dhcp:re
                  "radius:admin",
                  "people:read", "domain:read", "domain:admin", "machines:admin", "sudo:admin", "gpo:admin",
                  "federation:read",
-                 "vault:status", "vault:unlock", "audit:read", "dns:filter", "dns:querylog"]
+                 "vault:status", "vault:unlock", "audit:read", "dns:filter", "dns:querylog", "settings:admin"]
 # tab -> the permission(s) that show it (any of them)
 TAB_PERMS = {"overview": ("status:read",), "bind9": ("dns:read",), "kea": ("dhcp:read",), "networks": ("dhcp:read",),
              "stepca": ("pki:read",),
              "dnsfilter": ("dns:filter", "dns:querylog"),
              "directory": ("devices:read", "people:read", "domain:read"), "freeradius": ("radius:read",),
              "openbao": ("vault:status",), "federation": ("federation:read",),
-             "security": ("security:raise",)}
+             "security": ("security:raise",), "settings": ("settings:admin",)}
 MENU_PERMS = {"sign": "pki:sign", "issue": "pki:issue", "convert": "pki:issue", "people": "people:read",
               "devices": "devices:read", "roles": "devices:read", "unlock": "vault:status", "disk": "vault:status",
               "domain": "domain:read", "machines": "domain:read", "gpo": "domain:read", "querylog": "dns:querylog",
               "lists": "dns:filter", "rules": "dns:filter", "settings": "dns:filter"}
+# the setup wizard's steps (manual 1.8.5.3): (step, title, its fields); the fields are agent settings_from_form's
+WIZARD_STEPS = [
+    ("parts", "Optional parts", ["install_kea", "dhcp_interface", "dhcp_subnet", "dhcp_pool", "dhcp_router",
+                                 "dns_filter", "install_fluentbit", "log_target"]),
+    ("memory", "Memory", ["host_ram_capacity"]),
+    ("signin", "Passwords and sign-in", ["policy_" + k for k, _ in POLICY_FIELDS]
+     + ["policy_complexity", "signin_kerberos", "logon_policies"]),
+    ("upstreams", "The DNS filter's upstreams", ["dns_filter_upstreams"]),
+    ("review", "Review", []),
+]
+WIZARD_FIELDS = [f for _, _, fields in WIZARD_STEPS for f in fields]

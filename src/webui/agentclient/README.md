@@ -106,3 +106,8 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `networks_overview.py` | What the Networks tab shows of one site (VLANs, subnet maps, address table, options and their sources). Agent route: GET /v1/networks[/<site>] (dhcp:read). |
 | `networks_export.py` | A site's address table as CSV. Agent route: GET /v1/networks/<site>/export (dhcp:read). |
 | `networks_change.py` | One change to a site's address plan (number, VLANs, subnets, ranges, addresses); this site's applied at once. Agent routes: POST /v1/networks/<site>/... (dhcp:write), timeout 300 s. |
+| `settings_overview.py` | The setup wizard's settings, its fields filled in, the console-only ones, whether it is finished. Agent route: GET /v1/settings (settings:admin). |
+| `settings_export.py` | The settings file. Agent route: GET /v1/settings/export (settings:admin). |
+| `settings_plan.py` | The plan for the wizard's fields or a settings file. Agent route: POST /v1/settings/plan (settings:admin). |
+| `settings_apply.py` | Apply a plan as a job, or the plan made again when stale. Agent route: POST /v1/settings/apply (settings:admin). |
+| `settings_dismiss.py` | Dismiss the setup wizard. Agent route: POST /v1/settings/dismiss (settings:admin). |

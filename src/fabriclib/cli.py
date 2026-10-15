@@ -38,6 +38,8 @@
   fabricctl sso add|list|remove  apps (Proxmox VE, TrueNAS, …) signing people in through Keycloak
   fabricctl security [raise|lower|kerberos]
                                  sign-in layers: second factors, the web console's client certificate
+  fabricctl settings export|import
+                                 the setup wizard's settings as a file: export [FILE], import FILE [--yes]
   fabricctl federation status|enable|disable|invite|invitations|revoke|networks
                                  sites joining this install (setup --join on the new site)
   fabricctl vault status         OpenBao: sealed?, version, seal key, secret engines
@@ -89,6 +91,7 @@ from fabriclib.samba.run_gpo_command import run_gpo_command  # noqa: E402
 from fabriclib.dns.run_tsig_command import run_tsig_command  # noqa: E402
 from fabriclib.keycloak.run_sso_command import run_sso_command  # noqa: E402
 from fabriclib.security.run_security_command import run_security_command  # noqa: E402
+from fabriclib.settings.run_settings_command import run_settings_command  # noqa: E402
 from fabriclib.federation.run_federation_command import run_federation_command  # noqa: E402
 from fabriclib.images.run_images_command import run_images_command  # noqa: E402
 from fabriclib.logs.run_logs_command import run_logs_command  # noqa: E402
@@ -285,6 +288,8 @@ def main(argv):
         return run_sso_command(args)
     if cmd == "security":
         return run_security_command(args)
+    if cmd == "settings":
+        return run_settings_command(_without_base(args))
     if cmd == "acl":
         return run_acl_command(args)
     if cmd == "restore":

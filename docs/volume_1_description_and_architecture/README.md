@@ -156,4 +156,5 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.17.30 fabriclib-samba](1.17.30-fabriclib-samba.md)
 - [1.17.31 fabriclib-directory](1.17.31-fabriclib-directory.md)
 - [1.17.32 fabriclib-ipam](1.17.32-fabriclib-ipam.md)
+- [1.17.33 fabriclib-settings](1.17.33-fabriclib-settings.md)
 <!-- end of generated 1.17 -->

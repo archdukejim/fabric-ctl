@@ -6,14 +6,16 @@ from webui.devpreview.sample_data import (RECORD_TYPES, SAMPLE_CA, SAMPLE_DEVICE
                                           SAMPLE_IMAGES,
                                           SAMPLE_SECURITY, SAMPLE_VAULT, SAMPLE_DNS_FILTER, SAMPLE_QUERY_LOG)
 from webui.devpreview.dev_networks_page import dev_networks_page
+from webui.devpreview.dev_settings import dev_settings
 from webui.devpreview.sample_networks import SAMPLE_LOCAL_SCAN, SAMPLE_SCAN_SUBNETS
 from webui.devpreview.sample_radius_guides import sample_radius_guides
 
 
 def dev_get_page(h, path, query):
     """Purpose: Render the real pages (src/webui/views) with sample or in-memory data: /, /bind9, /stepca, /openbao,
-             /directory, /kea, /kea/options, /dns-filter, /freeradius, /audit, /jobs/<id>, /static/app.css, and
-             /preview/denied (what a refused sign-in looks like). No sign-in, no client certificate, no fabric-agent.
+             /directory, /kea, /kea/options, /dns-filter, /freeradius, /audit, /settings, /jobs/<id>, /static/app.css,
+             and /preview/denied (what a refused sign-in looks like). No sign-in, no client certificate, no
+             fabric-agent.
     Inputs:  h — the dev handler (send, state, ctx); path — the URL path; query — dict (msg, err, view, zone, device,
              slot, name; /dns-filter: wait, and fresh=1 for a fresh install's first fetch still running).
     Returns: None; sends 200 with the page, 403 for /preview/denied, 404 for anything else.
@@ -115,6 +117,8 @@ def dev_get_page(h, path, query):
         return h.send(200, views.audit(ctx, state.data["audit"]))
     if path == "/security":
         return h.send(200, views.security(ctx, SAMPLE_SECURITY, query.get("msg", ""), query.get("err", "")))
+    if dev_settings(h, "GET", path, query):     # the setup wizard (1.8.5.3) over sample data
+        return None
     if path == "/preview/denied":       # what a refused sign-in looks like
         return h.send(403, views.error_page(403, "Your account is missing the 'fabric-console-admin' role."))
     return h.send(404, views.error_page(404, "Not found."))

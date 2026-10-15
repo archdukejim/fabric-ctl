@@ -7,14 +7,16 @@ from webui.devpreview.dev_post_dhcp import dev_post_dhcp
 from webui.devpreview.dev_post_dns_filter import dev_post_dns_filter
 from webui.devpreview.dev_post_network import dev_post_network
 from webui.devpreview.dev_post_networks import dev_post_networks
+from webui.devpreview.dev_settings import dev_settings
 from webui.devpreview.sample_data import SAMPLE_CA, SAMPLE_DOCTOR, SAMPLE_INFO, SAMPLE_PEM
 from webui.devpreview.sample_result import sample_result
 
 
 def dev_post_action(h, path, form):
     """Purpose: Act out every form post in memory only (DNS records, TSIG keys, apply, jobs, PKI, vault, devices, roles,
-             people, DHCP reservations, RADIUS clients and groups) and show the same result page or redirect as
-             production. Nothing is saved, signed or applied; secrets and passwords shown are fake or throwaway.
+             people, DHCP reservations, RADIUS clients and groups, the setup wizard) and show the same result page or
+             redirect as production. Nothing is saved, signed or applied; secrets and passwords shown are fake or
+             throwaway.
     Inputs:  h — the dev handler (send, state, ctx); path — the URL path; form — dict (text fields only).
     Returns: None; sends 200 result pages, 303 redirects carrying msg/err, or 404 for an unknown route.
     Fails:   errors other than the directory's ValidationError are not caught: http.server logs them and closes the
@@ -50,6 +52,8 @@ def dev_post_action(h, path, form):
     if path.startswith("/openbao/"):
         return h.send(303, b"", location="/openbao?" + urllib.parse.urlencode(
             {"view": "unlock", **state.vault_action(path.split("/")[2:], form)}))
+    if dev_settings(h, "POST", path, form):     # the setup wizard (1.8.5.3)
+        return None
     for area in (dev_post_dhcp, dev_post_networks, dev_post_dns_filter, dev_post_network, dev_post_directory):
         if area(h, path, form):
             return None

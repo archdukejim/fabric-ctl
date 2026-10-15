@@ -20,10 +20,13 @@ GET = {
     ("federation",): "federation:read",
     ("vault",): "vault:status", ("vault", "slots"): "vault:status", ("vault", "devices"): "vault:status",
     ("security",): "security:raise",
+    ("settings",): "settings:admin", ("settings", "export"): "settings:admin",   # the setup wizard (1.8.5.6)
 }
 POST = {
     ("events",): "session", ("jobs", "doctor"): "status:read", ("jobs", "images"): "images:update",
     ("security", "raise"): "security:raise", ("security", "kerberos"): "security:raise",
+    ("settings", "plan"): "settings:admin", ("settings", "apply"): "settings:admin",
+    ("settings", "dismiss"): "settings:admin",
     ("zones",): "dns:write", ("zones", "*", "delete"): "dns:write",
     ("zones", "*", "records"): "dns:write", ("zones", "*", "records", "delete"): "dns:write",
     ("zones", "*", "records", "link"): "dns:write",

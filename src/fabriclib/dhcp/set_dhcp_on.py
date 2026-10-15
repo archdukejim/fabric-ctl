@@ -1,13 +1,9 @@
-import copy
-
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
 from fabriclib.common.save_vars import save_vars
 from fabriclib.common.vars_lock import vars_lock
 from fabriclib.common.write_audit import write_audit
-from fabriclib.dhcp.normalize_dhcp import normalize_dhcp
-from fabriclib.dhcp.place_subnets import place_subnets
-from fabriclib.ipam.common.plan_holds_subnets import plan_holds_subnets
+from fabriclib.dhcp.common.turn_dhcp_on import turn_dhcp_on
 from fabriclib.ipam.planned_subnets import planned_subnets
 from fabriclib.system.host_networks import host_networks
 
@@ -30,26 +26,9 @@ def set_dhcp_on(actor, on, interface="", subnet="", pool="", router="", source="
         data = load_vars()
         if bool(data.get("install_kea")) == on:
             raise ValidationError(f"DHCP is already {'on' if on else 'off'}")
-        dhcp = copy.deepcopy(data.get("dhcp") or {})
-        if on and plan_holds_subnets(data):     # the subnets are the plan's (1.10.4.9): checked, never saved here
-            if interface:
-                dhcp["interfaces"] = [interface]
-            served = {**dhcp, "subnets": planned_subnets(data)}
-            if not served["subnets"]:
-                raise ValidationError("the address plan has no subnet served by DHCP yet: add one with "
-                                      "fabricctl ipam vlan add")
-            served = normalize_dhcp({**data, "dhcp": served, "install_kea": True})
-            place_subnets(served, data.get("host_ip"), networks if networks is not None else host_networks())
-            data["dhcp"] = dhcp
-        elif on:
-            if not dhcp.get("subnets"):
-                if not (interface and subnet and pool):
-                    raise ValidationError("DHCP has no settings yet: give the interface, the subnet and a pool")
-                dhcp = {**dhcp, "interfaces": [interface],
-                        "subnets": [{"subnet": subnet, "pools": [pool], **({"routers": router} if router else {})}]}
-            dhcp = normalize_dhcp({**data, "dhcp": dhcp, "install_kea": True})
-            place_subnets(dhcp, data.get("host_ip"), networks if networks is not None else host_networks())
-            data["dhcp"] = dhcp
+        if on:
+            data["dhcp"] = turn_dhcp_on(data, interface, subnet, pool, router,
+                                        networks if networks is not None else host_networks())
         data["install_kea"] = on
         save_vars(data)
     nets = [s["subnet"] for s in planned_subnets(data)]

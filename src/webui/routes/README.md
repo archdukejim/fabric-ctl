@@ -32,3 +32,6 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `overview_post.py` | The Overview's jobs: Run doctor, and update or roll back one service's image; then the job's page |
 | `networks_page.py` | The Networks tab: a site's VLANs and subnet maps, one subnet's address table, a search, the CSV export |
 | `networks_post.py` | The Networks tab's changes: the site's number, VLANs, subnets, ranges, addresses; back to the tab with the outcome |
+| `settings_page.py` | The setup wizard's pages: a step filled in with today's settings; the settings file's download |
+| `settings_post.py` | The setup wizard's forms: Back and Next, the plan (typed or imported), Apply after a recent sign-in, Dismiss |
+| `finish_setting_up.py` | The wizard on the Overview: Finish setting up until it is finished, and the first Overview of a sign-in opening it |

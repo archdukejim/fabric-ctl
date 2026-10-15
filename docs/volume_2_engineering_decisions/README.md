@@ -44,13 +44,14 @@ Trade-offs, blockers, investigations, test results and history.
 - [2.3.5 Notes: Certificates: Step-CA](2.3.5-certificate-notes.md)
 - [2.3.6 Notes: Identity: the directory and sign-in](2.3.6-identity-notes.md)
 - [2.3.7 Notes: Secrets: OpenBao](2.3.7-openbao-notes.md)
+- [2.3.8 Notes: The web UI](2.3.8-webui-notes.md)
 - [2.3.9 Notes: Federation](2.3.9-federation-notes.md)
 - [2.3.10 Notes: DHCP: Kea](2.3.10-dhcp-notes.md)
 - [2.3.11 Notes: 802.1X: FreeRADIUS](2.3.11-radius-notes.md)
 - [2.3.12 Notes: The DNS filter](2.3.12-dns-filter-notes.md)
 - [2.3.14 Notes: Container images](2.3.14-image-notes.md)
 
-Nothing yet for 2.3.3, 2.3.8, 2.3.13, 2.3.15, 2.3.16, 2.3.17 (they follow chapters 1.3, 1.8, 1.13, 1.15, 1.16, 1.17).
+Nothing yet for 2.3.3, 2.3.13, 2.3.15, 2.3.16, 2.3.17 (they follow chapters 1.3, 1.13, 1.15, 1.16, 1.17).
 
 ## Assets
 
