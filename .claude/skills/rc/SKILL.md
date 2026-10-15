@@ -1,6 +1,6 @@
 ---
 name: rc
-description: Build fabric's release candidate on rc/<version> and open the pull request to main (decision 2.1.1.40). Use when the owner runs /rc or asks for a release candidate. Bumps the version, publishes and pins the images, runs every suite, the sandbox, the image-update test and the test-Pi upgrade test, fixes what they find, then opens the PR. Never merges.
+description: Build fabric's release candidate on rc/<version> and open the pull request to main (decision 2.1.1.40). Use when the owner runs /rc or asks for a release candidate. Bumps the version, publishes and pins the images, runs every suite, the sandbox, the image-update test, the test-Pi upgrade test and the rehearsal of every setup route, fixes what they find, then opens the PR. Never merges.
 ---
 
 # /rc: fabric's release candidate
@@ -27,6 +27,11 @@ Arguments: the version (e.g. `0.6.4`); without one, ask.
    **Ask the owner before wiping it.** Then the upgrade test from the previous release
    (`tests/host/upgrade.sh`, `FROM=<previous>`, `TO_SUITE=testing`, no answers given ahead), and the host suite on a
    fresh install (purge first: `APT_SUITE=testing tests/host/run.sh`).
+   **The rehearsal, before the owner tests** (3.14.1.4 step 4, 2.1.1.54): every setup route on a clean Pi from apt
+   testing — unattended (`tests/host/run.sh` above) and interactive, Guided then Advanced with every default left
+   (`tests/host/installer.py`, after `apt install fabricctl` on the purged Pi) — then look as a user would: the landing
+   page at `http://<host ip>/certs/` and the console at its name. Leave the Pi purged with only `fabricctl` installed
+   for the owner's own install, which is acceptance, not discovery.
 7. **Fix what they find**: each fix with its test and docs, through the gate, committed and pushed. Re-run what it
    touches (a new `.deb` to apt testing first when host code changed; images only when an image's sources did:
    `source_hash.py --check` says). Record every run and finding in the release's notes.

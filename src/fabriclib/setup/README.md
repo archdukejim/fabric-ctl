@@ -46,6 +46,7 @@
 | `create_admin.py` | First web UI admin: a person in the domain, in the admin group, forced password change, client `.p12`, root CA and README in `~/fabric-admin` |
 | `print_first_steps.py` | Setup's last words: the root certificate from the landing page first, then sign in (2.1.1.41) |
 | `verify_install.py` | End-to-end checks (DNS, HTTPS chains, web UI gates, time, services) |
+| `wait_ready.py` | The `ready` step: waits until the landing page, sign-in, the console and Keycloak's database answer together before setup says it is ready (2.1.2.25) |
 | `retire_renamed_units.py` | Upgrade: stop and remove units/containers that were renamed (`webui` → `fabric-web`) |
 | `retire_adguard.py` | Upgrade to 0.7: AdGuard Home leaves the host (units, containers, folders, image, secrets, accounts) |
 | `uninstall.py` | Remove fabric (only fabric's own objects) |

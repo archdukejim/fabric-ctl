@@ -148,9 +148,11 @@ def run(ctx):
         os.makedirs(os.path.dirname(record), mode=0o700, exist_ok=True)
         with open(record, "a") as f:         # kept for uninstall to put back
             f.write("".join(r + "\n" for r in own))
+        warn(f"host firewall: removing {len(own)} rule(s) of this host's own (own_rules, 2.1.2.24); kept for uninstall "
+             f"to put back, or now: sudo fabricctl setup --undo firewall")
         for r in own:
             subprocess.run(["ufw", "delete", *r.split()[1:]], capture_output=True)
-            info(f"host firewall: the host's own rule removed: {r}")
+            warn(f"host firewall: removed the host's own rule: {r}")
     subprocess.run(["ufw", "--force", "enable"], check=True, capture_output=True)
 
     lib = os.path.join(ctx.target_dir, "lib")

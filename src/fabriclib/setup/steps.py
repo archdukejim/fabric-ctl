@@ -4,7 +4,7 @@ from fabriclib.setup import (condition_host, configure_firewall, configure_netwo
                              deploy_config, ensure_db_rotation,
                              harden_docker, init_pki, join_federation, join_host_domain, mint_service_certs, preflight,
                              setup_openbao,
-                             start_bootstrap, start_services, verify_install)
+                             start_bootstrap, start_services, verify_install, wait_ready)
 
 STEPS = [
     ("preflight", preflight.run, "check architecture, OS, RAM, cgroup memory controller, ports"),
@@ -27,4 +27,6 @@ STEPS = [
      "Keycloak's database password: Postgres's own admin, OpenBao's database engine (rotated monthly)"),
     ("admin", create_admin.run, "first web UI admin: a person in the domain, client certificate, login kit"),
     ("verify", verify_install.run, "end-to-end checks (same as fabricctl doctor)"),
+    ("ready", wait_ready.run, "wait until the landing page, sign-in and the console answer and Keycloak's database "
+                              "has settled"),
 ]

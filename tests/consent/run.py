@@ -1222,6 +1222,12 @@ check("host changes: the ports turned off show what that means and take securing
       and "If no: ufw is not told about fabric's ports" in out and "also off: Secure this host" in out
       and "also off: The host's own firewall rules" in out and "also on: Ports fabric needs" in out
       and "also on: Secure this host" in out, (c.host_choices, out[-2500:]))
+c = new_ctx()
+got, out, left = drive(lambda: m_menu.setup_menu(c, NETS), ["3", "Acme", "7", "", "p"],
+                       secrets=["Good-Pass-12345", "Good-Pass-12345"])
+check("Proceed with the DC's name item left alone saves its suggestion, dc-<hostname> (the 0.7.1 candidate's install "
+      "left it unset and the DC took the host's name, 2.3.1.21.2)",
+      got is None and not left and c.vars.get("dc_name") == "dc-fab1", (c.vars.get("dc_name"), left, out[-1500:]))
 got, _, _ = drive(lambda: m_menu.setup_menu(new_ctx(), NETS), ["q"])
 check("negative: Quit in the menu changes nothing and stops setup", isinstance(got, SystemExit), got)
 
@@ -1267,6 +1273,9 @@ check("…it lists the memory split and every host change on, with its changes; 
       "kept for the host" in out and "Packages (required)  changed since it was allowed" in out
       and "+ apt: install y" in out and "- apt: install x" in out and "Not made (declined; [M]enu to change):" in out
       and "Docker daemon settings: the Docker daemon is not hardened" in out, out[-2500:])
+check("…the host's own firewall rules it removes said apart, one by one, with how to keep them (2.1.2.24)",
+      "Firewall rules of this host's own that fabric will REMOVE (1):" in out and "x o" in out
+      and "--decline own_rules" in out, out[-2500:])
 check("…and the menu's changes were saved with the settings (fabric.yaml)",
       os.path.exists(os.path.join(pc.config_dir, "fabric.yaml")))
 
@@ -1282,6 +1291,13 @@ pc.non_interactive = True
 got, out, left = drive(lambda: choose_plan(pc, lambda: (mv, changes)), ["p"])
 check("unattended: the plan and its host changes shown, nothing asked (--approve / --decline answer)",
       got is None and left == ["p"] and "Packages (required)" in out, (got, left))
+pc.host_choices = {**pc.host_choices, "own_rules": False}
+pc.non_interactive = False
+got, out, left = drive(lambda: choose_plan(pc, lambda: (mv, changes)), ["p"])
+check("negative: the host's own rules turned off: no REMOVE block; they show under Not made, kept",
+      "will REMOVE" not in out and "the host's own rules stay" in out and got["own_rules"] is False, (got, out[-1500:]))
+pc.host_choices = {**pc.host_choices, "own_rules": True}
+pc.non_interactive = True
 pc.non_interactive = False
 
 # where the menu's host changes start: earlier answers, --approve, --decline; what needs a declined one is off too

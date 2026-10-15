@@ -47,7 +47,7 @@ services:
         limits:
           memory: {{ memory_mb('postgres') }}M
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      test: ["CMD-SHELL", "pg_isready -U {{ keycloak_db_user | default('keycloak') }} -d keycloak"]
       interval: 10s
       timeout: 5s
       retries: 5
