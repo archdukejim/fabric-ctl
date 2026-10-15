@@ -286,6 +286,41 @@ try:
 except ValidationError as e:
     check("refused loudly: the firewall step failing; the USN not kept, so the next run tries again",
           "firewall" in str(e) and poll()["state"] != "unchanged", e)
+print("--- a plan with no subnet to serve yet (2.1.10.31)")
+USN["n"] = 105
+before_calls, before_audit = dict(calls), len(audit)
+
+
+def empty_plan(v, s, of, container):
+    out = answer(SITE)(v, s, of, container)
+    out["plans"]["lan"] = {**out["plans"]["lan"], "subnets": [{**x, "dhcp": False}
+                                                               for x in out["plans"]["lan"].get("subnets") or []]}
+    return out
+
+
+bare = poll(read_plan=empty_plan)
+check("no subnet with a DHCP range: not a failure; nothing rendered, the firewall left, nothing audited; why says to "
+      "define the subnet first", bare["state"] == "no subnet" and calls == before_calls and len(audit) == before_audit
+      and "Define the subnet first" in bare["why"] and "best practice" in bare["why"], (bare, calls))
+check("...the USN kept: the next run is quiet until the plan changes", poll(read_plan=empty_plan)["state"]
+      == "unchanged")
+USN["n"] = 106
+same = poll()
+check("the subnet back as Kea last had it: same plan (Kea was left as it was), nothing rendered",
+      same["state"] == "same plan" and calls == before_calls, (same, calls))
+USN["n"] = 107
+back = poll(read_plan=answer({**SITE, "options": [{"name": "domain-name", "data": "y.lan"}]}))
+check("a subnet with a range and a change: Kea is rendered", back["state"] == "rendered"
+      and calls["render"] == before_calls["render"] + 1, (back, calls))
+import fabriclib.ipam.options.run_option_command as m_roc  # noqa: E402
+real_poll = m_roc.poll_plan
+m_roc.poll_plan = lambda v, container="samba", secrets=None: {"state": "no subnet", "usn": 108, "why": m_poll.NO_SUBNET}
+buf = io.StringIO()
+with redirect_stdout(buf):
+    rc = m_roc.run_option_command({"site_name": "lan", "install_kea": True}, "watch", ["--scheduled"], secrets={})
+check("fabricctl ipam watch --scheduled says why when there is nothing to serve (the unit's journal)", rc == 0
+      and "plan poll: no subnet" in buf.getvalue() and "Define the subnet first" in buf.getvalue(), buf.getvalue())
+m_roc.poll_plan = real_poll
 print("--- what DNS was rendered from is kept only once BIND took it (2.3.10.5.6)")
 import fabriclib.ipam.load_address_plan as m_lap  # noqa: E402
 from fabriclib.ipam.options.watch_state import load_watch_state  # noqa: E402

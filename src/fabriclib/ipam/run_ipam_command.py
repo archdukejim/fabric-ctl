@@ -233,6 +233,8 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
             out = sync_plan(v, "root", container=container, secrets=secrets)
             print(f"plan poll: {out['state']}" + ("; Kea restarted" if out["kea_restarted"] else "; Kea unchanged")
                   + ("; firewall brought in line" if out["firewall"] else ""))
+            if out.get("why"):
+                print(out["why"])
             print("DNS: " + (("published: " + (", ".join(out["dns"]["zones"]) or "nothing changed in the zones"))
                              if out["dns"] else "already in line with the plan"))
             return 0

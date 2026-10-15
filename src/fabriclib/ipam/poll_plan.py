@@ -17,6 +17,11 @@ from fabriclib.secrets.load_secrets import load_secrets
 from fabriclib.security.refresh_firewall import refresh_firewall
 
 
+NO_SUBNET = ("DHCP is on, but this site's plan has no subnet with a DHCP range yet: nothing for Kea to serve, so it "
+             "is left as it is. Define the subnet first, then its DHCP range (best practice: the range is part of the "
+             "subnet): fabricctl ipam vlan add, or the console's Networks tab")
+
+
 def _scans_done(out):
     """Purpose: a run's result, failing loudly when the scan requests could not be answered (after Kea's part, so Kea
              is never held back by them): the unit fails and its status says why.
@@ -46,7 +51,8 @@ def poll_plan(v, container="samba", secrets=None, render=render_kea, firewall=re
              function(v, secrets, container) -> run_scan_requests' result (default run_scan_requests; tests give
              their own).
     Returns: {"state": "off" (Kea not installed), "not upgraded" (the subnets still in the settings), "unchanged" (the
-             USN did not move), "same plan" (it moved, Kea's input did not), "busy" (an apply holds the settings),
+             USN did not move), "same plan" (it moved, Kea's input did not), "no subnet" (the plan has no subnet with a
+             DHCP range: nothing rendered, "why" says so, 2.1.10.31), "busy" (an apply holds the settings),
              "rendered"; "kea_restarted" (bool), "firewall" (bool: brought in line), "dns_pending" (bool: published
              names or subnets changed since the last apply rendered DNS), "usn", "scans" (run_scan_requests' result,
              or {"error": why} when the requests could not be answered; absent when the domain was not read)}.
@@ -78,9 +84,14 @@ def poll_plan(v, container="samba", secrets=None, render=render_kea, firewall=re
         pending = bool(state.get("dns")) and state["dns"] != load_watch_state("plan-dns").get("dns")
         return _scans_done({"state": "unchanged", "usn": now, "dns_pending": pending, "scans": asked})
     site = v["site_name"]
-    digest = plan_digest(plan_to_dhcp(site_plan(read(v, secrets, of=site, container=container), site)))
+    served = plan_to_dhcp(site_plan(read(v, secrets, of=site, container=container), site))
+    digest = plan_digest(served)
     dns_pending = digest["dns"] != load_watch_state("plan-dns").get("dns")
     out = {"usn": now, "dns_pending": dns_pending, "kea_restarted": False, "firewall": False, "scans": asked}
+    if not any(s.get("pools") for s in served["subnets"]):
+        # nothing for Kea to serve yet (2.1.10.31): not a failure; the next change to the plan moves the USN again
+        save_watch_state("plan-watch", {**state, "usn": now, "dns": digest["dns"]})
+        return _scans_done({**out, "state": "no subnet", "why": NO_SUBNET})
     if digest["kea"] == state.get("kea"):
         save_watch_state("plan-watch", {**state, "usn": now, "dns": digest["dns"]})
         return _scans_done({**out, "state": "same plan"})

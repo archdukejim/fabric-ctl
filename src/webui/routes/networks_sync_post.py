@@ -19,5 +19,5 @@ def networks_sync_post(h, form):
     msg = ("Synced: " + ("Kea restarted" if res.get("kea_restarted") else "Kea already in line")
            + ("; firewall brought in line" if res.get("firewall") else "")
            + ("; DNS published (" + (", ".join(dns.get("zones") or []) or "no zone changed") + ")" if dns
-              else "; DNS already in line") + ".")
+              else "; DNS already in line") + "." + (" " + res["why"] if res.get("why") else ""))
     return h.redirect("/networks?" + urllib.parse.urlencode({"msg": msg}))

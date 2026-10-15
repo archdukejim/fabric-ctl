@@ -70,4 +70,5 @@ def sync_plan(v, actor, source="cli", container="samba", secrets=None, poll=poll
                               f"BIND's records were not published: {error}. Sync again once it is fixed, or apply "
                               "(sudo fabricctl --apply)")
     return {"state": out.get("state"), "kea_restarted": bool(out.get("kea_restarted")),
-            "firewall": bool(out.get("firewall")), "dns_pending": bool(out.get("dns_pending")), "dns": dns}
+            "firewall": bool(out.get("firewall")), "dns_pending": bool(out.get("dns_pending")), "dns": dns,
+            **({"why": out["why"]} if out.get("why") else {})}

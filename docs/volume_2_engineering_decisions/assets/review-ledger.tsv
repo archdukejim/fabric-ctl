@@ -30,7 +30,7 @@ docs/volume_1_description_and_architecture/1.1.9-optional-parts.md	60e6775054c12
 docs/volume_1_description_and_architecture/1.10.1-kea-design.md	0e8b6720aa82c79132444cd5a6e1a3893173246b	2026-10-10	
 docs/volume_1_description_and_architecture/1.10.2-dhcp-management.md	aceaf8c28259d98538176d44a300de71006e3e4f	2026-10-12	
 docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	5945ed43c7c8c6d3834cb4eff4f3eac0e1937850	2026-10-13	
-docs/volume_1_description_and_architecture/1.10.4-address-manager.md	c73b55481526da6a19cdc2144f1aaee059fbc6d7	2026-10-14	
+docs/volume_1_description_and_architecture/1.10.4-address-manager.md	11d6f7a21a099446cd227ebc8ecfd50ea0256aed	2026-10-15	
 docs/volume_1_description_and_architecture/1.11.1-freeradius-design.md	53be8bfe3baba02927c9b7b66dd4d02282115356	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.1-adguard.md	b2280752ee06e87cb6e1497fdb91651e589b6a4d	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.2-bind-resolver.md	d8567bcd4a8f0e8952d4f61e946b5db370e536c0	2026-10-13	
@@ -62,11 +62,11 @@ docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	16f0c8b30
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	9fa688001068b61ddcf6cc50ec2737c20a0155ec	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	9db18b7001c1967177f6a2f19b49b773b11aa82a	2026-10-09	
 docs/volume_1_description_and_architecture/1.17.28-installers.md	986b323d7a4ca2e8cbf71d23fdd677f464f51139	2026-10-08	
-docs/volume_1_description_and_architecture/1.17.29-webui.md	7a43571db2ae997c3eb81fa5783a893daa39c816	2026-10-15	
+docs/volume_1_description_and_architecture/1.17.29-webui.md	df3d99509cd4506b2138a037250ef7e37c9a073c	2026-10-15	
 docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	f6ecffafe14e332b2b0ce01080825441730da9b4	2026-10-14	
 docs/volume_1_description_and_architecture/1.17.30-fabriclib-samba.md	a83da149f59e517f53270b120fd2f563c95b31ea	2026-10-15	
 docs/volume_1_description_and_architecture/1.17.31-fabriclib-directory.md	059c057e710e394c3fc1f0f9645135f8a56579ea	2026-10-14	
-docs/volume_1_description_and_architecture/1.17.32-fabriclib-ipam.md	dcaf95d58850e14274d2714a70b5807b2cdfbd66	2026-10-15	
+docs/volume_1_description_and_architecture/1.17.32-fabriclib-ipam.md	ecbc135fd99e77062ae26bb268166a31b7413f9e	2026-10-15	
 docs/volume_1_description_and_architecture/1.17.33-fabriclib-settings.md	a81548e78566761f1f34710c44b0b68cbc9ccd07	2026-10-15	
 docs/volume_1_description_and_architecture/1.17.4-fabricctl-lib.md	76bc845876c679778c0588d379f7246a12fae2d0	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	f3c997b92ca12e2aee51639c12164839952d5d6c	2026-10-15	
@@ -120,7 +120,7 @@ docs/volume_1_description_and_architecture/1.9.7-milestones.md	e58afe5eb9d02da03
 docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	0876ad0316394def5e4e2bd8c879ac252228442a	2026-10-13	
 docs/volume_1_description_and_architecture/README.md	62dcbf3bc86689c5db4fb6f75503a0c11188fdab	2026-10-15	
 docs/volume_2_engineering_decisions/2.1.1-product.md	814fdd2430e7a5d1a49bfb1fbf15fe5475d50aa7	2026-10-15	
-docs/volume_2_engineering_decisions/2.1.10-dhcp.md	0a117bf9c5f272c25ec3e43d35d1307dd115ef43	2026-10-14	
+docs/volume_2_engineering_decisions/2.1.10-dhcp.md	4a54555eddd604f2baef3a36f9709cd1b44a0071	2026-10-15	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	139ff5b3ecce15085a60e2ef8443933896633b00	2026-10-13	
 docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece98c5e28bc1c8	2026-10-08	
@@ -138,7 +138,7 @@ docs/volume_2_engineering_decisions/2.1.9-federation.md	0555c5348dabe3760e7e9941
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	3eacff0f6819f710e0e0aac8a2086f472508a949	2026-10-15	
-docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	59848cdfb80b502df84ffb1f67989ae6041f8e8e	2026-10-15	
+docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	7d57118846b2eb4c87774c1759f0538d42f01764	2026-10-15	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-13	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
@@ -827,7 +827,7 @@ src/fabriclib/ipam/options/read_usn.py	a950065e3aa6b4373c6689778e19223544d9c7d9	
 src/fabriclib/ipam/options/remove_plan_class.py	161f5cad6e55eb4ba088f40c3eb3546d06831e61	2026-10-13	
 src/fabriclib/ipam/options/remove_plan_option.py	456b1dc7d2b4ac500009432c0bdfb5e737860d76	2026-10-13	
 src/fabriclib/ipam/options/render_kea.py	3fb5bca2661a30b10896ac30246033a5a0beca32	2026-10-13	
-src/fabriclib/ipam/options/run_option_command.py	fc0738e7a3988fe434b6963efcb86c8652a32e6c	2026-10-13	
+src/fabriclib/ipam/options/run_option_command.py	c2b1809ef40263b59186a97213055381e8e63972	2026-10-15	
 src/fabriclib/ipam/options/scope_options.py	4333e2963ef187ab4e263b3222ca972fdd75ee99	2026-10-13	
 src/fabriclib/ipam/options/set_netboot.py	9446e01304f22bb8844fdb7f55f0149a854c0e90	2026-10-13	
 src/fabriclib/ipam/options/set_option_editor.py	d08e57f79ccd0938ef3128abc3221299f145c6fc	2026-10-13	
@@ -842,14 +842,14 @@ src/fabriclib/ipam/options/write_server.py	4cd6507fbdb3f01c24b9917e6adb04ad494a0
 src/fabriclib/ipam/plan_rows.py	21253546bac71e49815106044ac66a7a5fd1c80f	2026-10-12	
 src/fabriclib/ipam/plan_to_dhcp.py	4be129c8e87eb1dc2cd69d4e87acc0c15d987630	2026-10-13	
 src/fabriclib/ipam/planned_subnets.py	0e898b9c92c6c8574d63cfe5b36a3045813f92c2	2026-10-12	
-src/fabriclib/ipam/poll_plan.py	0c120f49638ae037a94e10fd13e45ef1258efa7a	2026-10-14	
+src/fabriclib/ipam/poll_plan.py	16a1cb7ff5789855faeb7940ede1084f56fcbabb	2026-10-15	
 src/fabriclib/ipam/read_plan.py	2f252debeb854656e3d7061897fe3b4a32884b8f	2026-10-12	
 src/fabriclib/ipam/remove_address.py	970b04311cf1581d8d476c366e81efcc4d65aa11	2026-10-12	
 src/fabriclib/ipam/remove_range.py	f024731af6241f544bbf85f7f92a5860e983e4cf	2026-10-12	
 src/fabriclib/ipam/remove_reservation_mac.py	7f25c67aba21514f35f50039d762ff346a77a61d	2026-10-13	
 src/fabriclib/ipam/remove_subnet.py	2a6f580ed6095eb3c454145c24d4f7aa30483027	2026-10-12	
 src/fabriclib/ipam/remove_vlan.py	6793561de274dee45cd075b5995d15c8bc559a24	2026-10-12	
-src/fabriclib/ipam/run_ipam_command.py	75db26422803d8da55bbf9662604cd56576b8001	2026-10-14	
+src/fabriclib/ipam/run_ipam_command.py	ed0a88f95b71660247214dd72e86196181e5230f	2026-10-15	
 src/fabriclib/ipam/scan_overview.py	4bfaa640d3b04b768135ed243be33e478a3fd41c	2026-10-14	
 src/fabriclib/ipam/scan_subnet.py	ee8aabf7fd4f3c5b4d46f5aef97ce9c7690df34b	2026-10-14	
 src/fabriclib/ipam/scancontrol/README.md	b0a30333efd53f02620e7d9c763ded72fd88ae18	2026-10-14	
@@ -885,7 +885,7 @@ src/fabriclib/ipam/subnet_options.py	504631d9d48604cd98ad7207b2d582a645152461	20
 src/fabriclib/ipam/subnets_to_plan.py	9b6243ba6e27e433436e40487c3096e2b04c7ff0	2026-10-12	
 src/fabriclib/ipam/suggestions.py	38149f2aa85604d7e52814ee287dcb1ac870a481	2026-10-12	
 src/fabriclib/ipam/sync/README.md	64aec08562c3a4f4294b559b1e0833b0a43e4c25	2026-10-13	
-src/fabriclib/ipam/sync/sync_plan.py	d4b361092e2bbc7195c1c74242efbecb30bd1cea	2026-10-13	
+src/fabriclib/ipam/sync/sync_plan.py	50c97924fc1dea2b1885a6a70f8430a5d4cad80b	2026-10-15	
 src/fabriclib/ipam/sync/sync_status.py	dc9d3e039cbad5179739567ed854147705b096a6	2026-10-13	
 src/fabriclib/ipam/visible_sites.py	0aa8ca972a297f44845cfff449c1a7ed1da31f1b	2026-10-13	
 src/fabriclib/ipam/write_plan.py	69b292e42ea7c653c3fef6c8dab8d1368867cd6b	2026-10-13	
@@ -1385,7 +1385,7 @@ src/webui/agentclient/settings_plan.py	6472b0061acff1b4ea7e55f3a2ea7ca74c32878b	
 src/webui/agentclient/sign_csr.py	dcb95e10b46f30a05de7979eba03311d1690e249	2026-10-03	
 src/webui/agentclient/start_job.py	22bcabc998c2268dd94883f79bc31b137948c761	2026-10-09	
 src/webui/agentclient/sudo_rule_change.py	b437af51b725a5ddf038f1942754f729f0ce133b	2026-10-13	
-src/webui/agentclient/sync_now.py	34b7d38ffb779f8d8a74dabeab7b7a2480bbda43	2026-10-13	
+src/webui/agentclient/sync_now.py	27da71e674aa02e81a420b8c07ce3f542909b215	2026-10-15	
 src/webui/agentclient/unmap_radius_group.py	8a649e827fd9c915f7fef1d9ac559a28f20c52bc	2026-10-13	
 src/webui/agentclient/unset_option.py	eff1a11f3646f4270ce07deaca91868ce45a4002	2026-10-13	
 src/webui/agentclient/update_subnet.py	a4473b6d48fe50f5a2f2a0cc3f671cf62a3ab4b9	2026-10-13	
@@ -1444,7 +1444,7 @@ src/webui/routes/networks_page.py	61d426435f77458716479c756270160cc3c851f1	2026-
 src/webui/routes/networks_post.py	0b06e0694161fcec29136d538a28eaf20e9ffe9e	2026-10-13	
 src/webui/routes/networks_scan_page.py	0a69cef3cdfa78de568dc0d0b6ab4592256a7f42	2026-10-14	
 src/webui/routes/networks_scan_post.py	245929e942056904dd57432fd9db84a4b0eec85f	2026-10-14	
-src/webui/routes/networks_sync_post.py	59c94edcfc35a525a3ee254925c29ebbfb94766b	2026-10-13	
+src/webui/routes/networks_sync_post.py	3d51b3c3577865b9d8e499865ffbcde97d280309	2026-10-15	
 src/webui/routes/openbao_page.py	ddb4c08409342e8881016d21d8f4a58b9e4461e2	2026-10-02	
 src/webui/routes/options_page.py	00e87fd933d489f3f91797f96ec2549eae3a2cee	2026-10-13	
 src/webui/routes/options_post.py	e1d25adfbfbb8b3f646f110782c9f248728484f2	2026-10-13	
@@ -1704,7 +1704,7 @@ tests/images/update.sh	075211f0db5332572d6355fbdc507ae98a69c8b8	2026-10-13
 tests/images/verify.py	a00728895b0d367ff144663dca8b9275fb002392	2026-10-13	
 tests/ipam/README.md	2e834d777f1b3af70a865d2b4f76626473797844	2026-10-14	
 tests/ipam/networks.py	1c4282c87ff2eeac466a7f5179c9c50c61e9ae8d	2026-10-13	
-tests/ipam/options.py	fd3fe734dc27ae4cd4128810d5ae1ee8b85249ff	2026-10-14	
+tests/ipam/options.py	69f328b5935e09b0ad49d3dba276c3a52b8acca7	2026-10-15	
 tests/ipam/run.py	6365cb286e2ae52fa4b2721da44ba9fbe1cde10c	2026-10-12	
 tests/ipam/scan.py	94dca2d0634151331535a50c8114bd988a9743f1	2026-10-14	
 tests/ipam/scan_policy.py	baba151d6fb75b94472858baa12bde1852c12de4	2026-10-13	

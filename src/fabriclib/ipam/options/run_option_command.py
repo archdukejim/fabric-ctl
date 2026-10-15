@@ -115,10 +115,12 @@ def run_option_command(v, cmd, args, secrets=None, container="samba"):
         sub, rest = (pos[0], pos[1:]) if pos else ("", [])
         if cmd == "watch" and not pos:
             out = poll_plan(v, container=container, secrets=secrets)
-            if "--scheduled" not in bare or out["state"] == "rendered":
+            if "--scheduled" not in bare or out["state"] in ("rendered", "no subnet"):
                 print(f"plan poll: {out['state']}" + (f" (USN {out['usn']})" if out.get("usn") else "")
                       + ("; Kea restarted" if out.get("kea_restarted") else "")
                       + ("; firewall brought in line" if out.get("firewall") else ""))
+            if out.get("why"):
+                print(out["why"])
             if out.get("dns_pending"):
                 print("an apply is needed: the plan's published names or subnets changed (sudo fabricctl --apply)")
             return 0
