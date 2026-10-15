@@ -189,7 +189,7 @@ old = {"hostname": "fab", "cname_certs": "certs", "hostname_certs": "certs.lan.t
                                              {"canonical": "nas", "name": "certs2"}]}}}
 changes = [c for c in upgrade_vars(old, set()) if "certs" in c]
 check("a vars file without dc_name is not given one at the upgrade (keep_old_install deleted 2026-10-13, S10): the "
-      "template's dc-<hostname> applies", "dc_name" not in old, old)
+      "template's <hostname>-dc applies", "dc_name" not in old, old)
 check("an older install's certs.<domain>: cname_certs, hostname_certs and its CNAME removed, other CNAMEs kept",
       "cname_certs" not in old and "hostname_certs" not in old and len(changes) == 2
       and [r["name"] for r in old["dns"]["dynamic_zone_var"]["CNAME"]] == ["ca", "certs2"], (old, changes))
@@ -449,7 +449,7 @@ asked = {key: prompts(lambda key=key: ask_setting(key, default), [default])[0]
 asked["ad_domain"] = prompts(lambda: ask_ad_domain(q), [""])[0]
 asked["dc_name"] = prompts(lambda: ask_dc_name(q), [""])[0]
 # covers: ask:setup.dc_name setting:dc_name +
-check("the DC's name: Enter takes the suggestion dc-<hostname>", q.vars["dc_name"] == "dc-pi", q.vars)
+check("the DC's name: Enter takes the suggestion <hostname>-dc", q.vars["dc_name"] == "pi-dc", q.vars)
 q_dc = types.SimpleNamespace(vars={"hostname": "pi", "ad_domain": "ad.lan.test"}, non_interactive=False)
 seen_dc = prompts(lambda: ask_dc_name(q_dc), ["dc_1", "ad", "DC-Garage"])
 # covers: ask:setup.dc_name -
@@ -459,7 +459,7 @@ check("the DC's name: a name the DC cannot have (an underscore, the domain's Net
 q_host = types.SimpleNamespace(vars={"hostname": "pi", "ad_domain": "ad.lan.test"}, non_interactive=False)
 out_host = io.StringIO()
 with contextlib.redirect_stdout(out_host):
-    feed_host = iter(["PI", "dc-pi"])
+    feed_host = iter(["PI", "pi-dc"])
     real_in = builtins.input
     builtins.input = lambda prompt="": next(feed_host)
     try:
@@ -468,7 +468,7 @@ with contextlib.redirect_stdout(out_host):
         builtins.input = real_in
 # covers: ask:setup.dc_name -
 check("the DC's name: the host's own name is refused (the host joins the domain under it, 2.1.6.51), saying why, and "
-      "asked again", q_host.vars["dc_name"] == "dc-pi" and "this host's own name" in out_host.getvalue(),
+      "asked again", q_host.vars["dc_name"] == "pi-dc" and "this host's own name" in out_host.getvalue(),
       (q_host.vars, out_host.getvalue()))
 q_unatt = types.SimpleNamespace(vars={"hostname": "pi", "ad_domain": "ad.lan.test", "dc_name": "pi"},
                                 non_interactive=True)
@@ -603,7 +603,7 @@ check("sssd.conf: the host's own name, the OU's log-on policy (GPO access enforc
       "access_provider = ad\n" in sssd and "ad_gpo_access_control = enforcing\n" in sssd
       and "ad_access_filter" not in sssd
       and "ad_hostname = fab1.ad.test\n" in sssd and "simple_allow" not in sssd
-      and "sudo_provider = ad\n" in sssd and "ad_server = dc-fab1.ad.test\n" in sssd and "dyndns_update = false" in sssd
+      and "sudo_provider = ad\n" in sssd and "ad_server = fab1-dc.ad.test\n" in sssd and "dyndns_update = false" in sssd
       and sssd.startswith("# fabric"), sssd)
 renew_sssd = render_member_files(renew)["/etc/sssd/sssd.conf"]
 rodc_sssd = render_member_files({**renew, "ad_dc_type": "rodc"})["/etc/sssd/sssd.conf"]
@@ -620,7 +620,7 @@ check("a nested site's host also reads the rules of each site above it",
       "OU=sudoers,OU=edge,OU=hq,OU=sites,DC=ad,DC=test?onelevel??OU=sudoers,OU=hq,OU=sites,DC=ad,DC=test?onelevel??"
       in nested, nested)
 check("krb5.conf: the realm, its KDC this host's DC",
-      "default_realm = AD.TEST" in files["/etc/krb5.conf"] and "kdc = dc-fab1.ad.test" in files["/etc/krb5.conf"])
+      "default_realm = AD.TEST" in files["/etc/krb5.conf"] and "kdc = fab1-dc.ad.test" in files["/etc/krb5.conf"])
 nss = "passwd:         files systemd\ngroup:          files systemd\nshadow:         files\nhosts: files dns\n"
 once = jh._with_sss(nss)
 check("nsswitch: sss after the files for passwd and group, a sudoers line added; a second pass changes nothing",
@@ -1193,8 +1193,8 @@ check("required items ask guided mode's questions with its checks: the organisat
 check("the AD domain: Enter takes the suggestion (ad.lan.test); the CA's lifetime 5 years after 0 refused",
       v["ad_domain"] == "ad.lan.test" and v["cert_root_ca_days"] == 5 * 365 and "a whole number of years" in out, v)
 # covers: ask:setup.dc_name +-
-check("the DC's name item: dc-<hostname> suggested; a name the DC cannot have refused and asked again, then kept in "
-      "lower case", v["dc_name"] == "dc-office" and "dc-fab1 (suggested)" in out and "1-15 letters" in out, v)
+check("the DC's name item: <hostname>-dc suggested; a name the DC cannot have refused and asked again, then kept in "
+      "lower case", v["dc_name"] == "dc-office" and "fab1-dc (suggested)" in out and "1-15 letters" in out, v)
 # covers: ask:setup.part.* +-
 check("the parts: 802.1X on (an answer that is not y or n refused first), the DNS filter off",
       v["install_freeradius"] is True and v["dns_filter"] == "none" and "'maybe': answer y or n" in out, v)
@@ -1225,9 +1225,9 @@ check("host changes: the ports turned off show what that means and take securing
 c = new_ctx()
 got, out, left = drive(lambda: m_menu.setup_menu(c, NETS), ["3", "Acme", "7", "", "p"],
                        secrets=["Good-Pass-12345", "Good-Pass-12345"])
-check("Proceed with the DC's name item left alone saves its suggestion, dc-<hostname> (the 0.7.1 candidate's install "
+check("Proceed with the DC's name item left alone saves its suggestion, <hostname>-dc (the 0.7.1 candidate's install "
       "left it unset and the DC took the host's name, 2.3.1.21.2)",
-      got is None and not left and c.vars.get("dc_name") == "dc-fab1", (c.vars.get("dc_name"), left, out[-1500:]))
+      got is None and not left and c.vars.get("dc_name") == "fab1-dc", (c.vars.get("dc_name"), left, out[-1500:]))
 got, _, _ = drive(lambda: m_menu.setup_menu(new_ctx(), NETS), ["q"])
 check("negative: Quit in the menu changes nothing and stops setup", isinstance(got, SystemExit), got)
 
