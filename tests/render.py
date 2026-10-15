@@ -752,7 +752,8 @@ for _m, _mode in (("tls", "machine"), ("ttls", "user")):
     _xml = _t.split("Set-Content -Path $xml -Encoding Ascii -Value @'\n", 1)[1].split("'@", 1)[0]
     _root = _ET.fromstring(_xml.split("?>", 1)[1])
     assert _root.tag.endswith("LANProfile") and f"<authMode>{_mode}</authMode>" in _xml
-    assert "Rr1" not in _t and "Sw1tchSecret" not in _t and "PRIVATE KEY" not in _t, "public data only"
+    _pub = _t.replace(_pem.strip(), "")   # the CA's base64 may hold "Rr1" by chance (about 1 run in 160)
+    assert "Rr1" not in _pub and "Sw1tchSecret" not in _pub and "PRIVATE KEY" not in _t, "public data only"
 assert "-Pfx" in _g["windows"]["tls"]["script"] and "<Type xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">21<" \
     in _g["windows"]["ttls"]["script"] and "<PAPAuthentication />" in _g["windows"]["ttls"]["script"]
 print("802.1X guides: Windows scripts (CA, pinned server, well-formed profiles, CRLF, public data only)")
