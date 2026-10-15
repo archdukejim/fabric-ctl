@@ -19,7 +19,7 @@ def _mtime(path):
 
 def freeze_and_install(zone, src, dst, uid, gid, wait=3.0):
     """Purpose: put a rendered zone file in place under a running BIND that is about to restart (manual 1.4.1,
-             2.3.10.10.4): freeze the zone so BIND writes its journal into the file (what DHCP and RFC2136 registered,
+             2.3.1.22): freeze the zone so BIND writes its journal into the file (what DHCP and RFC2136 registered,
              2.1.10.7), wait until that write has landed, then install the new file. `rndc freeze` answers before
              BIND's write is done; installed at once, the new file was replaced by BIND's copy of the old zone a moment
              later, and the restart then loaded the old zone (a changed setting's record not served).

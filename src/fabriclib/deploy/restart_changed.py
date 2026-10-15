@@ -3,6 +3,7 @@ import subprocess
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.deploy.compose_builds import compose_builds
+from fabriclib.dns.freeze_and_install import freeze_and_install
 from fabriclib.dns.install_zone_file import install_zone_file
 from fabriclib.dns.reload_zone import reload_zone
 from fabriclib.dns.rndc import rndc
@@ -95,9 +96,10 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
     bind9_live = "bind9" in running and "bind9" not in restart
     if not bind9_live:
         for zone, src, dst in state["zones"]:
-            if "bind9" in running:               # about to restart: sync its journal first (DHCP's PTRs, 2.1.10.7)
-                rndc(["freeze", zone])
-            install_zone_file(src, dst, *bind_ids)
+            if "bind9" in running:               # about to restart: sync its journal first (DHCP's PTRs, 2.1.10.7),
+                freeze_and_install(zone, src, dst, *bind_ids)       # BIND's write landed before the new file
+            else:
+                install_zone_file(src, dst, *bind_ids)
     restart_webui = "fabric-web" in restart or state["webui"]
     restart.discard("fabric-web")
     for folder in sorted(state["rebuild"]):
