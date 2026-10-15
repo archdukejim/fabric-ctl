@@ -5,6 +5,8 @@ import subprocess
 
 from fabriclib.common.console import info, ok, warn
 from fabriclib.images.constants import STATE as IMAGE_STATE
+from fabriclib.setup.detach.constants import HANDOFF_DIR, UNIT as SETUP_UNIT
+from fabriclib.setup.detach.unit_running import unit_running
 from fabriclib.setup.common.service_account_name import service_account_name
 from fabriclib.undo.remove_host_account import remove_host_account
 from fabriclib.undo.undo_firewall import undo_firewall
@@ -32,7 +34,8 @@ LOCAL_IMAGES = ["fabric/bind9:local", "fabric/stepca:local", "fabric/dirsrv:loca
 
 
 def uninstall(ctx):
-    """Purpose: remove fabric from this host: units, fabric.target, containers, fabric_net, local images, the
+    """Purpose: remove fabric from this host: a running setup (fabric-setup.service, stopped first, and any secrets
+             handed to one), units, fabric.target, containers, fabric_net, local images, the
              host changes it made (undo/: its firewall rules — ufw off again if it was off before —, the resolver,
              chrony's files, CA trust, the host's domain membership), data folders, the OpenBao key and runtime
              folders, the image rollback record (and /etc/fabric once empty), service accounts and the CLI wrapper
@@ -46,6 +49,11 @@ def uninstall(ctx):
     Fails:   OSError from shutil.rmtree for the external data and key folders or os.remove; every command
              failure (systemctl, docker, iptables, userdel, update-ca-certificates) is ignored.
     Feeds:   cli main (`reinstall`), run_uninstall_command."""
+    # a setup still running (2.1.2.26) would go on changing what is being removed: stopped first
+    if unit_running():
+        subprocess.run(["systemctl", "stop", SETUP_UNIT], capture_output=True)
+        ok(f"stopped {SETUP_UNIT} (a setup that was running)")
+    shutil.rmtree(HANDOFF_DIR, ignore_errors=True)     # secrets a run never read (1.3.2.3.4)
     ctx.load_state()
     v = ctx.vars
 
