@@ -118,7 +118,7 @@ check("...keeping the Kea id, router as gateway, notes, options, the pool as a d
                                                                         ("dhcp", "10.1.20.100", "10.1.20.200")]
       and iot["addresses"] == [{"ip": "10.1.20.20", "kind": "reservation", "name": "cam1", "mac": "aa:bb:cc:dd:ee:01",
                                 "owner": "", "notes": "", "dns": False,
-                                "options": [{"name": "boot-file-name", "data": "cam.bin"}]}], iot)
+                                "options": [{"name": "boot-file-name", "data": "cam.bin"}], "netboot": None}], iot)
 check("...the guest subnet's access on its VLAN", next(x for x in after["vlans"] if x["id"] == 1)["access"] == "guest")
 check("...the site given its number (its order in the organisation)",
       read_plan(V, SECRETS, container=DC)["sites"][0]["block"] == 1, lines)
@@ -773,6 +773,7 @@ check("refused: a second request for the same subnet while one is pending", code
 below()
 code, out = ipam("scan", "mgmt", "--site", "house5", v=house_v, secrets=house_s)
 check("refused by fabric: house2 asking its sibling", code == 1 and "not this site or one below it" in out, out)
+below("house2", "house5")         # lan's registry again: lan reads house2's requests below
 for who, v_, s_ in (("house2 in its own plan", house_v, house_s), ("its sibling house5", sib_v, sib_s)):
     try:
         write_scan_request(v_, s_, "add", "house2", "mgmt", "scan-20261013120000-00ff00",

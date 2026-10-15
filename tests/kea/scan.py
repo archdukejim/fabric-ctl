@@ -25,6 +25,7 @@ NET, SUBNET, KEA_IP = "keascan_net", "10.254.64.0/24", "10.254.64.2"
 KEA = "ks-dhcp4"
 FAILED = 0
 sys.path[0:0] = [os.path.join(REPO, "src"), REPO]
+from tests.common.kea_image import build_kea_image  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
@@ -33,6 +34,7 @@ from fabriclib.dhcp.check_kea_config import check_kea_config  # noqa: E402
 from fabriclib.dhcp.list_leases import list_leases  # noqa: E402
 from fabriclib.dhcp.normalize_dhcp import normalize_dhcp  # noqa: E402
 import fabriclib.ipam.scan_subnet as m_scan  # noqa: E402
+from fabriclib.ipam.scancontrol.local_scan_state import local_scan_state  # noqa: E402
 from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp  # noqa: E402
 
 
@@ -66,7 +68,7 @@ TARGETS = {"ks-squat": ("10.254.64.100", "02:00:00:00:64:64", []),        # set 
 
 
 def cleanup():
-    sh(["docker", "rm", "-f", KEA, "ks-c1", "ks-c2", *TARGETS], ok=False)
+    sh(["docker", "rm", "-f", KEA, "ks-c1", "ks-c1-up", "ks-c2", *TARGETS], ok=False)
     sh(["docker", "network", "rm", NET], ok=False)
 
 
@@ -77,10 +79,7 @@ lock, pkgs = read_images_lock(os.path.join(REPO, "config")), read_packages_lock(
 DEBIAN, BUSYBOX = lock["debian"]["ref"], \
     "busybox:1.37@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e"
 k = pkgs["kea"]
-build = sh(["docker", "build", "-q", "-t", "fabric/kea:test", "--build-arg", f"BASE_IMAGE={DEBIAN}",
-            "--build-arg", f"KEA_VERSION={k['version']}", "--build-arg", f"KEA_REPO={k['repo']}",
-            "--build-arg", f"KEA_SUITE={k['suite']}", "--build-arg", f"KEA_KEY_URL={k['key_url']}",
-            "--build-arg", f"KEA_KEY_FINGERPRINT={k['key_fingerprint']}", f"{REPO}/packaging/images/kea"], ok=False)
+build = build_kea_image()
 check("Kea's image builds, with fping for the scan", build.returncode == 0 and sh(
     "docker run --rm --entrypoint fping fabric/kea:test -v", ok=False).returncode == 0, build.stderr[-500:])
 
@@ -103,6 +102,7 @@ def render(ping_check):
     os.makedirs(f"{W}/kea/config", exist_ok=True)
     os.makedirs(f"{W}/kea/leases", exist_ok=True)
     os.makedirs(f"{W}/kea/run", exist_ok=True)
+    os.chmod(f"{W}/kea/run", 0o750)      # as the deploy makes it: Kea 3 refuses a socket folder looser than 750
     text = env.get_template("kea/kea-dhcp4.conf.j2").render(**v)
     with open(f"{W}/kea/config/kea-dhcp4.conf", "w") as f:
         f.write(text)
@@ -124,6 +124,12 @@ KEA_CMD = yaml.safe_load(env.get_template("kea/docker-compose.yml.j2").render(
 check("least privilege: the Kea container fabric renders has exactly NET_RAW and NET_BIND_SERVICE (none added for "
       "the scan)", sorted(KEA_CMD["cap_add"]) == ["NET_BIND_SERVICE", "NET_RAW"] and KEA_CMD["cap_drop"] == ["ALL"],
       KEA_CMD.get("cap_add"))
+
+
+# who may scan (2.1.10.30) is read from the domain, which this suite does not run: this site is the top one, where
+# local scans always run (the rule itself against a real DC: tests/samba/ipam.py)
+def top_site(v):
+    return local_scan_state({v["site_name"]: {"top": True}}, v["site_name"])
 
 
 def start_kea():
@@ -173,13 +179,16 @@ for f in os.listdir(f"{W}/kea/leases"):
 V, CFG = render(True)
 start_kea()
 ip1, out1 = client("ks-c1", "02:00:00:00:64:01")
+if ip1:     # udhcpc quits once it has the lease: the client keeps its address up as a device would, so the scan sees it
+    sh(["docker", "run", "-d", "--name", "ks-c1-up", "--network", NET, "--ip", ip1, "--mac-address",
+        "02:00:00:00:64:01", BUSYBOX, "sleep", "3600"])
 AUDIT = []
 m_scan.load_plan_cache = lambda: PLAN
 m_scan.write_audit = lambda actor, action, detail, source="cli", path=None: AUDIT.append((action, detail))
 STATE = f"{W}/scan-state"
 try:
     # covers: cli:ipam.scan agent:post.ipam.scan +
-    res = m_scan.scan_subnet(V, "root", SUBNET, container=KEA, state_dir=STATE)
+    res = m_scan.scan_subnet(V, "root", SUBNET, container=KEA, state_dir=STATE, local=top_site)
     err = ""
 except ValidationError as e:
     res, err = {"answering": []}, str(e)
@@ -198,9 +207,9 @@ check("the client's lease is a lease; the address Kea declined is in use, unreco
 check("the scan is audited", AUDIT and AUDIT[-1][0] == "IPAM_SCAN" and f"subnet={SUBNET}" in AUDIT[-1][1], AUDIT)
 # covers: cli:ipam.scan agent:post.ipam.scan -
 n = len(AUDIT)
-for typed, words in (("10.254.99.0/24", "not a subnet this site's DHCP serves"), (SUBNET, "scanned")):
+for typed, words in (("10.254.99.0/24", "not a subnet of this site's plan"), (SUBNET, "scanned")):
     try:
-        m_scan.scan_subnet(V, "root", typed, container=KEA, state_dir=STATE)
+        m_scan.scan_subnet(V, "root", typed, container=KEA, state_dir=STATE, local=top_site)
         why = "not refused"
     except ValidationError as e:
         why = str(e)

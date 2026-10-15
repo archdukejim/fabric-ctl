@@ -24,7 +24,7 @@ import time
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__)), REPO]
 # the USN poll (2.1.10.11, 2.1.10.24): one poll of the site's own DC, rendering Kea when what Kea is rendered from
 # changed (fabriclib/ipam/poll_plan, manual 1.10.4.26)
 POLL_MODULE, POLL_FUNCTION = "fabriclib.ipam.poll_plan", "poll_plan"
@@ -38,6 +38,7 @@ except (ImportError, AttributeError) as exc:
 
 from start_bind import start_bind  # noqa: E402
 from start_dc import POLICY, dc_tls, run_dc, start_dc  # noqa: E402
+from tests.common.kea_image import build_kea_image  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.dhcp.check_kea_config import check_kea_config  # noqa: E402
 from fabriclib.federation.next_id_block import next_id_block  # noqa: E402
@@ -199,8 +200,10 @@ reached = until(lambda: RES_IP in kea_conf() and RES_MAC in kea_conf(), CONTRACT
 took = time.time() - held
 check(f"an edit at the top reaches the house's Kea within {CONTRACT} s of reaching its DC (took {took:.0f} s, render "
       "included)", reached and took <= CONTRACT + 15, (POLL_ERRORS[-3:], kea_conf()[-600:]))
+built = build_kea_image()      # Kea's own check needs its image: built here, as the kea suite builds it
 try:
-    kea_ok = check_kea_config(V.get("image_kea") or "fabric/kea:local", "kea-dhcp4.conf", kea_conf())
+    kea_ok = (check_kea_config("fabric/kea:test", "kea-dhcp4.conf", kea_conf()) if built.returncode == 0
+              else "Kea's image did not build: " + built.stderr[-300:])
 except ValidationError as e:
     kea_ok = str(e)
 check("Kea accepts the configuration the house rendered", kea_ok is True, kea_ok)

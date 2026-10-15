@@ -26,6 +26,7 @@ VLANS = {61: "kearelay_v61", 62: "kearelay_v62", 63: "kearelay_v63"}
 KEA = "kr-dhcp4"
 FAILED = 0
 sys.path[0:0] = [os.path.join(REPO, "src"), REPO]
+from tests.common.kea_image import build_kea_image  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
@@ -72,14 +73,13 @@ cleanup()
 shutil.rmtree(W, ignore_errors=True)
 for d in ("config", "leases", "run"):
     os.makedirs(f"{W}/kea/{d}")
+os.chmod(f"{W}/kea/run", 0o750)      # as the deploy makes it: Kea 3 refuses a socket folder looser than 750
 lock, pkgs = read_images_lock(os.path.join(REPO, "config")), read_packages_lock(os.path.join(REPO, "config"))
 DEBIAN, BUSYBOX = lock["debian"]["ref"], \
     "busybox:1.37@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e"
 k = pkgs["kea"]
-sh(["docker", "build", "-q", "-t", "fabric/kea:test", "--build-arg", f"BASE_IMAGE={DEBIAN}",
-    "--build-arg", f"KEA_VERSION={k['version']}", "--build-arg", f"KEA_REPO={k['repo']}",
-    "--build-arg", f"KEA_SUITE={k['suite']}", "--build-arg", f"KEA_KEY_URL={k['key_url']}",
-    "--build-arg", f"KEA_KEY_FINGERPRINT={k['key_fingerprint']}", f"{REPO}/packaging/images/kea"])
+built = build_kea_image()
+check("Kea's image builds", built.returncode == 0, built.stderr[-500:])
 check("busybox has dhcprelay (the relays)", sh(["docker", "run", "--rm", BUSYBOX, "dhcprelay"], ok=False).stderr
       .lower().count("usage") > 0 or "dhcprelay" in sh(["docker", "run", "--rm", BUSYBOX, "busybox", "--list"],
                                                          ok=False).stdout)
@@ -124,8 +124,12 @@ KEA_CMD = yaml.safe_load(env.get_template("kea/docker-compose.yml.j2").render(
 
 # ---- the networks: Docker's own gateway on each VLAN is .254, so the relay can be the VLAN's gateway (.1)
 sh(f"docker network create --subnet {CORE_NET} --gateway 10.254.60.254 {CORE}")
+# nat-unprotected: Kea answers the relay at its VLAN address (giaddr), which arrives over the core network as a real
+# router would carry it; Docker (28 and later) otherwise drops a packet for a container's address that comes in on
+# another bridge
 for vid, net in VLANS.items():
-    sh(f"docker network create --subnet 10.254.{vid}.0/24 --gateway 10.254.{vid}.254 {net}")
+    sh(f"docker network create --subnet 10.254.{vid}.0/24 --gateway 10.254.{vid}.254 "
+       f"-o com.docker.network.bridge.gateway_mode_ipv4=nat-unprotected {net}")
 
 
 def start_kea():

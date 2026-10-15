@@ -25,6 +25,7 @@ NET, SUBNET = "keatest_net", "10.254.23.0/24"
 BIND_IP, DDNS_IP = "10.254.23.30", "10.254.23.97"
 FAILED = 0
 sys.path[0:0] = [os.path.join(REPO, "src"), REPO]
+from tests.common.kea_image import build_kea_image  # noqa: E402
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
 from fabriclib.common.read_packages_lock import read_packages_lock  # noqa: E402
@@ -74,16 +75,10 @@ DEBIAN, BUSYBOX = lock["debian"]["ref"], \
 k = pkgs["kea"]
 
 # ------------------------------------------------------------------ images
-build = sh(["docker", "build", "-q", "-t", "fabric/kea:test", "--build-arg", f"BASE_IMAGE={DEBIAN}",
-            "--build-arg", f"KEA_VERSION={k['version']}", "--build-arg", f"KEA_REPO={k['repo']}",
-            "--build-arg", f"KEA_SUITE={k['suite']}", "--build-arg", f"KEA_KEY_URL={k['key_url']}",
-            "--build-arg", f"KEA_KEY_FINGERPRINT={k['key_fingerprint']}", f"{REPO}/packaging/images/kea"], ok=False)
+build = build_kea_image()
 check("Kea image builds from ISC's repository (signing key pinned, exact version)", build.returncode == 0,
       build.stderr[-600:])
-bad = sh(["docker", "build", "-q", "--build-arg", f"BASE_IMAGE={DEBIAN}", "--build-arg", f"KEA_VERSION={k['version']}",
-          "--build-arg", f"KEA_REPO={k['repo']}", "--build-arg", f"KEA_SUITE={k['suite']}",
-          "--build-arg", f"KEA_KEY_URL={k['key_url']}", "--build-arg", "KEA_KEY_FINGERPRINT=" + "0" * 40,
-          f"{REPO}/packaging/images/kea"], ok=False)
+bad = build_kea_image(tag=None, fingerprint="0" * 40)
 check("the build refuses a repository key that is not the pinned one", bad.returncode != 0
       and "is not the pinned" in bad.stderr + bad.stdout, bad.stderr[-300:])
 version = sh("docker run --rm --entrypoint /usr/sbin/kea-dhcp4 fabric/kea:test -V", ok=False).stdout
@@ -396,7 +391,9 @@ check("by the timer's unit: the name left behind is deleted, audited as the time
       rc == 0 and dig("old-cam.dhcp.lan.test") == "" and dig_t("DHCID", "old-cam.dhcp.lan.test") == ""
       and dig("laptop1.dhcp.lan.test") == ip1 and CLEARED[-1][2] == "timer", (rc, CLEARED[-2:]))
 # covers: cli:dhcp.clean-names -
-kea_update("update add old-cam2.dhcp.lan.test 300 A 10.254.23.44")
+planted = kea_update("update add old-cam2.dhcp.lan.test 300 A 10.254.23.44")
+check("(set up: a second name left behind, old-cam2, served by BIND)", planted.returncode == 0
+      and until(lambda: dig("old-cam2.dhcp.lan.test") == "10.254.23.44", 15), planted.stdout + planted.stderr)
 before = len(CLEARED)
 cdn.load_secrets = lambda: {"kea_ddns_secret": sh("openssl rand -base64 32").stdout.strip()}
 rc_bad = run_dhcp_command(HV2, ["clean-names", "--scheduled"])
