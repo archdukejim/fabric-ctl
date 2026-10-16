@@ -8,8 +8,9 @@ from fabriclib.setup.permanent_mark import permanent_mark
 
 def ask_dc_name(ctx):
     """Purpose: setup's question for the domain controller's own name (2.1.6.45, manual 1.6.5.23): permanent (an AD DC
-             cannot be renamed), independent of the host's name, `<hostname>-dc` suggested so the name says which
-             machine it lives on, and never the host's own name (2.1.6.51: the host joins the domain under it).
+             cannot be renamed in place), independent of the host's name, `dc-001` suggested (the domain's DCs
+             numbered, 2.1.6.61; a joining site whose number is taken is told the next free one by the upstream), and
+             never the host's own name (2.1.6.51: the host joins the domain under it).
              Asked only when not set or unusable: a valid name already set is kept.
     Inputs:  ctx — SetupContext: vars (dc_name, hostname, ad_domain, ad_netbios), non_interactive. Interactive unless
              non_interactive.
@@ -25,7 +26,7 @@ def ask_dc_name(ctx):
     if current and not dc_name_problem(current, netbios, host):
         v["dc_name"] = current
         return
-    suggestion = suggested_dc_name(v.get("hostname"))
+    suggestion = suggested_dc_name()
     if dc_name_problem(suggestion, netbios, host):
         suggestion = ""
     if ctx.non_interactive:

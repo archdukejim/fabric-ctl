@@ -76,7 +76,7 @@ def collect_vars(ctx, ask=True):
              (upgrade_vars); image_* keys set explicitly are recorded in image_pins. AdGuard Home's settings move to
              the BIND resolver's (move_dns_filter, 0.7). Missing/invalid required
              values are asked for (defaults from detect_network); webui_admin_user is chosen once; the AD domain
-             is asked when missing (ask_ad_domain), then the DC's own name (ask_dc_name: <hostname>-dc
+             is asked when missing (ask_ad_domain), then the DC's own name (ask_dc_name: dc-001
              suggested, taken unattended); the rest takes defaults changed later (2.1.2.16): the password
              policy (DEFAULT_POLICY, a vars file's keys kept, 2.1.6.35), the memory (set_ram_capacity) and, on a
              fresh install only (no vars file, no provisioned domain), who may sign in to the site's machines
@@ -165,7 +165,7 @@ def collect_vars(ctx, ask=True):
                                  "permanent and has no default)")
             ctx.vars = data
             ask_ad_domain(ctx)
-        # the domain controller's own name (2.1.6.45): permanent, <hostname>-dc suggested; an existing install keeps
+        # the domain controller's own name (2.1.6.45): permanent, dc-001 suggested; an existing install keeps
         # its own
         ctx.vars = data
         ask_dc_name(ctx)

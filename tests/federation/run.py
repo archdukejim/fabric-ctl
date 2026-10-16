@@ -232,10 +232,12 @@ check("join: an expired invitation is refused",
       refused(accept_join, HQ, {**{k: decode_invitation(old["invitation"])[k] for k in ("id", "secret", "site")},
                                 "csr": "x", "domain": "b3.hq.test", "address": "127.0.0.3"}, match="not valid"))
 
-check("join: a site whose DC would take a name the domain has (the root's) is refused, naming the DCs; the "
-      "invitation is kept (2.1.6.45)",
+check("join: a site whose DC would take a name the domain has (the root's) is refused, naming the DCs and the next "
+      "free number; the invitation is kept (2.1.6.45, 2.1.6.61)",
       refused(join_upstream, {**SITE, "dc_name": "HQ"}, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca",
-              "branch1.hq.test", "127.0.0.2", **J, match="hq is taken in ad.hq.test (its domain controllers: hq)"))
+              "branch1.hq.test", "127.0.0.2", **J, match="hq is taken in ad.hq.test (its domain controllers: hq)")
+      and refused(join_upstream, {**SITE, "dc_name": "HQ"}, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca",
+                  "branch1.hq.test", "127.0.0.2", **J, match="the next free one, dc-001"))
 SITE["dc_name"] = "dc-branch1"
 res = join_upstream(SITE, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca", "branch1.hq.test", "127.0.0.2", **J)
 jv = res["vars"]
