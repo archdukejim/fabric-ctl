@@ -41,6 +41,10 @@ with tempfile.TemporaryDirectory() as d:
         check("negative: a planted symlink is refused, its target untouched", False)
     except OSError:
         check("negative: a planted symlink is refused, its target untouched", open(target).read() == "untouched\n")
+    os.chmod(where, 0o755)
+    write_handoff("r6", {"a": "b"}, where)
+    check("an existing folder with a looser mode is put back to 0700", stat.S_IMODE(os.stat(where).st_mode) == 0o700,
+          oct(os.stat(where).st_mode))
     for bad in ("../r3", "", ".hidden"):
         try:
             write_handoff(bad, {"a": "b"}, where)

@@ -694,8 +694,8 @@ echo "--- a dropped session during setup (2.1.2.26): the work goes on as fabric-
 check "the first install's work ran as fabric-setup.service, the run recorded done, the unit gone (--collect)" \
     "grep -q 'runs as fabric-setup.service' '$OUT/setup.log' && in_box 'grep -q \"^state: done\" /opt/fabric/config/setup-run.yaml' \
      && ! in_box 'systemctl is-active -q fabric-setup.service'"
-check "no secret left: no hand-off file in /run/fabric; the admin's password not in the run record or its log" \
-    "! in_box 'ls /run/fabric/setup-*.handoff' 2>/dev/null && ! in_box 'grep -qF -f /root/admin-pw /opt/fabric/config/setup-run.yaml /opt/fabric/config/setup-run.log'"
+check "no secret left: no hand-off file in /run/fabric-setup; the admin's password not in the run record or its log" \
+    "! in_box 'ls /run/fabric-setup/setup-*.handoff' 2>/dev/null && ! in_box 'grep -qF -f /root/admin-pw /opt/fabric/config/setup-run.yaml /opt/fabric/config/setup-run.log'"
 # a session of its own, killed with SIGHUP to its whole process group (what sshd does when the connection drops)
 in_box "rm -f /root/dropped.*; setsid bash -c 'echo \$\$ > /root/dropped.pid; exec fabricctl setup --non-interactive --yes > /root/dropped.log 2>&1' < /dev/null > /dev/null 2>&1 &"
 for _ in $(seq 1 300); do in_box 'grep -q "\[certs\]" /root/dropped.log' 2>/dev/null && break; sleep 2; done

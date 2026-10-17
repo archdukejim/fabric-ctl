@@ -56,7 +56,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	35c0bfe60
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3b78491b62eb3573132f18fcff7dd889074a4da5	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	ade1eb1cff7fdb33042ad3a34fe561d67c657015	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	476faabbe0c00c58cd1c6928553e6c062ff7c910	2026-10-10	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	fd88e09d3a0b78258c719432faa419ae2dcb3161	2026-10-17	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	751edafcd1404282d542993578d27b6259f88187	2026-10-17	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	5267112cd369e3a9a84e7ef5d674c8c0a91ac06c	2026-10-17	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	9fa688001068b61ddcf6cc50ec2737c20a0155ec	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	9db18b7001c1967177f6a2f19b49b773b11aa82a	2026-10-09	
@@ -83,10 +83,10 @@ docs/volume_1_description_and_architecture/1.2.4-containers.md	762831824d0b467b4
 docs/volume_1_description_and_architecture/1.2.5-templates.md	c45afe975df6d859aac1e18b42b791f53ad454b1	2026-10-11	
 docs/volume_1_description_and_architecture/1.2.6-targets-and-hardening.md	b6bcd9682212f8bd33652a8e475302d9f885afe4	2026-10-10	
 docs/volume_1_description_and_architecture/1.2.7-container-inventory.md	32699a0d996b13ad592b94e0ba7f2776b23db5f7	2026-10-12	
-docs/volume_1_description_and_architecture/1.2.8-security-defaults.md	8734e745c338b6f074a320ab46439a8e6f61b450	2026-10-17	
+docs/volume_1_description_and_architecture/1.2.8-security-defaults.md	554c19879db084bd425d591642cd95332e74b30a	2026-10-17	
 docs/volume_1_description_and_architecture/1.2.9-host-consent.md	be8d5583384acd6e18bd6dc82c96833a5443ef6e	2026-10-14	
 docs/volume_1_description_and_architecture/1.3.1-host-package.md	e703469d9b61e94eadbcb61dabc0fcb6ee57728b	2026-10-10	
-docs/volume_1_description_and_architecture/1.3.2-setup-design.md	712c657b38e5fc28f6f0d808f04ac10a6fe7559c	2026-10-17	
+docs/volume_1_description_and_architecture/1.3.2-setup-design.md	05e8313c825d9f474fd9241cc025425a5d59de46	2026-10-17	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	fddf8d372afc46cd3124474f7e06ffcc5b05625b	2026-10-17	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	86bc2d1ddbd672b723880de5aeeecf2032322bd6	2026-10-12	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	4e83dfad50c23bdff3b9f1925982b76603d4f2a1	2026-10-13	
@@ -126,7 +126,7 @@ docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece9
 docs/volume_2_engineering_decisions/2.1.14-images.md	2fcd1b4476cfc62d69930aa58d65a3bc6845445f	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.15-logs.md	b3fb9286ea0a6760a0ab597950d771e6cc305633	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.16-disk-encryption.md	2c5f6832b676ea44d7f5e8a76a4717b35f4d3cd6	2026-10-08	
-docs/volume_2_engineering_decisions/2.1.2-architecture.md	7d57ddfd458f54679cea0e8d88cbebccdc4ab25e	2026-10-17	
+docs/volume_2_engineering_decisions/2.1.2-architecture.md	787e21a1cb583396f61604222383e479e9c4a5cf	2026-10-17	
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	58090998c7ae665ec0d5fb4e3d8549c97d4475d5	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.4-dns.md	0de35e2554fefbca4a9883edac01dc18c0f5ac60	2026-10-13	
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	fc3956b0e6f2d1e34d4bd60288475fb27dfa2f64	2026-10-12	
@@ -141,7 +141,7 @@ docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd03977
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
-docs/volume_2_engineering_decisions/2.3.2-architecture-notes.md	d92632ee4e5338a1e1fff6b175cf03e494df6b61	2026-10-17	
+docs/volume_2_engineering_decisions/2.3.2-architecture-notes.md	286af670daed816e42ccac86591235b781c6607a	2026-10-17	
 docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f4878a6c708a9f55be4	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a9aeb2e856f39e5f862e36bf6273c583af26d627	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	f53f8e1c480b91948cd349a76799afff64933b7b	2026-10-17	
@@ -1023,11 +1023,11 @@ src/fabriclib/setup/context.py	21e9d21c47976297951a121b9e4d5ad9ce534d55	2026-10-
 src/fabriclib/setup/create_accounts.py	b85910947e65cc42a0a858a526ba6fbbf29ad7e4	2026-10-08	
 src/fabriclib/setup/create_admin.py	66f026c76613fb1007ac3f8b0d365cc3471838a7	2026-10-11	
 src/fabriclib/setup/deploy_config.py	0017ba6cbb988eb54669670a637a866f4fe6582d	2026-10-09	
-src/fabriclib/setup/detach/README.md	a7259913cfc8616869c4e617843e8f6e2354b681	2026-10-17	
+src/fabriclib/setup/detach/README.md	611bd6788f28773708521bfb0ab1bfa47dd5da83	2026-10-17	
 src/fabriclib/setup/detach/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-17	
 src/fabriclib/setup/detach/can_detach.py	e05bcb8882985de74608986de2b6848632a792bf	2026-10-17	
 src/fabriclib/setup/detach/choose_start.py	82c49872395f12a80eedca7aad3e7e4449f85d48	2026-10-17	
-src/fabriclib/setup/detach/constants.py	3e0bd2fdd8ed253779d2430352ea47e8d2720d92	2026-10-17	
+src/fabriclib/setup/detach/constants.py	6db3df97d093f3efb5b3bacae1ca99d801ce1f45	2026-10-17	
 src/fabriclib/setup/detach/follow_run.py	cba480c3f5b1ee371873ec32fab69e38fe908370	2026-10-17	
 src/fabriclib/setup/detach/hand_over.py	ec0f81ac26ea8cb0854dfea735ec32e731263a43	2026-10-17	
 src/fabriclib/setup/detach/launch_worker.py	e4318386b08846d0af63a10ba366dffb2969eded	2026-10-17	
@@ -1036,7 +1036,7 @@ src/fabriclib/setup/detach/read_run.py	fe79d6fd0ba1036bf05baaec995461edfa3656d9	
 src/fabriclib/setup/detach/resume_run.py	f2fd23d4f5b1f7198804cd92f43a800e44b8319c	2026-10-17	
 src/fabriclib/setup/detach/run_worker.py	c917ddd37c21e205f489ec2e6e16c499b80a5d17	2026-10-17	
 src/fabriclib/setup/detach/unit_running.py	f66c246d33c29d14519dcc384eeac6704191e419	2026-10-17	
-src/fabriclib/setup/detach/write_handoff.py	3e31b06f4d5b2c2c0bf76b9c91f221c1867dcf6f	2026-10-17	
+src/fabriclib/setup/detach/write_handoff.py	f9f56e3e64e5915b1085b57ecbc803df45d7bff2	2026-10-17	
 src/fabriclib/setup/detach/write_run.py	65fa104d7b788246fbde5bce69e38d6f18950e1e	2026-10-17	
 src/fabriclib/setup/detect_network.py	eebf21a7de8670e7052afe51ef498cec052fad3b	2026-10-12	
 src/fabriclib/setup/doctor_report.py	2f6ff230fc03c73fdd3a8fcefd7c3f9fb5758b98	2026-10-09	
@@ -1071,7 +1071,7 @@ src/fabriclib/setup/start_bootstrap.py	cd55ee690beb024d64109b2ac4927bae129d17e7	
 src/fabriclib/setup/start_services.py	d43d00b7eacc6e030caf12b5ff4f8e24a8f5d922	2026-10-13	
 src/fabriclib/setup/start_unit.py	898cc7b68b842376bbff19fa3ce5ea9480651a3b	2026-10-08	
 src/fabriclib/setup/steps.py	4301d574b01c23e095e2c13307fdb932a30ac6c6	2026-10-14	
-src/fabriclib/setup/uninstall.py	d00ec25ef2b6328eb3f41e71d0b2df76d63504ef	2026-10-17	
+src/fabriclib/setup/uninstall.py	080c667ba91d5b7387aafbf69607ce38d2010e90	2026-10-17	
 src/fabriclib/setup/upgrade_vars.py	d28af38888b4c5737ac4aad1dc885f0cde5a296f	2026-10-17	
 src/fabriclib/setup/verify_install.py	09068b5792e8db2dfc3f46ef2e6b6f301eb0475b	2026-10-13	
 src/fabriclib/setup/wait_ready.py	41c0a7ab5f37bfafd9c7e4e8c0bb96452ae462fd	2026-10-14	
@@ -1605,7 +1605,7 @@ tests/sandbox/make_person.py	f778029f1dfc122927b454149f21fda1c884cdf7	2026-10-05
 tests/sandbox/radius_device.py	12b3e1127a0cc5966846fe0554dc84da7a2e5449	2026-10-05	
 tests/sandbox/radius_mab.py	c9575e9fd8e3c3d52dbd77b879b9ef9a6bd148d5	2026-09-30	
 tests/sandbox/rfc2136_test.sh	4299bc1c1d62237439cad3a2ebac534f45ef0874	2026-10-09	
-tests/sandbox/run.sh	c803cc6e3224dd7e52af860ee840557dcbf06d2c	2026-10-17	
+tests/sandbox/run.sh	5596c5978b0fd2085f43992703ec150f2c0f1029	2026-10-17	
 tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30	
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-12	
@@ -1624,7 +1624,7 @@ tests/setup/detach/read_run_test.py	7a0ba9f95f2d9c11c3cb44a34c62b616f8666c46	202
 tests/setup/detach/resume_run_test.py	fce10cd9aadc851059163f67ab136b5ad2f9d2fb	2026-10-17	
 tests/setup/detach/run_worker_test.py	84ef2212ef439311ec1124138e76a192342016e8	2026-10-17	
 tests/setup/detach/unit_running_test.py	cc40f5a0239475ab7f2af277b0cf3d570d7c130e	2026-10-17	
-tests/setup/detach/write_handoff_test.py	a30e76d1c9520bc813cf717a21e5d391e4071a7d	2026-10-17	
+tests/setup/detach/write_handoff_test.py	a9a174923eed7d60a1f416eb44dcb3319cebb9e4	2026-10-17	
 tests/setup/detach/write_run_test.py	7df796756b2751daaf8eab8f4bff58c424508b6a	2026-10-17	
 tests/setup/run_setup_test.py	2acd97c0ae44e34a93d7153046d49769286a38ae	2026-10-17	
 tests/setup/run_steps_test.py	4807eb4578d9b0e41d5b012201cbaddbcacfd591	2026-10-17	

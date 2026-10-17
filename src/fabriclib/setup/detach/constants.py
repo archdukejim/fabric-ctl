@@ -3,7 +3,7 @@
 UNIT = "fabric-setup.service"           # the transient unit setup's work runs as (systemd-run --collect)
 RECORD = "setup-run.yaml"               # in the install's config folder: the run's progress (no secret)
 LOG = "setup-run.log"                   # in the install's config folder: everything the run printed
-HANDOFF_DIR = "/run/fabric"             # tmpfs: the secrets handed to the unit, one root-only file per run
+HANDOFF_DIR = "/run/fabric-setup"       # tmpfs, root 0700: the secrets handed to the unit, one 0600 file per run
 HANDOFF_SUFFIX = ".handoff"
 # what `systemctl is-active` says while the unit's process may still run or write its log
 RUNNING_STATES = ("active", "activating", "deactivating", "reloading", "refreshing")
