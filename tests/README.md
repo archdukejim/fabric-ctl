@@ -13,7 +13,7 @@ suite needs no Docker or root and also runs alone: `python3 tests/docs/run.py`.
 | `consent` | [consent/](consent/), [common/](common/), [setup/](setup/) | Asking before fabric changes the host: answers, questions, the subset rule, declined groups, the `fabric-*` accounts and their move, no containers; `ask()`, the one place a question is asked (manual 1.1.5.6) |
 | `render` | `render.py` | Every template renders from `vars.yaml.j2`; security properties of the rendered configs; every module imports |
 | `nginx` | `nginx_check.sh` | The rendered nginx configuration passes `nginx -t` in the pinned image |
-| `zone` | `zone_test.py` | `deploy.py`'s zone deployment with `rndc` stubbed: unchanged records ignored, changed zones found, fresh mtime, BIND's late write detected and the swap repeated, stale journal removed |
+| `zone` | `zone_test.py`, [dns/](dns/) | `deploy.py`'s zone deployment with `rndc` stubbed: unchanged records ignored, changed zones found, fresh mtime, BIND's late write detected and the swap repeated, stale journal removed; before a restart, BIND's write waited for (2.3.1.22) |
 | `zones` | [zones/](zones/) | Zones added and removed in seconds (1.4.1.3) with real BIND and resolver containers: through fabric-agent's routes and the menu, every refused name, the rollback when a reload fails, removal refused while a TSIG key names the zone |
 | `webui` | [webui/](webui/) | The web UI container against a mock Keycloak and the real fabric-agent; the dev preview |
 | `pki` | [pki/](pki/) | Manual PKI against a real Step-CA |

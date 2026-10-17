@@ -330,6 +330,7 @@ file	fabriclib-dns|src/fabriclib/dns/common/landing_names.py	40
 file	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py	5	
 file	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py	6	
 file	fabriclib-dns|src/fabriclib/dns/format_value.py	7	
+file	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py	41	
 file	fabriclib-dns|src/fabriclib/dns/install_zone_file.py	8	
 file	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py	9	
 file	fabriclib-dns|src/fabriclib/dns/list_zones.py	10	
@@ -1473,6 +1474,8 @@ function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|landing_names	3
 function	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py|create_zone_tsig_key	1	
 function	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py|find_changed_zones	1	
 function	fabriclib-dns|src/fabriclib/dns/format_value.py|format_value	1	
+function	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py|_mtime	1	
+function	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py|freeze_and_install	2	
 function	fabriclib-dns|src/fabriclib/dns/install_zone_file.py|install_zone_file	1	
 function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|_names	1	
 function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|list_tsig_keys	2	
