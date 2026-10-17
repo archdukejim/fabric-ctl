@@ -25,3 +25,6 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `__init__.py` | Empty; makes it a package |
 | `security_post.py` | The Security page's changes: a recent sign-in, the admin's own certificate before turning it on, then the agent |
 | `overview_post.py` | The Overview's jobs: Run doctor, and update or roll back one service's image; then the job's page |
+| `settings_page.py` | The setup wizard's pages: a step filled in with today's settings; the settings file's download |
+| `settings_post.py` | The setup wizard's forms: Back and Next, the plan (typed or imported), Apply after a recent sign-in, Dismiss |
+| `finish_setting_up.py` | The wizard on the Overview: Finish setting up until it is finished, and the first Overview of a sign-in opening it |

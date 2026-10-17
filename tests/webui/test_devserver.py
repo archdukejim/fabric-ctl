@@ -199,6 +199,19 @@ try:
     check("the Security page: each layer, its raises, a lowering shown with who did it, no lower button",
           st == 200 and 'action="/security/raise"' in page and "lowered from any" in page
           and "fabricctl security lower" in page and "Lower</button>" not in page and "Turn off" in page)
+    st, _, _, page = req("GET", "/settings")
+    check("the setup wizard (1.8.5.3): its first step, the console-only settings read only, a Settings tab",
+          st == 200 and "Optional parts" in page and "sudo fabricctl setup (a new install)" in page
+          and 'href="/settings" class="tab active"' in page, page[:2000])
+    st, _, _, page = req("POST", "/settings/step", {"csrf": "dev", "go": "memory", "host_ram_capacity": "6"})
+    check("the wizard's Next keeps what was typed", st == 200 and 'value="6"' in page and "today: 8" in page)
+    st, _, _, page = req("POST", "/settings/plan", {"csrf": "dev", "host_ram_capacity": "6"})
+    check("the wizard's plan: old -> new, the memory plan, what was ignored, Apply",
+          st == 200 and "The memory plan" in page and 'action="/settings/apply"' in page)
+    st, loc, _, _ = req("POST", "/settings/apply", {"csrf": "dev", "plan": "dev-plan"})
+    st2, _, _, page = req("GET", loc or "/")
+    check("the wizard's Apply: a job page saying what was applied", st == 303 and "Settings · apply" in page
+          and "Applied (in memory)" in page, (st, loc))
     pages = [req("GET", f"/stepca?view={v}") for v in ("ca", "sign", "issue", "inspect", "convert", "issued")]
     check("every Step-CA menu page renders", all(p[0] == 200 for p in pages) and "Fabric Root CA" in pages[0][3]
           and "switch-core.home.arpa" in pages[5][3])

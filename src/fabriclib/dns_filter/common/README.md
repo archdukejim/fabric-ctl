@@ -19,3 +19,4 @@ Helpers shared by the DNS filter's files (manual [1.12.2](../../../../docs/volum
 | `rule_names.py` | One allow or block setting checked and normalised; what a name may be (`NAME_RE`) |
 | `filter_target.py` | Where a change goes: everyone's settings or one client group's |
 | `safe_search.py` | Safe search's table (engines, names, enforced answers) for the zones and the console |
+| `parse_upstreams.py` | The upstreams from "<address> <certificate name>" pairs (the DNS filter tab, the setup wizard) |

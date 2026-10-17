@@ -28,6 +28,7 @@ and import as `fabriclib.<domain>.<file>`.
 | [menu/](menu/) | The vars editor (`fabricctl --interactive`), `--print` and `--apply` — `lib/interactive.py` is their entry point |
 | [deploy/](deploy/) | The deploy engine (apply): secrets, settings, render, install, restart — `lib/deploy.py` is its entry point |
 | [ntp/](ntp/) | Time: chrony on the host, serving the network, its settings and checks |
+| [settings/](settings/) | The setup wizard's settings (manual 1.8.5): read, check, plan and apply them; the settings file, `fabricctl settings` |
 | [federation/](federation/) | Sites: the site-name rule; invitations, joining and the federation endpoint as they are built |
 
 `cli.py` routes the `fabricctl` commands implemented here (setup, doctor, uninstall, reinstall, certs, tsig, acl,

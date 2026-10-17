@@ -8,6 +8,7 @@ from agent.post_dns_filter import post_dns_filter
 from agent.post_network import post_network
 from agent.post_pki import post_pki
 from agent.post_security import post_security
+from agent.post_settings import post_settings
 from agent.post_vault import post_vault
 from agent.read_text import read_text
 from agent.route_not_found import RouteNotFound
@@ -37,7 +38,8 @@ def post_route(route, actor, data, perms):
              {"uid", "group", "member", "changed"} — each a fabric-group member's only with system:admin (or root);
              jobs/doctor and jobs/images (body: action update|rollback, service): {"id"} of a job read with GET
              /v1/jobs/<id> by the person who started it;
-             events: {} after the login audit line; dns-filter/...: post_dns_filter's result.
+             events: {} after the login audit line; dns-filter/...: post_dns_filter's result; settings/plan,
+             settings/apply, settings/dismiss: post_settings' result (the setup wizard, 1.8.5).
     Fails:   ValidationError (-> 400) for an unsupported event or what fabriclib refuses; RouteNotFound (-> 404).
     Feeds:   agent/handler.py (dispatch).
     Notes:   POST apply only needs dns:write (rbac/required_permission), though it runs the whole deployment."""
@@ -84,6 +86,8 @@ def post_route(route, actor, data, perms):
             raise ValidationError("action: add or remove")
         return set_person_group(load_vars(), actor, read_text(data, "group"), route[1], action == "add", privileged)
     owner = actor if perms is not None else None    # a job is read by whoever started it (root: any)
+    if area == ["settings"]:                        # the setup wizard (1.8.5): a plan, its apply as a job
+        return post_settings(route, actor, data, owner)
     if route == ["jobs", "doctor"]:              # doctor's checks take seconds to a minute: a job the page follows
         base = load_vars()["deploy_base_dir"]
         return JOBS.start("doctor", owner, lambda: doctor_report(base))

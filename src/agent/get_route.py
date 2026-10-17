@@ -36,6 +36,8 @@ from fabriclib.system.relaxed_settings import relaxed_settings
 from fabriclib.security.signin_layers import read_lowered, signin_rows
 from fabriclib.common.paths import VARS_FILE
 from fabriclib.setup.context import SetupContext
+from fabriclib.settings.export_settings import export_settings
+from fabriclib.settings.settings_overview import settings_overview
 
 # GET /v1/<route> -> the read operation answering it (vars are read per request)
 READS = {
@@ -66,6 +68,8 @@ READS = {
     ("vault",): lambda: vault_status(load_vars()),
     ("vault", "devices"): lambda: detect_devices(v=load_vars()),
     ("images",): lambda: image_status(SetupContext(deploy_base=load_vars()["deploy_base_dir"]).load_state()),
+    ("settings",): lambda: settings_overview(load_vars()),
+    ("settings", "export"): lambda: export_settings(load_vars(), version_info()["version"]),
     ("pki", "acme"): lambda: {"info": acme_info(load_vars()), "machines": acme_machines(load_vars()),
                               "domain": load_vars()["domain"]},
 }
@@ -76,7 +80,9 @@ def get_route(route, user=None):
     Inputs:  route — list of path segments after /v1/ (already authorized by the handler); user — the token's user
              (None for root): a job is read only by the person who started it.
     Returns: the operation's JSON-serialisable result. zones/<key>: zone_detail; vault/slots: the unlock methods with
-             this host's name; images: the image status rows; pki/acme: {info, machines, domain}; jobs/<id>: the job.
+             this host's name; images: the image status rows; pki/acme: {info, machines, domain}; jobs/<id>: the job;
+             settings: settings_overview (the setup wizard, 1.8.5); settings/export: {"text", "name"}, the
+             settings file.
     Fails:   RouteNotFound for any other route (-> 404); whatever the operation raises (ValidationError -> 400).
     Feeds:   agent/handler.py (dispatch)."""
     if tuple(route) in READS:

@@ -95,3 +95,8 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `start_job.py` | Start a background job: doctor, or one service's image update or rollback. Agent routes: POST /v1/jobs/doctor (status:read), /v1/jobs/images (images:update). |
 | `read_job.py` | A job the signed-in person started. Agent route: GET /v1/jobs/<id>. |
 | `acme_overview.py` | ACME for LAN machines: the directory and how, the machines enrolled for DNS-01. Agent route: GET /v1/pki/acme (pki:read). |
+| `settings_overview.py` | The setup wizard's settings, its fields filled in, the console-only ones, whether it is finished. Agent route: GET /v1/settings (settings:admin). |
+| `settings_export.py` | The settings file. Agent route: GET /v1/settings/export (settings:admin). |
+| `settings_plan.py` | The plan for the wizard's fields or a settings file. Agent route: POST /v1/settings/plan (settings:admin). |
+| `settings_apply.py` | Apply a plan as a job, or the plan made again when stale. Agent route: POST /v1/settings/apply (settings:admin). |
+| `settings_dismiss.py` | Dismiss the setup wizard. Agent route: POST /v1/settings/dismiss (settings:admin). |

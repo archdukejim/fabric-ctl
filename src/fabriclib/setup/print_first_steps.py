@@ -3,17 +3,21 @@ import os
 
 from fabriclib.common.console import BOLD, NC, ok
 from fabriclib.common.sudo_owner import sudo_owner
+from fabriclib.settings.wizard_finished import wizard_finished
 
 
-def print_first_steps(ctx):
+def print_first_steps(ctx, guided=False):
     """Purpose: what the admin does next, in order, as setup's last words (manual 3.3.2): first trust fabric's root
              names first (fabric's DNS, or a hosts-file line printed here), then the CA from http://<host_ip>/certs/
              over plain HTTP, checking its fingerprint, then (when the console asks for one)
              import the client certificate, then sign in. The order matters: a browser that does not trust the CA
-             cannot reach the console safely (the owner nearly signed in first, 2026-10-09).
+             cannot reach the console safely (the owner nearly signed in first, 2026-10-09). After Guided setup, a
+             last step: finish setting up in the console's Settings (the setup wizard, manual 1.8.5.7), where the
+             choices Guided left at their defaults are made.
     Inputs:  ctx — SetupContext: vars install_webui, hostname_landing, hostname_stepca, hostname_mgr, webui_admin_user,
              webui_client_cert; the published ca-certs.json under <deploy_base>/nginx/www/certs; the login kit in the
-             home of the account that ran sudo (sudo_owner).
+             home of the account that ran sudo (sudo_owner); guided — True after Guided setup (the wizard's step,
+             until the wizard has been applied once or dismissed: ctx.config_dir).
     Returns: None; prints. Without the web UI: only the doctor line.
     Fails:   never for a missing ca-certs.json (the fingerprint is left out).
     Feeds:   setup/run_setup (after every step)."""
@@ -43,6 +47,10 @@ def print_first_steps(ctx):
             steps.append(f"import your client certificate {kit}/{user}.p12 (its password: {kit}/p12-password.txt)")
         steps.append(f"{BOLD}then sign in{NC} at {BOLD}https://{v.get('hostname_mgr')}{NC} as {user}, with the "
                      "password you chose in setup")
+        if guided and not wizard_finished(ctx.config_dir)["finished"]:
+            steps.append(f"{BOLD}finish setting up in the console's Settings{NC} (it opens at your first sign-in): "
+                         "DHCP, the DNS filter, log forwarding,\n       the memory fabric may use, passwords and "
+                         "sign-in; or on this host: sudo fabricctl settings import FILE")
         print("  Next:")
         for n, text in enumerate(steps, 1):
             print(f"    {n}. {text}")

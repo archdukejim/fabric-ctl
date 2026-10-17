@@ -43,6 +43,8 @@ PERMISSIONS = {
     "system:admin": "services, updates and settings",
     "images:update": "update a service's container image, or roll it back (2.1.8.3)",
     "security:raise": "raise sign-in security: second factors, the web console's client certificate (2.1.6.27)",
+    "settings:admin": "change setup's choices that are not sensitive in the setup wizard, export and import its "
+                      "settings file (2.1.8.7)",
 }
 
 _READ = ["status:read", "dns:read", "dhcp:read", "pki:read", "devices:read", "radius:read", "people:read",

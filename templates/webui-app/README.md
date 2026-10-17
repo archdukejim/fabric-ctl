@@ -25,4 +25,6 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `machine_result.html` | A pre-created machine's one-time join password |
 | `federation.html` | The Federation tab |
 | `security.html` | The Security page (sign-in layers, raises, Kerberos on/off; lowering shown as the host command) |
-| `job.html` | A background job (doctor, an image update), with a meta refresh while it runs |
+| `job.html` | A background job (doctor, an image update, the setup wizard's apply), with a meta refresh while it runs |
+| `settings.html` | The setup wizard: one step at a time with the others carried hidden, the console-only settings read only, Export, Import, Dismiss |
+| `settings_plan.html` | A plan of the setup wizard: the changes old to new, the parts and the memory plan, what was ignored; Apply |

@@ -2,6 +2,13 @@
 {% set ok = services | selectattr(1, 'equalto', 'active') | rejectattr(2, 'in', ['unhealthy', 'starting']) | list | length %}
 <h1>Overview</h1>
 {% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
+{% if wizard and not wizard.finished %}
+<section class="card"><h2>Finish setting up</h2>
+<p>Setup left DHCP, the DNS filter, log forwarding, the memory fabric may use and the sign-in settings at their
+defaults. Review them in the setup wizard, or keep them.</p>
+<p><a href="/settings">Open Settings</a></p>
+<form method="post" action="/settings/dismiss" class="apply"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost">Dismiss</button><span class="muted">keep setup's choices</span></form></section>
+{% endif %}
 {% if certs %}
 <div class="{{ 'bad-text' if certs | selectattr('level', 'equalto', 'fail') | list else 'warn-text' }}" role="status"><strong>Certificates:</strong>
 <ul>{% for c in certs %}<li>{{ c.what }}</li>{% endfor %}</ul></div>

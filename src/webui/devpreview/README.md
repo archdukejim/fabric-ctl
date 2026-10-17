@@ -18,3 +18,5 @@ The dev preview (`devserver.py`): the real pages over in-memory sample data; no 
 | `sample_radius_guides.py` | The FreeRADIUS setup guides as fabric-agent fills them in, built from the sample RADIUS data and the dev preview's own throwaway CA (SAMPLE_ROOT_PEM). Sample only; nothing is read from a host. |
 | `sample_result.py` | A fake PKI result for the sign/issue/convert result page, shaped like fabric-agent's reply. |
 | `__init__.py` | Empty; makes it a package |
+| `dev_settings.py` | The setup wizard over sample data: its steps, a sample plan, an apply finished in memory, the export |
+| `sample_settings.py` | The setup wizard's sample settings, plan and settings file |
