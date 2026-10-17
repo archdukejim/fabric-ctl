@@ -73,6 +73,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.8.2 Security model and who may do what](1.8.2-webui-security.md)
 - [1.8.3 The web UI as the single pane](1.8.3-single-pane.md)
 - [1.8.4 Web UI](1.8.4-webui.md)
+- [1.8.5 The setup wizard: setup's choices in the console, and in a file](1.8.5-setup-wizard.md)
 
 ## 1.9 Federation
 
