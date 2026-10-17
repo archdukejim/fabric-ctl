@@ -6,7 +6,7 @@
 .github/workflows/images.yml	74c6608952aff3c029e5bd9dd2ae386123e31817	2026-10-09	
 .github/workflows/lint.yml	6fb8189ef0d87af6ece1858b97c5bac089c01cce	2026-10-08	
 .github/workflows/package.yml	7fbc29997f4d3708bab3011e302b521330dd2d0e	2026-10-09	
-.github/workflows/suites.yml	cee7f24c7d3ced36357c6bae17aff4e2b2bb572a	2026-10-15	
+.github/workflows/suites.yml	3c41c4d7effb86cd3cd5421dd2a2bcfb138a708a	2026-10-17	
 .gitignore	e64a8baa6ed6ded642108a90c470c3c3bcd35c9e	2026-10-09	
 AGENTS.md	1c136916d77a5eb65db37dc93dc9c206a1131761	2026-10-09	
 CLAUDE.md	43c994c2d3617f947bcb5adf1933e21dabe46bb5	2026-09-30	
@@ -146,12 +146,12 @@ docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f487
 docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a9aeb2e856f39e5f862e36bf6273c583af26d627	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	623c247a48fada1c71f9ae66585ca008cbf8abfb	2026-10-17	
 docs/volume_2_engineering_decisions/2.3.7-openbao-notes.md	2add3dd1b079800abeff3e4028929f019016268b	2026-10-12	
-docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	47714f761300b3ea3f886c65cc402294767f8004	2026-10-17	
+docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	35ecbc834e023f72557496a842696fb4ea87f87f	2026-10-17	
 docs/volume_2_engineering_decisions/2.3.9-federation-notes.md	589194fbf33eda431862f1414dabc04a3181edc9	2026-10-08	
 docs/volume_2_engineering_decisions/README.md	b9506a7244041f7e5a9da3b636290faa843321ee	2026-10-17	
 docs/volume_2_engineering_decisions/assets/README.md	3fd72f26d985cf1827afa0868c6c138dfec9d627	2026-10-08	
 docs/volume_3_installation/3.1.1-manual-test-plan.md	e251b002185d4a3bf538cc11200632b67cc231fe	2026-10-12	
-docs/volume_3_installation/3.1.2-automated-tests.md	ffdba0e8ccee9489d71ffed88f0ee15c842a68d2	2026-10-15	
+docs/volume_3_installation/3.1.2-automated-tests.md	3570b37b694d645f627621665d84c3c279390edc	2026-10-17	
 docs/volume_3_installation/3.1.3-dev-preview.md	f913e6ed5b5f0e0428479a417dc655071b3b2f42	2026-10-08	
 docs/volume_3_installation/3.1.4-working-on-fabric.md	f0aa02dae628fc02838839f4887bb5d6baa1e857	2026-10-08	
 docs/volume_3_installation/3.14.1-building-images.md	33f7cff075383def2165fc719b9e33be337442d9	2026-10-14	
@@ -1598,7 +1598,7 @@ tests/settings/run.py	7388f1743303b37fc003874ab3865a96d47d204f	2026-10-17
 tests/setup/README.md	09b4c3a28de69ad7a3f82c3a055b51ffe3bf3671	2026-10-14	
 tests/setup/wait_ready_test.py	61ce85dad1bd1e8d7f33d15ac2e4ecda97221ffc	2026-10-14	
 tests/webui/README.md	e57f12b62e144ceb24370dd473fcce4341e2c63c	2026-10-12	
-tests/webui/test_container.py	443223acfd7a76f7f9f683664fb0507e64762813	2026-10-12	
+tests/webui/test_container.py	ea540d2c190e4a9c6cc09ad8173168d282ba0bde	2026-10-17	
 tests/webui/test_devserver.py	29aef5f701f9c8db29960fb4374479a10583f99e	2026-10-17	
 tests/zone_test.py	4bed30787288ab1c63799bf296c8bb14de230708	2026-10-10	
 tests/zones/README.md	09229c84b389706c276773792706ed6b36298e1f	2026-10-11	

@@ -353,6 +353,30 @@ check("valid login -> session cookie (Strict)", st == 200 and session and "SameS
 check("security headers present", "default-src 'none'" in hd.get("Content-Security-Policy", "")
       and hd.get("X-Frame-Options") == "DENY" and hd.get("Cache-Control") == "no-store", hd)
 
+# the setup wizard (manual 1.8.5.3): until it is applied once or dismissed, the first Overview of each sign-in of an
+# admin opens it; this install's admin dismisses it, as a real one would, and the console's other pages follow
+st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
+# covers: web:get.settings agent:get.settings +
+check("setup wizard: a fresh install's first Overview of a sign-in is sent to Settings (303)",
+      st == 303 and hd.get("Location") == "/settings", (st, hd.get("Location")))
+st, hd, sc, body = req("GET", "/settings", ALICE, cookie=session)
+check("setup wizard: its first step through the real agent, the console-only settings read only, Dismiss",
+      st == 200 and "Optional parts" in body and "pi-core" in body and 'action="/settings/dismiss"' in body,
+      (st, body[:400]))
+wcsrf = body.split('name="csrf" value="')[1].split('"')[0]
+st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
+check("setup wizard: once per sign-in; then the Overview, with Finish setting up",
+      st == 200 and "Finish setting up" in body, st)
+# covers: web:post.settings.dismiss agent:post.settings.dismiss +
+st, hd, *_ = req("POST", "/settings/dismiss", {**ALICE, "Origin": "https://mgr.test"}, {"csrf": wcsrf}, cookie=session)
+check("setup wizard: Dismiss -> recorded beside the settings, back to the Overview, audited",
+      st == 303 and hd.get("Location") == "/" and os.path.exists(f"{W}/fabric/config/settings-wizard.json")
+      and "SETTINGS_DISMISS" in open(f"{W}/fabric/archive/audit.log").read(), (st, hd.get("Location")))
+(st, hd, sc, body), _, _ = login()
+session = cookie_val(sc, "__Host-webui")
+st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
+check("setup wizard dismissed: a new sign-in's Overview is the Overview, no Finish setting up",
+      st == 200 and "Finish setting up" not in body, st)
 st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
 # covers: web:get.home agent:get.services +
 check("overview tab renders service health", st == 200 and "Overview" in body and "services healthy" in body, st)
@@ -1427,6 +1451,88 @@ for action in ("update", "rollback"):
     # covers: web:post.overview.images.*.update web:post.overview.images.*.rollback -
     check(f"auditor: an image {action} from the Overview is refused by fabric-agent (403, images:update)",
           st == 403 and "images:update" in body, (st, body[:200]))
+print("--- the setup wizard (manual 1.8.5): a plan and its apply through the real agent, the settings file")
+wsess, wcsrf = fresh()
+before = vars_now()
+st, _, body = web_post("/settings/step", {"go": "signin", "signin_kerberos": "true"}, wsess, wcsrf)
+# covers: web:post.settings.step +
+check("wizard: Next to Passwords and sign-in keeps what was typed (Kerberos on), today's value beside it",
+      st == 200 and 'name="policy_minimum_length"' in body and "today: off" in body
+      and 'type="hidden" name="signin_kerberos" value="true"' not in body, (st, body[:400]))
+st, _, body = web_post("/settings/plan", {"signin_kerberos": "true"}, wsess, wcsrf)
+# covers: web:post.settings.plan agent:post.settings.plan +
+check("wizard: the plan through the real agent: signin_kerberos off -> on, Apply, nothing changed yet",
+      st == 200 and "<code>signin_kerberos</code>" in body and "<code>on</code>" in body
+      and 'action="/settings/apply"' in body and vars_now() == before, (st, body[:600]))
+plan_id = body.split('name="plan" value="')[1].split('"')[0]
+st, _, body = web_post("/settings/plan", {"host_ram_capacity": "2"}, wsess, wcsrf)
+# covers: web:post.settings.plan agent:post.settings.plan -
+check("wizard: an invalid value refused by the agent, named, back on Review, nothing changed",
+      st == 200 and "Refused, nothing changed: host_ram_capacity" in body and vars_now() == before, (st, body[:600]))
+(st, hd, sc, _), _, _ = login(tamper="stale")
+old_sess = cookie_val(sc, "__Host-webui")
+st, loc, _ = web_post("/settings/apply", {"plan": plan_id}, old_sess, cookie_csrf(old_sess))
+# covers: web:post.settings.apply -
+check("wizard: Apply with a sign-in older than 5 minutes -> sent to sign in again, nothing changed",
+      st == 303 and loc.startswith("/login?next=/settings") and vars_now() == before, (st, loc))
+out = agent_call("POST", "/v1/settings/apply", "bob", ADMIN_ROLES, {"plan": plan_id})
+# covers: agent:post.settings.apply -
+check("agent: another person's plan refused (no such plan)", " 400 " in out and "no such plan" in out, out)
+st, loc, _ = web_post("/settings/apply", {"plan": plan_id}, wsess, wcsrf)
+# covers: web:post.settings.apply agent:post.settings.apply +
+check("wizard: Apply -> the apply job's page", st == 303 and loc.startswith("/jobs/"), (st, loc))
+job_page = ""
+for _ in range(600):
+    st, _, _, job_page = req("GET", loc, ALICE, cookie=wsess)
+    if "Running" not in job_page:
+        break
+    time.sleep(0.2)
+audit_now = open(f"{W}/fabric/archive/audit.log").read()
+check("wizard: the change saved and audited SETTINGS_CHANGE from web with the key; this test install's apply "
+      "fails (nothing deployed here), and the job says so",
+      vars_key("signin_kerberos") is True and "SETTINGS_CHANGE" in audit_now and "from web: signin_kerberos" in audit_now
+      and "did not finish" in job_page, (vars_key("signin_kerberos"), job_page[-600:]))
+st, loc, _ = web_post("/settings/apply", {"plan": plan_id}, wsess, wcsrf)
+check("wizard: a plan is applied once (no such plan after)", st == 303 and "no such plan" in loc, loc)
+# covers: web:get.settings.export agent:get.settings.export +
+st, hd, _, text = req("GET", "/settings/export", ALICE, cookie=wsess)
+check("export: a YAML download with every wizard setting, no console-only setting, no secret",
+      st == 200 and hd.get("Content-Type", "").startswith("text/yaml") and "fabric_settings: 1" in text
+      and "signin_kerberos: true" in text and "host_ip" not in text and "attachment" in hd.get("Content-Disposition", ""),
+      (st, text[:400]))
+changed = text.replace("signin_kerberos: true", "signin_kerberos: false") + "  webui_oidc_secret: x\n  host_ip: 10.0.0.9\n"
+# covers: web:post.settings.import +
+st, hd, body = req_upload("/settings/import", POSTH, {"csrf": wcsrf}, {"file": ("site.yaml", changed.encode())}, wsess)
+check("import: the file's plan (Kerberos on -> off), the secret and the network ignored with why, nothing changed",
+      st == 200 and "<code>signin_kerberos</code>" in body and "from a settings file" in body
+      and "webui_oidc_secret" in body and "a secret" in body and "console only" in body
+      and vars_key("signin_kerberos") is True, (st, body[:800]))
+# covers: web:post.settings.import -
+st, hd, body = req_upload("/settings/import", POSTH, {"csrf": wcsrf},
+                          {"file": ("bad.yaml", changed.replace("fabric_settings: 1", "fabric_settings: 2").encode())},
+                          wsess)
+check("import refused: another format, said why, nothing changed",
+      st == 303 and "fabric_settings" in urllib.parse.unquote_plus(hd.get("Location", ""))
+      and vars_key("signin_kerberos") is True, (st, hd.get("Location")))
+st, hd, body = req_upload("/settings/import", POSTH, {"csrf": wcsrf}, {"file": ("bad.yaml", changed.replace(
+    "fabric_settings: 1", "fabric_settings: 1").replace("signin_kerberos: false", "signin_kerberos: maybe").encode())},
+    wsess)
+check("import refused: one invalid wizard value refuses the whole file, named",
+      st == 303 and "signin_kerberos" in urllib.parse.unquote_plus(hd.get("Location", "")), (st, hd.get("Location")))
+# covers: agent:get.settings agent:get.settings.export agent:post.settings.plan agent:post.settings.dismiss -
+for method, route in (("GET", "/v1/settings"), ("GET", "/v1/settings/export"), ("POST", "/v1/settings/plan"),
+                      ("POST", "/v1/settings/apply"), ("POST", "/v1/settings/dismiss")):
+    out = agent_call(method, route, "carol", AUDITOR_ROLES, {"form": {"signin_kerberos": "false"}})
+    check(f"auditor token: {method} {route} refused (403, settings:admin)", " 403 " in out and "settings:admin" in out,
+          out)
+# covers: web:get.settings web:get.settings.export -
+for path in ("/settings", "/settings/export"):
+    st, _, _, body = req("GET", path, ALICE, cookie=aud)
+    check(f"auditor: {path} refused (403, settings:admin), no Settings tab elsewhere",
+          st == 403 and "settings:admin" in body, (st, body[:200]))
+check("auditor: no Settings tab", 'href="/settings"' not in req("GET", "/", ALICE, cookie=aud)[3])
+st, _, body = web_post("/settings/plan", {"signin_kerberos": "false"}, aud, aud_csrf)
+check("auditor: a crafted plan post refused by the agent (403)", st == 403 and "settings:admin" in body, (st, body[:200]))
 # ---------------------------------------------- without a client certificate (webui_client_cert off, manual 2.3.6.2.6.3)
 json.dump({**cfg, "client_cert": False}, open(f"{W}/config/webui.json", "w"))
 os.remove(f"{W}/run/web.sock")
