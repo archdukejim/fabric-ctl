@@ -1,6 +1,6 @@
 """The ranges inside a site's uid/gid block (2.1.6.46, manual 1.6.3.17): offsets from the block's start, the same at
-every site. A block laid out this way is a million ids starting on a multiple of a million; a block from before
-0.7.0 (the root's from 5001, sites' after it) is not, and hands out its ids in one run as it always did."""
+every site. Every site's block is laid out this way: a million ids starting on a multiple of a million (a block from
+before 0.7.0, handed out in one run, is no longer served: none exists, 2.1.6.51, stale code S11)."""
 
 BLOCK = 1_000_000
 # kind: (first offset, last offset), both inclusive
@@ -18,10 +18,18 @@ RANGES = {
 MARK_START = {**{kind: first for kind, (first, _) in RANGES.items()}, "builtin_group": 40_101}
 
 
-def laid_out(first, last):
-    """Purpose: whether a block has the fixed ranges (a new install's from 0.7.0) or is one run (an older install's).
-    Inputs:  first, last — int, the block's ends.
-    Returns: bool: a million ids starting on a multiple of a million.
-    Fails:   never.
-    Feeds:   alloc_id, ensure_site_info, site_info."""
-    return first % BLOCK == 0 and last - first + 1 == BLOCK
+def check_block(id_range):
+    """Purpose: a site's uid/gid block checked before anything is written (2.1.6.46, manual 1.6.3.17): a million ids
+             starting on a multiple of a million, so the fixed ranges fit it.
+    Inputs:  id_range — str "first-last".
+    Returns: (first, last), both int.
+    Fails:   ValueError naming the block: malformed, or not a site block (e.g. an install's from before 0.7.0).
+    Feeds:   converge (first, before the schema and the layout), ensure_site_info."""
+    try:
+        first, last = (int(x) for x in str(id_range).split("-"))
+    except ValueError:
+        raise ValueError(f"id range {id_range!r}: first-last, two whole numbers") from None
+    if first <= 0 or first % BLOCK or last - first + 1 != BLOCK:
+        raise ValueError(f"id range {id_range!r} is not a site's block: a million ids from a multiple of a million "
+                         "(2.1.6.46)")
+    return first, last

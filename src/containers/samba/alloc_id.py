@@ -1,6 +1,6 @@
 import ldb
 
-from id_layout import RANGES, laid_out
+from id_layout import RANGES
 
 TRIES = 50          # refused changes (another writer) and numbers found in use, together
 
@@ -19,7 +19,7 @@ def _in_use(samdb, number):
 def _take(samdb, site_dn, attr, old, new):
     """Purpose: move a high-water mark with one conditional change (delete the value read, add the next), so two
              writers cannot take the same number.
-    Inputs:  samdb — SamDB; site_dn — str; attr — fabricIdNext or fabricIdMark; old, new — the values as stored.
+    Inputs:  samdb — SamDB; site_dn — str; attr — fabricIdMark; old, new — the values as stored.
     Returns: True when this writer moved it; False when another writer had moved it first.
     Fails:   ldb.LdbError for any other refusal.
     Feeds:   alloc_id."""
@@ -35,31 +35,24 @@ def _take(samdb, site_dn, attr, old, new):
 
 def alloc_id(samdb, site_dn, kind="person"):
     """Purpose: the next uid/gid number of a site's block for one use, never handed out twice (2.1.6.17, 2.1.6.46,
-             manual 1.6.3.9, 1.6.3.17). A block laid out in fixed ranges (new installs from 0.7.0) takes the number
-             from the kind's range, its own high-water mark `fabricIdMark` "<kind>=<next>" on the site's OU; a block
-             from before 0.7.0 takes the next of its one run (`fabricIdNext`), whatever the kind. Each mark moves with
-             one conditional change; a refused change is read and tried again; a number already in use is skipped.
+             manual 1.6.3.9, 1.6.3.17): from the kind's fixed range, by its own high-water mark `fabricIdMark`
+             "<kind>=<next>" on the site's OU (every block is laid out in ranges, id_layout.check_block). Each mark
+             moves with one conditional change; a refused change is read and tried again; a number already in use is
+             skipped.
     Inputs:  samdb — SamDB (the system's, or a connection as an account allowed to change the site's OU); site_dn —
              str, the site's OU; kind — a key of id_layout.RANGES: first_admin, admin, service, builtin_group, group,
              person, guest.
     Returns: int, the number taken. first_admin's one number, once taken, gives way to the admin range.
-    Fails:   ValueError naming the range ("the people range 1100001-1899999 of … is full") or the block when it is
-             full; ValueError for an unknown kind, or a laid-out block whose marks are not set yet (converge first);
+    Fails:   ValueError naming the range when it is full ("the person range 1100001-1899999 of … is full"); ValueError
+             for an unknown kind, or a block whose marks are not set yet (converge first);
              ldb.LdbError after too many refused tries or for a missing OU.
     Feeds:   converge (site groups, service accounts), the directory operations (people, groups)."""
     if kind not in RANGES:
         raise ValueError(f"unknown id kind {kind!r}: one of {', '.join(RANGES)}")
     for _ in range(TRIES):
         res = samdb.search(base=site_dn, scope=ldb.SCOPE_BASE,
-                           attrs=["fabricIdRange", "fabricIdNext", "fabricIdMark"])[0]
-        first, last = (int(x) for x in str(res["fabricIdRange"][0]).split("-"))
-        if not laid_out(first, last):                       # an older install's block: one run
-            nxt = int(str(res["fabricIdNext"][0]))
-            if nxt > last:
-                raise ValueError(f"the id block {first}-{last} of {site_dn} is full")
-            if _take(samdb, site_dn, "fabricIdNext", nxt, nxt + 1) and not _in_use(samdb, nxt):
-                return nxt
-            continue
+                           attrs=["fabricIdRange", "fabricIdMark"])[0]
+        first = int(str(res["fabricIdRange"][0]).split("-")[0])
         marks = [str(m) for m in res.get("fabricIdMark", []) if str(m).startswith(f"{kind}=")]
         if not marks:
             raise ValueError(f"the {kind} range of {site_dn} has no mark yet: converge the site first")

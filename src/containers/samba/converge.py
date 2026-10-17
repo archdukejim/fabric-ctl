@@ -25,6 +25,7 @@ from ensure_site_info import ensure_site_info
 from ensure_site_link import ensure_site_link
 from ensure_sso_account import ensure_sso_account
 from ensure_sudo_rule import ensure_sudo_rule
+from id_layout import check_block
 from refresh_sudo_hosts import refresh_sudo_hosts
 from open_samdb import open_samdb
 from remove_ipv6_records import remove_ipv6_records
@@ -68,6 +69,7 @@ def converge(state):
     if state.get("rodc"):                 # a read-only DC holds the domain's copy: only what is local to it
         _, lp = open_samdb(CONF)
         return share_winbind(lp, int(state["radius_gid"]))
+    check_block(state["id_range"])        # a block the ranges do not fit is refused before anything is written
     # before the schema: Samba checks its master by the owner's DN text. Samba keeps one schema per process, loaded by
     # the first database opened, with that one's "schema update allowed": so this one allows them, as ensure_schema's
     samdb, lp = open_samdb(CONF, schema_updates=True)

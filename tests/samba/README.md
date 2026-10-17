@@ -15,3 +15,4 @@ The `samba` suite (manual 1.6.5.13): the Windows domain controller.
 | `start_bind.py` | BIND beside a test DC, answering the AD zone through DLZ (for suites with more than one DC) |
 | `start_dc.py` | A converged DC for any suite that needs AD (tests/keycloak), and its parts (dc_tls, run_dc): fabric's image, hardening, deploy and convergence, a test PKI |
 | `writable_server_test.py` | The one choice of the DC a domain write goes to (2.1.6.52): this site's, a read-only DC's writable partner, refused with none known; `host_identity` and the host account's undo answering as before. Pure logic, no container; in `run-all.sh`'s `consent` line |
+| `id_layout_test.py` | A site's id block checked before the DC writes anything (2.1.6.46): a million ids from a multiple of a million, anything else (a block from before 0.7.0, S11) refused, naming it. Pure logic, no container; in `run-all.sh`'s `consent` line |

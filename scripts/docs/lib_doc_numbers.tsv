@@ -1074,7 +1074,8 @@ function	fabricctl-jinja|src/containers/samba/host_groups.py|rule_description	4
 function	fabricctl-jinja|src/containers/samba/host_groups.py|rule_hosts	5	
 function	fabricctl-jinja|src/containers/samba/host_groups.py|site_rules	6	
 function	fabricctl-jinja|src/containers/samba/host_groups.py|text	7	
-function	fabricctl-jinja|src/containers/samba/id_layout.py|laid_out	1	
+function	fabricctl-jinja|src/containers/samba/id_layout.py|check_block	2	
+function	fabricctl-jinja|src/containers/samba/id_layout.py|laid_out	1	0.7.1 / 2026-10-17
 function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|_has_group	1	
 function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|legacy_logon_groups	2	
 function	fabricctl-jinja|src/containers/samba/link_device_cert.py|link_device_cert	1	

@@ -74,7 +74,7 @@ check("the site's sudo rule: its fabric-admins and, at the root, the organisatio
 
 # people: alice (a person of lan), adam (a lan admin and one of its fabric-admins), lara (a person of another site, lab)
 lab = {"site": "lab", "root": False, "parent": "lan", "password_policy": POLICY, "networks": [],
-       "root_ca_pem": open(dc["root_ca"]).read(), "id_range": "200001-300000", "groups": [], "admin_group": "admins",
+       "root_ca_pem": open(dc["root_ca"]).read(), "id_range": "2000000-2999999", "groups": [], "admin_group": "admins",
        "accounts": {f"fabric-{k}-lab": random_password() for k in ("agent", "keycloak", "radius")}, "radius_gid": 610}
 sh(["docker", "exec", "-i", DC, "python3", "/fabric/converge.py"], input=json.dumps(lab))
 lab_v = {**V, "site_name": "lab"}
