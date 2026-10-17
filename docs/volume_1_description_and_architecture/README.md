@@ -32,6 +32,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.2.10 Global options](1.2.10-global.md)
 - [1.2.11 Networking and DNS](1.2.11-networking.md)
 - [1.2.12 Docker infrastructure](1.2.12-docker.md)
+- [1.2.13 What fabric claims, checked for collisions](1.2.13-name-claims.md)
 
 ## 1.3 fabricctl, setup and fabric-agent
 
@@ -62,6 +63,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.6.9 The organisation and its directory](1.6.9-directory.md)
 - [1.6.10 Security contexts and features](1.6.10-security.md)
 - [1.6.11 Host access](1.6.11-host-access.md)
+- [1.6.12 Domain management in the console](1.6.12-domain-management.md)
 
 ## 1.7 Secrets: OpenBao
 
@@ -74,6 +76,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.8.3 The web UI as the single pane](1.8.3-single-pane.md)
 - [1.8.4 Web UI](1.8.4-webui.md)
 - [1.8.5 The setup wizard: setup's choices in the console, and in a file](1.8.5-setup-wizard.md)
+- [1.8.6 The console redone in Cockpit's style](1.8.6-console-redo.md)
 
 ## 1.9 Federation
 
