@@ -33,7 +33,7 @@ echo "--- target: $TARGET ($("${SSH[@]}" 'uname -m; . /etc/os-release; echo $PRE
 
 if [ -n "${APT_SUITE:-}" ]; then
     # as users install it (manual 3.3.1): fabric's signed apt repository on GitHub Pages, suite stable or testing
-    APT_URL="${APT_URL:-https://archdukejim.github.io/open-fabric}"
+    APT_URL="${APT_URL:-https://archdukejim.github.io/fabric-ctl}"
     R "wget -qO- $APT_URL/public.key | gpg --dearmor --yes -o /usr/share/keyrings/fabric-archive-keyring.gpg &&        echo 'deb [signed-by=/usr/share/keyrings/fabric-archive-keyring.gpg] $APT_URL $APT_SUITE main'        > /etc/apt/sources.list.d/fabric.list && apt-get update &&        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq fabricctl" > "$OUT/apt.log" 2>&1
     check "fabric's apt repository ($APT_SUITE) is trusted by its key and installs fabricctl"         "R 'dpkg -s fabricctl' | grep -q '^Status: install ok installed' && ! grep -qiE 'NO_PUBKEY|not signed|GPG error' '$OUT/apt.log'"
 else
