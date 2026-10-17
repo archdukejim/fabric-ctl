@@ -70,6 +70,11 @@ for change, said in (({"posix_id_start": 999}, "posix_id_start must be a whole n
                      ({"posix_id_start": 5001, "posix_id_block": 10000}, "posix_id_start must be a multiple")):
     why = refused(**change)
     check(f"refused: {change} ({said})", why and said in why, why)
+for change in ({"posix_id_start": 5001}, {"posix_id_block": 100000}):
+    why = refused(**change)
+    check(f"an older block's refusal ({change}) says to install fresh, why, and where the steps are (2.1.6.54)",
+          why and "before 0.7.0" in why and "install it fresh" in why and "no migration" in why and "3.3.5" in why,
+          why)
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)
