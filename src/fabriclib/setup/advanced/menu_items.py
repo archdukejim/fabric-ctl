@@ -71,7 +71,7 @@ def _dc_item(ctx):
         if os.path.exists(os.path.join(ctx.deploy_base, "samba", "data", ".fabric-provisioned")):
             print("    refused: the domain controller's name is permanent, and this one is made")
             return
-        ctx.vars.pop("dc_name", None)          # asked again, <hostname>-dc suggested
+        ctx.vars.pop("dc_name", None)          # asked again, dc-001 suggested
         ask_dc_name(ctx)
     return run
 
@@ -100,7 +100,7 @@ def menu_items(ctx, networks=None):
     ad_text = ad or (f"{suggested_ad_domain(domain)} (suggested)" if suggested_ad_domain(domain) else "")
     add("required", "Windows (AD) domain", ad_text, _ad_item(ctx), not ad_text)
     dc = v.get("dc_name") or ""
-    dc_text = dc or (f"{suggested_dc_name(v.get('hostname'))} (suggested)" if v.get("hostname") else "")
+    dc_text = dc or f"{suggested_dc_name()} (suggested)"
     add("required", "Domain controller's name", dc_text, _dc_item(ctx))
     net_ok = all(valid_setting(k, str(v.get(k) or "")) for k in ("host_ip", "lan_cidr", "lan_gateway"))
     problem = network_problem(v) if net_ok else ""

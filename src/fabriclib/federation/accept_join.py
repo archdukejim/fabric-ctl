@@ -20,6 +20,7 @@ from fabriclib.federation.site_networks import site_networks
 from fabriclib.pki.sign_site_ca import sign_site_ca
 from fabriclib.samba.dc_name_problem import dc_name_problem
 from fabriclib.samba.domain_dc_names import domain_dc_names
+from fabriclib.samba.suggested_dc_name import suggested_dc_name
 from fabriclib.samba.domain_sites import domain_sites
 from fabriclib.samba.prepare_site import prepare_site
 from fabriclib.secrets.load_secrets import load_secrets
@@ -194,7 +195,8 @@ def _prepare_domain(v, site, dc_type, networks, registry, dc_name=""):
         if dc_name.lower() in names["computers"]:
             raise ValidationError(f"the DC name {dc_name.lower()} is taken in {v['ad_domain']} (its domain "
                                   f"controllers: {', '.join(names['dcs']) or 'none'}): give the joining site's DC "
-                                  "another name (dc_name)")
+                                  f"another name (dc_name), e.g. the next free one, "
+                                  f"{suggested_dc_name(list(names['computers']) + list(names['dcs']))}")
     join_password = random_password()
     block = next_id_block(v, registry, sites=list(held.values()))
     prepare_site(v, site, networks, block, accounts, join_password)

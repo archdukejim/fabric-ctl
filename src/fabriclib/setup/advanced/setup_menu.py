@@ -83,7 +83,7 @@ def setup_menu(ctx, networks=None):
             # the DC's name is permanent (2.1.6.45): the suggestion shown is saved, so a later host rename never
             # moves it (the 0.7.1 candidate's install left it unset, 2.3.1.21.2)
             if not ctx.vars.get("dc_name"):
-                ctx.vars["dc_name"] = suggested_dc_name(ctx.vars.get("hostname"))
+                ctx.vars["dc_name"] = suggested_dc_name()
             return
         if answer.isdigit() and 1 <= int(answer) <= len(items):
             items[int(answer) - 1]["ask"]()

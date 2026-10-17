@@ -242,8 +242,8 @@ check("Enter took fabric-admin as the first admin; the console's role is fabric-
       and int(saved.get("host_ram_capacity") or 0) >= 4,
       {k: saved.get(k) for k in ("webui_admin_user", "webui_admin_role", "signin_kerberos", "ad_password_policy",
                                  "host_ram_capacity")})
-check("Advanced with the DC's name left alone: the DC takes <hostname>-dc, never the host's own name (2.3.1.21.2)",
-      saved.get("dc_name") == suggested_dc_name(guess_host) != guess_host, saved.get("dc_name"))
+check("Advanced with the DC's name left alone: the DC takes dc-001 (2.1.6.61), never the host's own name (2.3.1.21.2)",
+      saved.get("dc_name") == suggested_dc_name() != guess_host, saved.get("dc_name"))
 check("the first admin was created with the chosen password; none written to the login kit",
       "created in the directory with the password chosen in setup" in text
       and not R("find /home /root -path '*/fabric-admin/initial-password.txt' -newer /opt/fabric/config/fabric.yaml "
