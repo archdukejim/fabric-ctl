@@ -618,7 +618,7 @@ in_box 'fabricctl vault rotate-db' > "$OUT/rotate-db.log" 2>&1
 check "fabricctl vault rotate-db: rotated, Keycloak restarted with it and healthy; doctor's rotation check passes"     "grep -q 'Keycloak restarted with it and healthy' '$OUT/rotate-db.log' && in_box 'fabricctl doctor' | grep -q 'rotated by OpenBao in the last 40 days'"
 check "the monthly fabric-db-rotate timer is on" "in_box 'systemctl is-enabled fabric-db-rotate.timer' | grep -qx enabled"
 docker cp "$REPO/tests/sandbox/login_test.py" "$NAME:/root/login_test.py"
-in_box "FABRIC_ADMIN_PW='$ADMIN_PW' CAROL_PW='$CAROL_PW' CAROL_P12_PW='$CAROL_P12_PW' python3 /root/login_test.py /opt/fabric/config/vars.yaml bob '$BOB_PW' '$BOB_P12_PW'" 2>&1 | tee "$OUT/login.log"
+in_box "WIZARD=open FABRIC_ADMIN_PW='$ADMIN_PW' CAROL_PW='$CAROL_PW' CAROL_P12_PW='$CAROL_P12_PW' python3 /root/login_test.py /opt/fabric/config/vars.yaml bob '$BOB_PW' '$BOB_P12_PW'" 2>&1 | tee "$OUT/login.log"
 in_box 'journalctl --no-pager CONTAINER_NAME=nginx | grep -iE "oidc|error" | tail -40'     > "$OUT/login-nginx.log" 2>&1     # diagnosis when a sign-in check fails
 cat > "$OUT/reset_guard.py" <<'PY'
 import sys, yaml
@@ -637,6 +637,13 @@ check "people: without the admin bundle, a fabric-group member's sign-in cannot 
     "in_box 'python3 /root/reset_guard.py' | grep -q 'only an admin can reset'"
 check "sign-in: admin gets in; HTTP, missing/foreign certs, non-admins and borrowed certs are refused" \
     "! grep -q '^FAIL' '$OUT/login.log' && [ \"\$(grep -c '^PASS' '$OUT/login.log')\" -ge 11 ]"
+# the setup wizard (manual 1.8.5.10 "Finished"): a fresh install opens it on the admin's first Overview of a sign-in
+# (login_test.py with WIZARD=open requires it), the admin dismisses it through the console, recorded beside the settings
+# covers: web:get.settings web:post.settings.dismiss +
+check "setup wizard: the admin's first Overview opens it (303 to Settings); Dismiss through the console ends it" \
+    "grep -q '^PASS setup wizard: a fresh install' '$OUT/login.log' && grep -q '^PASS setup wizard: Dismiss' '$OUT/login.log' \
+     && grep -q '^PASS setup wizard finished' '$OUT/login.log' \
+     && in_box 'grep -q dismissed /opt/fabric/config/settings-wizard.json'"
 
 echo "--- container images: pinned, status, update (compose down/up, health-gated)"
 NGX_OLD=sha256:d5792f71a9496b833bc08ea834a758c46e2b6a6306c10f4be926f38a656cdc1c     # nginx 1.30.4
