@@ -187,7 +187,7 @@ file	fabriclib-deploy|src/fabriclib/deploy/install_service_units.py	16
 file	fabriclib-deploy|src/fabriclib/deploy/install_stepca_templates.py	17	
 file	fabriclib-deploy|src/fabriclib/deploy/install_timers.py	29	
 file	fabriclib-deploy|src/fabriclib/deploy/install_webui_files.py	18	
-file	fabriclib-deploy|src/fabriclib/deploy/keep_old_install.py	30	0.7.1 / 2026-10-17
+file	fabriclib-deploy|src/fabriclib/deploy/keep_old_install.py	30	0.7.2 / 2026-10-17
 file	fabriclib-deploy|src/fabriclib/deploy/load_link_vars.py	19	
 file	fabriclib-deploy|src/fabriclib/deploy/merge_radius_clients.py	20	
 file	fabriclib-deploy|src/fabriclib/deploy/merge_tsig_keys.py	21	
@@ -333,7 +333,7 @@ file	fabriclib-dns|src/fabriclib/dns/common/landing_names.py	40
 file	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py	5	
 file	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py	6	
 file	fabriclib-dns|src/fabriclib/dns/format_value.py	7	
-file	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py	44	
+file	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py	41	
 file	fabriclib-dns|src/fabriclib/dns/install_zone_file.py	8	
 file	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py	9	
 file	fabriclib-dns|src/fabriclib/dns/list_zones.py	10	
@@ -1122,7 +1122,7 @@ function	fabricctl-jinja|src/containers/samba/host_groups.py|rule_hosts	5
 function	fabricctl-jinja|src/containers/samba/host_groups.py|site_rules	6	
 function	fabricctl-jinja|src/containers/samba/host_groups.py|text	7	
 function	fabricctl-jinja|src/containers/samba/id_layout.py|check_block	2	
-function	fabricctl-jinja|src/containers/samba/id_layout.py|laid_out	1	0.7.1 / 2026-10-17
+function	fabricctl-jinja|src/containers/samba/id_layout.py|laid_out	1	0.7.2 / 2026-10-17
 function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|_has_group	1	
 function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|legacy_logon_groups	2	
 function	fabricctl-jinja|src/containers/samba/link_device_cert.py|link_device_cert	1	
@@ -1310,7 +1310,7 @@ function	fabriclib-deploy|src/fabriclib/deploy/install_service_units.py|install_
 function	fabriclib-deploy|src/fabriclib/deploy/install_stepca_templates.py|install_stepca_templates	1	
 function	fabriclib-deploy|src/fabriclib/deploy/install_timers.py|install_timers	1	
 function	fabriclib-deploy|src/fabriclib/deploy/install_webui_files.py|install_webui_files	1	
-function	fabriclib-deploy|src/fabriclib/deploy/keep_old_install.py|keep_old_install	1	0.7.1 / 2026-10-17
+function	fabriclib-deploy|src/fabriclib/deploy/keep_old_install.py|keep_old_install	1	0.7.2 / 2026-10-17
 function	fabriclib-deploy|src/fabriclib/deploy/load_link_vars.py|load_link_vars	1	
 function	fabriclib-deploy|src/fabriclib/deploy/merge_radius_clients.py|merge_radius_clients	1	
 function	fabriclib-deploy|src/fabriclib/deploy/merge_tsig_keys.py|merge_tsig_keys	1	
@@ -1940,7 +1940,7 @@ function	fabriclib-setup|src/fabriclib/setup/advanced/ask_dhcp_settings.py|_sugg
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_dhcp_settings.py|ask_dhcp_settings	2	
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_first_admin_item.py|ask_first_admin_item	1	
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_host_change.py|ask_host_change	1	
-function	fabriclib-setup|src/fabriclib/setup/advanced/ask_log_target.py|_host_ok	1	0.7.1 / 2026-10-17
+function	fabriclib-setup|src/fabriclib/setup/advanced/ask_log_target.py|_host_ok	1	0.7.2 / 2026-10-17
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_log_target.py|ask_log_target	2	
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_memory.py|ask_memory	1	
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_network.py|ask_network	1	

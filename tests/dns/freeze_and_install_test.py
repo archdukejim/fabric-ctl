@@ -1,4 +1,4 @@
-"""A zone installed under a running BIND that is about to restart (fabriclib/dns/freeze_and_install, 2.3.1.23):
+"""A zone installed under a running BIND that is about to restart (fabriclib/dns/freeze_and_install, 2.3.1.22):
 `rndc freeze` answers before BIND has written the zone's journal into its file, and that write used to land after the
 new file and put the old zone back (the sandbox's changed-setting record, not served). rndc stood in for, BIND's late
 write simulated by a thread. Part of the `zone` suite. No Docker, no BIND.
