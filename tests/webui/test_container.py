@@ -1482,9 +1482,9 @@ st, loc, _ = web_post("/settings/apply", {"plan": plan_id}, wsess, wcsrf)
 # covers: web:post.settings.apply agent:post.settings.apply +
 check("wizard: Apply -> the apply job's page", st == 303 and loc.startswith("/jobs/"), (st, loc))
 job_page = ""
-for _ in range(600):
+for _ in range(600):        # until the job has ended: its page says how (a page not yet there, or Running, is not it)
     st, _, _, job_page = req("GET", loc, ALICE, cookie=wsess)
-    if "Running" not in job_page:
+    if st == 200 and ("flash bad" in job_page or "flash ok" in job_page):
         break
     time.sleep(0.2)
 audit_now = open(f"{W}/fabric/archive/audit.log").read()
