@@ -28,7 +28,6 @@ from fabriclib.deploy.install_service_units import install_service_units
 from fabriclib.deploy.install_stepca_templates import install_stepca_templates
 from fabriclib.deploy.install_timers import install_timers
 from fabriclib.deploy.install_webui_files import install_webui_files
-from fabriclib.deploy.keep_old_install import keep_old_install
 from fabriclib.deploy.load_link_vars import load_link_vars
 from fabriclib.deploy.merge_radius_clients import merge_radius_clients
 from fabriclib.deploy.merge_tsig_keys import merge_tsig_keys
@@ -51,10 +50,6 @@ def _prepare(paths):
     Fails:   ValidationError (settings, secrets that cannot be loaded or saved, fixed identity).
     Feeds:   apply_deployment."""
     custom_vars = load_vars(paths["vars"])
-    provisioned = os.path.exists(os.path.join(paths["base"], "samba", "data", ".fabric-provisioned"))
-    for line in keep_old_install(custom_vars, provisioned):   # an install from before 0.7.0, applied before setup
-        # ran (2.1.6.45)
-        print(line)
     try:
         secrets = load_secrets(paths["secrets"])
     except ValidationError as e:

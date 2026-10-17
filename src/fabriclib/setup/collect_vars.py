@@ -106,7 +106,7 @@ def collect_vars(ctx, ask=True):
         explicit = {**_load(repo_vars), **user}
         pins = set(data.get("image_pins") or []) | {k for k in explicit if k.startswith("image_")}
         data["image_pins"] = sorted(pins)
-        for change in upgrade_vars(data, {k: True for k in pins}, provisioned):
+        for change in upgrade_vars(data, {k: True for k in pins}):
             info(change)
     elif not user_file and os.path.exists(repo_vars):
         # Fresh install from a checkout with the classic custom-vars.yaml.

@@ -180,20 +180,21 @@ check("an install with the previous bind (53) account: create fabric-dns, move i
 
 print("--- upgrading an older install's settings")
 old = {"service_users": {"bind": {"uid": 53, "gid": 53}, "nginx": {"uid": 1443, "gid": 1443}}}
-changes = upgrade_vars(old, set(), True)
+changes = upgrade_vars(old, set())
 check("previous defaults are dropped (the new accounts apply), an admin's own ids are kept",
       old["service_users"] == {"nginx": {"uid": 1443, "gid": 1443}} and len(changes) == 1, (old, changes))
 # certs.<domain> dropped (1.5.1.5): its keys and the default CNAME go; an admin's other records stay
 old = {"hostname": "fab", "cname_certs": "certs", "hostname_certs": "certs.lan.test",
        "dns": {"dynamic_zone_var": {"CNAME": [{"canonical": "fab", "name": "certs"}, {"canonical": "fab", "name": "ca"},
                                              {"canonical": "nas", "name": "certs2"}]}}}
-# (an install from before 0.7.0 also keeps its DC's name: that change is the DC's, 2.1.6.45, counted apart)
-changes = [c for c in upgrade_vars(old, set(), True) if "certs" in c]
+changes = [c for c in upgrade_vars(old, set()) if "certs" in c]
+check("a vars file without dc_name is not given one at the upgrade (keep_old_install deleted 2026-10-13, S10): the "
+      "template's dc-<hostname> applies", "dc_name" not in old, old)
 check("an older install's certs.<domain>: cname_certs, hostname_certs and its CNAME removed, other CNAMEs kept",
       "cname_certs" not in old and "hostname_certs" not in old and len(changes) == 2
       and [r["name"] for r in old["dns"]["dynamic_zone_var"]["CNAME"]] == ["ca", "certs2"], (old, changes))
 old = {"hostname": "fab", "dns": {"dynamic_zone_var": {"CNAME": [{"canonical": "elsewhere", "name": "certs"}]}}}
-changes = [c for c in upgrade_vars(old, set(), True) if "certs" in c]
+changes = [c for c in upgrade_vars(old, set()) if "certs" in c]
 check("…but a certs record the admin pointed elsewhere is not the old default: kept, nothing reported",
       old["dns"]["dynamic_zone_var"]["CNAME"] == [{"canonical": "elsewhere", "name": "certs"}] and changes == [],
       (old, changes))
