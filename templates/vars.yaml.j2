@@ -179,8 +179,8 @@ ad_realm: "{{ _ad | upper }}"
 ad_base_dn: "{{ _ad.split('.') | map('regex_replace', '^', 'DC=') | join(',') if _ad else '' }}"
 ad_netbios: "{{ (ad_netbios | default(_ad.split('.')[0], true))[:15] | upper }}"
 {# the DC's own name in the domain (2.1.6.45, 2.1.6.61, manual 1.6.5.23), apart from the host's: setup asks it,
-   suggesting dc-001 (the domain's DCs numbered); permanent. #}
-{% set _dc = (dc_name | default('dc-001', true)) | lower %}
+   suggesting dc-0001 (the domain's DCs numbered); permanent. #}
+{% set _dc = (dc_name | default('dc-0001', true)) | lower %}
 dc_name: "{{ _dc }}"
 hostname_dc: "{{ (_dc ~ '.' ~ _ad) | lower if _ad else '' }}"
 # minimum_length, complexity (bool), history, minimum_age_days, maximum_age_days, lockout_threshold,

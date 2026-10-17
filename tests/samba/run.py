@@ -171,7 +171,7 @@ check("the default policy (2.1.6.35): 12 characters, complexity, 5 remembered, n
           "minimum_length": 12, "complexity": True, "history": 5, "minimum_age_days": 0, "maximum_age_days": 0,
           "lockout_threshold": 10, "lockout_window_minutes": 15, "lockout_minutes": 15}, ok_default)
 
-print("--- the DC's own name (2.1.6.45, manual 1.6.5.23): asked, dc-001 suggested, permanent")
+print("--- the DC's own name (2.1.6.45, manual 1.6.5.23): asked, dc-0001 suggested, permanent")
 from fabriclib.setup.ask_dc_name import ask_dc_name  # noqa: E402
 from fabriclib.setup.errors import SetupError  # noqa: E402
 
@@ -194,8 +194,8 @@ def ask_dc(answers, have=None, unattended=False):
 
 
 got, said = ask_dc([""])
-check("asked with dc-001 suggested; Enter takes it; marked permanent in its one line (2.1.2.21)",
-      got == "dc-001" and "[dc-001]" in said and "Permanent" in said, (got, said))
+check("asked with dc-0001 suggested; Enter takes it; marked permanent in its one line (2.1.2.21)",
+      got == "dc-0001" and "[dc-0001]" in said and "Permanent" in said, (got, said))
 got, said = ask_dc(["a-name-far-too-long", "ad", "12", "DC-Kitchen"])
 check("negative: too long, the domain's NetBIOS name, only digits each refused saying why, then any valid name taken",
       got == "dc-kitchen" and "1-15 letters" in said and "NetBIOS name" in said and "only digits" in said,
@@ -204,9 +204,9 @@ got, said = ask_dc([], {"dc_name": "dc-kitchen"})
 check("an install that has its DC's name keeps it, nothing asked", got == "dc-kitchen" and said == "", (got, said))
 got, said = ask_dc(["", ], {"dc_name": "pi-core"})
 check("negative: a DC's name equal to the host's is asked again, saying why (2.1.6.51), the suggestion taken",
-      got == "dc-001" and "host" in said, (got, said))
+      got == "dc-0001" and "host" in said, (got, said))
 got, said = ask_dc([], unattended=True)
-check("unattended: the suggestion is taken", got == "dc-001", (got, said))
+check("unattended: the suggestion is taken", got == "dc-0001", (got, said))
 got, said = ask_dc([], {"dc_name": "not valid!"}, unattended=True)
 check("negative: unattended, an invalid dc_name in the vars file is refused, saying why",
       got is None and "dc_name" in said and "1-15 letters" in said, said)
@@ -289,7 +289,7 @@ v = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base))
 # covers: setting:ad_domain +
 check("the domain's names follow from ad_domain (lower-cased; realm, base DN, NetBIOS, the DC's name)",
       (v["ad_domain"], v["ad_realm"], v["ad_base_dn"], v["ad_netbios"], v["hostname_dc"])
-      == ("ad.lan.test", "AD.LAN.TEST", "DC=ad,DC=lan,DC=test", "AD", "dc-001.ad.lan.test"),
+      == ("ad.lan.test", "AD.LAN.TEST", "DC=ad,DC=lan,DC=test", "AD", "dc-0001.ad.lan.test"),
       (v["ad_domain"], v["ad_realm"], v["ad_base_dn"], v["ad_netbios"], v["hostname_dc"]))
 check("the limit is planned (1.2.4.3): 512 MB at least at 4 GB, the smallest host (2.1.2.3); no samba_mem_limit written", v["memory_plan"]["limits"]["samba"] >= 512 and v["samba_mem_limit"] is None, v["memory_plan"])
 dc = yaml.safe_load(env.get_template("samba/docker-compose.yml.j2").render(**v))["services"]["samba"]

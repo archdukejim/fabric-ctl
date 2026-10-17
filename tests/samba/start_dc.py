@@ -39,7 +39,7 @@ def start_dc(work, container, network, subnet, ip, domain="lan.j-j.family", ad_d
     Inputs:  work — a scratch folder (made anew); container — the DC's name; network/subnet — a Docker network (made
              if missing); ip — the DC's address there; domain, ad_domain, hostname, site — the install's settings;
              extra_vars — more settings for the render (e.g. Keycloak's); dc_name — the DC's own name ("": the
-             default, dc-001, so every suite's DC has a name unlike its host's, 2.1.6.45).
+             default, dc-0001, so every suite's DC has a name unlike its host's, 2.1.6.45).
     Returns: dict {"v": rendered vars (deploy_base_dir = work), "secrets", "env" (jinja env), "root_ca", "root_key"
              (the test PKI's files), "container"}.
     Fails:   RuntimeError when a step fails or the DC is not healthy within 5 minutes."""

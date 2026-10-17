@@ -71,7 +71,7 @@ def _dc_item(ctx):
         if os.path.exists(os.path.join(ctx.deploy_base, "samba", "data", ".fabric-provisioned")):
             print("    refused: the domain controller's name is permanent, and this one is made")
             return
-        ctx.vars.pop("dc_name", None)          # asked again, dc-001 suggested
+        ctx.vars.pop("dc_name", None)          # asked again, dc-0001 suggested
         ask_dc_name(ctx)
     return run
 

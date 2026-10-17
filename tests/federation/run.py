@@ -237,7 +237,7 @@ check("join: a site whose DC would take a name the domain has (the root's) is re
       refused(join_upstream, {**SITE, "dc_name": "HQ"}, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca",
               "branch1.hq.test", "127.0.0.2", **J, match="hq is taken in ad.hq.test (its domain controllers: hq)")
       and refused(join_upstream, {**SITE, "dc_name": "HQ"}, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca",
-                  "branch1.hq.test", "127.0.0.2", **J, match="the next free one, dc-001"))
+                  "branch1.hq.test", "127.0.0.2", **J, match="the next free one, dc-0001"))
 SITE["dc_name"] = "dc-branch1"
 res = join_upstream(SITE, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca", "branch1.hq.test", "127.0.0.2", **J)
 jv = res["vars"]
