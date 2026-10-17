@@ -1,6 +1,6 @@
 # path	blob (git hash-object of the reviewed content)	reviewed (UTC date)	note
 .claude/skills/promote/SKILL.md	25c99aff421e0c790c39d8b6a95f2d725f981c41	2026-10-09	
-.claude/skills/rc/SKILL.md	9542ce79d14e20c5070932353fbdc077bd7f83ee	2026-10-14	
+.claude/skills/rc/SKILL.md	e9c44269a5c58c53a21129ab714013ade93361b1	2026-10-17	
 .claude/skills/tag/SKILL.md	8901474bc0fd35e6cac0a861c0d52ab02173db95	2026-10-09	
 .gitattributes	f273656c60a04a693192b0bdc27eb5465842e911	2026-09-30	
 .github/workflows/images.yml	74c6608952aff3c029e5bd9dd2ae386123e31817	2026-10-09	
@@ -21,7 +21,7 @@ docs/README.md	a83e2585272bfff196d38a7264e6e2661ce40693	2026-10-09
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	8ff2081001d4780b4be5c1561a75a6afca19c783	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
-docs/volume_1_description_and_architecture/1.1.4-roadmap.md	22441e9db980187145ffc8e591b12e4d5775a9f1	2026-10-17	
+docs/volume_1_description_and_architecture/1.1.4-roadmap.md	f85e968478b7f86d18a04064286bf478525b8f50	2026-10-17	
 docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	7cc73759f86c7ce4ca7e2d58b7d1cc0db4cb9a64	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	05ae522ba371603b5ae3129d01625d91c73c97f9	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
@@ -118,7 +118,7 @@ docs/volume_1_description_and_architecture/1.9.6-changes.md	6daa620e9c5e83f3ff60
 docs/volume_1_description_and_architecture/1.9.7-milestones.md	e58afe5eb9d02da03a309c838c2b86be04419123	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	0876ad0316394def5e4e2bd8c879ac252228442a	2026-10-13	
 docs/volume_1_description_and_architecture/README.md	43e201c19f73776fbb3fda98e4f5b5091cdd092e	2026-10-17	
-docs/volume_2_engineering_decisions/2.1.1-product.md	814fdd2430e7a5d1a49bfb1fbf15fe5475d50aa7	2026-10-14	
+docs/volume_2_engineering_decisions/2.1.1-product.md	64935498cad09081d01c1c394ba4bccde21c0ba0	2026-10-17	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	d2f651c94dba5302552170cee89cc3bc6f73769a	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	139ff5b3ecce15085a60e2ef8443933896633b00	2026-10-12	
@@ -1534,11 +1534,11 @@ tests/freeradius/README.md	06e07bdfb362e98d4185be54a1f29f64a2f1d9f2	2026-10-12
 tests/freeradius/run.py	4c3e29ceb2d6d41310bad6f14d7054b8ff605594	2026-10-12	
 tests/hardening/README.md	514afa897a841c34383af1ef74949610d5dd333d	2026-10-05	
 tests/hardening/run.sh	1ff8e633bf2f96af2a856b354aa722ffba1c5b00	2026-10-12	
-tests/host/README.md	d91d09e7d17622b432063f1b74256e96f6d940cd	2026-10-09	
+tests/host/README.md	f414014b45846ad188d3ad0868bd83bdc436830e	2026-10-17	
 tests/host/installer.py	4bd3b4fe875b8466c20fde048a38dcbf7d1a2af0	2026-10-17	
 tests/host/reset_user.py	36415b5b1fef5a58eb441687393d6062644b34e7	2026-10-05	
 tests/host/run.sh	5f0fa2874a88210cb93d106d5848f9376887e26a	2026-10-12	
-tests/host/upgrade.sh	85dd33fc7ea57cc3f7bcc0627f46e5dbbed5bde5	2026-10-09	
+tests/host/upgrade.sh	a103fd699ec3122da29ad0dfc27ba72f774fc8b4	2026-10-17	
 tests/host/upgrade_state.py	264871e5ec5a8366413119615e738476b30de26e	2026-10-09	
 tests/image_ref.py	4ff35451eb0f155eee1efe6209e935e841d0dc32	2026-10-03	
 tests/images/README.md	32152577c75918aee5b4d0bfe1f04b2163e75144	2026-10-14	

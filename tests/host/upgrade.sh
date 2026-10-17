@@ -1,19 +1,19 @@
 #!/bin/bash
 # -----------------------------------------------------------------------
-# Upgrade in place from the previous release (manual 2.1.1.32, 2.1.1.36), on a REAL host over SSH:
+# Upgrade in place from the floor (0.7.1 until 1.0, 2.1.1.55) or the previous release (2.1.1.36), on a REAL host:
 #   purge fabric -> install release FROM (its .deb from the GitHub release) -> setup -> seed state
 #   (upgrade_state.py) and raise a sign-in layer -> snapshot -> upgrade to the candidate from fabric's apt
 #   repository (TO_SUITE) -> fabricctl setup, as an operator would -> the same snapshot -> doctor, status.
 #
 #   TARGET=tempuser@192.168.4.57 HOST_IP=192.168.4.57 LAN_CIDR=192.168.4.0/22 GATEWAY=192.168.4.1 \
-#   FROM=0.6.1 TO_SUITE=stable [DOMAIN=pitest.home.arpa] [KEY=~/.ssh/id] tests/host/upgrade.sh
+#   FROM=0.7.1 TO_SUITE=stable [DOMAIN=pitest.home.arpa] [KEY=~/.ssh/id] tests/host/upgrade.sh
 #   (TO_DEB=<a .deb built here> instead of TO_SUITE: a branch not published to apt, e.g. a dev/ branch)
 #
 # It WIPES fabric on that host: use a disposable machine. Then run tests/host/run.sh with APT_SUITE=TO_SUITE
 # for the whole host suite on the upgraded install.
 # -----------------------------------------------------------------------
 set -uo pipefail
-: "${TARGET:?user@host}" "${HOST_IP:?}" "${LAN_CIDR:?}" "${GATEWAY:?}" "${FROM:?previous release, e.g. 0.6.1}" \
+: "${TARGET:?user@host}" "${HOST_IP:?}" "${LAN_CIDR:?}" "${GATEWAY:?}" "${FROM:?the floor or the previous release, e.g. 0.7.1}" \
   "${TO_SUITE:=${TO_DEB:+local}}" "${TO_SUITE:?stable or testing (or TO_DEB=<.deb>)}"
 DOMAIN="${DOMAIN:-pitest.home.arpa}"
 KEY="${KEY:-$HOME/.ssh/fabric-test_ed25519}"
