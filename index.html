@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fabric apt repository</title>
+<style>body{font-family:system-ui,sans-serif;max-width:52rem;margin:2rem auto;padding:0 1rem;line-height:1.5}
+pre{background:#f4f4f4;padding:.8rem;overflow-x:auto}code{font-size:.9rem}</style></head>
+<body>
+<h1>fabric apt repository</h1>
+<p>Signed packages of <code>fabricctl</code>, for Ubuntu 24.04 and 26.04 (amd64 and arm64). Suite <code>stable</code>
+holds the releases; <code>testing</code> a release candidate.</p>
+<pre><code>wget -qO- https://archdukejim.github.io/open-fabric/public.key | sudo gpg --dearmor -o /usr/share/keyrings/fabric-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/fabric-archive-keyring.gpg] https://archdukejim.github.io/open-fabric stable main" | sudo tee /etc/apt/sources.list.d/fabric.list
+sudo apt update &amp;&amp; sudo apt install fabricctl
+sudo fabricctl setup</code></pre>
+<p>Signing key fingerprint: <code>9946C72491FC85485ACD879BD0DF2E75E6E73230</code></p>
+<p>Source and manual: <a href="https://github.com/archdukejim/open-fabric">github.com/archdukejim/open-fabric</a></p>
+</body></html>

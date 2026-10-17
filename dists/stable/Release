@@ -1,0 +1,29 @@
+Origin: open-fabric
+Label: fabric
+Suite: stable
+Codename: stable
+Date: Sat, 17 Oct 2026 14:26:43 UTC
+Architectures: amd64 arm64
+Components: main
+Description: fabric releases (manual 1.3.1.1, 2.1.1.2)
+MD5Sum:
+ 4c168ba211ba85447396e2899321a429 1244 main/binary-amd64/Packages
+ 9e066b7bce5cd813936ed849da1a19b8 811 main/binary-amd64/Packages.gz
+ 07122050a38bf2f13d7f64c4e7bb23f3 141 main/binary-amd64/Release
+ 4c168ba211ba85447396e2899321a429 1244 main/binary-arm64/Packages
+ 9e066b7bce5cd813936ed849da1a19b8 811 main/binary-arm64/Packages.gz
+ b28abdeae7c4560ce5cc5e98f6d06027 141 main/binary-arm64/Release
+SHA1:
+ 94cdf0211ba34cdc093baf24f2fa7e17944f34e8 1244 main/binary-amd64/Packages
+ 302e12f94673062d3de8fb401a5ce2b078f668ff 811 main/binary-amd64/Packages.gz
+ 0749347becb825cd263d954feded4019f5d6956c 141 main/binary-amd64/Release
+ 94cdf0211ba34cdc093baf24f2fa7e17944f34e8 1244 main/binary-arm64/Packages
+ 302e12f94673062d3de8fb401a5ce2b078f668ff 811 main/binary-arm64/Packages.gz
+ 080b5b5185d820709101e45695b4e0cdf7886211 141 main/binary-arm64/Release
+SHA256:
+ 9733d3d528f0ed8553a1311f0a3747decf533ad5cdcbe61f82e37fb93b90d6fb 1244 main/binary-amd64/Packages
+ 136a9627b663ddae3cb73ead3c35c8c272de3a06be2d9f763d279c9deed8b689 811 main/binary-amd64/Packages.gz
+ a0a67083b155cd1aa70c08720eb6cd01c4a25683853e43260a2eea98a5e3419e 141 main/binary-amd64/Release
+ 9733d3d528f0ed8553a1311f0a3747decf533ad5cdcbe61f82e37fb93b90d6fb 1244 main/binary-arm64/Packages
+ 136a9627b663ddae3cb73ead3c35c8c272de3a06be2d9f763d279c9deed8b689 811 main/binary-arm64/Packages.gz
+ a696c446e2276b5b5eaec2f79b0051d4acde43bb715d81d618159d0588cc4b41 141 main/binary-arm64/Release
