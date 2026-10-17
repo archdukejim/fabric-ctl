@@ -8,6 +8,8 @@ message, then the good answer. Two runs (setup's start, menu and plan: manual 1.
      back on, the host's own rules kept), the plan's one yes — setup must finish, then doctor, and the checks a person
      would make (the domain on IPv4 only, 2.1.6.29; the landing page at the host's own name; the host's own ufw rules
      kept beside fabric's).
+Then a dropped connection (2.1.2.26): setup run again, its SSH connection killed in the certificates step — the work
+goes on as fabric-setup.service, and `sudo fabricctl setup` re-attaches, asking nothing, and ends with its result.
 The host is left installed for a person to look at. Run from a Linux machine that reaches the host with a key:
     TARGET=tempuser@192.168.5.57 KEY=~/.ssh/fabric-test_ed25519 HOST_IP=192.168.5.57 DOMAIN=home.arpa \\
         python3 tests/host/installer.py
@@ -77,9 +79,10 @@ PROMPTS = [
 ]
 
 
-def drive(answers, log):
+def drive(answers, log, drop_at=None):
     """Run `sudo fabricctl setup` in a terminal, answering each question from answers[name] in turn ("" = Enter
-    when a list runs out). Returns (exit status, transcript, the questions in the order asked)."""
+    when a list runs out); with drop_at, the SSH client is killed once the screen shows it (the connection drops).
+    Returns (exit status, transcript, the questions in the order asked)."""
     pid, fd = pty.fork()
     if pid == 0:
         os.execvp("ssh", ["ssh", "-tt", "-o", "BatchMode=yes", "-i", KEY, TARGET, "sudo fabricctl setup"])
@@ -99,6 +102,9 @@ def drive(answers, log):
                 out.write(data)
                 out.flush()
                 last = time.time()
+                if drop_at and drop_at in transcript:
+                    os.kill(pid, 9)
+                    break
                 tail = re.sub(r"\x1b\[[0-9;]*m", "", screen[-500:])
                 for name, pattern in PROMPTS:
                     if re.search(pattern, tail):
@@ -278,5 +284,20 @@ R("fabricctl setup --step firewall --non-interactive --approve ports,firewall --
 check("the firewall set up again for the person to use (own rules kept)",
       "Default: deny (incoming)" in R("ufw status verbose")
       and all(ln in R("ufw show added").splitlines() for ln in removed))
+
+# ---- a dropped connection (2.1.2.26): the work goes on; setup again re-attaches and ends with the result
+code, text, asked = drive({"plan": ["p"]}, f"{OUT}/run3-dropped.log", drop_at="[certs]")
+time.sleep(3)
+check("the connection dropped in the certificates step: the console is gone, fabric-setup.service goes on",
+      "[certs]" in text and "runs as fabric-setup.service" in text
+      and R("systemctl is-active fabric-setup.service").strip() == "active", text[-1500:])
+code, text, asked = drive({}, f"{OUT}/run4-reattach.log")
+# covers: cli:setup +
+check("sudo fabricctl setup re-attaches: no question, the run from its start to fabric is ready, exit 0",
+      code == 0 and not asked and "a setup is already running" in text and "fabric is ready" in text,
+      (code, asked, text[-1500:]))
+check("…and the unit is gone once it ended (--collect), the run recorded done",
+      R("systemctl is-active fabric-setup.service").strip() != "active"
+      and "state: done" in R("cat /opt/fabric/config/setup-run.yaml"))
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

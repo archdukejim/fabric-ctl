@@ -690,6 +690,30 @@ in_box 'python3 /root/agent_job.py images update nginx' > "$OUT/images-job.json"
 # covers: agent:post.jobs.images +
 check "an image update as an agent job (the web console's Updates): done, nothing to move while current"     "grep -q '\"state\": \"done\"' '$OUT/images-job.json' && grep -q 'nothing to update' '$OUT/images-job.json'"
 
+echo "--- a dropped session during setup (2.1.2.26): the work goes on as fabric-setup.service; setup again re-attaches"
+check "the first install's work ran as fabric-setup.service, the run recorded done, the unit gone (--collect)" \
+    "grep -q 'runs as fabric-setup.service' '$OUT/setup.log' && in_box 'grep -q \"^state: done\" /opt/fabric/config/setup-run.yaml' \
+     && ! in_box 'systemctl is-active -q fabric-setup.service'"
+check "no secret left: no hand-off file in /run/fabric; the admin's password not in the run record or its log" \
+    "! in_box 'ls /run/fabric/setup-*.handoff' 2>/dev/null && ! in_box 'grep -qF -f /root/admin-pw /opt/fabric/config/setup-run.yaml /opt/fabric/config/setup-run.log'"
+# a session of its own, killed with SIGHUP to its whole process group (what sshd does when the connection drops)
+in_box "rm -f /root/dropped.*; setsid bash -c 'echo \$\$ > /root/dropped.pid; exec fabricctl setup --non-interactive --yes > /root/dropped.log 2>&1' < /dev/null > /dev/null 2>&1 &"
+for _ in $(seq 1 300); do in_box 'grep -q "\[certs\]" /root/dropped.log' 2>/dev/null && break; sleep 2; done
+in_box 'kill -HUP -- -$(cat /root/dropped.pid)'
+sleep 2
+in_box 'cp /root/dropped.log /root/dropped-console.log'
+docker cp "$NAME:/root/dropped-console.log" "$OUT/dropped-console.log" >/dev/null 2>&1
+check "the session killed in the certificates step: its console is gone, fabric-setup.service goes on" \
+    "grep -q '\[certs\]' '$OUT/dropped-console.log' && ! in_box 'kill -0 \$(cat /root/dropped.pid)' 2>/dev/null \
+     && in_box 'systemctl is-active -q fabric-setup.service'"
+in_box 'fabricctl setup --non-interactive --yes' > "$OUT/reattach.log" 2>&1; REATTACH_RC=$?
+# covers: cli:setup +
+check "setup again re-attaches (no new run, no questions) and ends with the run's result: ready, exit 0" \
+    "[ $REATTACH_RC -eq 0 ] && grep -q 'a setup is already running' '$OUT/reattach.log' && grep -q 'fabric is ready' '$OUT/reattach.log'"
+check "…the dropped console never saw the end; the run's own log did, recorded done, the unit gone" \
+    "! grep -q 'fabric is ready' '$OUT/dropped-console.log' && in_box 'grep -q \"fabric is ready\" /opt/fabric/config/setup-run.log' \
+     && in_box 'grep -q \"^state: done\" /opt/fabric/config/setup-run.yaml' && ! in_box 'systemctl is-active -q fabric-setup.service'"
+
 echo "--- setup with a changed setting (live DNS zone must update, bind9 keeps serving)"
 cat > "$OUT/change.yaml" <<EOF
 dns:

@@ -5,8 +5,10 @@
 
 | File | What |
 |---|---|
-| `run_setup.py` | CLI for `fabricctl setup` / `doctor`: options, input, plan, runs the steps |
+| `run_setup.py` | CLI for `fabricctl setup` / `doctor`: options, input, plan; hands a full run's steps to `fabric-setup.service` (detach/) |
 | `steps.py` | The ordered step list |
+| `run_steps.py` | Runs the selected steps in order, then *fabric is ready*; keeps a full run's record after each step (2.1.2.26) |
+| `detach/` | Setup's work as `fabric-setup.service`: hand-off, following, re-attaching, resuming (1.3.2.3) |
 | `context.py` | `SetupContext`: install paths, rendered vars, secrets, options, services to restart |
 | `errors.py` | `SetupError` — a step cannot continue; message says why and what to do |
 | `choose_mode.py` | A new install's start: [G]uided, [A]dvanced (the menu of every setting) or [Q]uit (1.2.9.11.1) |
