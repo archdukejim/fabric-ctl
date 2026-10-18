@@ -1,8 +1,8 @@
 """What the vars editor (`fabricctl --interactive`) treats specially."""
 
 # fixed once installed: never edited or deleted from the menu (ad_domain: 2.1.6.11; dc_name: an AD DC cannot be
-# renamed, 2.1.6.45; friendly_name: the CA's name is made from it). Setup marks its questions for these "⚠ Permanent"
-# (setup/permanent_mark, 2.1.2.20): one list for both.
+# renamed, 2.1.6.45, and fabric names it, 2.1.6.65; friendly_name: the CA's name is made from it). Setup marks its
+# questions for these "⚠ Permanent" (setup/permanent_mark, 2.1.2.20): one list for both.
 IMMUTABLE_KEYS = {
     "ad_domain", "ca_name", "cert_country", "cert_province", "cert_city", "cert_org", "cert_ou",
     "cert_root_digest", "cert_root_key_type", "cert_root_key_param", "cert_root_ca_days",

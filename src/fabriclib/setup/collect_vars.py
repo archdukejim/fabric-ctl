@@ -7,10 +7,11 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.samba.check_password_policy import DEFAULT_POLICY, POLICY_KEYS
 from fabriclib.federation.common.load_registry import load_registry
 from fabriclib.federation.decode_invitation import decode_invitation
+from fabriclib.samba.dc_provisioned import dc_provisioned
+from fabriclib.samba.refuse_named_dc import refuse_named_dc
 from fabriclib.setup.detect_network import detect_network
 from fabriclib.security.check_signin_lowering import check_signin_lowering
 from fabriclib.setup.ask_ad_domain import ask_ad_domain
-from fabriclib.setup.ask_dc_name import ask_dc_name
 from fabriclib.setup.common.ask_setting import ask_setting
 from fabriclib.setup.common.network_problem import network_problem
 from fabriclib.setup.common.valid_setting import FIRST_ADMIN, REQUIRED, valid_setting
@@ -76,12 +77,15 @@ def collect_vars(ctx, ask=True):
              (upgrade_vars); image_* keys set explicitly are recorded in image_pins. AdGuard Home's settings move to
              the BIND resolver's (move_dns_filter, 0.7). Missing/invalid required
              values are asked for (defaults from detect_network); webui_admin_user is chosen once; the AD domain
-             is asked when missing (ask_ad_domain), then the DC's own name (ask_dc_name: dc-0001
-             suggested, taken unattended); the rest takes defaults changed later (2.1.2.16): the password
+             is asked when missing (ask_ad_domain); the DC's name is never asked (fabric names it,
+             finish_vars' name_dc, 2.1.6.65): a --file or custom-vars.yaml that names it is refused while no DC is
+             installed, and on an installed host the installed DC's name is kept over the file's; the rest takes
+             defaults changed later (2.1.2.16): the password
              policy (DEFAULT_POLICY, a vars file's keys kept, 2.1.6.35), the memory (set_ram_capacity) and, on a
              fresh install only (no vars file, no provisioned domain), who may sign in to the site's machines
              (finish_vars). Embedded TSIG secrets go to the secrets file, never into fabric.yaml (finish_vars).
-    Fails:   SetupError for a --file that would lower a sign-in layer (check_signin_lowering), for missing/invalid
+    Fails:   SetupError for a --file that would lower a sign-in layer (check_signin_lowering) or that names the DC
+             for a new install (refuse_named_dc, nothing changed), for missing/invalid
              required values (the AD domain included) with
              --non-interactive, invalid tsig_keys, or a
              secrets file that cannot be written (ValidationError converted); OSError/yaml errors on files.
@@ -90,7 +94,7 @@ def collect_vars(ctx, ask=True):
     data = {}
     user_file = ctx.user_vars_file
     # a fresh install: no settings yet and no domain provisioned (an upgrade or a reinstall keeps its log-on rights)
-    provisioned = os.path.exists(os.path.join(ctx.deploy_base, "samba", "data", ".fabric-provisioned"))
+    provisioned = dc_provisioned(ctx.deploy_base)
     fresh = not os.path.exists(ctx.vars_file) and not provisioned
     repo_vars = os.path.join(os.path.dirname(ctx.source_dir), "custom-vars.yaml")
     user = _load(user_file) if user_file else {}
@@ -115,8 +119,14 @@ def collect_vars(ctx, ask=True):
     if user_file:
         try:                                  # a --file never lowers a sign-in layer (2.1.6.24): the command does
             check_signin_lowering(_load(ctx.vars_file) if os.path.exists(ctx.vars_file) else {}, user)
+            refuse_named_dc(user, provisioned, f"the vars file {user_file}")     # fabric names its DCs (2.1.6.65)
         except ValidationError as e:
             raise SetupError(str(e))
+        if provisioned and data.get("dc_name") and "dc_name" in user:     # installed: the DC keeps its name
+            if str(user["dc_name"]).strip().lower() != str(data["dc_name"]).lower():
+                info(f"dc_name in {user_file} ignored: the installed domain controller keeps its name, "
+                     f"{data['dc_name']} (2.1.6.65)")
+            user = {k: val for k, val in user.items() if k != "dc_name"}
         data.update(user)
         info(f"overrides from {user_file}")
     # 0.7: AdGuard Home's settings move to the BIND resolver (2.1.12.3); nothing to do on a host without them
@@ -165,10 +175,6 @@ def collect_vars(ctx, ask=True):
                                  "permanent and has no default)")
             ctx.vars = data
             ask_ad_domain(ctx)
-        # the domain controller's own name (2.1.6.45): permanent, dc-0001 suggested; an existing install keeps
-        # its own
-        ctx.vars = data
-        ask_dc_name(ctx)
     policy = data.get("ad_password_policy") or {}
     if not (set(POLICY_KEYS) | {"complexity"}) <= set(policy):
         data["ad_password_policy"] = {**DEFAULT_POLICY, **policy}

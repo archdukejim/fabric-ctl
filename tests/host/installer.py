@@ -59,7 +59,6 @@ PROMPTS = [
     ("friendly_name", r"Organisation's name.*\]: $"),
     ("admin", r"First admin's user name.*\]: $"),
     ("ad_domain", r"Windows \(AD\) domain.*: $"),
-    ("dc_name", r"Domain controller's name.*: $"),
     ("min_length", r"Minimum password length.*: $"),
     ("history", r"Previous passwords remembered.*: $"),
     ("min_age", r"Days before a new password may be changed.*: $"),
@@ -150,7 +149,7 @@ bad = {
     "mode": ["x", "g"],
     # the plan: no choice, then the menu (a number not on the list, the ports turned off), then Proceed
     "plan": ["x", "m", "p"],
-    "menu": ["99", "15", "p"],          # 15: the ports fabric needs
+    "menu": ["99", "14", "p"],          # 14: the ports fabric needs
     "yesno": ["n"],
 }
 code, text, asked = drive(bad, f"{OUT}/run1.log")
@@ -207,14 +206,14 @@ good = {
     "mode": ["a"],
     # Proceed before the required items have values (refused), the domain, the organisation, the first admin; the host's
     # own rules turned on (the ports and securing come back with them), then off again (kept beside fabric's)
-    "menu": ["p", "1", "3", "7", "17", "17", "p"],    # 7: the first admin; 17: the host's own rules
+    "menu": ["p", "1", "3", "6", "16", "16", "p"],    # 6: the first admin; 16: the host's own rules
     "yesno": ["y", "n"],
     "domain": [DOMAIN], "friendly_name": ["Fabric Installer Test"], "admin": [""], "plan": ["p"],
     "admin_pw": ["Good-Pass-1234"], "admin_pw2": ["Good-Pass-1234"],
 }
 code, text, asked = drive(good, f"{OUT}/run2.log")
 check("Advanced: the menu's Proceed waits for the organisation and the first admin's password, naming them",
-      "not yet: 3, 7 need an answer" in text, text[:3000])
+      "not yet: 3, 6 need an answer" in text, text[:3000])
 check("the plan lists the ports and securing, in order, and the host's own rules under Not made (kept)",
       0 <= text.rfind("Ports fabric needs (recommended)") < text.rfind("Secure this host (recommended)")
       and "The host's own firewall rules: the host's own rules stay" in text, text[-3000:])
@@ -242,8 +241,9 @@ check("Enter took fabric-admin as the first admin; the console's role is fabric-
       and int(saved.get("host_ram_capacity") or 0) >= 4,
       {k: saved.get(k) for k in ("webui_admin_user", "webui_admin_role", "signin_kerberos", "ad_password_policy",
                                  "host_ram_capacity")})
-check("Advanced with the DC's name left alone: the DC takes dc-0001 (2.1.6.61), never the host's own name (2.3.1.21.2)",
-      saved.get("dc_name") == suggested_dc_name() != guess_host, saved.get("dc_name"))
+check("Advanced: no question or menu item names the DC; it is dc-0001 (2.1.6.65), never the host's own name "
+      "(2.3.1.21.2)", saved.get("dc_name") == suggested_dc_name() != guess_host and "Domain controller's name" not in text,
+      saved.get("dc_name"))
 check("the first admin was created with the chosen password; none written to the login kit",
       "created in the directory with the password chosen in setup" in text
       and not R("find /home /root -path '*/fabric-admin/initial-password.txt' -newer /opt/fabric/config/fabric.yaml "

@@ -284,8 +284,9 @@ def run(ctx):
     ident = host_identity(v)
     if ident["refused"]:
         raise SetupError(f"this host cannot be a member of its domain: {ident['refused']} (decisions 2.1.6.51, "
-                         "2.1.6.52). Give the domain controller another name (dc_name) before the domain is made, or "
-                         "leave this host out of it (host_join_domain: false); nothing was changed (manual 1.6.11.8)")
+                         "2.1.6.52). fabric never gives a new DC its host's name (2.1.6.65), and an installed DC "
+                         "keeps its own: rename this host (hostname), or leave it out of the domain "
+                         "(host_join_domain: false); nothing was changed (manual 1.6.11.8)")
     server = ident["write_server"]                 # a read-only DC's site: written at its writable partner (2.1.6.52)
     current = _read(KEYTAB, "rb")
     recorded = _recorded(ctx.config_dir, "account")

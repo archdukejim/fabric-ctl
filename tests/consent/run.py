@@ -425,7 +425,6 @@ from fabriclib.setup.common.ask_setting import ask_setting  # noqa: E402
 import fabriclib.setup.permanent_mark as m_mark  # noqa: E402
 from fabriclib.menu.constants import IMMUTABLE_KEYS  # noqa: E402
 from fabriclib.setup.ask_ad_domain import ask_ad_domain  # noqa: E402
-from fabriclib.setup.ask_dc_name import ask_dc_name  # noqa: E402
 
 
 def prompts(fn, answers):
@@ -447,37 +446,10 @@ asked = {key: prompts(lambda key=key: ask_setting(key, default), [default])[0]
                               ("host_ip", "10.0.0.5"), ("lan_cidr", "10.0.0.0/24"), ("lan_gateway", "10.0.0.1"),
                               ("webui_admin_user", "fabric-admin"))}
 asked["ad_domain"] = prompts(lambda: ask_ad_domain(q), [""])[0]
-asked["dc_name"] = prompts(lambda: ask_dc_name(q), [""])[0]
-# covers: ask:setup.dc_name setting:dc_name +
-check("the DC's name: Enter takes the suggestion dc-0001", q.vars["dc_name"] == "dc-0001", q.vars)
-q_dc = types.SimpleNamespace(vars={"hostname": "pi", "ad_domain": "ad.lan.test"}, non_interactive=False)
-seen_dc = prompts(lambda: ask_dc_name(q_dc), ["dc_1", "ad", "DC-Garage"])
-# covers: ask:setup.dc_name -
-check("the DC's name: a name the DC cannot have (an underscore, the domain's NetBIOS name) is refused and asked again; "
-      "the answer is kept in lower case", len(seen_dc) == 3 and q_dc.vars["dc_name"] == "dc-garage",
-      (seen_dc, q_dc.vars))
-q_host = types.SimpleNamespace(vars={"hostname": "pi", "ad_domain": "ad.lan.test"}, non_interactive=False)
-out_host = io.StringIO()
-with contextlib.redirect_stdout(out_host):
-    feed_host = iter(["PI", "pi-dc"])
-    real_in = builtins.input
-    builtins.input = lambda prompt="": next(feed_host)
-    try:
-        ask_dc_name(q_host)
-    finally:
-        builtins.input = real_in
-# covers: ask:setup.dc_name -
-check("the DC's name: the host's own name is refused (the host joins the domain under it, 2.1.6.51), saying why, and "
-      "asked again", q_host.vars["dc_name"] == "pi-dc" and "this host's own name" in out_host.getvalue(),
-      (q_host.vars, out_host.getvalue()))
-q_unatt = types.SimpleNamespace(vars={"hostname": "pi", "ad_domain": "ad.lan.test", "dc_name": "pi"},
-                                non_interactive=True)
-check("negative: unattended, a dc_name equal to the host's name is refused, saying why",
-      "this host's own name" in refused(lambda: ask_dc_name(q_unatt)), q_unatt.vars)
 asked["cert_root_ca_days"] = prompts(lambda: ask_ca_lifetime(q), [""])[0]
-permanent = ("domain", "friendly_name", "ad_domain", "dc_name", "cert_root_ca_days")
+permanent = ("domain", "friendly_name", "ad_domain", "cert_root_ca_days")
 check("each permanent question carries ⚠ Permanent after its label: the DNS domain, the organisation's name, the AD "
-      "domain, the DC's name, the CA root's lifetime (Advanced)",
+      "domain, the CA root's lifetime (Advanced); the DC's name is no question (fabric names it, 2.1.6.65)",
       all("⚠ Permanent" in asked[k] for k in permanent) and set(permanent) <= IMMUTABLE_KEYS, asked)
 check("negative: none on a question that can change later: the host's name, its address, the subnet, the gateway, the "
       "first admin's name", not any("Permanent" in asked[k] for k in asked if k not in permanent), asked)
@@ -500,7 +472,7 @@ def mark_on_tty(no_color):
         os.environ["NO_COLOR"] = "1"
     try:
         importlib.reload(m_console)
-        return importlib.reload(m_mark).permanent_mark("dc_name")
+        return importlib.reload(m_mark).permanent_mark("ad_domain")
     finally:
         sys.stdout = real_out
         for k, val in env.items():
@@ -971,7 +943,8 @@ msg = refused(lambda: jh.run(type("C", (), {"vars": {**mv, "dc_name": "fab1", "h
 # covers: cli:setup -
 check("negative: the member step refuses a domain controller named as the host, saying what to do, before anything "
       "changes (2.1.6.51)",
-      "domain controller has this host's name" in msg and "host_join_domain: false" in msg and "dc_name" in msg
+      "domain controller has this host's name" in msg and "host_join_domain: false" in msg
+      and "rename this host (hostname)" in msg
       and not calls and not os.listdir(rcfg), (msg, calls))
 
 # fabric's management of the host, on a scratch tree: every host path its own, sshd and systemctl faked
@@ -1107,6 +1080,7 @@ from fabriclib.consent.save_consent import save_consent  # noqa: E402
 from fabriclib.setup.advanced.ask_dhcp_settings import ask_dhcp_settings  # noqa: E402
 from fabriclib.setup.advanced.ask_memory import ask_memory  # noqa: E402
 from fabriclib.setup.choose_mode import choose_mode  # noqa: E402
+from fabriclib.setup.finish_vars import finish_vars  # noqa: E402
 
 # the test's addresses are not this machine's: the check of the three together is the network item's own test below
 m_items.network_problem = m_menu.network_problem = lambda data: ""
@@ -1162,28 +1136,27 @@ c = new_ctx()
 got, out, left = drive(lambda: m_menu.setup_menu(c, NETS), [
     "99", "p",
     "3", 'a"quote', "Acme",
-    "7", "root", "",
+    "6", "root", "",
     "4", "",
-    "5", "dc_1", "DC-Office",
-    "8", "0", "5",
-    "10", "maybe", "y",
-    "9", "y", "eth9", "", "", "",
-    "9", "y", "", "", "", "",
-    "11", "y", "http://siem.lan", "siem.lan:99999", "siem.lan",
-    "12", "n",
-    "13", "2", "4",
-    "15", "n",
-    "17", "y",
+    "7", "0", "5",
+    "9", "maybe", "y",
+    "8", "y", "eth9", "", "", "",
+    "8", "y", "", "", "", "",
+    "10", "y", "http://siem.lan", "siem.lan:99999", "siem.lan",
+    "11", "n",
+    "12", "2", "4",
     "14", "n",
-    "20", "n",
+    "16", "y",
+    "13", "n",
+    "19", "n",
     "p"], secrets=["short", "Good-Pass-12345", "Good-Pass-12345"])
 v = c.vars
 # covers: ask:setup.menu +-
-check("the menu: three parts, 20 numbered items with their values; something not on the list refused naming the "
+check("the menu: three parts, 19 numbered items with their values; something not on the list refused naming the "
       "numbers; Proceed waits for the required items without a value, naming them",
       got is None and "Required (setup cannot proceed until each has a value):" in out
       and "Changes to this host (recommended; each can be declined):" in out
-      and "'99' is not on the list: a number from 1 to 20" in out and "not yet: 3, 7 need an answer" in out
+      and "'99' is not on the list: a number from 1 to 19" in out and "not yet: 3, 6 need an answer" in out
       and "(needs an answer)" in out and not left, (got, out[-3000:], left))
 # covers: ask:setup.vars.* ask:setup.admin_password ask:setup.admin_password_again +-
 check("required items ask guided mode's questions with its checks: the organisation, the first admin (a reserved name "
@@ -1192,9 +1165,8 @@ check("required items ask guided mode's questions with its checks: the organisat
       and "not a valid friendly_name" in out and "not a valid webui_admin_user" in out, (v.get("friendly_name"), out))
 check("the AD domain: Enter takes the suggestion (ad.lan.test); the CA's lifetime 5 years after 0 refused",
       v["ad_domain"] == "ad.lan.test" and v["cert_root_ca_days"] == 5 * 365 and "a whole number of years" in out, v)
-# covers: ask:setup.dc_name +-
-check("the DC's name item: dc-0001 suggested; a name the DC cannot have refused and asked again, then kept in "
-      "lower case", v["dc_name"] == "dc-office" and "dc-0001 (suggested)" in out and "1-15 letters" in out, v)
+check("negative: the menu has no item for the DC's name, and shows none (fabric names it, 2.1.6.65)",
+      "Domain controller" not in out and "dc-0001" not in out and "dc_name" not in v, (v.get("dc_name"), out[:1500]))
 # covers: ask:setup.part.* +-
 check("the parts: 802.1X on (an answer that is not y or n refused first), the DNS filter off",
       v["install_freeradius"] is True and v["dns_filter"] == "none" and "'maybe': answer y or n" in out, v)
@@ -1223,10 +1195,13 @@ check("host changes: the ports turned off show what that means and take securing
       and "also off: The host's own firewall rules" in out and "also on: Ports fabric needs" in out
       and "also on: Secure this host" in out, (c.host_choices, out[-2500:]))
 c = new_ctx()
-got, out, left = drive(lambda: m_menu.setup_menu(c, NETS), ["3", "Acme", "7", "", "p"],
+got, out, left = drive(lambda: m_menu.setup_menu(c, NETS), ["3", "Acme", "6", "", "p"],
                        secrets=["Good-Pass-12345", "Good-Pass-12345"])
-check("Proceed with the DC's name item left alone saves its suggestion, dc-0001 (the 0.7.1 candidate's install "
-      "left it unset and the DC took the host's name, 2.3.1.21.2)",
+with contextlib.redirect_stdout(io.StringIO()):
+    finish_vars(c)
+# covers: setting:dc_name +
+check("Advanced: after Proceed the settings are finished with the DC named dc-0001, nothing asked for it (2.1.6.65; "
+      "never the host's own name, 2.3.1.21.2)",
       got is None and not left and c.vars.get("dc_name") == "dc-0001", (c.vars.get("dc_name"), left, out[-1500:]))
 got, _, _ = drive(lambda: m_menu.setup_menu(new_ctx(), NETS), ["q"])
 check("negative: Quit in the menu changes nothing and stops setup", isinstance(got, SystemExit), got)

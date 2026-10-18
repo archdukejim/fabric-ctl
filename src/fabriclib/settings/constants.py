@@ -13,7 +13,6 @@ WIZARD_KEYS = ("dns_filter", "install_fluentbit", "log_forwarding", "host_ram_ca
 CONSOLE_ONLY = [
     ("domain", "the DNS domain: permanent", "sudo fabricctl setup (a new install)"),
     ("ad_domain", "the Windows (AD) domain: permanent", "sudo fabricctl setup (a new install)"),
-    ("dc_name", "the domain controller's name: permanent", "sudo fabricctl setup (a new install)"),
     ("friendly_name", "the organisation's name, which names the CA: permanent", "sudo fabricctl setup (a new install)"),
     ("hostname", "this host's name", "sudo fabricctl setup, or the vars editor (sudo fabricctl)"),
     ("host_ip", "this host's LAN address", "sudo fabricctl setup, or the vars editor (sudo fabricctl)"),

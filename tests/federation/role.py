@@ -29,6 +29,7 @@ m_accept.prepare_site = lambda *a, **k: []
 import fabriclib.federation.next_id_block as m_block  # noqa: E402
 m_block.domain_sites = lambda container="samba": []
 m_accept.domain_sites = lambda container="samba": []
+m_accept.domain_dc_names = lambda container="samba": {"dcs": [], "computers": []}   # names given from the registry
 
 action = sys.argv[2]
 if action == "invite":

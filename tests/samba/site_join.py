@@ -168,7 +168,7 @@ for site, (container, ip, dc_type, cidr, parent) in SITES.items():
         except RuntimeError as e:
             check(f"{site}: its BIND answers the AD zone (the sites below join through it)", False, e)
 
-# ---- a joining site's DC needs a name the domain does not have (2.1.6.45, manual 1.6.5.23): checked by its parent
+# ---- a joining site's DC is named by its parent (2.1.6.65, manual 1.6.5.26): the lowest dc-NNNN the domain does not have
 names = {}
 
 
@@ -183,22 +183,23 @@ check("the domain's DC names, read inside the root's DC: its own and every joine
       and not any(f"host-{s}" in names["computers"] for s in joined), names)
 m_accept.domain_dc_names = lambda: domain_dc_names(ROOT)      # accept_join reads the DC it runs beside: the root here
 m_accept.domain_sites = lambda: domain_sites(ROOT)
-for taken in ["DC1"] + [f"dc-{s}" for s in joined][:1]:
-    try:
-        m_accept._prepare_domain(RV, "dupe", "writable", [], {"sites": {}}, dc_name=taken)
-        why = ""
-    except ValidationError as e:
-        why = str(e)
-    check(f"refused: a joining site's DC named {taken}, a name the domain has, naming the domain's DCs; nothing prepared",
-          f"{taken.lower()} is taken" in why and "dc1" in why and "ou: dupe" not in search(ROOT, "(ou=dupe)", ["ou"]),
-          why)
+real_prepare, prepared = m_accept.prepare_site, []
+m_accept.prepare_site = lambda *a, **k: prepared.append(a[1]) or []      # the name only: nothing written to AD
 try:
-    m_accept._prepare_domain(RV, "dupe", "writable", [], {"sites": {}}, dc_name="not_valid")
+    first = m_accept._prepare_domain(RV, "dupe", "writable", [], {"sites": {}})
+    given = m_accept._prepare_domain(RV, "dupe", "writable", [], {"sites": {"x": {"dc_name": "dc-0001"}}},
+                                     host_name="dc-0002")
     why = ""
 except ValidationError as e:
-    why = str(e)
-check("refused: a joining site's DC name that is not a valid name", "1-15 letters" in why, why)
-check("a name the domain does not have is free (the join goes ahead)", "dc-fresh" not in names["computers"])
+    first, given, why = {}, {}, str(e)
+finally:
+    m_accept.prepare_site = real_prepare
+check("a joining site's DC is given the lowest dc-NNNN the real domain does not have (its DCs: dc1 and the sites' "
+      "dc-<site>), read inside the root's DC", first.get("dc_name") == "dc-0001" and "dc-0001" not in names["computers"],
+      why or first)
+check("…a name already given to a site whose DC has not joined, and the joining host's own name, are passed over",
+      given.get("dc_name") == "dc-0003" and prepared == ["dupe", "dupe"], why or given)
+check("…and nothing of the domain changed: no OU for the site", "ou: dupe" not in search(ROOT, "(ou=dupe)", ["ou"]))
 
 # ---- a writable site: its own writes, both directions of replication, its id block
 if "lab" in joined:

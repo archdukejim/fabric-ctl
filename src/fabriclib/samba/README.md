@@ -10,9 +10,11 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `deploy_samba.py` | The DC's files under `<deploy_base>/samba`: root-only folders, the Administrator's password file, the converge code |
 | `write_bind_dlz.py` | What BIND includes for the AD zone: Samba's DLZ module and the update keytab, once the domain exists (empty before) |
 | `suggested_ad_domain.py` | The AD domain setup suggests: a sibling at the top of the organisation's name (2.1.6.11) |
-| `suggested_dc_name.py` | The DC's name setup suggests: `dc-<hostname>`, cut to 15 characters (2.1.6.45) |
+| `suggested_dc_name.py` | The DC's name fabric chooses: the lowest free `dc-NNNN`, `dc-0001` to `dc-1999` (2.1.6.63, 2.1.6.65) |
+| `dc_provisioned.py` | Whether this host's DC is installed: the marker its container leaves (positive evidence) |
+| `refuse_named_dc.py` | A settings file naming the DC refused for a new install: fabric names DCs itself (2.1.6.65) |
 | `dc_name_problem.py` | Why a name cannot be the DC's: one label of 1-15 characters, not only digits, not the domain's NetBIOS name |
-| `domain_dc_names.py` | The domain's computer names, its DCs apart, read inside this site's DC (a joining site's DC name checked) |
+| `domain_dc_names.py` | The domain's computer names, its DCs apart, read inside this site's DC (a joining site's DC given the lowest free name) |
 | `id_range.py` | This site's uid/gid block (the root's from `posix_id_start`, `posix_id_block` long; a joined site's from its parent) |
 | `sso_spns.py` | The HTTP SPNs of the site's Kerberos sign-in account (none without Keycloak or Kerberos, or at a read-only DC) |
 | `converge_domain.py` | The wanted state handed to the converge code inside the running DC; what changed (after every start and apply) |

@@ -178,8 +178,8 @@ ad_domain: "{{ _ad }}"
 ad_realm: "{{ _ad | upper }}"
 ad_base_dn: "{{ _ad.split('.') | map('regex_replace', '^', 'DC=') | join(',') if _ad else '' }}"
 ad_netbios: "{{ (ad_netbios | default(_ad.split('.')[0], true))[:15] | upper }}"
-{# the DC's own name in the domain (2.1.6.45, 2.1.6.61, manual 1.6.5.23), apart from the host's: setup asks it,
-   suggesting dc-0001 (the domain's DCs numbered); permanent. #}
+{# the DC's own name in the domain (2.1.6.45, 2.1.6.65, manual 1.6.5.26), apart from the host's: fabric names it,
+   never a person (dc-0001 for a new domain, the upstream's choice for a joining site); permanent. #}
 {% set _dc = (dc_name | default('dc-0001', true)) | lower %}
 dc_name: "{{ _dc }}"
 hostname_dc: "{{ (_dc ~ '.' ~ _ad) | lower if _ad else '' }}"

@@ -97,6 +97,15 @@ echo "--- setup (fresh install)"
 ADMIN_PW="Fx9-$(openssl rand -hex 12)"
 ( umask 077; printf '%s\n' "$ADMIN_PW" > "$OUT/admin-pw"; printf 'short\n' > "$OUT/admin-pw-short" )
 docker cp "$OUT/admin-pw" "$NAME:/root/admin-pw"; docker cp "$OUT/admin-pw-short" "$NAME:/root/admin-pw-short"
+# fabric names its DCs (2.1.6.65): a new install's vars file that names one is refused before anything is written
+{ cat "$OUT/vars.yaml"; echo "dc_name: dc-office"; } > "$OUT/vars-named.yaml"
+docker cp "$OUT/vars-named.yaml" "$NAME:/root/vars-named.yaml"
+in_box 'fabricctl setup --file /root/vars-named.yaml --non-interactive --yes --approve all --admin-password-file /root/admin-pw' \
+    > "$OUT/setup-named.log" 2>&1
+# covers: cli:setup -
+check "a new install's vars file naming the DC is refused, saying fabric names DCs itself; nothing written" \
+    "grep -q 'fabric names its domain controllers itself' '$OUT/setup-named.log' && ! grep -q '\[preflight\]' '$OUT/setup-named.log' \
+     && ! in_box 'test -e /opt/fabric/config/fabric.yaml' && ! in_box 'getent passwd fabric-dns'"
 in_box 'fabricctl setup --file /root/vars.yaml --non-interactive --yes --approve all' > "$OUT/setup-nopw.log" 2>&1
 # covers: cli:setup -
 check "unattended setup without the first admin's password refuses before any step, naming --admin-password-file" \
@@ -120,6 +129,8 @@ check "the first admin is fabric-admin, created with the password chosen for set
     "grep -q \"admin 'fabric-admin' created in the directory with the password chosen in setup\" '$OUT/setup.log'"
 check "Kerberos sign-in is off on an unattended new install (2.1.6.32)" \
     "in_box 'grep -qx \"signin_kerberos: false\" /opt/fabric/config/vars.yaml'"
+check "the new domain's DC is dc-0001, chosen by fabric with nothing asked (2.1.6.65)" \
+    "in_box 'grep -qxE \"dc_name: \\\"?dc-0001\\\"?\" /opt/fabric/config/vars.yaml' &&! grep -q \"Domain controller's name\" '$OUT/setup.log'"
 grep -q "fabric is ready" "$OUT/setup.log" || in_box 'journalctl --no-pager -u samba | tail -60; docker logs samba 2>&1 | tail -80' > "$OUT/setup-dc.log" 2>&1   # diagnosis when setup fails
 check "setup did not shadow the package command" "! in_box 'test -e /usr/local/bin/fabricctl'"
 check "setup wrote nothing beside the package's copy: its records are the install's (0.6.4)" \

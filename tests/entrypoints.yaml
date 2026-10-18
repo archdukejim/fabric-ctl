@@ -182,7 +182,6 @@
 "ask:setup.admin_password_again": "src/fabriclib/setup/ask_first_admin.py"
 "ask:setup.ca_years": "src/fabriclib/setup/advanced/ask_ca_lifetime.py"
 "ask:setup.consent.*": "src/fabriclib/setup/advanced/ask_host_change.py"
-"ask:setup.dc_name": "src/fabriclib/setup/ask_dc_name.py"
 "ask:setup.dhcp.interface": "src/fabriclib/setup/advanced/ask_dhcp_settings.py"
 "ask:setup.dhcp.pool": "src/fabriclib/setup/advanced/ask_dhcp_settings.py"
 "ask:setup.dhcp.router": "src/fabriclib/setup/advanced/ask_dhcp_settings.py"

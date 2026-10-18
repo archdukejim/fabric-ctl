@@ -329,6 +329,27 @@ with open(out, "w") as f:
 code, o, e = cli("import", out, "--yes")
 check("fabricctl settings import of what is already so: nothing changes, no apply (exit 0)",
       code == 0 and "nothing changes" in o and len(APPLIED) == n + 1, (o, e))
+# a file naming the DC (2.1.6.65): refused while this host has no installed DC; ignored on an installed host
+base = os.path.join(d, "opt")
+with open(vars_file, "w") as f:
+    yaml.safe_dump({**V, "deploy_base_dir": base}, f)
+with open(out, "w") as f:
+    f.write(yaml.safe_dump({"fabric_settings": 1, "settings": {"dns_filter": "none", "dc_name": "dc-office"}}))
+before = open(vars_file).read()
+code, o, e = cli("import", out, "--yes")
+# covers: cli:settings.import setting:dc_name -
+check("fabricctl settings import naming the DC with no DC installed: refused, saying fabric names DCs itself; nothing "
+      "changed (exit 1)", code == 1 and "fabric names its domain controllers itself" in e and "nothing changed" in e
+      and len(APPLIED) == n + 1 and open(vars_file).read() == before, (code, o, e))
+os.makedirs(os.path.join(base, "samba", "data"))
+open(os.path.join(base, "samba", "data", ".fabric-provisioned"), "w").close()
+code, o, e = cli("import", out, "--yes")
+# covers: cli:settings.import +
+check("…on a host whose DC is installed, the file's dc_name is ignored as console only (the DC keeps its name); the "
+      "rest applied", code == 0 and "ignored: dc_name (console only)" in o and APPLIED[-1][0] == ["dns_filter"]
+      and len(APPLIED) == n + 2, (code, o, e))
+with open(vars_file, "w") as f:
+    yaml.safe_dump(V, f)
 
 # ---- the wizard's record
 d2 = tempfile.mkdtemp()

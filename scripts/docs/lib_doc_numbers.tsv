@@ -561,6 +561,7 @@ file	fabriclib-samba|src/fabriclib/samba/clear_gpo_policy.py	11
 file	fabriclib-samba|src/fabriclib/samba/clear_logon_policy.py	29	
 file	fabriclib-samba|src/fabriclib/samba/converge_domain.py	2	
 file	fabriclib-samba|src/fabriclib/samba/dc_name_problem.py	25	
+file	fabriclib-samba|src/fabriclib/samba/dc_provisioned.py	38	
 file	fabriclib-samba|src/fabriclib/samba/deploy_samba.py	1	
 file	fabriclib-samba|src/fabriclib/samba/domain_dc_names.py	26	
 file	fabriclib-samba|src/fabriclib/samba/domain_id_blocks.py	20	0.5.0 / 2026-10-05
@@ -578,6 +579,7 @@ file	fabriclib-samba|src/fabriclib/samba/logon_overview.py	31
 file	fabriclib-samba|src/fabriclib/samba/password_meets_policy.py	24	
 file	fabriclib-samba|src/fabriclib/samba/prepare_site.py	16	
 file	fabriclib-samba|src/fabriclib/samba/read_policy_changes.py	36	
+file	fabriclib-samba|src/fabriclib/samba/refuse_named_dc.py	39	
 file	fabriclib-samba|src/fabriclib/samba/replication_status.py	19	
 file	fabriclib-samba|src/fabriclib/samba/run_converge.py	17	
 file	fabriclib-samba|src/fabriclib/samba/run_domain_command.py	4	
@@ -642,7 +644,7 @@ file	fabriclib-setup|src/fabriclib/setup/advanced/menu_items.py	64
 file	fabriclib-setup|src/fabriclib/setup/advanced/setup_menu.py	65	
 file	fabriclib-setup|src/fabriclib/setup/apply_plan_defaults.py	66	
 file	fabriclib-setup|src/fabriclib/setup/ask_ad_domain.py	39	
-file	fabriclib-setup|src/fabriclib/setup/ask_dc_name.py	48	
+file	fabriclib-setup|src/fabriclib/setup/ask_dc_name.py	48	0.7.2 / 2026-10-18
 file	fabriclib-setup|src/fabriclib/setup/ask_first_admin.py	45	
 file	fabriclib-setup|src/fabriclib/setup/ask_kerberos.py	46	0.6.4 / 2026-10-09
 file	fabriclib-setup|src/fabriclib/setup/ask_ram.py	40	0.6.4 / 2026-10-09
@@ -702,6 +704,7 @@ file	fabriclib-setup|src/fabriclib/setup/join_host_domain.py	53
 file	fabriclib-setup|src/fabriclib/setup/mint_extra_certs.py	20	
 file	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py	21	
 file	fabriclib-setup|src/fabriclib/setup/move_dns_filter.py	82	
+file	fabriclib-setup|src/fabriclib/setup/name_dc.py	99	
 file	fabriclib-setup|src/fabriclib/setup/permanent_mark.py	49	
 file	fabriclib-setup|src/fabriclib/setup/preflight.py	22	
 file	fabriclib-setup|src/fabriclib/setup/print_first_steps.py	44	
@@ -1831,6 +1834,7 @@ function	fabriclib-samba|src/fabriclib/samba/clear_logon_policy.py|clear_logon_p
 function	fabriclib-samba|src/fabriclib/samba/converge_domain.py|_lan_profile	2	
 function	fabriclib-samba|src/fabriclib/samba/converge_domain.py|converge_domain	1	
 function	fabriclib-samba|src/fabriclib/samba/dc_name_problem.py|dc_name_problem	1	
+function	fabriclib-samba|src/fabriclib/samba/dc_provisioned.py|dc_provisioned	1	
 function	fabriclib-samba|src/fabriclib/samba/deploy_samba.py|_chrony_gid	2	
 function	fabriclib-samba|src/fabriclib/samba/deploy_samba.py|deploy_samba	1	
 function	fabriclib-samba|src/fabriclib/samba/domain_dc_names.py|domain_dc_names	1	
@@ -1850,6 +1854,7 @@ function	fabriclib-samba|src/fabriclib/samba/logon_overview.py|logon_overview	1
 function	fabriclib-samba|src/fabriclib/samba/password_meets_policy.py|password_meets_policy	1	
 function	fabriclib-samba|src/fabriclib/samba/prepare_site.py|prepare_site	1	
 function	fabriclib-samba|src/fabriclib/samba/read_policy_changes.py|read_policy_changes	1	
+function	fabriclib-samba|src/fabriclib/samba/refuse_named_dc.py|refuse_named_dc	1	
 function	fabriclib-samba|src/fabriclib/samba/replication_status.py|replication_status	1	
 function	fabriclib-samba|src/fabriclib/samba/run_converge.py|run_converge	1	
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_changes	1	
@@ -1948,7 +1953,7 @@ function	fabriclib-setup|src/fabriclib/setup/advanced/ask_part.py|ask_part	1
 function	fabriclib-setup|src/fabriclib/setup/advanced/common/ask_yes_no.py|ask_yes_no	1	0.7.0 / 2026-10-12
 function	fabriclib-setup|src/fabriclib/setup/advanced/common/parts.py|part_on	1	
 function	fabriclib-setup|src/fabriclib/setup/advanced/menu_items.py|_ad_item	3	
-function	fabriclib-setup|src/fabriclib/setup/advanced/menu_items.py|_dc_item	4	
+function	fabriclib-setup|src/fabriclib/setup/advanced/menu_items.py|_dc_item	4	0.7.2 / 2026-10-18
 function	fabriclib-setup|src/fabriclib/setup/advanced/menu_items.py|_origin	1	
 function	fabriclib-setup|src/fabriclib/setup/advanced/menu_items.py|_setting_item	2	
 function	fabriclib-setup|src/fabriclib/setup/advanced/menu_items.py|menu_items	5	
@@ -1959,7 +1964,7 @@ function	fabriclib-setup|src/fabriclib/setup/apply_plan_defaults.py|apply_plan_d
 function	fabriclib-setup|src/fabriclib/setup/ask_ad_domain.py|_number	1	0.6.4 / 2026-10-09
 function	fabriclib-setup|src/fabriclib/setup/ask_ad_domain.py|_rule	3	0.6.4 / 2026-10-09
 function	fabriclib-setup|src/fabriclib/setup/ask_ad_domain.py|ask_ad_domain	2	
-function	fabriclib-setup|src/fabriclib/setup/ask_dc_name.py|ask_dc_name	1	
+function	fabriclib-setup|src/fabriclib/setup/ask_dc_name.py|ask_dc_name	1	0.7.2 / 2026-10-18
 function	fabriclib-setup|src/fabriclib/setup/ask_first_admin.py|ask_first_admin	1	
 function	fabriclib-setup|src/fabriclib/setup/ask_kerberos.py|ask_kerberos	1	0.6.4 / 2026-10-09
 function	fabriclib-setup|src/fabriclib/setup/ask_ram.py|_plan	1	0.6.4 / 2026-10-09
@@ -2110,6 +2115,7 @@ function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_revoke_repla
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_targets	1	
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|run	3	
 function	fabriclib-setup|src/fabriclib/setup/move_dns_filter.py|move_dns_filter	1	
+function	fabriclib-setup|src/fabriclib/setup/name_dc.py|name_dc	1	
 function	fabriclib-setup|src/fabriclib/setup/permanent_mark.py|permanent_mark	1	
 function	fabriclib-setup|src/fabriclib/setup/preflight.py|_foreign_listeners	3	
 function	fabriclib-setup|src/fabriclib/setup/preflight.py|_mem_gb	2	

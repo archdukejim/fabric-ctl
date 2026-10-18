@@ -127,7 +127,8 @@ m_accept.prepare_site = lambda v, site, networks, block, accounts, password, con
 import fabriclib.federation.next_id_block as m_block  # noqa: E402
 m_block.domain_sites = lambda container="samba": []
 m_accept.domain_sites = lambda container="samba": []      # the domain's blocks: none beyond the registry's
-m_accept.domain_dc_names = lambda container="samba": {"dcs": ["hq"], "computers": ["hq"]}     # the root's DC only
+DC_NAMES = {"dcs": ["dc-0001"], "computers": ["dc-0001", "hq"]}     # the root's DC and its host only
+m_accept.domain_dc_names = lambda container="samba": DC_NAMES
 
 SECRETS = f"{W}/fabric/config/fabric-secrets.yml"
 
@@ -232,13 +233,7 @@ check("join: an expired invitation is refused",
       refused(accept_join, HQ, {**{k: decode_invitation(old["invitation"])[k] for k in ("id", "secret", "site")},
                                 "csr": "x", "domain": "b3.hq.test", "address": "127.0.0.3"}, match="not valid"))
 
-check("join: a site whose DC would take a name the domain has (the root's) is refused, naming the DCs and the next "
-      "free number; the invitation is kept (2.1.6.45, 2.1.6.61)",
-      refused(join_upstream, {**SITE, "dc_name": "HQ"}, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca",
-              "branch1.hq.test", "127.0.0.2", **J, match="hq is taken in ad.hq.test (its domain controllers: hq)")
-      and refused(join_upstream, {**SITE, "dc_name": "HQ"}, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca",
-                  "branch1.hq.test", "127.0.0.2", **J, match="the next free one, dc-0001"))
-SITE["dc_name"] = "dc-branch1"
+SITE["hostname"] = "branch1"
 res = join_upstream(SITE, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca", "branch1.hq.test", "127.0.0.2", **J)
 jv = res["vars"]
 check("join: the site gets the bring-your-own-CA settings and the organisation",
@@ -252,6 +247,10 @@ check("join: the root prepares the site in its domain and answers with it (a wri
       dom.get("ad_domain") == "ad.hq.test" and dom.get("dc_type") == "writable" and dom.get("join_user") == "fabric-join-branch1"
       and sorted(dom.get("accounts") or {}) == ["agent", "keycloak", "radius"] and PREPARED
       and PREPARED[0][0] == "branch1" and PREPARED[0][1] == dom.get("id_range") == "2000000-2999999", (dom, PREPARED))
+# covers: setting:dc_name +
+check("join: the upstream names the joining site's DC, the lowest number the domain does not have (dc-0002: dc-0001 "
+      "is the root's), in the join's answer; nobody gave a name (2.1.6.65)",
+      dom.get("dc_name") == "dc-0002" and res.get("dc_name") == "dc-0002", (dom.get("dc_name"), res.get("dc_name")))
 site_ca = open(jv["ica_crt_path"]).read()
 check("join: the site's CA is signed by the organisation's root, path length 0",
       sh(["openssl", "verify", "-CAfile", jv["ca_crt_path"], jv["ica_crt_path"]], ok=False).returncode == 0
@@ -265,6 +264,9 @@ check("join: the upstream records the site", hq_reg["sites"]["branch1"]["domain"
 b1_reg = yaml.safe_load(open(f"{B1}/config/federation.yaml"))
 check("join: the site records its upstream", b1_reg["upstream"]["site_name"] == "hq"
       and b1_reg["upstream"]["root_sha256"] == body["root_sha256"], b1_reg)
+check("join: both sides record the DC's name the upstream gave (so it is never given twice, and a re-run keeps it)",
+      hq_reg["sites"]["branch1"].get("dc_name") == "dc-0002" and b1_reg["upstream"].get("dc_name") == "dc-0002",
+      (hq_reg["sites"]["branch1"], b1_reg["upstream"]))
 check("join: the invitation is used up", "branch1" not in [i["site"] for i in list_invitations(HQ)])
 hq_keys = yaml.safe_load(open(SECRETS)).get("federation_tsig") or {}
 check("join: both sites hold the DNS link's TSIG key (the upstream in its secrets, never in the registry)",
@@ -283,8 +285,53 @@ check("status: the upstream lists its site", s["role"] == "upstream" and "branch
 
 tls.shutdown()
 again = join_upstream(SITE, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca", "branch1.hq.test", "127.0.0.2", **J)
-check("join: a re-run (setup repeated) reuses what was staged, without the network",
-      again["joined"] is False and again["vars"] == jv, again)
+check("join: a re-run (setup repeated) reuses what was staged, without the network, and the DC's given name",
+      again["joined"] is False and again["vars"] == jv and again["dc_name"] == "dc-0002", again)
+
+# setup's join step: the joining site saves the upstream's name for its DC and joins under it (2.1.6.65)
+import types  # noqa: E402
+
+import fabriclib.setup.join_federation as m_jf  # noqa: E402
+for answer in (res, again):
+    m_jf.join_upstream = lambda *a, answer=answer, **k: answer
+    jctx = types.SimpleNamespace(join_invitation=inv["invitation"], secrets={"ca_password": "Site-Pw-1"},
+                                 secrets_file=f"{B1}/config/fabric-secrets.yml", config_dir=f"{B1}/config",
+                                 source_dir=os.path.join(REPO, "src"),
+                                 vars={"domain": "branch1.hq.test", "host_ip": "127.0.0.2", "image_stepca": IMAGE,
+                                       "hostname": "branch1"},
+                                 path=lambda *p: os.path.join(B1, *p))
+    m_jf.run(jctx)
+    # covers: cli:setup +
+    check(f"setup's join step ({'first join' if answer is res else 're-run'}): the site's dc_name is the upstream's, "
+          "dc-0002, before its DC joins", jctx.vars.get("dc_name") == "dc-0002", jctx.vars.get("dc_name"))
+
+# an older joiner still sends a name of its own (the root's, here): not refused; the answer carries the name fabric
+# chose, and a name given to a site whose DC has not joined yet (branch1's) is not given again
+import fabriclib.federation.accept_join as m_accept2  # noqa: E402
+real_sign = m_accept2.sign_site_ca
+m_accept2.sign_site_ca = lambda *a, **k: {"root": ROOT_PEM, "cert": "", "chain": "",
+                                          "info": {"serial": "01", "not_after": "2099-01-01"}}
+inv_old = decode_invitation(create_invitation(HQ, "alice", "branch4")["invitation"])
+try:
+    answer = accept_join(HQ, {"id": inv_old["id"], "secret": inv_old["secret"], "site": "branch4", "csr": "x",
+                              "domain": "branch4.hq.test", "address": "127.0.0.4", "dc_name": "HQ"})
+finally:
+    m_accept2.sign_site_ca = real_sign
+# covers: setting:dc_name -
+check("join: an older joiner sending a name (even a taken one) is not refused; it is given dc-0003 (dc-0002 is "
+      "branch1's, its DC not in the domain yet)", (answer.get("domain") or {}).get("dc_name") == "dc-0003",
+      answer.get("domain"))
+# the 2000th DC: the join refused with the cap's message before anything is prepared, the invitation kept
+inv_cap = decode_invitation(create_invitation(HQ, "alice", "branch5")["invitation"])
+DC_NAMES["computers"] = [f"dc-{n:04d}" for n in range(1, 2000)]
+prepared_before = list(PREPARED)
+check("negative: a join past dc-1999 is refused, saying the domain has the most DCs it may have; nothing prepared, "
+      "the invitation kept (2.1.6.63)",
+      refused(accept_join, HQ, {"id": inv_cap["id"], "secret": inv_cap["secret"], "site": "branch5", "csr": "x",
+                                "domain": "branch5.hq.test", "address": "127.0.0.5"}, match="the most it may have")
+      and PREPARED == prepared_before and "branch5" in [i["site"] for i in list_invitations(HQ)]
+      and "branch5" not in yaml.safe_load(open(f"{W}/fabric/config/federation.yaml"))["sites"], PREPARED)
+DC_NAMES["computers"] = ["dc-0001", "hq"]
 inv_other = create_invitation(dict(HQ, site_name="hq2"), "alice", "branch1x")
 check("join: a node that joined one upstream refuses another's invitation",
       refused(join_upstream, SITE, inv_other["invitation"], "Site-Pw-1", f"{B1}/site-ca", "branch1.hq.test",

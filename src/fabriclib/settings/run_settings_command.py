@@ -1,10 +1,14 @@
 import os
 import sys
 
+import yaml
+
 from fabriclib.common.ask import ask_yes_no
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
-from fabriclib.common.paths import VARS_FILE
+from fabriclib.common.paths import DEPLOY_BASE_DIR, VARS_FILE
+from fabriclib.samba.dc_provisioned import dc_provisioned
+from fabriclib.samba.refuse_named_dc import refuse_named_dc
 from fabriclib.settings.apply_settings import apply_settings
 from fabriclib.settings.export_settings import export_settings
 from fabriclib.settings.parse_settings_file import parse_settings_file
@@ -56,8 +60,9 @@ def run_settings_command(argv, vars_file=VARS_FILE):
     Inputs:  argv — list of str after "settings": export [FILE] | import FILE [--yes]; vars_file — the install's
              vars.yaml (tests: a scratch one).
     Returns: exit status: 0 exported, applied, nothing to change, or not confirmed (nothing changed); 1 refused (a file
-             that cannot be read or is not a settings file, an invalid wizard value: nothing changed) or the apply
-             failed ("error: …" on stderr); 2 usage.
+             that cannot be read or is not a settings file, an invalid wizard value, a dc_name while this host has no
+             installed DC (fabric names DCs itself, 2.1.6.65; on an installed host it is ignored as console-only):
+             nothing changed) or the apply failed ("error: …" on stderr); 2 usage.
     Fails:   OSError writing the export or from the settings and audit files; subprocess.TimeoutExpired from the apply;
              EOFError when the question cannot be asked (no --yes and no terminal).
     Feeds:   fabriclib/cli.py (`fabricctl settings`)."""
@@ -86,6 +91,10 @@ def run_settings_command(argv, vars_file=VARS_FILE):
     v = load_vars(vars_file)
     try:
         parsed = parse_settings_file(text, known=v)
+        if any(i["key"] == "dc_name" for i in parsed["ignored"]):      # fabric names its DCs (2.1.6.65)
+            refuse_named_dc(yaml.safe_load(text)["settings"], dc_provisioned(v.get("deploy_base_dir")
+                                                                             or DEPLOY_BASE_DIR),
+                            f"the settings file {args[1]}")
         plan = plan_settings(v, parsed["settings"], parsed["ignored"], source="cli")
     except ValidationError as e:
         print(f"error: {e} (nothing changed)", file=sys.stderr)

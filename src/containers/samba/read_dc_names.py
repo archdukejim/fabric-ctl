@@ -1,5 +1,6 @@
 """The names of the domain's domain controllers and of every other computer account (manual 1.6.5.23), read from this
-DC's own database, so a parent refuses a joining site's DC a name already in use before the join is prepared.
+DC's own database, so a parent gives a joining site's DC the lowest name not in use before the join is prepared
+(2.1.6.65).
     docker exec samba python3 /fabric/read_dc_names.py
 Prints one JSON object: {"dcs": [name, …], "computers": [name, …]} (lower case, without the trailing $)."""
 import json

@@ -171,45 +171,53 @@ check("the default policy (2.1.6.35): 12 characters, complexity, 5 remembered, n
           "minimum_length": 12, "complexity": True, "history": 5, "minimum_age_days": 0, "maximum_age_days": 0,
           "lockout_threshold": 10, "lockout_window_minutes": 15, "lockout_minutes": 15}, ok_default)
 
-print("--- the DC's own name (2.1.6.45, manual 1.6.5.23): asked, dc-0001 suggested, permanent")
-from fabriclib.setup.ask_dc_name import ask_dc_name  # noqa: E402
+print("--- the DC's name, fabric's alone (2.1.6.65, manual 1.6.5.26): never asked, dc-0001 for a new domain")
+import tempfile as _tf  # noqa: E402
+
 from fabriclib.setup.errors import SetupError  # noqa: E402
+from fabriclib.setup.name_dc import name_dc  # noqa: E402
 
 
-def ask_dc(answers, have=None, unattended=False):
-    """setup's DC-name question with these answers; the settings after it and what was printed (or the refusal)."""
-    feed, real = iter(answers), builtins.input
+def name_of(have=None, unattended=False, installed=False, joining=None, upstream=None):
+    """setup's naming of the DC, with input() refusing to be called; the settings' dc_name after it (or the refusal)."""
+    base = _tf.mkdtemp()
+    os.makedirs(os.path.join(base, "fabric", "config"))
+    if installed:
+        os.makedirs(os.path.join(base, "samba", "data"))
+        open(os.path.join(base, "samba", "data", ".fabric-provisioned"), "w").close()
+    if upstream:
+        with open(os.path.join(base, "fabric", "config", "federation.yaml"), "w") as f:
+            yaml.safe_dump({"upstream": upstream}, f)
     ctx = types.SimpleNamespace(vars={"hostname": "Pi-Core", "ad_domain": "ad.lan.test", **(have or {})},
-                                non_interactive=unattended)
-    builtins.input = lambda prompt="": (print(prompt), next(feed))[1]
-    out = io.StringIO()
+                                non_interactive=unattended, deploy_base=base,
+                                config_dir=os.path.join(base, "fabric", "config"), join_invitation=joining)
+    real, asked = builtins.input, []
+    builtins.input = lambda prompt="": asked.append(prompt) or ""
     try:
-        with contextlib.redirect_stdout(out):
-            ask_dc_name(ctx)
+        name_dc(ctx)
     except SetupError as e:
         return None, str(e)
     finally:
         builtins.input = real
-    return ctx.vars.get("dc_name"), out.getvalue()
+    return ctx.vars.get("dc_name", "(unset)"), asked
 
 
-got, said = ask_dc([""])
-check("asked with dc-0001 suggested; Enter takes it; marked permanent in its one line (2.1.2.21)",
-      got == "dc-0001" and "[dc-0001]" in said and "Permanent" in said, (got, said))
-got, said = ask_dc(["a-name-far-too-long", "ad", "12", "DC-Kitchen"])
-check("negative: too long, the domain's NetBIOS name, only digits each refused saying why, then any valid name taken",
-      got == "dc-kitchen" and "1-15 letters" in said and "NetBIOS name" in said and "only digits" in said,
-      (got, said))
-got, said = ask_dc([], {"dc_name": "dc-kitchen"})
-check("an install that has its DC's name keeps it, nothing asked", got == "dc-kitchen" and said == "", (got, said))
-got, said = ask_dc(["", ], {"dc_name": "pi-core"})
-check("negative: a DC's name equal to the host's is asked again, saying why (2.1.6.51), the suggestion taken",
-      got == "dc-0001" and "host" in said, (got, said))
-got, said = ask_dc([], unattended=True)
-check("unattended: the suggestion is taken", got == "dc-0001", (got, said))
-got, said = ask_dc([], {"dc_name": "not valid!"}, unattended=True)
-check("negative: unattended, an invalid dc_name in the vars file is refused, saying why",
-      got is None and "dc_name" in said and "1-15 letters" in said, said)
+# covers: setting:dc_name +
+check("a new domain's DC is dc-0001, nothing asked: interactive and unattended",
+      name_of() == ("dc-0001", []) and name_of(unattended=True) == ("dc-0001", []), (name_of(), name_of(unattended=True)))
+check("a name left in the settings of a host whose DC is not installed is fabric's to replace: dc-0001",
+      name_of({"dc_name": "dc-kitchen"}) == ("dc-0001", []), name_of({"dc_name": "dc-kitchen"}))
+check("a host named dc-0001: its DC takes dc-0002 (the host joins the domain under its own name, 2.1.6.51)",
+      name_of({"hostname": "dc-0001"})[0] == "dc-0002", name_of({"hostname": "dc-0001"}))
+check("an installed DC keeps the name it has, 0.7.x's dc-<host> included; nothing asked",
+      name_of({"dc_name": "dc-pi-core"}, installed=True) == ("dc-pi-core", [])
+      and name_of({"dc_name": "dc-pi-core"}, unattended=True, installed=True) == ("dc-pi-core", []),
+      name_of({"dc_name": "dc-pi-core"}, installed=True))
+check("a site joining now has no name until the upstream gives one (a name left over is dropped)",
+      name_of({"dc_name": "dc-0001"}, joining="fabric-join-1.x") == ("(unset)", []))
+check("a site that joined keeps the name its upstream gave it (a re-run of setup, with or without --join)",
+      name_of(upstream={"site_name": "hq", "dc_name": "dc-0002"}) == ("dc-0002", [])
+      and name_of(joining="fabric-join-1.x", upstream={"site_name": "hq", "dc_name": "dc-0003"}) == ("dc-0003", []))
 
 print("--- the vars editor: dc_name refused like ad_domain, the host's name warned (2.1.6.45)")
 import fabriclib.menu.edit_category as m_edit  # noqa: E402
@@ -437,13 +445,13 @@ with open(answers, "w") as f:
                     "ad_domain": "ad.lan.test", "site_name": "Lan", "host_ram_capacity": 8}, f)
 
 
-def setup_vars(vars_file, provisioned=False):
+def setup_vars(vars_file, provisioned=False, user_file=None, base_dir=None):
     """collect_vars as setup runs it unattended with a vars file (pure logic: files in a scratch folder)."""
-    base_dir = tempfile.mkdtemp(dir=tmp)
+    base_dir = base_dir or tempfile.mkdtemp(dir=tmp)
     if provisioned:
         os.makedirs(os.path.join(base_dir, "samba", "data"))
         open(os.path.join(base_dir, "samba", "data", ".fabric-provisioned"), "w").close()
-    ctx = types.SimpleNamespace(user_vars_file=answers, vars_file=vars_file, source_dir=os.path.join(tmp, "src"),
+    ctx = types.SimpleNamespace(user_vars_file=user_file or answers, vars_file=vars_file, source_dir=os.path.join(tmp, "src"),
                                 config_dir=os.path.join(base_dir, "config"), deploy_base=base_dir,
                                 join_invitation=None, non_interactive=True, origins={},
                                 secrets_file=os.path.join(base_dir, "secrets.yml"))
@@ -464,6 +472,33 @@ check("an upgrade (a vars file already there) keeps the log-on rights it has: no
       "logon_policies" not in setup_vars(existing), "set on an upgrade")
 check("a reinstall over a provisioned domain keeps them too (no vars file, but the domain's marker)",
       "logon_policies" not in setup_vars(os.path.join(tmp, "none.yaml"), provisioned=True), "set on a reinstall")
+
+print("--- a settings file naming the DC (2.1.6.65): refused for a new install, an installed DC's name kept")
+# covers: cli:setup +
+check("a new install, unattended with a vars file: the DC is dc-0001, nothing asked", fresh.get("dc_name") == "dc-0001",
+      fresh.get("dc_name"))
+named = os.path.join(tmp, "named.yaml")
+with open(named, "w") as f:
+    yaml.safe_dump({**yaml.safe_load(open(answers)), "dc_name": "dc-office"}, f)
+new_base = tempfile.mkdtemp(dir=tmp)
+try:
+    setup_vars(os.path.join(tmp, "none.yaml"), user_file=named, base_dir=new_base)
+    said = "accepted"
+except SetupError as e:
+    said = str(e)
+# covers: cli:setup setting:dc_name -
+check("negative: a new install's --file that names the DC is refused, saying fabric names DCs itself; nothing written",
+      "names the domain controller (dc_name: dc-office)" in said and "fabric names its domain controllers itself" in said
+      and "nothing was changed" in said and not os.path.exists(os.path.join(new_base, "config", "fabric.yaml")), said)
+legacy = os.path.join(tmp, "legacy.yaml")
+with open(legacy, "w") as f:
+    yaml.safe_dump({"ad_password_policy": POLICY, "dc_name": "dc-pi-core", "hostname": "pi-core"}, f)
+check("an installed host's upgrade keeps its DC's legacy name, 0.7.x's dc-<host> (nothing renamed)",
+      setup_vars(legacy, provisioned=True).get("dc_name") == "dc-pi-core", "renamed on an upgrade")
+check("…and a --file naming another DC there is not taken: the installed DC keeps its name",
+      setup_vars(legacy, provisioned=True, user_file=named).get("dc_name") == "dc-pi-core", "renamed by a --file")
+check("…and check_samba_settings accepts that legacy name for the installed DC",
+      not refused({**GOOD, "dc_name": "dc-pi-core"}, ""))
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

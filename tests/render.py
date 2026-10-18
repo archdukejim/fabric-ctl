@@ -177,8 +177,8 @@ same = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy
 assert 'fabric' not in [r['name'] for r in same['dns']['dynamic_zone_var']['CNAME']], 'CNAME must not shadow the host A record'
 print('web UI host name (default, custom, same as host) rendered; no certs.<domain> server')
 
-# The DC's own name (2.1.6.45, 2.1.6.61, manual 1.6.5.23): dc-0001 by default, the host's name aside; any name given is
-# kept; a host renamed later leaves the DC alone. (An install from before 0.7.0 keeping its host's name went with
+# The DC's own name (2.1.6.45, 2.1.6.65, manual 1.6.5.26): fabric's, dc-0001 by default, the host's name aside; an
+# installed DC's name (0.7.x's dc-<host>) is kept; a host renamed later leaves the DC alone. (An install from before 0.7.0 keeping its host's name went with
 # keep_old_install, 2026-10-13: no such install exists, 2.1.6.51, S10.)
 from fabriclib.samba.suggested_dc_name import suggested_dc_name  # noqa: E402
 
@@ -194,6 +194,8 @@ assert _dc() == ('dc-0001', 'dc-0001.ad.j-j.family', 'dc-0001') and suggested_dc
 for host in ('Kitchen-Server01', 'raspberrypi-4b'):
     assert _dc(hostname=host)[0] == 'dc-0001', (host, _dc(hostname=host))
 assert suggested_dc_name(['DC-0001', 'dc-0002', 'pc-7']) == 'dc-0003' and suggested_dc_name(['dc-0002']) == 'dc-0001'
+# a number the DC could not have is passed over (2.1.6.65): its host's own name (2.1.6.51), the domain's NetBIOS name
+assert suggested_dc_name(hostname='DC-0001.lan.test') == 'dc-0002' and suggested_dc_name(['dc-0001'], 'dc-0002') ==     'dc-0003' and suggested_dc_name(netbios='DC-0001') == 'dc-0002' and suggested_dc_name(hostname='pi') == 'dc-0001'
 # the cap (2.1.6.63): dc-1999 is the last; the 2000th DC is refused, saying why
 from fabriclib.common.errors import ValidationError  # noqa: E402
 _all_but_last = [f'dc-{n:04d}' for n in range(1, 1999)]
@@ -203,12 +205,13 @@ try:
     raise AssertionError('the 2000th DC was suggested a name')
 except ValidationError as e:
     assert '1999 DCs' in str(e) and 'the most it may have' in str(e), e
-assert _dc(dc_name='DC1') == ('dc1', 'dc1.ad.j-j.family', 'dc1'), _dc(dc_name='DC1')
+assert _dc(dc_name='DC-Pi') == ('dc-pi', 'dc-pi.ad.j-j.family', 'dc-pi'), _dc(dc_name='DC-Pi')    # 0.7.x's, kept
 renamed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family',
                                                                      'dc_name': 'dc-pi-core', 'hostname': 'kitchen'}))
 assert renamed['hostname_dc'] == 'dc-pi-core.ad.j-j.family' and {'ip': renamed['host_ip'], 'name': 'kitchen'} in \
     renamed['dns']['dynamic_zone_var']['A'], renamed['dns']['dynamic_zone_var']['A']
-print("the DC's own name: dc-0001, then the first free number; a given one kept, a renamed host leaves it")
+print("the DC's own name: dc-0001, then the first free number, the host's name passed over; an installed one kept, a "
+      "renamed host leaves it")
 
 # The id layout (2.1.6.46, manual 1.6.3.17): the root is site 1, a million long; the organisation's groups in its
 # built-in range; no hosts range and no uid_range read: a vars file listing them (as one from before 0.7.0 did) is not
