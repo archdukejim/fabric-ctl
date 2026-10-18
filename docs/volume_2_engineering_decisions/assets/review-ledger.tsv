@@ -21,7 +21,7 @@ docs/README.md	a83e2585272bfff196d38a7264e6e2661ce40693	2026-10-09
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	8ff2081001d4780b4be5c1561a75a6afca19c783	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
-docs/volume_1_description_and_architecture/1.1.4-roadmap.md	f9591b4b345d6f95dd7d1ea1c8ce4a0149d0abe9	2026-10-18	
+docs/volume_1_description_and_architecture/1.1.4-roadmap.md	aec7482dd04cd00f6adc0846f2ce9666df6184de	2026-10-18	
 docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	7cc73759f86c7ce4ca7e2d58b7d1cc0db4cb9a64	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	05ae522ba371603b5ae3129d01625d91c73c97f9	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
@@ -97,7 +97,7 @@ docs/volume_1_description_and_architecture/1.6.1-directory.md	7fa9284225375dc046
 docs/volume_1_description_and_architecture/1.6.10-security.md	d4fe8b6a3ddb421741741daefc07bbb55301258f	2026-10-12	
 docs/volume_1_description_and_architecture/1.6.11-host-access.md	9ea3f27c760fcab82578a5d7e4a2d5d3bc3f6571	2026-10-18	
 docs/volume_1_description_and_architecture/1.6.12-domain-management.md	308b73abe5bcff0ca103825e8cf8f5292163b3c5	2026-10-18	
-docs/volume_1_description_and_architecture/1.6.13-access-by-grants.md	54d8c3e63cbfc026b576a0a155c9aec69f86c66b	2026-10-18	
+docs/volume_1_description_and_architecture/1.6.13-access-by-grants.md	a05b4667abbcb08119d586eaa22b6dfb5a0633af	2026-10-18	
 docs/volume_1_description_and_architecture/1.6.2-keycloak.md	9a5c2286d1ed3dcd0db40a0f98ad1be084340fe8	2026-10-12	
 docs/volume_1_description_and_architecture/1.6.3-samba-directory.md	bb03bc89b85c70a5eb83dc49f11a6f65b7f054a8	2026-10-18	
 docs/volume_1_description_and_architecture/1.6.4-samba-ad.md	3b6e475a2efc928aee1e85a441af77e46f23e02e	2026-10-08	
@@ -112,7 +112,7 @@ docs/volume_1_description_and_architecture/1.8.2-webui-security.md	c3639515a5c30
 docs/volume_1_description_and_architecture/1.8.3-single-pane.md	808634d3a80eb23100726babccde1c311b8af2c8	2026-10-17	
 docs/volume_1_description_and_architecture/1.8.4-webui.md	a55b00c78254513ead04091f50b03c7206e6d940	2026-10-12	
 docs/volume_1_description_and_architecture/1.8.5-setup-wizard.md	794221bbf38889a24583f2d5556b277bc9f485ba	2026-10-18	
-docs/volume_1_description_and_architecture/1.8.6-console-redo.md	4aebaa0a4f1ea341f113364790808f4f61a06995	2026-10-18	
+docs/volume_1_description_and_architecture/1.8.6-console-redo.md	2bcd2249242ee86f4989b3ad09f28e304448991c	2026-10-18	
 docs/volume_1_description_and_architecture/1.9.1-sites.md	c0b8fc74f6c5ee052cf2819e2425730981232ed1	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.2-ha-partners.md	941731a583188b3b8e4a467eabdd9966bb6214ca	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.3-between-sites.md	9b2693352d2d8a3cad600964f14c8df2b13af4f9	2026-10-08	
@@ -122,7 +122,7 @@ docs/volume_1_description_and_architecture/1.9.6-changes.md	6daa620e9c5e83f3ff60
 docs/volume_1_description_and_architecture/1.9.7-milestones.md	e58afe5eb9d02da03a309c838c2b86be04419123	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	0876ad0316394def5e4e2bd8c879ac252228442a	2026-10-13	
 docs/volume_1_description_and_architecture/README.md	8c62a732a3eae9a13b6fd79a5dacfdfbfbf14257	2026-10-18	
-docs/volume_2_engineering_decisions/2.1.1-product.md	79fcdf3eefa7337fa13131b11b31e94eb0e649d5	2026-10-18	
+docs/volume_2_engineering_decisions/2.1.1-product.md	4df05e812e860f4c27c46c1221bdd6a8351dc34e	2026-10-18	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	d2f651c94dba5302552170cee89cc3bc6f73769a	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	139ff5b3ecce15085a60e2ef8443933896633b00	2026-10-12	
@@ -134,8 +134,8 @@ docs/volume_2_engineering_decisions/2.1.2-architecture.md	e8275903e317df3b280ad3
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	58090998c7ae665ec0d5fb4e3d8549c97d4475d5	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.4-dns.md	0de35e2554fefbca4a9883edac01dc18c0f5ac60	2026-10-13	
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	fc3956b0e6f2d1e34d4bd60288475fb27dfa2f64	2026-10-12	
-docs/volume_2_engineering_decisions/2.1.6-identity.md	e72c15c0335f5f8d48f0551e91f64120d2c3165c	2026-10-18	
-docs/volume_2_engineering_decisions/2.1.7-openbao.md	cf932759872b1efdd13ae31fd7bd6994e6523b1e	2026-10-18	
+docs/volume_2_engineering_decisions/2.1.6-identity.md	5327fcd00eb5c85fc95717f6e510481b23307a52	2026-10-18	
+docs/volume_2_engineering_decisions/2.1.7-openbao.md	6956b3024d7283cdc57a5f18a60c6c1f556d034a	2026-10-18	
 docs/volume_2_engineering_decisions/2.1.8-webui.md	59a1064257803f8ead628a169f33c9bafa528f95	2026-10-17	
 docs/volume_2_engineering_decisions/2.1.9-federation.md	ad67d4d7cf124b8b9e03e7793b994585d67c58fe	2026-10-18	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
@@ -148,7 +148,7 @@ docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada04
 docs/volume_2_engineering_decisions/2.3.2-architecture-notes.md	286af670daed816e42ccac86591235b781c6607a	2026-10-17	
 docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f4878a6c708a9f55be4	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a9aeb2e856f39e5f862e36bf6273c583af26d627	2026-10-11	
-docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	f87c3f3b1eacdbd09f3061b7bcd3bbe1a1044ee1	2026-10-18	
+docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	d49596c927908b6e48bb87a176abd2a398dd6404	2026-10-18	
 docs/volume_2_engineering_decisions/2.3.7-openbao-notes.md	2add3dd1b079800abeff3e4028929f019016268b	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	6f76c1375c36652af004fc8d270f49c1210b1491	2026-10-17	
 docs/volume_2_engineering_decisions/2.3.9-federation-notes.md	589194fbf33eda431862f1414dabc04a3181edc9	2026-10-08	
