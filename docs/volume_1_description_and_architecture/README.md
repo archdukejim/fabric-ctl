@@ -64,6 +64,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.6.10 Security contexts and features](1.6.10-security.md)
 - [1.6.11 Host access](1.6.11-host-access.md)
 - [1.6.12 Domain management in the console](1.6.12-domain-management.md)
+- [1.6.13 Access by groups and grants](1.6.13-access-by-grants.md)
 
 ## 1.7 Secrets: OpenBao
 
