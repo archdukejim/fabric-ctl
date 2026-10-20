@@ -22,7 +22,7 @@ Installing, upgrading, building and releasing fabric, and maintaining its host. 
 - [3.3.2 After setup: CA certificates, the login kit, systemd](3.3.2-after-setup.md)
 - [3.3.3 Setup steps](3.3.3-setup-steps.md)
 - [3.3.4 Rebuilding a host](3.3.4-rebuilding.md)
-- [3.3.5 Upgrading to 0.8.0](3.3.5-upgrading-to-080.md)
+- [3.3.5 Moving to 0.8.0](3.3.5-moving-to-080.md)
 
 ## 3.4 DNS: BIND
 
