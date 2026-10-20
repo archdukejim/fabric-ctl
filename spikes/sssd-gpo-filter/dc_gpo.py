@@ -63,6 +63,27 @@ def set_filter(dn, guid, group):
     return old, sddl(dn)
 
 
+def set_aces(dn, guid, aces):
+    """spike28: the GPO's own (non-inherited) entries for Authenticated Users and every Apply Group Policy entry
+    replaced by `aces` (SDDL; "{name}" is that account's or group's SID, e.g. "{G1}", "{SD12$}")."""
+    old = sddl(dn)
+    owner_group, dacl = old.split("D:", 1)
+    sacl = ""
+    if "S:" in dacl:
+        dacl, sacl = dacl.split("S:", 1)
+        sacl = "S:" + sacl
+    flags = re.match(r"^[A-Z]*", dacl).group(0)
+    spike_sids = {sid_of(samdb, n) for n in ARGS.get("spike_names", [])}  # noqa: F821
+    keep = [a for a in re.findall(r"\([^)]*\)", dacl)
+            if not a.rstrip(")").endswith(";AU") and APPLY not in a.lower()
+            and a.rstrip(")").rsplit(";", 1)[-1] not in spike_sids]
+    new_aces = [re.sub(r"\{([^}]+)\}", lambda m: sid_of(samdb, m.group(1)), a) for a in aces]
+    new = owner_group + "D:" + flags + "".join(keep + new_aces) + sacl
+    SDUtils(samdb).modify_sd_on_dn(dn, security.descriptor.from_sddl(new, domsid), controls=["sd_flags:1:4"])
+    set_gpo_acl(samdb, lp, guid)
+    return old, sddl(dn)
+
+
 def gplink(dn):
     return str(samdb.search(base=dn, scope=ldb.SCOPE_BASE, attrs=["gPLink"])[0].get("gPLink", [""])[0])
 
@@ -82,8 +103,19 @@ if op == "gpo":
     out["done"] = ensure_gpo(samdb, lp, ARGS["name"], link_dn, EXT, {INF: inf(ARGS["rights"])})
     dn, guid, version = find_gpo(samdb, ARGS["name"])
     out["guid"], out["version"] = guid, version
-    out["sd_before"], out["sd_after"] = set_filter(dn, guid, ARGS.get("filter"))
+    if "aces" in ARGS:
+        out["sd_before"], out["sd_after"] = set_aces(dn, guid, ARGS["aces"])
+    else:
+        out["sd_before"], out["sd_after"] = set_filter(dn, guid, ARGS.get("filter"))
     out["gplink"] = gplink(link_dn)
+elif op == "aces":              # spike28: change an existing GPO's filtering entries only
+    dn, guid, _ = find_gpo(samdb, ARGS["name"])
+    out["sd_before"], out["sd_after"] = set_aces(dn, guid, ARGS["aces"])
+elif op == "sids":              # spike28: SIDs and primary groups of named accounts
+    for n in ARGS["names"]:
+        res = samdb.search(base=base, scope=ldb.SCOPE_SUBTREE, expression=f"(sAMAccountName={n})",
+                           attrs=["primaryGroupID"])
+        out[n] = {"sid": sid_of(samdb, n), "primaryGroupID": str(res[0].get("primaryGroupID", [""])[0])}
 elif op == "unlink":
     dn, guid, _ = find_gpo(samdb, ARGS["name"])
     kept = [p for p in links(ARGS["link_dn"]) if not p.lower().startswith(f"ldap://{dn.lower()};")]
