@@ -98,7 +98,7 @@ def collect_vars(ctx, ask=True):
              them and the steps before deploy; deploy_config renders from fabric.yaml."""
     data = {}
     user_file = ctx.user_vars_file
-    # a fresh install: no settings yet and no domain provisioned (an upgrade or a reinstall keeps its log-on rights)
+    # a fresh install: no settings yet and no domain provisioned (an upgrade or a reinstall keeps its settings)
     provisioned = dc_provisioned(ctx.deploy_base)
     fresh = not os.path.exists(ctx.vars_file) and not provisioned
     repo_vars = os.path.join(os.path.dirname(ctx.source_dir), "custom-vars.yaml")

@@ -58,9 +58,9 @@ def plan_member(v):
         + (f"renewed by sssd with adcli every {days} days" if days else "never renewed"),
         f"{KEYTAB} (0600): the keys of this host's own computer account {ident['account']}$ and its host/ names "
         "only, exported from the domain controller",
-        f"{SSSD_CONF} (0600): domain sign-in where the log-on policy of the host's OU (OU=fabric-hosts: "
-        f"fabric-admins and {site}-fabric-admins by default) allows it; sudo from the domain's rules; sssd enabled "
-        "and restarted (local accounts, root and local sudo unchanged)"]
+        f"{SSSD_CONF} (0600): the domain's names resolve, but no domain account signs in and no domain sudo "
+        "rule applies (a host that runs a domain controller is the top tier, decisions 2.1.6.75, 2.1.6.78); sssd "
+        "enabled and restarted (local accounts, root and local sudo unchanged)"]
     managed = [
         f"while this host is in {site}-fabric-machines, where an SSH server is installed: "
         "/etc/ssh/sshd_config.d/10-fabric.conf (Kerberos for SSH; local accounts' sign-in unchanged, so the host "

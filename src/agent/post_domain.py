@@ -1,4 +1,3 @@
-from agent.read_strings import read_strings
 from agent.read_text import read_text
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
@@ -6,30 +5,23 @@ from fabriclib.directory.add_machine import add_machine
 from fabriclib.directory.remove_machine import remove_machine
 from fabriclib.directory.set_machine_enabled import set_machine_enabled
 from fabriclib.samba.clear_gpo_policy import clear_gpo_policy
-from fabriclib.samba.clear_logon_policy import clear_logon_policy
 from fabriclib.samba.gpo_overview import gpo_overview
 from fabriclib.samba.read_policy_changes import read_policy_changes
 from fabriclib.samba.set_domain_password_policy import set_domain_password_policy
 from fabriclib.samba.set_gpo_policy import set_gpo_policy
-from fabriclib.samba.set_logon_policy import set_logon_policy
-from fabriclib.system.apply_changes import apply_changes
 
 
 def post_domain(route, actor, data):
     """Purpose: the domain section of the Directory tab (manual 1.6.5.21 S7.4): the site's machines, POST
-             /v1/machines/..., its admin settings GPO, POST /v1/gpo/..., who may sign in to its machines, POST
-             /v1/domain/logon/set and /v1/domain/logon/clear (manual 1.6.11.4: saved, then applied at once), and the
-             domain's password policy, POST /v1/domain/password-policy (1.6.5.25, 2.1.2.22).
+             /v1/machines/..., its admin settings GPO, POST /v1/gpo/..., and the domain's password policy, POST
+             /v1/domain/password-policy (1.6.5.25, 2.1.2.22).
     Inputs:  route — ["machines"] (body: name), ["machines", <name>, "enable"|"disable"|"delete"], ["gpo", "search"]
              (body: match), ["gpo", "set"] (body: policy, values {element: text}, enabled, control), ["gpo",
-             "clear"] (body: policy), ["domain", "logon", "set"] (body: ou, console and remote, each a list of group
-             names, a right left out kept), ["domain", "logon", "clear"] (body: ou), ["domain", "password-policy"]
+             "clear"] (body: policy), ["domain", "password-policy"]
              (body: the policy keys to change, read_policy_changes); actor — str; data — the JSON body.
     Returns: machines: {"password"} (the one-time join password, shown once); enable/disable: {"name", "enabled",
              "changed"}; delete: {"name"}; gpo/search: gpo_overview with the matching policies; gpo/set and
-             gpo/clear: {"changed": [what changed]}; domain/logon/set: {"ou", "console", "remote", "policies",
-             "applied", "output"}; domain/logon/clear: {"ou", "policies", "applied", "output"} ("applied": the apply
-             succeeded; "output": its last 2000 characters); domain/password-policy: {"policy": the saved policy}
+             gpo/clear: {"changed": [what changed]}; domain/password-policy: {"policy": the saved policy}
              (the next apply writes it into the domain).
     Fails:   ValidationError("unknown operation") for another route, "values: an object of element: text", or
              from fabriclib (-> 400), the password policy's checks among them (check_samba_settings).
@@ -58,13 +50,4 @@ def post_domain(route, actor, data):
     if route == ["gpo", "clear"]:
         return {"changed": clear_gpo_policy(v, actor, read_text(data, "policy"), source="web",
                                             control=data.get("control") is True)}
-    if route == ["domain", "logon", "set"]:
-        done = set_logon_policy(v, actor, read_text(data, "ou"),
-                                read_strings(data, "console") if "console" in data else None,
-                                read_strings(data, "remote") if "remote" in data else None, source="web")
-    elif route == ["domain", "logon", "clear"]:
-        done = clear_logon_policy(actor, read_text(data, "ou"), source="web")
-    else:
-        raise ValidationError("unknown operation")
-    ok, output = apply_changes(actor, source="web")
-    return {**done, "applied": ok, "output": output[-2000:]}
+    raise ValidationError("unknown operation")

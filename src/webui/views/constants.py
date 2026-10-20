@@ -86,7 +86,7 @@ WIZARD_STEPS = [
     ("parts", "Optional parts", ["dns_filter", "install_fluentbit", "log_target"]),
     ("memory", "Memory", ["host_ram_capacity"]),
     ("signin", "Passwords and sign-in", ["policy_" + k for k, _ in POLICY_FIELDS]
-     + ["policy_complexity", "signin_kerberos", "logon_policies"]),
+     + ["policy_complexity", "signin_kerberos"]),
     ("upstreams", "The DNS filter's upstreams", ["dns_filter_upstreams"]),
     ("review", "Review", []),
 ]

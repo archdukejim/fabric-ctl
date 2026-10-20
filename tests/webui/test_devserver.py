@@ -333,10 +333,8 @@ try:
     check("machines section (admin): machines with state, disable/enable and remove, the add form",
           "host-1" in page and "/directory/machines/host-1/disable" in page and "/directory/machines/ws2404/enable" in page
           and "/directory/machines/_new" in page)
-    check("machines section (admin): who may sign in per OU, each with a clear form, and the set form (1.6.11.4)",
-          "Who may sign in" in page and "machines/linux" in page and "lan-machine-admins" in page
-          and 'action="/directory/logon/clear"' in page and 'action="/directory/logon/set"' in page
-          and "fabric-break-glass" in page)
+    check("machines section (admin): no per-OU log-on editor (retired in D1, 2.3.6.17)",
+          "Who may sign in" not in page and "/directory/logon/" not in page)
     check("machines section (admin): host groups with their machines and a remove form, the membership and new-group "
           "forms; sudo rules with who made each, remove only for fabric's, the add form (1.6.11.7)",
           "lan-hosts-web" in page and 'action="/directory/hostgroups/web/delete"' in page

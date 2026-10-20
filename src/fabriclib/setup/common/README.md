@@ -6,7 +6,7 @@ Helpers shared by setup steps and the consent plans.
 |---|---|
 | `missing_packages.py` | Which Debian packages are not installed |
 | `apt_install.py` | Install packages from the host's own apt sources (noninteractive) |
-| `render_member_files.py` | The host's krb5.conf and sssd.conf as a member of its own domain: the fabric admins only (and the log-on policy of its OU), sudo from the site's rules |
+| `render_member_files.py` | The host's krb5.conf and sssd.conf as a member of its own domain: no domain account signs in and no domain sudo rule applies (the top tier's host) |
 | `host_identity.py` | Which domain account the host signs in with: its own `<HOSTNAME>$` (2.1.6.48), or its DC's where it cannot have its own; a DC with the host's name refused (2.1.6.51) |
 | `find_computer.py` | Whether the domain has a computer account of a name, where, and its groups (read inside the DC) |
 | `apply_host_managed.py` | fabric's management of the fabric host itself, applied or removed: Kerberos for SSH, a domain password refused over SSH, the domain's names from fabric's DNS; local accounts untouched, sshd's configuration checked (1.6.11.11) |

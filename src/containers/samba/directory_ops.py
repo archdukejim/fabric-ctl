@@ -9,7 +9,6 @@ from link_device_cert import link_device_cert
 from list_host_groups import list_host_groups
 from list_machines import list_machines
 from list_sudo_rules import list_sudo_rules
-from logon_groups import logon_groups
 from list_people import list_people
 from place_fabric_host import place_fabric_host
 from read_devices import read_devices
@@ -43,7 +42,6 @@ OPS = {
     "list_host_groups": list_host_groups,
     "list_machines": list_machines,
     "list_sudo_rules": list_sudo_rules,
-    "logon_groups": logon_groups,
     "list_people": list_people,
     "place_fabric_host": place_fabric_host,
     "read_devices": read_devices,

@@ -14,7 +14,7 @@ def read_settings(v, have_gb=None):
     Returns: {key: value} in WIZARD_KEYS order: install_fluentbit, signin_kerberos bool; dns_filter "bind" or "none";
              log_forwarding without the sub-keys that name something
              on the host (LOG_HOST_KEYS); host_ram_capacity int; ad_password_policy the whole policy (the default's keys
-             filled in); logon_policies None or the map; dns_filter_upstreams [{address, name}].
+             filled in); dns_filter_upstreams [{address, name}].
     Fails:   never for a readable settings dict.
     Feeds:   export_settings, plan_settings, apply_settings (a stale plan), settings_overview."""
     lf = copy.deepcopy(v.get("log_forwarding") or {})
@@ -32,7 +32,6 @@ def read_settings(v, have_gb=None):
         "host_ram_capacity": int(v.get("host_ram_capacity") or (host_ram_gb() if have_gb is None else have_gb) or 4),
         "ad_password_policy": {**DEFAULT_POLICY, **policy} if isinstance(policy, dict) else policy,
         "signin_kerberos": bool(v.get("signin_kerberos", False)),
-        "logon_policies": copy.deepcopy(v.get("logon_policies")),
         "dns_filter_upstreams": copy.deepcopy(v.get("dns_filter_upstreams") or DEFAULT_UPSTREAMS),
     }
     return {k: out[k] for k in WIZARD_KEYS}

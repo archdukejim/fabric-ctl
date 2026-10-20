@@ -24,7 +24,6 @@ from fabriclib.pki.list_issued import list_issued
 from fabriclib.radius.radius_guides import radius_guides
 from fabriclib.samba.domain_overview import domain_overview
 from fabriclib.samba.gpo_overview import gpo_overview
-from fabriclib.samba.logon_overview import logon_overview
 from fabriclib.radius.radius_overview import radius_overview
 from fabriclib.system.service_status import service_status
 from fabriclib.system.version_info import version_info
@@ -56,7 +55,6 @@ READS = {
     ("devices",): lambda: device_overview(load_vars()),
     ("people",): lambda: list_people(load_vars()),
     ("domain",): lambda: domain_overview(load_vars()),
-    ("domain", "logon"): lambda: logon_overview(load_vars()),
     ("host-groups",): lambda: list_host_groups(load_vars()),
     ("sudo",): lambda: list_sudo_rules(load_vars()),
     ("gpo",): lambda: gpo_overview(load_vars()),

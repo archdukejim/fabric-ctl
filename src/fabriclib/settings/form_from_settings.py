@@ -24,10 +24,6 @@ def form_from_settings(values):
     yes = {True: "true", False: "false"}
     lf = values.get("log_forwarding") or {}
     policy = values.get("ad_password_policy") or {}
-    lines = []
-    for ou, rights in (values.get("logon_policies") or {}).items():
-        lines.append(f"{ou or 'site'} | {', '.join(rights.get('console') or [])} | "
-                     f"{', '.join(rights.get('remote') or [])}")
     form = {"dns_filter": str(values.get("dns_filter") or "bind"),
             "install_fluentbit": yes[bool(values.get("install_fluentbit"))],
             "log_target": _log_target(lf),
@@ -36,7 +32,6 @@ def form_from_settings(values):
             **{f"policy_{k}": str(policy.get(k, "")) for k in POLICY_KEYS},
             "policy_complexity": yes[bool(policy.get("complexity", True))],
             "signin_kerberos": yes[bool(values.get("signin_kerberos"))],
-            "logon_policies": "\n".join(lines),
             "dns_filter_upstreams": "\n".join(f"{u.get('address', '')} {u.get('name', '')}"
                                               for u in values.get("dns_filter_upstreams") or [])}
     return form

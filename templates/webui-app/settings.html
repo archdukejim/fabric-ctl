@@ -12,7 +12,7 @@ fresh install these are setup's defaults.{% endif %}</p>
 <section class="card">
 {% if step == 'review' %}<form method="post" action="/settings/plan" class="grid">{% else %}<form method="post" action="/settings/step" class="grid">{% endif %}
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-{% for f, v in typed.items() if f not in fields %}{% if f in ('logon_policies', 'dns_filter_upstreams') %}<textarea name="{{ f }}" hidden>{{ v }}</textarea>{% else %}<input type="hidden" name="{{ f }}" value="{{ v }}">{% endif %}{% endfor %}
+{% for f, v in typed.items() if f not in fields %}{% if f in ('dns_filter_upstreams',) %}<textarea name="{{ f }}" hidden>{{ v }}</textarea>{% else %}<input type="hidden" name="{{ f }}" value="{{ v }}">{% endif %}{% endfor %}
 {% if step == 'parts' %}
 <h2>Optional parts</h2>
 <label>The DNS filter<select name="dns_filter"><option value="bind"{{ ' selected' if typed.dns_filter == 'bind' }}>on (bind)</option><option value="none"{{ ' selected' if typed.dns_filter == 'none' }}>off (none)</option></select> {{ today_is('dns_filter') }}</label>
@@ -39,8 +39,6 @@ OpenBao's unlock and recovery, lowering sign-in security, client certificates an
 <label>Complexity (three of: upper, lower, digit, symbol){{ onoff('policy_complexity', 'required', 'not required') }}</label>
 <h2>Signing in</h2>
 <label>Sign in with the domain logon (Kerberos){{ onoff('signin_kerberos') }} {{ today_is('signin_kerberos', 'on' if today.signin_kerberos == 'true' else 'off') }}</label>
-<label>Who may sign in to the site's machines, one OU a line: <code>OU path | console groups | remote groups</code> (<code>site</code> for the site's OU; no line: the rights as before 0.9)
-<textarea name="logon_policies" rows="4">{{ typed.logon_policies }}</textarea></label>
 {% elif step == 'upstreams' %}
 <h2>The DNS filter's upstreams</h2>
 <label>DNS-over-TLS servers, one a line: <code>address name-on-its-certificate</code>

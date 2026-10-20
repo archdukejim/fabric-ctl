@@ -313,16 +313,12 @@ check("the admin's password policy is the domain's",
       "Minimum password length: 14" in policy and "Password complexity: on" in policy
       and "Account lockout threshold (attempts): 5" in policy, policy)
 gpos = dc("samba-tool", "gpo", "listall", "-H", "/data/private/sam.ldb", "-s", "/data/etc/smb.conf").stdout
-check("the trust GPO and the site's log-on GPO exist", "fabric: trust in fabric's root CA" in gpos
-      and "fabric: lan log-on rights" in gpos, gpos)
+check("the trust GPO exists, and no log-on GPO (the per-OU log-on policies are retired in D1, 2.3.6.17)",
+      "fabric: trust in fabric's root CA" in gpos and "log-on" not in gpos, gpos)
 files = dc("find", "/data/state/sysvol", "-name", "Registry.pol", "-o", "-name", "GptTmpl.inf").stdout
-check("their files are in SYSVOL (Registry.pol, GptTmpl.inf)", "Registry.pol" in files and "GptTmpl.inf" in files)
-inf_path = next(x for x in files.splitlines() if x.endswith("GptTmpl.inf"))
-inf = subprocess.run(["docker", "exec", DC, "cat", inf_path], capture_output=True).stdout     # UTF-16: bytes
-check("the log-on policy names the site's groups and each machine's local Administrators (never lock out)",
-      "S-1-5-32-544".encode("utf-16-le") in inf and "SeInteractiveLogonRight".encode("utf-16-le") in inf)
-check("...and makes the site's windows-admins role a member of each machine's Administrators (added, 2.1.9.13)",
-      "__Memberof = *S-1-5-32-544".encode("utf-16-le") in inf and "[Group Membership]".encode("utf-16-le") in inf)
+check("its file is in SYSVOL (Registry.pol), and no fabric GptTmpl.inf (log-on rights) is written",
+      "Registry.pol" in files and not [x for x in files.splitlines() if x.endswith("GptTmpl.inf")
+                                       and "31B2F340" not in x and "6AC1786C" not in x], files)
 roles = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(&(objectClass=group)(sAMAccountName=lan-*))",
            "sAMAccountName", "member").stdout
 check("the site's four role groups, lan-admins a member of each (2.1.9.13; linux-sudo replaced, 2.1.6.37)",

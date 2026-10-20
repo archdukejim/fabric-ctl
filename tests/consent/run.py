@@ -568,7 +568,7 @@ check("planned when on: the missing packages, the host's own account FAB1$ place
               and x.startswith("the domain:") for x in planned)
       and any("own computer account FAB1$" in x and "/etc/krb5.keytab" in x for x in planned)
       and not any("DC-FAB1" in x for x in planned)
-      and any("hq-fabric-admins" in x and "/etc/sssd/sssd.conf" in x for x in planned)
+      and any("no domain account signs in" in x and "/etc/sssd/sssd.conf" in x for x in planned)
       and any(x.startswith("PAM: pam-auth-update") for x in planned), planned)
 check("…and fabric's management of the host while it is in hq-fabric-machines: Kerberos for SSH with local accounts "
       "unchanged (checked by sshd -t), a domain password refused over SSH, the domain's names from fabric's DNS "
@@ -592,12 +592,13 @@ check("negative: not planned when host_join_domain is false (nothing asked, noth
 pm.missing_packages = _real_missing
 files = render_member_files(mv)
 sssd = files["/etc/sssd/sssd.conf"]
-check("sssd.conf: the host's own name, the OU's log-on policy (GPO access enforcing) as the one gate, no access "
-      "filter of fabric's own (2.1.6.53), sudo from the domain, this host's own DC, no dynamic DNS (2.1.6.48)",
-      "access_provider = ad\n" in sssd and "ad_gpo_access_control = enforcing\n" in sssd
-      and "ad_access_filter" not in sssd
-      and "ad_hostname = fab1.ad.test\n" in sssd and "simple_allow" not in sssd
-      and "sudo_provider = ad\n" in sssd and "ad_server = dc-0001.ad.test\n" in sssd and "dyndns_update = false" in sssd
+check("sssd.conf: the host's own name, this host's own DC, no dynamic DNS (2.1.6.48); negative: no domain account "
+      "signs in and no domain sudo rule reaches it (the top tier's host, 2.1.6.75, 2.1.6.78)",
+      "access_provider = deny\n" in sssd and "sudo_provider = none\n" in sssd
+      and "access_provider = ad" not in sssd and "ad_gpo_access_control" not in sssd and "simple_allow" not in sssd
+      and "ldap_sudo_search_base" not in sssd
+      and "ad_hostname = fab1.ad.test\n" in sssd
+      and "ad_server = dc-0001.ad.test\n" in sssd and "dyndns_update = false" in sssd
       and sssd.startswith("# fabric"), sssd)
 renew_sssd = render_member_files(renew)["/etc/sssd/sssd.conf"]
 rodc_sssd = render_member_files({**renew, "ad_dc_type": "rodc"})["/etc/sssd/sssd.conf"]
@@ -606,13 +607,6 @@ check("sssd.conf: the machine password never renewed by default (age 0), renewed
       "ad_maximum_machine_account_password_age = 0\n" in sssd
       and "ad_maximum_machine_account_password_age = 30\n" in renew_sssd
       and "ad_maximum_machine_account_password_age = 30\n" in rodc_sssd, (sssd, renew_sssd))
-check("its sudo search bases: the site's OU=sudoers, then the organisation's (as the Linux join builds them)",
-      "ldap_sudo_search_base = OU=sudoers,OU=hq,OU=sites,DC=ad,DC=test?onelevel??"
-      "OU=sudoers,OU=organisation,OU=hq,OU=sites,DC=ad,DC=test?onelevel?\n" in sssd, sssd)
-nested = render_member_files({**mv, "ad_site_ou": "OU=edge,OU=hq,OU=sites"})["/etc/sssd/sssd.conf"]
-check("a nested site's host also reads the rules of each site above it",
-      "OU=sudoers,OU=edge,OU=hq,OU=sites,DC=ad,DC=test?onelevel??OU=sudoers,OU=hq,OU=sites,DC=ad,DC=test?onelevel??"
-      in nested, nested)
 check("krb5.conf: the realm, its KDC this host's DC",
       "default_realm = AD.TEST" in files["/etc/krb5.conf"] and "kdc = dc-0001.ad.test" in files["/etc/krb5.conf"])
 nss = "passwd:         files systemd\ngroup:          files systemd\nshadow:         files\nhosts: files dns\n"
@@ -724,9 +718,9 @@ check("a read-only DC's site: the host's own account too, written at the writabl
 rodc_vars = {**mv, "ad_dc_type": "rodc", "ad_join_server": "10.0.9.5"}
 rodc_sssd = render_member_files(rodc_vars)["/etc/sssd/sssd.conf"]
 rodc_plan = pm.plan_member(rodc_vars)
-check("…its sssd as any member's (the OU's policy, its own name) and the plan says where the account is made and that "
-      "the read-only DC caches it",
-      "access_provider = ad\n" in rodc_sssd and "ad_hostname = fab1.ad.test\n" in rodc_sssd
+check("…its sssd as at a writable DC's site (no domain sign-in, its own name) and the plan says where the account is "
+      "made and that the read-only DC caches it",
+      "access_provider = deny\n" in rodc_sssd and "ad_hostname = fab1.ad.test\n" in rodc_sssd
       and any(x.startswith("the domain:") and "writable domain controller 10.0.9.5" in x and "hq-rodc-cache" in x
               for x in rodc_plan), (rodc_sssd, rodc_plan))
 

@@ -135,9 +135,6 @@ check("adding a machine already in it changes nothing, nothing audited", code ==
 code, out = machines("groups")
 check("machines groups: each host group with its machines", code == 0 and "lan-hosts-web: web1, web2" in out
       and "lan-hosts-db: (no machines)" in out, out)
-missing = run_op(V, SECRETS, "logon_groups", {"names": ["lan-hosts-web"]}, DC)["missing"]
-check("a host group is a group the log-on policy editor accepts (1.6.11.4: its groups are checked in the domain)",
-      missing == [], missing)
 
 print("--- sudo rules: fabricctl sudo")
 code, out = sudo("add", "web-restart", "--who", "alice,%lan-admins", "--commands",

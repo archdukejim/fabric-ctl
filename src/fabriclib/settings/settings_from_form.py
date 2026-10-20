@@ -46,37 +46,16 @@ def _log_forwarding(text, base):
     return {**keep, kind: {**((base or {}).get(kind) or {}), **dest[kind]}}
 
 
-def _logon_policies(text):
-    """Purpose: who may sign in per OU, from the wizard's text: one OU a line, "<OU path> | <console groups> |
-             <remote groups>", the groups separated by commas; "site" for the site's OU; no line at all for none (the
-             rights as before 0.9).
-    Inputs:  text — str.
-    Returns: None, or {OU path: {"console": [...], "remote": [...]}} (checked later by check_logon_policies).
-    Fails:   ValidationError for a line without two "|".
-    Feeds:   settings_from_form."""
-    out = {}
-    for line in str(text or "").splitlines():
-        if not line.strip():
-            continue
-        parts = line.split("|")
-        if len(parts) != 3:
-            raise ValidationError(f"logon_policies: {line.strip()!r}: write <OU path> | <console groups> | <remote "
-                                  "groups>, e.g. machines | site-machine-admins | site-machine-admins")
-        ou = parts[0].strip()
-        out[ou] = {r: [g.strip() for g in p.split(",") if g.strip()] for r, p in zip(("console", "remote"), parts[1:])}
-    return out or None
-
-
 def settings_from_form(form, base):
     """Purpose: the wizard's fields (manual 1.8.5.3) as the settings they set, for plan_settings: each field present
              turns into its setting's value; a field left out leaves its setting as it is.
     Inputs:  form — {field: text}: dns_filter, install_fluentbit, log_target, host_ram_capacity, policy_<key> (each of
-             the password policy's keys) and policy_complexity, signin_kerberos, logon_policies, dns_filter_upstreams;
+             the password policy's keys) and policy_complexity, signin_kerberos, dns_filter_upstreams;
              base — today's settings
              (read_settings), what a partial field keeps.
     Returns: {wizard key: value}.
     Fails:   ValidationError naming the field: a yes/no that is neither, a number that is not one, a log destination
-             setup refuses, a log-on line or an upstream pair of the wrong form.
+             setup refuses, or an upstream pair of the wrong form.
     Feeds:   agent/post_settings (POST /v1/settings/plan with the wizard's fields)."""
     out = {}
     for key in ("install_fluentbit", "signin_kerberos"):
@@ -93,8 +72,6 @@ def settings_from_form(form, base):
         policy["complexity"] = _flag(form, "policy_complexity")
     if policy:
         out["ad_password_policy"] = policy
-    if "logon_policies" in form:
-        out["logon_policies"] = _logon_policies(form["logon_policies"])
     if "dns_filter_upstreams" in form:
         out["dns_filter_upstreams"] = parse_upstreams(form["dns_filter_upstreams"])
     return out

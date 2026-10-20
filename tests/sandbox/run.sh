@@ -464,17 +464,17 @@ check "setup made the host a member with its own account: the keytab holds FABRI
      && in_box 'klist -k /etc/krb5.keytab' | grep -qF ' FABRIC-SBX\$@AD.TEST' && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi 'DC-FABRIC-SBX' \
      && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi krbtgt \
      && in_box 'systemctl is-active sssd' | grep -qx active"
-check "…its computer account sits in the site's OU=fabric-hosts (group policy reaches it, 2.1.6.49); sssd enforces the OU's log-on policy" \
+check "…its computer account sits in the site's OU=fabric-hosts (group policy reaches it, 2.1.6.49); sssd denies every domain account and has no sudo provider (the top tier's host, 2.1.6.75, 2.1.6.78)" \
     "host_account | grep -q 'OU=fabric-hosts,' \
-     && in_box 'grep -qx ad_gpo_access_control.=.enforcing /etc/sssd/sssd.conf && grep -qx ad_hostname.=.fabric-sbx.ad.test /etc/sssd/sssd.conf'"
+     && in_box 'grep -qx access_provider.=.deny /etc/sssd/sssd.conf && grep -qx sudo_provider.=.none /etc/sssd/sssd.conf && grep -qx ad_hostname.=.fabric-sbx.ad.test /etc/sssd/sssd.conf'"
 check "the first admin (in fabric-admins) resolves on the host with the domain's uid (1000000, the block's first)" \
     "in_box 'getent passwd fabric-admin' | grep -qE '^fabric-admin:[^:]*:1000000:'"
-check "the first admin signs in to the host with their domain password (PAM)" "pam fabric-admin /root/admin-pw"
+check "negative: the first admin's domain password is right (PAM authenticates it) but the account may not sign in to the host (PAM's account check refuses it: nobody from the domain, 2.1.6.78)" \
+    "pam fabric-admin /root/admin-pw authenticate && ! pam fabric-admin /dev/null acct_mgmt"
 check "a wrong password is refused" "! pam fabric-admin /root/wrong-pw"
-check "the first admin has sudo on the host from the site's rule" "in_box 'sudo -l -U fabric-admin' | grep -q '(ALL) ALL'"
-check "a person outside the fabric admins (bob) resolves but is refused by OU=fabric-hosts' default log-on policy (no access filter of fabric's own, 2.1.6.53), and has no sudo" \
-    "in_box 'getent passwd bob' >/dev/null && ! in_box 'grep -q ad_access_filter /etc/sssd/sssd.conf' \
-     && ! pam bob /dev/null acct_mgmt && pam fabric-admin /dev/null acct_mgmt \
+check "negative: the first admin has no sudo on the host from the domain (no domain sudo rule reaches it)" "in_box 'sudo -l -U fabric-admin 2>&1' | grep -q 'not allowed'"
+check "negative: any other person (bob) resolves but is refused too, and has no sudo" \
+    "in_box 'getent passwd bob' >/dev/null && ! pam bob /dev/null acct_mgmt \
      && in_box 'sudo -l -U bob 2>&1' | grep -q 'not allowed'"
 echo "--- the fabric host as a machine fabric manages (manual 1.6.11.11, 2.1.6.49): Kerberos for SSH, never locked out"
 FM=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=*-fabric-machines)' sAMAccountName" \
@@ -502,8 +502,8 @@ ssh_krb() { in_box "export KRB5CCNAME=FILE:/tmp/cc-$1; kinit $1 < $2 >/dev/null 
     -o GSSAPIAuthentication=yes $1@fabric-sbx.ad.test true; rc=\$?; kdestroy >/dev/null 2>&1; exit \$rc" >> "$OUT/ssh.log" 2>&1; }
 check "a local account signs in over SSH with its password (the host's exception to Kerberos-only: local accounts as before)" \
     "ssh_pw localop /root/localop-pw"
-check "a fabric admin signs in over SSH with a Kerberos ticket" "ssh_krb fabric-admin /root/admin-pw"
-check "a fabric admin's domain password over SSH is refused (domain accounts sign in with Kerberos)" "! ssh_pw fabric-admin /root/admin-pw"
+check "negative: a fabric admin with a Kerberos ticket is refused over SSH (nobody from the domain, 2.1.6.78)" "! ssh_krb fabric-admin /root/admin-pw"
+check "negative: a fabric admin's domain password over SSH is refused" "! ssh_pw fabric-admin /root/admin-pw"
 # dora: a person of the site (in <site>-users, not a fabric admin) whose password is usable at once (bob's is a
 # one-time password the web sign-in test needs, so neither kinit nor sssd's account check would take it): reset to a
 # password in a root-only file, then its must-change flag lifted in the domain (pwdLastSet -1: no secret on a line)
@@ -513,27 +513,13 @@ DORA_DN=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAcco
 printf 'dn: %s\nchangetype: modify\nreplace: pwdLastSet\npwdLastSet: -1\n' "$DORA_DN" \
     | docker exec -i "$NAME" docker exec -i samba ldbmodify -H /data/private/sam.ldb >> "$OUT/dora.log" 2>&1
 in_box 'sss_cache -E' >/dev/null 2>&1
-check "a person outside the fabric admins (dora) gets a ticket but is refused, over SSH with it and by PAM's account check" \
+check "negative: a person of the site (dora) gets a ticket but is refused, over SSH with it and by PAM's account check" \
     "in_box 'KRB5CCNAME=FILE:/tmp/cc-dorat kinit dora < /root/dora-pw >/dev/null 2>&1 && kdestroy -c FILE:/tmp/cc-dorat' \
      && ! ssh_krb dora /root/dora-pw && ! pam dora /dev/null acct_mgmt"
-echo "--- who signs in to the host is OU=fabric-hosts' log-on policy alone (2.1.6.53): changed there, nothing on the host"
-SITE=${FM%-fabric-machines}
-SSSD_BEFORE=$(in_box 'md5sum /etc/sssd/sssd.conf')
-# covers: cli:domain.logon +
-in_box "fabricctl domain logon set fabric-hosts --console fabric-admins,$SITE-fabric-admins,$SITE-users --remote fabric-admins,$SITE-fabric-admins,$SITE-users" > "$OUT/logon-hosts.log" 2>&1
-# sssd reads a GPO again once its own copy is 5 seconds old (ad_gpo_cache_timeout): asked for up to a minute
-within_a_minute() { for _ in $(seq 12); do eval "$1" && return 0; sleep 5; done; return 1; }
-check "an admin grants $SITE-users on OU=fabric-hosts' policy: dora may now sign in to the host (PAM, and SSH with a ticket), no file on the host changed" \
-    "within_a_minute 'pam dora /dev/null acct_mgmt' && ssh_krb dora /root/dora-pw \
-     && [ \"\$(in_box 'md5sum /etc/sssd/sssd.conf')\" = '$SSSD_BEFORE' ]"
-in_box 'fabricctl domain logon clear fabric-hosts' >> "$OUT/logon-hosts.log" 2>&1
-check "...logon clear fabric-hosts puts the default back: dora refused again (SSH too), the fabric admin still signs in" \
-    "within_a_minute '! pam dora /dev/null acct_mgmt' && ! ssh_krb dora /root/dora-pw && pam fabric-admin /dev/null acct_mgmt \
-     && grep -q 'back to the default' '$OUT/logon-hosts.log'"
 in_box 'systemctl stop samba' >/dev/null 2>&1
-check "with the DC stopped: a local account signs in and keeps its sudo, root works, the admin signs in from sssd's cache" \
+check "with the DC stopped: a local account signs in and keeps its sudo, root works" \
     "pam localop /root/localop-pw && in_box 'sudo -l -U localop' | grep -q '(ALL : ALL) ALL' \
-     && [ \"\$(in_box 'id -u root')\" = 0 ] && pam fabric-admin /root/admin-pw"
+     && [ \"\$(in_box 'id -u root')\" = 0 ]"
 check "…and over SSH with its password: the managed host never locks its owner out" "ssh_pw localop /root/localop-pw"
 in_box 'fabricctl domain host-managed --scheduled' > "$OUT/host-managed-dcdown.log" 2>&1
 check "with the DC stopped, the timer's run changes nothing (says the DC did not answer)" \
@@ -556,8 +542,8 @@ check "negative: sshd already refusing its configuration: host-managed refuses (
     "grep -q 'refuses its configuration as it is' '$OUT/host-managed-broken.log' && ! in_box 'fabricctl domain host-managed >/dev/null 2>&1' \
      && ! in_box 'test -e /etc/ssh/sshd_config.d/10-fabric.conf' && ! in_box 'grep -q pam_localuser /etc/pam.d/sshd'"
 in_box 'rm -f /etc/ssh/sshd_config.d/00-broken.conf; fabricctl domain host-managed' > "$OUT/host-managed-fixed.log" 2>&1
-check "…fixed: applied again, and the fabric admin signs in with Kerberos" \
-    "grep -q 'is in $FM' '$OUT/host-managed-fixed.log' && ssh_krb fabric-admin /root/admin-pw"
+check "…fixed: applied again" \
+    "grep -q 'is in $FM' '$OUT/host-managed-fixed.log' && in_box 'test -f /etc/ssh/sshd_config.d/10-fabric.conf'"
 # an account of 0.7.1's first build: in OU=machines/OU=linux, never placed (the record without "placed")
 SITE_OU=$(host_account | sed -n 's/^dn: CN=FABRIC-SBX,OU=fabric-hosts,\(.*\),DC=ad,DC=test$/\1/p')
 samba_tool computer move FABRIC-SBX "OU=linux,OU=machines,$SITE_OU"

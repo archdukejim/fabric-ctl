@@ -6,7 +6,7 @@ def find_gpo(samdb, name):
     Inputs:  samdb — SamDB; name — str.
     Returns: (dn str, guid "{…}" str, versionNumber int) or None.
     Fails:   ldb.LdbError from the search.
-    Feeds:   ensure_gpo, remove_gpo."""
+    Feeds:   ensure_gpo."""
     res = samdb.search(base=f"CN=Policies,CN=System,{samdb.domain_dn()}", scope=ldb.SCOPE_ONELEVEL,
                        expression=f"(&(objectClass=groupPolicyContainer)(displayName={ldb.binary_encode(name)}))",
                        attrs=["cn", "versionNumber"])

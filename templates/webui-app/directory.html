@@ -191,25 +191,8 @@ writes a saved policy into the domain.</p>
 </form>
 <p class="muted small">It gets a one-time join password (shown once): give it to <code>join-linux.sh --one-time</code> on a Linux machine (manual 4.6.6). Windows machines join with a site admin's account (4.6.7).</p>
 </section>{% endif %}
-{% if logon %}<section class="card"><h2>Who may sign in</h2>
-<p class="muted">Each OU's log-on policy names the groups allowed at the keyboard and remotely (RDP, SSH); an OU without its own takes its parent's. {% if logon.always %}Always allowed, everywhere: {{ logon.always | join(', ') }}.{% endif %}</p>
-{% if logon.legacy %}<p class="muted small">This site still has its log-on rights of before 0.9, on the site's OU. The first change makes them the site OU's policy, then applies only what you changed.</p>{% endif %}
-{% if logon.error %}<p class="flash bad">Who may sign in could not be read: {{ logon.error }}</p>{% endif %}
-{% if logon.policies %}<table><thead><tr><th>OU</th><th>At the keyboard</th><th>Remotely</th><th></th></tr></thead><tbody>
-{% for p in logon.policies %}<tr><td><strong>{{ p.ou or 'site' }}</strong></td><td>{{ p.console | join(', ') or 'nobody' }}</td><td>{{ p.remote | join(', ') or 'nobody' }}</td>
-<td class="num">{% if can('gpo:admin') and not logon.legacy %}<form method="post" action="/directory/logon/clear"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="ou" value="{{ p.ou or 'site' }}"><button class="ghost" title="the OU takes its parent's policy again">Clear</button></form>{% endif %}</td></tr>{% endfor %}
-</tbody></table>{% endif %}
-{% if can('gpo:admin') %}<form method="post" action="/directory/logon/set" class="grid">
-<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<label>OU<input name="ou" required placeholder="machines/linux" title="a path below the site's OU; site for the site's OU itself"></label>
-<label>At the keyboard<input name="console" placeholder="lan-machine-admins, lan-users" title="group names, separated by commas"></label>
-<label>Remotely<input name="remote" placeholder="lan-machine-admins" title="group names, separated by commas"></label>
-<div><button>Set</button></div>
-</form>
-<p class="muted small">Saved and applied at once: the OU's GPO <code>fabric: {{ domain.site }} log-on &lt;OU&gt;</code> is written for Windows and Linux (sssd) to enforce (manual 4.6.8).</p>{% endif %}
-</section>{% endif %}
 {% if access %}<section class="card"><h2>Host groups {% if access.groups %}<span class="muted">{{ access.groups | length }}</span>{% endif %}</h2>
-<p class="muted">Groups of this site's machines (<code>{{ domain.site }}-hosts-&lt;name&gt;</code>), for sudo rules to aim at; a log-on policy may name one like any group.</p>
+<p class="muted">Groups of this site's machines (<code>{{ domain.site }}-hosts-&lt;name&gt;</code>), for sudo rules to aim at.</p>
 {% if access.error %}<p class="flash bad">Host groups and sudo rules could not be read: {{ access.error }}</p>{% endif %}
 {% if access.groups %}<table><thead><tr><th>Host group</th><th>Machines</th><th>Sudo rules</th><th></th></tr></thead><tbody>
 {% for g in access.groups %}<tr><td><strong>{{ g.name }}</strong>{% if not g.fabric %}<div class="muted small">not made by fabric</div>{% endif %}</td><td>{{ g.machines | join(', ') or 'none' }}{% if g.other_members %}<div class="muted small">also {{ g.other_members | join(', ') }}</div>{% endif %}</td><td>{{ g.rules | join(', ') or '—' }}</td>

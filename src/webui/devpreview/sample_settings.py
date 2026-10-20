@@ -5,7 +5,6 @@ SAMPLE_SETTINGS_FORM = {
     "host_ram_capacity": "8", "policy_minimum_length": "12", "policy_history": "5", "policy_minimum_age_days": "0",
     "policy_maximum_age_days": "0", "policy_lockout_threshold": "10", "policy_lockout_minutes": "15",
     "policy_lockout_window_minutes": "15", "policy_complexity": "true", "signin_kerberos": "false",
-    "logon_policies": "machines | home-machine-admins | home-machine-admins",
     "dns_filter_upstreams": "1.1.1.1 cloudflare-dns.com\n1.0.0.1 cloudflare-dns.com",
 }
 

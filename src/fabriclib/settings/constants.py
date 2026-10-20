@@ -7,7 +7,7 @@ FORMAT = 1                          # the settings file's `fabric_settings:` ver
 # else is console-only. DHCP (install_kea and its first subnet, dhcp) joins with the address manager in 0.9.0
 # (2.1.1.58); until then it is setup's.
 WIZARD_KEYS = ("dns_filter", "install_fluentbit", "log_forwarding", "host_ram_capacity",
-               "ad_password_policy", "signin_kerberos", "logon_policies", "dns_filter_upstreams")
+               "ad_password_policy", "signin_kerberos", "dns_filter_upstreams")
 
 # the console-only settings the wizard's first step shows, read only, with the command that changes them
 CONSOLE_ONLY = [

@@ -3,7 +3,6 @@ import re
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.dns_filter.check_filter_settings import check_filter_settings
-from fabriclib.samba.check_logon_policies import check_logon_policies
 from fabriclib.samba.check_password_policy import DEFAULT_POLICY, check_password_policy
 from fabriclib.setup.common.parse_log_target import parse_log_target
 from fabriclib.system.common.parse_mem_mb import parse_mem_mb
@@ -96,13 +95,11 @@ def check_wizard_value(key, value, v, have_gb=0):
     """Purpose: one wizard setting checked as setup and its own page check it (manual 1.8.5.5), before anything
              changes: the parts and Kerberos true or false, the DNS filter bind or none,
              where the logs go (as setup asks it), the memory (4 to the host's GB), the password policy
-             (check_password_policy, over today's, the default's keys filling in), who may sign in per OU
-             (check_logon_policies) and the DNS filter's
+             (check_password_policy, over today's, the default's keys filling in) and the DNS filter's
              upstreams (check_filter_settings).
     Inputs:  key — a WIZARD_KEYS name; value — the value given; v — the settings as saved (the password policy and
              the DNS filter's other settings the checks read); have_gb — the host's memory in GB (0: unknown).
-    Returns: the value as it would be saved (normalised: the whole password policy, the log-on policies' OU paths in
-             lower case, the upstreams' names in lower case).
+    Returns: the value as it would be saved (normalised: the whole password policy, the upstreams' names in lower case).
     Fails:   ValidationError naming the key and why; KeyError for a key that is not the wizard's.
     Feeds:   plan_settings."""
     if key in ("install_fluentbit", "signin_kerberos"):
@@ -124,8 +121,6 @@ def check_wizard_value(key, value, v, have_gb=0):
         except ValidationError as e:
             raise ValidationError(str(e) if "ad_password_policy" in str(e) else f"ad_password_policy: {e}") from None
         return policy
-    if key == "logon_policies":
-        return check_logon_policies(copy.deepcopy(value))
     if key == "dns_filter_upstreams":
         if not isinstance(value, list) or not all(isinstance(u, dict) and set(u) <= {"address", "name"}
                                                   for u in value):

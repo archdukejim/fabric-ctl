@@ -244,10 +244,10 @@ def run(ctx):
     """Purpose: make the fabric host a member of its own domain (manual 1.6.11.8, decisions 2.1.6.34, 2.1.6.48,
              2.1.6.49, 2.1.6.52): it signs in with its own computer account `<HOSTNAME>$`, pre-created as `fabricctl
              domain add-machine` makes one and placed once in the site's OU=fabric-hosts and <site>-fabric-machines, so
-             the site's group policy reaches it; whom that OU's log-on policy allows (the fabric admins by default,
-             2.1.6.53) sign in to it with their domain accounts, with sudo from the site's rules; while the account is
-             in <site>-fabric-machines, fabric manages the host (setup/common/apply_host_managed: Kerberos for SSH, the
-             domain's names from fabric's DNS; local accounts' sign-in untouched). At a site whose DC is read-only, the
+             the site's group policy reaches it; no domain account signs in to it and no domain sudo rule applies
+             (the top tier's host, 2.1.6.75, 2.1.6.78); while the account is in <site>-fabric-machines, fabric
+             manages the host (setup/common/apply_host_managed: Kerberos for SSH, the domain's names from fabric's
+             DNS; local accounts' sign-in untouched). At a site whose DC is read-only, the
              account is written at the writable DC it replicates from, put in <site>-rodc-cache and cached by the
              read-only DC (2.1.6.52); with that DC not answering, refused. Local accounts, root and local sudo are
              untouched.
@@ -399,6 +399,6 @@ def run(ctx):
         ok("sssd enabled and restarted")
     for line in apply_host_managed(v, managed):
         ok(line)
-    ok(f"this host is a member of {v['ad_domain']}: whom OU=fabric-hosts' log-on policy allows signs in with a "
-       "domain account (the fabric admins by default, 2.1.6.53)"
+    ok(f"this host is a member of {v['ad_domain']}: no domain account signs in to it (the top tier's host, "
+       "2.1.6.75, 2.1.6.78)"
        + ("; fabric manages it (manual 1.6.11.11)" if managed else ""))

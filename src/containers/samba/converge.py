@@ -3,8 +3,7 @@ database: no credentials, no network. Run after every start and apply by fabricl
     docker exec -i samba python3 /fabric/converge.py < state.json
 The wanted state comes on stdin as JSON: {"site", "root" (bool), "password_policy" {…}, "networks" [site_networks
 items], "root_ca_pem", "id_range", "groups" [{name, gidNumber, description}], "admin_group", "accounts" {name:
-password}, "radius_gid", "lan_profile", optional "parent", "rodc", "join_account", "moving", "sso_spns" and
-"logon_policies"} (stdin,
+password}, "radius_gid", "lan_profile", optional "parent", "rodc", "join_account", "moving" and "sso_spns"} (stdin,
 never a command line: it holds the service accounts' passwords). Prints one JSON object: {"changed": [what changed,
 …]}. Exits 1 with the error on stderr."""
 import json
@@ -16,7 +15,6 @@ from ensure_gpo import ensure_gpo
 from ensure_groups import ensure_groups
 from ensure_join_account import ensure_join_account
 from ensure_layout import ensure_layout
-from ensure_logon_policies import ensure_logon_policies
 from ensure_networks import ensure_networks
 from ensure_schema import ensure_schema
 from ensure_service_accounts import ensure_service_accounts
@@ -46,7 +44,7 @@ def converge(state):
              (the address plan), its default
              sudo rule and the host names of fabric's sudo rules on host groups (1.6.11.7), the AD site and its
              subnets, the password policy, the domain's trust GPO (fabric's root CA),
-             the site's log-on GPOs (one per OU, 1.6.11.4), its Windows baseline GPO and winbind's privileged pipe
+             its Windows baseline GPO and winbind's privileged pipe
              for FreeRADIUS. Each part changes only what differs, so a second run changes nothing.
     Inputs:  state — dict: site (str), root (bool: the root site, which also holds the organisation's items and the
              domain-wide trust GPO), password_policy (dict, every key), networks (site_networks' list), root_ca_pem
@@ -59,9 +57,7 @@ def converge(state):
              own DC moving here: its OU and links only, never its GPOs, which its own DC owns), lan_profile (str:
              the Windows wired 802.1X profile the baseline installs, "" without one), sso_spns (list, optional: the
              HTTP SPNs of the site's Kerberos sign-in account; none, no account), sso_host (str, optional: Keycloak's
-             name, which the Windows baseline lets browsers use Kerberos for; "" or none, no allowlist), logon_policies
-             (optional: {ou path: {console, remote}}, who may sign in per OU; none, the site's log-on GPO as before
-             0.9).
+             name, which the Windows baseline lets browsers use Kerberos for; "" or none, no allowlist).
     Returns: list of str, what changed.
     Fails:   KeyError for a missing state key; whatever a part raises (ldb.LdbError, OSError, CalledProcessError).
     Feeds:   this script's main."""
@@ -98,7 +94,6 @@ def converge(state):
     if state.get("moving"):               # a site with its own DC moving here: its GPOs are its own to rewrite
         changed += share_winbind(lp, int(state["radius_gid"]))
         return changed
-    changed += ensure_logon_policies(samdb, lp, site, state.get("logon_policies"), state["admin_group"])
     changed += ensure_gpo_admins(samdb, lp, site)
     extensions, files = windows_baseline_policy(state.get("lan_profile") or "", state.get("sso_host") or "")
     changed += ensure_gpo(samdb, lp, f"fabric: {site} Windows baseline", site_dn, extensions,

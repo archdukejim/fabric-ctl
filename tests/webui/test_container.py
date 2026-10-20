@@ -184,8 +184,7 @@ open(f"{W}/fabric/config/vars.yaml", "w").write(
     "ad_domain: ad.lan.test\ndc_name: dc-pi-core\nad_password_policy: {minimum_length: 12, complexity: true, "
     "history: 5, minimum_age_days: 0, maximum_age_days: 0, lockout_threshold: 10, lockout_minutes: 15, "
     "lockout_window_minutes: 15}\n"
-    "logon_policies:\n  machines: {console: [lan-admins], remote: [lan-admins]}\n"
-    "  machines/lab: {console: [lan-users], remote: []}\n")
+)
 UID = 912
 DEBIAN = subprocess.run([sys.executable, f"{REPO}/tests/image_ref.py", "debian"], capture_output=True, text=True,
                         check=True).stdout.strip()
@@ -471,28 +470,6 @@ st, hd, *_ = req("POST", "/kea/off", POSTH, {"csrf": csrf}, cookie=session)
 # covers: web:post.kea.off agent:post.dhcp.off -
 check("turn DHCP off when it is off: refused, saying so", "already off" in urllib.parse.unquote_plus(
     hd.get("Location", "")), hd)
-# who may sign in, per OU (manual 1.6.11.4): the editor's refusals and a clear here; a set (groups checked in the
-# domain) against a real DC in tests/samba/logon.py
-vt = open(f"{W}/fabric/config/vars.yaml").read()
-st, hd, *_ = req("POST", "/directory/logon/set", POSTH, {"csrf": csrf, "ou": "OU=x,DC=y", "console": "lan-admins"},
-                 cookie=session)
-loc = urllib.parse.unquote_plus(hd.get("Location", ""))
-# covers: web:post.directory.logon.set agent:post.domain.logon.set -
-check("log-on policy: an OU given as a DN is refused, saying why, nothing saved",
-      st == 303 and "view=machines" in loc and "a path below" in loc
-      and open(f"{W}/fabric/config/vars.yaml").read() == vt, (st, loc))
-st, hd, *_ = req("POST", "/directory/logon/clear", POSTH, {"csrf": csrf, "ou": "machines"}, cookie=session)
-loc = urllib.parse.unquote_plus(hd.get("Location", ""))
-# covers: web:post.directory.logon.clear agent:post.domain.logon.clear -
-check("log-on policy: clearing OU=machines, the site's machines' only policy, is refused, saying why, nothing saved",
-      st == 303 and "no policy on the site's OU" in loc and open(f"{W}/fabric/config/vars.yaml").read() == vt,
-      (st, loc))
-st, hd, *_ = req("POST", "/directory/logon/clear", POSTH, {"csrf": csrf, "ou": "machines/lab"}, cookie=session)
-loc = urllib.parse.unquote_plus(hd.get("Location", ""))
-vt = open(f"{W}/fabric/config/vars.yaml").read()
-# covers: web:post.directory.logon.clear agent:post.domain.logon.clear +
-check("log-on policy: clearing OU=lab's own policy saves it (then the apply runs)",
-      st == 303 and "machines/lab: cleared" in loc and "machines/lab" not in vt and "lan-admins" in vt, (st, loc))
 st, hd, sc, body = req("GET", "/bind9?zone=dynamic_zone_var", ALICE, cookie=session)
 idx = [row for row in body.split("<tr>") if "shelfmark" in row][0].split('name="index" value="')[1].split('"')[0]
 st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/delete", POSTH,
@@ -788,12 +765,6 @@ st, _, _, body = req("POST", "/directory/devices/printer/certs/unlink", POSTH,
 # covers: web:post.directory.devices.*.certs.unlink -
 check("auditor: unlinking a device's certificate is refused by fabric-agent (403, pki:link-device), nothing changed",
       st == 403 and "pki:link-device" in body and open(f"{W}/fabric/config/vars.yaml").read() == vt, (st, body[:300]))
-for path, form in (("/directory/logon/set", {"ou": "machines", "console": "lan-users", "remote": "lan-users"}),
-                   ("/directory/logon/clear", {"ou": "machines"})):
-    st, _, _, body = req("POST", path, POSTH, {"csrf": cookie_csrf(aud), **form}, cookie=aud)
-    # covers: web:post.directory.logon.set web:post.directory.logon.clear -
-    check(f"auditor: {path} (who may sign in) is refused by fabric-agent (403, gpo:admin), nothing changed",
-          st == 403 and "gpo:admin" in body and open(f"{W}/fabric/config/vars.yaml").read() == vt, (st, body[:300]))
 # host groups and sudo rules (manual 1.6.11.7): refused before the directory is asked; the changes themselves against a
 # real DC in tests/samba/hostgroups.py
 for path, form, perm in (("/directory/hostgroups/_new", {"name": "web"}, "machines:admin"),
@@ -945,14 +916,6 @@ for path, roles, perm, ids in (("/v1/zones", PKI_OPS, "dns:read", "agent:get.zon
     # covers: agent:get.pki.issued agent:get.pki.acme agent:get.cert-warnings -
     check(f"refused: GET {path} without {perm} ({ids}): 403, the permission named",
           " 403 " in out and f"you need the permission {perm}" in out, out)
-out = agent_call("GET", "/v1/domain/logon", "carol", AUDITOR_ROLES)
-# covers: agent:get.domain.logon +
-check("auditor token: GET /v1/domain/logon shows each OU's policy (domain:read)",
-      " 200 " in out and '"ou": "machines"' in out and "lan-admins" in out, out)
-out = agent_call("GET", "/v1/domain/logon", "carol", PKI_OPS)
-# covers: agent:get.domain.logon -
-check("refused: GET /v1/domain/logon without domain:read (403, the permission named)",
-      " 403 " in out and "you need the permission domain:read" in out, out)
 for path in ("/v1/host-groups", "/v1/sudo"):
     out = agent_call("GET", path, "carol", PKI_OPS)
     # covers: agent:get.host-groups agent:get.sudo -
@@ -966,11 +929,6 @@ for path, perm in (("/v1/host-groups", "machines:admin"), ("/v1/host-groups/web/
     # covers: agent:post.sudo agent:post.sudo.*.delete -
     check(f"auditor token: may not change host groups or sudo rules, POST {path} (403, {perm})",
           " 403 " in out and perm in out, out)
-for path in ("/v1/domain/logon/set", "/v1/domain/logon/clear"):
-    out = agent_call("POST", path, "carol", AUDITOR_ROLES, {"ou": "machines", "console": ["lan-users"]})
-    # covers: agent:post.domain.logon.set agent:post.domain.logon.clear -
-    check(f"auditor token: may not change who signs in, POST {path} (403, gpo:admin)",
-          " 403 " in out and "gpo:admin" in out, out)
 out = agent_call("GET", "/v1/zones/nope", "alice", ADMIN_ROLES)
 # covers: agent:get.zones.* -
 check("refused: a zone that does not exist (400, unknown zone)", " 400 " in out and "unknown zone" in out, out)
@@ -1046,6 +1004,8 @@ def fresh(roles=tuple(ADMIN_ROLES)):
 aud, aud_csrf = fresh(AUDITOR_ROLES)
 # Every change below runs fabric's apply. This test install has no deployment to apply to: the apply must fail here,
 # so nothing is deployed and the host firewall is never touched (post_dhcp refreshes it only after an apply that worked).
+# One apply asked for first, from the console's Apply, so the check below has an apply to judge.
+web_post("/apply", {}, adm, acsrf)
 applies = [ln for ln in open(f"{W}/fabric/archive/audit.log").read().splitlines() if "Action: APPLY" in ln]
 SAFE = bool(applies) and all("exit=0" not in ln for ln in applies)
 check("this test install cannot apply (no deployment): the changes below are saved, never deployed to this host",

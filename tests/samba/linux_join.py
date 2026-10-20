@@ -2,9 +2,8 @@
 containers run fabric's join-linux.sh as rendered against a converged test DC. Proves: the installer refuses a wrong
 root-CA fingerprint and changes nothing; a join with a site admin's password and one with a one-time join password
 (`fabricctl domain add-machine`); `id` with fabric's own ids; a password logon through PAM and a Kerberos ticket;
-sudo for a site admin (2.1.9.13's rule) and none for a person; a person of another site refused by the site's log-on
-GPO; cached logons with the DC stopped; then a log-on policy on OU=machines (manual 1.6.11.4) naming a group adam is in
-and alice is not: adam logs on, alice is refused; and a sudo rule on a host group (1.6.11.7) holding the 24.04 machine:
+sudo for a site admin (2.1.9.13's rule) and none for a person; a person of another site let in too (the per-OU log-on
+policies are retired in D1: sign-in is open until D3's grants, 2.3.6.17); cached logons with the DC stopped; and a sudo rule on a host group (1.6.11.7) holding the 24.04 machine:
 it applies there and not on the 26.04 one. The containers have no systemd: a stand-in `systemctl` starts sssd.
     sudo python3 tests/samba/linux_join.py
 """
@@ -19,7 +18,6 @@ sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__fi
 from start_dc import POLICY, start_dc  # noqa: E402
 import fabriclib.directory.add_machine as m_add_machine  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
-from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-linux-join")
@@ -150,7 +148,7 @@ def client(release, name):
 
 
 def logon(box, uid, password):
-    """A logon through PAM (authenticate + the account check: the log-on GPO), as login does."""
+    """A logon through PAM (authenticate + the account check), as login does."""
     return on(box, f"pamtester login {uid} authenticate acct_mgmt", stdin=password + "\n")
 
 
@@ -164,13 +162,13 @@ def checks(box, release):
     check(f"{release}: id gives fabric's own ids (from the site's block, not id mapping)",
           out.split() == [str(ids["alice"]), str(ids["adam"])], out)
     code, out = logon(box, "alice", PW)
-    check(f"{release}: a person of the site logs on with their domain password (PAM, log-on GPO)",
+    check(f"{release}: a person of the site logs on with their domain password (PAM)",
           code == 0 and "successfully" in out, out)
     code, out = logon(box, "alice", "wrong-password")
     check(f"{release}: a wrong password is refused", code != 0, out)
     code, out = logon(box, "lara", PW)
-    check(f"{release}: a person of another site is refused by the site's log-on rights (GPO access control)",
-          code != 0, out)
+    check(f"{release}: a person of another site logs on too: no log-on policy restricts sign-in until D3 (2.3.6.17)",
+          code == 0 and "successfully" in out, out)
     code, out = on(box, "kinit alice >/dev/null && klist", stdin=PW + "\n")
     check(f"{release}: a Kerberos ticket from the domain (kinit)", code == 0 and f"alice@{V['ad_realm']}" in out, out)
     code, out = on(box, "sudo -l -U adam; echo ---; sudo -l -U alice")
@@ -274,27 +272,10 @@ check("with the DC stopped, a person who logged on before still logs on (cached 
       code == 0 and "successfully" in out, out)
 sh(["docker", "start", DC])
 
-# who may sign in, per OU (manual 1.6.11.4): a policy on OU=machines naming a group adam is in and alice is not
 for _ in range(60):
     if dc_healthy():
         break
     time.sleep(5)
-policy = {"machines": {"console": ["lan-fabric-admins"], "remote": ["lan-fabric-admins"]}}
-done = converge_domain({**V, "logon_policies": policy}, os.path.join(W, "dc", "federation.yaml"), SECRETS,
-                       container=DC)
-check("a log-on policy on OU=machines replaces the site's legacy one (fabric: lan log-on machines; rights removed)",
-      any("GPO fabric: lan log-on machines linked to OU=machines" in c for c in done)
-      and any(c == "GPO fabric: lan log-on rights removed" for c in done), done)
-for name in (RELEASES["24.04"], RELEASES["26.04"]):
-    lbox = f"lj-{name}"
-    on(lbox, "systemctl restart sssd")              # its GPO cache and its offline state from the DC's stop
-    time.sleep(8)
-    code, out = logon(lbox, "adam", PW)
-    check(f"{name}: one of the groups OU=machines names (lan-fabric-admins: adam) logs on (sssd GPO access control)",
-          code == 0 and "successfully" in out, out)
-    code, out = logon(lbox, "alice", PW)
-    check(f"{name}: a person of the site outside those groups (alice) is refused by OU=machines' policy",
-          code != 0, out)
 
 # a sudo rule on a host group (manual 1.6.11.7): alice may run uptime on the machines of lan-hosts-web, which holds the
 # 24.04 machine only; sssd matches the rule's sudoHost (each member's names) against the machine's own name

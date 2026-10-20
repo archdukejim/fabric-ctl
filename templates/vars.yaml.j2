@@ -187,11 +187,6 @@ hostname_dc: "{{ (_dc ~ '.' ~ _ad) | lower if _ad else '' }}"
 # lockout_minutes, lockout_window_minutes: every key required
 ad_password_policy: {{ ad_password_policy | default({}, true) | to_json }}
 ad_old_password_minutes: {{ ad_old_password_minutes | default(0) | int }}
-# Who may sign in to the site's joined machines, per OU (manual 1.6.11.4): {<OU path below the site's OU, "" for the
-# site's OU>: {console: [groups], remote: [groups]}}; fabric-break-glass and local Administrators are always added.
-# null: the site's log-on rights as before 0.9 (an upgrade keeps them, 2.1.6.44); a fresh install starts with
-# {machines: {console: [<site>-machine-admins], remote: [<site>-machine-admins]}}. Edit: fabricctl domain logon.
-logon_policies: {{ (logon_policies if logon_policies is defined else none) | to_json }}
 {# the DC's signing socket for Windows members' time (2.1.13.1), where the host's chrony reaches it: the one path
    Ubuntu's AppArmor profile for chronyd allows (manual 1.6.5.8) #}
 ad_ntp_signd_dir: {{ ad_ntp_signd_dir | default('/var/lib/samba/ntp_signd', true) }}

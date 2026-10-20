@@ -92,7 +92,8 @@ def accept_join(v, req, client_ip="", now=None):
              that names a DC type (made on the root), "domain": {"ad_domain", "dc_type", "dc_name" (the joining
              site's DC's name, given here), "dc_count" (the domain's DCs once it has joined), "dc_host",
              "dc_address", "id_range", "join_user", "join_password", "accounts" {agent, keycloak, radius},
-             "site_ou", "org_ou"} (_prepare_domain); the registry records the site's DC's name beside it, so a name given to a site whose DC has not joined yet is never given twice.
+             "site_ou", "org_ou"} (_prepare_domain); the registry records the site's DC's name beside it, so a name
+             given to a site whose DC has not joined yet is never given twice.
     Fails:   ValidationError "the join request is incomplete"; overlapping networks (_check_networks, before
              anything is signed or recorded); "the site's domain/address is not valid" or
              "a site cannot use this site's domain"; REFUSED for an unknown, expired or wrong secret (one message,

@@ -43,7 +43,6 @@ V = {"site_name": "home", "hostname": "pi-core", "domain": "home.arpa", "ad_doma
      "install_keycloak": True, "install_webui": True, "install_kea": False, "dns_filter": "bind",
      "install_fluentbit": False, "log_forwarding": {}, "host_ram_capacity": 8,
      "ad_password_policy": dict(DEFAULT_POLICY), "signin_kerberos": False,
-     "logon_policies": {"machines": {"console": ["home-machine-admins"], "remote": ["home-machine-admins"]}},
      "dns_filter_upstreams": [{"address": "9.9.9.9", "name": "dns.quad9.net"}], "webui_admin_user": "fabric-admin"}
 
 
@@ -133,8 +132,6 @@ BAD = [
     ("ad_password_policy", {"colour": 1}, "unknown keys"),
     ("ad_password_policy", "strong", "ad_password_policy: a map"),
     ("signin_kerberos", "on", "signin_kerberos: true or false"),
-    ("logon_policies", {"machines": {"console": [], "remote": []}}, "grants nobody"),
-    ("logon_policies", {"linux": {"console": ["g"]}}, "no policy on the site's OU"),
     ("dns_filter_upstreams", [], "at least one"),
     ("dns_filter_upstreams", [{"address": "not-an-ip", "name": "dns.quad9.net"}], "needs an IP address"),
     ("dns_filter_upstreams", "9.9.9.9", "a list of {address, name}"),
@@ -244,19 +241,15 @@ check("fields from today's settings: back to the same settings (nothing changes)
       plan(settings_from_form(form, read_settings(V, 8)))["keys"] == [], form)
 given = settings_from_form({**form, "install_kea": "true", "dhcp_subnet": "192.168.1.0/24",
                             "log_target": "logs.example.org", "install_fluentbit": "true",
-                            "logon_policies": "site | admins | admins\nmachines/linux | ops |",
                             "dns_filter_upstreams": "1.1.1.1 one.one.one.one, 9.9.9.9 dns.quad9.net"},
                            read_settings(V, 8))
-check("fields: a syslog server (port 6514), log-on lines, upstream pairs; DHCP's fields not read (0.9.0)",
+check("fields: a syslog server (port 6514), upstream pairs; DHCP's fields not read (0.9.0)",
       "install_kea" not in given and "dhcp" not in given and given["log_forwarding"] == {
           "syslog": {"host": "logs.example.org", "port": 6514}}
-      and given["logon_policies"] == {"site": {"console": ["admins"], "remote": ["admins"]},
-                                      "machines/linux": {"console": ["ops"], "remote": []}}
       and given["dns_filter_upstreams"][0] == {"address": "1.1.1.1", "name": "one.one.one.one"}, given)
 for fields, words in (({"host_ram_capacity": "lots"}, "host_ram_capacity: a whole number"),
                       ({"install_fluentbit": "maybe"}, "install_fluentbit: yes or no"),
                       ({"log_target": "http://x.example"}, "https://"),
-                      ({"logon_policies": "machines admins"}, "logon_policies"),
                       ({"dns_filter_upstreams": "9.9.9.9"}, "an address and the name"),
                       ({"policy_history": "-1"}, "policy_history: a whole number")):
     check(f"fields refused: {fields}", refused(lambda: settings_from_form(fields, read_settings(V, 8)), words) is True)

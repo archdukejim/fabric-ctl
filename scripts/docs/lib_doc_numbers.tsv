@@ -50,7 +50,7 @@ file	fabricctl-jinja|src/containers/samba/ensure_gpo.py	15
 file	fabricctl-jinja|src/containers/samba/ensure_groups.py	16	
 file	fabricctl-jinja|src/containers/samba/ensure_join_account.py	57	
 file	fabricctl-jinja|src/containers/samba/ensure_layout.py	17	
-file	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py	78	
+file	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py	78	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/ensure_networks.py	44	
 file	fabricctl-jinja|src/containers/samba/ensure_schema.py	18	
 file	fabricctl-jinja|src/containers/samba/ensure_service_accounts.py	26	
@@ -66,14 +66,14 @@ file	fabricctl-jinja|src/containers/samba/get_person.py	31
 file	fabricctl-jinja|src/containers/samba/gpo_tool.py	51	
 file	fabricctl-jinja|src/containers/samba/host_groups.py	80	
 file	fabricctl-jinja|src/containers/samba/id_layout.py	73	
-file	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py	81	
+file	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py	81	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/link_device_cert.py	34	
 file	fabricctl-jinja|src/containers/samba/list_host_groups.py	82	
 file	fabricctl-jinja|src/containers/samba/list_machines.py	54	
 file	fabricctl-jinja|src/containers/samba/list_people.py	32	
 file	fabricctl-jinja|src/containers/samba/list_sudo_rules.py	83	
-file	fabricctl-jinja|src/containers/samba/logon_groups.py	84	
-file	fabricctl-jinja|src/containers/samba/logon_rights_policy.py	20	
+file	fabricctl-jinja|src/containers/samba/logon_groups.py	84	0.7.2 / 2026-10-19
+file	fabricctl-jinja|src/containers/samba/logon_rights_policy.py	20	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/open_samdb.py	21	
 file	fabricctl-jinja|src/containers/samba/paths.py	35	
 file	fabricctl-jinja|src/containers/samba/place_fabric_host.py	91	
@@ -87,7 +87,7 @@ file	fabricctl-jinja|src/containers/samba/read_replication.py	60
 file	fabricctl-jinja|src/containers/samba/read_sites.py	65	
 file	fabricctl-jinja|src/containers/samba/refresh_sudo_hosts.py	85	
 file	fabricctl-jinja|src/containers/samba/remove_device.py	37	
-file	fabricctl-jinja|src/containers/samba/remove_gpo.py	86	
+file	fabricctl-jinja|src/containers/samba/remove_gpo.py	86	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/remove_group_member.py	69	
 file	fabricctl-jinja|src/containers/samba/remove_host_group.py	87	
 file	fabricctl-jinja|src/containers/samba/remove_ipv6_records.py	67	
@@ -556,10 +556,10 @@ file	fabriclib-radius|src/fabriclib/radius/windows_setup_script.py	14
 file	fabriclib-rbac|src/fabriclib/rbac/required_permission.py	1	
 file	fabriclib-rbac|src/fabriclib/rbac/user_permissions.py	2	
 file	fabriclib-samba|src/fabriclib/samba/allow_rodc_cache.py	33	
-file	fabriclib-samba|src/fabriclib/samba/check_logon_policies.py	28	
+file	fabriclib-samba|src/fabriclib/samba/check_logon_policies.py	28	0.7.2 / 2026-10-19
 file	fabriclib-samba|src/fabriclib/samba/check_password_policy.py	23	
 file	fabriclib-samba|src/fabriclib/samba/clear_gpo_policy.py	11	
-file	fabriclib-samba|src/fabriclib/samba/clear_logon_policy.py	29	
+file	fabriclib-samba|src/fabriclib/samba/clear_logon_policy.py	29	0.7.2 / 2026-10-19
 file	fabriclib-samba|src/fabriclib/samba/converge_domain.py	2	
 file	fabriclib-samba|src/fabriclib/samba/dc_count_text.py	40	
 file	fabriclib-samba|src/fabriclib/samba/dc_name_problem.py	25	
@@ -573,11 +573,11 @@ file	fabriclib-samba|src/fabriclib/samba/domain_status.py	3
 file	fabriclib-samba|src/fabriclib/samba/finish_join.py	15	
 file	fabriclib-samba|src/fabriclib/samba/gpo_overview.py	13	
 file	fabriclib-samba|src/fabriclib/samba/gpo_request.py	9	
-file	fabriclib-samba|src/fabriclib/samba/host_logon_default.py	34	
+file	fabriclib-samba|src/fabriclib/samba/host_logon_default.py	34	0.7.2 / 2026-10-19
 file	fabriclib-samba|src/fabriclib/samba/id_range.py	8	
 file	fabriclib-samba|src/fabriclib/samba/list_conflicts.py	18	
-file	fabriclib-samba|src/fabriclib/samba/logon_ou_path.py	30	
-file	fabriclib-samba|src/fabriclib/samba/logon_overview.py	31	
+file	fabriclib-samba|src/fabriclib/samba/logon_ou_path.py	30	0.7.2 / 2026-10-19
+file	fabriclib-samba|src/fabriclib/samba/logon_overview.py	31	0.7.2 / 2026-10-19
 file	fabriclib-samba|src/fabriclib/samba/password_meets_policy.py	24	
 file	fabriclib-samba|src/fabriclib/samba/prepare_site.py	16	
 file	fabriclib-samba|src/fabriclib/samba/read_policy_changes.py	36	
@@ -588,7 +588,7 @@ file	fabriclib-samba|src/fabriclib/samba/run_domain_command.py	4
 file	fabriclib-samba|src/fabriclib/samba/run_gpo_command.py	10	
 file	fabriclib-samba|src/fabriclib/samba/set_domain_password_policy.py	5	
 file	fabriclib-samba|src/fabriclib/samba/set_gpo_policy.py	14	
-file	fabriclib-samba|src/fabriclib/samba/set_logon_policy.py	32	
+file	fabriclib-samba|src/fabriclib/samba/set_logon_policy.py	32	0.7.2 / 2026-10-19
 file	fabriclib-samba|src/fabriclib/samba/sso_spns.py	22	
 file	fabriclib-samba|src/fabriclib/samba/suggested_ad_domain.py	7	
 file	fabriclib-samba|src/fabriclib/samba/suggested_dc_name.py	27	
@@ -839,8 +839,8 @@ file	webui|src/webui/agentclient/list_people.py	25
 file	webui|src/webui/agentclient/list_sudo_rules.py	158	
 file	webui|src/webui/agentclient/list_tsig_keys.py	26	
 file	webui|src/webui/agentclient/list_zones.py	27	
-file	webui|src/webui/agentclient/logon_change.py	159	
-file	webui|src/webui/agentclient/logon_overview.py	160	
+file	webui|src/webui/agentclient/logon_change.py	159	0.7.2 / 2026-10-19
+file	webui|src/webui/agentclient/logon_overview.py	160	0.7.2 / 2026-10-19
 file	webui|src/webui/agentclient/machine_action.py	128	
 file	webui|src/webui/agentclient/map_radius_group.py	28	
 file	webui|src/webui/agentclient/person_action.py	138	
@@ -1089,11 +1089,11 @@ function	fabricctl-jinja|src/containers/samba/ensure_join_account.py|_filetime	1
 function	fabricctl-jinja|src/containers/samba/ensure_join_account.py|ensure_join_account	2	
 function	fabricctl-jinja|src/containers/samba/ensure_layout.py|_ensure_ou	1	
 function	fabricctl-jinja|src/containers/samba/ensure_layout.py|ensure_layout	2	
-function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|_host_default	5	
-function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|_name	1	
-function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|_ou_dn	2	
-function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|_sids	3	
-function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|ensure_logon_policies	4	
+function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|_host_default	5	0.7.2 / 2026-10-19
+function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|_name	1	0.7.2 / 2026-10-19
+function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|_ou_dn	2	0.7.2 / 2026-10-19
+function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|_sids	3	0.7.2 / 2026-10-19
+function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|ensure_logon_policies	4	0.7.2 / 2026-10-19
 function	fabricctl-jinja|src/containers/samba/ensure_networks.py|ensure_networks	1	
 function	fabricctl-jinja|src/containers/samba/ensure_schema.py|_cn	1	
 function	fabricctl-jinja|src/containers/samba/ensure_schema.py|_present	2	
@@ -1128,8 +1128,8 @@ function	fabricctl-jinja|src/containers/samba/host_groups.py|site_rules	6
 function	fabricctl-jinja|src/containers/samba/host_groups.py|text	7	
 function	fabricctl-jinja|src/containers/samba/id_layout.py|check_block	2	
 function	fabricctl-jinja|src/containers/samba/id_layout.py|laid_out	1	0.7.2 / 2026-10-17
-function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|_has_group	1	
-function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|legacy_logon_groups	2	
+function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|_has_group	1	0.7.2 / 2026-10-19
+function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|legacy_logon_groups	2	0.7.2 / 2026-10-19
 function	fabricctl-jinja|src/containers/samba/link_device_cert.py|link_device_cert	1	
 function	fabricctl-jinja|src/containers/samba/list_host_groups.py|list_host_groups	1	
 function	fabricctl-jinja|src/containers/samba/list_machines.py|_when	1	
@@ -1138,8 +1138,8 @@ function	fabricctl-jinja|src/containers/samba/list_people.py|_cn	1
 function	fabricctl-jinja|src/containers/samba/list_people.py|_site	2	
 function	fabricctl-jinja|src/containers/samba/list_people.py|list_people	3	
 function	fabricctl-jinja|src/containers/samba/list_sudo_rules.py|list_sudo_rules	1	
-function	fabricctl-jinja|src/containers/samba/logon_groups.py|logon_groups	1	
-function	fabricctl-jinja|src/containers/samba/logon_rights_policy.py|logon_rights_policy	1	
+function	fabricctl-jinja|src/containers/samba/logon_groups.py|logon_groups	1	0.7.2 / 2026-10-19
+function	fabricctl-jinja|src/containers/samba/logon_rights_policy.py|logon_rights_policy	1	0.7.2 / 2026-10-19
 function	fabricctl-jinja|src/containers/samba/open_samdb.py|open_samdb	1	
 function	fabricctl-jinja|src/containers/samba/paths.py|ancestors	5	
 function	fabricctl-jinja|src/containers/samba/paths.py|devices_dn	2	
@@ -1169,7 +1169,7 @@ function	fabricctl-jinja|src/containers/samba/read_replication.py|read_replicati
 function	fabricctl-jinja|src/containers/samba/read_sites.py|read_sites	1	
 function	fabricctl-jinja|src/containers/samba/refresh_sudo_hosts.py|refresh_sudo_hosts	1	
 function	fabricctl-jinja|src/containers/samba/remove_device.py|remove_device	1	
-function	fabricctl-jinja|src/containers/samba/remove_gpo.py|remove_gpo	1	
+function	fabricctl-jinja|src/containers/samba/remove_gpo.py|remove_gpo	1	0.7.2 / 2026-10-19
 function	fabricctl-jinja|src/containers/samba/remove_group_member.py|remove_group_member	1	
 function	fabricctl-jinja|src/containers/samba/remove_host_group.py|remove_host_group	1	
 function	fabricctl-jinja|src/containers/samba/remove_ipv6_records.py|remove_ipv6_records	1	
@@ -1829,11 +1829,11 @@ function	fabriclib-radius|src/fabriclib/radius/windows_setup_script.py|windows_s
 function	fabriclib-rbac|src/fabriclib/rbac/required_permission.py|required_permission	1	
 function	fabriclib-rbac|src/fabriclib/rbac/user_permissions.py|user_permissions	1	
 function	fabriclib-samba|src/fabriclib/samba/allow_rodc_cache.py|allow_rodc_cache	1	
-function	fabriclib-samba|src/fabriclib/samba/check_logon_policies.py|_groups	1	
-function	fabriclib-samba|src/fabriclib/samba/check_logon_policies.py|check_logon_policies	2	
+function	fabriclib-samba|src/fabriclib/samba/check_logon_policies.py|_groups	1	0.7.2 / 2026-10-19
+function	fabriclib-samba|src/fabriclib/samba/check_logon_policies.py|check_logon_policies	2	0.7.2 / 2026-10-19
 function	fabriclib-samba|src/fabriclib/samba/check_password_policy.py|check_password_policy	1	
 function	fabriclib-samba|src/fabriclib/samba/clear_gpo_policy.py|clear_gpo_policy	1	
-function	fabriclib-samba|src/fabriclib/samba/clear_logon_policy.py|clear_logon_policy	1	
+function	fabriclib-samba|src/fabriclib/samba/clear_logon_policy.py|clear_logon_policy	1	0.7.2 / 2026-10-19
 function	fabriclib-samba|src/fabriclib/samba/converge_domain.py|_lan_profile	2	
 function	fabriclib-samba|src/fabriclib/samba/converge_domain.py|converge_domain	1	
 function	fabriclib-samba|src/fabriclib/samba/dc_count_text.py|dc_count_text	1	
@@ -1850,11 +1850,11 @@ function	fabriclib-samba|src/fabriclib/samba/domain_status.py|domain_status	2
 function	fabriclib-samba|src/fabriclib/samba/finish_join.py|finish_join	1	
 function	fabriclib-samba|src/fabriclib/samba/gpo_overview.py|gpo_overview	1	
 function	fabriclib-samba|src/fabriclib/samba/gpo_request.py|gpo_request	1	
-function	fabriclib-samba|src/fabriclib/samba/host_logon_default.py|host_logon_default	1	
+function	fabriclib-samba|src/fabriclib/samba/host_logon_default.py|host_logon_default	1	0.7.2 / 2026-10-19
 function	fabriclib-samba|src/fabriclib/samba/id_range.py|id_range	1	
 function	fabriclib-samba|src/fabriclib/samba/list_conflicts.py|list_conflicts	1	
-function	fabriclib-samba|src/fabriclib/samba/logon_ou_path.py|logon_ou_path	1	
-function	fabriclib-samba|src/fabriclib/samba/logon_overview.py|logon_overview	1	
+function	fabriclib-samba|src/fabriclib/samba/logon_ou_path.py|logon_ou_path	1	0.7.2 / 2026-10-19
+function	fabriclib-samba|src/fabriclib/samba/logon_overview.py|logon_overview	1	0.7.2 / 2026-10-19
 function	fabriclib-samba|src/fabriclib/samba/password_meets_policy.py|password_meets_policy	1	
 function	fabriclib-samba|src/fabriclib/samba/prepare_site.py|prepare_site	1	
 function	fabriclib-samba|src/fabriclib/samba/read_policy_changes.py|read_policy_changes	1	
@@ -1862,16 +1862,16 @@ function	fabriclib-samba|src/fabriclib/samba/refuse_named_dc.py|refuse_named_dc	
 function	fabriclib-samba|src/fabriclib/samba/replication_status.py|replication_status	1	
 function	fabriclib-samba|src/fabriclib/samba/run_converge.py|run_converge	1	
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_changes	1	
-function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_groups	3	
+function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_groups	3	0.7.2 / 2026-10-19
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_host_managed	6	
-function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_logon	5	
-function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_show	4	
+function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_logon	5	0.7.2 / 2026-10-19
+function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|_show	4	0.7.2 / 2026-10-19
 function	fabriclib-samba|src/fabriclib/samba/run_domain_command.py|run_domain_command	2	
 function	fabriclib-samba|src/fabriclib/samba/run_gpo_command.py|_files	1	
 function	fabriclib-samba|src/fabriclib/samba/run_gpo_command.py|run_gpo_command	2	
 function	fabriclib-samba|src/fabriclib/samba/set_domain_password_policy.py|set_domain_password_policy	1	
 function	fabriclib-samba|src/fabriclib/samba/set_gpo_policy.py|set_gpo_policy	1	
-function	fabriclib-samba|src/fabriclib/samba/set_logon_policy.py|set_logon_policy	1	
+function	fabriclib-samba|src/fabriclib/samba/set_logon_policy.py|set_logon_policy	1	0.7.2 / 2026-10-19
 function	fabriclib-samba|src/fabriclib/samba/sso_spns.py|sso_spns	1	
 function	fabriclib-samba|src/fabriclib/samba/suggested_ad_domain.py|suggested_ad_domain	1	
 function	fabriclib-samba|src/fabriclib/samba/suggested_dc_name.py|suggested_dc_name	1	
@@ -1938,7 +1938,7 @@ function	fabriclib-settings|src/fabriclib/settings/run_settings_command.py|_prin
 function	fabriclib-settings|src/fabriclib/settings/run_settings_command.py|run_settings_command	3	
 function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|_flag	1	
 function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|_log_forwarding	3	
-function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|_logon_policies	4	
+function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|_logon_policies	4	0.7.2 / 2026-10-19
 function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|_whole	2	
 function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|settings_from_form	5	
 function	fabriclib-settings|src/fabriclib/settings/settings_overview.py|settings_overview	1	
@@ -2023,7 +2023,7 @@ function	fabriclib-setup|src/fabriclib/setup/common/network_problem.py|network_p
 function	fabriclib-setup|src/fabriclib/setup/common/parse_log_target.py|_host_ok	1	
 function	fabriclib-setup|src/fabriclib/setup/common/parse_log_target.py|parse_log_target	2	
 function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_access	3	0.7.0 / 2026-10-12
-function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_sudo_search_base	1	
+function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_sudo_search_base	1	0.7.2 / 2026-10-19
 function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|render_member_files	2	
 function	fabriclib-setup|src/fabriclib/setup/common/renew_days.py|renew_days	1	
 function	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py|service_account_name	1	
@@ -2323,8 +2323,8 @@ function	webui|src/webui/agentclient/list_people.py|list_people	1
 function	webui|src/webui/agentclient/list_sudo_rules.py|list_sudo_rules	1	
 function	webui|src/webui/agentclient/list_tsig_keys.py|list_tsig_keys	1	
 function	webui|src/webui/agentclient/list_zones.py|list_zones	1	
-function	webui|src/webui/agentclient/logon_change.py|logon_change	1	
-function	webui|src/webui/agentclient/logon_overview.py|logon_overview	1	
+function	webui|src/webui/agentclient/logon_change.py|logon_change	1	0.7.2 / 2026-10-19
+function	webui|src/webui/agentclient/logon_overview.py|logon_overview	1	0.7.2 / 2026-10-19
 function	webui|src/webui/agentclient/machine_action.py|machine_action	1	
 function	webui|src/webui/agentclient/map_radius_group.py|map_radius_group	1	
 function	webui|src/webui/agentclient/person_action.py|person_action	1	
