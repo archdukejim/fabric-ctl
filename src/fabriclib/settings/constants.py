@@ -18,7 +18,7 @@ CONSOLE_ONLY = [
     ("host_ip", "this host's LAN address", "sudo fabricctl setup, or the vars editor (sudo fabricctl)"),
     ("lan_cidr", "the LAN", "sudo fabricctl setup, or the vars editor (sudo fabricctl)"),
     ("lan_gateway", "the LAN's router", "sudo fabricctl setup, or the vars editor (sudo fabricctl)"),
-    ("webui_admin_user", "the first admin", "chosen once by setup"),
+    ("webui_admin_user", "the first Directory Administrator", "chosen once by setup"),
     ("webui_client_cert", "the web console's client certificate", "sudo fabricctl security (raised on the Security "
                                                                   "page)"),
 ]

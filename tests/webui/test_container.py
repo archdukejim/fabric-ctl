@@ -9,6 +9,7 @@ client-certificate headers)."""
 import base64
 import hashlib
 import http.client
+import html
 import json
 import os
 import shutil
@@ -26,6 +27,9 @@ import yaml
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path[0:0] = [os.path.join(REPO, "src"), REPO]
 from fabriclib.rbac.permissions import BUNDLES  # noqa: E402
+from fabriclib.hostaccounts.approve_local_account import approve_local_account  # noqa: E402
+from fabriclib.hostaccounts.list_local_admins import list_local_admins  # noqa: E402
+from fabriclib.hostaccounts.unapprove_local_account import unapprove_local_account  # noqa: E402
 
 
 def bundle_roles(bundle, name=None):
@@ -382,6 +386,44 @@ check("overview tab renders service health", st == 200 and "Overview" in body an
 # covers: agent:get.host-changes +
 check("overview: the host changes through the agent (this test install declined fabric's services, never asked the rest)",
       "Host changes" in body and ">declined<" in body and ">not asked<" in body, body[-600:])
+# the break-glass reminder (2.1.6.69): while fabric-admin's password file is on the host, every page of an
+# administrator's sign-in says to store it and delete it; Overview reads it afresh; its removal is audited once
+GLASS = f"{W}/home-ea/fabric-admin/fabric-admin-password.txt"
+os.makedirs(os.path.dirname(GLASS), exist_ok=True)
+open(GLASS, "w").write("a test stand-in, no password\n")
+json.dump({"path": GLASS, "login": "ea", "written": "now", "by": "setup"}, open(f"{W}/fabric/config/break-glass.json", "w"))
+(st, hd, sc, body), _, _ = login()
+session = cookie_val(sc, "__Host-webui")
+st, hd, sc, body = req("GET", "/kea", ALICE, cookie=session)
+# covers: agent:get.reminders +
+check("break glass: with its file on the host, a new sign-in's pages carry the reminder in the top bar, naming the file",
+      st == 200 and "Reminder:" in body and "fabric-admin-password.txt" in body and "delete the file" in body,
+      (st, body[:600]))
+os.remove(GLASS)
+st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
+check("break glass: the file deleted, the Overview reads the reminders afresh and shows none; the removal is audited "
+      "once, the record dropped",
+      st == 200 and "fabric-admin-password.txt" not in body
+      and "BREAK_GLASS_FILE_REMOVED" in open(f"{W}/fabric/archive/audit.log").read()
+      and not os.path.exists(f"{W}/fabric/config/break-glass.json"), (st, body[:400]))
+st, hd, sc, body = req("GET", "/kea", ALICE, cookie=session)
+check("...and the other pages follow (the session's reminders replaced)",
+      st == 200 and "fabric-admin-password.txt" not in body, st)
+# the local administrator accounts (2.1.6.78): this machine's own (read as root by the transient unit, never changed)
+# are reminded of on Overview until approved; approved in this test install's record only, then withdrawn
+LOCAL = list_local_admins(f"{W}/fabric/config")
+st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
+check("local accounts: every local root or administrator account of the host (here: "
+      f"{', '.join(r['name'] for r in LOCAL) or 'none'}) is reminded of on Overview, naming how to approve it",
+      st == 200 and all(f"the local account {r['name']} (" in html.unescape(body) for r in LOCAL)
+      and ("fabricctl host accounts approve" in body) == bool(LOCAL), (st, body[:600]))
+for r in LOCAL:
+    approve_local_account(f"{W}/fabric/config", r["name"], "tester", audit=lambda *a: None)
+st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
+check("...approved (for the Enterprise Admin), they are reminded of no more",
+      st == 200 and "fabricctl host accounts approve" not in body, (st, body[:600]))
+for r in LOCAL:
+    unapprove_local_account(f"{W}/fabric/config", r["name"], "tester", audit=lambda *a: None)
 st, hd, sc, body = req("GET", "/kea", ALICE, cookie=session)
 # covers: web:get.kea agent:get.dhcp +
 check("Kea tab: DHCP off on this host, a form to turn it on (interface, subnet, pool) naming the firewall change",
@@ -848,6 +890,14 @@ out = agent_call("POST", "/v1/domain/password-policy", "carol", bundle_roles("fa
                  {"minimum_length": 4})
 check("equipment operator token: may not change it either (domain:admin is the admins' only)",
       " 403 " in out and "domain:admin" in out, out)
+out = agent_call("POST", "/v1/domain/password-policy", "alice", ADMIN_ROLES,
+                 {"tier": "enterprise_admin", "lockout_minutes": 0})
+check("refused even for a Directory Administrator: a tier's own password policy through the agent (400: set only on "
+      "the host, 2.1.6.71), nothing changed",
+      " 400 " in out and "only on the host" in out
+      and "ad_tier_password_policies" not in open(f"{W}/fabric/config/vars.yaml").read(), out)
+check("the domain's default policy is the Directory Administrators' alone: domain:admin is in no bundle but theirs",
+      [b for b, perms in BUNDLES.items() if "domain:admin" in perms] == ["admin"])
 out = agent_call("POST", "/v1/zones/dynamic_zone_var/records/link", "alice", ADMIN_ROLES,
                  {"type": "TXT", "index": 0, "name": "x", "link": "on"})
 check("refused through the agent: linking a TXT record (400)", " 400 " in out and "only A, AAAA and CNAME" in out, out)
@@ -916,6 +966,13 @@ for path, roles, perm, ids in (("/v1/zones", PKI_OPS, "dns:read", "agent:get.zon
     # covers: agent:get.pki.issued agent:get.pki.acme agent:get.cert-warnings -
     check(f"refused: GET {path} without {perm} ({ids}): 403, the permission named",
           " 403 " in out and f"you need the permission {perm}" in out, out)
+out = agent_call("GET", "/v1/reminders", "carol", AUDITOR_ROLES)
+check("auditor token: GET /v1/reminders answers a list (status:read)", " 200 " in out and out.split("\n", 1)[1].startswith("["),
+      out)
+out = agent_call("GET", "/v1/reminders", "carol", ("fabric:dns:read",))
+# covers: agent:get.reminders -
+check("refused: GET /v1/reminders without status:read (403, the permission named)",
+      " 403 " in out and "you need the permission status:read" in out, out)
 for path in ("/v1/host-groups", "/v1/sudo"):
     out = agent_call("GET", path, "carol", PKI_OPS)
     # covers: agent:get.host-groups agent:get.sudo -

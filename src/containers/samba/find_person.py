@@ -11,7 +11,7 @@ def find_person(samdb, uid):
     Inputs:  samdb — SamDB; uid — the user name.
     Returns: ldb.Message (dn, userAccountControl, memberOf, lockoutTime).
     Fails:   ldb.LdbError ERR_NO_SUCH_OBJECT when there is no such person.
-    Feeds:   set_person, remove_person, get_person, reset_password."""
+    Feeds:   set_person, remove_person, get_person, reset_password, ensure_enterprise_admin, reset_break_glass."""
     found = samdb.search(base=paths.folder_dn(samdb, "people"), scope=ldb.SCOPE_SUBTREE,
                          expression=f"(&(objectCategory=person)(objectClass=user)"
                                     f"(sAMAccountName={ldb.binary_encode(uid)}))", attrs=ATTRS)

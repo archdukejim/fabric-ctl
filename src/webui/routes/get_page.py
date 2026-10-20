@@ -16,8 +16,9 @@ def get_page(h, sess, path, query):
              /directory, /openbao, /kea, /dns-filter, /freeradius, /federation, /audit, /security, /settings,
              /settings/export, /jobs/<id>; query — dict (view, zone, device, name, slot, step, msg, err, the query
              log's search as each page uses them).
-    Returns: 200 page (overview with the host changes fabric may make and, until the setup wizard is finished, Finish
-             setting up — its first view in a sign-in opens the wizard instead, 303 to /settings; BIND9, Step-CA,
+    Returns: 200 page (overview with the host changes fabric may make, the host's reminders read afresh and,
+             until the setup wizard is finished, Finish setting up — its first view in a sign-in opens the wizard
+             instead, 303 to /settings; BIND9, Step-CA,
              directory, OpenBao, Kea, Federation, FreeRADIUS with its setup guides for view switches / windows, audit
              log, the setup wizard and its settings file).
     Fails:   404 for any other path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
@@ -32,6 +33,13 @@ def get_page(h, sess, path, query):
             images = actions.image_rows()
         except (actions.AgentError, actions.ValidationError):
             images = None
+        try:                                           # Overview reads the reminders afresh (2.1.6.69)
+            ctx["reminders"] = actions.host_reminders()
+            with h.app.lock:                           # the session's other pages follow
+                if sess.get("sid") in h.app.sessions:
+                    h.app.sessions[sess["sid"]]["reminders"] = ctx["reminders"]
+        except (actions.AgentError, actions.ValidationError, actions.PermissionDenied):
+            pass
         return h.send(200, views.overview(ctx, actions.service_status(), actions.host_changes(),
                                              actions.relaxed_settings(), actions.cert_warnings(), images,
                                              query.get("err", ""), wizard))

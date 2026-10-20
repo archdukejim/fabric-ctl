@@ -15,7 +15,8 @@ def converge_domain(v, federation_file, secrets, container="samba"):
              code inside the running DC (src/containers/samba/converge.py) and return what it changed. Every part is
              idempotent, so it runs after every start and apply.
     Inputs:  v — rendered vars: site_name, dc_name and ad_dc_type (this DC: its record, its id range and its
-             service accounts, 2.1.6.63, 2.1.6.82), ad_password_policy, deploy_base_dir (the root CA under
+             service accounts, 2.1.6.63, 2.1.6.82), ad_password_policy, ad_tier_password_policies (the tiers',
+             2.1.6.71), deploy_base_dir (the root CA under
              stepca/data/certs), lan_cidr and the DHCP subnets (site_networks), ldap_groups, service_users
              (FreeRADIUS's gid), install_freeradius, radius_people and hostname_radius (the Windows baseline's 802.1X
              profile), what sso_spns reads (Keycloak's Kerberos sign-in account);
@@ -31,6 +32,7 @@ def converge_domain(v, federation_file, secrets, container="samba"):
     dc = v["dc_name"]
     state = {"site": v["site_name"], "dc": dc, "dc_type": v.get("ad_dc_type") or "writable",
              "root": is_root_site(federation_file), "password_policy": v["ad_password_policy"],
+             "tier_policies": v.get("ad_tier_password_policies") or {},
              "networks": site_networks(v), "root_ca_pem": open(root_ca).read(),
              "groups": [{"name": g["name"], "gidNumber": g["gidNumber"], "description": g.get("description", "")}
                         for g in v.get("ldap_groups") or []],

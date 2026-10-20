@@ -13,9 +13,10 @@ from fabriclib.samba.refuse_named_dc import refuse_named_dc
 from fabriclib.setup.detect_network import detect_network
 from fabriclib.security.check_signin_lowering import check_signin_lowering
 from fabriclib.setup.ask_ad_domain import ask_ad_domain
+from fabriclib.samba.tier_policy_defaults import tier_policy_defaults
 from fabriclib.setup.common.ask_setting import ask_setting
 from fabriclib.setup.common.network_problem import network_problem
-from fabriclib.setup.common.valid_setting import FIRST_ADMIN, REQUIRED, valid_setting
+from fabriclib.setup.common.valid_setting import REQUIRED, valid_setting
 from fabriclib.setup.errors import SetupError
 from fabriclib.setup.finish_vars import finish_vars
 from fabriclib.setup.move_dns_filter import move_dns_filter
@@ -73,7 +74,7 @@ def collect_vars(ctx, ask=True):
     Inputs:  ctx — SetupContext: user_vars_file (--file), join_invitation (--join: _join_defaults), non_interactive,
              vars_file (existing install),
              source_dir (a checkout's ../custom-vars.yaml), config_dir, secrets_file, deploy_base;
-             (the default admin is FIRST_ADMIN, 2.1.6.33); ask — False for Advanced (2.1.2.19): nothing is asked here,
+             ask — False for Advanced (2.1.2.19): nothing is asked here,
              the menu asks what is missing and finish_vars runs after it.
     Returns: path of fabric.yaml (str), or None with ask=False (not saved yet). Leaves ctx.vars = the data and
              ctx.fresh_install set. Precedence: an existing
@@ -81,7 +82,7 @@ def collect_vars(ctx, ask=True):
              checkout's custom-vars.yaml is used. Existing installs keep their digest-pinned images
              (upgrade_vars); image_* keys set explicitly are recorded in image_pins. AdGuard Home's settings move to
              the BIND resolver's (move_dns_filter, 0.7). Missing/invalid required
-             values are asked for (defaults from detect_network); webui_admin_user is chosen once; the AD domain
+             values are asked for (defaults from detect_network; the first admin by ask_first_admin); the AD domain
              is asked when missing (ask_ad_domain); the DC's name is never asked (fabric names it,
              finish_vars' name_dc, 2.1.6.65): a --file or custom-vars.yaml that names it is refused while no DC is
              installed, and on an installed host the installed DC's name is kept over the file's; the rest takes
@@ -165,11 +166,8 @@ def collect_vars(ctx, ask=True):
             data["friendly_name"] = ("Home Network" if ctx.non_interactive
                                      else ask_setting("friendly_name", "Home Network"))
 
-        # First web UI admin (created by the admin step). Chosen once, then kept; fabric-admin recommended
-        # (2.1.6.33).
-        if not valid_setting("webui_admin_user", str(data.get("webui_admin_user") or "")):
-            data["webui_admin_user"] = (FIRST_ADMIN if ctx.non_interactive
-                                        else ask_setting("webui_admin_user", FIRST_ADMIN))
+        # the first Directory Administrator (user name, full name, e-mail, password) is asked by ask_first_admin, only
+        # when setup creates them (2.1.6.69)
 
         # The directory (manual 1.6.3): the AD domain is asked (permanent, 2.1.6.11); its password policy starts from
         # the default, a vars file's keys kept, and is changed later (2.1.6.35, 2.1.2.16)
@@ -183,6 +181,12 @@ def collect_vars(ctx, ask=True):
     if not (set(POLICY_KEYS) | {"complexity"}) <= set(policy):
         data["ad_password_policy"] = {**DEFAULT_POLICY, **policy}
         info("password policy: fabric's default (2.1.6.35), change it any time: sudo fabricctl domain password-policy")
+    # the tiers' own policies (2.1.6.71): copies of the default at the install that adds them, set on the host after
+    tiers = tier_policy_defaults(data["ad_password_policy"], data.get("ad_tier_password_policies"))
+    if tiers != data.get("ad_tier_password_policies"):
+        data["ad_tier_password_policies"] = tiers
+        info("the tiers' password policies: fabric-admin's (3 failed sign-ins, then 15 minutes) and the Directory "
+             "Administrators', copies of the default; on this host: sudo fabricctl domain password-policy --tier")
     # how much of this host fabric may use (2.1.2.3, manual 1.2.4.2): all of it, measured, unless set (2.1.2.16)
     set_ram_capacity(data)
     # Kerberos sign-in stays off unless set (2.1.6.32, 2.1.2.16): the template's default; turned on later

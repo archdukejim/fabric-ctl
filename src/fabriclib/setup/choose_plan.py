@@ -51,9 +51,11 @@ def _show_settings(ctx):
         # a new domain's DC: how many, never its name (2.1.6.65's revision); a joining site hears the count at the join
         print(f"  ✓ Create the Windows (AD) domain {ctx.vars['ad_domain']} with this host's domain controller: "
               f"{dc_count_text(1)}")
+        print("  ✓ Create fabric-admin, the Enterprise Admin (break glass only), with a generated password written "
+              "once to ~/fabric-admin/fabric-admin-password.txt")
     if get_dotted(ctx.vars, "install_webui", True):
-        print(f"  ✓ Create the first web UI admin '{ctx.vars.get('webui_admin_user')}' with the password you "
-              "chose; login kit in ~/fabric-admin")
+        print(f"  ✓ Create the first Directory Administrator '{ctx.vars.get('webui_admin_user')}' "
+              f"({ctx.vars.get('webui_admin_name')}) with the password you chose; login kit in ~/fabric-admin")
     lf = ctx.vars.get("log_forwarding") or {}
     dests = [d for d in ((lf.get("syslog") or {}).get("host"), (lf.get("elastic") or {}).get("url")) if d]
     if ctx.vars.get("dns_filter", "bind") == "bind":

@@ -4,7 +4,8 @@ and by a parent preparing a joining site's DC (fabriclib/samba/prepare_site):
     docker exec -i samba python3 /fabric/converge.py < state.json
 The wanted state comes on stdin as JSON: {"site", "dc", "dc_type", "root" (bool), "password_policy" {…}, "networks"
 [site_networks items], "root_ca_pem", "groups" [{name, gidNumber, description}], "accounts" {name: password},
-"radius_gid", "lan_profile", optional "parent", "rodc", "join_account", "moving", "sso_spns" and "sso_host"} (stdin,
+"radius_gid", "lan_profile", optional "tier_policies" {enterprise_admin, directory_admins}, "parent", "rodc",
+"join_account", "moving", "sso_spns" and "sso_host"} (stdin,
 never a command line: it holds the service accounts' passwords). Prints one JSON object: {"changed": [what changed,
 …]}. Exits 1 with the error on stderr."""
 import json
@@ -29,6 +30,7 @@ from refresh_sudo_hosts import refresh_sudo_hosts
 from remove_ipv6_records import remove_ipv6_records
 from repair_role_owners import repair_role_owners
 from root_ca_policy import EXTENSIONS as TRUST_EXTENSIONS, root_ca_policy
+from ensure_tier_policies import ensure_tier_policies
 from set_password_policy import set_password_policy
 from share_winbind import share_winbind
 from windows_baseline_policy import windows_baseline_policy
@@ -50,8 +52,9 @@ def converge(state):
     Inputs:  state — dict: site (str); dc (str: the DC converged or prepared, dc-NNNN: its record, its range and its
              service accounts); dc_type ("writable" or "rodc": the DC prepared; a read-only one gets its cache group,
              2.1.6.85); root (bool: the root site, which also holds the domain's own settings and the domain-wide
-             groups and trust GPO); password_policy (dict, every key); networks (site_networks' list); root_ca_pem
-             (str); groups (fabric's ldap_groups); accounts ({sAMAccountName: password}: the DC's service accounts);
+             groups and trust GPO); password_policy (dict, every key); tier_policies (optional, the tiers' own,
+             written at the root); networks (site_networks' list); root_ca_pem (str); groups (fabric's ldap_groups);
+             accounts ({sAMAccountName: password}: the DC's service accounts);
              radius_gid (int: FreeRADIUS's group, given winbind's privileged pipe); parent (str, optional: a site's
              parent site, for the AD site link); rodc (bool, optional: converging on a read-only DC, where only
              winbind's pipe is converged); join_account ({name, password}, optional: at a parent, the temporary
@@ -95,6 +98,8 @@ def converge(state):
     base, machines = str(samdb.domain_dn()), paths.folder_dn(samdb, "machines")
     if root:                              # the domain's own settings are the root's (manual 1.9.8.3)
         changed += [f"password policy: {a}" for a in set_password_policy(samdb, state["password_policy"])]
+        if state.get("tier_policies"):    # the tiers' own policies, beside the domain's (2.1.6.71)
+            changed += ensure_tier_policies(samdb, state["tier_policies"])
         changed += ensure_gpo(samdb, lp, "fabric: trust in fabric's root CA", base, TRUST_EXTENSIONS,
                               {"Machine/Registry.pol": root_ca_policy(state["root_ca_pem"])})
     changed += ensure_gpo_admins(samdb, lp, site)

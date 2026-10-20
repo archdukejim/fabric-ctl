@@ -75,6 +75,7 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `zone_detail.py` | One zone's records and BIND sync status, for the forward-zone view. Agent route: GET /v1/zones/<key> (dns:read). |
 | `revoke_cert.py` | Revoke a certificate fabric issued; the CRLs are published at once. Agent route: POST /v1/pki/revoke (pki:revoke). |
 | `cert_warnings.py` | What is wrong or coming with fabric's certificates, shown at the top of the overview. Agent route: GET /v1/cert-warnings (status:read). |
+| `host_reminders.py` | What every administrator is reminded of on this host (the break-glass password's file), in the top bar from each sign-in and on Overview. Agent route: GET /v1/reminders (status:read). |
 | `relaxed_settings.py` | The security relaxations turned on, shown at the top of the overview. Agent route: GET /v1/relaxed-settings (status:read). |
 | `__init__.py` | Imports every function of this folder, so callers keep `module.function` |
 | `domain_overview.py` | The domain, its controller, the password policy and this site's machines. Agent route: GET /v1/domain (domain:read). |

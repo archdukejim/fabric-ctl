@@ -20,6 +20,8 @@ Helpers shared by setup steps and the consent plans.
 | `network_problem.py` | What is wrong with the host's address, subnet and gateway taken together |
 | `ca_exists.py` | Whether this install's CA exists (its lifetime is then fixed) |
 | `first_admin_needed.py` | Whether setup creates the first admin and so needs their password |
+| `first_admin_refused.py` | Why an answer for the first Directory Administrator is refused: their user name (fabric's names, fabric-admin), full name, e-mail (2.1.6.69) |
+| `ask_admin_fact.py` | One of the first Directory Administrator's facts asked until it is taken, saying why not |
 | `plan_items.py` | The plan's hardened defaults (the firewall, Docker's hardening, membership, Keycloak, the web console) |
 | `dotted_keys.py` | Read and write a dotted settings key (`security.firewall`) |
 | `previous_accounts.py` | The service accounts of releases before 2026-10 (names, ids), which setup moves away from |

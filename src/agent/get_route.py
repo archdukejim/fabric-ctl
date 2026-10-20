@@ -32,6 +32,7 @@ from fabriclib.vault.list_slots import list_slots
 from fabriclib.vault.vault_status import vault_status
 from fabriclib.pki.cert_warnings import cert_warnings
 from fabriclib.system.relaxed_settings import relaxed_settings
+from fabriclib.system.host_reminders import host_reminders
 from fabriclib.security.signin_layers import read_lowered, signin_rows
 from fabriclib.common.paths import VARS_FILE
 from fabriclib.setup.context import SetupContext
@@ -45,6 +46,7 @@ READS = {
     ("host-changes",): lambda: consent_status(os.path.join(load_vars()["deploy_base_dir"], "fabric", "config")),
     ("relaxed-settings",): lambda: relaxed_settings(load_vars()),
     ("cert-warnings",): lambda: cert_warnings(load_vars()),
+    ("reminders",): lambda: host_reminders(load_vars()["deploy_base_dir"]),
     ("security",): lambda: signin_rows(load_vars(), read_lowered(os.path.dirname(VARS_FILE))),
     ("zones",): lambda: list_zones(),
     ("audit",): lambda: read_audit(),
@@ -78,7 +80,8 @@ def get_route(route, user=None):
     Inputs:  route — list of path segments after /v1/ (already authorized by the handler); user — the token's user
              (None for root): a job is read only by the person who started it.
     Returns: the operation's JSON-serialisable result. zones/<key>: zone_detail; vault/slots: the unlock methods with
-             this host's name; images: the image status rows; pki/acme: {info, machines, domain}; jobs/<id>: the job;
+             this host's name; images: the image status rows; reminders: host_reminders (the console's top bar);
+             pki/acme: {info, machines, domain}; jobs/<id>: the job;
              settings: settings_overview (the setup wizard, 1.8.5); settings/export: {"text", "name"}, the
              settings file.
     Fails:   RouteNotFound for any other route (-> 404); whatever the operation raises (ValidationError -> 400).

@@ -3,7 +3,7 @@ from fabriclib.common.console import BOLD, NC, YELLOW, heading
 from fabriclib.samba.suggested_ad_domain import suggested_ad_domain
 from fabriclib.setup.advanced.menu_items import menu_items
 from fabriclib.setup.common.network_problem import network_problem
-from fabriclib.setup.common.valid_setting import FIRST_ADMIN, valid_setting
+from fabriclib.setup.common.valid_setting import valid_setting
 from fabriclib.setup.detect_network import detect_network
 
 SECTIONS = {"required": "Required (setup cannot proceed until each has a value):",
@@ -13,7 +13,7 @@ SECTIONS = {"required": "Required (setup cannot proceed until each has a value):
 
 def _fill_found(ctx):
     """Purpose: the values setup can find or default, filled in and marked so the menu shows them as such (1.2.9.11.3):
-             the domain home.arpa, this host's name and network as found, the first admin fabric-admin.
+             the domain home.arpa, this host's name and network as found (the first admin has no default, 2.1.6.69).
     Inputs:  ctx — SetupContext: vars (changed only where a value is missing or not valid), origins (changed).
     Returns: None.
     Fails:   never (detect_network finds what it can).
@@ -25,7 +25,7 @@ def _fill_found(ctx):
             found = detect_network() if found is None else found
             if found.get(key):
                 v[key], ctx.origins[key] = found[key], "found"
-    for key, default in (("domain", "home.arpa"), ("webui_admin_user", FIRST_ADMIN)):
+    for key, default in (("domain", "home.arpa"),):
         if not valid_setting(key, str(v.get(key) or "")):
             v[key], ctx.origins[key] = default, "default"
 

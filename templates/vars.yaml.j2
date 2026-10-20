@@ -186,6 +186,9 @@ hostname_dc: "{{ (_dc ~ '.' ~ _ad) | lower if _ad else '' }}"
 # minimum_length, complexity (bool), history, minimum_age_days, maximum_age_days, lockout_threshold,
 # lockout_minutes, lockout_window_minutes: every key required
 ad_password_policy: {{ ad_password_policy | default({}, true) | to_json }}
+{# the tiers' own password policies (2.1.6.71), set only on the host: fabric-admin's and the Directory Administrators',
+   each an AD fine-grained password policy; setup starts them as copies of the default (fabric-admin: 3, then 15 minutes) #}
+ad_tier_password_policies: {{ ad_tier_password_policies | default({}, true) | to_json }}
 ad_old_password_minutes: {{ ad_old_password_minutes | default(0) | int }}
 {# the DC's signing socket for Windows members' time (2.1.13.1), where the host's chrony reaches it: the one path
    Ubuntu's AppArmor profile for chronyd allows (manual 1.6.5.8) #}
@@ -261,9 +264,11 @@ log_forwarding: {{ log_forwarding | default({}, true) | to_json }}
 install_webui: {{ (install_webui | default(true) | bool) and (install_keycloak | default(false) | bool) }}
 webui_realm: {{ webui_realm | default(domain) }}
 webui_admin_role: {{ webui_admin_role | default('fabric-console-admin') }}
-{# First web UI admin, created by `fabricctl setup` (a person in the domain + client certificate). #}
-webui_admin_user: {{ webui_admin_user | default('fabric-admin', true) }}
-webui_admin_email: {{ webui_admin_email | default('', true) }}
+{# The first Directory Administrator, created by `fabricctl setup` after fabric-admin, the Enterprise Admin (a person in
+   the domain + client certificate; 2.1.6.69): user name, full name and e-mail, all required, no default. #}
+webui_admin_user: {{ webui_admin_user | default('', true) | to_json }}
+webui_admin_name: {{ webui_admin_name | default('', true) | to_json }}
+webui_admin_email: {{ webui_admin_email | default('', true) | to_json }}
 webui_client_cert_days: {{ webui_client_cert_days | default(365) }}
 # Sign-in (manual 2.3.6.2.6.1, 2.1.6.23): a password by default; raised in the web console's Security page, lowered only
 # with `sudo fabricctl security lower` (2.1.6.24). Second factors: none | any (TOTP or a passkey) | totp | passkey.

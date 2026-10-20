@@ -19,6 +19,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `directory_ops.py` | The operations fabric-agent may ask for |
 | `ensure_ad_site.py` | The AD site of this fabric site and its subnets from the address plan |
 | `set_password_policy.py` | The admin's password policy on the domain object (2.1.6.13) |
+| `ensure_tier_policies.py` | The tiers' fine-grained password policies: fabric-admin's (precedence 1) and the Directory Administrators' on directory-admins (precedence 2), 2.1.6.71 |
 | `ensure_gpo.py` | One of fabric's GPOs created, linked, its SYSVOL files written, its version bumped on change |
 | `root_ca_policy.py` | The Registry.pol that makes fabric's root CA a trusted root on Windows (Q13) |
 | `find_gpo.py` | A GPO found by its display name |
@@ -78,4 +79,6 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `group_names.py` | The names of the domain's groups (1.6.13.3): the fixed ones, `site-<name>`, `machines-<type>`, `rodc-cache-<dc>` |
 | `ensure_directory_acl.py` | directory-admins' rights (2.1.6.81): full control and GPO links on OU=people, OU=service-accounts, OU=machines and OU=groups, denied on fabric's accounts, the tiers' groups and OU=fabric; the agents' and Keycloak's rights |
 | `protect_top_tier.py` | The top tier kept out of directory-admins' reach: the protected accounts and groups (AdminSDHolder) never inherit from the folders (2.1.6.81) |
-| `ensure_top_tier.py` | Run as root from fabric-ctl: the first admin made a member of Enterprise, Schema and Domain Admins (2.1.6.81), JSON on stdin |
+| `ensure_top_tier.py` | An account made a member of Enterprise, Schema and Domain Admins, the top tier's denies written at once (2.1.6.68) |
+| `ensure_enterprise_admin.py` | Run as root from fabric-ctl: `fabric-admin`, the Enterprise Admin, made once in OU=people with the generated password (JSON on stdin) and put in AD's top tier (2.1.6.69) |
+| `reset_break_glass.py` | Run as root from fabric-ctl (`fabricctl admin reset-break-glass`): `fabric-admin`'s new generated password set (JSON on stdin) and the account unlocked; a disabled account reported, never enabled (2.1.6.75) |

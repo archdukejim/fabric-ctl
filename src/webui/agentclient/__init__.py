@@ -45,6 +45,7 @@ from webui.agentclient.radius_overview import radius_overview  # noqa: F401
 from webui.agentclient.read_audit import read_audit  # noqa: F401
 from webui.agentclient.relaxed_settings import relaxed_settings  # noqa: F401
 from webui.agentclient.cert_warnings import cert_warnings  # noqa: F401
+from webui.agentclient.host_reminders import host_reminders  # noqa: F401
 from webui.agentclient.revoke_cert import revoke_cert  # noqa: F401
 from webui.agentclient.remove_client_class import remove_client_class  # noqa: F401
 from webui.agentclient.remove_radius_client import remove_radius_client  # noqa: F401

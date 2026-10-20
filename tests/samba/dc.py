@@ -6,12 +6,17 @@ password.
     sudo python3 tests/samba/dc.py
 """
 import base64
+import contextlib
+import functools
+import io
 import json
 import os
 import shlex
 import shutil
+import string
 import subprocess
 import sys
+import time
 
 import yaml
 
@@ -19,14 +24,23 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(REPO, "src"))
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
+from fabriclib.breakglass.break_glass_password import break_glass_password  # noqa: E402
+from fabriclib.breakglass.constants import SAFE_SPECIALS  # noqa: E402
+from fabriclib.breakglass.ensure_enterprise_admin import ensure_enterprise_admin  # noqa: E402
+from fabriclib.breakglass.reset_break_glass import reset_break_glass  # noqa: E402
+from fabriclib.breakglass import run_admin_command as m_admin  # noqa: E402
+from fabriclib.breakglass.run_admin_command import run_admin_command  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
+from fabriclib.directory.ensure_admin import ensure_admin  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
 from fabriclib.federation.network_conflicts import network_conflicts  # noqa: E402
 from fabriclib.federation.read_address_plan import read_address_plan  # noqa: E402
 from fabriclib.radius.windows_lan_profile import windows_lan_profile  # noqa: E402
 from fabriclib.samba.allow_rodc_cache import allow_rodc_cache  # noqa: E402
+from fabriclib.samba.check_tier_policies import check_tier_policies  # noqa: E402
 from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
 from fabriclib.samba.deploy_samba import deploy_samba  # noqa: E402
+from fabriclib.samba.tier_policy_defaults import tier_policy_defaults  # noqa: E402
 from fabriclib.samba.write_bind_dlz import write_bind_dlz  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
@@ -581,28 +595,214 @@ REFUSED = [
 for label, ldif in REFUSED:
     tool = "ldbadd" if "changetype" not in ldif else "ldbmodify"
     check(f"refused: a Directory Administrator {label}", not done(as_user("diradmin", dir_pw, tool, ldif)))
-# the top tier (2.1.6.68): setup's first admin goes into Enterprise, Schema and Domain Admins, at the root's DC as
-# root (ensure_top_tier), and the Directory Administrators' rights never reach them
-top_pw = random_password(20)
-dc("samba-tool", "user", "create", "topper", top_pw, "--userou=OU=people", "-s", "/data/etc/smb.conf")
-top = dc("python3", "/fabric/ensure_top_tier.py", stdin=json.dumps({"uid": "topper"}))
-top_groups = attr("(sAMAccountName=topper)", "memberOf")
-check("ensure_top_tier: the first admin a member of Enterprise, Schema and Domain Admins, the denies written at once",
-      top.returncode == 0 and all(any(g.startswith(f"CN={n},") for g in top_groups)
-                                  for n in ("Enterprise Admins", "Schema Admins", "Domain Admins"))
-      and any(c.startswith("topper: a member of") for c in json.loads(top.stdout or "{}").get("changed", [])),
-      (top.stdout + top.stderr)[-400:])
-top_again = dc("python3", "/fabric/ensure_top_tier.py", stdin=json.dumps({"uid": "topper"}))
-check("...a second run changes nothing", json.loads(top_again.stdout or "{}").get("changed") == [], top_again.stdout)
-no_top = dc("python3", "/fabric/ensure_top_tier.py", stdin=json.dumps({"uid": "nobody"}))
-check("negative: ensure_top_tier for a person who does not exist: refused, saying so",
-      no_top.returncode == 1 and "no person nobody" in no_top.stderr, no_top.stderr[-300:])
-check("refused: a Directory Administrator changing a top-tier person in OU=people",
-      not done(as_user("diradmin", dir_pw, "ldbmodify", modify(f"CN=topper,OU=people,{BASE}"))))
-check("refused: a Directory Administrator resetting a top-tier person's password",
-      not done(as_user("diradmin", dir_pw, "ldbmodify", reset(f"CN=topper,OU=people,{BASE}"))))
-check("...while the top tier itself (a Domain Admin) changes a tier's group: the denies are the Directory "
-      "Administrators' only", done(as_user("topper", top_pw, "ldbmodify", modify(f"CN=dc-hosts,OU=groups,{BASE}"))))
+# the top tier (2.1.6.68, 2.1.6.69): setup makes fabric-admin, the Enterprise Admin, with a generated password at the
+# root's DC as root (ensure_enterprise_admin), alone in Enterprise, Schema and Domain Admins, never a Directory
+# Administrator; the Directory Administrators' rights never reach it
+generated = [break_glass_password() for _ in range(300)]
+check("the break-glass password: 24 characters of letters, digits and only - _ . , : + = @ ^ ~, each class at least "
+      "once, never the same twice (2.1.6.69)",
+      all(len(g) == 24 and set(g) <= set(string.ascii_letters + string.digits + SAFE_SPECIALS)
+          and any(c.isupper() for c in g) and any(c.islower() for c in g) and any(c.isdigit() for c in g)
+          and any(c in SAFE_SPECIALS for c in g) for g in generated) and len(set(generated)) == 300)
+try:
+    break_glass_password(13)
+    why = ""
+except ValueError as e:
+    why = str(e)
+check("negative: a break-glass password under 14 characters is refused", "at least 14" in why, why)
+try:
+    ensure_enterprise_admin(v, container=DC, password="Ab1-short")
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: fabric-admin with a password the domain's policy refuses: refused with the DC's reason, nothing made",
+      "could not be made" in why and attr("(sAMAccountName=fabric-admin)", "dn") == [], why)
+made_ea = ensure_enterprise_admin(v, container=DC)
+top_pw = made_ea["password"]
+top_groups = attr("(sAMAccountName=fabric-admin)", "memberOf")
+check("ensure_enterprise_admin: fabric-admin made in OU=people with dc-0001's first id, a member of Enterprise, "
+      "Schema and Domain Admins only (not directory-admins, no site), its generated password returned once",
+      made_ea["created"] and top_pw and len(top_pw) == 24
+      and attr("(sAMAccountName=fabric-admin)", "dn") == [f"CN=fabric-admin,OU=people,{BASE}"]
+      and attr("(sAMAccountName=fabric-admin)", "uidNumber") == ["1000000"]
+      and all(any(g.startswith(f"CN={n},") for g in top_groups)
+              for n in ("Enterprise Admins", "Schema Admins", "Domain Admins"))
+      and not any("directory-admins" in g or "CN=site-" in g for g in top_groups), (made_ea["changed"], top_groups))
+again_ea = ensure_enterprise_admin(v, container=DC)
+check("...a second run changes nothing and keeps its password (none returned)",
+      not again_ea["created"] and again_ea["password"] is None and again_ea["changed"] == [], again_ea)
+# the generated password signs in through every layer that receives it (2.1.6.69): LDAP, Kerberos, NTLM over SMB
+ldap_in = as_user("fabric-admin", top_pw, "ldbsearch")
+krb_in = dc("bash", "-c", "printf '[libdefaults]\\n default_realm = AD.LAN.TEST\\n[realms]\\n AD.LAN.TEST = { kdc = "
+            "127.0.0.1 }\\n' > /tmp/ea-krb5.conf && export KRB5_CONFIG=/tmp/ea-krb5.conf KRB5CCNAME=FILE:/tmp/cc-ea "
+            "&& kinit fabric-admin >/dev/null && klist && kdestroy", stdin=top_pw + "\n")
+smb_in = sh(["docker", "run", "--rm", "--network", NET, "-v", f"{W}/fabric-admin.auth:/auth:ro", "--entrypoint",
+             "smbclient", IMAGE, f"//{IP}/sysvol", "-A", "/auth", "-c",
+             "ls ad.lan.test/Policies/{31B2F340-016D-11D2-945F-00C04FB984F9}/*"], ok=False)
+check("its generated password signs in over LDAP", ldap_in.returncode == 0 and BASE in ldap_in.stdout,
+      (ldap_in.stdout + ldap_in.stderr)[-300:])
+check("...by Kerberos (kinit)", krb_in.returncode == 0 and "fabric-admin@AD.LAN.TEST" in krb_in.stdout,
+      (krb_in.stdout + krb_in.stderr)[-300:])
+check("...and by NTLM (SMB, reading SYSVOL)", smb_in.returncode == 0 and "GPT.INI" in smb_in.stdout.upper(),
+      (smb_in.stdout + smb_in.stderr)[-300:])
+check("refused: a Directory Administrator changing fabric-admin in OU=people",
+      not done(as_user("diradmin", dir_pw, "ldbmodify", modify(f"CN=fabric-admin,OU=people,{BASE}"))))
+check("refused: a Directory Administrator resetting fabric-admin's password",
+      not done(as_user("diradmin", dir_pw, "ldbmodify", reset(f"CN=fabric-admin,OU=people,{BASE}"))))
+check("...while the top tier itself (fabric-admin) changes a tier's group: the denies are the Directory "
+      "Administrators' only",
+      done(as_user("fabric-admin", top_pw, "ldbmodify", modify(f"CN=dc-hosts,OU=groups,{BASE}"))))
+# the first Directory Administrator (2.1.6.69): a person in OU=people and directory-admins, with their full name and
+# e-mail, their own password, never in AD's top tier
+first_pw = "Da-" + random_password(20)
+state, _ = ensure_admin(v, SECRETS, "pat.admin", "pat@lan.test", lambda: first_pw, container=DC,
+                        full_name="Pat Q. Example")
+pat_groups = attr("(sAMAccountName=pat.admin)", "memberOf")
+check("ensure_admin: the first Directory Administrator in OU=people and directory-admins (and the site's group), "
+      "named and mailed as given, an admin's id, outside AD's top tier",
+      state == "created" and attr("(sAMAccountName=pat.admin)", "dn") == [f"CN=pat.admin,OU=people,{BASE}"]
+      and any(g.startswith("CN=directory-admins,") for g in pat_groups)
+      and not any(g.startswith(("CN=Domain Admins,", "CN=Enterprise Admins,", "CN=Schema Admins,")) for g in pat_groups)
+      and attr("(sAMAccountName=pat.admin)", "givenName") == ["Pat Q."]
+      and attr("(sAMAccountName=pat.admin)", "sn") == ["Example"]
+      and attr("(sAMAccountName=pat.admin)", "mail") == ["pat@lan.test"]
+      and 1000001 <= int((attr("(sAMAccountName=pat.admin)", "uidNumber") or ["0"])[0]) <= 1019999, pat_groups)
+check("...signing in with the password they chose", as_user("pat.admin", first_pw, "ldbsearch").returncode == 0)
+state2, _ = ensure_admin(v, SECRETS, "pat.admin", "pat@lan.test", lambda: "never-asked", container=DC)
+check("...a second run finds them and keeps their password", state2 == "exists"
+      and as_user("pat.admin", first_pw, "ldbsearch").returncode == 0, state2)
+# the tiers' own password policies (2.1.6.69, 2.1.6.71): fine-grained password policies beside the domain's, written at
+# the root's convergence; fabric-admin's on its own account (3, then a lockout that ends by itself), the Directory
+# Administrators' on directory-admins; the domain's default stays everyone else's
+TIERS = tier_policy_defaults(POLICY)
+# covers: setting:ad_tier_password_policies +
+tiered = converge_domain({**v, "ad_tier_password_policies": TIERS}, os.path.join(W, "federation.yaml"), SECRETS,
+                         container=DC)
+PSO_BASE = f"CN=Password Settings Container,CN=System,{BASE}"
+
+
+def pso(name, attr_):
+    out = dc("ldbsearch", "-H", "/data/private/sam.ldb", "-b", f"CN={name},{PSO_BASE}", "-s", "base",
+             attr_).stdout.replace("\n ", "")
+    return [line.split(": ", 1)[1] for line in out.splitlines() if line.startswith(attr_ + ": ")]
+
+
+check("the tiers' policies: fabric-enterprise-admin (precedence 1) on fabric-admin, 3 failed sign-ins then 15 "
+      "minutes (window 15); fabric-directory-admins (precedence 2) on directory-admins, a copy of the default",
+      pso("fabric-enterprise-admin", "msDS-LockoutThreshold") == ["3"]
+      and pso("fabric-enterprise-admin", "msDS-LockoutDuration") == [str(-15 * 60 * 10 ** 7)]
+      and pso("fabric-enterprise-admin", "msDS-LockoutObservationWindow") == [str(-15 * 60 * 10 ** 7)]
+      and pso("fabric-enterprise-admin", "msDS-PasswordSettingsPrecedence") == ["1"]
+      and pso("fabric-enterprise-admin", "msDS-PSOAppliesTo") == [f"CN=fabric-admin,OU=people,{BASE}"]
+      and pso("fabric-directory-admins", "msDS-PSOAppliesTo") == [f"CN=directory-admins,OU=groups,{BASE}"]
+      and pso("fabric-directory-admins", "msDS-LockoutThreshold") == [str(POLICY["lockout_threshold"])]
+      and pso("fabric-directory-admins", "msDS-MinimumPasswordLength") == [str(POLICY["minimum_length"])], tiered)
+resultant = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(|(sAMAccountName=fabric-admin)(sAMAccountName=pat.admin)"
+               "(sAMAccountName=diradmin))", "msDS-ResultantPSO").stdout.replace("\n ", "")
+check("...AD resolves them: fabric-admin's own, a Directory Administrator's (pat.admin, diradmin) theirs",
+      f"msDS-ResultantPSO: CN=fabric-enterprise-admin,{PSO_BASE}" in resultant
+      and resultant.count(f"msDS-ResultantPSO: CN=fabric-directory-admins,{PSO_BASE}") == 2, resultant[-600:])
+check("...a second convergence changes nothing in them",
+      not any("password policy fabric-" in c for c in converge_domain(
+          {**v, "ad_tier_password_policies": TIERS}, os.path.join(W, "federation.yaml"), SECRETS, container=DC)))
+# a lockout that ends by itself: 3 wrong passwords lock fabric-admin (its right one refused), and after the lockout it
+# signs in again with no admin's help; tried with a one-minute policy so the suite waits one minute, not fifteen
+quick = {**TIERS, "enterprise_admin": {**TIERS["enterprise_admin"], "lockout_minutes": 1,
+                                       "lockout_window_minutes": 1}}
+converge_domain({**v, "ad_tier_password_policies": quick}, os.path.join(W, "federation.yaml"), SECRETS, container=DC)
+for _ in range(3):
+    as_user("fabric-admin", top_pw + "x", "ldbsearch")
+locked = as_user("fabric-admin", top_pw, "ldbsearch")
+check("fabric-admin: after 3 wrong passwords it is locked: its right password is refused",
+      locked.returncode != 0 and BASE not in locked.stdout, locked.stdout[-200:])
+time.sleep(70)
+unlocked = as_user("fabric-admin", top_pw, "ldbsearch")
+check("...and once its lockout is over it signs in again by itself (no admin unlocks break glass)",
+      unlocked.returncode == 0 and BASE in unlocked.stdout, (unlocked.stdout + unlocked.stderr)[-300:])
+for _ in range(3):
+    as_user("pat.admin", first_pw + "x", "ldbsearch")
+check("...while a Directory Administrator is not locked after 3 (their policy is the default's copy: "
+      f"{POLICY['lockout_threshold']})", as_user("pat.admin", first_pw, "ldbsearch").returncode == 0)
+converge_domain({**v, "ad_tier_password_policies": TIERS}, os.path.join(W, "federation.yaml"), SECRETS, container=DC)
+for bad, why in (({**TIERS, "enterprise_admin": {**TIERS["enterprise_admin"], "lockout_minutes": 0}}, "unlocks it"),
+                 ({"enterprise_admin": TIERS["enterprise_admin"]}, "exactly enterprise_admin and directory_admins"),
+                 ({**TIERS, "directory_admins": {**TIERS["directory_admins"], "minimum_length": 99}},
+                  "the Directory Administrators: ad_password_policy.minimum_length")):
+    try:
+        check_tier_policies(bad)
+        got = ""
+    except ValidationError as e:
+        got = str(e)
+    # covers: setting:ad_tier_password_policies -
+    check(f"refused: a tiers' policy ({why}), saying why", why in got, got)
+# reset-break-glass (2.1.6.75): a lost password replaced on the writable DC's host, the account unlocked, the file
+# written again to the person's ~/fabric-admin/ (a test home here), audited; refused on a read-only DC's host and with
+# the DC not running, nothing changed
+for _ in range(3):
+    as_user("fabric-admin", top_pw + "x", "ldbsearch")
+check("fabric-admin locked again (3 wrong passwords, its 15-minute lockout) before the reset",
+      as_user("fabric-admin", top_pw, "ldbsearch").returncode != 0)
+GLASS_HOME = os.path.join(W, "glass-home")
+GLASS_CONF = os.path.join(W, "glass-config")
+shutil.rmtree(GLASS_HOME, ignore_errors=True)
+os.makedirs(GLASS_HOME)
+os.makedirs(GLASS_CONF, exist_ok=True)
+OWNER = ("tester", GLASS_HOME, os.getuid(), os.getgid())
+audited = []
+
+
+def note(*a):
+    audited.append(a)
+
+
+for bad_v, bad_dc, why in (({**v, "ad_dc_type": "rodc", "ad_join_server": "dc-0001.lan.test"}, DC, "read-only"),
+                           (v, "fabric-no-such-dc", "could not be reset"),
+                           ({**v, "ad_domain": ""}, DC, "no domain")):
+    try:
+        reset_break_glass({**bad_v, "ad_tier_password_policies": TIERS}, GLASS_CONF, "tester", container=bad_dc,
+                          owner=OWNER, audit=note)
+        got = ""
+    except ValidationError as e:
+        got = str(e)
+    check(f"refused: reset-break-glass ({why}), saying why; no file, no audit",
+          why in got and not os.listdir(GLASS_HOME) and not audited, got)
+reset = reset_break_glass({**v, "ad_tier_password_policies": TIERS}, GLASS_CONF, "tester", container=DC, owner=OWNER,
+                          audit=note)
+glass = open(reset["path"]).read()
+new_pw = glass.split("password:", 1)[1].split("\n", 1)[0].strip()
+check("reset-break-glass: a new generated password (24, each class) in ~/fabric-admin/fabric-admin-password.txt "
+      "(0700/0600), the account unlocked, audited BREAK_GLASS_RESET without the password",
+      reset["path"] == os.path.join(GLASS_HOME, "fabric-admin", "fabric-admin-password.txt")
+      and len(new_pw) == 24 and new_pw != top_pw and not reset["disabled"]
+      and any("unlocked" in c for c in reset["changed"])
+      and os.stat(os.path.dirname(reset["path"])).st_mode & 0o777 == 0o700
+      and os.stat(reset["path"]).st_mode & 0o777 == 0o600
+      and [a[1] for a in audited] == ["BREAK_GLASS_RESET"] and new_pw not in str(audited)
+      and json.load(open(os.path.join(GLASS_CONF, "break-glass.json")))["by"] == "reset", (reset, audited))
+check("...it signs in at once with the new password (no lockout left); the old one is refused",
+      as_user("fabric-admin", new_pw, "ldbsearch").returncode == 0
+      and as_user("fabric-admin", top_pw, "ldbsearch").returncode != 0)
+top_pw = new_pw
+# the command (`sudo fabricctl admin reset-break-glass`): routes to the reset, says where the file is, never the password
+m_admin.reset_break_glass = functools.partial(reset_break_glass, container=DC, owner=OWNER, audit=note)
+TV = {**v, "ad_tier_password_policies": TIERS}
+with contextlib.redirect_stdout(io.StringIO()) as said:
+    code = run_admin_command(TV, ["reset-break-glass"], GLASS_CONF)
+glass = open(os.path.join(GLASS_HOME, "fabric-admin", "fabric-admin-password.txt")).read()
+new_pw = glass.split("password:", 1)[1].split("\n", 1)[0].strip()
+# covers: cli:admin.reset-break-glass +
+check("fabricctl admin reset-break-glass: exit 0, the file's path said and not the password; the new one signs in",
+      code == 0 and "fabric-admin-password.txt" in said.getvalue() and new_pw not in said.getvalue()
+      and new_pw != top_pw and as_user("fabric-admin", new_pw, "ldbsearch").returncode == 0, said.getvalue())
+top_pw = new_pw
+for args_, tv, want, why in ((["reset-break-glass", "--now"], TV, 2, "usage:"),
+                             (["reset-break-glass"], {**TV, "ad_dc_type": "rodc"}, 1, "read-only")):
+    with contextlib.redirect_stdout(io.StringIO()) as said:
+        code = run_admin_command(tv, args_, GLASS_CONF)
+    # covers: cli:admin.reset-break-glass -
+    check(f"refused: fabricctl admin {' '.join(args_)} ({why}), exit {want}; the password unchanged",
+          code == want and why in said.getvalue()
+          and as_user("fabric-admin", top_pw, "ldbsearch").returncode == 0, said.getvalue())
 # the agents (2.1.6.82): each DC's agent writes fabric's folders, never OU=service-accounts
 check("a DC's agent adds a person in OU=people (the domain's people: any DC's agent, 2.1.6.64)",
       done(as_user("fabric-agent-dc-0001", SECRETS["ad_agent_password"], "ldbadd", user.format("agentmade", "OU=people")))
@@ -674,7 +874,8 @@ check("the People page lists every person in OU=people with their sites (site-<n
       "service account",
       a.get("site") == "lan" and a.get("sites") == ["lan"] and b.get("site") == "lab"
       and "site-lan" in a.get("groups", []) and a.get("locked") is False
-      and not any(u["uid"].startswith("fabric-") or u["uid"] == "svc-backup" for u in people["users"])
+      and not any((u["uid"].startswith("fabric-") and u["uid"] != "fabric-admin") or u["uid"] == "svc-backup"
+                  for u in people["users"])
       and any(g["name"] == "directory-admins" for g in people["groups"]), (a, b))
 check("nothing secret in the list", "password" not in json.dumps(people).lower() and "unicodePwd" not in json.dumps(people))
 person = run_op(v, SECRETS, "get_person", {"uid": "alice"}, container=DC)
@@ -758,8 +959,9 @@ def mk_kind(uid, kind):
 
 boss, boss2 = mk_kind("boss", "first_admin"), mk_kind("boss2", "first_admin")
 adm, gst = mk_kind("adm", "admin"), mk_kind("gst", "guest")
-check("the first admin takes the range's first id; past it, an admin account's range; admins and guests their own",
-      boss["uidNumber"] == 1000000 and 1000001 <= boss2["uidNumber"] <= 1019999
+check("the range's first id is fabric-admin's (above); past it, a first admin takes an admin account's range; admins "
+      "and guests their own",
+      1000001 <= boss["uidNumber"] <= 1019999 and 1000001 <= boss2["uidNumber"] <= 1019999
       and 1000001 <= adm["uidNumber"] <= 1019999 and 1900001 <= gst["uidNumber"] <= 1949999, (boss, boss2, adm, gst))
 try:
     mk_kind("svc", "service")

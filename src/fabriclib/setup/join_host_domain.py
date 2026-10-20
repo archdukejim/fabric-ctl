@@ -10,7 +10,7 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.common.keep_original import keep_original
 from fabriclib.consent.check_consent import check_consent
 from fabriclib.consent.plan_member import (HOSTS, KEYTAB, MEMBER_PACKAGES, NSSWITCH, RECORD, RENEW_PACKAGE,
-                                           SSSD_CONF, plan_member)
+                                           SSSD_CONF, SUDOERS, plan_member)
 from fabriclib.directory.add_machine import add_machine
 from fabriclib.directory.place_fabric_host import place_fabric_host
 from fabriclib.directory.remove_machine import remove_machine
@@ -245,13 +245,12 @@ def run(ctx):
     """Purpose: make the fabric host a member of its own domain (manual 1.6.11.8, decisions 2.1.6.34, 2.1.6.48,
              2.1.6.49, 2.1.6.52): it signs in with its own computer account `<HOSTNAME>$`, pre-created as `fabricctl
              domain add-machine` makes one and placed once in OU=fabric-hosts, `fabric-managed` and `dc-hosts`, so
-             the site's group policy reaches it; no domain account signs in to it and no domain sudo rule applies
-             (the top tier's host, 2.1.6.75, 2.1.6.78); while the account is in fabric-managed, fabric
-             manages the host (setup/common/apply_host_managed: Kerberos for SSH, the domain's names from fabric's
-             DNS; local accounts' sign-in untouched). At a site whose DC is read-only, the
-             account is written at the writable DC it replicates from, put in rodc-cache-<dc_name> and cached by the
-             read-only DC (2.1.6.52); with that DC not answering, refused. Local accounts, root and local sudo are
-             untouched.
+             the site's group policy reaches it; no domain account but fabric-admin signs in (its sudo a local rule) and
+             no domain sudo rule applies (the top tier's host, 2.1.6.75, 2.1.6.78); while the account is in
+             fabric-managed, fabric manages the host (setup/common/apply_host_managed: Kerberos for SSH, the domain's
+             names from fabric's DNS; local accounts' sign-in untouched). At a site whose DC is read-only, the account
+             is written at the writable DC it replicates from, put in rodc-cache-<dc_name> and cached by the read-only
+             DC (2.1.6.52); with that DC not answering, refused. Local accounts, root and local sudo are untouched.
     Inputs:  ctx — SetupContext: vars (host_join_domain, default true; host_machine_password_renew_days; the
              domain's names: render_member_files, plan_member, host_identity), config_dir (the `member` consent; the
              kept originals; RECORD), offline, secrets (the site's agent account, which creates and places the host's
@@ -261,11 +260,11 @@ def run(ctx):
              installed when missing (adcli too while the password is renewed); the host's own account created when
              missing (recorded in RECORD) and placed once (recorded); an account fabric made for this host under an
              earlier name removed; /etc/krb5.keytab (0600) with the account's current keys (an install whose keytab
-             held the DC's account moves to its own: the keytab replaced); /etc/krb5.conf and /etc/sssd/sssd.conf
-             (0600); sss in nsswitch.conf for passwd, group and sudoers; PAM's sss and mkhomedir profiles on; the
-             DC's name in /etc/hosts when the host cannot resolve it; the classic sudo where sudo-rs is the default;
-             sssd enabled and restarted when anything changed; fabric's management applied or removed as the
-             account's membership says. Idempotent: a second run changes nothing.
+             held the DC's account moves to its own: the keytab replaced); /etc/krb5.conf, /etc/sssd/sssd.conf (0600)
+             and /etc/sudoers.d/fabric-admin (0440); sss in nsswitch.conf for passwd, group and sudoers; PAM's sss and
+             mkhomedir profiles on; the DC's name in /etc/hosts when the host cannot resolve it; the classic sudo where
+             sudo-rs is the default; sssd enabled and restarted when anything changed; fabric's management applied or
+             removed as the account's membership says. Idempotent: a second run changes nothing.
     Fails:   SetupError: a domain controller with this host's name (2.1.6.51), or a read-only DC's site whose writable
              DC does not answer (2.1.6.52), before anything changes; the read-only DC not caching the account;
              offline with packages missing; a computer of the host's name in the domain that fabric did not make
@@ -376,7 +375,7 @@ def run(ctx):
                  "in the web console (Directory → Machines)")
     for path, content in files.items():
         if _read(path) != content:
-            _write(path, content, 0o600 if path == SSSD_CONF else 0o644)
+            _write(path, content, {SSSD_CONF: 0o600, SUDOERS: 0o440}.get(path, 0o644))
             changed = True
             ok(f"{path} written")
     nss = _read(NSSWITCH) or ""                        # the packages may have changed it
@@ -400,6 +399,7 @@ def run(ctx):
         ok("sssd enabled and restarted")
     for line in apply_host_managed(v, managed):
         ok(line)
-    ok(f"this host is a member of {v['ad_domain']}: no domain account signs in to it (the top tier's host, "
+    ok(f"this host is a member of {v['ad_domain']}: no domain account but fabric-admin, the Enterprise Admin, "
+       "signs in to it (the top tier's host, "
        "2.1.6.75, 2.1.6.78)"
        + ("; fabric manages it (manual 1.6.11.11)" if managed else ""))

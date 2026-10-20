@@ -171,6 +171,27 @@ check("the default policy (2.1.6.35): 12 characters, complexity, 5 remembered, n
           "minimum_length": 12, "complexity": True, "history": 5, "minimum_age_days": 0, "maximum_age_days": 0,
           "lockout_threshold": 10, "lockout_window_minutes": 15, "lockout_minutes": 15}, ok_default)
 
+print("--- the tiers' own password policies (2.1.6.71): copies of the default at the install that adds them")
+from fabriclib.samba.check_tier_policies import check_tier_policies  # noqa: E402
+from fabriclib.samba.tier_policy_defaults import tier_policy_defaults  # noqa: E402
+tiers = tier_policy_defaults(dict(DEFAULT_POLICY))
+check("a new install's tiers: fabric-admin's a copy of the default with 3 failures, then 15 minutes (window 15); the "
+      "Directory Administrators' the default's copy; AD takes both",
+      tiers["enterprise_admin"] == {**DEFAULT_POLICY, "lockout_threshold": 3, "lockout_minutes": 15,
+                                    "lockout_window_minutes": 15}
+      and tiers["directory_admins"] == DEFAULT_POLICY and check_tier_policies(tiers) is None, tiers)
+kept = tier_policy_defaults(dict(DEFAULT_POLICY), {"directory_admins": {**DEFAULT_POLICY, "history": 24}})
+check("...a tier already set is kept as it is, the missing one added",
+      kept["directory_admins"]["history"] == 24 and kept["enterprise_admin"]["lockout_threshold"] == 3, kept)
+try:
+    check_tier_policies({**tiers, "enterprise_admin": {**tiers["enterprise_admin"], "lockout_minutes": 0}})
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: fabric-admin locked until an admin unlocks it (0 minutes) is refused, saying break glass unlocks by "
+      "itself", "break glass must unlock by itself" in why, why)
+check("...while the Directory Administrators' may (0 is AD's until-unlocked)",
+      check_tier_policies({**tiers, "directory_admins": {**tiers["directory_admins"], "lockout_minutes": 0}}) is None)
 print("--- the DC's name, fabric's alone (2.1.6.65, manual 1.6.5.26): never asked, dc-0001 for a new domain")
 import tempfile as _tf  # noqa: E402
 

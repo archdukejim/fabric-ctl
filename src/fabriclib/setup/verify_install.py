@@ -21,6 +21,8 @@ from fabriclib.ntp.chrony_settings import chrony_settings
 from fabriclib.ntp.query_time import query_time
 from fabriclib.ntp.time_status import time_status
 from fabriclib.pki.cert_warnings import cert_warnings
+from fabriclib.breakglass.break_glass_reminder import break_glass_reminder
+from fabriclib.hostaccounts.local_account_reminders import local_account_reminders
 from fabriclib.pki.common.cert_names import cert_names
 from fabriclib.setup.errors import SetupError
 from fabriclib.system.relaxed_settings import relaxed_settings
@@ -250,7 +252,9 @@ def run(ctx):
              `fabricctl doctor`).
     Inputs:  ctx — SetupContext with state loaded (see checks).
     Returns: None; each check printed as ok or error, then a warning for each sign-in layer lowered below a level
-             it had and for what is coming with the certificates (cert_warnings).
+             it had, for what is coming with the certificates (cert_warnings) and, while it is on the host, for the
+             break-glass password's file (break_glass_reminder, 2.1.6.69) and for each local administrator account
+             neither managed nor approved (local_account_reminders, 2.1.6.78).
     Fails:   SetupError("<n> check(s) failed"); exceptions from checks propagate.
     Feeds:   setup step `verify`, run by run_setup via STEPS; run_setup main for `fabricctl doctor`."""
     failed = 0
@@ -265,5 +269,10 @@ def run(ctx):
     for row in cert_warnings(ctx.vars, **_records(os.path.join(ctx.target_dir, "archive"))):    # what is coming
         if row["level"] == "warn":
             warn(f"certificates: {row['what']}")
+    reminder = break_glass_reminder(ctx.config_dir)     # until the break-glass password's file is gone (2.1.6.69)
+    if reminder:
+        warn(reminder["text"])
+    for row in local_account_reminders(ctx.config_dir):     # until removed or approved (2.1.6.78)
+        warn(row["text"])
     if failed:
         raise SetupError(f"{failed} check(s) failed")

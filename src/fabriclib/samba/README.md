@@ -37,6 +37,9 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `domain_sites.py` | Every DC's record in the domain, read inside this site's DC (its site and id range; a site moving here) |
 | `list_conflicts.py` | AD's `CNF:` objects: names made on two DCs while apart |
 | `check_password_policy.py` | The password policy as AD takes it (ranges, minimum age below maximum, lockout at least its window); setup asks again at once, deploy refuses |
+| `check_tier_policies.py` | The tiers' own password policies (2.1.6.71): both tiers, each a whole policy as AD takes it, fabric-admin's lockout never 0 (2.1.6.69) |
+| `tier_policy_defaults.py` | The tiers' policies an install starts with: copies of the default, fabric-admin's 3 failures then 15 minutes; a tier already set kept |
+| `set_tier_password_policy.py` | One tier's password policy changed on the host (`fabricctl domain password-policy --tier`), checked, saved and audited |
 | `password_meets_policy.py` | Why the domain would refuse a password a person chose (length, AD's complexity): setup asks again at once (2.1.6.33) |
 | `read_policy_changes.py` | The password-policy values a console request carries, typed as the command's options (2.1.2.22) |
 | `summarize_roles.py` | The domain-wide (FSMO) roles named plainly: all held here, or which another controller holds (2.1.2.22) |

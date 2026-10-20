@@ -1,4 +1,5 @@
-from fabriclib.consent.plan_member import KRB5_CONF, SSSD_CONF
+from fabriclib.breakglass.constants import ENTERPRISE_ADMIN
+from fabriclib.consent.plan_member import KRB5_CONF, SSSD_CONF, SUDOERS
 from fabriclib.setup.common.host_identity import host_identity
 from fabriclib.setup.common.renew_days import renew_days
 
@@ -9,14 +10,15 @@ def render_member_files(v):
     """Purpose: the Kerberos and SSSD files that make the fabric host a member of its own domain (manual 1.6.11.8),
              written as the Linux join writes them (1.6.7.3) but against this host's own DC, with the host's own
              account (2.1.6.48). A host that runs a DC is the top tier, so nobody from the domain signs in to it and
-             no domain sudo rule reaches it (2.1.6.75, 2.1.6.78; manual 1.6.11.11): sssd's access provider denies
-             every domain account and there is no sudo provider; the domain's names still resolve. No dynamic DNS
+             no domain sudo rule reaches it (2.1.6.75, 2.1.6.78; manual 1.6.11.11): sssd's access provider lets in
+             `fabric-admin`, the Enterprise Admin, alone, there is no sudo provider, and fabric-admin's sudo is a
+             local rule (SUDOERS); the domain's names still resolve. No dynamic DNS
              (the DC keeps its own records); the machine password renewed after host_machine_password_renew_days,
              or never (0, the default, 1.6.11.12).
     Inputs:  v — vars: ad_domain, ad_realm, hostname_dc, host_machine_password_renew_days, and what host_identity
              reads (hostname, dc_name, ad_dc_type). All of them follow strict rules (domain labels), so they go in
              as they are (manual 1.1.5.7).
-    Returns: {KRB5_CONF: str, SSSD_CONF: str}, each starting with fabric's marker line (HEAD).
+    Returns: {KRB5_CONF: str, SSSD_CONF: str, SUDOERS: str}, each starting with fabric's marker line (HEAD).
     Fails:   KeyError when ad_domain, ad_realm or hostname_dc is missing.
     Feeds:   setup/join_host_domain."""
     domain, realm, dc = v["ad_domain"], v["ad_realm"], v["hostname_dc"]
@@ -41,8 +43,9 @@ def render_member_files(v):
             "services = nss, pam, sudo\n"
             f"\n[domain/{domain}]\n"
             "id_provider = ad\n"
-            # the top tier's host: no domain account signs in, no domain sudo rule (2.1.6.75, 2.1.6.78)
-            + "access_provider = deny\n"
+            # the top tier's host: the Enterprise Admin alone signs in, no domain sudo rule (2.1.6.75, 2.1.6.78)
+            + "access_provider = simple\n"
+            f"simple_allow_users = {ENTERPRISE_ADMIN}\n"
             "sudo_provider = none\n"
             f"ad_domain = {domain}\n"
             f"krb5_realm = {realm}\n"
@@ -57,4 +60,6 @@ def render_member_files(v):
             "default_shell = /bin/bash\n"
             "cache_credentials = true\n"
             "enumerate = false\n")
-    return {KRB5_CONF: krb5, SSSD_CONF: sssd}
+    # the Enterprise Admin's sudo on its host is local, not a domain rule (sudo_provider none, 2.1.6.78)
+    sudoers = HEAD + f"{ENTERPRISE_ADMIN} ALL=(ALL:ALL) ALL\n"
+    return {KRB5_CONF: krb5, SSSD_CONF: sssd, SUDOERS: sudoers}

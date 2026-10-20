@@ -89,9 +89,12 @@ def menu_items(ctx, networks=None):
                 + (f" (does not fit: {len(items) + 1} to change)" if problem else "")) if net_ok else ""
     add("required", "Network", net_text, lambda: ask_network(ctx), not net_ok or bool(problem))
     user = str(v.get("webui_admin_user") or "")
-    user_ok, needed = valid_setting("webui_admin_user", user), first_admin_needed(ctx)
+    user_ok = all(valid_setting(k, str(v.get(k) or "")) for k in ("webui_admin_user", "webui_admin_name",
+                                                                   "webui_admin_email"))
+    needed = first_admin_needed(ctx)
     pw_missing = needed and not ctx.admin_password
-    admin_text = (_origin(ctx, "webui_admin_user", user) if user_ok else NEEDS) + (
+    admin_text = (f"{_origin(ctx, 'webui_admin_user', user)} ({v.get('webui_admin_name')}, "
+                  f"{v.get('webui_admin_email')})" if user_ok else NEEDS) + (
         (", password" + (f" {NEEDS}" if pw_missing else "")) if needed else "")
     add("required", "First admin", admin_text, lambda: ask_first_admin_item(ctx), not user_ok or pw_missing)
 

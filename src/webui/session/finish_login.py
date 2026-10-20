@@ -18,8 +18,9 @@ def finish_login(h, cert, query):
              the web console requires no certificate: the CN check is skipped); query — dict
              with state, code or error; reads the __Host-webui-login cookie and App.pending.
     Returns: 200 'Signed in' page (meta refresh to the stored next path) that sets __Host-webui (the session id,
-             Max-Age session_max) and clears the login cookie; the session gets a new CSRF token, the tokens, perms
-             and auth_at; LOGIN is audited.
+             Max-Age session_max) and clears the login cookie; the session gets a new CSRF token, the tokens, perms,
+             auth_at and, for a viewer with status:read, the host's reminders (host_reminders: shown in the top bar of
+             every page until the next sign-in; [] when the agent cannot say); LOGIN is audited.
     Fails:   400 when the state is unknown or expired, the login cookie does not match, or another certificate started
              the login (the attempt is used up either way); 401 when Keycloak returned an error or no code; 401 'Login
              failed: …' on OIDCError; 403 when the Keycloak username is not the certificate CN, and 403 when the token
@@ -64,5 +65,12 @@ def finish_login(h, cert, query):
                              # when the person last signed in (step-up for vault changes and raising security)
                              "auth_at": min(float(claims.get("auth_time") or now), now)}
     actions.audit(user, "LOGIN", f"cert={cert['fp'][:16]}" if cert["fp"] else "no client certificate")
+    if "status:read" in perms:               # the host's reminders, at each sign-in, on every page (2.1.6.69)
+        try:
+            reminders = actions.host_reminders()
+        except (actions.AgentError, actions.ValidationError, actions.PermissionDenied):
+            reminders = []
+        with app.lock:
+            app.sessions[sid]["reminders"] = reminders
     h.send(200, views.continue_page(pending.get("next") or "/"), headers=[
         cookie_header(SESSION_COOKIE, sid, app.max_age), cookie_header(LOGIN_COOKIE, "", 0, "Lax")])

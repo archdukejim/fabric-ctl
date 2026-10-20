@@ -16,6 +16,8 @@
   {% endif %}
 </header>
 {% if ctx and ctx.dev %}<p class="devbanner">DEV PREVIEW — sample data, no sign-in, nothing is saved or applied</p>{% endif %}
+{% if ctx and ctx.get('reminders') %}<div class="warn-text reminders" role="status"><strong>Reminder:</strong>
+<ul>{% for r in ctx.reminders %}<li>{{ r.text }}</li>{% endfor %}</ul></div>{% endif %}
 {% if ctx %}
 <nav class="tabs">
 {% for id, href, label, optional in tabs %}

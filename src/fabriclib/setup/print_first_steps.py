@@ -46,7 +46,7 @@ def print_first_steps(ctx, guided=False):
         if v.get("webui_client_cert"):
             steps.append(f"import your client certificate {kit}/{user}.p12 (its password: {kit}/p12-password.txt)")
         steps.append(f"{BOLD}then sign in{NC} at {BOLD}https://{v.get('hostname_mgr')}{NC} as {user}, with the "
-                     "password you chose in setup")
+                     "password you chose in setup (never as fabric-admin: it is break glass only)")
         if guided and not wizard_finished(ctx.config_dir)["finished"]:
             steps.append(f"{BOLD}finish setting up in the console's Settings{NC} (it opens at your first sign-in): "
                          "DHCP, the DNS filter, log forwarding,\n       the memory fabric may use, passwords and "

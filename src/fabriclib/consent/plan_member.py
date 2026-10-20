@@ -11,11 +11,13 @@ MEMBER_PACKAGES = ["sssd-ad", "sssd-tools", "libnss-sss", "libpam-sss", "libsss-
 RENEW_PACKAGE = "adcli"
 KRB5_CONF = "/etc/krb5.conf"
 SSSD_CONF = "/etc/sssd/sssd.conf"
+# the Enterprise Admin's sudo on a DC's host: a local rule (2.1.6.78)
+SUDOERS = "/etc/sudoers.d/fabric-admin"
 KEYTAB = "/etc/krb5.keytab"
 NSSWITCH = "/etc/nsswitch.conf"
 HOSTS = "/etc/hosts"
 # the host files the step keeps before its first change and the undo puts back (common/keep_original)
-KEPT_FILES = (KRB5_CONF, SSSD_CONF, KEYTAB, NSSWITCH, HOSTS)
+KEPT_FILES = (KRB5_CONF, SSSD_CONF, SUDOERS, KEYTAB, NSSWITCH, HOSTS)
 # what was on before fabric (PAM profiles, sssd enabled, sudo's alternative) and the host's own computer account
 # fabric made ("account"): <config>/member.json, for the undo
 RECORD = "member.json"
@@ -57,9 +59,10 @@ def plan_member(v):
         + (f"renewed by sssd with adcli every {days} days" if days else "never renewed"),
         f"{KEYTAB} (0600): the keys of this host's own computer account {ident['account']}$ and its host/ names "
         "only, exported from the domain controller",
-        f"{SSSD_CONF} (0600): the domain's names resolve, but no domain account signs in and no domain sudo "
-        "rule applies (a host that runs a domain controller is the top tier, decisions 2.1.6.75, 2.1.6.78); sssd "
-        "enabled and restarted (local accounts, root and local sudo unchanged)"]
+        f"{SSSD_CONF} (0600): the domain's names resolve, but no domain account signs in but fabric-admin, the "
+        "Enterprise Admin, and no domain sudo rule applies (a host that runs a domain controller is the top tier, "
+        "decisions 2.1.6.75, 2.1.6.78); sssd enabled and restarted (local accounts, root and local sudo unchanged)",
+        f"{SUDOERS} (0440): fabric-admin may use sudo here (a local rule, not the domain's)"]
     managed = [
         "while this host is in fabric-managed, where an SSH server is installed: "
         "/etc/ssh/sshd_config.d/10-fabric.conf (Kerberos for SSH; local accounts' sign-in unchanged, so the host "

@@ -1,18 +1,10 @@
-"""The Enterprise Admin (manual 1.6.12.2, 2.1.6.68): setup's first admin made a member of AD's top tier, inside the DC,
-as root, on its own database (fabric's agent accounts may not change those groups, and never should).
-    docker exec -i samba python3 /fabric/ensure_top_tier.py < request.json
-The request on stdin: {"uid"}. Prints one JSON object: {"changed": [what changed, …]}. Exits 1 with the error on
-stderr."""
-import json
-import sys
-
+"""AD's top tier (manual 1.6.12.2, 2.1.6.68): an account made a member of Enterprise, Schema and Domain
+Admins, inside the DC as the system (fabric's agent accounts may not change those groups, and never should)."""
 import ldb
 
-from open_samdb import open_samdb
 from protect_top_tier import protect_top_tier
 import paths
 
-CONF = "/data/etc/smb.conf"
 # AD's top tier, by RID: Enterprise Admins, Schema Admins, Domain Admins
 TOP_GROUPS = {519: "Enterprise Admins", 518: "Schema Admins", 512: "Domain Admins"}
 
@@ -24,7 +16,7 @@ def ensure_top_tier(samdb, uid):
     Inputs:  samdb — SamDB (as the system); uid — the person's user name (a person in OU=people).
     Returns: list of str, what changed.
     Fails:   ValueError "no person <uid> in OU=people"; ldb.LdbError from a change.
-    Feeds:   this script's main."""
+    Feeds:   ensure_enterprise_admin (setup's fabric-admin)."""
     found = samdb.search(base=paths.folder_dn(samdb, "people"), scope=ldb.SCOPE_SUBTREE, attrs=["memberOf"],
                          expression=f"(&(objectCategory=person)(sAMAccountName={ldb.binary_encode(uid)}))")
     if not found:
@@ -40,12 +32,3 @@ def ensure_top_tier(samdb, uid):
         done.append(f"{uid}: a member of {name}")
     return done + protect_top_tier(samdb)
 
-
-if __name__ == "__main__":
-    try:
-        db, _ = open_samdb(CONF)
-        result = ensure_top_tier(db, json.load(sys.stdin)["uid"])
-    except Exception as e:                  # the caller reports it; the DC keeps running
-        print(f"{type(e).__name__}: {e}", file=sys.stderr)
-        sys.exit(1)
-    print(json.dumps({"changed": result}))

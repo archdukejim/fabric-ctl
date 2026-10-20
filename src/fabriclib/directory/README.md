@@ -15,8 +15,8 @@ account, so AD's limits apply to it.
 | `remove_person.py` | Remove a person (the user name typed back): account, Keycloak user, their certificates revoked (audited) |
 | `set_person_group.py` | Put a person in a group or take them out (fabric groups: directory-admins only; audited) |
 | `run_people_command.py` | `fabricctl people`: routes to the people functions |
-| `ensure_admin.py` | Setup's first admin: made once, kept in directory-admins |
-| `ensure_top_tier.py` | Setup's first admin made a member of Enterprise, Schema and Domain Admins, inside the root's DC (2.1.6.81) |
+| `ensure_admin.py` | Setup's first Directory Administrator: made once with their full name and e-mail, kept in directory-admins |
+| `person_name_refused.py` | Why a person may not take a user name: fabric's names (fabric-admin, its accounts, groups, DCs) and the built-in accounts (1.2.13) |
 | `people_password.py` | A one-time password the domain's policy accepts |
 | `constants.py` | Device types, the permission vocabulary (what it grants, what enforces it), name rules, the default device roles |
 | `device_overview.py` | Devices (with effective access), roles and the vocabulary from one directory read |
