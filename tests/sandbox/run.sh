@@ -666,6 +666,11 @@ in_box 'fabricctl domain password-policy --tier enterprise-admin --lockout-minut
 check "negative: fabric-admin locked until an admin unlocks it (--lockout-minutes 0) is refused, saying why; nothing changed" \
     "grep -q 'break glass must unlock by itself' '$OUT/tier-ea0.log' \
      && in_box 'fabricctl domain password-policy --tier enterprise-admin' | grep -q 'lockout_minutes: 15'"
+in_box 'fabricctl domain password-policy --tier enterprise-admin --lockout-threshold 0' > "$OUT/tier-ea-t0.log" 2>&1
+# covers: cli:domain.password-policy -
+check "negative: fabric-admin never locked out (--lockout-threshold 0) is refused, saying why; nothing changed (2.1.6.91)" \
+    "grep -q 'a lockout threshold of 0' '$OUT/tier-ea-t0.log' \
+     && in_box 'fabricctl domain password-policy --tier enterprise-admin' | grep -q 'lockout_threshold: 3'"
 in_box 'fabricctl domain password-policy --tier admins --history 1' > "$OUT/tier-bad.log" 2>&1
 check "negative: an unknown tier is refused, naming the two" "grep -q 'enterprise-admin' '$OUT/tier-bad.log' && grep -q 'directory-admins' '$OUT/tier-bad.log'"
 in_box 'su -s /bin/bash nobody -c "fabricctl admin reset-break-glass"' > "$OUT/reset-nonroot.log" 2>&1
@@ -677,10 +682,21 @@ check "fabric-admin locked after 3 wrong passwords (its policy): its right one r
 in_box 'fabricctl admin reset-break-glass' > "$OUT/reset.log" 2>&1
 in_box "umask 077; sed -n 's/^password:  //p' $GLASS > /root/ea-pw2"
 # covers: cli:admin +
-check "sudo fabricctl admin reset-break-glass: unlocked, a new password in the same file (the path said, never the password), audited BREAK_GLASS_RESET" \
-    "grep -q 'fabric-admin: unlocked' '$OUT/reset.log' && grep -q '$GLASS' '$OUT/reset.log' \
-     && ! in_box 'grep -qF -f /root/ea-pw2 /opt/fabric/archive/audit.log' && in_box 'grep -q BREAK_GLASS_RESET /opt/fabric/archive/audit.log' \
-     && pam fabric-admin /root/ea-pw2 && ! pam fabric-admin /root/ea-pw authenticate"
+check "sudo fabricctl admin reset-break-glass: a new password in the same file (the path said, never the password), the lockout left to run out with its end said (2.1.6.92), audited BREAK_GLASS_RESET" \
+    "grep -q 'fabric-admin is locked out until' '$OUT/reset.log' && grep -q '$GLASS' '$OUT/reset.log' \
+     && ! in_box 'grep -qF -f /root/ea-pw2 /opt/fabric/archive/audit.log' && in_box 'grep -q BREAK_GLASS_RESET /opt/fabric/archive/audit.log'"
+check "negative: while the lockout runs, even the new password is refused (the reset never shortens it)" \
+    "! pam fabric-admin /root/ea-pw2 authenticate"
+# the lockout run out: here the test clears lockoutTime, as AD does when it ends (no waiting 15 minutes)
+cat > "$OUT/unlock_ea.sh" <<'SH'
+dn=$(docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=fabric-admin)' dn | sed -n 's/^dn: //p')
+printf 'dn: %s\nchangetype: modify\nreplace: lockoutTime\nlockoutTime: 0\n' "$dn" \
+    | docker exec -i samba ldbmodify -H /data/private/sam.ldb >/dev/null
+SH
+docker cp "$OUT/unlock_ea.sh" "$NAME:/root/unlock_ea.sh"
+in_box 'bash /root/unlock_ea.sh'
+check "…once it has run out, the new password signs in; the old one is refused" \
+    "pam fabric-admin /root/ea-pw2 && ! pam fabric-admin /root/ea-pw authenticate"
 docker cp "$OUT/reset.log" "$NAME:/root/reset.log"
 check "…its output never shows the password" "! in_box 'grep -qF -f /root/ea-pw2 /root/reset.log'"
 in_box 'mv /root/ea-pw2 /root/ea-pw'
@@ -730,14 +746,14 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.directory.reset_sign_in import reset_sign_in
 v = yaml.safe_load(open("/opt/fabric/config/vars.yaml"))
 try:
-    reset_sign_in(v, "helpdesk-test", "carol", privileged=False, source="test")
+    reset_sign_in(v, "helpdesk-test", "carol", caller="bob", source="test")
     print("RESET ALLOWED")
 except ValidationError as e:
     print(e)
 PY
 docker cp "$OUT/reset_guard.py" "$NAME:/root/reset_guard.py"
 check "people: without the admin bundle, a fabric-group member's sign-in cannot be reset (carol, auditors)" \
-    "in_box 'python3 /root/reset_guard.py' | grep -q 'only an admin can reset'"
+    "in_box 'python3 /root/reset_guard.py' | grep -q 'in a fabric group (auditors)'"
 check "sign-in: admin gets in; HTTP, missing/foreign certs, non-admins and borrowed certs are refused" \
     "! grep -q '^FAIL' '$OUT/login.log' && [ \"\$(grep -c '^PASS' '$OUT/login.log')\" -ge 11 ]"
 # the setup wizard (manual 1.8.5.10 "Finished"): a fresh install opens it on the admin's first Overview of a sign-in
