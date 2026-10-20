@@ -1402,6 +1402,7 @@ function	fabricctl-jinja|src/containers/samba/remove_role.py|remove_role	1
 function	fabricctl-jinja|src/containers/samba/remove_sudo_rule.py|remove_sudo_rule	1	
 function	fabricctl-jinja|src/containers/samba/rename_ou.py|rename_ou	1	
 function	fabricctl-jinja|src/containers/samba/repair_role_owners.py|repair_role_owners	1	
+function	fabricctl-jinja|src/containers/samba/reset_break_glass.py|_locked_until	3	
 function	fabricctl-jinja|src/containers/samba/reset_break_glass.py|reset_break_glass	2	
 function	fabricctl-jinja|src/containers/samba/reset_break_glass.py|reset_break_glass (gone 0.7.2 / 2026-10-20)	1	0.7.2 / 2026-10-20
 function	fabricctl-jinja|src/containers/samba/reset_password.py|reset_password	1	

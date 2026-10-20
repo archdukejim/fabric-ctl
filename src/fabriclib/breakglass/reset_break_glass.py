@@ -11,7 +11,8 @@ from fabriclib.common.write_audit import write_audit
 def reset_break_glass(v, config_dir, actor, container="samba", owner=None, audit=write_audit):
     """Purpose: a lost break-glass password replaced (manual 1.6.13.6; 2.1.6.75): a new generated one (as setup's,
              at least its tier's minimum length) set on `fabric-admin` inside this host's writable DC as the system
-             (src/containers/samba/reset_break_glass.py; the password on stdin only), the account unlocked, the
+             (src/containers/samba/reset_break_glass.py; the password on stdin only), a lockout in force left to run
+             its time out (2.1.6.92: the reset never shortens it, and says when it ends), the
              password written once to `~/fabric-admin/` of the person running sudo (write_break_glass_file, why
              "reset"), and audited `BREAK_GLASS_RESET` (never the password).
     Inputs:  v — rendered vars: ad_dc_type, ad_domain, ad_join_server, ad_tier_password_policies; config_dir — the
@@ -19,7 +20,7 @@ def reset_break_glass(v, config_dir, actor, container="samba", owner=None, audit
              name their own); owner — (login, home, uid, gid) for the file, default sudo_owner(); audit — the audit
              writer (tests give their own).
     Returns: {"path": the file's path, "changed": [str], "disabled": bool (fabric-admin is disabled: reported, never
-             changed)}.
+             changed), "locked_until": the end of its lockout in UTC (ISO 8601), or None}.
     Fails:   ValidationError, before anything changes, on a host whose DC is read-only (naming the writable DC to run
              it on) or with no domain; ValidationError with the DC's message (the DC not running, no fabric-admin, the
              policy refusing the password); OSError when the file cannot be written (the password then set but
@@ -41,6 +42,6 @@ def reset_break_glass(v, config_dir, actor, container="samba", owner=None, audit
                               + ((res.stderr or res.stdout).strip().splitlines() or ["the DC is not running"])[-1])
     out = json.loads(res.stdout)
     path = write_break_glass_file(password, v["ad_domain"], config_dir, why="reset", owner=owner)
-    unlocked = any("unlocked" in c for c in out["changed"])
-    audit(actor, "BREAK_GLASS_RESET", f"file={path} unlocked={'yes' if unlocked else 'no'}", "cli")
-    return {"path": path, "changed": out["changed"], "disabled": out["disabled"]}
+    until = out.get("locked_until")
+    audit(actor, "BREAK_GLASS_RESET", f"file={path} locked_until={until or 'none'}", "cli")
+    return {"path": path, "changed": out["changed"], "disabled": out["disabled"], "locked_until": until}

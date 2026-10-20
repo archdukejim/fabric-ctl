@@ -7,6 +7,7 @@ password.
 """
 import base64
 import contextlib
+import datetime
 import functools
 import io
 import json
@@ -772,16 +773,28 @@ reset = reset_break_glass({**v, "ad_tier_password_policies": TIERS}, GLASS_CONF,
                           audit=note)
 glass = open(reset["path"]).read()
 new_pw = glass.split("password:", 1)[1].split("\n", 1)[0].strip()
+lock_after = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=fabric-admin)", "lockoutTime").stdout
 check("reset-break-glass: a new generated password (24, each class) in ~/fabric-admin/fabric-admin-password.txt "
-      "(0700/0600), the account unlocked, audited BREAK_GLASS_RESET without the password",
+      "(0700/0600), the lockout left in force with its end said (about 15 minutes on; 2.1.6.92), audited "
+      "BREAK_GLASS_RESET without the password",
       reset["path"] == os.path.join(GLASS_HOME, "fabric-admin", "fabric-admin-password.txt")
       and len(new_pw) == 24 and new_pw != top_pw and not reset["disabled"]
-      and any("unlocked" in c for c in reset["changed"])
+      and reset["changed"] == ["fabric-admin: a new password"] and reset["locked_until"]
+      and 0 < (datetime.datetime.strptime(reset["locked_until"], "%Y-%m-%dT%H:%M:%SZ")
+               - datetime.datetime.utcnow()).total_seconds() <= 15 * 60 + 5
+      and "lockoutTime: 0" not in lock_after and f"locked_until={reset['locked_until']}" in str(audited)
       and os.stat(os.path.dirname(reset["path"])).st_mode & 0o777 == 0o700
       and os.stat(reset["path"]).st_mode & 0o777 == 0o600
       and [a[1] for a in audited] == ["BREAK_GLASS_RESET"] and new_pw not in str(audited)
       and json.load(open(os.path.join(GLASS_CONF, "break-glass.json")))["by"] == "reset", (reset, audited))
-check("...it signs in at once with the new password (no lockout left); the old one is refused",
+check("negative: while the lockout runs, even the new password is refused (the reset never shortens it)",
+      as_user("fabric-admin", new_pw, "ldbsearch").returncode != 0)
+# the lockout's time run out (here by the system clearing lockoutTime, as AD does when it ends; no waiting 15
+# minutes in a suite)
+fa_dn = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=fabric-admin)", "dn").stdout.split("dn: ", 1)[1]
+sh(["docker", "exec", "-i", DC, "ldbmodify", "-H", "/data/private/sam.ldb"], ok=False,
+   input=f"dn: {fa_dn.splitlines()[0]}\nchangetype: modify\nreplace: lockoutTime\nlockoutTime: 0\n")
+check("...once it has run out, the new password signs in; the old one is refused",
       as_user("fabric-admin", new_pw, "ldbsearch").returncode == 0
       and as_user("fabric-admin", top_pw, "ldbsearch").returncode != 0)
 top_pw = new_pw

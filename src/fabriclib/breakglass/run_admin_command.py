@@ -6,8 +6,8 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.common.paths import INSTALL_DIR
 
 USAGE = """usage: sudo fabricctl admin reset-break-glass   fabric-admin's lost password replaced (a new generated one,
-           written once to ~/fabric-admin/ of the person running sudo) and the account unlocked; on a host with a
-           writable domain controller, as root (manual 4.6.9)"""
+           written once to ~/fabric-admin/ of the person running sudo), a lockout left to run out (when it ends said);
+           on a host with a writable domain controller, as root (manual 4.6.9)"""
 
 
 def run_admin_command(v, args, config_dir=None):
@@ -30,6 +30,9 @@ def run_admin_command(v, args, config_dir=None):
         return 1
     for line in done["changed"]:
         print(f"  {line}")
+    if done["locked_until"]:
+        print(f"  fabric-admin is locked out until {done['locked_until']} (UTC): the new password works from then; "
+              "the reset never shortens a lockout (2.1.6.92)")
     if done["disabled"]:
         print("  fabric-admin is disabled in the directory: fabric never enables it; an Enterprise Admin decides")
     print(f"fabric-admin's new password is in {done['path']} (only there): store it, then delete the file")
