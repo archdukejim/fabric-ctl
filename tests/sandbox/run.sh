@@ -575,12 +575,14 @@ in_box "adcli update --domain=ad.test --domain-controller=$DCNAME --computer-pas
 KVNO2=$(in_box 'klist -k /etc/krb5.keytab' | awk '/FABRIC-SBX\$@/ {print $1}' | sort -n | tail -1)
 in_box 'systemctl restart sssd; sss_cache -E' >/dev/null 2>&1
 host_kinit() { in_box "KRB5CCNAME=FILE:/tmp/cc-host kinit -k 'FABRIC-SBX\$@AD.TEST' && kdestroy -c FILE:/tmp/cc-host"; }
-check "the renewal sssd runs (adcli, from the host's keytab) changes the password: its keys move on, the host signs in with them, a fabric admin still signs in" \
-    "[ -n '$KVNO1' ] && [ '${KVNO2:-0}' -gt '$KVNO1' ] && host_kinit && pam fabric-admin /root/admin-pw"
+check "the renewal sssd runs (adcli, from the host's keytab) changes the password: its keys move on, the host signs in with them, sssd still resolves the admin (whose sign-in stays refused: 2.1.6.78)" \
+    "[ -n '$KVNO1' ] && [ '${KVNO2:-0}' -gt '$KVNO1' ] && host_kinit && in_box 'getent passwd fabric-admin' >/dev/null \
+     && ! pam fabric-admin /root/admin-pw"
 in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_load(open(p)); v['host_machine_password_renew_days']=0; yaml.safe_dump(v, open(p, 'w'))\""
 in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-renew-off.log" 2>&1
-check "renewal off again: sssd's age back to 0, the keytab the DC's current keys, the admin signs in" \
-    "in_box 'grep -qx \"ad_maximum_machine_account_password_age = 0\" /etc/sssd/sssd.conf' && pam fabric-admin /root/admin-pw"
+check "renewal off again: sssd's age back to 0, the keytab the DC's current keys, the admin resolves (sign-in refused)" \
+    "in_box 'grep -qx \"ad_maximum_machine_account_password_age = 0\" /etc/sssd/sssd.conf' \
+     && in_box 'getent passwd fabric-admin' >/dev/null && ! pam fabric-admin /root/admin-pw"
 NSS_ORIG=$(in_box 'md5sum < /opt/fabric/config/host-originals/etc/nsswitch.conf')
 in_box 'fabricctl setup --undo member --non-interactive' > "$OUT/undo-member-refused.log" 2>&1
 # covers: cli:setup -
@@ -608,9 +610,9 @@ in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_
 in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-again.log" 2>&1
 # the undo put /etc/hosts back as it was, the test's name for the host's own SSH (above) with it
 in_box "grep -q ' fabric-sbx.ad.test\$' /etc/hosts || echo '127.0.0.2 fabric-sbx.ad.test' >> /etc/hosts"
-check "approved again: a member once more, its own account made again in OU=fabric-hosts and managed (the admin resolves, signs in, and over SSH with Kerberos)" \
-    "in_box 'getent passwd fabric-admin' >/dev/null && pam fabric-admin /root/admin-pw && host_account | grep -q 'OU=fabric-hosts,' \
-     && in_member && ssh_krb fabric-admin /root/admin-pw"
+check "approved again: a member once more, its own account made again in OU=fabric-hosts and managed (the admin resolves; no domain account signs in: 2.1.6.78)" \
+    "in_box 'getent passwd fabric-admin' >/dev/null && ! pam fabric-admin /root/admin-pw && host_account | grep -q 'OU=fabric-hosts,' \
+     && in_member"
 in_box 'rm -f /root/localop-pw /root/wrong-pw /root/bob-pw /root/dora-pw'
 
 echo "--- Keycloak's database password, rotated by OpenBao (2.1.7.4)"
