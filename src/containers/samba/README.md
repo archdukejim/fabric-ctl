@@ -96,3 +96,15 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `explain_grants.py` | Which grants reach a person (and on a machine), and why; what they may do there |
 | `ship_grants.py` | The grants a fresh install ships (1.6.13.5), made once at the root |
 | `grants_tool.py` | The grants' entry point (as root, like gpo_tool): list, show, add, set, remove, compile, explain |
+| `authorize_action.py` | fabric-agent's check (1.6.12.17): the caller's tier, the grants' people and machines rights, a group's two levels; refused with why |
+| `group_kind.py` | A group's kind: AD's, a tier's, a bundle's, fabric's, filled, computed, a machine group, an admin's own |
+| `group_store.py` | A group's managers and controls in `CN=groups,CN=fabric,CN=System` (one `msDS-App-Configuration` per group, by objectGUID) |
+| `group_uses.py` | Where a group is used: grants, sudo rules, other groups' managers |
+| `list_groups.py` / `group_scope.py` / `managed_groups.py` | The groups and kinds; one group's two levels; the groups a person manages |
+| `create_group.py` / `remove_group.py` / `set_group_managers.py` | An admin's own group made (with a gid), deleted (unused only), its managers set |
+| `ou_paths.py` | OUs by path; where an admin's own may go; fabric's fixed OUs |
+| `list_ous.py` / `create_ou.py` / `rename_ou.py` / `delete_ou.py` | The OU tree; an admin's own OU made, renamed, deleted (empty only) |
+| `move_machine.py` / `set_machine_type.py` / `set_machine_site.py` | A computer's folder, type group, site groups |
+| `list_spns.py` | Every SPN and its account, duplicates flagged |
+| `edit_person.py` / `unlock_person.py` | A person's display name and e-mail; a lockout cleared |
+| `change_own_password.py` | A person's own password: bound as them over NTLM, the change theirs (stdin only) |

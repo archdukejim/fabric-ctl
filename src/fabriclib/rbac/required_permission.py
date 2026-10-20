@@ -16,6 +16,9 @@ GET = {
     ("domain",): "domain:read", ("gpo",): "domain:read",
     ("domain", "grants"): "domain:read", ("domain", "grants", "*"): "domain:read",
     ("domain", "grants", "explain", "*"): "domain:read", ("domain", "grants", "explain", "*", "*"): "domain:read",
+    ("domain", "kerberos"): "domain:read", ("domain", "kerberos", "spns"): "domain:read",
+    ("groups",): "domain:read", ("groups", "*"): "domain:read", ("ous",): "domain:read",
+    ("account", "groups"): "session",                  # the groups a person manages (1.8.6.6): theirs alone
     ("host-groups",): "domain:read", ("sudo",): "domain:read",
     ("federation",): "federation:read",
     ("vault",): "vault:status", ("vault", "slots"): "vault:status", ("vault", "devices"): "vault:status",
@@ -51,9 +54,17 @@ POST = {
     ("people",): "people:create", ("people", "*", "reset"): "people:reset",
     ("people", "*", "disable"): "people:disable", ("people", "*", "enable"): "people:disable",
     ("people", "*", "delete"): "people:remove", ("people", "*", "groups"): "people:groups",
+    ("people", "*", "edit"): "people:edit", ("people", "*", "unlock"): "people:reset",
+    ("groups",): "groups:admin", ("groups", "*", "delete"): "groups:admin",
+    ("groups", "*", "managers"): "groups:admin",
+    ("groups", "*", "members"): "session",            # a group's managers need no permission: fabric-agent checks
+    ("ous",): "ous:admin", ("ous", "rename"): "ous:admin", ("ous", "delete"): "ous:admin",
+    ("account", "password"): "session",               # a person's own password (1.8.6.6): theirs alone
     ("machines",): "machines:admin", ("machines", "*", "enable"): "machines:admin",
     ("machines", "*", "disable"): "machines:admin", ("machines", "*", "delete"): "machines:admin",
-    ("domain", "password-policy"): "domain:admin",
+    ("machines", "*", "move"): "machines:admin", ("machines", "*", "type"): "machines:admin",
+    ("machines", "*", "sites"): "machines:admin", ("machines", "*", "keytab"): "machines:admin",
+    ("domain", "password-policy"): "domain:admin", ("domain", "kerberos", "policy"): "domain:admin",
     ("domain", "grants"): "groups:admin", ("domain", "grants", "sync"): "groups:admin",
     ("domain", "grants", "*"): "groups:admin", ("domain", "grants", "*", "delete"): "groups:admin",
     ("gpo", "search"): "domain:read", ("gpo", "set"): "gpo:admin", ("gpo", "clear"): "gpo:admin",

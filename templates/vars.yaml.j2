@@ -189,6 +189,8 @@ ad_password_policy: {{ ad_password_policy | default({}, true) | to_json }}
 {# the tiers' own password policies (2.1.6.71), set only on the host: fabric-admin's and the Directory Administrators',
    each an AD fine-grained password policy; setup starts them as copies of the default (fabric-admin: 3, then 15 minutes) #}
 ad_tier_password_policies: {{ ad_tier_password_policies | default({}, true) | to_json }}
+{# the domain's Kerberos ticket policy (manual 1.6.12.9): ticket_hours, renew_days, skew_minutes; AD's defaults #}
+ad_kerberos_policy: {{ ad_kerberos_policy | default({'ticket_hours': 10, 'renew_days': 7, 'skew_minutes': 5}, true) | to_json }}
 ad_old_password_minutes: {{ ad_old_password_minutes | default(0) | int }}
 {# the DC's signing socket for Windows members' time (2.1.13.1), where the host's chrony reaches it: the one path
    Ubuntu's AppArmor profile for chronyd allows (manual 1.6.5.8) #}

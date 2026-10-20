@@ -257,6 +257,31 @@ code, out = on(box, "fabric-managed check; ls /etc/ssh/sshd_config.d/ /etc/syste
 check("24.04: taken out of fabric-managed, its next check removes fabric's SSH and DNS configuration",
       "removed" in out and "10-fabric.conf" not in out and "fabric.conf" not in out, out)
 
+# a service's keytab (manual 1.6.12.17.8): the command the console shows, run by the machine's administrator
+from fabriclib.domain.keytab_command import keytab_command  # noqa: E402
+NAME = RELEASES["24.04"]
+shown = keytab_command(V, NAME, "HTTP", "www-data", secrets=SECRETS, container=DC)
+code, out = on(box, shown["command"].removeprefix("sudo ") + " && stat -c 'owner=%U mode=%a' /etc/krb5-http.keytab "
+                    "&& klist -k /etc/krb5-http.keytab | awk 'NR>3 {print $2}' | sort -u")
+spns = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={NAME}$)",
+           "servicePrincipalName"], ok=False).stdout.lower()
+keys = [ln for ln in out.splitlines() if "@" in ln]
+check("24.04: fabric-keytab as the console shows it: HTTP/<its names> on its own computer account, the keytab "
+      "/etc/krb5-http.keytab owned by www-data, 0600, holding HTTP's keys only",
+      code == 0 and "owner=www-data mode=600" in out and f"serviceprincipalname: http/{NAME}\n" in spns
+      and keys and all(k.lower().startswith("http/") for k in keys),
+      (shown, out, spns))
+for args, words in (("--machine other --service HTTP --user www-data", "run it on other"),
+                    (f"--machine {NAME} --service host --user www-data", "the machine's own name"),
+                    (f"--machine {NAME} --service HTTP --user nobody-here", "no user nobody-here"),
+                    (f"--machine {NAME} --service HTTP --user www-data --path /etc/krb5.keytab", "--path is an"),
+                    (f"--machine {NAME} --frob x", "usage")):
+    code, out = on(box, f"fabric-keytab {args}")
+    check(f"negative: 24.04: fabric-keytab {args} refused ({words})", code != 0 and words in out, out)
+code, out = on(box, f"setpriv --reuid=65534 --regid=65534 --clear-groups /usr/local/sbin/fabric-keytab --machine {NAME} "
+                    "--service HTTP --user www-data")
+check("negative: 24.04: fabric-keytab without sudo refused", code != 0 and "run it with sudo" in out, out)
+
 # 26.04: pre-created by fabricctl domain add-machine, joined with the one-time password
 box, ok = client("26.04", RELEASES["26.04"])
 check("26.04: the client container is ready (ubuntu:26.04)", ok)

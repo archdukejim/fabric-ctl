@@ -595,21 +595,24 @@ check("stop linking calibre -> its link gone from vars.yaml",
 # the password policy edited in the Domain section (2.1.2.22 item 2), checked as the command checks it
 POLICY = {"minimum_length": "14", "history": "24", "minimum_age_days": "1", "maximum_age_days": "365",
           "lockout_threshold": "5", "lockout_minutes": "30", "lockout_window_minutes": "15", "complexity": "on"}
-# covers: web:post.directory.domain.password-policy agent:post.domain.password-policy +
+# the form reaches fabric-agent, whose check of the caller (a Directory Administrator, 1.6.12.17.6) is the DC's: this
+# suite has none, so a good policy is refused saying so and nothing is saved (fail closed); saved by a Directory
+# Administrator through the same route against a real DC in tests/samba/domain.py
+# covers: web:post.directory.domain.password-policy +
+vars_before = open(f"{W}/fabric/config/vars.yaml").read()
 st, hd, *_ = req("POST", "/directory/domain/password-policy", POSTH, {"csrf": csrf, **POLICY}, cookie=session)
-vars_text = open(f"{W}/fabric/config/vars.yaml").read()
-check("password policy saved from the console (domain:admin) -> in vars.yaml, the next apply writes it",
-      st == 303 and "Apply" in urllib.parse.unquote_plus(hd.get("Location", "")) and "minimum_length: 14" in vars_text
-      and "lockout_minutes: 30" in vars_text, (hd, vars_text[-400:]))
+check("password policy from the console: passes the console's checks, reaches fabric-agent, refused there without a DC "
+      "to check the caller (fail closed), vars.yaml unchanged",
+      st == 303 and "the domain controller is not running" in urllib.parse.unquote_plus(hd.get("Location", ""))
+      and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, hd)
 for form, why in (({"lockout_minutes": "5", "lockout_window_minutes": "15"}, "at least as long"),
                   ({"minimum_age_days": "400"}, "must be below"), ({"minimum_length": "x"}, "whole number")):
     # covers: web:post.directory.domain.password-policy -
     st, hd, *_ = req("POST", "/directory/domain/password-policy", POSTH, {"csrf": csrf, **POLICY, **form},
                      cookie=session)
-    check(f"password policy refused ({why}): said why, vars.yaml unchanged",
+    check(f"password policy refused ({why}): said why (before the caller's check), vars.yaml unchanged",
           why in urllib.parse.unquote_plus(hd.get("Location", ""))
-          and "minimum_length: 14" in open(f"{W}/fabric/config/vars.yaml").read()
-          and "lockout_minutes: 30" in open(f"{W}/fabric/config/vars.yaml").read(), hd)
+          and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, hd)
 st, hd, sc, body = req("GET", "/audit", ALICE, cookie=session)
 # covers: web:get.audit agent:get.audit agent:post.events +
 check("audit log records web actions with user", "User: alice (web) | Action: DNS_ADD" in body
@@ -917,6 +920,45 @@ for route, perm in (("disable", "people:disable"), ("enable", "people:disable"),
     out = agent_call("POST", f"/v1/people/alice/{route}", "carol", AUDITOR_ROLES, {"confirm": "alice"})
     # covers: agent:post.people.*.disable agent:post.people.*.enable agent:post.people.*.delete agent:post.people.*.groups -
     check(f"auditor token: may not {route} a person (403, {perm})", " 403 " in out and perm in out, out)
+# domain management (manual 1.6.12.17): each route refuses a token without its permission, naming it, before the DC
+# is asked; what the DC then decides (the tiers, the grants, a group's managers) is tests/samba/domain.py's
+PKI_ONLY = bundle_roles("fabric-pki-operator")                  # no domain:read
+for method, path, roles, perm in (
+        ("POST", "/v1/people/alice/edit", AUDITOR_ROLES, "people:edit"),
+        ("POST", "/v1/people/alice/unlock", AUDITOR_ROLES, "people:reset"),
+        ("POST", "/v1/groups", AUDITOR_ROLES, "groups:admin"),
+        ("POST", "/v1/groups/ops/delete", bundle_roles("fabric-helpdesk"), "groups:admin"),
+        ("POST", "/v1/groups/ops/managers", AUDITOR_ROLES, "groups:admin"),
+        ("POST", "/v1/ous", bundle_roles("fabric-helpdesk"), "ous:admin"),
+        ("POST", "/v1/ous/rename", AUDITOR_ROLES, "ous:admin"),
+        ("POST", "/v1/ous/delete", AUDITOR_ROLES, "ous:admin"),
+        ("POST", "/v1/machines/ws1/move", AUDITOR_ROLES, "machines:admin"),
+        ("POST", "/v1/machines/ws1/type", AUDITOR_ROLES, "machines:admin"),
+        ("POST", "/v1/machines/ws1/sites", AUDITOR_ROLES, "machines:admin"),
+        ("POST", "/v1/machines/ws1/keytab", AUDITOR_ROLES, "machines:admin"),
+        ("POST", "/v1/domain/kerberos/policy", bundle_roles("fabric-equipment-operator"), "domain:admin"),
+        ("GET", "/v1/groups", PKI_ONLY, "domain:read"),
+        ("GET", "/v1/groups/ops", PKI_ONLY, "domain:read"),
+        ("GET", "/v1/ous", PKI_ONLY, "domain:read"),
+        ("GET", "/v1/domain/kerberos", PKI_ONLY, "domain:read"),
+        ("GET", "/v1/domain/kerberos/spns", PKI_ONLY, "domain:read")):
+    out = agent_call(method, path, "carol", roles, {"name": "x"})
+    # covers: agent:post.people.*.edit agent:post.people.*.unlock agent:post.groups agent:post.groups.*.delete -
+    # covers: agent:post.groups.*.managers agent:post.ous agent:post.ous.rename agent:post.ous.delete -
+    # covers: agent:post.machines.*.move agent:post.machines.*.type agent:post.machines.*.sites -
+    # covers: agent:post.machines.*.keytab agent:post.domain.kerberos.policy agent:get.groups agent:get.groups.* -
+    # covers: agent:get.ous agent:get.domain.kerberos agent:get.domain.kerberos.spns -
+    check(f"{method} {path} refused by fabric-agent without {perm} (403, named)", " 403 " in out and perm in out, out)
+out = agent_call("POST", "/v1/machines/ws1/move", "carol", ["fabric:machines:admin"], {"path": "machines"})
+check("moving a computer needs ous:admin as well as machines:admin (refused, named)", " 400 " in out and "ous:admin" in out,
+      out)
+for method, path in (("POST", "/v1/groups/ops/members"), ("POST", "/v1/account/password"),
+                     ("GET", "/v1/account/groups")):
+    out = agent_call(method, path, "carol", ["fabric:status:read"], {"action": "add", "member": "bob", "current": "a1",
+                                                                     "new": "b2"})
+    # covers: agent:post.groups.*.members agent:post.account.password agent:get.account.groups -
+    check(f"{method} {path}: any signed-in person passes the gate and the DC decides (none here: 400, saying so)",
+          " 403 " not in out and " 400 " in out, out)
 out = agent_call("POST", "/v1/jobs/images", "carol", AUDITOR_ROLES, {"action": "update", "service": "nginx"})
 # covers: agent:post.jobs.images -
 check("auditor token: may not update an image (403, images:update)", " 403 " in out and "images:update" in out, out)

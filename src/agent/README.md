@@ -26,6 +26,10 @@ arbitrary commands.
 | `README.md` | This file |
 | `post_domain.py` | The domain section: the site's machines (pre-create, enable, disable, remove) and its admin settings GPO |
 | `post_grants.py` | The grants (1.6.13.7): add, change, remove, compile now (`groups:admin`) |
+| `post_people.py` | A person (1.6.12.17.6): edit, unlock, reset, disable, enable, remove, groups, add; each checked by fabric-agent for the token's caller |
+| `post_groups.py` | Groups: create, delete, managers (`groups:admin`), members (the DC decides: the tier above, or a manager) |
+| `post_ous.py` | The admins' own OUs: create, rename, delete (`ous:admin`) |
+| `post_account.py` | A person's own account: their password, as them, at once (any sign-in) |
 | `post_host_access.py` | Host groups (create, delete, machines in and out) and sudo rules (add, remove), in the directory at once (1.6.11.7) |
 | `post_security.py` | POST /v1/security/raise and /kerberos: raise a sign-in layer or turn Kerberos sign-in on or off, then apply |
 | `job_store.py` | Background jobs (doctor, an image update): started by one call, followed by id, read only by who started them; kept in memory |

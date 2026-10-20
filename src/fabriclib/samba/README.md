@@ -21,6 +21,9 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `converge_domain.py` | The wanted state handed to the converge code inside the running DC; what changed (after every start and apply) |
 | `domain_status.py` | What `fabricctl domain status` shows: the DC, whether it runs, its roles, the policy in force |
 | `set_domain_password_policy.py` | Change the password policy in the settings (checked whole, audited); the next apply writes it |
+| `check_kerberos_policy.py` | The ticket policy's limits (1.6.12.17.7): checked with the settings |
+| `set_kerberos_policy.py` | The ticket policy changed in the settings (checked, audited `AD_KERBEROS_POLICY`); the next apply writes it |
+| `kerberos_overview.py` | The realm, its KDCs, the ticket policy, the domain logon's sign-in |
 | `run_domain_command.py` | `fabricctl domain status`, `password-policy`, `add-machine`, `sort-machines` and `host-managed` (routing only) |
 | `writable_server.py` | The DC a write to the domain goes to: this site's, or a read-only DC's writable partner (`ad_join_server`); refused with none known (2.1.6.52) |
 | `allow_rodc_cache.py` | At a site whose DC is read-only: puts `rodc-cache-<dc>` on that DC's password replication allow list, at the writable DC (2.1.6.52) |

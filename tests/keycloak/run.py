@@ -589,29 +589,81 @@ def _no_sessions(user_id):
     return st == 404 or body == []
 
 
-done = enabled_mod.set_person_enabled(pv, "root", "fred", False, privileged=True, source="cli", secrets=ps,
+done = enabled_mod.set_person_enabled(pv, "root", "fred", False, source="cli", secrets=ps,
                                       container=DC)
 check("disable: their Keycloak sessions end at once", done["changed"]
       and _no_sessions(fred_kc[0]["id"]), done)
 st, location, page = sign_in(Browser(root_ca), APP_AUTH, "fred", fred_pw)
 check("disable: a new sign-in is refused, and so is NTLM", "code=" not in location and not ntlm_signs_in("fred", fred_pw),
       page[:300])
-enabled_mod.set_person_enabled(pv, "root", "fred", True, privileged=True, source="cli", secrets=ps, container=DC)
+enabled_mod.set_person_enabled(pv, "root", "fred", True, source="cli", secrets=ps, container=DC)
 st, location, page = sign_in(Browser(root_ca), APP_AUTH, "fred", fred_pw)
 check("enable: they sign in again", "code=" in location,
       (st, location[:120], re.findall(r'(?s)<span[^>]*(?:kc-feedback-text|input-error)[^>]*>(.*?)</span>', page)))
 check("refused: disabling the last admin who can sign in, or a remove without the user name typed back",
-      refused(enabled_mod.set_person_enabled, pv, "root", "jim", False, True, "cli", ps, DC)
-      and refused(remove_mod.remove_person, pv, "root", "fred", "fre", True, "cli", ps, DC))
+      refused(enabled_mod.set_person_enabled, pv, "root", "jim", False, None, "cli", ps, DC)
+      and refused(remove_mod.remove_person, pv, "root", "fred", "fre", None, "cli", ps, DC))
 check("refused: the helpdesk disabling an admin (a fabric group's member)",
-      refused(enabled_mod.set_person_enabled, pv, "helper", "jim", False, False, "web", ps, DC))
+      refused(enabled_mod.set_person_enabled, pv, "helper", "jim", False, "helper", "web", ps, DC))
 ledger, revoked = os.path.join(W, "issued.jsonl"), os.path.join(W, "revoked.jsonl")
-gone = remove_mod.remove_person(pv, "root", "fred", "fred", privileged=True, source="cli", secrets=ps, container=DC,
+gone = remove_mod.remove_person(pv, "root", "fred", "fred", source="cli", secrets=ps, container=DC,
                                 ledger=ledger, revoked=revoked)
 check("remove: the directory account and Keycloak's copy are gone, sign-in refused",
       gone == {"uid": "fred", "revoked": []} and kc.call("GET", f"{R}/users?username=fred&exact=true")[1] == []
       and not ntlm_signs_in("fred", fred_pw), gone)
 check("each change audited", PEOPLE_AUDIT == ["PERSON_DISABLE", "PERSON_ENABLE", "PERSON_REMOVE"], PEOPLE_AUDIT)
+
+# ---- a person's own password (manual 1.6.12.17.9, 2.1.1.62): through fabric-agent to the DC as the person, with the
+# current password, at once; their sessions elsewhere end, the one they changed it from stays
+import agent.post_account as account_mod  # noqa: E402
+import fabriclib.domain.change_own_password as own_mod  # noqa: E402
+
+OWN_AUDIT = []
+own_mod.write_audit = lambda actor, event, detail, source: OWN_AUDIT.append((actor, event, detail))
+account_mod.load_vars = lambda: pv
+real_change = own_mod.change_own_password
+# the route's own code, its DC this suite's (fabric-agent's is the host's `samba`) and its secrets this suite's
+account_mod.change_own_password = lambda *a, **k: real_change(*a, **{**k, "secrets": ps, "container": DC})
+gina_pw, gina_new = "Gi-" + random_password(20), "Gn-" + random_password(20)
+person("gina")
+sh(["docker", "exec", DC, "samba-tool", "user", "setpassword", "gina", f"--newpassword={gina_pw}", "-s",
+    "/data/etc/smb.conf"])
+gina_browsers = [Browser(root_ca), Browser(root_ca)]      # both alive: a jar is named by its id
+for b in gina_browsers:
+    if os.path.exists(b.jar):
+        os.remove(b.jar)
+for b in gina_browsers:
+    sign_in(b, APP_AUTH, "gina", gina_pw)
+gina_kc = kc.call("GET", f"{R}/users?username=gina&exact=true")[1][0]
+before = [s["id"] for s in kc.call("GET", f"{R}/users/{gina_kc['id']}/sessions")[1]]
+for body, user, words in (({"current": "Wrong-" + random_password(12), "new": gina_new}, "gina",
+                           "the current password is wrong"),
+                          ({"current": gina_pw, "new": "short"}, "gina", "password policy refused"),
+                          ({"current": gina_pw, "new": gina_pw}, "gina", "the new password is the current one"),
+                          ({"current": gina_pw}, "gina", "must be text"),
+                          ({"current": gina_pw, "new": gina_new}, None, "sign in as them")):
+    try:
+        account_mod.post_account(["account", "password"], user, body, before[0] if before else None)
+        err = ""
+    except ValidationError as e:
+        err = str(e)
+    # covers: agent:post.account.password -
+    check(f"own password refused ({words}): the password unchanged, no session ended, nothing audited",
+          words in err and ntlm_signs_in("gina", gina_pw) and not OWN_AUDIT
+          and len(kc.call("GET", f"{R}/users/{gina_kc['id']}/sessions")[1]) == len(before), err)
+done = account_mod.post_account(["account", "password"], "gina", {"current": gina_pw, "new": gina_new}, before[0])
+after = [s["id"] for s in kc.call("GET", f"{R}/users/{gina_kc['id']}/sessions")[1]]
+# covers: agent:post.account.password +
+check("own password changed with the current one: at once in AD (the new signs in over NTLM, the old not), the other "
+      "Keycloak session ended, the one it was changed from kept, audited without the password",
+      len(before) == 2 and done == {"uid": "gina", "changed": True, "sessions_ended": 1} and after == [before[0]]
+      and ntlm_signs_in("gina", gina_new) and not ntlm_signs_in("gina", gina_pw)
+      and OWN_AUDIT == [("gina", "PASSWORD_CHANGE_OWN", "user=gina")], (before, done, after, OWN_AUDIT))
+fresh = Browser(root_ca)
+if os.path.exists(fresh.jar):                              # a jar left by an earlier browser of the same id
+    os.remove(fresh.jar)
+st, location, page = sign_in(fresh, APP_AUTH, "gina", gina_new)
+check("...and Keycloak's sign-in takes the new password", "code=" in location, (st, location[:120]))
 
 if not os.environ.get("KEYCLOAK_TEST_KEEP"):
     cleanup()

@@ -15,7 +15,7 @@ if len(sys.argv) != 3:
     sys.exit(__doc__)
 user, out = sys.argv[1:3]
 v = yaml.safe_load(open("/opt/fabric/config/vars.yaml"))
-password = reset_sign_in(v, "test", user, privileged=True, source="test")
+password = reset_sign_in(v, "test", user, caller=None, source="test")
 fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
 with os.fdopen(fd, "w") as f:
     f.write(password + "\n")

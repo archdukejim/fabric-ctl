@@ -15,6 +15,7 @@ client these files use.
 | `fabric_groups.py` | The directory groups that carry a fabric bundle |
 | `enable_person.py` | Keycloak's copy of a person enabled again after their directory account is |
 | `sign_out_person.py` | End a person's Keycloak sessions (and drop their TOTP, or Keycloak's copy of them) |
+| `end_other_sessions.py` | A person's Keycloak sessions ended but one (after their own password change) |
 | `user_has_role.py` | Whether Keycloak grants a user a realm role (directly or through a group) |
 | `verify_user_token.py` | fabric-agent: verify a signed-in person's ID token itself (signature, issuer, audience, expiry) |
 | `configure_keycloak.py` | Configure Keycloak idempotently (what `lib/keycloak_bootstrap.py` runs): realm, LDAP (with Kerberos once the keytab is in place), roles, sign-in flows, clients |

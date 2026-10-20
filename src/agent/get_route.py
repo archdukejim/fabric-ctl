@@ -16,6 +16,11 @@ from fabriclib.directory.device_overview import device_overview
 from fabriclib.directory.list_host_groups import list_host_groups
 from fabriclib.directory.list_people import list_people
 from fabriclib.directory.list_sudo_rules import list_sudo_rules
+from fabriclib.domain.list_groups import list_groups
+from fabriclib.domain.list_ous import list_ous
+from fabriclib.domain.list_spns import list_spns
+from fabriclib.domain.my_groups import my_groups
+from fabriclib.domain.show_group import show_group
 from fabriclib.grants.explain_grant import explain_grant
 from fabriclib.grants.list_grants import list_grants
 from fabriclib.grants.show_grant import show_grant
@@ -27,6 +32,7 @@ from fabriclib.pki.list_issued import list_issued
 from fabriclib.radius.radius_guides import radius_guides
 from fabriclib.samba.domain_overview import domain_overview
 from fabriclib.samba.gpo_overview import gpo_overview
+from fabriclib.samba.kerberos_overview import kerberos_overview
 from fabriclib.radius.radius_overview import radius_overview
 from fabriclib.system.service_status import service_status
 from fabriclib.system.version_info import version_info
@@ -61,6 +67,10 @@ READS = {
     ("people",): lambda: list_people(load_vars()),
     ("domain",): lambda: domain_overview(load_vars()),
     ("domain", "grants"): lambda: list_grants(load_vars()),
+    ("domain", "kerberos"): lambda: kerberos_overview(load_vars()),
+    ("domain", "kerberos", "spns"): lambda: list_spns(load_vars()),
+    ("groups",): lambda: list_groups(load_vars()),
+    ("ous",): lambda: list_ous(load_vars()),
     ("host-groups",): lambda: list_host_groups(load_vars()),
     ("sudo",): lambda: list_sudo_rules(load_vars()),
     ("gpo",): lambda: gpo_overview(load_vars()),
@@ -86,7 +96,9 @@ def get_route(route, user=None):
     Returns: the operation's JSON-serialisable result. zones/<key>: zone_detail; vault/slots: the unlock methods with
              this host's name; images: the image status rows; reminders: host_reminders (the console's top bar);
              pki/acme: {info, machines, domain}; jobs/<id>: the job; domain/grants: list_grants; domain/grants/<name>:
-             show_grant; domain/grants/explain/<person>[/<machine>]: explain_grant;
+             show_grant; domain/grants/explain/<person>[/<machine>]: explain_grant; domain/kerberos: kerberos_overview;
+             domain/kerberos/spns: list_spns; groups: list_groups; groups/<name>: show_group; ous: list_ous;
+             account/groups: my_groups (the groups the signed-in person manages);
              settings: settings_overview (the setup wizard, 1.8.5); settings/export: {"text", "name"}, the
              settings file.
     Fails:   RouteNotFound for any other route (-> 404); whatever the operation raises (ValidationError -> 400).
@@ -97,6 +109,10 @@ def get_route(route, user=None):
         return zone_detail(route[1])
     if len(route) == 2 and route[0] == "jobs":
         return JOBS.read(route[1], user)
+    if route == ["account", "groups"]:
+        return my_groups(load_vars(), user)
+    if len(route) == 2 and route[0] == "groups":
+        return show_group(load_vars(), route[1])
     if len(route) == 3 and route[:2] == ["domain", "grants"]:
         return show_grant(load_vars(), route[2])
     if len(route) in (4, 5) and route[:3] == ["domain", "grants", "explain"]:

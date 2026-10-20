@@ -323,6 +323,57 @@ case "${1:-check}" in
 esac
 MANAGED
 chmod 0755 /usr/local/sbin/fabric-managed
+# a service's keytab (manual 1.6.12.9): the console shows the machine's administrator one command to run here with sudo
+{% raw %}
+cat > /usr/local/sbin/fabric-keytab <<'KEYTAB'
+#!/bin/bash
+# A Kerberos keytab for a service on this machine (manual 1.6.12.9), installed by join-linux.sh:
+#   sudo fabric-keytab --machine <this machine> --service <class, e.g. HTTP> --user <the service's user> [--path <file>]
+# Adds <class>/<this machine's names> to its own computer account with its own domain account (/etc/krb5.keytab:
+# AD lets a machine add its own names), then writes the service's keytab (default /etc/krb5-<class>.keytab), owned by
+# the user, mode 0600. Nothing secret is given to it; whoever may sudo here may install a key.
+set -euo pipefail
+die() { echo "fabric-keytab: $*" >&2; exit 1; }
+[[ $EUID -eq 0 ]] || die "run it with sudo"
+WANT="" SERVICE="" OWNER="" KT=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --machine) WANT="${2:-}"; shift 2 ;;
+        --service) SERVICE="${2:-}"; shift 2 ;;
+        --user) OWNER="${2:-}"; shift 2 ;;
+        --path) KT="${2:-}"; shift 2 ;;
+        *) die "usage: fabric-keytab --machine <name> --service <class> --user <user> [--path <file>]" ;;
+    esac
+done
+[[ -f /etc/fabric/managed.env && -s /etc/krb5.keytab ]] || die "this machine is not joined to fabric's domain (no /etc/krb5.keytab)"
+. /etc/fabric/managed.env
+[[ $WANT == "$MACHINE" ]] || die "the command is for ${WANT:-?}, but this machine is $MACHINE: run it on ${WANT:-that machine}"
+[[ $SERVICE =~ ^[A-Za-z][A-Za-z0-9-]{0,31}$ ]] || die "--service is a service class, such as HTTP: $SERVICE"
+case "${SERVICE,,}" in host|restrictedkrbhost|cifs) die "$SERVICE is the machine's own name: it is in /etc/krb5.keytab already" ;; esac
+id "$OWNER" >/dev/null 2>&1 || die "no user $OWNER on this machine"
+KT="${KT:-/etc/krb5-${SERVICE,,}.keytab}"
+[[ $KT == /* && $KT != /etc/krb5.keytab ]] || die "--path is an absolute path other than /etc/krb5.keytab: $KT"
+cc=$(mktemp); trap 'rm -f "$cc" "$KT.tmp"' EXIT
+KRB5CCNAME="FILE:$cc" kinit -k "${MACHINE^^}\$@$REALM" >/dev/null 2>&1 || die "the machine's own domain account did not sign in (is the DC reachable?)"
+FQDN=$(KRB5CCNAME="FILE:$cc" LDAPSASL_NOCANON=on ldapsearch -LLL -o ldif-wrap=no -Q -Y GSSAPI -H "ldap://$DC" \
+    -b "$BASE_DN" "(sAMAccountName=${MACHINE^^}\$)" dNSHostName 2>/dev/null | sed -n 's/^dNSHostName: //p')
+[[ -n $FQDN ]] || die "the DC does not know $MACHINE as joined"
+for name in "${FQDN,,}" "${MACHINE^^}"; do
+    adcli update --domain="$AD_DOMAIN" --domain-controller="$DC" --add-service-principal="$SERVICE/$name" >/dev/null \
+        || die "the DC refused $SERVICE/$name on $MACHINE's account (taken by another account?)"
+done
+mapfile -t names < <(klist -k /etc/krb5.keytab | awk 'NR>3 {print $2}')
+script="rkt /etc/krb5.keytab"
+for (( i=${#names[@]}; i>=1; i-- )); do
+    [[ ${names[$((i-1))],,} == "${SERVICE,,}/"* ]] || script+=$'\n'"delent $i"
+done
+printf '%s\nwkt %s\nquit\n' "$script" "$KT.tmp" | ktutil >/dev/null
+[[ -s $KT.tmp ]] || die "no key for $SERVICE was written"
+chown "$OWNER" "$KT.tmp"; chmod 0600 "$KT.tmp"; mv "$KT.tmp" "$KT"
+echo "fabric-keytab: $SERVICE/${FQDN,,} and $SERVICE/${MACHINE^^} on ${MACHINE^^}\$; keytab $KT ($(klist -k "$KT" | awk 'NR>3' | wc -l) keys), owned by $OWNER, 0600"
+KEYTAB
+{% endraw %}
+chmod 0755 /usr/local/sbin/fabric-keytab
 cat > /etc/systemd/system/fabric-managed.service <<'EOF'
 [Unit]
 Description=fabric: this machine's managed configuration, as its membership says (manual 1.6.11.6)

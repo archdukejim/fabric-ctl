@@ -63,9 +63,23 @@ def excluded(samdb):
     Inputs:  samdb — SamDB.
     Returns: {"top": set of dn (lower case), "directory_admins": set, "dc_hosts": set}.
     Fails:   ldb.LdbError from a search.
-    Feeds:   compile_grants, explain_grants."""
+    Feeds:   compile_grants, explain_grants, authorize_action."""
+    t = tiers(samdb)
+    return {"top": t["ad_top"] | t["fabric_accounts"], "directory_admins": t["directory_admins"],
+            "dc_hosts": t["dc_hosts"]}
+
+
+def tiers(samdb):
+    """Purpose: the accounts of each tier (2.1.6.68) and fabric's own, apart: AD's top tier (members of Enterprise,
+             Schema or Domain Admins or Administrators, nesting followed, or carrying adminCount: the Enterprise
+             Admin's tier); fabric's own service accounts, AD's krbtgt and Guest and Samba's DNS accounts (nobody's to
+             manage); the Directory Administrators; the hosts that run a DC and the DCs themselves (1.6.13.6).
+    Inputs:  samdb — SamDB.
+    Returns: {"ad_top": set of dn (lower case), "fabric_accounts": set, "directory_admins": set, "dc_hosts": set}.
+    Fails:   ldb.LdbError from a search.
+    Feeds:   excluded, authorize_action."""
     base, sid = str(samdb.domain_dn()), str(samdb.get_domain_sid())
-    top = set()
+    top, own = set(), set()
     for rid in TOP_RIDS:
         for m in samdb.search(base=base, scope=ldb.SCOPE_SUBTREE, expression=f"(objectSid={sid}-{rid})",
                               attrs=["sAMAccountName"]):
@@ -78,12 +92,13 @@ def excluded(samdb):
                           expression="(&(objectClass=user)(!(objectClass=computer)))"):
         name = str(m["sAMAccountName"][0]).lower() if m.get("sAMAccountName") else ""
         if name.startswith(FABRIC_ACCOUNTS) or name in NOT_PEOPLE or SAMBA_DNS.match(name):
-            top.add(str(m.dn).lower())
+            own.add(str(m.dn).lower())
     hosts = set(group_members(samdb, DC_HOSTS)["computers"])
     rids = "".join(f"(primaryGroupID={r})" for r in DC_RIDS)
     hosts |= {str(m.dn).lower() for m in samdb.search(base=base, scope=ldb.SCOPE_SUBTREE, attrs=["dn"],
                                                       expression=f"(&(objectClass=computer)(|{rids}))")}
-    return {"top": top, "directory_admins": set(group_members(samdb, DIRECTORY_ADMINS)["people"]), "dc_hosts": hosts}
+    return {"ad_top": top - own, "fabric_accounts": own,
+            "directory_admins": set(group_members(samdb, DIRECTORY_ADMINS)["people"]), "dc_hosts": hosts}
 
 
 def reach(samdb, groups, out, cache=None):

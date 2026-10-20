@@ -251,7 +251,7 @@ inf = sh(["docker", "exec", "-i", DC, "python3", "-c", READ_INF], ok=False).stdo
 check("the sets' GPOs name the grants' who groups, BUILTIN\\Administrators and local-admin; a set with local "
       "administrators puts them in Administrators (Group Membership)",
       "*S-1-5-32-544,local-admin" in inf and "__Memberof = *S-1-5-32-544" in inf, inf[-900:])
-done = m_group.set_person_group(V, "test", "ops", "alice", False, privileged=True, secrets=SECRETS, container=DC)
+done = m_group.set_person_group(V, "test", "ops", "alice", False, secrets=SECRETS, container=DC)
 check("fabric takes alice out of ops: the grants are compiled at once (GRANT_COMPILE)",
       done["changed"] and AUDIT[-1][0] == "GRANT_COMPILE", (done, AUDIT[-2:]))
 t0 = time.time()

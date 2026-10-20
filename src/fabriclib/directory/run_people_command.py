@@ -81,11 +81,11 @@ def _run(v, args, actor):
         print(f"{rest[0]} created in site {v['site_name']}; their one-time password (shown once):\n{password}")
         return 0
     if cmd == "reset" and len(rest) == 1:
-        password = reset_sign_in(v, actor, rest[0], privileged=True, source="cli")
+        password = reset_sign_in(v, actor, rest[0], source="cli")
         print(f"{rest[0]}: new one-time password (shown once), TOTP removed, sessions ended:\n{password}")
         return 0
     if cmd in ("disable", "enable") and len(rest) == 1:
-        done = set_person_enabled(v, actor, rest[0], cmd == "enable", privileged=True, source="cli")
+        done = set_person_enabled(v, actor, rest[0], cmd == "enable", source="cli")
         print(f"{rest[0]}: {cmd}d" if done["changed"] else f"{rest[0]}: already {cmd}d")
         return 0
     if cmd == "remove" and rest:
@@ -96,11 +96,11 @@ def _run(v, args, actor):
                               f"Remove {rest[0]} and revoke their certificates? Type the user name to confirm: ")
             except EOFError:
                 confirm = ""
-        done = remove_person(v, actor, rest[0], confirm, privileged=True, source="cli")
+        done = remove_person(v, actor, rest[0], confirm, source="cli")
         print(f"{rest[0]} removed; certificates revoked: {', '.join(done['revoked']) or 'none'}")
         return 0
     if cmd == "group" and len(rest) == 3 and rest[0] in ("add", "remove"):
-        done = set_person_group(v, actor, rest[1], rest[2], rest[0] == "add", privileged=True, source="cli")
+        done = set_person_group(v, actor, rest[1], rest[2], rest[0] == "add", source="cli")
         state = "in" if done["member"] else "out of"
         print(f"{rest[2]}: {state} {rest[1]}" + ("" if done["changed"] else " (already)"))
         return 0
@@ -110,7 +110,7 @@ def _run(v, args, actor):
 
 def run_people_command(v, args):
     """Purpose: `fabricctl people …` (manual 4.6.3): only routes to the people functions, as root (the audit names the
-             CLI), with an admin's rights.
+             CLI), acting for the Enterprise Admin (fabric-agent's check, check_access, with caller None).
     Inputs:  v — rendered vars; args — list of str after `people`.
     Returns: exit status: 0 ok, 1 a refused change, 2 usage.
     Fails:   OSError from the audit log; OpenBao sealed (load_secrets) propagate.

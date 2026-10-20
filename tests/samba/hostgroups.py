@@ -61,6 +61,11 @@ for mod in (m_add_rule, m_create, m_list_groups, m_list_rules, m_remove, m_remov
     mod.load_secrets = lambda: SECRETS
     mod.write_audit = lambda actor, event, detail, source="cli": AUDIT.append((event, detail, source))
 m_post.load_vars = m_get.load_vars = lambda: dict(V)
+# fabric-agent's check of each change (1.6.12.17.1) asks this suite's DC
+import fabriclib.access.check_access as m_access  # noqa: E402
+import fabriclib.grants.grant_request as m_grant_request  # noqa: E402
+_real_grant_request = m_grant_request.grant_request
+m_access.grant_request = lambda v, request, container="samba": _real_grant_request(v, request, DC)
 
 # the domain's machines and people: web1, web2, db1 (pre-created, as add-machine makes them), alice and bob, and a
 # group of people, web-ops
@@ -222,7 +227,7 @@ before_groups = ldb("(sAMAccountName=hosts-*)", "member")
 for args, why, words in (
         (("group", "create", "Web_Servers"), "a bad host group name", "host group: 1-32 characters"),
         (("group", "create", "web"), "a taken name", "already taken"),
-        (("group", "add", "web", "nosuch"), "a machine the domain does not have", "no machine nosuch in OU=machines"),
+        (("group", "add", "web", "nosuch"), "a machine the domain does not have", "no machine nosuch in"),
         (("group", "add", "web", "web 1"), "a bad machine name", "machine name"),
         (("group", "add", "nope", "web1"), "an unknown host group", "no host group hosts-nope"),
         (("group", "delete", "web"), "deleting a host group a sudo rule names", "named by sudo rule(s) web-restart"),
@@ -408,7 +413,7 @@ check("...its refusal shown there: ALL commands to everyone", code == 303 and "e
       and "everyone is refused" in loc and "cn: bad" not in ldb("(objectClass=sudoRole)", "cn"), loc)
 code, loc = form(["hostgroups", "_form", "members"], {"group": "ops", "machine": "ghost", "action": "add"})
 # covers: web:post.directory.hostgroups._form.members -
-check("...the membership form's refusal: a machine the domain does not have", "no machine ghost in OU=machines" in loc,
+check("...the membership form's refusal: a machine the domain does not have", "no machine ghost in" in loc,
       loc)
 code, loc = form(["hostgroups", "_new"], {"name": "Ops!"})
 # covers: web:post.directory.hostgroups._new -

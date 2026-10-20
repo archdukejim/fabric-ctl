@@ -72,15 +72,17 @@ class Handler(BaseHTTPRequestHandler):
                  token that grants the permission the route requires.
         Inputs:  method — "GET" or "POST"; route — list of path segments after /v1/. Reads the "Authorization: Bearer
                  <token>" header and vars (load_vars) for token verification.
-        Returns: None when allowed, with self.user = the token's preferred_username and self.perms = its permission set
-                 (both None for a root peer); otherwise (status, error): (401, reason) when verify_user_token rejects
+        Returns: None when allowed, with self.user = the token's preferred_username, self.perms = its permission set
+                 and self.session = its `sid` (all None for a root peer); otherwise (status, error): (401, reason) when
+                 verify_user_token rejects
                  the token or it is missing; (403, "not allowed") when required_permission lists no permission for the
                  route (default deny); (403, "you need the permission <p>") when the token lacks it ("session" needs
                  none).
         Fails:   exceptions other than ValidationError (e.g. KeyError on a token without preferred_username, OSError
                  from load_vars) propagate to dispatch, which answers 500.
-        Feeds:   dispatch; self.user feeds actor, self.perms the people-reset privilege check."""
-        self.user, self.perms = None, None
+        Feeds:   dispatch; self.user feeds actor (and the caller fabric-agent's checks name), self.perms the routes that
+                 need a second permission, self.session a person's own password change."""
+        self.user, self.perms, self.session = None, None, None
         if self.peer_uid() == 0:
             return None
         auth = self.headers.get("Authorization", "")
@@ -94,6 +96,7 @@ class Handler(BaseHTTPRequestHandler):
         if need != "session" and need not in user_permissions(claims):
             return 403, f"you need the permission {need}"
         self.user, self.perms = claims["preferred_username"], user_permissions(claims)
+        self.session = claims.get("sid")
         return None
 
     def body(self):
@@ -165,7 +168,7 @@ class Handler(BaseHTTPRequestHandler):
             if method == "GET":
                 return self.reply(200, get_route(route, self.user))
             data = self.body()
-            return self.reply(200, post_route(route, self.actor(data), data, self.perms))
+            return self.reply(200, post_route(route, self.actor(data), data, self.perms, self.session))
         except RouteNotFound:
             self.reply(404, {"error": "not found"})
         except ValidationError as exc:

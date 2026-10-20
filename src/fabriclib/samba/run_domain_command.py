@@ -5,6 +5,11 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.common.paths import INSTALL_DIR
 from fabriclib.directory.add_machine import add_machine
 from fabriclib.directory.sort_machines import sort_machines
+from fabriclib.domain.run_group_command import run_group_command
+from fabriclib.domain.run_kerberos_command import run_kerberos_command
+from fabriclib.domain.run_machine_command import run_machine_command
+from fabriclib.domain.run_ou_command import run_ou_command
+from fabriclib.domain.run_person_command import run_person_command
 from fabriclib.grants.run_grant_command import run_grant_command
 from fabriclib.samba.domain_status import domain_status
 from fabriclib.samba.set_domain_password_policy import set_domain_password_policy
@@ -24,6 +29,11 @@ USAGE = """usage: fabricctl domain status                    the Windows domain:
            edition a server, else a desktop); Linux machines joined with an admin's password into fabric-managed
            (each once)
        fabricctl domain grant list|show|add|set|remove|explain|sync ...   who may do what, where (grants)
+       fabricctl domain person edit|unlock|disable|enable ...   a person (manual 1.6.12.4)
+       fabricctl domain group list|create|delete|scope|managers|members ...   groups, their two levels (1.6.12.5)
+       fabricctl domain ou list|create|rename|delete ...   the admin's own folders (1.6.12.7)
+       fabricctl domain machine move|type|sites|keytab ...   a computer (1.6.12.6, 1.6.12.9)
+       fabricctl domain kerberos show|spns|policy ...   the realm, its service principals, the ticket policy (1.6.12.9)
        fabricctl domain host-managed [--scheduled]   this fabric host's management (Kerberos for SSH, the
            domain's names from fabric's DNS) applied or removed as its account's fabric-managed membership says
   password-policy without options shows the policy in the settings; with options it changes those values (the whole
@@ -33,6 +43,9 @@ USAGE = """usage: fabricctl domain status                    the Windows domain:
   add-machine prints the password once: give it to join-linux.sh
   --one-time on the machine (manual 4.6.6)."""
 
+# the D4 commands (manual 1.6.12.12), each its own parser
+SUBCOMMANDS = {"person": run_person_command, "group": run_group_command, "ou": run_ou_command,
+               "machine": run_machine_command, "kerberos": run_kerberos_command}
 # --tier's names -> the tiers' policies' keys (2.1.6.71)
 TIER_NAMES = {"enterprise-admin": "enterprise_admin", "directory-admins": "directory_admins"}
 # option -> (policy key, type)
@@ -101,11 +114,13 @@ def run_domain_command(v, args):
              (exit 1) for an unknown tier or a policy the checks refuse (check_tier_policies).
     Feeds:   cli.main."""
     if not args or args[0] not in ("status", "password-policy", "add-machine", "sort-machines", "grant",
-                                   "host-managed"):
+                                   "host-managed") + tuple(SUBCOMMANDS):
         print(USAGE)
         return 2
     if args[0] == "grant":
         return run_grant_command(v, args[1:])
+    if args[0] in SUBCOMMANDS:
+        return SUBCOMMANDS[args[0]](v, args[1:])
     if args[0] == "host-managed":
         return _host_managed(v, args[1:])
     if args[0] == "sort-machines":
