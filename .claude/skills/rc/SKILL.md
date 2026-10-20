@@ -22,11 +22,13 @@ Arguments: the version (e.g. `0.6.4`); without one, ask.
 4. **apt testing**: `gh workflow run package.yml --repo archdukejim/open-fabric --ref rc/<version> -f apt_testing=true`.
 5. **The sandbox**, kept: `sudo env KEEP=1 tests/sandbox/run.sh`; then **the image-update test** on it:
    `sudo tests/images/update.sh --box fabric-sandbox` (refresh `tests/images/previous.yaml` first: the previous
-   release's digests and one version back for each upstream image).
+   release's digests and one version back for each upstream image). For **0.8.0** only, **the move test** after it
+   (the sandbox removed first: they share a lock): `sudo tests/sandbox/move.sh` (0.7.1's settings file into a fresh
+   0.8.0, 2.1.1.60; it replaces the upgrade test from 0.7.1).
 6. **The test Pi** (`tempuser@192.168.5.57`, key `~/.ssh/fabric-test_ed25519`; **never the production host**).
-   **Ask the owner before wiping it.** Then the upgrade test from the floor, 0.7.1 until 1.0 (2.1.1.55), and from the
-   previous release when it differs (`tests/host/upgrade.sh`, `FROM=0.7.1` then `FROM=<previous>`, `TO_SUITE=testing`,
-   no answers given ahead), and the host suite on a
+   **Ask the owner before wiping it.** Then, from 0.8.1 on, the upgrade test from the floor, 0.8.0 until 1.0
+   (2.1.1.61), and from the previous release when it differs (`tests/host/upgrade.sh`, `FROM=0.8.0` then
+   `FROM=<previous>`, `TO_SUITE=testing`, no answers given ahead; an older `FROM` is refused), and the host suite on a
    fresh install (purge first: `APT_SUITE=testing tests/host/run.sh`).
    **The rehearsal, before the owner tests** (3.14.1.4 step 4, 2.1.1.54): every setup route on a clean Pi from apt
    testing — unattended (`tests/host/run.sh` above) and interactive, Guided then Advanced with every default left

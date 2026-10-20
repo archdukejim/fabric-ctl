@@ -1,20 +1,34 @@
 #!/bin/bash
 # -----------------------------------------------------------------------
-# Upgrade in place from the floor (0.7.1 until 1.0, 2.1.1.55) or the previous release (2.1.1.36), on a REAL host:
+# Upgrade in place from the floor (0.8.0 until 1.0, 2.1.1.61) or the previous release (2.1.1.36), on a REAL host:
 #   purge fabric -> install release FROM (its .deb from the GitHub release) -> setup -> seed state
 #   (upgrade_state.py) and raise a sign-in layer -> snapshot -> upgrade to the candidate from fabric's apt
 #   repository (TO_SUITE) -> fabricctl setup, as an operator would -> the same snapshot -> doctor, status.
 #
 #   TARGET=tempuser@192.168.4.57 HOST_IP=192.168.4.57 LAN_CIDR=192.168.4.0/22 GATEWAY=192.168.4.1 \
-#   FROM=0.7.1 TO_SUITE=stable [DOMAIN=pitest.home.arpa] [KEY=~/.ssh/id] tests/host/upgrade.sh
+#   FROM=0.8.0 TO_SUITE=stable [DOMAIN=pitest.home.arpa] [KEY=~/.ssh/id] tests/host/upgrade.sh
 #   (TO_DEB=<a .deb built here> instead of TO_SUITE: a branch not published to apt, e.g. a dev/ branch)
 #
 # It WIPES fabric on that host: use a disposable machine. Then run tests/host/run.sh with APT_SUITE=TO_SUITE
 # for the whole host suite on the upgraded install.
+#
+# A FROM older than the floor is refused before the host is touched: there is no upgrade into 0.8.0 (2.1.1.60); a
+# 0.7.x install moves by its settings file (3.3.5), which tests/sandbox/move.sh tests. FROM_CHECK_ONLY=1 stops after
+# that check (tests/host/upgrade_from_test.sh).
 # -----------------------------------------------------------------------
 set -uo pipefail
-: "${TARGET:?user@host}" "${HOST_IP:?}" "${LAN_CIDR:?}" "${GATEWAY:?}" "${FROM:?the floor or the previous release, e.g. 0.7.1}" \
+FLOOR=0.8.0                     # 2.1.1.61: 0.8.0 until 1.0, then 1.0.0 (2.1.1.55)
+: "${TARGET:?user@host}" "${HOST_IP:?}" "${LAN_CIDR:?}" "${GATEWAY:?}" "${FROM:?the floor or the previous release, e.g. 0.8.0}" \
   "${TO_SUITE:=${TO_DEB:+local}}" "${TO_SUITE:?stable or testing (or TO_DEB=<.deb>)}"
+if ! [[ "$FROM" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "FROM=$FROM is not a release version (e.g. $FLOOR)" >&2; exit 2
+fi
+if [ "$(printf '%s\n%s\n' "$FLOOR" "$FROM" | sort -V | head -1)" != "$FLOOR" ]; then
+    echo "FROM=$FROM is older than the upgrade floor $FLOOR (2.1.1.61): nothing upgrades into 0.8.0 (2.1.1.60); a" \
+         "0.7.x install moves by its settings file (manual 3.3.5), tested by tests/sandbox/move.sh" >&2
+    exit 2
+fi
+if [ -n "${FROM_CHECK_ONLY:-}" ]; then echo "FROM=$FROM: at or above the floor $FLOOR"; exit 0; fi
 DOMAIN="${DOMAIN:-pitest.home.arpa}"
 KEY="${KEY:-$HOME/.ssh/fabric-test_ed25519}"
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -50,10 +64,16 @@ ad_domain: ad.$DOMAIN
 ad_password_policy: {minimum_length: 14, complexity: true, history: 24, minimum_age_days: 0, maximum_age_days: 0, lockout_threshold: 10, lockout_minutes: 15, lockout_window_minutes: 15}
 install_keycloak: true
 install_webui: true
+webui_admin_user: upgadmin
+webui_admin_first_name: Upgrade
+webui_admin_last_name: Admin
 EOF
 put "$OUT/vars.yaml"
 start=$(date +%s)
-R "fabricctl setup --file /tmp/vars.yaml --non-interactive --yes --approve all" > "$OUT/setup-from.log" 2>&1
+# the first Directory Administrator's password (2.1.6.69): made on the host, root-only, never on a command line
+R 'umask 077; printf "%sAa1-\n" "$(head -c 18 /dev/urandom | base64 | tr -d "/+=")" > /root/upgrade-admin-pw'
+R "fabricctl setup --file /tmp/vars.yaml --non-interactive --yes --approve all --admin-password-file /root/upgrade-admin-pw" \
+    > "$OUT/setup-from.log" 2>&1
 echo "    setup ($FROM) took $(( ($(date +%s) - start) / 60 )) min"
 check "$FROM: setup completes" "grep -q 'fabric is ready' '$OUT/setup-from.log'"
 
@@ -86,13 +106,9 @@ start=$(date +%s)
 R "fabricctl setup --non-interactive --yes ${APPROVE:+--approve $APPROVE} ${DECLINE:+--decline $DECLINE}" > "$OUT/setup-to.log" 2>&1
 echo "    setup ($TO) took $(( ($(date +%s) - start) / 60 )) min"
 check "$TO: setup completes over the old install" "grep -q 'fabric is ready' '$OUT/setup-to.log'"
-check "$TO: the console's admin role renamed fabric-console-admin, the old name gone from Keycloak and OpenBao (2.1.6.33)" \
-    "R 'grep -qx \"webui_admin_role: fabric-console-admin\" /opt/fabric/config/vars.yaml' \
-     && grep -q 'fabric-admin removed' '$OUT/setup-to.log'"
 
 R 'python3 /tmp/upgrade_state.py snapshot' > "$OUT/after.json" 2>"$OUT/after.err"
-# AdGuard Home's three secrets are retired with it (0.7, manual 2.3.12.1.9)
-check "kept: secrets (each one there before, unchanged; new ones may be added, Keycloak's database password rotates)"     "python3 -c \"import json,sys; a=json.load(open('$OUT/before.json'))['secrets']; b=json.load(open('$OUT/after.json'))['secrets']; sys.exit(any(b.get(k) != v for k, v in a.items() if not k.startswith('adguard_')))\""
+check "kept: secrets (each one there before, unchanged; new ones may be added, Keycloak's database password rotates)"     "python3 -c \"import json,sys; a=json.load(open('$OUT/before.json'))['secrets']; b=json.load(open('$OUT/after.json'))['secrets']; sys.exit(any(b.get(k) != v for k, v in a.items()))\""
 for key in "root_ca" "person carol" "issued" "dns record" "dns filter rule" "security"; do
     check "kept: $key" "python3 -c \"import json,sys; a=json.load(open('$OUT/before.json')); \
 b=json.load(open('$OUT/after.json')); sys.exit(a.get('$key') != b.get('$key'))\""
@@ -100,17 +116,6 @@ done
 ADMIN_KEY=$(python3 -c "import json; print([k for k in json.load(open('$OUT/before.json')) if k.startswith('person ') and k != 'person carol'][0])")
 check "kept: the admin ($ADMIN_KEY), password unchanged" "python3 -c \"import json,sys; \
 a=json.load(open('$OUT/before.json')); b=json.load(open('$OUT/after.json')); sys.exit(a['$ADMIN_KEY'] != b['$ADMIN_KEY'])\""
-# 0.6 -> 0.7: AdGuard Home's settings moved to the BIND resolver and AdGuard retired (manual 2.3.12.1.9)
-if grep -q '"dns filter rule": true' "$OUT/before.json" && ! R 'test -d /opt/resolver' >/dev/null 2>&1; then
-    echo "    (no move to the BIND resolver in this upgrade: $FROM -> $TO)"
-elif R 'test -d /opt/resolver' >/dev/null 2>&1; then
-    check "AdGuard retired: no unit, container, folder or account left; the import record kept" \
-        "! R 'test -e /etc/systemd/system/adguard.service || test -d /opt/adguard || getent passwd fabric-dnsfilter' \
-         && ! R 'docker ps -a --format {{.Names}}' | grep -qE '^(adguardhome|oauth2-proxy-adguard)$' \
-         && R 'ls /opt/fabric/config/dns-filter-import-*.json' >/dev/null"
-    check "the rule added in AdGuard's UI blocks through the resolver (owner.rpz)" \
-        "R 'dig @$HOST_IP upgrade-test.invalid >/dev/null; grep -q \"upgrade-test.invalid/A/IN via upgrade-test.invalid.owner.rpz\" /opt/resolver/log/rpz.log'"
-fi
 R 'fabricctl doctor' > "$OUT/doctor.log" 2>&1
 check "doctor passes after the upgrade" "! grep -q '✗' '$OUT/doctor.log' && grep -q '✓' '$OUT/doctor.log'"
 R 'fabricctl status' > "$OUT/status.log" 2>&1

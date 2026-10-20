@@ -21,7 +21,7 @@ def ask_first_admin(ctx, needed=None):
              site whose directory does not exist yet: the admin step will create them), True to ask anyway (the admin
              step found no such person). Interactive unless unattended.
     Returns: None; ctx.vars' four facts and ctx.admin_password set when needed.
-    Fails:   SetupError unattended when a fact is missing or refused (naming it and why), without
+    Fails:   SetupError unattended when a fact is missing or refused (naming every such key and why), without
              --admin-password-file, or when that file's password is refused; OSError reading the file; EOFError
              from input.
     Feeds:   setup/run_setup (before the plan), setup/advanced/ask_first_admin_item and setup/create_admin
@@ -31,14 +31,12 @@ def ask_first_admin(ctx, needed=None):
         needed = first_admin_needed(ctx)
     if not needed:
         return
-    for key in KEYS:
-        why = first_admin_refused(key, v.get(key))
-        if why is None:
-            v[key] = str(v.get(key) or "").strip()
-            continue
-        if ctx.non_interactive:
-            raise SetupError(f"the first Directory Administrator (2.1.6.69) needs {key} in the vars file: {why}")
-        v[key] = ask_admin_fact(key, v.get(key))
+    refused = {key: first_admin_refused(key, v.get(key)) for key in KEYS}
+    if ctx.non_interactive and any(refused.values()):   # every key to add at once (a 0.7.x file has none: 3.3.5.4)
+        raise SetupError("the first Directory Administrator (2.1.6.69) needs "
+                         + "; ".join(f"{key} in the vars file: {why}" for key, why in refused.items() if why))
+    for key, why in refused.items():
+        v[key] = str(v.get(key) or "").strip() if why is None else ask_admin_fact(key, v.get(key))
     if ctx.admin_password:
         return
     # theirs is the Directory Administrators' own policy once setup has it (2.1.6.71), else the domain's

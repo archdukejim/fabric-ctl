@@ -785,6 +785,7 @@ file	fabriclib-setup|src/fabriclib/setup/common/host_identity.py	77
 file	fabriclib-setup|src/fabriclib/setup/common/missing_packages.py	6	
 file	fabriclib-setup|src/fabriclib/setup/common/network_problem.py	72	
 file	fabriclib-setup|src/fabriclib/setup/common/parse_log_target.py	85	
+file	fabriclib-setup|src/fabriclib/setup/common/read_vars_file.py	102	
 file	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py	52	
 file	fabriclib-setup|src/fabriclib/setup/common/renew_days.py	79	
 file	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py	7	
@@ -811,6 +812,7 @@ file	fabriclib-setup|src/fabriclib/setup/detach/write_handoff.py	96
 file	fabriclib-setup|src/fabriclib/setup/detach/write_run.py	97	
 file	fabriclib-setup|src/fabriclib/setup/detect_network.py	15	
 file	fabriclib-setup|src/fabriclib/setup/doctor_report.py	41	
+file	fabriclib-setup|src/fabriclib/setup/drop_retired_settings.py	103	
 file	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py	42	
 file	fabriclib-setup|src/fabriclib/setup/export_install.py	16	
 file	fabriclib-setup|src/fabriclib/setup/finish_vars.py	74	
@@ -2304,6 +2306,7 @@ function	fabriclib-setup|src/fabriclib/setup/choose_plan.py|_show_settings	12
 function	fabriclib-setup|src/fabriclib/setup/choose_plan.py|_upstreams_text	7	
 function	fabriclib-setup|src/fabriclib/setup/choose_plan.py|choose_plan	6	
 function	fabriclib-setup|src/fabriclib/setup/collect_vars.py|_ask	3	0.7.0 / 2026-10-12
+function	fabriclib-setup|src/fabriclib/setup/collect_vars.py|_drop_retired	7	
 function	fabriclib-setup|src/fabriclib/setup/collect_vars.py|_join_defaults	4	
 function	fabriclib-setup|src/fabriclib/setup/collect_vars.py|_load	2	
 function	fabriclib-setup|src/fabriclib/setup/collect_vars.py|_network_problem	6	0.7.0 / 2026-10-12
@@ -2335,6 +2338,8 @@ function	fabriclib-setup|src/fabriclib/setup/common/missing_packages.py|missing_
 function	fabriclib-setup|src/fabriclib/setup/common/network_problem.py|network_problem	1	
 function	fabriclib-setup|src/fabriclib/setup/common/parse_log_target.py|_host_ok	1	
 function	fabriclib-setup|src/fabriclib/setup/common/parse_log_target.py|parse_log_target	2	
+function	fabriclib-setup|src/fabriclib/setup/common/read_vars_file.py|_fabric_keys	1	
+function	fabriclib-setup|src/fabriclib/setup/common/read_vars_file.py|read_vars_file	2	
 function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_access	3	0.7.0 / 2026-10-12
 function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_sudo_search_base	1	0.7.2 / 2026-10-19
 function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|render_member_files	2	
@@ -2385,6 +2390,7 @@ function	fabriclib-setup|src/fabriclib/setup/detach/write_run.py|write_run	1
 function	fabriclib-setup|src/fabriclib/setup/detect_network.py|detect_network	1	
 function	fabriclib-setup|src/fabriclib/setup/doctor_report.py|_checks	2	
 function	fabriclib-setup|src/fabriclib/setup/doctor_report.py|doctor_report	1	
+function	fabriclib-setup|src/fabriclib/setup/drop_retired_settings.py|drop_retired_settings	1	
 function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|_call	4	
 function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|_ensure_roles	2	
 function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|_lock_bootstrap	3	

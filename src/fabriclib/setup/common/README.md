@@ -21,6 +21,8 @@ Helpers shared by setup steps and the consent plans.
 | `ca_exists.py` | Whether this install's CA exists (its lifetime is then fixed) |
 | `first_admin_needed.py` | Whether setup creates the first admin and so needs their password |
 | `first_admin_refused.py` | Why an answer for the first Directory Administrator is refused: their user name (fabric's names, fabric-admin), first and last names, e-mail (optional) (2.1.6.69, 2.1.6.93) |
+| `retired_settings.py` | The one table of the settings a 0.7.x file holds that 0.8.0 no longer takes, with why (2.1.1.60, manual 3.3.5.3), and 0.7.x's own groups |
+| `read_vars_file.py` | Reads the vars file given to setup and refuses one that is damaged or not fabric's, nothing changed |
 | `ask_admin_fact.py` | One of the first Directory Administrator's facts asked until it is taken, saying why not |
 | `plan_items.py` | The plan's hardened defaults (the firewall, Docker's hardening, membership, Keycloak, the web console) |
 | `dotted_keys.py` | Read and write a dotted settings key (`security.firewall`) |

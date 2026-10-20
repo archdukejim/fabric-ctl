@@ -3,6 +3,7 @@ import os
 import yaml
 
 from fabriclib.common.console import info
+from fabriclib.common.write_audit import write_audit
 from fabriclib.common.errors import ValidationError
 from fabriclib.samba.check_password_policy import DEFAULT_POLICY, POLICY_KEYS
 from fabriclib.federation.common.load_registry import load_registry
@@ -16,6 +17,8 @@ from fabriclib.setup.ask_ad_domain import ask_ad_domain
 from fabriclib.samba.tier_policy_defaults import tier_policy_defaults
 from fabriclib.setup.common.ask_setting import ask_setting
 from fabriclib.setup.common.network_problem import network_problem
+from fabriclib.setup.common.read_vars_file import read_vars_file
+from fabriclib.setup.drop_retired_settings import drop_retired_settings
 from fabriclib.setup.common.valid_setting import REQUIRED, valid_setting
 from fabriclib.setup.errors import SetupError
 from fabriclib.setup.finish_vars import finish_vars
@@ -33,6 +36,25 @@ def _load(path):
         return {}
     with open(path) as f:
         return yaml.safe_load(f) or {}
+
+
+def _drop_retired(ctx, user_file, user):
+    """Purpose: an older fabric's settings file taken as it is (2.1.1.60, manual 3.3.5.3): the keys 0.8.0 no longer
+             takes are ignored, each printed with why and the list written to the audit log (SETUP_IMPORT).
+    Inputs:  ctx — SetupContext: target_dir (the audit log under it); user_file — the file's path; user — its
+             settings.
+    Returns: the settings without the ignored keys (drop_retired_settings).
+    Fails:   OSError writing the audit log.
+    Feeds:   collect_vars."""
+    kept, ignored = drop_retired_settings(user)
+    if ignored:
+        info(f"{user_file}: {len(ignored)} setting(s) this release no longer takes, ignored (3.3.5.3):")
+        for key, why in ignored:
+            info(f"  {key}: {why}")
+        write_audit(os.environ.get("SUDO_USER") or "root", "SETUP_IMPORT",
+                    f"{user_file}: ignored {', '.join(k for k, _ in ignored)}",
+                    path=os.path.join(ctx.deploy_base, "fabric", "archive", "audit.log"))
+    return kept
 
 
 def _join_defaults(ctx, data):
@@ -79,9 +101,10 @@ def collect_vars(ctx, ask=True):
     Returns: path of fabric.yaml (str), or None with ask=False (not saved yet). Leaves ctx.vars = the data and
              ctx.fresh_install set. Precedence: an existing
              vars.yaml is the base and --file overrides the keys it sets; on a fresh install without --file a
-             checkout's custom-vars.yaml is used. Existing installs keep their digest-pinned images
-             (upgrade_vars); image_* keys set explicitly are recorded in image_pins. AdGuard Home's settings move to
-             the BIND resolver's (move_dns_filter, 0.7). Missing/invalid required
+             checkout's custom-vars.yaml is used. A file of an older fabric is taken as it is (2.1.1.60): the keys
+             this release no longer takes are listed and ignored (_drop_retired). Existing installs keep their
+             digest-pinned images (upgrade_vars); image_* keys set explicitly are recorded in image_pins. AdGuard
+             Home's settings move to the BIND resolver's (move_dns_filter, 0.7). Missing/invalid required
              values are asked for (defaults from detect_network; the first admin by ask_first_admin); the AD domain
              is asked when missing (ask_ad_domain); the DC's name is never asked (fabric names it,
              finish_vars' name_dc, 2.1.6.65): a --file or custom-vars.yaml that names it is refused while no DC is
@@ -90,9 +113,9 @@ def collect_vars(ctx, ask=True):
              policy (DEFAULT_POLICY, a vars file's keys kept, 2.1.6.35), the memory (set_ram_capacity) and, on a
              fresh install only (no vars file, no provisioned domain), who may sign in to the site's machines
              (finish_vars). Embedded TSIG secrets go to the secrets file, never into fabric.yaml (finish_vars).
-    Fails:   SetupError for a --file that would lower a sign-in layer (check_signin_lowering) or that names the DC
-             for a new install (refuse_named_dc, nothing changed), for missing/invalid
-             required values (the AD domain included) with
+    Fails:   SetupError for a --file that is damaged or not fabric's (read_vars_file), that would lower a sign-in
+             layer (check_signin_lowering) or that names the DC for a new install (refuse_named_dc, nothing
+             changed), for missing/invalid required values (the AD domain included) with
              --non-interactive, invalid tsig_keys, or a
              secrets file that cannot be written (ValidationError converted); OSError/yaml errors on files.
     Feeds:   run_setup main (before the first admin, the menu, choose_plan and the steps); ctx.vars feeds
@@ -103,7 +126,7 @@ def collect_vars(ctx, ask=True):
     provisioned = dc_provisioned(ctx.deploy_base)
     fresh = not os.path.exists(ctx.vars_file) and not provisioned
     repo_vars = os.path.join(os.path.dirname(ctx.source_dir), "custom-vars.yaml")
-    user = _load(user_file) if user_file else {}
+    user = read_vars_file(user_file) if user_file else {}
     if os.path.exists(ctx.vars_file):
         # An existing install's values (incl. DNS records added in the web UI
         # or editor) are the base; a --file only overrides the keys it sets.
@@ -121,9 +144,10 @@ def collect_vars(ctx, ask=True):
     elif not user_file and os.path.exists(repo_vars):
         # Fresh install from a checkout with the classic custom-vars.yaml.
         # Never on an existing install: it would undo later edits.
-        user_file, user = repo_vars, _load(repo_vars)
+        user_file, user = repo_vars, read_vars_file(repo_vars)
     if user_file:
-        try:                                  # a --file never lowers a sign-in layer (2.1.6.24): the command does
+        user = _drop_retired(ctx, user_file, user)
+        try:                                 # a --file never lowers a sign-in layer (2.1.6.24): the command does
             check_signin_lowering(_load(ctx.vars_file) if os.path.exists(ctx.vars_file) else {}, user)
             refuse_named_dc(user, provisioned, f"the vars file {user_file}")     # fabric names its DCs (2.1.6.65)
         except ValidationError as e:

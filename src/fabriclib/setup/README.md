@@ -13,6 +13,7 @@
 | `errors.py` | `SetupError` — a step cannot continue; message says why and what to do |
 | `choose_mode.py` | A new install's start: [G]uided, [A]dvanced (the menu of every setting) or [Q]uit (1.2.9.11.1) |
 | `collect_vars.py` | Where settings come from: existing install, `--file` (or a checkout's `custom-vars.yaml` on a fresh install) overrides, prompts for anything missing (guided mode) |
+| `drop_retired_settings.py` | A settings file of an older fabric taken as it is (2.1.1.60): the keys this release no longer takes, listed with why and ignored (the table: `common/retired_settings.py`) |
 | `apply_plan_defaults.py` | The plan's hardened defaults recorded as values, so what is shown is what renders |
 | `finish_vars.py` | The last of collecting the settings: a fresh install's log-on rights, TSIG secrets moved, `fabric.yaml` saved |
 | `upgrade_vars.py` | Existing install's vars before re-render: new release's images (unless pinned) and service accounts (unless changed) |
