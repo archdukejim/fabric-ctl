@@ -102,7 +102,7 @@ def check_wizard_value(key, value, v, have_gb=0):
     Returns: the value as it would be saved (normalised: the whole password policy, the upstreams' names in lower case).
     Fails:   ValidationError naming the key and why; KeyError for a key that is not the wizard's.
     Feeds:   plan_settings."""
-    if key in ("install_fluentbit", "signin_kerberos"):
+    if key in ("install_fluentbit", "signin_kerberos", "grants_fallback_open"):
         return _flag(key, value)
     if key == "dns_filter":
         if str(value).lower() not in ("bind", "none") or not isinstance(value, str):

@@ -66,7 +66,7 @@ def _set_rights(samdb, n, allow, restrict, grants, reached, sids, keep):
     return out, done
 
 
-def compile_grants(samdb, lp, dc):
+def compile_grants(samdb, lp, dc, fallback_open=False):
     """Purpose: the grants made into what AD, sssd and Windows enforce (manual 1.6.13.4), every part changed only where
              it differs: each grant's computed groups (`grant-<name>-who`, a POSIX group for sudo, and
              `grant-<name>-where`); the machines grouped into sets by the grants that reach them, each set's computers
@@ -74,11 +74,13 @@ def compile_grants(samdb, lp, dc):
              OU=machines, filtered to that group, giving each right to its holders (restricted where a restricting grant
              says) and putting the local administrators' groups in each machine's Administrators; a set no longer
              wanted removed with its GPO and groups; the fallback `fabric: access none` (2.1.6.87), every machine's,
-             kept first in OU=machines' links; one sudo rule per grant with sudo (ensure_grant_sudo). A set keeps its
-             number while its grants stay the same; a new one takes the next number never used. Run at the root's
-             writable DC only: the GPOs are the root's, and the other DCs copy their folders (pull_sysvol).
+             kept first in OU=machines' links, or removed while `grants_fallback_open` is on (2.1.6.88: a machine no
+             grant reaches then admits every domain person, sssd's and Windows' default); one sudo rule per grant
+             with sudo (ensure_grant_sudo). A set keeps its number while its grants stay the same; a new one takes
+             the next number never used. Run at the root's writable DC only: the GPOs are the root's, and the other
+             DCs copy their folders (pull_sysvol).
     Inputs:  samdb — SamDB (as the system); lp — LoadParm; dc — the DC compiling (dc-NNNN: the who groups' gids come
-             from its built-in range).
+             from its built-in range); fallback_open — bool, the setting grants_fallback_open.
     Returns: list of str, what changed.
     Fails:   ldb.LdbError, OSError (SYSVOL), NTSTATUSError (its ACLs); ValueError from alloc_id when the range is full.
     Feeds:   grants_tool (add, set, remove, compile), converge (at the root)."""
@@ -122,10 +124,14 @@ def compile_grants(samdb, lp, dc):
         if name not in keep:
             samdb.delete(dn)
             done.append(f"group {name} removed (no grant or set uses it)")
-    done += ensure_gpo(samdb, lp, FALLBACK_GPO, machines, SECURITY_EXTENSIONS,
-                       {SECURITY_TEMPLATE: access_policy([], [], [])})
-    done += set_gpo_filter(samdb, lp, FALLBACK_GPO, None)
-    done += order_gpo_links(samdb, machines, FALLBACK_GPO)
+    if fallback_open:                      # the owner's override (2.1.6.88): no fallback, the open default
+        if find_gpo(samdb, FALLBACK_GPO) is not None:
+            done += remove_gpo(samdb, lp, FALLBACK_GPO)
+    else:
+        done += ensure_gpo(samdb, lp, FALLBACK_GPO, machines, SECURITY_EXTENSIONS,
+                           {SECURITY_TEMPLATE: access_policy([], [], [])})
+        done += set_gpo_filter(samdb, lp, FALLBACK_GPO, None)
+        done += order_gpo_links(samdb, machines, FALLBACK_GPO)
     done += ensure_grant_sudo(samdb, grants)
     if write_state(samdb, state):
         done.append("the sets of machines recorded")

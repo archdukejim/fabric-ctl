@@ -457,6 +457,7 @@
 "setting:fluentbit_mem_limit": "templates/vars.yaml.j2"
 "setting:freeradius_mem_limit": "templates/vars.yaml.j2"
 "setting:friendly_name": "templates/vars.yaml.j2"
+"setting:grants_fallback_open": "templates/vars.yaml.j2"
 "setting:host_ip": "templates/vars.yaml.j2"
 "setting:host_join_domain": "templates/vars.yaml.j2"
 "setting:host_machine_password_renew_days": "templates/vars.yaml.j2"

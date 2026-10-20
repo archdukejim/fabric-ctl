@@ -271,6 +271,20 @@ check(f"negative: {SRV}: reached by no grant, it admits nobody from the domain (
       within(lambda: not allowed(S, "sam", "login") and not allowed(S, "sam", "sshd") and not allowed(S, "bob", "login")))
 code, out = on(S, "id -u root && su -s /bin/true root; echo rc=$?")
 check(f"{SRV}: local accounts are untouched (root)", "rc=0" in out, out)
+# the owner's override (2.1.6.88): grants_fallback_open leaves such a machine to the open default
+V["grants_fallback_open"] = True
+opened = m_sync.sync_grants(V, "test", "timer", DC)
+# covers: setting:grants_fallback_open +
+check(f"grants_fallback_open on: the fallback GPO removed, and {SRV}, reached by no grant, admits every domain person "
+      "(sam, bob: sssd's default)", "fabric: access none" not in ldb("(objectClass=groupPolicyContainer)", "displayName")
+      and within(lambda: allowed(S, "sam", "login") and allowed(S, "bob", "login")), opened)
+V["grants_fallback_open"] = False
+closed = m_sync.sync_grants(V, "test", "timer", DC)
+# covers: setting:grants_fallback_open -
+check(f"negative: grants_fallback_open off again: the fallback is back, first in gPLink, and {SRV} admits nobody",
+      "fabric: access none" in ldb("(objectClass=groupPolicyContainer)", "displayName")
+      and within(lambda: not allowed(S, "sam", "login") and not allowed(S, "bob", "login")), closed)
+V.pop("grants_fallback_open")
 samba_tool("group", "addmembers", "machines-servers", f"{SRV.upper()}$")
 grant("sync")
 check(f"{SRV} back in machines-servers: sam signs in again", within(lambda: allowed(S, "sam", "login")))

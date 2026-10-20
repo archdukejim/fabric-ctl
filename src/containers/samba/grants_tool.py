@@ -94,11 +94,11 @@ def run(req):
         raise ValueError(ROOT_ONLY)
     dc = req["dc"]
     if op == "compile":
-        return {"changed": compile_grants(samdb, lp, dc)}
+        return {"changed": compile_grants(samdb, lp, dc, bool(req.get("fallback_open")))}
     name = str(req.get("name", ""))
     if op == "remove":
         delete_grant(samdb, name)
-        return {"name": name, "changed": compile_grants(samdb, lp, dc)}
+        return {"name": name, "changed": compile_grants(samdb, lp, dc, bool(req.get("fallback_open")))}
     fields = _fields(req.get("fields") or {})
     if op == "add":
         if read_grant(samdb, name) is not None:
@@ -117,7 +117,7 @@ def run(req):
             raise ValueError("a grant's kind (allow or restrict) is kept: remove it and add it again")
         grant = check_grant(samdb, {**have, **fields, "name": name})
     write_grant(samdb, grant)
-    return {"grant": grant, "changed": compile_grants(samdb, lp, dc)}
+    return {"grant": grant, "changed": compile_grants(samdb, lp, dc, bool(req.get("fallback_open")))}
 
 
 if __name__ == "__main__":

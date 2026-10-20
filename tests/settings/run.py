@@ -135,6 +135,7 @@ BAD = [
     ("dns_filter_upstreams", [], "at least one"),
     ("dns_filter_upstreams", [{"address": "not-an-ip", "name": "dns.quad9.net"}], "needs an IP address"),
     ("dns_filter_upstreams", "9.9.9.9", "a list of {address, name}"),
+    ("grants_fallback_open", "yes", "grants_fallback_open: true or false"),
 ]
 seen = set()
 for key, value, words in BAD:
@@ -143,6 +144,18 @@ for key, value, words in BAD:
     seen.add(key)
     check(f"refused: {key} = {value!r}, saying why, the settings unchanged", why is True and V == before, why)
 check("every wizard key has a refusal", seen == set(WIZARD_KEYS), set(WIZARD_KEYS) - seen)
+# the grants' open fallback (2.1.6.88): off unless set; a settings file may turn it on, a relaxation shown while on
+from fabriclib.system.relaxed_settings import relaxed_settings  # noqa: E402
+opened = plan({"grants_fallback_open": True})
+# covers: setting:grants_fallback_open +
+check("grants_fallback_open: off by default; a file turning it on plans that one change, and it is then listed as a "
+      "relaxation (fabricctl status, the console's Overview, doctor)",
+      read_settings(V, 8)["grants_fallback_open"] is False and opened["keys"] == ["grants_fallback_open"]
+      and any(r["setting"] == "grants_fallback_open: true" for r in relaxed_settings({**V, "grants_fallback_open": True}))
+      and not any(r["setting"].startswith("grants_fallback_open") for r in relaxed_settings(V)), opened["keys"])
+# covers: setting:grants_fallback_open -
+check("refused: grants_fallback_open given as text (true or false only)",
+      refused(lambda: plan({"grants_fallback_open": "on"}), "true or false") is True)
 check("refused as a whole: one invalid value among valid ones changes nothing", refused(
     lambda: plan({"dns_filter": "none", "host_ram_capacity": 99}), "host_ram_capacity") is True)
 check("refused: log forwarding on with nowhere to send the logs", refused(

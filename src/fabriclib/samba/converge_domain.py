@@ -39,7 +39,7 @@ def converge_domain(v, federation_file, secrets, container="samba"):
              "accounts": {f"fabric-{kind}-{dc}": secrets[f"ad_{kind}_password"]
                           for kind in ("agent", "keycloak", "radius")},
              "radius_gid": v["service_users"]["freeradius"]["gid"], "lan_profile": _lan_profile(v, root_ca),
-             "sso_spns": sso_spns(v)}
+             "sso_spns": sso_spns(v), "grants_fallback_open": v.get("grants_fallback_open") is True}
     state["sso_host"] = v["hostname_keycloak"] if state["sso_spns"] else ""
     state["rodc"] = not state["root"] and v.get("ad_dc_type") == "rodc"
     if not state["root"]:                 # the AD site link to the parent (manual 1.9.8.5)

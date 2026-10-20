@@ -65,7 +65,8 @@ def converge(state):
              moving here: its AD site link only, nothing else of it); lan_profile (str: the Windows wired 802.1X
              profile the baseline installs, "" without one); sso_spns (list, optional: the HTTP SPNs of the site's
              Kerberos sign-in account; none, no account); sso_host (str, optional: Keycloak's name, which the Windows
-             baseline lets browsers use Kerberos for; "" or none, no allowlist).
+             baseline lets browsers use Kerberos for; "" or none, no allowlist); grants_fallback_open (bool,
+             optional: the fallback GPO left out, 2.1.6.88).
     Returns: list of str, what changed.
     Fails:   KeyError for a missing state key; ValueError for a DC name that is not dc-NNNN (checked before anything is
              written); whatever a part raises (ldb.LdbError, OSError, CalledProcessError).
@@ -110,7 +111,7 @@ def converge(state):
     changed += ensure_gpo(samdb, lp, f"fabric: {site} Windows baseline", machines, extensions, files)
     if root:                              # the grants: the shipped ones once, then compiled (1.6.13.4, 1.6.13.5)
         changed += ship_grants(samdb)
-        changed += compile_grants(samdb, lp, dc)
+        changed += compile_grants(samdb, lp, dc, bool(state.get("grants_fallback_open")))
     if state.get("join_account"):         # at a parent, preparing a new site's DC join (manual 1.9.8.4)
         changed += ensure_join_account(samdb, state["join_account"]["name"], state["join_account"]["password"])
     changed += share_winbind(lp, int(state["radius_gid"]))

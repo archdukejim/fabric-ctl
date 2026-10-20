@@ -717,6 +717,14 @@ gone, why = refused(add_grant, V, "hd", "hd-grant", {"who": ["helpdesk-lan"], "w
 check("a grant made by anyone not a Directory Administrator refused (groups:admin alone is not enough)",
       gone and "only a Directory Administrator" in why, why)
 
+print("--- a relaxation shown while on (2.1.6.88)")
+code, out = cli("status")
+V["grants_fallback_open"] = True
+code2, out2 = cli("status")
+V.pop("grants_fallback_open")
+check("fabricctl domain status says RELAXED while grants_fallback_open is on, and not otherwise",
+      "RELAXED: grants_fallback_open is on" in out2 and "RELAXED" not in out, (out, out2))
+
 if not os.environ.get("FABRIC_TEST_KEEP"):
     cleanup()
 print(f"\n{FAILED and 'FAILED' or 'all passed'} ({FAILED} failures)")

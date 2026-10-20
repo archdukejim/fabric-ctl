@@ -261,11 +261,11 @@ def run(ctx):
     for name, passed, detail in checks(ctx):
         (ok if passed else err)(f"{name}" + (f" — {detail}" if detail else ""))
         failed += not passed
-    # sign-in layers lowered with `fabricctl security lower` stay in view until raised again (2.1.6.24): warnings, which
-    # do not fail the checks
+    # sign-in layers lowered with `fabricctl security lower` stay in view until raised again (2.1.6.24), and the
+    # grants' open fallback while it is on (2.1.6.88): warnings, which do not fail the checks
     for row in relaxed_settings(ctx.vars, ctx.config_dir):
-        if " lowered: " in row["setting"]:
-            warn(f"sign-in {row['setting']} — {row['effect']}")
+        if " lowered: " in row["setting"] or row["setting"].startswith("grants_fallback_open"):
+            warn(("sign-in " if " lowered: " in row["setting"] else "") + f"{row['setting']} — {row['effect']}")
     for row in cert_warnings(ctx.vars, **_records(os.path.join(ctx.target_dir, "archive"))):    # what is coming
         if row["level"] == "warn":
             warn(f"certificates: {row['what']}")
