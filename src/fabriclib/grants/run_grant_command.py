@@ -7,6 +7,7 @@ from fabriclib.grants.list_grants import list_grants
 from fabriclib.grants.remove_grant import remove_grant
 from fabriclib.grants.set_grant import set_grant
 from fabriclib.grants.show_grant import show_grant
+from fabriclib.grants.read_grant_fields import refuse_run_as
 from fabriclib.grants.sync_grants import sync_grants
 
 USAGE = """usage: fabricctl domain grant list               the grants: who, rights, where, whom; templates
@@ -18,6 +19,7 @@ USAGE = """usage: fabricctl domain grant list               the grants: who, rig
        fabricctl domain grant sync [--scheduled]   compile the grants again (the fabric-grants timer, every 5 minutes)
   rights: --signin keyboard,remote  --sudo ALL|/path/cmd,...  --local-admin yes|no  --people edit,reset,unlock,
   disable,add  --machines add,move,disable,remove,groups  --description TEXT  (a list's value `none` clears it)
+  sudo always runs as root (a --run-as other than root is refused, 2.1.6.90).
   who and where: groups, a person or machine must be in all of them. A restricting grant (--restrict) names where,
   the right it narrows (--signin, --local-admin) and who alone keeps it there. Refused: the tiers' groups, the hosts
   that run a DC, sudo of every command for everyone, an empty who or where. Changes are made at the root's writable
@@ -31,7 +33,8 @@ def _fields(rest):
     """Purpose: a grant's fields from the command's options.
     Inputs:  rest — list of str after the grant's name.
     Returns: (fields dict, template name or None).
-    Fails:   ValidationError for an unknown option, an option without its value, --local-admin other than yes/no.
+    Fails:   ValidationError for an unknown option, an option without its value, --local-admin other than yes/no,
+             --run-as other than root.
     Feeds:   run_grant_command."""
     fields, template, args = {}, None, list(rest)
     if "--restrict" in args:
@@ -50,6 +53,8 @@ def _fields(rest):
             fields["description"] = value
         elif opt == "--template":
             template = value
+        elif opt == "--run-as":                   # root alone, what a grant's sudo always is (2.1.6.90)
+            refuse_run_as([x.strip() for x in value.split(",")])
         else:
             raise ValidationError(f"unknown option {opt}")
     return fields, template

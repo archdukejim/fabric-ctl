@@ -346,6 +346,9 @@ for args, words in (
          "is not one of keyboard, remote"),
         (["add", "xx", "--who", "ops", "--where", "machines-servers", "--sudo", "ALL,/bin/ls"], "ALL (every command) alone"),
         (["add", "xx", "--who", "ops", "--where", "machines-servers", "--local-admin", "maybe"], "yes or no"),
+        (["add", "xx", "--who", "ops", "--where", "machines-servers", "--sudo", "/bin/ls", "--run-as", "alice"],
+         "runs every command as root, always"),
+        (["set", "server-ops", "--run-as", "root,postgres"], "runs every command as root, always"),
         (["add", "xx", "--template", "nosuch", "--who", "ops", "--where", "site-lan"], "no template nosuch"),
         (["add", "server-ops", "--who", "ops", "--where", "machines-servers", "--signin", "remote"], "exists"),
         (["set", "server-ops", "--restrict"], "kind (allow or restrict) is kept"),
@@ -397,6 +400,11 @@ sudo = ldb("(cn=grant-server-administrators)", "sudoUser", "sudoHost", "sudoComm
 check("the server administrators' sudo rule names %grant-server-administrators-who, every command, the server's names",
       "sudoUser: %grant-server-administrators-who" in sudo and "sudoCommand: ALL" in sudo
       and f"sudoHost: {SRV}" in sudo, sudo)
+code, out = grant("set", "server-ops", "--description", "ops on the servers", "--run-as", "root")
+runas = [ln for ln in ldb("(&(objectClass=sudoRole)(cn=grant-*))", "sudoRunAsUser").splitlines()
+         if ln.startswith("sudoRunAsUser")]
+check("--run-as root is taken (what a grant's sudo always is, 2.1.6.90); every grant's rule runs as root alone",
+      code == 0 and runas and set(runas) == {"sudoRunAsUser: root"}, (out, runas))
 
 print("--- the agent's routes (1.6.13.7)")
 m_get.load_vars = m_post.load_vars = lambda: V
@@ -445,6 +453,8 @@ done = m_post.post_grants(["domain", "grants", "web-ops", "delete"], "alice", {}
 check("POST /v1/domain/grants/web-ops/delete: removed", done["name"] == "web-ops", done)
 for method, route, body, words in (
         ("post", ["domain", "grants"], {"name": "yy", "who": "ops", "where": ["site-lan"]}, "who must be a list"),
+        ("post", ["domain", "grants"], {"name": "yy", "who": ["ops"], "where": ["site-lan"], "sudo": ["/bin/ls"],
+                                        "run_as": "postgres"}, "runs every command as root, always"),
         ("post", ["domain", "grants"], {"name": "yy", "who": ["directory-admins"], "where": ["site-lan"],
                                         "people": ["reset"]}, "tiers' groups"),
         ("post", ["domain", "grants", "nosuch"], {"people": ["reset"]}, "no grant nosuch"),

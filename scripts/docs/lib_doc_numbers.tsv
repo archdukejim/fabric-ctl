@@ -1896,6 +1896,7 @@ function	fabriclib-grants|src/fabriclib/grants/explain_grant.py|explain_grant	1
 function	fabriclib-grants|src/fabriclib/grants/grant_request.py|grant_request	1	
 function	fabriclib-grants|src/fabriclib/grants/list_grants.py|list_grants	1	
 function	fabriclib-grants|src/fabriclib/grants/read_grant_fields.py|read_grant_fields	1	
+function	fabriclib-grants|src/fabriclib/grants/read_grant_fields.py|refuse_run_as	2	
 function	fabriclib-grants|src/fabriclib/grants/remove_grant.py|remove_grant	1	
 function	fabriclib-grants|src/fabriclib/grants/run_grant_command.py|_explain	4	
 function	fabriclib-grants|src/fabriclib/grants/run_grant_command.py|_fields	1	
