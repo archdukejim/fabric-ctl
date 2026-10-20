@@ -6,7 +6,6 @@ from fabriclib.federation.site_networks import site_networks
 from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.federation.common.load_registry import load_registry
 from fabriclib.radius.windows_lan_profile import windows_lan_profile
-from fabriclib.samba.id_range import id_range
 from fabriclib.samba.sso_spns import sso_spns
 from fabriclib.samba.run_converge import run_converge
 
@@ -15,11 +14,11 @@ def converge_domain(v, federation_file, secrets, container="samba"):
     """Purpose: bring the domain to what fabric wants (manual 1.6.5.15, S1.3): hand the wanted state to the converge
              code inside the running DC (src/containers/samba/converge.py) and return what it changed. Every part is
              idempotent, so it runs after every start and apply.
-    Inputs:  v — rendered vars: site_name, ad_password_policy, deploy_base_dir (the root CA under
-             stepca/data/certs), lan_cidr and the DHCP subnets (site_networks), ldap_groups, webui_admin_group,
-             service_users (FreeRADIUS's gid), install_freeradius, radius_people and hostname_radius (the Windows
-             baseline's 802.1X profile), the id block (id_range), what
-             sso_spns reads (Keycloak's Kerberos sign-in account);
+    Inputs:  v — rendered vars: site_name, dc_name and ad_dc_type (this DC: its record, its id range and its
+             service accounts, 2.1.6.63, 2.1.6.82), ad_password_policy, deploy_base_dir (the root CA under
+             stepca/data/certs), lan_cidr and the DHCP subnets (site_networks), ldap_groups, service_users
+             (FreeRADIUS's gid), install_freeradius, radius_people and hostname_radius (the Windows baseline's 802.1X
+             profile), what sso_spns reads (Keycloak's Kerberos sign-in account);
              federation_file — the federation registry (whether this is the root site); secrets — fabric's secrets
              (the service accounts' passwords: ad_agent_password, ad_keycloak_password, ad_radius_password);
              container — the DC's container.
@@ -29,14 +28,13 @@ def converge_domain(v, federation_file, secrets, container="samba"):
              OSError reading the root CA; subprocess.TimeoutExpired after 10 minutes.
     Feeds:   setup/start_services (after the DC starts), deploy/restart_changed (every apply), tests/samba."""
     root_ca = os.path.join(v["deploy_base_dir"], "stepca", "data", "certs", "root_ca.crt")
-    state = {"site": v["site_name"], "root": is_root_site(federation_file),
-             "password_policy": v["ad_password_policy"],
-             "networks": site_networks(v),
-             "root_ca_pem": open(root_ca).read(), "id_range": id_range(v),
+    dc = v["dc_name"]
+    state = {"site": v["site_name"], "dc": dc, "dc_type": v.get("ad_dc_type") or "writable",
+             "root": is_root_site(federation_file), "password_policy": v["ad_password_policy"],
+             "networks": site_networks(v), "root_ca_pem": open(root_ca).read(),
              "groups": [{"name": g["name"], "gidNumber": g["gidNumber"], "description": g.get("description", "")}
                         for g in v.get("ldap_groups") or []],
-             "admin_group": v.get("webui_admin_group") or "admins",
-             "accounts": {f"fabric-{kind}-{v['site_name']}": secrets[f"ad_{kind}_password"]
+             "accounts": {f"fabric-{kind}-{dc}": secrets[f"ad_{kind}_password"]
                           for kind in ("agent", "keycloak", "radius")},
              "radius_gid": v["service_users"]["freeradius"]["gid"], "lan_profile": _lan_profile(v, root_ca),
              "sso_spns": sso_spns(v)}

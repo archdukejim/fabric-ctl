@@ -5,13 +5,14 @@ from fabriclib.federation.read_address_plan import read_address_plan
 from fabriclib.samba.list_conflicts import list_conflicts
 from fabriclib.samba.replication_status import replication_status
 
-# each site's default write limits in the domain (manual 1.6.3.6): who, what it may write, beyond that
+# the default write rights in the domain (manual 1.6.13.2, 2.1.6.76, 2.1.6.82): who, what it may write, beyond that
 LIMITS = [
-    ("fabric-agent-<site>, <site>-admins", "its own OU=<site> (people, groups, machines, devices, roles, networks, "
-     "sudo rules, its GPOs), never its service accounts", "read only"),
-    ("fabric-agent-<root>", "as a site's, plus OU=organisation, the domain's trust GPO and the password policy", ""),
-    ("fabric-keycloak-<site>", "its site's people and groups (sign-in, password changes)", "read only"),
-    ("fabric-radius-<site>", "nothing", "read only"),
+    ("fabric-agent-<dc>", "the directory's folders (people, groups, machines, fabric hosts, devices, roles, networks, "
+     "sudo rules) and fabric's state (CN=fabric,CN=System), never OU=service-accounts", "read only"),
+    ("directory-admins", "OU=people, OU=service-accounts, OU=machines and OU=groups, and their GPO links; never "
+     "fabric's own accounts, the tiers' groups, the grants' computed groups or AD's top tier", "read only"),
+    ("fabric-keycloak-<dc>", "OU=people and the members of OU=groups (sign-in, password changes)", "read only"),
+    ("fabric-radius-<dc>", "nothing", "read only"),
 ]
 
 

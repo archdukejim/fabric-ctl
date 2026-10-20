@@ -12,12 +12,12 @@ MACHINE_RE = re.compile(r"^[a-z0-9]([a-z0-9-]{0,13}[a-z0-9])?$")
 def set_host_group_member(v, actor, group, machine, member, source="cli", secrets=None, container="samba"):
     """Purpose: put one of this site's machines in a host group, or take it out (manual 1.6.11.7); the sudo rules on
              that host group then name its machines again, so a rule follows its group at once.
-    Inputs:  v — fabric vars (site_name); actor — str, for the audit; group — the host group (short or AD name);
+    Inputs:  v — fabric vars; actor — str, for the audit; group — the host group (short or AD name);
              machine — the machine's host name; member — bool: in (True) or out; source — audit source; secrets —
              fabric's secrets (default: load_secrets()); container — the DC's container.
     Returns: {"group": the AD name, "machine", "member", "changed", "rules": the sudo rules whose hosts changed}.
-    Fails:   ValidationError "host group: …", "machine name: …", "no host group … in site …", "no machine … in site
-             …", the directory's refusals (run_op), load_secrets' errors.
+    Fails:   ValidationError "host group: …", "machine name: …", "no host group …", "no machine … in
+             OU=machines", the directory's refusals (run_op), load_secrets' errors.
     Feeds:   agent route POST /v1/host-groups/<name>/members (machines:admin); directory/run_machines_command.
     Notes:   audited as HOST_GROUP_MEMBER_ADD / HOST_GROUP_MEMBER_REMOVE when it changed something."""
     short = check_host_group_name(v, group)

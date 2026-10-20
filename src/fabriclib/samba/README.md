@@ -14,16 +14,16 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `dc_provisioned.py` | Whether this host's DC is installed: the marker its container leaves (positive evidence) |
 | `dc_count_text.py` | The domain's DCs as a person reads them: how many used, how many can be added, never which |
 | `refuse_named_dc.py` | A settings file naming the DC refused for a new install: fabric names DCs itself (2.1.6.65) |
+| `dc_id_range.py` | A DC's uid/gid range from its name: dc-NNNN owns N x 1000000 to N x 1000000 + 999999 (2.1.6.63) |
 | `dc_name_problem.py` | Why a name cannot be the DC's: one label of 1-15 characters, not only digits, not the domain's NetBIOS name |
 | `domain_dc_names.py` | The domain's computer names, its DCs apart, read inside this site's DC (a joining site's DC given the lowest free name) |
-| `id_range.py` | This site's uid/gid block (the root's from `posix_id_start`, `posix_id_block` long; a joined site's from its parent) |
 | `sso_spns.py` | The HTTP SPNs of the site's Kerberos sign-in account (none without Keycloak or Kerberos, or at a read-only DC) |
 | `converge_domain.py` | The wanted state handed to the converge code inside the running DC; what changed (after every start and apply) |
 | `domain_status.py` | What `fabricctl domain status` shows: the DC, whether it runs, its roles, the policy in force |
 | `set_domain_password_policy.py` | Change the password policy in the settings (checked whole, audited); the next apply writes it |
-| `run_domain_command.py` | `fabricctl domain status`, `password-policy`, `add-machine` and `logon show / set / clear` (routing only) |
+| `run_domain_command.py` | `fabricctl domain status`, `password-policy`, `add-machine`, `sort-machines` and `host-managed` (routing only) |
 | `writable_server.py` | The DC a write to the domain goes to: this site's, or a read-only DC's writable partner (`ad_join_server`); refused with none known (2.1.6.52) |
-| `allow_rodc_cache.py` | At a site whose DC is read-only: puts `<site>-rodc-cache` on that DC's password replication allow list, at the writable DC (2.1.6.52) |
+| `allow_rodc_cache.py` | At a site whose DC is read-only: puts `rodc-cache-<dc>` on that DC's password replication allow list, at the writable DC (2.1.6.52) |
 | `gpo_request.py` | One ADMX-editor operation inside the DC (`gpo_tool.py`), the request on stdin |
 | `run_gpo_command.py` | `fabricctl gpo load / templates / list / show / set / clear / starter` |
 | `domain_overview.py` | The Directory tab's domain section: the DC, the policy, this site's machines |
@@ -31,10 +31,10 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `set_gpo_policy.py` | Set a policy in the site's admin settings GPO (audited; CLI and web UI) |
 | `clear_gpo_policy.py` | Put a policy back to Not configured (audited; CLI and web UI) |
 | `run_converge.py` | Hand a wanted state to the converge code inside a DC (stdin) |
-| `prepare_site.py` | At the root, before answering a join: the new site converged in the domain, and its join account |
+| `prepare_site.py` | At the root, before answering a join: the new site's DC converged in the domain (its record, groups and accounts), and its join account |
 | `finish_join.py` | After this site's DC joined: its join account deleted at the root |
 | `replication_status.py` | This DC's inbound replication per partition, read from its own `repsFrom` inside the DC |
-| `domain_sites.py` | Every site in the domain, read inside this site's DC (the next id block a join hands out; a site moving here) |
+| `domain_sites.py` | Every DC's record in the domain, read inside this site's DC (its site and id range; a site moving here) |
 | `list_conflicts.py` | AD's `CNF:` objects: names made on two DCs while apart |
 | `check_password_policy.py` | The password policy as AD takes it (ranges, minimum age below maximum, lockout at least its window); setup asks again at once, deploy refuses |
 | `password_meets_policy.py` | Why the domain would refuse a password a person chose (length, AD's complexity): setup asks again at once (2.1.6.33) |

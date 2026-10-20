@@ -275,11 +275,8 @@ setting:ad_netbios +
 setting:ad_ntp_signd_dir -
 setting:ad_old_password_minutes +
 setting:ad_old_password_minutes -
-setting:ad_org_ou +
-setting:ad_org_ou -
 setting:ad_realm +
 setting:ad_realm -
-setting:ad_site_ou -
 setting:bind9_doh_port +
 setting:bind9_doh_port -
 setting:bind_acls -
@@ -419,7 +416,6 @@ setting:openbao_seal_key_id -
 setting:org_domain -
 setting:posix_home_base +
 setting:posix_home_base -
-setting:posix_id_range -
 setting:posix_login_shell +
 setting:posix_login_shell -
 setting:postgres_data_dir +
@@ -447,8 +443,6 @@ setting:system_timezone -
 setting:use_host_dns -
 setting:webui_admin_email +
 setting:webui_admin_email -
-setting:webui_admin_group +
-setting:webui_admin_group -
 setting:webui_admin_role +
 setting:webui_admin_role -
 setting:webui_client_cert -

@@ -26,8 +26,7 @@ GOOD = {"fabric_subnet": "10.255.0.0/24", "ip_adguard": "10.255.0.34", "ip_bind9
         "ip_fabric_gateway": "10.255.0.1", "image_adguard": "adguard/adguardhome:v0.107.79" + DIGEST,
         "image_fabric_bind9": "ghcr.io/archdukejim/open-fabric/bind9:0.7.0-rc.126" + DIGEST,
         "image_kea": "fabric/kea:local", "image_fabric_webui": "", "image_registry_port": "registry.lan:5000/x/y:1",
-        "image_pins": [], "image_prune": True, "image_rolled_back": [], "image_signature_check": True,
-        "posix_id_start": 1000000, "posix_id_block": 1000000}
+        "image_pins": [], "image_prune": True, "image_rolled_back": [], "image_signature_check": True}
 
 
 def refused(**change):
@@ -38,11 +37,10 @@ def refused(**change):
     return None
 
 
-# covers: setting:image_adguard setting:ip_adguard setting:posix_id_start setting:posix_id_block +
+# covers: setting:image_adguard setting:ip_adguard +
 # covers: setting:image_kea +
-check("the defaults pass: digests, local builds, a pending image, a registry with a port, a million-wide block",
+check("the defaults pass: digests, local builds, a pending image, a registry with a port",
       refused() is None, refused())
-check("a root block at another million passes", refused(posix_id_start=3000000) is None, refused(posix_id_start=3000000))
 
 # covers: setting:image_adguard setting:image_kea -
 for key, bad in (("image_adguard", "AdGuard/AdGuardHome:latest"), ("image_adguard", "adguard home"),
@@ -59,22 +57,9 @@ for bad, said in (("10.255.1.34", "not a host address in fabric's network"), ("1
 why = refused(fabric_subnet="10.255.0.0/33")
 check("refused: a fabric_subnet that is not a network", why and "fabric_subnet" in why, why)
 
-# covers: setting:posix_id_start setting:posix_id_block -
-for change, said in (({"posix_id_start": 999}, "posix_id_start must be a whole number, at least 1000"),
-                     ({"posix_id_start": "1e6"}, "posix_id_start must be a whole number"),
-                     ({"posix_id_block": 10}, "posix_id_block must be a whole number, at least 1000"),
-                     ({"posix_id_start": 2147000000}, "goes past 2147483647"),
-                     # an install's block from before 0.7.0 is no longer served (2.1.6.51, S11)
-                     ({"posix_id_start": 5001}, "posix_id_start must be a multiple of 1000000"),
-                     ({"posix_id_block": 100000}, "posix_id_block must be 1000000"),
-                     ({"posix_id_start": 5001, "posix_id_block": 10000}, "posix_id_start must be a multiple")):
-    why = refused(**change)
-    check(f"refused: {change} ({said})", why and said in why, why)
-for change in ({"posix_id_start": 5001}, {"posix_id_block": 100000}):
-    why = refused(**change)
-    check(f"an older block's refusal ({change}) says to install fresh, why, and where the steps are (2.1.6.54)",
-          why and "before 0.7.0" in why and "install it fresh" in why and "no migration" in why and "3.3.5" in why,
-          why)
+# the id settings are retired (2.1.6.86): a DC's range is its number's; values once refused are no longer read
+check("the retired posix_id_start and posix_id_block are not read: values the old checks refused pass",
+      refused(posix_id_start=5001, posix_id_block=10) is None, refused(posix_id_start=5001, posix_id_block=10))
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

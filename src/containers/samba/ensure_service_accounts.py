@@ -27,19 +27,19 @@ def _signs_in(lp, account, password):
         return False
 
 
-def ensure_service_accounts(samdb, lp, site, accounts):
-    """Purpose: a site's service accounts in the directory (manual 1.6.3.7) — fabric-agent, Keycloak, FreeRADIUS — in
-             its OU=service-accounts, their passwords never expiring, each signing in with the password fabric keeps
-             for it (set only when a sign-in with it fails: a new account, or a password fabric changed). Each also
-             gets a uid from the site block's service range, primary gid fabric's users (2.1.6.46).
-    Inputs:  samdb — SamDB (system); lp — LoadParm; site — str; accounts — {sAMAccountName: password}.
+def ensure_service_accounts(samdb, lp, dc, accounts):
+    """Purpose: a DC's service accounts in the directory (manual 1.6.3.7, 2.1.6.82) — fabric-agent-<dc>,
+             fabric-keycloak-<dc>, fabric-radius-<dc> — in the domain's OU=service-accounts, their passwords never
+             expiring, each signing in with the password fabric keeps for it (set only when a sign-in with it fails:
+             a new account, or a password fabric changed). Each also gets a uid from the service range of the DC's
+             own id range (its record, 2.1.6.63), primary gid fabric's users (2.1.6.46).
+    Inputs:  samdb — SamDB (system); lp — LoadParm; dc — the DC's name (dc-NNNN), whose range the uids come from;
+             accounts — {sAMAccountName: password}.
     Returns: list of str, what was created or set.
-    Fails:   ldb.LdbError from a creation or change AD refuses; ValueError from alloc_id (the service range full).
+    Fails:   ldb.LdbError from a creation or change AD refuses (the DC's record missing: ensure_dc_record makes it
+             first); ValueError from alloc_id (the service range full).
     Feeds:   converge."""
     done = []
-    site_dn = paths.site_dn(samdb, site)
-    block = samdb.search(base=site_dn, scope=ldb.SCOPE_BASE, attrs=["fabricIdRange"])[0].get("fabricIdRange")
-    ranged = bool(block)
     users_gid = samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_SUBTREE,
                              expression=f"(objectSid={samdb.get_domain_sid()}-513)", attrs=["gidNumber"])
     users_gid = str(users_gid[0].get("gidNumber", [""])[0]) if users_gid else ""
@@ -48,7 +48,7 @@ def ensure_service_accounts(samdb, lp, site, accounts):
                              expression=f"(sAMAccountName={ldb.binary_encode(name)})",
                              attrs=["userAccountControl", "uidNumber"])
         if not found:
-            services = paths.relative(samdb, f"OU=service-accounts,{paths.site_dn(samdb, site)}")
+            services = paths.relative(samdb, paths.folder_dn(samdb, "service-accounts"))
             samdb.newuser(name, password, userou=services, force_password_change_at_next_login_req=False)
             done.append(f"service account {name} created")
             found = samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_SUBTREE,
@@ -58,8 +58,8 @@ def ensure_service_accounts(samdb, lp, site, accounts):
             samdb.setpassword(f"(sAMAccountName={ldb.binary_encode(name)})", password,
                               force_change_at_next_login=False)
             done.append(f"service account {name}: password set")
-        if ranged and users_gid and "uidNumber" not in found[0]:     # its POSIX id, from the service range
-            number = alloc_id(samdb, site_dn, "service")
+        if users_gid and "uidNumber" not in found[0]:     # its POSIX id, from the service range
+            number = alloc_id(samdb, dc, "service")
             samdb.modify(ldb.Message.from_dict(samdb, {"dn": str(found[0].dn), "uidNumber": str(number),
                                                        "gidNumber": users_gid, "loginShell": "/usr/sbin/nologin"},
                                                ldb.FLAG_MOD_REPLACE))

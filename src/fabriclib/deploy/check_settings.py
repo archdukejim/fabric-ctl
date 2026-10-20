@@ -24,7 +24,7 @@ def check_settings(final_vars):
              dns_filter other than bind or none (0.6's adguard: run setup, which moves it), from
              check_filter_settings (the BIND resolver's lists, rules and upstreams), from signin_level (a second
              factor that is not a level), or for a pki_manual_max_days that is not a whole number of days, or from
-             check_service_settings (images, fabric's container addresses, the uid/gid block).
+             check_service_settings (images, fabric's container addresses).
     Feeds:   apply_deployment."""
     check_service_settings(final_vars)
     final_vars["dhcp"] = normalize_dhcp(final_vars)

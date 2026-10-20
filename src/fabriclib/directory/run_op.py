@@ -5,14 +5,16 @@ from fabriclib.common.errors import ValidationError
 
 # what the caller is told for each kind of refusal (directory_op's kinds)
 MESSAGES = {"exists": "that name is already taken", "missing": "no such entry",
-            "refused": "the directory refused the change (not permitted for this site)"}
+            "refused": "the directory refused the change (not permitted for fabric's agent)"}
 
 
 def run_op(v, secrets, op, args=None, container="samba", server=None):
     """Purpose: one directory operation (manual 1.6.3, 1.6.5.16), run inside the DC by src/containers/samba/
-             directory_op.py, signed in as this site's fabric-agent account — so AD's per-site limits apply to every
-             change fabric-agent makes (1.6.3.6). The request, the account's password included, goes on stdin.
-    Inputs:  v — rendered vars (site_name); secrets — fabric's secrets (ad_agent_password); op — str, an operation
+             directory_op.py, signed in as this DC's fabric-agent account, fabric-agent-<dc_name> (2.1.6.82) — so AD's
+             ACLs apply to every change fabric-agent makes (1.6.13.2). The request, the account's password included,
+             goes on stdin, with this DC's name (the record its ids come from, 2.1.6.63).
+    Inputs:  v — rendered vars (site_name, dc_name); secrets — fabric's secrets (ad_agent_password); op — str, an
+             operation
              of the DC's directory_ops; args — dict of its arguments (JSON-able); container — the DC's container;
              server — None (this DC) or another DC's address to sign in at (a read-only DC's writable partner,
              2.1.6.52).
@@ -22,8 +24,8 @@ def run_op(v, secrets, op, args=None, container="samba", server=None):
              an operation's own refusal word for word (e.g. "no such user: …"), or "the directory is not reachable"
              when the DC is not running; KeyError without ad_agent_password; subprocess.TimeoutExpired after 60 s.
     Feeds:   fabriclib/directory/* (people, groups, devices, roles, networks)."""
-    site = v["site_name"]
-    request = {"op": op, "args": args or {}, "site": site, "account": f"fabric-agent-{site}",
+    dc = v["dc_name"]
+    request = {"op": op, "args": args or {}, "site": v["site_name"], "dc": dc, "account": f"fabric-agent-{dc}",
                "password": secrets["ad_agent_password"], **({"server": server} if server else {})}
     res = subprocess.run(["docker", "exec", "-i", "-e", "PYTHONDONTWRITEBYTECODE=1", container,
                           "python3", "/fabric/directory_op.py"],

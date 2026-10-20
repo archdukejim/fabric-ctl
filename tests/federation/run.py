@@ -126,11 +126,9 @@ fed_server.Handler.after_join = None          # no apply: this is not an install
 # tests do not run: it is recorded instead (the real one: tests/samba/site_join.py)
 import fabriclib.federation.accept_join as m_accept  # noqa: E402
 PREPARED = []
-m_accept.prepare_site = lambda v, site, networks, block, accounts, password, container="samba": \
-    PREPARED.append((site, block, sorted(accounts))) or []
-import fabriclib.federation.next_id_block as m_block  # noqa: E402
-m_block.domain_sites = lambda container="samba": []
-m_accept.domain_sites = lambda container="samba": []      # the domain's blocks: none beyond the registry's
+m_accept.prepare_site = lambda v, site, networks, dc, dc_type, accounts, password, container="samba": \
+    PREPARED.append((site, dc, sorted(accounts))) or []
+m_accept.domain_sites = lambda container="samba": []      # the domain's DC records: no site moving here
 DC_NAMES = {"dcs": ["dc-0001"], "computers": ["dc-0001", "hq"]}     # the root's DC and its host only
 m_accept.domain_dc_names = lambda container="samba": DC_NAMES
 
@@ -285,11 +283,11 @@ check("join: the site gets the bring-your-own-CA settings and the organisation",
       and jv["cert_org"] == "Fed Test Org" and all(os.path.isfile(jv[k]) for k in ("ca_crt_path", "ica_crt_path",
                                                                                     "ica_key_path")), res)
 dom = res.get("domain") or {}
-check("join: the root prepares the site in its domain and answers with it (a writable DC, the next id block, the "
-      "join account, the service accounts' passwords)",
+check("join: the root prepares the site and its DC in its domain and answers with it (a writable DC, the range its "
+      "name gives it, the join account, the DC's service accounts' passwords)",
       dom.get("ad_domain") == "ad.hq.test" and dom.get("dc_type") == "writable" and dom.get("join_user") == "fabric-join-branch1"
       and sorted(dom.get("accounts") or {}) == ["agent", "keycloak", "radius"] and PREPARED
-      and PREPARED[0][0] == "branch1" and PREPARED[0][1] == dom.get("id_range") == "2000000-2999999", (dom, PREPARED))
+      and PREPARED[0][:2] == ("branch1", "dc-0002") and dom.get("id_range") == "2000000-2999999", (dom, PREPARED))
 # covers: setting:dc_name +
 check("join: the upstream names the joining site's DC, the lowest number the domain does not have (dc-0002: dc-0001 "
       "is the root's), in the join's answer; nobody gave a name (2.1.6.65)",
@@ -355,8 +353,8 @@ for answer in (res, again):
 check("setup's join step says how many DCs the domain has after the join and how many can be added, not which",
       dom.get("dc_count") == 2 and "2 DCs used, 1997 can be added" in said_first, (dom.get("dc_count"), said_first))
 
-# an older joiner (before 0.8.0) names its own DC: a taken name refused before anything is prepared, as before
-# 2.1.6.65 (the root's computer, and the name given to branch1, whose DC has not joined yet); a free one kept
+# an older joiner (before 0.8.0) names its own DC and lays the directory out by sites: refused before anything is
+# prepared, whatever name it gives (0.8.0 has no upgrade, 2.1.1.60, 2.1.6.86)
 import fabriclib.federation.accept_join as m_accept2  # noqa: E402
 real_sign = m_accept2.sign_site_ca
 m_accept2.sign_site_ca = lambda *a, **k: {"root": ROOT_PEM, "cert": "", "chain": "",
@@ -367,26 +365,19 @@ OLD = {"id": inv_old["id"], "secret": inv_old["secret"], "site": "branch4", "csr
 try:
     prepared_before = list(PREPARED)
     # covers: setting:dc_name -
-    check("negative: an older joiner's DC name the domain has (its computer HQ, or dc-0002 given to branch1) is "
-          "refused, naming no DC of the domain; nothing prepared, the invitation kept",
-          refused(accept_join, HQ, {**OLD, "dc_name": "HQ"}, match="is taken in the domain")
-          and refused(accept_join, HQ, {**OLD, "dc_name": "dc-0002"}, match="is taken in the domain")
-          and PREPARED == prepared_before and "branch4" in [i["site"] for i in list_invitations(HQ)])
-    check("negative: an older joiner's DC name that is not a valid name is refused",
-          refused(accept_join, HQ, {**OLD, "dc_name": "not_valid"}, match="cannot be used"))
+    check("negative: a joiner older than 0.8.0 (it names its own DC: a free name, a taken one, an invalid one) is "
+          "refused, saying to install 0.8.0 there; nothing prepared, the invitation kept",
+          all(refused(accept_join, HQ, {**OLD, "dc_name": name}, match="older than 0.8.0")
+              for name in ("DC-Barn", "HQ", "dc-0002", "not_valid"))
+          and PREPARED == prepared_before and "branch4" in [i["site"] for i in list_invitations(HQ)]
+          and "branch4" not in yaml.safe_load(open(f"{W}/fabric/config/federation.yaml"))["sites"])
     try:
         accept_join(HQ, {**OLD, "dc_name": "HQ"})
     except ValidationError as e:
         check("…the refusal names neither the domain's DCs nor fabric's scheme", "dc-0001" not in str(e)
               and "dc-0002" not in str(e) and "hq," not in str(e).lower(), str(e))
-    answer = accept_join(HQ, {**OLD, "dc_name": "DC-Barn"})
 finally:
     m_accept2.sign_site_ca = real_sign
-# covers: setting:dc_name +
-check("join: an older joiner's free DC name is kept, recorded beside the site, and counted",
-      (answer.get("domain") or {}).get("dc_name") == "dc-barn" and (answer.get("domain") or {}).get("dc_count") == 3
-      and yaml.safe_load(open(f"{W}/fabric/config/federation.yaml"))["sites"]["branch4"].get("dc_name") == "dc-barn",
-      answer.get("domain"))
 # the 2000th DC: the join refused with the cap's message before anything is prepared, the invitation kept
 inv_cap = decode_invitation(create_invitation(HQ, "alice", "branch5")["invitation"])
 DC_NAMES["computers"] = [f"dc-{n:04d}" for n in range(1, 2000)]

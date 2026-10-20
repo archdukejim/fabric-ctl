@@ -18,7 +18,7 @@ MARK = "# fabric (manual 1.6.11.11)"
 PAM_MARK = (f"{MARK}: over SSH a password is taken for local accounts only; a domain account signs in with "
             "Kerberos. `fabricctl setup --undo member` removes these two lines")
 PAM_LINE = "auth requisite pam_localuser.so"
-SSHD_TEXT = (f"{MARK}: written by fabricctl setup while this host is in its site's fabric-machines; domain sign-in\n"
+SSHD_TEXT = (f"{MARK}: written by fabricctl setup while this host is in fabric-managed; domain sign-in\n"
              "# with Kerberos. Local accounts' sign-in is left as the host had it: PasswordAuthentication is not\n"
              "# set here, so the appliance stays reachable when its own domain controller is down.\n"
              "GSSAPIAuthentication yes\n"
@@ -120,7 +120,7 @@ def _reload(what):
 
 def apply_host_managed(v, managed, dry=False):
     """Purpose: fabric's management of the fabric host itself (decision 2.1.6.49, manual 1.6.11.11), applied while
-             its account is in <site>-fabric-machines (managed) and removed when it is not: where an SSH server is
+             its account is in fabric-managed (managed) and removed when it is not: where an SSH server is
              installed, Kerberos for SSH (SSHD_DROPIN) and a domain account's password refused over SSH (PAM_LINE in
              /etc/pam.d/sshd); where systemd-resolved runs with its stub (use_host_dns), the domain's names from
              fabric's DNS (RESOLVED_DROPIN). Never locks anyone out: local accounts' SSH sign-in is left as the host

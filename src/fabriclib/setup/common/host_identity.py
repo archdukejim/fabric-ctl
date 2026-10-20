@@ -14,9 +14,9 @@ def _account_name(hostname):
 
 def host_identity(v):
     """Purpose: the domain account the fabric host signs in with (manual 1.6.11.8, decisions 2.1.6.48, 2.1.6.52): its
-             own computer account `<HOSTNAME>$`, a member like any other machine (in the site's OU=fabric-hosts,
-             2.1.6.49), so the site's group policy reaches it. At a site whose DC is read-only the account is written
-             at the writable DC it replicates from (samba/writable_server), and cached by the read-only one
+             own computer account `<HOSTNAME>$`, a member like any other machine (in OU=fabric-hosts,
+             2.1.6.49, 1.6.13.10.9), so a GPO linked there reaches it. At a site whose DC is read-only the account is
+             written at the writable DC it replicates from (samba/writable_server), and cached by the read-only one
              (2.1.6.52). A DC that has the host's name (the two names one account) is refused, not worked around
              (2.1.6.51), as is a read-only DC's site with no writable DC known: `refused` says why, for the member
              step to stop on.

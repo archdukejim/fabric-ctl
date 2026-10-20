@@ -5,16 +5,16 @@ from fabriclib.directory.add_sudo_rule import add_sudo_rule
 from fabriclib.directory.list_sudo_rules import list_sudo_rules
 from fabriclib.directory.remove_sudo_rule import remove_sudo_rule
 
-USAGE = """usage: fabricctl sudo list                        the site's sudo rules: fabric's, its default, admins' own
+USAGE = """usage: fabricctl sudo list                        the domain's sudo rules: fabric's, admins' own
        fabricctl sudo add <name> --who U,%G,... --commands C,... [--as U,...] [--hosts <host group>|ALL]
                                                   a rule: who (people, %groups) may run which commands (absolute
                                                   paths with their arguments, or ALL), as whom (default root), on
-                                                  which host group (default ALL: every machine of the site)
-       fabricctl sudo remove <name>               remove one of fabric's rules (never the default, never an admin's)
-  Rules are stored in the site's OU=sudoers and read by its joined Linux machines (and the sites' below). A rule
-  granting ALL commands to everyone is refused (manual 4.6.6)."""
+                                                  which host group (default ALL: every joined machine)
+       fabricctl sudo remove <name>               remove one of fabric's rules (never an admin's own)
+  Rules are stored in the domain's OU=sudoers and read by its joined Linux machines (never a fabric host). A rule
+  granting ALL commands to everyone, or to a whole site, is refused (manual 4.6.6)."""
 
-KINDS = {"fabric": "fabric", "default": "the site's default, kept by fabric", "other": "not fabric's: read-only here"}
+KINDS = {"fabric": "fabric", "other": "not fabric's: read-only here"}
 
 
 def _items(text):

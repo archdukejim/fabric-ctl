@@ -4,7 +4,9 @@ import subprocess
 
 from fabriclib.common.console import info, ok, warn
 from fabriclib.common.sudo_owner import sudo_owner
+from fabriclib.directory.constants import DIRECTORY_ADMINS
 from fabriclib.directory.ensure_admin import ensure_admin
+from fabriclib.directory.ensure_top_tier import ensure_top_tier
 from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.keycloak.signin_levels import admin_level
 from fabriclib.pki.issue_client_cert import issue_client_cert
@@ -66,14 +68,14 @@ def _readme(v, user, login, folder):
              the console requires one (webui_client_cert), and the second factor Keycloak will ask for.
     Inputs:  v — vars: hostname_mgr, hostname_stepca (the CA's files, 1.5.1.6), host_ip, the other names (for the
              hosts-file line),
-             webui_admin_group, webui_client_cert, the sign-in settings (admin_level); user — the admin; login — the
+             webui_client_cert, the sign-in settings (admin_level); user — the admin; login — the
              account the kit is for; folder — the kit's path.
     Returns: str.
     Fails:   ValidationError from admin_level for an unknown level; KeyError for a missing var.
     Feeds:   run; tests/render.py."""
     cert = bool(v.get("webui_client_cert"))
     return README.format(mgr=v["hostname_mgr"], certs=v["hostname_stepca"], user=user, login=login, host=v["host_ip"],
-                         ip=v["host_ip"], folder=folder, group=v.get("webui_admin_group", "admins"),
+                         ip=v["host_ip"], folder=folder, group=DIRECTORY_ADMINS,
                          cert_line=CERT_LINE.format(user=user) if cert else "",
                          cert_step=CERT_STEP.format(user=user) if cert else "", n=5 if cert else 4,
                          names=" ".join(v[k] for k in ("hostname_landing", "hostname_mgr", "hostname_keycloak",
@@ -86,12 +88,13 @@ def _readme(v, user, login, folder):
 
 
 def run(ctx):
-    """Purpose: the first web UI admin, end to end: a person in the directory, in the admin group (Keycloak grants it
-             fabric-console-admin), the fabric root CA and, while the web console requires one (webui_client_cert), a
+    """Purpose: the first web UI admin, end to end: a person in the directory, the Enterprise Admin (AD's top tier,
+             1.6.12.2) and in `directory-admins`, the console's admin group (Keycloak grants it fabric-console-admin;
+             during D1, 1.6.12.15), the fabric root CA and, while the web console requires one (webui_client_cert), a
              client certificate (.p12, CN = username), collected with instructions in ~/fabric-admin of the account
              that ran setup.
     Inputs:  ctx — SetupContext: vars install_webui, install_keycloak,
-             webui_admin_user, webui_admin_email, webui_admin_group (default admins), webui_client_cert,
+             webui_admin_user, webui_admin_email, webui_client_cert,
              webui_client_cert_days (default 365), the sign-in settings, domain, hostname_mgr, hostname_landing,
              host_ip; secrets (Keycloak admin); the published CA under <deploy_base>/nginx/www/certs. Env SUDO_USER
              via sudo_owner.
@@ -101,7 +104,7 @@ def run(ctx):
              p12-password.txt. A new admin gets the password chosen in setup (ask_first_admin: asked here when setup
              had not, 2.1.6.33); no password is written to the kit. Idempotent: an existing user keeps their
              password; the certificate is renewed when due or from another CA.
-    Fails:   ValidationError from ensure_admin (the directory) or issue_client_cert (propagates,
+    Fails:   ValidationError from ensure_admin or ensure_top_tier (the directory) or issue_client_cert (propagates,
              not SetupError); CalledProcessError from openssl; OSError on files. Warns when run as root without sudo.
     Feeds:   setup step `admin`, run by run_setup via STEPS."""
     v = ctx.vars
@@ -119,12 +122,14 @@ def run(ctx):
                                 lambda: (ask_first_admin(ctx, needed=True), ctx.admin_password)[1])
         if state == "created":
             ok(f"admin '{user}' created in the directory with the password chosen in setup, member of "
-               f"'{v.get('webui_admin_group', 'admins')}'")
+               f"'{DIRECTORY_ADMINS}'")
         else:
             ok(f"admin '{user}' exists" + (" (added to the admin group)" if "+member" in state else ""))
+        if ensure_top_tier(user):
+            ok(f"admin '{user}' is the Enterprise Admin (Enterprise, Schema and Domain Admins)")
     else:                                     # a federated site: people (the admin too) come from the root (M5)
         info(f"people are created at the root site: '{user}' signs in here once the root's directory has them "
-             f"(in '{v.get('webui_admin_group', 'admins')}')")
+             f"(in '{DIRECTORY_ADMINS}')")
 
     if v.get("webui_client_cert"):            # the web console asks for one (2.1.8.2: off by default)
         _client_cert(ctx, v, user, folder, (uid, gid))

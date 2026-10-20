@@ -192,22 +192,14 @@ ad_old_password_minutes: {{ ad_old_password_minutes | default(0) | int }}
 ad_ntp_signd_dir: {{ ad_ntp_signd_dir | default('/var/lib/samba/ntp_signd', true) }}
 ad_rpc_ports: "{{ ad_rpc_ports | default('49152-49251', true) }}"
 {# A site's DC (manual 1.8.8.3-1.8.8.4): writable or read-only; the root's is always writable. A site joining the root's
-   domain gets from the join the root DC's address and name and its id block (setup's join step writes them). #}
+   domain gets from the join the root DC's address and name (setup's join step writes them). Its id range is its
+   name's (dc-NNNN: N x 1000000, 2.1.6.63, 2.1.6.86): no setting. #}
 ad_dc_type: {{ ad_dc_type | default('writable', true) }}
 ad_join_server: "{{ ad_join_server | default('', true) }}"
 ad_join_server_name: "{{ ad_join_server_name | default('', true) }}"
-posix_id_range: "{{ posix_id_range | default('', true) }}"
-{# Where this site's OU and the organisation's sit in the domain, below ad_base_dn (2.1.6.20, manual 1.9.8.14): sites nest,
-   each in its parent's OU, so a joining site gets both from the join; the root's are its own. #}
-{% set _site_ou = ad_site_ou | default('OU=' ~ ((site_name | default(hostname, true)) | lower) ~ ',OU=sites', true) %}
-ad_site_ou: "{{ _site_ou }}"
-ad_org_ou: "{{ ad_org_ou | default('OU=organisation,' ~ _site_ou, true) }}"
-{# uid/gid blocks (2.1.6.46, manual 1.6.3.17): a million per site, site S's from S x 1000000, the root site 1; fixed
-   ranges inside each. Both permanent. #}
-posix_id_start: {{ posix_id_start | default(1000000) | int }}
-posix_id_block: {{ posix_id_block | default(1000000) | int }}
-# This host as a member of its own domain (manual 1.6.11.8, 2.1.6.34): the fabric admins sign in to it with their domain
-# accounts; local accounts are untouched. Asked in setup's Advanced; false leaves the host out (status shows it).
+# This host as a member of its own domain (manual 1.6.11.8, 2.1.6.34): no domain account signs in to it (a host that
+# runs a DC is the top tier, 2.1.6.75); local accounts are untouched. Asked in setup's Advanced; false leaves the host
+# out (status shows it).
 host_join_domain: {{ host_join_domain | default(true) | to_json }}
 # After how many days sssd renews this host's machine password with adcli (manual 1.6.11.12, 2.1.6.50): 0 never (the
 # default: the password is set once); a whole number from 1 to 999 turns it on (setup's member step installs adcli).
@@ -269,7 +261,6 @@ log_forwarding: {{ log_forwarding | default({}, true) | to_json }}
 install_webui: {{ (install_webui | default(true) | bool) and (install_keycloak | default(false) | bool) }}
 webui_realm: {{ webui_realm | default(domain) }}
 webui_admin_role: {{ webui_admin_role | default('fabric-console-admin') }}
-webui_admin_group: {{ webui_admin_group | default('admins') }}
 {# First web UI admin, created by `fabricctl setup` (a person in the domain + client certificate). #}
 webui_admin_user: {{ webui_admin_user | default('fabric-admin', true) }}
 webui_admin_email: {{ webui_admin_email | default('', true) }}
@@ -502,16 +493,16 @@ org_domain: {{ _org_domain }}
    of org_domain; a site gets its upstream's. Fixed once installed (setup refuses a change). #}
 {% set _base_dn = ((ldap_base_dn | default('', true)) or (_org_domain.split('.') | map('regex_replace', '^', 'dc=') | join(','))) | lower %}
 ldap_base_dn: {{ _base_dn }}
-# This install's site (manual 1.9): names its OU in the domain (OU=<site>,OU=sites), which holds its people,
-# machines, devices and service accounts. Defaults to the host name; fixed once installed (setup refuses a change).
+# This install's site (manual 1.9): names its AD site and its group site-<site> (1.6.13.3), which holds its people and
+# machines. Defaults to the host name; fixed once installed (setup refuses a change).
 site_name: {{ (site_name | default(hostname, true)) | lower }}
 
-{# `bundle`: the fabric role bundle Keycloak grants to members (design 2.1.6.1); admins get
-   webui_admin_role through webui_admin_group. #}
+{# `bundle`: the fabric role bundle Keycloak grants to members (design 2.1.6.1); directory-admins, the Directory
+   Administrators (2.1.6.81), get webui_admin_role. #}
 {# The organisation's groups have fixed gids in the root's built-in range (2.1.6.46, manual 1.6.3.17: 1040001 on,
    the first hundred kept for them). An install from before 0.7.0 keeps 1100-1121 and 5000: its vars list them. #}
 {% set default_ldap_groups = [
-  { 'gidNumber': 1040001, 'name': 'admins', 'permissions': ['read', 'write', 'modify'] },
+  { 'gidNumber': 1040001, 'name': 'directory-admins', 'permissions': ['read', 'write', 'modify'] },
   { 'gidNumber': 1040002, 'name': 'auditors', 'bundle': 'fabric-auditor' },
   { 'gidNumber': 1040003, 'name': 'network-operators', 'bundle': 'fabric-network-operator' },
   { 'gidNumber': 1040004, 'name': 'equipment-operators', 'bundle': 'fabric-equipment-operator' },

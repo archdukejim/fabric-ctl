@@ -26,8 +26,6 @@ import fabriclib.federation.accept_join as m_accept  # noqa: E402
 
 # no DC in these tests: the root's domain step of a join is skipped (the real one: tests/samba/site_join.py)
 m_accept.prepare_site = lambda *a, **k: []
-import fabriclib.federation.next_id_block as m_block  # noqa: E402
-m_block.domain_sites = lambda container="samba": []
 m_accept.domain_sites = lambda container="samba": []
 m_accept.domain_dc_names = lambda container="samba": {"dcs": [], "computers": []}   # names given from the registry
 

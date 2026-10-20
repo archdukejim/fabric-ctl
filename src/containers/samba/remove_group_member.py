@@ -2,9 +2,9 @@ import ldb
 
 
 def remove_group_member(samdb, lp, site, group, uid):
-    """Purpose: a person out of a group, if they are in it (manual 1.6.3.16; the agent may change the groups of its
-             site, the root's agent also the organisation's: 1.6.3.6).
-    Inputs:  samdb — SamDB (as the site's agent); lp — LoadParm (unused); site — str (unused); group — the group's
+    """Purpose: a person out of a group, if they are in it (manual 1.6.3.16; the agent may change the groups in
+             OU=groups: 1.6.13.2).
+    Inputs:  samdb — SamDB (as the DC's agent); lp — LoadParm (unused); site — str (unused); group — the group's
              name; uid — the person's user name.
     Returns: {"removed": bool}.
     Fails:   ldb.LdbError ERR_NO_SUCH_OBJECT for no such group or person; ERR_INSUFFICIENT_ACCESS_RIGHTS for a group

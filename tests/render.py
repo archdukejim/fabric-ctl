@@ -218,26 +218,35 @@ assert renamed['hostname_dc'] == 'dc-pi-core.ad.j-j.family' and {'ip': renamed['
 print("the DC's own name: dc-0001, then the first free number, the host's name passed over; an installed one kept, a "
       "renamed host leaves it")
 
-# The id layout (2.1.6.46, manual 1.6.3.17): the root is site 1, a million long; the organisation's groups in its
-# built-in range; no hosts range and no uid_range read: a vars file listing them (as one from before 0.7.0 did) is not
-# read for the block, which starts at site 1's (keep_old_install, that read it, deleted 2026-10-13: S10).
-from fabriclib.samba.id_range import id_range  # noqa: E402
-# covers: setting:posix_id_start +
-assert (v2['posix_id_start'], v2['posix_id_block'], id_range(v2)) == (1000000, 1000000, '1000000-1999999'), id_range(v2)
+# The id layout (2.1.6.46, 2.1.6.63, manual 1.6.3.17): a DC's range is its number's (dc-0001: 1000000-1999999), no
+# setting; the organisation's groups in dc-0001's built-in range; no hosts range and no uid_range read: a vars file
+# listing them (as one from before 0.7.0 did) is not read; the retired id settings are not rendered (2.1.6.86).
+from fabriclib.samba.dc_id_range import dc_id_range  # noqa: E402
+assert not {'posix_id_start', 'posix_id_block', 'posix_id_range', 'ad_site_ou', 'ad_org_ou', 'webui_admin_group'} & set(v2), \
+    sorted({'posix_id_start', 'posix_id_block', 'posix_id_range', 'ad_site_ou', 'ad_org_ou', 'webui_admin_group'} & set(v2))
+assert dc_id_range(v2['dc_name']) == '1000000-1999999', v2['dc_name']
+assert dc_id_range('DC-0042') == '42000000-42999999' and dc_id_range('dc-1999') == '1999000000-1999999999'
+for _bad in ('dc1', 'dc-pi', 'dc-0000', 'dc-2000', 'dc-001', ''):
+    try:
+        dc_id_range(_bad)
+        raise AssertionError(f"dc_id_range({_bad!r}) gave a range")
+    except ValidationError as e:
+        assert 'not a numbered DC name' in str(e), e
 gids = {g['name']: g['gidNumber'] for g in v2['ldap_groups']}
-assert gids['admins'] == 1040001 and gids['users'] == 1040009 and all(1040001 <= g <= 1040100 for g in gids.values()), gids
+assert gids['directory-admins'] == 1040001 and gids['users'] == 1040009 and 'admins' not in gids \
+    and all(1040001 <= g <= 1040100 for g in gids.values()), gids
 assert 'hosts' not in [o['name'] for o in v2['ldap_organizational_units']] \
     and not any('uid_range' in o for o in v2['ldap_organizational_units']), v2['ldap_organizational_units']
 old = {**copy.deepcopy(PRISTINE), 'ldap_organizational_units': [
     {'name': 'users', 'parent': 'accounts', 'uid_range': '5001-50000'}, {'name': 'hosts', 'uid_range': '2000-4900'}],
-       'ldap_groups': [{'gidNumber': 1100, 'name': 'admins'}, {'gidNumber': 5000, 'name': 'users'}]}
+       'ldap_groups': [{'gidNumber': 1100, 'name': 'admins'}, {'gidNumber': 5000, 'name': 'users'}],
+       'posix_id_start': 3000000, 'posix_id_range': '2000000-2999999'}
 was = yaml.safe_load(env.get_template('vars.yaml.j2').render(**old))
 was_gids = {g['name']: g['gidNumber'] for g in was['ldap_groups']}
-assert id_range(was) == '1000000-1999999' and was_gids['admins'] == 1100 and was_gids['users'] == 5000 \
-    and 'hosts' not in [o['name'] for o in was['ldap_organizational_units']], (id_range(was), was_gids)
-assert id_range({'posix_id_range': '2000000-2999999', 'posix_id_start': 1000000}) == '2000000-2999999'
-print("id layout: the root's block 1000000-1999999, the organisation's gids from 1040001; a listed uid_range is not "
-      "read, listed gids are kept")
+assert was_gids['admins'] == 1100 and was_gids['users'] == 5000 and 'posix_id_range' not in was \
+    and 'posix_id_start' not in was and 'hosts' not in [o['name'] for o in was['ldap_organizational_units']], was_gids
+print("id layout: dc-0001's range 1000000-1999999 by its number, the organisation's gids from 1040001 "
+      "(directory-admins first); the retired id settings are not rendered; listed gids are kept")
 doh = ngx[ngx.index('location /dns-query'):]
 doh = doh[:doh.index('\n        }')]          # the location block only
 assert 'grpc_pass $bind9_doh_backend;' in doh and '"grpc://resolver:8053"' in doh and 'proxy_pass $' not in doh, \
@@ -708,7 +717,7 @@ assert "--username=%{mschap:User-Name}" in mschap and "--allow-mschapv2" in msch
 frj_p = json.loads(env.get_template("freeradius/config/fabric-radius.json.j2").render(**{**rv_, "radius_people": people}))
 assert frj_p["people"] == people, frj_p
 frj = json.loads(env.get_template("freeradius/config/fabric-radius.json.j2").render(**rv_))
-assert frj["uri"] == f"ldaps://{rv_['ip_fabric_gateway']}:636" and frj["bind_dn"] == f"fabric-radius-{rv_['site_name']}@{rv_['ad_domain']}" \
+assert frj["uri"] == f"ldaps://{rv_['ip_fabric_gateway']}:636" and frj["bind_dn"] == f"fabric-radius-{rv_['dc_name']}@{rv_['ad_domain']}" \
     and frj["base"] == rv_["ad_base_dn"] and frj["site"] == rv_["site_name"], frj   # the site's DC (S3.2)
 fc = yaml.safe_load(env.get_template("freeradius/docker-compose.yml.j2").render(**rv_))["services"]["freeradius"]
 assert fc["cap_drop"] == ["ALL"] and not fc.get("cap_add") and fc["read_only"] and fc["user"] == "610:610", fc

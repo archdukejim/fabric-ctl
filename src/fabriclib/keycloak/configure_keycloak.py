@@ -2,6 +2,7 @@ import os
 
 import yaml
 
+from fabriclib.directory.constants import DIRECTORY_ADMINS
 from fabriclib.keycloak.admin_client import Admin
 from fabriclib.keycloak.ensure_group_mapper import ensure_group_mapper
 from fabriclib.keycloak.ensure_ldap_federation import ensure_ldap_federation
@@ -51,7 +52,7 @@ def configure_keycloak(vars_path, secrets_path):
     admin_role = v.get("webui_admin_role", ADMIN_ROLE)
     reps = ensure_rbac_roles(kc, realm, admin_role)
     step(f"access control: {len(reps)} fabric roles (permissions and bundles)")
-    grant_role_to_group(kc, realm, reps[admin_role], v.get("webui_admin_group", "admins"))
+    grant_role_to_group(kc, realm, reps[admin_role], DIRECTORY_ADMINS)      # the console's admins (2.1.6.81)
     if retire_old_admin_role(kc, realm, admin_role):
         step(f"the admin role is now {admin_role}: {OLD_ADMIN_ROLE} removed (2.1.6.33)")
     for group in v.get("ldap_groups") or []:

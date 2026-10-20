@@ -9,7 +9,7 @@ def grant_role_to_group(kc, realm, role_rep, group_name):
     Returns: None; prints a step when granted. A missing group prints "! group '<name>' not found ... manually" and
              returns without error.
     Fails:   SystemExit from Admin.call.
-    Feeds:   configure_keycloak (the admin bundle to webui_admin_group, and each ldap_groups bundle)."""
+    Feeds:   configure_keycloak (the admin bundle to directory-admins, and each ldap_groups bundle)."""
     _, groups = kc.call("GET", f"/{q(realm)}/groups?search={q(group_name)}&exact=true&briefRepresentation=true")
     group = next((g for g in groups if g.get("name") == group_name), None)
     if group is None:

@@ -560,17 +560,18 @@ check("the group `member` is recommended, asked after the time service; its step
 _real_missing = pm.missing_packages
 pm.missing_packages = lambda pkgs: ["sssd-ad", "krb5-user"]
 planned = plan_host_changes(mv, "/opt", cfg, JINJA, ["member"]).get("member", [])
-check("planned when on: the missing packages, the host's own account FAB1$ placed in OU=fabric-hosts and "
-      "hq-fabric-machines (never renewed by default) and its keytab only (never the DC's), krb5.conf, sssd.conf, NSS "
+check("planned when on: the missing packages, the host's own account FAB1$ placed in OU=fabric-hosts, "
+      "fabric-managed and dc-hosts, in no site's group (never renewed by default) and its keytab only (never the DC's), krb5.conf, sssd.conf, NSS "
       "and PAM (2.1.6.48, 2.1.6.49)",
       planned[:2] == ["apt: install sssd-ad", "apt: install krb5-user"]
-      and any("FAB1$" in x and "OU=fabric-hosts" in x and "hq-fabric-machines" in x and "never renewed" in x
+      and any("FAB1$" in x and "OU=fabric-hosts" in x and "fabric-managed and dc-hosts" in x
+              and "in no site's group" in x and "never renewed" in x
               and x.startswith("the domain:") for x in planned)
       and any("own computer account FAB1$" in x and "/etc/krb5.keytab" in x for x in planned)
       and not any("DC-FAB1" in x for x in planned)
       and any("no domain account signs in" in x and "/etc/sssd/sssd.conf" in x for x in planned)
       and any(x.startswith("PAM: pam-auth-update") for x in planned), planned)
-check("…and fabric's management of the host while it is in hq-fabric-machines: Kerberos for SSH with local accounts "
+check("…and fabric's management of the host while it is in fabric-managed: Kerberos for SSH with local accounts "
       "unchanged (checked by sshd -t), a domain password refused over SSH, the domain's names from fabric's DNS "
       "(1.6.11.11)",
       any("10-fabric.conf" in x and "local accounts' sign-in unchanged" in x and "sshd -t" in x
@@ -721,7 +722,8 @@ rodc_plan = pm.plan_member(rodc_vars)
 check("…its sssd as at a writable DC's site (no domain sign-in, its own name) and the plan says where the account is "
       "made and that the read-only DC caches it",
       "access_provider = deny\n" in rodc_sssd and "ad_hostname = fab1.ad.test\n" in rodc_sssd
-      and any(x.startswith("the domain:") and "writable domain controller 10.0.9.5" in x and "hq-rodc-cache" in x
+      and any(x.startswith("the domain:") and "writable domain controller 10.0.9.5" in x
+              and f"rodc-cache-{mv['dc_name']}" in x
               for x in rodc_plan), (rodc_sssd, rodc_plan))
 
 # the step on a scratch tree: the host's files in a folder of their own, the DC and the directory faked
@@ -739,9 +741,10 @@ kt_own = b"\x05\x02" + _entry("FAB1$@AD.TEST", 300, 1, b"o" * 32)
 calls, directory = [], {}
 
 
-def fake_add(v, actor, name, source="cli", secrets=None, container="samba", os=None, managed=True, server=None):
-    calls.append(("add", name, os, managed) + ((server,) if server else ()))
-    directory[name.upper()] = {"dn": f"CN={name.upper()},OU=linux,OU=machines,OU=hq,OU=sites,DC=ad,DC=test",
+def fake_add(v, actor, name, source="cli", secrets=None, container="samba", type=None, managed=True, server=None,
+             in_site=True):
+    calls.append(("add", name, type, managed, in_site) + ((server,) if server else ()))
+    directory[name.upper()] = {"dn": f"CN={name.upper()},OU=machines,DC=ad,DC=test",
                                "description": "fabric: unmanaged (manual 1.6.11.6)"}
     return "one-time"
 
@@ -757,9 +760,9 @@ def fake_place(v, actor, name, source="setup", secrets=None, container="samba", 
     calls.append(("place", name) + ((server,) if server else ()))
     entry = directory[name.upper()]
     moved = "OU=fabric-hosts," not in entry["dn"]
-    entry["dn"] = f"CN={name.upper()},OU=fabric-hosts,OU=hq,OU=sites,DC=ad,DC=test"
-    entry["member_of"] = ["CN=hq-fabric-machines,OU=groups,OU=hq,OU=sites,DC=ad,DC=test"]
-    return {"name": name.lower(), "dn": entry["dn"], "moved": moved, "joined": True}
+    entry["dn"] = f"CN={name.upper()},OU=fabric-hosts,DC=ad,DC=test"
+    entry["member_of"] = ["CN=fabric-managed,OU=groups,DC=ad,DC=test", "CN=dc-hosts,OU=groups,DC=ad,DC=test"]
+    return {"name": name.lower(), "dn": entry["dn"], "moved": moved, "joined": ["fabric-managed", "dc-hosts"]}
 
 
 managed_calls = []
@@ -794,9 +797,9 @@ with contextlib.redirect_stdout(out):
 record = json.load(open(os.path.join(jcfg, pm.RECORD)))
 # covers: cli:setup +
 check("approved: the host's own account made as add-machine makes one, then placed once as the site's fabric host "
-      "(OU=fabric-hosts, hq-fabric-machines), recorded, its keys (only) in the keytab, 0600; fabric's management "
-      "applied (2.1.6.49)",
-      calls == [("add", "fab1", "linux", False), ("place", "FAB1")] and record.get("account") == "FAB1"
+      "(OU=fabric-hosts, fabric-managed and dc-hosts; made with no type and in no site's group), recorded, its keys "
+      "(only) in the keytab, 0600; fabric's management applied (2.1.6.49, 1.6.13.6)",
+      calls == [("add", "fab1", None, False, False), ("place", "FAB1")] and record.get("account") == "FAB1"
       and record.get("placed") == "FAB1" and managed_calls == [True]
       and open(jh.KEYTAB, "rb").read() == kt_own and oct(os.stat(jh.KEYTAB).st_mode & 0o777) == "0o600"
       and "own computer account FAB1$" in out.getvalue() and "OU=fabric-hosts" in out.getvalue(),
@@ -805,22 +808,23 @@ out = io.StringIO()
 with contextlib.redirect_stdout(out):
     jh.run(jctx)
 check("a second run changes nothing (the account is the host's and placed: recorded)",
-      "nothing to change" in out.getvalue() and calls == [("add", "fab1", "linux", False), ("place", "FAB1")]
+      "nothing to change" in out.getvalue() and calls == [("add", "fab1", None, False, False), ("place", "FAB1")]
       and managed_calls == [True], (out.getvalue(), calls))
-# an admin takes the host out of hq-fabric-machines (or moves it): setup keeps it so, and removes the management
+# an admin takes the host out of fabric-managed (or moves it): setup keeps it so, and removes the management
 directory["FAB1"]["member_of"] = []
 out = io.StringIO()
 with contextlib.redirect_stdout(out):
     jh.run(jctx)
-check("taken out of hq-fabric-machines by an admin: the next setup does not put it back (placed once), and removes "
+check("taken out of fabric-managed by an admin: the next setup does not put it back (placed once), and removes "
       "fabric's management",
-      calls == [("add", "fab1", "linux", False), ("place", "FAB1")] and managed_calls == [True, False],
+      calls == [("add", "fab1", None, False, False), ("place", "FAB1")] and managed_calls == [True, False],
       (calls, managed_calls, out.getvalue()))
-directory["FAB1"]["member_of"] = ["CN=hq-fabric-machines,OU=groups,OU=hq,OU=sites,DC=ad,DC=test"]
+directory["FAB1"]["member_of"] = ["CN=fabric-managed,OU=groups,DC=ad,DC=test"]
 with contextlib.redirect_stdout(io.StringIO()):
     jh.run(jctx)
-# an account of 0.7.1's first build: in OU=linux, unmanaged, never placed (the record has no "placed")
-directory["FAB1"] = {"dn": "CN=FAB1,OU=linux,OU=machines,OU=hq,OU=sites,DC=ad,DC=test",
+# an account setup made but never placed (the record has no "placed": the place step failed, or an admin moved it
+# back): in OU=machines, unmanaged
+directory["FAB1"] = {"dn": "CN=FAB1,OU=machines,DC=ad,DC=test",
                      "description": "fabric: unmanaged (manual 1.6.11.6)", "member_of": []}
 rec = json.load(open(os.path.join(jcfg, pm.RECORD)))
 rec.pop("placed")
@@ -832,12 +836,12 @@ with contextlib.redirect_stdout(out):
 out2 = io.StringIO()
 with contextlib.redirect_stdout(out2):
     jh.run(jctx)
-check("an account of 0.7.1's first build (OU=linux, unmanaged) is moved into OU=fabric-hosts at the next setup, once; "
-      "a second run changes nothing",
+check("an account setup made but never placed (OU=machines, unmanaged) is moved into OU=fabric-hosts at the next "
+      "setup, once; a second run changes nothing",
       calls == [("place", "FAB1")] and "moved into OU=fabric-hosts" in out.getvalue()
       and "nothing to change" in out2.getvalue()
       and json.load(open(os.path.join(jcfg, pm.RECORD))).get("placed") == "FAB1", (calls, out.getvalue()))
-calls[:] = [("add", "fab1", "linux", False), ("place", "FAB1")]
+calls[:] = [("add", "fab1", None, False, False), ("place", "FAB1")]
 # an upgrade: the keytab still holds the DC's account (2.1.6.34), the record knows no account
 open(jh.KEYTAB, "wb").write(kt1)
 directory.clear()
@@ -847,7 +851,7 @@ out = io.StringIO()
 with contextlib.redirect_stdout(out):
     jh.run(jctx)
 check("an install whose keytab holds the DC's account moves to the host's own: made, recorded, the keytab replaced",
-      calls == [("add", "fab1", "linux", False), ("place", "FAB1")] and open(jh.KEYTAB, "rb").read() == kt_own
+      calls == [("add", "fab1", None, False, False), ("place", "FAB1")] and open(jh.KEYTAB, "rb").read() == kt_own
       and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") == "FAB1"
       and "held another account's: replaced" in out.getvalue(), (calls, out.getvalue()))
 # the host renamed: its account under the new name, the old one (fabric's, recorded) removed
@@ -860,7 +864,7 @@ calls.clear()
 with contextlib.redirect_stdout(io.StringIO()):
     jh.run(type("C", (), {"vars": renamed, "config_dir": jcfg, "offline": False, "secrets": {}})())
 check("the host renamed: its own account under the new name (placed), the one fabric made under the old name removed",
-      calls == [("add", "fab2", "linux", False), ("place", "FAB2"), ("remove", "fab1")] and set(directory) == {"FAB2"}
+      calls == [("add", "fab2", None, False, False), ("place", "FAB2"), ("remove", "fab1")] and set(directory) == {"FAB2"}
       and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") == "FAB2", (calls, directory))
 
 # the undo's part in the domain
@@ -908,12 +912,12 @@ out = io.StringIO()
 with contextlib.redirect_stdout(out):
     jh.run(rctx)
 # covers: cli:setup +
-check("a read-only DC's site: the host's account made and placed at the writable DC (in hq-rodc-cache), cached by the "
-      "read-only DC, its keys exported there; recorded",
-      calls == [("add", "fab1", "linux", False, "10.0.9.5"), ("place", "FAB1", "10.0.9.5")]
+check("a read-only DC's site: the host's account made and placed at the writable DC (in rodc-cache-<dc>), cached "
+      "by the read-only DC, its keys exported there; recorded",
+      calls == [("add", "fab1", None, False, False, "10.0.9.5"), ("place", "FAB1", "10.0.9.5")]
       and preloads == [("FAB1", "10.0.9.5")] and open(jh.KEYTAB, "rb").read() == kt_own
       and json.load(open(os.path.join(rcfg2, pm.RECORD))).get("placed") == "FAB1"
-      and "hq-rodc-cache" in out.getvalue(), (calls, preloads, out.getvalue()))
+      and f"rodc-cache-{rodc_vars['dc_name']}" in out.getvalue(), (calls, preloads, out.getvalue()))
 answering["up"] = False
 out = io.StringIO()
 with contextlib.redirect_stdout(out):
@@ -1042,8 +1046,8 @@ os.makedirs(ahm.SSHD_DIR)
 m_rdc.INSTALL_DIR = tempfile.mkdtemp()
 scfg = os.path.join(m_rdc.INSTALL_DIR, "config")
 os.makedirs(scfg)
-dc_says = {"FAB1": {"dn": "CN=FAB1,OU=fabric-hosts,OU=hq,OU=sites,DC=ad,DC=test", "description": "",
-                    "member_of": ["CN=hq-fabric-machines,OU=groups,OU=hq,OU=sites,DC=ad,DC=test"]}}
+dc_says = {"FAB1": {"dn": "CN=FAB1,OU=fabric-hosts,DC=ad,DC=test", "description": "",
+                    "member_of": ["CN=fabric-managed,OU=groups,DC=ad,DC=test"]}}
 shm.find_computer = lambda account: dc_says.get(account)
 
 
@@ -1065,14 +1069,14 @@ check("negative: an unknown option is a usage error", domain_cmd("host-managed",
 json.dump({"account": "FAB1", "placed": "FAB1"}, open(os.path.join(scfg, pm.RECORD), "w"))
 code, text = domain_cmd("host-managed")
 # covers: cli:domain.host-managed +
-check("in hq-fabric-machines: `domain host-managed` applies fabric's management and says what it found and changed",
-      code == 0 and "FAB1$ is in hq-fabric-machines" in text and os.path.exists(ahm.SSHD_DROPIN)
+check("in fabric-managed: `domain host-managed` applies fabric's management and says what it found and changed",
+      code == 0 and "FAB1$ is in fabric-managed" in text and os.path.exists(ahm.SSHD_DROPIN)
       and ahm.PAM_LINE in open(ahm.PAM_SSHD).read(), (code, text))
 code, text = domain_cmd("host-managed")
 check("…a second run: nothing to change", code == 0 and "nothing to change" in text, text)
 dc_says["FAB1"]["member_of"] = []
 code, text = domain_cmd("host-managed", "--scheduled")
-check("taken out of the group: the timer's run removes it", code == 0 and "not in hq-fabric-machines" in text
+check("taken out of the group: the timer's run removes it", code == 0 and "not in fabric-managed" in text
       and not os.path.exists(ahm.SSHD_DROPIN) and open(ahm.PAM_SSHD).read() == PAM_ORIG, (code, text))
 dc_says.clear()
 code, text = domain_cmd("host-managed")

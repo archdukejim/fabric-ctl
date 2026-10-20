@@ -10,7 +10,7 @@ Helpers shared by setup steps and the consent plans.
 | `host_identity.py` | Which domain account the host signs in with: its own `<HOSTNAME>$` (2.1.6.48), or its DC's where it cannot have its own; a DC with the host's name refused (2.1.6.51) |
 | `find_computer.py` | Whether the domain has a computer account of a name, where, and its groups (read inside the DC) |
 | `apply_host_managed.py` | fabric's management of the fabric host itself, applied or removed: Kerberos for SSH, a domain password refused over SSH, the domain's names from fabric's DNS; local accounts untouched, sshd's configuration checked (1.6.11.11) |
-| `sync_host_managed.py` | The host's management kept in step with its account's membership of `<site>-fabric-machines` (`fabricctl domain host-managed`, the timer) |
+| `sync_host_managed.py` | The host's management kept in step with its account's membership of `fabric-managed` (`fabricctl domain host-managed`, the timer) |
 | `renew_days.py` | After how many days the host's machine password is renewed (`host_machine_password_renew_days`, 0 = never) |
 | `export_keytab.py` | The keys of the host's domain account and its host/ names (never the whole domain's), read from the samba container |
 | `docker_ready.py` | Whether Docker, compose v2 and buildx answer |

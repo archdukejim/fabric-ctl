@@ -15,12 +15,14 @@ USAGE = """usage: fabricctl domain status                    the Windows domain:
        fabricctl domain password-policy [--minimum-length N] [--complexity on|off] [--history N]
            [--minimum-age-days N] [--maximum-age-days N] [--lockout-threshold N] [--lockout-minutes N]
            [--lockout-window-minutes N] [--no-apply]
-       fabricctl domain add-machine <name> [--os linux|windows] [--unmanaged]   pre-create a machine (in its OS
-           family's OU; managed by fabric unless --unmanaged) with a one-time join password
-       fabricctl domain sort-machines [--scheduled]   Windows machines that joined themselves into OU=windows; Linux
-           machines joined with an admin's password into <site>-fabric-machines (each once)
+       fabricctl domain add-machine <name> [--type server|desktop|network] [--unmanaged]   pre-create a machine
+           (in its type's OU and group, and this site's group; managed by fabric unless --unmanaged) with a one-time
+           join password
+       fabricctl domain sort-machines [--scheduled]   Windows machines that joined themselves filed by type (a Server
+           edition a server, else a desktop); Linux machines joined with an admin's password into fabric-managed
+           (each once)
        fabricctl domain host-managed [--scheduled]   this fabric host's management (Kerberos for SSH, the
-           domain's names from fabric's DNS) applied or removed as its account's <site>-fabric-machines membership says
+           domain's names from fabric's DNS) applied or removed as its account's fabric-managed membership says
   password-policy without options shows the policy in the settings; with options it changes those values (the whole
   policy is checked again) and applies them. add-machine prints the password once: give it to join-linux.sh
   --one-time on the machine (manual 4.6.6)."""
@@ -76,7 +78,7 @@ def _host_managed(v, args):
     except SetupError as e:
         print(f"refused: {e}")
         return 1
-    print(f"{done['account']}$ is {'in' if done['managed'] else 'not in'} {v.get('site_name')}-fabric-machines: "
+    print(f"{done['account']}$ is {'in' if done['managed'] else 'not in'} fabric-managed: "
           f"fabric's management {'applied' if done['managed'] else 'removed'}")
     for line in done["changes"] or ["nothing to change"]:
         print(f"  {line}")
@@ -105,9 +107,9 @@ def run_domain_command(v, args):
             print(f"refused: {e}")
             return 1
         if moved["sorted"]:
-            print(f"moved into OU=windows: {', '.join(moved['sorted'])}")
+            print(f"filed by type (OU=servers or OU=desktops): {', '.join(moved['sorted'])}")
         if moved["adopted"]:
-            print(f"managed by fabric now (in {v['site_name']}-fabric-machines): {', '.join(moved['adopted'])}")
+            print(f"managed by fabric now (in fabric-managed): {', '.join(moved['adopted'])}")
         if not moved["sorted"] and not moved["adopted"]:
             print("nothing to sort")
         return 0
@@ -115,12 +117,12 @@ def run_domain_command(v, args):
         rest = args[2:]
         managed = "--unmanaged" not in rest
         rest = [a for a in rest if a != "--unmanaged"]
-        os_family = rest[1] if len(rest) == 2 and rest[0] == "--os" else None
-        if len(args) < 2 or args[1].startswith("-") or (rest and os_family is None):
+        kind = rest[1] if len(rest) == 2 and rest[0] == "--type" else None
+        if len(args) < 2 or args[1].startswith("-") or (rest and kind is None):
             print(USAGE)
             return 2
         try:
-            password = add_machine(v, getpass.getuser(), args[1], os=os_family, managed=managed)
+            password = add_machine(v, getpass.getuser(), args[1], type=kind, managed=managed)
         except ValidationError as e:
             print(f"refused: {e}")
             return 1

@@ -5,9 +5,9 @@ from fabriclib.secrets.load_secrets import load_secrets
 
 
 def create_host_group(v, actor, name, source="cli", secrets=None, container="samba"):
-    """Purpose: a new host group of this site (manual 1.6.11.7): the AD group `<site>-hosts-<name>` in its OU=groups,
+    """Purpose: a new host group (manual 1.6.11.7, 1.6.13.3): the AD group `hosts-<name>` in the domain's OU=groups,
              for machines, named in sudo rules.
-    Inputs:  v — fabric vars (site_name); actor — str, for the audit; name — the short name (or the AD name);
+    Inputs:  v — fabric vars; actor — str, for the audit; name — the short name (or the AD name);
              source — audit source; secrets — fabric's secrets (default: load_secrets()); container — the DC's
              container.
     Returns: {"name": the AD name}.

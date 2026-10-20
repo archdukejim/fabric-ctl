@@ -3,7 +3,7 @@
 FreeRADIUS configuration, rendered by `fabriclib/radius/deploy_freeradius.py`
 to `/opt/freeradius/config/<name>` (root:freerad 0640) and mounted read-only
 at `/etc/freeradius/fabric`. `deploy_freeradius` also writes `ad-password`
-(the site's `fabric-radius-<site>` account's password) here.
+(the DC's `fabric-radius-<dc>` account's password) here.
 
 | Path | What |
 |---|---|

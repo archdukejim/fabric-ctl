@@ -3,7 +3,7 @@ from fabriclib.secrets.load_secrets import load_secrets
 
 
 def read_directory(v, secrets=None):
-    """Purpose: this site's devices and every device role it may use (its own and the organisation's), raw, in one
+    """Purpose: the domain's devices and device roles (OU=devices, OU=device-roles: 1.6.13.2), raw, in one
              directory read (manual 1.6.3.4).
     Inputs:  v — fabric vars (site_name); secrets — fabric's secrets (default: load_secrets()).
     Returns: {"devices": [{name, type, enabled, macs, owner (DN or ""), description, certs (SHA-256 fingerprints),

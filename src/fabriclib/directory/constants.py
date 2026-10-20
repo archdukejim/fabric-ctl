@@ -1,5 +1,20 @@
-"""Device RBAC vocabulary, shared by the directory operations and the web UI."""
+"""Device RBAC vocabulary, shared by the directory operations and the web UI; and the names of the groups fabric
+makes in the domain (manual 1.6.13.3), as the DC's own code names them (src/containers/samba/group_names.py)."""
 import re
+
+DIRECTORY_ADMINS = "directory-admins"   # the Directory Administrators: the console's admin group (2.1.6.81)
+FABRIC_MANAGED = "fabric-managed"       # the machines fabric manages (1.6.11.6, 1.6.13.3)
+DC_HOSTS = "dc-hosts"                   # the hosts that run a DC (2.1.6.70)
+MACHINE_TYPES = ("server", "desktop", "network")     # a machine's type: its OU and group (1.6.13.3)
+
+
+def site_group(site):
+    """Purpose: a site's group, its people and machines (2.1.6.81).
+    Inputs:  site — str.
+    Returns: str "site-<site>".
+    Fails:   never.
+    Feeds:   the directory's callers that name a site's group (sort_machines, create_admin)."""
+    return f"site-{site}"
 
 DEVICE_TYPES = ["laptop", "desktop", "phone", "tablet", "printer", "camera", "iot", "network", "server", "other"]
 

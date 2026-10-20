@@ -36,9 +36,8 @@ def reparent_site(ctx, actor, invitation):
              the same root), but people's web UI certificates must be re-issued (`fabricctl client-cert`):
              nginx now accepts this CA's chain only. The old parent still lists the site until it is removed
              there (`fabricctl federation remove`, which leaves the moved site's domain objects alone). In the
-             domain the new parent moves this site's OU under its own (2.1.6.20, manual 1.9.8.14): this site saves its
-             new place (ad_site_ou, ad_org_ou) and its convergence moves its AD site link; its joined Linux machines'
-             sudo search bases are rewritten by running their installer again. Audited as FED_REPARENT."""
+             domain the new parent links this site's AD site to its own (2.1.6.20, manual 1.9.8.14); the directory's
+             folders are the domain's (1.6.13.2), so nothing of the site moves. Audited as FED_REPARENT."""
     v = ctx.vars
     reg_path = os.path.join(ctx.config_dir, "federation.yaml")
     if not load_registry(reg_path)["upstream"]:
@@ -64,9 +63,6 @@ def reparent_site(ctx, actor, invitation):
     with vars_lock():
         data = load_vars()
         data.update({k: new[k] for k in ("ica_crt_path", "ica_key_path", "ica_parents_path", "site_ca_depth")})
-        dom = res.get("domain") or {}
-        if dom.get("moved"):                 # the new parent moved this site's OU under its own (2.1.6.20)
-            data.update({"ad_site_ou": dom["site_ou"], "ad_org_ou": dom["org_ou"]})
         save_vars(data)
     subprocess.run(["systemctl", "restart", "stepca"], check=True)
     if renew_service_certs(ctx, force=True) != 0:

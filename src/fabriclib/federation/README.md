@@ -27,5 +27,4 @@ their own local network (design [1.9.1](../../../docs/volume_1_description_and_a
 | `show_networks.py` | `fabricctl federation networks`: the plan and its overlaps |
 | `run_federation_command.py` | `fabricctl federation status / enable / disable / invite / invitations / revoke / networks` |
 | `common/` | Helpers shared by the operations above (see its README) |
-| `next_id_block.py` | The uid/gid block a new site gets at its join: the next after every block handed out |
 | `federation_overview.py` | The Federation tab: sites, replication, conflicts, limits, the address plan |

@@ -428,7 +428,7 @@ check "core services start and serve while OpenBao is down" \
 in_box 'systemctl start openbao' > /dev/null 2>&1; sleep 10
 
 echo "--- restricted sign-in: HTTPS + client cert from this CA + Keycloak OIDC/TOTP + the console's admin role"
-# A person of the site who is NOT in admins (bob), and one in auditors (carol), each with a client certificate;
+# A person of the site who is NOT in directory-admins (bob), and one in auditors (carol), each with a client certificate;
 # their one-time passwords from fabric's own reset, through a root-only file
 docker cp "$REPO/tests/sandbox/make_person.py" "$NAME:/root/make_person.py"
 docker cp "$REPO/tests/host/reset_user.py" "$NAME:/root/reset_user.py"
@@ -445,9 +445,9 @@ CAROL_P12_PW=$(in_box 'fabricctl client-cert carol' 2>&1 | sed -n 's/^.p12 passw
 check "third user carol in the auditors group, with a client cert" "grep -q created '$OUT/carol.log' && [ -n '$CAROL_P12_PW' ]"
 BOB_UID=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=bob)' uidNumber" | grep ^uidNumber)
 CAROL_UID=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=carol)' uidNumber" | grep ^uidNumber)
-check "bob and carol have distinct uid numbers from the site's block" "[ -n '$BOB_UID' ] && [ '$BOB_UID' != '$CAROL_UID' ]"
+check "bob and carol have distinct uid numbers from the DC's range" "[ -n '$BOB_UID' ] && [ '$BOB_UID' != '$CAROL_UID' ]"
 
-echo "--- the fabric host as a member of its own domain (manual 1.6.11.8): the fabric admins only, local accounts kept"
+echo "--- the fabric host as a member of its own domain (manual 1.6.11.8): no domain account signs in, local accounts kept"
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq pamtester >/dev/null 2>&1'
 # passwords reach the box in root-only files, read on stdin (never a command line)
 ( umask 077; LOCAL_PW="Lc-$(openssl rand -hex 12)"; printf 'wrong\n' > "$OUT/wrong-pw"
@@ -464,11 +464,16 @@ check "setup made the host a member with its own account: the keytab holds FABRI
      && in_box 'klist -k /etc/krb5.keytab' | grep -qF ' FABRIC-SBX\$@AD.TEST' && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi 'DC-FABRIC-SBX' \
      && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi krbtgt \
      && in_box 'systemctl is-active sssd' | grep -qx active"
-check "…its computer account sits in the site's OU=fabric-hosts (group policy reaches it, 2.1.6.49); sssd denies every domain account and has no sudo provider (the top tier's host, 2.1.6.75, 2.1.6.78)" \
+check "…its computer account sits in the domain's OU=fabric-hosts (2.1.6.49, 1.6.13.2); sssd denies every domain account and has no sudo provider (the top tier's host, 2.1.6.75, 2.1.6.78)" \
     "host_account | grep -q 'OU=fabric-hosts,' \
      && in_box 'grep -qx access_provider.=.deny /etc/sssd/sssd.conf && grep -qx sudo_provider.=.none /etc/sssd/sssd.conf && grep -qx ad_hostname.=.fabric-sbx.ad.test /etc/sssd/sssd.conf'"
-check "the first admin (in fabric-admins) resolves on the host with the domain's uid (1000000, the block's first)" \
+check "the first admin resolves on the host with the domain's uid (1000000, dc-0001's first)" \
     "in_box 'getent passwd fabric-admin' | grep -qE '^fabric-admin:[^:]*:1000000:'"
+ADMIN_GROUPS=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=fabric-admin)' memberOf" | tr -d '\n ')
+check "the first admin is the Enterprise Admin (Enterprise, Schema and Domain Admins, 2.1.6.68) and a Directory Administrator (directory-admins, 2.1.6.81), in OU=people" \
+    "echo '$ADMIN_GROUPS' | grep -q 'CN=EnterpriseAdmins,' && echo '$ADMIN_GROUPS' | grep -q 'CN=SchemaAdmins,' \
+     && echo '$ADMIN_GROUPS' | grep -q 'CN=DomainAdmins,' && echo '$ADMIN_GROUPS' | grep -q 'CN=directory-admins,OU=groups,' \
+     && in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=fabric-admin)' dn\" | grep -q '^dn: CN=fabric-admin,OU=people,'"
 check "negative: the first admin's domain password is right (PAM authenticates it) but the account may not sign in to the host (PAM's account check refuses it: nobody from the domain, 2.1.6.78)" \
     "pam fabric-admin /root/admin-pw authenticate && ! pam fabric-admin /dev/null acct_mgmt"
 check "a wrong password is refused" "! pam fabric-admin /root/wrong-pw"
@@ -477,13 +482,16 @@ check "negative: any other person (bob) resolves but is refused too, and has no 
     "in_box 'getent passwd bob' >/dev/null && ! pam bob /dev/null acct_mgmt \
      && in_box 'sudo -l -U bob 2>&1' | grep -q 'not allowed'"
 echo "--- the fabric host as a machine fabric manages (manual 1.6.11.11, 2.1.6.49): Kerberos for SSH, never locked out"
-FM=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=*-fabric-machines)' sAMAccountName" \
-     | sed -n 's/^sAMAccountName: //p' | head -1)
+FM=fabric-managed
 in_member() { in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=FABRIC-SBX\$)' memberOf" \
               | grep -qi "^memberOf: CN=$FM,"; }
+in_dc_hosts() { in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=FABRIC-SBX\$)' memberOf" \
+              | grep -qi "^memberOf: CN=dc-hosts,"; }
+in_a_site() { in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=FABRIC-SBX\$)' memberOf" \
+              | grep -qi "^memberOf: CN=site-"; }
 samba_tool() { in_box "docker exec samba samba-tool $* -s /data/etc/smb.conf" >> "$OUT/samba-tool.log" 2>&1; }
-check "setup placed the host's account in the site's fabric-machines group ($FM): fabric manages it" \
-    "[ -n '$FM' ] && in_member && in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=FABRIC-SBX\\$)' description\" | grep -q \"fabric host\""
+check "setup placed the host's account in fabric-managed and dc-hosts, in no site's group (1.6.13.6): fabric manages it" \
+    "in_member && in_dc_hosts && ! in_a_site && in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=FABRIC-SBX\\$)' description\" | grep -q \"fabric host\""
 ( umask 077; printf '%s\n' "$BOB_PW" > "$OUT/bob-pw" ); docker cp "$OUT/bob-pw" "$NAME:/root/bob-pw"; rm -f "$OUT/bob-pw"
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server sshpass >/dev/null 2>&1; systemctl start ssh.socket >/dev/null 2>&1; true'
 in_box 'fabricctl domain host-managed' > "$OUT/host-managed.log" 2>&1
@@ -504,7 +512,7 @@ check "a local account signs in over SSH with its password (the host's exception
     "ssh_pw localop /root/localop-pw"
 check "negative: a fabric admin with a Kerberos ticket is refused over SSH (nobody from the domain, 2.1.6.78)" "! ssh_krb fabric-admin /root/admin-pw"
 check "negative: a fabric admin's domain password over SSH is refused" "! ssh_pw fabric-admin /root/admin-pw"
-# dora: a person of the site (in <site>-users, not a fabric admin) whose password is usable at once (bob's is a
+# dora: a person of the site (in site-<site>, not a Directory Administrator) whose password is usable at once (bob's is a
 # one-time password the web sign-in test needs, so neither kinit nor sssd's account check would take it): reset to a
 # password in a root-only file, then its must-change flag lifted in the domain (pwdLastSet -1: no secret on a line)
 in_box 'python3 /root/make_person.py dora' > "$OUT/dora.log" 2>&1
@@ -544,14 +552,13 @@ check "negative: sshd already refusing its configuration: host-managed refuses (
 in_box 'rm -f /etc/ssh/sshd_config.d/00-broken.conf; fabricctl domain host-managed' > "$OUT/host-managed-fixed.log" 2>&1
 check "…fixed: applied again" \
     "grep -q 'is in $FM' '$OUT/host-managed-fixed.log' && in_box 'test -f /etc/ssh/sshd_config.d/10-fabric.conf'"
-# an account of 0.7.1's first build: in OU=machines/OU=linux, never placed (the record without "placed")
-SITE_OU=$(host_account | sed -n 's/^dn: CN=FABRIC-SBX,OU=fabric-hosts,\(.*\),DC=ad,DC=test$/\1/p')
-samba_tool computer move FABRIC-SBX "OU=linux,OU=machines,$SITE_OU"
+# an account setup made but never placed: in OU=machines (the record without "placed")
+samba_tool computer move FABRIC-SBX "OU=machines"
 in_box "python3 -c \"import json; p='/opt/fabric/config/member.json'; r=json.load(open(p)); r.pop('placed', None); json.dump(r, open(p, 'w'))\""
 in_box 'fabricctl setup --step member --non-interactive --yes' > "$OUT/member-move.log" 2>&1
 in_box 'fabricctl setup --step member --non-interactive --yes' > "$OUT/member-move2.log" 2>&1
-check "an account in OU=machines/OU=linux that setup never placed (0.7.1's first build) moves into OU=fabric-hosts at the next setup; a second run changes nothing" \
-    "[ -n '$SITE_OU' ] && host_account | grep -q 'OU=fabric-hosts,' && grep -q 'moved into OU=fabric-hosts' '$OUT/member-move.log' \
+check "an account in OU=machines that setup never placed moves into OU=fabric-hosts at the next setup; a second run changes nothing" \
+    "host_account | grep -q 'OU=fabric-hosts,' && grep -q 'moved into OU=fabric-hosts' '$OUT/member-move.log' \
      && grep -q 'nothing to change' '$OUT/member-move2.log'"
 # renewing the host's machine password (1.6.11.12): off by default; on, adcli is installed and sssd renews it
 check "the host's machine password is never renewed by default (sssd: age 0; no adcli)" \

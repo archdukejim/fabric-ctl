@@ -4,6 +4,7 @@ from adopt_linux_machines import adopt_linux_machines
 from create_host_group import create_host_group
 from create_machine import create_machine
 from create_person import create_person
+from dc_info import dc_info
 from get_person import get_person
 from link_device_cert import link_device_cert
 from list_host_groups import list_host_groups
@@ -26,10 +27,10 @@ from save_role import save_role
 from set_host_group_member import set_host_group_member
 from set_machine import set_machine
 from set_person import set_person
-from site_info import site_info
 from sort_windows_machines import sort_windows_machines
 
 # the operations fabric-agent may ask for (directory_op): each is f(samdb, lp, site, **args) -> JSON-able result
+# (and the request's dc, for one that takes it)
 OPS = {
     "add_group_member": add_group_member,
     "add_sudo_rule": add_sudo_rule,
@@ -37,6 +38,7 @@ OPS = {
     "create_host_group": create_host_group,
     "create_machine": create_machine,
     "create_person": create_person,
+    "dc_info": dc_info,
     "get_person": get_person,
     "link_device_cert": link_device_cert,
     "list_host_groups": list_host_groups,
@@ -59,6 +61,5 @@ OPS = {
     "set_host_group_member": set_host_group_member,
     "set_machine": set_machine,
     "set_person": set_person,
-    "site_info": site_info,
     "sort_windows_machines": sort_windows_machines,
 }

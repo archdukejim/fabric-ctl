@@ -14,10 +14,10 @@ fabric makes them:
   disabled person, a person still on their one-time password, a person in no
   mapped group, an unknown name, and a password sent outside the tunnel.
   PEAP-MSCHAPv2 (eapol_test), checked by the DC through its winbind: a
-  person in a mapped group and a machine of this site (host/<name>, by its
-  Domain Computers mapping) accepted on their VLANs; refused: a wrong
+  person in a mapped group and a machine in OU=machines (host/<name>, by
+  its Domain Computers mapping) accepted on their VLANs; refused: a wrong
   password, a disabled person, a person in no mapped group, a machine
-  outside the site's OU=machines.
+  outside OU=machines (1.6.13.2).
   Refused before any policy: an unknown RADIUS client, a wrong secret, a
   request without Message-Authenticator. The DC down -> refused (fail
   closed), and back -> reconnected. Container hardening.
@@ -133,7 +133,7 @@ sh(["docker", "build", "-q", "-t", "fabric/radius-client:test", f"{W}/client-bui
 # ------------------------------------------------------------------ the DC, and a PKI under its root (as Step-CA's)
 dc = start_dc(f"{W}/dc", DC, NET, SUBNET, DC_IP, domain=DOMAIN)
 V, SECRETS = dc["v"], dc["secrets"]
-check("the site's DC is up and converged (its fabric-radius-lan account included)", dc_healthy())
+check("the site's DC is up and converged (its fabric-radius-dc-0001 account included)", dc_healthy())
 for mod in (add_device_mod, add_role_mod, read_mod, link_mod):   # fabric's secrets and audit log, stood in for
     if hasattr(mod, "load_secrets"):
         mod.load_secrets = lambda: SECRETS
@@ -182,7 +182,7 @@ add_device_mod.add_device(V, "test", "cam1", {"type": "camera", "roles": ["dns-o
 for d in ("laptop1", "laptop2", "laptop3", "cam1"):          # printer1's certificate stays unlinked
     link_mod.link_device_cert(V, "test", d, FP[d])
 
-# people made the way fabric makes them (one-time password, <site>-users), then given a password of their own as
+# people made the way fabric makes them (one-time password, site-<site>), then given a password of their own as
 # Keycloak's first sign-in would; groups as an admin makes them with AD's tools (not `guests`: AD has its own). newbie keeps the one-time password.
 PW = "Correct-Horse-9"
 ONE_TIME = "Ot-" + random_password(20)
@@ -204,11 +204,11 @@ for uid in people:
     if uid != "newbie":
         samdb.setpassword("(sAMAccountName=%s)" % uid, {PW!r}, force_change_at_next_login=False)
 samdb.disable_account("(sAMAccountName=dora)")
-for machine, ou in (("ws1", "OU=machines,OU=lan,OU=sites"), ("ws9", "CN=Computers")):   # ws9: not this site's
+for machine, ou in (("ws1", "OU=servers,OU=machines"), ("ws9", "CN=Computers")):   # ws9: outside OU=machines
     samdb.newcomputer(machine, computerou=ou)
     samdb.setpassword("(sAMAccountName=%s$)" % machine, {MACHINE_PW!r}, force_change_at_next_login=False)
 for group in sorted({{g for gs in people.values() for g in gs}}):
-    samdb.newgroup(group, groupou="OU=groups,OU=lan,OU=sites", grouptype=GTYPE_SECURITY_GLOBAL_GROUP)
+    samdb.newgroup(group, groupou="OU=groups", grouptype=GTYPE_SECURITY_GLOBAL_GROUP)
     samdb.add_remove_group_members(group, [u for u, gs in people.items() if group in gs], add_members_operation=True)
 print("seeded")
 """
@@ -441,11 +441,12 @@ check("PEAP: a person in a mapped group, checked by the DC's winbind -> accepted
       ok and vlan == "20" and "ACCEPT method=peap group=staff vlan=20" in logs() and "person=alice" in logs(),
       out[-800:] + logs()[-800:])
 ok, vlan, out = eap_peap(f"host/ws1.{V['ad_domain']}", MACHINE_PW)
-check("PEAP: a machine of this site (host/ws1 as ws1$) by its Domain Computers mapping -> accepted on VLAN 40",
+check("PEAP: a machine in OU=machines (host/ws1 as ws1$, in OU=servers) by its Domain Computers mapping -> "
+      "accepted on VLAN 40",
       ok and vlan == "40" and "machine=ws1$" in logs().rsplit("method=peap", 1)[-1], out[-800:] + logs()[-800:])
 ok, _, out = eap_peap(f"host/ws9.{V['ad_domain']}", MACHINE_PW)
-check("PEAP: a machine outside this site's OU=machines is refused",
-      not ok and "reason=not_a_machine_of_this_site" in logs(), logs()[-400:])
+check("PEAP: a machine outside OU=machines is refused",
+      not ok and "reason=not_a_machine_in_OU=machines" in logs(), logs()[-400:])
 ok, _, out = eap_peap("alice", "wrong-password")
 check("PEAP: a wrong password is refused by the domain", not ok, logs()[-400:])
 ok, _, out = eap_peap("nora", PW)

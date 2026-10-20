@@ -17,7 +17,7 @@ installs what changed and restarts or reloads what is affected.
 | `check_rendered.py` | The settings checked and BIND's zone-list context set: shared by the apply and the quick zone path (2.1.4.7) |
 | `check_settings.py` | DHCP, time, `dns_filter` and Windows-domain settings checked before anything is rendered |
 | `check_samba_settings.py` | The Windows domain's settings: the AD domain, NetBIOS names, the whole password policy (2.1.6.11, 2.1.6.13) |
-| `check_service_settings.py` | Every service's image, its address in fabric's network and the uid/gid block, checked before anything starts (gaps of 2.3.1.20.2) |
+| `check_service_settings.py` | Every service's image and its address in fabric's network, checked before anything starts (gaps of 2.3.1.20.2) |
 | `load_link_vars.py` | The landing page's links, rendered into the context (a bad file is reported, never fatal) |
 | `service_units.py` | fabric's container services and their wrapper units, with which are on |
 | `render_templates.py` | Every configuration file into the render folder |

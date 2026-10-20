@@ -5,6 +5,15 @@ from webui.devpreview.fabric_rules import ValidationError, check_password_policy
 from webui.devpreview.sample_data import SAMPLE_DOMAIN
 
 
+def _in_fabric_group(groups):
+    """Purpose: whether a sample person holds a fabric group, which only an admin may change (as person_guard).
+    Inputs:  groups — the person's group names.
+    Returns: bool: any group but `users` and the site groups (`site-<name>`), which every person of a site is in.
+    Fails:   never.
+    Feeds:   _person_change, dev_post_directory."""
+    return any(g != "users" and not g.startswith("site-") for g in groups)
+
+
 def _person_change(state, ctx, users, target, op, form):
     """Purpose: disable, enable, remove a person or change their groups, in memory, with the agent's refusals (a
              fabric-group member without system:admin; yourself; the user name not typed back).
@@ -14,7 +23,7 @@ def _person_change(state, ctx, users, target, op, form):
     Fails:   never.
     Feeds:   dev_post_directory."""
     uid = target["uid"]
-    if set(target["groups"]) - {"users"} and "system:admin" not in ctx["perms"]:
+    if _in_fabric_group(target["groups"]) and "system:admin" not in ctx["perms"]:
         return urllib.parse.urlencode({"err": f"{uid} is in a fabric group: only an admin can change them"})
     if op in ("disable", "delete") and uid == ctx.get("user"):
         return urllib.parse.urlencode({"err": f"you cannot {'remove' if op == 'delete' else op} yourself"})
@@ -93,7 +102,7 @@ def dev_post_directory(h, path, form):
         if op != "reset" or not target:
             h.send(404, views.error_page(404, "Not found."))
             return True
-        if set(target["groups"]) - {"users"} and "system:admin" not in ctx["perms"]:
+        if _in_fabric_group(target["groups"]) and "system:admin" not in ctx["perms"]:
             h.send(303, b"", location="/directory?view=people&err=" + urllib.parse.quote(
                 f"{name} is in a fabric group: only an admin can reset their sign-in"))
             return True

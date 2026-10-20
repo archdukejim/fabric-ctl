@@ -31,7 +31,7 @@ def post_domain(route, actor, data):
     v = load_vars()
     if route == ["machines"]:
         return {"password": add_machine(v, actor, read_text(data, "name"), source="web",
-                                        os=read_text(data, "os") or None,
+                                        type=read_text(data, "type") or None,
                                         managed=read_text(data, "managed") != "no")}
     if len(route) == 3 and route[0] == "machines" and route[2] in ("enable", "disable"):
         return set_machine_enabled(v, actor, route[1], route[2] == "enable", source="web")

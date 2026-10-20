@@ -35,10 +35,10 @@ def plan_member(v):
     """Purpose: what making this host a member of its own domain changes (manual 1.2.9.3 `member`, 1.6.11.8): the
              packages it installs when missing, the host's own computer account in the domain (2.1.6.48), placed as
              the site's fabric host (2.1.6.49; at a read-only DC's site made at the writable DC and cached, 2.1.6.52),
-             the files it writes, and fabric's management of the host while it is in <site>-fabric-machines
-             (1.6.11.11), asked once as a kind.
+             the files it writes, and fabric's management of the host while it is in fabric-managed (1.6.11.11),
+             asked once as a kind.
     Inputs:  v — vars: host_join_domain (default True), ad_domain, ad_realm, dc_name, hostname, hostname_dc, host_ip,
-             site_name, ad_dc_type, ad_join_server (setup/common/host_identity), host_machine_password_renew_days,
+             ad_dc_type, ad_join_server (setup/common/host_identity), host_machine_password_renew_days,
              use_host_dns, domain.
     Returns: list of str; [] when host_join_domain is false or there is no AD domain (nothing to join).
     Fails:   FileNotFoundError without dpkg-query (missing_packages).
@@ -46,15 +46,14 @@ def plan_member(v):
     if v.get("host_join_domain", True) is False or not v.get("ad_domain"):
         return []
     ident = host_identity(v)
-    site = (v.get("site_name") or v.get("hostname") or "").lower()
     days = renew_days(v)
     where = (f" (made at the writable domain controller {ident['write_server']}, this site's being read-only; in "
-             f"{site}-rodc-cache, so the read-only one caches its password, decision 2.1.6.52)"
+             f"rodc-cache-{v.get('dc_name')}, so the read-only one caches its password, decision 2.1.6.52)"
              if ident["write_server"] else "")
     account = [
-        f"the domain: this host's own computer account {ident['account']}$, placed once in the site's "
-        f"OU=fabric-hosts and in {site}-fabric-machines (the site's fabric host, managed by fabric: the site's "
-        f"group policy reaches it){where}, its password random and kept nowhere, "
+        f"the domain: this host's own computer account {ident['account']}$, placed once in OU=fabric-hosts and "
+        f"in fabric-managed and dc-hosts (a fabric host, managed by fabric; in no site's group, so no grant on a "
+        f"site reaches it){where}, its password random and kept nowhere, "
         + (f"renewed by sssd with adcli every {days} days" if days else "never renewed"),
         f"{KEYTAB} (0600): the keys of this host's own computer account {ident['account']}$ and its host/ names "
         "only, exported from the domain controller",
@@ -62,12 +61,12 @@ def plan_member(v):
         "rule applies (a host that runs a domain controller is the top tier, decisions 2.1.6.75, 2.1.6.78); sssd "
         "enabled and restarted (local accounts, root and local sudo unchanged)"]
     managed = [
-        f"while this host is in {site}-fabric-machines, where an SSH server is installed: "
+        "while this host is in fabric-managed, where an SSH server is installed: "
         "/etc/ssh/sshd_config.d/10-fabric.conf (Kerberos for SSH; local accounts' sign-in unchanged, so the host "
         "stays reachable with its domain controller down; checked with `sshd -t` before it is loaded) and "
         "/etc/pam.d/sshd (pam_localuser: a domain account's password refused over SSH)"]
     if v.get("use_host_dns", True) is not False:
-        managed.append(f"while this host is in {site}-fabric-machines: /etc/systemd/resolved.conf.d/fabric.conf "
+        managed.append("while this host is in fabric-managed: /etc/systemd/resolved.conf.d/fabric.conf "
                        f"(the names of {v.get('ad_domain')} and {v.get('domain')} from fabric's DNS at "
                        f"{v.get('host_ip')}; other names as before), where systemd-resolved runs")
     return [f"apt: install {p}" for p in missing_packages(_packages(v))] + account[:-1] + [

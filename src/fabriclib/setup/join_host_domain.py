@@ -4,6 +4,7 @@ import socket
 import struct
 import subprocess
 
+from fabriclib.directory.constants import DC_HOSTS, FABRIC_MANAGED
 from fabriclib.common.console import info, ok, warn
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.keep_original import keep_original
@@ -84,7 +85,7 @@ def _answers(server):
 
 def _preload(account, server):
     """Purpose: have this site's read-only DC cache the host's account now (its password included), from the
-             writable DC: the account is in <site>-rodc-cache, on the read-only DC's allow list (2.1.6.52), so the
+             writable DC: the account is in rodc-cache-<dc_name>, on the read-only DC's allow list (2.1.6.52), so the
              host's keys can be exported here and its sign-ins work with the link down.
     Inputs:  account — the account's name without its $; server — the writable DC's address.
     Returns: None.
@@ -95,7 +96,7 @@ def _preload(account, server):
                          timeout=120)
     if res.returncode != 0:
         raise SetupError(f"this site's read-only domain controller could not cache {account}$ from {server}: "
-                         f"{(res.stderr or res.stdout).strip()[-300:]} (the site's <site>-rodc-cache group must be on "
+                         f"{(res.stderr or res.stdout).strip()[-300:]} (its DC's rodc-cache-<dc_name> group must be on "
                          "its password replication allow list, which setup writes at the site's join: manual "
                          "1.6.11.13)")
 
@@ -243,12 +244,12 @@ def _write(path, data, mode):
 def run(ctx):
     """Purpose: make the fabric host a member of its own domain (manual 1.6.11.8, decisions 2.1.6.34, 2.1.6.48,
              2.1.6.49, 2.1.6.52): it signs in with its own computer account `<HOSTNAME>$`, pre-created as `fabricctl
-             domain add-machine` makes one and placed once in the site's OU=fabric-hosts and <site>-fabric-machines, so
+             domain add-machine` makes one and placed once in OU=fabric-hosts, `fabric-managed` and `dc-hosts`, so
              the site's group policy reaches it; no domain account signs in to it and no domain sudo rule applies
-             (the top tier's host, 2.1.6.75, 2.1.6.78); while the account is in <site>-fabric-machines, fabric
+             (the top tier's host, 2.1.6.75, 2.1.6.78); while the account is in fabric-managed, fabric
              manages the host (setup/common/apply_host_managed: Kerberos for SSH, the domain's names from fabric's
              DNS; local accounts' sign-in untouched). At a site whose DC is read-only, the
-             account is written at the writable DC it replicates from, put in <site>-rodc-cache and cached by the
+             account is written at the writable DC it replicates from, put in rodc-cache-<dc_name> and cached by the
              read-only DC (2.1.6.52); with that DC not answering, refused. Local accounts, root and local sudo are
              untouched.
     Inputs:  ctx — SetupContext: vars (host_join_domain, default true; host_machine_password_renew_days; the
@@ -310,7 +311,7 @@ def run(ctx):
     nss = _read(NSSWITCH) or ""
     # placed once per account (2.1.6.49): an admin's later move, or taking it out of the group, is kept
     place = _recorded(ctx.config_dir, "placed") != ident["account"]
-    group = f"cn={str(v.get('site_name') or '').lower()}-fabric-machines,"
+    group = f"cn={FABRIC_MANAGED},"
     managed = place or any(g.lower().startswith(group) for g in (found or {}).get("member_of", []))
     host_changes = apply_host_managed(v, managed, dry=True)
     todo = (missing or not found or stale or _keys(keytab) != _keys(current)
@@ -340,7 +341,7 @@ def run(ctx):
     if not found:
         # a random password the domain's policy accepts, never shown nor kept: the keytab is all the host needs
         add_machine(v, "fabricctl setup", ident["account"].lower(), source="setup", secrets=ctx.secrets,
-                    os="linux", managed=False, server=server)
+                    managed=False, server=server, in_site=False)       # in dc-hosts, never a site's (1.6.13.6)
         _record(ctx.config_dir, "account", ident["account"])
         ok(f"the domain: this host's own computer account {ident['account']}$ made"
            + (f" at the writable domain controller {server}" if server else ""))
@@ -350,9 +351,9 @@ def run(ctx):
         done = place_fabric_host(v, "fabricctl setup", ident["account"], source="setup", secrets=ctx.secrets,
                                  server=server)
         _record(ctx.config_dir, "placed", ident["account"])
-        ok(f"the domain: {ident['account']}$ is {v.get('site_name')}'s fabric host, managed by fabric "
-           f"({'moved into ' if done.get('moved') else 'in '}OU=fabric-hosts, in {v.get('site_name')}-fabric-machines"
-           + (f", in {v.get('site_name')}-rodc-cache" if server else "") + ")")
+        ok(f"the domain: {ident['account']}$ is a fabric host, managed by fabric "
+           f"({'moved into ' if done.get('moved') else 'in '}OU=fabric-hosts, in {FABRIC_MANAGED} and {DC_HOSTS}"
+           + (f", in rodc-cache-{v.get('dc_name')}" if server else "") + ")")
     if server and (not found or place or keytab is None):
         _preload(ident["account"], server)
         ok(f"this site's read-only domain controller caches {ident['account']}$ "

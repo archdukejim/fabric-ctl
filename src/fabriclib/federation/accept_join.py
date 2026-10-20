@@ -14,11 +14,10 @@ from fabriclib.federation.common.save_registry import save_registry
 from fabriclib.federation.common.signing_capacity import signing_capacity
 from fabriclib.federation.constants import DOMAIN_RE, SITE_NAME_RE
 from fabriclib.federation.network_conflicts import network_conflicts
-from fabriclib.federation.next_id_block import next_id_block
 from fabriclib.federation.read_address_plan import read_address_plan
 from fabriclib.federation.site_networks import site_networks
 from fabriclib.pki.sign_site_ca import sign_site_ca
-from fabriclib.samba.dc_name_problem import dc_name_problem
+from fabriclib.samba.dc_id_range import dc_id_range
 from fabriclib.samba.domain_dc_names import domain_dc_names
 from fabriclib.samba.suggested_dc_name import suggested_dc_name
 from fabriclib.samba.domain_sites import domain_sites
@@ -79,8 +78,7 @@ def accept_join(v, req, client_ip="", now=None):
              reads; req — the join request {"id", "secret", "site", "csr", "domain" (the site's own domain),
              "address" (its IP), optional "networks" (its LAN and DHCP subnets: refused when they overlap another
              site's, _check_networks) and "host_name" (its host's name, which its DC's may not be, 2.1.6.51); a
-             "dc_name" comes only from a joiner older than 0.8.0, which names its own DC: refused when not valid or
-             taken, as before 2.1.6.65, else kept (_prepare_domain)};
+             "dc_name" comes only from a joiner older than 0.8.0, which names its own DC: refused (_prepare_domain)};
              client_ip — str for the audit; now — epoch seconds, default time.time().
     Returns: {"root": PEM, "cert": PEM of the site's intermediate (path length: the invitation's nest), "chain":
              PEM of the CAs between it and the root ("" when this is the root site; this site's CA and its
@@ -91,9 +89,9 @@ def accept_join(v, req, client_ip="", now=None):
              friendly_name, cert_*}, "upstream": {"site_name", "domain", "host", "address"}} and, for an invitation
              that names a DC type (made on the root), "domain": {"ad_domain", "dc_type", "dc_name" (the joining
              site's DC's name, given here), "dc_count" (the domain's DCs once it has joined), "dc_host",
-             "dc_address", "id_range", "join_user", "join_password", "accounts" {agent, keycloak, radius},
-             "site_ou", "org_ou"} (_prepare_domain); the registry records the site's DC's name beside it, so a name
-             given to a site whose DC has not joined yet is never given twice.
+             "dc_address", "id_range" (the DC's, 2.1.6.63), "join_user", "join_password", "accounts" {agent,
+             keycloak, radius}, "groups"} (_prepare_domain); the registry records the site's DC's name beside it,
+             so a name given to a site whose DC has not joined yet is never given twice.
     Fails:   ValidationError "the join request is incomplete"; overlapping networks (_check_networks, before
              anything is signed or recorded); "the site's domain/address is not valid" or
              "a site cannot use this site's domain"; REFUSED for an unknown, expired or wrong secret (one message,
@@ -148,7 +146,9 @@ def accept_join(v, req, client_ip="", now=None):
             "via": entry.get("via") or "", "dns_port": _port(req.get("dns_port")),
             "federation_host": fed_host if DOMAIN_RE.match(fed_host) else f"federation.{domain}"}
         if domain_answer:
-            registry["sites"][site].update({"dc": domain_answer["dc_type"], "id_range": domain_answer["id_range"]})
+            registry["sites"][site]["dc"] = domain_answer["dc_type"]
+            if domain_answer.get("id_range"):
+                registry["sites"][site]["id_range"] = domain_answer["id_range"]
             if domain_answer.get("dc_name"):
                 registry["sites"][site]["dc_name"] = domain_answer["dc_name"]
         save_registry(registry)
@@ -165,64 +165,46 @@ def accept_join(v, req, client_ip="", now=None):
 
 def _prepare_domain(v, site, dc_type, networks, registry, host_name="", old_name=""):
     """Purpose: at the parent (the root, or a site with a writable DC), the domain part of a join (manual 1.9.8.4,
-             S8.1, 1.9.8.14): converge the new site in the domain, in this site's OU,
-             (prepare_site) with fresh service-account passwords and the next id block, and a temporary join account.
-    Inputs:  v — this site's vars (ad_domain, hostname_dc, host_ip and what prepare_site reads); site — the new site;
-             dc_type — the invitation's ("writable", "rodc"; "" for none: nothing is prepared); networks — the join
-             request's; registry — load_registry()'s dict (the blocks and DC names handed out so far); host_name —
-             the joining site's host's name, which its DC's may not be (2.1.6.51; "" from an older fabric: not
-             checked); old_name — the DC name a joiner older than 0.8.0 sends ("" from a newer one, which is given
-             its name here).
+             S8.1, 1.9.8.14): name the joining site's DC, then converge it and its site in the domain (prepare_site:
+             the DC's record with the id range its number gives it, 2.1.6.63; its service accounts with fresh
+             passwords, 2.1.6.82; the site's group; a temporary join account).
+    Inputs:  v — this site's vars (ad_domain, hostname_dc, host_ip, ad_netbios and what prepare_site reads); site — the
+             new site; dc_type — the invitation's ("writable", "rodc"; "" for none: nothing is prepared); networks —
+             the join request's; registry — load_registry()'s dict (the DC names handed out so far); host_name — the
+             joining site's host's name, which its DC's may not be (2.1.6.51; "" from an older fabric: not checked);
+             old_name — the DC name a joiner older than 0.8.0 sends ("" from a newer one, which is given its name
+             here).
     Returns: {"ad_domain", "dc_type", "dc_name" (the joining site's DC's name: the lowest dc-NNNN that no computer
-             of the domain has and no site was given, its host's name passed over, 2.1.6.65; an older joiner's own
-             name, kept), "dc_count" (how many DCs the domain has once this one joins: its DCs and the names given
-             to sites not joined yet, with this one), "dc_host",
-             "dc_address", "id_range", "join_user", "join_password",
-             "accounts" {agent, keycloak, radius}, "site_ou" (its OU in this site's, 2.1.6.20), "org_ou", "groups"
-             (the organisation's groups with their gids, ldap_groups: the site's people get the same users gid)};
-             for a site
-             already in the domain (moving here) {"ad_domain", "dc_type", "id_range" (its own), "moved": True,
-             "site_ou", "org_ou"} (its OU moved, no join account, its service accounts keep their passwords); {}
-             without a DC type.
-    Fails:   ValidationError, checked before anything is prepared: the domain has the most DCs it may have
-             (suggested_dc_name); an older joiner's DC name that is not valid or that the domain has (or gave a site),
-             without naming the domain's DCs (2.1.6.65's revision); from domain_dc_names or prepare_site (the root's
-             DC not running or refusing): the invitation is kept.
+             of the domain has, no DC record holds and no site was given, its host's name passed over, 2.1.6.65),
+             "dc_count" (how many DCs the domain has once this one joins: its DCs and the names given to sites not
+             joined yet, with this one), "dc_host", "dc_address", "id_range" (the DC's, by its number), "join_user",
+             "join_password", "accounts" {agent, keycloak, radius}, "groups" (the organisation's groups with their
+             gids, ldap_groups)}; for a site already in the domain (moving here) {"ad_domain", "dc_type", "moved":
+             True} (its AD site linked to this parent, nothing else of it changed); {} without a DC type.
+    Fails:   ValidationError, checked before anything is prepared: a joiner older than 0.8.0 (it names its own DC
+             and lays the directory out by sites: 0.8.0 has no upgrade, 2.1.1.60); the domain has the most DCs it may
+             have (suggested_dc_name); from domain_dc_names, domain_sites or prepare_site (this DC not running or
+             refusing): the invitation is kept.
     Feeds:   accept_join."""
     if not dc_type:
         return {}
-    held = {s["site"]: s for s in domain_sites()}
-    accounts = {kind: random_password() for kind in ("agent", "keycloak", "radius")}
-    if site in held:        # a site of the domain moving here (re-parenting, 2.1.6.20): its OU moves, its DC stays
-        block = held[site]["id_range"] or next_id_block(v, registry, sites=list(held.values()))
-        prepare_site(v, site, networks, block, {}, None)
-        site_ou = v.get("ad_site_ou") or f"OU={v['site_name']},OU=sites"
-        return {"ad_domain": v["ad_domain"], "dc_type": dc_type, "id_range": block, "moved": True,
-                "site_ou": f"OU={site},{site_ou}", "org_ou": v.get("ad_org_ou") or f"OU=organisation,{site_ou}"}
+    if old_name:                # a joiner before 0.8.0 names its own DC and lays out site OUs: not this domain's
+        raise ValidationError("the joining site runs fabric older than 0.8.0, which lays the directory out by "
+                              "sites: install 0.8.0 there and join again (the invitation is kept)")
+    if site in {d["site"] for d in domain_sites()}:     # a site of the domain moving here (re-parenting, 2.1.6.20)
+        prepare_site(v, site, networks, "", dc_type, {}, None)
+        return {"ad_domain": v["ad_domain"], "dc_type": dc_type, "moved": True}
     # the DC's name, fabric's to give (2.1.6.65): chosen before anything is prepared, so a domain with no number left
     # refuses the join with nothing half done
     names = domain_dc_names()
     given = [s.get("dc_name") for s in (registry.get("sites") or {}).values() if s.get("dc_name")]
     taken = {str(n).lower() for n in list(names["computers"]) + list(names["dcs"]) + given}
-    if old_name:                # a joiner before 0.8.0 names its own DC: checked as before 2.1.6.65
-        dc_name = old_name.strip().lower()
-        problem = dc_name_problem(dc_name, v.get("ad_netbios") or "", host_name)
-        if problem:
-            raise ValidationError(f"the name this site gave its domain controller cannot be used: {problem}; give it "
-                                  "another and join again (the invitation is kept)")
-        if dc_name in taken:
-            raise ValidationError("the name this site gave its domain controller is taken in the domain: give it "
-                                  "another and join again (the invitation is kept)")
-    else:
-        dc_name = suggested_dc_name(taken, hostname=host_name, netbios=v.get("ad_netbios") or "")
+    dc_name = suggested_dc_name(taken, hostname=host_name, netbios=v.get("ad_netbios") or "")
     dc_count = len({str(n).lower() for n in list(names["dcs"]) + given} | {dc_name})
+    accounts = {kind: random_password() for kind in ("agent", "keycloak", "radius")}
     join_password = random_password()
-    block = next_id_block(v, registry, sites=list(held.values()))
-    prepare_site(v, site, networks, block, accounts, join_password)
-    site_ou = v.get("ad_site_ou") or f"OU={v['site_name']},OU=sites"     # this site's: the new one nests in it
+    prepare_site(v, site, networks, dc_name, dc_type, accounts, join_password)
     return {"ad_domain": v["ad_domain"], "dc_type": dc_type, "dc_name": dc_name, "dc_count": dc_count,
-            "dc_host": v["hostname_dc"],
-            "dc_address": v["host_ip"],
-            "id_range": block, "join_user": f"fabric-join-{site}", "join_password": join_password,
-            "accounts": accounts, "site_ou": f"OU={site},{site_ou}", "groups": v.get("ldap_groups") or [],
-            "org_ou": v.get("ad_org_ou") or f"OU=organisation,{site_ou}"}
+            "dc_host": v["hostname_dc"], "dc_address": v["host_ip"], "id_range": dc_id_range(dc_name),
+            "join_user": f"fabric-join-{site}", "join_password": join_password, "accounts": accounts,
+            "groups": v.get("ldap_groups") or []}

@@ -1,27 +1,28 @@
 import ldb
 
-from paths import site_dn
+import paths
 
-# where a site's computer accounts live: its machines, and its fabric host beside them (manual 1.6.11.11)
-MACHINE_OUS = ("machines", "fabric-hosts")
+# where the domain's computer accounts that fabric manages live: OU=machines (and its type OUs and an admin's below),
+# and the fabric hosts beside them (manual 1.6.13.2, 1.6.11.11)
+MACHINE_FOLDERS = ("machines", "fabric-hosts")
 
 
-def find_machine(samdb, site, name):
-    """Purpose: a machine of the site by its name, in its OU=machines (and the OUs below) or its OU=fabric-hosts.
-    Inputs:  samdb — SamDB; site — str; name — the host name (any case).
-    Returns: ldb.Message (dn, userAccountControl).
-    Fails:   ldb.LdbError ERR_NO_SUCH_OBJECT when the site has no such machine.
-    Feeds:   set_machine, remove_machine."""
-    base = site_dn(samdb, site)
-    for ou in MACHINE_OUS:
+def find_machine(samdb, name):
+    """Purpose: a machine by its name, in OU=machines (and every OU below it) or OU=fabric-hosts: never a domain
+             controller or an account in AD's own containers.
+    Inputs:  samdb — SamDB; name — the host name (any case).
+    Returns: ldb.Message (dn, userAccountControl, memberOf).
+    Fails:   ldb.LdbError ERR_NO_SUCH_OBJECT when there is no such machine.
+    Feeds:   set_machine, remove_machine, place_fabric_host."""
+    for folder in MACHINE_FOLDERS:
         try:
-            found = samdb.search(base=f"OU={ou},{base}", scope=ldb.SCOPE_SUBTREE,
+            found = samdb.search(base=paths.folder_dn(samdb, folder), scope=ldb.SCOPE_SUBTREE,
                                  expression=f"(&(objectCategory=computer)(sAMAccountName={ldb.binary_encode(name)}$))",
-                                 attrs=["userAccountControl"])
+                                 attrs=["userAccountControl", "memberOf"])
         except ldb.LdbError as e:
-            if e.args[0] == ldb.ERR_NO_SUCH_OBJECT:     # an OU not converged yet: nothing in it
+            if e.args[0] == ldb.ERR_NO_SUCH_OBJECT:     # a folder not converged yet: nothing in it
                 continue
             raise
         if found:
             return found[0]
-    raise ldb.LdbError(ldb.ERR_NO_SUCH_OBJECT, f"no machine {name} in site {site}")
+    raise ldb.LdbError(ldb.ERR_NO_SUCH_OBJECT, f"no machine {name}")

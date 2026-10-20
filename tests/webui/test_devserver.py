@@ -287,9 +287,9 @@ try:
     st, loc, _, _ = req("POST", "/directory/people/sam/enable", {"csrf": "dev"})
     check("enable them again", st == 303 and "enabled" in (loc or "")
           and "/directory/people/sam/disable" in req("GET", "/directory?view=people")[3], loc)
-    st, loc, _, _ = req("POST", "/directory/people/_form/groups", {"csrf": "dev", "uid": "sam", "group": "admins",
-                                                                   "action": "add"})
-    check("put a person in a group (the form picks them)", st == 303 and "added+to+admins" in (loc or ""), loc)
+    st, loc, _, _ = req("POST", "/directory/people/_form/groups", {"csrf": "dev", "uid": "sam",
+                                                                   "group": "directory-admins", "action": "add"})
+    check("put a person in a group (the form picks them)", st == 303 and "added+to+directory-admins" in (loc or ""), loc)
     st, loc, _, _ = req("POST", "/directory/people/_form/delete", {"csrf": "dev", "uid": "sam", "confirm": "sma"})
     check("refused: a removal without the user name typed back", st == 303 and "type+the+user+name" in (loc or ""),
           loc)
@@ -337,10 +337,11 @@ try:
           "Who may sign in" not in page and "/directory/logon/" not in page)
     check("machines section (admin): host groups with their machines and a remove form, the membership and new-group "
           "forms; sudo rules with who made each, remove only for fabric's, the add form (1.6.11.7)",
-          "lan-hosts-web" in page and 'action="/directory/hostgroups/web/delete"' in page
+          "hosts-web" in page and "lan-hosts-web" not in page
+          and 'action="/directory/hostgroups/web/delete"' in page
           and 'action="/directory/hostgroups/_form/members"' in page and 'action="/directory/hostgroups/_new"' in page
           and 'action="/directory/sudo/web-restart/delete"' in page and "/directory/sudo/backup/delete" not in page
-          and "/directory/sudo/lan-fabric-admins/delete" not in page and 'action="/directory/sudo/_new"' in page
+          and "the site's default" not in page and 'action="/directory/sudo/_new"' in page
           and "/usr/bin/systemctl restart nginx" in page and "read-only" in page)
     page = req("GET", "/directory?view=gpo&match=example")[3]
     check("Group Policy section (admin): what is set, a search with a set form per policy",
@@ -350,7 +351,7 @@ try:
     page = req("GET", "/federation")[3]
     check("Federation tab: sites with their DC type, replication with a failing neighbour, conflicts, limits, plan",
           "lab.home.arpa" in page and "read-only" in page and "WERR_BADFILE" in page and "CNF:" in page
-          and "192.168.20.0/24" in page and "fabric-agent-&lt;site&gt;" in page, page[-800:])
+          and "192.168.20.0/24" in page and "fabric-agent-&lt;dc&gt;" in page, page[-800:])
     page = req("GET", "/stepca?view=issue&device=printer")[3]
     check("Step-CA generate form offers devices, prefilled from the device page",
           "<option selected>printer</option>" in page and 'value="printer.home.arpa"' in page)

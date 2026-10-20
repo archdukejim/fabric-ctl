@@ -28,7 +28,7 @@ def remove_person(v, actor, uid, confirm, privileged=False, source="web", secret
     """Purpose: remove a person of this site (manual 1.6.3.16): their sessions end, their directory account (and its
              group memberships) and Keycloak's copy are removed, and the certificates fabric issued to them are
              revoked (published in the CRL at once, 2.1.5.10). Their uid number is never given out again.
-    Inputs:  v — fabric vars (site_name, deploy_base_dir, fabric_groups', webui_admin_group, keycloak_admin's);
+    Inputs:  v — fabric vars (site_name, deploy_base_dir, fabric_groups', keycloak_admin's);
              actor — str, for the audit and the self check; uid — the user name; confirm — the user name typed back;
              privileged — bool: root, or system:admin (a fabric-group member needs it); source — audit source;
              secrets — fabric's secrets (default: load_secrets()); container — the DC's container; ledger, revoked —

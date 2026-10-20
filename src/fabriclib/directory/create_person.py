@@ -12,9 +12,9 @@ MAIL_RE = re.compile(r"^[^@\s]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,}$")
 
 
 def create_person(v, actor, uid, first, last, email, source="web", secrets=None):
-    """Purpose: Helpdesk `people:create` (manual 1.6.3): a new person in this site's OU=people, with their POSIX
-             identity from the site's id block, in `<site>-users`, and a one-time password they change at their first
-             sign-in (Keycloak asks; then TOTP enrolment).
+    """Purpose: Helpdesk `people:create` (manual 1.6.3): a new person in OU=people (the domain's, 2.1.6.64), with
+             their POSIX identity from the DC's range, in this site's `site-<name>`, and a one-time password they
+             change at their first sign-in (Keycloak asks; then TOTP enrolment).
     Inputs:  v — fabric vars (site_name, ad_password_policy, ldap_groups (the users gid), posix_home_base,
              posix_login_shell); actor — str, for the audit; uid — ^[a-z][a-z0-9._-]{1,31}$; first, last — letters and
              simple punctuation, 1-60; email — an address with a dotted domain; source — audit source; secrets —

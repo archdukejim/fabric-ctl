@@ -1,34 +1,35 @@
-"""Host groups and fabric's sudo rules (manual 1.6.11.7): their names, the marks fabric writes on them, and the
-lookups the operations on them share."""
+"""Host groups and fabric's sudo rules (manual 1.6.11.7, 1.6.13.3): their names, the marks fabric writes on them, and
+the lookups the operations on them share. Both are the domain's: host groups in OU=groups, sudo rules in OU=sudoers
+(2.1.6.80)."""
 import ldb
 
-from paths import site_dn
+import paths
 
 HOST_GROUP_MARK = "fabric: a host group (manual 1.6.11.7)"
-# fabric's editor-made sudo rules; the site's default rule carries ensure_sudo_rule's own MARK, never this one
-RULE_MARK = "fabric: a sudo rule of fabric's editor (manual 1.6.11.7)"
+RULE_MARK = "fabric: a sudo rule of fabric's editor (manual 1.6.11.7)"     # fabric's editor-made sudo rules
 HOSTS = "; hosts: "
+PREFIX = "hosts-"                   # a host group's AD name: hosts-<name> (1.6.13.3: no site prefix)
 
 
-def host_group_name(site, name):
+def host_group_name(name):
     """Purpose: a host group's AD name from its short name.
-    Inputs:  site — str; name — the short name (`web`).
-    Returns: str "<site>-hosts-<name>".
+    Inputs:  name — the short name (`web`).
+    Returns: str "hosts-<name>".
     Fails:   never.
-    Feeds:   create_host_group, remove_host_group, set_host_group_member, add_sudo_rule."""
-    return f"{site}-hosts-{name}"
+    Feeds:   create_host_group, remove_host_group, set_host_group_member."""
+    return f"{PREFIX}{name}"
 
 
-def find_host_group(samdb, site, name):
-    """Purpose: one of the site's host groups, in its OU=groups.
-    Inputs:  samdb — SamDB; site — str; name — the group's AD name (`<site>-hosts-<name>`).
+def find_host_group(samdb, name):
+    """Purpose: one of the domain's host groups, in OU=groups (and the OUs an admin made below it).
+    Inputs:  samdb — SamDB; name — the group's AD name (`hosts-<name>`).
     Returns: ldb.Message (dn, member).
-    Fails:   ValueError "no host group <name> in site <site>"; ldb.LdbError from the search.
+    Fails:   ValueError "no host group <name>"; ldb.LdbError from the search.
     Feeds:   remove_host_group, set_host_group_member, add_sudo_rule, refresh_sudo_hosts."""
-    found = samdb.search(base=f"OU=groups,{site_dn(samdb, site)}", scope=ldb.SCOPE_ONELEVEL, attrs=["member"],
+    found = samdb.search(base=paths.folder_dn(samdb, "groups"), scope=ldb.SCOPE_SUBTREE, attrs=["member"],
                          expression=f"(&(objectClass=group)(sAMAccountName={ldb.binary_encode(name)}))")
-    if not found or not name.startswith(f"{site}-hosts-"):
-        raise ValueError(f"no host group {name} in site {site}")
+    if not found or not name.startswith(PREFIX):
+        raise ValueError(f"no host group {name}")
     return found[0]
 
 
@@ -70,13 +71,13 @@ def rule_hosts(description):
     return description[len(RULE_MARK + HOSTS):]
 
 
-def site_rules(samdb, site):
-    """Purpose: the sudo rules in the site's OU=sudoers.
-    Inputs:  samdb — SamDB; site — str.
+def sudo_rules(samdb):
+    """Purpose: the sudo rules in the domain's OU=sudoers.
+    Inputs:  samdb — SamDB.
     Returns: list of ldb.Message (cn, sudoUser, sudoHost, sudoCommand, sudoRunAsUser, description), by name.
-    Fails:   ldb.LdbError from the search (OU=sudoers missing).
-    Feeds:   list_sudo_rules, remove_host_group, refresh_sudo_hosts."""
-    found = samdb.search(base=f"OU=sudoers,{site_dn(samdb, site)}", scope=ldb.SCOPE_ONELEVEL,
+    Fails:   ldb.LdbError from the search (OU=sudoers missing: the domain has not converged).
+    Feeds:   list_sudo_rules, remove_sudo_rule, remove_host_group, refresh_sudo_hosts, list_host_groups."""
+    found = samdb.search(base=paths.folder_dn(samdb, "sudoers"), scope=ldb.SCOPE_ONELEVEL,
                          expression="(objectClass=sudoRole)",
                          attrs=["cn", "sudoUser", "sudoHost", "sudoCommand", "sudoRunAsUser", "sudoRunAs",
                                 "description"])

@@ -28,7 +28,7 @@ def remove_host_account(config_dir, v, secrets):
         return []
     try:
         # a read-only DC's site: removed at the writable DC it was made at, with its place on the allow list
-        # (its <site>-rodc-cache membership goes with it, 2.1.6.52)
+        # (its rodc-cache-<dc_name> membership goes with it, 2.1.6.52)
         server = writable_server(v, "remove the host's account at")
         remove_machine(v, "fabricctl setup", account.lower(), source="setup", secrets=secrets(), server=server)
         done = f"the domain: this host's computer account {account}$ removed"

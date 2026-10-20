@@ -1,6 +1,6 @@
 import ldb
 
-from paths import devices_dn, sites_dn
+import paths
 
 
 def _owner_dn(samdb, owner):
@@ -9,7 +9,7 @@ def _owner_dn(samdb, owner):
     Returns: str.
     Fails:   ValueError "no such user: <owner>".
     Feeds:   save_device."""
-    found = samdb.search(base=sites_dn(samdb), scope=ldb.SCOPE_SUBTREE,
+    found = samdb.search(base=paths.folder_dn(samdb, "people"), scope=ldb.SCOPE_SUBTREE,
                          expression=f"(&(objectCategory=person)(sAMAccountName={ldb.binary_encode(owner)}))",
                          attrs=["dn"])
     if not found:
@@ -18,16 +18,16 @@ def _owner_dn(samdb, owner):
 
 
 def save_device(samdb, lp, site, name, type, macs, owner, description, enabled, roles, new):
-    """Purpose: a device of this site in AD (manual 1.6.3.4): added, or its type, MACs, owner, description, enabled
-             flag and roles replaced. Fields are checked by fabric first (check_device_fields).
-    Inputs:  samdb — SamDB (as the site's agent); lp — LoadParm (unused); site — str; name — the device's name;
+    """Purpose: a device in the domain's OU=devices (manual 1.6.13.2): added, or its type, MACs, owner, description,
+             enabled flag and roles replaced. Fields are checked by fabric first (check_device_fields).
+    Inputs:  samdb — SamDB (as the DC's agent); lp — LoadParm (unused); site — str (unused); name — the device's name;
              type, description — str; macs — list of normalised MACs; owner — user name or ""; enabled — bool;
              roles — list of role names (on the device, fabricRoleName); new — bool: add (else replace).
     Returns: {"name"}.
     Fails:   ValueError "no such user: <owner>"; ldb.LdbError ERR_ENTRY_ALREADY_EXISTS (add), ERR_NO_SUCH_OBJECT
              (replace), ERR_INSUFFICIENT_ACCESS_RIGHTS.
     Feeds:   directory_ops (ops "add_device", "update_device")."""
-    dn = f"CN={name},{devices_dn(samdb, site)}"
+    dn = f"CN={name},{paths.folder_dn(samdb, 'devices')}"
     values = {"fabricDeviceType": type, "fabricEnabled": "TRUE" if enabled else "FALSE", "macAddress": macs,
               "description": description, "owner": _owner_dn(samdb, owner) if owner else "",
               "fabricRoleName": roles}

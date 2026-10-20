@@ -23,9 +23,9 @@ def run(ctx):
              site CA key and certificates are kept in <base>/fabric/config/site-ca (0700); the DNS link's
              TSIG secret goes to fabric's secrets (federation_tsig.upstream). When the root prepared this site in
              its domain: the service accounts' passwords (ad_*_password) and the temporary join account (ad_join)
-             go to fabric's secrets, and ctx.vars gains ad_domain, ad_dc_type, ad_join_server, ad_join_server_name,
-             posix_id_range, ad_site_ou and ad_org_ou (manual 1.9.8.4, 1.9.8.14), posix_id_block (the size of the
-             block it was given) and, from a parent that sends them, ldap_groups (the organisation's gids, 2.1.6.46).
+             go to fabric's secrets, and ctx.vars gains ad_domain, ad_dc_type, ad_join_server and
+             ad_join_server_name (manual 1.9.8.4, 1.9.8.14) and, from a parent that sends them, ldap_groups (the
+             organisation's gids, 2.1.6.46). The DC's id range is its name's (2.1.6.63): nothing to keep.
              ctx.vars["dc_name"] becomes the name the upstream gave this site's DC (2.1.6.65; also on a re-run, from
              the registry), so the DC joins under it; the output says how many DCs the domain then has and how many
              can still be added, never the DC's name.
@@ -67,13 +67,8 @@ def run(ctx):
             raise SetupError(str(e)) from None
         ctx.secrets = None
     if dom:
-        first, last = (int(x) for x in str(dom["id_range"]).split("-"))
         ctx.vars.update({"ad_domain": dom["ad_domain"], "ad_dc_type": dom["dc_type"],
-                         "ad_join_server": dom["dc_address"], "ad_join_server_name": dom["dc_host"],
-                         "posix_id_range": dom["id_range"], "ad_site_ou": dom["site_ou"],
-                         "ad_org_ou": dom["org_ou"],
-                         # the organisation's block size, for the sites it may nest (2.1.6.46)
-                         "posix_id_block": last - first + 1})
+                         "ad_join_server": dom["dc_address"], "ad_join_server_name": dom["dc_host"]})
         if dom.get("groups"):                    # the organisation's groups and their gids, as the root has them
             ctx.vars["ldap_groups"] = dom["groups"]
     if res.get("dc_name"):                       # the upstream names this site's DC (2.1.6.65)

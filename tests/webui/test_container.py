@@ -891,7 +891,7 @@ out = agent_call("POST", "/v1/radius/clients", "carol", AUDITOR_ROLES, {"name": 
 check("auditor token: may not add a RADIUS client (403, radius:admin)", " 403 " in out and "radius:admin" in out, out)
 out = agent_call("POST", "/v1/radius/clients", "carol", bundle_roles("fabric-network-operator"),
                  {"name": "evil", "address": "192.168.7.66"})
-out2 = agent_call("POST", "/v1/radius/people", "carol", AUDITOR_ROLES, {"group": "admins"})
+out2 = agent_call("POST", "/v1/radius/people", "carol", AUDITOR_ROLES, {"group": "directory-admins"})
 # covers: agent:post.radius.people -
 check("auditor token: may not map a group for network logins (403, radius:admin)",
       " 403 " in out2 and "radius:admin" in out2, out2)
@@ -1080,7 +1080,7 @@ for path, roles, perm in (("/v1/dhcp/on", AUDITOR_ROLES, "dhcp:write"), ("/v1/dh
                           ("/v1/dns-filter/querylog", netops, "dns:querylog"),
                           ("/v1/radius/clients/switch1/rotate", AUDITOR_ROLES, "radius:admin"),
                           ("/v1/radius/clients/switch1/delete", AUDITOR_ROLES, "radius:admin"),
-                          ("/v1/radius/people/lan-users/delete", AUDITOR_ROLES, "radius:admin"),
+                          ("/v1/radius/people/site-lan/delete", AUDITOR_ROLES, "radius:admin"),
                           ("/v1/vault/slots/s1/test", AUDITOR_ROLES, "vault:unlock"),
                           ("/v1/vault/slots/s1/remove", AUDITOR_ROLES, "vault:unlock")):
     out = agent_call("POST", path, "carol", roles, {"name": "x", "group": "", "subnet": "10.9.0.0/24"})
@@ -1326,7 +1326,7 @@ for path in ("/dns-filter/lists", "/dns-filter/lists/delete", "/dns-filter/rules
 # ---- the FreeRADIUS tab (manual 1.11): refused while 802.1X is off; with it on, each change saved
 vt, st_before = vars_now(), secrets_now()
 for path, form in (("/freeradius/clients", {"name": "switch1", "address": "192.168.7.20"}),
-                   ("/freeradius/people", {"group": "lan-users", "vlan": "20"})):
+                   ("/freeradius/people", {"group": "site-lan", "vlan": "20"})):
     st, loc, _ = web_post(path, form, adm, acsrf)
     # covers: web:post.freeradius.clients web:post.freeradius.people -
     check(f"802.1X off: {path} is refused, saying 802.1X is off, nothing saved",
@@ -1358,26 +1358,26 @@ for path in ("/freeradius/clients/ghost/rotate", "/freeradius/clients/ghost/dele
     # covers: agent:post.radius.clients.*.rotate agent:post.radius.clients.*.delete -
     check(f"802.1X: {path} for a client that does not exist is refused, named, nothing changed",
           st == 303 and "no RADIUS client ghost" in loc and vars_now() == vt and secrets_now() == st_before, loc)
-st, loc, _ = web_post("/freeradius/people", {"group": "lan-users", "vlan": "20"}, adm, acsrf)
+st, loc, _ = web_post("/freeradius/people", {"group": "site-lan", "vlan": "20"}, adm, acsrf)
 people = {p["group"]: p for p in (vars_key("radius_people") or [])}
 # covers: web:post.freeradius.people agent:post.radius.people +
 check("802.1X: members of a group may join by password, on their VLAN -> saved",
-      "Members of lan-users may join by password on VLAN 20." in loc and str(people.get("lan-users", {}).get("vlan"))
+      "Members of site-lan may join by password on VLAN 20." in loc and str(people.get("site-lan", {}).get("vlan"))
       == "20", (loc, people))
 vt = vars_now()
 st, loc, _ = web_post("/freeradius/people", {"group": "lan-admins", "vlan": "5000"}, adm, acsrf)
 # covers: web:post.freeradius.people -
 check("802.1X: a VLAN outside 1-4094 is refused, said why, nothing saved",
       "lan-admins: VLAN must be 1-4094" in loc and vars_now() == vt, loc)
-st, loc, _ = web_post("/freeradius/people/lan-users/delete", {}, adm, acsrf)
+st, loc, _ = web_post("/freeradius/people/site-lan/delete", {}, adm, acsrf)
 # covers: web:post.freeradius.people.*.delete agent:post.radius.people.*.delete +
 check("802.1X: unmap the group -> its members may no longer join by password",
-      "Members of lan-users may no longer join by password." in loc and not vars_key("radius_people"), loc)
+      "Members of site-lan may no longer join by password." in loc and not vars_key("radius_people"), loc)
 vt = vars_now()
-st, loc, _ = web_post("/freeradius/people/lan-users/delete", {}, adm, acsrf)
+st, loc, _ = web_post("/freeradius/people/site-lan/delete", {}, adm, acsrf)
 # covers: web:post.freeradius.people.*.delete agent:post.radius.people.*.delete -
 check("802.1X: unmapping a group that is not mapped is refused, named, nothing saved",
-      "group lan-users is not mapped for 802.1X" in loc and vars_now() == vt, loc)
+      "group site-lan is not mapped for 802.1X" in loc and vars_now() == vt, loc)
 st, loc, _ = web_post("/freeradius/clients/switch1/delete", {}, adm, acsrf)
 # covers: web:post.freeradius.clients.*.delete agent:post.radius.clients.*.delete +
 check("802.1X: remove the client -> gone from vars.yaml and its secret from the secrets",
@@ -1385,8 +1385,8 @@ check("802.1X: remove the client -> gone from vars.yaml and its secret from the 
 vt, st_before = vars_now(), secrets_now()
 aud, aud_csrf = fresh(AUDITOR_ROLES)
 for path in ("/freeradius/clients", "/freeradius/clients/switch1/rotate", "/freeradius/clients/switch1/delete",
-             "/freeradius/people", "/freeradius/people/lan-users/delete"):
-    st, _, body = web_post(path, {"name": "evil", "address": "192.168.7.66", "group": "lan-users"}, aud, aud_csrf)
+             "/freeradius/people", "/freeradius/people/site-lan/delete"):
+    st, _, body = web_post(path, {"name": "evil", "address": "192.168.7.66", "group": "site-lan"}, aud, aud_csrf)
     # covers: web:post.freeradius.clients web:post.freeradius.clients.*.rotate web:post.freeradius.clients.*.delete -
     # covers: web:post.freeradius.people web:post.freeradius.people.*.delete -
     check(f"auditor: {path} is refused by fabric-agent (403, radius:admin), nothing changed",

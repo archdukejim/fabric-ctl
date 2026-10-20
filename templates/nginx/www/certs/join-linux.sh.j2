@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Join this Linux machine (Ubuntu 24.04 or 26.04, Debian 12 or 13 — Proxmox VE 8 and 9 too) to fabric's domain
 # {{ ad_domain }} (manual 1.6.7, 4.6.6).
-#   sudo bash join-linux.sh <root CA SHA-256 fingerprint> --user <a site admin>   [--site <site>] [--name <name>]
-#   sudo bash join-linux.sh <root CA SHA-256 fingerprint> --one-time              [--site <site>] [--name <name>]
-#   --unmanaged: a plain member; fabric does not configure SSH and DNS here (manual 1.6.11.6)
-# The fingerprint is shown on http://{{ hostname_stepca }}/certs/. The password - a site admin's, or with --one-time the
-# machine's one-time join password from `fabricctl domain add-machine <name>` - is asked on the terminal (or read
-# from standard input), never taken from the command line.
+#   sudo bash join-linux.sh <root CA SHA-256 fingerprint> --user <an admin> [--type server|desktop] [--site <site>] [--name <name>]
+#   sudo bash join-linux.sh <root CA SHA-256 fingerprint> --one-time        [--site <site>] [--name <name>]
+#   --type: server (the default) or desktop: the machine's OU and group (manual 1.6.13.3); with --one-time, the type
+#   add-machine gave it.  --unmanaged: a plain member; fabric does not configure SSH and DNS here (manual 1.6.11.6)
+# The fingerprint is shown on http://{{ hostname_stepca }}/certs/. The password - an admin's (a Directory Administrator,
+# 1.6.12.2), or with --one-time the machine's one-time join password from `fabricctl domain add-machine <name>` - is
+# asked on the terminal (or read from standard input), never taken from the command line.
 set -euo pipefail
 
 AD_DOMAIN="{{ ad_domain }}"
@@ -20,7 +21,7 @@ FABRIC_DNS="{{ host_ip }}"
 DOMAIN="{{ domain }}"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
-usage() { sed -n '2,8p' "$0" | cut -c3-; exit 2; }
+usage() { sed -n '2,10p' "$0" | cut -c3-; exit 2; }
 
 [[ $EUID -eq 0 ]] || die "run as root (sudo)"
 [[ $# -ge 1 ]] || usage
@@ -30,12 +31,14 @@ shift
 JOIN_USER=""
 ONE_TIME=0
 MANAGED=1
+TYPE=server
 MACHINE=$(hostname -s | tr 'A-Z' 'a-z')
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --site) SITE="${2:-}"; shift 2 ;;
         --user) JOIN_USER="${2:-}"; shift 2 ;;
         --name) MACHINE="${2:-}"; shift 2 ;;
+        --type) TYPE="${2:-}"; shift 2 ;;
         --one-time) ONE_TIME=1; shift ;;
         --unmanaged) MANAGED=0; shift ;;
         *) usage ;;
@@ -43,7 +46,13 @@ while [[ $# -gt 0 ]]; do
 done
 [[ $SITE =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]] || die "not a site name: $SITE"
 [[ $MACHINE =~ ^[a-z0-9]([a-z0-9-]{0,13}[a-z0-9])?$ ]] || die "the machine's name must be 1-15 letters, digits or dashes (--name): $MACHINE"
-[[ $ONE_TIME -eq 1 || -n $JOIN_USER ]] || die "give --user <a site admin>, or --one-time (from: sudo fabricctl domain add-machine $MACHINE)"
+[[ $ONE_TIME -eq 1 || -n $JOIN_USER ]] || die "give --user <an admin>, or --one-time (from: sudo fabricctl domain add-machine $MACHINE)"
+# a machine's type: its OU under OU=machines and its group (manual 1.6.13.3)
+case "$TYPE" in
+    server) TYPE_OU=servers ;;
+    desktop) TYPE_OU=desktops ;;
+    *) die "--type is server or desktop (a network machine is pre-created: fabricctl domain add-machine --type network): $TYPE" ;;
+esac
 
 # in a subshell: os-release's own variables (NAME, VERSION, …) must not overwrite this script's
 release=$(. /etc/os-release && echo "${ID:-}-${VERSION_ID:-}")
@@ -103,38 +112,27 @@ cat > /etc/krb5.conf <<EOF
     .{{ domain }} = $REALM
 EOF
 
-# where the site sits (sites nest, each in its parent's OU: manual 1.9.8.14): its OU, the sites above it and the
-# organisation's OU, read from the DC as the account that joins (a site admin, or the pre-created machine), signed in
-# with Kerberos, the password on stdin
+# the domain's state (manual 1.6.13.2, 2.1.6.79), read from the DC as the account that joins (an admin, or the
+# pre-created machine), signed in with Kerberos, the password on stdin: the site exists (a DC of it has a record) and
+# every DC's uid/gid range, which local subordinate ids may not overlap (named below)
 if [[ $ONE_TIME -eq 1 ]]; then PRINCIPAL="${MACHINE^^}\$@$REALM"; else PRINCIPAL="$JOIN_USER@$REALM"; fi
 export KRB5CCNAME="FILE:$tmp/ccache"
 printf '%s\n' "$PASSWORD" | kinit "$PRINCIPAL" >/dev/null 2>&1 || die "$PRINCIPAL could not sign in (the password?)"
-lookup() {
-    LDAPSASL_NOCANON=on ldapsearch -LLL -o ldif-wrap=no -Q -Y GSSAPI -H "ldap://$DC" -b "OU=sites,$BASE_DN" \
-        "$1" dn 2>/dev/null | sed -n 's/^dn: //p'
+DCS="CN=dcs,CN=fabric,CN=System,$BASE_DN"
+records() {
+    LDAPSASL_NOCANON=on ldapsearch -LLL -o ldif-wrap=no -Q -Y GSSAPI -H "ldap://$DC" -b "$DCS" -s one \
+        "$1" "$2" 2>/dev/null | sed -n "s/^$2: //p"
 }
-SITE_DN=$(lookup "(&(objectClass=fabricSiteInfo)(ou=$SITE))")
-[[ -n $SITE_DN && $SITE_DN != *$'\n'* ]] || die "no site $SITE in $AD_DOMAIN"
-ORG_DN=$(lookup "(&(objectClass=organizationalUnit)(ou=organisation))")
-[[ -n $ORG_DN && $ORG_DN != *$'\n'* ]] || die "no organisation OU in $AD_DOMAIN"
-# sudo rules: the site's own, each site's above it (their roles reach the sites below, 2.1.9.13), the organisation's
-SUDO_BASES=""
-dn=$SITE_DN
-while [[ ${dn^^} == OU=* && ${dn^^} != OU=SITES,* ]]; do
-    SUDO_BASES+="OU=sudoers,$dn?onelevel??"
-    dn=${dn#*,}
-done
-SUDO_BASES+="OU=sudoers,$ORG_DN?onelevel?"
-# every site's uid/gid block (manual 1.6.3.17): local subordinate ids that overlap one are named below
-ID_BLOCKS=$(LDAPSASL_NOCANON=on ldapsearch -LLL -o ldif-wrap=no -Q -Y GSSAPI -H "ldap://$DC" -b "OU=sites,$BASE_DN" \
-    "(objectClass=fabricSiteInfo)" fabricIdRange 2>/dev/null | sed -n 's/^fabricIdRange: //p' | tr '\n' ' ')
-[[ -n $ID_BLOCKS ]] || ID_BLOCKS="1000000-999999999"
-kdestroy >/dev/null 2>&1 || true
+[[ -n $(records "(&(objectClass=fabricDcInfo)(fabricSite=$SITE))" cn) ]] || die "no site $SITE in $AD_DOMAIN"
+ID_BLOCKS=$(records "(objectClass=fabricDcInfo)" fabricIdRange | tr '\n' ' ')
+[[ -n $ID_BLOCKS ]] || ID_BLOCKS="1000000-1999999999"
+# sudo rules: the domain's, in OU=sudoers (2.1.6.80)
+SUDO_BASES="OU=sudoers,$BASE_DN?onelevel?"
 
 # the join (the account's name in upper case, as Windows names them: SSSD looks for NAME$ in the keytab):
-# a computer account in the site's OU=machines/OU=linux (pre-created with --one-time: where add-machine put it,
-# manual 1.6.11.5), recording its OS; the password on stdin
-# an unmanaged machine says so on its account: fabric's hourly sort leaves it out of <site>-fabric-machines
+# a computer account in its type's OU (pre-created with --one-time: where add-machine put it, manual 1.6.13.3),
+# recording its OS; the password on stdin
+# an unmanaged machine says so on its account: fabric's hourly sort leaves it out of fabric-managed
 UNMANAGED=()
 [[ $MANAGED -eq 1 ]] || UNMANAGED=(--description="fabric: unmanaged (manual 1.6.11.6)")
 if [[ $ONE_TIME -eq 1 ]]; then
@@ -145,15 +143,25 @@ if [[ $ONE_TIME -eq 1 ]]; then
 else
     printf '%s' "$PASSWORD" | adcli join --domain="$AD_DOMAIN" --domain-realm="$REALM" --domain-controller="$DC" \
         --computer-name="${MACHINE^^}" --login-user="$JOIN_USER" --stdin-password \
-        --domain-ou="OU=linux,OU=machines,$SITE_DN" --os-name="$os_name" --os-version="$os_version" \
+        --domain-ou="OU=$TYPE_OU,OU=machines,$BASE_DN" --os-name="$os_name" --os-version="$os_version" \
         "${UNMANAGED[@]}" \
         --show-details >/dev/null \
-        || die "the join was refused (a site admin of $SITE, and the right password?)"
+        || die "the join was refused (an admin's account, and the right password?)"
+    # its type's group and its site's (manual 1.6.13.3), as the admin who joined it; one it is in already is kept
+    COMPUTER="CN=${MACHINE^^},OU=$TYPE_OU,OU=machines,$BASE_DN"
+    for group in "machines-$TYPE_OU" "site-$SITE"; do
+        out=$(printf 'dn: CN=%s,OU=groups,%s\nchangetype: modify\nadd: member\nmember: %s\n' "$group" "$BASE_DN" "$COMPUTER" \
+            | LDAPSASL_NOCANON=on ldapmodify -Q -Y GSSAPI -H "ldap://$DC" 2>&1) \
+            || [[ $out == *"Type or value exists"* || $out == *"(20)"* ]] \
+            || die "$MACHINE joined, but could not be put in $group: $out"
+    done
 fi
+kdestroy >/dev/null 2>&1 || true
 unset PASSWORD
-echo "joined $AD_DOMAIN as $MACHINE (site $SITE)"
+echo "joined $AD_DOMAIN as $MACHINE (site $SITE$([[ $ONE_TIME -eq 1 ]] || echo ", a $TYPE"))"
 
-# SSSD (manual 2.10.2.4-2.10.2.5): fabric's own ids, who may log on from the site's GPO, sudo from the site's rules
+# SSSD (manual 2.10.2.4-2.10.2.5): fabric's own ids, who may log on from the domain's GPOs, sudo from the domain's
+# rules
 cat > /etc/sssd/sssd.conf <<EOF
 [sssd]
 domains = $AD_DOMAIN
@@ -179,7 +187,7 @@ chmod 0600 /etc/sssd/sssd.conf
 pam-auth-update --enable mkhomedir >/dev/null
 
 # local subordinate ids (rootless Podman and Docker) are not in AD: local users made from now on get theirs above
-# AD's ids (above 2147483647, manual 1.6.3.17); ranges already given are named when they overlap a site's block,
+# AD's ids (above 2147483647, manual 1.6.3.17); ranges already given are named when they overlap a DC's range,
 # never moved (that would break their container storage)
 set_login_def() {
     if grep -qE "^[[:space:]]*$1[[:space:]]" /etc/login.defs; then
@@ -246,7 +254,7 @@ done
 echo "browsers: Kerberos sign-in to $SSO_HOST (Firefox, Chromium, Chrome)"
 {% endif %}
 # a machine fabric manages (manual 1.6.11.6): SSH with Kerberos, DNS for the domain from fabric, applied while the
-# machine is in <site>-fabric-machines and removed when it is taken out; checked hourly by fabric-managed.timer
+# machine is in fabric-managed and removed when it is taken out; checked hourly by fabric-managed.timer
 mkdir -p /etc/fabric
 cat > /etc/fabric/managed.env <<EOF
 MACHINE=$MACHINE
@@ -261,7 +269,7 @@ EOF
 cat > /usr/local/sbin/fabric-managed <<'MANAGED'
 #!/bin/bash
 # fabric's configuration of a machine it manages (manual 1.6.11.6), installed by join-linux.sh:
-#   fabric-managed apply | remove | check     (check: apply while in <site>-fabric-machines, remove when not)
+#   fabric-managed apply | remove | check     (check: apply while in fabric-managed, remove when not)
 set -euo pipefail
 . /etc/fabric/managed.env
 # 10-: sshd keeps the first value it reads, and Ubuntu's cloud images set passwords on in 50-cloud-init.conf
@@ -281,7 +289,7 @@ write() {   # write $1 from stdin if it differs; true when it changed
 apply() {
     local changed=0
     if [[ -d /etc/ssh/sshd_config.d ]]; then
-        printf '%s\n' "# fabric (manual 1.6.11.6): domain sign-in with Kerberos; who may sign in is the OU's log-on policy" \
+        printf '%s\n' "# fabric (manual 1.6.11.6): domain sign-in with Kerberos; who may sign in is the domain's (1.6.13.4)" \
             "GSSAPIAuthentication yes" "GSSAPICleanupCredentials yes" "PasswordAuthentication no" \
             "KbdInteractiveAuthentication no" "UsePAM yes" | write "$SSHD" && changed=1
     fi
@@ -294,16 +302,16 @@ remove() {
     if [[ -e $SSHD || -e $RESOLVED ]]; then
         rm -f "$SSHD" "$RESOLVED"
         reload
-        echo "fabric-managed: removed (no longer in $SITE-fabric-machines)"
+        echo "fabric-managed: removed (no longer in fabric-managed)"
     fi
 }
-member() {  # whether this machine is in <site>-fabric-machines, asked of the DC as the machine itself
+member() {  # whether this machine is in fabric-managed, asked of the DC as the machine itself
     local cc
     cc=$(mktemp)
     trap 'rm -f "$cc"' RETURN
     KRB5CCNAME="FILE:$cc" kinit -k "${MACHINE^^}\$@$REALM" >/dev/null 2>&1 || return 2
     KRB5CCNAME="FILE:$cc" LDAPSASL_NOCANON=on ldapsearch -LLL -o ldif-wrap=no -Q -Y GSSAPI -H "ldap://$DC" \
-        -b "$BASE_DN" "(sAMAccountName=${MACHINE^^}\$)" memberOf 2>/dev/null | grep -qi "^memberOf: CN=$SITE-fabric-machines,"
+        -b "$BASE_DN" "(sAMAccountName=${MACHINE^^}\$)" memberOf 2>/dev/null | grep -qi "^memberOf: CN=fabric-managed,"
 }
 case "${1:-check}" in
     apply) apply ;;
@@ -345,4 +353,4 @@ else
 fi
 systemctl restart sssd
 systemctl enable sssd >/dev/null 2>&1 || true
-echo "done: people of $SITE can log on here (the site's log-on rights); sudo follows the site's rules"
+echo "done: domain people can log on here (until grants decide who, manual 1.6.13.4); sudo follows the domain's rules"

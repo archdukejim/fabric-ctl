@@ -11,7 +11,6 @@ IMMUTABLE_KEYS = {
     "stepca_port", "stepca_cert_allow_subordinate_ca", "stepca_cert_max_lifetime_hours",
     "byoc", "ca_crt_path", "ica_crt_path", "ica_key_path", "extra_certs",
     "deploy_base_dir", "domain", "org_domain", "site_name", "dc_name", "friendly_name",
-    "posix_id_start", "posix_id_block",     # the uid/gid blocks' start and size (2.1.6.46)
 }
 
 # changing these can cut the host off its network, or rename it (hostname: its certificates and pages, never the DC,

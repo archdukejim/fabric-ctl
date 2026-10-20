@@ -134,7 +134,7 @@ shutil.rmtree(W, ignore_errors=True)
 # the DC first: Keycloak's account and the first admin come from it
 dc = start_dc(os.path.join(W, "dc"), DC, NET, SUBNET, DC_IP, extra_vars={
     "ip_keycloak": KC_IP, "hostname_keycloak": HOST, "webui_realm": REALM, "install_webui": True, "install_keycloak": True,
-    "hostname_mgr": "mgr.lan.j-j.family", "webui_hostname": "mgr.lan.j-j.family", "webui_admin_group": "admins",
+    "hostname_mgr": "mgr.lan.j-j.family", "webui_hostname": "mgr.lan.j-j.family",
     "signin_kerberos": True})     # off by default since 0.6.4 (2.1.6.32): this suite proves it on
 v, secrets, root_ca = dc["v"], dc["secrets"], dc["root_ca"]
 check("a real DC from fabric's image, converged (Keycloak's service account made)", True)
@@ -230,10 +230,16 @@ check("exactly one LDAP provider: Samba AD, AD mode, LDAPS to the DC's address, 
 st, sync = kc.call("POST", f"{R}/user-storage/{ldap[0]['id']}/sync?action=triggerFullSync")
 check("a full sync from AD over LDAPS works", st == 200 and not sync.get("failed"), sync)
 users = kc.call("GET", f"{R}/users?username=jim&exact=true")[1]
-check("jim (in the site's people) is visible in Keycloak", len(users) == 1, users)
+check("jim (in OU=people) is visible in Keycloak", len(users) == 1, users)
+fed = ldap[0]["config"] if ldap else {}
+check("the federation: users from OU=people, every enabled person admitted (2.1.6.83), bound as this DC's "
+      "fabric-keycloak-dc-0001 in OU=service-accounts (2.1.6.82)",
+      fed.get("usersDn") == [f"OU=people,{v['ad_base_dn']}"]
+      and fed.get("bindDn") == [f"CN=fabric-keycloak-dc-0001,OU=service-accounts,{v['ad_base_dn']}"]
+      and "1.2.840.113556.1.4.803:=2" in (fed.get("customUserSearchFilter") or [""])[0], fed)
 if users:
     roles = kc.call("GET", f"{R}/users/{users[0]['id']}/role-mappings/realm/composite")[1]
-    check("jim gets fabric-console-admin through AD's admins group", any(r["name"] == "fabric-console-admin" for r in roles),
+    check("jim gets fabric-console-admin through directory-admins (2.1.6.81)", any(r["name"] == "fabric-console-admin" for r in roles),
           [r["name"] for r in roles])
 client = kc.call("GET", f"{R}/clients?clientId=fabric-webui")[1][0]
 check("client: confidential, code flow only, exact redirect, PKCE S256, fullScopeAllowed off",
@@ -306,7 +312,7 @@ check("the one-time password no longer signs in to AD", not ntlm_signs_in("jim",
 
 # refusals
 def person(uid):
-    """A person made by fabric's own operation (in the site's people and <site>-users); their one-time password."""
+    """A person made by fabric's own operation (in OU=people and site-<site>); their one-time password."""
     pw = "Tst-" + random_password(20)
     run_op(v, secrets, "create_person", {"uid": uid, "first": uid, "last": "T", "email": f"{uid}@lan.j-j.family",
                                         "password": pw, "gid": 5000, "home_base": "/home", "shell": "/bin/bash"}, DC)
@@ -320,12 +326,20 @@ page = start(b2, AUTH)
 _, _, page = b2.go(action(page), {"username": "bob", "password": bob_pw})
 check("refused: a person disabled in AD", re.search(r"disabled|Invalid username or password", page, re.I), page[:300])
 eve_pw = person("eve")
-sh(["docker", "exec", DC, "samba-tool", "group", "removemembers", "lan-users", "eve", "-s",
-    "/data/etc/smb.conf"])               # in the site's people, but in none of the admitted groups
+sh(["docker", "exec", DC, "samba-tool", "group", "removemembers", "site-lan", "eve", "-s",
+    "/data/etc/smb.conf"])               # in OU=people, but in no group at all
 b3 = Browser(root_ca)
 page = start(b3, AUTH)
-_, _, page = b3.go(action(page), {"username": "eve", "password": eve_pw})
-check("refused: a person outside the site's groups (2.1.6.14)", "Invalid username or password" in page, page[:300])
+st, hdr, page = b3.go(action(page), {"username": "eve", "password": eve_pw})
+if st in (302, 303):                     # the required action (AD's must-change) is a page of its own
+    st, hdr, page = b3.go(hdr.get("location"))
+check("every enabled person in OU=people is admitted, in a group or not (2.1.6.83): eve, in none, is asked for a new "
+      "password", "Invalid username or password" not in page and "password-new" in page, page[:300])
+b5 = Browser(root_ca)
+page = start(b5, AUTH)
+_, _, page = b5.go(action(page), {"username": "fabric-agent-dc-0001", "password": secrets["ad_agent_password"]})
+check("refused: a service account (outside OU=people) never signs in to the console",
+      "Invalid username or password" in page, page[:300])
 bad = start(Browser(root_ca), AUTH.replace("mgr.lan.j-j.family%2Foidc", "evil.test%2Foidc"))
 check("refused: a redirect URI that is not registered", "Invalid parameter: redirect_uri" in bad, bad[:200])
 
@@ -568,10 +582,17 @@ fred_kc = kc.call("GET", f"{R}/users?username=fred&exact=true")[1]
 sessions = kc.call("GET", f"{R}/users/{fred_kc[0]['id']}/sessions")[1] if fred_kc else []
 check("a person signs in through Keycloak (a session held)", "code=" in location and sessions,
       (st, location[:120], page[:200]))
+def _no_sessions(user_id):
+    """No Keycloak session for the user: none listed, or the user gone (Keycloak drops its copy of a person its
+    filter, enabled people only, no longer finds: 2.1.6.83)."""
+    st, body = kc.call("GET", f"{R}/users/{user_id}/sessions", allow=(404,))
+    return st == 404 or body == []
+
+
 done = enabled_mod.set_person_enabled(pv, "root", "fred", False, privileged=True, source="cli", secrets=ps,
                                       container=DC)
 check("disable: their Keycloak sessions end at once", done["changed"]
-      and kc.call("GET", f"{R}/users/{fred_kc[0]['id']}/sessions")[1] == [], done)
+      and _no_sessions(fred_kc[0]["id"]), done)
 st, location, page = sign_in(Browser(root_ca), APP_AUTH, "fred", fred_pw)
 check("disable: a new sign-in is refused, and so is NTLM", "code=" not in location and not ntlm_signs_in("fred", fred_pw),
       page[:300])
