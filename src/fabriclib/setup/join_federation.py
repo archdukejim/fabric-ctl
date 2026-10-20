@@ -4,6 +4,7 @@ import os
 from fabriclib.common.console import info, ok
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.read_images_lock import read_images_lock
+from fabriclib.samba.dc_count_text import dc_count_text
 from fabriclib.federation.join_upstream import join_upstream
 from fabriclib.secrets.save_secrets import save_secrets
 from fabriclib.setup.errors import SetupError
@@ -26,7 +27,8 @@ def run(ctx):
              posix_id_range, ad_site_ou and ad_org_ou (manual 1.9.8.4, 1.9.8.14), posix_id_block (the size of the
              block it was given) and, from a parent that sends them, ldap_groups (the organisation's gids, 2.1.6.46).
              ctx.vars["dc_name"] becomes the name the upstream gave this site's DC (2.1.6.65; also on a re-run, from
-             the registry), so the DC joins under it.
+             the registry), so the DC joins under it; the output says how many DCs the domain then has and how many
+             can still be added, never the DC's name.
     Fails:   SetupError with join_upstream's message (invitation damaged/expired/used, the upstream refused or
              unreachable, the root not the pinned one, a certificate that does not fit).
     Feeds:   setup STEPS, after `docker` (the key is made with the pinned Step-CA image) and before `deploy`.
@@ -83,3 +85,5 @@ def run(ctx):
     up = res["upstream"]
     ok(f"{'joined' if res['joined'] else 'member of'} {up['site_name']} ({up['domain']}) as site "
        f"{ctx.vars['site_name']}; CA: an intermediate of the organisation's root")
+    if dom.get("dc_count"):                      # how many, never which (2.1.6.65's revision)
+        ok(f"this site's domain controller joins {dom['ad_domain']}: {dc_count_text(dom['dc_count'])}")

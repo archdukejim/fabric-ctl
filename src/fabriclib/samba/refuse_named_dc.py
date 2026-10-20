@@ -9,12 +9,12 @@ def refuse_named_dc(given, installed, source):
              source — what the file is, for the message (e.g. "the vars file x.yaml").
     Returns: None.
     Fails:   ValidationError when the file sets dc_name (a value, not an empty key) and no DC is installed: saying
-             fabric names DCs itself, and that nothing was changed.
+             fabric names DCs itself, and that nothing was changed; neither the file's name nor fabric's scheme is
+             shown (a person need not know a DC's name, 2.1.6.65's revision).
     Feeds:   setup/collect_vars (`fabricctl setup --file`, a checkout's custom-vars.yaml),
              settings/run_settings_command (`fabricctl settings import`)."""
     name = (given or {}).get("dc_name") if isinstance(given, dict) else None
     if installed or name in (None, ""):
         return
-    raise ValidationError(f"{source} names the domain controller (dc_name: {name}), but fabric names its domain "
-                          "controllers itself (2.1.6.65): dc-0001 for a new domain, the next free dc-NNNN, given by "
-                          "the upstream, for a site joining one. Remove dc_name from the file; nothing was changed")
+    raise ValidationError(f"{source} names the domain controller (dc_name), but fabric names its domain "
+                          "controllers itself (2.1.6.65). Remove dc_name from the file; nothing was changed")

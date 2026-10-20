@@ -7,6 +7,7 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.samba.check_password_policy import DEFAULT_POLICY, POLICY_KEYS
 from fabriclib.federation.common.load_registry import load_registry
 from fabriclib.federation.decode_invitation import decode_invitation
+from fabriclib.federation.upstream_version_problem import upstream_version_problem
 from fabriclib.samba.dc_provisioned import dc_provisioned
 from fabriclib.samba.refuse_named_dc import refuse_named_dc
 from fabriclib.setup.detect_network import detect_network
@@ -40,7 +41,8 @@ def _join_defaults(ctx, data):
     Returns: None; data gets site_name, org_domain, ldap_base_dn, (unless set) domain and, from an invitation that
              names the domain (any site with a writable DC makes one), ad_domain, ad_password_policy and ad_dc_type
              (so setup asks neither).
-    Fails:   SetupError when the invitation is damaged (decode_invitation), when this host already has a fabric
+    Fails:   SetupError when the invitation is damaged (decode_invitation) or comes from an upstream older than
+             0.8.0 (upstream_version_problem), when this host already has a fabric
              that is not a member of that upstream (only fresh installs join: design F1), or when site_name is
              set to another name than the invitation's.
     Feeds:   collect_vars."""
@@ -48,6 +50,9 @@ def _join_defaults(ctx, data):
         inv = decode_invitation(ctx.join_invitation)
     except ValidationError as e:
         raise SetupError(str(e)) from None
+    problem = upstream_version_problem(inv)            # before anything is asked or done (2.1.6.65's revision)
+    if problem:
+        raise SetupError(problem)
     upstream = load_registry(os.path.join(ctx.config_dir, "federation.yaml"))["upstream"]
     if os.path.exists(ctx.vars_file) and not (upstream and upstream.get("site_name") == inv["upstream"]):
         raise SetupError("only a fresh install can join a fabric: this host already has one "
@@ -124,8 +129,7 @@ def collect_vars(ctx, ask=True):
             raise SetupError(str(e))
         if provisioned and data.get("dc_name") and "dc_name" in user:     # installed: the DC keeps its name
             if str(user["dc_name"]).strip().lower() != str(data["dc_name"]).lower():
-                info(f"dc_name in {user_file} ignored: the installed domain controller keeps its name, "
-                     f"{data['dc_name']} (2.1.6.65)")
+                info(f"dc_name in {user_file} ignored: the installed domain controller keeps its name (2.1.6.65)")
             user = {k: val for k, val in user.items() if k != "dc_name"}
         data.update(user)
         info(f"overrides from {user_file}")

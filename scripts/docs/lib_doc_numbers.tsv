@@ -399,6 +399,7 @@ file	fabriclib-federation|src/fabriclib/federation/run_federation_command.py	30
 file	fabriclib-federation|src/fabriclib/federation/set_federation_endpoint.py	31	
 file	fabriclib-federation|src/fabriclib/federation/show_networks.py	32	
 file	fabriclib-federation|src/fabriclib/federation/site_networks.py	33	
+file	fabriclib-federation|src/fabriclib/federation/upstream_version_problem.py	37	
 file	fabriclib-images|src/fabriclib/images/apply_image_action.py	14	
 file	fabriclib-images|src/fabriclib/images/built_from.py	1	
 file	fabriclib-images|src/fabriclib/images/effective_service.py	11	
@@ -560,6 +561,7 @@ file	fabriclib-samba|src/fabriclib/samba/check_password_policy.py	23
 file	fabriclib-samba|src/fabriclib/samba/clear_gpo_policy.py	11	
 file	fabriclib-samba|src/fabriclib/samba/clear_logon_policy.py	29	
 file	fabriclib-samba|src/fabriclib/samba/converge_domain.py	2	
+file	fabriclib-samba|src/fabriclib/samba/dc_count_text.py	40	
 file	fabriclib-samba|src/fabriclib/samba/dc_name_problem.py	25	
 file	fabriclib-samba|src/fabriclib/samba/dc_provisioned.py	38	
 file	fabriclib-samba|src/fabriclib/samba/deploy_samba.py	1	
@@ -1617,6 +1619,7 @@ function	fabriclib-federation|src/fabriclib/federation/run_federation_command.py
 function	fabriclib-federation|src/fabriclib/federation/set_federation_endpoint.py|set_federation_endpoint	1	
 function	fabriclib-federation|src/fabriclib/federation/show_networks.py|show_networks	1	
 function	fabriclib-federation|src/fabriclib/federation/site_networks.py|site_networks	1	
+function	fabriclib-federation|src/fabriclib/federation/upstream_version_problem.py|upstream_version_problem	1	
 function	fabriclib-images|src/fabriclib/images/apply_image_action.py|apply_image_action	1	
 function	fabriclib-images|src/fabriclib/images/built_from.py|built_from	1	
 function	fabriclib-images|src/fabriclib/images/effective_service.py|effective_service	1	
@@ -1833,6 +1836,7 @@ function	fabriclib-samba|src/fabriclib/samba/clear_gpo_policy.py|clear_gpo_polic
 function	fabriclib-samba|src/fabriclib/samba/clear_logon_policy.py|clear_logon_policy	1	
 function	fabriclib-samba|src/fabriclib/samba/converge_domain.py|_lan_profile	2	
 function	fabriclib-samba|src/fabriclib/samba/converge_domain.py|converge_domain	1	
+function	fabriclib-samba|src/fabriclib/samba/dc_count_text.py|dc_count_text	1	
 function	fabriclib-samba|src/fabriclib/samba/dc_name_problem.py|dc_name_problem	1	
 function	fabriclib-samba|src/fabriclib/samba/dc_provisioned.py|dc_provisioned	1	
 function	fabriclib-samba|src/fabriclib/samba/deploy_samba.py|_chrony_gid	2	

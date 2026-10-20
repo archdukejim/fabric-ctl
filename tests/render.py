@@ -204,7 +204,12 @@ try:
     suggested_dc_name(_all_but_last + ['dc-1999'])
     raise AssertionError('the 2000th DC was suggested a name')
 except ValidationError as e:
-    assert '1999 DCs' in str(e) and 'the most it may have' in str(e), e
+    assert '1999 used, none can be added' in str(e) and 'the most domain controllers it may have' in str(e) \
+        and 'dc-' not in str(e), e
+# what a person reads (2.1.6.65's revision): how many DCs, never which
+from fabriclib.samba.dc_count_text import dc_count_text  # noqa: E402
+assert dc_count_text(1) == '1 DC used, 1998 can be added' and dc_count_text(2) == '2 DCs used, 1997 can be added' \
+    and dc_count_text(1999) == '1999 DCs used, 0 can be added', dc_count_text(1)
 assert _dc(dc_name='DC-Pi') == ('dc-pi', 'dc-pi.ad.j-j.family', 'dc-pi'), _dc(dc_name='DC-Pi')    # 0.7.x's, kept
 renamed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family',
                                                                      'dc_name': 'dc-pi-core', 'hostname': 'kitchen'}))

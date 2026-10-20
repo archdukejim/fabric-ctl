@@ -71,11 +71,11 @@ def plan_member(v):
                        f"(the names of {v.get('ad_domain')} and {v.get('domain')} from fabric's DNS at "
                        f"{v.get('host_ip')}; other names as before), where systemd-resolved runs")
     return [f"apt: install {p}" for p in missing_packages(_packages(v))] + account[:-1] + [
-        f"{KRB5_CONF}: the realm {v.get('ad_realm')}, its KDC this host's domain controller ({v.get('hostname_dc')})",
+        f"{KRB5_CONF}: the realm {v.get('ad_realm')}, its KDC this host's domain controller",     # unnamed: 2.1.6.65
         account[-1],
         f"{NSSWITCH}: sss for passwd, group and sudoers",
         "PAM: pam-auth-update --enable sss mkhomedir (a home folder made at the first sign-in)",
-        f"{HOSTS}: {v.get('hostname_dc')} as {v.get('host_ip')}, only when this host cannot resolve it",
+        f"{HOSTS}: the domain controller's name as {v.get('host_ip')}, only when this host cannot resolve it",
         "sudo: the classic sudo instead of sudo-rs, only where sudo-rs is the default (it cannot read the domain's "
         "sudo rules)",
     ] + managed

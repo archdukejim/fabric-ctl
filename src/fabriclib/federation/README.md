@@ -11,6 +11,7 @@ their own local network (design [1.9.1](../../../docs/volume_1_description_and_a
 | `revoke_invitation.py` | Upstream: withdraw an open invitation (audited) |
 | `accept_join.py` | Upstream: an invited site joins — check the invitation, sign the site's CA with the root key, record the site |
 | `decode_invitation.py` | Joining node: read and check an invitation (no network) |
+| `upstream_version_problem.py` | Joining node: an invitation from an upstream older than 0.8.0 (or naming no version) refused (2.1.6.65) |
 | `join_upstream.py` | Joining node: make the site CA request, pin the upstream's root, join over verified TLS, stage the CA, record the upstream |
 | `relay_join.py` | On a relay node: pass a join that names it (`via`) on to its upstream and return the answer unchanged |
 | `drop_relay.py` | On a site that joined through a relay: talk to the upstream directly from now on |

@@ -57,6 +57,10 @@ def install(name, site, domain, password, extra=None):
     """An install tree of its own (code, config) and a Step-CA data folder for site `site`."""
     tree = f"{W}/{name}"
     subprocess.run(["bash", f"{REPO}/packaging/deb/assemble-tree.sh", tree], check=True)
+    # config/VERSION is set on the release candidate's branch (2.1.1.40), so this branch's tree still says the release
+    # before it; the upstream here is 0.8.0's, whose invitations a site accepts (2.1.6.65's revision)
+    with open(f"{tree}/fabric/VERSION", "w") as f:
+        f.write("0.8.0\n")
     os.makedirs(f"{tree}/fabric/config")
     data = f"{tree}/stepca/data"
     for d in ("certs", "secrets", "artifacts", "config"):

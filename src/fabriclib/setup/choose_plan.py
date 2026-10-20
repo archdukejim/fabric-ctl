@@ -7,6 +7,8 @@ from fabriclib.setup.common.ca_exists import ca_exists
 from fabriclib.setup.common.dotted_keys import get_dotted
 from fabriclib.setup.common.plan_items import PLAN
 from fabriclib.setup.errors import SetupError
+from fabriclib.samba.dc_count_text import dc_count_text
+from fabriclib.samba.dc_provisioned import dc_provisioned
 from fabriclib.setup.finish_vars import finish_vars
 from fabriclib.system.show_memory_plan import show_memory_plan
 
@@ -44,6 +46,11 @@ def _show_settings(ctx):
         years = round(int(ctx.vars.get("cert_root_ca_days") or 3650) / 365)
         print(f"  ✓ Create an internal CA (Step-CA; root valid {years} years, fixed once made — [M]enu to change) and "
               "TLS certificates for every service, renewed every 30 days; trust it on this host")
+    if ctx.vars.get("ad_domain") and not (ctx.join_invitation or ctx.vars.get("ad_join_server")) \
+            and not dc_provisioned(ctx.deploy_base):
+        # a new domain's DC: how many, never its name (2.1.6.65's revision); a joining site hears the count at the join
+        print(f"  ✓ Create the Windows (AD) domain {ctx.vars['ad_domain']} with this host's domain controller: "
+              f"{dc_count_text(1)}")
     if get_dotted(ctx.vars, "install_webui", True):
         print(f"  ✓ Create the first web UI admin '{ctx.vars.get('webui_admin_user')}' with the password you "
               "chose; login kit in ~/fabric-admin")

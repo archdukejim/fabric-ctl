@@ -69,6 +69,10 @@ def free_port():
 # ---------------------------------------------------------------- the upstream: tree, root CA, vars
 shutil.rmtree(W, ignore_errors=True)
 subprocess.run(["bash", f"{REPO}/packaging/deb/assemble-tree.sh", W], check=True)     # the installed tree
+# config/VERSION is set on the release candidate's branch (2.1.1.40), so this branch's tree still says the release
+# before it; the upstream here is 0.8.0's, whose invitations a site accepts (2.1.6.65's revision)
+with open(f"{W}/fabric/VERSION", "w") as f:
+    f.write("0.8.0\n")
 os.makedirs(f"{W}/fabric/config")
 data = f"{W}/hq/stepca/data"
 for d in ("certs", "secrets", "artifacts"):
@@ -234,6 +238,45 @@ check("join: an expired invitation is refused",
                                 "csr": "x", "domain": "b3.hq.test", "address": "127.0.0.3"}, match="not valid"))
 
 SITE["hostname"] = "branch1"
+# the upstream's version (2.1.6.65's revision): carried by the invitation; one older than 0.8.0, or none (an older
+# upstream's), refused before anything is made, sent or staged, here and in setup --join
+check("invite: the invitation carries the upstream's version", body.get("version") == "0.8.0", body.get("version"))
+
+
+def _with_version(text, version):
+    doc = json.loads(base64.urlsafe_b64decode(text.split(".", 1)[1] + "==="))
+    doc.pop("version", None)
+    if version is not None:
+        doc["version"] = version
+    return "fabric-join-1." + base64.urlsafe_b64encode(json.dumps(doc).encode()).decode()
+
+
+import io  # noqa: E402
+import types  # noqa: E402
+
+import fabriclib.setup.collect_vars as m_cv  # noqa: E402
+from fabriclib.setup.errors import SetupError as _SetupError  # noqa: E402
+for label, version in (("0.7.2", "0.7.2"), ("no version (an older upstream's)", None)):
+    old_text, work = _with_version(inv["invitation"], version), f"{W}/old-upstream-{label[:5]}"
+    os.makedirs(f"{work}/config")
+    # covers: cli:setup -
+    check(f"negative: an invitation from an upstream of {label} is refused before anything is made or sent, saying "
+          "to upgrade the upstream first",
+          refused(join_upstream, SITE, old_text, "Site-Pw-1", f"{work}/site-ca", "branch1.hq.test", "127.0.0.2",
+                  **dict(J, config_dir=f"{work}/config", audit_path=f"{work}/audit.log"),
+                  match="Upgrade the upstream first")
+          and not os.path.exists(f"{work}/site-ca") and not os.path.exists(f"{work}/config/federation.yaml")
+          and "branch1" in [i["site"] for i in list_invitations(HQ)])
+    try:
+        m_cv._join_defaults(types.SimpleNamespace(join_invitation=old_text, config_dir=f"{work}/config",
+                                                  vars_file=f"{work}/config/vars.yaml"), {})
+        said = "accepted"
+    except _SetupError as e:
+        said = str(e)
+    check(f"negative: setup --join with it stops at once, before any question or step ({label})",
+          "Upgrade the upstream first" in said and "nothing was sent or changed" in said, said)
+check("decode: an invitation's version must be text", refused(decode_invitation, _with_version(inv["invitation"], 8),
+                                                              match="bad version"))
 res = join_upstream(SITE, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca", "branch1.hq.test", "127.0.0.2", **J)
 jv = res["vars"]
 check("join: the site gets the bring-your-own-CA settings and the organisation",
@@ -289,7 +332,7 @@ check("join: a re-run (setup repeated) reuses what was staged, without the netwo
       again["joined"] is False and again["vars"] == jv and again["dc_name"] == "dc-0002", again)
 
 # setup's join step: the joining site saves the upstream's name for its DC and joins under it (2.1.6.65)
-import types  # noqa: E402
+import contextlib  # noqa: E402
 
 import fabriclib.setup.join_federation as m_jf  # noqa: E402
 for answer in (res, again):
@@ -300,35 +343,59 @@ for answer in (res, again):
                                  vars={"domain": "branch1.hq.test", "host_ip": "127.0.0.2", "image_stepca": IMAGE,
                                        "hostname": "branch1"},
                                  path=lambda *p: os.path.join(B1, *p))
-    m_jf.run(jctx)
+    said = io.StringIO()
+    with contextlib.redirect_stdout(said):
+        m_jf.run(jctx)
     # covers: cli:setup +
     check(f"setup's join step ({'first join' if answer is res else 're-run'}): the site's dc_name is the upstream's, "
-          "dc-0002, before its DC joins", jctx.vars.get("dc_name") == "dc-0002", jctx.vars.get("dc_name"))
+          "dc-0002, before its DC joins; the output names no DC", jctx.vars.get("dc_name") == "dc-0002"
+          and "dc-0" not in said.getvalue(), (jctx.vars.get("dc_name"), said.getvalue()))
+    if answer is res:                    # the first join carries the domain's answer; a re-run reuses what was staged
+        said_first = said.getvalue()
+check("setup's join step says how many DCs the domain has after the join and how many can be added, not which",
+      dom.get("dc_count") == 2 and "2 DCs used, 1997 can be added" in said_first, (dom.get("dc_count"), said_first))
 
-# an older joiner still sends a name of its own (the root's, here): not refused; the answer carries the name fabric
-# chose, and a name given to a site whose DC has not joined yet (branch1's) is not given again
+# an older joiner (before 0.8.0) names its own DC: a taken name refused before anything is prepared, as before
+# 2.1.6.65 (the root's computer, and the name given to branch1, whose DC has not joined yet); a free one kept
 import fabriclib.federation.accept_join as m_accept2  # noqa: E402
 real_sign = m_accept2.sign_site_ca
 m_accept2.sign_site_ca = lambda *a, **k: {"root": ROOT_PEM, "cert": "", "chain": "",
                                           "info": {"serial": "01", "not_after": "2099-01-01"}}
 inv_old = decode_invitation(create_invitation(HQ, "alice", "branch4")["invitation"])
+OLD = {"id": inv_old["id"], "secret": inv_old["secret"], "site": "branch4", "csr": "x", "domain": "branch4.hq.test",
+       "address": "127.0.0.4"}
 try:
-    answer = accept_join(HQ, {"id": inv_old["id"], "secret": inv_old["secret"], "site": "branch4", "csr": "x",
-                              "domain": "branch4.hq.test", "address": "127.0.0.4", "dc_name": "HQ"})
+    prepared_before = list(PREPARED)
+    # covers: setting:dc_name -
+    check("negative: an older joiner's DC name the domain has (its computer HQ, or dc-0002 given to branch1) is "
+          "refused, naming no DC of the domain; nothing prepared, the invitation kept",
+          refused(accept_join, HQ, {**OLD, "dc_name": "HQ"}, match="is taken in the domain")
+          and refused(accept_join, HQ, {**OLD, "dc_name": "dc-0002"}, match="is taken in the domain")
+          and PREPARED == prepared_before and "branch4" in [i["site"] for i in list_invitations(HQ)])
+    check("negative: an older joiner's DC name that is not a valid name is refused",
+          refused(accept_join, HQ, {**OLD, "dc_name": "not_valid"}, match="cannot be used"))
+    try:
+        accept_join(HQ, {**OLD, "dc_name": "HQ"})
+    except ValidationError as e:
+        check("…the refusal names neither the domain's DCs nor fabric's scheme", "dc-0001" not in str(e)
+              and "dc-0002" not in str(e) and "hq," not in str(e).lower(), str(e))
+    answer = accept_join(HQ, {**OLD, "dc_name": "DC-Barn"})
 finally:
     m_accept2.sign_site_ca = real_sign
-# covers: setting:dc_name -
-check("join: an older joiner sending a name (even a taken one) is not refused; it is given dc-0003 (dc-0002 is "
-      "branch1's, its DC not in the domain yet)", (answer.get("domain") or {}).get("dc_name") == "dc-0003",
+# covers: setting:dc_name +
+check("join: an older joiner's free DC name is kept, recorded beside the site, and counted",
+      (answer.get("domain") or {}).get("dc_name") == "dc-barn" and (answer.get("domain") or {}).get("dc_count") == 3
+      and yaml.safe_load(open(f"{W}/fabric/config/federation.yaml"))["sites"]["branch4"].get("dc_name") == "dc-barn",
       answer.get("domain"))
 # the 2000th DC: the join refused with the cap's message before anything is prepared, the invitation kept
 inv_cap = decode_invitation(create_invitation(HQ, "alice", "branch5")["invitation"])
 DC_NAMES["computers"] = [f"dc-{n:04d}" for n in range(1, 2000)]
 prepared_before = list(PREPARED)
-check("negative: a join past dc-1999 is refused, saying the domain has the most DCs it may have; nothing prepared, "
-      "the invitation kept (2.1.6.63)",
+check("negative: a join past dc-1999 is refused, saying the domain has the most DCs it may have (naming no DC); "
+      "nothing prepared, the invitation kept (2.1.6.63)",
       refused(accept_join, HQ, {"id": inv_cap["id"], "secret": inv_cap["secret"], "site": "branch5", "csr": "x",
-                                "domain": "branch5.hq.test", "address": "127.0.0.5"}, match="the most it may have")
+                                "domain": "branch5.hq.test", "address": "127.0.0.5"},
+              match="the most domain controllers it may have")
       and PREPARED == prepared_before and "branch5" in [i["site"] for i in list_invitations(HQ)]
       and "branch5" not in yaml.safe_load(open(f"{W}/fabric/config/federation.yaml"))["sites"], PREPARED)
 DC_NAMES["computers"] = ["dc-0001", "hq"]

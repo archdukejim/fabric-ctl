@@ -11,6 +11,7 @@ from fabriclib.federation.common.post_upstream import post_upstream
 from fabriclib.federation.common.save_registry import save_registry
 from fabriclib.federation.constants import DOMAIN_RE
 from fabriclib.federation.decode_invitation import decode_invitation
+from fabriclib.federation.upstream_version_problem import upstream_version_problem
 from fabriclib.federation.site_networks import site_networks
 from fabriclib.pki.make_site_ca_request import make_site_ca_request
 from fabriclib.pki.stage_site_ca import stage_site_ca
@@ -50,7 +51,9 @@ def join_upstream(v, invitation, password, work_dir, domain, address, config_dir
              keeps it in fabric's secrets as federation_tsig["upstream"], never in the registry), "domain": the domain
              this site's DC joins ({} when the invitation named none; manual 1.9.8.4: the caller keeps its passwords
              in fabric's secrets and its settings in the vars)}.
-    Fails:   ValidationError from decode_invitation, make_site_ca_request, fetch_pinned_root, post_upstream ("the
+    Fails:   ValidationError for an invitation from an upstream older than 0.8.0 (upstream_version_problem: before
+             anything is made, sent or staged); from decode_invitation, make_site_ca_request, fetch_pinned_root,
+             post_upstream ("the
              upstream refused: ..."), stage_site_ca; "this site's domain is not valid"; "the upstream answered
              with a different root"; "this node already joined <upstream>, not the invitation's ..."; an answer that
              prepares this site's DC without giving it a usable name (an upstream older than 0.8.0), before anything
@@ -77,6 +80,9 @@ def join_upstream(v, invitation, password, work_dir, domain, address, config_dir
                                                                    ("site_name", "domain", "host", "address")},
                     "joined": False, "dc_name": up.get("dc_name") or ""}
 
+    problem = upstream_version_problem(inv)      # nothing made, sent or staged for an upstream that cannot name the DC
+    if problem:
+        raise ValidationError(problem)
     req = make_site_ca_request(v, inv["site"], password, work_dir)
     root = fetch_pinned_root(inv["address"], inv["root_sha256"], port=http_port)
     answer = post_upstream(inv["address"], inv["host"], root, "/v1/join",
@@ -90,9 +96,8 @@ def join_upstream(v, invitation, password, work_dir, domain, address, config_dir
     dom = answer.get("domain") or {}
     dc_name = str(dom.get("dc_name") or "").strip().lower()
     if dom and not dom.get("moved") and (not dc_name or dc_name_problem(dc_name, "", v.get("hostname") or "")):
-        raise ValidationError("the upstream prepared this site's domain controller without giving it a name it can "
-                              f"have ({dc_name or 'none'}): an upstream older than 0.8.0 does not name a joining "
-                              "site's DC (2.1.6.65); upgrade the upstream, then invite this site again")
+        raise ValidationError("the upstream prepared this site's domain controller without naming it (2.1.6.65): "
+                              "upgrade the upstream to 0.8.0 or later, then invite this site again")
     staged = stage_site_ca(work_dir, answer.get("cert", ""), answer["root"], root_sha256=inv["root_sha256"],
                            chain=answer.get("chain") or "")
     org = answer.get("org") or {}

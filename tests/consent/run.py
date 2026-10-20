@@ -412,6 +412,25 @@ off, on = plan_text({"webui_admin_user": "fabric-admin"}), plan_text({"install_k
 check("DHCP off by default, and named a preview until 0.8.0, off and on",
       any("off: DHCP" in line and "preview until 0.8.0" in line for line in off)
       and any("✓" in line and "preview until 0.8.0" in line and "10.0.0.0/24" in line for line in on), (off, on))
+def plan_all(v, **ctx_over):
+    """setup's whole plan as printed, unattended."""
+    out = io.StringIO()
+    from fabriclib.setup.context import SetupContext
+    plan_ctx = SetupContext(deploy_base=os.path.join(fresh, "no-such"), vars=dict(v), non_interactive=True,
+                            assume_yes=True, **ctx_over)
+    with contextlib.redirect_stdout(out):
+        choose_plan(plan_ctx, lambda: (None, {}))
+    return out.getvalue()
+
+
+new_domain = plan_all({"webui_admin_user": "fabric-admin", "ad_domain": "ad.lan.test", "dc_name": "dc-0001"})
+# covers: ask:setup.plan +
+check("a new domain's plan says how many DCs it uses and how many can be added, never the DC's name or the scheme "
+      "(2.1.6.65's revision)", "1 DC used, 1998 can be added" in new_domain and "dc-0" not in new_domain,
+      new_domain[-1500:])
+joining = plan_all({"webui_admin_user": "fabric-admin", "ad_domain": "ad.lan.test"}, join_invitation="x")
+check("negative: a joining site's plan has no count yet (the join gives it) and names no DC",
+      "can be added" not in joining and "dc-0" not in joining, joining[-1500:])
 check("negative: no other part of the plan is called a preview (the DNS filter is finished)",
       not any("preview" in line for line in off + on if "DHCP" not in line), off + on)
 
@@ -557,6 +576,9 @@ check("…and fabric's management of the host while it is in hq-fabric-machines:
       any("10-fabric.conf" in x and "local accounts' sign-in unchanged" in x and "sshd -t" in x
           and "pam_localuser" in x for x in planned)
       and any("resolved.conf.d/fabric.conf" in x and "10.0.0.5" in x for x in planned), planned)
+check("the consent screen names no domain controller: the KDC and the hosts-file line say the DC, not its name "
+      "(2.1.6.65's revision)", mv.get("hostname_dc") and not any(str(mv["hostname_dc"]).split(".")[0] in x.lower()
+                                                                 for x in planned), (mv.get("hostname_dc"), planned))
 renew = {**mv, "host_machine_password_renew_days": 30}
 pm.missing_packages = lambda pkgs: [p for p in pkgs if p == "adcli"]
 renew_plan = pm.plan_member(renew)

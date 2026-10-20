@@ -12,6 +12,7 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 | `suggested_ad_domain.py` | The AD domain setup suggests: a sibling at the top of the organisation's name (2.1.6.11) |
 | `suggested_dc_name.py` | The DC's name fabric chooses: the lowest free `dc-NNNN`, `dc-0001` to `dc-1999` (2.1.6.63, 2.1.6.65) |
 | `dc_provisioned.py` | Whether this host's DC is installed: the marker its container leaves (positive evidence) |
+| `dc_count_text.py` | The domain's DCs as a person reads them: how many used, how many can be added, never which |
 | `refuse_named_dc.py` | A settings file naming the DC refused for a new install: fabric names DCs itself (2.1.6.65) |
 | `dc_name_problem.py` | Why a name cannot be the DC's: one label of 1-15 characters, not only digits, not the domain's NetBIOS name |
 | `domain_dc_names.py` | The domain's computer names, its DCs apart, read inside this site's DC (a joining site's DC given the lowest free name) |

@@ -15,7 +15,8 @@ def decode_invitation(text):
     Inputs:  text — the invitation string ("fabric-join-1.<base64url JSON>"); surrounding whitespace ignored.
     Returns: {"id", "secret", "site", "upstream", "org_domain", "ldap_base_dn", "host", "address", "root_sha256",
              "expires", "via" ("" unless the invitation names a relay), "dc", "ad_domain", "ad_password_policy" (the
-             domain the site's DC joins; "", "" and {} in an invitation made on a site)} with every field checked:
+             domain the site's DC joins; "", "" and {} in an invitation made on a site), "version" (the upstream's
+             fabric version; "" in an invitation from an upstream before 0.8.0)} with every field checked:
              site SITE_NAME_RE, host and org_domain DNS names, ldap_base_dn BASE_DN_RE, address an IP,
              root_sha256 an upper-case colon-separated SHA-256 fingerprint.
     Fails:   ValidationError "not a fabric invitation"; "the invitation is damaged (...)"; "the invitation has
@@ -43,6 +44,8 @@ def decode_invitation(text):
         ipaddress.ip_address(body.get("address", ""))
     except ValueError:
         raise ValidationError("the invitation has a bad address") from None
+    if body.get("version") is not None and not isinstance(body["version"], str):
+        raise ValidationError("the invitation has a bad version")
     if not isinstance(body.get("expires"), int):
         raise ValidationError("the invitation has a bad expires")
     if body.get("via") is not None and not (isinstance(body["via"], str) and SITE_NAME_RE.match(body["via"])):
@@ -58,4 +61,4 @@ def decode_invitation(text):
     return {**{k: body[k] for k in ("id", "secret", "site", "upstream", "org_domain", "ldap_base_dn", "host",
                                     "address", "root_sha256", "expires")}, "via": body.get("via") or "",
             "dc": dc or "", "ad_domain": body.get("ad_domain") or "",
-            "ad_password_policy": body.get("ad_password_policy") or {}}
+            "ad_password_policy": body.get("ad_password_policy") or {}, "version": body.get("version") or ""}

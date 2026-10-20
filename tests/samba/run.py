@@ -488,7 +488,8 @@ except SetupError as e:
     said = str(e)
 # covers: cli:setup setting:dc_name -
 check("negative: a new install's --file that names the DC is refused, saying fabric names DCs itself; nothing written",
-      "names the domain controller (dc_name: dc-office)" in said and "fabric names its domain controllers itself" in said
+      "names the domain controller (dc_name)" in said and "fabric names its domain controllers itself" in said
+      and "dc-office" not in said and "dc-0001" not in said
       and "nothing was changed" in said and not os.path.exists(os.path.join(new_base, "config", "fabric.yaml")), said)
 legacy = os.path.join(tmp, "legacy.yaml")
 with open(legacy, "w") as f:

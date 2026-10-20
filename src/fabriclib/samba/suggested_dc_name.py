@@ -22,5 +22,5 @@ def suggested_dc_name(taken=(), hostname="", netbios=""):
         name = f"dc-{n:04d}"
         if name not in used and not dc_name_problem(name, netbios, hostname):
             return name
-    raise ValidationError(f"the domain has {MAX_DCS} DCs, dc-0001 to dc-{MAX_DCS:04d}: the most it may have "
-                          "(2.1.6.63); remove one that is gone before adding another")
+    raise ValidationError(f"the domain has the most domain controllers it may have ({MAX_DCS} used, none can be "
+                          "added; 2.1.6.63): one that is gone must be removed from the domain before another joins")

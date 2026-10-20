@@ -37,7 +37,7 @@ def host_identity(v):
     if not own:
         refused = "this host has no name"
     elif own == dc:
-        refused = (f"the domain controller has this host's name ({dc}): the host's own computer account would be the "
+        refused = ("the domain controller has this host's name: the host's own computer account would be the "
                    "domain controller's")
     elif no_writer:
         refused = no_writer
