@@ -655,11 +655,12 @@ check("refused: a Directory Administrator resetting fabric-admin's password",
 check("...while the top tier itself (fabric-admin) changes a tier's group: the denies are the Directory "
       "Administrators' only",
       done(as_user("fabric-admin", top_pw, "ldbmodify", modify(f"CN=dc-hosts,OU=groups,{BASE}"))))
-# the first Directory Administrator (2.1.6.69): a person in OU=people and directory-admins, with their full name and
+# the first Directory Administrator (2.1.6.69, 2.1.6.93): a person in OU=people and directory-admins, with their first
+# and last names and
 # e-mail, their own password, never in AD's top tier
 first_pw = "Da-" + random_password(20)
 state, _ = ensure_admin(v, SECRETS, "pat.admin", "pat@lan.test", lambda: first_pw, container=DC,
-                        full_name="Pat Q. Example")
+                        first="Pat Q.", last="Example")
 pat_groups = attr("(sAMAccountName=pat.admin)", "memberOf")
 check("ensure_admin: the first Directory Administrator in OU=people and directory-admins (and the site's group), "
       "named and mailed as given, an admin's id, outside AD's top tier",

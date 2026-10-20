@@ -9,17 +9,18 @@ from fabriclib.setup.errors import SetupError
 
 def ask_first_admin(ctx, needed=None):
     """Purpose: the first Directory Administrator, named by the person setting fabric up straight after `fabric-admin`
-             (2.1.6.69): their user name (never fabric-admin or another of fabric's names), full name and e-mail
-             address (all required; the e-mail is data, nothing is sent), and their password, typed twice and checked
-             against the domain's password policy. Asked with the other questions, before any step; unattended, the
-             three facts come from the vars file (--file) and the password from --admin-password-file (never on a
-             command line, Rule 10). The password is kept in memory only.
-    Inputs:  ctx — SetupContext: vars (install_webui, install_keycloak, webui_admin_user, webui_admin_name,
-             webui_admin_email, ad_password_policy, ad_tier_password_policies; the facts are set here), config_dir,
+             (2.1.6.69, 2.1.6.93): their user name (never fabric-admin or another of fabric's names), first and
+             last names (required) and e-mail address (optional; data, nothing is sent), and their password, typed
+             twice and checked against the domain's password policy. Asked with the other questions, before any
+             step; unattended, the facts come from the vars file (--file) and the password from --admin-password-file
+             (never on a command line, Rule 10). The password is kept in memory only.
+    Inputs:  ctx — SetupContext: vars (install_webui, install_keycloak, webui_admin_user, webui_admin_first_name,
+             webui_admin_last_name, webui_admin_email, ad_password_policy, ad_tier_password_policies; the facts are
+             set here), config_dir,
              deploy_base, join_invitation, non_interactive, admin_password_file; needed — None to work it out (a root
              site whose directory does not exist yet: the admin step will create them), True to ask anyway (the admin
              step found no such person). Interactive unless unattended.
-    Returns: None; ctx.vars' three facts and ctx.admin_password set when needed.
+    Returns: None; ctx.vars' four facts and ctx.admin_password set when needed.
     Fails:   SetupError unattended when a fact is missing or refused (naming it and why), without
              --admin-password-file, or when that file's password is refused; OSError reading the file; EOFError
              from input.
@@ -33,7 +34,7 @@ def ask_first_admin(ctx, needed=None):
     for key in KEYS:
         why = first_admin_refused(key, v.get(key))
         if why is None:
-            v[key] = str(v[key]).strip()
+            v[key] = str(v.get(key) or "").strip()
             continue
         if ctx.non_interactive:
             raise SetupError(f"the first Directory Administrator (2.1.6.69) needs {key} in the vars file: {why}")

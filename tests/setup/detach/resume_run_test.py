@@ -25,7 +25,8 @@ def check(name, ok, detail=""):
 
 
 STEPS = [(n, None, n) for n in ("preflight", "join", "deploy", "certs", "admin", "ready")]
-SETTINGS = {"domain": "lan.test", "webui_admin_user": "pat.admin", "webui_admin_name": "Pat Example",
+SETTINGS = {"domain": "lan.test", "webui_admin_user": "pat.admin", "webui_admin_first_name": "Pat",
+            "webui_admin_last_name": "Example",
             "webui_admin_email": "pat@lan.test", "ad_password_policy": dict(DEFAULT_POLICY)}
 handed = []
 

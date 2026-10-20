@@ -166,8 +166,8 @@ def collect_vars(ctx, ask=True):
             data["friendly_name"] = ("Home Network" if ctx.non_interactive
                                      else ask_setting("friendly_name", "Home Network"))
 
-        # the first Directory Administrator (user name, full name, e-mail, password) is asked by ask_first_admin, only
-        # when setup creates them (2.1.6.69)
+        # the first Directory Administrator (user name, first and last names, an optional e-mail, password) is asked
+        # by ask_first_admin, only when setup creates them (2.1.6.69, 2.1.6.93)
 
         # The directory (manual 1.6.3): the AD domain is asked (permanent, 2.1.6.11); its password policy starts from
         # the default, a vars file's keys kept, and is changed later (2.1.6.35, 2.1.2.16)

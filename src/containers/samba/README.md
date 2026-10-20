@@ -106,5 +106,5 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `list_ous.py` / `create_ou.py` / `rename_ou.py` / `delete_ou.py` | The OU tree; an admin's own OU made, renamed, deleted (empty only) |
 | `move_machine.py` / `set_machine_type.py` / `set_machine_site.py` | A computer's folder, type group, site groups |
 | `list_spns.py` | Every SPN and its account, duplicates flagged |
-| `edit_person.py` / `unlock_person.py` | A person's display name and e-mail; a lockout cleared |
+| `edit_person.py` / `unlock_person.py` | A person's details, AD's standard attributes (2.1.6.93); a lockout cleared |
 | `change_own_password.py` | A person's own password: bound as them over NTLM, the change theirs (stdin only) |

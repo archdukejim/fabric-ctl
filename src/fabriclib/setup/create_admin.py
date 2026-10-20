@@ -95,12 +95,14 @@ def run(ctx):
              `fabric-admin`, the Enterprise Admin (AD's top tier, not a Directory Administrator), with a generated
              password written once to ~/fabric-admin/fabric-admin-password.txt of the account that ran setup (0600,
              said here, kept nowhere else); then the first Directory Administrator, a person in OU=people and
-             `directory-admins` (Keycloak grants it fabric-console-admin) with their full name, e-mail and the password
-             they chose in setup. Then the fabric root CA and, while the web console requires one (webui_client_cert),
+             `directory-admins` (Keycloak grants it fabric-console-admin) with their first and last names, their e-mail
+             when given (2.1.6.93) and the password they chose in setup. Then the fabric root CA and, while the web
+             console requires one (webui_client_cert),
              the Directory Administrator's client certificate (.p12, CN = username), collected with instructions in
              ~/fabric-admin of the account that ran setup.
     Inputs:  ctx — SetupContext: vars install_webui, install_keycloak, ad_domain, dc_name, webui_admin_user,
-             webui_admin_name, webui_admin_email, webui_client_cert, webui_client_cert_days (default 365), the
+             webui_admin_first_name, webui_admin_last_name, webui_admin_email (optional), webui_client_cert,
+             webui_client_cert_days (default 365), the
              sign-in settings, domain, hostname_mgr, hostname_landing, host_ip; secrets (Keycloak admin); config_dir
              (the break-glass record; the setup account, recorded once: record_setup_user); the published CA under
              <deploy_base>/nginx/www/certs. Env SUDO_USER via sudo_owner.
@@ -133,11 +135,12 @@ def run(ctx):
         if not user:                          # named before any step; asked here only when it was not
             ask_first_admin(ctx, needed=True)
             user = v.get("webui_admin_user")
-        state, _ = ensure_admin(v, ctx.secrets, user, v.get("webui_admin_email"),
+        state, _ = ensure_admin(v, ctx.secrets, user, v.get("webui_admin_email") or None,
                                 lambda: (ask_first_admin(ctx, needed=True), ctx.admin_password)[1],
-                                full_name=v.get("webui_admin_name"))
+                                first=v.get("webui_admin_first_name"), last=v.get("webui_admin_last_name"))
         if state == "created":
-            ok(f"Directory Administrator '{user}' ({v.get('webui_admin_name')}) created in the directory with the "
+            ok(f"Directory Administrator '{user}' ({v.get('webui_admin_first_name')} "
+               f"{v.get('webui_admin_last_name')}) created in the directory with the "
                f"password chosen in setup, member of '{DIRECTORY_ADMINS}'")
         else:
             ok(f"Directory Administrator '{user}' exists" + (" (added to the admin group)" if "+member" in state

@@ -436,6 +436,7 @@ file	fabriclib-domain|src/fabriclib/domain/list_ous.py	9
 file	fabriclib-domain|src/fabriclib/domain/list_spns.py	10	
 file	fabriclib-domain|src/fabriclib/domain/move_machine.py	11	
 file	fabriclib-domain|src/fabriclib/domain/my_groups.py	12	
+file	fabriclib-domain|src/fabriclib/domain/person_fields.py	26	
 file	fabriclib-domain|src/fabriclib/domain/read_options.py	13	
 file	fabriclib-domain|src/fabriclib/domain/remove_group.py	14	
 file	fabriclib-domain|src/fabriclib/domain/rename_ou.py	15	
@@ -532,6 +533,7 @@ file	fabriclib-keycloak|src/fabriclib/keycloak/ensure_openbao_client.py	8
 file	fabriclib-keycloak|src/fabriclib/keycloak/ensure_rbac_roles.py	9	
 file	fabriclib-keycloak|src/fabriclib/keycloak/ensure_realm.py	10	
 file	fabriclib-keycloak|src/fabriclib/keycloak/ensure_signin_flows.py	26	
+file	fabriclib-keycloak|src/fabriclib/keycloak/ensure_user_profile.py	34	
 file	fabriclib-keycloak|src/fabriclib/keycloak/ensure_webui_client.py	11	
 file	fabriclib-keycloak|src/fabriclib/keycloak/fabric_groups.py	12	
 file	fabriclib-keycloak|src/fabriclib/keycloak/grant_role_to_group.py	13	
@@ -1222,6 +1224,7 @@ function	fabricctl-jinja|src/containers/samba/dc_info.py|dc_info	1
 function	fabricctl-jinja|src/containers/samba/delete_ou.py|delete_ou	1	
 function	fabricctl-jinja|src/containers/samba/directory_op.py|connect	1	
 function	fabricctl-jinja|src/containers/samba/directory_op.py|run	2	
+function	fabricctl-jinja|src/containers/samba/edit_person.py|_record	2	
 function	fabricctl-jinja|src/containers/samba/edit_person.py|edit_person	1	
 function	fabricctl-jinja|src/containers/samba/ensure_ad_site.py|ensure_ad_site	1	
 function	fabricctl-jinja|src/containers/samba/ensure_computed_group.py|computed_groups	1	
@@ -1830,6 +1833,7 @@ function	fabriclib-domain|src/fabriclib/domain/list_ous.py|list_ous	1
 function	fabriclib-domain|src/fabriclib/domain/list_spns.py|list_spns	1	
 function	fabriclib-domain|src/fabriclib/domain/move_machine.py|move_machine	1	
 function	fabriclib-domain|src/fabriclib/domain/my_groups.py|my_groups	1	
+function	fabriclib-domain|src/fabriclib/domain/person_fields.py|read_person_fields	1	
 function	fabriclib-domain|src/fabriclib/domain/read_options.py|read_options	1	
 function	fabriclib-domain|src/fabriclib/domain/remove_group.py|remove_group	1	
 function	fabriclib-domain|src/fabriclib/domain/rename_ou.py|rename_ou	1	
@@ -1965,6 +1969,7 @@ function	fabriclib-keycloak|src/fabriclib/keycloak/ensure_signin_flows.py|_unbin
 function	fabriclib-keycloak|src/fabriclib/keycloak/ensure_signin_flows.py|_wanted	4	
 function	fabriclib-keycloak|src/fabriclib/keycloak/ensure_signin_flows.py|_what	2	
 function	fabriclib-keycloak|src/fabriclib/keycloak/ensure_signin_flows.py|ensure_signin_flows	6	
+function	fabriclib-keycloak|src/fabriclib/keycloak/ensure_user_profile.py|ensure_user_profile	1	
 function	fabriclib-keycloak|src/fabriclib/keycloak/ensure_webui_client.py|ensure_webui_client	1	
 function	fabriclib-keycloak|src/fabriclib/keycloak/fabric_groups.py|fabric_groups	1	
 function	fabriclib-keycloak|src/fabriclib/keycloak/grant_role_to_group.py|grant_role_to_group	1	

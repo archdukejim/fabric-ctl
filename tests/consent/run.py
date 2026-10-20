@@ -1162,7 +1162,7 @@ c = new_ctx()
 got, out, left = drive(lambda: m_menu.setup_menu(c, NETS), [
     "99", "p",
     "3", 'a"quote', "Acme",
-    "6", "root", "fabric-admin", "pat.admin", "", "Pat Example", "nope", "pat@lan.test",
+    "6", "root", "fabric-admin", "pat.admin", "", "Pat", "Ex<ample", "Example", "nope", "pat@lan.test",
     "4", "",
     "7", "0", "5",
     "9", "maybe", "y",
@@ -1185,15 +1185,18 @@ check("the menu: three parts, 19 numbered items with their values; something not
       and "'99' is not on the list: a number from 1 to 19" in out and "not yet: 3, 6 need an answer" in out
       and "(needs an answer)" in out and not left, (got, out[-3000:], left))
 # covers: ask:setup.vars.* ask:setup.admin_password ask:setup.admin_password_again +-
-# covers: setting:webui_admin_user setting:webui_admin_name setting:webui_admin_email +-
+# covers: setting:webui_admin_user setting:webui_admin_first_name setting:webui_admin_last_name +-
+# covers: setting:webui_admin_email +-
 check("required items ask guided mode's questions with its checks: the organisation, the first Directory "
       "Administrator (a reserved name and fabric-admin refused, saying why; an empty full name and a bad e-mail "
       "refused) and their password (too short refused, typed twice)",
-      v["friendly_name"] == "Acme" and v["webui_admin_user"] == "pat.admin" and v["webui_admin_name"] == "Pat Example"
+      v["friendly_name"] == "Acme" and v["webui_admin_user"] == "pat.admin" and v["webui_admin_first_name"] == "Pat"
+      and v["webui_admin_last_name"] == "Example"
       and v["webui_admin_email"] == "pat@lan.test" and c.admin_password == "Good-Pass-12345"
       and "not a valid friendly_name" in out and "not a valid webui_admin_user: root is one of the system" in out
       and "fabric-admin is the Enterprise Admin's own account" in out
-      and "not a valid webui_admin_name: the first administrator's full name is required" in out
+      and "not a valid webui_admin_first_name: the first administrator's first name is required" in out
+      and "not a valid webui_admin_last_name: a last name: letters and simple punctuation" in out
       and "not a valid webui_admin_email: 'nope' is not an e-mail address" in out, (v.get("friendly_name"), out))
 check("the AD domain: Enter takes the suggestion (ad.lan.test); the CA's lifetime 5 years after 0 refused",
       v["ad_domain"] == "ad.lan.test" and v["cert_root_ca_days"] == 5 * 365 and "a whole number of years" in out, v)
@@ -1227,7 +1230,7 @@ check("host changes: the ports turned off show what that means and take securing
       and "also off: The host's own firewall rules" in out and "also on: Ports fabric needs" in out
       and "also on: Secure this host" in out, (c.host_choices, out[-2500:]))
 c = new_ctx()
-got, out, left = drive(lambda: m_menu.setup_menu(c, NETS), ["3", "Acme", "6", "pat.admin", "Pat Example", "pat@lan.test", "p"],
+got, out, left = drive(lambda: m_menu.setup_menu(c, NETS), ["3", "Acme", "6", "pat.admin", "Pat", "Example", "", "p"],
                        secrets=["Good-Pass-12345", "Good-Pass-12345"])
 with contextlib.redirect_stdout(io.StringIO()):
     finish_vars(c)
@@ -1235,6 +1238,8 @@ with contextlib.redirect_stdout(io.StringIO()):
 check("Advanced: after Proceed the settings are finished with the DC named dc-0001, nothing asked for it (2.1.6.65; "
       "never the host's own name, 2.3.1.21.2)",
       got is None and not left and c.vars.get("dc_name") == "dc-0001", (c.vars.get("dc_name"), left, out[-1500:]))
+check("...the first admin's e-mail address left empty (Enter) is taken: it is optional (2.1.6.93), the menu says so",
+      c.vars.get("webui_admin_email") == "" and "(Pat Example, no e-mail)" in out, out[-2500:])
 got, _, _ = drive(lambda: m_menu.setup_menu(new_ctx(), NETS), ["q"])
 check("negative: Quit in the menu changes nothing and stops setup", isinstance(got, SystemExit), got)
 
@@ -1261,7 +1266,8 @@ check("negative: a size whose memory plan does not fit is refused with the plan'
       c3.vars["host_ram_capacity"] == 8 and "refused: memory: the installed services need" in out, out)
 
 # the plan: settings, the memory split, every host change; Proceed is the one yes; Menu opens the menu
-pc = new_ctx(friendly_name="Acme", webui_admin_user="pat.admin", webui_admin_name="Pat Example",
+pc = new_ctx(friendly_name="Acme", webui_admin_user="pat.admin", webui_admin_first_name="Pat",
+             webui_admin_last_name="Example",
              webui_admin_email="pat@lan.test", ad_domain="ad.lan.test")
 pc.admin_password = "Good-Pass-12345"             # chosen already (the first admin item)
 pc.host_choices = {"runtime": False, "ports": True, "firewall": True, "own_rules": True, "trust": True, "time": True}

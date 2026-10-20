@@ -75,7 +75,8 @@ install_keycloak: true
 install_webui: true
 # the first Directory Administrator (2.1.6.69): their own name, never fabric-admin (the Enterprise Admin's)
 webui_admin_user: pat.admin
-webui_admin_name: Pat Example
+webui_admin_first_name: Pat
+webui_admin_last_name: Example
 webui_admin_email: pat@lan.test
 # the raised sign-in (2.3.6.2.6): the strict login test below; the host suite proves the default and raising
 webui_client_cert: true
@@ -110,7 +111,7 @@ in_box 'fabricctl setup --file /root/vars-named.yaml --non-interactive --yes --a
 check "a new install's vars file naming the DC is refused, saying fabric names DCs itself; nothing written" \
     "grep -q 'fabric names its domain controllers itself' '$OUT/setup-named.log' && ! grep -q '\[preflight\]' '$OUT/setup-named.log' \
      && ! in_box 'test -e /opt/fabric/config/fabric.yaml' && ! in_box 'getent passwd fabric-dns'"
-for bad in "webui_admin_user: fabric-admin" "webui_admin_name: ''" "webui_admin_email: nope"; do
+for bad in "webui_admin_user: fabric-admin" "webui_admin_first_name: ''" "webui_admin_email: nope"; do
     { grep -v "^${bad%%:*}:" "$OUT/vars.yaml"; echo "$bad"; } > "$OUT/vars-badadmin.yaml"
     docker cp "$OUT/vars-badadmin.yaml" "$NAME:/root/vars-badadmin.yaml"
     in_box 'fabricctl setup --file /root/vars-badadmin.yaml --non-interactive --yes --approve all --admin-password-file /root/admin-pw' \

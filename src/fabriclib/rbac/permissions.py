@@ -28,7 +28,7 @@ PERMISSIONS = {
     "people:read": "see realm users",
     "people:create": "create realm users",
     "people:reset": "reset a user's sign-in (password, TOTP), or unlock a locked-out one",
-    "people:edit": "change a person's display name and e-mail address",
+    "people:edit": "change a person's details: names, contact, organisation, manager",
     "people:disable": "disable a user's sign-in everywhere at once, or enable it again",
     "people:remove": "remove a user and revoke their certificates",
     "people:groups": "change which groups a user is in",

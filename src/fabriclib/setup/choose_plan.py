@@ -55,7 +55,8 @@ def _show_settings(ctx):
               "once to ~/fabric-admin/fabric-admin-password.txt")
     if get_dotted(ctx.vars, "install_webui", True):
         print(f"  ✓ Create the first Directory Administrator '{ctx.vars.get('webui_admin_user')}' "
-              f"({ctx.vars.get('webui_admin_name')}) with the password you chose; login kit in ~/fabric-admin")
+              f"({ctx.vars.get('webui_admin_first_name')} {ctx.vars.get('webui_admin_last_name')}) with the "
+              "password you chose; login kit in ~/fabric-admin")
     lf = ctx.vars.get("log_forwarding") or {}
     dests = [d for d in ((lf.get("syslog") or {}).get("host"), (lf.get("elastic") or {}).get("url")) if d]
     if ctx.vars.get("dns_filter", "bind") == "bind":

@@ -9,6 +9,7 @@ from fabriclib.keycloak.ensure_ldap_federation import ensure_ldap_federation
 from fabriclib.keycloak.ensure_openbao_client import ensure_openbao_client
 from fabriclib.keycloak.ensure_rbac_roles import ensure_rbac_roles
 from fabriclib.keycloak.ensure_realm import ensure_realm
+from fabriclib.keycloak.ensure_user_profile import ensure_user_profile
 from fabriclib.keycloak.ensure_signin_flows import ensure_signin_flows
 from fabriclib.keycloak.ensure_webui_client import ensure_webui_client
 from fabriclib.keycloak.grant_role_to_group import grant_role_to_group
@@ -42,6 +43,7 @@ def configure_keycloak(vars_path, secrets_path):
 
     print(f"Configuring Keycloak realm {realm}...")
     realm_id = ensure_realm(kc, realm, v.get("friendly_name") or v["domain"])
+    ensure_user_profile(kc, realm)                 # a person may have no e-mail address (2.1.6.93)
     # fabric's directory, Samba AD (manual 1.6.3.11): people and groups
     writable = is_root_site(os.path.join(v["deploy_base_dir"], "fabric", "config", "federation.yaml"))
     # Kerberos sign-in (manual 2.3.6.2.6.2) once the site's DC has exported its keytab (a read-only DC cannot make one)

@@ -3,10 +3,15 @@ import getpass
 from fabriclib.common.errors import ValidationError
 from fabriclib.directory.set_person_enabled import set_person_enabled
 from fabriclib.domain.edit_person import edit_person
+from fabriclib.domain.person_fields import FIELDS
 from fabriclib.domain.read_options import read_options
 from fabriclib.domain.unlock_person import unlock_person
 
-USAGE = """usage: fabricctl domain person edit <uid> [--name N] [--email E]   a person's display name, e-mail address
+OPTIONS = {"--" + f.replace("_", "-"): f for f in FIELDS}
+USAGE = """usage: fabricctl domain person edit <uid> [--first F] [--last L] [--name N] [--email E] [--phone P]
+         [--mobile M] [--title T] [--department D] [--company C] [--office O] [--city C] [--state S]
+         [--country CC] [--manager UID] [--employee-id ID]   a person's details (an empty value clears one;
+         the names are never cleared)
        fabricctl domain person unlock <uid>          their lockout cleared (the password kept)
        fabricctl domain person disable|enable <uid>  block every sign-in at once (sessions end), or allow it again
   As root, acting for the Enterprise Admin: fabric-agent's check still refuses AD's top tier and fabric's own
@@ -26,8 +31,8 @@ def run_person_command(v, args):
     cmd, uid, rest, actor = args[0], args[1], args[2:], getpass.getuser()
     try:
         if cmd == "edit":
-            o = read_options(rest, ("--name", "--email"))
-            done = edit_person(v, actor, uid, o.get("--name"), o.get("--email"), source="cli")
+            o = read_options(rest, tuple(OPTIONS))
+            done = edit_person(v, actor, uid, {OPTIONS[k]: value for k, value in o.items()}, source="cli")
             print(f"{uid}: {', '.join(done['changed']) + ' changed' if done['changed'] else 'nothing to change'} "
                   f"(name: {done['name']}, e-mail: {done['email']})")
             return 0

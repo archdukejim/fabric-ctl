@@ -272,7 +272,8 @@ webui_admin_role: {{ webui_admin_role | default('fabric-console-admin') }}
 {# The first Directory Administrator, created by `fabricctl setup` after fabric-admin, the Enterprise Admin (a person in
    the domain + client certificate; 2.1.6.69): user name, full name and e-mail, all required, no default. #}
 webui_admin_user: {{ webui_admin_user | default('', true) | to_json }}
-webui_admin_name: {{ webui_admin_name | default('', true) | to_json }}
+webui_admin_first_name: {{ webui_admin_first_name | default('', true) | to_json }}
+webui_admin_last_name: {{ webui_admin_last_name | default('', true) | to_json }}
 webui_admin_email: {{ webui_admin_email | default('', true) | to_json }}
 webui_client_cert_days: {{ webui_client_cert_days | default(365) }}
 # Sign-in (manual 2.3.6.2.6.1, 2.1.6.23): a password by default; raised in the web console's Security page, lowered only

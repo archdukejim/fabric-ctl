@@ -14,6 +14,7 @@ from fabriclib.setup.ask_ad_domain import ask_ad_domain
 from fabriclib.setup.common.ask_setting import ask_setting
 from fabriclib.setup.common.ca_exists import ca_exists
 from fabriclib.setup.common.first_admin_needed import first_admin_needed
+from fabriclib.setup.common.first_admin_refused import first_admin_refused
 from fabriclib.setup.common.network_problem import network_problem
 from fabriclib.setup.common.valid_setting import valid_setting
 
@@ -89,12 +90,14 @@ def menu_items(ctx, networks=None):
                 + (f" (does not fit: {len(items) + 1} to change)" if problem else "")) if net_ok else ""
     add("required", "Network", net_text, lambda: ask_network(ctx), not net_ok or bool(problem))
     user = str(v.get("webui_admin_user") or "")
-    user_ok = all(valid_setting(k, str(v.get(k) or "")) for k in ("webui_admin_user", "webui_admin_name",
-                                                                   "webui_admin_email"))
+    user_ok = all(valid_setting(k, str(v.get(k) or "")) for k in ("webui_admin_user", "webui_admin_first_name",
+                                                                   "webui_admin_last_name"))
+    user_ok = user_ok and first_admin_refused("webui_admin_email", v.get("webui_admin_email")) is None
     needed = first_admin_needed(ctx)
     pw_missing = needed and not ctx.admin_password
-    admin_text = (f"{_origin(ctx, 'webui_admin_user', user)} ({v.get('webui_admin_name')}, "
-                  f"{v.get('webui_admin_email')})" if user_ok else NEEDS) + (
+    admin_text = (f"{_origin(ctx, 'webui_admin_user', user)} ({v.get('webui_admin_first_name')} "
+                  f"{v.get('webui_admin_last_name')}, {v.get('webui_admin_email') or 'no e-mail'})"
+                  if user_ok else NEEDS) + (
         (", password" + (f" {NEEDS}" if pw_missing else "")) if needed else "")
     add("required", "First admin", admin_text, lambda: ask_first_admin_item(ctx), not user_ok or pw_missing)
 

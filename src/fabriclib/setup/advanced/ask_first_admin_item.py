@@ -5,11 +5,12 @@ from fabriclib.setup.common.first_admin_refused import KEYS
 
 
 def ask_first_admin_item(ctx):
-    """Purpose: the menu's first-admin item (manual 1.2.9.11.3): the first Directory Administrator's user name, full
-             name and e-mail address (setup.vars.webui_admin_user, webui_admin_name, webui_admin_email) and, when setup
-             creates them, their password (setup.admin_password, typed twice, checked against the password policy) —
+    """Purpose: the menu's first-admin item (manual 1.2.9.11.3): the first Directory Administrator's user name, first
+             and last names and e-mail address (setup.vars.webui_admin_user, webui_admin_first_name,
+             webui_admin_last_name, webui_admin_email; 2.1.6.93) and, when setup creates them, their password
+             (setup.admin_password, typed twice, checked against the password policy) —
              guided mode's questions, each fact asked again with its current value offered.
-    Inputs:  ctx — SetupContext: vars (the three facts; changed), admin_password (replaced), origins. Interactive.
+    Inputs:  ctx — SetupContext: vars (the four facts; changed), admin_password (replaced), origins. Interactive.
     Returns: None.
     Fails:   EOFError from input().
     Feeds:   setup/advanced/setup_menu."""

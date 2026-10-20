@@ -24,6 +24,7 @@ client these files use.
 | `quote.py` | `q`: URL-quote one path or query component |
 | `step.py` | One progress line of the configuration |
 | `ensure_realm.py` | The realm with its login protections (brute-force lockout, no e-mail login) |
+| `ensure_user_profile.py` | The realm's user profile: an e-mail address optional (2.1.6.93) |
 | `ensure_ldap_federation.py` | The user federation to the domain (AD mode, LDAPS to the site's DC; created, or updated in place) |
 | `ensure_group_mapper.py` | The LDAP group mapper, and a sync of the directory's groups |
 | `grant_role_to_group.py` | Give a group a realm role if it does not have it |

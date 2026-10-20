@@ -665,6 +665,24 @@ if os.path.exists(fresh.jar):                              # a jar left by an ea
 st, location, page = sign_in(fresh, APP_AUTH, "gina", gina_new)
 check("...and Keycloak's sign-in takes the new password", "code=" in location, (st, location[:120]))
 
+# a person without an e-mail address (2.1.6.93: the first admin's is optional): made with their first and last names,
+# no mail, and signing in through Keycloak at once, no page asking for an address in between
+nomail_pw = "Nm-" + random_password(20)
+state, _ = ensure_admin(v, secrets, "nomail", None, lambda: nomail_pw, container=DC, first="No", last="Mail")
+seen = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=nomail)", "mail",
+           "givenName", "sn"]).stdout
+check("a Directory Administrator without an e-mail address: made with first and last names and no mail",
+      state == "created" and "mail:" not in seen and "givenName: No" in seen and "sn: Mail" in seen, seen)
+nb = Browser(root_ca)
+if os.path.exists(nb.jar):
+    os.remove(nb.jar)
+st, location, page = sign_in(nb, APP_AUTH, "nomail", nomail_pw)
+check("...who signs in through Keycloak at once: no page asks for an e-mail address", "code=" in location,
+      (st, location[:120], page[:400]))
+email_attr = next((a for a in kc.call("GET", f"{R}/users/profile")[1].get("attributes", []) if a["name"] == "email"), {})
+check("...because the realm's user profile no longer requires an e-mail address (ensure_user_profile), while still "
+      "checking one given", "required" not in email_attr and "email" in email_attr.get("validations", {}), email_attr)
+
 if not os.environ.get("KEYCLOAK_TEST_KEEP"):
     cleanup()
 print(f"\n{PASS} passed, {FAIL} failed")

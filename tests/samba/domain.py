@@ -214,12 +214,47 @@ for who, target, body, words in (
         ("sup", "bob", {"name": "B"}, "no grant gives you people edit on bob"),
         ("alice", "bob", {"email": "not-an-address"}, "e-mail address looks wrong"),
         ("alice", "bob", {"name": "x" * 80}, "display name"),
-        ("alice", "bob", {}, "give a display name or an e-mail address"),
+        ("alice", "bob", {}, "give at least one of a person's fields"),
+        ("alice", "bob", {"frob": "x"}, "unknown field: frob"),
+        ("alice", "bob", {"first": " "}, "first name may not be cleared"),
+        ("alice", "bob", {"last": "B<b"}, "last name: letters and simple punctuation"),
+        ("alice", "bob", {"phone": "call me"}, "phone: digits"),
+        ("alice", "bob", {"mobile": "+"}, "mobile: digits"),
+        ("alice", "bob", {"title": 'the "boss"'}, "without quotes"),
+        ("alice", "bob", {"city": "x" * 65}, "city: up to 64 characters"),
+        ("alice", "bob", {"country": "GBR"}, "a two-letter code"),
+        ("alice", "bob", {"employee_id": "E" * 17}, "employee ID"),
+        ("alice", "bob", {"manager": "bob"}, "not the person themselves"),
+        ("alice", "bob", {"manager": "no.such"}, "no such entry"),
+        ("alice", "bob", {"department": 7}, "department must be text"),
+        ("hd", "carol", {"title": "T"}, "no grant gives you people edit on carol"),
         ("alice", "bob", {"email": "alice@lan.test"}, "already taken"),
         ("alice", "nobody", {"name": "N"}, "no person nobody")):
     gone, why = refused(m_people.post_people, ["people", target, "edit"], who or "root", body, who)
     # covers: agent:post.people.*.edit -
     check(f"edit {target} as {who or 'root'} refused ({words}), nothing changed", gone and words in why, why)
+# AD's standard attributes (2.1.6.93): every field set at once, then two cleared
+FULL = {"first": "Robert", "last": "Builder", "phone": "+44 20 7946 0000", "mobile": "07700 900000",
+        "title": "Site engineer", "department": "Operations", "company": "Acme Ltd", "office": "Room 4",
+        "city": "Leeds", "state": "West Yorkshire", "country": "gb", "manager": "carol", "employee_id": "E-1001"}
+done = m_people.post_people(["people", "bob", "edit"], "alice", FULL, "alice")
+seen = ldb("(sAMAccountName=bob)", "givenName", "sn", "telephoneNumber", "mobile", "title", "department", "company",
+           "physicalDeliveryOfficeName", "l", "st", "c", "manager", "employeeID")
+want = ("givenName: Robert", "sn: Builder", "telephoneNumber: +44 20 7946 0000", "mobile: 07700 900000",
+        "title: Site engineer", "department: Operations", "company: Acme Ltd", "physicalDeliveryOfficeName: Room 4",
+        "l: Leeds", "st: West Yorkshire", "c: GB", "manager: CN=carol", "employeeID: E-1001")
+# covers: agent:post.people.*.edit +
+check("POST /v1/people/bob/edit by alice: first, last, phone, mobile, title, department, company, office, city, state, "
+      "country (upper-cased), manager (a person, stored as their DN) and employee ID, all in AD, audited",
+      all(w in seen for w in want) and done["person"]["manager"] == "carol" and done["person"]["country"] == "GB"
+      and len(done["changed"]) == 13 and AUDIT[-1][1] == "PERSON_EDIT", (done, seen))
+done = m_people.post_people(["people", "bob", "edit"], "alice", {"phone": "", "manager": " "}, "alice")
+seen = ldb("(sAMAccountName=bob)", "telephoneNumber", "manager", "mobile")
+check("...an empty value clears a field (phone, manager), the others kept",
+      done["changed"] == ["telephoneNumber", "manager"] and "telephoneNumber:" not in seen and "manager:" not in seen
+      and "mobile: 07700 900000" in seen and done["person"]["phone"] == "", (done, seen))
+done = m_people.post_people(["people", "bob", "edit"], "alice", {"title": "Site engineer"}, "alice")
+check("...a value it already has changes nothing, and nothing is audited", done["changed"] == [], done)
 lock = int((time.time() + 11644473600) * 10_000_000)
 dn_bob = f"CN=Bob Test,OU=people,{BASE}" if "CN=Bob Test" in ldb("(sAMAccountName=bob)", "dn") else \
     ldb("(sAMAccountName=bob)", "dn").split("dn: ", 1)[1].split("\n", 1)[0]
@@ -398,6 +433,9 @@ print("--- the CLI: fabricctl domain person and group (as root)")
 code, out = cli("person", "edit", "carol", "--name", "Carol Lab")
 # covers: cli:domain.person +
 check("domain person edit (root)", code == 0 and "displayName changed" in out, out)
+code, out = cli("person", "edit", "carol", "--title", "Lab lead", "--country", "us", "--employee-id", "C-7")
+check("domain person edit --title --country --employee-id (2.1.6.93)",
+      code == 0 and "title, c, employeeID changed" in out and "c: US" in ldb("(sAMAccountName=carol)", "c"), out)
 code, out = cli("person", "unlock", "carol")
 check("domain person unlock: not locked out", code == 0 and "not locked out" in out, out)
 code, out = cli("person", "disable", "carol")
@@ -406,6 +444,8 @@ check("domain person disable, enable", code == code2 == 0 and "disabled" in out 
 for args, words, want in ((("person", "edit", "fabric-admin", "--name", "X"), "AD's top tier", 1),
                           (("person", "frob", "carol"), "usage", 2), (("person", "edit"), "usage", 2),
                           (("person", "edit", "carol", "--bad", "x"), "unknown option", 1),
+                          (("person", "edit", "carol", "--country", "USA"), "a two-letter code", 1),
+                          (("person", "edit", "carol"), "give at least one of a person's fields", 1),
                           (("person", "unlock", "carol", "extra"), "usage", 2)):
     code, out = cli(*args)
     # covers: cli:domain.person -

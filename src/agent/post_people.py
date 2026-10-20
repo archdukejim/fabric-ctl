@@ -7,6 +7,7 @@ from fabriclib.directory.reset_sign_in import reset_sign_in
 from fabriclib.directory.set_person_enabled import set_person_enabled
 from fabriclib.directory.set_person_group import set_person_group
 from fabriclib.domain.edit_person import edit_person
+from fabriclib.domain.person_fields import FIELDS
 from fabriclib.domain.unlock_person import unlock_person
 
 
@@ -28,12 +29,14 @@ def post_people(route, actor, data, caller):
              the signed-in person as the caller, so a body here never decides who may do it. Each acts at once and
              takes only its body, so a page's pending store can hold and replay it unchanged.
     Inputs:  route — ["people"] or ["people", <uid>, <action>]; actor — the audit's name; data — the JSON body (add:
-             uid, first, last, email; delete: confirm; groups: action add|remove, group; edit: name and/or email);
+             uid, first, last, email; delete: confirm; groups: action add|remove, group; edit: any of
+             person_fields.FIELDS, 2.1.6.93);
              caller — the token's user, or None for a root peer.
     Returns: add, reset: {"password"} (one-time, shown once); disable/enable: {"uid", "enabled", "changed"}; delete:
              {"uid", "revoked"}; groups: {"uid", "group", "member", "changed"}; edit: {"uid", "name", "email",
-             "changed"}; unlock: {"uid", "changed"}.
-    Fails:   ValidationError (-> 400): "action: add or remove", "unknown operation", or fabriclib's refusal with why.
+             "changed", "person"}; unlock: {"uid", "changed"}.
+    Fails:   ValidationError (-> 400): "action: add or remove", "unknown operation", "unknown field" (edit), or
+                 fabriclib's refusal with why.
     Feeds:   agent/post_route.py (POST people/...)."""
     v = load_vars()
     if route == ["people"]:
@@ -53,7 +56,10 @@ def post_people(route, actor, data, caller):
             raise ValidationError("action: add or remove")
         return set_person_group(v, actor, read_text(data, "group"), uid, data["action"] == "add", caller=caller)
     if action == "edit":
-        return edit_person(v, actor, uid, _optional(data, "name"), _optional(data, "email"), caller=caller)
+        unknown = sorted(set(data) - set(FIELDS))
+        if unknown:
+            raise ValidationError(f"unknown field: {', '.join(unknown)} (a person's fields: {', '.join(FIELDS)})")
+        return edit_person(v, actor, uid, {f: _optional(data, f) for f in FIELDS if f in data}, caller=caller)
     if action == "unlock":
         return unlock_person(v, actor, uid, caller=caller)
     raise ValidationError("unknown operation")
