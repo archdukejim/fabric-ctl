@@ -190,6 +190,17 @@ except ValidationError as e:
     why = str(e)
 check("negative: fabric-admin locked until an admin unlocks it (0 minutes) is refused, saying break glass unlocks by "
       "itself", "break glass must unlock by itself" in why, why)
+try:
+    check_tier_policies({**tiers, "enterprise_admin": {**tiers["enterprise_admin"], "lockout_threshold": 0}})
+    why = ""
+except ValidationError as e:
+    why = str(e)
+# covers: setting:ad_tier_password_policies -
+check("negative: fabric-admin never locked out (a threshold of 0) is refused, saying it would be open to guessing "
+      "(2.1.6.91)", "a lockout threshold of 0" in why and "guessing" in why, why)
+check("...while the Directory Administrators' threshold may be 0 (their policy is the default's to choose)",
+      check_tier_policies({**tiers, "directory_admins": {**tiers["directory_admins"], "lockout_threshold": 0}})
+      is None)
 check("...while the Directory Administrators' may (0 is AD's until-unlocked)",
       check_tier_policies({**tiers, "directory_admins": {**tiers["directory_admins"], "lockout_minutes": 0}}) is None)
 print("--- the DC's name, fabric's alone (2.1.6.65, manual 1.6.5.26): never asked, dc-0001 for a new domain")
