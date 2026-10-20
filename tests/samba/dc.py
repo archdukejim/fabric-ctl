@@ -365,12 +365,14 @@ gpos = dc("samba-tool", "gpo", "listall", "-H", "/data/private/sam.ldb", "-s", "
 check("the trust GPO exists, and no log-on GPO (the per-OU log-on policies are retired in D1, 2.3.6.17)",
       "fabric: trust in fabric's root CA" in gpos and "log-on" not in gpos, gpos)
 files = dc("find", "/data/state/sysvol", "-name", "Registry.pol", "-o", "-name", "GptTmpl.inf").stdout
-check("its file is in SYSVOL (Registry.pol), and no fabric GptTmpl.inf (log-on rights) is written",
-      "Registry.pol" in files and not [x for x in files.splitlines() if x.endswith("GptTmpl.inf")
-                                       and "31B2F340" not in x and "6AC1786C" not in x], files)
+check("its file is in SYSVOL (Registry.pol); the only log-on rights fabric writes are the grants' (the fallback, fabric: access none, 1.6.13.4)",
+      "Registry.pol" in files and "fabric: access none" in gpos and len([x for x in files.splitlines() if x.endswith("GptTmpl.inf")
+                                           and "31B2F340" not in x and "6AC1786C" not in x]) >= 1, files)
 rules = dc("ldbsearch", "-H", "/data/private/sam.ldb", "(objectClass=sudoRole)", "cn").stdout
-check("negative: convergence writes no sudo rule (the site's default rule is retired, 2.1.6.80)",
-      "cn:" not in rules, rules[-300:])
+check("negative: convergence writes no sudo rule but the shipped grants' (the site's default rule is retired, 2.1.6.80)",
+      sorted(x[4:] for x in rules.splitlines() if x.startswith("cn: ")) == ["grant-desktop-administrators",
+                                                                     "grant-network-administrators",
+                                                                     "grant-server-administrators"], rules[-300:])
 
 
 def members(group):

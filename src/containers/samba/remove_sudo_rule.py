@@ -1,4 +1,4 @@
-from host_groups import rule_hosts, sudo_rules, text
+from host_groups import grant_rule_where, rule_hosts, sudo_rules, text
 
 
 def remove_sudo_rule(samdb, lp, site, name):
@@ -12,6 +12,8 @@ def remove_sudo_rule(samdb, lp, site, name):
     rule = next((r for r in sudo_rules(samdb) if text(r, "cn").lower() == name.lower()), None)
     if rule is None:
         raise ValueError(f"no sudo rule {name}")
+    if grant_rule_where(text(rule, "description")) is not None:
+        raise ValueError(f"{name} is a grant's sudo rule (manual 1.6.13.4): change the grant (fabricctl domain grant)")
     if rule_hosts(text(rule, "description")) is None:
         raise ValueError(f"{name} was not made by fabric's sudo editor: it is an admin's own, changed with their "
                          "own tools")

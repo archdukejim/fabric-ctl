@@ -269,6 +269,9 @@ got = m_get.get_route(["sudo"])
 # covers: agent:get.sudo +
 check("GET /v1/sudo: every rule of the domain, each with who made it (no default rule)",
       {r["name"]: r["kind"] for r in got} == {"backup-ops": "other", "everyone-uptime": "fabric",
+                                              "grant-desktop-administrators": "grant",
+                                              "grant-network-administrators": "grant",
+                                              "grant-server-administrators": "grant",
                                               "web-restart": "fabric"}, got)
 done = m_post.post_host_access(["host-groups"], "alice", {"name": "app"})
 # covers: agent:post.host-groups +

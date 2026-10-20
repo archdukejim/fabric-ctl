@@ -11,6 +11,7 @@ and import as `fabriclib.<domain>.<file>`.
 | [system/](system/) | Version, service status, apply |
 | [breakglass/](breakglass/) | `fabric-admin`, the Enterprise Admin and break glass: its generated password, its one file, the reminder, the reset |
 | [hostaccounts/](hostaccounts/) | A DC host's local root and administrator accounts: listed, reminded of, approved as break glass |
+| [grants/](grants/) | Grants: who may do what, where, by overlapping groups; compiled into groups, GPOs and sudo rules inside the DC (manual 1.6.13) |
 | [setup/](setup/) | `fabricctl setup`, `doctor`, `uninstall`, `reinstall` — the installer |
 | [consent/](consent/) | Asking before fabric changes the host: the change groups, the questions, the recorded answers |
 | [undo/](undo/) | Reverting a host change fabric made: `setup --undo GROUP`, and what uninstall does with each |

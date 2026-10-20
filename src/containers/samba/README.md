@@ -47,10 +47,10 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `create_host_group.py` | Operation `create_host_group`: a host group in OU=groups |
 | `remove_host_group.py` | Operation `remove_host_group`: a host group deleted, refused while a sudo rule names it |
 | `set_host_group_member.py` | Operation `set_host_group_member`: a machine in or out of a host group, the sudo rules' hosts refreshed |
-| `list_sudo_rules.py` | Operation `list_sudo_rules`: the rules in OU=sudoers, each fabric's editor's or an admin's own |
+| `list_sudo_rules.py` | Operation `list_sudo_rules`: the rules in OU=sudoers, each fabric's editor's, a grant's or an admin's own |
 | `add_sudo_rule.py` | Operation `add_sudo_rule`: a sudo rule of fabric's editor (ALL commands to everyone refused) |
 | `remove_sudo_rule.py` | Operation `remove_sudo_rule`: one of the editor's rules deleted (never an admin's own) |
-| `refresh_sudo_hosts.py` | The editor's rules on a host group name its machines' short and DNS names as sudoHost (after a member change, at convergence) |
+| `refresh_sudo_hosts.py` | The editor's rules on a host group, and the grants' rules on their computed where group, name its machines' short and DNS names as sudoHost (after a member change, at a compile, at convergence) |
 | `windows_baseline_policy.py` | The site's Windows baseline, linked at OU=machines: wait for the network at log-on, the domain's time, Wired AutoConfig and the 802.1X profile (start-up script) |
 | `gpo_tool.py` | fabric's ADMX editor's entry point: one operation (load, templates, policies, show, set, clear) as JSON |
 | `admx_store.py` | The domain's central store: templates saved, and every policy they define read as Windows' editor reads them |
@@ -82,3 +82,17 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `ensure_top_tier.py` | An account made a member of Enterprise, Schema and Domain Admins, the top tier's denies written at once (2.1.6.68) |
 | `ensure_enterprise_admin.py` | Run as root from fabric-ctl: `fabric-admin`, the Enterprise Admin, made once in OU=people with the generated password (JSON on stdin) and put in AD's top tier (2.1.6.69) |
 | `reset_break_glass.py` | Run as root from fabric-ctl (`fabricctl admin reset-break-glass`): `fabric-admin`'s new generated password set (JSON on stdin) and the account unlocked; a disabled account reported, never enabled (2.1.6.75) |
+| `grant_names.py` | The grants' vocabulary (1.6.13.4, 1.6.13.5): the name rule, the rights by category, the computed groups' and GPOs' names, the shipped grants and the templates |
+| `grant_store.py` | The grant store in `CN=grants,CN=fabric,CN=System`: one `msDS-App-Configuration` per grant, its JSON in `msDS-Settings`; the compiler's record of the sets |
+| `check_grant.py` | A grant as it may be stored, or why not (its name, who and where, the tiers' groups and the DC hosts refused, the rights, sudo of every command for everyone) |
+| `grant_members.py` | A group's people and computers (nesting and primary groups followed); those no grant reaches (the top tier, fabric's accounts, the DC hosts); a grant's reach |
+| `ensure_computed_group.py` | A computed group in OU=fabric,OU=groups with exactly its members (a POSIX one for sudo); the computed groups there |
+| `access_policy.py` | A set's (or the fallback's) security template: sign-in at the keyboard and remotely, local administrators, always with Administrators and `local-admin` |
+| `set_gpo_filter.py` | A GPO's security filtering as GPMC sets it: one group applies it, or every machine |
+| `order_gpo_links.py` | One GPO's link put first in an OU's `gPLink` (the lowest precedence): the fallback (2.1.6.87) |
+| `remove_gpo.py` | One of fabric's GPOs unlinked everywhere and deleted with its SYSVOL folder (a set no longer wanted) |
+| `ensure_grant_sudo.py` | One `sudoRole` per grant with sudo (`grant-<name>`, `%grant-<name>-who`), its hosts its where group's machines |
+| `compile_grants.py` | The grants compiled: computed groups, the sets of machines with one GPO each, the fallback first, the sudo rules (at the root's writable DC) |
+| `explain_grants.py` | Which grants reach a person (and on a machine), and why; what they may do there |
+| `ship_grants.py` | The grants a fresh install ships (1.6.13.5), made once at the root |
+| `grants_tool.py` | The grants' entry point (as root, like gpo_tool): list, show, add, set, remove, compile, explain |

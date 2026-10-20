@@ -7,6 +7,7 @@ import paths
 
 HOST_GROUP_MARK = "fabric: a host group (manual 1.6.11.7)"
 RULE_MARK = "fabric: a sudo rule of fabric's editor (manual 1.6.11.7)"     # fabric's editor-made sudo rules
+GRANT_RULE_MARK = "fabric: a grant's sudo rule (manual 1.6.13.4)"           # the grants' sudo rules
 HOSTS = "; hosts: "
 PREFIX = "hosts-"                   # a host group's AD name: hosts-<name> (1.6.13.3: no site prefix)
 
@@ -91,3 +92,24 @@ def text(msg, attr):
     Fails:   never.
     Feeds:   the host group and sudo rule operations."""
     return str(msg[attr][0]) if msg.get(attr) else ""
+
+
+def grant_rule_description(where):
+    """Purpose: the description fabric writes on a grant's sudo rule (manual 1.6.13.4): the mark, and the computed
+             group whose machines it applies to.
+    Inputs:  where — the grant's computed where group (`grant-<name>-where`).
+    Returns: str.
+    Fails:   never.
+    Feeds:   ensure_grant_sudo."""
+    return f"{GRANT_RULE_MARK}{HOSTS}{where}"
+
+
+def grant_rule_where(description):
+    """Purpose: the computed group a grant's sudo rule applies to, from its description.
+    Inputs:  description — str.
+    Returns: the group's name (`grant-<name>-where`), or None when the rule is not a grant's.
+    Fails:   never.
+    Feeds:   refresh_sudo_hosts, ensure_grant_sudo, list_sudo_rules, remove_sudo_rule."""
+    if not description.startswith(GRANT_RULE_MARK + HOSTS):
+        return None
+    return description[len(GRANT_RULE_MARK + HOSTS):]

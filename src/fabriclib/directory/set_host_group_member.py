@@ -2,6 +2,7 @@ import re
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.write_audit import write_audit
+from fabriclib.grants.sync_grants import sync_grants
 from fabriclib.directory.common.check_host_group_name import check_host_group_name
 from fabriclib.directory.run_op import run_op
 from fabriclib.secrets.load_secrets import load_secrets
@@ -29,4 +30,5 @@ def set_host_group_member(v, actor, group, machine, member, source="cli", secret
     if done["changed"]:
         write_audit(actor, "HOST_GROUP_MEMBER_ADD" if member else "HOST_GROUP_MEMBER_REMOVE",
                     f"group={done['group']} machine={machine}", source)
+        sync_grants(v, actor, source, container, quiet=True)  # a grant on the group follows at once (1.6.13.4)
     return done

@@ -3,8 +3,9 @@ containers run fabric's join-linux.sh as rendered against a converged test DC. P
 root-CA fingerprint and changes nothing; a join with a Directory Administrator's password (`--type server|desktop`:
 the type's OU and group, and the site's group, 1.6.13.3) and one with a one-time join password (`fabricctl domain
 add-machine`); the refusals of a type it does not take and a site the domain does not have; `id` with fabric's own ids;
-a password logon through PAM and a Kerberos ticket; no sudo for anyone by default (no site rule, 2.1.6.80); a person of
-another site let in too (the per-OU log-on policies are retired in D1: sign-in is open until D3's grants, 2.3.6.17);
+a password logon through PAM and a Kerberos ticket; who signs in from the shipped grants (1.6.13.5): at a server its
+administrators (sudo of every command there) and nobody else, a person of another site and the Directory
+Administrator refused; at a desktop every person, with no sudo;
 cached logons with the DC stopped; and a sudo rule on a host group (1.6.11.7) holding the 24.04 machine: it applies
 there and not on the 26.04 one. The containers have no systemd: a stand-in `systemctl` starts sssd.
     sudo python3 tests/samba/linux_join.py
@@ -20,6 +21,7 @@ sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__fi
 from start_dc import POLICY, start_dc  # noqa: E402
 import fabriclib.directory.add_machine as m_add_machine  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
+import fabriclib.grants.sync_grants as m_sync  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-linux-join")
@@ -31,6 +33,7 @@ RELEASES = {"24.04": "ws2404", "26.04": "ws2604", "debian-12": "wsdeb12", "debia
 PW = "Correct-Horse-9-" + random_password(8)
 FAILED = 0
 m_add_machine.write_audit = lambda *a, **k: None
+m_sync.write_audit = lambda *a, **k: None
 
 
 def check(name, cond, detail=""):
@@ -67,8 +70,9 @@ V, SECRETS = dc["v"], dc["secrets"]
 check("a converged DC", dc_healthy())
 sudo_rule = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "(objectClass=sudoRole)", "cn"],
                ok=False).stdout
-check("negative: no sudo rule in the domain until an admin makes one (the site default rule is retired, 2.1.6.80)",
-      "cn:" not in sudo_rule, sudo_rule)
+check("negative: no sudo rule in the domain but the shipped grants' (the site default rule is retired, 2.1.6.80; 1.6.13.5)",
+      sorted(x.split("cn: ")[1] for x in sudo_rule.splitlines() if x.startswith("cn: ")) == [
+          "grant-desktop-administrators", "grant-network-administrators", "grant-server-administrators"], sudo_rule)
 BASE = V["ad_base_dn"]
 
 # people: alice (a person of lan), adam (a Directory Administrator, 1.6.12.2), lara (a person of another site, lab)
@@ -85,6 +89,7 @@ for uid, site_v, sec in (("alice", V, SECRETS), ("adam", V, SECRETS), ("lara", l
                                                   "gid": 5000, "home_base": "/home", "shell": "/bin/bash"}, DC)
     ids[uid] = made["uidNumber"]
 run_op(V, SECRETS, "add_group_member", {"group": "directory-admins", "uid": "adam"}, DC)
+run_op(V, SECRETS, "add_group_member", {"group": "server-admins", "uid": "alice"}, DC)     # the servers' grant
 set_pw = f"""
 import sys
 sys.path.insert(0, "/fabric")
@@ -152,7 +157,13 @@ def logon(box, uid, password):
     return on(box, f"pamtester login {uid} authenticate acct_mgmt", stdin=password + "\n")
 
 
-def checks(box, release):
+def checks(box, release, desktop=False):
+    """The member's checks once it joined; its type's grants compiled first (the join changed groups outside fabric:
+    the fabric-grants timer's run, here at once): a server lets in its administrators (alice, in server-admins), a
+    desktop every person at the keyboard (1.6.13.5)."""
+    m_sync.sync_grants(V, "test", "timer", DC)
+    on(box, "systemctl restart sssd")              # sssd fetches the compiled rules anew (its sudo rules: else
+    time.sleep(8)                                   # its 15-minute refresh)
     code, out = on(box, "cat /etc/firefox/policies/policies.json /etc/chromium/policies/managed/fabric-sso.json "
                         f"/etc/opt/chrome/policies/managed/fabric-sso.json; grep -c '.{V['domain']} = ' /etc/krb5.conf")
     check(f"{release}: browsers may use Kerberos for {V['hostname_keycloak']} (Firefox, Chromium, Chrome); fabric's "
@@ -162,19 +173,31 @@ def checks(box, release):
     check(f"{release}: id gives fabric's own ids (from the DC's range, not id mapping)",
           out.split() == [str(ids["alice"]), str(ids["adam"])], out)
     code, out = logon(box, "alice", PW)
-    check(f"{release}: a person of the site logs on with their domain password (PAM)",
+    check(f"{release}: " + ("every person logs on at a desktop (the shipped desktops grant)" if desktop else
+                            "a server administrator (alice) logs on with their domain password (PAM, the grant)"),
           code == 0 and "successfully" in out, out)
     code, out = logon(box, "alice", "wrong-password")
     check(f"{release}: a wrong password is refused", code != 0, out)
     code, out = logon(box, "lara", PW)
-    check(f"{release}: a person of another site logs on too: no log-on policy restricts sign-in until D3 (2.3.6.17)",
-          code == 0 and "successfully" in out, out)
+    if desktop:
+        check(f"{release}: a person of another site logs on at a desktop too (every person's, 2.1.6.77)",
+              code == 0 and "successfully" in out, out)
+    else:
+        check(f"negative: {release}: a person of another site, in no grant on servers, is refused (GPO access control)",
+              code != 0, out)
+        code, out = logon(box, "adam", PW)
+        check(f"negative: {release}: the Directory Administrator, in no grant on servers, is refused (1.6.13.5)",
+              code != 0, out)
     code, out = on(box, "kinit alice >/dev/null && klist", stdin=PW + "\n")
     check(f"{release}: a Kerberos ticket from the domain (kinit)", code == 0 and f"alice@{V['ad_realm']}" in out, out)
     code, out = on(box, "sudo -l -U adam; echo ---; sudo -l -U alice")
     admin, person = out.split("---", 1)
-    check(f"{release}: no sudo from the domain for anyone by default, a Directory Administrator included "
-          "(no site rule, 2.1.6.80)", "not allowed" in admin and "not allowed" in person, out)
+    if desktop:
+        check(f"negative: {release}: no sudo at a desktop for a server administrator or the Directory Administrator",
+              "not allowed" in admin and "not allowed" in person, out)
+    else:
+        check(f"{release}: the server administrator has sudo of every command (the grant's rule); the Directory "
+              "Administrator none", "not allowed" in admin and "(root) ALL" in person, out)
 
 
 # 24.04: a wrong fingerprint refused, a type it does not take refused, then a join with an admin's password
@@ -277,7 +300,7 @@ for release in ("debian-12", "debian-13"):
               on(box_d, "test -e /etc/systemd/resolved.conf.d/fabric.conf")[0] != 0
               and "description: fabric: unmanaged (manual 1.6.11.6)" in desc, desc)
     time.sleep(5)
-    checks(box_d, release)
+    checks(box_d, release, desktop=release == "debian-13")
 
 # the DC away: a person who logged on before still can (cached credentials)
 sh(["docker", "stop", DC])
@@ -292,20 +315,20 @@ for _ in range(60):
         break
     time.sleep(5)
 
-# a sudo rule on a host group (manual 1.6.11.7): alice may run uptime on the machines of hosts-web, which holds the
+# a sudo rule on a host group (manual 1.6.11.7): lara (in no grant's sudo) may run uptime on the machines of hosts-web, which holds the
 # 24.04 machine only; sssd matches the rule's sudoHost (each member's names) against the machine's own name
 made = [run_op(V, SECRETS, "create_host_group", {"name": "web"}, DC),
         run_op(V, SECRETS, "set_host_group_member", {"name": "web", "machine": RELEASES["24.04"], "member": True}, DC),
-        run_op(V, SECRETS, "add_sudo_rule", {"name": "web-uptime", "users": ["alice"], "commands": ["/usr/bin/uptime"],
+        run_op(V, SECRETS, "add_sudo_rule", {"name": "web-uptime", "users": ["lara"], "commands": ["/usr/bin/uptime"],
                                              "run_as": ["root"], "hosts": "hosts-web"}, DC)]
-check("a host group hosts-web holding the 24.04 machine, and a sudo rule for alice on it (its hosts: that "
+check("a host group hosts-web holding the 24.04 machine, and a sudo rule for lara on it (its hosts: that "
       "machine's names)", RELEASES["24.04"] in made[2]["hosts"] and RELEASES["26.04"] not in made[2]["hosts"], made)
 for name, applies in ((RELEASES["24.04"], True), (RELEASES["26.04"], False)):
     lbox = f"lj-{name}"
     on(lbox, "systemctl restart sssd")              # sssd's sudo rules fetched anew (else its next refresh)
     time.sleep(8)
-    code, out = on(lbox, "sudo -l -U alice")
-    check(f"{name}: the host group's sudo rule " + ("applies on its member: alice may run /usr/bin/uptime"
+    code, out = on(lbox, "sudo -l -U lara")
+    check(f"{name}: the host group's sudo rule " + ("applies on its member: lara may run /usr/bin/uptime"
                                                     if applies else "does not apply on a machine outside it"),
           ("/usr/bin/uptime" in out) == applies and (applies or "not allowed" in out), out)
 

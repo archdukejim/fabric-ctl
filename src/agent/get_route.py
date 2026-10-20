@@ -16,6 +16,9 @@ from fabriclib.directory.device_overview import device_overview
 from fabriclib.directory.list_host_groups import list_host_groups
 from fabriclib.directory.list_people import list_people
 from fabriclib.directory.list_sudo_rules import list_sudo_rules
+from fabriclib.grants.explain_grant import explain_grant
+from fabriclib.grants.list_grants import list_grants
+from fabriclib.grants.show_grant import show_grant
 from fabriclib.images.image_status import image_status
 from fabriclib.pki.acme_info import acme_info
 from fabriclib.pki.acme_machines import acme_machines
@@ -57,6 +60,7 @@ READS = {
     ("devices",): lambda: device_overview(load_vars()),
     ("people",): lambda: list_people(load_vars()),
     ("domain",): lambda: domain_overview(load_vars()),
+    ("domain", "grants"): lambda: list_grants(load_vars()),
     ("host-groups",): lambda: list_host_groups(load_vars()),
     ("sudo",): lambda: list_sudo_rules(load_vars()),
     ("gpo",): lambda: gpo_overview(load_vars()),
@@ -81,7 +85,8 @@ def get_route(route, user=None):
              (None for root): a job is read only by the person who started it.
     Returns: the operation's JSON-serialisable result. zones/<key>: zone_detail; vault/slots: the unlock methods with
              this host's name; images: the image status rows; reminders: host_reminders (the console's top bar);
-             pki/acme: {info, machines, domain}; jobs/<id>: the job;
+             pki/acme: {info, machines, domain}; jobs/<id>: the job; domain/grants: list_grants; domain/grants/<name>:
+             show_grant; domain/grants/explain/<person>[/<machine>]: explain_grant;
              settings: settings_overview (the setup wizard, 1.8.5); settings/export: {"text", "name"}, the
              settings file.
     Fails:   RouteNotFound for any other route (-> 404); whatever the operation raises (ValidationError -> 400).
@@ -92,6 +97,10 @@ def get_route(route, user=None):
         return zone_detail(route[1])
     if len(route) == 2 and route[0] == "jobs":
         return JOBS.read(route[1], user)
+    if len(route) == 3 and route[:2] == ["domain", "grants"]:
+        return show_grant(load_vars(), route[2])
+    if len(route) in (4, 5) and route[:3] == ["domain", "grants", "explain"]:
+        return explain_grant(load_vars(), route[3], route[4] if len(route) == 5 else None)
     if route == ["vault", "slots"]:
         v = load_vars()
         return {"slots": list_slots(v), "host": v.get("hostname", "")}

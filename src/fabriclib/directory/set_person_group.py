@@ -1,5 +1,6 @@
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.write_audit import write_audit
+from fabriclib.grants.sync_grants import sync_grants
 from fabriclib.directory.constants import DIRECTORY_ADMINS
 from fabriclib.directory.common.person_guard import person_guard
 from fabriclib.directory.run_op import run_op
@@ -34,4 +35,5 @@ def set_person_group(v, actor, group, uid, member, privileged=False, source="web
     if changed:
         write_audit(actor, "PERSON_GROUP_ADD" if member else "PERSON_GROUP_REMOVE", f"user={uid} group={group}",
                     source)
+        sync_grants(v, actor, source, container, quiet=True)  # the grants on that group follow at once (1.6.13.4)
     return {"uid": uid, "group": group, "member": bool(member), "changed": changed}

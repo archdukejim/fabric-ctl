@@ -2,6 +2,7 @@ import re
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.write_audit import write_audit
+from fabriclib.grants.sync_grants import sync_grants
 from fabriclib.directory.constants import MACHINE_TYPES
 from fabriclib.directory.people_password import people_password
 from fabriclib.directory.run_op import run_op
@@ -38,4 +39,5 @@ def add_machine(v, actor, name, source="cli", secrets=None, container="samba", t
             **({"type": type} if type else {})}, container, server)
     write_audit(actor, "MACHINE_CREATE", f"machine={name}" + (f" type={type}" if type else "")
                 + ("" if managed else " unmanaged"), source)
+    sync_grants(v, actor, source, container, quiet=True)      # its groups reach grants at once (1.6.13.4)
     return password

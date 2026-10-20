@@ -12,6 +12,7 @@ import json
 import sys
 
 from admin_gpo import ensure_gpo_admins
+from compile_grants import compile_grants
 from ensure_ad_site import ensure_ad_site
 from ensure_dc_record import ensure_dc_record
 from ensure_directory_acl import ensure_directory_acl
@@ -33,6 +34,7 @@ from root_ca_policy import EXTENSIONS as TRUST_EXTENSIONS, root_ca_policy
 from ensure_tier_policies import ensure_tier_policies
 from set_password_policy import set_password_policy
 from share_winbind import share_winbind
+from ship_grants import ship_grants
 from windows_baseline_policy import windows_baseline_policy
 import paths
 
@@ -47,7 +49,8 @@ def converge(state):
              access entries (2.1.6.76), the site's networks (the address plan), the host names of fabric's sudo rules
              on host groups (1.6.11.7), the AD site and its subnets and link, the password policy and the domain's
              trust GPO (fabric's root CA) at the root, the Directory Administrators' rights on the site's admin GPOs,
-             the site's Windows baseline GPO (linked at OU=machines, 2.1.6.84) and winbind's privileged pipe for
+             the site's Windows baseline GPO (linked at OU=machines, 2.1.6.84), at the root the grants (the shipped
+             ones once, then compiled: 1.6.13.4, 1.6.13.5) and winbind's privileged pipe for
              FreeRADIUS. Each part changes only what differs, so a second run changes nothing.
     Inputs:  state — dict: site (str); dc (str: the DC converged or prepared, dc-NNNN: its record, its range and its
              service accounts); dc_type ("writable" or "rodc": the DC prepared; a read-only one gets its cache group,
@@ -105,6 +108,9 @@ def converge(state):
     changed += ensure_gpo_admins(samdb, lp, site)
     extensions, files = windows_baseline_policy(state.get("lan_profile") or "", state.get("sso_host") or "")
     changed += ensure_gpo(samdb, lp, f"fabric: {site} Windows baseline", machines, extensions, files)
+    if root:                              # the grants: the shipped ones once, then compiled (1.6.13.4, 1.6.13.5)
+        changed += ship_grants(samdb)
+        changed += compile_grants(samdb, lp, dc)
     if state.get("join_account"):         # at a parent, preparing a new site's DC join (manual 1.9.8.4)
         changed += ensure_join_account(samdb, state["join_account"]["name"], state["join_account"]["password"])
     changed += share_winbind(lp, int(state["radius_gid"]))

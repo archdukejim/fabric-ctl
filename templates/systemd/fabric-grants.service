@@ -1,0 +1,8 @@
+[Unit]
+Description=fabric: compile the grants again, for changes made outside fabric (manual 1.6.13.4)
+After=docker.service fabric.target
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/fabricctl domain grant sync --scheduled

@@ -40,6 +40,7 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 - [4.6.7 Joining Windows machines](4.6.7-windows-join.md)
 - [4.6.8 Group Policy from ADMX templates](4.6.8-group-policy.md)
 - [4.6.9 The administrators: break glass](4.6.9-administrators.md)
+- [4.6.10 Who may do what, where: grants](4.6.10-grants.md)
 
 ## 4.7 Secrets: OpenBao
 

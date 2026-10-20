@@ -14,7 +14,8 @@ USAGE = """usage: fabricctl sudo list                        the domain's sudo r
   Rules are stored in the domain's OU=sudoers and read by its joined Linux machines (never a fabric host). A rule
   granting ALL commands to everyone, or to a whole site, is refused (manual 4.6.6)."""
 
-KINDS = {"fabric": "fabric", "other": "not fabric's: read-only here"}
+KINDS = {"fabric": "fabric", "grant": "a grant's: changed with fabricctl domain grant",
+         "other": "not fabric's: read-only here"}
 
 
 def _items(text):

@@ -1,3 +1,4 @@
+from agent.post_grants import post_grants
 from agent.read_text import read_text
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
@@ -14,7 +15,8 @@ from fabriclib.samba.set_gpo_policy import set_gpo_policy
 def post_domain(route, actor, data):
     """Purpose: the domain section of the Directory tab (manual 1.6.5.21 S7.4): the site's machines, POST
              /v1/machines/..., its admin settings GPO, POST /v1/gpo/..., and the domain's password policy, POST
-             /v1/domain/password-policy (1.6.5.25, 2.1.2.22).
+             /v1/domain/password-policy (1.6.5.25, 2.1.2.22), and the grants, POST /v1/domain/grants/... (post_grants,
+             1.6.13.7).
     Inputs:  route — ["machines"] (body: name), ["machines", <name>, "enable"|"disable"|"delete"], ["gpo", "search"]
              (body: match), ["gpo", "set"] (body: policy, values {element: text}, enabled, control), ["gpo",
              "clear"] (body: policy), ["domain", "password-policy"]
@@ -26,6 +28,8 @@ def post_domain(route, actor, data):
     Fails:   ValidationError("unknown operation") for another route, "values: an object of element: text", or
              from fabriclib (-> 400), the password policy's checks among them (check_samba_settings).
     Feeds:   agent/post_route.py (POST machines/..., gpo/..., domain/...)."""
+    if route[:2] == ["domain", "grants"]:
+        return post_grants(route, actor, data)
     if route == ["domain", "password-policy"]:
         return {"policy": set_domain_password_policy(actor, read_policy_changes(data), source="web")}
     v = load_vars()

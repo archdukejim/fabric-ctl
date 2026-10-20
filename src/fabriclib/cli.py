@@ -22,9 +22,10 @@
                                  DHCP (optional Kea): subnets, leases, reservations, options, client classes
   fabricctl radius status|log|add-client|rotate-secret|remove-client
                                  802.1X (optional FreeRADIUS): RADIUS clients, decisions
-  fabricctl domain status|password-policy|add-machine|sort-machines|host-managed
+  fabricctl domain status|password-policy|add-machine|sort-machines|host-managed|grant
                                  the domain (Samba AD): its DC, roles, password policy, machines to join,
-                                 sorting the machines that joined themselves, this host's management
+                                 sorting the machines that joined themselves, this host's management, the
+                                 grants (who may do what, where)
   fabricctl admin reset-break-glass
                                  fabric-admin's lost password replaced, the account unlocked (writable DC)
   fabricctl host accounts list|approve|unapprove <name>

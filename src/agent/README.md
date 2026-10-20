@@ -25,6 +25,7 @@ arbitrary commands.
 | `__init__.py` | Empty; makes `agent` a package |
 | `README.md` | This file |
 | `post_domain.py` | The domain section: the site's machines (pre-create, enable, disable, remove) and its admin settings GPO |
+| `post_grants.py` | The grants (1.6.13.7): add, change, remove, compile now (`groups:admin`) |
 | `post_host_access.py` | Host groups (create, delete, machines in and out) and sudo rules (add, remove), in the directory at once (1.6.11.7) |
 | `post_security.py` | POST /v1/security/raise and /kerberos: raise a sign-in layer or turn Kerberos sign-in on or off, then apply |
 | `job_store.py` | Background jobs (doctor, an image update): started by one call, followed by id, read only by who started them; kept in memory |

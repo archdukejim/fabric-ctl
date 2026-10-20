@@ -3,6 +3,7 @@ import os
 
 from fabriclib.common.paths import INSTALL_DIR
 from fabriclib.common.write_audit import write_audit
+from fabriclib.grants.sync_grants import sync_grants
 from fabriclib.directory.constants import FABRIC_MANAGED
 from fabriclib.directory.run_op import run_op
 from fabriclib.secrets.load_secrets import load_secrets
@@ -44,4 +45,6 @@ def sort_machines(v, actor="fabric", source="timer", secrets=None, container="sa
         write_audit(actor, "MACHINE_SORT", f"machine={m['name']} to={m['to']} type={m['type']}", source)
     for m in adopted:
         write_audit(actor, "MACHINE_ADOPT", f"machine={m['name']} group={FABRIC_MANAGED}", source)
+    if moved or adopted:                  # their new groups reach grants at once (1.6.13.4)
+        sync_grants(v, actor, source, container, quiet=True)
     return {"sorted": [m["name"] for m in moved], "adopted": [m["name"] for m in adopted]}

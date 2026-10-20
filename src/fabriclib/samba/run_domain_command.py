@@ -5,6 +5,7 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.common.paths import INSTALL_DIR
 from fabriclib.directory.add_machine import add_machine
 from fabriclib.directory.sort_machines import sort_machines
+from fabriclib.grants.run_grant_command import run_grant_command
 from fabriclib.samba.domain_status import domain_status
 from fabriclib.samba.set_domain_password_policy import set_domain_password_policy
 from fabriclib.samba.set_tier_password_policy import set_tier_password_policy
@@ -22,6 +23,7 @@ USAGE = """usage: fabricctl domain status                    the Windows domain:
        fabricctl domain sort-machines [--scheduled]   Windows machines that joined themselves filed by type (a Server
            edition a server, else a desktop); Linux machines joined with an admin's password into fabric-managed
            (each once)
+       fabricctl domain grant list|show|add|set|remove|explain|sync ...   who may do what, where (grants)
        fabricctl domain host-managed [--scheduled]   this fabric host's management (Kerberos for SSH, the
            domain's names from fabric's DNS) applied or removed as its account's fabric-managed membership says
   password-policy without options shows the policy in the settings; with options it changes those values (the whole
@@ -98,10 +100,12 @@ def run_domain_command(v, args):
     Fails:   OSError from the vars file or the audit log (propagates). password-policy --tier is refused with why
              (exit 1) for an unknown tier or a policy the checks refuse (check_tier_policies).
     Feeds:   cli.main."""
-    if not args or args[0] not in ("status", "password-policy", "add-machine", "sort-machines",
+    if not args or args[0] not in ("status", "password-policy", "add-machine", "sort-machines", "grant",
                                    "host-managed"):
         print(USAGE)
         return 2
+    if args[0] == "grant":
+        return run_grant_command(v, args[1:])
     if args[0] == "host-managed":
         return _host_managed(v, args[1:])
     if args[0] == "sort-machines":

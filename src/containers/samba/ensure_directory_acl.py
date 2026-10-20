@@ -30,7 +30,9 @@ def ensure_directory_acl(samdb, dc):
              or OU=fabric-hosts. This DC's fabric-agent account has full control of fabric's folders but
              OU=service-accounts, and of fabric's state (CN=fabric,CN=System, 2.1.6.79), which every authenticated
              account reads; its Keycloak account full control of OU=people (sign-in changes passwords and lockouts) and
-             the members of OU=groups (Keycloak's group mapper).
+             the members of OU=groups (Keycloak's group mapper). The grants' computed groups are written by no account
+             at all: every one (Everyone) is denied any change in OU=fabric, the agents' and Keycloak's accounts and
+             the top tier too; fabric's compile writes them inside the DC as the system (1.6.13.4).
     Inputs:  samdb — SamDB (as the system; this DC's service accounts and fabric's groups exist: ensure_groups,
              ensure_service_accounts); dc — the DC whose accounts are given their rights (the converging DC, or the one
              prepared).
@@ -46,6 +48,7 @@ def ensure_directory_acl(samdb, dc):
         entries.append((folder(name), f"(A;CI;{FULL};;;{admins})"))
         entries += [(folder(name), f"(OA;CI;RPWP;{attr};;{admins})") for attr in (GP_LINK, GP_OPTIONS)]
     entries.append((paths.computed_groups_dn(samdb), f"(D;CI;{DENY};;;{admins})"))
+    entries.append((paths.computed_groups_dn(samdb), f"(D;CI;{DENY};;;WD)"))      # nobody: the compile is the system
     groups = folder("groups")
     for name in TIERS:
         entries.append((f"CN={name},{groups}", f"(D;;{DENY};;;{admins})"))

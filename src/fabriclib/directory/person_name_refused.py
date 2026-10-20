@@ -7,7 +7,7 @@ UID_RE = re.compile(r"^[a-z][a-z0-9._-]{1,31}$")
 RESERVED = {"admin", "root", "administrator", "guest", "krbtgt", "nobody", "daemon", "users"}
 # the groups fabric makes in the domain (1.6.13.3), which share the account names' namespace in AD
 FABRIC_GROUPS = {"directory-admins", "dc-hosts", "server-admins", "desktop-admins", "network-admins"}
-FABRIC_PREFIXES = ("fabric-", "site-", "machines-", "hosts-", "rodc-cache-")
+FABRIC_PREFIXES = ("fabric-", "site-", "machines-", "hosts-", "rodc-cache-", "grant-", "access-")
 DC_RE = re.compile(r"^dc-\d{4}$")
 
 
@@ -15,7 +15,8 @@ def person_name_refused(uid):
     """Purpose: why a person may not take a user name (manual 1.2.13): it must follow the user-name rule and not be one
              of fabric's names — `fabric-admin` (the Enterprise Admin, 2.1.6.69), fabric's own `fabric-*` accounts,
              the groups fabric makes (`directory-admins`, `dc-hosts`, the tiers', `site-*`, `machines-*`,
-             `hosts-*`, `rodc-cache-*`), a DC's name (`dc-NNNN`) — or a system or AD built-in account.
+             `hosts-*`, `rodc-cache-*`, the grants' `grant-*` and `access-*`), a DC's name (`dc-NNNN`) — or a
+             system or AD built-in account.
     Inputs:  uid — str.
     Returns: None when it may be taken; otherwise why not (str).
     Fails:   never.
