@@ -22,12 +22,13 @@ case "${1:-}" in
         echo "fabricctl $(cat "$SRC/VERSION") (package; not set up yet)"; exit 0 ;;
 esac
 
-if [ ! -f "$INSTALL/lib/manage.sh" ]; then
-    echo "fabric is not set up on this host yet. Run: sudo fabricctl setup   (or: --file vars.yaml)" >&2
-    exit 1
-fi
+# root first: the install is root's, so to anyone else it would look absent
 if [ "$(id -u)" -ne 0 ]; then
     echo "Run as root: sudo fabricctl $*" >&2
+    exit 1
+fi
+if [ ! -f "$INSTALL/lib/manage.sh" ]; then
+    echo "fabric is not set up on this host yet. Run: sudo fabricctl setup   (or: --file vars.yaml)" >&2
     exit 1
 fi
 if ! cmp -s "$SRC/VERSION" "$INSTALL/VERSION" || ! cmp -s "$SRC/BUILD" "$INSTALL/BUILD"; then
