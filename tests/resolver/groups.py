@@ -4,7 +4,7 @@ image as the authoritative server for a test zone, AdGuard Home and the resolver
 what deploy_adguard and deploy_resolver write, each group's view reaching AdGuard over DoT with its ClientID (a test CA
 and a *.filter certificate), and three clients on their own addresses — a kid (in the kids' subnet group), a teen (an
 address group inside that subnet: the most specific wins) and an adult (in no group). Also the group settings that
-must be refused and the AdGuard import of clients.
+must be refused.
 
     sudo python3 tests/resolver/groups.py        (needs Docker; the safe-search checks need the internet)
 """
@@ -88,7 +88,6 @@ from fabriclib.dns_filter.common.resolver_rndc import resolver_rndc  # noqa: E40
 from fabriclib.dns_filter.common.safe_search import ENGINES, safe_search_records, safe_search_summary  # noqa: E402
 from fabriclib.dns_filter.deploy_adguard import deploy_adguard  # noqa: E402
 from fabriclib.dns_filter.deploy_resolver import deploy_resolver  # noqa: E402
-from fabriclib.dns_filter.import_adguard_settings import import_adguard_settings  # noqa: E402
 from fabriclib.dns_filter.ingest_dns_log import QUERY, RPZ, _rows  # noqa: E402
 from fabriclib.dns_filter.resolver_views import resolver_views  # noqa: E402
 from fabriclib.dns_filter.sync_adguard import sync_adguard  # noqa: E402
@@ -178,26 +177,6 @@ check("views: each group excludes the more specific entries of the others, so on
 check("views: each group's safe-search zone follows its YouTube level; everyone's off",
       [g["safe_zone"] for g in views["groups"]] == [None, "safesearch-ytmoderate.rpz", "safesearch-strict.rpz"]
       and views["safe_zone"] is None)
-
-# ---- the AdGuard import: persistent clients become groups
-ADG = {"filtering": {"safe_search": {"enabled": True, "youtube": True}},
-       "clients": {"persistent": [
-           {"name": "Kid Tablet", "ids": ["192.168.77.40", "aa:bb:cc:dd:ee:ff"], "use_global_settings": False,
-            "safe_search": {"enabled": True, "youtube": True}},
-           {"name": "Office", "ids": ["192.168.77.128/25"], "use_global_settings": True},
-           {"name": "Phone", "ids": ["fd00::7", "phone-1"], "use_global_settings": False}]}}
-imp = import_adguard_settings(ADG, {**BASE})
-gs = imp["settings"]["dns_filter_groups"]
-nc = "\n".join(imp["not_carried"])
-check("import: a client with IPv4 ids becomes a group named after it, with its safe search (YouTube moderate)",
-      gs[0] == {"name": "kid-tablet", "clients": ["192.168.77.40"], "safe_search": True, "youtube": "moderate",
-                "allow": [], "block": []}, gs)
-check("import: a client on the global settings takes everyone's safe search; AdGuard's global safe search is "
-      "everyone's", gs[1]["name"] == "office" and gs[1]["safe_search"] is True
-      and imp["settings"]["dns_filter_safe_search"] is True and imp["settings"]["dns_filter_youtube"] == "moderate", gs)
-check("import: MAC addresses, client IDs, IPv6 and a client with nothing usable are listed as not carried",
-      all(x in nc for x in ("aa:bb:cc:dd:ee:ff", "fd00::7", "phone-1", "Phone")) and len(gs) == 2, imp["not_carried"])
-check("import: the groups pass the settings check", check_filter_settings({**BASE, **imp["settings"]}) is None)
 
 # ---- with real containers
 LIST_DIR = os.path.join(W, "served")

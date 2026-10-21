@@ -2,8 +2,7 @@
 """The DNS filter (manual 1.12.2, 1.12.3) with real containers: fabric's BIND image as the authoritative server for a
 test zone, AdGuard Home (its pinned image) run as its rendered compose file says from the AdGuardHome.yaml fabric
 renders, and the resolver in front of it, from the configuration deploy_resolver writes. The lists are fabric's local
-copies, fetched from a local server. Also the settings that must be refused, the move from 0.6's AdGuard Home and the
-0.7.0 upgrade of the vars.
+copies, fetched from a local server. Also the settings that must be refused.
 
     sudo python3 tests/resolver/run.py           (needs Docker and dig; the internet checks need Cloudflare)
 """
@@ -152,50 +151,6 @@ check_filter_settings(ok)
 check("settings: rules are normalised (lowercase, no trailing dot, no duplicates)",
       ok["dns_filter_allow"] == ["fine.example"] and ok["dns_filter_block"] == ["bad.example"], ok)
 
-# ---- the move from 0.6's AdGuard Home (manual 2.3.12.1.9, 1.12.3.11)
-GEN = "! fabric: the rules above are generated (fabric's own names stay resolvable)"
-SET = "! fabric: the rules above are adguard_rules (vars); rules you add in this UI go below"
-ADG = {"dns": {"upstream_dns": ["[/lan.test/]10.255.0.30", "https://1.1.1.1/dns-query", "tls://dns.quad9.net",
-                                "https://doh.example.net/dns-query", "192.168.1.1"]},
-       "filters": [{"enabled": True, "name": "AdGuard DNS filter", "url": "https://x.example/filter_1.txt"},
-                   {"enabled": False, "name": "Off list", "url": "https://x.example/off.txt"}],
-       "whitelist_filters": [{"name": "Allow list", "url": "https://x.example/allow.txt"}],
-       "user_rules": ["@@||lan.test^$important", "@@||192.168.77.53^$important", GEN, "||from-vars.example^", SET,
-                      "||ui-block.example^", "@@||ui-allow.example^$important", "/regex/", "plain.example",
-                      "||www.lan.test^"],
-       "filtering": {"safe_search": {"enabled": True}, "parental_enabled": True,
-                     "blocked_services": {"ids": ["tiktok"]}, "rewrites": [{"domain": "nas.home", "answer": "10.0.0.5"}]},
-       "clients": {"persistent": [{"name": "kid-tablet", "ids": ["192.168.77.40"]}]},
-       "users": [{"name": "fabric", "password": "$2a$10$hash"}]}
-VV = {"domain": "lan.test", "org_domain": "lan.test", "ip_bind9": "10.255.0.30"}
-from fabriclib.dns_filter.import_adguard_settings import import_adguard_settings  # noqa: E402
-imp = import_adguard_settings(ADG, VV)
-st = imp["settings"]
-check("import: DoH/DoT upstreams of known providers become DoT by address with the certificate name",
-      st["dns_filter_upstreams"] == [{"address": "1.1.1.1", "name": "cloudflare-dns.com"},
-                                     {"address": "9.9.9.9", "name": "dns.quad9.net"},
-                                     {"address": "149.112.112.112", "name": "dns.quad9.net"}], st["dns_filter_upstreams"])
-check("import: lists by URL, ticked as they were (a switched-off one comes unticked); the owner's ||name^ and "
-      "@@||name^ rules (vars and UI); fabric's own left out",
-      st["dns_filter_lists"] == [{"name": "AdGuard DNS filter", "url": "https://x.example/filter_1.txt",
-                                  "enabled": True},
-                                 {"name": "Off list", "url": "https://x.example/off.txt", "enabled": False}]
-      and st["dns_filter_block"] == ["from-vars.example", "ui-block.example"]
-      and st["dns_filter_allow"] == ["ui-allow.example"] and st["dns_filter"] == "bind", st)
-nc = "\n".join(imp["not_carried"])
-check("import: what cannot move is listed — an unknown upstream, plain DNS, an allowlist, regex and exact rules, "
-      "parental control, blocked services, a rewrite, a client outside the networks answered",
-      all(x in nc for x in ("doh.example.net", "192.168.1.1", "Allow list", "/regex/", "plain.example",
-                            "parental", "blocked services", "nas.home", "kid-tablet"))
-      and "Off list" not in nc and st["dns_filter_safe_search"] is True and "www.lan.test" not in nc, imp["not_carried"])
-none = import_adguard_settings({"dns": {"upstream_dns": ["192.168.1.1"]}}, VV)
-check("import: when no upstream can be carried over DoT, Cloudflare's are used, and that is said",
-      none["settings"]["dns_filter_upstreams"][0] == {"address": "1.1.1.1", "name": "cloudflare-dns.com"}
-      and any("Cloudflare" in x for x in none["not_carried"]), none)
-plain = import_adguard_settings(None, {**VV, "adguard_rules": ["||a.example^"]})["settings"]
-check("import without AdGuard's config: what the adguard_* settings (or their defaults) would have started",
-      plain["dns_filter_upstreams"][0] == {"address": "1.1.1.1", "name": "cloudflare-dns.com"}
-      and plain["dns_filter_lists"][0]["name"] == "AdGuard DNS filter" and plain["dns_filter_block"] == ["a.example"])
 # ---- a local server for the lists
 LIST_DIR = os.path.join(W, "served")
 LIST1 = ("! test list\n||ads.example^\n||lan.test^\n||blocked-then-allowed.example^\n0.0.0.0 hosts-blocked.example\n"

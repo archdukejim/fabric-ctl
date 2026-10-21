@@ -365,7 +365,7 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/ensure_dnslog_db.py	16
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/expand_group_clients.py	38	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/fetch_catalogue.py	22	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py	17	
-file	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py	13	
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py	13	0.8.0 / 2026-10-20
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/ingest_dns_log.py	18	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/read_query_log.py	19	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/refresh_lists.py	23	
@@ -1723,12 +1723,12 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/fetch_catalogue.py|fetch_
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|_lists	3	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|_read	2	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|filter_overview	1	
-function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_group_name	5	
-function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_groups	6	
-function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_rule	2	
-function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_safe_search	4	
-function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_upstream	1	
-function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|import_adguard_settings	3	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_group_name	5	0.8.0 / 2026-10-20
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_groups	6	0.8.0 / 2026-10-20
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_rule	2	0.8.0 / 2026-10-20
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_safe_search	4	0.8.0 / 2026-10-20
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_upstream	1	0.8.0 / 2026-10-20
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|import_adguard_settings	3	0.8.0 / 2026-10-20
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/ingest_dns_log.py|_adguard_blocks	6	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/ingest_dns_log.py|_field	3	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/ingest_dns_log.py|_new_lines	1	
@@ -1958,6 +1958,7 @@ function	fabriclib-keycloak|src/fabriclib/keycloak/end_other_sessions.py|end_oth
 function	fabriclib-keycloak|src/fabriclib/keycloak/ensure_adguard_client.py|_q	1	0.6.3 / 2026-10-09
 function	fabriclib-keycloak|src/fabriclib/keycloak/ensure_adguard_client.py|ensure_adguard_client	2	0.6.3 / 2026-10-09
 function	fabriclib-keycloak|src/fabriclib/keycloak/ensure_group_mapper.py|ensure_group_mapper	1	
+function	fabriclib-keycloak|src/fabriclib/keycloak/ensure_ldap_federation.py|_fabrics	2	
 function	fabriclib-keycloak|src/fabriclib/keycloak/ensure_ldap_federation.py|ensure_ldap_federation	1	
 function	fabriclib-keycloak|src/fabriclib/keycloak/ensure_mfa_flow.py|ensure_mfa_flow	1	0.6.0 / 2026-10-07
 function	fabriclib-keycloak|src/fabriclib/keycloak/ensure_openbao_client.py|_q	1	

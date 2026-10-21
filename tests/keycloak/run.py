@@ -683,6 +683,37 @@ email_attr = next((a for a in kc.call("GET", f"{R}/users/profile")[1].get("attri
 check("...because the realm's user profile no longer requires an e-mail address (ensure_user_profile), while still "
       "checking one given", "required" not in email_attr and "email" in email_attr.get("validations", {}), email_attr)
 
+# fabric touches only the LDAP provider it made (stale-code register S15): an admin's own provider, of another kind,
+# is left as it is; fabric's own, put out of AD mode, is made anew
+STORE = f"{R}/components?type=org.keycloak.storage.UserStorageProvider"
+kc.call("POST", f"{R}/components", {
+    "name": "admin-ldap", "providerId": "ldap", "providerType": "org.keycloak.storage.UserStorageProvider",
+    "parentId": realm_rep["id"], "config": {
+        "enabled": ["false"], "vendor": ["other"], "editMode": ["READ_ONLY"], "usernameLDAPAttribute": ["uid"],
+        "rdnLDAPAttribute": ["uid"], "uuidLDAPAttribute": ["entryUUID"], "userObjectClasses": ["inetOrgPerson"],
+        "connectionUrl": ["ldap://192.0.2.1:389"], "usersDn": ["ou=people,dc=example,dc=org"], "authType": ["none"],
+        "importEnabled": ["false"], "priority": ["0"]}})
+theirs = [c for c in kc.call("GET", STORE)[1] if c["name"] == "admin-ldap"]
+ours = [c for c in kc.call("GET", STORE)[1] if c["name"] == "Samba AD"]
+run3 = sh(boot, ok=False, env=env)
+after = kc.call("GET", STORE)[1]
+check("negative: an admin's own LDAP provider (another kind) is neither removed nor changed at a bootstrap; fabric's "
+      "is updated in place (the same id)",
+      "complete" in run3.stdout and len(theirs) == 1 and len(ours) == 1
+      and [c for c in after if c["name"] == "admin-ldap"] == theirs
+      and [c["id"] for c in after if c["name"] == "Samba AD"] == [ours[0]["id"]] and "removed" not in run3.stdout,
+      (run3.stdout[-400:], [(c["name"], c["config"].get("vendor")) for c in after]))
+mine = ours[0]
+mine["config"]["vendor"] = ["other"]
+kc.call("PUT", f"{R}/components/{mine['id']}", mine)
+run4 = sh(boot, ok=False, env=env)
+after = kc.call("GET", STORE)[1]
+made = [c for c in after if c["name"] == "Samba AD"]
+check("fabric's own provider, put out of AD mode, is removed and made anew in AD mode; the admin's is still untouched",
+      "removed fabric's LDAP federation Samba AD" in run4.stdout and len(made) == 1 and made[0]["id"] != mine["id"]
+      and made[0]["config"]["vendor"] == ["ad"] and [c for c in after if c["name"] == "admin-ldap"] == theirs,
+      (run4.stdout[-400:], [(c["name"], c["config"].get("vendor")) for c in after]))
+
 if not os.environ.get("KEYCLOAK_TEST_KEEP"):
     cleanup()
 print(f"\n{PASS} passed, {FAIL} failed")

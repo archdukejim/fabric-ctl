@@ -7,6 +7,18 @@ KEYTAB = "/etc/keycloak/kerberos/sso.keytab"   # inside the container (install_s
 MATCH_BIT, ACCOUNTDISABLE = "1.2.840.113556.1.4.803", 2      # LDAP_MATCHING_RULE_BIT_AND; userAccountControl's bit
 
 
+def _fabrics(component, base):
+    """Purpose: whether an LDAP provider is the one fabric made: its name and its bind DN as fabric sets them (a
+             DC's Keycloak account, fabric-keycloak-<dc_name> in OU=service-accounts, 2.1.6.82).
+    Inputs:  component — a Keycloak component; base — ad_base_dn.
+    Returns: bool.
+    Fails:   never.
+    Feeds:   ensure_ldap_federation."""
+    bind = (component.get("config", {}).get("bindDn") or [""])[0]
+    return (component.get("providerId") == "ldap" and component.get("name") == NAME
+            and bind.startswith("CN=fabric-keycloak-") and bind.endswith(f",OU=service-accounts,{base}"))
+
+
 def ensure_ldap_federation(kc, realm, realm_id, v, s, writable=True, kerberos=False):
     """Purpose: the realm's user federation to fabric's directory, Samba AD (manual 1.6.3.11, 1.6.5.16 S2.5): AD mode,
              LDAPS to the DC at the host's address (verified against fabric's CA), bound as this DC's Keycloak
@@ -19,9 +31,10 @@ def ensure_ldap_federation(kc, realm, realm_id, v, s, writable=True, kerberos=Fa
     Inputs:  kc — Admin; realm — realm name; realm_id — parent id from ensure_realm; v — vars (ad_base_dn, dc_name,
              host_ip); s — secrets (ad_keycloak_password); writable —
              False makes it READ_ONLY; kerberos — accept Kerberos tickets (the keytab is in place).
-    Returns: str, the federation component id. An existing AD provider is updated in place (fabric's settings win,
-             other settings kept); a provider of another kind (an older install's) is removed first and made anew, so
-             Keycloak creates AD's own mappers (account controls, pwdLastSet) with it.
+    Returns: str, the federation component id. Only the provider fabric made is touched (its name and bind DN as
+             fabric sets them, stale-code register S15): updated in place when in AD mode (fabric's settings win, other
+             settings kept); in another mode removed first and made anew, so Keycloak creates AD's own mappers (account
+             controls, pwdLastSet) with it. Any other LDAP provider in the realm (an admin's) is left as it is.
     Fails:   SystemExit from Admin.call; KeyError if a needed var or secret is missing; StopIteration if a created
              provider cannot be found again.
     Feeds:   configure_keycloak (the id is passed to ensure_group_mapper)."""
@@ -58,15 +71,15 @@ def ensure_ldap_federation(kc, realm, realm_id, v, s, writable=True, kerberos=Fa
     if kerberos:
         config.update({"kerberosRealm": [v["ad_domain"].upper()], "serverPrincipal": ["*"], "keyTab": [KEYTAB]})
     path = f"/{q(realm)}/components?type={q(USER_STORAGE)}"
-    ldap = next((c for c in kc.call("GET", path)[1] if c.get("providerId") == "ldap"), None)
+    ldap = next((c for c in kc.call("GET", path)[1] if _fabrics(c, base)), None)
     if ldap is not None and (ldap.get("config", {}).get("vendor") or [""])[0] != "ad":
         kc.call("DELETE", f"/{q(realm)}/components/{ldap['id']}")
-        step(f"removed the LDAP federation {ldap.get('name')} (fabric's directory is Samba AD)")
+        step(f"removed fabric's LDAP federation {ldap.get('name')}, not in AD mode (made anew)")
         ldap = None
     if ldap is None:
         kc.call("POST", f"/{q(realm)}/components", {
             "name": NAME, "providerId": "ldap", "providerType": USER_STORAGE, "parentId": realm_id, "config": config})
-        ldap = next(c for c in kc.call("GET", path)[1] if c.get("providerId") == "ldap")
+        ldap = next(c for c in kc.call("GET", path)[1] if _fabrics(c, base))
         step(f"created LDAP federation ({NAME})")
     else:
         ldap["name"] = NAME

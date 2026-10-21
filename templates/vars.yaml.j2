@@ -313,7 +313,7 @@ keycloak_data_dir: {{ keycloak_data_dir | default((deploy_base_dir | default('/o
 postgres_data_dir: {{ postgres_data_dir | default((deploy_base_dir | default('/opt')) ~ '/postgres/data') }}
 {# Optional containers are derived from the install_* flags on every render, so
    strip them from any value read back from a previously rendered vars.yaml. #}
-{% set _optional_containers = ['dirsrv', 'keycloak', 'postgres', 'webui', 'fabric-web'] %}
+{% set _optional_containers = ['keycloak', 'postgres', 'fabric-web'] %}
 {% set _containers = (project_containers | default(['nginx', 'step-ca', 'bind9', 'openbao'])) | reject('in', _optional_containers) | list %}
 {% if 'openbao' not in _containers %}{% set _ = _containers.append('openbao') %}{% endif %}
 {% if install_keycloak | default(false) | bool %}{% set _ = _containers.extend(['keycloak', 'postgres']) %}{% endif %}
@@ -537,9 +537,7 @@ posix_login_shell: {{ posix_login_shell | default('/bin/bash') }}
   { 'name': 'users', 'description': 'Regular User accounts', 'parent': 'accounts' },
   { 'name': 'device-roles', 'description': 'What member devices may do (fabric device RBAC)' }
 ] %}
-{# admins and devices live in the local suffix (o=<site_name>), not here; hosts' uid range (from 389-DS) was never
-   used (2.1.6.46): dropped even if an older vars.yaml lists them. A users OU's uid_range is no longer read. #}
-{% set _merged_ous = (ldap_organizational_units | default([]) + default_ldap_ous) | unique(attribute='name')
-                     | rejectattr('name', 'in', ['admins', 'devices', 'hosts']) | list %}
+{# A users OU's uid_range is no longer read. #}
+{% set _merged_ous = (ldap_organizational_units | default([]) + default_ldap_ous) | unique(attribute='name') | list %}
 ldap_organizational_units:
 {{ _merged_ous | to_nice_yaml(indent=2) | indent(2, first=True) }}

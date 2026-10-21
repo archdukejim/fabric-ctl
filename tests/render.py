@@ -27,8 +27,8 @@ user = dict(deploy_base_dir='/opt', domain='lan.j-j.family', hostname='pi-core',
             host_ip='192.168.7.53', lan_cidr='192.168.7.0/24', lan_gateway='192.168.7.1',
             fabric_subnet='10.255.0.0/24', landing_page_cname=None, install_keycloak=True,
             cert_country='US', cert_province='S', cert_city='C', cert_org='O', cert_ou='IT', ca_name='CA',
-            project_containers=['nginx', 'step-ca', 'bind9', 'dirsrv', 'keycloak', 'postgres', 'dirsrv'],
-            service_dirs=[{'folder': 'dirsrv', 'owner': 'ldap'}, {'folder': 'extra', 'owner': 'root'}],
+            project_containers=['nginx', 'step-ca', 'bind9', 'keycloak', 'postgres', 'keycloak'],
+            service_dirs=[{'folder': 'extra', 'owner': 'root'}],
             # as normalize_tsig_keys leaves them: an NPM-style per-host key and a primary one
             tsig_keys=[{'name': 'npm', 'algorithm': 'hmac-sha256', 'domain': 'lan.j-j.family',
                         'record_types': ['TXT'], 'records': ['npm', 'shelfmark']},
@@ -235,16 +235,15 @@ for _bad in ('dc1', 'dc-pi', 'dc-0000', 'dc-2000', 'dc-001', ''):
 gids = {g['name']: g['gidNumber'] for g in v2['ldap_groups']}
 assert gids['directory-admins'] == 1040001 and gids['users'] == 1040009 and 'admins' not in gids \
     and all(1040001 <= g <= 1040100 for g in gids.values()), gids
-assert 'hosts' not in [o['name'] for o in v2['ldap_organizational_units']] \
-    and not any('uid_range' in o for o in v2['ldap_organizational_units']), v2['ldap_organizational_units']
+assert not any('uid_range' in o for o in v2['ldap_organizational_units']), v2['ldap_organizational_units']
 old = {**copy.deepcopy(PRISTINE), 'ldap_organizational_units': [
-    {'name': 'users', 'parent': 'accounts', 'uid_range': '5001-50000'}, {'name': 'hosts', 'uid_range': '2000-4900'}],
+    {'name': 'users', 'parent': 'accounts', 'uid_range': '5001-50000'}],
        'ldap_groups': [{'gidNumber': 1100, 'name': 'admins'}, {'gidNumber': 5000, 'name': 'users'}],
        'posix_id_start': 3000000, 'posix_id_range': '2000000-2999999'}
 was = yaml.safe_load(env.get_template('vars.yaml.j2').render(**old))
 was_gids = {g['name']: g['gidNumber'] for g in was['ldap_groups']}
 assert was_gids['admins'] == 1100 and was_gids['users'] == 5000 and 'posix_id_range' not in was \
-    and 'posix_id_start' not in was and 'hosts' not in [o['name'] for o in was['ldap_organizational_units']], was_gids
+    and 'posix_id_start' not in was, was_gids
 print("id layout: dc-0001's range 1000000-1999999 by its number, the organisation's gids from 1040001 "
       "(directory-admins first); the retired id settings are not rendered; listed gids are kept")
 doh = ngx[ngx.index('location /dns-query'):]
