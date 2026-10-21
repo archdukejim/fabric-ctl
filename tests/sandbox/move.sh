@@ -76,14 +76,15 @@ ad_domain: ad.move.test
 ad_password_policy: {minimum_length: 14, complexity: true, history: 24, minimum_age_days: 0, maximum_age_days: 0, lockout_threshold: 10, lockout_minutes: 15, lockout_window_minutes: 15}
 install_keycloak: true
 install_webui: true
-install_freeradius: true      # (install_fluentbit is left off: a fresh unattended install with it stops at deploy, the CA not made yet: 2.3.1.24.5)
+install_freeradius: true      # (install_fluentbit is left off: a fresh unattended install with it stops at deploy, the CA not made yet: 2.3.1.24.6)
 dns_filter: bind
 ntp_set_clock: false        # the sandbox shares the PC's kernel clock
 tsig_keys:
 - { name: acme, records: [web], secret: "$OLD_SECRET" }
 - { name: ddns, record_types: [A, AAAA], records: [nas] }
 dns:
-  dynamic_zone_var:
+  dynamic_zone_var:            # replaces the default zone entry: zone_authority kept (else no ns.<domain>)
+    zone_authority: true
     A: [{ name: nas, ip: 10.78.0.20 }]
     CNAME: [{ name: files, canonical: nas }]
   extra.test:
