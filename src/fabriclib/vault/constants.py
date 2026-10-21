@@ -1,6 +1,5 @@
 """OpenBao paths and names fabric uses."""
 SLOT_STORE = "slots.json"                  # unlock methods (key slots), root 0600, signed with the vault key
-KEY_FILE = "unseal.key"                    # iteration-1 layout (a bare key file); migrated into a local slot
 SETUP_CREDS = "setup-approle.json"         # AppRole for fabricctl setup (root 0400)
 AGENT_CREDS = "agent-approle.json"         # AppRole for fabric-agent (root 0400)
 BOOTSTRAP_TOKEN = "bootstrap-root-token"   # initial root token, only until configure succeeds and revokes it
@@ -67,8 +66,6 @@ path "sys/internal/ui/mounts/*" { capabilities = ["read"] }
 # external identity group per bundle. "admin" is the web UI admin role.
 # Bundles not listed here cannot sign in to OpenBao.
 OIDC_BUNDLE_POLICIES = {"admin": "fabric-console-admin", "fabric-auditor": "fabric-auditor"}
-# names before 0.6.4, removed by setup: fabric-admin is now the first admin's user name (2.1.6.33)
-RETIRED_NAMES = ("fabric-admin",)
 
 # Sign-in for people: OpenBao's OIDC auth at auth/oidc, a Keycloak client of
 # its own, one role bound to the web UI admin role claim.

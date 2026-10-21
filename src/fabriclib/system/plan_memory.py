@@ -27,16 +27,12 @@ SERVICES = {
 # (2.1.12.8).
 BURST = {"adguard": 2.5}
 
-# the services that had a `*_mem_limit` setting before 0.7.1, and the values it held by default then (an install's
-# vars.yaml carries one): such a value is no choice of the admin's, so the service joins the budget. The resolver's
-# was 384m in the 0.8.0 candidates and 128m in 0.7.0; AdGuard Home's followed the host in 0.7.0 (1 GiB at 4 GB).
-# An admin's adguard_mem_limit is the container's limit, its rebuilds included: the budget counts it / BURST.
-SETTINGS = {"openbao": ("openbao_mem_limit", lambda gb: 256), "kea": ("kea_mem_limit", lambda gb: 128),
-            "samba": ("samba_mem_limit", lambda gb: int(512 * gb / 4)),
-            "freeradius": ("freeradius_mem_limit", lambda gb: 128),
-            "fluentbit": ("fluentbit_mem_limit", lambda gb: 64),
-            "resolver": ("resolver_mem_limit", lambda gb: (384, 128)),
-            "adguard": ("adguard_mem_limit", lambda gb: int(1024 * gb / 4))}
+# the services with a `*_mem_limit` setting: a value set is the admin's, that service's limit, fixed (unset: null,
+# as the template renders it). An admin's adguard_mem_limit is the container's limit, its rebuilds included: the
+# budget counts it / BURST.
+SETTINGS = {"openbao": "openbao_mem_limit", "kea": "kea_mem_limit", "samba": "samba_mem_limit",
+            "freeradius": "freeradius_mem_limit", "fluentbit": "fluentbit_mem_limit",
+            "resolver": "resolver_mem_limit", "adguard": "adguard_mem_limit"}
 
 # the parts a person can turn off (1.1.9), what turns each off, and the services that go with it
 PARTS = [("install_kea", "DHCP (install_kea: false)", ["kea"]),
@@ -111,10 +107,9 @@ def plan_memory(v):
     """Purpose: every installed service's memory limit, planned as a budget (manual 1.2.4.3, decision 2.1.1.47):
              host_ram_capacity less a reserve for the host is the budget; each service gets its floor, and what is
              left goes to the services with a weight, in proportion. Precedence for one service: its own `*_mem_limit`
-             setting when the admin set one (that limit, fixed, no share; a value it held by default before 0.7.1
-             counts as not set), else its `memory_floors` / `memory_weights` entry, else the built-in floor and
-             weight. The limits always add up to the budget (whole MB; what rounding leaves goes to the largest
-             weight).
+             setting when the admin set one (that limit, fixed, no share), else its `memory_floors` /
+             `memory_weights` entry, else the built-in floor and weight. The limits always add up to the budget
+             (whole MB; what rounding leaves goes to the largest weight).
     Inputs:  v — settings: host_ram_capacity (GB), the install flags (_installed), memory_floors, memory_weights,
              openbao_mem_limit, kea_mem_limit, samba_mem_limit, freeradius_mem_limit, fluentbit_mem_limit,
              resolver_mem_limit, adguard_mem_limit (AdGuard Home's container limit: counted / BURST).
@@ -138,12 +133,10 @@ def plan_memory(v):
     budget = capacity - RESERVE_MB
     installed = _installed(v)
     explicit, settings = {}, {}
-    for service, (key, old_default) in SETTINGS.items():
+    for service, key in SETTINGS.items():
         mb = parse_mem_mb(v.get(key), key)
-        olds = old_default(gb)
-        honoured = mb is not None and mb not in (olds if isinstance(olds, tuple) else (olds,))
-        settings[key] = v.get(key) if honoured else None
-        if honoured and service in installed:
+        settings[key] = v.get(key) if mb is not None else None
+        if mb is not None and service in installed:
             explicit[service] = mb
     steady = {s: -(-explicit[s] * 10 // int(BURST[s] * 10)) if s in BURST else explicit[s] for s in explicit}
     containers = {s: SERVICES[s][2] for s in installed}

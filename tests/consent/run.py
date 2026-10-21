@@ -160,44 +160,27 @@ users = v["service_users"]
 check("defaults: fabric-* names in the 600-649 band (bind -> fabric-dns 600, Keycloak keeps gid 0)",
       users["bind"] == {"uid": 600, "gid": 600, "name": "fabric-dns"} and users["keycloak"]["gid"] == 0
       and all(600 <= u["uid"] <= 649 and u["name"].startswith("fabric-") for u in users.values()), users)
-msg = refused(lambda: pa.plan_accounts({"service_users": {"bind": {"uid": 1, "gid": 1, "name": "fabric-dns"}}},
-                                       "/nonexistent", JINJA))
+msg = refused(lambda: pa.plan_accounts({"service_users": {"bind": {"uid": 1, "gid": 1, "name": "fabric-dns"}}}))
 check("an id taken by another account stops setup, naming both (fabric never takes one over)",
       "is taken by" in msg and "service_users.bind" in msg, msg)
-fake = {"bind": 53, "fabric-dns": None}
-saved_fns = (pa._user_uid, pa._group_gid, pa._uid_owner, pa._gid_owner, pa._fabric_dirs)
-pa._user_uid = lambda n: fake.get(n)
-pa._group_gid = lambda n: 53 if n == "bind" else None
-pa._uid_owner = pa._gid_owner = lambda i: "bind" if i == 53 else None
-pa._fabric_dirs = lambda base, j: ["/opt/bind9", "/opt/fabric"]
+saved_fns = (pa._user_uid, pa._group_gid, pa._uid_owner, pa._gid_owner)
+pa._user_uid = pa._group_gid = pa._uid_owner = pa._gid_owner = lambda x: None
 try:
-    acts = pa.plan_accounts({"service_users": {"bind": users["bind"]}}, "/opt", JINJA)
+    acts = pa.plan_accounts({"service_users": {"bind": users["bind"]}})
 finally:
-    pa._user_uid, pa._group_gid, pa._uid_owner, pa._gid_owner, pa._fabric_dirs = saved_fns
-check("an install with the previous bind (53) account: create fabric-dns, move its files, remove bind",
-      [a["do"] for a in acts] == ["group", "user", "move", "remove"]
-      and acts[2]["uid"] == (53, 600) and acts[2]["gid"] == (53, 600) and acts[3]["name"] == "bind", acts)
+    pa._user_uid, pa._group_gid, pa._uid_owner, pa._gid_owner = saved_fns
+check("a host without fabric's accounts: create fabric-dns's group and user, nothing else (no account of a release "
+      "before 0.8.0 is moved: 2.1.1.61)", [a["do"] for a in acts] == ["group", "user"], acts)
 
-print("--- upgrading an older install's settings")
-old = {"service_users": {"bind": {"uid": 53, "gid": 53}, "nginx": {"uid": 1443, "gid": 1443}}}
-changes = upgrade_vars(old, set())
-check("previous defaults are dropped (the new accounts apply), an admin's own ids are kept",
-      old["service_users"] == {"nginx": {"uid": 1443, "gid": 1443}} and len(changes) == 1, (old, changes))
-# certs.<domain> dropped (1.5.1.5): its keys and the default CNAME go; an admin's other records stay
-old = {"hostname": "fab", "cname_certs": "certs", "hostname_certs": "certs.lan.test",
-       "dns": {"dynamic_zone_var": {"CNAME": [{"canonical": "fab", "name": "certs"}, {"canonical": "fab", "name": "ca"},
-                                             {"canonical": "nas", "name": "certs2"}]}}}
-changes = [c for c in upgrade_vars(old, set()) if "certs" in c]
-check("a vars file without dc_name is not given one at the upgrade (keep_old_install deleted 2026-10-13, S10): the "
-      "template's dc-0001 applies", "dc_name" not in old, old)
-check("an older install's certs.<domain>: cname_certs, hostname_certs and its CNAME removed, other CNAMEs kept",
-      "cname_certs" not in old and "hostname_certs" not in old and len(changes) == 2
-      and [r["name"] for r in old["dns"]["dynamic_zone_var"]["CNAME"]] == ["ca", "certs2"], (old, changes))
-old = {"hostname": "fab", "dns": {"dynamic_zone_var": {"CNAME": [{"canonical": "elsewhere", "name": "certs"}]}}}
-changes = [c for c in upgrade_vars(old, set()) if "certs" in c]
-check("…but a certs record the admin pointed elsewhere is not the old default: kept, nothing reported",
-      old["dns"]["dynamic_zone_var"]["CNAME"] == [{"canonical": "elsewhere", "name": "certs"}] and changes == [],
-      (old, changes))
+print("--- an existing install's images at a re-run (upgrade_vars, 2.1.14.3)")
+old = {"image_fabric_samba": "ghcr.io/x/samba:1@sha256:" + "a" * 64, "image_nginx": "nginx:1.27",
+       "image_webui": "fabric/web:local", "image_postgres": "postgres:18", "image_pins": ["image_postgres"]}
+changes = upgrade_vars(old, {"image_postgres": True})
+check("a digest-pinned image and one the admin pinned are kept; an unpinned ref and a local build name go",
+      set(old) == {"image_fabric_samba", "image_postgres", "image_pins"} and len(changes) == 2, (old, changes))
+nothing = {"service_users": {"bind": {"uid": 53, "gid": 53}}, "cname_certs": "certs", "webui_admin_role": "fabric-admin"}
+check("negative: what upgrade_vars changed for installs before 0.8.0 is left alone (retired, 2.1.1.61)",
+      upgrade_vars(dict(nothing), set()) == [], nothing)
 
 print("--- the firewall's questions (2.1.2.13): the ports fabric needs, then securing, then the host's own rules")
 rules = plan_firewall({**v, "ntp_serve": False}, cfg, active=False)

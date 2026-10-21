@@ -9,7 +9,7 @@ def adguard_password(v):
     Inputs:  v — fabric vars (deploy_base_dir).
     Returns: str.
     Fails:   ValidationError from load_secrets (OpenBao locked or refusing); KeyError when the secret is not there yet
-             (no apply has run since 0.7.0 was installed).
+             (no apply has run yet).
     Feeds:   dns_filter/refresh_lists, apply_dns_filter, ingest_dns_log, set_filter_list."""
     path = os.path.join(v.get("deploy_base_dir") or "/opt", "fabric", "config", "fabric-secrets.yml")
     return load_secrets(path, v)["adguard_api_password"]

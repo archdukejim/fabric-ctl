@@ -511,7 +511,7 @@ site_name: {{ (site_name | default(hostname, true)) | lower }}
 {# `bundle`: the fabric role bundle Keycloak grants to members (design 2.1.6.1); directory-admins, the Directory
    Administrators (2.1.6.81), get webui_admin_role. #}
 {# The organisation's groups have fixed gids in the root's built-in range (2.1.6.46, manual 1.6.3.17: 1040001 on,
-   the first hundred kept for them). An install from before 0.7.0 keeps 1100-1121 and 5000: its vars list them. #}
+   the first hundred kept for them). A group listed in the vars keeps its own gid. #}
 {% set default_ldap_groups = [
   { 'gidNumber': 1040001, 'name': 'directory-admins', 'permissions': ['read', 'write', 'modify'] },
   { 'gidNumber': 1040002, 'name': 'auditors', 'bundle': 'fabric-auditor' },

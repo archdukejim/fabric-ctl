@@ -1,5 +1,4 @@
 import os
-import shutil
 
 from fabriclib.common.console import ok
 from fabriclib.dns.common.landing_names import landing_names
@@ -85,21 +84,6 @@ def _crl_moved(ctx, cert_path):
     return bool(points) and points != [f"http://{ctx.vars['hostname_stepca']}/certs/crl/intermediate.crl"]
 
 
-def _old_certs_host(ctx, targets):
-    """Purpose: the certificate folder of certs.<domain>, which fabric no longer serves or issues (0.7.0, 1.5.1.5),
-             when it is still there (an install from before 0.7.0): run deletes it.
-    Inputs:  ctx — SetupContext: vars domain, path(); targets — _targets(ctx), so a folder still in use is kept (a
-             landing_page_cname of "certs": the landing certificate's folder is named after hostname_landing).
-    Returns: the folder <deploy_base>/nginx/certs/certs.<domain> (str), or None when it is gone or still in use.
-    Fails:   never.
-    Feeds:   run."""
-    name = f"certs.{ctx.vars.get('domain', '')}".lower()
-    old = ctx.path("nginx", "certs", name)
-    if old in {d for _, _, dests, *_ in targets for d, _ in dests} or not os.path.isdir(old):
-        return None
-    return old
-
-
 def run(ctx):
     """Purpose: issue (or renew) every service certificate from Step-CA and the CA bundles that verify client
              certificates, then the extra_certs.
@@ -111,9 +95,8 @@ def run(ctx):
              alone unless force_certs, unless one of their destinations has no copy yet, or unless they name another
              CRL point than fabric's current one (_crl_moved, 1.5.1.6). The landing page's certificate is also
              issued again at once when its names differ from landing_names in any way; the one it replaces is not
-             revoked, it expires (2.1.4.8, revised 2026-10-12). The old
-             certs.<domain> certificate, still there after an upgrade to 0.7.0, is deleted (_old_certs_host,
-             1.5.1.5). The web UI client-CA bundle is rewritten on every run; the CRLs are published every run
+             revoked, it expires (2.1.4.8, revised 2026-10-12). The web UI client-CA bundle is rewritten on every
+             run; the CRLs are published every run
              (publish_crl: FreeRADIUS's ca.pem with them). Services whose certificates changed are added to
              ctx.restart_services.
     Fails:   SetupError from mint_cert (step-ca refused); OSError/CalledProcessError installing files;
@@ -128,7 +111,6 @@ def run(ctx):
     renew_after = int(ctx.vars.get("cert_renew_after_days", 30))
     lifetime = int(ctx.vars.get("cert_service_days", 47))
     targets = _targets(ctx)
-    old_certs = _old_certs_host(ctx, targets)          # the upgrade to 0.7.0
 
     for cn, sans, dests, services, exact in targets:
         first = dests[0][0]
@@ -154,9 +136,6 @@ def run(ctx):
         restart.update(services)
         ok(f"{cn}: issued" + (" (its CRL point moved to the CA's own name, 1.5.1.6)" if moved else "")
            + (f" (its names changed: {', '.join([cn, *sans])}; 2.1.4.8)" if renamed else ""))
-    if old_certs:
-        shutil.rmtree(old_certs)
-        ok(f"{os.path.basename(old_certs)}: old certificate deleted (the CA is at /certs/, 1.5.1.5)")
 
     if ctx.vars.get("install_webui"):
         uid, gid = ctx.uid("nginx")

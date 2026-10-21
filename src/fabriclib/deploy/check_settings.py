@@ -21,7 +21,7 @@ def check_settings(final_vars):
     Fails:   ValidationError from normalize_dhcp (DHCP subnets, pools, reservations, dhcp.ntp), place_subnets (an
              interface this host lacks, a subnet on no served interface and not relayed) or normalize_ntp
              (ntp_servers, ntp_serve, ntp_set_clock), from check_samba_settings (the Windows domain), for a
-             dns_filter other than bind or none (0.6's adguard: run setup, which moves it), from
+             dns_filter other than bind or none, from
              check_filter_settings (the BIND resolver's lists, rules and upstreams), from signin_level (a second
              factor that is not a level), or for a pki_manual_max_days that is not a whole number of days, or from
              check_service_settings (images, fabric's container addresses).
@@ -33,9 +33,6 @@ def check_settings(final_vars):
     final_vars["dhcp_served"] = client_networks(final_vars)
     final_vars["dhcp_reverse_zones"] = dhcp_reverse_zones(final_vars)
     normalize_ntp(final_vars)
-    if final_vars.get("dns_filter") == "adguard":       # 0.6's: setup moves its settings (manual 2.3.12.1.9)
-        raise ValidationError("dns_filter: adguard is gone since 0.7 (the BIND resolver replaces AdGuard Home): run "
-                              "`sudo fabricctl setup` once, which moves AdGuard's lists, rules and upstreams")
     if final_vars.get("dns_filter") not in ("none", "bind"):
         raise ValidationError(f"dns_filter must be bind or none (got {final_vars.get('dns_filter')!r})")
     if final_vars.get("dns_filter") == "bind":

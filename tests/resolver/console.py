@@ -51,8 +51,8 @@ L1 = "https://lists.example/one.txt"
 BASE = tempfile.mkdtemp()
 STORE = {"vars": {"domain": "lan.test", "org_domain": "lan.test", "dns_filter": "bind", "install_resolver": True,
                   "lan_cidr": "192.168.1.0/24", "fabric_subnet": "10.255.0.0/24", "deploy_base_dir": BASE,
-                  "adguard_mem_limit": "1024m", "host_ram_capacity": 4, "install_keycloak": True,   # the owner's Pi:
-                  # 0.7.0's default limit (counts as not set) and AdGuard Home's share of a 4 GB budget, 429 MiB
+                  "host_ram_capacity": 4, "install_keycloak": True,   # the owner's Pi: AdGuard Home's share of a
+                  # 4 GB budget, 429 MiB
                   "dns_filter_lists": [{"name": "One", "url": L1, "enabled": True}], "dns_filter_allow": [],
                   "dns_filter_block": [], "dns_filter_upstreams": [{"address": "1.1.1.1", "name": "cloudflare-dns.com"}]}}
 AUDIT = []

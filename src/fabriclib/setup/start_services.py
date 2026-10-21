@@ -15,8 +15,6 @@ from fabriclib.samba.finish_join import finish_join
 from fabriclib.samba.write_bind_dlz import write_bind_dlz
 from fabriclib.secrets.save_secrets import save_secrets
 from fabriclib.setup.errors import SetupError
-from fabriclib.setup.retire_adguard import retire_adguard
-from fabriclib.setup.retire_renamed_units import retire_renamed_units
 from fabriclib.setup.service_order import ORDER
 from fabriclib.setup.ensure_db_rotation import align_postgres_roles
 from fabriclib.setup.start_unit import start_unit
@@ -29,7 +27,7 @@ def run(ctx):
     Inputs:  ctx — SetupContext: vars install_keycloak, install_webui, install_fluentbit, install_kea,
              install_freeradius, install_resolver, federation_endpoint; restart_services (units to
              restart); target_dir (lib/keycloak_bootstrap.py), vars_file, secrets_file, config_dir.
-    Returns: None. fabric.target enabled and started; renamed units retired; the deploy rendered again when the DNS
+    Returns: None. fabric.target enabled and started; the deploy rendered again when the DNS
              filter's certificate arrived after it (DoT and DoH, 1.12.2.16); every enabled unit running and its
              container healthy; the domain converged; Keycloak given the DC's Kerberos keytab; Keycloak configured (up
              to 6 tries, 15 s apart); fabric-agent and fabric-web running when the web UI is on; fabric-federation
@@ -42,10 +40,6 @@ def run(ctx):
     v, lib = ctx.vars, os.path.join(ctx.target_dir, "lib")
     # fabric.target groups every unit: systemctl start|stop|restart fabric.target
     subprocess.run(["systemctl", "enable", "fabric.target"], check=True, capture_output=True)
-    for unit in retire_renamed_units():
-        ok(f"{unit}: retired (renamed)")
-    for item in retire_adguard(v, ctx.secrets, ctx.secrets_file, ctx.config_dir):   # 0.7: the resolver takes 53
-        ok(f"AdGuard Home retired: {item}")
     if resolver_tls_pending(v):          # the certificates step ran after the deploy: render again (1.12.2.16)
         ctx.restart_services.update(apply_deployment(start_services=False) or ())
         ok("DNS filter: DNS-over-TLS and DNS-over-HTTPS for clients, with the DNS name's certificate")

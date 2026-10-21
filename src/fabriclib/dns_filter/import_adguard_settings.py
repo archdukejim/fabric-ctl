@@ -162,7 +162,8 @@ def import_adguard_settings(cfg, v):
              1.12.2.15)}, "not_carried": [str, one per item that did not move], "clients": [AdGuard's persistent
              clients, as they were (kept in the import record)]}.
     Fails:   never (a missing or odd key reads as empty).
-    Feeds:   setup/move_dns_filter; tests/resolver/run.py."""
+    Feeds:   nothing in the product since 0.8.0 (its caller, setup/move_dns_filter, retired: stale-code register
+             2.3.1.5.1, S12); tests/resolver/run.py, tests/resolver/groups.py."""
     cfg = cfg or {}
     dns = cfg.get("dns") or {}           # AdGuard's schema 34 (0.6's): dns, filters, user_rules, filtering, clients
     own = [d for d in (v.get("domain"), v.get("org_domain"), v.get("ad_domain")) if d]

@@ -3,7 +3,6 @@ from fabriclib.keycloak.signin_levels import admin_level, signin_level
 from fabriclib.keycloak.step import step
 
 SIGNIN, ADMIN = "fabric-signin", "fabric-admin-signin"
-OLD_FLOW = "fabric-webui-mfa"                     # 0.6.0's TOTP flow, replaced by the two below
 # each flow's shape: (level, what) — what is an execution's providerId or a sub-flow's alias. The second factor: the
 # passkey sub-flow (at "any", only for someone with a passkey), then the TOTP sub-flow (at "any", only when the passkey
 # sub-flow did not run: someone without a passkey uses TOTP, enrolling it if needed)
@@ -112,8 +111,7 @@ def ensure_signin_flows(kc, realm, v):
              UI), which never accepts the session cookie, so a sign-in without the admin tools' second
              factor never carries into them. Each: Kerberos (on with signin_kerberos) or the password form, then the
              second factor of its level ("any": a passkey for someone who has one, else TOTP, enrolled if needed).
-             Passkeys (WebAuthn) must be unlocked on the device (user verification required). 0.6.0's flow
-             fabric-webui-mfa is removed once nothing uses it.
+             Passkeys (WebAuthn) must be unlocked on the device (user verification required).
     Inputs:  kc — Admin; realm — realm name; v — vars: signin_kerberos, signin_admin_second_factor,
              signin_everyone_second_factor, hostname_keycloak.
     Returns: str, the admin flow's id (the admin tools' clients bind it).
@@ -140,13 +138,4 @@ def ensure_signin_flows(kc, realm, v):
         kc.call("PUT", f"/{q(realm)}", want)
         step("realm: fabric-signin is the browser flow; passkeys unlocked on the device (user verification)")
     flows = {f["alias"]: f["id"] for f in kc.call("GET", base)[1]}
-    if OLD_FLOW in flows:
-        for client in kc.call("GET", f"/{q(realm)}/clients")[1]:
-            if (client.get("authenticationFlowBindingOverrides") or {}).get("browser") == flows[OLD_FLOW]:
-                # the admin tools' clients are bound to the admin flow by their own steps; apps use the realm's flow
-                admin_tool = client["clientId"] in ("fabric-webui", "fabric-openbao")
-                client["authenticationFlowBindingOverrides"] = {"browser": flows[ADMIN]} if admin_tool else {}
-                kc.call("PUT", f"/{q(realm)}/clients/{client['id']}", client)
-        kc.call("DELETE", f"{base}/{flows[OLD_FLOW]}")
-        step(f"removed 0.6.0's sign-in flow {OLD_FLOW}")
     return flows[ADMIN]

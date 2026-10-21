@@ -545,7 +545,7 @@ file	fabriclib-keycloak|src/fabriclib/keycloak/remove_app_client.py	24
 file	fabriclib-keycloak|src/fabriclib/keycloak/remove_retired_client.py	32	
 file	fabriclib-keycloak|src/fabriclib/keycloak/require_password_change.py	16	0.5.0 / 2026-10-04
 file	fabriclib-keycloak|src/fabriclib/keycloak/reset_sign_in.py	17	0.5.0 / 2026-10-04
-file	fabriclib-keycloak|src/fabriclib/keycloak/retire_old_admin_role.py	31	
+file	fabriclib-keycloak|src/fabriclib/keycloak/retire_old_admin_role.py	31	0.7.2 / 2026-10-20
 file	fabriclib-keycloak|src/fabriclib/keycloak/run_sso_command.py	25	
 file	fabriclib-keycloak|src/fabriclib/keycloak/sign_out_person.py	29	
 file	fabriclib-keycloak|src/fabriclib/keycloak/signin_levels.py	28	
@@ -744,7 +744,7 @@ file	fabriclib-settings|src/fabriclib/settings/run_settings_command.py	10
 file	fabriclib-settings|src/fabriclib/settings/settings_from_form.py	11	
 file	fabriclib-settings|src/fabriclib/settings/settings_overview.py	12	
 file	fabriclib-settings|src/fabriclib/settings/wizard_finished.py	13	
-file	fabriclib-setup|src/fabriclib/setup/adopt_stray_records.py	43	
+file	fabriclib-setup|src/fabriclib/setup/adopt_stray_records.py	43	0.7.2 / 2026-10-20
 file	fabriclib-setup|src/fabriclib/setup/advanced/ask_ca_lifetime.py	54	
 file	fabriclib-setup|src/fabriclib/setup/advanced/ask_dhcp_settings.py	55	
 file	fabriclib-setup|src/fabriclib/setup/advanced/ask_first_admin_item.py	56	
@@ -822,7 +822,7 @@ file	fabriclib-setup|src/fabriclib/setup/join_federation.py	19
 file	fabriclib-setup|src/fabriclib/setup/join_host_domain.py	53	
 file	fabriclib-setup|src/fabriclib/setup/mint_extra_certs.py	20	
 file	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py	21	
-file	fabriclib-setup|src/fabriclib/setup/move_dns_filter.py	82	
+file	fabriclib-setup|src/fabriclib/setup/move_dns_filter.py	82	0.7.2 / 2026-10-20
 file	fabriclib-setup|src/fabriclib/setup/name_dc.py	99	
 file	fabriclib-setup|src/fabriclib/setup/permanent_mark.py	49	
 file	fabriclib-setup|src/fabriclib/setup/preflight.py	22	
@@ -830,8 +830,8 @@ file	fabriclib-setup|src/fabriclib/setup/print_first_steps.py	44
 file	fabriclib-setup|src/fabriclib/setup/read_join_invitation.py	23	
 file	fabriclib-setup|src/fabriclib/setup/renew_service_certs.py	24	
 file	fabriclib-setup|src/fabriclib/setup/restore_install.py	25	
-file	fabriclib-setup|src/fabriclib/setup/retire_adguard.py	83	
-file	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py	26	
+file	fabriclib-setup|src/fabriclib/setup/retire_adguard.py	83	0.7.2 / 2026-10-20
+file	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py	26	0.7.2 / 2026-10-20
 file	fabriclib-setup|src/fabriclib/setup/run_restore_command.py	27	
 file	fabriclib-setup|src/fabriclib/setup/run_setup.py	28	
 file	fabriclib-setup|src/fabriclib/setup/run_steps.py	98	
@@ -1508,7 +1508,7 @@ function	fabriclib-consent|src/fabriclib/consent/common/consent_file.py|consent_
 function	fabriclib-consent|src/fabriclib/consent/consent_status.py|consent_status	1	
 function	fabriclib-consent|src/fabriclib/consent/initial_host_choices.py|initial_host_choices	1	
 function	fabriclib-consent|src/fabriclib/consent/load_consent.py|load_consent	1	
-function	fabriclib-consent|src/fabriclib/consent/plan_accounts.py|_fabric_dirs	5	
+function	fabriclib-consent|src/fabriclib/consent/plan_accounts.py|_fabric_dirs	5	0.7.2 / 2026-10-20
 function	fabriclib-consent|src/fabriclib/consent/plan_accounts.py|_gid_owner	2	
 function	fabriclib-consent|src/fabriclib/consent/plan_accounts.py|_group_gid	4	
 function	fabriclib-consent|src/fabriclib/consent/plan_accounts.py|_uid_owner	1	
@@ -1984,7 +1984,7 @@ function	fabriclib-keycloak|src/fabriclib/keycloak/remove_retired_client.py|remo
 function	fabriclib-keycloak|src/fabriclib/keycloak/require_password_change.py|require_password_change	1	0.5.0 / 2026-10-04
 function	fabriclib-keycloak|src/fabriclib/keycloak/reset_sign_in.py|_q	1	0.5.0 / 2026-10-04
 function	fabriclib-keycloak|src/fabriclib/keycloak/reset_sign_in.py|reset_sign_in	2	0.5.0 / 2026-10-04
-function	fabriclib-keycloak|src/fabriclib/keycloak/retire_old_admin_role.py|retire_old_admin_role	1	
+function	fabriclib-keycloak|src/fabriclib/keycloak/retire_old_admin_role.py|retire_old_admin_role	1	0.7.2 / 2026-10-20
 function	fabriclib-keycloak|src/fabriclib/keycloak/run_sso_command.py|run_sso_command	1	
 function	fabriclib-keycloak|src/fabriclib/keycloak/sign_out_person.py|sign_out_person	1	
 function	fabriclib-keycloak|src/fabriclib/keycloak/signin_levels.py|admin_level	2	
@@ -2256,7 +2256,7 @@ function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|_whole	
 function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|settings_from_form	5	
 function	fabriclib-settings|src/fabriclib/settings/settings_overview.py|settings_overview	1	
 function	fabriclib-settings|src/fabriclib/settings/wizard_finished.py|wizard_finished	1	
-function	fabriclib-setup|src/fabriclib/setup/adopt_stray_records.py|adopt_stray_records	1	
+function	fabriclib-setup|src/fabriclib/setup/adopt_stray_records.py|adopt_stray_records	1	0.7.2 / 2026-10-20
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_ca_lifetime.py|ask_ca_lifetime	1	
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_dhcp_settings.py|_suggested_pool	1	
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_dhcp_settings.py|ask_dhcp_settings	2	
@@ -2364,7 +2364,7 @@ function	fabriclib-setup|src/fabriclib/setup/context.py|SetupContext.secrets_fil
 function	fabriclib-setup|src/fabriclib/setup/context.py|SetupContext.target_dir	1	
 function	fabriclib-setup|src/fabriclib/setup/context.py|SetupContext.uid	9	
 function	fabriclib-setup|src/fabriclib/setup/context.py|SetupContext.vars_file	3	
-function	fabriclib-setup|src/fabriclib/setup/create_accounts.py|_move_files	1	
+function	fabriclib-setup|src/fabriclib/setup/create_accounts.py|_move_files	1	0.7.2 / 2026-10-20
 function	fabriclib-setup|src/fabriclib/setup/create_accounts.py|run	2	
 function	fabriclib-setup|src/fabriclib/setup/create_admin.py|_client_cert	4	
 function	fabriclib-setup|src/fabriclib/setup/create_admin.py|_enterprise_admin	5	
@@ -2433,12 +2433,12 @@ function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|run	10
 function	fabriclib-setup|src/fabriclib/setup/mint_extra_certs.py|mint_extra_certs	1	
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_crl_moved	5	
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_install_dirsrv_tls	2	0.5.0 / 2026-10-04
-function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_old_certs_host	4	
+function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_old_certs_host	4	0.7.2 / 2026-10-20
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_replaced_serial	6	0.7.0 / 2026-10-12
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_revoke_replaced	7	0.7.0 / 2026-10-12
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_targets	1	
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|run	3	
-function	fabriclib-setup|src/fabriclib/setup/move_dns_filter.py|move_dns_filter	1	
+function	fabriclib-setup|src/fabriclib/setup/move_dns_filter.py|move_dns_filter	1	0.7.2 / 2026-10-20
 function	fabriclib-setup|src/fabriclib/setup/name_dc.py|name_dc	1	
 function	fabriclib-setup|src/fabriclib/setup/permanent_mark.py|permanent_mark	1	
 function	fabriclib-setup|src/fabriclib/setup/preflight.py|_foreign_listeners	3	
@@ -2450,8 +2450,8 @@ function	fabriclib-setup|src/fabriclib/setup/read_join_invitation.py|read_join_i
 function	fabriclib-setup|src/fabriclib/setup/renew_service_certs.py|_record	2	
 function	fabriclib-setup|src/fabriclib/setup/renew_service_certs.py|renew_service_certs	1	
 function	fabriclib-setup|src/fabriclib/setup/restore_install.py|restore_install	1	
-function	fabriclib-setup|src/fabriclib/setup/retire_adguard.py|retire_adguard	1	
-function	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py|retire_renamed_units	1	
+function	fabriclib-setup|src/fabriclib/setup/retire_adguard.py|retire_adguard	1	0.7.2 / 2026-10-20
+function	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py|retire_renamed_units	1	0.7.2 / 2026-10-20
 function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|run_restore_command	1	
 function	fabriclib-setup|src/fabriclib/setup/run_setup.py|main	1	
 function	fabriclib-setup|src/fabriclib/setup/run_steps.py|_now	1	

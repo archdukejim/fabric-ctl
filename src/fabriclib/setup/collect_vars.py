@@ -22,7 +22,6 @@ from fabriclib.setup.drop_retired_settings import drop_retired_settings
 from fabriclib.setup.common.valid_setting import REQUIRED, valid_setting
 from fabriclib.setup.errors import SetupError
 from fabriclib.setup.finish_vars import finish_vars
-from fabriclib.setup.move_dns_filter import move_dns_filter
 from fabriclib.setup.set_ram_capacity import set_ram_capacity
 from fabriclib.setup.upgrade_vars import upgrade_vars
 
@@ -103,13 +102,12 @@ def collect_vars(ctx, ask=True):
              vars.yaml is the base and --file overrides the keys it sets; on a fresh install without --file a
              checkout's custom-vars.yaml is used. A file of an older fabric is taken as it is (2.1.1.60): the keys
              this release no longer takes are listed and ignored (_drop_retired). Existing installs keep their
-             digest-pinned images (upgrade_vars); image_* keys set explicitly are recorded in image_pins. AdGuard
-             Home's settings move to the BIND resolver's (move_dns_filter, 0.7). Missing/invalid required
-             values are asked for (defaults from detect_network; the first admin by ask_first_admin); the AD domain
-             is asked when missing (ask_ad_domain); the DC's name is never asked (fabric names it,
-             finish_vars' name_dc, 2.1.6.65): a --file or custom-vars.yaml that names it is refused while no DC is
-             installed, and on an installed host the installed DC's name is kept over the file's; the rest takes
-             defaults changed later (2.1.2.16): the password
+             digest-pinned images (upgrade_vars); image_* keys set explicitly are recorded in image_pins.
+             Missing/invalid required values are asked for (defaults from detect_network; the first admin by
+             ask_first_admin); the AD domain is asked when missing (ask_ad_domain); the DC's name is never asked
+             (fabric names it, finish_vars' name_dc, 2.1.6.65): a --file or custom-vars.yaml that names it is
+             refused while no DC is installed, and on an installed host the installed DC's name is kept over the
+             file's; the rest takes defaults changed later (2.1.2.16): the password
              policy (DEFAULT_POLICY, a vars file's keys kept, 2.1.6.35), the memory (set_ram_capacity) and, on a
              fresh install only (no vars file, no provisioned domain), who may sign in to the site's machines
              (finish_vars). Embedded TSIG secrets go to the secrets file, never into fabric.yaml (finish_vars).
@@ -158,9 +156,6 @@ def collect_vars(ctx, ask=True):
             user = {k: val for k, val in user.items() if k != "dc_name"}
         data.update(user)
         info(f"overrides from {user_file}")
-    # 0.7: AdGuard Home's settings move to the BIND resolver (2.1.12.3); nothing to do on a host without them
-    for line in move_dns_filter(data, ctx.deploy_base, ctx.config_dir):
-        info(line)
 
     if ctx.join_invitation:
         _join_defaults(ctx, data)

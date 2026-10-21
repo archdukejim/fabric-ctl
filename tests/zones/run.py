@@ -183,7 +183,7 @@ try:
     sh(["docker", "run", "-d", "--name", "bind9-resolver", "--network", NET, "--ip", RES_IP, "--user", "913:913",
         "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
         "--tmpfs", "/run/named:uid=913,gid=913,mode=0755,size=4m", "--tmpfs", "/tmp:noexec,nosuid,size=8m",
-        "-v", f"{W}/resolver/config:/etc/bind:ro", "-v", f"{W}/resolver/lists:/etc/bind-lists:ro",
+        "-v", f"{W}/resolver/config:/etc/bind:ro",
         "-v", f"{W}/resolver/tls:/etc/bind-tls:ro", "-v", f"{W}/resolver/log:/var/log/named",
         "-v", f"{W}/resolver/cache:/var/cache/bind", "--entrypoint", "/usr/sbin/named", IMAGE,
         "-f", "-c", "/etc/bind/named.conf"])

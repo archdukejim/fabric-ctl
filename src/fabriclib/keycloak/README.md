@@ -10,7 +10,7 @@ client these files use.
 |---|---|
 | `keycloak_admin.py` | Admin REST client (CA-pinned) and realm name |
 | `ensure_rbac_roles.py` | A realm role per fabric permission and a composite role per bundle, converged |
-| `remove_retired_client.py` | Remove a client fabric no longer uses (`fabric-adguard`, AdGuard Home retired in 0.7), if it is there |
+| `remove_retired_client.py` | Remove a client fabric no longer uses, if it is there (uncalled since 0.8.0: stale-code register S13) |
 | `ensure_openbao_client.py` | The `fabric-openbao` OIDC client for OpenBao's own UI (TOTP flow, fabric roles in a `roles` ID-token claim, exact callback) |
 | `fabric_groups.py` | The directory groups that carry a fabric bundle |
 | `enable_person.py` | Keycloak's copy of a person enabled again after their directory account is |
@@ -28,7 +28,6 @@ client these files use.
 | `ensure_ldap_federation.py` | The user federation to the domain (AD mode, LDAPS to the site's DC; created, or updated in place) |
 | `ensure_group_mapper.py` | The LDAP group mapper, and a sync of the directory's groups |
 | `grant_role_to_group.py` | Give a group a realm role if it does not have it |
-| `retire_old_admin_role.py` | The admin role's name before 0.6.4 (`fabric-admin`, now the first admin's user name) removed once the new one is in place (2.1.6.33) |
 | `ensure_signin_flows.py` | fabric's sign-in flows: Kerberos or a password, then the second factor of each scope |
 | `signin_levels.py` | The second-factor levels and the admin tools' effective one |
 | `ensure_webui_client.py` | The web UI's OIDC client (PKCE, exact redirect, TOTP flow, roles claim) |

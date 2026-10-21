@@ -28,7 +28,7 @@ def show_memory_plan(v, heading="memory"):
         n = int(containers.get(service, 1))
         what = SERVICES[service][3] if service in SERVICES else service
         size = f"{mb} MB" + (f" x {n}" if n > 1 else "")
-        note = f"  (set: {SETTINGS[service][0]})" if service in explicit else ""
+        note = f"  (set: {SETTINGS[service]})" if service in explicit else ""
         if service in bursts:
             note = f"  up to {bursts[service]} MB while it compiles its lists" + note
         print(f"  {what:<38} {size:>12}{note}")

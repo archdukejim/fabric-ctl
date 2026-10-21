@@ -257,8 +257,8 @@ def steps(flow):
 
 realm_rep = kc.call("GET", R)[1]
 signin, admin_flow = steps("fabric-signin"), steps("fabric-admin-signin")
-check("sign-in flows (2.1.6.23): fabric-signin is the realm's, fabric-admin-signin the web UI's; 0.6.0's flow is gone",
-      realm_rep["browserFlow"] == "fabric-signin" and "fabric-webui-mfa" not in flows
+check("sign-in flows (2.1.6.23): fabric-signin is the realm's, fabric-admin-signin the web UI's",
+      realm_rep["browserFlow"] == "fabric-signin"
       and client["authenticationFlowBindingOverrides"].get("browser") == flows.get("fabric-admin-signin"),
       (realm_rep["browserFlow"], sorted(flows)))
 check("by default: Kerberos or a password, no second factor; the admin flow never takes the session cookie",

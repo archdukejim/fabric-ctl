@@ -24,7 +24,7 @@ def plan_host_changes(v, deploy_base, config_dir, jinja_dir, steps=None):
         "packages": lambda: plan_packages()["text"],
         "runtime": lambda: plan_runtime(v),
         "services": plan_services,
-        "accounts": lambda: [a["text"] for a in plan_accounts(v, deploy_base, jinja_dir)],
+        "accounts": lambda: [a["text"] for a in plan_accounts(v)],
         "resolver": lambda: plan_resolver(v),
         "ports": lambda: plan_ports(v, config_dir),
         "firewall": lambda: plan_firewall(v, config_dir),

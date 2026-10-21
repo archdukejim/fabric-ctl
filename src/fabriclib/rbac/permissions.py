@@ -55,9 +55,8 @@ _READ = ["status:read", "dns:read", "dhcp:read", "pki:read", "devices:read", "ra
          "domain:read", "federation:read", "vault:status",
          "audit:read"]
 
-# the web console's admin role (webui_admin_role): fabric-admin until 0.6.4, now the first admin's user name (2.1.6.33)
+# the web console's admin role (webui_admin_role, 2.1.6.33)
 ADMIN_ROLE = "fabric-console-admin"
-OLD_ADMIN_ROLE = "fabric-admin"
 
 # bundle -> permissions. "admin" is the web UI admin role (webui_admin_role, default ADMIN_ROLE).
 BUNDLES = {

@@ -1153,22 +1153,23 @@ assert 'Turn off DHCP (install_kea: false), 256 MB' in msg and '802.1X (install_
 print('memory: floors and weights overridden when valid, refused when not; a plan whose floors do not fit is refused, '
       'naming the parts to turn off')
 
-# an explicit *_mem_limit wins (that limit, fixed); its pre-0.9 default counts as not set; a size that is none, refused
-mv = mem_vars(host_ram_capacity=4, kea_mem_limit='96m', samba_mem_limit='600m', resolver_mem_limit='384m', **PARTS_ON)
+# an explicit *_mem_limit wins (that limit, fixed), whatever its value; a size that is none, refused
+mv = mem_vars(host_ram_capacity=4, kea_mem_limit='96m', samba_mem_limit='600m', **PARTS_ON)
 p = mv['memory_plan']
 # covers: setting:samba_mem_limit +
 assert p['limits']['kea'] == 96 and p['limits']['samba'] == 600 and mv['kea_mem_limit'] == '96m' \
     and mv['samba_mem_limit'] == '600m' and mv['resolver_mem_limit'] is None \
     and p['explicit'] == {'kea': 96, 'samba': 600} and mem_total(p) == p['budget_mb'], p
 assert compose_limits(mv)['samba'] == 600 and compose_limits(mv)['kea-ddns'] == 96
-# AdGuard Home's adguard_mem_limit is its container's limit, rebuilds included: the budget counts it / 2.5; its 0.7.0
-# default (1 GiB at 4 GB) counts as not set (2.1.12.8)
+# AdGuard Home's adguard_mem_limit is its container's limit, rebuilds included: the budget counts it / 2.5 (2.1.12.8)
 mv = mem_vars(host_ram_capacity=4, adguard_mem_limit='800m', **PARTS_ON)
 p = mv['memory_plan']
 # covers: setting:adguard_mem_limit +
 assert p['explicit'] == {'adguard': 800} and p['limits']['adguard'] == 320 and p['bursts'] == {'adguard': 800}     and compose_limits(mv)['adguard-filter'] == 800 and mem_total(p) == p['budget_mb'], p
-mv = mem_vars(host_ram_capacity=4, adguard_mem_limit='1024m', **PARTS_ON)
-assert mv['memory_plan']['explicit'] == {} and mv['adguard_mem_limit'] is None, mv['memory_plan']
+mv = mem_vars(host_ram_capacity=4, adguard_mem_limit='1024m', kea_mem_limit='128m', **PARTS_ON)
+# what 0.7.0 held by default is an admin's value now (the old defaults retired: 2.1.1.61)
+assert mv['memory_plan']['explicit'] == {'adguard': 1024, 'kea': 128} and mv['adguard_mem_limit'] == '1024m', \
+    mv['memory_plan']
 for key in MEM_KEYS:
     msg = mem_refused(host_ram_capacity=4, **{key: '12x'})
     # covers: setting:openbao_mem_limit setting:kea_mem_limit setting:samba_mem_limit -

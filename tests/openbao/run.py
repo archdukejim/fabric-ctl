@@ -190,13 +190,9 @@ os.makedirs(os.path.dirname(SECRETS), exist_ok=True)
 fresh = dict(V, openbao_key_dir=f"{W}/fresh-keys", deploy_base_dir=f"{W}/fresh")
 check("fresh install: a random vault key in a key-file unlock method", ensure_vault_key(fresh) == "created"
       and [sl["type"] for sl in read_slot_store(fresh)["slots"]] == ["local"])
-os.makedirs(f"{W}/keys", mode=0o700)
-legacy = os.urandom(32)
-with open(f"{W}/keys/unseal.key", "wb") as f:           # an iteration-1 install: a bare key file
-    f.write(legacy)
-check("iteration-1 install: its key file becomes the key-file unlock method (no rotation)",
-      ensure_vault_key(V) == "migrated" and not os.path.exists(f"{W}/keys/unseal.key")
-      and open(f"{W}/keys/local-fabric-1.key", "rb").read() == legacy)
+check("the install under test: a vault key made, in its key-file unlock method", ensure_vault_key(V) == "created"
+      and os.path.exists(f"{W}/keys/local-fabric-1.key"))
+legacy = open(f"{W}/keys/local-fabric-1.key", "rb").read()     # the first key (rotated below)
 st = os.stat(f"{W}/keys/slots.json")
 kst = os.stat(f"{W}/keys/local-fabric-1.key")
 # covers: setting:openbao_key_dir +
