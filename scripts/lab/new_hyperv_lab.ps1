@@ -45,8 +45,10 @@ $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 if (-not $admin) { throw 'Run this in an elevated PowerShell (Run as administrator).' }
 if (-not (Get-Command New-VM -ErrorAction SilentlyContinue)) { throw 'Hyper-V is not enabled on this machine.' }
 
-# check every ISO before making anything, so a missing one changes nothing
-$wanted = if ($Only.Count) { $Vms | Where-Object { $Only -contains $_.Name } } else { $Vms }
+# check every ISO before making anything, so a missing one changes nothing. With `powershell -File`, "-Only a,b"
+# arrives as one string, so names are split on commas here.
+$Only = @($Only | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$wanted = @(if ($Only.Count) { $Vms | Where-Object { $Only -contains $_.Name } } else { $Vms })
 if ($Only.Count -and $wanted.Count -ne $Only.Count) {
     throw "unknown VM name in -Only; known: $($Vms.Name -join ', ')"
 }

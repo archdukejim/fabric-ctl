@@ -267,7 +267,7 @@ scripts/images/pin_published.py	d9e23ccf4496e2199001bd7a9d7a7314b5eda0e0	2026-10
 scripts/images/source_hash.py	f4962c8c7e418cf22177aa79c0464e6a5af6a29d	2026-10-09	
 scripts/install-from-checkout.sh	b03b6b30bb230d09753b070af8f196285dfe788a	2026-10-03	
 scripts/lab/README.md	8ddac9e1f651bfc44e6ca8433e69adc0a2d34572	2026-10-21	
-scripts/lab/new_hyperv_lab.ps1	a00342e5316d48626e6c912cc046a5912e06dadc	2026-10-21	
+scripts/lab/new_hyperv_lab.ps1	9a13670b9f85c57217f21c03cc8888a05ca8c75d	2026-10-21	
 scripts/lab/remove_hyperv_lab.ps1	8c09fd888a0a863c3236f35c901932eb0a4e5c1c	2026-10-21	
 scripts/release/README.md	d5379b29f1b78dc46eefe9b1b518555b2236f651	2026-10-08	
 scripts/release/make-apt-key.sh	afc377602ea7f299327f42646cace23cb9c25963	2026-10-08	
