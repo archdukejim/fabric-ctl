@@ -1214,6 +1214,7 @@ function	fabricctl-jinja|src/containers/samba/check_grant.py|_list	1
 function	fabricctl-jinja|src/containers/samba/check_grant.py|check_grant	4	
 function	fabricctl-jinja|src/containers/samba/compile_grants.py|_set_rights	2	
 function	fabricctl-jinja|src/containers/samba/compile_grants.py|_sets	1	
+function	fabricctl-jinja|src/containers/samba/compile_grants.py|_sids	4	
 function	fabricctl-jinja|src/containers/samba/compile_grants.py|compile_grants	3	
 function	fabricctl-jinja|src/containers/samba/converge.py|_sid	1	0.5.0 / 2026-10-05
 function	fabricctl-jinja|src/containers/samba/converge.py|converge	2	

@@ -203,6 +203,23 @@ check("each machine is in exactly one set's group (access-<n>), the two desktops
       all(s.count("CN=access-") == 1 for s in sets.values())
       and sets[DSK].split("CN=access-")[1].split(",")[0] == sets[LAB].split("CN=access-")[1].split(",")[0]
       and sets[SRV].split("CN=access-")[1].split(",")[0] != sets[DSK].split("CN=access-")[1].split(",")[0], sets)
+
+
+def sid_of(name):
+    return ldb(f"(sAMAccountName={name.upper()}$)", "objectSid").split("objectSid: ", 1)[-1].split()[0]
+
+
+def named(n):
+    """The machine SIDs a set's GPO gives Apply Group Policy to on their own (2.1.6.94)."""
+    sddl = ldb(f"(displayName=fabric: access {n})", "nTSecurityDescriptor")
+    return {s for s in (sid_of(m) for m in (SRV, DSK, LAB))
+            if f"OA;CI;CR;edacfd8f-ffb3-11d1-b41d-00a0c968f939;;{s})" in sddl}
+
+
+SET = {m: sets[m].split("CN=access-")[1].split(",")[0] for m in (SRV, DSK, LAB)}
+check("each set's GPO names exactly its own computers by SID too, beside its group (sssd 2.8, 2.1.6.94)",
+      named(SET[SRV]) == {sid_of(SRV)} and named(SET[DSK]) == {sid_of(DSK), sid_of(LAB)},
+      (SET, named(SET[SRV]), named(SET[DSK])))
 time.sleep(6)
 
 print("--- the shipped grants on real members (sssd)")
@@ -233,6 +250,10 @@ check(f"negative: {DSK}: a person of another site (lara) is refused at lan's des
       within(lambda: not allowed(D, "lara", "login")))
 check(f"{LAB}: every other desktop stays open: lara and alice sign in at lab's",
       allowed(L, "lara", "login") and allowed(L, "alice", "login"))
+moved = ldb(f"(sAMAccountName={DSK.upper()}$)", "memberOf").split("CN=access-")[1].split(",")[0]
+check(f"negative: {DSK} moved to a set of its own: its SID entry is taken out of its old set's GPO, which names "
+      f"{LAB} alone (2.1.6.94)", moved != SET[DSK] and named(SET[DSK]) == {sid_of(LAB)}
+      and named(moved) == {sid_of(DSK)}, (moved, named(SET[DSK]), named(moved)))
 code, out = grant("explain", "lara", DSK)
 check("grant explain lara grdsk: the restricting grant named, no keyboard there",
       code == 0 and "lan-desktops (restrict)" in out and "keyboard no" in out, out)

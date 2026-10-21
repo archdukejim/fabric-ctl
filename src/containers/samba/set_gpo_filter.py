@@ -24,12 +24,15 @@ def _key(text, domain_sid):
     return (ace.type, ace.flags, ace.access_mask, str(ace.trustee), obj)
 
 
-def set_gpo_filter(samdb, lp, name, group_sid):
+def set_gpo_filter(samdb, lp, name, group_sid, machine_sids=()):
     """Purpose: a GPO's security filtering, as GPMC sets it (manual 1.6.13.4; checked on sssd, 2.3.6.19.1):
              Authenticated Users keep Read (every machine reads it), and only `group_sid` gets Read and Apply Group
-             Policy; with no group, Authenticated Users apply it (every machine, the fallback, 2.1.6.87). Every other
-             Apply Group Policy entry is taken out. SYSVOL's file ACLs follow. Nothing is written when it is already so.
-    Inputs:  samdb — SamDB (as the system); lp — LoadParm; name — the GPO's display name; group_sid — str, or None.
+             Policy; with no group, Authenticated Users apply it (every machine, the fallback, 2.1.6.87). Each of
+             `machine_sids` (the group's computers) also gets Apply Group Policy on its own SID, for sssd before 2.9.4,
+             which ignores the computer's groups (2.1.6.94). Every other Apply Group Policy entry is taken out (a
+             machine that left the group too). SYSVOL's file ACLs follow. Nothing is written when it is already so.
+    Inputs:  samdb — SamDB (as the system); lp — LoadParm; name — the GPO's display name; group_sid — str, or None;
+             machine_sids — iterable of str, the computers' SIDs (only with a group).
     Returns: list of str, what changed.
     Fails:   ValueError "no GPO <name>"; ldb.LdbError; NTSTATUSError from set_gpo_acl.
     Feeds:   compile_grants."""
@@ -50,6 +53,7 @@ def set_gpo_filter(samdb, lp, name, group_sid):
     want = [f"(A;CI;RPLCLORC;;;{AUTHENTICATED_USERS})", f"(OA;CI;CR;{APPLY_GROUP_POLICY};;{target})"]
     if group_sid:
         want.insert(1, f"(A;CI;RPLCLORC;;;{group_sid})")
+        want += [f"(OA;CI;CR;{APPLY_GROUP_POLICY};;{sid})" for sid in sorted(set(machine_sids))]
     keep, drop = [], []
     for ace in re.findall(r"\([^)]*\)", rest):
         k = _key(ace, domain_sid)
@@ -60,4 +64,5 @@ def set_gpo_filter(samdb, lp, name, group_sid):
     new = security.descriptor.from_sddl(head + "D:" + flags + "".join(keep + want) + sacl, domain_sid)
     SDUtils(samdb).modify_sd_on_dn(dn, new, controls=["sd_flags:1:4"])
     set_gpo_acl(samdb, lp, guid)
-    return [f"GPO {name}: applies to " + ("its group's machines alone" if group_sid else "every machine")]
+    return [f"GPO {name}: applies to " + (f"its group's machines alone ({len(set(machine_sids))} named)"
+                                          if group_sid else "every machine")]

@@ -1,3 +1,5 @@
+import ldb
+
 from access_policy import access_policy
 from ensure_computed_group import computed_groups, ensure_computed_group
 from ensure_gpo import ensure_gpo
@@ -33,6 +35,19 @@ def _sets(grants, reached):
         if allow:
             out.setdefault((tuple(sorted(allow)), tuple(sorted(restrict))), []).append(dn)
     return {k: sorted(v) for k, v in out.items()}
+
+
+def _sids(samdb, dns):
+    """Purpose: the computers' own SIDs, which each set's GPO names beside its group for sssd before 2.9.4 (2.1.6.94).
+    Inputs:  samdb — SamDB; dns — computer DNs.
+    Returns: list of str, in the order given.
+    Fails:   ldb.LdbError from a search (a DN that no longer exists).
+    Feeds:   compile_grants."""
+    out = []
+    for dn in dns:
+        res = samdb.search(base=dn, scope=ldb.SCOPE_BASE, attrs=["objectSid"])
+        out.append(str(samdb.schema_format_value("objectSid", res[0]["objectSid"][0]), "utf-8"))
+    return out
 
 
 def _set_rights(samdb, n, allow, restrict, grants, reached, sids, keep):
@@ -71,14 +86,14 @@ def compile_grants(samdb, lp, dc, fallback_open=False):
              it differs: each grant's computed groups (`grant-<name>-who`, a POSIX group for sudo, and
              `grant-<name>-where`); the machines grouped into sets by the grants that reach them, each set's computers
              in `access-<n>` (computers only: anything else taken out) and its one GPO `fabric: access <n>` at
-             OU=machines, filtered to that group, giving each right to its holders (restricted where a restricting grant
-             says) and putting the local administrators' groups in each machine's Administrators; a set no longer
-             wanted removed with its GPO and groups; the fallback `fabric: access none` (2.1.6.87), every machine's,
-             kept first in OU=machines' links, or removed while `grants_fallback_open` is on (2.1.6.88: a machine no
-             grant reaches then admits every domain person, sssd's and Windows' default); one sudo rule per grant
-             with sudo (ensure_grant_sudo). A set keeps its number while its grants stay the same; a new one takes
-             the next number never used. Run at the root's writable DC only: the GPOs are the root's, and the other
-             DCs copy their folders (pull_sysvol).
+             OU=machines, filtered to that group and to each of its computers by SID (2.1.6.94), giving each right
+             to its holders (restricted where a restricting grant says) and putting the local administrators'
+             groups in each machine's Administrators; a set no longer wanted removed with its GPO and groups; the
+             fallback `fabric: access none` (2.1.6.87), every machine's, kept first in OU=machines' links, or removed
+             while `grants_fallback_open` is on (2.1.6.88: a machine no grant reaches then admits every domain person,
+             sssd's and Windows' default); one sudo rule per grant with sudo (ensure_grant_sudo). A set keeps its
+             number while its grants stay the same; a new one takes the next number never used. Run at the root's
+             writable DC only: the GPOs are the root's, and the other DCs copy their folders (pull_sysvol).
     Inputs:  samdb — SamDB (as the system); lp — LoadParm; dc — the DC compiling (dc-NNNN: the who groups' gids come
              from its built-in range); fallback_open — bool, the setting grants_fallback_open.
     Returns: list of str, what changed.
@@ -115,7 +130,7 @@ def compile_grants(samdb, lp, dc, fallback_open=False):
         done += changed
         policy = access_policy(rights["keyboard"], rights["remote"], rights["local-admin"])
         done += ensure_gpo(samdb, lp, set_gpo(n), machines, SECURITY_EXTENSIONS, {SECURITY_TEMPLATE: policy})
-        done += set_gpo_filter(samdb, lp, set_gpo(n), find_group(samdb, group)[1])
+        done += set_gpo_filter(samdb, lp, set_gpo(n), find_group(samdb, group)[1], _sids(samdb, computers))
     state["sets"] = wanted
     for n in range(1, state["next"]):      # every set no longer wanted (one an interrupted compile left too)
         if str(n) not in wanted and find_gpo(samdb, set_gpo(n)) is not None:
