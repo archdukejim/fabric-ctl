@@ -38,7 +38,7 @@ docs/volume_1_description_and_architecture/1.13.1-chrony.md	ad072bf9a0b0d7d74c14
 docs/volume_1_description_and_architecture/1.14.1-image-channels.md	94a12a60defe93ae9bc13a991ae57f8961edd5ca	2026-10-08	
 docs/volume_1_description_and_architecture/1.14.2-image-updates.md	88931374b22febb0a44abbd18e960841b8d3511d	2026-10-14	
 docs/volume_1_description_and_architecture/1.14.3-published-images-on-hosts.md	3862f9cc844d007d5e23e8bf8c1794960a4e9083	2026-10-09	
-docs/volume_1_description_and_architecture/1.15.1-fluent-bit.md	f808ad89a79c10260c048ca1ec58b12037dcb8e9	2026-10-08	
+docs/volume_1_description_and_architecture/1.15.1-fluent-bit.md	b1106fe50c3441e51cbd48d61d7fed3746468413	2026-10-21	
 docs/volume_1_description_and_architecture/1.16.1-luks.md	f4b4c1a4dd1ecd389fd2fde6ec3bc00e7f92a738	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.1-about-the-reference.md	6b0b315f02c1a197b2ae64db31a6f0e932b12404	2026-10-17	
 docs/volume_1_description_and_architecture/1.17.10-fabriclib-dns.md	413a2e55b6b91405db9700f063af35b59167d36f	2026-10-17	
@@ -47,7 +47,7 @@ docs/volume_1_description_and_architecture/1.17.12-fabriclib-federation.md	7c9c4
 docs/volume_1_description_and_architecture/1.17.13-fabriclib-images.md	c2f2c17942842dbae255496dd76e98e0a4704665	2026-10-14	
 docs/volume_1_description_and_architecture/1.17.14-fabriclib-keycloak.md	67bbb249088340053c3ab9d5e9d675eb1beb751e	2026-10-21	
 docs/volume_1_description_and_architecture/1.17.15-fabriclib-ldap.md	b418f2836a0b1c7a8d6f591eb39a697a5b34fadb	2026-10-08	
-docs/volume_1_description_and_architecture/1.17.16-fabriclib-logs.md	2fe0f432ca72a73f231bfa4f30061526a2bd82a1	2026-10-08	
+docs/volume_1_description_and_architecture/1.17.16-fabriclib-logs.md	1d09ba3f340ccde109a2622ae98555f704124abe	2026-10-21	
 docs/volume_1_description_and_architecture/1.17.17-fabriclib-menu.md	4589150a9d2953beeed9bb8950a394dc3de4c98f	2026-10-20	
 docs/volume_1_description_and_architecture/1.17.18-fabriclib-ntp.md	9334d2fa4e44da9a3ed379aecea3c1896b87fc7a	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.19-fabriclib-pki.md	737f60fe31a390da200932df6b9326125f7e4455	2026-10-13	
@@ -56,7 +56,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	35c0bfe60
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3b78491b62eb3573132f18fcff7dd889074a4da5	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	293b9e4da3a9f928dfa7e26760f7ec6f4a066a7d	2026-10-20	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	476faabbe0c00c58cd1c6928553e6c062ff7c910	2026-10-10	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	01b6fff0a09ad6cbc1bbae5a8777c90f3aff92de	2026-10-20	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	e7ddd47c724ca91903c203652115e1597dc175f4	2026-10-21	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	f3e44a6d84e369f74b43802434d98aa55781efee	2026-10-20	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	9fa688001068b61ddcf6cc50ec2737c20a0155ec	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	4ee43365d905760104ebdf9d7282d8d10f32eca5	2026-10-20	
@@ -72,10 +72,10 @@ docs/volume_1_description_and_architecture/1.17.36-fabriclib-grants.md	32cbe2a56
 docs/volume_1_description_and_architecture/1.17.37-fabriclib-access.md	1813146bfa8f4ae4563fd4b406142ce9cc6d75de	2026-10-20	
 docs/volume_1_description_and_architecture/1.17.38-fabriclib-domain.md	cd35b091407fffc9f5238c370cbd3db278911cce	2026-10-20	
 docs/volume_1_description_and_architecture/1.17.4-fabricctl-lib.md	76bc845876c679778c0588d379f7246a12fae2d0	2026-10-08	
-docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	239cd5bca886e2a8fd69a65f894537d5980e8d02	2026-10-20	
+docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	24a8f1a01fa025fcc70b977e49b6bef80af6f91e	2026-10-21	
 docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	3f4d69db284bfb64153ac5fe93f26c7deeacd11c	2026-10-20	
 docs/volume_1_description_and_architecture/1.17.7-fabriclib-core.md	287e5a946064faecbdb0262ece385ff0e043036c	2026-10-08	
-docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	4b8dda0abeab4e99cce9687e5f1f48f1e328dbcb	2026-10-20	
+docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	1b328423d29941acc269f0096bb05872df59ca28	2026-10-21	
 docs/volume_1_description_and_architecture/1.17.9-fabriclib-dhcp.md	5155c8faea49f616265c3020b5e90f935985c28c	2026-10-17	
 docs/volume_1_description_and_architecture/1.2.1-topology.md	93eb5885bd1c51cc6545c5a5ebd269cf6a36173d	2026-10-10	
 docs/volume_1_description_and_architecture/1.2.10-global.md	5534a46e259bcd499006919750da778ed47dad63	2026-10-09	
@@ -144,7 +144,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	59a1064257803f8ead628a169f33c
 docs/volume_2_engineering_decisions/2.1.9-federation.md	ad67d4d7cf124b8b9e03e7793b994585d67c58fe	2026-10-20	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	0ce5c62d2d8fe77b7a436ecdc8b4c9b733a21953	2026-10-21	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	6ad9bd0a61d6e923d5ca57a78c69dcbbcb2244d8	2026-10-21	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -257,7 +257,7 @@ scripts/docs/README.md	e391ec81d122ee82ea285ffaf04eac6a8dd44372	2026-10-12
 scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03	
 scripts/docs/entrypoints.py	dc5d59bf1075fafa9d278dde8cdd1a90b8a13fea	2026-10-12	
 scripts/docs/gen_lib_doc.py	d7a3c1284ca3a30af61353d41f5a9d2a1457a325	2026-10-12	
-scripts/docs/lib_doc_numbers.tsv	edd1ed1c092dc8dc6d2da4d882a56b157d47d805	2026-10-21	
+scripts/docs/lib_doc_numbers.tsv	35323c18ce1bbadf8869f4c66783c3a6f37f45a3	2026-10-21	
 scripts/docs/lib_doc_registry.py	a3a407c2b06b44838c4ce7a69725c4d47339f437	2026-10-17	
 scripts/docs/product_code.py	645a3bb130463028b90de64798c81694e5293131	2026-10-03	
 scripts/docs/review_ledger.py	b3f307b4dbaba54a69cc93c993287d43c747ba8f	2026-10-08	
@@ -557,7 +557,7 @@ src/fabriclib/deploy/check_samba_settings.py	494e81efe7962194cbf7485c3dcd73dff59
 src/fabriclib/deploy/check_service_settings.py	de6c44e0fdbc9bc8e5d6d80f31ce31e24c8669ad	2026-10-20	
 src/fabriclib/deploy/check_settings.py	93643023fc0ace061936ae2dca9e7152b33b344a	2026-10-20	
 src/fabriclib/deploy/compose_builds.py	95f535d5fa028de30d075b3606d12f0fbbe18366	2026-10-08	
-src/fabriclib/deploy/deploy_optional_parts.py	f0b2cd1e2477a3b436d13e8ed160785613c180a1	2026-10-11	
+src/fabriclib/deploy/deploy_optional_parts.py	c021c39d012103eb1fc5fa4e8c3a543b5086b402	2026-10-21	
 src/fabriclib/deploy/deploy_paths.py	092af181572026d51744c33959d4cc8c6198fdd2	2026-10-08	
 src/fabriclib/deploy/finish_without_start.py	e791d79e627441c89984191cffef96975c591dd2	2026-10-17	
 src/fabriclib/deploy/generate_missing_secrets.py	7b879a172fe9c25338aa8536081bb21fee11ba0c	2026-10-11	
@@ -890,9 +890,10 @@ src/fabriclib/keycloak/signin_levels.py	e1e33cf07c172b5fedcaa14182196a41d16e005e
 src/fabriclib/keycloak/step.py	75f102ba525f6c9297a649f19bc3df9aec6df3dc	2026-10-02	
 src/fabriclib/keycloak/user_has_role.py	6bc7f0ffef86bfd2a883ece333b618edb6956f59	2026-10-03	
 src/fabriclib/keycloak/verify_user_token.py	bc6cfe0f6b97fb6254a9661e9ea972b9a163d611	2026-10-02	
-src/fabriclib/logs/README.md	80bd3dc29a2ce285f82ec996d9a39a3257613b61	2026-10-08	
+src/fabriclib/logs/README.md	ddf700133300bb8b2ce69c987df4216807896d8a	2026-10-21	
 src/fabriclib/logs/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
-src/fabriclib/logs/deploy_fluentbit.py	09d858008921e91464047007ec09f53718531af9	2026-10-03	
+src/fabriclib/logs/deploy_fluentbit.py	c393235addd773dd5f2932a022ccfc3b90ad7c44	2026-10-21	
+src/fabriclib/logs/fluentbit_pending.py	b9d679c84f8b3d1996060d574ce77d6f42720619	2026-10-21	
 src/fabriclib/logs/log_status.py	98fbd5794c5c9fc41c95d72644ad7b9d95a96ff7	2026-09-30	
 src/fabriclib/logs/run_logs_command.py	d54b2f2f936addd2fcee408b37873687cf62320f	2026-10-12	
 src/fabriclib/menu/README.md	7ec0196ccc7ca9ff5f5acbd8d488223a0b7340d3	2026-10-11	
@@ -1184,7 +1185,7 @@ src/fabriclib/setup/set_ram_capacity.py	d163f5910139f1405ff59bd804847b350bdc997d
 src/fabriclib/setup/setup_openbao.py	1b6229b96f9d3c7732791e7cd50e18bb25646a91	2026-10-20	
 src/fabriclib/setup/stage_source.py	fc569e4dbbec1547cbf74bb155ad3d2498c21c6b	2026-09-30	
 src/fabriclib/setup/start_bootstrap.py	cd55ee690beb024d64109b2ac4927bae129d17e7	2026-09-30	
-src/fabriclib/setup/start_services.py	b775b18da7c2925d9c66306bf7f1a9d7f21617ca	2026-10-20	
+src/fabriclib/setup/start_services.py	4b6e0c7085e0635e8576b6a9e3d77cb8fef64b0b	2026-10-21	
 src/fabriclib/setup/start_unit.py	898cc7b68b842376bbff19fa3ce5ea9480651a3b	2026-10-08	
 src/fabriclib/setup/steps.py	4301d574b01c23e095e2c13307fdb932a30ac6c6	2026-10-14	
 src/fabriclib/setup/uninstall.py	bc5c0b581281aa6bc99b8301bd30f379010b908b	2026-10-20	
@@ -1649,7 +1650,7 @@ tests/federation/nested.py	a5b8d62501d593cd78c2fcf1e69ee487839da713	2026-10-21
 tests/federation/role.py	3ca58d5cd562da5dda5711d7825d6d259697f08a	2026-10-20	
 tests/federation/run.py	567feb99ffad4983e0afa094157215be77ed5f48	2026-10-21	
 tests/fluentbit/README.md	38018212007396141e3069faf1209c2f50b8c833	2026-10-12	
-tests/fluentbit/run.py	3cd145f7c8b3cb5f1338759ecf0035cc456586aa	2026-10-12	
+tests/fluentbit/run.py	e82d68aa6397a7fe670c3cdca7a8bebc20876633	2026-10-21	
 tests/freeradius/README.md	06e07bdfb362e98d4185be54a1f29f64a2f1d9f2	2026-10-12	
 tests/freeradius/run.py	d3b8066c18dca65bcade5890b6ae6e00002dde42	2026-10-20	
 tests/hardening/README.md	514afa897a841c34383af1ef74949610d5dd333d	2026-10-05	
@@ -1724,12 +1725,12 @@ tests/sandbox/iterate.sh	8be80562d8c2adf70ec0ac9f8ed094c5bc1cdb0c	2026-10-03
 tests/sandbox/list_roles.py	857dc28e0a40f95853048b691a117befa804aff3	2026-10-05	
 tests/sandbox/login_test.py	4fad4790fc3d7e9c552f8de526e7f3ec8215a734	2026-10-17	
 tests/sandbox/make_person.py	f778029f1dfc122927b454149f21fda1c884cdf7	2026-10-05	
-tests/sandbox/move.sh	514576681d0c2559b4bd9221cf12bdd5753de183	2026-10-20	
+tests/sandbox/move.sh	f2525a241b5b1d054a51893a5ab2b408349df04f	2026-10-21	
 tests/sandbox/move_state.py	249c0e51bba5f789c7dec6aa7a9366755b6b81fa	2026-10-20	
 tests/sandbox/radius_device.py	12b3e1127a0cc5966846fe0554dc84da7a2e5449	2026-10-05	
 tests/sandbox/radius_mab.py	c9575e9fd8e3c3d52dbd77b879b9ef9a6bd148d5	2026-09-30	
 tests/sandbox/rfc2136_test.sh	4299bc1c1d62237439cad3a2ebac534f45ef0874	2026-10-09	
-tests/sandbox/run.sh	1f5d5f8ffe0af989694bfded5613d34e2f4144c6	2026-10-20	
+tests/sandbox/run.sh	4b9aba1cf446e9848f2207545a8874cff2dbcddd	2026-10-21	
 tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30	
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-12	

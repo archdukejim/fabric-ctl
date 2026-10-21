@@ -31,11 +31,18 @@ def deploy_fluentbit(v, secrets, jinja_env):
              jinja_env — Jinja environment holding fluentbit/fluent-bit.yaml.j2 (templates).
     Returns: True if any file changed (the service must restart), else False.
     Fails:   ValidationError "log_forwarding.<name>.ca_file … not found" (a destination's ca_file, or the fabric root CA
-             used by default, is missing); KeyError on missing vars; OSError; jinja2 errors.
-    Feeds:   deploy/deploy_optional_parts (apply), run_logs_command (set-password elastic); tests/fluentbit/run.py.
+             used by default, is missing; nothing is written then); KeyError on missing vars; OSError; jinja2 errors.
+    Feeds:   deploy/deploy_optional_parts (apply), setup/start_services (a fresh install, after the PKI step),
+             run_logs_command (set-password elastic); tests/fluentbit/run.py.
     Notes:   config/ is root:fluentbit 0750 and buffer/ fluentbit 0750; the config and CA files are 0640, secrets.env
              root 0600. Both CA files are written even for a destination that is not configured.
     """
+    fabric_ca = os.path.join(v["deploy_base_dir"], "stepca", "data", "certs", "root_ca.crt")
+    lf = v.get("log_forwarding") or {}
+    sources = {name: (lf.get(name) or {}).get("ca_file") or fabric_ca for name in ("syslog", "elastic")}
+    for name, src in sources.items():      # checked before anything is written
+        if not os.path.isfile(src):
+            raise ValidationError(f"log_forwarding.{name}.ca_file {src} not found")
     base = os.path.join(v["deploy_base_dir"], "fluentbit")
     uid, gid = (int(v["service_users"]["fluentbit"][k]) for k in ("uid", "gid"))
     for sub, owner, mode in (("config", (0, gid), 0o750), ("buffer", (uid, gid), 0o750)):
@@ -46,12 +53,7 @@ def deploy_fluentbit(v, secrets, jinja_env):
     cfg = os.path.join(base, "config")
     changed = _write(os.path.join(cfg, "fluent-bit.yaml"),
                      jinja_env.get_template("fluentbit/fluent-bit.yaml.j2").render(**v), 0o640, 0, gid)
-    fabric_ca = os.path.join(v["deploy_base_dir"], "stepca", "data", "certs", "root_ca.crt")
-    lf = v.get("log_forwarding") or {}
-    for name in ("syslog", "elastic"):
-        src = (lf.get(name) or {}).get("ca_file") or fabric_ca
-        if not os.path.isfile(src):
-            raise ValidationError(f"log_forwarding.{name}.ca_file {src} not found")
+    for name, src in sources.items():
         changed |= _write(os.path.join(cfg, f"{name}-ca.crt"), open(src).read(), 0o640, 0, gid)
     env = f"LOG_ELASTIC_PASSWORD={secrets.get('log_elastic_password', '')}\n"
     changed |= _write(os.path.join(cfg, "secrets.env"), env, 0o600)

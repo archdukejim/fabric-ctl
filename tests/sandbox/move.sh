@@ -76,7 +76,7 @@ ad_domain: ad.move.test
 ad_password_policy: {minimum_length: 14, complexity: true, history: 24, minimum_age_days: 0, maximum_age_days: 0, lockout_threshold: 10, lockout_minutes: 15, lockout_window_minutes: 15}
 install_keycloak: true
 install_webui: true
-install_freeradius: true      # (install_fluentbit is left off: a fresh unattended install with it stops at deploy, the CA not made yet: 2.3.1.24.6)
+install_freeradius: true      # (install_fluentbit left off: 0.7.1's own setup stops at deploy with it on, 2.3.1.24.6; 0.8.0 fixed it, 2.3.1.25.4)
 dns_filter: bind
 ntp_set_clock: false        # the sandbox shares the PC's kernel clock
 tsig_keys:

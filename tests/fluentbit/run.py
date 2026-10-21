@@ -35,7 +35,9 @@ FAILED = 0
 sys.path[0:0] = [os.path.join(REPO, "src"), REPO]
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
+from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.logs.deploy_fluentbit import deploy_fluentbit  # noqa: E402
+from fabriclib.logs.fluentbit_pending import fluentbit_pending  # noqa: E402
 from fabriclib.logs.log_status import log_status  # noqa: E402
 import fabriclib.logs.run_logs_command as m_logs  # noqa: E402
 from fabriclib.common.save_vars import save_vars  # noqa: E402
@@ -152,6 +154,24 @@ open(audit, "w").close()
 os.chown(f"{W}/openbao/logs", 913, 913)
 os.chown(audit, 913, 913)
 os.chmod(audit, 0o640)
+# a fresh install's deploy step comes before its PKI step (note 2.3.1.25.4): Fluent Bit waits for the root CA
+FRESH = {**V, "deploy_base_dir": f"{W}/fresh"}
+os.makedirs(FRESH["deploy_base_dir"])
+check("a fresh install, Step-CA not initialised yet: Fluent Bit is left for setup's start step (fluentbit_pending)",
+      fluentbit_pending(FRESH) and not fluentbit_pending({**FRESH, "install_fluentbit": False}))
+check("negative: with every destination's own ca_file nothing waits for fabric's CA",
+      not fluentbit_pending({**FRESH, "log_forwarding": {"syslog": {"ca_file": "/x.crt"},
+                                                       "elastic": {"ca_file": "/y.crt"}}}))
+os.makedirs(f"{W}/fresh/stepca/data/config")
+open(f"{W}/fresh/stepca/data/config/ca.json", "w").write("{}")
+try:
+    deploy_fluentbit(FRESH, {"log_elastic_password": PW}, env)
+    refused = ""
+except ValidationError as e:
+    refused = str(e)
+check("negative: an initialised CA whose root is missing is not waited for: the deploy is refused naming the file, "
+      "and nothing is written", not fluentbit_pending(FRESH) and "root_ca.crt not found" in refused
+      and not os.path.exists(f"{W}/fresh/fluentbit"), refused)
 check("config, CAs, credentials and buffer written; the password only in the root-only env file",
       deploy_fluentbit(V, {"log_elastic_password": PW}, env)
       and PW not in open(f"{W}/fluentbit/config/fluent-bit.yaml").read()

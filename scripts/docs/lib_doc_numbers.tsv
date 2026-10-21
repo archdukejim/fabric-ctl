@@ -577,6 +577,7 @@ file	fabriclib-ldap|src/fabriclib/ldap/seed_directory.py	22	0.5.0 / 2026-10-04
 file	fabriclib-ldap|src/fabriclib/ldap/update_device.py	23	0.5.0 / 2026-10-04
 file	fabriclib-ldap|src/fabriclib/ldap/update_role.py	24	0.5.0 / 2026-10-04
 file	fabriclib-logs|src/fabriclib/logs/deploy_fluentbit.py	1	
+file	fabriclib-logs|src/fabriclib/logs/fluentbit_pending.py	4	
 file	fabriclib-logs|src/fabriclib/logs/log_status.py	2	
 file	fabriclib-logs|src/fabriclib/logs/run_logs_command.py	3	
 file	fabriclib-menu|src/fabriclib/menu/apply_and_report.py	1	
@@ -2021,6 +2022,7 @@ function	fabriclib-ldap|src/fabriclib/ldap/update_device.py|update_device	1	0.5.
 function	fabriclib-ldap|src/fabriclib/ldap/update_role.py|update_role	1	0.5.0 / 2026-10-04
 function	fabriclib-logs|src/fabriclib/logs/deploy_fluentbit.py|_write	1	
 function	fabriclib-logs|src/fabriclib/logs/deploy_fluentbit.py|deploy_fluentbit	2	
+function	fabriclib-logs|src/fabriclib/logs/fluentbit_pending.py|fluentbit_pending	1	
 function	fabriclib-logs|src/fabriclib/logs/log_status.py|log_status	1	
 function	fabriclib-logs|src/fabriclib/logs/run_logs_command.py|run_logs_command	1	
 function	fabriclib-menu|src/fabriclib/menu/apply_and_report.py|apply_and_report	1	

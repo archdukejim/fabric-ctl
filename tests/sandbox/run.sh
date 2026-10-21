@@ -81,6 +81,7 @@ webui_admin_email: pat@lan.test
 # the raised sign-in (2.3.6.2.6): the strict login test below; the host suite proves the default and raising
 webui_client_cert: true
 signin_admin_second_factor: totp
+install_fluentbit: true      # a fresh install with it on (2.3.1.25.4): deployed after the PKI step
 install_freeradius: true
 install_kea: true
 dns_filter: bind
@@ -140,6 +141,10 @@ in_box 'fabricctl setup --file /root/vars.yaml --non-interactive --yes --approve
     | tee "$OUT/setup.log"
 # covers: cli:setup +
 check "setup completes" "grep -q 'fabric is ready' '$OUT/setup.log'"
+check "Fluent Bit on at a fresh install: left by the deploy step for the root CA, deployed at the start step and running (2.3.1.25.4)" \
+    "grep -q \"Fluent Bit: deployed once fabric's root CA is made\" '$OUT/setup.log' \
+     && grep -q 'Fluent Bit: its configuration and the CA certificates' '$OUT/setup.log' \
+     && in_box 'systemctl is-active fluentbit' | grep -qx active && in_box 'test -s /opt/fluentbit/config/syslog-ca.crt'"
 check "the first Directory Administrator is pat.admin, created with the password chosen for setup (2.1.6.33, 2.1.6.69)" \
     "grep -q \"Directory Administrator 'pat.admin' (Pat Example) created in the directory with the password chosen in setup\" '$OUT/setup.log'"
 GLASS=/root/fabric-admin/fabric-admin-password.txt
