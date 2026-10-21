@@ -69,10 +69,6 @@ def free_port():
 # ---------------------------------------------------------------- the upstream: tree, root CA, vars
 shutil.rmtree(W, ignore_errors=True)
 subprocess.run(["bash", f"{REPO}/packaging/deb/assemble-tree.sh", W], check=True)     # the installed tree
-# config/VERSION is set on the release candidate's branch (2.1.1.40), so this branch's tree still says the release
-# before it; the upstream here is 0.8.0's, whose invitations a site accepts (2.1.6.65's revision)
-with open(f"{W}/fabric/VERSION", "w") as f:
-    f.write("0.8.0\n")
 os.makedirs(f"{W}/fabric/config")
 data = f"{W}/hq/stepca/data"
 for d in ("certs", "secrets", "artifacts"):

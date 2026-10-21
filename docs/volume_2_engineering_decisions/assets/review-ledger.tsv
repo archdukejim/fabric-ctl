@@ -14,7 +14,7 @@ LICENSE	05e475fa9aff67dbd7d98e3bc88d87f93e36c79f	2026-09-30
 README.md	65a9ba6c0fd26636bcd0fadb811b47fe4dd1dcd7	2026-10-12	
 THIRD_PARTY_NOTICES	ff836ec5208f7ac6140740a07186107c63702d24	2026-10-08	
 config/README.md	6300abd255fbbe5a87bd0d83cd9c9dd1c4b8de1f	2026-10-08	
-config/VERSION	7486fdbc50b3f93d9d04db440483984df5d1dcce	2026-10-17	
+config/VERSION	a3df0a6959e154733da89a5d6063742ce6d5b851	2026-10-21	
 config/images.lock.yaml	0dcb952b83bd555ac4081e259ceb11320588ee0a	2026-10-17	
 config/link-vars-template.yaml	09caaa55680a13015332a468218c99437f67db26	2026-09-30	
 docs/README.md	a83e2585272bfff196d38a7264e6e2661ce40693	2026-10-09	
@@ -144,7 +144,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	59a1064257803f8ead628a169f33c
 docs/volume_2_engineering_decisions/2.1.9-federation.md	ad67d4d7cf124b8b9e03e7793b994585d67c58fe	2026-10-20	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	0a312472d68d17d0cee4188d65a7b7e86b15c246	2026-10-08	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	2aa718d7b884a23e1e2e127729e4ba126c78b2a8	2026-10-21	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	d1c654880a10ed8f5c90b5bfd77be7dabe9d390b	2026-10-21	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -1645,9 +1645,9 @@ tests/entrypoints.yaml	1a6a698c33d1bf4626fb9263875b9c411b99eb82	2026-10-20
 tests/federation/README.md	196c75b746763bfb12df898172248a0bfe83ad06	2026-10-05	
 tests/federation/address_plan.py	353d827caa3bd6b24884c785e238d859d9f16066	2026-10-08	
 tests/federation/dns.py	981ee957598457d81569b910514ce665472c18c3	2026-10-09	
-tests/federation/nested.py	9677038b136b6e14db2965b0e615d65921904ecd	2026-10-18	
+tests/federation/nested.py	a5b8d62501d593cd78c2fcf1e69ee487839da713	2026-10-21	
 tests/federation/role.py	3ca58d5cd562da5dda5711d7825d6d259697f08a	2026-10-20	
-tests/federation/run.py	44957b0a32a8da6880500525cb303b55b1936ea4	2026-10-20	
+tests/federation/run.py	567feb99ffad4983e0afa094157215be77ed5f48	2026-10-21	
 tests/fluentbit/README.md	38018212007396141e3069faf1209c2f50b8c833	2026-10-12	
 tests/fluentbit/run.py	3cd145f7c8b3cb5f1338759ecf0035cc456586aa	2026-10-12	
 tests/freeradius/README.md	06e07bdfb362e98d4185be54a1f29f64a2f1d9f2	2026-10-12	
