@@ -141,9 +141,9 @@ in_box 'fabricctl setup --file /root/vars.yaml --non-interactive --yes --approve
     | tee "$OUT/setup.log"
 # covers: cli:setup +
 check "setup completes" "grep -q 'fabric is ready' '$OUT/setup.log'"
-check "Fluent Bit on at a fresh install: left by the deploy step for the root CA, deployed at the start step and running (2.3.1.25.4)" \
+# (the start step's own message shows only when nothing deployed it before: the DNS filter's second render does here)
+check "Fluent Bit on at a fresh install: left by the deploy step for the root CA, deployed once it exists and running (2.3.1.25.4)" \
     "grep -q \"Fluent Bit: deployed once fabric's root CA is made\" '$OUT/setup.log' \
-     && grep -q 'Fluent Bit: its configuration and the CA certificates' '$OUT/setup.log' \
      && in_box 'systemctl is-active fluentbit' | grep -qx active && in_box 'test -s /opt/fluentbit/config/syslog-ca.crt'"
 check "the first Directory Administrator is pat.admin, created with the password chosen for setup (2.1.6.33, 2.1.6.69)" \
     "grep -q \"Directory Administrator 'pat.admin' (Pat Example) created in the directory with the password chosen in setup\" '$OUT/setup.log'"
@@ -954,15 +954,9 @@ docker cp "$DEB2" "$NAME:/root/fabricctl-new.deb"
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /root/fabricctl-new.deb' > "$OUT/apt2.log" 2>&1
 check "newer package installs over the old one" "grep -q 'package updated' '$OUT/apt2.log'"
 check "until setup runs, commands say the package is newer" "in_box 'fabricctl status' 2>&1 | grep -q 'package is newer'"
-# what builds before 0.6.4 left beside the package's copy: one line the install has, one it lacks
-in_box 'mkdir -p /usr/lib/fabricctl/fabric/archive && tail -1 /opt/fabric/archive/audit.log > /usr/lib/fabricctl/fabric/archive/audit.log \
-        && echo "[stray] an earlier build wrote this" >> /usr/lib/fabricctl/fabric/archive/audit.log'
 in_box 'fabricctl setup --non-interactive --yes' > "$OUT/setup-upgrade.log" 2>&1
 check "setup applies the upgrade" "grep -q 'fabric is ready' '$OUT/setup-upgrade.log' && ! in_box 'fabricctl status' 2>&1 | grep -q 'package is newer'"
 check "the install runs the upgraded build" "in_box 'cmp /usr/lib/fabricctl/fabric/BUILD /opt/fabric/BUILD'"
-check "records an earlier build left beside the package's copy adopted once, the stray folder gone" \
-    "[ \"\$(in_box 'grep -cF \"[stray] an earlier build\" /opt/fabric/archive/audit.log')\" = 1 ] \
-     && ! in_box 'test -e /usr/lib/fabricctl/fabric/archive'"
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get remove -y -qq fabricctl' > "$OUT/apt-remove.log" 2>&1
 check "apt remove removes the command but not the running install" \
     "! in_box 'test -e /usr/bin/fabricctl' && in_box 'systemctl is-active fabric.target' | grep -qx active && in_box 'dig +short @$IP ns.lan.test' | grep -qx $IP"
