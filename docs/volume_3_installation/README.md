@@ -8,6 +8,7 @@ Installing, upgrading, building and releasing fabric, and maintaining its host. 
 - [3.1.2 Automated tests](3.1.2-automated-tests.md)
 - [3.1.3 The web UI's dev preview](3.1.3-dev-preview.md)
 - [3.1.4 Working on fabric](3.1.4-working-on-fabric.md)
+- [3.1.5 The Hyper-V test lab on gaming-23](3.1.5-hyperv-lab.md)
 
 ## 3.2 Architecture and the host
 
