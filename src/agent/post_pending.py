@@ -20,14 +20,16 @@ def _run(route, actor, body, perms, session):
     return post_route(route, actor, body, perms, session)
 
 
-def _finish(page):
-    """Purpose: What a page's changes still need once all are done: the Domain page's settings written into the
-             domain's services, restarting only what changed, health-gated (manual 1.8.6.5, 2.1.14.15).
-    Inputs:  page — a page id.
-    Returns: (what, fn(actor)) for "domain"; None for every other page.
+def _finish(page, routes=()):
+    """Purpose: What a page's changes still need once all are done: a password policy changed on Policies is fabric's
+             setting, written into the domain's services, restarting only what changed, health-gated (manual
+             1.8.6.5, 1.6.12.10, 2.1.14.15).
+    Inputs:  page — a page id; routes — the routes of the changes being applied.
+    Returns: (what, fn(actor)) for "policies" when the password policy is among them; None otherwise (Group Policy
+             and sudo rules are written by their own changes).
     Fails:   never (fn raises ValidationError when the apply does not finish).
     Feeds:   PENDING (its finish)."""
-    if page != "domain":
+    if page != "policies" or ["domain", "password-policy"] not in [list(r) for r in routes]:
         return None
 
     def write(actor):

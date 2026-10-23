@@ -90,7 +90,8 @@ def _group(h, name, op, form):
 
 
 def _host_access(h, kind, name, op, form):
-    """Purpose: A host group or sudo rule form (manual 1.6.11.7), held on Machines until its Apply.
+    """Purpose: A host group form (manual 1.6.11.7), held on Machines, or a sudo rule form, held on Policies
+             (1.6.12.10), until its page's Apply.
     Inputs:  h — the request handler; kind — "hostgroups" or "sudo"; name — "_new" (form name; for sudo also users,
              commands, run_as as text separated by commas, hosts), "_form" with op "members" (form group, machine,
              action add|remove), or a group's or rule's name with op "delete"; op — str; form — dict.
@@ -98,7 +99,7 @@ def _host_access(h, kind, name, op, form):
     Fails:   AgentError, PermissionDenied and AuthError propagate.
     Feeds:   directory_post."""
     items = lambda key: [x.strip() for x in form.get(key, "").split(",") if x.strip()]    # noqa: E731
-    back = "/directory/machines"
+    back = "/directory/policies/sudo" if kind == "sudo" else "/directory/machines"
     if kind == "hostgroups" and name == "_new" and not op:
         return held(h, back, "host-groups", {"name": form.get("name", "")})
     if kind == "hostgroups" and name == "_form" and op == "members":
@@ -167,13 +168,13 @@ def directory_post(h, sess, parts, form):
         return _host_access(h, kind, name, op, form)
     if kind == "domain" and name == "password-policy" and not op:
         values = {k: form[k] for k in [f for f, _ in POLICY_FIELDS] + ["complexity"] if k in form}
-        return held(h, "/directory/domain", "domain/password-policy", values)
+        return held(h, "/directory/policies", "domain/password-policy", values)
     if kind == "gpo" and name in ("set", "clear") and not op:
         body = {"policy": form.get("policy", ""), "control": bool(form.get("control"))}
         if name == "set":
             body.update(values={k[3:]: val for k, val in form.items() if k.startswith("el_") and val != ""},
                         enabled=not form.get("disabled"))
-        return held(h, "/directory/gpo", f"gpo/{name}", body)
+        return held(h, "/directory/policies/gpo", f"gpo/{name}", body)
     if kind not in ("devices", "roles") or not name:
         return h.deny(404, "Not found.")
     listing = f"/8021x/{kind}"

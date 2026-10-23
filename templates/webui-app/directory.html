@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% import "pattern.html" as p %}{% from "directory_macros.html" import device_fields, role_fields with context %}{% block body %}
-<h1>{{ {"devices": "802.1X · Devices", "device": "802.1X · Device", "roles": "802.1X · Device roles", "role": "802.1X · Device role", "overview": "Directory · Overview", "domain": "Directory · Domain", "machines": "Directory · Machines", "gpo": "Directory · Group Policy"}.get(view, "Directory") }}</h1>
+<h1>{{ {"devices": "802.1X · Devices", "device": "802.1X · Device", "roles": "802.1X · Device roles", "role": "802.1X · Device role", "overview": "Directory · Overview", "machines": "Directory · Machines"}.get(view, "Directory") }}</h1>
 {% if unavailable %}<section class="card"><p class="flash bad">The directory could not be read: {{ unavailable }}</p></section>
 
 {% elif view == 'overview' %}
@@ -110,30 +110,6 @@
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Delete role</button>
 <span class="muted">Only possible once no device is in it.</span></form>{% endif %}
 
-{% elif view == 'domain' %}
-{% set s = domain.status %}
-<section class="card"><h2>Domain <span class="muted">{{ s.domain }}</span></h2>
-<dl class="facts">
-<dt>Realm</dt><dd>{{ s.realm }}</dd><dt>NetBIOS name</dt><dd>{{ s.netbios }}</dd>
-<dt>This site's controller</dt><dd>{{ p.light('ok' if s.running else 'bad', 'running' if s.running else 'not running') }} {{ s.dc }} — {{ 'running' if s.running else 'not running' }}</dd>
-</dl>
-{# the roles named plainly (2.1.2.22): all held here, or which another controller holds, never each role's DN #}
-{% if s.role_summary and s.role_summary.text %}<p>{{ s.role_summary.text }}</p>
-{% elif s.running %}<p class="muted small">The domain-wide roles could not be read.</p>{% endif %}
-</section>
-<section class="card"><h2>Password policy</h2>
-{% if domain.policy and not can('domain:admin') %}<table><tbody>{% for key, value in domain.policy | dictsort %}<tr><td>{{ key | replace('_', ' ') }}</td><td class="num">{{ value }}</td></tr>{% endfor %}</tbody></table>{% elif not domain.policy %}<p class="blank">Not set.</p>{% endif %}
-{% if can('domain:admin') %}
-<form method="post" action="/directory/domain/password-policy" class="grid">
-<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-{% for key, label in policy_fields %}<label>{{ label }}<input name="{{ key }}" required inputmode="numeric" pattern="[0-9]+" value="{{ domain.policy[key] if domain.policy and key in domain.policy }}"></label>
-{% endfor %}<label>Complexity (three kinds of characters, not the user name)<select name="complexity"><option value="on"{{ ' selected' if not domain.policy or domain.policy.complexity }}>on</option><option value="off"{{ ' selected' if domain.policy and not domain.policy.complexity }}>off</option></select></label>
-<div><button>Save the policy</button></div>
-</form>
-<p class="muted small">Checked as <code>fabricctl domain password-policy</code> checks it (a lockout at least as long as
-its window, a minimum age below the maximum) when the Domain page is applied: the change waits for <strong>Apply</strong> in the top bar, which writes it into the domain; a refusal says why and changes nothing.</p>
-{% else %}<p class="muted small">Changed by an admin here or on the fabric host: <code>sudo fabricctl domain password-policy …</code> (manual 4.6.5).</p>{% endif %}
-</section>
 {% elif view == 'machines' %}
 <section class="card"><h2>Machines of {{ domain.site }} {% if domain.machines is not none %}<span class="muted">{{ domain.machines | length }}</span>{% endif %}</h2>
 <p class="muted">Windows and Linux machines joined to the domain (<code>OU=machines</code>, filed by type) and the fabric hosts. A disabled machine cannot log anyone on or sign in to an 802.1X port; its account stays.</p>
@@ -161,7 +137,7 @@ its window, a minimum age below the maximum) when the Domain page is applied: th
 </section>{% endif %}
 {% if access %}<section class="card"><h2>Host groups {% if access.groups %}<span class="muted">{{ access.groups | length }}</span>{% endif %}</h2>
 <p class="muted">Groups of the domain's machines (<code>hosts-&lt;name&gt;</code>), for sudo rules to aim at.</p>
-{% if access.error %}<p class="flash bad">Host groups and sudo rules could not be read: {{ access.error }}</p>{% endif %}
+{% if access.error %}<p class="flash bad">Host groups could not be read: {{ access.error }}</p>{% endif %}
 {% if access.groups %}<table><thead><tr><th>Host group</th><th>Machines</th><th>Sudo rules</th><th></th></tr></thead><tbody>
 {% for g in access.groups %}<tr><td data-label="Host group"><strong>{{ g.name }}</strong>{% if not g.fabric %}<div class="muted small">not made by fabric</div>{% endif %}</td><td data-label="Machines">{{ g.machines | join(', ') or 'none' }}{% if g.other_members %}<div class="muted small">also {{ g.other_members | join(', ') }}</div>{% endif %}</td><td data-label="Sudo rules">{{ g.rules | join(', ') or '—' }}</td>
 <td class="num">{% if can('machines:admin') %}<form method="post" action="/directory/hostgroups/{{ g.short | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger" title="refused while a sudo rule names it; its machines stay">Remove</button></form>{% endif %}</td></tr>{% endfor %}
@@ -180,51 +156,7 @@ its window, a minimum age below the maximum) when the Domain page is applied: th
 </form>
 <p class="muted small">A machine put in or taken out of a host group changes where its sudo rules apply once applied (sssd reads them within minutes).</p>{% endif %}
 </section>
-<section class="card"><h2>Sudo rules {% if access.sudo %}<span class="muted">{{ access.sudo | length }}</span>{% endif %}</h2>
-<p class="muted">Who may run which commands as whom on the domain's Linux machines (never a fabric host). Rules made with other tools are shown read-only.</p>
-{% if access.sudo %}<table><thead><tr><th>Rule</th><th>Who</th><th>Commands</th><th>As</th><th>Where</th><th></th></tr></thead><tbody>
-{% for r in access.sudo %}<tr><td data-label="Rule"><strong>{{ r.name }}</strong><div class="muted small">{{ {'fabric': 'fabric', 'other': "not fabric's: read-only"}[r.kind] }}</div></td><td data-label="Who">{{ r.users | join(', ') }}</td><td data-label="Commands"><code class="small">{{ r.commands | join(', ') }}</code></td><td data-label="As">{{ r.run_as | join(', ') or 'root' }}</td>
-<td data-label="Where">{% if r.host_group and r.host_group != 'ALL' %}{{ r.host_group }}<div class="muted small">{{ r.hosts | join(', ') or 'no machines yet' }}</div>{% else %}{{ r.hosts | join(', ') or '—' }}{% endif %}</td>
-<td class="num">{% if can('sudo:admin') and r.kind == 'fabric' %}<form method="post" action="/directory/sudo/{{ r.name | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Remove</button></form>{% endif %}</td></tr>{% endfor %}
-</tbody></table>{% elif not access.error %}<p class="blank">No sudo rules.</p>{% endif %}
-{% if can('sudo:admin') %}<form method="post" action="/directory/sudo/_new" class="grid">
-<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<label>Name<input name="name" required pattern="[a-z0-9][a-z0-9_-]{0,62}" placeholder="web-restart"></label>
-<label>Who<input name="users" required placeholder="alice, %web-ops" title="user names and %groups, separated by commas"></label>
-<label>Commands<input name="commands" required placeholder="/usr/bin/systemctl restart nginx" title="absolute paths with their arguments, or ALL, separated by commas"></label>
-<label>As<input name="run_as" placeholder="root" title="default root"></label>
-<label>Where<select name="hosts"><option value="ALL">every joined machine</option>{% for g in access.groups %}<option value="{{ g.name }}">{{ g.name }}</option>{% endfor %}</select></label>
-<div><button>Add</button></div>
-</form>
-<p class="muted small">A rule granting ALL commands to everyone (ALL, Domain Users, a site's group) is refused. On a host group, the rule names that group's machines and follows it as machines come and go (manual 4.6.6).</p>{% endif %}
-</section>{% endif %}
-
-{% elif view == 'gpo' %}
-{% for kind, title, about in (('settings', 'admin settings', "Defaults for the machines and people, linked at OU=machines."), ('controls', 'controls', "Linked enforced at OU=machines: a GPO linked below cannot override or block these.")) %}
-<section class="card"><h2>Group Policy <span class="muted">fabric: {{ gpo.site }} {{ title }}</span></h2>
-<p class="muted">{{ about }}{% if kind == 'settings' %} fabric's own (the CA trust, log-on rights, the Windows baseline) are kept by fabric. Templates are loaded on the fabric host: <code>sudo fabricctl gpo load &lt;folder&gt;</code> (manual 4.6.8).{% endif %}</p>
-{% set g = gpo[kind] or {'machine': [], 'user': []} %}
-{% if g.machine or g.user %}
-<table><thead><tr><th>Applies to</th><th>Key</th><th>Value</th><th>Data</th></tr></thead><tbody>
-{% for scope in ('machine', 'user') %}{% for key, name, vkind, data in g[scope] %}<tr><td data-label="Applies to">{{ scope }}</td><td data-label="Key"><code class="small">{{ key }}</code></td><td data-label="Value">{{ name }}</td><td data-label="Data">{{ data }}</td></tr>{% endfor %}{% endfor %}
-</tbody></table>{% else %}<p class="blank">Nothing set yet.</p>{% endif %}
-</section>
-{% endfor %}
-<section class="card"><h2>Find a policy <span class="muted">{{ gpo.templates | join(', ') or 'no templates loaded' }}</span></h2>
-<form method="get" action="/directory/gpo" class="grid">
-<label>Name or title contains<input name="match" value="{{ gpo.match }}" maxlength="100"></label><div><button>Search</button></div></form>
-{% if gpo.match %}
-{% if gpo.policies %}<table><thead><tr><th>Policy</th><th>For</th><th>Elements</th><th></th></tr></thead><tbody>
-{% for p in gpo.policies %}<tr><td data-label="Policy"><strong>{{ p.display }}</strong><div class="muted small">{{ p.name }} · {{ p.template }}</div></td><td data-label="For">{{ p.class }}</td><td data-label="Elements"><code class="small">{{ p.elements | join(' ') or '—' }}</code></td>
-<td>{% if can('gpo:admin') %}<form method="post" action="/directory/gpo/set" class="grid"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="policy" value="{{ p.name }}">
-{% for e in p.elements %}{% set eid = e.split(':', 1)[1] %}<label class="small">{{ eid }}<input name="el_{{ eid }}"></label>{% endfor %}
-<label class="check"><input type="checkbox" name="disabled" value="1"> Disabled</label><label class="check"><input type="checkbox" name="control" value="1"> As a control (enforced)</label><div><button>Set</button></div></form>
-<form method="post" action="/directory/gpo/clear"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="policy" value="{{ p.name }}"><button class="ghost">Not configured</button></form>
-<form method="post" action="/directory/gpo/clear"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="policy" value="{{ p.name }}"><input type="hidden" name="control" value="1"><button class="ghost">Not configured (control)</button></form>{% endif %}</td></tr>{% endfor %}
-</tbody></table>{% if gpo.more %}<p class="muted small">More match: narrow the search.</p>{% endif %}
-{% else %}<p class="blank">No policy matches.</p>{% endif %}
 {% endif %}
-<p class="muted small">Values: a number, text, on/off, an option's name or number, or a list as a;b;c.</p>
-</section>
+
 {% endif %}
 {% endblock %}

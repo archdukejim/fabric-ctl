@@ -17,6 +17,7 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `directory.py` | The Directory's pages and 802.1X's devices and roles: the Overview, the domain, machines, Group Policy. |
 | `groups.py` | Directory · Groups: the list, a group's two levels and their forms, Create group. |
 | `paged.py` | A long list's search and paging (People, Groups). |
+| `policies.py` | Directory · Policies: the password policy, Group Policy and the sudo rules, one Apply. |
 | `people.py` | Directory · People: the list (search, 50 a page), a person's page and its forms, Add person. |
 | `error_page.py` | The error page: status, message and a 'Sign in again' link. |
 | `freeradius.py` | The FreeRADIUS tab: overview (server, people groups, RADIUS clients, recent decisions) or a setup guide for switches or Windows. |

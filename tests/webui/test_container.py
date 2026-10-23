@@ -691,31 +691,31 @@ def applied(page, cookie):
 # covers: web:post.directory.domain.password-policy +
 vars_before = open(f"{W}/fabric/config/vars.yaml").read()
 st, hd, _sc, pbody = req("POST", "/directory/domain/password-policy", POSTH, {"csrf": csrf, **POLICY}, cookie=session)
-check("password policy from the console: held for the Domain page's Apply by the real agent (its read of the policy "
+check("password policy from the console: held for Policies' Apply by the real agent (its read of the policy "
       "as the version), vars.yaml unchanged", st == 303
       and "Waiting for Apply: Change the password policy" in urllib.parse.unquote_plus(hd.get("Location", ""))
       and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, (st, hd.get("Location"), pbody[-600:]))
-body = req("GET", "/directory/domain", ALICE, cookie=session)[3]
-check("the top bar: 1 change pending on Domain, Review, Apply, Discard", "<strong>1 change pending</strong>" in body
-      and 'action="/changes/domain/apply"' in body, body[:2000])
-body = applied("domain", session)
+body = req("GET", "/directory/policies", ALICE, cookie=session)[3]
+check("the top bar: 1 change pending on Policies, Review, Apply, Discard", "<strong>1 change pending</strong>" in body
+      and 'action="/changes/policies/apply"' in body, body[:2000])
+body = applied("policies", session)
 # covers: web:post.changes.*.apply -
 check("Apply: one job; the policy refused by fabric-agent without a DC to check the caller (fail closed), said in the "
       "queue; the change still pending; vars.yaml unchanged", "the domain controller is not running" in body
       and "Change the password policy" in body and "Apply 1 change" in body
       and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, body[-2500:])
-st, hd, *_ = req("POST", "/changes/domain/discard", POSTH, {"csrf": csrf}, cookie=session)
+st, hd, *_ = req("POST", "/changes/policies/discard", POSTH, {"csrf": csrf}, cookie=session)
 # covers: web:post.changes.*.discard +
-check("Discard: dropped, back on Domain", "Discarded 1 pending change" in urllib.parse.unquote_plus(
+check("Discard: dropped, back on Policies", "Discarded 1 pending change" in urllib.parse.unquote_plus(
     hd.get("Location", "")), hd)
 for form, why in (({"lockout_minutes": "5", "lockout_window_minutes": "15"}, "at least as long"),
                   ({"minimum_age_days": "400"}, "must be below"), ({"minimum_length": "x"}, "whole number")):
     # covers: web:post.directory.domain.password-policy -
     req("POST", "/directory/domain/password-policy", POSTH, {"csrf": csrf, **POLICY, **form}, cookie=session)
-    body = applied("domain", session)
+    body = applied("policies", session)
     check(f"password policy refused at Apply ({why}): said why (before the caller's check), vars.yaml unchanged",
           why in body and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, body[-2000:])
-    req("POST", "/changes/domain/discard", POSTH, {"csrf": csrf}, cookie=session)
+    req("POST", "/changes/policies/discard", POSTH, {"csrf": csrf}, cookie=session)
 st, hd, sc, body = req("GET", "/audit", ALICE, cookie=session)
 # covers: web:get.audit agent:get.audit agent:post.events +
 check("audit log records web actions with user", "User: alice (web) | Action: DNS_ADD" in body
@@ -1166,13 +1166,13 @@ check("admin token: a machine's change refused when held without a DC to read th
       and '"pending": 1' not in agent_call("GET", "/v1/pending", "alice", ADMIN_ROLES), out)
 out = agent_call("POST", "/v1/pending/hold", "alice", ADMIN_ROLES,
                  {"route": "domain/password-policy", "body": {"minimum_length": 14}})
-check("admin token: the password policy held on Domain (the agent decides the page; its version fabric's setting)",
-      " 200 " in out and '"page": "domain"' in out, out)
+check("admin token: the password policy held on Policies (the agent decides the page; its version fabric's setting)",
+      " 200 " in out and '"page": "policies"' in out, out)
 out = agent_call("GET", "/v1/pending", "carol", AUDITOR_ROLES)
 check("another person's token sees none of it", " 200 " in out and '"pending": 1' not in out, out)
-out = agent_call("GET", "/v1/pending/domain", "alice", ADMIN_ROLES)
+out = agent_call("GET", "/v1/pending/policies", "alice", ADMIN_ROLES)
 check("...its owner's does, with the change in a sentence", '"what": "Change the password policy"' in out, out)
-out = agent_call("POST", "/v1/pending/domain/discard", "alice", ADMIN_ROLES)
+out = agent_call("POST", "/v1/pending/policies/discard", "alice", ADMIN_ROLES)
 check("...and discards it", '"dropped": 1' in out, out)
 out = agent_call("GET", "/v1/account", "carol", ())
 # covers: agent:get.account -

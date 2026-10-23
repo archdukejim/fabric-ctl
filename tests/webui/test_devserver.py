@@ -89,7 +89,8 @@ def serve(bundle=None):
 
 
 PAGES = ["/", "/overview/doctor", "/overview/updates", "/audit", "/dns/zones", "/dns-filter", "/kea", "/pki",
-         "/pki/acme", "/directory", "/directory/people", "/directory/groups", "/directory/domain", "/directory/machines", "/directory/gpo",
+         "/pki/acme", "/directory", "/directory/people", "/directory/groups", "/directory/machines", "/directory/policies",
+         "/directory/policies/gpo", "/directory/policies/sudo",
          "/8021x", "/8021x/decisions", "/8021x/guides", "/8021x/devices", "/8021x/roles", "/secrets", "/secrets/unlock",
          "/secrets/disk", "/federation", "/settings", "/settings/sign-in", "/account", "/account/groups"]
 # 1.8.6.4's moved addresses -> where each answers now
@@ -101,8 +102,9 @@ MOVED = {"/bind9": "/dns/zones", "/bind9?zone=iot.home.arpa&msg=x": "/dns/zones?
          "/directory?view=devices": "/8021x/devices", "/directory?view=nonsense": "/directory",
          "/directory?view=device&name=jims-laptop": "/8021x/devices/jims-laptop",
          "/directory?view=roles": "/8021x/roles", "/directory?view=role&name=iot": "/8021x/roles/iot",
-         "/directory?view=people": "/directory/people", "/directory?view=domain": "/directory/domain",
-         "/directory?view=machines": "/directory/machines", "/directory?view=gpo&match=ex": "/directory/gpo?match=ex",
+         "/directory?view=people": "/directory/people", "/directory?view=domain": "/directory/policies",
+         "/directory?view=machines": "/directory/machines", "/directory?view=gpo&match=ex": "/directory/policies/gpo?match=ex",
+         "/directory/domain": "/directory/policies", "/directory/gpo?match=ex": "/directory/policies/gpo?match=ex",
          "/directory/devices/jims-laptop": "/8021x/devices/jims-laptop", "/directory/roles/iot": "/8021x/roles/iot"}
 # each bundle's navigation entries (1.8.2.1.1's bundles against 1.8.6.4's table), written out as the oracle
 ENTRIES = {
@@ -586,35 +588,35 @@ with serve():
           "no group nope" in flash(page) and "change pending" not in page, flash(page))
     for path in ("/directory/groups/a/b/members", "/directory/groups/lab-users/rename"):
         check(f"refused: {path} (404)", req("POST", path, {"csrf": "dev"})[0] == 404)
-    page = get("/directory/domain")
-    check("Directory · Domain: the domain, its controller running, the password policy",
-          "ad.home.arpa" in page and "pi-core.ad.home.arpa" in page and "Minimum length" in page)
-    check("Directory · Domain: the roles named plainly, no role's DN (2.1.2.22)",
-          "This controller holds all five roles" in page and "NTDS Settings" not in page)
-    check("Directory · Domain (admin): the password policy form",
+    page = get("/directory/policies")
+    # covers: web:get.directory.policies +
+    check("Directory · Policies: the three kinds as tabs (Password policy shown), the password policy",
+          'href="/directory/policies/gpo"' in page and 'href="/directory/policies/sudo"' in page
+          and "Minimum length" in page and '<a href="/directory/policies" class="active"' in page, page[-3000:])
+    check("Directory · Policies (admin): the password policy form",
           'action="/directory/domain/password-policy"' in page and 'name="lockout_window_minutes"' in page
           and 'name="complexity"' in page)
     st, loc, page = post("/directory/domain/password-policy",
                          {"minimum_length": "16", "history": "24", "minimum_age_days": "0", "maximum_age_days": "0",
                           "lockout_threshold": "5", "lockout_minutes": "15", "lockout_window_minutes": "15",
                           "complexity": "on"})
-    check("password policy: held for the Domain page's Apply", "Waiting for Apply: Change the password policy"
+    check("password policy: held for Policies' Apply", "Waiting for Apply: Change the password policy"
           in flash(page) and "<strong>1 change pending</strong>" in page, flash(page))
-    st, loc, page = post("/changes/domain/apply", {})
+    st, loc, page = post("/changes/policies/apply", {})
     check("...applied: the policy, then written into the domain (restarting only what changed), both done; shown",
           "Change the password policy" in page and "Write the policy into the domain" in page
           and "failed" not in page.split("<h2>Queue</h2>")[-1]
           and 'name="minimum_length" required inputmode="numeric" pattern="[0-9]+" value="16"'
-          in get("/directory/domain"), page[-2500:])
+          in get("/directory/policies"), page[-2500:])
     for form, why in (({"lockout_minutes": "5", "lockout_window_minutes": "15"}, "at least as long"),
                       ({"minimum_length": "99"}, "from 0 to 64"), ({"history": "lots"}, "whole number")):
         post("/directory/domain/password-policy", form)
-        st, loc, page = post("/changes/domain/apply", {})
+        st, loc, page = post("/changes/policies/apply", {})
         check(f"password policy refused at Apply ({why}), saying why; the change still pending, nothing changed",
               why in page and len(change_ids(page)) == 1
               and 'name="minimum_length" required inputmode="numeric" pattern="[0-9]+" value="16"'
-              in get("/directory/domain"), page[-2000:])
-        post("/changes/domain/discard", {})
+              in get("/directory/policies"), page[-2000:])
+        post("/changes/policies/discard", {})
     page = get("/dns-filter?view=lists&fresh=1")
     check("DNS filter, first fetch running: the page refreshes itself (a meta refresh, no script) and says so",
           '<meta http-equiv="refresh" content="10;url=/dns-filter?view=lists&amp;wait=1">' in page
@@ -632,22 +634,41 @@ with serve():
     check("Directory · Machines (admin): no per-OU log-on editor (retired in D1, 2.3.6.17)",
           "Who may sign in" not in page and "/directory/logon/" not in page)
     check("Directory · Machines (admin): host groups with their machines and a remove form, the membership and "
-          "new-group forms; sudo rules with who made each, remove only for fabric's, the add form (1.6.11.7)",
+          "new-group forms (1.6.11.7); the sudo rules no longer here (Policies)",
           "hosts-web" in page and "lan-hosts-web" not in page
           and 'action="/directory/hostgroups/web/delete"' in page
           and 'action="/directory/hostgroups/_form/members"' in page and 'action="/directory/hostgroups/_new"' in page
-          and 'action="/directory/sudo/web-restart/delete"' in page and "/directory/sudo/backup/delete" not in page
-          and "the site's default" not in page and 'action="/directory/sudo/_new"' in page
-          and "/usr/bin/systemctl restart nginx" in page and "read-only" in page)
+          and "/directory/sudo/" not in page)
+    page = get("/directory/policies/sudo")
+    # covers: web:get.directory.policies.sudo +
+    check("Policies · Sudo rules (admin): who made each, remove only for fabric's, the add form aiming at a host group",
+          'action="/directory/sudo/web-restart/delete"' in page and "/directory/sudo/backup/delete" not in page
+          and 'action="/directory/sudo/_new"' in page and '<option value="hosts-web">' in page
+          and "/usr/bin/systemctl restart nginx" in page and "read-only" in page, page[-3000:])
+    st, loc, page = post("/directory/sudo/web-restart/delete", {})
+    check("a sudo rule's removal: held on Policies, back on its tab", loc == "/directory/policies/sudo"
+          and "Waiting for Apply: Remove web-restart" in flash(page) and "<strong>1 change pending</strong>" in page,
+          (loc, flash(page)))
+    post("/directory/domain/password-policy", {"minimum_length": "17"})
+    page = get("/changes/policies")
+    check("...the password policy joins it on the same Apply (one Review for the three kinds)",
+          re.findall(r'data-label="Change">([^<]+)', page)[:2] == ["Remove web-restart", "Change the password policy"],
+          re.findall(r'data-label="Change">([^<]+)', page))
+    post("/changes/policies/discard", {})
     st, loc, page = post("/directory/machines/host-1/disable", {})
     check("disable a machine: held on Machines", loc == "/directory/machines"
           and "Waiting for Apply: Disable host-1" in flash(page), loc)
     st, loc, page = post("/changes/machines/apply", {})
     check("...applied: done in the queue", "Disable host-1" in page and "Nothing waits" in page, page[-1500:])
-    page = get("/directory/gpo?match=example")
-    check("Directory · Group Policy (admin): what is set, a search with a set form per policy",
+    page = get("/directory/policies/gpo?match=example")
+    # covers: web:get.directory.policies.gpo +
+    check("Policies · Group Policy (admin): what is set, a search with a set form per policy",
           "ExampleText" in page and "/directory/gpo/set" in page and "Example setting" in page
-          and 'action="/directory/gpo"' in page)
+          and 'action="/directory/policies/gpo"' in page)
+    st, loc, held_page = post("/directory/gpo/clear", {"policy": "ExampleText"})
+    check("a Group Policy change: held on Policies, back on its tab", loc == "/directory/policies/gpo"
+          and "Waiting for Apply: Clear policy ExampleText" in flash(held_page), (loc, flash(held_page)))
+    post("/changes/policies/discard", {})
     check("...the site's enforced controls listed apart, and a policy may be set as a control (2.1.6.20)",
           "fabric: lan controls" in page and "ExampleLocked" in page and 'name="control"' in page)
     page = get("/federation")
@@ -699,8 +720,9 @@ with serve():
 
 # every navigation page, opened with its permission and refused without it, per bundle (manual 1.8.6.9):
 # covers: web:get.overview.doctor web:get.overview.updates web:get.audit web:get.dns.zones web:get.dns-filter +-
-# covers: web:get.kea web:get.pki web:get.pki.acme web:get.directory.people web:get.directory.domain +-
-# covers: web:get.directory.machines web:get.directory.gpo web:get.8021x web:get.8021x.decisions +-
+# covers: web:get.kea web:get.pki web:get.pki.acme web:get.directory.people web:get.directory.policies +-
+# covers: web:get.directory.machines web:get.directory.policies.gpo web:get.directory.policies.sudo +-
+# covers: web:get.8021x web:get.8021x.decisions +-
 # covers: web:get.8021x.guides web:get.8021x.devices web:get.8021x.roles web:get.secrets web:get.federation +-
 # covers: web:get.settings web:get.settings.sign-in +-
 # covers: web:get.account web:get.account.groups +
@@ -762,7 +784,7 @@ with serve("fabric-auditor"):
     page = get("/dns/zones?view=landing")
     check("--as fabric-auditor: the landing page's links shown, no add or remove form",
           "https://nas.home.arpa:5001/" in page and "/bind9/landing/" not in page)
-    page = get("/directory/domain")
+    page = get("/directory/policies")
     check("--as fabric-auditor: the password policy shown, no form (domain:admin)",
           "minimum length" in page and "/directory/domain/password-policy" not in page)
     st, loc, page = post("/directory/domain/password-policy", {"minimum_length": "4"})

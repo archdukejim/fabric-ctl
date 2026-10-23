@@ -861,11 +861,11 @@ check("a failing change stops the Apply, says which and why; the one after not r
       [i["state"] for i in result["items"]] == ["done", "failed", "not run"] and len(result["items"][1]["why"]) > 10
       and title("bob") == "First" and [c["what"] for c in mine]
       == ["Reset the sign-in of fabric-admin", "Edit bob"], (result, mine))
-check("...another page's changes untouched by People's Apply (the password policy still waits on Domain)",
-      [c["what"] for c in review("domain")["changes"]] == ["Change the password policy"]
-      and V["ad_password_policy"]["minimum_length"] != 18, review("domain"))
+check("...another page's changes untouched by People's Apply (the password policy still waits on Policies)",
+      [c["what"] for c in review("policies")["changes"]] == ["Change the password policy"]
+      and V["ad_password_policy"]["minimum_length"] != 18, review("policies"))
 pend(["pending", "people", "discard"])
-pend(["pending", "domain", "discard"])
+pend(["pending", "policies", "discard"])
 hold("people/bob/edit", {"title": "No right"})
 result = applied("people", perms=ADMIN - {"people:edit"})
 # covers: agent:post.pending.*.apply -

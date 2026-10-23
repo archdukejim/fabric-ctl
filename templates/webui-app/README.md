@@ -14,6 +14,7 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `continue.html` | The continue page |
 | `directory.html` | The Directory's Overview, Domain, Machines and Group Policy; 802.1X's devices and roles |
 | `groups.html` | Directory · Groups: the list, a group's page, Create group |
+| `policies.html` | Directory · Policies: the password policy, Group Policy, the sudo rules |
 | `people.html` | Directory · People: the list, a person's page, Add person |
 | `directory_macros.html` | Macros for the device and role forms |
 | `error.html` | The error page |

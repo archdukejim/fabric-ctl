@@ -2,8 +2,7 @@
 
 # Apply per page (manual 1.8.6.5): fabric-agent's pending page ids -> the navigation page whose changes they are
 PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "machines": "/directory/machines",
-                 "domain": "/directory/domain",
-                 "gpo": "/directory/gpo", "account": "/account/groups"}
+                 "policies": "/directory/policies", "account": "/account/groups"}
 
 # The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
 # permissions that show it: any one of them; () = any signed-in person). An entry shows when one of its pages does.
@@ -19,9 +18,8 @@ NAV = [
     ("directory", "Directory", [("/directory", "Overview", ("domain:read",)),
                                 ("/directory/people", "People", ("people:read",)),
                                 ("/directory/groups", "Groups", ("domain:read",)),
-                                ("/directory/domain", "Domain", ("domain:read",)),
                                 ("/directory/machines", "Machines", ("domain:read",)),
-                                ("/directory/gpo", "Group Policy", ("domain:read",))]),
+                                ("/directory/policies", "Policies", ("domain:read",))]),
     ("8021x", "802.1X", [("/8021x", "RADIUS clients", ("radius:read",)),
                          ("/8021x/devices", "Devices", ("devices:read",)),
                          ("/8021x/roles", "Device roles", ("devices:read",)),
@@ -107,8 +105,10 @@ WIZARD_STEPS = [
 WIZARD_FIELDS = [f for _, _, fields in WIZARD_STEPS for f in fields]
 # the navigation page each sectioned view belongs to (manual 1.8.6.4)
 DIRECTORY_PAGES = {"devices": "/8021x/devices", "device": "/8021x/devices", "roles": "/8021x/roles",
-                   "role": "/8021x/roles", "people": "/directory/people", "domain": "/directory/domain",
-                   "machines": "/directory/machines", "gpo": "/directory/gpo", "overview": "/directory"}
+                   "role": "/8021x/roles", "people": "/directory/people", "machines": "/directory/machines",
+                   "overview": "/directory"}
+# Directory · Policies' kinds (1.6.12.10): (view, label), all on Policies' one Apply
+POLICY_SECTIONS = [("password", "Password policy"), ("gpo", "Group Policy"), ("sudo", "Sudo rules")]
 # a person's details (2.1.6.93's fields) in order, with their labels: My account and a person's page and Edit form
 PERSON_FIELDS = (("first", "First name"), ("last", "Last name"), ("name", "Display name"), ("email", "E-mail"),
                  ("phone", "Phone"), ("mobile", "Mobile"), ("title", "Title"), ("department", "Department"),

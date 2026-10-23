@@ -72,8 +72,9 @@ def _store(state, who, run):
         state.pending = PendingStore(run=lambda route, actor, body, perms, session: run(route, body),
                                      state=lambda route, body: _thing(state, route, body),
                                      need=lambda route: required_permission("POST", route), start_job=start_job,
-                                     finish=lambda page: ("Write the policy into the domain (restarts only what "
-                                                          "changed)", lambda actor: None) if page == "domain" else None)
+                                     finish=lambda page, routes: ("Write the policy into the domain (restarts only "
+                                                                  "what changed)", lambda actor: None)
+                                     if page == "policies" and ["domain", "password-policy"] in routes else None)
     return state.pending
 
 

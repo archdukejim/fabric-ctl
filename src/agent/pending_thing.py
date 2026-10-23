@@ -5,7 +5,7 @@ from fabriclib.common.errors import ValidationError
 
 # The pages whose changes are held (manual 1.8.6.5, the Directory's first) and the permission that shows each page
 # (who sees its queue). A page id is the console's navigation page (pending_page_of names it from the route).
-PAGES = {"people": "people:read", "machines": "domain:read", "domain": "domain:read", "gpo": "domain:read",
+PAGES = {"people": "people:read", "machines": "domain:read", "policies": "domain:read",
          "groups": "domain:read", "ous": "domain:read", "access": "domain:read", "kerberos": "domain:read",
          "account": "session"}
 # the pages whose queue each person sees only their own applies of (My account, 1.8.6.6: nobody else's business)
@@ -40,16 +40,16 @@ def pending_page_of(route):
         return "account"
     if head == ["people"]:
         return "people"
-    if head in (["machines"], ["host-groups"], ["sudo"]) and route[-1:] != ["keytab"]:
+    if head in (["machines"], ["host-groups"]) and route[-1:] != ["keytab"]:
         return "machines"
-    if route == ["domain", "password-policy"]:
-        return "domain"
+    if route == ["domain", "password-policy"] or head == ["sudo"]:      # Policies, one Apply (1.6.12.10)
+        return "policies"
     if route == ["domain", "kerberos", "policy"]:
         return "kerberos"
     if route[:2] == ["domain", "grants"]:
         return "access"
     if route in (["gpo", "set"], ["gpo", "clear"]):
-        return "gpo"
+        return "policies"
     if head == ["groups"]:
         return "groups"
     if head == ["ous"]:

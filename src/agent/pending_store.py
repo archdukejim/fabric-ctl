@@ -22,14 +22,15 @@ class PendingStore:
         """Purpose: A store whose changes run through the given functions (the agent's own, or the preview's fakes).
         Inputs:  run — (route, actor, body, perms, session) -> result: the change done; state — (route, body) -> the
                  thing it changes as read now; need — (route) -> the permission the change needs, or None; start_job
-                 — (kind, owner, fn) -> {"id"}: fn run as a job; finish — (page) -> (what, fn(actor)) or None: what a
-                 page's changes still need once all are done (the Domain page's: its settings written into the
-                 services, restarting only what changed, 2.1.14.15).
+                 — (kind, owner, fn) -> {"id"}: fn run as a job; finish — (page, routes of the changes applied) ->
+                 (what, fn(actor)) or None: what a page's changes still need once all are done (a password policy
+                 changed on Policies: fabric's settings written into the services, restarting only what changed,
+                 2.1.14.15).
         Returns: None.
         Fails:   never.
         Feeds:   PENDING (agent/post_pending), the dev preview."""
         self.run, self.state, self.need, self.start_job = run, state, need, start_job
-        self.finish = finish or (lambda page: None)
+        self.finish = finish or (lambda page, routes: None)
         self.lock = threading.Lock()
         self.changes = []                # held changes, oldest first: {id, owner, page, route, body, what, ...}
         self.queue = {}                  # page -> [apply]: {id, owner, started, state, items: [{id, what, state, why}]}
@@ -129,7 +130,7 @@ class PendingStore:
                 raise ValidationError("your apply of this page is still running")
             entry = {"id": secrets.token_urlsafe(9), "owner": owner, "started": time.time(), "state": "running",
                      "items": [{"id": c["id"], "what": c["what"], "state": "queued", "why": ""} for c in mine]}
-            last = self.finish(page)
+            last = self.finish(page, [c["route"] for c in mine])
             if last:
                 entry["items"].append({"id": "finish", "what": last[0], "state": "queued", "why": ""})
             applies = self.queue.setdefault(page, [])

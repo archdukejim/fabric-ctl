@@ -1083,6 +1083,7 @@ file	webui|src/webui/routes/moved_to.py	209
 file	webui|src/webui/routes/openbao_page.py	82	
 file	webui|src/webui/routes/overview_post.py	143	
 file	webui|src/webui/routes/people_page.py	228	
+file	webui|src/webui/routes/policies_page.py	236	
 file	webui|src/webui/routes/post_action.py	83	
 file	webui|src/webui/routes/radius_post.py	84	
 file	webui|src/webui/routes/saved_and_applied.py	85	
@@ -1130,6 +1131,7 @@ file	webui|src/webui/views/paged.py	235
 file	webui|src/webui/views/people.py	229	
 file	webui|src/webui/views/person_result.py	114	
 file	webui|src/webui/views/pki_result.py	115	
+file	webui|src/webui/views/policies.py	237	
 file	webui|src/webui/views/radius_secret.py	116	
 file	webui|src/webui/views/render_page.py	117	
 file	webui|src/webui/views/security.py	135	
@@ -2941,6 +2943,7 @@ function	webui|src/webui/routes/moved_to.py|moved_to	2
 function	webui|src/webui/routes/openbao_page.py|openbao_page	1	
 function	webui|src/webui/routes/overview_post.py|overview_post	1	
 function	webui|src/webui/routes/people_page.py|people_page	1	
+function	webui|src/webui/routes/policies_page.py|policies_page	1	
 function	webui|src/webui/routes/post_action.py|_radius_people	2	
 function	webui|src/webui/routes/post_action.py|_segments	1	
 function	webui|src/webui/routes/post_action.py|post_action	3	
@@ -2997,6 +3000,7 @@ function	webui|src/webui/views/people.py|_matches	1	0.8.0 / 2026-10-23
 function	webui|src/webui/views/people.py|people	2	
 function	webui|src/webui/views/person_result.py|person_result	1	
 function	webui|src/webui/views/pki_result.py|pki_result	1	
+function	webui|src/webui/views/policies.py|policies	1	
 function	webui|src/webui/views/radius_secret.py|radius_secret	1	
 function	webui|src/webui/views/render_page.py|render_page	1	
 function	webui|src/webui/views/security.py|security	1	
