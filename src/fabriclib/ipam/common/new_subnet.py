@@ -7,7 +7,7 @@ from fabriclib.ipam.suggestions import suggest_split
 def new_subnet(v, plan, org, vlan, cidr, name, gateway="", dhcp=True, relay="", notes="", allow_overlap="",
                split=True):
     """Purpose: the changes that add one subnet to a VLAN of a site's plan (manual 1.10.4.16, 2.1.10.18): checked by
-             check_subnet (an overlap anywhere in the organisation refused unless a reason is given), its gateway
+             check_subnet (an overlap anywhere in the domain refused unless a reason is given), its gateway
              (given, else the first host), the next Kea id, served by DHCP unless dhcp is off, and in a /24 the
              suggested split (gateway .1, static .2-.99, DHCP .100-.249, reserved .250-.254) unless split is off. A
              network convergence wrote under that name (the site's LAN) becomes the subnet when it is the same

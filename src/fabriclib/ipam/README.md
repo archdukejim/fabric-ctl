@@ -24,5 +24,6 @@ are pure functions checked before anything is written.
 | `plan_rows.py` | A site's address table: gateways, recorded addresses, leases |
 | `find_in_plan.py` | An address, name or MAC across every site's plan |
 | `export_plan.py` | The address table as CSV |
-| `run_ipam_command.py` | `fabricctl ipam`: routes only (show, find, export, block, vlan, subnet, range, address) |
+| `run_ipam_command.py` | `fabricctl ipam`: routes only (show, find, export, block, vlan, subnet, range, address; option, class and netboot to `options/`) |
+| [options/](options/) | The DHCP options in the plan, client classes and netboot presets |
 | [common/](common/) | Helpers the address manager's commands share |

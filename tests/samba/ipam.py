@@ -2,7 +2,9 @@
 DC converged by fabric, and `fabricctl ipam` against the domain as the DC's agent account, run as root (the Enterprise
 Admin's): every command's positive case and its refusals, each changing nothing; the site's number; several subnets
 on one VLAN; show, find and export; another site's plan written with --site; and a delegated person writing through
-a grant's networks rights at one site, refused at another and refused with none. fabric's audit log is stood in for.
+a grant's networks rights at one site, refused at another and refused with none; the DHCP options and netboot
+(the domain's set, the site's, a subnet's; a delegated person's options right at one site, refused for the domain's
+set). fabric's audit log is stood in for.
     sudo python3 tests/samba/ipam.py
 """
 import io
@@ -16,10 +18,12 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
 from start_dc import POLICY, start_dc  # noqa: E402
 import fabriclib.grants.add_grant as m_add_grant  # noqa: E402
+import fabriclib.ipam.common.edit_options as m_edit_opt  # noqa: E402
 import fabriclib.ipam.common.edit_plan as m_edit  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
 from fabriclib.ipam.add_vlan import add_vlan  # noqa: E402
+from fabriclib.ipam.options.set_plan_option import set_plan_option  # noqa: E402
 from fabriclib.ipam.read_plan import read_plan  # noqa: E402
 from fabriclib.ipam.run_ipam_command import run_ipam_command  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
@@ -88,7 +92,8 @@ if subprocess.run(["docker", "inspect", "samba"], capture_output=True).returncod
 dc = start_dc(W, DC, NET, SUBNET, IP)
 V, SECRETS = dc["v"], dc["secrets"]
 os.environ["DEPLOY_BASE_DIR"] = W            # the kept plan goes under the test's folder
-m_edit.write_audit = lambda actor, event, detail, source: AUDIT.append((event, detail, source))
+m_edit.write_audit = m_edit_opt.write_audit = lambda actor, event, detail, source: AUDIT.append(
+    (event, detail, source))
 m_add_grant.write_audit = lambda *a, **k: None
 
 print("--- an empty plan (1.10.4.32)")
@@ -279,6 +284,107 @@ try:
 except ValidationError as e:
     got = str(e)
 check("negative: someone who is not a person of the domain is refused", "not a person of the domain" in got, got)
+
+print("--- the DHCP options and netboot (1.10.4.24 to 1.10.4.26; the port's area 4)")
+
+
+def sets():
+    """Purpose: the option sets as the domain holds them now.
+    Inputs:  none.
+    Returns: read_plan's option_sets ({"domain": set, <site>: set}).
+    Fails:   ValidationError from read_plan.
+    Feeds:   this script."""
+    return read_plan(V, SECRETS, container=DC)["option_sets"]
+
+
+def has(one, name, data):
+    """Purpose: whether an option set holds an option with that data.
+    Inputs:  one — an option set or None; name — the option's name; data — its value.
+    Returns: bool.
+    Fails:   never.
+    Feeds:   this script."""
+    return {"name": name, "data": data} in [{"name": o.get("name"), "data": o.get("data")}
+                                            for o in (one or {}).get("options") or []]
+
+
+# covers: cli:ipam.option +
+code, out = ipam("option", "set", "domain", "ntp-servers", "10.1.0.1", "--no-apply")
+check("option set domain: written to the domain's set (CN=dhcp-options)", code == 0
+      and has(sets()["domain"], "ntp-servers", "10.1.0.1"), out)
+code, out = ipam("option", "set", "org", "ntp-servers", "10.1.0.2", "--no-apply")
+check("0.8's `org` is the domain's set: the option replaced there", code == 0
+      and has(sets()["domain"], "ntp-servers", "10.1.0.2") and not has(sets()["domain"], "ntp-servers", "10.1.0.1"),
+      out)
+code, out = ipam("option", "set", "site", "domain-name", "lan.test", "--no-apply")
+check("option set site: on the site's record", code == 0 and has(sets()["lan"], "domain-name", "lan.test"), out)
+code, out = ipam("option", "define", "site", "ztp-url", "239", "string", "--no-apply")
+code2, out2 = ipam("option", "set", "site", "ztp-url", "http://ztp/cfg", "--no-apply")
+check("option define, then a custom option by its name", code == 0 and code2 == 0
+      and has(sets()["lan"], "ztp-url", "http://ztp/cfg"), out + out2)
+code, out = ipam("option", "set", "subnet", "lab", "domain-name-servers", "10.1.64.1", "--no-apply")
+check("option set subnet: on the subnet's entry", code == 0 and any(
+    o.get("name") == "domain-name-servers" for o in sub("lab")["options"]), out)
+code, out = ipam("option", "show", "subnet", "lab")
+check("option show subnet: its options with their sources", code == 0 and "domain-name-servers" in out
+      and "subnet lab" in out and "ntp-servers" in out, out)
+code, out = ipam("option", "show")
+check("option show: the domain's set and the site's", code == 0 and out.startswith("the domain")
+      and "site lan" in out, out)
+code, out = ipam("option", "remove", "site", "ztp-url", "--no-apply")
+code2, out2 = ipam("option", "undefine", "site", "ztp-url", "--no-apply")
+check("option remove, then undefine", code == 0 and code2 == 0 and not has(sets()["lan"], "ztp-url", "http://ztp/cfg")
+      and not sets()["lan"].get("option_defs"), out + out2)
+# covers: cli:ipam.class +
+code, out = ipam("class", "add", "site", "uefi", "--test", "option[93].hex == 0x0007", "--boot-file", "ipxe.efi",
+                 "--no-apply")
+check("class add: on the site's set", code == 0 and [c["name"] for c in sets()["lan"]["client_classes"]] == ["uefi"],
+      out)
+code, out = ipam("class", "remove", "site", "uefi", "--no-apply")
+check("class remove", code == 0 and not sets()["lan"]["client_classes"], out)
+# covers: cli:ipam.netboot +
+code, out = ipam("netboot", "on", "300", "--server", "10.1.64.5", "--bios", "undionly.kpxe", "--ipxe",
+                 "http://boot.lan/boot.ipxe", "--no-apply")
+check("netboot on a VLAN: each of its subnets carries the preset", code == 0
+      and (sub("lab").get("netboot") or {}).get("bios") == "undionly.kpxe", out)
+code, out = ipam("netboot", "show", "300")
+check("netboot show", code == 0 and "undionly.kpxe" in out, out)
+code, out = ipam("netboot", "off", "lab", "--no-apply")
+check("netboot off: the preset gone, the subnet's options kept", code == 0 and not sub("lab").get("netboot")
+      and any(o.get("name") == "domain-name-servers" for o in sub("lab")["options"]), out)
+held = sets()
+code, out = ipam("netboot", "on", "10.1.30.10", "--server", "10.1.30.5", "--bios", "x.0", "--no-apply")
+check("negative: netboot on a static address (only a reservation can netboot): nothing written", code == 1
+      and "only a reservation can netboot" in out and sets() == held, out)
+code, out = ipam("option", "set", "class", "nope", "domain-name", "x", "--no-apply")
+check("negative: an option on a class that is not there: nothing written", code == 1 and "no client class" in out
+      and sets() == held, out)
+m_add_grant.add_grant(V, "test", "branch-opt", {"who": ["branch-ops"], "networks": ["options"], "sites": ["branch"]},
+                      container=DC)
+
+
+def nina_option(scope, site):
+    """Purpose: an option set by nina, a delegated person, through edit_options' grant check.
+    Inputs:  scope — "site" or "domain"; site — whose plan.
+    Returns: "ok", or why it was refused.
+    Fails:   never.
+    Feeds:   this script."""
+    try:
+        set_plan_option(V, "nina", scope, "", "ntp-servers", "10.2.0.1", site=site, secrets=SECRETS, container=DC,
+                        source="web", caller="nina")
+        return "ok"
+    except ValidationError as e:
+        return str(e)
+
+
+check("nina (branch-ops) sets branch's options through the grant branch-opt", nina_option("site", "branch") == "ok"
+      and has(sets()["branch"], "ntp-servers", "10.2.0.1") and "site=branch by=grant branch-opt" in AUDIT[-1][1], AUDIT[-1:])
+held = sets()
+got = nina_option("domain", "branch")
+check("negative: nina refused the domain's set, which needs networks options at every site; nothing written",
+      "no grant gives you networks options at every site" in got and sets() == held, got)
+got = nina_option("site", "lan")
+check("negative: nina refused lan's options, which her grant does not reach", "networks options at lan" in got
+      and sets() == held, got)
 
 print("--- removing")
 held = plan()

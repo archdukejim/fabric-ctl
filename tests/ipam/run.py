@@ -5,8 +5,8 @@ unless a reason is given. Also its suggestions, the site's number, several subne
 the changes that add or change a subnet, and one site's plan out of read_plan's answer on 0.8.0's directory
 (1.10.4.32); the address table, find, export and show; one change made the way every command makes it (the grant
 checked first, the writable DC, nothing written on a refusal: 1.10.4.34), with the domain stood in for; and
-`fabricctl ipam`'s refusals that need no domain. Areas 4 to 6 of the port add their sections here. The plan in a real
-domain: tests/samba/ipam.py.
+`fabricctl ipam`'s refusals that need no domain. The options: tests/ipam/options.py. Areas 5 and 6 add
+their sections here. The plan in a real domain: tests/samba/ipam.py.
 
     python3 tests/ipam/run.py
 """
@@ -357,7 +357,8 @@ check("show of a site without a number gives the suggestion",
 
 print("--- one change, the way every command makes it (common/edit_plan, 1.10.4.34)")
 calls = []
-m_edit.check_access = lambda v, caller, action, target, container: calls.append(("check", caller, action, target))
+m_edit.check_access = lambda v, caller, action, target, container: calls.append(("check", caller, action, target)) or {
+    "tier": "delegated", "by": "grant net-ops"}
 m_edit.read_plan = lambda v, secrets, of, container: calls.append(("read", of)) or {**READ, "plans": {
     "lan": READ["plans"]["lan"], "lab": {"vlans": [], "subnets": [], "networks": []}}}
 m_edit.read_address_plan = lambda v, secrets, container: calls.append(("org",)) or NETS
@@ -366,12 +367,14 @@ m_edit.write_plan = lambda v, secrets, changes, container, server: calls.append(
 m_edit.save_plan_cache = lambda plan: calls.append(("keep", plan["site"]))
 m_edit.write_audit = lambda actor, event, detail, source: calls.append(("audit", event, detail, source))
 SEC = {"ad_agent_password": "x"}
-LAN = {"site_name": "lan", "fabric_subnet": "10.255.0.0/24"}
+LAN = {"site_name": "lan", "dc_name": "dc-0001", "fabric_subnet": "10.255.0.0/24"}
 out = add_vlan(LAN, "root", 40, "printers", no_subnet=True, secrets=SEC)
-check("a change: checked first (root, networks:plan at the site), read, written at this DC, kept, audited",
+check("a change: checked first (root, networks:plan at the site), read, written at this DC, kept, audited with "
+      "this DC, the site and what allowed it (1.10.4.34)",
       [c[0] for c in calls] == ["check", "read", "write", "read", "keep", "audit"]
       and calls[0] == ("check", None, "networks:plan", {"site": "lan"}) and calls[2][1] is None
-      and calls[5][1] == "IPAM_VLAN_ADD" and out["site"] == "lan", calls)
+      and calls[5][1] == "IPAM_VLAN_ADD" and calls[5][2].startswith("from=dc-0001 site=lan by=grant net-ops ")
+      and out["site"] == "lan", calls)
 calls.clear()
 out = add_vlan(LAN, "nina", 41, "lab-vlan", site="lab", no_subnet=True, secrets=SEC, source="web", caller="nina")
 check("another site's plan: the caller's grant checked at that site; not kept here; audited from the web",
@@ -391,7 +394,7 @@ m_edit.check_access = refuse_grant
 check("negative: no grant: refused before the plan is read, nothing written",
       is_refused(lambda: add_vlan(LAN, "pete", 42, "x", no_subnet=True, secrets=SEC, caller="pete"),
                  "no grant gives you networks plan at lan") and calls == [], calls)
-m_edit.check_access = lambda v, caller, action, target, container: calls.append(("check",))
+m_edit.check_access = lambda v, caller, action, target, container: calls.append(("check",)) or {"by": "tier"}
 RODC = {**LAN, "ad_dc_type": "rodc", "ad_join_server": "10.0.0.2"}
 add_vlan(RODC, "root", 43, "ro", no_subnet=True, secrets=SEC)
 check("a site with a read-only DC writes at its writable DC (2.1.6.52)",
@@ -422,8 +425,8 @@ check("help prints the commands", code == 0 and "fabricctl ipam vlan add" in tex
 # covers: cli:ipam -
 code, text = cli(["frobnicate"])
 check("an unknown command: usage, exit 2", code == 2 and "usage:" in text, text)
-code, text = cli(["option", "set"])
-check("a command of a later area (the options): usage, exit 2", code == 2 and "usage:" in text, text)
+code, text = cli(["scan", "iot"])
+check("a command of a later area (the scans, area 6): usage, exit 2", code == 2 and "usage:" in text, text)
 # covers: cli:ipam.vlan -
 code, text = cli(["vlan", "add", "20"])
 check("vlan add without --name: usage, exit 2", code == 2 and "usage:" in text, text)
