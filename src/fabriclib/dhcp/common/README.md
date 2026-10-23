@@ -8,3 +8,4 @@ Helpers shared by the DHCP commands.
 | `find_subnet.py` | The subnet a command names, by name or network |
 | `option_target.py` | Where an option goes: every subnet, a subnet, a client class or a reservation |
 | `kea_image.py` | The Kea image this host runs (published or its local build), to check Kea files with |
+| `apply_dhcp_change.py` | A just-recorded DHCP or address-plan change applied now (unless `--no-apply`), then the host firewall brought in line; `fabricctl dhcp` and `fabricctl ipam` share it |

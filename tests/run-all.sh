@@ -51,7 +51,7 @@ for s in "${SUITES[@]}"; do
         ipam)     run ipam     python3 "$HERE/ipam/run.py" ;;
         settings) run settings bash -c "python3 \"$HERE/settings/run.py\" && python3 \"$HERE/settings/console.py\"" ;;
         freeradius) run freeradius python3 "$HERE/freeradius/run.py" ;;
-        samba)    run samba    bash -c "python3 \"$HERE/samba/run.py\" && python3 \"$HERE/samba/dc.py\" && python3 \"$HERE/samba/devices.py\" && python3 \"$HERE/samba/linux_join.py\" && python3 \"$HERE/samba/gpo.py\" && python3 \"$HERE/samba/hostgroups.py\" && python3 \"$HERE/samba/grants.py\" && python3 \"$HERE/samba/domain.py\" && python3 \"$HERE/samba/site_join.py\" && python3 \"$HERE/samba/plan_store.py\"" ;;
+        samba)    run samba    bash -c "python3 \"$HERE/samba/run.py\" && python3 \"$HERE/samba/dc.py\" && python3 \"$HERE/samba/devices.py\" && python3 \"$HERE/samba/linux_join.py\" && python3 \"$HERE/samba/gpo.py\" && python3 \"$HERE/samba/hostgroups.py\" && python3 \"$HERE/samba/grants.py\" && python3 \"$HERE/samba/domain.py\" && python3 \"$HERE/samba/site_join.py\" && python3 \"$HERE/samba/plan_store.py\" && python3 \"$HERE/samba/ipam.py\"" ;;
         keycloak) run keycloak python3 "$HERE/keycloak/run.py" ;;
         hardening) run hardening bash "$HERE/hardening/run.sh" ;;
         images)   run images   bash "$HERE/images/run.sh" ;;

@@ -3,16 +3,23 @@
 claim per address, ranges inside their subnet and apart, only reservations in a dhcp range, and overlaps refused
 unless a reason is given. Also its suggestions, the site's number, several subnets on one VLAN (2.1.10.16, 2.1.10.18),
 the changes that add or change a subnet, and one site's plan out of read_plan's answer on 0.8.0's directory
-(1.10.4.32). Areas 4 to 6 of the port add their sections here.
+(1.10.4.32); the address table, find, export and show; one change made the way every command makes it (the grant
+checked first, the writable DC, nothing written on a refusal: 1.10.4.34), with the domain stood in for; and
+`fabricctl ipam`'s refusals that need no domain. Areas 4 to 6 of the port add their sections here. The plan in a real
+domain: tests/samba/ipam.py.
 
     python3 tests/ipam/run.py
 """
+import copy
+import io
 import ipaddress
 import os
 import sys
+from contextlib import redirect_stderr, redirect_stdout
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, "src"))
+import fabriclib.ipam.common.edit_plan as m_edit  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.ipam.check_address import check_address  # noqa: E402
 from fabriclib.ipam.check_block import check_block  # noqa: E402
@@ -26,6 +33,13 @@ from fabriclib.ipam.common.option_codes import CATALOGUE, CODES, FABRIC_PROVIDED
 from fabriclib.ipam.common.pool_text import pool_text  # noqa: E402
 from fabriclib.ipam.common.scan_busy import ScanBusy  # noqa: E402
 from fabriclib.ipam.common.site_plan import site_plan  # noqa: E402
+from fabriclib.ipam.add_subnet import add_subnet  # noqa: E402
+from fabriclib.ipam.add_vlan import add_vlan  # noqa: E402
+from fabriclib.ipam.export_plan import export_plan  # noqa: E402
+from fabriclib.ipam.find_in_plan import find_in_plan  # noqa: E402
+from fabriclib.ipam.plan_rows import plan_rows  # noqa: E402
+from fabriclib.ipam.run_ipam_command import run_ipam_command  # noqa: E402
+from fabriclib.ipam.show_plan import show_plan  # noqa: E402
 from fabriclib.ipam.suggestions import suggest_block, suggest_split, suggest_subnet  # noqa: E402
 
 
@@ -306,6 +320,165 @@ q = site_plan({"sites": READ["sites"], "plans": {}, "option_sets": {"domain": No
 check("a site with nothing in its plan, before the domain's set exists",
       q["block"] is None and q["vlans"] == [] and q["subnets"] == [] and q["domain_options"] is None
       and q["site_options"] == {"options": [], "option_defs": [], "client_classes": []}, q)
+
+
+print("--- the address table, find and export (1.10.4.9)")
+rows = plan_rows(PLAN, [{"ip": "10.1.20.150", "mac": "aa:bb:cc:dd:ee:01", "hostname": "cam1", "state": "active",
+                         "expires": "2026-10-13 10:00"},
+                        {"ip": "10.1.20.177", "mac": "aa:bb:cc:dd:ee:09", "hostname": "phone", "state": "active",
+                         "expires": "2026-10-13 11:00"}])
+kinds = [(r["ip"], r["kind"], r["range"]) for r in rows if r["subnet"] == "10.1.20.0/24"]
+check("rows: the gateway, the recorded addresses with their range, a lease nobody recorded",
+      kinds == [("10.1.20.1", "gateway", "gateway"), ("10.1.20.10", "static", "static"),
+                ("10.1.20.150", "reservation", "dhcp"), ("10.1.20.177", "lease", "dhcp")], kinds)
+check("a lease on a recorded address fills its lease column",
+      next(r for r in rows if r["ip"] == "10.1.20.150")["lease"] == "active until 2026-10-13 10:00")
+read = {"sites": [{"name": "lan", "created": "1", "block": 1}], "plans": {"lan": PLAN}}
+check("find by address, MAC and name", [r["name"] for r in find_in_plan(read, "10.1.20.10")] == ["nas"]
+      and [r["ip"] for r in find_in_plan(read, "AA-BB-CC-DD-EE-01")] == ["10.1.20.150"]
+      and [r["kind"] for r in find_in_plan(read, "iot")] == ["vlan"])
+un = find_in_plan(read, "10.1.20.60")
+check("find an address nobody recorded: its subnet and range", [(r["kind"], r["range"], r["subnet"]) for r in un]
+      == [("unrecorded", "static", "10.1.20.0/24")], un)
+check("find nothing: an empty answer", find_in_plan(read, "10.9.9.9") == [] and find_in_plan(read, "nobody") == [])
+evil = copy.deepcopy(read)
+evil["plans"]["lan"]["subnets"][0]["addresses"][0]["notes"] = "=HYPERLINK(\"http://x\")"
+csv_text = export_plan(evil, "lan")
+check("export: a header and one row per address; a formula-like cell defused",
+      csv_text.splitlines()[0].startswith("site,vlan,vlan_name,subnet,ip,kind")
+      and "'=HYPERLINK" in csv_text and len(csv_text.splitlines()) == 5, csv_text)
+shown = show_plan(read, "lan")
+check("show: the site's number, each VLAN with its subnet, ranges and addresses, the site's LAN",
+      shown.startswith("site lan  number 1") and "VLAN 20" in shown and "10.1.20.10" in shown
+      and "network lan  192.168.4.0/24  (lan)" in shown, shown)
+check("show of a site without a number gives the suggestion",
+      show_plan({"sites": [{"name": "lab", "created": "1", "block": None}], "plans": {}}, "lab").startswith(
+          "site lab  number none (suggested 1)"))
+
+print("--- one change, the way every command makes it (common/edit_plan, 1.10.4.34)")
+calls = []
+m_edit.check_access = lambda v, caller, action, target, container: calls.append(("check", caller, action, target))
+m_edit.read_plan = lambda v, secrets, of, container: calls.append(("read", of)) or {**READ, "plans": {
+    "lan": READ["plans"]["lan"], "lab": {"vlans": [], "subnets": [], "networks": []}}}
+m_edit.read_address_plan = lambda v, secrets, container: calls.append(("org",)) or NETS
+m_edit.write_plan = lambda v, secrets, changes, container, server: calls.append(("write", server, changes)) or [
+    "done"]
+m_edit.save_plan_cache = lambda plan: calls.append(("keep", plan["site"]))
+m_edit.write_audit = lambda actor, event, detail, source: calls.append(("audit", event, detail, source))
+SEC = {"ad_agent_password": "x"}
+LAN = {"site_name": "lan", "fabric_subnet": "10.255.0.0/24"}
+out = add_vlan(LAN, "root", 40, "printers", no_subnet=True, secrets=SEC)
+check("a change: checked first (root, networks:plan at the site), read, written at this DC, kept, audited",
+      [c[0] for c in calls] == ["check", "read", "write", "read", "keep", "audit"]
+      and calls[0] == ("check", None, "networks:plan", {"site": "lan"}) and calls[2][1] is None
+      and calls[5][1] == "IPAM_VLAN_ADD" and out["site"] == "lan", calls)
+calls.clear()
+out = add_vlan(LAN, "nina", 41, "lab-vlan", site="lab", no_subnet=True, secrets=SEC, source="web", caller="nina")
+check("another site's plan: the caller's grant checked at that site; not kept here; audited from the web",
+      calls[0] == ("check", "nina", "networks:plan", {"site": "lab"}) and "keep" not in [c[0] for c in calls]
+      and calls[-1][3] == "web" and "site=lab" in calls[-1][2], calls)
+calls.clear()
+add_subnet(LAN, "root", 20, "10.1.22.0/24", secrets=SEC)
+check("a subnet's change reads every site's networks for the overlap rule", ("org",) in calls, calls)
+
+
+def refuse_grant(v, caller, action, target, container):
+    raise ValidationError(f"no grant gives you networks plan at {target['site']} (manual 1.6.13.12)")
+
+
+calls.clear()
+m_edit.check_access = refuse_grant
+check("negative: no grant: refused before the plan is read, nothing written",
+      is_refused(lambda: add_vlan(LAN, "pete", 42, "x", no_subnet=True, secrets=SEC, caller="pete"),
+                 "no grant gives you networks plan at lan") and calls == [], calls)
+m_edit.check_access = lambda v, caller, action, target, container: calls.append(("check",))
+RODC = {**LAN, "ad_dc_type": "rodc", "ad_join_server": "10.0.0.2"}
+add_vlan(RODC, "root", 43, "ro", no_subnet=True, secrets=SEC)
+check("a site with a read-only DC writes at its writable DC (2.1.6.52)",
+      next(c for c in calls if c[0] == "write")[1] == "10.0.0.2", calls)
+calls.clear()
+check("negative: a read-only DC with no writable DC known: refused before anything is read or written",
+      is_refused(lambda: add_vlan({**LAN, "ad_dc_type": "rodc"}, "root", 44, "ro2", no_subnet=True, secrets=SEC),
+                 "no writable domain controller is known") and [c[0] for c in calls] == ["check"], calls)
+calls.clear()
+check("negative: a rule refused (a VLAN ID the site has): nothing written, nothing audited",
+      is_refused(lambda: add_vlan(LAN, "root", 20, "again", no_subnet=True, secrets=SEC), "already in this site's")
+      and "write" not in [c[0] for c in calls] and "audit" not in [c[0] for c in calls], calls)
+check("negative: no domain yet (no agent password): refused before the DC is asked",
+      is_refused(lambda: add_vlan(LAN, "root", 45, "x", no_subnet=True, secrets={}), "ad_agent_password"))
+
+
+def cli(argv):
+    out, err = io.StringIO(), io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        code = run_ipam_command({"site_name": "lan"}, argv, secrets={}, container="no-such-dc")
+    return code, out.getvalue() + err.getvalue()
+
+
+print("--- fabricctl ipam: refusals that need no domain (1.10.4.16)")
+# covers: cli:ipam +
+code, text = cli(["--help"])
+check("help prints the commands", code == 0 and "fabricctl ipam vlan add" in text, text)
+# covers: cli:ipam -
+code, text = cli(["frobnicate"])
+check("an unknown command: usage, exit 2", code == 2 and "usage:" in text, text)
+code, text = cli(["option", "set"])
+check("a command of a later area (the options): usage, exit 2", code == 2 and "usage:" in text, text)
+# covers: cli:ipam.vlan -
+code, text = cli(["vlan", "add", "20"])
+check("vlan add without --name: usage, exit 2", code == 2 and "usage:" in text, text)
+code, text = cli(["vlan", "add", "twenty", "--name", "iot"])
+check("vlan add with an ID that is not a number: refused, exit 1", code == 1 and "1 to 4094" in text, text)
+code, text = cli(["vlan", "add", "20", "--name", "iot", "--dhcp", "maybe"])
+check("--dhcp other than on or off: refused, exit 1", code == 1 and "--dhcp is on or off" in text, text)
+code, text = cli(["vlan", "add", "20", "--name", "iot", "--colour", "red"])
+check("an unknown option: refused, exit 1", code == 1 and "unknown option --colour" in text, text)
+code, text = cli(["vlan", "set", "20"])
+check("vlan set with nothing to change: refused before the domain is asked", code == 1
+      and "nothing to change" in text, text)
+# covers: cli:ipam.range -
+code, text = cli(["range", "add", "20", "dhcp", "10.1.20.100"])
+check("range add without its last address: usage, exit 2", code == 2 and "usage:" in text, text)
+code, text = cli(["range", "remove", "20", "not-an-ip"])
+check("range remove with no address: refused, exit 1", code == 1 and "not an IPv4 address" in text, text)
+# covers: cli:ipam.address -
+code, text = cli(["address", "add", "10.1.20.5"])
+check("address add without --kind: usage, exit 2", code == 2 and "usage:" in text, text)
+code, text = cli(["address", "add", "10.1.20.x", "--kind", "static"])
+check("address add with no address: refused, exit 1", code == 1 and "not an IPv4 address" in text, text)
+code, text = cli(["address", "set", "10.1.20.5"])
+check("address set with nothing to change: refused", code == 1 and "nothing to change" in text, text)
+code, text = cli(["address", "add", "10.1.20.5", "--kind", "static", "--dns", "yes"])
+check("--dns other than on or off: refused", code == 1 and "--dns is on or off" in text, text)
+# covers: cli:ipam.show -
+code, text = cli(["show", "a", "b"])
+check("show with two sites: usage, exit 2", code == 2 and "usage:" in text, text)
+# covers: cli:ipam.find -
+code, text = cli(["find"])
+check("find without what to find: usage, exit 2", code == 2 and "usage:" in text, text)
+# covers: cli:ipam.export -
+code, text = cli(["export", "a", "b"])
+check("export with two sites: usage, exit 2", code == 2 and "usage:" in text, text)
+# covers: cli:ipam.block -
+code, text = cli(["block", "1", "2"])
+check("block with two numbers: usage, exit 2", code == 2 and "usage:" in text, text)
+code, text = cli(["block", "7"])
+check("block without the domain's agent password: refused, saying why", code == 1 and "ad_agent_password" in text,
+      text)
+# covers: cli:ipam.subnet -
+code, text = cli(["subnet", "add", "20"])
+check("subnet add without its network: usage, exit 2", code == 2 and "usage:" in text, text)
+code, text = cli(["subnet", "add", "20", "10.1.21.0/24", "--dhcp", "maybe"])
+check("subnet add with --dhcp other than on or off: refused, exit 1", code == 1 and "--dhcp is on or off" in text,
+      text)
+code, text = cli(["subnet", "set", "iot-2"])
+check("subnet set with nothing to change: refused before the domain is asked", code == 1
+      and "nothing to change" in text, text)
+code, text = cli(["subnet", "remove"])
+check("subnet remove without a subnet: usage, exit 2", code == 2 and "usage:" in text, text)
+code, text = cli(["show"])
+check("show without the domain's agent password: refused, saying why", code == 1 and "ad_agent_password" in text,
+      text)
 
 print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")
 sys.exit(1 if FAILED else 0)

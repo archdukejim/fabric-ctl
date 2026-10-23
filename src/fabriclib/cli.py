@@ -20,6 +20,9 @@
                                  the DNS filter's BIND resolver: its lists, their state, the query log
   fabricctl dhcp status|leases|reserve|unreserve|add-subnet|set-subnet|remove-subnet|option|class
                                  DHCP (optional Kea): subnets, leases, reservations, options, client classes
+  fabricctl ipam show|find|export|block|vlan|subnet|range|address
+                                 the address manager: every site's VLANs, subnets, ranges and addresses
+                                 (fabricctl ipam --help)
   fabricctl radius status|log|add-client|rotate-secret|remove-client
                                  802.1X (optional FreeRADIUS): RADIUS clients, decisions
   fabricctl domain status|password-policy|add-machine|sort-machines|host-managed|grant
@@ -84,6 +87,7 @@ sys.path[0] = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from fabriclib.common.ask import ask  # noqa: E402
 from fabriclib.consent.show_consent_status import show_consent_status  # noqa: E402
 from fabriclib.dhcp.run_dhcp_command import run_dhcp_command  # noqa: E402
+from fabriclib.ipam.run_ipam_command import run_ipam_command  # noqa: E402
 from fabriclib.dns.run_acl_command import run_acl_command  # noqa: E402
 from fabriclib.dns_filter.run_dns_filter_command import run_dns_filter_command  # noqa: E402
 from fabriclib.radius.run_radius_command import run_radius_command  # noqa: E402
@@ -261,6 +265,8 @@ def main(argv):
         return run_federation_command(SetupContext(deploy_base=_base(args)).load_state(), args)
     if cmd == "dhcp":
         return run_dhcp_command(SetupContext(deploy_base=_base(args)).load_state().vars, args)
+    if cmd == "ipam":
+        return run_ipam_command(SetupContext(deploy_base=_base(args)).load_state().vars, _without_base(args))
     if cmd == "dns-filter":
         return run_dns_filter_command(SetupContext(deploy_base=_base(args)).load_state().vars, _without_base(args))
     if cmd == "images":

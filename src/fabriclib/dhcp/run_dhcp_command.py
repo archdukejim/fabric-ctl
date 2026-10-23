@@ -5,6 +5,7 @@ from fabriclib.dhcp.add_client_class import add_client_class
 from fabriclib.dhcp.add_reservation import add_reservation
 from fabriclib.dhcp.add_subnet import add_subnet
 from fabriclib.dhcp.dhcp_overview import dhcp_overview
+from fabriclib.dhcp.common.apply_dhcp_change import apply_dhcp_change
 from fabriclib.dhcp.list_leases import list_leases
 from fabriclib.dhcp.remove_client_class import remove_client_class
 from fabriclib.dhcp.remove_reservation import remove_reservation
@@ -13,8 +14,6 @@ from fabriclib.dhcp.set_dhcp_on import set_dhcp_on
 from fabriclib.dhcp.set_option import set_option
 from fabriclib.dhcp.unset_option import unset_option
 from fabriclib.dhcp.update_subnet import KEEP, update_subnet
-from fabriclib.security.refresh_firewall import refresh_firewall
-from fabriclib.system.apply_changes import apply_changes
 
 USAGE = """usage: fabricctl dhcp status                       subnets (name, VLAN, notes), pools, options, classes
        fabricctl dhcp on [--interface I --subnet N --pool "a - b" [--router IP]]
@@ -35,26 +34,6 @@ USAGE = """usage: fabricctl dhcp status                       subnets (name, VLA
    every change applies at once unless --no-apply"""
 FLAGS = {"--name", "--vlan", "--router", "--pool", "--notes", "--add-pool", "--remove-pool", "--subnet", "--class",
          "--mac", "--test", "--next-server", "--boot-file", "--allow-overlap", "--interface"}
-
-
-def _apply(args):
-    """Purpose: Apply a just-recorded DHCP change now, unless --no-apply was given, then bring the host firewall in
-             line with it (refresh_firewall: the change is the admin's yes to the rules it implies, manual 1.10.3.5).
-    Inputs:  args — list of str (looks for "--no-apply"). Runs apply_changes as root (interactive.py --apply).
-    Returns: 0 if skipped or applied; 1 if apply or the firewall failed (last 2000 characters of its output).
-    Fails:   subprocess.TimeoutExpired (900 s, 300 s) and OSError from apply_changes / refresh_firewall propagate.
-    Feeds:   run_dhcp_command (every change).
-    """
-    if "--no-apply" in args:
-        print("recorded; apply with: sudo fabricctl --apply")
-        return 0
-    ok, output = apply_changes("root", "cli")
-    print("applied (Kea reloaded)" if ok else output[-2000:])
-    if not ok:
-        return 1
-    ok, output = refresh_firewall()
-    print("host firewall: in line" if ok else output[-2000:])
-    return 0 if ok else 1
 
 
 def _parse(args):
@@ -168,21 +147,21 @@ def run_dhcp_command(v, argv):
                             one.get("--pool", ""), one.get("--router", ""), source="cli")
             print(f"DHCP {cmd}" + (f": {', '.join(r['subnets'])} on {', '.join(r['interfaces'])}" if r["on"] else
                                    " (its settings and leases kept)"))
-            return _apply(args)
+            return apply_dhcp_change(args)
         if cmd == "reserve" and len(pos) in (2, 3):
             saved = add_reservation("root", pos[0], pos[1], pos[2] if len(pos) == 3 else "", source="cli")
             print(f"reserved {saved['ip']} for {saved['mac']}")
-            return _apply(args)
+            return apply_dhcp_change(args)
         if cmd == "unreserve" and len(pos) == 1:
             remove_reservation("root", pos[0], source="cli")
             print(f"reservation for {pos[0]} removed")
-            return _apply(args)
+            return apply_dhcp_change(args)
         if cmd == "add-subnet" and len(pos) == 1 and "--name" in one:
             s = add_subnet("root", pos[0], one["--name"], _vlan(one["--vlan"]) if "--vlan" in one else None,
                            one.get("--router"), vals.get("--pool", []), one.get("--notes", ""),
                            one.get("--allow-overlap", ""), source="cli")
             print(f"subnet {s['subnet']} ({s['name']}, id {s['id']}) added")
-            return _apply(args)
+            return apply_dhcp_change(args)
         if cmd == "set-subnet" and len(pos) == 1:
             s = update_subnet("root", pos[0], name=_keep(one, "--name"),
                               vlan=KEEP if "--vlan" not in one else _vlan(one["--vlan"]),
@@ -190,31 +169,31 @@ def run_dhcp_command(v, argv):
                               add_pools=vals.get("--add-pool", []), remove_pools=vals.get("--remove-pool", []),
                               allow_overlap=_keep(one, "--allow-overlap"), source="cli")
             print(f"subnet {s['subnet']} changed")
-            return _apply(args)
+            return apply_dhcp_change(args)
         if cmd == "remove-subnet" and len(pos) == 1:
             try:
                 leases = list_leases(v) if v.get("install_kea") else []
             except ValidationError:
                 leases = None                    # Kea not answering: cannot tell, so --force is needed
             print(f"subnet {remove_subnet('root', pos[0], leases, force='--force' in bare, source='cli')} removed")
-            return _apply(args)
+            return apply_dhcp_change(args)
         if cmd == "option" and pos[:1] == ["set"] and len(pos) == 3:
             label, o = set_option("root", pos[1], pos[2], always_send=True if "--always-send" in bare else None,
                                   source="cli", **where)
             print(f"option {o.get('name', o.get('code'))} set for {label}")
-            return _apply(args)
+            return apply_dhcp_change(args)
         if cmd == "option" and pos[:1] == ["unset"] and len(pos) == 2:
             print(f"option {pos[1]} removed from {unset_option('root', pos[1], source='cli', **where)}")
-            return _apply(args)
+            return apply_dhcp_change(args)
         if cmd == "class" and pos[:1] == ["add"] and len(pos) == 2 and "--test" in one:
             add_client_class("root", pos[1], one["--test"], one.get("--next-server"), one.get("--boot-file"),
                              source="cli")
             print(f"client class {pos[1]} added (options: fabricctl dhcp option set ... --class {pos[1]})")
-            return _apply(args)
+            return apply_dhcp_change(args)
         if cmd == "class" and pos[:1] == ["remove"] and len(pos) == 2:
             remove_client_class("root", pos[1], source="cli")
             print(f"client class {pos[1]} removed")
-            return _apply(args)
+            return apply_dhcp_change(args)
     except ValidationError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
