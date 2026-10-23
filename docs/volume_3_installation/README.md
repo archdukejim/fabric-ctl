@@ -81,3 +81,7 @@ Nothing here yet — nothing to install on its own: see [1.15](../volume_1_descr
 ## 3.17 The function reference
 
 Nothing here yet — nothing to install on its own: see [1.17](../volume_1_description_and_architecture/README.md).
+
+## 3.18 STIG compliance
+
+Nothing here yet — nothing to install on its own: see [1.18](../volume_1_description_and_architecture/README.md). Loading DISA's GPO package and the fabric host's own STIG step, if chosen (2.1.18.15), will be installed and operated from here and 4.18.

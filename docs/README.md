@@ -21,6 +21,7 @@ The manual is fabric's only source of truth (global Rule 5), in four volumes: wh
 - 1.15 Log forwarding: Fluent Bit
 - 1.16 Disk encryption
 - 1.17 The function reference
+- 1.18 STIG compliance
 
 ## [Volume 2 — Engineering decisions](volume_2_engineering_decisions/README.md)
 
@@ -47,6 +48,7 @@ The manual is fabric's only source of truth (global Rule 5), in four volumes: wh
 - 3.15 Log forwarding: Fluent Bit
 - 3.16 Disk encryption
 - 3.17 The function reference
+- 3.18 STIG compliance
 
 ## [Volume 4 — Operations](volume_4_operations/README.md)
 
@@ -67,3 +69,4 @@ The manual is fabric's only source of truth (global Rule 5), in four volumes: wh
 - 4.15 Log forwarding: Fluent Bit
 - 4.16 Disk encryption
 - 4.17 The function reference
+- 4.18 STIG compliance
