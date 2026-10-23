@@ -146,6 +146,17 @@ try:
         json.dump({"left_out": {}, "deb_unchecked": version}, f)
     check("status and doctor list a --deb bundle among the relaxed settings",
           any("--deb" in r["setting"] for r in relaxed_settings({}, config_dir=work, bundle_record=rec)))
+    # the web UI's Overview: fabric-agent (root) answers GET /v1/relaxed-settings from the same record (2.1.14.25)
+    import agent.get_route as agent_route
+    import fabriclib.system.relaxed_settings as relaxed_module
+    saved = relaxed_module.BUNDLE_RECORD, agent_route.load_vars
+    try:
+        relaxed_module.BUNDLE_RECORD, agent_route.load_vars = rec, dict
+        rows = agent_route.get_route(["relaxed-settings"])
+    finally:
+        relaxed_module.BUNDLE_RECORD, agent_route.load_vars = saved
+    check("fabric-agent's relaxed-settings route, which the web UI's Overview shows, lists it too",
+          any("--deb" in r["setting"] for r in rows), rows)
 
     # the packages as a local apt source (2.1.14.16): real apt reads, checks and resolves from it, simulating only
     apt_dir = tempfile.mkdtemp(prefix="bundles-apt-", dir="/var/tmp")

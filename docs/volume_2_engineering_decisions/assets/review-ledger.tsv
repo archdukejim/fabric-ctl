@@ -20,7 +20,7 @@ config/images.lock.yaml	0dcb952b83bd555ac4081e259ceb11320588ee0a	2026-10-17
 config/link-vars-template.yaml	09caaa55680a13015332a468218c99437f67db26	2026-09-30	
 config/sigstore-trusted-root.json	effb0a19e6a0b3f69b3f0a2c72b5c2a02a0ddeea	2026-10-23	
 docs/README.md	a83e2585272bfff196d38a7264e6e2661ce40693	2026-10-09	
-docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	8ff2081001d4780b4be5c1561a75a6afca19c783	2026-10-12	
+docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.4-roadmap.md	6ea6652a6c97c25f8268411a1bd710454cafba9e	2026-10-23	
@@ -37,10 +37,10 @@ docs/volume_1_description_and_architecture/1.12.1-adguard.md	b2280752ee06e87cb6e
 docs/volume_1_description_and_architecture/1.12.2-bind-resolver.md	b9e2201fbfc7eb160035e0e86ebf0dc61442d42d	2026-10-21	
 docs/volume_1_description_and_architecture/1.12.3-adguard-behind-bind.md	bfd9198da70910ca3cab9e0620072230fd68d251	2026-10-20	
 docs/volume_1_description_and_architecture/1.13.1-chrony.md	ad072bf9a0b0d7d74c145a8df36599bb4f1aca6e	2026-10-08	
-docs/volume_1_description_and_architecture/1.14.1-image-channels.md	94a12a60defe93ae9bc13a991ae57f8961edd5ca	2026-10-08	
-docs/volume_1_description_and_architecture/1.14.2-image-updates.md	88931374b22febb0a44abbd18e960841b8d3511d	2026-10-14	
-docs/volume_1_description_and_architecture/1.14.3-published-images-on-hosts.md	3862f9cc844d007d5e23e8bf8c1794960a4e9083	2026-10-09	
-docs/volume_1_description_and_architecture/1.14.4-offline-bundles.md	579067d95ca06ee3e231bca78915ebf30e20a0c0	2026-10-23	
+docs/volume_1_description_and_architecture/1.14.1-image-channels.md	e8a2588c610300ccdb62867c57ac7afe4d9ab563	2026-10-23	
+docs/volume_1_description_and_architecture/1.14.2-image-updates.md	845cc5bb94860613df3091b84e0feb3ed57a0fbf	2026-10-23	
+docs/volume_1_description_and_architecture/1.14.3-published-images-on-hosts.md	c2c4763637fb43712a3e7ea4bb6ed06cf18b986e	2026-10-23	
+docs/volume_1_description_and_architecture/1.14.4-offline-bundles.md	2696d311bb88ff7c682b87c4d72d2ac0ad4c0c48	2026-10-23	
 docs/volume_1_description_and_architecture/1.15.1-fluent-bit.md	b1106fe50c3441e51cbd48d61d7fed3746468413	2026-10-21	
 docs/volume_1_description_and_architecture/1.16.1-luks.md	f4b4c1a4dd1ecd389fd2fde6ec3bc00e7f92a738	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.1-about-the-reference.md	6b0b315f02c1a197b2ae64db31a6f0e932b12404	2026-10-17	
@@ -60,7 +60,7 @@ docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3b78491b62e
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	293b9e4da3a9f928dfa7e26760f7ec6f4a066a7d	2026-10-20	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	476faabbe0c00c58cd1c6928553e6c062ff7c910	2026-10-10	
 docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	dd8f43e44ce86d9bd5afeac3968aea0b7845c392	2026-10-23	
-docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	f8ffb981a59e8a13bdf33fa132f611031f2457e1	2026-10-23	
+docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	1b5f57b278d045b36a3e6eb868ea16982fdbc337	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	9fa688001068b61ddcf6cc50ec2737c20a0155ec	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	4ee43365d905760104ebdf9d7282d8d10f32eca5	2026-10-20	
 docs/volume_1_description_and_architecture/1.17.28-installers.md	986b323d7a4ca2e8cbf71d23fdd677f464f51139	2026-10-08	
@@ -91,9 +91,9 @@ docs/volume_1_description_and_architecture/1.2.4-containers.md	6294b5275a58e8c0c
 docs/volume_1_description_and_architecture/1.2.5-templates.md	c45afe975df6d859aac1e18b42b791f53ad454b1	2026-10-11	
 docs/volume_1_description_and_architecture/1.2.6-targets-and-hardening.md	b6bcd9682212f8bd33652a8e475302d9f885afe4	2026-10-10	
 docs/volume_1_description_and_architecture/1.2.7-container-inventory.md	32699a0d996b13ad592b94e0ba7f2776b23db5f7	2026-10-12	
-docs/volume_1_description_and_architecture/1.2.8-security-defaults.md	a6f3fa1ea89f1f9a46be3bab5159a1d42cf663e2	2026-10-23	
+docs/volume_1_description_and_architecture/1.2.8-security-defaults.md	dbc7360ee9300b691b4742398e1b015b6b8b1162	2026-10-23	
 docs/volume_1_description_and_architecture/1.2.9-host-consent.md	4c598432fade68467d6d977241b1fbb7a32133d4	2026-10-20	
-docs/volume_1_description_and_architecture/1.3.1-host-package.md	e703469d9b61e94eadbcb61dabc0fcb6ee57728b	2026-10-10	
+docs/volume_1_description_and_architecture/1.3.1-host-package.md	44319278da7cf11a26e05b384c989d9b81f6f40d	2026-10-23	
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	52383cf6f4f78399be173b61a5a6dd3d12cc4c72	2026-10-18	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	2905cd5def66814b6b5c47eb6c9f9fc2c141cec9	2026-10-20	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	216136a4ae9f7ef241f69b9f933ef47dc9e9493f	2026-10-17	
@@ -129,12 +129,12 @@ docs/volume_1_description_and_architecture/1.9.6-changes.md	6daa620e9c5e83f3ff60
 docs/volume_1_description_and_architecture/1.9.7-milestones.md	e58afe5eb9d02da03a309c838c2b86be04419123	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	76ed9fc5431bf7f0b86a535bde19011f9a96092a	2026-10-20	
 docs/volume_1_description_and_architecture/README.md	cc33e8507da7d50220a5225bc9ea26ecacb2ac0a	2026-10-23	
-docs/volume_2_engineering_decisions/2.1.1-product.md	b9ae48f946c27f72bdad494382f0e95fd9d4ca26	2026-10-23	
+docs/volume_2_engineering_decisions/2.1.1-product.md	8206b22408a6ed88318ba523de00feba99477273	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	d2f651c94dba5302552170cee89cc3bc6f73769a	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	139ff5b3ecce15085a60e2ef8443933896633b00	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece98c5e28bc1c8	2026-10-08	
-docs/volume_2_engineering_decisions/2.1.14-images.md	49b9554bb14a1574277a265651ecd2d0297ec855	2026-10-23	
+docs/volume_2_engineering_decisions/2.1.14-images.md	3a873f8696509c795515225cf2c7be226a406f4a	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.15-logs.md	b3fb9286ea0a6760a0ab597950d771e6cc305633	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.16-disk-encryption.md	2c5f6832b676ea44d7f5e8a76a4717b35f4d3cd6	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.2-architecture.md	e8275903e317df3b280ad3603c7c6b5ef21ea279	2026-10-17	
@@ -151,7 +151,7 @@ docs/volume_2_engineering_decisions/2.3.1-product-notes.md	7cd2e64a9d43db59f46c7
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
-docs/volume_2_engineering_decisions/2.3.14-image-notes.md	a02d00003b407fcc924cb7af48d9389ad8dbb8c1	2026-10-23	
+docs/volume_2_engineering_decisions/2.3.14-image-notes.md	f6cadf12b8eed6402bd0aece9711db2ef0f67f78	2026-10-23	
 docs/volume_2_engineering_decisions/2.3.2-architecture-notes.md	286af670daed816e42ccac86591235b781c6607a	2026-10-17	
 docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f4878a6c708a9f55be4	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a9aeb2e856f39e5f862e36bf6273c583af26d627	2026-10-11	
@@ -173,7 +173,7 @@ docs/volume_3_installation/3.2.1-requirements.md	923daf511f1da0012c84a1d8becb594
 docs/volume_3_installation/3.2.2-docker-from-ubuntu.md	2d7250a68efefe0413b077ee659fa444d40a325a	2026-10-08	
 docs/volume_3_installation/3.2.3-deployed-structure.md	7e6cdc8cf16bfca41ab48a5b0e0dd7d69d0c29a2	2026-10-08	
 docs/volume_3_installation/3.2.4-reinstall-uninstall.md	bf37166d7ac18646de5cf8969f886ed7832800bb	2026-10-17	
-docs/volume_3_installation/3.3.1-running-setup.md	dc11c5720fbe155feff2db39b4345c42e0f1a736	2026-10-23	
+docs/volume_3_installation/3.3.1-running-setup.md	8f5ab8dbc484d258fea72cfb663da3c2c1e436da	2026-10-23	
 docs/volume_3_installation/3.3.2-after-setup.md	35ed4792d55ba7d74779d3bcd998f561b8142509	2026-10-20	
 docs/volume_3_installation/3.3.3-setup-steps.md	30b4c50efadfb36fe6ddb00a611baf0ca58a1169	2026-10-23	
 docs/volume_3_installation/3.3.4-rebuilding.md	89cf47b0a1e0594bdae8b4d684b4111123f5b76b	2026-10-08	
@@ -1242,7 +1242,7 @@ src/fabriclib/system/host_ram_gb.py	f17a4eba48d0e2f688987edfc40925994ce10840	202
 src/fabriclib/system/host_reminders.py	0c9d07455faefa7e7cec676b72e9e46239adc76a	2026-10-20	
 src/fabriclib/system/memory_limit_mb.py	525aca509260b243d86fb04be67f278b96d32e9d	2026-10-20	
 src/fabriclib/system/plan_memory.py	731d84136ea166bf440ff54288f07e5ef363503b	2026-10-20	
-src/fabriclib/system/relaxed_settings.py	99048e4992bd89119e10ea146d436dd35b3931d1	2026-10-23	
+src/fabriclib/system/relaxed_settings.py	3f66f11689f7baf3be8ad44570c13d4654446e0a	2026-10-23	
 src/fabriclib/system/render_template_file.py	cde0259bd5b3874096e8073a25d6c60381f80e31	2026-10-02	
 src/fabriclib/system/service_status.py	eab348c836d77e79bb929701e48cdd4183edbad8	2026-10-11	
 src/fabriclib/system/show_memory_plan.py	ab0b812193bfba1bd8f16b01d1cb68972fc4c187	2026-10-20	
@@ -1702,7 +1702,7 @@ tests/host/upgrade_from_test.sh	6340c7113afe27f2686a22688d0bfd2d33270511	2026-10
 tests/host/upgrade_state.py	1bb5f5b3ecb71f6cfcc6bb27bfb5cf4e99b905c7	2026-10-20	
 tests/image_ref.py	4ff35451eb0f155eee1efe6209e935e841d0dc32	2026-10-03	
 tests/images/README.md	29d880b47aff4caa2b7fb869fcaee35b978becaa	2026-10-23	
-tests/images/bundle.py	0a724677381ad597d71717953872534ef4bf9c5e	2026-10-23	
+tests/images/bundle.py	c02d4939b1d6e4efb3cc5a845fb0454dc813c237	2026-10-23	
 tests/images/commands.py	3edfd75dfebcf701ef9e44a9dbe64e15cdd95c98	2026-10-12	
 tests/images/host_images.py	88e855ce667d351a3edc1fe87421a5ad687d19e0	2026-10-09	
 tests/images/offline.sh	052d8742d1f4e2448110ee26a04efd10f4ed2d97	2026-10-23	

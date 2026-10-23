@@ -8,7 +8,7 @@ from fabriclib.security.hardened_daemon_settings import DAEMON_JSON, hardened_da
 from fabriclib.security.signin_layers import read_lowered
 
 
-def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON, bundle_record=BUNDLE_RECORD):
+def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON, bundle_record=None):
     """Purpose: the security relaxations this host has turned on, so `fabricctl status` and the web UI can show them
              while they are active (global Rule 10; manual 1.2.8). Host changes the admin declined are listed by
              consent_status instead; Docker's userland proxy is listed here too while the DNS filter has client
@@ -18,7 +18,7 @@ def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON, bundle_rec
              (LOWERED_FILE: sign-in layers lowered with `fabricctl security lower`; default vars.yaml's);
              daemon_json — Docker's daemon settings file; bundle_record — the last imported offline bundle's
              record when it left images out or carried a --deb
-             (images/bundle/import_bundle, 2.1.14.21, 2.1.14.23; unreadable: none).
+             (images/bundle/import_bundle, 2.1.14.21, 2.1.14.23; None: BUNDLE_RECORD; unreadable: none).
     Returns: list of {"setting": str, "effect": str}; [] when none is relaxed.
     Fails:   OSError / ValueError for an unreadable LOWERED_FILE.
     Feeds:   system/show_relaxed_settings (`fabricctl status`); fabric-agent GET /v1/relaxed-settings (the web UI's
@@ -28,7 +28,7 @@ def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON, bundle_rec
         relaxed.append({"setting": "image_signature_check: false",
                         "effect": "fabric's published images are used without checking their signatures (1.14.3.4)"})
     try:                                                       # 2.1.14.21, 2.1.14.23: an offline bundle's overrides
-        with open(bundle_record) as f:
+        with open(bundle_record or BUNDLE_RECORD) as f:
             bundle = json.load(f)
     except (OSError, ValueError):
         bundle = {}
