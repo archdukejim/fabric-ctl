@@ -183,6 +183,32 @@ check("negative: an account local-admin fabric did not make is refused, saying s
 check("fabric-agent's AppRole cannot read it (only fabric-setup's policy reaches local-admin/)",
       bao_request(V, "GET", f"local-admin/data/{PATH}",
                   token=approle_login(V, "agent-approle.json"))[0] == 403)
+import fabriclib.localadmin.ensure_local_admin_store as m_store  # noqa: E402
+UPG = "Upgrading from non-versioned to versioned data. This backend will be unavailable for a brief period."
+answers, slept = [], []
+
+
+def upgrading_first(v, method, path, token=None, body=None):
+    if method == "GET" and path == "local-admin/config" and answers:
+        return answers.pop(0)
+    return bao_request(v, method, path, token=token, body=body)
+
+
+m_store.bao_request = upgrading_first
+answers[:] = [(400, {"errors": [UPG]}), (400, {"errors": [UPG]})]
+done = m_store.ensure_local_admin_store(V, token, sleep=slept.append)
+check("a new mount still upgrading itself (OpenBao's answer at first, as the sandbox met it): waited out, then "
+      "the store converges (2.3.7.7.6)", done == [] and slept == [1, 1] and not answers, (done, slept))
+answers[:] = [(400, {"errors": [UPG]})] * 40
+slept.clear()
+msg = refused(lambda: m_store.ensure_local_admin_store(V, token, sleep=slept.append))
+check("negative: still upgrading after 30 s: refused, saying so (the step runs again later)",
+      "still upgrading after 30 s" in msg and len(slept) == 30, msg)
+answers[:] = [(403, {"errors": ["permission denied"]})]
+slept.clear()
+msg = refused(lambda: m_store.ensure_local_admin_store(V, token, sleep=slept.append))
+check("negative: any other refusal is said at once, not waited on", "permission denied" in msg and slept == [], msg)
+m_store.bao_request = bao_request
 
 print("--- a use, and the rotation after it (1.7.1.4.4)")
 JOURNAL = []

@@ -2603,6 +2603,7 @@ function	fabriclib-localadmin|src/fabriclib/localadmin/common/utc_now.py|utc_now
 function	fabriclib-localadmin|src/fabriclib/localadmin/ensure_local_admin.py|_useradd	1	
 function	fabriclib-localadmin|src/fabriclib/localadmin/ensure_local_admin.py|ensure_local_admin	2	
 function	fabriclib-localadmin|src/fabriclib/localadmin/ensure_local_admin_store.py|_call	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/ensure_local_admin_store.py|_config_when_ready	3	
 function	fabriclib-localadmin|src/fabriclib/localadmin/ensure_local_admin_store.py|ensure_local_admin_store	2	
 function	fabriclib-localadmin|src/fabriclib/localadmin/find_local_admin_uses.py|_journal	1	
 function	fabriclib-localadmin|src/fabriclib/localadmin/find_local_admin_uses.py|_wtmp	2	
