@@ -77,6 +77,7 @@ friendly_name: Offline
 ad_domain: ad.off.test
 install_keycloak: false
 ntp_set_clock: false
+ntp_servers: []           # no route out: the host's own clock (4.13.1.1); a real offline host names a local source
 dns_filter_lists: []
 EOF
 docker cp "$OUT/vars.yaml" "$NAME:/root/vars.yaml"
@@ -96,7 +97,7 @@ in_box 'echo "{\"features\": {\"containerd-snapshotter\": false}}" > /etc/docker
 in_box 'fabricctl images import /root/fabric.tar' > "$OUT/import-classic.log" 2>&1
 check "on Docker's classic store the import is refused, saying why, nothing loaded" \
     "grep -q 'classic store' '$OUT/import-classic.log' && [ -z \"\$(in_box 'docker images -q')\" ]"
-in_box 'rm -f /etc/docker/daemon.json && systemctl restart docker'
+in_box 'echo "{\"features\": {\"containerd-snapshotter\": true}}" > /etc/docker/daemon.json && systemctl restart docker'   # as 3.14.2.3 does
 check "Docker is on the containerd store again" "in_box 'docker info -f \"{{json .DriverStatus}}\"' | grep -q containerd.snapshotter"
 in_box 'fabricctl images import /root/nope.tar' > "$OUT/import-missing.log" 2>&1
 check "a bundle that is not there is refused, saying so" "grep -q 'not a readable bundle' '$OUT/import-missing.log'"
@@ -122,13 +123,16 @@ check "a second import loads nothing (idempotent)" "grep -qE '^0 image\(s\) load
 # covers: cli:setup -
 in_box 'fabricctl setup --offline /root/missing.tar --non-interactive --yes' > "$OUT/setup-missing.log" 2>&1
 check "setup --offline with a bundle that is not there is refused before any step" \
-    "grep -q 'no offline bundle at /root/missing.tar' '$OUT/setup-missing.log' && ! in_box 'test -e /opt/fabric/config/fabric.yaml'"
+    "grep -q 'no offline bundle at /root/missing.tar' '$OUT/setup-missing.log' && ! grep -q 'checking the offline bundle' '$OUT/setup-missing.log'"
 
+# the test restarted Docker twice in a minute (the classic store and back); a host does not: clear systemd's count
+in_box 'systemctl reset-failed docker.service docker.socket'
 echo "--- setup --offline (about 15 min)"
 # covers: cli:setup +
 in_box 'fabricctl setup --offline /root/fabric.tar --file /root/vars.yaml --non-interactive --yes --approve all' \
     > "$OUT/setup.log" 2>&1
 code=$?
+[ $code -eq 0 ] || in_box 'journalctl -u docker -u docker.socket -u containerd --no-pager -n 300 -o short-precise; cat /etc/docker/daemon.json' > "$OUT/docker-journal.log" 2>&1
 check "setup --offline <bundle> installs fabric with no internet (exit $code)" "[ $code -eq 0 ]"
 check "its member step installed the domain member's packages from the bundle" \
     "in_box 'dpkg -s sssd-ad' | grep -q '^Status: install ok installed'"
