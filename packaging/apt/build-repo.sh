@@ -51,7 +51,7 @@ gpg --batch --armor --export > "$OUT/public.key"
 touch "$OUT/.nojekyll"                    # GitHub Pages serves the tree as it is
 # the site's own page: how to add the repository, and the key's fingerprint to check it against
 FPR="$(gpg --batch --with-colons --list-keys | awk -F: '$1 == "fpr" {print $10; exit}')"
-URL="${APT_URL:-https://archdukejim.github.io/open-fabric}"
+URL="${APT_URL:-https://archdukejim.github.io/fabric-ctl}"
 cat > "$OUT/index.html" <<EOF
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -67,7 +67,7 @@ echo "deb [signed-by=/usr/share/keyrings/fabric-archive-keyring.gpg] $URL stable
 sudo apt update &amp;&amp; sudo apt install fabricctl
 sudo fabricctl setup</code></pre>
 <p>Signing key fingerprint: <code>$FPR</code></p>
-<p>Source and manual: <a href="https://github.com/archdukejim/open-fabric">github.com/archdukejim/open-fabric</a></p>
+<p>Source and manual: <a href="https://github.com/archdukejim/fabric-ctl">github.com/archdukejim/fabric-ctl</a></p>
 </body></html>
 EOF
 echo "$OUT"

@@ -26,6 +26,7 @@ from fabriclib.breakglass.break_glass_reminder import break_glass_reminder
 from fabriclib.hostaccounts.local_account_reminders import local_account_reminders
 from fabriclib.localadmin.local_admin_checks import local_admin_checks
 from fabriclib.pki.common.cert_names import cert_names
+from fabriclib.common.errors import ValidationError
 from fabriclib.setup.errors import SetupError
 from fabriclib.system.relaxed_settings import relaxed_settings
 from fabriclib.vault.vault_status import vault_status
@@ -261,10 +262,16 @@ def run(ctx):
              it had, for what is coming with the certificates (cert_warnings) and, while it is on the host, for the
              break-glass password's file (break_glass_reminder, 2.1.6.69) and for each local administrator account
              neither managed nor approved (local_account_reminders, 2.1.6.78).
-    Fails:   SetupError("<n> check(s) failed"); exceptions from checks propagate.
+    Fails:   SetupError("<n> check(s) failed"); with OpenBao locked (checks' ValidationError) that one failed check
+             is printed instead and the warnings still follow (a rotation waiting for OpenBao, 2.1.7.20); other
+             exceptions from checks propagate.
     Feeds:   setup step `verify`, run by run_setup via STEPS; run_setup main for `fabricctl doctor`."""
     failed = 0
-    for name, passed, detail in checks(ctx):
+    try:
+        rows = checks(ctx)
+    except ValidationError as e:        # OpenBao locked: fabric's secrets unreadable; the warnings below still show
+        rows = [("fabric's secrets readable (OpenBao unlocked): the other checks need them", False, str(e))]
+    for name, passed, detail in rows:
         (ok if passed else err)(f"{name}" + (f" — {detail}" if detail else ""))
         failed += not passed
     # sign-in layers lowered with `fabricctl security lower` stay in view until raised again (2.1.6.24), and the

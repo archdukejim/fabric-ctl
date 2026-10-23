@@ -4,7 +4,7 @@ Architecture: all
 Section: admin
 Priority: optional
 Maintainer: fabric <archdukejim@users.noreply.github.com>
-Homepage: https://github.com/archdukejim/open-fabric
+Homepage: https://github.com/archdukejim/fabric-ctl
 Depends: python3 (>= 3.10), python3-yaml, python3-jinja2, python3-bcrypt, chrony, openssl, curl, ca-certificates, iptables, ufw, dnsutils
 Recommends: python3-pykcs11, python3-pykmip
 Suggests: docker.io, docker-compose-v2, docker-buildx, ykcs11, opensc-pkcs11, pcscd, softhsm2

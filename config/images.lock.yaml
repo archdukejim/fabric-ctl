@@ -85,8 +85,9 @@ images:
 # is published again; the images suite refuses a stale pin (2.1.14.13).
 published:
   registry: ghcr.io/archdukejim/open-fabric
-  # who may have signed them: this repository's images workflow, from main, an rc/ branch or a v tag (2.1.14.9)
-  signer: ^https://github\.com/archdukejim/open-fabric/\.github/workflows/images\.yml@refs/(heads/main|heads/rc/.+|tags/v.+)$
+  # who may have signed them: this repository's images workflow, from main, an rc/ branch or a v tag (2.1.14.9),
+  # under either of its names (renamed fabric-ctl; the images published before carry the old: 2.1.1.68)
+  signer: ^https://github\.com/archdukejim/(open-fabric|fabric-ctl)/\.github/workflows/images\.yml@refs/(heads/main|heads/rc/.+|tags/v.+)$
   issuer: https://token.actions.githubusercontent.com
   images:
     bind9:      {var: image_fabric_bind9, tag: "0.7.1-rc.182", digest: "sha256:565933836b40cc06b55cb404b8edbb59f2007b5f680cbe6db7995fcbe437d7a8", source: "sha256:cfad6ca373441787e72ba1b7bb837f0f0d3f364274f2cfb4b72fd9cb3b34255a", account: bind, ids: "600:600"}

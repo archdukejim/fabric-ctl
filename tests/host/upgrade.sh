@@ -33,8 +33,8 @@ DOMAIN="${DOMAIN:-pitest.home.arpa}"
 KEY="${KEY:-$HOME/.ssh/fabric-test_ed25519}"
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="${FABRIC_TEST_OUT:-/tmp/fabric-tests}/upgrade"
-APT_URL="${APT_URL:-https://archdukejim.github.io/open-fabric}"
-RELEASES="${RELEASES:-https://github.com/archdukejim/open-fabric/releases/download}"
+APT_URL="${APT_URL:-https://archdukejim.github.io/fabric-ctl}"
+RELEASES="${RELEASES:-https://github.com/archdukejim/fabric-ctl/releases/download}"
 SSH=(ssh -o BatchMode=yes -o ServerAliveInterval=30 -i "$KEY" "$TARGET")
 PASS=0; FAIL=0
 check() { if (set +o pipefail; eval "$2"); then echo "PASS $1"; PASS=$((PASS+1)); else echo "FAIL $1"; FAIL=$((FAIL+1)); fi; }
