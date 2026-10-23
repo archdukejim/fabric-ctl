@@ -10,7 +10,8 @@ def _reminders(config_dir):
     """Purpose: the host's reminders, worked out here (outside fabric-agent's sandbox, which hides the homes).
     Inputs:  config_dir — the install's config folder.
     Returns: list of {"kind", "text"}: "break-glass" while the break-glass password's file is on the host;
-             "local-account" for each local administrator account neither managed nor approved (2.1.6.78).
+             "local-account" for each local administrator account neither managed nor approved (2.1.6.78);
+             "local-admin" while its rotation waits for OpenBao or its hourly check failed (2.1.7.20).
     Fails:   OSError from the record or the audit log.
     Feeds:   host_reminders (through the transient unit), this file's __main__."""
     from fabriclib.breakglass.break_glass_reminder import break_glass_reminder
@@ -19,7 +20,9 @@ def _reminders(config_dir):
     if glass:
         out.append({"kind": "break-glass", "text": glass["text"]})
     from fabriclib.hostaccounts.local_account_reminders import local_account_reminders
-    return out + [{"kind": r["kind"], "text": r["text"]} for r in local_account_reminders(config_dir)]
+    out += [{"kind": r["kind"], "text": r["text"]} for r in local_account_reminders(config_dir)]
+    from fabriclib.localadmin.local_admin_checks import local_admin_checks
+    return out + [{"kind": "local-admin", "text": t} for t in local_admin_checks(None, config_dir, False)["warnings"]]
 
 
 def host_reminders(deploy_base="/opt", run=subprocess.run):

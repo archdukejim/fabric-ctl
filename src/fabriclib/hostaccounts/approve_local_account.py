@@ -20,6 +20,8 @@ def approve_local_account(config_dir, name, actor, audit=write_audit, listed=Non
     if name not in rows:
         raise ValidationError(f"{name} is not a local root or administrator account on this host: nothing to approve "
                               "(`fabricctl host accounts list` shows them)")
+    if rows[name].get("managed"):
+        raise ValidationError(f"{name} is managed by OpenBao (manual 1.7.1.4): nothing to approve")
     if rows[name]["approved"]:
         raise ValidationError(f"{name} is already approved (by {rows[name]['approved'].get('by')})")
     data = load_approvals(config_dir)

@@ -27,7 +27,8 @@ def run_host_command(config_dir, args):
         if not rows:
             print("no local root or administrator account but root")
         for r in rows:
-            state = (f"approved by {r['approved'].get('by')} on {r['approved'].get('when')}" if r["approved"]
+            state = ("managed by OpenBao (local-admin, manual 1.7.1.4)" if r.get("managed") else
+                     f"approved by {r['approved'].get('by')} on {r['approved'].get('when')}" if r["approved"]
                      else "not approved: reminded")
             print(f"{r['name']}{' (ran setup)' if r['setup'] else ''}: {', '.join(r['why'])}; {state}")
         return 0

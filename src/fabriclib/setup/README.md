@@ -59,3 +59,4 @@
 | `common/` | Helpers shared with the consent plans |
 | `doctor_report.py` | Doctor's checks as data, for the web console's Run doctor |
 | `ensure_db_rotation.py` | Step `dbrotation`: Postgres's own admin and Keycloak's own role, OpenBao's database engine and static role for Keycloak's password (2.1.7.4) |
+| `setup_local_admin.py` | Step `localadmin`: this host's local-admin made and its password set by OpenBao, then the hourly check once (2.1.7.16) |

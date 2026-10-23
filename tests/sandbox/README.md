@@ -18,4 +18,4 @@ A full install from the `.deb` in a disposable systemd + Docker container
 | `list_roles.py` | Inside the sandbox: the device roles' names (the defaults setup created) |
 | `iterate.sh` | Developer helper: re-run parts against a kept sandbox |
 | `make_person.py` | A person of the site made the way fabric makes them, optionally in an organisation group |
-| `agent_job.py` | Inside the sandbox: one fabric-agent job (doctor, an image update) through its socket, as the web console runs it |
+| `agent_job.py` | Inside the sandbox: one fabric-agent job (doctor, an image update) through its socket, as the web console runs it; or one route answered at once (`post`) |

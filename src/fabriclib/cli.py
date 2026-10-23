@@ -30,6 +30,9 @@
                                  fabric-admin's lost password replaced, the account unlocked (writable DC)
   fabricctl host accounts list|approve|unapprove <name>
                                  this host's local root and administrator accounts; approved as break glass
+  fabricctl local-admin status|checkout|policy|ssh|check
+                                 this host's local-admin, set and kept by OpenBao: its password checked out,
+                                 its rotation, local-admin over SSH (off by default)
   fabricctl people list|show|add|reset|disable|enable|remove|groups|group
                                  the site's people: sign-in, groups, removal (fabricctl people --help)
   fabricctl machines groups|group
@@ -87,6 +90,7 @@ from fabriclib.radius.run_radius_command import run_radius_command  # noqa: E402
 from fabriclib.samba.run_domain_command import run_domain_command  # noqa: E402
 from fabriclib.breakglass.run_admin_command import run_admin_command  # noqa: E402
 from fabriclib.hostaccounts.run_host_command import run_host_command  # noqa: E402
+from fabriclib.localadmin.run_local_admin_command import run_local_admin_command  # noqa: E402
 from fabriclib.directory.run_people_command import run_people_command  # noqa: E402
 from fabriclib.directory.run_machines_command import run_machines_command  # noqa: E402
 from fabriclib.directory.run_sudo_command import run_sudo_command  # noqa: E402
@@ -242,6 +246,9 @@ def main(argv):
         return run_admin_command(ctx.load_state().vars, _without_base(args), ctx.config_dir)
     if cmd == "host":
         return run_host_command(SetupContext(deploy_base=_base(args)).config_dir, _without_base(args))
+    if cmd == "local-admin":
+        ctx = SetupContext(deploy_base=_base(args))
+        return run_local_admin_command(ctx.load_state().vars, ctx.config_dir, _without_base(args))
     if cmd == "people":
         return run_people_command(SetupContext(deploy_base=_base(args)).load_state().vars, _without_base(args))
     if cmd == "machines":

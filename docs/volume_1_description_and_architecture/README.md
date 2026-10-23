@@ -164,4 +164,5 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.17.36 fabriclib-grants](1.17.36-fabriclib-grants.md)
 - [1.17.37 fabriclib-access](1.17.37-fabriclib-access.md)
 - [1.17.38 fabriclib-domain](1.17.38-fabriclib-domain.md)
+- [1.17.39 fabriclib-localadmin](1.17.39-fabriclib-localadmin.md)
 <!-- end of generated 1.17 -->

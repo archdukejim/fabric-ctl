@@ -733,6 +733,125 @@ check "the break-glass file deleted: doctor reminds of it no more, the removal a
 in_box 'rm -f /root/ea-pw'
 in_box 'rm -f /root/localop-pw /root/wrong-pw /root/bob-pw /root/dora-pw'
 
+echo "--- the host's local-admin, set and kept by OpenBao (D6, 1.7.1.4)"
+LA_REC=/opt/fabric/config/local-admin.json
+# the password checked out into a root-only file in the box, never into a log here
+la_checkout() { in_box "umask 077; fabricctl local-admin checkout --reason '$1' > /root/la-out 2>&1; rc=\$?; \
+    sed -n 's/^password:  //p' /root/la-out > /root/la-pw; sed -i 's/^password:  .*/password:  (kept in \/root\/la-pw)/' /root/la-out; \
+    cat /root/la-out; exit \$rc"; }
+# the uses and check-outs of the current password moved 9 hours back: its grace (8 hours) over, with no waiting
+la_age() { in_box "python3 -c \"import datetime, json; p='$LA_REC'; r=json.load(open(p))
+for k in ('used', 'checkout'):
+    if r.get(k):
+        r[k]['when'] = (datetime.datetime.fromisoformat(r[k]['when']) - datetime.timedelta(hours=9)).isoformat()
+json.dump(r, open(p, 'w'))\""; }
+la_version() { in_box "python3 -c \"import json; print(json.load(open('$LA_REC'))['version'])\""; }
+check "setup made local-admin: a local account in sudo, fabric's (its record), its password from OpenBao (version 1)" \
+    "in_box 'id -nG local-admin' | grep -qw sudo && [ \"\$(la_version)\" = 1 ] && grep -q 'local-admin: its password set by OpenBao' '$OUT/setup.log'"
+in_box 'fabricctl local-admin status' > "$OUT/la-status.log" 2>&1
+# covers: cli:local-admin.status +
+# covers: cli:local-admin +
+check "fabricctl local-admin status: the account, its policy after-use, version 1, SSH off" \
+    "grep -q 'local-admin: the account exists; policy after-use' '$OUT/la-status.log' && grep -q \"OpenBao's version 1\" '$OUT/la-status.log' \
+     && grep -q 'SSH in the domain: off' '$OUT/la-status.log'"
+# covers: cli:local-admin.status -
+# covers: cli:local-admin -
+check "negative: fabricctl local-admin as anyone but root is refused (Run as root)" \
+    "in_box 'su -s /bin/bash nobody -c \"fabricctl local-admin status\" 2>&1' | grep -q 'Run as root'"
+check "host accounts list: local-admin managed by OpenBao, never reminded of" \
+    "in_box 'fabricctl host accounts list' | grep -q '^local-admin: .*managed by OpenBao' && ! in_box 'fabricctl doctor' | grep -q 'the local account local-admin'"
+check "doctor: local-admin's current version in OpenBao is the host's (a passing check)" \
+    "grep 'local-admin: the host.s break glass' '$OUT/doctor.log' | grep -q '✓'"
+in_box 'fabricctl local-admin check' > "$OUT/la-check.log" 2>&1
+# covers: cli:local-admin.check +
+check "the check (as the hourly timer) applies SSH off now an SSH server is installed: DenyUsers local-admin, sshd accepts it" \
+    "in_box 'grep -qx \"DenyUsers local-admin\" /etc/ssh/sshd_config.d/05-fabric-local-admin.conf' && in_box 'sshd -t' && grep -q 'off (sshd refuses it)' '$OUT/la-check.log'"
+# covers: cli:local-admin.check -
+check "negative: fabricctl local-admin check --bogus prints the usage (exit 2)" \
+    "in_box 'fabricctl local-admin check --bogus' | grep -q usage && ! in_box 'fabricctl local-admin check --bogus' >/dev/null"
+check "the hourly timer is installed and enabled" "in_box 'systemctl is-enabled fabric-local-admin.timer' | grep -qx enabled"
+la_checkout '' > "$OUT/la-checkout-noreason.log" 2>&1
+# covers: cli:local-admin.checkout -
+check "negative: a check-out without a reason is refused, nothing shown" \
+    "grep -q 'refused: a check-out needs a reason' '$OUT/la-checkout-noreason.log' && ! in_box 'test -s /root/la-pw'"
+la_checkout 'sandbox: break glass test' > "$OUT/la-checkout.log" 2>&1
+# covers: cli:local-admin.checkout +
+check "sudo fabricctl local-admin checkout --reason …: the password shown once, audited LOCAL_ADMIN_CHECKOUT, never logged" \
+    "in_box 'test \$(wc -c < /root/la-pw) -eq 25' && in_box 'grep -q LOCAL_ADMIN_CHECKOUT /opt/fabric/archive/audit.log' \
+     && ! in_box 'grep -qF -f /root/la-pw /opt/fabric/archive/audit.log /opt/fabric/config/local-admin.json' && grep -q 'rotated after use' '$OUT/la-checkout.log'"
+check "local-admin signs in at the console (PAM) with it" "pam local-admin /root/la-pw"
+check "negative: local-admin over SSH is refused by default, even with its password (2.1.7.19)" "! ssh_pw local-admin /root/la-pw"
+in_box 'fabricctl local-admin ssh on' > "$OUT/la-ssh-on.log" 2>&1
+# covers: cli:local-admin.ssh +
+check "local-admin ssh on: kept in the domain, applied at once (a Match block, sshd accepts it), audited LOCAL_ADMIN_SSH" \
+    "grep -q 'ON (a relaxation)' '$OUT/la-ssh-on.log' && in_box 'grep -qx \"Match User local-admin\" /etc/ssh/sshd_config.d/05-fabric-local-admin.conf' \
+     && in_box 'sshd -t' && in_box 'grep -q LOCAL_ADMIN_SSH /opt/fabric/archive/audit.log'"
+check "…local-admin now signs in over SSH with its password; another local account's sign-in unchanged" \
+    "ssh_pw local-admin /root/la-pw"
+check "…shown as a relaxation: fabricctl status, doctor (a warning) and domain status" \
+    "in_box 'fabricctl status' | grep -q 'local-admin over SSH: on' && in_box 'fabricctl doctor' | grep -q 'local-admin over SSH: on' \
+     && in_box 'fabricctl domain status' | grep -q 'RELAXED: local-admin over SSH is on'"
+in_box 'fabricctl local-admin ssh maybe' > "$OUT/la-ssh-bad.log" 2>&1
+# covers: cli:local-admin.ssh -
+check "negative: local-admin ssh maybe is refused (exit 1), still on" \
+    "grep -q 'refused: ssh: on or off' '$OUT/la-ssh-bad.log' && in_box 'grep -q Match /etc/ssh/sshd_config.d/05-fabric-local-admin.conf'"
+docker cp "$REPO/tests/sandbox/agent_job.py" "$NAME:/root/agent_job.py"
+in_box 'python3 /root/agent_job.py post /v1/local-admin/ssh "{\"ssh\": \"off\"}"' > "$OUT/la-ssh-route.json" 2>&1
+check "POST /v1/local-admin/ssh off through fabric-agent's socket (a root peer, the Enterprise Admin): off, applied from the agent" \
+    "grep -q '\"ssh\": false' '$OUT/la-ssh-route.json' && in_box 'grep -qx \"DenyUsers local-admin\" /etc/ssh/sshd_config.d/05-fabric-local-admin.conf' \
+     && ! ssh_pw local-admin /root/la-pw && ! in_box 'fabricctl status' | grep -q 'local-admin over SSH: on'"
+in_box 'fabricctl local-admin check' > "$OUT/la-check-used.log" 2>&1
+check "the SSH sign-in is seen as a use (the journal, wtmp), audited LOCAL_ADMIN_USED; within the grace nothing rotates" \
+    "grep -q 'local-admin was used at' '$OUT/la-check-used.log' && in_box 'grep -q LOCAL_ADMIN_USED /opt/fabric/archive/audit.log' && [ \"\$(la_version)\" = 1 ]"
+la_age
+in_box 'fabricctl local-admin check --scheduled' > "$OUT/la-check-rotate.log" 2>&1
+check "the grace over: a new password from OpenBao set and current (version 2), audited LOCAL_ADMIN_ROTATE" \
+    "grep -q 'local-admin has a new password' '$OUT/la-check-rotate.log' && [ \"\$(la_version)\" = 2 ] && in_box 'grep -q LOCAL_ADMIN_ROTATE /opt/fabric/archive/audit.log'"
+check "negative: the used password is refused now" "! pam local-admin /root/la-pw authenticate"
+la_checkout 'sandbox: after the rotation' > "$OUT/la-checkout2.log" 2>&1
+check "…the new one, checked out, signs in" "pam local-admin /root/la-pw"
+in_box 'fabricctl local-admin policy keep-until-checkout' > "$OUT/la-policy.log" 2>&1
+# covers: cli:local-admin.policy +
+check "local-admin policy keep-until-checkout: recorded, audited LOCAL_ADMIN_POLICY, status says it" \
+    "grep -q 'policy: keep-until-checkout' '$OUT/la-policy.log' && in_box 'grep -q LOCAL_ADMIN_POLICY /opt/fabric/archive/audit.log' \
+     && in_box 'fabricctl local-admin status' | grep -q 'policy keep-until-checkout'"
+in_box 'fabricctl local-admin policy yearly' > "$OUT/la-policy-bad.log" 2>&1
+# covers: cli:local-admin.policy -
+check "negative: an unknown policy is refused, naming the two" \
+    "grep -q 'refused: the policy is one of: after-use, keep-until-checkout' '$OUT/la-policy-bad.log'"
+la_age
+in_box 'fabricctl local-admin check' > "$OUT/la-check-keep.log" 2>&1
+check "keep-until-checkout: checked out (above), rotated after the grace like after-use (version 3); no schedule in 0.8.0" \
+    "[ \"\$(la_version)\" = 3 ]"
+in_box 'fabricctl local-admin check' > /dev/null 2>&1
+check "…and kept while nothing uses or checks it out" "[ \"\$(la_version)\" = 3 ]"
+in_box 'fabricctl local-admin policy after-use' > /dev/null 2>&1
+in_box 'su - local-admin -c true' > /dev/null 2>&1
+in_box 'fabricctl local-admin check' > "$OUT/la-check-su.log" 2>&1
+check "a session opened for it (su) is a use too" "grep -q 'local-admin was used at' '$OUT/la-check-su.log'"
+in_box 'systemctl stop openbao' > /dev/null 2>&1
+la_age
+in_box 'fabricctl local-admin check' > "$OUT/la-check-locked.log" 2>&1
+check "OpenBao stopped: the rotation due waits, said; the used password stays current (2.1.7.20)" \
+    "grep -q 'waits' '$OUT/la-check-locked.log' && [ \"\$(la_version)\" = 3 ]"
+check "…doctor reminds of it" "in_box 'fabricctl doctor 2>&1' | grep -q 'a new password has been due since'"
+la_checkout 'sandbox: OpenBao down' > "$OUT/la-checkout-locked.log" 2>&1
+check "negative: a check-out is refused while OpenBao is down (it holds the only copy)" \
+    "grep -q 'refused: OpenBao' '$OUT/la-checkout-locked.log' && ! in_box 'test -s /root/la-pw'"
+in_box 'systemctl start openbao' > /dev/null 2>&1; sleep 15
+in_box 'fabricctl local-admin check --scheduled' > "$OUT/la-check-back.log" 2>&1
+check "OpenBao back: the next run rotates it (version 4), nothing waits any more" \
+    "[ \"\$(la_version)\" = 4 ] && ! in_box 'fabricctl doctor 2>&1' | grep -q 'a new password has been due since'"
+in_box 'fabricctl setup --undo local_admin --non-interactive --yes' > "$OUT/la-undo.log" 2>&1
+check "setup --undo local_admin: the account, its home and the SSH drop-in removed, recorded as declined; status shows it" \
+    "! in_box 'id local-admin' >/dev/null 2>&1 && ! in_box 'test -e /home/local-admin || test -e /etc/ssh/sshd_config.d/05-fabric-local-admin.conf' \
+     && in_box 'fabricctl status' | grep -qE \"^  local_admin +declined\""
+in_box 'fabricctl setup --approve local_admin --step localadmin --non-interactive --yes' > "$OUT/la-again.log" 2>&1
+check "approved again: made again with a new password from OpenBao, SSH refused" \
+    "in_box 'id -nG local-admin' | grep -qw sudo && [ \"\$(la_version)\" = 5 ] \
+     && in_box 'grep -qx \"DenyUsers local-admin\" /etc/ssh/sshd_config.d/05-fabric-local-admin.conf'"
+in_box 'rm -f /root/la-pw /root/la-out'
+
 echo "--- Keycloak's database password, rotated by OpenBao (2.1.7.4)"
 pg_roles() { in_box "docker exec postgres psql -tA -U fabric_admin -d keycloak -c 'SELECT rolname, rolsuper, rolcanlogin FROM pg_roles'"; }
 check "setup handed Keycloak's password to OpenBao: Keycloak runs as its own role, the bootstrap role locked" \
@@ -1019,6 +1138,9 @@ check "uninstall put chrony's own configuration back and left ufw as it was befo
     "! in_box 'grep -q \"^# fabric\" /etc/chrony/chrony.conf' && ! in_box 'ufw status' | grep -qE '22/tcp|123/udp' \
      && in_box 'ufw status' | grep -q \"Status: $UFW_BEFORE\""
 check "uninstall took the host out of its domain: sssd.conf and the keytab gone, the admin no longer resolves"     "grep -qE 'This host as a member of its domain +undone' '$OUT/uninstall.log'      && ! in_box 'test -e /etc/sssd/sssd.conf || test -e /etc/krb5.keytab' && ! in_box 'getent passwd fabric-admin'"
+check "uninstall removed the host's local-admin (the account, its home, its SSH drop-in), listed as undone first" \
+    "grep -qE \"This host's local-admin +undone\" '$OUT/uninstall.log' && ! in_box 'id local-admin' >/dev/null 2>&1 \
+     && ! in_box 'test -e /home/local-admin || test -e /etc/ssh/sshd_config.d/05-fabric-local-admin.conf'"
 
 echo "--- fabricctl restore: the same fabric back from the export"
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /root/fabricctl-new.deb' > "$OUT/apt-restore.log" 2>&1

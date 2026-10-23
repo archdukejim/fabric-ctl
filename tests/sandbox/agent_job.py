@@ -1,6 +1,7 @@
 """Inside the sandbox, as root: run one fabric-agent job through its socket and wait for it (2.1.8.3): what the web
 console's Run doctor and Updates do. Prints the job's state and result as JSON.
     python3 agent_job.py doctor | images <update|rollback> <service>
+    python3 agent_job.py post <path> '<json body>'     one route answered at once (e.g. /v1/local-admin/ssh)
 """
 import json
 import socket
@@ -24,6 +25,9 @@ def call(method, path, body=None):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 4 and sys.argv[1] == "post":
+        print(json.dumps(call("POST", sys.argv[2], {"actor": "sandbox", **json.loads(sys.argv[3])})))
+        sys.exit(0)
     if sys.argv[1:] == ["doctor"]:
         started = call("POST", "/v1/jobs/doctor", {"actor": "sandbox"})
     elif len(sys.argv) == 4 and sys.argv[1] == "images":

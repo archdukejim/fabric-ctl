@@ -60,6 +60,8 @@ POST = {
     ("groups", "*", "members"): "session",            # a group's managers need no permission: fabric-agent checks
     ("ous",): "ous:admin", ("ous", "rename"): "ous:admin", ("ous", "delete"): "ous:admin",
     ("account", "password"): "session",               # a person's own password (1.8.6.6): theirs alone
+    ("local-admin", "checkout"): "session",           # the DC host's local-admin: fabric-agent asks the DC the
+    ("local-admin", "ssh"): "session",                # caller's tier, the Enterprise Admin's alone (2.1.7.18)
     ("machines",): "machines:admin", ("machines", "*", "enable"): "machines:admin",
     ("machines", "*", "disable"): "machines:admin", ("machines", "*", "delete"): "machines:admin",
     ("machines", "*", "move"): "machines:admin", ("machines", "*", "type"): "machines:admin",
