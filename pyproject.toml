@@ -11,3 +11,6 @@ select = ["E", "F", "W"]
 [tool.ruff.lint.per-file-ignores]
 # the suites' check messages and expected outputs are long on purpose: one line per check reads best
 "tests/**" = ["E501"]
+# the lab's answer-file generators hold the installers' own lines (autounattend XML, sshd and PowerShell text) inside
+# strings; wrapping them would change the media the installers read (manual 3.1.5.3)
+"scripts/lab/seeds/**" = ["E501"]

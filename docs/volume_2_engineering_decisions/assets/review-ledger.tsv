@@ -258,7 +258,7 @@ packaging/images/stepca/README.md	8a847479523c31f1562acbc7bc4e6469d21127c2	2026-
 packaging/images/webui/.dockerignore	76683618065e127abc520ec990844339e7677973	2026-09-30	
 packaging/images/webui/Dockerfile	56b6a171c42c4fc3537773745ac04de07d20d534	2026-10-02	
 packaging/images/webui/README.md	eeec6c95c1553b73cf8ce2761b4c52b35e4506b7	2026-10-03	
-pyproject.toml	591b424c9e7c60e5b37c36662ebc707d35054947	2026-10-08	
+pyproject.toml	369a6d75ea48a2ffbac7323bd822842c777e376d	2026-10-23	
 scripts/README.md	d71e53d4ceffcdcfee696e68be228f5afde5a983	2026-10-21	
 scripts/ci/README.md	af471c7d5126df0a3b628eba3ecbb806f808dfc0	2026-10-15	
 scripts/ci/logs_secret_free.py	0d94aca3e7c42ce5d5304c4d0b70792e1c7bcbc2	2026-10-15	
