@@ -15,7 +15,10 @@ from webui.routes.kerberos_page import kerberos_page
 from webui.routes.ous_page import ous_page
 from webui.routes.dns_filter_page import dns_filter_page
 from webui.routes.moved_to import moved_to
+from webui.routes.networks_page import networks_page
+from webui.routes.networks_scan_page import networks_scan_page
 from webui.routes.openbao_page import openbao_page
+from webui.routes.options_page import options_page
 from webui.routes.people_page import people_page
 from webui.routes.radius_page import radius_page
 from webui.routes.relaxations import relaxations
@@ -75,7 +78,8 @@ def get_page(h, sess, path, query):
     Inputs:  h — the request handler (send, redirect, deny); sess — dict from find_session; path — str; query — dict
              (view, zone, device, name, slot, step, the query log's search as each page uses them).
     Returns: 303 to the new address of a page that moved; 200 page: Overview (/, /overview/doctor,
-             /overview/updates, /audit), DNS (/dns/zones, /dns-filter), DHCP (/kea), PKI (/pki, /pki/acme),
+             /overview/updates, /audit), DNS (/dns/zones, /dns-filter), DHCP (/networks[/export|/scan|/options],
+             1.10.4.40.1; /kea), PKI (/pki, /pki/acme),
              Directory (/directory, /directory/people|groups|computers[/_new|/<name>], /directory/computers/_groups,
              /directory/ous[?ou=<path>], /directory/access[/_new|/<name>], /directory/sites[/<name>],
              /directory/kerberos,
@@ -107,6 +111,8 @@ def get_page(h, sess, path, query):
             shown = listing
     if path.startswith("/8021x/clients/") or path.startswith("/8021x/people/"):
         shown = "/8021x"
+    if path in ("/networks/scan", "/networks/export"):     # pages of Networks (1.10.4.40.1)
+        shown = "/networks"
     if path.startswith("/pki/issued/") or path.startswith("/pki/acme/"):
         shown = "/pki/acme" if path.startswith("/pki/acme/") else "/pki"
     need = next((n for _, _, pages in views.NAV for href, _, n in pages if href == shown and n), None)
@@ -124,6 +130,12 @@ def get_page(h, sess, path, query):
         return bind9_page(h, ctx, query)
     if path == "/dns-filter":
         return dns_filter_page(h, ctx, query)
+    if path == "/networks" or path == "/networks/export":
+        return networks_page(h, ctx, path, query)
+    if path == "/networks/scan":
+        return networks_scan_page(h, ctx, query)
+    if path == "/networks/options":
+        return options_page(h, ctx, query)
     if path == "/kea":
         return h.send(200, views.kea(ctx, actions.dhcp_overview()))
     if path == "/pki":

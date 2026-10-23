@@ -43,3 +43,7 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `job_page.py` | A background job's page: doctor's checks or what an image change did; refreshes itself while it runs |
 | `settings.py` | The setup wizard: one step (optional parts, memory, passwords and sign-in, the upstreams, review), the rest carried hidden; the console-only settings read only |
 | `settings_plan.py` | A plan of the setup wizard: each change old to new, the parts and memory, what an import ignored; Apply |
+| `networks.py` | DHCP · Networks (1.10.4.40.1): the list, a VLAN's, subnet's and address's page, Add VLAN, the site's number, a search. |
+| `ipam_scan.py` | The scan page: whether the person may scan, Scan now, what answered, Record a find. |
+| `dhcp_options.py` | DHCP · DHCP options: the sets, the subnets and reservations, a target's effective options and own forms. |
+| `option_owner.py` | The subnet or reservation a DHCP options target names (404 when it is not there). |

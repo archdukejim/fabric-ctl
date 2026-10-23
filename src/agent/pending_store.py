@@ -18,19 +18,22 @@ class PendingStore:
              change by change) for everyone who may see the page. In memory: a restart of fabric-agent drops them.
     Feeds:   agent/post_pending, agent/get_route (GET /v1/pending), the dev preview's fake agent."""
 
-    def __init__(self, run, state, need, start_job, finish=None):
+    def __init__(self, run, state, need, start_job, finish=None, check=None):
         """Purpose: A store whose changes run through the given functions (the agent's own, or the preview's fakes).
         Inputs:  run — (route, actor, body, perms, session) -> result: the change done; state — (route, body) -> the
                  thing it changes as read now; need — (route) -> the permission the change needs, or None; start_job
                  — (kind, owner, fn) -> {"id"}: fn run as a job; finish — (page, routes of the changes applied) ->
                  (what, fn(actor)) or None: what a page's changes still need once all are done (a password policy
                  changed on Policies: fabric's settings written into the services, restarting only what changed,
-                 2.1.14.15).
+                 2.1.14.15); check — (owner, route, body) -> None, raising ValidationError: a check of the
+                 change's own beside its permission, at hold and again at Apply (the address manager's grant at
+                 the change's site, 1.10.4.40.2); None: none.
         Returns: None.
         Fails:   never.
         Feeds:   PENDING (agent/post_pending), the dev preview."""
         self.run, self.state, self.need, self.start_job = run, state, need, start_job
         self.finish = finish or (lambda page, routes: None)
+        self.check = check or (lambda owner, route, body: None)
         self.lock = threading.Lock()
         self.changes = []                # held changes, oldest first: {id, owner, page, route, body, what, ...}
         self.queue = {}                  # page -> [apply]: {id, owner, started, state, items: [{id, what, state, why}]}
@@ -42,14 +45,15 @@ class PendingStore:
         Inputs:  owner — the signed-in person; perms — their permissions; page — pending_thing.pending_page_of's id;
                  route — the change's segments after /v1/; body — its JSON body; what — the change in a sentence.
         Returns: {"id", "page", "what", "pending": how many this person holds on the page}.
-        Fails:   ValidationError: no person (a root peer), without the change's permission, too many held, or the
-                 thing cannot be read now.
+        Fails:   ValidationError: no person (a root peer), without the change's permission, refused by the
+                 store's check (why), too many held, or the thing cannot be read now.
         Feeds:   agent/post_pending (POST /v1/pending/hold)."""
         need = self.need(route)
         if not owner or perms is None:
             raise ValidationError("a pending change belongs to a signed-in person")
         if need is None or (need != "session" and need not in perms):
             raise ValidationError(f"you need the permission {need}" if need else "not allowed")
+        self.check(owner, route, body)
         now = _read(self.state, route, body)
         change = {"id": secrets.token_urlsafe(9), "owner": owner, "page": page, "route": list(route),
                   "body": dict(body), "what": what, "old": _old(now, route, body), "new": _new(now, route, body),
@@ -155,6 +159,11 @@ class PendingStore:
                 need = self.need(change["route"])
                 if need is None or (need != "session" and need not in perms):
                     self._stop(entry, item, f"refused: you need the permission {need}")
+                    break
+                try:
+                    self.check(owner, change["route"], change["body"])
+                except ValidationError as exc:
+                    self._stop(entry, item, f"refused: {exc}")
                     break
                 try:
                     now = _read(self.state, change["route"], change["body"])

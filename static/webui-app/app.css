@@ -144,3 +144,12 @@ input,select,textarea{max-width:100%}
 .change-old{color:var(--muted);text-decoration:line-through}.change-new{font-weight:600}
 .qstate{white-space:nowrap}
 .pager{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:12px}
+/* DHCP · Networks (manual 1.10.4.40.1): a subnet's ranges as a bar (SVG, so no inline style), its legend and rows */
+svg.netbar{display:block;width:100%;height:12px;margin:4px 0;border:1px solid var(--border);border-radius:3px}
+svg.netbar.tall{height:28px}
+.seg-gateway{fill:#0369a1;background:#0369a1}.seg-static{fill:#7c3aed;background:#7c3aed}
+.seg-dhcp{fill:#15803d;background:#15803d}.seg-reserved{fill:#b45309;background:#b45309}
+.seg-none{fill:var(--border);background:var(--border)}.use{fill:var(--text);fill-opacity:.55;background:var(--text)}
+.legend{font-size:13px;color:var(--muted)}.key{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 10px;vertical-align:middle}
+tr.overridden td{text-decoration:line-through;color:var(--muted)}tr.overridden td:last-child{text-decoration:none}
+tr.current td:first-child{font-weight:600}.subnet{margin:0 0 6px}

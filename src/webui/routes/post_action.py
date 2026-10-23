@@ -9,6 +9,7 @@ from webui.routes.directory_post import directory_post
 from webui.routes.dns_filter_post import dns_filter_post
 from webui.routes.kea_post import kea_post
 from webui.routes.landing_post import landing_post
+from webui.routes.networks_post import networks_post
 from webui.routes.overview_post import overview_post
 from webui.routes.held import held, q
 from webui.routes.radius_post import radius_post
@@ -50,7 +51,7 @@ def post_action(h, sess, path, form):
     Inputs:  h — the request handler (app, send, redirect, deny); sess — dict from find_session; path — str; form —
              dict from read_form. Routes: /logout; /bind9/zone/…; /bind9/zones/…; /bind9/landing/…;
              /stepca/…; /openbao/…; /directory/…; /changes/<page>/apply|discard|drop (1.8.6.5); /account/password and
-             /account/groups/<name>/members (1.8.6.6); /kea/…
+             /account/groups/<name>/members (1.8.6.6); /networks/… (plan, sync, scan, options: 1.10.4.40); /kea/…
              (reservations, subnets, options, classes); /dns-filter/…
              (lists, rules, upstreams, fetch); /overview/… (jobs); /freeradius/clients…; /freeradius/people…;
              /bind9/tsig/…; /settings/… (the setup wizard: step, plan, import, apply, dismiss).
@@ -88,6 +89,8 @@ def post_action(h, sess, path, form):
         return changes_post(h, _segments(path, 2), form)
     if path.startswith("/account/"):                     # My account (1.8.6.6): the password, Groups I manage
         return account_post(h, _segments(path, 2), form)
+    if path.startswith("/networks/"):                  # DHCP · Networks and DHCP options (1.10.4.40)
+        return networks_post(h, sess, _segments(path, 2), form)
     if path.startswith("/kea/"):
         return kea_post(h, _segments(path, 2), form)
     if path.startswith("/dns-filter/"):

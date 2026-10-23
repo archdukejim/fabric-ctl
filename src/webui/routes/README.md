@@ -47,3 +47,9 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `relaxations.py` | The security relaxations that are on, for both Settings pages (none without status:read; None when unreadable). |
 | `settings_post.py` | The setup wizard's forms: Back and Next, the plan (typed or imported), Apply after a recent sign-in, Dismiss |
 | `finish_setting_up.py` | The wizard on the Overview: Finish setting up until it is finished, and the first Overview of a sign-in opening it |
+| `networks_page.py` | DHCP · Networks (1.10.4.40.1): a site's plan, a VLAN's, subnet's and address's page, Add VLAN, the site's number, a search; the CSV export. |
+| `networks_scan_page.py` | The scan page, a page of Networks: whether the person may scan here, the subnets to scan. |
+| `options_page.py` | DHCP · DHCP options: the sets, a subnet's or reservation's options and netboot, a target's effective options. |
+| `networks_post.py` | POST /networks/...: a plan change held for Networks' Apply; Sync now at once; the scan page's and DHCP options' forms. |
+| `networks_scan_post.py` | The scan page's forms: Scan now and Scan at <site> at once, a find recorded held for Networks' Apply. |
+| `options_post.py` | DHCP options' forms, each held for its page's Apply. |

@@ -78,7 +78,7 @@ def _change(v, kind, data, actor, caller):
     return "netboot", clear_netboot(v, actor, target, site, **web)
 
 
-def post_options(route, actor, data, caller=None):
+def post_options(route, actor, data, caller=None, apply=True):
     """Purpose: the options page's changes (decision 2.1.10.23, manual 1.10.4.24.6, 1.10.4.35): POST
              /v1/ipam/options, /v1/ipam/classes, /v1/ipam/option-defs and /v1/ipam/netboot. The domain's set is
              `scope` domain on the same routes (0.8's `/org` routes and `option-editors` are not ported): who may
@@ -90,7 +90,8 @@ def post_options(route, actor, data, caller=None):
              class of the domain's set) for options; scope (domain or site), name, test, next_server,
              server_hostname, boot_file for classes; scope, name, code, type, array, record_types, space for
              definitions; target, server, bios, uefi, arm64, ipxe, http for netboot; caller — the signed-in person
-             (None: a root peer).
+             (None: a root peer); apply — False when the DHCP options page's Apply runs it as a held change (its
+             finish applies once, 1.10.4.40.3).
     Returns: {"what" ("option", "class", "definition", "netboot"), and apply_plan_change's result}.
     Fails:   ValidationError from the readers and fabriclib (-> 400); RouteNotFound for another route.
     Feeds:   agent/post_route.py."""
@@ -98,4 +99,4 @@ def post_options(route, actor, data, caller=None):
         raise RouteNotFound()
     v = load_vars()
     what, out = _change(v, route[1], data, actor, caller)
-    return {"what": what, **apply_plan_change(v, actor, out)}
+    return {"what": what, **apply_plan_change(v, actor, out, apply=apply)}

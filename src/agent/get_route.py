@@ -151,8 +151,9 @@ def get_route(route, user=None, perms=None):
              1.10.4.35); networks/<site>/export: networks_csv ({"csv", "name"}); ipam/options/<site>[/<target>]:
              options_overview (`-` for this site; a target's effective options with their sources, 1.10.4.24.3);
              ipam/scan: scan_overview (the subnets a scan may cover, and whether this person may scan here).
-    Fails:   RouteNotFound for any other route (-> 404); NotFound for a person, computer, group or grant that is not
-             there (-> 404, 2.1.8.21); whatever the operation raises (ValidationError -> 400).
+    Fails:   RouteNotFound for any other route (-> 404); NotFound for a person, computer, group, grant or site
+             (networks, ipam/options) that is not there (-> 404, 2.1.8.21; 1.10.4.40.1); whatever the operation
+             raises (ValidationError -> 400).
     Feeds:   agent/handler.py (dispatch)."""
     if tuple(route) in READS:
         return READS[tuple(route)]()
@@ -177,11 +178,12 @@ def get_route(route, user=None, perms=None):
     if len(route) in (4, 5) and route[:3] == ["domain", "grants", "explain"]:
         return explain_grant(load_vars(), route[3], route[4] if len(route) == 5 else None)
     if len(route) == 2 and route[0] == "networks":
-        return networks_overview(load_vars(), route[1])
+        return one_thing(networks_overview, load_vars(), route[1])
     if len(route) == 3 and route[0] == "networks" and route[2] == "export":
-        return networks_csv(load_vars(), route[1])
+        return one_thing(networks_csv, load_vars(), route[1])
     if len(route) in (3, 4) and route[:2] == ["ipam", "options"]:
-        return options_overview(load_vars(), "" if route[2] == "-" else route[2], route[3] if len(route) == 4 else "")
+        return one_thing(options_overview, load_vars(), "" if route[2] == "-" else route[2],
+                         route[3] if len(route) == 4 else "")
     if route == ["ipam", "scan"]:
         return scan_overview(load_vars(), user)
     if route == ["vault", "slots"]:

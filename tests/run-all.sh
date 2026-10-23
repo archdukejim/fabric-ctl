@@ -40,7 +40,7 @@ for s in "${SUITES[@]}"; do
         nginx)    run nginx    bash "$HERE/nginx_check.sh" "$FABRIC_TEST_OUT/rendered" ;;
         zone)     run zone     bash -c "python3 \"$HERE/zone_test.py\" && python3 \"$HERE/dns/freeze_and_install_test.py\"" ;;
         zones)    run zones    python3 "$HERE/zones/run.py" ;;
-        webui)    run webui    bash -c "python3 \"$HERE/webui/test_container.py\" && python3 \"$HERE/webui/test_devserver.py\" && python3 \"$HERE/webui/test_narrow.py\"" ;;
+        webui)    run webui    bash -c "python3 \"$HERE/webui/test_container.py\" && python3 \"$HERE/webui/test_devserver.py\" && python3 \"$HERE/webui/test_networks.py\" && python3 \"$HERE/webui/test_narrow.py\"" ;;
         pki)      run pki      python3 "$HERE/pki/run.py" ;;
         federation) run federation python3 "$HERE/federation/run.py" ;;
         resolver) run resolver bash -c "python3 \"$HERE/resolver/run.py\" && python3 \"$HERE/resolver/groups.py\" && python3 \"$HERE/resolver/querylog.py\" && python3 \"$HERE/resolver/console.py\"" ;;
@@ -48,7 +48,7 @@ for s in "${SUITES[@]}"; do
         openbao)  run openbao  bash -c "python3 \"$HERE/openbao/run.py\" && python3 \"$HERE/openbao/db_rotation.py\" && python3 \"$HERE/openbao/local_admin.py\"" ;;
         fluentbit) run fluentbit python3 "$HERE/fluentbit/run.py" ;;
         kea)      run kea      bash -c "python3 \"$HERE/kea/run.py\" && python3 \"$HERE/kea/scan.py\"" ;;
-        ipam)     run ipam     bash -c "python3 \"$HERE/ipam/run.py\" && python3 \"$HERE/ipam/options.py\" && python3 \"$HERE/ipam/aliases.py\" && python3 \"$HERE/ipam/upgrade.py\" && python3 \"$HERE/ipam/sync.py\" && python3 \"$HERE/ipam/scan.py\" && python3 \"$HERE/ipam/scan_requests.py\" && python3 \"$HERE/ipam/networks.py\" && python3 \"$HERE/ipam/agent_routes.py\" && python3 \"$HERE/dhcp/clean_names_test.py\"" ;;
+        ipam)     run ipam     bash -c "python3 \"$HERE/ipam/run.py\" && python3 \"$HERE/ipam/options.py\" && python3 \"$HERE/ipam/aliases.py\" && python3 \"$HERE/ipam/upgrade.py\" && python3 \"$HERE/ipam/sync.py\" && python3 \"$HERE/ipam/scan.py\" && python3 \"$HERE/ipam/scan_requests.py\" && python3 \"$HERE/ipam/networks.py\" && python3 \"$HERE/ipam/agent_routes.py\" && python3 \"$HERE/ipam/pending_networks.py\" && python3 \"$HERE/dhcp/clean_names_test.py\"" ;;
         settings) run settings bash -c "python3 \"$HERE/settings/run.py\" && python3 \"$HERE/settings/console.py\"" ;;
         freeradius) run freeradius python3 "$HERE/freeradius/run.py" ;;
         samba)    run samba    bash -c "python3 \"$HERE/samba/run.py\" && python3 \"$HERE/samba/dc.py\" && python3 \"$HERE/samba/devices.py\" && python3 \"$HERE/samba/linux_join.py\" && python3 \"$HERE/samba/gpo.py\" && python3 \"$HERE/samba/hostgroups.py\" && python3 \"$HERE/samba/grants.py\" && python3 \"$HERE/samba/domain.py\" && python3 \"$HERE/samba/site_join.py\" && python3 \"$HERE/samba/plan_store.py\" && python3 \"$HERE/samba/ipam.py\"" ;;

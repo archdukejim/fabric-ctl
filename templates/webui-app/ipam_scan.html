@@ -1,0 +1,38 @@
+{% extends "base.html" %}{% import "pattern.html" as p %}
+{#- DHCP · Networks · Scan (manual 1.10.4.40.1): a page of Networks. Scan now is done at once; Record a find waits for
+    Networks' Apply (1.10.4.40.2). -#}
+{% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
+{% block body %}
+<h1>DHCP · Networks · Scan a subnet</h1>
+<p><a href="/networks">← Networks</a></p>
+<section class="card"><h2>Scan at {{ scan.site }}</h2>
+<p class="muted">Pings every address of one subnet of this site's plan and reads which devices answered ARP: what
+answers but nobody recorded is shown, and you may record it. A scan never blocks anything. A routed VLAN answers only
+what its gateway lets through, and shows no MAC. One scan at a time, the same subnet once a minute, at most a /22. It
+is done at once, not held for Apply.</p>
+{% if not scan.may %}<p>{{ p.status('bad', 'you may not scan here') }} <span class="muted">{{ scan.why }}</span></p>{% endif %}
+{% if not scan.subnets %}{{ p.empty("Nothing to scan: this site's plan has no subnet, or DHCP (whose container runs the scan) is off here.") }}
+{% elif scan.may and can('dhcp:write') %}
+<form method="post" action="/networks/scan" class="grid">{{ csrf() }}
+<label class="wide">Subnet<select name="subnet" required>{% for s in scan.subnets %}<option value="{{ s.cidr }}"{% if (result and result.subnet.cidr == s.cidr) or (not result and pick in (s.cidr, s.name)) %} selected{% endif %}>{{ s.cidr }}{% if s.name %} — {{ s.name }}{% endif %}{% if s.vlan %} (VLAN {{ s.vlan }}){% endif %}{% if s.dhcp is defined and not s.dhcp %} · DHCP off{% endif %}</option>{% endfor %}</select></label>
+<div><button>Scan now</button></div></form>
+{% endif %}
+</section>
+{% if result %}
+<section class="card"><h2>{{ result.subnet.cidr }}{% if result.subnet.name %} · {{ result.subnet.name }}{% endif %}</h2>
+<p class="muted">Scanned {{ result.at }}: {{ result.scanned }} addresses, {{ result.answering | length }} answering, {{ result.unrecorded }} in use but unrecorded.</p>
+{% if result.answering %}{% call p.list(["Address", "MAC", "Answered", "In the plan"]) %}{% for f in result.answering %}<tr>
+<td data-label="Address">{{ f.ip }}</td><td data-label="MAC"><code>{{ f.mac or '—' }}</code></td><td data-label="Answered">{{ f.how }}</td>
+<td data-label="In the plan">{% if f.status == 'unrecorded' %}{{ p.status('warn', 'in use, unrecorded') }}{% elif f.status == 'lease' %}lease {{ f.name }}{% else %}{{ f.kind }} {{ f.name }}{% endif %}{% if f.note %} <span class="muted">({{ f.note }})</span>{% endif %}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("Nothing answered.") }}{% endif %}
+</section>
+{% if unrecorded and can('dhcp:write') %}<section class="card"><h2>Record a find</h2>
+<form method="post" action="/networks/scan/record" class="grid">{{ csrf() }}
+<label class="wide">Find<select name="find" required>{% for f in unrecorded %}<option value="{{ f.ip }}|{{ f.mac or '' }}">{{ f.ip }}{% if f.mac %} — {{ f.mac }}{% endif %}</option>{% endfor %}</select></label>
+<label>As<select name="kind"><option value="reservation">a reservation for its MAC</option><option value="static">a static address</option></select></label>
+<label>Name (one DNS label, optional)<input name="name" maxlength="63" placeholder="cam4"></label>
+<div><button>Record find</button></div></form>
+<p class="muted">Waits for <strong>Apply</strong> in the top bar (Networks' changes). A find with no MAC can only be a
+static address. Leave a find unrecorded and nothing changes.</p></section>{% endif %}
+{% endif %}
+{% endblock %}

@@ -107,7 +107,7 @@ def _change(v, actor, site, sub, data, caller):
     raise RouteNotFound()
 
 
-def post_networks(route, actor, data, caller=None):
+def post_networks(route, actor, data, caller=None, apply=True):
     """Purpose: the Networks tab's changes to a site's address plan (manual 1.10.4.21.5, 1.10.4.35): POST
              /v1/networks/<site>/block, /vlans, /vlans/<id>, /vlans/<id>/delete, /subnets, /subnets/<name>,
              /subnets/<name>/delete, /ranges, /ranges/delete, /addresses, /addresses/<ip>, /addresses/<ip>/delete.
@@ -122,7 +122,8 @@ def post_networks(route, actor, data, caller=None):
              notes, allow_overlap, split (a subnet); gateway, dhcp, relay, notes, allow_overlap (a subnet changed);
              force (a removal with its recorded addresses); vlan, kind, first, last, notes (a range); vlan, first (a
              range removed); ip, kind, name, mac, owner, notes, dns, vlan (an address); kind, name, mac, owner,
-             notes, dns (an address changed); caller — the signed-in person (None: a root peer).
+             notes, dns (an address changed); caller — the signed-in person (None: a root peer); apply — False
+             when the Networks page's Apply runs it as a held change (its finish applies once, 1.10.4.40.3).
     Returns: apply_plan_change's result ({"result", "warnings", "site", "own", "applied", "output"}).
     Fails:   ValidationError (-> 400) from the readers and fabriclib (the grant refused, each rule named, no such
              site, the domain refusing); RouteNotFound (-> 404).
@@ -131,4 +132,4 @@ def post_networks(route, actor, data, caller=None):
         raise RouteNotFound()
     v = load_vars()
     out = _change(v, actor, route[1], route[2:], data, caller)
-    return apply_plan_change(v, actor, out, apply=route[2:] != ["block"])
+    return apply_plan_change(v, actor, out, apply=apply and route[2:] != ["block"])

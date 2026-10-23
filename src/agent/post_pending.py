@@ -1,6 +1,7 @@
 import urllib.parse
 
 from agent.job_store import JOBS
+from agent.pending_networks import networks_grant, networks_page_of
 from agent.pending_store import PendingStore
 from agent.pending_thing import PAGES, describe_change, pending_page_of, thing_state
 from agent.route_not_found import RouteNotFound
@@ -11,11 +12,19 @@ from fabriclib.rbac.required_permission import required_permission
 
 
 def _run(route, actor, body, perms, session):
-    """Purpose: Do one held change at Apply: the same route a direct call takes (agent/post_route), unchanged.
+    """Purpose: Do one held change at Apply: the same route a direct call takes (agent/post_route), unchanged; the
+             address manager's without their own apply, which the page's finish does once (1.10.4.40.3).
     Inputs:  route, actor, body, perms, session — as post_route takes them.
     Returns: the route's result.
     Fails:   as the route (ValidationError with fabriclib's refusal).
     Feeds:   PENDING (its run)."""
+    page = networks_page_of(route)
+    if page:                                        # the signed-in person is the caller the grant is checked for
+        from agent.post_ipam_scan import post_ipam_scan
+        from agent.post_networks import post_networks
+        from agent.post_options import post_options
+        call = post_networks if route[0] == "networks" else post_ipam_scan if route[1] == "scan" else post_options
+        return call(route, actor, body, actor, apply=False)
     from agent.post_route import post_route        # imported here: post_route routes /v1/pending/... to this module
     return post_route(route, actor, body, perms, session)
 
@@ -27,12 +36,15 @@ def _finish(page, routes=()):
     Inputs:  page — a page id; routes — the routes of the changes being applied.
     Returns: (what, fn(actor)) for "policies" when the password policy is among them, for "kerberos" when the
              ticket policy is (written into the DC's KDC, 1.6.12.9), and for "zones" when a record, a landing-page link
-             or a TSIG key's removal is (_finish_dns); None otherwise (Group Policy and sudo rules are written by their
-             own changes, a zone's add and removal publish themselves).
+             or a TSIG key's removal is (_finish_dns), for "networks" and "options" when this site's plan or
+             its options may have changed (_finish_plan); None otherwise (Group Policy and sudo rules are written
+             by their own changes, a zone's add and removal publish themselves).
     Fails:   never (fn raises ValidationError when the apply does not finish).
     Feeds:   PENDING (its finish)."""
     if page == "zones":                       # DNS: BIND alone, and the landing page (2.1.8.24)
         return _finish_dns(routes)
+    if page in ("networks", "options"):        # the address manager: this site's plan applied once
+        return _finish_plan(page, routes)
     wanted = {"policies": ["domain", "password-policy"], "kerberos": ["domain", "kerberos", "policy"]}.get(page)
     if wanted is None or wanted not in [list(r) for r in routes]:
         return None
@@ -65,9 +77,38 @@ def _finish_dns(routes):
     return "Publish to BIND and the landing page (reloads only BIND)", publish
 
 
+def _finish_plan(page, routes):
+    """Purpose: What the address manager's changes need once all are done (manual 1.10.4.40.3): this site's plan
+             applied once, Kea and the firewall brought in line (restarting only what changed, health-gated), as
+             each change from the CLI does on its own; another site's plan is taken by that site's poll within
+             30 s, and a site's number shapes suggestions only.
+    Inputs:  page — "networks" or "options"; routes — the routes being applied.
+    Returns: (what, fn(actor)), or None when no change is this site's (Networks: every change names its site;
+             an options change always applies here, since the domain's set and its classes are this site's too).
+    Fails:   never (fn raises ValidationError when the apply or the firewall does not finish).
+    Feeds:   _finish."""
+    site = load_vars().get("site_name", "")
+    if page == "networks" and not any(list(r) == ["ipam", "scan", "record"]
+                                       or (r[1] == site and list(r)[2:] != ["block"]) for r in routes):
+        return None
+
+    def apply_here(actor):
+        from fabriclib.security.refresh_firewall import refresh_firewall
+        from fabriclib.system.apply_changes import apply_changes
+        ok, output = apply_changes(actor, source="web")
+        if ok:
+            ok, output = refresh_firewall()
+        if not ok:
+            tail = (output or "").strip().splitlines()[-1:]
+            raise ValidationError("the apply did not finish" + (f": {tail[0]}" if tail else ""))
+
+    return "Apply this site's plan to Kea and the firewall (restarts only what changed)", apply_here
+
+
 PENDING = PendingStore(run=_run, state=lambda route, body: thing_state(route, body, load_vars()),
                        need=lambda route: required_permission("POST", route),
-                       start_job=JOBS.start, finish=_finish)
+                       start_job=JOBS.start, finish=_finish,
+                       check=lambda owner, route, body: networks_grant(load_vars(), owner, route, body))
 
 
 def _wrapped(data):

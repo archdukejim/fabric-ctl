@@ -39,3 +39,7 @@ from webui.views.tsig_result import tsig_result  # noqa: F401
 from webui.views.changes import changes  # noqa: F401
 from webui.views.account import account  # noqa: F401
 from webui.views.nav_menu import nav_menu  # noqa: F401
+from webui.views.networks import networks  # noqa: F401
+from webui.views.ipam_scan import ipam_scan  # noqa: F401
+from webui.views.dhcp_options import dhcp_options  # noqa: F401
+from webui.views.option_owner import option_owner  # noqa: F401

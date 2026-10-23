@@ -8,6 +8,7 @@ from webui.devpreview.fake_groups import fake_groups
 from webui.devpreview.fake_machines import fake_machines
 from webui.devpreview.fake_ous import fake_ous
 from webui.devpreview.fake_grants import fake_grants
+from webui.devpreview.fake_ipam import fake_ipam
 from webui.devpreview.fake_misc import fake_misc
 from webui.devpreview.fake_network import fake_network
 from webui.devpreview.fake_pending import fake_pending
@@ -51,17 +52,19 @@ def _read_grants(state, who, route, body):
 
 
 # as agent/one_thing: a read of one thing refused because it is not there answers 404 (2.1.8.21)
-MISSING = re.compile(r"^no (person|group|machine|grant) \S+( in .*)?$")
+MISSING = re.compile(r"^no (person|group|machine|grant) \S+( in .*)?$|^no such site: \S+$")
 
 
 def _one_thing(route):
-    """Purpose: Whether a GET reads one person, computer, group or grant (the routes 2.1.8.21 answers 404 for).
+    """Purpose: Whether a GET reads one person, computer, group, grant or site's plan (the routes 2.1.8.21 answers
+             404 for; a site's: 1.10.4.40.1).
     Inputs:  route — segments after /v1/.
     Returns: bool.
     Fails:   never.
     Feeds:   fake_agent."""
     return (len(route) == 2 and route[0] in ("people", "groups", "machines")) or (
-        len(route) == 3 and route[:2] == ["domain", "grants"])
+        len(route) == 3 and route[:2] == ["domain", "grants"]) or (
+        route[:1] == ["networks"] and len(route) in (2, 3)) or (route[:2] == ["ipam", "options"] and len(route) > 2)
 
 
 def fake_agent(state, who, method, route, body):
@@ -80,9 +83,15 @@ def fake_agent(state, who, method, route, body):
         return 403, {"error": "not allowed"}
     if need != "session" and need not in who["perms"]:
         return 403, {"error": f"you need the permission {need}"}
+    def ipam_post(s, w, r, b):             # the address manager's changes (1.10.4.40)
+        return fake_ipam(s, w, "POST", r, b)
+
+    def ipam_get(s, w, r, b):
+        return fake_ipam(s, w, "GET", r, b)
+
     def run(change, change_body):          # a held change at Apply: the same fake route as a direct call
-        for area in (fake_account, fake_dns, fake_machines, fake_ous, fake_grants, fake_directory, fake_groups,
-                     fake_network, fake_misc):
+        for area in (ipam_post, fake_account, fake_dns, fake_machines, fake_ous, fake_grants, fake_directory,
+                     fake_groups, fake_network, fake_misc):
             answer = area(state, who, change, change_body)
             if answer is not None:
                 return answer
@@ -92,8 +101,8 @@ def fake_agent(state, who, method, route, body):
         held = fake_pending(state, who, method, route, body, run)
         if held is not None:
             return 200, held
-        for area in ((fake_account, fake_reads, _read_groups, _read_machines, _read_ous, _read_grants)
-                     if method == "GET" else (fake_account, fake_dns, fake_machines, fake_ous, fake_grants,
+        for area in ((ipam_get, fake_account, fake_reads, _read_groups, _read_machines, _read_ous, _read_grants)
+                     if method == "GET" else (ipam_post, fake_account, fake_dns, fake_machines, fake_ous, fake_grants,
                                               fake_directory, fake_groups, fake_network, fake_misc)):
             answer = area(state, who, route, body)
             if answer is not None:

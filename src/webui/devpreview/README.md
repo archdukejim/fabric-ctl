@@ -25,3 +25,5 @@ The dev preview (`devserver.py`): the production routes and pages over in-memory
 | `sample_result.py` | A fake PKI result for the sign/issue/convert result page, shaped like fabric-agent's reply. |
 | `sample_settings.py` | The setup wizard's sample settings, plan and settings file |
 | `__init__.py` | Empty; makes it a package |
+| `fake_ipam.py` | The fake agent's address manager: its reads over the sample plan (fabriclib's own networks_view), its changes in memory, a scan, a request and Sync now answered with samples. |
+| `sample_networks.py` | The sample address plan: two sites of one domain, this site's leases, a scan, the scans requested, the poll's state. |

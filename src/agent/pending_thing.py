@@ -1,6 +1,9 @@
 import hashlib
 import json
 
+from agent.pending_dns import describe_dns
+from agent.pending_networks import (describe_networks, networks_key, networks_page_of,
+                                    networks_state)
 from fabriclib.common.errors import ValidationError
 
 # The pages whose changes are held (manual 1.8.6.5, the Directory's first) and the permission that shows each page
@@ -8,7 +11,8 @@ from fabriclib.common.errors import ValidationError
 PAGES = {"people": "people:read", "machines": "domain:read", "policies": "domain:read",
          "groups": "domain:read", "ous": "domain:read", "access": "domain:read", "kerberos": "domain:read",
          "devices": "devices:read", "roles": "devices:read", "radius": "radius:read",
-         "zones": "dns:read", "account": "session"}
+         "zones": "dns:read", "account": "session",
+         "networks": "dhcp:read", "options": "dhcp:read"}          # the address manager (1.10.4.40.2)
 # a device's and a device role's own fields, as their read has them: what a change to one is checked against (what a
 # role grants a device, its VLAN and permissions, follows from the roles and is not the device's own)
 OWN_FIELDS = {"devices": ("type", "owner", "description", "macs", "enabled", "roles"),
@@ -41,6 +45,8 @@ def pending_page_of(route):
     Fails:   never.
     Feeds:   agent/post_pending (hold)."""
     head = route[:1]
+    if networks_page_of(route):                          # Networks and DHCP options
+        return networks_page_of(route)
     if as_change(route) is not route:
         return "account"
     if head == ["people"]:
@@ -69,37 +75,6 @@ def pending_page_of(route):
     return None
 
 
-def _zone(key):
-    """Purpose: A zone key as people read it: the site's zone for dynamic_zone_var, else its name.
-    Inputs:  key — str.
-    Returns: str.
-    Fails:   never.
-    Feeds:   _describe_dns."""
-    return "the site's zone" if key == "dynamic_zone_var" else key
-
-
-def _describe_dns(route, body):
-    """Purpose: A DNS change in a sentence ("Add A record www to home.lan", "Remove TSIG key npm").
-    Inputs:  route — segments after /v1/ (zones/..., tsig/<name>/delete); body — the change's body.
-    Returns: str.
-    Fails:   never.
-    Feeds:   describe_change."""
-    if route[0] == "tsig":
-        return f"Remove TSIG key {route[1]}"
-    if len(route) == 1:
-        return f"Add zone {body.get('name', '')}".strip()
-    zone, rtype, name = _zone(route[1]), body.get("type", ""), body.get("name", "")
-    if route[2:] == ["delete"]:
-        return f"Remove zone {zone} with its records"
-    if route[2:] == ["records"]:
-        return f"Add {rtype} record {name} to {zone}"
-    if route[3:] == ["delete"]:
-        return f"Delete {rtype} record {name} from {zone}"
-    if body.get("link") == "on":
-        return f"Link {name} from the landing page"
-    return f"Stop linking {name} from the landing page"
-
-
 def describe_change(route, body):
     """Purpose: A change in a sentence, for the pending list and its queue ("Disable sam", "Add person dana").
     Inputs:  route — segments after /v1/; body — the change's JSON body.
@@ -109,7 +84,9 @@ def describe_change(route, body):
     route = as_change(route)
     name = route[1] if len(route) > 1 else ""
     if route[0] in ("zones", "tsig"):
-        return _describe_dns(route, body)
+        return describe_dns(route, body)
+    if networks_page_of(route):
+        return describe_networks(route, body)
     if len(route) == 1:
         what = {"people": "person", "machines": "machine", "host-groups": "machine group", "sudo": "sudo rule",
                 "groups": "group", "ous": "OU", "devices": "device", "roles": "device role"}.get(route[0], route[0])
@@ -219,6 +196,8 @@ def thing_state(route, body, v):
     from fabriclib.samba.gpo_overview import gpo_overview
     from fabriclib.samba.kerberos_overview import kerberos_overview
     from fabriclib.grants.list_grants import list_grants
+    if networks_page_of(route):               # a site's plan, or the domain's option set
+        return networks_state(route, body, v)
     mine, route = as_change(route) is not route, as_change(route)
     head, name = route[0], (route[1] if len(route) > 1 else "")
     if mine:                                  # a member change from My account: the group must be there
@@ -275,6 +254,8 @@ def thing_key(route, body):
              policy).
     Fails:   never.
     Feeds:   agent/pending_store (apply)."""
+    if networks_page_of(route):
+        return networks_key(route, body)
     route = as_change(route)
     if route[0] in ("people", "machines", "host-groups", "sudo", "groups", "devices", "roles"):
         return route[0], route[1] if len(route) > 1 else str(body.get("uid") or body.get("name") or "")

@@ -111,3 +111,10 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `pending_counts.py` | The person's pending changes per page and the pages with an apply running. Agent route: GET /v1/pending. |
 | `pending_page.py` | A page's Review: the person's changes, the page's queue, results shown once. Agent route: GET /v1/pending/<page>. |
 | `pending_action.py` | Apply a page's changes as one job, discard them, or drop one. Agent routes: POST /v1/pending/<page>/apply, /discard, /drop. |
+| `networks_overview.py` | A site's plan as the Networks page shows it. Agent route: GET /v1/networks[/<site>] (dhcp:read). |
+| `networks_export.py` | A site's address table as CSV. Agent route: GET /v1/networks/<site>/export (dhcp:read). |
+| `option_sets.py` | What the DHCP options page shows. Agent route: GET /v1/ipam/options/<site>[/<target>] (dhcp:read). |
+| `scannable_subnets.py` | The subnets a scan may cover, and whether the person may scan here. Agent route: GET /v1/ipam/scan (dhcp:read). |
+| `scan_subnet.py` | Scan one subnet now (done at once). Agent route: POST /v1/ipam/scan (dhcp:write), timeout 180 s. |
+| `request_scan.py` | Ask another site to scan one of its subnets (done at once). Agent route: POST /v1/ipam/scan/request (dhcp:write). |
+| `sync_now.py` | Sync now (done at once): the plan poll and DNS. Agent route: POST /v1/ipam/sync (dhcp:write), timeout 300 s. |

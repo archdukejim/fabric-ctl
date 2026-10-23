@@ -1,16 +1,19 @@
 import urllib.parse
 
-from webui.devpreview.fabric_rules import ValidationError, required_permission
+from webui.devpreview.fabric_rules import ValidationError, required_permission, site_plan
 from webui.devpreview.fake_account import managed
 from webui.devpreview.fake_directory import PERSON_KEYS, kerberos_policy
 from webui.devpreview.fake_groups import find_group
 from webui.devpreview.fake_ous import fake_ous
 from webui.devpreview.fake_grants import fake_grants
+from webui.devpreview.fake_ipam import HERE, network_read
 from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DOMAIN, SAMPLE_GPO, SAMPLE_RADIUS
 
 try:                                       # the agent's own store and its words, from a checkout (as fabric_rules)
+    import agent.pending_networks as pending_networks
     from agent.pending_store import PendingStore
     from agent.pending_thing import PAGES, describe_change, own_state, pending_page_of
+    pending_networks._this_site = lambda: HERE         # the sample's own site, not this machine's vars.yaml
 except ImportError:
     PendingStore = None
 
@@ -30,6 +33,13 @@ def _thing(state, route, body):
     Returns: the sample row or value (None for a new one).
     Fails:   never.
     Feeds:   fake_pending (the store's state)."""
+    if pending_networks.networks_page_of(route):     # the address manager: as networks_state reads the plan
+        site, read = pending_networks.networks_site(route, body), network_read(state)
+        if site == "domain":
+            return {"domain_options": read["option_sets"].get("domain")}
+        if site not in read["plans"]:
+            raise ValidationError(f"no such site: {site}")
+        return {"plan": {k: x for k, x in site_plan(read, site).items() if k != "read"}}
     head, name = route[0], (route[1] if len(route) > 1 else body.get("uid") or body.get("name", ""))
     if route[:2] == ["account", "groups"]:            # a member change from My account: its managed group
         group = _find(managed(state), "name", route[2] if len(route) > 2 else "")
@@ -79,11 +89,15 @@ def _thing(state, route, body):
 def _finish(state, page, routes):
     """Purpose: What a page's changes still need once done, as the agent's finish says it (nothing runs here).
     Inputs:  state — DevState; page — a page id; routes — the routes applied.
-    Returns: (what, fn(actor)) for the password policy and for DNS' records, links and key removals; None otherwise.
+    Returns: (what, fn(actor)) for the password policy, DNS' records, links and key removals, and the address
+             manager's pages; None otherwise.
     Fails:   never.
     Feeds:   _store."""
     if page == "policies" and ["domain", "password-policy"] in routes:
         return "Write the policy into the domain (restarts only what changed)", lambda actor: None
+    if page in ("networks", "options"):                # this site's plan applied once (1.10.4.40.3)
+        return ("Apply this site's plan to Kea and the firewall (restarts only what changed)",
+                lambda actor: state.log("IPAM_APPLY", "dev preview: nothing applied"))
     if page == "zones" and any(list(r) != ["zones"] and list(r)[2:] != ["delete"] or r[0] == "tsig" for r in routes):
         return ("Publish to BIND and the landing page (reloads only BIND)",
                 lambda actor: state.log("APPLY_DNS", "dev preview: nothing reloaded"))

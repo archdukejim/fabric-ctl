@@ -4,7 +4,7 @@
 PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "machines": "/directory/computers",
                  "policies": "/directory/policies", "ous": "/directory/ous", "access": "/directory/access",
                  "kerberos": "/directory/kerberos", "devices": "/8021x/devices", "roles": "/8021x/roles",
-                 "radius": "/8021x", "zones": "/dns/zones",
+                 "radius": "/8021x", "zones": "/dns/zones", "networks": "/networks", "options": "/networks/options",
                  "account": "/account/groups"}
 
 # The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
@@ -16,7 +16,8 @@ NAV = [
     ("account", "My account", [("/account", "My account", ()), ("/account/groups", "Groups I manage", ())]),
     ("dns", "DNS", [("/dns/zones", "Zones", ("dns:read",)),
                     ("/dns-filter", "DNS filter", ("dns:filter", "dns:querylog"))]),
-    ("dhcp", "DHCP", [("/kea", "Kea", ("dhcp:read",))]),
+    ("dhcp", "DHCP", [("/networks", "Networks", ("dhcp:read",)), ("/networks/options", "DHCP options", ("dhcp:read",)),
+                      ("/kea", "Kea", ("dhcp:read",))]),
     ("pki", "PKI", [("/pki", "Certificates", ("pki:read",)), ("/pki/acme", "ACME", ("pki:read",))]),
     ("directory", "Directory", [("/directory", "Overview", ("domain:read",)),
                                 ("/directory/people", "People", ("people:read",)),

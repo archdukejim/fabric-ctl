@@ -3,6 +3,8 @@ file	fabricctl-agent|src/agent/get_route.py	1
 file	fabricctl-agent|src/agent/handler.py	2	
 file	fabricctl-agent|src/agent/job_store.py	16	
 file	fabricctl-agent|src/agent/one_thing.py	35	
+file	fabricctl-agent|src/agent/pending_dns.py	41	
+file	fabricctl-agent|src/agent/pending_networks.py	42	
 file	fabricctl-agent|src/agent/pending_store.py	36	
 file	fabricctl-agent|src/agent/pending_thing.py	33	
 file	fabricctl-agent|src/agent/plan_store.py	25	
@@ -1153,6 +1155,9 @@ file	webui|src/webui/agentclient/machine_overview.py	240
 file	webui|src/webui/agentclient/map_radius_group.py	28	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/my_account.py	219	
 file	webui|src/webui/agentclient/my_groups.py	220	
+file	webui|src/webui/agentclient/networks_export.py	274	
+file	webui|src/webui/agentclient/networks_overview.py	275	
+file	webui|src/webui/agentclient/option_sets.py	276	
 file	webui|src/webui/agentclient/pending_action.py	212	
 file	webui|src/webui/agentclient/pending_counts.py	213	
 file	webui|src/webui/agentclient/pending_page.py	214	
@@ -1171,6 +1176,7 @@ file	webui|src/webui/agentclient/remove_radius_client.py	34	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/remove_reservation.py	35	
 file	webui|src/webui/agentclient/remove_subnet.py	36	
 file	webui|src/webui/agentclient/remove_zone.py	154	
+file	webui|src/webui/agentclient/request_scan.py	277	
 file	webui|src/webui/agentclient/reset_sign_in.py	37	
 file	webui|src/webui/agentclient/reverse_zones.py	38	
 file	webui|src/webui/agentclient/revoke_cert.py	273	
@@ -1179,6 +1185,8 @@ file	webui|src/webui/agentclient/rotate_radius_secret.py	39
 file	webui|src/webui/agentclient/rotate_tsig_key.py	40	
 file	webui|src/webui/agentclient/save_device.py	41	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/save_role.py	42	0.8.0 / 2026-10-23
+file	webui|src/webui/agentclient/scan_subnet.py	278	
+file	webui|src/webui/agentclient/scannable_subnets.py	279	
 file	webui|src/webui/agentclient/security_layers.py	133	
 file	webui|src/webui/agentclient/service_status.py	43	
 file	webui|src/webui/agentclient/set_dhcp_on.py	152	
@@ -1196,6 +1204,7 @@ file	webui|src/webui/agentclient/sign_csr.py	45
 file	webui|src/webui/agentclient/site_overview.py	256	
 file	webui|src/webui/agentclient/start_job.py	142	
 file	webui|src/webui/agentclient/sudo_rule_change.py	161	
+file	webui|src/webui/agentclient/sync_now.py	280	
 file	webui|src/webui/agentclient/unmap_radius_group.py	46	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/unset_option.py	47	
 file	webui|src/webui/agentclient/update_subnet.py	48	
@@ -1227,6 +1236,7 @@ file	webui|src/webui/devpreview/fake_directory.py	204
 file	webui|src/webui/devpreview/fake_dns.py	205	
 file	webui|src/webui/devpreview/fake_grants.py	251	
 file	webui|src/webui/devpreview/fake_groups.py	232	
+file	webui|src/webui/devpreview/fake_ipam.py	281	
 file	webui|src/webui/devpreview/fake_machines.py	241	
 file	webui|src/webui/devpreview/fake_misc.py	206	
 file	webui|src/webui/devpreview/fake_network.py	207	
@@ -1265,7 +1275,13 @@ file	webui|src/webui/routes/kerberos_page.py	263
 file	webui|src/webui/routes/kerberos_page.py (gone 0.8.0 / 2026-10-23)	257	0.8.0 / 2026-10-23
 file	webui|src/webui/routes/landing_post.py	187	
 file	webui|src/webui/routes/moved_to.py	209	
+file	webui|src/webui/routes/networks_page.py	282	
+file	webui|src/webui/routes/networks_post.py	283	
+file	webui|src/webui/routes/networks_scan_page.py	284	
+file	webui|src/webui/routes/networks_scan_post.py	285	
 file	webui|src/webui/routes/openbao_page.py	82	
+file	webui|src/webui/routes/options_page.py	286	
+file	webui|src/webui/routes/options_post.py	287	
 file	webui|src/webui/routes/ous_page.py	246	
 file	webui|src/webui/routes/overview_post.py	143	
 file	webui|src/webui/routes/people_page.py	228	
@@ -1308,6 +1324,7 @@ file	webui|src/webui/views/computers.py	243
 file	webui|src/webui/views/continue_page.py	106	
 file	webui|src/webui/views/css.py	107	
 file	webui|src/webui/views/devices.py	268	
+file	webui|src/webui/views/dhcp_options.py	288	
 file	webui|src/webui/views/directory.py	123	
 file	webui|src/webui/views/dirsrv.py	108	0.5.0 / 2026-10-05
 file	webui|src/webui/views/dns_filter.py	151	
@@ -1315,13 +1332,16 @@ file	webui|src/webui/views/error_page.py	109
 file	webui|src/webui/views/federation.py	131	
 file	webui|src/webui/views/freeradius.py	110	
 file	webui|src/webui/views/groups.py	234	
+file	webui|src/webui/views/ipam_scan.py	289	
 file	webui|src/webui/views/job_page.py	144	
 file	webui|src/webui/views/kea.py	111	
 file	webui|src/webui/views/kerberos.py	264	
 file	webui|src/webui/views/kerberos.py (gone 0.8.0 / 2026-10-23)	259	0.8.0 / 2026-10-23
 file	webui|src/webui/views/machine_result.py	129	0.8.0 / 2026-10-23
 file	webui|src/webui/views/nav_menu.py	210	
+file	webui|src/webui/views/networks.py	290	
 file	webui|src/webui/views/openbao.py	112	
+file	webui|src/webui/views/option_owner.py	291	
 file	webui|src/webui/views/ous.py	247	
 file	webui|src/webui/views/overview.py	113	
 file	webui|src/webui/views/paged.py	235	
@@ -1354,6 +1374,17 @@ function	fabricctl-agent|src/agent/job_store.py|JobStore.__init__	1
 function	fabricctl-agent|src/agent/job_store.py|JobStore.read	3	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.start	2	
 function	fabricctl-agent|src/agent/one_thing.py|one_thing	1	
+function	fabricctl-agent|src/agent/pending_dns.py|_zone	1	
+function	fabricctl-agent|src/agent/pending_dns.py|describe_dns	2	
+function	fabricctl-agent|src/agent/pending_networks.py|_at	4	
+function	fabricctl-agent|src/agent/pending_networks.py|_describe_option	5	
+function	fabricctl-agent|src/agent/pending_networks.py|_this_site	2	
+function	fabricctl-agent|src/agent/pending_networks.py|describe_networks	6	
+function	fabricctl-agent|src/agent/pending_networks.py|networks_grant	9	
+function	fabricctl-agent|src/agent/pending_networks.py|networks_key	8	
+function	fabricctl-agent|src/agent/pending_networks.py|networks_page_of	1	
+function	fabricctl-agent|src/agent/pending_networks.py|networks_site	3	
+function	fabricctl-agent|src/agent/pending_networks.py|networks_state	7	
 function	fabricctl-agent|src/agent/pending_store.py|PendingStore.__init__	1	
 function	fabricctl-agent|src/agent/pending_store.py|PendingStore._expire	10	
 function	fabricctl-agent|src/agent/pending_store.py|PendingStore._mark	8	
@@ -1367,9 +1398,9 @@ function	fabricctl-agent|src/agent/pending_store.py|PendingStore.page	4
 function	fabricctl-agent|src/agent/pending_store.py|_new	12	
 function	fabricctl-agent|src/agent/pending_store.py|_old	11	
 function	fabricctl-agent|src/agent/pending_store.py|_read	13	
-function	fabricctl-agent|src/agent/pending_thing.py|_describe_dns	12	
+function	fabricctl-agent|src/agent/pending_thing.py|_describe_dns	12	0.8.0 / 2026-10-23
 function	fabricctl-agent|src/agent/pending_thing.py|_find	3	
-function	fabricctl-agent|src/agent/pending_thing.py|_zone	11	
+function	fabricctl-agent|src/agent/pending_thing.py|_zone	11	0.8.0 / 2026-10-23
 function	fabricctl-agent|src/agent/pending_thing.py|_zone_key	13	
 function	fabricctl-agent|src/agent/pending_thing.py|as_change	8	
 function	fabricctl-agent|src/agent/pending_thing.py|describe_change	2	
@@ -1412,6 +1443,7 @@ function	fabricctl-agent|src/agent/post_options.py|post_options	4
 function	fabricctl-agent|src/agent/post_ous.py|post_ous	1	
 function	fabricctl-agent|src/agent/post_pending.py|_finish	2	
 function	fabricctl-agent|src/agent/post_pending.py|_finish_dns	5	
+function	fabricctl-agent|src/agent/post_pending.py|_finish_plan	6	
 function	fabricctl-agent|src/agent/post_pending.py|_run	1	
 function	fabricctl-agent|src/agent/post_pending.py|_wrapped	3	
 function	fabricctl-agent|src/agent/post_pending.py|post_pending	4	
@@ -3248,6 +3280,9 @@ function	webui|src/webui/agentclient/machine_overview.py|machine_overview	1
 function	webui|src/webui/agentclient/map_radius_group.py|map_radius_group	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/my_account.py|my_account	1	
 function	webui|src/webui/agentclient/my_groups.py|my_groups	1	
+function	webui|src/webui/agentclient/networks_export.py|networks_export	1	
+function	webui|src/webui/agentclient/networks_overview.py|networks_overview	1	
+function	webui|src/webui/agentclient/option_sets.py|option_sets	1	
 function	webui|src/webui/agentclient/pending_action.py|pending_action	1	
 function	webui|src/webui/agentclient/pending_counts.py|pending_counts	1	
 function	webui|src/webui/agentclient/pending_page.py|pending_page	1	
@@ -3266,6 +3301,7 @@ function	webui|src/webui/agentclient/remove_radius_client.py|remove_radius_clien
 function	webui|src/webui/agentclient/remove_reservation.py|remove_reservation	1	
 function	webui|src/webui/agentclient/remove_subnet.py|remove_subnet	1	
 function	webui|src/webui/agentclient/remove_zone.py|remove_zone	1	
+function	webui|src/webui/agentclient/request_scan.py|request_scan	1	
 function	webui|src/webui/agentclient/reset_sign_in.py|reset_sign_in	1	
 function	webui|src/webui/agentclient/reverse_zones.py|reverse_zones	1	
 function	webui|src/webui/agentclient/revoke_cert.py|revoke_cert	2	
@@ -3274,6 +3310,8 @@ function	webui|src/webui/agentclient/rotate_radius_secret.py|rotate_radius_secre
 function	webui|src/webui/agentclient/rotate_tsig_key.py|rotate_tsig_key	1	
 function	webui|src/webui/agentclient/save_device.py|save_device	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/save_role.py|save_role	1	0.8.0 / 2026-10-23
+function	webui|src/webui/agentclient/scan_subnet.py|scan_subnet	1	
+function	webui|src/webui/agentclient/scannable_subnets.py|scannable_subnets	1	
 function	webui|src/webui/agentclient/security_layers.py|security_layers	1	
 function	webui|src/webui/agentclient/service_status.py|service_status	1	
 function	webui|src/webui/agentclient/set_dhcp_on.py|set_dhcp_on	1	
@@ -3291,6 +3329,7 @@ function	webui|src/webui/agentclient/sign_csr.py|sign_csr	1
 function	webui|src/webui/agentclient/site_overview.py|site_overview	1	
 function	webui|src/webui/agentclient/start_job.py|start_job	1	
 function	webui|src/webui/agentclient/sudo_rule_change.py|sudo_rule_change	1	
+function	webui|src/webui/agentclient/sync_now.py|sync_now	1	
 function	webui|src/webui/agentclient/unmap_radius_group.py|unmap_radius_group	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/unset_option.py|unset_option	1	
 function	webui|src/webui/agentclient/update_subnet.py|update_subnet	1	
@@ -3378,6 +3417,14 @@ function	webui|src/webui/devpreview/fake_groups.py|_change	3
 function	webui|src/webui/devpreview/fake_groups.py|_groups	1	
 function	webui|src/webui/devpreview/fake_groups.py|fake_groups	4	
 function	webui|src/webui/devpreview/fake_groups.py|find_group	2	
+function	webui|src/webui/devpreview/fake_ipam.py|_change	7	
+function	webui|src/webui/devpreview/fake_ipam.py|_options	4	
+function	webui|src/webui/devpreview/fake_ipam.py|_overview	3	
+function	webui|src/webui/devpreview/fake_ipam.py|_read	5	
+function	webui|src/webui/devpreview/fake_ipam.py|_site	2	
+function	webui|src/webui/devpreview/fake_ipam.py|_vlan_add	6	
+function	webui|src/webui/devpreview/fake_ipam.py|fake_ipam	8	
+function	webui|src/webui/devpreview/fake_ipam.py|network_read	1	
 function	webui|src/webui/devpreview/fake_machines.py|_keytab	4	
 function	webui|src/webui/devpreview/fake_machines.py|_machine	2	
 function	webui|src/webui/devpreview/fake_machines.py|_overview	3	
@@ -3484,7 +3531,17 @@ function	webui|src/webui/routes/kerberos_page.py|kerberos_page (gone 0.8.0 / 202
 function	webui|src/webui/routes/landing_post.py|landing_post	1	
 function	webui|src/webui/routes/moved_to.py|_with	1	
 function	webui|src/webui/routes/moved_to.py|moved_to	2	
+function	webui|src/webui/routes/networks_page.py|networks_page	1	
+function	webui|src/webui/routes/networks_post.py|_back	1	
+function	webui|src/webui/routes/networks_post.py|_sync	2	
+function	webui|src/webui/routes/networks_post.py|networks_post	3	
+function	webui|src/webui/routes/networks_scan_page.py|networks_scan_page	1	
+function	webui|src/webui/routes/networks_scan_post.py|_request	1	
+function	webui|src/webui/routes/networks_scan_post.py|networks_scan_post	2	
 function	webui|src/webui/routes/openbao_page.py|openbao_page	1	
+function	webui|src/webui/routes/options_page.py|options_page	1	
+function	webui|src/webui/routes/options_post.py|_where	1	
+function	webui|src/webui/routes/options_post.py|options_post	2	
 function	webui|src/webui/routes/ous_page.py|ous_page	1	
 function	webui|src/webui/routes/overview_post.py|overview_post	1	
 function	webui|src/webui/routes/people_page.py|people_page	1	
@@ -3536,6 +3593,7 @@ function	webui|src/webui/views/computers.py|computers	3
 function	webui|src/webui/views/continue_page.py|continue_page	1	
 function	webui|src/webui/views/css.py|css	1	
 function	webui|src/webui/views/devices.py|devices	1	
+function	webui|src/webui/views/dhcp_options.py|dhcp_options	1	
 function	webui|src/webui/views/directory.py|directory	1	
 function	webui|src/webui/views/dirsrv.py|dirsrv	1	0.5.0 / 2026-10-05
 function	webui|src/webui/views/dns_filter.py|_ago	1	
@@ -3545,13 +3603,18 @@ function	webui|src/webui/views/error_page.py|error_page	1
 function	webui|src/webui/views/federation.py|federation	1	
 function	webui|src/webui/views/freeradius.py|freeradius	1	
 function	webui|src/webui/views/groups.py|groups	1	
+function	webui|src/webui/views/ipam_scan.py|ipam_scan	1	
 function	webui|src/webui/views/job_page.py|job_page	1	
 function	webui|src/webui/views/kea.py|kea	1	
 function	webui|src/webui/views/kerberos.py|kerberos	2	
 function	webui|src/webui/views/kerberos.py|kerberos (gone 0.8.0 / 2026-10-23)	1	0.8.0 / 2026-10-23
 function	webui|src/webui/views/machine_result.py|machine_result	1	0.8.0 / 2026-10-23
 function	webui|src/webui/views/nav_menu.py|nav_menu	1	
+function	webui|src/webui/views/networks.py|_hits	1	
+function	webui|src/webui/views/networks.py|_shown	2	
+function	webui|src/webui/views/networks.py|networks	3	
 function	webui|src/webui/views/openbao.py|openbao	1	
+function	webui|src/webui/views/option_owner.py|option_owner	1	
 function	webui|src/webui/views/ous.py|ous	1	
 function	webui|src/webui/views/overview.py|overview	1	
 function	webui|src/webui/views/paged.py|paged	1	

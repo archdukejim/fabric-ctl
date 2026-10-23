@@ -105,3 +105,10 @@ from webui.agentclient.change_own_password import change_own_password  # noqa: F
 from webui.agentclient.pending_counts import pending_counts  # noqa: F401
 from webui.agentclient.pending_page import pending_page  # noqa: F401
 from webui.agentclient.pending_action import pending_action  # noqa: F401
+from webui.agentclient.networks_export import networks_export  # noqa: F401
+from webui.agentclient.networks_overview import networks_overview  # noqa: F401
+from webui.agentclient.option_sets import option_sets  # noqa: F401
+from webui.agentclient.request_scan import request_scan  # noqa: F401
+from webui.agentclient.scan_subnet import scan_subnet  # noqa: F401
+from webui.agentclient.scannable_subnets import scannable_subnets  # noqa: F401
+from webui.agentclient.sync_now import sync_now  # noqa: F401

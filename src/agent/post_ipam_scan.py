@@ -10,7 +10,7 @@ from fabriclib.ipam.scan_subnet import scan_subnet
 from fabriclib.ipam.scancontrol.request_scan import request_scan
 
 
-def post_ipam_scan(route, actor, data, caller=None):
+def post_ipam_scan(route, actor, data, caller=None, apply=True):
     """Purpose: the console's scans (manual 1.10.4.22, 1.10.4.36; decisions 2.1.10.26 and 2.1.10.38): POST
              /v1/ipam/scan runs one scan of this site's subnet and answers what it found; POST /v1/ipam/scan/record
              records one address it found in use but unrecorded — a reservation for the MAC ARP saw, or a static
@@ -19,7 +19,8 @@ def post_ipam_scan(route, actor, data, caller=None):
              right first: `scan` at the site for a scan or a request, `plan` here to record.
     Inputs:  route — segments after /v1/ (["ipam", "scan"], [..., "record"] or [..., "request"]); actor — the
              verified user; data — the body: subnet (scan: its name or network); ip, kind (reservation or static), mac,
-             name (record); site, subnet (request); caller — the signed-in person (None: a root peer).
+             name (record); site, subnet (request); caller — the signed-in person (None: a root peer); apply —
+             False when a find recorded is run as a held change of the Networks page (1.10.4.40.3).
     Returns: scan: scan_subnet's result. record: {"address": the address as recorded, and apply_plan_change's result}.
              request: request_scan's result.
     Fails:   ValidationError (-> 400): what scan_subnet, add_address or request_scan refuses (the grant first), a kind
@@ -39,4 +40,4 @@ def post_ipam_scan(route, actor, data, caller=None):
     out = add_address(v, actor, read_text(data, "ip"), kind, "", read_text(data, "name"), read_text(data, "mac"), "",
                       f"found by a scan on {datetime.date.today().isoformat()}", False, None, source="web",
                       caller=caller)
-    return {"address": out["result"], **apply_plan_change(v, actor, out)}
+    return {"address": out["result"], **apply_plan_change(v, actor, out, apply=apply)}
