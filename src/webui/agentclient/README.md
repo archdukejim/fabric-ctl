@@ -17,7 +17,6 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `unset_option.py` | Remove a DHCP option the admin set |
 | `add_client_class.py` | Add a DHCP client class (Kea expression, network-boot fields) |
 | `remove_client_class.py` | Remove a DHCP client class |
-| `apply_changes.py` | Render and apply the configuration (as `fabricctl --apply`) on the host. Agent route: POST /v1/apply (dns:write), timeout 960 s. |
 | `audit.py` | Write a login event to the audit log, best effort so an agent outage never blocks a denial. Agent route: POST /v1/events (session). |
 | `ca_summary.py` | The CA certificates, where devices fetch them, and the signing limits, for the Step-CA page. Agent route: GET /v1/pki/ca (pki:read). |
 | `host_changes.py` | What fabric may change on this host, by group (approved, declined with what that leaves unmanaged). Agent route: GET /v1/host-changes (status:read). |
@@ -56,13 +55,11 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `directory_overview.py` | The Directory's Overview: the domain, its level and DCs, roles, replication, sites, counts. Agent route: GET /v1/directory (domain:read). |
 | `list_tsig_keys.py` | The TSIG keys and their update rights (never their secrets). Agent route: GET /v1/tsig (dns:read). |
 | `list_zones.py` | The DNS zones for the BIND page's zone list. Agent route: GET /v1/zones (dns:read). |
-| `map_radius_group.py` | Let members of a directory group join the network by password; saved and applied at once. Agent route: POST /v1/radius/people (radius:admin), timeout 960 s. |
 | `quote_segment.py` | URL-quote one path segment with nothing kept safe ("/" becomes %2F), so a name cannot change the route. |
 | `radius_guides.py` | The FreeRADIUS setup guides and Windows scripts, filled in for this host (public data only). Agent route: GET /v1/radius/guides (radius:read). |
 | `radius_overview.py` | What the FreeRADIUS page shows: on/off, clients, password groups, recent decisions. Agent route: GET /v1/radius (radius:read). |
 | `query_log.py` | Search the DNS query log. Agent route: POST /v1/dns-filter/querylog (dns:querylog). |
 | `read_audit.py` | Recent audit-log lines for the Audit page. Agent route: GET /v1/audit (audit:read). |
-| `remove_radius_client.py` | Remove a RADIUS client; saved and applied at once. Agent route: POST /v1/radius/clients/<name>/delete (radius:admin), timeout 960 s. |
 | `remove_reservation.py` | Remove a DHCP reservation and apply at once. Agent route: POST /v1/dhcp/reservations/<mac>/delete (dhcp:write), timeout 960 s. |
 | `reset_sign_in.py` | Reset a person's sign-in: new one-time password, TOTP removed, sessions ended. Agent route: POST /v1/people/<uid>/reset (people:reset). |
 | `person_action.py` | Disable, enable or remove a person, or change their groups. Agent routes: POST /v1/people/<uid>/disable\|enable (people:disable), /delete (people:remove), /groups (people:groups). |
@@ -71,7 +68,6 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `rotate_tsig_key.py` | Give a TSIG key a new secret. Agent route: POST /v1/tsig/<name>/rotate (tsig:manage). |
 | `service_status.py` | The state of every fabric service, for the overview page. Agent route: GET /v1/services (status:read). |
 | `sign_csr.py` | Sign a device's CSR with the fabric CA. Agent route: POST /v1/pki/sign (pki:sign), timeout 120 s. |
-| `unmap_radius_group.py` | Stop a group's members joining by password; saved and applied at once. Agent route: POST /v1/radius/people/<group>/delete (radius:admin), timeout 960 s. |
 | `vault_add_kmip.py` | Add a KMIP HSM/KMS as an unlock method. Agent route: POST /v1/vault/slots/add-hsm (vault:unlock), timeout 120 s. |
 | `vault_add_security_key.py` | Add a PKCS#11 security key (e.g. a YubiKey) as an unlock method. Agent route: POST /v1/vault/slots/add-security-key (vault:unlock), timeout 120 s. |
 | `vault_add_usb.py` | Add a USB stick as an unlock method. Agent route: POST /v1/vault/slots/add-usb (vault:unlock), timeout 180 s. |
@@ -82,10 +78,10 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `vault_status.py` | OpenBao at a glance for the OpenBao page; never secrets. Agent route: GET /v1/vault (vault:status). |
 | `version_info.py` | The fabric version and build shown in every page's header. Agent route: GET /v1/version (permission: session). |
 | `zone_detail.py` | One zone's records and BIND sync status, for the forward-zone view. Agent route: GET /v1/zones/<key> (dns:read). |
-| `revoke_cert.py` | Revoke a certificate fabric issued; the CRLs are published at once. Agent route: POST /v1/pki/revoke (pki:revoke). |
 | `cert_warnings.py` | What is wrong or coming with fabric's certificates, shown at the top of the overview. Agent route: GET /v1/cert-warnings (status:read). |
 | `host_reminders.py` | What every administrator is reminded of on this host (the break-glass password's file), in the top bar from each sign-in and on Overview. Agent route: GET /v1/reminders (status:read). |
 | `relaxed_settings.py` | The security relaxations turned on, shown at the top of the overview. Agent route: GET /v1/relaxed-settings (status:read). |
+| `revoke_cert.py` | Revoke a certificate fabric issued; the CRLs are published at once. Agent route: POST /v1/pki/revoke (pki:revoke). |
 | `__init__.py` | Imports every function of this folder, so callers keep `module.function` |
 | `domain_overview.py` | The domain, its controller, the password policy and this site's machines. Agent route: GET /v1/domain (domain:read). |
 | `gpo_overview.py` | Group Policy: templates, the admin settings GPO, a policy search. Agent routes: GET /v1/gpo, POST /v1/gpo/search (domain:read). |

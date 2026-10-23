@@ -38,6 +38,9 @@ SAMPLE_DHCP = {"enabled": True, "interfaces": ["eth0"], "lease_time": 86400, "dd
                                                       "options": [{"name": "tftp-server-name",
                                                                    "data": "192.168.1.30"}]}]}
 SAMPLE = {
+    "relaxed_settings": [{"setting": "signin_admin_second_factor: none",
+                          "effect": "the web console and OpenBao ask for a password only; raise a second factor in "
+                                    "the web console's Settings → Sign-in security (2.3.6.2.6)"}],
     "services": [("nginx", "active", "healthy"), ("bind9", "active", "healthy"), ("stepca", "active", "healthy"),
                  ("samba", "active", "healthy"), ("postgres", "active", "healthy"), ("keycloak", "active", "healthy"),
                  ("openbao", "active", "healthy"), ("fabric-web", "active", "healthy"), ("fabric-agent", "active", "")],
@@ -106,9 +109,10 @@ SAMPLE = {
                "keycloak_url": "https://sso.home.arpa/admin/home.arpa/console/"},
     "issued": [{"when": "2026-09-20T10:12:00", "actor": "dev", "kind": "csr", "subject": "CN=switch-core.home.arpa",
                 "sans": ["switch-core.home.arpa", "192.168.1.2"], "not_after": "Sep 20 10:12:00 2027 GMT",
-                "status": "valid"},
+                "serial": "5a1c0e", "status": "valid"},
                {"when": "2025-10-01T08:00:00", "actor": "dev", "kind": "keypair", "subject": "CN=printer.home.arpa",
-                "sans": ["printer.home.arpa"], "not_after": "Oct 15 08:00:00 2026 GMT", "status": "expires soon"}],
+                "sans": ["printer.home.arpa"], "not_after": "Oct 15 08:00:00 2026 GMT", "serial": "3b07d2",
+                "status": "expires soon"}],
 }
 _FP = ":".join(["AB", "12", "CD", "34"] * 8)
 SAMPLE_VAULT = {"url": "https://vault.home.arpa/", "reachable": True, "initialized": True, "sealed": False,

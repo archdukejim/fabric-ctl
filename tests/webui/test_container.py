@@ -541,6 +541,28 @@ st, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", {**ALICE, "Origin": "nu
 check("...and a post that arrives with Origin: null is still refused (what no-referrer made browsers send)",
       st == 403, st)
 POSTH = {**ALICE, "Origin": "https://mgr.test"}
+def applied(page, cookie):
+    """Apply a page's pending changes (manual 1.8.6.5) and wait for the job: the page's Review once it stopped."""
+    req("POST", f"/changes/{page}/apply", POSTH, {"csrf": cookie_csrf(cookie)}, cookie=cookie)
+    body = ""
+    for _ in range(600):
+        body = req("GET", f"/changes/{page}", ALICE, cookie=cookie)[3]
+        if 'http-equiv="refresh"' not in body:
+            break
+        time.sleep(0.2)
+    return html.unescape(body)
+
+
+def dns_change(path, form):
+    """A DNS change held for DNS' Apply (2.1.8.18), then that Apply (2.1.8.24), anything left discarded: (status, the
+    hold's Location unquoted, the Review after the Apply; "" when nothing was held)."""
+    st, hd, *_ = req("POST", path, POSTH, {"csrf": csrf, **form}, cookie=session)
+    loc = urllib.parse.unquote_plus(hd.get("Location", ""))
+    review = applied("zones", session) if "Waiting for Apply" in loc else ""
+    req("POST", "/changes/zones/discard", POSTH, {"csrf": csrf}, cookie=session)
+    return st, loc, review
+
+
 add = {"csrf": csrf, "type": "CNAME", "name": "shelfmark", "target": "nas25-apps"}
 st, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", ALICE, dict(add), cookie=session)
 # covers: web:post.bind9.zone.*.add -
@@ -550,31 +572,38 @@ check("POST with bad CSRF -> 403", st == 403, st)
 st, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", {**POSTH, "Origin": "https://evil.test"}, dict(add), cookie=session)
 check("POST from foreign origin -> 403", st == 403, st)
 st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH, dict(add), cookie=session)
-vars_text = open(f"{W}/fabric/config/vars.yaml").read()
 # covers: web:post.bind9.zone.*.add agent:post.zones.*.records +
-check("add CNAME -> saved to vars.yaml", st == 303 and "shelfmark" in vars_text and "msg=" in hd["Location"], (st, hd))
-st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
-                 {"csrf": csrf, "type": "A", "name": "bad name;rm", "ip": "1.2.3.4"}, cookie=session)
+check("add CNAME -> held by the real agent for DNS' Apply (2.1.8.18), vars.yaml not changed yet", st == 303
+      and "Waiting for Apply: Add CNAME record shelfmark" in urllib.parse.unquote_plus(hd.get("Location", ""))
+      and "shelfmark" not in open(f"{W}/fabric/config/vars.yaml").read(), (st, hd.get("Location")))
+done = applied("zones", session)
+check("...DNS' Apply: the record saved to vars.yaml; its BIND-only deploy (2.1.8.24) refused here, said (this suite "
+      "runs no BIND)", "shelfmark" in open(f"{W}/fabric/config/vars.yaml").read()
+      and "Publish to BIND and the landing page" in done and "failed:" in done, done[-1500:])
+req("POST", "/changes/zones/discard", POSTH, {"csrf": csrf}, cookie=session)
+vt = open(f"{W}/fabric/config/vars.yaml").read()
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/add", {"type": "A", "name": "bad name;rm", "ip": "1.2.3.4"})
 # covers: web:post.bind9.zone.*.add agent:post.zones.*.records -
-check("invalid record name rejected", st == 303 and "err=" in hd["Location"], hd)
-st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
-                 {"csrf": csrf, "type": "TXT", "name": "x", "text": 'a"\n$INCLUDE /etc/shadow'}, cookie=session)
-check("zone-file injection via TXT rejected", st == 303 and "err=" in hd["Location"], hd)
+check("invalid record name refused at Apply, said, vars.yaml unchanged", "failed:" in done
+      and open(f"{W}/fabric/config/vars.yaml").read() == vt, done[-1500:])
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/add", {"type": "TXT", "name": "x",
+                                                                "text": 'a"\n$INCLUDE /etc/shadow'})
+check("zone-file injection via TXT refused at Apply, vars.yaml unchanged", "failed:" in done
+      and "INCLUDE" not in open(f"{W}/fabric/config/vars.yaml").read(), done[-1500:])
 # zones (manual 1.4.1.3) through the real agent and fabriclib: refusals here (no BIND runs in this suite, so a valid
 # name is refused too and rolled back); the zone served by BIND is tests/zones/run.py's
-check("BIND9 tab: the New zone form (the site's own zone has no Remove)", 'action="/bind9/zones/new"' in body
-      and "/bind9/zones/dynamic_zone_var/remove" not in body, body[:300])
+check("BIND9 tab: Add zone in the actions bar, its form on its own page (the site's own zone has no Remove)",
+      'href="/dns/zones?view=new"' in body and "/bind9/zones/dynamic_zone_var/remove" not in body
+      and 'action="/bind9/zones/new"' in req("GET", "/dns/zones?view=new", ALICE, cookie=session)[3], body[:300])
 for form, why in (({"name": "shop.example.com"}, "Hide the public name"), ({"name": "lan.test"}, "site's own domain"),
                   ({"name": "home.lan"}, "not added")):
-    st, hd, *_ = req("POST", "/bind9/zones/new", POSTH, {"csrf": csrf, **form}, cookie=session)
-    loc = urllib.parse.unquote_plus(hd.get("Location", ""))
-    check(f"New zone refused ({why}): said why on the page, vars.yaml unchanged",
-          st == 303 and why in loc and "home.lan" not in open(f"{W}/fabric/config/vars.yaml").read()
-          and "shop.example.com" not in open(f"{W}/fabric/config/vars.yaml").read(), loc)
-st, hd, *_ = req("POST", "/bind9/zones/dynamic_zone_var/remove", POSTH, {"csrf": csrf, "confirm": "lan.test"},
-                 cookie=session)
-check("Remove zone refused for the site's own zone, saying why",
-      "cannot be removed" in urllib.parse.unquote_plus(hd.get("Location", "")), hd)
+    st, loc, done = dns_change("/bind9/zones/new", form)
+    check(f"New zone held, refused at Apply ({why}): said on the Review, vars.yaml unchanged",
+          "Waiting for Apply: Add zone" in loc and why in done
+          and "home.lan" not in open(f"{W}/fabric/config/vars.yaml").read()
+          and "shop.example.com" not in open(f"{W}/fabric/config/vars.yaml").read(), (loc, done[-1500:]))
+st, loc, done = dns_change("/bind9/zones/dynamic_zone_var/remove", {"confirm": "lan.test"})
+check("Remove zone refused at Apply for the site's own zone, saying why", "cannot be removed" in done, done[-1500:])
 # DHCP on and off from the console (manual 1.10.3.5): refusals here, the real turn-on in the lab suite
 for form, why, label in (({}, "give the interface, the subnet and a pool", "no settings and no first subnet"),
                          ({"interface": "eth9", "subnet": "10.20.0.0/24", "pool": "10.20.0.100 - 10.20.0.199"},
@@ -589,24 +618,25 @@ st, hd, *_ = req("POST", "/kea/off", POSTH, {"csrf": csrf}, cookie=session)
 check("turn DHCP off when it is off: refused, saying so", "already off" in urllib.parse.unquote_plus(
     hd.get("Location", "")), hd)
 st, hd, sc, body = req("GET", "/dns/zones?zone=dynamic_zone_var", ALICE, cookie=session)
-idx = [row for row in body.split("<tr>") if "shelfmark" in row][0].split('name="index" value="')[1].split('"')[0]
-st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/delete", POSTH,
-                 {"csrf": csrf, "type": "CNAME", "index": idx, "name": "wrong-name"}, cookie=session)
+picked = re.search(r'<option value="CNAME\|(\d+)\|shelfmark">', body)
+idx = picked.group(1) if picked else "-1"
+check("the zone's records listed with no form in a cell; Delete a record offers shelfmark", picked is not None
+      and 'method="post"' not in body.split('<table class="list')[1].split("</table>")[0], body[-1500:])
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": f"CNAME|{idx}|wrong-name"})
 # covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete -
-check("stale delete (name mismatch) refused", "err=" in hd.get("Location", ""), hd)
-st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/delete", POSTH,
-                 {"csrf": csrf, "type": "CNAME", "index": idx, "name": "shelfmark"}, cookie=session)
+check("stale delete (name mismatch) refused at Apply, said", "record changed" in done, done[-1500:])
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": f"CNAME|{idx}|shelfmark"})
 # covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete +
-check("delete CNAME -> removed from vars.yaml", "shelfmark" not in open(f"{W}/fabric/config/vars.yaml").read(), hd)
+check("delete CNAME -> held, then removed from vars.yaml at Apply", "Waiting for Apply: Delete CNAME record shelfmark"
+      in loc and "shelfmark" not in open(f"{W}/fabric/config/vars.yaml").read(), (loc, done[-1500:]))
 # 2.1.2.22: the record form asks type, name, value (and priority, weight, port for MX and SRV only)
-st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
-                 {"csrf": csrf, "type": "CNAME", "name": "valued", "value": "nas25-apps"}, cookie=session)
-check("add a CNAME from the form's one value -> saved with its target",
-      st == 303 and "name: valued" in open(f"{W}/fabric/config/vars.yaml").read(), hd)
-st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
-                 {"csrf": csrf, "type": "MX", "name": "@", "value": "mail"}, cookie=session)
-check("an MX record without its priority is refused, saying why",
-      "priority must be a number" in urllib.parse.unquote_plus(hd.get("Location", "")), hd)
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/add", {"type": "CNAME", "name": "valued",
+                                                                "value": "nas25-apps"})
+check("add a CNAME from the form's one value -> saved with its target at Apply",
+      "name: valued" in open(f"{W}/fabric/config/vars.yaml").read(), done[-1500:])
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/add", {"type": "MX", "name": "@", "value": "mail"})
+check("an MX record without its priority is refused at Apply, saying why", "priority must be a number" in done,
+      done[-1500:])
 # fabric's own names: marked, and a delete refused naming the setting (the apply would add them back); the landing
 # page's info is the admin's since 0.7.1 (2.1.4.6): not marked, deleted, and added again pointing elsewhere
 st, hd, sc, body = req("GET", "/dns/zones?zone=dynamic_zone_var", ALICE, cookie=session)
@@ -616,58 +646,52 @@ mark = {n: any(f">{n} " in r and "provided by fabric" in r for r in rows)
 check("fabric's own names (the host's A, ca) marked 'provided by fabric'; info and the admin's not",
       mark == {"pi-core": True, "ca": True, "info": False, "calibre": False}, mark)
 # covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete +
-st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/delete", POSTH,
-                 {"csrf": csrf, "type": "CNAME", "index": "1", "name": "info"}, cookie=session)
-check("deleting info.<domain> works: an ordinary record now, gone from vars.yaml (the page stays at /info/)",
-      st == 303 and "provided by fabric" not in urllib.parse.unquote_plus(hd.get("Location", ""))
-      and "name: info" not in open(f"{W}/fabric/config/vars.yaml").read(), hd)
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": "CNAME|1|info"})
+check("deleting info.<domain> works at Apply: an ordinary record now, gone from vars.yaml (the page stays at /info/)",
+      "provided by fabric" not in done and "name: info" not in open(f"{W}/fabric/config/vars.yaml").read(),
+      done[-1500:])
 # covers: web:post.bind9.zone.*.add +
-st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
-                 {"csrf": csrf, "type": "CNAME", "name": "info", "value": "nas25-apps"}, cookie=session)
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/add", {"type": "CNAME", "name": "info",
+                                                                "value": "nas25-apps"})
 _cnames = (yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"]["dynamic_zone_var"].get("CNAME") or [])
 check("info added again pointing at another machine (repointed), saved as the admin's record",
-      st == 303 and {"name": "info", "canonical": "nas25-apps"} in _cnames, (hd, _cnames))
+      {"name": "info", "canonical": "nas25-apps"} in _cnames, (done[-1500:], _cnames))
 # covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete -
-st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/delete", POSTH,
-                 {"csrf": csrf, "type": "CNAME", "index": "1", "name": "ca"}, cookie=session)
-loc = urllib.parse.unquote_plus(hd.get("Location", ""))
-check("deleting ca.<domain> is still refused: fabric's (the CA, and the CRL point), named with its setting",
-      "provided by fabric" in loc and "cname_ca" in loc
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": "CNAME|1|ca"})
+check("deleting ca.<domain> is still refused at Apply: fabric's (the CA, and the CRL point), named with its setting",
+      "provided by fabric" in done and "cname_ca" in done
       and any(r.get("name") == "ca" for r in yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"][
-          "dynamic_zone_var"]["CNAME"]), loc)
-st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/delete", POSTH,
-                 {"csrf": csrf, "type": "A", "index": "0", "name": "pi-core"}, cookie=session)
-check("deleting the host's own A record is refused, naming hostname",
-      "provided by fabric" in urllib.parse.unquote_plus(hd.get("Location", ""))
-      and "hostname" in urllib.parse.unquote_plus(hd.get("Location", "")), hd)
+          "dynamic_zone_var"]["CNAME"]), done[-1500:])
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": "A|0|pi-core"})
+check("deleting the host's own A record is refused at Apply, naming hostname",
+      "provided by fabric" in done and "hostname" in done, done[-1500:])
 # the landing page's links, in their own section (2.1.2.22 item 4); kept on the record as before (2.1.4.2)
 st, hd, sc, body = req("GET", "/dns/zones?view=landing", ALICE, cookie=session)
 check("Landing page section: none linked yet, the add form lists the zone's records",
       st == 200 and "links to none of your records" in body and 'value="CNAME|0|calibre"' in body, body[:400])
 # covers: web:post.bind9.landing.add agent:post.zones.*.records.link +
-st, hd, *_ = req("POST", "/bind9/landing/add", POSTH, {"csrf": csrf, "record": "CNAME|0|calibre",
-                                                       "link_label": "Calibre", "link_port": "8083"}, cookie=session)
+st, loc, done = dns_change("/bind9/landing/add", {"record": "CNAME|0|calibre", "link_label": "Calibre",
+                                                   "link_port": "8083"})
 vars_text = open(f"{W}/fabric/config/vars.yaml").read()
-check("link calibre from the landing page -> saved on the record (link: label, port), listed",
-      st == 303 and "label: Calibre" in vars_text and "port: 8083" in vars_text
-      and "https://calibre.lan.test:8083/" in req("GET", "/dns/zones?view=landing", ALICE, cookie=session)[3], hd)
+check("link calibre from the landing page -> held, then saved on the record (link: label, port) at DNS' Apply, "
+      "listed", "Waiting for Apply: Link calibre from the landing page" in loc and "label: Calibre" in vars_text
+      and "port: 8083" in vars_text
+      and "https://calibre.lan.test:8083/" in req("GET", "/dns/zones?view=landing", ALICE, cookie=session)[3],
+      (loc, done[-1500:]))
 for form, why in (({"record": "CNAME|0|calibre", "link_port": "99999"}, "link port must be between"),
                   ({"record": "CNAME|0|calibre", "link_path": "no-slash"}, "invalid link path"),
                   ({"record": "CNAME|0|other"}, "record changed"), ({"record": ""}, "pick a record")):
     # covers: web:post.bind9.landing.add -
-    st, hd, *_ = req("POST", "/bind9/landing/add", POSTH, {"csrf": csrf, **form}, cookie=session)
-    check(f"link refused ({why}), saying why", why in urllib.parse.unquote_plus(hd.get("Location", "")), hd)
+    st, loc, done = dns_change("/bind9/landing/add", form)
+    check(f"link refused ({why}), saying why", why in loc or why in done, (loc, done[-1500:]))
 # covers: web:post.bind9.landing.remove -
-st, hd, *_ = req("POST", "/bind9/landing/remove", POSTH, {"csrf": csrf, "type": "CNAME", "index": "0",
-                                                          "name": "other"}, cookie=session)
-check("stop linking a record changed since it was shown -> refused, saying why, the link kept",
-      "record changed" in urllib.parse.unquote_plus(hd.get("Location", ""))
-      and "Calibre" in open(f"{W}/fabric/config/vars.yaml").read(), hd)
+st, loc, done = dns_change("/bind9/landing/remove", {"record": "CNAME|0|other"})
+check("stop linking a record changed since it was shown -> refused at Apply, saying why, the link kept",
+      "record changed" in done and "Calibre" in open(f"{W}/fabric/config/vars.yaml").read(), done[-1500:])
 # covers: web:post.bind9.landing.remove +
-st, hd, *_ = req("POST", "/bind9/landing/remove", POSTH, {"csrf": csrf, "type": "CNAME", "index": "0",
-                                                          "name": "calibre"}, cookie=session)
-check("stop linking calibre -> its link gone from vars.yaml",
-      st == 303 and "Calibre" not in open(f"{W}/fabric/config/vars.yaml").read(), hd)
+st, loc, done = dns_change("/bind9/landing/remove", {"record": "CNAME|0|calibre"})
+check("stop linking calibre -> its link gone from vars.yaml at Apply",
+      "Calibre" not in open(f"{W}/fabric/config/vars.yaml").read(), done[-1500:])
 # the password policy edited in the Domain section (2.1.2.22 item 2), checked as the command checks it
 POLICY = {"minimum_length": "14", "history": "24", "minimum_age_days": "1", "maximum_age_days": "365",
           "lockout_threshold": "5", "lockout_minutes": "30", "lockout_window_minutes": "15", "complexity": "on"}
@@ -675,17 +699,6 @@ POLICY = {"minimum_length": "14", "history": "24", "minimum_age_days": "1", "max
 # suite has none, so a good policy is refused saying so and nothing is saved (fail closed); saved by a Directory
 # Administrator through the same route against a real DC in tests/samba/domain.py
 
-
-def applied(page, cookie):
-    """Apply a page's pending changes (manual 1.8.6.5) and wait for the job: the page's Review once it stopped."""
-    req("POST", f"/changes/{page}/apply", POSTH, {"csrf": cookie_csrf(cookie)}, cookie=cookie)
-    body = ""
-    for _ in range(600):
-        body = req("GET", f"/changes/{page}", ALICE, cookie=cookie)[3]
-        if 'http-equiv="refresh"' not in body:
-            break
-        time.sleep(0.2)
-    return html.unescape(body)
 
 
 # covers: web:post.directory.domain.password-policy +
@@ -757,6 +770,17 @@ st, hd, sc, body = req("POST", "/stepca/issue", POSTH, {"csrf": csrf, "cn": "bad
                                                         "days": "30"}, cookie=session)
 # covers: web:post.stepca.issue agent:post.pki.issue -
 check("invalid request -> form again with the reason (400)", st == 400 and "not a host name" in body, (st, body[:300]))
+# a revocation is done at once by the real agent (2.1.8.23); issuing and revoking for real need step-ca (tests/pki
+# covers them through the agent, tests/webui/test_devserver.py the pages), so here the refusals alone
+# covers: web:get.pki.issued.* -
+check("a certificate that is not there answers 404", req("GET", "/pki/issued/00", ALICE, cookie=session)[0] == 404)
+# covers: web:post.stepca.revoke agent:post.pki.revoke -
+st, hd, *_ = req("POST", "/stepca/revoke", POSTH, {"csrf": csrf, "target": "ghost.lan.test", "reason": "superseded"},
+                 cookie=session)
+where = urllib.parse.unquote_plus(hd.get("Location", ""))
+check("Revoke a certificate the ledger does not have: refused at once by the real agent, said, nothing pending",
+      st == 303 and where.startswith("/pki?view=issued") and "no certificate named 'ghost.lan.test'" in where
+      and "change pending" not in where, (st, where))
 
 # ---- the Directory tab without the domain controller: the page says so, nothing breaks
 st, hd, sc, body = req("GET", "/directory/people", ALICE, cookie=session)
@@ -831,8 +855,9 @@ st, hd, sc, body = req("POST", "/bind9/tsig/create", POSTH, {"csrf": csrf, "name
                                                               "scope": "acme-hosts", "hosts": "npm, nas"}, cookie=session)
 secret = body.split('<code class="secret">')[1].split("<")[0] if '<code class="secret">' in body else ""
 # covers: web:post.bind9.tsig.create agent:post.tsig +
-check("create TSIG key -> secret and rfc2136.ini shown once", st == 200 and secret
-      and "dns_rfc2136_name = npm-certbot" in body, body[:300])
+check("create TSIG key -> secret and rfc2136.ini shown once; done at once, BIND given it by DNS' deploy (refused "
+      "here: this suite runs no BIND, said)", st == 200 and secret and "dns_rfc2136_name = npm-certbot" in body
+      and "BIND did not take it yet" in html.unescape(body), body[:600])
 vt = open(f"{W}/fabric/config/vars.yaml").read()
 check("...key saved, secret kept out of vars.yaml", "npm-certbot" in vt and secret not in vt
       and secret in open(f"{W}/fabric/config/fabric-secrets.yml").read())
@@ -848,20 +873,20 @@ st, hd, sc, body = req("POST", "/bind9/tsig/npm-certbot/rotate", POSTH, {"csrf":
 new = body.split('<code class="secret">')[1].split("<")[0] if '<code class="secret">' in body else ""
 # covers: web:post.bind9.tsig.*.rotate agent:post.tsig.*.rotate +
 check("rotate -> a new secret", st == 200 and new and new != secret, st)
-st, hd, *_ = req("POST", "/bind9/tsig/npm-certbot/delete", POSTH, {"csrf": csrf}, cookie=session)
+st, loc, done = dns_change("/bind9/tsig/npm-certbot/delete", {})
 # covers: web:post.bind9.tsig.*.delete agent:post.tsig.*.delete +
-check("delete TSIG key -> removed", st == 303 and "npm-certbot" not in open(f"{W}/fabric/config/vars.yaml").read(), st)
+check("remove TSIG key -> held, removed at DNS' Apply", "Waiting for Apply: Remove TSIG key npm-certbot" in loc
+      and "npm-certbot" not in open(f"{W}/fabric/config/vars.yaml").read(), (loc, done[-1500:]))
 vt = open(f"{W}/fabric/config/vars.yaml").read()
 st, hd, sc, body = req("POST", "/bind9/tsig/ghost/rotate", POSTH, {"csrf": csrf}, cookie=session)
 # covers: web:post.bind9.tsig.*.rotate -
 check("rotate a TSIG key that does not exist -> refused (400, named), nothing changed",
       st == 400 and "no TSIG key named" in body and "ghost" in body
       and open(f"{W}/fabric/config/vars.yaml").read() == vt, (st, body[:300]))
-st, hd, sc, body = req("POST", "/bind9/tsig/ghost/delete", POSTH, {"csrf": csrf}, cookie=session)
+st, loc, done = dns_change("/bind9/tsig/ghost/delete", {})
 # covers: web:post.bind9.tsig.*.delete -
-check("delete a TSIG key that does not exist -> refused (400, named), nothing changed",
-      st == 400 and "no TSIG key named" in body and open(f"{W}/fabric/config/vars.yaml").read() == vt,
-      (st, body[:300]))
+check("remove a TSIG key that does not exist -> refused at Apply (named), nothing changed",
+      "no TSIG key named 'ghost'" in done and open(f"{W}/fabric/config/vars.yaml").read() == vt, done[-1500:])
 st, hd, sc, body = req("POST", "/bind9/tsig/acme-old/delete", POSTH, {"csrf": "nope"}, cookie=session)
 check("TSIG delete with a bad CSRF token -> 403, nothing changed",
       st == 403 and open(f"{W}/fabric/config/vars.yaml").read() == vt, st)
@@ -874,6 +899,11 @@ check("ACME enroll a machine for DNS-01 -> its key acme-nas, the secret and rfc2
 st, hd, sc, body = req("GET", "/pki/acme", ALICE, cookie=session)
 check("Step-CA ACME view lists the enrolled machine and the directory",
       st == 200 and "nas.lan.test" in body and "https://ca.lan.test/acme/acme/directory" in body, (st, body[:300]))
+# covers: web:get.pki.acme.* +-
+st, hd, sc, body = req("GET", "/pki/acme/acme-nas", ALICE, cookie=session)
+check("an enrolled machine's page: its key and Withdraw; one not enrolled answers 404", st == 200
+      and 'action="/bind9/tsig/acme-nas/delete"' in body
+      and req("GET", "/pki/acme/acme-ghost", ALICE, cookie=session)[0] == 404, (st, body[-1200:]))
 vt = open(f"{W}/fabric/config/vars.yaml").read()
 st, hd, sc, body = req("POST", "/stepca/acme/enroll", POSTH, {"csrf": csrf, "host": "nas2", "domain": "evil.test"},
                        cookie=session)
@@ -897,7 +927,8 @@ aud = cookie_val(sc, "__Host-webui")
 check("an auditor signs in", st == 200 and aud, st)
 st, _, _, body = req("GET", "/dns/zones", ALICE, cookie=aud)
 check("auditor: DNS records shown, no add/delete forms, no Apply", st == 200 and "nas25-apps" in body
-      and "/bind9/zone/dynamic_zone_var/add" not in body and "/bind9/zones/new" not in body and 'action="/apply"' not in body, body[:300])
+      and "/bind9/zone/dynamic_zone_var/add" not in body and "/bind9/zones/new" not in body
+      and 'action="/changes/zones/apply"' not in body, body[:300])
 st, _, _, body = req("GET", "/pki", ALICE, cookie=aud)
 check("auditor: Step-CA without Sign / New key / Convert", st == 200 and "Sign a CSR" not in body
       and "New key + certificate" not in body and "Certificate authority" in body, body[:300])
@@ -906,11 +937,13 @@ check("auditor: unlock methods listed, no rotate / add / remove", st == 200 and 
       and "/openbao/slots/add-usb" not in body, body[:300])
 st, hd, _, body = req("GET", "/", ALICE, cookie=aud)
 check("auditor: every tab shown (all read permissions)", all(f'href="{t}"' in body for t in ("/dns/zones", "/pki", "/directory", "/secrets")))
-st, _, _, body = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
-                     {"csrf": cookie_csrf(aud), "type": "A", "name": "sneaky", "ip": "192.168.7.9"}, cookie=aud)
+st, hd, _, body = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
+                      {"csrf": cookie_csrf(aud), "type": "A", "name": "sneaky", "ip": "192.168.7.9"}, cookie=aud)
 # covers: web:post.bind9.zone.*.add agent:post.zones.*.records -
-check("auditor: a crafted POST is refused by fabric-agent (403, permission named)",
-      st == 403 and "dns:write" in body and "sneaky" not in open(f"{W}/fabric/config/vars.yaml").read(), (st, body[:200]))
+check("auditor: a crafted POST is refused by fabric-agent when held (permission named), nothing held or saved",
+      (st == 403 and "dns:write" in body or st == 303 and "dns:write" in urllib.parse.unquote_plus(
+          hd.get("Location", ""))) and "sneaky" not in open(f"{W}/fabric/config/vars.yaml").read(),
+      (st, hd.get("Location"), body[:200]))
 st, _, _, body = req("POST", "/kea/on", POSTH, {"csrf": cookie_csrf(aud), "interface": "eth0",
                                                 "subnet": "10.20.0.0/24", "pool": "10.20.0.100 - 10.20.0.199"}, cookie=aud)
 # covers: web:post.kea.on agent:post.dhcp.on -
@@ -1337,7 +1370,7 @@ aud, aud_csrf = fresh(AUDITOR_ROLES)
 # Every change below runs fabric's apply. This test install has no deployment to apply to: the apply must fail here,
 # so nothing is deployed and the host firewall is never touched (post_dhcp refreshes it only after an apply that worked).
 # One apply asked for first, from the console's Apply, so the check below has an apply to judge.
-web_post("/apply", {}, adm, acsrf)
+agent_call("POST", "/v1/apply", "alice", ADMIN_ROLES, {})
 applies = [ln for ln in open(f"{W}/fabric/archive/audit.log").read().splitlines() if "Action: APPLY" in ln]
 SAFE = bool(applies) and all("exit=0" not in ln for ln in applies)
 check("this test install cannot apply (no deployment): the changes below are saved, never deployed to this host",
@@ -1653,13 +1686,18 @@ for path in ("/dns-filter/lists", "/dns-filter/lists/delete", "/dns-filter/rules
 
 # ---- the FreeRADIUS tab (manual 1.11): refused while 802.1X is off; with it on, each change saved
 vt, st_before = vars_now(), secrets_now()
-for path, form in (("/freeradius/clients", {"name": "switch1", "address": "192.168.7.20"}),
-                   ("/freeradius/people", {"group": "site-lan", "vlan": "20"})):
-    st, loc, _ = web_post(path, form, adm, acsrf)
-    # covers: web:post.freeradius.clients web:post.freeradius.people -
-    check(f"802.1X off: {path} is refused, saying 802.1X is off, nothing saved",
-          st == 303 and "802.1X is off (install_freeradius: false)" in loc and vars_now() == vt
-          and secrets_now() == st_before, loc)
+st, loc, _ = web_post("/freeradius/clients", {"name": "switch1", "address": "192.168.7.20"}, adm, acsrf)
+# covers: web:post.freeradius.clients -
+check("802.1X off: adding a client is refused at once, saying 802.1X is off, nothing saved",
+      st == 303 and "802.1X is off (install_freeradius: false)" in loc and vars_now() == vt
+      and secrets_now() == st_before, loc)
+web_post("/freeradius/people", {"group": "site-lan", "vlan": "20"}, adm, acsrf)
+page = applied("radius", adm)
+# covers: web:post.freeradius.people -
+check("802.1X off: mapping a group is refused at Apply, saying 802.1X is off, nothing saved",
+      "802.1X is off (install_freeradius: false)" in page and vars_now() == vt and secrets_now() == st_before,
+      page[-1500:])
+web_post("/changes/radius/discard", {}, adm, acsrf)
 open(VARS, "a").write("install_freeradius: true\n")
 st, _, body = web_post("/freeradius/clients", {"name": "switch1", "address": "192.168.7.20",
                                                "message_authenticator": "1"}, adm, acsrf)
@@ -1680,45 +1718,60 @@ check("802.1X: a new shared secret for the client -> shown once, the old one rep
       st == 200 and secret2 and secret2 != secret1 and secret2 in secrets_now() and secret1 not in secrets_now(),
       (st, body[:300]))
 vt, st_before = vars_now(), secrets_now()
-for path in ("/freeradius/clients/ghost/rotate", "/freeradius/clients/ghost/delete"):
-    st, loc, _ = web_post(path, {}, adm, acsrf)
-    # covers: web:post.freeradius.clients.*.rotate web:post.freeradius.clients.*.delete -
-    # covers: agent:post.radius.clients.*.rotate agent:post.radius.clients.*.delete -
-    check(f"802.1X: {path} for a client that does not exist is refused, named, nothing changed",
-          st == 303 and "no RADIUS client ghost" in loc and vars_now() == vt and secrets_now() == st_before, loc)
+st, loc, _ = web_post("/freeradius/clients/ghost/rotate", {}, adm, acsrf)
+# covers: web:post.freeradius.clients.*.rotate agent:post.radius.clients.*.rotate -
+check("802.1X: a new secret for a client that does not exist is refused at once, named, nothing changed",
+      st == 303 and "no RADIUS client ghost" in loc and vars_now() == vt and secrets_now() == st_before, loc)
+web_post("/freeradius/clients/ghost/delete", {}, adm, acsrf)
+page = applied("radius", adm)
+# covers: web:post.freeradius.clients.*.delete agent:post.radius.clients.*.delete -
+check("802.1X: removing a client that does not exist is refused at Apply, named, nothing changed",
+      "no RADIUS client ghost" in page and vars_now() == vt and secrets_now() == st_before, page[-1500:])
+web_post("/changes/radius/discard", {}, adm, acsrf)
+
+
 st, loc, _ = web_post("/freeradius/people", {"group": "site-lan", "vlan": "20"}, adm, acsrf)
+check("802.1X: mapping a group is held on RADIUS clients (1.8.6.5), nothing saved yet",
+      "Let members of site-lan" in loc and not vars_key("radius_people"), loc)
+applied("radius", adm)
 people = {p["group"]: p for p in (vars_key("radius_people") or [])}
 # covers: web:post.freeradius.people agent:post.radius.people +
-check("802.1X: members of a group may join by password, on their VLAN -> saved",
-      "Members of site-lan may join by password on VLAN 20." in loc and str(people.get("site-lan", {}).get("vlan"))
-      == "20", (loc, people))
+check("802.1X: ...applied: members of the group may join by password, on their VLAN",
+      str(people.get("site-lan", {}).get("vlan")) == "20", people)
 vt = vars_now()
-st, loc, _ = web_post("/freeradius/people", {"group": "lan-admins", "vlan": "5000"}, adm, acsrf)
+web_post("/freeradius/people", {"group": "lan-admins", "vlan": "5000"}, adm, acsrf)
+page = applied("radius", adm)
 # covers: web:post.freeradius.people -
-check("802.1X: a VLAN outside 1-4094 is refused, said why, nothing saved",
-      "lan-admins: VLAN must be 1-4094" in loc and vars_now() == vt, loc)
-st, loc, _ = web_post("/freeradius/people/site-lan/delete", {}, adm, acsrf)
+check("802.1X: a VLAN outside 1-4094 is refused at Apply, said why, nothing saved",
+      "lan-admins: VLAN must be 1-4094" in page and vars_now() == vt, page[-1500:])
+web_post("/changes/radius/discard", {}, adm, acsrf)
+web_post("/freeradius/people/site-lan/delete", {}, adm, acsrf)
+applied("radius", adm)
 # covers: web:post.freeradius.people.*.delete agent:post.radius.people.*.delete +
-check("802.1X: unmap the group -> its members may no longer join by password",
-      "Members of site-lan may no longer join by password." in loc and not vars_key("radius_people"), loc)
+check("802.1X: unmap the group, applied -> its members may no longer join by password",
+      not vars_key("radius_people"), vars_key("radius_people"))
 vt = vars_now()
-st, loc, _ = web_post("/freeradius/people/site-lan/delete", {}, adm, acsrf)
+web_post("/freeradius/people/site-lan/delete", {}, adm, acsrf)
+page = applied("radius", adm)
 # covers: web:post.freeradius.people.*.delete agent:post.radius.people.*.delete -
-check("802.1X: unmapping a group that is not mapped is refused, named, nothing saved",
-      "group site-lan is not mapped for 802.1X" in loc and vars_now() == vt, loc)
-st, loc, _ = web_post("/freeradius/clients/switch1/delete", {}, adm, acsrf)
+check("802.1X: unmapping a group that is not mapped is refused at Apply, named, nothing saved",
+      "group site-lan is not mapped for 802.1X" in page and vars_now() == vt, page[-1500:])
+web_post("/changes/radius/discard", {}, adm, acsrf)
+web_post("/freeradius/clients/switch1/delete", {}, adm, acsrf)
+applied("radius", adm)
 # covers: web:post.freeradius.clients.*.delete agent:post.radius.clients.*.delete +
-check("802.1X: remove the client -> gone from vars.yaml and its secret from the secrets",
-      "RADIUS client switch1 removed." in loc and "switch1" not in vars_now() and secret2 not in secrets_now(), loc)
+check("802.1X: remove the client, applied -> gone from vars.yaml and its secret from the secrets",
+      "switch1" not in vars_now() and secret2 not in secrets_now(), vars_now()[-300:])
 vt, st_before = vars_now(), secrets_now()
 aud, aud_csrf = fresh(AUDITOR_ROLES)
 for path in ("/freeradius/clients", "/freeradius/clients/switch1/rotate", "/freeradius/clients/switch1/delete",
              "/freeradius/people", "/freeradius/people/site-lan/delete"):
-    st, _, body = web_post(path, {"name": "evil", "address": "192.168.7.66", "group": "site-lan"}, aud, aud_csrf)
+    st, loc, body = web_post(path, {"name": "evil", "address": "192.168.7.66", "group": "site-lan"}, aud, aud_csrf)
     # covers: web:post.freeradius.clients web:post.freeradius.clients.*.rotate web:post.freeradius.clients.*.delete -
     # covers: web:post.freeradius.people web:post.freeradius.people.*.delete -
-    check(f"auditor: {path} is refused by fabric-agent (403, radius:admin), nothing changed",
-          st == 403 and "radius:admin" in body and vars_now() == vt and secrets_now() == st_before, (st, body[:200]))
+    check(f"auditor: {path} is refused by fabric-agent (403 at once, or when held), radius:admin named, nothing "
+          "changed", ((st == 403 and "radius:admin" in body) or (st == 303 and "radius:admin" in loc))
+          and vars_now() == vt and secrets_now() == st_before, (st, loc, body[:200]))
 text = vars_now().replace("install_freeradius: true\n", "")
 open(VARS, "w").write(text)
 
@@ -1742,15 +1795,17 @@ for action in ("update", "rollback"):
 print("--- the setup wizard (manual 1.8.5): a plan and its apply through the real agent, the settings file")
 wsess, wcsrf = fresh()
 before = vars_now()
-st, _, body = web_post("/settings/step", {"go": "signin", "signin_kerberos": "true"}, wsess, wcsrf)
+st, _, body = web_post("/settings/step", {"go": "signin", "install_fluentbit": "true"}, wsess, wcsrf)
 # covers: web:post.settings.step +
-check("wizard: Next to Passwords and sign-in keeps what was typed (Kerberos on), today's value beside it",
-      st == 200 and 'name="policy_minimum_length"' in body and "today: off" in body
-      and 'type="hidden" name="signin_kerberos" value="true"' not in body, (st, body[:400]))
-st, _, body = web_post("/settings/plan", {"signin_kerberos": "true"}, wsess, wcsrf)
+check("wizard: Next to Passwords and sign-in keeps what was typed (log forwarding on); the policy and Kerberos "
+      "left to their pages, linked (2.1.8.19)", st == 200 and 'name="policy_minimum_length"' not in body
+      and 'href="/directory/kerberos"' in body and 'type="hidden" name="install_fluentbit" value="true"' in body,
+      (st, body[:400]))
+st, _, body = web_post("/settings/plan", {"install_fluentbit": "true", "log_target": "logs.lan.test:514"},
+                        wsess, wcsrf)    # log forwarding needs somewhere to send the logs
 # covers: web:post.settings.plan agent:post.settings.plan +
-check("wizard: the plan through the real agent: signin_kerberos off -> on, Apply, nothing changed yet",
-      st == 200 and "<code>signin_kerberos</code>" in body and "<code>on</code>" in body
+check("wizard: the plan through the real agent: install_fluentbit off -> on, Apply, nothing changed yet",
+      st == 200 and "<code>install_fluentbit</code>" in body and "<code>on</code>" in body
       and 'action="/settings/apply"' in body and vars_now() == before, (st, body[:600]))
 plan_id = body.split('name="plan" value="')[1].split('"')[0]
 st, _, body = web_post("/settings/plan", {"host_ram_capacity": "2"}, wsess, wcsrf)
@@ -1778,32 +1833,36 @@ for _ in range(600):        # until the job has ended: its page says how (a page
 audit_now = open(f"{W}/fabric/archive/audit.log").read()
 check("wizard: the change saved and audited SETTINGS_CHANGE from web with the key; this test install's apply "
       "fails (nothing deployed here), and the job says so",
-      vars_key("signin_kerberos") is True and "SETTINGS_CHANGE" in audit_now and "from web: signin_kerberos" in audit_now
-      and "did not finish" in job_page, (vars_key("signin_kerberos"), job_page[-600:]))
+      vars_key("install_fluentbit") is True and "SETTINGS_CHANGE" in audit_now
+      and "from web: install_fluentbit" in audit_now and "did not finish" in job_page,
+      (vars_key("install_fluentbit"), job_page[-600:]))
 st, loc, _ = web_post("/settings/apply", {"plan": plan_id}, wsess, wcsrf)
 check("wizard: a plan is applied once (no such plan after)", st == 303 and "no such plan" in loc, loc)
 # covers: web:get.settings.export agent:get.settings.export +
 st, hd, _, text = req("GET", "/settings/export", ALICE, cookie=wsess)
 check("export: a YAML download with every wizard setting, no console-only setting, no secret",
       st == 200 and hd.get("Content-Type", "").startswith("text/yaml") and "fabric_settings: 1" in text
-      and "signin_kerberos: true" in text and "host_ip" not in text and "attachment" in hd.get("Content-Disposition", ""),
+      and "install_fluentbit: true" in text and "signin_kerberos: false" in text and "host_ip" not in text
+      and "attachment" in hd.get("Content-Disposition", ""),
       (st, text[:400]))
-changed = text.replace("signin_kerberos: true", "signin_kerberos: false") + "  webui_oidc_secret: x\n  host_ip: 10.0.0.9\n"
+changed = text.replace("install_fluentbit: true", "install_fluentbit: false").replace(
+    "signin_kerberos: false", "signin_kerberos: true") + "  webui_oidc_secret: x\n  host_ip: 10.0.0.9\n"
 # covers: web:post.settings.import +
 st, hd, body = req_upload("/settings/import", POSTH, {"csrf": wcsrf}, {"file": ("site.yaml", changed.encode())}, wsess)
-check("import: the file's plan (Kerberos on -> off), the secret and the network ignored with why, nothing changed",
-      st == 200 and "<code>signin_kerberos</code>" in body and "from a settings file" in body
-      and "webui_oidc_secret" in body and "a secret" in body and "console only" in body
-      and vars_key("signin_kerberos") is True, (st, body[:800]))
+check("import: the file's plan (log forwarding on -> off; Kerberos sign-in off -> on: the file still sets what the "
+      "form leaves to its page, 2.1.8.19), the secret and the network ignored with why, nothing changed",
+      st == 200 and "<code>install_fluentbit</code>" in body and "<code>signin_kerberos</code>" in body
+      and "from a settings file" in body and "webui_oidc_secret" in body and "a secret" in body
+      and "console only" in body and vars_key("install_fluentbit") is True, (st, body[:800]))
 # covers: web:post.settings.import -
 st, hd, body = req_upload("/settings/import", POSTH, {"csrf": wcsrf},
                           {"file": ("bad.yaml", changed.replace("fabric_settings: 1", "fabric_settings: 2").encode())},
                           wsess)
 check("import refused: another format, said why, nothing changed",
       st == 303 and "fabric_settings" in urllib.parse.unquote_plus(hd.get("Location", ""))
-      and vars_key("signin_kerberos") is True, (st, hd.get("Location")))
+      and vars_key("install_fluentbit") is True, (st, hd.get("Location")))
 st, hd, body = req_upload("/settings/import", POSTH, {"csrf": wcsrf}, {"file": ("bad.yaml", changed.replace(
-    "fabric_settings: 1", "fabric_settings: 1").replace("signin_kerberos: false", "signin_kerberos: maybe").encode())},
+    "fabric_settings: 1", "fabric_settings: 1").replace("signin_kerberos: true", "signin_kerberos: maybe").encode())},
     wsess)
 check("import refused: one invalid wizard value refuses the whole file, named",
       st == 303 and "signin_kerberos" in urllib.parse.unquote_plus(hd.get("Location", "")), (st, hd.get("Location")))

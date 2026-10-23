@@ -4,7 +4,6 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 
 | File | What |
 |---|---|
-| `apply_result.py` | The page after Apply: whether it worked and its output. |
 | `audit.py` | The audit log page, newest first. |
 | `b64.py` | Base64-encode a text for a data: download link. |
 | `bind9.py` | The BIND9 tab: forward zone records and the add form, generated reverse zones, or TSIG keys. |

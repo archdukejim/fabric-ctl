@@ -1,3 +1,5 @@
+import re
+
 from webui.devpreview.fabric_rules import ValidationError, required_permission
 from webui.devpreview.fake_account import fake_account
 from webui.devpreview.fake_directory import fake_directory
@@ -48,13 +50,28 @@ def _read_grants(state, who, route, body):
     return fake_grants(state, who, route, None)
 
 
+# as agent/one_thing: a read of one thing refused because it is not there answers 404 (2.1.8.21)
+MISSING = re.compile(r"^no (person|group|machine|grant) \S+( in .*)?$")
+
+
+def _one_thing(route):
+    """Purpose: Whether a GET reads one person, computer, group or grant (the routes 2.1.8.21 answers 404 for).
+    Inputs:  route — segments after /v1/.
+    Returns: bool.
+    Fails:   never.
+    Feeds:   fake_agent."""
+    return (len(route) == 2 and route[0] in ("people", "groups", "machines")) or (
+        len(route) == 3 and route[:2] == ["domain", "grants"])
+
+
 def fake_agent(state, who, method, route, body):
     """Purpose: The dev preview's stand-in for fabric-agent: one /v1/ request answered from the in-memory sample data,
              with the agent's own permission check (fabriclib's table) against the preview's person, so a page shown
              `--as` a bundle is refused as the real agent refuses it.
     Inputs:  state — DevState; who — {"user", "perms"}; method — "GET" or "POST"; route — the segments after /v1/;
              body — dict (the JSON body).
-    Returns: (status, answer): 200 with the route's answer; 400 {"error"} for a refusal (ValidationError); 403
+    Returns: (status, answer): 200 with the route's answer; 400 {"error"} for a refusal (ValidationError), 404 with
+             it for a read of one thing that is not there (2.1.8.21); 403
              {"error": "you need the permission …"} or "not allowed"; 404 {"error": "not found"}.
     Fails:   never for refusals; a bug in a fake area propagates (the preview's request fails, shown in its log).
     Feeds:   fake_connection.FakeConnection.request."""
@@ -82,5 +99,7 @@ def fake_agent(state, who, method, route, body):
             if answer is not None:
                 return 200, answer
     except ValidationError as exc:
+        if method == "GET" and _one_thing(route) and MISSING.match(str(exc)):     # 2.1.8.21, as the agent
+            return 404, {"error": str(exc)}
         return 400, {"error": str(exc)}
     return 404, {"error": "not found"}

@@ -8,7 +8,7 @@ def pending_page(page):
              /v1/pending/<page> (any sign-in; the queue only with the page's own read permission).
     Inputs:  page — a pending page id ("people", "groups", "machines", "policies", ...).
     Returns: {"page", "changes", "queue", "shown_once"}.
-    Fails:   the call_agent exceptions (404 as AgentError for an unknown page).
+    Fails:   the call_agent exceptions (404 as NotFound for an unknown page).
     Feeds:   src/webui/routes/get_page (/changes/<page>).
     """
     return call_agent("GET", f"/v1/pending/{quote_segment(page)}")

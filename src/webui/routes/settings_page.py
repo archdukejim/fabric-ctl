@@ -4,6 +4,7 @@ import time
 from webui import agentclient as actions
 from webui import views
 from webui.constants import STEP_UP
+from webui.routes.relaxations import relaxations
 
 
 def settings_page(h, sess, ctx, path, query):
@@ -22,5 +23,6 @@ def settings_page(h, sess, ctx, path, query):
     if path == "/settings":
         return h.send(200, views.settings(ctx, actions.settings_overview(), query.get("step", "parts"), None,
                                           "", "",
-                                          signin_old=time.time() - sess.get("auth_at", 0) > STEP_UP))
+                                          signin_old=time.time() - sess.get("auth_at", 0) > STEP_UP,
+                                          relaxed=relaxations(ctx)))
     return h.deny(404, "Not found.")

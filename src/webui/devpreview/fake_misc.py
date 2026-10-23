@@ -35,8 +35,16 @@ def _pki(state, op, body):
     if op in ("sign", "issue", "convert"):
         state.log(f"PKI_{op.upper()}", "dev preview: sample only, nothing signed")
         return sample_result(op)
-    if op == "revoke":
-        return {"subject": str(body.get("target", "")), "serial": "01", "reason": body.get("reason", "unspecified")}
+    if op == "revoke":                  # done at once (2.1.8.23): the sample certificate is marked revoked
+        target = str(body.get("target", ""))
+        row = next((c for c in state.data["issued"] if c.get("serial") == target), None)
+        if row is None:
+            raise ValidationError(f"no certificate issued by hand with serial {target}")
+        if row["status"] == "revoked":
+            raise ValidationError(f"{row['subject']} is revoked already")
+        row["status"] = "revoked"
+        state.log("CERT_REVOKE", f"dev preview: {row['subject']} ({body.get('reason', 'unspecified')})")
+        return {"subject": row["subject"], "serial": target, "reason": body.get("reason", "unspecified")}
     return None
 
 
@@ -86,10 +94,6 @@ def fake_misc(state, who, route, body):
     Returns: the agent's answer, or None for another route.
     Fails:   ValidationError with the agent's reasons.
     Feeds:   fake_agent."""
-    if route == ["apply"]:
-        state.log("APPLY", "dev preview: nothing applied")
-        return {"ok": True, "output": "DEV PREVIEW — nothing was rendered or reloaded.\n"
-                                      "On a real install this runs `fabricctl --apply`."}
     if route == ["events"]:
         return {}
     if route == ["jobs", "doctor"]:

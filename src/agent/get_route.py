@@ -1,6 +1,7 @@
 import os
 
 from agent.job_store import JOBS
+from agent.one_thing import one_thing
 from agent.route_not_found import RouteNotFound
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
@@ -142,7 +143,8 @@ def get_route(route, user=None, perms=None):
              changes per page and the pages with an apply running (1.8.6.5); pending/<page>: the page's Review;
              settings: settings_overview (the setup wizard, 1.8.5); settings/export: {"text", "name"}, the
              settings file.
-    Fails:   RouteNotFound for any other route (-> 404); whatever the operation raises (ValidationError -> 400).
+    Fails:   RouteNotFound for any other route (-> 404); NotFound for a person, computer, group or grant that is not
+             there (-> 404, 2.1.8.21); whatever the operation raises (ValidationError -> 400).
     Feeds:   agent/handler.py (dispatch)."""
     if tuple(route) in READS:
         return READS[tuple(route)]()
@@ -157,13 +159,13 @@ def get_route(route, user=None, perms=None):
     if route[:1] == ["pending"] and len(route) <= 2:
         return _pending(route, user, perms)
     if len(route) == 2 and route[0] == "groups":
-        return show_group(load_vars(), route[1])
+        return one_thing(show_group, load_vars(), route[1])
     if len(route) == 2 and route[0] == "people":
-        return person_overview(load_vars(), route[1])
+        return one_thing(person_overview, load_vars(), route[1], named=f"person {route[1]}")
     if len(route) == 2 and route[0] == "machines":
-        return machine_overview(load_vars(), route[1])
+        return one_thing(machine_overview, load_vars(), route[1])
     if len(route) == 3 and route[:2] == ["domain", "grants"]:
-        return show_grant(load_vars(), route[2])
+        return one_thing(show_grant, load_vars(), route[2])
     if len(route) in (4, 5) and route[:3] == ["domain", "grants", "explain"]:
         return explain_grant(load_vars(), route[3], route[4] if len(route) == 5 else None)
     if route == ["vault", "slots"]:

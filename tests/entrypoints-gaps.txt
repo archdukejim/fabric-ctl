@@ -446,8 +446,6 @@ setting:webui_client_cert_days -
 setting:webui_hostname -
 setting:webui_realm +
 setting:webui_realm -
-web:post.apply +
-web:post.apply -
 web:post.directory.devices.* +
 web:post.directory.devices.* -
 web:post.directory.devices.*.certs.unlink +
@@ -474,7 +472,6 @@ web:post.kea.on +
 web:post.logout -
 web:post.openbao.rotate +
 web:post.openbao.slots.*.remove +
-web:post.openbao.slots.*.test +
 web:post.openbao.slots.add-hsm +
 web:post.openbao.slots.add-security-key +
 web:post.openbao.slots.add-usb +
@@ -484,9 +481,6 @@ web:post.overview.images.*.rollback +
 web:post.overview.images.*.update +
 web:post.security.raise +
 web:post.stepca.convert -
-web:post.stepca.issue +
-web:post.stepca.revoke +
-web:post.stepca.revoke -
 web:post.stepca.sign +
 web:post.stepca.sign -
 web:post.stepca.sign.review -

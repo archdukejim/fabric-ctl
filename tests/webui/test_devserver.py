@@ -161,13 +161,39 @@ with serve():
     check("an unknown page is 404", req("GET", "/nowhere")[0] == 404)
 
     page = get("/8021x")
-    check("802.1X → RADIUS clients: server, RADIUS clients, the add form; no decisions here",
-          "radius.home.arpa" in page and "switch1" in page and "not required" in page
-          and 'action="/freeradius/clients"' in page and "Recent decisions" not in page.split("<main>")[1])
+    check("802.1X → RADIUS clients: server, clients and group mappings linked to their pages, the client without "
+          "Message-Authenticator lit as relaxed (2.1.8.20), the add pages in the actions bar, no form on the list; no "
+          "decisions here", "radius.home.arpa" in page and 'href="/8021x/clients/switch1"' in page
+          and 'href="/8021x/people/staff"' in page and "relaxed: Message-Authenticator not required" in page
+          and 'href="/8021x/clients/_new"' in page and 'href="/8021x/people/_new"' in page
+          and 'method="post"' not in page.split("<main", 1)[1] and "Recent decisions" not in page.split("<main>")[1],
+          page[-3000:])
+    page = get("/8021x/clients/ap-hall")
+    check("a RADIUS client's page: its address, the relaxation said on it, New secret and Remove as their own forms",
+          "Security relaxed" in page and "192.168.1.4" in page
+          and 'action="/freeradius/clients/ap-hall/rotate"' in page and 'action="/freeradius/clients/ap-hall/delete"'
+          in page, page[-3000:])
+    check("pages for a client or a mapping that is not there answer 404 (2.1.8.16)",
+          [req("GET", p)[0] for p in ("/8021x/clients/nope", "/8021x/people/nope", "/8021x/clients/a/b")]
+          == [404, 404, 404])
+    page = get("/8021x/clients/_new")
+    check("Add RADIUS client: its own page, done at once since it carries the secret (2.1.8.17)",
+          'action="/freeradius/clients"' in page and "Done at once" in page)
     st, _, page = post("/freeradius/clients", {"name": "switch2", "address": "192.168.1.9",
                                                "message_authenticator": "1"})
-    check("802.1X: add client -> secret shown once, then listed", st == 200 and "shown only now" in page
-          and "switch2" in get("/8021x"), st)
+    check("802.1X: add client -> secret shown once, then listed, nothing pending", st == 200
+          and "shown only now" in page and "switch2" in get("/8021x") and "change pending" not in get("/8021x"), st)
+    st, loc, page = post("/freeradius/clients/switch2/delete", {})
+    check("Remove RADIUS client: held on RADIUS clients until its Apply", loc == "/8021x"
+          and "Remove RADIUS client switch2" in flash(page) and 'href="/8021x/clients/switch2"' in page,
+          (loc, flash(page)))
+    post("/changes/radius/apply", {})
+    check("...applied: the client is gone", 'href="/8021x/clients/switch2"' not in get("/8021x"))
+    post("/freeradius/clients/ghost/delete", {})
+    st, loc, page = post("/changes/radius/apply", {})
+    check("removing a client that is not there is refused at Apply, named", "no RADIUS client ghost" in page,
+          page[-1500:])
+    post("/changes/radius/discard", {})
     page = get("/8021x/decisions")
     check("802.1X → Recent decisions: accepted and refused, a person's login", "jims-laptop" in page
           and "device disabled" in page and "alice" in page)
@@ -179,10 +205,20 @@ with serve():
     check("802.1X → Setup guides: Connect Windows — both scripts downloadable, groups listed plainly",
           'download="fabric-8021x-tls.ps1"' in page and 'download="fabric-8021x-ttls.ps1"' in page
           and "&lt;/code&gt;" not in page and "<code>staff</code>" in page)
+    page = get("/8021x/people/_new")
+    check("Map a group: its own page", 'action="/freeradius/people"' in page)
     st, loc, page = post("/freeradius/people", {"group": "contractors", "vlan": "70"})
-    check("802.1X: map a group -> back on RADIUS clients, listed, the message from the result (not the address)",
-          st == 303 and loc == "/8021x" and "contractors" in page and "may join by password" in flash(page), loc)
+    check("802.1X: map a group -> held on RADIUS clients, the message from the result (not the address)",
+          st == 303 and loc == "/8021x" and "Let members of contractors join by password" in flash(page), loc)
     check("the message shows once: the next page has none", flash(get("/8021x")) == "")
+    post("/changes/radius/apply", {})
+    page = get("/8021x/people/contractors")
+    check("...applied: the mapping's page, its VLAN, Unmap as its own form", "70" in page
+          and 'action="/freeradius/people/contractors/delete"' in page, page[-2000:])
+    st, loc, page = post("/freeradius/people/contractors/delete", {})
+    check("Unmap: held", "Stop members of contractors joining by password" in flash(page), flash(page))
+    post("/changes/radius/apply", {})
+    check("...applied: unmapped", req("GET", "/8021x/people/contractors")[0] == 404)
     page = get("/kea")
     check("DHCP · Kea: subnets, reservations, leases, reserve form", "192.168.1.0/24" in page and "printer" in page
           and "laptop1.dhcp.home.arpa" in page and 'action="/kea/reservations"' in page)
@@ -201,88 +237,144 @@ with serve():
           st == 303 and "view=querylog" in loc and "www.wikipedia.org" in get("/dns-filter?view=rules"), loc)
     page = get("/dns/zones?zone=dynamic_zone_var")
     check("DNS · Zones shows records and the add form", "nas" in page and "192.168.1.10" in page)
+
+    def dns_apply():
+        """DNS' Apply (2.1.8.24) from its top bar: the Review after it."""
+        return post("/changes/zones/apply", {})[2]
+
     st, loc, page = post("/bind9/zone/dynamic_zone_var/add", {"type": "A", "name": "preview", "value": "192.168.1.99"})
-    check("adding a record works (in memory), said on the zone's page", st == 303
-          and loc == "/dns/zones?zone=dynamic_zone_var" and "192.168.1.99" in page and "Added A preview" in flash(page),
+    check("adding a record: held for DNS' Apply (2.1.8.18), said on the zone's page, not there yet", st == 303
+          and loc == "/dns/zones?zone=dynamic_zone_var" and "Waiting for Apply: Add A record preview to the site's zone"
+          in flash(page) and "192.168.1.99" not in page and 'action="/changes/zones/apply"' in page,
           (loc, flash(page)))
-    idx = re.search(r'name="index" value="(\d+)"><input type="hidden" name="name" value="preview"', page)
-    post("/bind9/zone/dynamic_zone_var/delete", {"type": "A", "index": idx.group(1) if idx else "-1",
-                                                 "name": "preview"})
+    main = page.split("<main", 1)[1]
+    table = main.split('<table class="list')[1].split("</table>")[0]
+    check("DNS · Zones in the pattern: the records listed with no form in a cell, Add zone in the actions bar, no "
+          "whole-install Apply", 'method="post"' not in table and 'class="actions"' in main
+          and 'href="/dns/zones?view=new"' in main and 'action="/apply"' not in page, table[:800])
+    review = get("/changes/zones")
+    check("DNS' Review: the change, and what its Apply does after it (BIND alone and the landing page)",
+          "Add A record preview" in review and "192.168.1.99" in review, review.split("<main", 1)[1][:2000])
+    page = dns_apply()
+    check("...applied: done, the record served (in memory)", "done" in page
+          and "192.168.1.99" in get("/dns/zones?zone=dynamic_zone_var"), page.split("<main", 1)[1][:2000])
     page = get("/dns/zones?zone=dynamic_zone_var")
-    check("deleting a record works (in memory)", "192.168.1.99" not in page)
+    idx = re.search(r'<option value="A\|(\d+)\|preview">', page)
+    st, loc, page = post("/bind9/zone/dynamic_zone_var/delete", {"record": f"A|{idx.group(1) if idx else '-1'}|preview"})
+    check("Delete a record: picked from its section's list, held", "Waiting for Apply: Delete A record preview"
+          in flash(page) and "192.168.1.99" in page, flash(page))
+    dns_apply()
+    check("...applied: gone", "192.168.1.99" not in get("/dns/zones?zone=dynamic_zone_var"))
+    st, loc, page = post("/bind9/zone/dynamic_zone_var/delete", {"record": ""})
+    check("Delete a record refused without one picked, saying why, nothing held", "pick a record" in flash(page)
+          and "change pending" not in page, flash(page))
+    page = get("/dns/zones?zone=dynamic_zone_var")
     form = page.split('/bind9/zone/dynamic_zone_var/add"')[1].split("</form>")[0]
     css = get("/static/app.css")
     check("record form: type, name, value; priority, weight, port only for MX/SRV; no landing-page fields",
           'name="value"' in form and 'class="f-prio"' in form and form.count('class="f-srv"') == 2
           and 'name="ip"' not in form and 'name="link"' not in form and '<option value="SRV">' in form
           and 'option[value="SRV"]:checked' in css and ".f-srv{display:none}" in css, form)
-    st, loc, page = post("/bind9/zone/dynamic_zone_var/add", {"type": "MX", "name": "@", "value": "mail2",
-                                                              "priority": "20"})
-    check("record form: an MX record from value and priority", "10 mail" in page and "20 mail2" in page, loc)
-    st, loc, page = post("/bind9/zone/dynamic_zone_var/add", {"type": "SRV", "name": "_sip._tcp", "value": "pbx",
-                                                              "priority": "0", "weight": "5"})
-    check("record form refused: an SRV record without its port, saying why",
-          st == 303 and "port must be a number" in flash(page), flash(page))
+    post("/bind9/zone/dynamic_zone_var/add", {"type": "MX", "name": "@", "value": "mail2", "priority": "20"})
+    dns_apply()
+    page = get("/dns/zones?zone=dynamic_zone_var")
+    check("record form: an MX record from value and priority", "10 mail" in page and "20 mail2" in page)
+    post("/bind9/zone/dynamic_zone_var/add", {"type": "SRV", "name": "_sip._tcp", "value": "pbx", "priority": "0",
+                                              "weight": "5"})
+    page = dns_apply()
+    check("record form refused at Apply: an SRV record without its port, saying why on the Review",
+          "port must be a number" in page, page.split("<main", 1)[1][:2000])
+    post("/changes/zones/discard", {})
+    page = get("/dns/zones?zone=dynamic_zone_var")
     rows = page.split("<tr")
     ca_row = [row.split("</tr>")[0] for row in rows if ">ca " in row][0]
     info_rows = [row.split("</tr>")[0] for row in rows if ">info<" in row]
-    check("fabric's own names marked 'provided by fabric', with the setting instead of a Delete button; the landing "
-          "page's info is the admin's since 0.7.1 (2.1.4.6), with its Delete button",
-          "provided by fabric" in ca_row and "cname_ca" in ca_row and "Delete</button>" not in ca_row
-          and info_rows and all("provided by fabric" not in r and "Delete</button>" in r for r in info_rows),
-          (info_rows, ca_row))
-    st, loc, page = post("/bind9/zone/dynamic_zone_var/delete", {"type": "CNAME", "index": "3", "name": "ca"})
-    check("deleting fabric's own name (ca) is refused, naming its setting",
-          "provided by fabric" in flash(page) and "cname_ca" in flash(page) and ">ca " in page, flash(page))
-    st, loc, page = post("/bind9/zone/dynamic_zone_var/delete", {"type": "CNAME", "index": "10", "name": "info"})
-    after = [row for row in page.split("<tr") if ">info<" in row]
-    check("deleting an info record works (the admin's since 0.7.1)",
-          "Record deleted" in flash(page) and len(after) == len(info_rows) - 1, flash(page))
+    picks = page.split('name="record"')[1].split("</select>")[0]
+    check("fabric's own names marked 'provided by fabric' (with the setting) and not offered for deletion; the landing "
+          "page's info is the admin's since 0.7.1 (2.1.4.6), offered",
+          "provided by fabric" in ca_row and "cname_ca" in ca_row and "|ca\"" not in picks
+          and info_rows and all("provided by fabric" not in r for r in info_rows) and "|info\"" in picks,
+          (info_rows, ca_row, picks[:600]))
+    post("/bind9/zone/dynamic_zone_var/delete", {"record": "CNAME|3|ca"})
+    page = dns_apply()
+    check("deleting fabric's own name (ca) is refused at Apply, naming its setting",
+          "provided by fabric" in page and "cname_ca" in page and ">ca " in get("/dns/zones?zone=dynamic_zone_var"),
+          page.split("<main", 1)[1][:2000])
+    post("/changes/zones/discard", {})
+    post("/bind9/zone/dynamic_zone_var/delete", {"record": "CNAME|10|info"})
+    dns_apply()
+    after = [row for row in get("/dns/zones?zone=dynamic_zone_var").split("<tr") if ">info<" in row]
+    check("deleting an info record works (the admin's since 0.7.1)", len(after) == len(info_rows) - 1, after)
     page = get("/dns/zones?view=landing")
     check("Landing page section: what the page is, its links (label, address), the add form with the zone's records",
           "Landing page" in page and "fabric's start page" in page and "https://nas.home.arpa:5001/" in page
           and 'action="/bind9/landing/add"' in page and 'value="A|6|printer"' in page
-          and 'action="/bind9/landing/remove"' in page)
+          and 'action="/bind9/landing/remove"' in page
+          and 'method="post"' not in page.split('<table class="list')[1].split("</table>")[0])
     st, loc, page = post("/bind9/landing/add", {"record": "A|6|printer", "link_label": "Printer", "link_port": "631",
                                                 "link_path": "/"})
-    check("link a record from the landing page -> listed with its port", loc == "/dns/zones?view=landing"
-          and "https://printer.home.arpa:631/" in page and "linked from the landing page" in flash(page), loc)
+    check("link a record from the landing page: held for DNS' Apply (which writes the page, 2.1.8.24)",
+          loc == "/dns/zones?view=landing" and "Waiting for Apply: Link printer from the landing page" in flash(page)
+          and "https://printer.home.arpa:631/" not in page, (loc, flash(page)))
+    dns_apply()
+    check("...applied: listed with its port", "https://printer.home.arpa:631/" in get("/dns/zones?view=landing"))
+    st, loc, page = post("/bind9/landing/add", {"record": ""})
+    check("link refused (pick a record), saying why, nothing held", "pick a record" in flash(page), flash(page))
     for form, why in (({"record": "A|6|printer", "link_port": "70000"}, "link port must be"),
-                      ({"record": ""}, "pick a record"), ({"record": "MX|12|@"}, "only A, AAAA and CNAME"),
-                      ({"record": "A|5|nas"}, "record changed")):
-        st, loc, page = post("/bind9/landing/add", form)
-        check(f"link refused ({why}), saying why", why in flash(page), flash(page))
-    st, loc, page = post("/bind9/landing/remove", {"type": "A", "index": "6", "name": "printer"})
-    check("stop linking a record -> gone from the landing page's list", "printer.home.arpa:631" not in page)
+                      ({"record": "MX|12|@"}, "only A, AAAA and CNAME"), ({"record": "A|5|nas"}, "record changed")):
+        post("/bind9/landing/add", form)
+        page = dns_apply()
+        check(f"link refused at Apply ({why}), saying why on the Review", why in page,
+              page.split("<main", 1)[1][:1500])
+        post("/changes/zones/discard", {})
+    post("/bind9/landing/remove", {"record": "A|6|printer"})
+    dns_apply()
+    check("stop linking a record -> gone from the landing page's list once applied",
+          "printer.home.arpa:631" not in get("/dns/zones?view=landing"))
     page = get("/dns/zones?zone=dynamic_zone_var")
-    check("DNS · Zones: New zone form with 'Hide the public name'; no Remove on the site's own zone",
-          'action="/bind9/zones/new"' in page and 'name="hide_public"' in page
-          and "/bind9/zones/dynamic_zone_var/remove" not in page)
+    check("DNS · Zones: no Remove on the site's own zone", "/bind9/zones/dynamic_zone_var/remove" not in page)
+    page = get("/dns/zones?view=new")
+    check("Add zone: its own page, with 'Hide the public name', said to wait for Apply",
+          'action="/bind9/zones/new"' in page and 'name="hide_public"' in page and "Waits for" in page)
     page = get("/dns/zones?zone=iot.home.arpa")
     check("DNS · Zones: Remove zone on another zone, its record count shown, the name asked for again",
           'action="/bind9/zones/iot.home.arpa/remove"' in page and "3 record(s)" in page and 'name="confirm"' in page)
     st, loc, page = post("/bind9/zones/new", {"name": "Lab.LAN"})
     # covers: web:post.bind9.zones.new +
-    check("New zone: added (normalised) and opened", "zone=lab.lan" in loc and "Zone lab.lan added" in flash(page),
-          (loc, flash(page)))
+    check("New zone: held for DNS' Apply, back on Forward zones", loc == "/dns/zones"
+          and "Waiting for Apply: Add zone Lab.LAN" in flash(page), (loc, flash(page)))
+    post("/bind9/zone/lab.lan/add", {"type": "A", "name": "www", "value": "192.168.1.77"})
+    page = dns_apply()
+    check("...a new zone and its first record in one Apply: added (normalised), the record in it",
+          "done" in page and "192.168.1.77" in get("/dns/zones?zone=lab.lan"), page.split("<main", 1)[1][:2000])
     for form, why in (({"name": "nodots"}, "two labels"), ({"name": "lab.lan"}, "already a zone"),
                       ({"name": "shop.example.com"}, "Hide the public name")):
-        st, loc, page = post("/bind9/zones/new", form)
+        post("/bind9/zones/new", form)
+        page = dns_apply()
         # covers: web:post.bind9.zones.new -
-        check(f"New zone refused ({why}), saying why", why in flash(page), flash(page))
-    st, loc, page = post("/bind9/zones/new", {"name": "shop.example.com", "hide_public": "on"})
-    check("New zone: a public name with the tick is added", "added" in flash(page), flash(page))
-    st, loc, page = post("/bind9/zones/lab.lan/remove", {"confirm": "lab.la"})
+        check(f"New zone refused at Apply ({why}), saying why", why in page, page.split("<main", 1)[1][:1500])
+        post("/changes/zones/discard", {})
+    post("/bind9/zones/new", {"name": "shop.example.com", "hide_public": "on"})
+    dns_apply()
+    check("New zone: a public name with the tick is added", "shop.example.com" in get("/dns/zones"))
+    post("/bind9/zones/lab.lan/remove", {"confirm": "lab.la"})
+    page = dns_apply()
     # covers: web:post.bind9.zones.*.remove -
-    check("Remove zone refused when the name is typed wrong", "type the zone's name" in flash(page), flash(page))
-    st, loc, page = post("/bind9/zones/dynamic_zone_var/remove", {"confirm": "home.arpa"})
-    check("Remove zone refused for the site's own zone", "cannot be removed" in flash(page), flash(page))
+    check("Remove zone refused at Apply when the name is typed wrong", "type the zone&#39;s name" in page,
+          page.split("<main", 1)[1][:1500])
+    post("/changes/zones/discard", {})
+    post("/bind9/zones/dynamic_zone_var/remove", {"confirm": "home.arpa"})
+    page = dns_apply()
+    check("Remove zone refused at Apply for the site's own zone", "cannot be removed" in page,
+          page.split("<main", 1)[1][:1500])
+    post("/changes/zones/discard", {})
     st, loc, page = post("/bind9/zones/lab.lan/remove", {"confirm": "lab.lan"})
     # covers: web:post.bind9.zones.*.remove +
-    check("Remove zone: removed once its name is typed again", "removed" in flash(page)
-          and "zone=lab.lan" not in page, flash(page))
-    st, _, _, page = req("POST", "/apply", {"csrf": "dev"})
-    check("apply is a no-op that says so", st == 200 and "nothing was rendered or reloaded" in page)
+    check("Remove zone: held, back on its page", loc == "/dns/zones?zone=lab.lan"
+          and "Waiting for Apply: Remove zone lab.lan" in flash(page), (loc, flash(page)))
+    dns_apply()
+    check("...applied: the zone is gone", "zone=lab.lan" not in get("/dns/zones"))
+    check("the whole-install Apply is gone from the console", req("POST", "/apply", {"csrf": "dev"})[0] == 404)
     page = get("/audit")
     check("Overview · Audit log shows the preview's actions", "DNS_ADD" in page and "in memory" in page
           and '<a href="/audit" class="active" aria-current="page">Audit log</a>' in page)
@@ -291,7 +383,15 @@ with serve():
           'action="/security/raise"' in page and "lowered from any" in page
           and "fabricctl security lower" in page and "Lower</button>" not in page and "Turn off" not in page
           and 'href="/directory/kerberos"' in page)
+    check("Sign-in security lists the relaxations that are on (2.1.8.20)", "Security relaxed on this host" in page
+          and "signin_admin_second_factor: none" in page, page[:3000])
+    page = get("/settings?step=signin")
+    check("the wizard's sign-in step: the password policy and Kerberos left to their pages, linked (2.1.8.19)",
+          'href="/directory/policies"' in page and 'href="/directory/kerberos"' in page
+          and 'name="policy_minimum_length"' not in page and 'name="signin_kerberos"' not in page, page[-3000:])
     page = get("/settings")
+    check("the wizard lists the relaxations that are on (2.1.8.20)", "Security relaxed on this host" in page
+          and "signin_admin_second_factor: none" in page)
     check("Settings · Setup wizard: its first step, the console-only settings read only, its navigation page",
           "Optional parts" in page and "sudo fabricctl setup (a new install)" in page
           and '<a href="/settings" class="active" aria-current="page">Setup wizard</a>' in page, page[:2000])
@@ -309,10 +409,31 @@ with serve():
     pages = [get(f"/pki?view={v}") for v in ("ca", "sign", "issue", "inspect", "convert", "issued")]
     check("every PKI · Certificates menu page renders, ACME not among its sub-menu", "Fabric Root CA" in pages[0]
           and "switch-core.home.arpa" in pages[5]
-          and "ACME" not in pages[0].split('class="subtabs"')[1].split("</nav>")[0])
+          and "ACME" not in pages[0].split('class="sections"')[1].split("</nav>")[0])
+    # covers: web:post.stepca.issue +
     st, _, _, page = req("POST", "/stepca/issue", {"csrf": "dev", "cn": "x"})
     check("generate shows sample downloads and the one-time key warning",
           st == 200 and 'download="device.home.arpa.key"' in page and "only copy of the private key" in page)
+    # covers: web:get.pki.issued.* web:get.pki.acme.* +-
+    main = pages[5].split("<main", 1)[1]
+    check("PKI · Issued: each certificate lit by its status and linked to its page, no form on the list",
+          'href="/pki/issued/5a1c0e"' in main and 'class="light warn"' in main and 'method="post"' not in main,
+          main[-2000:])
+    page = get("/pki/issued/5a1c0e")
+    check("a certificate's page: its facts and Revoke as its own form, said to be done at once",
+          "switch-core.home.arpa" in page and "5a1c0e" in page and 'action="/stepca/revoke"' in page
+          and "keyCompromise" in page and "Done at once" in page, page[-2500:])
+    check("pages for a certificate or an ACME machine that is not there answer 404 (2.1.8.16)",
+          [req("GET", p)[0] for p in ("/pki/issued/nope", "/pki/acme/nope", "/pki/issued/a/b")] == [404, 404, 404])
+    # covers: web:post.stepca.revoke +-
+    st, loc, page = post("/stepca/revoke", {"target": "5a1c0e", "reason": "keyCompromise"})
+    check("Revoke certificate: done at once (2.1.8.23), back on its page: revoked, no Revoke form, nothing pending",
+          st == 303 and loc == "/pki/issued/5a1c0e" and "Revoked CN=switch-core.home.arpa (keyCompromise)" in flash(page)
+          and "revoked" in page and 'action="/stepca/revoke"' not in page and "change pending" not in page,
+          (loc, flash(page)))
+    st, loc, page = post("/stepca/revoke", {"target": "5a1c0e", "reason": "superseded"})
+    check("revoking a certificate revoked already is refused, said on its page", loc == "/pki/issued/5a1c0e"
+          and "revoked already" in flash(page), (loc, flash(page)))
     page = get("/")
     tiles = page.split("<section class=\"tiles\">")[1].split("</section>")[0]
     check("Health: one status light per service, each linked to its page", tiles.count('class="light ok"') == 9
@@ -331,9 +452,12 @@ with serve():
     check("update an image -> its job page says what moved", "updated postgres" in page, (st, loc))
     check("refused: a job that is not yours or does not exist", req("GET", "/jobs/no-such-job")[0] == 400)
     page = get("/pki/acme")
-    check("PKI · ACME (2.1.5.8): the directory, the enrolled machines, withdraw and enroll forms",
-          "acme/acme/directory" in page and "nas.home.arpa" in page and "/bind9/tsig/acme-nas/delete" in page
-          and 'action="/stepca/acme/enroll"' in page)
+    check("PKI · ACME (2.1.5.8): the directory, the enrolled machines linked to their pages, the enroll form; no "
+          "form in the list", "acme/acme/directory" in page and 'href="/pki/acme/acme-nas"' in page
+          and "/bind9/tsig/acme-nas/delete" not in page and 'action="/stepca/acme/enroll"' in page)
+    page = get("/pki/acme/acme-nas")
+    check("an enrolled machine's page: its key and Withdraw", "nas.home.arpa" in page
+          and 'action="/bind9/tsig/acme-nas/delete"' in page)
     st, _, _, page = req("POST", "/stepca/acme/enroll", {"csrf": "dev", "host": "printer", "domain": "home.arpa"})
     check("enroll a machine for DNS-01 -> its key, shown once", st == 200 and "acme-printer" in page)
     page = get("/")
@@ -347,13 +471,29 @@ with serve():
     check("public address listed without a reverse record", "203.0.113.7" in page and "public address" in page)
     check("forward records show their automatic PTR", "40.1.168.192.in-addr.arpa" in get("/dns/zones"))
     page = get("/dns/zones?view=tsig")
-    check("TSIG view lists sample keys", "npm-certbot" in page and "New TSIG key for a zone" in page)
+    check("TSIG view lists sample keys, each linked to its page, no form in the list", "npm-certbot" in page
+          and "New TSIG key for a zone" in page and 'href="/dns/zones?view=key&amp;key=npm-certbot"' in page
+          and 'method="post"' not in page.split('<table class="list')[1].split("</table>")[0])
+    page = get("/dns/zones?view=key&key=npm-certbot")
+    check("a TSIG key's page: its facts, New secret and Remove as their own forms",
+          "TSIG key npm-certbot" in page and 'action="/bind9/tsig/npm-certbot/rotate"' in page
+          and 'action="/bind9/tsig/npm-certbot/delete"' in page)
+    check("a TSIG key that is not there answers 404 (2.1.8.16)", req("GET", "/dns/zones?view=key&key=nope")[0] == 404)
     st, _, _, page = req("POST", "/bind9/tsig/create", {"csrf": "dev", "name": "preview-key", "zone": "home.arpa"})
-    check("creating a TSIG key shows its secret and rfc2136.ini once",
-          st == 200 and "dns_rfc2136_name = preview-key" in page and 'class="secret"' in page)
+    check("creating a TSIG key shows its secret and rfc2136.ini once, done at once: BIND has it (2.1.8.24)",
+          st == 200 and "dns_rfc2136_name = preview-key" in page and 'class="secret"' in page
+          and "BIND has the key now" in page and 'action="/apply"' not in page)
     st, loc, page = post("/bind9/tsig/preview-key/delete", {})
-    check("deleting a TSIG key -> back on TSIG keys, said", loc == "/dns/zones?view=tsig"
-          and "TSIG key preview-key removed" in flash(page), loc)
+    check("removing a TSIG key: held for DNS' Apply, back on TSIG keys, said", loc == "/dns/zones?view=tsig"
+          and "Waiting for Apply: Remove TSIG key preview-key" in flash(page) and "preview-key" in page,
+          (loc, flash(page)))
+    post("/changes/zones/apply", {})
+    check("...applied: gone", "preview-key" not in get("/dns/zones?view=tsig"))
+    post("/bind9/tsig/ghost/delete", {})
+    page = post("/changes/zones/apply", {})[2]
+    check("removing a TSIG key that is not there is refused at Apply, named", "no TSIG key named &#39;ghost&#39;" in page,
+          page.split("<main", 1)[1][:1500])
+    post("/changes/zones/discard", {})
     page = get("/8021x/devices")
     check("802.1X · Devices: devices with status lights, owners and roles linked, access; Add device in the actions "
           "bar, no form on the list", "jims-laptop" in page and "VLAN 10" in page and 'class="light bad"' in page
@@ -460,10 +600,10 @@ with serve():
           and 'action="/directory/people/jim/groups"' in page and 'action="/directory/people/jim/delete"' in page
           and 'name="confirm"' in page)
     check("...a locked-out person's page offers Unlock", "/directory/people/lee/unlock" in get("/directory/people/lee"))
-    page = get("/directory/people/nobody")
+    st, _, _, page = req("GET", "/directory/people/nobody")
     # covers: web:get.directory.people -
-    check("a person who is not there: fabric-agent's refusal said on the page, no form",
-          "no person nobody" in page and "/directory/people/nobody/" not in page, page[-1500:])
+    check("a person who is not there: fabric-agent's refusal said on the page, no form, a 404 (2.1.8.21)",
+          st == 404 and "no person nobody" in page and "/directory/people/nobody/" not in page, page[-1500:])
     check("refused: an address past a person's page (404)", req("GET", "/directory/people/jim/more")[0] == 404)
     page = get("/directory/people/_new")
     check("Add person on its own page: user name, e-mail, first and last names",
@@ -589,9 +729,10 @@ with serve():
     page = get("/directory/groups/directory-admins")
     check("a tier's group: shown, but not deleted here", "only the tier above it" in page
           and "/directory/groups/directory-admins/delete" not in page)
-    page = get("/directory/groups/nope")
+    st, _, _, page = req("GET", "/directory/groups/nope")
     # covers: web:get.directory.groups -
-    check("a group that is not there: the refusal said on the page", "no group nope" in page)
+    check("a group that is not there: the refusal said on the page, a 404 (2.1.8.21)", st == 404
+          and "no group nope" in page)
     st, loc, page = post("/directory/groups/_new", {"name": "ops", "description": "Operations"})
     # covers: web:post.directory.groups._new +
     check("Create group: held for the Groups page's Apply, back to Groups", loc == "/directory/groups"
@@ -701,10 +842,10 @@ with serve():
     page = get("/directory/computers/jims-laptop")
     check("...the 802.1X device of the same name, linked; a disabled computer offers Enable",
           'href="/8021x/devices/jims-laptop"' in page and 'action="/directory/machines/jims-laptop/enable"' in page)
-    page = get("/directory/computers/nope")
+    st, _, _, page = req("GET", "/directory/computers/nope")
     # covers: web:get.directory.computers -
-    check("a computer that is not there: fabric-agent's refusal said on the page, no form",
-          "no machine nope in the domain" in page and "/directory/machines/nope/" not in page, page[-1500:])
+    check("a computer that is not there: fabric-agent's refusal said on the page, no form, a 404 (2.1.8.21)",
+          st == 404 and "no machine nope in the domain" in page and "/directory/machines/nope/" not in page, page[-1500:])
     check("refused: an address past a computer's page (404)", req("GET", "/directory/computers/host-1/x")[0] == 404)
     page = get("/directory/computers/_new")
     check("Add computer on its own page: host name, type, managed",
@@ -910,9 +1051,9 @@ with serve():
           and "grant-lan-helpdesk-who" in page and 'action="/directory/grants/lan-helpdesk"' in page
           and 'name="people_reset" value="yes" checked' in page and 'value="site-lan"' in page
           and 'action="/directory/grants/lan-helpdesk/delete"' in page, page[-4000:])
-    page = get("/directory/access/nope")
+    st, _, _, page = req("GET", "/directory/access/nope")
     # covers: web:get.directory.access -
-    check("a grant that is not there: said, no form", "no grant nope" in page
+    check("a grant that is not there: said, no form, a 404 (2.1.8.21)", st == 404 and "no grant nope" in page
           and "/directory/grants/nope" not in page)
     page = get("/directory/access/_new?template=helpdesk")
     # covers: web:get.directory.access._new +
@@ -1003,7 +1144,8 @@ with serve():
     page = get("/federation")
     check("Federation: sites with their DC type, replication with a failing neighbour, conflicts, limits, plan",
           "lab.home.arpa" in page and "read-only" in page and "WERR_BADFILE" in page and "CNF:" in page
-          and "192.168.20.0/24" in page and "fabric-agent-&lt;dc&gt;" in page)
+          and "192.168.20.0/24" in page and "fabric-agent-&lt;dc&gt;" in page
+          and 'method="post"' not in page.split("<main", 1)[1] and "manual 4.9.1" not in page)
     page = get("/pki?view=issue&device=printer")
     check("PKI generate form offers devices, prefilled from the device page",
           "<option selected>printer</option>" in page and 'value="printer.home.arpa"' in page)
@@ -1020,6 +1162,19 @@ with serve():
     check("Secrets · Unlock methods: slots, kill-switch state, the key-file warning", "Kill switch off" in page
           and "YubiKey 5 Nano" in page and "Remove the key file" in page
           and 'href="/secrets/remove?slot=local"' in page)
+    main = page.split("<main", 1)[1]
+    check("Secrets · Unlock methods: each method lit and linked to its page, no form in the list",
+          'href="/secrets/method?slot=local"' in main and 'method="post"' not in main, main[-2000:])
+    page = get("/secrets/method?slot=local")
+    check("an unlock method's page: its facts, Test (the host name typed) and a link to Remove",
+          "Key file" in page and 'action="/openbao/slots/local/test"' in page and 'name="confirm"' in page
+          and 'href="/secrets/remove?slot=local"' in page, page[-2500:])
+    # covers: web:post.openbao.slots.*.test +
+    st, loc, page = post("/openbao/slots/local/test", {"confirm": "pi-core"})
+    check("Test an unlock method: done at once, back on its page, said", loc == "/secrets/method?slot=local"
+          and "Test passed" in flash(page), (loc, flash(page)))
+    check("pages for an unlock method that is not there answer 404 (2.1.8.16)",
+          [req("GET", p)[0] for p in ("/secrets/method?slot=nope", "/secrets/remove?slot=nope")] == [404, 404])
     page = get("/secrets/add-security-key")
     check("add security key: PKCS#11 tokens, enrolled one disabled, untested-hardware note; Unlock methods marked",
           "23456799" in page and "already an unlock method" in page and 'name="pin"' in page and "untested" in page
@@ -1177,6 +1332,12 @@ with serve("fabric-auditor"):
     page = get("/pki/acme")
     check("--as fabric-auditor: the ACME view without enroll or withdraw", "nas.home.arpa" in page
           and "/stepca/acme/enroll" not in page and "/delete" not in page)
+    page = get("/pki/issued/3b07d2")
+    st, loc, done = post("/stepca/revoke", {"target": "3b07d2", "reason": "superseded"})
+    check("--as fabric-auditor: a certificate's page without Revoke; a revocation refused (pki:revoke), still valid",
+          "printer.home.arpa" in page and 'action="/stepca/revoke"' not in page
+          and (st == 403 or (st == 303 and "pki:revoke" in flash(done)))
+          and "expires soon" in get("/pki/issued/3b07d2"), (st, loc, flash(done)))
 
 # My account (manual 1.8.6.6): a person with no fabric role signs in to it alone, and so does everyone else
 with serve("none"):

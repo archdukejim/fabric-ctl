@@ -4,6 +4,7 @@ import urllib.parse
 from webui import agentclient as actions
 from webui import views
 from webui.constants import STEP_UP
+from webui.routes.relaxations import relaxations
 from webui.session.page_context import page_context
 from webui.views.constants import WIZARD_FIELDS
 
@@ -43,8 +44,10 @@ def settings_post(h, sess, parts, form):
     Feeds:   post_action (/settings/…)."""
     typed = {f: form[f] for f in WIZARD_FIELDS if isinstance(form.get(f), str)}
     if parts == ["step"]:
-        return h.send(200, views.settings(page_context(sess), actions.settings_overview(), form.get("go", ""), typed,
-                                          signin_old=time.time() - sess.get("auth_at", 0) > STEP_UP))
+        ctx = page_context(sess)
+        return h.send(200, views.settings(ctx, actions.settings_overview(), form.get("go", ""), typed,
+                                          signin_old=time.time() - sess.get("auth_at", 0) > STEP_UP,
+                                          relaxed=relaxations(ctx)))
     if parts == ["plan"]:
         try:
             plan = actions.settings_plan(form=typed)

@@ -17,6 +17,8 @@ from webui.routes.dns_filter_page import dns_filter_page
 from webui.routes.moved_to import moved_to
 from webui.routes.openbao_page import openbao_page
 from webui.routes.people_page import people_page
+from webui.routes.radius_page import radius_page
+from webui.routes.relaxations import relaxations
 from webui.routes.roles_page import roles_page
 from webui.routes.policies_page import policies_page
 from webui.routes.settings_page import settings_page
@@ -103,6 +105,10 @@ def get_page(h, sess, path, query):
                     "/directory/sites", "/directory/policies", "/8021x/devices", "/8021x/roles"):
         if path.startswith(listing + "/"):
             shown = listing
+    if path.startswith("/8021x/clients/") or path.startswith("/8021x/people/"):
+        shown = "/8021x"
+    if path.startswith("/pki/issued/") or path.startswith("/pki/acme/"):
+        shown = "/pki/acme" if path.startswith("/pki/acme/") else "/pki"
     need = next((n for _, _, pages in views.NAV for href, _, n in pages if href == shown and n), None)
     if need and not set(need) & set(ctx["perms"]):            # a navigation page's own permission (1.8.6.4)
         return h.deny(403, f"You need the permission {' or '.join(need)} to see this page.")
@@ -125,6 +131,10 @@ def get_page(h, sess, path, query):
         return stepca_page(h, ctx, "ca" if view == "acme" else view, device=query.get("device", ""))
     if path == "/pki/acme":
         return stepca_page(h, ctx, "acme")
+    if _rest(path, "/pki/issued/"):
+        return stepca_page(h, ctx, "cert", serial=_rest(path, "/pki/issued/"))
+    if _rest(path, "/pki/acme/"):
+        return stepca_page(h, ctx, "machine", serial=_rest(path, "/pki/acme/"))
     if path == "/directory":
         return directory_page(h, ctx)
     if path == "/directory/people" or path.startswith("/directory/people/"):
@@ -152,6 +162,8 @@ def get_page(h, sess, path, query):
         view = view or (query.get("view") if query.get("view") in ("switches", "windows") else "switches")
         guides = actions.radius_guides() if view in ("switches", "windows") else None
         return h.send(200, views.freeradius(ctx, actions.radius_overview(), view=view, guides=guides))
+    if path.startswith("/8021x/clients/") or path.startswith("/8021x/people/"):
+        return radius_page(h, ctx, path)
     if path == "/secrets":
         return openbao_page(h, ctx, {**query, "view": "status"})
     if _rest(path, "/secrets/") in views.OPENBAO_VIEWS:
@@ -163,5 +175,5 @@ def get_page(h, sess, path, query):
     if path == "/settings" or path == "/settings/export":
         return settings_page(h, sess, ctx, path, query)
     if path == "/settings/sign-in":
-        return h.send(200, views.security(ctx, actions.security_layers()))
+        return h.send(200, views.security(ctx, actions.security_layers(), relaxed=relaxations(ctx)))
     return h.deny(404, "Not found.")

@@ -1,5 +1,6 @@
 {% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
 <h1>Secrets · {{ {"status": "Status", "disk": "Disk encryption", "secrets": "fabric's secrets"}.get(view, "Unlock methods") }}</h1>
+{% set sl = slots | selectattr('id', 'equalto', slot_id) | first if slot_id else none %}
 {% set light = 'bad' if not s.reachable or s.sealed or not s.initialized else ('warn' if not s.key.ok else 'ok') %}
 
 {% if view == 'status' %}
@@ -16,9 +17,7 @@
 </dl></section>
 {% if s.mounts %}
 <section class="card"><h2>Secret engines</h2>
-<table><thead><tr><th>Path</th><th>Type</th><th>What for</th></tr></thead><tbody>
-{% for m in s.mounts %}<tr><td data-label="Path"><code>{{ m.path }}</code></td><td data-label="Type">{{ m.type }}{% if m.version %} v{{ m.version }}{% endif %}</td><td class="muted" data-label="What for">{{ m.description }}</td></tr>{% endfor %}
-</tbody></table>
+{% call p.list(["Path", "Type", "What for"]) %}{% for m in s.mounts %}<tr><td data-label="Path"><code>{{ m.path }}</code></td><td data-label="Type">{{ m.type }}{% if m.version %} v{{ m.version }}{% endif %}</td><td class="muted" data-label="What for">{{ m.description }}</td></tr>{% endfor %}{% endcall %}
 <p class="muted">Sign-in methods: {{ s.auth | join(', ') or '—' }}. fabric-setup and fabric-agent use AppRoles bound to this host; the initial root token was revoked.</p></section>
 {% endif %}
 
@@ -31,19 +30,13 @@
 {% if has_local %} <strong>Kill switch off</strong> — the key file on this host always unlocks the vault; removing a device changes nothing.
 {% elif removable %} <strong>Kill switch armed</strong> — removing the last present device locks the vault.
 {% else %} No unlock methods.{% endif %}</p>
-{% if slots %}
-<table><thead><tr><th></th><th>Method</th><th>Device</th><th>Key</th><th>Added</th><th></th></tr></thead><tbody>
-{% for sl in slots %}
-<tr><td>{{ p.light('ok' if sl.present else 'bad', 'present now' if sl.present else 'not present') }}</td>
-<td data-label="Method"><strong>{{ slot_types[sl.type][0] }}</strong><div class="muted small">{{ sl.label }}</div>{% if sl.tested %}<div class="muted small">tested: {{ sl.tested }}</div>{% endif %}</td>
-<td data-label="Device"><code class="small">{{ sl.device }}</code>{% if sl.detail %}<div class="muted small">{{ sl.detail }}</div>{% endif %}</td>
-<td data-label="Key"><code class="small">{{ sl.key_id }}</code></td><td class="small" data-label="Added">{{ sl.added }}</td>
-<td class="num"><div class="row-actions">
-{% if can('vault:unlock') %}<form method="post" action="/openbao/slots/{{ sl.id | urlencode }}/test"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost"{{ '' if live else ' disabled' }}>Test</button></form>{% endif %}
-<a class="btn danger-link{{ '' if live and slots | length > 1 else ' disabled' }}" href="/secrets/remove?slot={{ sl.id | urlencode }}">Remove</a>
-</div></td></tr>
-{% endfor %}</tbody></table>
-{% endif %}
+{% if slots %}{% call p.list(["", "Method", "Device", "Key", "Added"]) %}{% for m in slots %}<tr>
+<td>{{ p.light('ok' if m.present else 'bad', 'present now' if m.present else 'not present') }}</td>
+<td data-label="Method"><a href="/secrets/method?{{ {'slot': m.id} | urlencode }}"><strong>{{ slot_types[m.type][0] }}</strong></a><div class="muted small">{{ m.label }}</div>{% if m.tested %}<div class="muted small">tested: {{ m.tested }}</div>{% endif %}</td>
+<td data-label="Device"><code class="small">{{ m.device }}</code></td>
+<td data-label="Key"><code class="small">{{ m.key_id }}</code></td><td class="small" data-label="Added">{{ m.added }}</td></tr>{% endfor %}{% endcall %}
+<p class="muted small">Select a method for its page: test it, or remove it.</p>
+{% else %}{{ p.empty("No unlock methods: the vault cannot be unlocked at start.") }}{% endif %}
 </section>
 {% if has_local and removable %}<p class="flash warn">A device slot works, but the key file on this host still unlocks the vault on its own: anyone with this disk needs nothing else. <a href="/secrets/remove?slot=local">Remove the key file</a>.</p>
 {% elif removable | length == 1 and not has_local %}<p class="flash warn">Only one device can unlock this vault. If it is lost or breaks, the vault's data is gone — OpenBao's recovery keys cannot decrypt it. Add a second one for your safe.</p>{% endif %}
@@ -59,6 +52,26 @@
 <section class="card"><h2>Rotate the vault key</h2>
 <p class="muted">Makes a new vault key and re-protects it in every method whose device is present now. Methods whose device is not present stop working — the answer to a lost stick or token.</p>
 <p><a class="btn" href="/secrets/rotate">Rotate…</a></p></section>
+
+{% elif view == 'method' %}
+<p><a href="/secrets/unlock">← Unlock methods</a></p>
+<section class="card facts"><h2>{{ p.status('ok' if sl.present else 'bad', 'present now' if sl.present else 'not present') }}</h2>
+<dl><dt>Method</dt><dd>{{ slot_types[sl.type][0] }}</dd>{% if sl.label %}<dt>Label</dt><dd>{{ sl.label }}</dd>{% endif %}
+<dt>Device</dt><dd><code class="small">{{ sl.device }}</code>{% if sl.detail %} <span class="muted small">{{ sl.detail }}</span>{% endif %}</dd>
+<dt>Key</dt><dd><code class="small">{{ sl.key_id }}</code></dd><dt>Added</dt><dd>{{ sl.added }}</dd>
+<dt>Last tested</dt><dd>{{ sl.tested or 'never' }}</dd></dl>
+<p class="muted small">{{ slot_types[sl.type][1] }}</p></section>
+{% if can('vault:unlock') %}
+<section class="card"><h2>Test</h2><form method="post" action="/openbao/slots/{{ sl.id | urlencode }}/test" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<p class="muted">Unwraps the vault key with this method now and checks it; nothing is changed.</p>
+<label>Type this host's name to confirm<input name="confirm" autocomplete="off" required placeholder="{{ host }}"></label>
+<div><button{{ '' if live else ' disabled' }}>Test {{ slot_types[sl.type][0] | lower }}</button></div></form></section>
+<section class="card"><h2>Remove</h2>
+{% if slots | length > 1 %}<p class="muted">Done at once, after you type this host's name.</p>
+<p><a class="btn danger-link" href="/secrets/remove?{{ {'slot': sl.id} | urlencode }}">Remove {{ slot_types[sl.type][0] | lower }}…</a></p>
+{% else %}<p class="muted">The last unlock method cannot be removed.</p>{% endif %}</section>
+{% endif %}
 
 {% elif view == 'add-security-key' %}
 <p><a href="/secrets/unlock">← Unlock methods</a></p>
@@ -128,10 +141,8 @@
 {% elif view == 'rotate' %}
 <p><a href="/secrets/unlock">← Unlock methods</a></p>
 <section class="card"><h2>Rotate the vault key</h2>
-<table><thead><tr><th></th><th>Method</th><th>After rotation</th></tr></thead><tbody>
-{% for sl in slots %}<tr><td>{{ p.light('ok' if sl.present else 'bad', 'present now' if sl.present else 'not present') }}</td><td data-label="Method">{{ slot_types[sl.type][0] }} <span class="muted small">{{ sl.label }}</span></td>
-<td data-label="After rotation">{% if sl.present %}re-protected with the new key{% else %}<span class="bad-text">stops working (device not present)</span>{% endif %}</td></tr>{% endfor %}
-</tbody></table>
+{% call p.list(["", "Method", "After rotation"]) %}{% for m in slots %}<tr><td>{{ p.light('ok' if m.present else 'bad', 'present now' if m.present else 'not present') }}</td><td data-label="Method">{{ slot_types[m.type][0] }} <span class="muted small">{{ m.label }}</span></td>
+<td data-label="After rotation">{% if m.present %}re-protected with the new key{% else %}<span class="bad-text">stops working (device not present)</span>{% endif %}</td></tr>{% endfor %}{% endcall %}
 {% if can('vault:unlock') %}<form method="post" action="/openbao/rotate" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label class="wide">Type this host's name to confirm<input name="confirm" autocomplete="off" required placeholder="{{ host }}"></label>
@@ -140,17 +151,15 @@
 <p class="muted small">OpenBao restarts once with the old and new key, re-protects itself, then keeps only the new one. You will be asked to sign in again first.</p></section>
 
 {% elif view == 'remove' %}
-<p><a href="/secrets/unlock">← Unlock methods</a></p>
-{% set sl = slots | selectattr('id', 'equalto', slot_id) | first %}
-<section class="card"><h2>Remove {{ slot_types[sl.type][0] | lower if sl else 'method' }}</h2>
-{% if sl %}<p>{{ sl.label }} — <code class="small">{{ sl.device }}</code></p>
+<p><a href="/secrets/method?{{ {'slot': sl.id} | urlencode }}">← {{ slot_types[sl.type][0] }}</a></p>
+<section class="card"><h2>Remove {{ slot_types[sl.type][0] | lower }}</h2>
+<p>{{ sl.label }} — <code class="small">{{ sl.device }}</code></p>
 <p class="muted">{% if sl.type == 'local' %}The key file is shredded. From then on only your devices unlock the vault.{% elif sl.type == 'usb' %}Its record is removed; the copy on the stick stays usable until you rotate the key — rotate if the stick is lost.{% else %}Its protected copy is deleted; the device's own key is untouched.{% endif %}</p>
 {% if can('vault:unlock') %}<form method="post" action="/openbao/slots/{{ sl.id | urlencode }}/remove" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label class="wide">Type this host's name to confirm<input name="confirm" autocomplete="off" required placeholder="{{ host }}"></label>
 <div><button class="danger"{{ '' if live and slots | length > 1 else ' disabled' }}>Remove</button></div>
 </form>{% endif %}{% if slots | length < 2 %}<p class="muted">The last unlock method cannot be removed.</p>{% endif %}
-{% else %}<p class="blank">No such method.</p>{% endif %}
 </section>
 
 {% elif view == 'disk' %}

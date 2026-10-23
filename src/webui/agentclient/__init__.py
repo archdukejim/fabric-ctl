@@ -2,7 +2,7 @@
 importable from here (`from webui import agentclient as actions`)."""
 from webui.agentclient.connection import configure, set_token  # noqa: F401
 from webui.agentclient.constants import RECORD_TYPES  # noqa: F401
-from webui.agentclient.errors import AgentError, AuthError, PermissionDenied, ValidationError  # noqa: F401
+from webui.agentclient.errors import AgentError, AuthError, NotFound, PermissionDenied, ValidationError  # noqa: F401
 from webui.agentclient.add_client_class import add_client_class  # noqa: F401
 from webui.agentclient.add_radius_client import add_radius_client  # noqa: F401
 from webui.agentclient.add_record import add_record  # noqa: F401
@@ -13,7 +13,6 @@ from webui.agentclient.remove_zone import remove_zone  # noqa: F401
 from webui.agentclient.add_reservation import add_reservation  # noqa: F401
 from webui.agentclient.add_subnet import add_subnet  # noqa: F401
 from webui.agentclient.set_dhcp_on import set_dhcp_on  # noqa: F401
-from webui.agentclient.apply_changes import apply_changes  # noqa: F401
 from webui.agentclient.audit import audit  # noqa: F401
 from webui.agentclient.raise_signin_layer import raise_signin_layer  # noqa: F401
 from webui.agentclient.security_layers import security_layers  # noqa: F401
@@ -50,7 +49,6 @@ from webui.agentclient.machine_keytab import machine_keytab  # noqa: F401
 from webui.agentclient.list_tsig_keys import list_tsig_keys  # noqa: F401
 from webui.agentclient.list_zones import list_zones  # noqa: F401
 from webui.agentclient.query_log import query_log  # noqa: F401
-from webui.agentclient.map_radius_group import map_radius_group  # noqa: F401
 from webui.agentclient.radius_guides import radius_guides  # noqa: F401
 from webui.agentclient.radius_overview import radius_overview  # noqa: F401
 from webui.agentclient.read_audit import read_audit  # noqa: F401
@@ -59,7 +57,6 @@ from webui.agentclient.cert_warnings import cert_warnings  # noqa: F401
 from webui.agentclient.host_reminders import host_reminders  # noqa: F401
 from webui.agentclient.revoke_cert import revoke_cert  # noqa: F401
 from webui.agentclient.remove_client_class import remove_client_class  # noqa: F401
-from webui.agentclient.remove_radius_client import remove_radius_client  # noqa: F401
 from webui.agentclient.remove_reservation import remove_reservation  # noqa: F401
 from webui.agentclient.remove_subnet import remove_subnet  # noqa: F401
 from webui.agentclient.reset_sign_in import reset_sign_in  # noqa: F401
@@ -70,7 +67,6 @@ from webui.agentclient.rotate_tsig_key import rotate_tsig_key  # noqa: F401
 from webui.agentclient.service_status import service_status  # noqa: F401
 from webui.agentclient.set_option import set_option  # noqa: F401
 from webui.agentclient.sign_csr import sign_csr  # noqa: F401
-from webui.agentclient.unmap_radius_group import unmap_radius_group  # noqa: F401
 from webui.agentclient.unset_option import unset_option  # noqa: F401
 from webui.agentclient.update_subnet import update_subnet  # noqa: F401
 from webui.agentclient.vault_add_kmip import vault_add_kmip  # noqa: F401

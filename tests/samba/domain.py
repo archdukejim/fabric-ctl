@@ -932,6 +932,19 @@ try:
 except m_pending.RouteNotFound:
     why = "not found"
 check("refused: a page that holds nothing (404)", why == "not found", why)
+print("--- a read of one thing that is not there: NotFound, the handler's 404 (2.1.8.21)")
+from fabriclib.common.errors import NotFound  # noqa: E402
+for route in (["people", "nobody-here"], ["groups", "nobody-here"], ["machines", "nobody-here"],
+              ["domain", "grants", "nobody-here"]):
+    try:
+        m_get.get_route(route, "alice")
+        why = "answered"
+    except NotFound as exc:
+        why = f"not found: {exc}"
+    except Exception as exc:  # noqa: BLE001
+        why = f"{type(exc).__name__}: {exc}"
+    check(f"GET /v1/{'/'.join(route)}: NotFound (404), saying what is not there", why.startswith("not found: no "),
+          why)
 print("--- 802.1X's Devices and Device roles on their own Apply (2.1.8.10, 1.8.6.5)")
 from fabriclib.directory.device_overview import device_overview as m_devov  # noqa: E402
 from fabriclib.directory.update_device import update_device as m_upd_device  # noqa: E402
@@ -1008,7 +1021,7 @@ check("GET /v1/directory: the domain, its functional level, this DC writable, th
       and isinstance(over["replication"], dict) and over["status"]["domain"], over)
 gone, why = refused(m_get.get_route, ["people", "nobody"], "alice")
 # covers: agent:get.people.* -
-check("refused: GET /v1/people/nobody (no such entry)", gone and "no such entry" in why, why)
+check("refused: GET /v1/people/nobody (no person nobody: NotFound, 2.1.8.21)", gone and "no person nobody" in why, why)
 
 print("--- My account (manual 1.8.6.6): the person's own read; a managed group's members on My account's Apply")
 got = m_get.get_route(["account"], "bob")

@@ -6,7 +6,7 @@ from webui.devpreview.fake_directory import PERSON_KEYS, kerberos_policy
 from webui.devpreview.fake_groups import find_group
 from webui.devpreview.fake_ous import fake_ous
 from webui.devpreview.fake_grants import fake_grants
-from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DOMAIN, SAMPLE_GPO
+from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DOMAIN, SAMPLE_GPO, SAMPLE_RADIUS
 
 try:                                       # the agent's own store and its words, from a checkout (as fabric_rules)
     from agent.pending_store import PendingStore
@@ -55,6 +55,9 @@ def _thing(state, route, body):
         return SAMPLE_DOMAIN["policy"]
     if route == ["domain", "kerberos", "policy"]:
         return kerberos_policy(state)
+    if head == "radius":                              # a RADIUS client or a group mapping
+        rows, key = ((SAMPLE_RADIUS["people"], "group") if route[1] == "people" else (SAMPLE_RADIUS["clients"], "name"))
+        return _find(rows, key, route[2] if len(route) > 2 else body.get("group", ""))
     if head in ("devices", "roles"):                  # its own fields, as the agent reads them
         rows = (state.overview() or {}).get(head)
         return own_state(head, _find(rows, "name", name if len(route) > 1 else body.get("name", "")))
@@ -65,7 +68,26 @@ def _thing(state, route, body):
         return fake_ous(state, None, ["ous"], None)
     if head == "gpo":
         return {"settings": SAMPLE_GPO.get("settings"), "controls": SAMPLE_GPO.get("controls")}
+    if head == "zones":                               # the zone as the preview keeps it; None for one not there
+        key = route[1] if len(route) > 1 else str(body.get("name") or "").strip().rstrip(".").lower()
+        return state.data["zones"].get(key)
+    if head == "tsig":
+        return _find(state.data["tsig"], "name", route[1])
     raise ValidationError("this change is not held in the preview")
+
+
+def _finish(state, page, routes):
+    """Purpose: What a page's changes still need once done, as the agent's finish says it (nothing runs here).
+    Inputs:  state — DevState; page — a page id; routes — the routes applied.
+    Returns: (what, fn(actor)) for the password policy and for DNS' records, links and key removals; None otherwise.
+    Fails:   never.
+    Feeds:   _store."""
+    if page == "policies" and ["domain", "password-policy"] in routes:
+        return "Write the policy into the domain (restarts only what changed)", lambda actor: None
+    if page == "zones" and any(list(r) != ["zones"] and list(r)[2:] != ["delete"] or r[0] == "tsig" for r in routes):
+        return ("Publish to BIND and the landing page (reloads only BIND)",
+                lambda actor: state.log("APPLY_DNS", "dev preview: nothing reloaded"))
+    return None
 
 
 def _store(state, who, run):
@@ -85,9 +107,7 @@ def _store(state, who, run):
         state.pending = PendingStore(run=lambda route, actor, body, perms, session: run(route, body),
                                      state=lambda route, body: _thing(state, route, body),
                                      need=lambda route: required_permission("POST", route), start_job=start_job,
-                                     finish=lambda page, routes: ("Write the policy into the domain (restarts only "
-                                                                  "what changed)", lambda actor: None)
-                                     if page == "policies" and ["domain", "password-policy"] in routes else None)
+                                     finish=lambda page, routes: _finish(state, page, routes))
     return state.pending
 
 

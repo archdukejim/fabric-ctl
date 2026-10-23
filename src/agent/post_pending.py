@@ -25,11 +25,14 @@ def _finish(page, routes=()):
              setting, written into the domain's services, restarting only what changed, health-gated (manual
              1.8.6.5, 1.6.12.10, 2.1.14.15).
     Inputs:  page — a page id; routes — the routes of the changes being applied.
-    Returns: (what, fn(actor)) for "policies" when the password policy is among them, and for "kerberos" when the
-             ticket policy is (written into the DC's KDC, 1.6.12.9); None otherwise (Group Policy and sudo rules are
-             written by their own changes).
+    Returns: (what, fn(actor)) for "policies" when the password policy is among them, for "kerberos" when the
+             ticket policy is (written into the DC's KDC, 1.6.12.9), and for "zones" when a record, a landing-page link
+             or a TSIG key's removal is (_finish_dns); None otherwise (Group Policy and sudo rules are written by their
+             own changes, a zone's add and removal publish themselves).
     Fails:   never (fn raises ValidationError when the apply does not finish).
     Feeds:   PENDING (its finish)."""
+    if page == "zones":                       # DNS: BIND alone, and the landing page (2.1.8.24)
+        return _finish_dns(routes)
     wanted = {"policies": ["domain", "password-policy"], "kerberos": ["domain", "kerberos", "policy"]}.get(page)
     if wanted is None or wanted not in [list(r) for r in routes]:
         return None
@@ -42,6 +45,24 @@ def _finish(page, routes=()):
             raise ValidationError("the apply did not finish" + (f": {tail[0]}" if tail else ""))
 
     return "Write the policy into the domain (restarts only what changed)", write
+
+
+def _finish_dns(routes):
+    """Purpose: What DNS' changes need once all are done: the BIND-only deploy (dns/apply_dns, decision 2.1.8.24) when
+             any of them is a record, a landing-page link or a TSIG key's removal; a zone's add and removal publish
+             themselves (dns/publish_zone_list).
+    Inputs:  routes — the routes being applied.
+    Returns: (what, fn(actor)), or None.
+    Fails:   never (fn raises ValidationError when BIND does not take the change).
+    Feeds:   _finish."""
+    if all(list(r) == ["zones"] or list(r)[2:] == ["delete"] and len(r) == 3 and r[0] == "zones" for r in routes):
+        return None
+
+    def publish(actor):
+        from fabriclib.dns.apply_dns import apply_dns
+        apply_dns(actor, source="web")
+
+    return "Publish to BIND and the landing page (reloads only BIND)", publish
 
 
 PENDING = PendingStore(run=_run, state=lambda route, body: thing_state(route, body, load_vars()),

@@ -13,12 +13,29 @@ from fabriclib.dns.rotate_tsig_key import rotate_tsig_key
 from fabriclib.dns.set_record_link import set_record_link
 
 
+def _published(actor):
+    """Purpose: A TSIG key made or given a new secret is done at once (2.1.8.17): BIND takes it now, through DNS' own
+             deploy (dns/apply_dns, 2.1.8.24), so the secret shown once already works.
+    Inputs:  actor — the verified user.
+    Returns: {"published": True}, or {"published": False, "publish_error": why} (the key and its secret are saved
+             either way: the secret is still shown once, and DNS' next Apply publishes it).
+    Fails:   never for BIND's refusal (said in the answer).
+    Feeds:   post_dns (tsig, tsig/<name>/rotate)."""
+    from fabriclib.dns.apply_dns import apply_dns
+    try:
+        apply_dns(actor, source="web")
+    except ValidationError as exc:
+        return {"published": False, "publish_error": str(exc)}
+    return {"published": True}
+
+
 def post_dns(route, actor, data):
     """Purpose: DNS changes: POST /v1/zones/<key>/records[/delete|/link] and /v1/tsig[/<name>/rotate|delete].
     Inputs:  route — segments after /v1/; actor — the verified user; data — the body: type, name, ip|target|… for a
              record (index for a delete; type, index, name, link, link_label, link_port, link_path for a landing-page
              link); name, zone, scope, hosts, types, secret for a TSIG key.
-    Returns: the new record; {"key", "secret", "ini"} for a new key (the secret shown once); {"secret", "ini"} for a
+    Returns: the new record; {"key", "secret", "ini", "published"[, "publish_error"]} for a new key (the secret shown
+             once, BIND given it at once: _published); {"secret", "ini", "published"[, "publish_error"]} for a
              rotation; {} for a TSIG delete; remove_record's result for a record delete; the record for a link.
     Fails:   ValidationError for an unsupported record type, an invalid index or what fabriclib refuses (-> 400);
              RouteNotFound for another route.
@@ -49,10 +66,10 @@ def post_dns(route, actor, data):
         key, secret, ini = create_zone_tsig_key(actor, read_text(data, "name"), read_text(data, "zone"),
                                                 read_text(data, "scope"), read_strings(data, "hosts"),
                                                 read_strings(data, "types"), read_text(data, "secret"), source="web")
-        return {"key": key, "secret": secret, "ini": ini}
+        return {"key": key, "secret": secret, "ini": ini, **_published(actor)}
     if len(route) == 3 and route[0] == "tsig" and route[2] == "rotate":
         secret, ini = rotate_tsig_key(actor, route[1], source="web")
-        return {"secret": secret, "ini": ini}
+        return {"secret": secret, "ini": ini, **_published(actor)}
     if len(route) == 3 and route[0] == "tsig" and route[2] == "delete":
         remove_tsig_key(actor, route[1], source="web")
         return {}

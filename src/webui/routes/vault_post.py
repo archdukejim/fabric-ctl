@@ -1,4 +1,5 @@
 import time
+import urllib.parse
 
 from webui import agentclient as actions
 from webui.constants import STEP_UP
@@ -14,17 +15,21 @@ def vault_post(h, sess, parts, form):
              and per kind: disk; token ('<module>|<serial>'), key ('existing' uses key_id, else 'new'), pin; endpoint,
              key_id, server_name, ca_file / cert_file / key_file (uploads or text).
     Returns: 303 to /login?next=/secrets/unlock?signed_in=1 when the last sign-in is older than STEP_UP (300 s);
-             otherwise 303 to /secrets/unlock with what was done, or why not, as its message.
+             otherwise 303 to /secrets/unlock (a test of a listed method: its page, /secrets/method?slot=<id>) with what
+             was done, or why not, as its message.
     Fails:   303 with the refusal when the confirmation is not the host name, on ValidationError, and for other
              'add-…' kinds; 404 for any other path; AgentError, PermissionDenied and AuthError propagate to
              handle_request; KeyError if the agent's answer lacks key_id, dropped or id.
     Feeds:   post_action (/openbao/…).
     Notes:   The step-up is checked before the path, so even an unknown path asks for a fresh sign-in first.
     """
-    back = "/secrets/unlock"
     if time.time() - sess.get("auth_at", 0) > STEP_UP:
         return h.redirect("/login?next=/secrets/unlock%3Fsigned_in%3D1")
-    host = actions.vault_slots()["host"]
+    slots = actions.vault_slots()
+    host, back = slots["host"], "/secrets/unlock"
+    if (len(parts) == 3 and parts[:1] == ["slots"] and parts[2] == "test"   # a test: back on the method's page, when
+            and any(s.get("id") == parts[1] for s in slots["slots"])):     # it is there (else its page answers 404)
+        back = "/secrets/method?" + urllib.parse.urlencode({"slot": parts[1]})
     if not host or form.get("confirm", "") != host:
         return h.back(back, err=f"Type this host's name ({host}) to confirm.")
     try:

@@ -4,6 +4,7 @@
 PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "machines": "/directory/computers",
                  "policies": "/directory/policies", "ous": "/directory/ous", "access": "/directory/access",
                  "kerberos": "/directory/kerberos", "devices": "/8021x/devices", "roles": "/8021x/roles",
+                 "radius": "/8021x", "zones": "/dns/zones",
                  "account": "/account/groups"}
 
 # The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
@@ -49,7 +50,8 @@ BIND9_SECTIONS = [("forward", "Forward zones"), ("landing", "Landing page"), ("r
 # OpenBao tab sections and unlock-method (key slot) types
 OPENBAO_SECTIONS = [("status", "Status"), ("unlock", "Unlock methods"), ("secrets", "Secrets"),
                     ("disk", "Disk encryption")]
-OPENBAO_VIEWS = {"status", "unlock", "secrets", "disk", "add-security-key", "add-usb", "add-hsm", "rotate", "remove"}
+OPENBAO_VIEWS = {"status", "unlock", "secrets", "disk", "add-security-key", "add-usb", "add-hsm", "rotate", "remove",
+                 "method"}
 SLOT_TYPES = {
     "local": ("Key file", "On this host's disk. Always present, so no kill switch."),
     "pkcs11": ("Security key", "YubiKey, Nitrokey, SmartCard-HSM or any PKCS#11 token. The key can't be copied."),
@@ -77,8 +79,10 @@ DIRECTORY_SECTIONS = [("devices", "Devices"), ("roles", "Roles"), ("people", "Pe
 STEPCA_MENU = [("ca", "Certificate authority"), ("sign", "Sign a CSR"), ("issue", "New key + certificate"),
                ("inspect", "Inspect"), ("convert", "Convert"), ("issued", "Issued"),
                ("acme", "ACME")]
-STEPCA_VIEWS = {v for v, _ in STEPCA_MENU}
+STEPCA_VIEWS = {v for v, _ in STEPCA_MENU} | {"cert", "machine"}     # with a certificate's and a machine's page
 KEY_TYPES = ["RSA-2048", "RSA-3072", "RSA-4096", "EC-P256", "EC-P384"]
+# the reasons a revocation offers (fabriclib.pki.publish_crl.REASONS checks them again)
+REVOKE_REASONS = ["unspecified", "keyCompromise", "superseded", "cessationOfOperation", "affiliationChanged"]
 TSIG_SCOPES = [("acme-hosts", "Certbot DNS-01 for listed hosts only (TXT)"),
                ("acme-zone", "Certbot DNS-01 for any host in the zone (TXT)"),
                ("any-name", "Any name in the zone, chosen record types")]
@@ -107,8 +111,7 @@ MENU_PERMS = {"sign": "pki:sign", "issue": "pki:issue", "convert": "pki:issue", 
 WIZARD_STEPS = [
     ("parts", "Optional parts", ["dns_filter", "install_fluentbit", "log_target"]),
     ("memory", "Memory", ["host_ram_capacity"]),
-    ("signin", "Passwords and sign-in", ["policy_" + k for k, _ in POLICY_FIELDS]
-     + ["policy_complexity", "signin_kerberos"]),
+    ("signin", "Passwords and sign-in", []),     # their pages: Directory → Policies, Kerberos (2.1.8.19)
     ("upstreams", "The DNS filter's upstreams", ["dns_filter_upstreams"]),
     ("review", "Review", []),
 ]
@@ -132,7 +135,8 @@ GRANT_RIGHTS = (("people", "People", ("edit", "reset", "unlock", "disable", "add
                 ("signin", "Sign-in", ("keyboard", "remote")))
 OU_ROOTS = ("people", "service-accounts", "groups", "machines/servers", "machines/desktops", "machines/network")
 RADIUS_PAGES = {"overview": "/8021x", "decisions": "/8021x/decisions", "switches": "/8021x/guides",
-                "windows": "/8021x/guides"}
+                "windows": "/8021x/guides", "client": "/8021x", "new-client": "/8021x", "mapping": "/8021x",
+                "new-mapping": "/8021x"}
 JOB_PAGES = {"doctor": "/overview/doctor", "images": "/overview/updates", "settings": "/settings"}
 # a group's kind (2.1.6.67, 1.6.12.17.5) -> (its label, why its members and managers are or are not changed here)
 GROUP_KINDS = {

@@ -7,7 +7,8 @@ from fabriclib.common.errors import ValidationError
 # (who sees its queue). A page id is the console's navigation page (pending_page_of names it from the route).
 PAGES = {"people": "people:read", "machines": "domain:read", "policies": "domain:read",
          "groups": "domain:read", "ous": "domain:read", "access": "domain:read", "kerberos": "domain:read",
-         "devices": "devices:read", "roles": "devices:read", "account": "session"}
+         "devices": "devices:read", "roles": "devices:read", "radius": "radius:read",
+         "zones": "dns:read", "account": "session"}
 # a device's and a device role's own fields, as their read has them: what a change to one is checked against (what a
 # role grants a device, its VLAN and permissions, follows from the roles and is not the device's own)
 OWN_FIELDS = {"devices": ("type", "owner", "description", "macs", "enabled", "roles"),
@@ -60,7 +61,43 @@ def pending_page_of(route):
         return "ous"
     if head in (["devices"], ["roles"]):                 # 802.1X's Devices and Device roles (2.1.8.10)
         return head[0]
+    if route == ["radius", "people"] or (len(route) == 4 and route[:2] in (["radius", "people"], ["radius", "clients"])
+                                         and route[3] == "delete"):
+        return "radius"                                   # adding a client and a new secret: at once (2.1.8.17)
+    if head == ["zones"] or (len(route) == 3 and route[0] == "tsig" and route[2] == "delete"):
+        return "zones"                                    # DNS (2.1.8.18); a TSIG key's creation, new secret: at once
     return None
+
+
+def _zone(key):
+    """Purpose: A zone key as people read it: the site's zone for dynamic_zone_var, else its name.
+    Inputs:  key — str.
+    Returns: str.
+    Fails:   never.
+    Feeds:   _describe_dns."""
+    return "the site's zone" if key == "dynamic_zone_var" else key
+
+
+def _describe_dns(route, body):
+    """Purpose: A DNS change in a sentence ("Add A record www to home.lan", "Remove TSIG key npm").
+    Inputs:  route — segments after /v1/ (zones/..., tsig/<name>/delete); body — the change's body.
+    Returns: str.
+    Fails:   never.
+    Feeds:   describe_change."""
+    if route[0] == "tsig":
+        return f"Remove TSIG key {route[1]}"
+    if len(route) == 1:
+        return f"Add zone {body.get('name', '')}".strip()
+    zone, rtype, name = _zone(route[1]), body.get("type", ""), body.get("name", "")
+    if route[2:] == ["delete"]:
+        return f"Remove zone {zone} with its records"
+    if route[2:] == ["records"]:
+        return f"Add {rtype} record {name} to {zone}"
+    if route[3:] == ["delete"]:
+        return f"Delete {rtype} record {name} from {zone}"
+    if body.get("link") == "on":
+        return f"Link {name} from the landing page"
+    return f"Stop linking {name} from the landing page"
 
 
 def describe_change(route, body):
@@ -71,6 +108,8 @@ def describe_change(route, body):
     Feeds:   agent/pending_store (hold)."""
     route = as_change(route)
     name = route[1] if len(route) > 1 else ""
+    if route[0] in ("zones", "tsig"):
+        return _describe_dns(route, body)
     if len(route) == 1:
         what = {"people": "person", "machines": "machine", "host-groups": "machine group", "sudo": "sudo rule",
                 "groups": "group", "ous": "OU", "devices": "device", "roles": "device role"}.get(route[0], route[0])
@@ -87,6 +126,11 @@ def describe_change(route, body):
     if route[0] == "ous":
         return {"rename": f"Rename OU {body.get('ou', '')}", "delete": f"Remove OU {body.get('ou', '')}"}.get(
             route[1], "Change OUs")
+    if route[0] == "radius":
+        if route == ["radius", "people"]:
+            return f"Let members of {body.get('group', '')} join by password".strip()
+        return (f"Remove RADIUS client {route[2]}" if route[1] == "clients"
+                else f"Stop members of {route[2]} joining by password")
     if route[0] in ("devices", "roles"):
         what = "device" if route[0] == "devices" else "device role"
         if route[2:] == ["delete"]:
@@ -115,6 +159,8 @@ def state_change(route, state):
     Fails:   never.
     Feeds:   agent/pending_store (the old and new values)."""
     action, row = (route[-1] if len(route) > 1 else ""), (state if isinstance(state, dict) else None)
+    if route[:1] == ["zones"] and len(route) == 4:       # a record's change: its fields say it (the zone is its thing)
+        return {}, {}
     if action in ("enable", "disable"):
         was = {} if row is None else {"enabled": "yes" if row.get("enabled", not row.get("locked")) else "no"}
         return was, {"enabled": "yes" if action == "enable" else "no"}
@@ -136,6 +182,15 @@ def own_state(kind, row):
     if kind == "devices":
         state["certs"] = list(row.get("certs") or [])
     return state
+
+
+def _zone_key(body):
+    """Purpose: The key a new zone gets: its name, without a trailing dot, in lower case (as dns/add_zone keys it).
+    Inputs:  body — the add's body (name).
+    Returns: str.
+    Fails:   never.
+    Feeds:   thing_state, thing_key."""
+    return str(body.get("name") or "").strip().rstrip(".").lower()
 
 
 def _find(rows, key, value):
@@ -191,6 +246,15 @@ def thing_state(route, body, v):
     if head == "gpo":
         gpo = gpo_overview(v)
         return {"settings": gpo.get("settings"), "controls": gpo.get("controls")}
+    if head == "radius":                       # a RADIUS client or a group mapping, as 802.1X's read has it
+        from fabriclib.radius.radius_overview import radius_overview
+        rows, key = ((radius_overview(v).get("people"), "group") if route[1] == "people"
+                     else (radius_overview(v).get("clients"), "name"))
+        return _find(rows, key, route[2] if len(route) > 2 else body.get("group", ""))
+    if head == "zones":                        # the zone's records as vars.yaml has them; None for a zone not there
+        return (v.get("dns") or {}).get(name if len(route) > 1 else _zone_key(body))
+    if head == "tsig":                         # the key as vars.yaml has it (its secret is not there)
+        return _find(v.get("tsig_keys"), "name", name)
     if head in ("devices", "roles"):           # its own fields (as a save sends them); a device's certificates
         from fabriclib.directory.device_overview import device_overview
         row = _find(device_overview(v).get(head), "name", name if len(route) > 1 else body.get("name", ""))
@@ -216,6 +280,12 @@ def thing_key(route, body):
         return route[0], route[1] if len(route) > 1 else str(body.get("uid") or body.get("name") or "")
     if route[:2] == ["domain", "grants"]:
         return "grants", route[2] if len(route) > 2 else str(body.get("name") or "")
+    if route[0] == "radius":
+        return "radius", route[1], route[2] if len(route) > 2 else str(body.get("group") or "")
+    if route[0] == "zones":                    # a zone added and its records added in one apply share it
+        return "zones", route[1] if len(route) > 1 else _zone_key(body)
+    if route[0] == "tsig":
+        return "tsig", route[1]
     if route[0] in ("gpo", "ous"):            # one thing each: the GPO's set, the OU tree (its creates, renames
         return (route[0],)                    # and deletes are read as the whole tree)
     return tuple(route[:2])

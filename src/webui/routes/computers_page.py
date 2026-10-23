@@ -34,5 +34,6 @@ def computers_page(h, ctx, path, query):
     try:
         return h.send(200, views.computers(ctx, "computer", computer=actions.machine_overview(name)))
     except (actions.AgentError, actions.ValidationError) as exc:
-        return h.send(200, views.computers(ctx, "computer", computer={"machine": {"name": name}},
+        return h.send(404 if isinstance(exc, actions.NotFound) else 200,
+                      views.computers(ctx, "computer", computer={"machine": {"name": name}},
                                            unavailable=str(exc)))

@@ -29,4 +29,5 @@ def groups_page(h, ctx, path, query):
     try:
         return h.send(200, views.groups(ctx, "group", group=actions.show_group(name)))
     except (actions.AgentError, actions.ValidationError) as exc:
-        return h.send(200, views.groups(ctx, "group", group={"name": name}, unavailable=str(exc)))
+        return h.send(404 if isinstance(exc, actions.NotFound) else 200,
+                      views.groups(ctx, "group", group={"name": name}, unavailable=str(exc)))

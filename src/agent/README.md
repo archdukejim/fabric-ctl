@@ -16,7 +16,7 @@ arbitrary commands.
 | `post_pending.py` | Apply per page (manual 1.8.6.5): holding a change, dropping, discarding and applying a page's changes as one job |
 | `pending_store.py` | The pending store (2.1.8.13): each person's changes per page, Apply in order stopping at the first failure, refusing a change whose thing changed since, the page's queue |
 | `pending_thing.py` | What a held change changes: its page, its words, the thing's read and its version (2.1.8.14) |
-| `post_dns.py` | Zones (add, remove), their records, TSIG keys |
+| `post_dns.py` | Zones (add, remove), their records, TSIG keys (a new key or secret given to BIND at once, 2.1.8.24) |
 | `post_dns_filter.py` | The DNS filter's lists, rules and upstreams (saved and applied), the lists job, the query-log search |
 | `post_dhcp.py` | DHCP: reservations, subnets (name, VLAN, notes, pools), options, client classes, each applied at once |
 | `post_network.py` | 802.1X settings, each applied at once |
@@ -24,6 +24,7 @@ arbitrary commands.
 | `post_vault.py` | OpenBao's unlock methods, rotating the vault key |
 | `post_directory.py` | Devices and device roles in the domain |
 | `read_text.py` / `read_strings.py` / `read_fields.py` | Checked fields of a request body |
+| `one_thing.py` | A read of one person, computer, group or grant: its "not there" refusal answered 404 (2.1.8.21). |
 | `route_not_found.py` | `RouteNotFound`: the handler answers 404 |
 | `__init__.py` | Empty; makes `agent` a package |
 | `README.md` | This file |

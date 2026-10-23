@@ -1,8 +1,8 @@
-from webui.views.constants import POLICY_FIELDS, WIZARD_FIELDS, WIZARD_STEPS
+from webui.views.constants import WIZARD_FIELDS, WIZARD_STEPS
 from webui.views.render_page import render_page
 
 
-def settings(ctx, overview, step="parts", form=None, msg="", err="", signin_old=False):
+def settings(ctx, overview, step="parts", form=None, msg="", err="", signin_old=False, relaxed=()):
     """Purpose: the setup wizard (manual 1.8.5.3): one step of Optional parts, Memory, Passwords and sign-in, the DNS
              filter's upstreams and Review; every other step's fields carried as hidden fields, so Back and Next keep
              what was typed and nothing changes before the plan. The first step shows the console-only settings read
@@ -10,7 +10,8 @@ def settings(ctx, overview, step="parts", form=None, msg="", err="", signin_old=
              Import and (until the wizard is finished) Dismiss are on every step.
     Inputs:  ctx — page context; overview — settings_overview(); step — a WIZARD_STEPS step (another: the first);
              form — {field: text} typed so far (None: today's, overview["form"]); msg, err — flash texts;
-             signin_old — True when the last sign-in is older than the 5 minutes Apply needs (said up front).
+             signin_old — True when the last sign-in is older than the 5 minutes Apply needs (said up front);
+             relaxed — routes/relaxations' answer (the relaxations that are on, 2.1.8.20; None: not readable).
     Returns: HTML str.
     Fails:   Jinja2 errors propagate.
     Feeds:   src/webui/routes/settings_page (/settings), settings_post (/settings/step, a refused plan or import)."""
@@ -23,4 +24,4 @@ def settings(ctx, overview, step="parts", form=None, msg="", err="", signin_old=
     return render_page("settings", ctx=ctx, page="/settings", ov=overview, step=step, steps=WIZARD_STEPS,
                        fields=dict((s, fl) for s, _, fl in WIZARD_STEPS)[step], typed=typed, today=today,
                        prev=steps[at - 1] if at else "", next=steps[at + 1] if at + 1 < len(steps) else "",
-                       changed=changed, policy_fields=POLICY_FIELDS, msg=msg, err=err, signin_old=signin_old)
+                       changed=changed, msg=msg, err=err, signin_old=signin_old, relaxed=relaxed)

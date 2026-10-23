@@ -72,7 +72,7 @@ def _radius(route, body):
     """Purpose: 802.1X's RADIUS clients and password groups on the sample data in memory (nothing applied).
     Inputs:  route — segments after /v1/radius/; body — dict.
     Returns: the agent's answer, or None for another route.
-    Fails:   never.
+    Fails:   ValidationError for a client or a mapping that is not there (as the agent).
     Feeds:   fake_network."""
     clients, people = SAMPLE_RADIUS["clients"], SAMPLE_RADIUS["people"]
     if route == ["people"]:
@@ -81,12 +81,16 @@ def _radius(route, body):
         people.append(m)
         return {**APPLIED, "mapping": m}
     if len(route) == 3 and route[0] == "people":
+        if not any(m["group"] == route[1] for m in people):
+            raise ValidationError(f"group {route[1]} is not mapped for 802.1X")
         people[:] = [m for m in people if m["group"] != route[1]]
         return APPLIED
     if route == ["clients"]:
         clients.append({"name": body.get("name", ""), "address": body.get("address", ""),
                         "message_authenticator": bool(body.get("message_authenticator"))})
         return {**APPLIED, "secret": "dev-preview-not-a-real-secret"}
+    if len(route) == 3 and route[0] == "clients" and route[1] not in [c["name"] for c in clients]:
+        raise ValidationError(f"no RADIUS client {route[1]}")
     if len(route) == 3 and route[0] == "clients" and route[2] == "delete":
         clients[:] = [c for c in clients if c["name"] != route[1]]
         return APPLIED

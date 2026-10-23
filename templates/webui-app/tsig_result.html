@@ -1,13 +1,12 @@
 {% extends "base.html" %}{% block body %}
 <h1>TSIG key {{ key_name }} {{ action }}</h1>
-<p class="flash warn">The secret is shown only now. Put it in the client, then Apply to publish the key to BIND9.</p>
+<p class="flash warn">The secret is shown only now: put it in the client.</p>
+{% if publish_error %}<p class="flash bad" role="alert">The key is saved, but BIND did not take it yet: {{ publish_error }}. DNS' next Apply publishes it.</p>
+{% else %}<p class="flash ok" role="status">BIND has the {{ 'key' if action == 'created' else 'new secret' }} now.</p>{% endif %}
 <section class="card"><h2>Secret</h2><p><code class="secret">{{ secret }}</code></p></section>
 <section class="card"><h2>RFC2136 client settings (certbot / nginx-proxy-manager)</h2>
 <textarea readonly rows="9">{{ ini }}</textarea>
 <p><a class="btn" href="data:text/plain;base64,{{ ini_b64 }}" download="{{ key_name }}-rfc2136.ini">{{ key_name }}-rfc2136.ini</a></p>
 </section>
-{% if can('dns:write') %}<form method="post" action="/apply" class="apply card">
-<input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button>Apply changes</button>
-<span class="muted">Until applied, BIND9 does not know this {{ 'key' if action == 'created' else 'secret' }}.</span></form>{% endif %}
 <p><a href="/dns/zones?view=tsig">Back to TSIG keys</a></p>
 {% endblock %}

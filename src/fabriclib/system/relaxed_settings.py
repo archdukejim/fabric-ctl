@@ -30,7 +30,7 @@ def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON):
     if vars_.get("install_keycloak") and admin_level(vars_) == "none":     # 2.1.6.23: a password only, by default
         relaxed.append({"setting": "signin_admin_second_factor: none",
                         "effect": "the web console and OpenBao ask for a password only; raise a "
-                                  "second factor in the web console's Security page (2.3.6.2.6)"})
+                                  "second factor in the web console's Settings → Sign-in security (2.3.6.2.6)"})
     if vars_.get("install_resolver") and vars_.get("dns_filter_groups"):
         try:
             daemon, _ = hardened_daemon_settings(daemon_json)
@@ -47,5 +47,5 @@ def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON):
     for layer, entry in read_lowered(config_dir or os.path.dirname(VARS_FILE)).items():
         relaxed.append({"setting": f"{layer} lowered: {entry['from']} -> {entry['to']}",
                         "effect": f"lowered by {entry['by']} on {entry['at']} (fabricctl security lower); raise it "
-                                  "again in the Security page"})
+                                  "again in Settings → Sign-in security"})
     return relaxed

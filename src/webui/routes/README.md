@@ -10,6 +10,7 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `devices_page.py` | 802.1X · Devices. |
 | `roles_page.py` | 802.1X · Device roles. |
 | `device_post.py` | 802.1X's device and device role forms, each held for its page's Apply. |
+| `radius_page.py` | 802.1X's RADIUS clients: a client's and a group mapping's page, the add pages. |
 | `kerberos_page.py` | Directory · Kerberos. |
 | `sites_page.py` | Directory · Sites: the list, a site's page. |
 | `access_page.py` | Directory · Access: the grants, Add grant, a grant's page. |
@@ -33,14 +34,16 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `saved_and_applied.py` | Run a change that fabric-agent saves and applies at once, and go back to its page with the outcome as its message. |
 | `stepca_page.py` | Render the Step-CA tab for one sub-view, with the CA summary, linkable devices and the issued list where needed. |
 | `stepca_post.py` | Manual PKI: each Step-CA form maps to one fabric-agent operation. |
-| `tsig_post.py` | TSIG keys: create, rotate, delete (Apply publishes them to BIND9). |
+| `tsig_post.py` | TSIG keys: create and rotate at once (BIND takes them at once), remove held for DNS' Apply. |
 | `vault_post.py` | Change the vault's unlock methods: rotate the key, test or remove a method, or add a USB stick, security key or KMIP HSM — each one fabric-agent call after a recent sign-in and the host name typed as confirmation. |
-| `zone_post.py` | DNS records: add one to a zone, or delete one (published by the next Apply). |
-| `landing_post.py` | The landing page's links: link a record of the site's zone from it, or stop (published by the next Apply). |
-| `zones_post.py` | DNS zones: add one, or remove one with its records (served or dropped in seconds, no Apply). |
+| `zone_post.py` | DNS records: add one to a zone, or delete one, held for DNS' Apply. |
+| `landing_post.py` | The landing page's links: link a record of the site's zone from it, or stop, held for DNS' Apply. |
+| `picked_record.py` | The record a DNS form names: its select's type, index and name (joined by bars), or the three fields. |
+| `zones_post.py` | DNS zones: add one, or remove one with its records, held for DNS' Apply. |
 | `__init__.py` | Empty; makes it a package |
 | `security_post.py` | The Security page's changes: a recent sign-in, the admin's own certificate before turning it on, then the agent |
 | `overview_post.py` | The Overview's jobs: Run doctor, and update or roll back one service's image; then the job's page |
 | `settings_page.py` | The setup wizard's pages: a step filled in with today's settings; the settings file's download |
+| `relaxations.py` | The security relaxations that are on, for both Settings pages (none without status:read; None when unreadable). |
 | `settings_post.py` | The setup wizard's forms: Back and Next, the plan (typed or imported), Apply after a recent sign-in, Dismiss |
 | `finish_setting_up.py` | The wizard on the Overview: Finish setting up until it is finished, and the first Overview of a sign-in opening it |

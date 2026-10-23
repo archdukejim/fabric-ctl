@@ -4,7 +4,6 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 
 | File | What |
 |---|---|
-| `apply.html` | The apply page |
 | `audit.html` | The audit page |
 | `base.html` | The frame: the top bar, the navigation down the left (only the entries and pages the person may see), the message of the last action |
 | `pattern.html` | The page pattern's macros (manual 1.8.6.3): a status light, the actions bar, an empty state, a detail page's facts, a list |

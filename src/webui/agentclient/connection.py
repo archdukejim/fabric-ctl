@@ -5,7 +5,7 @@ import json
 import socket
 import threading
 
-from webui.agentclient.errors import AgentError, AuthError, PermissionDenied, ValidationError
+from webui.agentclient.errors import AgentError, AuthError, NotFound, PermissionDenied, ValidationError
 
 _socket_path = "/agent/agent.sock"
 _local = threading.local()          # the signed-in person's ID token for this request's calls
@@ -69,7 +69,8 @@ def call_agent(method, path, body=None, timeout=30):
              (long operations pass more). Sends the thread's token from set_token as Authorization: Bearer.
     Returns: the decoded JSON body of a 200 reply (dict or list; None for an empty body).
     Fails:   AgentError — the socket is missing/refused/timed out (OSError), the reply is not JSON (ValueError),
-               or any status other than 200/400/401/403 (e.g. 404 unknown route, 500 agent internal error);
+               or any status other than 200/400/401/403/404 (e.g. 500 agent internal error); NotFound (404: the
+               thing named is not there, or an unknown route);
              ValidationError — 400: fabriclib rejected the input; message is the agent's "error", safe to show;
              AuthError — 401: the agent did not accept the ID token (missing, expired, not valid);
              PermissionDenied — 403: the token lacks the permission the route needs
@@ -93,6 +94,8 @@ def call_agent(method, path, body=None, timeout=30):
         conn.close()
     if resp.status == 400:
         raise ValidationError((data or {}).get("error", "rejected"))
+    if resp.status == 404:
+        raise NotFound((data or {}).get("error", "not found"))
     if resp.status == 401:
         raise AuthError((data or {}).get("error", "not signed in"))
     if resp.status == 403:

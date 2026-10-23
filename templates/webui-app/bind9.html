@@ -1,31 +1,29 @@
-{% extends "base.html" %}{% block body %}
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
 <h1>DNS · Zones</h1>
 <nav class="sections">
-{% for id, label in bind9_sections if id != 'dhcp' or can('dhcp:read') %}<a href="/dns/zones{{ '' if id == 'forward' else '?view=' ~ id }}" class="section{{ ' active' if id == section }}">{{ label }}</a>{% endfor %}
+{% for id, label in bind9_sections if id != 'dhcp' or can('dhcp:read') %}<a href="/dns/zones{{ '' if id == 'forward' else '?view=' ~ id }}" class="section{{ ' active' if id == section or (id == 'forward' and section == 'new') or (id == 'tsig' and section == 'key') }}"{{ ' aria-current="page"' if id == section }}>{{ label }}</a>{% endfor %}
 </nav>
 
 {% if section == 'forward' %}
+{% call p.actions() %}{% if can('dns:write') %}<a class="btn" href="/dns/zones?view=new">Add zone</a>{% endif %}{% endcall %}
 {% if forward_zones | length > 1 %}
 <div class="picker"><span class="muted">Zone</span>
 {% for z in forward_zones %}<a href="/dns/zones?zone={{ z.key | urlencode }}" class="subtab{{ ' active' if zone and z.key == zone.key }}">{{ z.name }} <span class="muted">{{ z.records }}</span></a>{% endfor %}
 </div>
 {% endif %}
 {% if zone %}
-<section class="card"><h2>{{ zone.name }}</h2>
+<section class="card"><h2>{{ zone.name }} <span class="muted">{{ zone.records | length }}</span></h2>
 <p class="muted">{{ zone.status }}</p>
-<table><thead><tr><th>Type</th><th>Name</th><th>Value</th><th>Reverse (PTR)</th><th></th></tr></thead><tbody>
-{% for r in zone.records %}
-<tr><td data-label="Type"><span class="pill">{{ r.type }}</span></td><td data-label="Name">{{ r.name or '(missing)' }}{% if r.fabric %} <span class="pill" title="{{ r.fabric.service }}: every apply adds it from the setting {{ r.fabric.setting }}">provided by fabric</span>{% endif %}{% if r.link %} <span class="muted small">· on the landing page</span>{% endif %}</td><td data-label="Value"><code>{{ r.value }}</code></td>
-<td data-label="Reverse (PTR)">{% if r.ptr %}<span class="muted small">auto</span> <code class="small">{{ r.ptr }}</code>{% elif r.ptr_note %}<span class="muted small">none — {{ r.ptr_note }}</span>{% endif %}</td>
-<td class="num">{% if r.fabric %}<span class="muted small">kept by fabric: {{ r.fabric.setting }}</span>{% elif can('dns:write') %}<form method="post" action="/bind9/zone/{{ zone.key | urlencode }}/delete">
-<input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="type" value="{{ r.type }}">
-<input type="hidden" name="index" value="{{ r.index }}"><input type="hidden" name="name" value="{{ r.name }}">
-<button class="danger">Delete</button></form>{% endif %}</td></tr>
-{% endfor %}</tbody></table></section>
+{% if zone.records %}{% call p.list(["Type", "Name", "Value", "Reverse (PTR)"]) %}{% for r in zone.records %}<tr>
+<td data-label="Type"><span class="pill">{{ r.type }}</span></td><td data-label="Name">{{ r.name or '(missing)' }}{% if r.fabric %} <span class="pill" title="{{ r.fabric.service }}: every apply adds it from the setting {{ r.fabric.setting }}">provided by fabric</span>{% endif %}{% if r.link %} <span class="muted small">· on the landing page</span>{% endif %}</td><td data-label="Value"><code>{{ r.value }}</code></td>
+<td data-label="Reverse (PTR)">{% if r.ptr %}<span class="muted small">auto</span> <code class="small">{{ r.ptr }}</code>{% elif r.ptr_note %}<span class="muted small">none — {{ r.ptr_note }}</span>{% endif %}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("No records in this zone yet: add the first below.") }}{% endif %}
+</section>
+{% if can('dns:write') %}
 <section class="card"><h2>Add record</h2>
 {# type, name, value; priority for MX, priority, weight and port for SRV: shown only for those types by the stylesheet
    (:has, no script); a browser without :has shows them all, and the server checks each type's fields (2.1.2.22) #}
-{% if can('dns:write') %}<form method="post" action="/bind9/zone/{{ zone.key | urlencode }}/add" class="grid record">
+<form method="post" action="/bind9/zone/{{ zone.key | urlencode }}/add" class="grid record">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Type<select name="type">{% for t in types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></label>
 <label>Name<input name="name" required placeholder="www or @"></label>
@@ -34,19 +32,26 @@
 <label class="f-srv">Weight (SRV)<input name="weight" inputmode="numeric" placeholder="0"></label>
 <label class="f-srv">Port (SRV)<input name="port" inputmode="numeric" placeholder="443"></label>
 <div><button>Add record</button></div>
-</form>{% endif %}
+</form>
+<p class="muted">Every change on DNS → Zones (records, zones, links, removing a TSIG key) waits for <strong>Apply</strong>
+in the top bar, which reloads only BIND (and writes the landing page).</p>
 <p class="muted">The value is the address for A and AAAA, the host it points to for CNAME, MX and SRV, the text for
 TXT. A and AAAA records with a private address get their PTR record automatically — see Reverse zones. Which records
-the landing page links to is set in its own section: <a href="/dns/zones?view=landing">Landing page</a>.
-Names marked <span class="pill">provided by fabric</span> are fabric's own: every apply adds them back from their
-setting, so they are not deleted here. The landing page's <code>info</code> is yours: rename, repoint or delete it;
-the page stays at <code>http://&lt;this host's address&gt;/info/</code>.</p></section>
-{% else %}<section class="card"><p class="blank">No forward zones.</p></section>{% endif %}
-{% if can('dns:write') %}
-{% if zone and zone.key != 'dynamic_zone_var' %}
+the landing page links to is set in its own section: <a href="/dns/zones?view=landing">Landing page</a>.</p></section>
+{% set deletable = zone.records | rejectattr('fabric') | list %}
+<section class="card"><h2>Delete a record</h2>
+{% if deletable %}<form method="post" action="/bind9/zone/{{ zone.key | urlencode }}/delete" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label class="wide">Record<select name="record" required>{% for r in deletable %}<option value="{{ r.type }}|{{ r.index }}|{{ r.name }}">{{ r.type }} {{ r.name }} → {{ r.value }}</option>{% endfor %}</select></label>
+<div><button class="danger">Delete record</button></div>
+</form>{% else %}<p class="muted">Every record here is fabric's own.</p>{% endif %}
+<p class="muted">Names marked <span class="pill">provided by fabric</span> are fabric's own: every apply adds them back
+from their setting, so they are not offered here. The landing page's <code>info</code> is yours: rename, repoint or
+delete it; the page stays at <code>http://&lt;this host's address&gt;/info/</code>.</p></section>
+{% if zone.key != 'dynamic_zone_var' %}
 {% set shown = forward_zones | selectattr('key', 'equalto', zone.key) | first %}
 <section class="card"><h2>Remove zone {{ zone.name }}</h2>
-<p class="muted">BIND and the DNS filter stop answering for {{ zone.name }} within seconds. Its
+<p class="muted">Waits for <strong>Apply</strong>; then BIND and the DNS filter stop answering for {{ zone.name }} within seconds. Its
 <strong>{{ shown.records if shown else zone.records | length }} record(s)</strong> go with it (they are kept in the audit log).
 A TSIG key or ACL policy for this zone must be removed first (TSIG keys).</p>
 <form method="post" action="/bind9/zones/{{ zone.key | urlencode }}/remove" class="grid">
@@ -55,36 +60,35 @@ A TSIG key or ACL policy for this zone must be removed first (TSIG keys).</p>
 <div><button class="danger">Remove zone</button></div>
 </form></section>
 {% endif %}
-<section class="card"><h2>New zone</h2>
-<form method="post" action="/bind9/zones/new" class="grid">
+{% endif %}
+{% else %}{% call p.empty("No forward zones.") %}{% if can('dns:write') %}<a class="btn" href="/dns/zones?view=new">Add zone</a>{% endif %}{% endcall %}{% endif %}
+
+{% elif section == 'new' %}
+<p><a href="/dns/zones">← Forward zones</a></p>
+<section class="card"><h2>Add zone</h2>
+{% if can('dns:write') %}<form method="post" action="/bind9/zones/new" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Zone name<input name="name" required placeholder="home.lan" pattern="[A-Za-z0-9]([A-Za-z0-9.\-]*[A-Za-z0-9])?\.?"></label>
 <label class="check wide"><input type="checkbox" name="hide_public" value="on"> Hide the public name — needed for a name
 under a public top-level domain (.com, .net, …): every client of this site then gets this zone's answers instead of the real ones</label>
 <div><button>Add zone</button></div>
-</form>
-<p class="muted">BIND answers for the new zone within seconds (no Apply), and the DNS filter forwards it to BIND, never
-filtered. Names for private use need no tick: <code>home.arpa</code>, <code>.internal</code>, <code>.lan</code>,
+</form>{% else %}<p class="muted">Adding a zone needs the permission dns:write.</p>{% endif %}
+<p class="muted">Waits for <strong>Apply</strong>; then BIND answers for the new zone within seconds, and the DNS filter
+forwards it to BIND, never filtered. Names for private use need no tick: <code>home.arpa</code>, <code>.internal</code>, <code>.lan</code>,
 <code>.local</code>, <code>.test</code>, <code>.example</code>. Refused: the site's own domain, the DHCP and Windows
 domain zones, another site's zone, reverse zones (generated) and a zone that exists.</p></section>
-{% endif %}
 
 {% elif section == 'landing' %}
 <section class="card"><h2>Landing page</h2>
 <p class="muted">The landing page is fabric's start page (<code>http://&lt;this host's address&gt;/info/</code>, and
 <code>info.&lt;domain&gt;</code> while that record points at this host; any name you point here shows it): the
 instructions, the CA certificates, the manual and a link to each of your services. It links to the records of {{ zone.name if zone else "the site's zone" }} listed
-here, each as <code>https://&lt;name&gt;.{{ zone.name if zone else '&lt;domain&gt;' }}</code> with its port and path. Apply publishes a change.</p>
+here, each as <code>https://&lt;name&gt;.{{ zone.name if zone else '&lt;domain&gt;' }}</code> with its port and path. A change waits for <strong>Apply</strong>, which writes the page.</p>
 {% set linked = (zone.records if zone else []) | selectattr('link') | list %}
-{% if linked %}<table><thead><tr><th>Label</th><th>Address</th><th>Record</th><th></th></tr></thead><tbody>
-{% for r in linked %}{% set host = zone.name if r.name == '@' else r.name ~ '.' ~ zone.name %}
-<tr><td data-label="Label">{{ r.link.label or host }}</td><td data-label="Address"><code>https://{{ host }}{{ (':' ~ r.link.port) if r.link.port }}{{ r.link.path or '/' }}</code></td>
-<td data-label="Record"><span class="pill">{{ r.type }}</span> {{ r.name }}</td>
-<td class="num">{% if can('dns:write') %}<form method="post" action="/bind9/landing/remove"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<input type="hidden" name="type" value="{{ r.type }}"><input type="hidden" name="index" value="{{ r.index }}"><input type="hidden" name="name" value="{{ r.name }}">
-<button class="ghost">Remove</button></form>{% endif %}</td></tr>
-{% endfor %}</tbody></table>
-{% else %}<p class="blank">The landing page links to none of your records yet.</p>{% endif %}
+{% if linked %}{% call p.list(["Label", "Address", "Record"]) %}{% for r in linked %}{% set host = zone.name if r.name == '@' else r.name ~ '.' ~ zone.name %}<tr>
+<td data-label="Label">{{ r.link.label or host }}</td><td data-label="Address"><code>https://{{ host }}{{ (':' ~ r.link.port) if r.link.port }}{{ r.link.path or '/' }}</code></td>
+<td data-label="Record"><span class="pill">{{ r.type }}</span> {{ r.name }}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("The landing page links to none of your records yet.") }}{% endif %}
 </section>
 {% if can('dns:write') and zone %}
 {% set choices = [] %}{% for r in zone.records if r.type in ('A', 'AAAA', 'CNAME') and '*' not in r.name %}{% set _ = choices.append(r) %}{% endfor %}
@@ -99,59 +103,71 @@ here, each as <code>https://&lt;name&gt;.{{ zone.name if zone else '&lt;domain&g
 </form>
 <p class="muted">Only A, AAAA and CNAME records of {{ zone.name }}, and never a wildcard. The label is the text shown
 (default: the name); linking a record that is linked already replaces its link.</p>
-{% else %}<p class="blank">No A, AAAA or CNAME record to link: add one in <a href="/dns/zones">Forward zones</a>.</p>{% endif %}
+{% else %}{% call p.empty("No A, AAAA or CNAME record to link.") %}<a class="btn" href="/dns/zones">Forward zones</a>{% endcall %}{% endif %}
 </section>
+{% if linked %}
+<section class="card"><h2>Remove a link</h2><form method="post" action="/bind9/landing/remove" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label class="wide">Link<select name="record" required>{% for r in linked %}<option value="{{ r.type }}|{{ r.index }}|{{ r.name }}">{{ r.link.label or r.name }} ({{ r.type }} {{ r.name }})</option>{% endfor %}</select></label>
+<div><button class="danger">Remove link</button></div>
+</form><p class="muted">The record stays; only the landing page stops linking it.</p></section>
+{% endif %}
 {% endif %}
 
 {% elif section == 'reverse' %}
 <section class="card"><h2>Reverse zones</h2>
-<p class="muted">Generated from the forward zones: every A and AAAA record with a private address (RFC 1918, 100.64/10, IPv6 ULA) gets a PTR record — one per address, a named host before the zone apex. IPv4 zones are /24, IPv6 zones /64. To change a PTR, change the forward record; Apply publishes both.</p></section>
+<p class="muted">Generated from the forward zones: every A and AAAA record with a private address (RFC 1918, 100.64/10, IPv6 ULA) gets a PTR record — one per address, a named host before the zone apex. IPv4 zones are /24, IPv6 zones /64. To change a PTR, change the forward record; DNS' Apply publishes both.</p></section>
 {% for name, ptrs in reverse.zones.items() %}
 <section class="card"><h2>{{ name }} <span class="muted">{{ ptrs | length }}</span></h2>
-<table><thead><tr><th>Address</th><th>PTR</th><th>Points to</th><th>From</th></tr></thead><tbody>
-{% for r in ptrs %}<tr><td data-label="Address"><code>{{ r.ip }}</code></td><td data-label="PTR"><code class="small">{{ r.label }}</code></td><td data-label="Points to">{{ r.target }}</td><td class="muted" data-label="From">{{ r.source }}</td></tr>{% endfor %}
-</tbody></table></section>
-{% else %}<section class="card"><p class="blank">No reverse zones yet: add an A or AAAA record with a private address.</p></section>
+{% call p.list(["Address", "PTR", "Points to", "From"]) %}{% for r in ptrs %}<tr><td data-label="Address"><code>{{ r.ip }}</code></td><td data-label="PTR"><code class="small">{{ r.label }}</code></td><td data-label="Points to">{{ r.target }}</td><td class="muted" data-label="From">{{ r.source }}</td></tr>{% endfor %}{% endcall %}
+</section>
+{% else %}<section class="card">{{ p.empty("No reverse zones yet: add an A or AAAA record with a private address.") }}</section>
 {% endfor %}
 {% if manual_reverse %}<section class="card"><h2>Written by hand</h2>
 <p class="muted">Defined directly in <code>vars.yaml</code> (<code>dns:</code>); not generated: {{ manual_reverse | map(attribute='name') | join(', ') }}.</p></section>{% endif %}
 {% if reverse.skipped %}
 <section class="card"><h2>No reverse record</h2>
-<table><thead><tr><th>Name</th><th>Address</th><th>Why</th></tr></thead><tbody>
-{% for r in reverse.skipped %}<tr><td data-label="Name">{{ r.name }}</td><td data-label="Address"><code>{{ r.ip }}</code></td><td class="muted" data-label="Why">{{ r.reason }}</td></tr>{% endfor %}
-</tbody></table></section>
+{% call p.list(["Name", "Address", "Why"]) %}{% for r in reverse.skipped %}<tr><td data-label="Name">{{ r.name }}</td><td data-label="Address"><code>{{ r.ip }}</code></td><td class="muted" data-label="Why">{{ r.reason }}</td></tr>{% endfor %}{% endcall %}
+</section>
 {% endif %}
 
 {% elif section == 'dhcp' %}
 <section class="card"><h2>Names DHCP registered</h2>
-{% if not dhcp or not dhcp.enabled %}<p class="muted">DHCP is off: no names are registered (the Kea tab turns it on).</p>
+{% if not dhcp or not dhcp.enabled %}<p class="muted">DHCP is off: no names are registered (DHCP's page turns it on).</p>
 {% elif not dhcp.ddns_zone %}<p class="muted">DHCP does not register names here (dhcp.ddns is off).</p>
 {% else %}
-<p class="muted">Each client's name in <code>{{ dhcp.ddns_zone }}</code> and its reverse (PTR) record, as Kea registered them for its leases. Read-only: names come from the clients, or from a reservation's hostname in the Kea tab.</p>
+<p class="muted">Each client's name in <code>{{ dhcp.ddns_zone }}</code> and its reverse (PTR) record, as Kea registered them for its leases. Read-only: names come from the clients, or from a reservation's hostname on DHCP's page.</p>
 {% if dhcp.leases_error %}<p class="flash bad">Kea's leases could not be read: {{ dhcp.leases_error }}</p>
-{% elif not dhcp.leases %}<p class="muted">No leases yet.</p>
-{% else %}<table><thead><tr><th>Name</th><th>Address</th><th>Reverse name</th><th>Lease ends</th></tr></thead><tbody>
-{% for l in dhcp.leases if l.hostname %}<tr><td data-label="Name">{{ l.hostname }}</td><td data-label="Address">{{ l.ip }}</td><td data-label="Reverse name">{{ (l.ip.split('.') | reverse | join('.')) ~ '.in-addr.arpa' }}</td><td data-label="Lease ends">{{ l.expires }}</td></tr>
-{% endfor %}</tbody></table>{% endif %}
+{% elif not dhcp.leases %}{{ p.empty("No leases yet.") }}
+{% else %}{% call p.list(["Name", "Address", "Reverse name", "Lease ends"]) %}{% for l in dhcp.leases if l.hostname %}<tr><td data-label="Name">{{ l.hostname }}</td><td data-label="Address">{{ l.ip }}</td><td data-label="Reverse name">{{ (l.ip.split('.') | reverse | join('.')) ~ '.in-addr.arpa' }}</td><td data-label="Lease ends">{{ l.expires }}</td></tr>{% endfor %}{% endcall %}{% endif %}
 {% endif %}</section>
 
+{% elif section == 'key' %}
+{% set k = tsig_key %}
+<p><a href="/dns/zones?view=tsig">← TSIG keys</a></p>
+{{ p.facts("TSIG key " ~ k.name, [("Algorithm", k.algorithm), ("May update", k.scope), ("Types", k.types), ("ACLs", k.acls | join(', ') or '—')]) }}
+{% if can('tsig:manage') %}
+<section class="card"><h2>New secret</h2><form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/rotate">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<p class="muted">A new secret, shown once and made at once: BIND takes it at once, so its client needs it now.</p>
+<button>New secret</button></form></section>
+<section class="card"><h2>Remove</h2><form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/delete">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<p class="muted">Its secret and ACL entries go with it; once applied, BIND refuses updates signed with it. Waits for <strong>Apply</strong>.</p>
+<button class="danger">Remove TSIG key</button></form></section>
+{% endif %}
+
 {% else %}
-<section class="card"><h2>TSIG keys</h2>
+<section class="card"><h2>TSIG keys <span class="muted">{{ tsig_keys | length if tsig_keys else 0 }}</span></h2>
 <p class="muted">RFC2136 keys for dynamic updates (certbot DNS-01, nginx-proxy-manager). Update rights are deny-by-default; a secret is shown only once, when it is created or replaced.</p>
-{% if tsig_keys %}
-<table><thead><tr><th>Key</th><th>May update</th><th>Types</th><th>ACLs</th><th></th></tr></thead><tbody>
-{% for k in tsig_keys %}
-<tr><td data-label="Key"><strong>{{ k.name }}</strong><div class="muted small">{{ k.algorithm }}</div></td><td data-label="May update">{{ k.scope }}</td>
-<td data-label="Types">{{ k.types }}</td><td data-label="ACLs">{{ k.acls | join(', ') or '—' }}</td>
-<td class="num"><div class="row-actions">
-{% if can('tsig:manage') %}<form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/rotate"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost">New secret</button></form>{% endif %}
-{% if can('tsig:manage') %}<form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Delete</button></form>{% endif %}
-</div></td></tr>
-{% endfor %}</tbody></table>
-{% else %}<p class="blank">No TSIG keys yet.</p>{% endif %}
+{% if tsig_keys %}{% call p.list(["Key", "May update", "Types", "ACLs"]) %}{% for k in tsig_keys %}<tr>
+<td data-label="Key"><a href="/dns/zones?{{ {'view': 'key', 'key': k.name} | urlencode }}"><strong>{{ k.name }}</strong></a><div class="muted small">{{ k.algorithm }}</div></td><td data-label="May update">{{ k.scope }}</td>
+<td data-label="Types">{{ k.types }}</td><td data-label="ACLs">{{ k.acls | join(', ') or '—' }}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("No TSIG keys yet.") }}{% endif %}
 </section>
+{% if can('tsig:manage') %}
 <section class="card"><h2>New TSIG key for a zone</h2>
-{% if can('tsig:manage') %}<form method="post" action="/bind9/tsig/create" class="grid">
+<form method="post" action="/bind9/tsig/create" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Key name<input name="name" required pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,62}" placeholder="npm-certbot"></label>
 <label>Zone<select name="zone">{% for z in forward_zones %}<option>{{ z.name }}</option>{% endfor %}</select></label>
@@ -162,13 +178,10 @@ here, each as <code>https://&lt;name&gt;.{{ zone.name if zone else '&lt;domain&g
 </fieldset>
 <label class="wide">Existing secret (optional — keep a current client working)<input name="secret" type="password" autocomplete="off" placeholder="base64; leave empty to generate"></label>
 <div><button>Create key</button></div>
-</form>{% endif %}</section>
-<section class="card"><h2>ACLs and update policies</h2><p class="blank">Left intentionally blank.</p>
-<p class="muted">Who may query the zones, and which certbot devices may prove which names (today: <code>fabricctl acl</code>).</p></section>
+</form>
+<p class="muted small">Done at once, since it makes the key's secret: shown once, and BIND takes it at once.</p></section>
 {% endif %}
-{% if can('dns:write') %}<form method="post" action="/apply" class="apply card">
-<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<button>Apply changes</button>
-<span class="muted">Publishes zone, reverse-zone and key changes to BIND9 — reloads only what changed (same as <code>fabricctl --apply</code>).</span>
-</form>{% endif %}
+<section class="card"><h2>ACLs and update policies</h2>
+<p class="muted">Who may query the zones, and which certbot devices may prove which names, are set on the host today: <code>fabricctl acl</code>.</p></section>
+{% endif %}
 {% endblock %}

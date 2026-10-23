@@ -39,6 +39,15 @@
 </tbody></table>
 {%- endmacro %}
 
+{#- The security relaxations that are on (decision 2.1.8.20): a card, left out when none is on; items None: they
+    could not be read, said. -#}
+{% macro relaxations(items) -%}
+{% if items is none %}<section class="card"><h2>Security relaxed</h2><p class="flash bad">The relaxations could not be read now.</p></section>
+{% elif items %}<section class="card"><h2>{{ light('warn', 'relaxed') }} Security relaxed on this host <span class="muted">{{ items | length }}</span></h2>
+<ul>{% for r in items %}<li><code>{{ r.setting }}</code>: {{ r.effect }}</li>{% endfor %}</ul>
+<p class="muted small">Each is a setting someone chose; it stays listed here until it is put back.</p></section>{% endif %}
+{%- endmacro %}
+
 {#- A long list's pages: Previous and Next keeping the search and the filters in keep ({name: value}); left out for
     a single page. -#}
 {% macro pager(action, value, at, pages, what, keep={}) -%}

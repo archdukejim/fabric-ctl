@@ -11,7 +11,7 @@ ZONE_RE = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{
 def _tsig(state, name, zone, created):
     """Purpose: A throwaway TSIG secret and its RFC2136 settings, as the agent answers a new key or a new secret.
     Inputs:  state — DevState; name — the key; zone — its zone's name; created — True for a new key.
-    Returns: {"key": {"name"}, "secret", "ini"}.
+    Returns: {"key": {"name"}, "secret", "ini", "published": True} (BIND takes it at once, 2.1.8.24).
     Fails:   never.
     Feeds:   fake_dns."""
     secret = base64.b64encode(os.urandom(32)).decode()
@@ -19,7 +19,7 @@ def _tsig(state, name, zone, created):
            f"dns_rfc2136_port = 53\ndns_rfc2136_name = {name}\ndns_rfc2136_secret = {secret}\n"
            f"dns_rfc2136_algorithm = HMAC-SHA256\ndns_rfc2136_base_domain = {zone or 'home.arpa'}\n")
     state.log("TSIG_ADD" if created else "TSIG_SECRET", f"key={name} (in memory)")
-    return {"key": {"name": name}, "secret": secret, "ini": ini}
+    return {"key": {"name": name}, "secret": secret, "ini": ini, "published": True}
 
 
 def _value(body):
@@ -128,6 +128,8 @@ def fake_dns(state, who, route, body):
     if len(route) == 3 and route[0] == "tsig" and route[2] == "rotate":
         return _tsig(state, route[1], "", False)
     if len(route) == 3 and route[0] == "tsig" and route[2] == "delete":
+        if not any(k["name"] == route[1] for k in state.data["tsig"]):
+            raise ValidationError(f"no TSIG key named {route[1]!r}")
         state.data["tsig"] = [k for k in state.data["tsig"] if k["name"] != route[1]]
         return {}
     return None

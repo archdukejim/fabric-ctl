@@ -1,5 +1,6 @@
-{% extends "base.html" %}{% block body %}
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
 <h1>Settings · Sign-in security</h1>
+{{ p.relaxations(relaxed) }}
 <p class="muted">Each layer can be raised here. Lowering one is done only on the fabric host, with
 <code>sudo fabricctl security lower &lt;layer&gt;</code>: it asks for the layer's name, is recorded in the audit log, and
 stays shown here and in <code>fabricctl doctor</code> until it is raised again.</p>

@@ -29,4 +29,5 @@ def access_page(h, ctx, path, query):
     try:
         return h.send(200, views.access(ctx, "grant", grant=actions.show_grant(name)))
     except (actions.AgentError, actions.ValidationError) as exc:
-        return h.send(200, views.access(ctx, "grant", grant={"name": name}, unavailable=str(exc)))
+        return h.send(404 if isinstance(exc, actions.NotFound) else 200,
+                      views.access(ctx, "grant", grant={"name": name}, unavailable=str(exc)))

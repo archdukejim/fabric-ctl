@@ -30,7 +30,8 @@ def people_page(h, ctx, path, query):
     try:
         person = actions.person_overview(uid)
     except (actions.AgentError, actions.ValidationError) as exc:
-        return h.send(200, views.people(ctx, "person", person={"uid": uid}, unavailable=str(exc)))
+        return h.send(404 if isinstance(exc, actions.NotFound) else 200,
+                      views.people(ctx, "person", person={"uid": uid}, unavailable=str(exc)))
     try:
         groups = actions.list_people() if "people:groups" in (ctx.get("perms") or ()) else None
     except (actions.AgentError, actions.ValidationError):

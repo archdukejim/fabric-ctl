@@ -5,7 +5,6 @@ from webui.views.constants import (NAV, PENDING_PAGES, FREERADIUS_SECTIONS, BIND
                                    OPENBAO_VIEWS, SLOT_TYPES, DIRECTORY_SECTIONS, STEPCA_MENU, STEPCA_VIEWS, KEY_TYPES,
                                    TSIG_SCOPES, TSIG_ANY_TYPES, SERVICES, PREVIEW_PERMS, MENU_PERMS,
                                    WIZARD_STEPS, WIZARD_FIELDS)
-from webui.views.apply_result import apply_result  # noqa: F401
 from webui.views.audit import audit  # noqa: F401
 from webui.views.bind9 import bind9  # noqa: F401
 from webui.views.continue_page import continue_page  # noqa: F401
