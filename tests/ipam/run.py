@@ -1,0 +1,311 @@
+#!/usr/bin/env python3
+"""The `ipam` suite (manual 1.10.4.3, 1.10.4.41): the address manager's model with no container. Its rules: one
+claim per address, ranges inside their subnet and apart, only reservations in a dhcp range, and overlaps refused
+unless a reason is given. Also its suggestions, the site's number, several subnets on one VLAN (2.1.10.16, 2.1.10.18),
+the changes that add or change a subnet, and one site's plan out of read_plan's answer on 0.8.0's directory
+(1.10.4.32). Areas 4 to 6 of the port add their sections here.
+
+    python3 tests/ipam/run.py
+"""
+import ipaddress
+import os
+import sys
+
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(REPO, "src"))
+from fabriclib.common.errors import ValidationError  # noqa: E402
+from fabriclib.ipam.check_address import check_address  # noqa: E402
+from fabriclib.ipam.check_block import check_block  # noqa: E402
+from fabriclib.ipam.check_range import check_range  # noqa: E402
+from fabriclib.ipam.check_subnet import check_subnet  # noqa: E402
+from fabriclib.ipam.check_vlan import check_vlan  # noqa: E402
+from fabriclib.ipam.common.change_subnet import change_subnet  # noqa: E402
+from fabriclib.ipam.common.fields import find_address, find_subnet, find_vlan, subnet_holding  # noqa: E402
+from fabriclib.ipam.common.new_subnet import new_subnet  # noqa: E402
+from fabriclib.ipam.common.option_codes import CATALOGUE, CODES, FABRIC_PROVIDED  # noqa: E402
+from fabriclib.ipam.common.pool_text import pool_text  # noqa: E402
+from fabriclib.ipam.common.scan_busy import ScanBusy  # noqa: E402
+from fabriclib.ipam.common.site_plan import site_plan  # noqa: E402
+from fabriclib.ipam.suggestions import suggest_block, suggest_split, suggest_subnet  # noqa: E402
+
+
+FAILED = 0
+
+
+def check(name, ok, detail=""):
+    global FAILED
+    FAILED += not ok
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"  -> {str(detail)[:400]}"))
+
+
+def refused(fn, words):
+    try:
+        fn()
+    except ValidationError as e:
+        return words in str(e) or str(e)
+    return "not refused"
+
+
+def is_refused(fn, words):
+    return refused(fn, words) is True
+
+
+SUB = {"name": "iot", "cidr": "10.1.20.0/24", "vlan": 20, "gateway": "10.1.20.1", "dhcp": True, "id": 3, "relay": "",
+       "notes": "", "allow_overlap": "", "options": [],
+       "ranges": [{"kind": "gateway", "first": "10.1.20.1", "last": "10.1.20.1", "notes": ""},
+                  {"kind": "static", "first": "10.1.20.2", "last": "10.1.20.99", "notes": ""},
+                  {"kind": "dhcp", "first": "10.1.20.100", "last": "10.1.20.249", "notes": ""},
+                  {"kind": "reserved", "first": "10.1.20.250", "last": "10.1.20.254", "notes": ""}],
+       "addresses": [{"ip": "10.1.20.10", "kind": "static", "name": "nas", "mac": "", "owner": "office", "notes": "",
+                      "dns": True, "options": []},
+                     {"ip": "10.1.20.150", "kind": "reservation", "name": "cam1", "mac": "aa:bb:cc:dd:ee:01",
+                      "owner": "", "notes": "", "dns": False,
+                      "options": [{"name": "boot-file-name", "data": "cam.bin"}]}]}
+PLAN = {"site": "lan", "block": 1,
+        "vlans": [{"id": 20, "name": "iot", "purpose": "cameras", "access": "full", "notes": ""},
+                  {"id": 30, "name": "guest", "purpose": "", "access": "guest", "notes": ""}],
+        "subnets": [SUB, {"name": "guest", "cidr": "10.1.30.0/24", "vlan": 30, "gateway": "10.1.30.1", "dhcp": True,
+                          "id": 4, "relay": "", "notes": "", "allow_overlap": "", "options": [],
+                          "ranges": [{"kind": "dhcp", "first": "10.1.30.100", "last": "10.1.30.200", "notes": ""}],
+                          "addresses": []}],
+        "networks": [{"name": "lan", "cidr": "192.168.4.0/24", "kind": "lan", "vlan": None, "notes": "",
+                      "allow_overlap": ""}]}
+NETS = [{"site": "lan", "name": "lan", "cidr": "192.168.4.0/24", "kind": "lan", "allow_overlap": ""},
+        {"site": "lan", "name": "iot", "cidr": "10.1.20.0/24", "kind": "dhcp", "allow_overlap": ""},
+        {"site": "house2", "name": "mgmt", "cidr": "10.2.10.0/24", "kind": "dhcp", "allow_overlap": ""}]
+
+print("--- the VLAN (1.10.4.3)")
+v = check_vlan({"id": 40, "name": "Printers", "purpose": "print", "access": "full", "notes": ""}, PLAN)
+check("a VLAN with a free ID and name is accepted, its name lower-case", v["name"] == "printers" and v["id"] == 40)
+check("refused: a VLAN ID the site has, naming its VLAN",
+      is_refused(lambda: check_vlan({"id": 20, "name": "x"}, PLAN), "already in this site's plan (iot)"))
+check("refused: a name another VLAN of the site has",
+      is_refused(lambda: check_vlan({"id": 41, "name": "iot"}, PLAN), "already VLAN 20's"))
+check("refused: VLAN 0 and 4095", is_refused(lambda: check_vlan({"id": 0, "name": "a"}, PLAN), "1 to 4094")
+      and is_refused(lambda: check_vlan({"id": 4095, "name": "a"}, PLAN), "1 to 4094"))
+check("refused: a name that is not one DNS label", is_refused(lambda: check_vlan({"id": 41, "name": "a b"}, PLAN),
+                                                                "one DNS label"))
+check("refused: an access other than full or guest",
+      is_refused(lambda: check_vlan({"id": 41, "name": "a", "access": "open"}, PLAN), "full"))
+check("a VLAN being changed keeps its own ID and name", check_vlan({"id": 20, "name": "iot"}, PLAN, current=20)["id"] == 20)
+
+print("--- the subnet: overlaps across the organisation (1.10.2.6, 1.10.4.3.2)")
+ok = check_subnet({"name": "cams", "cidr": "10.1.21.0/24", "gateway": "10.1.21.1", "dhcp": True}, PLAN, "lan", NETS)
+check("a subnet overlapping nothing is accepted with its gateway", ok["cidr"] == "10.1.21.0/24"
+      and ok["gateway"] == "10.1.21.1")
+check("refused: a subnet overlapping another site's network, naming it and its site",
+      is_refused(lambda: check_subnet({"name": "x", "cidr": "10.2.0.0/16"}, PLAN, "lan", NETS),
+                 "overlaps 10.2.10.0/24 (mgmt) of site house2"))
+check("refused: a subnet overlapping one of the same site",
+      is_refused(lambda: check_subnet({"name": "x", "cidr": "10.1.20.128/25"}, PLAN, "lan", NETS), "(iot) of site lan"))
+check("accepted with a reason (--allow-overlap)",
+      check_subnet({"name": "x", "cidr": "10.2.0.0/16", "allow_overlap": "NAT"}, PLAN, "lan", NETS)["allow_overlap"]
+      == "NAT")
+check("the site's own LAN, served as a VLAN, is no overlap",
+      check_subnet({"name": "lanv", "cidr": "192.168.4.0/24"}, PLAN, "lan", NETS)["cidr"] == "192.168.4.0/24")
+check("refused: fabric's own container network",
+      is_refused(lambda: check_subnet({"name": "x", "cidr": "10.255.0.0/16"}, PLAN, "lan", []), "fabric_subnet"))
+check("refused: host bits set, IPv6, or smaller than /30",
+      is_refused(lambda: check_subnet({"name": "x", "cidr": "10.1.21.1/24"}, PLAN, "lan", []), "host bits zero")
+      and is_refused(lambda: check_subnet({"name": "x", "cidr": "fd00::/64"}, PLAN, "lan", []), "IPv4")
+      and is_refused(lambda: check_subnet({"name": "x", "cidr": "10.1.21.0/31"}, PLAN, "lan", []), "/30"))
+check("refused: a gateway outside the subnet, or its network address",
+      is_refused(lambda: check_subnet({"name": "x", "cidr": "10.1.21.0/24", "gateway": "10.1.22.1"}, PLAN, "lan", []),
+                 "outside the subnet")
+      and is_refused(lambda: check_subnet({"name": "x", "cidr": "10.1.21.0/24", "gateway": "10.1.21.0"}, PLAN, "lan",
+                                          []), "network's own"))
+check("refused: a subnet name the site uses",
+      is_refused(lambda: check_subnet({"name": "guest", "cidr": "10.1.21.0/24"}, PLAN, "lan", []), "already used"))
+check("a subnet being changed is no overlap with itself",
+      check_subnet({**SUB}, PLAN, "lan", NETS, current="iot")["name"] == "iot")
+
+print("--- ranges (1.10.4.3)")
+bare = {**SUB, "ranges": [], "addresses": []}
+check("a range inside its subnet is accepted", check_range({"kind": "dhcp", "first": "10.1.20.100",
+                                                           "last": "10.1.20.200"}, bare)["kind"] == "dhcp")
+check("refused: a range overlapping another, naming it",
+      is_refused(lambda: check_range({"kind": "static", "first": "10.1.20.90", "last": "10.1.20.110"}, SUB),
+                 "overlaps the static range 10.1.20.2 - 10.1.20.99"))
+check("refused: a range outside its subnet", is_refused(lambda: check_range({"kind": "static", "first": "10.1.21.2",
+                                                                            "last": "10.1.21.9"}, bare), "outside"))
+check("refused: first after last", is_refused(lambda: check_range({"kind": "static", "first": "10.1.20.9",
+                                                                  "last": "10.1.20.2"}, bare), "comes before"))
+check("refused: an unknown kind", is_refused(lambda: check_range({"kind": "pool", "first": "10.1.20.2",
+                                                                 "last": "10.1.20.9"}, bare), "one of gateway"))
+with_static = {**SUB, "ranges": []}
+check("refused: a dhcp range over a static address (only reservations may be there)",
+      is_refused(lambda: check_range({"kind": "dhcp", "first": "10.1.20.5", "last": "10.1.20.20"}, with_static),
+                 "may hold only reservations"))
+check("a dhcp range over a reservation is accepted",
+      check_range({"kind": "dhcp", "first": "10.1.20.140", "last": "10.1.20.160"}, with_static)["first"]
+      == "10.1.20.140")
+check("refused: a dhcp range over the gateway",
+      is_refused(lambda: check_range({"kind": "dhcp", "first": "10.1.20.1", "last": "10.1.20.5"},
+                                     {**bare, "gateway": "10.1.20.1"}), "Kea would hand it out"))
+
+print("--- addresses: one claim each (1.10.4.3.2)")
+a, w = check_address({"ip": "10.1.20.20", "kind": "static", "name": "Printer", "dns": True}, SUB, PLAN)
+check("a static address in the static range: accepted, no warning, its name lower-case", a["name"] == "printer"
+      and w == [])
+check("refused: a second claim, naming the first",
+      is_refused(lambda: check_address({"ip": "10.1.20.10", "kind": "static"}, SUB, PLAN),
+                 "already claimed: a static address (nas)"))
+check("refused: the gateway's address", is_refused(lambda: check_address({"ip": "10.1.20.1", "kind": "static"}, SUB,
+                                                                         PLAN), "the gateway"))
+check("refused: a static address in the DHCP range",
+      is_refused(lambda: check_address({"ip": "10.1.20.120", "kind": "static"}, SUB, PLAN), "only a reservation"))
+r, w = check_address({"ip": "10.1.20.120", "kind": "reservation", "mac": "AA-BB-CC-DD-EE-02"}, SUB, PLAN)
+check("a reservation in the DHCP range is accepted, its MAC normalized", r["mac"] == "aa:bb:cc:dd:ee:02" and w == [])
+_, w = check_address({"ip": "10.1.20.251", "kind": "static"}, SUB, PLAN)
+check("a static address outside the static ranges is warned about, never refused",
+      w and "outside the subnet's static ranges" in w[0], w)
+check("refused: a reservation without a MAC", is_refused(lambda: check_address({"ip": "10.1.20.121",
+                                                                               "kind": "reservation"}, SUB, PLAN),
+                                                         "needs the device's MAC"))
+check("refused: a MAC that already has a reservation",
+      is_refused(lambda: check_address({"ip": "10.1.20.121", "kind": "reservation", "mac": "aa:bb:cc:dd:ee:01"}, SUB,
+                                       PLAN), "already has a reservation: 10.1.20.150"))
+r, w = check_address({"ip": "10.1.20.121", "kind": "reservation", "mac": "aa:bb:cc:dd:ee:03", "name": "cam9",
+                      "dns": True}, SUB, PLAN)
+check("a reservation may be published in DNS too, beside DHCP's own name (2.1.10.17)", r["dns"] and w == [], (r, w))
+check("refused: a reservation published under a name another address publishes",
+      is_refused(lambda: check_address({"ip": "10.1.20.121", "kind": "reservation", "mac": "aa:bb:cc:dd:ee:03",
+                                        "name": "nas", "dns": True}, SUB, PLAN), "already published"))
+check("refused: DNS without a name, and a name another address publishes",
+      is_refused(lambda: check_address({"ip": "10.1.20.21", "kind": "static", "dns": True}, SUB, PLAN), "needs a name")
+      and is_refused(lambda: check_address({"ip": "10.1.20.21", "kind": "static", "name": "nas", "dns": True}, SUB,
+                                           PLAN), "already published"))
+check("refused: outside the subnet, a bad MAC, an unknown kind",
+      is_refused(lambda: check_address({"ip": "10.1.21.5", "kind": "static"}, SUB, PLAN), "outside the subnet")
+      and is_refused(lambda: check_address({"ip": "10.1.20.22", "kind": "static", "mac": "zz"}, SUB, PLAN), "MAC")
+      and is_refused(lambda: check_address({"ip": "10.1.20.22", "kind": "dynamic"}, SUB, PLAN), "one of static"))
+_, w = check_address({"ip": "10.1.20.10", "kind": "static", "name": "nas", "dns": True}, SUB, PLAN, current="10.1.20.10")
+check("an address being changed is not a second claim on itself", w == [])
+_, w = check_address({"ip": "10.1.20.30", "kind": "reservation", "mac": "aa:bb:cc:dd:ee:04"}, {**SUB, "dhcp": False},
+                     PLAN)
+check("a reservation in a subnet DHCP does not serve is warned about", any("not served by DHCP" in x for x in w), w)
+
+print("--- what fabric suggests (1.10.4.3.3)")
+check("VLAN 10 at site 1: 10.1.10.0/24; VLAN 255: 10.1.255.0/24", suggest_subnet(1, 10) == "10.1.10.0/24"
+      and suggest_subnet(1, 255) == "10.1.255.0/24")
+check("no suggestion above VLAN 255 or without a site number", suggest_subnet(1, 300) is None
+      and suggest_subnet(None, 10) is None)
+split = suggest_split("10.1.20.0/24")
+check("a /24's split: gateway .1, static .2-.99, DHCP .100-.249, reserved .250-.254",
+      split["gateway"] == "10.1.20.1" and [(r["kind"], r["first"], r["last"]) for r in split["ranges"]] == [
+          ("gateway", "10.1.20.1", "10.1.20.1"), ("static", "10.1.20.2", "10.1.20.99"),
+          ("dhcp", "10.1.20.100", "10.1.20.249"), ("reserved", "10.1.20.250", "10.1.20.254")])
+check("another size: only the gateway, its first host", suggest_split("10.1.64.0/22") == {"gateway": "10.1.64.1",
+                                                                                            "ranges": []})
+sites = [{"name": "lan", "created": "1", "block": 1}, {"name": "house2", "created": "2", "block": None},
+         {"name": "house3", "created": "3", "block": 3}]
+check("a site's number: its order in the organisation", suggest_block(sites, "house2") == 2)
+check("a taken number gives the next free one", suggest_block([*sites[:2], {"name": "x", "created": "0", "block": 2}],
+                                                              "house2") == 3)
+
+print("--- the site's number (2.1.10.16)")
+check("a free number from 1 to 255 is accepted, as typed or as an int", check_block("2", sites, "house2") == 2
+      and check_block(255, sites, "house2") == 255)
+check("a site keeps its own number", check_block(3, sites, "house3") == 3)
+check("refused: 0, 256, text and a boolean", is_refused(lambda: check_block("0", sites, "house2"), "1 to 255")
+      and is_refused(lambda: check_block(256, sites, "house2"), "1 to 255")
+      and is_refused(lambda: check_block("two", sites, "house2"), "1 to 255")
+      and is_refused(lambda: check_block(True, sites, "house2"), "1 to 255"))
+check("refused: another site's number, naming it", is_refused(lambda: check_block(3, sites, "house2"),
+                                                              "already house3's"))
+
+print("--- more than one subnet per VLAN (2.1.10.18)")
+SECOND = {"name": "iot-2", "cidr": "10.1.21.0/24", "vlan": 20, "gateway": "10.1.21.1", "dhcp": True, "id": 5,
+          "relay": "", "notes": "renumbering", "allow_overlap": "", "options": [],
+          "ranges": [{"kind": "dhcp", "first": "10.1.21.100", "last": "10.1.21.200", "notes": ""}],
+          "addresses": [{"ip": "10.1.21.150", "kind": "reservation", "name": "cam5", "mac": "aa:bb:cc:dd:ee:05",
+                         "owner": "", "notes": "", "dns": True, "options": []}]}
+TWO = {**PLAN, "subnets": [SUB, PLAN["subnets"][1], SECOND]}
+vlan20, subs20 = find_vlan(TWO, 20)
+check("a VLAN's subnets, in the plan's order", [s["name"] for s in subs20] == ["iot", "iot-2"])
+check("an address goes in the VLAN's subnet holding it",
+      subnet_holding(vlan20, subs20, ipaddress.ip_address("10.1.21.7"), "address")["name"] == "iot-2")
+check("refused: an address in none of the VLAN's subnets, naming them",
+      is_refused(lambda: subnet_holding(vlan20, subs20, ipaddress.ip_address("10.1.22.7"), "address"),
+                 "none of VLAN 20's subnets (10.1.20.0/24, 10.1.21.0/24)"))
+check("refused: a VLAN with no subnet", is_refused(lambda: subnet_holding({"id": 40}, [], None, "address"),
+                                                   "has no subnet"))
+check("a subnet by its name or its network", find_subnet(TWO, "IOT-2")["cidr"] == "10.1.21.0/24"
+      and find_subnet(TWO, "10.1.21.0/24")["name"] == "iot-2")
+check("refused: a subnet the plan does not have", is_refused(lambda: find_subnet(TWO, "10.9.0.0/24"),
+                                                             "is not a subnet of lan's plan"))
+
+print("--- an address by its IP (1.10.4.16)")
+found, where = find_address(TWO, "10.1.21.150")
+check("an address recorded in the plan, with its subnet", found["name"] == "cam5" and where["name"] == "iot-2")
+check("refused: an address nobody recorded, and text that is no address",
+      is_refused(lambda: find_address(TWO, "10.1.21.151"), "is not recorded in lan's plan")
+      and is_refused(lambda: find_address(TWO, "cam5"), "is not an IPv4 address"))
+check("refused: a VLAN the plan does not have, and one that is not a number",
+      is_refused(lambda: find_vlan(TWO, 99), "VLAN 99 is not in lan's plan")
+      and is_refused(lambda: find_vlan(TWO, "x"), "a VLAN ID, 1 to 4094"))
+
+print("--- adding and changing a subnet (1.10.4.16, 2.1.10.18)")
+V = {"fabric_subnet": "10.255.0.0/24"}
+changes, sub, ranges = new_subnet(V, TWO, NETS, PLAN["vlans"][0], "10.1.22.0/24", "IoT-3")
+check("a /24 added: the subnet, then the suggested split, its gateway .1 and the next Kea id",
+      [c["what"] for c in changes] == ["subnet", "range", "range", "range", "range"]
+      and changes[0]["do"] == "add" and sub["name"] == "iot-3" and sub["gateway"] == "10.1.22.1"
+      and sub["id"] == 6 and sub["kind"] == "dhcp" and [r["kind"] for r in ranges]
+      == ["gateway", "static", "dhcp", "reserved"] and changes[1]["key"] == "gateway-10.1.22.1", changes)
+changes, sub, ranges = new_subnet(V, TWO, NETS, PLAN["vlans"][0], "10.1.22.0/24", "iot-3", gateway="10.1.22.254",
+                                  dhcp=False, split=True)
+check("a gateway elsewhere: no .1 gateway range; DHCP off makes the subnet's kind `subnet`",
+      sub["kind"] == "subnet" and "gateway" not in [r["kind"] for r in ranges], ranges)
+changes, sub, ranges = new_subnet(V, TWO, NETS, PLAN["vlans"][0], "10.1.22.0/24", "iot-3", split=False)
+check("split off: the subnet alone", len(changes) == 1 and ranges == [])
+changes, sub, _ = new_subnet(V, TWO, NETS, PLAN["vlans"][0], "192.168.4.0/24", "lan", split=False)
+check("the site's LAN by its own name becomes the subnet (a set, not an add)", changes[0]["do"] == "set", changes)
+check("refused: the LAN's name with another network",
+      is_refused(lambda: new_subnet(V, TWO, NETS, PLAN["vlans"][0], "10.1.23.0/24", "lan"),
+                 "is the site's network 192.168.4.0/24"))
+check("refused: a new subnet overlapping another site's network",
+      is_refused(lambda: new_subnet(V, TWO, NETS, PLAN["vlans"][0], "10.2.0.0/16", "wide"), "of site house2"))
+change, after = change_subnet(V, TWO, NETS, SUB, {"notes": "cameras", "dhcp": False})
+check("a subnet's settings changed: only the fields given, its kind from DHCP on or off",
+      change == {"do": "set", "what": "subnet", "site": "lan", "key": "iot",
+                 "fields": {"notes": "cameras", "dhcp": False, "kind": "subnet"}} and after["notes"] == "cameras",
+      change)
+check("refused: a gateway an address claims, naming it",
+      is_refused(lambda: change_subnet(V, TWO, NETS, SUB, {"gateway": "10.1.20.10"}),
+                 "already claimed: a static address (nas)"))
+check("refused: a gateway in the DHCP range",
+      is_refused(lambda: change_subnet(V, TWO, NETS, SUB, {"gateway": "10.1.20.120"}), "lies in the DHCP range"))
+
+print("--- the small parts (1.10.4.6, 1.10.4.24)")
+check("a 0.7 pool as typed", pool_text(" 10.1.20.100 - 10.1.20.249 ") == ("10.1.20.100", "10.1.20.249"))
+check("refused: a pool that is not two addresses", is_refused(lambda: pool_text("10.1.20.100"), "two addresses")
+      and is_refused(lambda: pool_text("a-b-c"), "two addresses"))
+check("the option list: names and codes both ways; fabric's own (DNS servers, domain name, NTP, search)",
+      CATALOGUE[66] == "tftp-server-name" and CODES["boot-file-name"] == 67
+      and FABRIC_PROVIDED == {6, 15, 42, 119})
+check("ScanBusy is a refusal (a ValidationError)", issubclass(ScanBusy, ValidationError))
+
+print("--- one site's plan out of read_plan's answer on 0.8.0's directory (1.10.4.32)")
+READ = {"sites": [{"name": "lan", "created": "20261023", "block": 1},
+                  {"name": "lab", "created": "20261024", "block": None}],
+        "plans": {"lan": {"vlans": PLAN["vlans"], "subnets": PLAN["subnets"], "networks": PLAN["networks"]}},
+        "option_sets": {"domain": {"options": [{"name": "ntp-servers", "data": "10.1.0.1"}], "option_defs": [],
+                                   "client_classes": []},
+                        "lan": {"options": [{"code": 66, "data": "boot.lan"}], "option_defs": [],
+                                "client_classes": []}},
+        "options": [{"name": "ntp-servers", "data": "10.1.0.1"}]}
+p = site_plan(READ, "lan")
+check("the site's number, VLANs, subnets, networks, and the domain's and the site's option sets",
+      p["site"] == "lan" and p["block"] == 1 and p["vlans"] == PLAN["vlans"] and len(p["subnets"]) == 2
+      and p["domain_options"]["options"][0]["name"] == "ntp-servers"
+      and p["site_options"]["options"] == [{"code": 66, "data": "boot.lan"}] and p["read"], p)
+check("no 0.7-era editors or scan setting on it: the grants say who may change it (1.6.13.12)",
+      "org_editors" not in p and "local_scan" not in p and "org_options" not in p, sorted(p))
+q = site_plan({"sites": READ["sites"], "plans": {}, "option_sets": {"domain": None}}, "lab")
+check("a site with nothing in its plan, before the domain's set exists",
+      q["block"] is None and q["vlans"] == [] and q["subnets"] == [] and q["domain_options"] is None
+      and q["site_options"] == {"options": [], "option_defs": [], "client_classes": []}, q)
+
+print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")
+sys.exit(1 if FAILED else 0)

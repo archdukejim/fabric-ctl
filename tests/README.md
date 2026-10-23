@@ -23,6 +23,7 @@ suite needs no Docker or root and also runs alone: `python3 tests/docs/run.py`.
 | `openbao` | [openbao/](openbao/) | OpenBao: unlock methods (key file, USB, security key, KMIP), rotation, fabric's secrets, policies, break glass |
 | `fluentbit` | [fluentbit/](fluentbit/) | Log forwarding to TLS syslog and Elasticsearch receivers |
 | `kea` | [kea/](kea/) | Kea DHCP with DDNS into BIND, real DHCP clients |
+| `ipam` | [ipam/](ipam/) | The address manager's model with no container (1.10.4.3): its rules, suggestions and the plan's small parts; areas 4 to 6 of the port add to it (1.10.4.41) |
 | `settings` | [settings/](settings/) | The setup wizard with no container (manual 1.8.5): the settings file's round trip, what an import ignores and why, every wizard setting's refusal, the plan and its memory plan, a stale plan refused, the apply audited; `fabricctl settings`; the agent's routes and permission, the console's steps, plan, Apply after a recent sign-in, import and export |
 | `freeradius` | [freeradius/](freeradius/) | 802.1X against a real 389-DS: EAP-TLS, EAP-TTLS, MAB, refusals |
 | `samba` | [samba/](samba/) | The Windows domain controller: settings (2.1.6.11, 2.1.6.13), the rendered container, what changes around it; a real DC converged twice, the policy, the GPOs, BIND serving the AD zone through DLZ with signed updates, and the refusals (unsigned updates, another site, service accounts, short or wrong passwords); grants on real joined members (sssd), `fabricctl domain grant` and its routes |
