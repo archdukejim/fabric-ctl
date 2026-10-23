@@ -518,7 +518,7 @@ nokea = env.get_template('bind9/config/named.conf.zones.j2').render(**{**secrets
 assert "dhcp.lan.j-j.family" not in nokea, "no DHCP subzone without Kea"
 # covers: setting:dhcp -
 for bad, msg in ((lambda d: d["subnets"][0].update(pools=["192.168.8.1 - 192.168.8.9"]), "inside"),
-                 (lambda d: d["subnets"][0]["reservations"][0].update(ip="192.168.7.150"), "outside its pools"),
+                 (lambda d: d["subnets"][0]["reservations"][0].update(ip="192.168.8.150"), "must lie inside"),
                  (lambda d: d.update(interfaces=[]), "interface"),
                  (lambda d: d["subnets"][0].update(pools=["192.168.7.50 - 192.168.7.60"]), "inside a DHCP pool")):
     d = copy.deepcopy(kv["dhcp"])
@@ -529,6 +529,9 @@ for bad, msg in ((lambda d: d["subnets"][0].update(pools=["192.168.8.1 - 192.168
         raise AssertionError(f"not refused: {msg}")
     except ValidationError as e:
         assert msg in str(e), (msg, str(e))
+inpool = copy.deepcopy(kv["dhcp"])
+inpool["subnets"][0]["reservations"][0]["ip"] = "192.168.7.150"
+assert normalize_dhcp({**kv, "dhcp": inpool})["subnets"][0]["reservations"][0]["ip"] == "192.168.7.150",     "a reservation inside a pool is allowed since 0.9.0 (1.10.4.3.2)"
 # networks beyond the host's LAN (2.1.10.3-5, manual 1.10.3): a lab on a second interface, a guest subnet behind a relay
 import ipaddress  # noqa: E402
 

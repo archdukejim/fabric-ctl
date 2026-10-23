@@ -1,0 +1,9 @@
+[Unit]
+Description=fabric: delete DHCP names left behind for addresses named by hand (manual 1.10.4.20, 2.1.10.22)
+After=docker.service fabric.target
+Wants=docker.service
+
+[Service]
+Type=oneshot
+# the cleanup alone, not an apply; BIND refusing fails the run (systemctl status fabric-dhcp-names), the next hour retries
+ExecStart=/usr/bin/fabricctl dhcp clean-names --scheduled

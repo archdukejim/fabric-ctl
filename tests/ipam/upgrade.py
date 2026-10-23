@@ -9,6 +9,7 @@ Nothing calls the move until Kea renders from the plan (area 5); that round trip
 
     python3 tests/ipam/upgrade.py
 """
+import ipaddress
 import json
 import os
 import shutil
@@ -27,6 +28,7 @@ from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.common.load_vars import load_vars  # noqa: E402
 from fabriclib.common.save_vars import save_vars  # noqa: E402
 from fabriclib.dhcp.normalize_dhcp import normalize_dhcp  # noqa: E402
+from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp  # noqa: E402
 from fabriclib.ipam.subnets_to_plan import subnets_to_plan  # noqa: E402
 
 FAILED = 0
@@ -67,6 +69,27 @@ again = subnets_to_plan(old["subnets"], {"vlans": [{"id": 20, "name": "iot"}, {"
                                                       {"name": "net-192-168-4-0-24", "cidr": "192.168.4.0/24"}],
                                           "networks": []}, "lan")
 check("a second run changes nothing (idempotent)", again["changes"] == [] and len(again["kept"]) == 2, again)
+plan_back = {"vlans": [{"id": 20, "name": "iot", "access": "full"}, {"id": 2, "name": "x", "access": "guest"}],
+             "subnets": []}
+for c in moved["changes"]:
+    f = c["fields"]
+    if c["what"] == "subnet":
+        plan_back["subnets"].append({**f, "name": c["key"], "ranges": [], "addresses": []})
+    elif c["what"] == "range":
+        plan_back["subnets"][-1]["ranges"].append(f)
+    elif c["what"] == "address":
+        plan_back["subnets"][-1]["addresses"].append(f)
+again_dhcp = normalize_dhcp({"install_kea": True, "dhcp": {"interfaces": ["eth0"],
+                                                            "subnets": plan_to_dhcp(plan_back)["subnets"]}})
+
+
+def served(d):
+    return [(s["id"], s["subnet"], s["pools"], s.get("routers"), s["reservations"], s.get("options"),
+             s.get("access")) for s in d["subnets"]]
+
+
+check("nothing a running site serves changes: the plan renders the same subnets as the settings did (area 5)",
+      served(again_dhcp) == served(old), (served(again_dhcp), served(old)))
 
 print("--- the move, with the domain stood in for (1.10.4.37)")
 CALLS = []
@@ -162,6 +185,43 @@ save_vars({**after, "dhcp": {**after["dhcp"], "options": [{"name": "ntp-servers"
 lines = m_opts.move_options_to_plan({**V, "ad_dc_type": "rodc"}, {})
 check("negative: at a read-only DC's site with no writable DC known: said, the settings untouched",
       "no writable domain controller" in lines[0], lines)
+
+print("--- between applies, the plan this site last read (area 5, 1.10.4.14)")
+from fabriclib.dhcp.client_networks import client_networks  # noqa: E402
+from fabriclib.dhcp.common.turn_dhcp_on import turn_dhcp_on  # noqa: E402
+from fabriclib.dhcp.dhcp_overview import dhcp_overview  # noqa: E402
+from fabriclib.ipam.common.plan_cache import save_plan_cache  # noqa: E402
+from fabriclib.ipam.common.plan_holds_subnets import plan_holds_subnets  # noqa: E402
+from fabriclib.ipam.planned_subnets import planned_subnets  # noqa: E402
+
+KEPT = {"site": "lan", "block": 1, "vlans": [{"id": 20, "name": "iot", "access": "guest"}],
+        "subnets": [{"name": "iot", "cidr": "192.168.20.0/24", "vlan": 20, "gateway": "192.168.20.1", "dhcp": True,
+                     "id": 2, "relay": "", "notes": "", "allow_overlap": "", "options": [],
+                     "ranges": [{"kind": "dhcp", "first": "192.168.20.100", "last": "192.168.20.200"}],
+                     "addresses": []}], "networks": [], "domain_options": None, "site_options": None}
+save_plan_cache(KEPT)
+NOW = {"install_kea": True, "dhcp": {"interfaces": ["eth1"]}}
+check("the plan holds the subnets: the settings carry none and a copy is kept", plan_holds_subnets(NOW)
+      and not plan_holds_subnets({"dhcp": {"subnets": []}}))
+check("the served subnets come from the copy kept; settings that still carry theirs win",
+      [s["subnet"] for s in planned_subnets(NOW)] == ["192.168.20.0/24"]
+      and planned_subnets({"dhcp": {"subnets": [{"subnet": "10.9.0.0/24"}]}}) == [{"subnet": "10.9.0.0/24"}])
+check("the firewall and BIND's ACLs see the plan's guest subnet between applies",
+      client_networks(NOW)["guest"] == ["192.168.20.0/24"], client_networks(NOW))
+ov = dhcp_overview({**NOW, "install_kea": False}, networks={})
+check("the Kea tab shows the plan's subnets and says they live in the plan", ov["in_plan"] is True
+      and [s["subnet"] for s in ov["subnets"]] == ["192.168.20.0/24"] and ov["has_settings"], ov)
+NETS = {"eth1": [ipaddress.ip_interface("192.168.20.2/24")]}
+on = turn_dhcp_on({"dhcp": {"interfaces": ["eth0"]}, "host_ip": "192.168.20.2"}, "eth1", "", "", "", NETS)
+check("DHCP turned on with the plan's subnets: only the interface saved, checked against the plan",
+      on == {"interfaces": ["eth1"]}, on)
+save_plan_cache({**KEPT, "subnets": [{**KEPT["subnets"][0], "dhcp": False}]})
+try:
+    turn_dhcp_on({"dhcp": {"interfaces": ["eth0"]}}, "eth1", "", "", "", NETS)
+    check("refused: DHCP on with no subnet of the plan served by DHCP", False)
+except ValidationError as e:
+    check("refused: DHCP on with no subnet of the plan served by DHCP, saying how to add one",
+          "fabricctl ipam vlan add" in str(e), e)
 
 shutil.rmtree(W, ignore_errors=True)
 print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")

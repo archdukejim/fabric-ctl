@@ -17,5 +17,6 @@ def plan_holds_subnets(data):
     Returns: bool.
     Fails:   never.
     Feeds:   dhcp/common/edit_dhcp, dhcp/add_reservation, dhcp/remove_reservation, dhcp/run_dhcp_command (the 0.7
-             commands that edited subnets in the settings); `dhcp on` and the Kea tab with area 5 (1.10.4.41)."""
+             commands that edited subnets in the settings), dhcp/dhcp_overview (the Kea tab), dhcp/common/turn_dhcp_on
+             (`dhcp on`)."""
     return "subnets" not in (data.get("dhcp") or {}) and os.path.exists(plan_cache_path())

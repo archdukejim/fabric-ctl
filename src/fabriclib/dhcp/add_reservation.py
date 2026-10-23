@@ -14,7 +14,7 @@ def add_reservation(actor, mac, ip, hostname="", source="cli"):
              vars.yaml. Applied by the next apply.
     Inputs:  actor — str, who asks (audit).
              mac — str, aa:bb:cc:dd:ee:ff or with dashes (normalized by normalize_dhcp).
-             ip — str address inside one of dhcp.subnets, outside its pools.
+             ip — str address inside one of dhcp.subnets (inside a pool too, since 0.9.0: 1.10.4.3.2).
              hostname — str, one DNS label; optional.
              source — "cli" (default) or "web". Reads/writes vars.yaml under vars_lock.
     Returns: the saved reservation {"mac", "ip", optional "hostname"}.

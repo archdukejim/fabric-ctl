@@ -13,6 +13,7 @@ from fabriclib.deploy.render_templates import BIND_CONFIG
 from fabriclib.deploy.render_vars import render_vars
 from fabriclib.dns.rndc import rndc
 from fabriclib.dns_filter.deploy_resolver import deploy_resolver
+from fabriclib.ipam.options.watch_state import save_watch_state
 from fabriclib.secrets.load_secrets import load_secrets
 
 SECRET_FILES = ("named.conf.keys", "rndc.key")
@@ -34,12 +35,14 @@ def publish_zone_list(added=(), removed=()):
              render BIND's configuration as apply does (the zone list, and the keys and ACLs it names) and the added
              zones' files into the deploy base, `rndc reconfig`, check BIND serves each added zone, delete the removed
              zones' files and journals; then, when the DNS filter is installed, render and reload the resolver's
-             configuration (its forward zones), through deploy_resolver. Nothing restarts. The settings are checked
-             exactly as an apply checks them (check_rendered, decision 2.1.4.7), so the zone list keeps DHCP's reverse
-             zones and Kea's grants between applies.
+             configuration (its forward zones), through deploy_resolver. Nothing restarts. The settings are made whole
+             and checked exactly as an apply does them (check_rendered, decisions 2.1.4.7 and 2.1.10.21): the address
+             plan, the settings check, so the zone list keeps DHCP's reverse zones, Kea's grants and the denies on PTRs
+             set by hand between applies.
     Inputs:  added — zone names whose file is written (a new zone: its SOA, NS and ns record); removed — zone names
              whose files go once BIND has dropped them. Reads vars.yaml, fabric's secrets (read only: nothing is
-             generated or saved here), the federation registry and the templates; the caller holds vars_lock.
+             generated or saved here), the address plan (read from the DC as an apply reads it, and kept), the
+             federation registry and the templates; the caller holds vars_lock.
     Returns: {"bind": True, "resolver": True when the resolver was rendered (installed), else False}.
     Fails:   NotPublished (a ValidationError) saying why, before any file is written: a TSIG key whose secret apply
              has not made yet, settings the apply's check refuses or that do not render; the caller rolls back the
@@ -55,9 +58,9 @@ def publish_zone_list(added=(), removed=()):
         raise NotPublished("a TSIG key in the settings has no secret yet: run an apply first "
                            "(it makes and saves it)")
     jinja_env = jinja_env_for(paths["jinja"])
-    try:                                    # as an apply: the settings check, the zone-list context
+    try:                                    # as an apply: the plan, the settings check, the zone-list context
         final_vars, context = render_vars(jinja_env, secrets, custom_vars)
-        check_rendered(final_vars, secrets, context, FEDERATION_FILE)
+        checked = check_rendered(final_vars, secrets, context, FEDERATION_FILE)
     except ValidationError as e:
         raise NotPublished(f"the settings do not pass the apply's check, nothing changed: {e}")
     context.update(final_vars)
@@ -96,6 +99,8 @@ def publish_zone_list(added=(), removed=()):
             path = os.path.join(data, f"db.{zone}{suffix}")
             if os.path.exists(path):
                 os.remove(path)
+    if checked["dns_digest"] is not None:  # BIND serves this plan's names now: the poll may count DNS current
+        save_watch_state("plan-dns", {"dns": checked["dns_digest"]})
 
     if not final_vars.get("install_resolver"):
         return {"bind": True, "resolver": False}

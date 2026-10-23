@@ -115,7 +115,7 @@ VARS = {"deploy_base_dir": W, "domain": "lan.test", "org_domain": "lan.test", "h
         "dns_filter": "bind", "dns_filter_lists": [], "dns_filter_upstreams": [{"address": "1.1.1.1", "name": "cloudflare-dns.com"}],
         "service_users": {"bind": {"uid": 600, "gid": 600}, "resolver": {"uid": 913, "gid": 913}},
         "dns": {"dynamic_zone_var": {"zone_authority": True, "A": [{"name": "www", "ip": "10.9.8.7"}]}},
-        # the zone path checks the settings as an apply does (2.1.4.7): an install's password policy (2.1.6.13)
+        # the zone path checks the settings as an apply does (2.1.4.7, 2.1.10.21): an install's password policy (2.1.6.13)
         "ad_password_policy": {"minimum_length": 14, "complexity": True, "history": 24, "minimum_age_days": 0,
                                "maximum_age_days": 0, "lockout_threshold": 5, "lockout_minutes": 15,
                                "lockout_window_minutes": 15}}
@@ -325,8 +325,10 @@ try:
     check("menu: an admin's own record still deletes", "www" not in [x["name"] for x in
                                                                      vars_dns()["dynamic_zone_var"].get("A", [])],
           r.stdout[-400:])
-    # ---- DHCP between applies (2.3.4.3, decision 2.1.4.7): a zone change renders BIND's zone list from the same
-    # checked settings as an apply, so DHCP's reverse zones and Kea's grants stay
+
+    # ---- DHCP between applies (2.3.4.3, 2.3.10.4.10; decision 2.1.4.7, extended by 2.1.10.21): a zone change renders
+    # BIND's zone list from the same checked settings as an apply, so DHCP's reverse zones, Kea's grants and the
+    # denies on hand-set PTRs stay
     REV45, REV46 = "45.254.10.in-addr.arpa", "46.254.10.in-addr.arpa"
     iface = lib("from fabriclib.system.host_networks import host_networks\nprint(sorted(host_networks())[0])")
     iface = iface.stdout.strip()
@@ -347,7 +349,7 @@ try:
             yaml.safe_dump(v, f, sort_keys=False)
 
     def kea_on(v):
-        v["install_kea"] = True                     # a pool in 45 (no forward record: DHCP's only), one in 46
+        v["install_kea"] = True                     # a pool in 45 (no name set by hand: DHCP's only), one in 46
         v["dhcp"] = {"interfaces": [iface], "subnets": [
             {"subnet": "10.254.45.0/24", "name": "lab45", "vlan": 45, "pools": ["10.254.45.100 - 10.254.45.150"],
              "routers": "10.254.45.1"},
@@ -382,13 +384,20 @@ try:
     conf = zone_list()
     check("add between applies: accepted, and the zone list keeps the reverse zone that holds only DHCP's PTRs, "
           "with Kea's grant", st == 200 and 'grant "kea-ddns" zonesub PTR DHCID;' in zone_block(conf, REV45)
-          and 'grant "kea-ddns" zonesub PTR DHCID;' in zone_block(conf, REV46)
           and status(BIND_IP, "between.lan") == "NOERROR" and status(BIND_IP, REV45) == "NOERROR", (st, res, conf))
+    check("add between applies: the PTR set by hand keeps its deny before Kea's grant (2.1.10.20)",
+          f'deny "kea-ddns" name 9.{REV46}. ANY;' in zone_block(conf, REV46)
+          and 'grant "kea-ddns" zonesub PTR DHCID;' in zone_block(conf, REV46)
+          and 'grant "kea-ddns" zonesub A AAAA DHCID;' in zone_block(conf, "dhcp.lan.test"), conf)
     upd = sh(f"printf 'server {BIND_IP}\\nzone {REV45}\\nupdate add 120.{REV45} 60 PTR laptop9.dhcp.lan.test.\\n"
              f"send\\n' | nsupdate -k {W}/kea-ddns.key 2>&1", ok=False)
     check("add between applies: DHCP's PTR registration still works (Kea's key adds a PTR in its reverse zone)",
           upd.returncode == 0 and short(BIND_IP, f"120.{REV45}", "PTR") == "laptop9.dhcp.lan.test.",
           upd.stdout[-300:])
+    grab = sh(f"printf 'server {BIND_IP}\\nzone {REV46}\\nupdate delete 9.{REV46} PTR\\nupdate add 9.{REV46} 60 PTR "
+              f"evil.dhcp.lan.test.\\nsend\\n' | nsupdate -k {W}/kea-ddns.key 2>&1", ok=False).stdout
+    check("add between applies: Kea's key still may not replace the PTR set by hand",
+          "REFUSED" in grab and short(BIND_IP, f"9.{REV46}", "PTR") == "nas46.lan.test.", grab[-300:])
 
     # covers: agent:post.zones -
     # covers: agent:post.zones.*.delete -
@@ -413,6 +422,38 @@ try:
           st == 200 and status(BIND_IP, "between.lan") != "NOERROR"
           and 'grant "kea-ddns" zonesub PTR DHCID;' in zone_block(zone_list(), REV45)
           and status(BIND_IP, REV45) == "NOERROR", (st, res))
+
+    # Sync now's quick path (manual 1.10.4.28, decision 2.1.10.29): names set by hand and a new subnet's reverse zone
+    # published under the running BIND without an apply; a reloaded reverse zone keeps Kea's PTR (2.1.10.7)
+    REV47 = "47.254.10.in-addr.arpa"
+
+    def more(v):
+        v["dhcp"]["subnets"].append({"subnet": "10.254.47.0/24", "name": "lab47", "vlan": 47,
+                                     "pools": ["10.254.47.100 - 10.254.47.150"], "routers": "10.254.47.1"})
+        v["dns"]["dynamic_zone_var"]["A"] += [{"name": "printer47", "ip": "10.254.47.9"},
+                                              {"name": "nas45", "ip": "10.254.45.9"}]
+    edit_vars(more)
+    code = ("from fabriclib.dns.publish_plan_records import publish_plan_records\n"
+            "try:\n    print('done', publish_plan_records())\nexcept Exception as e:\n    print('REFUSED', e)")
+    r = lib(code)
+    check("Sync now's quick path: a new subnet's reverse zone served, with its PTR; a new name served",
+          "done" in r.stdout and status(BIND_IP, REV47) == "NOERROR"
+          and short(BIND_IP, f"9.{REV47}", "PTR") == "printer47.lan.test."
+          and short(BIND_IP, "printer47.lan.test") == "10.254.47.9", r.stdout[-400:] + r.stderr[-600:])
+    check("Sync now's quick path: a changed reverse zone reloaded with fabric's new PTR, Kea's PTR kept",
+          short(BIND_IP, f"9.{REV45}", "PTR") == "nas45.lan.test."
+          and short(BIND_IP, f"120.{REV45}", "PTR") == "laptop9.dhcp.lan.test.", dig(BIND_IP, f"120.{REV45}", "PTR"))
+    check("Sync now's quick path: nothing restarted (BIND's container kept running)",
+          sh("docker inspect -f '{{.RestartCount}} {{.State.Running}}' bind9", ok=False).stdout.strip() == "0 true")
+    r = lib(code)
+    check("a second run finds nothing to change and reloads nothing", "'zones': []" in r.stdout
+          and "'config': False" in r.stdout, r.stdout[-400:])
+    edit_vars(lambda v: v["dhcp"].__setitem__("interfaces", ["nosuch0"]))
+    before_conf = zone_list()
+    r = lib(code)
+    check("refused when the apply's settings check refuses (an interface this host lacks), nothing changed",
+          "REFUSED" in r.stdout and "nothing changed" in r.stdout and zone_list() == before_conf, r.stdout[-400:])
+    edit_vars(lambda v: v["dhcp"].__setitem__("interfaces", [iface]))
 finally:
     if agent_proc:
         agent_proc.terminate()

@@ -10,7 +10,7 @@ def site_plan(read, site):
              "option_defs", "client_classes"}), "read" (local time it was read)}; empty lists for a site with nothing
              in its plan. Who may change it is the grants' (1.6.13.12), checked by fabric-agent, not kept here.
     Fails:   never.
-    Feeds:   the plan's functions (1.10.4.41, area 4) and Kea's rendering from it (area 5)."""
+    Feeds:   the plan's functions (1.10.4.41, area 4); load_address_plan, poll_plan (Kea and DNS from it, area 5)."""
     plan = (read.get("plans") or {}).get(site) or {}
     block = next((s.get("block") for s in read.get("sites") or [] if s["name"] == site), None)
     sets = read.get("option_sets") or {}

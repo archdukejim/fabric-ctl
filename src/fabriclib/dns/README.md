@@ -48,4 +48,6 @@ seconds (`publish_zone_list.py`).
 | `normalize_acl_policies.py` | Validate ACL update policies (hosts or any name, record types, zone) |
 | `set_acl_policy.py` | Set or clear the update policy every TSIG key in an ACL inherits (locked, audited) |
 | `run_acl_command.py` | `fabricctl acl list/add/remove/policy` (applies after a change) |
+| `reverse_by_hand.py` | The reverse names whose PTR is set by hand, by zone (DHCP's key is denied them, 2.1.10.20) |
+| `publish_plan_records.py` | The same quick path for the address plan's DNS (Sync now): the zone list, and every zone whose records changed reloaded under the running BIND |
 | `common/` | Helpers shared by these files |

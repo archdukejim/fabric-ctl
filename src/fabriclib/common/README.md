@@ -32,3 +32,4 @@
 | `service_user.py` | A service's uid/gid from `service_users` |
 | `read_published_lock.py` | fabric's own published images as the lock pins them (`published:` in `images.lock.yaml`), signer and issuer |
 | `lock_dir.py` | Where `images.lock.yaml` is for a jinja folder (the host's fabric/, or the checkout's config/) |
+| `try_vars_lock.py` | The same lock taken without waiting: None while an apply holds it (the plan poll, Sync now) |

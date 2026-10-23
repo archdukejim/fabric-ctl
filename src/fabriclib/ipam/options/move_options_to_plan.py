@@ -45,8 +45,7 @@ def move_options_to_plan(v, secrets, container="samba"):
              in the settings, the DC not answering, options the checks refuse, a read-only DC without a writable
              partner) is reported and left for the next apply, the settings untouched.
     Fails:   OSError or yaml errors reading or writing vars.yaml or the record.
-    Feeds:   deploy/restart_changed (every apply), wired with area 5 of the port (1.10.4.41), as
-             move_subnets_to_plan."""
+    Feeds:   deploy/restart_changed (every apply), after move_subnets_to_plan."""
     path = deploy_paths()["vars"]
     data = load_vars(path)
     d = data.get("dhcp") or {}

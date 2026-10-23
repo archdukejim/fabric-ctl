@@ -36,8 +36,8 @@ def move_subnets_to_plan(v, secrets, container="samba"):
              left for the next run, the settings untouched. A site with a read-only DC reads and writes its plan at
              the writable DC it replicates from (samba/writable_server, decision 2.1.10.43).
     Fails:   OSError or yaml errors reading or writing vars.yaml or the record.
-    Feeds:   deploy/restart_changed (every apply) and setup/start_services (setup), wired with area 5 of the port
-             (1.10.4.41), when Kea renders from the plan: until then nothing calls it, so no site loses its subnets."""
+    Feeds:   deploy/restart_changed (every apply) and setup/start_services (setup): Kea renders from the plan
+             (load_address_plan), so the next apply serves what was moved."""
     path = deploy_paths()["vars"]
     data = load_vars(path)
     raw = (data.get("dhcp") or {}).get("subnets")

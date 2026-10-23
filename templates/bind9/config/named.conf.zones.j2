@@ -95,8 +95,12 @@ zone "{{ rev_zone }}" {
     allow-query { {% for acl_name in bind_acls.keys() %}"{{ acl_name }}"; {% endfor %}};
     allow-transfer { none; };
 {% if rev_zone in dhcp_reverse_zones | default([]) %}
-    // DHCP's PTRs: Kea's key writes PTR and DHCID here; fabric keeps them when it regenerates the file (2.1.10.7)
+    // DHCP's PTRs: Kea's key writes PTR and DHCID here; fabric keeps them when it regenerates the file (2.1.10.7).
+    // A PTR set by hand (from a forward record of fabric's zones) is never Kea's to replace (2.1.10.20).
     update-policy {
+{% for label in (reverse_by_hand | default({})).get(rev_zone, []) %}
+        deny "kea-ddns" name {{ label }}.{{ rev_zone }}. ANY;
+{% endfor %}
         grant "kea-ddns" zonesub PTR DHCID;
     };
 {% endif %}

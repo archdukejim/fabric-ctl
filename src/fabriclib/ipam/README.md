@@ -26,7 +26,12 @@ are pure functions checked before anything is written.
 | `export_plan.py` | The address table as CSV |
 | `add_dhcp_subnet.py`, `set_dhcp_subnet.py`, `remove_reservation_mac.py` | The old `fabricctl dhcp add-subnet`, `set-subnet` and `unreserve` as changes to the plan (their aliases, `dhcp/run_dhcp_alias`) |
 | `subnets_to_plan.py` | The upgrade: a site's `dhcp.subnets` as the plan's changes, nothing it serves changed |
-| `move_subnets_to_plan.py` | The upgrade's move: the settings' subnets into the plan once, recorded, `dhcp.subnets` removed (called from area 5 on) |
-| `run_ipam_command.py` | `fabricctl ipam`: routes only (show, find, export, block, vlan, subnet, range, address; option, class and netboot to `options/`) |
+| `move_subnets_to_plan.py` | The upgrade's move: the settings' subnets into the plan once, recorded, `dhcp.subnets` removed (called by every apply and by setup) |
+| `run_ipam_command.py` | `fabricctl ipam`: routes only (show, find, export, block, vlan, subnet, range, address, sync; option, class, netboot and watch to `options/`) |
+| `plan_to_dhcp.py` | A site's plan as Kea's `dhcp.subnets` and the A records of its published addresses |
+| `planned_subnets.py` | The DHCP subnets a site serves, from its settings or the plan it last read |
+| `load_address_plan.py` | At an apply: the plan read (or the last one kept) into Kea's subnets and the site's zone |
+| `poll_plan.py` | One run of the plan poll (fabric-plan-watch.timer): the USN, then Kea alone re-rendered when its input changed |
+| [sync/](sync/) | Sync now: the plan poll at once, and the plan's DNS by the quick path |
 | [options/](options/) | The DHCP options in the plan, client classes and netboot presets |
 | [common/](common/) | Helpers the address manager's commands share |

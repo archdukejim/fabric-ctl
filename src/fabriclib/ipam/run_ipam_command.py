@@ -23,6 +23,7 @@ from fabriclib.ipam.set_subnet import set_subnet
 from fabriclib.ipam.set_vlan import set_vlan
 from fabriclib.ipam.show_plan import show_plan
 from fabriclib.ipam.suggestions import suggest_block
+from fabriclib.ipam.sync.sync_plan import sync_plan
 
 USAGE = """usage: fabricctl ipam show [<site>]                    a site's VLANs, subnets, ranges, addresses, leases
        fabricctl ipam find <ip|name|mac>               where an address, a name or a MAC is, in every site
@@ -47,6 +48,9 @@ USAGE = """usage: fabricctl ipam show [<site>]                    a site's VLANs
                                [--dns on|off]
        fabricctl ipam address remove <ip>
        fabricctl ipam option|class|netboot ...         DHCP options, client classes, netboot (`option --help`)
+       fabricctl ipam watch [--scheduled]              the plan poll once (fabric-plan-watch.timer runs it)
+       fabricctl ipam sync                             Sync now: the plan poll at once, and BIND's records when DNS
+                                                       waits for them (this site's own)
    --site S: another site's plan (any site your grants' networks rights reach, manual 1.6.13.12); a change to
    this site's plan applies at once unless --no-apply"""
 FLAGS = {"--site", "--name", "--subnet", "--gateway", "--purpose", "--notes", "--access", "--dhcp", "--relay",
@@ -138,7 +142,7 @@ def _done(v, out, bare):
     for w in out["warnings"]:
         print(f"warning: {w}")
     if out["site"] != v.get("site_name"):
-        print(f"written to {out['site']}'s plan: it takes effect at that site's next apply")
+        print(f"written to {out['site']}'s plan: that site's Kea takes it within 30 s (fabric-plan-watch)")
         return 0
     return apply_dhcp_change(["--no-apply"] if "--no-apply" in bare else [])
 
@@ -158,9 +162,9 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
     """Purpose: `fabricctl ipam …` — the address manager's plan from the command line (manual 1.10.4.9, 1.10.4.16;
              Volume 4: 4.10.2): show, find and export, the site's number, and changes to VLANs, subnets (several
              per VLAN, 2.1.10.18), ranges and addresses, this site's or (--site) any site the caller's networks
-             rights reach (1.6.13.12); `option`, `class` and `netboot` go to run_option_command. Routes only: every
-             rule is in the function each command calls. Scans and Sync come with later areas of the port
-             (1.10.4.41).
+             rights reach (1.6.13.12); `option`, `class`, `netboot` and `watch` (the plan poll) go to
+             run_option_command; `sync` is Sync now (sync_plan, 1.10.4.28). Routes only: every rule is in the
+             function each command calls. Scans come with a later area of the port (1.10.4.41).
     Inputs:  v — the rendered vars (SetupContext.load_state().vars); argv — list of str after "ipam" (default
              show); secrets — fabric's secrets (default: loaded by the functions); container — the DC's container
              (tests name their own). Run as root, acting for the Enterprise Admin. See USAGE.
@@ -172,12 +176,23 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
         print(USAGE)
         return 0
     cmd, args = (argv[0], argv[1:]) if argv else ("show", [])
-    if cmd in ("option", "class", "netboot"):          # the DHCP options and netboot: their own flags and usage
+    if cmd in ("option", "class", "netboot", "watch"):     # the options, netboot, the poll: their own flags
         return run_option_command(v, cmd, args, secrets, container)
     common = {"secrets": secrets, "container": container}
     try:
         pos, vals, bare = _parse(args)
         site = vals.get("--site", "")
+        if cmd == "sync" and not pos:                                      # Sync now (1.10.4.28)
+            if site:
+                raise ValidationError("a sync is this site's own: run it at that site")
+            out = sync_plan(v, "root", container=container, secrets=secrets)
+            print(f"plan poll: {out['state']}" + ("; Kea restarted" if out["kea_restarted"] else "; Kea unchanged")
+                  + ("; firewall brought in line" if out["firewall"] else ""))
+            if out.get("why"):
+                print(out["why"])
+            print("DNS: " + (("published: " + (", ".join(out["dns"]["zones"]) or "nothing changed in the zones"))
+                             if out["dns"] else "already in line with the plan"))
+            return 0
         if cmd == "show" and len(pos) <= 1 and not site:
             which = pos[0] if pos else v["site_name"]
             read = read_plan(v, secrets, of=which, container=container)

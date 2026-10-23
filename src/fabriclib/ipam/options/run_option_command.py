@@ -13,6 +13,7 @@ from fabriclib.ipam.options.set_plan_option import set_plan_option
 from fabriclib.ipam.options.show_netboot import show_netboot
 from fabriclib.ipam.options.show_options import show_options
 from fabriclib.ipam.options.undefine_plan_option import undefine_plan_option
+from fabriclib.ipam.poll_plan import poll_plan
 
 USAGE = """usage: fabricctl ipam option show [domain | site | subnet <name|cidr> | address <ip>]
        fabricctl ipam option set <scope> <name|code> <data> [--always-send] [--csv off] [--space S]
@@ -27,12 +28,13 @@ USAGE = """usage: fabricctl ipam option show [domain | site | subnet <name|cidr>
        fabricctl ipam netboot on <vlan|subnet|ip> --server ADDRESS|NAME [--bios F] [--uefi F] [--arm64 F]
                                [--ipxe URL] [--http URL]
        fabricctl ipam netboot off <vlan|subnet|ip>
+       fabricctl ipam watch [--scheduled]              the plan poll once (fabric-plan-watch.timer runs it)
    --site S: another site's options (any site your grants' networks options right reaches; the domain's set needs
    it at all sites, manual 1.6.13.12); `org` and --org, 0.8's words, read as `domain` and --domain; a change to
    this site's plan or to the domain's set applies here at once unless --no-apply"""
 FLAGS = {"--site", "--csv", "--space", "--record-types", "--test", "--next-server", "--server-hostname",
          "--boot-file", "--server", "--bios", "--uefi", "--arm64", "--ipxe", "--http"}
-BARE = {"--always-send", "--array", "--domain", "--org", "--no-apply"}
+BARE = {"--always-send", "--array", "--domain", "--org", "--no-apply", "--scheduled"}
 TARGETED = ("subnet", "class", "address")
 
 
@@ -87,16 +89,18 @@ def _done(v, out, bare, lines):
     for w in out.get("warnings") or []:
         print(f"warning: {w}")
     if out["site"] != v.get("site_name"):
-        print(f"written to {out['site']}'s plan: it takes effect at that site's next apply")
+        print(f"written to {out['site']}'s plan: that site's Kea takes it within 30 s (fabric-plan-watch)")
         return 0
     return apply_dhcp_change(["--no-apply"] if "--no-apply" in bare else [])
 
 
 def run_option_command(v, cmd, args, secrets=None, container="samba"):
-    """Purpose: `fabricctl ipam option | class | netboot` (manual 1.10.4.24.5, 1.10.4.25, 1.10.4.26; Volume 4:
-             4.10.2.10, 4.10.2.11), run as root, acting for the Enterprise Admin. Routes only: every rule is in the
-             function each command calls.
-    Inputs:  v — the rendered vars; cmd — "option", "class" or "netboot"; args — the arguments after it; secrets —
+    """Purpose: `fabricctl ipam option | class | netboot | watch` (manual 1.10.4.24.5, 1.10.4.25, 1.10.4.26;
+             Volume 4: 4.10.2.10, 4.10.2.11, 4.10.2.13), run as root, acting for the Enterprise Admin. Routes only:
+             every rule is in the function each command calls. `watch --scheduled` (the timer) prints only when Kea
+             was rendered or the plan has no subnet to serve, so the journal is not filled every 30 s.
+    Inputs:  v — the rendered vars; cmd — "option", "class", "netboot" or "watch"; args — the arguments after it;
+             secrets —
              fabric's secrets (default loaded by the functions); container — the DC's container. See USAGE.
     Returns: exit status: 0 success (and help); 1 a refusal (printed with why) or a failed apply; 2 usage.
     Fails:   ValidationError is caught (exit 1); other exceptions propagate.
@@ -108,6 +112,18 @@ def run_option_command(v, cmd, args, secrets=None, container="samba"):
     try:
         pos, vals, bare = _parse(args)
         site = vals.get("--site", "")
+        if cmd == "watch" and not pos:                     # the plan poll (1.10.4.26)
+            out = poll_plan(v, container=container, secrets=secrets)
+            if "--scheduled" not in bare or out["state"] in ("rendered", "no subnet"):
+                print(f"plan poll: {out['state']}" + (f" (USN {out['usn']})" if out.get("usn") else "")
+                      + ("; Kea restarted" if out.get("kea_restarted") else "")
+                      + ("; firewall brought in line" if out.get("firewall") else ""))
+            if out.get("why"):
+                print(out["why"])
+            if out.get("dns_pending"):
+                print("an apply is needed: the plan's published names or subnets changed (sudo fabricctl --apply, "
+                      "or fabricctl ipam sync)")
+            return 0
         sub, rest = (pos[0], pos[1:]) if pos else ("", [])
         if cmd == "option" and sub == "show":
             target = ""

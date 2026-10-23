@@ -36,3 +36,4 @@ installs what changed and restarts or reloads what is affected.
 | `renew_landing_cert.py` | Apply's last step: the landing page's certificate issued again at once when its names changed; the replaced one expires (2.1.4.8, 1.5.1.7) |
 | `verify_published_images.py` | Before anything is installed: the signature of every published fabric image this deploy runs (2.1.14.6, 2.1.14.10) |
 | `compose_builds.py` | Whether a rendered compose file builds its image or pulls it (published images are pulled) |
+| `vars_to_save.py` | The `vars.yaml` an apply installs: the checked settings without what the address plan laid over them for the render (manual 1.10.4.14) |

@@ -13,8 +13,11 @@ RESERVED_PREFIXES = ("VENDOR_CLASS_", "HA_", "SPAWN_", "AFTER_")
 def normalize_client_classes(classes):
     """Purpose: check dhcp.client_classes (manual 1.10.2.3): clients matched by a Kea expression get
              their own options, and for network boot their own next-server, server name and boot file.
-    Inputs:  classes — list of {name, test, options, next_server, server_hostname, boot_file_name}, or None.
-    Returns: the classes normalized (options through normalize_options; empty optional fields left out).
+    Inputs:  classes — list of {name, test, options, next_server, server_hostname, boot_file_name, additional
+             (true: Kea's only-in-additional-list), marker (true: a class with no test that a reservation assigns)},
+             or None. fabric's netboot classes use additional and marker (manual 1.10.4.25).
+    Returns: the classes normalized (options through normalize_options; empty optional fields left out; a marker is
+             {name, marker} alone).
     Fails:   ValidationError: not a list; a bad, reserved (ALL, KNOWN, VENDOR_CLASS_…) or repeated name; no test
              or one longer than 1000 characters or with a line break; next_server not an IPv4 address; a
              server name or boot file longer than 63 / 127 characters; errors of normalize_options. Kea checks the
@@ -34,10 +37,15 @@ def normalize_client_classes(classes):
         if name in seen:
             raise ValidationError(f"client class {name} is defined twice")
         seen.add(name)
+        if c.get("marker") is True:       # a netboot marker: no test, assigned by a reservation (2.1.10.25)
+            out.append({"name": name, "marker": True})
+            continue
         test = str(c.get("test", "")).strip()
         if not test or len(test) > 1000 or "\n" in test:
             raise ValidationError(f"client class {name}: a test (one Kea expression, e.g. option[93].hex == 0x0007)")
         entry = {"name": name, "test": test, "options": normalize_options(c.get("options"), f"client class {name}")}
+        if c.get("additional") is True:   # evaluated only where a subnet names it (netboot, 2.1.10.25)
+            entry["additional"] = True
         if c.get("next_server"):
             try:
                 entry["next_server"] = str(ipaddress.IPv4Address(str(c["next_server"]).strip()))

@@ -9,8 +9,8 @@ def option_label(option, defs=None):
     Returns: {"code": int or None, "name": str ("" when only a code Kea has no name for), "space": str, "key": the
              option's identity for comparisons ((code or name, space)), "provided": bool (one fabric provides)}.
     Fails:   never.
-    Feeds:   check_option_set (a known code stored by its name), effective_options, show_options, the Kea render
-             (1.10.4.41, area 5: merging the levels)."""
+    Feeds:   check_option_set (a known code stored by its name), effective_options, show_options, merge_option_sets
+             (the Kea render's merged levels)."""
     space = option.get("space", "dhcp4")
     name, code = option.get("name"), option.get("code")
     for d in defs or []:

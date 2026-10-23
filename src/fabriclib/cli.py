@@ -18,10 +18,11 @@
   fabricctl acl list|add|remove  BIND ACLs (who may query the zones)
   fabricctl dns-filter lists|apply|status|log|stats|ingest
                                  the DNS filter's BIND resolver: its lists, their state, the query log
-  fabricctl dhcp status|leases|reserve|unreserve|add-subnet|set-subnet|remove-subnet|option|class
+  fabricctl dhcp status|leases|reserve|unreserve|add-subnet|set-subnet|remove-subnet|option|class|clean-names
                                  DHCP (optional Kea): subnets, leases, reservations, options, client classes
-  fabricctl ipam show|find|export|block|vlan|subnet|range|address
-                                 the address manager: every site's VLANs, subnets, ranges and addresses
+  fabricctl ipam show|find|export|block|vlan|subnet|range|address|option|class|netboot|watch|sync
+                                 the address manager: every site's VLANs, subnets, ranges, addresses, DHCP options,
+                                 netboot; the plan poll and Sync now
                                  (fabricctl ipam --help)
   fabricctl radius status|log|add-client|rotate-secret|remove-client
                                  802.1X (optional FreeRADIUS): RADIUS clients, decisions

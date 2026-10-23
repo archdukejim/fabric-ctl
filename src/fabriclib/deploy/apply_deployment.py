@@ -36,17 +36,23 @@ from fabriclib.deploy.render_vars import render_vars
 from fabriclib.deploy.renew_landing_cert import renew_landing_cert
 from fabriclib.deploy.restart_changed import restart_changed
 from fabriclib.deploy.service_units import service_units
+from fabriclib.deploy.vars_to_save import vars_to_save
 from fabriclib.deploy.verify_published_images import verify_published_images
+from fabriclib.dhcp.keep_hand_set_addresses import keep_hand_set_addresses
 from fabriclib.federation.deploy_federation_endpoint import deploy_federation_endpoint
+from fabriclib.ipam.options.watch_state import save_watch_state
 from fabriclib.secrets.load_secrets import load_secrets
 from fabriclib.secrets.save_secrets import save_secrets
 
 
 def _prepare(paths):
-    """Purpose: everything up to the render: secrets, the checked settings and the render context (check_rendered,
-             shared with the quick zone path: 2.1.4.7).
+    """Purpose: everything up to the render: secrets, the checked settings (the DHCP subnets and static names from the
+             site's address plan in the domain, manual 1.10.4.14) and the render context (check_rendered, shared with
+             the quick zone path: 2.1.4.7, 2.1.10.21).
     Inputs:  paths — deploy_paths().
-    Returns: dict with secrets, final_vars, context, tsig_keys, jinja_env, reverse (reverse_zones()).
+    Returns: dict with secrets, final_vars, context, tsig_keys, jinja_env, reverse (reverse_zones()), settings (the
+             settings before the plan was laid over them: vars_to_save keeps vars.yaml to them), dns_digest
+             (what DNS is rendered from out of the plan, or None: kept once BIND took it, 2.3.10.5.6).
     Fails:   ValidationError (settings, secrets that cannot be loaded or saved, fixed identity).
     Feeds:   apply_deployment."""
     custom_vars = load_vars(paths["vars"])
@@ -69,10 +75,15 @@ def _prepare(paths):
     final_vars, context = render_vars(jinja_env, secrets, custom_vars)
     archive_vars(paths["target"])
     check_fixed_identity(final_vars, paths["config"])
-    # the settings check and BIND's zone-list context: shared with the quick zone path (dns/publish_zone_list, 2.1.4.7)
+    settings = copy.deepcopy(final_vars)   # before the plan is laid over them: what vars.yaml keeps (vars_to_save)
+    # the plan's subnets and static names (1.10.4.14), the settings check and BIND's zone-list context: shared with
+    # the quick zone path (dns/publish_zone_list, 2.1.4.7, 2.1.10.21)
     checked = check_rendered(final_vars, secrets, context, paths["federation"])
+    for line in checked["lines"]:
+        print(line)
     return {"secrets": secrets, "final_vars": final_vars, "context": context, "tsig_keys": tsig_keys,
-            "jinja_env": jinja_env, "reverse": checked["reverse"]}
+            "jinja_env": jinja_env, "reverse": checked["reverse"], "dns_digest": checked["dns_digest"],
+            "settings": settings}
 
 
 def _deploy(paths, start_services):
@@ -90,7 +101,7 @@ def _deploy(paths, start_services):
         shutil.rmtree(out)
     os.makedirs(out, exist_ok=True)
     with open(os.path.join(out, "vars.yaml"), "w") as f:
-        yaml.safe_dump(final_vars, f, default_flow_style=False)
+        yaml.safe_dump(vars_to_save(final_vars, p["settings"]), f, default_flow_style=False)
     context.update(final_vars)
     try:                                   # Fluent Bit reads the journal through this group
         context.setdefault("journal_gid", grp.getgrnam("systemd-journal").gr_gid)
@@ -98,7 +109,7 @@ def _deploy(paths, start_services):
         pass
     load_link_vars(paths, jinja_env, context)
     units = service_units(paths["base"], final_vars)
-    reverse = p["reverse"]                 # with reverse_zone_names and federation_links (check_rendered)
+    reverse = p["reverse"]                 # with reverse_zone_names, reverse_by_hand, federation_links (check_rendered)
     print("Rendering Jinja2 templates...")
     render_templates(paths, jinja_env, context, final_vars, secrets, p["tsig_keys"], units, reverse)
     if verify_published_images(paths, final_vars):  # nothing installed yet: a refusal changes nothing
@@ -122,6 +133,7 @@ def _deploy(paths, start_services):
         restart.add("stepca")
     install_runtime_dirs(paths, final_vars, p["tsig_keys"])
     install_timers(paths, final_vars)
+    keep_hand_set_addresses(final_vars)    # for the hourly cleanup of DHCP names left behind (2.1.10.22)
 
     state = {"restart": restart, "rebuild": svc["rebuild"],
              "daemon_reload": svc["daemon_reload"] or ngx["daemon_reload"] or web["agent"]
@@ -130,12 +142,16 @@ def _deploy(paths, start_services):
              "webui": web["webui"], "agent": web["agent"], "federation_unit": fed["unit_changed"]}
     bind_ids = service_user(final_vars, "bind")
     if not start_services:
-        return finish_without_start(paths, state, bind_ids)
-    restarted = restart_changed(paths, final_vars, secrets, state, bind_ids)
-    # the landing page's names follow the zone: a changed alias gets its certificate now; the old one expires (2.1.4.8)
-    if renew_landing_cert(paths, final_vars):
-        restarted.add("nginx")
-    return restarted
+        changed = finish_without_start(paths, state, bind_ids)
+    else:
+        changed = restart_changed(paths, final_vars, secrets, state, bind_ids)
+        # the landing page's names follow the zone: a changed alias gets its certificate now; the old one expires
+        # (2.1.4.8)
+        if renew_landing_cert(paths, final_vars):
+            changed.add("nginx")
+    if p["dns_digest"] is not None:        # BIND took this plan's names: only now may the poll count DNS current
+        save_watch_state("plan-dns", {"dns": p["dns_digest"]})
+    return changed
 
 
 def apply_deployment(start_services=True):
@@ -152,9 +168,11 @@ def apply_deployment(start_services=True):
              (fabric-web and fabric-agent queued with --no-block); with False, the caller restarts them.
     Fails:   sys.exit(1) after an "Error: …" line for every refusal (ValidationError): secrets that cannot be loaded
              (OpenBao locked) or saved; invalid TSIG keys, ACL policies, RADIUS clients/people, DHCP or time settings,
-             dns_filter; host_ram_capacity under 4; site_name, org_domain or
+             dns_filter; DHCP on with its subnets in the address plan and no plan to be had (the DC not answering
+             and none kept, load_address_plan); host_ram_capacity under 4; site_name, org_domain or
              ldap_base_dn not valid or not what they were at install; a template that does not render; an image
-             build that fails (start_services=False); BIND9 refusing `rndc reconfig`; the landing page's certificate
+             build that fails (start_services=False); BIND9 refusing `rndc reconfig`; BIND refusing to delete a DHCP
+             name left behind (restart_changed, 2.1.10.22, raised once the rest is done); the landing page's certificate
              not issued again for changed names (renew_landing_cert, 2.1.4.8, after everything else is applied); a
              published image whose signature does not verify (verify_published_images); fabric's own units (the
              `services` host change) not approved — an install set up before consent existed is not refused. A bad

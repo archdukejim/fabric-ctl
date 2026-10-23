@@ -3,10 +3,14 @@ import subprocess
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.deploy.compose_builds import compose_builds
+from fabriclib.dhcp.clear_stale_dhcp_names import clear_stale_dhcp_names
+from fabriclib.dhcp.hand_set_addresses import hand_set_addresses
 from fabriclib.dns.freeze_and_install import freeze_and_install
 from fabriclib.dns.install_zone_file import install_zone_file
 from fabriclib.dns.reload_zone import reload_zone
 from fabriclib.dns.rndc import rndc
+from fabriclib.ipam.move_subnets_to_plan import move_subnets_to_plan
+from fabriclib.ipam.options.move_options_to_plan import move_options_to_plan
 from fabriclib.keycloak.install_sso_keytab import install_sso_keytab
 from fabriclib.samba.converge_domain import converge_domain
 from fabriclib.samba.write_bind_dlz import write_bind_dlz
@@ -71,15 +75,18 @@ def _enabled(unit):
 
 def restart_changed(paths, final_vars, secrets, state, bind_ids):
     """Purpose: the end of an apply on a running install: build changed images, restart what changed, reload BIND's
-             configuration and zones and nginx live, converge the domain, and restart
-             fabric-agent, the federation endpoint and the web UI last without blocking.
+             configuration and zones and nginx live, converge the domain (and move 0.7's DHCP subnets and global options
+             into the address plan once, 1.10.4.15, 2.1.10.23), delete DHCP names left behind for addresses set by
+             hand (2.1.10.22), and restart fabric-agent, the federation endpoint and the web UI last without blocking.
     Inputs:  paths — deploy_paths() (base, target, federation); final_vars — rendered settings (federation_endpoint,
              and what converge_domain reads); secrets — fabric's secrets (the domain's service accounts); state —
              what the install steps found (see finish_without_start); bind_ids — the bind user's ids.
     Returns: the set of units restarted (fabric-web included when it was queued).
     Fails:   ValidationError when a restarted service does not come back healthy (the rollout stops there, nothing
              after it runs: 2.1.14.15) or BIND refuses `rndc reconfig` (a silent failure would leave a removed TSIG
-             key working). Timeouts of other systemctl/docker calls and a domain that cannot be converged are
+             key working), or refuses deleting a DHCP name left behind (raised last, the rest of the apply done:
+             2.1.10.22; Kea's key is the one made at install: its yearly replacement, 2.1.10.42, is open). Timeouts
+             of other systemctl/docker calls and a domain that cannot be converged are
              reported, not raised.
     Feeds:   apply_deployment (start_services=True: `fabricctl --apply`, the web UI's Apply).
     Notes:   restarts go one at a time in dependency order, each health-gated (_roll_out). BIND down or about to
@@ -128,6 +135,10 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
         try:                                      # idempotent: the domain as fabric wants it (manual 1.6.5.15)
             done = converge_domain(final_vars, paths["federation"], secrets)
             print("Windows domain: " + ("; ".join(done) if done else "as wanted"))
+            for line in move_subnets_to_plan(final_vars, secrets):    # once: 0.7's subnets into the plan (1.10.4.15)
+                print(line)
+            for line in move_options_to_plan(final_vars, secrets):    # once: the global options too (2.1.10.23)
+                print(line)
             if final_vars.get("install_keycloak") and install_sso_keytab(final_vars) and "keycloak" in running:
                 print("Restarting Keycloak (Kerberos sign-in keytab)...")
                 _quiet(["systemctl", "restart", "keycloak"], "Restart of keycloak", 180)
@@ -136,6 +147,14 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
                 _quiet(["systemctl", "restart", "bind9"], "Restart of bind9", 60)
         except ValidationError as e:              # reported: the rest of the apply still has to happen
             print(f"Warning: {e}")
+    cleanup_error = None
+    if "bind9" in running or "bind9" in restart:      # DHCP names left behind for addresses set by hand (2.1.10.22)
+        try:
+            for owner, rtype, rdata in clear_stale_dhcp_names(final_vars, hand_set_addresses(final_vars),
+                                                              secrets.get("kea_ddns_secret", ""), "root", "apply"):
+                print(f"DHCP name left behind deleted: {owner.rstrip('.')} {rtype} {rdata}")
+        except ValidationError as e:              # raised once the rest of the apply is done
+            cleanup_error = e
     if state["agent"] and _enabled("fabric-agent"):
         print("Restarting fabric-agent (queued)...")            # --no-block: this apply may run inside it
         subprocess.run(["systemctl", "restart", "--no-block", "fabric-agent"], timeout=15)
@@ -148,5 +167,8 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
         print("Restarting webui (queued)...")
         subprocess.run(["systemctl", "restart", "--no-block", "fabric-web"], timeout=15)
         restart.add("fabric-web")
+    if cleanup_error:
+        raise ValidationError(f"{cleanup_error}. The rest of the apply is done; fabric-dhcp-names.timer tries again "
+                              "hourly (`sudo fabricctl dhcp clean-names` at once).")
     print("Deployment complete.")
     return restart

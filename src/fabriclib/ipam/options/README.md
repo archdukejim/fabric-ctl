@@ -4,7 +4,7 @@ The address manager's DHCP options (manual 1.10.4.24 to 1.10.4.26; decisions 2.1
 domain's and each site's option sets in the domain (1.10.4.32), options at every level, client classes, custom
 definitions, the provenance of what a client gets, and netboot presets. Each change is checked against the grants'
 networks options right first (1.10.4.34). Ported in area 4 (1.10.4.41), with the upgrade's move of the settings'
-options; the plan poll comes with area 5.
+options; the plan poll's own parts came with area 5 (its run: `ipam/poll_plan`).
 
 | File | What |
 |---|---|
@@ -29,5 +29,9 @@ options; the plan poll comes with area 5.
 | `remove_plan_class.py` | Remove a client class with its options |
 | `set_netboot.py` | Switch a netboot preset on, or change it |
 | `clear_netboot.py` | Switch a netboot preset off |
-| `move_options_to_plan.py` | The upgrade: the settings' global options, definitions and classes into the site's set once, recorded (called from area 5 on) |
-| `run_option_command.py` | `fabricctl ipam option / class / netboot` (routing only) |
+| `move_options_to_plan.py` | The upgrade: the settings' global options, definitions and classes into the site's set once, recorded (called by every apply) |
+| `run_option_command.py` | `fabricctl ipam option / class / netboot / watch` (routing only) |
+| `read_usn.py` | The DC's highest committed USN (the plan poll's first step; no secret) |
+| `plan_digest.py` | What the plan poll compares: digests of Kea's input and DNS's, the served subnets |
+| `watch_state.py` | The plan poll's kept states (`plan-watch.json`, `plan-dns.json`) |
+| `render_kea.py` | Kea alone rendered from the settings and the plan, restarted when it changed (never a full apply) |

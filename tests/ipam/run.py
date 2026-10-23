@@ -5,14 +5,16 @@ unless a reason is given. Also its suggestions, the site's number, several subne
 the changes that add or change a subnet, and one site's plan out of read_plan's answer on 0.8.0's directory
 (1.10.4.32); the address table, find, export and show; one change made the way every command makes it (the grant
 checked first, the writable DC, nothing written on a refusal: 1.10.4.34), with the domain stood in for; and
-`fabricctl ipam`'s refusals that need no domain. The options: tests/ipam/options.py. Areas 5 and 6 add
-their sections here. The plan in a real domain: tests/samba/ipam.py.
+`fabricctl ipam`'s refusals that need no domain. Area 5 (Kea and DNS from the plan): plan_to_dhcp, a name set by
+hand winning over DHCP's (2.1.10.20), the plan rendered for Kea and DNS (1.10.4.14). The options:
+tests/ipam/options.py. Area 6 adds its sections here. The plan in a real domain: tests/samba/ipam.py.
 
     python3 tests/ipam/run.py
 """
 import copy
 import io
 import ipaddress
+import json
 import os
 import sys
 from contextlib import redirect_stderr, redirect_stdout
@@ -21,6 +23,10 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(REPO, "src"))
 import fabriclib.ipam.common.edit_plan as m_edit  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
+from fabriclib.common.jinja_env import jinja_env  # noqa: E402
+from fabriclib.dhcp.dhcp_reverse_zones import dhcp_reverse_zones  # noqa: E402
+from fabriclib.dhcp.normalize_dhcp import normalize_dhcp  # noqa: E402
+from fabriclib.dns.reverse_by_hand import reverse_by_hand  # noqa: E402
 from fabriclib.ipam.check_address import check_address  # noqa: E402
 from fabriclib.ipam.check_block import check_block  # noqa: E402
 from fabriclib.ipam.check_range import check_range  # noqa: E402
@@ -38,6 +44,7 @@ from fabriclib.ipam.add_vlan import add_vlan  # noqa: E402
 from fabriclib.ipam.export_plan import export_plan  # noqa: E402
 from fabriclib.ipam.find_in_plan import find_in_plan  # noqa: E402
 from fabriclib.ipam.plan_rows import plan_rows  # noqa: E402
+from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp  # noqa: E402
 from fabriclib.ipam.run_ipam_command import run_ipam_command  # noqa: E402
 from fabriclib.ipam.show_plan import show_plan  # noqa: E402
 from fabriclib.ipam.suggestions import suggest_block, suggest_split, suggest_subnet  # noqa: E402
@@ -248,6 +255,82 @@ check("a subnet by its name or its network", find_subnet(TWO, "IOT-2")["cidr"] =
       and find_subnet(TWO, "10.1.21.0/24")["name"] == "iot-2")
 check("refused: a subnet the plan does not have", is_refused(lambda: find_subnet(TWO, "10.9.0.0/24"),
                                                              "is not a subnet of lan's plan"))
+two = plan_to_dhcp(TWO)
+check("both subnets of the VLAN are Kea's, with the VLAN; the reservation's name is an A record of the site's zone",
+      [(s["name"], s.get("vlan")) for s in two["subnets"]] == [("iot", 20), ("guest", 30), ("iot-2", 20)]
+      and {"name": "cam5", "ip": "10.1.21.150"} in two["records"], two)
+VT = {"install_kea": True, "domain": "lan.test", "host_ip": "192.168.4.2",
+      "dns": {"dynamic_zone_var": {"A": two["records"]}}, "dhcp": {"interfaces": ["eth0"], "subnets": two["subnets"]}}
+try:
+    check("fabric's DHCP checks accept two subnets on one VLAN and a reservation's A record inside its pool",
+          len(normalize_dhcp(VT)["subnets"]) == 3)
+except ValidationError as e:
+    check("fabric's DHCP checks accept two subnets on one VLAN and a reservation's A record inside its pool", False, e)
+check("refused still: a static A record inside a pool that is no reservation's",
+      is_refused(lambda: normalize_dhcp({**VT, "dns": {"dynamic_zone_var": {"A": [{"name": "x",
+                                                                                     "ip": "10.1.21.160"}]}}}),
+                 "inside a DHCP pool"))
+
+print("--- a name set by hand wins over DHCP's (2.1.10.20)")
+cam5 = next(r for s in two["subnets"] for r in s["reservations"] if r["ip"] == "10.1.21.150")
+cam1 = next(r for s in two["subnets"] for r in s["reservations"] if r["ip"] == "10.1.20.150")
+check("a reservation published in the site's zone is one DHCP never registers; one that is not, DHCP's",
+      cam5.get("ddns") is False and "ddns" not in cam1, (cam5, cam1))
+bare_plan = {**TWO, "subnets": [{**SECOND, "addresses": [{**SECOND["addresses"][0], "dns": False}]}]}
+by_hand = normalize_dhcp({**VT, "dns": {"dynamic_zone_var": {"A": [{"name": "cam5", "ip": "10.1.21.150"}]}},
+                          "dhcp": {"interfaces": ["eth0"], "subnets": plan_to_dhcp(bare_plan)["subnets"]}})
+check("any record set by hand on a reservation's address (the settings' dns:) takes it away from DHCP's updates",
+      by_hand["subnets"][0]["reservations"][0].get("ddns") is False, by_hand["subnets"][0])
+plain = normalize_dhcp({**VT, "dns": {}, "dhcp": {"interfaces": ["eth0"],
+                                                 "subnets": plan_to_dhcp(bare_plan)["subnets"]}})
+check("without one, DHCP registers the reservation as before", "ddns" not in plain["subnets"][0]["reservations"][0])
+check("refused: a reservation's ddns that is not true or false",
+      is_refused(lambda: normalize_dhcp({**VT, "dns": {}, "dhcp": {"interfaces": ["eth0"], "subnets": [
+          {"subnet": "10.1.21.0/24", "pools": ["10.1.21.100 - 10.1.21.200"],
+           "reservations": [{"mac": "aa:bb:cc:dd:ee:05", "ip": "10.1.21.150", "ddns": "no"}]}]}}),
+                 "ddns is true"))
+check("Kea's reverse zones leave out a reservation whose names are set by hand",
+      dhcp_reverse_zones({"install_kea": True, "dhcp": {"subnets": [
+          {"pools": [], "reservations": [{"ip": "10.7.7.7", "ddns": False}, {"ip": "10.7.8.8"}]}]}})
+      == ["8.7.10.in-addr.arpa"])
+check("every PTR fabric generates is one DHCP's key is denied in BIND",
+      reverse_by_hand({"zones": {"20.1.10.in-addr.arpa": [{"label": "10"}, {"label": "150"}], "x.arpa": []}})
+      == {"20.1.10.in-addr.arpa": ["10", "150"]})
+text = show_plan({"sites": [{"name": "lan", "created": "1", "block": 1}], "plans": {"lan": TWO}}, "lan")
+check("show: each of a VLAN's subnets under it, a second one by its name",
+      "VLAN 20    iot              10.1.20.0/24" in text and "10.1.21.0/24" in text and "subnet iot-2" in text
+      and "  10.1.21.150" in text, text)
+
+print("--- the plan rendered for Kea and DNS (1.10.4.14)")
+out = plan_to_dhcp(PLAN)
+iot = out["subnets"][0]
+check("a served subnet: its id, name, VLAN, router, dhcp ranges as pools, reservations with names and options",
+      iot["id"] == 3 and iot["name"] == "iot" and iot["vlan"] == 20 and iot["routers"] == "10.1.20.1"
+      and iot["pools"] == ["10.1.20.100 - 10.1.20.249"]
+      and iot["reservations"] == [{"mac": "aa:bb:cc:dd:ee:01", "ip": "10.1.20.150", "hostname": "cam1",
+                                   "options": [{"name": "boot-file-name", "data": "cam.bin"}]}], iot)
+check("a guest VLAN's subnet is rendered guest", out["subnets"][1].get("access") == "guest")
+check("a static address with DNS on is an A record", out["records"] == [{"name": "nas", "ip": "10.1.20.10"}])
+off = plan_to_dhcp({**PLAN, "subnets": [{**SUB, "dhcp": False}]})
+check("a subnet DHCP does not serve is not Kea's, its published names still are", off["subnets"] == []
+      and off["records"] == [{"name": "nas", "ip": "10.1.20.10"}])
+V = {"install_kea": True, "domain": "lan.test", "host_ip": "192.168.4.2", "ip_kea_ddns": "10.255.0.40",
+     "dns": {"dynamic_zone_var": {"A": out["records"]}},
+     "dhcp": {"interfaces": ["eth0"], "subnets": out["subnets"]}}
+try:
+    norm = normalize_dhcp(V)
+    check("fabric's own DHCP checks accept the rendered plan (a reservation inside a DHCP range included)",
+          norm["subnets"][0]["reservations"][0]["ip"] == "10.1.20.150")
+    text = jinja_env(os.path.join(REPO, "templates")).get_template("kea/kea-dhcp4.conf.j2").render(**{**V, "dhcp": norm})
+    conf = json.loads("\n".join(ln for ln in text.splitlines() if not ln.lstrip().startswith("//")))
+    s4 = conf["Dhcp4"]["subnet4"]
+    check("Kea's configuration from the plan: ids, pools, reservations, routers",
+          [s["id"] for s in s4] == [3, 4] and s4[0]["pools"] == [{"pool": "10.1.20.100 - 10.1.20.249"}]
+          and s4[0]["reservations"][0]["ip-address"] == "10.1.20.150"
+          and {"name": "routers", "data": "10.1.20.1"} in s4[0]["option-data"], s4)
+except ValidationError as e:
+    check("fabric's own DHCP checks accept the rendered plan", False, e)
+
 
 print("--- an address by its IP (1.10.4.16)")
 found, where = find_address(TWO, "10.1.21.150")

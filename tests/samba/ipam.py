@@ -4,7 +4,9 @@ Admin's): every command's positive case and its refusals, each changing nothing;
 on one VLAN; show, find and export; another site's plan written with --site; and a delegated person writing through
 a grant's networks rights at one site, refused at another and refused with none; the DHCP options and netboot
 (the domain's set, the site's, a subnet's; a delegated person's options right at one site, refused for the domain's
-set); the 0.7 subnet commands' aliases (add-subnet, set-subnet, unreserve). fabric's audit log is stood in for.
+set); the 0.7 subnet commands' aliases (add-subnet, set-subnet, unreserve); the plan read at an apply (area 5:
+Kea's subnets and the site's A records from it, the copy kept rendered when the DC does not answer, refused with
+none). fabric's audit log is stood in for.
     sudo python3 tests/samba/ipam.py
 """
 import io
@@ -21,10 +23,13 @@ import fabriclib.grants.add_grant as m_add_grant  # noqa: E402
 import fabriclib.ipam.common.edit_options as m_edit_opt  # noqa: E402
 import fabriclib.ipam.common.edit_plan as m_edit  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
+from fabriclib.dhcp.normalize_dhcp import normalize_dhcp  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
 from fabriclib.ipam.add_address import add_address  # noqa: E402
 from fabriclib.ipam.add_dhcp_subnet import add_dhcp_subnet  # noqa: E402
 from fabriclib.ipam.add_vlan import add_vlan  # noqa: E402
+from fabriclib.ipam.common.plan_cache import plan_cache_path  # noqa: E402
+from fabriclib.ipam.load_address_plan import load_address_plan  # noqa: E402
 from fabriclib.ipam.options.set_plan_option import set_plan_option  # noqa: E402
 from fabriclib.ipam.read_plan import read_plan  # noqa: E402
 from fabriclib.ipam.remove_reservation_mac import remove_reservation_mac  # noqa: E402
@@ -215,6 +220,29 @@ check("refused: a second claim, naming the first, nothing written", code == 1
 code, out = ipam("address", "set", "10.1.30.10", "--owner", "office 2", "--no-apply")
 check("address set: the owner changed", code == 0 and any(
     a["owner"] == "office 2" for a in sub("cams")["addresses"]), out)
+
+print("--- the plan at an apply: Kea and DNS from it (area 5, 1.10.4.14)")
+final = {**V, "install_kea": True, "dhcp": {"interfaces": ["eth0"]}}
+said = load_address_plan(final, SECRETS, container=DC)
+check("at an apply the static address with DNS on is an A record of the site's zone, the reservation Kea's, the "
+      "plan kept for the DC not answering", {"name": "nas", "ip": "10.1.30.10"} in final["dns"]["dynamic_zone_var"]["A"]
+      and any(r["ip"] == "10.1.30.150" for s in final["dhcp"]["subnets"] for r in s["reservations"])
+      and os.path.exists(plan_cache_path()), (said, final.get("dns")))
+try:
+    accepted = bool(normalize_dhcp(final))
+except ValidationError as e:
+    accepted = str(e)
+check("...which fabric's DHCP checks accept", accepted is True, accepted)
+final = {**V, "install_kea": True, "dhcp": {"interfaces": ["eth0"]}}
+said = load_address_plan(final, SECRETS, container="no-such-dc")
+check("the DC not answering: the copy kept is rendered, and the apply says so", any("did not answer" in x for x in said)
+      and any(r["ip"] == "10.1.30.150" for s in final["dhcp"]["subnets"] for r in s["reservations"]), said)
+os.remove(plan_cache_path())
+try:
+    load_address_plan({**V, "install_kea": True, "dhcp": {"interfaces": ["eth0"]}}, SECRETS, container="no-such-dc")
+    check("refused: DHCP on with no plan to be had", False)
+except ValidationError as e:
+    check("refused: DHCP on with no plan to be had (start the samba service)", "start the samba service" in str(e), e)
 
 print("--- show, find, export")
 # covers: cli:ipam.show +

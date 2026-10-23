@@ -33,5 +33,10 @@ zone `dhcp.<domain>` through kea-dhcp-ddns.
 | `dhcp_overview.py` | What the Kea tab and `fabricctl dhcp` show: on/off, subnets, reservations, DHCP zone, leases |
 | `add_reservation.py` | Reserve an address for a MAC (optionally with a hostname) in `vars.yaml`, whole `dhcp:` revalidated (locked, audited) |
 | `remove_reservation.py` | Remove a MAC's reservation from `vars.yaml` (locked, audited) |
-| `run_dhcp_command.py` | `fabricctl dhcp status / leases / reserve / unreserve / add-subnet / set-subnet / remove-subnet / option / class` (applies after a change unless `--no-apply`) |
+| `run_dhcp_command.py` | `fabricctl dhcp status / leases / reserve / unreserve / add-subnet / set-subnet / remove-subnet / option / class / clean-names` (applies after a change unless `--no-apply`) |
 | `run_dhcp_alias.py` | The old add-subnet, set-subnet, remove-subnet, reserve and unreserve as aliases of `fabricctl ipam` once the subnets live in the plan |
+| `hand_set_addresses.py` | Every address a record set by hand names (fabric's forward zones, the plan's published names): their names outrank DHCP's (2.1.10.20) |
+| `keep_hand_set_addresses.py` | Keep the apply's addresses set by hand for the hourly cleanup (`<deploy base>/kea/hand-set.json`, 0600) |
+| `stale_dhcp_names.py` | The records of `dhcp.<domain>` left behind for addresses now named by hand: their A/AAAA, a name's DHCID once no address is left |
+| `clear_stale_dhcp_names.py` | Delete them: the zone read as BIND serves it (`named-compilezone -j` in its container), one `nsupdate` signed with Kea's key (0600 key file), each removal audited (2.1.10.22; the key's yearly replacement, 2.1.10.42, is open) |
+| `clean_dhcp_names.py` | `fabricctl dhcp clean-names [--scheduled]`, the hourly fabric-dhcp-names timer: the cleanup from the last apply's addresses |
