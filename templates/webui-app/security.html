@@ -1,7 +1,5 @@
 {% extends "base.html" %}{% block body %}
-<h1>Security · Sign-in</h1>
-{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
-{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
+<h1>Settings · Sign-in security</h1>
 <p class="muted">Each layer can be raised here. Lowering one is done only on the fabric host, with
 <code>sudo fabricctl security lower &lt;layer&gt;</code>: it asks for the layer's name, is recorded in the audit log, and
 stays shown here and in <code>fabricctl doctor</code> until it is raised again.</p>

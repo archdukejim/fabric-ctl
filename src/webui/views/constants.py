@@ -1,24 +1,36 @@
-"""What the pages show: tabs, sections, sub-menus, the permissions that show them."""
+"""What the pages show: the navigation, sections, sub-menus, the permissions that show them."""
 
-# (tab id, path, label, optional feature)
-TABS = [
-    ("overview", "/", "Overview", False),
-    ("bind9", "/bind9", "BIND9 · DNS", False),
-    ("kea", "/kea", "Kea · DHCP", True),
-    ("dnsfilter", "/dns-filter", "DNS filter", True),
-    ("stepca", "/stepca", "Step-CA · PKI", False),
-    ("directory", "/directory", "Directory", False),
-    ("freeradius", "/freeradius", "FreeRADIUS · 802.1X", True),
-    ("openbao", "/openbao", "OpenBao · Secrets", False),
-    ("federation", "/federation", "Federation", False),
-    ("security", "/security", "Security", False),
-    ("settings", "/settings", "Settings", False),
+# The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
+# permissions that show it: any one of them; () = any signed-in person). An entry shows when one of its pages does.
+NAV = [
+    ("overview", "Overview", [("/", "Health", ("status:read",)), ("/overview/doctor", "Doctor", ("status:read",)),
+                              ("/overview/updates", "Updates", ("status:read",)),
+                              ("/audit", "Audit log", ("audit:read",))]),
+    ("dns", "DNS", [("/dns/zones", "Zones", ("dns:read",)),
+                    ("/dns-filter", "DNS filter", ("dns:filter", "dns:querylog"))]),
+    ("dhcp", "DHCP", [("/kea", "Kea", ("dhcp:read",))]),
+    ("pki", "PKI", [("/pki", "Certificates", ("pki:read",)), ("/pki/acme", "ACME", ("pki:read",))]),
+    ("directory", "Directory", [("/directory/people", "People", ("people:read",)),
+                                ("/directory/domain", "Domain", ("domain:read",)),
+                                ("/directory/machines", "Machines", ("domain:read",)),
+                                ("/directory/gpo", "Group Policy", ("domain:read",))]),
+    ("8021x", "802.1X", [("/8021x", "RADIUS clients", ("radius:read",)),
+                         ("/8021x/devices", "Devices", ("devices:read",)),
+                         ("/8021x/roles", "Device roles", ("devices:read",)),
+                         ("/8021x/decisions", "Recent decisions", ("radius:read",)),
+                         ("/8021x/guides", "Setup guides", ("radius:read",))]),
+    ("secrets", "Secrets", [("/secrets", "Status", ("vault:status",)),
+                            ("/secrets/unlock", "Unlock methods", ("vault:status",)),
+                            ("/secrets/disk", "Disk encryption", ("vault:status",))]),
+    ("federation", "Federation", [("/federation", "Sites and replication", ("federation:read",))]),
+    ("settings", "Settings", [("/settings", "Setup wizard", ("settings:admin",)),
+                              ("/settings/sign-in", "Sign-in security", ("security:raise",))]),
 ]
 # DNS filter tab sections: (view, label); the query log needs dns:querylog (MENU_PERMS)
 DNS_FILTER_SECTIONS = [("overview", "Overview"), ("lists", "Lists"), ("rules", "Rules"), ("groups", "Groups"),
                        ("querylog", "Query log"), ("settings", "Settings")]
 # BIND9 tab sections: (view, label)
-FREERADIUS_SECTIONS = [("overview", "Overview"), ("switches", "Connect a switch"), ("windows", "Connect Windows")]
+FREERADIUS_SECTIONS = [("switches", "Connect a switch"), ("windows", "Connect Windows")]   # 802.1X → Setup guides
 BIND9_SECTIONS = [("forward", "Forward zones"), ("landing", "Landing page"), ("reverse", "Reverse zones"),
                   ("dhcp", "DHCP names"),
                   ("tsig", "TSIG keys")]
@@ -55,12 +67,12 @@ TSIG_SCOPES = [("acme-hosts", "Certbot DNS-01 for listed hosts only (TXT)"),
                ("acme-zone", "Certbot DNS-01 for any host in the zone (TXT)"),
                ("any-name", "Any name in the zone, chosen record types")]
 TSIG_ANY_TYPES = ["A", "AAAA", "CNAME", "TXT", "SRV", "MX"]
-# service -> (what it is, tab)
+# service -> (what it is, its page)
 SERVICES = {
-    "nginx": ("Reverse proxy", None), "bind9": ("DNS", "bind9"), "stepca": ("Certificate authority", "stepca"),
+    "nginx": ("Reverse proxy", None), "bind9": ("DNS", "/dns/zones"), "stepca": ("Certificate authority", "/pki"),
     "postgres": ("Keycloak database", None),
-    "keycloak": ("Single sign-on", None), "openbao": ("Secrets", "openbao"), "kea": ("DHCP", "kea"),
-    "freeradius": ("802.1X", "freeradius"), "samba": ("Directory (Samba AD)", "directory"),
+    "keycloak": ("Single sign-on", None), "openbao": ("Secrets", "/secrets"), "kea": ("DHCP", "/kea"),
+    "freeradius": ("802.1X", "/8021x"), "samba": ("Directory (Samba AD)", "/directory/people"),
     "fabric-web": ("This web UI", None), "fabric-agent": ("Host API", None),
 }
 # every permission a page asks about (the dev preview's fallback when it runs without fabriclib)
@@ -71,12 +83,6 @@ PREVIEW_PERMS = ["status:read", "dns:read", "dns:write", "tsig:manage", "dhcp:re
                  "people:read", "domain:read", "domain:admin", "machines:admin", "sudo:admin", "gpo:admin",
                  "federation:read",
                  "vault:status", "vault:unlock", "audit:read", "dns:filter", "dns:querylog", "settings:admin"]
-# tab -> the permission(s) that show it (any of them)
-TAB_PERMS = {"overview": ("status:read",), "bind9": ("dns:read",), "kea": ("dhcp:read",), "stepca": ("pki:read",),
-             "dnsfilter": ("dns:filter", "dns:querylog"),
-             "directory": ("devices:read", "people:read", "domain:read"), "freeradius": ("radius:read",),
-             "openbao": ("vault:status",), "federation": ("federation:read",),
-             "security": ("security:raise",), "settings": ("settings:admin",)}
 MENU_PERMS = {"sign": "pki:sign", "issue": "pki:issue", "convert": "pki:issue", "people": "people:read",
               "devices": "devices:read", "roles": "devices:read", "unlock": "vault:status", "disk": "vault:status",
               "domain": "domain:read", "machines": "domain:read", "gpo": "domain:read", "querylog": "dns:querylog",
@@ -91,3 +97,10 @@ WIZARD_STEPS = [
     ("review", "Review", []),
 ]
 WIZARD_FIELDS = [f for _, _, fields in WIZARD_STEPS for f in fields]
+# the navigation page each sectioned view belongs to (manual 1.8.6.4)
+DIRECTORY_PAGES = {"devices": "/8021x/devices", "device": "/8021x/devices", "roles": "/8021x/roles",
+                   "role": "/8021x/roles", "people": "/directory/people", "domain": "/directory/domain",
+                   "machines": "/directory/machines", "gpo": "/directory/gpo"}
+RADIUS_PAGES = {"overview": "/8021x", "decisions": "/8021x/decisions", "switches": "/8021x/guides",
+                "windows": "/8021x/guides"}
+JOB_PAGES = {"doctor": "/overview/doctor", "images": "/overview/updates", "settings": "/settings"}

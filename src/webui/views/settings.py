@@ -20,7 +20,7 @@ def settings(ctx, overview, step="parts", form=None, msg="", err="", signin_old=
     typed = {f: str((form if form is not None else today).get(f, today.get(f, ""))) for f in WIZARD_FIELDS}
     at = steps.index(step)
     changed = [(f, today.get(f, ""), typed[f]) for f in WIZARD_FIELDS if typed[f] != today.get(f, "")]
-    return render_page("settings", ctx=ctx, tab="settings", ov=overview, step=step, steps=WIZARD_STEPS,
+    return render_page("settings", ctx=ctx, page="/settings", ov=overview, step=step, steps=WIZARD_STEPS,
                        fields=dict((s, fl) for s, _, fl in WIZARD_STEPS)[step], typed=typed, today=today,
                        prev=steps[at - 1] if at else "", next=steps[at + 1] if at + 1 < len(steps) else "",
                        changed=changed, policy_fields=POLICY_FIELDS, msg=msg, err=err, signin_old=signin_old)

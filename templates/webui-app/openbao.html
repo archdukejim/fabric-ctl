@@ -1,10 +1,5 @@
 {% extends "base.html" %}{% block body %}
-<h1>OpenBao · Secrets</h1>
-{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
-{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
-<nav class="sections">
-{% for id, label in sections %}<a href="/openbao{{ '' if id == 'status' else '?view=' ~ id }}" class="section{{ ' active' if id == section }}">{{ label }}</a>{% endfor %}
-</nav>
+<h1>Secrets · {{ {"status": "Status", "disk": "Disk encryption", "secrets": "fabric's secrets"}.get(view, "Unlock methods") }}</h1>
 {% set light = 'bad' if not s.reachable or s.sealed or not s.initialized else ('warn' if not s.key.ok else 'ok') %}
 
 {% if view == 'status' %}
@@ -13,10 +8,11 @@
 {% if s.error %}<p class="flash bad">{{ s.error }}</p>{% endif %}
 <dl class="kv">
 {% if s.reachable %}<dt>Version</dt><dd>OpenBao {{ s.version }}</dd>
-<dt>Seal</dt><dd>{{ s.seal_type }}{% if s.seal_type == 'static' %} — unlocked at start by one of its <a href="/openbao?view=unlock">unlock methods</a>{% endif %}</dd>
+<dt>Seal</dt><dd>{{ s.seal_type }}{% if s.seal_type == 'static' %} — unlocked at start by one of its <a href="/secrets/unlock">unlock methods</a>{% endif %}</dd>
 <dt>Storage</dt><dd>{{ s.storage }}</dd>
 <dt>fabric's secrets</dt><dd>{% if s.secrets %}in OpenBao — <code class="small">fabric/secrets</code>, version {{ s.secrets.version }}, updated {{ s.secrets.updated }}{% else %}<span class="warn-text">still in a file on disk</span> — moved in by the next <code>fabricctl setup</code>{% endif %}</dd>{% endif %}
 <dt>Address</dt><dd><a href="{{ s.url }}ui/">{{ s.url }}</a> <span class="muted">(OpenBao's own UI and API)</span></dd>
+<dt>Secrets</dt><dd><a href="/secrets/secrets">fabric's secrets, apps' secrets and the break-glass commands</a></dd>
 </dl></section>
 {% if s.mounts %}
 <section class="card"><h2>Secret engines</h2>
@@ -44,12 +40,12 @@
 <td><code class="small">{{ sl.key_id }}</code></td><td class="small">{{ sl.added }}</td>
 <td class="num"><div class="row-actions">
 {% if can('vault:unlock') %}<form method="post" action="/openbao/slots/{{ sl.id | urlencode }}/test"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost"{{ '' if live else ' disabled' }}>Test</button></form>{% endif %}
-<a class="btn danger-link{{ '' if live and slots | length > 1 else ' disabled' }}" href="/openbao?view=remove&slot={{ sl.id | urlencode }}">Remove</a>
+<a class="btn danger-link{{ '' if live and slots | length > 1 else ' disabled' }}" href="/secrets/remove?slot={{ sl.id | urlencode }}">Remove</a>
 </div></td></tr>
 {% endfor %}</tbody></table>
 {% endif %}
 </section>
-{% if has_local and removable %}<p class="flash warn">A device slot works, but the key file on this host still unlocks the vault on its own: anyone with this disk needs nothing else. <a href="/openbao?view=remove&slot=local">Remove the key file</a>.</p>
+{% if has_local and removable %}<p class="flash warn">A device slot works, but the key file on this host still unlocks the vault on its own: anyone with this disk needs nothing else. <a href="/secrets/remove?slot=local">Remove the key file</a>.</p>
 {% elif removable | length == 1 and not has_local %}<p class="flash warn">Only one device can unlock this vault. If it is lost or breaks, the vault's data is gone — OpenBao's recovery keys cannot decrypt it. Add a second one for your safe.</p>{% endif %}
 <section class="card"><h2>Add an unlock method</h2>
 {% if add_live | select | list | length < 3 %}<p class="muted">Each type says what it was tested against; <span class="pill">arrives next</span> marks types whose adding is still being built.</p>{% endif %}
@@ -57,15 +53,15 @@
 {% for t in ['security-key', 'usb', 'hsm'] %}
 <div class="tile"><div class="tile-head"><strong>{{ slot_types[t][0] }}</strong>{% if t == 'security-key' %}<span class="pill ok">recommended</span>{% endif %}{% if not add_live[t] %}<span class="pill">arrives next</span>{% endif %}</div>
 <div class="muted small">{{ slot_types[t][1] }}</div>
-<div><a class="btn" href="/openbao?view=add-{{ t }}">Add…</a></div></div>
+<div><a class="btn" href="/secrets/add-{{ t }}">Add…</a></div></div>
 {% endfor %}
 </div></section>
 <section class="card"><h2>Rotate the vault key</h2>
 <p class="muted">Makes a new vault key and re-protects it in every method whose device is present now. Methods whose device is not present stop working — the answer to a lost stick or token.</p>
-<p><a class="btn" href="/openbao?view=rotate">Rotate…</a></p></section>
+<p><a class="btn" href="/secrets/rotate">Rotate…</a></p></section>
 
 {% elif view == 'add-security-key' %}
-<p><a href="/openbao?view=unlock">← Unlock methods</a></p>
+<p><a href="/secrets/unlock">← Unlock methods</a></p>
 <section class="card"><h2>Add a security key</h2>
 <p class="muted">YubiKey 5 (PIV), Nitrokey, SmartCard-HSM or any PKCS#11 token. An RSA key on the token that can never be read out wraps the vault key; at start the token unwraps it. The PIN is kept root-only on this host, so the token itself is the factor — but unlike a stick it cannot be copied.</p>
 <p class="flash warn">Tested with a software token (SoftHSM2) only. YubiKey, Nitrokey and other hardware tokens are untested.</p>
@@ -94,7 +90,7 @@
 </section>
 
 {% elif view == 'add-usb' %}
-<p><a href="/openbao?view=unlock">← Unlock methods</a></p>
+<p><a href="/secrets/unlock">← Unlock methods</a></p>
 <section class="card"><h2>Add a USB stick</h2>
 <p class="muted">The stick is wiped and gets a copy of the vault key. fabric records its serial and filesystem UUID and ignores sticks it did not make. Keypad-encrypted drives (Apricorn, IronKey, iStorage) work too: unlock them with their PIN first. A plain stick can be copied by anyone who holds it for a moment — a security key cannot.</p>
 {% if devices.disks %}
@@ -111,7 +107,7 @@
 </section>
 
 {% elif view == 'add-hsm' %}
-<p><a href="/openbao?view=unlock">← Unlock methods</a></p>
+<p><a href="/secrets/unlock">← Unlock methods</a></p>
 <section class="card"><h2>Add an HSM or key manager (KMIP)</h2>
 <p class="muted">Any KMIP server that can Encrypt/Decrypt (AES-256-CBC) with a key you created on it — CipherTrust, Fortanix, Entrust KeyControl, IBM GKLM, Cosmian, OVHcloud KMS, … The vault key is encrypted by a key that never leaves the device, over mutual TLS (the device's certificate verified against the CA you give). Revoking fabric's client, or disabling the key, on the device is the kill switch.</p>
 <p class="flash warn">Tested with the PyKMIP server only. Vendor HSMs and key managers are untested.</p>
@@ -130,7 +126,7 @@
 <p class="muted small">No client certificate yet? Make one under Step-CA → New key + certificate (e.g. CN <code>fabric-{{ host }}</code>), register the certificate on the device, then upload both here. A wrap and unwrap through the device run before anything is saved; the certificates are kept root-only on this host.</p></section>
 
 {% elif view == 'rotate' %}
-<p><a href="/openbao?view=unlock">← Unlock methods</a></p>
+<p><a href="/secrets/unlock">← Unlock methods</a></p>
 <section class="card"><h2>Rotate the vault key</h2>
 <table><thead><tr><th></th><th>Method</th><th>After rotation</th></tr></thead><tbody>
 {% for sl in slots %}<tr><td><span class="light {{ 'ok' if sl.present else 'bad' }}"></span></td><td>{{ slot_types[sl.type][0] }} <span class="muted small">{{ sl.label }}</span></td>
@@ -144,7 +140,7 @@
 <p class="muted small">OpenBao restarts once with the old and new key, re-protects itself, then keeps only the new one. You will be asked to sign in again first.</p></section>
 
 {% elif view == 'remove' %}
-<p><a href="/openbao?view=unlock">← Unlock methods</a></p>
+<p><a href="/secrets/unlock">← Unlock methods</a></p>
 {% set sl = slots | selectattr('id', 'equalto', slot_id) | first %}
 <section class="card"><h2>Remove {{ slot_types[sl.type][0] | lower if sl else 'method' }}</h2>
 {% if sl %}<p>{{ sl.label }} — <code class="small">{{ sl.device }}</code></p>

@@ -3,10 +3,8 @@
 {% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
 {% macro unset(o, scope, target) %}{% if can('dhcp:write') %}<form method="post" action="/kea/options/delete" class="inline">{{ csrf() }}<input type="hidden" name="option" value="{{ o.name if o.name is defined else o.code }}"><input type="hidden" name="scope" value="{{ scope }}"><input type="hidden" name="target" value="{{ target }}"><button class="ghost">Remove</button></form>{% endif %}{% endmacro %}
 {% block body %}
-<h1>Kea · DHCP</h1>
+<h1>DHCP · Kea</h1>
 <p class="flash warn">DHCP is a preview in this release: it works as this tab shows, but it is not finished, and 0.8.0 may change it as it finishes it. It stays off unless you turn it on.</p>
-{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
-{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
 {% if not d.enabled %}
 <section class="card"><h2>DHCP is off</h2>
 <p class="muted">Kea 3.0 LTS hands out addresses on a network and registers clients' names in their own DNS zone (<code>{{ d.ddns_zone or 'dhcp.<domain>' }}</code>) and their reverse zones.</p>

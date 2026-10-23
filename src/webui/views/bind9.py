@@ -16,7 +16,7 @@ def bind9(ctx, section, zones, zone=None, types=(), msg="", err="", tsig_keys=No
              left out).
     Feeds:   src/webui/routes/bind9_page; devserver.
     """
-    return render_page("bind9", ctx=ctx, tab="bind9", section=section, bind9_sections=BIND9_SECTIONS,
+    return render_page("bind9", ctx=ctx, page="/dns/zones", section=section, bind9_sections=BIND9_SECTIONS,
                    forward_zones=[z for z in zones if not z.get("reverse")],
                    manual_reverse=[z for z in zones if z.get("reverse")], zone=zone, types=types, msg=msg,
                    err=err, tsig_keys=tsig_keys, reverse=reverse or {"zones": {}, "skipped": []}, dhcp=dhcp,

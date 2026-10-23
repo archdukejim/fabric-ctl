@@ -6,10 +6,12 @@ def page_context(sess):
              installed version.
     Inputs:  sess — dict from find_session.
     Returns: {'user': str, 'csrf': str, 'perms': list, 'version': actions.version_info(), 'reminders': the host's
-             reminders from the sign-in (finish_login; list of {kind, text})}.
+             reminders from the sign-in (finish_login; list of {kind, text}), 'flash': the last action's message
+             ({"ok"} or {"err"}, Handler.back; None), 'preview': True only in the dev preview (its banner)}.
     Fails:   agent errors (ValidationError, AuthError, PermissionDenied, AgentError) from version_info propagate to
              handle_request (400, redirect to /login, 403, 503).
     Feeds:   every route in src/webui/routes → every page in src/webui/views.
     """
     return {"user": sess["user"], "csrf": sess["csrf"], "perms": sess.get("perms") or [],
-            "version": actions.version_info(), "reminders": sess.get("reminders") or []}
+            "version": actions.version_info(), "reminders": sess.get("reminders") or [],
+            "flash": sess.get("flash"), "preview": bool(sess.get("preview"))}

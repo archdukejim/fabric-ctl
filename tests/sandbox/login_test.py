@@ -231,8 +231,8 @@ if os.environ.get("SIGNIN_MODE") == "plain":
     check("the admin signs in with a password only, no TOTP (2.1.6.23); a new password asked only after a reset "
           "(2.1.6.33)", st == 200 and ("update-password" in seen) != CHOSEN and "configure-totp" not in seen
           and "otp" not in seen, (st, seen))
-    st, _, page = b.request("GET", f"https://{MGR}/security")
-    # covers: web:get.security +
+    st, _, page = b.request("GET", f"https://{MGR}/settings/sign-in")
+    # covers: web:get.settings.sign-in +
     check("the Security page shows the layers to raise", st == 200 and "admin-2fa" in page, st)
     bob = Browser()
     st, page, seen = login(bob, OTHER, OTHER_PW)
@@ -372,11 +372,11 @@ if os.environ.get("CAROL_PW"):
 # -- people (Directory -> People): add a person, reset a sign-in ---------------------------
 # NEW_PERSON: a reused host (tests/host) already has the previous run's person
 NEW = os.environ.get("NEW_PERSON", "dave")
-st, _, page = b.request("GET", f"https://{MGR}/directory?view=people")
+st, _, page = b.request("GET", f"https://{MGR}/directory/people")
 if st == 303:       # the admin's session went idle (session_idle, 900 s) during the slower checks above
     print("    (admin session idle-expired; signing in again)")
     login(b, ADMIN, NEW_PW.get(ADMIN, admin_pw()))
-    st, _, page = b.request("GET", f"https://{MGR}/directory?view=people")
+    st, _, page = b.request("GET", f"https://{MGR}/directory/people")
 csrf = page.split('name="csrf" value="')[1].split('"')[0] if 'name="csrf"' in page else ""
 if not csrf or "/directory/people/_new" not in page:     # what the People page showed instead of its forms
     print(f"    people page ({st}): {page.split('<main>')[-1][:600]!r}")
@@ -385,8 +385,8 @@ st, loc, page = b.request("POST", f"https://{MGR}/directory/people/_new",
 # covers: web:post.directory.people._new agent:post.people +
 check(f"people: the admin adds {NEW} -> one-time password shown once", st == 200 and "shown only now" in page,
       (st, urllib.parse.unquote_plus(loc or ""), page.split("<main>")[-1][:300]))     # the page's own message
-st, _, page = b.request("GET", f"https://{MGR}/directory?view=people")
-# covers: web:get.directory agent:get.people +
+st, _, page = b.request("GET", f"https://{MGR}/directory/people")
+# covers: web:get.directory.people agent:get.people +
 check(f"people: {NEW} is in the directory (written by Keycloak)", f"{NEW}@lan.test" in page, page[:200])
 st, loc, page = b.request("POST", f"https://{MGR}/directory/people/{NEW}/reset", {"csrf": csrf})
 # covers: web:post.directory.people.*.reset agent:post.people.*.reset +

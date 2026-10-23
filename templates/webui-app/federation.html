@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% block body %}
-<h1>Federation</h1>
+<h1>Federation · Sites and replication</h1>
 <section class="card"><h2>This site <span class="muted">{{ f.site }}</span></h2>
 {% if f.upstream %}<p>A site of <strong>{{ f.upstream.site_name }}</strong> ({{ f.upstream.domain }}){% if f.upstream.relay %}, through {{ f.upstream.relay.site }}{% endif %}.</p>
 {% else %}<p>{{ 'The root site of this fabric.' if f.sites else 'Standalone: no site has joined, and this install joined none.' }}</p>{% endif %}

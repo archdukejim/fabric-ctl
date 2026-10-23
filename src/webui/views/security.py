@@ -9,4 +9,4 @@ def security(ctx, layers, msg="", err=""):
     Fails:   never in practice (plain values).
     Feeds:   src/webui/routes/get_page (/security); devserver.
     """
-    return render_page("security", ctx=ctx, tab="security", layers=layers, msg=msg, err=err)
+    return render_page("security", ctx=ctx, page="/settings/sign-in", layers=layers, msg=msg, err=err)

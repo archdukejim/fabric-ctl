@@ -8,4 +8,4 @@ def machine_result(ctx, name, password):
     Fails:   never in practice (plain values).
     Feeds:   src/webui/routes/directory_post; devserver.
     """
-    return render_page("machine_result", ctx=ctx, tab="directory", name=name, password=password)
+    return render_page("machine_result", ctx=ctx, page="/directory/machines", name=name, password=password)

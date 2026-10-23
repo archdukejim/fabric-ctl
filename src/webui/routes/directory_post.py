@@ -80,25 +80,24 @@ def _host_access(kind, name, op, form):
 
 def directory_post(h, sess, parts, form):
     """Purpose: Devices, device roles, people, machines and Group Policy: each form maps to one fabric-agent call.
-    Inputs:  h — the request handler (send, redirect, deny); sess — dict from find_session; parts — path segments after
+    Inputs:  h — the request handler (send, back, deny); sess — dict from find_session; parts — path segments after
              /directory/: ['people', '_new'] (form uid, first, last, email), ['people', <uid>, 'reset'],
              ['people', <uid> or '_form' (form uid), 'disable'|'enable'|'delete'|'groups'] (_person_change's
              form),
              ['devices'|'roles', '_new'] (form name + fields), ['devices'|'roles', <name>] (save), [..., <name>,
-             'delete'], ['devices', <name>, 'certs', …] (unlink the certificate in form sha256), ['machines',
+             'delete'], ['devices', <name>, 'certs', 'unlink'] (unlink the certificate in form sha256), ['machines',
              '_new'] (form name), ['machines', <name>, 'enable'|'disable'|'delete'], ['gpo', 'set'|'clear'] (form
              policy, el_<element> values, disabled), ['hostgroups'|'sudo', …] (_host_access' forms),
              ['domain', 'password-policy'] (form: POLICY_FIELDS' keys, complexity on|off); form — dict.
     Returns: a new person, a reset and a new machine: 200 page with the one-time password; the other people changes,
-             machines, gpo and the password policy: 303 to their view with
-             msg or err (hostgroups and sudo: to the machines view); devices and roles: 303 to /directory with
-             msg — the new item's
-             page after create, the list after delete, the item's page otherwise.
-    Fails:   404 for an unknown kind or operation or a missing name; ValidationError → 303 with err (people list; the
-             list after a failed create; else the item's page); AgentError, PermissionDenied and AuthError propagate.
+             machines, gpo and the password policy: 303 to their page (/directory/<section>) with what was done or
+             why not as its message (hostgroups and sudo: to Machines); devices and roles: 303 to 802.1X's page
+             (/8021x/devices, /8021x/roles) — the new item's page after create, the list after delete, the item's
+             page otherwise.
+    Fails:   404 for an unknown kind or operation or a missing name; ValidationError → 303 with the refusal (people
+             list; the list after a failed create; else the item's page); AgentError, PermissionDenied and AuthError
+             propagate.
     Feeds:   post_action (/directory/…).
-    Notes:   Only the third path segment is looked at, so any path under …/certs/ unlinks (the page posts to
-             …/certs/unlink).
     """
     user = sess["user"]
     kind, name, op = (parts + ["", "", ""])[:3]
@@ -113,12 +112,11 @@ def directory_post(h, sess, parts, form):
                 password = actions.reset_sign_in(uid)
             elif name and op in ("disable", "enable", "delete", "groups"):
                 uid = form.get("uid", "") if name == "_form" else name     # the forms that pick the person
-                return h.redirect("/directory?" + urllib.parse.urlencode(
-                    {"view": "people", "msg": _person_change(uid, op, form)}))
+                return h.back("/directory/people", msg=_person_change(uid, op, form))
             else:
                 return h.deny(404, "Not found.")
         except actions.ValidationError as exc:
-            return h.redirect("/directory?" + urllib.parse.urlencode({"view": "people", "err": str(exc)}))
+            return h.back("/directory/people", err=str(exc))
         return h.send(200, views.person_result(page_context(sess), uid, what, password))
     if kind == "machines":
         try:
@@ -130,21 +128,19 @@ def directory_post(h, sess, parts, form):
             if name and op in ("enable", "disable", "delete"):
                 actions.machine_action(name, op)
                 msg = {"enable": f"{name} enabled.", "disable": f"{name} disabled.", "delete": f"{name} removed."}[op]
-                return h.redirect("/directory?" + urllib.parse.urlencode({"view": "machines", "msg": msg}))
+                return h.back("/directory/machines", msg=msg)
         except actions.ValidationError as exc:
-            return h.redirect("/directory?" + urllib.parse.urlencode({"view": "machines", "err": str(exc)}))
+            return h.back("/directory/machines", err=str(exc))
         return h.deny(404, "Not found.")
     if kind in ("hostgroups", "sudo") and name:
-        return h.redirect("/directory?" + urllib.parse.urlencode({"view": "machines", **_host_access(kind, name, op,
-                                                                                                     form)}))
+        return h.back("/directory/machines", **_host_access(kind, name, op, form))
     if kind == "domain" and name == "password-policy" and not op:
         values = {k: form[k] for k in [f for f, _ in POLICY_FIELDS] + ["complexity"] if k in form}
         try:
             actions.set_password_policy(values)
         except actions.ValidationError as exc:
-            return h.redirect("/directory?" + urllib.parse.urlencode({"view": "domain", "err": str(exc)}))
-        return h.redirect("/directory?" + urllib.parse.urlencode(
-            {"view": "domain", "msg": "Password policy saved. Apply changes writes it into the domain."}))
+            return h.back("/directory/domain", err=str(exc))
+        return h.back("/directory/domain", msg="Password policy saved. Apply changes writes it into the domain.")
     if kind == "gpo" and name in ("set", "clear") and not op:
         policy = form.get("policy", "")
         values = {k[3:]: val for k, val in form.items() if k.startswith("el_") and val != ""}
@@ -152,24 +148,23 @@ def directory_post(h, sess, parts, form):
             done = actions.gpo_change(name, policy, values, enabled=not form.get("disabled"),
                                       control=bool(form.get("control")))
         except actions.ValidationError as exc:
-            return h.redirect("/directory?" + urllib.parse.urlencode({"view": "gpo", "err": str(exc)}))
-        return h.redirect("/directory?" + urllib.parse.urlencode(
-            {"view": "gpo", "msg": f"{policy}: " + ("; ".join(done) or "already so") + "."}))
+            return h.back("/directory/gpo", err=str(exc))
+        return h.back("/directory/gpo", msg=f"{policy}: " + ("; ".join(done) or "already so") + ".")
     if kind not in ("devices", "roles") or not name:
         return h.deny(404, "Not found.")
-    listing = {"view": kind}
-    here = {"view": kind[:-1], "name": name}
+    listing = f"/8021x/{kind}"
+    here = f"{listing}/{urllib.parse.quote(name, safe='')}"
     save, delete = ((actions.save_device, actions.delete_device) if kind == "devices"
                     else (actions.save_role, actions.delete_role))
     fields = _device_fields(form) if kind == "devices" else _role_fields(form)
     try:
         if name == "_new" and not op:
             created = save(user, form.get("name", ""), fields, new=True)["name"]
-            back, msg = {"view": kind[:-1], "name": created}, f"{created} created."
-        elif op == "delete":
+            back, msg = f"{listing}/{urllib.parse.quote(created, safe='')}", f"{created} created."
+        elif op == "delete" and len(parts) == 3:
             delete(user, name)
             back, msg = listing, f"{name} deleted."
-        elif kind == "devices" and op == "certs":
+        elif kind == "devices" and parts[2:] == ["certs", "unlink"]:     # only the exact unlink route (1.8.6.7)
             actions.link_device_cert(user, name, form.get("sha256", ""), link=False)
             back, msg = here, "Certificate unlinked."
         elif not op:
@@ -177,7 +172,6 @@ def directory_post(h, sess, parts, form):
             back, msg = here, "Saved."
         else:
             return h.deny(404, "Not found.")
-        return h.redirect("/directory?" + urllib.parse.urlencode({**back, "msg": msg}))
+        return h.back(back, msg=msg)
     except actions.ValidationError as exc:
-        back = listing if name == "_new" else here
-        return h.redirect("/directory?" + urllib.parse.urlencode({**back, "err": str(exc)}))
+        return h.back(listing if name == "_new" else here, err=str(exc))

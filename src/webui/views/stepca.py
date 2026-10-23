@@ -16,6 +16,7 @@ def stepca(ctx, view, ca, issued=None, review=None, inspected=None, err="", devi
              left out).
     Feeds:   src/webui/routes/stepca_page; devserver.
     """
-    return render_page("stepca", ctx=ctx, tab="stepca", view=view, menu=STEPCA_MENU, ca=ca, issued=issued,
+    return render_page("stepca", ctx=ctx, page="/pki/acme" if view == "acme" else "/pki", view=view, menu=STEPCA_MENU,
+                       ca=ca, issued=issued,
                    review=review, inspected=inspected, err=err, key_types=KEY_TYPES, devices=devices or [],
                    device=device, msg=msg, acme=acme)

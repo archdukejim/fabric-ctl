@@ -50,7 +50,8 @@ from fabriclib.settings.settings_overview import settings_overview
 
 # GET /v1/<route> -> the read operation answering it (vars are read per request)
 READS = {
-    ("version",): lambda: version_info(),
+    ("version",): lambda: {**version_info(), "host": load_vars().get("hostname", ""),          # the top bar (1.8.6.2)
+                           "domain": load_vars().get("domain", "")},
     ("services",): lambda: service_status(),
     ("host-changes",): lambda: consent_status(os.path.join(load_vars()["deploy_base_dir"], "fabric", "config")),
     ("relaxed-settings",): lambda: relaxed_settings(load_vars()),
@@ -93,7 +94,8 @@ def get_route(route, user=None):
     """Purpose: answer GET /v1/<route>: one fabriclib read operation per route.
     Inputs:  route — list of path segments after /v1/ (already authorized by the handler); user — the token's user
              (None for root): a job is read only by the person who started it.
-    Returns: the operation's JSON-serialisable result. zones/<key>: zone_detail; vault/slots: the unlock methods with
+    Returns: the operation's JSON-serialisable result. version: version_info with the host's name and domain (the
+             console's top bar); zones/<key>: zone_detail; vault/slots: the unlock methods with
              this host's name; images: the image status rows; reminders: host_reminders (the console's top bar);
              pki/acme: {info, machines, domain}; jobs/<id>: the job; domain/grants: list_grants; domain/grants/<name>:
              show_grant; domain/grants/explain/<person>[/<machine>]: explain_grant; domain/kerberos: kerberos_overview;

@@ -49,7 +49,7 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 
 ## 4.8 The web UI
 
-- [4.8.1 Tabs and features](4.8.1-features.md)
+- [4.8.1 Pages and features](4.8.1-features.md)
 - [4.8.2 Device access](4.8.2-device-access.md)
 - [4.8.3 The setup wizard and the settings file](4.8.3-setup-wizard.md)
 

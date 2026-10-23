@@ -10,4 +10,4 @@ def settings_plan(ctx, plan, msg="", err=""):
     Returns: HTML str.
     Fails:   Jinja2 errors propagate.
     Feeds:   src/webui/routes/settings_post (/settings/plan, /settings/import, a stale /settings/apply)."""
-    return render_page("settings_plan", ctx=ctx, tab="settings", plan=plan, msg=msg, err=err)
+    return render_page("settings_plan", ctx=ctx, page="/settings", plan=plan, msg=msg, err=err)

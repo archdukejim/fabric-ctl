@@ -17,7 +17,8 @@ def openbao(ctx, status, view="status", slots=(), devices=None, slot_id="", host
     Feeds:   src/webui/routes/openbao_page; devserver.
     """
     section = view if view in ("status", "secrets", "disk") else "unlock"
-    return render_page("openbao", ctx=ctx, tab="openbao", s=status, view=view, section=section,
+    page = "/secrets" + ("" if section in ("status", "secrets") else "/" + section)
+    return render_page("openbao", ctx=ctx, page=page, s=status, view=view, section=section,
                        sections=OPENBAO_SECTIONS,
                    slots=list(slots), devices=devices or {"tokens": [], "disks": []}, slot_types=SLOT_TYPES,
                    slot_id=slot_id, host=host, live=live, msg=msg, err=err,

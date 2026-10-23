@@ -10,5 +10,6 @@ def tsig_result(ctx, name, secret, ini, action):
     Fails:   AttributeError if ini is not a str (from _b64); otherwise never in practice.
     Feeds:   src/webui/routes/tsig_post; devserver.
     """
-    return render_page("tsig_result", ctx=ctx, tab="bind9", key_name=name, secret=secret, ini=ini, ini_b64=b64(ini),
+    return render_page("tsig_result", ctx=ctx, page="/dns/zones", key_name=name, secret=secret, ini=ini,
+                       ini_b64=b64(ini),
                    action=action)

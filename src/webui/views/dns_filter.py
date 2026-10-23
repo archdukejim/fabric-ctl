@@ -51,6 +51,6 @@ def dns_filter(ctx, section, overview, log, search, msg="", err="", wait=0):
     wait = int(wait) if str(wait).isdigit() else 0
     refresh = {"seconds": REFRESH_SECONDS, "url": f"/dns-filter?view={section}&wait={wait + 1}"} if (
         pending and wait < REFRESH_TIMES) else None
-    return render_page("dns_filter", ctx=ctx, tab="dnsfilter", sections=DNS_FILTER_SECTIONS, view=section,
+    return render_page("dns_filter", ctx=ctx, page="/dns-filter", sections=DNS_FILTER_SECTIONS, view=section,
                        d=overview, log=log, search=search, peak=peak, ago=_ago, msg=msg, err=err, refresh=refresh,
                        stalled=pending and not refresh)

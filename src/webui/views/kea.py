@@ -10,4 +10,4 @@ def kea(ctx, overview, msg="", err=""):
              left out).
     Feeds:   src/webui/routes/get_page (/kea); devserver.
     """
-    return render_page("kea", ctx=ctx, tab="kea", d=overview, msg=msg, err=err)
+    return render_page("kea", ctx=ctx, page="/kea", d=overview, msg=msg, err=err)

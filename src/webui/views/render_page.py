@@ -2,7 +2,8 @@ import os
 
 import jinja2
 
-from webui.views.constants import MENU_PERMS, TAB_PERMS, TABS
+from webui.views.constants import MENU_PERMS
+from webui.views.nav_menu import nav_menu
 
 # autoescape; templates in templates/webui-app, no inline scripts or styles (the strict Content-Security-Policy)
 _PACKAGE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -15,13 +16,15 @@ _env = jinja2.Environment(loader=jinja2.FileSystemLoader(_TEMPLATES), autoescape
 
 
 def render_page(name, **kw):
-    """Purpose: Render one template with the common page variables, hiding the tabs, sub-menus and forms the signed-in
-             person has no permission for.
+    """Purpose: Render one template in the console's frame (manual 1.8.6.2) with the common page variables, hiding the
+             navigation entries, sub-menus and forms the signed-in person has no permission for.
     Inputs:  name — a template in templates/webui-app (without .html); kw — the template's variables: ctx (dict with
-             user, csrf, perms, version;
-             default None = no header, tabs or footer), tab (active tab id; default None), menu / sections (lists of
-             (view, label), filtered through MENU_PERMS), and any others.
-    Returns: the rendered HTML str. Templates also get can(permission) and tabs (TABS filtered through TAB_PERMS).
+             user, csrf, perms, version, and the message of the last action in flash ({"ok": str} or {"err": str},
+             manual 1.8.6.3); default None = no frame), page (the navigation page shown, its path; default None),
+             menu / sections (lists of (view, label), filtered through MENU_PERMS), msg / err (shown as the page's
+             message; the session's flash fills them when not given), and any others.
+    Returns: the rendered HTML str. Templates also get can(permission), nav (nav_menu's entries), visible (the
+             set of navigation paths the person may open) and entries (the ids of the entries they see).
     Fails:   jinja2.TemplateNotFound for an unknown name; other jinja2 errors propagate (e.g. UndefinedError when the
              template reads an attribute of a value the caller left out).
     Feeds:   every page function in src/webui/views/.
@@ -29,13 +32,21 @@ def render_page(name, **kw):
              pages carry no inline script or style, so they work under the server's strict CSP.
     """
     kw.setdefault("ctx", None)
-    kw.setdefault("tab", None)
-    perms = set((kw["ctx"] or {}).get("perms") or ())
+    kw.setdefault("page", None)
+    ctx = kw["ctx"] or {}
+    perms = set(ctx.get("perms") or ())
 
     def can(perm):
         return perm in perms
     kw["can"] = can
-    kw["tabs"] = [t for t in TABS if any(can(q) for q in TAB_PERMS.get(t[0], ()))]
+    kw["nav"] = nav_menu(perms, kw["page"], ctx.get("pending_counts"))
+    kw["visible"] = {p["href"] for e in kw["nav"] for p in e["pages"]}
+    kw["entries"] = {e["id"] for e in kw["nav"]}
+    flash = ctx.get("flash") or {}
+    if not kw.get("msg"):
+        kw["msg"] = flash.get("ok", "")
+    if not kw.get("err"):
+        kw["err"] = flash.get("err", "")
     for key in ("menu", "sections"):
         if kw.get(key):
             kw[key] = [(v, label) for v, label in kw[key] if can(MENU_PERMS.get(v, "")) or v not in MENU_PERMS]

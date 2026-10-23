@@ -1,5 +1,4 @@
 import re
-import urllib.parse
 
 from webui import agentclient as actions
 from webui import views
@@ -9,11 +8,11 @@ from webui.session.page_context import page_context
 
 def tsig_post(h, sess, rest, form):
     """Purpose: TSIG keys: create, rotate, delete (Apply publishes them to BIND9).
-    Inputs:  h — the request handler (send, redirect, deny); sess — dict from find_session; rest — str after
+    Inputs:  h — the request handler (send, back, deny); sess — dict from find_session; rest — str after
              /bind9/tsig/ (unquoted): 'create' (form name, zone, scope, hosts space/comma separated, type_<T>
              checkboxes, secret — optional existing one), '<name>/rotate', '<name>/delete'; form — dict.
     Returns: create / rotate: 200 page with the secret and an RFC2136 ini (shown once); delete: 303 to
-             /bind9?view=tsig with msg.
+             /dns/zones?view=tsig with what was done.
     Fails:   404 for anything else; ValidationError → the TSIG section again with 400 and the error; AgentError,
              PermissionDenied and AuthError propagate to handle_request.
     Feeds:   post_action (/bind9/tsig/…).
@@ -33,8 +32,8 @@ def tsig_post(h, sess, rest, form):
             return h.send(200, views.tsig_result(ctx, name, r["secret"], r["ini"], "rotated"))
         if op == "delete":
             actions.delete_tsig_key(user, name)
-            return h.redirect("/bind9?" + urllib.parse.urlencode(
-                {**back, "msg": f"TSIG key {name} removed. Apply to publish."}))
+            return h.back("/dns/zones?view=tsig", msg=f"TSIG key {name} removed. Apply to publish.")
         return h.deny(404, "Not found.")
     except actions.ValidationError as exc:
-        return bind9_page(h, ctx, {**back, "err": str(exc)}, status=400)
+        ctx["flash"] = {"err": str(exc)}
+        return bind9_page(h, ctx, back, status=400)

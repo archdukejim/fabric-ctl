@@ -24,6 +24,7 @@ for _p in (os.path.dirname(_PARENT), _PARENT):
         sys.path.insert(0, _p)
 from webui.devpreview.dev_handler import DevHandler  # noqa: E402
 from webui.devpreview.fabric_rules import BUNDLES  # noqa: E402
+from webui.devpreview.fake_connection import FakeConnection  # noqa: E402
 
 
 def main():
@@ -44,8 +45,9 @@ def main():
     if args.bundle != "admin":
         if args.bundle not in BUNDLES:
             ap.error(f"unknown bundle {args.bundle!r}")
-        DevHandler.ctx = dict(DevHandler.ctx, perms=sorted(BUNDLES[args.bundle]),
-                              user=f"dev (preview as {args.bundle})")
+        DevHandler.who = dict(DevHandler.who, perms=sorted(BUNDLES[args.bundle]),
+                              user=f"dev-{args.bundle}")
+    FakeConnection.install(DevHandler.state, DevHandler.who)       # every agent call answered from the sample data
     server = ThreadingHTTPServer((args.bind, args.port), DevHandler)
     print(f"Fabric web UI DEV PREVIEW on http://{args.bind}:{args.port}/ — sample data, no sign-in, "
           "nothing is saved. Never expose this.", flush=True)

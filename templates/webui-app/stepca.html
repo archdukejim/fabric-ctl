@@ -1,12 +1,10 @@
 {% extends "base.html" %}
 {% macro device_select() %}{% if devices %}<label>For device (optional — links the certificate to it)<select name="device"><option value="">—</option>{% for d in devices %}<option{{ ' selected' if d.name == device }}>{{ d.name }}</option>{% endfor %}</select></label>{% endif %}{% endmacro %}
 {% block body %}
-<h1>Step-CA · PKI</h1>
-{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
-{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
-<nav class="subtabs">
-{% for v, label in menu %}<a href="/stepca?view={{ v }}" class="subtab{{ ' active' if v == view }}">{{ label }}</a>{% endfor %}
-</nav>
+<h1>PKI · {{ 'ACME' if view == 'acme' else 'Certificates' }}</h1>
+{% if view != 'acme' %}<nav class="subtabs">
+{% for v, label in menu if v != 'acme' %}<a href="/pki?view={{ v }}" class="subtab{{ ' active' if v == view }}">{{ label }}</a>{% endfor %}
+</nav>{% endif %}
 {% if view == 'ca' %}
 {% if ca %}
 {% for label, c in (('Root CA', ca.root), ('Intermediate CA', ca.intermediate)) %}

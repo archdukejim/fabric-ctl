@@ -2,8 +2,6 @@
 {% macro today_is(f, shown=None) %}<span class="muted">today: {{ shown if shown is not none else (today[f] or '—') }}</span>{% endmacro %}
 {% macro onoff(f, on='on', off='off') %}<select name="{{ f }}"><option value="true"{{ ' selected' if typed[f] == 'true' }}>{{ on }}</option><option value="false"{{ ' selected' if typed[f] != 'true' }}>{{ off }}</option></select>{% endmacro %}
 <h1>Settings · the setup wizard</h1>
-{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
-{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
 <p class="muted">Setup's choices that can change later. Back and Next keep what you typed; nothing changes until you
 review the plan and apply it, as one apply.{% if not ov.finished.finished %} <strong>Finish setting up:</strong> after a
 fresh install these are setup's defaults.{% endif %}</p>

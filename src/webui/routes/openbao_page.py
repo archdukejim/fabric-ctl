@@ -6,16 +6,15 @@ def openbao_page(h, ctx, query):
     """Purpose: Render the OpenBao tab: status, unlock methods and their add/rotate/remove forms, secrets, disk
              encryption.
     Inputs:  h — the request handler (send); ctx — page context; query — dict: view (one of views.OPENBAO_VIEWS, else
-             'status'), slot (for the remove view), msg, err.
+             'status'), slot (for the remove view).
     Returns: 200 OpenBao page; slot changes are live and every add type is enabled.
     Fails:   agent errors from vault_slots, vault_status and vault_devices (the last only for add-security-key and
              add-usb) propagate to handle_request (400, redirect to /login, 403, 503).
-    Feeds:   get_page (/openbao).
+    Feeds:   get_page (/secrets, /secrets/<view>).
     """
     view = query.get("view") if query.get("view") in views.OPENBAO_VIEWS else "status"
     slots = actions.vault_slots()
     devices = actions.vault_devices() if view in ("add-security-key", "add-usb") else None
     return h.send(200, views.openbao(ctx, actions.vault_status(), view, slots["slots"], devices,
                                      slot_id=query.get("slot", ""), host=slots["host"], live=True,
-                                     msg=query.get("msg", ""), err=query.get("err", ""),
                                      add_live={"security-key": True, "usb": True, "hsm": True}))

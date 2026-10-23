@@ -92,7 +92,7 @@ def post_action(h, sess, path, form):
     if path.startswith("/freeradius/clients"):
         return radius_post(h, sess, _segments(path, 3), form)
     if path.startswith("/freeradius/people"):
-        return saved_and_applied(h, "/freeradius", lambda: _radius_people(_segments(path, 3), form))
+        return saved_and_applied(h, "/8021x", lambda: _radius_people(_segments(path, 3), form))
     if path.startswith("/bind9/tsig/"):
         return tsig_post(h, sess, urllib.parse.unquote(path[len("/bind9/tsig/"):]), form)
     return h.deny(404, "Not found.")

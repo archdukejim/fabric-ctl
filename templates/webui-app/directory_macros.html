@@ -4,7 +4,7 @@
 <label class="wide">MAC addresses (space or comma separated)<input name="macs" value="{{ d.macs | join(' ') }}" placeholder="aa:bb:cc:dd:ee:ff"></label>
 <label class="wide">Description<input name="description" value="{{ d.description or '' }}" maxlength="200"></label>
 <fieldset class="wide"><legend>Roles</legend>
-{% for r in data.roles %}<label class="check"><input type="checkbox" name="role_{{ r.name }}" value="1"{{ ' checked' if r.name in d.roles }}> {{ r.name }}</label>{% else %}<span class="muted">No roles yet — <a href="/directory?view=roles">create one</a>.</span>{% endfor %}
+{% for r in data.roles %}<label class="check"><input type="checkbox" name="role_{{ r.name }}" value="1"{{ ' checked' if r.name in d.roles }}> {{ r.name }}</label>{% else %}<span class="muted">No roles yet — <a href="/8021x/roles">create one</a>.</span>{% endfor %}
 </fieldset>
 <label class="check"><input type="checkbox" name="enabled" value="1"{{ ' checked' if d.enabled }}> Enabled</label>
 {% endmacro %}

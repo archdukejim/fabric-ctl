@@ -27,4 +27,4 @@ def pki_result(ctx, kind, r):
         files.append((f"{n}.p12", "application/x-pkcs12", r["p12_b64"], "certificate + key + chain, PKCS#12"))
     title = {"sign": "Certificate signed", "issue": "Key and certificate generated",
              "convert": "Certificate converted"}[kind]
-    return render_page("pki_result", ctx=ctx, tab="stepca", title=title, r=r, files=files, back=kind)
+    return render_page("pki_result", ctx=ctx, page="/pki", title=title, r=r, files=files, back=kind)

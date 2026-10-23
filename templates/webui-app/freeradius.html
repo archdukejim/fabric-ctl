@@ -1,22 +1,20 @@
 {% extends "base.html" %}
 {% block body %}
-<h1>FreeRADIUS · 802.1X</h1>
-{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
-{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
+<h1>802.1X · {{ {"overview": "RADIUS clients", "decisions": "Recent decisions"}.get(view, "Setup guides") }}</h1>
 {% if not r.enabled %}
 <section class="card"><h2>802.1X is off</h2>
-<p class="muted">FreeRADIUS 3.2 lets switches and access points ask fabric which devices may join: by their certificate (EAP-TLS) or, for printers and IoT, by MAC (MAB). Each device is checked against the directory (Devices and Roles on the Directory tab) and put on its role's VLAN. Turn it on in <code>vars.yaml</code> and re-run setup:</p>
+<p class="muted">FreeRADIUS 3.2 lets switches and access points ask fabric which devices may join: by their certificate (EAP-TLS) or, for printers and IoT, by MAC (MAB). Each device is checked against the directory (802.1X → Devices and Device roles) and put on its role's VLAN. Turn it on in <code>vars.yaml</code> and re-run setup:</p>
 <pre>install_freeradius: true
 radius_clients:
   - { name: switch1, address: 192.168.4.2 }</pre></section>
 {% else %}
-<nav class="sections">
-{% for id, label in sections %}<a href="/freeradius{{ '' if id == 'overview' else '?view=' ~ id }}" class="section{{ ' active' if id == view }}">{{ label }}</a>{% endfor %}
-</nav>
+{% if view in ("switches", "windows") %}<nav class="sections">
+{% for id, label in sections %}<a href="/8021x/guides?view={{ id }}" class="section{{ ' active' if id == view }}">{{ label }}</a>{% endfor %}
+</nav>{% endif %}
 {% if view == 'overview' %}
 <section class="card"><h2>Server</h2>
 <p>Switches and access points send RADIUS to <code>{{ r.host_ip }}</code> UDP 1812 (accounting 1813). Supplicants check the server certificate <code>{{ r.server_name }}</code>, issued by the fabric CA.</p>
-<p class="muted">Devices: decided per device on the Directory tab — a role with <code>network:eap-tls</code> (certificate linked to the device) or <code>network:mab</code> (the device's MAC), and optionally a VLAN. A disabled device, or an unlinked certificate, is refused at its next authentication. People and domain machines: by password (EAP-TTLS or PEAP, checked by the domain), only members of the groups below (for machines, e.g. <code>Domain Computers</code>).</p>
+<p class="muted">Devices: decided per device on 802.1X → Devices — a role with <code>network:eap-tls</code> (certificate linked to the device) or <code>network:mab</code> (the device's MAC), and optionally a VLAN. A disabled device, or an unlinked certificate, is refused at its next authentication. People and domain machines: by password (EAP-TTLS or PEAP, checked by the domain), only members of the groups below (for machines, e.g. <code>Domain Computers</code>).</p>
 </section>
 <section class="card"><h2>People and domain machines <span class="muted">join by password (EAP-TTLS, PEAP)</span></h2>
 {% if r.people %}<table><thead><tr><th>Group</th><th>VLAN</th><th>Priority</th><th></th></tr></thead><tbody>
@@ -49,6 +47,7 @@ radius_clients:
 </form>
 <p class="muted small">Saved and applied at once; the shared secret is shown once and kept in OpenBao.</p>{% endif %}
 </section>
+{% elif view == "decisions" %}
 <section class="card"><h2>Recent decisions <span class="muted">{{ r.log | length }}</span></h2>
 {% if r.log_error %}<p class="flash warn">{{ r.log_error }}</p>{% endif %}
 {% if r.log %}<table><thead><tr><th>Time</th><th></th><th>Method</th><th>Who</th><th>VLAN</th><th>MAC</th><th>Via</th><th>Why</th></tr></thead><tbody>
@@ -63,12 +62,12 @@ radius_clients:
 <dt>RADIUS server</dt><dd><code>{{ g.host_ip }}</code></dd>
 <dt>Authentication port</dt><dd><code>1812</code> (UDP)</dd>
 <dt>Accounting port</dt><dd><code>1813</code> (optional; acknowledged, not stored)</dd>
-<dt>Shared secret</dt><dd>the one shown when you added the switch on <a href="/freeradius">Overview</a> → RADIUS clients (lost it? <strong>New secret</strong>)</dd>
+<dt>Shared secret</dt><dd>the one shown when you added the switch on <a href="/8021x">RADIUS clients</a> (lost it? <strong>New secret</strong>)</dd>
 <dt>Dynamic VLAN</dt><dd>turn on "RADIUS-assigned VLAN" (fabric sends <code>Tunnel-Private-Group-Id</code>)</dd>
 </dl>
 <p>Per port, choose how the device on it proves who it is:</p>
 <ul>
-<li><strong>802.1X</strong> — laptops, desktops, phones: a certificate (EAP-TLS, device roles on the Directory tab) or a password checked by the domain (EAP-TTLS or PEAP, mapped groups).</li>
+<li><strong>802.1X</strong> — laptops, desktops, phones: a certificate (EAP-TLS, device roles on 802.1X → Device roles) or a password checked by the domain (EAP-TTLS or PEAP, mapped groups).</li>
 <li><strong>MAC authentication (MAB)</strong> — printers, cameras, IoT without 802.1X: the device's MAC must belong to a device whose role grants <code>network:mab</code>.</li>
 <li><strong>Always open</strong> — uplinks, access points, <strong>the port this fabric host is on</strong>, and the port of the switch's own controller. Closing those locks the network (and you) out.</li>
 </ul>
@@ -77,12 +76,12 @@ radius_clients:
 <section class="card"><h2>UniFi (UniFi Network application)</h2>
 <p class="flash warn">Untested with fabric yet: labels can differ between UniFi Network versions.</p>
 <ol class="steps">
-<li><strong>In fabric:</strong> <a href="/freeradius">Overview</a> → RADIUS clients → add the switch by its management IP (UniFi → Devices → the switch → its IP). Keep the shared secret.</li>
+<li><strong>In fabric:</strong> <a href="/8021x">RADIUS clients</a> → add the switch by its management IP (UniFi → Devices → the switch → its IP). Keep the shared secret.</li>
 <li><strong>UniFi → Settings → Profiles → RADIUS → Create New:</strong> name <code>fabric</code>; Authentication server <code>{{ g.host_ip }}</code>, port <code>1812</code>, the shared secret; Accounting server (optional) <code>{{ g.host_ip }}</code>, port <code>1813</code>, the same secret; turn on <em>Wired networks</em> and <em>RADIUS assigned VLAN</em> (wired).</li>
 <li><strong>UniFi → Settings → Networks:</strong> create the VLANs fabric's roles and groups use, same numbers.</li>
 <li><strong>UniFi → Devices → the switch → Settings → Services → 802.1X Control:</strong> on, RADIUS profile <code>fabric</code>. Fallback VLAN: leave empty (refused devices get no network) or a guest VLAN.</li>
 <li><strong>UniFi → the switch → Ports:</strong> per port, <em>802.1X Control</em> — <code>Auto</code> for 802.1X devices, <code>MAC-based</code> for printers and IoT, <code>Force Authorized</code> for uplinks, access points, the fabric host and the UniFi console.</li>
-<li><strong>Check:</strong> plug a device in; <a href="/freeradius">Overview</a> → Recent decisions shows accepted / refused and why.</li>
+<li><strong>Check:</strong> plug a device in; <a href="/8021x/decisions">Recent decisions</a> shows accepted / refused and why.</li>
 </ol>
 <p class="muted">MAB devices never show up in Recent decisions? The switch may not send a Message-Authenticator, and fabric drops such requests (BlastRADIUS protection). Remove the switch and add it again with "Require Message-Authenticator" off, only for that switch.</p>
 </section>

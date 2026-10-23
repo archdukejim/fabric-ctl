@@ -22,3 +22,7 @@ except ImportError:
     PRIVATE_TLDS = ()                       # without fabriclib every name counts as public in the preview
     DEVICE_TYPES, PERMISSIONS = [], {}
     BUNDLES, FABRIC_PERMISSIONS = {}, {p: "" for p in views.PREVIEW_PERMS}
+try:
+    from fabriclib.rbac.required_permission import required_permission  # noqa: F401
+except ImportError:
+    required_permission = None

@@ -1,15 +1,13 @@
 {% extends "base.html" %}{% block body %}
-<h1>BIND9 · DNS</h1>
-{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
-{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
+<h1>DNS · Zones</h1>
 <nav class="sections">
-{% for id, label in bind9_sections if id != 'dhcp' or can('dhcp:read') %}<a href="/bind9{{ '' if id == 'forward' else '?view=' ~ id }}" class="section{{ ' active' if id == section }}">{{ label }}</a>{% endfor %}
+{% for id, label in bind9_sections if id != 'dhcp' or can('dhcp:read') %}<a href="/dns/zones{{ '' if id == 'forward' else '?view=' ~ id }}" class="section{{ ' active' if id == section }}">{{ label }}</a>{% endfor %}
 </nav>
 
 {% if section == 'forward' %}
 {% if forward_zones | length > 1 %}
 <div class="picker"><span class="muted">Zone</span>
-{% for z in forward_zones %}<a href="/bind9?zone={{ z.key | urlencode }}" class="subtab{{ ' active' if zone and z.key == zone.key }}">{{ z.name }} <span class="muted">{{ z.records }}</span></a>{% endfor %}
+{% for z in forward_zones %}<a href="/dns/zones?zone={{ z.key | urlencode }}" class="subtab{{ ' active' if zone and z.key == zone.key }}">{{ z.name }} <span class="muted">{{ z.records }}</span></a>{% endfor %}
 </div>
 {% endif %}
 {% if zone %}
@@ -39,7 +37,7 @@
 </form>{% endif %}
 <p class="muted">The value is the address for A and AAAA, the host it points to for CNAME, MX and SRV, the text for
 TXT. A and AAAA records with a private address get their PTR record automatically — see Reverse zones. Which records
-the landing page links to is set in its own section: <a href="/bind9?view=landing">Landing page</a>.
+the landing page links to is set in its own section: <a href="/dns/zones?view=landing">Landing page</a>.
 Names marked <span class="pill">provided by fabric</span> are fabric's own: every apply adds them back from their
 setting, so they are not deleted here. The landing page's <code>info</code> is yours: rename, repoint or delete it;
 the page stays at <code>http://&lt;this host's address&gt;/info/</code>.</p></section>
@@ -101,7 +99,7 @@ here, each as <code>https://&lt;name&gt;.{{ zone.name if zone else '&lt;domain&g
 </form>
 <p class="muted">Only A, AAAA and CNAME records of {{ zone.name }}, and never a wildcard. The label is the text shown
 (default: the name); linking a record that is linked already replaces its link.</p>
-{% else %}<p class="blank">No A, AAAA or CNAME record to link: add one in <a href="/bind9">Forward zones</a>.</p>{% endif %}
+{% else %}<p class="blank">No A, AAAA or CNAME record to link: add one in <a href="/dns/zones">Forward zones</a>.</p>{% endif %}
 </section>
 {% endif %}
 

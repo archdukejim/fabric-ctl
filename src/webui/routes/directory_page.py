@@ -7,16 +7,17 @@ def directory_page(h, ctx, query, status=200):
              Policy.
     Inputs:  h — the request handler (send); ctx — page context; query — dict: view ('device', 'roles', 'role',
              'people', 'domain', 'machines', 'gpo' (with match: a policy search), else 'devices'), name (device or
-             role; unknown → the list), msg, err; status — int, default 200.
+             role); status — int, default 200.
     Returns: the directory page with the given status; when the directory cannot be read (AgentError,
              ValidationError) the page shows why instead of the data. The machines view also shows the site's host
              groups and sudo rules (1.6.11.7; why they could not be read, alone, when that fails).
-    Fails:   PermissionDenied and AuthError propagate to handle_request (403, redirect to /login).
-    Feeds:   get_page (/directory).
+    Fails:   404 for a device or role that is not there (its page, /8021x/devices/<name>); PermissionDenied and
+             AuthError propagate to handle_request (403, redirect to /login).
+    Feeds:   get_page (/directory/<section>, /8021x/devices, /8021x/roles).
     """
     view = query.get("view") if query.get("view") in ("device", "roles", "role", "people", "domain", "machines",
                                                       "gpo") else "devices"
-    kw = {"msg": query.get("msg", ""), "err": query.get("err", "")}
+    kw = {}
     try:
         if view == "machines":
             domain = actions.domain_overview()
@@ -37,8 +38,10 @@ def directory_page(h, ctx, query, status=200):
         return h.send(status, views.directory(ctx, view, unavailable=str(exc), **kw))
     if view == "device":
         kw["device"] = next((d for d in data["devices"] if d["name"] == query.get("name")), None)
-        view = view if kw["device"] else "devices"
+        if not kw["device"]:
+            return h.deny(404, "No device has that name.")
     if view == "role":
         kw["role"] = next((r for r in data["roles"] if r["name"] == query.get("name")), None)
-        view = view if kw["role"] else "roles"
+        if not kw["role"]:
+            return h.deny(404, "No device role has that name.")
     return h.send(status, views.directory(ctx, view, data=data, **kw))

@@ -36,8 +36,9 @@ def settings_post(h, sess, parts, form):
              ['apply'] (plan: its id), ['dismiss']; form — the wizard's fields (WIZARD_FIELDS) and the rest.
     Returns: step: 200 that step with what was typed; plan and import: 200 the plan, or the wizard (plan: the Review
              step with what was typed; import: the first step) saying why it was refused; apply: 303 to the job's
-             page, 303 to /login?next=/settings when the last sign-in is older than STEP_UP (300 s), 200 the plan
-             made again when someone applied first, or 303 to /settings with err (no such plan); dismiss: 303 to /.
+             page, 303 to /login?next=/settings?signed_in=1 when the last sign-in is older than STEP_UP (300 s),
+             200 the plan made again when someone applied first, or 303 to /settings with the refusal as its message
+             (no such plan); dismiss: 303 to /.
     Fails:   404 for another path; AgentError, PermissionDenied and AuthError propagate to handle_request.
     Feeds:   post_action (/settings/…)."""
     typed = {f: form[f] for f in WIZARD_FIELDS if isinstance(form.get(f), str)}
@@ -54,23 +55,19 @@ def settings_post(h, sess, parts, form):
     if parts == ["import"]:
         text = _file_text(form)
         if not text.strip():
-            return h.redirect("/settings?" + urllib.parse.urlencode({"err": "Choose a settings file (UTF-8 YAML) "
-                                                                             "or paste it."}))
+            return h.back("/settings", err="Choose a settings file (UTF-8 YAML) or paste it.")
         try:
             plan = actions.settings_plan(file=text)
         except actions.ValidationError as exc:
-            return h.redirect("/settings?" + urllib.parse.urlencode({"err": f"The file was refused, nothing "
-                                                                             f"changed: {exc}"}))
+            return h.back("/settings", err=f"The file was refused, nothing changed: {exc}")
         return h.send(200, views.settings_plan(page_context(sess), plan))
     if parts == ["apply"]:
         if time.time() - sess.get("auth_at", 0) > STEP_UP:
-            return h.redirect("/login?" + urllib.parse.urlencode({"next": "/settings?msg=" + urllib.parse.quote(
-                "Signed in again. Make the plan again and apply it: applying needs a sign-in from the last 5 "
-                "minutes.")}))
+            return h.redirect("/login?next=/settings%3Fsigned_in%3D1")
         try:
             res = actions.settings_apply(form.get("plan", ""))
         except actions.ValidationError as exc:
-            return h.redirect("/settings?" + urllib.parse.urlencode({"err": str(exc)}))
+            return h.back("/settings", err=str(exc))
         if res.get("stale"):
             return h.send(200, views.settings_plan(page_context(sess), res["plan"], err=STALE))
         return h.redirect("/jobs/" + urllib.parse.quote(res["id"], safe=""))

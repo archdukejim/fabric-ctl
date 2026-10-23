@@ -447,12 +447,6 @@ setting:webui_client_cert_days -
 setting:webui_hostname -
 setting:webui_realm +
 setting:webui_realm -
-web:get.audit -
-web:get.directory -
-web:get.federation +
-web:get.federation -
-web:get.security -
-web:get.stepca -
 web:post.apply +
 web:post.apply -
 web:post.directory.devices.* +

@@ -4,27 +4,45 @@
 <title>{% block title %}fabric-ctl · web control{% endblock %}</title>
 <link rel="stylesheet" href="/static/app.css">{% block head %}{% endblock %}</head>
 <body>
-<header>
-  <a class="brand" href="/">fabric-ctl <span class="subtitle">web control</span></a>
-  {% if ctx %}
-  <div class="who">
-    <a href="/audit">Audit log</a>
-    <span>{{ ctx.user }}</span>
+{% if ctx %}
+{# the frame (manual 1.8.6.2): a bar across the top, the navigation down the left; on a narrow screen the navigation
+   folds behind the Menu button, a checkbox and its label: CSS only, no script #}
+<input type="checkbox" id="navtoggle" class="navtoggle" aria-controls="sidenav" aria-label="Show the navigation">
+<header class="topbar">
+  <label for="navtoggle" class="navbutton">Menu</label>
+  <a class="brand" href="/">fabric-ctl</a>
+  {% set v = ctx.version or {} %}
+  <span class="install">{{ v.host or '' }}{% if v.host and v.domain %} · {% endif %}{{ v.domain or '' }}</span>
+  <span class="version muted">fabricctl {{ v.version }}</span>
+  <span class="spacer"></span>
+  {% block pendingbar %}{% endblock %}
+  <details class="usermenu"><summary>{{ ctx.user }}</summary>
+  <div class="menu">
+    {% if 'account' in entries %}<a href="/account">My account</a>{% endif %}
     <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
     <button class="link">Sign out</button></form>
-  </div>
-  {% endif %}
+  </div></details>
 </header>
-{% if ctx and ctx.dev %}<p class="devbanner">DEV PREVIEW — sample data, no sign-in, nothing is saved or applied</p>{% endif %}
-{% if ctx and ctx.get('reminders') %}<div class="warn-text reminders" role="status"><strong>Reminder:</strong>
+{% if ctx.preview %}<p class="devbanner">DEV PREVIEW — sample data, no sign-in, nothing is saved or applied</p>{% endif %}
+{% if ctx.get('reminders') %}<div class="warn-text reminders" role="status"><strong>Reminder:</strong>
 <ul>{% for r in ctx.reminders %}<li>{{ r.text }}</li>{% endfor %}</ul></div>{% endif %}
-{% if ctx %}
-<nav class="tabs">
-{% for id, href, label, optional in tabs %}
-  <a href="{{ href }}" class="tab{{ ' active' if id == tab }}">{{ label }}</a>
+<div class="frame">
+<nav class="side" id="sidenav" aria-label="Navigation"><ul>
+{% for e in nav %}
+  <li class="entry{{ ' open' if e.open }}"><a href="{{ e.href }}"{% if e.open and e.pages | length == 1 %} aria-current="page"{% endif %}>{{ e.label }}{% if e.pending %} <span class="count" title="changes pending">{{ e.pending }}</span>{% endif %}</a>
+  {% if e.open and e.pages | length > 1 %}<ul class="pages">
+  {% for p in e.pages %}<li><a href="{{ p.href }}"{% if p.active %} class="active" aria-current="page"{% endif %}>{{ p.label }}{% if p.pending %} <span class="count" title="changes pending">{{ p.pending }}</span>{% endif %}</a></li>
+  {% endfor %}</ul>{% endif %}</li>
 {% endfor %}
-</nav>
+</ul></nav>
+<main>
+{% else %}
+<header class="topbar"><a class="brand" href="/">fabric-ctl</a></header>
+<main class="bare">
 {% endif %}
-<main>{% block body %}{% endblock %}</main>
-{% if ctx %}<footer>fabricctl {{ ctx.version.version }}{% if ctx.version.build %} · {{ ctx.version.build | replace('\n', ' · ') }}{% endif %}</footer>{% endif %}
+{% if msg %}<p class="flash ok" role="status">{{ msg }}</p>{% endif %}
+{% if err %}<p class="flash bad" role="alert">{{ err }}</p>{% endif %}
+{% block body %}{% endblock %}
+</main>
+{% if ctx %}</div>{% endif %}
 </body></html>

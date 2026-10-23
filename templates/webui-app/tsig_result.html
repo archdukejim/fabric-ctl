@@ -9,5 +9,5 @@
 {% if can('dns:write') %}<form method="post" action="/apply" class="apply card">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button>Apply changes</button>
 <span class="muted">Until applied, BIND9 does not know this {{ 'key' if action == 'created' else 'secret' }}.</span></form>{% endif %}
-<p><a href="/bind9?view=tsig">Back to TSIG keys</a></p>
+<p><a href="/dns/zones?view=tsig">Back to TSIG keys</a></p>
 {% endblock %}
