@@ -1,0 +1,8 @@
+# fabric's signed apt repository and its releases (manual 1.3.1.1, decision 2.1.1.2): where an offline bundle's
+# export takes the release's .deb from (the GitHub Release) and the signed index it checks it against (decision
+# 2.1.14.17, manual 1.14.4.10). The fingerprint is the repository's signing key's (packaging/apt, made with
+# scripts/release/make-apt-key.sh): the export refuses a public key with any other.
+url: https://archdukejim.github.io/fabric-ctl
+suite: stable
+fingerprint: 9946C72491FC85485ACD879BD0DF2E75E6E73230
+releases: https://github.com/archdukejim/fabric-ctl/releases/download

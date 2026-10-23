@@ -2,10 +2,17 @@
 and the pinned cosign. Needs Docker, root and network access (the export is online). Run by tests/images/run.sh.
 Loading the images, with no network, is tests/images/offline.sh's.
 
-A small lock (cosign, nginx and fabric's published bind9) keeps it to about 200 MB:
-- `images export` writes one bundle: each image its own OCI layout, the published one's signature, a manifest with
-  every file's sha256; the bundle checks as a whole and its signature offline, against the trusted root the package
-  ships (config/sigstore-trusted-root.json), which is Sigstore's current one
+A small lock (cosign, nginx and fabric's published bind9) keeps it to about 350 MB, with this checkout's .deb
+(packaging/deb/build-deb.sh) given as --deb, and this machine's Ubuntu release's packages:
+- `images export` writes one bundle: fabric's .deb, a part of the Ubuntu archive, each image its own OCI layout, the
+  published one's signature, a manifest with every file's sha256; the bundle checks as a whole and its signature
+  offline, against the trusted root the package ships (config/sigstore-trusted-root.json), which is Sigstore's
+  current one
+- packages (2.1.14.16, 2.1.14.17, 2.1.14.23): the bundle's packages unpack as a local apt source real apt reads,
+  checks and resolves the domain member's packages and Docker's (unless docker-ce runs there) from (simulated:
+  nothing is installed here); the release's .deb is fetched and checked against the signed apt repository (0.7.2); refused: a version not released,
+  an apt repository key with another fingerprint, a --deb of another version, an Ubuntu release fabric's hosts do
+  not run, a bundle for another Ubuntu release; a --deb bundle shows as relaxed
 - refused, with why and nothing written: an unknown architecture, a file that exists, an image the lock has not
   published (the repository's own lock, and a small one), not enough space; the command's usage errors
 - with --allow-unpublished (2.1.14.21) the unpublished image is left out and recorded; the import's `relaxed:` line
@@ -34,8 +41,11 @@ from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
 from fabriclib.images.bundle.check_bundle import check_bundle  # noqa: E402
 from fabriclib.images.bundle.describe_import import describe_import  # noqa: E402
 from fabriclib.images.bundle.export_bundle import export_bundle  # noqa: E402
+from fabriclib.images.bundle.extract_bundle_apt import extract_bundle_apt  # noqa: E402
+from fabriclib.images.bundle.fetch_fabric_deb import fetch_fabric_deb  # noqa: E402
 from fabriclib.images.bundle.host_arch import host_arch  # noqa: E402
 from fabriclib.images.bundle.import_bundle import import_bundle  # noqa: E402
+from fabriclib.images.bundle.ubuntu_release import ubuntu_release  # noqa: E402
 from fabriclib.images.bundle.verify_offline import verify_offline  # noqa: E402
 from fabriclib.images.run_images_command import run_images_command  # noqa: E402
 from fabriclib.setup.context import SetupContext  # noqa: E402
@@ -46,6 +56,8 @@ ARCH = host_arch()
 OTHER = "arm64" if ARCH == "amd64" else "amd64"
 FULL = yaml.safe_load(open(os.path.join(REPO, "config", "images.lock.yaml")))
 COSIGN = read_images_lock(os.path.join(REPO, "config"))["cosign"]["ref"]
+RELEASE = ubuntu_release()[0]
+RELEASED = "0.7.2"                    # a version in the signed apt repository's stable suite
 
 
 def QUIET(line):
@@ -85,6 +97,7 @@ def make_lock(folder, upstream=("cosign", "nginx"), published=("bind9",), versio
         f.write(version or open(os.path.join(REPO, "config", "VERSION")).read())
     if root:
         shutil.copy(os.path.join(REPO, "config", "sigstore-trusted-root.json"), folder)
+    shutil.copy(os.path.join(REPO, "config", "apt-repository.yaml"), folder)
     return folder
 
 
@@ -99,21 +112,84 @@ work = tempfile.mkdtemp(prefix="bundles-test-", dir="/var/tmp")
 tiny = os.path.join(work, "tiny")
 try:
     lock = make_lock(os.path.join(work, "lock"))
+    version = open(os.path.join(lock, "VERSION")).read().strip()
+    DEB = subprocess.run(["bash", os.path.join(REPO, "packaging", "deb", "build-deb.sh")], capture_output=True,
+                         text=True, env=dict(os.environ, OUT=os.path.join(work, "dist")), check=True).stdout.strip()
     bundle = os.path.join(work, "fabric.tar")
     # covers: cli:images.export +
-    manifest = export_bundle(lock, ARCH, bundle, log=QUIET)
+    manifest = export_bundle(lock, ARCH, bundle, log=QUIET, deb=DEB)
     with tarfile.open(bundle) as tar:
         names = sorted(m.name for m in tar.getmembers())
-    check("images export writes one bundle: an OCI layout per image, the published image's signature and the "
-          "manifest (no trusted root: the package ships it)",
-          names == ["images/cosign.tar", "images/fabric-bind9.tar", "images/nginx.tar", "manifest.json",
-                    "signatures/fabric-bind9.json"], names)
-    check("the manifest names the fabric version, the architecture, every image by the lock's digest and every "
-          "file's sha256",
-          manifest["fabric"] == open(os.path.join(lock, "VERSION")).read().strip() and manifest["arch"] == ARCH
+    deb_name = f"deb/fabricctl_{manifest['deb']['version']}_all.deb"   # a checkout's build: <version>~git…
+    check("images export writes one bundle: fabric's .deb, the Ubuntu packages, an OCI layout per image, the published "
+          "image's signature and the manifest (no trusted root: the package ships it)",
+          [n for n in names if not n.startswith("ubuntu/")]
+          == [deb_name, "images/cosign.tar", "images/fabric-bind9.tar", "images/nginx.tar", "manifest.json",
+              "signatures/fabric-bind9.json"]
+          and f"ubuntu/dists/{manifest['ubuntu']['codename']}/InRelease" in names
+          and any(n.startswith("ubuntu/pool/") and "/docker.io_" in n for n in names), names[:8])
+    check("the manifest names the fabric version, the architecture, the Ubuntu release, every image by the lock's "
+          "digest and every file's sha256",
+          manifest["fabric"] == version and manifest["arch"] == ARCH and manifest["ubuntu"]["release"] == RELEASE
           and manifest["images"]["nginx"]["digest"] == FULL["images"]["nginx"]["digest"]
           and set(manifest["files"]) == set(names) - {"manifest.json"}
           and all(len(f["sha256"]) == 64 for f in manifest["files"].values()))
+    check("a --deb export records the .deb as not checked (2.1.14.23)",
+          manifest["deb"]["file"] == deb_name and manifest["deb"]["checked"] is False
+          and manifest["deb"]["version"].split("~")[0] == version, manifest["deb"])
+    lines = describe_import({"loaded": [], "present": [], "verified": [], "unchecked": [], "left_out": {},
+                             "deb_unchecked": version})
+    check("the import shows a --deb bundle as a relaxation", any(ln.startswith("relaxed:") and "--deb" in ln
+                                                                 for ln in lines), lines)
+    rec = os.path.join(work, "bundle-deb.json")
+    with open(rec, "w") as f:
+        json.dump({"left_out": {}, "deb_unchecked": version}, f)
+    check("status and doctor list a --deb bundle among the relaxed settings",
+          any("--deb" in r["setting"] for r in relaxed_settings({}, config_dir=work, bundle_record=rec)))
+
+    # the packages as a local apt source (2.1.14.16): real apt reads, checks and resolves from it, simulating only
+    apt_dir = tempfile.mkdtemp(prefix="bundles-apt-", dir="/var/tmp")
+    os.chmod(apt_dir, 0o755)
+    try:
+        source = extract_bundle_apt(bundle, lock, apt_dir)
+        apt_env = dict(os.environ, APT_CONFIG=source["config"])
+        upd = subprocess.run(["apt-get", "-q", "update"], capture_output=True, text=True, env=apt_env)
+        # docker.io too, unless this machine runs Docker's own docker-ce, which it conflicts with (offline.sh
+        # installs it on a bare host)
+        docker_ce = subprocess.run(["dpkg", "-s", "docker-ce"], capture_output=True).returncode == 0
+        wanted = ["sssd-ad", "realmd", "adcli"] + ([] if docker_ce else ["docker.io", "docker-compose-v2"])
+        sim = subprocess.run(["apt-get", "-s", "--no-install-recommends", "install", *wanted], capture_output=True,
+                             text=True, env=apt_env)
+        check("the bundle's packages unpack as a local apt source: apt checks its signed InRelease and resolves "
+              "the domain member's packages, and Docker's unless docker-ce runs here, from it alone",
+              upd.returncode == 0 and not upd.stderr.strip() and sim.returncode == 0
+              and os.path.exists(source["deb"]), (upd.stdout + upd.stderr + sim.stderr)[-400:])
+    finally:
+        shutil.rmtree(apt_dir, ignore_errors=True)
+    why = refusal(check_bundle, bundle, lock, ARCH, log=QUIET, release="22.04" if RELEASE != "22.04" else "24.04")
+    check("a bundle for another Ubuntu release is refused, naming both", "packages are for Ubuntu" in why, why)
+
+    released = os.path.join(work, "released.deb")
+    got = fetch_fabric_deb(lock, RELEASED, released)
+    check("the release's .deb is fetched from its GitHub Release and matches the signed apt repository's hash",
+          got["version"] == RELEASED and len(got["sha256"]) == 64 and os.path.getsize(released) == got["size"], got)
+    why = refusal(fetch_fabric_deb, lock, "0.0.1", os.path.join(work, "none.deb"))
+    check("a version the apt repository does not list is refused, pointing to --deb",
+          "not in the apt repository" in why and "--deb" in why and not os.path.exists(os.path.join(work, "none.deb")),
+          why)
+    forged = make_lock(os.path.join(work, "lock-forged"))
+    with open(os.path.join(forged, "apt-repository.yaml")) as f:
+        repo_cfg = yaml.safe_load(f)
+    repo_cfg["fingerprint"] = "0" * 40
+    with open(os.path.join(forged, "apt-repository.yaml"), "w") as f:
+        yaml.safe_dump(repo_cfg, f)
+    why = refusal(fetch_fabric_deb, forged, RELEASED, os.path.join(work, "forged.deb"))
+    check("an apt repository whose key is not the pinned fingerprint is not trusted", "not trusted" in why, why)
+    why = refusal(export_bundle, lock, ARCH, os.path.join(work, "wrong.tar"), log=QUIET, deb=released)
+    check("export refuses a --deb of another version, writing nothing",
+          f"not fabricctl {version}" in why and not os.path.exists(os.path.join(work, "wrong.tar")), why)
+    why = refusal(export_bundle, lock, ARCH, os.path.join(work, "focal.tar"), log=QUIET, ubuntu="20.04")
+    check("export refuses an Ubuntu release fabric's hosts do not run", "not a release fabric's hosts run" in why, why)
     checked = check_bundle(bundle, lock, ARCH, log=QUIET)
     check("the bundle checks as a whole: version, architecture, every pinned image's blobs and every hash",
           sorted(checked["indexes"]) == ["cosign", "fabric/bind9", "nginx"])
@@ -142,6 +218,10 @@ try:
           and not os.path.exists(os.path.join(work, "repo.tar")), text[-300:])
     code, text = run_cli(["export", "--arch", ARCH])
     check("export without -o is a usage error", code == 2 and "images export --arch" in text, text[-200:])
+    code, text = run_cli(["export", "--arch", ARCH, "-o", os.path.join(work, "u.tar"), "--ubuntu"])
+    check("export with --ubuntu and no release is a usage error", code == 2, text[-200:])
+    code, text = run_cli(["export", "--arch", ARCH, "--arch", OTHER, "-o", os.path.join(work, "u.tar")])
+    check("export with an option given twice is a usage error", code == 2, text[-200:])
 
     # an unpublished image (2.1.14.21): refused by default, left out with --allow-unpublished, and shown as relaxed
     def unpublish_bind9(lk):
@@ -150,13 +230,13 @@ try:
     why = refusal(export_bundle, held, ARCH, os.path.join(work, "held.tar"), log=QUIET)
     check("export refuses an unpublished image by default, naming it, why and --allow-unpublished",
           "fabric/bind9 (a test: not published)" in why and "--allow-unpublished" in why, why)
-    left = export_bundle(held, ARCH, os.path.join(work, "held.tar"), log=QUIET, allow_unpublished=True)
+    left = export_bundle(held, ARCH, os.path.join(work, "held.tar"), log=QUIET, allow_unpublished=True, deb=DEB)
     check("with --allow-unpublished the export leaves it out and the manifest records it with why",
           left["left_out"] == {"fabric/bind9": "a test: not published"} and "fabric/bind9" not in left["images"]
           and sorted(check_bundle(os.path.join(work, "held.tar"), held, ARCH, log=QUIET)["indexes"])
           == ["cosign", "nginx"])
     lines = describe_import({"loaded": [], "present": [], "verified": [], "unchecked": [],
-                             "left_out": left["left_out"]})
+                             "left_out": left["left_out"], "deb_unchecked": None})
     check("the import says so as a relaxation", any(ln.startswith("relaxed:") and "fabric/bind9" in ln
                                                     for ln in lines), lines)
     rec = os.path.join(work, "bundle.json")
@@ -169,7 +249,7 @@ try:
                       for r in relaxed_settings({}, config_dir=work, bundle_record=rec + ".none")), rows)
     os.makedirs(tiny)
     subprocess.run(["mount", "-t", "tmpfs", "-o", "size=8m", "bundles-test", tiny], check=True)
-    why = refusal(export_bundle, lock, ARCH, os.path.join(tiny, "b.tar"), log=QUIET)
+    why = refusal(export_bundle, lock, ARCH, os.path.join(tiny, "b.tar"), log=QUIET, deb=DEB)
     check("export refuses when there is not the space, naming needed and free, writing nothing",
           "not enough space" in why and "MiB" in why and not os.listdir(tiny), why)
 

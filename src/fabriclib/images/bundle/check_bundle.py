@@ -5,8 +5,9 @@ import tarfile
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.images.bundle.bundle_images import bundle_images
-from fabriclib.images.bundle.export_bundle import FORMAT, MANIFEST
+from fabriclib.images.bundle.bundle_manifest import bundle_manifest
 from fabriclib.images.bundle.fetch_image import INDEX_TYPES
+from fabriclib.images.bundle.ubuntu_release import ubuntu_release
 
 
 def _hash(f):
@@ -66,16 +67,18 @@ def _check_image(key, entry, f, arch):
         return top
 
 
-def check_bundle(bundle, lock_dir, arch, log=print):
+def check_bundle(bundle, lock_dir, arch, log=print, release=None):
     """Purpose: everything about an offline bundle that can be proven without Docker, before anything is loaded
              (decision 2.1.14.14, manual 1.14.4.3): it is whole, it is for this fabric's version and this host's
              architecture, it carries every image this fabric's lock pins and each is exactly the pinned one, every
              file matches the manifest's sha256, and each published image carries its signature.
     Inputs:  bundle — str path of the bundle; lock_dir — the folder of this fabric's images.lock.yaml and VERSION
-             (the package's: what setup deploys); arch — this host's architecture; log — progress printer.
+             (the package's: what setup deploys); arch — this host's architecture; log — progress printer;
+             release — this host's Ubuntu release (None: read from /etc/os-release).
     Returns: dict {"manifest": the bundle's manifest, "indexes": {key: the image's index bytes}}.
     Fails:   ValidationError, saying why: not a tar or cut short (damaged); no manifest or an unknown format; for
-             another fabric version or architecture; an image of the lock missing, or not the pinned one; a file
+             another fabric version, architecture or Ubuntu release (bundle_manifest); no .deb; an image of the lock
+             missing, or not the pinned one; a file
              missing or not matching its hash; a published image without its signature.
     Feeds:   import_bundle; tests/images/bundle.py."""
     try:
@@ -83,27 +86,12 @@ def check_bundle(bundle, lock_dir, arch, log=print):
     except (tarfile.ReadError, EOFError, OSError) as e:
         raise ValidationError(f"{bundle} is not a readable bundle (damaged or not a tar: {e})")
     with tar:
-        try:
-            members = {m.name: m for m in tar.getmembers() if m.isfile()}
-        except (tarfile.ReadError, EOFError) as e:
-            raise ValidationError(f"{bundle} is damaged: it ends early or a header is broken ({e})")
-        if MANIFEST not in members:
-            raise ValidationError(f"{bundle} has no {MANIFEST}: not a fabric offline bundle")
-        try:
-            manifest = json.loads(tar.extractfile(members[MANIFEST]).read())
-        except ValueError as e:
-            raise ValidationError(f"{bundle}: its {MANIFEST} is not JSON ({e})")
-        if manifest.get("format") != FORMAT:
-            raise ValidationError(f"{bundle}: bundle format {manifest.get('format')!r}, this fabric reads {FORMAT}")
-        with open(os.path.join(lock_dir, "VERSION")) as f:
-            version = f.read().strip()
-        if manifest.get("fabric") != version:
-            raise ValidationError(f"this bundle is for fabric {manifest.get('fabric')}, this host's is {version}: "
-                                  f"export one from fabric {version}")
-        if manifest.get("arch") != arch:
-            raise ValidationError(f"this bundle is for {manifest.get('arch')}, this host is {arch}: "
-                                  f"export one with --arch {arch}")
+        manifest, members = bundle_manifest(tar, bundle, lock_dir, arch,
+                                            release if release else ubuntu_release()[0])
         files = manifest.get("files") or {}
+        deb = (manifest.get("deb") or {}).get("file")
+        if not deb or deb not in files:
+            raise ValidationError("the bundle carries no fabricctl .deb in its manifest's files")
         wanted = {k: e for k, e in bundle_images(lock_dir).items() if not e["pending"]}
         carried = manifest.get("images") or {}
         missing = sorted(set(wanted) - set(carried))

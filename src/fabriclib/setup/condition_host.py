@@ -6,6 +6,7 @@ from fabriclib.common.run import run as sh
 from fabriclib.consent.check_consent import check_consent
 from fabriclib.consent.plan_packages import DOCKER_PACKAGES, plan_packages
 from fabriclib.setup.common.apt_install import apt_install
+from fabriclib.setup.common.install_from_bundle import install_from_bundle
 from fabriclib.setup.common.missing_packages import missing_packages
 from fabriclib.setup.errors import SetupError
 
@@ -16,18 +17,25 @@ def run(ctx):
     """Purpose: host packages and Docker Engine with compose v2 and buildx (Ubuntu's docker.io; an existing
              docker-ce install is kept), running and enabled — all from the host's own apt sources, after the
              `packages` consent (manual 1.2.9).
-    Inputs:  ctx — SetupContext: offline (never download), config_dir (consent.yaml).
+    Inputs:  ctx — SetupContext: offline (never download), bundle (`--offline <bundle>`: the packages come from
+             it, setup/common/install_from_bundle), config_dir (consent.yaml).
     Returns: None; missing packages installed, Docker installed if needed, docker.service enabled and answering
              `docker info`. Idempotent: nothing is installed when present. No apt source or key is added.
-    Fails:   SetupError: the packages not approved; offline with packages or Docker missing; apt install failure
+    Fails:   SetupError: the packages not approved; offline without a bundle with packages or Docker missing; a
+             bundle refused; apt install failure
              (with advice on apt sources); Docker not answering after about 60 s. CommandError from
              `apt-get update`, `systemctl enable --now docker` or the version queries propagates.
     Feeds:   setup step `host`, run by run_setup via STEPS."""
     plan = plan_packages()
     if plan["text"]:
-        if ctx.offline:
+        if ctx.offline and not ctx.bundle:
             raise SetupError(f"offline install but packages are missing: {' '.join(plan['host'] + plan['docker'])}")
         check_consent(ctx.config_dir, "packages", plan["text"])
+    if ctx.bundle and plan["host"] + plan["docker"]:     # offline: all from the bundle's own source (2.1.14.16)
+        info(f"installing {' '.join(plan['host'] + plan['docker'])} from the offline bundle")
+        install_from_bundle(ctx, plan["host"] + plan["docker"], "The bundle's packages are for the Ubuntu release "
+                                                                "it names: export one for this host's release.")
+        plan["host"], plan["docker"] = [], []
     if plan["host"]:
         info(f"installing {' '.join(plan['host'])}")
         apt_install(plan["host"], "If apt reports unmet dependencies or held broken packages, the host's apt sources "

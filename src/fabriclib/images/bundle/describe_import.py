@@ -1,7 +1,8 @@
 def describe_import(result):
     """Purpose: the lines printed for an offline bundle's import (`fabricctl images import`, `setup --offline`).
     Inputs:  result — import_bundle's dict.
-    Returns: list of str; a relaxation (signatures not checked, images left out of the bundle) on a line of its own.
+    Returns: list of str; a relaxation (signatures not checked, images left out of the bundle, a .deb
+             not checked) on a line of its own.
     Fails:   never.
     Feeds:   run_images_command, setup/import_offline_bundle."""
     lines = [f"{len(result['loaded'])} image(s) loaded, {len(result['present'])} already present",
@@ -13,4 +14,7 @@ def describe_import(result):
         lines.append("relaxed: the bundle was exported with --allow-unpublished and leaves out "
                      + "; ".join(f"{k} ({why})" for k, why in result["left_out"].items())
                      + ": this host builds them, which needs the internet (2.1.14.21)")
+    if result.get("deb_unchecked"):
+        lines.append(f"relaxed: the bundle carries a fabricctl .deb given with --deb ({result['deb_unchecked']}), "
+                     "not checked against fabric's signed apt repository (2.1.14.23)")
     return lines

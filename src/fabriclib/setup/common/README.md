@@ -5,7 +5,7 @@ Helpers shared by setup steps and the consent plans.
 | File | What |
 |---|---|
 | `missing_packages.py` | Which Debian packages are not installed |
-| `apt_install.py` | Install packages from the host's own apt sources (noninteractive) |
+| `apt_install.py` | Install packages from the host's own apt sources, or a bundle's given as an apt configuration (noninteractive) |
 | `render_member_files.py` | The host's krb5.conf and sssd.conf as a member of its own domain: no domain account signs in and no domain sudo rule applies (the top tier's host) |
 | `host_identity.py` | Which domain account the host signs in with: its own `<HOSTNAME>$` (2.1.6.48), or its DC's where it cannot have its own; a DC with the host's name refused (2.1.6.51) |
 | `find_computer.py` | Whether the domain has a computer account of a name, where, and its groups (read inside the DC) |
@@ -27,3 +27,4 @@ Helpers shared by setup steps and the consent plans.
 | `plan_items.py` | The plan's hardened defaults (the firewall, Docker's hardening, membership, Keycloak, the web console) |
 | `dotted_keys.py` | Read and write a dotted settings key (`security.firewall`) |
 | `parse_log_target.py` | Where log forwarding sends the logs, from one line: a syslog server or an Elasticsearch URL |
+| `install_from_bundle.py` | Install packages offline from a bundle's own local apt source (`setup --offline <bundle>`, 2.1.14.16) |

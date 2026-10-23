@@ -80,7 +80,8 @@ def import_bundle(bundle, lock_dir, signature_check=True, cache=VERIFIED, store=
              record — where an import of a bundle that left images out is remembered (status, doctor);
              log — progress printer.
     Returns: dict {"loaded": [keys], "present": [keys already in Docker], "verified": [refs],
-             "unchecked": [refs whose signature was not checked], "left_out": {key: why} (--allow-unpublished)}.
+             "unchecked": [refs whose signature was not checked], "left_out": {key: why} (--allow-unpublished),
+             "deb_unchecked": the carried .deb's version when it came from --deb (not checked), else None}.
     Fails:   ValidationError, saying why, before any image is loaded unless noted: Docker on the classic image store;
              no trusted root beside the lock; every refusal of check_bundle; not enough free space (needed and free
              named); a signature that does not
@@ -140,18 +141,23 @@ def import_bundle(bundle, lock_dir, signature_check=True, cache=VERIFIED, store=
     if out["verified"]:
         remember_verified(cache, out["verified"])
     out["left_out"] = manifest.get("left_out") or {}
+    deb = manifest.get("deb") or {}
+    out["deb_unchecked"] = None if deb.get("checked", True) else deb.get("version")
     _record(record, manifest, bundle)
     return out
 
 
 def _record(record, manifest, bundle):
-    """Purpose: remember an imported bundle that left images out (`--allow-unpublished`, decision 2.1.14.21), so
-             status and doctor show the relaxation; a whole bundle's import clears it.
+    """Purpose: remember an imported bundle that relaxed something — left images out (`--allow-unpublished`,
+             decision 2.1.14.21) or carries a .deb given with `--deb` (2.1.14.23) — so status and doctor show it;
+             importing a bundle with neither clears it.
     Inputs:  record — path of the record (root, 0600); manifest — the bundle's; bundle — its path.
     Returns: None.
     Fails:   OSError writing or removing the record.
     Feeds:   import_bundle."""
-    if not manifest.get("left_out"):
+    deb = manifest.get("deb") or {}
+    unchecked = None if deb.get("checked", True) else deb.get("version")
+    if not manifest.get("left_out") and not unchecked:
         if os.path.exists(record):
             os.remove(record)
         return
@@ -159,5 +165,5 @@ def _record(record, manifest, bundle):
     fd = os.open(record, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as f:
         json.dump({"bundle": os.path.basename(bundle), "fabric": manifest.get("fabric"),
-                   "left_out": manifest["left_out"],
+                   "left_out": manifest.get("left_out") or {}, "deb_unchecked": unchecked,
                    "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}, f, indent=2)

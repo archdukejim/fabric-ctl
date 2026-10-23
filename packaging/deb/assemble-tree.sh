@@ -14,7 +14,7 @@
 #   packaging/images/<service>/                   -> <dest>/fabric/jinja/<service>/build/   (image build contexts)
 #   src/containers/freeradius/                    -> <dest>/fabric/jinja/freeradius/python/
 #   static/vendor/*.min.js, static/nginx/style.css -> <dest>/fabric/jinja/nginx/www/{manual,shared}/
-#   config/{VERSION,images.lock.yaml,link-vars-template.yaml,sigstore-trusted-root.json}
+#   config/{VERSION,images.lock.yaml,link-vars-template.yaml,sigstore-trusted-root.json,apt-repository.yaml}
 #                                                 -> <dest>/fabric/
 #   docs/, LICENSE, THIRD_PARTY_NOTICES, README.md -> <dest>/
 #
@@ -69,6 +69,7 @@ copy 's,^src/containers/freeradius/,fabric/jinja/freeradius/python/,' src/contai
 copy 's,^src/containers/samba/,fabric/jinja/samba/converge/,' src/containers/samba
 copy 's,^static/vendor/,fabric/jinja/nginx/www/manual/,;s,^static/nginx/,fabric/jinja/nginx/www/shared/,' \
     static/vendor/marked.min.js static/vendor/mermaid.min.js static/nginx/style.css
-copy 's,^config/,fabric/,' config/VERSION config/images.lock.yaml config/link-vars-template.yaml config/sigstore-trusted-root.json
+copy 's,^config/,fabric/,' config/VERSION config/images.lock.yaml config/link-vars-template.yaml config/sigstore-trusted-root.json \
+    config/apt-repository.yaml
 copy 's,^,,' docs LICENSE THIRD_PARTY_NOTICES README.md
 find "$DEST" -name __pycache__ -prune -exec rm -rf {} +

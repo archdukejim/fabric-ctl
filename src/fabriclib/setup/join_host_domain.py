@@ -16,6 +16,7 @@ from fabriclib.directory.place_fabric_host import place_fabric_host
 from fabriclib.directory.remove_machine import remove_machine
 from fabriclib.setup.common.apply_host_managed import apply_host_managed
 from fabriclib.setup.common.apt_install import apt_install
+from fabriclib.setup.common.install_from_bundle import install_from_bundle
 from fabriclib.setup.common.export_keytab import export_keytab
 from fabriclib.setup.common.find_computer import find_computer
 from fabriclib.setup.common.host_identity import host_identity
@@ -319,7 +320,7 @@ def run(ctx):
     if not todo:
         ok("this host is a member of its domain (nothing to change)")
         return
-    if missing and ctx.offline:
+    if missing and ctx.offline and not ctx.bundle:      # with a bundle they come from it (2.1.14.16)
         raise SetupError(f"offline install but packages are missing: {' '.join(missing)}")
     if server and (not found or place or stale or keytab is None) and not _answers(server):
         raise SetupError(f"this site's domain controller is read-only, so the host's account is made at the writable "
@@ -334,8 +335,12 @@ def run(ctx):
         keep_original(path, ctx.config_dir, marker="# fabric")
     if missing:
         info(f"installing {' '.join(missing)}")
-        apt_install(missing, "They are in Ubuntu's main and universe components: check the host's apt sources, run "
-                             "`apt-get update`, then re-run `sudo fabricctl setup --step member`.")
+        hint = ("They are in Ubuntu's main and universe components: check the host's apt sources, run "
+                "`apt-get update`, then re-run `sudo fabricctl setup --step member`.")
+        if ctx.bundle:                                    # offline: from the bundle's own source (2.1.14.16)
+            install_from_bundle(ctx, missing, hint)
+        else:
+            apt_install(missing, hint)
     changed = bool(missing)
     if not found:
         # a random password the domain's policy accepts, never shown nor kept: the keytab is all the host needs

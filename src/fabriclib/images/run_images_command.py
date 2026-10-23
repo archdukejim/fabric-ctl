@@ -21,24 +21,38 @@ USAGE = """usage: fabricctl images status                  each service: running
        fabricctl images rollback <service>     back to the image before the last update
        fabricctl images prune                  remove old images of fabric's repositories (not in use,
                                                not the rollback image)
-       fabricctl images export --arch amd64|arm64 -o <file> [--allow-unpublished]
-                                               an offline install bundle of this release (online): every
-                                               image of the lock by digest, their signatures, a manifest;
+       fabricctl images export --arch amd64|arm64 -o <file> [--ubuntu <release>] [--deb <file>]
+                               [--allow-unpublished]
+                                               an offline install bundle of this release (online): fabric's
+                                               .deb and the Ubuntu packages for one release (--ubuntu, e.g.
+                                               24.04; default this machine's), every image of the lock by
+                                               digest, their signatures, a manifest; --deb: carry this .deb
+                                               instead of the release's (a relaxation: not checked);
                                                --allow-unpublished: leave out images not published (a
                                                relaxation: the host must build them, with the internet)
        fabricctl images import <bundle>        check a bundle offline (version, architecture, digests,
                                                hashes, signatures), then load its images; fetches nothing"""
 
+EXPORT_VALUES = ("--arch", "-o", "--ubuntu", "--deb")
 
-def _option(args, name):
-    """Purpose: the value after an option in a plain argument list.
-    Inputs:  args — list of str; name — the option ("--arch").
-    Returns: str, or None when the option is absent or last.
+
+def _export_options(args):
+    """Purpose: `images export`'s options, each given once with its value.
+    Inputs:  args — list of str after "export".
+    Returns: dict {"--arch", "-o", "--ubuntu", "--deb": str or None, "--allow-unpublished": bool}, or None for a
+             usage error (an unknown or repeated option, a value missing, --arch or -o absent).
     Fails:   never.
     Feeds:   run_images_command (export)."""
-    if name in args and args.index(name) + 1 < len(args):
-        return args[args.index(name) + 1]
-    return None
+    got, rest = {"--allow-unpublished": False}, list(args)
+    while rest:
+        name = rest.pop(0)
+        if name == "--allow-unpublished" and not got[name]:
+            got[name] = True
+        elif name in EXPORT_VALUES and name not in got and rest and not rest[0].startswith("-"):
+            got[name] = rest.pop(0)
+        else:
+            return None
+    return got if "--arch" in got and "-o" in got else None
 
 
 def _short(ref):
@@ -99,13 +113,19 @@ def run_images_command(ctx, argv):
             moved = rollback_image(ctx, args[0])
             print(f"rolled back {', '.join(moved)}" if moved else "already on the previous image")
             return 0
-        allow = "--allow-unpublished" in args
-        if cmd == "export" and len(args) == 4 + allow and _option(args, "--arch") and _option(args, "-o"):
-            out = _option(args, "-o")
-            manifest = export_bundle(lock_dir(os.path.join(FABRIC_DIR, "jinja")), _option(args, "--arch"), out,
-                                     log=lambda line: print(line, flush=True), allow_unpublished=allow)
-            print(f"bundle for fabric {manifest['fabric']} ({manifest['arch']}), {len(manifest['images'])} images: "
-                  f"{out}")
+        opts = _export_options(args) if cmd == "export" else None
+        if opts:
+            out = opts["-o"]
+            manifest = export_bundle(lock_dir(os.path.join(FABRIC_DIR, "jinja")), opts["--arch"], out,
+                                     log=lambda line: print(line, flush=True),
+                                     allow_unpublished=opts["--allow-unpublished"], ubuntu=opts.get("--ubuntu"),
+                                     deb=opts.get("--deb"))
+            print(f"bundle for fabric {manifest['fabric']} ({manifest['arch']}, Ubuntu "
+                  f"{manifest['ubuntu']['release']}), {len(manifest['images'])} images, "
+                  f"{len(manifest['ubuntu']['packages'])} packages: {out}")
+            if not manifest["deb"]["checked"]:
+                print(f"relaxed: fabricctl {manifest['deb']['version']} is the --deb file, not checked against "
+                      "fabric's signed apt repository (2.1.14.23)")
             return 0
         if cmd == "import" and len(args) == 1 and not args[0].startswith("-"):
             done = import_bundle(args[0], lock_dir(os.path.join(FABRIC_DIR, "jinja")),

@@ -2,22 +2,25 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import tarfile
 import time
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.read_published_lock import read_published_lock
 from fabriclib.images.bundle.bundle_images import bundle_images
+from fabriclib.images.bundle.export_packages import export_packages
 from fabriclib.images.bundle.fetch_image import fetch_image
 from fabriclib.images.bundle.fetch_signature import fetch_signature
 from fabriclib.images.bundle.free_bytes import free_bytes
 from fabriclib.images.bundle.image_size import image_size
 
 ARCHES = ("amd64", "arm64")
-FORMAT = 1
+FORMAT = 2                                         # 2: with the packages (2.1.14.16, 2.1.14.17)
 MANIFEST = "manifest.json"
 TRUSTED_ROOT = "sigstore-trusted-root.json"     # shipped in the package beside the lock (manual 1.14.4.6)
 SLACK = 64 << 20                                   # the manifest, signatures and tar headers, generously
+PACKAGES = 512 << 20                               # room for the .deb and the Ubuntu packages (about 180 MB)
 
 
 def _sha256(path):
@@ -45,17 +48,20 @@ def _add(tar, name, data, files):
     files[name] = {"sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
 
 
-def export_bundle(lock_dir, arch, out, log=print, allow_unpublished=False):
+def export_bundle(lock_dir, arch, out, log=print, allow_unpublished=False, ubuntu=None, deb=None):
     """Purpose: `fabricctl images export`: one offline install bundle for this fabric release and one architecture
-             (decision 2.1.14.14, manual 1.14.4): every image of the lock by its pinned digest, fabric's published
-             images' signature bundles to check them with offline (against the trusted root the package ships), and
-             a manifest of versions, digests and every file's sha256. Written beside `out` as `<out>.part` and
-             renamed when whole.
+             (decision 2.1.14.14, manual 1.14.4): fabric's .deb and the Ubuntu packages it and setup install for one
+             Ubuntu release (export_packages, 2.1.14.16, 2.1.14.17), every image of the lock by its pinned digest,
+             fabric's published images' signature bundles to check them with offline (against the trusted root the
+             package ships), and a manifest of versions, digests and every file's sha256. Written beside `out` as
+             `<out>.part` and renamed when whole.
     Inputs:  lock_dir — str, the folder holding images.lock.yaml and VERSION; arch — "amd64" | "arm64";
              out — str, the bundle file to write (its folder must exist; the file must not); log — progress printer;
              allow_unpublished — True (`--allow-unpublished`, decision 2.1.14.21): images the lock has not published
              are left out instead of refused, and the manifest's `left_out` names them with why (a relaxation the
-             import, status and doctor show).
+             import, status and doctor show); ubuntu — the offline host's Ubuntu release ("24.04"; None: this
+             machine's); deb — a fabricctl .deb file to carry instead of the release's (`--deb`, not checked
+             against the apt repository: for a version not released).
     Returns: dict, the manifest written.
     Fails:   ValidationError, nothing written: an unknown architecture; `out` exists or its folder does not; an image
              of the lock not published (pending, with why) unless allow_unpublished, or with no linux/<arch> image;
@@ -86,7 +92,7 @@ def export_bundle(lock_dir, arch, out, log=print, allow_unpublished=False):
     missing = [k for k, n in sizes.items() if not n]
     if missing:
         raise ValidationError(f"no linux/{arch} image in the lock for: {', '.join(missing)}")
-    need, free = sum(sizes.values()) + max(sizes.values()) + SLACK, free_bytes(folder)
+    need, free = sum(sizes.values()) + max(sizes.values()) + PACKAGES + SLACK, free_bytes(folder)
     if free < need:
         raise ValidationError(f"not enough space in {folder}: the bundle needs about {need >> 20} MiB "
                               f"(with room for one image while it is added), {free >> 20} MiB is free")
@@ -97,8 +103,16 @@ def export_bundle(lock_dir, arch, out, log=print, allow_unpublished=False):
                 "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "signer": published.get("signer", ""), "issuer": published.get("issuer", ""),
                 "images": {}, "files": {}, "left_out": left_out}
+    work = part + ".work"
     try:
+        os.makedirs(work)
+        packages = export_packages(lock_dir, version, arch, work, ubuntu=ubuntu, deb=deb, log=log)
+        manifest["deb"], manifest["ubuntu"] = packages["deb"], packages["ubuntu"]
         with tarfile.open(part, "w", format=tarfile.PAX_FORMAT) as tar:
+            for arcname, path in packages["members"]:
+                manifest["files"][arcname] = {"sha256": _sha256(path), "size": os.path.getsize(path)}
+                tar.add(path, arcname=arcname)
+            shutil.rmtree(work)
             for key, e in images.items():
                 log(f"{key}: {e['ref']} ({sizes[key] >> 20} MiB)")
                 tmp = f"{part}.{key.replace('/', '-')}.tar"
@@ -117,6 +131,7 @@ def export_bundle(lock_dir, arch, out, log=print, allow_unpublished=False):
             _add(tar, MANIFEST, json.dumps(manifest, indent=2, sort_keys=True).encode(), {})
         os.rename(part, out)
     except BaseException:
+        shutil.rmtree(work, ignore_errors=True)
         for p in [part] + [os.path.join(folder, n) for n in os.listdir(folder)
                            if n.startswith(os.path.basename(part) + ".")]:
             if os.path.exists(p):
