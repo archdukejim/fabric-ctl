@@ -3,7 +3,7 @@ import urllib.parse
 
 from webui import agentclient as actions
 from webui import views
-from webui.views.constants import PERSON_FIELDS, POLICY_FIELDS
+from webui.views.constants import GRANT_RIGHTS, PERSON_FIELDS, POLICY_FIELDS
 from webui.routes.held import held, q
 from webui.session.page_context import page_context
 
@@ -152,6 +152,42 @@ def _ou(h, name, op, form):
     return h.deny(404, "Not found.")
 
 
+def _grant_fields(form):
+    """Purpose: A grant's form as fabric-agent's grant fields (manual 1.6.13.7): its description, who and where
+             (names separated by commas), each category's rights from its switches (`<field>_<right>` ticked), sudo
+             (every command ticked, or commands separated by commas) and local administrator.
+    Inputs:  form — dict.
+    Returns: dict of the grant's fields (the DC checks what each may hold).
+    Fails:   never.
+    Feeds:   _grant."""
+    items = lambda key: [x.strip() for x in form.get(key, "").split(",") if x.strip()]    # noqa: E731
+    out = {"description": form.get("description", "").strip(), "who": items("who"), "where": items("where"),
+           "sudo": ["ALL"] if form.get("sudo_all") else items("sudo"), "local_admin": bool(form.get("local_admin"))}
+    out.update({key: [r for r in rights if form.get(f"{key}_{r}")] for key, _, rights in GRANT_RIGHTS})
+    return out
+
+
+def _grant(h, name, op, form):
+    """Purpose: A grant's form (manual 1.6.13.7), held on Access until its Apply: add (form name, kind, template and
+             the fields), change (the fields; its kind is kept) or remove.
+    Inputs:  h — the request handler; name — "_new" or the grant's name; op — "" or "delete"; form — dict.
+    Returns: 303 (held's): to Access after an add or a removal, to the grant's page after a change; 404 for another
+             form.
+    Fails:   AgentError, PermissionDenied and AuthError propagate.
+    Feeds:   directory_post."""
+    if name == "_new" and not op:
+        body = {"name": form.get("name", "").strip(), "kind": form.get("kind") or "allow", **_grant_fields(form),
+                **({"template": form["template"]} if form.get("template") else {})}
+        return held(h, "/directory/access", "domain/grants", body)
+    if name in ("", "_new", "_form", "sync", "explain"):
+        return h.deny(404, "Not found.")
+    if op == "delete":
+        return held(h, "/directory/access", f"domain/grants/{q(name)}/delete")
+    if not op:
+        return held(h, f"/directory/access/{q(name)}", f"domain/grants/{q(name)}", _grant_fields(form))
+    return h.deny(404, "Not found.")
+
+
 def _host_access(h, kind, name, op, form):
     """Purpose: A machine group form (manual 1.6.11.7), held on Computers (its Machine groups tab), or a sudo rule
              form, held on Policies (1.6.12.10), until its page's Apply.
@@ -191,7 +227,7 @@ def directory_post(h, sess, parts, form):
              policy, el_<element> values, disabled), ['hostgroups'|'sudo', …] (_host_access' forms),
              ['domain', 'password-policy'] (form: POLICY_FIELDS' keys, complexity on|off), ['groups', '_new' |
              <name>, ''|'delete'|'managers'|'members'] (_group's forms), ['ous', '_new' | '_form', ''|'rename'|
-             'delete'] (_ou's forms); form — dict.
+             'delete'] (_ou's forms), ['grants', '_new' | <name>, ''|'delete'] (_grant's forms); form — dict.
     Returns: people, machines (hostgroups and sudo among them), gpo and the password policy: each change held
              on its page until the page's Apply (manual 1.8.6.5; a new person's, a reset's and a new machine's
              one-time password is shown once on the page's Review after it): 303 to the page (/directory/<section>;
@@ -220,6 +256,8 @@ def directory_post(h, sess, parts, form):
         return h.deny(404, "Not found.")
     if kind == "machines" and len(parts) <= 3:
         return _machine(h, sess, name, op, form)
+    if kind == "grants" and len(parts) <= 3:
+        return _grant(h, name, op, form)
     if kind == "ous" and len(parts) <= 3:
         return _ou(h, name, op, form)
     if kind == "groups" and len(parts) <= 3:

@@ -16,6 +16,7 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `css.py` | The whole stylesheet (static/webui-app/app.css), served as /static/app.css (light and dark colour schemes). |
 | `directory.py` | The Directory's pages and 802.1X's devices and roles: the Overview. |
 | `groups.py` | Directory · Groups: the list, a group's two levels and their forms, Create group. |
+| `access.py` | Directory · Access: the grants, a grant's page and its forms, Add grant; a grant's rights in words. |
 | `ous.py` | Directory · OUs: the tree with Create OU, an OU's page with Rename and Delete. |
 | `computers.py` | Directory · Computers: the list (search, filters, 50 a page), a computer's page and its forms, Add computer, Machine groups, a service's keytab command. |
 | `paged.py` | A long list's search and paging (People, Groups). |

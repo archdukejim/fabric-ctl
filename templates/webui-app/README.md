@@ -14,6 +14,7 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `continue.html` | The continue page |
 | `directory.html` | The Directory's Overview; 802.1X's devices and roles |
 | `groups.html` | Directory · Groups: the list, a group's page, Create group |
+| `access.html` | Directory · Access: the grants, a grant's page, Add grant |
 | `ous.html` | Directory · OUs: the tree, an OU's page |
 | `computers.html` | Directory · Computers: the list, a computer's page, Add computer, Machine groups, a keytab command |
 | `policies.html` | Directory · Policies: the password policy, Group Policy, the sudo rules |

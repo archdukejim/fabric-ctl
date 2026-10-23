@@ -70,8 +70,12 @@ def describe_change(route, body):
                 "groups": "group", "ous": "OU"}.get(route[0], route[0])
         return f"Add {what} {body.get('uid') or body.get('name') or body.get('machine') or ''}".strip()
     if route[0] == "domain":
+        if route[1] == "grants":
+            if len(route) == 2:
+                return f"Add grant {body.get('name', '')}".strip()
+            return f"{'Remove' if route[3:] == ['delete'] else 'Change'} grant {route[2]}"
         return {"password-policy": "Change the password policy", "kerberos": "Change the Kerberos ticket policy"}.get(
-            route[1], "Change grant " + "/".join(route[2:]) if route[1] == "grants" else "Change " + "/".join(route))
+            route[1], "Change " + "/".join(route))
     if route[0] == "gpo":
         return f"{'Set' if route[1] == 'set' else 'Clear'} policy {body.get('policy', '')}".strip()
     if route[0] == "ous":

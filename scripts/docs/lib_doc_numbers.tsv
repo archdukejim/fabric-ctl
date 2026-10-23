@@ -958,6 +958,7 @@ file	webui|src/webui/agentclient/directory_overview.py	226
 file	webui|src/webui/agentclient/dns_filter_change.py	145	
 file	webui|src/webui/agentclient/dns_filter_overview.py	146	
 file	webui|src/webui/agentclient/domain_overview.py	125	
+file	webui|src/webui/agentclient/explain_grants.py	248	
 file	webui|src/webui/agentclient/federation_overview.py	130	
 file	webui|src/webui/agentclient/gpo_change.py	126	
 file	webui|src/webui/agentclient/gpo_overview.py	127	
@@ -969,6 +970,7 @@ file	webui|src/webui/agentclient/image_rows.py	140
 file	webui|src/webui/agentclient/inspect_pem.py	21	
 file	webui|src/webui/agentclient/issue_key_pair.py	22	
 file	webui|src/webui/agentclient/link_device_cert.py	23	
+file	webui|src/webui/agentclient/list_grants.py	249	
 file	webui|src/webui/agentclient/list_groups.py	230	
 file	webui|src/webui/agentclient/list_host_groups.py	157	
 file	webui|src/webui/agentclient/list_issued.py	24	
@@ -1022,6 +1024,7 @@ file	webui|src/webui/agentclient/settings_dismiss.py	191
 file	webui|src/webui/agentclient/settings_export.py	192	
 file	webui|src/webui/agentclient/settings_overview.py	193	
 file	webui|src/webui/agentclient/settings_plan.py	194	
+file	webui|src/webui/agentclient/show_grant.py	250	
 file	webui|src/webui/agentclient/show_group.py	231	
 file	webui|src/webui/agentclient/sign_csr.py	45	
 file	webui|src/webui/agentclient/start_job.py	142	
@@ -1055,6 +1058,7 @@ file	webui|src/webui/devpreview/fake_agent.py	202
 file	webui|src/webui/devpreview/fake_connection.py	203	
 file	webui|src/webui/devpreview/fake_directory.py	204	
 file	webui|src/webui/devpreview/fake_dns.py	205	
+file	webui|src/webui/devpreview/fake_grants.py	251	
 file	webui|src/webui/devpreview/fake_groups.py	232	
 file	webui|src/webui/devpreview/fake_machines.py	241	
 file	webui|src/webui/devpreview/fake_misc.py	206	
@@ -1071,6 +1075,7 @@ file	webui|src/webui/httpio/read_cookie.py	73
 file	webui|src/webui/httpio/read_form.py	74	
 file	webui|src/webui/httpio/upload_value.py	75	
 file	webui|src/webui/oidc.py	76	
+file	webui|src/webui/routes/access_page.py	252	
 file	webui|src/webui/routes/account_page.py	222	
 file	webui|src/webui/routes/account_post.py	223	
 file	webui|src/webui/routes/bind9_page.py	77	
@@ -1116,6 +1121,7 @@ file	webui|src/webui/session/page_context.py	98
 file	webui|src/webui/session/renew_session.py	99	
 file	webui|src/webui/session/start_login.py	100	
 file	webui|src/webui/tlsclient.py	101	
+file	webui|src/webui/views/access.py	253	
 file	webui|src/webui/views/account.py	225	
 file	webui|src/webui/views/apply_result.py	102	
 file	webui|src/webui/views/audit.py	103	
@@ -2731,6 +2737,7 @@ function	webui|src/webui/agentclient/directory_overview.py|directory_overview	1
 function	webui|src/webui/agentclient/dns_filter_change.py|dns_filter_change	1	
 function	webui|src/webui/agentclient/dns_filter_overview.py|dns_filter_overview	1	
 function	webui|src/webui/agentclient/domain_overview.py|domain_overview	1	
+function	webui|src/webui/agentclient/explain_grants.py|explain_grants	1	
 function	webui|src/webui/agentclient/federation_overview.py|federation_overview	1	
 function	webui|src/webui/agentclient/gpo_change.py|gpo_change	1	
 function	webui|src/webui/agentclient/gpo_overview.py|gpo_overview	1	
@@ -2742,6 +2749,7 @@ function	webui|src/webui/agentclient/image_rows.py|image_rows	1
 function	webui|src/webui/agentclient/inspect_pem.py|inspect_pem	1	
 function	webui|src/webui/agentclient/issue_key_pair.py|issue_key_pair	1	
 function	webui|src/webui/agentclient/link_device_cert.py|link_device_cert	1	
+function	webui|src/webui/agentclient/list_grants.py|list_grants	1	
 function	webui|src/webui/agentclient/list_groups.py|list_groups	1	
 function	webui|src/webui/agentclient/list_host_groups.py|list_host_groups	1	
 function	webui|src/webui/agentclient/list_issued.py|list_issued	1	
@@ -2795,6 +2803,7 @@ function	webui|src/webui/agentclient/settings_dismiss.py|settings_dismiss	1
 function	webui|src/webui/agentclient/settings_export.py|settings_export	1	
 function	webui|src/webui/agentclient/settings_overview.py|settings_overview	1	
 function	webui|src/webui/agentclient/settings_plan.py|settings_plan	1	
+function	webui|src/webui/agentclient/show_grant.py|show_grant	1	
 function	webui|src/webui/agentclient/show_group.py|show_group	1	
 function	webui|src/webui/agentclient/sign_csr.py|sign_csr	1	
 function	webui|src/webui/agentclient/start_job.py|start_job	1	
@@ -2853,6 +2862,7 @@ function	webui|src/webui/devpreview/dev_state.py|DevState.zone	4
 function	webui|src/webui/devpreview/dev_state.py|DevState.zones	2	
 function	webui|src/webui/devpreview/fake_account.py|fake_account	2	
 function	webui|src/webui/devpreview/fake_account.py|managed	1	
+function	webui|src/webui/devpreview/fake_agent.py|_read_grants	5	
 function	webui|src/webui/devpreview/fake_agent.py|_read_groups	2	
 function	webui|src/webui/devpreview/fake_agent.py|_read_machines	3	
 function	webui|src/webui/devpreview/fake_agent.py|_read_ous	4	
@@ -2875,6 +2885,10 @@ function	webui|src/webui/devpreview/fake_dns.py|_record	3
 function	webui|src/webui/devpreview/fake_dns.py|_tsig	1	
 function	webui|src/webui/devpreview/fake_dns.py|_value	2	
 function	webui|src/webui/devpreview/fake_dns.py|fake_dns	4	
+function	webui|src/webui/devpreview/fake_grants.py|_checked	3	
+function	webui|src/webui/devpreview/fake_grants.py|_grants	1	
+function	webui|src/webui/devpreview/fake_grants.py|_summary	2	
+function	webui|src/webui/devpreview/fake_grants.py|fake_grants	4	
 function	webui|src/webui/devpreview/fake_groups.py|_change	3	
 function	webui|src/webui/devpreview/fake_groups.py|_groups	1	
 function	webui|src/webui/devpreview/fake_groups.py|fake_groups	4	
@@ -2932,6 +2946,7 @@ function	webui|src/webui/oidc.py|KeycloakOIDC.verify_id_token	10
 function	webui|src/webui/oidc.py|b64url_decode	1	
 function	webui|src/webui/oidc.py|b64url_encode	2	
 function	webui|src/webui/oidc.py|rs256_verify	3	
+function	webui|src/webui/routes/access_page.py|access_page	1	
 function	webui|src/webui/routes/account_page.py|_factors_url	1	
 function	webui|src/webui/routes/account_page.py|account_page	2	
 function	webui|src/webui/routes/account_post.py|account_post	1	
@@ -2941,6 +2956,8 @@ function	webui|src/webui/routes/computers_page.py|computers_page	1
 function	webui|src/webui/routes/directory_page.py|directory_page	1	
 function	webui|src/webui/routes/directory_post.py|_changed_fields	9	
 function	webui|src/webui/routes/directory_post.py|_device_fields	1	
+function	webui|src/webui/routes/directory_post.py|_grant	14	
+function	webui|src/webui/routes/directory_post.py|_grant_fields	13	
 function	webui|src/webui/routes/directory_post.py|_group	10	
 function	webui|src/webui/routes/directory_post.py|_held	7	0.8.0 / 2026-10-23
 function	webui|src/webui/routes/directory_post.py|_host_access	5	
@@ -3005,6 +3022,8 @@ function	webui|src/webui/tlsclient.py|PinnedHTTPSConnection.__init__	1
 function	webui|src/webui/tlsclient.py|PinnedHTTPSConnection.connect	2	
 function	webui|src/webui/tlsclient.py|TLSClient.__init__	3	
 function	webui|src/webui/tlsclient.py|TLSClient.request	4	
+function	webui|src/webui/views/access.py|access	2	
+function	webui|src/webui/views/access.py|rights_text	1	
 function	webui|src/webui/views/account.py|account	1	
 function	webui|src/webui/views/apply_result.py|apply_result	1	
 function	webui|src/webui/views/audit.py|audit	1	

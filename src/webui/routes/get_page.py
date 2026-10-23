@@ -7,6 +7,7 @@ from webui.routes.bind9_page import bind9_page
 from webui.routes.directory_page import directory_page
 from webui.routes.finish_setting_up import finish_setting_up
 from webui.routes.computers_page import computers_page
+from webui.routes.access_page import access_page
 from webui.routes.groups_page import groups_page
 from webui.routes.ous_page import ous_page
 from webui.routes.dns_filter_page import dns_filter_page
@@ -70,7 +71,7 @@ def get_page(h, sess, path, query):
     Returns: 303 to the new address of a page that moved; 200 page: Overview (/, /overview/doctor,
              /overview/updates, /audit), DNS (/dns/zones, /dns-filter), DHCP (/kea), PKI (/pki, /pki/acme),
              Directory (/directory, /directory/people|groups|computers[/_new|/<name>], /directory/computers/_groups,
-             /directory/ous[?ou=<path>], /directory/policies[/gpo|/sudo]), 802.1X
+             /directory/ous[?ou=<path>], /directory/access[/_new|/<name>], /directory/policies[/gpo|/sudo]), 802.1X
              (/8021x, /8021x/decisions, /8021x/guides, /8021x/devices[/<name>], /8021x/roles[/<name>]), Secrets
              (/secrets[/<view>]), Federation (/federation),
              Settings (/settings, /settings/export, /settings/sign-in), My account (/account, /account/groups,
@@ -91,7 +92,8 @@ def get_page(h, sess, path, query):
     if path == "/" and "status:read" not in ctx["perms"]:    # the Overview is not theirs: their first page
         return h.redirect(views.nav_menu(set(ctx["perms"]), None)[0]["href"])
     shown = views.PENDING_PAGES.get(_rest(path, "/changes/") or "", path)   # a Review: the page it reviews
-    for listing in ("/directory/people", "/directory/groups", "/directory/computers", "/directory/policies"):
+    for listing in ("/directory/people", "/directory/groups", "/directory/computers", "/directory/access",
+                    "/directory/policies"):
         if path.startswith(listing + "/"):
             shown = listing
     need = next((n for _, _, pages in views.NAV for href, _, n in pages if href == shown and n), None)
@@ -122,6 +124,8 @@ def get_page(h, sess, path, query):
         return people_page(h, ctx, path, query)
     if path == "/directory/groups" or path.startswith("/directory/groups/"):
         return groups_page(h, ctx, path, query)
+    if path == "/directory/access" or path.startswith("/directory/access/"):
+        return access_page(h, ctx, path, query)
     if path == "/directory/ous":
         return ous_page(h, ctx, query)
     if path == "/directory/computers" or path.startswith("/directory/computers/"):

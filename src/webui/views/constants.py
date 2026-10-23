@@ -2,7 +2,8 @@
 
 # Apply per page (manual 1.8.6.5): fabric-agent's pending page ids -> the navigation page whose changes they are
 PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "machines": "/directory/computers",
-                 "policies": "/directory/policies", "ous": "/directory/ous", "account": "/account/groups"}
+                 "policies": "/directory/policies", "ous": "/directory/ous", "access": "/directory/access",
+                 "account": "/account/groups"}
 
 # The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
 # permissions that show it: any one of them; () = any signed-in person). An entry shows when one of its pages does.
@@ -20,6 +21,7 @@ NAV = [
                                 ("/directory/groups", "Groups", ("domain:read",)),
                                 ("/directory/computers", "Computers", ("domain:read",)),
                                 ("/directory/ous", "OUs", ("domain:read",)),
+                                ("/directory/access", "Access", ("domain:read",)),
                                 ("/directory/policies", "Policies", ("domain:read",))]),
     ("8021x", "802.1X", [("/8021x", "RADIUS clients", ("radius:read",)),
                          ("/8021x/devices", "Devices", ("devices:read",)),
@@ -119,6 +121,11 @@ PER_PAGE = 50                            # a long list's page (1.8.6.3): People,
 COMPUTER_TYPES = {"server": "Server", "desktop": "Desktop", "network": "Network"}
 COMPUTER_SECTIONS = [("list", "Computers"), ("groups", "Machine groups")]
 # Directory · OUs (1.6.12.7): the folders an admin's own OUs go under (and under their own there), as the DC has them
+# Directory · Access (1.6.13.4): a grant's categories of rights with switches, (field, label, its rights); sudo and
+# local administrator are their own switches
+GRANT_RIGHTS = (("people", "People", ("edit", "reset", "unlock", "disable", "add")),
+                ("machines", "Machines", ("add", "move", "disable", "remove", "groups")),
+                ("signin", "Sign-in", ("keyboard", "remote")))
 OU_ROOTS = ("people", "service-accounts", "groups", "machines/servers", "machines/desktops", "machines/network")
 RADIUS_PAGES = {"overview": "/8021x", "decisions": "/8021x/decisions", "switches": "/8021x/guides",
                 "windows": "/8021x/guides"}

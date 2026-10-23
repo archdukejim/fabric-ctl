@@ -7,6 +7,7 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `bind9_page.py` | Render the BIND9 tab: forward zone records, generated reverse zones or TSIG keys. |
 | `directory_page.py` | Render the Directory's Overview and 802.1X's devices and roles. |
 | `groups_page.py` | Directory · Groups: the list, Create group, a group's page. |
+| `access_page.py` | Directory · Access: the grants, Add grant, a grant's page. |
 | `ous_page.py` | Directory · OUs: the tree, an OU's page. |
 | `computers_page.py` | Directory · Computers: the list, Add computer, Machine groups, a computer's page. |
 | `policies_page.py` | Directory · Policies: its three tabs. |

@@ -42,6 +42,9 @@ from webui.agentclient.list_groups import list_groups  # noqa: F401
 from webui.agentclient.show_group import show_group  # noqa: F401
 from webui.agentclient.list_machines import list_machines  # noqa: F401
 from webui.agentclient.list_ous import list_ous  # noqa: F401
+from webui.agentclient.list_grants import list_grants  # noqa: F401
+from webui.agentclient.show_grant import show_grant  # noqa: F401
+from webui.agentclient.explain_grants import explain_grants  # noqa: F401
 from webui.agentclient.machine_overview import machine_overview  # noqa: F401
 from webui.agentclient.machine_keytab import machine_keytab  # noqa: F401
 from webui.agentclient.list_tsig_keys import list_tsig_keys  # noqa: F401

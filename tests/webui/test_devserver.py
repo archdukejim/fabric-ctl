@@ -795,6 +795,80 @@ with serve():
     check("Delete refused at Apply while it holds anything, saying so", "is not empty" in page, page[-1500:])
     post("/changes/ous/discard", {})
     check("refused: an unknown OU form (404)", req("POST", "/directory/ous/_form/frob", {"csrf": "dev"})[0] == 404)
+    page = get("/directory/access")
+    # covers: web:get.directory.access +
+    check("Directory · Access: each grant with its who, where, what it gives and whom it reaches (one marked as "
+          "reaching nobody), linked to its page; the search; Add grant",
+          'href="/directory/access/server-administrators"' in page
+          and "sign-in: keyboard, remote; sudo: ALL; local administrator" in page and "1 people, 1 machines" in page
+          and 'aria-label="reaches nobody"' in page and 'href="/directory/access/_new"' in page, page[-4000:])
+    page = get("/directory/access?q=site-lan")
+    check("...searched by a where group: the help desk's grant alone", "lan-helpdesk" in page
+          and "/directory/access/desktops" not in page)
+    page = get("/directory/access/lan-helpdesk")
+    check("a grant's page: who, where, what it gives, its groups; the people it reaches and what is where, linked; "
+          "Change (its fields filled) and Remove", "people: edit, reset, unlock" in page
+          and 'href="/directory/people/sam"' in page and 'href="/directory/computers/host-1"' in page
+          and "grant-lan-helpdesk-who" in page and 'action="/directory/grants/lan-helpdesk"' in page
+          and 'name="people_reset" value="yes" checked' in page and 'value="site-lan"' in page
+          and 'action="/directory/grants/lan-helpdesk/delete"' in page, page[-4000:])
+    page = get("/directory/access/nope")
+    # covers: web:get.directory.access -
+    check("a grant that is not there: said, no form", "no grant nope" in page
+          and "/directory/grants/nope" not in page)
+    page = get("/directory/access/_new?template=helpdesk")
+    # covers: web:get.directory.access._new +
+    check("Add grant from a template: its rights switched on, the template carried", 'value="helpdesk" selected' in page
+          and 'name="people_unlock" value="yes" checked' in page and 'name="template" value="helpdesk"' in page)
+    page = get("/directory/access/_new?template=nonsense")
+    # covers: web:get.directory.access._new -
+    check("...a template that is not one: an empty grant, nothing carried", 'name="template" value=""' in page
+          and ' checked' not in page.split('action="/directory/grants/_new"', 1)[1].split("</form>", 1)[0])
+    page = get("/directory/people/lee")
+    check("a person's page: the grants that reach them and what each gives, linked to Access (lee: the desktops)",
+          'href="/directory/access/desktops"' in page and "/directory/access/lan-helpdesk" not in page
+          and "sign-in: keyboard" in page and "server-administrators" not in page, page[-4000:])
+    st, loc, page = post("/directory/grants/_new", {"name": "web-ops", "kind": "allow", "who": "lab-users",
+                                                    "where": "hosts-web", "signin_remote": "yes",
+                                                    "sudo": "/usr/bin/systemctl restart nginx"})
+    # covers: web:post.directory.grants._new +
+    check("Add grant: held for the Access page's Apply, back to Access", loc == "/directory/access"
+          and "Waiting for Apply: Add grant web-ops" in flash(page), (loc, flash(page)))
+    st, loc, page = post("/directory/grants/lan-helpdesk", {"who": "helpdesk", "where": "site-lan",
+                                                            "people_edit": "yes", "people_reset": "yes"})
+    # covers: web:post.directory.grants.* +
+    check("Change: held, back on the grant's page", loc == "/directory/access/lan-helpdesk"
+          and "Change grant lan-helpdesk" in flash(page), (loc, flash(page)))
+    st, loc, page = post("/directory/grants/network-administrators/delete", {})
+    # covers: web:post.directory.grants.*.delete +
+    check("Remove: held, back to Access", loc == "/directory/access"
+          and "Remove grant network-administrators" in flash(page), (loc, flash(page)))
+    post("/changes/access/apply", {})
+    page = get("/directory/access")
+    check("...the three applied on one Review: web-ops listed (remote sign-in, its sudo command), the help desk "
+          "without unlock, the network administrators gone",
+          "sign-in: remote; sudo: /usr/bin/systemctl restart nginx" in page and "people: edit, reset<" in page
+          and "network-administrators" not in page and "change pending" not in page, page[-4000:])
+    for form, words in (({"name": "x", "who": "a", "where": "b"}, "a grant&#39;s name"),
+                        ({"name": "bad-one", "who": "directory-admins", "where": "site-lan", "people_edit": "yes"},
+                         "tiers&#39; groups"),
+                        ({"name": "all-root", "who": "Domain Users", "where": "machines-servers", "sudo_all": "yes"},
+                         "every command for everyone")):
+        post("/directory/grants/_new", form)
+        st, loc, page = post("/changes/access/apply", {})
+        # covers: web:post.directory.grants._new -
+        check(f"Add grant refused at Apply, why shown ({words})", words in page, page[-1500:])
+        post("/changes/access/discard", {})
+    post("/directory/grants/lan-helpdesk", {"who": "", "where": "site-lan"})
+    st, loc, page = post("/changes/access/apply", {})
+    # covers: web:post.directory.grants.* -
+    check("Change refused at Apply: a who with no group", "who: at least one group" in page, page[-1500:])
+    post("/changes/access/discard", {})
+    post("/directory/grants/nope/delete", {})
+    st, loc, page = post("/changes/access/apply", {})
+    # covers: web:post.directory.grants.*.delete -
+    check("Remove refused: a grant that is not there", "no grant nope" in page, page[-1500:])
+    post("/changes/access/discard", {})
     page = get("/directory/policies/sudo")
     # covers: web:get.directory.policies.sudo +
     check("Policies · Sudo rules (admin): who made each, remove only for fabric's, the add form aiming at a host group",
@@ -966,6 +1040,13 @@ with serve("fabric-auditor"):
         # covers: web:post.directory.machines.*.* web:post.directory.machines.*.delete -
         check(f"--as fabric-auditor: refused: holding a computer's {op}, the permission named (machines:admin)",
               "machines:admin" in flash(page) and "change pending" not in page, flash(page))
+    page = get("/directory/access/lan-helpdesk")
+    check("--as fabric-auditor: a grant's page without Change or Remove, and no Add grant (groups:admin)",
+          "people: edit, reset, unlock" in page and "/directory/grants/" not in page
+          and req("GET", "/directory/access/_new")[0] == 403, page[-2000:])
+    st, loc, page = post("/directory/grants/lan-helpdesk/delete", {})
+    check("--as fabric-auditor: refused: holding a grant's removal, the permission named (groups:admin)",
+          "groups:admin" in flash(page) and "change pending" not in page, flash(page))
     page = get("/directory/ous?ou=people/staff")
     check("--as fabric-auditor: an OU of the site's without Rename or Delete (ous:admin), and no Create OU",
           "<dt>People</dt><dd>1</dd>" in page and "/directory/ous/_form/" not in page

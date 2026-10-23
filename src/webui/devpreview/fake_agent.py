@@ -5,6 +5,7 @@ from webui.devpreview.fake_dns import fake_dns
 from webui.devpreview.fake_groups import fake_groups
 from webui.devpreview.fake_machines import fake_machines
 from webui.devpreview.fake_ous import fake_ous
+from webui.devpreview.fake_grants import fake_grants
 from webui.devpreview.fake_misc import fake_misc
 from webui.devpreview.fake_network import fake_network
 from webui.devpreview.fake_pending import fake_pending
@@ -38,6 +39,15 @@ def _read_ous(state, who, route, body):
     return fake_ous(state, who, route, None)
 
 
+def _read_grants(state, who, route, body):
+    """Purpose: The grants' reads (fake_grants with no body: GET).
+    Inputs:  as fake_grants'.
+    Returns: fake_grants' answer, or None.
+    Fails:   ValidationError "no grant <name>", "no person <uid>".
+    Feeds:   fake_agent."""
+    return fake_grants(state, who, route, None)
+
+
 def fake_agent(state, who, method, route, body):
     """Purpose: The dev preview's stand-in for fabric-agent: one /v1/ request answered from the in-memory sample data,
              with the agent's own permission check (fabriclib's table) against the preview's person, so a page shown
@@ -54,8 +64,8 @@ def fake_agent(state, who, method, route, body):
     if need != "session" and need not in who["perms"]:
         return 403, {"error": f"you need the permission {need}"}
     def run(change, change_body):          # a held change at Apply: the same fake route as a direct call
-        for area in (fake_account, fake_dns, fake_machines, fake_ous, fake_directory, fake_groups, fake_network,
-                     fake_misc):
+        for area in (fake_account, fake_dns, fake_machines, fake_ous, fake_grants, fake_directory, fake_groups,
+                     fake_network, fake_misc):
             answer = area(state, who, change, change_body)
             if answer is not None:
                 return answer
@@ -65,9 +75,9 @@ def fake_agent(state, who, method, route, body):
         held = fake_pending(state, who, method, route, body, run)
         if held is not None:
             return 200, held
-        for area in ((fake_account, fake_reads, _read_groups, _read_machines, _read_ous) if method == "GET"
-                     else (fake_account, fake_dns, fake_machines, fake_ous, fake_directory, fake_groups, fake_network,
-                           fake_misc)):
+        for area in ((fake_account, fake_reads, _read_groups, _read_machines, _read_ous, _read_grants)
+                     if method == "GET" else (fake_account, fake_dns, fake_machines, fake_ous, fake_grants,
+                                              fake_directory, fake_groups, fake_network, fake_misc)):
             answer = area(state, who, route, body)
             if answer is not None:
                 return 200, answer

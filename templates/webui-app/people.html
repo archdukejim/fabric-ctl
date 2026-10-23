@@ -67,6 +67,14 @@
 <label>Group<select name="group" required>{% for g in addable %}<option>{{ g }}</option>{% endfor %}</select></label>
 <div><button>Add to group</button></div></form>{% endif %}
 <p class="muted small">Fabric's groups carry permissions: only an administrator changes them. Read at the person's next sign-in.</p></section>
+{% if grants is not none %}<section class="card"><h2>Grants that reach them <span class="muted">{{ grants.grants | length }}</span></h2>
+{% if grants.error %}<p class="flash bad">The grants could not be read: {{ grants.error }}</p>
+{% elif grants.never %}{{ p.empty("No grant reaches them: " ~ grants.never ~ ".") }}
+{% elif grants.grants %}{% call p.list(["Grant", "Kind", "Gives"]) %}{% for g in grants.grants %}<tr>
+<td data-label="Grant">{% if can('domain:read') %}<a href="/directory/access/{{ g.name | urlencode }}">{{ g.name }}</a>{% else %}{{ g.name }}{% endif %}</td>
+<td data-label="Kind">{{ 'restricts' if g.kind == 'restrict' else 'allows' }}</td><td data-label="Gives">{{ g.gives | join('; ') or '—' }}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("No grant reaches them: they sign in nowhere from the domain.") }}{% endif %}
+<p class="muted small">Each gives them its rights where its where groups reach.</p></section>{% endif %}
 <section class="card"><h2>Certificates <span class="muted">{{ d.certs | length }}</span></h2>
 {% if d.certs %}{% call p.list(["", "Subject", "Serial", "Valid until", "Status"]) %}{% for c in d.certs %}<tr>
 <td>{{ p.light({'valid': 'ok', 'expires soon': 'warn'}.get(c.status, 'bad'), c.status) }}</td><td data-label="Subject">{{ c.subject }}</td>

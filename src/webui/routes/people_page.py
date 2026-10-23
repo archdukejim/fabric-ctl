@@ -9,7 +9,8 @@ def people_page(h, ctx, path, query):
              _new (Add person) or /directory/people/<uid> (a person's page).
     Inputs:  h — the request handler (send, deny); ctx — page context; path — the request's path; query — dict.
     Returns: the page sent; a read fabric-agent refuses or cannot answer (the DC not running, no such person) is
-             said on the page.
+             said on the page. A person's page shows the grants that reach them to whoever has domain:read (why they
+             could not be read, alone, when that fails).
     Fails:   403 for Add person without people:create; 404 for a path with more segments; PermissionDenied and
              AuthError propagate to handle_request.
     Feeds:   get_page."""
@@ -34,4 +35,12 @@ def people_page(h, ctx, path, query):
         groups = actions.list_people() if "people:groups" in (ctx.get("perms") or ()) else None
     except (actions.AgentError, actions.ValidationError):
         groups = None
-    return h.send(200, views.people(ctx, "person", people=groups, person=person))
+    grants = {"grants": [], "never": "", "error": ""}       # the grants that reach them (1.6.13.7), with domain:read
+    if "domain:read" in (ctx.get("perms") or ()):
+        try:
+            grants.update(actions.explain_grants(uid))
+        except (actions.AgentError, actions.ValidationError) as exc:
+            grants["error"] = str(exc)
+    else:
+        grants = None
+    return h.send(200, views.people(ctx, "person", people=groups, person=person, grants=grants))

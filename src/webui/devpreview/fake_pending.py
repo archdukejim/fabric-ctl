@@ -5,6 +5,7 @@ from webui.devpreview.fake_account import managed
 from webui.devpreview.fake_directory import PERSON_KEYS
 from webui.devpreview.fake_groups import find_group
 from webui.devpreview.fake_ous import fake_ous
+from webui.devpreview.fake_grants import fake_grants
 from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DOMAIN, SAMPLE_GPO
 
 try:                                       # the agent's own store and its words, from a checkout (as fabric_rules)
@@ -52,6 +53,9 @@ def _thing(state, route, body):
         return _find(SAMPLE_ACCESS["sudo"], "name", name)
     if route == ["domain", "password-policy"]:
         return SAMPLE_DOMAIN["policy"]
+    if route[:2] == ["domain", "grants"]:             # the grant as the list has it, None for a new one
+        name = route[2] if len(route) > 2 else body.get("name", "")
+        return _find(fake_grants(state, None, ["domain", "grants"], None)["grants"], "name", name)
     if head == "ous":                                 # the whole tree, as the agent reads it
         return fake_ous(state, None, ["ous"], None)
     if head == "gpo":
