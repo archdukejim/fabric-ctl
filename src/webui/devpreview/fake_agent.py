@@ -2,10 +2,20 @@ from webui.devpreview.fabric_rules import ValidationError, required_permission
 from webui.devpreview.fake_account import fake_account
 from webui.devpreview.fake_directory import fake_directory
 from webui.devpreview.fake_dns import fake_dns
+from webui.devpreview.fake_groups import fake_groups
 from webui.devpreview.fake_misc import fake_misc
 from webui.devpreview.fake_network import fake_network
 from webui.devpreview.fake_pending import fake_pending
 from webui.devpreview.fake_reads import fake_reads
+
+
+def _read_groups(state, who, route, body):
+    """Purpose: The groups' reads (fake_groups with no body: GET).
+    Inputs:  as fake_groups'.
+    Returns: fake_groups' answer, or None.
+    Fails:   ValidationError (no such group).
+    Feeds:   fake_agent."""
+    return fake_groups(state, who, route, None)
 
 
 def fake_agent(state, who, method, route, body):
@@ -24,7 +34,7 @@ def fake_agent(state, who, method, route, body):
     if need != "session" and need not in who["perms"]:
         return 403, {"error": f"you need the permission {need}"}
     def run(change, change_body):          # a held change at Apply: the same fake route as a direct call
-        for area in (fake_account, fake_dns, fake_directory, fake_network, fake_misc):
+        for area in (fake_account, fake_dns, fake_directory, fake_groups, fake_network, fake_misc):
             answer = area(state, who, change, change_body)
             if answer is not None:
                 return answer
@@ -34,8 +44,8 @@ def fake_agent(state, who, method, route, body):
         held = fake_pending(state, who, method, route, body, run)
         if held is not None:
             return 200, held
-        for area in ((fake_account, fake_reads) if method == "GET"
-                     else (fake_account, fake_dns, fake_directory, fake_network, fake_misc)):
+        for area in ((fake_account, fake_reads, _read_groups) if method == "GET"
+                     else (fake_account, fake_dns, fake_directory, fake_groups, fake_network, fake_misc)):
             answer = area(state, who, route, body)
             if answer is not None:
                 return 200, answer

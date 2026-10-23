@@ -15,6 +15,8 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `continue_page.py` | The 'Signed in' page that moves on to the target with a meta refresh and a link. |
 | `css.py` | The whole stylesheet (static/webui-app/app.css), served as /static/app.css (light and dark colour schemes). |
 | `directory.py` | The Directory's pages and 802.1X's devices and roles: the Overview, the domain, machines, Group Policy. |
+| `groups.py` | Directory · Groups: the list, a group's two levels and their forms, Create group. |
+| `paged.py` | A long list's search and paging (People, Groups). |
 | `people.py` | Directory · People: the list (search, 50 a page), a person's page and its forms, Add person. |
 | `error_page.py` | The error page: status, message and a 'Sign in again' link. |
 | `freeradius.py` | The FreeRADIUS tab: overview (server, people groups, RADIUS clients, recent decisions) or a setup guide for switches or Windows. |

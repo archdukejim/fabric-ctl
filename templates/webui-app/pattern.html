@@ -38,3 +38,11 @@
 {{ caller() }}
 </tbody></table>
 {%- endmacro %}
+
+{#- A long list's pages: Previous and Next keeping the search; left out for a single page. -#}
+{% macro pager(action, value, at, pages, what) -%}
+{% if pages > 1 %}<nav class="pager" aria-label="Pages of {{ what }}">
+{% if at > 1 %}<a href="{{ action }}?{{ {'q': value, 'page': at - 1} | urlencode }}" rel="prev">← Previous</a>{% endif %}
+<span class="muted">Page {{ at }} of {{ pages }}</span>
+{% if at < pages %}<a href="{{ action }}?{{ {'q': value, 'page': at + 1} | urlencode }}" rel="next">Next →</a>{% endif %}</nav>{% endif %}
+{%- endmacro %}

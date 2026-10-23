@@ -967,6 +967,7 @@ file	webui|src/webui/agentclient/image_rows.py	140
 file	webui|src/webui/agentclient/inspect_pem.py	21	
 file	webui|src/webui/agentclient/issue_key_pair.py	22	
 file	webui|src/webui/agentclient/link_device_cert.py	23	
+file	webui|src/webui/agentclient/list_groups.py	230	
 file	webui|src/webui/agentclient/list_host_groups.py	157	
 file	webui|src/webui/agentclient/list_issued.py	24	
 file	webui|src/webui/agentclient/list_people.py	25	
@@ -1015,6 +1016,7 @@ file	webui|src/webui/agentclient/settings_dismiss.py	191
 file	webui|src/webui/agentclient/settings_export.py	192	
 file	webui|src/webui/agentclient/settings_overview.py	193	
 file	webui|src/webui/agentclient/settings_plan.py	194	
+file	webui|src/webui/agentclient/show_group.py	231	
 file	webui|src/webui/agentclient/sign_csr.py	45	
 file	webui|src/webui/agentclient/start_job.py	142	
 file	webui|src/webui/agentclient/sudo_rule_change.py	161	
@@ -1047,6 +1049,7 @@ file	webui|src/webui/devpreview/fake_agent.py	202
 file	webui|src/webui/devpreview/fake_connection.py	203	
 file	webui|src/webui/devpreview/fake_directory.py	204	
 file	webui|src/webui/devpreview/fake_dns.py	205	
+file	webui|src/webui/devpreview/fake_groups.py	232	
 file	webui|src/webui/devpreview/fake_misc.py	206	
 file	webui|src/webui/devpreview/fake_network.py	207	
 file	webui|src/webui/devpreview/fake_pending.py	215	
@@ -1072,6 +1075,7 @@ file	webui|src/webui/routes/dns_filter_page.py	149
 file	webui|src/webui/routes/dns_filter_post.py	150	
 file	webui|src/webui/routes/finish_setting_up.py	196	
 file	webui|src/webui/routes/get_page.py	80	
+file	webui|src/webui/routes/groups_page.py	233	
 file	webui|src/webui/routes/held.py	224	
 file	webui|src/webui/routes/kea_post.py	81	
 file	webui|src/webui/routes/landing_post.py	187	
@@ -1115,12 +1119,14 @@ file	webui|src/webui/views/dns_filter.py	151
 file	webui|src/webui/views/error_page.py	109	
 file	webui|src/webui/views/federation.py	131	
 file	webui|src/webui/views/freeradius.py	110	
+file	webui|src/webui/views/groups.py	234	
 file	webui|src/webui/views/job_page.py	144	
 file	webui|src/webui/views/kea.py	111	
 file	webui|src/webui/views/machine_result.py	129	
 file	webui|src/webui/views/nav_menu.py	210	
 file	webui|src/webui/views/openbao.py	112	
 file	webui|src/webui/views/overview.py	113	
+file	webui|src/webui/views/paged.py	235	
 file	webui|src/webui/views/people.py	229	
 file	webui|src/webui/views/person_result.py	114	
 file	webui|src/webui/views/pki_result.py	115	
@@ -2720,6 +2726,7 @@ function	webui|src/webui/agentclient/image_rows.py|image_rows	1
 function	webui|src/webui/agentclient/inspect_pem.py|inspect_pem	1	
 function	webui|src/webui/agentclient/issue_key_pair.py|issue_key_pair	1	
 function	webui|src/webui/agentclient/link_device_cert.py|link_device_cert	1	
+function	webui|src/webui/agentclient/list_groups.py|list_groups	1	
 function	webui|src/webui/agentclient/list_host_groups.py|list_host_groups	1	
 function	webui|src/webui/agentclient/list_issued.py|list_issued	1	
 function	webui|src/webui/agentclient/list_people.py|list_people	1	
@@ -2768,6 +2775,7 @@ function	webui|src/webui/agentclient/settings_dismiss.py|settings_dismiss	1
 function	webui|src/webui/agentclient/settings_export.py|settings_export	1	
 function	webui|src/webui/agentclient/settings_overview.py|settings_overview	1	
 function	webui|src/webui/agentclient/settings_plan.py|settings_plan	1	
+function	webui|src/webui/agentclient/show_group.py|show_group	1	
 function	webui|src/webui/agentclient/sign_csr.py|sign_csr	1	
 function	webui|src/webui/agentclient/start_job.py|start_job	1	
 function	webui|src/webui/agentclient/sudo_rule_change.py|sudo_rule_change	1	
@@ -2825,6 +2833,7 @@ function	webui|src/webui/devpreview/dev_state.py|DevState.zone	4
 function	webui|src/webui/devpreview/dev_state.py|DevState.zones	2	
 function	webui|src/webui/devpreview/fake_account.py|fake_account	2	
 function	webui|src/webui/devpreview/fake_account.py|managed	1	
+function	webui|src/webui/devpreview/fake_agent.py|_read_groups	2	
 function	webui|src/webui/devpreview/fake_agent.py|fake_agent	1	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.__init__	3	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.close	6	
@@ -2844,6 +2853,10 @@ function	webui|src/webui/devpreview/fake_dns.py|_record	3
 function	webui|src/webui/devpreview/fake_dns.py|_tsig	1	
 function	webui|src/webui/devpreview/fake_dns.py|_value	2	
 function	webui|src/webui/devpreview/fake_dns.py|fake_dns	4	
+function	webui|src/webui/devpreview/fake_groups.py|_change	3	
+function	webui|src/webui/devpreview/fake_groups.py|_groups	1	
+function	webui|src/webui/devpreview/fake_groups.py|fake_groups	4	
+function	webui|src/webui/devpreview/fake_groups.py|find_group	2	
 function	webui|src/webui/devpreview/fake_misc.py|_job	1	
 function	webui|src/webui/devpreview/fake_misc.py|_pki	2	
 function	webui|src/webui/devpreview/fake_misc.py|_vault	3	
@@ -2896,6 +2909,7 @@ function	webui|src/webui/routes/changes_post.py|changes_post	1
 function	webui|src/webui/routes/directory_page.py|directory_page	1	
 function	webui|src/webui/routes/directory_post.py|_changed_fields	9	
 function	webui|src/webui/routes/directory_post.py|_device_fields	1	
+function	webui|src/webui/routes/directory_post.py|_group	10	
 function	webui|src/webui/routes/directory_post.py|_held	7	0.8.0 / 2026-10-23
 function	webui|src/webui/routes/directory_post.py|_host_access	5	
 function	webui|src/webui/routes/directory_post.py|_person_change	4	0.8.0 / 2026-10-22
@@ -2914,6 +2928,7 @@ function	webui|src/webui/routes/finish_setting_up.py|finish_setting_up	1
 function	webui|src/webui/routes/get_page.py|_overview	2	
 function	webui|src/webui/routes/get_page.py|_rest	3	
 function	webui|src/webui/routes/get_page.py|get_page	1	
+function	webui|src/webui/routes/groups_page.py|groups_page	1	
 function	webui|src/webui/routes/held.py|held	2	
 function	webui|src/webui/routes/held.py|q	1	
 function	webui|src/webui/routes/kea_post.py|_kea	3	
@@ -2970,13 +2985,15 @@ function	webui|src/webui/views/dns_filter.py|dns_filter	2
 function	webui|src/webui/views/error_page.py|error_page	1	
 function	webui|src/webui/views/federation.py|federation	1	
 function	webui|src/webui/views/freeradius.py|freeradius	1	
+function	webui|src/webui/views/groups.py|groups	1	
 function	webui|src/webui/views/job_page.py|job_page	1	
 function	webui|src/webui/views/kea.py|kea	1	
 function	webui|src/webui/views/machine_result.py|machine_result	1	
 function	webui|src/webui/views/nav_menu.py|nav_menu	1	
 function	webui|src/webui/views/openbao.py|openbao	1	
 function	webui|src/webui/views/overview.py|overview	1	
-function	webui|src/webui/views/people.py|_matches	1	
+function	webui|src/webui/views/paged.py|paged	1	
+function	webui|src/webui/views/people.py|_matches	1	0.8.0 / 2026-10-23
 function	webui|src/webui/views/people.py|people	2	
 function	webui|src/webui/views/person_result.py|person_result	1	
 function	webui|src/webui/views/pki_result.py|pki_result	1	

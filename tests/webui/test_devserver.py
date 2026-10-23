@@ -89,7 +89,7 @@ def serve(bundle=None):
 
 
 PAGES = ["/", "/overview/doctor", "/overview/updates", "/audit", "/dns/zones", "/dns-filter", "/kea", "/pki",
-         "/pki/acme", "/directory", "/directory/people", "/directory/domain", "/directory/machines", "/directory/gpo",
+         "/pki/acme", "/directory", "/directory/people", "/directory/groups", "/directory/domain", "/directory/machines", "/directory/gpo",
          "/8021x", "/8021x/decisions", "/8021x/guides", "/8021x/devices", "/8021x/roles", "/secrets", "/secrets/unlock",
          "/secrets/disk", "/federation", "/settings", "/settings/sign-in", "/account", "/account/groups"]
 # 1.8.6.4's moved addresses -> where each answers now
@@ -129,7 +129,8 @@ with serve():
     check("no page carries a script or inline style (the strict CSP; pages work with JavaScript off)",
           not [p for p in PAGES if re.search(r"<script|style=|\son[a-z]+=", get(p))])
     detail = PAGES + ["/8021x/devices/jims-laptop", "/8021x/roles/iot", "/secrets/secrets", "/dns/zones?view=tsig",
-                      "/directory/people/jim", "/directory/people/lee", "/directory/people/_new"]
+                      "/directory/people/jim", "/directory/people/lee", "/directory/people/_new",
+                      "/directory/groups/lab-users", "/directory/groups/directory-admins", "/directory/groups/_new"]
     unlabelled = {p: n for p in detail if (n := len(re.findall(r'<span class="light [a-z]*"(?! role="img" '
                                                                    r'aria-label="[^"]+")', get(p))))}
     check("every status light says what it means (role=img, aria-label: never colour alone, 1.8.6.3)",
@@ -522,6 +523,69 @@ with serve():
     # covers: web:post.directory.people.*.delete +
     check("remove a person with the user name typed back, applied -> gone from the list",
           "sam@home.arpa" not in get("/directory/people"), page[-1500:])
+    page = get("/directory/groups")
+    # covers: web:get.directory.groups +
+    check("Directory · Groups: each group with its kind, members and description, linking to its page; Create group",
+          'href="/directory/groups/lab-users"' in page and "the site&#39;s" in page and "a tier&#39;s" in page
+          and "AD&#39;s own" in page and 'href="/directory/groups/_new"' in page, page[-3000:])
+    page = get("/directory/groups?q=tier")
+    check("...searched by kind: a tier's group alone", "directory-admins" in page and "lab-users" not in page)
+    page = get("/directory/groups/lab-users")
+    check("a group's two levels: what it grants (a sudo rule, 802.1X's VLAN), its managers and their controls, its "
+          "members linked to their pages; Delete group (the site's own), the managers' form, the member forms",
+          "lab-restart" in page and "VLAN 30" in page and "dev may add and remove members" in page
+          and 'href="/directory/people/sam"' in page and 'action="/directory/groups/lab-users/delete"' in page
+          and 'action="/directory/groups/lab-users/managers"' in page and 'name="member"' in page, page[-3000:])
+    page = get("/directory/groups/Domain%20Admins")
+    check("an AD group: why it is not changed here, no form at all", "left as AD has them" in page
+          and 'method="post"' not in page.split("<main", 1)[1].split("</main>", 1)[0], page[-2000:])
+    page = get("/directory/groups/directory-admins")
+    check("a tier's group: shown, but not deleted here", "only the tier above it" in page
+          and "/directory/groups/directory-admins/delete" not in page)
+    page = get("/directory/groups/nope")
+    # covers: web:get.directory.groups -
+    check("a group that is not there: the refusal said on the page", "no group nope" in page)
+    st, loc, page = post("/directory/groups/_new", {"name": "ops", "description": "Operations"})
+    # covers: web:post.directory.groups._new +
+    check("Create group: held for the Groups page's Apply, back to Groups", loc == "/directory/groups"
+          and "Waiting for Apply: Add group ops" in flash(page), flash(page))
+    st, loc, page = post("/directory/groups/lab-users/members", {"action": "add", "member": "lee"})
+    # covers: web:post.directory.groups.*.members +
+    check("a member added: held, back on the group's page", loc == "/directory/groups/lab-users"
+          and "Add lee to group lab-users" in flash(page), flash(page))
+    st, loc, page = post("/directory/groups/lab-users/managers", {"managers": "dev, jim", "add": "yes",
+                                                                  "only_from": "site-lan"})
+    # covers: web:post.directory.groups.*.managers +
+    check("its managers set: held", "Change the managers of lab-users" in flash(page), flash(page))
+    st, loc, page = post("/changes/groups/apply", {})
+    check("Apply on Groups: all three done, nothing left pending", "Nothing waits on this page" in page, page[-2500:])
+    page = get("/directory/groups/lab-users")
+    check("...lee a member, dev and jim managers who may add only, people of site-lan only",
+          'href="/directory/people/lee"' in page and "dev, jim may add members, people of site-lan only" in page,
+          page[-2500:])
+    check("...ops listed", 'href="/directory/groups/ops"' in get("/directory/groups"))
+    st, loc, page = post("/directory/groups/lab-users/delete", {})
+    st, loc, page = post("/changes/groups/apply", {})
+    # covers: web:post.directory.groups.*.delete -
+    check("refused at Apply: deleting a group still in use, naming where (a sudo rule, 802.1X)",
+          "is in use" in page and "sudo rule lab-restart" in page, page[-2000:])
+    post("/changes/groups/discard", {})
+    st, loc, page = post("/directory/groups/ops/delete", {})
+    st, loc, page = post("/changes/groups/apply", {})
+    # covers: web:post.directory.groups.*.delete +
+    check("delete a group in use nowhere: gone", 'href="/directory/groups/ops"' not in get("/directory/groups"),
+          page[-1500:])
+    st, loc, page = post("/directory/groups/_new", {"name": "Bad Name", "description": ""})
+    st, loc, page = post("/changes/groups/apply", {})
+    # covers: web:post.directory.groups._new -
+    check("refused at Apply: a group's name that is not one, said", "2-64 of a-z" in page, page[-1500:])
+    post("/changes/groups/discard", {})
+    st, loc, page = post("/directory/groups/nope/members", {"action": "add", "member": "lee"})
+    # covers: web:post.directory.groups.*.members -
+    check("refused when held: a member of a group that is not there, said, nothing pending",
+          "no group nope" in flash(page) and "change pending" not in page, flash(page))
+    for path in ("/directory/groups/a/b/members", "/directory/groups/lab-users/rename"):
+        check(f"refused: {path} (404)", req("POST", path, {"csrf": "dev"})[0] == 404)
     page = get("/directory/domain")
     check("Directory · Domain: the domain, its controller running, the password policy",
           "ad.home.arpa" in page and "pi-core.ad.home.arpa" in page and "Minimum length" in page)
@@ -705,6 +769,14 @@ with serve("fabric-auditor"):
     check("--as fabric-auditor: refused: holding a password policy change, the permission named (domain:admin); "
           "nothing pending", "you need the permission domain:admin" in flash(page)
           and "change pending" not in page, flash(page))
+    page = get("/directory/groups/lab-users")
+    check("--as fabric-auditor: a group's page without Delete, the managers' or the members' forms (groups:admin; "
+          "not a manager)", "lab-restart" in page and 'method="post"' not in page.split("<main", 1)[1]
+          .split("</main>", 1)[0] and req("GET", "/directory/groups/_new")[0] == 403, page[-2000:])
+    st, loc, page = post("/directory/groups/lab-users/managers", {"managers": "x"})
+    # covers: web:post.directory.groups.*.managers -
+    check("--as fabric-auditor: refused: holding a managers change, the permission named (groups:admin)",
+          "groups:admin" in flash(page) and "change pending" not in page, flash(page))
     page = get("/directory/people")
     check("--as fabric-auditor: people listed, no Add person", "jim@home.arpa" in page
           and "/directory/people/_new" not in page)

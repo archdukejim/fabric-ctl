@@ -1,0 +1,81 @@
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+{% if view == "list" %}
+<h1>Directory · Groups</h1>
+{% call p.actions() %}{% if can('groups:admin') %}<a class="btn" href="/directory/groups/_new">Create group</a>{% endif %}{% endcall %}
+{% if unavailable %}<p class="flash bad" role="alert">The groups could not be read: {{ unavailable }}</p>
+{% else %}
+<section class="card"><h2>Groups <span class="muted">{{ total }}</span></h2>
+<form method="get" action="/directory/groups" class="grid search" role="search">
+<label>Search <input name="q" value="{{ search }}" autocomplete="off" placeholder="name, kind, description"></label>
+<div><button class="ghost">Search</button>{% if search %} <a href="/directory/groups">Clear</a>{% endif %}</div></form>
+{% if groups %}{% call p.list(["Group", "Kind", "Members", "Description"]) %}{% for g in groups %}<tr>
+<td data-label="Group"><a href="/directory/groups/{{ g.name | urlencode }}"><strong>{{ g.name }}</strong></a></td>
+<td data-label="Kind">{{ g.kind_label }}</td><td data-label="Members" class="num">{{ g.members }}</td>
+<td data-label="Description">{{ g.description or '—' }}</td></tr>{% endfor %}{% endcall %}
+{{ p.pager("/directory/groups", search, at, pages, "groups") }}
+{% elif search %}{{ p.empty("No group matches “" ~ search ~ "”.") }}
+{% else %}{% call p.empty("No groups in this site yet.") %}{% if can('groups:admin') %}<a class="btn" href="/directory/groups/_new">Create group</a>{% endif %}{% endcall %}{% endif %}
+<p class="muted small">The site's groups (<code>OU=groups</code>). Fabric's own groups are marked by their kind; their members get permissions in fabric.</p>
+</section>
+{% endif %}
+
+{% elif view == "new" %}
+<p><a href="/directory/groups">← Groups</a></p>
+<h1>Directory · Create group</h1>
+<section class="card"><h2>Create group</h2>
+<form method="post" action="/directory/groups/_new" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label>Name<input name="name" required pattern="[a-z0-9._-]{2,64}" placeholder="lab-users" autocomplete="off"></label>
+<label>Description<input name="description" maxlength="256"></label>
+<div><button>Create group</button></div>
+</form>
+<p class="muted small">Lower-case letters, digits and <code>. _ -</code>; not one of fabric's or AD's names. Waits for the Groups page's Apply.</p>
+</section>
+
+{% else %}
+{% set fixed = g.kind in ('ad', 'computed', 'filled', 'host-group') %}
+{% set level1 = can('groups:admin') and not fixed %}
+{% set level2 = (can('groups:admin') or manages) and not fixed %}
+<p><a href="/directory/groups">← Groups</a></p>
+<h1>Directory · {{ g.name or 'Group' }} {% if kind[0] %}<span class="muted">{{ kind[0] }}</span>{% endif %}</h1>
+{% if unavailable %}<p class="flash bad" role="alert">This group could not be read: {{ unavailable }}</p>
+{% else %}
+{% call p.actions() %}{% if can('groups:admin') and g.kind == 'own' %}<form method="post" action="/directory/groups/{{ g.name | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Delete group</button></form>{% endif %}{% endcall %}
+{% if kind[1] %}<p class="muted">{{ kind[1] }}</p>{% endif %}
+{% set s = g.scope or {} %}
+<section class="card facts"><h2>What it grants</h2><dl>
+{% if g.description %}<dt>Description</dt><dd>{{ g.description }}</dd>{% endif %}
+<dt>Fabric role bundle</dt><dd>{{ s.bundle_name or ('yes' if s.bundle else 'none') }}</dd>
+<dt>Grants</dt><dd>{% for gr in s.grants or [] %}<div>{{ gr.name }} <span class="muted small">({{ 'who it is for' if gr['as'] == 'who' else 'where it applies' }})</span></div>{% else %}none{% endfor %}</dd>
+<dt>Sudo rules</dt><dd>{{ (s.sudo or []) | join(', ') or 'none' }}</dd>
+<dt>802.1X</dt><dd>{{ ('its people join by password on VLAN ' ~ s.radius_vlan) if s.radius_vlan is not none else 'no mapping' }}</dd>
+</dl></section>
+<section class="card"><h2>Managers</h2>
+{% if mgr.managers %}<p>{{ mgr.managers | join(', ') }} may {{ 'add and remove' if mgr.add and mgr.remove else ('add' if mgr.add else ('remove' if mgr.remove else 'only see')) }} members{% if mgr.only_from %}, people of {{ mgr.only_from }} only{% endif %}.</p>
+{% else %}{{ p.empty("No managers: only the tier above changes its members.") }}{% endif %}
+{% if level1 %}<form method="post" action="/directory/groups/{{ g.name | urlencode }}/managers" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label>Managers (people or groups, separated by commas)<input name="managers" value="{{ (mgr.managers or []) | join(', ') }}" autocomplete="off"></label>
+<label class="check"><input type="checkbox" name="add" value="yes"{{ ' checked' if mgr.add }}> They may add members</label>
+<label class="check"><input type="checkbox" name="remove" value="yes"{{ ' checked' if mgr.remove }}> They may remove members</label>
+<label>Only people of this group may be added (optional)<input name="only_from" value="{{ mgr.only_from or '' }}" autocomplete="off"></label>
+<div><button>Save managers</button></div></form>
+<p class="muted small">A manager changes members and nothing else. Changed only by the tier above the group.</p>{% endif %}
+</section>
+{% set m = g.members or {} %}
+<section class="card"><h2>Members <span class="muted">{{ (m.people or []) | length + (m.groups or []) | length + (m.computers or []) | length }}</span></h2>
+{% if m.people or m.groups or m.computers %}{% call p.list(["Member", "Kind", ""]) %}
+{% for x in m.people or [] %}<tr><td data-label="Member">{% if can('people:read') %}<a href="/directory/people/{{ x | urlencode }}">{{ x }}</a>{% else %}{{ x }}{% endif %}</td><td data-label="Kind">person</td>
+<td class="row-actions">{% if level2 %}<form method="post" action="/directory/groups/{{ g.name | urlencode }}/members"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="action" value="remove"><input type="hidden" name="member" value="{{ x }}"><button class="ghost">Take out</button></form>{% endif %}</td></tr>{% endfor %}
+{% for x in m.groups or [] %}<tr><td data-label="Member"><a href="/directory/groups/{{ x | urlencode }}">{{ x }}</a></td><td data-label="Kind">group</td>
+<td class="row-actions">{% if level2 %}<form method="post" action="/directory/groups/{{ g.name | urlencode }}/members"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="action" value="remove"><input type="hidden" name="member" value="{{ x }}"><button class="ghost">Take out</button></form>{% endif %}</td></tr>{% endfor %}
+{% for x in m.computers or [] %}<tr><td data-label="Member">{{ x }}</td><td data-label="Kind">computer</td><td></td></tr>{% endfor %}
+{% endcall %}{% else %}{{ p.empty("No members yet.") }}{% endif %}
+{% if level2 %}<form method="post" action="/directory/groups/{{ g.name | urlencode }}/members" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="action" value="add">
+<label>Person or group<input name="member" required autocomplete="off"></label>
+<div><button>Add member</button></div></form>{% endif %}
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,7 +1,8 @@
 """What the pages show: the navigation, sections, sub-menus, the permissions that show them."""
 
 # Apply per page (manual 1.8.6.5): fabric-agent's pending page ids -> the navigation page whose changes they are
-PENDING_PAGES = {"people": "/directory/people", "machines": "/directory/machines", "domain": "/directory/domain",
+PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "machines": "/directory/machines",
+                 "domain": "/directory/domain",
                  "gpo": "/directory/gpo", "account": "/account/groups"}
 
 # The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
@@ -17,6 +18,7 @@ NAV = [
     ("pki", "PKI", [("/pki", "Certificates", ("pki:read",)), ("/pki/acme", "ACME", ("pki:read",))]),
     ("directory", "Directory", [("/directory", "Overview", ("domain:read",)),
                                 ("/directory/people", "People", ("people:read",)),
+                                ("/directory/groups", "Groups", ("domain:read",)),
                                 ("/directory/domain", "Domain", ("domain:read",)),
                                 ("/directory/machines", "Machines", ("domain:read",)),
                                 ("/directory/gpo", "Group Policy", ("domain:read",))]),
@@ -112,7 +114,19 @@ PERSON_FIELDS = (("first", "First name"), ("last", "Last name"), ("name", "Displ
                  ("phone", "Phone"), ("mobile", "Mobile"), ("title", "Title"), ("department", "Department"),
                  ("company", "Company"), ("office", "Office"), ("city", "City"), ("state", "State"),
                  ("country", "Country"), ("manager", "Manager"), ("employee_id", "Employee ID"))
-PEOPLE_PER_PAGE = 50                     # the People list's page (1.6.12.4)
+PER_PAGE = 50                            # a long list's page (1.8.6.3): People, Groups
 RADIUS_PAGES = {"overview": "/8021x", "decisions": "/8021x/decisions", "switches": "/8021x/guides",
                 "windows": "/8021x/guides"}
 JOB_PAGES = {"doctor": "/overview/doctor", "images": "/overview/updates", "settings": "/settings"}
+# a group's kind (2.1.6.67, 1.6.12.17.5) -> (its label, why its members and managers are or are not changed here)
+GROUP_KINDS = {
+    "own": ("the site's", ""),
+    "bundle": ("a role bundle's", "Its members get the bundle's permissions in fabric."),
+    "fabric": ("fabric's", "Fabric's own group: its members get permissions in fabric."),
+    "tier": ("a tier's", "A tier's group: only the tier above it (fabric-admin) changes it."),
+    "ad": ("AD's own", "Managed by fabric: AD's own groups are left as AD has them."),
+    "computed": ("computed", "Managed by fabric: computed from the grants, never changed by hand."),
+    "filled": ("filled by fabric", "Managed by fabric: fabric fills it."),
+    "host-group": ("a machine group", "Its machines are changed on each computer's page."),
+}
+GROUP_FIXED = ("ad", "computed", "filled", "host-group")   # kinds that take no members and no managers here

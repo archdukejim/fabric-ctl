@@ -24,7 +24,7 @@
 <section class="card"><h2>Sites <span class="muted">{{ o.sites | length }}</span></h2>
 {% if o.sites %}<p>{{ o.sites | join(', ') }}</p>{% else %}{{ p.empty("No site could be read.") }}{% endif %}</section>
 <section class="card"><h2>In the directory</h2>
-{% set links = {'people': ('/directory/people', 'people:read', 'People'), 'groups': ('', '', 'Groups'), 'computers': ('/directory/machines', 'domain:read', 'Computers'), 'ous': ('', '', 'OUs')} %}
+{% set links = {'people': ('/directory/people', 'people:read', 'People'), 'groups': ('/directory/groups', 'domain:read', 'Groups'), 'computers': ('/directory/machines', 'domain:read', 'Computers'), 'ous': ('', '', 'OUs')} %}
 <dl class="facts">{% for key in ['people', 'groups', 'computers', 'ous'] %}{% set href, need, label = links[key] %}<dt>{% if href and can(need) %}<a href="{{ href }}">{{ label }}</a>{% else %}{{ label }}{% endif %}</dt><dd>{{ o.counts[key] if o.counts and key in o.counts else '—' }}</dd>{% endfor %}</dl></section>
 
 {% elif view == 'devices' %}

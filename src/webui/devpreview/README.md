@@ -10,6 +10,7 @@ The dev preview (`devserver.py`): the production routes and pages over in-memory
 | `fake_agent.py` | The stand-in for fabric-agent: one /v1/ request answered from the sample data, with the agent's own permission check. |
 | `fake_reads.py` | The fake agent's reads (GET /v1/…) from the sample data, in the agent's shapes. |
 | `fake_dns.py` | The fake agent's DNS changes: zones, records, the landing page's links, TSIG keys. |
+| `fake_groups.py` | The fake agent's groups: the list, a group's page, create, delete, managers, members. |
 | `fake_directory.py` | The fake agent's directory changes: people, 802.1X devices and roles, machines, host groups, sudo rules, the password policy, Group Policy. |
 | `fake_network.py` | The fake agent's network changes: DHCP, 802.1X, the DNS filter and its query log. |
 | `fake_misc.py` | The fake agent's other changes: Apply, events, jobs, the PKI, the vault, sign-in security, the setup wizard. |

@@ -764,6 +764,17 @@ check("Directory tab reports an unreachable directory instead of failing", st ==
 st, hd, sc, body = req("GET", "/directory/people/jim", ALICE, cookie=session)
 check("a person's page without a DC: fabric-agent's refusal said on it, no action offered (fail closed)",
       st == 200 and "could not be read" in body and "/directory/people/jim/" not in body, (st, body[-1500:]))
+st, hd, sc, body = req("GET", "/directory/groups", ALICE, cookie=session)
+check("Groups without a DC: the page, the refusal said on it", st == 200 and "could not be read" in body,
+      (st, body[-1500:]))
+st, hd, sc, body = req("GET", "/directory/groups/lab", ALICE, cookie=session)
+check("a group's page without a DC: the refusal said, no form", st == 200 and "could not be read" in body
+      and "/directory/groups/lab/" not in body, (st, body[-1500:]))
+st, hd, *_ = req("POST", "/directory/groups/lab/members", POSTH, {"csrf": csrf, "action": "add", "member": "sam"},
+                 cookie=session)
+check("a member change without a DC to read the group: refused when held (fail closed), back on its page",
+      hd.get("Location", "").startswith("/directory/groups/lab") and "no domain controller set up"
+      in urllib.parse.unquote_plus(hd.get("Location", "")), hd.get("Location"))
 st, hd, sc, body = req("GET", "/directory", ALICE, cookie=session)
 check("the Directory's Overview without a DC: the page, the directory's refusal said on it",
       st == 200 and "Directory · Overview" in body and "could not be read" in body, (st, body[-1500:]))

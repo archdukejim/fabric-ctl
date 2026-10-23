@@ -3,6 +3,7 @@ import urllib.parse
 from webui.devpreview.fabric_rules import ValidationError, required_permission
 from webui.devpreview.fake_account import managed
 from webui.devpreview.fake_directory import PERSON_KEYS
+from webui.devpreview.fake_groups import find_group
 from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DOMAIN, SAMPLE_GPO
 
 try:                                       # the agent's own store and its words, from a checkout (as fabric_rules)
@@ -38,6 +39,11 @@ def _thing(state, route, body):
         return {**row, **dict.fromkeys(PERSON_KEYS, ""), **(row.get("person") or {})} if row else None
     if head == "machines":
         return _find(SAMPLE_DOMAIN["machines"], "name", name)
+    if head == "groups":                              # a new one: None; else the group, which must be there
+        group = find_group(state, name)
+        if group is None and len(route) > 1:
+            raise ValidationError(f"no group {name} in the domain")
+        return group
     if head == "host-groups":
         return _find(SAMPLE_ACCESS["groups"], "short", name) or _find(SAMPLE_ACCESS["groups"], "name", name)
     if head == "sudo":

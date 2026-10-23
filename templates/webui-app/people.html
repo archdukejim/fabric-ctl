@@ -15,10 +15,7 @@
 <td data-label="User name">{{ u.uid }}</td><td data-label="E-mail">{{ u.mail or '—' }}</td>
 <td data-label="State">{{ u.state or ('disabled' if u.locked else 'active') }}</td>
 <td data-label="Last sign-in">{{ u.last_logon[:16] | replace('T', ' ') if u.last_logon else 'never' }}</td></tr>{% endfor %}{% endcall %}
-{% if pages > 1 %}<nav class="pager" aria-label="Pages of people">
-{% if at > 1 %}<a href="/directory/people?{{ {'q': search, 'page': at - 1} | urlencode }}" rel="prev">← Previous</a>{% endif %}
-<span class="muted">Page {{ at }} of {{ pages }}</span>
-{% if at < pages %}<a href="/directory/people?{{ {'q': search, 'page': at + 1} | urlencode }}" rel="next">Next →</a>{% endif %}</nav>{% endif %}
+{{ p.pager("/directory/people", search, at, pages, "people") }}
 {% elif search %}{{ p.empty("Nobody matches “" ~ search ~ "”.") }}
 {% else %}{% call p.empty("No people in this site yet.") %}{% if can('people:create') %}<a class="btn" href="/directory/people/_new">Add person</a>{% endif %}{% endcall %}{% endif %}
 <p class="muted small">The site's people (<code>OU=people</code>). Last sign-in is the domain's own record, up to 14 days behind.</p>

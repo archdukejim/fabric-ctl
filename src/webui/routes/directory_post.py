@@ -61,6 +61,34 @@ def _person_route(uid, op, form):
     return f"people/{q(uid)}/{op}", body
 
 
+def _group(h, name, op, form):
+    """Purpose: A group's form (manual 1.6.12.5), held on Groups until its Apply: create (form name, description),
+             delete, managers (form managers: names separated by commas; add, remove: ticked; only_from) or members
+             (form action add|remove, member).
+    Inputs:  h — the request handler; name — "_new" or the group's name; op — "", "delete", "managers" or "members";
+             form — dict.
+    Returns: 303 (held's): to the group's page, to Groups after a create or delete; 404 for another form.
+    Fails:   AgentError, PermissionDenied and AuthError propagate.
+    Feeds:   directory_post."""
+    if name == "_new" and not op:
+        return held(h, "/directory/groups", "groups", {"name": form.get("name", "").strip(),
+                                                        "description": form.get("description", "").strip()})
+    if name in ("", "_new", "_form"):
+        return h.deny(404, "Not found.")
+    here = f"/directory/groups/{q(name)}"
+    if op == "delete":
+        return held(h, "/directory/groups", f"groups/{q(name)}/delete")
+    if op == "managers":
+        return held(h, here, f"groups/{q(name)}/managers", {
+            "managers": [m.strip() for m in form.get("managers", "").split(",") if m.strip()],
+            "add": bool(form.get("add")), "remove": bool(form.get("remove")),
+            "only_from": form.get("only_from", "").strip()})
+    if op == "members":
+        return held(h, here, f"groups/{q(name)}/members", {"action": form.get("action", ""),
+                                                            "member": form.get("member", "").strip()})
+    return h.deny(404, "Not found.")
+
+
 def _host_access(h, kind, name, op, form):
     """Purpose: A host group or sudo rule form (manual 1.6.11.7), held on Machines until its Apply.
     Inputs:  h — the request handler; kind — "hostgroups" or "sudo"; name — "_new" (form name; for sudo also users,
@@ -96,7 +124,8 @@ def directory_post(h, sess, parts, form):
              'delete'], ['devices', <name>, 'certs', 'unlink'] (unlink the certificate in form sha256), ['machines',
              '_new'] (form name), ['machines', <name>, 'enable'|'disable'|'delete'], ['gpo', 'set'|'clear'] (form
              policy, el_<element> values, disabled), ['hostgroups'|'sudo', …] (_host_access' forms),
-             ['domain', 'password-policy'] (form: POLICY_FIELDS' keys, complexity on|off); form — dict.
+             ['domain', 'password-policy'] (form: POLICY_FIELDS' keys, complexity on|off), ['groups', '_new' |
+             <name>, ''|'delete'|'managers'|'members'] (_group's forms); form — dict.
     Returns: people, machines (hostgroups and sudo among them), gpo and the password policy: each change held
              on its page until the page's Apply (manual 1.8.6.5; a new person's, a reset's and a new machine's
              one-time password is shown once on the page's Review after it): 303 to the page (/directory/<section>;
@@ -132,6 +161,8 @@ def directory_post(h, sess, parts, form):
         if name and op in ("enable", "disable", "delete"):
             return held(h, "/directory/machines", f"machines/{q(name)}/{op}")
         return h.deny(404, "Not found.")
+    if kind == "groups" and len(parts) <= 3:
+        return _group(h, name, op, form)
     if kind in ("hostgroups", "sudo") and name:
         return _host_access(h, kind, name, op, form)
     if kind == "domain" and name == "password-policy" and not op:
