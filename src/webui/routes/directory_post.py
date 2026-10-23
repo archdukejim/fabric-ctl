@@ -3,6 +3,7 @@ import urllib.parse
 
 from webui import agentclient as actions
 from webui.views.constants import POLICY_FIELDS
+from webui.routes.held import held, q
 
 
 def _device_fields(form):
@@ -29,30 +30,6 @@ def _role_fields(form):
             "permissions": [k[5:] for k, val in form.items() if k.startswith("perm_") and val]}
 
 
-def _q(segment):
-    """Purpose: One agent route segment, quoted (a name with a slash cannot reach another route).
-    Inputs:  segment — str.
-    Returns: str.
-    Fails:   never.
-    Feeds:   _held."""
-    return urllib.parse.quote(str(segment), safe="")
-
-
-def _held(h, back, route, body=None):
-    """Purpose: Hold a change on its page until the page's Apply (manual 1.8.6.5), and go back to the page saying so.
-    Inputs:  h — the request handler (back); back — the page to return to; route — the change's agent route after
-             /v1/ (segments quoted); body — its JSON body.
-    Returns: 303 to back, with "Waiting for Apply: <the change>" or the refusal (a missing permission, the thing
-             unreadable now) as its message.
-    Fails:   AgentError, PermissionDenied and AuthError propagate.
-    Feeds:   directory_post."""
-    try:
-        done = actions.hold_change(route, body or {})
-    except actions.ValidationError as exc:
-        return h.back(back, err=str(exc))
-    return h.back(back, msg=f"Waiting for Apply: {done['what']} ({done['pending']} pending on this page).")
-
-
 def _person_route(uid, op, form):
     """Purpose: A person's change as its agent route and body: disable, enable, remove (the user name typed back),
              groups (add or remove), reset.
@@ -63,7 +40,7 @@ def _person_route(uid, op, form):
     Feeds:   directory_post."""
     body = {"delete": {"confirm": form.get("confirm", "")},
             "groups": {"action": form.get("action", ""), "group": form.get("group", "")}}.get(op, {})
-    return f"people/{_q(uid)}/{op}", body
+    return f"people/{q(uid)}/{op}", body
 
 
 def _host_access(h, kind, name, op, form):
@@ -71,24 +48,24 @@ def _host_access(h, kind, name, op, form):
     Inputs:  h — the request handler; kind — "hostgroups" or "sudo"; name — "_new" (form name; for sudo also users,
              commands, run_as as text separated by commas, hosts), "_form" with op "members" (form group, machine,
              action add|remove), or a group's or rule's name with op "delete"; op — str; form — dict.
-    Returns: 303 to Machines (_held's), or with "unknown operation" for another form.
+    Returns: 303 to Machines (held's), or with "unknown operation" for another form.
     Fails:   AgentError, PermissionDenied and AuthError propagate.
     Feeds:   directory_post."""
     items = lambda key: [x.strip() for x in form.get(key, "").split(",") if x.strip()]    # noqa: E731
     back = "/directory/machines"
     if kind == "hostgroups" and name == "_new" and not op:
-        return _held(h, back, "host-groups", {"name": form.get("name", "")})
+        return held(h, back, "host-groups", {"name": form.get("name", "")})
     if kind == "hostgroups" and name == "_form" and op == "members":
-        return _held(h, back, f"host-groups/{_q(form.get('group', ''))}/members",
+        return held(h, back, f"host-groups/{q(form.get('group', ''))}/members",
                      {"action": form.get("action", ""), "machine": form.get("machine", "")})
     if kind == "hostgroups" and name not in ("_new", "_form") and op == "delete":
-        return _held(h, back, f"host-groups/{_q(name)}/delete")
+        return held(h, back, f"host-groups/{q(name)}/delete")
     if kind == "sudo" and name == "_new" and not op:
-        return _held(h, back, "sudo", {"name": form.get("name", ""), "users": items("users"),
+        return held(h, back, "sudo", {"name": form.get("name", ""), "users": items("users"),
                                        "commands": items("commands"), "run_as": items("run_as"),
                                        "hosts": form.get("hosts", "")})
     if kind == "sudo" and name not in ("_new", "_form") and op == "delete":
-        return _held(h, back, f"sudo/{_q(name)}/delete")
+        return held(h, back, f"sudo/{q(name)}/delete")
     return h.back(back, err="unknown operation")
 
 
@@ -118,32 +95,32 @@ def directory_post(h, sess, parts, form):
     kind, name, op = (parts + ["", "", ""])[:3]
     if kind == "people":
         if name == "_new" and not op:
-            return _held(h, "/directory/people", "people", {k: form.get(k, "") for k in ("uid", "first", "last",
+            return held(h, "/directory/people", "people", {k: form.get(k, "") for k in ("uid", "first", "last",
                                                                                           "email")})
         if name and op in ("reset", "disable", "enable", "delete", "groups"):
             uid = form.get("uid", "") if name == "_form" else name     # the forms that pick the person
-            return _held(h, "/directory/people", *_person_route(uid, op, form))
+            return held(h, "/directory/people", *_person_route(uid, op, form))
         return h.deny(404, "Not found.")
     if kind == "machines":
         if name == "_new" and not op:
-            return _held(h, "/directory/machines", "machines", {"name": form.get("name", ""),
+            return held(h, "/directory/machines", "machines", {"name": form.get("name", ""),
                                                                 "managed": "yes" if form.get("managed") == "yes"
                                                                 else "no", **({"type": form["type"]}
                                                                               if form.get("type") else {})})
         if name and op in ("enable", "disable", "delete"):
-            return _held(h, "/directory/machines", f"machines/{_q(name)}/{op}")
+            return held(h, "/directory/machines", f"machines/{q(name)}/{op}")
         return h.deny(404, "Not found.")
     if kind in ("hostgroups", "sudo") and name:
         return _host_access(h, kind, name, op, form)
     if kind == "domain" and name == "password-policy" and not op:
         values = {k: form[k] for k in [f for f, _ in POLICY_FIELDS] + ["complexity"] if k in form}
-        return _held(h, "/directory/domain", "domain/password-policy", values)
+        return held(h, "/directory/domain", "domain/password-policy", values)
     if kind == "gpo" and name in ("set", "clear") and not op:
         body = {"policy": form.get("policy", ""), "control": bool(form.get("control"))}
         if name == "set":
             body.update(values={k[3:]: val for k, val in form.items() if k.startswith("el_") and val != ""},
                         enabled=not form.get("disabled"))
-        return _held(h, "/directory/gpo", f"gpo/{name}", body)
+        return held(h, "/directory/gpo", f"gpo/{name}", body)
     if kind not in ("devices", "roles") or not name:
         return h.deny(404, "Not found.")
     listing = f"/8021x/{kind}"

@@ -2,6 +2,7 @@ import urllib.parse
 
 from webui import agentclient as actions
 from webui import views
+from webui.routes.account_page import account_page
 from webui.routes.bind9_page import bind9_page
 from webui.routes.directory_page import directory_page
 from webui.routes.finish_setting_up import finish_setting_up
@@ -65,8 +66,11 @@ def get_page(h, sess, path, query):
              /overview/updates, /audit), DNS (/dns/zones, /dns-filter), DHCP (/kea), PKI (/pki, /pki/acme),
              Directory (/directory/people|domain|machines|gpo), 802.1X (/8021x, /8021x/decisions, /8021x/guides,
              /8021x/devices[/<name>], /8021x/roles[/<name>]), Secrets (/secrets[/<view>]), Federation (/federation),
-             Settings (/settings, /settings/export, /settings/sign-in), a job (/jobs/<id>), a page's pending
-             changes and queue (/changes/<page id>, 1.8.6.5).
+             Settings (/settings, /settings/export, /settings/sign-in), My account (/account, /account/groups,
+             1.8.6.6), a job (/jobs/<id>), a page's pending changes and queue (/changes/<page id>, 1.8.6.5); 303
+             from / to the first page they may see for a person who may not see the Overview (My account for one
+             with no fabric role); 403 for a navigation page whose permission they lack (checked here too, not only
+             by fabric-agent: a page that reads nothing, such as Doctor, would otherwise show).
     Fails:   404 for any other path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
     Feeds:   handler.Handler.handle_request.
     """
@@ -76,8 +80,16 @@ def get_page(h, sess, path, query):
     ctx = page_context(sess)
     if query.get("signed_in") and not ctx.get("flash"):     # back from a step-up sign-in: a fixed text, not the query's
         ctx["flash"] = {"ok": SIGNED_IN}
+    if path == "/" and "status:read" not in ctx["perms"]:    # the Overview is not theirs: their first page
+        return h.redirect(views.nav_menu(set(ctx["perms"]), None)[0]["href"])
+    shown = views.PENDING_PAGES.get(_rest(path, "/changes/") or "", path)   # a Review: the page it reviews
+    need = next((n for _, _, pages in views.NAV for href, _, n in pages if href == shown and n), None)
+    if need and not set(need) & set(ctx["perms"]):            # a navigation page's own permission (1.8.6.4)
+        return h.deny(403, f"You need the permission {' or '.join(need)} to see this page.")
     if path == "/" or path == "/overview/doctor" or path == "/overview/updates":
         return _overview(h, sess, ctx, path)
+    if path == "/account" or path == "/account/groups":
+        return account_page(h, ctx, path)
     if path == "/audit":
         return h.send(200, views.audit(ctx, actions.read_audit()))
     if path.startswith("/jobs/") and path.count("/") == 2:

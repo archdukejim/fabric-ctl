@@ -9,6 +9,7 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `b64.py` | Base64-encode a text for a data: download link. |
 | `bind9.py` | The BIND9 tab: forward zone records and the add form, generated reverse zones, or TSIG keys. |
 | `changes.py` | A page's Review (manual 1.8.6.5): its pending changes, was and becomes, the queue, results shown once. |
+| `account.py` | My account: the person's details, password, sign-in factors, certificates, devices, or Groups I manage. |
 | `constants.py` | What the pages show: the navigation (`NAV`), sections, sub-menus, the permissions that show them. |
 | `nav_menu.py` | The navigation down the left for one person: the entries they may see, each linked to its first page they may see, the page shown's entry open. |
 | `continue_page.py` | The 'Signed in' page that moves on to the target with a meta refresh and a link. |

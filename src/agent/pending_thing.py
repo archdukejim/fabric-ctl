@@ -6,7 +6,22 @@ from fabriclib.common.errors import ValidationError
 # The pages whose changes are held (manual 1.8.6.5, the Directory's first) and the permission that shows each page
 # (who sees its queue). A page id is the console's navigation page (pending_page_of names it from the route).
 PAGES = {"people": "people:read", "machines": "domain:read", "domain": "domain:read", "gpo": "domain:read",
-         "groups": "domain:read", "ous": "domain:read", "access": "domain:read", "kerberos": "domain:read"}
+         "groups": "domain:read", "ous": "domain:read", "access": "domain:read", "kerberos": "domain:read",
+         "account": "session"}
+# the pages whose queue each person sees only their own applies of (My account, 1.8.6.6: nobody else's business)
+OWN_QUEUE = {"account"}
+
+
+def as_change(route):
+    """Purpose: The route a held change is read and described as: a member change from My account
+             (account/groups/<name>/members) is its group's members change.
+    Inputs:  route — segments after /v1/.
+    Returns: the segments (the same list for every other route).
+    Fails:   never.
+    Feeds:   describe_change, thing_state, thing_key."""
+    if len(route) == 4 and route[:2] == ["account", "groups"] and route[3] == "members":
+        return ["groups", route[2], "members"]
+    return route
 
 VERBS = {"reset": "Reset the sign-in of", "disable": "Disable", "enable": "Enable", "delete": "Remove",
          "unlock": "Unlock", "edit": "Edit", "move": "Move", "type": "Set the type of", "sites": "Change the sites of",
@@ -21,6 +36,8 @@ def pending_page_of(route):
     Fails:   never.
     Feeds:   agent/post_pending (hold)."""
     head = route[:1]
+    if as_change(route) is not route:
+        return "account"
     if head == ["people"]:
         return "people"
     if head in (["machines"], ["host-groups"], ["sudo"]) and route[-1:] != ["keytab"]:
@@ -46,6 +63,7 @@ def describe_change(route, body):
     Returns: str.
     Fails:   never.
     Feeds:   agent/pending_store (hold)."""
+    route = as_change(route)
     name = route[1] if len(route) > 1 else ""
     if len(route) == 1:
         what = {"people": "person", "machines": "machine", "host-groups": "host group", "sudo": "sudo rule",
@@ -63,6 +81,9 @@ def describe_change(route, body):
     if action == "groups":
         verb = "Add" if body.get("action") == "add" else "Remove"
         return f"{verb} {name} {'to' if verb == 'Add' else 'from'} group {body.get('group', '')}"
+    if action == "members" and route[0] == "groups":
+        verb = "Add" if body.get("action") == "add" else "Remove"
+        return f"{verb} {body.get('member', '')} {'to' if verb == 'Add' else 'from'} group {name}"
     if action == "members" and route[0] == "host-groups":
         verb = "Add" if body.get("action") == "add" else "Remove"
         return f"{verb} {body.get('machine', '')} {'to' if verb == 'Add' else 'from'} host group {name}"
@@ -111,7 +132,13 @@ def thing_state(route, body, v):
     from fabriclib.samba.gpo_overview import gpo_overview
     from fabriclib.samba.kerberos_overview import kerberos_overview
     from fabriclib.grants.list_grants import list_grants
+    mine, route = as_change(route) is not route, as_change(route)
     head, name = route[0], (route[1] if len(route) > 1 else "")
+    if mine:                                  # a member change from My account: the group must be there
+        group = _find(list_groups(v).get("groups"), "name", name)
+        if group is None:
+            raise ValidationError(f"no group {name}")
+        return group
     if head == "people":
         row = _find(list_people(v).get("users"), "uid", name if len(route) > 1 else body.get("uid", ""))
         return {**row, **show_person(v, row["uid"])["person"]} if row else None
@@ -146,6 +173,7 @@ def thing_key(route, body):
              thing with no name (a policy, the OU tree).
     Fails:   never.
     Feeds:   agent/pending_store (apply)."""
+    route = as_change(route)
     if route[0] in ("people", "machines", "host-groups", "sudo", "groups"):
         return route[0], route[1] if len(route) > 1 else str(body.get("uid") or body.get("name") or "")
     if route[:2] == ["domain", "grants"]:

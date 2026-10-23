@@ -29,3 +29,5 @@ from webui.views.settings_plan import settings_plan  # noqa: F401
 from webui.views.stepca import stepca  # noqa: F401
 from webui.views.tsig_result import tsig_result  # noqa: F401
 from webui.views.changes import changes  # noqa: F401
+from webui.views.account import account  # noqa: F401
+from webui.views.nav_menu import nav_menu  # noqa: F401

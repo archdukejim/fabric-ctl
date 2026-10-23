@@ -37,7 +37,8 @@ PAGES = ["/", "/overview/doctor", "/overview/updates", "/audit", "/dns/zones", "
          "/directory/gpo?match=example", "/8021x", "/8021x/decisions", "/8021x/guides?view=switches",
          "/8021x/guides?view=windows", "/8021x/devices", "/8021x/devices/jims-laptop", "/8021x/roles",
          "/8021x/roles/iot", "/secrets", "/secrets/unlock", "/secrets/disk", "/secrets/secrets",
-         "/secrets/add-security-key", "/federation", "/settings", "/settings/sign-in", "/preview/denied"]
+         "/secrets/add-security-key", "/federation", "/settings", "/settings/sign-in", "/preview/denied",
+         "/account", "/account/groups", "/changes/people"]
 FAILED = 0
 
 

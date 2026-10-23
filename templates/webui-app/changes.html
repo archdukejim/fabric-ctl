@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% import "pattern.html" as p %}{% block head %}{% if refresh %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}{% block body %}
-<h1>Changes · {{ {"people": "People", "machines": "Machines", "domain": "Domain", "gpo": "Group Policy"}.get(page_id, page_id) }}</h1>
+<h1>Changes · {{ {"people": "People", "machines": "Machines", "domain": "Domain", "gpo": "Group Policy", "account": "My account"}.get(page_id, page_id) }}</h1>
 {% if d.shown_once %}<section class="card"><h2>Shown only now</h2>
 <p class="muted">Each one-time password below is shown this once: give it to its owner now. It is not kept.</p>
 <dl class="kv">{% for s in d.shown_once %}<dt>{{ s.what }}</dt><dd><code class="secret">{{ s.secret }}</code></dd>{% endfor %}</dl></section>{% endif %}

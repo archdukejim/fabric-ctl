@@ -369,8 +369,52 @@ check("login cookie is __Host-, Secure, HttpOnly", "__Host-webui-login=" in sc a
 (st, hd, sc, body), _, _ = login(user="bob")
 check("Keycloak user != cert CN -> 403", st == 403, st)
 (st, hd, sc, body), _, _ = login(roles=("offline_access", "fabric-console-admin"))
-check("user without any fabric permission -> 403 (a bundle name alone grants nothing)",
-      st == 403 and "no fabric role" in body, (st, body[:200]))
+check("a person with no fabric permission signs in (a bundle name alone grants nothing): My account only "
+      "(2.1.8.11), audited as such", st == 200 and "no fabric role: My account only"
+      in open(f"{W}/fabric/archive/audit.log").read(), (st, body[:200]))
+plain = cookie_val(sc, "__Host-webui")
+PLAINH = {**ALICE, "Origin": "https://mgr.test"}     # a form's headers
+pcsrf = req("GET", "/account", ALICE, cookie=plain)[3].split('name="csrf" value="')[1].split('"')[0]
+st, hd, *_ = req("GET", "/", ALICE, cookie=plain)
+check("...the Overview is not theirs: / goes to My account", st == 303 and hd.get("Location") == "/account",
+      (st, hd.get("Location")))
+st, _, _, body = req("GET", "/account", ALICE, cookie=plain)
+# covers: web:get.account +
+check("...My account: the password form and the sign-in factors' link to Keycloak's own page; their details "
+      "refused by fabric-agent without a DC, said on the page; the navigation holds My account alone",
+      st == 200 and 'action="/account/password"' in body and "/realms/" in body and "account-security/signing-in"
+      in body and "could not be read" in body and re.findall(r'<li class="entry[^"]*"><a href="[^"]+"[^>]*>([^<]+)',
+                                                              body) == ["My account"], body[-2500:])
+st, _, _, body = req("GET", "/account/groups", ALICE, cookie=plain)
+# covers: web:get.account.groups +
+check("...Groups I manage: the page, the DC's refusal said on it", st == 200 and "Groups I manage" in body
+      and "could not be read" in body, body[-1500:])
+for path in ("/dns/zones", "/overview/doctor", "/changes/people"):
+    st, *_ = req("GET", path, ALICE, cookie=plain)
+    check(f"...refused: {path} (403: the page's permission, checked by the console and by fabric-agent)",
+          st == 403, st)
+for form, why in (({"current": "x", "new": "abcdefgh1", "again": "other"}, "repeat differ"),
+                  ({"current": "", "new": "abcdefgh1", "again": "abcdefgh1"}, "Type your current password")):
+    st, hd, *_ = req("POST", "/account/password", PLAINH, {"csrf": pcsrf, **form}, cookie=plain)
+    # covers: web:post.account.password -
+    check(f"...their password refused by the console ({why}) before it reaches fabric-agent; no password in the "
+          "address", why in urllib.parse.unquote_plus(hd.get("Location", "")) and "abcdefgh1" not in
+          hd.get("Location", "").split("?", 1)[0], hd.get("Location"))
+st, hd, *_ = req("POST", "/account/password", PLAINH, {"csrf": pcsrf, "current": "x", "new": "abcdefgh1",
+                                                        "again": "abcdefgh1"}, cookie=plain)
+check("...a change that reaches fabric-agent: refused without a DC to bind as them (fail closed), said",
+      "/account" in hd.get("Location", "") and "err=" in hd.get("Location", ""), hd.get("Location"))
+st, hd, *_ = req("POST", "/account/groups/lab/members", PLAINH, {"csrf": pcsrf, "action": "add",
+                                                                  "member": "sam"}, cookie=plain)
+# covers: web:post.account.groups.*.members -
+check("...a managed group's member change: not held without a DC to read the group (fail closed), said",
+      "no domain controller set up" in urllib.parse.unquote_plus(hd.get("Location", "")),
+      hd.get("Location"))
+for path in ("/account", "/account/groups"):
+    st, hd, *_ = req("GET", path, ALICE)
+    # covers: web:get.account web:get.account.groups -
+    check(f"refused: {path} without a session (to the sign-in)", st == 303 and hd.get("Location", "").startswith(
+        "/login"), (st, hd.get("Location")))
 for t in ("nonce", "aud", "expired", "sig"):
     (st, *_), _, _ = login(tamper=t)
     check(f"ID token with bad {t} -> 401", st == 401, st)
@@ -1096,7 +1140,7 @@ check("auditor token: holding a machine's change refused (400, machines:admin na
       and agent_call("GET", "/v1/pending", "carol", AUDITOR_ROLES).count('"pending"') == 0, out)
 out = agent_call("POST", "/v1/pending/hold", "alice", ADMIN_ROLES, {"route": "machines/ws1/disable", "body": {}})
 check("admin token: a machine's change refused when held without a DC to read the machine (400, why said: fail "
-      "closed), nothing held", " 400 " in out and "could not read what this change changes" in out
+      "closed), nothing held", " 400 " in out and "no domain controller set up" in out
       and '"pending": 1' not in agent_call("GET", "/v1/pending", "alice", ADMIN_ROLES), out)
 out = agent_call("POST", "/v1/pending/hold", "alice", ADMIN_ROLES,
                  {"route": "domain/password-policy", "body": {"minimum_length": 14}})
@@ -1108,6 +1152,14 @@ out = agent_call("GET", "/v1/pending/domain", "alice", ADMIN_ROLES)
 check("...its owner's does, with the change in a sentence", '"what": "Change the password policy"' in out, out)
 out = agent_call("POST", "/v1/pending/domain/discard", "alice", ADMIN_ROLES)
 check("...and discards it", '"dropped": 1' in out, out)
+out = agent_call("GET", "/v1/account", "carol", ())
+# covers: agent:get.account -
+check("a token with no fabric role reaches My account's read (any sign-in); refused by the DC's absence here, said "
+      "(400, fail closed)", " 400 " in out and "no domain controller set up" in out, out)
+out = agent_call("POST", "/v1/account/groups/lab/members", "carol", (), {"action": "add", "member": "sam"})
+# covers: agent:post.account.groups.*.members -
+check("refused: a member change from My account done at once (it waits for Apply; without a DC here: 400)",
+      " 400 " in out, out)
 out = agent_call("GET", "/v1/pending/nowhere", "alice", ADMIN_ROLES)
 check("refused: a page that holds nothing (404)", " 404 " in out, out)
 out = agent_call("POST", "/v1/pending/hold", "alice", ADMIN_ROLES, {"route": "vault/rotate", "body": {}})
@@ -1690,8 +1742,10 @@ st, _, _, body = req("GET", "/", cookie=sess)
 check("certificate off: the session cookie opens the console", st == 200 and "dave" in body, st)
 st, hd, *_ = req("GET", "/")
 check("certificate off: still no way in without a session", st == 303, st)
-(st, *_), _, _ = login(cert={}, user="erin", roles=())
-check("certificate off: a person without a fabric role is still refused", st == 403, st)
+(st, hd, sc, _), _, _ = login(cert={}, user="erin", roles=())
+st2, hd2, *_ = req("GET", "/", cookie=cookie_val(sc, "__Host-webui"))
+check("certificate off: a person without a fabric role signs in to My account alone (2.1.8.11)",
+      st == 200 and st2 == 303 and hd2.get("Location") == "/account", (st, st2, hd2.get("Location")))
 audit_tail = open(f"{W}/fabric/archive/audit.log").read() if os.path.exists(f"{W}/fabric/archive/audit.log") else ""
 check("certificate off: the sign-in is audited as made without a certificate",
       "dave" in audit_tail and "no client certificate" in audit_tail, audit_tail[-300:])

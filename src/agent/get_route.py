@@ -20,6 +20,7 @@ from fabriclib.directory.list_sudo_rules import list_sudo_rules
 from fabriclib.domain.list_groups import list_groups
 from fabriclib.domain.list_ous import list_ous
 from fabriclib.domain.list_spns import list_spns
+from fabriclib.domain.my_account import my_account
 from fabriclib.domain.my_groups import my_groups
 from fabriclib.domain.show_group import show_group
 from fabriclib.grants.explain_grant import explain_grant
@@ -104,7 +105,7 @@ def _pending(route, user, perms):
         raise ValidationError("a pending change belongs to a signed-in person")
 
     def may_see(page):
-        return PAGES.get(page) in perms
+        return PAGES.get(page) == "session" or PAGES.get(page) in perms
 
     if len(route) == 1:
         return PENDING.counts(user, may_see)
@@ -124,6 +125,7 @@ def get_route(route, user=None, perms=None):
              pki/acme: {info, machines, domain}; jobs/<id>: the job; domain/grants: list_grants; domain/grants/<name>:
              show_grant; domain/grants/explain/<person>[/<machine>]: explain_grant; domain/kerberos: kerberos_overview;
              domain/kerberos/spns: list_spns; groups: list_groups; groups/<name>: show_group; ous: list_ous;
+             account: my_account (the signed-in person's own details, groups, certificates and devices);
              account/groups: my_groups (the groups the signed-in person manages); pending: the person's pending
              changes per page and the pages with an apply running (1.8.6.5); pending/<page>: the page's Review;
              settings: settings_overview (the setup wizard, 1.8.5); settings/export: {"text", "name"}, the
@@ -136,6 +138,8 @@ def get_route(route, user=None, perms=None):
         return zone_detail(route[1])
     if len(route) == 2 and route[0] == "jobs":
         return JOBS.read(route[1], user)
+    if route == ["account"]:
+        return my_account(load_vars(), user)
     if route == ["account", "groups"]:
         return my_groups(load_vars(), user)
     if route[:1] == ["pending"] and len(route) <= 2:

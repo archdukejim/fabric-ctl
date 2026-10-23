@@ -1,6 +1,7 @@
 import urllib.parse
 
 from webui.devpreview.fabric_rules import ValidationError, required_permission
+from webui.devpreview.fake_account import managed
 from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DOMAIN, SAMPLE_GPO
 
 try:                                       # the agent's own store and its words, from a checkout (as fabric_rules)
@@ -26,6 +27,11 @@ def _thing(state, route, body):
     Fails:   never.
     Feeds:   fake_pending (the store's state)."""
     head, name = route[0], (route[1] if len(route) > 1 else body.get("uid") or body.get("name", ""))
+    if route[:2] == ["account", "groups"]:            # a member change from My account: its managed group
+        group = _find(managed(state), "name", route[2] if len(route) > 2 else "")
+        if group is None:
+            raise ValidationError(f"no group {route[2] if len(route) > 2 else ''}")
+        return group
     if head == "people":
         return _find(state.data["people"]["users"], "uid", name)
     if head == "machines":
@@ -76,7 +82,7 @@ def fake_pending(state, who, method, route, body, run):
     store, user, perms = _store(state, who, run), who["user"], set(who["perms"])
 
     def may_see(page):
-        return PAGES.get(page) in perms
+        return PAGES.get(page) == "session" or PAGES.get(page) in perms
 
     if method == "GET":
         if route == ["pending"]:

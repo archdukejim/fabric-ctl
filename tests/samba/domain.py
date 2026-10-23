@@ -892,6 +892,39 @@ out = hold("people/bob/edit", {"title": "Dropped"})
 check("drop one change by its id", pend(["pending", "people", "drop"], {"id": out["id"]}) == {"dropped": 1,
                                                                                          "pending": 0})
 
+print("--- My account (manual 1.8.6.6): the person's own read; a managed group's members on My account's Apply")
+got = m_get.get_route(["account"], "bob")
+# covers: agent:get.account +
+check("GET /v1/account as bob: his details as the DC has them (his title among the 15 fields), his groups, his "
+      "certificates (none issued here) and devices", got["uid"] == "bob" and got["person"]["title"] == title("bob")
+      and set(got["person"]) >= {"first", "last", "email", "manager", "employee_id"} and "site-lan" in got["groups"]
+      and got["certs"] == [] and isinstance(got["devices"], list), got)
+for user, words in ((None, "sign in as them"), ("nobody", "no such")):
+    gone, why = refused(m_get.get_route, ["account"], user)
+    # covers: agent:get.account -
+    check(f"GET /v1/account as {user} refused ({words})", gone and words in why, why)
+out = hold("account/groups/ops-team/members", {"action": "add", "member": "newbie"}, who="sup", perms=set())
+# covers: agent:post.account.groups.*.members +
+check("sup (no fabric role) holds a member change from My account: on the account page, in a sentence, the DC "
+      "untouched", out["page"] == "account" and out["what"] == "Add newbie to group ops-team"
+      and "CN=ops-team," not in ldb("(sAMAccountName=newbie)", "memberOf"), out)
+check("...nobody else sees it, and an admin's account page holds none of it",
+      review("account")["changes"] == [] and review("account", "sup", set())["changes"][0]["what"]
+      == "Add newbie to group ops-team")
+done = applied("account", "sup", set())
+check("...applied: newbie in ops-team, seen in AD; the queue on My account sup's alone",
+      "CN=ops-team," in ldb("(sAMAccountName=newbie)", "memberOf") and done["items"][0]["state"] == "done"
+      and review("account", "sup", set())["queue"] and not review("account")["queue"], done)
+hold("account/groups/ops-team/members", {"action": "remove", "member": "newbie"}, who="sup", perms=set())
+done = applied("account", "sup", set())
+# covers: agent:post.account.groups.*.members -
+check("...a removal the group's controls do not allow: refused at Apply by the DC's check, newbie still a member",
+      done["items"][0]["state"] == "failed" and "may not remove members" in done["items"][0]["why"]
+      and "CN=ops-team," in ldb("(sAMAccountName=newbie)", "memberOf"), done)
+pend(["pending", "account", "discard"], who="sup", perms=set())
+gone, why = refused(hold, "account/groups/nogroup/members", {"action": "add", "member": "newbie"}, "sup", set())
+check("refused when held: a group that is not there", gone and "no group nogroup" in why, why)
+
 if not os.environ.get("FABRIC_TEST_KEEP"):
     cleanup()
 print(f"\n{FAILED and 'FAILED' or 'all passed'} ({FAILED} failures)")

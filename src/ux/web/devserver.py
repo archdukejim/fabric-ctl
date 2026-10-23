@@ -30,7 +30,7 @@ from webui.devpreview.fake_connection import FakeConnection  # noqa: E402
 def main():
     """Purpose: Start the dev preview HTTP server (sample data, no sign-in, nothing saved).
     Inputs:  command line: --bind (default 127.0.0.1), --port (default 8080), --as <bundle> to see the UI with that
-             role bundle's permissions (default admin: every permission).
+             role bundle's permissions (default admin: every permission; none: no fabric role, My account only).
     Returns: never returns normally (serve_forever).
     Fails:   SystemExit via argparse for bad arguments or an unknown bundle (every non-admin bundle when fabriclib is
              missing, as BUNDLES is then empty); OSError if the address is in use.
@@ -40,9 +40,12 @@ def main():
     ap.add_argument("--bind", default="127.0.0.1", help="address to listen on (default 127.0.0.1)")
     ap.add_argument("--port", type=int, default=8080)
     ap.add_argument("--as", dest="bundle", default="admin",
-                    help="see the UI as this role bundle: " + ", ".join(sorted(BUNDLES)) + " (default admin)")
+                    help="see the UI as this role bundle: " + ", ".join(sorted(BUNDLES)) + ", or none (a person of "
+                         "the domain with no fabric role, who sees My account only); default admin")
     args = ap.parse_args()
-    if args.bundle != "admin":
+    if args.bundle == "none":                       # no fabric role: My account only (2.1.8.11)
+        DevHandler.who = dict(DevHandler.who, perms=[], user="dev-none")
+    elif args.bundle != "admin":
         if args.bundle not in BUNDLES:
             ap.error(f"unknown bundle {args.bundle!r}")
         DevHandler.who = dict(DevHandler.who, perms=sorted(BUNDLES[args.bundle]),

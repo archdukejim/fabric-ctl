@@ -2,7 +2,7 @@ import secrets
 import threading
 import time
 
-from agent.pending_thing import state_change, thing_key, version_of
+from agent.pending_thing import OWN_QUEUE, state_change, thing_key, version_of
 from fabriclib.common.errors import ValidationError
 
 QUEUE_KEEP = 10                  # applies kept per page for its queue, newest first
@@ -73,7 +73,8 @@ class PendingStore:
                 if c["owner"] == owner:
                     out.setdefault(c["page"], {"pending": 0, "running": False})["pending"] += 1
             for page, applies in self.queue.items():
-                if may_see(page) and any(a["state"] == "running" for a in applies):
+                if may_see(page) and any(a["state"] == "running" and (page not in OWN_QUEUE or a["owner"] == owner)
+                                         for a in applies):
                     out.setdefault(page, {"pending": 0, "running": False})["running"] = True
         return out
 
@@ -82,15 +83,16 @@ class PendingStore:
                  change, with no result), and the results this person has still to see once (then forgotten).
         Inputs:  owner — the signed-in person; page — a page id; may_see — (page) -> bool.
         Returns: {"page", "changes": [{id, what, old, new, made, changed_since}], "queue": [apply], "shown_once":
-                 [{what, secret}]}; the queue is empty when they may not see the page.
+                 [{what, secret}]}; the queue is empty when they may not see the page, and only their own
+                 applies on a page of OWN_QUEUE (My account).
         Fails:   never.
         Feeds:   agent/get_route (GET /v1/pending/<page>)."""
         with self.lock:
             self._expire()
             mine = [{k: c[k] for k in ("id", "what", "old", "new", "made", "changed_since")} for c in self.changes
                     if c["owner"] == owner and c["page"] == page]
-            queue = [{**a, "items": [dict(i) for i in a["items"]]} for a in self.queue.get(page, [])] \
-                if may_see(page) else []
+            queue = [{**a, "items": [dict(i) for i in a["items"]]} for a in self.queue.get(page, [])
+                     if page not in OWN_QUEUE or a["owner"] == owner] if may_see(page) else []
             once = self.shown_once.pop(owner, [])
         return {"page": page, "changes": mine, "queue": queue, "shown_once": once}
 

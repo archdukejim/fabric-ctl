@@ -8,6 +8,9 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `directory_page.py` | Render the Directory tab: devices, one device, roles, one role, or people. |
 | `directory_post.py` | Devices, device roles and people: each form maps to one fabric-agent call. |
 | `changes_post.py` | A page's pending changes (manual 1.8.6.5): Apply (one job), Discard, Drop one. |
+| `account_page.py` | My account's pages (manual 1.8.6.6): /account and /account/groups. |
+| `account_post.py` | My account's forms: the own password (at once), a managed group's members (held). |
+| `held.py` | Hold a change for its page's Apply and go back saying so (shared by the forms that hold). |
 | `get_page.py` | Route a signed-in GET to its page (the navigation of manual 1.8.6.4); an old address to its new one. |
 | `moved_to.py` | Where an old address of the console answers now (manual 1.8.6.4), or None. |
 | `openbao_page.py` | Render the OpenBao tab: status, unlock methods and their add/rotate/remove forms, secrets, disk encryption. |

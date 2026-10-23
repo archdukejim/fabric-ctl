@@ -34,7 +34,8 @@ def post_route(route, actor, data, perms, session=None):
              person's own password change keeps that session). The token's user is the caller fabric-agent checks
              (check_access: the tiers, the grants, a group's managers), None for a root peer.
     Returns: the operation's JSON-serialisable result. apply: {"ok", "output"}; people/...: post_people's;
-             groups/...: post_groups'; ous/...: post_ous'; account/...: post_account's; pending/...:
+             groups/...: post_groups'; ous/...: post_ous'; account/groups/<name>/members: post_groups' members
+             (a group the person manages, from My account); account/...: post_account's; pending/...:
              post_pending's (a change held on its page, dropped, discarded, or the page applied as a job);
              jobs/doctor and jobs/images (body: action update|rollback, service): {"id"} of a job read with GET
              /v1/jobs/<id> by the person who started it;
@@ -74,6 +75,8 @@ def post_route(route, actor, data, perms, session=None):
         return post_groups(route, actor, data, caller)
     if area == ["ous"]:
         return post_ous(route, actor, data)
+    if area == ["account"] and len(route) == 4 and route[1] == "groups" and route[3] == "members":
+        return post_groups(["groups", route[2], "members"], actor, data, caller)   # from My account (1.8.6.6)
     if area == ["account"]:
         return post_account(route, caller, data, session)
     if area == ["pending"]:                         # Apply per page (1.8.6.5): held, reviewed, applied as a job

@@ -14,6 +14,7 @@ The dev preview (`devserver.py`): the production routes and pages over in-memory
 | `fake_network.py` | The fake agent's network changes: DHCP, 802.1X, the DNS filter and its query log. |
 | `fake_misc.py` | The fake agent's other changes: Apply, events, jobs, the PKI, the vault, sign-in security, the setup wizard. |
 | `fake_pending.py` | The fake agent's Apply per page: the agent's own pending store over the sample data, its jobs done at once. |
+| `fake_account.py` | The fake agent's My account: the person's own read, managed groups, the own password. |
 | `fabric_rules.py` | fabriclib's real rules when the dev preview runs from a checkout (devserver.py puts src on the path); the webui image carries only src/webui/, so without them the preview shows sample data and skips the directory forms. |
 | `sample_data.py` | The dev preview's sample data: what a small home install looks like (nothing here is real). |
 | `sample_radius_guides.py` | The FreeRADIUS setup guides as fabric-agent fills them in, built from the sample RADIUS data and the dev preview's own throwaway CA (SAMPLE_ROOT_PEM). Sample only; nothing is read from a host. |

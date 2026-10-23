@@ -94,6 +94,9 @@ from webui.agentclient.settings_plan import settings_plan  # noqa: F401
 from webui.agentclient.settings_apply import settings_apply  # noqa: F401
 from webui.agentclient.settings_dismiss import settings_dismiss  # noqa: F401
 from webui.agentclient.hold_change import hold_change  # noqa: F401
+from webui.agentclient.my_account import my_account  # noqa: F401
+from webui.agentclient.my_groups import my_groups  # noqa: F401
+from webui.agentclient.change_own_password import change_own_password  # noqa: F401
 from webui.agentclient.pending_counts import pending_counts  # noqa: F401
 from webui.agentclient.pending_page import pending_page  # noqa: F401
 from webui.agentclient.pending_action import pending_action  # noqa: F401

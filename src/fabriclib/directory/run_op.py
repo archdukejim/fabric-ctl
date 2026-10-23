@@ -22,8 +22,12 @@ def run_op(v, secrets, op, args=None, container="samba", server=None):
     Fails:   ValidationError with a message safe to show: "that name is already taken", "no such entry", "the
              directory refused the change …", "the directory refused it: …" (e.g. a password the policy refuses),
              an operation's own refusal word for word (e.g. "no such user: …"), or "the directory is not reachable"
-             when the DC is not running; KeyError without ad_agent_password; subprocess.TimeoutExpired after 60 s.
+             when the DC is not running; "this host has no domain controller set up" when the settings name none
+             (no dc_name or site_name) or the secrets hold no ad_agent_password; subprocess.TimeoutExpired after
+             60 s.
     Feeds:   fabriclib/directory/* (people, groups, devices, roles, networks)."""
+    if not v.get("dc_name") or not v.get("site_name") or not secrets.get("ad_agent_password"):
+        raise ValidationError("this host has no domain controller set up (no dc_name, site_name or agent account)")
     dc = v["dc_name"]
     request = {"op": op, "args": args or {}, "site": v["site_name"], "dc": dc, "account": f"fabric-agent-{dc}",
                "password": secrets["ad_agent_password"], **({"server": server} if server else {})}

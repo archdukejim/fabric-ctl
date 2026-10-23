@@ -439,6 +439,7 @@ file	fabriclib-domain|src/fabriclib/domain/list_groups.py	8
 file	fabriclib-domain|src/fabriclib/domain/list_ous.py	9	
 file	fabriclib-domain|src/fabriclib/domain/list_spns.py	10	
 file	fabriclib-domain|src/fabriclib/domain/move_machine.py	11	
+file	fabriclib-domain|src/fabriclib/domain/my_account.py	28	
 file	fabriclib-domain|src/fabriclib/domain/my_groups.py	12	
 file	fabriclib-domain|src/fabriclib/domain/person_fields.py	26	
 file	fabriclib-domain|src/fabriclib/domain/read_options.py	13	
@@ -934,6 +935,7 @@ file	webui|src/webui/agentclient/apply_changes.py	6
 file	webui|src/webui/agentclient/audit.py	7	
 file	webui|src/webui/agentclient/ca_summary.py	8	
 file	webui|src/webui/agentclient/cert_warnings.py	136	
+file	webui|src/webui/agentclient/change_own_password.py	218	
 file	webui|src/webui/agentclient/connection.py	9	
 file	webui|src/webui/agentclient/convert_cert.py	10	
 file	webui|src/webui/agentclient/create_person.py	11	
@@ -969,6 +971,8 @@ file	webui|src/webui/agentclient/logon_change.py	159	0.7.2 / 2026-10-19
 file	webui|src/webui/agentclient/logon_overview.py	160	0.7.2 / 2026-10-19
 file	webui|src/webui/agentclient/machine_action.py	128	
 file	webui|src/webui/agentclient/map_radius_group.py	28	
+file	webui|src/webui/agentclient/my_account.py	219	
+file	webui|src/webui/agentclient/my_groups.py	220	
 file	webui|src/webui/agentclient/pending_action.py	212	
 file	webui|src/webui/agentclient/pending_counts.py	213	
 file	webui|src/webui/agentclient/pending_page.py	214	
@@ -1031,6 +1035,7 @@ file	webui|src/webui/devpreview/dev_post_dns_filter.py	148	0.8.0 / 2026-10-22
 file	webui|src/webui/devpreview/dev_post_network.py	66	0.8.0 / 2026-10-22
 file	webui|src/webui/devpreview/dev_settings.py	195	0.8.0 / 2026-10-22
 file	webui|src/webui/devpreview/dev_state.py	67	
+file	webui|src/webui/devpreview/fake_account.py	221	
 file	webui|src/webui/devpreview/fake_agent.py	202	
 file	webui|src/webui/devpreview/fake_connection.py	203	
 file	webui|src/webui/devpreview/fake_directory.py	204	
@@ -1048,6 +1053,8 @@ file	webui|src/webui/httpio/read_cookie.py	73
 file	webui|src/webui/httpio/read_form.py	74	
 file	webui|src/webui/httpio/upload_value.py	75	
 file	webui|src/webui/oidc.py	76	
+file	webui|src/webui/routes/account_page.py	222	
+file	webui|src/webui/routes/account_post.py	223	
 file	webui|src/webui/routes/bind9_page.py	77	
 file	webui|src/webui/routes/changes_post.py	216	
 file	webui|src/webui/routes/directory_page.py	121	
@@ -1058,6 +1065,7 @@ file	webui|src/webui/routes/dns_filter_page.py	149
 file	webui|src/webui/routes/dns_filter_post.py	150	
 file	webui|src/webui/routes/finish_setting_up.py	196	
 file	webui|src/webui/routes/get_page.py	80	
+file	webui|src/webui/routes/held.py	224	
 file	webui|src/webui/routes/kea_post.py	81	
 file	webui|src/webui/routes/landing_post.py	187	
 file	webui|src/webui/routes/moved_to.py	209	
@@ -1085,6 +1093,7 @@ file	webui|src/webui/session/page_context.py	98
 file	webui|src/webui/session/renew_session.py	99	
 file	webui|src/webui/session/start_login.py	100	
 file	webui|src/webui/tlsclient.py	101	
+file	webui|src/webui/views/account.py	225	
 file	webui|src/webui/views/apply_result.py	102	
 file	webui|src/webui/views/audit.py	103	
 file	webui|src/webui/views/b64.py	104	
@@ -1142,6 +1151,7 @@ function	fabricctl-agent|src/agent/pending_store.py|_new	12
 function	fabricctl-agent|src/agent/pending_store.py|_old	11	
 function	fabricctl-agent|src/agent/pending_store.py|_read	13	
 function	fabricctl-agent|src/agent/pending_thing.py|_find	3	
+function	fabricctl-agent|src/agent/pending_thing.py|as_change	8	
 function	fabricctl-agent|src/agent/pending_thing.py|describe_change	2	
 function	fabricctl-agent|src/agent/pending_thing.py|pending_page_of	1	
 function	fabricctl-agent|src/agent/pending_thing.py|state_change	7	
@@ -1883,6 +1893,7 @@ function	fabriclib-domain|src/fabriclib/domain/list_groups.py|list_groups	1
 function	fabriclib-domain|src/fabriclib/domain/list_ous.py|list_ous	1	
 function	fabriclib-domain|src/fabriclib/domain/list_spns.py|list_spns	1	
 function	fabriclib-domain|src/fabriclib/domain/move_machine.py|move_machine	1	
+function	fabriclib-domain|src/fabriclib/domain/my_account.py|my_account	1	
 function	fabriclib-domain|src/fabriclib/domain/my_groups.py|my_groups	1	
 function	fabriclib-domain|src/fabriclib/domain/person_fields.py|read_person_fields	1	
 function	fabriclib-domain|src/fabriclib/domain/read_options.py|read_options	1	
@@ -2664,6 +2675,7 @@ function	webui|src/webui/agentclient/apply_changes.py|apply_changes	1
 function	webui|src/webui/agentclient/audit.py|audit	1	
 function	webui|src/webui/agentclient/ca_summary.py|ca_summary	1	
 function	webui|src/webui/agentclient/cert_warnings.py|cert_warnings	1	
+function	webui|src/webui/agentclient/change_own_password.py|change_own_password	1	
 function	webui|src/webui/agentclient/connection.py|_UnixConnection.__init__	3	
 function	webui|src/webui/agentclient/connection.py|_UnixConnection.connect	4	
 function	webui|src/webui/agentclient/connection.py|call_agent	5	
@@ -2703,6 +2715,8 @@ function	webui|src/webui/agentclient/logon_change.py|logon_change	1	0.7.2 / 2026
 function	webui|src/webui/agentclient/logon_overview.py|logon_overview	1	0.7.2 / 2026-10-19
 function	webui|src/webui/agentclient/machine_action.py|machine_action	1	
 function	webui|src/webui/agentclient/map_radius_group.py|map_radius_group	1	
+function	webui|src/webui/agentclient/my_account.py|my_account	1	
+function	webui|src/webui/agentclient/my_groups.py|my_groups	1	
 function	webui|src/webui/agentclient/pending_action.py|pending_action	1	
 function	webui|src/webui/agentclient/pending_counts.py|pending_counts	1	
 function	webui|src/webui/agentclient/pending_page.py|pending_page	1	
@@ -2793,6 +2807,8 @@ function	webui|src/webui/devpreview/dev_state.py|DevState.save	7
 function	webui|src/webui/devpreview/dev_state.py|DevState.vault_action	8	0.8.0 / 2026-10-22
 function	webui|src/webui/devpreview/dev_state.py|DevState.zone	4	
 function	webui|src/webui/devpreview/dev_state.py|DevState.zones	2	
+function	webui|src/webui/devpreview/fake_account.py|fake_account	2	
+function	webui|src/webui/devpreview/fake_account.py|managed	1	
 function	webui|src/webui/devpreview/fake_agent.py|fake_agent	1	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.__init__	3	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.close	6	
@@ -2854,15 +2870,18 @@ function	webui|src/webui/oidc.py|KeycloakOIDC.verify_id_token	10
 function	webui|src/webui/oidc.py|b64url_decode	1	
 function	webui|src/webui/oidc.py|b64url_encode	2	
 function	webui|src/webui/oidc.py|rs256_verify	3	
+function	webui|src/webui/routes/account_page.py|_factors_url	1	
+function	webui|src/webui/routes/account_page.py|account_page	2	
+function	webui|src/webui/routes/account_post.py|account_post	1	
 function	webui|src/webui/routes/bind9_page.py|bind9_page	1	
 function	webui|src/webui/routes/changes_post.py|changes_post	1	
 function	webui|src/webui/routes/directory_page.py|directory_page	1	
 function	webui|src/webui/routes/directory_post.py|_device_fields	1	
-function	webui|src/webui/routes/directory_post.py|_held	7	
+function	webui|src/webui/routes/directory_post.py|_held	7	0.8.0 / 2026-10-23
 function	webui|src/webui/routes/directory_post.py|_host_access	5	
 function	webui|src/webui/routes/directory_post.py|_person_change	4	0.8.0 / 2026-10-22
 function	webui|src/webui/routes/directory_post.py|_person_route	8	
-function	webui|src/webui/routes/directory_post.py|_q	6	
+function	webui|src/webui/routes/directory_post.py|_q	6	0.8.0 / 2026-10-23
 function	webui|src/webui/routes/directory_post.py|_role_fields	2	
 function	webui|src/webui/routes/directory_post.py|directory_post	3	
 function	webui|src/webui/routes/dirsrv_page.py|dirsrv_page	1	0.5.0 / 2026-10-05
@@ -2876,6 +2895,8 @@ function	webui|src/webui/routes/finish_setting_up.py|finish_setting_up	1
 function	webui|src/webui/routes/get_page.py|_overview	2	
 function	webui|src/webui/routes/get_page.py|_rest	3	
 function	webui|src/webui/routes/get_page.py|get_page	1	
+function	webui|src/webui/routes/held.py|held	2	
+function	webui|src/webui/routes/held.py|q	1	
 function	webui|src/webui/routes/kea_post.py|_kea	3	
 function	webui|src/webui/routes/kea_post.py|_pools	1	
 function	webui|src/webui/routes/kea_post.py|_where	2	
@@ -2913,6 +2934,7 @@ function	webui|src/webui/tlsclient.py|PinnedHTTPSConnection.__init__	1
 function	webui|src/webui/tlsclient.py|PinnedHTTPSConnection.connect	2	
 function	webui|src/webui/tlsclient.py|TLSClient.__init__	3	
 function	webui|src/webui/tlsclient.py|TLSClient.request	4	
+function	webui|src/webui/views/account.py|account	1	
 function	webui|src/webui/views/apply_result.py|apply_result	1	
 function	webui|src/webui/views/audit.py|audit	1	
 function	webui|src/webui/views/b64.py|b64	1	

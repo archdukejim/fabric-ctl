@@ -91,7 +91,7 @@ def serve(bundle=None):
 PAGES = ["/", "/overview/doctor", "/overview/updates", "/audit", "/dns/zones", "/dns-filter", "/kea", "/pki",
          "/pki/acme", "/directory/people", "/directory/domain", "/directory/machines", "/directory/gpo", "/8021x",
          "/8021x/decisions", "/8021x/guides", "/8021x/devices", "/8021x/roles", "/secrets", "/secrets/unlock",
-         "/secrets/disk", "/federation", "/settings", "/settings/sign-in"]
+         "/secrets/disk", "/federation", "/settings", "/settings/sign-in", "/account", "/account/groups"]
 # 1.8.6.4's moved addresses -> where each answers now
 MOVED = {"/bind9": "/dns/zones", "/bind9?zone=iot.home.arpa&msg=x": "/dns/zones?zone=iot.home.arpa",
          "/bind9?view=tsig": "/dns/zones?view=tsig", "/stepca": "/pki", "/stepca?view=sign": "/pki?view=sign",
@@ -106,12 +106,14 @@ MOVED = {"/bind9": "/dns/zones", "/bind9?zone=iot.home.arpa&msg=x": "/dns/zones?
          "/directory/devices/jims-laptop": "/8021x/devices/jims-laptop", "/directory/roles/iot": "/8021x/roles/iot"}
 # each bundle's navigation entries (1.8.2.1.1's bundles against 1.8.6.4's table), written out as the oracle
 ENTRIES = {
-    "admin": ["Overview", "DNS", "DHCP", "PKI", "Directory", "802.1X", "Secrets", "Federation", "Settings"],
-    "fabric-auditor": ["Overview", "DNS", "DHCP", "PKI", "Directory", "802.1X", "Secrets", "Federation"],
-    "fabric-network-operator": ["Overview", "DNS", "DHCP", "PKI", "Secrets"],
-    "fabric-equipment-operator": ["Overview", "DNS", "PKI", "Directory", "802.1X"],
-    "fabric-pki-operator": ["Overview", "PKI", "802.1X"],
-    "fabric-helpdesk": ["Overview", "DNS", "PKI", "Directory", "802.1X"],
+    "admin": ["Overview", "My account", "DNS", "DHCP", "PKI", "Directory", "802.1X", "Secrets", "Federation",
+              "Settings"],
+    "fabric-auditor": ["Overview", "My account", "DNS", "DHCP", "PKI", "Directory", "802.1X", "Secrets", "Federation"],
+    "fabric-network-operator": ["Overview", "My account", "DNS", "DHCP", "PKI", "Secrets"],
+    "fabric-equipment-operator": ["Overview", "My account", "DNS", "PKI", "Directory", "802.1X"],
+    "fabric-pki-operator": ["Overview", "My account", "PKI", "802.1X"],
+    "fabric-helpdesk": ["Overview", "My account", "DNS", "PKI", "Directory", "802.1X"],
+    "none": ["My account"],                    # a person of the domain with no fabric role (2.1.8.11)
 }
 
 with serve():
@@ -557,12 +559,13 @@ with serve():
 # covers: web:get.directory.machines web:get.directory.gpo web:get.8021x web:get.8021x.decisions +-
 # covers: web:get.8021x.guides web:get.8021x.devices web:get.8021x.roles web:get.secrets web:get.federation +-
 # covers: web:get.settings web:get.settings.sign-in +-
+# covers: web:get.account web:get.account.groups +
 for bundle, entries in ENTRIES.items():
     with serve(None if bundle == "admin" else bundle):
-        shown = [label for _, label in nav(get("/" if bundle != "fabric-pki-operator" else "/pki"))]
+        shown = [label for _, label in nav(get({"fabric-pki-operator": "/pki", "none": "/account"}.get(bundle, "/")))]
         check(f"--as {bundle}: the navigation shows exactly its entries ({', '.join(entries)})", shown == entries,
               shown)
-        perms, wrong = set(BUNDLES[bundle]), []
+        perms, wrong = set(BUNDLES.get(bundle, ())), []
         for entry, label, pages in views.NAV:
             for href, plabel, need in pages:
                 may = not need or bool(perms & set(need))
@@ -633,6 +636,56 @@ with serve("fabric-auditor"):
     page = get("/pki/acme")
     check("--as fabric-auditor: the ACME view without enroll or withdraw", "nas.home.arpa" in page
           and "/stepca/acme/enroll" not in page and "/delete" not in page)
+
+# My account (manual 1.8.6.6): a person with no fabric role signs in to it alone, and so does everyone else
+with serve("none"):
+    st, loc, _, _ = req("GET", "/")
+    check("--as none: / goes to My account (the Overview is not theirs)", st == 303 and loc == "/account", (st, loc))
+    page = get("/account")
+    check("--as none: My account shows their details (read-only), the password form, the sign-in factors, their "
+          "certificates and devices; no form changes the details", "My details" in page and "Engineer" in page
+          and 'action="/account/password"' in page and "Sign-in factors" in page and "CN=dev-none" in page
+          and "jims-laptop" in page and "/directory/people" not in page, page[-3000:])
+    check("--as none: the password fields are never filled in, and say what they are for the browser",
+          'autocomplete="current-password"' in page and page.count('autocomplete="new-password"') == 2
+          and 'type="password" name="current" autocomplete="current-password" required>' in page)
+    for form, why in (({"current": "nope", "new": "abcdefgh1", "again": "abcdefgh1"}, "the current password is wrong"),
+                      ({"current": "current", "new": "abcdefgh1", "again": "other"}, "repeat differ"),
+                      ({"current": "", "new": "abcdefgh1", "again": "abcdefgh1"}, "Type your current password"),
+                      ({"current": "current", "new": "short", "again": "short"}, "policy refuses")):
+        st, loc, page = post("/account/password", form)
+        # covers: web:post.account.password -
+        check(f"--as none: the password refused ({why}), said, nothing changed; no password in the address",
+              loc == "/account" and why in flash(page) and "abcdefgh1" not in loc, (loc, flash(page)))
+    st, loc, page = post("/account/password", {"current": "current", "new": "abcdefgh1", "again": "abcdefgh1"})
+    # covers: web:post.account.password +
+    check("--as none: the password changed at once (never pending), their other sessions signed out, said",
+          loc == "/account" and "Your password is changed" in flash(page) and "change pending" not in page,
+          flash(page))
+    page = get("/account/groups")
+    check("--as none: Groups I manage: each group, its members, the forms its controls allow (visitors: add only)",
+          "lab-users" in page and "visitors" in page and page.count('value="remove"') == 1, page[-2500:])
+    st, loc, page = post("/account/groups/lab-users/members", {"action": "add", "member": "dana"})
+    # covers: web:post.account.groups.*.members +
+    check("--as none: a member added: held for My account's Apply, said, the top bar counts it",
+          loc == "/account/groups" and "Waiting for Apply: Add dana to group lab-users" in flash(page)
+          and "<strong>1 change pending</strong>" in page and "dana" not in page.split("<h2>lab-users", 1)[1][:400],
+          flash(page))
+    st, loc, page = post("/changes/account/apply", {})
+    check("--as none: Apply on My account: done, in their own queue; dana is a member",
+          loc == "/changes/account" and "Add dana to group lab-users" in page and "done" in page
+          and "dana" in get("/account/groups"), page[-2000:])
+    st, loc, page = post("/account/groups/visitors/members", {"action": "remove", "member": "sam"})
+    st, loc, page = post("/changes/account/apply", {})
+    # covers: web:post.account.groups.*.members -
+    check("--as none: a removal its controls do not allow: refused at Apply, said in the queue, still pending",
+          "lets its managers add only" in page and "Apply 1 change" in page, page[-2000:])
+    post("/changes/account/discard", {})
+    st, loc, page = post("/account/groups/nosuch/members", {"action": "add", "member": "dana"})
+    check("--as none: a group that is not there: refused when held, said, nothing pending",
+          "change pending" not in page and "no group nosuch" in flash(page), flash(page))
+    for path in ("/dns/zones", "/directory/people", "/audit", "/overview/doctor", "/changes/people"):
+        check(f"--as none: {path} refused (403)", req("GET", path)[0] == 403)
 
 prod = views.overview({"user": "u", "csrf": "x", "version": {"version": "1", "build": ""}}, [])
 check("production pages never show the banner", "DEV PREVIEW" not in prod)
