@@ -312,7 +312,6 @@ setting:cname_ca +
 setting:cname_ca -
 setting:cname_dns +
 setting:cname_dns -
-setting:cname_mgr +
 setting:cname_mgr -
 setting:cname_openbao -
 setting:cname_sso +

@@ -60,9 +60,10 @@ cname_ca: {{ cname_ca | default('ca') }}
 landing_page_cname: {{ landing_page_cname | default('info', true) }}
 cname_dns: {{ cname_dns | default('dns') }}
 cname_sso: {{ cname_sso | default('sso') }}
-cname_mgr: {{ cname_mgr | default('fabric') }}
+cname_mgr: {{ cname_mgr | default('fabric-ctl') }}
 cname_openbao: {{ cname_openbao | default('vault') }}
-{# The web UI's address: any host name (default fabric.<domain>). Outside the
+{# The web UI's address: any host name (default fabric-ctl.<domain> on a new install, 2.1.8.12; an install's own
+   cname_mgr is kept in its vars.yaml, so an upgrade keeps its address). Outside the
    domain, fabric issues its certificate but you point DNS at this host. #}
 webui_hostname: {{ webui_hostname | default('', true) }}
 
@@ -71,7 +72,7 @@ hostname_bind9: {{ hostname_bind9 | default((cname_dns | default('dns')) ~ '.' ~
 hostname_stepca: {{ hostname_stepca | default((cname_ca | default('ca')) ~ '.' ~ domain) }}
 hostname_landing: {{ hostname_landing | default((landing_page_cname | default('info', true)) ~ '.' ~ domain) }}
 hostname_keycloak: {{ hostname_keycloak | default((cname_sso | default('sso')) ~ '.' ~ domain) }}
-{% set _hostname_mgr = (webui_hostname | default('', true) or ((cname_mgr | default('fabric')) ~ '.' ~ domain)) | lower %}
+{% set _hostname_mgr = (webui_hostname | default('', true) or ((cname_mgr | default('fabric-ctl')) ~ '.' ~ domain)) | lower %}
 hostname_mgr: {{ _hostname_mgr }}
 {# CA certificates for every system: http://<hostname_stepca>/certs/ (fabric's texts and scripts, and the CRL point:
    1.5.1.6), http://<host_ip>/certs/, and every other name nginx answers; certs.<domain> was dropped in 0.7.0 (1.5.1.5).

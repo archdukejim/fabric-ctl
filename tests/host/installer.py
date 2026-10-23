@@ -225,12 +225,12 @@ names, first, signin = (text.find("FIRST point the computer"), text.find("instal
                         text.find("then sign in"))
 fingerprint = R("openssl x509 -in /opt/nginx/www/certs/root-ca.crt -noout -fingerprint -sha256 | cut -d= -f2")
 check("setup's last words: FIRST fabric's names (its DNS at the host's address, or the hosts-file line naming info, "
-      "fabric and sso), then the root certificate over plain HTTP by address (its fingerprint), then sign in",
+      "fabric-ctl and sso), then the root certificate over plain HTTP by address (its fingerprint), then sign in",
       0 <= names < first < signin and "set its DNS server to" in text[names:first]
       and f"info.{DOMAIN}" in text[names:first] and f"sso.{DOMAIN}" in text[names:first]
       and "/certs/" in text[first:signin]
       and fingerprint.strip() and fingerprint.strip() in text[first:signin]
-      and f"https://fabric.{DOMAIN}" in text[signin:], text[-1500:])
+      and f"https://fabric-ctl.{DOMAIN}" in text[signin:], text[-1500:])
 saved = yaml.safe_load(R("cat /opt/fabric/config/vars.yaml")) or {}
 # covers: setting:webui_admin_user +
 check("Enter took fabric-admin as the first admin; the console's role is fabric-console-admin; Kerberos off; the "
