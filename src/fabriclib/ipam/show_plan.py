@@ -10,7 +10,7 @@ def show_plan(read, site, leases=None):
     Inputs:  read — read_plan's result; site — str; leases — this site's leases (list_leases) or None.
     Returns: str, lines ending in a newline.
     Fails:   never for a plan fabric wrote.
-    Feeds:   run_ipam_command (show)."""
+    Feeds:   ipam/cli/run_plan_read (show)."""
     plan = site_plan(read, site)
     block = plan["block"]
     lines = [f"site {site}  number " + (str(block) if block else

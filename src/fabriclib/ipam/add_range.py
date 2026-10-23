@@ -14,7 +14,7 @@ def add_range(v, actor, vid, kind, first, last, site="", notes="", secrets=None,
     Returns: edit_plan's result; result = the range {"kind", "first", "last", "notes"}.
     Fails:   ValidationError: no such VLAN, a VLAN without a subnet, a first address in none of its subnets, what
              check_range or edit_plan refuses.
-    Feeds:   run_ipam_command (range add)."""
+    Feeds:   ipam/cli/run_plan_change (range add), agent/post_networks."""
     def change(plan, read, org):
         vlan, subs = find_vlan(plan, vid)
         sub = subnet_holding(vlan, subs, ipv4(first, "first address"), "first address")

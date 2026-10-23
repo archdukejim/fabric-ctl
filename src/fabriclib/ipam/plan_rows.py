@@ -24,7 +24,7 @@ def plan_rows(plan, leases=None):
              rows ({"ip", "mac", "hostname", "state", "expires"}) for this site, or None.
     Returns: list of dicts with the keys of COLUMNS (dns "yes" or "", lease "<state> until <expires>" or "").
     Fails:   never for a plan fabric wrote.
-    Feeds:   run_ipam_command (show, export), find_in_plan, export_plan."""
+    Feeds:   show_plan, find_in_plan, export_plan, networks_view, scan_subnet."""
     names = {v["id"]: v["name"] for v in plan.get("vlans") or []}
     held = {lease["ip"]: lease for lease in leases or [] if lease.get("ip")}
     rows = []

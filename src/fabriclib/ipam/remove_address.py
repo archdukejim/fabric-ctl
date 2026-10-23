@@ -10,7 +10,7 @@ def remove_address(v, actor, ip, site="", secrets=None, container="samba", sourc
              secrets, container, source, caller — as edit_plan.
     Returns: edit_plan's result; result = the address removed.
     Fails:   ValidationError: no such address; what edit_plan refuses.
-    Feeds:   run_ipam_command (address remove)."""
+    Feeds:   ipam/cli/run_plan_change (address remove), agent/post_networks."""
     def change(plan, read, org):
         addr, sub = find_address(plan, ip)
         changes = [{"do": "remove", "what": "address", "site": plan["site"], "subnet": sub["name"],

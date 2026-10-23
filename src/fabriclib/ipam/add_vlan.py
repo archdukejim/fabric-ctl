@@ -26,7 +26,7 @@ def add_vlan(v, actor, vid, name, site="", subnet="", no_subnet=False, gateway="
     Fails:   ValidationError from check_vlan, check_subnet (an overlap, named), check_range, edit_plan; "no subnet to
              suggest" for a VLAN above 255 or a site with no number to give, without --subnet; a name convergence
              already uses for another network.
-    Feeds:   run_ipam_command (vlan add)."""
+    Feeds:   ipam/cli/run_plan_change (vlan add), agent/post_networks."""
     def change(plan, read, org):
         vlan = check_vlan({"id": vid, "name": name, "purpose": purpose, "access": access, "notes": notes}, plan)
         changes = [{"do": "add", "what": "vlan", "site": plan["site"], "key": str(vlan["id"]), "fields": vlan}]

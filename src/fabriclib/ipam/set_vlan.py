@@ -20,7 +20,7 @@ def set_vlan(v, actor, vid, site="", name=KEEP, purpose=KEEP, notes=KEEP, access
     Fails:   ValidationError: no such VLAN; nothing to change; a subnet setting for a VLAN without a subnet or with
              several (naming them); what check_vlan or check_subnet refuses; a gateway another address claims or
              inside a DHCP range.
-    Feeds:   run_ipam_command (vlan set)."""
+    Feeds:   ipam/cli/run_plan_change (vlan set), agent/post_networks."""
     wanted = {"name": name, "purpose": purpose, "notes": notes, "access": access}
     subnet_wanted = {"gateway": gateway, "dhcp": dhcp, "relay": relay, "allow_overlap": allow_overlap}
     if all(x is KEEP for x in (*wanted.values(), *subnet_wanted.values())):

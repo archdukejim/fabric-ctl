@@ -19,7 +19,7 @@ def options_overview(v, site="", target="", secrets=None, container="samba"):
              "reservations": [{"ip", "name", "mac", "options", "netboot"}]}], "catalogue": [{"code", "name"}],
              "effective": effective_options' result or None}.
     Fails:   ValidationError: a bad target; what read_plan ("no such site") or effective_options refuses.
-    Feeds:   run_option_command (option show, netboot show), the agent's routes (1.10.4.41, area 7)."""
+    Feeds:   run_option_command (option show, netboot show), agent GET /v1/ipam/options/<site>[/<target>]."""
     here = v["site_name"]
     site = site or here
     plan = site_plan(read_plan(v, secrets, of=site, container=container), site)

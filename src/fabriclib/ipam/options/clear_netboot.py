@@ -11,7 +11,7 @@ def clear_netboot(v, actor, target, site="", secrets=None, container="samba", so
              address; site — whose plan ("" this site's); secrets, container, source, caller — as edit_options.
     Returns: edit_options' result; result = {"targets": [labels of those that had a preset]}.
     Fails:   ValidationError: what netboot_targets refuses; none of them has a preset; what edit_options refuses.
-    Feeds:   run_option_command (netboot off), the agent's routes (1.10.4.41, area 7)."""
+    Feeds:   run_option_command (netboot off), agent/post_options (1.10.4.24.6)."""
     def change(plan):
         targets = [t for t in netboot_targets(plan, target) if t[1].get("netboot")]
         if not targets:

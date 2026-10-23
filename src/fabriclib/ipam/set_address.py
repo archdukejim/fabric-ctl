@@ -14,7 +14,7 @@ def set_address(v, actor, ip, site="", kind=KEEP, name=KEEP, mac=KEEP, owner=KEE
              container, source, caller — as edit_plan.
     Returns: edit_plan's result; result = the address as recorded now; warnings = check_address's.
     Fails:   ValidationError: nothing to change, no such address, what check_address or edit_plan refuses.
-    Feeds:   run_ipam_command (address set)."""
+    Feeds:   ipam/cli/run_plan_change (address set), agent/post_networks."""
     wanted = {"kind": kind, "name": name, "mac": mac, "owner": owner, "notes": notes, "dns": dns}
     if all(x is KEEP for x in wanted.values()):
         raise ValidationError("nothing to change: give --kind, --name, --mac, --owner, --notes or --dns")

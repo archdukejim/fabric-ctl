@@ -8,6 +8,10 @@ GET = {
     ("zones",): "dns:read", ("zones", "*"): "dns:read", ("reverse-zones",): "dns:read", ("tsig",): "dns:read",
     ("audit",): "audit:read",
     ("dhcp",): "dhcp:read",
+    # the address manager (manual 1.10.4.35): any site of the domain is read
+    ("networks",): "dhcp:read", ("networks", "*"): "dhcp:read", ("networks", "*", "export"): "dhcp:read",
+    ("ipam", "scan"): "dhcp:read",
+    ("ipam", "options", "*"): "dhcp:read", ("ipam", "options", "*", "*"): "dhcp:read",
     ("dns-filter",): "dns:filter",
     ("radius",): "radius:read", ("radius", "guides"): "radius:read",
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
@@ -79,6 +83,20 @@ POST = {
     ("dhcp", "subnets", "delete"): "dhcp:write", ("dhcp", "options"): "dhcp:write",
     ("dhcp", "options", "delete"): "dhcp:write", ("dhcp", "classes"): "dhcp:write",
     ("dhcp", "classes", "*", "delete"): "dhcp:write",
+    # the address manager (manual 1.10.4.35): dhcp:write here, and the grant's networks right at the site,
+    # checked by fabric-agent in each function (1.10.4.34)
+    ("networks", "*", "block"): "dhcp:write", ("networks", "*", "vlans"): "dhcp:write",
+    ("networks", "*", "vlans", "*"): "dhcp:write", ("networks", "*", "vlans", "*", "delete"): "dhcp:write",
+    ("networks", "*", "subnets"): "dhcp:write", ("networks", "*", "subnets", "*"): "dhcp:write",
+    ("networks", "*", "subnets", "*", "delete"): "dhcp:write", ("networks", "*", "ranges"): "dhcp:write",
+    ("networks", "*", "ranges", "delete"): "dhcp:write", ("networks", "*", "addresses"): "dhcp:write",
+    ("networks", "*", "addresses", "*"): "dhcp:write", ("networks", "*", "addresses", "*", "delete"): "dhcp:write",
+    # a scan sends packets onto a site's networks and offers to record what it finds (2.1.10.26, 2.1.10.38)
+    ("ipam", "scan"): "dhcp:write", ("ipam", "scan", "record"): "dhcp:write",
+    ("ipam", "scan", "request"): "dhcp:write",
+    ("ipam", "sync"): "dhcp:write",            # Sync now (2.1.10.29): the poll at once, never an apply
+    ("ipam", "options"): "dhcp:write", ("ipam", "classes"): "dhcp:write", ("ipam", "option-defs"): "dhcp:write",
+    ("ipam", "netboot"): "dhcp:write",
     ("radius", "clients"): "radius:admin", ("radius", "clients", "*", "rotate"): "radius:admin",
     ("radius", "clients", "*", "delete"): "radius:admin",
     ("radius", "people"): "radius:admin", ("radius", "people", "*", "delete"): "radius:admin",

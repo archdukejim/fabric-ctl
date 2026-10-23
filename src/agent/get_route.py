@@ -25,6 +25,10 @@ from fabriclib.grants.explain_grant import explain_grant
 from fabriclib.grants.list_grants import list_grants
 from fabriclib.grants.show_grant import show_grant
 from fabriclib.images.image_status import image_status
+from fabriclib.ipam.networks_csv import networks_csv
+from fabriclib.ipam.networks_overview import networks_overview
+from fabriclib.ipam.options.options_overview import options_overview
+from fabriclib.ipam.scan_overview import scan_overview
 from fabriclib.pki.acme_info import acme_info
 from fabriclib.pki.acme_machines import acme_machines
 from fabriclib.pki.ca_summary import ca_summary
@@ -76,6 +80,7 @@ READS = {
     ("gpo",): lambda: gpo_overview(load_vars()),
     ("federation",): lambda: federation_overview(load_vars()),
     ("dhcp",): lambda: dhcp_overview(load_vars()),
+    ("networks",): lambda: networks_overview(load_vars()),
     ("dns-filter",): lambda: filter_overview(load_vars()),
     ("radius",): lambda: radius_overview(load_vars()),
     ("radius", "guides"): lambda: radius_guides(load_vars()),
@@ -100,7 +105,10 @@ def get_route(route, user=None):
              domain/kerberos/spns: list_spns; groups: list_groups; groups/<name>: show_group; ous: list_ous;
              account/groups: my_groups (the groups the signed-in person manages);
              settings: settings_overview (the setup wizard, 1.8.5); settings/export: {"text", "name"}, the
-             settings file.
+             settings file; networks[/<site>]: networks_overview (the Networks tab: any site of the domain,
+             1.10.4.35); networks/<site>/export: networks_csv ({"csv", "name"}); ipam/options/<site>[/<target>]:
+             options_overview (`-` for this site; a target's effective options with their sources, 1.10.4.24.3);
+             ipam/scan: scan_overview (the subnets a scan may cover, and whether this person may scan here).
     Fails:   RouteNotFound for any other route (-> 404); whatever the operation raises (ValidationError -> 400).
     Feeds:   agent/handler.py (dispatch)."""
     if tuple(route) in READS:
@@ -117,6 +125,14 @@ def get_route(route, user=None):
         return show_grant(load_vars(), route[2])
     if len(route) in (4, 5) and route[:3] == ["domain", "grants", "explain"]:
         return explain_grant(load_vars(), route[3], route[4] if len(route) == 5 else None)
+    if len(route) == 2 and route[0] == "networks":
+        return networks_overview(load_vars(), route[1])
+    if len(route) == 3 and route[0] == "networks" and route[2] == "export":
+        return networks_csv(load_vars(), route[1])
+    if len(route) in (3, 4) and route[:2] == ["ipam", "options"]:
+        return options_overview(load_vars(), "" if route[2] == "-" else route[2], route[3] if len(route) == 4 else "")
+    if route == ["ipam", "scan"]:
+        return scan_overview(load_vars(), user)
     if route == ["vault", "slots"]:
         v = load_vars()
         return {"slots": list_slots(v), "host": v.get("hostname", "")}

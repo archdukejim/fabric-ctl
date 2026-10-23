@@ -129,8 +129,8 @@ def scan_subnet(v, actor, subnet, source="cli", container=KEA_CONTAINER, state_d
     Fails:   ValidationError: _which's refusals, check_access's ("no grant gives you networks scan at <site>", the DC
              not running), probe_subnet's; ScanBusy (a ValidationError): _slot's (a scan running, too soon); OSError
              from the audit log or the state folder. A refused scan probes nothing and audits nothing.
-    Feeds:   run_ipam_command (scan); scancontrol/run_scan_requests (a request from another site); the agent's
-             POST /v1/ipam/scan joins in area 7 (1.10.4.41)."""
+    Feeds:   run_ipam_command (scan); scancontrol/run_scan_requests (a request from another site); agent/post_ipam_scan
+             (POST /v1/ipam/scan)."""
     cache = cache or load_plan_cache
     sub = _which(v, subnet, cache)
     if requested:

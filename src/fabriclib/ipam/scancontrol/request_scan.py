@@ -59,8 +59,8 @@ def request_scan(v, actor, site, subnet, secrets=None, container="samba", source
     Fails:   ValidationError: no site named, this site ("runs here"), check_access's refusal, _subnet's refusals, a
              request for that subnet still pending, MAX_PENDING pending at that site, the directory refusing or not
              answering; OSError from the audit log.
-    Feeds:   run_scan_command (`fabricctl ipam scan <subnet> --site S`); the agent's POST /v1/ipam/scan/request
-             joins in area 7 (1.10.4.41)."""
+    Feeds:   run_scan_command (`fabricctl ipam scan <subnet> --site S`); agent/post_ipam_scan (POST
+             /v1/ipam/scan/request)."""
     own = v["site_name"]
     target = str(site or "").strip()
     if not target:

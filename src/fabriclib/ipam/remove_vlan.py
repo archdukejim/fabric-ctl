@@ -14,7 +14,7 @@ def remove_vlan(v, actor, vid, site="", force=False, secrets=None, container="sa
              "addresses" (how many went)}.
     Fails:   ValidationError: no such VLAN; addresses recorded in its subnets without force (how many); what
              edit_plan refuses.
-    Feeds:   run_ipam_command (vlan remove)."""
+    Feeds:   ipam/cli/run_plan_change (vlan remove), agent/post_networks."""
     def change(plan, read, org):
         vlan, subs = find_vlan(plan, vid)
         held = sum(len(s.get("addresses") or []) for s in subs)

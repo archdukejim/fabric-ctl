@@ -66,7 +66,7 @@ def effective_options(plan, kind, target="", v=None, settings=None):
              "fields" (next_server, server_hostname, boot_file_name when set), "rows": [... as above, plus
              "overridden_by": the subnet or address that replaces it, or ""]}]}.
     Fails:   ValidationError: an unknown kind; no such subnet or address.
-    Feeds:   show_options, options_overview, the agent's routes (1.10.4.41, area 7)."""
+    Feeds:   show_options, options_overview, ipam/networks_view."""
     if kind not in ("site", "subnet", "address"):
         raise ValidationError("effective options: of the site, a subnet or an address")
     org, mine = plan.get("domain_options") or EMPTY, plan.get("site_options") or EMPTY

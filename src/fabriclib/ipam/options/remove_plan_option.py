@@ -14,7 +14,7 @@ def remove_plan_option(v, actor, scope, target, option, site="", domain_class=Fa
     Returns: edit_options' result; result = {"where", "code", "name"}.
     Fails:   ValidationError: what scope_options refuses; the option is not set there (a fabric-provided option
              nobody overrode cannot be removed: it is fabric's, 1.10.4.6.2); what edit_options refuses.
-    Feeds:   run_option_command (option remove), the agent's routes (1.10.4.41, area 7)."""
+    Feeds:   run_option_command (option remove), agent/post_options (1.10.4.24.6)."""
     text = str(option or "").strip()
     wanted = {"code": int(text)} if text.isdigit() else {"name": text.lower()}
     if space:

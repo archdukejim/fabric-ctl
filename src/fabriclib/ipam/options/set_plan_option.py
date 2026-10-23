@@ -18,7 +18,7 @@ def set_plan_option(v, actor, scope, target, option, data, site="", domain_class
              "code", "name"}.
     Fails:   ValidationError: what scope_options or check_option_set refuses (an unknown name, bad data), or what
              edit_options refuses (no grant giving networks options at all, for the domain's set).
-    Feeds:   run_option_command (option set), the agent's routes (1.10.4.41, area 7)."""
+    Feeds:   run_option_command (option set), agent/post_options (1.10.4.24.6)."""
     text = str(option or "").strip()
     entry = {"code": int(text)} if text.isdigit() else {"name": text}
     entry["data"] = data

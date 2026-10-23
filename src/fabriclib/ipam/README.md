@@ -27,7 +27,14 @@ are pure functions checked before anything is written.
 | `add_dhcp_subnet.py`, `set_dhcp_subnet.py`, `remove_reservation_mac.py` | The old `fabricctl dhcp add-subnet`, `set-subnet` and `unreserve` as changes to the plan (their aliases, `dhcp/run_dhcp_alias`) |
 | `subnets_to_plan.py` | The upgrade: a site's `dhcp.subnets` as the plan's changes, nothing it serves changed |
 | `move_subnets_to_plan.py` | The upgrade's move: the settings' subnets into the plan once, recorded, `dhcp.subnets` removed (called by every apply and by setup) |
-| `run_ipam_command.py` | `fabricctl ipam`: routes only (show, find, export, block, vlan, subnet, range, address, sync, scan; option, class, netboot and watch to `options/`; scan at another site and scan-requests to `scancontrol/`) |
+| `run_ipam_command.py` | `fabricctl ipam`: routes only (sync, scan; the reads and changes to `cli/`; option, class, netboot and watch to `options/`; scan at another site and scan-requests to `scancontrol/`) |
+| [cli/](cli/) | `fabricctl ipam`'s arguments, its reads of the plan and its changes |
+| `networks_overview.py` | What the Networks tab shows of a site: its plan drawn, the sites, leases, scan requests, the Sync now card; the kept copy when the DC is down |
+| `networks_view.py` | A site's plan as the Networks tab draws it: each subnet's map and its options with their sources |
+| `subnet_map.py` | One subnet drawn: its ranges as a bar, the counts, every address accounted for |
+| `networks_csv.py` | The Networks tab's CSV export of a site's address table |
+| `scannable_subnets.py` | The subnets a scan may cover here (at most a /22) |
+| `scan_overview.py` | What the scan page shows: those subnets, and whether the person may scan here |
 | `plan_to_dhcp.py` | A site's plan as Kea's `dhcp.subnets` and the A records of its published addresses |
 | `planned_subnets.py` | The DHCP subnets a site serves, from its settings or the plan it last read |
 | `load_address_plan.py` | At an apply: the plan read (or the last one kept) into Kea's subnets and the site's zone |

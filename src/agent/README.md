@@ -17,6 +17,10 @@ arbitrary commands.
 | `post_dns_filter.py` | The DNS filter's lists, rules and upstreams (saved and applied), the lists job, the query-log search |
 | `post_dhcp.py` | DHCP: reservations, subnets (name, VLAN, notes, pools), options, client classes, each applied at once |
 | `post_network.py` | 802.1X settings, each applied at once |
+| `post_networks.py` | The address plan's changes (`/v1/networks/<site>/...`): each the ipam function the CLI calls, the grant checked there; this site's applied at once |
+| `post_options.py` | The DHCP options in the plan, client classes, definitions and netboot presets (the domain's set as `scope` domain) |
+| `post_ipam_sync.py` | Sync now: the plan poll at once, and BIND's records when DNS waits |
+| `post_ipam_scan.py` | A scan of this site's subnet, a find recorded, a scan asked of another site |
 | `post_pki.py` | Manual PKI: describe or sign a CSR, issue, inspect, convert |
 | `post_vault.py` | OpenBao's unlock methods, rotating the vault key |
 | `post_directory.py` | Devices and device roles in the domain |

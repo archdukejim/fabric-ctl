@@ -18,7 +18,7 @@ def add_plan_class(v, actor, scope, name, test, next_server="", server_hostname=
     Fails:   ValidationError: a class of that name in the set already; what normalize_client_classes refuses (a bad
              or reserved name, no test, a bad next server); a name starting fabric-nb- (fabric's netboot classes);
              what set_owner or edit_options refuses. Kea checks the expression at the apply.
-    Feeds:   run_option_command (class add), the agent's routes (1.10.4.41, area 7)."""
+    Feeds:   run_option_command (class add), agent/post_options (1.10.4.24.6)."""
     entry = {"name": str(name or "").strip(), "test": test, "options": []}
     for key, value in (("next_server", next_server), ("server_hostname", server_hostname),
                        ("boot_file_name", boot_file_name)):

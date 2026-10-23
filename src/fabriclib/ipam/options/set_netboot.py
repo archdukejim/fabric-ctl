@@ -14,7 +14,7 @@ def set_netboot(v, actor, target, preset, site="", secrets=None, container="samb
     Returns: edit_options' result; result = {"targets": [labels], "preset": the preset as stored}; warnings =
              check_netboot's.
     Fails:   ValidationError: what check_netboot or netboot_targets refuses; what edit_options refuses.
-    Feeds:   run_option_command (netboot on), the agent's routes (1.10.4.41, area 7)."""
+    Feeds:   run_option_command (netboot on), agent/post_options (1.10.4.24.6)."""
     checked, warnings = check_netboot(preset)
 
     def change(plan):

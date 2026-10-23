@@ -12,8 +12,12 @@ file	fabricctl-agent|src/agent/post_domain.py	14
 file	fabricctl-agent|src/agent/post_grants.py	27	
 file	fabricctl-agent|src/agent/post_groups.py	29	
 file	fabricctl-agent|src/agent/post_host_access.py	18	
+file	fabricctl-agent|src/agent/post_ipam_scan.py	33	
+file	fabricctl-agent|src/agent/post_ipam_sync.py	34	
 file	fabricctl-agent|src/agent/post_local_admin.py	32	
 file	fabricctl-agent|src/agent/post_network.py	6	
+file	fabricctl-agent|src/agent/post_networks.py	35	
+file	fabricctl-agent|src/agent/post_options.py	36	
 file	fabricctl-agent|src/agent/post_ous.py	30	
 file	fabricctl-agent|src/agent/post_people.py	31	
 file	fabricctl-agent|src/agent/post_pki.py	7	
@@ -554,6 +558,11 @@ file	fabriclib-ipam|src/fabriclib/ipam/check_block.py	2
 file	fabriclib-ipam|src/fabriclib/ipam/check_range.py	3	
 file	fabriclib-ipam|src/fabriclib/ipam/check_subnet.py	4	
 file	fabriclib-ipam|src/fabriclib/ipam/check_vlan.py	5	
+file	fabriclib-ipam|src/fabriclib/ipam/cli/args.py	85	
+file	fabriclib-ipam|src/fabriclib/ipam/cli/report_change.py	86	
+file	fabriclib-ipam|src/fabriclib/ipam/cli/run_plan_change.py	87	
+file	fabriclib-ipam|src/fabriclib/ipam/cli/run_plan_read.py	88	
+file	fabriclib-ipam|src/fabriclib/ipam/common/apply_plan_change.py	89	
 file	fabriclib-ipam|src/fabriclib/ipam/common/change_subnet.py	6	
 file	fabriclib-ipam|src/fabriclib/ipam/common/edit_options.py	33	
 file	fabriclib-ipam|src/fabriclib/ipam/common/edit_plan.py	16	
@@ -569,6 +578,9 @@ file	fabriclib-ipam|src/fabriclib/ipam/export_plan.py	18
 file	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py	19	
 file	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py	63	
 file	fabriclib-ipam|src/fabriclib/ipam/move_subnets_to_plan.py	58	
+file	fabriclib-ipam|src/fabriclib/ipam/networks_csv.py	90	
+file	fabriclib-ipam|src/fabriclib/ipam/networks_overview.py	91	
+file	fabriclib-ipam|src/fabriclib/ipam/networks_view.py	92	
 file	fabriclib-ipam|src/fabriclib/ipam/offer_reservations.py	74	
 file	fabriclib-ipam|src/fabriclib/ipam/options/add_plan_class.py	34	
 file	fabriclib-ipam|src/fabriclib/ipam/options/check_netboot.py	35	
@@ -608,6 +620,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/remove_reservation_mac.py	60
 file	fabriclib-ipam|src/fabriclib/ipam/remove_subnet.py	24	
 file	fabriclib-ipam|src/fabriclib/ipam/remove_vlan.py	25	
 file	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py	26	
+file	fabriclib-ipam|src/fabriclib/ipam/scan_overview.py	93	
 file	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py	75	
 file	fabriclib-ipam|src/fabriclib/ipam/scancontrol/bound_result.py	76	
 file	fabriclib-ipam|src/fabriclib/ipam/scancontrol/list_scan_requests.py	77	
@@ -617,6 +630,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/scancontrol/run_scan_command.py	80
 file	fabriclib-ipam|src/fabriclib/ipam/scancontrol/run_scan_requests.py	81	
 file	fabriclib-ipam|src/fabriclib/ipam/scancontrol/show_scan_requests.py	82	
 file	fabriclib-ipam|src/fabriclib/ipam/scancontrol/write_scan_request.py	83	
+file	fabriclib-ipam|src/fabriclib/ipam/scannable_subnets.py	94	
 file	fabriclib-ipam|src/fabriclib/ipam/set_address.py	27	
 file	fabriclib-ipam|src/fabriclib/ipam/set_block.py	28	
 file	fabriclib-ipam|src/fabriclib/ipam/set_dhcp_subnet.py	61	
@@ -624,9 +638,11 @@ file	fabriclib-ipam|src/fabriclib/ipam/set_subnet.py	29
 file	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py	30	
 file	fabriclib-ipam|src/fabriclib/ipam/show_plan.py	31	
 file	fabriclib-ipam|src/fabriclib/ipam/show_scan.py	84	
+file	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py	95	
 file	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py	62	
 file	fabriclib-ipam|src/fabriclib/ipam/suggestions.py	11	
 file	fabriclib-ipam|src/fabriclib/ipam/sync/sync_plan.py	71	
+file	fabriclib-ipam|src/fabriclib/ipam/sync/sync_status.py	96	
 file	fabriclib-ipam|src/fabriclib/ipam/write_plan.py	32	
 file	fabriclib-keycloak|src/fabriclib/keycloak/add_app_client.py	21	
 file	fabriclib-keycloak|src/fabriclib/keycloak/admin_client.py	1	
@@ -1259,8 +1275,19 @@ function	fabricctl-agent|src/agent/post_domain.py|post_domain	1
 function	fabricctl-agent|src/agent/post_grants.py|post_grants	1	
 function	fabricctl-agent|src/agent/post_groups.py|post_groups	1	
 function	fabricctl-agent|src/agent/post_host_access.py|post_host_access	1	
+function	fabricctl-agent|src/agent/post_ipam_scan.py|post_ipam_scan	1	
+function	fabricctl-agent|src/agent/post_ipam_sync.py|post_ipam_sync	1	
 function	fabricctl-agent|src/agent/post_local_admin.py|post_local_admin	1	
 function	fabricctl-agent|src/agent/post_network.py|post_network	1	
+function	fabricctl-agent|src/agent/post_networks.py|_change	4	
+function	fabricctl-agent|src/agent/post_networks.py|_flag	1	
+function	fabricctl-agent|src/agent/post_networks.py|_keep	2	
+function	fabricctl-agent|src/agent/post_networks.py|_vid	3	
+function	fabricctl-agent|src/agent/post_networks.py|post_networks	5	
+function	fabricctl-agent|src/agent/post_options.py|_action	1	
+function	fabricctl-agent|src/agent/post_options.py|_change	3	
+function	fabricctl-agent|src/agent/post_options.py|_set_scope	2	
+function	fabricctl-agent|src/agent/post_options.py|post_options	4	
 function	fabricctl-agent|src/agent/post_ous.py|post_ous	1	
 function	fabricctl-agent|src/agent/post_people.py|_optional	1	
 function	fabricctl-agent|src/agent/post_people.py|post_people	2	
@@ -2156,6 +2183,19 @@ function	fabriclib-ipam|src/fabriclib/ipam/check_range.py|check_range	1
 function	fabriclib-ipam|src/fabriclib/ipam/check_subnet.py|_overlap_message	1	
 function	fabriclib-ipam|src/fabriclib/ipam/check_subnet.py|check_subnet	2	
 function	fabriclib-ipam|src/fabriclib/ipam/check_vlan.py|check_vlan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/cli/args.py|keep	3	
+function	fabriclib-ipam|src/fabriclib/ipam/cli/args.py|on_off	2	
+function	fabriclib-ipam|src/fabriclib/ipam/cli/args.py|parse_args	1	
+function	fabriclib-ipam|src/fabriclib/ipam/cli/report_change.py|report_change	1	
+function	fabriclib-ipam|src/fabriclib/ipam/cli/run_plan_change.py|_address	4	
+function	fabriclib-ipam|src/fabriclib/ipam/cli/run_plan_change.py|_subnet	3	
+function	fabriclib-ipam|src/fabriclib/ipam/cli/run_plan_change.py|_subnet_line	1	
+function	fabriclib-ipam|src/fabriclib/ipam/cli/run_plan_change.py|_vlan	2	
+function	fabriclib-ipam|src/fabriclib/ipam/cli/run_plan_change.py|run_plan_change	5	
+function	fabriclib-ipam|src/fabriclib/ipam/cli/run_plan_read.py|_leases	1	
+function	fabriclib-ipam|src/fabriclib/ipam/cli/run_plan_read.py|_print_rows	2	
+function	fabriclib-ipam|src/fabriclib/ipam/cli/run_plan_read.py|run_plan_read	3	
+function	fabriclib-ipam|src/fabriclib/ipam/common/apply_plan_change.py|apply_plan_change	1	
 function	fabriclib-ipam|src/fabriclib/ipam/common/change_subnet.py|_gateway_claim	1	
 function	fabriclib-ipam|src/fabriclib/ipam/common/change_subnet.py|change_subnet	2	
 function	fabriclib-ipam|src/fabriclib/ipam/common/edit_options.py|edit_options	1	
@@ -2185,6 +2225,10 @@ function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|_add_records	1
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|_globals	2	
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|load_address_plan	3	
 function	fabriclib-ipam|src/fabriclib/ipam/move_subnets_to_plan.py|move_subnets_to_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/networks_csv.py|networks_csv	1	
+function	fabriclib-ipam|src/fabriclib/ipam/networks_overview.py|_cached	1	
+function	fabriclib-ipam|src/fabriclib/ipam/networks_overview.py|networks_overview	2	
+function	fabriclib-ipam|src/fabriclib/ipam/networks_view.py|networks_view	1	
 function	fabriclib-ipam|src/fabriclib/ipam/offer_reservations.py|offer_reservations	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/add_plan_class.py|add_plan_class	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/check_netboot.py|_text	1	
@@ -2241,14 +2285,17 @@ function	fabriclib-ipam|src/fabriclib/ipam/remove_range.py|remove_range	1
 function	fabriclib-ipam|src/fabriclib/ipam/remove_reservation_mac.py|remove_reservation_mac	1	
 function	fabriclib-ipam|src/fabriclib/ipam/remove_subnet.py|remove_subnet	1	
 function	fabriclib-ipam|src/fabriclib/ipam/remove_vlan.py|remove_vlan	1	
-function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_done	6	
-function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_keep	3	
-function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_leases	4	
-function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_on_off	2	
-function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_parse	1	
-function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_print_rows	5	
-function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_subnet_line	7	
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_done	6	0.8.0 / 2026-10-23
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_keep	3	0.8.0 / 2026-10-23
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_leases	4	0.8.0 / 2026-10-23
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_on_off	2	0.8.0 / 2026-10-23
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_parse	1	0.8.0 / 2026-10-23
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_print_rows	5	0.8.0 / 2026-10-23
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_scan	10	
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_subnet_line	7	0.8.0 / 2026-10-23
+function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_sync	9	
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|run_ipam_command	8	
+function	fabriclib-ipam|src/fabriclib/ipam/scan_overview.py|scan_overview	1	
 function	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py|_classify	3	
 function	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py|_slot	2	
 function	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py|_which	1	
@@ -2267,6 +2314,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/scancontrol/run_scan_requests.py|_who
 function	fabriclib-ipam|src/fabriclib/ipam/scancontrol/run_scan_requests.py|run_scan_requests	4	
 function	fabriclib-ipam|src/fabriclib/ipam/scancontrol/show_scan_requests.py|show_scan_requests	1	
 function	fabriclib-ipam|src/fabriclib/ipam/scancontrol/write_scan_request.py|write_scan_request	1	
+function	fabriclib-ipam|src/fabriclib/ipam/scannable_subnets.py|scannable_subnets	1	
 function	fabriclib-ipam|src/fabriclib/ipam/set_address.py|set_address	1	
 function	fabriclib-ipam|src/fabriclib/ipam/set_block.py|set_block	1	
 function	fabriclib-ipam|src/fabriclib/ipam/set_dhcp_subnet.py|set_dhcp_subnet	1	
@@ -2274,6 +2322,10 @@ function	fabriclib-ipam|src/fabriclib/ipam/set_subnet.py|set_subnet	1
 function	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py|set_vlan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/show_plan.py|show_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/show_scan.py|show_scan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py|_free_rows	3	
+function	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py|_hosts	1	
+function	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py|_range_at	2	
+function	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py|subnet_map	4	
 function	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py|_label	1	
 function	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py|subnets_to_plan	2	
 function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_block	3	
@@ -2281,6 +2333,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_split	2
 function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_subnet	1	
 function	fabriclib-ipam|src/fabriclib/ipam/sync/sync_plan.py|_Held.close	1	
 function	fabriclib-ipam|src/fabriclib/ipam/sync/sync_plan.py|sync_plan	2	
+function	fabriclib-ipam|src/fabriclib/ipam/sync/sync_status.py|sync_status	1	
 function	fabriclib-ipam|src/fabriclib/ipam/write_plan.py|write_plan	1	
 function	fabriclib-keycloak|src/fabriclib/keycloak/add_app_client.py|_redirects	1	
 function	fabriclib-keycloak|src/fabriclib/keycloak/add_app_client.py|add_app_client	2	

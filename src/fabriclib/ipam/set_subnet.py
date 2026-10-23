@@ -16,7 +16,7 @@ def set_subnet(v, actor, which, site="", gateway=KEEP, dhcp=KEEP, relay=KEEP, no
     Returns: edit_plan's result; result = the subnet as it will be.
     Fails:   ValidationError: nothing to change; no such subnet; what check_subnet refuses; a gateway another
              address claims or inside a DHCP range; what edit_plan refuses.
-    Feeds:   run_ipam_command (subnet set)."""
+    Feeds:   ipam/cli/run_plan_change (subnet set), agent/post_networks."""
     wanted = {"gateway": gateway, "dhcp": dhcp, "relay": relay, "notes": notes, "allow_overlap": allow_overlap}
     given = {k: x for k, x in wanted.items() if x is not KEEP}
     if not given:

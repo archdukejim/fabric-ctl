@@ -13,7 +13,7 @@ def undefine_plan_option(v, actor, scope, name, space=None, site="", secrets=Non
     Returns: edit_options' result; result = the definition removed.
     Fails:   ValidationError: no such definition there; an option still names it (remove it first); what set_owner or
              edit_options refuses.
-    Feeds:   run_option_command (option undefine), the agent's routes (1.10.4.41, area 7)."""
+    Feeds:   run_option_command (option undefine), agent/post_options (1.10.4.24.6)."""
     want, wspace = str(name or "").strip().lower(), space or "dhcp4"
 
     def change(plan):

@@ -1,3 +1,4 @@
+from fabriclib.access.check_access import check_access
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
 from fabriclib.common.write_audit import write_audit
@@ -21,25 +22,31 @@ class _Held:
 
 
 def sync_plan(v, actor, source="cli", container="samba", secrets=None, poll=poll_plan, publish=publish_plan_records,
-              take_lock=try_vars_lock, settings=None):
+              take_lock=try_vars_lock, settings=None, caller=None, check=check_access):
     """Purpose: Sync now (decision 2.1.10.29, manual 1.10.4.28): on demand, the plan poll at once whatever the DC's USN
              says (Kea re-rendered and restarted when its input changed, the firewall brought in line when the served
              subnets changed) and, when DNS is affected, BIND's records published by the quick path
              (dns/publish_plan_records). Never a full apply; no service restarted but Kea. Refused while an apply holds
-             the settings' lock. Audited (IPAM_SYNC), also when the DNS step fails.
+             the settings' lock. Audited (IPAM_SYNC), also when the DNS step fails. A signed-in person (the
+             console) needs the grants' `networks:plan` at this site first (fabric-agent's check_access,
+             1.10.4.35); root, from the CLI, acts for the Enterprise Admin.
     Inputs:  v — fabric vars (install_kea, site_name); actor — who asks (audit); source — "cli" or "web"; container —
              the DC's container; secrets — fabric's secrets (default load_secrets()); poll, publish, take_lock —
              poll_plan, publish_plan_records and the settings' lock taken without waiting (tests give their own);
-             settings — function() -> vars.yaml as kept (default: load_vars of the deployed settings).
+             settings — function() -> vars.yaml as kept (default: load_vars of the deployed settings); caller —
+             the signed-in person's user name, or None (root); check — check_access (tests give their own).
     Returns: {"state" (the poll's: "same plan", "rendered", …), "kea_restarted" (bool), "firewall" (bool),
              "dns_pending" (bool: what the poll found), "dns" (publish_plan_records' result, or None when DNS was
              current)}.
-    Fails:   ValidationError, changing nothing: Kea not installed here, the subnets still in the settings (not
+    Fails:   ValidationError, changing nothing: check_access's refusal (a person without `networks:plan` here),
+             Kea not installed here, the subnets still in the settings (not
              upgraded), an apply holding the settings' lock. Then what the poll raises (the DC, OpenBao, Kea's check,
              the firewall), and the DNS step's refusal, said with what was done ("Kea is in line with the plan; BIND's
              records were not published: …"); OSError from the audit log.
-    Feeds:   ipam/run_ipam_command (`fabricctl ipam sync`); the agent's POST /v1/ipam/sync (the Networks tab's Sync
-             now) joins in area 7 (1.10.4.41)."""
+    Feeds:   ipam/run_ipam_command (`fabricctl ipam sync`); agent/post_ipam_sync (POST /v1/ipam/sync, the Networks
+             tab's Sync now)."""
+    if caller is not None:
+        check(v, caller, "networks:plan", {"site": v.get("site_name", "")}, container)
     if not v.get("install_kea"):
         raise ValidationError("DHCP is off at this site: there is no plan served here to sync")
     kept = (settings or (lambda: load_vars(deploy_paths()["vars"])))()

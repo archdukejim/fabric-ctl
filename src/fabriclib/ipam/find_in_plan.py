@@ -14,7 +14,7 @@ def find_in_plan(read, text, leases=None, site=""):
              leases (list_leases) or None; site — this site's name (whose leases they are).
     Returns: list of row dicts (plan_rows' keys); a VLAN found by name is a row with kind "vlan" and no address.
     Fails:   never.
-    Feeds:   run_ipam_command (find)."""
+    Feeds:   ipam/cli/run_plan_read (find)."""
     want = str(text or "").strip().lower()
     try:
         ip = ipaddress.ip_address(want)

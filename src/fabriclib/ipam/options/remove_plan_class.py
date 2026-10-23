@@ -10,7 +10,7 @@ def remove_plan_class(v, actor, scope, name, site="", secrets=None, container="s
              name; site — whose set ("" this site's); secrets, container, source, caller — as edit_options.
     Returns: edit_options' result; result = the class removed.
     Fails:   ValidationError: no class of that name there; what set_owner or edit_options refuses.
-    Feeds:   run_option_command (class remove), the agent's routes (1.10.4.41, area 7)."""
+    Feeds:   run_option_command (class remove), agent/post_options (1.10.4.24.6)."""
     want = str(name or "").strip()
 
     def change(plan):

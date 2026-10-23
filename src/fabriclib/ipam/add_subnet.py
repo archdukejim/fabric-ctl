@@ -34,7 +34,7 @@ def add_subnet(v, actor, vid, cidr, site="", name="", gateway="", dhcp=True, rel
     Returns: edit_plan's result; result = {"vlan", "subnet", "ranges"}.
     Fails:   ValidationError: no such VLAN; what check_subnet (an overlap, named; a name the site uses) or check_range
              refuses; what edit_plan refuses.
-    Feeds:   run_ipam_command (subnet add)."""
+    Feeds:   ipam/cli/run_plan_change (subnet add), agent/post_networks."""
     def change(plan, read, org):
         vlan, _ = find_vlan(plan, vid)
         changes, sub, ranges = new_subnet(v, plan, org, vlan, str(cidr or "").strip(), name or _free_name(plan, vlan),

@@ -13,7 +13,7 @@ def set_block(v, actor, number, site="", secrets=None, container="samba", source
     Returns: edit_plan's result; result = {"block": the number, "was": the number before or None}.
     Fails:   ValidationError: what check_block refuses; the number the site already has (nothing to change); what
              edit_plan refuses (no grant giving the caller networks plan at the site, 1.6.13.12).
-    Feeds:   run_ipam_command (block), setup/ask_site_number."""
+    Feeds:   ipam/cli/run_plan_change (block), setup/ask_site_number, agent/post_networks."""
     def change(plan, read, org):
         n = check_block(number, read["sites"], plan["site"])
         if n == plan["block"]:

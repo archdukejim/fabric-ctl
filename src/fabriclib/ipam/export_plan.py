@@ -13,7 +13,7 @@ def export_plan(read, site="", leases=None, own=""):
              leases (list_leases) or None; own — this site's name (whose leases they are).
     Returns: str, the CSV text with a header row.
     Fails:   never.
-    Feeds:   run_ipam_command (export)."""
+    Feeds:   ipam/cli/run_plan_read (export), networks_csv."""
     names = [site] if site else sorted(read.get("plans") or {})
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=COLUMNS, lineterminator="\n")

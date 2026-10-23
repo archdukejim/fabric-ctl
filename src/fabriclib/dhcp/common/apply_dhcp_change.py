@@ -9,7 +9,8 @@ def apply_dhcp_change(args):
     Inputs:  args — list of str (looks for "--no-apply"). Runs apply_changes as root (interactive.py --apply).
     Returns: 0 if skipped or applied; 1 if apply or the firewall failed (last 2000 characters of its output).
     Fails:   subprocess.TimeoutExpired (900 s, 300 s) and OSError from apply_changes / refresh_firewall propagate.
-    Feeds:   dhcp/run_dhcp_command (every change), ipam/run_ipam_command (a change to this site's plan)."""
+    Feeds:   dhcp/run_dhcp_command (every change), ipam/cli/report_change (a change to this site's plan),
+             ipam/run_ipam_command (a scan's finds recorded)."""
     if "--no-apply" in args:
         print("recorded; apply with: sudo fabricctl --apply")
         return 0

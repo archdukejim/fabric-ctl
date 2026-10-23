@@ -12,7 +12,7 @@ def remove_range(v, actor, vid, first, site="", secrets=None, container="samba",
              whose plan ("" this site's); secrets, container, source, caller — as edit_plan.
     Returns: edit_plan's result; result = the range removed.
     Fails:   ValidationError: no such VLAN, no range of its subnets starting at that address; what edit_plan refuses.
-    Feeds:   run_ipam_command (range remove)."""
+    Feeds:   ipam/cli/run_plan_change (range remove), agent/post_networks."""
     start = str(ipv4(first, "first address"))
 
     def change(plan, read, org):

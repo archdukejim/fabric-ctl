@@ -14,8 +14,8 @@ def read_plan(v, secrets=None, of="", container="samba", server=None):
              "networks", "options"}}, "option_sets": {"domain": …, <site>: …}, "options"}.
     Fails:   ValidationError from run_op (the DC not reachable; "no such site: <of>" for a site with no record), from
              load_secrets, or without the agent's password in fabric's secrets (no domain yet).
-    Feeds:   common/edit_plan (every change), show, find, export and block (run_ipam_command); later areas' apply
-             and upgrade (1.10.4.41)."""
+    Feeds:   common/edit_plan (every change), show, find, export and block (ipam/cli/run_plan_read),
+             load_address_plan, poll_plan, networks_overview, networks_csv, options_overview."""
     secrets = secrets if secrets is not None else load_secrets()
     if not secrets.get("ad_agent_password"):
         raise ValidationError("the domain cannot be asked: fabric's secrets have no ad_agent_password")

@@ -19,7 +19,7 @@ def define_plan_option(v, actor, scope, name, code, kind, array=False, record_ty
     Fails:   ValidationError: a scope other than org or site; a code that is not a number; a name or code of a
              standard DHCPv4 option (Kea refuses redefining one); one already defined there; what
              normalize_option_defs refuses; what edit_options refuses.
-    Feeds:   run_option_command (option define), the agent's routes (1.10.4.41, area 7)."""
+    Feeds:   run_option_command (option define), agent/post_options (1.10.4.24.6)."""
     text = str(code).strip()
     if not text.isdigit():
         raise ValidationError(f"option definition {name}: code is a number from 1 to 254")
