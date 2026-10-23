@@ -1,6 +1,6 @@
 from grant_members import TOP_RIDS, find_group
-from grant_names import (FIELDS, GPO_RIGHTS, KINDS, MACHINE_RIGHTS, NAME_RE, PEOPLE_RIGHTS, RESERVED, SIGNIN_RIGHTS,
-                         SUDO_ALL, gpo_rights)
+from grant_names import (ALL_SITES, FIELDS, GPO_RIGHTS, KINDS, MACHINE_RIGHTS, NAME_RE, NETWORK_RIGHTS, PEOPLE_RIGHTS,
+                         RESERVED, SIGNIN_RIGHTS, SUDO_ALL, gpo_rights)
 from group_names import DC_HOSTS, DIRECTORY_ADMINS
 
 DOMAIN_USERS_RID = 513
@@ -61,6 +61,28 @@ def _everyone(samdb, name):
                                                 and found[1] == f"{samdb.get_domain_sid()}-{DOMAIN_USERS_RID}")
 
 
+def _sites(samdb, sites, networks):
+    """Purpose: a grant's sites checked (1.6.13.12, 2.1.10.36): only with networks rights, and then at least one;
+             `all` alone, or sites of the domain (each has its group `site-<name>`).
+    Inputs:  samdb — SamDB; sites — the grant's sites, as _list gave them; networks — its networks rights.
+    Returns: None.
+    Fails:   ValueError with why; ldb.LdbError from a search.
+    Feeds:   check_grant."""
+    if not networks:
+        if sites:
+            raise ValueError("sites: only for networks rights (manual 1.6.13.12)")
+        return
+    if not sites:
+        raise ValueError("sites: a grant with networks rights names at least one site, or all (manual 1.6.13.12)")
+    if ALL_SITES in sites:
+        if len(sites) > 1:
+            raise ValueError("sites: all (every site) alone, or a list of sites")
+        return
+    for name in sites:
+        if find_group(samdb, f"site-{name}") is None:
+            raise ValueError(f"sites: no site {name} in the domain")
+
+
 def check_grant(samdb, grant):
     """Purpose: a grant as it may be stored (manual 1.6.13.4, 2.1.6.73, 2.1.6.77), or why not: its name (2-40
              characters, a-z 0-9 -, starting with a letter; not a word of the CLI); allowing or restricting; who and
@@ -68,7 +90,8 @@ def check_grant(samdb, grant):
              rights from their categories (people, machines, sign-in, sudo, local administrator), at least one; a
              restricting grant only the rights a set's GPO carries (sign-in, local administrator); sudo either every
              command (ALL, alone) or absolute paths, and every command refused when the who means every person (Domain
-             Users, a whole site).
+             Users, a whole site); networks rights (plan, options, scan) with the sites they hold at (`all`, or sites
+             of the domain), a grant of networks rights alone needing no where (1.6.13.12, 2.1.10.36).
     Inputs:  samdb — SamDB; grant — dict: name and any of FIELDS' keys (missing ones empty).
     Returns: dict, the grant with every field, normalised.
     Fails:   ValueError with why (the message is shown to the person asking).
@@ -85,31 +108,36 @@ def check_grant(samdb, grant):
     out = {"name": name, "kind": kind, "description": description.strip(),
            "who": _list(grant, "who"), "where": _list(grant, "where"),
            "people": _list(grant, "people", PEOPLE_RIGHTS), "machines": _list(grant, "machines", MACHINE_RIGHTS),
-           "signin": _list(grant, "signin", SIGNIN_RIGHTS), "sudo": _list(grant, "sudo")}
+           "signin": _list(grant, "signin", SIGNIN_RIGHTS), "sudo": _list(grant, "sudo"),
+           "networks": _list(grant, "networks", NETWORK_RIGHTS), "sites": _list(grant, "sites")}
     local_admin = grant.get("local_admin", False)
     if not isinstance(local_admin, bool):
         raise ValueError("local_admin: true or false")
     out["local_admin"] = local_admin
+    others = out["people"] or out["machines"] or out["signin"] or out["sudo"] or local_admin
     for field in ("who", "where"):
+        if field == "where" and not out[field] and out["networks"] and not others:
+            continue                          # networks rights alone: they hold at sites, not on groups' members
         if not out[field]:
             raise ValueError(f"{field}: at least one group (manual 1.6.13.4)")
         for g in out[field]:
             why = _group_refused(samdb, g, field)
             if why:
                 raise ValueError(why)
+    _sites(samdb, out["sites"], out["networks"])
     sudo = out["sudo"]
     if SUDO_ALL in sudo and len(sudo) > 1:
         raise ValueError("sudo: ALL (every command) alone, or a list of commands")
     if any(c != SUDO_ALL and not c.startswith("/") for c in sudo):
         raise ValueError("sudo: each command an absolute path (with its arguments), or ALL")
     if kind == "restrict":
-        if out["people"] or out["machines"] or sudo:
+        if out["people"] or out["machines"] or sudo or out["networks"]:
             raise ValueError("a restricting grant narrows sign-in or local administrator only (" + ", ".join(GPO_RIGHTS)
                              + "): the rights a set of machines' GPO carries (manual 1.6.13.4)")
         if not gpo_rights(out):
             raise ValueError("a restricting grant names the right it narrows: sign-in (keyboard, remote) or local "
                              "administrator")
-    elif not (out["people"] or out["machines"] or out["signin"] or sudo or local_admin):
+    elif not (others or out["networks"]):
         raise ValueError("a grant gives at least one right")
     if SUDO_ALL in sudo and all(_everyone(samdb, g) for g in out["who"]):
         raise ValueError("sudo of every command for every person (or a whole site) is refused (manual 1.6.13.4): "

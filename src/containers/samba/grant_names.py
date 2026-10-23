@@ -1,5 +1,6 @@
-"""The grants' names and vocabulary (manual 1.6.13.4, 1.6.13.5; 2.1.6.73, 2.1.6.77, 2.1.6.87): what a grant may hold,
-the computed groups and GPOs fabric writes for them, the grants a fresh install ships and the templates."""
+"""The grants' names and vocabulary (manual 1.6.13.4, 1.6.13.5, 1.6.13.12; 2.1.6.73, 2.1.6.77, 2.1.6.87, 2.1.10.36):
+what a grant may hold, the computed groups and GPOs fabric writes for them, the grants a fresh install ships and the
+templates."""
 import re
 
 NAME_RE = re.compile(r"^[a-z][a-z0-9-]{1,39}$")
@@ -8,12 +9,14 @@ KINDS = ("allow", "restrict")             # an allowing grant, or a restricting 
 PEOPLE_RIGHTS = ("edit", "reset", "unlock", "disable", "add")         # disable: and enable; add: and remove
 MACHINE_RIGHTS = ("add", "move", "disable", "remove", "groups")       # groups: change a machine's groups
 SIGNIN_RIGHTS = ("keyboard", "remote")    # SeInteractiveLogonRight; SeRemoteInteractiveLogonRight (RDP, SSH)
+NETWORK_RIGHTS = ("plan", "options", "scan")   # a site's plan, its DHCP options, its scans (1.6.13.12, 2.1.10.36)
+ALL_SITES = "all"                         # a grant's sites: every site, and the domain's option set
 # the rights a set's GPO carries, and so the ones a restricting grant may narrow (1.6.13.4)
 GPO_RIGHTS = ("keyboard", "remote", "local-admin")
 SUDO_ALL = "ALL"
 # every grant's fields, with what an empty one is
 FIELDS = {"kind": "allow", "description": "", "who": [], "where": [], "people": [], "machines": [], "signin": [],
-          "sudo": [], "local_admin": False}
+          "sudo": [], "local_admin": False, "networks": [], "sites": []}
 FALLBACK_GPO = "fabric: access none"      # default deny (2.1.6.87)
 BUILTIN_ADMINISTRATORS = "S-1-5-32-544"   # each machine's own Administrators
 LOCAL_ADMIN = "local-admin"               # each machine's own break-glass account (2.1.7.15), by name
@@ -38,7 +41,12 @@ SHIPPED = [
     {"name": "desktops", "description": "every person signs in at the desktops (manual 1.6.13.5, 2.1.6.77)",
      "who": ["Domain Users"], "where": ["machines-desktops"], "signin": ["keyboard"]},
 ]
-# the templates (1.6.13.5): rights only; who and where are given when a grant is made from one
+# shipped by 0.9.0 (1.6.13.12), made once at the root's convergence of a fresh install or of an upgraded 0.8.0 domain
+SHIPPED_NETWORKS = [
+    {"name": "network-plan", "description": "the network administrators' address plan (manual 1.6.13.12)",
+     "who": ["network-admins"], "networks": list(NETWORK_RIGHTS), "sites": [ALL_SITES]},
+]
+# the templates (1.6.13.5, 1.6.13.12): rights only; who, where and sites are given when a grant is made from one
 TEMPLATES = {
     "helpdesk": {"description": "a help desk: people's details, passwords and lockouts (manual 1.6.13.5)",
                  "people": ["edit", "reset", "unlock"]},
@@ -46,6 +54,8 @@ TEMPLATES = {
         "description": "every category, on the groups it is given (manual 1.6.13.5, 2.1.6.68)",
         "people": list(PEOPLE_RIGHTS), "machines": list(MACHINE_RIGHTS), "signin": list(SIGNIN_RIGHTS),
         "sudo": [SUDO_ALL], "local_admin": True},
+    "site-networks": {"description": "a site's address plan, DHCP options and scans (manual 1.6.13.12)",
+                      "networks": list(NETWORK_RIGHTS)},
 }
 
 

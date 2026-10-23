@@ -23,14 +23,15 @@ def _account(samdb, name, computer):
 def explain_grants(samdb, person, machine=None):
     """Purpose: which grants reach a person, and on a machine, and why (manual 1.6.13.7): for each grant whether the
              person is in all its who groups (those missing named) and, with a machine, whether the machine is in all
-             its where groups; the person's sign-in, local administrator and sudo there, as the compiled sets give them
+             its where groups (a grant of networks rights alone has no where: it reaches its people at its sites,
+             1.6.13.12); the person's sign-in, local administrator and sudo there, as the compiled sets give them
              (allowing grants, narrowed by restricting ones, 2.1.6.77; a machine no allowing grant reaches admits nobody
              from the domain, 2.1.6.87). Read from the directory as it is, not from the last compile.
     Inputs:  samdb — SamDB; person — a user name; machine — a computer's short name, or None.
     Returns: {"person", "machine", "never" (why no grant reaches the person, or ""), "grants": [{"name", "kind",
              "who_missing": [groups], "where_missing": [groups] (with a machine), "reaches": bool, "rights": {people,
-             machines, signin, sudo, local_admin}}], "on_machine": {"keyboard", "remote", "local-admin": bool, "sudo":
-             [commands]} (with a machine; None without)}.
+             machines, signin, sudo, local_admin, networks, sites}}], "on_machine": {"keyboard", "remote",
+             "local-admin": bool, "sudo": [commands]} (with a machine; None without)}.
     Fails:   ValueError for a person or machine not in the domain; ldb.LdbError.
     Feeds:   grants_tool (op "explain")."""
     pdn = _account(samdb, person, False)
@@ -44,8 +45,11 @@ def explain_grants(samdb, person, machine=None):
         reached[g["name"]] = r = reach(samdb, g, out, cache)
         who_missing = [n for n in g["who"] if pdn not in cache[n]["people"]]
         row = {"name": g["name"], "kind": g["kind"], "who_missing": who_missing,
-               "rights": {k: g[k] for k in ("people", "machines", "signin", "sudo", "local_admin")}}
-        if mdn:
+               "rights": {k: g[k] for k in ("people", "machines", "signin", "sudo", "local_admin", "networks",
+                                          "sites")}}
+        if mdn and not g["where"]:            # networks rights alone: they hold at sites, whatever the machine
+            row["where_missing"], row["reaches"] = [], pdn in r["who"]
+        elif mdn:
             row["where_missing"] = [n for n in g["where"] if mdn not in cache[n]["computers"]]
             row["reaches"] = pdn in r["who"] and mdn in r["where_computers"]
         else:

@@ -13,20 +13,23 @@ from fabriclib.grants.sync_grants import sync_grants
 USAGE = """usage: fabricctl domain grant list               the grants: who, rights, where, whom; templates
        fabricctl domain grant show <name>          one grant: the people and machines it reaches, its groups and sets
        fabricctl domain grant add <name> --who G,... --where G,... [--template T] [--restrict] [rights]
+       fabricctl domain grant add <name> --who G,... --networks plan,options,scan --sites S,...|all
        fabricctl domain grant set <name> [--who G,...] [--where G,...] [rights]
        fabricctl domain grant remove <name>
        fabricctl domain grant explain <person> [<machine>]   which grants reach them, and why
        fabricctl domain grant sync [--scheduled]   compile the grants again (the fabric-grants timer, every 5 minutes)
   rights: --signin keyboard,remote  --sudo ALL|/path/cmd,...  --local-admin yes|no  --people edit,reset,unlock,
-  disable,add  --machines add,move,disable,remove,groups  --description TEXT  (a list's value `none` clears it)
+  disable,add  --machines add,move,disable,remove,groups  --networks plan,options,scan (with --sites S,...|all)
+  --description TEXT  (a list's value `none` clears it)
   sudo always runs as root (a --run-as other than root is refused, 2.1.6.90).
   who and where: groups, a person or machine must be in all of them. A restricting grant (--restrict) names where,
   the right it narrows (--signin, --local-admin) and who alone keeps it there. Refused: the tiers' groups, the hosts
-  that run a DC, sudo of every command for everyone, an empty who or where. Changes are made at the root's writable
-  DC and compiled at once (manual 4.6.10)."""
+  that run a DC, sudo of every command for everyone, an empty who or where. Networks rights hold at their sites, so
+  a grant of them alone needs no --where (manual 1.6.13.12). Changes are made at the root's writable DC and compiled
+  at once (manual 4.6.10)."""
 
 LIST_OPTIONS = {"--who": "who", "--where": "where", "--signin": "signin", "--sudo": "sudo", "--people": "people",
-                "--machines": "machines"}
+                "--machines": "machines", "--networks": "networks", "--sites": "sites"}
 
 
 def _fields(rest):
@@ -77,6 +80,8 @@ def _rights(g):
         parts.append("people: " + ",".join(g["people"]))
     if g["machines"]:
         parts.append("machines: " + ",".join(g["machines"]))
+    if g.get("networks"):
+        parts.append("networks: " + ",".join(g["networks"]) + " at " + ",".join(g.get("sites") or []))
     return "; ".join(parts) or "nothing"
 
 
@@ -88,7 +93,8 @@ def _print_grant(g):
     Feeds:   run_grant_command."""
     c = g["counts"]
     kind = "restricts" if g["kind"] == "restrict" else "gives"
-    print(f"{g['name']}: {' & '.join(g['who'])} {kind} {_rights(g)} on {' & '.join(g['where'])} "
+    on = f" on {' & '.join(g['where'])}" if g["where"] else ""
+    print(f"{g['name']}: {' & '.join(g['who'])} {kind} {_rights(g)}{on} "
           f"({c['people']} people, {c['machines']} machines" + (f", {c['where_people']} people managed"
                                                                  if c["where_people"] else "") + ")"
           + (" — reaches nobody" if g["reaches_nobody"] else ""))
@@ -144,6 +150,8 @@ def run_grant_command(v, args, container="samba"):
                   + (f"; sudo rule {g['sudo_rule']}" if g["sudo_rule"] else ""))
             if g["people"] or g["machines"]:
                 print("  its people and machines rights are checked by fabric-agent on every call (D4, 1.6.12.15)")
+            if g.get("networks"):
+                print("  its networks rights are checked by fabric-agent on every call, at its sites (1.6.13.12)")
             return 0
         if cmd == "remove" and len(rest) == 1:
             done = remove_grant(v, actor, rest[0], container=container)

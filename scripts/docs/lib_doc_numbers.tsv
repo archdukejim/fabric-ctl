@@ -1247,12 +1247,14 @@ function	fabricctl-jinja|src/containers/samba/authorize_action.py|_caller_tier	2
 function	fabricctl-jinja|src/containers/samba/authorize_action.py|_grants_giving	3	
 function	fabricctl-jinja|src/containers/samba/authorize_action.py|_in_group	4	
 function	fabricctl-jinja|src/containers/samba/authorize_action.py|_members_action	5	
+function	fabricctl-jinja|src/containers/samba/authorize_action.py|_networks_action	7	
 function	fabricctl-jinja|src/containers/samba/authorize_action.py|authorize_action	6	
 function	fabricctl-jinja|src/containers/samba/change_own_password.py|_quoted	1	
 function	fabricctl-jinja|src/containers/samba/change_own_password.py|change_own_password	2	
 function	fabricctl-jinja|src/containers/samba/check_grant.py|_everyone	3	
 function	fabricctl-jinja|src/containers/samba/check_grant.py|_group_refused	2	
 function	fabricctl-jinja|src/containers/samba/check_grant.py|_list	1	
+function	fabricctl-jinja|src/containers/samba/check_grant.py|_sites	5	
 function	fabricctl-jinja|src/containers/samba/check_grant.py|check_grant	4	
 function	fabricctl-jinja|src/containers/samba/compile_grants.py|_set_rights	2	
 function	fabricctl-jinja|src/containers/samba/compile_grants.py|_sets	1	

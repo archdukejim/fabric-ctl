@@ -1,6 +1,6 @@
 from fabriclib.common.errors import ValidationError
 
-LISTS = ("who", "where", "people", "machines", "signin", "sudo")
+LISTS = ("who", "where", "people", "machines", "signin", "sudo", "networks", "sites")
 RUN_AS = ("a grant's sudo runs every command as root, always, so each is audited as root's (2.1.6.90): run-as "
           "is not a grant's option")
 
@@ -21,7 +21,8 @@ def read_grant_fields(data):
     """Purpose: a grant's fields from a request body or the CLI's options (manual 1.6.13.7), their types checked; what
              each may hold is the DC's check (check_grant), so the console and the CLI are refused alike.
     Inputs:  data — dict: any of kind ("allow" | "restrict"), description (str), who, where, people, machines, signin,
-             sudo (lists of str), local_admin (bool); run_as (root alone: 2.1.6.90); other keys ignored.
+             sudo, networks, sites (lists of str; networks and sites: 1.6.13.12), local_admin (bool); run_as (root
+             alone: 2.1.6.90); other keys ignored.
     Returns: dict with the fields given.
     Fails:   ValidationError "<field> must be a list of names", "kind: allow or restrict", "description: text",
              "local_admin: true or false", "a grant's fields: an object", RUN_AS (a run-as other than root).

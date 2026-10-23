@@ -25,13 +25,15 @@ ROOT_ONLY = ("grants are changed and compiled at the root site's writable DC (ma
 
 
 def _summary(grant, r, sets=None):
-    """Purpose: a grant as listed: its fields and whom it reaches, as counts, or as names with `sets`.
+    """Purpose: a grant as listed: its fields and whom it reaches, as counts, or as names with `sets` (a grant with
+             networks rights reaches its sites, 1.6.13.12, whatever its where).
     Inputs:  grant — a stored grant; r — reach()'s result for it; sets — the set numbers it is part of, or None (a
              list's row: counts only).
     Returns: dict.
     Fails:   never.
     Feeds:   run."""
-    out = {**grant, "reaches_nobody": not r["who"] or not (r["where_computers"] or r["where_people"]),
+    held = r["where_computers"] or r["where_people"] or (grant.get("networks") and grant.get("sites"))
+    out = {**grant, "reaches_nobody": not r["who"] or not held,
            "counts": {"people": len(r["who"]), "machines": len(r["where_computers"]),
                       "where_people": len(r["where_people"])}}
     if sets is not None:

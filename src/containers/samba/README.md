@@ -90,9 +90,9 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `ensure_top_tier.py` | An account made a member of Enterprise, Schema and Domain Admins, the top tier's denies written at once (2.1.6.68) |
 | `ensure_enterprise_admin.py` | Run as root from fabric-ctl: `fabric-admin`, the Enterprise Admin, made once in OU=people with the generated password (JSON on stdin) and put in AD's top tier (2.1.6.69) |
 | `reset_break_glass.py` | Run as root from fabric-ctl (`fabricctl admin reset-break-glass`): `fabric-admin`'s new generated password set (JSON on stdin) and the account unlocked; a disabled account reported, never enabled (2.1.6.75) |
-| `grant_names.py` | The grants' vocabulary (1.6.13.4, 1.6.13.5): the name rule, the rights by category, the computed groups' and GPOs' names, the shipped grants and the templates |
+| `grant_names.py` | The grants' vocabulary (1.6.13.4, 1.6.13.5, 1.6.13.12): the name rule, the rights by category (networks too, with its sites), the computed groups' and GPOs' names, the shipped grants and the templates |
 | `grant_store.py` | The grant store in `CN=grants,CN=fabric,CN=System`: one `msDS-App-Configuration` per grant, its JSON in `msDS-Settings`; the compiler's record of the sets |
-| `check_grant.py` | A grant as it may be stored, or why not (its name, who and where, the tiers' groups and the DC hosts refused, the rights, sudo of every command for everyone) |
+| `check_grant.py` | A grant as it may be stored, or why not (its name, who and where, the tiers' groups and the DC hosts refused, the rights, sudo of every command for everyone; networks rights with their sites, 1.6.13.12) |
 | `grant_members.py` | A group's people and computers (nesting and primary groups followed); those no grant reaches (the top tier, fabric's accounts, the DC hosts); a grant's reach |
 | `ensure_computed_group.py` | A computed group in OU=fabric,OU=groups with exactly its members (a POSIX one for sudo); the computed groups there |
 | `access_policy.py` | A set's (or the fallback's) security template: sign-in at the keyboard and remotely, local administrators, always with Administrators and `local-admin` |
@@ -102,9 +102,9 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `ensure_grant_sudo.py` | One `sudoRole` per grant with sudo (`grant-<name>`, `%grant-<name>-who`), its hosts its where group's machines |
 | `compile_grants.py` | The grants compiled: computed groups, the sets of machines with one GPO each, the fallback first, the sudo rules (at the root's writable DC) |
 | `explain_grants.py` | Which grants reach a person (and on a machine), and why; what they may do there |
-| `ship_grants.py` | The grants a fresh install ships (1.6.13.5), made once at the root |
+| `ship_grants.py` | The grants a fresh install ships (1.6.13.5), made once at the root; 0.9.0's `network-plan` (1.6.13.12) once too, on an upgraded 0.8.0 domain as well |
 | `grants_tool.py` | The grants' entry point (as root, like gpo_tool): list, show, add, set, remove, compile, explain |
-| `authorize_action.py` | fabric-agent's check (1.6.12.17): the caller's tier, the grants' people and machines rights, a group's two levels; refused with why |
+| `authorize_action.py` | fabric-agent's check (1.6.12.17): the caller's tier, the grants' people, machines and networks rights (at a site, 1.6.13.12), a group's two levels; refused with why |
 | `group_kind.py` | A group's kind: AD's, a tier's, a bundle's, fabric's, filled, computed, a machine group, an admin's own |
 | `group_store.py` | A group's managers and controls in `CN=groups,CN=fabric,CN=System` (one `msDS-App-Configuration` per group, by objectGUID) |
 | `local_admin_store.py` | The local-admin switches in `CN=local-admin,CN=fabric,CN=System` (one `msDS-App-Configuration` per target: `dc-host-<dc>`; off when absent), with the alert's acknowledgement until the switch next changes |

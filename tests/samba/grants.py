@@ -8,7 +8,8 @@ samba-tool once compiled; the fallback (a machine no grant reaches admits nobody
 gPLink); the computed groups refused to every other writer, the Directory Administrators and fabric's agent account
 too, and a person put in a set's group taken out; every refusal of 1.6.13.4 with its message (the tiers' groups, the DC
 hosts, sudo of every command for everyone, empty who or where, ...); `fabricctl domain grant` and the agent's routes,
-positive and negative; explain; a second convergence changing nothing.
+positive and negative; explain; networks rights at sites (1.6.13.12: the shipped network-plan, a grant of them alone,
+fabric-agent's check at a site and its refusals); a second convergence changing nothing.
     sudo python3 tests/samba/grants.py          (FABRIC_TEST_KEEP=1 leaves the containers for a look)
 """
 import contextlib
@@ -127,12 +128,13 @@ MACHINES = f"OU=machines,{BASE}"
 print("--- a fresh install's grants (1.6.13.5) and the fallback (2.1.6.87)")
 code, out = grant("list")
 # covers: cli:domain.grant +
-check("grant list: the four shipped grants and the two templates",
+check("grant list: the five shipped grants (0.9.0's network-plan too, 1.6.13.12) and the three templates",
       code == 0 and all(f"{n}:" in out for n in ("server-administrators", "desktop-administrators",
-                                                 "network-administrators", "desktops"))
-      and "templates: helpdesk, limited-directory-administrator" in out, out)
-check("all four reach nobody yet: no person and no machine in their groups",
-      out.count("reaches nobody") == 4, out)
+                                                 "network-administrators", "desktops", "network-plan"))
+      and "templates: helpdesk, limited-directory-administrator, site-networks" in out
+      and "network-plan: network-admins gives networks: plan,options,scan at all (" in out, out)
+check("all five reach nobody yet: no person in their who, no machine in their where",
+      out.count("reaches nobody") == 5, out)
 gplink = ldb("(distinguishedName=" + MACHINES + ")", "gPLink")
 fallback = ldb("(displayName=fabric: access none)", "cn")
 fb_guid = fallback.split("cn: ", 1)[1].split()[0] if "cn: " in fallback else "?"
@@ -512,6 +514,55 @@ check("the routes' permissions: reading needs domain:read, every change groups:a
       and {required_permission("POST", r) for r in (["domain", "grants"], ["domain", "grants", "x"],
                                                     ["domain", "grants", "sync"],
                                                     ["domain", "grants", "x", "delete"])} == {"groups:admin"})
+
+print("--- networks rights (1.6.13.12, 2.1.10.36)")
+
+
+def authorized(caller, right, site):
+    """fabric-agent's check of a networks right, as the DC answers it: its "by", or why it is refused."""
+    try:
+        return grant_request(V, {"op": "authorize", "caller": caller, "action": f"networks:{right}",
+                                 "target": {"site": site}}, DC)["by"]
+    except ValidationError as e:
+        return f"refused: {e}"
+
+
+code, out = grant("add", "lan-net", "--who", "ops", "--networks", "plan,scan", "--sites", "lan")
+check("grant add --networks plan,scan --sites lan: no where needed, audited with its sites",
+      code == 0 and any(a[0] == "GRANT_ADD" and "networks=plan,scan sites=lan" in a[1] for a in AUDIT[-3:]), out)
+code, out = grant("show", "lan-net")
+check("grant show: its networks rights at its sites, checked by fabric-agent", code == 0
+      and "networks: plan,scan at lan" in out and "at its sites" in out and "reaches nobody" not in out, out)
+check("alice (in ops) holds plan at lan through lan-net", authorized("alice", "plan", "lan") == "grant lan-net")
+check("negative: not at lab, nor options at lan, nor the domain's own (all)",
+      authorized("alice", "plan", "lab").startswith("refused: no grant gives you networks plan at lab")
+      and "networks options at lan" in authorized("alice", "options", "lan")
+      and "every site" in authorized("alice", "plan", "all"))
+check("negative: bob (in no grant) holds nothing; network-plan's network-admins is empty",
+      authorized("bob", "plan", "lan").startswith("refused: no grant gives you"))
+check("adam, a Directory Administrator, holds every networks right everywhere",
+      authorized("adam", "options", "all") == "tier" and authorized(None, "scan", "lab") == "tier")
+code, out = grant("explain", "alice", SRV)
+check("grant explain alice grsrv: lan-net reaches her whatever the machine", code == 0
+      and "lan-net (allow): reaches them" in out, out)
+for args, words in ((["add", "bad-net", "--who", "ops", "--networks", "plan"], "names at least one site"),
+                    (["add", "bad-net", "--who", "ops", "--networks", "plan", "--sites", "nowhere"],
+                     "no site nowhere in the domain"),
+                    (["add", "bad-net", "--who", "ops", "--networks", "plan", "--sites", "all,lan"], "all (every site)"),
+                    (["add", "bad-net", "--who", "ops", "--where", "site-lan", "--people", "reset", "--sites", "lan"],
+                     "only for networks rights"),
+                    (["add", "bad-net", "--who", "ops", "--networks", "local-scan", "--sites", "lan"],
+                     "is not one of plan, options, scan"),
+                    (["add", "bad-net", "--who", "ops", "--signin", "remote", "--networks", "plan", "--sites", "lan"],
+                     "where: at least one group"),
+                    (["set", "lan-net", "--sites", "none"], "names at least one site")):
+    n_audit = len(AUDIT)
+    code, out = grant(*args)
+    check(f"refused: grant {' '.join(args)} ({words}), nothing audited", code == 1 and words in out
+          and len(AUDIT) == n_audit, out)
+code, out = grant("remove", "lan-net")
+check("grant remove lan-net: alice no longer holds plan at lan", code == 0
+      and authorized("alice", "plan", "lan").startswith("refused"), out)
 
 print("--- idempotent")
 again = converge_domain(V, os.path.join(W, "dc", "federation.yaml"), SECRETS, container=DC)
