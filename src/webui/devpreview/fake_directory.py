@@ -1,6 +1,10 @@
 from webui.devpreview.fabric_rules import ValidationError, check_password_policy, list_devices, read_policy_changes
 from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DOMAIN, SAMPLE_GPO
 
+# a person's fields (2.1.6.93), as fabriclib's person_fields names them
+PERSON_KEYS = ("first", "last", "name", "email", "phone", "mobile", "title", "department", "company",
+               "office", "city", "state", "country", "manager", "employee_id")
+
 
 def _in_fabric_group(groups):
     """Purpose: Whether a sample person holds a fabric group, which only an admin may change (as person_guard).
@@ -9,6 +13,38 @@ def _in_fabric_group(groups):
     Fails:   never.
     Feeds:   _people."""
     return any(g != "users" and not g.startswith("site-") for g in groups)
+
+
+def _edit(state, target, body):
+    """Purpose: A person's details changed in memory, with the agent's main refusals (2.1.6.93's fields; the names
+             never cleared; a country of two letters; a manager who is a person, never themselves).
+    Inputs:  state — DevState; target — the sample person's row; body — {field: value}.
+    Returns: {"uid", "name", "email", "changed", "person"} (the agent's shape).
+    Fails:   ValidationError with the agent's reason.
+    Feeds:   _people."""
+    unknown = sorted(set(body) - set(PERSON_KEYS))
+    if unknown:
+        raise ValidationError(f"unknown field: {', '.join(unknown)}")
+    values = {k: str(v).strip() for k, v in body.items()}
+    for k in ("first", "last", "name"):
+        if k in values and not values[k]:
+            raise ValidationError(f"{k} is never cleared")
+    if values.get("country") and not (len(values["country"]) == 2 and values["country"].isalpha()):
+        raise ValidationError("country: a two-letter code (US, GB, DE)")
+    values["country"] = values.get("country", "").upper() if "country" in values else None
+    if values["country"] is None:
+        del values["country"]
+    users = state.data["people"]["users"]
+    if values.get("manager") and (values["manager"] == target["uid"]
+                                  or not any(u["uid"] == values["manager"] for u in users)):
+        raise ValidationError(f"manager: {values['manager']} is not another person of the domain")
+    person = target.setdefault("person", {})
+    before = dict(person)
+    person.update(values)
+    target.update(name=person.get("name") or target["name"], mail=person.get("email", target["mail"]))
+    state.log("PERSON_EDIT", f"user={target['uid']} fields={','.join(sorted(values))} (dev preview)")
+    return {"uid": target["uid"], "name": target["name"], "email": target["mail"], "changed": person != before,
+            "person": dict(person)}
 
 
 def _people(state, who, route, body):
@@ -24,9 +60,11 @@ def _people(state, who, route, body):
         uid = str(body.get("uid", "")).strip()
         if not uid or any(u["uid"] == uid for u in users):
             raise ValidationError(f"{uid or 'a user name'} is missing or already exists")
-        users.append({"uid": uid, "name": f"{body.get('first', '')} {body.get('last', '')}".strip(),
-                      "mail": body.get("email", ""), "locked": False, "groups": ["site-lan", "users"],
-                      "sites": ["lan"], "site": "lan"})
+        name = f"{body.get('first', '')} {body.get('last', '')}".strip()
+        users.append({"uid": uid, "name": name, "mail": body.get("email", ""), "locked": False, "state": "active",
+                      "last_logon": "", "groups": ["site-lan", "users"], "sites": ["lan"], "site": "lan",
+                      "person": {"first": body.get("first", ""), "last": body.get("last", ""), "name": name,
+                                 "email": body.get("email", "")}})
         state.log("PERSON_CREATE", f"user={uid} (dev preview)")
         return {"password": "dev-preview-not-real"}
     uid, op = route[1], route[2]
@@ -52,8 +90,17 @@ def _people(state, who, route, body):
         before = set(target["groups"])
         target["groups"] = sorted(before | {group} if add else before - {group})
         return {"member": add, "group": group, "changed": set(target["groups"]) != before}
+    if op == "unlock":
+        changed = target.get("state") == "locked"
+        if changed:
+            target.update(locked=False, state="active")
+        state.log("PERSON_UNLOCK", f"user={uid} (dev preview)")
+        return {"uid": uid, "changed": changed}
+    if op == "edit":
+        return _edit(state, target, body)
     if op in ("disable", "enable"):
         target["locked"] = op == "disable"
+        target["state"] = "disabled" if op == "disable" else "active"
         state.log("PERSON_DISABLE" if op == "disable" else "PERSON_ENABLE", f"user={uid} (dev preview)")
         return {}
     return None

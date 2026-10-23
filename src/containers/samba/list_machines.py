@@ -1,28 +1,11 @@
-import datetime
-
 import ldb
 
+from ad_time import ad_time
 from find_machine import MACHINE_FOLDERS
 import paths
 
 ACCOUNTDISABLE = 0x2
 TYPES = {f"machines-{ou}": kind for kind, ou in paths.MACHINE_TYPES.items()}      # a type group -> its type
-
-
-def _when(filetime):
-    """Purpose: an AD timestamp (100 ns since 1601) as ISO text.
-    Inputs:  filetime — str or int; "0" or absent for never.
-    Returns: str, "" for never.
-    Fails:   never (a value that is not a number counts as never).
-    Feeds:   list_machines."""
-    try:
-        value = int(filetime)
-    except (TypeError, ValueError):
-        return ""
-    if value <= 0:
-        return ""
-    seconds = value / 10_000_000 - 11644473600
-    return datetime.datetime.fromtimestamp(seconds, datetime.timezone.utc).isoformat(timespec="seconds")
 
 
 def list_machines(samdb, lp, site):
@@ -53,7 +36,7 @@ def list_machines(samdb, lp, site):
                     "os": one("operatingSystem"), "type": next((TYPES[g] for g in groups if g in TYPES), ""),
                     "sites": sorted(g[len("site-"):] for g in groups if g.startswith("site-")),
                     "enabled": not int(one("userAccountControl") or 0) & ACCOUNTDISABLE,
-                    "last_logon": _when(one("lastLogonTimestamp")),
+                    "last_logon": ad_time(one("lastLogonTimestamp")),
                     "created": f"{created[0:4]}-{created[4:6]}-{created[6:8]}" if len(created) >= 8 else "",
                     "dn": str(m.dn)})
     return sorted(out, key=lambda x: x["name"])

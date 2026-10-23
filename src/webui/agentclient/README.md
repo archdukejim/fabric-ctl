@@ -43,6 +43,8 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `link_device_cert.py` | Record or forget a certificate fingerprint on a device. Agent route: POST /v1/devices/<name>/certs (pki:link-device). |
 | `list_issued.py` | Certificates issued by hand, for the Step-CA 'issued' view. Agent route: GET /v1/pki/issued (pki:read). |
 | `list_people.py` | People and their groups (read-only; managed in Keycloak). Agent route: GET /v1/people (people:read). |
+| `person_overview.py` | One person's page: details, state, last sign-in, groups, sites, certificates, devices. Agent route: GET /v1/people/<uid> (people:read). |
+| `directory_overview.py` | The Directory's Overview: the domain, its level and DCs, roles, replication, sites, counts. Agent route: GET /v1/directory (domain:read). |
 | `list_tsig_keys.py` | The TSIG keys and their update rights (never their secrets). Agent route: GET /v1/tsig (dns:read). |
 | `list_zones.py` | The DNS zones for the BIND page's zone list. Agent route: GET /v1/zones (dns:read). |
 | `map_radius_group.py` | Let members of a directory group join the network by password; saved and applied at once. Agent route: POST /v1/radius/people (radius:admin), timeout 960 s. |

@@ -2,7 +2,7 @@ import re
 import urllib.parse
 
 from webui import agentclient as actions
-from webui.views.constants import POLICY_FIELDS
+from webui.views.constants import PERSON_FIELDS, POLICY_FIELDS
 from webui.routes.held import held, q
 
 
@@ -30,14 +30,32 @@ def _role_fields(form):
             "permissions": [k[5:] for k, val in form.items() if k.startswith("perm_") and val]}
 
 
+def _changed_fields(uid, form):
+    """Purpose: An Edit form's fields that differ from the person as the DC has them now (1.6.12.4: only what was
+             changed is sent; an emptied field clears it).
+    Inputs:  uid — the user name; form — dict: PERSON_FIELDS' keys.
+    Returns: {field: new value} (empty: nothing changed).
+    Fails:   ValidationError from the read (the person or the DC not there); AgentError, PermissionDenied,
+             AuthError propagate.
+    Feeds:   _person_route (edit)."""
+    now = actions.person_overview(uid).get("person") or {}
+    return {k: form.get(k, "").strip() for k, _ in PERSON_FIELDS
+            if k in form and form.get(k, "").strip() != str(now.get(k) or "")}
+
+
 def _person_route(uid, op, form):
     """Purpose: A person's change as its agent route and body: disable, enable, remove (the user name typed back),
-             groups (add or remove), reset.
-    Inputs:  uid — the user name; op — "disable", "enable", "delete", "groups" or "reset"; form — dict (confirm;
-             action, group).
+             groups (add or remove), reset, unlock, edit (the changed fields).
+    Inputs:  uid — the user name; op — "disable", "enable", "delete", "groups", "reset", "unlock" or "edit"; form —
+             dict (confirm; action, group; PERSON_FIELDS' keys).
     Returns: (route, body).
-    Fails:   never.
+    Fails:   ValidationError from the read an edit makes, or "nothing changed" (an edit that changes nothing).
     Feeds:   directory_post."""
+    if op == "edit":
+        body = _changed_fields(uid, form)
+        if not body:
+            raise actions.ValidationError("nothing changed: no field differs from what the domain has")
+        return f"people/{q(uid)}/edit", body
     body = {"delete": {"confirm": form.get("confirm", "")},
             "groups": {"action": form.get("action", ""), "group": form.get("group", "")}}.get(op, {})
     return f"people/{q(uid)}/{op}", body
@@ -72,9 +90,8 @@ def _host_access(h, kind, name, op, form):
 def directory_post(h, sess, parts, form):
     """Purpose: Devices, device roles, people, machines and Group Policy: each form maps to one fabric-agent call.
     Inputs:  h — the request handler (send, back, deny); sess — dict from find_session; parts — path segments after
-             /directory/: ['people', '_new'] (form uid, first, last, email), ['people', <uid>, 'reset'],
-             ['people', <uid> or '_form' (form uid), 'disable'|'enable'|'delete'|'groups'] (_person_change's
-             form),
+             /directory/: ['people', '_new'] (form uid, first, last, email), ['people', <uid>,
+             'reset'|'unlock'|'disable'|'enable'|'delete'|'groups'|'edit'] (_person_route's form),
              ['devices'|'roles', '_new'] (form name + fields), ['devices'|'roles', <name>] (save), [..., <name>,
              'delete'], ['devices', <name>, 'certs', 'unlink'] (unlink the certificate in form sha256), ['machines',
              '_new'] (form name), ['machines', <name>, 'enable'|'disable'|'delete'], ['gpo', 'set'|'clear'] (form
@@ -82,10 +99,10 @@ def directory_post(h, sess, parts, form):
              ['domain', 'password-policy'] (form: POLICY_FIELDS' keys, complexity on|off); form — dict.
     Returns: people, machines (hostgroups and sudo among them), gpo and the password policy: each change held
              on its page until the page's Apply (manual 1.8.6.5; a new person's, a reset's and a new machine's
-             one-time password is shown once on the page's Review after it): 303 to the page (/directory/<section>)
-             saying so, or why not; devices and roles: 303 to 802.1X's page
-             (/8021x/devices, /8021x/roles) — the new item's page after create, the list after delete, the item's
-             page otherwise.
+             one-time password is shown once on the page's Review after it): 303 to the page (/directory/<section>;
+             a person's change to their page, a removal to People) saying so, or why not; devices and roles: 303
+             to 802.1X's page (/8021x/devices, /8021x/roles) — the new item's page after create, the list after
+             delete, the item's page otherwise.
     Fails:   404 for an unknown kind or operation or a missing name; ValidationError → 303 with the refusal (people
              list; the list after a failed create; else the item's page); AgentError, PermissionDenied and AuthError
              propagate.
@@ -97,9 +114,14 @@ def directory_post(h, sess, parts, form):
         if name == "_new" and not op:
             return held(h, "/directory/people", "people", {k: form.get(k, "") for k in ("uid", "first", "last",
                                                                                           "email")})
-        if name and op in ("reset", "disable", "enable", "delete", "groups"):
-            uid = form.get("uid", "") if name == "_form" else name     # the forms that pick the person
-            return held(h, "/directory/people", *_person_route(uid, op, form))
+        if name not in ("", "_new", "_form") and len(parts) == 3 and op in (
+                "reset", "unlock", "disable", "enable", "delete", "groups", "edit"):
+            back = "/directory/people" if op == "delete" else f"/directory/people/{q(name)}"
+            try:
+                route, body = _person_route(name, op, form)
+            except actions.ValidationError as exc:
+                return h.back(back, err=str(exc))
+            return held(h, back, route, body)
         return h.deny(404, "Not found.")
     if kind == "machines":
         if name == "_new" and not op:

@@ -14,7 +14,8 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `nav_menu.py` | The navigation down the left for one person: the entries they may see, each linked to its first page they may see, the page shown's entry open. |
 | `continue_page.py` | The 'Signed in' page that moves on to the target with a meta refresh and a link. |
 | `css.py` | The whole stylesheet (static/webui-app/app.css), served as /static/app.css (light and dark colour schemes). |
-| `directory.py` | The Directory tab: devices, one device, roles, one role, or people and groups. |
+| `directory.py` | The Directory's pages and 802.1X's devices and roles: the Overview, the domain, machines, Group Policy. |
+| `people.py` | Directory · People: the list (search, 50 a page), a person's page and its forms, Add person. |
 | `error_page.py` | The error page: status, message and a 'Sign in again' link. |
 | `freeradius.py` | The FreeRADIUS tab: overview (server, people groups, RADIUS clients, recent decisions) or a setup guide for switches or Windows. |
 | `dns_filter.py` | The DNS filter tab: statistics, lists and AdGuard's catalogue, rules, the query log, upstreams |

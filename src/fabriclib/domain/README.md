@@ -11,6 +11,9 @@ fabric-agent's check (`fabriclib/access`), then one operation inside the DC, the
 | `edit_person.py` | A person's details changed (`people:edit`, AD's standard attributes, 2.1.6.93), audited `PERSON_EDIT` |
 | `person_fields.py` | A person's fields (name -> AD attribute) and their checks |
 | `show_person.py` | One person as the DC has them: their groups and details |
+| `person_overview.py` | One person as their page shows them: details, state, last sign-in, groups, sites, certificates, devices |
+| `directory_overview.py` | The Directory's Overview: the domain, its level and DCs, replication, sites, counts |
+| `domain_facts.py` | The domain's functional level and its DCs |
 | `my_account.py` | My account, read-only: the signed-in person's details, groups, certificates and devices |
 | `unlock_person.py` | A person's lockout cleared (`people:reset`), audited `PERSON_UNLOCK` |
 | `group_name_refused.py` | Why a new group's name is refused: its form, fabric's names, AD's |

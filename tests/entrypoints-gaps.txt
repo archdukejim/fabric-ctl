@@ -467,10 +467,6 @@ web:post.directory.machines._new +
 web:post.directory.machines._new -
 web:post.directory.people.*.* -
 web:post.directory.people.*.reset -
-web:post.directory.people._form.delete +
-web:post.directory.people._form.delete -
-web:post.directory.people._form.groups +
-web:post.directory.people._form.groups -
 web:post.directory.people._new -
 web:post.directory.roles.* +
 web:post.directory.roles.* -

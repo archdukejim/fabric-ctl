@@ -12,7 +12,8 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `changes.html` | A page's Review: pending changes, Apply and Discard, the queue, one-time results |
 | `account.html` | My account: details, the password form, sign-in factors, certificates and devices; Groups I manage |
 | `continue.html` | The continue page |
-| `directory.html` | The directory page |
+| `directory.html` | The Directory's Overview, Domain, Machines and Group Policy; 802.1X's devices and roles |
+| `people.html` | Directory · People: the list, a person's page, Add person |
 | `directory_macros.html` | Macros for the device and role forms |
 | `error.html` | The error page |
 | `freeradius.html` | The freeradius page |

@@ -1,6 +1,31 @@
 {% extends "base.html" %}{% import "pattern.html" as p %}{% from "directory_macros.html" import device_fields, role_fields with context %}{% block body %}
-<h1>{{ {"devices": "802.1X · Devices", "device": "802.1X · Device", "roles": "802.1X · Device roles", "role": "802.1X · Device role", "people": "Directory · People", "domain": "Directory · Domain", "machines": "Directory · Machines", "gpo": "Directory · Group Policy"}.get(view, "Directory") }}</h1>
+<h1>{{ {"devices": "802.1X · Devices", "device": "802.1X · Device", "roles": "802.1X · Device roles", "role": "802.1X · Device role", "overview": "Directory · Overview", "domain": "Directory · Domain", "machines": "Directory · Machines", "gpo": "Directory · Group Policy"}.get(view, "Directory") }}</h1>
 {% if unavailable %}<section class="card"><p class="flash bad">The directory could not be read: {{ unavailable }}</p></section>
+
+{% elif view == 'overview' %}
+{% set o = overview %}{% set s = o.status or {} %}
+<section class="card"><h2>Domain <span class="muted">{{ s.domain }}</span></h2>
+<dl class="facts"><dt>NetBIOS name</dt><dd>{{ s.netbios or '—' }}</dd>
+<dt>Functional level</dt><dd>{{ ('Windows Server ' ~ o.level) if o.level else '—' }}</dd>
+<dt>This site's controller</dt><dd>{{ p.status('ok' if s.running else 'bad', 'running' if s.running else 'not running') }} {{ s.dc }}</dd></dl>
+{% if s.role_summary and s.role_summary.text %}<p>{{ s.role_summary.text }}</p>{% elif s.running %}<p class="muted small">The domain-wide roles could not be read.</p>{% endif %}
+</section>
+{% if o.error %}<p class="flash bad" role="alert">The directory could not be read: {{ o.error }}</p>{% endif %}
+<section class="card"><h2>Domain controllers <span class="muted">{{ o.dcs | length }}</span></h2>
+{% if o.dcs %}{% call p.list(["", "Controller", "DNS name", "Kind"]) %}{% for dc in o.dcs %}<tr><td>{{ p.light('ok', 'writable' if dc.writable else 'read-only') }}</td>
+<td data-label="Controller">{{ dc.name }}</td><td data-label="DNS name">{{ dc.dns or '—' }}</td><td data-label="Kind">{{ 'writable' if dc.writable else 'read-only' }}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("No domain controller could be read.") }}{% endif %}</section>
+<section class="card"><h2>Replication</h2>
+{% set r = o.replication or {} %}
+{% if r.error %}<p class="flash bad">The domain controller could not be asked: {{ r.error }}</p>
+{% elif r.neighbours %}{% set failing = r.neighbours | selectattr('failures') | list %}{% set n = r.neighbours | length %}<p>{{ p.status('bad' if failing else 'ok', (failing | length ~ ' of ' ~ n ~ (' link' if n == 1 else ' links') ~ ' failing') if failing else (n ~ (' link' if n == 1 else ' links') ~ ' replicating')) }}</p>
+{% if can('federation:read') %}<p><a href="/federation">Each link, on Federation</a></p>{% endif %}
+{% else %}{{ p.empty("This controller replicates with no other: it is the only one.") }}{% endif %}</section>
+<section class="card"><h2>Sites <span class="muted">{{ o.sites | length }}</span></h2>
+{% if o.sites %}<p>{{ o.sites | join(', ') }}</p>{% else %}{{ p.empty("No site could be read.") }}{% endif %}</section>
+<section class="card"><h2>In the directory</h2>
+{% set links = {'people': ('/directory/people', 'people:read', 'People'), 'groups': ('', '', 'Groups'), 'computers': ('/directory/machines', 'domain:read', 'Computers'), 'ous': ('', '', 'OUs')} %}
+<dl class="facts">{% for key in ['people', 'groups', 'computers', 'ous'] %}{% set href, need, label = links[key] %}<dt>{% if href and can(need) %}<a href="{{ href }}">{{ label }}</a>{% else %}{{ label }}{% endif %}</dt><dd>{{ o.counts[key] if o.counts and key in o.counts else '—' }}</dd>{% endfor %}</dl></section>
 
 {% elif view == 'devices' %}
 <section class="card"><h2>Devices <span class="muted">{{ data.devices | length }}</span></h2>
@@ -84,51 +109,6 @@
 {% if can('roles:admin') %}<form method="post" action="/directory/roles/{{ r.name | urlencode }}/delete" class="card apply">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Delete role</button>
 <span class="muted">Only possible once no device is in it.</span></form>{% endif %}
-
-{% elif view == 'people' %}
-<section class="card"><h2>People <span class="muted">{{ people.users | length }}</span></h2>
-<p class="muted">People live in the domain (Keycloak signs them in from it). New people go in <code>OU=people</code> and their site's group <code>site-&lt;site&gt;</code>; fabric roles come from the fabric groups (directory-admins, auditors, operators, helpdesk), which an administrator manages in <a href="{{ people.keycloak_url }}">the Keycloak admin console</a>.</p>
-{% if people.users %}
-<table><thead><tr><th></th><th>User</th><th>Name</th><th>E-mail</th><th>Groups</th><th></th></tr></thead><tbody>
-{% for u in people.users %}<tr><td>{{ p.light('bad' if u.locked else 'ok', 'locked' if u.locked else 'active') }}</td>
-<td data-label="User">{{ u.uid }}</td><td data-label="Name">{{ u.name }}</td><td data-label="E-mail">{{ u.mail or '—' }}</td><td data-label="Groups">{{ u.groups | join(', ') or '—' }}</td>
-<td class="num">{% if can('people:reset') %}<form method="post" action="/directory/people/{{ u.uid | urlencode }}/reset"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost" title="new one-time password, TOTP enrolled again, sessions ended">Reset sign-in</button></form>{% endif %}
-{% if can('people:disable') %}{% set act = 'enable' if u.locked else 'disable' %}<form method="post" action="/directory/people/{{ u.uid | urlencode }}/{{ act }}"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost" title="{{ 'allow sign-in again' if u.locked else 'at Apply: block every sign-in; their sessions end' }}">{{ act | capitalize }}</button></form>{% endif %}</td></tr>{% endfor %}
-</tbody></table>{% else %}<p class="blank">No users.</p>{% endif %}
-</section>
-{% if people.users and can('people:groups') %}<section class="card"><h2>Group membership</h2>
-<form method="post" action="/directory/people/_form/groups" class="grid">
-<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<label>Person<select name="uid" required>{% for u in people.users %}<option>{{ u.uid }}</option>{% endfor %}</select></label>
-<label>Group<select name="group" required>{% for g in people.groups %}<option>{{ g.name }}</option>{% endfor %}</select></label>
-<div><button name="action" value="add">Add to group</button> <button name="action" value="remove" class="ghost">Remove from group</button></div>
-</form>
-<p class="muted small">The domain's groups (<code>OU=groups</code>), but the tiers' and the grants' own. Fabric's groups (directory-admins, auditors, operators, helpdesk) carry permissions: only an admin changes them, and the last admin who can sign in is never taken out. Keycloak reads the change at the person's next sign-in.</p>
-</section>{% endif %}
-{% if people.users and can('people:remove') %}<section class="card"><h2>Remove a person</h2>
-<form method="post" action="/directory/people/_form/delete" class="grid">
-<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<label>Person<select name="uid" required>{% for u in people.users %}<option>{{ u.uid }}</option>{% endfor %}</select></label>
-<label>Type their user name to confirm<input name="confirm" required autocomplete="off"></label>
-<div><button class="danger">Remove</button></div>
-</form>
-<p class="muted small">Their sessions end, their account and group memberships go, and the certificates fabric issued to them are revoked, when the page is applied. Only people in <code>OU=people</code>; never yourself or the last admin.</p>
-</section>{% endif %}
-{% if can('people:create') %}<section class="card"><h2>Add a person</h2>
-<form method="post" action="/directory/people/_new" class="grid">
-<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<label>User name<input name="uid" required pattern="[a-z][a-z0-9._-]{1,31}" placeholder="jsmith"></label>
-<label>E-mail<input name="email" type="email" required></label>
-<label>First name<input name="first" required maxlength="60"></label>
-<label>Last name<input name="last" required maxlength="60"></label>
-<div><button>Add</button></div>
-</form>
-<p class="muted small">They get a one-time password (shown once) and must choose their own and set up two-factor at the first sign-in. To use this web UI they also need a client certificate: <code>sudo fabricctl client-cert &lt;user&gt;</code>.</p>
-</section>{% endif %}
-<section class="card"><h2>Groups</h2>
-<table><thead><tr><th>Group</th><th>Members</th></tr></thead><tbody>
-{% for g in people.groups %}<tr><td data-label="Group">{{ g.name }}</td><td data-label="Members">{{ g.members }}</td></tr>{% endfor %}
-</tbody></table></section>
 
 {% elif view == 'domain' %}
 {% set s = domain.status %}

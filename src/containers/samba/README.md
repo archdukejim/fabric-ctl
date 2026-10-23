@@ -77,6 +77,8 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `remove_ipv6_records.py` | The AD zones on IPv4 only (2.1.6.29): every AAAA record removed (the DC listens on IPv4) |
 | `ensure_dc_record.py` | The DC's record in `CN=dcs,CN=fabric,CN=System` (2.1.6.79): its site, its id range and a mark per fixed range; a read-only DC's is written by the writable DC |
 | `dc_info.py` | Operation `dc_info`: a DC's record: its site, id range and its ranges' marks |
+| `domain_facts.py` | Operation `domain_facts`: the domain's functional level and its DCs, writable or read-only |
+| `ad_time.py` | An AD timestamp as ISO text (a last sign-in) |
 | `group_names.py` | The names of the domain's groups (1.6.13.3): the fixed ones, `site-<name>`, `machines-<type>`, `rodc-cache-<dc>` |
 | `ensure_directory_acl.py` | directory-admins' rights (2.1.6.81): full control and GPO links on OU=people, OU=service-accounts, OU=machines and OU=groups, denied on fabric's accounts, the tiers' groups and OU=fabric; the agents' and Keycloak's rights |
 | `protect_top_tier.py` | The top tier kept out of directory-admins' reach: the protected accounts and groups (AdminSDHolder) never inherit from the folders (2.1.6.81) |

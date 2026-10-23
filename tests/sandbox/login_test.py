@@ -382,15 +382,19 @@ if not csrf or "/directory/people/_new" not in page:     # what the People page 
     print(f"    people page ({st}): {page.split('<main>')[-1][:600]!r}")
 st, loc, page = b.request("POST", f"https://{MGR}/directory/people/_new",
                           {"csrf": csrf, "uid": NEW, "first": "Dave", "last": "Doe", "email": f"{NEW}@lan.test"})
+st, loc, page = b.request("POST", f"https://{MGR}/changes/people/apply", {"csrf": csrf})   # Apply per page
 # covers: web:post.directory.people._new agent:post.people +
-check(f"people: the admin adds {NEW} -> one-time password shown once", st == 200 and "shown only now" in page,
+check(f"people: the admin adds {NEW}, applies -> one-time password shown once, on the Review",
+      st == 200 and "Shown only now" in page,
       (st, urllib.parse.unquote_plus(loc or ""), page.split("<main>")[-1][:300]))     # the page's own message
 st, _, page = b.request("GET", f"https://{MGR}/directory/people")
 # covers: web:get.directory.people agent:get.people +
 check(f"people: {NEW} is in the directory (written by Keycloak)", f"{NEW}@lan.test" in page, page[:200])
 st, loc, page = b.request("POST", f"https://{MGR}/directory/people/{NEW}/reset", {"csrf": csrf})
+st, loc, page = b.request("POST", f"https://{MGR}/changes/people/apply", {"csrf": csrf})
 # covers: web:post.directory.people.*.reset agent:post.people.*.reset +
-check(f"people: the admin resets {NEW}'s sign-in", st == 200 and "sign-in reset" in page,
-      (st, urllib.parse.unquote_plus(loc or ""), page[:300]))
+check(f"people: the admin resets {NEW}'s sign-in, applies -> its one-time password shown once",
+      st == 200 and f"Reset the sign-in of {NEW}" in page and "Shown only now" in page,
+      (st, urllib.parse.unquote_plus(loc or ""), page.split("<main>")[-1][:300]))
 
 sys.exit(1 if FAILED else 0)

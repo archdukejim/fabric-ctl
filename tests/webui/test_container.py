@@ -761,6 +761,17 @@ check("invalid request -> form again with the reason (400)", st == 400 and "not 
 # ---- the Directory tab without the domain controller: the page says so, nothing breaks
 st, hd, sc, body = req("GET", "/directory/people", ALICE, cookie=session)
 check("Directory tab reports an unreachable directory instead of failing", st == 200 and "could not be read" in body, (st, body[:300]))
+st, hd, sc, body = req("GET", "/directory/people/jim", ALICE, cookie=session)
+check("a person's page without a DC: fabric-agent's refusal said on it, no action offered (fail closed)",
+      st == 200 and "could not be read" in body and "/directory/people/jim/" not in body, (st, body[-1500:]))
+st, hd, sc, body = req("GET", "/directory", ALICE, cookie=session)
+check("the Directory's Overview without a DC: the page, the directory's refusal said on it",
+      st == 200 and "Directory · Overview" in body and "could not be read" in body, (st, body[-1500:]))
+st, hd, *_ = req("POST", "/directory/people/jim/edit", POSTH, {"csrf": csrf, "title": "Boss"}, cookie=session)
+check("an Edit without a DC to read the person first: refused, said, back on the person's page, nothing held",
+      hd.get("Location", "").startswith("/directory/people/jim") and "no domain controller set up"
+      in urllib.parse.unquote_plus(hd.get("Location", "")) and "change pending" not in
+      req("GET", "/directory/people/jim", ALICE, cookie=session)[3], hd.get("Location"))
 st, hd, sc, body = req("GET", "/pki?view=issue", ALICE, cookie=session)
 check("Step-CA still works without the directory (no device list)", st == 200 and 'select name="device"' not in body, st)
 
@@ -883,7 +894,7 @@ st, _, _, body = req("GET", "/secrets/unlock", ALICE, cookie=aud)
 check("auditor: unlock methods listed, no rotate / add / remove", st == 200 and 'action="/openbao/rotate"' not in body
       and "/openbao/slots/add-usb" not in body, body[:300])
 st, hd, _, body = req("GET", "/", ALICE, cookie=aud)
-check("auditor: every tab shown (all read permissions)", all(f'href="{t}"' in body for t in ("/dns/zones", "/pki", "/directory/people", "/secrets")))
+check("auditor: every tab shown (all read permissions)", all(f'href="{t}"' in body for t in ("/dns/zones", "/pki", "/directory", "/secrets")))
 st, _, _, body = req("POST", "/bind9/zone/dynamic_zone_var/add", POSTH,
                      {"csrf": cookie_csrf(aud), "type": "A", "name": "sneaky", "ip": "192.168.7.9"}, cookie=aud)
 # covers: web:post.bind9.zone.*.add agent:post.zones.*.records -
@@ -1160,6 +1171,17 @@ out = agent_call("POST", "/v1/account/groups/lab/members", "carol", (), {"action
 # covers: agent:post.account.groups.*.members -
 check("refused: a member change from My account done at once (it waits for Apply; without a DC here: 400)",
       " 400 " in out, out)
+for path, roles, ids in (("/v1/people/jim", AUDITOR_ROLES, "agent:get.people.*"),
+                         ("/v1/directory", AUDITOR_ROLES, "agent:get.directory")):
+    out = agent_call("GET", path, "carol", roles)
+    check(f"{ids}: an auditor's token reads it ({'people:read' if 'people' in path else 'domain:read'}); without a "
+          "DC here the person is refused (400) and the Overview answers without the DC's facts",
+          (" 400 " in out and "no domain controller set up" in out) if "people" in path
+          else (" 200 " in out and '"level": "", "dcs": []' in out), out)     # (CALL prints 300 characters)
+    out = agent_call("GET", path, "carol", ())
+    # covers: agent:get.people.* agent:get.directory -
+    check(f"refused: {path} with a token that has no fabric role (403, the permission named)",
+          " 403 " in out and ("people:read" in out or "domain:read" in out), out)
 out = agent_call("GET", "/v1/pending/nowhere", "alice", ADMIN_ROLES)
 check("refused: a page that holds nothing (404)", " 404 " in out, out)
 out = agent_call("POST", "/v1/pending/hold", "alice", ADMIN_ROLES, {"route": "vault/rotate", "body": {}})

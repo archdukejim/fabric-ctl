@@ -5,8 +5,9 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | File | What |
 |---|---|
 | `bind9_page.py` | Render the BIND9 tab: forward zone records, generated reverse zones or TSIG keys. |
-| `directory_page.py` | Render the Directory tab: devices, one device, roles, one role, or people. |
-| `directory_post.py` | Devices, device roles and people: each form maps to one fabric-agent call. |
+| `directory_page.py` | Render the Directory's pages and 802.1X's devices and roles: the Overview, the domain, machines, Group Policy. |
+| `people_page.py` | Directory · People: the list, Add person, a person's page. |
+| `directory_post.py` | Devices, device roles, people, machines, Group Policy: each form maps to one fabric-agent call. |
 | `changes_post.py` | A page's pending changes (manual 1.8.6.5): Apply (one job), Discard, Drop one. |
 | `account_page.py` | My account's pages (manual 1.8.6.6): /account and /account/groups. |
 | `account_post.py` | My account's forms: the own password (at once), a managed group's members (held). |

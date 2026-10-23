@@ -1,5 +1,6 @@
 from webui.devpreview.sample_data import (SAMPLE_ACCESS, SAMPLE_ACME, SAMPLE_CA, SAMPLE_DEVICES, SAMPLE_DHCP,
-                                          SAMPLE_DNS_FILTER, SAMPLE_DOMAIN, SAMPLE_FEDERATION, SAMPLE_GPO,
+                                          SAMPLE_DIRECTORY, SAMPLE_DNS_FILTER, SAMPLE_DOMAIN, SAMPLE_FEDERATION,
+                                          SAMPLE_GPO,
                                           SAMPLE_IMAGES, SAMPLE_RADIUS, SAMPLE_SECURITY, SAMPLE_VAULT)
 from webui.devpreview.sample_radius_guides import sample_radius_guides
 from webui.devpreview.sample_settings import SAMPLE_SETTINGS, SAMPLE_SETTINGS_FILE
@@ -18,6 +19,26 @@ def _dns_filter(state):
     return {**SAMPLE_DNS_FILTER, "catalogue_fetched": None, "categories": ["Added by URL"],
             "lists": [{**r, "last_fetch": None, "last_success": None, "rules": None, "memory_mb": None}
                       for r in SAMPLE_DNS_FILTER["lists"] if r["category"] == "Added by URL"]}
+
+
+def _person(state, uid):
+    """Purpose: One sample person as GET /v1/people/<uid> answers (manual 1.6.12.4): details, state, last sign-in,
+             groups, sites, the certificates issued to them and the devices they own.
+    Inputs:  state — DevState; uid — the user name.
+    Returns: dict, the agent's shape.
+    Fails:   ValidationError "no person <uid> in OU=people" (as the agent).
+    Feeds:   fake_reads."""
+    row = next((u for u in state.data["people"]["users"] if u["uid"] == uid), None)
+    if row is None:
+        raise ValidationError(f"no person {uid} in OU=people")
+    devices = [{k: d.get(k) for k in ("name", "type", "enabled", "macs", "roles", "vlan")}      # owners as user names
+               for d in (state.overview() or {}).get("devices", []) if d.get("owner") == uid]
+    certs = ([{"subject": f"CN={uid}", "serial": "1a2b3c", "not_after": "Oct 20 12:00:00 2027 GMT",
+               "status": "valid", "kind": "client"}] if uid == "jim" else [])
+    return {"uid": uid, "person": dict(row.get("person") or {}), "groups": list(row["groups"]),
+            "state": row.get("state") or ("disabled" if row["locked"] else "active"),
+            "last_logon": row.get("last_logon") or "", "sites": list(row.get("sites") or []), "certs": certs,
+            "devices": devices}
 
 
 def _dhcp(state):
@@ -50,7 +71,7 @@ def fake_reads(state, who, route, body):
         ("dhcp",): lambda: _dhcp(state), ("dns-filter",): lambda: _dns_filter(state),
         ("radius",): lambda: SAMPLE_RADIUS, ("radius", "guides"): sample_radius_guides,
         ("pki", "ca"): lambda: SAMPLE_CA, ("pki", "issued"): lambda: d["issued"], ("pki", "acme"): lambda: SAMPLE_ACME,
-        ("devices",): state.overview, ("people",): lambda: d["people"],
+        ("devices",): state.overview, ("people",): lambda: d["people"], ("directory",): lambda: SAMPLE_DIRECTORY,
         ("domain",): lambda: SAMPLE_DOMAIN, ("gpo",): lambda: {**SAMPLE_GPO, "match": ""},
         ("host-groups",): lambda: SAMPLE_ACCESS["groups"], ("sudo",): lambda: SAMPLE_ACCESS["sudo"],
         ("federation",): lambda: SAMPLE_FEDERATION,
@@ -64,6 +85,8 @@ def fake_reads(state, who, route, body):
         if answer is None:              # the devices without fabriclib
             raise ValidationError("the dev preview from the image has no fabriclib; run it from a checkout")
         return answer
+    if len(route) == 2 and route[0] == "people":
+        return _person(state, route[1])
     if len(route) == 2 and route[0] == "zones":
         if route[1] not in d["zones"]:
             raise ValidationError("no such zone")

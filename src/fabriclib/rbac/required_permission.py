@@ -12,8 +12,8 @@ GET = {
     ("radius",): "radius:read", ("radius", "guides"): "radius:read",
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
     ("devices",): "devices:read",
-    ("people",): "people:read",
-    ("domain",): "domain:read", ("gpo",): "domain:read",
+    ("people",): "people:read", ("people", "*"): "people:read",   # a person's page (1.6.12.4)
+    ("domain",): "domain:read", ("gpo",): "domain:read", ("directory",): "domain:read",   # the Overview
     ("domain", "grants"): "domain:read", ("domain", "grants", "*"): "domain:read",
     ("domain", "grants", "explain", "*"): "domain:read", ("domain", "grants", "explain", "*", "*"): "domain:read",
     ("domain", "kerberos"): "domain:read", ("domain", "kerberos", "spns"): "domain:read",

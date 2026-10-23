@@ -40,7 +40,7 @@ def moved_to(path, query):
         return "/settings/sign-in"
     if path.startswith(("/directory/devices", "/directory/roles")):
         return "/8021x" + path[len("/directory"):]
-    if path == "/directory":
+    if path == "/directory" and query.get("view"):      # /directory alone is the Directory's Overview now
         view, name = query.get("view", ""), query.get("name", "")
         if view == "device" and name:
             return f"/8021x/devices/{q(name, safe='')}"
@@ -52,5 +52,5 @@ def moved_to(path, query):
             return "/8021x/roles"
         if view in dict(DIRECTORY_SECTIONS):
             return _with(f"/directory/{view}", query, drop=("view", "name"))
-        return "/directory/people"
+        return "/directory"
     return None

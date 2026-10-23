@@ -43,6 +43,7 @@ file	fabricctl-jinja|src/containers/freeradius/normalize_mac.py	7
 file	fabricctl-jinja|src/containers/freeradius/record_fingerprint.py	8	
 file	fabricctl-jinja|src/containers/samba/access_policy.py	102	
 file	fabricctl-jinja|src/containers/samba/acl_entries.py	63	
+file	fabricctl-jinja|src/containers/samba/ad_time.py	139	
 file	fabricctl-jinja|src/containers/samba/add_group_member.py	29	
 file	fabricctl-jinja|src/containers/samba/add_sudo_rule.py	75	
 file	fabricctl-jinja|src/containers/samba/admin_gpo.py	49	
@@ -62,6 +63,7 @@ file	fabricctl-jinja|src/containers/samba/create_person.py	30
 file	fabricctl-jinja|src/containers/samba/dc_info.py	92	
 file	fabricctl-jinja|src/containers/samba/delete_ou.py	120	
 file	fabricctl-jinja|src/containers/samba/directory_op.py	25	
+file	fabricctl-jinja|src/containers/samba/domain_facts.py	140	
 file	fabricctl-jinja|src/containers/samba/edit_person.py	121	
 file	fabricctl-jinja|src/containers/samba/ensure_ad_site.py	14	
 file	fabricctl-jinja|src/containers/samba/ensure_computed_group.py	105	
@@ -432,6 +434,8 @@ file	fabriclib-domain|src/fabriclib/domain/change_own_password.py	1
 file	fabriclib-domain|src/fabriclib/domain/create_group.py	2	
 file	fabriclib-domain|src/fabriclib/domain/create_ou.py	3	
 file	fabriclib-domain|src/fabriclib/domain/delete_ou.py	4	
+file	fabriclib-domain|src/fabriclib/domain/directory_overview.py	29	
+file	fabriclib-domain|src/fabriclib/domain/domain_facts.py	30	
 file	fabriclib-domain|src/fabriclib/domain/edit_person.py	5	
 file	fabriclib-domain|src/fabriclib/domain/group_name_refused.py	6	
 file	fabriclib-domain|src/fabriclib/domain/keytab_command.py	7	
@@ -442,6 +446,7 @@ file	fabriclib-domain|src/fabriclib/domain/move_machine.py	11
 file	fabriclib-domain|src/fabriclib/domain/my_account.py	28	
 file	fabriclib-domain|src/fabriclib/domain/my_groups.py	12	
 file	fabriclib-domain|src/fabriclib/domain/person_fields.py	26	
+file	fabriclib-domain|src/fabriclib/domain/person_overview.py	31	
 file	fabriclib-domain|src/fabriclib/domain/read_options.py	13	
 file	fabriclib-domain|src/fabriclib/domain/remove_group.py	14	
 file	fabriclib-domain|src/fabriclib/domain/rename_ou.py	15	
@@ -947,6 +952,7 @@ file	webui|src/webui/agentclient/delete_tsig_key.py	16
 file	webui|src/webui/agentclient/describe_csr.py	17	
 file	webui|src/webui/agentclient/device_overview.py	18	
 file	webui|src/webui/agentclient/dhcp_overview.py	19	
+file	webui|src/webui/agentclient/directory_overview.py	226	
 file	webui|src/webui/agentclient/dns_filter_change.py	145	
 file	webui|src/webui/agentclient/dns_filter_overview.py	146	
 file	webui|src/webui/agentclient/domain_overview.py	125	
@@ -977,6 +983,7 @@ file	webui|src/webui/agentclient/pending_action.py	212
 file	webui|src/webui/agentclient/pending_counts.py	213	
 file	webui|src/webui/agentclient/pending_page.py	214	
 file	webui|src/webui/agentclient/person_action.py	138	
+file	webui|src/webui/agentclient/person_overview.py	227	
 file	webui|src/webui/agentclient/query_log.py	147	
 file	webui|src/webui/agentclient/quote_segment.py	29	
 file	webui|src/webui/agentclient/radius_guides.py	30	
@@ -1071,6 +1078,7 @@ file	webui|src/webui/routes/landing_post.py	187
 file	webui|src/webui/routes/moved_to.py	209	
 file	webui|src/webui/routes/openbao_page.py	82	
 file	webui|src/webui/routes/overview_post.py	143	
+file	webui|src/webui/routes/people_page.py	228	
 file	webui|src/webui/routes/post_action.py	83	
 file	webui|src/webui/routes/radius_post.py	84	
 file	webui|src/webui/routes/saved_and_applied.py	85	
@@ -1113,6 +1121,7 @@ file	webui|src/webui/views/machine_result.py	129
 file	webui|src/webui/views/nav_menu.py	210	
 file	webui|src/webui/views/openbao.py	112	
 file	webui|src/webui/views/overview.py	113	
+file	webui|src/webui/views/people.py	229	
 file	webui|src/webui/views/person_result.py	114	
 file	webui|src/webui/views/pki_result.py	115	
 file	webui|src/webui/views/radius_secret.py	116	
@@ -1236,6 +1245,7 @@ function	fabricctl-jinja|src/containers/samba/access_policy.py|access_policy	1
 function	fabricctl-jinja|src/containers/samba/acl_entries.py|_same	2	
 function	fabricctl-jinja|src/containers/samba/acl_entries.py|ensure_aces	3	
 function	fabricctl-jinja|src/containers/samba/acl_entries.py|sid_of	1	
+function	fabricctl-jinja|src/containers/samba/ad_time.py|ad_time	1	
 function	fabricctl-jinja|src/containers/samba/add_group_member.py|add_group_member	1	
 function	fabricctl-jinja|src/containers/samba/add_sudo_rule.py|_everyone	1	
 function	fabricctl-jinja|src/containers/samba/add_sudo_rule.py|_exists	2	
@@ -1284,6 +1294,7 @@ function	fabricctl-jinja|src/containers/samba/dc_info.py|dc_info	1
 function	fabricctl-jinja|src/containers/samba/delete_ou.py|delete_ou	1	
 function	fabricctl-jinja|src/containers/samba/directory_op.py|connect	1	
 function	fabricctl-jinja|src/containers/samba/directory_op.py|run	2	
+function	fabricctl-jinja|src/containers/samba/domain_facts.py|domain_facts	1	
 function	fabricctl-jinja|src/containers/samba/edit_person.py|_record	2	0.8.0 / 2026-10-22
 function	fabricctl-jinja|src/containers/samba/edit_person.py|edit_person	1	
 function	fabricctl-jinja|src/containers/samba/ensure_ad_site.py|ensure_ad_site	1	
@@ -1396,7 +1407,7 @@ function	fabricctl-jinja|src/containers/samba/legacy_logon_groups.py|legacy_logo
 function	fabricctl-jinja|src/containers/samba/link_device_cert.py|link_device_cert	1	
 function	fabricctl-jinja|src/containers/samba/list_groups.py|list_groups	1	
 function	fabricctl-jinja|src/containers/samba/list_host_groups.py|list_host_groups	1	
-function	fabricctl-jinja|src/containers/samba/list_machines.py|_when	1	
+function	fabricctl-jinja|src/containers/samba/list_machines.py|_when	1	0.8.0 / 2026-10-23
 function	fabricctl-jinja|src/containers/samba/list_machines.py|list_machines	2	
 function	fabricctl-jinja|src/containers/samba/list_ous.py|list_ous	1	
 function	fabricctl-jinja|src/containers/samba/list_people.py|_cn	1	
@@ -1886,6 +1897,8 @@ function	fabriclib-domain|src/fabriclib/domain/change_own_password.py|change_own
 function	fabriclib-domain|src/fabriclib/domain/create_group.py|create_group	1	
 function	fabriclib-domain|src/fabriclib/domain/create_ou.py|create_ou	1	
 function	fabriclib-domain|src/fabriclib/domain/delete_ou.py|delete_ou	1	
+function	fabriclib-domain|src/fabriclib/domain/directory_overview.py|directory_overview	1	
+function	fabriclib-domain|src/fabriclib/domain/domain_facts.py|domain_facts	1	
 function	fabriclib-domain|src/fabriclib/domain/edit_person.py|edit_person	1	
 function	fabriclib-domain|src/fabriclib/domain/group_name_refused.py|group_name_refused	1	
 function	fabriclib-domain|src/fabriclib/domain/keytab_command.py|keytab_command	1	
@@ -1896,6 +1909,7 @@ function	fabriclib-domain|src/fabriclib/domain/move_machine.py|move_machine	1
 function	fabriclib-domain|src/fabriclib/domain/my_account.py|my_account	1	
 function	fabriclib-domain|src/fabriclib/domain/my_groups.py|my_groups	1	
 function	fabriclib-domain|src/fabriclib/domain/person_fields.py|read_person_fields	1	
+function	fabriclib-domain|src/fabriclib/domain/person_overview.py|person_overview	1	
 function	fabriclib-domain|src/fabriclib/domain/read_options.py|read_options	1	
 function	fabriclib-domain|src/fabriclib/domain/remove_group.py|remove_group	1	
 function	fabriclib-domain|src/fabriclib/domain/rename_ou.py|rename_ou	1	
@@ -2691,6 +2705,7 @@ function	webui|src/webui/agentclient/delete_tsig_key.py|delete_tsig_key	1
 function	webui|src/webui/agentclient/describe_csr.py|describe_csr	1	
 function	webui|src/webui/agentclient/device_overview.py|device_overview	1	
 function	webui|src/webui/agentclient/dhcp_overview.py|dhcp_overview	1	
+function	webui|src/webui/agentclient/directory_overview.py|directory_overview	1	
 function	webui|src/webui/agentclient/dns_filter_change.py|dns_filter_change	1	
 function	webui|src/webui/agentclient/dns_filter_overview.py|dns_filter_overview	1	
 function	webui|src/webui/agentclient/domain_overview.py|domain_overview	1	
@@ -2721,6 +2736,7 @@ function	webui|src/webui/agentclient/pending_action.py|pending_action	1
 function	webui|src/webui/agentclient/pending_counts.py|pending_counts	1	
 function	webui|src/webui/agentclient/pending_page.py|pending_page	1	
 function	webui|src/webui/agentclient/person_action.py|person_action	1	
+function	webui|src/webui/agentclient/person_overview.py|person_overview	1	
 function	webui|src/webui/agentclient/query_log.py|query_log	1	
 function	webui|src/webui/agentclient/quote_segment.py|quote_segment	1	
 function	webui|src/webui/agentclient/radius_guides.py|radius_guides	1	
@@ -2818,6 +2834,7 @@ function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.request	4
 function	webui|src/webui/devpreview/fake_connection.py|_Reply.__init__	1	
 function	webui|src/webui/devpreview/fake_connection.py|_Reply.read	2	
 function	webui|src/webui/devpreview/fake_directory.py|_devices	3	
+function	webui|src/webui/devpreview/fake_directory.py|_edit	7	
 function	webui|src/webui/devpreview/fake_directory.py|_in_fabric_group	1	
 function	webui|src/webui/devpreview/fake_directory.py|_machines	4	
 function	webui|src/webui/devpreview/fake_directory.py|_people	2	
@@ -2842,6 +2859,7 @@ function	webui|src/webui/devpreview/fake_pending.py|_thing	2
 function	webui|src/webui/devpreview/fake_pending.py|fake_pending	4	
 function	webui|src/webui/devpreview/fake_reads.py|_dhcp	2	
 function	webui|src/webui/devpreview/fake_reads.py|_dns_filter	1	
+function	webui|src/webui/devpreview/fake_reads.py|_person	4	
 function	webui|src/webui/devpreview/fake_reads.py|fake_reads	3	
 function	webui|src/webui/devpreview/sample_data.py|_list	1	
 function	webui|src/webui/devpreview/sample_radius_guides.py|sample_radius_guides	1	
@@ -2876,6 +2894,7 @@ function	webui|src/webui/routes/account_post.py|account_post	1
 function	webui|src/webui/routes/bind9_page.py|bind9_page	1	
 function	webui|src/webui/routes/changes_post.py|changes_post	1	
 function	webui|src/webui/routes/directory_page.py|directory_page	1	
+function	webui|src/webui/routes/directory_post.py|_changed_fields	9	
 function	webui|src/webui/routes/directory_post.py|_device_fields	1	
 function	webui|src/webui/routes/directory_post.py|_held	7	0.8.0 / 2026-10-23
 function	webui|src/webui/routes/directory_post.py|_host_access	5	
@@ -2906,6 +2925,7 @@ function	webui|src/webui/routes/moved_to.py|_with	1
 function	webui|src/webui/routes/moved_to.py|moved_to	2	
 function	webui|src/webui/routes/openbao_page.py|openbao_page	1	
 function	webui|src/webui/routes/overview_post.py|overview_post	1	
+function	webui|src/webui/routes/people_page.py|people_page	1	
 function	webui|src/webui/routes/post_action.py|_radius_people	2	
 function	webui|src/webui/routes/post_action.py|_segments	1	
 function	webui|src/webui/routes/post_action.py|post_action	3	
@@ -2956,6 +2976,8 @@ function	webui|src/webui/views/machine_result.py|machine_result	1
 function	webui|src/webui/views/nav_menu.py|nav_menu	1	
 function	webui|src/webui/views/openbao.py|openbao	1	
 function	webui|src/webui/views/overview.py|overview	1	
+function	webui|src/webui/views/people.py|_matches	1	
+function	webui|src/webui/views/people.py|people	2	
 function	webui|src/webui/views/person_result.py|person_result	1	
 function	webui|src/webui/views/pki_result.py|pki_result	1	
 function	webui|src/webui/views/radius_secret.py|radius_secret	1	

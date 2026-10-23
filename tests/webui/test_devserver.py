@@ -89,8 +89,8 @@ def serve(bundle=None):
 
 
 PAGES = ["/", "/overview/doctor", "/overview/updates", "/audit", "/dns/zones", "/dns-filter", "/kea", "/pki",
-         "/pki/acme", "/directory/people", "/directory/domain", "/directory/machines", "/directory/gpo", "/8021x",
-         "/8021x/decisions", "/8021x/guides", "/8021x/devices", "/8021x/roles", "/secrets", "/secrets/unlock",
+         "/pki/acme", "/directory", "/directory/people", "/directory/domain", "/directory/machines", "/directory/gpo",
+         "/8021x", "/8021x/decisions", "/8021x/guides", "/8021x/devices", "/8021x/roles", "/secrets", "/secrets/unlock",
          "/secrets/disk", "/federation", "/settings", "/settings/sign-in", "/account", "/account/groups"]
 # 1.8.6.4's moved addresses -> where each answers now
 MOVED = {"/bind9": "/dns/zones", "/bind9?zone=iot.home.arpa&msg=x": "/dns/zones?zone=iot.home.arpa",
@@ -98,7 +98,7 @@ MOVED = {"/bind9": "/dns/zones", "/bind9?zone=iot.home.arpa&msg=x": "/dns/zones?
          "/stepca?view=acme": "/pki/acme", "/openbao": "/secrets", "/openbao?view=unlock": "/secrets/unlock",
          "/openbao?view=disk&err=hello": "/secrets/disk", "/freeradius": "/8021x",
          "/freeradius?view=windows": "/8021x/guides?view=windows", "/security": "/settings/sign-in",
-         "/directory": "/directory/people", "/directory?view=devices": "/8021x/devices",
+         "/directory?view=devices": "/8021x/devices", "/directory?view=nonsense": "/directory",
          "/directory?view=device&name=jims-laptop": "/8021x/devices/jims-laptop",
          "/directory?view=roles": "/8021x/roles", "/directory?view=role&name=iot": "/8021x/roles/iot",
          "/directory?view=people": "/directory/people", "/directory?view=domain": "/directory/domain",
@@ -128,7 +128,8 @@ with serve():
     check(f"every page of the navigation renders ({len(PAGES)})", not bad, bad)
     check("no page carries a script or inline style (the strict CSP; pages work with JavaScript off)",
           not [p for p in PAGES if re.search(r"<script|style=|\son[a-z]+=", get(p))])
-    detail = PAGES + ["/8021x/devices/jims-laptop", "/8021x/roles/iot", "/secrets/secrets", "/dns/zones?view=tsig"]
+    detail = PAGES + ["/8021x/devices/jims-laptop", "/8021x/roles/iot", "/secrets/secrets", "/dns/zones?view=tsig",
+                      "/directory/people/jim", "/directory/people/lee", "/directory/people/_new"]
     unlabelled = {p: n for p in detail if (n := len(re.findall(r'<span class="light [a-z]*"(?! role="img" '
                                                                    r'aria-label="[^"]+")', get(p))))}
     check("every status light says what it means (role=img, aria-label: never colour alone, 1.8.6.3)",
@@ -373,18 +374,58 @@ with serve():
     check("a role that still has devices cannot be deleted", "still has" in flash(page), flash(page))
     page = get("/8021x/roles")
     check("802.1X · Device roles lists roles with their grants", "quarantine" in page and "network:mab" in page)
+    page = get("/directory")
+    # covers: web:get.directory +
+    check("Directory · Overview: the domain, its functional level, its DCs writable or read-only, the roles named "
+          "plainly, replication, the sites and the counts linking to their pages",
+          "ad.home.arpa" in page and "Windows Server 2008 R2" in page and "pi-edge" in page and "read-only" in page
+          and "holds all five roles" in page and "1 link replicating" in page and "edge, lan" in page
+          and 'href="/directory/people">People</a>' in page and "NTDS Settings" not in page, page[-3000:])
     page = get("/directory/people")
-    check("Directory · People (admin): people, add form, reset buttons, Keycloak link for fabric groups",
-          "jim@home.arpa" in page and "Keycloak admin console" in page and "/directory/people/_new" in page
-          and "Reset sign-in" in page)
-    check("Directory · People (admin): disable buttons, the group form and the remove form (2.1.6.30)",
-          "/directory/people/sam/disable" in page and "/directory/people/_form/groups" in page
-          and "/directory/people/_form/delete" in page)
+    check("Directory · People (admin): each person's name linking to their page, user name, e-mail, state light and "
+          "last sign-in; Add person; no action inside a row (1.8.6.3)",
+          'href="/directory/people/jim"' in page and "jim@home.arpa" in page and 'aria-label="locked"' in page
+          and "2026-10-22 08:40" in page and "never" in page and 'href="/directory/people/_new"' in page
+          and "<form method=\"post\"" not in page.split("<tbody>", 1)[1].split("</tbody>", 1)[0], page[-3000:])
+    page = get("/directory/people?q=LOCKED")
+    check("search by any column (the state here, any case): only lee", "lee@home.arpa" in page
+          and "jim@home.arpa" not in page and 'value="locked"' in page, page[-2000:])
+    check("a search nobody matches says so", "Nobody matches" in get("/directory/people?q=zzz"))
+    many = {"users": [{"uid": f"u{i:03}", "name": f"User {i:03}", "mail": "", "locked": False, "state": "active",
+                       "last_logon": ""} for i in range(120)], "groups": []}
+    pages = [views.people({"user": "u", "csrf": "x", "perms": ["people:read"]}, "list", people=many,
+                          query={"page": n}) for n in ("1", "3", "9", "x")]
+    check("paged 50 to a page: page 1 holds u000-u049 and a Next link; page 3 the last 20 and a Previous; a page "
+          "past the end or not a number shows the last or the first",
+          "u049" in pages[0] and "u050" not in pages[0] and "page=2" in pages[0] and "Page 1 of 3" in pages[0]
+          and "u119" in pages[1] and "u099" not in pages[1] and "page=2" in pages[1] and "Page 3 of 3" in pages[2]
+          and "Page 1 of 3" in pages[3])
+    page = get("/directory/people/jim")
+    check("a person's page: their details (the 15 fields' filled ones), state and last sign-in, sites, groups, the "
+          "certificates fabric issued them and their devices, linked to 802.1X",
+          "Engineer" in page and "2026-10-22 08:40" in page and "directory-admins" in page and "CN=jim" in page
+          and 'href="/8021x/devices/jims-laptop"' in page and 'aria-label="active"' in page, page[-3000:])
+    check("...the actions bar: Reset password and Disable (no Unlock: not locked out); the Edit form with every field "
+          "filled from the domain; Groups; Remove with the user name typed back",
+          "Reset password" in page and "/directory/people/jim/disable" in page and "/unlock" not in page
+          and 'name="employee_id"' in page and 'name="title" value="Engineer"' in page
+          and 'action="/directory/people/jim/groups"' in page and 'action="/directory/people/jim/delete"' in page
+          and 'name="confirm"' in page)
+    check("...a locked-out person's page offers Unlock", "/directory/people/lee/unlock" in get("/directory/people/lee"))
+    page = get("/directory/people/nobody")
+    # covers: web:get.directory.people -
+    check("a person who is not there: fabric-agent's refusal said on the page, no form",
+          "no person nobody" in page and "/directory/people/nobody/" not in page, page[-1500:])
+    check("refused: an address past a person's page (404)", req("GET", "/directory/people/jim/more")[0] == 404)
+    page = get("/directory/people/_new")
+    check("Add person on its own page: user name, e-mail, first and last names",
+          'action="/directory/people/_new"' in page and 'name="uid"' in page and 'name="first"' in page)
     # Apply per page (manual 1.8.6.5): every change waits on its page until that page's Apply
     st, loc, page = post("/directory/people/sam/disable", {})
     # covers: web:post.directory.people.*.* +
-    check("disable a person: held for People's Apply, said; nothing changed yet", loc == "/directory/people"
-          and "Waiting for Apply: Disable sam" in flash(page) and "/directory/people/sam/disable" in page, flash(page))
+    check("disable a person: held for People's Apply, back on their page, said; nothing changed yet",
+          loc == "/directory/people/sam" and "Waiting for Apply: Disable sam" in flash(page)
+          and "/directory/people/sam/disable" in page, flash(page))
     check("the top bar: 1 change pending, Review, Apply and Discard; the navigation marks People",
           "<strong>1 change pending</strong>" in page and 'action="/changes/people/apply"' in page
           and 'action="/changes/people/discard"' in page and 'href="/changes/people">Review</a>' in page
@@ -402,30 +443,65 @@ with serve():
     check("Apply: one job, its queue on the Review (Disable sam done), nothing left pending",
           loc == "/changes/people" and "Applying" in flash(page) and "Disable sam" in page
           and "done" in page and "Nothing waits on this page" in page, page[-2500:])
-    page = get("/directory/people")
-    check("...sam is disabled now (an enable button instead), the bar gone", "/directory/people/sam/enable" in page
-          and "change pending" not in page)
+    page = get("/directory/people/sam")
+    check("...sam is disabled now (Enable instead), the bar gone", "/directory/people/sam/enable" in page
+          and 'aria-label="disabled"' in page and "change pending" not in page)
+    st, loc, page = post("/directory/people/sam/edit", {"first": "Sam", "last": "Reed", "title": "Technician",
+                                                         "country": "gb", "manager": "jim", "email": "sam@home.arpa"})
+    # covers: web:post.directory.people.*.edit +
+    check("Edit: only the changed fields held (title, country), back on the page", loc == "/directory/people/sam"
+          and "Waiting for Apply: Edit sam" in flash(page), flash(page))
+    st, loc, page = post("/directory/people/sam/edit", {"first": "Sam", "title": ""})
+    # covers: web:post.directory.people.*.edit -
+    check("refused: an Edit that changes nothing (the title not yet applied), said; nothing more pending",
+          "nothing changed" in flash(page) and "<strong>1 change pending</strong>" in page, flash(page))
+    st, loc, page = post("/directory/people/lee/unlock", {})
+    # covers: web:post.directory.people.*.unlock +
+    check("Unlock: held, back on lee's page", loc == "/directory/people/lee" and "Waiting for Apply: Unlock lee"
+          in flash(page), flash(page))
     post("/directory/people/sam/enable", {})
-    post("/directory/people/_form/groups", {"uid": "sam", "group": "directory-admins", "action": "add"})
-    st, loc, page = post("/directory/people/_form/delete", {"uid": "sam", "confirm": "sma"})
+    st, loc, page = post("/directory/people/sam/groups", {"group": "directory-admins", "action": "add"})
+    # covers: web:post.directory.people.*.groups +
+    check("Groups: add sam to a group, held", "Waiting for Apply: Add sam to group directory-admins" in flash(page),
+          flash(page))
+    st, loc, page = post("/directory/people/sam/delete", {"confirm": "sma"})
+    # covers: web:post.directory.people.*.delete -
+    check("Remove: held from the person's page, back to People (the typed name checked at Apply)",
+          loc == "/directory/people" and "Waiting for Apply: Remove sam" in flash(page), flash(page))
     page = get("/changes/people")
-    check("three changes held, in the order made: enable, a group, a removal; old and new values shown",
-          [m for m in re.findall(r'data-label="Change">([^<]+)', page)][:3]
-          == ["Enable sam", "Add sam to group directory-admins", "Remove sam"]
-          and "group: directory-admins" in page, re.findall(r'data-label="Change">([^<]+)', page))
+    check("five changes held, in the order made; only the changed fields shown, old and new",
+          [m for m in re.findall(r'data-label="Change">([^<]+)', page)][:5]
+          == ["Edit sam", "Unlock lee", "Enable sam", "Add sam to group directory-admins", "Remove sam"]
+          and "title: Technician" in page and "country: GB" not in page and "country: gb" in page
+          and "first:" not in page and "group: directory-admins" in page,
+          re.findall(r'data-label="Change">([^<]+)', page))
     st, loc, page = post("/changes/people/apply", {})
     # covers: web:post.changes.*.apply -
     check("Apply stops at the first failure and says which: the removal without its name typed back; the rest done",
           "type the user name" in page and page.count("— failed") + page.count("failed — ") >= 1
           and len(change_ids(page)) == 1 and "Remove sam" in page, page[-3000:])
-    st, loc, page = post("/changes/people/drop", {"id": change_ids(get("/changes/people"))[0]})
-    # covers: web:post.changes.*.drop +
-    check("Drop the failed one: nothing pending", "0 still pending" in flash(page) and not change_ids(page),
+    page = get("/directory/people/sam")
+    check("...applied: sam's title and country changed, enabled, in directory-admins; lee unlocked",
+          "Technician" in page and ">GB<" in page and 'aria-label="active"' in page and "directory-admins" in page
+          and 'aria-label="active"' in get("/directory/people/lee"), page[-3000:])
+    post("/changes/people/discard", {})                # the failed removal
+    st, loc, page = post("/directory/people/sam/edit", {"country": "Germany"})
+    st, loc, page = post("/changes/people/apply", {})
+    check("refused at Apply: a country that is not two letters, said", "two-letter" in page, page[-2000:])
+    post("/changes/people/discard", {})
+    st, loc, page = post("/directory/people/sam/groups", {"group": "directory-admins", "action": "remove"})
+    check("Groups: take sam out of a group, held", "Remove sam from group directory-admins" in flash(page),
           flash(page))
+    post("/changes/people/discard", {})
     st, loc, page = post("/changes/people/drop", {"id": "no-such-change"})
     # covers: web:post.changes.*.drop -
     check("refused: dropping a change that is not there", "no such change" in flash(page), flash(page))
-    post("/directory/people/_form/delete", {"uid": "sam", "confirm": "sam"})
+    post("/directory/people/sam/delete", {"confirm": "sam"})
+    st, loc, page = post("/changes/people/drop", {"id": change_ids(get("/changes/people"))[0]})
+    # covers: web:post.changes.*.drop +
+    check("Drop the one change: nothing pending", "0 still pending" in flash(page) and not change_ids(page),
+          flash(page))
+    post("/directory/people/sam/delete", {"confirm": "sam"})
     st, loc, page = post("/changes/people/discard", {})
     # covers: web:post.changes.*.discard +
     check("Discard: every pending change of the page dropped, back on the page", loc == "/directory/people"
@@ -438,8 +514,12 @@ with serve():
     check("Discard with nothing pending: says nothing was dropped", "Discarded 0" in flash(page), flash(page))
     # covers: web:get.changes.* -
     check("refused: a Review of a page that has none (404)", req("GET", "/changes/nowhere")[0] == 404)
-    post("/directory/people/_form/delete", {"uid": "sam", "confirm": "sam"})
+    for path in ("/directory/people/_form/delete", "/directory/people/sam/rename", "/directory/people/sam/x/edit"):
+        st, *_ = req("POST", path, {"csrf": "dev", "uid": "sam", "confirm": "sam"})
+        check(f"refused: {path} (404: not a form of People)", st == 404, st)
+    post("/directory/people/sam/delete", {"confirm": "sam"})
     st, loc, page = post("/changes/people/apply", {})
+    # covers: web:post.directory.people.*.delete +
     check("remove a person with the user name typed back, applied -> gone from the list",
           "sam@home.arpa" not in get("/directory/people"), page[-1500:])
     page = get("/directory/domain")
@@ -576,8 +656,9 @@ for bundle, entries in ENTRIES.items():
               wrong)
 
 with serve("fabric-helpdesk"):
-    page = get("/directory/people")
-    check("helpdesk: add form and reset buttons", "/directory/people/_new" in page and "Reset sign-in" in page)
+    page = get("/directory/people/sam")
+    check("helpdesk: Add person, Reset password and Edit (people:edit)", "/directory/people/_new"
+          in get("/directory/people") and "Reset password" in page and 'action="/directory/people/sam/edit"' in page)
     post("/directory/people/_new", {"uid": "dana", "first": "Dana", "last": "Lee", "email": "dana@home.arpa"})
     post("/directory/people/sam/reset", {})
     st, loc, page = post("/changes/people/apply", {})
@@ -595,10 +676,10 @@ with serve("fabric-helpdesk"):
     check("helpdesk: an admin's sign-in cannot be reset (refused at Apply, why shown)", "only an admin" in page,
           page[-1500:])
     post("/changes/people/discard", {})
-    page = get("/directory/people")
-    check("helpdesk: disable buttons, but no group or remove form (people:groups, people:remove are admins')",
-          "/directory/people/sam/disable" in page and "/directory/people/_form/groups" not in page
-          and "/directory/people/_form/delete" not in page)
+    page = get("/directory/people/sam")
+    check("helpdesk: Disable, but no group or remove form (people:groups, people:remove are admins')",
+          "/directory/people/sam/disable" in page and "/directory/people/sam/groups" not in page
+          and "/directory/people/sam/delete" not in page)
     post("/directory/people/sam/disable", {})
     st, loc, page = post("/changes/people/apply", {})
     check("helpdesk: disable a plain user", "Disable sam" in page and "Nothing waits" in page, page[-1500:])
@@ -625,9 +706,22 @@ with serve("fabric-auditor"):
           "nothing pending", "you need the permission domain:admin" in flash(page)
           and "change pending" not in page, flash(page))
     page = get("/directory/people")
-    check("--as fabric-auditor: people listed, no add form or reset buttons",
-          "jim@home.arpa" in page and "/directory/people/_new" not in page and "Reset sign-in" not in page
-          and "/disable" not in page and "/directory/people/_form/" not in page)
+    check("--as fabric-auditor: people listed, no Add person", "jim@home.arpa" in page
+          and "/directory/people/_new" not in page)
+    page = get("/directory/people/sam")
+    check("--as fabric-auditor: a person's page without a single action or form",
+          "sam@home.arpa" in page and 'method="post"' not in page.split("<main", 1)[1].split("</main>", 1)[0]
+          and "Reset password" not in page, page[-2000:])
+    check("--as fabric-auditor: refused: Add person's page (403, people:create)",
+          req("GET", "/directory/people/_new")[0] == 403)
+    st, loc, page = post("/directory/people/sam/unlock", {})
+    # covers: web:post.directory.people.*.unlock -
+    check("--as fabric-auditor: refused: holding an Unlock, the permission named (people:reset)",
+          "people:reset" in flash(page) and "change pending" not in page, flash(page))
+    st, loc, page = post("/directory/people/sam/groups", {"group": "users", "action": "remove"})
+    # covers: web:post.directory.people.*.groups -
+    check("--as fabric-auditor: refused: a group change, the permission named (people:groups)",
+          "people:groups" in flash(page), flash(page))
     page = get("/overview/updates")
     check("--as fabric-auditor: the Updates table, but no update or roll-back forms",
           "postgres" in page and "/overview/images/" not in page)
@@ -684,7 +778,9 @@ with serve("none"):
     st, loc, page = post("/account/groups/nosuch/members", {"action": "add", "member": "dana"})
     check("--as none: a group that is not there: refused when held, said, nothing pending",
           "change pending" not in page and "no group nosuch" in flash(page), flash(page))
-    for path in ("/dns/zones", "/directory/people", "/audit", "/overview/doctor", "/changes/people"):
+    for path in ("/dns/zones", "/directory/people", "/directory/people/jim", "/directory/people/_new", "/directory",
+                 "/audit", "/overview/doctor", "/changes/people"):
+        # covers: web:get.directory -
         check(f"--as none: {path} refused (403)", req("GET", path)[0] == 403)
 
 prod = views.overview({"user": "u", "csrf": "x", "version": {"version": "1", "build": ""}}, [])

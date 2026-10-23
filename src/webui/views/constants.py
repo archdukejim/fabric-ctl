@@ -15,7 +15,8 @@ NAV = [
                     ("/dns-filter", "DNS filter", ("dns:filter", "dns:querylog"))]),
     ("dhcp", "DHCP", [("/kea", "Kea", ("dhcp:read",))]),
     ("pki", "PKI", [("/pki", "Certificates", ("pki:read",)), ("/pki/acme", "ACME", ("pki:read",))]),
-    ("directory", "Directory", [("/directory/people", "People", ("people:read",)),
+    ("directory", "Directory", [("/directory", "Overview", ("domain:read",)),
+                                ("/directory/people", "People", ("people:read",)),
                                 ("/directory/domain", "Domain", ("domain:read",)),
                                 ("/directory/machines", "Machines", ("domain:read",)),
                                 ("/directory/gpo", "Group Policy", ("domain:read",))]),
@@ -105,7 +106,13 @@ WIZARD_FIELDS = [f for _, _, fields in WIZARD_STEPS for f in fields]
 # the navigation page each sectioned view belongs to (manual 1.8.6.4)
 DIRECTORY_PAGES = {"devices": "/8021x/devices", "device": "/8021x/devices", "roles": "/8021x/roles",
                    "role": "/8021x/roles", "people": "/directory/people", "domain": "/directory/domain",
-                   "machines": "/directory/machines", "gpo": "/directory/gpo"}
+                   "machines": "/directory/machines", "gpo": "/directory/gpo", "overview": "/directory"}
+# a person's details (2.1.6.93's fields) in order, with their labels: My account and a person's page and Edit form
+PERSON_FIELDS = (("first", "First name"), ("last", "Last name"), ("name", "Display name"), ("email", "E-mail"),
+                 ("phone", "Phone"), ("mobile", "Mobile"), ("title", "Title"), ("department", "Department"),
+                 ("company", "Company"), ("office", "Office"), ("city", "City"), ("state", "State"),
+                 ("country", "Country"), ("manager", "Manager"), ("employee_id", "Employee ID"))
+PEOPLE_PER_PAGE = 50                     # the People list's page (1.6.12.4)
 RADIUS_PAGES = {"overview": "/8021x", "decisions": "/8021x/decisions", "switches": "/8021x/guides",
                 "windows": "/8021x/guides"}
 JOB_PAGES = {"doctor": "/overview/doctor", "images": "/overview/updates", "settings": "/settings"}

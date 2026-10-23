@@ -2,6 +2,7 @@ import urllib.parse
 
 from webui.devpreview.fabric_rules import ValidationError, required_permission
 from webui.devpreview.fake_account import managed
+from webui.devpreview.fake_directory import PERSON_KEYS
 from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DOMAIN, SAMPLE_GPO
 
 try:                                       # the agent's own store and its words, from a checkout (as fabric_rules)
@@ -32,8 +33,9 @@ def _thing(state, route, body):
         if group is None:
             raise ValidationError(f"no group {route[2] if len(route) > 2 else ''}")
         return group
-    if head == "people":
-        return _find(state.data["people"]["users"], "uid", name)
+    if head == "people":                              # the row with its details, as the agent's read
+        row = _find(state.data["people"]["users"], "uid", name)
+        return {**row, **dict.fromkeys(PERSON_KEYS, ""), **(row.get("person") or {})} if row else None
     if head == "machines":
         return _find(SAMPLE_DOMAIN["machines"], "name", name)
     if head == "host-groups":

@@ -1,10 +1,5 @@
+from webui.views.constants import PERSON_FIELDS
 from webui.views.render_page import render_page
-
-# a person's details as My account shows them (2.1.6.93's fields), in order, with their labels
-DETAILS = (("first", "First name"), ("last", "Last name"), ("name", "Display name"), ("email", "E-mail"),
-           ("phone", "Phone"), ("mobile", "Mobile"), ("title", "Title"), ("department", "Department"),
-           ("company", "Company"), ("office", "Office"), ("city", "City"), ("state", "State"), ("country", "Country"),
-           ("manager", "Manager"), ("employee_id", "Employee ID"))
 
 
 def account(ctx, data=None, groups=None, factors_url="", page="/account", error=""):
@@ -20,6 +15,6 @@ def account(ctx, data=None, groups=None, factors_url="", page="/account", error=
     Fails:   Jinja2 errors propagate.
     Feeds:   src/webui/routes/get_page (/account, /account/groups)."""
     person = (data or {}).get("person") or {}
-    details = [(label, person.get(key)) for key, label in DETAILS if person.get(key)]
+    details = [(label, person.get(key)) for key, label in PERSON_FIELDS if person.get(key)]
     return render_page("account", ctx=ctx, page=page, d=data or {}, details=details, groups=groups,
                        factors_url=factors_url, error=error)

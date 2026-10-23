@@ -9,6 +9,7 @@ from webui.routes.finish_setting_up import finish_setting_up
 from webui.routes.dns_filter_page import dns_filter_page
 from webui.routes.moved_to import moved_to
 from webui.routes.openbao_page import openbao_page
+from webui.routes.people_page import people_page
 from webui.routes.settings_page import settings_page
 from webui.routes.stepca_page import stepca_page
 from webui.session.page_context import page_context
@@ -64,13 +65,15 @@ def get_page(h, sess, path, query):
              (view, zone, device, name, slot, step, the query log's search as each page uses them).
     Returns: 303 to the new address of a page that moved; 200 page: Overview (/, /overview/doctor,
              /overview/updates, /audit), DNS (/dns/zones, /dns-filter), DHCP (/kea), PKI (/pki, /pki/acme),
-             Directory (/directory/people|domain|machines|gpo), 802.1X (/8021x, /8021x/decisions, /8021x/guides,
-             /8021x/devices[/<name>], /8021x/roles[/<name>]), Secrets (/secrets[/<view>]), Federation (/federation),
+             Directory (/directory, /directory/people[/_new|/<uid>], /directory/domain|machines|gpo), 802.1X
+             (/8021x, /8021x/decisions, /8021x/guides, /8021x/devices[/<name>], /8021x/roles[/<name>]), Secrets
+             (/secrets[/<view>]), Federation (/federation),
              Settings (/settings, /settings/export, /settings/sign-in), My account (/account, /account/groups,
              1.8.6.6), a job (/jobs/<id>), a page's pending changes and queue (/changes/<page id>, 1.8.6.5); 303
              from / to the first page they may see for a person who may not see the Overview (My account for one
              with no fabric role); 403 for a navigation page whose permission they lack (checked here too, not only
-             by fabric-agent: a page that reads nothing, such as Doctor, would otherwise show).
+             by fabric-agent: a page that reads nothing, such as Doctor, would otherwise show; a person's page and Add
+             person are People's).
     Fails:   404 for any other path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
     Feeds:   handler.Handler.handle_request.
     """
@@ -83,6 +86,8 @@ def get_page(h, sess, path, query):
     if path == "/" and "status:read" not in ctx["perms"]:    # the Overview is not theirs: their first page
         return h.redirect(views.nav_menu(set(ctx["perms"]), None)[0]["href"])
     shown = views.PENDING_PAGES.get(_rest(path, "/changes/") or "", path)   # a Review: the page it reviews
+    if path.startswith("/directory/people/"):                    # a person's page, Add person: People's
+        shown = "/directory/people"
     need = next((n for _, _, pages in views.NAV for href, _, n in pages if href == shown and n), None)
     if need and not set(need) & set(ctx["perms"]):            # a navigation page's own permission (1.8.6.4)
         return h.deny(403, f"You need the permission {' or '.join(need)} to see this page.")
@@ -105,8 +110,11 @@ def get_page(h, sess, path, query):
         return stepca_page(h, ctx, "ca" if view == "acme" else view, device=query.get("device", ""))
     if path == "/pki/acme":
         return stepca_page(h, ctx, "acme")
-    if path == "/directory/people" or path == "/directory/domain" or path == "/directory/machines" or (
-            path == "/directory/gpo"):
+    if path == "/directory":
+        return directory_page(h, ctx, {"view": "overview"})
+    if path == "/directory/people" or path.startswith("/directory/people/"):
+        return people_page(h, ctx, path, query)
+    if path == "/directory/domain" or path == "/directory/machines" or path == "/directory/gpo":
         return directory_page(h, ctx, {**query, "view": path.rsplit("/", 1)[1]})
     if path == "/8021x/devices":
         return directory_page(h, ctx, {"view": "devices"})

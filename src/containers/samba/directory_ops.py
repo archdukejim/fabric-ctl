@@ -7,6 +7,7 @@ from create_machine import create_machine
 from create_ou import create_ou
 from create_person import create_person
 from dc_info import dc_info
+from domain_facts import domain_facts
 from delete_ou import delete_ou
 from edit_person import edit_person
 from get_person import get_person
@@ -57,6 +58,7 @@ OPS = {
     "create_person": create_person,
     "dc_info": dc_info,
     "delete_ou": delete_ou,
+    "domain_facts": domain_facts,
     "edit_person": edit_person,
     "get_person": get_person,
     "group_scope": group_scope,

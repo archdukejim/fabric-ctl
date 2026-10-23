@@ -143,3 +143,4 @@ input,select,textarea{max-width:100%}
 .pendingbar form{margin:0}
 .change-old{color:var(--muted);text-decoration:line-through}.change-new{font-weight:600}
 .qstate{white-space:nowrap}
+.pager{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:12px}

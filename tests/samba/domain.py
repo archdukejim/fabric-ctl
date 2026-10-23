@@ -263,11 +263,22 @@ dn_bob = f"CN=Bob Test,OU=people,{BASE}" if "CN=Bob Test" in ldb("(sAMAccountNam
     ldb("(sAMAccountName=bob)", "dn").split("dn: ", 1)[1].split("\n", 1)[0]
 sh(["docker", "exec", "-i", DC, "ldbmodify", "-H", "/data/private/sam.ldb"],
    input=f"dn: {dn_bob}\nchangetype: modify\nreplace: lockoutTime\nlockoutTime: {lock}\n")
+page = m_get.get_route(["people", "bob"], "alice")
+# covers: agent:get.people.* +
+check("GET /v1/people/bob (a person's page, 1.6.12.4): locked out, his details (the 15 fields), groups, sites, last "
+      "sign-in (\"\" or a time), certificates and devices", page["state"] == "locked" and page["uid"] == "bob"
+      and page["person"]["title"] == "Site engineer" and "site-lan" in page["groups"] and page["sites"] == ["lan"]
+      and isinstance(page["certs"], list) and isinstance(page["devices"], list)
+      and (page["last_logon"] == "" or page["last_logon"][:2] == "20"), page)
+row = next(u for u in m_get.get_route(["people"], "alice")["users"] if u["uid"] == "bob")
+check("...and the People list says so too (state, last sign-in)", row["state"] == "locked" and row["locked"]
+      and "last_logon" in row, row)
 done = m_people.post_people(["people", "bob", "unlock"], "hd", {}, "hd")
 # covers: agent:post.people.*.unlock +
 check("POST /v1/people/bob/unlock by hd (a grant's unlock): bob's lockoutTime is 0 again, audited",
       done["changed"] and "lockoutTime: 0" in ldb("(sAMAccountName=bob)", "lockoutTime")
       and AUDIT[-1][1] == "PERSON_UNLOCK", done)
+check("...unlocked: active on his page", m_get.get_route(["people", "bob"], "alice")["state"] == "active")
 again = m_people.post_people(["people", "bob", "unlock"], "hd", {}, "hd")
 check("...again: not locked out, nothing changed or audited", again["changed"] is False and AUDIT[-1][1] == "PERSON_UNLOCK",
       again)
@@ -288,6 +299,8 @@ gone, why = refused(m_people.post_people, ["people", "dee", "reset"], "alice", {
 check("a Directory Administrator resetting another refused: only the Enterprise Admin (2.1.6.68)",
       gone and "only the Enterprise Admin" in why, why)
 done = m_people.post_people(["people", "dee", "disable"], "root", {}, None)
+check("a disabled person's state is disabled (not locked) on their page",
+      m_get.get_route(["people", "dee"], "alice")["state"] == "disabled")
 m_people.post_people(["people", "dee", "enable"], "root", {}, None)
 check("root (acting for the Enterprise Admin) disables and enables a Directory Administrator",
       done["changed"] and AUDIT[-1][1] == "PERSON_ENABLE", done)
@@ -891,6 +904,19 @@ out = hold("people/bob/edit", {"title": "Dropped"})
 # covers: agent:post.pending.*.drop +
 check("drop one change by its id", pend(["pending", "people", "drop"], {"id": out["id"]}) == {"dropped": 1,
                                                                                          "pending": 0})
+
+print("--- the Directory's Overview (1.6.12.3) and a person's page refused")
+over = m_get.get_route(["directory"], "alice")
+# covers: agent:get.directory +
+# (the domain's status and replication ask the container `samba` by name, which this suite's DC is not: shown as not
+# running and an error there, as on a host without a DC; the directory's own reads go through run_op to this DC)
+check("GET /v1/directory: the domain, its functional level, this DC writable, the sites, the counts; nothing failed",
+      over["error"] == "" and over["level"] and any(d["writable"] for d in over["dcs"]) and "lan" in over["sites"]
+      and over["counts"]["people"] >= 3 and over["counts"]["groups"] > 0 and over["counts"]["ous"] > 0
+      and isinstance(over["replication"], dict) and over["status"]["domain"], over)
+gone, why = refused(m_get.get_route, ["people", "nobody"], "alice")
+# covers: agent:get.people.* -
+check("refused: GET /v1/people/nobody (no such entry)", gone and "no such entry" in why, why)
 
 print("--- My account (manual 1.8.6.6): the person's own read; a managed group's members on My account's Apply")
 got = m_get.get_route(["account"], "bob")

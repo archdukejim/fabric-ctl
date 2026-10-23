@@ -3,19 +3,19 @@ from webui import views
 
 
 def directory_page(h, ctx, query, status=200):
-    """Purpose: Render the Directory tab: devices, one device, roles, one role, people, the domain, machines or Group
-             Policy.
+    """Purpose: Render the Directory's pages and 802.1X's devices and roles: devices, one device, roles, one role,
+             the Directory's Overview, the domain, machines or Group Policy (People: people_page).
     Inputs:  h — the request handler (send); ctx — page context; query — dict: view ('device', 'roles', 'role',
-             'people', 'domain', 'machines', 'gpo' (with match: a policy search), else 'devices'), name (device or
+             'overview', 'domain', 'machines', 'gpo' (with match: a policy search), else 'devices'), name (device or
              role); status — int, default 200.
     Returns: the directory page with the given status; when the directory cannot be read (AgentError,
              ValidationError) the page shows why instead of the data. The machines view also shows the site's host
              groups and sudo rules (1.6.11.7; why they could not be read, alone, when that fails).
     Fails:   404 for a device or role that is not there (its page, /8021x/devices/<name>); PermissionDenied and
              AuthError propagate to handle_request (403, redirect to /login).
-    Feeds:   get_page (/directory/<section>, /8021x/devices, /8021x/roles).
+    Feeds:   get_page (/directory, /directory/<section>, /8021x/devices, /8021x/roles).
     """
-    view = query.get("view") if query.get("view") in ("device", "roles", "role", "people", "domain", "machines",
+    view = query.get("view") if query.get("view") in ("device", "roles", "role", "overview", "domain", "machines",
                                                       "gpo") else "devices"
     kw = {}
     try:
@@ -31,8 +31,8 @@ def directory_page(h, ctx, query, status=200):
             return h.send(status, views.directory(ctx, view, domain=actions.domain_overview(), **kw))
         if view == "gpo":
             return h.send(status, views.directory(ctx, view, gpo=actions.gpo_overview(query.get("match", "")), **kw))
-        if view == "people":
-            return h.send(status, views.directory(ctx, view, people=actions.list_people(), **kw))
+        if view == "overview":
+            return h.send(status, views.directory(ctx, view, overview=actions.directory_overview(), **kw))
         data = actions.device_overview()
     except (actions.AgentError, actions.ValidationError) as exc:
         return h.send(status, views.directory(ctx, view, unavailable=str(exc), **kw))
