@@ -482,8 +482,6 @@ web:post.overview.doctor +
 web:post.overview.doctor -
 web:post.overview.images.*.rollback +
 web:post.overview.images.*.update +
-web:post.security.kerberos +
-web:post.security.kerberos -
 web:post.security.raise +
 web:post.stepca.convert -
 web:post.stepca.issue +

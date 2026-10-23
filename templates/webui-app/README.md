@@ -14,6 +14,7 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `continue.html` | The continue page |
 | `directory.html` | The Directory's Overview; 802.1X's devices and roles |
 | `groups.html` | Directory · Groups: the list, a group's page, Create group |
+| `kerberos.html` | Directory · Kerberos: domain sign-in, the realm and KDCs, the ticket policy, the SPNs |
 | `sites.html` | Directory · Sites: the sites, replication, a site's page |
 | `access.html` | Directory · Access: the grants, a grant's page, Add grant |
 | `ous.html` | Directory · OUs: the tree, an OU's page |

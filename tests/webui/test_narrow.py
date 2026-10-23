@@ -38,7 +38,7 @@ PAGES = ["/", "/overview/doctor", "/overview/updates", "/audit", "/dns/zones", "
          "/directory/groups/_new", "/directory/policies", "/directory/policies/sudo", "/directory/computers",
          "/directory/computers/host-1", "/directory/computers/_groups", "/directory/ous", "/directory/ous?ou=people/staff",
          "/directory/access", "/directory/access/lan-helpdesk", "/directory/access/_new?template=helpdesk",
-         "/directory/sites", "/directory/sites/lan",
+         "/directory/sites", "/directory/sites/lan", "/directory/kerberos",
          "/directory/policies/gpo?match=example", "/8021x", "/8021x/decisions", "/8021x/guides?view=switches",
          "/8021x/guides?view=windows", "/8021x/devices", "/8021x/devices/jims-laptop", "/8021x/roles",
          "/8021x/roles/iot", "/secrets", "/secrets/unlock", "/secrets/disk", "/secrets/secrets",

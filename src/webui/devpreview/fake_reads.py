@@ -5,6 +5,7 @@ from webui.devpreview.sample_data import (SAMPLE_ACCESS, SAMPLE_ACME, SAMPLE_CA,
 from webui.devpreview.sample_radius_guides import sample_radius_guides
 from webui.devpreview.sample_settings import SAMPLE_SETTINGS, SAMPLE_SETTINGS_FILE
 from webui.devpreview.fabric_rules import ValidationError
+from webui.devpreview.fake_directory import kerberos_policy
 
 
 def _dns_filter(state):
@@ -60,6 +61,24 @@ def _sites(state):
                       for n in SAMPLE_DIRECTORY["sites"]]}
 
 
+def _spns():
+    """Purpose: The preview's service principals as GET /v1/domain/kerberos/spns answers (manual 1.6.12.9): each
+             computer's HOST names, the sso account's HTTP name, and one name held twice, to show the flag.
+    Inputs:  none.
+    Returns: dict, the agent's shape.
+    Fails:   never.
+    Feeds:   fake_reads."""
+    rows = [{"spn": f"HOST/{m['dns']}", "account": m["name"].upper() + "$", "kind": "computer"}
+            for m in SAMPLE_DOMAIN["machines"]]
+    rows += [{"spn": "HTTP/sso.home.arpa", "account": "svc-sso", "kind": "account"},
+             {"spn": "HTTP/wiki.home.arpa", "account": "HOST-1$", "kind": "computer"},
+             {"spn": "HTTP/wiki.home.arpa", "account": "svc-wiki", "kind": "account"}]
+    for r in rows:
+        r["duplicate"] = r["spn"] == "HTTP/wiki.home.arpa"
+    return {"spns": sorted(rows, key=lambda r: (r["spn"].lower(), r["account"].lower())),
+            "duplicates": ["HTTP/wiki.home.arpa"]}
+
+
 def _dhcp(state):
     """Purpose: DHCP's sample, or, with the preview's `off` toggle, DHCP off as a first turn-on shows it (manual
              1.10.3.5; `off=resume`: off with its settings kept).
@@ -92,6 +111,11 @@ def fake_reads(state, who, route, body):
         ("pki", "ca"): lambda: SAMPLE_CA, ("pki", "issued"): lambda: d["issued"], ("pki", "acme"): lambda: SAMPLE_ACME,
         ("devices",): state.overview, ("people",): lambda: d["people"], ("directory",): lambda: SAMPLE_DIRECTORY,
         ("sites",): lambda: _sites(state),
+        ("domain", "kerberos"): lambda: {"realm": "AD.HOME.ARPA", "kdcs": ["pi-core", "pi-edge"], "kdcs_error": "",
+                                         "policy": kerberos_policy(state),
+                                         "signin_kerberos": any(r["layer"] == "kerberos" and r["value"] == "on"
+                                                                for r in SAMPLE_SECURITY)},
+        ("domain", "kerberos", "spns"): _spns,
         ("domain",): lambda: SAMPLE_DOMAIN, ("gpo",): lambda: {**SAMPLE_GPO, "match": ""},
         ("host-groups",): lambda: SAMPLE_ACCESS["groups"], ("sudo",): lambda: SAMPLE_ACCESS["sudo"],
         ("federation",): lambda: SAMPLE_FEDERATION,

@@ -3,7 +3,7 @@
 # Apply per page (manual 1.8.6.5): fabric-agent's pending page ids -> the navigation page whose changes they are
 PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "machines": "/directory/computers",
                  "policies": "/directory/policies", "ous": "/directory/ous", "access": "/directory/access",
-                 "account": "/account/groups"}
+                 "kerberos": "/directory/kerberos", "account": "/account/groups"}
 
 # The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
 # permissions that show it: any one of them; () = any signed-in person). An entry shows when one of its pages does.
@@ -23,6 +23,7 @@ NAV = [
                                 ("/directory/ous", "OUs", ("domain:read",)),
                                 ("/directory/sites", "Sites", ("domain:read",)),
                                 ("/directory/access", "Access", ("domain:read",)),
+                                ("/directory/kerberos", "Kerberos", ("domain:read",)),
                                 ("/directory/policies", "Policies", ("domain:read",))]),
     ("8021x", "802.1X", [("/8021x", "RADIUS clients", ("radius:read",)),
                          ("/8021x/devices", "Devices", ("devices:read",)),
@@ -64,6 +65,10 @@ POLICY_FIELDS = [("minimum_length", "Minimum length (characters)"), ("history", 
                  ("lockout_threshold", "Failed sign-ins before a lockout (0: never)"),
                  ("lockout_minutes", "Locked for (minutes; 0: until an admin unlocks)"),
                  ("lockout_window_minutes", "Failed sign-ins forgotten after (minutes)")]
+# Directory · Kerberos' ticket policy (1.6.12.9): (key, label, lowest, highest); the agent checks the whole policy
+KERBEROS_FIELDS = [("ticket_hours", "Maximum ticket age (hours)", 1, "the renewal age"),
+                   ("renew_days", "Maximum renewal age (days)", 1, 30),
+                   ("skew_minutes", "Clock skew allowed (minutes)", 1, 15)]
 # Directory tab sections: (view, label)
 DIRECTORY_SECTIONS = [("devices", "Devices"), ("roles", "Roles"), ("people", "People"), ("domain", "Domain"),
                       ("machines", "Machines"), ("gpo", "Group Policy")]

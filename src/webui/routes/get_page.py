@@ -10,6 +10,7 @@ from webui.routes.computers_page import computers_page
 from webui.routes.access_page import access_page
 from webui.routes.groups_page import groups_page
 from webui.routes.sites_page import sites_page
+from webui.routes.kerberos_page import kerberos_page
 from webui.routes.ous_page import ous_page
 from webui.routes.dns_filter_page import dns_filter_page
 from webui.routes.moved_to import moved_to
@@ -73,6 +74,7 @@ def get_page(h, sess, path, query):
              /overview/updates, /audit), DNS (/dns/zones, /dns-filter), DHCP (/kea), PKI (/pki, /pki/acme),
              Directory (/directory, /directory/people|groups|computers[/_new|/<name>], /directory/computers/_groups,
              /directory/ous[?ou=<path>], /directory/access[/_new|/<name>], /directory/sites[/<name>],
+             /directory/kerberos,
              /directory/policies[/gpo|/sudo]), 802.1X
              (/8021x, /8021x/decisions, /8021x/guides, /8021x/devices[/<name>], /8021x/roles[/<name>]), Secrets
              (/secrets[/<view>]), Federation (/federation),
@@ -130,6 +132,8 @@ def get_page(h, sess, path, query):
         return access_page(h, ctx, path, query)
     if path == "/directory/sites" or path.startswith("/directory/sites/"):
         return sites_page(h, ctx, path)
+    if path == "/directory/kerberos":
+        return kerberos_page(h, ctx)
     if path == "/directory/ous":
         return ous_page(h, ctx, query)
     if path == "/directory/computers" or path.startswith("/directory/computers/"):

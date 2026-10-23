@@ -3,7 +3,7 @@ import urllib.parse
 
 from webui import agentclient as actions
 from webui import views
-from webui.views.constants import GRANT_RIGHTS, PERSON_FIELDS, POLICY_FIELDS
+from webui.views.constants import GRANT_RIGHTS, KERBEROS_FIELDS, PERSON_FIELDS, POLICY_FIELDS
 from webui.routes.held import held, q
 from webui.session.page_context import page_context
 
@@ -225,7 +225,8 @@ def directory_post(h, sess, parts, form):
              '_new'] (form name, type, managed), ['machines', <name>, 'enable'|'disable'|'delete'|'type'|'sites'|'move'|
              'groups'|'keytab'] (_machine's forms), ['gpo', 'set'|'clear'] (form
              policy, el_<element> values, disabled), ['hostgroups'|'sudo', …] (_host_access' forms),
-             ['domain', 'password-policy'] (form: POLICY_FIELDS' keys, complexity on|off), ['groups', '_new' |
+             ['domain', 'password-policy'] (form: POLICY_FIELDS' keys, complexity on|off), ['domain', 'kerberos',
+             'policy'] (form: KERBEROS_FIELDS' keys, whole numbers; held on Kerberos' Apply), ['groups', '_new' |
              <name>, ''|'delete'|'managers'|'members'] (_group's forms), ['ous', '_new' | '_form', ''|'rename'|
              'delete'] (_ou's forms), ['grants', '_new' | <name>, ''|'delete'] (_grant's forms); form — dict.
     Returns: people, machines (hostgroups and sudo among them), gpo and the password policy: each change held
@@ -267,6 +268,9 @@ def directory_post(h, sess, parts, form):
     if kind == "domain" and name == "password-policy" and not op:
         values = {k: form[k] for k in [f for f, _ in POLICY_FIELDS] + ["complexity"] if k in form}
         return held(h, "/directory/policies", "domain/password-policy", values)
+    if kind == "domain" and name == "kerberos" and op == "policy" and len(parts) == 3:
+        values = {k: int(form[k]) if form[k].strip().isdigit() else form[k] for k, *_ in KERBEROS_FIELDS if k in form}
+        return held(h, "/directory/kerberos", "domain/kerberos/policy", values)
     if kind == "gpo" and name in ("set", "clear") and not op:
         body = {"policy": form.get("policy", ""), "control": bool(form.get("control"))}
         if name == "set":

@@ -1,4 +1,5 @@
-from webui.devpreview.fabric_rules import ValidationError, check_password_policy, list_devices, read_policy_changes
+from webui.devpreview.fabric_rules import (ValidationError, check_kerberos_policy, check_password_policy, list_devices,
+                                           read_policy_changes)
 from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DOMAIN, SAMPLE_GPO
 
 # a person's fields (2.1.6.93), as fabriclib's person_fields names them
@@ -198,9 +199,19 @@ def _machines(state, route, body):
     return None
 
 
+def kerberos_policy(state):
+    """Purpose: The preview's Kerberos ticket policy: AD's defaults until changed (in memory).
+    Inputs:  state — DevState.
+    Returns: dict ticket_hours, renew_days, skew_minutes.
+    Fails:   never.
+    Feeds:   _policy, fake_reads, fake_pending."""
+    return state.data.get("kerberos_policy") or {"ticket_hours": 10, "renew_days": 7, "skew_minutes": 5}
+
+
 def _policy(state, route, body):
     """Purpose: The password policy (checked by fabriclib's own rules, as the agent does) and Group Policy, in memory.
-    Inputs:  state — DevState; route — ["domain", "password-policy"] or ["gpo", "search"|"set"|"clear"]; body — dict.
+    Inputs:  state — DevState; route — ["domain", "password-policy"], ["domain", "kerberos", "policy"] or ["gpo",
+             "search"|"set"|"clear"]; body — dict.
     Returns: the agent's answer, or None for another route.
     Fails:   ValidationError (a policy value; no fabriclib).
     Feeds:   fake_directory."""
@@ -211,6 +222,17 @@ def _policy(state, route, body):
         check_password_policy(policy)
         SAMPLE_DOMAIN["policy"] = policy
         state.log("AD_PASSWORD_POLICY", "(dev preview: in memory)")
+        return {"policy": policy}
+    if route == ["domain", "kerberos", "policy"]:
+        if not check_kerberos_policy:
+            raise ValidationError("the dev preview from the image has no fabriclib; run it from a checkout")
+        if any(isinstance(x, bool) or not isinstance(x, int) for x in body.values()):
+            raise ValidationError("the ticket policy's keys (ticket_hours, renew_days, skew_minutes), each a whole "
+                                  "number")
+        policy = {**kerberos_policy(state), **body}
+        check_kerberos_policy(policy)
+        state.data["kerberos_policy"] = policy
+        state.log("AD_KERBEROS_POLICY", "(dev preview: in memory)")
         return {"policy": policy}
     if route == ["gpo", "search"]:
         match = str(body.get("match", "")).lower()

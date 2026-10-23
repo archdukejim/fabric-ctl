@@ -20,12 +20,6 @@ one, else an authenticator app), <strong>totp</strong> (an authenticator app), <
 phone or a security key, unlocked with its PIN or fingerprint). Turning on the client certificate: each admin needs
 their <code>.p12</code> first (<code>sudo fabricctl client-cert &lt;user&gt;</code>), and your browser must present yours
 before it can be turned on.</p></section>
-{% for l in layers if l.layer == 'kerberos' %}
-<section class="card"><h2>Signing in with the domain logon (Kerberos)</h2>
-<p>Now <strong>{{ l.value }}</strong>. On a computer joined to the domain, the Windows or Linux logon signs a person
-in without their password; any second factor is still asked. Not a layer: it can be turned off and on here.</p>
-<form method="post" action="/security/kerberos"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<input type="hidden" name="value" value="{{ 'off' if l.value == 'on' else 'on' }}">
-<button type="submit">Turn {{ 'off' if l.value == 'on' else 'on' }}</button></form></section>
-{% endfor %}
+<p class="muted small">Signing in with the domain logon (Kerberos) is turned on or off on
+<a href="/directory/kerberos">Directory → Kerberos</a>.</p>
 {% endblock %}

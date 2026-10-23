@@ -2,7 +2,7 @@ import secrets
 
 from webui import views
 from webui.devpreview.fabric_rules import ValidationError
-from webui.devpreview.sample_data import SAMPLE_DOCTOR, SAMPLE_INFO, SAMPLE_PEM
+from webui.devpreview.sample_data import SAMPLE_DOCTOR, SAMPLE_INFO, SAMPLE_PEM, SAMPLE_SECURITY
 from webui.devpreview.sample_result import sample_result
 from webui.devpreview.sample_settings import SAMPLE_PLAN
 
@@ -107,7 +107,11 @@ def fake_misc(state, who, route, body):
         return _vault(state, route[1:], body)
     if route in (["security", "raise"], ["security", "kerberos"]):
         layer = "kerberos" if route[1] == "kerberos" else str(body.get("layer", ""))
-        return {"layer": layer, "from": "off", "to": str(body.get("value", "")), "changed": True, "applied": True}
+        row = next((r for r in SAMPLE_SECURITY if r["layer"] == layer), {})
+        was = row.get("value", "off")
+        if layer == "kerberos" and str(body.get("value", "")) in ("on", "off"):
+            row["value"] = str(body["value"])           # in memory: Kerberos shows it turned
+        return {"layer": layer, "from": was, "to": str(body.get("value", "")), "changed": True, "applied": True}
     if route == ["settings", "plan"]:
         return {**SAMPLE_PLAN, "source": "file" if body.get("file") else "web"}
     if route == ["settings", "apply"]:

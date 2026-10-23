@@ -45,6 +45,8 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `list_people.py` | People and their groups (read-only; managed in Keycloak). Agent route: GET /v1/people (people:read). |
 | `list_groups.py` | The site's groups: kind, member count, description. Agent route: GET /v1/groups (domain:read). |
 | `show_group.py` | One group's two levels. Agent route: GET /v1/groups/<name> (domain:read). |
+| `kerberos_overview.py` | Domain sign-in, the realm and its KDCs, the ticket policy. Agent route: GET /v1/domain/kerberos (domain:read). |
+| `list_spns.py` | The domain's SPNs, each with its account, duplicates flagged. Agent route: GET /v1/domain/kerberos/spns (domain:read). |
 | `site_overview.py` | The sites with their people, machines, DCs, grants and AD sites. Agent route: GET /v1/sites (domain:read). |
 | `list_grants.py` | The grants and the templates. Agent route: GET /v1/domain/grants (domain:read). |
 | `show_grant.py` | One grant with the people and machines it reaches. Agent route: GET /v1/domain/grants/<name> (domain:read). |

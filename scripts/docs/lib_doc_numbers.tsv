@@ -971,7 +971,8 @@ file	webui|src/webui/agentclient/host_reminders.py	201
 file	webui|src/webui/agentclient/image_rows.py	140	
 file	webui|src/webui/agentclient/inspect_pem.py	21	
 file	webui|src/webui/agentclient/issue_key_pair.py	22	
-file	webui|src/webui/agentclient/kerberos_overview.py	254	0.8.0 / 2026-10-23
+file	webui|src/webui/agentclient/kerberos_overview.py	261	
+file	webui|src/webui/agentclient/kerberos_overview.py (gone 0.8.0 / 2026-10-23)	254	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/link_device_cert.py	23	
 file	webui|src/webui/agentclient/list_grants.py	249	
 file	webui|src/webui/agentclient/list_groups.py	230	
@@ -980,7 +981,8 @@ file	webui|src/webui/agentclient/list_issued.py	24
 file	webui|src/webui/agentclient/list_machines.py	238	
 file	webui|src/webui/agentclient/list_ous.py	244	
 file	webui|src/webui/agentclient/list_people.py	25	
-file	webui|src/webui/agentclient/list_spns.py	255	0.8.0 / 2026-10-23
+file	webui|src/webui/agentclient/list_spns.py	262	
+file	webui|src/webui/agentclient/list_spns.py (gone 0.8.0 / 2026-10-23)	255	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/list_sudo_rules.py	158	
 file	webui|src/webui/agentclient/list_tsig_keys.py	26	
 file	webui|src/webui/agentclient/list_zones.py	27	
@@ -1097,7 +1099,8 @@ file	webui|src/webui/routes/get_page.py	80
 file	webui|src/webui/routes/groups_page.py	233	
 file	webui|src/webui/routes/held.py	224	
 file	webui|src/webui/routes/kea_post.py	81	
-file	webui|src/webui/routes/kerberos_page.py	257	0.8.0 / 2026-10-23
+file	webui|src/webui/routes/kerberos_page.py	263	
+file	webui|src/webui/routes/kerberos_page.py (gone 0.8.0 / 2026-10-23)	257	0.8.0 / 2026-10-23
 file	webui|src/webui/routes/landing_post.py	187	
 file	webui|src/webui/routes/moved_to.py	209	
 file	webui|src/webui/routes/openbao_page.py	82	
@@ -1147,7 +1150,8 @@ file	webui|src/webui/views/freeradius.py	110
 file	webui|src/webui/views/groups.py	234	
 file	webui|src/webui/views/job_page.py	144	
 file	webui|src/webui/views/kea.py	111	
-file	webui|src/webui/views/kerberos.py	259	0.8.0 / 2026-10-23
+file	webui|src/webui/views/kerberos.py	264	
+file	webui|src/webui/views/kerberos.py (gone 0.8.0 / 2026-10-23)	259	0.8.0 / 2026-10-23
 file	webui|src/webui/views/machine_result.py	129	0.8.0 / 2026-10-23
 file	webui|src/webui/views/nav_menu.py	210	
 file	webui|src/webui/views/openbao.py	112	
@@ -2760,7 +2764,8 @@ function	webui|src/webui/agentclient/host_reminders.py|host_reminders	1
 function	webui|src/webui/agentclient/image_rows.py|image_rows	1	
 function	webui|src/webui/agentclient/inspect_pem.py|inspect_pem	1	
 function	webui|src/webui/agentclient/issue_key_pair.py|issue_key_pair	1	
-function	webui|src/webui/agentclient/kerberos_overview.py|kerberos_overview	1	0.8.0 / 2026-10-23
+function	webui|src/webui/agentclient/kerberos_overview.py|kerberos_overview	2	
+function	webui|src/webui/agentclient/kerberos_overview.py|kerberos_overview (gone 0.8.0 / 2026-10-23)	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/link_device_cert.py|link_device_cert	1	
 function	webui|src/webui/agentclient/list_grants.py|list_grants	1	
 function	webui|src/webui/agentclient/list_groups.py|list_groups	1	
@@ -2769,7 +2774,8 @@ function	webui|src/webui/agentclient/list_issued.py|list_issued	1
 function	webui|src/webui/agentclient/list_machines.py|list_machines	1	
 function	webui|src/webui/agentclient/list_ous.py|list_ous	1	
 function	webui|src/webui/agentclient/list_people.py|list_people	1	
-function	webui|src/webui/agentclient/list_spns.py|list_spns	1	0.8.0 / 2026-10-23
+function	webui|src/webui/agentclient/list_spns.py|list_spns	2	
+function	webui|src/webui/agentclient/list_spns.py|list_spns (gone 0.8.0 / 2026-10-23)	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/list_sudo_rules.py|list_sudo_rules	1	
 function	webui|src/webui/agentclient/list_tsig_keys.py|list_tsig_keys	1	
 function	webui|src/webui/agentclient/list_zones.py|list_zones	1	
@@ -2896,6 +2902,7 @@ function	webui|src/webui/devpreview/fake_directory.py|_machines	4
 function	webui|src/webui/devpreview/fake_directory.py|_people	2	
 function	webui|src/webui/devpreview/fake_directory.py|_policy	5	
 function	webui|src/webui/devpreview/fake_directory.py|fake_directory	6	
+function	webui|src/webui/devpreview/fake_directory.py|kerberos_policy	8	
 function	webui|src/webui/devpreview/fake_dns.py|_record	3	
 function	webui|src/webui/devpreview/fake_dns.py|_tsig	1	
 function	webui|src/webui/devpreview/fake_dns.py|_value	2	
@@ -2934,6 +2941,7 @@ function	webui|src/webui/devpreview/fake_reads.py|_dhcp	2
 function	webui|src/webui/devpreview/fake_reads.py|_dns_filter	1	
 function	webui|src/webui/devpreview/fake_reads.py|_person	4	
 function	webui|src/webui/devpreview/fake_reads.py|_sites	5	
+function	webui|src/webui/devpreview/fake_reads.py|_spns	6	
 function	webui|src/webui/devpreview/fake_reads.py|fake_reads	3	
 function	webui|src/webui/devpreview/sample_data.py|_list	1	
 function	webui|src/webui/devpreview/sample_radius_guides.py|sample_radius_guides	1	
@@ -3002,7 +3010,8 @@ function	webui|src/webui/routes/kea_post.py|_kea	3
 function	webui|src/webui/routes/kea_post.py|_pools	1	
 function	webui|src/webui/routes/kea_post.py|_where	2	
 function	webui|src/webui/routes/kea_post.py|kea_post	4	
-function	webui|src/webui/routes/kerberos_page.py|kerberos_page	1	0.8.0 / 2026-10-23
+function	webui|src/webui/routes/kerberos_page.py|kerberos_page	2	
+function	webui|src/webui/routes/kerberos_page.py|kerberos_page (gone 0.8.0 / 2026-10-23)	1	0.8.0 / 2026-10-23
 function	webui|src/webui/routes/landing_post.py|landing_post	1	
 function	webui|src/webui/routes/moved_to.py|_with	1	
 function	webui|src/webui/routes/moved_to.py|moved_to	2	
@@ -3064,7 +3073,8 @@ function	webui|src/webui/views/freeradius.py|freeradius	1
 function	webui|src/webui/views/groups.py|groups	1	
 function	webui|src/webui/views/job_page.py|job_page	1	
 function	webui|src/webui/views/kea.py|kea	1	
-function	webui|src/webui/views/kerberos.py|kerberos	1	0.8.0 / 2026-10-23
+function	webui|src/webui/views/kerberos.py|kerberos	2	
+function	webui|src/webui/views/kerberos.py|kerberos (gone 0.8.0 / 2026-10-23)	1	0.8.0 / 2026-10-23
 function	webui|src/webui/views/machine_result.py|machine_result	1	0.8.0 / 2026-10-23
 function	webui|src/webui/views/nav_menu.py|nav_menu	1	
 function	webui|src/webui/views/openbao.py|openbao	1	

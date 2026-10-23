@@ -16,6 +16,7 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `css.py` | The whole stylesheet (static/webui-app/app.css), served as /static/app.css (light and dark colour schemes). |
 | `directory.py` | The Directory's pages and 802.1X's devices and roles: the Overview. |
 | `groups.py` | Directory · Groups: the list, a group's two levels and their forms, Create group. |
+| `kerberos.py` | Directory · Kerberos: sign-in with the domain logon, the realm, the ticket policy, the SPNs. |
 | `sites.py` | Directory · Sites: the sites and a site's page (read-only). |
 | `access.py` | Directory · Access: the grants, a grant's page and its forms, Add grant; a grant's rights in words. |
 | `ous.py` | Directory · OUs: the tree with Create OU, an OU's page with Rename and Delete. |

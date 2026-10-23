@@ -25,11 +25,13 @@ def _finish(page, routes=()):
              setting, written into the domain's services, restarting only what changed, health-gated (manual
              1.8.6.5, 1.6.12.10, 2.1.14.15).
     Inputs:  page — a page id; routes — the routes of the changes being applied.
-    Returns: (what, fn(actor)) for "policies" when the password policy is among them; None otherwise (Group Policy
-             and sudo rules are written by their own changes).
+    Returns: (what, fn(actor)) for "policies" when the password policy is among them, and for "kerberos" when the
+             ticket policy is (written into the DC's KDC, 1.6.12.9); None otherwise (Group Policy and sudo rules are
+             written by their own changes).
     Fails:   never (fn raises ValidationError when the apply does not finish).
     Feeds:   PENDING (its finish)."""
-    if page != "policies" or ["domain", "password-policy"] not in [list(r) for r in routes]:
+    wanted = {"policies": ["domain", "password-policy"], "kerberos": ["domain", "kerberos", "policy"]}.get(page)
+    if wanted is None or wanted not in [list(r) for r in routes]:
         return None
 
     def write(actor):

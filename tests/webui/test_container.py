@@ -976,6 +976,11 @@ st, _, _sc, body = req("POST", "/directory/ous/_form/delete", POSTH, {"csrf": co
                        cookie=aud)
 check("auditor: an OU's Delete is refused by fabric-agent when held (ous:admin named)", st == 303
       and "ous:admin" in urllib.parse.unquote_plus(_.get("Location", "")), (st, _))
+st, _, _sc, body = req("GET", "/directory/kerberos", ALICE, cookie=aud)
+check("auditor: Kerberos through the real agent (domain:read), no DC here: the KDCs and SPNs said why; no policy form "
+      "nor sign-in switch (neither domain:admin nor security:raise)", st == 200 and "Ticket policy" in body
+      and body.count("could not be read") >= 2 and 'action="/directory/domain/kerberos/policy"' not in body
+      and 'action="/security/kerberos"' not in body, (st, body[-1500:]))
 st, _, _sc, body = req("GET", "/directory/sites", ALICE, cookie=aud)
 check("auditor: Sites through the real agent (domain:read), no DC here: why said on the page", st == 200
       and "The sites could not be read" in body and "no domain controller" in body, (st, body[-800:]))

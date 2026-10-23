@@ -289,7 +289,8 @@ with serve():
     page = get("/settings/sign-in")
     check("Settings · Sign-in security: each layer, its raises, a lowering shown with who did it, no lower button",
           'action="/security/raise"' in page and "lowered from any" in page
-          and "fabricctl security lower" in page and "Lower</button>" not in page and "Turn off" in page)
+          and "fabricctl security lower" in page and "Lower</button>" not in page and "Turn off" not in page
+          and 'href="/directory/kerberos"' in page)
     page = get("/settings")
     check("Settings · Setup wizard: its first step, the console-only settings read only, its navigation page",
           "Optional parts" in page and "sudo fabricctl setup (a new install)" in page
@@ -756,9 +757,9 @@ with serve():
     check("one of fabric's: what it holds (its computers linked to Computers, searched by folder), the OUs in it, no "
           "form", 'href="/directory/computers?q=machines%2Fservers"' in page and ">web</a>" in page
           and "/directory/ous/_form/" not in page and "fabric&#39;s fixed folders" in page, page[-3000:])
-    page = get("/directory/ous?ou=nowhere")
+    st, _, _, page = req("GET", "/directory/ous?ou=nowhere")
     # covers: web:get.directory.ous -
-    check("an OU that is not there: said, no form", "No OU nowhere in the domain" in page
+    check("an OU that is not there: said, no form, a 404 (2.1.8.16)", st == 404 and "No OU nowhere in the domain" in page
           and "/directory/ous/_form/" not in page)
     st, loc, page = post("/directory/ous/_new", {"parent": "people", "name": "contractors"})
     # covers: web:post.directory.ous._new +
@@ -795,6 +796,42 @@ with serve():
     check("Delete refused at Apply while it holds anything, saying so", "is not empty" in page, page[-1500:])
     post("/changes/ous/discard", {})
     check("refused: an unknown OU form (404)", req("POST", "/directory/ous/_form/frob", {"csrf": "dev"})[0] == 404)
+    page = get("/directory/kerberos")
+    # covers: web:get.directory.kerberos +
+    check("Directory · Kerberos: domain sign-in on with its switch, the realm and KDCs, the ticket policy's form, the "
+          "SPNs with the duplicate flagged and a computer's linked", "Now <strong>on</strong>" in page
+          and 'action="/security/kerberos"' in page and "AD.HOME.ARPA" in page and "pi-core, pi-edge" in page
+          and 'action="/directory/domain/kerberos/policy"' in page and 'name="skew_minutes"' in page
+          and 'value="10"' in page and "Held by two accounts" in page and "HTTP/wiki.home.arpa" in page
+          and 'href="/directory/computers/host-1"' in page, page[-4000:])
+    check("refused: an address past Kerberos (404)", req("GET", "/directory/kerberos/x")[0] == 404)
+    # covers: web:get.directory.kerberos -
+    st, loc, page = post("/directory/domain/kerberos/policy", {"ticket_hours": "8", "renew_days": "5",
+                                                                "skew_minutes": "4"})
+    # covers: web:post.directory.domain.kerberos.policy +
+    check("the ticket policy: held on Kerberos' page until its Apply", loc == "/directory/kerberos"
+          and "Change the Kerberos ticket policy" in flash(page), (loc, flash(page)))
+    post("/changes/kerberos/apply", {})
+    page = get("/directory/kerberos")
+    check("...applied: the form shows the new policy, nothing pending", 'value="8"' in page and 'value="4"' in page
+          and "change pending" not in page, page[-3000:])
+    for form, words in (({"skew_minutes": "30"}, "1 to 15 minutes"), ({"ticket_hours": "200"}, "over the renewal age"),
+                        ({"renew_days": "x"}, "whole number")):
+        post("/directory/domain/kerberos/policy", form)
+        st, loc, page = post("/changes/kerberos/apply", {})
+        # covers: web:post.directory.domain.kerberos.policy -
+        check(f"the ticket policy refused at Apply, why shown ({words})", words in page, page[-1500:])
+        post("/changes/kerberos/discard", {})
+    check("refused: an unknown Kerberos form (404)",
+          req("POST", "/directory/domain/kerberos/frob", {"csrf": "dev"})[0] == 404)
+    st, loc, page = post("/security/kerberos", {"value": "off"})
+    # covers: web:post.security.kerberos +
+    check("domain sign-in turned off from Kerberos, back on Kerberos saying so", loc == "/directory/kerberos"
+          and "kerberos: on → off" in flash(page) and "Now <strong>off</strong>" in page, (loc, flash(page)))
+    post("/security/kerberos", {"value": "on"})
+    # covers: web:post.security.kerberos -
+    check("refused: an address past the sign-in switch (404)",
+          req("POST", "/security/kerberos/x", {"csrf": "dev", "value": "on"})[0] == 404)
     page = get("/directory/sites")
     # covers: web:get.directory.sites +
     check("Directory · Sites: each site with its people and machines (counts, linked to its group and to Computers by "
@@ -808,9 +845,9 @@ with serve():
           and 'href="/directory/computers/host-1"' in page and 'href="/directory/groups/site-lan"' in page
           and "192.168.1.0/24" in page and "lan-edge (edge and lan; cost 100, every 15 minutes)" in page
           and 'method="post"' not in page.split("<main", 1)[1].split("</main>", 1)[0], page[-3000:])
-    page = get("/directory/sites/mars")
+    st, _, _, page = req("GET", "/directory/sites/mars")
     # covers: web:get.directory.sites -
-    check("a site that is not there: said", "No site mars in the domain" in page)
+    check("a site that is not there: said, a 404 (2.1.8.16)", st == 404 and "No site mars in the domain" in page)
     check("refused: an address past a site's page (404)", req("GET", "/directory/sites/lan/x")[0] == 404)
     page = get("/directory/access")
     # covers: web:get.directory.access +

@@ -44,6 +44,8 @@ from webui.agentclient.list_machines import list_machines  # noqa: F401
 from webui.agentclient.list_ous import list_ous  # noqa: F401
 from webui.agentclient.list_grants import list_grants  # noqa: F401
 from webui.agentclient.site_overview import site_overview  # noqa: F401
+from webui.agentclient.kerberos_overview import kerberos_overview  # noqa: F401
+from webui.agentclient.list_spns import list_spns  # noqa: F401
 from webui.agentclient.show_grant import show_grant  # noqa: F401
 from webui.agentclient.explain_grants import explain_grants  # noqa: F401
 from webui.agentclient.machine_overview import machine_overview  # noqa: F401

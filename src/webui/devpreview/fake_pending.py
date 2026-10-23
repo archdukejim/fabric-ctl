@@ -2,7 +2,7 @@ import urllib.parse
 
 from webui.devpreview.fabric_rules import ValidationError, required_permission
 from webui.devpreview.fake_account import managed
-from webui.devpreview.fake_directory import PERSON_KEYS
+from webui.devpreview.fake_directory import PERSON_KEYS, kerberos_policy
 from webui.devpreview.fake_groups import find_group
 from webui.devpreview.fake_ous import fake_ous
 from webui.devpreview.fake_grants import fake_grants
@@ -53,6 +53,8 @@ def _thing(state, route, body):
         return _find(SAMPLE_ACCESS["sudo"], "name", name)
     if route == ["domain", "password-policy"]:
         return SAMPLE_DOMAIN["policy"]
+    if route == ["domain", "kerberos", "policy"]:
+        return kerberos_policy(state)
     if route[:2] == ["domain", "grants"]:             # the grant as the list has it, None for a new one
         name = route[2] if len(route) > 2 else body.get("name", "")
         return _find(fake_grants(state, None, ["domain", "grants"], None)["grants"], "name", name)
