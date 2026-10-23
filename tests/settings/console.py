@@ -166,12 +166,17 @@ if web_ok:
 
     # covers: web:get.settings +
     page = views.settings(CTX, SAMPLE_SETTINGS)
-    check("the wizard's first step: the parts with today's values (no DHCP in 0.8.0, 2.1.1.58), the console-only "
+    check("the wizard's first step: the parts with today's values, DHCP's first subnet (0.9.0), the console-only "
           "settings read only with their commands, the steps, Next", "Optional parts" in page
-          and 'name="install_fluentbit"' in page and 'name="install_kea"' not in page and 'name="dhcp_' not in page
+          and 'name="install_fluentbit"' in page and 'name="install_kea"' in page and 'name="dhcp_subnet"' in page
+          and 'list="ifaces"' in page and '<option value="wlan0">' in page
           and "home.arpa" in page and "sudo fabricctl setup (a new install)" in page
           and 'name="host_ip"' not in page and 'value="memory"' in page and 'action="/settings/step"' in page,
           page[:3000])
+    page2 = views.settings(CTX, {**SAMPLE_SETTINGS, "dhcp_first_subnet": False})
+    check("DHCP with subnets already: no first-subnet questions, its fields carried hidden",
+          'name="install_kea"' in page2
+          and 'type="hidden" name="dhcp_subnet"' in page2 and 'list="ifaces"' not in page2, page2[:3000])
     check("the first step: Export, Import and Dismiss (not finished yet)", 'href="/settings/export"' in page
           and 'action="/settings/import"' in page and 'action="/settings/dismiss"' in page)
     check("the other steps' fields carried hidden (Back and Next keep what was typed)",

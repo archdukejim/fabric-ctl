@@ -4,13 +4,14 @@ file's round trip (export, import, the same settings); the keys an import ignore
 only, not a setting); every wizard key refused with its reason when invalid, nothing changed; the plan (each change old
 to new, the parts started or stopped, the memory plan); a stale plan refused at apply; the apply written under the
 lock and audited, the host's own log-forwarding keys kept; the wizard's fields both ways; `fabricctl settings` export
-and import, positive and negative. The settings, the lock, the apply and the audit log are stood in for (pure logic:
+and import, positive and negative; DHCP turned on with its first subnet (0.9.0, 2.3.1.23.2). The settings, the lock, the apply and the audit log are stood in for (pure logic:
 the global Rule 9 allows it); the sandbox applies a wizard change end to end.
 
     python3 tests/settings/run.py
 """
 import copy
 import io
+import ipaddress
 import json
 import os
 import sys
@@ -38,6 +39,9 @@ from fabriclib.settings.settings_from_form import settings_from_form  # noqa: E4
 from fabriclib.settings.wizard_finished import wizard_finished  # noqa: E402
 
 FAILED = 0
+NETS = {"eth0": [ipaddress.IPv4Interface("192.168.1.10/24")]}
+FIRST = {"interface": "eth0", "subnet": "192.168.1.0/24", "pool": "192.168.1.100 - 192.168.1.200",
+         "router": "192.168.1.1"}
 V = {"site_name": "home", "hostname": "pi-core", "domain": "home.arpa", "ad_domain": "ad.home.arpa",
      "host_ip": "192.168.1.10", "lan_cidr": "192.168.1.0/24", "lan_gateway": "192.168.1.1",
      "install_keycloak": True, "install_webui": True, "install_kea": False, "dns_filter": "bind",
@@ -61,7 +65,7 @@ def refused(fn, words):
 
 
 def plan(given, v=None, ignored=(), source="web"):
-    return plan_settings(copy.deepcopy(v or V), given, ignored, source=source, have_gb=8)
+    return plan_settings(copy.deepcopy(v or V), given, ignored, source=source, have_gb=8, networks=NETS)
 
 
 # ---- the settings file: export, then import, gives the same settings
@@ -99,9 +103,10 @@ check("import: only the wizard's key taken", parsed["settings"] == {"dns_filter"
 parsed_dhcp = parse_settings_file(yaml.safe_dump({"fabric_settings": 1, "settings": {
     "install_kea": True, "dhcp": {"interfaces": ["eth0"]}, "dns_filter": "none"}}), known={**V, "dhcp": {}})
 why = {i["key"]: i["reason"] for i in parsed_dhcp["ignored"]}
-check("import: DHCP is not the wizard's in 0.8.0 (2.1.1.58): install_kea and dhcp ignored as console only",
-      parsed_dhcp["settings"] == {"dns_filter": "none"} and why.get("install_kea") == "console only"
-      and why.get("dhcp") == "console only" and "install_kea" not in WIZARD_KEYS and "dhcp" not in WIZARD_KEYS, why)
+check("import: DHCP is the wizard's from 0.9.0 (2.3.1.23.2): install_kea taken; dhcp of the wrong form kept to be "
+      "refused by the plan", parsed_dhcp["settings"].get("install_kea") is True and "dhcp" in parsed_dhcp["settings"]
+      and "install_kea" not in why and "dhcp" not in why and "install_kea" in WIZARD_KEYS and "dhcp" in WIZARD_KEYS,
+      (parsed_dhcp, why))
 p = plan(parsed["settings"], ignored=parsed["ignored"], source="file")
 check("the plan carries the ignored list and where it came from", p["ignored"] == parsed["ignored"]
       and p["source"] == "file" and [c["key"] for c in p["changes"]] == ["dns_filter"], p)
@@ -118,6 +123,9 @@ check("refused: no settings map", refused(lambda: parse_settings_file("fabric_se
 
 # ---- every wizard key refused with its reason, nothing changed
 BAD = [
+    ("install_kea", "yes", "install_kea: true or false"),
+    ("dhcp", ["eth0"], "dhcp: the first subnet's"),
+    ("dhcp", {"interfaces": ["eth0"]}, "dhcp: the first subnet's"),
     ("dns_filter", "adguard", "dns_filter: bind"),
     ("install_fluentbit", 1, "install_fluentbit: true or false"),
     ("log_forwarding", {"syslog": {"host": "bad host!", "port": 514}}, "log_forwarding.syslog"),
@@ -160,13 +168,15 @@ check("refused as a whole: one invalid value among valid ones changes nothing", 
     lambda: plan({"dns_filter": "none", "host_ram_capacity": 99}), "host_ram_capacity") is True)
 check("refused: log forwarding on with nowhere to send the logs", refused(
     lambda: plan({"install_fluentbit": True}), "needs somewhere to send the logs") is True)
-try:
-    check_wizard_value("install_kea", True, V, 8)
-    not_wizard = "accepted"
-except KeyError:
-    not_wizard = True
-check("refused: install_kea is not a wizard key in 0.8.0 (DHCP stays setup's, 2.1.1.58)", not_wizard is True,
-      not_wizard)
+check("refused: DHCP on with no first subnet", refused(
+    lambda: plan({"install_kea": True}), "install_kea: DHCP cannot be turned on") is True)
+check("refused: DHCP on with an interface this host lacks", refused(lambda: plan({"install_kea": True, "dhcp": {
+    **FIRST, "interface": "eth9"}}), "install_kea: DHCP cannot be turned on") is True)
+check("refused: DHCP on with a pool outside its subnet", refused(lambda: plan({"install_kea": True, "dhcp": {
+    **FIRST, "pool": "10.0.0.1 - 10.0.0.9"}}), "install_kea: DHCP cannot be turned on") is True)
+check("check_wizard_value: install_kea a flag, dhcp the four texts", check_wizard_value("install_kea", True, V, 8)
+      is True and check_wizard_value("dhcp", {"subnet": " 192.168.1.0/24 "}, V, 8) == {
+          "interface": "", "subnet": "192.168.1.0/24", "pool": "", "router": ""})
 check("refused: the parts on do not fit the memory (plan_memory's reason)", refused(
     lambda: plan({"host_ram_capacity": 4, "install_fluentbit": True,
                   "log_forwarding": {"syslog": {"host": "logs.example.org", "port": 6514}}},
@@ -191,6 +201,17 @@ check("the plan: the DNS filter off stops its resolver and AdGuard Home",
       and all(x["change"] == "stopped" for x in p2["parts"]), p2["parts"])
 p3 = plan({"signin_kerberos": True})
 check("the plan: no part and no memory change, no memory plan", p3["memory"] is None and p3["parts"] == [], p3)
+pk = plan({"install_kea": True, "dhcp": FIRST})
+chk = {c["key"]: (c["old"], c["new"]) for c in pk["changes"]}
+check("the plan: DHCP on with its first subnet, Kea started, in the memory plan",
+      pk["keys"] == ["install_kea", "dhcp"] and chk["install_kea"] == ("off", "on")
+      and pk["parts"] == [{"service": "Kea (DHCP and its DNS updates)", "change": "started"}]
+      and {r["service"]: r for r in pk["memory"]["rows"]}["Kea (DHCP and its DNS updates)"]["before"] is None,
+      pk)
+p4 = plan({"dhcp": FIRST})
+check("the plan: DHCP's first subnet alone (DHCP stays off) changes nothing", p4["keys"] == [], p4["changes"])
+check("a plan that leaves DHCP alone is not made stale by the address plan's copy changing",
+      plan_is_current(p4, {**V, "dhcp": {"interfaces": ["eth0"]}}, 8))
 p5 = plan({"ad_password_policy": {"minimum_length": 14}})
 check("the plan: a partial password policy over today's", p5["settings"]["ad_password_policy"] == {
     **DEFAULT_POLICY, "minimum_length": 14} and p5["keys"] == ["ad_password_policy"], p5["settings"])
@@ -219,7 +240,12 @@ def run_apply(pl, ok=True, **kw):
     def fake(actor, source):
         RUNS.append(("apply", actor, source))
         return ok, "applied output"
-    return m_apply.apply_settings(pl, "alice", have_gb=8, apply=fake, config_dir=tmp, **kw)
+
+    def fw():
+        RUNS.append(("firewall",))
+        return True, "firewall ok"
+    return m_apply.apply_settings(pl, "alice", have_gb=8, networks=NETS, apply=fake, firewall=fw, config_dir=tmp,
+                                  **kw)
 
 
 STORE["v"] = {**V, "dns_filter": "none"}
@@ -236,7 +262,17 @@ check("apply: the changed keys written, one apply, DHCP left as it was",
 check("apply: audited SETTINGS_CHANGE with who, from where and the keys",
       AUDIT[-1][:2] == ("alice", "SETTINGS_CHANGE") and AUDIT[-1][2].startswith("from web: install_fluentbit"),
       AUDIT[-1])
+check("apply: no firewall refresh when DHCP is left alone", RUNS[-1] == ("apply", "alice", "web"), RUNS[-1:])
 check("apply: the wizard marked finished (applied)", wizard_finished(tmp)["how"] == "applied")
+STORE["v"] = copy.deepcopy(V)
+res = run_apply(pk)
+saved = SAVED[-1]
+check("apply: DHCP on with its first subnet, one apply, the firewall after it",
+      res["ok"] and saved["install_kea"] is True and saved["dhcp"]["subnets"][0]["subnet"] == "192.168.1.0/24"
+      and saved["dhcp"]["interfaces"] == ["eth0"] and RUNS[-2:] == [("apply", "alice", "web"), ("firewall",)]
+      and res["message"] == "Applied: install_kea.", (res, RUNS[-2:]))
+check("apply: audited with install_kea, not the first subnet's form",
+      AUDIT[-1][2] == "from web: install_kea", AUDIT[-1])
 STORE["v"] = copy.deepcopy(lf_host)
 pl = plan_settings(copy.deepcopy(lf_host), {"log_forwarding": {"syslog": {"host": "logs2.example.org", "port": 514}}},
                    have_gb=8)
@@ -256,12 +292,14 @@ given = settings_from_form({**form, "install_kea": "true", "dhcp_subnet": "192.1
                             "log_target": "logs.example.org", "install_fluentbit": "true",
                             "dns_filter_upstreams": "1.1.1.1 one.one.one.one, 9.9.9.9 dns.quad9.net"},
                            read_settings(V, 8))
-check("fields: a syslog server (port 6514), upstream pairs; DHCP's fields not read (0.9.0)",
-      "install_kea" not in given and "dhcp" not in given and given["log_forwarding"] == {
+check("fields: DHCP on with its first subnet, a syslog server (port 6514), upstream pairs",
+      given["install_kea"] is True and given["dhcp"] == {"interface": "", "subnet": "192.168.1.0/24", "pool": "",
+                                                      "router": ""} and given["log_forwarding"] == {
           "syslog": {"host": "logs.example.org", "port": 6514}}
       and given["dns_filter_upstreams"][0] == {"address": "1.1.1.1", "name": "one.one.one.one"}, given)
 for fields, words in (({"host_ram_capacity": "lots"}, "host_ram_capacity: a whole number"),
                       ({"install_fluentbit": "maybe"}, "install_fluentbit: yes or no"),
+                      ({"install_kea": "maybe"}, "install_kea: yes or no"),
                       ({"log_target": "http://x.example"}, "https://"),
                       ({"dns_filter_upstreams": "9.9.9.9"}, "an address and the name"),
                       ({"policy_history": "-1"}, "policy_history: a whole number")):
@@ -273,7 +311,7 @@ vars_file = os.path.join(d, "vars.yaml")
 with open(vars_file, "w") as f:
     yaml.safe_dump(V, f)
 m_cmd.version_info = lambda: {"version": "0.8.0"}
-m_cmd.plan_settings = lambda v, given, ignored=(), source="web": plan_settings(v, given, ignored, source, 8)
+m_cmd.plan_settings = lambda v, given, ignored=(), source="web": plan_settings(v, given, ignored, source, 8, NETS)
 APPLIED = []
 
 

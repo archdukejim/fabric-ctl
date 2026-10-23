@@ -1,14 +1,16 @@
 import json
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.dhcp.common.turn_dhcp_on import turn_dhcp_on
 from fabriclib.settings.check_wizard_value import check_wizard_value
 from fabriclib.settings.constants import WIZARD_KEYS
 from fabriclib.settings.read_settings import read_settings
+from fabriclib.system.host_networks import host_networks
 from fabriclib.system.host_ram_gb import host_ram_gb
 from fabriclib.system.plan_memory import SERVICES, plan_memory
 
 # the settings that change which parts run, or how much memory they share: the plan shows the memory plan then
-_SIZING = ("dns_filter", "install_fluentbit", "host_ram_capacity")
+_SIZING = ("install_kea", "dns_filter", "install_fluentbit", "host_ram_capacity")
 
 
 def _same(a, b):
@@ -45,19 +47,20 @@ def _limits(v):
         return None
 
 
-def plan_settings(v, given, ignored=(), source="web", have_gb=None):
+def plan_settings(v, given, ignored=(), source="web", have_gb=None, networks=None):
     """Purpose: the plan for a change of the wizard's settings (manual 1.8.5.5), from the wizard, a settings file in
              the console or `fabricctl settings import`; nothing changes. Each value is checked as setup checks it
-             (check_wizard_value); then together: log forwarding on needs a destination, and the parts that
-             run must fit the memory (plan_memory).
+             (check_wizard_value); then together: log forwarding on needs a destination, DHCP turned on its first
+             subnet (turn_dhcp_on: the host's interfaces), and the parts that run must fit the memory (plan_memory).
              One invalid value refuses the whole change.
     Inputs:  v — the settings as saved (vars.yaml); given — {wizard key: value}, any subset (other keys are a caller's
              error); ignored — [{"key", "reason"}] a file's ignored keys, carried into the plan; source — "web",
-             "file" or "cli" (audited as where it came from); have_gb — the host's GB (None: measured).
+             "file" or "cli" (audited as where it came from); have_gb — the host's GB (None: measured); networks —
+             host_networks() (None: this host's), for DHCP turned on.
     Returns: {"source", "given", "ignored", "base": today's wizard settings (read_settings), "settings": the whole set
-             after the change, "changes": [{"key", "old", "new"}] (texts, the wizard's order), "keys": the changed keys,
-             "parts": [{"service", "change": started|stopped}], "memory": None or {"budget_mb", "rows":
-             [{"service", "before", "after"}]} (when a part or the memory changes)}.
+             after the change, "changes": [{"key", "old", "new"}] (texts, the wizard's order; dhcp only when DHCP is
+             turned on), "keys": the changed keys, "parts": [{"service", "change": started|stopped}], "memory": None or
+             {"budget_mb", "rows": [{"service", "before", "after"}]} (when a part or the memory changes)}.
     Fails:   ValidationError naming the key and why (nothing changes); KeyError for a key that is not the wizard's.
     Feeds:   agent/post_settings (POST /v1/settings/plan; a stale plan made again at Apply),
              settings/run_settings_command (`fabricctl settings import`)."""
@@ -70,12 +73,20 @@ def plan_settings(v, given, ignored=(), source="web", have_gb=None):
     if new["install_fluentbit"] and not any(new["log_forwarding"].get(p) for p in ("syslog", "elastic")):
         raise ValidationError("install_fluentbit: log forwarding needs somewhere to send the logs (log_forwarding: "
                               "a syslog server or an Elasticsearch URL)")
+    turning_on = new["install_kea"] and not base["install_kea"]
+    if turning_on:
+        d = new["dhcp"]
+        try:
+            turn_dhcp_on(v, d["interface"], d["subnet"], d["pool"], d["router"],
+                         host_networks() if networks is None else networks)
+        except ValidationError as e:
+            raise ValidationError(f"install_kea: DHCP cannot be turned on: {e}") from None
     sized = {**v, **{k: new[k] for k in _SIZING}}
     try:
         after = plan_memory(sized)["limits"]
     except ValidationError as e:
         raise ValidationError(f"host_ram_capacity: {e}") from None
-    changed = [k for k in WIZARD_KEYS if not _same(base[k], new[k])]
+    changed = [k for k in WIZARD_KEYS if not _same(base[k], new[k]) and (k != "dhcp" or turning_on)]
     memory, parts = None, []
     if any(k in changed for k in _SIZING):
         before = _limits({**v, "host_ram_capacity": base["host_ram_capacity"]}) or {}

@@ -41,7 +41,8 @@ def suggest_block(sites, site):
     Inputs:  sites — read_plan's "sites" [{"name", "created", "block"}], in the organisation's order; site — str.
     Returns: int, or None when every number is taken.
     Fails:   never.
-    Feeds:   add_vlan and move_subnets_to_plan (a site without a number), show (the suggestion)."""
+    Feeds:   add_vlan and move_subnets_to_plan (a site without a number), show (the suggestion),
+             setup/ask_site_number."""
     taken = {s["block"] for s in sites if s.get("block") and s["name"] != site}
     names = [s["name"] for s in sites]
     first = names.index(site) + 1 if site in names else len(names) + 1

@@ -18,8 +18,8 @@ def turn_dhcp_on(data, interface, subnet, pool, router, networks):
     Fails:   ValidationError: no settings and no interface, subnet or pool given; what normalize_dhcp or place_subnets
              refuses (an interface the host lacks, a subnet not on it, a bad pool); the subnets in the address plan
              and none of them served by DHCP. OSError or json errors reading the plan's copy.
-    Feeds:   dhcp/set_dhcp_on (`fabricctl dhcp on`, POST /v1/dhcp/on); the wizard's DHCP step joins in area 8 of the
-             port (1.10.4.41)."""
+    Feeds:   dhcp/set_dhcp_on (`fabricctl dhcp on`, POST /v1/dhcp/on), settings/plan_settings and
+             settings/apply_settings (the wizard turning DHCP on, manual 1.8.5)."""
     dhcp = copy.deepcopy(data.get("dhcp") or {})
     if plan_holds_subnets(data):            # the subnets are the plan's (1.10.4.9): checked, never saved here
         if interface:

@@ -9,6 +9,7 @@ from fabriclib.system.common.parse_mem_mb import parse_mem_mb
 
 MIN_RAM_GB = 4                      # 2.1.2.3: a Raspberry Pi with 4 GB is the smallest host
 _WORD = re.compile(r"^[A-Za-z0-9_.@-]{1,64}$")
+_DHCP_KEYS = ("interface", "subnet", "pool", "router")
 _LOG_PARTS = {"syslog": ("host", "port", "tls", "message_key"), "elastic": ("url", "index", "user")}
 
 
@@ -21,6 +22,22 @@ def _flag(key, value):
     if not isinstance(value, bool):
         raise ValidationError(f"{key}: true or false, not {value!r}")
     return value
+
+
+def _dhcp(value):
+    """Purpose: DHCP's first subnet as the wizard asks it (checked against the host when DHCP is turned on).
+    Inputs:  value — {interface, subnet, pool, router}, each text (missing or null: empty).
+    Returns: the four keys, each a str.
+    Fails:   ValidationError for a value that is not such a map.
+    Feeds:   check_wizard_value."""
+    if value is None:
+        value = {}
+    if not isinstance(value, dict) or set(value) - set(_DHCP_KEYS):
+        raise ValidationError("dhcp: the first subnet's interface, subnet, pool and router (e.g. {interface: eth0, "
+                              "subnet: 192.168.1.0/24, pool: 192.168.1.100 - 192.168.1.199, router: 192.168.1.1})")
+    if any(not isinstance(value.get(k) or "", str) for k in _DHCP_KEYS):
+        raise ValidationError("dhcp: the interface, subnet, pool and router are text")
+    return {k: str(value.get(k) or "").strip() for k in _DHCP_KEYS}
 
 
 def _log_forwarding(value):
@@ -93,7 +110,7 @@ def _memory(value, have_gb):
 
 def check_wizard_value(key, value, v, have_gb=0):
     """Purpose: one wizard setting checked as setup and its own page check it (manual 1.8.5.5), before anything
-             changes: the parts and Kerberos true or false, the DNS filter bind or none,
+             changes: the parts and Kerberos true or false, the DNS filter bind or none, DHCP's first subnet's form,
              where the logs go (as setup asks it), the memory (4 to the host's GB), the password policy
              (check_password_policy, over today's, the default's keys filling in) and the DNS filter's
              upstreams (check_filter_settings).
@@ -102,8 +119,10 @@ def check_wizard_value(key, value, v, have_gb=0):
     Returns: the value as it would be saved (normalised: the whole password policy, the upstreams' names in lower case).
     Fails:   ValidationError naming the key and why; KeyError for a key that is not the wizard's.
     Feeds:   plan_settings."""
-    if key in ("install_fluentbit", "signin_kerberos", "grants_fallback_open"):
+    if key in ("install_kea", "install_fluentbit", "signin_kerberos", "grants_fallback_open"):
         return _flag(key, value)
+    if key == "dhcp":
+        return _dhcp(value)
     if key == "dns_filter":
         if str(value).lower() not in ("bind", "none") or not isinstance(value, str):
             raise ValidationError(f"dns_filter: bind (the DNS filter on) or none, not {value!r}")

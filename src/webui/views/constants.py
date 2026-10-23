@@ -83,7 +83,8 @@ MENU_PERMS = {"sign": "pki:sign", "issue": "pki:issue", "convert": "pki:issue", 
               "lists": "dns:filter", "rules": "dns:filter", "settings": "dns:filter"}
 # the setup wizard's steps (manual 1.8.5.3): (step, title, its fields); the fields are agent settings_from_form's
 WIZARD_STEPS = [
-    ("parts", "Optional parts", ["dns_filter", "install_fluentbit", "log_target"]),
+    ("parts", "Optional parts", ["install_kea", "dhcp_interface", "dhcp_subnet", "dhcp_pool", "dhcp_router",
+                                 "dns_filter", "install_fluentbit", "log_target"]),
     ("memory", "Memory", ["host_ram_capacity"]),
     ("signin", "Passwords and sign-in", ["policy_" + k for k, _ in POLICY_FIELDS]
      + ["policy_complexity", "signin_kerberos"]),

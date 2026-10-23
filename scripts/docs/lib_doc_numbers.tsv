@@ -916,6 +916,7 @@ file	fabriclib-setup|src/fabriclib/setup/ask_dc_name.py	48	0.7.2 / 2026-10-18
 file	fabriclib-setup|src/fabriclib/setup/ask_first_admin.py	45	
 file	fabriclib-setup|src/fabriclib/setup/ask_kerberos.py	46	0.6.4 / 2026-10-09
 file	fabriclib-setup|src/fabriclib/setup/ask_ram.py	40	0.6.4 / 2026-10-09
+file	fabriclib-setup|src/fabriclib/setup/ask_site_number.py	106	
 file	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py	38	0.5.0 / 2026-10-04
 file	fabriclib-setup|src/fabriclib/setup/backup_install.py	1	
 file	fabriclib-setup|src/fabriclib/setup/check_export_dir.py	2	
@@ -2665,6 +2666,7 @@ function	fabriclib-security|src/fabriclib/security/ufw_active.py|ufw_active	1
 function	fabriclib-security|src/fabriclib/security/ufw_rule.py|ufw_rule	1	
 function	fabriclib-settings|src/fabriclib/settings/apply_settings.py|_log_forwarding	1	
 function	fabriclib-settings|src/fabriclib/settings/apply_settings.py|apply_settings	2	
+function	fabriclib-settings|src/fabriclib/settings/check_wizard_value.py|_dhcp	6	
 function	fabriclib-settings|src/fabriclib/settings/check_wizard_value.py|_flag	1	
 function	fabriclib-settings|src/fabriclib/settings/check_wizard_value.py|_log_forwarding	3	
 function	fabriclib-settings|src/fabriclib/settings/check_wizard_value.py|_memory	4	
@@ -2679,6 +2681,7 @@ function	fabriclib-settings|src/fabriclib/settings/plan_settings.py|_limits	3
 function	fabriclib-settings|src/fabriclib/settings/plan_settings.py|_same	1	
 function	fabriclib-settings|src/fabriclib/settings/plan_settings.py|_show	2	
 function	fabriclib-settings|src/fabriclib/settings/plan_settings.py|plan_settings	4	
+function	fabriclib-settings|src/fabriclib/settings/read_settings.py|_first_subnet	3	
 function	fabriclib-settings|src/fabriclib/settings/read_settings.py|read_settings	2	
 function	fabriclib-settings|src/fabriclib/settings/run_settings_command.py|_actor	1	
 function	fabriclib-settings|src/fabriclib/settings/run_settings_command.py|_print_plan	2	
@@ -2720,6 +2723,7 @@ function	fabriclib-setup|src/fabriclib/setup/ask_first_admin.py|ask_first_admin	
 function	fabriclib-setup|src/fabriclib/setup/ask_kerberos.py|ask_kerberos	1	0.6.4 / 2026-10-09
 function	fabriclib-setup|src/fabriclib/setup/ask_ram.py|_plan	1	0.6.4 / 2026-10-09
 function	fabriclib-setup|src/fabriclib/setup/ask_ram.py|ask_ram	2	0.6.4 / 2026-10-09
+function	fabriclib-setup|src/fabriclib/setup/ask_site_number.py|ask_site_number	1	
 function	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py|_number	1	0.5.0 / 2026-10-04
 function	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py|ask_windows_domain	2	0.5.0 / 2026-10-04
 function	fabriclib-setup|src/fabriclib/setup/backup_install.py|backup_install	1	

@@ -4,9 +4,9 @@ import re
 FORMAT = 1                          # the settings file's `fabric_settings:` version
 
 # the wizard's settings: what the web console's Settings and a settings file may change (manual 1.8.5.2). Everything
-# else is console-only. DHCP (install_kea and its first subnet, dhcp) joins with the address manager in 0.9.0
-# (2.1.1.58); until then it is setup's.
-WIZARD_KEYS = ("dns_filter", "install_fluentbit", "log_forwarding", "host_ram_capacity",
+# else is console-only. `dhcp` is DHCP's first subnet's questions ({interface, subnet, pool, router}), used only when
+# DHCP is turned on with no subnet yet (0.9.0, with the address manager: 2.3.1.23.2).
+WIZARD_KEYS = ("install_kea", "dhcp", "dns_filter", "install_fluentbit", "log_forwarding", "host_ram_capacity",
                "ad_password_policy", "signin_kerberos", "dns_filter_upstreams", "grants_fallback_open")
 
 # the console-only settings the wizard's first step shows, read only, with the command that changes them

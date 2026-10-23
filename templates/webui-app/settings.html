@@ -15,6 +15,18 @@ fresh install these are setup's defaults.{% endif %}</p>
 {% for f, v in typed.items() if f not in fields %}{% if f in ('dns_filter_upstreams',) %}<textarea name="{{ f }}" hidden>{{ v }}</textarea>{% else %}<input type="hidden" name="{{ f }}" value="{{ v }}">{% endif %}{% endfor %}
 {% if step == 'parts' %}
 <h2>Optional parts</h2>
+<label>DHCP (Kea){{ onoff('install_kea') }} {{ today_is('install_kea', 'on' if today.install_kea == 'true' else 'off') }}</label>
+{% if ov.dhcp_first_subnet %}
+<p class="muted">DHCP has no subnet yet: turning it on serves this first one (more later in the address plan,
+<code>fabricctl ipam</code>).</p>
+<label>Interface to serve<input name="dhcp_interface" value="{{ typed.dhcp_interface }}" list="ifaces" placeholder="eth0"></label>
+<datalist id="ifaces">{% for i in ov.interfaces %}<option value="{{ i }}">{% endfor %}</datalist>
+<label>Subnet<input name="dhcp_subnet" value="{{ typed.dhcp_subnet }}" placeholder="192.168.1.0/24"></label>
+<label>Pool, first - last<input name="dhcp_pool" value="{{ typed.dhcp_pool }}" placeholder="192.168.1.100 - 192.168.1.199"></label>
+<label>Router told to clients<input name="dhcp_router" value="{{ typed.dhcp_router }}" placeholder="192.168.1.1"></label>
+{% else %}
+{% for f in ('dhcp_interface', 'dhcp_subnet', 'dhcp_pool', 'dhcp_router') %}<input type="hidden" name="{{ f }}" value="{{ typed[f] }}">{% endfor %}
+{% endif %}
 <label>The DNS filter<select name="dns_filter"><option value="bind"{{ ' selected' if typed.dns_filter == 'bind' }}>on (bind)</option><option value="none"{{ ' selected' if typed.dns_filter == 'none' }}>off (none)</option></select> {{ today_is('dns_filter') }}</label>
 <label>Log forwarding (Fluent Bit){{ onoff('install_fluentbit') }} {{ today_is('install_fluentbit', 'on' if today.install_fluentbit == 'true' else 'off') }}</label>
 {% if today.log_target_both %}

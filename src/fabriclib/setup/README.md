@@ -23,6 +23,7 @@
 | `permanent_mark.py` | The yellow "⚠ Permanent" after a question whose setting is in the vars editor's `IMMUTABLE_KEYS` (2.1.2.20) |
 | `name_dc.py` | The domain controller's name, fabric's alone (2.1.6.65): `dc-0001` for a new domain, the upstream's for a joining site, an installed DC's kept; never asked |
 | `ask_ad_domain.py` | The directory's AD domain (permanent; a sibling suggested), asked when missing; its password policy starts from the default (2.1.6.35) |
+| `ask_site_number.py` | The site's number, asked once at the start step while the site has none (1.10.4.18.1): the suggestion its default, taken unattended; a read-only DC's site not asked |
 | `ask_first_admin.py` | The first admin's password, chosen in setup: typed twice and checked against the policy, or from `--admin-password-file` (2.1.6.33) |
 | `preflight.py` | Refuse a host without amd64/arm64, root, enough RAM or the cgroup memory controller; warn about untested OS and conflicting listeners |
 | `condition_host.py` | Host packages and Docker Engine (compose v2, buildx) from the Ubuntu archive; no apt source added |
@@ -39,7 +40,7 @@
 | `mint_service_certs.py` | Issue/renew service certificates (only what is missing, expiring or wrong); web UI and FreeRADIUS CA bundles |
 | `mint_extra_certs.py` | `extra_certs` entries, when missing or due (part of the `certs` step) |
 | `join_host_domain.py` | Step `member`: this host a member of its own domain with its own computer account in OU=fabric-hosts (2.1.6.48; keytab, krb5.conf, sssd.conf, NSS, PAM); no domain account signs in (2.1.6.75) |
-| `start_services.py` | Retire renamed units; start the stack in order; converge the domain; configure Keycloak; fabric-agent + web UI; activate `fabric.target` |
+| `start_services.py` | Retire renamed units; start the stack in order; converge the domain; the site's number (`ask_site_number`); configure Keycloak; fabric-agent + web UI; activate `fabric.target` |
 | `service_order.py` | fabric's container services in dependency order: setup starts them in it, an apply's rollout restarts them in it (2.1.14.15) |
 | `start_unit.py` | Enable, start or restart one unit and wait until its container is healthy |
 | `setup_openbao.py` | `vault` step: vault key and unlock, start OpenBao, init once (recovery keys to `~/fabric-admin`, root token used once and revoked), converge its configuration, move fabric's secrets file into OpenBao |
