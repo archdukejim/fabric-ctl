@@ -13,5 +13,7 @@ Helpers shared by the address manager's commands (manual 1.10.4).
 | `site_plan.py` | One site's plan, its number and its option sets out of what the domain answered (read_plan, 1.10.4.32) |
 | `option_codes.py` | The one DHCPv4 option list (Kea 3.0's, by code and name) and the options fabric provides |
 | `pool_text.py` | A 0.7 pool as typed ("first - last") split into its two addresses |
+| `plan_subnets.py` | Every subnet of this site's plan (or 0.7's `dhcp.subnets` before the upgrade), as a scan picks among them |
+| `probe_subnet.py` | The scan's probe: `fping`, then the neighbour table, in Kea's container by fixed argument lists |
 | `scan_busy.py` | `ScanBusy`: a scan refused only for now (one running, the same subnet within the minute); a request through AD stays pending |
 | `plan_holds_subnets.py` | Whether this site's subnets live in the plan, and what the old DHCP commands say once they do (`MOVED`, `MOVED_OPTIONS`) |

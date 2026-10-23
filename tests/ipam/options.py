@@ -313,6 +313,8 @@ USN = {"n": 100}
 audit = []
 m_poll.write_audit = lambda actor, event, detail, source: audit.append((event, detail))
 m_poll._try_lock = lambda path=None: io.StringIO()
+# the scans other sites requested (2.1.10.38): none here (their own cases: tests/ipam/scan_requests.py)
+m_poll.run_scan_requests = lambda v, secrets, container="samba": {"ran": [], "pending": False}
 
 
 def render(secrets, container="samba"):

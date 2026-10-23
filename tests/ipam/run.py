@@ -509,7 +509,8 @@ check("help prints the commands", code == 0 and "fabricctl ipam vlan add" in tex
 code, text = cli(["frobnicate"])
 check("an unknown command: usage, exit 2", code == 2 and "usage:" in text, text)
 code, text = cli(["scan", "iot"])
-check("a command of a later area (the scans, area 6): usage, exit 2", code == 2 and "usage:" in text, text)
+check("fabricctl ipam scan at a site without DHCP: refused, saying why, exit 1 (its cases: tests/ipam/scan.py)",
+      code == 1 and "DHCP is off at this site" in text, text)
 # covers: cli:ipam.vlan -
 code, text = cli(["vlan", "add", "20"])
 check("vlan add without --name: usage, exit 2", code == 2 and "usage:" in text, text)

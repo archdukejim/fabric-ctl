@@ -19,8 +19,9 @@ ARG KEA_GID=609
 LABEL org.fabric.ids="${KEA_UID}:${KEA_GID}"
 LABEL org.fabric.kea="${KEA_VERSION}"
 
+# fping: the on-request scan of a subnet runs here, by a fixed command, with the NET_RAW DHCP already has (2.1.10.26)
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl gpg tini \
+ && apt-get install -y --no-install-recommends ca-certificates curl fping gpg tini \
  && curl -fsSL "$KEA_KEY_URL" | gpg --dearmor -o /usr/share/keyrings/isc-kea.gpg \
  && fpr="$(gpg --show-keys --with-colons /usr/share/keyrings/isc-kea.gpg | awk -F: '/^fpr/{print $10; exit}')" \
  && [ "$fpr" = "$KEA_KEY_FINGERPRINT" ] || { echo "Kea repository key $fpr is not the pinned $KEA_KEY_FINGERPRINT" >&2; exit 1; } \

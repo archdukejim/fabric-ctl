@@ -80,7 +80,8 @@ def normalize_dhcp(v):
              reservations [{mac, ip, hostname, options, classes (netboot markers, 2.1.10.25)}]}], options (every
              subnet), option_defs, client_classes
              (manual 1.10.2.3), ddns_subdomain (one label, default dhcp), ntp (IPv4 addresses, default
-             this host), lease_time (int 300-2592000, default 86400)}; dns (its A records); fabric_subnet
+             this host), lease_time (int 300-2592000, default 86400), ping_check (bool, default true: Kea pings an
+             address before it offers it, 2.1.10.13)}; dns (its A records); fabric_subnet
              (default 10.255.0.0/24: no DHCP subnet may overlap it).
     Returns: a copy of `dhcp`, unchecked, when install_kea is off; else `dhcp` normalized: every subnet with its id
              (_subnet_ids: existing installs keep the ids their position gave them), subnet as str, name/vlan/
@@ -89,14 +90,13 @@ def normalize_dhcp(v):
              every one whose address a record set by hand names (an A record of any zone in `dns`, the address
              manager's published names among them): a name set by hand wins over DHCP's updates (2.1.10.20);
              options, option_defs and client_classes normalized (left out when empty).
-    Fails:   ValidationError for missing or bad interfaces, bad ddns_subdomain, bad lease_time, a bad or non-IPv4
-             subnet, a subnet overlapping fabric_subnet, a bad or repeated id or name, a bad vlan, notes or
-             allow_overlap too long, an access that is not full or guest, a relay that is not an IPv4 address, a
-             bad pool or two pools overlapping
-             (in any subnet), a router outside its subnet, a bad MAC, a reservation outside its subnet (inside a
-             pool it is allowed since 0.9.0, manual 1.10.4.3.2), a duplicate MAC or address, a bad hostname, a
-             reservation's ddns that is not true or false, no
-             subnets, or a static A record inside a pool (unless the address is a reservation's, whose name the
+    Fails:   ValidationError for missing or bad interfaces, bad ddns_subdomain, bad lease_time, a ping_check that is
+             not true or false, a bad or non-IPv4 subnet, a subnet overlapping fabric_subnet, a bad or repeated id
+             or name, a bad vlan, notes or allow_overlap too long, an access that is not full or guest, a relay that
+             is not an IPv4 address, a bad pool or two pools overlapping (in any subnet), a router outside its
+             subnet, a bad MAC, a reservation outside its subnet (inside a pool it is allowed since 0.9.0, manual
+             1.10.4.3.2), a duplicate MAC or address, a bad hostname, a reservation's ddns that is not true or false,
+             no subnets, or a static A record inside a pool (unless the address is a reservation's, whose name the
              address manager may publish, 2.1.10.17); a plain ValueError (not a ValidationError) if routers is
              not an IP address; errors of normalize_options, normalize_option_defs and normalize_client_classes.
     Feeds:   deploy/check_settings (apply, before rendering), add_reservation; tests/kea/run.py, tests/render.py.
@@ -116,6 +116,8 @@ def normalize_dhcp(v):
     lease = d.get("lease_time", 86400)
     if not isinstance(lease, int) or not 300 <= lease <= 2592000:
         raise ValidationError("dhcp.lease_time: seconds, 300 to 2592000")
+    if not isinstance(d.get("ping_check", True), bool):
+        raise ValidationError("dhcp.ping_check: true (Kea pings an address before it offers it, the default) or false")
     raw = d.get("subnets") or []
     if not isinstance(raw, list) or not all(isinstance(s, dict) for s in raw):
         raise ValidationError("dhcp.subnets: a list of subnets")

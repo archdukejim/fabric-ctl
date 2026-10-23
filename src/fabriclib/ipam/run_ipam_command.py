@@ -11,16 +11,20 @@ from fabriclib.ipam.common.fields import KEEP
 from fabriclib.ipam.common.site_plan import site_plan
 from fabriclib.ipam.export_plan import export_plan
 from fabriclib.ipam.find_in_plan import find_in_plan
+from fabriclib.ipam.offer_reservations import offer_reservations
 from fabriclib.ipam.options.run_option_command import run_option_command
 from fabriclib.ipam.read_plan import read_plan
 from fabriclib.ipam.remove_address import remove_address
 from fabriclib.ipam.remove_range import remove_range
 from fabriclib.ipam.remove_subnet import remove_subnet
 from fabriclib.ipam.remove_vlan import remove_vlan
+from fabriclib.ipam.scan_subnet import scan_subnet
+from fabriclib.ipam.scancontrol.run_scan_command import run_scan_command
 from fabriclib.ipam.set_address import set_address
 from fabriclib.ipam.set_block import set_block
 from fabriclib.ipam.set_subnet import set_subnet
 from fabriclib.ipam.set_vlan import set_vlan
+from fabriclib.ipam.show_scan import show_scan
 from fabriclib.ipam.show_plan import show_plan
 from fabriclib.ipam.suggestions import suggest_block
 from fabriclib.ipam.sync.sync_plan import sync_plan
@@ -47,6 +51,10 @@ USAGE = """usage: fabricctl ipam show [<site>]                    a site's VLANs
        fabricctl ipam address set <ip> [--kind K] [--name N|none] [--mac M|none] [--owner T] [--notes T]
                                [--dns on|off]
        fabricctl ipam address remove <ip>
+       fabricctl ipam scan <subnet> [--no-ask] [--no-apply]   which addresses answer, and which nobody recorded:
+                                                       offers to make one a reservation (this site's subnets)
+       fabricctl ipam scan <subnet> --site S [--no-wait]   a scan at another site: requested, its poll runs it
+       fabricctl ipam scan-requests [--site S]         a site's scan requests and their answers
        fabricctl ipam option|class|netboot ...         DHCP options, client classes, netboot (`option --help`)
        fabricctl ipam watch [--scheduled]              the plan poll once (fabric-plan-watch.timer runs it)
        fabricctl ipam sync                             Sync now: the plan poll at once, and BIND's records when DNS
@@ -55,7 +63,7 @@ USAGE = """usage: fabricctl ipam show [<site>]                    a site's VLANs
    this site's plan applies at once unless --no-apply"""
 FLAGS = {"--site", "--name", "--subnet", "--gateway", "--purpose", "--notes", "--access", "--dhcp", "--relay",
          "--allow-overlap", "--kind", "--mac", "--owner", "--dns", "--vlan"}
-BARE = {"--no-subnet", "--no-split", "--force", "--no-apply"}
+BARE = {"--no-subnet", "--no-split", "--force", "--no-apply", "--no-ask"}
 
 
 def _parse(args):
@@ -163,8 +171,9 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
              Volume 4: 4.10.2): show, find and export, the site's number, and changes to VLANs, subnets (several
              per VLAN, 2.1.10.18), ranges and addresses, this site's or (--site) any site the caller's networks
              rights reach (1.6.13.12); `option`, `class`, `netboot` and `watch` (the plan poll) go to
-             run_option_command; `sync` is Sync now (sync_plan, 1.10.4.28). Routes only: every rule is in the
-             function each command calls. Scans come with a later area of the port (1.10.4.41).
+             run_option_command; `sync` is Sync now (sync_plan, 1.10.4.28); `scan` of this site's subnet
+             (scan_subnet, 1.10.4.22), and a scan at another site and the requests' answers through run_scan_command
+             (1.10.4.36). Routes only: every rule is in the function each command calls.
     Inputs:  v — the rendered vars (SetupContext.load_state().vars); argv — list of str after "ipam" (default
              show); secrets — fabric's secrets (default: loaded by the functions); container — the DC's container
              (tests name their own). Run as root, acting for the Enterprise Admin. See USAGE.
@@ -178,6 +187,8 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
     cmd, args = (argv[0], argv[1:]) if argv else ("show", [])
     if cmd in ("option", "class", "netboot", "watch"):     # the options, netboot, the poll: their own flags
         return run_option_command(v, cmd, args, secrets, container)
+    if cmd == "scan-requests" or (cmd == "scan" and "--site" in args):   # a scan at another site (1.10.4.36)
+        return run_scan_command(v, cmd, args, secrets, container)
     common = {"secrets": secrets, "container": container}
     try:
         pos, vals, bare = _parse(args)
@@ -192,6 +203,13 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
                 print(out["why"])
             print("DNS: " + (("published: " + (", ".join(out["dns"]["zones"]) or "nothing changed in the zones"))
                              if out["dns"] else "already in line with the plan"))
+            return 0
+        if cmd == "scan" and len(pos) == 1 and not site:                   # this site's subnet (1.10.4.22)
+            result = scan_subnet(v, "root", pos[0])
+            sys.stdout.write(show_scan(result))
+            if result["unrecorded"] and "--no-ask" not in bare and sys.stdin.isatty():
+                if offer_reservations(v, result, **common):
+                    return apply_dhcp_change(["--no-apply"] if "--no-apply" in bare else [])
             return 0
         if cmd == "show" and len(pos) <= 1 and not site:
             which = pos[0] if pos else v["site_name"]

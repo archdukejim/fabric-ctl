@@ -27,11 +27,15 @@ are pure functions checked before anything is written.
 | `add_dhcp_subnet.py`, `set_dhcp_subnet.py`, `remove_reservation_mac.py` | The old `fabricctl dhcp add-subnet`, `set-subnet` and `unreserve` as changes to the plan (their aliases, `dhcp/run_dhcp_alias`) |
 | `subnets_to_plan.py` | The upgrade: a site's `dhcp.subnets` as the plan's changes, nothing it serves changed |
 | `move_subnets_to_plan.py` | The upgrade's move: the settings' subnets into the plan once, recorded, `dhcp.subnets` removed (called by every apply and by setup) |
-| `run_ipam_command.py` | `fabricctl ipam`: routes only (show, find, export, block, vlan, subnet, range, address, sync; option, class, netboot and watch to `options/`) |
+| `run_ipam_command.py` | `fabricctl ipam`: routes only (show, find, export, block, vlan, subnet, range, address, sync, scan; option, class, netboot and watch to `options/`; scan at another site and scan-requests to `scancontrol/`) |
 | `plan_to_dhcp.py` | A site's plan as Kea's `dhcp.subnets` and the A records of its published addresses |
 | `planned_subnets.py` | The DHCP subnets a site serves, from its settings or the plan it last read |
 | `load_address_plan.py` | At an apply: the plan read (or the last one kept) into Kea's subnets and the site's zone |
-| `poll_plan.py` | One run of the plan poll (fabric-plan-watch.timer): the USN, then Kea alone re-rendered when its input changed |
+| `poll_plan.py` | One run of the plan poll (fabric-plan-watch.timer): the USN, the scans other sites asked for, then Kea alone re-rendered when its input changed |
+| `scan_subnet.py` | A scan of one subnet of this site's plan: the caller's `scan` right checked, one at a time, what answered set beside the plan and the leases, audited |
+| `show_scan.py` | A scan's result as text, with the command that records each find |
+| `offer_reservations.py` | After a scan on a terminal: asked, for each find, whether to record it |
 | [sync/](sync/) | Sync now: the plan poll at once, and the plan's DNS by the quick path |
 | [options/](options/) | The DHCP options in the plan, client classes and netboot presets |
+| [scancontrol/](scancontrol/) | Scans at another site: requested through AD, answered by that site's poll |
 | [common/](common/) | Helpers the address manager's commands share |
