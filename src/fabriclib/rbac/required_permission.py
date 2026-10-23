@@ -19,6 +19,7 @@ GET = {
     ("domain", "kerberos"): "domain:read", ("domain", "kerberos", "spns"): "domain:read",
     ("groups",): "domain:read", ("groups", "*"): "domain:read", ("ous",): "domain:read",
     ("account", "groups"): "session",                  # the groups a person manages (1.8.6.6): theirs alone
+    ("pending",): "session", ("pending", "*"): "session",  # a person's own pending changes (1.8.6.5)
     ("host-groups",): "domain:read", ("sudo",): "domain:read",
     ("federation",): "federation:read",
     ("vault",): "vault:status", ("vault", "slots"): "vault:status", ("vault", "devices"): "vault:status",
@@ -60,6 +61,10 @@ POST = {
     ("groups", "*", "members"): "session",            # a group's managers need no permission: fabric-agent checks
     ("ous",): "ous:admin", ("ous", "rename"): "ous:admin", ("ous", "delete"): "ous:admin",
     ("account", "password"): "session",               # a person's own password (1.8.6.6): theirs alone
+    # Apply per page (1.8.6.5): a person's own changes; holding one checks the change's own permission, and so
+    # does its Apply, change by change
+    ("pending", "hold"): "session", ("pending", "*", "drop"): "session", ("pending", "*", "discard"): "session",
+    ("pending", "*", "apply"): "session",
     ("machines",): "machines:admin", ("machines", "*", "enable"): "machines:admin",
     ("machines", "*", "disable"): "machines:admin", ("machines", "*", "delete"): "machines:admin",
     ("machines", "*", "move"): "machines:admin", ("machines", "*", "type"): "machines:admin",

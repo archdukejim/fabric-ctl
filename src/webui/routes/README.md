@@ -7,6 +7,7 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `bind9_page.py` | Render the BIND9 tab: forward zone records, generated reverse zones or TSIG keys. |
 | `directory_page.py` | Render the Directory tab: devices, one device, roles, one role, or people. |
 | `directory_post.py` | Devices, device roles and people: each form maps to one fabric-agent call. |
+| `changes_post.py` | A page's pending changes (manual 1.8.6.5): Apply (one job), Discard, Drop one. |
 | `get_page.py` | Route a signed-in GET to its page (the navigation of manual 1.8.6.4); an old address to its new one. |
 | `moved_to.py` | Where an old address of the console answers now (manual 1.8.6.4), or None. |
 | `openbao_page.py` | Render the OpenBao tab: status, unlock methods and their add/rotate/remove forms, secrets, disk encryption. |

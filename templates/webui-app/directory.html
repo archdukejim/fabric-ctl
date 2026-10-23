@@ -93,7 +93,7 @@
 {% for u in people.users %}<tr><td>{{ p.light('bad' if u.locked else 'ok', 'locked' if u.locked else 'active') }}</td>
 <td data-label="User">{{ u.uid }}</td><td data-label="Name">{{ u.name }}</td><td data-label="E-mail">{{ u.mail or '—' }}</td><td data-label="Groups">{{ u.groups | join(', ') or '—' }}</td>
 <td class="num">{% if can('people:reset') %}<form method="post" action="/directory/people/{{ u.uid | urlencode }}/reset"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost" title="new one-time password, TOTP enrolled again, sessions ended">Reset sign-in</button></form>{% endif %}
-{% if can('people:disable') %}{% set act = 'enable' if u.locked else 'disable' %}<form method="post" action="/directory/people/{{ u.uid | urlencode }}/{{ act }}"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost" title="{{ 'allow sign-in again' if u.locked else 'block every sign-in at once; their sessions end' }}">{{ act | capitalize }}</button></form>{% endif %}</td></tr>{% endfor %}
+{% if can('people:disable') %}{% set act = 'enable' if u.locked else 'disable' %}<form method="post" action="/directory/people/{{ u.uid | urlencode }}/{{ act }}"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost" title="{{ 'allow sign-in again' if u.locked else 'at Apply: block every sign-in; their sessions end' }}">{{ act | capitalize }}</button></form>{% endif %}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">No users.</p>{% endif %}
 </section>
 {% if people.users and can('people:groups') %}<section class="card"><h2>Group membership</h2>
@@ -112,7 +112,7 @@
 <label>Type their user name to confirm<input name="confirm" required autocomplete="off"></label>
 <div><button class="danger">Remove</button></div>
 </form>
-<p class="muted small">Their sessions end, their account and group memberships go, and the certificates fabric issued to them are revoked at once. Only people in <code>OU=people</code>; never yourself or the last admin.</p>
+<p class="muted small">Their sessions end, their account and group memberships go, and the certificates fabric issued to them are revoked, when the page is applied. Only people in <code>OU=people</code>; never yourself or the last admin.</p>
 </section>{% endif %}
 {% if can('people:create') %}<section class="card"><h2>Add a person</h2>
 <form method="post" action="/directory/people/_new" class="grid">
@@ -151,16 +151,9 @@
 <div><button>Save the policy</button></div>
 </form>
 <p class="muted small">Checked as <code>fabricctl domain password-policy</code> checks it (a lockout at least as long as
-its window, a minimum age below the maximum); a refusal says why and changes nothing. <strong>Apply changes</strong>
-writes a saved policy into the domain.</p>
+its window, a minimum age below the maximum) when the Domain page is applied: the change waits for <strong>Apply</strong> in the top bar, which writes it into the domain; a refusal says why and changes nothing.</p>
 {% else %}<p class="muted small">Changed by an admin here or on the fabric host: <code>sudo fabricctl domain password-policy …</code> (manual 4.6.5).</p>{% endif %}
 </section>
-{% if can('domain:admin') and can('dns:write') %}<form method="post" action="/apply" class="apply card">
-<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<button>Apply changes</button>
-<span class="muted">Writes the saved password policy into the domain (the whole apply, same as <code>fabricctl --apply</code>).</span>
-</form>{% endif %}
-
 {% elif view == 'machines' %}
 <section class="card"><h2>Machines of {{ domain.site }} {% if domain.machines is not none %}<span class="muted">{{ domain.machines | length }}</span>{% endif %}</h2>
 <p class="muted">Windows and Linux machines joined to the domain (<code>OU=machines</code>, filed by type) and the fabric hosts. A disabled machine cannot log anyone on or sign in to an 802.1X port; its account stays.</p>
@@ -205,7 +198,7 @@ writes a saved policy into the domain.</p>
 <label>New host group<input name="name" required pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="web" title="it becomes hosts-&lt;name&gt;"></label>
 <div><button>Create</button></div>
 </form>
-<p class="muted small">A machine put in or taken out of a host group changes where its sudo rules apply at once (sssd reads them within minutes).</p>{% endif %}
+<p class="muted small">A machine put in or taken out of a host group changes where its sudo rules apply once applied (sssd reads them within minutes).</p>{% endif %}
 </section>
 <section class="card"><h2>Sudo rules {% if access.sudo %}<span class="muted">{{ access.sudo | length }}</span>{% endif %}</h2>
 <p class="muted">Who may run which commands as whom on the domain's Linux machines (never a fabric host). Rules made with other tools are shown read-only.</p>

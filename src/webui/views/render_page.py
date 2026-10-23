@@ -24,7 +24,8 @@ def render_page(name, **kw):
              menu / sections (lists of (view, label), filtered through MENU_PERMS), msg / err (shown as the page's
              message; the session's flash fills them when not given), and any others.
     Returns: the rendered HTML str. Templates also get can(permission), nav (nav_menu's entries), visible (the
-             set of navigation paths the person may open) and entries (the ids of the entries they see).
+             set of navigation paths the person may open), entries (the ids of the entries they see) and bar (the
+             page shown's pending changes for the top bar, 1.8.6.5: {"id", "pending", "running"}, or None).
     Fails:   jinja2.TemplateNotFound for an unknown name; other jinja2 errors propagate (e.g. UndefinedError when the
              template reads an attribute of a value the caller left out).
     Feeds:   every page function in src/webui/views/.
@@ -42,6 +43,8 @@ def render_page(name, **kw):
     kw["nav"] = nav_menu(perms, kw["page"], ctx.get("pending_counts"))
     kw["visible"] = {p["href"] for e in kw["nav"] for p in e["pages"]}
     kw["entries"] = {e["id"] for e in kw["nav"]}
+    bar = (ctx.get("pending") or {}).get(kw["page"])
+    kw["bar"] = bar if bar and (bar.get("pending") or bar.get("running")) else None
     flash = ctx.get("flash") or {}
     if not kw.get("msg"):
         kw["msg"] = flash.get("ok", "")

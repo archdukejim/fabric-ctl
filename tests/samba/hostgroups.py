@@ -37,7 +37,9 @@ from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-hostgroups")
-NET, SUBNET, IP, DC = "hostgroups_net", "10.254.37.0/24", "10.254.37.10", "hgdc"
+# a second run beside this one (another worktree) names its own: SAMBA_TEST_ID, SAMBA_TEST_NET (a /24's three octets)
+_ID, _NET = os.environ.get("SAMBA_TEST_ID", ""), os.environ.get("SAMBA_TEST_NET", "10.254.37")
+NET, SUBNET, IP, DC = "hostgroups_net" + _ID, _NET + ".0/24", _NET + ".10", "hgdc" + _ID
 FAILED = 0
 
 
@@ -361,55 +363,53 @@ def agent(route, body=None):
         raise actions.ValidationError(str(e))
 
 
-def host_group_change(op, group, machine=""):
-    if op == "create":
-        return agent(["host-groups"], {"name": group})
-    if op == "delete":
-        return agent(["host-groups", group, "delete"])
-    return agent(["host-groups", group, "members"], {"action": op, "machine": machine})
+LAST = {}
 
 
-def sudo_rule_change(op, name, users=None, commands=None, run_as=None, hosts=""):
-    if op == "delete":
-        return agent(["sudo", name, "delete"])
-    return agent(["sudo"], {"name": name, "users": users or [], "commands": commands or [], "run_as": run_as or [],
-                            "hosts": hosts})
+def hold_change(route, body=None):
+    """The console holds a Machines change until the page's Apply (manual 1.8.6.5; the store is tests/webui's): here
+    it runs at once through the agent's route code, so its result and its refusal are this suite's to check."""
+    parts = [urllib.parse.unquote(x) for x in route.split("/")]
+    LAST["result"] = agent(parts, body or {})
+    return {"what": "/".join(parts), "pending": 1}
 
 
 class Handler:
-    def redirect(self, location):
-        self.sent = (303, location)
+    def back(self, location, msg="", err=""):
+        self.sent = (303, location + "?" + urllib.parse.urlencode({"err": err} if err else {"msg": msg}))
 
     def deny(self, code, message):
         self.sent = (code, message)
 
 
-actions.host_group_change, actions.sudo_rule_change = host_group_change, sudo_rule_change
+actions.hold_change = hold_change
 h = Handler()
 
 
 def form(parts, fields):
-    """Post a form of the Machines section; the message it redirects with."""
+    """Post a form of the Machines section; the message it goes back with."""
+    LAST.clear()
     directory_post(h, {"user": "alice"}, parts, {"csrf": "x", **fields})
     return h.sent[0], urllib.parse.unquote_plus(h.sent[1])
 
 
 code, loc = form(["hostgroups", "_new"], {"name": "ops"})
 # covers: web:post.directory.hostgroups._new +
-check("the New host group form: created, back to the Machines section", code == 303 and "view=machines" in loc
-      and "host group hosts-ops created" in loc, loc)
+check("the New host group form: created, back to the Machines page", code == 303
+      and loc.startswith("/directory/machines?msg=") and LAST["result"]["name"] == "hosts-ops", (loc, LAST))
 code, loc = form(["hostgroups", "_form", "members"], {"group": "ops", "machine": "db1", "action": "add"})
 # covers: web:post.directory.hostgroups._form.members +
-check("the host group membership form: db1 in hosts-ops", "db1 in hosts-ops." in loc, loc)
+check("the host group membership form: db1 in hosts-ops", LAST["result"].get("member") is True
+      and LAST["result"].get("machine") == "db1", (loc, LAST))
 code, loc = form(["sudo", "_new"], {"name": "ops-apt", "users": "alice, %web-ops", "commands": "/usr/bin/apt update",
                                     "run_as": "", "hosts": "hosts-ops"})
 # covers: web:post.directory.sudo._new +
 check("the Add sudo rule form: comma-separated who and commands, as root by default, on the host group",
-      "sudo rule ops-apt added; hosts: db1" in loc and "sudoUser: %web-ops" in ldb("(cn=ops-apt)", "sudoUser")
+      LAST["result"].get("hosts") == ["db1"] and "sudoUser: %web-ops" in ldb("(cn=ops-apt)", "sudoUser")
       and "sudoRunAsUser: root" in ldb("(cn=ops-apt)", "sudoRunAsUser"), loc)
 code, loc = form(["sudo", "_new"], {"name": "bad", "users": "%site-lan", "commands": "ALL", "hosts": "ALL"})
 # covers: web:post.directory.sudo._new -
-check("...its refusal shown there: ALL commands to everyone", code == 303 and "err=" in h.sent[1]
+check("...its refusal shown there: ALL commands to everyone", code == 303 and "?err=" in h.sent[1]
       and "everyone is refused" in loc and "cn: bad" not in ldb("(objectClass=sudoRole)", "cn"), loc)
 code, loc = form(["hostgroups", "_form", "members"], {"group": "ops", "machine": "ghost", "action": "add"})
 # covers: web:post.directory.hostgroups._form.members -
@@ -426,11 +426,11 @@ code, loc = form(["sudo", "backup-ops", "delete"], {})
 check("...a rule's Remove refused for an admin's own rule", "not made by fabric's sudo editor" in loc, loc)
 code, loc = form(["sudo", "ops-apt", "delete"], {})
 # covers: web:post.directory.sudo.*.delete +
-check("a rule's Remove: removed", "sudo rule ops-apt removed" in loc
+check("a rule's Remove: removed", LAST["result"].get("name") == "ops-apt"
       and "ops-apt" not in ldb("(objectClass=sudoRole)", "cn"), loc)
 code, loc = form(["hostgroups", "ops", "delete"], {})
 # covers: web:post.directory.hostgroups.*.delete +
-check("a host group's Remove: removed", "host group hosts-ops removed" in loc, loc)
+check("a host group's Remove: removed", LAST["result"].get("name") == "hosts-ops", (loc, LAST))
 code, loc = form(["hostgroups", "_new", "x"], {})
 check("an unknown host group form: refused, saying so", "unknown operation" in loc, loc)
 

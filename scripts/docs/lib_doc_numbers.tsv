@@ -2,6 +2,8 @@
 file	fabricctl-agent|src/agent/get_route.py	1	
 file	fabricctl-agent|src/agent/handler.py	2	
 file	fabricctl-agent|src/agent/job_store.py	16	
+file	fabricctl-agent|src/agent/pending_store.py	32	
+file	fabricctl-agent|src/agent/pending_thing.py	33	
 file	fabricctl-agent|src/agent/plan_store.py	25	
 file	fabricctl-agent|src/agent/post_account.py	28	
 file	fabricctl-agent|src/agent/post_dhcp.py	3	
@@ -14,6 +16,7 @@ file	fabricctl-agent|src/agent/post_groups.py	29
 file	fabricctl-agent|src/agent/post_host_access.py	18	
 file	fabricctl-agent|src/agent/post_network.py	6	
 file	fabricctl-agent|src/agent/post_ous.py	30	
+file	fabricctl-agent|src/agent/post_pending.py	34	
 file	fabricctl-agent|src/agent/post_people.py	31	
 file	fabricctl-agent|src/agent/post_pki.py	7	
 file	fabricctl-agent|src/agent/post_route.py	8	
@@ -115,6 +118,7 @@ file	fabricctl-jinja|src/containers/samba/open_samdb.py	21
 file	fabricctl-jinja|src/containers/samba/order_gpo_links.py	112	
 file	fabricctl-jinja|src/containers/samba/ou_paths.py	131	
 file	fabricctl-jinja|src/containers/samba/paths.py	35	
+file	fabricctl-jinja|src/containers/samba/person_record.py	138	
 file	fabricctl-jinja|src/containers/samba/place_fabric_host.py	91	
 file	fabricctl-jinja|src/containers/samba/policy_entries.py	52	
 file	fabricctl-jinja|src/containers/samba/protect_top_tier.py	97	
@@ -449,6 +453,7 @@ file	fabriclib-domain|src/fabriclib/domain/set_group_managers.py	21
 file	fabriclib-domain|src/fabriclib/domain/set_machine_site.py	22	
 file	fabriclib-domain|src/fabriclib/domain/set_machine_type.py	23	
 file	fabriclib-domain|src/fabriclib/domain/show_group.py	24	
+file	fabriclib-domain|src/fabriclib/domain/show_person.py	27	
 file	fabriclib-domain|src/fabriclib/domain/unlock_person.py	25	
 file	fabriclib-federation|src/fabriclib/federation/accept_join.py	1	
 file	fabriclib-federation|src/fabriclib/federation/common/federation_lock.py	2	
@@ -946,6 +951,7 @@ file	webui|src/webui/agentclient/domain_overview.py	125
 file	webui|src/webui/agentclient/federation_overview.py	130	
 file	webui|src/webui/agentclient/gpo_change.py	126	
 file	webui|src/webui/agentclient/gpo_overview.py	127	
+file	webui|src/webui/agentclient/hold_change.py	211	
 file	webui|src/webui/agentclient/host_changes.py	20	
 file	webui|src/webui/agentclient/host_group_change.py	156	
 file	webui|src/webui/agentclient/host_reminders.py	201	
@@ -963,6 +969,9 @@ file	webui|src/webui/agentclient/logon_change.py	159	0.7.2 / 2026-10-19
 file	webui|src/webui/agentclient/logon_overview.py	160	0.7.2 / 2026-10-19
 file	webui|src/webui/agentclient/machine_action.py	128	
 file	webui|src/webui/agentclient/map_radius_group.py	28	
+file	webui|src/webui/agentclient/pending_action.py	212	
+file	webui|src/webui/agentclient/pending_counts.py	213	
+file	webui|src/webui/agentclient/pending_page.py	214	
 file	webui|src/webui/agentclient/person_action.py	138	
 file	webui|src/webui/agentclient/query_log.py	147	
 file	webui|src/webui/agentclient/quote_segment.py	29	
@@ -1028,6 +1037,7 @@ file	webui|src/webui/devpreview/fake_directory.py	204
 file	webui|src/webui/devpreview/fake_dns.py	205	
 file	webui|src/webui/devpreview/fake_misc.py	206	
 file	webui|src/webui/devpreview/fake_network.py	207	
+file	webui|src/webui/devpreview/fake_pending.py	215	
 file	webui|src/webui/devpreview/fake_reads.py	208	
 file	webui|src/webui/devpreview/sample_data.py	186	
 file	webui|src/webui/devpreview/sample_radius_guides.py	68	
@@ -1039,6 +1049,7 @@ file	webui|src/webui/httpio/read_form.py	74
 file	webui|src/webui/httpio/upload_value.py	75	
 file	webui|src/webui/oidc.py	76	
 file	webui|src/webui/routes/bind9_page.py	77	
+file	webui|src/webui/routes/changes_post.py	216	
 file	webui|src/webui/routes/directory_page.py	121	
 file	webui|src/webui/routes/directory_post.py	122	
 file	webui|src/webui/routes/dirsrv_page.py	78	0.5.0 / 2026-10-05
@@ -1078,6 +1089,7 @@ file	webui|src/webui/views/apply_result.py	102
 file	webui|src/webui/views/audit.py	103	
 file	webui|src/webui/views/b64.py	104	
 file	webui|src/webui/views/bind9.py	105	
+file	webui|src/webui/views/changes.py	217	
 file	webui|src/webui/views/continue_page.py	106	
 file	webui|src/webui/views/css.py	107	
 file	webui|src/webui/views/directory.py	123	
@@ -1101,6 +1113,7 @@ file	webui|src/webui/views/settings.py	199
 file	webui|src/webui/views/settings_plan.py	200	
 file	webui|src/webui/views/stepca.py	118	
 file	webui|src/webui/views/tsig_result.py	119	
+function	fabricctl-agent|src/agent/get_route.py|_pending	2	
 function	fabricctl-agent|src/agent/get_route.py|get_route	1	
 function	fabricctl-agent|src/agent/handler.py|Handler.actor	7	
 function	fabricctl-agent|src/agent/handler.py|Handler.address_string	1	
@@ -1115,6 +1128,26 @@ function	fabricctl-agent|src/agent/handler.py|Handler.reply	3
 function	fabricctl-agent|src/agent/job_store.py|JobStore.__init__	1	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.read	3	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.start	2	
+function	fabricctl-agent|src/agent/pending_store.py|PendingStore.__init__	1	
+function	fabricctl-agent|src/agent/pending_store.py|PendingStore._expire	10	
+function	fabricctl-agent|src/agent/pending_store.py|PendingStore._mark	8	
+function	fabricctl-agent|src/agent/pending_store.py|PendingStore._run_all	7	
+function	fabricctl-agent|src/agent/pending_store.py|PendingStore._stop	9	
+function	fabricctl-agent|src/agent/pending_store.py|PendingStore.apply	6	
+function	fabricctl-agent|src/agent/pending_store.py|PendingStore.counts	3	
+function	fabricctl-agent|src/agent/pending_store.py|PendingStore.drop	5	
+function	fabricctl-agent|src/agent/pending_store.py|PendingStore.hold	2	
+function	fabricctl-agent|src/agent/pending_store.py|PendingStore.page	4	
+function	fabricctl-agent|src/agent/pending_store.py|_new	12	
+function	fabricctl-agent|src/agent/pending_store.py|_old	11	
+function	fabricctl-agent|src/agent/pending_store.py|_read	13	
+function	fabricctl-agent|src/agent/pending_thing.py|_find	3	
+function	fabricctl-agent|src/agent/pending_thing.py|describe_change	2	
+function	fabricctl-agent|src/agent/pending_thing.py|pending_page_of	1	
+function	fabricctl-agent|src/agent/pending_thing.py|state_change	7	
+function	fabricctl-agent|src/agent/pending_thing.py|thing_key	5	
+function	fabricctl-agent|src/agent/pending_thing.py|thing_state	4	
+function	fabricctl-agent|src/agent/pending_thing.py|version_of	6	
 function	fabricctl-agent|src/agent/plan_store.py|PlanStore.__init__	1	
 function	fabricctl-agent|src/agent/plan_store.py|PlanStore.put	2	
 function	fabricctl-agent|src/agent/plan_store.py|PlanStore.take	3	
@@ -1132,6 +1165,10 @@ function	fabricctl-agent|src/agent/post_groups.py|post_groups	1
 function	fabricctl-agent|src/agent/post_host_access.py|post_host_access	1	
 function	fabricctl-agent|src/agent/post_network.py|post_network	1	
 function	fabricctl-agent|src/agent/post_ous.py|post_ous	1	
+function	fabricctl-agent|src/agent/post_pending.py|_finish	2	
+function	fabricctl-agent|src/agent/post_pending.py|_run	1	
+function	fabricctl-agent|src/agent/post_pending.py|_wrapped	3	
+function	fabricctl-agent|src/agent/post_pending.py|post_pending	4	
 function	fabricctl-agent|src/agent/post_people.py|_optional	1	
 function	fabricctl-agent|src/agent/post_people.py|post_people	2	
 function	fabricctl-agent|src/agent/post_pki.py|post_pki	1	
@@ -1237,7 +1274,7 @@ function	fabricctl-jinja|src/containers/samba/dc_info.py|dc_info	1
 function	fabricctl-jinja|src/containers/samba/delete_ou.py|delete_ou	1	
 function	fabricctl-jinja|src/containers/samba/directory_op.py|connect	1	
 function	fabricctl-jinja|src/containers/samba/directory_op.py|run	2	
-function	fabricctl-jinja|src/containers/samba/edit_person.py|_record	2	
+function	fabricctl-jinja|src/containers/samba/edit_person.py|_record	2	0.8.0 / 2026-10-22
 function	fabricctl-jinja|src/containers/samba/edit_person.py|edit_person	1	
 function	fabricctl-jinja|src/containers/samba/ensure_ad_site.py|ensure_ad_site	1	
 function	fabricctl-jinja|src/containers/samba/ensure_computed_group.py|computed_groups	1	
@@ -1380,6 +1417,7 @@ function	fabricctl-jinja|src/containers/samba/paths.py|organisation_dn	4	0.7.2 /
 function	fabricctl-jinja|src/containers/samba/paths.py|relative	6	
 function	fabricctl-jinja|src/containers/samba/paths.py|site_dn	1	0.7.2 / 2026-10-19
 function	fabricctl-jinja|src/containers/samba/paths.py|sites_dn	3	0.7.2 / 2026-10-19
+function	fabricctl-jinja|src/containers/samba/person_record.py|person_record	1	
 function	fabricctl-jinja|src/containers/samba/place_fabric_host.py|_member	2	
 function	fabricctl-jinja|src/containers/samba/place_fabric_host.py|place_fabric_host	1	
 function	fabricctl-jinja|src/containers/samba/policy_entries.py|_element	2	
@@ -1861,6 +1899,7 @@ function	fabriclib-domain|src/fabriclib/domain/set_group_managers.py|set_group_m
 function	fabriclib-domain|src/fabriclib/domain/set_machine_site.py|set_machine_site	1	
 function	fabriclib-domain|src/fabriclib/domain/set_machine_type.py|set_machine_type	1	
 function	fabriclib-domain|src/fabriclib/domain/show_group.py|show_group	1	
+function	fabriclib-domain|src/fabriclib/domain/show_person.py|show_person	1	
 function	fabriclib-domain|src/fabriclib/domain/unlock_person.py|unlock_person	1	
 function	fabriclib-federation|src/fabriclib/federation/accept_join.py|_check_networks	2	
 function	fabriclib-federation|src/fabriclib/federation/accept_join.py|_port	1	
@@ -2646,6 +2685,7 @@ function	webui|src/webui/agentclient/domain_overview.py|domain_overview	1
 function	webui|src/webui/agentclient/federation_overview.py|federation_overview	1	
 function	webui|src/webui/agentclient/gpo_change.py|gpo_change	1	
 function	webui|src/webui/agentclient/gpo_overview.py|gpo_overview	1	
+function	webui|src/webui/agentclient/hold_change.py|hold_change	1	
 function	webui|src/webui/agentclient/host_changes.py|host_changes	1	
 function	webui|src/webui/agentclient/host_group_change.py|host_group_change	1	
 function	webui|src/webui/agentclient/host_reminders.py|host_reminders	1	
@@ -2663,6 +2703,9 @@ function	webui|src/webui/agentclient/logon_change.py|logon_change	1	0.7.2 / 2026
 function	webui|src/webui/agentclient/logon_overview.py|logon_overview	1	0.7.2 / 2026-10-19
 function	webui|src/webui/agentclient/machine_action.py|machine_action	1	
 function	webui|src/webui/agentclient/map_radius_group.py|map_radius_group	1	
+function	webui|src/webui/agentclient/pending_action.py|pending_action	1	
+function	webui|src/webui/agentclient/pending_counts.py|pending_counts	1	
+function	webui|src/webui/agentclient/pending_page.py|pending_page	1	
 function	webui|src/webui/agentclient/person_action.py|person_action	1	
 function	webui|src/webui/agentclient/query_log.py|query_log	1	
 function	webui|src/webui/agentclient/quote_segment.py|quote_segment	1	
@@ -2777,6 +2820,10 @@ function	webui|src/webui/devpreview/fake_network.py|_filter	4
 function	webui|src/webui/devpreview/fake_network.py|_options	1	
 function	webui|src/webui/devpreview/fake_network.py|_radius	3	
 function	webui|src/webui/devpreview/fake_network.py|fake_network	5	
+function	webui|src/webui/devpreview/fake_pending.py|_find	1	
+function	webui|src/webui/devpreview/fake_pending.py|_store	3	
+function	webui|src/webui/devpreview/fake_pending.py|_thing	2	
+function	webui|src/webui/devpreview/fake_pending.py|fake_pending	4	
 function	webui|src/webui/devpreview/fake_reads.py|_dhcp	2	
 function	webui|src/webui/devpreview/fake_reads.py|_dns_filter	1	
 function	webui|src/webui/devpreview/fake_reads.py|fake_reads	3	
@@ -2808,10 +2855,14 @@ function	webui|src/webui/oidc.py|b64url_decode	1
 function	webui|src/webui/oidc.py|b64url_encode	2	
 function	webui|src/webui/oidc.py|rs256_verify	3	
 function	webui|src/webui/routes/bind9_page.py|bind9_page	1	
+function	webui|src/webui/routes/changes_post.py|changes_post	1	
 function	webui|src/webui/routes/directory_page.py|directory_page	1	
 function	webui|src/webui/routes/directory_post.py|_device_fields	1	
+function	webui|src/webui/routes/directory_post.py|_held	7	
 function	webui|src/webui/routes/directory_post.py|_host_access	5	
-function	webui|src/webui/routes/directory_post.py|_person_change	4	
+function	webui|src/webui/routes/directory_post.py|_person_change	4	0.8.0 / 2026-10-22
+function	webui|src/webui/routes/directory_post.py|_person_route	8	
+function	webui|src/webui/routes/directory_post.py|_q	6	
 function	webui|src/webui/routes/directory_post.py|_role_fields	2	
 function	webui|src/webui/routes/directory_post.py|directory_post	3	
 function	webui|src/webui/routes/dirsrv_page.py|dirsrv_page	1	0.5.0 / 2026-10-05
@@ -2866,6 +2917,7 @@ function	webui|src/webui/views/apply_result.py|apply_result	1
 function	webui|src/webui/views/audit.py|audit	1	
 function	webui|src/webui/views/b64.py|b64	1	
 function	webui|src/webui/views/bind9.py|bind9	1	
+function	webui|src/webui/views/changes.py|changes	1	
 function	webui|src/webui/views/continue_page.py|continue_page	1	
 function	webui|src/webui/views/css.py|css	1	
 function	webui|src/webui/views/directory.py|directory	1	

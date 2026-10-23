@@ -65,7 +65,8 @@ def get_page(h, sess, path, query):
              /overview/updates, /audit), DNS (/dns/zones, /dns-filter), DHCP (/kea), PKI (/pki, /pki/acme),
              Directory (/directory/people|domain|machines|gpo), 802.1X (/8021x, /8021x/decisions, /8021x/guides,
              /8021x/devices[/<name>], /8021x/roles[/<name>]), Secrets (/secrets[/<view>]), Federation (/federation),
-             Settings (/settings, /settings/export, /settings/sign-in), a job (/jobs/<id>).
+             Settings (/settings, /settings/export, /settings/sign-in), a job (/jobs/<id>), a page's pending
+             changes and queue (/changes/<page id>, 1.8.6.5).
     Fails:   404 for any other path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
     Feeds:   handler.Handler.handle_request.
     """
@@ -112,6 +113,8 @@ def get_page(h, sess, path, query):
         return openbao_page(h, ctx, {**query, "view": "status"})
     if _rest(path, "/secrets/") in views.OPENBAO_VIEWS:
         return openbao_page(h, ctx, {**query, "view": _rest(path, "/secrets/")})
+    if _rest(path, "/changes/") in views.PENDING_PAGES:      # a page's Review and queue (1.8.6.5)
+        return h.send(200, views.changes(ctx, actions.pending_page(_rest(path, "/changes/"))))
     if path == "/federation":
         return h.send(200, views.federation(ctx, actions.federation_overview()))
     if path == "/settings" or path == "/settings/export":

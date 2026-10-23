@@ -99,3 +99,7 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `settings_plan.py` | The plan for the wizard's fields or a settings file. Agent route: POST /v1/settings/plan (settings:admin). |
 | `settings_apply.py` | Apply a plan as a job, or the plan made again when stale. Agent route: POST /v1/settings/apply (settings:admin). |
 | `settings_dismiss.py` | Dismiss the setup wizard. Agent route: POST /v1/settings/dismiss (settings:admin). |
+| `hold_change.py` | Hold a change on its page until the page's Apply (manual 1.8.6.5). Agent route: POST /v1/pending/hold (any sign-in; the change's own permission checked now and at Apply). |
+| `pending_counts.py` | The person's pending changes per page and the pages with an apply running. Agent route: GET /v1/pending. |
+| `pending_page.py` | A page's Review: the person's changes, the page's queue, results shown once. Agent route: GET /v1/pending/<page>. |
+| `pending_action.py` | Apply a page's changes as one job, discard them, or drop one. Agent routes: POST /v1/pending/<page>/apply, /discard, /drop. |

@@ -52,6 +52,7 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 - [4.8.1 Pages and features](4.8.1-features.md)
 - [4.8.2 Device access](4.8.2-device-access.md)
 - [4.8.3 The setup wizard and the settings file](4.8.3-setup-wizard.md)
+- [4.8.4 Changes wait for Apply](4.8.4-apply.md)
 
 ## 4.9 Federation
 

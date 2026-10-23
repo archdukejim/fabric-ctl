@@ -11,6 +11,7 @@ import copy
 import json
 import os
 import sys
+import urllib.parse
 import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -326,6 +327,11 @@ class H:
 
     def redirect(self, location, headers=None):
         self.out = (303, location)
+
+    def back(self, location, msg="", err=""):
+        """A form's outcome (the console keeps it for the next page, 1.8.6.3), written as msg=/err= for these checks."""
+        q = urllib.parse.urlencode({"err": err} if err else {"msg": msg} if msg else {})
+        self.redirect(location + (("&" if "?" in location else "?") + q if q else ""))
 
     def deny(self, status, text):
         self.out = (status, text)

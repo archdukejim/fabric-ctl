@@ -24,6 +24,7 @@ class DevState:
         self.lock = threading.Lock()
         self.toggles = {}           # the preview's own query switches for this request (fresh, off: dev_handler)
         self.flash = None           # the last action's message, for the next page (as a session holds it)
+        self.pending = None         # Apply per page's store (fake_pending: the agent's PendingStore over the samples)
 
     def zones(self):
         """Purpose: The zone list, in the shape fabric-agent's GET /v1/zones returns.

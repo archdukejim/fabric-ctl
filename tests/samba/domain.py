@@ -74,8 +74,11 @@ from fabriclib.samba.set_domain_password_policy import set_domain_password_polic
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-domain")
-NET, SUBNET, IP = "domain_net", "10.254.41.0/24", "10.254.41.10"
-DC = "dmdc"
+# a second run beside this one (another worktree) names its own: SAMBA_TEST_ID, SAMBA_TEST_NET (a /24's three octets)
+NET = "domain_net" + os.environ.get("SAMBA_TEST_ID", "")
+SUBNET = os.environ.get("SAMBA_TEST_NET", "10.254.41") + ".0/24"
+IP = SUBNET.rsplit(".", 1)[0] + ".10"
+DC = "dmdc" + os.environ.get("SAMBA_TEST_ID", "")
 TARGET = {"name": DC}                 # where every `docker exec … samba` of the code under test goes
 FAILED = 0
 KERBEROS = {"ticket_hours": 3, "renew_days": 2, "skew_minutes": 7}
@@ -764,6 +767,130 @@ code2, out2 = cli("status")
 V.pop("grants_fallback_open")
 check("fabricctl domain status says RELAXED while grants_fallback_open is on, and not otherwise",
       "RELAXED: grants_fallback_open is on" in out2 and "RELAXED" not in out, (out, out2))
+
+print("--- Apply per page (manual 1.8.6.5): fabric-agent's own pending store, against this DC")
+import agent.post_pending as m_pending  # noqa: E402
+from agent.job_store import JOBS  # noqa: E402
+from fabriclib.rbac.permissions import BUNDLES  # noqa: E402
+
+m_pending.load_vars = lambda: V
+ADMIN = set(BUNDLES["admin"])
+
+
+def pend(route, body=None, who="alice", perms=ADMIN):
+    """A pending route as the agent answers it for a signed-in person (their token's user and permissions)."""
+    return m_pending.post_pending(route, who, body or {}, perms, None)
+
+
+def hold(change, body=None, who="alice", perms=ADMIN):
+    return pend(["pending", "hold"], {"route": change, "body": body or {}}, who, perms)
+
+
+def applied(page, who="alice", perms=ADMIN):
+    """Apply a page and wait for its job; the job's result."""
+    job = pend(["pending", page, "apply"], who=who, perms=perms)["id"]
+    for _ in range(600):
+        done = JOBS.read(job, who)
+        if done["state"] != "running":
+            return done["result"] or {"error": done["error"]}
+        time.sleep(0.2)
+    return {"error": "timed out"}
+
+
+def review(page, who="alice", perms=ADMIN):
+    return m_get.get_route(["pending", page], who, perms)
+
+
+def title(uid):
+    return ldb(f"(sAMAccountName={uid})", "title").split("title: ")[-1].split("\n")[0].strip()
+
+
+before = title("bob")
+out = hold("people/bob/edit", {"title": "Pending title"})
+# covers: agent:post.pending.hold +
+mine = review("people")["changes"]
+# covers: agent:get.pending.* +
+check("a change held on People: listed with its old and new values; the DC untouched until Apply",
+      out["page"] == "people" and out["pending"] == 1 and mine[0]["what"] == "Edit bob"
+      and mine[0]["new"] == {"title": "Pending title"} and title("bob") == before, (out, mine, title("bob")))
+# covers: agent:get.pending +
+check("...the counts: one pending on People, none elsewhere", m_get.get_route(["pending"], "alice", ADMIN)
+      == {"people": {"pending": 1, "running": False}}, m_get.get_route(["pending"], "alice", ADMIN))
+check("...another person sees none of alice's pending changes (held per person)",
+      review("people", "hd", set(BUNDLES["fabric-helpdesk"]))["changes"] == [])
+result = applied("people")
+# covers: agent:post.pending.*.apply +
+check("Apply: one job, the change done, written to the DC, nothing left pending",
+      result.get("applied") == 1 and title("bob") == "Pending title" and review("people")["changes"] == []
+      and review("people")["queue"][0]["items"][0]["state"] == "done", (result, title("bob")))
+hold("people/bob/edit", {"title": "Discarded"})
+out = pend(["pending", "people", "discard"])
+# covers: agent:post.pending.*.discard +
+check("Discard: dropped, the DC untouched", out == {"dropped": 1, "pending": 0} and title("bob") == "Pending title",
+      out)
+hold("people/bob/edit", {"title": "Mine"})
+m_people.post_people(["people", "bob", "edit"], "dee", {"title": "Dee's"}, "dee")    # another person, first
+result = applied("people")
+mine = review("people")["changes"]
+check("refused at Apply: bob changed since the change was made; held again against bob as he is now, the DC "
+      "keeps the other person's change", result["items"][0]["state"] == "failed" and "changed since"
+      in result["items"][0]["why"] and title("bob") == "Dee's" and mine[0]["changed_since"] is True
+      and mine[0]["old"] == {"title": "Dee's"}, (result, mine))
+result = applied("people")
+check("...applied once reviewed again", result.get("applied") == 1 and title("bob") == "Mine", result)
+hold("people/bob/edit", {"title": "First"})
+hold("people/fabric-admin/reset")
+hold("people/bob/edit", {"title": "Third"})
+hold("domain/password-policy", {"minimum_length": 18})
+result = applied("people")
+mine = review("people")["changes"]
+check("a failing change stops the Apply, says which and why; the one after not run; both still pending",
+      [i["state"] for i in result["items"]] == ["done", "failed", "not run"] and len(result["items"][1]["why"]) > 10
+      and title("bob") == "First" and [c["what"] for c in mine]
+      == ["Reset the sign-in of fabric-admin", "Edit bob"], (result, mine))
+check("...another page's changes untouched by People's Apply (the password policy still waits on Domain)",
+      [c["what"] for c in review("domain")["changes"]] == ["Change the password policy"]
+      and V["ad_password_policy"]["minimum_length"] != 18, review("domain"))
+pend(["pending", "people", "discard"])
+pend(["pending", "domain", "discard"])
+hold("people/bob/edit", {"title": "No right"})
+result = applied("people", perms=ADMIN - {"people:edit"})
+# covers: agent:post.pending.*.apply -
+check("refused at Apply without the change's permission, naming it; the DC untouched",
+      result["items"][0]["state"] == "failed" and "people:edit" in result["items"][0]["why"]
+      and title("bob") == "First", result)
+pend(["pending", "people", "discard"])
+gone, why = refused(hold, "people/bob/edit", {"title": "x"}, "aud", set(BUNDLES["fabric-auditor"]))
+# covers: agent:post.pending.hold -
+check("refused: holding a change without its permission (an auditor's edit), named", gone and "people:edit" in why,
+      why)
+gone, why = refused(hold, "account/password", {"current": "x", "new": "y"})
+check("refused: holding a change that is done at once (a person's own password)", gone and "not held" in why, why)
+gone, why = refused(pend, ["pending", "people", "apply"])
+check("refused: Apply with nothing pending", gone and "nothing is pending" in why, why)
+gone, why = refused(pend, ["pending", "people", "drop"], {"id": "no-such"})
+# covers: agent:post.pending.*.drop -
+check("refused: dropping a change that is not there", gone and "no such change" in why, why)
+try:
+    pend(["pending", "nowhere", "apply"])
+    why = "allowed"
+except m_pending.RouteNotFound:
+    why = "not found"
+check("refused: a page that holds nothing (404)", why == "not found", why)
+out = pend(["pending", "people", "discard"])
+# covers: agent:post.pending.*.discard -
+check("Discard with nothing pending: nothing dropped", out == {"dropped": 0, "pending": 0}, out)
+try:
+    m_get.get_route(["pending", "people"], None, None)
+    why = "allowed"
+except ValidationError as e:
+    why = str(e)
+# covers: agent:get.pending agent:get.pending.* -
+check("refused: the host (a root peer) holds nothing", "signed-in person" in why, why)
+out = hold("people/bob/edit", {"title": "Dropped"})
+# covers: agent:post.pending.*.drop +
+check("drop one change by its id", pend(["pending", "people", "drop"], {"id": out["id"]}) == {"dropped": 1,
+                                                                                         "pending": 0})
 
 if not os.environ.get("FABRIC_TEST_KEEP"):
     cleanup()

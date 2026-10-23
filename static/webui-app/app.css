@@ -138,3 +138,8 @@ pre{overflow-wrap:anywhere}
 input,select,textarea{max-width:100%}
 .kv,.facts dl{grid-template-columns:1fr}
 }
+/* Apply per page (manual 1.8.6.5): the top bar's pending changes, the Review page's changes and queue */
+.pendingbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:4px 8px;border:1px solid var(--warn);border-radius:6px}
+.pendingbar form{margin:0}
+.change-old{color:var(--muted);text-decoration:line-through}.change-new{font-weight:600}
+.qstate{white-space:nowrap}

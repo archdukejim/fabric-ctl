@@ -9,6 +9,7 @@ from agent.post_dns_filter import post_dns_filter
 from agent.post_groups import post_groups
 from agent.post_network import post_network
 from agent.post_ous import post_ous
+from agent.post_pending import post_pending
 from agent.post_people import post_people
 from agent.post_pki import post_pki
 from agent.post_security import post_security
@@ -33,7 +34,8 @@ def post_route(route, actor, data, perms, session=None):
              person's own password change keeps that session). The token's user is the caller fabric-agent checks
              (check_access: the tiers, the grants, a group's managers), None for a root peer.
     Returns: the operation's JSON-serialisable result. apply: {"ok", "output"}; people/...: post_people's;
-             groups/...: post_groups'; ous/...: post_ous'; account/...: post_account's;
+             groups/...: post_groups'; ous/...: post_ous'; account/...: post_account's; pending/...:
+             post_pending's (a change held on its page, dropped, discarded, or the page applied as a job);
              jobs/doctor and jobs/images (body: action update|rollback, service): {"id"} of a job read with GET
              /v1/jobs/<id> by the person who started it;
              events: {} after the login audit line; dns-filter/...: post_dns_filter's result; settings/plan,
@@ -74,6 +76,8 @@ def post_route(route, actor, data, perms, session=None):
         return post_ous(route, actor, data)
     if area == ["account"]:
         return post_account(route, caller, data, session)
+    if area == ["pending"]:                         # Apply per page (1.8.6.5): held, reviewed, applied as a job
+        return post_pending(route, actor, data, perms, session)
     owner = actor if perms is not None else None    # a job is read by whoever started it (root: any)
     if area == ["settings"]:                        # the setup wizard (1.8.5): a plan, its apply as a job
         return post_settings(route, actor, data, owner)

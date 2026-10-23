@@ -1,5 +1,9 @@
 """What the pages show: the navigation, sections, sub-menus, the permissions that show them."""
 
+# Apply per page (manual 1.8.6.5): fabric-agent's pending page ids -> the navigation page whose changes they are
+PENDING_PAGES = {"people": "/directory/people", "machines": "/directory/machines", "domain": "/directory/domain",
+                 "gpo": "/directory/gpo"}
+
 # The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
 # permissions that show it: any one of them; () = any signed-in person). An entry shows when one of its pages does.
 NAV = [

@@ -2,6 +2,7 @@ import os
 
 from agent.job_store import JOBS
 from agent.route_not_found import RouteNotFound
+from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
 from fabriclib.common.read_audit import read_audit
 from fabriclib.consent.consent_status import consent_status
@@ -90,17 +91,41 @@ READS = {
 }
 
 
-def get_route(route, user=None):
+def _pending(route, user, perms):
+    """Purpose: Apply per page's reads (manual 1.8.6.5): this person's pending changes per page, or one page's
+             Review with its queue (shown to whoever may see the page).
+    Inputs:  route — ["pending"] or ["pending", <page>]; user — the token's user; perms — its permissions.
+    Returns: pending: {page: {"pending", "running"}}; pending/<page>: PendingStore.page's dict.
+    Fails:   RouteNotFound for an unknown page; ValidationError for a root peer (nothing is held for the host).
+    Feeds:   get_route."""
+    from agent.pending_thing import PAGES
+    from agent.post_pending import PENDING
+    if not user or perms is None:
+        raise ValidationError("a pending change belongs to a signed-in person")
+
+    def may_see(page):
+        return PAGES.get(page) in perms
+
+    if len(route) == 1:
+        return PENDING.counts(user, may_see)
+    if route[1] not in PAGES:
+        raise RouteNotFound()
+    return PENDING.page(user, route[1], may_see)
+
+
+def get_route(route, user=None, perms=None):
     """Purpose: answer GET /v1/<route>: one fabriclib read operation per route.
     Inputs:  route — list of path segments after /v1/ (already authorized by the handler); user — the token's user
-             (None for root): a job is read only by the person who started it.
+             (None for root): a job is read only by the person who started it, pending changes are each person's;
+             perms — the token's permissions (who may see a page's queue; None for root).
     Returns: the operation's JSON-serialisable result. version: version_info with the host's name and domain (the
              console's top bar); zones/<key>: zone_detail; vault/slots: the unlock methods with
              this host's name; images: the image status rows; reminders: host_reminders (the console's top bar);
              pki/acme: {info, machines, domain}; jobs/<id>: the job; domain/grants: list_grants; domain/grants/<name>:
              show_grant; domain/grants/explain/<person>[/<machine>]: explain_grant; domain/kerberos: kerberos_overview;
              domain/kerberos/spns: list_spns; groups: list_groups; groups/<name>: show_group; ous: list_ous;
-             account/groups: my_groups (the groups the signed-in person manages);
+             account/groups: my_groups (the groups the signed-in person manages); pending: the person's pending
+             changes per page and the pages with an apply running (1.8.6.5); pending/<page>: the page's Review;
              settings: settings_overview (the setup wizard, 1.8.5); settings/export: {"text", "name"}, the
              settings file.
     Fails:   RouteNotFound for any other route (-> 404); whatever the operation raises (ValidationError -> 400).
@@ -113,6 +138,8 @@ def get_route(route, user=None):
         return JOBS.read(route[1], user)
     if route == ["account", "groups"]:
         return my_groups(load_vars(), user)
+    if route[:1] == ["pending"] and len(route) <= 2:
+        return _pending(route, user, perms)
     if len(route) == 2 and route[0] == "groups":
         return show_group(load_vars(), route[1])
     if len(route) == 3 and route[:2] == ["domain", "grants"]:

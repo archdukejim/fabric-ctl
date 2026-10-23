@@ -20,7 +20,7 @@ from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
 from fabriclib.samba.deploy_samba import deploy_samba  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
-IMAGE = "fabric/samba:test"
+IMAGE = "fabric/samba:test" + os.environ.get("SAMBA_TEST_ID", "")     # a second worktree's run names its own
 POLICY = {"minimum_length": 14, "complexity": True, "history": 24, "minimum_age_days": 0, "maximum_age_days": 0,
           "lockout_threshold": 5, "lockout_minutes": 15, "lockout_window_minutes": 15}
 

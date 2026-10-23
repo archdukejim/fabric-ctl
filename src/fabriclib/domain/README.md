@@ -10,6 +10,7 @@ fabric-agent's check (`fabriclib/access`), then one operation inside the DC, the
 | `__init__.py` | Package marker |
 | `edit_person.py` | A person's details changed (`people:edit`, AD's standard attributes, 2.1.6.93), audited `PERSON_EDIT` |
 | `person_fields.py` | A person's fields (name -> AD attribute) and their checks |
+| `show_person.py` | One person as the DC has them: their groups and details |
 | `unlock_person.py` | A person's lockout cleared (`people:reset`), audited `PERSON_UNLOCK` |
 | `group_name_refused.py` | Why a new group's name is refused: its form, fabric's names, AD's |
 | `create_group.py` | An admin's own group in OU=groups with a gid, audited `GROUP_CREATE` |

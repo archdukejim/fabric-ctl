@@ -9,6 +9,7 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `base.html` | The frame: the top bar, the navigation down the left (only the entries and pages the person may see), the message of the last action |
 | `pattern.html` | The page pattern's macros (manual 1.8.6.3): a status light, the actions bar, an empty state, a detail page's facts, a list |
 | `bind9.html` | The bind9 page |
+| `changes.html` | A page's Review: pending changes, Apply and Discard, the queue, one-time results |
 | `continue.html` | The continue page |
 | `directory.html` | The directory page |
 | `directory_macros.html` | Macros for the device and role forms |

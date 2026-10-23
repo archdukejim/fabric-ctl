@@ -217,9 +217,11 @@ open(f"{W}/bin/systemctl", "w").write(
     "exit 5;; esac; done\n"
     f"exec {REAL_SYSTEMCTL} \"$@\"\n")
 os.chmod(f"{W}/bin/systemctl", 0o755)
+# its log goes to a file: a pipe nobody reads fills (64 KiB) and then every request that logs hangs the agent
+AGENT_LOG = open(f"{W}/agent.log", "w")
 agent = subprocess.Popen([sys.executable, f"{W}/fabric/lib/agent/server.py", "--socket", f"{W}/agent/agent.sock",
                           "--socket-gid", str(UID), "--allow-uid", str(UID)],
-                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                         stdout=AGENT_LOG, stderr=subprocess.STDOUT, text=True,
                          env={**os.environ, "PATH": f"{W}/bin:" + os.environ.get("PATH", "/usr/bin:/bin")})
 
 # ------------------------------------------- webui container (uid 912)
@@ -628,21 +630,48 @@ POLICY = {"minimum_length": "14", "history": "24", "minimum_age_days": "1", "max
 # the form reaches fabric-agent, whose check of the caller (a Directory Administrator, 1.6.12.17.6) is the DC's: this
 # suite has none, so a good policy is refused saying so and nothing is saved (fail closed); saved by a Directory
 # Administrator through the same route against a real DC in tests/samba/domain.py
+
+
+def applied(page, cookie):
+    """Apply a page's pending changes (manual 1.8.6.5) and wait for the job: the page's Review once it stopped."""
+    req("POST", f"/changes/{page}/apply", POSTH, {"csrf": cookie_csrf(cookie)}, cookie=cookie)
+    body = ""
+    for _ in range(600):
+        body = req("GET", f"/changes/{page}", ALICE, cookie=cookie)[3]
+        if 'http-equiv="refresh"' not in body:
+            break
+        time.sleep(0.2)
+    return html.unescape(body)
+
+
 # covers: web:post.directory.domain.password-policy +
 vars_before = open(f"{W}/fabric/config/vars.yaml").read()
-st, hd, *_ = req("POST", "/directory/domain/password-policy", POSTH, {"csrf": csrf, **POLICY}, cookie=session)
-check("password policy from the console: passes the console's checks, reaches fabric-agent, refused there without a DC "
-      "to check the caller (fail closed), vars.yaml unchanged",
-      st == 303 and "the domain controller is not running" in urllib.parse.unquote_plus(hd.get("Location", ""))
-      and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, hd)
+st, hd, _sc, pbody = req("POST", "/directory/domain/password-policy", POSTH, {"csrf": csrf, **POLICY}, cookie=session)
+check("password policy from the console: held for the Domain page's Apply by the real agent (its read of the policy "
+      "as the version), vars.yaml unchanged", st == 303
+      and "Waiting for Apply: Change the password policy" in urllib.parse.unquote_plus(hd.get("Location", ""))
+      and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, (st, hd.get("Location"), pbody[-600:]))
+body = req("GET", "/directory/domain", ALICE, cookie=session)[3]
+check("the top bar: 1 change pending on Domain, Review, Apply, Discard", "<strong>1 change pending</strong>" in body
+      and 'action="/changes/domain/apply"' in body, body[:2000])
+body = applied("domain", session)
+# covers: web:post.changes.*.apply -
+check("Apply: one job; the policy refused by fabric-agent without a DC to check the caller (fail closed), said in the "
+      "queue; the change still pending; vars.yaml unchanged", "the domain controller is not running" in body
+      and "Change the password policy" in body and "Apply 1 change" in body
+      and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, body[-2500:])
+st, hd, *_ = req("POST", "/changes/domain/discard", POSTH, {"csrf": csrf}, cookie=session)
+# covers: web:post.changes.*.discard +
+check("Discard: dropped, back on Domain", "Discarded 1 pending change" in urllib.parse.unquote_plus(
+    hd.get("Location", "")), hd)
 for form, why in (({"lockout_minutes": "5", "lockout_window_minutes": "15"}, "at least as long"),
                   ({"minimum_age_days": "400"}, "must be below"), ({"minimum_length": "x"}, "whole number")):
     # covers: web:post.directory.domain.password-policy -
-    st, hd, *_ = req("POST", "/directory/domain/password-policy", POSTH, {"csrf": csrf, **POLICY, **form},
-                     cookie=session)
-    check(f"password policy refused ({why}): said why (before the caller's check), vars.yaml unchanged",
-          why in urllib.parse.unquote_plus(hd.get("Location", ""))
-          and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, hd)
+    req("POST", "/directory/domain/password-policy", POSTH, {"csrf": csrf, **POLICY, **form}, cookie=session)
+    body = applied("domain", session)
+    check(f"password policy refused at Apply ({why}): said why (before the caller's check), vars.yaml unchanged",
+          why in body and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, body[-2000:])
+    req("POST", "/changes/domain/discard", POSTH, {"csrf": csrf}, cookie=session)
 st, hd, sc, body = req("GET", "/audit", ALICE, cookie=session)
 # covers: web:get.audit agent:get.audit agent:post.events +
 check("audit log records web actions with user", "User: alice (web) | Action: DNS_ADD" in body
@@ -849,10 +878,11 @@ for path, form, perm in (("/directory/hostgroups/_new", {"name": "web"}, "machin
                          ("/directory/sudo/_new", {"name": "r", "users": "alice", "commands": "/bin/true"},
                           "sudo:admin"),
                          ("/directory/sudo/r/delete", {}, "sudo:admin")):
-    st, _, _, body = req("POST", path, POSTH, {"csrf": cookie_csrf(aud), **form}, cookie=aud)
+    st, _, _sc, body = req("POST", path, POSTH, {"csrf": cookie_csrf(aud), **form}, cookie=aud)
     # covers: web:post.directory.hostgroups._new web:post.directory.hostgroups._form.members -
     # covers: web:post.directory.hostgroups.*.delete web:post.directory.sudo._new web:post.directory.sudo.*.delete -
-    check(f"auditor: {path} is refused by fabric-agent (403, {perm})", st == 403 and perm in body, (st, body[:300]))
+    check(f"auditor: {path} is refused by fabric-agent when held (the change's own permission, {perm}, named)",
+          st == 303 and perm in urllib.parse.unquote_plus(_.get("Location", "")), (st, _))
 
 (st, hd, sc, body), _, _ = login(tamper="short")
 short = cookie_val(sc, "__Host-webui")
@@ -1058,6 +1088,30 @@ for path, perm in (("/v1/host-groups", "machines:admin"), ("/v1/host-groups/web/
     # covers: agent:post.sudo agent:post.sudo.*.delete -
     check(f"auditor token: may not change host groups or sudo rules, POST {path} (403, {perm})",
           " 403 " in out and perm in out, out)
+# Apply per page (manual 1.8.6.5) through the real socket and tokens: a person's own changes; holding one needs the
+# change's own permission; the host's pages and their changes against a real DC are tests/samba/domain.py's
+out = agent_call("POST", "/v1/pending/hold", "carol", AUDITOR_ROLES, {"route": "machines/ws1/disable", "body": {}})
+check("auditor token: holding a machine's change refused (400, machines:admin named), nothing held",
+      " 400 " in out and "machines:admin" in out
+      and agent_call("GET", "/v1/pending", "carol", AUDITOR_ROLES).count('"pending"') == 0, out)
+out = agent_call("POST", "/v1/pending/hold", "alice", ADMIN_ROLES, {"route": "machines/ws1/disable", "body": {}})
+check("admin token: a machine's change refused when held without a DC to read the machine (400, why said: fail "
+      "closed), nothing held", " 400 " in out and "could not read what this change changes" in out
+      and '"pending": 1' not in agent_call("GET", "/v1/pending", "alice", ADMIN_ROLES), out)
+out = agent_call("POST", "/v1/pending/hold", "alice", ADMIN_ROLES,
+                 {"route": "domain/password-policy", "body": {"minimum_length": 14}})
+check("admin token: the password policy held on Domain (the agent decides the page; its version fabric's setting)",
+      " 200 " in out and '"page": "domain"' in out, out)
+out = agent_call("GET", "/v1/pending", "carol", AUDITOR_ROLES)
+check("another person's token sees none of it", " 200 " in out and '"pending": 1' not in out, out)
+out = agent_call("GET", "/v1/pending/domain", "alice", ADMIN_ROLES)
+check("...its owner's does, with the change in a sentence", '"what": "Change the password policy"' in out, out)
+out = agent_call("POST", "/v1/pending/domain/discard", "alice", ADMIN_ROLES)
+check("...and discards it", '"dropped": 1' in out, out)
+out = agent_call("GET", "/v1/pending/nowhere", "alice", ADMIN_ROLES)
+check("refused: a page that holds nothing (404)", " 404 " in out, out)
+out = agent_call("POST", "/v1/pending/hold", "alice", ADMIN_ROLES, {"route": "vault/rotate", "body": {}})
+check("refused: a change that is done at once is never held (the vault's)", " 400 " in out and "not held" in out, out)
 out = agent_call("GET", "/v1/zones/nope", "alice", ADMIN_ROLES)
 # covers: agent:get.zones.* -
 check("refused: a zone that does not exist (400, unknown zone)", " 400 " in out and "unknown zone" in out, out)
@@ -1668,6 +1722,7 @@ kc.shutdown()
 failed = [n for n, ok in results if not ok]
 print(f"\n{len(results) - len(failed)}/{len(results)} passed")
 if failed:
-    print(agent.stdout.read()[-3000:])
+    AGENT_LOG.close()
+    print(open(f"{W}/agent.log").read()[-3000:])
     print(subprocess.run(['docker', 'logs', CWEBUI], capture_output=True, text=True).stdout[-2000:])
 sys.exit(1 if failed else 0)

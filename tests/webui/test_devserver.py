@@ -56,6 +56,11 @@ def flash(page):
     return (m.group(1) + ": " + m.group(2).replace("&#39;", "'")) if m else ""
 
 
+def change_ids(page):
+    """The ids of the changes a Review lists, in order."""
+    return re.findall(r'action="/changes/[a-z]+/drop">.*?name="id" value="([^"]+)"', page, re.S)
+
+
 def nav(page):
     """The navigation's entries and their links, read from the page."""
     side = page.split('<nav class="side"', 1)[1].split("</nav>", 1)[0] if '<nav class="side"' in page else ""
@@ -373,19 +378,68 @@ with serve():
     check("Directory · People (admin): disable buttons, the group form and the remove form (2.1.6.30)",
           "/directory/people/sam/disable" in page and "/directory/people/_form/groups" in page
           and "/directory/people/_form/delete" in page)
+    # Apply per page (manual 1.8.6.5): every change waits on its page until that page's Apply
     st, loc, page = post("/directory/people/sam/disable", {})
-    check("disable a person -> listed locked, an enable button instead", "disabled" in flash(page)
-          and "/directory/people/sam/enable" in page, loc)
-    st, loc, page = post("/directory/people/sam/enable", {})
-    check("enable them again", "enabled" in flash(page) and "/directory/people/sam/disable" in page, loc)
-    st, loc, page = post("/directory/people/_form/groups", {"uid": "sam", "group": "directory-admins",
-                                                            "action": "add"})
-    check("put a person in a group (the form picks them)", "added to directory-admins" in flash(page), flash(page))
+    # covers: web:post.directory.people.*.* +
+    check("disable a person: held for People's Apply, said; nothing changed yet", loc == "/directory/people"
+          and "Waiting for Apply: Disable sam" in flash(page) and "/directory/people/sam/disable" in page, flash(page))
+    check("the top bar: 1 change pending, Review, Apply and Discard; the navigation marks People",
+          "<strong>1 change pending</strong>" in page and 'action="/changes/people/apply"' in page
+          and 'action="/changes/people/discard"' in page and 'href="/changes/people">Review</a>' in page
+          and re.search(r'href="/directory/people"[^>]*>People <span class="count"[^>]*>1</span>', page), page[:2500])
+    check("another page's top bar shows none of People's changes", "change pending" not in get("/directory/machines"))
+    page = get("/changes/people")
+    # covers: web:get.changes.* +
+    check("Review: the change in a sentence, was and becomes (enabled: yes, then no), Drop, Apply and Discard all",
+          "Disable sam" in page and len(change_ids(page)) == 1 and "Apply 1 change" in page
+          and ">enabled: yes<" in page and ">enabled: no<" in page
+          and 'action="/changes/people/discard"' in page
+          and '<a href="/directory/people" class="active" aria-current="page">' in page, page[-2500:])
+    st, loc, page = post("/changes/people/apply", {})
+    # covers: web:post.changes.*.apply +
+    check("Apply: one job, its queue on the Review (Disable sam done), nothing left pending",
+          loc == "/changes/people" and "Applying" in flash(page) and "Disable sam" in page
+          and "done" in page and "Nothing waits on this page" in page, page[-2500:])
+    page = get("/directory/people")
+    check("...sam is disabled now (an enable button instead), the bar gone", "/directory/people/sam/enable" in page
+          and "change pending" not in page)
+    post("/directory/people/sam/enable", {})
+    post("/directory/people/_form/groups", {"uid": "sam", "group": "directory-admins", "action": "add"})
     st, loc, page = post("/directory/people/_form/delete", {"uid": "sam", "confirm": "sma"})
-    check("refused: a removal without the user name typed back", "type the user name" in flash(page), flash(page))
-    st, loc, page = post("/directory/people/_form/delete", {"uid": "sam", "confirm": "sam"})
-    check("remove a person with the user name typed back -> gone from the list",
-          "removed" in flash(page) and "sam@home.arpa" not in page, flash(page))
+    page = get("/changes/people")
+    check("three changes held, in the order made: enable, a group, a removal; old and new values shown",
+          [m for m in re.findall(r'data-label="Change">([^<]+)', page)][:3]
+          == ["Enable sam", "Add sam to group directory-admins", "Remove sam"]
+          and "group: directory-admins" in page, re.findall(r'data-label="Change">([^<]+)', page))
+    st, loc, page = post("/changes/people/apply", {})
+    # covers: web:post.changes.*.apply -
+    check("Apply stops at the first failure and says which: the removal without its name typed back; the rest done",
+          "type the user name" in page and page.count("— failed") + page.count("failed — ") >= 1
+          and len(change_ids(page)) == 1 and "Remove sam" in page, page[-3000:])
+    st, loc, page = post("/changes/people/drop", {"id": change_ids(get("/changes/people"))[0]})
+    # covers: web:post.changes.*.drop +
+    check("Drop the failed one: nothing pending", "0 still pending" in flash(page) and not change_ids(page),
+          flash(page))
+    st, loc, page = post("/changes/people/drop", {"id": "no-such-change"})
+    # covers: web:post.changes.*.drop -
+    check("refused: dropping a change that is not there", "no such change" in flash(page), flash(page))
+    post("/directory/people/_form/delete", {"uid": "sam", "confirm": "sam"})
+    st, loc, page = post("/changes/people/discard", {})
+    # covers: web:post.changes.*.discard +
+    check("Discard: every pending change of the page dropped, back on the page", loc == "/directory/people"
+          and "Discarded 1 pending change" in flash(page) and "change pending" not in page
+          and "sam@home.arpa" in page, flash(page))
+    st, loc, page = post("/changes/people/apply", {})
+    check("refused: Apply with nothing pending, said", "nothing is pending" in flash(page), flash(page))
+    st, loc, page = post("/changes/people/discard", {})
+    # covers: web:post.changes.*.discard -
+    check("Discard with nothing pending: says nothing was dropped", "Discarded 0" in flash(page), flash(page))
+    # covers: web:get.changes.* -
+    check("refused: a Review of a page that has none (404)", req("GET", "/changes/nowhere")[0] == 404)
+    post("/directory/people/_form/delete", {"uid": "sam", "confirm": "sam"})
+    st, loc, page = post("/changes/people/apply", {})
+    check("remove a person with the user name typed back, applied -> gone from the list",
+          "sam@home.arpa" not in get("/directory/people"), page[-1500:])
     page = get("/directory/domain")
     check("Directory · Domain: the domain, its controller running, the password policy",
           "ad.home.arpa" in page and "pi-core.ad.home.arpa" in page and "Minimum length" in page)
@@ -398,14 +452,23 @@ with serve():
                          {"minimum_length": "16", "history": "24", "minimum_age_days": "0", "maximum_age_days": "0",
                           "lockout_threshold": "5", "lockout_minutes": "15", "lockout_window_minutes": "15",
                           "complexity": "on"})
-    check("password policy saved -> shown, said", "Password policy saved" in flash(page)
-          and 'name="minimum_length" required inputmode="numeric" pattern="[0-9]+" value="16"' in page, flash(page))
+    check("password policy: held for the Domain page's Apply", "Waiting for Apply: Change the password policy"
+          in flash(page) and "<strong>1 change pending</strong>" in page, flash(page))
+    st, loc, page = post("/changes/domain/apply", {})
+    check("...applied: the policy, then written into the domain (restarting only what changed), both done; shown",
+          "Change the password policy" in page and "Write the policy into the domain" in page
+          and "failed" not in page.split("<h2>Queue</h2>")[-1]
+          and 'name="minimum_length" required inputmode="numeric" pattern="[0-9]+" value="16"'
+          in get("/directory/domain"), page[-2500:])
     for form, why in (({"lockout_minutes": "5", "lockout_window_minutes": "15"}, "at least as long"),
                       ({"minimum_length": "99"}, "from 0 to 64"), ({"history": "lots"}, "whole number")):
-        st, loc, page = post("/directory/domain/password-policy", form)
-        check(f"password policy refused ({why}), saying why, nothing changed", why in flash(page)
-              and 'name="minimum_length" required inputmode="numeric" pattern="[0-9]+" value="16"' in page,
-              flash(page))
+        post("/directory/domain/password-policy", form)
+        st, loc, page = post("/changes/domain/apply", {})
+        check(f"password policy refused at Apply ({why}), saying why; the change still pending, nothing changed",
+              why in page and len(change_ids(page)) == 1
+              and 'name="minimum_length" required inputmode="numeric" pattern="[0-9]+" value="16"'
+              in get("/directory/domain"), page[-2000:])
+        post("/changes/domain/discard", {})
     page = get("/dns-filter?view=lists&fresh=1")
     check("DNS filter, first fetch running: the page refreshes itself (a meta refresh, no script) and says so",
           '<meta http-equiv="refresh" content="10;url=/dns-filter?view=lists&amp;wait=1">' in page
@@ -431,8 +494,10 @@ with serve():
           and "the site's default" not in page and 'action="/directory/sudo/_new"' in page
           and "/usr/bin/systemctl restart nginx" in page and "read-only" in page)
     st, loc, page = post("/directory/machines/host-1/disable", {})
-    check("disable a machine -> back on Machines, said", loc == "/directory/machines" and "host-1 disabled" in
-          flash(page), loc)
+    check("disable a machine: held on Machines", loc == "/directory/machines"
+          and "Waiting for Apply: Disable host-1" in flash(page), loc)
+    st, loc, page = post("/changes/machines/apply", {})
+    check("...applied: done in the queue", "Disable host-1" in page and "Nothing waits" in page, page[-1500:])
     page = get("/directory/gpo?match=example")
     check("Directory · Group Policy (admin): what is set, a search with a set form per policy",
           "ExampleText" in page and "/directory/gpo/set" in page and "Example setting" in page
@@ -510,22 +575,34 @@ for bundle, entries in ENTRIES.items():
 with serve("fabric-helpdesk"):
     page = get("/directory/people")
     check("helpdesk: add form and reset buttons", "/directory/people/_new" in page and "Reset sign-in" in page)
-    st, _, _, page = req("POST", "/directory/people/_new", {"csrf": "dev", "uid": "dana", "first": "Dana",
-                                                            "last": "Lee", "email": "dana@home.arpa"})
-    check("helpdesk: add a person -> one-time password shown once", st == 200 and "shown only now" in page
-          and "dana" in page)
-    st, _, _, page = req("POST", "/directory/people/sam/reset", {"csrf": "dev"})
-    check("helpdesk: reset a plain user's sign-in", st == 200 and "sign-in reset" in page)
-    st, loc, page = post("/directory/people/jim/reset", {})
-    check("helpdesk: an admin's sign-in cannot be reset", "only an admin" in flash(page), flash(page))
+    post("/directory/people/_new", {"uid": "dana", "first": "Dana", "last": "Lee", "email": "dana@home.arpa"})
+    post("/directory/people/sam/reset", {})
+    st, loc, page = post("/changes/people/apply", {})
+    secrets_shown = re.findall(r'<code class="secret">([^<]+)</code>', page)
+    check("helpdesk: add a person and reset one, applied -> each one-time password shown once, on the Review",
+          "Shown only now" in page and "Add person dana" in page and "Reset the sign-in of sam" in page
+          and len(secrets_shown) == 2, page[-2500:])
+    page = get("/changes/people")
+    check("...and not again: a second look shows no password", "Shown only now" not in page
+          and not any(x in page for x in secrets_shown))
+    check("...never in an address or the queue: no password in the job's result or a link",
+          not any(x in get("/directory/people") for x in secrets_shown))
+    post("/directory/people/jim/reset", {})
+    st, loc, page = post("/changes/people/apply", {})
+    check("helpdesk: an admin's sign-in cannot be reset (refused at Apply, why shown)", "only an admin" in page,
+          page[-1500:])
+    post("/changes/people/discard", {})
     page = get("/directory/people")
     check("helpdesk: disable buttons, but no group or remove form (people:groups, people:remove are admins')",
           "/directory/people/sam/disable" in page and "/directory/people/_form/groups" not in page
           and "/directory/people/_form/delete" not in page)
-    st, loc, page = post("/directory/people/sam/disable", {})
-    check("helpdesk: disable a plain user", "disabled" in flash(page), flash(page))
-    st, loc, page = post("/directory/people/jim/disable", {})
-    check("helpdesk: refused: disabling an admin", "only an admin" in flash(page), flash(page))
+    post("/directory/people/sam/disable", {})
+    st, loc, page = post("/changes/people/apply", {})
+    check("helpdesk: disable a plain user", "Disable sam" in page and "Nothing waits" in page, page[-1500:])
+    post("/directory/people/jim/disable", {})
+    st, loc, page = post("/changes/people/apply", {})
+    check("helpdesk: refused: disabling an admin", "only an admin" in page, page[-1500:])
+    post("/changes/people/discard", {})
     page = get("/8021x/devices/jims-laptop")
     check("helpdesk: a device's page without the key and certificate links (no pki:issue or pki:sign, 1.8.6.7)",
           "jims-laptop" in page and "/pki?view=issue" not in page and "/pki?view=sign" not in page)
@@ -540,8 +617,10 @@ with serve("fabric-auditor"):
     page = get("/directory/domain")
     check("--as fabric-auditor: the password policy shown, no form (domain:admin)",
           "minimum length" in page and "/directory/domain/password-policy" not in page)
-    st, _, _, _ = req("POST", "/directory/domain/password-policy", {"csrf": "dev", "minimum_length": "4"})
-    check("--as fabric-auditor: refused: changing the password policy (403, domain:admin)", st == 403, st)
+    st, loc, page = post("/directory/domain/password-policy", {"minimum_length": "4"})
+    check("--as fabric-auditor: refused: holding a password policy change, the permission named (domain:admin); "
+          "nothing pending", "you need the permission domain:admin" in flash(page)
+          and "change pending" not in page, flash(page))
     page = get("/directory/people")
     check("--as fabric-auditor: people listed, no add form or reset buttons",
           "jim@home.arpa" in page and "/directory/people/_new" not in page and "Reset sign-in" not in page

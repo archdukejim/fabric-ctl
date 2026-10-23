@@ -25,7 +25,8 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `find_gpo.py` | A GPO found by its display name |
 | `list_people.py` | Operation `list_people`: the people in OU=people and the groups in OU=groups |
 | `create_person.py` | Operation `create_person`: a person in OU=people, a uid from the DC's range, in their site's `site-<name>`, must change their password |
-| `get_person.py` | Operation `get_person`: where a person lives and their groups |
+| `get_person.py` | Operation `get_person`: where a person lives, their groups and their details |
+| `person_record.py` | A person's details as they are now (AD's standard attributes, 2.1.6.93), the manager by user name |
 | `reset_password.py` | Operation `reset_password`: a new one-time password, the account unlocked |
 | `add_group_member.py` | Operation `add_group_member`: a person in a group, once |
 | `remove_group_member.py` | Operation `remove_group_member`: a person out of a group, once |

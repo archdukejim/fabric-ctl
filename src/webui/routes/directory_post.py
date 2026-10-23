@@ -2,9 +2,7 @@ import re
 import urllib.parse
 
 from webui import agentclient as actions
-from webui import views
 from webui.views.constants import POLICY_FIELDS
-from webui.session.page_context import page_context
 
 
 def _device_fields(form):
@@ -31,51 +29,67 @@ def _role_fields(form):
             "permissions": [k[5:] for k, val in form.items() if k.startswith("perm_") and val]}
 
 
-def _person_change(uid, op, form):
-    """Purpose: Disable, enable or remove a person, or change their groups, through fabric-agent.
-    Inputs:  uid — the user name; op — "disable", "enable", "delete" (form confirm: the user name typed back) or
-             "groups" (form action add|remove, group); form — dict.
-    Returns: str, the message for the people list.
-    Fails:   the agentclient exceptions (ValidationError for a refusal).
+def _q(segment):
+    """Purpose: One agent route segment, quoted (a name with a slash cannot reach another route).
+    Inputs:  segment — str.
+    Returns: str.
+    Fails:   never.
+    Feeds:   _held."""
+    return urllib.parse.quote(str(segment), safe="")
+
+
+def _held(h, back, route, body=None):
+    """Purpose: Hold a change on its page until the page's Apply (manual 1.8.6.5), and go back to the page saying so.
+    Inputs:  h — the request handler (back); back — the page to return to; route — the change's agent route after
+             /v1/ (segments quoted); body — its JSON body.
+    Returns: 303 to back, with "Waiting for Apply: <the change>" or the refusal (a missing permission, the thing
+             unreadable now) as its message.
+    Fails:   AgentError, PermissionDenied and AuthError propagate.
     Feeds:   directory_post."""
-    if op == "delete":
-        done = actions.person_action(uid, "delete", {"confirm": form.get("confirm", "")})
-        return f"{uid} removed; certificates revoked: {len(done.get('revoked') or [])}."
-    if op == "groups":
-        done = actions.person_action(uid, "groups", {"action": form.get("action", ""), "group": form.get("group", "")})
-        return f"{uid} {'added to' if done['member'] else 'removed from'} {done['group']}" + (
-            "." if done["changed"] else " (no change).")
-    actions.person_action(uid, op)
-    return f"{uid} {op}d: " + ("their sessions ended." if op == "disable" else "they can sign in again.")
+    try:
+        done = actions.hold_change(route, body or {})
+    except actions.ValidationError as exc:
+        return h.back(back, err=str(exc))
+    return h.back(back, msg=f"Waiting for Apply: {done['what']} ({done['pending']} pending on this page).")
 
 
-def _host_access(kind, name, op, form):
-    """Purpose: A host group or sudo rule form (manual 1.6.11.7) as one fabric-agent call.
-    Inputs:  kind — "hostgroups" or "sudo"; name — "_new" (form name; for sudo also users, commands, run_as as text
-             separated by commas, hosts), "_form" with op "members" (form group, machine, action add|remove), or a
-             group's or rule's name with op "delete"; op — str; form — dict.
-    Returns: {"msg": …} or {"err": …} for the machines view (an unknown form: {"err": "unknown operation"}).
+def _person_route(uid, op, form):
+    """Purpose: A person's change as its agent route and body: disable, enable, remove (the user name typed back),
+             groups (add or remove), reset.
+    Inputs:  uid — the user name; op — "disable", "enable", "delete", "groups" or "reset"; form — dict (confirm;
+             action, group).
+    Returns: (route, body).
+    Fails:   never.
+    Feeds:   directory_post."""
+    body = {"delete": {"confirm": form.get("confirm", "")},
+            "groups": {"action": form.get("action", ""), "group": form.get("group", "")}}.get(op, {})
+    return f"people/{_q(uid)}/{op}", body
+
+
+def _host_access(h, kind, name, op, form):
+    """Purpose: A host group or sudo rule form (manual 1.6.11.7), held on Machines until its Apply.
+    Inputs:  h — the request handler; kind — "hostgroups" or "sudo"; name — "_new" (form name; for sudo also users,
+             commands, run_as as text separated by commas, hosts), "_form" with op "members" (form group, machine,
+             action add|remove), or a group's or rule's name with op "delete"; op — str; form — dict.
+    Returns: 303 to Machines (_held's), or with "unknown operation" for another form.
     Fails:   AgentError, PermissionDenied and AuthError propagate.
     Feeds:   directory_post."""
     items = lambda key: [x.strip() for x in form.get(key, "").split(",") if x.strip()]    # noqa: E731
-    try:
-        if kind == "hostgroups" and name == "_new" and not op:
-            return {"msg": f"host group {actions.host_group_change('create', form.get('name', ''))['name']} created."}
-        if kind == "hostgroups" and name == "_form" and op == "members":
-            done = actions.host_group_change(form.get("action", ""), form.get("group", ""), form.get("machine", ""))
-            return {"msg": f"{done['machine']} {'in' if done['member'] else 'out of'} {done['group']}"
-                    + ("." if done["changed"] else " (no change).")}
-        if kind == "hostgroups" and name not in ("_new", "_form") and op == "delete":
-            return {"msg": f"host group {actions.host_group_change('delete', name)['name']} removed."}
-        if kind == "sudo" and name == "_new" and not op:
-            done = actions.sudo_rule_change("add", form.get("name", ""), items("users"), items("commands"),
-                                            items("run_as"), form.get("hosts", ""))
-            return {"msg": f"sudo rule {done['name']} added; hosts: {', '.join(done['hosts']) or 'none yet'}."}
-        if kind == "sudo" and name not in ("_new", "_form") and op == "delete":
-            return {"msg": f"sudo rule {actions.sudo_rule_change('delete', name)['name']} removed."}
-    except actions.ValidationError as exc:
-        return {"err": str(exc)}
-    return {"err": "unknown operation"}
+    back = "/directory/machines"
+    if kind == "hostgroups" and name == "_new" and not op:
+        return _held(h, back, "host-groups", {"name": form.get("name", "")})
+    if kind == "hostgroups" and name == "_form" and op == "members":
+        return _held(h, back, f"host-groups/{_q(form.get('group', ''))}/members",
+                     {"action": form.get("action", ""), "machine": form.get("machine", "")})
+    if kind == "hostgroups" and name not in ("_new", "_form") and op == "delete":
+        return _held(h, back, f"host-groups/{_q(name)}/delete")
+    if kind == "sudo" and name == "_new" and not op:
+        return _held(h, back, "sudo", {"name": form.get("name", ""), "users": items("users"),
+                                       "commands": items("commands"), "run_as": items("run_as"),
+                                       "hosts": form.get("hosts", "")})
+    if kind == "sudo" and name not in ("_new", "_form") and op == "delete":
+        return _held(h, back, f"sudo/{_q(name)}/delete")
+    return h.back(back, err="unknown operation")
 
 
 def directory_post(h, sess, parts, form):
@@ -89,9 +103,10 @@ def directory_post(h, sess, parts, form):
              '_new'] (form name), ['machines', <name>, 'enable'|'disable'|'delete'], ['gpo', 'set'|'clear'] (form
              policy, el_<element> values, disabled), ['hostgroups'|'sudo', …] (_host_access' forms),
              ['domain', 'password-policy'] (form: POLICY_FIELDS' keys, complexity on|off); form — dict.
-    Returns: a new person, a reset and a new machine: 200 page with the one-time password; the other people changes,
-             machines, gpo and the password policy: 303 to their page (/directory/<section>) with what was done or
-             why not as its message (hostgroups and sudo: to Machines); devices and roles: 303 to 802.1X's page
+    Returns: people, machines (hostgroups and sudo among them), gpo and the password policy: each change held
+             on its page until the page's Apply (manual 1.8.6.5; a new person's, a reset's and a new machine's
+             one-time password is shown once on the page's Review after it): 303 to the page (/directory/<section>)
+             saying so, or why not; devices and roles: 303 to 802.1X's page
              (/8021x/devices, /8021x/roles) — the new item's page after create, the list after delete, the item's
              page otherwise.
     Fails:   404 for an unknown kind or operation or a missing name; ValidationError → 303 with the refusal (people
@@ -102,54 +117,33 @@ def directory_post(h, sess, parts, form):
     user = sess["user"]
     kind, name, op = (parts + ["", "", ""])[:3]
     if kind == "people":
-        try:
-            if name == "_new" and not op:
-                uid, what = form.get("uid", ""), "created"
-                password = actions.create_person(uid, form.get("first", ""), form.get("last", ""),
-                                                 form.get("email", ""))
-            elif name and op == "reset":
-                uid, what = name, "reset"
-                password = actions.reset_sign_in(uid)
-            elif name and op in ("disable", "enable", "delete", "groups"):
-                uid = form.get("uid", "") if name == "_form" else name     # the forms that pick the person
-                return h.back("/directory/people", msg=_person_change(uid, op, form))
-            else:
-                return h.deny(404, "Not found.")
-        except actions.ValidationError as exc:
-            return h.back("/directory/people", err=str(exc))
-        return h.send(200, views.person_result(page_context(sess), uid, what, password))
+        if name == "_new" and not op:
+            return _held(h, "/directory/people", "people", {k: form.get(k, "") for k in ("uid", "first", "last",
+                                                                                          "email")})
+        if name and op in ("reset", "disable", "enable", "delete", "groups"):
+            uid = form.get("uid", "") if name == "_form" else name     # the forms that pick the person
+            return _held(h, "/directory/people", *_person_route(uid, op, form))
+        return h.deny(404, "Not found.")
     if kind == "machines":
-        try:
-            if name == "_new" and not op:
-                machine = form.get("name", "")
-                return h.send(200, views.machine_result(page_context(sess), machine,
-                                                        actions.add_machine(machine, form.get("type") or None,
-                                                                            form.get("managed") == "yes")))
-            if name and op in ("enable", "disable", "delete"):
-                actions.machine_action(name, op)
-                msg = {"enable": f"{name} enabled.", "disable": f"{name} disabled.", "delete": f"{name} removed."}[op]
-                return h.back("/directory/machines", msg=msg)
-        except actions.ValidationError as exc:
-            return h.back("/directory/machines", err=str(exc))
+        if name == "_new" and not op:
+            return _held(h, "/directory/machines", "machines", {"name": form.get("name", ""),
+                                                                "managed": "yes" if form.get("managed") == "yes"
+                                                                else "no", **({"type": form["type"]}
+                                                                              if form.get("type") else {})})
+        if name and op in ("enable", "disable", "delete"):
+            return _held(h, "/directory/machines", f"machines/{_q(name)}/{op}")
         return h.deny(404, "Not found.")
     if kind in ("hostgroups", "sudo") and name:
-        return h.back("/directory/machines", **_host_access(kind, name, op, form))
+        return _host_access(h, kind, name, op, form)
     if kind == "domain" and name == "password-policy" and not op:
         values = {k: form[k] for k in [f for f, _ in POLICY_FIELDS] + ["complexity"] if k in form}
-        try:
-            actions.set_password_policy(values)
-        except actions.ValidationError as exc:
-            return h.back("/directory/domain", err=str(exc))
-        return h.back("/directory/domain", msg="Password policy saved. Apply changes writes it into the domain.")
+        return _held(h, "/directory/domain", "domain/password-policy", values)
     if kind == "gpo" and name in ("set", "clear") and not op:
-        policy = form.get("policy", "")
-        values = {k[3:]: val for k, val in form.items() if k.startswith("el_") and val != ""}
-        try:
-            done = actions.gpo_change(name, policy, values, enabled=not form.get("disabled"),
-                                      control=bool(form.get("control")))
-        except actions.ValidationError as exc:
-            return h.back("/directory/gpo", err=str(exc))
-        return h.back("/directory/gpo", msg=f"{policy}: " + ("; ".join(done) or "already so") + ".")
+        body = {"policy": form.get("policy", ""), "control": bool(form.get("control"))}
+        if name == "set":
+            body.update(values={k[3:]: val for k, val in form.items() if k.startswith("el_") and val != ""},
+                        enabled=not form.get("disabled"))
+        return _held(h, "/directory/gpo", f"gpo/{name}", body)
     if kind not in ("devices", "roles") or not name:
         return h.deny(404, "Not found.")
     listing = f"/8021x/{kind}"

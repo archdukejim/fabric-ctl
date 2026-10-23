@@ -15,7 +15,13 @@
   <span class="install">{{ v.host or '' }}{% if v.host and v.domain %} · {% endif %}{{ v.domain or '' }}</span>
   <span class="version muted">fabricctl {{ v.version }}</span>
   <span class="spacer"></span>
-  {% block pendingbar %}{% endblock %}
+  {% if bar %}<div class="pendingbar" role="status">
+    {% if bar.pending %}<a href="/changes/{{ bar.id }}"><strong>{{ bar.pending }} change{{ '' if bar.pending == 1 else 's' }} pending</strong></a>
+    <a class="btn" href="/changes/{{ bar.id }}">Review</a>
+    <form method="post" action="/changes/{{ bar.id }}/apply"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button>Apply</button></form>
+    <form method="post" action="/changes/{{ bar.id }}/discard"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost">Discard</button></form>{% endif %}
+    {% if bar.running %}<a href="/changes/{{ bar.id }}">Applying…</a>{% endif %}
+  </div>{% endif %}
   <details class="usermenu"><summary>{{ ctx.user }}</summary>
   <div class="menu">
     {% if 'account' in entries %}<a href="/account">My account</a>{% endif %}

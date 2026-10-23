@@ -4,6 +4,7 @@ from webui import agentclient as actions
 from webui import views
 from webui.constants import SESSION_COOKIE
 from webui.httpio.cookie_header import cookie_header
+from webui.routes.changes_post import changes_post
 from webui.routes.directory_post import directory_post
 from webui.routes.dns_filter_post import dns_filter_post
 from webui.routes.kea_post import kea_post
@@ -49,7 +50,8 @@ def post_action(h, sess, path, form):
     """Purpose: Route a signed-in, CSRF-checked POST to its action.
     Inputs:  h — the request handler (app, send, redirect, deny); sess — dict from find_session; path — str; form —
              dict from read_form. Routes: /logout; /bind9/zone/…; /bind9/zones/…; /bind9/landing/…; /apply;
-             /stepca/…; /openbao/…; /directory/…; /kea/… (reservations, subnets, options, classes); /dns-filter/…
+             /stepca/…; /openbao/…; /directory/…; /changes/<page>/apply|discard|drop (1.8.6.5); /kea/…
+             (reservations, subnets, options, classes); /dns-filter/…
              (lists, rules, upstreams, fetch); /overview/… (jobs); /freeradius/clients…; /freeradius/people…;
              /bind9/tsig/…; /settings/… (the setup wizard: step, plan, import, apply, dismiss).
     Returns: /logout: session dropped, LOGOUT audited, 303 to Keycloak's logout URL clearing the session cookie;
@@ -85,6 +87,8 @@ def post_action(h, sess, path, form):
         return settings_post(h, sess, _segments(path, 2), form)
     if path.startswith("/directory/"):
         return directory_post(h, sess, _segments(path, 2), form)
+    if path.startswith("/changes/"):                     # Apply per page (1.8.6.5)
+        return changes_post(h, _segments(path, 2), form)
     if path.startswith("/kea/"):
         return kea_post(h, _segments(path, 2), form)
     if path.startswith("/dns-filter/"):
