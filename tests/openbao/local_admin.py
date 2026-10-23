@@ -343,6 +343,34 @@ msg = refused(lambda: checkout_local_admin(V, CFG, None, "root", "why", **kw))
 check("negative: a check-out is refused while OpenBao is sealed (it holds the only copy)", "sealed" in msg, msg)
 check("…doctor's check fails, saying OpenBao cannot be asked",
       not local_admin_checks(V, CFG, True, exists=lambda: True)["checks"][0][1])
+import contextlib  # noqa: E402
+import io  # noqa: E402
+import fabriclib.setup.verify_install as m_vi  # noqa: E402
+from fabriclib.setup.errors import SetupError  # noqa: E402
+
+
+class LockedCtx:
+    """`fabricctl doctor`'s context on a host whose OpenBao is sealed: fabric's secrets cannot be read."""
+    vars, config_dir, target_dir = {}, CFG, W
+
+    @property
+    def secrets(self):
+        raise ValidationError("OpenBao is sealed")
+
+
+m_vi.cert_warnings, m_vi.break_glass_reminder = lambda v, **kw: [], lambda d: None
+m_vi.local_account_reminders = lambda d: []
+said = io.StringIO()
+with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
+    try:
+        m_vi.run(LockedCtx())
+        why = ""
+    except SetupError as e:
+        why = str(e)
+check("fabricctl doctor with OpenBao sealed: one failed check (the secrets unreadable), then still its warning of the "
+      "rotation waiting (the sandbox's doctor stopped before it)", why == "1 check(s) failed"
+      and "secrets readable" in said.getvalue() and "a new password has been due since" in said.getvalue(),
+      (why, said.getvalue()))
 at(24 * 400 + 19)
 check_local_admin(V, CFG, **parts)
 check("…a second run while sealed keeps waiting since the first", load_record(CFG)["waiting"]["since"]

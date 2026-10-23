@@ -56,7 +56,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	35c0bfe60
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3b78491b62eb3573132f18fcff7dd889074a4da5	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	293b9e4da3a9f928dfa7e26760f7ec6f4a066a7d	2026-10-20	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	476faabbe0c00c58cd1c6928553e6c062ff7c910	2026-10-10	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	332b30b64621eeef87128545cacfdb338ea21430	2026-10-23	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	0730f53ccf5fba5d2c1331e0bdd2c4da442ff2cd	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	0d1d25b7e1c186b234cd76c7a14d0ecdd64aa17f	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	9fa688001068b61ddcf6cc50ec2737c20a0155ec	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	411faa52d6d64e5a8ae0d2bd73a5802dd42bd6ee	2026-10-23	
@@ -114,7 +114,7 @@ docs/volume_1_description_and_architecture/1.6.6-domain-join.md	5f1da00e7d17efb8
 docs/volume_1_description_and_architecture/1.6.7-linux-join-ad.md	b1ff08eb7b55073511aea3a16d169d19e3dc781e	2026-10-20	
 docs/volume_1_description_and_architecture/1.6.8-rbac.md	b9045e7ff40cb17f0f45093228519644e794a7cd	2026-10-17	
 docs/volume_1_description_and_architecture/1.6.9-directory.md	c558e9ca3311c24aa6b6f6165155254d11bf8639	2026-10-20	
-docs/volume_1_description_and_architecture/1.7.1-openbao.md	8dec51e05ea935917c0fd71eb26146ccedec8a5c	2026-10-23	
+docs/volume_1_description_and_architecture/1.7.1-openbao.md	659c3423eec7ed015210083ce04bb4ec4396f5dc	2026-10-23	
 docs/volume_1_description_and_architecture/1.8.1-webui-architecture.md	5f0ce7a3f0c60a2324fc92ccc9a75782a80f14bc	2026-10-12	
 docs/volume_1_description_and_architecture/1.8.2-webui-security.md	565ad19befa2230357286a294d7a5404bff47ba7	2026-10-20	
 docs/volume_1_description_and_architecture/1.8.3-single-pane.md	808634d3a80eb23100726babccde1c311b8af2c8	2026-10-17	
@@ -146,7 +146,7 @@ docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	58090998c7ae665ec0d5fb4e3
 docs/volume_2_engineering_decisions/2.1.4-dns.md	bee8ed6231cdd939a30ffdb20279e79f1046d477	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	81033c43c705bd5016ad4ffae99967677910aec6	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.6-identity.md	f140a6f25c90ffbccd9dbf39c5d47fbd81758e6f	2026-10-23	
-docs/volume_2_engineering_decisions/2.1.7-openbao.md	e033a0325e35bfcfd77518f2543f37122b8e5fe3	2026-10-23	
+docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.8-webui.md	59a1064257803f8ead628a169f33c9bafa528f95	2026-10-17	
 docs/volume_2_engineering_decisions/2.1.9-federation.md	ad67d4d7cf124b8b9e03e7793b994585d67c58fe	2026-10-20	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
@@ -161,7 +161,7 @@ docs/volume_2_engineering_decisions/2.3.2-architecture-notes.md	286af670daed816e
 docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f4878a6c708a9f55be4	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a9aeb2e856f39e5f862e36bf6273c583af26d627	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	2d0127c2b3b9c2bdac03f7d6ef98039ab7b61163	2026-10-21	
-docs/volume_2_engineering_decisions/2.3.7-openbao-notes.md	e48e6c595a1f65c29ae5d9de9da0af8bf57ec1e9	2026-10-23	
+docs/volume_2_engineering_decisions/2.3.7-openbao-notes.md	872ab914b2d9293a6a7fb0dde5ef69f7e087bd83	2026-10-23	
 docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	6f76c1375c36652af004fc8d270f49c1210b1491	2026-10-17	
 docs/volume_2_engineering_decisions/2.3.9-federation-notes.md	589194fbf33eda431862f1414dabc04a3181edc9	2026-10-08	
 docs/volume_2_engineering_decisions/README.md	b6d9237470b17c886b556facda7959ff02568173	2026-10-23	
@@ -1254,7 +1254,7 @@ src/fabriclib/setup/start_unit.py	898cc7b68b842376bbff19fa3ce5ea9480651a3b	2026-
 src/fabriclib/setup/steps.py	f43f4bace12ceb9095b3e8a318c1acc14c05ada1	2026-10-23	
 src/fabriclib/setup/uninstall.py	10cab3ee19a1398d0f707bad7d90b1bf1e8c7161	2026-10-23	
 src/fabriclib/setup/upgrade_vars.py	9f068c6afe127a28b8cdca4388f251d02b1d63e0	2026-10-20	
-src/fabriclib/setup/verify_install.py	00200f4e75702ec2635bd3259ba76b594a99d903	2026-10-23	
+src/fabriclib/setup/verify_install.py	407ee1be2dbf4fd4e93a081c3388f8d984d1584d	2026-10-23	
 src/fabriclib/setup/wait_ready.py	41c0a7ab5f37bfafd9c7e4e8c0bb96452ae462fd	2026-10-14	
 src/fabriclib/system/README.md	361fa32e1bc4c4e04c94025086e58c92d23130be	2026-10-20	
 src/fabriclib/system/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
@@ -1754,7 +1754,7 @@ tests/ntp/README.md	37e7cca81172f8a93564bcd84d2a894591b76848	2026-10-02
 tests/ntp/run.py	d0e97cff6c986d75f0265fbe37e2570b79b6f04e	2026-10-12	
 tests/openbao/README.md	2a2d5bf4c034c1329a9f750fe50662ea351d42dd	2026-10-23	
 tests/openbao/db_rotation.py	96cce10dd1b4657f95d485ced41a9baa70d6160a	2026-10-12	
-tests/openbao/local_admin.py	b79f112bdeb134914eb391cfcc748e849fd3400a	2026-10-23	
+tests/openbao/local_admin.py	311d7a2a8d4f1fa48f0914210c27cfabd71c6fa1	2026-10-23	
 tests/openbao/run.py	beb874dc44bb05736e6ade991b0db773c832f1e7	2026-10-20	
 tests/pki/README.md	93bb4418da64c7f479e291e518293fb3f7b84c0d	2026-10-13	
 tests/pki/acme.py	453de69ae0b33c283f9f662ddbd539c747b1eec0	2026-10-12	
