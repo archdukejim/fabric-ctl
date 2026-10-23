@@ -6,7 +6,7 @@ addresses written in the domain's OU=networks under the site's name, read back, 
 the site's number and both option sets on their entries; a second convergence leaving the plan's subnet alone and
 giving its network to the AD site; a scan request made, read with its owner (an agent account), answered and removed;
 and every refusal (an unknown change, a site with no record, a request id fabric does not make) changing nothing.
-    sudo python3 tests/samba/plan_store.py
+    sudo python3 tests/samba/plan_store.py          (FABRIC_TEST_KEEP=1 leaves the DC for a look)
 """
 import os
 import subprocess
@@ -53,12 +53,14 @@ def refused(fn, words):
 
 
 def ldb(expr, *attrs):
-    """Purpose: a search of the DC's own database, as the system (to see what the agent wrote).
+    """Purpose: a search of the DC's own database, as the system (to see what the agent wrote), across its naming
+             contexts (the schema and the AD sites are in the configuration partition, not the domain's).
     Inputs:  expr — an LDAP filter; attrs — attributes to print.
     Returns: str, ldbsearch's output.
     Fails:   never (an error is in the output).
     Feeds:   this script."""
-    return subprocess.run(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", expr, *attrs],
+    return subprocess.run(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "--cross-ncs", expr,
+                           *attrs],
                           capture_output=True, text=True).stdout
 
 
@@ -173,5 +175,8 @@ plan = op("read_plan", of=SITE)["plans"][SITE]
 check("a subnet removed with its ranges and addresses (a tree delete), and its VLAN",
       plan["subnets"] == [] and plan["vlans"] == [] and "10.1.20.5" not in ldb("(fabricIp=10.1.20.5)", "dn"), plan)
 
+if not os.environ.get("FABRIC_TEST_KEEP"):     # keep the DC to look into a failure
+    subprocess.run(["docker", "rm", "-f", DC], capture_output=True)
+    subprocess.run(["docker", "network", "rm", NET], capture_output=True)
 print("\nFAILED" if FAILED else "\nall passed", f"({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

@@ -53,9 +53,9 @@ def converge(state):
              manager's subnets, 1.10.4.33), the host names of fabric's sudo rules on host groups (1.6.11.7), the AD
              site and its subnets (the plan's too) and link, the password policy, the domain's DHCP options entry
              (1.10.4.32) and the domain's trust GPO (fabric's root CA) at the root, the Directory Administrators'
-             rights on the site's admin GPOs, the site's Windows baseline GPO (linked at OU=machines, 2.1.6.84), at the root the grants (the shipped
-             ones once, then compiled: 1.6.13.4, 1.6.13.5) and winbind's privileged pipe for
-             FreeRADIUS. Each part changes only what differs, so a second run changes nothing.
+             rights on the site's admin GPOs, the site's Windows baseline GPO (linked at OU=machines, 2.1.6.84), at
+             the root the grants (the shipped ones once, then compiled: 1.6.13.4, 1.6.13.5) and winbind's privileged
+             pipe for FreeRADIUS. Each part changes only what differs, so a second run changes nothing.
     Inputs:  state — dict: site (str); dc (str: the DC converged or prepared, dc-NNNN: its record, its range and its
              service accounts); dc_type ("writable" or "rodc": the DC prepared; a read-only one gets its cache group,
              2.1.6.85); root (bool: the root site, which also holds the domain's own settings and the domain-wide

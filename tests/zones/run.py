@@ -442,7 +442,8 @@ try:
           and short(BIND_IP, "printer47.lan.test") == "10.254.47.9", r.stdout[-400:] + r.stderr[-600:])
     check("Sync now's quick path: a changed reverse zone reloaded with fabric's new PTR, Kea's PTR kept",
           short(BIND_IP, f"9.{REV45}", "PTR") == "nas45.lan.test."
-          and short(BIND_IP, f"120.{REV45}", "PTR") == "laptop9.dhcp.lan.test.", dig(BIND_IP, f"120.{REV45}", "PTR"))
+          and short(BIND_IP, f"120.{REV45}", "PTR") == "laptop9.dhcp.lan.test.",
+          (short(BIND_IP, f"9.{REV45}", "PTR"), short(BIND_IP, f"120.{REV45}", "PTR"), r.stdout[-300:]))
     check("Sync now's quick path: nothing restarted (BIND's container kept running)",
           sh("docker inspect -f '{{.RestartCount}} {{.State.Running}}' bind9", ok=False).stdout.strip() == "0 true")
     r = lib(code)

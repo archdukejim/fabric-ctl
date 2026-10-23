@@ -93,6 +93,7 @@ with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dst:
 # owners, a DHCID under the same owner), merged into fabric's new file; fabric's own PTR wins on a shared owner
 from fabriclib.dns.install_zone_file import install_zone_file  # noqa: E402
 from fabriclib.dns.merge_dynamic_records import merge_dynamic_records  # noqa: E402
+from fabriclib.dns.zone_content_changed import zone_content_changed as find_changed_zones_one  # noqa: E402
 rev = "0.20.10.in-addr.arpa"
 fabric_new = f"""$TTL 86400
 $ORIGIN {rev}.
@@ -136,6 +137,27 @@ with tempfile.TemporaryDirectory() as d:
     open(fwd, "w").write("old forward with a PTR-looking line\n100 PTR x.\n")
     install_zone_file(src, fwd, os.getuid(), os.getgid())
     checks["a forward zone is replaced as before"] = open(fwd).read() == fabric_new
+    # a deployed reverse zone holding fabric's render and the records kept from Kea is not a change; a new record is
+    rend = os.path.join(d, "rendered")
+    open(rend, "w").write(fabric_new)
+    checks["the kept records are not a change (the next render finds nothing to swap)"] = \
+        find_changed_zones_one(rend, dst) is False
+    open(rend, "a").write("6                       PTR     scanner.lan.test.\n")
+    checks["a new record of fabric's still is"] = find_changed_zones_one(rend, dst) is True
+
+    # BIND serves a serial above the render's (Kea's registrations raise it): the file swapped in is given one above
+    calls.clear()
+    bumped_src, bumped_dst = os.path.join(d, "db.1.20.10.in-addr.arpa.new"), os.path.join(d, "db.1.20.10.in-addr.arpa")
+    open(bumped_dst, "w").write(ZONE.format(serial=2000000500, records="5 PTR a.lan.test."))
+    open(bumped_src, "w").write(ZONE.format(serial=2000000300, records="5 PTR b.lan.test."))
+    DST["dir"] = d
+    reload_zone("1.20.10.in-addr.arpa", bumped_src, bumped_dst, os.getuid(), os.getgid())
+    checks["a serial BIND has passed is raised above it, and the swap is served"] = \
+        file_serial(bumped_dst) == "2000000501" and "b.lan.test." in open(bumped_dst).read() \
+        and calls.count("reload 1.20.10.in-addr.arpa") == 1
+    open(bumped_src, "w").write(ZONE.format(serial=2000000900, records="5 PTR c.lan.test."))
+    reload_zone("1.20.10.in-addr.arpa", bumped_src, bumped_dst, os.getuid(), os.getgid())
+    checks["a serial above BIND's is left as rendered"] = file_serial(bumped_dst) == "2000000900"
 for name, passed in checks.items():
     print(("PASS " if passed else "FAIL ") + "DHCP's PTRs: " + name)
     ok &= passed

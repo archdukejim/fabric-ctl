@@ -2017,6 +2017,7 @@ function	fabriclib-dns|src/fabriclib/dns/publish_plan_records.py|_why	1
 function	fabriclib-dns|src/fabriclib/dns/publish_plan_records.py|publish_plan_records	3	
 function	fabriclib-dns|src/fabriclib/dns/publish_zone_list.py|_why	1	
 function	fabriclib-dns|src/fabriclib/dns/publish_zone_list.py|publish_zone_list	2	
+function	fabriclib-dns|src/fabriclib/dns/reload_zone.py|_serial_above	4	
 function	fabriclib-dns|src/fabriclib/dns/reload_zone.py|_served_serial	2	
 function	fabriclib-dns|src/fabriclib/dns/reload_zone.py|file_serial	1	
 function	fabriclib-dns|src/fabriclib/dns/reload_zone.py|reload_zone	3	

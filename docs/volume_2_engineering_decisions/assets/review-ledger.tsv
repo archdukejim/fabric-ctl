@@ -29,7 +29,7 @@ docs/volume_1_description_and_architecture/1.1.8-about-settings.md	8022994724f5b
 docs/volume_1_description_and_architecture/1.1.9-optional-parts.md	03fdc2ac87f89bbe2e6b7977cc669e5c556cf38c	2026-10-20	
 docs/volume_1_description_and_architecture/1.10.1-kea-design.md	0e8b6720aa82c79132444cd5a6e1a3893173246b	2026-10-10	
 docs/volume_1_description_and_architecture/1.10.2-dhcp-management.md	0ca24d0e4efe08194eb9b6a816cbd1bcd8112f26	2026-10-23	
-docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	c99a7dde7843ff7fa9822e5d0476adde136b0867	2026-10-23	
+docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	43712b4ece64db9720befb2de4492db60f81e3f0	2026-10-23	
 docs/volume_1_description_and_architecture/1.10.4-address-manager.md	de16c3705982755eabdd0de67ffe79b3713bab14	2026-10-23	
 docs/volume_1_description_and_architecture/1.11.1-freeradius-design.md	53be8bfe3baba02927c9b7b66dd4d02282115356	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.1-adguard.md	b2280752ee06e87cb6e1497fdb91651e589b6a4d	2026-10-09	
@@ -42,7 +42,7 @@ docs/volume_1_description_and_architecture/1.14.3-published-images-on-hosts.md	3
 docs/volume_1_description_and_architecture/1.15.1-fluent-bit.md	b1106fe50c3441e51cbd48d61d7fed3746468413	2026-10-21	
 docs/volume_1_description_and_architecture/1.16.1-luks.md	f4b4c1a4dd1ecd389fd2fde6ec3bc00e7f92a738	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.1-about-the-reference.md	6b0b315f02c1a197b2ae64db31a6f0e932b12404	2026-10-23	
-docs/volume_1_description_and_architecture/1.17.10-fabriclib-dns.md	7b472e52236bbb8f7d696da2ecd07c05085b15bf	2026-10-23	
+docs/volume_1_description_and_architecture/1.17.10-fabriclib-dns.md	6ad473971f2dd7285f51a837f269de6336bbae03	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.11-fabriclib-dns_filter.md	9788461cfa097f3ec04880b4ad9e911630840fb1	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.12-fabriclib-federation.md	a08f2ff61f0c70a1088b9c8a72130d289da6eb91	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.13-fabriclib-images.md	c2f2c17942842dbae255496dd76e98e0a4704665	2026-10-23	
@@ -408,7 +408,7 @@ src/containers/samba/authorize_action.py	b9847bc4d51bc64d5b0ef75777943db39b798a3
 src/containers/samba/change_own_password.py	00c5aea96648498a4ab09d7b19df8131b0f07d7c	2026-10-20	
 src/containers/samba/check_grant.py	4433587cb9c273a698b6b0d81f647705e112ef8a	2026-10-23	
 src/containers/samba/compile_grants.py	5ef35d4455963b88f7e300ba6c700b249b0da19f	2026-10-21	
-src/containers/samba/converge.py	cd34aa5c372924b11b9fdca22748e68cc86039f2	2026-10-23	
+src/containers/samba/converge.py	d4e359dd4706543a43f170fbf97a5ddc0b726c58	2026-10-23	
 src/containers/samba/create_group.py	1b59d76cb51e8f45a66a61b5b5eb971051ae558e	2026-10-20	
 src/containers/samba/create_host_group.py	8152fff201750e5ffac9026becb74da158524d32	2026-10-20	
 src/containers/samba/create_machine.py	6d56452ff1b8d69547922cbfcfcbec813afdfd69	2026-10-20	
@@ -743,13 +743,13 @@ src/fabriclib/dns/freeze_and_install.py	9c245474eaf8a8f01fabc602c25ce97c2bf10903
 src/fabriclib/dns/install_zone_file.py	b09b5b46d570f414c98651f879642a1e4299391a	2026-10-10	
 src/fabriclib/dns/list_tsig_keys.py	d74bd7c6b6659818c55d651f855fe2b42851c511	2026-10-03	
 src/fabriclib/dns/list_zones.py	09456a9d9cc27252f8ee05362fbe654143b641f0	2026-10-03	
-src/fabriclib/dns/merge_dynamic_records.py	6592dbabb4b9bb3a8fe2b1f134e9937ec9caa03e	2026-10-23	
+src/fabriclib/dns/merge_dynamic_records.py	6a16435f9baebca2b04b97706ef896682158637d	2026-10-23	
 src/fabriclib/dns/normalize_acl_policies.py	aa91948fae42dac41b8c7b2044a61391ecc593f1	2026-10-02	
 src/fabriclib/dns/normalize_tsig_keys.py	fbf0798dc356e42fa8c17b3ad48b6954b6c7c25f	2026-10-03	
 src/fabriclib/dns/ptr_for_ip.py	cbd2dd78b557e6b25bf78c7f4425be9a2d00d9fb	2026-10-03	
 src/fabriclib/dns/publish_plan_records.py	4cdca90541ff574a91dccad9ccc20d9cd6ead506	2026-10-23	
 src/fabriclib/dns/publish_zone_list.py	d371e712086261aae7bf39036f8e702562da9a43	2026-10-23	
-src/fabriclib/dns/reload_zone.py	94a5dfa7d0f679e51cb32d10a68ef1b44849e247	2026-10-03	
+src/fabriclib/dns/reload_zone.py	341513ddfe6ec0e12653e6a7b0da9d7ac6d65756	2026-10-23	
 src/fabriclib/dns/remove_acl_entries.py	1c4d1d419aa2dcac0ab961a663ed91cf10b1e40b	2026-09-30	
 src/fabriclib/dns/remove_record.py	abaa7095d1ebcb7021750a1041a631e87927adea	2026-10-12	
 src/fabriclib/dns/remove_tsig_key.py	ff875cbdbfb2212a37edcbc27544bfb2e6a1ef24	2026-10-03	
@@ -768,7 +768,7 @@ src/fabriclib/dns/set_record_link.py	87508f56dcb5b9504132c3ca939e02b84058aab9	20
 src/fabriclib/dns/sync_status.py	a73f4e9cf9c7c2ecef0ace2725998513353e1d15	2026-10-02	
 src/fabriclib/dns/update_tsig_key.py	dd579a32b0ba6852b1b5db64a6525c56619c0a30	2026-09-30	
 src/fabriclib/dns/validate_record.py	4a42792595e2cb9c4aba1b8346c5a9f3fcf996af	2026-10-12	
-src/fabriclib/dns/zone_content_changed.py	69416e548344a0253bcc73c73d0e6b3ebf770868	2026-10-02	
+src/fabriclib/dns/zone_content_changed.py	7e20d53cd9dd5c3d22c872769e6673abd9cb6952	2026-10-23	
 src/fabriclib/dns/zone_detail.py	3d345dac22aab3896d7fa043d1e9f1806feb5bc1	2026-10-12	
 src/fabriclib/dns/zone_name.py	b09815fd4726920e0bd9aeaebf9a23f0ad4fd0c3	2026-09-30	
 src/fabriclib/dns_filter/README.md	6ed50366e15b25e9799fe0d9e71d637501c19ad5	2026-10-21	
@@ -1937,12 +1937,12 @@ tests/samba/domain.py	eb59ca3365d51a423df7fa8cab0d23e07b701850	2026-10-23
 tests/samba/ensure_schema_test.py	5663079a099562e011bcff044a49f6b4773348ab	2026-10-23	
 tests/samba/gpo.py	de95b4ece8fbb79ba8e17dc8ab2327f46680ffb6	2026-10-20	
 tests/samba/grant_networks_test.py	eedecb2f40fdfcfa27144703dade5c219e2ac41d	2026-10-23	
-tests/samba/grants.py	d4030cbd66371826ffb8161768404aa8b98008e0	2026-10-23	
+tests/samba/grants.py	2d084b66091ec900bdca1b0281903f1a977cdf56	2026-10-23	
 tests/samba/hostgroups.py	36f9dcdfbb760bdefe4d5466cccd01a6f0f83373	2026-10-20	
 tests/samba/id_layout_test.py	2f5f8395429e443adbf0bd64480247c114dcc2c6	2026-10-20	
-tests/samba/ipam.py	c5840e6cd8bdb4983f39ba4598a1094753a30a3a	2026-10-23	
+tests/samba/ipam.py	1a085926d3e422c9c975394d66a90380081928d2	2026-10-23	
 tests/samba/linux_join.py	70937269e15ad4a54c9566878106565787504505	2026-10-20	
-tests/samba/plan_store.py	7af070c1919b16d1dba4532e2c0a4aadf43d1249	2026-10-23	
+tests/samba/plan_store.py	64333c3b2a8a291b01552f2024892b126adcc35a	2026-10-23	
 tests/samba/plan_store_test.py	174f00adf23343a84028154c6ff9a35c91a80a44	2026-10-23	
 tests/samba/run.py	e3e764949f99a0b13decc91d737f7bf220e4675f	2026-10-20	
 tests/samba/site_join.py	ffdc159e34787465414db22e256b36e296575183	2026-10-20	
@@ -1992,6 +1992,6 @@ tests/setup/wait_ready_test.py	61ce85dad1bd1e8d7f33d15ac2e4ecda97221ffc	2026-10-
 tests/webui/README.md	e57f12b62e144ceb24370dd473fcce4341e2c63c	2026-10-12	
 tests/webui/test_container.py	0d0c07eb2a8cc7a71770a3e6cb701a387d6fc0e4	2026-10-20	
 tests/webui/test_devserver.py	bad7e4dcc1221cd87290d514653df9e5c512d883	2026-10-20	
-tests/zone_test.py	4bed30787288ab1c63799bf296c8bb14de230708	2026-10-10	
+tests/zone_test.py	3cc61fbfdb5d79cb363ef5d25e9d33d8939173b6	2026-10-23	
 tests/zones/README.md	e5c1bdb75dc56c9fa3011aa81af29ad1975f5d78	2026-10-23	
-tests/zones/run.py	7d1d4205ade12efef0c3a128216980280e0b0e40	2026-10-23	
+tests/zones/run.py	90a4ec7731173395f4a563e650cb4de5b4b2eb43	2026-10-23	

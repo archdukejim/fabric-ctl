@@ -527,6 +527,8 @@ def authorized(caller, right, site):
         return f"refused: {e}"
 
 
+# alice back in ops (the membership change above took her out), through fabric as before
+m_group.set_person_group(V, "test", "ops", "alice", True, secrets=SECRETS, container=DC)
 code, out = grant("add", "lan-net", "--who", "ops", "--networks", "plan,scan", "--sites", "lan")
 check("grant add --networks plan,scan --sites lan: no where needed, audited with its sites",
       code == 0 and any(a[0] == "GRANT_ADD" and "networks=plan,scan sites=lan" in a[1] for a in AUDIT[-3:]), out)

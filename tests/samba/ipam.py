@@ -7,7 +7,7 @@ a grant's networks rights at one site, refused at another and refused with none;
 set); the 0.7 subnet commands' aliases (add-subnet, set-subnet, unreserve); the plan read at an apply (area 5:
 Kea's subnets and the site's A records from it, the copy kept rendered when the DC does not answer, refused with
 none). fabric's audit log is stood in for.
-    sudo python3 tests/samba/ipam.py
+    sudo python3 tests/samba/ipam.py          (FABRIC_TEST_KEEP=1 leaves the DC for a look)
 """
 import io
 import json
@@ -282,11 +282,10 @@ run_op(V, SECRETS, "create_person", {"uid": "nina", "first": "Nina", "last": "Te
                                      "password": "Ot-" + random_password(20), "gid": 5000, "home_base": "/home",
                                      "shell": "/bin/bash"}, DC)
 run_op(V, SECRETS, "add_group_member", {"group": "network-admins", "uid": "nina"}, DC)
-subprocess.run(["docker", "exec", DC, "samba-tool", "group", "add", "branch-ops", "--groupou=OU=groups"],
-               capture_output=True)
-subprocess.run(["docker", "exec", DC, "samba-tool", "group", "addmembers", "branch-ops", "nina"], capture_output=True)
-subprocess.run(["docker", "exec", DC, "samba-tool", "group", "removemembers", "network-admins", "nina"],
-               capture_output=True)
+for args in (["add", "branch-ops", "--groupou=OU=groups"], ["addmembers", "branch-ops", "nina"],
+             ["removemembers", "network-admins", "nina"]):     # samba-tool needs the DC's smb.conf named
+    subprocess.run(["docker", "exec", DC, "samba-tool", "group", *args, "-s", "/data/etc/smb.conf"], check=True,
+                   capture_output=True)
 m_add_grant.add_grant(V, "test", "branch-net", {"who": ["branch-ops"], "networks": ["plan"], "sites": ["branch"]},
                       container=DC)
 
@@ -482,5 +481,8 @@ check("vlan remove --force: the VLAN, its subnet, ranges and addresses", code ==
 code, out = ipam("address", "remove", "10.1.30.10", "--no-apply")
 check("refused: removing an address that went with its VLAN", code == 1 and "not recorded" in out, out)
 
+if not os.environ.get("FABRIC_TEST_KEEP"):     # keep the DC to look into a failure
+    subprocess.run(["docker", "rm", "-f", DC], capture_output=True)
+    subprocess.run(["docker", "network", "rm", NET], capture_output=True)
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

@@ -1,6 +1,7 @@
 from fabriclib.dns.common.zone_records import zone_records
 
 TYPES = {"PTR", "DHCID"}          # what Kea writes in a reverse zone (2.1.10.7)
+KEPT_HEAD = "\n\n; kept from DHCP's registrations (Kea's key; 2.1.10.7)\n"   # where the kept records begin
 
 
 def merge_dynamic_records(zone, new_text, old_text):
@@ -17,5 +18,4 @@ def merge_dynamic_records(zone, new_text, old_text):
     if not keep:
         return new_text
     lines = [f"{o:<40} {t:<6} {d}" for o, t, d in keep]
-    head = "\n\n; kept from DHCP's registrations (Kea's key; 2.1.10.7)\n"
-    return new_text.rstrip("\n") + head + "\n".join(lines) + "\n"
+    return new_text.rstrip("\n") + KEPT_HEAD + "\n".join(lines) + "\n"
