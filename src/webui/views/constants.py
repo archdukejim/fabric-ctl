@@ -3,7 +3,8 @@
 # Apply per page (manual 1.8.6.5): fabric-agent's pending page ids -> the navigation page whose changes they are
 PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "machines": "/directory/computers",
                  "policies": "/directory/policies", "ous": "/directory/ous", "access": "/directory/access",
-                 "kerberos": "/directory/kerberos", "account": "/account/groups"}
+                 "kerberos": "/directory/kerberos", "devices": "/8021x/devices", "roles": "/8021x/roles",
+                 "account": "/account/groups"}
 
 # The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
 # permissions that show it: any one of them; () = any signed-in person). An entry shows when one of its pages does.
@@ -112,9 +113,6 @@ WIZARD_STEPS = [
     ("review", "Review", []),
 ]
 WIZARD_FIELDS = [f for _, _, fields in WIZARD_STEPS for f in fields]
-# the navigation page each sectioned view belongs to (manual 1.8.6.4)
-DIRECTORY_PAGES = {"devices": "/8021x/devices", "device": "/8021x/devices", "roles": "/8021x/roles",
-                   "role": "/8021x/roles", "people": "/directory/people", "overview": "/directory"}
 # Directory · Policies' kinds (1.6.12.10): (view, label), all on Policies' one Apply
 POLICY_SECTIONS = [("password", "Password policy"), ("gpo", "Group Policy"), ("sudo", "Sudo rules")]
 # a person's details (2.1.6.93's fields) in order, with their labels: My account and a person's page and Edit form

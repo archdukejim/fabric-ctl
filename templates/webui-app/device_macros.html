@@ -1,0 +1,21 @@
+{#- 802.1X's device and device role forms' fields. device_fields(d, data, people): people — the user names to choose
+    the owner from (None when People cannot be read: then typed, as before). -#}
+{% macro device_fields(d, data, people) %}
+<label>Type<select name="type">{% for t in data.types %}<option{{ ' selected' if t == d.type }}>{{ t }}</option>{% endfor %}</select></label>
+{% if people is not none %}<label>Owner<select name="owner"><option value="">nobody</option>{% for u in people %}<option{{ ' selected' if u == d.owner }}>{{ u }}</option>{% endfor %}{% if d.owner and d.owner not in people %}<option selected>{{ d.owner }}</option>{% endif %}</select></label>
+{% else %}<label>Owner (user name, optional)<input name="owner" value="{{ d.owner or '' }}" placeholder="jim"></label>{% endif %}
+<label class="wide">MAC addresses (space or comma separated)<input name="macs" value="{{ d.macs | join(' ') }}" placeholder="aa:bb:cc:dd:ee:ff"></label>
+<label class="wide">Description<input name="description" value="{{ d.description or '' }}" maxlength="200"></label>
+<fieldset class="wide"><legend>Roles</legend>
+{% for r in data.roles %}<label class="check"><input type="checkbox" name="role_{{ r.name }}" value="1"{{ ' checked' if r.name in d.roles }}> {{ r.name }}</label>{% else %}<span class="muted">No device roles yet: <a href="/8021x/roles">add one</a>.</span>{% endfor %}
+</fieldset>
+<label class="check"><input type="checkbox" name="enabled" value="1"{{ ' checked' if d.enabled }}> Enabled</label>
+{% endmacro %}
+{% macro role_fields(r, data) %}
+<label>Priority (lower wins)<input name="priority" inputmode="numeric" value="{{ r.priority }}"></label>
+<label>VLAN (optional)<input name="vlan" inputmode="numeric" value="{{ r.vlan or '' }}" placeholder="30"></label>
+<label class="wide">Description<input name="description" value="{{ r.description or '' }}" maxlength="200"></label>
+<fieldset class="wide"><legend>Grants</legend>
+{% for p, info in data.permissions.items() %}<label class="check perm"><input type="checkbox" name="perm_{{ p }}" value="1"{{ ' checked' if p in r.permissions }}> {{ info[0] }} <span class="muted small">· enforced by {{ info[1] }} once installed</span></label>{% endfor %}
+</fieldset>
+{% endmacro %}

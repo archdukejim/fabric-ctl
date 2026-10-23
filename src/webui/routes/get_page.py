@@ -4,6 +4,7 @@ from webui import agentclient as actions
 from webui import views
 from webui.routes.account_page import account_page
 from webui.routes.bind9_page import bind9_page
+from webui.routes.devices_page import devices_page
 from webui.routes.directory_page import directory_page
 from webui.routes.finish_setting_up import finish_setting_up
 from webui.routes.computers_page import computers_page
@@ -16,6 +17,7 @@ from webui.routes.dns_filter_page import dns_filter_page
 from webui.routes.moved_to import moved_to
 from webui.routes.openbao_page import openbao_page
 from webui.routes.people_page import people_page
+from webui.routes.roles_page import roles_page
 from webui.routes.policies_page import policies_page
 from webui.routes.settings_page import settings_page
 from webui.routes.stepca_page import stepca_page
@@ -76,7 +78,8 @@ def get_page(h, sess, path, query):
              /directory/ous[?ou=<path>], /directory/access[/_new|/<name>], /directory/sites[/<name>],
              /directory/kerberos,
              /directory/policies[/gpo|/sudo]), 802.1X
-             (/8021x, /8021x/decisions, /8021x/guides, /8021x/devices[/<name>], /8021x/roles[/<name>]), Secrets
+             (/8021x, /8021x/decisions, /8021x/guides, /8021x/devices[/_new|/<name>], /8021x/roles[/_new|/<name>]),
+             Secrets
              (/secrets[/<view>]), Federation (/federation),
              Settings (/settings, /settings/export, /settings/sign-in), My account (/account, /account/groups,
              1.8.6.6), a job (/jobs/<id>), a page's pending changes and queue (/changes/<page id>, 1.8.6.5); 303
@@ -97,7 +100,7 @@ def get_page(h, sess, path, query):
         return h.redirect(views.nav_menu(set(ctx["perms"]), None)[0]["href"])
     shown = views.PENDING_PAGES.get(_rest(path, "/changes/") or "", path)   # a Review: the page it reviews
     for listing in ("/directory/people", "/directory/groups", "/directory/computers", "/directory/access",
-                    "/directory/sites", "/directory/policies"):
+                    "/directory/sites", "/directory/policies", "/8021x/devices", "/8021x/roles"):
         if path.startswith(listing + "/"):
             shown = listing
     need = next((n for _, _, pages in views.NAV for href, _, n in pages if href == shown and n), None)
@@ -123,7 +126,7 @@ def get_page(h, sess, path, query):
     if path == "/pki/acme":
         return stepca_page(h, ctx, "acme")
     if path == "/directory":
-        return directory_page(h, ctx, {"view": "overview"})
+        return directory_page(h, ctx)
     if path == "/directory/people" or path.startswith("/directory/people/"):
         return people_page(h, ctx, path, query)
     if path == "/directory/groups" or path.startswith("/directory/groups/"):
@@ -140,14 +143,10 @@ def get_page(h, sess, path, query):
         return computers_page(h, ctx, path, query)
     if path == "/directory/policies" or path == "/directory/policies/gpo" or path == "/directory/policies/sudo":
         return policies_page(h, ctx, path, query)
-    if path == "/8021x/devices":
-        return directory_page(h, ctx, {"view": "devices"})
-    if path == "/8021x/roles":
-        return directory_page(h, ctx, {"view": "roles"})
-    if _rest(path, "/8021x/devices/"):
-        return directory_page(h, ctx, {"view": "device", "name": _rest(path, "/8021x/devices/")})
-    if _rest(path, "/8021x/roles/"):
-        return directory_page(h, ctx, {"view": "role", "name": _rest(path, "/8021x/roles/")})
+    if path == "/8021x/devices" or _rest(path, "/8021x/devices/"):
+        return devices_page(h, ctx, path)
+    if path == "/8021x/roles" or _rest(path, "/8021x/roles/"):
+        return roles_page(h, ctx, path)
     if path == "/8021x" or path == "/8021x/decisions" or path == "/8021x/guides":
         view = {"/8021x": "overview", "/8021x/decisions": "decisions"}.get(path)
         view = view or (query.get("view") if query.get("view") in ("switches", "windows") else "switches")

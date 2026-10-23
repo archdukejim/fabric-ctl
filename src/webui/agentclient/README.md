@@ -26,11 +26,9 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `convert_cert.py` | Re-package a certificate (and optional key) into other formats. Agent route: POST /v1/pki/convert (pki:issue). |
 | `create_person.py` | Create a person in Keycloak with a one-time password. Agent route: POST /v1/people (people:create). |
 | `create_tsig_key.py` | Create a TSIG key allowed to update part of a zone (published by the next apply). Agent route: POST /v1/tsig (tsig:manage). |
-| `delete_device.py` | Delete a device and take it out of every role. Agent route: POST /v1/devices/<name>/delete (devices:admin). |
 | `set_record_link.py` | Link a record of the site's zone from the landing page, or stop linking it. Agent route: POST /v1/zones/<key>/records/link (dns:write). |
 | `set_password_policy.py` | Change the domain's password policy (checked as the command checks it). Agent route: POST /v1/domain/password-policy (domain:admin). |
 | `delete_record.py` | Remove one DNS record from a zone, only if it is still the record the page showed. Agent route: POST /v1/zones/<key>/records/delete (dns:write). |
-| `delete_role.py` | Delete a device role. Agent route: POST /v1/roles/<name>/delete (roles:admin). |
 | `delete_tsig_key.py` | Remove a TSIG key (published by the next apply). Agent route: POST /v1/tsig/<name>/delete (tsig:manage). |
 | `describe_csr.py` | Decode an uploaded CSR and judge it before signing (the review step). Agent route: POST /v1/pki/describe-csr (pki:read). |
 | `device_overview.py` | Devices, roles and the RBAC vocabulary from one directory read. Agent route: GET /v1/devices (devices:read). |
@@ -40,7 +38,6 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `errors.py` | The agent rejected the input (HTTP 400); message is safe to show. |
 | `inspect_pem.py` | Decode certificates or a CSR for reading, with a trust verdict. Agent route: POST /v1/pki/inspect (pki:read). |
 | `issue_key_pair.py` | Generate a private key and certificate for a device that cannot make its own CSR. Agent route: POST /v1/pki/issue (pki:issue), timeout 180 s. |
-| `link_device_cert.py` | Record or forget a certificate fingerprint on a device. Agent route: POST /v1/devices/<name>/certs (pki:link-device). |
 | `list_issued.py` | Certificates issued by hand, for the Step-CA 'issued' view. Agent route: GET /v1/pki/issued (pki:read). |
 | `list_people.py` | People and their groups (read-only; managed in Keycloak). Agent route: GET /v1/people (people:read). |
 | `list_groups.py` | The site's groups: kind, member count, description. Agent route: GET /v1/groups (domain:read). |
@@ -72,8 +69,6 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `reverse_zones.py` | The reverse (PTR) zones apply generates from the A/AAAA records. Agent route: GET /v1/reverse-zones (dns:read). |
 | `rotate_radius_secret.py` | Give a RADIUS client a new shared secret; saved and applied at once. Agent route: POST /v1/radius/clients/<name>/rotate (radius:admin), timeout 960 s. |
 | `rotate_tsig_key.py` | Give a TSIG key a new secret. Agent route: POST /v1/tsig/<name>/rotate (tsig:manage). |
-| `save_device.py` | Create a device, or replace an existing device's fields. Agent route: POST /v1/devices (devices:enroll) when new, else POST /v1/devices/<name> (devices:admin). |
-| `save_role.py` | Create a device role, or replace an existing role's fields. Agent route: POST /v1/roles when new, else POST /v1/roles/<name> (roles:admin). |
 | `service_status.py` | The state of every fabric service, for the overview page. Agent route: GET /v1/services (status:read). |
 | `sign_csr.py` | Sign a device's CSR with the fabric CA. Agent route: POST /v1/pki/sign (pki:sign), timeout 120 s. |
 | `unmap_radius_group.py` | Stop a group's members joining by password; saved and applied at once. Agent route: POST /v1/radius/people/<group>/delete (radius:admin), timeout 960 s. |

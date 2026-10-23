@@ -949,9 +949,9 @@ file	webui|src/webui/agentclient/connection.py	9
 file	webui|src/webui/agentclient/convert_cert.py	10	
 file	webui|src/webui/agentclient/create_person.py	11	
 file	webui|src/webui/agentclient/create_tsig_key.py	12	
-file	webui|src/webui/agentclient/delete_device.py	13	
+file	webui|src/webui/agentclient/delete_device.py	13	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/delete_record.py	14	
-file	webui|src/webui/agentclient/delete_role.py	15	
+file	webui|src/webui/agentclient/delete_role.py	15	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/delete_tsig_key.py	16	
 file	webui|src/webui/agentclient/describe_csr.py	17	
 file	webui|src/webui/agentclient/device_overview.py	18	
@@ -973,7 +973,7 @@ file	webui|src/webui/agentclient/inspect_pem.py	21
 file	webui|src/webui/agentclient/issue_key_pair.py	22	
 file	webui|src/webui/agentclient/kerberos_overview.py	261	
 file	webui|src/webui/agentclient/kerberos_overview.py (gone 0.8.0 / 2026-10-23)	254	0.8.0 / 2026-10-23
-file	webui|src/webui/agentclient/link_device_cert.py	23	
+file	webui|src/webui/agentclient/link_device_cert.py	23	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/list_grants.py	249	
 file	webui|src/webui/agentclient/list_groups.py	230	
 file	webui|src/webui/agentclient/list_host_groups.py	157	
@@ -1017,8 +1017,8 @@ file	webui|src/webui/agentclient/reverse_zones.py	38
 file	webui|src/webui/agentclient/revoke_cert.py	137	
 file	webui|src/webui/agentclient/rotate_radius_secret.py	39	
 file	webui|src/webui/agentclient/rotate_tsig_key.py	40	
-file	webui|src/webui/agentclient/save_device.py	41	
-file	webui|src/webui/agentclient/save_role.py	42	
+file	webui|src/webui/agentclient/save_device.py	41	0.8.0 / 2026-10-23
+file	webui|src/webui/agentclient/save_role.py	42	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/security_layers.py	133	
 file	webui|src/webui/agentclient/service_status.py	43	
 file	webui|src/webui/agentclient/set_dhcp_on.py	152	
@@ -1088,6 +1088,8 @@ file	webui|src/webui/routes/account_post.py	223
 file	webui|src/webui/routes/bind9_page.py	77	
 file	webui|src/webui/routes/changes_post.py	216	
 file	webui|src/webui/routes/computers_page.py	242	
+file	webui|src/webui/routes/device_post.py	265	
+file	webui|src/webui/routes/devices_page.py	266	
 file	webui|src/webui/routes/directory_page.py	121	
 file	webui|src/webui/routes/directory_post.py	122	
 file	webui|src/webui/routes/dirsrv_page.py	78	0.5.0 / 2026-10-05
@@ -1110,6 +1112,7 @@ file	webui|src/webui/routes/people_page.py	228
 file	webui|src/webui/routes/policies_page.py	236	
 file	webui|src/webui/routes/post_action.py	83	
 file	webui|src/webui/routes/radius_post.py	84	
+file	webui|src/webui/routes/roles_page.py	267	
 file	webui|src/webui/routes/saved_and_applied.py	85	
 file	webui|src/webui/routes/security_post.py	134	
 file	webui|src/webui/routes/settings_page.py	197	
@@ -1141,6 +1144,7 @@ file	webui|src/webui/views/changes.py	217
 file	webui|src/webui/views/computers.py	243	
 file	webui|src/webui/views/continue_page.py	106	
 file	webui|src/webui/views/css.py	107	
+file	webui|src/webui/views/devices.py	268	
 file	webui|src/webui/views/directory.py	123	
 file	webui|src/webui/views/dirsrv.py	108	0.5.0 / 2026-10-05
 file	webui|src/webui/views/dns_filter.py	151	
@@ -1164,6 +1168,7 @@ file	webui|src/webui/views/pki_result.py	115
 file	webui|src/webui/views/policies.py	237	
 file	webui|src/webui/views/radius_secret.py	116	
 file	webui|src/webui/views/render_page.py	117	
+file	webui|src/webui/views/roles.py	269	
 file	webui|src/webui/views/security.py	135	
 file	webui|src/webui/views/settings.py	199	
 file	webui|src/webui/views/settings_plan.py	200	
@@ -1201,6 +1206,7 @@ function	fabricctl-agent|src/agent/pending_store.py|_read	13
 function	fabricctl-agent|src/agent/pending_thing.py|_find	3	
 function	fabricctl-agent|src/agent/pending_thing.py|as_change	8	
 function	fabricctl-agent|src/agent/pending_thing.py|describe_change	2	
+function	fabricctl-agent|src/agent/pending_thing.py|own_state	9	
 function	fabricctl-agent|src/agent/pending_thing.py|pending_page_of	1	
 function	fabricctl-agent|src/agent/pending_thing.py|state_change	7	
 function	fabricctl-agent|src/agent/pending_thing.py|thing_key	5	
@@ -2742,9 +2748,9 @@ function	webui|src/webui/agentclient/connection.py|set_token	1
 function	webui|src/webui/agentclient/convert_cert.py|convert_cert	1	
 function	webui|src/webui/agentclient/create_person.py|create_person	1	
 function	webui|src/webui/agentclient/create_tsig_key.py|create_tsig_key	1	
-function	webui|src/webui/agentclient/delete_device.py|delete_device	1	
+function	webui|src/webui/agentclient/delete_device.py|delete_device	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/delete_record.py|delete_record	1	
-function	webui|src/webui/agentclient/delete_role.py|delete_role	1	
+function	webui|src/webui/agentclient/delete_role.py|delete_role	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/delete_tsig_key.py|delete_tsig_key	1	
 function	webui|src/webui/agentclient/describe_csr.py|describe_csr	1	
 function	webui|src/webui/agentclient/device_overview.py|device_overview	1	
@@ -2766,7 +2772,7 @@ function	webui|src/webui/agentclient/inspect_pem.py|inspect_pem	1
 function	webui|src/webui/agentclient/issue_key_pair.py|issue_key_pair	1	
 function	webui|src/webui/agentclient/kerberos_overview.py|kerberos_overview	2	
 function	webui|src/webui/agentclient/kerberos_overview.py|kerberos_overview (gone 0.8.0 / 2026-10-23)	1	0.8.0 / 2026-10-23
-function	webui|src/webui/agentclient/link_device_cert.py|link_device_cert	1	
+function	webui|src/webui/agentclient/link_device_cert.py|link_device_cert	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/list_grants.py|list_grants	1	
 function	webui|src/webui/agentclient/list_groups.py|list_groups	1	
 function	webui|src/webui/agentclient/list_host_groups.py|list_host_groups	1	
@@ -2810,8 +2816,8 @@ function	webui|src/webui/agentclient/reverse_zones.py|reverse_zones	1
 function	webui|src/webui/agentclient/revoke_cert.py|revoke_cert	1	
 function	webui|src/webui/agentclient/rotate_radius_secret.py|rotate_radius_secret	1	
 function	webui|src/webui/agentclient/rotate_tsig_key.py|rotate_tsig_key	1	
-function	webui|src/webui/agentclient/save_device.py|save_device	1	
-function	webui|src/webui/agentclient/save_role.py|save_role	1	
+function	webui|src/webui/agentclient/save_device.py|save_device	1	0.8.0 / 2026-10-23
+function	webui|src/webui/agentclient/save_role.py|save_role	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/security_layers.py|security_layers	1	
 function	webui|src/webui/agentclient/service_status.py|service_status	1	
 function	webui|src/webui/agentclient/set_dhcp_on.py|set_dhcp_on	1	
@@ -2977,9 +2983,14 @@ function	webui|src/webui/routes/account_post.py|account_post	1
 function	webui|src/webui/routes/bind9_page.py|bind9_page	1	
 function	webui|src/webui/routes/changes_post.py|changes_post	1	
 function	webui|src/webui/routes/computers_page.py|computers_page	1	
+function	webui|src/webui/routes/device_post.py|_device_fields	1	
+function	webui|src/webui/routes/device_post.py|_role_fields	2	
+function	webui|src/webui/routes/device_post.py|device_post	3	
+function	webui|src/webui/routes/devices_page.py|_people	1	
+function	webui|src/webui/routes/devices_page.py|devices_page	2	
 function	webui|src/webui/routes/directory_page.py|directory_page	1	
 function	webui|src/webui/routes/directory_post.py|_changed_fields	9	
-function	webui|src/webui/routes/directory_post.py|_device_fields	1	
+function	webui|src/webui/routes/directory_post.py|_device_fields	1	0.8.0 / 2026-10-23
 function	webui|src/webui/routes/directory_post.py|_grant	14	
 function	webui|src/webui/routes/directory_post.py|_grant_fields	13	
 function	webui|src/webui/routes/directory_post.py|_group	10	
@@ -2990,7 +3001,7 @@ function	webui|src/webui/routes/directory_post.py|_ou	12
 function	webui|src/webui/routes/directory_post.py|_person_change	4	0.8.0 / 2026-10-22
 function	webui|src/webui/routes/directory_post.py|_person_route	8	
 function	webui|src/webui/routes/directory_post.py|_q	6	0.8.0 / 2026-10-23
-function	webui|src/webui/routes/directory_post.py|_role_fields	2	
+function	webui|src/webui/routes/directory_post.py|_role_fields	2	0.8.0 / 2026-10-23
 function	webui|src/webui/routes/directory_post.py|directory_post	3	
 function	webui|src/webui/routes/dirsrv_page.py|dirsrv_page	1	0.5.0 / 2026-10-05
 function	webui|src/webui/routes/dirsrv_post.py|_device_fields	1	0.5.0 / 2026-10-05
@@ -3024,6 +3035,7 @@ function	webui|src/webui/routes/post_action.py|_radius_people	2
 function	webui|src/webui/routes/post_action.py|_segments	1	
 function	webui|src/webui/routes/post_action.py|post_action	3	
 function	webui|src/webui/routes/radius_post.py|radius_post	1	
+function	webui|src/webui/routes/roles_page.py|roles_page	1	
 function	webui|src/webui/routes/saved_and_applied.py|saved_and_applied	1	
 function	webui|src/webui/routes/security_post.py|security_post	1	
 function	webui|src/webui/routes/settings_page.py|settings_page	1	
@@ -3062,6 +3074,7 @@ function	webui|src/webui/views/computers.py|_gives	2
 function	webui|src/webui/views/computers.py|computers	3	
 function	webui|src/webui/views/continue_page.py|continue_page	1	
 function	webui|src/webui/views/css.py|css	1	
+function	webui|src/webui/views/devices.py|devices	1	
 function	webui|src/webui/views/directory.py|directory	1	
 function	webui|src/webui/views/dirsrv.py|dirsrv	1	0.5.0 / 2026-10-05
 function	webui|src/webui/views/dns_filter.py|_ago	1	
@@ -3088,6 +3101,7 @@ function	webui|src/webui/views/pki_result.py|pki_result	1
 function	webui|src/webui/views/policies.py|policies	1	
 function	webui|src/webui/views/radius_secret.py|radius_secret	1	
 function	webui|src/webui/views/render_page.py|render_page	1	
+function	webui|src/webui/views/roles.py|roles	1	
 function	webui|src/webui/views/security.py|security	1	
 function	webui|src/webui/views/settings.py|settings	1	
 function	webui|src/webui/views/settings_plan.py|settings_plan	1	

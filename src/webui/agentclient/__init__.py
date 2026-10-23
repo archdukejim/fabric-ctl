@@ -21,9 +21,7 @@ from webui.agentclient.ca_summary import ca_summary  # noqa: F401
 from webui.agentclient.convert_cert import convert_cert  # noqa: F401
 from webui.agentclient.create_person import create_person  # noqa: F401
 from webui.agentclient.create_tsig_key import create_tsig_key  # noqa: F401
-from webui.agentclient.delete_device import delete_device  # noqa: F401
 from webui.agentclient.delete_record import delete_record  # noqa: F401
-from webui.agentclient.delete_role import delete_role  # noqa: F401
 from webui.agentclient.delete_tsig_key import delete_tsig_key  # noqa: F401
 from webui.agentclient.describe_csr import describe_csr  # noqa: F401
 from webui.agentclient.device_overview import device_overview  # noqa: F401
@@ -33,7 +31,6 @@ from webui.agentclient.dns_filter_overview import dns_filter_overview  # noqa: F
 from webui.agentclient.host_changes import host_changes  # noqa: F401
 from webui.agentclient.inspect_pem import inspect_pem  # noqa: F401
 from webui.agentclient.issue_key_pair import issue_key_pair  # noqa: F401
-from webui.agentclient.link_device_cert import link_device_cert  # noqa: F401
 from webui.agentclient.list_issued import list_issued  # noqa: F401
 from webui.agentclient.list_people import list_people  # noqa: F401
 from webui.agentclient.person_overview import person_overview  # noqa: F401
@@ -70,8 +67,6 @@ from webui.agentclient.person_action import person_action  # noqa: F401
 from webui.agentclient.reverse_zones import reverse_zones  # noqa: F401
 from webui.agentclient.rotate_radius_secret import rotate_radius_secret  # noqa: F401
 from webui.agentclient.rotate_tsig_key import rotate_tsig_key  # noqa: F401
-from webui.agentclient.save_device import save_device  # noqa: F401
-from webui.agentclient.save_role import save_role  # noqa: F401
 from webui.agentclient.service_status import service_status  # noqa: F401
 from webui.agentclient.set_option import set_option  # noqa: F401
 from webui.agentclient.sign_csr import sign_csr  # noqa: F401

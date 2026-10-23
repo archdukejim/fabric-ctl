@@ -1,0 +1,50 @@
+{% extends "base.html" %}{% import "pattern.html" as p %}{% from "device_macros.html" import role_fields %}{% block body %}
+{% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
+{% if view == "list" %}
+<h1>802.1X · Device roles</h1>
+{% call p.actions() %}{% if can('roles:admin') %}<a class="btn" href="/8021x/roles/_new">Add device role</a>{% endif %}{% endcall %}
+{% if unavailable %}<p class="flash bad" role="alert">The device roles could not be read: {{ unavailable }}</p>
+{% else %}
+<section class="card"><h2>Device roles <span class="muted">{{ data.roles | length }}</span></h2>
+<p class="muted">A role grants its devices permissions and, optionally, a VLAN. With several roles, permissions add up and the VLAN comes from the role with the lowest priority number.</p>
+{% if data.roles %}{% call p.list(["Role", "Priority", "VLAN", "Grants", "Devices"]) %}{% for r in data.roles %}<tr>
+<td data-label="Role"><a href="/8021x/roles/{{ r.name | urlencode }}"><strong>{{ r.name }}</strong></a>{% if r.description %}<div class="muted small">{{ r.description }}</div>{% endif %}</td>
+<td data-label="Priority" class="num">{{ r.priority }}</td><td data-label="VLAN">{{ r.vlan or '—' }}</td><td class="small" data-label="Grants">{{ r.permissions | join(', ') or '—' }}</td><td data-label="Devices" class="num">{{ r.members | length }}</td></tr>{% endfor %}{% endcall %}
+{% else %}{% call p.empty("No device roles yet: a role says what its devices may do and which VLAN they get.") %}{% if can('roles:admin') %}<a class="btn" href="/8021x/roles/_new">Add device role</a>{% endif %}{% endcall %}{% endif %}
+</section>
+{% endif %}
+
+{% elif view == "new" %}
+<p><a href="/8021x/roles">← Device roles</a></p>
+<h1>802.1X · Add device role</h1>
+{% if unavailable %}<p class="flash bad" role="alert">The device roles could not be read: {{ unavailable }}</p>
+{% else %}
+<section class="card"><form method="post" action="/directory/roles/_new" class="grid">{{ csrf() }}
+<label>Name<input name="name" required pattern="[a-z0-9][a-z0-9_-]{0,62}" placeholder="iot"></label>
+{{ role_fields({'permissions': [], 'priority': 100}, data) }}
+<div><button>Add device role</button></div>
+</form>
+<p class="muted small">The role waits for <strong>Apply</strong> in the top bar.</p></section>
+{% endif %}
+
+{% else %}
+{% set r = role %}
+<p><a href="/8021x/roles">← Device roles</a></p>
+<h1>802.1X · Device role {{ r.name }}</h1>
+<section class="card facts"><h2>What it grants</h2>
+<dl><dt>Priority</dt><dd>{{ r.priority }}</dd><dt>VLAN</dt><dd>{{ r.vlan or '—' }}</dd>
+<dt>Grants</dt><dd>{% for perm in r.permissions %}<div>{{ data.permissions[perm][0] if perm in data.permissions else perm }} <span class="muted small">· {{ perm }}</span></div>{% else %}nothing{% endfor %}</dd>
+<dt>Devices ({{ r.members | length }})</dt><dd>{% for m in r.members %}<a href="/8021x/devices/{{ m | urlencode }}">{{ m }}</a>{{ ', ' if not loop.last }}{% else %}none{% endfor %}</dd></dl>
+<p class="muted small">A device's roles are set on the device's page.</p></section>
+{% if can('roles:admin') %}
+<section class="card"><h2>Edit</h2><form method="post" action="/directory/roles/{{ r.name | urlencode }}" class="grid">{{ csrf() }}
+{{ role_fields(r, data) }}
+<div><button>Save the role</button></div>
+</form></section>
+<section class="card"><h2>Remove</h2><form method="post" action="/directory/roles/{{ r.name | urlencode }}/delete">{{ csrf() }}
+<p class="muted">Only once no device is in it.</p>
+<button class="danger">Remove device role</button></form></section>
+<p class="muted small">Every change here waits for <strong>Apply</strong> in the top bar.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

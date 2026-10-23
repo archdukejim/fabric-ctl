@@ -10,7 +10,7 @@ from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DOMAIN, SAMPLE_GP
 
 try:                                       # the agent's own store and its words, from a checkout (as fabric_rules)
     from agent.pending_store import PendingStore
-    from agent.pending_thing import PAGES, describe_change, pending_page_of
+    from agent.pending_thing import PAGES, describe_change, own_state, pending_page_of
 except ImportError:
     PendingStore = None
 
@@ -55,6 +55,9 @@ def _thing(state, route, body):
         return SAMPLE_DOMAIN["policy"]
     if route == ["domain", "kerberos", "policy"]:
         return kerberos_policy(state)
+    if head in ("devices", "roles"):                  # its own fields, as the agent reads them
+        rows = (state.overview() or {}).get(head)
+        return own_state(head, _find(rows, "name", name if len(route) > 1 else body.get("name", "")))
     if route[:2] == ["domain", "grants"]:             # the grant as the list has it, None for a new one
         name = route[2] if len(route) > 2 else body.get("name", "")
         return _find(fake_grants(state, None, ["domain", "grants"], None)["grants"], "name", name)

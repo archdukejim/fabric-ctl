@@ -355,29 +355,73 @@ with serve():
     check("deleting a TSIG key -> back on TSIG keys, said", loc == "/dns/zones?view=tsig"
           and "TSIG key preview-key removed" in flash(page), loc)
     page = get("/8021x/devices")
-    check("802.1X · Devices: devices with status lights, roles and access",
-          "jims-laptop" in page and "VLAN 10" in page and 'class="light bad"' in page
-          and 'href="/8021x/devices/jims-laptop"' in page)
+    check("802.1X · Devices: devices with status lights, owners and roles linked, access; Add device in the actions "
+          "bar, no form on the list", "jims-laptop" in page and "VLAN 10" in page and 'class="light bad"' in page
+          and 'href="/8021x/devices/jims-laptop"' in page and 'href="/8021x/devices/_new"' in page
+          and 'href="/directory/people/jim"' in page and 'href="/8021x/roles/trusted"' in page
+          and 'method="post"' not in page.split("<main", 1)[1], page[-3000:])
     page = get("/8021x/devices/jims-laptop")
-    check("a device's page: effective permissions, linked certificate, its key links (with pki:issue / pki:sign)",
+    check("a device's page: effective permissions, linked certificate, its key links (with pki:issue / pki:sign) in "
+          "the actions bar; the owner chosen from People; Unlink as its own form, never in a table cell",
           "Join the network with its certificate" in page and "AB:AB:AB" in page and "Generate key + certificate" in page
-          and 'href="/pki?view=issue&amp;device=jims-laptop"' in page)
+          and 'href="/pki?view=issue&amp;device=jims-laptop"' in page and '<select name="owner">' in page
+          and "<option selected>jim</option>" in page and 'action="/directory/devices/jims-laptop/certs/unlink"' in page
+          and "<td" not in page.split("Certificates", 1)[1].split("</section>", 1)[0], page[-4000:])
+    page = get("/8021x/devices/_new")
+    # covers: web:get.8021x.devices.* +
+    check("Add device: its own page, the owner a choice of People", 'action="/directory/devices/_new"' in page
+          and '<select name="owner">' in page and "<option>sam</option>" in page)
     st, loc, page = post("/directory/devices/_new", {"name": "nas", "type": "server", "macs": "AA-BB-CC-00-00-01",
-                                                     "role_trusted": "1", "enabled": "1"})
-    check("adding a device (in memory, real validation): MAC normalised, role applied, its page opened",
-          loc == "/8021x/devices/nas" and "aa:bb:cc:00:00:01" in page and "VLAN" in page, (st, loc))
-    st, loc, page = post("/directory/devices/_new", {"name": "dup", "macs": "aa:bb:cc:00:00:01"})
-    check("a MAC already in use is refused with the reason", "already belongs" in flash(page), flash(page))
+                                                     "role_trusted": "1", "enabled": "1", "owner": "jim"})
+    check("Add device: held on Devices until its Apply", loc == "/8021x/devices"
+          and "Add device nas" in flash(page) and "/8021x/devices/nas" not in page, (st, loc, flash(page)))
+    post("/changes/devices/apply", {})
+    page = get("/8021x/devices/nas")
+    check("...applied (in memory, real validation): MAC normalised, role applied", "aa:bb:cc:00:00:01" in page
+          and "VLAN" in page, page[-3000:])
+    post("/directory/devices/_new", {"name": "dup", "macs": "aa:bb:cc:00:00:01"})
+    st, loc, page = post("/changes/devices/apply", {})
+    check("a MAC already in use is refused at Apply with the reason", "already belongs" in page, page[-1500:])
+    post("/changes/devices/discard", {})
     st, loc, page = post("/directory/devices/jims-laptop/certs/anything", {"sha256": ":".join(["AB"] * 32)})
     check("unlinking a certificate answers only its exact route (1.8.6.7): another path under certs/ is 404",
           st == 404 and "AB:AB:AB" in get("/8021x/devices/jims-laptop"), st)
     st, loc, page = post("/directory/devices/jims-laptop/certs/unlink", {"sha256": ":".join(["AB"] * 32)})
-    check("unlink a certificate by its route", "Certificate unlinked" in flash(page) and "AB:AB:AB" not in page,
-          flash(page))
-    st, loc, page = post("/directory/roles/iot/delete", {})
-    check("a role that still has devices cannot be deleted", "still has" in flash(page), flash(page))
+    check("unlink a certificate: held, back on the device", loc == "/8021x/devices/jims-laptop"
+          and "Unlink a certificate from device jims-laptop" in flash(page), (loc, flash(page)))
+    post("/changes/devices/apply", {})
+    check("...applied: the certificate is gone", "AB:AB:AB" not in get("/8021x/devices/jims-laptop"))
+    st, loc, page = post("/directory/devices/nas", {"type": "server", "macs": "aa:bb:cc:00:00:01", "enabled": "1"})
+    check("Save the device: held, back on it", loc == "/8021x/devices/nas" and "Change device nas" in flash(page),
+          (loc, flash(page)))
+    post("/directory/devices/nas/delete", {})
+    page = get("/changes/devices")
+    check("the Review: the change with its old and new fields, then the removal", "Change device nas" in page
+          and "Remove device nas" in page and "trusted" in page, page[-3000:])
+    post("/changes/devices/apply", {})
+    check("...applied: nas removed", req("GET", "/8021x/devices/nas")[0] == 404)
     page = get("/8021x/roles")
-    check("802.1X · Device roles lists roles with their grants", "quarantine" in page and "network:mab" in page)
+    check("802.1X · Device roles lists roles with their grants; Add device role in the actions bar",
+          "quarantine" in page and "network:mab" in page and 'href="/8021x/roles/_new"' in page)
+    page = get("/8021x/roles/trusted")
+    check("a device role's page: what it grants, its devices linked, Edit and Remove",
+          'href="/8021x/devices/jims-laptop"' in page and 'action="/directory/roles/trusted"' in page
+          and 'action="/directory/roles/trusted/delete"' in page, page[-3000:])
+    page = get("/8021x/roles/_new")
+    # covers: web:get.8021x.roles.* +
+    check("Add device role: its own page", 'action="/directory/roles/_new"' in page and 'name="perm_' in page)
+    st, loc, page = post("/directory/roles/_new", {"name": "cams", "priority": "50", "vlan": "40"})
+    check("Add device role: held on Device roles", loc == "/8021x/roles" and "Add device role cams" in flash(page),
+          (loc, flash(page)))
+    post("/changes/roles/apply", {})
+    check("...applied: the role is there", "VLAN" in get("/8021x/roles/cams") and req("GET", "/8021x/roles/cams")[0] == 200)
+    post("/directory/roles/iot/delete", {})
+    st, loc, page = post("/changes/roles/apply", {})
+    check("a role that still has devices cannot be removed: refused at Apply with why", "still has" in page,
+          page[-1500:])
+    post("/changes/roles/discard", {})
+    check("refused: an unknown device form (404)",
+          req("POST", "/directory/devices/jims-laptop/frob", {"csrf": "dev"})[0] == 404)
     page = get("/directory")
     # covers: web:get.directory +
     check("Directory · Overview: the domain, its functional level, its DCs writable or read-only, the roles named "

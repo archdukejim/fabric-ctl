@@ -930,11 +930,12 @@ st, _, _, body = req("GET", "/dns/zones", ALICE, cookie=pkiop)
 check("PKI operator (no dns:read): the BIND9 page is refused by fabric-agent (403, the permission named)",
       st == 403 and "dns:read" in body and "nas25-apps" not in body, (st, body[:300]))
 vt = open(f"{W}/fabric/config/vars.yaml").read()
-st, _, _, body = req("POST", "/directory/devices/printer/certs/unlink", POSTH,
+st, hd, _sc, body = req("POST", "/directory/devices/printer/certs/unlink", POSTH,
                      {"csrf": cookie_csrf(aud), "sha256": "aa" * 32}, cookie=aud)
 # covers: web:post.directory.devices.*.certs.unlink -
-check("auditor: unlinking a device's certificate is refused by fabric-agent (403, pki:link-device), nothing changed",
-      st == 403 and "pki:link-device" in body and open(f"{W}/fabric/config/vars.yaml").read() == vt, (st, body[:300]))
+check("auditor: unlinking a device's certificate is refused by fabric-agent when held (pki:link-device named), "
+      "nothing changed", st == 303 and "pki:link-device" in urllib.parse.unquote_plus(hd.get("Location", ""))
+      and open(f"{W}/fabric/config/vars.yaml").read() == vt, (st, hd))
 # host groups and sudo rules (manual 1.6.11.7): refused before the directory is asked; the changes themselves against a
 # real DC in tests/samba/hostgroups.py
 for path, form, perm in (("/directory/hostgroups/_new", {"name": "web"}, "machines:admin"),

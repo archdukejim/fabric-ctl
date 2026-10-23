@@ -1,35 +1,11 @@
-import re
 import urllib.parse
 
 from webui import agentclient as actions
 from webui import views
 from webui.views.constants import GRANT_RIGHTS, KERBEROS_FIELDS, PERSON_FIELDS, POLICY_FIELDS
+from webui.routes.device_post import device_post
 from webui.routes.held import held, q
 from webui.session.page_context import page_context
-
-
-def _device_fields(form):
-    """Purpose: Turn the device edit form into the fields fabric-agent's save_device takes.
-    Inputs:  form — dict from read_form: type, owner, description, macs (space or comma separated), enabled (any
-             non-empty value), role_<name> checkboxes.
-    Returns: {'type': str, 'owner': str, 'description': str, 'macs': [str], 'enabled': bool, 'roles': [role names]}.
-    Fails:   never.
-    Feeds:   directory_post → agentclient.save_device."""
-    return {"type": form.get("type", ""), "owner": form.get("owner", ""), "description": form.get("description", ""),
-            "macs": [m for m in re.split(r"[\s,]+", form.get("macs", "")) if m],
-            "enabled": bool(form.get("enabled")),
-            "roles": [k[5:] for k, val in form.items() if k.startswith("role_") and val]}
-
-
-def _role_fields(form):
-    """Purpose: Turn the role edit form into the fields fabric-agent's save_role takes.
-    Inputs:  form — dict from read_form: description, vlan, priority, perm_<permission> checkboxes.
-    Returns: {'description': str, 'vlan': str, 'priority': str, 'permissions': [permissions checked]}.
-    Fails:   never.
-    Feeds:   directory_post → agentclient.save_role."""
-    return {"description": form.get("description", ""), "vlan": form.get("vlan", ""),
-            "priority": form.get("priority", ""),
-            "permissions": [k[5:] for k, val in form.items() if k.startswith("perm_") and val]}
 
 
 def _changed_fields(uid, form):
@@ -228,19 +204,16 @@ def directory_post(h, sess, parts, form):
              ['domain', 'password-policy'] (form: POLICY_FIELDS' keys, complexity on|off), ['domain', 'kerberos',
              'policy'] (form: KERBEROS_FIELDS' keys, whole numbers; held on Kerberos' Apply), ['groups', '_new' |
              <name>, ''|'delete'|'managers'|'members'] (_group's forms), ['ous', '_new' | '_form', ''|'rename'|
-             'delete'] (_ou's forms), ['grants', '_new' | <name>, ''|'delete'] (_grant's forms); form — dict.
-    Returns: people, machines (hostgroups and sudo among them), gpo and the password policy: each change held
-             on its page until the page's Apply (manual 1.8.6.5; a new person's, a reset's and a new machine's
-             one-time password is shown once on the page's Review after it): 303 to the page (/directory/<section>;
-             a person's change to their page, a removal to People) saying so, or why not; devices and roles: 303
-             to 802.1X's page (/8021x/devices, /8021x/roles) — the new item's page after create, the list after
-             delete, the item's page otherwise.
-    Fails:   404 for an unknown kind or operation or a missing name; ValidationError → 303 with the refusal (people
-             list; the list after a failed create; else the item's page); AgentError, PermissionDenied and AuthError
-             propagate.
+             'delete'] (_ou's forms), ['grants', '_new' | <name>, ''|'delete'] (_grant's forms), ['devices'|'roles',
+             …] (device_post's forms); form — dict.
+    Returns: each change held on its page until the page's Apply (manual 1.8.6.5; a new person's, a reset's and a
+             new machine's one-time password is shown once on the page's Review after it): 303 to the page
+             (/directory/<section>; a person's change to their page, a removal to People; 802.1X's devices and roles
+             to /8021x/devices, /8021x/roles) saying so, or why not.
+    Fails:   404 for an unknown kind or operation or a missing name; ValidationError → 303 with the refusal;
+             AgentError, PermissionDenied and AuthError propagate.
     Feeds:   post_action (/directory/…).
     """
-    user = sess["user"]
     kind, name, op = (parts + ["", "", ""])[:3]
     if kind == "people":
         if name == "_new" and not op:
@@ -277,28 +250,6 @@ def directory_post(h, sess, parts, form):
             body.update(values={k[3:]: val for k, val in form.items() if k.startswith("el_") and val != ""},
                         enabled=not form.get("disabled"))
         return held(h, "/directory/policies/gpo", f"gpo/{name}", body)
-    if kind not in ("devices", "roles") or not name:
-        return h.deny(404, "Not found.")
-    listing = f"/8021x/{kind}"
-    here = f"{listing}/{urllib.parse.quote(name, safe='')}"
-    save, delete = ((actions.save_device, actions.delete_device) if kind == "devices"
-                    else (actions.save_role, actions.delete_role))
-    fields = _device_fields(form) if kind == "devices" else _role_fields(form)
-    try:
-        if name == "_new" and not op:
-            created = save(user, form.get("name", ""), fields, new=True)["name"]
-            back, msg = f"{listing}/{urllib.parse.quote(created, safe='')}", f"{created} created."
-        elif op == "delete" and len(parts) == 3:
-            delete(user, name)
-            back, msg = listing, f"{name} deleted."
-        elif kind == "devices" and parts[2:] == ["certs", "unlink"]:     # only the exact unlink route (1.8.6.7)
-            actions.link_device_cert(user, name, form.get("sha256", ""), link=False)
-            back, msg = here, "Certificate unlinked."
-        elif not op:
-            save(user, name, fields)
-            back, msg = here, "Saved."
-        else:
-            return h.deny(404, "Not found.")
-        return h.back(back, msg=msg)
-    except actions.ValidationError as exc:
-        return h.back(listing if name == "_new" else here, err=str(exc))
+    if kind in ("devices", "roles"):
+        return device_post(h, parts, form)
+    return h.deny(404, "Not found.")

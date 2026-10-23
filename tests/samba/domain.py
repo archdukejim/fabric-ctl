@@ -932,6 +932,56 @@ try:
 except m_pending.RouteNotFound:
     why = "not found"
 check("refused: a page that holds nothing (404)", why == "not found", why)
+print("--- 802.1X's Devices and Device roles on their own Apply (2.1.8.10, 1.8.6.5)")
+from fabriclib.directory.device_overview import device_overview as m_devov  # noqa: E402
+from fabriclib.directory.update_device import update_device as m_upd_device  # noqa: E402
+
+
+def device(name):
+    return next((d for d in m_devov(V)["devices"] if d["name"] == name), None)
+
+
+FIELDS = {"type": "printer", "owner": "bob", "description": "", "macs": ["aa:bb:cc:5e:00:01"], "enabled": True,
+          "roles": []}
+out = hold("roles", {"name": "pend-role", "fields": {"description": "", "vlan": "", "priority": "70",
+                                                     "permissions": []}})
+check("a device role held on Device roles, the DC untouched", out["page"] == "roles"
+      and review("roles")["changes"][0]["what"] == "Add device role pend-role"
+      and all(r["name"] != "pend-role" for r in m_devov(V)["roles"]), out)
+result = applied("roles")
+check("...applied: the role in the DC", result.get("applied") == 1
+      and any(r["name"] == "pend-role" for r in m_devov(V)["roles"]), result)
+out = hold("devices", {"name": "pend-dev", "fields": {**FIELDS, "roles": ["pend-role"]}})
+check("a device held on Devices, its own page's Apply (not Device roles'), the DC untouched", out["page"] == "devices"
+      and review("devices")["changes"][0]["what"] == "Add device pend-dev" and review("roles")["changes"] == []
+      and device("pend-dev") is None, out)
+result = applied("devices")
+check("...applied: the device in the DC, owner and role set", result.get("applied") == 1
+      and (device("pend-dev") or {}).get("owner") == "bob" and device("pend-dev")["roles"] == ["pend-role"], result)
+hold("devices/pend-dev", {"fields": {**FIELDS, "description": "mine", "roles": ["pend-role"]}})
+mine = review("devices")["changes"]
+check("a device's change: its old and new fields on the Review", mine[0]["what"] == "Change device pend-dev"
+      and mine[0]["old"]["fields"]["description"] == "" and mine[0]["new"]["fields"]["description"] == "mine", mine)
+m_upd_device(V, "dee", "pend-dev", {**FIELDS, "description": "dee's", "roles": ["pend-role"]}, source="test")
+result = applied("devices")
+check("refused at Apply: the device changed since; the DC keeps the other person's change",
+      result["items"][0]["state"] == "failed" and "changed since" in result["items"][0]["why"]
+      and device("pend-dev")["description"] == "dee's", result)
+pend(["pending", "devices", "discard"])
+hold("roles/pend-role/delete")
+result = applied("roles")
+check("refused at Apply: removing a device role that still has a device, with why", result["items"][0]["state"]
+      == "failed" and len(result["items"][0]["why"]) > 10 and any(r["name"] == "pend-role" for r in m_devov(V)["roles"]),
+      result)
+pend(["pending", "roles", "discard"])
+gone, why = refused(hold, "devices/pend-dev/delete", None, "aud", set(BUNDLES["fabric-auditor"]))
+check("refused: an auditor holding a device's removal (devices:admin named)", gone and "devices:admin" in why, why)
+hold("devices/pend-dev/delete")
+applied("devices")
+hold("roles/pend-role/delete")
+result = applied("roles")
+check("...the device removed on Devices' Apply, then the empty role on Device roles'", device("pend-dev") is None
+      and all(r["name"] != "pend-role" for r in m_devov(V)["roles"]) and result.get("applied") == 1, result)
 out = pend(["pending", "people", "discard"])
 # covers: agent:post.pending.*.discard -
 check("Discard with nothing pending: nothing dropped", out == {"dropped": 0, "pending": 0}, out)

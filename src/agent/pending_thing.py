@@ -7,7 +7,11 @@ from fabriclib.common.errors import ValidationError
 # (who sees its queue). A page id is the console's navigation page (pending_page_of names it from the route).
 PAGES = {"people": "people:read", "machines": "domain:read", "policies": "domain:read",
          "groups": "domain:read", "ous": "domain:read", "access": "domain:read", "kerberos": "domain:read",
-         "account": "session"}
+         "devices": "devices:read", "roles": "devices:read", "account": "session"}
+# a device's and a device role's own fields, as their read has them: what a change to one is checked against (what a
+# role grants a device, its VLAN and permissions, follows from the roles and is not the device's own)
+OWN_FIELDS = {"devices": ("type", "owner", "description", "macs", "enabled", "roles"),
+              "roles": ("description", "vlan", "priority", "permissions")}
 # the pages whose queue each person sees only their own applies of (My account, 1.8.6.6: nobody else's business)
 OWN_QUEUE = {"account"}
 
@@ -54,6 +58,8 @@ def pending_page_of(route):
         return "groups"
     if head == ["ous"]:
         return "ous"
+    if head in (["devices"], ["roles"]):                 # 802.1X's Devices and Device roles (2.1.8.10)
+        return head[0]
     return None
 
 
@@ -67,7 +73,7 @@ def describe_change(route, body):
     name = route[1] if len(route) > 1 else ""
     if len(route) == 1:
         what = {"people": "person", "machines": "machine", "host-groups": "machine group", "sudo": "sudo rule",
-                "groups": "group", "ous": "OU"}.get(route[0], route[0])
+                "groups": "group", "ous": "OU", "devices": "device", "roles": "device role"}.get(route[0], route[0])
         return f"Add {what} {body.get('uid') or body.get('name') or body.get('machine') or ''}".strip()
     if route[0] == "domain":
         if route[1] == "grants":
@@ -81,6 +87,13 @@ def describe_change(route, body):
     if route[0] == "ous":
         return {"rename": f"Rename OU {body.get('ou', '')}", "delete": f"Remove OU {body.get('ou', '')}"}.get(
             route[1], "Change OUs")
+    if route[0] in ("devices", "roles"):
+        what = "device" if route[0] == "devices" else "device role"
+        if route[2:] == ["delete"]:
+            return f"Remove {what} {name}"
+        if route[2:] == ["certs"]:
+            return f"Unlink a certificate from device {name}"
+        return f"Change {what} {name}"
     action = route[-1]
     if action == "groups":
         verb = "Add" if body.get("action") == "add" else "Remove"
@@ -108,6 +121,21 @@ def state_change(route, state):
     if action == "delete":
         return ({"exists": "yes"} if row is not None else {}), {"exists": "no (removed)"}
     return {}, {}
+
+
+def own_state(kind, row):
+    """Purpose: A device or device role as a change to it is read: its own fields, under "fields" as a save sends them
+             (so the Review's Was sets them beside the Becomes), and a device's certificates.
+    Inputs:  kind — "devices" or "roles"; row — the read's row, or None.
+    Returns: {"fields": {...}, "certs": [...] (devices)}, or None for a row that is not there.
+    Fails:   never.
+    Feeds:   thing_state; the dev preview's pending store."""
+    if row is None:
+        return None
+    state = {"fields": {k: row.get(k) for k in OWN_FIELDS[kind]}}
+    if kind == "devices":
+        state["certs"] = list(row.get("certs") or [])
+    return state
 
 
 def _find(rows, key, value):
@@ -163,6 +191,10 @@ def thing_state(route, body, v):
     if head == "gpo":
         gpo = gpo_overview(v)
         return {"settings": gpo.get("settings"), "controls": gpo.get("controls")}
+    if head in ("devices", "roles"):           # its own fields (as a save sends them); a device's certificates
+        from fabriclib.directory.device_overview import device_overview
+        row = _find(device_overview(v).get(head), "name", name if len(route) > 1 else body.get("name", ""))
+        return own_state(head, row)
     if head == "groups":
         return _find(list_groups(v).get("groups"), "name", name if len(route) > 1 else body.get("name", ""))
     if head == "ous":
@@ -180,7 +212,7 @@ def thing_key(route, body):
     Fails:   never.
     Feeds:   agent/pending_store (apply)."""
     route = as_change(route)
-    if route[0] in ("people", "machines", "host-groups", "sudo", "groups"):
+    if route[0] in ("people", "machines", "host-groups", "sudo", "groups", "devices", "roles"):
         return route[0], route[1] if len(route) > 1 else str(body.get("uid") or body.get("name") or "")
     if route[:2] == ["domain", "grants"]:
         return "grants", route[2] if len(route) > 2 else str(body.get("name") or "")

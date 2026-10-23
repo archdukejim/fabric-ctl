@@ -14,6 +14,9 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `continue.html` | The continue page |
 | `directory.html` | The Directory's Overview; 802.1X's devices and roles |
 | `groups.html` | Directory · Groups: the list, a group's page, Create group |
+| `devices.html` | 802.1X · Devices: the list, Add device, a device's page |
+| `roles.html` | 802.1X · Device roles: the list, Add device role, a role's page |
+| `device_macros.html` | The device and device role forms' fields |
 | `kerberos.html` | Directory · Kerberos: domain sign-in, the realm and KDCs, the ticket policy, the SPNs |
 | `sites.html` | Directory · Sites: the sites, replication, a site's page |
 | `access.html` | Directory · Access: the grants, a grant's page, Add grant |
@@ -21,7 +24,6 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `computers.html` | Directory · Computers: the list, a computer's page, Add computer, Machine groups, a keytab command |
 | `policies.html` | Directory · Policies: the password policy, Group Policy, the sudo rules |
 | `people.html` | Directory · People: the list, a person's page, Add person |
-| `directory_macros.html` | Macros for the device and role forms |
 | `error.html` | The error page |
 | `freeradius.html` | The freeradius page |
 | `dns_filter.html` | The DNS filter tab |
