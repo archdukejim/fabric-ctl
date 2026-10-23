@@ -1,7 +1,8 @@
 """The grants inside the DC (manual 1.6.13.4 to 1.6.13.7), run as root on its own database and SYSVOL (no credentials,
 no network) by fabriclib/grants/grant_request:
     docker exec -i samba python3 /fabric/grants_tool.py < request.json
-The request on stdin: {"op": "list"|"show"|"add"|"set"|"remove"|"compile"|"explain"|"authorize"|"managed", "dc" (the DC
+The request on stdin: {"op": "list"|"show"|"add"|"set"|"remove"|"compile"|"explain"|"reaching"|"authorize"|
+"managed", "dc" (the DC
 asking, dc-NNNN),
 "writable_root" (bool: this is the root's writable DC, where grants are changed and compiled), …}. Prints one JSON
 object: {"result": …} or {"error": message} (exit 0 either way)."""
@@ -13,6 +14,7 @@ from check_grant import check_grant
 from compile_grants import compile_grants
 from ensure_grant_sudo import rule_name
 from explain_grants import explain_grants
+from reaching_grants import reaching_grants
 from grant_members import excluded, reach
 from grant_names import FIELDS, TEMPLATES, where_group, who_group
 from managed_groups import managed_groups
@@ -59,12 +61,12 @@ def run(req):
              compile, so what is stored is at once what AD, sssd and Windows enforce.
     Inputs:  req — {"op", "dc", "writable_root", and per op: "name" (show, add, set, remove), "fields" (add, set: any
              of FIELDS' keys), "template" (add, optional: a TEMPLATES name whose rights fill what fields leave out),
-             "person", "machine" (explain), "caller", "action", "target", "bundles" (authorize: fabric-agent's check of
-             a call, authorize_action), "user" (managed: the groups they manage)}.
+             "person", "machine" (explain; reaching: "machine"), "caller", "action", "target", "bundles"
+             (authorize: fabric-agent's check of a call, authorize_action), "user" (managed: the groups they
+             manage)}.
     Returns: list: {"grants": [summaries], "templates": TEMPLATES}; show: one summary with names; add, set: {"grant",
-             "changed"}; remove: {"name", "changed"}; compile: {"changed"}; explain: explain_grants' result; authorize:
-             authorize_action's;
-             managed: managed_groups'.
+             "changed"}; remove: {"name", "changed"}; compile: {"changed"}; explain: explain_grants' result;
+             reaching: reaching_grants'; authorize: authorize_action's; managed: managed_groups'.
     Fails:   ValueError for a request refused (its message is shown); ldb.LdbError, OSError.
     Feeds:   this script's main."""
     samdb, lp = open_samdb(CONF)
@@ -82,6 +84,8 @@ def run(req):
         return _summary(grant, reach(samdb, grant, out, cache), sets)
     if op == "explain":
         return explain_grants(samdb, str(req.get("person", "")), req.get("machine") or None)
+    if op == "reaching":                     # the grants reaching a computer (1.6.12.6): a read, at any DC
+        return reaching_grants(samdb, str(req.get("machine", "")))
     if op == "managed":                      # the groups a person manages (1.8.6.6): a read, at any DC
         return managed_groups(samdb, str(req.get("user", "")))
     if op == "authorize":                    # fabric-agent's check of a call (1.6.12.2): a read, at any DC

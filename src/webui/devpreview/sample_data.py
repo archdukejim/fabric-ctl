@@ -172,8 +172,11 @@ SAMPLE_DOMAIN = {"status": {"domain": "ad.home.arpa", "realm": "AD.HOME.ARPA", "
                             "lockout_window_minutes": 15},
                  "site": "lan", "machines_error": "",
                  "machines": [{"name": "host-1", "dns": "host-1.ad.home.arpa", "os": "Windows 11 Pro", "enabled": True,
+                               "type": "server", "sites": ["lan"], "folder": "machines/servers",
                                "last_logon": "2026-10-05T08:12:00+00:00", "created": "2026-10-04", "dn": ""},
-                              {"name": "ws2404", "dns": "ws2404.ad.home.arpa", "os": "", "enabled": False,
+                              {"name": "jims-laptop", "dns": "jims-laptop.ad.home.arpa", "os": "Ubuntu 24.04",
+                               "enabled": False,
+                               "type": "desktop", "sites": ["lan", "edge"], "folder": "machines/desktops",
                                "last_logon": "", "created": "2026-10-05", "dn": ""}]}
 SAMPLE_DIRECTORY = {"status": SAMPLE_DOMAIN["status"], "level": "2008 R2",
                     "dcs": [{"name": "pi-core", "dns": "pi-core.ad.home.arpa", "writable": True},

@@ -110,53 +110,5 @@
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Delete role</button>
 <span class="muted">Only possible once no device is in it.</span></form>{% endif %}
 
-{% elif view == 'machines' %}
-<section class="card"><h2>Machines of {{ domain.site }} {% if domain.machines is not none %}<span class="muted">{{ domain.machines | length }}</span>{% endif %}</h2>
-<p class="muted">Windows and Linux machines joined to the domain (<code>OU=machines</code>, filed by type) and the fabric hosts. A disabled machine cannot log anyone on or sign in to an 802.1X port; its account stays.</p>
-{% if domain.machines_error %}<p class="flash bad">The machines could not be read: {{ domain.machines_error }}</p>
-{% elif domain.machines %}
-<table><thead><tr><th></th><th>Machine</th><th>System</th><th>Last logon</th><th>Joined</th><th></th></tr></thead><tbody>
-{% for m in domain.machines %}<tr><td>{{ p.light('ok' if m.enabled else 'bad', 'enabled' if m.enabled else 'disabled') }}</td>
-<td data-label="Machine"><strong>{{ m.name }}</strong>{% if m.dns %}<div class="muted small">{{ m.dns }}</div>{% endif %}</td><td data-label="System">{{ m.os or '—' }}</td><td data-label="Last logon">{{ m.last_logon or 'never' }}</td><td data-label="Joined">{{ m.created or '—' }}</td>
-<td class="num">{% if can('machines:admin') %}<div class="row-actions">
-<form method="post" action="/directory/machines/{{ m.name | urlencode }}/{{ 'disable' if m.enabled else 'enable' }}"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost">{{ 'Disable' if m.enabled else 'Enable' }}</button></form>
-<form method="post" action="/directory/machines/{{ m.name | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Remove</button></form>
-</div>{% endif %}</td></tr>{% endfor %}
-</tbody></table>
-{% else %}<p class="blank">No machines yet.</p>{% endif %}
-</section>
-{% if can('machines:admin') %}<section class="card"><h2>Add a machine</h2>
-<form method="post" action="/directory/machines/_new" class="grid">
-<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<label>Host name<input name="name" required pattern="[a-z0-9]([a-z0-9-]{0,13}[a-z0-9])?" placeholder="ws01"></label>
-<label>Type<select name="type"><option value="">not given (OU=machines)</option><option value="server">Server (OU=servers)</option><option value="desktop">Desktop (OU=desktops)</option><option value="network">Network (OU=network)</option></select></label>
-<label><input type="checkbox" name="managed" value="yes" checked> Managed by fabric (SSH with Kerberos, DNS; manual 1.6.11.6)</label>
-<div><button>Add</button></div>
-</form>
-<p class="muted small">It gets a one-time join password (shown once): give it to <code>join-linux.sh --one-time</code> on a Linux machine (manual 4.6.6). Windows machines join with an admin's account (4.6.7) and are filed by their edition.</p>
-</section>{% endif %}
-{% if access %}<section class="card"><h2>Host groups {% if access.groups %}<span class="muted">{{ access.groups | length }}</span>{% endif %}</h2>
-<p class="muted">Groups of the domain's machines (<code>hosts-&lt;name&gt;</code>), for sudo rules to aim at.</p>
-{% if access.error %}<p class="flash bad">Host groups could not be read: {{ access.error }}</p>{% endif %}
-{% if access.groups %}<table><thead><tr><th>Host group</th><th>Machines</th><th>Sudo rules</th><th></th></tr></thead><tbody>
-{% for g in access.groups %}<tr><td data-label="Host group"><strong>{{ g.name }}</strong>{% if not g.fabric %}<div class="muted small">not made by fabric</div>{% endif %}</td><td data-label="Machines">{{ g.machines | join(', ') or 'none' }}{% if g.other_members %}<div class="muted small">also {{ g.other_members | join(', ') }}</div>{% endif %}</td><td data-label="Sudo rules">{{ g.rules | join(', ') or '—' }}</td>
-<td class="num">{% if can('machines:admin') %}<form method="post" action="/directory/hostgroups/{{ g.short | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger" title="refused while a sudo rule names it; its machines stay">Remove</button></form>{% endif %}</td></tr>{% endfor %}
-</tbody></table>{% elif not access.error %}<p class="blank">No host groups yet.</p>{% endif %}
-{% if can('machines:admin') %}
-{% if access.groups and domain.machines %}<form method="post" action="/directory/hostgroups/_form/members" class="grid">
-<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<label>Host group<select name="group" required>{% for g in access.groups %}<option value="{{ g.short }}">{{ g.name }}</option>{% endfor %}</select></label>
-<label>Machine<select name="machine" required>{% for m in domain.machines %}<option>{{ m.name }}</option>{% endfor %}</select></label>
-<div><button name="action" value="add">Add to group</button> <button name="action" value="remove" class="ghost">Remove from group</button></div>
-</form>{% endif %}
-<form method="post" action="/directory/hostgroups/_new" class="grid">
-<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<label>New host group<input name="name" required pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="web" title="it becomes hosts-&lt;name&gt;"></label>
-<div><button>Create</button></div>
-</form>
-<p class="muted small">A machine put in or taken out of a host group changes where its sudo rules apply once applied (sssd reads them within minutes).</p>{% endif %}
-</section>
-{% endif %}
-
 {% endif %}
 {% endblock %}

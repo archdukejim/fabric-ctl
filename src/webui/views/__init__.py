@@ -13,6 +13,7 @@ from webui.views.css import css  # noqa: F401
 from webui.views.directory import directory  # noqa: F401
 from webui.views.people import people  # noqa: F401
 from webui.views.groups import groups  # noqa: F401
+from webui.views.computers import computers  # noqa: F401
 from webui.views.policies import policies  # noqa: F401
 from webui.views.dns_filter import dns_filter  # noqa: F401
 from webui.views.error_page import error_page  # noqa: F401
@@ -20,7 +21,6 @@ from webui.views.federation import federation  # noqa: F401
 from webui.views.freeradius import freeradius  # noqa: F401
 from webui.views.job_page import job_page  # noqa: F401
 from webui.views.kea import kea  # noqa: F401
-from webui.views.machine_result import machine_result  # noqa: F401
 from webui.views.openbao import openbao  # noqa: F401
 from webui.views.overview import overview  # noqa: F401
 from webui.views.person_result import person_result  # noqa: F401

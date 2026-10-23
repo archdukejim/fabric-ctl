@@ -97,8 +97,9 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `ensure_grant_sudo.py` | One `sudoRole` per grant with sudo (`grant-<name>`, `%grant-<name>-who`), its hosts its where group's machines |
 | `compile_grants.py` | The grants compiled: computed groups, the sets of machines with one GPO each, the fallback first, the sudo rules (at the root's writable DC) |
 | `explain_grants.py` | Which grants reach a person (and on a machine), and why; what they may do there |
+| `reaching_grants.py` | The grants that reach a computer, and what each gives there (its page, 1.6.12.6) |
 | `ship_grants.py` | The grants a fresh install ships (1.6.13.5), made once at the root |
-| `grants_tool.py` | The grants' entry point (as root, like gpo_tool): list, show, add, set, remove, compile, explain |
+| `grants_tool.py` | The grants' entry point (as root, like gpo_tool): list, show, add, set, remove, compile, explain, reaching |
 | `authorize_action.py` | fabric-agent's check (1.6.12.17): the caller's tier, the grants' people and machines rights, a group's two levels; refused with why |
 | `group_kind.py` | A group's kind: AD's, a tier's, a bundle's, fabric's, filled, computed, a machine group, an admin's own |
 | `group_store.py` | A group's managers and controls in `CN=groups,CN=fabric,CN=System` (one `msDS-App-Configuration` per group, by objectGUID) |

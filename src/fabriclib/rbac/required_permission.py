@@ -13,6 +13,7 @@ GET = {
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
     ("devices",): "devices:read",
     ("people",): "people:read", ("people", "*"): "people:read",   # a person's page (1.6.12.4)
+    ("machines",): "domain:read", ("machines", "*"): "domain:read",   # Computers and a computer's page (1.6.12.6)
     ("domain",): "domain:read", ("gpo",): "domain:read", ("directory",): "domain:read",   # the Overview
     ("domain", "grants"): "domain:read", ("domain", "grants", "*"): "domain:read",
     ("domain", "grants", "explain", "*"): "domain:read", ("domain", "grants", "explain", "*", "*"): "domain:read",

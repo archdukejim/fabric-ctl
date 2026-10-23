@@ -66,7 +66,7 @@ def describe_change(route, body):
     route = as_change(route)
     name = route[1] if len(route) > 1 else ""
     if len(route) == 1:
-        what = {"people": "person", "machines": "machine", "host-groups": "host group", "sudo": "sudo rule",
+        what = {"people": "person", "machines": "machine", "host-groups": "machine group", "sudo": "sudo rule",
                 "groups": "group", "ous": "OU"}.get(route[0], route[0])
         return f"Add {what} {body.get('uid') or body.get('name') or body.get('machine') or ''}".strip()
     if route[0] == "domain":
@@ -86,7 +86,7 @@ def describe_change(route, body):
         return f"{verb} {body.get('member', '')} {'to' if verb == 'Add' else 'from'} group {name}"
     if action == "members" and route[0] == "host-groups":
         verb = "Add" if body.get("action") == "add" else "Remove"
-        return f"{verb} {body.get('machine', '')} {'to' if verb == 'Add' else 'from'} host group {name}"
+        return f"{verb} {body.get('machine', '')} {'to' if verb == 'Add' else 'from'} machine group {name}"
     return f"{VERBS.get(action, action.capitalize())} {name}".strip()
 
 
@@ -142,8 +142,9 @@ def thing_state(route, body, v):
     if head == "people":
         row = _find(list_people(v).get("users"), "uid", name if len(route) > 1 else body.get("uid", ""))
         return {**row, **show_person(v, row["uid"])["person"]} if row else None
-    if head == "machines":
-        return _find(list_machines(v), "name", name if len(route) > 1 else body.get("name", ""))
+    if head == "machines":                    # its machine groups are theirs: a member change is the group's
+        row = _find(list_machines(v), "name", name if len(route) > 1 else body.get("name", ""))
+        return {k: x for k, x in row.items() if k != "groups"} if row else None
     if head == "host-groups":
         short = name if len(route) > 1 else body.get("name", "")
         return _find(list_host_groups(v), "short", short) or _find(list_host_groups(v), "name", short)

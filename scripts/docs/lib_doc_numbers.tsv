@@ -125,6 +125,7 @@ file	fabricctl-jinja|src/containers/samba/place_fabric_host.py	91
 file	fabricctl-jinja|src/containers/samba/policy_entries.py	52	
 file	fabricctl-jinja|src/containers/samba/protect_top_tier.py	97	
 file	fabricctl-jinja|src/containers/samba/pull_sysvol.py	61	
+file	fabricctl-jinja|src/containers/samba/reaching_grants.py	141	
 file	fabricctl-jinja|src/containers/samba/read_dc_names.py	72	
 file	fabricctl-jinja|src/containers/samba/read_devices.py	36	
 file	fabricctl-jinja|src/containers/samba/read_id_blocks.py	62	0.5.0 / 2026-10-05
@@ -442,6 +443,7 @@ file	fabriclib-domain|src/fabriclib/domain/keytab_command.py	7
 file	fabriclib-domain|src/fabriclib/domain/list_groups.py	8	
 file	fabriclib-domain|src/fabriclib/domain/list_ous.py	9	
 file	fabriclib-domain|src/fabriclib/domain/list_spns.py	10	
+file	fabriclib-domain|src/fabriclib/domain/machine_overview.py	32	
 file	fabriclib-domain|src/fabriclib/domain/move_machine.py	11	
 file	fabriclib-domain|src/fabriclib/domain/my_account.py	28	
 file	fabriclib-domain|src/fabriclib/domain/my_groups.py	12	
@@ -970,6 +972,7 @@ file	webui|src/webui/agentclient/link_device_cert.py	23
 file	webui|src/webui/agentclient/list_groups.py	230	
 file	webui|src/webui/agentclient/list_host_groups.py	157	
 file	webui|src/webui/agentclient/list_issued.py	24	
+file	webui|src/webui/agentclient/list_machines.py	238	
 file	webui|src/webui/agentclient/list_people.py	25	
 file	webui|src/webui/agentclient/list_sudo_rules.py	158	
 file	webui|src/webui/agentclient/list_tsig_keys.py	26	
@@ -977,6 +980,8 @@ file	webui|src/webui/agentclient/list_zones.py	27
 file	webui|src/webui/agentclient/logon_change.py	159	0.7.2 / 2026-10-19
 file	webui|src/webui/agentclient/logon_overview.py	160	0.7.2 / 2026-10-19
 file	webui|src/webui/agentclient/machine_action.py	128	
+file	webui|src/webui/agentclient/machine_keytab.py	239	
+file	webui|src/webui/agentclient/machine_overview.py	240	
 file	webui|src/webui/agentclient/map_radius_group.py	28	
 file	webui|src/webui/agentclient/my_account.py	219	
 file	webui|src/webui/agentclient/my_groups.py	220	
@@ -1050,6 +1055,7 @@ file	webui|src/webui/devpreview/fake_connection.py	203
 file	webui|src/webui/devpreview/fake_directory.py	204	
 file	webui|src/webui/devpreview/fake_dns.py	205	
 file	webui|src/webui/devpreview/fake_groups.py	232	
+file	webui|src/webui/devpreview/fake_machines.py	241	
 file	webui|src/webui/devpreview/fake_misc.py	206	
 file	webui|src/webui/devpreview/fake_network.py	207	
 file	webui|src/webui/devpreview/fake_pending.py	215	
@@ -1067,6 +1073,7 @@ file	webui|src/webui/routes/account_page.py	222
 file	webui|src/webui/routes/account_post.py	223	
 file	webui|src/webui/routes/bind9_page.py	77	
 file	webui|src/webui/routes/changes_post.py	216	
+file	webui|src/webui/routes/computers_page.py	242	
 file	webui|src/webui/routes/directory_page.py	121	
 file	webui|src/webui/routes/directory_post.py	122	
 file	webui|src/webui/routes/dirsrv_page.py	78	0.5.0 / 2026-10-05
@@ -1112,6 +1119,7 @@ file	webui|src/webui/views/audit.py	103
 file	webui|src/webui/views/b64.py	104	
 file	webui|src/webui/views/bind9.py	105	
 file	webui|src/webui/views/changes.py	217	
+file	webui|src/webui/views/computers.py	243	
 file	webui|src/webui/views/continue_page.py	106	
 file	webui|src/webui/views/css.py	107	
 file	webui|src/webui/views/directory.py	123	
@@ -1123,7 +1131,7 @@ file	webui|src/webui/views/freeradius.py	110
 file	webui|src/webui/views/groups.py	234	
 file	webui|src/webui/views/job_page.py	144	
 file	webui|src/webui/views/kea.py	111	
-file	webui|src/webui/views/machine_result.py	129	
+file	webui|src/webui/views/machine_result.py	129	0.8.0 / 2026-10-23
 file	webui|src/webui/views/nav_menu.py	210	
 file	webui|src/webui/views/openbao.py	112	
 file	webui|src/webui/views/overview.py	113	
@@ -1462,6 +1470,7 @@ function	fabricctl-jinja|src/containers/samba/pull_sysvol.py|_version	1
 function	fabricctl-jinja|src/containers/samba/pull_sysvol.py|_writable_dc	4	0.7.2 / 2026-10-19
 function	fabricctl-jinja|src/containers/samba/pull_sysvol.py|_writable_dcs	7	
 function	fabricctl-jinja|src/containers/samba/pull_sysvol.py|pull_sysvol	5	
+function	fabricctl-jinja|src/containers/samba/reaching_grants.py|reaching_grants	1	
 function	fabricctl-jinja|src/containers/samba/read_dc_names.py|read_dc_names	1	
 function	fabricctl-jinja|src/containers/samba/read_devices.py|_one	1	
 function	fabricctl-jinja|src/containers/samba/read_devices.py|read_devices	2	
@@ -1913,6 +1922,7 @@ function	fabriclib-domain|src/fabriclib/domain/keytab_command.py|keytab_command	
 function	fabriclib-domain|src/fabriclib/domain/list_groups.py|list_groups	1	
 function	fabriclib-domain|src/fabriclib/domain/list_ous.py|list_ous	1	
 function	fabriclib-domain|src/fabriclib/domain/list_spns.py|list_spns	1	
+function	fabriclib-domain|src/fabriclib/domain/machine_overview.py|machine_overview	1	
 function	fabriclib-domain|src/fabriclib/domain/move_machine.py|move_machine	1	
 function	fabriclib-domain|src/fabriclib/domain/my_account.py|my_account	1	
 function	fabriclib-domain|src/fabriclib/domain/my_groups.py|my_groups	1	
@@ -2731,6 +2741,7 @@ function	webui|src/webui/agentclient/link_device_cert.py|link_device_cert	1
 function	webui|src/webui/agentclient/list_groups.py|list_groups	1	
 function	webui|src/webui/agentclient/list_host_groups.py|list_host_groups	1	
 function	webui|src/webui/agentclient/list_issued.py|list_issued	1	
+function	webui|src/webui/agentclient/list_machines.py|list_machines	1	
 function	webui|src/webui/agentclient/list_people.py|list_people	1	
 function	webui|src/webui/agentclient/list_sudo_rules.py|list_sudo_rules	1	
 function	webui|src/webui/agentclient/list_tsig_keys.py|list_tsig_keys	1	
@@ -2738,6 +2749,8 @@ function	webui|src/webui/agentclient/list_zones.py|list_zones	1
 function	webui|src/webui/agentclient/logon_change.py|logon_change	1	0.7.2 / 2026-10-19
 function	webui|src/webui/agentclient/logon_overview.py|logon_overview	1	0.7.2 / 2026-10-19
 function	webui|src/webui/agentclient/machine_action.py|machine_action	1	
+function	webui|src/webui/agentclient/machine_keytab.py|machine_keytab	1	
+function	webui|src/webui/agentclient/machine_overview.py|machine_overview	1	
 function	webui|src/webui/agentclient/map_radius_group.py|map_radius_group	1	
 function	webui|src/webui/agentclient/my_account.py|my_account	1	
 function	webui|src/webui/agentclient/my_groups.py|my_groups	1	
@@ -2836,6 +2849,7 @@ function	webui|src/webui/devpreview/dev_state.py|DevState.zones	2
 function	webui|src/webui/devpreview/fake_account.py|fake_account	2	
 function	webui|src/webui/devpreview/fake_account.py|managed	1	
 function	webui|src/webui/devpreview/fake_agent.py|_read_groups	2	
+function	webui|src/webui/devpreview/fake_agent.py|_read_machines	3	
 function	webui|src/webui/devpreview/fake_agent.py|fake_agent	1	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.__init__	3	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.close	6	
@@ -2859,6 +2873,11 @@ function	webui|src/webui/devpreview/fake_groups.py|_change	3
 function	webui|src/webui/devpreview/fake_groups.py|_groups	1	
 function	webui|src/webui/devpreview/fake_groups.py|fake_groups	4	
 function	webui|src/webui/devpreview/fake_groups.py|find_group	2	
+function	webui|src/webui/devpreview/fake_machines.py|_keytab	4	
+function	webui|src/webui/devpreview/fake_machines.py|_machine	2	
+function	webui|src/webui/devpreview/fake_machines.py|_overview	3	
+function	webui|src/webui/devpreview/fake_machines.py|_rows	1	
+function	webui|src/webui/devpreview/fake_machines.py|fake_machines	5	
 function	webui|src/webui/devpreview/fake_misc.py|_job	1	
 function	webui|src/webui/devpreview/fake_misc.py|_pki	2	
 function	webui|src/webui/devpreview/fake_misc.py|_vault	3	
@@ -2908,12 +2927,14 @@ function	webui|src/webui/routes/account_page.py|account_page	2
 function	webui|src/webui/routes/account_post.py|account_post	1	
 function	webui|src/webui/routes/bind9_page.py|bind9_page	1	
 function	webui|src/webui/routes/changes_post.py|changes_post	1	
+function	webui|src/webui/routes/computers_page.py|computers_page	1	
 function	webui|src/webui/routes/directory_page.py|directory_page	1	
 function	webui|src/webui/routes/directory_post.py|_changed_fields	9	
 function	webui|src/webui/routes/directory_post.py|_device_fields	1	
 function	webui|src/webui/routes/directory_post.py|_group	10	
 function	webui|src/webui/routes/directory_post.py|_held	7	0.8.0 / 2026-10-23
 function	webui|src/webui/routes/directory_post.py|_host_access	5	
+function	webui|src/webui/routes/directory_post.py|_machine	11	
 function	webui|src/webui/routes/directory_post.py|_person_change	4	0.8.0 / 2026-10-22
 function	webui|src/webui/routes/directory_post.py|_person_route	8	
 function	webui|src/webui/routes/directory_post.py|_q	6	0.8.0 / 2026-10-23
@@ -2978,6 +2999,9 @@ function	webui|src/webui/views/audit.py|audit	1
 function	webui|src/webui/views/b64.py|b64	1	
 function	webui|src/webui/views/bind9.py|bind9	1	
 function	webui|src/webui/views/changes.py|changes	1	
+function	webui|src/webui/views/computers.py|_filtered	1	
+function	webui|src/webui/views/computers.py|_gives	2	
+function	webui|src/webui/views/computers.py|computers	3	
 function	webui|src/webui/views/continue_page.py|continue_page	1	
 function	webui|src/webui/views/css.py|css	1	
 function	webui|src/webui/views/directory.py|directory	1	
@@ -2991,7 +3015,7 @@ function	webui|src/webui/views/freeradius.py|freeradius	1
 function	webui|src/webui/views/groups.py|groups	1	
 function	webui|src/webui/views/job_page.py|job_page	1	
 function	webui|src/webui/views/kea.py|kea	1	
-function	webui|src/webui/views/machine_result.py|machine_result	1	
+function	webui|src/webui/views/machine_result.py|machine_result	1	0.8.0 / 2026-10-23
 function	webui|src/webui/views/nav_menu.py|nav_menu	1	
 function	webui|src/webui/views/openbao.py|openbao	1	
 function	webui|src/webui/views/overview.py|overview	1	

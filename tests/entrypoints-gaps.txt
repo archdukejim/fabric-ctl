@@ -459,12 +459,6 @@ web:post.directory.gpo.clear +
 web:post.directory.gpo.clear -
 web:post.directory.gpo.set +
 web:post.directory.gpo.set -
-web:post.directory.machines.*.* +
-web:post.directory.machines.*.* -
-web:post.directory.machines.*.delete +
-web:post.directory.machines.*.delete -
-web:post.directory.machines._new +
-web:post.directory.machines._new -
 web:post.directory.people.*.* -
 web:post.directory.people.*.reset -
 web:post.directory.people._new -

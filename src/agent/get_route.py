@@ -15,11 +15,13 @@ from fabriclib.dns_filter.filter_overview import filter_overview
 from fabriclib.federation.federation_overview import federation_overview
 from fabriclib.directory.device_overview import device_overview
 from fabriclib.directory.list_host_groups import list_host_groups
+from fabriclib.directory.list_machines import list_machines
 from fabriclib.directory.list_people import list_people
 from fabriclib.directory.list_sudo_rules import list_sudo_rules
 from fabriclib.domain.list_groups import list_groups
 from fabriclib.domain.list_ous import list_ous
 from fabriclib.domain.list_spns import list_spns
+from fabriclib.domain.machine_overview import machine_overview
 from fabriclib.domain.directory_overview import directory_overview
 from fabriclib.domain.my_account import my_account
 from fabriclib.domain.person_overview import person_overview
@@ -70,6 +72,7 @@ READS = {
     ("reverse-zones",): lambda: reverse_zones(load_vars()),
     ("devices",): lambda: device_overview(load_vars()),
     ("people",): lambda: list_people(load_vars()),
+    ("machines",): lambda: list_machines(load_vars()),
     ("domain",): lambda: domain_overview(load_vars()),
     ("directory",): lambda: directory_overview(load_vars()),
     ("domain", "grants"): lambda: list_grants(load_vars()),
@@ -129,7 +132,8 @@ def get_route(route, user=None, perms=None):
              show_grant; domain/grants/explain/<person>[/<machine>]: explain_grant; domain/kerberos: kerberos_overview;
              domain/kerberos/spns: list_spns; groups: list_groups; groups/<name>: show_group; ous: list_ous;
              account: my_account (the signed-in person's own details, groups, certificates and devices);
-             people/<uid>: person_overview (a person's page); directory: directory_overview (the Directory's
+             people/<uid>: person_overview (a person's page); machines: list_machines (Computers);
+             machines/<name>: machine_overview (a computer's page); directory: directory_overview (the Directory's
              Overview);
              account/groups: my_groups (the groups the signed-in person manages); pending: the person's pending
              changes per page and the pages with an apply running (1.8.6.5); pending/<page>: the page's Review;
@@ -153,6 +157,8 @@ def get_route(route, user=None, perms=None):
         return show_group(load_vars(), route[1])
     if len(route) == 2 and route[0] == "people":
         return person_overview(load_vars(), route[1])
+    if len(route) == 2 and route[0] == "machines":
+        return machine_overview(load_vars(), route[1])
     if len(route) == 3 and route[:2] == ["domain", "grants"]:
         return show_grant(load_vars(), route[2])
     if len(route) in (4, 5) and route[:3] == ["domain", "grants", "explain"]:

@@ -40,6 +40,9 @@ from webui.agentclient.person_overview import person_overview  # noqa: F401
 from webui.agentclient.directory_overview import directory_overview  # noqa: F401
 from webui.agentclient.list_groups import list_groups  # noqa: F401
 from webui.agentclient.show_group import show_group  # noqa: F401
+from webui.agentclient.list_machines import list_machines  # noqa: F401
+from webui.agentclient.machine_overview import machine_overview  # noqa: F401
+from webui.agentclient.machine_keytab import machine_keytab  # noqa: F401
 from webui.agentclient.list_tsig_keys import list_tsig_keys  # noqa: F401
 from webui.agentclient.list_zones import list_zones  # noqa: F401
 from webui.agentclient.query_log import query_log  # noqa: F401

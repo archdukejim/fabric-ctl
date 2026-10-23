@@ -89,7 +89,7 @@ def serve(bundle=None):
 
 
 PAGES = ["/", "/overview/doctor", "/overview/updates", "/audit", "/dns/zones", "/dns-filter", "/kea", "/pki",
-         "/pki/acme", "/directory", "/directory/people", "/directory/groups", "/directory/machines", "/directory/policies",
+         "/pki/acme", "/directory", "/directory/people", "/directory/groups", "/directory/computers", "/directory/policies",
          "/directory/policies/gpo", "/directory/policies/sudo",
          "/8021x", "/8021x/decisions", "/8021x/guides", "/8021x/devices", "/8021x/roles", "/secrets", "/secrets/unlock",
          "/secrets/disk", "/federation", "/settings", "/settings/sign-in", "/account", "/account/groups"]
@@ -103,7 +103,7 @@ MOVED = {"/bind9": "/dns/zones", "/bind9?zone=iot.home.arpa&msg=x": "/dns/zones?
          "/directory?view=device&name=jims-laptop": "/8021x/devices/jims-laptop",
          "/directory?view=roles": "/8021x/roles", "/directory?view=role&name=iot": "/8021x/roles/iot",
          "/directory?view=people": "/directory/people", "/directory?view=domain": "/directory/policies",
-         "/directory?view=machines": "/directory/machines", "/directory?view=gpo&match=ex": "/directory/policies/gpo?match=ex",
+         "/directory?view=machines": "/directory/computers", "/directory/machines": "/directory/computers", "/directory?view=gpo&match=ex": "/directory/policies/gpo?match=ex",
          "/directory/domain": "/directory/policies", "/directory/gpo?match=ex": "/directory/policies/gpo?match=ex",
          "/directory/devices/jims-laptop": "/8021x/devices/jims-laptop", "/directory/roles/iot": "/8021x/roles/iot"}
 # each bundle's navigation entries (1.8.2.1.1's bundles against 1.8.6.4's table), written out as the oracle
@@ -433,7 +433,7 @@ with serve():
           "<strong>1 change pending</strong>" in page and 'action="/changes/people/apply"' in page
           and 'action="/changes/people/discard"' in page and 'href="/changes/people">Review</a>' in page
           and re.search(r'href="/directory/people"[^>]*>People <span class="count"[^>]*>1</span>', page), page[:2500])
-    check("another page's top bar shows none of People's changes", "change pending" not in get("/directory/machines"))
+    check("another page's top bar shows none of People's changes", "change pending" not in get("/directory/computers"))
     page = get("/changes/people")
     # covers: web:get.changes.* +
     check("Review: the change in a sentence, was and becomes (enabled: yes, then no), Drop, Apply and Discard all",
@@ -627,18 +627,120 @@ with serve():
     page = get("/dns-filter?view=lists")
     check("DNS filter: every ticked list has a copy and the catalogue is read -> no refresh",
           'http-equiv="refresh"' not in page and "still being fetched" not in page)
-    page = get("/directory/machines")
-    check("Directory · Machines (admin): machines with state, disable/enable and remove, the add form",
-          "host-1" in page and "/directory/machines/host-1/disable" in page
-          and "/directory/machines/ws2404/enable" in page and "/directory/machines/_new" in page)
-    check("Directory · Machines (admin): no per-OU log-on editor (retired in D1, 2.3.6.17)",
-          "Who may sign in" not in page and "/directory/logon/" not in page)
-    check("Directory · Machines (admin): host groups with their machines and a remove form, the membership and "
-          "new-group forms (1.6.11.7); the sudo rules no longer here (Policies)",
-          "hosts-web" in page and "lan-hosts-web" not in page
-          and 'action="/directory/hostgroups/web/delete"' in page
+    page = get("/directory/computers")
+    # covers: web:get.directory.computers +
+    check("Directory · Computers (admin): each computer with its state, type, sites, OS, folder, machine groups and "
+          "last sign-in, linking to its page; the search with its type and site filters; Add computer",
+          'href="/directory/computers/host-1"' in page and "machines/servers" in page and "Windows 11 Pro" in page
+          and "hosts-web" in page and "2026-10-05 08:12" in page and 'name="type"' in page and 'name="site"' in page
+          and 'href="/directory/computers/_new"' in page and 'aria-label="disabled"' in page, page[-3000:])
+    check("Directory · Computers: no per-OU log-on editor (retired in D1, 2.3.6.17), no sudo rules (Policies)",
+          "Who may sign in" not in page and "/directory/logon/" not in page and "/directory/sudo/" not in page)
+    page = get("/directory/computers?type=server")
+    check("...filtered by type: the server alone", "host-1" in page and "jims-laptop" not in page)
+    page = get("/directory/computers?site=edge&q=laptop")
+    check("...by site and a search: the laptop in site edge alone", "jims-laptop" in page
+          and 'href="/directory/computers/host-1"' not in page and '<option selected>edge</option>' in page)
+    page = get("/directory/computers?type=toaster&site=mars")
+    check("...a filter value that is not a choice is dropped, not refused: every computer",
+          "host-1" in page and "jims-laptop" in page)
+    page = get("/directory/computers/host-1")
+    check("a computer's page: its state, facts (type, sites, OS, folder, machine groups), the grants that reach it "
+          "and what each gives there",
+          "<dt>Folder</dt><dd>machines/servers</dd>" in page and "<dt>Machine groups</dt><dd>hosts-web</dd>" in page
+          and "server-administrators" in page and "sign-in: keyboard, remote; local administrator; sudo: ALL" in page
+          and 'aria-label="enabled"' in page, page[-4000:])
+    check("...its actions: Disable, Change type, Sites, Move to folder, Machine groups, Add a service, Remove",
+          all(f'action="/directory/machines/host-1/{op}"' in page
+              for op in ("disable", "type", "sites", "move", "groups", "keytab", "delete")), page[-4000:])
+    page = get("/directory/computers/jims-laptop")
+    check("...the 802.1X device of the same name, linked; a disabled computer offers Enable",
+          'href="/8021x/devices/jims-laptop"' in page and 'action="/directory/machines/jims-laptop/enable"' in page)
+    page = get("/directory/computers/nope")
+    # covers: web:get.directory.computers -
+    check("a computer that is not there: fabric-agent's refusal said on the page, no form",
+          "no machine nope in the domain" in page and "/directory/machines/nope/" not in page, page[-1500:])
+    check("refused: an address past a computer's page (404)", req("GET", "/directory/computers/host-1/x")[0] == 404)
+    page = get("/directory/computers/_new")
+    check("Add computer on its own page: host name, type, managed",
+          'action="/directory/machines/_new"' in page and 'name="name"' in page and 'name="managed"' in page)
+    page = get("/directory/computers/_groups")
+    check("the Machine groups tab: each group with its computers linked, delete, the membership and new-group forms",
+          'href="/directory/computers/host-1"' in page and 'action="/directory/hostgroups/web/delete"' in page
           and 'action="/directory/hostgroups/_form/members"' in page and 'action="/directory/hostgroups/_new"' in page
-          and "/directory/sudo/" not in page)
+          and 'class="section active"' in page, page[-3000:])
+    st, loc, page = post("/directory/hostgroups/_new", {"name": "db"})
+    check("a new machine group: held on Computers, back on its tab", loc == "/directory/computers/_groups"
+          and "Waiting for Apply: Add machine group db" in flash(page), (loc, flash(page)))
+    post("/changes/machines/discard", {})
+    st, loc, page = post("/directory/machines/host-1/type", {"type": "desktop", "move": "yes"})
+    # covers: web:post.directory.machines.*.type +
+    check("Change type: held, back on the computer's page", loc == "/directory/computers/host-1"
+          and "Waiting for Apply: Set the type of host-1" in flash(page), (loc, flash(page)))
+    st, loc, page = post("/directory/machines/host-1/sites", {"action": "add", "site": "edge"})
+    # covers: web:post.directory.machines.*.sites +
+    check("Sites: held, back on its page", "Change the sites of host-1" in flash(page), flash(page))
+    st, loc, page = post("/directory/machines/host-1/move", {"path": "machines/servers/web"})
+    # covers: web:post.directory.machines.*.move +
+    check("Move to folder: held", "Waiting for Apply: Move host-1" in flash(page), flash(page))
+    st, loc, page = post("/directory/machines/host-1/groups", {"action": "remove", "group": "hosts-web"})
+    # covers: web:post.directory.machines.*.groups +
+    check("Machine groups: taking it out of one held as the group's member change", loc == "/directory/computers/host-1"
+          and "Remove host-1 from machine group hosts-web" in flash(page), flash(page))
+    st, loc, page = post("/changes/machines/apply", {})
+    check("...the four applied on one Review: its type, sites, folder and machine groups changed",
+          page.count(">done<") >= 4 and "Nothing waits" in page, page[-2500:])
+    page = get("/directory/computers/host-1")
+    check("...and its page says so", "<dt>Type</dt><dd>Desktop</dd>" in page and "edge, lan" in page
+          and "<dt>Folder</dt><dd>machines/servers/web</dd>" in page and "<dt>Machine groups</dt><dd>none</dd>" in page,
+          page[-4000:])
+    post("/directory/machines/host-1/type", {"type": "toaster"})
+    st, loc, page = post("/changes/machines/apply", {})
+    # covers: web:post.directory.machines.*.type -
+    check("refused at Apply: a type that is not one, why shown", "type: one of" in page, page[-1500:])
+    post("/changes/machines/discard", {})
+    post("/directory/machines/host-1/move", {"path": "people"})
+    st, loc, page = post("/changes/machines/apply", {})
+    # covers: web:post.directory.machines.*.move -
+    check("refused at Apply: a folder outside OU=machines", "only to a folder under OU=machines" in page, page[-1500:])
+    post("/changes/machines/discard", {})
+    post("/directory/machines/host-1/sites", {"action": "add", "site": "mars"})
+    st, loc, page = post("/changes/machines/apply", {})
+    # covers: web:post.directory.machines.*.sites -
+    check("refused at Apply: a site that is not there", "no site mars" in page, page[-1500:])
+    post("/changes/machines/discard", {})
+    post("/directory/machines/host-1/groups", {"action": "add", "group": "hosts-nope"})
+    st, loc, page = post("/changes/machines/apply", {})
+    # covers: web:post.directory.machines.*.groups -
+    check("refused at Apply: a machine group that is not there", "no host group hosts-nope" in page, page[-1500:])
+    post("/changes/machines/discard", {})
+    st, loc, page = post("/directory/machines/host-1/keytab", {"service": "HTTP", "user": "www-data"})
+    # covers: web:post.directory.machines.*.keytab +
+    check("Add a service: the one command shown at once (200, not held, nothing pending), its SPNs named",
+          st == 200 and "sudo fabric-keytab --machine host-1 --service HTTP --user www-data" in page
+          and "HTTP/HOST-1" in page and "change pending" not in page, page[-2000:])
+    st, loc, page = post("/directory/machines/host-1/keytab", {"service": "cifs", "user": "www-data"})
+    # covers: web:post.directory.machines.*.keytab -
+    check("...refused: the machine's own service class, why said on its page", loc == "/directory/computers/host-1"
+          and "not the machine" in flash(page), (loc, flash(page)))
+    st, loc, page = post("/directory/machines/_new", {"name": "ws9", "type": "desktop", "managed": "yes"})
+    # covers: web:post.directory.machines._new +
+    check("Add computer: held, back to Computers", loc == "/directory/computers"
+          and "Waiting for Apply: Add machine ws9" in flash(page), (loc, flash(page)))
+    st, loc, page = post("/changes/machines/apply", {})
+    check("...applied: its one-time join password shown once, on the Review", "Shown only now" in page
+          and "Add machine ws9" in page, page[-2500:])
+    check("...a desktop of this site, in the desktops' folder", "machines/desktops" in get("/directory/computers/ws9"))
+    post("/directory/machines/_new", {"name": "host-1"})
+    st, loc, page = post("/changes/machines/apply", {})
+    # covers: web:post.directory.machines._new -
+    check("refused at Apply: a name that is taken, why shown", "already taken" in page, page[-1500:])
+    post("/changes/machines/discard", {})
+    st, loc, page = post("/directory/machines/ws9/delete", {})
+    # covers: web:post.directory.machines.*.delete +
+    check("Remove computer: held, back to Computers; applied, gone", loc == "/directory/computers"
+          and "Waiting for Apply: Remove ws9" in flash(page) and "Remove ws9" in post("/changes/machines/apply", {})[2]
+          and 'href="/directory/computers/ws9"' not in get("/directory/computers"), (loc, flash(page)))
     page = get("/directory/policies/sudo")
     # covers: web:get.directory.policies.sudo +
     check("Policies · Sudo rules (admin): who made each, remove only for fabric's, the add form aiming at a host group",
@@ -656,7 +758,8 @@ with serve():
           re.findall(r'data-label="Change">([^<]+)', page))
     post("/changes/policies/discard", {})
     st, loc, page = post("/directory/machines/host-1/disable", {})
-    check("disable a machine: held on Machines", loc == "/directory/machines"
+    # covers: web:post.directory.machines.*.* +
+    check("disable a computer: held on Computers, back on its page", loc == "/directory/computers/host-1"
           and "Waiting for Apply: Disable host-1" in flash(page), loc)
     st, loc, page = post("/changes/machines/apply", {})
     check("...applied: done in the queue", "Disable host-1" in page and "Nothing waits" in page, page[-1500:])
@@ -721,7 +824,7 @@ with serve():
 # every navigation page, opened with its permission and refused without it, per bundle (manual 1.8.6.9):
 # covers: web:get.overview.doctor web:get.overview.updates web:get.audit web:get.dns.zones web:get.dns-filter +-
 # covers: web:get.kea web:get.pki web:get.pki.acme web:get.directory.people web:get.directory.policies +-
-# covers: web:get.directory.machines web:get.directory.policies.gpo web:get.directory.policies.sudo +-
+# covers: web:get.directory.computers web:get.directory.policies.gpo web:get.directory.policies.sudo +-
 # covers: web:get.8021x web:get.8021x.decisions +-
 # covers: web:get.8021x.guides web:get.8021x.devices web:get.8021x.roles web:get.secrets web:get.federation +-
 # covers: web:get.settings web:get.settings.sign-in +-
@@ -799,6 +902,16 @@ with serve("fabric-auditor"):
     # covers: web:post.directory.groups.*.managers -
     check("--as fabric-auditor: refused: holding a managers change, the permission named (groups:admin)",
           "groups:admin" in flash(page) and "change pending" not in page, flash(page))
+    page = get("/directory/computers/host-1")
+    check("--as fabric-auditor: a computer's page, its grants, without a single action or form (machines:admin)",
+          "server-administrators" in page and 'method="post"' not in page.split("<main", 1)[1]
+          .split("</main>", 1)[0] and req("GET", "/directory/computers/_new")[0] == 403, page[-2000:])
+    for op, form in (("disable", {}), ("delete", {}), ("type", {"type": "server"}),
+                     ("sites", {"action": "add", "site": "lan"}), ("move", {"path": "machines"})):
+        st, loc, page = post(f"/directory/machines/host-1/{op}", form)
+        # covers: web:post.directory.machines.*.* web:post.directory.machines.*.delete -
+        check(f"--as fabric-auditor: refused: holding a computer's {op}, the permission named (machines:admin)",
+              "machines:admin" in flash(page) and "change pending" not in page, flash(page))
     page = get("/directory/people")
     check("--as fabric-auditor: people listed, no Add person", "jim@home.arpa" in page
           and "/directory/people/_new" not in page)

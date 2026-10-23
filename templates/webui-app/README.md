@@ -12,8 +12,9 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `changes.html` | A page's Review: pending changes, Apply and Discard, the queue, one-time results |
 | `account.html` | My account: details, the password form, sign-in factors, certificates and devices; Groups I manage |
 | `continue.html` | The continue page |
-| `directory.html` | The Directory's Overview, Domain, Machines and Group Policy; 802.1X's devices and roles |
+| `directory.html` | The Directory's Overview; 802.1X's devices and roles |
 | `groups.html` | Directory · Groups: the list, a group's page, Create group |
+| `computers.html` | Directory · Computers: the list, a computer's page, Add computer, Machine groups, a keytab command |
 | `policies.html` | Directory · Policies: the password policy, Group Policy, the sudo rules |
 | `people.html` | Directory · People: the list, a person's page, Add person |
 | `directory_macros.html` | Macros for the device and role forms |
@@ -28,7 +29,6 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `radius_secret.html` | The radius secret page |
 | `stepca.html` | The stepca page |
 | `tsig_result.html` | The tsig result page |
-| `machine_result.html` | A pre-created machine's one-time join password |
 | `federation.html` | The Federation tab |
 | `security.html` | The Security page (sign-in layers, raises, Kerberos on/off; lowering shown as the host command) |
 | `job.html` | A background job (doctor, an image update, the setup wizard's apply), with a meta refresh while it runs |

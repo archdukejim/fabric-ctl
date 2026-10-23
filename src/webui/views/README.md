@@ -14,8 +14,9 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `nav_menu.py` | The navigation down the left for one person: the entries they may see, each linked to its first page they may see, the page shown's entry open. |
 | `continue_page.py` | The 'Signed in' page that moves on to the target with a meta refresh and a link. |
 | `css.py` | The whole stylesheet (static/webui-app/app.css), served as /static/app.css (light and dark colour schemes). |
-| `directory.py` | The Directory's pages and 802.1X's devices and roles: the Overview, the domain, machines, Group Policy. |
+| `directory.py` | The Directory's pages and 802.1X's devices and roles: the Overview. |
 | `groups.py` | Directory · Groups: the list, a group's two levels and their forms, Create group. |
+| `computers.py` | Directory · Computers: the list (search, filters, 50 a page), a computer's page and its forms, Add computer, Machine groups, a service's keytab command. |
 | `paged.py` | A long list's search and paging (People, Groups). |
 | `policies.py` | Directory · Policies: the password policy, Group Policy and the sudo rules, one Apply. |
 | `people.py` | Directory · People: the list (search, 50 a page), a person's page and its forms, Add person. |
@@ -32,7 +33,6 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `stepca.py` | The Step-CA tab: CA details, sign a CSR, new key + certificate, inspect, convert, or the issued list. |
 | `tsig_result.py` | The page that shows a TSIG key's secret and RFC2136 client settings once. |
 | `__init__.py` | Imports every function of this folder, so callers keep `module.function` |
-| `machine_result.py` | The page that shows a pre-created machine's one-time join password once. |
 | `federation.py` | The Federation tab: sites, replication, conflicts, limits, the address plan. |
 | `security.py` | The Security page: the sign-in layers and their raises |
 | `job_page.py` | A background job's page: doctor's checks or what an image change did; refreshes itself while it runs |

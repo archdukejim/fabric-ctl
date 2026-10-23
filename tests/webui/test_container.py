@@ -943,12 +943,35 @@ for path, form, perm in (("/directory/hostgroups/_new", {"name": "web"}, "machin
                          ("/directory/hostgroups/web/delete", {}, "machines:admin"),
                          ("/directory/sudo/_new", {"name": "r", "users": "alice", "commands": "/bin/true"},
                           "sudo:admin"),
-                         ("/directory/sudo/r/delete", {}, "sudo:admin")):
+                         ("/directory/sudo/r/delete", {}, "sudo:admin"),
+                         ("/directory/machines/ws1/type", {"type": "server", "move": "yes"}, "machines:admin"),
+                         ("/directory/machines/ws1/sites", {"action": "add", "site": "lan"}, "machines:admin"),
+                         ("/directory/machines/ws1/move", {"path": "machines"}, "machines:admin"),
+                         ("/directory/machines/ws1/groups", {"action": "add", "group": "hosts-web"},
+                          "machines:admin")):
     st, _, _sc, body = req("POST", path, POSTH, {"csrf": cookie_csrf(aud), **form}, cookie=aud)
+    # covers: web:post.directory.machines.*.type web:post.directory.machines.*.sites -
+    # covers: web:post.directory.machines.*.move web:post.directory.machines.*.groups -
     # covers: web:post.directory.hostgroups._new web:post.directory.hostgroups._form.members -
     # covers: web:post.directory.hostgroups.*.delete web:post.directory.sudo._new web:post.directory.sudo.*.delete -
     check(f"auditor: {path} is refused by fabric-agent when held (the change's own permission, {perm}, named)",
           st == 303 and perm in urllib.parse.unquote_plus(_.get("Location", "")), (st, _))
+
+st, _, _sc, body = req("POST", "/directory/machines/ws1/keytab", POSTH,
+                       {"csrf": cookie_csrf(aud), "service": "HTTP", "user": "www-data"}, cookie=aud)
+# covers: web:post.directory.machines.*.keytab -
+check("auditor: a service's keytab command is refused by fabric-agent at once (403, machines:admin named; it is not "
+      "held, it changes nothing)", st == 403 and "machines:admin" in body, (st, body[:300]))
+st, _, _sc, body = req("GET", "/directory/computers", ALICE, cookie=aud)
+check("auditor: Computers through the real agent (domain:read), no DC here: why said on the page, no Add computer",
+      st == 200 and "The computers could not be read" in body and "/directory/computers/_new" not in body,
+      (st, body[-800:]))
+st, _, _sc, body = req("GET", "/directory/computers/ws1", ALICE, cookie=aud)
+check("auditor: a computer's page without a DC: why said, no form", st == 200
+      and "This computer could not be read" in body and "/directory/machines/ws1/" not in body, (st, body[-800:]))
+st, hd, _sc, body = req("GET", "/directory/machines", ALICE, cookie=aud)
+check("the old Machines address answers with a redirect to Computers", st == 303
+      and hd.get("Location") == "/directory/computers", (st, hd))
 
 (st, hd, sc, body), _, _ = login(tamper="short")
 short = cookie_val(sc, "__Host-webui")
@@ -1182,6 +1205,14 @@ out = agent_call("POST", "/v1/account/groups/lab/members", "carol", (), {"action
 # covers: agent:post.account.groups.*.members -
 check("refused: a member change from My account done at once (it waits for Apply; without a DC here: 400)",
       " 400 " in out, out)
+for path in ("/v1/machines", "/v1/machines/ws1"):
+    out = agent_call("GET", path, "carol", AUDITOR_ROLES)
+    check(f"GET {path}: an auditor's token passes (domain:read); without a DC here refused (400, saying so)",
+          " 400 " in out and " 403 " not in out, out)
+    out = agent_call("GET", path, "carol", PKI_ONLY)
+    # covers: agent:get.machines agent:get.machines.* -
+    check(f"refused: GET {path} without domain:read (403, the permission named)",
+          " 403 " in out and "domain:read" in out, out)
 for path, roles, ids in (("/v1/people/jim", AUDITOR_ROLES, "agent:get.people.*"),
                          ("/v1/directory", AUDITOR_ROLES, "agent:get.directory")):
     out = agent_call("GET", path, "carol", roles)

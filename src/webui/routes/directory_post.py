@@ -2,8 +2,10 @@ import re
 import urllib.parse
 
 from webui import agentclient as actions
+from webui import views
 from webui.views.constants import PERSON_FIELDS, POLICY_FIELDS
 from webui.routes.held import held, q
+from webui.session.page_context import page_context
 
 
 def _device_fields(form):
@@ -89,17 +91,59 @@ def _group(h, name, op, form):
     return h.deny(404, "Not found.")
 
 
+def _machine(h, sess, name, op, form):
+    """Purpose: A computer's form (manual 1.6.12.6), held on Computers until its Apply: add (form name, type, managed),
+             enable, disable, delete, type (form type, move ticked), sites (form action add|remove, site), move (form
+             path), groups (form action add|remove, group: one of its machine groups' members change); keytab (form
+             service, user, path) is done at once: it changes nothing and answers the command for the computer's
+             administrator (1.6.12.9).
+    Inputs:  h — the request handler (send, back, deny); sess — the session (the keytab page's context); name —
+             "_new" or the computer's host name; op — the form; form — dict.
+    Returns: 303 (held's): to the computer's page, to Computers after an add or a removal; the keytab: 200, the
+             command's page, or 303 to the computer's page with the refusal; 404 for another form.
+    Fails:   AgentError, PermissionDenied and AuthError propagate.
+    Feeds:   directory_post."""
+    if name == "_new" and not op:
+        return held(h, "/directory/computers", "machines", {
+            "name": form.get("name", ""), "managed": "yes" if form.get("managed") == "yes" else "no",
+            **({"type": form["type"]} if form.get("type") else {})})
+    if name in ("", "_new", "_form"):
+        return h.deny(404, "Not found.")
+    here = f"/directory/computers/{q(name)}"
+    if op in ("enable", "disable", "delete"):
+        return held(h, "/directory/computers" if op == "delete" else here, f"machines/{q(name)}/{op}")
+    if op == "type":
+        return held(h, here, f"machines/{q(name)}/type", {"type": form.get("type", ""),
+                                                          "move": bool(form.get("move"))})
+    if op == "sites":
+        return held(h, here, f"machines/{q(name)}/sites", {"action": form.get("action", ""),
+                                                           "site": form.get("site", "")})
+    if op == "move":
+        return held(h, here, f"machines/{q(name)}/move", {"path": form.get("path", "")})
+    if op == "groups":
+        return held(h, here, f"host-groups/{q(form.get('group', ''))}/members",
+                    {"action": form.get("action", ""), "machine": name})
+    if op == "keytab":
+        try:
+            done = actions.machine_keytab(name, form.get("service", "").strip(), form.get("user", "").strip(),
+                                          form.get("path", "").strip())
+        except actions.ValidationError as exc:
+            return h.back(here, err=str(exc))
+        return h.send(200, views.computers(page_context(sess), "keytab", keytab=done))
+    return h.deny(404, "Not found.")
+
+
 def _host_access(h, kind, name, op, form):
-    """Purpose: A host group form (manual 1.6.11.7), held on Machines, or a sudo rule form, held on Policies
-             (1.6.12.10), until its page's Apply.
+    """Purpose: A machine group form (manual 1.6.11.7), held on Computers (its Machine groups tab), or a sudo rule
+             form, held on Policies (1.6.12.10), until its page's Apply.
     Inputs:  h — the request handler; kind — "hostgroups" or "sudo"; name — "_new" (form name; for sudo also users,
              commands, run_as as text separated by commas, hosts), "_form" with op "members" (form group, machine,
              action add|remove), or a group's or rule's name with op "delete"; op — str; form — dict.
-    Returns: 303 to Machines (held's), or with "unknown operation" for another form.
+    Returns: 303 to its tab (held's), or with "unknown operation" for another form.
     Fails:   AgentError, PermissionDenied and AuthError propagate.
     Feeds:   directory_post."""
     items = lambda key: [x.strip() for x in form.get(key, "").split(",") if x.strip()]    # noqa: E731
-    back = "/directory/policies/sudo" if kind == "sudo" else "/directory/machines"
+    back = "/directory/policies/sudo" if kind == "sudo" else "/directory/computers/_groups"
     if kind == "hostgroups" and name == "_new" and not op:
         return held(h, back, "host-groups", {"name": form.get("name", "")})
     if kind == "hostgroups" and name == "_form" and op == "members":
@@ -123,7 +167,8 @@ def directory_post(h, sess, parts, form):
              'reset'|'unlock'|'disable'|'enable'|'delete'|'groups'|'edit'] (_person_route's form),
              ['devices'|'roles', '_new'] (form name + fields), ['devices'|'roles', <name>] (save), [..., <name>,
              'delete'], ['devices', <name>, 'certs', 'unlink'] (unlink the certificate in form sha256), ['machines',
-             '_new'] (form name), ['machines', <name>, 'enable'|'disable'|'delete'], ['gpo', 'set'|'clear'] (form
+             '_new'] (form name, type, managed), ['machines', <name>, 'enable'|'disable'|'delete'|'type'|'sites'|'move'|
+             'groups'|'keytab'] (_machine's forms), ['gpo', 'set'|'clear'] (form
              policy, el_<element> values, disabled), ['hostgroups'|'sudo', …] (_host_access' forms),
              ['domain', 'password-policy'] (form: POLICY_FIELDS' keys, complexity on|off), ['groups', '_new' |
              <name>, ''|'delete'|'managers'|'members'] (_group's forms); form — dict.
@@ -153,15 +198,8 @@ def directory_post(h, sess, parts, form):
                 return h.back(back, err=str(exc))
             return held(h, back, route, body)
         return h.deny(404, "Not found.")
-    if kind == "machines":
-        if name == "_new" and not op:
-            return held(h, "/directory/machines", "machines", {"name": form.get("name", ""),
-                                                                "managed": "yes" if form.get("managed") == "yes"
-                                                                else "no", **({"type": form["type"]}
-                                                                              if form.get("type") else {})})
-        if name and op in ("enable", "disable", "delete"):
-            return held(h, "/directory/machines", f"machines/{q(name)}/{op}")
-        return h.deny(404, "Not found.")
+    if kind == "machines" and len(parts) <= 3:
+        return _machine(h, sess, name, op, form)
     if kind == "groups" and len(parts) <= 3:
         return _group(h, name, op, form)
     if kind in ("hostgroups", "sudo") and name:

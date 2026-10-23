@@ -153,8 +153,11 @@ def _machines(state, route, body):
         name = str(body.get("name", "")).strip().lower()
         if not name or any(m["name"] == name for m in machines):
             raise ValidationError(f"{name or 'a name'} is missing or already taken")
+        kind = body.get("type") or ""
         machines.append({"name": name, "dns": f"{name}.ad.home.arpa", "os": "", "enabled": True, "last_logon": "",
-                         "created": "today", "dn": ""})
+                         "type": kind, "sites": ["lan"], "created": "today", "dn": "",
+                         "folder": "machines" + ({"server": "/servers", "desktop": "/desktops",
+                                                  "network": "/network"}.get(kind, ""))})
         return {"password": "dev-preview-not-real"}
     if len(route) == 3 and route[0] == "machines":
         m = next((x for x in machines if x["name"] == route[1]), None)
@@ -173,7 +176,7 @@ def _machines(state, route, body):
                        "hosts": [], "fabric": True})
         return {"name": name}
     if len(route) == 3 and route[0] == "host-groups":
-        g = next((x for x in groups if x["name"] == route[1]), None)
+        g = next((x for x in groups if route[1] in (x["name"], x["short"])), None)
         if g is None:
             raise ValidationError(f"no host group {route[1]}")
         if route[2] == "delete":

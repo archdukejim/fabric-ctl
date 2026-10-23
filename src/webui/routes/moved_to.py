@@ -40,6 +40,8 @@ def moved_to(path, query):
         return "/settings/sign-in"
     if path == "/directory/domain":                     # its facts on the Overview, its policy on Policies
         return "/directory/policies"
+    if path == "/directory/machines":                   # Computers (1.6.12.6)
+        return "/directory/computers"
     if path == "/directory/gpo":
         return _with("/directory/policies/gpo", query)
     if path.startswith(("/directory/devices", "/directory/roles")):
@@ -54,6 +56,8 @@ def moved_to(path, query):
             return "/8021x/devices"
         if view in ("roles", "role"):
             return "/8021x/roles"
+        if view == "machines":
+            return "/directory/computers"
         if view in ("domain", "gpo"):
             return _with("/directory/policies" + ("/gpo" if view == "gpo" else ""), query, drop=("view", "name"))
         if view in dict(DIRECTORY_SECTIONS):

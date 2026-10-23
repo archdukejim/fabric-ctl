@@ -186,7 +186,8 @@ perms = {(m, tuple(r)): required_permission(m, r) for m, r in (
     ("POST", ["machines", "m", "type"]), ("POST", ["machines", "m", "sites"]), ("POST", ["machines", "m", "keytab"]),
     ("POST", ["domain", "kerberos", "policy"]), ("POST", ["account", "password"]), ("GET", ["groups"]),
     ("GET", ["groups", "g"]), ("GET", ["ous"]), ("GET", ["domain", "kerberos"]),
-    ("GET", ["domain", "kerberos", "spns"]), ("GET", ["account", "groups"]))}
+    ("GET", ["domain", "kerberos", "spns"]), ("GET", ["account", "groups"]), ("GET", ["machines"]),
+    ("GET", ["machines", "m"]))}
 check("people:edit; unlock is people:reset (widened); groups:admin creates, deletes and sets managers; members and a "
       "person's own account any signed-in person (fabric-agent decides); ous:admin; machines:admin; domain:admin",
       [perms[k] for k in sorted(perms)] == [perms[k] for k in sorted(perms)] and perms[("POST", ("people", "x", "edit"))]
@@ -197,7 +198,8 @@ check("people:edit; unlock is people:reset (widened); groups:admin creates, dele
       == "session" and perms[("GET", ("account", "groups"))] == "session"
       and {perms[("POST", ("ous",))], perms[("POST", ("ous", "rename"))], perms[("POST", ("ous", "delete"))]}
       == {"ous:admin"} and perms[("POST", ("domain", "kerberos", "policy"))] == "domain:admin"
-      and {perms[("GET", r)] for r in (("groups",), ("groups", "g"), ("ous",), ("domain", "kerberos"),
+      and {perms[("GET", r)] for r in (("groups",), ("groups", "g"), ("ous",), ("domain", "kerberos"), ("machines",),
+                                       ("machines", "m"),
                                        ("domain", "kerberos", "spns"))} == {"domain:read"}, perms)
 
 print("--- people: edit and unlock (1.6.12.4), through the grants and the tiers")
@@ -623,6 +625,33 @@ gone, why = refused(m_domain.post_domain, ["machines", "nomachine", "keytab"], "
                     {"service": "HTTP", "user": "www-data"}, "alice", None)
 # covers: agent:post.machines.*.keytab -
 check("keytab for a machine the domain does not know refused", gone and "no machine nomachine" in why, why)
+print("--- Computers (1.6.12.6): the list and a computer's page")
+listed = m_get.get_route(["machines"], "alice")
+row = next((m for m in listed if m["name"] == "srv1"), {})
+# covers: agent:get.machines +
+check("GET /v1/machines: each computer with its type, sites, machine groups and folder (srv1: a server of lan, "
+      "still in machines/servers/web: a type change to its own type moves nothing)", row.get("type") == "server"
+      and "lan" in row.get("sites", []) and row.get("folder") == "machines/servers/web"
+      and isinstance(row.get("groups"), list)
+      and {"enabled", "last_logon", "os", "dns"} <= set(row), row)
+page = m_get.get_route(["machines", "SRV1"], "alice")
+reaching = {g["name"]: g for g in page["grants"]}
+# covers: agent:get.machines.* +
+check("GET /v1/machines/SRV1 (any case): its row; the grants that reach it, each with what it gives there (lan-servers: "
+      "the help desk's machines rights; server-administrators: sign-in, sudo, local administrator); the choices of "
+      "its actions (sites, folders under machines)", page["machine"]["name"] == "srv1"
+      and reaching.get("lan-servers", {}).get("rights", {}).get("machines") == ["move", "disable", "groups", "add"]
+      and reaching["lan-servers"]["who"] == ["helpdesk-lan"]
+      and reaching.get("server-administrators", {}).get("rights", {}).get("local_admin") is True
+      and reaching.get("lan-helpdesk", {}).get("rights", {}).get("machines") == []
+      and "lan" in page["choices"]["sites"]
+      and {"machines", "machines/servers", "machines/servers/web"} <= set(page["choices"]["folders"])
+      and "people" not in page["choices"]["folders"] and page["devices"] == [], page)
+for name in ("nomachine", "dmdc" + os.environ.get("SAMBA_TEST_ID", "")):
+    gone, why = refused(m_get.get_route, ["machines", name], "alice")
+    # covers: agent:get.machines.* -
+    check(f"refused: GET /v1/machines/{name} (not a computer of the domain's folders: no machine)",
+          gone and "no machine" in why, why)
 code, out = cli("machine", "move", "dsk1", "machines")
 code2, out2 = cli("machine", "type", "dsk1", "desktop", "--move")
 code3, out3 = cli("machine", "sites", "dsk1", "add", "lan")
@@ -638,6 +667,10 @@ for args, words, want in ((("machine", "move", "dsk1", "people"), "only to a fol
     code, out = cli(*args)
     # covers: cli:domain.machine -
     check(f"domain {' '.join(args)} refused ({words})", code == want and words in out, out)
+page = m_get.get_route(["machines", "dsk1"], "alice")
+check("GET /v1/machines/dsk1, a desktop again: the servers' grants no longer reach it",
+      page["machine"]["type"] == "desktop" and "lan-servers" not in {g["name"] for g in page["grants"]}
+      and "server-administrators" not in {g["name"] for g in page["grants"]}, page["grants"])
 code, out = cli("ou", "create", "groups", "teams")
 code2, out2 = cli("ou", "list")
 code3, out3 = cli("ou", "rename", "groups/teams", "squads")

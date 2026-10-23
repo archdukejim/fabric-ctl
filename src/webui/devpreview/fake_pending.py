@@ -37,8 +37,9 @@ def _thing(state, route, body):
     if head == "people":                              # the row with its details, as the agent's read
         row = _find(state.data["people"]["users"], "uid", name)
         return {**row, **dict.fromkeys(PERSON_KEYS, ""), **(row.get("person") or {})} if row else None
-    if head == "machines":
-        return _find(SAMPLE_DOMAIN["machines"], "name", name)
+    if head == "machines":                            # as the agent: its machine groups are the groups' things
+        row = _find(SAMPLE_DOMAIN["machines"], "name", name)
+        return {k: x for k, x in row.items() if k != "groups"} if row else None
     if head == "groups":                              # a new one: None; else the group, which must be there
         group = find_group(state, name)
         if group is None and len(route) > 1:

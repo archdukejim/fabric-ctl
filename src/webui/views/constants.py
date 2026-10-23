@@ -1,7 +1,7 @@
 """What the pages show: the navigation, sections, sub-menus, the permissions that show them."""
 
 # Apply per page (manual 1.8.6.5): fabric-agent's pending page ids -> the navigation page whose changes they are
-PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "machines": "/directory/machines",
+PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "machines": "/directory/computers",
                  "policies": "/directory/policies", "account": "/account/groups"}
 
 # The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
@@ -18,7 +18,7 @@ NAV = [
     ("directory", "Directory", [("/directory", "Overview", ("domain:read",)),
                                 ("/directory/people", "People", ("people:read",)),
                                 ("/directory/groups", "Groups", ("domain:read",)),
-                                ("/directory/machines", "Machines", ("domain:read",)),
+                                ("/directory/computers", "Computers", ("domain:read",)),
                                 ("/directory/policies", "Policies", ("domain:read",))]),
     ("8021x", "802.1X", [("/8021x", "RADIUS clients", ("radius:read",)),
                          ("/8021x/devices", "Devices", ("devices:read",)),
@@ -105,8 +105,7 @@ WIZARD_STEPS = [
 WIZARD_FIELDS = [f for _, _, fields in WIZARD_STEPS for f in fields]
 # the navigation page each sectioned view belongs to (manual 1.8.6.4)
 DIRECTORY_PAGES = {"devices": "/8021x/devices", "device": "/8021x/devices", "roles": "/8021x/roles",
-                   "role": "/8021x/roles", "people": "/directory/people", "machines": "/directory/machines",
-                   "overview": "/directory"}
+                   "role": "/8021x/roles", "people": "/directory/people", "overview": "/directory"}
 # Directory · Policies' kinds (1.6.12.10): (view, label), all on Policies' one Apply
 POLICY_SECTIONS = [("password", "Password policy"), ("gpo", "Group Policy"), ("sudo", "Sudo rules")]
 # a person's details (2.1.6.93's fields) in order, with their labels: My account and a person's page and Edit form
@@ -114,7 +113,10 @@ PERSON_FIELDS = (("first", "First name"), ("last", "Last name"), ("name", "Displ
                  ("phone", "Phone"), ("mobile", "Mobile"), ("title", "Title"), ("department", "Department"),
                  ("company", "Company"), ("office", "Office"), ("city", "City"), ("state", "State"),
                  ("country", "Country"), ("manager", "Manager"), ("employee_id", "Employee ID"))
-PER_PAGE = 50                            # a long list's page (1.8.6.3): People, Groups
+PER_PAGE = 50                            # a long list's page (1.8.6.3): People, Groups, Computers
+# Directory · Computers (1.6.12.6): a computer's types (its folder and type group, 1.6.13.3) and the page's tabs
+COMPUTER_TYPES = {"server": "Server", "desktop": "Desktop", "network": "Network"}
+COMPUTER_SECTIONS = [("list", "Computers"), ("groups", "Machine groups")]
 RADIUS_PAGES = {"overview": "/8021x", "decisions": "/8021x/decisions", "switches": "/8021x/guides",
                 "windows": "/8021x/guides"}
 JOB_PAGES = {"doctor": "/overview/doctor", "images": "/overview/updates", "settings": "/settings"}

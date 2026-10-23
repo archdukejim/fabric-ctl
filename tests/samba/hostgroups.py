@@ -395,12 +395,23 @@ def form(parts, fields):
 
 code, loc = form(["hostgroups", "_new"], {"name": "ops"})
 # covers: web:post.directory.hostgroups._new +
-check("the New host group form: created, back to the Machines page", code == 303
-      and loc.startswith("/directory/machines?msg=") and LAST["result"]["name"] == "hosts-ops", (loc, LAST))
+check("the New machine group form: created, back to Computers' Machine groups tab", code == 303
+      and loc.startswith("/directory/computers/_groups?msg=") and LAST["result"]["name"] == "hosts-ops", (loc, LAST))
 code, loc = form(["hostgroups", "_form", "members"], {"group": "ops", "machine": "db1", "action": "add"})
 # covers: web:post.directory.hostgroups._form.members +
 check("the host group membership form: db1 in hosts-ops", LAST["result"].get("member") is True
       and LAST["result"].get("machine") == "db1", (loc, LAST))
+code, loc = form(["machines", "db1", "groups"], {"group": "hosts-ops", "action": "remove"})
+check("a computer's Machine groups form: db1 taken out of hosts-ops, back on its page", LAST["result"].get("member")
+      is False and loc.startswith("/directory/computers/db1?msg="), (loc, LAST))
+code, loc = form(["machines", "db1", "groups"], {"group": "hosts-ops", "action": "add"})
+# covers: web:post.directory.machines.*.groups +
+check("...and put in again, by the group's AD name", LAST["result"].get("member") is True
+      and LAST["result"].get("machine") == "db1", (loc, LAST))
+code, loc = form(["machines", "db1", "groups"], {"group": "hosts-nope", "action": "add"})
+# covers: web:post.directory.machines.*.groups -
+check("...its refusal said on the computer's page: a machine group that is not there",
+      loc.startswith("/directory/computers/db1?err=") and "no host group hosts-nope" in loc, loc)
 code, loc = form(["sudo", "_new"], {"name": "ops-apt", "users": "alice, %web-ops", "commands": "/usr/bin/apt update",
                                     "run_as": "", "hosts": "hosts-ops"})
 # covers: web:post.directory.sudo._new +
