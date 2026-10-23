@@ -1,10 +1,10 @@
 import json
 import os
 import subprocess
-import time
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.images.constants import VERIFIED
+from fabriclib.images.remember_verified import remember_verified
 
 
 def _remembered(cache):
@@ -54,9 +54,5 @@ def verify_signature(ref, cosign_image, signer, issuer, cache=VERIFIED, timeout=
         why = (res.stderr or res.stdout).strip().splitlines()[-1:] or ["no output"]
         raise ValidationError(f"{ref}: no valid signature by fabric's images workflow ({why[0][:300]}); not used "
                               f"(image_signature_check: false turns the check off, manual 1.14.3.4)")
-    known[digest] = {"ref": ref, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
-    os.makedirs(os.path.dirname(cache), mode=0o700, exist_ok=True)
-    fd = os.open(cache, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
-        json.dump(known, f, indent=2)
+    remember_verified(cache, [ref])
     return True

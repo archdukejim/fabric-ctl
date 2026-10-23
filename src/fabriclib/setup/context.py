@@ -15,6 +15,7 @@ class SetupContext:
     source_dir: str = FABRIC_DIR
     user_vars_file: str = None
     offline: bool = False
+    bundle: str = None                            # setup --offline <bundle>: its images are imported (1.14.4)
     non_interactive: bool = False
     assume_yes: bool = False
     join_invitation: str = None                   # setup --join: the upstream's invitation

@@ -69,6 +69,7 @@ Nothing here yet — nothing to install on its own: see [1.13](../volume_1_descr
 ## 3.14 Container images
 
 - [3.14.1 Building fabric's images](3.14.1-building-images.md)
+- [3.14.2 Offline install from a bundle](3.14.2-offline-install.md)
 
 ## 3.15 Log forwarding: Fluent Bit
 

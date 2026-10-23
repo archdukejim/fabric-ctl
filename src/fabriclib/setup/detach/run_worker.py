@@ -45,6 +45,7 @@ def run_worker(run_id, deploy_base, steps, read_secrets=read_handoff):
     opts = record.get("options") or {}
     ctx.offline, ctx.assume_yes, ctx.non_interactive = bool(opts.get("offline")), bool(opts.get("assume_yes")), True
     ctx.admin_password_file = opts.get("admin_password_file")
+    ctx.bundle = opts.get("bundle")              # setup --offline <bundle> (1.14.4)
     ctx.admin_password = secrets.get("admin_password")
     ctx.join_invitation = secrets.get("join_invitation")
     ctx.restart_services = set(record.get("restart_services") or [])

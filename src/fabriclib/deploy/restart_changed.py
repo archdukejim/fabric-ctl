@@ -106,7 +106,8 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
         compose = os.path.join(paths["base"], folder, "docker-compose.yml")
         verb = "build" if compose_builds(compose) else "pull"     # fabric's published images are pulled
         print(f"{'Rebuilding' if verb == 'build' else 'Pulling'} {folder} image...")
-        subprocess.run(["docker", "compose", "-f", compose, verb], timeout=1200)
+        policy = ["--policy", "missing"] if verb == "pull" else []   # present by digest: not pulled (1.14.4)
+        subprocess.run(["docker", "compose", "-f", compose, verb] + policy, timeout=1200)
     _roll_out(restart)                            # one at a time, health-gated, stopping at a failure (2.1.14.15)
 
     print("Reloading active services...")

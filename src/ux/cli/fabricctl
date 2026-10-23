@@ -17,6 +17,13 @@ export PYTHONDONTWRITEBYTECODE=1
 case "${1:-}" in
     setup|reinstall|uninstall|restore|-h|--help|help)
         exec python3 "$SRC/lib/fabriclib/cli.py" "$@" ;;
+    images)
+        # an offline bundle is the package's release (manual 1.14.4): exported or imported with the package's lock,
+        # set up or not (an online machine exports; an offline host may import before `setup --offline`)
+        if [ "${2:-}" = export ] || [ "${2:-}" = import ]; then
+            if [ "$(id -u)" -ne 0 ]; then echo "Run as root: sudo fabricctl $*" >&2; exit 1; fi
+            exec python3 "$SRC/lib/fabriclib/cli.py" "$@"
+        fi ;;
     --version)
         if [ -f "$INSTALL/lib/manage.sh" ]; then exec bash "$INSTALL/lib/manage.sh" --version; fi
         echo "fabricctl $(cat "$SRC/VERSION") (package; not set up yet)"; exit 0 ;;

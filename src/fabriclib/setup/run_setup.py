@@ -42,13 +42,14 @@ from fabriclib.setup.verify_install import run as verify  # noqa: E402
 from fabriclib.security.ufw_active import ufw_active  # noqa: E402
 from fabriclib.undo.undo_group import undo_group  # noqa: E402
 
-NEEDS_INPUT = {"preflight", "host", "docker", "join", "deploy"}   # before the rendered vars exist
+NEEDS_INPUT = {"preflight", "host", "docker", "bundle", "join", "deploy"}   # before the rendered vars exist
 
 
 def main(argv=None):
     """Purpose: `fabricctl setup` / `fabricctl doctor`: parse options, collect settings, show the plan and run
              the selected steps of STEPS in order.
-    Inputs:  argv — option list (None: sys.argv[1:]): --file, --deploy-base (default /opt), --offline,
+    Inputs:  argv — option list (None: sys.argv[1:]): --file, --deploy-base (default /opt), --offline [BUNDLE]
+             (the bundle must exist; its images are imported by the `bundle` step),
              --non-interactive, --yes/-y, --approve GROUPS / --decline GROUPS (host changes, repeatable),
              --step NAME (repeatable), --join [@FILE|-] (join an upstream fabric; read_join_invitation),
              --undo GROUP (undo/undo_group: revert one host change, nothing else runs), --list, --restart, --doctor
@@ -72,7 +73,9 @@ def main(argv=None):
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--file", help="vars file (fabric.yaml / custom-vars.yaml)")
     ap.add_argument("--deploy-base", default="/opt", help="install root (default /opt)")
-    ap.add_argument("--offline", action="store_true", help="never download; images and packages must be present")
+    ap.add_argument("--offline", nargs="?", const=True, default=False, metavar="BUNDLE",
+                    help="never download; with BUNDLE (fabricctl images export) its images are checked offline and "
+                         "loaded first, otherwise images and packages must be present")
     ap.add_argument("--non-interactive", action="store_true", help="never prompt; fail on missing values")
     ap.add_argument("--yes", "-y", action="store_true",
                     help="accept the plan without the Proceed prompt (approves no host change: see --approve)")
@@ -126,14 +129,17 @@ def main(argv=None):
             err("interrupted")
             return 130
 
+    bundle = os.path.abspath(args.offline) if isinstance(args.offline, str) else None
     try:
         invitation = read_join_invitation(args.join, args.non_interactive)
+        if bundle and not os.path.isfile(bundle):
+            raise SetupError(f"no offline bundle at {bundle} (make one with `fabricctl images export`, manual 3.14.2)")
     except SetupError as e:
         err(str(e))
         return 1
-    ctx = SetupContext(deploy_base=args.deploy_base, user_vars_file=args.file, offline=args.offline,
-                       non_interactive=args.non_interactive, assume_yes=args.yes, join_invitation=invitation,
-                       admin_password_file=args.admin_password_file)
+    ctx = SetupContext(deploy_base=args.deploy_base, user_vars_file=args.file, offline=bool(args.offline),
+                       bundle=bundle, non_interactive=args.non_interactive, assume_yes=args.yes,
+                       join_invitation=invitation, admin_password_file=args.admin_password_file)
     try:
         if args.undo:
             ctx.load_state()
@@ -183,7 +189,7 @@ def main(argv=None):
 
         if args.step is None:                  # the work goes to fabric-setup.service; this session follows it
             return hand_over(ctx, STEPS, {"options": {
-                "offline": ctx.offline, "assume_yes": ctx.assume_yes, "guided": mode == "guided",
+                "offline": ctx.offline, "bundle": ctx.bundle, "assume_yes": ctx.assume_yes, "guided": mode == "guided",
                 "join": bool(ctx.join_invitation), "admin_password": bool(ctx.admin_password),
                 "admin_password_file": ctx.admin_password_file}})
         return run_steps(ctx, STEPS, selected, guided=mode == "guided")

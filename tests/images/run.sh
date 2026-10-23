@@ -30,6 +30,8 @@ BAKE=(docker buildx bake -f packaging/docker-bake.hcl "--allow=fs.read=$CONTEXTS
 # hosts: which image a host runs (rendered), and signature verification against real signatures (manual 1.14.3)
 python3 tests/images/published.py
 python3 tests/images/verify.py
+# offline install bundles: export, the checks and refusals (2.1.14.14, manual 1.14.4); loading them is offline.sh's
+python3 tests/images/bundle.py
 # fabricctl images: routing, refusals, and prune on images only it makes (real Docker)
 python3 tests/images/commands.py
 # an image switch waits for the services restarted with the moved one (2.3.1.21.1)

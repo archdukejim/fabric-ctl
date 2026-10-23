@@ -27,6 +27,7 @@ def resume_run(ctx, steps, last, remaining, join=None, hand=hand_over):
     info(f"the last setup did not finish (it stopped at [{last.get('current') or remaining[0]}]): resuming from "
          f"[{remaining[0]}] without the questions (sudo fabricctl setup --restart asks them again)")
     ctx.offline, ctx.assume_yes = bool(opts.get("offline")), bool(opts.get("assume_yes"))
+    ctx.bundle = opts.get("bundle")              # setup --offline <bundle> (1.14.4)
     if not ctx.admin_password_file and opts.get("admin_password_file"):
         ctx.admin_password_file = opts["admin_password_file"]
     opts["admin_password_file"] = ctx.admin_password_file

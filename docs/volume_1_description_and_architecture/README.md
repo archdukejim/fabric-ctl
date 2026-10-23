@@ -115,6 +115,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.14.1 Image channels](1.14.1-image-channels.md)
 - [1.14.2 Image updates: validation and the host side](1.14.2-image-updates.md)
 - [1.14.3 fabric's published images on hosts](1.14.3-published-images-on-hosts.md)
+- [1.14.4 Offline install bundles](1.14.4-offline-bundles.md)
 
 ## 1.15 Log forwarding: Fluent Bit
 

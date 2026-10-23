@@ -44,7 +44,10 @@ def finish_without_start(paths, state, bind_ids):
         compose = os.path.join(paths["base"], folder, "docker-compose.yml")
         verb = "build" if compose_builds(compose) else "pull"     # fabric's published images are pulled
         print(f"{'Building' if verb == 'build' else 'Pulling'} {folder} image...")
-        res = subprocess.run(["docker", "compose", "-f", compose, verb], capture_output=True, text=True, timeout=1800)
+        # a pinned image already here (an offline bundle loaded it, 1.14.4) is not pulled again: a digest never changes
+        policy = ["--policy", "missing"] if verb == "pull" else []
+        res = subprocess.run(["docker", "compose", "-f", compose, verb] + policy, capture_output=True, text=True,
+                             timeout=1800)
         if res.returncode != 0:
             raise ValidationError(f"{verb} of the {folder} image failed:\n{res.stdout[-1500:]}{res.stderr[-1500:]}")
     print("Configuration deployed (services not started).")

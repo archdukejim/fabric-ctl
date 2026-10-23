@@ -65,8 +65,10 @@ def switch_image(ctx, var, target, actor="root", source="cli"):
     previous = running[0] if running else ctx.vars.get(var)
     if not services or previous == target:
         return []
-    pull = subprocess.run(["docker", "pull", "-q", target], capture_output=True, text=True, timeout=1800)
-    if pull.returncode != 0:            # nothing touched yet
+    # an image already here by its digest (an offline bundle loaded it, 1.14.4) is not pulled again
+    here = subprocess.run(["docker", "image", "inspect", target], capture_output=True, timeout=60).returncode == 0
+    pull = here or subprocess.run(["docker", "pull", "-q", target], capture_output=True, text=True, timeout=1800)
+    if not here and pull.returncode != 0:            # nothing touched yet
         raise ValidationError(f"could not download {target}: {(pull.stderr or pull.stdout).strip()[-300:]}")
     try:
         _apply(ctx, var, target, services)

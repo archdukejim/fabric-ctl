@@ -1,6 +1,13 @@
+import os
 import sys
+import urllib.error
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.common.lock_dir import lock_dir
+from fabriclib.common.paths import FABRIC_DIR
+from fabriclib.images.bundle.describe_import import describe_import
+from fabriclib.images.bundle.export_bundle import export_bundle
+from fabriclib.images.bundle.import_bundle import import_bundle
 from fabriclib.images.image_status import image_status
 from fabriclib.images.prune_images import prune_images
 from fabriclib.images.rollback_image import rollback_image
@@ -13,7 +20,23 @@ USAGE = """usage: fabricctl images status                  each service: running
                                                the admin set in vars.yaml
        fabricctl images rollback <service>     back to the image before the last update
        fabricctl images prune                  remove old images of fabric's repositories (not in use,
-                                               not the rollback image)"""
+                                               not the rollback image)
+       fabricctl images export --arch amd64|arm64 -o <file>
+                                               an offline install bundle of this release (online): every
+                                               image of the lock by digest, their signatures, a manifest
+       fabricctl images import <bundle>        check a bundle offline (version, architecture, digests,
+                                               hashes, signatures), then load its images; fetches nothing"""
+
+
+def _option(args, name):
+    """Purpose: the value after an option in a plain argument list.
+    Inputs:  args — list of str; name — the option ("--arch").
+    Returns: str, or None when the option is absent or last.
+    Fails:   never.
+    Feeds:   run_images_command (export)."""
+    if name in args and args.index(name) + 1 < len(args):
+        return args[args.index(name) + 1]
+    return None
 
 
 def _short(ref):
@@ -40,12 +63,13 @@ def _prune(ctx):
 
 
 def run_images_command(ctx, argv):
-    """Purpose: route `fabricctl images status|update|rollback|prune` (design 2.1.14.3) and print the results.
-             Nothing here runs on its own; applying is these commands.
+    """Purpose: route `fabricctl images status|update|rollback|prune` (design 2.1.14.3) and `export|import`
+             (offline bundles, 2.1.14.14) and print the results. Nothing here runs on its own; applying is these
+             commands. export and import use the lock of the fabric this code belongs to (the package's).
     Inputs:  ctx — SetupContext with state loaded; argv — list of str after "images" (empty = status).
     Returns: exit status int: 0 done, 1 ValidationError (printed to stderr), 2 usage error (usage printed).
-    Fails:   ValidationError is caught and becomes exit 1; other errors (Docker, YAML, SetupError from deploy)
-             propagate to the caller.
+    Fails:   ValidationError, and a registry the export cannot reach (URLError), are caught and become exit 1;
+             other errors (Docker, YAML, SetupError from deploy) propagate to the caller.
     Feeds:   cli.py (`fabricctl images`)."""
     cmd, args = (argv[0], argv[1:]) if argv else ("status", [])
     try:
@@ -73,6 +97,20 @@ def run_images_command(ctx, argv):
             moved = rollback_image(ctx, args[0])
             print(f"rolled back {', '.join(moved)}" if moved else "already on the previous image")
             return 0
+        if cmd == "export" and len(args) == 4 and _option(args, "--arch") and _option(args, "-o"):
+            out = _option(args, "-o")
+            manifest = export_bundle(lock_dir(os.path.join(FABRIC_DIR, "jinja")), _option(args, "--arch"), out,
+                                     log=lambda line: print(line, flush=True))
+            print(f"bundle for fabric {manifest['fabric']} ({manifest['arch']}), {len(manifest['images'])} images: "
+                  f"{out}")
+            return 0
+        if cmd == "import" and len(args) == 1 and not args[0].startswith("-"):
+            done = import_bundle(args[0], lock_dir(os.path.join(FABRIC_DIR, "jinja")),
+                                 signature_check=ctx.vars.get("image_signature_check", True),
+                                 log=lambda line: print(line, flush=True))
+            for line in describe_import(done):
+                print(line)
+            return 0
         if cmd == "prune" and not args:
             removed = prune_images(ctx)
             for r in removed:
@@ -81,6 +119,10 @@ def run_images_command(ctx, argv):
             return 0
     except ValidationError as exc:
         print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except urllib.error.URLError as exc:          # export: a registry or Sigstore that cannot be reached
+        print(f"error: cannot reach {exc.reason}: the export needs the internet; nothing was written",
+              file=sys.stderr)
         return 1
     print(USAGE, file=sys.stderr)
     return 2

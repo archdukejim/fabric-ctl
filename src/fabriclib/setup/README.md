@@ -27,6 +27,7 @@
 | `preflight.py` | Refuse a host without amd64/arm64, root, enough RAM or the cgroup memory controller; warn about untested OS and conflicting listeners |
 | `condition_host.py` | Host packages and Docker Engine (compose v2, buildx) from the Ubuntu archive; no apt source added |
 | `harden_docker.py` | Hardened `/etc/docker/daemon.json` (merged, not replaced), after the `runtime` consent |
+| `import_offline_bundle.py` | Step `bundle`: with `--offline <bundle>`, check the offline bundle and load its images (manual 1.14.4) |
 | `deploy_config.py` | Render + deploy all configuration without starting anything; install `fabricctl` |
 | `set_ram_capacity.py` | The memory fabric sizes itself for: all of the host's measured memory unless set (4 GB at least; 2.1.2.3, 2.1.2.16) |
 | `create_accounts.py` | `fabric-*` service users and groups (uid band 600–649); moves an older install off its previous accounts |

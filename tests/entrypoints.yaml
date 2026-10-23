@@ -311,6 +311,8 @@
 "cli:host": "src/fabriclib/cli.py"
 "cli:host.accounts": "src/fabriclib/hostaccounts/run_host_command.py"
 "cli:images": "src/fabriclib/cli.py"
+"cli:images.export": "src/fabriclib/images/run_images_command.py"
+"cli:images.import": "src/fabriclib/images/run_images_command.py"
 "cli:images.prune": "src/fabriclib/images/run_images_command.py"
 "cli:images.rollback": "src/fabriclib/images/run_images_command.py"
 "cli:images.status": "src/fabriclib/images/run_images_command.py"
