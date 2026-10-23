@@ -89,3 +89,7 @@ Nothing here yet — nothing to operate on its own: see [1.16](../volume_1_descr
 ## 4.17 The function reference
 
 Nothing here yet — nothing to operate on its own: see [1.17](../volume_1_description_and_architecture/README.md).
+
+## 4.18 STIG compliance
+
+Nothing here yet — nothing to operate until 0.11.0 builds it: see [1.18](../volume_1_description_and_architecture/README.md).

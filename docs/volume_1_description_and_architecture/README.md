@@ -166,3 +166,15 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.17.38 fabriclib-domain](1.17.38-fabriclib-domain.md)
 - [1.17.39 fabriclib-localadmin](1.17.39-fabriclib-localadmin.md)
 <!-- end of generated 1.17 -->
+
+## 1.18 STIG compliance
+
+The home chapter for STIG compliance (Rule 5.8; 2.1.1.67).
+
+- [1.18.1 STIG compliance: scope, the guides, and which part answers to which](1.18.1-stig-scope.md)
+- [1.18.2 The STIG checklist: how compliance is recorded and proven](1.18.2-stig-checklist.md)
+- [1.18.3 STIG baselines for the domain's members, by Group Policy](1.18.3-stig-gpo-baselines.md)
+
+## Assets
+
+[`assets/`](assets/README.md): data the chapters rest on (the STIG checklist).
