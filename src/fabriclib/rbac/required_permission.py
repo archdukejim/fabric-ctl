@@ -69,6 +69,8 @@ POST = {
     # does its Apply, change by change
     ("pending", "hold"): "session", ("pending", "*", "drop"): "session", ("pending", "*", "discard"): "session",
     ("pending", "*", "apply"): "session",
+    ("local-admin", "checkout"): "session",           # the DC host's local-admin: fabric-agent asks the DC the
+    ("local-admin", "ssh"): "session",                # caller's tier, the Enterprise Admin's alone (2.1.7.18)
     ("machines",): "machines:admin", ("machines", "*", "enable"): "machines:admin",
     ("machines", "*", "disable"): "machines:admin", ("machines", "*", "delete"): "machines:admin",
     ("machines", "*", "move"): "machines:admin", ("machines", "*", "type"): "machines:admin",

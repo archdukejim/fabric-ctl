@@ -11,7 +11,7 @@ def local_account_reminders(config_dir, listed=None):
     Feeds:   system/host_reminders (the console), setup/verify_install (doctor)."""
     out = []
     for row in listed if listed is not None else list_local_admins(config_dir):
-        if row["approved"]:
+        if row["approved"] or row.get("managed"):
             continue
         who = "the account that ran setup, " if row["setup"] else ""
         out.append({"kind": "local-account", "name": row["name"],

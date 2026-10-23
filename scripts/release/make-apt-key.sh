@@ -20,7 +20,7 @@
 # -----------------------------------------------------------------------
 set -euo pipefail
 KEEP="${1:?usage: make-apt-key.sh <offline folder, e.g. a USB stick>}"
-REPO="${FABRIC_REPO:-archdukejim/open-fabric}"
+REPO="${FABRIC_REPO:-archdukejim/fabric-ctl}"
 mkdir -p "$KEEP"
 export GNUPGHOME
 GNUPGHOME="$(mktemp -d)"

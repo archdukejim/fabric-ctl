@@ -1,6 +1,6 @@
 [Unit]
 Description=fabric — DNS, PKI, directory, SSO, reverse proxy and web UI (every fabric service)
-Documentation=https://github.com/archdukejim/open-fabric
+Documentation=https://github.com/archdukejim/fabric-ctl
 Wants=network-online.target docker.service
 After=network-online.target docker.service
 

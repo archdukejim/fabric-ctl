@@ -35,6 +35,7 @@ arbitrary commands.
 | `post_ous.py` | The admins' own OUs: create, rename, delete (`ous:admin`) |
 | `post_account.py` | A person's own account: their password, as them, at once (any sign-in) |
 | `post_host_access.py` | Host groups (create, delete, machines in and out) and sudo rules (add, remove), in the directory at once (1.6.11.7) |
+| `post_local_admin.py` | The DC host's local-admin: its check-out and its SSH switch, the Enterprise Admin's alone (1.7.1.4.5, 1.7.1.4.6) |
 | `post_security.py` | POST /v1/security/raise and /kerberos: raise a sign-in layer or turn Kerberos sign-in on or off, then apply |
 | `job_store.py` | Background jobs (doctor, an image update): started by one call, followed by id, read only by who started them; kept in memory |
 | `post_settings.py` | POST /v1/settings/plan, /apply and /dismiss: the setup wizard's plan, its apply as a job (a stale plan made again), the wizard dismissed |

@@ -2,13 +2,12 @@ import glob
 import os
 import subprocess
 
+from fabriclib.setup.common.sshd_check import sshd_check
 from fabriclib.setup.errors import SetupError
 
 SSHD_DIR = "/etc/ssh/sshd_config.d"
 # 10-: sshd keeps the first value it reads, and Ubuntu's cloud images set their own in 50-cloud-init.conf
 SSHD_DROPIN = "/etc/ssh/sshd_config.d/10-fabric.conf"
-SSHD = "/usr/sbin/sshd"
-PRIVSEP_DIR = "/run/sshd"
 PAM_SSHD = "/etc/pam.d/sshd"
 PAM_MODULES = ("/usr/lib/*/security/pam_localuser.so", "/lib/*/security/pam_localuser.so",
                "/usr/lib/security/pam_localuser.so", "/lib/security/pam_localuser.so")
@@ -92,22 +91,6 @@ def _pam_without(text):
     return "\n".join(lines[:i] + lines[i + drop:]) + "\n"
 
 
-def _sshd_check():
-    """Purpose: whether sshd accepts its configuration as it is on disk (`sshd -t`).
-    Inputs:  none.
-    Returns: "" when it does; sshd's complaint otherwise.
-    Fails:   never (an sshd that cannot run is a complaint).
-    Feeds:   apply_host_managed.
-    Notes:   sshd's test needs its privilege-separation folder, which ssh.service makes only when sshd first runs (on
-             Ubuntu 24.04 the socket starts it at the first connection): made here as the service makes it."""
-    try:
-        os.makedirs(PRIVSEP_DIR, mode=0o755, exist_ok=True)
-        res = subprocess.run([SSHD, "-t"], capture_output=True, text=True, timeout=30)
-    except (OSError, subprocess.TimeoutExpired) as e:
-        return str(e)
-    return "" if res.returncode == 0 else ((res.stderr or res.stdout).strip()[-400:] or f"exit {res.returncode}")
-
-
 def _reload(what):
     """Purpose: let a running service read its changed configuration; nothing when it does not run.
     Inputs:  what — "ssh" (reloaded: open sessions stay) or "resolved" (systemd-resolved restarted).
@@ -164,7 +147,7 @@ def apply_host_managed(v, managed, dry=False):
             raise SetupError("pam_localuser.so (libpam-modules) is missing: without it a domain account's password "
                              "would be taken over SSH; nothing was changed (manual 1.6.11.11)")
         if want_sshd:
-            before = _sshd_check()
+            before = sshd_check()
             if before:
                 raise SetupError(f"sshd refuses its configuration as it is, before fabric changes anything: {before}. "
                                  "Fix it (`sudo sshd -t` says where), then run `sudo fabricctl setup --step member` "
@@ -172,7 +155,7 @@ def apply_host_managed(v, managed, dry=False):
         if old_sshd != want_sshd:
             _write(SSHD_DROPIN, want_sshd)
         if want_sshd and old_sshd != want_sshd:
-            after = _sshd_check()
+            after = sshd_check()
             if after:
                 _write(SSHD_DROPIN, old_sshd)         # put back: a configuration sshd refuses is never loaded
                 raise SetupError(f"sshd refuses its configuration with fabric's {SSHD_DROPIN} ({after}): put back as "

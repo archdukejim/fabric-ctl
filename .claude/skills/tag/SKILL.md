@@ -10,8 +10,8 @@ decision [2.1.1.40](../../../docs/volume_2_engineering_decisions/2.1.1-product.m
 request for this tag (global Rule 8); nothing else is tagged.
 
 1. **Check the merge**: `git fetch origin`; the pull request `rc/<version>` → main is merged
-   (`gh pr list --repo archdukejim/open-fabric --state merged --head rc/<version>`), and main's CI on the merge commit
-   is green (`gh run list --repo archdukejim/open-fabric --branch main`). If not, say what is missing and stop.
+   (`gh pr list --repo archdukejim/fabric-ctl --state merged --head rc/<version>`), and main's CI on the merge commit
+   is green (`gh run list --repo archdukejim/fabric-ctl --branch main`). If not, say what is missing and stop.
 2. **The tag**: `<version>` is `config/VERSION` on `origin/main`; `<n>` is one more than the highest existing
    `v<version>-rc.<n>` (`git tag -l "v<version>-rc.*"`), from 1.
 3. **Tag the merge commit** (annotated) and push the tag only:

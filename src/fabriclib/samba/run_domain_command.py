@@ -165,6 +165,8 @@ def run_domain_command(v, args):
             print(f"  {line}")
         if v.get("grants_fallback_open") is True:          # a relaxation, shown while on (2.1.6.88)
             print("  RELAXED: grants_fallback_open is on: a machine no grant reaches admits every domain person")
+        if s.get("local_admin_ssh"):                       # a relaxation, shown while on (2.1.7.19)
+            print("  RELAXED: local-admin over SSH is on for this host (sudo fabricctl local-admin ssh off)")
         return 0 if s["running"] else 1
     rest, tier = [a for a in args[1:] if a != "--no-apply"], None
     if "--tier" in rest:

@@ -25,6 +25,9 @@ path "database/config/*"   { capabilities = ["create", "read", "update"] }
 path "database/static-roles/*" { capabilities = ["create", "read", "update"] }
 path "database/static-creds/*" { capabilities = ["read"] }
 path "database/rotate-role/*"  { capabilities = ["update"] }
+path "sys/policies/password/local-admin"          { capabilities = ["create", "read", "update"] }
+path "sys/policies/password/local-admin/generate" { capabilities = ["read"] }
+path "local-admin/*"       { capabilities = ["create", "read", "update", "list"] }
 """,
     "fabric-agent": """
 path "sys/mounts" { capabilities = ["read"] }

@@ -28,7 +28,7 @@ group "default" {
 
 target "_fabric" {
   labels = {
-    "org.opencontainers.image.source"   = "https://github.com/archdukejim/open-fabric"
+    "org.opencontainers.image.source"   = "https://github.com/archdukejim/fabric-ctl"
     "org.opencontainers.image.revision" = REVISION
     "org.opencontainers.image.version"  = TAG
     "org.opencontainers.image.licenses" = "MIT"

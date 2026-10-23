@@ -369,7 +369,7 @@ check("negative: a fresh install has nothing to carry: every question needs an a
 
 rows = {t: (how, what) for t, how, what in uninstall_plan()}
 check("uninstall lists every kind of host change: removed, undone or kept (Docker's settings: how to undo first)",
-      len(rows) == 11 and rows["Service accounts"][0] == "removed" and rows["Secure this host"][0] == "undone"
+      len(rows) == 12 and rows["Service accounts"][0] == "removed" and rows["Secure this host"][0] == "undone"
       and rows["Ports fabric needs"][0] == rows["The host's own firewall rules"][0] == "undone"
       and rows["Docker daemon settings"][0] == "kept" and "--undo runtime" in rows["Docker daemon settings"][1], rows)
 
@@ -537,8 +537,8 @@ for d in (-1, 1000, 1.5, "30", True, None, [30]):
 check("negative: a renewal that is not a whole number from 0 to 999 (negative, too large, a fraction, text, true, "
       "empty, a list) is refused, saying so", bad_days == [-1, 1000, 1.5, "30", True, None, [30]], bad_days)
 names = [n for n, _, _ in STEPS]
-check("the group `member` is recommended, asked after the time service; its step comes right after `start`",
-      GROUPS["member"]["level"] == "recommended" and list(GROUPS)[-1] == "member"
+check("the group `member` is recommended, asked after the time service (local_admin next); its step right after `start`",
+      GROUPS["member"]["level"] == "recommended" and list(GROUPS)[-2] == "member"
       and GROUPS["member"]["step"] == "member" and names.index("member") == names.index("start") + 1, names)
 _real_missing = pm.missing_packages
 pm.missing_packages = lambda pkgs: ["sssd-ad", "krb5-user"]
@@ -972,7 +972,7 @@ PAM_ORIG = ("# PAM configuration for the Secure Shell service\n\n# Standard Un*x
 open(ahm.PAM_SSHD, "w").write(PAM_ORIG)
 reloads, sshd_says = [], {"before": "", "after": ""}
 ahm._reload = lambda what: reloads.append(what)
-ahm._sshd_check = lambda: sshd_says["after"] if os.path.exists(ahm.SSHD_DROPIN) else sshd_says["before"]
+ahm.sshd_check = lambda: sshd_says["after"] if os.path.exists(ahm.SSHD_DROPIN) else sshd_says["before"]
 done = ahm.apply_host_managed(mv, True)
 dropin, pam_now = open(ahm.SSHD_DROPIN).read(), open(ahm.PAM_SSHD).read()
 check("managed: sshd gets Kerberos (GSSAPI, the strict acceptor check off, PAM) and never PasswordAuthentication, so "
@@ -1157,15 +1157,15 @@ got, out, left = drive(lambda: m_menu.setup_menu(c, NETS), [
     "14", "n",
     "16", "y",
     "13", "n",
-    "19", "n",
+    "20", "n",
     "p"], secrets=["short", "Good-Pass-12345", "Good-Pass-12345"])
 v = c.vars
 # covers: ask:setup.menu +-
-check("the menu: three parts, 19 numbered items with their values; something not on the list refused naming the "
+check("the menu: three parts, 20 numbered items with their values; something not on the list refused naming the "
       "numbers; Proceed waits for the required items without a value, naming them",
       got is None and "Required (setup cannot proceed until each has a value):" in out
       and "Changes to this host (recommended; each can be declined):" in out
-      and "'99' is not on the list: a number from 1 to 19" in out and "not yet: 3, 6 need an answer" in out
+      and "'99' is not on the list: a number from 1 to 20" in out and "not yet: 3, 6 need an answer" in out
       and "(needs an answer)" in out and not left, (got, out[-3000:], left))
 # covers: ask:setup.vars.* ask:setup.admin_password ask:setup.admin_password_again +-
 # covers: setting:webui_admin_user setting:webui_admin_first_name setting:webui_admin_last_name +-
@@ -1207,7 +1207,8 @@ check("memory: 2 GB refused (4 at least), 4 taken", v["host_ram_capacity"] == 4 
 check("host changes: the ports turned off show what that means and take securing and the host's own rules along; "
       "the host's own rules turned on bring back what they need; Docker's hardening and membership off",
       {g: c.host_choices.get(g, True) for g in TOGGLED} == {"runtime": False, "ports": True, "firewall": True,
-                                                            "own_rules": True, "trust": True, "time": True}
+                                                            "own_rules": True, "trust": True, "time": True,
+                                                            "local_admin": True}
       and v["host_join_domain"] is False
       and "If no: ufw is not told about fabric's ports" in out and "also off: Secure this host" in out
       and "also off: The host's own firewall rules" in out and "also on: Ports fabric needs" in out
@@ -1302,7 +1303,7 @@ hc = tempfile.mkdtemp()
 save_consent(hc, {"firewall": {"answer": "no", "changes": ["f"], "when": "t", "by": "x"}})
 check("a host change declined before starts off, what needs it too; the others on",
       initial_host_choices(hc) == {"runtime": True, "ports": True, "firewall": False, "own_rules": False,
-                                   "trust": True, "time": True}, initial_host_choices(hc))
+                                   "trust": True, "time": True, "local_admin": True}, initial_host_choices(hc))
 check("--approve turns one back on; --decline ports takes securing and the host's own rules along",
       initial_host_choices(hc, approve=["firewall"])["firewall"] is True
       and not any(initial_host_choices(hc, decline=["ports"])[g] for g in ("ports", "firewall", "own_rules")))
@@ -1408,6 +1409,61 @@ check("refused: approving an account with no rights (exit 1, why), a missing or 
       and "usage:" in said.getvalue()
       and json.load(open(os.path.join(lcfg, "local-accounts.json")))["approved"] == {}, said.getvalue())
 rhc.list_local_admins, ala.list_local_admins = _real_list, _real_ala_list
+
+
+print("--- the host's local-admin as a host change, and managed in the listing (2.1.7.16, manual 1.7.1.4.1, 1.7.1.4.8)")
+from fabriclib.consent.plan_local_admin import plan_local_admin  # noqa: E402
+from fabriclib.localadmin.constants import SSHD_DROPIN  # noqa: E402
+import fabriclib.undo.undo_group as ug  # noqa: E402
+
+check("the group `local_admin` is recommended, asked last; its step `localadmin` runs after `dbrotation`, before `admin`",
+      GROUPS["local_admin"]["level"] == "recommended" and list(GROUPS)[-1] == "local_admin"
+      and GROUPS["local_admin"]["step"] == "localadmin"
+      and names.index("localadmin") == names.index("dbrotation") + 1 == names.index("admin") - 1, names)
+lplan = plan_local_admin({})
+check("its plan: the local account local-admin and the SSH drop-in that refuses it, worded the same every run",
+      len(lplan) == 2 and "the local account local-admin" in lplan[0] and SSHD_DROPIN in lplan[1]
+      and plan_local_admin({"hostname": "other"}) == lplan, lplan)
+check("…and it is in setup's plan for the localadmin step", plan_host_changes(
+    {}, "/opt", cfg, JINJA, ["localadmin"]).get("local_admin") == lplan)
+rows = {t: (how, what) for t, how, what in uninstall_plan()}
+check("uninstall undoes it (the account, the drop-in, the record; OpenBao keeps its history)",
+      rows[GROUPS["local_admin"]["title"]][0] == "undone"
+      and "local-admin" in rows[GROUPS["local_admin"]["title"]][1], rows.get(GROUPS["local_admin"]["title"]))
+ucfg = tempfile.mkdtemp()
+UCtx = types.SimpleNamespace(config_dir=ucfg, vars={}, deploy_base="/opt", source_dir=REPO)
+ask_consent(ucfg, {"local_admin": lplan}, interactive=False, approve=["local_admin"])
+calls = []
+ug.UNDO["local_admin"] = (ug.UNDO["local_admin"][0], lambda ctx: calls.append(1) or ["local-admin: removed"])
+msg = refused(lambda: undo_group(UCtx, "local_admin", False, False))
+check("negative: `setup --undo local_admin` unattended without --yes changes nothing", "--yes" in msg and not calls, msg)
+with contextlib.redirect_stdout(io.StringIO()):
+    undo_group(UCtx, "local_admin", False, True)
+check("`setup --undo local_admin --yes` undoes it and records the answer as no",
+      calls == [1] and yaml.safe_load(open(os.path.join(ucfg, "consent.yaml")))["groups"]["local_admin"]["answer"]
+      == "no")
+with contextlib.redirect_stdout(io.StringIO()) as said:
+    went = check_consent(ucfg, "local_admin", lplan)
+check("declined: the step leaves the host as it is, warning what that means", went is False
+      and "no local-admin kept by OpenBao" in said.getvalue(), said.getvalue())
+open(os.path.join(la, "passwd"), "a").write("local-admin:x:1010:1010::/home/local-admin:/bin/bash\n")
+open(os.path.join(la, "group"), "w").write(
+    "root:x:0:\nwheel:x:10:\nsudo:x:27:owner,local-admin\nops:x:2000:frank\nadmin:x:115:\n")
+rows = {r["name"]: r for r in list_local_admins(lcfg, **la_files)}
+check("negative: a local-admin fabric did not make is listed and reminded of, as any other",
+      not rows["local-admin"]["managed"] and any(r["name"] == "local-admin" for r in
+                                                  local_account_reminders(lcfg, list(rows.values()))), rows["local-admin"])
+open(os.path.join(lcfg, "local-admin.json"), "w").write(json.dumps({"made": True, "version": 1}))
+rows = {r["name"]: r for r in list_local_admins(lcfg, **la_files)}
+check("the local-admin fabric made is listed as managed by OpenBao, with no reminder",
+      rows["local-admin"]["managed"] and not any(r["name"] == "local-admin" for r in
+                                                 local_account_reminders(lcfg, list(rows.values()))), rows["local-admin"])
+try:
+    approve_local_account(lcfg, "local-admin", "ea", audit=lambda *a: None, listed=list(rows.values()))
+    why = ""
+except VE as e:
+    why = str(e)
+check("negative: approving it is refused: OpenBao manages it", "managed by OpenBao" in why, why)
 
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

@@ -13,6 +13,7 @@ from fabriclib.common.dot_query import dot_query
 from fabriclib.common.paths import CERT_RENEWAL_FILE, DB_ROTATION_FILE, ISSUED_CERTS_FILE
 from fabriclib.common.sudo_owner import sudo_owner
 from fabriclib.consent.allowed_to_change import allowed_to_change
+from fabriclib.consent.plan_local_admin import plan_local_admin
 from fabriclib.consent.plan_trust import plan_trust
 from fabriclib.dns.common.landing_names import landing_names
 from fabriclib.federation.common.load_registry import load_registry
@@ -23,7 +24,9 @@ from fabriclib.ntp.time_status import time_status
 from fabriclib.pki.cert_warnings import cert_warnings
 from fabriclib.breakglass.break_glass_reminder import break_glass_reminder
 from fabriclib.hostaccounts.local_account_reminders import local_account_reminders
+from fabriclib.localadmin.local_admin_checks import local_admin_checks
 from fabriclib.pki.common.cert_names import cert_names
+from fabriclib.common.errors import ValidationError
 from fabriclib.setup.errors import SetupError
 from fabriclib.system.relaxed_settings import relaxed_settings
 from fabriclib.vault.vault_status import vault_status
@@ -235,6 +238,10 @@ def checks(ctx):
     if v.get("install_keycloak"):           # Keycloak's database password, rotated monthly by OpenBao (2.1.7.4)
         add("Keycloak's database password: rotated by OpenBao in the last 40 days",
             *_db_rotation(os.path.join(archive, "db-rotation.json")))
+    # the host's local-admin while its host change is approved (2.1.7.16, manual 1.7.1.4.7)
+    approved = allowed_to_change(ctx.config_dir, "local_admin", plan_local_admin(v))
+    for row in local_admin_checks(v, ctx.config_dir, approved)["checks"]:
+        add(*row)
     failing = [w["what"] for w in cert_warnings(v, **_records(archive)) if w["level"] == "fail"]
     add("certificates: renewal working, none about to expire (2.1.5.4)", not failing, "; ".join(failing))
     for unit in ("bind9", "stepca", "nginx", "samba", "postgres", "keycloak", "openbao", "kea", "freeradius",
@@ -255,10 +262,16 @@ def run(ctx):
              it had, for what is coming with the certificates (cert_warnings) and, while it is on the host, for the
              break-glass password's file (break_glass_reminder, 2.1.6.69) and for each local administrator account
              neither managed nor approved (local_account_reminders, 2.1.6.78).
-    Fails:   SetupError("<n> check(s) failed"); exceptions from checks propagate.
+    Fails:   SetupError("<n> check(s) failed"); with OpenBao locked (checks' ValidationError) that one failed check
+             is printed instead and the warnings still follow (a rotation waiting for OpenBao, 2.1.7.20); other
+             exceptions from checks propagate.
     Feeds:   setup step `verify`, run by run_setup via STEPS; run_setup main for `fabricctl doctor`."""
     failed = 0
-    for name, passed, detail in checks(ctx):
+    try:
+        rows = checks(ctx)
+    except ValidationError as e:        # OpenBao locked: fabric's secrets unreadable; the warnings below still show
+        rows = [("fabric's secrets readable (OpenBao unlocked): the other checks need them", False, str(e))]
+    for name, passed, detail in rows:
         (ok if passed else err)(f"{name}" + (f" — {detail}" if detail else ""))
         failed += not passed
     # sign-in layers lowered with `fabricctl security lower` stay in view until raised again (2.1.6.24), and the
@@ -274,5 +287,8 @@ def run(ctx):
         warn(reminder["text"])
     for row in local_account_reminders(ctx.config_dir):     # until removed or approved (2.1.6.78)
         warn(row["text"])
+    # a rotation waiting (2.1.7.20); SSH on until its alert is acknowledged (2.1.7.21)
+    for text in local_admin_checks(ctx.vars, ctx.config_dir, False)["warnings"]:
+        warn(text)
     if failed:
         raise SetupError(f"{failed} check(s) failed")

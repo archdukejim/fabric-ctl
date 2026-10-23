@@ -4,6 +4,7 @@ from agent.post_directory import post_directory
 from agent.post_dhcp import post_dhcp
 from agent.post_domain import post_domain
 from agent.post_host_access import post_host_access
+from agent.post_local_admin import post_local_admin
 from agent.post_dns import post_dns
 from agent.post_dns_filter import post_dns_filter
 from agent.post_groups import post_groups
@@ -81,6 +82,8 @@ def post_route(route, actor, data, perms, session=None):
         return post_account(route, caller, data, session)
     if area == ["pending"]:                         # Apply per page (1.8.6.5): held, reviewed, applied as a job
         return post_pending(route, actor, data, perms, session)
+    if area == ["local-admin"]:                     # the DC host's break glass: the Enterprise Admin's alone
+        return post_local_admin(route, actor, data, caller)
     owner = actor if perms is not None else None    # a job is read by whoever started it (root: any)
     if area == ["settings"]:                        # the setup wizard (1.8.5): a plan, its apply as a job
         return post_settings(route, actor, data, owner)

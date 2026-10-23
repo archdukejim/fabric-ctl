@@ -3,7 +3,7 @@ file	fabricctl-agent|src/agent/get_route.py	1
 file	fabricctl-agent|src/agent/handler.py	2	
 file	fabricctl-agent|src/agent/job_store.py	16	
 file	fabricctl-agent|src/agent/one_thing.py	35	
-file	fabricctl-agent|src/agent/pending_store.py	32	
+file	fabricctl-agent|src/agent/pending_store.py	36	
 file	fabricctl-agent|src/agent/pending_thing.py	33	
 file	fabricctl-agent|src/agent/plan_store.py	25	
 file	fabricctl-agent|src/agent/post_account.py	28	
@@ -15,6 +15,7 @@ file	fabricctl-agent|src/agent/post_domain.py	14
 file	fabricctl-agent|src/agent/post_grants.py	27	
 file	fabricctl-agent|src/agent/post_groups.py	29	
 file	fabricctl-agent|src/agent/post_host_access.py	18	
+file	fabricctl-agent|src/agent/post_local_admin.py	32	
 file	fabricctl-agent|src/agent/post_network.py	6	
 file	fabricctl-agent|src/agent/post_ous.py	30	
 file	fabricctl-agent|src/agent/post_pending.py	34	
@@ -45,7 +46,7 @@ file	fabricctl-jinja|src/containers/freeradius/record_fingerprint.py	8
 file	fabricctl-jinja|src/containers/samba/access_policy.py	102	
 file	fabricctl-jinja|src/containers/samba/acl_entries.py	63	
 file	fabricctl-jinja|src/containers/samba/ad_sites.py	142	
-file	fabricctl-jinja|src/containers/samba/ad_time.py	139	
+file	fabricctl-jinja|src/containers/samba/ad_time.py	143	
 file	fabricctl-jinja|src/containers/samba/add_group_member.py	29	
 file	fabricctl-jinja|src/containers/samba/add_sudo_rule.py	75	
 file	fabricctl-jinja|src/containers/samba/admin_gpo.py	49	
@@ -114,6 +115,8 @@ file	fabricctl-jinja|src/containers/samba/list_ous.py	127
 file	fabricctl-jinja|src/containers/samba/list_people.py	32	
 file	fabricctl-jinja|src/containers/samba/list_spns.py	128	
 file	fabricctl-jinja|src/containers/samba/list_sudo_rules.py	83	
+file	fabricctl-jinja|src/containers/samba/local_admin_store.py	138	
+file	fabricctl-jinja|src/containers/samba/local_admin_tool.py	139	
 file	fabricctl-jinja|src/containers/samba/logon_groups.py	84	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/logon_rights_policy.py	20	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/managed_groups.py	129	
@@ -122,7 +125,7 @@ file	fabricctl-jinja|src/containers/samba/open_samdb.py	21
 file	fabricctl-jinja|src/containers/samba/order_gpo_links.py	112	
 file	fabricctl-jinja|src/containers/samba/ou_paths.py	131	
 file	fabricctl-jinja|src/containers/samba/paths.py	35	
-file	fabricctl-jinja|src/containers/samba/person_record.py	138	
+file	fabricctl-jinja|src/containers/samba/person_record.py	144	
 file	fabricctl-jinja|src/containers/samba/place_fabric_host.py	91	
 file	fabricctl-jinja|src/containers/samba/policy_entries.py	52	
 file	fabricctl-jinja|src/containers/samba/protect_top_tier.py	97	
@@ -218,6 +221,7 @@ file	fabriclib-consent|src/fabriclib/consent/load_consent.py	6
 file	fabriclib-consent|src/fabriclib/consent/plan_accounts.py	7	
 file	fabriclib-consent|src/fabriclib/consent/plan_firewall.py	8	
 file	fabriclib-consent|src/fabriclib/consent/plan_host_changes.py	9	
+file	fabriclib-consent|src/fabriclib/consent/plan_local_admin.py	24	
 file	fabriclib-consent|src/fabriclib/consent/plan_member.py	22	
 file	fabriclib-consent|src/fabriclib/consent/plan_own_rules.py	19	
 file	fabriclib-consent|src/fabriclib/consent/plan_packages.py	10	
@@ -595,6 +599,32 @@ file	fabriclib-ldap|src/fabriclib/ldap/run_directory_command.py	21	0.5.0 / 2026-
 file	fabriclib-ldap|src/fabriclib/ldap/seed_directory.py	22	0.5.0 / 2026-10-04
 file	fabriclib-ldap|src/fabriclib/ldap/update_device.py	23	0.5.0 / 2026-10-04
 file	fabriclib-ldap|src/fabriclib/ldap/update_role.py	24	0.5.0 / 2026-10-04
+file	fabriclib-localadmin|src/fabriclib/localadmin/ack_local_admin_ssh.py	26	
+file	fabriclib-localadmin|src/fabriclib/localadmin/apply_local_admin_ssh.py	1	
+file	fabriclib-localadmin|src/fabriclib/localadmin/check_local_admin.py	2	
+file	fabriclib-localadmin|src/fabriclib/localadmin/checkout_local_admin.py	3	
+file	fabriclib-localadmin|src/fabriclib/localadmin/common/account_exists.py	4	
+file	fabriclib-localadmin|src/fabriclib/localadmin/common/admin_group.py	5	
+file	fabriclib-localadmin|src/fabriclib/localadmin/common/bao_call.py	6	
+file	fabriclib-localadmin|src/fabriclib/localadmin/common/local_admin_token.py	7	
+file	fabriclib-localadmin|src/fabriclib/localadmin/common/rotation_due.py	8	
+file	fabriclib-localadmin|src/fabriclib/localadmin/common/utc_now.py	9	
+file	fabriclib-localadmin|src/fabriclib/localadmin/ensure_local_admin.py	10	
+file	fabriclib-localadmin|src/fabriclib/localadmin/ensure_local_admin_store.py	11	
+file	fabriclib-localadmin|src/fabriclib/localadmin/find_local_admin_uses.py	12	
+file	fabriclib-localadmin|src/fabriclib/localadmin/local_admin_checks.py	13	
+file	fabriclib-localadmin|src/fabriclib/localadmin/local_admin_request.py	14	
+file	fabriclib-localadmin|src/fabriclib/localadmin/local_admin_status.py	15	
+file	fabriclib-localadmin|src/fabriclib/localadmin/read_local_admin_secret.py	16	
+file	fabriclib-localadmin|src/fabriclib/localadmin/read_ssh_switch.py	17	
+file	fabriclib-localadmin|src/fabriclib/localadmin/record.py	18	
+file	fabriclib-localadmin|src/fabriclib/localadmin/remove_local_admin.py	19	
+file	fabriclib-localadmin|src/fabriclib/localadmin/require_enterprise_admin.py	20	
+file	fabriclib-localadmin|src/fabriclib/localadmin/run_local_admin_command.py	21	
+file	fabriclib-localadmin|src/fabriclib/localadmin/secret_path.py	22	
+file	fabriclib-localadmin|src/fabriclib/localadmin/set_local_admin_password.py	23	
+file	fabriclib-localadmin|src/fabriclib/localadmin/set_local_admin_policy.py	24	
+file	fabriclib-localadmin|src/fabriclib/localadmin/set_local_admin_ssh.py	25	
 file	fabriclib-logs|src/fabriclib/logs/deploy_fluentbit.py	1	
 file	fabriclib-logs|src/fabriclib/logs/fluentbit_pending.py	4	
 file	fabriclib-logs|src/fabriclib/logs/log_status.py	2	
@@ -809,6 +839,7 @@ file	fabriclib-setup|src/fabriclib/setup/common/read_vars_file.py	102
 file	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py	52	
 file	fabriclib-setup|src/fabriclib/setup/common/renew_days.py	79	
 file	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py	7	
+file	fabriclib-setup|src/fabriclib/setup/common/sshd_check.py	104	
 file	fabriclib-setup|src/fabriclib/setup/common/sync_host_managed.py	80	
 file	fabriclib-setup|src/fabriclib/setup/common/valid_setting.py	73	
 file	fabriclib-setup|src/fabriclib/setup/condition_host.py	8	
@@ -857,6 +888,7 @@ file	fabriclib-setup|src/fabriclib/setup/run_setup.py	28
 file	fabriclib-setup|src/fabriclib/setup/run_steps.py	98	
 file	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py	29	
 file	fabriclib-setup|src/fabriclib/setup/set_ram_capacity.py	47	
+file	fabriclib-setup|src/fabriclib/setup/setup_local_admin.py	105	
 file	fabriclib-setup|src/fabriclib/setup/setup_openbao.py	30	
 file	fabriclib-setup|src/fabriclib/setup/stage_source.py	31	
 file	fabriclib-setup|src/fabriclib/setup/start_bootstrap.py	32	
@@ -1241,6 +1273,7 @@ function	fabricctl-agent|src/agent/post_domain.py|post_domain	1
 function	fabricctl-agent|src/agent/post_grants.py|post_grants	1	
 function	fabricctl-agent|src/agent/post_groups.py|post_groups	1	
 function	fabricctl-agent|src/agent/post_host_access.py|post_host_access	1	
+function	fabricctl-agent|src/agent/post_local_admin.py|post_local_admin	1	
 function	fabricctl-agent|src/agent/post_network.py|post_network	1	
 function	fabricctl-agent|src/agent/post_ous.py|post_ous	1	
 function	fabricctl-agent|src/agent/post_pending.py|_finish	2	
@@ -1477,6 +1510,14 @@ function	fabricctl-jinja|src/containers/samba/list_people.py|_site	2	0.7.2 / 202
 function	fabricctl-jinja|src/containers/samba/list_people.py|list_people	3	
 function	fabricctl-jinja|src/containers/samba/list_spns.py|list_spns	1	
 function	fabricctl-jinja|src/containers/samba/list_sudo_rules.py|list_sudo_rules	1	
+function	fabricctl-jinja|src/containers/samba/local_admin_store.py|_cn	2	
+function	fabricctl-jinja|src/containers/samba/local_admin_store.py|_replace	5	
+function	fabricctl-jinja|src/containers/samba/local_admin_store.py|ack_switch	6	
+function	fabricctl-jinja|src/containers/samba/local_admin_store.py|read_switch	3	
+function	fabricctl-jinja|src/containers/samba/local_admin_store.py|store_dn	1	
+function	fabricctl-jinja|src/containers/samba/local_admin_store.py|write_switch	4	
+function	fabricctl-jinja|src/containers/samba/local_admin_tool.py|_is_dc	1	
+function	fabricctl-jinja|src/containers/samba/local_admin_tool.py|run	2	
 function	fabricctl-jinja|src/containers/samba/logon_groups.py|logon_groups	1	0.7.2 / 2026-10-19
 function	fabricctl-jinja|src/containers/samba/logon_rights_policy.py|logon_rights_policy	1	0.7.2 / 2026-10-19
 function	fabricctl-jinja|src/containers/samba/managed_groups.py|managed_groups	1	
@@ -1649,6 +1690,7 @@ function	fabriclib-consent|src/fabriclib/consent/plan_accounts.py|_user_uid	3
 function	fabriclib-consent|src/fabriclib/consent/plan_accounts.py|plan_accounts	6	
 function	fabriclib-consent|src/fabriclib/consent/plan_firewall.py|plan_firewall	1	
 function	fabriclib-consent|src/fabriclib/consent/plan_host_changes.py|plan_host_changes	1	
+function	fabriclib-consent|src/fabriclib/consent/plan_local_admin.py|plan_local_admin	1	
 function	fabriclib-consent|src/fabriclib/consent/plan_member.py|_packages	2	
 function	fabriclib-consent|src/fabriclib/consent/plan_member.py|plan_member	1	
 function	fabriclib-consent|src/fabriclib/consent/plan_own_rules.py|plan_own_rules	1	
@@ -2162,6 +2204,44 @@ function	fabriclib-ldap|src/fabriclib/ldap/run_directory_command.py|run_director
 function	fabriclib-ldap|src/fabriclib/ldap/seed_directory.py|seed_directory	1	0.5.0 / 2026-10-04
 function	fabriclib-ldap|src/fabriclib/ldap/update_device.py|update_device	1	0.5.0 / 2026-10-04
 function	fabriclib-ldap|src/fabriclib/ldap/update_role.py|update_role	1	0.5.0 / 2026-10-04
+function	fabriclib-localadmin|src/fabriclib/localadmin/ack_local_admin_ssh.py|ack_local_admin_ssh	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/apply_local_admin_ssh.py|_read	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/apply_local_admin_ssh.py|_write	2	
+function	fabriclib-localadmin|src/fabriclib/localadmin/apply_local_admin_ssh.py|apply_local_admin_ssh	3	
+function	fabriclib-localadmin|src/fabriclib/localadmin/check_local_admin.py|_sync_ssh	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/check_local_admin.py|check_local_admin	2	
+function	fabriclib-localadmin|src/fabriclib/localadmin/checkout_local_admin.py|checkout_local_admin	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/common/account_exists.py|account_exists	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/common/admin_group.py|admin_group	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/common/bao_call.py|bao_call	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/common/local_admin_token.py|local_admin_token	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/common/rotation_due.py|rotation_due	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/common/utc_now.py|parse_time	2	
+function	fabriclib-localadmin|src/fabriclib/localadmin/common/utc_now.py|utc_now	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/ensure_local_admin.py|_useradd	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/ensure_local_admin.py|ensure_local_admin	2	
+function	fabriclib-localadmin|src/fabriclib/localadmin/ensure_local_admin_store.py|_call	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/ensure_local_admin_store.py|ensure_local_admin_store	2	
+function	fabriclib-localadmin|src/fabriclib/localadmin/find_local_admin_uses.py|_journal	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/find_local_admin_uses.py|_wtmp	2	
+function	fabriclib-localadmin|src/fabriclib/localadmin/find_local_admin_uses.py|find_local_admin_uses	3	
+function	fabriclib-localadmin|src/fabriclib/localadmin/local_admin_checks.py|local_admin_checks	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/local_admin_request.py|local_admin_request	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/local_admin_status.py|local_admin_status	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/read_local_admin_secret.py|read_local_admin_secret	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/read_ssh_switch.py|read_ssh_switch	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/record.py|load_record	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/record.py|save_record	2	
+function	fabriclib-localadmin|src/fabriclib/localadmin/remove_local_admin.py|_userdel	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/remove_local_admin.py|remove_local_admin	2	
+function	fabriclib-localadmin|src/fabriclib/localadmin/require_enterprise_admin.py|require_enterprise_admin	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/run_local_admin_command.py|_print_status	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/run_local_admin_command.py|run_local_admin_command	2	
+function	fabriclib-localadmin|src/fabriclib/localadmin/secret_path.py|secret_path	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/set_local_admin_password.py|_chpasswd	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/set_local_admin_password.py|set_local_admin_password	2	
+function	fabriclib-localadmin|src/fabriclib/localadmin/set_local_admin_policy.py|set_local_admin_policy	1	
+function	fabriclib-localadmin|src/fabriclib/localadmin/set_local_admin_ssh.py|set_local_admin_ssh	1	
 function	fabriclib-logs|src/fabriclib/logs/deploy_fluentbit.py|_write	1	
 function	fabriclib-logs|src/fabriclib/logs/deploy_fluentbit.py|deploy_fluentbit	2	
 function	fabriclib-logs|src/fabriclib/logs/fluentbit_pending.py|fluentbit_pending	1	
@@ -2301,6 +2381,7 @@ function	fabriclib-samba|src/fabriclib/samba/domain_id_blocks.py|domain_id_block
 function	fabriclib-samba|src/fabriclib/samba/domain_overview.py|domain_overview	1	
 function	fabriclib-samba|src/fabriclib/samba/domain_sites.py|domain_sites	1	
 function	fabriclib-samba|src/fabriclib/samba/domain_status.py|_dc	1	
+function	fabriclib-samba|src/fabriclib/samba/domain_status.py|_ssh_on	3	
 function	fabriclib-samba|src/fabriclib/samba/domain_status.py|domain_status	2	
 function	fabriclib-samba|src/fabriclib/samba/finish_join.py|finish_join	1	
 function	fabriclib-samba|src/fabriclib/samba/gpo_overview.py|gpo_overview	1	
@@ -2462,7 +2543,7 @@ function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_pam_w
 function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_pam_without	4	
 function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_read	1	
 function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_reload	6	
-function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_sshd_check	5	
+function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_sshd_check	5	0.8.0 / 2026-10-22
 function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_write	2	
 function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|apply_host_managed	7	
 function	fabriclib-setup|src/fabriclib/setup/common/apt_install.py|apt_install	1	
@@ -2491,6 +2572,7 @@ function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|_sudo
 function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|render_member_files	2	
 function	fabriclib-setup|src/fabriclib/setup/common/renew_days.py|renew_days	1	
 function	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py|service_account_name	1	
+function	fabriclib-setup|src/fabriclib/setup/common/sshd_check.py|sshd_check	1	
 function	fabriclib-setup|src/fabriclib/setup/common/sync_host_managed.py|sync_host_managed	1	
 function	fabriclib-setup|src/fabriclib/setup/common/valid_setting.py|valid_setting	1	
 function	fabriclib-setup|src/fabriclib/setup/condition_host.py|_apt_install	1	0.7.0 / 2026-10-12
@@ -2609,6 +2691,7 @@ function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|_show_plan
 function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|run_uninstall_command	4	
 function	fabriclib-setup|src/fabriclib/setup/set_ram_capacity.py|_plan	1	
 function	fabriclib-setup|src/fabriclib/setup/set_ram_capacity.py|set_ram_capacity	2	
+function	fabriclib-setup|src/fabriclib/setup/setup_local_admin.py|run	1	
 function	fabriclib-setup|src/fabriclib/setup/setup_openbao.py|_save_recovery	1	
 function	fabriclib-setup|src/fabriclib/setup/setup_openbao.py|run	2	
 function	fabriclib-setup|src/fabriclib/setup/stage_source.py|stage_source	1	
@@ -3153,6 +3236,7 @@ page	fabriclib-hostaccounts	35
 page	fabriclib-images	13	
 page	fabriclib-keycloak	14	
 page	fabriclib-ldap	15	0.5.0 / 2026-10-04
+page	fabriclib-localadmin	39	
 page	fabriclib-logs	16	
 page	fabriclib-menu	17	
 page	fabriclib-ntp	18	

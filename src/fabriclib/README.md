@@ -11,6 +11,7 @@ and import as `fabriclib.<domain>.<file>`.
 | [system/](system/) | Version, service status, apply |
 | [breakglass/](breakglass/) | `fabric-admin`, the Enterprise Admin and break glass: its generated password, its one file, the reminder, the reset |
 | [hostaccounts/](hostaccounts/) | A DC host's local root and administrator accounts: listed, reminded of, approved as break glass |
+| [localadmin/](localadmin/) | The fabric host's local-admin: its password set and kept by OpenBao, rotated after use, checked out, SSH switch |
 | [grants/](grants/) | Grants: who may do what, where, by overlapping groups; compiled into groups, GPOs and sudo rules inside the DC (manual 1.6.13) |
 | [access/](access/) | fabric-agent's check of who may do what: the tiers, the grants' people and machines rights, a group's two levels; decided inside the DC (manual 1.6.12.17) |
 | [domain/](domain/) | Domain management: a person's details and lockout, groups and their managers, the admins' OUs, a computer's folder, type and sites, keytabs, Kerberos, a person's own password (manual 1.6.12.17) |

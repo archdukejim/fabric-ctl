@@ -22,6 +22,7 @@ One decision per topic: what was decided, the chapters it shapes, when and by wh
 - [2.1.14 Decisions: Container images](2.1.14-images.md)
 - [2.1.15 Decisions: Log forwarding: Fluent Bit](2.1.15-logs.md)
 - [2.1.16 Decisions: Disk encryption](2.1.16-disk-encryption.md)
+- [2.1.18 Decisions: STIG compliance](2.1.18-stig.md)
 
 Nothing yet for 2.1.17 (it follows chapter 1.17).
 
@@ -32,7 +33,7 @@ Symptoms, causes and fixes.
 - [2.2.6 Keycloak and the directory](2.2.6-keycloak-gotchas.md)
 - [2.2.8 The web UI](2.2.8-webui-troubleshooting.md)
 
-Nothing yet for 2.2.1, 2.2.2, 2.2.3, 2.2.4, 2.2.5, 2.2.7, 2.2.9, 2.2.10, 2.2.11, 2.2.12, 2.2.13, 2.2.14, 2.2.15, 2.2.16, 2.2.17 (they follow chapters 1.1, 1.2, 1.3, 1.4, 1.5, 1.7, 1.9, 1.10, 1.11, 1.12, 1.13, 1.14, 1.15, 1.16, 1.17).
+Nothing yet for 2.2.1, 2.2.2, 2.2.3, 2.2.4, 2.2.5, 2.2.7, 2.2.9, 2.2.10, 2.2.11, 2.2.12, 2.2.13, 2.2.14, 2.2.15, 2.2.16, 2.2.17, 2.2.18 (they follow chapters 1.1, 1.2, 1.3, 1.4, 1.5, 1.7, 1.9, 1.10, 1.11, 1.12, 1.13, 1.14, 1.15, 1.16, 1.17, 1.18).
 
 ## 2.3 Engineering notes
 
@@ -50,6 +51,7 @@ Trade-offs, blockers, investigations, test results and history.
 - [2.3.11 Notes: 802.1X: FreeRADIUS](2.3.11-radius-notes.md)
 - [2.3.12 Notes: The DNS filter](2.3.12-dns-filter-notes.md)
 - [2.3.14 Notes: Container images](2.3.14-image-notes.md)
+- [2.3.18 Notes: STIG compliance](2.3.18-stig-notes.md)
 
 Nothing yet for 2.3.3, 2.3.13, 2.3.15, 2.3.16, 2.3.17 (they follow chapters 1.3, 1.13, 1.15, 1.16, 1.17).
 

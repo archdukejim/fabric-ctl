@@ -46,6 +46,10 @@ GROUPS = {
                "title": "This host as a member of its domain", "level": "recommended", "step": "member",
                "declined": "this host is not a member of its domain: fabric admins sign in to it with local accounts "
                            "only, and sudo here does not follow the domain's rules"},
+    "local_admin": {"question": "(Break glass) Make this host's local-admin, its password kept by OpenBao",
+                    "title": "This host's local-admin", "level": "recommended", "step": "localadmin",
+                    "declined": "this host has no local-admin kept by OpenBao: its break glass is the account that "
+                                "ran setup, or another local administrator you keep yourself"},
 }
 
 # A group later split into several (2.1.2.14): an install whose answers predate the split (it has no answer for

@@ -16,13 +16,15 @@ $ErrorActionPreference = 'Stop'
 $Switch = 'fabric-lab'
 $Nat = 'fabric-lab-nat'
 $Names = 'g23-vm-ub24-1', 'g23-vm-ub26-1', 'g23-vm-ub26-2', 'g23-vm-pve9-1', 'g23-vm-kub26-1',
-         'g23-vm-ws25-1', 'g23-vm-w11-1'
+         'g23-vm-ws25-1', 'g23-vm-w11-1', 'g23-vm-rtr-1', 'g23-vm-auth-1', 'g23-vm-ub24-2'
+$Private = 'fabric-lab-vlan', 'fabric-8021x-p1', 'fabric-8021x-p2', 'fabric-8021x-p3'
 
 $vms = Get-VM -ErrorAction SilentlyContinue | Where-Object { $Names -contains $_.Name }
 Write-Host 'This removes:'
 $vms | ForEach-Object { Write-Host "  VM $($_.Name) and its disks" }
 if (Get-NetNat -Name $Nat -ErrorAction SilentlyContinue) { Write-Host "  NAT $Nat" }
 if (Get-VMSwitch -Name $Switch -ErrorAction SilentlyContinue) { Write-Host "  switch $Switch (and its host address)" }
+$Private | Where-Object { Get-VMSwitch -Name $_ -ErrorAction SilentlyContinue } | ForEach-Object { Write-Host "  private switch $_" }
 if (-not $Yes) {
     if ((Read-Host 'Remove all of this? (yes/no)') -ne 'yes') { Write-Host 'Nothing removed.'; return }
 }
@@ -35,3 +37,6 @@ foreach ($vm in $vms) {
 }
 if (Get-NetNat -Name $Nat -ErrorAction SilentlyContinue) { Remove-NetNat -Name $Nat -Confirm:$false; Write-Host "  removed NAT $Nat" }
 if (Get-VMSwitch -Name $Switch -ErrorAction SilentlyContinue) { Remove-VMSwitch -Name $Switch -Force; Write-Host "  removed switch $Switch" }
+foreach ($name in $Private) {
+    if (Get-VMSwitch -Name $name -ErrorAction SilentlyContinue) { Remove-VMSwitch -Name $name -Force; Write-Host "  removed private switch $name" }
+}
