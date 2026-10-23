@@ -21,7 +21,7 @@ docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	8ff2081001d4780b4be5c1561a75a6afca19c783	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
-docs/volume_1_description_and_architecture/1.1.4-roadmap.md	d2fda162364a54650e1ae046a802c98c309ecb6e	2026-10-23	
+docs/volume_1_description_and_architecture/1.1.4-roadmap.md	c75b8bf1a80f45df254c190e72d98c61ab63c8de	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	7cc73759f86c7ce4ca7e2d58b7d1cc0db4cb9a64	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	c376feda6e17998f6aa6b2d9c85823f6b00ba89e	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
@@ -78,9 +78,9 @@ docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	e9b47dab1
 docs/volume_1_description_and_architecture/1.17.7-fabriclib-core.md	287e5a946064faecbdb0262ece385ff0e043036c	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	1b328423d29941acc269f0096bb05872df59ca28	2026-10-21	
 docs/volume_1_description_and_architecture/1.17.9-fabriclib-dhcp.md	5155c8faea49f616265c3020b5e90f935985c28c	2026-10-17	
-docs/volume_1_description_and_architecture/1.18.1-stig-scope.md	e9caab1302ecdf1c2212ea8676a61cca1a6ec020	2026-10-23	
-docs/volume_1_description_and_architecture/1.18.2-stig-checklist.md	d6eda99a2eaa1cd22eaa0df72903ad6f44c2bd84	2026-10-23	
-docs/volume_1_description_and_architecture/1.18.3-stig-gpo-baselines.md	3c28fb0cf75d12af20dd24846221735cb2ff7857	2026-10-23	
+docs/volume_1_description_and_architecture/1.18.1-stig-scope.md	e830c288f59acf8d6099480d1ccaec9a29736e79	2026-10-23	
+docs/volume_1_description_and_architecture/1.18.2-stig-checklist.md	083c19d85063bebcb758b6689cab17611c888168	2026-10-23	
+docs/volume_1_description_and_architecture/1.18.3-stig-gpo-baselines.md	2d29a4fb72d15a92f7f142d0fc3dfa61fe8704c0	2026-10-23	
 docs/volume_1_description_and_architecture/1.2.1-topology.md	93eb5885bd1c51cc6545c5a5ebd269cf6a36173d	2026-10-10	
 docs/volume_1_description_and_architecture/1.2.10-global.md	5534a46e259bcd499006919750da778ed47dad63	2026-10-09	
 docs/volume_1_description_and_architecture/1.2.11-networking.md	e5e539a25342b54f7c49833226c73f0646beb8e5	2026-10-09	
@@ -131,8 +131,8 @@ docs/volume_1_description_and_architecture/1.9.7-milestones.md	e58afe5eb9d02da03
 docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	76ed9fc5431bf7f0b86a535bde19011f9a96092a	2026-10-20	
 docs/volume_1_description_and_architecture/README.md	2dd9726b272b131b3e07b1bc7bdaffe869d90a40	2026-10-23	
 docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af7662fdf5684924b409f9a9c	2026-10-23	
-docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	9eecbe86e8ec80322630d711fb4d30bc0541586b	2026-10-23	
-docs/volume_2_engineering_decisions/2.1.1-product.md	b968405b86443a324f9fd63112eef5db0b6fb75c	2026-10-23	
+docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	7f50d27637a48202b4eb6ef2a2446588ccf02159	2026-10-23	
+docs/volume_2_engineering_decisions/2.1.1-product.md	ac3ff05cfa1ef9c996c1b3a9e65536956978dd4c	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	d2f651c94dba5302552170cee89cc3bc6f73769a	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	139ff5b3ecce15085a60e2ef8443933896633b00	2026-10-12	
@@ -140,7 +140,7 @@ docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece9
 docs/volume_2_engineering_decisions/2.1.14-images.md	bb4339ff3bef36d06c8650ef117bd57b6d9fe354	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.15-logs.md	b3fb9286ea0a6760a0ab597950d771e6cc305633	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.16-disk-encryption.md	2c5f6832b676ea44d7f5e8a76a4717b35f4d3cd6	2026-10-08	
-docs/volume_2_engineering_decisions/2.1.18-stig.md	e7db9836edf284aa2e5118c22a0b8f813d3f1349	2026-10-23	
+docs/volume_2_engineering_decisions/2.1.18-stig.md	1c83b035548437109b09db17fa962aaa8649aa2a	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.2-architecture.md	e8275903e317df3b280ad3603c7c6b5ef21ea279	2026-10-17	
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	58090998c7ae665ec0d5fb4e3d8549c97d4475d5	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.4-dns.md	bee8ed6231cdd939a30ffdb20279e79f1046d477	2026-10-23	
@@ -156,7 +156,7 @@ docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd03977
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
-docs/volume_2_engineering_decisions/2.3.18-stig-notes.md	fd669c2e1b70ab6f8741dc45019b4a4f9f2ff605	2026-10-23	
+docs/volume_2_engineering_decisions/2.3.18-stig-notes.md	0b0e31afdbc63b81bb7d8ee748707d8bfe96f64a	2026-10-23	
 docs/volume_2_engineering_decisions/2.3.2-architecture-notes.md	286af670daed816e42ccac86591235b781c6607a	2026-10-17	
 docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f4878a6c708a9f55be4	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a9aeb2e856f39e5f862e36bf6273c583af26d627	2026-10-11	
