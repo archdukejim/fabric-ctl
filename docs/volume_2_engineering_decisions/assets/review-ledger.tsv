@@ -1,7 +1,7 @@
 # path	blob (git hash-object of the reviewed content)	reviewed (UTC date)	note
-.claude/skills/promote/SKILL.md	25c99aff421e0c790c39d8b6a95f2d725f981c41	2026-10-09	
-.claude/skills/rc/SKILL.md	26569d69dea34abd990b64a9eeec4ccc1f4434aa	2026-10-20	
-.claude/skills/tag/SKILL.md	8901474bc0fd35e6cac0a861c0d52ab02173db95	2026-10-09	
+.claude/skills/promote/SKILL.md	3e83551d498742e3086be31017d8bd2278417889	2026-10-23	
+.claude/skills/rc/SKILL.md	7342cd05a1672ea219dc50d8c42fedccf03d636d	2026-10-23	
+.claude/skills/tag/SKILL.md	d0c5cfd3215155477bdd5f509ecf09fda28a60fb	2026-10-23	
 .gitattributes	f273656c60a04a693192b0bdc27eb5465842e911	2026-09-30	
 .github/workflows/images.yml	74c6608952aff3c029e5bd9dd2ae386123e31817	2026-10-09	
 .github/workflows/lint.yml	6fb8189ef0d87af6ece1858b97c5bac089c01cce	2026-10-08	
@@ -15,10 +15,10 @@ README.md	65a9ba6c0fd26636bcd0fadb811b47fe4dd1dcd7	2026-10-12
 THIRD_PARTY_NOTICES	ff836ec5208f7ac6140740a07186107c63702d24	2026-10-08	
 config/README.md	6300abd255fbbe5a87bd0d83cd9c9dd1c4b8de1f	2026-10-08	
 config/VERSION	a3df0a6959e154733da89a5d6063742ce6d5b851	2026-10-21	
-config/images.lock.yaml	d2296bacca6f9799f6639204fed91aeb7da489e7	2026-10-23	
+config/images.lock.yaml	9ca92312a26f7e4de5a3e5eed7c5e98c381e72f0	2026-10-23	
 config/link-vars-template.yaml	09caaa55680a13015332a468218c99437f67db26	2026-09-30	
 docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23	
-docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	8ff2081001d4780b4be5c1561a75a6afca19c783	2026-10-12	
+docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.4-roadmap.md	d2fda162364a54650e1ae046a802c98c309ecb6e	2026-10-23	
@@ -35,9 +35,9 @@ docs/volume_1_description_and_architecture/1.12.1-adguard.md	b2280752ee06e87cb6e
 docs/volume_1_description_and_architecture/1.12.2-bind-resolver.md	b9e2201fbfc7eb160035e0e86ebf0dc61442d42d	2026-10-21	
 docs/volume_1_description_and_architecture/1.12.3-adguard-behind-bind.md	bfd9198da70910ca3cab9e0620072230fd68d251	2026-10-20	
 docs/volume_1_description_and_architecture/1.13.1-chrony.md	ad072bf9a0b0d7d74c145a8df36599bb4f1aca6e	2026-10-08	
-docs/volume_1_description_and_architecture/1.14.1-image-channels.md	94a12a60defe93ae9bc13a991ae57f8961edd5ca	2026-10-08	
-docs/volume_1_description_and_architecture/1.14.2-image-updates.md	88931374b22febb0a44abbd18e960841b8d3511d	2026-10-14	
-docs/volume_1_description_and_architecture/1.14.3-published-images-on-hosts.md	3862f9cc844d007d5e23e8bf8c1794960a4e9083	2026-10-09	
+docs/volume_1_description_and_architecture/1.14.1-image-channels.md	e8a2588c610300ccdb62867c57ac7afe4d9ab563	2026-10-23	
+docs/volume_1_description_and_architecture/1.14.2-image-updates.md	6ed0a9c2ef5337e257dce7ffc89c4502d0398697	2026-10-23	
+docs/volume_1_description_and_architecture/1.14.3-published-images-on-hosts.md	421014935e9f24e8db4cb27fb17e3d5dd1998d9f	2026-10-23	
 docs/volume_1_description_and_architecture/1.15.1-fluent-bit.md	b1106fe50c3441e51cbd48d61d7fed3746468413	2026-10-21	
 docs/volume_1_description_and_architecture/1.16.1-luks.md	f4b4c1a4dd1ecd389fd2fde6ec3bc00e7f92a738	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.1-about-the-reference.md	6b0b315f02c1a197b2ae64db31a6f0e932b12404	2026-10-17	
@@ -94,7 +94,7 @@ docs/volume_1_description_and_architecture/1.2.6-targets-and-hardening.md	b6bcd9
 docs/volume_1_description_and_architecture/1.2.7-container-inventory.md	32699a0d996b13ad592b94e0ba7f2776b23db5f7	2026-10-12	
 docs/volume_1_description_and_architecture/1.2.8-security-defaults.md	51fb934f70e1688b6ae06a46d31bb5a24ca87c04	2026-10-23	
 docs/volume_1_description_and_architecture/1.2.9-host-consent.md	ebd0867098b38a73312cf991e2ca09da9819e448	2026-10-23	
-docs/volume_1_description_and_architecture/1.3.1-host-package.md	e703469d9b61e94eadbcb61dabc0fcb6ee57728b	2026-10-10	
+docs/volume_1_description_and_architecture/1.3.1-host-package.md	44319278da7cf11a26e05b384c989d9b81f6f40d	2026-10-23	
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	52383cf6f4f78399be173b61a5a6dd3d12cc4c72	2026-10-18	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	cbd82e56bbcb35d614f1c42f58e7042e8f8b8be5	2026-10-23	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	216136a4ae9f7ef241f69b9f933ef47dc9e9493f	2026-10-17	
@@ -132,7 +132,7 @@ docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	76ed9fc5431
 docs/volume_1_description_and_architecture/README.md	2dd9726b272b131b3e07b1bc7bdaffe869d90a40	2026-10-23	
 docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af7662fdf5684924b409f9a9c	2026-10-23	
 docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	9eecbe86e8ec80322630d711fb4d30bc0541586b	2026-10-23	
-docs/volume_2_engineering_decisions/2.1.1-product.md	b968405b86443a324f9fd63112eef5db0b6fb75c	2026-10-23	
+docs/volume_2_engineering_decisions/2.1.1-product.md	5ad58cb99387b12cd0b60ed4b9bef95938503ea1	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	d2f651c94dba5302552170cee89cc3bc6f73769a	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	139ff5b3ecce15085a60e2ef8443933896633b00	2026-10-12	
@@ -177,7 +177,7 @@ docs/volume_3_installation/3.2.1-requirements.md	923daf511f1da0012c84a1d8becb594
 docs/volume_3_installation/3.2.2-docker-from-ubuntu.md	2d7250a68efefe0413b077ee659fa444d40a325a	2026-10-08	
 docs/volume_3_installation/3.2.3-deployed-structure.md	7e6cdc8cf16bfca41ab48a5b0e0dd7d69d0c29a2	2026-10-08	
 docs/volume_3_installation/3.2.4-reinstall-uninstall.md	d3395e834aa318e9342ddf80f1d903ee39dd7b4e	2026-10-23	
-docs/volume_3_installation/3.3.1-running-setup.md	58e99828037dc5039268b1249f77d9236cb24c2d	2026-10-20	
+docs/volume_3_installation/3.3.1-running-setup.md	0e6119eb8e6012a5398045223c7a5ac3c4ad9ed0	2026-10-23	
 docs/volume_3_installation/3.3.2-after-setup.md	35ed4792d55ba7d74779d3bcd998f561b8142509	2026-10-20	
 docs/volume_3_installation/3.3.3-setup-steps.md	06385ddf3a8844517b3d55c399a0af5bae65af77	2026-10-23	
 docs/volume_3_installation/3.3.4-rebuilding.md	89cf47b0a1e0594bdae8b4d684b4111123f5b76b	2026-10-08	
@@ -225,15 +225,15 @@ examples/README.md	8350c988c36d9098f3a1ae7945d585541264ea22	2026-10-03
 examples/vars.yaml	d75182702ec5ab64aa29362d8703ce3b22a03cce	2026-10-12	
 packaging/README.md	f76df13474fd5f9ac5f058f26ec7b5f525952cc2	2026-10-08	
 packaging/apt/README.md	de5eb612b3aaa51cb82a16534249cb53577560ad	2026-10-08	
-packaging/apt/build-repo.sh	fe9a4d9ebb52d057b979398993202a783f9a1d79	2026-10-08	
+packaging/apt/build-repo.sh	585824bb6de697385d181d72d233cedce7e91c9b	2026-10-23	
 packaging/apt/distributions	45650b9be6f1ec092ce622a4d685cfe8e9ef863b	2026-10-08	
 packaging/deb/README.md	1fa3eb30d92ef4e08edb1e68087f2bae4443e6e8	2026-10-08	
 packaging/deb/assemble-tree.sh	31333b83dc4856849fa35f260ae1d4ba6933e9bc	2026-10-09	
 packaging/deb/build-deb.sh	7104ea4b00de477d5b3f8d5f6f1b09d0addf4e72	2026-10-03	
-packaging/deb/control.in	92d9d2cad51cb69d7fb14791edfaf9280d29514f	2026-10-12	
+packaging/deb/control.in	283657bfd89df368a694f6f1a358245d220ee062	2026-10-23	
 packaging/deb/postinst	5c07a59336349fe0697c17073a1a90bb21b6650d	2026-09-30	
 packaging/deb/postrm	629abba3ee55d37bf33183c116baf265d6a84f06	2026-09-30	
-packaging/docker-bake.hcl	a22ffe5f653a4d613841b81f63c98536fb07d3a3	2026-10-09	
+packaging/docker-bake.hcl	d9902a26867ce9345ea9b45799f78541a3b6d5ca	2026-10-23	
 packaging/images/README.md	6ab7581fd6b2dc3a18f6397572740377919a3c40	2026-10-12	
 packaging/images/bake_env.py	cf52a5aef0eb2fb640e64fc09d5340bc3a07227d	2026-10-09	
 packaging/images/bind9/.dockerignore	76683618065e127abc520ec990844339e7677973	2026-09-30	
@@ -293,7 +293,7 @@ scripts/lab/seeds/windows_seed.py	12918ede040016c1a77a286864e4760ce39a14c1	2026-
 scripts/lab/send_key.ps1	c6da9dce920f4a13dea21bbfd18b921354e4d60b	2026-10-23	
 scripts/lab/start_lab.ps1	6aa616380a97df396225b5a0a8f161240aff60b4	2026-10-23	
 scripts/release/README.md	d5379b29f1b78dc46eefe9b1b518555b2236f651	2026-10-08	
-scripts/release/make-apt-key.sh	afc377602ea7f299327f42646cace23cb9c25963	2026-10-08	
+scripts/release/make-apt-key.sh	e236d199325e428705b898f4dce580ffce535684	2026-10-23	
 spikes/README.md	26fd7b7c1c3c71822152c1a713f510d47f6691d1	2026-10-11	
 spikes/dns-engine/README.md	895bb7e3fd683380105a07417022b028c6c658ac	2026-10-11	
 spikes/dns-engine/adguard.py	95786719a486d0aba9863f44092e79011102e56c	2026-10-11	
@@ -1655,7 +1655,7 @@ templates/systemd/fabric-local-admin.service	b63626f7d8bbe64d7ab0b091b757bdcf226
 templates/systemd/fabric-local-admin.timer	e87a33d368f765498ad4c05d8495ca4e6dfd66d0	2026-10-23	
 templates/systemd/fabric-machines.service	ec720a34643c2a0a9f07073419806aafb38957f7	2026-10-20	
 templates/systemd/fabric-machines.timer	f76abc1f0afbcda674d7b02b57dbd8bc36bb65d6	2026-10-12	
-templates/systemd/fabric.target	b3b87d2c8db3fae16df3bbf548e09955f3d1a19e	2026-09-30	
+templates/systemd/fabric.target	66aacb46b73c9b4732b625c0665d8fe6b0464e98	2026-10-23	
 templates/systemd/wrapper.service.j2	3da88d27873cbcd446c3f41cca4309a71217063e	2026-10-08	
 templates/vars.yaml.j2	fef9c0921e39f32149f8966d4e140d8cc80f5c7a	2026-10-21	
 templates/webui-app/README.md	02e17520786df80dc323407a9c1d126d05a96f21	2026-10-17	
@@ -1724,8 +1724,8 @@ tests/hardening/run.sh	1ff8e633bf2f96af2a856b354aa722ffba1c5b00	2026-10-12
 tests/host/README.md	0f05f9377857644ac63ed882945bc5f0470014ec	2026-10-20	
 tests/host/installer.py	1325b71bb385f928797c77607543426b4b393a4f	2026-10-18	
 tests/host/reset_user.py	b7c1bd91fa3c695d62869fb4f536df9c05ce4f9b	2026-10-20	
-tests/host/run.sh	5f0fa2874a88210cb93d106d5848f9376887e26a	2026-10-12	
-tests/host/upgrade.sh	ef30695d9789da6ecb8db3ad19222e819b428076	2026-10-20	
+tests/host/run.sh	295c0f2b07dd8758c94e49a8bd140f62ba5dedc1	2026-10-23	
+tests/host/upgrade.sh	a7d15ddda225dc5e8f1fb5a47418e91e55b04d5b	2026-10-23	
 tests/host/upgrade_from_test.sh	6340c7113afe27f2686a22688d0bfd2d33270511	2026-10-20	
 tests/host/upgrade_state.py	1bb5f5b3ecb71f6cfcc6bb27bfb5cf4e99b905c7	2026-10-20	
 tests/image_ref.py	4ff35451eb0f155eee1efe6209e935e841d0dc32	2026-10-03	
@@ -1733,7 +1733,7 @@ tests/images/README.md	32152577c75918aee5b4d0bfe1f04b2163e75144	2026-10-14
 tests/images/commands.py	3edfd75dfebcf701ef9e44a9dbe64e15cdd95c98	2026-10-12	
 tests/images/host_images.py	88e855ce667d351a3edc1fe87421a5ad687d19e0	2026-10-09	
 tests/images/previous.yaml	7dab3417916065b715c9e904ca412877f7767222	2026-10-12	
-tests/images/published.py	026b34252e88ec9880dbf4b610c0206e23474dc6	2026-10-12	
+tests/images/published.py	6fd100c27ae58d121fa520af046a11649701f8da	2026-10-23	
 tests/images/run.sh	114ca61c413a424062be680b010b4f21a4614fb3	2026-10-14	
 tests/images/switch_image_test.py	6534c1f8fff6b86fcd8b30770dcfeadba574d94c	2026-10-14	
 tests/images/update.sh	075211f0db5332572d6355fbdc507ae98a69c8b8	2026-10-12	
