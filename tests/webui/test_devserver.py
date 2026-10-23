@@ -121,6 +121,14 @@ with serve():
     check(f"every page of the navigation renders ({len(PAGES)})", not bad, bad)
     check("no page carries a script or inline style (the strict CSP; pages work with JavaScript off)",
           not [p for p in PAGES if re.search(r"<script|style=|\son[a-z]+=", get(p))])
+    detail = PAGES + ["/8021x/devices/jims-laptop", "/8021x/roles/iot", "/secrets/secrets", "/dns/zones?view=tsig"]
+    unlabelled = {p: n for p in detail if (n := len(re.findall(r'<span class="light [a-z]*"(?! role="img" '
+                                                                   r'aria-label="[^"]+")', get(p))))}
+    check("every status light says what it means (role=img, aria-label: never colour alone, 1.8.6.3)",
+          not unlabelled, unlabelled)
+    cells = re.findall(r"<td( [^>]*)?>", get("/8021x/devices") + get("/kea") + get("/directory/people"))
+    check("a list's cells carry their column's name (data-label) for the cards a list folds into on a phone",
+          cells and sum("data-label=" in (c or "") for c in cells) >= len(cells) * 0.6, cells[:12])
     page = get("/dns/zones")
     check("the navigation: every entry for the admin, the page shown's entry open with its pages, marked current",
           [label for _, label in nav(page)] == ENTRIES["admin"]

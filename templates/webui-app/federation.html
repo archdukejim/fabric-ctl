@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block body %}
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
 <h1>Federation · Sites and replication</h1>
 <section class="card"><h2>This site <span class="muted">{{ f.site }}</span></h2>
 {% if f.upstream %}<p>A site of <strong>{{ f.upstream.site_name }}</strong> ({{ f.upstream.domain }}){% if f.upstream.relay %}, through {{ f.upstream.relay.site }}{% endif %}.</p>
@@ -8,16 +8,16 @@
 
 <section class="card"><h2>Sites that joined here <span class="muted">{{ f.sites | length }}</span></h2>
 {% if f.sites %}<table><thead><tr><th>Site</th><th>Address</th><th>Domain controller</th><th>Id block</th><th>Joined</th></tr></thead><tbody>
-{% for s in f.sites %}<tr><td><strong>{{ s.name }}</strong><div class="muted small">{{ s.domain }}{% if s.via %} · via {{ s.via }}{% endif %}</div></td>
-<td>{{ s.address }}</td><td>{{ {'writable': 'writable', 'rodc': 'read-only'}.get(s.dc, '—') }}</td><td>{{ s.id_range or '—' }}</td><td>{{ (s.joined or '')[:10] or '—' }}</td></tr>{% endfor %}
+{% for s in f.sites %}<tr><td data-label="Site"><strong>{{ s.name }}</strong><div class="muted small">{{ s.domain }}{% if s.via %} · via {{ s.via }}{% endif %}</div></td>
+<td data-label="Address">{{ s.address }}</td><td data-label="Domain controller">{{ {'writable': 'writable', 'rodc': 'read-only'}.get(s.dc, '—') }}</td><td data-label="Id block">{{ s.id_range or '—' }}</td><td data-label="Joined">{{ (s.joined or '')[:10] or '—' }}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">None.</p>{% endif %}
 </section>
 
 <section class="card"><h2>Replication <span class="muted">this site's domain controller</span></h2>
 {% if f.replication.error %}<p class="flash bad">The domain controller could not be asked: {{ f.replication.error }}</p>
 {% elif f.replication.neighbours %}<table><thead><tr><th></th><th>From</th><th>Partition</th><th>Last success</th><th>Failures</th></tr></thead><tbody>
-{% for n in f.replication.neighbours %}<tr><td><span class="light {{ 'ok' if not n.failures else 'bad' }}"></span></td>
-<td class="small">{{ n['from'] }}</td><td class="small">{{ n.partition }}</td><td>{{ n.last_success or 'never' }}</td><td class="num">{{ n.failures }}{% if n.failures %}<div class="muted small">{{ n.message }}</div>{% endif %}</td></tr>{% endfor %}
+{% for n in f.replication.neighbours %}<tr><td>{{ p.light('ok' if not n.failures else 'bad', 'replicating' if not n.failures else 'failing') }}</td>
+<td class="small" data-label="From">{{ n['from'] }}</td><td class="small" data-label="Partition">{{ n.partition }}</td><td data-label="Last success">{{ n.last_success or 'never' }}</td><td class="num" data-label="Failures">{{ n.failures }}{% if n.failures %}<div class="muted small">{{ n.message }}</div>{% endif %}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">No other domain controller replicates with this one.</p>{% endif %}
 {% if f.conflicts %}<p class="flash bad">{{ f.conflicts | length }} conflict object(s) — the same name was made on two domain controllers while they were apart; resolve each (keep one, delete the other):</p>
 <ul class="small">{% for dn in f.conflicts %}<li><code>{{ dn }}</code></li>{% endfor %}</ul>{% endif %}
@@ -25,7 +25,7 @@
 
 <section class="card"><h2>Limits <span class="muted">what each site may write in the domain</span></h2>
 <table><thead><tr><th>Who</th><th>May write</th><th>Elsewhere</th></tr></thead><tbody>
-{% for who, what, other in f.limits %}<tr><td><code class="small">{{ who }}</code></td><td>{{ what }}</td><td>{{ other or '—' }}</td></tr>{% endfor %}
+{% for who, what, other in f.limits %}<tr><td data-label="Who"><code class="small">{{ who }}</code></td><td data-label="May write">{{ what }}</td><td data-label="Elsewhere">{{ other or '—' }}</td></tr>{% endfor %}
 </tbody></table>
 <p class="muted small">Overrides and access grants between sites come later (manual 1.9.8.9).</p>
 </section>
@@ -33,7 +33,7 @@
 <section class="card"><h2>Address plan <span class="muted">every site's networks</span></h2>
 {% if f.plan_error %}<p class="flash bad">The plan could not be read: {{ f.plan_error }}</p>
 {% elif f.plan %}<table><thead><tr><th>Site</th><th>Network</th><th>Name</th><th>VLAN</th><th>Notes</th></tr></thead><tbody>
-{% for n in f.plan %}<tr><td>{{ n.site }}</td><td><code>{{ n.cidr }}</code></td><td>{{ n.name }}</td><td>{{ n.vlan or '—' }}</td><td>{{ n.notes or '' }}</td></tr>{% endfor %}
+{% for n in f.plan %}<tr><td data-label="Site">{{ n.site }}</td><td data-label="Network"><code>{{ n.cidr }}</code></td><td data-label="Name">{{ n.name }}</td><td data-label="VLAN">{{ n.vlan or '—' }}</td><td data-label="Notes">{{ n.notes or '' }}</td></tr>{% endfor %}
 </tbody></table>
 {% for c in f.overlaps %}<p class="flash {{ 'ok' if c.allowed else 'bad' }}">{{ c.site }}: {{ c.cidr }} overlaps {{ c.other_cidr }} of {{ c.other_site }}{% if c.allowed %} (allowed: {{ c.allowed }}){% endif %}</p>{% endfor %}
 {% else %}<p class="blank">No networks yet.</p>{% endif %}

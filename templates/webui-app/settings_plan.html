@@ -5,7 +5,7 @@ audited, its progress on its own page.</p>
 <section class="card"><h2>What changes</h2>
 {% if plan.changes %}
 <table><thead><tr><th>Setting</th><th>Now</th><th>After</th></tr></thead><tbody>
-{% for c in plan.changes %}<tr><td><code>{{ c.key }}</code></td><td><code>{{ c.old }}</code></td><td><code>{{ c.new }}</code></td></tr>{% endfor %}
+{% for c in plan.changes %}<tr><td data-label="Setting"><code>{{ c.key }}</code></td><td data-label="Now"><code>{{ c.old }}</code></td><td data-label="After"><code>{{ c.new }}</code></td></tr>{% endfor %}
 </tbody></table>
 {% else %}<p>Nothing changes: the settings are already so.</p>{% endif %}
 {% if plan.parts %}<ul>{% for p in plan.parts %}<li>{{ p.service }}: <strong>{{ p.change }}</strong></li>{% endfor %}</ul>{% endif %}
@@ -14,14 +14,14 @@ audited, its progress on its own page.</p>
 <section class="card"><h2>The memory plan</h2>
 <p class="muted">A budget of {{ plan.memory.budget_mb }} MB shared by the services that run.</p>
 <table><thead><tr><th>Service</th><th class="num">Now (MB)</th><th class="num">After (MB)</th></tr></thead><tbody>
-{% for r in plan.memory.rows %}<tr><td>{{ r.service }}</td><td class="num">{{ r.before if r.before is not none else '—' }}</td><td class="num">{{ r.after if r.after is not none else '—' }}</td></tr>{% endfor %}
+{% for r in plan.memory.rows %}<tr><td data-label="Service">{{ r.service }}</td><td class="num" data-label="Now (MB)">{{ r.before if r.before is not none else '—' }}</td><td class="num" data-label="After (MB)">{{ r.after if r.after is not none else '—' }}</td></tr>{% endfor %}
 </tbody></table></section>
 {% endif %}
 {% if plan.ignored %}
 <section class="card"><h2>Ignored</h2>
 <p class="muted">A settings file changes only the wizard's settings; these were in the file and are left as they are.</p>
 <table><thead><tr><th>Key</th><th>Why</th></tr></thead><tbody>
-{% for i in plan.ignored %}<tr><td><code>{{ i.key }}</code></td><td>{{ i.reason }}</td></tr>{% endfor %}
+{% for i in plan.ignored %}<tr><td data-label="Key"><code>{{ i.key }}</code></td><td data-label="Why">{{ i.reason }}</td></tr>{% endfor %}
 </tbody></table></section>
 {% endif %}
 <form method="post" action="/settings/apply" class="apply"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">

@@ -103,9 +103,9 @@
 {% if issued %}
 <table><thead><tr><th>Subject</th><th>Names</th><th>How</th><th>Expires</th><th>By</th>{% if can('pki:revoke') %}<th>Revoke</th>{% endif %}</tr></thead><tbody>
 {% for c in issued %}
-<tr><td>{{ c.subject }}</td><td>{{ (c.sans or []) | join(', ') }}</td><td>{{ {'csr': 'CSR', 'keypair': 'key + cert', 'client': 'client certificate', 'site-ca': 'site CA'}.get(c.kind, c.kind) }}</td>
-<td><span class="pill {{ 'ok' if c.status == 'valid' else ('warn' if c.status == 'expires soon' else 'bad') }}">{{ c.status }}</span> <span class="muted">{{ c.not_after }}</span></td>
-<td>{{ c.actor }} <span class="muted">{{ c.when }}</span></td>{% if can('pki:revoke') %}<td>{% if c.status in ('valid', 'expires soon') %}<form method="post" action="/stepca/revoke"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="target" value="{{ c.serial }}"><select name="reason" aria-label="Reason"><option>unspecified</option><option>keyCompromise</option><option>superseded</option><option>cessationOfOperation</option><option>affiliationChanged</option></select> <button class="danger">Revoke</button></form>{% endif %}</td>{% endif %}</tr>
+<tr><td data-label="Subject">{{ c.subject }}</td><td data-label="Names">{{ (c.sans or []) | join(', ') }}</td><td data-label="How">{{ {'csr': 'CSR', 'keypair': 'key + cert', 'client': 'client certificate', 'site-ca': 'site CA'}.get(c.kind, c.kind) }}</td>
+<td data-label="Expires"><span class="pill {{ 'ok' if c.status == 'valid' else ('warn' if c.status == 'expires soon' else 'bad') }}">{{ c.status }}</span> <span class="muted">{{ c.not_after }}</span></td>
+<td data-label="By">{{ c.actor }} <span class="muted">{{ c.when }}</span></td>{% if can('pki:revoke') %}<td data-label="Revoke">{% if c.status in ('valid', 'expires soon') %}<form method="post" action="/stepca/revoke"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="target" value="{{ c.serial }}"><select name="reason" aria-label="Reason"><option>unspecified</option><option>keyCompromise</option><option>superseded</option><option>cessationOfOperation</option><option>affiliationChanged</option></select> <button class="danger">Revoke</button></form>{% endif %}</td>{% endif %}</tr>
 {% endfor %}</tbody></table>
 {% else %}<p class="blank">Nothing issued by hand yet.</p>{% endif %}
 </section>
@@ -119,7 +119,7 @@
 <p class="muted">A machine without a web server on port 80 proves its name in DNS: its key may change only its own <code>_acme-challenge</code> TXT record.</p>
 {% if acme.machines %}
 <table><thead><tr><th>Machine</th><th>Key</th>{% if can('tsig:manage') %}<th></th>{% endif %}</tr></thead><tbody>
-{% for m in acme.machines %}<tr><td>{{ m.fqdn }}</td><td><code>{{ m.key }}</code></td>{% if can('tsig:manage') %}<td class="num"><form method="post" action="/bind9/tsig/{{ m.key | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger" title="withdraw its key (Apply publishes it)">Withdraw</button></form></td>{% endif %}</tr>{% endfor %}
+{% for m in acme.machines %}<tr><td data-label="Machine">{{ m.fqdn }}</td><td data-label="Key"><code>{{ m.key }}</code></td>{% if can('tsig:manage') %}<td class="num"><form method="post" action="/bind9/tsig/{{ m.key | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger" title="withdraw its key (Apply publishes it)">Withdraw</button></form></td>{% endif %}</tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">No machine enrolled for DNS-01.</p>{% endif %}
 {% if can('tsig:manage') %}
 <form method="post" action="/stepca/acme/enroll" class="grid">

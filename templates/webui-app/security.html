@@ -5,11 +5,11 @@
 stays shown here and in <code>fabricctl doctor</code> until it is raised again.</p>
 <section class="card"><table><thead><tr><th>Layer</th><th>Now</th><th>What it covers</th><th>Raise</th></tr></thead><tbody>
 {% for l in layers if l.layer != 'kerberos' %}
-<tr><td><code>{{ l.layer }}</code></td>
-<td>{{ l.value }}{% if l.layer == 'admin-2fa' and l.effective != l.value %} <span class="muted">(asks for {{ l.effective }}: every sign-in's)</span>{% endif %}
+<tr><td data-label="Layer"><code>{{ l.layer }}</code></td>
+<td data-label="Now">{{ l.value }}{% if l.layer == 'admin-2fa' and l.effective != l.value %} <span class="muted">(asks for {{ l.effective }}: every sign-in's)</span>{% endif %}
 {% if l.lowered %}<br><span class="warn-text">lowered from {{ l.lowered.from }} by {{ l.lowered.by }}, {{ l.lowered.at }}</span>{% endif %}</td>
-<td class="muted">{{ l.what }}</td>
-<td>{% if l.choices %}<form method="post" action="/security/raise"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<td class="muted" data-label="What it covers">{{ l.what }}</td>
+<td data-label="Raise">{% if l.choices %}<form method="post" action="/security/raise"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <input type="hidden" name="layer" value="{{ l.layer }}">
 <select name="value">{% for c in l.choices %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
 <button type="submit">Raise</button></form>{% else %}<span class="muted">highest</span>{% endif %}</td></tr>

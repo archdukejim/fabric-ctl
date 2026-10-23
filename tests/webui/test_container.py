@@ -565,7 +565,7 @@ check("an MX record without its priority is refused, saying why",
 # page's info is the admin's since 0.7.1 (2.1.4.6): not marked, deleted, and added again pointing elsewhere
 st, hd, sc, body = req("GET", "/dns/zones?zone=dynamic_zone_var", ALICE, cookie=session)
 rows = body.split("<tr>")
-mark = {n: any(f"<td>{n} " in r and "provided by fabric" in r for r in rows)
+mark = {n: any(f">{n} " in r and "provided by fabric" in r for r in rows)
         for n in ("pi-core", "ca", "info", "calibre")}
 check("fabric's own names (the host's A, ca) marked 'provided by fabric'; info and the admin's not",
       mark == {"pi-core": True, "ca": True, "info": False, "calibre": False}, mark)

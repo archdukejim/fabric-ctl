@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% from "directory_macros.html" import device_fields, role_fields with context %}{% block body %}
+{% extends "base.html" %}{% import "pattern.html" as p %}{% from "directory_macros.html" import device_fields, role_fields with context %}{% block body %}
 <h1>{{ {"devices": "802.1X · Devices", "device": "802.1X · Device", "roles": "802.1X · Device roles", "role": "802.1X · Device role", "people": "Directory · People", "domain": "Directory · Domain", "machines": "Directory · Machines", "gpo": "Directory · Group Policy"}.get(view, "Directory") }}</h1>
 {% if unavailable %}<section class="card"><p class="flash bad">The directory could not be read: {{ unavailable }}</p></section>
 
@@ -8,11 +8,11 @@
 {% if data.devices %}
 <table><thead><tr><th></th><th>Device</th><th>Type</th><th>MAC</th><th>Owner</th><th>Roles</th><th>Access</th></tr></thead><tbody>
 {% for d in data.devices %}
-<tr><td><span class="light {{ 'ok' if d.enabled else 'bad' }}" role="img" aria-label="{{ 'enabled' if d.enabled else 'disabled' }}" title="{{ 'enabled' if d.enabled else 'disabled' }}"></span></td>
-<td><a href="/8021x/devices/{{ d.name | urlencode }}"><strong>{{ d.name }}</strong></a>{% if d.description %}<div class="muted small">{{ d.description }}</div>{% endif %}</td>
-<td>{{ d.type }}</td><td><code class="small">{{ d.macs | join(' ') or '—' }}</code></td><td>{{ d.owner or '—' }}</td>
-<td>{{ d.roles | join(', ') or '—' }}</td>
-<td class="small">{% if not d.enabled %}<span class="bad-text">disabled</span>{% else %}{% if d.vlan %}VLAN {{ d.vlan }} · {% endif %}{{ d.permissions | length }} permission{{ '' if d.permissions | length == 1 else 's' }}{% endif %}{% if d.certs %} · {{ d.certs | length }} cert{{ '' if d.certs | length == 1 else 's' }}{% endif %}</td></tr>
+<tr><td>{{ p.light('ok' if d.enabled else 'bad', 'enabled' if d.enabled else 'disabled') }}</td>
+<td data-label="Device"><a href="/8021x/devices/{{ d.name | urlencode }}"><strong>{{ d.name }}</strong></a>{% if d.description %}<div class="muted small">{{ d.description }}</div>{% endif %}</td>
+<td data-label="Type">{{ d.type }}</td><td data-label="MAC"><code class="small">{{ d.macs | join(' ') or '—' }}</code></td><td data-label="Owner">{{ d.owner or '—' }}</td>
+<td data-label="Roles">{{ d.roles | join(', ') or '—' }}</td>
+<td class="small" data-label="Access">{% if not d.enabled %}<span class="bad-text">disabled</span>{% else %}{% if d.vlan %}VLAN {{ d.vlan }} · {% endif %}{{ d.permissions | length }} permission{{ '' if d.permissions | length == 1 else 's' }}{% endif %}{% if d.certs %} · {{ d.certs | length }} cert{{ '' if d.certs | length == 1 else 's' }}{% endif %}</td></tr>
 {% endfor %}</tbody></table>
 {% else %}<p class="blank">No devices yet.</p>{% endif %}
 </section>
@@ -28,7 +28,7 @@
 {% elif view == 'device' %}
 {% set d = device %}
 <p><a href="/8021x/devices">← Devices</a></p>
-<section class="card"><h2><span class="light {{ 'ok' if d.enabled else 'bad' }}"></span> {{ d.name }}</h2>
+<section class="card"><h2>{{ p.light('ok' if d.enabled else 'bad', 'enabled' if d.enabled else 'disabled') }} {{ d.name }}</h2>
 <dl class="kv"><dt>Roles</dt><dd>{{ d.roles | join(', ') or '—' }}</dd>
 <dt>VLAN</dt><dd>{{ d.vlan or '—' }}{% if d.vlan %} <span class="muted">(from role {{ d.vlan_from }})</span>{% endif %}</dd>
 <dt>May</dt><dd>{% for p in d.permissions %}<div>{{ data.permissions[p][0] }} <span class="muted small">· {{ p }}</span></div>{% else %}{{ 'nothing — disabled' if not d.enabled else 'nothing (no role grants anything)' }}{% endfor %}</dd></dl>
@@ -58,8 +58,8 @@
 {% if data.roles %}
 <table><thead><tr><th>Role</th><th>Priority</th><th>VLAN</th><th>Grants</th><th>Devices</th></tr></thead><tbody>
 {% for r in data.roles %}
-<tr><td><a href="/8021x/roles/{{ r.name | urlencode }}"><strong>{{ r.name }}</strong></a>{% if r.description %}<div class="muted small">{{ r.description }}</div>{% endif %}</td>
-<td>{{ r.priority }}</td><td>{{ r.vlan or '—' }}</td><td class="small">{{ r.permissions | join(', ') or '—' }}</td><td>{{ r.members | length }}</td></tr>
+<tr><td data-label="Role"><a href="/8021x/roles/{{ r.name | urlencode }}"><strong>{{ r.name }}</strong></a>{% if r.description %}<div class="muted small">{{ r.description }}</div>{% endif %}</td>
+<td data-label="Priority">{{ r.priority }}</td><td data-label="VLAN">{{ r.vlan or '—' }}</td><td class="small" data-label="Grants">{{ r.permissions | join(', ') or '—' }}</td><td data-label="Devices">{{ r.members | length }}</td></tr>
 {% endfor %}</tbody></table>
 {% else %}<p class="blank">No roles yet.</p>{% endif %}
 </section>
@@ -90,8 +90,8 @@
 <p class="muted">People live in the domain (Keycloak signs them in from it). New people go in <code>OU=people</code> and their site's group <code>site-&lt;site&gt;</code>; fabric roles come from the fabric groups (directory-admins, auditors, operators, helpdesk), which an administrator manages in <a href="{{ people.keycloak_url }}">the Keycloak admin console</a>.</p>
 {% if people.users %}
 <table><thead><tr><th></th><th>User</th><th>Name</th><th>E-mail</th><th>Groups</th><th></th></tr></thead><tbody>
-{% for u in people.users %}<tr><td><span class="light {{ 'bad' if u.locked else 'ok' }}" title="{{ 'locked' if u.locked else 'active' }}"></span></td>
-<td>{{ u.uid }}</td><td>{{ u.name }}</td><td>{{ u.mail or '—' }}</td><td>{{ u.groups | join(', ') or '—' }}</td>
+{% for u in people.users %}<tr><td>{{ p.light('bad' if u.locked else 'ok', 'locked' if u.locked else 'active') }}</td>
+<td data-label="User">{{ u.uid }}</td><td data-label="Name">{{ u.name }}</td><td data-label="E-mail">{{ u.mail or '—' }}</td><td data-label="Groups">{{ u.groups | join(', ') or '—' }}</td>
 <td class="num">{% if can('people:reset') %}<form method="post" action="/directory/people/{{ u.uid | urlencode }}/reset"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost" title="new one-time password, TOTP enrolled again, sessions ended">Reset sign-in</button></form>{% endif %}
 {% if can('people:disable') %}{% set act = 'enable' if u.locked else 'disable' %}<form method="post" action="/directory/people/{{ u.uid | urlencode }}/{{ act }}"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost" title="{{ 'allow sign-in again' if u.locked else 'block every sign-in at once; their sessions end' }}">{{ act | capitalize }}</button></form>{% endif %}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">No users.</p>{% endif %}
@@ -127,7 +127,7 @@
 </section>{% endif %}
 <section class="card"><h2>Groups</h2>
 <table><thead><tr><th>Group</th><th>Members</th></tr></thead><tbody>
-{% for g in people.groups %}<tr><td>{{ g.name }}</td><td>{{ g.members }}</td></tr>{% endfor %}
+{% for g in people.groups %}<tr><td data-label="Group">{{ g.name }}</td><td data-label="Members">{{ g.members }}</td></tr>{% endfor %}
 </tbody></table></section>
 
 {% elif view == 'domain' %}
@@ -135,7 +135,7 @@
 <section class="card"><h2>Domain <span class="muted">{{ s.domain }}</span></h2>
 <dl class="facts">
 <dt>Realm</dt><dd>{{ s.realm }}</dd><dt>NetBIOS name</dt><dd>{{ s.netbios }}</dd>
-<dt>This site's controller</dt><dd><span class="light {{ 'ok' if s.running else 'bad' }}"></span> {{ s.dc }} — {{ 'running' if s.running else 'not running' }}</dd>
+<dt>This site's controller</dt><dd>{{ p.light('ok' if s.running else 'bad', 'running' if s.running else 'not running') }} {{ s.dc }} — {{ 'running' if s.running else 'not running' }}</dd>
 </dl>
 {# the roles named plainly (2.1.2.22): all held here, or which another controller holds, never each role's DN #}
 {% if s.role_summary and s.role_summary.text %}<p>{{ s.role_summary.text }}</p>
@@ -167,8 +167,8 @@ writes a saved policy into the domain.</p>
 {% if domain.machines_error %}<p class="flash bad">The machines could not be read: {{ domain.machines_error }}</p>
 {% elif domain.machines %}
 <table><thead><tr><th></th><th>Machine</th><th>System</th><th>Last logon</th><th>Joined</th><th></th></tr></thead><tbody>
-{% for m in domain.machines %}<tr><td><span class="light {{ 'ok' if m.enabled else 'bad' }}" title="{{ 'enabled' if m.enabled else 'disabled' }}"></span></td>
-<td><strong>{{ m.name }}</strong>{% if m.dns %}<div class="muted small">{{ m.dns }}</div>{% endif %}</td><td>{{ m.os or '—' }}</td><td>{{ m.last_logon or 'never' }}</td><td>{{ m.created or '—' }}</td>
+{% for m in domain.machines %}<tr><td>{{ p.light('ok' if m.enabled else 'bad', 'enabled' if m.enabled else 'disabled') }}</td>
+<td data-label="Machine"><strong>{{ m.name }}</strong>{% if m.dns %}<div class="muted small">{{ m.dns }}</div>{% endif %}</td><td data-label="System">{{ m.os or '—' }}</td><td data-label="Last logon">{{ m.last_logon or 'never' }}</td><td data-label="Joined">{{ m.created or '—' }}</td>
 <td class="num">{% if can('machines:admin') %}<div class="row-actions">
 <form method="post" action="/directory/machines/{{ m.name | urlencode }}/{{ 'disable' if m.enabled else 'enable' }}"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost">{{ 'Disable' if m.enabled else 'Enable' }}</button></form>
 <form method="post" action="/directory/machines/{{ m.name | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Remove</button></form>
@@ -190,7 +190,7 @@ writes a saved policy into the domain.</p>
 <p class="muted">Groups of the domain's machines (<code>hosts-&lt;name&gt;</code>), for sudo rules to aim at.</p>
 {% if access.error %}<p class="flash bad">Host groups and sudo rules could not be read: {{ access.error }}</p>{% endif %}
 {% if access.groups %}<table><thead><tr><th>Host group</th><th>Machines</th><th>Sudo rules</th><th></th></tr></thead><tbody>
-{% for g in access.groups %}<tr><td><strong>{{ g.name }}</strong>{% if not g.fabric %}<div class="muted small">not made by fabric</div>{% endif %}</td><td>{{ g.machines | join(', ') or 'none' }}{% if g.other_members %}<div class="muted small">also {{ g.other_members | join(', ') }}</div>{% endif %}</td><td>{{ g.rules | join(', ') or '—' }}</td>
+{% for g in access.groups %}<tr><td data-label="Host group"><strong>{{ g.name }}</strong>{% if not g.fabric %}<div class="muted small">not made by fabric</div>{% endif %}</td><td data-label="Machines">{{ g.machines | join(', ') or 'none' }}{% if g.other_members %}<div class="muted small">also {{ g.other_members | join(', ') }}</div>{% endif %}</td><td data-label="Sudo rules">{{ g.rules | join(', ') or '—' }}</td>
 <td class="num">{% if can('machines:admin') %}<form method="post" action="/directory/hostgroups/{{ g.short | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger" title="refused while a sudo rule names it; its machines stay">Remove</button></form>{% endif %}</td></tr>{% endfor %}
 </tbody></table>{% elif not access.error %}<p class="blank">No host groups yet.</p>{% endif %}
 {% if can('machines:admin') %}
@@ -210,8 +210,8 @@ writes a saved policy into the domain.</p>
 <section class="card"><h2>Sudo rules {% if access.sudo %}<span class="muted">{{ access.sudo | length }}</span>{% endif %}</h2>
 <p class="muted">Who may run which commands as whom on the domain's Linux machines (never a fabric host). Rules made with other tools are shown read-only.</p>
 {% if access.sudo %}<table><thead><tr><th>Rule</th><th>Who</th><th>Commands</th><th>As</th><th>Where</th><th></th></tr></thead><tbody>
-{% for r in access.sudo %}<tr><td><strong>{{ r.name }}</strong><div class="muted small">{{ {'fabric': 'fabric', 'other': "not fabric's: read-only"}[r.kind] }}</div></td><td>{{ r.users | join(', ') }}</td><td><code class="small">{{ r.commands | join(', ') }}</code></td><td>{{ r.run_as | join(', ') or 'root' }}</td>
-<td>{% if r.host_group and r.host_group != 'ALL' %}{{ r.host_group }}<div class="muted small">{{ r.hosts | join(', ') or 'no machines yet' }}</div>{% else %}{{ r.hosts | join(', ') or '—' }}{% endif %}</td>
+{% for r in access.sudo %}<tr><td data-label="Rule"><strong>{{ r.name }}</strong><div class="muted small">{{ {'fabric': 'fabric', 'other': "not fabric's: read-only"}[r.kind] }}</div></td><td data-label="Who">{{ r.users | join(', ') }}</td><td data-label="Commands"><code class="small">{{ r.commands | join(', ') }}</code></td><td data-label="As">{{ r.run_as | join(', ') or 'root' }}</td>
+<td data-label="Where">{% if r.host_group and r.host_group != 'ALL' %}{{ r.host_group }}<div class="muted small">{{ r.hosts | join(', ') or 'no machines yet' }}</div>{% else %}{{ r.hosts | join(', ') or '—' }}{% endif %}</td>
 <td class="num">{% if can('sudo:admin') and r.kind == 'fabric' %}<form method="post" action="/directory/sudo/{{ r.name | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Remove</button></form>{% endif %}</td></tr>{% endfor %}
 </tbody></table>{% elif not access.error %}<p class="blank">No sudo rules.</p>{% endif %}
 {% if can('sudo:admin') %}<form method="post" action="/directory/sudo/_new" class="grid">
@@ -233,7 +233,7 @@ writes a saved policy into the domain.</p>
 {% set g = gpo[kind] or {'machine': [], 'user': []} %}
 {% if g.machine or g.user %}
 <table><thead><tr><th>Applies to</th><th>Key</th><th>Value</th><th>Data</th></tr></thead><tbody>
-{% for scope in ('machine', 'user') %}{% for key, name, vkind, data in g[scope] %}<tr><td>{{ scope }}</td><td><code class="small">{{ key }}</code></td><td>{{ name }}</td><td>{{ data }}</td></tr>{% endfor %}{% endfor %}
+{% for scope in ('machine', 'user') %}{% for key, name, vkind, data in g[scope] %}<tr><td data-label="Applies to">{{ scope }}</td><td data-label="Key"><code class="small">{{ key }}</code></td><td data-label="Value">{{ name }}</td><td data-label="Data">{{ data }}</td></tr>{% endfor %}{% endfor %}
 </tbody></table>{% else %}<p class="blank">Nothing set yet.</p>{% endif %}
 </section>
 {% endfor %}
@@ -242,7 +242,7 @@ writes a saved policy into the domain.</p>
 <label>Name or title contains<input name="match" value="{{ gpo.match }}" maxlength="100"></label><div><button>Search</button></div></form>
 {% if gpo.match %}
 {% if gpo.policies %}<table><thead><tr><th>Policy</th><th>For</th><th>Elements</th><th></th></tr></thead><tbody>
-{% for p in gpo.policies %}<tr><td><strong>{{ p.display }}</strong><div class="muted small">{{ p.name }} · {{ p.template }}</div></td><td>{{ p.class }}</td><td><code class="small">{{ p.elements | join(' ') or '—' }}</code></td>
+{% for p in gpo.policies %}<tr><td data-label="Policy"><strong>{{ p.display }}</strong><div class="muted small">{{ p.name }} · {{ p.template }}</div></td><td data-label="For">{{ p.class }}</td><td data-label="Elements"><code class="small">{{ p.elements | join(' ') or '—' }}</code></td>
 <td>{% if can('gpo:admin') %}<form method="post" action="/directory/gpo/set" class="grid"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="policy" value="{{ p.name }}">
 {% for e in p.elements %}{% set eid = e.split(':', 1)[1] %}<label class="small">{{ eid }}<input name="el_{{ eid }}"></label>{% endfor %}
 <label class="check"><input type="checkbox" name="disabled" value="1"> Disabled</label><label class="check"><input type="checkbox" name="control" value="1"> As a control (enforced)</label><div><button>Set</button></div></form>

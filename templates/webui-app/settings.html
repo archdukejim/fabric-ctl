@@ -23,7 +23,7 @@ fresh install these are setup's defaults.{% endif %}</p>
 {% endif %}
 <h2>Changed only on the host's console</h2>
 <table><thead><tr><th>Setting</th><th>Now</th><th>Changed with</th></tr></thead><tbody>
-{% for c in ov.console_only %}<tr><td><code>{{ c.key }}</code> <span class="muted">{{ c.what }}</span></td><td>{{ c.value or '—' }}</td><td><code>{{ c.command }}</code></td></tr>{% endfor %}
+{% for c in ov.console_only %}<tr><td data-label="Setting"><code>{{ c.key }}</code> <span class="muted">{{ c.what }}</span></td><td data-label="Now">{{ c.value or '—' }}</td><td data-label="Changed with"><code>{{ c.command }}</code></td></tr>{% endfor %}
 </tbody></table>
 <p class="muted">So are every host change (ports, the firewall, Docker's hardening, trust, time, domain membership),
 OpenBao's unlock and recovery, lowering sign-in security, client certificates and every secret.</p>
@@ -46,7 +46,7 @@ OpenBao's unlock and recovery, lowering sign-in security, client certificates an
 <h2>Review</h2>
 {% if changed %}
 <table><thead><tr><th>Field</th><th>Today</th><th>After</th></tr></thead><tbody>
-{% for f, old, new in changed %}<tr><td><code>{{ f }}</code></td><td>{{ old or '—' }}</td><td>{{ new or '—' }}</td></tr>{% endfor %}
+{% for f, old, new in changed %}<tr><td data-label="Field"><code>{{ f }}</code></td><td data-label="Today">{{ old or '—' }}</td><td data-label="After">{{ new or '—' }}</td></tr>{% endfor %}
 </tbody></table>
 {% else %}<p class="muted">Nothing typed differs from today's settings.</p>{% endif %}
 <p class="muted">Make the plan: each change is checked as setup checks it, with the memory plan; nothing changes until

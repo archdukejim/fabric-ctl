@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "pattern.html" as p %}
 {% block body %}
 <h1>802.1X · {{ {"overview": "RADIUS clients", "decisions": "Recent decisions"}.get(view, "Setup guides") }}</h1>
 {% if not r.enabled %}
@@ -18,7 +18,7 @@ radius_clients:
 </section>
 <section class="card"><h2>People and domain machines <span class="muted">join by password (EAP-TTLS, PEAP)</span></h2>
 {% if r.people %}<table><thead><tr><th>Group</th><th>VLAN</th><th>Priority</th><th></th></tr></thead><tbody>
-{% for m in r.people %}<tr><td>{{ m.group }}</td><td>{{ m.vlan or 'port default' }}</td><td class="num">{{ m.priority }}</td>
+{% for m in r.people %}<tr><td data-label="Group">{{ m.group }}</td><td data-label="VLAN">{{ m.vlan or 'port default' }}</td><td class="num" data-label="Priority">{{ m.priority }}</td>
 <td>{% if can('radius:admin') %}<div class="row-actions"><form method="post" action="/freeradius/people/{{ m.group | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Remove</button></form></div>{% endif %}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">No group mapped: nobody can join by password.</p>{% endif %}
 {% if can('radius:admin') %}<form method="post" action="/freeradius/people" class="grid">
@@ -32,8 +32,8 @@ radius_clients:
 </section>
 <section class="card"><h2>RADIUS clients <span class="muted">switches and access points</span></h2>
 {% if r.clients %}<table><thead><tr><th>Name</th><th>Address</th><th>Message-Authenticator</th><th></th></tr></thead><tbody>
-{% for c in r.clients %}<tr><td>{{ c.name }}</td><td><code>{{ c.address }}</code></td>
-<td>{% if c.message_authenticator %}required{% else %}<span class="pill warn">not required</span>{% endif %}</td>
+{% for c in r.clients %}<tr><td data-label="Name">{{ c.name }}</td><td data-label="Address"><code>{{ c.address }}</code></td>
+<td data-label="Message-Authenticator">{% if c.message_authenticator %}required{% else %}<span class="pill warn">not required</span>{% endif %}</td>
 <td>{% if can('radius:admin') %}<div class="row-actions"><form method="post" action="/freeradius/clients/{{ c.name | urlencode }}/rotate"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost">New secret</button></form>
 <form method="post" action="/freeradius/clients/{{ c.name | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Remove</button></form></div>{% endif %}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">No RADIUS clients yet: nothing can ask.</p>{% endif %}
@@ -51,8 +51,8 @@ radius_clients:
 <section class="card"><h2>Recent decisions <span class="muted">{{ r.log | length }}</span></h2>
 {% if r.log_error %}<p class="flash warn">{{ r.log_error }}</p>{% endif %}
 {% if r.log %}<table><thead><tr><th>Time</th><th></th><th>Method</th><th>Who</th><th>VLAN</th><th>MAC</th><th>Via</th><th>Why</th></tr></thead><tbody>
-{% for e in r.log %}<tr><td>{{ e.time }}</td><td>{% if e.decision == 'ACCEPT' %}<span class="light ok"></span> accepted{% else %}<span class="light bad"></span> refused{% endif %}</td>
-<td>{{ e.method }}</td><td>{% if e.person %}<span class="muted">person</span> {% endif %}{{ e.device }}</td><td>{{ e.vlan }}</td><td><code>{{ e.mac }}</code></td><td>{{ e.nas }}</td><td class="muted">{{ e.reason }}</td></tr>{% endfor %}
+{% for e in r.log %}<tr><td data-label="Time">{{ e.time }}</td><td>{% if e.decision == 'ACCEPT' %}{{ p.light('ok', 'accepted') }} accepted{% else %}{{ p.light('bad', 'refused') }} refused{% endif %}</td>
+<td data-label="Method">{{ e.method }}</td><td data-label="Who">{% if e.person %}<span class="muted">person</span> {% endif %}{{ e.device }}</td><td data-label="VLAN">{{ e.vlan }}</td><td data-label="MAC"><code>{{ e.mac }}</code></td><td data-label="Via">{{ e.nas }}</td><td class="muted" data-label="Why">{{ e.reason }}</td></tr>{% endfor %}
 </tbody></table>{% elif not r.log_error %}<p class="blank">No authentications yet.</p>{% endif %}
 </section>
 {% elif view == 'switches' %}

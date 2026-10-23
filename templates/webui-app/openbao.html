@@ -1,9 +1,9 @@
-{% extends "base.html" %}{% block body %}
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
 <h1>Secrets · {{ {"status": "Status", "disk": "Disk encryption", "secrets": "fabric's secrets"}.get(view, "Unlock methods") }}</h1>
 {% set light = 'bad' if not s.reachable or s.sealed or not s.initialized else ('warn' if not s.key.ok else 'ok') %}
 
 {% if view == 'status' %}
-<section class="card"><h2><span class="light {{ light }}"></span>
+<section class="card"><h2>{{ p.light(light, {'ok': 'unsealed', 'warn': 'needs attention', 'bad': 'not available'}[light]) }}
 {% if not s.reachable %}Unreachable{% elif not s.initialized %}Not initialised{% elif s.sealed %}Sealed{% else %}Unsealed{% endif %}</h2>
 {% if s.error %}<p class="flash bad">{{ s.error }}</p>{% endif %}
 <dl class="kv">
@@ -17,7 +17,7 @@
 {% if s.mounts %}
 <section class="card"><h2>Secret engines</h2>
 <table><thead><tr><th>Path</th><th>Type</th><th>What for</th></tr></thead><tbody>
-{% for m in s.mounts %}<tr><td><code>{{ m.path }}</code></td><td>{{ m.type }}{% if m.version %} v{{ m.version }}{% endif %}</td><td class="muted">{{ m.description }}</td></tr>{% endfor %}
+{% for m in s.mounts %}<tr><td data-label="Path"><code>{{ m.path }}</code></td><td data-label="Type">{{ m.type }}{% if m.version %} v{{ m.version }}{% endif %}</td><td class="muted" data-label="What for">{{ m.description }}</td></tr>{% endfor %}
 </tbody></table>
 <p class="muted">Sign-in methods: {{ s.auth | join(', ') or '—' }}. fabric-setup and fabric-agent use AppRoles bound to this host; the initial root token was revoked.</p></section>
 {% endif %}
@@ -27,17 +27,17 @@
 {% set has_local = slots | selectattr('type', 'equalto', 'local') | list | length > 0 %}
 <section class="card"><h2>Unlock methods <span class="muted">{{ slots | length }}</span></h2>
 <p class="muted">OpenBao has one vault key. Each method below holds its own protected copy; <strong>any one</strong> of them present at start unlocks the vault. None present: the vault stays locked and everything else keeps running.</p>
-<p><span class="light {{ 'warn' if has_local else ('ok' if removable else 'bad') }}"></span>
+<p>{{ p.light('warn' if has_local else ('ok' if removable else 'bad'), 'kill switch off' if has_local else ('kill switch armed' if removable else 'one method only')) }}
 {% if has_local %} <strong>Kill switch off</strong> — the key file on this host always unlocks the vault; removing a device changes nothing.
 {% elif removable %} <strong>Kill switch armed</strong> — removing the last present device locks the vault.
 {% else %} No unlock methods.{% endif %}</p>
 {% if slots %}
 <table><thead><tr><th></th><th>Method</th><th>Device</th><th>Key</th><th>Added</th><th></th></tr></thead><tbody>
 {% for sl in slots %}
-<tr><td><span class="light {{ 'ok' if sl.present else 'bad' }}" title="{{ 'present now' if sl.present else 'not present' }}"></span></td>
-<td><strong>{{ slot_types[sl.type][0] }}</strong><div class="muted small">{{ sl.label }}</div>{% if sl.tested %}<div class="muted small">tested: {{ sl.tested }}</div>{% endif %}</td>
-<td><code class="small">{{ sl.device }}</code>{% if sl.detail %}<div class="muted small">{{ sl.detail }}</div>{% endif %}</td>
-<td><code class="small">{{ sl.key_id }}</code></td><td class="small">{{ sl.added }}</td>
+<tr><td>{{ p.light('ok' if sl.present else 'bad', 'present now' if sl.present else 'not present') }}</td>
+<td data-label="Method"><strong>{{ slot_types[sl.type][0] }}</strong><div class="muted small">{{ sl.label }}</div>{% if sl.tested %}<div class="muted small">tested: {{ sl.tested }}</div>{% endif %}</td>
+<td data-label="Device"><code class="small">{{ sl.device }}</code>{% if sl.detail %}<div class="muted small">{{ sl.detail }}</div>{% endif %}</td>
+<td data-label="Key"><code class="small">{{ sl.key_id }}</code></td><td class="small" data-label="Added">{{ sl.added }}</td>
 <td class="num"><div class="row-actions">
 {% if can('vault:unlock') %}<form method="post" action="/openbao/slots/{{ sl.id | urlencode }}/test"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost"{{ '' if live else ' disabled' }}>Test</button></form>{% endif %}
 <a class="btn danger-link{{ '' if live and slots | length > 1 else ' disabled' }}" href="/secrets/remove?slot={{ sl.id | urlencode }}">Remove</a>
@@ -129,8 +129,8 @@
 <p><a href="/secrets/unlock">← Unlock methods</a></p>
 <section class="card"><h2>Rotate the vault key</h2>
 <table><thead><tr><th></th><th>Method</th><th>After rotation</th></tr></thead><tbody>
-{% for sl in slots %}<tr><td><span class="light {{ 'ok' if sl.present else 'bad' }}"></span></td><td>{{ slot_types[sl.type][0] }} <span class="muted small">{{ sl.label }}</span></td>
-<td>{% if sl.present %}re-protected with the new key{% else %}<span class="bad-text">stops working (device not present)</span>{% endif %}</td></tr>{% endfor %}
+{% for sl in slots %}<tr><td>{{ p.light('ok' if sl.present else 'bad', 'present now' if sl.present else 'not present') }}</td><td data-label="Method">{{ slot_types[sl.type][0] }} <span class="muted small">{{ sl.label }}</span></td>
+<td data-label="After rotation">{% if sl.present %}re-protected with the new key{% else %}<span class="bad-text">stops working (device not present)</span>{% endif %}</td></tr>{% endfor %}
 </tbody></table>
 {% if can('vault:unlock') %}<form method="post" action="/openbao/rotate" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
@@ -193,9 +193,9 @@ sudo umount /mnt</pre>
 
 {% elif view == 'secrets' %}
 <section class="card"><h2>fabric's own secrets</h2>
-{% if s.secrets %}<p><span class="light ok"></span> In OpenBao at <code>fabric/secrets</code> · version {{ s.secrets.version }} · updated {{ s.secrets.updated }}</p>
+{% if s.secrets %}<p>{{ p.light('ok', 'readable') }} In OpenBao at <code>fabric/secrets</code> · version {{ s.secrets.version }} · updated {{ s.secrets.updated }}</p>
 <p class="muted">CA, directory, Keycloak and TSIG secrets. fabric reads them with its own AppRole; people cannot read them, not even in OpenBao's UI. On the host: <code>sudo fabricctl secrets list</code> / <code>show &lt;name&gt;</code> (audited).</p>
-{% else %}<p><span class="light bad"></span> Not readable now{% if s.error %}: {{ s.error }}{% endif %}.</p>{% endif %}
+{% else %}<p>{{ p.light('bad', 'not readable') }} Not readable now{% if s.error %}: {{ s.error }}{% endif %}.</p>{% endif %}
 </section>
 <section class="card"><h2>Your applications' secrets</h2>
 <p class="muted">Browse, edit and version secrets under <code>apps/</code> in OpenBao's own UI. Sign in with Keycloak (method OIDC, your web UI account and TOTP); the web UI admin role gets the <code>fabric-console-admin</code> policy.</p>

@@ -15,8 +15,8 @@
 <p class="muted">{{ zone.status }}</p>
 <table><thead><tr><th>Type</th><th>Name</th><th>Value</th><th>Reverse (PTR)</th><th></th></tr></thead><tbody>
 {% for r in zone.records %}
-<tr><td><span class="pill">{{ r.type }}</span></td><td>{{ r.name or '(missing)' }}{% if r.fabric %} <span class="pill" title="{{ r.fabric.service }}: every apply adds it from the setting {{ r.fabric.setting }}">provided by fabric</span>{% endif %}{% if r.link %} <span class="muted small">· on the landing page</span>{% endif %}</td><td><code>{{ r.value }}</code></td>
-<td>{% if r.ptr %}<span class="muted small">auto</span> <code class="small">{{ r.ptr }}</code>{% elif r.ptr_note %}<span class="muted small">none — {{ r.ptr_note }}</span>{% endif %}</td>
+<tr><td data-label="Type"><span class="pill">{{ r.type }}</span></td><td data-label="Name">{{ r.name or '(missing)' }}{% if r.fabric %} <span class="pill" title="{{ r.fabric.service }}: every apply adds it from the setting {{ r.fabric.setting }}">provided by fabric</span>{% endif %}{% if r.link %} <span class="muted small">· on the landing page</span>{% endif %}</td><td data-label="Value"><code>{{ r.value }}</code></td>
+<td data-label="Reverse (PTR)">{% if r.ptr %}<span class="muted small">auto</span> <code class="small">{{ r.ptr }}</code>{% elif r.ptr_note %}<span class="muted small">none — {{ r.ptr_note }}</span>{% endif %}</td>
 <td class="num">{% if r.fabric %}<span class="muted small">kept by fabric: {{ r.fabric.setting }}</span>{% elif can('dns:write') %}<form method="post" action="/bind9/zone/{{ zone.key | urlencode }}/delete">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="type" value="{{ r.type }}">
 <input type="hidden" name="index" value="{{ r.index }}"><input type="hidden" name="name" value="{{ r.name }}">
@@ -78,8 +78,8 @@ here, each as <code>https://&lt;name&gt;.{{ zone.name if zone else '&lt;domain&g
 {% set linked = (zone.records if zone else []) | selectattr('link') | list %}
 {% if linked %}<table><thead><tr><th>Label</th><th>Address</th><th>Record</th><th></th></tr></thead><tbody>
 {% for r in linked %}{% set host = zone.name if r.name == '@' else r.name ~ '.' ~ zone.name %}
-<tr><td>{{ r.link.label or host }}</td><td><code>https://{{ host }}{{ (':' ~ r.link.port) if r.link.port }}{{ r.link.path or '/' }}</code></td>
-<td><span class="pill">{{ r.type }}</span> {{ r.name }}</td>
+<tr><td data-label="Label">{{ r.link.label or host }}</td><td data-label="Address"><code>https://{{ host }}{{ (':' ~ r.link.port) if r.link.port }}{{ r.link.path or '/' }}</code></td>
+<td data-label="Record"><span class="pill">{{ r.type }}</span> {{ r.name }}</td>
 <td class="num">{% if can('dns:write') %}<form method="post" action="/bind9/landing/remove"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <input type="hidden" name="type" value="{{ r.type }}"><input type="hidden" name="index" value="{{ r.index }}"><input type="hidden" name="name" value="{{ r.name }}">
 <button class="ghost">Remove</button></form>{% endif %}</td></tr>
@@ -109,7 +109,7 @@ here, each as <code>https://&lt;name&gt;.{{ zone.name if zone else '&lt;domain&g
 {% for name, ptrs in reverse.zones.items() %}
 <section class="card"><h2>{{ name }} <span class="muted">{{ ptrs | length }}</span></h2>
 <table><thead><tr><th>Address</th><th>PTR</th><th>Points to</th><th>From</th></tr></thead><tbody>
-{% for r in ptrs %}<tr><td><code>{{ r.ip }}</code></td><td><code class="small">{{ r.label }}</code></td><td>{{ r.target }}</td><td class="muted">{{ r.source }}</td></tr>{% endfor %}
+{% for r in ptrs %}<tr><td data-label="Address"><code>{{ r.ip }}</code></td><td data-label="PTR"><code class="small">{{ r.label }}</code></td><td data-label="Points to">{{ r.target }}</td><td class="muted" data-label="From">{{ r.source }}</td></tr>{% endfor %}
 </tbody></table></section>
 {% else %}<section class="card"><p class="blank">No reverse zones yet: add an A or AAAA record with a private address.</p></section>
 {% endfor %}
@@ -118,7 +118,7 @@ here, each as <code>https://&lt;name&gt;.{{ zone.name if zone else '&lt;domain&g
 {% if reverse.skipped %}
 <section class="card"><h2>No reverse record</h2>
 <table><thead><tr><th>Name</th><th>Address</th><th>Why</th></tr></thead><tbody>
-{% for r in reverse.skipped %}<tr><td>{{ r.name }}</td><td><code>{{ r.ip }}</code></td><td class="muted">{{ r.reason }}</td></tr>{% endfor %}
+{% for r in reverse.skipped %}<tr><td data-label="Name">{{ r.name }}</td><td data-label="Address"><code>{{ r.ip }}</code></td><td class="muted" data-label="Why">{{ r.reason }}</td></tr>{% endfor %}
 </tbody></table></section>
 {% endif %}
 
@@ -131,7 +131,7 @@ here, each as <code>https://&lt;name&gt;.{{ zone.name if zone else '&lt;domain&g
 {% if dhcp.leases_error %}<p class="flash bad">Kea's leases could not be read: {{ dhcp.leases_error }}</p>
 {% elif not dhcp.leases %}<p class="muted">No leases yet.</p>
 {% else %}<table><thead><tr><th>Name</th><th>Address</th><th>Reverse name</th><th>Lease ends</th></tr></thead><tbody>
-{% for l in dhcp.leases if l.hostname %}<tr><td>{{ l.hostname }}</td><td>{{ l.ip }}</td><td>{{ (l.ip.split('.') | reverse | join('.')) ~ '.in-addr.arpa' }}</td><td>{{ l.expires }}</td></tr>
+{% for l in dhcp.leases if l.hostname %}<tr><td data-label="Name">{{ l.hostname }}</td><td data-label="Address">{{ l.ip }}</td><td data-label="Reverse name">{{ (l.ip.split('.') | reverse | join('.')) ~ '.in-addr.arpa' }}</td><td data-label="Lease ends">{{ l.expires }}</td></tr>
 {% endfor %}</tbody></table>{% endif %}
 {% endif %}</section>
 
@@ -141,8 +141,8 @@ here, each as <code>https://&lt;name&gt;.{{ zone.name if zone else '&lt;domain&g
 {% if tsig_keys %}
 <table><thead><tr><th>Key</th><th>May update</th><th>Types</th><th>ACLs</th><th></th></tr></thead><tbody>
 {% for k in tsig_keys %}
-<tr><td><strong>{{ k.name }}</strong><div class="muted small">{{ k.algorithm }}</div></td><td>{{ k.scope }}</td>
-<td>{{ k.types }}</td><td>{{ k.acls | join(', ') or '—' }}</td>
+<tr><td data-label="Key"><strong>{{ k.name }}</strong><div class="muted small">{{ k.algorithm }}</div></td><td data-label="May update">{{ k.scope }}</td>
+<td data-label="Types">{{ k.types }}</td><td data-label="ACLs">{{ k.acls | join(', ') or '—' }}</td>
 <td class="num"><div class="row-actions">
 {% if can('tsig:manage') %}<form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/rotate"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost">New secret</button></form>{% endif %}
 {% if can('tsig:manage') %}<form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Delete</button></form>{% endif %}

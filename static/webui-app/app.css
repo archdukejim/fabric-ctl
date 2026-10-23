@@ -112,3 +112,29 @@ label.navbutton{display:inline-flex}
 .navtoggle:checked~.frame .side{display:block}
 .install,.version{font-size:13px}
 }
+/* the page pattern (manual 1.8.6.3): the actions bar, empty states, a detail page's facts, a status with its label */
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 16px}
+.actions form{margin:0}
+.empty{padding:16px;border:1px dashed var(--border);border-radius:8px;color:var(--muted);text-align:center;margin:0 0 12px}
+.empty p{margin:0 0 8px}
+.facts dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:0}
+.facts dt{color:var(--muted);font-size:13px}.facts dd{margin:0;overflow-wrap:anywhere}
+.status{white-space:nowrap}
+/* under 768 px a list is a stack of cards, each row one card and each cell its column's name and value; the section
+   bars wrap; long names and code break: nothing on a page scrolls sideways (1.8.6.9) */
+@media (max-width:767px){
+main table:not(.hours),main table:not(.hours)>tbody,main table:not(.hours)>tbody>tr,main table:not(.hours)>tbody>tr>td{display:block;width:auto}
+main table:not(.hours)>thead{display:none}
+main table:not(.hours)>tbody>tr{border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin:0 0 8px}
+main table:not(.hours)>tbody>tr>td{border:0;padding:3px 0;text-align:left;overflow-wrap:anywhere}
+main table:not(.hours)>tbody>tr>td[data-label]::before{content:attr(data-label);display:block;color:var(--muted);font-size:12px}
+main table:not(.hours) td:has(>form){white-space:normal}
+main td form{flex-wrap:wrap}
+.card{overflow-x:visible}
+.sections{flex-wrap:wrap;overflow-x:visible}
+.section{flex:0 1 auto}
+code,.fp,a{overflow-wrap:anywhere}
+pre{overflow-wrap:anywhere}
+input,select,textarea{max-width:100%}
+.kv,.facts dl{grid-template-columns:1fr}
+}

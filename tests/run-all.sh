@@ -40,7 +40,7 @@ for s in "${SUITES[@]}"; do
         nginx)    run nginx    bash "$HERE/nginx_check.sh" "$FABRIC_TEST_OUT/rendered" ;;
         zone)     run zone     bash -c "python3 \"$HERE/zone_test.py\" && python3 \"$HERE/dns/freeze_and_install_test.py\"" ;;
         zones)    run zones    python3 "$HERE/zones/run.py" ;;
-        webui)    run webui    bash -c "python3 \"$HERE/webui/test_container.py\" && python3 \"$HERE/webui/test_devserver.py\"" ;;
+        webui)    run webui    bash -c "python3 \"$HERE/webui/test_container.py\" && python3 \"$HERE/webui/test_devserver.py\" && python3 \"$HERE/webui/test_narrow.py\"" ;;
         pki)      run pki      python3 "$HERE/pki/run.py" ;;
         federation) run federation python3 "$HERE/federation/run.py" ;;
         resolver) run resolver bash -c "python3 \"$HERE/resolver/run.py\" && python3 \"$HERE/resolver/groups.py\" && python3 \"$HERE/resolver/querylog.py\" && python3 \"$HERE/resolver/console.py\"" ;;

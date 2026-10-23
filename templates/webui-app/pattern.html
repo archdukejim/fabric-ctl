@@ -1,0 +1,40 @@
+{#- The page pattern (manual 1.8.6.3): the parts every page is built from. Import with
+    {% import "pattern.html" as p with context %}. No script, no inline style (the strict CSP). -#}
+
+{#- A status light: a coloured dot with its meaning as text for a screen reader and a tooltip, never colour alone.
+    state: ok, warn or bad; label: what it means ("running", "disabled"). -#}
+{% macro light(state, label) -%}
+<span class="light {{ state }}" role="img" aria-label="{{ label }}" title="{{ label }}"></span>
+{%- endmacro %}
+
+{#- A status light with its label shown beside it. -#}
+{% macro status(state, label) -%}
+<span class="status">{{ light(state, label) }} {{ label }}</span>
+{%- endmacro %}
+
+{#- The actions bar along the top of a list or detail page: buttons and links passed in the call's body. It is left
+    out when the body is empty (a person without any of the permissions sees no bar). -#}
+{% macro actions() -%}
+{%- set inner = caller() | trim -%}
+{%- if inner %}<div class="actions" role="toolbar">{{ inner }}</div>{% endif -%}
+{%- endmacro %}
+
+{#- An empty state: what would be here, and (in the call's body, optional) the action that adds the first one. -#}
+{% macro empty(what) -%}
+<div class="empty"><p>{{ what }}</p>{% if caller is defined %}{{ caller() }}{% endif %}</div>
+{%- endmacro %}
+
+{#- A detail page's facts: rows of (label, value) as a definition list in a card; a value of None is left out. -#}
+{% macro facts(title, rows) -%}
+<section class="card facts"><h2>{{ title }}</h2><dl>
+{%- for label, value in rows if value is not none %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor -%}
+</dl></section>
+{%- endmacro %}
+
+{#- A list: a table on a wide screen, cards under 768 px. heads: the column names (an empty name for a column of
+    lights or buttons); the rows come in the call's body, each <td data-label="..."> named for its column. -#}
+{% macro list(heads, cls="") -%}
+<table class="list {{ cls }}"><thead><tr>{% for h in heads %}<th>{{ h }}</th>{% endfor %}</tr></thead><tbody>
+{{ caller() }}
+</tbody></table>
+{%- endmacro %}
