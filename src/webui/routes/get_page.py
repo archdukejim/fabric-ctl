@@ -9,6 +9,7 @@ from webui.routes.finish_setting_up import finish_setting_up
 from webui.routes.computers_page import computers_page
 from webui.routes.access_page import access_page
 from webui.routes.groups_page import groups_page
+from webui.routes.sites_page import sites_page
 from webui.routes.ous_page import ous_page
 from webui.routes.dns_filter_page import dns_filter_page
 from webui.routes.moved_to import moved_to
@@ -71,7 +72,8 @@ def get_page(h, sess, path, query):
     Returns: 303 to the new address of a page that moved; 200 page: Overview (/, /overview/doctor,
              /overview/updates, /audit), DNS (/dns/zones, /dns-filter), DHCP (/kea), PKI (/pki, /pki/acme),
              Directory (/directory, /directory/people|groups|computers[/_new|/<name>], /directory/computers/_groups,
-             /directory/ous[?ou=<path>], /directory/access[/_new|/<name>], /directory/policies[/gpo|/sudo]), 802.1X
+             /directory/ous[?ou=<path>], /directory/access[/_new|/<name>], /directory/sites[/<name>],
+             /directory/policies[/gpo|/sudo]), 802.1X
              (/8021x, /8021x/decisions, /8021x/guides, /8021x/devices[/<name>], /8021x/roles[/<name>]), Secrets
              (/secrets[/<view>]), Federation (/federation),
              Settings (/settings, /settings/export, /settings/sign-in), My account (/account, /account/groups,
@@ -93,7 +95,7 @@ def get_page(h, sess, path, query):
         return h.redirect(views.nav_menu(set(ctx["perms"]), None)[0]["href"])
     shown = views.PENDING_PAGES.get(_rest(path, "/changes/") or "", path)   # a Review: the page it reviews
     for listing in ("/directory/people", "/directory/groups", "/directory/computers", "/directory/access",
-                    "/directory/policies"):
+                    "/directory/sites", "/directory/policies"):
         if path.startswith(listing + "/"):
             shown = listing
     need = next((n for _, _, pages in views.NAV for href, _, n in pages if href == shown and n), None)
@@ -126,6 +128,8 @@ def get_page(h, sess, path, query):
         return groups_page(h, ctx, path, query)
     if path == "/directory/access" or path.startswith("/directory/access/"):
         return access_page(h, ctx, path, query)
+    if path == "/directory/sites" or path.startswith("/directory/sites/"):
+        return sites_page(h, ctx, path)
     if path == "/directory/ous":
         return ous_page(h, ctx, query)
     if path == "/directory/computers" or path.startswith("/directory/computers/"):

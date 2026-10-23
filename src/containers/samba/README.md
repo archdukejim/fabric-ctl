@@ -97,6 +97,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `ensure_grant_sudo.py` | One `sudoRole` per grant with sudo (`grant-<name>`, `%grant-<name>-who`), its hosts its where group's machines |
 | `compile_grants.py` | The grants compiled: computed groups, the sets of machines with one GPO each, the fallback first, the sudo rules (at the root's writable DC) |
 | `explain_grants.py` | Which grants reach a person (and on a machine), and why; what they may do there |
+| `ad_sites.py` | AD's sites as fabric wrote them: each with its DCs, subnets and site links (Sites, 1.6.12.8) |
 | `reaching_grants.py` | The grants that reach a computer, and what each gives there (its page, 1.6.12.6) |
 | `ship_grants.py` | The grants a fresh install ships (1.6.13.5), made once at the root |
 | `grants_tool.py` | The grants' entry point (as root, like gpo_tool): list, show, add, set, remove, compile, explain, reaching |

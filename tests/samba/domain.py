@@ -60,6 +60,7 @@ import agent.post_people as m_people  # noqa: E402
 import fabriclib.directory.run_op as m_runop  # noqa: E402
 import fabriclib.grants.grant_request as m_greq  # noqa: E402
 import fabriclib.samba.domain_dc_names as m_dcnames  # noqa: E402
+import fabriclib.samba.domain_sites as m_dsites  # noqa: E402
 from fabriclib.breakglass.ensure_enterprise_admin import ensure_enterprise_admin  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.deploy.check_samba_settings import check_samba_settings  # noqa: E402
@@ -93,7 +94,7 @@ def redirect(module):
     module.subprocess = types.SimpleNamespace(run=run, TimeoutExpired=subprocess.TimeoutExpired)
 
 
-for mod in (m_runop, m_greq, m_dcnames):
+for mod in (m_runop, m_greq, m_dcnames, m_dsites):
     redirect(mod)
 
 
@@ -187,7 +188,7 @@ perms = {(m, tuple(r)): required_permission(m, r) for m, r in (
     ("POST", ["domain", "kerberos", "policy"]), ("POST", ["account", "password"]), ("GET", ["groups"]),
     ("GET", ["groups", "g"]), ("GET", ["ous"]), ("GET", ["domain", "kerberos"]),
     ("GET", ["domain", "kerberos", "spns"]), ("GET", ["account", "groups"]), ("GET", ["machines"]),
-    ("GET", ["machines", "m"]))}
+    ("GET", ["machines", "m"]), ("GET", ["sites"]))}
 check("people:edit; unlock is people:reset (widened); groups:admin creates, deletes and sets managers; members and a "
       "person's own account any signed-in person (fabric-agent decides); ous:admin; machines:admin; domain:admin",
       [perms[k] for k in sorted(perms)] == [perms[k] for k in sorted(perms)] and perms[("POST", ("people", "x", "edit"))]
@@ -199,7 +200,7 @@ check("people:edit; unlock is people:reset (widened); groups:admin creates, dele
       and {perms[("POST", ("ous",))], perms[("POST", ("ous", "rename"))], perms[("POST", ("ous", "delete"))]}
       == {"ous:admin"} and perms[("POST", ("domain", "kerberos", "policy"))] == "domain:admin"
       and {perms[("GET", r)] for r in (("groups",), ("groups", "g"), ("ous",), ("domain", "kerberos"), ("machines",),
-                                       ("machines", "m"),
+                                       ("machines", "m"), ("sites",),
                                        ("domain", "kerberos", "spns"))} == {"domain:read"}, perms)
 
 print("--- people: edit and unlock (1.6.12.4), through the grants and the tiers")
@@ -667,6 +668,14 @@ for args, words, want in ((("machine", "move", "dsk1", "people"), "only to a fol
     code, out = cli(*args)
     # covers: cli:domain.machine -
     check(f"domain {' '.join(args)} refused ({words})", code == want and words in out, out)
+sites = m_get.get_route(["sites"], "alice")
+lan = next((s for s in sites["sites"] if s["name"] == "lan"), {})
+# covers: agent:get.sites +
+check("GET /v1/sites (1.6.12.8): site lan with its people and machines, its DC, the grants whose where names site-lan, "
+      "its AD site (this DC, the DC's subnet), the DC count; nothing failed", sites["error"] == ""
+      and "bob" in lan.get("people", []) and "srv1" in lan.get("machines", []) and "lan-helpdesk" in lan.get("grants", [])
+      and "carol" not in lan.get("people", []) and lan.get("dcs") and (lan.get("ad") or {}).get("dcs")
+      and "1 DC used" in sites["dc_text"], sites)
 page = m_get.get_route(["machines", "dsk1"], "alice")
 check("GET /v1/machines/dsk1, a desktop again: the servers' grants no longer reach it",
       page["machine"]["type"] == "desktop" and "lan-servers" not in {g["name"] for g in page["grants"]}

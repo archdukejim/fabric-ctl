@@ -795,6 +795,23 @@ with serve():
     check("Delete refused at Apply while it holds anything, saying so", "is not empty" in page, page[-1500:])
     post("/changes/ous/discard", {})
     check("refused: an unknown OU form (404)", req("POST", "/directory/ous/_form/frob", {"csrf": "dev"})[0] == 404)
+    page = get("/directory/sites")
+    # covers: web:get.directory.sites +
+    check("Directory · Sites: each site with its people and machines (counts, linked to its group and to Computers by "
+          "site), its DCs, the grants scoped to it; the domain's DCs as counts; replication",
+          'href="/directory/sites/lan"' in page and 'href="/directory/groups/site-lan"' in page
+          and 'href="/directory/computers?site=edge"' in page and 'href="/directory/access/lan-helpdesk"' in page
+          and "2 DCs used, 1997 can be added" in page and "pi-edge" in page, page[-4000:])
+    page = get("/directory/sites/lan")
+    check("a site's page: its people and machines linked, where its members change (its group), its grants, its AD "
+          "site read-only (DCs, subnets, site links); no form", 'href="/directory/people/jim"' in page
+          and 'href="/directory/computers/host-1"' in page and 'href="/directory/groups/site-lan"' in page
+          and "192.168.1.0/24" in page and "lan-edge (edge and lan; cost 100, every 15 minutes)" in page
+          and 'method="post"' not in page.split("<main", 1)[1].split("</main>", 1)[0], page[-3000:])
+    page = get("/directory/sites/mars")
+    # covers: web:get.directory.sites -
+    check("a site that is not there: said", "No site mars in the domain" in page)
+    check("refused: an address past a site's page (404)", req("GET", "/directory/sites/lan/x")[0] == 404)
     page = get("/directory/access")
     # covers: web:get.directory.access +
     check("Directory · Access: each grant with its who, where, what it gives and whom it reaches (one marked as "

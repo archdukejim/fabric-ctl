@@ -13,6 +13,7 @@ fabric-agent's check (`fabriclib/access`), then one operation inside the DC, the
 | `show_person.py` | One person as the DC has them: their groups and details |
 | `person_overview.py` | One person as their page shows them: details, state, last sign-in, groups, sites, certificates, devices |
 | `directory_overview.py` | The Directory's Overview: the domain, its level and DCs, replication, sites, counts |
+| `site_overview.py` | The Directory's Sites: each site's people, machines, DCs, grants and AD site; the DC counts, replication |
 | `machine_overview.py` | One computer as its page shows it: its facts, the grants reaching it, its 802.1X device, its actions' choices |
 | `domain_facts.py` | The domain's functional level and its DCs |
 | `my_account.py` | My account, read-only: the signed-in person's details, groups, certificates and devices |

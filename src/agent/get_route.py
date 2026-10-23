@@ -22,6 +22,7 @@ from fabriclib.domain.list_groups import list_groups
 from fabriclib.domain.list_ous import list_ous
 from fabriclib.domain.list_spns import list_spns
 from fabriclib.domain.machine_overview import machine_overview
+from fabriclib.domain.site_overview import site_overview
 from fabriclib.domain.directory_overview import directory_overview
 from fabriclib.domain.my_account import my_account
 from fabriclib.domain.person_overview import person_overview
@@ -75,6 +76,7 @@ READS = {
     ("machines",): lambda: list_machines(load_vars()),
     ("domain",): lambda: domain_overview(load_vars()),
     ("directory",): lambda: directory_overview(load_vars()),
+    ("sites",): lambda: site_overview(load_vars()),
     ("domain", "grants"): lambda: list_grants(load_vars()),
     ("domain", "kerberos"): lambda: kerberos_overview(load_vars()),
     ("domain", "kerberos", "spns"): lambda: list_spns(load_vars()),
@@ -133,7 +135,8 @@ def get_route(route, user=None, perms=None):
              domain/kerberos/spns: list_spns; groups: list_groups; groups/<name>: show_group; ous: list_ous;
              account: my_account (the signed-in person's own details, groups, certificates and devices);
              people/<uid>: person_overview (a person's page); machines: list_machines (Computers);
-             machines/<name>: machine_overview (a computer's page); directory: directory_overview (the Directory's
+             machines/<name>: machine_overview (a computer's page); sites: site_overview (Sites); directory:
+             directory_overview (the Directory's
              Overview);
              account/groups: my_groups (the groups the signed-in person manages); pending: the person's pending
              changes per page and the pages with an apply running (1.8.6.5); pending/<page>: the page's Review;

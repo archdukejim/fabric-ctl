@@ -976,6 +976,9 @@ st, _, _sc, body = req("POST", "/directory/ous/_form/delete", POSTH, {"csrf": co
                        cookie=aud)
 check("auditor: an OU's Delete is refused by fabric-agent when held (ous:admin named)", st == 303
       and "ous:admin" in urllib.parse.unquote_plus(_.get("Location", "")), (st, _))
+st, _, _sc, body = req("GET", "/directory/sites", ALICE, cookie=aud)
+check("auditor: Sites through the real agent (domain:read), no DC here: why said on the page", st == 200
+      and "The sites could not be read" in body and "no domain controller" in body, (st, body[-800:]))
 st, _, _sc, body = req("GET", "/directory/access", ALICE, cookie=aud)
 check("auditor: Access through the real agent (domain:read), no DC here: why said on the page, no Add grant",
       st == 200 and "The grants could not be read" in body and "/directory/access/_new" not in body, (st, body[-800:]))
@@ -1222,6 +1225,13 @@ out = agent_call("POST", "/v1/account/groups/lab/members", "carol", (), {"action
 # covers: agent:post.account.groups.*.members -
 check("refused: a member change from My account done at once (it waits for Apply; without a DC here: 400)",
       " 400 " in out, out)
+out = agent_call("GET", "/v1/sites", "carol", AUDITOR_ROLES)
+check("GET /v1/sites: an auditor's token reads it (domain:read); without a DC the sites are empty and the error says "
+      "why (200)", " 200 " in out and '"sites": []' in out, out)
+out = agent_call("GET", "/v1/sites", "carol", PKI_ONLY)
+# covers: agent:get.sites -
+check("refused: GET /v1/sites without domain:read (403, the permission named)", " 403 " in out
+      and "domain:read" in out, out)
 for path in ("/v1/machines", "/v1/machines/ws1"):
     out = agent_call("GET", path, "carol", AUDITOR_ROLES)
     check(f"GET {path}: an auditor's token passes (domain:read); without a DC here refused (400, saying so)",

@@ -41,6 +41,25 @@ def _person(state, uid):
             "devices": devices}
 
 
+def _sites(state):
+    """Purpose: The preview's sites as GET /v1/sites answers (manual 1.6.12.8): its people and computers by their
+             sites, the DCs of SAMPLE_DIRECTORY, the help desk's grant on lan, the AD sites fabric would write.
+    Inputs:  state — DevState.
+    Returns: dict, the agent's shape.
+    Fails:   never.
+    Feeds:   fake_reads."""
+    links = [{"name": "lan-edge", "sites": ["edge", "lan"], "cost": "100", "interval": "15"}]
+    ad = {"lan": {"name": "lan", "dcs": ["pi-core"], "subnets": ["192.168.1.0/24"], "links": links},
+          "edge": {"name": "edge", "dcs": ["pi-edge"], "subnets": ["192.168.30.0/24"], "links": links}}
+    return {"dc_text": "2 DCs used, 1997 can be added", "replication": SAMPLE_DIRECTORY["replication"], "error": "",
+            "sites": [{"name": n, "group": f"site-{n}",
+                       "people": sorted(u["uid"] for u in state.data["people"]["users"] if n in (u.get("sites") or [])),
+                       "machines": sorted(m["name"] for m in SAMPLE_DOMAIN["machines"] if n in (m.get("sites") or [])),
+                       "dcs": ["pi-core"] if n == "lan" else ["pi-edge"],
+                       "grants": ["lan-helpdesk"] if n == "lan" else [], "ad": ad.get(n)}
+                      for n in SAMPLE_DIRECTORY["sites"]]}
+
+
 def _dhcp(state):
     """Purpose: DHCP's sample, or, with the preview's `off` toggle, DHCP off as a first turn-on shows it (manual
              1.10.3.5; `off=resume`: off with its settings kept).
@@ -72,6 +91,7 @@ def fake_reads(state, who, route, body):
         ("radius",): lambda: SAMPLE_RADIUS, ("radius", "guides"): sample_radius_guides,
         ("pki", "ca"): lambda: SAMPLE_CA, ("pki", "issued"): lambda: d["issued"], ("pki", "acme"): lambda: SAMPLE_ACME,
         ("devices",): state.overview, ("people",): lambda: d["people"], ("directory",): lambda: SAMPLE_DIRECTORY,
+        ("sites",): lambda: _sites(state),
         ("domain",): lambda: SAMPLE_DOMAIN, ("gpo",): lambda: {**SAMPLE_GPO, "match": ""},
         ("host-groups",): lambda: SAMPLE_ACCESS["groups"], ("sudo",): lambda: SAMPLE_ACCESS["sudo"],
         ("federation",): lambda: SAMPLE_FEDERATION,

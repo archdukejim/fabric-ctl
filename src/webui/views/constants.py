@@ -21,6 +21,7 @@ NAV = [
                                 ("/directory/groups", "Groups", ("domain:read",)),
                                 ("/directory/computers", "Computers", ("domain:read",)),
                                 ("/directory/ous", "OUs", ("domain:read",)),
+                                ("/directory/sites", "Sites", ("domain:read",)),
                                 ("/directory/access", "Access", ("domain:read",)),
                                 ("/directory/policies", "Policies", ("domain:read",))]),
     ("8021x", "802.1X", [("/8021x", "RADIUS clients", ("radius:read",)),
