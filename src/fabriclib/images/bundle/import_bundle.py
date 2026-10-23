@@ -1,6 +1,8 @@
+import json
 import os
 import subprocess
 import tarfile
+import time
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.read_published_lock import read_published_lock
@@ -8,7 +10,7 @@ from fabriclib.images.bundle.check_bundle import check_bundle
 from fabriclib.images.bundle.free_bytes import free_bytes
 from fabriclib.images.bundle.host_arch import host_arch
 from fabriclib.images.bundle.verify_offline import verify_offline
-from fabriclib.images.constants import VERIFIED
+from fabriclib.images.constants import BUNDLE_RECORD, VERIFIED
 from fabriclib.images.remember_verified import remember_verified
 
 STORE = "/var/lib/containerd"      # where the containerd image store keeps images
@@ -63,7 +65,8 @@ def _load(tar, member, key):
         raise ValidationError(f"{key}: Docker refused the image ({why})")
 
 
-def import_bundle(bundle, lock_dir, signature_check=True, cache=VERIFIED, store=STORE, log=print):
+def import_bundle(bundle, lock_dir, signature_check=True, cache=VERIFIED, store=STORE, record=BUNDLE_RECORD,
+                  log=print):
     """Purpose: `fabricctl images import` and `setup --offline <bundle>`: load an offline bundle's images on a host
              with no internet (decision 2.1.14.14, manual 1.14.4.4) once everything checks: the bundle as a whole
              (check_bundle: version, architecture, every image of this fabric's lock and its digests, every hash),
@@ -74,9 +77,10 @@ def import_bundle(bundle, lock_dir, signature_check=True, cache=VERIFIED, store=
     Inputs:  bundle — str path; lock_dir — the folder of this fabric's images.lock.yaml and VERSION (the package's);
              signature_check — the host's image_signature_check (False: signatures not checked, said so, 2.1.14.10);
              cache — the verified-digests file; store — the folder whose free space is checked (containerd's);
+             record — where an import of a bundle that left images out is remembered (status, doctor);
              log — progress printer.
     Returns: dict {"loaded": [keys], "present": [keys already in Docker], "verified": [refs],
-             "unchecked": [refs whose signature was not checked]}.
+             "unchecked": [refs whose signature was not checked], "left_out": {key: why} (--allow-unpublished)}.
     Fails:   ValidationError, saying why, before any image is loaded unless noted: Docker on the classic image store;
              no trusted root beside the lock; every refusal of check_bundle; not enough free space (needed and free
              named); a signature that does not
@@ -135,4 +139,25 @@ def import_bundle(bundle, lock_dir, signature_check=True, cache=VERIFIED, store=
                               + ", ".join(unknown))
     if out["verified"]:
         remember_verified(cache, out["verified"])
+    out["left_out"] = manifest.get("left_out") or {}
+    _record(record, manifest, bundle)
     return out
+
+
+def _record(record, manifest, bundle):
+    """Purpose: remember an imported bundle that left images out (`--allow-unpublished`, decision 2.1.14.21), so
+             status and doctor show the relaxation; a whole bundle's import clears it.
+    Inputs:  record — path of the record (root, 0600); manifest — the bundle's; bundle — its path.
+    Returns: None.
+    Fails:   OSError writing or removing the record.
+    Feeds:   import_bundle."""
+    if not manifest.get("left_out"):
+        if os.path.exists(record):
+            os.remove(record)
+        return
+    os.makedirs(os.path.dirname(record), mode=0o700, exist_ok=True)
+    fd = os.open(record, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump({"bundle": os.path.basename(bundle), "fabric": manifest.get("fabric"),
+                   "left_out": manifest["left_out"],
+                   "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}, f, indent=2)

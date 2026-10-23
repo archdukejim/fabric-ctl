@@ -45,19 +45,23 @@ def _add(tar, name, data, files):
     files[name] = {"sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
 
 
-def export_bundle(lock_dir, arch, out, log=print):
+def export_bundle(lock_dir, arch, out, log=print, allow_unpublished=False):
     """Purpose: `fabricctl images export`: one offline install bundle for this fabric release and one architecture
              (decision 2.1.14.14, manual 1.14.4): every image of the lock by its pinned digest, fabric's published
              images' signature bundles to check them with offline (against the trusted root the package ships), and
              a manifest of versions, digests and every file's sha256. Written beside `out` as `<out>.part` and
              renamed when whole.
     Inputs:  lock_dir — str, the folder holding images.lock.yaml and VERSION; arch — "amd64" | "arm64";
-             out — str, the bundle file to write (its folder must exist; the file must not); log — progress printer.
+             out — str, the bundle file to write (its folder must exist; the file must not); log — progress printer;
+             allow_unpublished — True (`--allow-unpublished`, decision 2.1.14.21): images the lock has not published
+             are left out instead of refused, and the manifest's `left_out` names them with why (a relaxation the
+             import, status and doctor show).
     Returns: dict, the manifest written.
     Fails:   ValidationError, nothing written: an unknown architecture; `out` exists or its folder does not; an image
-             of the lock not published (pending, with why) or with no linux/<arch> image; not enough free space
-             beside `out` (needed and free named); a registry or Sigstore refusing or a blob not matching its digest
-             (the partial file is removed). urllib.error.URLError when a registry cannot be reached; OSError.
+             of the lock not published (pending, with why) unless allow_unpublished, or with no linux/<arch> image;
+             not enough free space beside `out` (needed and free named); a registry or Sigstore refusing or a blob
+             not matching its digest (the partial file is removed). urllib.error.URLError when a registry cannot
+             be reached; OSError.
     Feeds:   run_images_command (`fabricctl images export`); tests/images/bundle.py."""
     if arch not in ARCHES:
         raise ValidationError(f"unknown architecture {arch!r}: amd64 or arm64")
@@ -69,10 +73,15 @@ def export_bundle(lock_dir, arch, out, log=print):
     with open(os.path.join(lock_dir, "VERSION")) as f:
         version = f.read().strip()
     images = bundle_images(lock_dir)
-    pending = [f"{k} ({e['pending']})" for k, e in images.items() if e["pending"]]
-    if pending:
+    left_out = {k: e["pending"] for k, e in images.items() if e["pending"]}
+    if left_out and not allow_unpublished:
         raise ValidationError("a bundle carries every image of the lock, and these are not published: "
-                              + "; ".join(pending) + ". Export from a release whose images are all published")
+                              + "; ".join(f"{k} ({why})" for k, why in left_out.items())
+                              + ". Export from a release whose images are all published, or, knowing the host must "
+                              "then build them with the internet, with --allow-unpublished (manual 1.14.4.2)")
+    for k in left_out:
+        log(f"left out (--allow-unpublished): {k} ({left_out[k]})")
+        del images[k]
     sizes = {k: image_size(e["repo"], e["digest"], arch) for k, e in images.items()}
     missing = [k for k, n in sizes.items() if not n]
     if missing:
@@ -87,7 +96,7 @@ def export_bundle(lock_dir, arch, out, log=print):
     manifest = {"format": FORMAT, "fabric": version, "arch": arch,
                 "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "signer": published.get("signer", ""), "issuer": published.get("issuer", ""),
-                "images": {}, "files": {}}
+                "images": {}, "files": {}, "left_out": left_out}
     try:
         with tarfile.open(part, "w", format=tarfile.PAX_FORMAT) as tar:
             for key, e in images.items():

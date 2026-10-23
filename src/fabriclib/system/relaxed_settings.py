@@ -1,12 +1,14 @@
+import json
 import os
 
 from fabriclib.common.paths import VARS_FILE
+from fabriclib.images.constants import BUNDLE_RECORD
 from fabriclib.keycloak.signin_levels import admin_level
 from fabriclib.security.hardened_daemon_settings import DAEMON_JSON, hardened_daemon_settings
 from fabriclib.security.signin_layers import read_lowered
 
 
-def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON):
+def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON, bundle_record=BUNDLE_RECORD):
     """Purpose: the security relaxations this host has turned on, so `fabricctl status` and the web UI can show them
              while they are active (global Rule 10; manual 1.2.8). Host changes the admin declined are listed by
              consent_status instead; Docker's userland proxy is listed here too while the DNS filter has client
@@ -14,7 +16,8 @@ def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON):
     Inputs:  vars_ — the host's vars (image_signature_check, host_join_domain, grants_fallback_open, the sign-in
              settings, install_resolver, dns_filter_groups); config_dir — the install's config folder
              (LOWERED_FILE: sign-in layers lowered with `fabricctl security lower`; default vars.yaml's);
-             daemon_json — Docker's daemon settings file.
+             daemon_json — Docker's daemon settings file; bundle_record — the last imported offline bundle's
+             record when it left images out (images/bundle/import_bundle, 2.1.14.21; unreadable: none).
     Returns: list of {"setting": str, "effect": str}; [] when none is relaxed.
     Fails:   OSError / ValueError for an unreadable LOWERED_FILE.
     Feeds:   system/show_relaxed_settings (`fabricctl status`); fabric-agent GET /v1/relaxed-settings (the web UI's
@@ -23,6 +26,15 @@ def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON):
     if not vars_.get("image_signature_check", True):
         relaxed.append({"setting": "image_signature_check: false",
                         "effect": "fabric's published images are used without checking their signatures (1.14.3.4)"})
+    try:                                                                  # 2.1.14.21: an offline bundle's override
+        with open(bundle_record) as f:
+            left_out = json.load(f).get("left_out") or {}
+    except (OSError, ValueError):
+        left_out = {}
+    if left_out:
+        relaxed.append({"setting": "offline bundle exported with --allow-unpublished",
+                        "effect": f"it left out {', '.join(sorted(left_out))}: not fabric's published, signed builds; "
+                                  "this host builds them itself, which needs the internet (1.14.4.2)"})
     if vars_.get("host_join_domain", True) is False:                     # 2.1.6.34: a member by default
         relaxed.append({"setting": "host_join_domain: false",
                         "effect": "this host is not a member of its domain: fabric admins sign in to it with local "

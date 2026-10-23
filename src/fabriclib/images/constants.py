@@ -46,3 +46,5 @@ SERVICES = [
 DEPENDENTS = {"postgres": ["keycloak"]}
 STATE = "/etc/fabric/images/state.json"      # previous ref per image var (for rollback), root 0600
 VERIFIED = "/etc/fabric/images/verified.json"  # digests whose signature verified (manual 1.14.3.4), root 0600
+# the last offline bundle imported, when it left images out (2.1.14.21), root 0600
+BUNDLE_RECORD = "/etc/fabric/images/bundle.json"

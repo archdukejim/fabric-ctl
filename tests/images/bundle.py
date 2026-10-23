@@ -3,11 +3,13 @@ and the pinned cosign. Needs Docker, root and network access (the export is onli
 Loading the images, with no network, is tests/images/offline.sh's.
 
 A small lock (cosign, nginx and fabric's published bind9) keeps it to about 200 MB:
-- `images export` writes one bundle: each image its own OCI layout, the published one's signature, Sigstore's
-  manifest with every file's sha256; the bundle checks as a whole and its signature offline, against the trusted
-  root the package ships (config/sigstore-trusted-root.json)
+- `images export` writes one bundle: each image its own OCI layout, the published one's signature, a manifest with
+  every file's sha256; the bundle checks as a whole and its signature offline, against the trusted root the package
+  ships (config/sigstore-trusted-root.json), which is Sigstore's current one
 - refused, with why and nothing written: an unknown architecture, a file that exists, an image the lock has not
-  published (the repository's own lock), not enough space; the command's usage errors
+  published (the repository's own lock, and a small one), not enough space; the command's usage errors
+- with --allow-unpublished (2.1.14.21) the unpublished image is left out and recorded; the import's `relaxed:` line
+  and the relaxed-settings row say so
 - check refuses: a bundle for another fabric version or architecture, one lacking an image the lock pins, one
   carrying another digest than the lock's, one cut short, one with a changed byte, a file that is not a bundle
 - the offline signature check refuses another signer and another image's signature
@@ -30,12 +32,14 @@ sys.path.insert(0, os.path.join(REPO, "src"))
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
 from fabriclib.images.bundle.check_bundle import check_bundle  # noqa: E402
+from fabriclib.images.bundle.describe_import import describe_import  # noqa: E402
 from fabriclib.images.bundle.export_bundle import export_bundle  # noqa: E402
 from fabriclib.images.bundle.host_arch import host_arch  # noqa: E402
 from fabriclib.images.bundle.import_bundle import import_bundle  # noqa: E402
 from fabriclib.images.bundle.verify_offline import verify_offline  # noqa: E402
 from fabriclib.images.run_images_command import run_images_command  # noqa: E402
 from fabriclib.setup.context import SetupContext  # noqa: E402
+from fabriclib.system.relaxed_settings import relaxed_settings  # noqa: E402
 
 PASS = FAIL = 0
 ARCH = host_arch()
@@ -138,6 +142,31 @@ try:
           and not os.path.exists(os.path.join(work, "repo.tar")), text[-300:])
     code, text = run_cli(["export", "--arch", ARCH])
     check("export without -o is a usage error", code == 2 and "images export --arch" in text, text[-200:])
+
+    # an unpublished image (2.1.14.21): refused by default, left out with --allow-unpublished, and shown as relaxed
+    def unpublish_bind9(lk):
+        lk["published"]["images"]["bind9"].update(digest="", tag="", pending="a test: not published")
+    held = make_lock(os.path.join(work, "lock-pending"), change=unpublish_bind9)
+    why = refusal(export_bundle, held, ARCH, os.path.join(work, "held.tar"), log=QUIET)
+    check("export refuses an unpublished image by default, naming it, why and --allow-unpublished",
+          "fabric/bind9 (a test: not published)" in why and "--allow-unpublished" in why, why)
+    left = export_bundle(held, ARCH, os.path.join(work, "held.tar"), log=QUIET, allow_unpublished=True)
+    check("with --allow-unpublished the export leaves it out and the manifest records it with why",
+          left["left_out"] == {"fabric/bind9": "a test: not published"} and "fabric/bind9" not in left["images"]
+          and sorted(check_bundle(os.path.join(work, "held.tar"), held, ARCH, log=QUIET)["indexes"])
+          == ["cosign", "nginx"])
+    lines = describe_import({"loaded": [], "present": [], "verified": [], "unchecked": [],
+                             "left_out": left["left_out"]})
+    check("the import says so as a relaxation", any(ln.startswith("relaxed:") and "fabric/bind9" in ln
+                                                    for ln in lines), lines)
+    rec = os.path.join(work, "bundle.json")
+    with open(rec, "w") as f:
+        json.dump({"left_out": left["left_out"]}, f)
+    rows = relaxed_settings({}, config_dir=work, bundle_record=rec)
+    check("status and doctor list it among the relaxed settings while the record is there",
+          any("--allow-unpublished" in r["setting"] and "fabric/bind9" in r["effect"] for r in rows)
+          and not any("--allow-unpublished" in r["setting"]
+                      for r in relaxed_settings({}, config_dir=work, bundle_record=rec + ".none")), rows)
     os.makedirs(tiny)
     subprocess.run(["mount", "-t", "tmpfs", "-o", "size=8m", "bundles-test", tiny], check=True)
     why = refusal(export_bundle, lock, ARCH, os.path.join(tiny, "b.tar"), log=QUIET)

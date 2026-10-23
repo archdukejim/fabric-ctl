@@ -1969,6 +1969,7 @@ function	fabriclib-images|src/fabriclib/images/bundle/image_size.py|image_size	1
 function	fabriclib-images|src/fabriclib/images/bundle/import_bundle.py|_containerd_store	1	
 function	fabriclib-images|src/fabriclib/images/bundle/import_bundle.py|_load	3	
 function	fabriclib-images|src/fabriclib/images/bundle/import_bundle.py|_present	2	
+function	fabriclib-images|src/fabriclib/images/bundle/import_bundle.py|_record	5	
 function	fabriclib-images|src/fabriclib/images/bundle/import_bundle.py|import_bundle	4	
 function	fabriclib-images|src/fabriclib/images/bundle/registry_name.py|registry_name	1	
 function	fabriclib-images|src/fabriclib/images/bundle/verify_offline.py|verify_offline	1	

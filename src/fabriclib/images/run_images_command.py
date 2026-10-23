@@ -21,9 +21,11 @@ USAGE = """usage: fabricctl images status                  each service: running
        fabricctl images rollback <service>     back to the image before the last update
        fabricctl images prune                  remove old images of fabric's repositories (not in use,
                                                not the rollback image)
-       fabricctl images export --arch amd64|arm64 -o <file>
+       fabricctl images export --arch amd64|arm64 -o <file> [--allow-unpublished]
                                                an offline install bundle of this release (online): every
-                                               image of the lock by digest, their signatures, a manifest
+                                               image of the lock by digest, their signatures, a manifest;
+                                               --allow-unpublished: leave out images not published (a
+                                               relaxation: the host must build them, with the internet)
        fabricctl images import <bundle>        check a bundle offline (version, architecture, digests,
                                                hashes, signatures), then load its images; fetches nothing"""
 
@@ -97,10 +99,11 @@ def run_images_command(ctx, argv):
             moved = rollback_image(ctx, args[0])
             print(f"rolled back {', '.join(moved)}" if moved else "already on the previous image")
             return 0
-        if cmd == "export" and len(args) == 4 and _option(args, "--arch") and _option(args, "-o"):
+        allow = "--allow-unpublished" in args
+        if cmd == "export" and len(args) == 4 + allow and _option(args, "--arch") and _option(args, "-o"):
             out = _option(args, "-o")
             manifest = export_bundle(lock_dir(os.path.join(FABRIC_DIR, "jinja")), _option(args, "--arch"), out,
-                                     log=lambda line: print(line, flush=True))
+                                     log=lambda line: print(line, flush=True), allow_unpublished=allow)
             print(f"bundle for fabric {manifest['fabric']} ({manifest['arch']}), {len(manifest['images'])} images: "
                   f"{out}")
             return 0

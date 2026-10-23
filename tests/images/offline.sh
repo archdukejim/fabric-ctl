@@ -2,8 +2,8 @@
 # -----------------------------------------------------------------------
 # An offline install from a bundle (decision 2.1.14.14, manual 1.14.4, 3.14.2), on a host with no way to the
 # internet: a systemd + Docker box (tests/images/offline/Dockerfile) on a Docker network with no route out.
-#   1. here, online: the .deb built from the working tree and `images export` for this machine's architecture
-#      (the lock without the images it has not published: they are built on a host, and this test leaves them out)
+#   1. here, online: the .deb built from the working tree and `images export --allow-unpublished` for this
+#      machine's architecture (an image the lock has not published is left out: this test does not install it)
 #   2. in the box, offline: the package installed with dpkg (its Ubuntu packages are in the box already: bundles
 #      do not carry them yet, 2.3.14.3); `images import` refused on Docker's classic store, for a missing file and
 #      when the store has not the room; then imported, checked and loaded with nothing fetched, and a second import
@@ -36,20 +36,10 @@ ARCH="$(dpkg --print-architecture)"
 
 # 1. online, on this machine
 DEB=$(OUT="$WORK/dist" bash "$REPO/packaging/deb/build-deb.sh") || { echo "FAIL package build"; exit 1; }
-mkdir -p "$WORK/lock"; cp "$REPO/config/VERSION" "$WORK/lock/"
-python3 - "$REPO/config/images.lock.yaml" "$WORK/lock/images.lock.yaml" <<'PY'
-import sys
-import yaml
-lock = yaml.safe_load(open(sys.argv[1]))
-lock["published"]["images"] = {k: v for k, v in lock["published"]["images"].items() if v.get("digest")}
-yaml.safe_dump(lock, open(sys.argv[2], "w"))
-PY
-echo "--- images export ($ARCH)"
+echo "--- images export ($ARCH; --allow-unpublished: an image the lock has not published is left out, 2.1.14.21)"
 # covers: cli:images.export +
-PYTHONPATH="$REPO/src" python3 -c "import sys
-from fabriclib.images.bundle.export_bundle import export_bundle
-m = export_bundle(sys.argv[1], sys.argv[2], sys.argv[3], log=lambda s: print(s, flush=True))
-print(len(m['images']), 'images')" "$WORK/lock" "$ARCH" "$WORK/fabric.tar" > "$OUT/export.log" 2>&1
+python3 "$REPO/src/fabriclib/cli.py" images export --arch "$ARCH" -o "$WORK/fabric.tar" --allow-unpublished \
+    > "$OUT/export.log" 2>&1
 check "the bundle is exported for $ARCH ($(du -h "$WORK/fabric.tar" 2>/dev/null | cut -f1))" "test -s '$WORK/fabric.tar'"
 [ -s "$WORK/fabric.tar" ] || { tail -5 "$OUT/export.log"; exit 1; }
 
@@ -126,6 +116,8 @@ check "its bundle step checked the bundle and found the images already loaded" \
 check "nothing was pulled or built" "! grep -qE 'Pulling from|Building [a-z]' '$OUT/setup.log'"
 check "fabric.target is active and doctor passes" \
     "in_box 'systemctl is-active fabric.target' | grep -qx active && in_box 'fabricctl doctor' > '$OUT/doctor.log' 2>&1"
+check "status lists a bundle that left images out as relaxed (when the export left any out)" \
+    "! grep -q 'left out (--allow-unpublished)' '$OUT/export.log' || in_box 'fabricctl status 2>&1' | grep -q 'allow-unpublished'"
 check "BIND answers for the zone on the host's address" "in_box 'dig +short @$IP ns.off.test' | grep -qx '$IP'"
 
 echo
