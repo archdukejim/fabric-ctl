@@ -1,0 +1,80 @@
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+{% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
+{#- a grant's fields: its who and where, and each category's rights as switches; f — the values to start from -#}
+{% macro fields(f) %}
+<label>Description<input name="description" maxlength="200" value="{{ f.description or '' }}" autocomplete="off"></label>
+<label>Who (people groups, all required; separated by commas)<input name="who" required value="{{ (f.who or []) | join(', ') }}" autocomplete="off" placeholder="server-admins"></label>
+<label>Where (groups, all required; separated by commas)<input name="where" required value="{{ (f.where or []) | join(', ') }}" autocomplete="off" placeholder="machines-servers, site-lan"></label>
+{% for key, label, choices in rights %}<fieldset><legend>{{ label }}</legend>{% for r in choices %}<label><input type="checkbox" name="{{ key }}_{{ r }}" value="yes"{{ ' checked' if r in (f[key] or []) }}> {{ r }}</label> {% endfor %}</fieldset>
+{% endfor %}<fieldset><legend>Sudo</legend><label><input type="checkbox" name="sudo_all" value="yes"{{ ' checked' if 'ALL' in (f.sudo or []) }}> every command</label>
+<label>or these commands (separated by commas)<input name="sudo" value="{{ (f.sudo or []) | reject('equalto', 'ALL') | join(', ') }}" autocomplete="off" placeholder="/usr/bin/systemctl restart nginx"></label></fieldset>
+<label><input type="checkbox" name="local_admin" value="yes"{{ ' checked' if f.local_admin }}> Local administrator (Windows' Administrators)</label>
+{% endmacro %}
+{% if view == "list" %}
+<h1>Directory · Access</h1>
+{% call p.actions() %}{% if can('groups:admin') %}<a class="btn" href="/directory/access/_new">Add grant</a>{% endif %}{% endcall %}
+{% if unavailable %}<p class="flash bad" role="alert">The grants could not be read: {{ unavailable }}</p>
+{% else %}
+<section class="card"><h2>Grants <span class="muted">{{ total }}</span></h2>
+<form method="get" action="/directory/access" class="grid search" role="search">
+<label>Search <input name="q" value="{{ search }}" autocomplete="off" placeholder="name, kind, who, where"></label>
+<div><button class="ghost">Search</button>{% if search %} <a href="/directory/access">Clear</a>{% endif %}</div></form>
+{% if grants %}{% call p.list(["", "Grant", "Who", "Where", "Gives", "Reaches"]) %}{% for g in grants %}<tr>
+<td>{{ p.light('warn' if g.reaches_nobody else 'ok', 'reaches nobody' if g.reaches_nobody else 'in use') }}</td>
+<td data-label="Grant"><a href="/directory/access/{{ g.name | urlencode }}"><strong>{{ g.name }}</strong></a>{% if g.kind == 'restrict' %} <span class="muted small">restricts</span>{% endif %}{% if g.description %}<div class="muted small">{{ g.description }}</div>{% endif %}</td>
+<td data-label="Who">{{ g.who | join(' and ') }}</td><td data-label="Where">{{ g.where | join(' and ') }}</td>
+<td data-label="Gives">{{ g.gives | join('; ') or '—' }}</td>
+<td data-label="Reaches">{{ 'nobody' if g.reaches_nobody else (g.counts.people ~ ' people, ' ~ g.counts.machines ~ ' machines') }}</td></tr>{% endfor %}{% endcall %}
+{{ p.pager("/directory/access", search, at, pages, "grants") }}
+{% elif search %}{{ p.empty("No grant matches “" ~ search ~ "”.") }}
+{% else %}{% call p.empty("No grants: no machine admits anyone from the domain.") %}{% if can('groups:admin') %}<a class="btn" href="/directory/access/_new">Add grant</a>{% endif %}{% endcall %}{% endif %}
+<p class="muted small">A grant gives the people in all of its who groups its rights on what is in all of its where groups. A machine no grant reaches admits nobody from the domain. fabric compiles grants into groups, GPOs and sudo rules at once.</p>
+</section>
+{% endif %}
+
+{% elif view == "new" %}
+<p><a href="/directory/access">← Access</a></p>
+<h1>Directory · Add grant</h1>
+{% if unavailable %}<p class="flash bad" role="alert">The grants could not be read: {{ unavailable }}</p>
+{% else %}
+<section class="card"><h2>Start from</h2>
+<form method="get" action="/directory/access/_new" class="grid">
+<label>Template<select name="template"><option value="">empty</option>{% for t, f in templates | dictsort %}<option value="{{ t }}"{{ ' selected' if t == template }}>{{ t }} ({{ f.description }})</option>{% endfor %}</select></label>
+<div><button class="ghost">Use</button></div></form></section>
+<section class="card"><h2>Add grant{% if template %} from {{ template }}{% endif %}</h2>
+<form method="post" action="/directory/grants/_new" class="grid">
+{{ csrf() }}<input type="hidden" name="template" value="{{ template }}">
+<label>Name<input name="name" required pattern="[a-z][a-z0-9-]{1,39}" autocomplete="off" placeholder="web-ops"></label>
+<label>Kind<select name="kind"><option value="allow">allows</option><option value="restrict">restricts (narrows what the allowing ones give)</option></select></label>
+{{ fields(start) }}
+<div><button>Add grant</button></div></form>
+<p class="muted small">Waits for the Access page's Apply, then compiled at once. Refused with why: the tiers' groups, the domain controllers' hosts, sudo of every command for everyone, a group that is not there.</p></section>
+{% endif %}
+
+{% else %}
+<p><a href="/directory/access">← Access</a></p>
+<h1>Directory · Grant {{ g.name }}{% if g.kind == 'restrict' %} <span class="muted">restricts</span>{% endif %}</h1>
+{% if unavailable %}<p class="flash bad" role="alert">This grant could not be read: {{ unavailable }}</p>
+{% else %}
+{{ p.facts("The grant", [("Description", g.description or "—"), ("Who", g.who | join(" and ")), ("Where", g.where | join(" and ")), ("Gives", gives | join("; ") or "nothing"), ("Its groups", (g.groups or []) | join(", ")), ("Its sudo rule", g.sudo_rule or None), ("Sets of machines", (g.sets or []) | join(", ") or "none")]) }}
+<section class="card"><h2>People it reaches <span class="muted">{{ (g.who_people or []) | length }}</span></h2>
+{% if g.who_people %}<p>{% for u in g.who_people %}{% if can('people:read') %}<a href="/directory/people/{{ u | urlencode }}">{{ u }}</a>{% else %}{{ u }}{% endif %}{{ ', ' if not loop.last }}{% endfor %}</p>{% else %}{{ p.empty("Nobody is in all of its who groups.") }}{% endif %}</section>
+<section class="card"><h2>Where: machines <span class="muted">{{ (g.where_machines or []) | length }}</span>{% if g.where_people_names %}, people <span class="muted">{{ g.where_people_names | length }}</span>{% endif %}</h2>
+{% if g.where_machines %}<p>{% for m in g.where_machines %}<a href="/directory/computers/{{ m | urlencode }}">{{ m }}</a>{{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+{% if g.where_people_names %}<p>{{ g.where_people_names | join(', ') }}</p>{% endif %}
+{% if not g.where_machines and not g.where_people_names %}{{ p.empty("Nothing is in all of its where groups.") }}{% endif %}</section>
+{% if can('groups:admin') %}
+<section class="card"><h2>Change</h2>
+<form method="post" action="/directory/grants/{{ g.name | urlencode }}" class="grid">
+{{ csrf() }}
+{{ fields(g) }}
+<div><button>Save grant</button></div></form>
+<p class="muted small">Its kind stays: remove it and add it again to change it. Waits for the Access page's Apply.</p></section>
+<section class="card"><h2>Remove {{ g.name }}</h2>
+<form method="post" action="/directory/grants/{{ g.name | urlencode }}/delete" class="grid">
+{{ csrf() }}<div><button class="danger">Remove grant</button></div></form>
+<p class="muted small">At Apply its groups, GPO share and sudo rule go: what it gave is taken away at once.</p></section>
+{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -14,6 +14,6 @@ PLAN = [
      "unchanged; [M]enu to change)",
      "fabric admins sign in to this host with local accounts only"),
     ("install_keycloak", True, "Keycloak SSO (+ Postgres), required by the web UI", "no SSO and no web UI"),
-    ("install_webui", True, "Fabric web UI at https://fabric.<domain> (Keycloak sign-in)",
+    ("install_webui", True, "Fabric web UI at https://fabric-ctl.<domain> (Keycloak sign-in)",
      "manage with fabricctl only"),
 ]

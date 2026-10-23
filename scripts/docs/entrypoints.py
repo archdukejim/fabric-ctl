@@ -119,8 +119,9 @@ def _agent():
 
 
 def _web():
-    """Purpose: the web console's pages (webui/routes/get_page.py: `path == "/x"`) and forms (`action` in
-             templates/webui-app/; a Jinja placeholder is `*`, a form with method get is its page).
+    """Purpose: the web console's pages (webui/routes/get_page.py: `path == "/x"`, and `_rest(path, "/x/")` for a
+             page per name, /x/*) and forms (`action` in templates/webui-app/; a Jinja placeholder is `*`, a form
+             with method get is its page).
     Inputs:  none (reads src/webui and templates/webui-app).
     Returns: {id: source}.
     Fails:   OSError on an unreadable file.
@@ -132,6 +133,8 @@ def _web():
     found = {}
     for m in re.finditer(r'path == "(/[^"]*)"', _read("src/webui/routes/get_page.py")):
         found[ident("get", m.group(1))] = "src/webui/routes/get_page.py"
+    for m in re.finditer(r'_rest\(path, "(/[^"]*/)"\)', _read("src/webui/routes/get_page.py")):
+        found[ident("get", m.group(1) + "{{ name }}")] = "src/webui/routes/get_page.py"
     folder = os.path.join(REPO, "templates", "webui-app")
     for name in sorted(os.listdir(folder)):
         if not name.endswith(".html"):

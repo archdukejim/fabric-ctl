@@ -164,8 +164,10 @@ for _field, _bad, _msg in (
         assert _msg in str(e) and _sec['tsig_secrets'] == secrets['tsig_secrets'], (_field, _bad, str(e))
 print('tsig_keys and bind_acl_policies: what apply refuses, with the reason, no secret made')
 
-# Web UI at any host name; the certificate page at /certs/ (no certs.<domain> since 0.7.0, 1.5.1.5).
-assert v2['hostname_mgr'] == 'fabric.lan.j-j.family' and 'hostname_certs' not in v2 and 'cname_certs' not in v2, v2
+# Web UI at any host name, fabric-ctl.<domain> by default on a new install (2.1.8.12); the certificate page at
+# /certs/ (no certs.<domain> since 0.7.0, 1.5.1.5).
+# covers: setting:cname_mgr +
+assert v2['hostname_mgr'] == 'fabric-ctl.lan.j-j.family' and v2['cname_mgr'] == 'fabric-ctl' and 'hostname_certs' not in v2 and 'cname_certs' not in v2, v2
 custom = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'webui_hostname': 'Admin.Example.org'}))
 # covers: setting:webui_hostname +
 assert custom['hostname_mgr'] == 'admin.example.org', custom['hostname_mgr']

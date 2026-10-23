@@ -114,9 +114,17 @@ ctx_fresh, _, error = setup_vars(write("fresh.yaml", yaml.safe_dump(fresh_answer
 fresh_saved = yaml.safe_load(open(os.path.join(ctx_fresh.config_dir, "fabric.yaml")))
 fresh, _ = render_vars(env, secrets, {**fresh_saved, "deploy_base_dir": "/opt"})
 moved, _ = render_vars(env, secrets, {**saved, **answers, "deploy_base_dir": "/opt"})
-differ = sorted(k for k in set(fresh) | set(moved) if fresh.get(k) != moved.get(k))
+# covers: setting:cname_mgr +
+check("the console's address: a new install's is fabric-ctl.<domain>; the 0.7.1 install keeps its fabric.<domain> "
+      "(its cname_mgr kept, 2.1.8.12, 1.2.13.4)", fresh["hostname_mgr"] == f"fabric-ctl.{old['domain']}"
+      and moved["cname_mgr"] == "fabric" and moved["hostname_mgr"] == f"fabric.{old['domain']}",
+      (fresh["hostname_mgr"], moved["hostname_mgr"]))
+ctx_same, _, error = setup_vars(write("same.yaml", yaml.safe_dump({**fresh_answers, "cname_mgr": old["cname_mgr"]})))
+same, _ = render_vars(env, secrets, {**yaml.safe_load(open(os.path.join(ctx_same.config_dir, "fabric.yaml"))),
+                                     "deploy_base_dir": "/opt"})
+differ = sorted(k for k in set(same) | set(moved) if same.get(k) != moved.get(k))
 check("0.8.0 renders the moved settings as a fresh install with the same answers (zones, keys, parts, groups, "
-      "the DC)", differ == [], {k: (fresh.get(k), moved.get(k)) for k in differ})
+      "the DC; the console's kept address aside)", differ == [], {k: (same.get(k), moved.get(k)) for k in differ})
 try:
     check_settings({**moved, "dns_filter": "none"})
     said = "accepted"

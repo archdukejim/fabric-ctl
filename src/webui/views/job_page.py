@@ -1,3 +1,4 @@
+from webui.views.constants import JOB_PAGES
 from webui.views.render_page import render_page
 
 
@@ -9,4 +10,4 @@ def job_page(ctx, job):
     Returns: HTML str.
     Fails:   Jinja2 errors propagate.
     Feeds:   src/webui/routes/get_page (/jobs/<id>); devserver."""
-    return render_page("job", ctx=ctx, tab="overview", job=job)
+    return render_page("job", ctx=ctx, page=JOB_PAGES.get(job.get("kind"), "/"), job=job)

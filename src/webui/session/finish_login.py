@@ -23,9 +23,9 @@ def finish_login(h, cert, query):
              every page until the next sign-in; [] when the agent cannot say); LOGIN is audited.
     Fails:   400 when the state is unknown or expired, the login cookie does not match, or another certificate started
              the login (the attempt is used up either way); 401 when Keycloak returned an error or no code; 401 'Login
-             failed: …' on OIDCError; 403 when the Keycloak username is not the certificate CN, and 403 when the token
-             has no fabric role (both audited as LOGIN_DENIED). Agent errors from the audit calls propagate to
-             handle_request.
+             failed: …' on OIDCError; 403 when the Keycloak username is not the certificate CN (audited as
+             LOGIN_DENIED). A person with no fabric role signs in too and sees only My account (2.1.8.11). Agent
+             errors from the audit calls propagate to handle_request.
     Feeds:   handler.Handler.handle_request (GET /oidc/callback).
     Notes:   A 200 with meta refresh rather than a redirect, so the first request carrying the Strict session cookie
              starts from this origin. auth_at is the token's auth_time (never later than now), used by the vault
@@ -50,11 +50,7 @@ def finish_login(h, cert, query):
     if cert["cn"] is not None and user != cert["cn"]:          # gate 5, while a certificate is required
         actions.audit(user or "unknown", "LOGIN_DENIED", f"cert CN {cert['cn']!r} does not match user")
         return h.deny(403, "Your client certificate does not belong to this user.")
-    perms = token_perms(claims)
-    if not perms:
-        actions.audit(user, "LOGIN_DENIED", "no fabric role")
-        return h.deny(403, f"Your account has no fabric role (for example '{app.admin_role}'). "
-                           "Ask an administrator to add you to a fabric group.")
+    perms = token_perms(claims)          # none: a person of the domain with no fabric role sees My account (2.1.8.11)
 
     sid = secrets.token_urlsafe(32)
     now = time.time()
@@ -64,7 +60,8 @@ def finish_login(h, cert, query):
                              "exp": float(claims.get("exp") or now), "created": now, "last": now,
                              # when the person last signed in (step-up for vault changes and raising security)
                              "auth_at": min(float(claims.get("auth_time") or now), now)}
-    actions.audit(user, "LOGIN", f"cert={cert['fp'][:16]}" if cert["fp"] else "no client certificate")
+    actions.audit(user, "LOGIN", (f"cert={cert['fp'][:16]}" if cert["fp"] else "no client certificate")
+                  + ("" if perms else "; no fabric role: My account only"))
     if "status:read" in perms:               # the host's reminders, at each sign-in, on every page (2.1.6.69)
         try:
             reminders = actions.host_reminders()

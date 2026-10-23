@@ -12,13 +12,18 @@ try:
     from fabriclib.directory.constants import DEVICE_NAME_RE, DEVICE_TYPES, PERMISSIONS, ROLE_NAME_RE  # noqa: F401
     from fabriclib.directory.list_devices import list_devices  # noqa: F401
     from fabriclib.rbac.permissions import BUNDLES, PERMISSIONS as FABRIC_PERMISSIONS  # noqa: F401
+    from fabriclib.samba.check_kerberos_policy import check_kerberos_policy  # noqa: F401
     from fabriclib.samba.check_password_policy import check_password_policy  # noqa: F401
     from fabriclib.samba.read_policy_changes import read_policy_changes  # noqa: F401
 except ImportError:
     ValidationError = ValueError
     ptr_for_ip = reverse_zones = list_devices = check_device_fields = check_role_fields = None
-    check_password_policy = read_policy_changes = None
+    check_password_policy = read_policy_changes = check_kerberos_policy = None
     DEVICE_NAME_RE = ROLE_NAME_RE = None
     PRIVATE_TLDS = ()                       # without fabriclib every name counts as public in the preview
     DEVICE_TYPES, PERMISSIONS = [], {}
     BUNDLES, FABRIC_PERMISSIONS = {}, {p: "" for p in views.PREVIEW_PERMS}
+try:
+    from fabriclib.rbac.required_permission import required_permission  # noqa: F401
+except ImportError:
+    required_permission = None

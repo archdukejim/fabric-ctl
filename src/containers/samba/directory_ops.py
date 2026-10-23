@@ -1,3 +1,4 @@
+from ad_sites import ad_sites
 from add_group_member import add_group_member
 from add_sudo_rule import add_sudo_rule
 from adopt_linux_machines import adopt_linux_machines
@@ -7,6 +8,7 @@ from create_machine import create_machine
 from create_ou import create_ou
 from create_person import create_person
 from dc_info import dc_info
+from domain_facts import domain_facts
 from delete_ou import delete_ou
 from edit_person import edit_person
 from get_person import get_person
@@ -55,12 +57,14 @@ OPS = {
     "add_sudo_rule": add_sudo_rule,
     "adopt_linux_machines": adopt_linux_machines,
     "create_group": create_group,
+    "ad_sites": ad_sites,
     "create_host_group": create_host_group,
     "create_machine": create_machine,
     "create_ou": create_ou,
     "create_person": create_person,
     "dc_info": dc_info,
     "delete_ou": delete_ou,
+    "domain_facts": domain_facts,
     "edit_person": edit_person,
     "get_person": get_person,
     "group_scope": group_scope,

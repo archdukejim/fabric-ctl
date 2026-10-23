@@ -1,5 +1,3 @@
-import urllib.parse
-
 from webui import agentclient as actions
 from webui.views.constants import DNS_FILTER_SECTIONS
 
@@ -50,12 +48,12 @@ def dns_filter_post(h, parts, form):
     """Purpose: One DNS filter tab change (manual 1.12.2.14, 1.12.2.15, 1.12.3.8), saved and made in seconds by
              fabric-agent, then back to its section with the outcome; a Block or Allow pressed in the query log goes
              back there, a group's change to Groups.
-    Inputs:  h — the request handler (redirect, deny); parts — segments after /dns-filter/: ["lists"], ["lists",
+    Inputs:  h — the request handler (back, deny); parts — segments after /dns-filter/: ["lists"], ["lists",
              "set"], ["lists", "delete"], ["rules"], ["rules", "delete"], ["upstreams"], ["groups"], ["groups",
              "delete"], ["safe-search"], ["fetch"]; form — dict (name, url, enabled, kind, upstreams, group, clients,
              on, youtube; back: a section to return to). An unchecked safe-search box sends no "on": off.
-    Returns: 303 to /dns-filter?view=<section> with msg, or err when the agent refused the change (nothing saved) or
-             it waits (saved; why: AdGuard not answering); 404 for another path.
+    Returns: 303 to /dns-filter?view=<section> with what was done as its message, or why not when the agent refused
+             the change (nothing saved) or it waits (saved; why: AdGuard not answering); 404 for another path.
     Fails:   AgentError, PermissionDenied and AuthError propagate to handle_request.
     Feeds:   post_action (/dns-filter/…)."""
     what = "/".join(parts)
@@ -63,12 +61,12 @@ def dns_filter_post(h, parts, form):
         return h.deny(404, "Not found.")
     back = form.get("back") if form.get("back") in [s for s, _ in DNS_FILTER_SECTIONS] else BACK[what]
     body = {k: form.get(k, "") for k in FIELDS}
+    where = "/dns-filter" + ("" if back == "overview" else "?view=" + back)
     try:
         res = actions.dns_filter_change(what, {} if what == "fetch" else body)
     except actions.ValidationError as e:
-        return h.redirect("/dns-filter?" + urllib.parse.urlencode({"view": back, "err": str(e)}))
+        return h.back(where, err=str(e))
     msg = _message(what, res)
     if what != "fetch" and not res.get("applied"):
-        return h.redirect("/dns-filter?" + urllib.parse.urlencode(
-            {"view": back, "err": msg + " Saved, but not in use yet: " + str(res.get("waiting") or "")[-300:]}))
-    return h.redirect("/dns-filter?" + urllib.parse.urlencode({"view": back, "msg": msg}))
+        return h.back(where, err=msg + " Saved, but not in use yet: " + str(res.get("waiting") or "")[-300:])
+    return h.back(where, msg=msg)

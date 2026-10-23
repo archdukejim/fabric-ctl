@@ -1,3 +1,3 @@
 {% extends "base.html" %}{% block body %}
-<h1>Audit log</h1><p class="muted">Newest first. Web and CLI changes both land here.</p>
+<h1>Overview · Audit log</h1><p class="muted">Newest first. Web and CLI changes both land here.</p>
 <section class="card"><pre>{% for line in lines %}{{ line }}{% endfor %}</pre></section>{% endblock %}

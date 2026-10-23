@@ -10,5 +10,5 @@ def radius_secret(ctx, name, secret, action, host_ip, applied=True, output=""):
     Fails:   TypeError if output is not a str (it is sliced); otherwise never in practice.
     Feeds:   src/webui/routes/radius_post; devserver.
     """
-    return render_page("radius_secret", ctx=ctx, tab="freeradius", client=name, secret=secret, action=action,
+    return render_page("radius_secret", ctx=ctx, page="/8021x", client=name, secret=secret, action=action,
                    host_ip=host_ip, applied=applied, output=output[-300:])

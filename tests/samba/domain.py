@@ -60,6 +60,7 @@ import agent.post_people as m_people  # noqa: E402
 import fabriclib.directory.run_op as m_runop  # noqa: E402
 import fabriclib.grants.grant_request as m_greq  # noqa: E402
 import fabriclib.samba.domain_dc_names as m_dcnames  # noqa: E402
+import fabriclib.samba.domain_sites as m_dsites  # noqa: E402
 from fabriclib.breakglass.ensure_enterprise_admin import ensure_enterprise_admin  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.deploy.check_samba_settings import check_samba_settings  # noqa: E402
@@ -74,8 +75,11 @@ from fabriclib.samba.set_domain_password_policy import set_domain_password_polic
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-domain")
-NET, SUBNET, IP = "domain_net", "10.254.41.0/24", "10.254.41.10"
-DC = "dmdc"
+# a second run beside this one (another worktree) names its own: SAMBA_TEST_ID, SAMBA_TEST_NET (a /24's three octets)
+NET = "domain_net" + os.environ.get("SAMBA_TEST_ID", "")
+SUBNET = os.environ.get("SAMBA_TEST_NET", "10.254.41") + ".0/24"
+IP = SUBNET.rsplit(".", 1)[0] + ".10"
+DC = "dmdc" + os.environ.get("SAMBA_TEST_ID", "")
 TARGET = {"name": DC}                 # where every `docker exec … samba` of the code under test goes
 FAILED = 0
 KERBEROS = {"ticket_hours": 3, "renew_days": 2, "skew_minutes": 7}
@@ -90,7 +94,7 @@ def redirect(module):
     module.subprocess = types.SimpleNamespace(run=run, TimeoutExpired=subprocess.TimeoutExpired)
 
 
-for mod in (m_runop, m_greq, m_dcnames):
+for mod in (m_runop, m_greq, m_dcnames, m_dsites):
     redirect(mod)
 
 
@@ -183,7 +187,8 @@ perms = {(m, tuple(r)): required_permission(m, r) for m, r in (
     ("POST", ["machines", "m", "type"]), ("POST", ["machines", "m", "sites"]), ("POST", ["machines", "m", "keytab"]),
     ("POST", ["domain", "kerberos", "policy"]), ("POST", ["account", "password"]), ("GET", ["groups"]),
     ("GET", ["groups", "g"]), ("GET", ["ous"]), ("GET", ["domain", "kerberos"]),
-    ("GET", ["domain", "kerberos", "spns"]), ("GET", ["account", "groups"]))}
+    ("GET", ["domain", "kerberos", "spns"]), ("GET", ["account", "groups"]), ("GET", ["machines"]),
+    ("GET", ["machines", "m"]), ("GET", ["sites"]))}
 check("people:edit; unlock is people:reset (widened); groups:admin creates, deletes and sets managers; members and a "
       "person's own account any signed-in person (fabric-agent decides); ous:admin; machines:admin; domain:admin",
       [perms[k] for k in sorted(perms)] == [perms[k] for k in sorted(perms)] and perms[("POST", ("people", "x", "edit"))]
@@ -194,7 +199,8 @@ check("people:edit; unlock is people:reset (widened); groups:admin creates, dele
       == "session" and perms[("GET", ("account", "groups"))] == "session"
       and {perms[("POST", ("ous",))], perms[("POST", ("ous", "rename"))], perms[("POST", ("ous", "delete"))]}
       == {"ous:admin"} and perms[("POST", ("domain", "kerberos", "policy"))] == "domain:admin"
-      and {perms[("GET", r)] for r in (("groups",), ("groups", "g"), ("ous",), ("domain", "kerberos"),
+      and {perms[("GET", r)] for r in (("groups",), ("groups", "g"), ("ous",), ("domain", "kerberos"), ("machines",),
+                                       ("machines", "m"), ("sites",),
                                        ("domain", "kerberos", "spns"))} == {"domain:read"}, perms)
 
 print("--- people: edit and unlock (1.6.12.4), through the grants and the tiers")
@@ -260,11 +266,22 @@ dn_bob = f"CN=Bob Test,OU=people,{BASE}" if "CN=Bob Test" in ldb("(sAMAccountNam
     ldb("(sAMAccountName=bob)", "dn").split("dn: ", 1)[1].split("\n", 1)[0]
 sh(["docker", "exec", "-i", DC, "ldbmodify", "-H", "/data/private/sam.ldb"],
    input=f"dn: {dn_bob}\nchangetype: modify\nreplace: lockoutTime\nlockoutTime: {lock}\n")
+page = m_get.get_route(["people", "bob"], "alice")
+# covers: agent:get.people.* +
+check("GET /v1/people/bob (a person's page, 1.6.12.4): locked out, his details (the 15 fields), groups, sites, last "
+      "sign-in (\"\" or a time), certificates and devices", page["state"] == "locked" and page["uid"] == "bob"
+      and page["person"]["title"] == "Site engineer" and "site-lan" in page["groups"] and page["sites"] == ["lan"]
+      and isinstance(page["certs"], list) and isinstance(page["devices"], list)
+      and (page["last_logon"] == "" or page["last_logon"][:2] == "20"), page)
+row = next(u for u in m_get.get_route(["people"], "alice")["users"] if u["uid"] == "bob")
+check("...and the People list says so too (state, last sign-in)", row["state"] == "locked" and row["locked"]
+      and "last_logon" in row, row)
 done = m_people.post_people(["people", "bob", "unlock"], "hd", {}, "hd")
 # covers: agent:post.people.*.unlock +
 check("POST /v1/people/bob/unlock by hd (a grant's unlock): bob's lockoutTime is 0 again, audited",
       done["changed"] and "lockoutTime: 0" in ldb("(sAMAccountName=bob)", "lockoutTime")
       and AUDIT[-1][1] == "PERSON_UNLOCK", done)
+check("...unlocked: active on his page", m_get.get_route(["people", "bob"], "alice")["state"] == "active")
 again = m_people.post_people(["people", "bob", "unlock"], "hd", {}, "hd")
 check("...again: not locked out, nothing changed or audited", again["changed"] is False and AUDIT[-1][1] == "PERSON_UNLOCK",
       again)
@@ -285,6 +302,8 @@ gone, why = refused(m_people.post_people, ["people", "dee", "reset"], "alice", {
 check("a Directory Administrator resetting another refused: only the Enterprise Admin (2.1.6.68)",
       gone and "only the Enterprise Admin" in why, why)
 done = m_people.post_people(["people", "dee", "disable"], "root", {}, None)
+check("a disabled person's state is disabled (not locked) on their page",
+      m_get.get_route(["people", "dee"], "alice")["state"] == "disabled")
 m_people.post_people(["people", "dee", "enable"], "root", {}, None)
 check("root (acting for the Enterprise Admin) disables and enables a Directory Administrator",
       done["changed"] and AUDIT[-1][1] == "PERSON_ENABLE", done)
@@ -607,6 +626,33 @@ gone, why = refused(m_domain.post_domain, ["machines", "nomachine", "keytab"], "
                     {"service": "HTTP", "user": "www-data"}, "alice", None)
 # covers: agent:post.machines.*.keytab -
 check("keytab for a machine the domain does not know refused", gone and "no machine nomachine" in why, why)
+print("--- Computers (1.6.12.6): the list and a computer's page")
+listed = m_get.get_route(["machines"], "alice")
+row = next((m for m in listed if m["name"] == "srv1"), {})
+# covers: agent:get.machines +
+check("GET /v1/machines: each computer with its type, sites, machine groups and folder (srv1: a server of lan, "
+      "still in machines/servers/web: a type change to its own type moves nothing)", row.get("type") == "server"
+      and "lan" in row.get("sites", []) and row.get("folder") == "machines/servers/web"
+      and isinstance(row.get("groups"), list)
+      and {"enabled", "last_logon", "os", "dns"} <= set(row), row)
+page = m_get.get_route(["machines", "SRV1"], "alice")
+reaching = {g["name"]: g for g in page["grants"]}
+# covers: agent:get.machines.* +
+check("GET /v1/machines/SRV1 (any case): its row; the grants that reach it, each with what it gives there (lan-servers: "
+      "the help desk's machines rights; server-administrators: sign-in, sudo, local administrator); the choices of "
+      "its actions (sites, folders under machines)", page["machine"]["name"] == "srv1"
+      and reaching.get("lan-servers", {}).get("rights", {}).get("machines") == ["move", "disable", "groups", "add"]
+      and reaching["lan-servers"]["who"] == ["helpdesk-lan"]
+      and reaching.get("server-administrators", {}).get("rights", {}).get("local_admin") is True
+      and reaching.get("lan-helpdesk", {}).get("rights", {}).get("machines") == []
+      and "lan" in page["choices"]["sites"]
+      and {"machines", "machines/servers", "machines/servers/web"} <= set(page["choices"]["folders"])
+      and "people" not in page["choices"]["folders"] and page["devices"] == [], page)
+for name in ("nomachine", "dmdc" + os.environ.get("SAMBA_TEST_ID", "")):
+    gone, why = refused(m_get.get_route, ["machines", name], "alice")
+    # covers: agent:get.machines.* -
+    check(f"refused: GET /v1/machines/{name} (not a computer of the domain's folders: no machine)",
+          gone and "no machine" in why, why)
 code, out = cli("machine", "move", "dsk1", "machines")
 code2, out2 = cli("machine", "type", "dsk1", "desktop", "--move")
 code3, out3 = cli("machine", "sites", "dsk1", "add", "lan")
@@ -622,6 +668,18 @@ for args, words, want in ((("machine", "move", "dsk1", "people"), "only to a fol
     code, out = cli(*args)
     # covers: cli:domain.machine -
     check(f"domain {' '.join(args)} refused ({words})", code == want and words in out, out)
+sites = m_get.get_route(["sites"], "alice")
+lan = next((s for s in sites["sites"] if s["name"] == "lan"), {})
+# covers: agent:get.sites +
+check("GET /v1/sites (1.6.12.8): site lan with its people and machines, its DC, the grants whose where names site-lan, "
+      "its AD site (this DC, the DC's subnet), the DC count; nothing failed", sites["error"] == ""
+      and "bob" in lan.get("people", []) and "srv1" in lan.get("machines", []) and "lan-helpdesk" in lan.get("grants", [])
+      and "carol" not in lan.get("people", []) and lan.get("dcs") and (lan.get("ad") or {}).get("dcs")
+      and "1 DC used" in sites["dc_text"], sites)
+page = m_get.get_route(["machines", "dsk1"], "alice")
+check("GET /v1/machines/dsk1, a desktop again: the servers' grants no longer reach it",
+      page["machine"]["type"] == "desktop" and "lan-servers" not in {g["name"] for g in page["grants"]}
+      and "server-administrators" not in {g["name"] for g in page["grants"]}, page["grants"])
 code, out = cli("ou", "create", "groups", "teams")
 code2, out2 = cli("ou", "list")
 code3, out3 = cli("ou", "rename", "groups/teams", "squads")
@@ -765,6 +823,238 @@ V.pop("grants_fallback_open")
 check("fabricctl domain status says RELAXED while grants_fallback_open is on, and not otherwise",
       "RELAXED: grants_fallback_open is on" in out2 and "RELAXED" not in out, (out, out2))
 
+print("--- Apply per page (manual 1.8.6.5): fabric-agent's own pending store, against this DC")
+import agent.post_pending as m_pending  # noqa: E402
+from agent.job_store import JOBS  # noqa: E402
+from fabriclib.rbac.permissions import BUNDLES  # noqa: E402
+
+m_pending.load_vars = lambda: V
+ADMIN = set(BUNDLES["admin"])
+
+
+def pend(route, body=None, who="alice", perms=ADMIN):
+    """A pending route as the agent answers it for a signed-in person (their token's user and permissions)."""
+    return m_pending.post_pending(route, who, body or {}, perms, None)
+
+
+def hold(change, body=None, who="alice", perms=ADMIN):
+    return pend(["pending", "hold"], {"route": change, "body": body or {}}, who, perms)
+
+
+def applied(page, who="alice", perms=ADMIN):
+    """Apply a page and wait for its job; the job's result."""
+    job = pend(["pending", page, "apply"], who=who, perms=perms)["id"]
+    for _ in range(600):
+        done = JOBS.read(job, who)
+        if done["state"] != "running":
+            return done["result"] or {"error": done["error"]}
+        time.sleep(0.2)
+    return {"error": "timed out"}
+
+
+def review(page, who="alice", perms=ADMIN):
+    return m_get.get_route(["pending", page], who, perms)
+
+
+def title(uid):
+    return ldb(f"(sAMAccountName={uid})", "title").split("title: ")[-1].split("\n")[0].strip()
+
+
+before = title("bob")
+out = hold("people/bob/edit", {"title": "Pending title"})
+# covers: agent:post.pending.hold +
+mine = review("people")["changes"]
+# covers: agent:get.pending.* +
+check("a change held on People: listed with its old and new values; the DC untouched until Apply",
+      out["page"] == "people" and out["pending"] == 1 and mine[0]["what"] == "Edit bob"
+      and mine[0]["new"] == {"title": "Pending title"} and title("bob") == before, (out, mine, title("bob")))
+# covers: agent:get.pending +
+check("...the counts: one pending on People, none elsewhere", m_get.get_route(["pending"], "alice", ADMIN)
+      == {"people": {"pending": 1, "running": False}}, m_get.get_route(["pending"], "alice", ADMIN))
+check("...another person sees none of alice's pending changes (held per person)",
+      review("people", "hd", set(BUNDLES["fabric-helpdesk"]))["changes"] == [])
+result = applied("people")
+# covers: agent:post.pending.*.apply +
+check("Apply: one job, the change done, written to the DC, nothing left pending",
+      result.get("applied") == 1 and title("bob") == "Pending title" and review("people")["changes"] == []
+      and review("people")["queue"][0]["items"][0]["state"] == "done", (result, title("bob")))
+hold("people/bob/edit", {"title": "Discarded"})
+out = pend(["pending", "people", "discard"])
+# covers: agent:post.pending.*.discard +
+check("Discard: dropped, the DC untouched", out == {"dropped": 1, "pending": 0} and title("bob") == "Pending title",
+      out)
+hold("people/bob/edit", {"title": "Mine"})
+m_people.post_people(["people", "bob", "edit"], "dee", {"title": "Dee's"}, "dee")    # another person, first
+result = applied("people")
+mine = review("people")["changes"]
+check("refused at Apply: bob changed since the change was made; held again against bob as he is now, the DC "
+      "keeps the other person's change", result["items"][0]["state"] == "failed" and "changed since"
+      in result["items"][0]["why"] and title("bob") == "Dee's" and mine[0]["changed_since"] is True
+      and mine[0]["old"] == {"title": "Dee's"}, (result, mine))
+result = applied("people")
+check("...applied once reviewed again", result.get("applied") == 1 and title("bob") == "Mine", result)
+hold("people/bob/edit", {"title": "First"})
+hold("people/fabric-admin/reset")
+hold("people/bob/edit", {"title": "Third"})
+hold("domain/password-policy", {"minimum_length": 18})
+result = applied("people")
+mine = review("people")["changes"]
+check("a failing change stops the Apply, says which and why; the one after not run; both still pending",
+      [i["state"] for i in result["items"]] == ["done", "failed", "not run"] and len(result["items"][1]["why"]) > 10
+      and title("bob") == "First" and [c["what"] for c in mine]
+      == ["Reset the sign-in of fabric-admin", "Edit bob"], (result, mine))
+check("...another page's changes untouched by People's Apply (the password policy still waits on Policies)",
+      [c["what"] for c in review("policies")["changes"]] == ["Change the password policy"]
+      and V["ad_password_policy"]["minimum_length"] != 18, review("policies"))
+pend(["pending", "people", "discard"])
+pend(["pending", "policies", "discard"])
+hold("people/bob/edit", {"title": "No right"})
+result = applied("people", perms=ADMIN - {"people:edit"})
+# covers: agent:post.pending.*.apply -
+check("refused at Apply without the change's permission, naming it; the DC untouched",
+      result["items"][0]["state"] == "failed" and "people:edit" in result["items"][0]["why"]
+      and title("bob") == "First", result)
+pend(["pending", "people", "discard"])
+gone, why = refused(hold, "people/bob/edit", {"title": "x"}, "aud", set(BUNDLES["fabric-auditor"]))
+# covers: agent:post.pending.hold -
+check("refused: holding a change without its permission (an auditor's edit), named", gone and "people:edit" in why,
+      why)
+gone, why = refused(hold, "account/password", {"current": "x", "new": "y"})
+check("refused: holding a change that is done at once (a person's own password)", gone and "not held" in why, why)
+gone, why = refused(pend, ["pending", "people", "apply"])
+check("refused: Apply with nothing pending", gone and "nothing is pending" in why, why)
+gone, why = refused(pend, ["pending", "people", "drop"], {"id": "no-such"})
+# covers: agent:post.pending.*.drop -
+check("refused: dropping a change that is not there", gone and "no such change" in why, why)
+try:
+    pend(["pending", "nowhere", "apply"])
+    why = "allowed"
+except m_pending.RouteNotFound:
+    why = "not found"
+check("refused: a page that holds nothing (404)", why == "not found", why)
+print("--- a read of one thing that is not there: NotFound, the handler's 404 (2.1.8.21)")
+from fabriclib.common.errors import NotFound  # noqa: E402
+for route in (["people", "nobody-here"], ["groups", "nobody-here"], ["machines", "nobody-here"],
+              ["domain", "grants", "nobody-here"]):
+    try:
+        m_get.get_route(route, "alice")
+        why = "answered"
+    except NotFound as exc:
+        why = f"not found: {exc}"
+    except Exception as exc:  # noqa: BLE001
+        why = f"{type(exc).__name__}: {exc}"
+    check(f"GET /v1/{'/'.join(route)}: NotFound (404), saying what is not there", why.startswith("not found: no "),
+          why)
+print("--- 802.1X's Devices and Device roles on their own Apply (2.1.8.10, 1.8.6.5)")
+from fabriclib.directory.device_overview import device_overview as m_devov  # noqa: E402
+from fabriclib.directory.update_device import update_device as m_upd_device  # noqa: E402
+
+
+def device(name):
+    return next((d for d in m_devov(V)["devices"] if d["name"] == name), None)
+
+
+FIELDS = {"type": "printer", "owner": "bob", "description": "", "macs": ["aa:bb:cc:5e:00:01"], "enabled": True,
+          "roles": []}
+out = hold("roles", {"name": "pend-role", "fields": {"description": "", "vlan": "", "priority": "70",
+                                                     "permissions": []}})
+check("a device role held on Device roles, the DC untouched", out["page"] == "roles"
+      and review("roles")["changes"][0]["what"] == "Add device role pend-role"
+      and all(r["name"] != "pend-role" for r in m_devov(V)["roles"]), out)
+result = applied("roles")
+check("...applied: the role in the DC", result.get("applied") == 1
+      and any(r["name"] == "pend-role" for r in m_devov(V)["roles"]), result)
+out = hold("devices", {"name": "pend-dev", "fields": {**FIELDS, "roles": ["pend-role"]}})
+check("a device held on Devices, its own page's Apply (not Device roles'), the DC untouched", out["page"] == "devices"
+      and review("devices")["changes"][0]["what"] == "Add device pend-dev" and review("roles")["changes"] == []
+      and device("pend-dev") is None, out)
+result = applied("devices")
+check("...applied: the device in the DC, owner and role set", result.get("applied") == 1
+      and (device("pend-dev") or {}).get("owner") == "bob" and device("pend-dev")["roles"] == ["pend-role"], result)
+hold("devices/pend-dev", {"fields": {**FIELDS, "description": "mine", "roles": ["pend-role"]}})
+mine = review("devices")["changes"]
+check("a device's change: its old and new fields on the Review", mine[0]["what"] == "Change device pend-dev"
+      and mine[0]["old"]["fields"]["description"] == "" and mine[0]["new"]["fields"]["description"] == "mine", mine)
+m_upd_device(V, "dee", "pend-dev", {**FIELDS, "description": "dee's", "roles": ["pend-role"]}, source="test")
+result = applied("devices")
+check("refused at Apply: the device changed since; the DC keeps the other person's change",
+      result["items"][0]["state"] == "failed" and "changed since" in result["items"][0]["why"]
+      and device("pend-dev")["description"] == "dee's", result)
+pend(["pending", "devices", "discard"])
+hold("roles/pend-role/delete")
+result = applied("roles")
+check("refused at Apply: removing a device role that still has a device, with why", result["items"][0]["state"]
+      == "failed" and len(result["items"][0]["why"]) > 10 and any(r["name"] == "pend-role" for r in m_devov(V)["roles"]),
+      result)
+pend(["pending", "roles", "discard"])
+gone, why = refused(hold, "devices/pend-dev/delete", None, "aud", set(BUNDLES["fabric-auditor"]))
+check("refused: an auditor holding a device's removal (devices:admin named)", gone and "devices:admin" in why, why)
+hold("devices/pend-dev/delete")
+applied("devices")
+hold("roles/pend-role/delete")
+result = applied("roles")
+check("...the device removed on Devices' Apply, then the empty role on Device roles'", device("pend-dev") is None
+      and all(r["name"] != "pend-role" for r in m_devov(V)["roles"]) and result.get("applied") == 1, result)
+out = pend(["pending", "people", "discard"])
+# covers: agent:post.pending.*.discard -
+check("Discard with nothing pending: nothing dropped", out == {"dropped": 0, "pending": 0}, out)
+try:
+    m_get.get_route(["pending", "people"], None, None)
+    why = "allowed"
+except ValidationError as e:
+    why = str(e)
+# covers: agent:get.pending agent:get.pending.* -
+check("refused: the host (a root peer) holds nothing", "signed-in person" in why, why)
+out = hold("people/bob/edit", {"title": "Dropped"})
+# covers: agent:post.pending.*.drop +
+check("drop one change by its id", pend(["pending", "people", "drop"], {"id": out["id"]}) == {"dropped": 1,
+                                                                                         "pending": 0})
+
+print("--- the Directory's Overview (1.6.12.3) and a person's page refused")
+over = m_get.get_route(["directory"], "alice")
+# covers: agent:get.directory +
+# (the domain's status and replication ask the container `samba` by name, which this suite's DC is not: shown as not
+# running and an error there, as on a host without a DC; the directory's own reads go through run_op to this DC)
+check("GET /v1/directory: the domain, its functional level, this DC writable, the sites, the counts; nothing failed",
+      over["error"] == "" and over["level"] and any(d["writable"] for d in over["dcs"]) and "lan" in over["sites"]
+      and over["counts"]["people"] >= 3 and over["counts"]["groups"] > 0 and over["counts"]["ous"] > 0
+      and isinstance(over["replication"], dict) and over["status"]["domain"], over)
+gone, why = refused(m_get.get_route, ["people", "nobody"], "alice")
+# covers: agent:get.people.* -
+check("refused: GET /v1/people/nobody (no person nobody: NotFound, 2.1.8.21)", gone and "no person nobody" in why, why)
+
+print("--- My account (manual 1.8.6.6): the person's own read; a managed group's members on My account's Apply")
+got = m_get.get_route(["account"], "bob")
+# covers: agent:get.account +
+check("GET /v1/account as bob: his details as the DC has them (his title among the 15 fields), his groups, his "
+      "certificates (none issued here) and devices", got["uid"] == "bob" and got["person"]["title"] == title("bob")
+      and set(got["person"]) >= {"first", "last", "email", "manager", "employee_id"} and "site-lan" in got["groups"]
+      and got["certs"] == [] and isinstance(got["devices"], list), got)
+for user, words in ((None, "sign in as them"), ("nobody", "no such")):
+    gone, why = refused(m_get.get_route, ["account"], user)
+    # covers: agent:get.account -
+    check(f"GET /v1/account as {user} refused ({words})", gone and words in why, why)
+out = hold("account/groups/ops-team/members", {"action": "add", "member": "newbie"}, who="sup", perms=set())
+# covers: agent:post.account.groups.*.members +
+check("sup (no fabric role) holds a member change from My account: on the account page, in a sentence, the DC "
+      "untouched", out["page"] == "account" and out["what"] == "Add newbie to group ops-team"
+      and "CN=ops-team," not in ldb("(sAMAccountName=newbie)", "memberOf"), out)
+check("...nobody else sees it, and an admin's account page holds none of it",
+      review("account")["changes"] == [] and review("account", "sup", set())["changes"][0]["what"]
+      == "Add newbie to group ops-team")
+done = applied("account", "sup", set())
+check("...applied: newbie in ops-team, seen in AD; the queue on My account sup's alone",
+      "CN=ops-team," in ldb("(sAMAccountName=newbie)", "memberOf") and done["items"][0]["state"] == "done"
+      and review("account", "sup", set())["queue"] and not review("account")["queue"], done)
+hold("account/groups/ops-team/members", {"action": "remove", "member": "newbie"}, who="sup", perms=set())
+done = applied("account", "sup", set())
+# covers: agent:post.account.groups.*.members -
+check("...a removal the group's controls do not allow: refused at Apply by the DC's check, newbie still a member",
+      done["items"][0]["state"] == "failed" and "may not remove members" in done["items"][0]["why"]
+      and "CN=ops-team," in ldb("(sAMAccountName=newbie)", "memberOf"), done)
+pend(["pending", "account", "discard"], who="sup", perms=set())
+gone, why = refused(hold, "account/groups/nogroup/members", {"action": "add", "member": "newbie"}, "sup", set())
+check("refused when held: a group that is not there", gone and "no group nogroup" in why, why)
 print("--- the DC host's local-admin through fabric-agent and fabricctl (1.7.1.4.5, 1.7.1.4.6; 2.1.7.18, 2.1.7.19)")
 import json  # noqa: E402
 import agent.post_local_admin as m_la  # noqa: E402

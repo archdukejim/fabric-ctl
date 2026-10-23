@@ -1,0 +1,47 @@
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+{% macro names(items, href) %}{% for x in items %}{% if href %}<a href="{{ href }}{{ x | urlencode }}">{{ x }}</a>{% else %}{{ x }}{% endif %}{{ ', ' if not loop.last }}{% endfor %}{% endmacro %}
+{% if not site_name %}
+<h1>Directory · Sites</h1>
+{% if unavailable %}<p class="flash bad" role="alert">The sites could not be read: {{ unavailable }}</p>
+{% else %}
+<section class="card"><h2>Sites <span class="muted">{{ o.sites | length }}</span></h2>
+{% if o.sites %}{% call p.list(["Site", "People", "Machines", "DCs", "Grants scoped to it"]) %}{% for s in o.sites %}<tr>
+<td data-label="Site"><a href="/directory/sites/{{ s.name | urlencode }}"><strong>{{ s.name }}</strong></a></td>
+<td data-label="People" class="num">{% if s.people and can('people:read') %}<a href="/directory/groups/{{ s.group | urlencode }}">{{ s.people | length }}</a>{% else %}{{ s.people | length }}{% endif %}</td>
+<td data-label="Machines" class="num">{% if s.machines %}<a href="/directory/computers?{{ {'site': s.name} | urlencode }}">{{ s.machines | length }}</a>{% else %}0{% endif %}</td>
+<td data-label="DCs" class="num">{{ s.dcs | length }}</td>
+<td data-label="Grants scoped to it">{{ names(s.grants, '/directory/access/') or '—' }}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("No sites yet.") }}{% endif %}
+<p class="muted small">A site is a group, <code>site-&lt;name&gt;</code>, of its people and machines. Its DCs: {{ o.dc_text or '—' }} in the domain.</p>
+</section>
+<section class="card"><h2>Replication</h2>
+{% set r = o.replication or {} %}
+{% if r.error %}<p class="flash bad">Replication could not be read: {{ r.error }}</p>
+{% elif r.neighbours %}{% call p.list(["", "Partition", "From", "Last success", "Failures"]) %}{% for n in r.neighbours %}<tr>
+<td>{{ p.light('bad' if n.failures else 'ok', 'failing' if n.failures else 'replicating') }}</td>
+<td data-label="Partition">{{ n.partition }}</td><td data-label="From">{{ n['from'] }}</td><td data-label="Last success">{{ n.last_success or 'never' }}</td><td data-label="Failures" class="num">{{ n.failures }}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("This DC replicates with no other: one DC in the domain.") }}{% endif %}
+</section>
+{% endif %}
+
+{% else %}
+<p><a href="/directory/sites">← Sites</a></p>
+<h1>Directory · Site {{ site_name }}</h1>
+{% if unavailable %}<p class="flash bad" role="alert">The sites could not be read: {{ unavailable }}</p>
+{% elif not site %}<p class="flash bad" role="alert">No site {{ site_name }} in the domain.</p>
+{% else %}
+<section class="card"><h2>Members</h2>
+<dl><dt>People ({{ site.people | length }})</dt><dd>{{ names(site.people, '/directory/people/' if can('people:read') else '') or 'none' }}</dd>
+<dt>Machines ({{ site.machines | length }})</dt><dd>{{ names(site.machines, '/directory/computers/') or 'none' }}</dd></dl>
+<p class="muted small">Its members are its group's, <a href="/directory/groups/{{ site.group | urlencode }}">{{ site.group }}</a>: change its people there; a computer's sites on its page. Changes wait for that page's Apply.</p></section>
+<section class="card"><h2>Grants scoped to it <span class="muted">{{ site.grants | length }}</span></h2>
+{% if site.grants %}<p>{{ names(site.grants, '/directory/access/') }}</p>{% else %}{{ p.empty("No grant names its group in its where.") }}{% endif %}</section>
+<section class="card"><h2>Its AD site</h2>
+{% if site.ad %}<dl><dt>Domain controllers</dt><dd>{{ site.ad.dcs | join(', ') or 'none' }}</dd>
+<dt>Subnets</dt><dd>{{ site.ad.subnets | join(', ') or 'none' }}</dd>
+<dt>Site links</dt><dd>{% for l in site.ad.links %}{{ l.name }} ({{ l.sites | join(' and ') }}; cost {{ l.cost }}, every {{ l.interval }} minutes){{ '; ' if not loop.last }}{% else %}none{% endfor %}</dd></dl>
+{% else %}{{ p.empty("AD has no site of its name yet: fabric writes it at the site's next convergence.") }}{% endif %}
+<p class="muted small">Read-only: fabric writes AD's sites, subnets and site links from the address plan and the federation; Federation changes a site's DCs.</p></section>
+{% endif %}
+{% endif %}
+{% endblock %}

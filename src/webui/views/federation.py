@@ -10,4 +10,4 @@ def federation(ctx, overview):
              left out).
     Feeds:   src/webui/routes/get_page (/federation); devserver.
     """
-    return render_page("federation", ctx=ctx, tab="federation", f=overview)
+    return render_page("federation", ctx=ctx, page="/federation", f=overview)

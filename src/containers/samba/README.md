@@ -25,7 +25,8 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `find_gpo.py` | A GPO found by its display name |
 | `list_people.py` | Operation `list_people`: the people in OU=people and the groups in OU=groups |
 | `create_person.py` | Operation `create_person`: a person in OU=people, a uid from the DC's range, in their site's `site-<name>`, must change their password |
-| `get_person.py` | Operation `get_person`: where a person lives and their groups |
+| `get_person.py` | Operation `get_person`: where a person lives, their groups and their details |
+| `person_record.py` | A person's details as they are now (AD's standard attributes, 2.1.6.93), the manager by user name |
 | `reset_password.py` | Operation `reset_password`: a new one-time password, the account unlocked |
 | `add_group_member.py` | Operation `add_group_member`: a person in a group, once |
 | `remove_group_member.py` | Operation `remove_group_member`: a person out of a group, once |
@@ -84,6 +85,8 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `remove_ipv6_records.py` | The AD zones on IPv4 only (2.1.6.29): every AAAA record removed (the DC listens on IPv4) |
 | `ensure_dc_record.py` | The DC's record in `CN=dcs,CN=fabric,CN=System` (2.1.6.79): its site, its id range and a mark per fixed range; a read-only DC's is written by the writable DC |
 | `dc_info.py` | Operation `dc_info`: a DC's record: its site, id range and its ranges' marks |
+| `domain_facts.py` | Operation `domain_facts`: the domain's functional level and its DCs, writable or read-only |
+| `ad_time.py` | An AD timestamp as ISO text (a last sign-in) |
 | `group_names.py` | The names of the domain's groups (1.6.13.3): the fixed ones, `site-<name>`, `machines-<type>`, `rodc-cache-<dc>` |
 | `ensure_directory_acl.py` | directory-admins' rights (2.1.6.81): full control and GPO links on OU=people, OU=service-accounts, OU=machines and OU=groups, denied on fabric's accounts, the tiers' groups and OU=fabric; the agents' and Keycloak's rights |
 | `protect_top_tier.py` | The top tier kept out of directory-admins' reach: the protected accounts and groups (AdminSDHolder) never inherit from the folders (2.1.6.81) |
@@ -102,8 +105,10 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `ensure_grant_sudo.py` | One `sudoRole` per grant with sudo (`grant-<name>`, `%grant-<name>-who`), its hosts its where group's machines |
 | `compile_grants.py` | The grants compiled: computed groups, the sets of machines with one GPO each, the fallback first, the sudo rules (at the root's writable DC) |
 | `explain_grants.py` | Which grants reach a person (and on a machine), and why; what they may do there |
+| `ad_sites.py` | AD's sites as fabric wrote them: each with its DCs, subnets and site links (Sites, 1.6.12.8) |
+| `reaching_grants.py` | The grants that reach a computer, and what each gives there (its page, 1.6.12.6) |
 | `ship_grants.py` | The grants a fresh install ships (1.6.13.5), made once at the root; 0.9.0's `network-plan` (1.6.13.12) once too, on an upgraded 0.8.0 domain as well |
-| `grants_tool.py` | The grants' entry point (as root, like gpo_tool): list, show, add, set, remove, compile, explain |
+| `grants_tool.py` | The grants' entry point (as root, like gpo_tool): list, show, add, set, remove, compile, explain, reaching |
 | `authorize_action.py` | fabric-agent's check (1.6.12.17): the caller's tier, the grants' people, machines and networks rights (at a site, 1.6.13.12), a group's two levels; refused with why |
 | `group_kind.py` | A group's kind: AD's, a tier's, a bundle's, fabric's, filled, computed, a machine group, an admin's own |
 | `group_store.py` | A group's managers and controls in `CN=groups,CN=fabric,CN=System` (one `msDS-App-Configuration` per group, by objectGUID) |

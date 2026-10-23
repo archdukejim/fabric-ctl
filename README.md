@@ -38,7 +38,7 @@ sudo fabricctl setup                               # shows the plan and asks bef
 
 From a git checkout: `sudo scripts/install-from-checkout.sh` builds the package, installs it and runs setup.
 Unattended: `sudo fabricctl setup --file vars.yaml --non-interactive --yes --approve all`. Afterwards,
-`fabricctl` and the web UI at `https://fabric.<your domain>` do the day-to-day work.
+`fabricctl` and the web UI at `https://fabric-ctl.<your domain>` do the day-to-day work.
 
 ## Documentation
 

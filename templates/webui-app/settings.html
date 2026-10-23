@@ -1,12 +1,11 @@
-{% extends "base.html" %}{% block body %}
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
 {% macro today_is(f, shown=None) %}<span class="muted">today: {{ shown if shown is not none else (today[f] or '—') }}</span>{% endmacro %}
 {% macro onoff(f, on='on', off='off') %}<select name="{{ f }}"><option value="true"{{ ' selected' if typed[f] == 'true' }}>{{ on }}</option><option value="false"{{ ' selected' if typed[f] != 'true' }}>{{ off }}</option></select>{% endmacro %}
 <h1>Settings · the setup wizard</h1>
-{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
-{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
 <p class="muted">Setup's choices that can change later. Back and Next keep what you typed; nothing changes until you
 review the plan and apply it, as one apply.{% if not ov.finished.finished %} <strong>Finish setting up:</strong> after a
 fresh install these are setup's defaults.{% endif %}</p>
+{{ p.relaxations(relaxed) }}
 {% if signin_old %}<p class="warn-text">Apply needs a sign-in from the last 5 minutes: <a href="/login?next=/settings">sign in again</a> first, or you will be asked to at Apply.</p>{% endif %}
 <p class="steps">{% for s, title, _ in steps %}{% if s == step %}<strong>{{ loop.index }}. {{ title }}</strong>{% else %}<span class="muted">{{ loop.index }}. {{ title }}</span>{% endif %}{{ ' · ' if not loop.last }}{% endfor %}</p>
 <section class="card">
@@ -37,7 +36,7 @@ fresh install these are setup's defaults.{% endif %}</p>
 {% endif %}
 <h2>Changed only on the host's console</h2>
 <table><thead><tr><th>Setting</th><th>Now</th><th>Changed with</th></tr></thead><tbody>
-{% for c in ov.console_only %}<tr><td><code>{{ c.key }}</code> <span class="muted">{{ c.what }}</span></td><td>{{ c.value or '—' }}</td><td><code>{{ c.command }}</code></td></tr>{% endfor %}
+{% for c in ov.console_only %}<tr><td data-label="Setting"><code>{{ c.key }}</code> <span class="muted">{{ c.what }}</span></td><td data-label="Now">{{ c.value or '—' }}</td><td data-label="Changed with"><code>{{ c.command }}</code></td></tr>{% endfor %}
 </tbody></table>
 <p class="muted">So are every host change (ports, the firewall, Docker's hardening, trust, time, domain membership),
 OpenBao's unlock and recovery, lowering sign-in security, client certificates and every secret.</p>
@@ -46,11 +45,12 @@ OpenBao's unlock and recovery, lowering sign-in security, client certificates an
 <label>GB of memory fabric may use, 4 to {{ ov.host_gb or "what the host has" }}<input name="host_ram_capacity" type="number" min="4"{% if ov.host_gb %} max="{{ ov.host_gb }}"{% endif %} value="{{ typed.host_ram_capacity }}"> {{ today_is('host_ram_capacity') }}</label>
 <p class="muted">The plan shows how each service's share changes; the rest of the host is left to other work.</p>
 {% elif step == 'signin' %}
-<h2>The domain's password policy</h2>
-{% for key, label in policy_fields %}<label>{{ label }}<input name="policy_{{ key }}" type="number" min="0" value="{{ typed['policy_' ~ key] }}"> {{ today_is('policy_' ~ key) }}</label>{% endfor %}
-<label>Complexity (three of: upper, lower, digit, symbol){{ onoff('policy_complexity', 'required', 'not required') }}</label>
-<h2>Signing in</h2>
-<label>Sign in with the domain logon (Kerberos){{ onoff('signin_kerberos') }} {{ today_is('signin_kerberos', 'on' if today.signin_kerberos == 'true' else 'off') }}</label>
+<h2>Passwords and sign-in</h2>
+<p>Each has its own page, where it is changed and applied:</p>
+<ul><li>The domain's password policy: <a href="/directory/policies">Directory → Policies</a>.</li>
+<li>Signing in with the domain logon (Kerberos): <a href="/directory/kerberos">Directory → Kerberos</a>.</li>
+<li>Second factors and the console's client certificate: <a href="/settings/sign-in">Settings → Sign-in security</a>.</li></ul>
+<p class="muted">A settings file (Export, then Import) still sets the password policy and Kerberos sign-in.</p>
 {% elif step == 'upstreams' %}
 <h2>The DNS filter's upstreams</h2>
 <label>DNS-over-TLS servers, one a line: <code>address name-on-its-certificate</code>
@@ -60,7 +60,7 @@ OpenBao's unlock and recovery, lowering sign-in security, client certificates an
 <h2>Review</h2>
 {% if changed %}
 <table><thead><tr><th>Field</th><th>Today</th><th>After</th></tr></thead><tbody>
-{% for f, old, new in changed %}<tr><td><code>{{ f }}</code></td><td>{{ old or '—' }}</td><td>{{ new or '—' }}</td></tr>{% endfor %}
+{% for f, old, new in changed %}<tr><td data-label="Field"><code>{{ f }}</code></td><td data-label="Today">{{ old or '—' }}</td><td data-label="After">{{ new or '—' }}</td></tr>{% endfor %}
 </tbody></table>
 {% else %}<p class="muted">Nothing typed differs from today's settings.</p>{% endif %}
 <p class="muted">Make the plan: each change is checked as setup checks it, with the memory plan; nothing changes until

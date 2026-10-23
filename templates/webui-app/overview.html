@@ -1,7 +1,26 @@
 {% extends "base.html" %}{% block body %}
+{% if page == '/overview/doctor' %}
+<h1>Overview · Doctor</h1>
+<section class="card"><p>fabric's end-to-end checks (<code>fabricctl doctor</code>): every service answering, its certificates, its
+names in DNS, the sign-in. A few seconds to a minute; the result opens on its own page.</p>
+<form method="post" action="/overview/doctor" class="apply"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button>Run doctor</button></form></section>
+{% elif page == '/overview/updates' %}
+<h1>Overview · Updates</h1>
+{% if images is none %}<section class="card"><p class="blank">The images could not be read.</p></section>
+{% else %}
+{% set behind = images | selectattr('state', 'equalto', 'update available') | list %}
+<p class="muted">{{ behind | length }} update(s) available. Each is health-gated: a service that does not come up healthy goes back by itself.</p>
+<section class="card"><table class="list"><thead><tr><th>Service</th><th>State</th><th>Runs</th><th>Validated</th>{% if can('images:update') %}<th></th>{% endif %}</tr></thead><tbody>
+{% for r in images %}<tr><td data-label="Service">{{ r.service }}</td>
+<td data-label="State"><span class="pill {{ 'ok' if r.state == 'current' else ('warn' if r.state in ('update available', 'held (set by the admin)', 'restart needed') else 'bad') }}">{{ r.state }}</span></td>
+<td data-label="Runs" class="muted">{{ (r.running or '—') | truncate(48, True) }}</td><td data-label="Validated" class="muted">{{ (r.validated or '—') | truncate(48, True) }}</td>
+{% if can('images:update') %}<td class="num">{% if r.state == 'update available' %}<form method="post" action="/overview/images/{{ r.service | urlencode }}/update"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button>Update</button></form>{% endif %}
+<form method="post" action="/overview/images/{{ r.service | urlencode }}/rollback"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost" title="back to the image before its last update">Roll back</button></form></td>{% endif %}</tr>
+{% endfor %}</tbody></table></section>
+{% endif %}
+{% else %}
 {% set ok = services | selectattr(1, 'equalto', 'active') | rejectattr(2, 'in', ['unhealthy', 'starting']) | list | length %}
-<h1>Overview</h1>
-{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
+<h1>Overview · Health</h1>
 {% if wizard and not wizard.finished %}
 <section class="card"><h2>Finish setting up</h2>
 <p>Setup left DHCP, the DNS filter, log forwarding, the memory fabric may use and the sign-in settings at their
@@ -19,7 +38,6 @@ defaults. Review them in the setup wizard, or keep them.</p>
 {% endif %}
 <p class="muted">{{ ok }} of {{ services | length }} services healthy.</p>
 <section class="tiles">
-{% set open_tabs = tabs | map('first') | list %}{# a tile links only to a tab its viewer may open #}
 {% for name, state, health in services %}
 {% set info = service_info.get(name, (name, None)) %}
 {% if state != 'active' or health == 'unhealthy' %}{% set light, why = 'bad', (state if state != 'active' else 'running, health check failing') %}
@@ -28,40 +46,28 @@ defaults. Review them in the setup wizard, or keep them.</p>
 <div class="tile" title="{{ name }}: {{ why }}">
   <div class="tile-head">
     <span class="light {{ light }}" role="img" aria-label="{{ why }}"></span>
-    {% if info[1] and info[1] in open_tabs %}<a href="/{{ info[1] }}"><strong>{{ name }}</strong></a>{% else %}<strong>{{ name }}</strong>{% endif %}
+    {% if info[1] and info[1] in visible %}<a href="{{ info[1] }}"><strong>{{ name }}</strong></a>{% else %}<strong>{{ name }}</strong>{% endif %}
   </div>
   <div class="muted">{{ info[0] }}{% if light != 'ok' %} · <span class="{{ light }}-text">{{ why }}</span>{% endif %}</div>
 </div>
 {% endfor %}
 </section>
-{% if can('status:read') %}<form method="post" action="/overview/doctor" class="apply"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button>Run doctor</button><span class="muted">fabric's end-to-end checks (<code>fabricctl doctor</code>): a few seconds to a minute.</span></form>{% endif %}
-{% if images is not none %}
-<h2>Updates</h2>
-{% set behind = images | selectattr('state', 'equalto', 'update available') | list %}
-<p class="muted">{{ behind | length }} update(s) available. Each is health-gated: a service that does not come up healthy goes back by itself.</p>
-<table><thead><tr><th>Service</th><th>State</th><th>Runs</th><th>Validated</th>{% if can('images:update') %}<th></th>{% endif %}</tr></thead><tbody>
-{% for r in images %}<tr><td>{{ r.service }}</td>
-<td><span class="pill {{ 'ok' if r.state == 'current' else ('warn' if r.state in ('update available', 'held (set by the admin)', 'restart needed') else 'bad') }}">{{ r.state }}</span></td>
-<td class="muted">{{ (r.running or '—') | truncate(48, True) }}</td><td class="muted">{{ (r.validated or '—') | truncate(48, True) }}</td>
-{% if can('images:update') %}<td class="num">{% if r.state == 'update available' %}<form method="post" action="/overview/images/{{ r.service | urlencode }}/update"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button>Update</button></form>{% endif %}
-<form method="post" action="/overview/images/{{ r.service | urlencode }}/rollback"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost" title="back to the image before its last update">Roll back</button></form></td>{% endif %}</tr>
-{% endfor %}</tbody></table>
-{% endif %}
 <h2>Host changes</h2>
 {% if host_changes %}
 <p class="muted">What fabric may change on this host outside its own folders. Answers are given at <code>sudo fabricctl setup</code>; <code>--undo GROUP</code> reverts one.</p>
-<table>
+<section class="card"><table class="list">
 <thead><tr><th>Change</th><th>Answer</th><th>When</th><th>By</th></tr></thead>
 <tbody>
 {% for c in host_changes %}
-<tr><td>{{ c.title }}</td>
-<td>{% if c.state == 'approved' %}approved{% elif c.state == 'declined' %}<span class="warn-text">declined</span>{% else %}<span class="muted">not asked</span>{% endif %}
+<tr><td data-label="Change">{{ c.title }}</td>
+<td data-label="Answer">{% if c.state == 'approved' %}approved{% elif c.state == 'declined' %}<span class="warn-text">declined</span>{% else %}<span class="muted">not asked</span>{% endif %}
 {% if c.relaxation %}<div class="muted">{{ c.relaxation }}</div>{% endif %}</td>
-<td>{{ c.when }}</td><td>{{ c.by }}</td></tr>
+<td data-label="When">{{ c.when }}</td><td data-label="By">{{ c.by }}</td></tr>
 {% endfor %}
 </tbody>
-</table>
+</table></section>
 {% else %}
 <p class="muted">Not asked yet: this install was set up before fabric asked about host changes. The next <code>sudo fabricctl setup</code> asks before changing anything.</p>
+{% endif %}
 {% endif %}
 {% endblock %}

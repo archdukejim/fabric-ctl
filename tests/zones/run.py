@@ -132,6 +132,9 @@ try:
     shutil.copytree(f"{REPO}/src/fabriclib", f"{LIB}/fabriclib", ignore=ignore)
     shutil.copytree(f"{REPO}/src/agent", f"{LIB}/agent", ignore=ignore)
     shutil.copytree(f"{REPO}/templates", f"{W}/fabric/jinja", ignore=ignore)
+    for src, dest in (("static/nginx/style.css", "nginx/www/shared"), ("static/vendor/marked.min.js", "nginx/www/manual"),
+                      ("static/vendor/mermaid.min.js", "nginx/www/manual")):   # as packaging/deb/assemble-tree.sh does
+        shutil.copy(f"{REPO}/{src}", f"{W}/fabric/jinja/{dest}/")
     for f in ("VERSION", "images.lock.yaml"):
         shutil.copy(f"{REPO}/config/{f}", f"{W}/fabric/{f}")
     os.makedirs(f"{W}/fabric/config")
@@ -325,7 +328,26 @@ try:
     check("menu: an admin's own record still deletes", "www" not in [x["name"] for x in
                                                                      vars_dns()["dynamic_zone_var"].get("A", [])],
           r.stdout[-400:])
-
+    # ---- DNS' own Apply (decision 2.1.8.24): a record saved by its route (as a held change runs at Apply), then the
+    # BIND-only deploy: BIND serves it, reloaded, never restarted; only BIND's files and the landing page installed
+    st, res = agent("/v1/zones/dynamic_zone_var/records", {"type": "A", "name": "applied", "ip": "10.9.8.44"})
+    started = sh("docker inspect -f '{{.State.StartedAt}}' bind9", ok=False).stdout.strip()
+    code = ("from fabriclib.dns.apply_dns import apply_dns\ntry:\n    print('DONE', apply_dns('tester', source='cli'))\n"
+            "except Exception as e:\n    print('REFUSED', type(e).__name__, e)")
+    r = lib(code)
+    check("DNS' Apply: the BIND-only deploy serves the new record; BIND reloaded, not restarted",
+          st == 200 and "DONE" in r.stdout and "lan.test" in r.stdout and "10.9.8.44" in short(BIND_IP, "applied.lan.test")
+          and sh("docker inspect -f '{{.State.StartedAt}}' bind9", ok=False).stdout.strip() == started,
+          r.stdout.strip().splitlines()[-2:] + [r.stderr[-300:]])
+    check("DNS' Apply: only BIND's files and the landing page installed (no other service's folder made)",
+          os.path.exists(f"{W}/nginx/www/landing/index.html") and not os.path.exists(f"{W}/keycloak")
+          and not os.path.exists(f"{W}/nginx/nginx.conf"), sorted(os.listdir(W)))
+    r = lib(code)
+    # a zone holding DHCP's kept PTRs (2.1.10.7) is not swapped again for them: find_changed_zones compares fabric's
+    # part of the deployed file only (2.3.10.11.13; 2.3.8.3.22's finding)
+    again = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
+    check("DNS' Apply again with nothing changed: BIND's configuration not reloaded, the changed zone not swapped "
+          "again, said", again.startswith("DONE") and "'config': False" in again and "'lan.test'" not in again, again)
     # ---- DHCP between applies (2.3.4.3, 2.3.10.4.10; decision 2.1.4.7, extended by 2.1.10.21): a zone change renders
     # BIND's zone list from the same checked settings as an apply, so DHCP's reverse zones, Kea's grants and the
     # denies on hand-set PTRs stay

@@ -16,13 +16,17 @@ GET = {
     ("radius",): "radius:read", ("radius", "guides"): "radius:read",
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
     ("devices",): "devices:read",
-    ("people",): "people:read",
-    ("domain",): "domain:read", ("gpo",): "domain:read",
+    ("people",): "people:read", ("people", "*"): "people:read",   # a person's page (1.6.12.4)
+    ("machines",): "domain:read", ("machines", "*"): "domain:read",   # Computers and a computer's page (1.6.12.6)
+    ("sites",): "domain:read",                                        # Sites (1.6.12.8)
+    ("domain",): "domain:read", ("gpo",): "domain:read", ("directory",): "domain:read",   # the Overview
     ("domain", "grants"): "domain:read", ("domain", "grants", "*"): "domain:read",
     ("domain", "grants", "explain", "*"): "domain:read", ("domain", "grants", "explain", "*", "*"): "domain:read",
     ("domain", "kerberos"): "domain:read", ("domain", "kerberos", "spns"): "domain:read",
     ("groups",): "domain:read", ("groups", "*"): "domain:read", ("ous",): "domain:read",
+    ("account",): "session",                           # a person's own account, read-only (1.8.6.6): theirs
     ("account", "groups"): "session",                  # the groups a person manages (1.8.6.6): theirs alone
+    ("pending",): "session", ("pending", "*"): "session",  # a person's own pending changes (1.8.6.5)
     ("host-groups",): "domain:read", ("sudo",): "domain:read",
     ("federation",): "federation:read",
     ("vault",): "vault:status", ("vault", "slots"): "vault:status", ("vault", "devices"): "vault:status",
@@ -64,6 +68,11 @@ POST = {
     ("groups", "*", "members"): "session",            # a group's managers need no permission: fabric-agent checks
     ("ous",): "ous:admin", ("ous", "rename"): "ous:admin", ("ous", "delete"): "ous:admin",
     ("account", "password"): "session",               # a person's own password (1.8.6.6): theirs alone
+    ("account", "groups", "*", "members"): "session",  # a group they manage, from My account: the DC decides
+    # Apply per page (1.8.6.5): a person's own changes; holding one checks the change's own permission, and so
+    # does its Apply, change by change
+    ("pending", "hold"): "session", ("pending", "*", "drop"): "session", ("pending", "*", "discard"): "session",
+    ("pending", "*", "apply"): "session",
     ("local-admin", "checkout"): "session",           # the DC host's local-admin: fabric-agent asks the DC the
     ("local-admin", "ssh"): "session",                # caller's tier, the Enterprise Admin's alone (2.1.7.18)
     ("machines",): "machines:admin", ("machines", "*", "enable"): "machines:admin",

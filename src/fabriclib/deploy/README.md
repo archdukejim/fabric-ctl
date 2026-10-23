@@ -21,6 +21,7 @@ installs what changed and restarts or reloads what is affected.
 | `load_link_vars.py` | The landing page's links, rendered into the context (a bad file is reported, never fatal) |
 | `service_units.py` | fabric's container services and their wrapper units, with which are on |
 | `render_templates.py` | Every configuration file into the render folder |
+| `render_deployment.py` | The render half of the engine: secrets, the checked settings, every template rendered (shared with DNS' Apply, 2.1.8.24) |
 | `install_fabric_tree.py` | fabric itself, the secrets file, vars, link vars, web pages and the manual's docs |
 | `install_service_units.py` | Each service's compose file, image build context and systemd wrapper; which to restart or rebuild |
 | `install_openbao_config.py` | OpenBao's folders and config |

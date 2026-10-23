@@ -11,7 +11,9 @@ routes is stood in for; the webui suite's container runs the pages against a rea
 """
 import copy
 import os
+import re
 import sys
+import urllib.parse
 import threading
 import time
 
@@ -151,6 +153,11 @@ class H:
     def redirect(self, url, headers=None):
         self.to = url
 
+    def back(self, location, msg="", err=""):
+        """A form's outcome (the console keeps it for the next page, 1.8.6.3), written as msg=/err= for these checks."""
+        q = urllib.parse.urlencode({"err": err} if err else {"msg": msg} if msg else {})
+        self.redirect(location + (("&" if "?" in location else "?") + q if q else ""))
+
     def send(self, status, body, ctype="text/html", headers=None):
         self.status, self.body, self.ctype, self.headers = status, body, ctype, headers or []
 
@@ -191,7 +198,8 @@ if web_ok:
     h = H()
     m_post.settings_post(h, SESS, ["step"], {**SAMPLE_SETTINGS["form"], "host_ram_capacity": "6", "go": "review"})
     check("Review: what changed against today, Make the plan posting to /settings/plan",
-          'action="/settings/plan"' in h.body and "<code>host_ram_capacity</code></td><td>8</td><td>6" in h.body,
+          'action="/settings/plan"' in h.body
+          and re.search(r"<code>host_ram_capacity</code></td><td[^>]*>8</td><td[^>]*>6", h.body),
           h.body[:3000])
     # covers: web:post.settings.step -
     h = H()
@@ -219,7 +227,7 @@ if web_ok:
     m_post.settings_post(h, SESS, ["plan"], {**SAMPLE_SETTINGS["form"], "host_ram_capacity": "99"})
     check("a refused plan: back on Review with what was typed, the key and why",
           h.status == 200 and "Refused, nothing changed: host_ram_capacity" in h.body and "Review" in h.body
-          and "<td>99</td>" in h.body, h.body[:2000])
+          and re.search(r"<td[^>]*>99</td>", h.body), h.body[:2000])
     # covers: web:post.settings.import -
     h = H()
     m_post.settings_post(h, SESS, ["import"], {"file": b"fabric_settings: 7\n"})
@@ -239,7 +247,7 @@ if web_ok:
     h = H()
     m_post.settings_post(h, old, ["apply"], {"plan": "dev-plan"})
     check("Apply with a sign-in older than 5 minutes: sent to sign in again, nothing applied",
-          h.to.startswith("/login?next=%2Fsettings") and calls == [], h.to)
+          h.to.startswith("/login?next=/settings") and calls == [], h.to)
     # covers: web:post.settings.apply +
     h = H()
     m_post.settings_post(h, SESS, ["apply"], {"plan": "dev-plan"})

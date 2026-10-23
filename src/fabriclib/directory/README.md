@@ -34,7 +34,7 @@ account, so AD's limits apply to it.
 | `ensure_default_device_roles.py` | Create fabric's default device roles once, in `OU=device-roles` (a marker file keeps a deleted one from coming back) |
 | `add_machine.py` | A machine pre-created with a one-time join password, filed by its type (`fabricctl domain add-machine --type`) |
 | `sort_machines.py` | Windows machines that joined themselves moved into OU=servers or OU=desktops, once each, recorded in config/machines-sorted.json (`fabricctl domain sort-machines`, the fabric-machines timer) |
-| `list_machines.py` | The domain's machines (the Directory tab's Machines) |
+| `list_machines.py` | The domain's machines with their type, sites, machine groups and folder (Computers) |
 | `set_machine_enabled.py` | Disable a machine, or enable it again (audited) |
 | `remove_machine.py` | Remove a machine from the domain (audited) |
 | `place_fabric_host.py` | The fabric host's own account made the site's fabric host: OU=fabric-hosts, fabric-managed and dc-hosts (audited, manual 1.6.11.11) |

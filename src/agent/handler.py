@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler
 from agent.get_route import get_route
 from agent.post_route import post_route
 from agent.route_not_found import RouteNotFound
-from fabriclib.common.errors import ValidationError
+from fabriclib.common.errors import NotFound, ValidationError
 from fabriclib.common.load_vars import load_vars
 from fabriclib.keycloak.verify_user_token import verify_user_token
 from fabriclib.rbac.required_permission import required_permission
@@ -151,7 +151,8 @@ class Handler(BaseHTTPRequestHandler):
                  Authorization header (see authorize) and, for POST, the JSON body (see body; actor from actor()).
         Returns: None; replies 200 with the result (get_route for GET, post_route for POST).
         Fails:   never raises; replies 403 "peer not allowed" when the peer uid is not in allowed_uids; 404 "not found"
-                 for a path outside /v1 or an unknown route; 401/403 from authorize; 400 with the message for
+                 for a path outside /v1 or an unknown route, 404 with the message for NotFound (a person,
+                 computer, group or grant that is not there); 401/403 from authorize; 400 with the message for
                  ValidationError; 400 "malformed request" for ValueError/JSON errors; 500 "internal error" (traceback to
                  stderr) for anything else.
         Feeds:   do_GET, do_POST."""
@@ -166,11 +167,13 @@ class Handler(BaseHTTPRequestHandler):
             if refused:
                 return self.reply(refused[0], {"error": refused[1]})
             if method == "GET":
-                return self.reply(200, get_route(route, self.user))
+                return self.reply(200, get_route(route, self.user, self.perms))
             data = self.body()
             return self.reply(200, post_route(route, self.actor(data), data, self.perms, self.session))
         except RouteNotFound:
             self.reply(404, {"error": "not found"})
+        except NotFound as exc:                 # one thing a read names is not there (2.1.8.21)
+            self.reply(404, {"error": str(exc)})
         except ValidationError as exc:
             self.reply(400, {"error": str(exc)})
         except (ValueError, json.JSONDecodeError):
