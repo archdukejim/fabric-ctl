@@ -4,6 +4,7 @@ from webui.devpreview.fabric_rules import ValidationError, required_permission
 from webui.devpreview.fake_account import managed
 from webui.devpreview.fake_directory import PERSON_KEYS
 from webui.devpreview.fake_groups import find_group
+from webui.devpreview.fake_ous import fake_ous
 from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DOMAIN, SAMPLE_GPO
 
 try:                                       # the agent's own store and its words, from a checkout (as fabric_rules)
@@ -51,6 +52,8 @@ def _thing(state, route, body):
         return _find(SAMPLE_ACCESS["sudo"], "name", name)
     if route == ["domain", "password-policy"]:
         return SAMPLE_DOMAIN["policy"]
+    if head == "ous":                                 # the whole tree, as the agent reads it
+        return fake_ous(state, None, ["ous"], None)
     if head == "gpo":
         return {"settings": SAMPLE_GPO.get("settings"), "controls": SAMPLE_GPO.get("controls")}
     raise ValidationError("this change is not held in the preview")

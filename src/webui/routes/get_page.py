@@ -8,6 +8,7 @@ from webui.routes.directory_page import directory_page
 from webui.routes.finish_setting_up import finish_setting_up
 from webui.routes.computers_page import computers_page
 from webui.routes.groups_page import groups_page
+from webui.routes.ous_page import ous_page
 from webui.routes.dns_filter_page import dns_filter_page
 from webui.routes.moved_to import moved_to
 from webui.routes.openbao_page import openbao_page
@@ -69,7 +70,7 @@ def get_page(h, sess, path, query):
     Returns: 303 to the new address of a page that moved; 200 page: Overview (/, /overview/doctor,
              /overview/updates, /audit), DNS (/dns/zones, /dns-filter), DHCP (/kea), PKI (/pki, /pki/acme),
              Directory (/directory, /directory/people|groups|computers[/_new|/<name>], /directory/computers/_groups,
-             /directory/policies[/gpo|/sudo]), 802.1X
+             /directory/ous[?ou=<path>], /directory/policies[/gpo|/sudo]), 802.1X
              (/8021x, /8021x/decisions, /8021x/guides, /8021x/devices[/<name>], /8021x/roles[/<name>]), Secrets
              (/secrets[/<view>]), Federation (/federation),
              Settings (/settings, /settings/export, /settings/sign-in), My account (/account, /account/groups,
@@ -121,6 +122,8 @@ def get_page(h, sess, path, query):
         return people_page(h, ctx, path, query)
     if path == "/directory/groups" or path.startswith("/directory/groups/"):
         return groups_page(h, ctx, path, query)
+    if path == "/directory/ous":
+        return ous_page(h, ctx, query)
     if path == "/directory/computers" or path.startswith("/directory/computers/"):
         return computers_page(h, ctx, path, query)
     if path == "/directory/policies" or path == "/directory/policies/gpo" or path == "/directory/policies/sudo":

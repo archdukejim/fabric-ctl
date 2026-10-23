@@ -14,6 +14,7 @@ from webui.views.directory import directory  # noqa: F401
 from webui.views.people import people  # noqa: F401
 from webui.views.groups import groups  # noqa: F401
 from webui.views.computers import computers  # noqa: F401
+from webui.views.ous import ous  # noqa: F401
 from webui.views.policies import policies  # noqa: F401
 from webui.views.dns_filter import dns_filter  # noqa: F401
 from webui.views.error_page import error_page  # noqa: F401

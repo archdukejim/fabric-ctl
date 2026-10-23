@@ -969,6 +969,13 @@ check("auditor: Computers through the real agent (domain:read), no DC here: why 
 st, _, _sc, body = req("GET", "/directory/computers/ws1", ALICE, cookie=aud)
 check("auditor: a computer's page without a DC: why said, no form", st == 200
       and "This computer could not be read" in body and "/directory/machines/ws1/" not in body, (st, body[-800:]))
+st, _, _sc, body = req("GET", "/directory/ous", ALICE, cookie=aud)
+check("auditor: OUs through the real agent (domain:read), no DC here: why said on the page, no Create OU",
+      st == 200 and "The OUs could not be read" in body and "/directory/ous/_new" not in body, (st, body[-800:]))
+st, _, _sc, body = req("POST", "/directory/ous/_form/delete", POSTH, {"csrf": cookie_csrf(aud), "ou": "people/x"},
+                       cookie=aud)
+check("auditor: an OU's Delete is refused by fabric-agent when held (ous:admin named)", st == 303
+      and "ous:admin" in urllib.parse.unquote_plus(_.get("Location", "")), (st, _))
 st, hd, _sc, body = req("GET", "/directory/machines", ALICE, cookie=aud)
 check("the old Machines address answers with a redirect to Computers", st == 303
       and hd.get("Location") == "/directory/computers", (st, hd))

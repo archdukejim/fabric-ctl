@@ -45,6 +45,7 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `list_people.py` | People and their groups (read-only; managed in Keycloak). Agent route: GET /v1/people (people:read). |
 | `list_groups.py` | The site's groups: kind, member count, description. Agent route: GET /v1/groups (domain:read). |
 | `show_group.py` | One group's two levels. Agent route: GET /v1/groups/<name> (domain:read). |
+| `list_ous.py` | The OU tree by path: fabric's marked, the admin's own, what each holds. Agent route: GET /v1/ous (domain:read). |
 | `list_machines.py` | The domain's computers: type, sites, OS, folder, machine groups, state. Agent route: GET /v1/machines (domain:read). |
 | `machine_overview.py` | One computer's page: its facts, the grants reaching it, its 802.1X device, its actions' choices. Agent route: GET /v1/machines/<name> (domain:read). |
 | `machine_keytab.py` | The command that installs a service's keytab on a computer (nothing changed). Agent route: POST /v1/machines/<name>/keytab (machines:admin). |

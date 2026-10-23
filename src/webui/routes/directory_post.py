@@ -133,6 +133,25 @@ def _machine(h, sess, name, op, form):
     return h.deny(404, "Not found.")
 
 
+def _ou(h, name, op, form):
+    """Purpose: An OU's form (manual 1.6.12.7), held on the OUs page until its Apply: create (form parent, name),
+             rename (form ou, name) or delete (form ou); an OU is named by its path, so it comes in the form.
+    Inputs:  h — the request handler; name — "_new" or "_form"; op — "" (create), "rename" or "delete"; form — dict.
+    Returns: 303 (held's): to the tree after a create or a delete, to the OU's page after a rename (its old path: the
+             new one is the Apply's); 404 for another form.
+    Fails:   AgentError, PermissionDenied and AuthError propagate.
+    Feeds:   directory_post."""
+    if name == "_new" and not op:
+        return held(h, "/directory/ous", "ous", {"parent": form.get("parent", ""),
+                                                 "name": form.get("name", "").strip()})
+    if name == "_form" and op == "rename":
+        back = "/directory/ous?" + urllib.parse.urlencode({"ou": form.get("ou", "")})
+        return held(h, back, "ous/rename", {"ou": form.get("ou", ""), "name": form.get("name", "").strip()})
+    if name == "_form" and op == "delete":
+        return held(h, "/directory/ous", "ous/delete", {"ou": form.get("ou", "")})
+    return h.deny(404, "Not found.")
+
+
 def _host_access(h, kind, name, op, form):
     """Purpose: A machine group form (manual 1.6.11.7), held on Computers (its Machine groups tab), or a sudo rule
              form, held on Policies (1.6.12.10), until its page's Apply.
@@ -171,7 +190,8 @@ def directory_post(h, sess, parts, form):
              'groups'|'keytab'] (_machine's forms), ['gpo', 'set'|'clear'] (form
              policy, el_<element> values, disabled), ['hostgroups'|'sudo', …] (_host_access' forms),
              ['domain', 'password-policy'] (form: POLICY_FIELDS' keys, complexity on|off), ['groups', '_new' |
-             <name>, ''|'delete'|'managers'|'members'] (_group's forms); form — dict.
+             <name>, ''|'delete'|'managers'|'members'] (_group's forms), ['ous', '_new' | '_form', ''|'rename'|
+             'delete'] (_ou's forms); form — dict.
     Returns: people, machines (hostgroups and sudo among them), gpo and the password policy: each change held
              on its page until the page's Apply (manual 1.8.6.5; a new person's, a reset's and a new machine's
              one-time password is shown once on the page's Review after it): 303 to the page (/directory/<section>;
@@ -200,6 +220,8 @@ def directory_post(h, sess, parts, form):
         return h.deny(404, "Not found.")
     if kind == "machines" and len(parts) <= 3:
         return _machine(h, sess, name, op, form)
+    if kind == "ous" and len(parts) <= 3:
+        return _ou(h, name, op, form)
     if kind == "groups" and len(parts) <= 3:
         return _group(h, name, op, form)
     if kind in ("hostgroups", "sudo") and name:

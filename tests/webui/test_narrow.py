@@ -36,7 +36,7 @@ PAGES = ["/", "/overview/doctor", "/overview/updates", "/audit", "/dns/zones", "
          "/pki?view=issued", "/pki/acme", "/directory", "/directory/people", "/directory/people/jim",
          "/directory/people/lee", "/directory/people/_new", "/directory/groups", "/directory/groups/lab-users",
          "/directory/groups/_new", "/directory/policies", "/directory/policies/sudo", "/directory/computers",
-         "/directory/computers/host-1", "/directory/computers/_groups",
+         "/directory/computers/host-1", "/directory/computers/_groups", "/directory/ous", "/directory/ous?ou=people/staff",
          "/directory/policies/gpo?match=example", "/8021x", "/8021x/decisions", "/8021x/guides?view=switches",
          "/8021x/guides?view=windows", "/8021x/devices", "/8021x/devices/jims-laptop", "/8021x/roles",
          "/8021x/roles/iot", "/secrets", "/secrets/unlock", "/secrets/disk", "/secrets/secrets",

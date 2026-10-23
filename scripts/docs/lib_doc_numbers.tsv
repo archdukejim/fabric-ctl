@@ -973,6 +973,7 @@ file	webui|src/webui/agentclient/list_groups.py	230
 file	webui|src/webui/agentclient/list_host_groups.py	157	
 file	webui|src/webui/agentclient/list_issued.py	24	
 file	webui|src/webui/agentclient/list_machines.py	238	
+file	webui|src/webui/agentclient/list_ous.py	244	
 file	webui|src/webui/agentclient/list_people.py	25	
 file	webui|src/webui/agentclient/list_sudo_rules.py	158	
 file	webui|src/webui/agentclient/list_tsig_keys.py	26	
@@ -1058,6 +1059,7 @@ file	webui|src/webui/devpreview/fake_groups.py	232
 file	webui|src/webui/devpreview/fake_machines.py	241	
 file	webui|src/webui/devpreview/fake_misc.py	206	
 file	webui|src/webui/devpreview/fake_network.py	207	
+file	webui|src/webui/devpreview/fake_ous.py	245	
 file	webui|src/webui/devpreview/fake_pending.py	215	
 file	webui|src/webui/devpreview/fake_reads.py	208	
 file	webui|src/webui/devpreview/sample_data.py	186	
@@ -1088,6 +1090,7 @@ file	webui|src/webui/routes/kea_post.py	81
 file	webui|src/webui/routes/landing_post.py	187	
 file	webui|src/webui/routes/moved_to.py	209	
 file	webui|src/webui/routes/openbao_page.py	82	
+file	webui|src/webui/routes/ous_page.py	246	
 file	webui|src/webui/routes/overview_post.py	143	
 file	webui|src/webui/routes/people_page.py	228	
 file	webui|src/webui/routes/policies_page.py	236	
@@ -1134,6 +1137,7 @@ file	webui|src/webui/views/kea.py	111
 file	webui|src/webui/views/machine_result.py	129	0.8.0 / 2026-10-23
 file	webui|src/webui/views/nav_menu.py	210	
 file	webui|src/webui/views/openbao.py	112	
+file	webui|src/webui/views/ous.py	247	
 file	webui|src/webui/views/overview.py	113	
 file	webui|src/webui/views/paged.py	235	
 file	webui|src/webui/views/people.py	229	
@@ -2742,6 +2746,7 @@ function	webui|src/webui/agentclient/list_groups.py|list_groups	1
 function	webui|src/webui/agentclient/list_host_groups.py|list_host_groups	1	
 function	webui|src/webui/agentclient/list_issued.py|list_issued	1	
 function	webui|src/webui/agentclient/list_machines.py|list_machines	1	
+function	webui|src/webui/agentclient/list_ous.py|list_ous	1	
 function	webui|src/webui/agentclient/list_people.py|list_people	1	
 function	webui|src/webui/agentclient/list_sudo_rules.py|list_sudo_rules	1	
 function	webui|src/webui/agentclient/list_tsig_keys.py|list_tsig_keys	1	
@@ -2850,6 +2855,7 @@ function	webui|src/webui/devpreview/fake_account.py|fake_account	2
 function	webui|src/webui/devpreview/fake_account.py|managed	1	
 function	webui|src/webui/devpreview/fake_agent.py|_read_groups	2	
 function	webui|src/webui/devpreview/fake_agent.py|_read_machines	3	
+function	webui|src/webui/devpreview/fake_agent.py|_read_ous	4	
 function	webui|src/webui/devpreview/fake_agent.py|fake_agent	1	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.__init__	3	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.close	6	
@@ -2887,6 +2893,10 @@ function	webui|src/webui/devpreview/fake_network.py|_filter	4
 function	webui|src/webui/devpreview/fake_network.py|_options	1	
 function	webui|src/webui/devpreview/fake_network.py|_radius	3	
 function	webui|src/webui/devpreview/fake_network.py|fake_network	5	
+function	webui|src/webui/devpreview/fake_ous.py|_name	2	
+function	webui|src/webui/devpreview/fake_ous.py|_own	3	
+function	webui|src/webui/devpreview/fake_ous.py|_tree	1	
+function	webui|src/webui/devpreview/fake_ous.py|fake_ous	4	
 function	webui|src/webui/devpreview/fake_pending.py|_find	1	
 function	webui|src/webui/devpreview/fake_pending.py|_store	3	
 function	webui|src/webui/devpreview/fake_pending.py|_thing	2	
@@ -2935,6 +2945,7 @@ function	webui|src/webui/routes/directory_post.py|_group	10
 function	webui|src/webui/routes/directory_post.py|_held	7	0.8.0 / 2026-10-23
 function	webui|src/webui/routes/directory_post.py|_host_access	5	
 function	webui|src/webui/routes/directory_post.py|_machine	11	
+function	webui|src/webui/routes/directory_post.py|_ou	12	
 function	webui|src/webui/routes/directory_post.py|_person_change	4	0.8.0 / 2026-10-22
 function	webui|src/webui/routes/directory_post.py|_person_route	8	
 function	webui|src/webui/routes/directory_post.py|_q	6	0.8.0 / 2026-10-23
@@ -2962,6 +2973,7 @@ function	webui|src/webui/routes/landing_post.py|landing_post	1
 function	webui|src/webui/routes/moved_to.py|_with	1	
 function	webui|src/webui/routes/moved_to.py|moved_to	2	
 function	webui|src/webui/routes/openbao_page.py|openbao_page	1	
+function	webui|src/webui/routes/ous_page.py|ous_page	1	
 function	webui|src/webui/routes/overview_post.py|overview_post	1	
 function	webui|src/webui/routes/people_page.py|people_page	1	
 function	webui|src/webui/routes/policies_page.py|policies_page	1	
@@ -3018,6 +3030,7 @@ function	webui|src/webui/views/kea.py|kea	1
 function	webui|src/webui/views/machine_result.py|machine_result	1	0.8.0 / 2026-10-23
 function	webui|src/webui/views/nav_menu.py|nav_menu	1	
 function	webui|src/webui/views/openbao.py|openbao	1	
+function	webui|src/webui/views/ous.py|ous	1	
 function	webui|src/webui/views/overview.py|overview	1	
 function	webui|src/webui/views/paged.py|paged	1	
 function	webui|src/webui/views/people.py|_matches	1	0.8.0 / 2026-10-23

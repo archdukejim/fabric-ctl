@@ -741,6 +741,60 @@ with serve():
     check("Remove computer: held, back to Computers; applied, gone", loc == "/directory/computers"
           and "Waiting for Apply: Remove ws9" in flash(page) and "Remove ws9" in post("/changes/machines/apply", {})[2]
           and 'href="/directory/computers/ws9"' not in get("/directory/computers"), (loc, flash(page)))
+    page = get("/directory/ous")
+    # covers: web:get.directory.ous +
+    check("Directory · OUs: the tree by path (the leaf strong, its parents before it), who keeps each, what each "
+          "holds; Create OU offering only where the site's own go",
+          '<span class="muted">machines/servers/</span><strong>web</strong>' in page and ">fabric<" in page
+          and ">the site<" in page and 'action="/directory/ous/_new"' in page
+          and '<option>people/staff</option>' in page and '<option>machines</option>' not in page, page[-4000:])
+    page = get("/directory/ous?ou=people/staff")
+    check("an OU of the site's own: what it holds, Rename and Delete",
+          "<dt>People</dt><dd>1</dd>" in page and 'action="/directory/ous/_form/rename"' in page
+          and 'action="/directory/ous/_form/delete"' in page and 'value="people/staff"' in page, page[-3000:])
+    page = get("/directory/ous?ou=machines/servers")
+    check("one of fabric's: what it holds (its computers linked to Computers, searched by folder), the OUs in it, no "
+          "form", 'href="/directory/computers?q=machines%2Fservers"' in page and ">web</a>" in page
+          and "/directory/ous/_form/" not in page and "fabric&#39;s fixed folders" in page, page[-3000:])
+    page = get("/directory/ous?ou=nowhere")
+    # covers: web:get.directory.ous -
+    check("an OU that is not there: said, no form", "No OU nowhere in the domain" in page
+          and "/directory/ous/_form/" not in page)
+    st, loc, page = post("/directory/ous/_new", {"parent": "people", "name": "contractors"})
+    # covers: web:post.directory.ous._new +
+    check("Create OU: held for the OUs page's Apply, back to the tree", loc == "/directory/ous"
+          and "Waiting for Apply: Add OU contractors" in flash(page), (loc, flash(page)))
+    st, loc, page = post("/directory/ous/_form/rename", {"ou": "people/staff", "name": "team"})
+    # covers: web:post.directory.ous._form.rename +
+    check("Rename: held, back on the OU's page", loc == "/directory/ous?ou=people%2Fstaff"
+          and "Rename OU people/staff" in flash(page), (loc, flash(page)))
+    st, loc, page = post("/directory/ous/_form/delete", {"ou": "machines/servers/web"})
+    # covers: web:post.directory.ous._form.delete +
+    check("Delete: held, back to the tree", loc == "/directory/ous" and "Remove OU machines/servers/web" in flash(page),
+          (loc, flash(page)))
+    st, loc, page = post("/changes/ous/apply", {})
+    page = get("/directory/ous")
+    check("...the three applied on one Review (one thing, the tree: none refuses the next)",
+          ">contractors<" in page and ">team<" in page and "servers/</span><strong>web" not in page
+          and "change pending" not in page, page[-3000:])
+    for form, words in (({"parent": "people", "name": "people"}, "choose another"),
+                        ({"parent": "machines", "name": "x"}, "takes no admin")):
+        post("/directory/ous/_new", form)
+        st, loc, page = post("/changes/ous/apply", {})
+        # covers: web:post.directory.ous._new -
+        check(f"Create OU refused at Apply, why shown ({words})", words in page, page[-1500:])
+        post("/changes/ous/discard", {})
+    post("/directory/ous/_form/rename", {"ou": "people", "name": "folks"})
+    st, loc, page = post("/changes/ous/apply", {})
+    # covers: web:post.directory.ous._form.rename -
+    check("Rename refused at Apply: one of fabric's folders", "managed by fabric" in page, page[-1500:])
+    post("/changes/ous/discard", {})
+    post("/directory/ous/_form/delete", {"ou": "people/team"})
+    st, loc, page = post("/changes/ous/apply", {})
+    # covers: web:post.directory.ous._form.delete -
+    check("Delete refused at Apply while it holds anything, saying so", "is not empty" in page, page[-1500:])
+    post("/changes/ous/discard", {})
+    check("refused: an unknown OU form (404)", req("POST", "/directory/ous/_form/frob", {"csrf": "dev"})[0] == 404)
     page = get("/directory/policies/sudo")
     # covers: web:get.directory.policies.sudo +
     check("Policies · Sudo rules (admin): who made each, remove only for fabric's, the add form aiming at a host group",
@@ -912,6 +966,13 @@ with serve("fabric-auditor"):
         # covers: web:post.directory.machines.*.* web:post.directory.machines.*.delete -
         check(f"--as fabric-auditor: refused: holding a computer's {op}, the permission named (machines:admin)",
               "machines:admin" in flash(page) and "change pending" not in page, flash(page))
+    page = get("/directory/ous?ou=people/staff")
+    check("--as fabric-auditor: an OU of the site's without Rename or Delete (ous:admin), and no Create OU",
+          "<dt>People</dt><dd>1</dd>" in page and "/directory/ous/_form/" not in page
+          and "/directory/ous/_new" not in get("/directory/ous"), page[-2000:])
+    st, loc, page = post("/directory/ous/_new", {"parent": "people", "name": "x"})
+    check("--as fabric-auditor: refused: holding Create OU, the permission named (ous:admin)",
+          "ous:admin" in flash(page) and "change pending" not in page, flash(page))
     page = get("/directory/people")
     check("--as fabric-auditor: people listed, no Add person", "jim@home.arpa" in page
           and "/directory/people/_new" not in page)

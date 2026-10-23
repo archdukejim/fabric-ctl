@@ -170,8 +170,9 @@ def thing_key(route, body):
     """Purpose: Which thing a change changes, as a key: two changes of one apply on the same person, machine or
              policy share it (the second is not refused for the first one's change).
     Inputs:  route — segments after /v1/; body — the change's body.
-    Returns: a tuple: (kind, name) — the name from the route, or from the body for an add; the whole route for a
-             thing with no name (a policy, the OU tree).
+    Returns: a tuple: (kind, name) — the name from the route, or from the body for an add; ("gpo",) and ("ous",)
+             for the GPO's set and the OU tree; the route's first two segments for another thing with no name (a
+             policy).
     Fails:   never.
     Feeds:   agent/pending_store (apply)."""
     route = as_change(route)
@@ -179,7 +180,9 @@ def thing_key(route, body):
         return route[0], route[1] if len(route) > 1 else str(body.get("uid") or body.get("name") or "")
     if route[:2] == ["domain", "grants"]:
         return "grants", route[2] if len(route) > 2 else str(body.get("name") or "")
-    return tuple(route[:2]) if route[0] != "gpo" else ("gpo",)
+    if route[0] in ("gpo", "ous"):            # one thing each: the GPO's set, the OU tree (its creates, renames
+        return (route[0],)                    # and deletes are read as the whole tree)
+    return tuple(route[:2])
 
 
 def version_of(state):

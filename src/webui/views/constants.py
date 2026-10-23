@@ -2,7 +2,7 @@
 
 # Apply per page (manual 1.8.6.5): fabric-agent's pending page ids -> the navigation page whose changes they are
 PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "machines": "/directory/computers",
-                 "policies": "/directory/policies", "account": "/account/groups"}
+                 "policies": "/directory/policies", "ous": "/directory/ous", "account": "/account/groups"}
 
 # The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
 # permissions that show it: any one of them; () = any signed-in person). An entry shows when one of its pages does.
@@ -19,6 +19,7 @@ NAV = [
                                 ("/directory/people", "People", ("people:read",)),
                                 ("/directory/groups", "Groups", ("domain:read",)),
                                 ("/directory/computers", "Computers", ("domain:read",)),
+                                ("/directory/ous", "OUs", ("domain:read",)),
                                 ("/directory/policies", "Policies", ("domain:read",))]),
     ("8021x", "802.1X", [("/8021x", "RADIUS clients", ("radius:read",)),
                          ("/8021x/devices", "Devices", ("devices:read",)),
@@ -117,6 +118,8 @@ PER_PAGE = 50                            # a long list's page (1.8.6.3): People,
 # Directory · Computers (1.6.12.6): a computer's types (its folder and type group, 1.6.13.3) and the page's tabs
 COMPUTER_TYPES = {"server": "Server", "desktop": "Desktop", "network": "Network"}
 COMPUTER_SECTIONS = [("list", "Computers"), ("groups", "Machine groups")]
+# Directory · OUs (1.6.12.7): the folders an admin's own OUs go under (and under their own there), as the DC has them
+OU_ROOTS = ("people", "service-accounts", "groups", "machines/servers", "machines/desktops", "machines/network")
 RADIUS_PAGES = {"overview": "/8021x", "decisions": "/8021x/decisions", "switches": "/8021x/guides",
                 "windows": "/8021x/guides"}
 JOB_PAGES = {"doctor": "/overview/doctor", "images": "/overview/updates", "settings": "/settings"}
