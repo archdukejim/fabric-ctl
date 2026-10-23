@@ -12,7 +12,7 @@ def remove_subnet(v, actor, which, site="", force=False, secrets=None, container
              this site's); force — remove the recorded addresses too; secrets, container, source, caller — as edit_plan.
     Returns: edit_plan's result; result = {"subnet" (the plan entry), "addresses" (how many went)}.
     Fails:   ValidationError: no such subnet; addresses recorded without force (how many); what edit_plan refuses.
-    Feeds:   run_ipam_command (subnet remove)."""
+    Feeds:   run_ipam_command (subnet remove), dhcp/run_dhcp_alias (remove-subnet)."""
     def change(plan, read, org):
         sub = find_subnet(plan, which)
         held = len(sub.get("addresses") or [])

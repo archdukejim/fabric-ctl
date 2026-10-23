@@ -359,7 +359,7 @@ print("--- one change, the way every command makes it (common/edit_plan, 1.10.4.
 calls = []
 m_edit.check_access = lambda v, caller, action, target, container: calls.append(("check", caller, action, target)) or {
     "tier": "delegated", "by": "grant net-ops"}
-m_edit.read_plan = lambda v, secrets, of, container: calls.append(("read", of)) or {**READ, "plans": {
+m_edit.read_plan = lambda v, secrets, of, container, server=None: calls.append(("read", of)) or {**READ, "plans": {
     "lan": READ["plans"]["lan"], "lab": {"vlans": [], "subnets": [], "networks": []}}}
 m_edit.read_address_plan = lambda v, secrets, container: calls.append(("org",)) or NETS
 m_edit.write_plan = lambda v, secrets, changes, container, server: calls.append(("write", server, changes)) or [

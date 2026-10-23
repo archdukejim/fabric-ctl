@@ -294,6 +294,7 @@ file	fabriclib-dhcp|src/fabriclib/dhcp/place_subnets.py	29
 file	fabriclib-dhcp|src/fabriclib/dhcp/remove_client_class.py	20	
 file	fabriclib-dhcp|src/fabriclib/dhcp/remove_reservation.py	21	
 file	fabriclib-dhcp|src/fabriclib/dhcp/remove_subnet.py	22	
+file	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_alias.py	33	
 file	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py	23	
 file	fabriclib-dhcp|src/fabriclib/dhcp/set_dhcp_on.py	31	
 file	fabriclib-dhcp|src/fabriclib/dhcp/set_option.py	24	
@@ -532,6 +533,7 @@ file	fabriclib-images|src/fabriclib/images/switch_image.py	9
 file	fabriclib-images|src/fabriclib/images/update_images.py	10	
 file	fabriclib-images|src/fabriclib/images/verify_signature.py	13	
 file	fabriclib-ipam|src/fabriclib/ipam/add_address.py	12	
+file	fabriclib-ipam|src/fabriclib/ipam/add_dhcp_subnet.py	56	
 file	fabriclib-ipam|src/fabriclib/ipam/add_range.py	13	
 file	fabriclib-ipam|src/fabriclib/ipam/add_subnet.py	14	
 file	fabriclib-ipam|src/fabriclib/ipam/add_vlan.py	15	
@@ -546,10 +548,12 @@ file	fabriclib-ipam|src/fabriclib/ipam/common/edit_plan.py	16
 file	fabriclib-ipam|src/fabriclib/ipam/common/fields.py	7	
 file	fabriclib-ipam|src/fabriclib/ipam/common/new_subnet.py	8	
 file	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py	17	
+file	fabriclib-ipam|src/fabriclib/ipam/common/plan_holds_subnets.py	57	
 file	fabriclib-ipam|src/fabriclib/ipam/common/pool_text.py	9	
 file	fabriclib-ipam|src/fabriclib/ipam/common/site_plan.py	10	
 file	fabriclib-ipam|src/fabriclib/ipam/export_plan.py	18	
 file	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py	19	
+file	fabriclib-ipam|src/fabriclib/ipam/move_subnets_to_plan.py	58	
 file	fabriclib-ipam|src/fabriclib/ipam/options/add_plan_class.py	34	
 file	fabriclib-ipam|src/fabriclib/ipam/options/check_netboot.py	35	
 file	fabriclib-ipam|src/fabriclib/ipam/options/check_option_set.py	36	
@@ -557,6 +561,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/options/clear_netboot.py	37
 file	fabriclib-ipam|src/fabriclib/ipam/options/define_plan_option.py	38	
 file	fabriclib-ipam|src/fabriclib/ipam/options/effective_options.py	39	
 file	fabriclib-ipam|src/fabriclib/ipam/options/merge_option_sets.py	40	
+file	fabriclib-ipam|src/fabriclib/ipam/options/move_options_to_plan.py	59	
 file	fabriclib-ipam|src/fabriclib/ipam/options/netboot_classes.py	41	
 file	fabriclib-ipam|src/fabriclib/ipam/options/netboot_targets.py	42	
 file	fabriclib-ipam|src/fabriclib/ipam/options/option_label.py	43	
@@ -576,14 +581,17 @@ file	fabriclib-ipam|src/fabriclib/ipam/plan_rows.py	20
 file	fabriclib-ipam|src/fabriclib/ipam/read_plan.py	21	
 file	fabriclib-ipam|src/fabriclib/ipam/remove_address.py	22	
 file	fabriclib-ipam|src/fabriclib/ipam/remove_range.py	23	
+file	fabriclib-ipam|src/fabriclib/ipam/remove_reservation_mac.py	60	
 file	fabriclib-ipam|src/fabriclib/ipam/remove_subnet.py	24	
 file	fabriclib-ipam|src/fabriclib/ipam/remove_vlan.py	25	
 file	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py	26	
 file	fabriclib-ipam|src/fabriclib/ipam/set_address.py	27	
 file	fabriclib-ipam|src/fabriclib/ipam/set_block.py	28	
+file	fabriclib-ipam|src/fabriclib/ipam/set_dhcp_subnet.py	61	
 file	fabriclib-ipam|src/fabriclib/ipam/set_subnet.py	29	
 file	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py	30	
 file	fabriclib-ipam|src/fabriclib/ipam/show_plan.py	31	
+file	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py	62	
 file	fabriclib-ipam|src/fabriclib/ipam/suggestions.py	11	
 file	fabriclib-ipam|src/fabriclib/ipam/write_plan.py	32	
 file	fabriclib-keycloak|src/fabriclib/keycloak/add_app_client.py	21	
@@ -1747,6 +1755,8 @@ function	fabriclib-dhcp|src/fabriclib/dhcp/place_subnets.py|place_subnets	1
 function	fabriclib-dhcp|src/fabriclib/dhcp/remove_client_class.py|remove_client_class	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/remove_reservation.py|remove_reservation	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/remove_subnet.py|remove_subnet	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_alias.py|_clear	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_alias.py|run_dhcp_alias	2	
 function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|_apply	1	0.8.0 / 2026-10-23
 function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|_keep	5	
 function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|_parse	2	
@@ -2084,6 +2094,7 @@ function	fabriclib-images|src/fabriclib/images/verify_signature.py|_remembered	1
 function	fabriclib-images|src/fabriclib/images/verify_signature.py|verify_signature	2	
 function	fabriclib-ipam|src/fabriclib/ipam/add_address.py|_subnet_for	1	
 function	fabriclib-ipam|src/fabriclib/ipam/add_address.py|add_address	2	
+function	fabriclib-ipam|src/fabriclib/ipam/add_dhcp_subnet.py|add_dhcp_subnet	1	
 function	fabriclib-ipam|src/fabriclib/ipam/add_range.py|add_range	1	
 function	fabriclib-ipam|src/fabriclib/ipam/add_subnet.py|_free_name	1	
 function	fabriclib-ipam|src/fabriclib/ipam/add_subnet.py|add_subnet	2	
@@ -2110,10 +2121,12 @@ function	fabriclib-ipam|src/fabriclib/ipam/common/new_subnet.py|new_subnet	1
 function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|load_plan_cache	2	
 function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|plan_cache_path	1	
 function	fabriclib-ipam|src/fabriclib/ipam/common/plan_cache.py|save_plan_cache	3	
+function	fabriclib-ipam|src/fabriclib/ipam/common/plan_holds_subnets.py|plan_holds_subnets	1	
 function	fabriclib-ipam|src/fabriclib/ipam/common/pool_text.py|pool_text	1	
 function	fabriclib-ipam|src/fabriclib/ipam/common/site_plan.py|site_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/export_plan.py|export_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py|find_in_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/move_subnets_to_plan.py|move_subnets_to_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/add_plan_class.py|add_plan_class	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/check_netboot.py|_text	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/check_netboot.py|check_netboot	2	
@@ -2125,6 +2138,8 @@ function	fabriclib-ipam|src/fabriclib/ipam/options/effective_options.py|_fabric_
 function	fabriclib-ipam|src/fabriclib/ipam/options/effective_options.py|_layer	2	
 function	fabriclib-ipam|src/fabriclib/ipam/options/effective_options.py|effective_options	3	
 function	fabriclib-ipam|src/fabriclib/ipam/options/merge_option_sets.py|merge_option_sets	1	
+function	fabriclib-ipam|src/fabriclib/ipam/options/move_options_to_plan.py|_carry	1	
+function	fabriclib-ipam|src/fabriclib/ipam/options/move_options_to_plan.py|move_options_to_plan	2	
 function	fabriclib-ipam|src/fabriclib/ipam/options/netboot_classes.py|_classes	2	
 function	fabriclib-ipam|src/fabriclib/ipam/options/netboot_classes.py|_kinds	1	
 function	fabriclib-ipam|src/fabriclib/ipam/options/netboot_classes.py|netboot_classes	3	
@@ -2154,6 +2169,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/plan_rows.py|plan_rows	2
 function	fabriclib-ipam|src/fabriclib/ipam/read_plan.py|read_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/remove_address.py|remove_address	1	
 function	fabriclib-ipam|src/fabriclib/ipam/remove_range.py|remove_range	1	
+function	fabriclib-ipam|src/fabriclib/ipam/remove_reservation_mac.py|remove_reservation_mac	1	
 function	fabriclib-ipam|src/fabriclib/ipam/remove_subnet.py|remove_subnet	1	
 function	fabriclib-ipam|src/fabriclib/ipam/remove_vlan.py|remove_vlan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_done	6	
@@ -2166,9 +2182,12 @@ function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_subnet_line	7
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|run_ipam_command	8	
 function	fabriclib-ipam|src/fabriclib/ipam/set_address.py|set_address	1	
 function	fabriclib-ipam|src/fabriclib/ipam/set_block.py|set_block	1	
+function	fabriclib-ipam|src/fabriclib/ipam/set_dhcp_subnet.py|set_dhcp_subnet	1	
 function	fabriclib-ipam|src/fabriclib/ipam/set_subnet.py|set_subnet	1	
 function	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py|set_vlan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/show_plan.py|show_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py|_label	1	
+function	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py|subnets_to_plan	2	
 function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_block	3	
 function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_split	2	
 function	fabriclib-ipam|src/fabriclib/ipam/suggestions.py|suggest_subnet	1	

@@ -24,6 +24,9 @@ are pure functions checked before anything is written.
 | `plan_rows.py` | A site's address table: gateways, recorded addresses, leases |
 | `find_in_plan.py` | An address, name or MAC across every site's plan |
 | `export_plan.py` | The address table as CSV |
+| `add_dhcp_subnet.py`, `set_dhcp_subnet.py`, `remove_reservation_mac.py` | The old `fabricctl dhcp add-subnet`, `set-subnet` and `unreserve` as changes to the plan (their aliases, `dhcp/run_dhcp_alias`) |
+| `subnets_to_plan.py` | The upgrade: a site's `dhcp.subnets` as the plan's changes, nothing it serves changed |
+| `move_subnets_to_plan.py` | The upgrade's move: the settings' subnets into the plan once, recorded, `dhcp.subnets` removed (called from area 5 on) |
 | `run_ipam_command.py` | `fabricctl ipam`: routes only (show, find, export, block, vlan, subnet, range, address; option, class and netboot to `options/`) |
 | [options/](options/) | The DHCP options in the plan, client classes and netboot presets |
 | [common/](common/) | Helpers the address manager's commands share |

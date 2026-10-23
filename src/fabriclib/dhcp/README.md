@@ -34,3 +34,4 @@ zone `dhcp.<domain>` through kea-dhcp-ddns.
 | `add_reservation.py` | Reserve an address for a MAC (optionally with a hostname) in `vars.yaml`, whole `dhcp:` revalidated (locked, audited) |
 | `remove_reservation.py` | Remove a MAC's reservation from `vars.yaml` (locked, audited) |
 | `run_dhcp_command.py` | `fabricctl dhcp status / leases / reserve / unreserve / add-subnet / set-subnet / remove-subnet / option / class` (applies after a change unless `--no-apply`) |
+| `run_dhcp_alias.py` | The old add-subnet, set-subnet, remove-subnet, reserve and unreserve as aliases of `fabricctl ipam` once the subnets live in the plan |

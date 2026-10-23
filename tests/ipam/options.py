@@ -185,7 +185,7 @@ READ = {"sites": [{"name": "lan", "created": "1", "block": 1}, {"name": "lab", "
         "option_sets": {"domain": DOM, "lan": SITE}}
 m_edit.check_access = lambda v, caller, action, target, container: calls.append(("check", caller, action, target)) or {
     "tier": "delegated", "by": "grant net-ops"}
-m_edit.read_plan = lambda v, secrets, of, container: calls.append(("read", of)) or READ
+m_edit.read_plan = lambda v, secrets, of, container, server=None: calls.append(("read", of)) or READ
 m_edit.write_plan = lambda v, secrets, changes, container, server: calls.append(("write", server, changes)) or [
     "done"]
 m_edit.save_plan_cache = lambda plan: calls.append(("keep", plan["site"]))

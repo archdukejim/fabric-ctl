@@ -40,7 +40,7 @@ def add_address(v, actor, ip, kind, site="", name="", mac="", owner="", notes=""
              outside the static ranges, a reservation in a subnet DHCP does not serve).
     Fails:   ValidationError: what _subnet_for or check_address refuses; a DNS name the settings already give this
              site's zone; what edit_plan refuses.
-    Feeds:   run_ipam_command (address add)."""
+    Feeds:   run_ipam_command (address add), dhcp/run_dhcp_alias (reserve)."""
     addr_ip = ipv4(ip, "address")
 
     def change(plan, read, org):

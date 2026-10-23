@@ -24,5 +24,5 @@ def add_client_class(actor, name, test, next_server=None, boot_file_name=None, s
                 entry[key] = value
         classes.append(entry)
         return name, f"class={name} test={test}"
-    _, dhcp = edit_dhcp(actor, "DHCP_CLASS_ADD", change, source)
+    _, dhcp = edit_dhcp(actor, "DHCP_CLASS_ADD", change, source, global_level=True)
     return next(c for c in dhcp["client_classes"] if c["name"] == name)

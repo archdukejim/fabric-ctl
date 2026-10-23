@@ -3,8 +3,8 @@
 The address manager's DHCP options (manual 1.10.4.24 to 1.10.4.26; decisions 2.1.10.23 to 2.1.10.25): the
 domain's and each site's option sets in the domain (1.10.4.32), options at every level, client classes, custom
 definitions, the provenance of what a client gets, and netboot presets. Each change is checked against the grants'
-networks options right first (1.10.4.34). Ported in area 4 (1.10.4.41); the upgrade from the settings and the plan
-poll come with later areas.
+networks options right first (1.10.4.34). Ported in area 4 (1.10.4.41), with the upgrade's move of the settings'
+options; the plan poll comes with area 5.
 
 | File | What |
 |---|---|
@@ -29,4 +29,5 @@ poll come with later areas.
 | `remove_plan_class.py` | Remove a client class with its options |
 | `set_netboot.py` | Switch a netboot preset on, or change it |
 | `clear_netboot.py` | Switch a netboot preset off |
+| `move_options_to_plan.py` | The upgrade: the settings' global options, definitions and classes into the site's set once, recorded (called from area 5 on) |
 | `run_option_command.py` | `fabricctl ipam option / class / netboot` (routing only) |

@@ -12,10 +12,10 @@ from fabriclib.secrets.load_secrets import load_secrets
 def edit_options(v, actor, site, event, change, secrets=None, container="samba", source="cli", caller=None,
                  domain=False):
     """Purpose: one change to the DHCP options in the plan (decision 2.1.10.23, manual 1.10.4.24.2), made the way
-             edit_plan makes a plan change: fabric-agent's check first (the caller holds networks options at the
-             site, or at every site for the domain's set, 1.6.13.12), then the site's plan and the option sets
-             read, the change checked against them, written as this DC's agent account (at a read-only DC's site,
-             at its writable DC, 2.1.6.52), the plan read back and kept when it is this site's, and audited with
+             edit_plan makes a plan change: fabric-agent's check first (the caller holds networks options at the site,
+             or at every site for the domain's set, 1.6.13.12), then the site's plan and the option sets read, the
+             change checked against them, written as this DC's agent account (at a read-only DC's site, at its writable
+             DC, 2.1.6.52, where it is read too), the plan read back and kept when it is this site's, and audited with
              the person, this DC, the site, the scope and what allowed it (1.10.4.34). A refusal writes nothing.
     Inputs:  v — fabric vars (site_name, dc_name, ad_dc_type, ad_join_server); actor — who asks (audit); site — the site
              whose plan the change is about ("" is this site; the domain's set is read with any site's); event — the
@@ -37,10 +37,10 @@ def edit_options(v, actor, site, event, change, secrets=None, container="samba",
     site = site or here
     allowed = check_access(v, caller, "networks:options", {"site": "all" if domain else site}, container)
     server = writable_server(v, "write the DHCP options at")
-    plan = site_plan(read_plan(v, secrets, of=site, container=container), site)
+    plan = site_plan(read_plan(v, secrets, of=site, container=container, server=server), site)
     changes, result, detail, warnings = change(plan)
     done = write_plan(v, secrets, changes, container=container, server=server)
     if site == here:
-        save_plan_cache(site_plan(read_plan(v, secrets, of=site, container=container), site))
+        save_plan_cache(site_plan(read_plan(v, secrets, of=site, container=container, server=server), site))
     write_audit(actor, event, f"from={v.get('dc_name') or here} site={site} by={allowed['by']} {detail}", source)
     return {"result": result, "warnings": warnings, "done": done, "site": site}

@@ -35,7 +35,7 @@ def save_plan_cache(plan):
     Inputs:  plan — the site's plan with "site", "block" and "read" (when).
     Returns: None.
     Fails:   OSError writing the file.
-    Feeds:   load_address_plan, move_subnets_to_plan, common/edit_plan."""
+    Feeds:   load_address_plan, move_subnets_to_plan, common/edit_plan, common/edit_options."""
     path = plan_cache_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".new"

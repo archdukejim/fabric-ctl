@@ -16,8 +16,8 @@ def edit_plan(v, actor, site, event, change, secrets=None, container="samba", so
              1.10.4.33, 1.10.4.34): fabric-agent's check first (the caller holds the networks right at the site,
              1.6.13.12), then the site's plan read from the domain, the change checked against it (and, for a subnet,
              against every site's networks), written as this DC's agent account (at a read-only DC's site, at its
-             writable DC, 2.1.6.52), the plan read back and kept when it is this site's, and audited with this DC, the
-             site and what allowed it (1.10.4.34). A refusal writes nothing.
+             writable DC, 2.1.6.52, where it is read too), the plan read back and kept when it is this site's, and
+             audited with this DC, the site and what allowed it (1.10.4.34). A refusal writes nothing.
     Inputs:  v — fabric vars (site_name, dc_name, fabric_subnet, ad_dc_type, ad_join_server); actor — who asks (audit);
              site — the site whose plan changes ("" is this site); event — the audit event (e.g. "IPAM_VLAN_ADD");
              change — function(plan, read, networks) -> (changes, result, audit detail str, warnings list); secrets —
@@ -37,13 +37,13 @@ def edit_plan(v, actor, site, event, change, secrets=None, container="samba", so
     site = site or v["site_name"]
     allowed = check_access(v, caller, f"networks:{right}", {"site": site}, container)
     server = writable_server(v, "write the address plan at")
-    read = read_plan(v, secrets, of=site, container=container)
+    read = read_plan(v, secrets, of=site, container=container, server=server)
     plan = site_plan(read, site)
     org = read_address_plan(v, secrets, container=container) if networks else []
     changes, result, detail, warnings = change(plan, read, org)
     done = write_plan(v, secrets, changes, container=container, server=server)
     if site == v["site_name"]:
-        save_plan_cache(site_plan(read_plan(v, secrets, of=site, container=container), site))
+        save_plan_cache(site_plan(read_plan(v, secrets, of=site, container=container, server=server), site))
     by = f"from={v.get('dc_name') or v['site_name']} site={site} by={allowed['by']}"
     write_audit(actor, event, f"{by} {detail}", source)
     return {"result": result, "warnings": warnings, "done": done, "site": site}

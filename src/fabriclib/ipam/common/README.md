@@ -14,3 +14,4 @@ Helpers shared by the address manager's commands (manual 1.10.4).
 | `option_codes.py` | The one DHCPv4 option list (Kea 3.0's, by code and name) and the options fabric provides |
 | `pool_text.py` | A 0.7 pool as typed ("first - last") split into its two addresses |
 | `scan_busy.py` | `ScanBusy`: a scan refused only for now (one running, the same subnet within the minute); a request through AD stays pending |
+| `plan_holds_subnets.py` | Whether this site's subnets live in the plan, and what the old DHCP commands say once they do (`MOVED`, `MOVED_OPTIONS`) |

@@ -4,7 +4,7 @@ Admin's): every command's positive case and its refusals, each changing nothing;
 on one VLAN; show, find and export; another site's plan written with --site; and a delegated person writing through
 a grant's networks rights at one site, refused at another and refused with none; the DHCP options and netboot
 (the domain's set, the site's, a subnet's; a delegated person's options right at one site, refused for the domain's
-set). fabric's audit log is stood in for.
+set); the 0.7 subnet commands' aliases (add-subnet, set-subnet, unreserve). fabric's audit log is stood in for.
     sudo python3 tests/samba/ipam.py
 """
 import io
@@ -22,10 +22,15 @@ import fabriclib.ipam.common.edit_options as m_edit_opt  # noqa: E402
 import fabriclib.ipam.common.edit_plan as m_edit  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
+from fabriclib.ipam.add_address import add_address  # noqa: E402
+from fabriclib.ipam.add_dhcp_subnet import add_dhcp_subnet  # noqa: E402
 from fabriclib.ipam.add_vlan import add_vlan  # noqa: E402
 from fabriclib.ipam.options.set_plan_option import set_plan_option  # noqa: E402
 from fabriclib.ipam.read_plan import read_plan  # noqa: E402
+from fabriclib.ipam.remove_reservation_mac import remove_reservation_mac  # noqa: E402
+from fabriclib.ipam.remove_vlan import remove_vlan  # noqa: E402
 from fabriclib.ipam.run_ipam_command import run_ipam_command  # noqa: E402
+from fabriclib.ipam.set_dhcp_subnet import set_dhcp_subnet  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-ipam")
@@ -385,6 +390,58 @@ check("negative: nina refused the domain's set, which needs networks options at 
 got = nina_option("site", "lan")
 check("negative: nina refused lan's options, which her grant does not reach", "networks options at lan" in got
       and sets() == held, got)
+
+print("--- the 0.7 subnet commands as aliases, written to the domain (1.10.4.21, 2.1.10.27; area 4)")
+DCK = {"secrets": SECRETS, "container": DC}
+
+
+def why_refused(fn):
+    """Purpose: what a call was refused with.
+    Inputs:  fn — a function of no arguments.
+    Returns: the refusal's text, or "not refused".
+    Fails:   never.
+    Feeds:   this script."""
+    try:
+        fn()
+        return "not refused"
+    except ValidationError as e:
+        return str(e)
+
+
+# covers: cli:dhcp.add-subnet +
+out = add_dhcp_subnet(V, "root", "10.250.39.0/24", "alias39", 3939, "10.250.39.1", ["10.250.39.100 - 10.250.39.150"],
+                      "via 0.7", **DCK)
+s39 = sub("alias39")
+check("add-subnet: a new VLAN named after the subnet, the subnet with its gateway, its pool a dhcp range, no split",
+      out["result"]["vlan_added"] and any(x["id"] == 3939 and x["name"] == "alias39" for x in plan()["vlans"])
+      and s39 and s39["gateway"] == "10.250.39.1" and s39["dhcp"]
+      and [(r["kind"], r["first"], r["last"]) for r in s39["ranges"]] == [("dhcp", "10.250.39.100", "10.250.39.150")],
+      s39)
+held = plan()
+why = why_refused(lambda: add_dhcp_subnet(V, "root", "10.250.39.128/25", "alias39b", 3939, None, [], "", **DCK))
+check("negative: a subnet overlapping one of the plan's, naming it, nothing written", "overlap" in why
+      and plan() == held, why)
+# covers: cli:dhcp.set-subnet +
+set_dhcp_subnet(V, "root", "alias39", notes="moved", remove_pools=["10.250.39.100 - 10.250.39.150"],
+                add_pools=["10.250.39.160 - 10.250.39.200"], **DCK)
+s39 = sub("alias39")
+check("set-subnet: one pool removed and another added, the notes changed, in one change",
+      [(r["first"], r["last"]) for r in s39["ranges"] if r["kind"] == "dhcp"] == [("10.250.39.160", "10.250.39.200")]
+      and s39["notes"] == "moved", s39)
+held = plan()
+why = why_refused(lambda: set_dhcp_subnet(V, "root", "alias39", remove_pools=["10.250.39.1 - 10.250.39.9"], notes="x",
+                                          **DCK))
+check("negative: removing a pool the subnet does not have, nothing written (not even the notes)",
+      "no DHCP pool" in why and plan() == held, why)
+add_address(V, "root", "10.250.39.170", "reservation", "", "cam39", "02:00:00:00:39:01", **DCK)
+# covers: cli:dhcp.unreserve +
+remove_reservation_mac(V, "root", "02-00-00-00-39-01", **DCK)
+check("unreserve: the reservation that MAC holds is removed (MAC given with dashes)",
+      not any(a["ip"] == "10.250.39.170" for a in sub("alias39")["addresses"]))
+why = why_refused(lambda: remove_reservation_mac(V, "root", "02:00:00:00:39:99", **DCK))
+check("negative: unreserve for a MAC no reservation holds", "no reservation for 02:00:00:00:39:99" in why, why)
+remove_vlan(V, "root", 3939, "", True, **DCK)
+check("the alias VLAN removed again with its subnet", sub("alias39") is None)
 
 print("--- removing")
 held = plan()
