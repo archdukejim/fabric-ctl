@@ -9,8 +9,8 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `converge.py` | The entry point: the wanted state as JSON on stdin, every part in order, what changed as JSON |
 | `open_samdb.py` | The DC's database opened locally as the system (optionally allowing schema changes) |
 | `repair_role_owners.py` | The roles this DC holds named by its current DN (a renamed AD site left the old text, 1.6.5.24) |
-| `ensure_schema.py` | fabric's and sudo's attributes and classes in AD's schema, added once (OIDs AD accepts, Q3) |
-| `ensure_layout.py` | The directory's folders (OU=people, OU=service-accounts, OU=groups with OU=fabric, OU=machines with one OU per type, OU=fabric-hosts, OU=devices, OU=device-roles, OU=networks, OU=sudoers) and `CN=fabric,CN=System`; AD's default containers point at OU=people and OU=machines (1.6.13.2) |
+| `ensure_schema.py` | fabric's and sudo's attributes and classes in AD's schema, added once (OIDs AD accepts, Q3), numbered after 0.8.0's with the retired and reserved numbers kept apart; a schema that disagrees is refused before anything is added (1.10.4.31) |
+| `ensure_layout.py` | The directory's folders (OU=people, OU=service-accounts, OU=groups with OU=fabric, OU=machines with one OU per type, OU=fabric-hosts, OU=devices, OU=device-roles, OU=networks, OU=sudoers) and `CN=fabric,CN=System` (with `CN=sites`, 1.10.4.32); AD's default containers point at OU=people and OU=machines (1.6.13.2) |
 | `ensure_groups.py` | The domain's groups (1.6.13.3): fabric-managed, directory-admins, dc-hosts, the tiers' admin groups, the machine types' groups, `site-<name>` per site, `rodc-cache-<dc>` for a read-only DC (2.1.6.52); fabric's `ldap_groups`, Domain Users as `users` (5000), `fabric-break-glass` |
 | `alloc_id.py` | The next number of a range for one use, from this DC's own range first, then its site's other DCs' (2.1.6.63), taken with one conditional change (never twice) |
 | `ensure_sso_account.py` | The site's `fabric-sso-<site>` account in OU=service-accounts: Keycloak's Kerberos SPNs, AES only, its keytab exported to `/data/sso.keytab` |
@@ -37,7 +37,15 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `save_role.py` | Operation `save_role`: a device role (a group with `fabricRole`) in `OU=device-roles` |
 | `remove_role.py` | Operation `remove_role`: a role deleted, refused while devices carry it |
 | `share_winbind.py` | winbind's privileged pipe in FreeRADIUS's group (root, 0750), for PEAP through `ntlm_auth` |
-| `ensure_networks.py` | The site's networks as `fabricNetwork` entries (`<site>/<name>`, marked with the site) in OU=networks (the address plan), kept to match |
+| `ensure_networks.py` | The site's networks as `fabricNetwork` entries (`<site>/<name>`, marked with the site) in OU=networks (the address plan), kept to match; never the address manager's subnets (1.10.4.33) |
+| `ensure_site_record.py` | The site's record in `CN=sites,CN=fabric,CN=System`: its number and DHCP options (1.10.4.32) |
+| `ensure_domain_options.py` | At the root: the domain's DHCP option set, `CN=dhcp-options,CN=fabric,CN=System` (1.10.4.32) |
+| `plan_cidrs.py` | The networks of the site's plan subnets, for its AD site's subnets (1.10.4.33) |
+| `read_plan.py` | Operation `read_plan`: the sites' records, the option sets, each site's VLANs, subnets, ranges and addresses (1.10.4.32, 1.10.4.33) |
+| `write_plan.py` | Operation `write_plan`: changes to the plan, a site's number and the option sets, in order (1.10.4.33) |
+| `read_scan_requests.py` | Operation `read_scan_requests`: a site's scan requests, their answers and who made them (1.10.4.36) |
+| `write_scan_request.py` | Operation `write_scan_request`: a scan request added, answered or removed (1.10.4.36) |
+| `read_usn.py` | This DC's highest committed USN, read anonymously on loopback: the plan poll's first step (1.10.4.26) |
 | `read_networks.py` | Operation `read_networks`: the address plan, every site's networks in one search |
 | `create_machine.py` | Operation `create_machine`: a machine pre-created in its type's OU under OU=machines (or OU=machines itself) with a one-time join password, in its type's and its site's groups and fabric-managed |
 | `sort_windows_machines.py` | Operation `sort_windows_machines`: Windows machines that joined themselves into OU=machines moved into OU=servers or OU=desktops by their operatingSystem, those moved before skipped (manual 1.6.13.3) |
