@@ -1,0 +1,30 @@
+{
+  "_comment": "The lab's inventory (manual 3.1.5.1, 3.1.5.7): read by new_hyperv_lab.ps1, install_vm.ps1 and make_seeds.sh. MACs are static, locally administered (02-88-00-<address octet>-00-<n>), so each installer's network config can match its NICs.",
+  "network": { "prefix": "10.88.0", "gateway": "10.88.0.2", "host": "10.88.0.1", "dns": "1.1.1.1", "domain": "lab.test" },
+  "vms": [
+    { "name": "g23-vm-rtr-1",   "iso": "ubuntu-26.04.1-live-server-amd64.iso", "cpu": 2, "mem": 2, "disk": 16, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.2" },
+    { "name": "g23-vm-ub24-1",  "iso": "ubuntu-24.04.4-live-server-amd64.iso", "cpu": 4, "mem": 8, "disk": 64, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.10" },
+    { "name": "g23-vm-ub26-1",  "iso": "ubuntu-26.04.1-live-server-amd64.iso", "cpu": 4, "mem": 8, "disk": 64, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.11" },
+    { "name": "g23-vm-ub26-2",  "iso": "ubuntu-26.04.1-live-server-amd64.iso", "cpu": 2, "mem": 2, "disk": 32, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.21" },
+    { "name": "g23-vm-pve9-1",  "iso": "proxmox-ve_9.1-1.iso",                 "cpu": 2, "mem": 4, "disk": 48, "kind": "linux",   "installer": "proxmox",       "ip": "10.88.0.22" },
+    { "name": "g23-vm-kub26-1", "iso": "ubuntu-26.04.1-live-server-amd64.iso", "cpu": 2, "mem": 4, "disk": 48, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.31", "packages": ["kubuntu-desktop"] },
+    { "name": "g23-vm-ws25-1",  "iso": "SERVER_EVAL_x64FRE_en-us.iso",         "cpu": 2, "mem": 4, "disk": 64, "kind": "windows", "installer": "windows-server","ip": "10.88.0.41" },
+    { "name": "g23-vm-w11-1",   "iso": "Win11_25H2_English_x64_v2.iso",        "cpu": 2, "mem": 4, "disk": 64, "kind": "windows", "installer": "windows-client","ip": "10.88.0.42" },
+    { "name": "g23-vm-auth-1",  "iso": "ubuntu-26.04.1-live-server-amd64.iso", "cpu": 2, "mem": 2, "disk": 16, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.3" },
+    { "name": "g23-vm-ub24-2",  "iso": "ubuntu-24.04.4-live-server-amd64.iso", "cpu": 4, "mem": 6, "disk": 64, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.12" }
+  ],
+  "private_switches": ["fabric-lab-vlan", "fabric-8021x-p1", "fabric-8021x-p2", "fabric-8021x-p3"],
+  "vlans": [10, 20, 30],
+  "nics": [
+    { "vm": "g23-vm-rtr-1",   "name": "vlans",  "switch": "fabric-lab-vlan", "mode": "trunk",  "n": 2 },
+    { "vm": "g23-vm-rtr-1",   "name": "wan",    "switch": "Default Switch",  "mode": "plain",  "n": 3 },
+    { "vm": "g23-vm-auth-1",  "name": "p1",     "switch": "fabric-8021x-p1", "mode": "port",   "n": 2 },
+    { "vm": "g23-vm-auth-1",  "name": "p2",     "switch": "fabric-8021x-p2", "mode": "port",   "n": 3 },
+    { "vm": "g23-vm-auth-1",  "name": "p3",     "switch": "fabric-8021x-p3", "mode": "port",   "n": 4 },
+    { "vm": "g23-vm-auth-1",  "name": "uplink", "switch": "fabric-lab-vlan", "mode": "trunk",  "n": 5 },
+    { "vm": "g23-vm-kub26-1", "name": "vlan10", "switch": "fabric-lab-vlan", "mode": "access", "vlan": 10, "n": 2 },
+    { "vm": "g23-vm-w11-1",   "name": "vlan20", "switch": "fabric-lab-vlan", "mode": "access", "vlan": 20, "n": 2 },
+    { "vm": "g23-vm-ub26-2",  "name": "p1",     "switch": "fabric-8021x-p1", "mode": "port",   "n": 2 },
+    { "vm": "g23-vm-w11-1",   "name": "p2",     "switch": "fabric-8021x-p2", "mode": "port",   "n": 3 }
+  ]
+}
