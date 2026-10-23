@@ -791,6 +791,11 @@ check "…local-admin now signs in over SSH with its password; another local acc
 check "…shown as a relaxation: fabricctl status, doctor (a warning) and domain status" \
     "in_box 'fabricctl status' | grep -q 'local-admin over SSH: on' && in_box 'fabricctl doctor' | grep -q 'local-admin over SSH: on' \
      && in_box 'fabricctl domain status' | grep -q 'RELAXED: local-admin over SSH is on'"
+in_box 'fabricctl local-admin ssh ack' > "$OUT/la-ssh-ack.log" 2>&1
+check "local-admin ssh ack: its alert acknowledged (audited LOCAL_ADMIN_SSH_ACK), doctor no longer warns; still shown as on" \
+    "grep -q 'its alert acknowledged by' '$OUT/la-ssh-ack.log' && in_box 'grep -q LOCAL_ADMIN_SSH_ACK /opt/fabric/archive/audit.log' \
+     && ! in_box 'fabricctl doctor 2>&1' | grep -q 'local-admin over SSH: on —' && in_box 'fabricctl status' | grep -q 'local-admin over SSH: on' \
+     && in_box 'fabricctl local-admin status' | grep -q 'its alert: acknowledged by'"
 in_box 'fabricctl local-admin ssh maybe' > "$OUT/la-ssh-bad.log" 2>&1
 # covers: cli:local-admin.ssh -
 check "negative: local-admin ssh maybe is refused (exit 1), still on" \

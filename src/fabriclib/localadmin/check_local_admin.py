@@ -14,7 +14,8 @@ from fabriclib.localadmin.set_local_admin_password import set_local_admin_passwo
 def _sync_ssh(v, rec, read_switch, apply_ssh, now):
     """Purpose: the SSH switch as the domain keeps it applied to sshd; a DC that does not answer leaves what was last
              applied (off when nothing ever was).
-    Inputs:  v — rendered vars; rec — the record (its "ssh" updated in place); read_switch, apply_ssh — the functions;
+    Inputs:  v — rendered vars; rec — the record (its "ssh" updated in place, with the alert's acknowledgement,
+             2.1.7.21); read_switch, apply_ssh — the functions;
              now — the clock.
     Returns: list of str, what was done or said.
     Fails:   ValidationError from apply_ssh (sshd refusing its configuration).
@@ -23,9 +24,9 @@ def _sync_ssh(v, rec, read_switch, apply_ssh, now):
     try:
         switch = read_switch(v)
         on, said = switch["ssh"], []
-        source = {"by": switch.get("by"), "set_at": switch.get("when")}
+        source = {"by": switch.get("by"), "set_at": switch.get("when"), "ack": switch.get("ack")}
     except ValidationError as e:
-        on, source = last.get("on") is True, {k: last.get(k) for k in ("by", "set_at")}
+        on, source = last.get("on") is True, {k: last.get(k) for k in ("by", "set_at", "ack")}
         said = [f"the domain's SSH switch could not be read ({e}): sshd keeps what was last applied "
                 f"({'on' if on else 'off'})"]
     done = apply_ssh(on)

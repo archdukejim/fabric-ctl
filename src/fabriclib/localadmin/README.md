@@ -22,6 +22,7 @@ over SSH only while the domain's switch for its host is on.
 | `local_admin_request.py` | One operation on the switches kept in the domain, inside the DC (`local_admin_tool.py`) |
 | `read_ssh_switch.py` | The SSH switch of a DC's host as the domain keeps it |
 | `set_local_admin_ssh.py` | The SSH switch set in the domain by the Enterprise Admin, applied here at once (audited) |
+| `ack_local_admin_ssh.py` | The SSH switch's alert acknowledged by the Enterprise Admin (kept with the switch, audited; 2.1.7.21) |
 | `apply_local_admin_ssh.py` | The switch applied to sshd: its drop-in, checked with `sshd -t`, sshd reloaded |
 | `local_admin_status.py` | What `fabricctl local-admin status` shows |
 | `local_admin_checks.py` | Doctor's check and the warnings (a rotation waiting, a failed run) |

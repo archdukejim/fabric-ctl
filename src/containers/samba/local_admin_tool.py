@@ -1,8 +1,9 @@
 """The local-admin switches inside the DC (manual 1.7.1.4.6), run as root on its own database (no credentials, no
 network) by fabriclib/localadmin/local_admin_request:
     docker exec -i samba python3 /fabric/local_admin_tool.py < request.json
-The request on stdin: {"op": "get"|"set", "dc" (the DC whose host is meant), "this_dc", "writable" (bool: this DC is
-writable), "writable_dc" (the writable DC to name from a read-only one), and for set "ssh" (bool), "by", "when"}.
+The request on stdin: {"op": "get"|"set"|"ack", "dc" (the DC whose host is meant), "this_dc", "writable" (bool:
+this DC is writable), "writable_dc" (the writable DC to name from a read-only one), for set "ssh" (bool), and for
+set and ack "by", "when"}.
 Prints one JSON object: {"result": …} or {"error": message} (exit 0 either way)."""
 import json
 import re
@@ -10,7 +11,7 @@ import sys
 
 import ldb
 
-from local_admin_store import read_switch, write_switch
+from local_admin_store import ack_switch, read_switch, write_switch
 from open_samdb import open_samdb
 import paths
 
@@ -37,8 +38,8 @@ def run(req):
     """Purpose: one switch operation: read at any DC; written only at a writable DC (a read-only one is refused,
              naming the writable DC to run it at).
     Inputs:  req — as the module says.
-    Returns: get: read_switch's result; set: {**read_switch's result, "changed": bool}.
-    Fails:   ValueError for a request refused (its message is shown); ldb.LdbError.
+    Returns: get: read_switch's result; set and ack: {**read_switch's result, "changed": bool}.
+    Fails:   ValueError for a request refused (its message is shown: ack while the switch is off); ldb.LdbError.
     Feeds:   this script's main."""
     samdb, _ = open_samdb(CONF)
     op, dc = req.get("op"), str(req.get("dc") or "").lower()
@@ -47,12 +48,15 @@ def run(req):
                          "CN=dcs,CN=fabric,CN=System): name one with --dc dc-NNNN")
     if op == "get":
         return read_switch(samdb, dc)
-    if op != "set":
+    if op not in ("set", "ack"):
         raise ValueError(f"unknown operation {op}")
     if not req.get("writable"):
         where = req.get("writable_dc") or "a writable domain controller"
         raise ValueError(f"this host's domain controller ({req.get('this_dc')}) is read-only: set the switch on the "
                          f"fabric host of {where}, naming this one (sudo fabricctl local-admin ssh on|off --dc {dc})")
+    if op == "ack":
+        changed = ack_switch(samdb, dc, str(req.get("by") or "root"), str(req.get("when") or ""))
+        return {**read_switch(samdb, dc), "changed": changed}
     if not isinstance(req.get("ssh"), bool):
         raise ValueError("ssh: on or off")
     changed = write_switch(samdb, dc, req["ssh"], str(req.get("by") or "root"), str(req.get("when") or ""))

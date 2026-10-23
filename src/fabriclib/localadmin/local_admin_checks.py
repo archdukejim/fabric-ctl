@@ -8,8 +8,9 @@ from fabriclib.localadmin.record import load_record
 def local_admin_checks(v, config_dir, approved, token_fn=local_admin_token, exists=account_exists, secret=None):
     """Purpose: doctor's view of the host's local-admin (manual 1.7.1.4.7): a check that the account exists and that
              the version OpenBao holds as current is the one the host set, while its host change is approved; and the
-             warnings that do not fail a check: a rotation waiting (2.1.7.20), the last timer run failed, SSH on
-             (2.1.7.19, a relaxation: shown by relaxed_settings).
+             warnings that do not fail a check: a rotation waiting (2.1.7.20), the last timer run failed, and the
+             alert of SSH on (2.1.7.19) until the Enterprise Admin acknowledges it (2.1.7.21; the relaxation itself
+             stays in relaxed_settings).
     Inputs:  v — rendered vars; config_dir — the install's config folder; approved — whether the `local_admin` host
              change is approved; token_fn, exists, secret — the parts (secret: read_local_admin_secret; tests give
              their own).
@@ -37,4 +38,9 @@ def local_admin_checks(v, config_dir, approved, token_fn=local_admin_token, exis
     last = rec["last_check"]
     if rec["made"] and last and not last.get("ok"):
         warnings.append(f"{USER}: the hourly check failed at {last['when']}: {last.get('detail')}")
+    ssh = rec.get("ssh") or {}
+    if rec["made"] and ssh.get("on") and not ssh.get("ack"):
+        warnings.append(f"{USER} over SSH: on — sshd lets this host's {USER} in with its password (the domain's "
+                        f"switch, set by {ssh.get('by') or 'the Enterprise Admin'}): turn it off with `sudo fabricctl "
+                        f"{USER} ssh off`, or acknowledge this alert with `sudo fabricctl {USER} ssh ack` (2.1.7.21)")
     return {"checks": checks, "warnings": warnings}

@@ -2,6 +2,7 @@ import getpass
 import os
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.localadmin.ack_local_admin_ssh import ack_local_admin_ssh
 from fabriclib.localadmin.check_local_admin import check_local_admin
 from fabriclib.localadmin.checkout_local_admin import checkout_local_admin
 from fabriclib.localadmin.local_admin_status import local_admin_status
@@ -14,6 +15,8 @@ USAGE = """usage: sudo fabricctl local-admin status                this host's l
        sudo fabricctl local-admin policy after-use|keep-until-checkout   its rotation policy (audited)
        sudo fabricctl local-admin ssh on|off [--dc dc-NNNN]   local-admin over SSH for a DC's host (the domain's
                                                        switch, audited; default this host's DC; off by default)
+       sudo fabricctl local-admin ssh ack [--dc dc-NNNN]   acknowledge its alert while on (audited; it is still
+                                                       shown as on; raised again when turned off and on)
        sudo fabricctl local-admin check [--scheduled]   the hourly run now: a use seen, a rotation due, SSH applied
   As root only, acting for the Enterprise Admin (manual 4.7.1.3)."""
 
@@ -46,6 +49,10 @@ def _print_status(s):
     a = s["ssh"] or {}
     print(f"  SSH applied here: {'ON (a relaxation)' if a.get('on') else 'off'}"
           + (f", at {a.get('applied_at')}" if a.get("applied_at") else ""))
+    if a.get("on"):
+        ack = a.get("ack") or {}
+        print("  its alert: " + (f"acknowledged by {ack.get('by')} at {ack.get('when')}" if ack else
+                                 "raised (doctor, the console): `sudo fabricctl local-admin ssh ack` acknowledges it"))
     last = s["last_check"]
     if last:
         print(f"  last check: {last['when']}, {'ok' if last['ok'] else 'FAILED'}")
@@ -53,7 +60,8 @@ def _print_status(s):
 
 def run_local_admin_command(v, config_dir, args):
     """Purpose: `fabricctl local-admin …` (manual 4.7.1.3; decisions 2.1.7.16 to 2.1.7.20): only parses and routes to
-             the status, the check-out, the policy, the SSH switch and the hourly check.
+             the status, the check-out, the policy, the SSH switch (and its alert's acknowledgement, 2.1.7.21) and
+             the hourly check.
     Inputs:  v — rendered vars; config_dir — the install's config folder; args — list of str after `local-admin`.
     Returns: exit status: 0 done, 1 refused or failed (said why), 2 usage.
     Fails:   OSError, ValueError from the record (propagate).
@@ -72,6 +80,11 @@ def run_local_admin_command(v, config_dir, args):
         if len(args) == 2 and args[0] == "policy":
             out = set_local_admin_policy(v, config_dir, args[1], actor)
             print(f"local-admin's policy: {out['policy']}" + ("" if out["changed"] else " (already)"))
+            return 0
+        if args[:2] == ["ssh", "ack"] and len(args) in (2, 4) and (len(args) == 2 or args[2] == "--dc"):
+            out = ack_local_admin_ssh(v, config_dir, None, actor, args[3] if len(args) == 4 else None)
+            print(f"local-admin over SSH for {out['dc']}'s host: its alert acknowledged by {out['ack']['by']} at "
+                  f"{out['ack']['when']}" + ("" if out["changed"] else " (already)") + "; still on (a relaxation)")
             return 0
         if args[:1] == ["ssh"] and len(args) in (2, 4) and (len(args) == 2 or args[2] == "--dc"):
             out = set_local_admin_ssh(v, config_dir, None, actor, args[1], args[3] if len(args) == 4 else None)

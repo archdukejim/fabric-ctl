@@ -17,7 +17,7 @@ def set_local_admin_ssh(v, config_dir, caller, actor, ssh, dc=None, source="cli"
     """Purpose: the SSH switch of a DC's host's local-admin set in the domain (decision 2.1.7.19, manual 1.7.1.4.6),
              only by the Enterprise Admin's tier: written at this host's DC when it is writable, audited
              LOCAL_ADMIN_SSH, and applied to sshd at once when it is this host's (another host's at its next timer
-             run).
+             run). A change drops the alert's acknowledgement (2.1.7.21).
     Inputs:  v — rendered vars (dc_name); config_dir — the install's config folder; caller — the signed-in person
              (None: root on the host); actor — who, for the audit; ssh — "on" or "off"; dc — the DC whose host is
              meant (default this host's); source — "cli" or "web"; container, apply_ssh (None:
@@ -44,6 +44,6 @@ def set_local_admin_ssh(v, config_dir, caller, actor, ssh, dc=None, source="cli"
         if rec["made"]:
             applied = (apply_ssh or apply_local_admin_ssh)(ssh == "on")
             rec["ssh"] = {"on": ssh == "on", "applied_at": now().isoformat(), "by": out.get("by"),
-                          "set_at": out.get("when")}
+                          "set_at": out.get("when"), "ack": out.get("ack")}
             save_record(config_dir, rec)
     return {"dc": dc, "ssh": out["ssh"], "changed": out["changed"], "applied": applied}

@@ -99,8 +99,8 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `authorize_action.py` | fabric-agent's check (1.6.12.17): the caller's tier, the grants' people and machines rights, a group's two levels; refused with why |
 | `group_kind.py` | A group's kind: AD's, a tier's, a bundle's, fabric's, filled, computed, a machine group, an admin's own |
 | `group_store.py` | A group's managers and controls in `CN=groups,CN=fabric,CN=System` (one `msDS-App-Configuration` per group, by objectGUID) |
-| `local_admin_store.py` | The local-admin switches in `CN=local-admin,CN=fabric,CN=System` (one `msDS-App-Configuration` per target: `dc-host-<dc>`; off when absent) |
-| `local_admin_tool.py` | The switches' entry point (as root): get at any DC, set at a writable one (a read-only one names the writable) |
+| `local_admin_store.py` | The local-admin switches in `CN=local-admin,CN=fabric,CN=System` (one `msDS-App-Configuration` per target: `dc-host-<dc>`; off when absent), with the alert's acknowledgement until the switch next changes |
+| `local_admin_tool.py` | The switches' entry point (as root): get at any DC, set or acknowledge (ack) at a writable one (a read-only one names the writable) |
 | `group_uses.py` | Where a group is used: grants, sudo rules, other groups' managers |
 | `list_groups.py` / `group_scope.py` / `managed_groups.py` | The groups and kinds; one group's two levels; the groups a person manages |
 | `create_group.py` / `remove_group.py` / `set_group_managers.py` | An admin's own group made (with a gid), deleted (unused only), its managers set |

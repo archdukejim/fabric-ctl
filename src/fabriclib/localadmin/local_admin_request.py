@@ -9,12 +9,13 @@ def local_admin_request(v, request, container="samba"):
              manual 1.7.1.4.6), the request on stdin, run inside this host's DC as the system, with this DC's name and
              whether it is writable (switches are written only at a writable DC; read at any).
     Inputs:  v — rendered vars (dc_name, ad_dc_type, ad_join_server_name: the writable DC of a read-only DC's site);
-             request — dict (op "get" or "set", "dc", and for set "ssh", "by"); container — the DC's container
+             request — dict (op "get", "set" or "ack", "dc", for set "ssh", for set and ack "by" and "when");
+             container — the DC's container
              (tests name their own).
     Returns: the operation's result (JSON-decoded).
     Fails:   ValidationError with the DC's refusal word for word, or "the domain controller is not running";
              subprocess.TimeoutExpired after 2 minutes.
-    Feeds:   read_ssh_switch, set_local_admin_ssh; tests/samba/local_admin.py."""
+    Feeds:   read_ssh_switch, set_local_admin_ssh, ack_local_admin_ssh; tests/samba/domain.py."""
     req = {**request, "this_dc": v["dc_name"], "writable": (v.get("ad_dc_type") or "writable") != "rodc",
            "writable_dc": v.get("ad_join_server_name") or ""}
     try:

@@ -777,7 +777,7 @@ LA = os.path.join(W, "local-admin-config")          # a host where fabric made n
 os.makedirs(LA, exist_ok=True)
 off = read_ssh_switch(V, container=DC)
 check("the switch is off for this DC's host until someone sets it (no object in CN=local-admin,CN=fabric,CN=System)",
-      off == {"dc": "dc-0001", "ssh": False, "by": None, "when": None}, off)
+      off == {"dc": "dc-0001", "ssh": False, "by": None, "when": None, "ack": None}, off)
 n = len(AUDIT)
 done = m_la.post_local_admin(["local-admin", "ssh"], "fabric-admin", {"ssh": "on"}, "fabric-admin", LA)
 # covers: agent:post.local-admin.ssh +
@@ -821,6 +821,52 @@ out = io.StringIO()
 with contextlib.redirect_stdout(out):
     code = run_local_admin_command(V, LA, ["ssh"])
 check("negative: a wrong usage prints the usage (exit 2)", code == 2 and "usage:" in out.getvalue())
+
+print("--- the switch's alert acknowledged by the Enterprise Admin (1.7.1.4.10, 2.1.7.21)")
+
+
+def la_cli(args):
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        code = run_local_admin_command(V, LA, args)
+    return code, out.getvalue()
+
+
+n = len(AUDIT)
+code, said = la_cli(["ssh", "ack"])
+# covers: cli:local-admin.ssh -
+check("negative: fabricctl local-admin ssh ack while the switch is off: refused (exit 1), no alert to acknowledge, "
+      "nothing audited", code == 1 and "no alert to acknowledge" in said and len(AUDIT) == n, said)
+m_la.post_local_admin(["local-admin", "ssh"], "fabric-admin", {"ssh": "on"}, "fabric-admin", LA)
+n = len(AUDIT)
+for who in ("alice", "hd"):
+    gone, why = refused(m_la.post_local_admin, ["local-admin", "ssh"], who, {"ssh": "ack"}, who, LA)
+    # covers: agent:post.local-admin.ssh -
+    check(f"negative: the alert acknowledged by {who} (below the Enterprise Admin) is refused; still raised",
+          gone and "only the Enterprise Admin" in why and read_ssh_switch(V, container=DC)["ack"] is None
+          and len(AUDIT) == n, why)
+gone, why = refused(lambda: m_lareq.local_admin_request(rodc, {"op": "ack", "dc": "dc-0001", "by": "x"}, DC))
+check("negative: from a read-only DC's host the acknowledgement is refused, naming the writable DC",
+      gone and "read-only" in why and read_ssh_switch(V, container=DC)["ack"] is None, why)
+done = m_la.post_local_admin(["local-admin", "ssh"], "fabric-admin", {"ssh": "ack"}, "fabric-admin", LA)
+now = read_ssh_switch(V, container=DC)
+# covers: agent:post.local-admin.ssh +
+check("POST /v1/local-admin/ssh ack as fabric-admin: kept with the switch (who and when), audited LOCAL_ADMIN_SSH_ACK; "
+      "the switch still on", done["changed"] and now["ssh"] and now["ack"]["by"] == "fabric-admin" and now["ack"]["when"]
+      and AUDIT[-1][1] == "LOCAL_ADMIN_SSH_ACK" and AUDIT[-1][3] == "web" and len(AUDIT) == n + 1
+      and '"ack"' in ldb("(cn=dc-host-dc-0001)", "msDS-Settings"), (done, now))
+code, said = la_cli(["ssh", "ack"])
+# covers: cli:local-admin.ssh +
+check("sudo fabricctl local-admin ssh ack again: already acknowledged, nothing audited, still on",
+      code == 0 and "(already)" in said and "still on" in said and len(AUDIT) == n + 1, said)
+la_cli(["ssh", "off"])
+check("off: the acknowledgement goes with it", read_ssh_switch(V, container=DC)["ack"] is None)
+m_la.post_local_admin(["local-admin", "ssh"], "fabric-admin", {"ssh": "on"}, "fabric-admin", LA)
+check("on again: the alert is raised again (not acknowledged)",
+      read_ssh_switch(V, container=DC)["ssh"] and read_ssh_switch(V, container=DC)["ack"] is None)
+code, said = la_cli(["ssh", "ack", "--dc", "dc-0042"])
+check("negative: ssh ack --dc naming no DC of the domain refused (exit 1)", code == 1 and "refused:" in said, said)
+la_cli(["ssh", "off"])
 with open(os.path.join(LA, "local-admin.json"), "w") as f:              # the check-out's host side, stood in for
     json.dump({"made": True, "version": 3, "set_at": "2026-10-22T08:00:00+00:00"}, f)
 m_co.account_exists = lambda name="local-admin": True

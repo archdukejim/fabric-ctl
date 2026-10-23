@@ -270,7 +270,7 @@ def run(ctx):
     # sign-in layers lowered with `fabricctl security lower` stay in view until raised again (2.1.6.24), and the
     # grants' open fallback while it is on (2.1.6.88): warnings, which do not fail the checks
     for row in relaxed_settings(ctx.vars, ctx.config_dir):
-        if " lowered: " in row["setting"] or row["setting"].startswith(("grants_fallback_open", "local-admin")):
+        if " lowered: " in row["setting"] or row["setting"].startswith("grants_fallback_open"):
             warn(("sign-in " if " lowered: " in row["setting"] else "") + f"{row['setting']} — {row['effect']}")
     for row in cert_warnings(ctx.vars, **_records(os.path.join(ctx.target_dir, "archive"))):    # what is coming
         if row["level"] == "warn":
@@ -280,7 +280,8 @@ def run(ctx):
         warn(reminder["text"])
     for row in local_account_reminders(ctx.config_dir):     # until removed or approved (2.1.6.78)
         warn(row["text"])
-    for text in local_admin_checks(ctx.vars, ctx.config_dir, False)["warnings"]:     # a rotation waiting (2.1.7.20)
+    # a rotation waiting (2.1.7.20); SSH on until its alert is acknowledged (2.1.7.21)
+    for text in local_admin_checks(ctx.vars, ctx.config_dir, False)["warnings"]:
         warn(text)
     if failed:
         raise SetupError(f"{failed} check(s) failed")

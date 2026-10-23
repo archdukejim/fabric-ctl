@@ -54,7 +54,9 @@ def relaxed_settings(vars_, config_dir=None, daemon_json=DAEMON_JSON):
         relaxed.append({"setting": "local-admin over SSH: on",
                         "effect": "sshd lets this host's local-admin in with its password (the domain's switch, set by "
                                   f"{ssh.get('by') or 'the Enterprise Admin'}): turn it off with `sudo fabricctl "
-                                  "local-admin ssh off` (1.7.1.4.6)"})
+                                  "local-admin ssh off` (1.7.1.4.6)"
+                                  + (f"; its alert acknowledged by {ssh['ack'].get('by')} at {ssh['ack'].get('when')}"
+                                     if isinstance(ssh.get("ack"), dict) else "")})
     for layer, entry in read_lowered(config_dir or os.path.dirname(VARS_FILE)).items():
         relaxed.append({"setting": f"{layer} lowered: {entry['from']} -> {entry['to']}",
                         "effect": f"lowered by {entry['by']} on {entry['at']} (fabricctl security lower); raise it "

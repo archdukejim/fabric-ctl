@@ -20,6 +20,8 @@ sandbox runs them on a real host.
 - the undo: the account removed, OpenBao's versions kept and marked removed, the record gone
 - the SSH drop-in (2.1.7.19): off refuses local-admin, on lets its password in, idempotent, sshd's refusal put back,
   a file that is not fabric's left alone
+- the SSH switch's alert (2.1.7.21): raised while on, acknowledged (audited, kept with the switch) it is no longer
+  raised while the relaxation still shows the switch on; raised again once turned off and on
 
     sudo python3 tests/openbao/local_admin.py          (needs Docker, openssl, root)
 """
@@ -390,6 +392,63 @@ check("negative: a drop-in of that name that is not fabric's is left alone", "no
 os.remove(dropin)
 check("no SSH server (no sshd_config.d): nothing written", apply_local_admin_ssh(
     True, **{**ssh_kw, "folder": os.path.join(W, "none")}) == [])
+
+print("--- the SSH switch's alert, acknowledged (1.7.1.4.10, 2.1.7.21)")
+import fabriclib.localadmin.ack_local_admin_ssh as m_ack  # noqa: E402
+from fabriclib.system.relaxed_settings import relaxed_settings  # noqa: E402
+
+
+def ssh_alerts():
+    return [w for w in local_admin_checks(V, CFG, False)["warnings"] if "over SSH: on" in w]
+
+
+def ssh_relaxed():
+    return [r for r in relaxed_settings({}, CFG) if r["setting"] == "local-admin over SSH: on"]
+
+
+switch.update({"ssh": True, "by": "fabric-admin", "when": "2026-10-22T09:00:00+00:00", "ack": None})
+at(24 * 400 + 21)
+check_local_admin(V, CFG, **parts)
+check("on, not acknowledged: doctor and the console's reminders raise its alert (how to turn it off or acknowledge it)",
+      len(ssh_alerts()) == 1 and "ssh ack" in ssh_alerts()[0] and "ssh off" in ssh_alerts()[0], ssh_alerts())
+check("…and it is a relaxation (fabricctl status, the Overview)", len(ssh_relaxed()) == 1
+      and "acknowledged" not in ssh_relaxed()[0]["effect"], ssh_relaxed())
+stored = {"dc": "dc-0001", "ssh": True, "by": "fabric-admin", "when": switch["when"],
+          "ack": {"by": "root", "when": "2026-10-22T10:00:00+00:00"}, "changed": True}
+asked = []
+m_ack.local_admin_request = lambda v, req, container="samba": asked.append(req) or stored
+n = len(AUDIT)
+done = m_ack.ack_local_admin_ssh(V, CFG, None, "root", audit=audit, now=now)
+check("acknowledged (root, for the Enterprise Admin): asked of the DC with who and when, audited LOCAL_ADMIN_SSH_ACK, "
+      "kept in this host's record", asked[-1]["op"] == "ack" and asked[-1]["by"] == "root" and asked[-1]["when"]
+      and AUDIT[-1][1] == "LOCAL_ADMIN_SSH_ACK" and len(AUDIT) == n + 1
+      and load_record(CFG)["ssh"]["ack"] == stored["ack"], (done, asked))
+check("…its alert no longer raised", ssh_alerts() == [], ssh_alerts())
+check("…while the switch is still shown as on: the relaxation says who acknowledged its alert and when",
+      len(ssh_relaxed()) == 1 and "acknowledged by root at 2026-10-22T10:00:00" in ssh_relaxed()[0]["effect"],
+      ssh_relaxed())
+stored = {**stored, "changed": False}
+m_ack.ack_local_admin_ssh(V, CFG, None, "root", audit=audit, now=now)
+check("…acknowledged again: nothing audited", len(AUDIT) == n + 1)
+switch["ack"] = stored["ack"]
+check_local_admin(V, CFG, **parts)
+check("the hourly run keeps the acknowledgement the domain holds", ssh_alerts() == []
+      and load_record(CFG)["ssh"]["ack"] == stored["ack"])
+switch.update({"ssh": False, "ack": None})
+check_local_admin(V, CFG, **parts)
+check("turned off: no alert, no relaxation", ssh_alerts() == [] and ssh_relaxed() == [])
+switch.update({"ssh": True, "ack": None})
+check_local_admin(V, CFG, **parts)
+check("turned on again: the alert is raised again", len(ssh_alerts()) == 1 and len(ssh_relaxed()) == 1)
+m_ack.local_admin_request = lambda v, req, container="samba": (_ for _ in ()).throw(
+    ValidationError("local-admin over SSH is off for dc-0001's host: there is no alert to acknowledge"))
+msg = refused(lambda: m_ack.ack_local_admin_ssh(V, CFG, None, "root", audit=audit, now=now))
+check("negative: the DC refusing (the switch off there): said, nothing audited or recorded",
+      "no alert to acknowledge" in msg and len(AUDIT) == n + 1 and not load_record(CFG)["ssh"].get("ack"), msg)
+msg = refused(lambda: m_ack.ack_local_admin_ssh(V, CFG, None, "root", dc="web1", audit=audit, now=now))
+check("negative: a dc that is not dc-NNNN refused before the DC is asked", "not a domain controller" in msg, msg)
+switch.update({"ssh": False, "ack": None})
+check_local_admin(V, CFG, **parts)
 
 print("--- the undo (1.7.1.4.1)")
 gone = []

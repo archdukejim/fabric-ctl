@@ -580,6 +580,7 @@ file	fabriclib-ldap|src/fabriclib/ldap/run_directory_command.py	21	0.5.0 / 2026-
 file	fabriclib-ldap|src/fabriclib/ldap/seed_directory.py	22	0.5.0 / 2026-10-04
 file	fabriclib-ldap|src/fabriclib/ldap/update_device.py	23	0.5.0 / 2026-10-04
 file	fabriclib-ldap|src/fabriclib/ldap/update_role.py	24	0.5.0 / 2026-10-04
+file	fabriclib-localadmin|src/fabriclib/localadmin/ack_local_admin_ssh.py	26	
 file	fabriclib-localadmin|src/fabriclib/localadmin/apply_local_admin_ssh.py	1	
 file	fabriclib-localadmin|src/fabriclib/localadmin/check_local_admin.py	2	
 file	fabriclib-localadmin|src/fabriclib/localadmin/checkout_local_admin.py	3	
@@ -1381,6 +1382,8 @@ function	fabricctl-jinja|src/containers/samba/list_people.py|list_people	3
 function	fabricctl-jinja|src/containers/samba/list_spns.py|list_spns	1	
 function	fabricctl-jinja|src/containers/samba/list_sudo_rules.py|list_sudo_rules	1	
 function	fabricctl-jinja|src/containers/samba/local_admin_store.py|_cn	2	
+function	fabricctl-jinja|src/containers/samba/local_admin_store.py|_replace	5	
+function	fabricctl-jinja|src/containers/samba/local_admin_store.py|ack_switch	6	
 function	fabricctl-jinja|src/containers/samba/local_admin_store.py|read_switch	3	
 function	fabricctl-jinja|src/containers/samba/local_admin_store.py|store_dn	1	
 function	fabricctl-jinja|src/containers/samba/local_admin_store.py|write_switch	4	
@@ -2059,6 +2062,7 @@ function	fabriclib-ldap|src/fabriclib/ldap/run_directory_command.py|run_director
 function	fabriclib-ldap|src/fabriclib/ldap/seed_directory.py|seed_directory	1	0.5.0 / 2026-10-04
 function	fabriclib-ldap|src/fabriclib/ldap/update_device.py|update_device	1	0.5.0 / 2026-10-04
 function	fabriclib-ldap|src/fabriclib/ldap/update_role.py|update_role	1	0.5.0 / 2026-10-04
+function	fabriclib-localadmin|src/fabriclib/localadmin/ack_local_admin_ssh.py|ack_local_admin_ssh	1	
 function	fabriclib-localadmin|src/fabriclib/localadmin/apply_local_admin_ssh.py|_read	1	
 function	fabriclib-localadmin|src/fabriclib/localadmin/apply_local_admin_ssh.py|_write	2	
 function	fabriclib-localadmin|src/fabriclib/localadmin/apply_local_admin_ssh.py|apply_local_admin_ssh	3	
