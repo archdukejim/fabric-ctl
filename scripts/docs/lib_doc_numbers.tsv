@@ -2,6 +2,7 @@
 file	fabricctl-agent|src/agent/get_route.py	1	
 file	fabricctl-agent|src/agent/handler.py	2	
 file	fabricctl-agent|src/agent/job_store.py	16	
+file	fabricctl-agent|src/agent/landing_note.py	37	
 file	fabricctl-agent|src/agent/one_thing.py	35	
 file	fabricctl-agent|src/agent/pending_store.py	36	
 file	fabricctl-agent|src/agent/pending_thing.py	33	
@@ -411,6 +412,7 @@ file	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py	6
 file	fabriclib-dns|src/fabriclib/dns/format_value.py	7	
 file	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py	41	
 file	fabriclib-dns|src/fabriclib/dns/install_zone_file.py	8	
+file	fabriclib-dns|src/fabriclib/dns/landing_cert_stale.py	44	
 file	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py	9	
 file	fabriclib-dns|src/fabriclib/dns/list_zones.py	10	
 file	fabriclib-dns|src/fabriclib/dns/merge_dynamic_records.py	33	
@@ -1230,6 +1232,7 @@ function	fabricctl-agent|src/agent/handler.py|Handler.reply	3
 function	fabricctl-agent|src/agent/job_store.py|JobStore.__init__	1	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.read	3	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.start	2	
+function	fabricctl-agent|src/agent/landing_note.py|landing_note	1	
 function	fabricctl-agent|src/agent/one_thing.py|one_thing	1	
 function	fabricctl-agent|src/agent/pending_store.py|PendingStore.__init__	1	
 function	fabricctl-agent|src/agent/pending_store.py|PendingStore._expire	10	
@@ -1959,6 +1962,7 @@ function	fabriclib-dns|src/fabriclib/dns/format_value.py|format_value	1
 function	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py|_mtime	1	
 function	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py|freeze_and_install	2	
 function	fabriclib-dns|src/fabriclib/dns/install_zone_file.py|install_zone_file	1	
+function	fabriclib-dns|src/fabriclib/dns/landing_cert_stale.py|landing_cert_stale	1	
 function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|_names	1	
 function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|list_tsig_keys	2	
 function	fabriclib-dns|src/fabriclib/dns/list_zones.py|list_zones	1	

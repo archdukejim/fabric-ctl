@@ -6,12 +6,13 @@
 <section class="card"><h2>Pending <span class="muted">{{ d.changes | length }}</span></h2>
 {% if d.changes %}
 <p class="muted">Your changes on this page, in the order they will run. Apply runs them as one job and stops at the first that fails; the rest stay here. Nobody else sees them.</p>
+{% if page_id == "zones" %}<p class="muted small">DNS' Apply reloads only BIND and writes the landing page; it issues no certificate. When a change renames a name the landing page answers at, its row in the queue says so: a full apply on the host (<code>sudo fabricctl --apply</code>) issues the landing page's certificate again.</p>{% endif %}
 {% call p.actions() %}<form method="post" action="/changes/{{ page_id }}/apply"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button>Apply {{ d.changes | length }} change{{ '' if d.changes | length == 1 else 's' }}</button></form>
 <form method="post" action="/changes/{{ page_id }}/discard"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="danger">Discard all</button></form>{% endcall %}
 <table class="list"><thead><tr><th>Change</th><th>Was</th><th>Becomes</th><th></th></tr></thead><tbody>
 {% for c in d.changes %}<tr><td data-label="Change">{{ c.what }}{% if c.changed_since %}<br><span class="warn-text small">Changed by someone else since: check it again against what it is now.</span>{% endif %}</td>
 <td data-label="Was">{% for k, v in c.old.items() %}<span class="change-old">{{ k }}: {{ v }}</span>{% if not loop.last %}<br>{% endif %}{% else %}<span class="muted">—</span>{% endfor %}</td>
-<td data-label="Becomes">{% for k, v in c.new.items() %}<span class="change-new">{{ k }}: {{ v }}</span>{% if not loop.last %}<br>{% endif %}{% else %}<span class="muted">—</span>{% endfor %}</td>
+<td data-label="Becomes">{% for k, v in c.new.items() if v not in ("", None) %}<span class="change-new">{{ k }}: {{ v }}</span>{% if not loop.last %}<br>{% endif %}{% else %}<span class="muted">—</span>{% endfor %}</td>
 <td class="num"><form method="post" action="/changes/{{ page_id }}/drop"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="id" value="{{ c.id }}"><button class="ghost">Drop</button></form></td></tr>
 {% endfor %}</tbody></table>
 {% else %}{% call p.empty("Nothing waits on this page. A change you make here waits for Apply.") %}<a class="btn" href="{{ visible | select('equalto', page) | first or '/' }}">Back to the page</a>{% endcall %}{% endif %}

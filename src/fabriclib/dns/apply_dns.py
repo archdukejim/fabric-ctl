@@ -9,6 +9,7 @@ from fabriclib.common.write_audit import write_audit
 from fabriclib.deploy.deploy_paths import deploy_paths
 from fabriclib.deploy.install_bind9_files import install_bind9_files
 from fabriclib.deploy.render_deployment import render_deployment
+from fabriclib.dns.landing_cert_stale import landing_cert_stale
 from fabriclib.dns.reload_zone import file_serial, reload_zone
 from fabriclib.dns.rndc import rndc
 from fabriclib.dns.served_serial import served_serial
@@ -24,7 +25,8 @@ def apply_dns(actor, source="web"):
              CUSTOM_VARS_PATH, SECRETS_FILE_OVERRIDE, DEPLOY_BASE_DIR to this install's, as a full apply
              does (menu/apply_and_report).
     Returns: {"config": bool (BIND's configuration changed and was reloaded), "zones": [names swapped in],
-             "landing": bool (the landing page's files written)}.
+             "landing": bool (the landing page's files written), "landing_cert": landing_cert_stale's answer (None, or
+             the names a full apply would issue its certificate for, 2.1.8.29)}.
     Fails:   ValidationError (nothing installed yet) for what the apply's render refuses (settings, secrets, a template)
              and for a file that cannot be written (OSError, said); ValidationError once installed: BIND refusing
              `rndc reconfig`, or not serving a changed zone's new serial (named). An APPLY_DNS audit entry is written
@@ -67,4 +69,5 @@ def apply_dns(actor, source="web"):
             raise
     write_audit(actor, "APPLY_DNS", f"config={'yes' if bind['config'] else 'no'} zones={','.join(done) or '-'} "
                                     f"landing={'yes' if landing else 'no'}", source)
-    return {"config": bool(bind["config"]), "zones": done, "landing": landing}
+    return {"config": bool(bind["config"]), "zones": done, "landing": landing,
+            "landing_cert": landing_cert_stale(paths["base"], final_vars)}

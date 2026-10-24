@@ -11,6 +11,7 @@ from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DOMAIN, SAMPLE_GP
 try:                                       # the agent's own store and its words, from a checkout (as fabric_rules)
     from agent.pending_store import PendingStore
     from agent.pending_thing import PAGES, describe_change, own_state, pending_page_of
+    from agent.landing_note import landing_note
 except ImportError:
     PendingStore = None
 
@@ -80,13 +81,20 @@ def _finish(state, page, routes):
     """Purpose: What a page's changes still need once done, as the agent's finish says it (nothing runs here).
     Inputs:  state — DevState; page — a page id; routes — the routes applied.
     Returns: (what, fn(actor)) for the password policy and for DNS' records, links and key removals; None otherwise.
+             DNS' fn returns the agent's note on the landing page's certificate (2.1.8.29) when a record of the
+             site's zone changed: the preview has no certificate, so it says it as a renamed alias would.
     Fails:   never.
     Feeds:   _store."""
     if page == "policies" and ["domain", "password-policy"] in routes:
         return "Write the policy into the domain (restarts only what changed)", lambda actor: None
     if page == "zones" and any(list(r) != ["zones"] and list(r)[2:] != ["delete"] or r[0] == "tsig" for r in routes):
-        return ("Publish to BIND and the landing page (reloads only BIND)",
-                lambda actor: state.log("APPLY_DNS", "dev preview: nothing reloaded"))
+        site = any(list(r)[:2] == ["zones", "dynamic_zone_var"] for r in routes)
+
+        def publish(actor):
+            state.log("APPLY_DNS", "dev preview: nothing reloaded")
+            return landing_note({"missing": [], "extra": ["(dev preview) a name it held"]}) if site else ""
+
+        return "Publish to BIND and the landing page (reloads only BIND)", publish
     return None
 
 

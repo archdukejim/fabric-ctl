@@ -186,8 +186,8 @@ class PendingStore:
                 item = entry["items"][-1]
                 self._mark(item, "running")
                 try:
-                    last[1](actor)
-                    self._mark(item, "done")
+                    said = last[1](actor)
+                    self._mark(item, "done", said if isinstance(said, str) else "")
                 except ValidationError as exc:
                     self._stop(entry, item, f"failed: {exc}")
         except Exception:                # an unexpected error: the job's error; the queue says so too
@@ -208,14 +208,16 @@ class PendingStore:
         return {"page": next(iter(mine))["page"], "applied": applied,
                 "items": [{k: i[k] for k in ("what", "state", "why")} for i in entry["items"]]}
 
-    def _mark(self, item, state):
+    def _mark(self, item, state, why=None):
         """Purpose: One queue item's state, under the lock.
-        Inputs:  item — a queue item; state — str.
+        Inputs:  item — a queue item; state — str; why — what its row says (a finish's note), None: unchanged.
         Returns: None.
         Fails:   never.
         Feeds:   _run_all."""
         with self.lock:
             item["state"] = state
+            if why is not None:
+                item["why"] = why
 
     def _stop(self, entry, item, why):
         """Purpose: The apply stopped at this change, with why.
