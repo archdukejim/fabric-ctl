@@ -15,6 +15,7 @@ arbitrary commands.
 | `post_route.py` | POST routes by area; apply, people, login events |
 | `post_pending.py` | Apply per page (manual 1.8.6.5): holding a change, dropping, discarding and applying a page's changes as one job |
 | `pending_store.py` | The pending store (2.1.8.13): each person's changes per page, Apply in order stopping at the first failure, refusing a change whose thing changed since, a check of the change's own at hold and at Apply (the address manager's grant), the page's queue |
+| `landing_note.py` | DNS' Review's sentence when the landing page's certificate waits for a full apply (2.1.8.29) |
 | `pending_thing.py` | What a held change changes: its page, its words, the thing's read and its version (2.1.8.14) |
 | `pending_dns.py` | DNS' held changes in a sentence (moved from `pending_thing.py`) |
 | `pending_networks.py` | The address manager's held changes (1.10.4.40.2): their page (Networks, DHCP options), sentence, thing and key, and the grant's networks right at their site |

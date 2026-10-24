@@ -143,6 +143,7 @@ input,select,textarea{max-width:100%}
 .pendingbar form{margin:0}
 .change-old{color:var(--muted);text-decoration:line-through}.change-new{font-weight:600}
 .qstate{white-space:nowrap}
+.qstate.qwhy{white-space:pre-wrap;word-break:break-word}   /* a row with why: a failed apply's last lines, as printed (2.1.8.31) */
 .pager{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:12px}
 /* DHCP · Networks (manual 1.10.4.40.1): a subnet's ranges as a bar (SVG, so no inline style), its legend and rows */
 svg.netbar{display:block;width:100%;height:12px;margin:4px 0;border:1px solid var(--border);border-radius:3px}

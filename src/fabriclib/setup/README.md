@@ -6,6 +6,7 @@
 | File | What |
 |---|---|
 | `run_setup.py` | CLI for `fabricctl setup` / `doctor`: options, input, plan; hands a full run's steps to `fabric-setup.service` (detach/) |
+| `require_terminal.py` | Refuses a setup that would ask its questions with no terminal on stdin, before anything is asked or changed, naming `--non-interactive --file FILE` (2.1.3.4) |
 | `steps.py` | The ordered step list |
 | `run_steps.py` | Runs the selected steps in order, then *fabric is ready*; keeps a full run's record after each step (2.1.2.26) |
 | `detach/` | Setup's work as `fabric-setup.service`: hand-off, following, re-attaching, resuming (1.3.2.3) |

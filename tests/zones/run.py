@@ -7,6 +7,7 @@ console calls them, and the menu (`fabricctl`, DNS Configuration) driven on its 
 
     sudo python3 tests/zones/run.py          (needs Docker and dig)
 """
+import ast
 import http.client
 import json
 import os
@@ -358,6 +359,30 @@ try:
     again = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
     check("DNS' Apply again with nothing changed: BIND's configuration not reloaded, the changed zone not swapped "
           "again, said", again.startswith("DONE") and "'config': False" in again and "'lan.test'" not in again, again)
+    # ---- the landing page's certificate (2.1.8.29): DNS' Apply issues none, and says when a full apply would
+
+    def landing_cert(names):
+        """Stand in the landing page's certificate holding these names (as setup's would)."""
+        d = f"{W}/nginx/certs/info.lan.test"
+        os.makedirs(d, exist_ok=True)
+        sh(["openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes", "-days", "2",
+            "-subj", f"/CN={names[0]}", "-addext", "subjectAltName=" + ",".join(f"DNS:{n}" for n in names),
+            "-keyout", f"{d}/privkey.pem", "-out", f"{d}/fullchain.pem"])
+
+    def stale_after_apply():
+        out = lib(code).stdout.strip().splitlines()
+        done = out[-1][len("DONE "):] if out and out[-1].startswith("DONE ") else "{}"
+        return ast.literal_eval(done).get("landing_cert", "no answer"), out[-1:]
+
+    landing_cert(["pi-core.lan.test", "old.lan.test"])
+    stale, said = stale_after_apply()
+    check("DNS' Apply: a landing certificate whose names are not the page's is said, the names a full apply changes",
+          isinstance(stale, dict) and stale["extra"] == ["old.lan.test"] and "lan.test" in stale["missing"], said)
+    exact = sorted({"pi-core.lan.test", *stale.get("missing", [])}) if isinstance(stale, dict) else ["pi-core.lan.test"]
+    landing_cert(exact)
+    stale, said = stale_after_apply()
+    check("...a certificate holding exactly the page's names: nothing said", stale is None, said)
+    shutil.rmtree(f"{W}/nginx/certs", ignore_errors=True)
     # ---- DHCP between applies (2.3.4.3, 2.3.10.4.10; decision 2.1.4.7, extended by 2.1.10.21): a zone change renders
     # BIND's zone list from the same checked settings as an apply, so DHCP's reverse zones, Kea's grants and the
     # denies on hand-set PTRs stay

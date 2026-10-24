@@ -22,7 +22,7 @@ def _unit_state(unit):
 
 def _settled(unit, timeout=660, pause=2.0):
     """Purpose: wait while systemd is starting or stopping a unit, so a start of fabric's never interrupts one that
-             is under way (2.3.10.11.16: restarting Postgres makes systemd restart Keycloak, which Requires it; a stop
+             is under way (2.3.2.5: restarting Postgres makes systemd restart Keycloak, which Requires it; a stop
              sent to Keycloak mid-start raced its container's removal and failed the start). A unit waiting in its
              automatic-restart loop is not waited for: it is in a loop, not on its way.
     Inputs:  unit — systemd unit name; timeout — seconds (a fabric unit's start allows 600, its health check after);

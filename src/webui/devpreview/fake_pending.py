@@ -13,6 +13,7 @@ try:                                       # the agent's own store and its words
     import agent.pending_networks as pending_networks
     from agent.pending_store import PendingStore
     from agent.pending_thing import PAGES, describe_change, own_state, pending_page_of
+    from agent.landing_note import landing_note
     pending_networks._this_site = lambda: HERE         # the sample's own site, not this machine's vars.yaml
 except ImportError:
     PendingStore = None
@@ -90,7 +91,9 @@ def _finish(state, page, routes):
     """Purpose: What a page's changes still need once done, as the agent's finish says it (nothing runs here).
     Inputs:  state — DevState; page — a page id; routes — the routes applied.
     Returns: (what, fn(actor)) for the password policy, DNS' records, links and key removals, and the address
-             manager's pages; None otherwise.
+             manager's pages; None otherwise. DNS' fn returns the agent's note on the landing page's certificate
+             (2.1.8.29) when a record of the site's zone changed: the preview has no certificate, so it says it as a
+             renamed alias would.
     Fails:   never.
     Feeds:   _store."""
     if page == "policies" and ["domain", "password-policy"] in routes:
@@ -99,8 +102,13 @@ def _finish(state, page, routes):
         return ("Apply this site's plan to Kea and the firewall (restarts only what changed)",
                 lambda actor: state.log("IPAM_APPLY", "dev preview: nothing applied"))
     if page == "zones" and any(list(r) != ["zones"] and list(r)[2:] != ["delete"] or r[0] == "tsig" for r in routes):
-        return ("Publish to BIND and the landing page (reloads only BIND)",
-                lambda actor: state.log("APPLY_DNS", "dev preview: nothing reloaded"))
+        site = any(list(r)[:2] == ["zones", "dynamic_zone_var"] for r in routes)
+
+        def publish(actor):
+            state.log("APPLY_DNS", "dev preview: nothing reloaded")
+            return landing_note({"missing": [], "extra": ["(dev preview) a name it held"]}) if site else ""
+
+        return "Publish to BIND and the landing page (reloads only BIND)", publish
     return None
 
 

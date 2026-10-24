@@ -2,6 +2,7 @@
 file	fabricctl-agent|src/agent/get_route.py	1	
 file	fabricctl-agent|src/agent/handler.py	2	
 file	fabricctl-agent|src/agent/job_store.py	16	
+file	fabricctl-agent|src/agent/landing_note.py	43	
 file	fabricctl-agent|src/agent/one_thing.py	35	
 file	fabricctl-agent|src/agent/pending_dns.py	41	
 file	fabricctl-agent|src/agent/pending_networks.py	42	
@@ -448,6 +449,7 @@ file	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py	6
 file	fabriclib-dns|src/fabriclib/dns/format_value.py	7	
 file	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py	41	
 file	fabriclib-dns|src/fabriclib/dns/install_zone_file.py	8	
+file	fabriclib-dns|src/fabriclib/dns/landing_cert_stale.py	49	
 file	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py	9	
 file	fabriclib-dns|src/fabriclib/dns/list_zones.py	10	
 file	fabriclib-dns|src/fabriclib/dns/merge_dynamic_records.py	33	
@@ -1017,6 +1019,7 @@ file	fabriclib-setup|src/fabriclib/setup/preflight.py	22
 file	fabriclib-setup|src/fabriclib/setup/print_first_steps.py	44	
 file	fabriclib-setup|src/fabriclib/setup/read_join_invitation.py	23	
 file	fabriclib-setup|src/fabriclib/setup/renew_service_certs.py	24	
+file	fabriclib-setup|src/fabriclib/setup/require_terminal.py	107	
 file	fabriclib-setup|src/fabriclib/setup/restore_install.py	25	
 file	fabriclib-setup|src/fabriclib/setup/retire_adguard.py	83	0.7.2 / 2026-10-20
 file	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py	26	0.7.2 / 2026-10-20
@@ -1036,6 +1039,7 @@ file	fabriclib-setup|src/fabriclib/setup/upgrade_vars.py	36
 file	fabriclib-setup|src/fabriclib/setup/verify_install.py	37	
 file	fabriclib-setup|src/fabriclib/setup/wait_ready.py	81	
 file	fabriclib-system|src/fabriclib/system/apply_changes.py	1	
+file	fabriclib-system|src/fabriclib/system/apply_failure.py	15	
 file	fabriclib-system|src/fabriclib/system/common/parse_mem_mb.py	10	
 file	fabriclib-system|src/fabriclib/system/control_stack.py	2	
 file	fabriclib-system|src/fabriclib/system/host_networks.py	9	
@@ -1385,6 +1389,7 @@ function	fabricctl-agent|src/agent/handler.py|Handler.reply	3
 function	fabricctl-agent|src/agent/job_store.py|JobStore.__init__	1	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.read	3	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.start	2	
+function	fabricctl-agent|src/agent/landing_note.py|landing_note	1	
 function	fabricctl-agent|src/agent/one_thing.py|one_thing	1	
 function	fabricctl-agent|src/agent/pending_dns.py|_zone	1	
 function	fabricctl-agent|src/agent/pending_dns.py|describe_dns	2	
@@ -2200,6 +2205,7 @@ function	fabriclib-dns|src/fabriclib/dns/format_value.py|format_value	1
 function	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py|_mtime	1	
 function	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py|freeze_and_install	2	
 function	fabriclib-dns|src/fabriclib/dns/install_zone_file.py|install_zone_file	1	
+function	fabriclib-dns|src/fabriclib/dns/landing_cert_stale.py|landing_cert_stale	1	
 function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|_names	1	
 function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|list_tsig_keys	2	
 function	fabriclib-dns|src/fabriclib/dns/list_zones.py|list_zones	1	
@@ -3093,6 +3099,7 @@ function	fabriclib-setup|src/fabriclib/setup/print_first_steps.py|print_first_st
 function	fabriclib-setup|src/fabriclib/setup/read_join_invitation.py|read_join_invitation	1	
 function	fabriclib-setup|src/fabriclib/setup/renew_service_certs.py|_record	2	
 function	fabriclib-setup|src/fabriclib/setup/renew_service_certs.py|renew_service_certs	1	
+function	fabriclib-setup|src/fabriclib/setup/require_terminal.py|require_terminal	1	
 function	fabriclib-setup|src/fabriclib/setup/restore_install.py|restore_install	1	
 function	fabriclib-setup|src/fabriclib/setup/retire_adguard.py|retire_adguard	1	0.7.2 / 2026-10-20
 function	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py|retire_renamed_units	1	0.7.2 / 2026-10-20
@@ -3130,6 +3137,7 @@ function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|probes	3
 function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|run	5	
 function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|wait_ready	4	
 function	fabriclib-system|src/fabriclib/system/apply_changes.py|apply_changes	1	
+function	fabriclib-system|src/fabriclib/system/apply_failure.py|apply_failure	1	
 function	fabriclib-system|src/fabriclib/system/common/parse_mem_mb.py|parse_mem_mb	1	
 function	fabriclib-system|src/fabriclib/system/control_stack.py|control_stack	1	
 function	fabriclib-system|src/fabriclib/system/host_networks.py|host_networks	1	

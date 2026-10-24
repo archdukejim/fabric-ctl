@@ -36,6 +36,7 @@ from fabriclib.setup.detach.unit_running import unit_running  # noqa: E402
 from fabriclib.setup.errors import SetupError  # noqa: E402
 from fabriclib.setup.finish_vars import finish_vars  # noqa: E402
 from fabriclib.setup.read_join_invitation import read_join_invitation  # noqa: E402
+from fabriclib.setup.require_terminal import require_terminal  # noqa: E402
 from fabriclib.setup.run_steps import run_steps  # noqa: E402
 from fabriclib.setup.steps import STEPS  # noqa: E402
 from fabriclib.setup.verify_install import run as verify  # noqa: E402
@@ -127,6 +128,9 @@ def main(argv=None):
             return 130
 
     try:
+        # a run that asks (not doctor, an undo, or steps that need no input) needs someone at a terminal (2.1.3.4)
+        if not (args.doctor or args.undo) and (args.step is None or any(s in NEEDS_INPUT for s in args.step)):
+            require_terminal(args.non_interactive)
         invitation = read_join_invitation(args.join, args.non_interactive)
     except SetupError as e:
         err(str(e))

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""start_unit never interrupts a unit systemd is already starting (2.3.10.11.16): pure logic, systemctl and the
+"""start_unit never interrupts a unit systemd is already starting (2.3.2.5): pure logic, systemctl and the
 health wait stood in for. Restarting Postgres makes systemd restart Keycloak, which Requires it; start_unit used to
 see Keycloak "activating", send it a stop mid-start and start it again, and the second start raced the first's
 container removal. The sandbox and the lab run the real units.
