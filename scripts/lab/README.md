@@ -22,3 +22,4 @@ elevated PowerShell; the others need Hyper-V Administrators' rights (or run in W
 | `remove_hyperv_lab.ps1` | Removes exactly what `new_hyperv_lab.ps1` makes (and a `fabric-lab-nat` if one exists), after asking |
 | `start_lab.ps1` | Starts one test campaign's VMs (always with the router) and stops the lab's others (manual 3.1.5.8) |
 | `install_dev_build.sh` | From Git Bash: a branch's `.deb` and an unattended setup on a lab VM; the first admin's password generated there (manual 3.1.5.9) |
+| `keep_converge_errors.sh` | Lab only, on a lab VM as `install_dev_build.sh`'s pre-setup script: the installed `run_converge` keeps the converge code's whole error output in a root-only file (manual 3.1.5.9) |

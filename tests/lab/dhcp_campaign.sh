@@ -23,7 +23,15 @@ ONLY="${ONLY:-cli clients console}"
 OUT="${FABRIC_TEST_OUT:-/tmp/fabric-tests}/lab-dhcp-campaign"
 SSH=(-i "$HOME/.ssh/g23_lab" -o "UserKnownHostsFile=$HOME/fabric-lab/known_hosts" -o BatchMode=yes -o ConnectTimeout=20)
 PASS=0; FAIL=0
-rm -rf "$OUT"; mkdir -p "$OUT"
+# Purpose: remove a scratch folder of this run. Never a path built from an empty variable, and only one under /tmp
+#          (2.3.10.11.16: an empty variable once made `rm -f "$D"/*` remove WSL's / links).
+clean_dir() {
+    local d="${1:?clean_dir: no folder named}"
+    case "$d" in /tmp/?*) ;; *) echo "refused: $d is not a folder under /tmp" >&2; exit 2 ;; esac
+    case "$d" in *..*) echo "refused: $d climbs out of /tmp" >&2; exit 2 ;; esac
+    rm -rf -- "$d"
+}
+clean_dir "$OUT"; mkdir -p "$OUT"
 check() { if (set +o pipefail; eval "$2"); then echo "PASS $1"; PASS=$((PASS+1)); else echo "FAIL $1"; FAIL=$((FAIL+1)); fi; }
 # Purpose: a command on a lab VM: its output without OpenSSH's notices, and the command's own exit status.
 on() {
