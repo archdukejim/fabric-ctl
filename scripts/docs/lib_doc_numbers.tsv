@@ -3083,6 +3083,8 @@ function	fabriclib-setup|src/fabriclib/setup/setup_openbao.py|run	2
 function	fabriclib-setup|src/fabriclib/setup/stage_source.py|stage_source	1	
 function	fabriclib-setup|src/fabriclib/setup/start_bootstrap.py|run	1	
 function	fabriclib-setup|src/fabriclib/setup/start_services.py|run	1	
+function	fabriclib-setup|src/fabriclib/setup/start_unit.py|_settled	3	
+function	fabriclib-setup|src/fabriclib/setup/start_unit.py|_unit_state	2	
 function	fabriclib-setup|src/fabriclib/setup/start_unit.py|start_unit	1	
 function	fabriclib-setup|src/fabriclib/setup/uninstall.py|uninstall	1	
 function	fabriclib-setup|src/fabriclib/setup/upgrade_vars.py|upgrade_vars	1	

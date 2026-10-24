@@ -30,7 +30,7 @@ docs/volume_1_description_and_architecture/1.1.9-optional-parts.md	03fdc2ac87f89
 docs/volume_1_description_and_architecture/1.10.1-kea-design.md	0e8b6720aa82c79132444cd5a6e1a3893173246b	2026-10-10	
 docs/volume_1_description_and_architecture/1.10.2-dhcp-management.md	0ca24d0e4efe08194eb9b6a816cbd1bcd8112f26	2026-10-23	
 docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	43712b4ece64db9720befb2de4492db60f81e3f0	2026-10-23	
-docs/volume_1_description_and_architecture/1.10.4-address-manager.md	894284b2ae58d5b9d89bd473ab2df68e6d9aa1b0	2026-10-23	
+docs/volume_1_description_and_architecture/1.10.4-address-manager.md	1c93db1590b7b0887afb01f13344f37abcedd042	2026-10-24	
 docs/volume_1_description_and_architecture/1.11.1-freeradius-design.md	53be8bfe3baba02927c9b7b66dd4d02282115356	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.1-adguard.md	1a8e6312f0e91b20a9c8fc89c4af5544e71a87b5	2026-10-23	
 docs/volume_1_description_and_architecture/1.12.2-bind-resolver.md	b9e2201fbfc7eb160035e0e86ebf0dc61442d42d	2026-10-21	
@@ -57,7 +57,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	ae1189fad
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3c9f2a69f45e13f5365f8e49c066243f60235a80	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	8c0f0c8f79d29bf31782b153b18f24e2a1d2b373	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	7894287d00403f0b0110842aadaf1bb462094762	2026-10-23	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	0f54a59e128b057814c825d091cae5379c73893e	2026-10-23	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	bdc85adbaca1b1774d07ee83b635e41e422a7d28	2026-10-24	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	674d766f5ee9b535d34ed938f23c3c5f0bb50f18	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	9fa688001068b61ddcf6cc50ec2737c20a0155ec	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	2870a95a9f39b75fd994a24f2133089b50a18183	2026-10-23	
@@ -135,7 +135,7 @@ docs/volume_1_description_and_architecture/README.md	bcd134b32f0c930ddae566a1026
 docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af7662fdf5684924b409f9a9c	2026-10-23	
 docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	c23960a42d008d5178452d6d0881d5ea63566b7e	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.1-product.md	5ad58cb99387b12cd0b60ed4b9bef95938503ea1	2026-10-23	
-docs/volume_2_engineering_decisions/2.1.10-dhcp.md	d757cdcf0c0317a932029293370fe8b65852e760	2026-10-23	
+docs/volume_2_engineering_decisions/2.1.10-dhcp.md	0e8891b81df19546ce64f30968805db03de0a660	2026-10-24	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	139ff5b3ecce15085a60e2ef8443933896633b00	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece98c5e28bc1c8	2026-10-08	
@@ -154,7 +154,7 @@ docs/volume_2_engineering_decisions/2.1.9-federation.md	371019795f20f224d650cb95
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	8974d88778519bb319474e6fc9a13b3caf5a5c09	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	348f16149a85a909d0bba3179c214c24c42932d7	2026-10-23	
+docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	6f0bc636c08c5db7c37d99852f8563f1527bec72	2026-10-24	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
@@ -272,7 +272,7 @@ scripts/docs/README.md	e391ec81d122ee82ea285ffaf04eac6a8dd44372	2026-10-12
 scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03	
 scripts/docs/entrypoints.py	d00bed147591ebd063f9148b9ed95a7ddff0ab12	2026-10-23	
 scripts/docs/gen_lib_doc.py	d7a3c1284ca3a30af61353d41f5a9d2a1457a325	2026-10-12	
-scripts/docs/lib_doc_numbers.tsv	140f198b42a112696d6bdb91306fae8a49ef1b34	2026-10-23	
+scripts/docs/lib_doc_numbers.tsv	a33ac1c4a057d1c2975fc0ac7bde33aab06f9d44	2026-10-24	
 scripts/docs/lib_doc_registry.py	a3a407c2b06b44838c4ce7a69725c4d47339f437	2026-10-17	
 scripts/docs/product_code.py	645a3bb130463028b90de64798c81694e5293131	2026-10-03	
 scripts/docs/review_ledger.py	b3f307b4dbaba54a69cc93c993287d43c747ba8f	2026-10-08	
@@ -1409,7 +1409,7 @@ src/fabriclib/setup/setup_openbao.py	1b6229b96f9d3c7732791e7cd50e18bb25646a91	20
 src/fabriclib/setup/stage_source.py	fc569e4dbbec1547cbf74bb155ad3d2498c21c6b	2026-09-30	
 src/fabriclib/setup/start_bootstrap.py	cd55ee690beb024d64109b2ac4927bae129d17e7	2026-09-30	
 src/fabriclib/setup/start_services.py	e534caa2d8954b45b6bb9976878b0ed45893d21a	2026-10-23	
-src/fabriclib/setup/start_unit.py	898cc7b68b842376bbff19fa3ce5ea9480651a3b	2026-10-08	
+src/fabriclib/setup/start_unit.py	d102709a9d068a197ac30acf974f6739b8800925	2026-10-24	
 src/fabriclib/setup/steps.py	f43f4bace12ceb9095b3e8a318c1acc14c05ada1	2026-10-23	
 src/fabriclib/setup/uninstall.py	3804ed17f1ed80225f11f2ea820426db4e77da77	2026-10-23	
 src/fabriclib/setup/upgrade_vars.py	9f068c6afe127a28b8cdca4388f251d02b1d63e0	2026-10-20	
@@ -2003,8 +2003,11 @@ tests/kea/scan.py	9ac6a07603a564204825ccafe4fea14dc412b027	2026-10-23
 tests/keycloak/README.md	55bf0779666050bc9febb2d9c86957665c1d3d0d	2026-10-08	
 tests/keycloak/run.py	f8766c02dc2b0b7a496e674523c10db266ba1d25	2026-10-21	
 tests/keycloak/soft_passkey.py	51ec49de47ee87f347e246b14acf0eb5f20cb512	2026-10-08	
-tests/lab/README.md	51df802812306d710dde8471246df39cacc546e5	2026-10-23	
+tests/lab/README.md	4fec9089c3fbfd17d591f81d89d31549afb01bd6	2026-10-24	
+tests/lab/console_session.py	82abb494196ef190eb41f7398f12138f3775e4be	2026-10-24	
 tests/lab/dhcp.sh	d4e864b010c4b115cf68f3c364aab7e43720c820	2026-10-12	
+tests/lab/dhcp_campaign.sh	0f2bce164be4d6f5494a8e44f11887e70c004297	2026-10-24	
+tests/lab/dhcp_console.py	ca704d9750a2b808ecdc278e3b3dd9f385b9b363	2026-10-24	
 tests/lab/dhcp_vars.yaml	69c2af925c07a25e01fabb400c83320729d1095e	2026-10-23	
 tests/lint/README.md	9757442e4a4f93e6dfa2de8daee0508f38dff835	2026-10-12	
 tests/lint/no_bare_prompts.py	f7bb9072256161fd72f5693e3a84d210269c8faa	2026-10-12	
@@ -2030,7 +2033,7 @@ tests/resolver/console.py	6c0c2e3efa559e3994399667a60a8c70529c724f	2026-10-23
 tests/resolver/groups.py	5fafa02d8f805a8a4e3fca9ae0bac1e4ac91832e	2026-10-21	
 tests/resolver/querylog.py	ed2d9be93fc7f7a1973ca78395833c86ba83a2b4	2026-10-12	
 tests/resolver/run.py	f9d61db214ea1b2702e68175a10639177c955135	2026-10-21	
-tests/run-all.sh	7301f9f6675a1fb978adb4d8eb58c51d36e039b8	2026-10-23	
+tests/run-all.sh	9e64526d11b7007d3c45965d6639421e4081f03c	2026-10-24	
 tests/samba/README.md	2b9696c5c6d760c9237fcd7b06c94ff655e32316	2026-10-23	
 tests/samba/dc.py	29d7bcdd2c5e39514c16fcfe1f539af0b78e563a	2026-10-20	
 tests/samba/devices.py	ff9c2b940ed63152b7457531eacaaaa0ce91003c	2026-10-20	
@@ -2070,7 +2073,7 @@ tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-12
 tests/settings/README.md	fe8cdeb50d57df5b0accee46d31aff967d27a9f8	2026-10-23	
 tests/settings/console.py	b196bb4978b9340b0f6e9964c4f7677f9ebc8d6b	2026-10-23	
 tests/settings/run.py	1ee9c8568bdc0ae7a87a7241cb90952f26257744	2026-10-23	
-tests/setup/README.md	357968e47df5da8fc7c0d480874c90ab5ca36aa5	2026-10-23	
+tests/setup/README.md	8b5d3c399f163facd56bc18043b3b989b0f6ddc7	2026-10-24	
 tests/setup/ask_site_number_test.py	2a2bf012217e09d4e4fc8a88dc659b284368fb0a	2026-10-23	
 tests/setup/detach/README.md	0c490656f6d6dd1b3786d53284f3d3a4394db493	2026-10-17	
 tests/setup/detach/can_detach_test.py	63cb81fa5f680252079acc0208066b5aaeb18da7	2026-10-17	
@@ -2089,6 +2092,7 @@ tests/setup/import_old_vars_test.py	f74b88774acd42886c53bdd5442dd111f0cec06b	202
 tests/setup/make_vars_071.py	a8da8a7fad9dd047a410099a8d2b60da3e6098a7	2026-10-20	
 tests/setup/run_setup_test.py	2acd97c0ae44e34a93d7153046d49769286a38ae	2026-10-17	
 tests/setup/run_steps_test.py	4807eb4578d9b0e41d5b012201cbaddbcacfd591	2026-10-17	
+tests/setup/start_unit_test.py	3e33ac90988ffc3e09a8558e3bd4d182da8445e0	2026-10-24	
 tests/setup/vars-0.7.1.yaml	988e48eafcdc0c10745577d3857ce93063ef07fd	2026-10-20	
 tests/setup/wait_ready_test.py	61ce85dad1bd1e8d7f33d15ac2e4ecda97221ffc	2026-10-14	
 tests/webui/README.md	c8f53ca6d023bb197df3d7e252adb4c279a40b1f	2026-10-23	
