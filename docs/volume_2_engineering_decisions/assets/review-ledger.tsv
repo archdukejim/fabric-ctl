@@ -75,7 +75,7 @@ docs/volume_1_description_and_architecture/1.17.38-fabriclib-domain.md	e0311ad77
 docs/volume_1_description_and_architecture/1.17.39-fabriclib-localadmin.md	8fa6d8cf79a5ca90fdda5e7ddd2e04d726f9c78a	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.4-fabricctl-lib.md	76bc845876c679778c0588d379f7246a12fae2d0	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.40-fabriclib-ipam.md	cd68814a3e4527a90b707d04a3c23ee3b9ff5a7a	2026-10-23	
-docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	93cfbe08f18fa62c2bec15e60defa0f3c1a30903	2026-10-23	
+docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	68a342725e4e843981bfefe450c69fcf35750207	2026-10-24	
 docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	e9b47dab12efa0833f6d3272a93548f39ba163aa	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.7-fabriclib-core.md	287e5a946064faecbdb0262ece385ff0e043036c	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	92688df59fcf5bfb22e5d20d120379087bd5a65c	2026-10-24	
@@ -90,7 +90,7 @@ docs/volume_1_description_and_architecture/1.2.12-docker.md	8cbe66d24f0819449ef9
 docs/volume_1_description_and_architecture/1.2.13-name-claims.md	8f299ca52e4f002aa099a995cf403d1ca64fb001	2026-10-23	
 docs/volume_1_description_and_architecture/1.2.2-repository-layout.md	b225a13dae067d17402d305e75813caaccdc0234	2026-10-12	
 docs/volume_1_description_and_architecture/1.2.3-installed-layout.md	660bb6fe1409d3a45c2b0db3f90e9fbce6b40cf5	2026-10-08	
-docs/volume_1_description_and_architecture/1.2.4-containers.md	6294b5275a58e8c0ce2208f05743e4d263ddaa96	2026-10-20	
+docs/volume_1_description_and_architecture/1.2.4-containers.md	dcd0bb7884ffe7d649593dce079c195cbf7e98b6	2026-10-24	
 docs/volume_1_description_and_architecture/1.2.5-templates.md	c45afe975df6d859aac1e18b42b791f53ad454b1	2026-10-11	
 docs/volume_1_description_and_architecture/1.2.6-targets-and-hardening.md	b6bcd9682212f8bd33652a8e475302d9f885afe4	2026-10-10	
 docs/volume_1_description_and_architecture/1.2.7-container-inventory.md	32699a0d996b13ad592b94e0ba7f2776b23db5f7	2026-10-12	
@@ -154,7 +154,7 @@ docs/volume_2_engineering_decisions/2.1.9-federation.md	371019795f20f224d650cb95
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	8974d88778519bb319474e6fc9a13b3caf5a5c09	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	28462fe2e16c51bb9f828e80c6a91914072bc72f	2026-10-24	
+docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	5125823aed0d761d53f8e990d4a23830442a6934	2026-10-24	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
@@ -553,7 +553,7 @@ src/fabriclib/common/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-0
 src/fabriclib/common/ask.py	5df065e3cd4c5487b71a37bbca9e2acb7de40d6c	2026-10-12	
 src/fabriclib/common/console.py	10ecbfe70f1058ba0c93a8428d5037a0e108ebd6	2026-10-11	
 src/fabriclib/common/copy_if_changed.py	31eb7d3a596ca3d0a85472a5621629a5e6ca0e70	2026-10-02	
-src/fabriclib/common/copy_tree_with_perms.py	c6a65b77df4b888043049499aeffe7917168caf8	2026-10-02	
+src/fabriclib/common/copy_tree_with_perms.py	87e5ee8ea15521328cc710926655806a7889b03c	2026-10-24	
 src/fabriclib/common/dns_query.py	9493d6e711242723c27a5ea9b9df5765718efd76	2026-10-09	
 src/fabriclib/common/dns_wire.py	3d0e2891f655b593472a57a2d2123844a66d2dc3	2026-10-09	
 src/fabriclib/common/doh_query.py	820cf245c084a1ead14f327d50c88c37d903d782	2026-10-09	
@@ -1936,8 +1936,9 @@ templates/webui/webui.json.j2	1161c507f612f4f256b7208bf12db143692a175d	2026-10-0
 tests/README.md	fbedb54b78fa5eab0181aedad3558c7ae1c2960a	2026-10-23	
 tests/ci/README.md	78278efb5a511e089fd82def756c3be5bfeca8df	2026-10-15	
 tests/ci/logs_secret_free_test.py	e710a2ffadd9a5adc4e9750edf4a52bb43c512ec	2026-10-15	
-tests/common/README.md	3e666e7276b077d79b2f8abbd4a58be1c8213204	2026-10-23	
+tests/common/README.md	8a19275f56328d475fb1b68195ac32fa57f66b4f	2026-10-24	
 tests/common/ask.py	52a510850e39121e2bec244890dabb189195a748	2026-10-12	
+tests/common/copy_tree_with_perms_test.py	1fd0f0b7e548a1c15e33e1893817a07b21aa7461	2026-10-24	
 tests/common/kea_image.py	db300c22b55cae0ee6039dcc4625a04e64df5dbb	2026-10-23	
 tests/common/save_vars_test.py	6ebd62374b0a8ebd0b5c00df7722c493dfb27116	2026-10-17	
 tests/consent/README.md	3b6643214e21f6e73e66306424f4aea0521f38a9	2026-10-20	
@@ -2038,7 +2039,7 @@ tests/resolver/console.py	6c0c2e3efa559e3994399667a60a8c70529c724f	2026-10-23
 tests/resolver/groups.py	5fafa02d8f805a8a4e3fca9ae0bac1e4ac91832e	2026-10-21	
 tests/resolver/querylog.py	ed2d9be93fc7f7a1973ca78395833c86ba83a2b4	2026-10-12	
 tests/resolver/run.py	f9d61db214ea1b2702e68175a10639177c955135	2026-10-21	
-tests/run-all.sh	34cbb10dc5cdf3bccc9ad19aedc6fa9ea4358217	2026-10-24	
+tests/run-all.sh	e69d1182e819c88c9699046428f874748a0c7223	2026-10-24	
 tests/samba/README.md	2b9696c5c6d760c9237fcd7b06c94ff655e32316	2026-10-23	
 tests/samba/dc.py	29d7bcdd2c5e39514c16fcfe1f539af0b78e563a	2026-10-20	
 tests/samba/devices.py	ff9c2b940ed63152b7457531eacaaaa0ce91003c	2026-10-20	

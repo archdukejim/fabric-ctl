@@ -7,7 +7,10 @@ def copy_tree_with_perms(src, dst, uid=0, gid=0, fmode=0o640, dmode=0o750):
     """Purpose: copy a directory tree, setting owner and mode on everything, and say whether anything changed.
     Inputs:  src, dst — directories; uid, gid — owner of every copied directory and file; fmode, dmode — modes.
     Returns: True when dst was created or a file was new or different (compared by content), else False.
-             Directories get owner and mode on every call; unchanged files are left as they are.
+             Directories get owner and mode on every call; unchanged files are left as they are. Python's bytecode
+             caches (`__pycache__`, `*.pyc`) are never copied: a host process importing fabric's code writes them
+             into the source, and copied into the web console's build context they counted as a change, rebuilding
+             its image and restarting it (the console gone ~25 s) at the next apply (2.3.10.11.16).
     Fails:   OSError from listing, copying, chown or chmod. Files in dst that are not in src are kept.
     Feeds:   deploy/* (the fabric tree, web assets, docs, service config trees, build contexts, seeds)."""
     changed = False
@@ -17,6 +20,8 @@ def copy_tree_with_perms(src, dst, uid=0, gid=0, fmode=0o640, dmode=0o750):
     os.chown(dst, uid, gid)
     os.chmod(dst, dmode)
     for item in os.listdir(src):
+        if item == "__pycache__" or item.endswith(".pyc"):
+            continue
         s, d = os.path.join(src, item), os.path.join(dst, item)
         if os.path.isdir(s):
             changed |= copy_tree_with_perms(s, d, uid, gid, fmode, dmode)
