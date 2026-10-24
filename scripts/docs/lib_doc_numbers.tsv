@@ -2164,6 +2164,7 @@ function	fabriclib-dns|src/fabriclib/dns/common/landing_link.py|landing_link	1
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|_fqdn	1	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|_service_names	2	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|landing_names	3	
+function	fabriclib-dns|src/fabriclib/dns/common/zone_records.py|_one_line	2	
 function	fabriclib-dns|src/fabriclib/dns/common/zone_records.py|zone_records	1	
 function	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py|create_zone_tsig_key	1	
 function	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py|find_changed_zones	1	

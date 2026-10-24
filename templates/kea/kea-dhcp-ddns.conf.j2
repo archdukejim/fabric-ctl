@@ -7,7 +7,8 @@
 "DhcpDdns": {
     "ip-address": "{{ ip_kea_ddns }}",
     "port": 53001,
-    "dns-server-timeout": 3000,     {# BIND took 220-570 ms per signed update on the lab VM: 500 timed out (2.3.10.11.16) #}
+    // 3 s per update: BIND took 220-570 ms per signed update on the lab's VM, and 500 ms timed out (2.3.10.11.16)
+    "dns-server-timeout": 3000,
     "control-socket": { "socket-type": "unix", "socket-name": "/var/run/kea/kea-ddns-ctrl-socket" },
     "tsig-keys": [ { "name": "kea-ddns", "algorithm": "HMAC-SHA256", "secret": "{{ kea_ddns_secret }}" } ],
     "forward-ddns": {

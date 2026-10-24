@@ -29,7 +29,7 @@ docs/volume_1_description_and_architecture/1.1.8-about-settings.md	8022994724f5b
 docs/volume_1_description_and_architecture/1.1.9-optional-parts.md	03fdc2ac87f89bbe2e6b7977cc669e5c556cf38c	2026-10-20	
 docs/volume_1_description_and_architecture/1.10.1-kea-design.md	559faa4525f68ef3819d87af799424021967f1f7	2026-10-24	
 docs/volume_1_description_and_architecture/1.10.2-dhcp-management.md	0ca24d0e4efe08194eb9b6a816cbd1bcd8112f26	2026-10-23	
-docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	43712b4ece64db9720befb2de4492db60f81e3f0	2026-10-23	
+docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	f89654fb5cf61c4a53bea143d99eb78f164588d8	2026-10-24	
 docs/volume_1_description_and_architecture/1.10.4-address-manager.md	1c93db1590b7b0887afb01f13344f37abcedd042	2026-10-24	
 docs/volume_1_description_and_architecture/1.11.1-freeradius-design.md	53be8bfe3baba02927c9b7b66dd4d02282115356	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.1-adguard.md	1a8e6312f0e91b20a9c8fc89c4af5544e71a87b5	2026-10-23	
@@ -42,7 +42,7 @@ docs/volume_1_description_and_architecture/1.14.3-published-images-on-hosts.md	4
 docs/volume_1_description_and_architecture/1.15.1-fluent-bit.md	b1106fe50c3441e51cbd48d61d7fed3746468413	2026-10-21	
 docs/volume_1_description_and_architecture/1.16.1-luks.md	f4b4c1a4dd1ecd389fd2fde6ec3bc00e7f92a738	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.1-about-the-reference.md	6b0b315f02c1a197b2ae64db31a6f0e932b12404	2026-10-23	
-docs/volume_1_description_and_architecture/1.17.10-fabriclib-dns.md	7ab2e8f5b75a3a7e65bf79dcde3b9b49d9a649a5	2026-10-23	
+docs/volume_1_description_and_architecture/1.17.10-fabriclib-dns.md	6301db3634fe2ca55d850f640826a72c15073705	2026-10-24	
 docs/volume_1_description_and_architecture/1.17.11-fabriclib-dns_filter.md	9788461cfa097f3ec04880b4ad9e911630840fb1	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.12-fabriclib-federation.md	a08f2ff61f0c70a1088b9c8a72130d289da6eb91	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.13-fabriclib-images.md	c2f2c17942842dbae255496dd76e98e0a4704665	2026-10-23	
@@ -154,7 +154,7 @@ docs/volume_2_engineering_decisions/2.1.9-federation.md	371019795f20f224d650cb95
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	8974d88778519bb319474e6fc9a13b3caf5a5c09	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	b1c56800df0fead2af5291bbb8ad153536422070	2026-10-24	
+docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	60e46d8674583cc9936f611fb7226f68aa9420ee	2026-10-24	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
@@ -272,7 +272,7 @@ scripts/docs/README.md	e391ec81d122ee82ea285ffaf04eac6a8dd44372	2026-10-12
 scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03	
 scripts/docs/entrypoints.py	d00bed147591ebd063f9148b9ed95a7ddff0ab12	2026-10-23	
 scripts/docs/gen_lib_doc.py	d7a3c1284ca3a30af61353d41f5a9d2a1457a325	2026-10-12	
-scripts/docs/lib_doc_numbers.tsv	a33ac1c4a057d1c2975fc0ac7bde33aab06f9d44	2026-10-24	
+scripts/docs/lib_doc_numbers.tsv	bef4cc292bfa07625105d7864a9cedd816d7ecda	2026-10-24	
 scripts/docs/lib_doc_registry.py	a3a407c2b06b44838c4ce7a69725c4d47339f437	2026-10-17	
 scripts/docs/product_code.py	645a3bb130463028b90de64798c81694e5293131	2026-10-03	
 scripts/docs/review_ledger.py	b3f307b4dbaba54a69cc93c993287d43c747ba8f	2026-10-08	
@@ -751,7 +751,7 @@ src/fabriclib/dns/common/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	20
 src/fabriclib/dns/common/fabric_record.py	4346aa817f53d66cc4ccc08de82d5afc8b384b2a	2026-10-23	
 src/fabriclib/dns/common/landing_link.py	d8370fd603ae1089d65a12b1233e64d731fd7e62	2026-10-12	
 src/fabriclib/dns/common/landing_names.py	d58b63a3c52d22171a4f1cf074394af6f558b6bf	2026-10-13	
-src/fabriclib/dns/common/zone_records.py	ebc738f4911e59989cb163c925eade96c8347b16	2026-10-23	
+src/fabriclib/dns/common/zone_records.py	17b939453fef6075d9301d35f1de40a2e2affe22	2026-10-24	
 src/fabriclib/dns/constants.py	c1d6ffdd67eddbeb11b6806611a69e1d40ba556a	2026-10-23	
 src/fabriclib/dns/create_zone_tsig_key.py	a79d0069466e2335014ae53e5b2134078ca5f8b6	2026-10-03	
 src/fabriclib/dns/find_changed_zones.py	f24d107e56c6d530e23753e24910964ff94e3ec9	2026-10-02	
@@ -1816,7 +1816,7 @@ templates/freeradius/config/sites/inner-tunnel.j2	2f74f3d861d5908ef4e253549047d6
 templates/freeradius/docker-compose.yml.j2	e7ba2ae076a2259ee7708847f070bb3a419bb296	2026-10-12	
 templates/kea/README.md	c4df92cac875b17344e7b2526d12b15c662c5263	2026-10-08	
 templates/kea/docker-compose.yml.j2	e96ba8be606f8977fa65525b92632094e469ee86	2026-10-12	
-templates/kea/kea-dhcp-ddns.conf.j2	5e4e6ce817e4a2af2e48debee63af1f403c0080c	2026-10-24	
+templates/kea/kea-dhcp-ddns.conf.j2	0a91b29154732c275648c5749cc0cec0204b97e7	2026-10-24	
 templates/kea/kea-dhcp4.conf.j2	246cd58081dd849d68f14338337928d3b78d51eb	2026-10-23	
 templates/keycloak/README.md	0f57c1ade47d7e7b01e80580c90585d37215b40a	2026-10-03	
 templates/keycloak/docker-compose.yml.j2	113aad21b7444ea74b5a326d51852a30e9958ce1	2026-10-12	
@@ -2102,6 +2102,6 @@ tests/webui/test_container.py	32b07afa4d4f0a2438d09ba50646b438f345ea7a	2026-10-2
 tests/webui/test_devserver.py	4522580e7a3e7ef811787265950a7f8f123e69b6	2026-10-23	
 tests/webui/test_narrow.py	1ee1464bb20695d6afc1dd2986236a0b074d2201	2026-10-23	
 tests/webui/test_networks.py	6cf193349b7cf9b403de254f2efbf96b100be14b	2026-10-23	
-tests/zone_test.py	e2b9b3dbba16f07b9f5887de2175fc7a53233848	2026-10-23	
+tests/zone_test.py	b8589f982bae9cfb83f439b6df3223822c5afb2e	2026-10-24	
 tests/zones/README.md	e5c1bdb75dc56c9fa3011aa81af29ad1975f5d78	2026-10-23	
 tests/zones/run.py	688695e391ab747460ff3f74c3f66f8c5afbe10b	2026-10-23	

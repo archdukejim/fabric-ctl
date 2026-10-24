@@ -125,6 +125,22 @@ checks = {
     "nothing to keep: the file unchanged": merge_dynamic_records(rev, fabric_new, "") == fabric_new,
     "merging twice keeps one copy": merge_dynamic_records(rev, merged, merged).count("laptop.dhcp") == 1,
 }
+# BIND writes a long DHCID over two lines in ( ... ): kept whole, on one line, balanced (2.3.10.11.16, the lab)
+bind_two_line = f"""$ORIGIN {rev}.
+100\t\t\tPTR\tg23-vm-kub26-1.dhcp.lab.test.
+\t\t\tDHCID\t( AAEB980XNC22Yol9k5ZMBNxBXTA3ix8vUv0Q3uzhTSFk
+\t\t\t\tEuE= ) ; 32 bytes
+101\t\t\tPTR\tphone.dhcp.lan.test.
+"""
+merged_two = merge_dynamic_records(rev, fabric_new, bind_two_line)
+kept_part = merged_two.split("kept from DHCP")[1]
+checks.update({
+    "a DHCID BIND wrote over two lines is kept whole, on one line":
+        "AAEB980XNC22Yol9k5ZMBNxBXTA3ix8vUv0Q3uzhTSFk EuE=" in merged_two,
+    "the merged file's parentheses balance (BIND refused the file: 'unbalanced parentheses')":
+        kept_part.count("(") == kept_part.count(")") and merged_two.count("(") == merged_two.count(")"),
+    "the record after the continued one is still read": "phone.dhcp.lan.test." in merged_two,
+})
 with tempfile.TemporaryDirectory() as d:
     src, dst = os.path.join(d, "new"), os.path.join(d, f"db.{rev}")
     open(src, "w").write(fabric_new)
