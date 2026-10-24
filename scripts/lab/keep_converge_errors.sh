@@ -19,7 +19,7 @@ anchor = "    if res.returncode != 0:\n"
 keep = ("    if res.returncode != 0:  # lab only: keep the whole error output (scripts/lab/keep_converge_errors.sh)\n"
         "        import os\n"
         "        fd = os.open('/root/converge-errors.log', os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)\n"
-        "        os.write(fd, (res.stderr or '').encode() + b'\n---\n')\n"
+        "        os.write(fd, ((res.stderr or '') + os.linesep + '---' + os.linesep).encode())\n"
         "        os.close(fd)\n")
 if src.count(anchor) != 1:
     sys.exit("refused: run_converge.py is not as expected")

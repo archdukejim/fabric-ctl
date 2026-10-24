@@ -27,7 +27,7 @@ docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	c376feda6e
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.8-about-settings.md	8022994724f5bd9daa98a515c230ec5c8b949a67	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.9-optional-parts.md	03fdc2ac87f89bbe2e6b7977cc669e5c556cf38c	2026-10-20	
-docs/volume_1_description_and_architecture/1.10.1-kea-design.md	0e8b6720aa82c79132444cd5a6e1a3893173246b	2026-10-10	
+docs/volume_1_description_and_architecture/1.10.1-kea-design.md	559faa4525f68ef3819d87af799424021967f1f7	2026-10-24	
 docs/volume_1_description_and_architecture/1.10.2-dhcp-management.md	0ca24d0e4efe08194eb9b6a816cbd1bcd8112f26	2026-10-23	
 docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	43712b4ece64db9720befb2de4492db60f81e3f0	2026-10-23	
 docs/volume_1_description_and_architecture/1.10.4-address-manager.md	1c93db1590b7b0887afb01f13344f37abcedd042	2026-10-24	
@@ -154,7 +154,7 @@ docs/volume_2_engineering_decisions/2.1.9-federation.md	371019795f20f224d650cb95
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	8974d88778519bb319474e6fc9a13b3caf5a5c09	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	2d8ed7a69a954d96a927dafda29a16fae21f7e8c	2026-10-24	
+docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	b1c56800df0fead2af5291bbb8ad153536422070	2026-10-24	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
@@ -283,7 +283,7 @@ scripts/install-from-checkout.sh	b03b6b30bb230d09753b070af8f196285dfe788a	2026-1
 scripts/lab/README.md	2b41fe8532ca32f7835e2d28205f09a8ba0ece18	2026-10-24	
 scripts/lab/install_dev_build.sh	75066b084653b24165bd58620424347bd1554072	2026-10-24	
 scripts/lab/install_vm.ps1	0a3d8747c0d81e77f33a8731bcb76da1e4acdc21	2026-10-23	
-scripts/lab/keep_converge_errors.sh	bbedfc8b9013d4521ed1320803a8b8f29afc4709	2026-10-24	
+scripts/lab/keep_converge_errors.sh	8c1b4ffa00135e862824121397e1227ea6824dff	2026-10-24	
 scripts/lab/lab_vms.json	9320f8b39aa7cf2ef9631a54f5cd7a1053518708	2026-10-23	
 scripts/lab/make_seeds.sh	9f2958b79cabff57c58f021ceba847e54ad460ac	2026-10-23	
 scripts/lab/new_hyperv_lab.ps1	9f60be905788b1696e25676e62daf61ab6b73d91	2026-10-23	
@@ -1816,7 +1816,7 @@ templates/freeradius/config/sites/inner-tunnel.j2	2f74f3d861d5908ef4e253549047d6
 templates/freeradius/docker-compose.yml.j2	e7ba2ae076a2259ee7708847f070bb3a419bb296	2026-10-12	
 templates/kea/README.md	c4df92cac875b17344e7b2526d12b15c662c5263	2026-10-08	
 templates/kea/docker-compose.yml.j2	e96ba8be606f8977fa65525b92632094e469ee86	2026-10-12	
-templates/kea/kea-dhcp-ddns.conf.j2	810df697b1c44f888d872cf806d14d75a5e26073	2026-10-10	
+templates/kea/kea-dhcp-ddns.conf.j2	5e4e6ce817e4a2af2e48debee63af1f403c0080c	2026-10-24	
 templates/kea/kea-dhcp4.conf.j2	246cd58081dd849d68f14338337928d3b78d51eb	2026-10-23	
 templates/keycloak/README.md	0f57c1ade47d7e7b01e80580c90585d37215b40a	2026-10-03	
 templates/keycloak/docker-compose.yml.j2	113aad21b7444ea74b5a326d51852a30e9958ce1	2026-10-12	
@@ -2007,8 +2007,8 @@ tests/keycloak/soft_passkey.py	51ec49de47ee87f347e246b14acf0eb5f20cb512	2026-10-
 tests/lab/README.md	4fec9089c3fbfd17d591f81d89d31549afb01bd6	2026-10-24	
 tests/lab/console_session.py	82abb494196ef190eb41f7398f12138f3775e4be	2026-10-24	
 tests/lab/dhcp.sh	d4e864b010c4b115cf68f3c364aab7e43720c820	2026-10-12	
-tests/lab/dhcp_campaign.sh	fa5498d72d79dc9617e8a4ad7ee052b94b501208	2026-10-24	
-tests/lab/dhcp_console.py	ca704d9750a2b808ecdc278e3b3dd9f385b9b363	2026-10-24	
+tests/lab/dhcp_campaign.sh	294e159caf2a7b8661b2f3a4859778aeefe5af80	2026-10-24	
+tests/lab/dhcp_console.py	20e3b3dcd253157e716dac073e86e54babef5224	2026-10-24	
 tests/lab/dhcp_vars.yaml	69c2af925c07a25e01fabb400c83320729d1095e	2026-10-23	
 tests/lint/README.md	9757442e4a4f93e6dfa2de8daee0508f38dff835	2026-10-12	
 tests/lint/no_bare_prompts.py	f7bb9072256161fd72f5693e3a84d210269c8faa	2026-10-12	
@@ -2028,7 +2028,7 @@ tests/pki/renewal.py	a5348829c60bad793ddb3a043398ca2836ece851	2026-10-20
 tests/pki/revocation.py	cf80ad8b84912f80b941f8fcf3387825e9ba18e6	2026-10-12	
 tests/pki/run.py	3ac7f08379bf8506c62d8333fed3ebab430472af	2026-10-13	
 tests/pki/site_ca.py	6e71ca7798e1aa94ce0f43160716ac57302bec65	2026-10-08	
-tests/render.py	decb528f60909adb6e1d578c8327ba6bf7e9ba72	2026-10-23	
+tests/render.py	a8d96d002cf2167ef8d6457087362bef4b4c15ca	2026-10-24	
 tests/resolver/README.md	75145cbe364cefb256d5e0537159c0d926dad3d1	2026-10-21	
 tests/resolver/console.py	6c0c2e3efa559e3994399667a60a8c70529c724f	2026-10-23	
 tests/resolver/groups.py	5fafa02d8f805a8a4e3fca9ae0bac1e4ac91832e	2026-10-21	

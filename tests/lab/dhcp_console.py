@@ -13,7 +13,7 @@ a root-only file (/root/<uid>-pw; Keycloak then asks for a new one, which stays 
     python3 dhcp_console.py /opt/fabric/config/vars.yaml <site>
 Prints PASS/FAIL lines; exit 1 when one failed.
 """
-import json
+import re
 import subprocess
 import sys
 
@@ -46,12 +46,11 @@ def plan():
 
 def kea_subnets():
     """Purpose: the subnets Kea serves now. Returns: list of CIDR str (empty when Kea's config is unreadable)."""
-    out = subprocess.run(["docker", "exec", "kea-dhcp4", "cat", "/etc/kea/kea-dhcp4.conf"], capture_output=True,
-                         text=True).stdout
     try:
-        return [s["subnet"] for s in json.loads(out)["Dhcp4"]["subnet4"]]
-    except (ValueError, KeyError):
+        text = open("/opt/kea/config/kea-dhcp4.conf").read()      # with // comments: read, not parsed as JSON
+    except OSError:
         return []
+    return re.findall(r'"subnet": "([0-9./]+)"', text)
 
 
 # --- the Directory Administrator

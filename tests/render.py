@@ -506,6 +506,7 @@ except ValidationError:
     pass
 d2 = kea_json("kea-dhcp-ddns.conf")["DhcpDdns"]
 assert d2["forward-ddns"]["ddns-domains"][0]["name"] == "dhcp.lan.j-j.family." and d2["tsig-keys"][0]["name"] == "kea-ddns"
+assert d2["dns-server-timeout"] >= 2000, "Kea waits long enough for BIND to answer an update (2.3.10.11.16)"
 zones = env.get_template('bind9/config/named.conf.zones.j2').render(**{**secrets, **kv, "tsig_keys": [], "tsig_secrets": {}})
 dz = zones[zones.index('zone "dhcp.lan.j-j.family"'):]
 dz = dz[:dz.index("};\n};") + 5]
