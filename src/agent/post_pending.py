@@ -39,10 +39,10 @@ def _finish(page, routes=()):
 
     def write(actor):
         from fabriclib.system.apply_changes import apply_changes
+        from fabriclib.system.apply_failure import apply_failure
         ok, output = apply_changes(actor, source="web")
-        if not ok:
-            tail = (output or "").strip().splitlines()[-1:]
-            raise ValidationError("the apply did not finish" + (f": {tail[0]}" if tail else ""))
+        if not ok:                            # its last 10 lines, and where the full output is (2.1.8.31)
+            raise ValidationError(apply_failure(output))
 
     return "Write the policy into the domain (restarts only what changed)", write
 
