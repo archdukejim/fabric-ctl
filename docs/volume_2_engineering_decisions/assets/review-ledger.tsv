@@ -160,9 +160,9 @@ docs/volume_2_engineering_decisions/2.3.18-stig-notes.md	8b8ec07339324e82c71f147
 docs/volume_2_engineering_decisions/2.3.2-architecture-notes.md	499077f66ffbd755ef2a1f41e55330305252b49d	2026-10-24	
 docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f4878a6c708a9f55be4	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a9aeb2e856f39e5f862e36bf6273c583af26d627	2026-10-11	
-docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	2d0127c2b3b9c2bdac03f7d6ef98039ab7b61163	2026-10-21	
+docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	40291123161b581edf28c05438399e1d5c3f478c	2026-10-24	
 docs/volume_2_engineering_decisions/2.3.7-openbao-notes.md	78a60cfd1689c9b3a5cb36f58f74e66e344300a4	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	acf6f726b6205e1807bf91202b4be4866e0861b3	2026-10-24	
+docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	8e142b14165d4b522eb0ce0935cbea3fbd25e577	2026-10-24	
 docs/volume_2_engineering_decisions/2.3.9-federation-notes.md	589194fbf33eda431862f1414dabc04a3181edc9	2026-10-08	
 docs/volume_2_engineering_decisions/README.md	b6d9237470b17c886b556facda7959ff02568173	2026-10-23	
 docs/volume_2_engineering_decisions/assets/README.md	3fd72f26d985cf1827afa0868c6c138dfec9d627	2026-10-08	
@@ -1846,7 +1846,7 @@ tests/images/verify.py	a00728895b0d367ff144663dca8b9275fb002392	2026-10-12
 tests/kea/README.md	c5b5b81a26dbfe1d63d643e914a84a1aad681d19	2026-10-12	
 tests/kea/run.py	7c5f2885730fc6a226bdb641d5ea69039ecd47bf	2026-10-12	
 tests/keycloak/README.md	55bf0779666050bc9febb2d9c86957665c1d3d0d	2026-10-08	
-tests/keycloak/run.py	f8766c02dc2b0b7a496e674523c10db266ba1d25	2026-10-21	
+tests/keycloak/run.py	be4860081dda7ec9c19eea8a73fc81350c38fde8	2026-10-24	
 tests/keycloak/soft_passkey.py	51ec49de47ee87f347e246b14acf0eb5f20cb512	2026-10-08	
 tests/lab/README.md	b7cde2a34af23759773558044499b5e990f148ac	2026-10-10	
 tests/lab/dhcp.sh	d4e864b010c4b115cf68f3c364aab7e43720c820	2026-10-12	
@@ -1896,7 +1896,7 @@ tests/sandbox/agent_job.py	f1d402de290c6ee1294fd2d24d2aea6cb205faca	2026-10-23
 tests/sandbox/certs_page_test.sh	b3d79a28e1f027af88484153d7c5ea31e3b871f8	2026-10-23	
 tests/sandbox/iterate.sh	8be80562d8c2adf70ec0ac9f8ed094c5bc1cdb0c	2026-10-03	
 tests/sandbox/list_roles.py	857dc28e0a40f95853048b691a117befa804aff3	2026-10-05	
-tests/sandbox/login_test.py	4e10d3cb53c5a4f655f4b04f41ca4cf6c47b2297	2026-10-24	
+tests/sandbox/login_test.py	0d07a095f208074c698781dc6e1aa4d213efb710	2026-10-24	
 tests/sandbox/make_person.py	f778029f1dfc122927b454149f21fda1c884cdf7	2026-10-05	
 tests/sandbox/move.sh	f2525a241b5b1d054a51893a5ab2b408349df04f	2026-10-21	
 tests/sandbox/move_state.py	249c0e51bba5f789c7dec6aa7a9366755b6b81fa	2026-10-20	

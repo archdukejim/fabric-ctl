@@ -407,8 +407,12 @@ cw = os.path.join(W, "krb-client")
 os.makedirs(cw)
 sh(["docker", "cp", f"{DC}:/data/kerb.keytab", f"{cw}/kerb.keytab"])
 sh(["cp", root_ca, f"{cw}/root_ca.crt"])
+# the client asks for HTTP/<the name it was given>: never canonicalized through the machine's DNS, which may know the
+# test's domain for real (the owner's network answers sso.lan.j-j.family with its own host, so the client asked for
+# that host's SPN, which this test's DC does not hold: 2.3.6.23); the CNAME case below sets it on, through /etc/hosts
 with open(f"{cw}/krb5.conf", "w") as f:
     f.write(f"[libdefaults]\n  default_realm = {AD_REALM}\n  dns_lookup_kdc = false\n  rdns = false\n"
+            f"  dns_canonicalize_hostname = false\n"
             f"[realms]\n  {AD_REALM} = {{\n    kdc = {DC_IP}\n  }}\n[domain_realm]\n  .lan.j-j.family = {AD_REALM}\n")
 for name in os.listdir(cw):
     os.chmod(os.path.join(cw, name), 0o644)
@@ -420,9 +424,13 @@ kinit -k -t /w/kerb.keytab kerb@{AD_REALM}
 echo "APP $({neg} '{APP_AUTH}')"
 echo "CONSOLE $(curl -s -L -c /tmp/jar -b /tmp/jar --negotiate -u : --cacert /w/root_ca.crt --connect-to {HOST}:443:{KC_IP}:8443 '{AUTH}' | grep -oE 'name=.t?otp.' | head -1)"
 echo "{KC_IP} dc1.lan.j-j.family {HOST}" >> /etc/hosts
-sed -i 's/rdns = false/rdns = false\\n  dns_canonicalize_hostname = true/' /etc/krb5.conf
+sed -i 's/dns_canonicalize_hostname = false/dns_canonicalize_hostname = true/' /etc/krb5.conf
 kdestroy; kinit -k -t /w/kerb.keytab kerb@{AD_REALM}
 echo "CNAME $({neg} '{APP_AUTH}') $(klist | grep -o 'HTTP/[^@]*' | head -1)"
+grep -v ' dc1.lan.j-j.family ' /etc/hosts > /tmp/hosts; echo "{KC_IP} other.lan.j-j.family {HOST}" >> /tmp/hosts
+cat /tmp/hosts > /etc/hosts
+kdestroy; kinit -k -t /w/kerb.keytab kerb@{AD_REALM}
+echo "OTHER $({neg} '{APP_AUTH}') $(curl -sv -o /dev/null --negotiate -u : --cacert /w/root_ca.crt --connect-to {HOST}:443:{KC_IP}:8443 '{APP_AUTH}' 2>&1 | grep -o 'Server not found in Kerberos database' | head -1)"
 """
 out = sh(["docker", "run", "--rm", "--network", NET, "-v", f"{cw}:/w:ro", "debian:trixie", "bash", "-c", client],
          ok=False).stdout
@@ -433,6 +441,9 @@ check("Kerberos never skips a second factor: the console still asks kerb for TOT
       "otp" in lines.get("CONSOLE", ""), out[-400:])
 check("Kerberos through the name sso.<domain> is a CNAME of (the client asks for HTTP/<host>.<domain>)",
       lines.get("CNAME", "").startswith("302") and "HTTP/dc1.lan.j-j.family" in lines.get("CNAME", ""), out[-400:])
+check("refused: a CNAME of a host the site's account holds no SPN for: no ticket, Keycloak asks again (401)",
+      lines.get("OTHER", "").startswith("401") and "Server not found in Kerberos database" in lines.get("OTHER", ""),
+      out[-800:])
 st, _, page = Browser(root_ca).go(APP_AUTH)
 check("without a ticket Keycloak asks for one (401 Negotiate), then falls back to the password form",
       st == 401 and 'name="password"' in start(Browser(root_ca), APP_AUTH), (st, page[:200]))

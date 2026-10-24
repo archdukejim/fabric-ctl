@@ -314,7 +314,8 @@ check("the top bar's site selector (1.8.6.12): this site's name as the menu, thi
       f'<summary aria-label="Site: {SITE}. Pick a site">{SITE}</summary>' in page
       and f'<a href="/" aria-current="true"><strong>{SITE}</strong>' in pick, pick[:600] or page[:600])
 st, loc, _ = b.request("GET", f"https://{MGR}/sites/{SITE}")
-check("the site selector: this site's own link goes to its Overview (303 /)", st == 303 and loc == "/", (st, loc))
+check("the site selector: this site's own link goes to its Overview (303 /; the client joins it to the page's address)",
+      st == 303 and loc == f"https://{MGR}/", (st, loc))
 st, _, page = b.request("GET", f"https://{MGR}/sites/ghost")
 check("refused: a site the domain does not hold (404, said; no redirect)", st == 404
       and "No site ghost in the domain." in page, (st, page[:300]))
