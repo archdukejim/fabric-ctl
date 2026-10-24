@@ -154,7 +154,7 @@ docs/volume_2_engineering_decisions/2.1.9-federation.md	371019795f20f224d650cb95
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	8974d88778519bb319474e6fc9a13b3caf5a5c09	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	5125823aed0d761d53f8e990d4a23830442a6934	2026-10-24	
+docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	0843cb44642c5db4ee80996a4ab9fd92be53d22a	2026-10-24	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
@@ -2013,7 +2013,7 @@ tests/lab/README.md	4fec9089c3fbfd17d591f81d89d31549afb01bd6	2026-10-24
 tests/lab/console_session.py	fc724414d441c7ffcb843cf3ef94cffbf0d08af4	2026-10-24	
 tests/lab/dhcp.sh	d4e864b010c4b115cf68f3c364aab7e43720c820	2026-10-12	
 tests/lab/dhcp_campaign.sh	ccd5914140897e71b93b7a271f7a964ae8561dc7	2026-10-24	
-tests/lab/dhcp_console.py	613eb0257d515e01c069b34ef9184902141ad3f1	2026-10-24	
+tests/lab/dhcp_console.py	7bd4f10efdc60150b3a97b78de5f1482203c69c2	2026-10-24	
 tests/lab/dhcp_vars.yaml	69c2af925c07a25e01fabb400c83320729d1095e	2026-10-23	
 tests/lint/README.md	9757442e4a4f93e6dfa2de8daee0508f38dff835	2026-10-12	
 tests/lint/no_bare_prompts.py	f7bb9072256161fd72f5693e3a84d210269c8faa	2026-10-12	

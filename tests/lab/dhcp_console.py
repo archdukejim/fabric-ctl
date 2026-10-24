@@ -76,8 +76,12 @@ st, msg, page = admin.post(f"/networks/plan/{SITE}/addresses", {
     "owner": "", "notes": ""})
 st, review = admin.apply("networks")
 # covers: web:post.networks.plan.*.addresses -
+# held, then refused by its Apply: the Review's queue shows it failed, saying why, and it stays held (1.8.6.5)
 check("a reservation outside VLAN 30's subnet is refused (at hold or at Apply), saying why, and not written",
-      (msg[0] == "bad" or "refused" in review.lower()) and "10.88.99.5" not in plan(), (msg, review[-600:]))
+      (msg[0] == "bad" and "outside the subnet" in msg[1]
+       or "10.88.99.5 is outside the subnet 10.88.30.0/24" in review)
+      and "10.88.99.5" not in plan(), (msg, review[-600:]))
+admin.post("/changes/networks/discard", {})       # the refused change is not left held for the next steps
 st, msg, page = admin.post("/networks/sync", {})
 # covers: web:post.networks.sync +
 check("Sync now runs at once and says what it did", msg[0] == "ok", msg)
