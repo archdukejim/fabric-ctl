@@ -61,6 +61,9 @@ import fabriclib.directory.run_op as m_runop  # noqa: E402
 import fabriclib.grants.grant_request as m_greq  # noqa: E402
 import fabriclib.samba.domain_dc_names as m_dcnames  # noqa: E402
 import fabriclib.samba.domain_sites as m_dsites  # noqa: E402
+import fabriclib.samba.site_tree_records as m_tree  # noqa: E402
+import fabriclib.samba.replication_status as m_repl  # noqa: E402
+import fabriclib.federation.accept_join as m_join  # noqa: E402
 from fabriclib.breakglass.ensure_enterprise_admin import ensure_enterprise_admin  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.deploy.check_samba_settings import check_samba_settings  # noqa: E402
@@ -94,7 +97,7 @@ def redirect(module):
     module.subprocess = types.SimpleNamespace(run=run, TimeoutExpired=subprocess.TimeoutExpired)
 
 
-for mod in (m_runop, m_greq, m_dcnames, m_dsites):
+for mod in (m_runop, m_greq, m_dcnames, m_dsites, m_tree, m_repl):
     redirect(mod)
 
 
@@ -1178,6 +1181,142 @@ for who, body, words in (("alice", {"reason": "x"}, "only the Enterprise Admin")
 check("the routes need only a sign-in: fabric-agent asks the DC for the tier",
       required_permission("POST", ["local-admin", "checkout"]) == "session"
       and required_permission("POST", ["local-admin", "ssh"]) == "session")
+
+print("--- the site selector's record (decision 2.1.8.30, manual 1.8.6.12): CN=sites, written and read on a real DC")
+import http.server  # noqa: E402
+import re  # noqa: E402
+import ssl  # noqa: E402
+import threading  # noqa: E402
+from fabriclib.federation.console_reachable import console_reachable  # noqa: E402
+from fabriclib.federation.keep_site_place import keep_site_place  # noqa: E402
+from fabriclib.federation.site_selector import site_selector  # noqa: E402
+from fabriclib.federation.write_site_place import write_site_place  # noqa: E402
+HERE_SITE, FED = V["site_name"], os.path.join(W, "dc", "federation.yaml")
+SITES_DN = f"CN=sites,CN=fabric,CN=System,{BASE}"
+schema = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "-b",
+             f"CN=Schema,CN=Configuration,{BASE}", "(|(lDAPDisplayName=fabricSiteRecord)(lDAPDisplayName=fabricSiteTree)"
+             "(lDAPDisplayName=fabricParentSite)(lDAPDisplayName=fabricConsoleUrl))", "lDAPDisplayName", "governsID",
+             "attributeID", "objectClassCategory"], ok=False).stdout.replace("\n ", "")   # ldbsearch wraps long lines
+ids = dict(zip(re.findall(r"lDAPDisplayName: (\S+)", schema), re.findall(r"(?:governsID|attributeID): (\S+)", schema)))
+check("the schema in the DC: class 18 fabricSiteRecord as 0.9.0 numbers it, auxiliary class 19 fabricSiteTree, "
+      "attributes 46 fabricParentSite and 47 fabricConsoleUrl", ids.get("fabricSiteRecord", "").endswith(".2.18")
+      and ids.get("fabricSiteTree", "").endswith(".2.19") and ids.get("fabricParentSite", "").endswith(".1.46")
+      and ids.get("fabricConsoleUrl", "").endswith(".1.47") and "objectClassCategory: 3" in schema, schema)
+rec = ldb(f"(&(objectClass=fabricSiteRecord)(cn={HERE_SITE}))", "objectClass", "fabricParentSite", "fabricConsoleUrl")
+check("convergence wrote this site's place: its record under CN=sites, the auxiliary class, no parent (the root), "
+      "no console (this DC's install runs none: install_webui needs Keycloak)", f"CN={HERE_SITE},{SITES_DN}" in rec
+      and "objectClass: fabricSiteTree" in rec and "fabricParentSite" not in rec and "fabricConsoleUrl" not in rec
+      and not V.get("install_webui"), rec)
+WEB = dict(V, install_webui=True, hostname_mgr=f"mgr.{V['domain']}")
+done = keep_site_place(WEB, FED, SECRETS, container=DC)
+check("a site with a console: its convergence records the console's address, https://<hostname_mgr>",
+      done == [f"site {HERE_SITE}: fabricConsoleUrl set"] and f"fabricConsoleUrl: https://mgr.{V['domain']}" in ldb(
+          f"(&(objectClass=fabricSiteRecord)(cn={HERE_SITE}))", "fabricConsoleUrl"), done)
+again = keep_site_place(WEB, FED, SECRETS, container=DC)
+check("...and keeps it: the next convergence changes nothing", again == [], again)
+done = write_site_place(V, SECRETS, "branch", HERE_SITE, "https://mgr.branch.lan.test:8443", container=DC)
+rec = ldb("(&(objectClass=fabricSiteRecord)(cn=branch))", "fabricParentSite", "fabricConsoleUrl", "description")
+check("a site's place written as fabric-agent (the parent at a join): its record made, its parent and console set",
+      done == ["site branch: record set", "site branch: fabricParentSite set", "site branch: fabricConsoleUrl set"]
+      and f"fabricParentSite: {HERE_SITE}" in rec and "fabricConsoleUrl: https://mgr.branch.lan.test:8443" in rec
+      and "description: fabric:" in rec, (done, rec))
+check("...the same again changes nothing",
+      write_site_place(V, SECRETS, "branch", HERE_SITE, "https://mgr.branch.lan.test:8443", container=DC) == [])
+for name, parent, console, words in (("Bad_Name", HERE_SITE, "", "not a site's name"),
+                                     ("branch", "branch", "", "its own parent"),
+                                     ("branch", HERE_SITE, "http://mgr.branch.lan.test", "not a console's address"),
+                                     ("branch", HERE_SITE, "https://mgr.branch.lan.test/x?y", "not a console's address")):
+    gone, why = refused(write_site_place, V, SECRETS, name, parent, console, container=DC)
+    check(f"negative: {name!r} under {parent!r} at {console!r} refused ({words}), the record unchanged",
+          words in why and "fabricConsoleUrl: https://mgr.branch.lan.test:8443" in ldb(
+              "(&(objectClass=fabricSiteRecord)(cn=branch))", "fabricConsoleUrl")
+          and "bad_name" not in ldb("(objectClass=fabricSiteRecord)", "cn").lower(), why)
+gone, why = refused(write_site_place, dict(V, ad_dc_type="rodc", ad_join_server=""), SECRETS, "branch", HERE_SITE, "",
+                    container=DC)
+check("negative: a read-only DC's site with no writable DC named refused, saying so", "no writable DC" in why, why)
+done = write_site_place(dict(V, ad_dc_type="rodc", ad_join_server=IP), SECRETS, "edge", HERE_SITE,
+                        "https://mgr.edge.lan.test", container=DC)
+check("a read-only DC's site writes at its writable DC (run_op's server): the record there",
+      "site edge: fabricParentSite set" in done and f"fabricParentSite: {HERE_SITE}" in ldb(
+          "(&(objectClass=fabricSiteRecord)(cn=edge))", "fabricParentSite"), done)
+m_join._record_place(V, "annex", "https://mgr.annex.lan.test")
+check("a joining site with no DC: the parent's join writes its place (accept_join's _record_place)",
+      "fabricParentSite: " + HERE_SITE in ldb("(&(objectClass=fabricSiteRecord)(cn=annex))", "fabricParentSite"))
+n = len(AUDIT)
+m_join._record_place(V, "annex2", "ftp://nowhere")
+check("negative: a join's place the domain refuses is audited (FED_PLACE_NOT_WRITTEN), the join not failed, nothing "
+      "written", AUDIT[n:] and AUDIT[-1][1] == "FED_PLACE_NOT_WRITTEN"
+      and "annex2" not in ldb("(objectClass=fabricSiteRecord)", "cn"), AUDIT[n:])
+write_site_place(V, SECRETS, "annex", "branch", "", container=DC)          # annex moves under branch: nested twice
+raw = sh(["docker", "exec", DC, "python3", "/fabric/read_site_tree.py"], ok=False)
+check("read_site_tree.py as the system: every site with its parent and console, by name",
+      raw.returncode == 0 and '"site": "annex", "parent": "branch", "console": "https://mgr.annex.lan.test"'
+      in raw.stdout and '"site": "branch", "parent": "' + HERE_SITE + '"' in raw.stdout, raw.stdout + raw.stderr)
+routed = m_get.get_route(["sites", "tree"], "bob")
+# covers: agent:get.sites.tree +
+check("GET /v1/sites/tree as bob (any sign-in, required_permission 'session'): the domain's sites, this one here",
+      required_permission("GET", ["sites", "tree"]) == "session" and routed["site"] == HERE_SITE
+      and routed["error"] == "" and routed["tree"][0]["here"], routed)
+tree = site_selector(V, FED, now=1000)
+top = tree["tree"]
+flat = {}
+
+
+def walk(nodes, depth=0):
+    for node in nodes:
+        flat[node["site"]] = (depth, node)
+        walk(node["children"], depth + 1)
+
+
+walk(top)
+check("the selector's tree from the DC: this site the root, here and up; branch and edge below it, annex below branch",
+      tree["error"] == "" and [x["site"] for x in top] == [HERE_SITE] and flat[HERE_SITE][1]["here"]
+      and flat[HERE_SITE][1]["state"] == "up" and flat["branch"][0] == 1 and flat["edge"][0] == 1
+      and flat["annex"][0] == 2 and flat["annex"][1]["parent"] == "branch", tree)
+check("...a site whose console does not answer is down, saying why (no answer: nothing at mgr.branch.lan.test)",
+      flat["branch"][1]["state"] == "down" and flat["branch"][1]["why"], flat["branch"][1])
+check("...kept a minute: the same answer within 60 s, a fresh one after",
+      site_selector(V, FED, now=1030) is tree and site_selector(V, FED, now=1061) is not tree)
+# a console that answers: an HTTPS server on this host with a certificate from the test PKI, and one from another CA
+tls = os.path.join(W, "console-tls")
+os.makedirs(tls, exist_ok=True)
+sh(["openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", f"{tls}/key.pem", "-out", f"{tls}/c.csr",
+    "-subj", "/CN=localhost"])
+with open(f"{tls}/c.ext", "w") as f:
+    f.write("subjectAltName=DNS:localhost\nextendedKeyUsage=serverAuth\n")
+sh(["openssl", "x509", "-req", "-in", f"{tls}/c.csr", "-CA", dc["root_ca"], "-CAkey", dc["root_key"],
+    "-CAcreateserial", "-out", f"{tls}/cert.pem", "-days", "1", "-extfile", f"{tls}/c.ext"])
+sh(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", f"{tls}/other.key", "-out",
+    f"{tls}/other.pem", "-days", "1", "-subj", "/CN=localhost", "-addext", "subjectAltName=DNS:localhost"])
+
+
+class Console(http.server.BaseHTTPRequestHandler):
+    def do_HEAD(self):
+        self.send_response(303)
+        self.send_header("Location", "/login")
+        self.end_headers()
+
+    def log_message(self, *a):
+        pass
+
+
+def serve(cert, key):
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Console)
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(cert, key)
+    srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+
+
+good, other = serve(f"{tls}/cert.pem", f"{tls}/key.pem"), serve(f"{tls}/other.pem", f"{tls}/other.key")
+up = console_reachable(f"https://localhost:{good.server_address[1]}", dc["root_ca"])
+check("a console that answers over verified HTTPS (its sign-in's redirect) is up", up == (True, ""), up)
+down = console_reachable(f"https://localhost:{other.server_address[1]}", dc["root_ca"])
+check("negative: a console whose certificate is not from fabric's root is down, saying so",
+      not down[0] and "did not verify" in down[1], down)
+good.shutdown()
+other.shutdown()
 
 if not os.environ.get("FABRIC_TEST_KEEP"):
     cleanup()

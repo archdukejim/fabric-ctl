@@ -61,6 +61,23 @@ def _sites(state):
                       for n in SAMPLE_DIRECTORY["sites"]]}
 
 
+def _site_tree():
+    """Purpose: The preview's federation as GET /v1/sites/tree answers (manual 1.8.6.12): lan here at the root, lab
+             and edge below it, lab's annex below lab; edge's replication failing (degraded), the annex not answering
+             (down).
+    Inputs:  none.
+    Returns: dict, the agent's shape.
+    Fails:   never.
+    Feeds:   fake_reads."""
+    def node(site, parent, state="up", why="", replication="ok", children=()):
+        return {"site": site, "parent": parent, "console": f"https://mgr.{site}.home.arpa", "here": site == "lan",
+                "state": state, "why": why, "replication": replication, "children": list(children)}
+    annex = node("annex", "lab", "down", "no answer: timed out", "")
+    return {"site": "lan", "error": "", "tree": [node("lan", "", replication="", children=[
+        node("edge", "lan", "degraded", "its domain controllers' replication to this site is failing", "failing"),
+        node("lab", "lan", children=[annex])])]}
+
+
 def _spns():
     """Purpose: The preview's service principals as GET /v1/domain/kerberos/spns answers (manual 1.6.12.9): each
              computer's HOST names, the sso account's HTTP name, and one name held twice, to show the flag.
@@ -111,6 +128,7 @@ def fake_reads(state, who, route, body):
         ("pki", "ca"): lambda: SAMPLE_CA, ("pki", "issued"): lambda: d["issued"], ("pki", "acme"): lambda: SAMPLE_ACME,
         ("devices",): state.overview, ("people",): lambda: d["people"], ("directory",): lambda: SAMPLE_DIRECTORY,
         ("sites",): lambda: _sites(state),
+        ("sites", "tree"): _site_tree,
         ("domain", "kerberos"): lambda: {"realm": "AD.HOME.ARPA", "kdcs": ["pi-core", "pi-edge"], "kdcs_error": "",
                                          "policy": kerberos_policy(state),
                                          "signin_kerberos": any(r["layer"] == "kerberos" and r["value"] == "on"

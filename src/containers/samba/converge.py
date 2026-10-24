@@ -23,6 +23,7 @@ from ensure_layout import ensure_layout
 from ensure_networks import ensure_networks
 from ensure_schema import ensure_schema
 from ensure_service_accounts import ensure_service_accounts
+from ensure_site_record import ensure_site_record
 from ensure_site_link import ensure_site_link
 from ensure_sso_account import ensure_sso_account
 from id_layout import dc_range
@@ -88,6 +89,7 @@ def converge(state):
     samdb, lp = open_samdb(CONF)
     changed += ensure_layout(samdb)
     changed += ensure_dc_record(samdb, dc, site)
+    changed += ensure_site_record(samdb, site)       # its number and its DHCP options (1.10.4.32)
     changed += ensure_groups(samdb, dc, site, root, state["groups"], rodc=state.get("dc_type") == "rodc")
     changed += ensure_service_accounts(samdb, lp, dc, state["accounts"])
     changed += ensure_sso_account(samdb, lp, CONF, site, state.get("sso_spns") or [])

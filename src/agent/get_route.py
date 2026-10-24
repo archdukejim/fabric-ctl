@@ -14,6 +14,7 @@ from fabriclib.dns.reverse_zones import reverse_zones
 from fabriclib.dns.zone_detail import zone_detail
 from fabriclib.dns_filter.filter_overview import filter_overview
 from fabriclib.federation.federation_overview import federation_overview
+from fabriclib.federation.site_selector import site_selector
 from fabriclib.directory.device_overview import device_overview
 from fabriclib.directory.list_host_groups import list_host_groups
 from fabriclib.directory.list_machines import list_machines
@@ -51,7 +52,7 @@ from fabriclib.pki.cert_warnings import cert_warnings
 from fabriclib.system.relaxed_settings import relaxed_settings
 from fabriclib.system.host_reminders import host_reminders
 from fabriclib.security.signin_layers import read_lowered, signin_rows
-from fabriclib.common.paths import VARS_FILE
+from fabriclib.common.paths import FEDERATION_FILE, VARS_FILE
 from fabriclib.setup.context import SetupContext
 from fabriclib.settings.export_settings import export_settings
 from fabriclib.settings.settings_overview import settings_overview
@@ -78,6 +79,7 @@ READS = {
     ("domain",): lambda: domain_overview(load_vars()),
     ("directory",): lambda: directory_overview(load_vars()),
     ("sites",): lambda: site_overview(load_vars()),
+    ("sites", "tree"): lambda: site_selector(load_vars(), FEDERATION_FILE),     # the site selector (1.8.6.12)
     ("domain", "grants"): lambda: list_grants(load_vars()),
     ("domain", "kerberos"): lambda: kerberos_overview(load_vars()),
     ("domain", "kerberos", "spns"): lambda: list_spns(load_vars()),
@@ -136,9 +138,8 @@ def get_route(route, user=None, perms=None):
              domain/kerberos/spns: list_spns; groups: list_groups; groups/<name>: show_group; ous: list_ous;
              account: my_account (the signed-in person's own details, groups, certificates and devices);
              people/<uid>: person_overview (a person's page); machines: list_machines (Computers);
-             machines/<name>: machine_overview (a computer's page); sites: site_overview (Sites); directory:
-             directory_overview (the Directory's
-             Overview);
+             machines/<name>: machine_overview (a computer's page); sites: site_overview (Sites); sites/tree:
+             site_selector (the top bar's site selector); directory: directory_overview (the Directory's Overview);
              account/groups: my_groups (the groups the signed-in person manages); pending: the person's pending
              changes per page and the pages with an apply running (1.8.6.5); pending/<page>: the page's Review;
              settings: settings_overview (the setup wizard, 1.8.5); settings/export: {"text", "name"}, the

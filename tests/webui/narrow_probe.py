@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run inside the test browser image (decision 2.1.8.15): open each page in headless Chromium at a phone's width and
-say what is wider than the screen. Driven over Chromium's DevTools pipe (file descriptors 3 and 4), so it needs no
-port and no driver.
+say what is wider than the screen, with the top bar's menus open. Driven over Chromium's DevTools pipe (file
+descriptors 3 and 4), so it needs no port and no driver.
 
     python3 narrow_probe.py <width> <url> [<url> ...]     prints one JSON line per URL:
         {"url", "status", "width", "scroll_width", "wide": [up to 5 elements past the right edge], "error"}
@@ -12,6 +12,8 @@ import subprocess
 import sys
 
 WIDE_JS = """(() => {
+  // the top bar's menus opened first (the site selector, the person's menu: 1.8.6.12), so they are measured too
+  document.querySelectorAll('.topbar details').forEach(d => { d.open = true; });
   const w = window.innerWidth, out = [];
   for (const el of document.querySelectorAll('body *')) {
     const r = el.getBoundingClientRect();

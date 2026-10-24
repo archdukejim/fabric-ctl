@@ -16,6 +16,7 @@ handed out. Proves the admin gets in and that everyone else is refused:
   - OpenBao's own UI: the admin signs in with Keycloak (TOTP) and gets the
     fabric-console-admin policy (apps/ yes, fabric's own secrets no); others refused
   - people: the admin adds a person and resets a sign-in
+  - the top bar's site selector: this site marked, its own link home, an unknown site refused
 
   python3 login_test.py <vars.yaml> <other-user> <other-password> <other-p12-password>
 Prints PASS/FAIL lines.
@@ -307,6 +308,16 @@ st, _, page = b.request("GET", f"https://{MGR}/")
 check("admin: overview renders", st == 200 and "services healthy" in page and ADMIN in page, (st, page[:300]))
 check("setup wizard finished: the Overview no longer offers Finish setting up", "Finish setting up" not in page,
       page[:300])
+SITE = str(V.get("site_name") or "")
+pick = page.split('<details class="sitepick">', 1)[-1].split("</details>", 1)[0]
+check("the top bar's site selector (1.8.6.12): this site's name as the menu, this site marked in the domain's list",
+      f'<summary aria-label="Site: {SITE}. Pick a site">{SITE}</summary>' in page
+      and f'<a href="/" aria-current="true"><strong>{SITE}</strong>' in pick, pick[:600] or page[:600])
+st, loc, _ = b.request("GET", f"https://{MGR}/sites/{SITE}")
+check("the site selector: this site's own link goes to its Overview (303 /)", st == 303 and loc == "/", (st, loc))
+st, _, page = b.request("GET", f"https://{MGR}/sites/ghost")
+check("refused: a site the domain does not hold (404, said; no redirect)", st == 404
+      and "No site ghost in the domain." in page, (st, page[:300]))
 
 # -- everyone else is refused -----------------------------------------------------------
 ob = Browser(other_pem)

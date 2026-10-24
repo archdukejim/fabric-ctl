@@ -11,6 +11,7 @@ from webui.routes.computers_page import computers_page
 from webui.routes.access_page import access_page
 from webui.routes.groups_page import groups_page
 from webui.routes.sites_page import sites_page
+from webui.routes.site_link import site_link
 from webui.routes.kerberos_page import kerberos_page
 from webui.routes.ous_page import ous_page
 from webui.routes.dns_filter_page import dns_filter_page
@@ -89,12 +90,15 @@ def get_page(h, sess, path, query):
              with no fabric role); 403 for a navigation page whose permission they lack (checked here too, not only
              by fabric-agent: a page that reads nothing, such as Doctor, would otherwise show; a person's or a
              group's page and Add person or Create group are their list's).
+             /sites/<name>: the site selector's link to that site's console (site_link).
     Fails:   404 for any other path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
     Feeds:   handler.Handler.handle_request.
     """
     new = moved_to(path, query)
     if new:
         return h.redirect(new)
+    if path.startswith("/sites/"):                 # the site selector's link: that site's own console (1.8.6.12)
+        return site_link(h, _rest(path, "/sites/") or "")
     ctx = page_context(sess)
     if query.get("signed_in") and not ctx.get("flash"):     # back from a step-up sign-in: a fixed text, not the query's
         ctx["flash"] = {"ok": SIGNED_IN}

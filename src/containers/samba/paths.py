@@ -1,5 +1,7 @@
 """The DNs of the directory's folders (manual 1.6.13.2, 2.1.6.72, 2.1.6.80): one set for the whole domain, fixed, made
 by ensure_layout; and fabric's own state in `CN=fabric,CN=System` (2.1.6.79)."""
+import ldb
+
 
 # the folders under the domain, each fabric's and marked so (1.6.13.2); OU=fabric inside OU=groups and one OU per
 # machine type inside OU=machines are made with them
@@ -69,3 +71,23 @@ def relative(samdb, dn):
     if not dn.lower().endswith(suffix.lower()):
         raise ValueError(f"{dn}: not inside {suffix[1:]}")
     return dn[:-len(suffix)]
+
+
+def sites_dn(samdb):
+    """Purpose: where the sites' records live (2.1.10.34, manual 1.10.4.32): one per site, its number and options.
+    Inputs:  samdb — SamDB.
+    Returns: str "CN=sites,CN=fabric,CN=System,<domain>".
+    Fails:   never.
+    Feeds:   ensure_layout, site_record_dn, read_site_tree."""
+    return f"CN=sites,{fabric_dn(samdb)}"
+
+
+def site_record_dn(samdb, site):
+    """Purpose: one site's record (2.1.10.34): `CN=<site>` inside CN=sites, the name escaped whatever it holds.
+    Inputs:  samdb — SamDB; site — the site's name (its AD site's).
+    Returns: ldb.Dn.
+    Fails:   never.
+    Feeds:   ensure_site_record, set_site_tree."""
+    dn = ldb.Dn(samdb, f"CN=x,{sites_dn(samdb)}")
+    dn.set_component(0, "CN", str(site))
+    return dn

@@ -1018,6 +1018,15 @@ check("auditor: Kerberos through the real agent (domain:read), no DC here: the K
 st, _, _sc, body = req("GET", "/directory/sites", ALICE, cookie=aud)
 check("auditor: Sites through the real agent (domain:read), no DC here: why said on the page", st == 200
       and "The sites could not be read" in body and "no domain controller" in body, (st, body[-800:]))
+check("the site selector through the real agent, no DC and no site name here: the frame without it, the page "
+      "still works", st == 200 and 'class="sitepick"' not in body and 'class="usermenu"' in body, body[:1500])
+st, hd, _sc, body = req("GET", "/sites/lan", ALICE, cookie=aud)
+check("/sites/<a name the agent does not list>: 404, said (no site here is known)", st == 404
+      and "No site lan in the domain." in body and not hd.get("Location"), (st, body[-600:]))
+st, hd, _sc, body = req("GET", "/sites/ghost", ALICE, cookie=aud)
+# covers: web:get.sites.* -
+check("refused: /sites/<a site the domain does not hold> (404, said; no redirect)", st == 404
+      and "No site ghost in the domain." in body and not hd.get("Location"), (st, body[-600:]))
 st, _, _sc, body = req("GET", "/directory/access", ALICE, cookie=aud)
 check("auditor: Access through the real agent (domain:read), no DC here: why said on the page, no Add grant",
       st == 200 and "The grants could not be read" in body and "/directory/access/_new" not in body, (st, body[-800:]))
@@ -1267,6 +1276,14 @@ check("refused: a member change from My account done at once (it waits for Apply
 out = agent_call("GET", "/v1/sites", "carol", AUDITOR_ROLES)
 check("GET /v1/sites: an auditor's token reads it (domain:read); without a DC the sites are empty and the error says "
       "why (200)", " 200 " in out and '"sites": []' in out, out)
+out = agent_call("GET", "/v1/sites/tree", "carol", ())
+# covers: agent:get.sites.tree +
+check("GET /v1/sites/tree: any sign-in reads it (session: the selector is everyone's); no DC and no site name "
+      "here: no site, the error saying why (200)", " 200 " in out and '"site": ""' in out and '"tree": []' in out
+      and "could not be read" in out, out)
+out = agent_call("GET", "/v1/sites/tree", "carol", (), exp=-60)
+# covers: agent:get.sites.tree -
+check("refused: GET /v1/sites/tree with an expired token (401: the selector needs a sign-in)", " 401 " in out, out)
 out = agent_call("GET", "/v1/sites", "carol", PKI_ONLY)
 # covers: agent:get.sites -
 check("refused: GET /v1/sites without domain:read (403, the permission named)", " 403 " in out

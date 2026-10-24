@@ -10,7 +10,8 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `open_samdb.py` | The DC's database opened locally as the system (optionally allowing schema changes) |
 | `repair_role_owners.py` | The roles this DC holds named by its current DN (a renamed AD site left the old text, 1.6.5.24) |
 | `ensure_schema.py` | fabric's and sudo's attributes and classes in AD's schema, added once (OIDs AD accepts, Q3) |
-| `ensure_layout.py` | The directory's folders (OU=people, OU=service-accounts, OU=groups with OU=fabric, OU=machines with one OU per type, OU=fabric-hosts, OU=devices, OU=device-roles, OU=networks, OU=sudoers) and `CN=fabric,CN=System`; AD's default containers point at OU=people and OU=machines (1.6.13.2) |
+| `ensure_layout.py` | The directory's folders (OU=people, OU=service-accounts, OU=groups with OU=fabric, OU=machines with one OU per type, OU=fabric-hosts, OU=devices, OU=device-roles, OU=networks, OU=sudoers) and `CN=fabric,CN=System` (with `CN=sites`, 1.10.4.32); AD's default containers point at OU=people and OU=machines (1.6.13.2) |
+| `ensure_site_record.py` | The site's record in `CN=sites,CN=fabric,CN=System`: its number and DHCP options (1.10.4.32) |
 | `ensure_groups.py` | The domain's groups (1.6.13.3): fabric-managed, directory-admins, dc-hosts, the tiers' admin groups, the machine types' groups, `site-<name>` per site, `rodc-cache-<dc>` for a read-only DC (2.1.6.52); fabric's `ldap_groups`, Domain Users as `users` (5000), `fabric-break-glass` |
 | `alloc_id.py` | The next number of a range for one use, from this DC's own range first, then its site's other DCs' (2.1.6.63), taken with one conditional change (never twice) |
 | `ensure_sso_account.py` | The site's `fabric-sso-<site>` account in OU=service-accounts: Keycloak's Kerberos SPNs, AES only, its keytab exported to `/data/sso.keytab` |
@@ -64,6 +65,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `remove_machine.py` | Operation `remove_machine`: a machine removed from the domain |
 | `find_person.py` | A person by user name, in OU=people (for set_person and remove_person) |
 | `set_person.py` | Operation `set_person`: disable a person, or enable them again |
+| `set_site_tree.py` | Operation `set_site_tree`: a site's place in the federation on its record, its parent and console's address (auxiliary class `fabricSiteTree`, 2.1.8.30) |
 | `remove_person.py` | Operation `remove_person`: a person removed from the domain |
 | `ensure_join_account.py` | At the root: the temporary account a new site's DC joins with (Domain Admins, expires in an hour) |
 | `ensure_site_link.py` | A site's AD site link to its parent (cost 100, 15 minutes, change notification) |
@@ -73,6 +75,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `id_layout.py` | A DC's id range from its name (dc-NNNN: N x 1000000, 2.1.6.63), the fixed ranges inside it (offsets by kind), and the check that a range is a DC's |
 | `read_dc_names.py` | The domain's computer names, its DCs and their records apart (a parent gives a joining site's DC the lowest free name, 2.1.6.65) |
 | `read_sites.py` | Every DC's record in the domain: its name, its site and its id range |
+| `read_site_tree.py` | Every site's record with its parent and console's address (the site selector, 1.8.6.12) |
 | `acl_entries.py` | Access entries added once (compared parsed, object entries by their attribute) and a principal's SID |
 | `remove_ipv6_records.py` | The AD zones on IPv4 only (2.1.6.29): every AAAA record removed (the DC listens on IPv4) |
 | `ensure_dc_record.py` | The DC's record in `CN=dcs,CN=fabric,CN=System` (2.1.6.79): its site, its id range and a mark per fixed range; a read-only DC's is written by the writable DC |

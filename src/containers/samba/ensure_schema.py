@@ -10,7 +10,8 @@ UUID = 204492767351757179914238406906488345409
 _H = f"{UUID:032x}"
 FABRIC_ARC = "1.2.840.113556.1.8000.2554." + ".".join(
     str(int(_H[a:b], 16)) for a, b in ((0, 4), (4, 8), (8, 12), (12, 16), (16, 20), (20, 26), (26, 32)))
-# (attribute arc, class arc, [(name, n, syntax, single)], [(name, n, category 1 structural / 3 auxiliary, must, may)])
+# (attribute arc, class arc, [(name, n, syntax, single)], [(name, n, category 1 structural / 3 auxiliary, must, may
+# [, possible superiors: a structural class's default is an OU or a container])])
 SETS = {
     "fabric": (FABRIC_ARC + ".1", FABRIC_ARC + ".2",
                [("fabricDeviceType", 1, STRING, True), ("fabricEnabled", 2, BOOL, True),
@@ -21,7 +22,14 @@ SETS = {
                 # a DC's id range "first-last" (2.1.6.63); fabricIdNext is 0.6's high-water mark, no longer written
                 ("fabricIdRange", 12, IA5, True), ("fabricIdNext", 13, INT, True),
                 # a laid-out block's high-water mark per range, "<kind>=<next>" (2.1.6.46, manual 1.6.3.17)
-                ("fabricIdMark", 14, IA5, False)],
+                ("fabricIdMark", 14, IA5, False),
+                # brought forward from 0.9.0 with its site record, class 18 (2.1.8.30; there 2.1.10.33, 2.1.10.34):
+                # the attributes it names, under the same numbers; the rest of 15..45 are 0.9.0's, given there
+                ("fabricDhcpOption", 21, STRING, False), ("fabricBlock", 31, INT, True),
+                ("fabricDhcpOptionDef", 33, STRING, False), ("fabricDhcpClass", 34, STRING, False),
+                # a site's place in the federation, for the console's site selector (2.1.8.30, manual 1.8.6.12): its
+                # parent site and its console's address, on its record through fabricSiteTree
+                ("fabricParentSite", 46, STRING, True), ("fabricConsoleUrl", 47, IA5, True)],
                [("fabricDevice", 1, 3, [], ["fabricDeviceType", "fabricEnabled", "fabricCertFingerprint"]),
                 ("fabricRole", 2, 3, [], ["fabricPermission", "fabricVlan", "fabricPriority"]),
                 ("fabricDeviceRoles", 3, 3, [], ["fabricRoleName"]),
@@ -30,7 +38,13 @@ SETS = {
                 ("fabricSiteInfo", 5, 3, [], ["fabricIdRange", "fabricIdNext"]),
                 ("fabricIdLayout", 6, 3, [], ["fabricIdMark"]),
                 # a DC's record in CN=dcs,CN=fabric,CN=System: its site (2.1.6.79, manual 1.6.13.2)
-                ("fabricDcInfo", 7, 3, [], ["fabricSite"])]),
+                ("fabricDcInfo", 7, 3, [], ["fabricSite"]),
+                # a site's record, CN=<site>,CN=sites,CN=fabric,CN=System: its number and its options (2.1.10.34)
+                ("fabricSiteRecord", 18, 1, [], ["fabricBlock", "fabricDhcpOption", "fabricDhcpOptionDef",
+                                                 "fabricDhcpClass", "description"], ["container"]),
+                # on a site's record: its parent and its console's address (2.1.8.30); auxiliary, so class 18 stays
+                # exactly 0.9.0's
+                ("fabricSiteTree", 19, 3, [], ["fabricParentSite", "fabricConsoleUrl"])]),
     # sudo's rules in the directory, with sudo's own registered arc (Ubuntu no longer ships its AD schema; Q9)
     "sudo": ("1.3.6.1.4.1.15953.9.1", "1.3.6.1.4.1.15953.9.2",
              [("sudoUser", 1, IA5, False), ("sudoHost", 2, IA5, False), ("sudoCommand", 3, IA5, False),
@@ -41,6 +55,16 @@ SETS = {
                                           "sudoRunAsGroup", "sudoOption", "sudoNotBefore", "sudoNotAfter",
                                           "sudoOrder", "description"])]),
 }
+# numbers once given on a pre-release branch and dropped: never given again (2.1.10.33; a schema OID is permanent,
+# and a lab domain may hold one). tests/samba/ensure_schema_test.py refuses a live entry on one.
+RETIRED = {
+    # fabricScanPolicy 35, fabricScanEnforced 36, class fabricScanPolicySet 13 (2.1.10.28, dropped by 2.1.10.30);
+    # fabricLocalScan 39, fabricLocalScanBy 40, class fabricLocalScanSet 15 (2.1.10.30, dropped by 2.1.10.38);
+    # class fabricAddressBlock 11 (a site OU's number: on the site's record since 2.1.10.34)
+    "fabric": {"attributes": {35, 36, 39, 40}, "classes": {11, 13, 15}},
+}
+# numbers held for another release's branch, not given here (2.1.10.33): the SSH host's on dev/0.10.0-8021x
+RESERVED = {"fabric": {"attributes": {37, 38}, "classes": {14}}}
 # a structural class's objects readable by authenticated users (machines included), or only admins see them (Q9)
 DEFAULT_SD = "D:(A;;RPWPCRCCDCLCLORCWOWDSDDTSW;;;DA)(A;;RPWPCRCCDCLCLORCWOWDSDDTSW;;;SY)(A;;RPLCLORC;;;AU)"
 
@@ -56,21 +80,61 @@ def _cn(name):
 
 
 def _present(samdb, schema_dn):
-    """Purpose: the lDAPDisplayNames already in the schema.
+    """Purpose: the schema's attributes and classes, each with its OID.
     Inputs:  samdb — SamDB; schema_dn — str.
-    Returns: set of str.
+    Returns: dict lDAPDisplayName -> OID str (its attributeID or governsID).
     Fails:   ldb.LdbError from the search.
     Feeds:   ensure_schema."""
-    return {str(m["lDAPDisplayName"]) for m in samdb.search(base=schema_dn, scope=ldb.SCOPE_ONELEVEL,
-                                                             attrs=["lDAPDisplayName"]) if "lDAPDisplayName" in m}
+    out = {}
+    for m in samdb.search(base=schema_dn, scope=ldb.SCOPE_ONELEVEL,
+                          attrs=["lDAPDisplayName", "attributeID", "governsID"]):
+        if "lDAPDisplayName" in m:
+            oid = m.get("attributeID", idx=0) or m.get("governsID", idx=0)
+            out[str(m["lDAPDisplayName"])] = str(oid or "")
+    return out
+
+
+def wanted_oids(sets=None):
+    """Purpose: every name of fabric's and sudo's schema with the OID it must have.
+    Inputs:  sets — SETS' shape (default SETS).
+    Returns: dict name -> OID str.
+    Fails:   never.
+    Feeds:   schema_problems."""
+    out = {}
+    for attr_arc, class_arc, attrs, classes in (sets or SETS).values():
+        out.update({a[0]: f"{attr_arc}.{a[1]}" for a in attrs})
+        out.update({c[0]: f"{class_arc}.{c[1]}" for c in classes})
+    return out
+
+
+def schema_problems(present, sets=None):
+    """Purpose: how a domain's schema disagrees with fabric's (2.1.10.33, manual 1.10.4.31): one of fabric's names
+             under another OID, or one of fabric's OIDs under another name (a lab domain that ran a pre-release
+             build, where class 7 was the VLAN record). A name fabric does not know on an OID it does not give (a
+             later release's) is no disagreement.
+    Inputs:  present — _present's dict (name -> OID); sets — SETS' shape (default SETS).
+    Returns: list of str, one per disagreement, sorted (empty: the schema agrees).
+    Fails:   never.
+    Feeds:   ensure_schema."""
+    want = wanted_oids(sets)
+    owner = {oid: name for name, oid in want.items()}
+    out = []
+    for name, oid in sorted(present.items()):
+        if name in want and oid and oid != want[name]:
+            out.append(f"{name} is {oid} here, {want[name]} in fabric")
+        elif name not in want and oid in owner:
+            out.append(f"{oid} is {name} here, {owner[oid]} in fabric")
+    return out
 
 
 def ensure_schema(conf):
-    """Purpose: fabric's and sudo's attributes and classes in AD's schema (manual 1.6.3.5), each added once and never
-             changed afterwards (a schema extension is permanent: a new need is a new OID).
+    """Purpose: fabric's and sudo's attributes and classes in AD's schema (manual 1.6.3.5, 1.10.4.31), each added once
+             and never changed afterwards (a schema extension is permanent: a new need is a new OID), after a check
+             that the schema agrees with fabric's numbers.
     Inputs:  conf — str, the DC's smb.conf.
     Returns: list of str, the lDAPDisplayNames added (empty when the schema already has them).
-    Fails:   ldb.LdbError from an addition the schema refuses (nothing after it is added).
+    Fails:   RuntimeError "this domain's schema disagrees with fabric's: …", before anything is added; ldb.LdbError
+             from an addition the schema refuses (nothing after it is added).
     Feeds:   converge.
     Notes:   two sessions, as Q3 proved necessary: the attributes, a schema reload, then (with a fresh connection)
              the classes that use them."""
@@ -79,6 +143,11 @@ def ensure_schema(conf):
         samdb, _ = open_samdb(conf, schema_updates=True)
         schema_dn = str(samdb.get_schema_basedn())
         have = _present(samdb, schema_dn)
+        if part == "attributes":
+            wrong = schema_problems(have)
+            if wrong:
+                raise RuntimeError(f"this domain's schema disagrees with fabric's: {'; '.join(wrong)}; the domain "
+                                   "ran a pre-release build: install it fresh (manual 3.2.4)")
         for attr_arc, class_arc, attrs, classes in SETS.values():
             if part == "attributes":
                 for name, n, (syntax, om), single in attrs:
@@ -90,7 +159,7 @@ def ensure_schema(conf):
                                "isSingleValued": "TRUE" if single else "FALSE", "searchFlags": "1"})
                     added.append(name)
                 continue
-            for name, n, category, must, may in classes:
+            for name, n, category, must, may, *superiors in classes:
                 if name in have:
                     continue
                 msg = {"dn": f"CN={_cn(name)},{schema_dn}", "objectClass": ["top", "classSchema"],
@@ -102,7 +171,7 @@ def ensure_schema(conf):
                 if may:
                     msg["mayContain"] = may
                 if category == 1:
-                    msg["possSuperiors"] = ["organizationalUnit", "container"]
+                    msg["possSuperiors"] = superiors[0] if superiors else ["organizationalUnit", "container"]
                     msg["defaultSecurityDescriptor"] = DEFAULT_SD
                 samdb.add(msg)
                 added.append(name)

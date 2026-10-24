@@ -5,6 +5,7 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.common.paths import AUDIT_FILE, FEDERATION_FILE, FEDERATION_LOCK_FILE
 from fabriclib.common.write_audit import write_audit
 from fabriclib.federation.common.federation_lock import federation_lock
+from fabriclib.federation.common.console_url import console_url
 from fabriclib.federation.common.fetch_pinned_root import fetch_pinned_root
 from fabriclib.federation.common.load_registry import load_registry
 from fabriclib.federation.common.post_upstream import post_upstream
@@ -89,7 +90,7 @@ def join_upstream(v, invitation, password, work_dir, domain, address, config_dir
                            {"id": inv["id"], "secret": inv["secret"], "site": inv["site"], "csr": req["csr"],
                             "domain": domain, "address": address, "federation_host": f"federation.{domain}",
                             "via": inv["via"], "dns_port": int(dns_port), "networks": site_networks(v),
-                            "host_name": str(v.get("hostname") or "")},
+                            "host_name": str(v.get("hostname") or ""), "console": console_url(v)},
                            port=https_port)
     if not isinstance(answer, dict) or answer.get("root", "").strip() != root.strip():
         raise ValidationError("the upstream answered with a different root")

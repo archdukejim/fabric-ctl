@@ -111,3 +111,4 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `pending_counts.py` | The person's pending changes per page and the pages with an apply running. Agent route: GET /v1/pending. |
 | `pending_page.py` | A page's Review: the person's changes, the page's queue, results shown once. Agent route: GET /v1/pending/<page>. |
 | `pending_action.py` | Apply a page's changes as one job, discard them, or drop one. Agent routes: POST /v1/pending/<page>/apply, /discard, /drop. |
+| `site_tree.py` | The top bar's site selector: every site nested under its parent, its console and health. Agent route: GET /v1/sites/tree. |
