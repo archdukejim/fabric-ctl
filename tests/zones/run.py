@@ -177,6 +177,16 @@ try:
     up = until(lambda: "10.9.8.7" in short(BIND_IP, "www.lan.test"))
     check("BIND starts from fabric's rendered configuration and serves the site's zone", up,
           sh("docker logs --tail 30 bind9", ok=False).stderr)
+    # a zone list installed without `rndc reconfig` (an apply stopped after BIND's files, 2.3.10.11.16): found, so
+    # the next apply reconfigures; a zone BIND serves is not named
+    from fabriclib.dns.zones_bind_lacks import zones_bind_lacks  # noqa: E402
+    lack_dir = f"{W}/lacks"
+    os.makedirs(lack_dir, exist_ok=True)
+    for name in ("db.lan.test", "db.not-listed.test"):
+        open(os.path.join(lack_dir, name), "w").close()
+    lacking = zones_bind_lacks(lack_dir)
+    check("a zone with a file that the running BIND does not know is found (the next apply reconfigures BIND); "
+          "one it serves is not", lacking == ["not-listed.test"], lacking)
     r = lib("import json\nfrom fabriclib.common.jinja_env import jinja_env\nfrom fabriclib.common.load_vars import "
             "load_vars\nfrom fabriclib.secrets.load_secrets import load_secrets\nfrom fabriclib.deploy.render_vars "
             "import render_vars\nfrom fabriclib.dns_filter.deploy_resolver import deploy_resolver\n"

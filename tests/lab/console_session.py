@@ -141,14 +141,21 @@ class Console:
     def apply(self, page_id):
         """Purpose: Apply a page's held changes (manual 1.8.6.5) and wait on its Review until the job ends.
         Inputs:  page_id — "networks" or "options".
-        Returns: (status, the Review page once it no longer refreshes; up to 4 minutes).
+        Returns: (status, the Review page once it no longer refreshes, after it was seen refreshing or 10 s passed;
+                 up to 4 minutes). The first look can come before the new job shows (the queue then shows the last
+                 one, not refreshing): returning then let the next step meet the apply still running.
         Fails:   OSError as request."""
         st, _, page = self.request("POST", f"https://{self.mgr}/changes/{page_id}/apply", {"csrf": self.csrf()})
         if st != 303:
             return st, page
-        for _ in range(120):
+        running = False
+        for i in range(120):
             st, _, page = self.get(f"/changes/{page_id}")
-            if st != 200 or 'http-equiv="refresh"' not in page:
+            if st != 200:
+                return st, page
+            if 'http-equiv="refresh"' in page:
+                running = True
+            elif running or i >= 5:
                 return st, page
             time.sleep(2)
         return st, page

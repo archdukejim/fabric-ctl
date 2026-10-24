@@ -118,6 +118,16 @@ check("Kea checked them first (kea-dhcp4 -t) and accepted: options, a client cla
       and "libdhcp_ddns_tuning.so" in cfg4 and '"SKIP_DDNS"' in cfg4.split('"10.254.23.44"')[1].split("}")[0]
       and '"SKIP_DDNS"' not in cfg4.split('"10.254.23.42"')[1].split("}")[0]
       and '"vlan": 23' in cfg4 and '"boot-test"' in cfg4)
+# why the file goes in on stdin: fabric-agent (every console apply) runs with a private /tmp, which the Docker daemon
+# cannot see; a mounted temp folder made Kea refuse every console apply that changed its file (2.3.10.11.16)
+priv = subprocess.run(["unshare", "--mount", "--propagation", "private", "sh", "-c",
+                       'mount -t tmpfs none /tmp && exec "$0" -c "$1"', sys.executable,
+                       f"import sys; sys.path[0:0] = [{os.path.join(REPO, 'src')!r}]; "
+                       "from fabriclib.dhcp.check_kea_config import check_kea_config; "
+                       "print(check_kea_config('fabric/kea:test', 'kea-dhcp4.conf', sys.stdin.read()))"],
+                      input=cfg4, capture_output=True, text=True, timeout=120)
+check("Kea's check works from a process with a private /tmp, as fabric-agent runs (the console's applies)",
+      priv.stdout.strip() == "True", priv.stdout + priv.stderr)
 bad_v = {**V, "dhcp": normalize_dhcp({**V, "dhcp": {**V["dhcp"], "options": [{"name": "no-such-option", "data": "1"}]}})}
 try:
     deploy_kea(bad_v, {"kea_ddns_secret": secret}, env, 53, 53)

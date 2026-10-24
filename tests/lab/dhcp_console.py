@@ -120,6 +120,8 @@ st, _, page = carol.get(f"/networks?site={SITE}")
 check("carol sees Networks without its forms", st == 200 and "10.88.10.0/24" in page
       and f'action="/networks/plan/{SITE}/vlans"' not in page, page[:300])
 st, msg, page = carol.post(f"/networks/plan/{SITE}/vlans", {"id": "41", "name": "x", "no_subnet": "on"})
-check("carol's posted change is refused (403), nothing held", st == 403, (st, msg))
+check("carol's posted change is refused, saying she needs dhcp:write (the console's refusal: back with why; a "
+      "page she may not see is the 403, 1.8.6.11), nothing held", msg[0] == "bad" and "dhcp:write" in msg[1]
+      and "Waiting for Apply" not in page, (st, msg))
 
 sys.exit(1 if FAILED else 0)

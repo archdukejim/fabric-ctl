@@ -20,6 +20,7 @@ from fabriclib.deploy.render_deployment import render_deployment
 from fabriclib.deploy.renew_landing_cert import renew_landing_cert
 from fabriclib.deploy.restart_changed import restart_changed
 from fabriclib.deploy.verify_published_images import verify_published_images
+from fabriclib.dhcp.check_kea_files import check_kea_files
 from fabriclib.dhcp.keep_hand_set_addresses import keep_hand_set_addresses
 from fabriclib.federation.deploy_federation_endpoint import deploy_federation_endpoint
 from fabriclib.ipam.options.watch_state import save_watch_state
@@ -37,6 +38,8 @@ def _deploy(paths, start_services):
     units, out = p["units"], paths["render"]
     if verify_published_images(paths, final_vars):  # nothing installed yet: a refusal changes nothing
         print("Signatures of fabric's published images: verified")
+    if final_vars.get("install_kea"):               # Kea checks its files before anything is installed (2.3.10.11.16)
+        check_kea_files(final_vars, secrets, jinja_env)
 
     print("Deploying configurations...")
     install_fabric_tree(paths, final_vars)

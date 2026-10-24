@@ -52,7 +52,12 @@ kea_has() { F "grep -q '\"subnet\": \"$1\"' /opt/kea/config/kea-dhcp4.conf"; }
 kub_ip() { on "$KUB" "ip -4 -o addr show eth1 2>/dev/null | awk '{print \$4}' | cut -d/ -f1 | head -1"; }
 kub_renew() { on "$KUB" "sudo networkctl reconfigure eth1" >/dev/null; }   # a new DISCOVER
 win_ip() { W "(Get-NetIPAddress -InterfaceAlias '$WIN_IF' -AddressFamily IPv4).IPAddress" | tr -d '\r' | head -1; }
-dns() { F "dig +short $1 @$FABRIC" | tr -d '\r' | head -1; }
+# Registrations are polled at BIND itself (10.255.0.30, the authoritative server): the filtering resolver at host_ip
+# caches every answer, an early NXDOMAIN for 300 s (the DHCP zones' negative TTL), so polling it waits on its cache
+# (2.3.10.11.16). Each client's name is resolved once through the resolver as well (rdns), after BIND has it.
+BIND=10.255.0.30
+dns() { F "dig +short $1 @$BIND" | tr -d '\r' | head -1; }
+rdns() { F "dig +short $1 @$FABRIC" | tr -d '\r' | head -1; }
 wait_for() { # $1 seconds, $2 condition (eval): true once it holds
     local i; for ((i = 0; i < $1; i += 3)); do (eval "$2") && return 0; sleep 3; done; return 1
 }
@@ -107,8 +112,9 @@ echo "--- kub26-1 on VLAN 10 (its eth1 asks DHCP by itself: the image's zzzz-dra
 kub_renew; wait_for 60 'in_range "$(kub_ip)" 10.88.10.100 10.88.10.199'; KIP=$(kub_ip)
 check "kub26-1: a lease from VLAN 10's pool through the relay ($KIP)" "in_range '$KIP' 10.88.10.100 10.88.10.199"
 KNAME="g23-vm-kub26-1.dhcp.$DOMAIN"
-check "kub26-1: its name $KNAME resolves to its lease, at fabric" "wait_for 30 '[ \"\$(dns $KNAME)\" = \"$KIP\" ]'"
+check "kub26-1: its name $KNAME is registered at its lease, in BIND" "wait_for 30 '[ \"\$(dns $KNAME)\" = \"$KIP\" ]'"
 check "kub26-1: its PTR names it" "wait_for 30 '[ \"\$(dns \"-x $KIP\")\" = \"$KNAME.\" ]'"
+check "kub26-1: its name resolves through fabric's resolver (host_ip)" "[ \"\$(rdns $KNAME)\" = '$KIP' ]"
 check "kub26-1: told fabric (host_ip) as its DNS server" "on $KUB 'resolvectl dns eth1' | grep -q '$FABRIC'"
 echo "--- w11-1 on VLAN 20, the router answering at 10.88.20.100 (ping-check)"
 alias_on
@@ -119,7 +125,8 @@ check "ping-check: 10.88.20.100, which answers, was not offered" "[ '$WIP' != 10
 F "fabricctl dhcp leases" > "$OUT/leases.txt" 2>&1
 check "ping-check: 10.88.20.100 shown declined in the leases" "grep '^10.88.20.100 ' '$OUT/leases.txt' | grep -q declined"
 WNAME="g23-vm-w11-1.dhcp.$DOMAIN"
-check "w11-1: its name $WNAME resolves to its lease" "wait_for 30 '[ \"\$(dns $WNAME)\" = \"$WIP\" ]'"
+check "w11-1: its name $WNAME is registered at its lease, in BIND" "wait_for 30 '[ \"\$(dns $WNAME)\" = \"$WIP\" ]'"
+check "w11-1: its name resolves through fabric's resolver (host_ip)" "[ \"\$(rdns $WNAME)\" = '$WIP' ]"
 check "w11-1: its PTR names it" "wait_for 30 '[ \"\$(dns \"-x $WIP\")\" = \"$WNAME.\" ]'"
 check "w11-1: told fabric (host_ip) as its DNS server" \
     "W \"(Get-DnsClientServerAddress -InterfaceAlias '$WIN_IF' -AddressFamily IPv4).ServerAddresses\" | grep -q '$FABRIC'"

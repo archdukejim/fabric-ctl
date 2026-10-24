@@ -22,6 +22,7 @@ seconds (`publish_zone_list.py`).
 | `merge_dynamic_records.py` | Kea's PTR and DHCID records from the file being replaced, merged into fabric's regenerated reverse zone (2.1.10.7) |
 | `reload_zone.py` | Swap a zone under a running BIND (freeze/thaw, or reload for static zones) until it serves the new serial |
 | `served_serial.py` | The SOA serial BIND serves for a zone now (`rndc zonestatus`) |
+| `zones_bind_lacks.py` | The zones a running BIND does not know though fabric has their files (a zone list installed but never reconfigured): the apply then reconfigures BIND |
 | `apply_dns.py` | DNS' own Apply (2.1.8.24): everything rendered, only BIND's files and the landing page installed, `rndc reconfig` and the changed zones swapped in, health-gated |
 | `list_zones.py` | Zones with record counts (flagging hand-written reverse zones) |
 | `ptr_for_ip.py` | Reverse zone and PTR label for an address — or why it gets none (public, loopback, link-local) |

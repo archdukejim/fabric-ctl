@@ -289,6 +289,7 @@ file	fabriclib-dhcp|src/fabriclib/dhcp/add_client_class.py	1
 file	fabriclib-dhcp|src/fabriclib/dhcp/add_reservation.py	2	
 file	fabriclib-dhcp|src/fabriclib/dhcp/add_subnet.py	3	
 file	fabriclib-dhcp|src/fabriclib/dhcp/check_kea_config.py	4	
+file	fabriclib-dhcp|src/fabriclib/dhcp/check_kea_files.py	41	
 file	fabriclib-dhcp|src/fabriclib/dhcp/clean_dhcp_names.py	34	
 file	fabriclib-dhcp|src/fabriclib/dhcp/clear_stale_dhcp_names.py	35	
 file	fabriclib-dhcp|src/fabriclib/dhcp/client_networks.py	28	
@@ -468,6 +469,7 @@ file	fabriclib-dns|src/fabriclib/dns/validate_record.py	29
 file	fabriclib-dns|src/fabriclib/dns/zone_content_changed.py	30	
 file	fabriclib-dns|src/fabriclib/dns/zone_detail.py	31	
 file	fabriclib-dns|src/fabriclib/dns/zone_name.py	32	
+file	fabriclib-dns|src/fabriclib/dns/zones_bind_lacks.py	47	
 file	fabriclib-domain|src/fabriclib/domain/change_own_password.py	1	
 file	fabriclib-domain|src/fabriclib/domain/create_group.py	2	
 file	fabriclib-domain|src/fabriclib/domain/create_ou.py	3	
@@ -1956,6 +1958,7 @@ function	fabriclib-dhcp|src/fabriclib/dhcp/add_client_class.py|add_client_class	
 function	fabriclib-dhcp|src/fabriclib/dhcp/add_reservation.py|add_reservation	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/add_subnet.py|add_subnet	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/check_kea_config.py|check_kea_config	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/check_kea_files.py|check_kea_files	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/clean_dhcp_names.py|clean_dhcp_names	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/clear_stale_dhcp_names.py|_first_line	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/clear_stale_dhcp_names.py|_served_zone	2	
@@ -2221,6 +2224,7 @@ function	fabriclib-dns|src/fabriclib/dns/validate_record.py|validate_record	3
 function	fabriclib-dns|src/fabriclib/dns/zone_content_changed.py|zone_content_changed	1	
 function	fabriclib-dns|src/fabriclib/dns/zone_detail.py|zone_detail	1	
 function	fabriclib-dns|src/fabriclib/dns/zone_name.py|zone_name	1	
+function	fabriclib-dns|src/fabriclib/dns/zones_bind_lacks.py|zones_bind_lacks	1	
 function	fabriclib-domain|src/fabriclib/domain/change_own_password.py|change_own_password	1	
 function	fabriclib-domain|src/fabriclib/domain/create_group.py|create_group	1	
 function	fabriclib-domain|src/fabriclib/domain/create_ou.py|create_ou	1	

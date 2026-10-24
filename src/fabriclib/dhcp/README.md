@@ -17,6 +17,7 @@ zone `dhcp.<domain>` through kea-dhcp-ddns.
 | `kea_option_defs.py` | Kea's option-def list |
 | `kea_client_classes.py` | Kea's client-classes list |
 | `check_kea_config.py` | Kea's own check (`kea-dhcp4 -t`) of a configuration before it is saved or installed |
+| `check_kea_files.py` | Kea's two files rendered and checked before an apply installs anything, so a refusal changes nothing |
 | `set_dhcp_on.py` | Turn DHCP on (its first subnet when it has none) or off, settings and leases kept (manual 1.10.3.5) |
 | `add_subnet.py` | Add a subnet (name, VLAN record, router, pools, notes) with the next id |
 | `update_subnet.py` | Change a subnet's name, VLAN, router, notes or pools (its network and id stay) |
