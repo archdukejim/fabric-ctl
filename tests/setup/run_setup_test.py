@@ -38,6 +38,7 @@ def no_questions(ctx):
 
 
 rsu.choose_mode = no_questions
+rsu.require_terminal = lambda non_interactive: None     # routing only: the terminal check is require_terminal_test's
 calls = []
 rsu.follow_run = lambda config_dir: calls.append(("follow", config_dir)) or 7
 rsu.resume_run = lambda ctx, steps, last, remaining, join=None: calls.append(("resume", remaining)) or 5

@@ -882,6 +882,7 @@ file	fabriclib-setup|src/fabriclib/setup/preflight.py	22
 file	fabriclib-setup|src/fabriclib/setup/print_first_steps.py	44	
 file	fabriclib-setup|src/fabriclib/setup/read_join_invitation.py	23	
 file	fabriclib-setup|src/fabriclib/setup/renew_service_certs.py	24	
+file	fabriclib-setup|src/fabriclib/setup/require_terminal.py	106	
 file	fabriclib-setup|src/fabriclib/setup/restore_install.py	25	
 file	fabriclib-setup|src/fabriclib/setup/retire_adguard.py	83	0.7.2 / 2026-10-20
 file	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py	26	0.7.2 / 2026-10-20
@@ -901,6 +902,7 @@ file	fabriclib-setup|src/fabriclib/setup/upgrade_vars.py	36
 file	fabriclib-setup|src/fabriclib/setup/verify_install.py	37	
 file	fabriclib-setup|src/fabriclib/setup/wait_ready.py	81	
 file	fabriclib-system|src/fabriclib/system/apply_changes.py	1	
+file	fabriclib-system|src/fabriclib/system/apply_failure.py	15	
 file	fabriclib-system|src/fabriclib/system/common/parse_mem_mb.py	10	
 file	fabriclib-system|src/fabriclib/system/control_stack.py	2	
 file	fabriclib-system|src/fabriclib/system/host_networks.py	9	
@@ -2682,6 +2684,7 @@ function	fabriclib-setup|src/fabriclib/setup/print_first_steps.py|print_first_st
 function	fabriclib-setup|src/fabriclib/setup/read_join_invitation.py|read_join_invitation	1	
 function	fabriclib-setup|src/fabriclib/setup/renew_service_certs.py|_record	2	
 function	fabriclib-setup|src/fabriclib/setup/renew_service_certs.py|renew_service_certs	1	
+function	fabriclib-setup|src/fabriclib/setup/require_terminal.py|require_terminal	1	
 function	fabriclib-setup|src/fabriclib/setup/restore_install.py|restore_install	1	
 function	fabriclib-setup|src/fabriclib/setup/retire_adguard.py|retire_adguard	1	0.7.2 / 2026-10-20
 function	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py|retire_renamed_units	1	0.7.2 / 2026-10-20
@@ -2719,6 +2722,7 @@ function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|probes	3
 function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|run	5	
 function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|wait_ready	4	
 function	fabriclib-system|src/fabriclib/system/apply_changes.py|apply_changes	1	
+function	fabriclib-system|src/fabriclib/system/apply_failure.py|apply_failure	1	
 function	fabriclib-system|src/fabriclib/system/common/parse_mem_mb.py|parse_mem_mb	1	
 function	fabriclib-system|src/fabriclib/system/control_stack.py|control_stack	1	
 function	fabriclib-system|src/fabriclib/system/host_networks.py|host_networks	1	

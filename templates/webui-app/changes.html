@@ -22,7 +22,7 @@
 {% for a in d.queue %}<h3 class="small">{{ a.owner }} · {{ a.state }}</h3>
 <table class="list"><thead><tr><th></th><th>Change</th><th>State</th></tr></thead><tbody>
 {% for i in a["items"] %}<tr><td>{{ p.light({'done': 'ok', 'failed': 'bad', 'running': 'warn'}.get(i.state, ''), i.state) }}</td><td data-label="Change">{{ i.what }}</td>
-<td data-label="State" class="qstate">{{ i.state }}{% if i.why %} — {{ i.why }}{% endif %}</td></tr>{% endfor %}
+<td data-label="State" class="qstate{% if i.why %} qwhy{% endif %}">{{ i.state }}{% if i.why %} — {{ i.why }}{% endif %}</td></tr>{% endfor %}
 </tbody></table>{% endfor %}
 </section>{% endif %}
 {% endblock %}
