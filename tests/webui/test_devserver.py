@@ -711,6 +711,8 @@ with serve():
     check("Apply stops at the first failure and says which: the removal without its name typed back; the rest done",
           "type the user name" in page and page.count("— failed") + page.count("failed — ") >= 1
           and len(change_ids(page)) == 1 and "Remove sam" in page, page[-3000:])
+    check("...its row says failed once, then the reason as given (no doubled \"failed — failed:\")",
+          "failed — failed:" not in page and "failed — " in page, page[-3000:])
     page = get("/directory/people/sam")
     check("...applied: sam's title and country changed, enabled, in directory-admins; lee unlocked",
           "Technician" in page and ">GB<" in page and 'aria-label="active"' in page and "directory-admins" in page

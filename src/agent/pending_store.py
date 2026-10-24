@@ -171,7 +171,7 @@ class PendingStore:
                 try:
                     result = self.run(change["route"], actor, change["body"], perms, session)
                 except ValidationError as exc:
-                    self._stop(entry, item, f"failed: {exc}")
+                    self._stop(entry, item, str(exc))     # the row says failed; its reason as given
                     break
                 with self.lock:
                     self.changes = [c for c in self.changes if c["id"] != change["id"]]
@@ -189,7 +189,7 @@ class PendingStore:
                     said = last[1](actor)
                     self._mark(item, "done", said if isinstance(said, str) else "")
                 except ValidationError as exc:
-                    self._stop(entry, item, f"failed: {exc}")
+                    self._stop(entry, item, str(exc))     # the row says failed; its reason as given
         except Exception:                # an unexpected error: the job's error; the queue says so too
             with self.lock:
                 entry["state"] = "failed"
@@ -221,7 +221,8 @@ class PendingStore:
 
     def _stop(self, entry, item, why):
         """Purpose: The apply stopped at this change, with why.
-        Inputs:  entry — the queue entry; item — the change's item; why — str.
+        Inputs:  entry — the queue entry; item — the change's item; why — str, the reason as the change or the
+                 finish gave it (the row's state already says "failed": no prefix of its own).
         Returns: None.
         Fails:   never.
         Feeds:   _run_all."""
