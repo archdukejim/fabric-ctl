@@ -254,10 +254,16 @@ with serve():
           and 'href="/dns/zones?view=new"' in main and 'action="/apply"' not in page, table[:800])
     review = get("/changes/zones")
     check("DNS' Review: the change, and what its Apply does after it (BIND alone and the landing page)",
-          "Add A record preview" in review and "192.168.1.99" in review, review.split("<main", 1)[1][:2000])
+          "Add A record preview" in review and "192.168.1.99" in review and "target: </span>" not in review,
+          review.split("<main", 1)[1][:2000])   # an empty field is not listed
+    check("DNS' Review says up front that its Apply issues no certificate, and where a full apply is needed "
+          "(2.1.8.29)", "it issues no certificate" in review and "sudo fabricctl --apply" in review)
     page = dns_apply()
     check("...applied: done, the record served (in memory)", "done" in page
           and "192.168.1.99" in get("/dns/zones?zone=dynamic_zone_var"), page.split("<main", 1)[1][:2000])
+    check("...its publish row says the landing page's certificate waits for a full apply (the agent's words, 2.1.8.29)",
+          "done — the landing page&#39;s certificate" in page and "issues it again" in page,
+          page.split("<main", 1)[1][:2000])
     page = get("/dns/zones?zone=dynamic_zone_var")
     idx = re.search(r'<option value="A\|(\d+)\|preview">', page)
     st, loc, page = post("/bind9/zone/dynamic_zone_var/delete", {"record": f"A|{idx.group(1) if idx else '-1'}|preview"})
@@ -487,8 +493,11 @@ with serve():
     check("removing a TSIG key: held for DNS' Apply, back on TSIG keys, said", loc == "/dns/zones?view=tsig"
           and "Waiting for Apply: Remove TSIG key preview-key" in flash(page) and "preview-key" in page,
           (loc, flash(page)))
-    post("/changes/zones/apply", {})
+    page = post("/changes/zones/apply", {})[2]
     check("...applied: gone", "preview-key" not in get("/dns/zones?view=tsig"))
+    check("...a key's removal touches no name of the landing page: no certificate note on its row",
+          "certificate" not in page.split("<h3", 2)[1] if page.count("<h3") >= 1 else False,
+          page.split("<main", 1)[1][:1500])
     post("/bind9/tsig/ghost/delete", {})
     page = post("/changes/zones/apply", {})[2]
     check("removing a TSIG key that is not there is refused at Apply, named", "no TSIG key named &#39;ghost&#39;" in page,
