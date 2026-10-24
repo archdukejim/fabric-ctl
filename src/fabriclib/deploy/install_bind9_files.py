@@ -4,6 +4,7 @@ from fabriclib.common.copy_tree_with_perms import copy_tree_with_perms
 from fabriclib.common.ensure_dir import ensure_dir
 from fabriclib.common.service_user import service_user
 from fabriclib.dns.find_changed_zones import find_changed_zones
+from fabriclib.dns.served_serial import served_serial
 
 
 def install_bind9_files(paths, final_vars):
@@ -20,7 +21,7 @@ def install_bind9_files(paths, final_vars):
         ensure_dir(os.path.join(base, "bind9", d), 0o750, uid, gid)
     config = copy_tree_with_perms(os.path.join(out, "bind9/config"), os.path.join(base, "bind9/config"),
                                   uid, gid, 0o640, 0o750)
-    zones = find_changed_zones(os.path.join(out, "bind9/data"), os.path.join(base, "bind9/data"))
+    zones = find_changed_zones(os.path.join(out, "bind9/data"), os.path.join(base, "bind9/data"), served=served_serial)
     for secret_file in ("named.conf.keys", "rndc.key"):
         os.chmod(os.path.join(base, "bind9/config", secret_file), 0o600)
     return {"config": config, "zones": zones}

@@ -175,6 +175,35 @@ with tempfile.TemporaryDirectory() as d:
     open(bumped_src, "w").write(ZONE.format(serial=2000000900, records="5 PTR c.lan.test."))
     reload_zone("1.20.10.in-addr.arpa", bumped_src, bumped_dst, os.getuid(), os.getgid())
     checks["a serial above BIND's is left as rendered"] = file_serial(bumped_dst) == "2000000900"
+# A deployed file BIND did not load (it refused it and kept its older copy, the zone left frozen: 2.3.10.11.16, the
+# lab) is found and swapped again, though fabric's records did not change; a dynamic zone BIND serves above its file
+# is not; and a zone found frozen is thawed, never left so.
+with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dst:
+    for d in (src, dst):
+        open(os.path.join(d, "db.9.20.10.in-addr.arpa"), "w").write(ZONE.format(serial=300, records="5 PTR x.lan.test."))
+    checks["a zone BIND serves below its deployed file's serial is swapped again (BIND did not load it)"] = \
+        [z for z, _, _ in find_changed_zones(src, dst, served=lambda z: "100")] == ["9.20.10.in-addr.arpa"]
+    checks["a dynamic zone BIND serves above its file (Kea's updates) is not"] = \
+        find_changed_zones(src, dst, served=lambda z: "350") == []
+    checks["BIND not answering changes nothing"] = find_changed_zones(src, dst, served=lambda z: None) == []
+    real_rndc, before = reload_zone_module.rndc, len(calls)
+
+    def frozen_rndc(args, timeout=15):
+        if args[0] == "freeze" and args[-1] == "9.20.10.in-addr.arpa":
+            calls.append(" ".join(args))
+            r = R(1)
+            r.stderr = "rndc: 'freeze' failed: already frozen"
+            return r
+        return real_rndc(args, timeout)
+    reload_zone_module.rndc = frozen_rndc
+    try:
+        DST["dir"] = dst
+        reload_zone("9.20.10.in-addr.arpa", os.path.join(src, "db.9.20.10.in-addr.arpa"),
+                    os.path.join(dst, "db.9.20.10.in-addr.arpa"), os.getuid(), os.getgid())
+    finally:
+        reload_zone_module.rndc = real_rndc
+    checks["a zone found frozen ('already frozen') is thawed after the swap, not reloaded and left frozen"] = \
+        "thaw 9.20.10.in-addr.arpa" in calls[before:] and "reload 9.20.10.in-addr.arpa" not in calls[before:]
 for name, passed in checks.items():
     print(("PASS " if passed else "FAIL ") + "DHCP's PTRs: " + name)
     ok &= passed

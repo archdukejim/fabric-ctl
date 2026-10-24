@@ -14,6 +14,7 @@ from fabriclib.deploy.merge_tsig_keys import merge_tsig_keys
 from fabriclib.deploy.render_templates import BIND_CONFIG
 from fabriclib.deploy.render_vars import render_vars
 from fabriclib.dns.find_changed_zones import find_changed_zones
+from fabriclib.dns.served_serial import served_serial
 from fabriclib.dns.install_zone_file import install_zone_file
 from fabriclib.dns.reload_zone import reload_zone
 from fabriclib.dns.rndc import rndc
@@ -100,7 +101,7 @@ def publish_plan_records(secrets=None, rndc_call=rndc, reload=reload_zone, resol
     out = tempfile.mkdtemp(prefix="fabric-sync-")
     try:
         conf = _render(env, context, final_vars, checked["reverse"], out)
-        changed = find_changed_zones(out, data)
+        changed = find_changed_zones(out, data, served=lambda z: served_serial(z, rndc_call))
         new = [c for c in changed if not os.path.exists(c[2])]
         config_changed = False
         for name, text in conf.items():     # the keys and rndc's key are secrets: 0600 (install_bind9_files)
