@@ -1,7 +1,8 @@
 // Kea DHCP-DDNS — rendered by fabricctl (fabric/jinja/kea/kea-dhcp-ddns.conf.j2).
 // Names in dhcp.<domain> (design 2.1.4.1), PTRs in the reverse zones of the pools and reservations (2.1.10.7),
-// with the dedicated kea-ddns TSIG key only.
+// with Kea's own TSIG key only (kea-ddns until it is first replaced, 2.1.10.42).
 {% set d = dhcp | default({}) %}
+{% set key = kea_ddns_key | default('kea-ddns', true) %}
 {% set ddns_zone = (d.ddns_subdomain | default('dhcp')) ~ '.' ~ domain %}
 {
 "DhcpDdns": {
@@ -10,17 +11,17 @@
     // 3 s per update: BIND took 220-570 ms per signed update on the lab's VM, and 500 ms timed out (2.3.10.11.16)
     "dns-server-timeout": 3000,
     "control-socket": { "socket-type": "unix", "socket-name": "/var/run/kea/kea-ddns-ctrl-socket" },
-    "tsig-keys": [ { "name": "kea-ddns", "algorithm": "HMAC-SHA256", "secret": "{{ kea_ddns_secret }}" } ],
+    "tsig-keys": [ { "name": "{{ key }}", "algorithm": "HMAC-SHA256", "secret": "{{ kea_ddns_secret }}" } ],
     "forward-ddns": {
         "ddns-domains": [
-            { "name": "{{ ddns_zone }}.", "key-name": "kea-ddns",
+            { "name": "{{ ddns_zone }}.", "key-name": "{{ key }}",
               "dns-servers": [ { "ip-address": "{{ ip_bind9 }}", "port": 53 } ] }
         ]
     },
     "reverse-ddns": {
         "ddns-domains": [
 {% for zone in dhcp_reverse_zones | default([]) %}
-            { "name": "{{ zone }}.", "key-name": "kea-ddns",
+            { "name": "{{ zone }}.", "key-name": "{{ key }}",
               "dns-servers": [ { "ip-address": "{{ ip_bind9 }}", "port": 53 } ] }{{ ',' if not loop.last }}
 {% endfor %}
         ]

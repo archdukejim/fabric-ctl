@@ -227,9 +227,10 @@ def start_dhcp4():
 
 
 start_dhcp4()
+# kea-ddns as its compose file runs it: its run folder shared with the host (its control socket, 2.1.10.45)
 sh(f"docker run -d --name kt-ddns --network {NET} --ip {DDNS_IP} --user 915:915 --read-only "
-   f"--security-opt no-new-privileges:true --cap-drop ALL --tmpfs /tmp --tmpfs /run/kea:uid=915,gid=915 "
-   f"-v {W}/kea/config:/config:ro fabric/kea:test /usr/sbin/kea-dhcp-ddns -c /config/kea-dhcp-ddns.conf")
+   f"--security-opt no-new-privileges:true --cap-drop ALL --tmpfs /tmp -v {W}/kea/run-ddns:/run/kea "
+   f"-v {W}/kea/config:/config:ro fabric/kea:test {shlex.join(COMPOSE['kea-ddns']['command'])}")
 check("kea-dhcp4 runs and creates its control socket", until(lambda: os.path.exists(f"{W}/kea/run/kea4-ctrl-socket")),
       sh("docker logs kt-dhcp4", ok=False).stdout[-800:] + sh("docker logs kt-dhcp4", ok=False).stderr[-800:])
 

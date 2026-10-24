@@ -17,6 +17,9 @@ sys.path[0:0] = [os.path.join(REPO, "src")]
 from fabriclib.common.errors import ValidationError  # noqa: E402
 import fabriclib.ipam.run_ipam_command as m_cmd  # noqa: E402
 import fabriclib.ipam.sync.sync_plan as m_sync  # noqa: E402
+m_cmd.apply_intent = __import__("functools").partial(  # the apply intent in a folder of the test's own
+    __import__("fabriclib.common.apply_intent", fromlist=["x"]).apply_intent,
+    __import__("os").path.join(__import__("tempfile").mkdtemp(), ".apply.intent"))
 
 FAILED = 0
 
@@ -127,7 +130,7 @@ m_cmd.sync_plan = lambda v, actor, container="samba", secrets=None: {
     "dns": {"zones": ["lan.test"], "new": [], "config": False, "resolver": False}}
 code, o, e = cli("sync")
 check("fabricctl ipam sync: what the poll did and the zones published (exit 0)", code == 0
-      and "Kea restarted" in o and "firewall brought in line" in o and "DNS: published: lan.test" in o, (o, e))
+      and "Kea updated" in o and "firewall brought in line" in o and "DNS: published: lan.test" in o, (o, e))
 
 
 def busy(v, actor, container="samba", secrets=None):

@@ -64,7 +64,9 @@ services:
       driver: journald
       options:
         tag: "{{ '{{.Name}}' }}"
-    command: ["/usr/sbin/kea-dhcp-ddns", "-c", "/config/kea-dhcp-ddns.conf"]
+    # Its run folder is shared with the host too (the control socket: an apply reloads a changed file over it,
+    # 2.1.10.45), so a PID file left by the previous container is removed first, as for kea-dhcp4.
+    command: ["sh", "-c", "rm -f /run/kea/*.pid && exec /usr/sbin/kea-dhcp-ddns -c /config/kea-dhcp-ddns.conf"]
     user: "{{ service_users.kea.uid }}:{{ service_users.kea.gid }}"
     read_only: true
     security_opt:
@@ -73,15 +75,15 @@ services:
       - ALL
     tmpfs:
       - /tmp:noexec,nosuid,size=8m
-      - /run/kea:uid={{ service_users.kea.uid }},gid={{ service_users.kea.gid }},mode=0750,size=4m
     volumes:
       - {{ deploy_base_dir }}/kea/config:/config:ro
+      - {{ deploy_base_dir }}/kea/run-ddns:/run/kea
     networks:
       fabric_net:
         ipv4_address: "{{ ip_kea_ddns }}"
     mem_limit: {{ memory_mb('kea') }}m
     healthcheck:
-      test: ["CMD", "sh", "-c", "kill -0 1"]
+      test: ["CMD", "test", "-S", "/var/run/kea/kea-ddns-ctrl-socket"]
       interval: 30s
       timeout: 5s
       retries: 3

@@ -42,10 +42,11 @@ def _sync(h):
         return h.back("/networks", err=f"Sync now: {exc}")
     dns = res.get("dns")
     return h.back("/networks", msg=(
-        "Synced: " + ("Kea restarted" if res.get("kea_restarted") else "Kea already in line")
+        "Synced: " + ("Kea updated" if res.get("kea_restarted") else "Kea already in line")
         + ("; firewall brought in line" if res.get("firewall") else "")
         + ("; DNS published (" + (", ".join(dns.get("zones") or []) or "no zone changed") + ")" if dns
-           else "; DNS already in line") + "." + (" " + res["why"] if res.get("why") else "")))
+           else "; DNS already in line") + "." + (" " + res["why"] if res.get("why") else "")
+        + (" Warning: " + dns["flush_error"] + "." if dns and dns.get("flush_error") else "")))
 
 
 def networks_post(h, sess, parts, form):

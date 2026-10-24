@@ -312,6 +312,7 @@
 "cli:dhcp.option": "src/fabriclib/dhcp/run_dhcp_command.py"
 "cli:dhcp.remove-subnet": "src/fabriclib/dhcp/run_dhcp_command.py"
 "cli:dhcp.reserve": "src/fabriclib/dhcp/run_dhcp_command.py"
+"cli:dhcp.rotate-key": "src/fabriclib/dhcp/run_dhcp_command.py"
 "cli:dhcp.set-subnet": "src/fabriclib/dhcp/run_dhcp_command.py"
 "cli:dhcp.status": "src/fabriclib/dhcp/run_dhcp_command.py"
 "cli:dhcp.unreserve": "src/fabriclib/dhcp/run_dhcp_command.py"

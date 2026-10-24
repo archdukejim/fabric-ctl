@@ -513,6 +513,34 @@ dz = dz[:dz.index("};\n};") + 5]
 assert 'grant "kea-ddns" zonesub A AAAA DHCID;' in dz and dz.count("grant") == 1, dz
 keys = env.get_template('bind9/config/named.conf.keys.j2').render(**{**secrets, **kv, "tsig_keys": [], "tsig_secrets": {}})
 assert 'key "kea-ddns"' in keys and kv["kea_ddns_secret"] in keys
+# Kea's key being replaced (2.1.10.42): BIND knows the old key and the new, each granted the same, the old one's
+# denies kept too; Kea signs with the new one only; once dropped, only the new one is left
+rot = {**secrets, **kv, "tsig_keys": [], "tsig_secrets": {}, "kea_ddns_key": "kea-ddns-20261024",
+       "kea_ddns_secret": "bmV3LWtlYS1rZXktc2VjcmV0LTMyLWJ5dGVzLWxvbmchIQ==",
+       "kea_ddns_old": {"name": "kea-ddns", "secret": kv["kea_ddns_secret"], "made": "2025-11-01"},
+       "reverse_zone_names": ["7.168.192.in-addr.arpa"], "dhcp_reverse_zones": ["7.168.192.in-addr.arpa"],
+       "reverse_by_hand": {"7.168.192.in-addr.arpa": ["20"]}, "bind_acls": {"lan": ["any"]}}
+rkeys = env.get_template('bind9/config/named.conf.keys.j2').render(**rot)
+rzones = env.get_template('bind9/config/named.conf.zones.j2').render(**rot)
+assert 'key "kea-ddns-20261024"' in rkeys and rot["kea_ddns_secret"] in rkeys and 'key "kea-ddns"' in rkeys \
+    and kv["kea_ddns_secret"] in rkeys, rkeys
+for name in ("kea-ddns-20261024", "kea-ddns"):
+    assert f'grant "{name}" zonesub A AAAA DHCID;' in rzones and f'grant "{name}" zonesub PTR DHCID;' in rzones \
+        and f'deny "{name}" name 20.7.168.192.in-addr.arpa. ANY;' in rzones, (name, rzones)
+rev = rzones[rzones.index('zone "7.168.192.in-addr.arpa"'):]
+assert rev.index("deny") < rev.index("grant"), "every deny before the grants: the first match wins"
+rot_d2 = env.get_template("kea/kea-dhcp-ddns.conf.j2").render(**rot)
+rd2 = json.loads("\n".join(ln for ln in rot_d2.splitlines() if not ln.strip().startswith("//")))["DhcpDdns"]
+assert rd2["tsig-keys"] == [{"name": "kea-ddns-20261024", "algorithm": "HMAC-SHA256",
+                             "secret": rot["kea_ddns_secret"]}] \
+    and {d["key-name"] for d in rd2["forward-ddns"]["ddns-domains"] + rd2["reverse-ddns"]["ddns-domains"]} \
+    == {"kea-ddns-20261024"}, rd2
+done_keys = env.get_template('bind9/config/named.conf.keys.j2').render(**{**rot, "kea_ddns_old": None})
+assert 'key "kea-ddns-20261024"' in done_keys and 'key "kea-ddns"' not in done_keys \
+    and kv["kea_ddns_secret"] not in done_keys, done_keys
+assert 'grant "kea-ddns" ' not in env.get_template('bind9/config/named.conf.zones.j2').render(**{**rot,
+                                                                                                "kea_ddns_old": None})
+print("Kea's DNS key replaced (2.1.10.42): BIND knows both while it is, Kea signs with the new; the old one dropped")
 parent = env.get_template('bind9/data/zone.j2').render(**{**secrets, **kv, "zone_name": "lan.j-j.family",
                                                         "zone_records": kv["dns"]["dynamic_zone_var"]})
 assert re.search(r"^dhcp\s+NS\s+ns\.lan\.j-j\.family\.$", parent, re.M), "no delegation of the DHCP subzone"

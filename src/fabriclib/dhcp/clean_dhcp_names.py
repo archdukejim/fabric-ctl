@@ -4,6 +4,7 @@ import os
 from fabriclib.common.errors import ValidationError
 from fabriclib.dhcp.clear_stale_dhcp_names import clear_stale_dhcp_names
 from fabriclib.dhcp.common.hand_set_path import hand_set_path
+from fabriclib.dhcp.kea_key.kea_key import kea_key
 from fabriclib.secrets.load_secrets import load_secrets
 
 
@@ -25,5 +26,5 @@ def clean_dhcp_names(v, actor, source):
         raise ValidationError(f"no apply has kept the addresses set by hand yet ({path}): run `sudo fabricctl --apply`")
     with open(path) as f:
         addresses = json.load(f).get("addresses") or []
-    secret = load_secrets().get("kea_ddns_secret", "")
-    return {"removed": clear_stale_dhcp_names(v, addresses, secret, actor, source)}
+    key = kea_key(load_secrets())               # the key Kea signs with now (2.1.10.42)
+    return {"removed": clear_stale_dhcp_names(v, addresses, key["secret"], actor, source, key_name=key["name"])}

@@ -464,6 +464,8 @@ try:
                                      "pools": ["10.254.47.100 - 10.254.47.150"], "routers": "10.254.47.1"})
         v["dns"]["dynamic_zone_var"]["A"] += [{"name": "printer47", "ip": "10.254.47.9"},
                                               {"name": "nas45", "ip": "10.254.45.9"}]
+    # a client asks for the names before they exist: the filtering resolver caches the NXDOMAIN (2.3.10.11.16)
+    asked_before = (status(RES_IP, "printer47.lan.test", "A"), status(RES_IP, "nas45.lan.test", "A"))
     edit_vars(more)
     code = ("from fabriclib.dns.publish_plan_records import publish_plan_records\n"
             "try:\n    print('done', publish_plan_records())\nexcept Exception as e:\n    print('REFUSED', e)")
@@ -472,6 +474,32 @@ try:
           "done" in r.stdout and status(BIND_IP, REV47) == "NOERROR"
           and short(BIND_IP, f"9.{REV47}", "PTR") == "printer47.lan.test."
           and short(BIND_IP, "printer47.lan.test") == "10.254.47.9", r.stdout[-400:] + r.stderr[-600:])
+    check("Sync now: the filtering resolver forgets the names it had cached as missing; they resolve through it at "
+          "once (2.1.10.46)", asked_before == ("NXDOMAIN", "NXDOMAIN") and "'flushed': " in r.stdout
+          and "'flushed': 0" not in r.stdout and "'flush_error': None" in r.stdout
+          and short(RES_IP, "printer47.lan.test") == "10.254.47.9"
+          and short(RES_IP, "nas45.lan.test") == "10.254.45.9",
+          (asked_before, r.stdout[-400:], short(RES_IP, "printer47.lan.test")))
+    # without the flush the resolver keeps its NXDOMAIN: what the flush is for
+    late = status(RES_IP, "late47.lan.test", "A")
+    edit_vars(lambda v: v["dns"]["dynamic_zone_var"]["A"].append({"name": "late47", "ip": "10.254.47.19"}))
+    r = lib("from fabriclib.dns.publish_plan_records import publish_plan_records\n"
+            "print('done', publish_plan_records(flush=lambda v, names: {'flushed': 0, 'error': None}))")
+    kept = status(RES_IP, "late47.lan.test", "A")
+    flush = ("from fabriclib.dns_filter.flush_published_names import flush_published_names\n"
+             "print(flush_published_names({'install_resolver': True}, {'names': ['late47.lan.test.'], 'trees': []}))")
+    r2 = lib(flush)
+    check("negative: published without the flush, the resolver still answers its cached NXDOMAIN though BIND has "
+          "the name; flushed, it answers", late == "NXDOMAIN" and "done" in r.stdout
+          and short(BIND_IP, "late47.lan.test") == "10.254.47.19" and kept == "NXDOMAIN"
+          and "'flushed': 1" in r2.stdout and short(RES_IP, "late47.lan.test") == "10.254.47.19",
+          (late, kept, r.stdout[-300:], r2.stdout[-300:] + r2.stderr[-300:]))
+    sh("docker stop bind9-resolver")
+    r = lib(flush)
+    sh("docker start bind9-resolver")
+    check("negative: the resolver not answering: the flush says so, not raised", "'flushed': 0" in r.stdout
+          and "did not forget late47.lan.test" in r.stdout, r.stdout[-300:] + r.stderr[-300:])
+    until(lambda: status(RES_IP, "lan.test") == "NOERROR", 30)
     check("Sync now's quick path: a changed reverse zone reloaded with fabric's new PTR, Kea's PTR kept",
           short(BIND_IP, f"9.{REV45}", "PTR") == "nas45.lan.test."
           and short(BIND_IP, f"120.{REV45}", "PTR") == "laptop9.dhcp.lan.test.",

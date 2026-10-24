@@ -25,6 +25,9 @@ import fabriclib.ipam.sync.sync_plan as m_syncplan  # noqa: E402
 from agent.route_not_found import RouteNotFound  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.rbac.required_permission import required_permission  # noqa: E402
+m_route.apply_intent = __import__("functools").partial(  # the apply intent in a folder of the test's own
+    __import__("fabriclib.common.apply_intent", fromlist=["x"]).apply_intent,
+    __import__("os").path.join(__import__("tempfile").mkdtemp(), ".apply.intent"))
 
 FAILED = 0
 

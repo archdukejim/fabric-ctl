@@ -23,7 +23,8 @@ def deploy_optional_parts(paths, final_vars, secrets, jinja_env, links):
              existed keeps converging).
     Inputs:  paths — deploy_paths() (federation, config); final_vars — rendered settings; secrets; jinja_env; links —
              dns_links() (the linked sites' zones, which the resolver forwards to BIND).
-    Returns: {"restart": set of units to restart}.
+    Returns: {"restart": set of units to restart, "kea": the names of Kea's files that changed (deploy_kea's: the
+             apply reloads them, 2.1.10.45)}.
     Fails:   whatever the parts' deploy functions raise (ValidationError, OSError, CalledProcessError).
     Feeds:   apply_deployment."""
     restart = set()
@@ -52,9 +53,10 @@ def deploy_optional_parts(paths, final_vars, secrets, jinja_env, links):
                   "`sudo fabricctl setup --approve time` allows it)")
         elif deploy_chrony(final_vars, paths["federation"], jinja_env, config_dir=paths["config"]):
             print("  time: chrony configuration updated")
-    # Kea (optional): its configs (leases are kept across restarts) and the DHCP subzone, created once
-    if final_vars.get("install_kea") and deploy_kea(final_vars, secrets, jinja_env, *service_user(final_vars, "bind")):
-        restart.add("kea")
+    # Kea (optional): its configs and the DHCP subzone, created once; a changed file is reloaded, not restarted
+    kea = set()
+    if final_vars.get("install_kea"):
+        kea = deploy_kea(final_vars, secrets, jinja_env, *service_user(final_vars, "bind"))
     # FreeRADIUS (optional): config with the client secrets, fabric's policy code, CA bundle
     if final_vars.get("install_freeradius") and deploy_freeradius(final_vars, secrets, jinja_env):
         restart.add("freeradius")
@@ -62,4 +64,4 @@ def deploy_optional_parts(paths, final_vars, secrets, jinja_env, links):
     # the converge code, its resolver (a change restarts it)
     if deploy_samba(final_vars, secrets, jinja_env)["restart"]:
         restart.add("samba")
-    return {"restart": restart}
+    return {"restart": restart, "kea": kea}

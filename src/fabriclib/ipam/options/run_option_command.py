@@ -116,7 +116,7 @@ def run_option_command(v, cmd, args, secrets=None, container="samba"):
             out = poll_plan(v, container=container, secrets=secrets)
             if "--scheduled" not in bare or out["state"] in ("rendered", "no subnet"):
                 print(f"plan poll: {out['state']}" + (f" (USN {out['usn']})" if out.get("usn") else "")
-                      + ("; Kea restarted" if out.get("kea_restarted") else "")
+                      + ("; Kea updated" if out.get("kea_restarted") else "")
                       + ("; firewall brought in line" if out.get("firewall") else ""))
             if out.get("why"):
                 print(out["why"])

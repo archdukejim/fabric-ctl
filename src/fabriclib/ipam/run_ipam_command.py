@@ -1,5 +1,6 @@
 import sys
 
+from fabriclib.common.apply_intent import apply_intent
 from fabriclib.common.errors import ValidationError
 from fabriclib.dhcp.common.apply_dhcp_change import apply_dhcp_change
 from fabriclib.ipam.cli.args import parse_args
@@ -56,12 +57,16 @@ def _sync(v, site, secrets, container):
     if site:
         raise ValidationError("a sync is this site's own: run it at that site")
     out = sync_plan(v, "root", container=container, secrets=secrets)
-    print(f"plan poll: {out['state']}" + ("; Kea restarted" if out["kea_restarted"] else "; Kea unchanged")
+    print(f"plan poll: {out['state']}" + ("; Kea updated" if out["kea_restarted"] else "; Kea unchanged")
           + ("; firewall brought in line" if out["firewall"] else ""))
     if out.get("why"):
         print(out["why"])
     print("DNS: " + (("published: " + (", ".join(out["dns"]["zones"]) or "nothing changed in the zones"))
                      if out["dns"] else "already in line with the plan"))
+    if out["dns"] and out["dns"].get("flushed"):
+        print(f"filtering resolver: {out['dns']['flushed']} published name(s) flushed from its cache (2.1.10.46)")
+    if out["dns"] and out["dns"].get("flush_error"):
+        print(f"warning: {out['dns']['flush_error']}")
     return 0
 
 
@@ -76,8 +81,9 @@ def _scan(v, subnet, bare, secrets, container):
     result = scan_subnet(v, "root", subnet)
     sys.stdout.write(show_scan(result))
     if result["unrecorded"] and "--no-ask" not in bare and sys.stdin.isatty():
-        if offer_reservations(v, result, secrets=secrets, container=container):
-            return apply_dhcp_change(["--no-apply"] if "--no-apply" in bare else [])
+        with apply_intent():          # the finds recorded, then applied: the plan poll leaves Kea to it (2.1.10.45)
+            if offer_reservations(v, result, secrets=secrets, container=container):
+                return apply_dhcp_change(["--no-apply"] if "--no-apply" in bare else [])
     return 0
 
 
@@ -101,8 +107,11 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
         print(USAGE)
         return 0
     cmd, args = (argv[0], argv[1:]) if argv else ("show", [])
-    if cmd in ("option", "class", "netboot", "watch"):     # the options, netboot, the poll: their own flags
+    if cmd == "watch":                                    # the plan poll itself: never under the apply intent
         return run_option_command(v, cmd, args, secrets, container)
+    if cmd in ("option", "class", "netboot"):             # the options and netboot: their own flags
+        with apply_intent():                              # the poll leaves the change to its apply (2.1.10.45)
+            return run_option_command(v, cmd, args, secrets, container)
     if cmd == "scan-requests" or (cmd == "scan" and "--site" in args):   # a scan at another site (1.10.4.36)
         return run_scan_command(v, cmd, args, secrets, container)
     try:
@@ -114,7 +123,8 @@ def run_ipam_command(v, argv, secrets=None, container="samba"):
             return _scan(v, pos[0], bare, secrets, container)
         code = run_plan_read(v, cmd, pos, site, secrets, container)
         if code is None:
-            code = run_plan_change(v, cmd, pos, vals, bare, site, secrets, container)
+            with apply_intent():      # a change and its apply: the plan poll leaves Kea to the apply (2.1.10.45)
+                code = run_plan_change(v, cmd, pos, vals, bare, site, secrets, container)
         if code is not None:
             return code
     except ValidationError as exc:

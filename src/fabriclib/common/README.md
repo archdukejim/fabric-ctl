@@ -33,3 +33,5 @@
 | `read_published_lock.py` | fabric's own published images as the lock pins them (`published:` in `images.lock.yaml`), signer and issuer |
 | `lock_dir.py` | Where `images.lock.yaml` is for a jinja folder (the host's fabric/, or the checkout's config/) |
 | `try_vars_lock.py` | The same lock taken without waiting: None while an apply holds it (the plan poll, Sync now) |
+| `apply_intent.py` | The apply intent: a shared lock every apply and every change an apply follows holds, so the plan poll leaves Kea to the apply (2.1.10.45) |
+| `try_apply_alone.py` | The apply intent held alone, without waiting: None while an apply runs or is about to (the plan poll) |

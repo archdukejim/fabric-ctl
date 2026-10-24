@@ -196,6 +196,7 @@ file	fabriclib-breakglass|src/fabriclib/breakglass/ensure_enterprise_admin.py	3
 file	fabriclib-breakglass|src/fabriclib/breakglass/reset_break_glass.py	5	
 file	fabriclib-breakglass|src/fabriclib/breakglass/run_admin_command.py	6	
 file	fabriclib-breakglass|src/fabriclib/breakglass/write_break_glass_file.py	4	
+file	fabriclib-common|src/fabriclib/common/apply_intent.py	30	
 file	fabriclib-common|src/fabriclib/common/ask.py	28	
 file	fabriclib-common|src/fabriclib/common/console.py	1	
 file	fabriclib-common|src/fabriclib/common/copy_if_changed.py	2	
@@ -220,6 +221,7 @@ file	fabriclib-common|src/fabriclib/common/save_vars.py	15
 file	fabriclib-common|src/fabriclib/common/service_user.py	16	
 file	fabriclib-common|src/fabriclib/common/set_tsig_secrets.py	17	
 file	fabriclib-common|src/fabriclib/common/sudo_owner.py	18	
+file	fabriclib-common|src/fabriclib/common/try_apply_alone.py	31	
 file	fabriclib-common|src/fabriclib/common/try_vars_lock.py	29	
 file	fabriclib-common|src/fabriclib/common/vars_lock.py	19	
 file	fabriclib-common|src/fabriclib/common/wait_healthy.py	20	
@@ -307,6 +309,11 @@ file	fabriclib-dhcp|src/fabriclib/dhcp/ensure_ddns_zone.py	10
 file	fabriclib-dhcp|src/fabriclib/dhcp/hand_set_addresses.py	38	
 file	fabriclib-dhcp|src/fabriclib/dhcp/kea_client_classes.py	11	
 file	fabriclib-dhcp|src/fabriclib/dhcp/kea_command.py	12	
+file	fabriclib-dhcp|src/fabriclib/dhcp/kea_key/drop_old_key.py	42	
+file	fabriclib-dhcp|src/fabriclib/dhcp/kea_key/kea_key.py	43	
+file	fabriclib-dhcp|src/fabriclib/dhcp/kea_key/key_reminders.py	44	
+file	fabriclib-dhcp|src/fabriclib/dhcp/kea_key/rotate_key.py	45	
+file	fabriclib-dhcp|src/fabriclib/dhcp/kea_key/start_key_rotation.py	46	
 file	fabriclib-dhcp|src/fabriclib/dhcp/kea_option_data.py	13	
 file	fabriclib-dhcp|src/fabriclib/dhcp/kea_option_defs.py	14	
 file	fabriclib-dhcp|src/fabriclib/dhcp/keep_hand_set_addresses.py	39	
@@ -316,6 +323,7 @@ file	fabriclib-dhcp|src/fabriclib/dhcp/normalize_dhcp.py	17
 file	fabriclib-dhcp|src/fabriclib/dhcp/normalize_option_defs.py	18	
 file	fabriclib-dhcp|src/fabriclib/dhcp/normalize_options.py	19	
 file	fabriclib-dhcp|src/fabriclib/dhcp/place_subnets.py	29	
+file	fabriclib-dhcp|src/fabriclib/dhcp/reload_kea.py	47	
 file	fabriclib-dhcp|src/fabriclib/dhcp/remove_client_class.py	20	
 file	fabriclib-dhcp|src/fabriclib/dhcp/remove_reservation.py	21	
 file	fabriclib-dhcp|src/fabriclib/dhcp/remove_subnet.py	22	
@@ -405,6 +413,7 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/ensure_dnslog_db.py	16
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/expand_group_clients.py	38	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/fetch_catalogue.py	22	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py	17	
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/flush_published_names.py	51	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py	13	0.8.0 / 2026-10-20
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/ingest_dns_log.py	18	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/read_query_log.py	19	
@@ -429,6 +438,7 @@ file	fabriclib-dns|src/fabriclib/dns/add_tsig_key.py	3
 file	fabriclib-dns|src/fabriclib/dns/add_zone.py	34	
 file	fabriclib-dns|src/fabriclib/dns/apply_dns.py	42	
 file	fabriclib-dns|src/fabriclib/dns/builtin_acls.py	4	
+file	fabriclib-dns|src/fabriclib/dns/changed_names.py	48	
 file	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py	37	
 file	fabriclib-dns|src/fabriclib/dns/common/landing_link.py	38	
 file	fabriclib-dns|src/fabriclib/dns/common/landing_names.py	40	
@@ -1826,6 +1836,7 @@ function	fabriclib-breakglass|src/fabriclib/breakglass/ensure_enterprise_admin.p
 function	fabriclib-breakglass|src/fabriclib/breakglass/reset_break_glass.py|reset_break_glass	1	
 function	fabriclib-breakglass|src/fabriclib/breakglass/run_admin_command.py|run_admin_command	1	
 function	fabriclib-breakglass|src/fabriclib/breakglass/write_break_glass_file.py|write_break_glass_file	1	
+function	fabriclib-common|src/fabriclib/common/apply_intent.py|apply_intent	1	
 function	fabriclib-common|src/fabriclib/common/ask.py|_check	1	
 function	fabriclib-common|src/fabriclib/common/ask.py|ask	2	
 function	fabriclib-common|src/fabriclib/common/ask.py|ask_secret	3	
@@ -1865,6 +1876,7 @@ function	fabriclib-common|src/fabriclib/common/save_vars.py|save_vars	2
 function	fabriclib-common|src/fabriclib/common/service_user.py|service_user	1	
 function	fabriclib-common|src/fabriclib/common/set_tsig_secrets.py|set_tsig_secrets	1	
 function	fabriclib-common|src/fabriclib/common/sudo_owner.py|sudo_owner	1	
+function	fabriclib-common|src/fabriclib/common/try_apply_alone.py|try_apply_alone	1	
 function	fabriclib-common|src/fabriclib/common/try_vars_lock.py|try_vars_lock	1	
 function	fabriclib-common|src/fabriclib/common/vars_lock.py|vars_lock	1	
 function	fabriclib-common|src/fabriclib/common/wait_healthy.py|wait_healthy	1	
@@ -1910,6 +1922,7 @@ function	fabriclib-core|src/fabriclib/cli.py|_version	3
 function	fabriclib-core|src/fabriclib/cli.py|_without_base	6	
 function	fabriclib-core|src/fabriclib/cli.py|main	5	
 function	fabriclib-deploy|src/fabriclib/deploy/apply_deployment.py|_deploy	2	
+function	fabriclib-deploy|src/fabriclib/deploy/apply_deployment.py|_kea_steps	4	
 function	fabriclib-deploy|src/fabriclib/deploy/apply_deployment.py|_prepare	1	0.8.0 / 2026-10-23
 function	fabriclib-deploy|src/fabriclib/deploy/apply_deployment.py|apply_deployment	3	
 function	fabriclib-deploy|src/fabriclib/deploy/archive_vars.py|archive_vars	1	
@@ -1949,6 +1962,7 @@ function	fabriclib-deploy|src/fabriclib/deploy/render_vars.py|render_vars	1
 function	fabriclib-deploy|src/fabriclib/deploy/renew_landing_cert.py|renew_landing_cert	1	
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_enabled	2	
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_quiet	1	
+function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_reconfig_bind	5	
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_roll_out	4	
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|restart_changed	3	
 function	fabriclib-deploy|src/fabriclib/deploy/service_units.py|service_units	1	
@@ -1979,6 +1993,12 @@ function	fabriclib-dhcp|src/fabriclib/dhcp/ensure_ddns_zone.py|ensure_ddns_zone	
 function	fabriclib-dhcp|src/fabriclib/dhcp/hand_set_addresses.py|hand_set_addresses	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/kea_client_classes.py|kea_client_classes	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/kea_command.py|kea_command	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/kea_key/drop_old_key.py|drop_old_key	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/kea_key/kea_key.py|kea_key	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/kea_key/key_reminders.py|key_reminders	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/kea_key/rotate_key.py|rotate_key	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/kea_key/start_key_rotation.py|_new_name	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/kea_key/start_key_rotation.py|start_key_rotation	2	
 function	fabriclib-dhcp|src/fabriclib/dhcp/kea_option_data.py|_key	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/kea_option_data.py|kea_option_data	2	
 function	fabriclib-dhcp|src/fabriclib/dhcp/kea_option_defs.py|kea_option_defs	1	
@@ -1992,6 +2012,7 @@ function	fabriclib-dhcp|src/fabriclib/dhcp/normalize_dhcp.py|normalize_dhcp	4
 function	fabriclib-dhcp|src/fabriclib/dhcp/normalize_option_defs.py|normalize_option_defs	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/normalize_options.py|normalize_options	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/place_subnets.py|place_subnets	1	
+function	fabriclib-dhcp|src/fabriclib/dhcp/reload_kea.py|reload_kea	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/remove_client_class.py|remove_client_class	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/remove_reservation.py|remove_reservation	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/remove_subnet.py|remove_subnet	1	
@@ -2113,6 +2134,8 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/fetch_catalogue.py|fetch_
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|_lists	3	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|_read	2	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|filter_overview	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/flush_published_names.py|_why	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/flush_published_names.py|flush_published_names	2	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_group_name	5	0.8.0 / 2026-10-20
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_groups	6	0.8.0 / 2026-10-20
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_rule	2	0.8.0 / 2026-10-20
@@ -2161,6 +2184,7 @@ function	fabriclib-dns|src/fabriclib/dns/add_zone.py|_taken	2
 function	fabriclib-dns|src/fabriclib/dns/add_zone.py|add_zone	3	
 function	fabriclib-dns|src/fabriclib/dns/apply_dns.py|apply_dns	1	
 function	fabriclib-dns|src/fabriclib/dns/builtin_acls.py|builtin_acls	1	
+function	fabriclib-dns|src/fabriclib/dns/changed_names.py|changed_names	1	
 function	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py|_names	1	
 function	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py|fabric_record	2	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_link.py|landing_link	1	

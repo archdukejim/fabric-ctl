@@ -5,10 +5,13 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.deploy.compose_builds import compose_builds
 from fabriclib.dhcp.clear_stale_dhcp_names import clear_stale_dhcp_names
 from fabriclib.dhcp.hand_set_addresses import hand_set_addresses
+from fabriclib.dhcp.kea_key.kea_key import kea_key
+from fabriclib.dhcp.reload_kea import reload_kea
 from fabriclib.dns.freeze_and_install import freeze_and_install
 from fabriclib.dns.install_zone_file import install_zone_file
 from fabriclib.dns.reload_zone import reload_zone
 from fabriclib.dns.rndc import rndc
+from fabriclib.dns_filter.flush_published_names import flush_published_names
 from fabriclib.ipam.move_subnets_to_plan import move_subnets_to_plan
 from fabriclib.ipam.options.move_options_to_plan import move_options_to_plan
 from fabriclib.keycloak.install_sso_keytab import install_sso_keytab
@@ -64,6 +67,22 @@ def _quiet(cmd, what, timeout, capture=False):
         return None
 
 
+def _reconfig_bind():
+    """Purpose: BIND's new configuration taken by the running BIND (`rndc reconfig`): its keys and update-policy grants
+             (TSIG) and its zone list take effect here.
+    Inputs:  none.
+    Returns: None.
+    Fails:   ValidationError when BIND refuses it or does not answer (a silent failure would leave a removed TSIG key
+             working).
+    Feeds:   restart_changed."""
+    print("Reloading BIND9 configuration...")
+    res = rndc(["reconfig"], timeout=90)          # generous: reconfig is slow on a loaded Pi
+    if res is None or res.returncode != 0:
+        raise ValidationError("BIND9 did not accept the new configuration "
+                              f"({(res.stderr or res.stdout).strip() if res else 'timeout'}); "
+                              "check `docker logs bind9`.")
+
+
 def _enabled(unit):
     """Purpose: whether a systemd unit is enabled (installed for boot).
     Inputs:  unit — name.
@@ -81,18 +100,25 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
     Inputs:  paths — deploy_paths() (base, target, federation); final_vars — rendered settings (federation_endpoint,
              and what converge_domain reads); secrets — fabric's secrets (the domain's service accounts); state —
              what the install steps found (see finish_without_start); bind_ids — the bind user's ids.
-    Returns: the set of units restarted (fabric-web included when it was queued).
+    Returns: the set of units restarted (fabric-web included when it was queued; kea when its reload fell back to a
+             restart).
     Fails:   ValidationError when a restarted service does not come back healthy (the rollout stops there, nothing
-             after it runs: 2.1.14.15) or BIND refuses `rndc reconfig` (a silent failure would leave a removed TSIG
+             after it runs: 2.1.14.15; Kea too, restarted after a reload it did not take: reload_kea) or BIND
+             refuses `rndc reconfig` (a silent failure would leave a removed TSIG
              key working), or refuses deleting a DHCP name left behind (raised last, the rest of the apply done:
-             2.1.10.22; Kea's key is the one made at install: its yearly replacement, 2.1.10.42, is open). Timeouts
+             2.1.10.22), or does not drop Kea's old key once Kea runs on the new one (drop_old_key, 2.1.10.42: the
+             next apply drops it). Timeouts
              of other systemctl/docker calls and a domain that cannot be converged are
              reported, not raised.
     Feeds:   apply_deployment (start_services=True: `fabricctl --apply`, the web UI's Apply).
     Notes:   restarts go one at a time in dependency order, each health-gated (_roll_out). BIND down or about to
              restart reads its zone files on start, so they are installed first (a running
-             BIND frozen before, so the files hold what DHCP registered: 2.1.10.7). The web UI is
-             restarted last with --no-block: this apply may have come from it. No --pull on image builds."""
+             BIND frozen before, so the files hold what DHCP registered: 2.1.10.7). Kea's changed files are
+             reloaded over its control socket once BIND is reloaded (state["kea_reload"], 2.1.10.45); then the
+             filtering resolver forgets the names whose records changed (state["names"], 2.1.10.46: a flush that
+             fails is a warning). While Kea's DNS key is replaced (state["kea_drop"], 2.1.10.42) BIND takes the new
+             key before Kea, and drops the old one last. The web UI is restarted last with --no-block: this apply may
+             have come from it. No --pull on image builds."""
     restart = set(state["restart"])
     if state["daemon_reload"]:
         print("Reloading systemd daemon...")
@@ -114,20 +140,28 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
         verb = "build" if compose_builds(compose) else "pull"     # fabric's published images are pulled
         print(f"{'Rebuilding' if verb == 'build' else 'Pulling'} {folder} image...")
         subprocess.run(["docker", "compose", "-f", compose, verb], timeout=1200)
+    early = bind9_live and state["bind9_config"] and state.get("kea_drop") and "kea" in restart
+    if early:                                     # Kea restarts on a new key (2.1.10.42): BIND knows it first
+        _reconfig_bind()
     _roll_out(restart)                            # one at a time, health-gated, stopping at a failure (2.1.14.15)
 
     print("Reloading active services...")
     if bind9_live:
-        if state["bind9_config"]:
-            print("Reloading BIND9 configuration...")
-            # keys and update-policy grants (TSIG) take effect here; generous timeout: reconfig is slow on a loaded Pi
-            res = rndc(["reconfig"], timeout=90)
-            if res is None or res.returncode != 0:
-                raise ValidationError("BIND9 did not accept the new configuration "
-                                      f"({(res.stderr or res.stdout).strip() if res else 'timeout'}); "
-                                      "check `docker logs bind9`.")
+        if state["bind9_config"] and not early:
+            _reconfig_bind()
         for zone, src, dst in state["zones"]:
             reload_zone(zone, src, dst, *bind_ids)
+    if state.get("kea_reload"):                   # after BIND took its keys and zones: Kea's changed files (2.1.10.45)
+        print("Reloading Kea's configuration...")
+        took = reload_kea(final_vars, state["kea_reload"])
+        if took["restarted"]:
+            restart.add("kea")
+    if state.get("names"):            # BIND serves the new records: the resolver forgets the old (2.1.10.46)
+        flushed = flush_published_names(final_vars, state["names"])
+        if flushed["flushed"]:
+            print(f"Filtering resolver: {flushed['flushed']} published name(s) flushed from its cache")
+        if flushed["error"]:
+            print(f"Warning: {flushed['error']}")
     if "nginx" in running and "nginx" not in restart and state["nginx"]:
         print("Reloading NGINX...")
         _quiet(["docker", "exec", "nginx", "nginx", "-s", "reload"], "Reloading NGINX", 15)
@@ -150,8 +184,9 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
     cleanup_error = None
     if "bind9" in running or "bind9" in restart:      # DHCP names left behind for addresses set by hand (2.1.10.22)
         try:
+            key = kea_key(secrets)
             for owner, rtype, rdata in clear_stale_dhcp_names(final_vars, hand_set_addresses(final_vars),
-                                                              secrets.get("kea_ddns_secret", ""), "root", "apply"):
+                                                              key["secret"], "root", "apply", key_name=key["name"]):
                 print(f"DHCP name left behind deleted: {owner.rstrip('.')} {rtype} {rdata}")
         except ValidationError as e:              # raised once the rest of the apply is done
             cleanup_error = e
@@ -167,6 +202,8 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
         print("Restarting webui (queued)...")
         subprocess.run(["systemctl", "restart", "--no-block", "fabric-web"], timeout=15)
         restart.add("fabric-web")
+    if state.get("kea_drop"):                     # Kea runs on its new key: BIND drops the old one (2.1.10.42)
+        print(f"Kea's DNS key: {state['kea_drop']()} dropped from BIND")
     if cleanup_error:
         raise ValidationError(f"{cleanup_error}. The rest of the apply is done; fabric-dhcp-names.timer tries again "
                               "hourly (`sudo fabricctl dhcp clean-names` at once).")

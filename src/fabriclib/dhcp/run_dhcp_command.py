@@ -8,6 +8,7 @@ from fabriclib.dhcp.add_reservation import add_reservation
 from fabriclib.dhcp.add_subnet import add_subnet
 from fabriclib.dhcp.clean_dhcp_names import clean_dhcp_names
 from fabriclib.dhcp.dhcp_overview import dhcp_overview
+from fabriclib.dhcp.kea_key.rotate_key import rotate_key
 from fabriclib.dhcp.common.apply_dhcp_change import apply_dhcp_change
 from fabriclib.dhcp.list_leases import list_leases
 from fabriclib.dhcp.remove_client_class import remove_client_class
@@ -38,6 +39,8 @@ USAGE = """usage: fabricctl dhcp status                       subnets (name, VLA
        fabricctl dhcp class remove <name>
        fabricctl dhcp clean-names [--scheduled]   delete DHCP names left behind for addresses named by hand
                                                    (also hourly, by fabric-dhcp-names.timer: 2.1.10.22)
+       fabricctl dhcp rotate-key                   replace Kea's DNS key now, then apply (an apply replaces it
+                                                   once it is 330 days old: 2.1.10.42)
    every change applies at once unless --no-apply
    once this site's subnets live in the address plan, add-subnet, set-subnet, remove-subnet, reserve and unreserve
    are aliases of fabricctl ipam (for one release; --name and --vlan of set-subnet are refused)"""
@@ -124,7 +127,8 @@ def _keep(one, flag):
 def run_dhcp_command(v, argv):
     """Purpose: `fabricctl dhcp …` — the Kea tab's operations without the web UI: status, leases, reservations,
              subnets (name, VLAN record, notes, router, pools), options at every level, client classes (manual
-             1.10.2.5); and `clean-names`, the DHCP names left behind for addresses named by hand (1.10.4.20). Once
+             1.10.2.5); `clean-names`, the DHCP names left behind for addresses named by hand (1.10.4.20); and
+             `rotate-key`, Kea's DNS key replaced now (rotate_key, 1.10.4.43). Once
              this site's subnets live in the address plan, add-subnet, set-subnet, remove-subnet,
              reserve and unreserve are aliases of `fabricctl ipam` (run_dhcp_alias, 1.10.4.21, 1.10.4.37).
     Inputs:  v — the rendered vars (SetupContext.load_state().vars); argv — list of str after "dhcp" (default
@@ -216,6 +220,11 @@ def run_dhcp_command(v, argv):
                 print(f"deleted {owner.rstrip('.')} {rtype} {rdata}")
             print(f"DHCP names left behind: {len(r['removed'])} record(s) deleted")
             return 0
+        if cmd == "rotate-key" and not pos and not vals and not bare:
+            r = rotate_key(v, getpass.getuser())
+            print(r["started"] or "a replacement of Kea's DNS key was under way: this apply finishes it")
+            print("applied: Kea runs on the new key; BIND dropped the old one" if r["ok"] else r["output"])
+            return 0 if r["ok"] else 1
         if cmd == "class" and pos[:1] == ["remove"] and len(pos) == 2:
             remove_client_class("root", pos[1], source="cli")
             print(f"client class {pos[1]} removed")

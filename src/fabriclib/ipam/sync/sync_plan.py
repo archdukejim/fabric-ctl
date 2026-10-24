@@ -74,7 +74,7 @@ def sync_plan(v, actor, source="cli", container="samba", secrets=None, poll=poll
                 f"kea_restarted={bool(out.get('kea_restarted'))} firewall={bool(out.get('firewall'))} "
                 f"dns_pending={bool(out.get('dns_pending'))} {dns_text}", source)
     if error:
-        raise ValidationError(f"Kea is in line with the plan{'' if not out.get('kea_restarted') else ' (restarted)'}; "
+        raise ValidationError(f"Kea is in line with the plan{'' if not out.get('kea_restarted') else ' (updated)'}; "
                               f"BIND's records were not published: {error}. Sync again once it is fixed, or apply "
                               "(sudo fabricctl --apply)")
     return {"state": out.get("state"), "kea_restarted": bool(out.get("kea_restarted")),

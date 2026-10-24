@@ -11,6 +11,8 @@ INSTALL_DIR = "/opt/fabric" if FABRIC_DIR == PACKAGE_DIR else FABRIC_DIR
 DEPLOY_BASE_DIR = os.path.dirname(INSTALL_DIR)
 VARS_FILE = os.path.join(INSTALL_DIR, "config", "vars.yaml")
 VARS_LOCK_FILE = os.path.join(INSTALL_DIR, "config", ".vars.lock")
+# held shared by every apply and by a change an apply follows; the plan poll runs only when it can hold it alone
+APPLY_INTENT_FILE = os.path.join(INSTALL_DIR, "config", ".apply.intent")     # 2.1.10.45
 SECRETS_FILE = os.path.join(INSTALL_DIR, "config", "fabric-secrets.yml")
 AUDIT_FILE = os.path.join(INSTALL_DIR, "archive", "audit.log")
 ISSUED_CERTS_FILE = os.path.join(INSTALL_DIR, "archive", "issued-certs.jsonl")

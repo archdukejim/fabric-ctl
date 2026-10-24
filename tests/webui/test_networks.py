@@ -250,7 +250,7 @@ with serve():
     # covers: web:post.networks.sync +
     st, loc, page = post("/networks/sync", {})
     check("Sync now: done at once, saying what it did, nothing held",
-          loc == "/networks" and "Synced: Kea restarted" in flash(page) and "change pending" not in page, flash(page))
+          loc == "/networks" and "Synced: Kea updated" in flash(page) and "change pending" not in page, flash(page))
     page = get("/networks/scan?noscan=1")
     check("the scan page without the grant to scan here: says why, no Scan now",
           "you may not scan here" in page and "no grant gives you networks scan at lan" in page

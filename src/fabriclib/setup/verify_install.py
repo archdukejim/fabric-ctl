@@ -15,6 +15,7 @@ from fabriclib.common.sudo_owner import sudo_owner
 from fabriclib.consent.allowed_to_change import allowed_to_change
 from fabriclib.consent.plan_local_admin import plan_local_admin
 from fabriclib.consent.plan_trust import plan_trust
+from fabriclib.dhcp.kea_key.key_reminders import key_reminders
 from fabriclib.dns.common.landing_names import landing_names
 from fabriclib.federation.common.load_registry import load_registry
 from fabriclib.keycloak.user_has_role import user_has_role
@@ -84,7 +85,8 @@ def checks(ctx):
              (Keycloak role, the client certificate while one is required), OpenBao state, the federation endpoint and
              the DNS filter (the BIND resolver answers on 53) when on, time (chrony synchronised and
              under 1 s off — or this host's own clock when no source is set —, and at a site within 1 s of its
-             upstream site), the certificates (renewal working, none about to expire), and every installed service.
+             upstream site), the certificates (renewal working, none about to expire), Kea's DNS key replaced
+             within a year (2.1.10.42), and every installed service.
     Inputs:  ctx — SetupContext: vars (hostnames, host_ip, ip_nginx, bind_dns_port, install_webui/keycloak,
              federation_endpoint, install_resolver, webui_admin_user/role), secrets (Keycloak),
              Step-CA root, the
@@ -238,6 +240,8 @@ def checks(ctx):
     if v.get("install_keycloak"):           # Keycloak's database password, rotated monthly by OpenBao (2.1.7.4)
         add("Keycloak's database password: rotated by OpenBao in the last 40 days",
             *_db_rotation(os.path.join(archive, "db-rotation.json")))
+    for row in key_reminders(v, s)["checks"]:          # Kea's DNS key replaced within a year (2.1.10.42)
+        add(*row)
     # the host's local-admin while its host change is approved (2.1.7.16, manual 1.7.1.4.7)
     approved = allowed_to_change(ctx.config_dir, "local_admin", plan_local_admin(v))
     for row in local_admin_checks(v, ctx.config_dir, approved)["checks"]:
@@ -261,7 +265,8 @@ def run(ctx):
     Returns: None; each check printed as ok or error, then a warning for each sign-in layer lowered below a level
              it had, for what is coming with the certificates (cert_warnings) and, while it is on the host, for the
              break-glass password's file (break_glass_reminder, 2.1.6.69) and for each local administrator account
-             neither managed nor approved (local_account_reminders, 2.1.6.78).
+             neither managed nor approved (local_account_reminders, 2.1.6.78), and for Kea's DNS key from day 300
+             (key_reminders, 2.1.10.42).
     Fails:   SetupError("<n> check(s) failed"); with OpenBao locked (checks' ValidationError) that one failed check
              is printed instead and the warnings still follow (a rotation waiting for OpenBao, 2.1.7.20); other
              exceptions from checks propagate.
@@ -290,5 +295,10 @@ def run(ctx):
     # a rotation waiting (2.1.7.20); SSH on until its alert is acknowledged (2.1.7.21)
     for text in local_admin_checks(ctx.vars, ctx.config_dir, False)["warnings"]:
         warn(text)
+    try:                                # Kea's DNS key from day 300, or being replaced (2.1.10.42)
+        for text in key_reminders(ctx.vars, ctx.secrets)["warnings"]:
+            warn(text)
+    except ValidationError:             # OpenBao locked: said above
+        pass
     if failed:
         raise SetupError(f"{failed} check(s) failed")

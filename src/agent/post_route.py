@@ -1,4 +1,5 @@
 from agent.job_store import JOBS
+from fabriclib.common.apply_intent import apply_intent
 from agent.post_account import post_account
 from agent.post_directory import post_directory
 from agent.post_dhcp import post_dhcp
@@ -58,14 +59,15 @@ def post_route(route, actor, data, perms, session=None):
         return post_dns(route, actor, data)
     if area == ["dhcp"]:
         return post_dhcp(route, actor, data)
-    if route[:2] == ["ipam", "scan"]:             # the address manager (1.10.4.35): each checks the grant
-        return post_ipam_scan(route, actor, data, caller)
+    if route[:2] == ["ipam", "scan"] and route[2:] != ["record"]:   # the address manager (1.10.4.35): each checks
+        return post_ipam_scan(route, actor, data, caller)              # the grant
     if route[:2] == ["ipam", "sync"]:
         return post_ipam_sync(route, actor, data, caller)
-    if area == ["ipam"]:
-        return post_options(route, actor, data, caller)
-    if area == ["networks"]:
-        return post_networks(route, actor, data, caller)
+    if area in (["ipam"], ["networks"]):          # a change, then its apply: the plan poll leaves Kea to it (2.1.10.45)
+        with apply_intent():
+            if route[:2] == ["ipam", "scan"]:
+                return post_ipam_scan(route, actor, data, caller)
+            return (post_options if area == ["ipam"] else post_networks)(route, actor, data, caller)
     if area == ["radius"]:
         return post_network(route, actor, data)
     if area == ["pki"] and len(route) == 2:

@@ -13,12 +13,14 @@ from fabriclib.deploy.deploy_paths import deploy_paths
 from fabriclib.deploy.merge_tsig_keys import merge_tsig_keys
 from fabriclib.deploy.render_templates import BIND_CONFIG
 from fabriclib.deploy.render_vars import render_vars
+from fabriclib.dns.changed_names import changed_names
 from fabriclib.dns.find_changed_zones import find_changed_zones
 from fabriclib.dns.served_serial import served_serial
 from fabriclib.dns.install_zone_file import install_zone_file
 from fabriclib.dns.reload_zone import reload_zone
 from fabriclib.dns.rndc import rndc
 from fabriclib.dns_filter.deploy_resolver import deploy_resolver
+from fabriclib.dns_filter.flush_published_names import flush_published_names
 from fabriclib.ipam.options.watch_state import save_watch_state
 from fabriclib.secrets.load_secrets import load_secrets
 
@@ -62,7 +64,8 @@ def _render(env, context, final_vars, reverse, out):
     return conf
 
 
-def publish_plan_records(secrets=None, rndc_call=rndc, reload=reload_zone, resolver=deploy_resolver):
+def publish_plan_records(secrets=None, rndc_call=rndc, reload=reload_zone, resolver=deploy_resolver,
+                         flush=flush_published_names):
     """Purpose: the address plan's DNS put in front of the running BIND without an apply (Sync now, decision 2.1.10.29,
              manual 1.10.4.28.1), by the quick path `dns add-zone` takes (publish_zone_list, 2.1.10.21): the settings
              made whole and checked exactly as an apply does them (render_vars, check_rendered: the plan, the settings
@@ -72,11 +75,14 @@ def publish_plan_records(secrets=None, rndc_call=rndc, reload=reload_zone, resol
              2.1.10.7); the DNS filter's resolver re-rendered when the zone list changed. Nothing restarts. What DNS is
              rendered from is kept for the plan poll once BIND serves it (plan-dns.json, 2.3.10.5.6). The caller holds
              the settings' lock.
-    Inputs:  secrets — fabric's secrets (default load_secrets(SECRETS_FILE)); rndc_call, reload, resolver — rndc,
-             reload_zone and deploy_resolver (tests give their own). Reads vars.yaml, the address plan (from the DC, as
+    Inputs:  secrets — fabric's secrets (default load_secrets(SECRETS_FILE)); rndc_call, reload, resolver, flush —
+             rndc, reload_zone, deploy_resolver and flush_published_names (tests give their own). Reads
+             vars.yaml, the address plan (from the DC, as
              an apply reads it), the federation registry, the templates and the deployed zone files.
     Returns: {"zones": the zones whose records changed (new ones included), "new": the zones BIND did not have,
-             "config" (bool: the zone list or its keys and ACLs changed), "resolver" (bool: re-rendered)}.
+             "config" (bool: the zone list or its keys and ACLs changed), "resolver" (bool: re-rendered),
+             "flushed" (how many changed names the filtering resolver forgot, 2.1.10.46), "flush_error" (why it did
+             not forget the rest, or None: a warning, BIND serves the records)}.
     Fails:   ValidationError, before anything is written: a TSIG key apply has not made yet, settings the apply's check
              refuses, templates that do not render. After files are written: BIND refusing `rndc reconfig` or not
              serving a new zone (plan-dns.json is then left as it was, so the poll still says DNS waits); the resolver
@@ -102,6 +108,7 @@ def publish_plan_records(secrets=None, rndc_call=rndc, reload=reload_zone, resol
     try:
         conf = _render(env, context, final_vars, checked["reverse"], out)
         changed = find_changed_zones(out, data, served=lambda z: served_serial(z, rndc_call))
+        names = changed_names(changed)      # before they are swapped in: the resolver forgets them (2.1.10.46)
         new = [c for c in changed if not os.path.exists(c[2])]
         config_changed = False
         for name, text in conf.items():     # the keys and rndc's key are secrets: 0600 (install_bind9_files)
@@ -137,4 +144,6 @@ def publish_plan_records(secrets=None, rndc_call=rndc, reload=reload_zone, resol
             raise ValidationError("BIND serves the plan's records, but the DNS filter's resolver did not reload its "
                                   "configuration (is it running?)")
         done["resolver"] = True
+    flushed = flush(final_vars, names)      # BIND serves the new records: the resolver forgets the old answers
+    done.update(flushed=flushed["flushed"], flush_error=flushed["error"])
     return done

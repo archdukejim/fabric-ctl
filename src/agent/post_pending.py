@@ -1,3 +1,4 @@
+import contextlib
 import urllib.parse
 
 from agent.job_store import JOBS
@@ -5,6 +6,7 @@ from agent.pending_networks import networks_grant, networks_page_of
 from agent.pending_store import PendingStore
 from agent.pending_thing import PAGES, describe_change, pending_page_of, thing_state
 from agent.route_not_found import RouteNotFound
+from fabriclib.common.apply_intent import apply_intent
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
 from fabriclib.common.write_audit import write_audit
@@ -108,7 +110,10 @@ def _finish_plan(page, routes):
 PENDING = PendingStore(run=_run, state=lambda route, body: thing_state(route, body, load_vars()),
                        need=lambda route: required_permission("POST", route),
                        start_job=JOBS.start, finish=_finish,
-                       check=lambda owner, route, body: networks_grant(load_vars(), owner, route, body))
+                       check=lambda owner, route, body: networks_grant(load_vars(), owner, route, body),
+                       # the address manager's Apply: written, then applied; the plan poll leaves Kea to it (2.1.10.45)
+                       around=lambda page: apply_intent() if page in ("networks", "options")
+                       else contextlib.nullcontext())
 
 
 def _wrapped(data):

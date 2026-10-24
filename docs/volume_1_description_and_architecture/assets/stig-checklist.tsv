@@ -103,7 +103,7 @@ bind,resolver	BIND	V3R4	BIND-08b	V-272382	Split DNS approved by the AO	II	exempt
 bind	BIND	V3R4	BIND-09	V-272383, V-272396, V-272397, V-272400, V-272401	Hidden primary, NS records, root hints, servers on separate segments	II	to-build	one host until HA (0.12.0); NS records to check	
 bind,resolver	BIND	V3R4	BIND-10	V-272402	Random source ports	II	to-build	BIND's default; a test that no fixed query-source is set to add	
 bind,resolver	BIND	V3R4	BIND-11	V-272404	Management apart from DNS traffic	II	to-build	no control channel is published (1.2.7.3); a test to add	
-bind,resolver	BIND	V3R4	BIND-12	V-272414	TSIG and DNSSEC keys replaced within a year	II	to-build	TSIG keys never expire today; Kea's key kea-ddns among them: how it is replaced is Open (2.1.10.42)	2.1.10.42
+bind,resolver	BIND	V3R4	BIND-12	V-272414	TSIG and DNSSEC keys replaced within a year	II	to-build	Kea's key is replaced at an apply once 330 days old, BIND knowing both while Kea moves (built 2026-10-24, 1.10.4.43; tests/kea/reload.py); the other TSIG keys and DNSSEC keys never expire yet: 0.11.0	2.1.10.42
 bind,resolver	BIND	V3R4	BIND-13	V-272436	FIPS-validated signatures and hashes	II	to-build	with ASD-14	2.1.18.9
 bind	BIND	V3R4	BIND-14	V-272405..V-272435 (approx.)	The rest: version hidden, non-root, file modes	II	to-build	non-root and hardened (tests/hardening/run.sh); version none on the resolver only	2.1.18.17
 resolver	BIND	V3R4	BIND-15	V-205207..V-205212 (DNS SRG)	Answers validated (DNSSEC)	II	met	the resolver validates (2.1.12.7; tests/resolver/run.py)	

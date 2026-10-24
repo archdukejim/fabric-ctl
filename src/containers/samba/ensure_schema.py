@@ -88,7 +88,9 @@ RETIRED = {
     "fabric": {"attributes": {35, 36, 39, 40}, "classes": {11, 13, 15}},
 }
 # numbers held for another release's branch, not given here (2.1.10.33): the SSH host's on dev/0.10.0-8021x
-RESERVED = {"fabric": {"attributes": {37, 38}, "classes": {14}}}
+# (37, 38, class 14); the site tree's on dev/0.8.0-console (fabricParentSite 46, fabricConsoleUrl 47, class
+# fabricSiteTree 19, auxiliary: given there, so ensure_schema agrees when 0.8.0 merges in)
+RESERVED = {"fabric": {"attributes": {37, 38, 46, 47}, "classes": {14, 19}}}
 # a structural class's objects readable by authenticated users (machines included), or only admins see them (Q9)
 DEFAULT_SD = "D:(A;;RPWPCRCCDCLCLORCWOWDSDDTSW;;;DA)(A;;RPWPCRCCDCLCLORCWOWDSDDTSW;;;SY)(A;;RPLCLORC;;;AU)"
 

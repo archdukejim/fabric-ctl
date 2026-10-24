@@ -2,6 +2,7 @@ import time
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
+from fabriclib.common.try_apply_alone import try_apply_alone as _try_alone
 from fabriclib.common.try_vars_lock import try_vars_lock as _try_lock
 from fabriclib.common.write_audit import write_audit
 from fabriclib.deploy.deploy_paths import deploy_paths
@@ -17,6 +18,8 @@ from fabriclib.secrets.load_secrets import load_secrets
 from fabriclib.security.refresh_firewall import refresh_firewall
 
 
+BUSY = ("an apply is running or about to run (a change it follows is being made): it renders Kea itself, so this "
+        "run leaves Kea to it; the next run finds what it left")
 NO_SUBNET = ("DHCP is on, but this site's plan has no subnet with a DHCP range yet: nothing for Kea to serve, so it "
              "is left as it is. Define the subnet first, then its DHCP range (best practice: the range is part of the "
              "subnet): fabricctl ipam vlan add, or the console's Networks tab")
@@ -36,7 +39,7 @@ def _scans_done(out):
 
 
 def poll_plan(v, container="samba", secrets=None, render=render_kea, firewall=refresh_firewall, usn=read_usn,
-              read=read_plan, force=False, take_lock=None, scans=None):
+              read=read_plan, force=False, take_lock=None, scans=None, take_alone=None):
     """Purpose: one run of the plan poll (decision 2.1.10.24, manual 1.10.4.26): the DC's USN read; when it moved, the
              site's plan and option sets read and, when what Kea is rendered from changed, Kea alone re-rendered and
              restarted (render_kea) and the host firewall brought in line when the served subnets changed. Never a
@@ -49,10 +52,12 @@ def poll_plan(v, container="samba", secrets=None, render=render_kea, firewall=re
              did not move (Sync now, decision 2.1.10.29); take_lock — function() -> the held settings' lock or None
              (default common/try_vars_lock; Sync now, which already holds it, gives one that hands it back); scans —
              function(v, secrets, container) -> run_scan_requests' result (default run_scan_requests; tests give
-             their own).
+             their own); take_alone — function() -> the apply-intent file held alone or None (default
+             common/try_apply_alone; tests give their own).
     Returns: {"state": "off" (Kea not installed), "not upgraded" (the subnets still in the settings), "unchanged" (the
              USN did not move), "same plan" (it moved, Kea's input did not), "no subnet" (the plan has no subnet with a
-             DHCP range: nothing rendered, "why" says so, 2.1.10.31), "busy" (an apply holds the settings),
+             DHCP range: nothing rendered, "why" says so, 2.1.10.31), "busy" (an apply is running or about to run,
+             or holds the settings: "why" says so, 2.1.10.45),
              "rendered"; "kea_restarted" (bool), "firewall" (bool: brought in line), "dns_pending" (bool: published
              names or subnets changed since the last apply rendered DNS), "usn", "scans" (run_scan_requests' result,
              or {"error": why} when the requests could not be answered; absent when the domain was not read)}.
@@ -95,21 +100,25 @@ def poll_plan(v, container="samba", secrets=None, render=render_kea, firewall=re
     if digest["kea"] == state.get("kea"):
         save_watch_state("plan-watch", {**state, "usn": now, "dns": digest["dns"]})
         return _scans_done({**out, "state": "same plan"})
-    lock = (take_lock or _try_lock)()
+    alone = (take_alone or _try_alone)()     # an apply running or about to run renders Kea itself (2.1.10.45)
+    lock = (take_lock or _try_lock)() if alone is not None else None
     if lock is None:
+        if alone is not None:
+            alone.close()
         save_watch_state("plan-watch", state)
-        return _scans_done({**out, "state": "busy"})
-    try:
+        return _scans_done({**out, "state": "busy", "why": BUSY})
+    try:                                      # Kea and the firewall both inside the locks (2.1.10.45)
         done = render(secrets, container=container)
+        out["kea_restarted"] = done["changed"]
+        if done["subnets"] != state.get("subnets"):
+            ok, output = firewall()
+            if not ok:
+                raise ValidationError(f"Kea is rendered from the plan, but the host firewall was not brought in line: "
+                                      f"{output[-500:]}")
+            out["firewall"] = True
     finally:
         lock.close()
-    out["kea_restarted"] = done["changed"]
-    if done["subnets"] != state.get("subnets"):
-        ok, output = firewall()
-        if not ok:
-            raise ValidationError(f"Kea is rendered from the plan, but the host firewall was not brought in line: "
-                                  f"{output[-500:]}")
-        out["firewall"] = True
+        alone.close()
     save_watch_state("plan-watch", {"usn": now, "kea": digest["kea"], "subnets": done["subnets"], "dns": digest["dns"],
                                     "rendered": time.strftime("%Y-%m-%d %H:%M:%S"),
                                     "scan_pending": state["scan_pending"]})

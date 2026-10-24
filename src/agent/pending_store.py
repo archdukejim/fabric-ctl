@@ -1,3 +1,4 @@
+import contextlib
 import secrets
 import threading
 import time
@@ -18,7 +19,7 @@ class PendingStore:
              change by change) for everyone who may see the page. In memory: a restart of fabric-agent drops them.
     Feeds:   agent/post_pending, agent/get_route (GET /v1/pending), the dev preview's fake agent."""
 
-    def __init__(self, run, state, need, start_job, finish=None, check=None):
+    def __init__(self, run, state, need, start_job, finish=None, check=None, around=None):
         """Purpose: A store whose changes run through the given functions (the agent's own, or the preview's fakes).
         Inputs:  run — (route, actor, body, perms, session) -> result: the change done; state — (route, body) -> the
                  thing it changes as read now; need — (route) -> the permission the change needs, or None; start_job
@@ -27,13 +28,16 @@ class PendingStore:
                  changed on Policies: fabric's settings written into the services, restarting only what changed,
                  2.1.14.15); check — (owner, route, body) -> None, raising ValidationError: a check of the
                  change's own beside its permission, at hold and again at Apply (the address manager's grant at
-                 the change's site, 1.10.4.40.2); None: none.
+                 the change's site, 1.10.4.40.2); None: none; around — (page) -> a context manager the page's apply
+                 job runs inside (the address manager's: the apply intent, so the plan poll leaves Kea to the apply,
+                 2.1.10.45); None: none.
         Returns: None.
         Fails:   never.
         Feeds:   PENDING (agent/post_pending), the dev preview."""
         self.run, self.state, self.need, self.start_job = run, state, need, start_job
         self.finish = finish or (lambda page, routes: None)
         self.check = check or (lambda owner, route, body: None)
+        self.around = around or (lambda page: contextlib.nullcontext())
         self.lock = threading.Lock()
         self.changes = []                # held changes, oldest first: {id, owner, page, route, body, what, ...}
         self.queue = {}                  # page -> [apply]: {id, owner, started, state, items: [{id, what, state, why}]}
@@ -140,7 +144,10 @@ class PendingStore:
             applies = self.queue.setdefault(page, [])
             applies.insert(0, entry)
             del applies[QUEUE_KEEP:]
-        return self.start_job("apply", owner, lambda: self._run_all(owner, perms, mine, entry, actor, session, last))
+        def job():
+            with self.around(page):
+                return self._run_all(owner, perms, mine, entry, actor, session, last)
+        return self.start_job("apply", owner, job)
 
     def _run_all(self, owner, perms, mine, entry, actor, session, last=None):
         """Purpose: The apply job itself (see apply).

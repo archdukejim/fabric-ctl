@@ -32,6 +32,9 @@ import fabriclib.ipam.run_ipam_command as m_cmd  # noqa: E402
 import fabriclib.ipam.scan_subnet as m_scan  # noqa: E402
 from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp  # noqa: E402
 from fabriclib.ipam.show_scan import show_scan  # noqa: E402
+m_cmd.apply_intent = __import__("functools").partial(  # the apply intent in a folder of the test's own
+    __import__("fabriclib.common.apply_intent", fromlist=["x"]).apply_intent,
+    __import__("os").path.join(__import__("tempfile").mkdtemp(), ".apply.intent"))
 
 FAILED = 0
 TMP = tempfile.mkdtemp(prefix="fabric-scan-test-")

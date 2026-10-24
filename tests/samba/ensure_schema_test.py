@@ -86,9 +86,10 @@ def main():
           {k: classes.get(k) for k in want} == want, {k: classes.get(k) for k in want})
     check("the plan's attributes keep 15-34 and 41-45",
           {n for n in attrs.values() if n > 14} == set(range(15, 35)) | set(range(41, 46)), sorted(attrs.values()))
-    check("retired: attributes 35, 36, 39, 40 and classes 11, 13, 15; reserved for 0.10.0: 37, 38 and class 14",
+    check("retired: attributes 35, 36, 39, 40 and classes 11, 13, 15; reserved: 37, 38 and class 14 for 0.10.0, "
+          "46, 47 and class 19 for 0.8.0's site tree",
           RETIRED["fabric"] == {"attributes": {35, 36, 39, 40}, "classes": {11, 13, 15}}
-          and RESERVED["fabric"] == {"attributes": {37, 38}, "classes": {14}}, (RETIRED, RESERVED))
+          and RESERVED["fabric"] == {"attributes": {37, 38, 46, 47}, "classes": {14, 19}}, (RETIRED, RESERVED))
     gone = {"fabricAddressBlock", "fabricScanPolicySet", "fabricLocalScanSet", "fabricScanPolicy",
             "fabricScanEnforced", "fabricLocalScan", "fabricLocalScanBy"}
     check("no dropped name is live", not gone & (set(attrs) | set(classes)), gone & (set(attrs) | set(classes)))

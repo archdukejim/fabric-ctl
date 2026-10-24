@@ -64,6 +64,8 @@ zone "{{ zone_name }}" {
 {% endfor %}
 {% if install_kea | default(false) and (dhcp | default({})).ddns | default(true) %}
 {% set ddns_zone = ((dhcp | default({})).ddns_subdomain | default('dhcp')) ~ '.' ~ domain %}
+{% set kea_names = [kea_ddns_key | default('kea-ddns', true)] + ([kea_ddns_old.name] if kea_ddns_old | default(none)
+                                                                else []) %}
 // DHCP-registered hosts: created once, then only Kea's DDNS writes here (BIND's
 // journal); fabric never rewrites this file (design 2.1.4.1).
 zone "{{ ddns_zone }}" {
@@ -72,7 +74,9 @@ zone "{{ ddns_zone }}" {
     allow-query { {% for acl_name in bind_acls.keys() %}"{{ acl_name }}"; {% endfor %}};
     allow-transfer { none; };
     update-policy {
-        grant "kea-ddns" zonesub A AAAA DHCID;
+{% for k in kea_names %}
+        grant "{{ k }}" zonesub A AAAA DHCID;
+{% endfor %}
     };
 };
 
@@ -99,9 +103,13 @@ zone "{{ rev_zone }}" {
     // A PTR set by hand (from a forward record of fabric's zones) is never Kea's to replace (2.1.10.20).
     update-policy {
 {% for label in (reverse_by_hand | default({})).get(rev_zone, []) %}
-        deny "kea-ddns" name {{ label }}.{{ rev_zone }}. ANY;
+{% for k in kea_names %}
+        deny "{{ k }}" name {{ label }}.{{ rev_zone }}. ANY;
 {% endfor %}
-        grant "kea-ddns" zonesub PTR DHCID;
+{% endfor %}
+{% for k in kea_names %}
+        grant "{{ k }}" zonesub PTR DHCID;
+{% endfor %}
     };
 {% endif %}
 };

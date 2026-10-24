@@ -48,6 +48,9 @@ from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp  # noqa: E402
 from fabriclib.ipam.run_ipam_command import run_ipam_command  # noqa: E402
 from fabriclib.ipam.show_plan import show_plan  # noqa: E402
 from fabriclib.ipam.suggestions import suggest_block, suggest_split, suggest_subnet  # noqa: E402
+__import__("fabriclib.ipam.run_ipam_command", fromlist=["x"]).apply_intent = __import__("functools").partial(  # the apply intent in a folder of the test's own
+    __import__("fabriclib.common.apply_intent", fromlist=["x"]).apply_intent,
+    __import__("os").path.join(__import__("tempfile").mkdtemp(), ".apply.intent"))
 
 
 FAILED = 0

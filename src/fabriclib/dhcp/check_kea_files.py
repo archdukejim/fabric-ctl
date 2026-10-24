@@ -10,12 +10,12 @@ def check_kea_files(v, secrets, jinja_env):
              it came after BIND's files were installed, so a refused Kea file left BIND's new zone list in place and
              never reconfigured, and the next apply saw no change to reconfigure for (2.3.10.11.16).
     Inputs:  v — the rendered vars (deploy_base_dir, the normalized `dhcp`, image_kea); secrets — fabric's secrets
-             (kea_ddns_secret); jinja_env — the Jinja environment holding kea/*.j2.
+             (Kea's key: kea_ddns_key, kea_ddns_secret); jinja_env — the Jinja environment holding kea/*.j2.
     Returns: dict {file name: rendered text} for kea-dhcp4.conf and kea-dhcp-ddns.conf.
     Fails:   ValidationError with Kea's own message when it refuses a changed file; jinja2 errors while rendering;
              subprocess.TimeoutExpired (60 s) from the check.
     Feeds:   deploy/apply_deployment (before installing), dhcp/deploy_kea (what it writes)."""
-    ctx = {**v, "kea_ddns_secret": secrets.get("kea_ddns_secret", "")}
+    ctx = {**v, "kea_ddns_secret": secrets.get("kea_ddns_secret", ""), "kea_ddns_key": secrets.get("kea_ddns_key")}
     texts = {name: jinja_env.get_template(f"kea/{name}.j2").render(**ctx)
              for name in ("kea-dhcp4.conf", "kea-dhcp-ddns.conf")}
     for name, text in texts.items():            # both checked before either is written

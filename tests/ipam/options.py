@@ -44,6 +44,9 @@ from fabriclib.ipam.options.show_options import show_options  # noqa: E402
 from fabriclib.ipam.options.watch_state import save_watch_state  # noqa: E402
 from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp  # noqa: E402
 from fabriclib.ipam.run_ipam_command import run_ipam_command  # noqa: E402
+__import__("fabriclib.ipam.run_ipam_command", fromlist=["x"]).apply_intent = __import__("functools").partial(  # the apply intent in a folder of the test's own
+    __import__("fabriclib.common.apply_intent", fromlist=["x"]).apply_intent,
+    __import__("os").path.join(__import__("tempfile").mkdtemp(), ".apply.intent"))
 
 FAILED = 0
 
@@ -313,6 +316,7 @@ USN = {"n": 100}
 audit = []
 m_poll.write_audit = lambda actor, event, detail, source: audit.append((event, detail))
 m_poll._try_lock = lambda path=None: io.StringIO()
+m_poll._try_alone = lambda path=None: io.StringIO()       # no apply running or about to run (2.1.10.45)
 # the scans other sites requested (2.1.10.38): none here (their own cases: tests/ipam/scan_requests.py)
 m_poll.run_scan_requests = lambda v, secrets, container="samba": {"ran": [], "pending": False}
 
@@ -368,6 +372,48 @@ busy = poll()
 check("busy: an apply holds the settings, nothing rendered, the USN not kept", busy["state"] == "busy"
       and calls["render"] == 2, busy)
 m_poll._try_lock = lambda path=None: io.StringIO()
+m_poll._try_alone = lambda path=None: None               # a change its apply follows is being made (2.1.10.45)
+busy = poll()
+check("busy: an apply is running or about to run: Kea left to it (nothing rendered, the firewall left), the USN not "
+      "kept, why says so", busy["state"] == "busy" and calls["render"] == 2 and calls["firewall"] == 1
+      and "about to run" in busy["why"] and poll()["state"] == "busy", (busy, calls))
+m_poll._try_alone = lambda path=None: io.StringIO()
+HELD = []
+
+
+class Held:
+    """A lock that says whether it is still held."""
+
+    def __init__(self, name):
+        self.name, self.open = name, True
+        HELD.append(self)
+
+    def close(self):
+        self.open = False
+
+
+def firewall_held():
+    calls["firewall"] += 1
+    return all(h.open for h in HELD), "ok"     # refused (False) when a lock was let go before the firewall step
+
+
+USN["n"] = 1031
+m_poll._try_lock, m_poll._try_alone = (lambda path=None: Held("settings")), (lambda path=None: Held("alone"))
+inside = m_poll.poll_plan({"site_name": "lan", "install_kea": True}, container="none", secrets={},
+                          render=lambda s, container: {"changed": True, "subnets": ["10.1.21.0/24"]},
+                          firewall=firewall_held, usn=lambda c: USN["n"], read=answer(SITE))
+check("the firewall step runs inside the settings' lock and the apply intent held alone (2.1.10.45); both let go "
+      "after", inside["state"] == "rendered" and inside["firewall"] is True and len(HELD) == 2
+      and not any(h.open for h in HELD), (inside, [(h.name, h.open) for h in HELD]))
+HELD.clear()
+m_poll._try_alone, m_poll._try_lock = (lambda path=None: Held("alone")), (lambda path=None: None)
+USN["n"] = 1032
+skipped = poll(read_plan=answer({**SITE, "options": [{"name": "domain-name", "data": "z.lan"}]}))
+check("busy: the settings' lock held elsewhere: the apply intent let go again, nothing rendered",
+      skipped["state"] == "busy" and len(HELD) == 1 and not HELD[0].open, (skipped, HELD))
+HELD.clear()
+m_poll._try_lock, m_poll._try_alone = (lambda path=None: io.StringIO()), (lambda path=None: io.StringIO())
+USN["n"] = 1033
 save_watch_state("plan-dns", {"dns": "something else"})
 check("a DNS change is reported, not applied", poll()["dns_pending"] is True)
 USN["n"] = 104

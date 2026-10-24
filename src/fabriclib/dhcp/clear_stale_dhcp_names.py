@@ -39,14 +39,15 @@ def _served_zone(zone):
     return res.stdout
 
 
-def clear_stale_dhcp_names(v, addresses, secret, actor, source, audit=AUDIT_FILE):
+def clear_stale_dhcp_names(v, addresses, secret, actor, source, audit=AUDIT_FILE, key_name="kea-ddns"):
     """Purpose: delete what DHCP registered in dhcp.<domain> for addresses whose names are now set by hand (decision
              2.1.10.22, manual 1.10.4.20): the zone read as BIND serves it (its file and journal, in BIND's
              container), the stale records found there (stale_dhcp_names) and deleted in one RFC 2136 update signed
              with Kea's key (`nsupdate`, the key in a 0600 file, never on its command line); each removal audited.
     Inputs:  v — settings (install_kea, dhcp.ddns and ddns_subdomain, domain, deploy_base_dir, host_ip,
              bind_dns_port); addresses — hand_set_addresses(); secret — Kea's key (kea_ddns_secret); actor, source —
-             the audit's (source "apply", "timer" or "cli"); audit — the audit log.
+             the audit's (source "apply", "timer" or "cli"); audit — the audit log; key_name — Kea's key's name
+             (kea_key: "kea-ddns" until it is first replaced, 2.1.10.42).
     Returns: list of (owner FQDN, type, rdata) deleted; [] with Kea or its DNS registration off, no address set by
              hand, or nothing left behind (nothing is sent then).
     Fails:   ValidationError: the zone could not be read, Kea's key has no secret, or BIND refused the update
@@ -74,7 +75,7 @@ def clear_stale_dhcp_names(v, addresses, secret, actor, source, audit=AUDIT_FILE
     fd, keyfile = tempfile.mkstemp(prefix="fabric-kea-ddns-", suffix=".key")     # 0600, root's
     try:
         with os.fdopen(fd, "w") as f:
-            f.write(f'key "kea-ddns" {{\n    algorithm hmac-sha256;\n    secret "{secret}";\n}};\n')
+            f.write(f'key "{key_name}" {{\n    algorithm hmac-sha256;\n    secret "{secret}";\n}};\n')
         try:
             sent = subprocess.run(["nsupdate", "-k", keyfile], input="\n".join(script + ["send", ""]),
                                   capture_output=True, text=True, timeout=30)
