@@ -18,5 +18,5 @@ the request for this tag (global Rule 8).
 4. **Watch** the `package` and `images` runs for the tag. **Verify**: the Release `v<version>` (not a pre-release)
    carries `fabricctl_<version>_all.deb`; each `ghcr.io/archdukejim/open-fabric/<name>:<version>` resolves to the
    pinned digest; apt stable serves `<version>`
-   (`https://archdukejim.github.io/open-fabric/dists/stable/main/binary-amd64/Packages` and `binary-arm64` list it).
+   (`https://archdukejim.github.io/fabric-ctl/dists/stable/main/binary-amd64/Packages` and `binary-arm64` list it).
 5. **Report** what was released and verified. The production host is upgraded by the owner, never by the agent.

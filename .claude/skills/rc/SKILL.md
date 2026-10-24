@@ -15,11 +15,11 @@ Arguments: the version (e.g. `0.6.4`); without one, ask.
 1. **Branch** `rc/<version>` from `origin/main` (or continue the existing one). Set `config/VERSION`, commit, push.
 2. **Gate and local suites** (WSL): the docs and lint checks, then `sudo tests/run-all.sh` (every suite but the sandbox).
    A failure is fixed before going on.
-3. **Publish the images**: `gh workflow run images.yml --repo archdukejim/open-fabric --ref rc/<version> -f publish=true`,
+3. **Publish the images**: `gh workflow run images.yml --repo archdukejim/fabric-ctl --ref rc/<version> -f publish=true`,
    watch it, read the run number. **Pin** from the commit it ran on:
    `python3 scripts/images/pin_published.py <version>-rc.<run number>`, then
    `python3 scripts/images/source_hash.py --check`; commit the lock.
-4. **apt testing**: `gh workflow run package.yml --repo archdukejim/open-fabric --ref rc/<version> -f apt_testing=true`.
+4. **apt testing**: `gh workflow run package.yml --repo archdukejim/fabric-ctl --ref rc/<version> -f apt_testing=true`.
 5. **The sandbox**, kept: `sudo env KEEP=1 tests/sandbox/run.sh`; then **the image-update test** on it:
    `sudo tests/images/update.sh --box fabric-sandbox` (refresh `tests/images/previous.yaml` first: the previous
    release's digests and one version back for each upstream image).
