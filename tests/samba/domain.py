@@ -825,7 +825,12 @@ check("fabricctl domain status says RELAXED while grants_fallback_open is on, an
 
 print("--- Apply per page (manual 1.8.6.5): fabric-agent's own pending store, against this DC")
 import agent.post_pending as m_pending  # noqa: E402
+import fabriclib.common.apply_intent as m_intent  # noqa: E402
 from agent.job_store import JOBS  # noqa: E402
+
+# the apply intent (2.1.10.45) in a folder of the test's own, never the checkout's config/.apply.intent
+m_pending.apply_intent = __import__("functools").partial(
+    m_intent.apply_intent, os.path.join(__import__("tempfile").mkdtemp(), ".apply.intent"))
 from fabriclib.rbac.permissions import BUNDLES  # noqa: E402
 
 m_pending.load_vars = lambda: V

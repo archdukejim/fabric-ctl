@@ -10,7 +10,8 @@ SOCKETS = {"dhcp4": ("run", "kea4-ctrl-socket"), "ddns": ("run-ddns", "kea-ddns-
 
 def kea_command(v, command, arguments=None, timeout=10, daemon="dhcp4"):
     """Purpose: Send one command to a Kea daemon over its control socket (host side
-             <deploy_base>/kea/run/kea4-ctrl-socket for kea-dhcp4, <deploy_base>/kea/run-ddns/kea-ddns-ctrl-socket for kea-dhcp-ddns; root only).
+             <deploy_base>/kea/run/kea4-ctrl-socket for kea-dhcp4,
+             <deploy_base>/kea/run-ddns/kea-ddns-ctrl-socket for kea-dhcp-ddns; root only).
     Inputs:  v — the vars dict (deploy_base_dir).
              command — str Kea command, e.g. "lease4-get-all".
              arguments — dict, sent only when not empty.

@@ -154,7 +154,7 @@ docs/volume_2_engineering_decisions/2.1.9-federation.md	822f824f0de9dfa1960b37ef
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	8974d88778519bb319474e6fc9a13b3caf5a5c09	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	c8d7c6f0b8d40267fc9dd426a363cfd783b99dc5	2026-10-24	
+docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	47a62a65a5195d84b1fbb38b910cf2e2b77623d7	2026-10-24	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
@@ -672,7 +672,7 @@ src/fabriclib/dhcp/dhcp_reverse_zones.py	79d9d160760e13d23affe41fb4dba1a95008532
 src/fabriclib/dhcp/ensure_ddns_zone.py	5e53397caedb037327dd0e54f017a5aa980f6946	2026-10-08	
 src/fabriclib/dhcp/hand_set_addresses.py	b013032a337b4244a7b665891528d78ed59e8d4c	2026-10-23	
 src/fabriclib/dhcp/kea_client_classes.py	f48a9f6bebb6fbc049fb315989fde1c0433f9bc8	2026-10-23	
-src/fabriclib/dhcp/kea_command.py	fe813451177f610fd6c32928a21cad5e8d0c2a83	2026-10-24	
+src/fabriclib/dhcp/kea_command.py	e7462bd065e88849f26416dfd03addf2228c4274	2026-10-24	
 src/fabriclib/dhcp/kea_key/README.md	a5300a254970ad6567a40be4745fab1c66cc049b	2026-10-24	
 src/fabriclib/dhcp/kea_key/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-24	
 src/fabriclib/dhcp/kea_key/drop_old_key.py	9f8c5fdb195926ba63b9952f6a20b39b5709cc41	2026-10-24	
@@ -2073,14 +2073,14 @@ tests/run-all.sh	666e4da0f6d1fcb0dc2eb673b7708d31656b3062	2026-10-24
 tests/samba/README.md	2b9696c5c6d760c9237fcd7b06c94ff655e32316	2026-10-23	
 tests/samba/dc.py	29d7bcdd2c5e39514c16fcfe1f539af0b78e563a	2026-10-20	
 tests/samba/devices.py	ff9c2b940ed63152b7457531eacaaaa0ce91003c	2026-10-20	
-tests/samba/domain.py	658ed60cdb41185e36cf6d8fb0659925fe09daa8	2026-10-23	
+tests/samba/domain.py	31d9a4321de4a3e2d6b93738aa2091b3c2019f20	2026-10-24	
 tests/samba/ensure_schema_test.py	146f977b3574161b08c25b89236222304db646e6	2026-10-24	
 tests/samba/gpo.py	de95b4ece8fbb79ba8e17dc8ab2327f46680ffb6	2026-10-20	
 tests/samba/grant_networks_test.py	eedecb2f40fdfcfa27144703dade5c219e2ac41d	2026-10-23	
 tests/samba/grants.py	2d084b66091ec900bdca1b0281903f1a977cdf56	2026-10-23	
 tests/samba/hostgroups.py	2d1dd2e61835983f62de790aaf9a8c377099499a	2026-10-23	
 tests/samba/id_layout_test.py	2f5f8395429e443adbf0bd64480247c114dcc2c6	2026-10-20	
-tests/samba/ipam.py	1a085926d3e422c9c975394d66a90380081928d2	2026-10-23	
+tests/samba/ipam.py	7d8c47334384f0fd56d1996b410c4286961054d4	2026-10-24	
 tests/samba/linux_join.py	70937269e15ad4a54c9566878106565787504505	2026-10-20	
 tests/samba/plan_store.py	64333c3b2a8a291b01552f2024892b126adcc35a	2026-10-23	
 tests/samba/plan_store_test.py	174f00adf23343a84028154c6ff9a35c91a80a44	2026-10-23	

@@ -37,8 +37,14 @@ from fabriclib.ipam.remove_vlan import remove_vlan  # noqa: E402
 from fabriclib.ipam.run_ipam_command import run_ipam_command  # noqa: E402
 from fabriclib.ipam.set_dhcp_subnet import set_dhcp_subnet  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
+import fabriclib.common.apply_intent as m_intent  # noqa: E402
+import fabriclib.ipam.run_ipam_command as m_run  # noqa: E402
 
-W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-ipam")
+# the apply intent (2.1.10.45) in a folder of the test's own, never the checkout's config/.apply.intent
+m_run.apply_intent = __import__("functools").partial(
+    m_intent.apply_intent, os.path.join(__import__("tempfile").mkdtemp(), ".apply.intent"))
+
+W =os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-ipam")
 NET, SUBNET, IP = "ipamtest_net", "10.254.41.0/24", "10.254.41.10"
 DC = "samba"            # the product's own name: fabric's functions use it
 FAILED = 0
