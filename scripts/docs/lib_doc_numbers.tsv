@@ -206,6 +206,7 @@ file	fabriclib-common|src/fabriclib/common/read_packages_lock.py	12
 file	fabriclib-common|src/fabriclib/common/read_published_lock.py	24	
 file	fabriclib-common|src/fabriclib/common/restore_original.py	13	
 file	fabriclib-common|src/fabriclib/common/run.py	14	
+file	fabriclib-common|src/fabriclib/common/same_content.py	29	
 file	fabriclib-common|src/fabriclib/common/save_vars.py	15	
 file	fabriclib-common|src/fabriclib/common/service_user.py	16	
 file	fabriclib-common|src/fabriclib/common/set_tsig_secrets.py	17	
@@ -1685,6 +1686,7 @@ function	fabriclib-common|src/fabriclib/common/read_packages_lock.py|read_packag
 function	fabriclib-common|src/fabriclib/common/read_published_lock.py|read_published_lock	1	
 function	fabriclib-common|src/fabriclib/common/restore_original.py|restore_original	1	
 function	fabriclib-common|src/fabriclib/common/run.py|run	1	
+function	fabriclib-common|src/fabriclib/common/same_content.py|same_content	1	
 function	fabriclib-common|src/fabriclib/common/save_vars.py|_empty_to_null	1	
 function	fabriclib-common|src/fabriclib/common/save_vars.py|save_vars	2	
 function	fabriclib-common|src/fabriclib/common/service_user.py|service_user	1	

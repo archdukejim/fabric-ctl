@@ -73,7 +73,7 @@ docs/volume_1_description_and_architecture/1.17.37-fabriclib-access.md	1813146bf
 docs/volume_1_description_and_architecture/1.17.38-fabriclib-domain.md	e0311ad777e551fc6604e23bfb2690db89412839	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.39-fabriclib-localadmin.md	8fa6d8cf79a5ca90fdda5e7ddd2e04d726f9c78a	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.4-fabricctl-lib.md	76bc845876c679778c0588d379f7246a12fae2d0	2026-10-08	
-docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	d7c6a98034382d80983b5acbeb22d83cdf962641	2026-10-24	
+docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	351353ebf5a57bc5474726c289ef3a20673bf57d	2026-10-25	
 docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	e9b47dab12efa0833f6d3272a93548f39ba163aa	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.7-fabriclib-core.md	287e5a946064faecbdb0262ece385ff0e043036c	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	63423e101c89855651586de60ae0e9d2f1b1d028	2026-10-23	
@@ -151,7 +151,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	8f8dc9a2628590186985c15579ae6
 docs/volume_2_engineering_decisions/2.1.9-federation.md	807fa399dad0db0dc7ee1508f22ea844d8656cc2	2026-10-25	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	7fd296ee69cec28e45267fd819edfd9ed0c87f85	2026-10-25	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	a71a6fa62289f14a0a8269c52848f3d526da7d45	2026-10-25	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -269,7 +269,7 @@ scripts/docs/README.md	e391ec81d122ee82ea285ffaf04eac6a8dd44372	2026-10-12
 scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03	
 scripts/docs/entrypoints.py	d00bed147591ebd063f9148b9ed95a7ddff0ab12	2026-10-23	
 scripts/docs/gen_lib_doc.py	d7a3c1284ca3a30af61353d41f5a9d2a1457a325	2026-10-12	
-scripts/docs/lib_doc_numbers.tsv	52ecbd498c80caf41bb265b0383fb2af80f71e68	2026-10-24	
+scripts/docs/lib_doc_numbers.tsv	fa5582c6e64775492f61c98ea2bd7203e0bd188e	2026-10-25	
 scripts/docs/lib_doc_registry.py	a3a407c2b06b44838c4ce7a69725c4d47339f437	2026-10-17	
 scripts/docs/product_code.py	645a3bb130463028b90de64798c81694e5293131	2026-10-03	
 scripts/docs/review_ledger.py	b3f307b4dbaba54a69cc93c993287d43c747ba8f	2026-10-08	
@@ -533,12 +533,12 @@ src/fabriclib/breakglass/reset_break_glass.py	958d8f2438f29ff7472e4e69afd15cb0ef
 src/fabriclib/breakglass/run_admin_command.py	5471097f5eaa24b134d272a69c9e8e6d09ce7942	2026-10-20	
 src/fabriclib/breakglass/write_break_glass_file.py	0179ffc0e1686d8b00ec9b84e5aa862b99c2aab5	2026-10-20	
 src/fabriclib/cli.py	1e4f94c5b23535329f88e66c6bd24fecbae2696b	2026-10-23	
-src/fabriclib/common/README.md	4b03673533c585381ea9621c47db27edd514e3d2	2026-10-12	
+src/fabriclib/common/README.md	933eeb345e748e7a16bf0ebced0431c8c236fe72	2026-10-25	
 src/fabriclib/common/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
 src/fabriclib/common/ask.py	5df065e3cd4c5487b71a37bbca9e2acb7de40d6c	2026-10-12	
 src/fabriclib/common/console.py	10ecbfe70f1058ba0c93a8428d5037a0e108ebd6	2026-10-11	
-src/fabriclib/common/copy_if_changed.py	31eb7d3a596ca3d0a85472a5621629a5e6ca0e70	2026-10-02	
-src/fabriclib/common/copy_tree_with_perms.py	c6a65b77df4b888043049499aeffe7917168caf8	2026-10-02	
+src/fabriclib/common/copy_if_changed.py	93f84f0d145fa812c9f5ec560dab427491d323bb	2026-10-25	
+src/fabriclib/common/copy_tree_with_perms.py	80afa03b6f5bedfc399c2dc8270a056ca3ff24c8	2026-10-25	
 src/fabriclib/common/dns_query.py	9493d6e711242723c27a5ea9b9df5765718efd76	2026-10-09	
 src/fabriclib/common/dns_wire.py	3d0e2891f655b593472a57a2d2123844a66d2dc3	2026-10-09	
 src/fabriclib/common/doh_query.py	820cf245c084a1ead14f327d50c88c37d903d782	2026-10-09	
@@ -557,6 +557,7 @@ src/fabriclib/common/read_packages_lock.py	e16f1c7d5e4cc5d67d6cbcbd8df66d9cf97bf
 src/fabriclib/common/read_published_lock.py	2896aab5caf8b0d4e480c3e80fc4ffbdfb36685f	2026-10-08	
 src/fabriclib/common/restore_original.py	8166a3d85a30759018fd181f6395c85eb5e94051	2026-10-08	
 src/fabriclib/common/run.py	b16ee5ef741f0d7530419e89f66b96bf688dee84	2026-09-30	
+src/fabriclib/common/same_content.py	e27ffc31ef9d8df70a7bf9389ff5af05b5da4ed8	2026-10-25	
 src/fabriclib/common/save_vars.py	75280e10e0a8b82278bf15bcd7b96791682ccad2	2026-10-17	
 src/fabriclib/common/service_user.py	a76fed6116d6bbbc34f87c044d3706fa04817f17	2026-10-02	
 src/fabriclib/common/set_tsig_secrets.py	46fc4bdbacb9d4a5e920de6a0e4b489a2f1ec242	2026-09-30	
@@ -861,7 +862,7 @@ src/fabriclib/federation/console_reachable.py	bdf60adddc3a347995ca0fe5c4f09c8b74
 src/fabriclib/federation/constants.py	5a7d476b9b4eebbdf9f510dab389a23c8544bad4	2026-10-18	
 src/fabriclib/federation/create_invitation.py	26ab178792f20208aeac4b8d14eb49ec7b831955	2026-10-18	
 src/fabriclib/federation/decode_invitation.py	a616981b1893c14b28e9273ce40e6c9951782903	2026-10-18	
-src/fabriclib/federation/deploy_federation_endpoint.py	0b7f4e95415e14e1cffaded3b301e4a5ffa1fea5	2026-10-08	
+src/fabriclib/federation/deploy_federation_endpoint.py	a45dcc8e568b466c4ba6b39eddb71b49648a48cd	2026-10-25	
 src/fabriclib/federation/dns_links.py	8d3456ba9ab0241c1ad7eab71b0e75daad0d64ee	2026-10-08	
 src/fabriclib/federation/drop_relay.py	468b69cab363d9605fcff2afcbc5e664b381f9c8	2026-10-08	
 src/fabriclib/federation/federation_overview.py	aa011bd22d5614dc84c6c1f92bac232e9cb27b38	2026-10-20	
@@ -1051,7 +1052,7 @@ src/fabriclib/pki/mint_extra_cert.py	3bab45aa27930bfd42c374b4e6829fc3f3c12942	20
 src/fabriclib/pki/mint_offline_cert.py	53acd52a61d93c0b0e13865faf34989c2d40f34e	2026-10-01	
 src/fabriclib/pki/needs_renewal.py	c7551952fa866601e2694ad40035e30f430f3e86	2026-10-08	
 src/fabriclib/pki/pick_up_cert.py	e18433da18ee63474e9d55e189e0126a6df19f76	2026-10-08	
-src/fabriclib/pki/publish_ca_certs.py	df8fb3a94dcc5f0655465aacffef65211937af90	2026-10-23	
+src/fabriclib/pki/publish_ca_certs.py	e64f7db2727e84f18240ad7270a237ca853347c1	2026-10-25	
 src/fabriclib/pki/publish_crl.py	28a07c5ba594bdc9fb65e030dcab5525b97f3f2a	2026-10-23	
 src/fabriclib/pki/replace_site_ca.py	f3d7e0fcdd40976c489eed563819d3b9773c9e20	2026-10-08	
 src/fabriclib/pki/revoke_cert.py	49d3ce9badfdc738aaa3e23690069c59e89b56df	2026-10-08	
@@ -1792,8 +1793,11 @@ templates/webui/webui.json.j2	1161c507f612f4f256b7208bf12db143692a175d	2026-10-0
 tests/README.md	732783dfae9ddfa9fae3ce9436c4e69a43524273	2026-10-20	
 tests/ci/README.md	78278efb5a511e089fd82def756c3be5bfeca8df	2026-10-15	
 tests/ci/logs_secret_free_test.py	e710a2ffadd9a5adc4e9750edf4a52bb43c512ec	2026-10-15	
-tests/common/README.md	4c5678c41f80d853c74ad0f1b82bd10b3baa2c29	2026-10-17	
+tests/common/README.md	bc95eab139f7da5d76bcb949a8599875a38cb27f	2026-10-25	
 tests/common/ask.py	52a510850e39121e2bec244890dabb189195a748	2026-10-12	
+tests/common/copy_if_changed_test.py	620aa40a821cea1b4352113ce6bcb0205b4b206a	2026-10-25	
+tests/common/copy_tree_with_perms_test.py	231113bbecf6f7ba756da1170baf757806ed919d	2026-10-25	
+tests/common/same_content_test.py	c74473ef4511e8fce5928217d3d338e4b11f7882	2026-10-25	
 tests/common/save_vars_test.py	6ebd62374b0a8ebd0b5c00df7722c493dfb27116	2026-10-17	
 tests/consent/README.md	3b6643214e21f6e73e66306424f4aea0521f38a9	2026-10-20	
 tests/consent/run.py	65140e7b71dddda0afa6e2a83100649f3ce0bf20	2026-10-23	
@@ -1814,8 +1818,9 @@ tests/docs/run.py	5a018acffd168cfdb0df34e7607d88b1be94941e	2026-10-17
 tests/entrypoints-gaps.txt	752b42782fd8b530a20f2bc80a3a22d8e776441a	2026-10-23	
 tests/entrypoints-reasons.yaml	fd19dcae1f8c4708e37dbe8a3cc43e366d9c08d1	2026-10-12	
 tests/entrypoints.yaml	a537b4216eab9309fb627e2a2a23ad960cbde3c4	2026-10-24	
-tests/federation/README.md	196c75b746763bfb12df898172248a0bfe83ad06	2026-10-05	
+tests/federation/README.md	44bdd3de62c06bb34e0d5766ed90dcb537fb0ddb	2026-10-25	
 tests/federation/address_plan.py	353d827caa3bd6b24884c785e238d859d9f16066	2026-10-08	
+tests/federation/deploy_federation_endpoint_test.py	c790d4dedaabb74db505224c42126a0dece440dc	2026-10-25	
 tests/federation/dns.py	981ee957598457d81569b910514ce665472c18c3	2026-10-09	
 tests/federation/nested.py	a5b8d62501d593cd78c2fcf1e69ee487839da713	2026-10-21	
 tests/federation/role.py	3ca58d5cd562da5dda5711d7825d6d259697f08a	2026-10-20	
@@ -1874,7 +1879,7 @@ tests/resolver/console.py	6c0c2e3efa559e3994399667a60a8c70529c724f	2026-10-23
 tests/resolver/groups.py	5fafa02d8f805a8a4e3fca9ae0bac1e4ac91832e	2026-10-21	
 tests/resolver/querylog.py	ed2d9be93fc7f7a1973ca78395833c86ba83a2b4	2026-10-12	
 tests/resolver/run.py	f9d61db214ea1b2702e68175a10639177c955135	2026-10-21	
-tests/run-all.sh	026fdea995722c1693ee0b69d0c82f28072eb235	2026-10-24	
+tests/run-all.sh	9652d39a451250cf88a5efa5ce74c66e568bc8d6	2026-10-25	
 tests/samba/README.md	38fc7de5c8ecea4f25f72d9253beae9b9c0817c1	2026-10-24	
 tests/samba/dc.py	29d7bcdd2c5e39514c16fcfe1f539af0b78e563a	2026-10-20	
 tests/samba/devices.py	ff9c2b940ed63152b7457531eacaaaa0ce91003c	2026-10-20	
