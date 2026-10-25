@@ -5,7 +5,7 @@
 # tests/lab/dhcp_vars.yaml). No Python runs here (Windows' python is a store stub): every check runs on the lab VMs
 # over SSH with the lab key.
 #
-#   tests/lab/dhcp_campaign.sh                 [ONLY="cli clients console" picks parts; all by default]
+#   tests/lab/dhcp_campaign.sh                 [ONLY="cli clients location console" picks parts; all by default]
 #
 # The checks, each against the real router, Kea, BIND, the DC and the console:
 #   the plan: VLAN 10 moved from the settings (1.10.4.37); VLAN 20 added from the CLI; Kea serving both; the refusals
@@ -13,6 +13,10 @@
 #   ping-check: an address that answers (the router's alias 10.88.20.100) is skipped and shown declined
 #   a scan finding that address; a reservation honoured; a name set by hand (--dns on) winning over DHCP's, published
 #   by Sync now; an option on a subnet reaching the client; the plan poll taking a change made without an apply
+#   the scan beyond a router (1.10.4.47): VLAN 20 is on none of fabric's networks, so its scan says "addresses only",
+#   its find has no MAC, and is recorded both ways (a static address, then a reservation with the MAC typed)
+#   a branch location's relayed subnet (1.10.4.46): VLAN 30 at location `branch`, kub26-1's VLAN NIC moved to VLAN 30
+#   on Hyper-V (and back), leased through the relay; `ipam show` and the export name the location
 #   then the console as three people (tests/lab/dhcp_console.py, on the fabric VM)
 # The router's alias is removed at the end; the VMs go back to `clean` afterwards (3.1.5.10, step 7).
 # -----------------------------------------------------------------------
@@ -20,7 +24,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 FABRIC=10.88.0.10; ROUTER=10.88.0.2; KUB=10.88.0.31; WIN=10.88.0.42
 KUB_MAC=02:88:00:1f:00:02; WIN_IF="Ethernet 3"; DOMAIN=lab.test
-ONLY="${ONLY:-cli clients console}"
+ONLY="${ONLY:-cli clients location console}"
 OUT="${FABRIC_TEST_OUT:-/tmp/fabric-tests}/lab-dhcp-campaign"
 SSH=(-i "$HOME/.ssh/g23_lab" -o "UserKnownHostsFile=$HOME/fabric-lab/known_hosts" -o BatchMode=yes -o ConnectTimeout=20)
 PASS=0; FAIL=0
@@ -135,6 +139,27 @@ F "fabricctl ipam scan vlan20 --no-ask" > "$OUT/scan.log" 2>&1
 # covers: cli:ipam.scan +
 check "the scan of vlan20 lists 10.88.20.100 in use and unrecorded, and the command to record it" \
     "grep '10.88.20.100' '$OUT/scan.log' | grep -q 'IN USE, UNRECORDED' && grep -q 'ipam address add 10.88.20.100' '$OUT/scan.log'"
+echo "--- the scan beyond a router (2.1.10.50, 1.10.4.47): fabric has no address in VLAN 20"
+check "the scan says VLAN 20 is beyond a router: addresses only" \
+    "grep -q 'beyond a router: addresses only' '$OUT/scan.log'"
+check "the router's address is found with no MAC (ARP sees none past the gateway)" \
+    "grep -E '^ +10\.88\.20\.100 +- ' '$OUT/scan.log' | grep -q 'IN USE, UNRECORDED'"
+check "both ways to record it are printed: a static address, or a reservation once its MAC is known" \
+    "grep -q 'ipam address add 10.88.20.100 --kind static' '$OUT/scan.log' \
+     && grep -q 'ipam address add 10.88.20.100 --kind reservation --mac <MAC>' '$OUT/scan.log'"
+F "fabricctl ipam address add 10.88.20.100 --kind reservation --name rtr20 --no-apply" > "$OUT/routed-nomac.log" 2>&1
+check "a reservation of the find without its MAC is refused, recording nothing" \
+    "grep -q 'a reservation needs the device' '$OUT/routed-nomac.log' && ! F 'fabricctl ipam show' | grep -q rtr20"
+F "fabricctl ipam address add 10.88.20.100 --kind static --name rtr20 --no-apply" > "$OUT/routed-static.log" 2>&1
+check "the find recorded as a static address" \
+    "F 'fabricctl ipam show' | grep '10.88.20.100' | grep 'rtr20' | grep -q static"
+F "fabricctl ipam address remove 10.88.20.100 --no-apply" > /dev/null 2>&1
+RTR_MAC=$(on "$ROUTER" "cat /sys/class/net/vlans.20/address" | tr -d '\r' | head -1)
+F "fabricctl ipam address add 10.88.20.100 --kind reservation --mac $RTR_MAC --name rtr20 --no-apply" \
+    > "$OUT/routed-mac.log" 2>&1
+check "the find recorded as a reservation once its MAC ($RTR_MAC) is typed" \
+    "F 'fabricctl ipam show' | grep '10.88.20.100' | grep 'rtr20' | grep -q reservation"
+F "fabricctl ipam address remove 10.88.20.100" > /dev/null 2>&1
 echo "--- a reservation, then a name set by hand"
 F "fabricctl ipam address add 10.88.10.50 --kind reservation --mac $KUB_MAC --name kubres" > "$OUT/reserve.log" 2>&1
 # covers: cli:ipam.address +
@@ -170,6 +195,43 @@ check "not served at once (--no-apply)" "! kea_has 10.88.40.0/24"
 check "the plan poll gives it to Kea within 30 s (45 allowed)" "wait_for 45 'kea_has 10.88.40.0/24'"
 F "fabricctl ipam vlan remove 40" > /dev/null 2>&1
 alias_off
+fi
+
+if [[ " $ONLY " == *" location "* ]]; then
+echo "--- a branch location's relayed subnet (2.1.10.48, 2.1.10.49; 1.10.4.46): VLAN 30 at location branch"
+# kub26-1's VLAN NIC (its MAC $KUB_MAC) moves to VLAN 30 on Hyper-V for this part, and back to VLAN 10 at its end;
+# the VM's checkpoint (3.1.5.10, step 7) holds VLAN 10 as well.
+kub_vlan() { # $1 the VLAN ID for kub26-1's VLAN NIC
+    local mac; mac=$(echo "$KUB_MAC" | tr -d ':' | tr 'a-f' 'A-F')
+    powershell.exe -NoProfile -Command "Get-VMNetworkAdapter -VMName g23-vm-kub26-1 | Where-Object MacAddress -eq '$mac' | Set-VMNetworkAdapterVlan -Access -VlanId $1" > /dev/null
+}
+KNAME="g23-vm-kub26-1.dhcp.$DOMAIN"
+trap 'kub_vlan 10' EXIT
+F "fabricctl ipam vlan add 30@branch --name vlan30 --subnet 10.88.30.0/24 --gateway 10.88.30.1" > "$OUT/vlan30.log" 2>&1
+# covers: cli:ipam.vlan +
+check "ipam vlan add 30@branch: applied, its suggested DHCP range .100-.249" \
+    "grep -q 'dhcp 10.88.30.100 - 10.88.30.249' '$OUT/vlan30.log' && grep -q '^applied' '$OUT/vlan30.log'"
+check "Kea serves the branch's 10.88.30.0/24" "kea_has 10.88.30.0/24"
+F "fabricctl ipam show" > "$OUT/show-loc.txt"
+check "ipam show lists VLAN 30 under 'at branch', its subnet named branch-vlan30" \
+    "grep -q 'at branch' '$OUT/show-loc.txt' && grep -q 'branch-vlan30' '$OUT/show-loc.txt'"
+F "fabricctl ipam vlan add 30@branch --name again --subnet 10.88.31.0/24" > "$OUT/vlan30-again.log" 2>&1
+# covers: cli:ipam.vlan -
+check "a second VLAN 30 at branch is refused; nothing served" \
+    "grep -q 'already' '$OUT/vlan30-again.log' && ! kea_has 10.88.31.0/24"
+kub_vlan 30; kub_renew
+wait_for 90 'in_range "$(kub_ip)" 10.88.30.100 10.88.30.249'; BIP=$(kub_ip)
+check "kub26-1 at the branch: a lease from 10.88.30.0/24 through the router's relay ($BIP)" \
+    "in_range '$BIP' 10.88.30.100 10.88.30.249"
+check "its name $KNAME is registered at the branch's address, in BIND" \
+    "wait_for 30 '[ \"\$(dns $KNAME)\" = \"$BIP\" ]'"
+F "fabricctl ipam export" > "$OUT/export-loc.csv" 2>&1
+check "the export's last column is location (2.1.10.52), the branch's rows ending in branch" \
+    "head -1 '$OUT/export-loc.csv' | grep -q ',location$' && grep '10.88.30.1,' '$OUT/export-loc.csv' | grep -q ',branch$'"
+kub_vlan 10; trap - EXIT; kub_renew
+F "fabricctl ipam vlan remove 30@branch --force" > "$OUT/vlan30-remove.log" 2>&1
+check "VLAN 30 at branch removed; Kea no longer serves it; kub26-1 back on VLAN 10" \
+    "! kea_has 10.88.30.0/24 && wait_for 60 'in_range \"\$(kub_ip)\" 10.88.10.0 10.88.10.255'"
 fi
 
 if [[ " $ONLY " == *" console "* ]]; then

@@ -431,8 +431,18 @@ evil = copy.deepcopy(read)
 evil["plans"]["lan"]["subnets"][0]["addresses"][0]["notes"] = "=HYPERLINK(\"http://x\")"
 csv_text = export_plan(evil, "lan")
 check("export: a header and one row per address; a formula-like cell defused",
-      csv_text.splitlines()[0].startswith("site,vlan,vlan_name,location,subnet,ip,kind")
+      csv_text.splitlines()[0].startswith("site,vlan,vlan_name,subnet,ip,kind")
       and "'=HYPERLINK" in csv_text and len(csv_text.splitlines()) == 5, csv_text)
+# 2.1.10.52: the location column goes last, so an export's columns before locations keep their places
+located = copy.deepcopy(read)
+located["plans"]["lan"]["subnets"][0]["location"] = "branch"
+loc_lines = export_plan(located, "lan").splitlines()
+check("positive: export's location is its last column, a located subnet's rows ending in their location",
+      loc_lines[0].endswith(",notes,location") and loc_lines[1].endswith(",branch")
+      and loc_lines[0].split(",")[:6] == ["site", "vlan", "vlan_name", "subnet", "ip", "kind"], loc_lines[:2])
+check("negative: the DC's own rows leave the location empty, and no column moved before it",
+      all(ln.endswith(",") or ln.endswith(",branch") for ln in loc_lines[1:])
+      and "location" not in loc_lines[0].split(",")[:-1], loc_lines)
 shown = show_plan(read, "lan")
 check("show: the site's number, each VLAN with its subnet, ranges and addresses, the site's LAN",
       shown.startswith("site lan  number 1") and "VLAN 20" in shown and "10.1.20.10" in shown

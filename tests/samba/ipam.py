@@ -305,7 +305,7 @@ check("find: a name, and an address nobody recorded with its range", code == 0 a
 # covers: cli:ipam.export +
 code, out = ipam("export")
 check("export: CSV with a header and the recorded addresses", code == 0
-      and out.startswith("site,vlan,vlan_name,location,subnet,ip,kind") and "10.1.30.150,reservation,dhcp,cam2" in out, out)
+      and out.startswith("site,vlan,vlan_name,subnet,ip,kind") and out.splitlines()[0].endswith(",location") and "10.1.30.150,reservation,dhcp,cam2" in out, out)
 code, out = ipam("show", "nowhere")
 check("refused: show of a site the domain does not have", code == 1 and "no such site" in out, out)
 

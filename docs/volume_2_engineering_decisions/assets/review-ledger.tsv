@@ -30,7 +30,7 @@ docs/volume_1_description_and_architecture/1.1.9-optional-parts.md	03fdc2ac87f89
 docs/volume_1_description_and_architecture/1.10.1-kea-design.md	5993f0ea70ce9b41bb56f868ced2d62587aae98a	2026-10-24	
 docs/volume_1_description_and_architecture/1.10.2-dhcp-management.md	0d0c79a055ff0cbf9ebac19254b58c99d1d5e7a3	2026-10-24	
 docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	f89654fb5cf61c4a53bea143d99eb78f164588d8	2026-10-24	
-docs/volume_1_description_and_architecture/1.10.4-address-manager.md	669c5a960998e9387456ed0d535b3b94802576a9	2026-10-25	
+docs/volume_1_description_and_architecture/1.10.4-address-manager.md	6f7480f6aed75fac8c851dcf1e5f15768d3afffd	2026-10-25	
 docs/volume_1_description_and_architecture/1.11.1-freeradius-design.md	53be8bfe3baba02927c9b7b66dd4d02282115356	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.1-adguard.md	1a8e6312f0e91b20a9c8fc89c4af5544e71a87b5	2026-10-23	
 docs/volume_1_description_and_architecture/1.12.2-bind-resolver.md	7c54c5fc3956da4d231a82483cf120ff57624c9a	2026-10-24	
@@ -74,7 +74,7 @@ docs/volume_1_description_and_architecture/1.17.37-fabriclib-access.md	cfd4138d5
 docs/volume_1_description_and_architecture/1.17.38-fabriclib-domain.md	e0311ad777e551fc6604e23bfb2690db89412839	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.39-fabriclib-localadmin.md	8fa6d8cf79a5ca90fdda5e7ddd2e04d726f9c78a	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.4-fabricctl-lib.md	76bc845876c679778c0588d379f7246a12fae2d0	2026-10-23	
-docs/volume_1_description_and_architecture/1.17.40-fabriclib-ipam.md	c50798671e320d804d19c278f3ce2dadf9ddc892	2026-10-25	
+docs/volume_1_description_and_architecture/1.17.40-fabriclib-ipam.md	4d0ec8f432b48720928abecd2edae50e490c06a8	2026-10-25	
 docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	76bd68b54fa3a84a676dc20860f87bca6998b06a	2026-10-25	
 docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	e9b47dab12efa0833f6d3272a93548f39ba163aa	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.7-fabriclib-core.md	287e5a946064faecbdb0262ece385ff0e043036c	2026-10-23	
@@ -134,8 +134,8 @@ docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	332c50eeb8a
 docs/volume_1_description_and_architecture/README.md	bcd134b32f0c930ddae566a10260304ff27223c9	2026-10-23	
 docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af7662fdf5684924b409f9a9c	2026-10-23	
 docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	cbad7e90c2ac64a84d6f8fd4f573fa54ab739022	2026-10-25	
-docs/volume_2_engineering_decisions/2.1.1-product.md	2a28bbfc5ffa743f3483d809692922fe4a4196dd	2026-10-25	
-docs/volume_2_engineering_decisions/2.1.10-dhcp.md	79630010acd5a8a6bc26e5969c548f01395278f8	2026-10-25	
+docs/volume_2_engineering_decisions/2.1.1-product.md	37d82c42c98d7634463f9fb56fccf9c2be7c7e0a	2026-10-25	
+docs/volume_2_engineering_decisions/2.1.10-dhcp.md	cb4d596ec94f1c25f32f6133b0ef1ca075aec1d7	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	139ff5b3ecce15085a60e2ef8443933896633b00	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece98c5e28bc1c8	2026-10-08	
@@ -154,7 +154,7 @@ docs/volume_2_engineering_decisions/2.1.9-federation.md	35cd6c9aa7a8e1a889f52bf5
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	d7dcd0289ca88b5d01da3f8ee59984491f0f25de	2026-10-25	
-docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	206a0490ad676a5c0895b4bd77eab1b75a83cd16	2026-10-25	
+docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	32d2de206d2fffb8b0cd2fcbf24c5063eb2d6761	2026-10-25	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
@@ -170,10 +170,10 @@ docs/volume_2_engineering_decisions/README.md	b6d9237470b17c886b556facda7959ff02
 docs/volume_2_engineering_decisions/assets/README.md	3fd72f26d985cf1827afa0868c6c138dfec9d627	2026-10-08	
 docs/volume_2_engineering_decisions/assets/review-ledger.tsv	c975f0b8b8592270aae67107da26906a4ce8905a	2026-10-23	
 docs/volume_3_installation/3.1.1-manual-test-plan.md	45af38d9ad108ecf2ca0ba47e7cc0438e2ee9bfc	2026-10-23	
-docs/volume_3_installation/3.1.2-automated-tests.md	cf64c806f60a887826e0c5271cb150fab2707b00	2026-10-25	
+docs/volume_3_installation/3.1.2-automated-tests.md	c04a16f20e3cbb950eaa60b9fb8e4b826b7bc8cf	2026-10-25	
 docs/volume_3_installation/3.1.3-dev-preview.md	f913e6ed5b5f0e0428479a417dc655071b3b2f42	2026-10-08	
 docs/volume_3_installation/3.1.4-working-on-fabric.md	f0aa02dae628fc02838839f4887bb5d6baa1e857	2026-10-08	
-docs/volume_3_installation/3.1.5-hyperv-lab.md	ef516c395d51dcaa40c58d3696ece5c1fc27bdde	2026-10-24	
+docs/volume_3_installation/3.1.5-hyperv-lab.md	1b815e35d67320a631e9551df640402b0bce6ebd	2026-10-25	
 docs/volume_3_installation/3.14.1-building-images.md	897e957d49361f6c9d77a7611741dcabb0a43178	2026-10-20	
 docs/volume_3_installation/3.16.1-disk-encryption.md	01a470a365017a5f19e088eb54482f8c49919b65	2026-10-08	
 docs/volume_3_installation/3.2.1-requirements.md	68939b2f537486536b086ded7ab0f2b604c4c3cc	2026-10-23	
@@ -190,7 +190,7 @@ docs/volume_3_installation/3.5.2-subordinate-ca.md	d84ac7e3817c58047a6317cdbff21
 docs/volume_3_installation/3.9.1-joining.md	8107c7d0961916bb75ce6e4a8475139b701560fb	2026-10-18	
 docs/volume_3_installation/README.md	3bb403ccddd4e7ca5bbee9b4faf04942cb0c38b5	2026-10-23	
 docs/volume_4_operations/4.10.1-dhcp.md	bd18863bc973f0ee549798a38a9367e86491b68e	2026-10-24	
-docs/volume_4_operations/4.10.2-address-manager.md	730a37891f1d8b7b65fce23bcabf5fe974b9acd5	2026-10-25	
+docs/volume_4_operations/4.10.2-address-manager.md	7a6fdadc9d9186540be34ffb616ea933fb0d28fd	2026-10-25	
 docs/volume_4_operations/4.11.1-radius.md	e00bb81fee4e2542835a17c74d53eae4d5fa4562	2026-10-23	
 docs/volume_4_operations/4.12.1-dns-filter.md	0ea13161ce6d10bd81c6a301da392bf5325e3697	2026-10-20	
 docs/volume_4_operations/4.13.1-time.md	6c8f0553ab60090879e010d6463805505b645902	2026-10-08	
@@ -1003,7 +1003,7 @@ src/fabriclib/ipam/common/probe_subnet.py	6cabe7311b37f4c8abd7049af2c12e2d50ba2c
 src/fabriclib/ipam/common/scan_busy.py	77bea8a0686d62146ef5dad89433de28ba3ca9fe	2026-10-23	
 src/fabriclib/ipam/common/site_plan.py	68c9983fc97bfa0db81dc88f28955d58096b01d9	2026-10-23	
 src/fabriclib/ipam/common/vlan_refs.py	739627abbedfff073a1fa357f4221d717f8a6994	2026-10-25	
-src/fabriclib/ipam/export_plan.py	00b7e1ccfb265cd9b3dfa4d7a56587c03aabbe10	2026-10-23	
+src/fabriclib/ipam/export_plan.py	6f9655ddedc6b1a629796fc9cd84d1628717f603	2026-10-25	
 src/fabriclib/ipam/find_in_plan.py	f3269aaded22816b7ddd4af9105aa039fd34b5b0	2026-10-25	
 src/fabriclib/ipam/load_address_plan.py	b21fd7ac3ebde14bab0309f2d2a62f8708524fe8	2026-10-23	
 src/fabriclib/ipam/move_subnets_to_plan.py	031e401e496dd6c76251af0d0470659dfa85a008	2026-10-23	
@@ -2045,7 +2045,7 @@ tests/ipam/locations_test.py	19ce47e5234fae64306a6c984a1c302df39133c6	2026-10-25
 tests/ipam/networks.py	814fc4389c6723e6485c8ba4b067fafe781e360d	2026-10-23	
 tests/ipam/options.py	8f8dd0ed07c76cfdcedc09081dbb1e8e626a991e	2026-10-24	
 tests/ipam/pending_networks.py	ec5e384044b4e5a520ed7c6ab02c44ac0a2c533c	2026-10-25	
-tests/ipam/run.py	9b49ff7f141dc4ccf21e3fbc755e89b00b0b7161	2026-10-25	
+tests/ipam/run.py	aaf4dd7f64897bf2840acb0cda1ad7220771f274	2026-10-25	
 tests/ipam/scan.py	831f5b45e25f58c8373ac5caa61da2ebbe9b4fa1	2026-10-25	
 tests/ipam/scan_requests.py	54a39f4d4d7051307953282f9fc87daa75aaa498	2026-10-23	
 tests/ipam/sync.py	be47f80babfa5e670235d7f002e405512822cafd	2026-10-24	
@@ -2060,7 +2060,7 @@ tests/keycloak/soft_passkey.py	51ec49de47ee87f347e246b14acf0eb5f20cb512	2026-10-
 tests/lab/README.md	4fec9089c3fbfd17d591f81d89d31549afb01bd6	2026-10-24	
 tests/lab/console_session.py	fc724414d441c7ffcb843cf3ef94cffbf0d08af4	2026-10-24	
 tests/lab/dhcp.sh	d4e864b010c4b115cf68f3c364aab7e43720c820	2026-10-12	
-tests/lab/dhcp_campaign.sh	ccd5914140897e71b93b7a271f7a964ae8561dc7	2026-10-24	
+tests/lab/dhcp_campaign.sh	1b462797cddf25231389b9269fba6c02d39e07d2	2026-10-25	
 tests/lab/dhcp_console.py	7bd4f10efdc60150b3a97b78de5f1482203c69c2	2026-10-24	
 tests/lab/dhcp_vars.yaml	69c2af925c07a25e01fabb400c83320729d1095e	2026-10-23	
 tests/lint/README.md	9757442e4a4f93e6dfa2de8daee0508f38dff835	2026-10-12	
@@ -2098,7 +2098,7 @@ tests/samba/grant_networks_test.py	eedecb2f40fdfcfa27144703dade5c219e2ac41d	2026
 tests/samba/grants.py	8e33fe932f8511ed476cd6031c89795d1751ecd9	2026-10-25	
 tests/samba/hostgroups.py	a71ecfff520edd57ff2e976829c61205e4b827bd	2026-10-25	
 tests/samba/id_layout_test.py	2f5f8395429e443adbf0bd64480247c114dcc2c6	2026-10-20	
-tests/samba/ipam.py	d108679e925bc122a18b3188329453200737da7e	2026-10-25	
+tests/samba/ipam.py	43bb5da0dd5dd8e8b13a703dd2c4b9a4474ed800	2026-10-25	
 tests/samba/linux_join.py	3719299ed5b204b005ee307a71e1e53d335aed39	2026-10-25	
 tests/samba/plan_store.py	7ebdd0072cf6f317e671c4b8b79b2e0b4c98eda3	2026-10-25	
 tests/samba/plan_store_test.py	174f00adf23343a84028154c6ff9a35c91a80a44	2026-10-23	
