@@ -38,7 +38,9 @@ SETS = {
                 # a scan requested at the site that serves the subnet, and its answer (2.1.10.38, manual 1.10.4.36)
                 ("fabricScanRequestedBy", 41, STRING, True), ("fabricScanActor", 42, STRING, True),
                 ("fabricScanState", 43, STRING, True), ("fabricScanResult", 44, STRING, True),
-                ("fabricScanDoneAt", 45, IA5, True)],
+                ("fabricScanDoneAt", 45, IA5, True),
+                # a location without a DC inside a site: its VLANs' and subnets' label (2.1.10.49, manual 1.10.4.46)
+                ("fabricLocation", 48, STRING, True)],
                [("fabricDevice", 1, 3, [], ["fabricDeviceType", "fabricEnabled", "fabricCertFingerprint"]),
                 ("fabricRole", 2, 3, [], ["fabricPermission", "fabricVlan", "fabricPriority"]),
                 ("fabricDeviceRoles", 3, 3, [], ["fabricRoleName"]),
@@ -68,7 +70,10 @@ SETS = {
                  ["fabricSite", "fabricPurpose", "fabricAccess", "description"]),
                 # a site's record, CN=<site>,CN=sites,CN=fabric,CN=System: its number and its options (2.1.10.34)
                 ("fabricSiteRecord", 18, 1, [], ["fabricBlock", "fabricDhcpOption", "fabricDhcpOptionDef",
-                                                 "fabricDhcpClass", "description"], ["container"])]),
+                                                 "fabricDhcpClass", "description"], ["container"]),
+                # the label, on a VLAN's or a subnet's entry when it has one (20: 19 is held for 0.8.0's site tree; a
+                # class once in a schema never changes, so the label is an auxiliary class, 2.1.10.49)
+                ("fabricLocated", 20, 3, [], ["fabricLocation"])]),
     # sudo's rules in the directory, with sudo's own registered arc (Ubuntu no longer ships its AD schema; Q9)
     "sudo": ("1.3.6.1.4.1.15953.9.1", "1.3.6.1.4.1.15953.9.2",
              [("sudoUser", 1, IA5, False), ("sudoHost", 2, IA5, False), ("sudoCommand", 3, IA5, False),

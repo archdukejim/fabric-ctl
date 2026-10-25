@@ -116,7 +116,7 @@ done = op("write_plan", changes=changes)
 plan = op("read_plan", of=SITE)["plans"][SITE]
 sub = plan["subnets"][0] if plan["subnets"] else {}
 check("a VLAN, a subnet, its range and address written as the agent and read back", len(done) == 4
-      and plan["vlans"] == [{"id": 20, "name": "iot", "purpose": "things", "access": "full", "notes": ""}]
+      and plan["vlans"] == [{"id": 20, "location": "", "name": "iot", "purpose": "things", "access": "full", "notes": ""}]
       and sub.get("cidr") == "10.1.20.0/24" and sub.get("dhcp") is True and sub.get("id") == 7
       and sub.get("netboot") == {"server": "10.1.20.9", "bios": "pxelinux.0"}
       and sub.get("options") == [{"name": "domain-name-servers", "data": "10.1.20.1"}]

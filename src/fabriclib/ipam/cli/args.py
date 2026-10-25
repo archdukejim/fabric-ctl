@@ -3,7 +3,7 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.ipam.common.fields import KEEP
 
 FLAGS = {"--site", "--name", "--subnet", "--gateway", "--purpose", "--notes", "--access", "--dhcp", "--relay",
-         "--allow-overlap", "--kind", "--mac", "--owner", "--dns", "--vlan"}
+         "--allow-overlap", "--kind", "--mac", "--owner", "--dns", "--vlan", "--to-location"}
 BARE = {"--no-subnet", "--no-split", "--force", "--no-apply", "--no-ask"}
 
 

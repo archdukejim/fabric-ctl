@@ -431,7 +431,7 @@ evil = copy.deepcopy(read)
 evil["plans"]["lan"]["subnets"][0]["addresses"][0]["notes"] = "=HYPERLINK(\"http://x\")"
 csv_text = export_plan(evil, "lan")
 check("export: a header and one row per address; a formula-like cell defused",
-      csv_text.splitlines()[0].startswith("site,vlan,vlan_name,subnet,ip,kind")
+      csv_text.splitlines()[0].startswith("site,vlan,vlan_name,location,subnet,ip,kind")
       and "'=HYPERLINK" in csv_text and len(csv_text.splitlines()) == 5, csv_text)
 shown = show_plan(read, "lan")
 check("show: the site's number, each VLAN with its subnet, ranges and addresses, the site's LAN",

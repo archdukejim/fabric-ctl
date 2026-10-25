@@ -1,7 +1,8 @@
 import ipaddress
 
 from fabriclib.common.errors import ValidationError
-from fabriclib.ipam.common.fields import find_address, find_subnet
+from fabriclib.ipam.common.fields import find_address, find_subnet, find_vlan
+from fabriclib.ipam.common.vlan_refs import vlan_label
 
 
 def netboot_targets(plan, target):
@@ -18,10 +19,10 @@ def netboot_targets(plan, target):
     def subnet(s):
         return (f"subnet {s['name']}", s, lambda preset: {"do": "set", "what": "subnet", "site": plan["site"],
                                                           "key": s["name"], "fields": {"netboot": preset}})
-    if text.isdigit():
-        subs = [s for s in plan["subnets"] if s.get("vlan") == int(text)]
+    if text.split("@", 1)[0].isdigit():       # a VLAN: `10`, or `10@branch` at another location (1.10.4.46)
+        vlan, subs = find_vlan(plan, text)
         if not subs:
-            raise ValidationError(f"VLAN {text} has no subnet in {plan['site']}'s plan")
+            raise ValidationError(f"{vlan_label(vlan)} has no subnet in {plan['site']}'s plan")
         return [subnet(s) for s in subs]
     try:
         ipaddress.IPv4Address(text)

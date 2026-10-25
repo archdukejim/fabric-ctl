@@ -97,24 +97,29 @@ def _vlan_add(plan, site, block, body):
     """Purpose: Add VLAN on the sample plan, with the few refusals the preview shows.
     Inputs:  plan — the site's plan; site — str; block — the site's number; body — the change's body.
     Returns: the answer.
-    Fails:   ValidationError for a bad or taken VLAN ID.
+    Fails:   ValidationError for a bad or taken VLAN ID (at its location, manual 1.10.4.46), a location's VLAN
+             with no subnet given.
     Feeds:   _change."""
     vid = str(body.get("id", ""))
     if not vid.isdigit() or not 1 <= int(vid) <= 4094:
         raise ValidationError(f"VLAN ID {vid!r} is a number from 1 to 4094")
-    if any(v["id"] == int(vid) for v in plan["vlans"]):
-        raise ValidationError(f"VLAN {vid} is already in {site}'s plan")
+    where = str(body.get("location", "")).strip().lower()
+    if any(v["id"] == int(vid) and (v.get("location") or "") == where for v in plan["vlans"]):
+        raise ValidationError(f"VLAN {vid}" + (f" at {where}" if where else "") + f" is already in {site}'s plan")
+    if where and not body.get("subnet") and body.get("no_subnet") != "on":
+        raise ValidationError("give --subnet: a location's VLAN has no suggested network")
     name = str(body.get("name", "")).strip().lower() or f"vlan{vid}"
-    plan["vlans"].append({"id": int(vid), "name": name, "purpose": body.get("purpose", ""),
+    plan["vlans"].append({"id": int(vid), "location": where, "name": name, "purpose": body.get("purpose", ""),
                           "access": body.get("access", "full"), "notes": body.get("notes", "")})
     cidr = body.get("subnet") or suggest_subnet(block, int(vid))
     if body.get("no_subnet") != "on" and cidr:
         split = suggest_split(cidr) if body.get("split", "on") == "on" else {"gateway": "", "ranges": []}
-        plan["subnets"].append({"name": name, "cidr": cidr, "vlan": int(vid), "kind": "dhcp",
+        plan["subnets"].append({"name": f"{where}-{name}" if where else name, "cidr": cidr, "vlan": int(vid),
+                                "location": where, "kind": "dhcp",
                                 "gateway": body.get("gateway") or split.get("gateway", ""), "dhcp": True, "id": None,
                                 "relay": "", "notes": "", "allow_overlap": "", "options": [],
                                 "ranges": split.get("ranges") or [], "addresses": []})
-    plan["vlans"].sort(key=lambda v: v["id"])
+    plan["vlans"].sort(key=lambda v: (v.get("location") or "", v["id"]))
     return {**NOTHING, "result": {"id": int(vid), "name": name}, "site": site, "own": site == HERE}
 
 
@@ -137,8 +142,10 @@ def _change(state, route, body):
     elif rest == ["vlans"]:
         return _vlan_add(plan, site, record.get("block"), body)
     elif len(rest) == 3 and rest[0] == "vlans" and rest[2] == "delete":
-        plan["vlans"][:] = [v for v in plan["vlans"] if str(v["id"]) != rest[1]]
-        plan["subnets"][:] = [s for s in plan["subnets"] if str(s.get("vlan")) != rest[1]]
+        def ref(x, key):
+            return f"{x.get(key)}@{x['location']}" if x.get("location") else str(x.get(key))
+        plan["vlans"][:] = [v for v in plan["vlans"] if ref(v, "id") != rest[1]]
+        plan["subnets"][:] = [s for s in plan["subnets"] if ref(s, "vlan") != rest[1]]
     elif rest == ["addresses"]:
         ip = str(body.get("ip", ""))
         if any(a["ip"] == ip for s in plan["subnets"] for a in s["addresses"]):

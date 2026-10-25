@@ -8,6 +8,7 @@ from fabriclib.ipam.add_subnet import add_subnet
 from fabriclib.ipam.add_vlan import add_vlan
 from fabriclib.ipam.common.apply_plan_change import apply_plan_change
 from fabriclib.ipam.common.fields import KEEP
+from fabriclib.ipam.common.vlan_refs import parse_vlan_ref, vlan_ref
 from fabriclib.ipam.remove_address import remove_address
 from fabriclib.ipam.remove_range import remove_range
 from fabriclib.ipam.remove_subnet import remove_subnet
@@ -47,14 +48,14 @@ def _keep(data, key):
 
 
 def _vid(text):
-    """Purpose: a VLAN ID from the path or the body.
+    """Purpose: a VLAN named in the path or the body: its ID, or `<id>@<location>` at another location of the site
+             (manual 1.10.4.46.5).
     Inputs:  text — str.
-    Returns: int.
-    Fails:   ValidationError "VLAN ID … is a number from 1 to 4094" (-> 400).
+    Returns: str, the VLAN's name as fabriclib/ipam takes it ("10" or "10@branch").
+    Fails:   ValidationError "VLAN … : a VLAN ID, 1 to 4094 …" or a location that is not one DNS label (-> 400).
     Feeds:   post_networks."""
-    if not str(text).strip().isdigit():
-        raise ValidationError(f"VLAN ID {text!r} is a number from 1 to 4094")
-    return int(str(text).strip())
+    number, location = parse_vlan_ref(text)
+    return vlan_ref({"id": number, "location": location})
 
 
 def _change(v, actor, site, sub, data, caller):
@@ -72,10 +73,11 @@ def _change(v, actor, site, sub, data, caller):
         return add_vlan(v, actor, _vid(t(data, "id")), t(data, "name"), site, t(data, "subnet"),
                         _flag(data, "no_subnet", False), t(data, "gateway"), t(data, "purpose"), t(data, "notes"),
                         t(data, "access") or "full", _flag(data, "dhcp", True), t(data, "relay"),
-                        t(data, "allow_overlap"), _flag(data, "split", True), **web)
+                        t(data, "allow_overlap"), _flag(data, "split", True), location=t(data, "location"), **web)
     if len(sub) == 2 and sub[0] == "vlans":
         return set_vlan(v, actor, _vid(sub[1]), site, name=_keep(data, "name"), purpose=_keep(data, "purpose"),
-                        notes=_keep(data, "notes"), access=_keep(data, "access"), **web)
+                        notes=_keep(data, "notes"), access=_keep(data, "access"),
+                        to_location=_keep(data, "to_location"), **web)
     if len(sub) == 3 and sub[0] == "vlans" and sub[2] == "delete":
         return remove_vlan(v, actor, _vid(sub[1]), site, _flag(data, "force", False), **web)
     if sub == ["subnets"]:

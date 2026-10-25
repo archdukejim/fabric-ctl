@@ -22,9 +22,9 @@ def add_dhcp_subnet(v, actor, network, name, vlan=None, router=None, pools=(), n
     Feeds:   dhcp/run_dhcp_alias (add-subnet)."""
     def change(plan, read, org):
         changes, added = [], False
-        vid = vlan if vlan is not None else next(n for n in range(1, 4095)
-                                                 if n not in {x["id"] for x in plan["vlans"]})
-        rec = next((x for x in plan["vlans"] if x["id"] == vid), None)
+        own = [x for x in plan["vlans"] if not x.get("location")]     # 0.7's commands: the DC's own location
+        vid = vlan if vlan is not None else next(n for n in range(1, 4095) if n not in {x["id"] for x in own})
+        rec = next((x for x in own if x["id"] == vid), None)
         if rec is None:
             rec = check_vlan({"id": vid, "name": name, "access": "full", "purpose": "", "notes": ""}, plan)
             changes.append({"do": "add", "what": "vlan", "site": plan["site"], "key": str(rec["id"]), "fields": rec})

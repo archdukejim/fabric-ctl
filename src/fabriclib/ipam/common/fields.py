@@ -2,6 +2,7 @@
 import ipaddress
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.ipam.common.vlan_refs import of_vlan, parse_vlan_ref, vlan_label
 
 NOTES_MAX = 500
 LINE_MAX = 200
@@ -66,19 +67,18 @@ KEEP = object()          # a field a change leaves as it is (set_vlan, set_addre
 
 
 def find_vlan(plan, vid):
-    """Purpose: a VLAN of the site's plan and its subnets, by ID (a VLAN may have several, 2.1.10.18).
-    Inputs:  plan — the site's plan; vid — int or str (a VLAN ID as typed).
+    """Purpose: a VLAN of the site's plan and its subnets, by its ID and location (a VLAN may have several subnets,
+             2.1.10.18; two VLAN 10s may share a site at different locations, 1.10.4.46).
+    Inputs:  plan — the site's plan; vid — int or str (a VLAN as typed: `10`, or `10@branch`).
     Returns: (vlan, list of its subnets' plan entries in the plan's order; [] for a record only).
-    Fails:   ValidationError "VLAN <id> is not in <site>'s plan" (or not a number).
+    Fails:   ValidationError "VLAN <id>[ at <location>] is not in <site>'s plan" (or not a VLAN's name).
     Feeds:   set_vlan, remove_vlan, add_range, remove_range, add_address, add_subnet."""
-    try:
-        vid = int(str(vid).strip())
-    except ValueError:
-        raise ValidationError(f"VLAN {vid!r}: a VLAN ID, 1 to 4094")
-    vlan = next((x for x in plan["vlans"] if x["id"] == vid), None)
+    number, location = parse_vlan_ref(vid)
+    want = {"id": number, "location": location}
+    vlan = next((x for x in plan["vlans"] if x["id"] == number and (x.get("location") or "") == location), None)
     if vlan is None:
-        raise ValidationError(f"VLAN {vid} is not in {plan['site']}'s plan")
-    return vlan, [s for s in plan["subnets"] if s.get("vlan") == vid]
+        raise ValidationError(f"{vlan_label(want)} is not in {plan['site']}'s plan")
+    return vlan, [s for s in plan["subnets"] if of_vlan(s, vlan)]
 
 
 def subnet_holding(vlan, subnets, ip, what):
@@ -90,12 +90,12 @@ def subnet_holding(vlan, subnets, ip, what):
     Fails:   ValidationError: a VLAN without a subnet (a record only); with several, an address in none of them.
     Feeds:   add_range, add_address."""
     if not subnets:
-        raise ValidationError(f"VLAN {vlan['id']} has no subnet (a record only)")
+        raise ValidationError(f"{vlan_label(vlan)} has no subnet (a record only)")
     if len(subnets) == 1:
         return subnets[0]
     holding = [s for s in subnets if ip in ipaddress.ip_network(s["cidr"])]
     if not holding:
-        raise ValidationError(f"{what} {ip} is in none of VLAN {vlan['id']}'s subnets ("
+        raise ValidationError(f"{what} {ip} is in none of {vlan_label(vlan)}'s subnets ("
                               + ", ".join(s["cidr"] for s in subnets) + ")")
     return holding[0]
 

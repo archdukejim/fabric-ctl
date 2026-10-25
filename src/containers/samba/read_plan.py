@@ -9,7 +9,8 @@ KINDS = ("(|(objectClass=fabricVlanRecord)(objectClass=fabricNetwork)(objectClas
 ATTRS = ["objectClass", "cn", "fabricSite", "fabricCidr", "fabricVlan", "fabricVlanName", "fabricNetworkKind",
          "fabricAllowOverlap", "description", "fabricPurpose", "fabricAccess", "fabricGateway", "fabricDhcpServed",
          "fabricSubnetId", "fabricRelay", "fabricDhcpOption", "fabricRangeKind", "fabricFirst", "fabricLast",
-         "fabricIp", "fabricAddressKind", "fabricMac", "fabricHostName", "fabricOwner", "fabricDns"]
+         "fabricIp", "fabricAddressKind", "fabricMac", "fabricHostName", "fabricOwner", "fabricDns",
+         "fabricLocation"]
 SET_ATTRS = ["cn", "whenCreated", "fabricBlock", "fabricDhcpOption", "fabricDhcpOptionDef", "fabricDhcpClass"]
 
 
@@ -86,9 +87,10 @@ def read_plan(samdb, lp, site, of=""):
     Inputs:  samdb — SamDB (as the DC's agent); lp — LoadParm (unused); site — str (unused: any site's plan may be
              read); of — a site's name, or "" for every site.
     Returns: {"sites": [{"name", "created" (whenCreated text), "block" (int or None)}] by when made then name,
-             "plans": {site: {"vlans": [{"id", "name", "purpose", "access", "notes"}], "subnets": [{"name", "cidr",
-             "vlan", "kind", "gateway", "dhcp" (bool), "id" (Kea's subnet id or None), "relay", "notes",
-             "allow_overlap", "options", "netboot", "ranges": [{"kind", "first", "last", "notes"}], "addresses":
+             "plans": {site: {"vlans": [{"id", "location" ("" the DC's own, 1.10.4.46), "name", "purpose",
+             "access", "notes"}], "subnets": [{"name", "cidr", "vlan", "location", "kind", "gateway", "dhcp" (bool),
+             "id" (Kea's subnet id or None), "relay", "notes", "allow_overlap", "options", "netboot", "ranges":
+             [{"kind", "first", "last", "notes"}], "addresses":
              [{"ip", "kind", "name", "mac", "owner", "notes", "dns" (bool), "options", "netboot"}]}], "networks":
              [{"name", "cidr", "kind", "vlan", "notes", "allow_overlap"}], "options" (the site's)}}, "option_sets":
              {"domain": set or None, <site>: {"options", "option_defs", "client_classes"}}, "options" (the domain's
@@ -132,12 +134,14 @@ def read_plan(samdb, lp, site, of=""):
         plan = plans.setdefault(owner, {"vlans": [], "subnets": [], "networks": []})
         vlan = int(_one(m, "fabricVlan")) if _one(m, "fabricVlan") else None
         if "fabricVlanRecord" in classes:
-            plan["vlans"].append({"id": vlan, "name": _one(m, "fabricVlanName"), "purpose": _one(m, "fabricPurpose"),
+            plan["vlans"].append({"id": vlan, "location": _one(m, "fabricLocation"),
+                                  "name": _one(m, "fabricVlanName"), "purpose": _one(m, "fabricPurpose"),
                                   "access": _one(m, "fabricAccess") or "full", "notes": _one(m, "description")})
         elif "fabricSubnet" in classes:
             options, netboot = split_netboot(listed(m.get("fabricDhcpOption")))
             entry = subnets.setdefault(str(m.dn).lower(), {"ranges": [], "addresses": []})
             entry.update({"name": _one(m, "cn").split("/", 1)[-1], "cidr": _one(m, "fabricCidr"), "vlan": vlan,
+                          "location": _one(m, "fabricLocation"),
                           "kind": _one(m, "fabricNetworkKind"), "gateway": _one(m, "fabricGateway"),
                           "dhcp": _one(m, "fabricDhcpServed").upper() == "TRUE",
                           "id": int(_one(m, "fabricSubnetId")) if _one(m, "fabricSubnetId") else None,
@@ -164,8 +168,8 @@ def read_plan(samdb, lp, site, of=""):
                                         "dns": _one(m, "fabricDns").upper() == "TRUE", "options": options,
                                         "netboot": netboot})
     for name, plan in plans.items():
-        plan["vlans"].sort(key=lambda x: x["id"] or 0)
-        plan["subnets"].sort(key=lambda x: (x["vlan"] or 0, x["name"]))
+        plan["vlans"].sort(key=lambda x: (x["location"], x["id"] or 0))     # the DC's own location first
+        plan["subnets"].sort(key=lambda x: (x["location"], x["vlan"] or 0, x["name"]))
         plan["networks"].sort(key=lambda x: x["name"])
         for s in plan["subnets"]:
             s["ranges"].sort(key=lambda r: _sort_ip(r["first"]))

@@ -44,7 +44,7 @@ def _shown(overview, query):
             raise LookupError(f"no address {query['address']} recorded or leased in {query['subnet']}")
         return found[0], found[1], row
     if query.get("vlan"):
-        vlan = next((v for v in vlans if str(v.get("id")) == str(query["vlan"])), None)
+        vlan = next((v for v in vlans if str(v.get("ref", v.get("id"))) == str(query["vlan"])), None)
         if vlan is None:
             raise LookupError(f"no VLAN {query['vlan']} in {site}'s plan")
         return vlan, None, None
@@ -61,6 +61,10 @@ def networks(ctx, overview, query):
     Returns: HTML str.
     Fails:   LookupError for a VLAN, subnet or address that is not there (_shown); Jinja2 errors propagate.
     Feeds:   src/webui/routes/networks_page (/networks); the dev preview."""
+    for v in overview.get("vlans") or []:      # how the page names each VLAN (networks_view; manual 1.10.4.46)
+        v.setdefault("location", "")
+        v.setdefault("ref", f"{v.get('id')}@{v['location']}" if v["location"] else str(v.get("id")))
+        v.setdefault("label", f"VLAN {v.get('id')}" + (f" at {v['location']}" if v["location"] else ""))
     vlan, subnet, row = _shown(overview, query)
     q = query.get("q", "")
     return render_page("networks", ctx=ctx, page="/networks", n=overview, view=query.get("view") if query.get("view")

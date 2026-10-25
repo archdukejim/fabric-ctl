@@ -21,6 +21,7 @@ is done at once, not held for Apply.</p>
 {% if result %}
 <section class="card"><h2>{{ result.subnet.cidr }}{% if result.subnet.name %} · {{ result.subnet.name }}{% endif %}</h2>
 <p class="muted">Scanned {{ result.at }}: {{ result.scanned }} addresses, {{ result.answering | length }} answering, {{ result.unrecorded }} in use but unrecorded.</p>
+{% if result.routed %}<p>{{ p.status('warn', 'beyond a router: addresses only') }} <span class="muted">ARP sees no MAC past the gateway: record a find as a static address, or type its MAC to make it a reservation.</span></p>{% endif %}
 {% if result.answering %}{% call p.list(["Address", "MAC", "Answered", "In the plan"]) %}{% for f in result.answering %}<tr>
 <td data-label="Address">{{ f.ip }}</td><td data-label="MAC"><code>{{ f.mac or '—' }}</code></td><td data-label="Answered">{{ f.how }}</td>
 <td data-label="In the plan">{% if f.status == 'unrecorded' %}{{ p.status('warn', 'in use, unrecorded') }}{% elif f.status == 'lease' %}lease {{ f.name }}{% else %}{{ f.kind }} {{ f.name }}{% endif %}{% if f.note %} <span class="muted">({{ f.note }})</span>{% endif %}</td></tr>{% endfor %}{% endcall %}
@@ -30,9 +31,10 @@ is done at once, not held for Apply.</p>
 <form method="post" action="/networks/scan/record" class="grid">{{ csrf() }}
 <label class="wide">Find<select name="find" required>{% for f in unrecorded %}<option value="{{ f.ip }}|{{ f.mac or '' }}">{{ f.ip }}{% if f.mac %} — {{ f.mac }}{% endif %}</option>{% endfor %}</select></label>
 <label>As<select name="kind"><option value="reservation">a reservation for its MAC</option><option value="static">a static address</option></select></label>
+<label>MAC (for a find with none: makes it a reservation)<input name="mac" maxlength="17" placeholder="aa:bb:cc:dd:ee:ff"></label>
 <label>Name (one DNS label, optional)<input name="name" maxlength="63" placeholder="cam4"></label>
 <div><button>Record find</button></div></form>
-<p class="muted">Waits for <strong>Apply</strong> in the top bar (Networks' changes). A find with no MAC can only be a
-static address. Leave a find unrecorded and nothing changes.</p></section>{% endif %}
+<p class="muted">Waits for <strong>Apply</strong> in the top bar (Networks' changes). A find with no MAC is a static
+address, or a reservation once you type its MAC. Leave a find unrecorded and nothing changes.</p></section>{% endif %}
 {% endif %}
 {% endblock %}

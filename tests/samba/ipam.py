@@ -154,6 +154,50 @@ check("refused: vlan set on a VLAN the site does not have", code == 0 and code2 
 code, out = ipam("vlan", "set", "50", "--gateway", "10.1.50.1", "--no-apply")
 check("refused: a subnet setting for a VLAN without a subnet", code == 1 and "has no subnet" in out, out)
 
+
+def entry(cn):
+    """Purpose: one plan entry as AD holds it: its objectClass and fabricLocation values, by its CN.
+    Inputs:  cn — the entry's CN (e.g. "lan/vlan/30@branch").
+    Returns: str, ldbsearch's LDIF (empty when there is no such entry).
+    Fails:   never.
+    Feeds:   this script."""
+    out = subprocess.run(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", f"(cn={cn})",
+                          "objectClass", "fabricLocation"], capture_output=True, text=True).stdout
+    return out if "dn: " in out else ""          # ldbsearch says "# returned 0 records" for none
+
+
+print("--- a location without a DC inside the site (2.1.10.49, 1.10.4.46)")
+code, out = ipam("vlan", "add", "30@branch", "--name", "cams", "--subnet", "10.9.30.0/24", "--no-apply")
+both = [x for x in plan()["vlans"] if x["id"] == 30]
+check("vlan add 30@branch beside the site's own VLAN 30 `cams`: its subnet `branch-cams`, both labelled",
+      code == 0 and sorted(x["location"] for x in both) == ["", "branch"] and sub("branch-cams")
+      and sub("branch-cams")["location"] == "branch" and sub("cams")["location"] == "", (out, both))
+ad = entry("lan/vlan/30@branch") + entry("lan/branch-cams")
+check("in AD: the VLAN's entry `lan/vlan/30@branch`, it and its subnet carrying the fabricLocated class and the label",
+      ad.count("objectClass: fabricLocated") == 2 and ad.count("fabricLocation: branch") == 2, ad)
+check("the site's own VLAN 30 carries no label", "fabricLocated" not in entry("lan/vlan/30"), entry("lan/vlan/30"))
+code, out = ipam("vlan", "add", "30@branch", "--name", "other", "--subnet", "10.9.31.0/24", "--no-apply")
+check("refused: an ID the location holds already, nothing written", code == 1
+      and "VLAN 30 at branch is already" in out and not sub("branch-other"), out)
+code, out = ipam("vlan", "set", "30@branch", "--to-location", "shed", "--no-apply")
+check("vlan set --to-location shed: the entry moved to `lan/vlan/30@shed`, its subnet relabelled, its name kept",
+      code == 0 and "fabricLocation: shed" in entry("lan/vlan/30@shed") and not entry("lan/vlan/30@branch")
+      and sub("branch-cams")["location"] == "shed", (out, plan()["vlans"]))
+code, out = ipam("vlan", "set", "30@shed", "--to-location", "none", "--no-apply")
+check("refused: a move onto the ID the site's own location holds, nothing moved",
+      code == 1 and "VLAN 30 is already in this site's plan (cams)" in out and entry("lan/vlan/30@shed"), out)
+ipam("vlan", "add", "32@branch", "--name", "lab32", "--subnet", "10.9.32.0/24", "--no-apply")
+code, out = ipam("vlan", "set", "32@branch", "--to-location", "none", "--no-apply")
+home = entry("lan/vlan/32") + entry("lan/branch-lab32")
+check("vlan set --to-location none: back at the site's own location, the class and the label gone from both entries",
+      code == 0 and "lan/vlan/32," in home.replace("\n ", "") and "fabricLocated" not in home
+      and "fabricLocation" not in home and sub("branch-lab32")["location"] == "", (out, home))
+ipam("vlan", "remove", "32", "--no-apply")
+code, out = ipam("vlan", "remove", "30@shed", "--no-apply")
+check("vlan remove 30@shed: its entry and subnet gone, the site's own VLAN 30 and `cams` kept",
+      code == 0 and not entry("lan/vlan/30@shed") and not sub("branch-cams") and sub("cams")
+      and [x["location"] for x in plan()["vlans"] if x["id"] == 30] == [""], out)
+
 print("--- the site's number (2.1.10.16)")
 # covers: cli:ipam.block +
 code, out = ipam("block")
@@ -263,7 +307,7 @@ check("find: a name, and an address nobody recorded with its range", code == 0 a
 # covers: cli:ipam.export +
 code, out = ipam("export")
 check("export: CSV with a header and the recorded addresses", code == 0
-      and out.startswith("site,vlan,vlan_name,subnet,ip,kind") and "10.1.30.150,reservation,dhcp,cam2" in out, out)
+      and out.startswith("site,vlan,vlan_name,location,subnet,ip,kind") and "10.1.30.150,reservation,dhcp,cam2" in out, out)
 code, out = ipam("show", "nowhere")
 check("refused: show of a site the domain does not have", code == 1 and "no such site" in out, out)
 

@@ -33,7 +33,8 @@ def options_overview(v, site="", target="", secrets=None, container="samba"):
             effective = effective_options(plan, kind, name, v if site == here else None, settings)
         else:
             raise ValidationError("target: site, subnet:<name> or address:<ip>")
-    subnets = [{"name": s["name"], "cidr": s["cidr"], "vlan": s.get("vlan"), "id": s.get("id"),
+    subnets = [{"name": s["name"], "cidr": s["cidr"], "vlan": s.get("vlan"), "location": s.get("location") or "",
+                "id": s.get("id"),
                 "dhcp": bool(s.get("dhcp")), "options": s.get("options") or [], "netboot": s.get("netboot"),
                 "reservations": [{"ip": a["ip"], "name": a.get("name", ""), "mac": a.get("mac", ""),
                                   "options": a.get("options") or [], "netboot": a.get("netboot")}

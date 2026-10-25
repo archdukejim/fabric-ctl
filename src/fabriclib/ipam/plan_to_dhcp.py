@@ -19,7 +19,8 @@ def plan_to_dhcp(plan):
              "option_defs", "client_classes" (the global level, lists)}.
     Fails:   never for a plan fabric wrote (KeyError on a malformed one).
     Feeds:   load_address_plan (an apply), planned_subnets (the firewall and the Kea tab between applies)."""
-    access = {v["id"]: v.get("access") or "full" for v in plan.get("vlans") or []}
+    access = {(v.get("location") or "", v["id"]): v.get("access") or "full"      # two VLAN 10s may differ
+              for v in plan.get("vlans") or []}
     subnets, records = [], []
     boot = netboot_classes(plan)
     for s in plan.get("subnets") or []:
@@ -38,7 +39,7 @@ def plan_to_dhcp(plan):
                            ("options", s.get("options"))):
             if value:
                 entry[key] = value
-        if access.get(s.get("vlan")) == "guest":
+        if access.get((s.get("location") or "", s.get("vlan"))) == "guest":
             entry["access"] = "guest"
         if boot["subnets"].get(s["name"]):
             entry["netboot_classes"] = boot["subnets"][s["name"]]

@@ -7,10 +7,10 @@ import paths
 # what each kind of plan entry holds: the field fabric names it by -> its attribute (manual 1.10.4.13, 1.10.4.33)
 FIELDS = {
     "vlan": {"id": "fabricVlan", "name": "fabricVlanName", "purpose": "fabricPurpose", "access": "fabricAccess",
-             "notes": "description"},
+             "notes": "description", "location": "fabricLocation"},
     "subnet": {"cidr": "fabricCidr", "vlan": "fabricVlan", "kind": "fabricNetworkKind", "gateway": "fabricGateway",
                "dhcp": "fabricDhcpServed", "id": "fabricSubnetId", "relay": "fabricRelay", "notes": "description",
-               "allow_overlap": "fabricAllowOverlap", "options": "fabricDhcpOption"},
+               "allow_overlap": "fabricAllowOverlap", "options": "fabricDhcpOption", "location": "fabricLocation"},
     "range": {"kind": "fabricRangeKind", "first": "fabricFirst", "last": "fabricLast", "notes": "description"},
     "address": {"ip": "fabricIp", "kind": "fabricAddressKind", "name": "fabricHostName", "mac": "fabricMac",
                 "owner": "fabricOwner", "notes": "description", "dns": "fabricDns", "options": "fabricDhcpOption"},
@@ -20,6 +20,8 @@ CLASSES = {"vlan": ["fabricVlanRecord"], "subnet": ["fabricNetwork", "fabricSubn
 # an option set (the domain's, or a site's on its record, 2.1.10.34): its lists and their attributes
 SET_FIELDS = {"options": "fabricDhcpOption", "option_defs": "fabricDhcpOptionDef", "client_classes": "fabricDhcpClass"}
 WHATS = ("vlan", "subnet", "range", "address", "block", "options")
+# a location's label is an auxiliary class on a VLAN's or a subnet's entry (2.1.10.49, manual 1.10.4.46.2)
+LOCATED = "fabricLocated"
 
 
 def values_of(value):
@@ -131,6 +133,23 @@ def entry_dn(samdb, change):
     return paths.plan_entry_dn(samdb, site, str(change["subnet"]), below=key)
 
 
+def _relabel(samdb, dn, location):
+    """Purpose: a VLAN's or a subnet's entry given the location class before its label is written, or rid of it
+             once the label is gone (the class holds the attribute; manual 1.10.4.46.2).
+    Inputs:  samdb — SamDB; dn — the entry; location — the label being written ("" removes it).
+    Returns: None.
+    Fails:   ldb.LdbError from the read or the change.
+    Feeds:   write_plan."""
+    have = [str(x) for x in samdb.search(base=dn, scope=ldb.SCOPE_BASE, attrs=["objectClass"])[0]["objectClass"]]
+    if location and LOCATED not in have:
+        samdb.modify(ldb.Message.from_dict(samdb, {"dn": str(dn), "objectClass": LOCATED}, ldb.FLAG_MOD_ADD))
+    elif not location and LOCATED in have:
+        msg = ldb.Message(ldb.Dn(samdb, str(dn)))
+        msg["fabricLocation"] = ldb.MessageElement([], ldb.FLAG_MOD_DELETE, "fabricLocation")
+        msg["objectClass"] = ldb.MessageElement([LOCATED], ldb.FLAG_MOD_DELETE, "objectClass")
+        samdb.modify(msg)
+
+
 def write_plan(samdb, lp, site, changes):
     """Purpose: write changes to the address plan (manual 1.10.4.13, 1.10.4.32, 1.10.4.33), in order: VLANs, subnets (a
              fabricNetwork entry given the fabricSubnet class, also one convergence wrote before the upgrade), ranges,
@@ -140,8 +159,10 @@ def write_plan(samdb, lp, site, changes):
              site); changes — list of {"do" ("add", "set" or "remove"), "what" (one of WHATS), "site", "key" (an
              entry's name; for "options" "domain" or a site's name), "subnet" (for a range or an address), "fields"
              ({field: value}; a set field of "" or None is removed; a subnet's or address's "netboot" goes into
-             fabricDhcpOption with its options, 2.1.10.25; "block": {"block"}; "options": "options", "option_defs",
-             "client_classes", each replacing its list, 2.1.10.23)}.
+             fabricDhcpOption with its options, 2.1.10.25; a VLAN's or subnet's "location" carries the
+             fabricLocated class, 2.1.10.49; "block": {"block"}; "options": "options", "option_defs",
+             "client_classes", each replacing its list, 2.1.10.23), "rename" (a VLAN set: its new key, the entry
+             moved there first, 1.10.4.46.3)}.
     Returns: list of str, what changed.
     Fails:   ldb.LdbError from a change AD refuses (the changes before it stay made); ValueError for a change of an
              unknown kind, no such site, no site or subnet named.
@@ -163,6 +184,10 @@ def write_plan(samdb, lp, site, changes):
             continue
         dn = entry_dn(samdb, c)
         label = f"{what} {c.get('key', '')} of {c['site']}".replace("  ", " ")
+        if do == "set" and what == "vlan" and c.get("rename"):    # another location: the entry moves first
+            new = entry_dn(samdb, {**c, "key": c["rename"]})
+            samdb.rename(dn, new)
+            dn, label = new, f"{label} moved to {c['rename']}"
         if do == "remove":
             samdb.delete(dn, ["tree_delete:1"])
             done.append(f"{label} removed")
@@ -172,7 +197,9 @@ def write_plan(samdb, lp, site, changes):
             _with_netboot(samdb, dn if do == "set" else None, given)
         fields = {FIELDS[what][k]: values_of(v) for k, v in given.items() if k in FIELDS[what]}
         if do == "add":
-            msg = {"dn": dn, "objectClass": CLASSES[what], **{a: v for a, v in fields.items() if v}}
+            located = what in ("vlan", "subnet") and given.get("location")
+            msg = {"dn": dn, "objectClass": CLASSES[what] + ([LOCATED] if located else []),
+                   **{a: v for a, v in fields.items() if v}}
             if what in ("vlan", "subnet"):
                 msg["fabricSite"] = c["site"]
             samdb.add(msg)
@@ -183,6 +210,10 @@ def write_plan(samdb, lp, site, changes):
             if "fabricSubnet" not in [str(x) for x in have["objectClass"]]:
                 samdb.modify(ldb.Message.from_dict(samdb, {"dn": str(dn), "objectClass": "fabricSubnet"},
                                                    ldb.FLAG_MOD_ADD))
+        if what in ("vlan", "subnet") and "location" in given:
+            _relabel(samdb, dn, given["location"])
+            if not given["location"]:
+                fields.pop("fabricLocation", None)          # gone with its class
         msg = ldb.Message(dn)
         for attr, vals in fields.items():
             msg[attr] = ldb.MessageElement(vals, ldb.FLAG_MOD_REPLACE, attr)

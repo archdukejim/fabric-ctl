@@ -1,10 +1,10 @@
-from fabriclib.common.errors import ValidationError
 from fabriclib.ipam.add_address import add_address
 from fabriclib.ipam.add_range import add_range
 from fabriclib.ipam.add_subnet import add_subnet
 from fabriclib.ipam.add_vlan import add_vlan
 from fabriclib.ipam.cli.args import keep, on_off
 from fabriclib.ipam.cli.report_change import report_change
+from fabriclib.ipam.common.vlan_refs import vlan_label
 from fabriclib.ipam.remove_address import remove_address
 from fabriclib.ipam.remove_range import remove_range
 from fabriclib.ipam.remove_subnet import remove_subnet
@@ -33,9 +33,7 @@ def _vlan(v, sub, rest, vals, bare, site, common):
     Fails:   ValidationError from the plan's functions.
     Feeds:   run_plan_change."""
     if sub == "add" and len(rest) == 1 and "--name" in vals:
-        if not rest[0].isdigit():
-            raise ValidationError(f"VLAN ID {rest[0]!r} is a number from 1 to 4094")
-        out = add_vlan(v, "root", int(rest[0]), vals["--name"], site, vals.get("--subnet", ""),
+        out = add_vlan(v, "root", rest[0], vals["--name"], site, vals.get("--subnet", ""),
                        "--no-subnet" in bare, vals.get("--gateway", ""), vals.get("--purpose", ""),
                        vals.get("--notes", ""), vals.get("--access", "full"),
                        on_off(vals["--dhcp"], "--dhcp") if "--dhcp" in vals else True, vals.get("--relay", ""),
@@ -43,7 +41,7 @@ def _vlan(v, sub, rest, vals, bare, site, common):
         r = out["result"]
         if r["block_set"]:
             print(f"site {out['site']} given the number {r['block_set']} (its order in the organisation)")
-        print(f"VLAN {r['vlan']['id']} ({r['vlan']['name']}) added"
+        print(f"{vlan_label(r['vlan'])} ({r['vlan']['name']}) added"
               + (f": {r['subnet']['cidr']}, gateway {r['subnet']['gateway'] or '-'}" if r["subnet"] else ""))
         for rng in r["ranges"]:
             print(f"  {rng['kind']} {rng['first']} - {rng['last']}")
@@ -53,12 +51,13 @@ def _vlan(v, sub, rest, vals, bare, site, common):
                        notes=keep(vals, "--notes"), access=keep(vals, "--access"),
                        gateway=keep(vals, "--gateway", clear=True),
                        dhcp=keep(vals, "--dhcp", convert=on_off), relay=keep(vals, "--relay", clear=True),
-                       allow_overlap=keep(vals, "--allow-overlap", clear=True), **common)
-        print(f"VLAN {out['result']['vlan']['id']} changed")
+                       allow_overlap=keep(vals, "--allow-overlap", clear=True),
+                       to_location=keep(vals, "--to-location", clear=True), **common)
+        print(f"{vlan_label(out['result']['vlan'])} changed")
         return report_change(v, out, bare)
     if sub == "remove" and len(rest) == 1:
         out = remove_vlan(v, "root", rest[0], site, "--force" in bare, **common)
-        print(f"VLAN {out['result']['vlan']['id']} removed"
+        print(f"{vlan_label(out['result']['vlan'])} removed"
               + (f" with {out['result']['subnet']}" if out["result"]["subnet"] else ""))
         return report_change(v, out, bare)
     return None
@@ -75,7 +74,7 @@ def _subnet(v, sub, rest, vals, bare, site, common):
                          on_off(vals["--dhcp"], "--dhcp") if "--dhcp" in vals else True, vals.get("--relay", ""),
                          vals.get("--notes", ""), vals.get("--allow-overlap", ""), "--no-split" not in bare,
                          **common)
-        print(f"VLAN {out['result']['vlan']['id']} has a new subnet")
+        print(f"{vlan_label(out['result']['vlan'])} has a new subnet")
         print("\n".join(_subnet_line(out["result"])))
         return report_change(v, out, bare)
     if sub == "set" and len(rest) == 1:

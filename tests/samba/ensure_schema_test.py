@@ -81,11 +81,17 @@ def main():
           {n for n in attrs.values() if n <= 14} == set(range(1, 15)) and classes.get("fabricDcInfo") == 7
           and {n for n in classes.values() if n <= 7} == set(range(1, 8)), (attrs, classes))
     want = {"fabricSubnet": 8, "fabricRange": 9, "fabricAddress": 10, "fabricOptionSet": 12, "fabricScanRequest": 16,
-            "fabricVlanRecord": 17, "fabricSiteRecord": 18}
-    check("the address manager's classes: 8, 9, 10, 12, 16 kept, the VLAN record 17, the site's record 18",
+            "fabricVlanRecord": 17, "fabricSiteRecord": 18, "fabricLocated": 20}
+    check("the address manager's classes: 8, 9, 10, 12, 16 kept, the VLAN record 17, the site's record 18, the "
+          "location's label 20",
           {k: classes.get(k) for k in want} == want, {k: classes.get(k) for k in want})
-    check("the plan's attributes keep 15-34 and 41-45",
-          {n for n in attrs.values() if n > 14} == set(range(15, 35)) | set(range(41, 46)), sorted(attrs.values()))
+    check("the plan's attributes keep 15-34 and 41-45, and the location's label 48 (2.1.10.49)",
+          {n for n in attrs.values() if n > 14} == set(range(15, 35)) | set(range(41, 46)) | {48}
+          and attrs.get("fabricLocation") == 48, sorted(attrs.values()))
+    located = next(c for c in SETS["fabric"][3] if c[0] == "fabricLocated")
+    check("the location's label is an auxiliary class holding fabricLocation alone (a class never changes once in a "
+          "schema, so it is not added to the VLAN record or the subnet)",
+          located[2] == 3 and located[3] == [] and located[4] == ["fabricLocation"], located)
     check("retired: attributes 35, 36, 39, 40 and classes 11, 13, 15; reserved: 37, 38 and class 14 for 0.10.0, "
           "46, 47 and class 19 for 0.8.0's site tree",
           RETIRED["fabric"] == {"attributes": {35, 36, 39, 40}, "classes": {11, 13, 15}}

@@ -262,7 +262,8 @@ r_net.post_networks(["networks", "lan", "vlans"], "alice", {}, "alice")
 r_net.post_networks(["networks", "lan", "vlans"], "alice", {}, "alice", apply=False)
 r_net.post_networks(["networks", "lan", "block"], "alice", {}, "alice")
 r_opt.post_options(["ipam", "options"], "alice", {}, "alice", apply=False)
-r_scan.post_ipam_scan(["ipam", "scan", "record"], "alice", {"ip": "10.1.20.77"}, "alice", apply=False)
+r_scan.post_ipam_scan(["ipam", "scan", "record"], "alice", {"ip": "10.1.20.77", "kind": "static"}, "alice",
+                      apply=False)
 check("a direct call applies (but the site's number); a held one does not",
       SEEN == [True, False, False, False, False], SEEN)
 

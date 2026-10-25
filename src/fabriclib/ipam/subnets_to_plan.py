@@ -30,8 +30,9 @@ def subnets_to_plan(subnets, plan, site):
     Fails:   never for normalized subnets.
     Feeds:   move_subnets_to_plan."""
     out = {"changes": [], "moved": [], "assigned": [], "kept": [], "not_carried": []}
-    used_ids = {v["id"] for v in plan.get("vlans") or []}
-    used_names = {v["name"] for v in plan.get("vlans") or []}
+    own = [v for v in plan.get("vlans") or [] if not v.get("location")]    # the DC's own location (1.10.4.46)
+    used_ids = {v["id"] for v in own}
+    used_names = {v["name"] for v in own}
     have = {s["name"] for s in plan.get("subnets") or []} | {s["cidr"] for s in plan.get("subnets") or []}
     legacy = {n["name"] for n in plan.get("networks") or []}
     for s in subnets:

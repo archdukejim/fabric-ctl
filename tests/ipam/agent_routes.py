@@ -224,8 +224,11 @@ check("refused: a request for this site's own subnet, saying why", refused(lambd
 check("refused: a find recorded as another kind, or by a person without the grant; nothing written or applied",
       refused(lambda: m_route.post_route(["ipam", "scan", "record"], "alice", {"ip": "10.1.20.55", "kind": "dhcp"},
                                          ["dhcp:write"]), "reservation or a static address") is True
-      and refused(lambda: m_route.post_route(["ipam", "scan", "record"], "bob", {"ip": "10.1.20.55"},
+      and refused(lambda: m_route.post_route(["ipam", "scan", "record"], "bob", {"ip": "10.1.20.55",
+                                                                        "mac": "aa:bb:cc:00:00:55"},
                                              ["dhcp:write"]), "no grant gives") is True
+      and refused(lambda: m_route.post_route(["ipam", "scan", "record"], "alice", {"ip": "10.1.20.57"},
+                                             ["dhcp:write"]), "a reservation needs its MAC") is True
       and not CALLS and not APPLIES, CALLS)
 check("another path under /v1/ipam/scan: 404",
       refused(lambda: m_route.post_route(["ipam", "scan", "other"], "alice", {}, ["dhcp:write"]), "404") == "404")

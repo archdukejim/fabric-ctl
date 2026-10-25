@@ -1,4 +1,5 @@
 from fabriclib.ipam.common.site_plan import site_plan
+from fabriclib.ipam.common.vlan_refs import of_vlan, vlan_label, vlan_ref
 from fabriclib.ipam.options.effective_options import effective_options
 from fabriclib.ipam.options.settings_options import settings_options
 from fabriclib.ipam.plan_rows import plan_rows
@@ -18,6 +19,7 @@ def networks_view(v, read, site, sites, leases=None):
              str; sites — the sites this console shows ([{"name", "own"}]); leases — this site's live leases
              (list_leases' rows) or None (another site's, or DHCP off).
     Returns: {"site", "block", "suggested_block", "sites" (each with "block" and "suggested"), "vlans": [{"id",
+             "location", "ref" (`10` or `10@branch`, how the console names it), "label" ("VLAN 10 at branch"),
              "name", "purpose", "access", "notes", "subnets": [{plan fields, "bar", "counts", "rows", "options"
              (effective_options' rows), "classes" (its classes that may apply), "reservation_options": {ip: the
              reservation's own rows}}]}], "networks", "leases_shown" (bool)}.
@@ -34,8 +36,8 @@ def networks_view(v, read, site, sites, leases=None):
                       "suggested": suggest_block(read.get("sites") or [], s["name"])} for s in sites],
            "vlans": [], "networks": plan["networks"], "leases_shown": leases is not None}
     for vlan in plan["vlans"]:
-        entry = {**vlan, "subnets": []}
-        for sub in [s for s in plan["subnets"] if s.get("vlan") == vlan["id"]]:
+        entry = {**vlan, "ref": vlan_ref(vlan), "label": vlan_label(vlan), "subnets": []}
+        for sub in [s for s in plan["subnets"] if of_vlan(s, vlan)]:
             drawn = subnet_map(sub, [r for r in rows if r["subnet"] == sub["cidr"]])
             eff = effective_options(plan, "subnet", sub["name"], here, settings)
             reserved = {a["ip"]: [r for r in effective_options(plan, "address", a["ip"], here, settings)["rows"]

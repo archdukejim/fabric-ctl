@@ -10,7 +10,8 @@ CHANGES = (["block"], ["vlans"], ["vlans", "*"], ["vlans", "*", "delete"], ["sub
            ["subnets", "*", "delete"], ["ranges"], ["ranges", "delete"], ["addresses"], ["addresses", "*"],
            ["addresses", "*", "delete"])
 FIELDS = ("number", "id", "name", "subnet", "no_subnet", "gateway", "purpose", "notes", "access", "dhcp", "relay",
-          "allow_overlap", "split", "force", "vlan", "cidr", "kind", "first", "last", "ip", "mac", "owner", "dns")
+          "allow_overlap", "split", "force", "vlan", "cidr", "kind", "first", "last", "ip", "mac", "owner", "dns",
+          "location", "to_location")
 
 
 def _back(site, rest, form):

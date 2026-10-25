@@ -187,6 +187,7 @@
 "agent:post.zones.*.records.link": "src/fabriclib/rbac/required_permission.py"
 "ask:cli.reinstall.confirm": "src/fabriclib/cli.py"
 "ask:consent.step": "src/fabriclib/consent/ask_consent.py"
+"ask:ipam.scan_mac": "src/fabriclib/ipam/offer_reservations.py"
 "ask:ipam.scan_name": "src/fabriclib/ipam/offer_reservations.py"
 "ask:ipam.scan_record": "src/fabriclib/ipam/offer_reservations.py"
 "ask:logs.elastic_password": "src/fabriclib/logs/run_logs_command.py"

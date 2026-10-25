@@ -1,7 +1,7 @@
 import ipaddress
 
-COLUMNS = ("site", "vlan", "vlan_name", "subnet", "ip", "kind", "range", "name", "mac", "owner", "dns", "lease",
-           "notes")
+COLUMNS = ("site", "vlan", "vlan_name", "location", "subnet", "ip", "kind", "range", "name", "mac", "owner", "dns",
+           "lease", "notes")
 
 
 def _range_of(subnet, ip):
@@ -25,13 +25,14 @@ def plan_rows(plan, leases=None):
     Returns: list of dicts with the keys of COLUMNS (dns "yes" or "", lease "<state> until <expires>" or "").
     Fails:   never for a plan fabric wrote.
     Feeds:   show_plan, find_in_plan, export_plan, networks_view, scan_subnet."""
-    names = {v["id"]: v["name"] for v in plan.get("vlans") or []}
+    names = {(v.get("location") or "", v["id"]): v["name"] for v in plan.get("vlans") or []}
     held = {lease["ip"]: lease for lease in leases or [] if lease.get("ip")}
     rows = []
     for s in plan.get("subnets") or []:
         net = ipaddress.ip_network(s["cidr"])
-        base = {"site": plan["site"], "vlan": s.get("vlan") or "", "vlan_name": names.get(s.get("vlan"), ""),
-                "subnet": s["cidr"]}
+        where = s.get("location") or ""          # "" the DC's own (manual 1.10.4.46)
+        base = {"site": plan["site"], "vlan": s.get("vlan") or "", "vlan_name": names.get((where, s.get("vlan")), ""),
+                "location": where, "subnet": s["cidr"]}
         found = []
         if s.get("gateway"):
             found.append({"ip": s["gateway"], "kind": "gateway", "name": "", "mac": "", "owner": "", "dns": "",

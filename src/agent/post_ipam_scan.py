@@ -13,9 +13,9 @@ from fabriclib.ipam.scancontrol.request_scan import request_scan
 def post_ipam_scan(route, actor, data, caller=None, apply=True):
     """Purpose: the console's scans (manual 1.10.4.22, 1.10.4.36; decisions 2.1.10.26 and 2.1.10.38): POST
              /v1/ipam/scan runs one scan of this site's subnet and answers what it found; POST /v1/ipam/scan/record
-             records one address it found in use but unrecorded — a reservation for the MAC ARP saw, or a static
-             address when no MAC was seen — then applies it like every plan change; POST /v1/ipam/scan/request asks
-             another site to scan one of its subnets (request_scan). Each function checks the signed-in person's
+             records one address it found in use but unrecorded — a reservation for the MAC ARP saw or the one
+             typed (2.1.10.50), or a static address — then applies it like every plan change; POST /v1/ipam/scan/request
+             asks another site to scan one of its subnets (request_scan). Each function checks the signed-in person's
              right first: `scan` at the site for a scan or a request, `plan` here to record.
     Inputs:  route — segments after /v1/ (["ipam", "scan"], [..., "record"] or [..., "request"]); actor — the
              verified user; data — the body: subnet (scan: its name or network); ip, kind (reservation or static), mac,
@@ -37,6 +37,8 @@ def post_ipam_scan(route, actor, data, caller=None, apply=True):
     kind = read_text(data, "kind") or "reservation"
     if kind not in ("reservation", "static"):
         raise ValidationError("an address a scan found is recorded as a reservation or a static address")
+    if kind == "reservation" and not read_text(data, "mac"):     # 2.1.10.50: seen by ARP, or typed
+        raise ValidationError("a reservation needs its MAC: type it, or record it as a static address")
     out = add_address(v, actor, read_text(data, "ip"), kind, "", read_text(data, "name"), read_text(data, "mac"), "",
                       f"found by a scan on {datetime.date.today().isoformat()}", False, None, source="web",
                       caller=caller)

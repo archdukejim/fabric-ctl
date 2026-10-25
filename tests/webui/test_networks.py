@@ -172,6 +172,23 @@ with serve():
     check("...refused at Apply, saying why", "VLAN 40 is already in lan&#39;s plan" in review
           or "VLAN 40 is already in lan's plan" in review, main(review)[:1500])
     post("/changes/networks/discard", {})
+    # a location without a DC inside the site (2.1.10.49, manual 1.10.4.46)
+    form = get("/networks?site=lan&view=new-vlan")
+    check("Add VLAN offers a Location (empty: this DC's own)", 'name="location"' in form, main(form)[:600])
+    st, loc, page = post("/networks/plan/lan/vlans", {"id": "20", "name": "iot", "location": "branch",
+                                                      "subnet": "10.9.20.0/24", "split": "on"})
+    check("Add VLAN 20 at branch beside the site's own VLAN 20: held in its words",
+          "Waiting for Apply: Add VLAN 20@branch (iot) at lan" in flash(page), flash(page))
+    review = apply("networks")
+    page = get("/networks?site=lan&vlan=20%40branch")
+    check("...applied: listed at branch, its page titled VLAN 20 at branch with its subnet branch-iot",
+          "at branch" in get("/networks") and "VLAN 20 at branch" in page and "branch-iot" in page
+          and 'name="to_location" value="branch"' in page, main(page)[:800])
+    st, loc, page = post("/networks/plan/lan/vlans", {"id": "30", "name": "cams", "location": "branch"})
+    review = apply("networks")
+    check("Add VLAN at a location with no subnet given: refused at Apply, saying why",
+          "give --subnet: a location" in review.replace("&#39;", "'"), main(review)[:800])
+    post("/changes/networks/discard", {})
     CHANGES = [("/networks/plan/lan/block", {"number": "7"}, "Set the site's number to 7 at lan",
                 "web:post.networks.plan.*.block"),
                ("/networks/plan/lan/vlans/30", {"name": "guests", "back_vlan": "30"}, "Change VLAN 30 at lan",
@@ -265,13 +282,21 @@ with serve():
     check("Record a find: held on Networks", loc == "/networks/scan"
           and "Waiting for Apply: Record 10.1.20.77 (found by a scan) as a reservation at lan" in flash(page)
           and "1 change pending" in page, flash(page))
-    st, loc, page = post("/networks/scan/record", {"find": "10.1.20.88|", "kind": "reservation"})
-    check("a find with no MAC: recorded as static whatever was picked",
-          "as a static at lan" in flash(page), flash(page))
+    st, loc, page = post("/networks/scan/record", {"find": "10.1.20.88|", "kind": "reservation",
+                                                   "mac": "aa:bb:cc:00:00:88"})
+    check("a find with no MAC, its MAC typed: held as a reservation (2.1.10.50)",
+          "as a reservation at lan" in flash(page) and "2 changes pending" in page, flash(page))
+    st, loc, page = post("/networks/scan/record", {"find": "10.1.20.99|", "kind": "static"})
+    check("a find with no MAC as a static address: held", "as a static at lan" in flash(page), flash(page))
     review = apply("networks")
-    check("...applied: both recorded", "address=10.1.20.77" in get("/networks?site=lan&subnet=iot")
-          and "address=10.1.20.88" in get("/networks?site=lan&subnet=iot"), main(review)[:800])
+    check("...applied: all three recorded", "address=10.1.20.77" in get("/networks?site=lan&subnet=iot")
+          and "address=10.1.20.88" in get("/networks?site=lan&subnet=iot")
+          and "address=10.1.20.99" in get("/networks?site=lan&subnet=iot"), main(review)[:800])
     # covers: web:post.networks.scan.record -
+    st, loc, page = post("/networks/scan/record", {"find": "10.1.20.66|", "kind": "reservation"})
+    check("a reservation for a find with no MAC and none typed: refused, saying why, nothing held",
+          loc == "/networks/scan" and "a reservation needs its MAC" in flash(page) and "change pending" not in page,
+          flash(page))
     st, loc, page = post("/networks/scan/record", {"find": "10.1.20.77|aa:bb:cc:00:00:77"})
     review = apply("networks")
     check("recording a find already claimed: refused at Apply with why", "already claimed" in review,

@@ -195,6 +195,8 @@ by = {f["ip"]: f for f in res["answering"]}
 print(json.dumps(res, indent=1)[:2000])
 check("the scan runs in Kea's container and finds the recorded address as recorded", not err
       and by.get("10.254.64.10", {}).get("status") == "recorded", err or res)
+check("a subnet the host has an address in (the test network's bridge) is not beyond a router (2.1.10.50)",
+      res.get("routed") is False, res.get("routed"))
 check("a device set by hand that nobody recorded: in use, unrecorded, with its MAC",
       by.get("10.254.64.11", {}).get("status") == "unrecorded"
       and by.get("10.254.64.11", {}).get("mac") == "02:00:00:00:64:11", by.get("10.254.64.11"))

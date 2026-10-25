@@ -609,6 +609,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/common/plan_subnets.py	72
 file	fabriclib-ipam|src/fabriclib/ipam/common/pool_text.py	9	
 file	fabriclib-ipam|src/fabriclib/ipam/common/probe_subnet.py	73	
 file	fabriclib-ipam|src/fabriclib/ipam/common/site_plan.py	10	
+file	fabriclib-ipam|src/fabriclib/ipam/common/vlan_refs.py	97	
 file	fabriclib-ipam|src/fabriclib/ipam/export_plan.py	18	
 file	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py	19	
 file	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py	63	
@@ -1818,6 +1819,7 @@ function	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py|_entry	
 function	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py|windows_baseline_policy	2	
 function	fabricctl-jinja|src/containers/samba/write_plan.py|_exists	2	
 function	fabricctl-jinja|src/containers/samba/write_plan.py|_record	3	
+function	fabricctl-jinja|src/containers/samba/write_plan.py|_relabel	8	
 function	fabricctl-jinja|src/containers/samba/write_plan.py|_with_netboot	5	
 function	fabricctl-jinja|src/containers/samba/write_plan.py|_write_set	4	
 function	fabricctl-jinja|src/containers/samba/write_plan.py|entry_dn	6	
@@ -2431,6 +2433,12 @@ function	fabriclib-ipam|src/fabriclib/ipam/common/probe_subnet.py|_exec	1
 function	fabriclib-ipam|src/fabriclib/ipam/common/probe_subnet.py|_neighbours	2	
 function	fabriclib-ipam|src/fabriclib/ipam/common/probe_subnet.py|probe_subnet	3	
 function	fabriclib-ipam|src/fabriclib/ipam/common/site_plan.py|site_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/vlan_refs.py|check_location	1	
+function	fabriclib-ipam|src/fabriclib/ipam/common/vlan_refs.py|of_vlan	5	
+function	fabriclib-ipam|src/fabriclib/ipam/common/vlan_refs.py|parse_vlan_ref	2	
+function	fabriclib-ipam|src/fabriclib/ipam/common/vlan_refs.py|subnet_base	6	
+function	fabriclib-ipam|src/fabriclib/ipam/common/vlan_refs.py|vlan_label	4	
+function	fabriclib-ipam|src/fabriclib/ipam/common/vlan_refs.py|vlan_ref	3	
 function	fabriclib-ipam|src/fabriclib/ipam/export_plan.py|export_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py|find_in_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|_add_records	1	

@@ -13,6 +13,7 @@ the port (1.10.4.41). The real network: tests/kea/scan.py.
     python3 tests/ipam/scan.py
 """
 import fcntl
+import ipaddress
 import io
 import os
 import shutil
@@ -103,8 +104,12 @@ def probe(cidr, container):
     return dict(SEEN)
 
 
+ON_LAN = {"eth0": [ipaddress.IPv4Interface("10.1.20.2/24")]}   # the host has an address in iot
+
+
 def scan(subnet, state=None, **kw):
     kw.setdefault("check", allow)
+    kw.setdefault("networks", ON_LAN)
     return m_scan.scan_subnet(V, "alice", subnet, source="web", container="kt-kea", state_dir=state or
                               os.path.join(TMP, f"state-{len(PROBED)}-{len(AUDIT)}"), probe=probe,
                               leases=LEASES, **kw)
@@ -114,6 +119,18 @@ def scan(subnet, state=None, **kw):
 # covers: cli:ipam.scan +
 res = scan("10.1.20.0/24", caller="alice")
 by = {f["ip"]: f for f in res["answering"]}
+# 2.1.10.50 (manual 1.10.4.47): a subnet the host has an address in is not beyond a router; one it has none in is
+check("a subnet on one of the host's networks: not beyond a router, and nothing said of one",
+      res["routed"] is False and "beyond a router" not in show_scan(res), res.get("routed"))
+far = scan("10.1.20.0/24", state=os.path.join(TMP, "far"), caller="alice",
+           networks={"eth0": [ipaddress.IPv4Interface("10.1.5.2/24")]},
+           check=lambda *a, **kw: {"tier": "directory", "by": "grant net-ops"})
+del AUDIT[-1], PROBED[-1]                    # the cases below count the first scan's
+check("a subnet on none of the host's networks: beyond a router, said (addresses only), every find's two ways "
+      "printed for one with no MAC",
+      far["routed"] is True and "beyond a router: addresses only" in show_scan(far)
+      and "once you know its MAC: sudo fabricctl ipam address add 10.1.20.57 --kind reservation --mac <MAC>"
+      in show_scan(far), show_scan(far))
 check("a served subnet is scanned by its exact network, in Kea's container", PROBED[-1] == ("10.1.20.0/24", "kt-kea")
       and res["subnet"] == {"name": "iot", "cidr": "10.1.20.0/24"} and res["scanned"] == 254, (PROBED, res))
 check("what answered is set beside the plan: the gateway and a static address recorded, a lease a lease",
@@ -274,8 +291,8 @@ out = io.StringIO()
 with redirect_stdout(out):
     # covers: ask:ipam.scan_record ask:ipam.scan_name +
     # covers: ask:ipam.scan_record -
-    done = m_offer.offer_reservations(V, res, ask=lambda qid, prompt, default: "cam4",
-                                      ask_yes_no=yes_no)
+    done = m_offer.offer_reservations(V, res, ask=lambda qid, prompt, default: "" if qid == "ipam.scan_mac"
+                                      else "cam4", ask_yes_no=yes_no)
 check("asked for each address in use but unrecorded, no by default; only those were offered",
       sorted(q[1].split()[1] for q in asked) == ["10.1.20.121", "10.1.20.55", "10.1.20.56", "10.1.20.57"]
       and all(q[0] == "ipam.scan_record" and q[2] is False for q in asked), asked)
@@ -288,6 +305,43 @@ check("yes without a MAC: recorded as a static address; no: left alone",
 # covers: ask:ipam.scan_name -
 check("a find the plan's rules refuse is said, not recorded, and the next is still asked",
       "not recorded: 10.1.20.121 is in a dhcp range" in out.getvalue() and len(done) == 2, out.getvalue())
+# a find with no MAC, its MAC typed (2.1.10.50): a reservation for it; a bad one refused, said, nothing recorded
+asked_mac, ADDED[:] = [], []
+
+
+def typed(qid, prompt, default, mac="AA:BB:CC:00:00:57"):
+    if qid == "ipam.scan_mac":
+        asked_mac.append(prompt)
+        return mac
+    return "cam5"
+
+
+real_add = fake_add
+
+
+def checked_add(v, actor, ip, kind, site="", name="", mac="", *a, **kw):
+    if mac and not __import__("re").match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac.lower()):
+        raise ValidationError(f"MAC {mac!r}: six hex pairs, e.g. aa:bb:cc:dd:ee:ff")
+    return real_add(v, actor, ip, kind, site, name, mac, *a, **kw)
+
+
+m_offer.add_address = checked_add
+only57 = {**res, "answering": [f for f in res["answering"] if f["ip"] == "10.1.20.57"]}
+answers["10.1.20.57"] = True
+with redirect_stdout(io.StringIO()):
+    # covers: ask:ipam.scan_mac +
+    m_offer.offer_reservations(V, only57, ask=typed, ask_yes_no=yes_no)
+check("yes without a MAC, its MAC typed: a reservation for that MAC, asked only for a find with none",
+      [a[:4] for a in ADDED] == [("10.1.20.57", "reservation", "cam5", "AA:BB:CC:00:00:57")]
+      and len(asked_mac) == 1 and "Enter: a static address" in asked_mac[0], (ADDED, asked_mac))
+ADDED[:] = []
+out = io.StringIO()
+with redirect_stdout(out):
+    # covers: ask:ipam.scan_mac -
+    m_offer.offer_reservations(V, only57, ask=lambda q, p, d: typed(q, p, d, mac="not-a-mac"), ask_yes_no=yes_no)
+check("a typed MAC that is not one: refused, said, nothing recorded",
+      not ADDED and "not recorded: MAC 'not-a-mac'" in out.getvalue(), (ADDED, out.getvalue()))
+m_offer.add_address = fake_add
 
 
 # ---- `fabricctl ipam scan`

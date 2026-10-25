@@ -95,7 +95,8 @@ def describe_networks(route, body):
         return f"Set the site's number to {b.get('number', '')}{where}"
     if sub[0] == "vlans":
         if len(sub) == 1:
-            return f"Add VLAN {b.get('id', '')} ({b.get('name', '')}){where}"
+            at = f"@{b['location']}" if b.get("location") else ""      # another location of the site (1.10.4.46)
+            return f"Add VLAN {b.get('id', '')}{at} ({b.get('name', '')}){where}"
         return f"{'Remove' if gone else 'Change'} VLAN {sub[1]}{where}"
     if sub[0] == "subnets":
         if len(sub) == 1:

@@ -16,6 +16,7 @@ from fabriclib.ipam.common.probe_subnet import KEA_CONTAINER, probe_subnet
 from fabriclib.ipam.common.scan_busy import ScanBusy
 from fabriclib.ipam.plan_rows import plan_rows
 from fabriclib.ipam.scancontrol.limits import LARGEST
+from fabriclib.system.host_networks import host_networks
 
 STATE_DIR = "/run/fabric-ipam-scan"   # root's, 0700: the lock and when each subnet was last scanned (gone at boot)
 COOLDOWN = 60                         # seconds before the same subnet is scanned again
@@ -107,7 +108,8 @@ def _classify(ip, seen, row):
 
 
 def scan_subnet(v, actor, subnet, source="cli", container=KEA_CONTAINER, state_dir=STATE_DIR, probe=None,
-                leases=None, cache=None, requested=None, caller=None, check=check_access, dc="samba"):
+                leases=None, cache=None, requested=None, caller=None, check=check_access, dc="samba",
+                networks=None):
     """Purpose: scan one subnet on request (manual 1.10.4.22, 1.10.4.36; decisions 2.1.10.13, 2.1.10.26 and
              2.1.10.38): which addresses answer, and which of them nobody recorded — neither a gateway, static,
              reservation or infrastructure address of the plan nor an active lease ("in use, unrecorded", with the
@@ -122,10 +124,12 @@ def scan_subnet(v, actor, subnet, source="cli", container=KEA_CONTAINER, state_d
              (default: Kea's, none when Kea does not answer); cache — function() -> the kept plan (default
              load_plan_cache); requested — None (a scan asked here) or the request it runs ({"id", "by"}: its grant
              was checked already, and the audit names them); caller — the signed-in person's user name, or None
-             (root); check — check_access (tests give their own); dc — the DC's container.
+             (root); check — check_access (tests give their own); dc — the DC's container; networks — this
+             host's addresses by interface (default host_networks(); tests give their own).
     Returns: {"subnet": {"name", "cidr"}, "scanned" (int, addresses probed), "answering": [_classify's rows],
              "unrecorded" (int), "at" (ISO time), "allowed": {"by" (what allowed it: check_access's "by", or "a
-             request from <site>")}}.
+             request from <site>")}, "routed" (bool: the host has no address in the subnet, so it is beyond a
+             router and ARP sees no MAC there, decision 2.1.10.50, manual 1.10.4.47)}.
     Fails:   ValidationError: _which's refusals, check_access's ("no grant gives you networks scan at <site>", the DC
              not running), probe_subnet's; ScanBusy (a ValidationError): _slot's (a scan running, too soon); OSError
              from the audit log or the state folder. A refused scan probes nothing and audits nothing.
@@ -160,7 +164,9 @@ def scan_subnet(v, actor, subnet, source="cli", container=KEA_CONTAINER, state_d
                 f"subnet={sub['cidr']} answering={len(found)} "
                 f"unrecorded={unrecorded} by={allowed['by']}"
                 + (f" requested_by={requested['by']} request={requested['id']}" if requested else ""), source)
+    mine = host_networks() if networks is None else networks
+    routed = not any(i.ip in net for addrs in mine.values() for i in addrs)
     return {"subnet": sub, "scanned": net.num_addresses - 2 if net.prefixlen < 31 else net.num_addresses,
             "answering": found, "unrecorded": unrecorded,
             "at": datetime.datetime.now().isoformat(timespec="seconds"),
-            "allowed": allowed}
+            "allowed": allowed, "routed": routed}

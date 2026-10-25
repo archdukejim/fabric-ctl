@@ -1,4 +1,5 @@
 from fabriclib.ipam.common.site_plan import site_plan
+from fabriclib.ipam.common.vlan_refs import of_vlan
 from fabriclib.ipam.plan_rows import plan_rows
 from fabriclib.ipam.suggestions import suggest_block
 
@@ -6,7 +7,7 @@ from fabriclib.ipam.suggestions import suggest_block
 def show_plan(read, site, leases=None):
     """Purpose: `fabricctl ipam show` (manual 1.10.4.16): one site's plan as text: its number (or the one fabric
              suggests), each VLAN with each of its subnets (2.1.10.18), their ranges and address table, and the
-             site's other networks.
+             site's other networks; the VLANs of another location under "at <location>" (manual 1.10.4.46.4).
     Inputs:  read — read_plan's result; site — str; leases — this site's leases (list_leases) or None.
     Returns: str, lines ending in a newline.
     Fails:   never for a plan fabric wrote.
@@ -16,8 +17,12 @@ def show_plan(read, site, leases=None):
     lines = [f"site {site}  number " + (str(block) if block else
                                         f"none (suggested {suggest_block(read['sites'], site)})")]
     rows = plan_rows(plan, leases)
-    for v in plan["vlans"]:
-        subs = [s for s in plan["subnets"] if s.get("vlan") == v["id"]]
+    where = ""
+    for v in plan["vlans"]:                  # the DC's own location first (read_plan's order)
+        if (v.get("location") or "") != where:
+            where = v.get("location") or ""
+            lines.append(f"at {where}")
+        subs = [s for s in plan["subnets"] if of_vlan(s, v)]
         head = f"VLAN {v['id']:<5} {v['name']:<16} "
         if not subs:
             lines.append(head + "(no subnet)" + (f"  {v['purpose']}" if v["purpose"] else ""))

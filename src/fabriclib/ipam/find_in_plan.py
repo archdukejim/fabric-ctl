@@ -2,6 +2,7 @@ import ipaddress
 
 from fabriclib.dhcp.normalize_dhcp import MAC_RE
 from fabriclib.ipam.common.site_plan import site_plan
+from fabriclib.ipam.common.vlan_refs import of_vlan
 from fabriclib.ipam.plan_rows import plan_rows
 
 
@@ -33,8 +34,9 @@ def find_in_plan(read, text, leases=None, site=""):
                         kind = next((r["kind"] for r in s.get("ranges") or []
                                      if ipaddress.ip_address(r["first"]) <= ip <= ipaddress.ip_address(r["last"])),
                                     "")
-                        vlan = next((v["name"] for v in plan["vlans"] if v["id"] == s.get("vlan")), "")
+                        vlan = next((v["name"] for v in plan["vlans"] if of_vlan(s, v)), "")
                         hits.append({"site": name, "vlan": s.get("vlan") or "", "vlan_name": vlan,
+                                     "location": s.get("location") or "",
                                      "subnet": s["cidr"], "ip": str(ip), "kind": "unrecorded", "range": kind,
                                      "name": "", "mac": "", "owner": "", "dns": "", "lease": "", "notes": ""})
             out += hits
@@ -44,8 +46,9 @@ def find_in_plan(read, text, leases=None, site=""):
             out += [r for r in rows if r["name"].lower() == want]
             for v in plan["vlans"]:
                 if v["name"] == want:
-                    sub = " ".join(s["cidr"] for s in plan["subnets"] if s.get("vlan") == v["id"])   # 2.1.10.18
-                    out.append({"site": name, "vlan": v["id"], "vlan_name": v["name"], "subnet": sub, "ip": "",
+                    sub = " ".join(s["cidr"] for s in plan["subnets"] if of_vlan(s, v))   # 2.1.10.18
+                    out.append({"site": name, "vlan": v["id"], "vlan_name": v["name"],
+                                "location": v.get("location") or "", "subnet": sub, "ip": "",
                                 "kind": "vlan", "range": "", "name": v["name"], "mac": "", "owner": "", "dns": "",
                                 "lease": "", "notes": v.get("notes") or ""})
     return out

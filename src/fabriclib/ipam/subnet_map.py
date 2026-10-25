@@ -68,8 +68,9 @@ def subnet_map(subnet, rows):
                     for r in subnet.get("ranges") or [])
     table = [{**r, "unrecorded": r["kind"] == "lease"} for r in rows]
     used = {int(ipaddress.ip_address(r["ip"])) for r in table}
-    base = {k: (rows[0][k] if rows else "") for k in ("site", "vlan", "vlan_name", "subnet")} if rows else {
-        "site": "", "vlan": subnet.get("vlan") or "", "vlan_name": "", "subnet": subnet["cidr"]}
+    base = {k: (rows[0][k] if rows else "") for k in ("site", "vlan", "vlan_name", "location", "subnet")} if rows else {
+        "site": "", "vlan": subnet.get("vlan") or "", "vlan_name": "", "location": subnet.get("location") or "",
+        "subnet": subnet["cidr"]}
     table += _free_rows(net, ranges, used, base)
     table.sort(key=lambda r: int(ipaddress.ip_address(r["ip"])))
     bar, at = [], lo

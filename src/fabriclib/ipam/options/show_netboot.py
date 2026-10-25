@@ -11,7 +11,8 @@ def show_netboot(overview, target):
     text = str(target or "").strip()
     found = []
     for s in overview.get("subnets") or []:
-        if text in (s["name"], s["cidr"]) or (text.isdigit() and s.get("vlan") == int(text)):
+        ref = f"{s.get('vlan')}@{s['location']}" if s.get("location") else str(s.get("vlan"))
+        if text in (s["name"], s["cidr"]) or (s.get("vlan") and text == ref):
             found.append((f"subnet {s['name']} ({s['cidr']})", s.get("netboot"), f"fabric-nb-s{s.get('id')}-*"))
         for r in s["reservations"]:
             if text == r["ip"]:

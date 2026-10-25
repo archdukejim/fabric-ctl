@@ -29,6 +29,8 @@ def new_subnet(v, plan, org, vlan, cidr, name, gateway="", dhcp=True, relay="", 
         raise ValidationError(f"the name {sub['name']} is the site's network {legacy['cidr']}: choose another "
                               "name, or give that network as the subnet")
     sub["kind"] = "dhcp" if sub["dhcp"] else "subnet"
+    if vlan.get("location"):                # its VLAN's location, set by fabric (manual 1.10.4.46.1)
+        sub["location"] = vlan["location"]
     sub["id"] = max([s.get("id") or 0 for s in plan["subnets"]] + [0]) + 1
     sub["options"] = []
     changes = [{"do": "set" if legacy else "add", "what": "subnet", "site": plan["site"], "key": sub["name"],

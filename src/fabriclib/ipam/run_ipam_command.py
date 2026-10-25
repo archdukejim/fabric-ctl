@@ -17,12 +17,15 @@ USAGE = """usage: fabricctl ipam show [<site>]                    a site's VLANs
        fabricctl ipam find <ip|name|mac>               where an address, a name or a MAC is, in every site
        fabricctl ipam export [<site>]                  the address table as CSV (every site without one)
        fabricctl ipam block [<n>]                      the site's number (1-255): shown, or set
-       fabricctl ipam vlan add <id> --name N [--subnet CIDR | --no-subnet] [--gateway IP] [--purpose T]
+       fabricctl ipam vlan add <id>[@<location>] --name N [--subnet CIDR | --no-subnet] [--gateway IP]
+                               [--purpose T]
                                [--notes T] [--access full|guest] [--dhcp on|off] [--relay IP] [--no-split]
                                [--allow-overlap "<why>"]
-       fabricctl ipam vlan set <id> [--name N] [--purpose T] [--notes T] [--access full|guest]
-                               [--gateway IP|none] [--dhcp on|off] [--relay IP|none] [--allow-overlap "<why>"|none]
-       fabricctl ipam vlan remove <id> [--force]
+       fabricctl ipam vlan set <vlan> [--name N] [--purpose T] [--notes T] [--access full|guest]
+                               [--to-location L|none] [--gateway IP|none] [--dhcp on|off] [--relay IP|none]
+                               [--allow-overlap "<why>"|none]
+       fabricctl ipam vlan remove <vlan> [--force]
+                               (a <vlan> is its ID, or <id>@<location> at another location of the site)
        fabricctl ipam subnet add <vlan> <cidr> [--name N] [--gateway IP] [--dhcp on|off] [--relay IP] [--notes T]
                                [--no-split] [--allow-overlap "<why>"]
        fabricctl ipam subnet set <name|cidr> [--gateway IP|none] [--dhcp on|off] [--relay IP|none] [--notes T]
