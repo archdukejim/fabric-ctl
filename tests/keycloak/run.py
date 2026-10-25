@@ -33,7 +33,7 @@ from webui.tlsclient import TLSClient  # noqa: E402
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "keycloak")
 NET, SUBNET, DC_IP, KC_IP = "kctest", "10.254.9.0/24", "10.254.9.10", "10.254.9.60"
 DC, KC = "kc-dc", "kc-keycloak"
-HOST, REALM = "sso.lan.j-j.family", "lan.j-j.family"
+HOST, REALM = "sso.test.lan.j-j.family", "test.lan.j-j.family"
 PASS = FAIL = 0
 
 
@@ -134,11 +134,11 @@ shutil.rmtree(W, ignore_errors=True)
 # the DC first: Keycloak's account and the first admin come from it
 dc = start_dc(os.path.join(W, "dc"), DC, NET, SUBNET, DC_IP, extra_vars={
     "ip_keycloak": KC_IP, "hostname_keycloak": HOST, "webui_realm": REALM, "install_webui": True, "install_keycloak": True,
-    "hostname_mgr": "mgr.lan.j-j.family", "webui_hostname": "mgr.lan.j-j.family",
+    "hostname_mgr": "mgr.test.lan.j-j.family", "webui_hostname": "mgr.test.lan.j-j.family",
     "signin_kerberos": True})     # off by default since 0.6.4 (2.1.6.32): this suite proves it on
 v, secrets, root_ca = dc["v"], dc["secrets"], dc["root_ca"]
 check("a real DC from fabric's image, converged (Keycloak's service account made)", True)
-state, otp = ensure_admin(v, secrets, "jim", "jim@lan.j-j.family", container=DC)
+state, otp = ensure_admin(v, secrets, "jim", "jim@test.lan.j-j.family", container=DC)
 check("the first admin jim is created in the directory with a one-time password", state == "created" and otp)
 
 # Keycloak, its certificate from the test root, the root as its truststore (fabric's LDAPS to the DC is verified)
@@ -161,7 +161,7 @@ spns = sh(["docker", "exec", DC, "samba-tool", "spn", "list", "fabric-sso-lan", 
 enc = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=fabric-sso-lan)",
           "msDS-SupportedEncryptionTypes"], ok=False).stdout
 check("the DC made the Kerberos sign-in account: both SPNs, AES only, its keytab handed to Keycloak",
-      install_sso_keytab(v) and "HTTP/sso.lan.j-j.family" in spns and "HTTP/dc1.lan.j-j.family" in spns
+      install_sso_keytab(v) and "HTTP/sso.test.lan.j-j.family" in spns and "HTTP/dc1.test.lan.j-j.family" in spns
       and "msDS-SupportedEncryptionTypes: 24" in enc and os.path.getsize(os.path.join(krb_dir, "sso.keytab")) > 0,
       (spns, enc))
 check("handing the keytab over again changes nothing", not install_sso_keytab(v))
@@ -244,7 +244,7 @@ if users:
 client = kc.call("GET", f"{R}/clients?clientId=fabric-webui")[1][0]
 check("client: confidential, code flow only, exact redirect, PKCE S256, fullScopeAllowed off",
       not client["publicClient"] and client["standardFlowEnabled"] and not client["implicitFlowEnabled"]
-      and not client["directAccessGrantsEnabled"] and client["redirectUris"] == ["https://mgr.lan.j-j.family/oidc/callback"]
+      and not client["directAccessGrantsEnabled"] and client["redirectUris"] == ["https://mgr.test.lan.j-j.family/oidc/callback"]
       and client["attributes"].get("pkce.code.challenge.method") == "S256" and client["fullScopeAllowed"] is False)
 flows = {f["alias"]: f["id"] for f in kc.call("GET", f"{R}/authentication/flows")[1]}
 
@@ -274,7 +274,7 @@ check("Keycloak checks Kerberos tickets with the site's keytab; passwords stay w
 
 # a real browser sign-in by the first admin, with fabric's one-time password
 AUTH = (f"https://{HOST}/realms/{REALM}/protocol/openid-connect/auth?client_id=fabric-webui&response_type=code"
-        "&scope=openid&redirect_uri=https%3A%2F%2Fmgr.lan.j-j.family%2Foidc%2Fcallback&state=s&nonce=n"
+        "&scope=openid&redirect_uri=https%3A%2F%2Fmgr.test.lan.j-j.family%2Foidc%2Fcallback&state=s&nonce=n"
         "&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256")
 b = Browser(root_ca)
 page = start(b, AUTH)
@@ -305,7 +305,7 @@ for _ in range(4):
     if st in (302, 303):
         st, hdr, page = b.go(location)
 check("with a password only (2.1.6.23): Keycloak asks jim for a new password (AD's must-change), then signs him in",
-      seen == {"password"} and "mgr.lan.j-j.family/oidc/callback" in location and "code=" in location,
+      seen == {"password"} and "mgr.test.lan.j-j.family/oidc/callback" in location and "code=" in location,
       (seen, location[:120], page[:200]))
 check("the new password chosen in Keycloak landed in AD", ntlm_signs_in("jim", new_pw))
 check("the one-time password no longer signs in to AD", not ntlm_signs_in("jim", otp))
@@ -314,7 +314,7 @@ check("the one-time password no longer signs in to AD", not ntlm_signs_in("jim",
 def person(uid):
     """A person made by fabric's own operation (in OU=people and site-<site>); their one-time password."""
     pw = "Tst-" + random_password(20)
-    run_op(v, secrets, "create_person", {"uid": uid, "first": uid, "last": "T", "email": f"{uid}@lan.j-j.family",
+    run_op(v, secrets, "create_person", {"uid": uid, "first": uid, "last": "T", "email": f"{uid}@test.lan.j-j.family",
                                         "password": pw, "gid": 5000, "home_base": "/home", "shell": "/bin/bash"}, DC)
     return pw
 
@@ -340,7 +340,7 @@ page = start(b5, AUTH)
 _, _, page = b5.go(action(page), {"username": "fabric-agent-dc-0001", "password": secrets["ad_agent_password"]})
 check("refused: a service account (outside OU=people) never signs in to the console",
       "Invalid username or password" in page, page[:300])
-bad = start(Browser(root_ca), AUTH.replace("mgr.lan.j-j.family%2Foidc", "evil.test%2Foidc"))
+bad = start(Browser(root_ca), AUTH.replace("mgr.test.lan.j-j.family%2Foidc", "evil.test%2Foidc"))
 check("refused: a redirect URI that is not registered", "Invalid parameter: redirect_uri" in bad, bad[:200])
 
 # ---- raising the admin tools' second factor (manual 2.3.6.2.6.1): what the Security page and `fabricctl security` set
@@ -407,9 +407,14 @@ cw = os.path.join(W, "krb-client")
 os.makedirs(cw)
 sh(["docker", "cp", f"{DC}:/data/kerb.keytab", f"{cw}/kerb.keytab"])
 sh(["cp", root_ca, f"{cw}/root_ca.crt"])
+# the client asks for HTTP/<the name it was given>: never canonicalized through the machine's DNS, which may know the
+# test's names for real (the owner's network answered sso.lan.j-j.family, the test's domain until 2026-10-24, with its
+# own host, so the client asked for that host's SPN, which this test's DC does not hold: 2.3.6.23); the CNAME case
+# below sets it on, through /etc/hosts
 with open(f"{cw}/krb5.conf", "w") as f:
     f.write(f"[libdefaults]\n  default_realm = {AD_REALM}\n  dns_lookup_kdc = false\n  rdns = false\n"
-            f"[realms]\n  {AD_REALM} = {{\n    kdc = {DC_IP}\n  }}\n[domain_realm]\n  .lan.j-j.family = {AD_REALM}\n")
+            f"  dns_canonicalize_hostname = false\n"
+            f"[realms]\n  {AD_REALM} = {{\n    kdc = {DC_IP}\n  }}\n[domain_realm]\n  .test.lan.j-j.family = {AD_REALM}\n")
 for name in os.listdir(cw):
     os.chmod(os.path.join(cw, name), 0o644)
 neg = (f"curl -s -o /dev/null -w '%{{http_code}} %{{redirect_url}}\\n' --negotiate -u : --cacert /w/root_ca.crt "
@@ -419,10 +424,14 @@ cp /w/krb5.conf /etc/krb5.conf
 kinit -k -t /w/kerb.keytab kerb@{AD_REALM}
 echo "APP $({neg} '{APP_AUTH}')"
 echo "CONSOLE $(curl -s -L -c /tmp/jar -b /tmp/jar --negotiate -u : --cacert /w/root_ca.crt --connect-to {HOST}:443:{KC_IP}:8443 '{AUTH}' | grep -oE 'name=.t?otp.' | head -1)"
-echo "{KC_IP} dc1.lan.j-j.family {HOST}" >> /etc/hosts
-sed -i 's/rdns = false/rdns = false\\n  dns_canonicalize_hostname = true/' /etc/krb5.conf
+echo "{KC_IP} dc1.test.lan.j-j.family {HOST}" >> /etc/hosts
+sed -i 's/dns_canonicalize_hostname = false/dns_canonicalize_hostname = true/' /etc/krb5.conf
 kdestroy; kinit -k -t /w/kerb.keytab kerb@{AD_REALM}
 echo "CNAME $({neg} '{APP_AUTH}') $(klist | grep -o 'HTTP/[^@]*' | head -1)"
+grep -v ' dc1.test.lan.j-j.family ' /etc/hosts > /tmp/hosts; echo "{KC_IP} other.test.lan.j-j.family {HOST}" >> /tmp/hosts
+cat /tmp/hosts > /etc/hosts
+kdestroy; kinit -k -t /w/kerb.keytab kerb@{AD_REALM}
+echo "OTHER $({neg} '{APP_AUTH}') $(curl -sv -o /dev/null --negotiate -u : --cacert /w/root_ca.crt --connect-to {HOST}:443:{KC_IP}:8443 '{APP_AUTH}' 2>&1 | grep -o 'Server not found in Kerberos database' | head -1)"
 """
 out = sh(["docker", "run", "--rm", "--network", NET, "-v", f"{cw}:/w:ro", "debian:trixie", "bash", "-c", client],
          ok=False).stdout
@@ -432,7 +441,10 @@ check("Kerberos: a domain person's ticket signs them in to an app, no password a
 check("Kerberos never skips a second factor: the console still asks kerb for TOTP after the ticket",
       "otp" in lines.get("CONSOLE", ""), out[-400:])
 check("Kerberos through the name sso.<domain> is a CNAME of (the client asks for HTTP/<host>.<domain>)",
-      lines.get("CNAME", "").startswith("302") and "HTTP/dc1.lan.j-j.family" in lines.get("CNAME", ""), out[-400:])
+      lines.get("CNAME", "").startswith("302") and "HTTP/dc1.test.lan.j-j.family" in lines.get("CNAME", ""), out[-400:])
+check("refused: a CNAME of a host the site's account holds no SPN for: no ticket, Keycloak asks again (401)",
+      lines.get("OTHER", "").startswith("401") and "Server not found in Kerberos database" in lines.get("OTHER", ""),
+      out[-800:])
 st, _, page = Browser(root_ca).go(APP_AUTH)
 check("without a ticket Keycloak asks for one (401 Negotiate), then falls back to the password form",
       st == 401 and 'name="password"' in start(Browser(root_ca), APP_AUTH), (st, page[:200]))

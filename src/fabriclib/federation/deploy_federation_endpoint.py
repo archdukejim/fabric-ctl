@@ -1,7 +1,8 @@
-import filecmp
 import os
 import shutil
 import subprocess
+
+from fabriclib.common.same_content import same_content
 
 UNIT = "fabric-federation"
 UNIT_PATH = f"/etc/systemd/system/{UNIT}.service"
@@ -34,7 +35,7 @@ def deploy_federation_endpoint(v, render_tmp, deploy_base):
     os.chown(run_dir, 0, nginx_gid)
     os.chmod(run_dir, 0o750)
     src = os.path.join(render_tmp, f"systemd/{UNIT}.service")
-    if os.path.exists(UNIT_PATH) and filecmp.cmp(src, UNIT_PATH, shallow=False):
+    if os.path.exists(UNIT_PATH) and same_content(src, UNIT_PATH):
         return {"unit_changed": False, "removed": False}
     shutil.copy2(src, UNIT_PATH)
     os.chown(UNIT_PATH, 0, 0)

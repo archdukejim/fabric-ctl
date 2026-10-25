@@ -45,6 +45,7 @@ from set_machine import set_machine
 from set_machine_site import set_machine_site
 from set_machine_type import set_machine_type
 from set_person import set_person
+from set_site_tree import set_site_tree
 from sort_windows_machines import sort_windows_machines
 from unlock_person import unlock_person
 from write_plan import write_plan
@@ -100,6 +101,7 @@ OPS = {
     "set_machine_site": set_machine_site,
     "set_machine_type": set_machine_type,
     "set_person": set_person,
+    "set_site_tree": set_site_tree,
     "sort_windows_machines": sort_windows_machines,
     "unlock_person": unlock_person,
     "write_plan": write_plan,

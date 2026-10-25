@@ -72,6 +72,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `remove_machine.py` | Operation `remove_machine`: a machine removed from the domain |
 | `find_person.py` | A person by user name, in OU=people (for set_person and remove_person) |
 | `set_person.py` | Operation `set_person`: disable a person, or enable them again |
+| `set_site_tree.py` | Operation `set_site_tree`: a site's place in the federation on its record, its parent and console's address (auxiliary class `fabricSiteTree`, 2.1.8.30) |
 | `remove_person.py` | Operation `remove_person`: a person removed from the domain |
 | `ensure_join_account.py` | At the root: the temporary account a new site's DC joins with (Domain Admins, expires in an hour) |
 | `ensure_site_link.py` | A site's AD site link to its parent (cost 100, 15 minutes, change notification) |
@@ -81,6 +82,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `id_layout.py` | A DC's id range from its name (dc-NNNN: N x 1000000, 2.1.6.63), the fixed ranges inside it (offsets by kind), and the check that a range is a DC's |
 | `read_dc_names.py` | The domain's computer names, its DCs and their records apart (a parent gives a joining site's DC the lowest free name, 2.1.6.65) |
 | `read_sites.py` | Every DC's record in the domain: its name, its site and its id range |
+| `read_site_tree.py` | Every site's record with its parent and console's address (the site selector, 1.8.6.12) |
 | `acl_entries.py` | Access entries added once (compared parsed, object entries by their attribute) and a principal's SID |
 | `remove_ipv6_records.py` | The AD zones on IPv4 only (2.1.6.29): every AAAA record removed (the DC listens on IPv4) |
 | `ensure_dc_record.py` | The DC's record in `CN=dcs,CN=fabric,CN=System` (2.1.6.79): its site, its id range and a mark per fixed range; a read-only DC's is written by the writable DC |

@@ -1,24 +1,7 @@
 import os
 import shutil
 
-
-def _same_content(a, b):
-    """Purpose: say whether two files hold the same bytes, reading both every time. `filecmp.cmp` caches its answer
-             by each file's (type, size, mtime) even with shallow=False, so a same-size rewrite within one mtime
-             tick read as unchanged and was never copied (2.3.10.11.19).
-    Inputs:  a, b — paths of two regular files.
-    Returns: True when sizes and every byte match, else False.
-    Fails:   OSError from stat or read.
-    Feeds:   copy_tree_with_perms."""
-    if os.path.getsize(a) != os.path.getsize(b):
-        return False
-    with open(a, "rb") as fa, open(b, "rb") as fb:
-        while True:
-            ca, cb = fa.read(65536), fb.read(65536)
-            if ca != cb:
-                return False
-            if not ca:
-                return True
+from fabriclib.common.same_content import same_content
 
 
 def copy_tree_with_perms(src, dst, uid=0, gid=0, fmode=0o640, dmode=0o750):
@@ -43,7 +26,7 @@ def copy_tree_with_perms(src, dst, uid=0, gid=0, fmode=0o640, dmode=0o750):
         s, d = os.path.join(src, item), os.path.join(dst, item)
         if os.path.isdir(s):
             changed |= copy_tree_with_perms(s, d, uid, gid, fmode, dmode)
-        elif not os.path.exists(d) or not _same_content(s, d):
+        elif not os.path.exists(d) or not same_content(s, d):
             shutil.copy2(s, d)
             os.chown(d, uid, gid)
             os.chmod(d, fmode)

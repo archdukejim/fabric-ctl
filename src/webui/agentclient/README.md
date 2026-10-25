@@ -118,3 +118,4 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `scan_subnet.py` | Scan one subnet now (done at once). Agent route: POST /v1/ipam/scan (dhcp:write), timeout 180 s. |
 | `request_scan.py` | Ask another site to scan one of its subnets (done at once). Agent route: POST /v1/ipam/scan/request (dhcp:write). |
 | `sync_now.py` | Sync now (done at once): the plan poll and DNS. Agent route: POST /v1/ipam/sync (dhcp:write), timeout 300 s. |
+| `site_tree.py` | The top bar's site selector: every site nested under its parent, its console and health. Agent route: GET /v1/sites/tree. |

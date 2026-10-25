@@ -2,6 +2,7 @@ import hashlib
 import os
 import ssl
 
+from fabriclib.federation.keep_site_place import keep_site_place
 from fabriclib.federation.site_networks import site_networks
 from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.federation.common.load_registry import load_registry
@@ -23,7 +24,9 @@ def converge_domain(v, federation_file, secrets, container="samba"):
              federation_file — the federation registry (whether this is the root site); secrets — fabric's secrets
              (the service accounts' passwords: ad_agent_password, ad_keycloak_password, ad_radius_password);
              container — the DC's container.
-    Returns: list of str, what changed (empty when the domain already was as wanted).
+    Returns: list of str, what changed (empty when the domain already was as wanted), then this site's place in
+             the federation on its record (keep_site_place, 2.1.8.30: a write the domain refuses is one line
+             saying why, not a failure).
     Fails:   ValidationError when the DC is not running or the converge code reports an error (its message);
              KeyError for a missing service-account secret;
              OSError reading the root CA; subprocess.TimeoutExpired after 10 minutes.
@@ -44,7 +47,7 @@ def converge_domain(v, federation_file, secrets, container="samba"):
     state["rodc"] = not state["root"] and v.get("ad_dc_type") == "rodc"
     if not state["root"]:                 # the AD site link to the parent (manual 1.9.8.5)
         state["parent"] = (load_registry(federation_file).get("upstream") or {}).get("site_name") or ""
-    return run_converge(state, container)
+    return run_converge(state, container) + keep_site_place(v, federation_file, secrets, container)
 
 
 def _lan_profile(v, root_ca):

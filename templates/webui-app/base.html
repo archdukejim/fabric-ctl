@@ -13,6 +13,20 @@
   <a class="brand" href="/">fabric-ctl</a>
   {% set v = ctx.version or {} %}
   <span class="install">{{ v.host or '' }}{% if v.host and v.domain %} · {% endif %}{{ v.domain or '' }}</span>
+  {# the site selector (manual 1.8.6.12): every site nested under its parent, each with its health; a link opens that
+     site's own console (its sign-in, its authority). A <details> menu: no script #}
+  {% set st = ctx.get('sites') or {} %}
+  {% if st.tree %}<details class="sitepick"><summary aria-label="Site: {{ st.site }}. Pick a site">{{ st.site }}</summary>
+  <div class="menu"><ul>
+  {%- for s in st.tree recursive %}
+    {% set label = {'up': 'up', 'degraded': 'replication failing', 'down': 'down'}.get(s.state, s.state) %}
+    <li><span class="light {{ {'up': 'ok', 'degraded': 'warn'}.get(s.state, 'bad') }}" role="img" aria-label="{{ label }}" title="{{ s.why or label }}"></span>
+    {% if s.here %}<a href="/" aria-current="true"><strong>{{ s.site }}</strong> <span class="muted">this site</span></a>
+    {%- elif s.console %}<a href="/sites/{{ s.site | urlencode }}">{{ s.site }}</a>{% if s.state != 'up' %} <span class="muted">{{ label }}</span>{% endif %}
+    {%- else %}<span>{{ s.site }}</span> <span class="muted">no console</span>{% endif %}
+    {%- if s.children %}<ul>{{ loop(s.children) }}</ul>{% endif %}</li>
+  {%- endfor %}
+  </ul></div></details>{% endif %}
   <span class="version muted">fabricctl {{ v.version }}</span>
   <span class="spacer"></span>
   {% if bar %}<div class="pendingbar" role="status">

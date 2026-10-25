@@ -40,7 +40,10 @@ SETS = {
                 ("fabricScanState", 43, STRING, True), ("fabricScanResult", 44, STRING, True),
                 ("fabricScanDoneAt", 45, IA5, True),
                 # a location without a DC inside a site: its VLANs' and subnets' label (2.1.10.49, manual 1.10.4.46)
-                ("fabricLocation", 48, STRING, True)],
+                ("fabricLocation", 48, STRING, True),
+                # a site's place in the federation, for the console's site selector (2.1.8.30, manual 1.8.6.12): its
+                # parent site and its console's address, on its record through fabricSiteTree (given on 0.8.0)
+                ("fabricParentSite", 46, STRING, True), ("fabricConsoleUrl", 47, IA5, True)],
                [("fabricDevice", 1, 3, [], ["fabricDeviceType", "fabricEnabled", "fabricCertFingerprint"]),
                 ("fabricRole", 2, 3, [], ["fabricPermission", "fabricVlan", "fabricPriority"]),
                 ("fabricDeviceRoles", 3, 3, [], ["fabricRoleName"]),
@@ -71,7 +74,10 @@ SETS = {
                 # a site's record, CN=<site>,CN=sites,CN=fabric,CN=System: its number and its options (2.1.10.34)
                 ("fabricSiteRecord", 18, 1, [], ["fabricBlock", "fabricDhcpOption", "fabricDhcpOptionDef",
                                                  "fabricDhcpClass", "description"], ["container"]),
-                # the label, on a VLAN's or a subnet's entry when it has one (20: 19 is held for 0.8.0's site tree; a
+                # on a site's record: its parent and its console's address (2.1.8.30); auxiliary, so class 18 stays
+                # as it was
+                ("fabricSiteTree", 19, 3, [], ["fabricParentSite", "fabricConsoleUrl"]),
+                # the label, on a VLAN's or a subnet's entry when it has one (20: 19 is 0.8.0's site tree; a
                 # class once in a schema never changes, so the label is an auxiliary class, 2.1.10.49)
                 ("fabricLocated", 20, 3, [], ["fabricLocation"])]),
     # sudo's rules in the directory, with sudo's own registered arc (Ubuntu no longer ships its AD schema; Q9)
@@ -93,9 +99,8 @@ RETIRED = {
     "fabric": {"attributes": {35, 36, 39, 40}, "classes": {11, 13, 15}},
 }
 # numbers held for another release's branch, not given here (2.1.10.33): the SSH host's on dev/0.10.0-8021x
-# (37, 38, class 14); the site tree's on dev/0.8.0-console (fabricParentSite 46, fabricConsoleUrl 47, class
-# fabricSiteTree 19, auxiliary: given there, so ensure_schema agrees when 0.8.0 merges in)
-RESERVED = {"fabric": {"attributes": {37, 38, 46, 47}, "classes": {14, 19}}}
+# (37, 38, class 14)
+RESERVED = {"fabric": {"attributes": {37, 38}, "classes": {14}}}
 # a structural class's objects readable by authenticated users (machines included), or only admins see them (Q9)
 DEFAULT_SD = "D:(A;;RPWPCRCCDCLCLORCWOWDSDDTSW;;;DA)(A;;RPWPCRCCDCLCLORCWOWDSDDTSW;;;SY)(A;;RPLCLORC;;;AU)"
 

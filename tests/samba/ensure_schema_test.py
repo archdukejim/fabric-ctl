@@ -1,7 +1,8 @@
 """fabric's schema numbers each given once and after 0.8.0's (manual 1.6.3.5, 1.10.4.31; 2.1.10.33): a schema OID is
 permanent, so src/containers/samba/ensure_schema.SETS gives every attribute and class number once in its set, every
 name once, every OID once, each class naming only attributes that exist, no live entry on a RETIRED or RESERVED
-number, 0.8.0's numbers as 0.8.0 ships them (fabricDcInfo class 7), the address manager's as 2.1.10.33 chose them; and
+number, 0.8.0's numbers as 0.8.0 ships them (fabricDcInfo class 7, and its site selector's 46, 47 and class 19,
+2.1.8.30), the address manager's as 2.1.10.33 chose them; and
 schema_problems finds a domain whose schema disagrees (a lab domain that ran the pre-release VLAN record as class 7).
 Pure logic, no container: Samba's ldb and the DC's open_samdb are stand-ins.
     python3 tests/samba/ensure_schema_test.py"""
@@ -81,21 +82,28 @@ def main():
           {n for n in attrs.values() if n <= 14} == set(range(1, 15)) and classes.get("fabricDcInfo") == 7
           and {n for n in classes.values() if n <= 7} == set(range(1, 8)), (attrs, classes))
     want = {"fabricSubnet": 8, "fabricRange": 9, "fabricAddress": 10, "fabricOptionSet": 12, "fabricScanRequest": 16,
-            "fabricVlanRecord": 17, "fabricSiteRecord": 18, "fabricLocated": 20}
-    check("the address manager's classes: 8, 9, 10, 12, 16 kept, the VLAN record 17, the site's record 18, the "
-          "location's label 20",
+            "fabricVlanRecord": 17, "fabricSiteRecord": 18, "fabricSiteTree": 19, "fabricLocated": 20}
+    check("the address manager's classes: 8, 9, 10, 12, 16 kept, the VLAN record 17, the site's record 18, 0.8.0's "
+          "site tree 19, the location's label 20",
           {k: classes.get(k) for k in want} == want, {k: classes.get(k) for k in want})
-    check("the plan's attributes keep 15-34 and 41-45, and the location's label 48 (2.1.10.49)",
-          {n for n in attrs.values() if n > 14} == set(range(15, 35)) | set(range(41, 46)) | {48}
+    check("the plan's attributes keep 15-34 and 41-45, 0.8.0's site tree 46 and 47, and the location's "
+          "label 48 (2.1.10.49)",
+          {n for n in attrs.values() if n > 14} == set(range(15, 35)) | set(range(41, 46)) | {46, 47, 48}
           and attrs.get("fabricLocation") == 48, sorted(attrs.values()))
     located = next(c for c in SETS["fabric"][3] if c[0] == "fabricLocated")
     check("the location's label is an auxiliary class holding fabricLocation alone (a class never changes once in a "
           "schema, so it is not added to the VLAN record or the subnet)",
           located[2] == 3 and located[3] == [] and located[4] == ["fabricLocation"], located)
-    check("retired: attributes 35, 36, 39, 40 and classes 11, 13, 15; reserved: 37, 38 and class 14 for 0.10.0, "
-          "46, 47 and class 19 for 0.8.0's site tree",
+    check("the site selector's own: fabricParentSite 46, fabricConsoleUrl 47, auxiliary class fabricSiteTree 19",
+          attrs.get("fabricParentSite") == 46 and attrs.get("fabricConsoleUrl") == 47
+          and classes.get("fabricSiteTree") == 19 and {n for n in attrs.values() if n > 45} == {46, 47, 48}
+          and {n for n in classes.values() if n > 18} == {19, 20}, (attrs, classes))
+    tree = next(c for c in SETS["fabric"][3] if c[0] == "fabricSiteTree")
+    check("...auxiliary, may hold the two only", tree[2] == 3 and tree[3] == []
+          and tree[4] == ["fabricParentSite", "fabricConsoleUrl"], tree)
+    check("retired: attributes 35, 36, 39, 40 and classes 11, 13, 15; reserved for 0.10.0: 37, 38 and class 14",
           RETIRED["fabric"] == {"attributes": {35, 36, 39, 40}, "classes": {11, 13, 15}}
-          and RESERVED["fabric"] == {"attributes": {37, 38, 46, 47}, "classes": {14, 19}}, (RETIRED, RESERVED))
+          and RESERVED["fabric"] == {"attributes": {37, 38}, "classes": {14}}, (RETIRED, RESERVED))
     gone = {"fabricAddressBlock", "fabricScanPolicySet", "fabricLocalScanSet", "fabricScanPolicy",
             "fabricScanEnforced", "fabricLocalScan", "fabricLocalScanBy"}
     check("no dropped name is live", not gone & (set(attrs) | set(classes)), gone & (set(attrs) | set(classes)))
@@ -125,6 +133,9 @@ def main():
     found = schema_problems(other)
     check("negative: one of fabric's numbers under another name is refused, naming both",
           any("fabricOldRange here, fabricRange in fabric" in p for p in found), found)
+    moved = dict(agree, fabricSiteRecord=f"{FABRIC_ARC}.2.17")
+    check("negative: the site record under another number than 0.9.0's is refused",
+          any(p.startswith("fabricSiteRecord is ") for p in schema_problems(moved)), schema_problems(moved))
 
     # negatives: the uniqueness check finds each kind of clash (so a later merge that reuses a number fails here)
     arc_a, arc_c, attributes, klasses = SETS["fabric"]

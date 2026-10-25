@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Every console page at a phone's width (manual 1.8.6.9): nothing wider than the screen. The dev preview serves the
+"""Every console page at a phone's width (manual 1.8.6.9): nothing wider than the screen, the top bar's menus (the
+site selector's nested list, 1.8.6.12; the person's menu) open on each. The dev preview serves the
 production pages; headless Chromium in the test browser image (decision 2.1.8.15: the pinned Debian base and Debian's
 own chromium package, driven over its DevTools pipe by narrow_probe.py) opens each at 375 px and measures it. Needs
 Docker; the image and its container are named per run (WEBUI_TEST_ID) and removed after.

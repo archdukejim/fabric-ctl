@@ -12,3 +12,4 @@ Helpers shared by the federation operations.
 | `signing_capacity.py` | How this install signs a site's CA (root key, or its own CA as a parent) and how deep that site may nest |
 | `site_name_problem.py` | Why a name cannot be a site's: not one host-name label, or one of the organisation's top-level OUs |
 | `is_root_site.py` | Whether this install is the root site (no upstream): it holds the domain-wide parts (the root policy, fabric's fixed groups) |
+| `console_url.py` | This site's console address as the site selector records it: `https://<hostname_mgr>`, or none |

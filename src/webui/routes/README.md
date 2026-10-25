@@ -13,6 +13,7 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `radius_page.py` | 802.1X's RADIUS clients: a client's and a group mapping's page, the add pages. |
 | `kerberos_page.py` | Directory · Kerberos. |
 | `sites_page.py` | Directory · Sites: the list, a site's page. |
+| `site_link.py` | /sites/<name>: the site selector's link, a 303 to that site's console from fabric-agent's list (no open redirect). |
 | `access_page.py` | Directory · Access: the grants, Add grant, a grant's page. |
 | `ous_page.py` | Directory · OUs: the tree, an OU's page. |
 | `computers_page.py` | Directory · Computers: the list, Add computer, Machine groups, a computer's page. |

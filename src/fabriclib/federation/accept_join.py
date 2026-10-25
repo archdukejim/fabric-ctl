@@ -16,6 +16,7 @@ from fabriclib.federation.constants import DOMAIN_RE, SITE_NAME_RE
 from fabriclib.federation.network_conflicts import network_conflicts
 from fabriclib.federation.read_address_plan import read_address_plan
 from fabriclib.federation.site_networks import site_networks
+from fabriclib.federation.write_site_place import write_site_place
 from fabriclib.pki.sign_site_ca import sign_site_ca
 from fabriclib.samba.dc_id_range import dc_id_range
 from fabriclib.samba.domain_dc_names import domain_dc_names
@@ -77,7 +78,8 @@ def accept_join(v, req, client_ip="", now=None):
              hostname_federation and the organisation settings (friendly_name, cert_*), plus what sign_site_ca
              reads; req — the join request {"id", "secret", "site", "csr", "domain" (the site's own domain),
              "address" (its IP), optional "networks" (its LAN and DHCP subnets: refused when they overlap another
-             site's, _check_networks) and "host_name" (its host's name, which its DC's may not be, 2.1.6.51); a
+             site's, _check_networks), "host_name" (its host's name, which its DC's may not be, 2.1.6.51) and
+             "console" (its console's address, "https://<host>": the site selector's, 2.1.8.30); a
              "dc_name" comes only from a joiner older than 0.8.0, which names its own DC: refused (_prepare_domain)};
              client_ip — str for the audit; now — epoch seconds, default time.time().
     Returns: {"root": PEM, "cert": PEM of the site's intermediate (path length: the invitation's nest), "chain":
@@ -91,7 +93,9 @@ def accept_join(v, req, client_ip="", now=None):
              site's DC's name, given here), "dc_count" (the domain's DCs once it has joined), "dc_host",
              "dc_address", "id_range" (the DC's, 2.1.6.63), "join_user", "join_password", "accounts" {agent,
              keycloak, radius}, "groups"} (_prepare_domain); the registry records the site's DC's name beside it,
-             so a name given to a site whose DC has not joined yet is never given twice.
+             so a name given to a site whose DC has not joined yet is never given twice. When this site has a DC,
+             the joining site's place in the federation (this site its parent, its console) goes on its record in
+             the domain (_record_place), so a site with no DC of its own is in the selector too.
     Fails:   ValidationError "the join request is incomplete"; overlapping networks (_check_networks, before
              anything is signed or recorded); "the site's domain/address is not valid" or
              "a site cannot use this site's domain"; REFUSED for an unknown, expired or wrong secret (one message,
@@ -152,6 +156,7 @@ def accept_join(v, req, client_ip="", now=None):
             if domain_answer.get("dc_name"):
                 registry["sites"][site]["dc_name"] = domain_answer["dc_name"]
         save_registry(registry)
+    _record_place(v, site, str(req.get("console") or ""))
     write_audit(f"site:{site}", "FED_JOIN", f"site={site} domain={domain} address={req['address']} "
                                             f"from={client_ip} ca_serial={signed['info']['serial']}", "federation")
     org = {"org_domain": v.get("org_domain") or v["domain"], "ldap_base_dn": v["ldap_base_dn"],
@@ -162,6 +167,25 @@ def accept_join(v, req, client_ip="", now=None):
             "upstream": {"site_name": v.get("site_name"), "domain": v["domain"], "host": v["hostname_federation"],
                          "address": v["host_ip"]},
             **({"domain": domain_answer} if domain_answer else {})}
+
+def _record_place(v, site, console):
+    """Purpose: at the parent, a joining site's place in the federation on its record (decision 2.1.8.30, manual
+             1.8.6.12): this site its parent, its console's address as the request gave it. The site's own
+             convergence keeps it after that; a site with no DC has no other writer.
+    Inputs:  v — this site's vars (dc_name: none, nothing to write); site — the joining site; console — the
+             request's console ("" for none, or a joiner before 0.8.0).
+    Returns: None.
+    Fails:   never: the join is done by now (its CA signed and recorded), so a write the domain refuses (or an
+             address that is not one) is audited as FED_PLACE_NOT_WRITTEN, and the site's own convergence writes it
+             when it has a DC.
+    Feeds:   accept_join."""
+    if not v.get("dc_name"):
+        return
+    try:
+        write_site_place(v, load_secrets(v=v), site, v.get("site_name") or "", console)
+    except ValidationError as e:
+        write_audit(f"site:{site}", "FED_PLACE_NOT_WRITTEN", f"site={site} why={e}", "federation")
+
 
 def _prepare_domain(v, site, dc_type, networks, registry, host_name="", old_name=""):
     """Purpose: at the parent (the root, or a site with a writable DC), the domain part of a join (manual 1.9.8.4,

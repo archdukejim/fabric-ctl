@@ -99,7 +99,7 @@ check("accepted: passwords that never expire (maximum 0) with any minimum age",
 check("refused: an RPC range at or below 1024", refused({**GOOD, "ad_rpc_ports": "100-200"}, "ad_rpc_ports"))
 
 check("the suggestion is a sibling at the top of the organisation's name (2.1.6.11); a two-label domain gets ad.<it>",
-      suggested_ad_domain("lan.j-j.family") == "ad.j-j.family" and suggested_ad_domain("pitest.home.arpa")
+      suggested_ad_domain("test.lan.j-j.family") == "ad.lan.j-j.family" and suggested_ad_domain("pitest.home.arpa")
       == "ad.home.arpa" and suggested_ad_domain("home.arpa") == "ad.home.arpa"
       and suggested_ad_domain("example.org") == "ad.example.org" and suggested_ad_domain("lan") == "")
 check("the two-label suggestion is a valid AD domain (a sub-domain, never the domain or a parent)",

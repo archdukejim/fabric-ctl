@@ -28,3 +28,7 @@ their own local network (design [1.9.1](../../../docs/volume_1_description_and_a
 | `run_federation_command.py` | `fabricctl federation status / enable / disable / invite / invitations / revoke / networks` |
 | `common/` | Helpers shared by the operations above (see its README) |
 | `federation_overview.py` | The Federation tab: sites, replication, conflicts, limits, the address plan |
+| `site_selector.py` | The console's site selector: every site nested under its parent, its console, its health (replication and a verified-HTTPS check), kept a minute (2.1.8.30) |
+| `console_reachable.py` | Whether a site's console answers over HTTPS verified against fabric's root, in a few seconds |
+| `write_site_place.py` | One site's place (parent, console's address) on its record, as fabric-agent; a read-only DC's site at its writable DC |
+| `keep_site_place.py` | This site's own place kept on its record after every convergence |

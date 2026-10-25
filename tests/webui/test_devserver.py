@@ -160,6 +160,40 @@ with serve():
     # covers: web:get.home -
     check("an unknown page is 404", req("GET", "/nowhere")[0] == 404)
 
+    # the site selector (manual 1.8.6.12, 2.1.8.30): this site's name as a menu, the federation's tree nested inside
+    page = get("/dns/zones")
+    pick = page.split('<details class="sitepick">', 1)[-1].split("</details>", 1)[0]
+    check("the site selector: this site's name as a <details> menu in the top bar (no script)",
+          '<details class="sitepick"><summary aria-label="Site: lan. Pick a site">lan</summary>' in page
+          and page.index("sitepick") < page.index("usermenu"), page[:3000])
+    check("...every site nested under its parent: edge and lab under lan, annex under lab",
+          re.search(r"lan</strong>.*<ul>.*edge.*lab.*<ul>.*annex.*</ul>.*</ul>", pick, re.S) is not None
+          and pick.index("annex") > pick.index('href="/sites/lab"'), pick)
+    check("...each with a labelled light: up, replication failing (degraded), down; this site marked, linked home",
+          '<span class="light ok" role="img" aria-label="up"' in pick
+          and '<span class="light warn" role="img" aria-label="replication failing"' in pick
+          and '<span class="light bad" role="img" aria-label="down" title="no answer: timed out"' in pick
+          and '<a href="/" aria-current="true"><strong>lan</strong>' in pick, pick)
+    check("...another site's link is the console's own route, never an address in the page",
+          'href="/sites/edge"' in pick and 'href="/sites/annex"' in pick and "https://" not in pick, pick)
+    # covers: web:get.sites.* +
+    st, loc, _, _ = req("GET", "/sites/lab")
+    check("picking a site: /sites/lab answers 303 to lab's console, from the agent's list", st == 303
+          and loc == "https://mgr.lab.home.arpa/", (st, loc))
+    st, loc, _, _ = req("GET", "/sites/annex")
+    check("...a site that does not answer is still a link (listed as down)", st == 303
+          and loc == "https://mgr.annex.home.arpa/", (st, loc))
+    st, loc, _, _ = req("GET", "/sites/lan")
+    check("...this site's own goes to its Overview", st == 303 and loc == "/", (st, loc))
+    # covers: web:get.sites.* -
+    st, _, _, page = req("GET", "/sites/ghost")
+    check("refused: a site the domain does not hold (404, said; no redirect to a name the request gives)",
+          st == 404 and "No site ghost in the domain." in page, st)
+    st, _, _, page = req("GET", "/sites/lab/x")
+    check("refused: a path below a site (404)", st == 404 and "No such site." in page, st)
+    st, loc, _, page = req("GET", "/sites/https:%2F%2Fevil.example")
+    check("refused: an address in place of a site's name (404, no redirect)", st == 404 and not loc, (st, loc))
+
     page = get("/8021x")
     check("802.1X → RADIUS clients: server, clients and group mappings linked to their pages, the client without "
           "Message-Authenticator lit as relaxed (2.1.8.20), the add pages in the actions bar, no form on the list; no "
@@ -677,6 +711,8 @@ with serve():
     check("Apply stops at the first failure and says which: the removal without its name typed back; the rest done",
           "type the user name" in page and page.count("— failed") + page.count("failed — ") >= 1
           and len(change_ids(page)) == 1 and "Remove sam" in page, page[-3000:])
+    check("...its row says failed once, then the reason as given (no doubled \"failed — failed:\")",
+          "failed — failed:" not in page and "failed — " in page, page[-3000:])
     page = get("/directory/people/sam")
     check("...applied: sam's title and country changed, enabled, in directory-admins; lee unlocked",
           "Technician" in page and ">GB<" in page and 'aria-label="active"' in page and "directory-admins" in page
@@ -1353,6 +1389,8 @@ with serve("none"):
     st, loc, _, _ = req("GET", "/")
     check("--as none: / goes to My account (the Overview is not theirs)", st == 303 and loc == "/account", (st, loc))
     page = get("/account")
+    check("--as none: the site selector is everyone's (a session's): it shows for a person with no role",
+          '<details class="sitepick">' in page and 'href="/sites/lab"' in page, page[:2500])
     check("--as none: My account shows their details (read-only), the password form, the sign-in factors, their "
           "certificates and devices; no form changes the details", "My details" in page and "Engineer" in page
           and 'action="/account/password"' in page and "Sign-in factors" in page and "CN=dev-none" in page

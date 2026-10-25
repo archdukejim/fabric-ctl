@@ -28,6 +28,7 @@
 | `restore_original.py` | Put a kept host file back (or remove one fabric added) |
 | `copy_if_changed.py` | Install one file (mode, owner) when its content differs |
 | `copy_tree_with_perms.py` | Copy a tree setting owner and mode; say whether anything changed |
+| `same_content.py` | Whether two files hold the same bytes, read every time (never `filecmp`'s cache, 2.3.1.29) |
 | `ensure_dir.py` | A directory with the given mode and owner |
 | `service_user.py` | A service's uid/gid from `service_users` |
 | `read_published_lock.py` | fabric's own published images as the lock pins them (`published:` in `images.lock.yaml`), signer and issuer |

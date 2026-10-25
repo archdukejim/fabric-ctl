@@ -78,7 +78,7 @@ def sites_dn(samdb):
     Inputs:  samdb — SamDB.
     Returns: str "CN=sites,CN=fabric,CN=System,<domain>".
     Fails:   never.
-    Feeds:   ensure_layout, site_record_dn, read_plan."""
+    Feeds:   ensure_layout, site_record_dn, read_plan, read_site_tree."""
     return f"CN=sites,{fabric_dn(samdb)}"
 
 
@@ -87,7 +87,7 @@ def site_record_dn(samdb, site):
     Inputs:  samdb — SamDB; site — the site's name (its AD site's).
     Returns: ldb.Dn.
     Fails:   never.
-    Feeds:   ensure_site_record, write_plan."""
+    Feeds:   ensure_site_record, write_plan, set_site_tree."""
     dn = ldb.Dn(samdb, f"CN=x,{sites_dn(samdb)}")
     dn.set_component(0, "CN", str(site))
     return dn
