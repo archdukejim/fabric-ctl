@@ -160,9 +160,9 @@ docs/volume_2_engineering_decisions/2.3.18-stig-notes.md	8b8ec07339324e82c71f147
 docs/volume_2_engineering_decisions/2.3.2-architecture-notes.md	499077f66ffbd755ef2a1f41e55330305252b49d	2026-10-24	
 docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f4878a6c708a9f55be4	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a9aeb2e856f39e5f862e36bf6273c583af26d627	2026-10-11	
-docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	1ecbb5614f836bc7e87ff9ef8148391dca92c8b5	2026-10-25	
+docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	096681ccf7581ef18aa7981a1456c7ab624620eb	2026-10-25	
 docs/volume_2_engineering_decisions/2.3.7-openbao-notes.md	78a60cfd1689c9b3a5cb36f58f74e66e344300a4	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	e59671d2b27a6b835ba8303738be12d0572b9f4f	2026-10-25	
+docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	f9404dd5a4abbf8c95ad7bf07a54c8fe4ce31c64	2026-10-25	
 docs/volume_2_engineering_decisions/2.3.9-federation-notes.md	589194fbf33eda431862f1414dabc04a3181edc9	2026-10-08	
 docs/volume_2_engineering_decisions/README.md	b6d9237470b17c886b556facda7959ff02568173	2026-10-23	
 docs/volume_2_engineering_decisions/assets/README.md	3fd72f26d985cf1827afa0868c6c138dfec9d627	2026-10-08	
@@ -1851,7 +1851,7 @@ tests/images/verify.py	a00728895b0d367ff144663dca8b9275fb002392	2026-10-12
 tests/kea/README.md	c5b5b81a26dbfe1d63d643e914a84a1aad681d19	2026-10-12	
 tests/kea/run.py	7c5f2885730fc6a226bdb641d5ea69039ecd47bf	2026-10-12	
 tests/keycloak/README.md	55bf0779666050bc9febb2d9c86957665c1d3d0d	2026-10-08	
-tests/keycloak/run.py	af5919989aad7ad368bce23fc2675de6827e4efe	2026-10-25	
+tests/keycloak/run.py	60d148fbb0100ec5c3571f8ae91b1b9bf37aba3b	2026-10-25	
 tests/keycloak/soft_passkey.py	51ec49de47ee87f347e246b14acf0eb5f20cb512	2026-10-08	
 tests/lab/README.md	b7cde2a34af23759773558044499b5e990f148ac	2026-10-10	
 tests/lab/dhcp.sh	d4e864b010c4b115cf68f3c364aab7e43720c820	2026-10-12	
@@ -1939,7 +1939,7 @@ tests/setup/vars-0.7.1.yaml	988e48eafcdc0c10745577d3857ce93063ef07fd	2026-10-20
 tests/setup/wait_ready_test.py	61ce85dad1bd1e8d7f33d15ac2e4ecda97221ffc	2026-10-14	
 tests/webui/README.md	8bf341d02578de3df919b59719447d017cfe3802	2026-10-23	
 tests/webui/narrow_probe.py	e4bf04507b8e3957c0dd1b2cfc935aa63b71ee04	2026-10-24	
-tests/webui/test_container.py	a9e71a2bbf1226d927851a1ac0dad2b729f7e4cd	2026-10-24	
+tests/webui/test_container.py	a683ee444239d304ac474ae85bc016ab106c7381	2026-10-25	
 tests/webui/test_devserver.py	875ea2514d1be9a7af90a184082a68d64fcb0159	2026-10-24	
 tests/webui/test_narrow.py	2a74d942465e489b69bb5dda0d71e48c5ed4a888	2026-10-24	
 tests/zone_test.py	03aa3d43ff310514c5e9a0156a970d3b543dc423	2026-10-23	

@@ -541,6 +541,13 @@ st, *_ = req("POST", "/bind9/zone/dynamic_zone_var/add", {**ALICE, "Origin": "nu
 check("...and a post that arrives with Origin: null is still refused (what no-referrer made browsers send)",
       st == 403, st)
 POSTH = {**ALICE, "Origin": "https://mgr.test"}
+def newest_failed(review):
+    """Whether the Review's newest apply (the queue is newest first) has a failed row. The reason is shown as the
+    change gave it, with no "failed:" of the store's (2.3.8.3.27), so the row's light says it."""
+    parts = review.split('<h3 class="small">')
+    return len(parts) > 1 and 'aria-label="failed"' in parts[1]
+
+
 def applied(page, cookie):
     """Apply a page's pending changes (manual 1.8.6.5) and wait for the job: the page's Review once it stopped."""
     req("POST", f"/changes/{page}/apply", POSTH, {"csrf": cookie_csrf(cookie)}, cookie=cookie)
@@ -579,16 +586,16 @@ check("add CNAME -> held by the real agent for DNS' Apply (2.1.8.18), vars.yaml 
 done = applied("zones", session)
 check("...DNS' Apply: the record saved to vars.yaml; its BIND-only deploy (2.1.8.24) refused here, said (this suite "
       "runs no BIND)", "shelfmark" in open(f"{W}/fabric/config/vars.yaml").read()
-      and "Publish to BIND and the landing page" in done and "failed:" in done, done[-1500:])
+      and "Publish to BIND and the landing page" in done and newest_failed(done), done[-1500:])
 req("POST", "/changes/zones/discard", POSTH, {"csrf": csrf}, cookie=session)
 vt = open(f"{W}/fabric/config/vars.yaml").read()
 st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/add", {"type": "A", "name": "bad name;rm", "ip": "1.2.3.4"})
 # covers: web:post.bind9.zone.*.add agent:post.zones.*.records -
-check("invalid record name refused at Apply, said, vars.yaml unchanged", "failed:" in done
+check("invalid record name refused at Apply, said, vars.yaml unchanged", newest_failed(done)
       and open(f"{W}/fabric/config/vars.yaml").read() == vt, done[-1500:])
 st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/add", {"type": "TXT", "name": "x",
                                                                 "text": 'a"\n$INCLUDE /etc/shadow'})
-check("zone-file injection via TXT refused at Apply, vars.yaml unchanged", "failed:" in done
+check("zone-file injection via TXT refused at Apply, vars.yaml unchanged", newest_failed(done)
       and "INCLUDE" not in open(f"{W}/fabric/config/vars.yaml").read(), done[-1500:])
 # zones (manual 1.4.1.3) through the real agent and fabriclib: refusals here (no BIND runs in this suite, so a valid
 # name is refused too and rolled back); the zone served by BIND is tests/zones/run.py's

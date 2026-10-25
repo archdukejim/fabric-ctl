@@ -173,18 +173,29 @@ from samba.ndr import ndr_unpack
 from open_samdb import open_samdb
 import ldb
 samdb, lp = open_samdb("/data/etc/smb.conf")
-g = samdb.search(base="CN=Policies,CN=System," + str(samdb.domain_dn()), scope=ldb.SCOPE_ONELEVEL,
-                 expression="(displayName=fabric: lan Windows baseline)", attrs=["cn"])[0]
-path = os.path.join(lp.get("path", "sysvol"), lp.get("realm").lower(), "Policies", str(g["cn"]), "Machine",
-                    "Registry.pol")
-for e in ndr_unpack(preg.file, open(path, "rb").read()).entries:
-    print(e.keyname, "|", e.valuename, "|", e.data)
+found = samdb.search(base="CN=Policies,CN=System," + str(samdb.domain_dn()), scope=ldb.SCOPE_ONELEVEL,
+                     expression="(displayName=fabric: lan Windows baseline)", attrs=["cn", "versionNumber"])
+g = found[0]
+folder = os.path.join(lp.get("path", "sysvol"), lp.get("realm").lower(), "Policies", str(g["cn"]))
+data = open(os.path.join(folder, "Machine", "Registry.pol"), "rb").read()
+pol = ndr_unpack(preg.file, data)
+print("READ gpos=%d bytes=%d entries=%d ad_version=%s gpt=%r" % (len(found), len(data), len(pol.entries),
+      g.get("versionNumber", [b"?"])[0], open(os.path.join(folder, "GPT.INI"), "rb").read()), flush=True)
+for e in pol.entries:
+    print(e.keyname, "|", e.valuename, "|", e.data, flush=True)
 """
-pol = sh(["docker", "exec", "-i", DC, "python3", "-"], ok=False, input=READ_POL).stdout
+# the whole read is kept for a failure (2.3.6.24): every entry, how many the file holds, and anything on stderr
+res = sh(["docker", "exec", "-i", DC, "python3", "-"], ok=False, input=READ_POL)
+pol = res.stdout
+want_pol = [f"Software\\Policies\\Microsoft\\Edge | AuthServerAllowlist | {HOST}",
+            f"Software\\Policies\\Google\\Chrome | AuthServerAllowlist | {HOST}",
+            f"Software\\Policies\\Mozilla\\Firefox\\Authentication\\SPNEGO | 1 | {HOST}"]
+missing = [w for w in want_pol if w not in pol]
 check("the site's Windows baseline GPO lets Edge, Chrome and Firefox use Kerberos for sso.<domain> (2.1.6.28)",
-      f"Software\\Policies\\Microsoft\\Edge | AuthServerAllowlist | {HOST}" in pol
-      and f"Software\\Policies\\Google\\Chrome | AuthServerAllowlist | {HOST}" in pol
-      and f"Software\\Policies\\Mozilla\\Firefox\\Authentication\\SPNEGO | 1 | {HOST}" in pol, pol)
+      not missing, "")
+print(f"    {(pol.splitlines() or ['READ nothing'])[0]}")
+if missing:                                   # check() keeps 400 characters; the read is longer
+    print(f"    missing: {missing}\n    read (exit {res.returncode}):\n{pol}\n    stderr: {res.stderr[-1500:]}")
 sh(["chown", "-R", "1000", krb_dir])
 shutil.copytree(krb_dir, os.path.join(W, "opt", "keycloak", "kerberos"))
 image = sh([sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "keycloak"]).stdout.strip()
