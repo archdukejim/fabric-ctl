@@ -33,7 +33,7 @@ def _sh(cmd, **kw):
     return res
 
 
-def start_dc(work, container, network, subnet, ip, domain="lan.j-j.family", ad_domain="ad.j-j.family",
+def start_dc(work, container, network, subnet, ip, domain="test.lan.j-j.family", ad_domain="ad.lan.j-j.family",
              hostname="dc1", site="lan", extra_vars=None, dc_name=""):
     """Purpose: a converged DC of a test domain on a test network, and what a suite needs to talk to it.
     Inputs:  work — a scratch folder (made anew); container — the DC's name; network/subnet — a Docker network (made

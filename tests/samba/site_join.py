@@ -116,7 +116,7 @@ for site, (container, ip, dc_type, cidr, parent) in SITES.items():
     work = os.path.join(W, site)
     sh(["rm", "-rf", work])
     v = yaml.safe_load(ENV.get_template("vars.yaml.j2").render(
-        domain=f"{site}.lan.j-j.family", hostname=f"host-{site}", dc_name=DCN[site], host_ip=ip, lan_cidr=cidr,
+        domain=f"{site}.test.lan.j-j.family", hostname=f"host-{site}", dc_name=DCN[site], host_ip=ip, lan_cidr=cidr,
         lan_gateway=cidr.rsplit(".", 1)[0] + ".1", site_name=site, ad_domain=RV["ad_domain"],
         ad_password_policy=POLICY, deploy_base_dir=work, ad_ntp_signd_dir=os.path.join(work, "ntp_signd"),
         ad_dc_type=dc_type, ad_join_server=pip, ad_join_server_name=pname))

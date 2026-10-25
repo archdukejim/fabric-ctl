@@ -151,7 +151,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	8f8dc9a2628590186985c15579ae6
 docs/volume_2_engineering_decisions/2.1.9-federation.md	807fa399dad0db0dc7ee1508f22ea844d8656cc2	2026-10-25	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	e3278ac528db96747a500d7ef80287464dfac339	2026-10-23	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	7fd296ee69cec28e45267fd819edfd9ed0c87f85	2026-10-25	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -160,7 +160,7 @@ docs/volume_2_engineering_decisions/2.3.18-stig-notes.md	8b8ec07339324e82c71f147
 docs/volume_2_engineering_decisions/2.3.2-architecture-notes.md	499077f66ffbd755ef2a1f41e55330305252b49d	2026-10-24	
 docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f4878a6c708a9f55be4	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a9aeb2e856f39e5f862e36bf6273c583af26d627	2026-10-11	
-docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	40291123161b581edf28c05438399e1d5c3f478c	2026-10-24	
+docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	1ecbb5614f836bc7e87ff9ef8148391dca92c8b5	2026-10-25	
 docs/volume_2_engineering_decisions/2.3.7-openbao-notes.md	78a60cfd1689c9b3a5cb36f58f74e66e344300a4	2026-10-23	
 docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	e59671d2b27a6b835ba8303738be12d0572b9f4f	2026-10-25	
 docs/volume_2_engineering_decisions/2.3.9-federation-notes.md	589194fbf33eda431862f1414dabc04a3181edc9	2026-10-08	
@@ -1823,9 +1823,9 @@ tests/federation/run.py	567feb99ffad4983e0afa094157215be77ed5f48	2026-10-21
 tests/fluentbit/README.md	38018212007396141e3069faf1209c2f50b8c833	2026-10-12	
 tests/fluentbit/run.py	e82d68aa6397a7fe670c3cdca7a8bebc20876633	2026-10-21	
 tests/freeradius/README.md	06e07bdfb362e98d4185be54a1f29f64a2f1d9f2	2026-10-12	
-tests/freeradius/run.py	d3b8066c18dca65bcade5890b6ae6e00002dde42	2026-10-20	
+tests/freeradius/run.py	6c3713ca94e5a11dfc3bbeac957e399e3a9c108f	2026-10-25	
 tests/hardening/README.md	514afa897a841c34383af1ef74949610d5dd333d	2026-10-05	
-tests/hardening/run.sh	1ff8e633bf2f96af2a856b354aa722ffba1c5b00	2026-10-12	
+tests/hardening/run.sh	12b5fd58367ea960806035cf64c42a0023e2a949	2026-10-25	
 tests/host/README.md	0f05f9377857644ac63ed882945bc5f0470014ec	2026-10-20	
 tests/host/installer.py	66bcec419791975773ba2240a2e72ded2e7380be	2026-10-23	
 tests/host/reset_user.py	b7c1bd91fa3c695d62869fb4f536df9c05ce4f9b	2026-10-20	
@@ -1846,7 +1846,7 @@ tests/images/verify.py	a00728895b0d367ff144663dca8b9275fb002392	2026-10-12
 tests/kea/README.md	c5b5b81a26dbfe1d63d643e914a84a1aad681d19	2026-10-12	
 tests/kea/run.py	7c5f2885730fc6a226bdb641d5ea69039ecd47bf	2026-10-12	
 tests/keycloak/README.md	55bf0779666050bc9febb2d9c86957665c1d3d0d	2026-10-08	
-tests/keycloak/run.py	be4860081dda7ec9c19eea8a73fc81350c38fde8	2026-10-24	
+tests/keycloak/run.py	af5919989aad7ad368bce23fc2675de6827e4efe	2026-10-25	
 tests/keycloak/soft_passkey.py	51ec49de47ee87f347e246b14acf0eb5f20cb512	2026-10-08	
 tests/lab/README.md	b7cde2a34af23759773558044499b5e990f148ac	2026-10-10	
 tests/lab/dhcp.sh	d4e864b010c4b115cf68f3c364aab7e43720c820	2026-10-12	
@@ -1868,7 +1868,7 @@ tests/pki/renewal.py	a5348829c60bad793ddb3a043398ca2836ece851	2026-10-20
 tests/pki/revocation.py	cf80ad8b84912f80b941f8fcf3387825e9ba18e6	2026-10-12	
 tests/pki/run.py	3ac7f08379bf8506c62d8333fed3ebab430472af	2026-10-13	
 tests/pki/site_ca.py	6e71ca7798e1aa94ce0f43160716ac57302bec65	2026-10-08	
-tests/render.py	d80eb97e42ed58ba582fc2e760eb9ae156777652	2026-10-23	
+tests/render.py	97f5e6816a26b2e597a06612ba6bb635a97d0d6f	2026-10-25	
 tests/resolver/README.md	75145cbe364cefb256d5e0537159c0d926dad3d1	2026-10-21	
 tests/resolver/console.py	6c0c2e3efa559e3994399667a60a8c70529c724f	2026-10-23	
 tests/resolver/groups.py	5fafa02d8f805a8a4e3fca9ae0bac1e4ac91832e	2026-10-21	
@@ -1885,10 +1885,10 @@ tests/samba/grants.py	906930903d596fa82735e66fc35b1bd95b3cccb3	2026-10-21
 tests/samba/hostgroups.py	2d1dd2e61835983f62de790aaf9a8c377099499a	2026-10-23	
 tests/samba/id_layout_test.py	2f5f8395429e443adbf0bd64480247c114dcc2c6	2026-10-20	
 tests/samba/linux_join.py	70937269e15ad4a54c9566878106565787504505	2026-10-20	
-tests/samba/run.py	e3e764949f99a0b13decc91d737f7bf220e4675f	2026-10-20	
-tests/samba/site_join.py	ffdc159e34787465414db22e256b36e296575183	2026-10-20	
+tests/samba/run.py	c452e49ffb029571a0ac92bb1563bc7dc4c27164	2026-10-25	
+tests/samba/site_join.py	8476e409b087e7ed81347aba051cbcd21857da7b	2026-10-25	
 tests/samba/start_bind.py	d99f3b9ebf76a0c6bb2047503e1add88e4b3db88	2026-10-08	
-tests/samba/start_dc.py	f2dc6ce6d5d60d5d98ba36b7607d7e330ef6044c	2026-10-23	
+tests/samba/start_dc.py	4fd7af3711aa802e6c3eba22d01ea27dfda210f6	2026-10-25	
 tests/samba/writable_server_test.py	b9fa7ec5b86b8e65a3443e584ccda3800930a49d	2026-10-17	
 tests/sandbox/Dockerfile	20b0b4c920006cd304cbe258c176c85b9e12b2a5	2026-10-10	
 tests/sandbox/README.md	829d71addd390c4083e575074bd4af1de9264070	2026-10-23	

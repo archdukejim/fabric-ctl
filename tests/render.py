@@ -23,22 +23,22 @@ secrets = dict(ca_password='x', rndc_secret='dGVzdC1vbmx5LXJuZGMtc2VjcmV0LTMyLWJ
                webui_oidc_secret='OidcSecret1',
                tsig_secrets={'npm': 'bnBtLXRlc3Qtc2VjcmV0LTMyLWJ5dGVzLWxvbmch', 'acme_dns-01': 'YWNtZS10ZXN0LXNlY3JldA==',
                              'dev1': 'ZGV2MS1zZWNyZXQ=', 'lonely': 'bG9uZWx5LXNlY3JldA=='})
-user = dict(deploy_base_dir='/opt', domain='lan.j-j.family', hostname='pi-core',
+user = dict(deploy_base_dir='/opt', domain='test.lan.j-j.family', hostname='pi-core',
             host_ip='192.168.7.53', lan_cidr='192.168.7.0/24', lan_gateway='192.168.7.1',
             fabric_subnet='10.255.0.0/24', landing_page_cname=None, install_keycloak=True,
             cert_country='US', cert_province='S', cert_city='C', cert_org='O', cert_ou='IT', ca_name='CA',
             project_containers=['nginx', 'step-ca', 'bind9', 'keycloak', 'postgres', 'keycloak'],
             service_dirs=[{'folder': 'extra', 'owner': 'root'}],
             # as normalize_tsig_keys leaves them: an NPM-style per-host key and a primary one
-            tsig_keys=[{'name': 'npm', 'algorithm': 'hmac-sha256', 'domain': 'lan.j-j.family',
+            tsig_keys=[{'name': 'npm', 'algorithm': 'hmac-sha256', 'domain': 'test.lan.j-j.family',
                         'record_types': ['TXT'], 'records': ['npm', 'shelfmark']},
-                       {'name': 'acme_dns-01', 'algorithm': 'hmac-sha256', 'domain': 'lan.j-j.family',
+                       {'name': 'acme_dns-01', 'algorithm': 'hmac-sha256', 'domain': 'test.lan.j-j.family',
                         'record_types': ['TXT'], 'primary': True},
-                       {'name': 'dev1', 'algorithm': 'hmac-sha256', 'domain': 'lan.j-j.family', 'record_types': ['TXT']},
-                       {'name': 'lonely', 'algorithm': 'hmac-sha256', 'domain': 'lan.j-j.family', 'record_types': ['TXT']}],
+                       {'name': 'dev1', 'algorithm': 'hmac-sha256', 'domain': 'test.lan.j-j.family', 'record_types': ['TXT']},
+                       {'name': 'lonely', 'algorithm': 'hmac-sha256', 'domain': 'test.lan.j-j.family', 'record_types': ['TXT']}],
             # certbot devices: rights come from the ACL's policy
             bind_acls={'certbot-devices': ['key "dev1"']},
-            bind_acl_policies={'certbot-devices': {'domain': 'lan.j-j.family', 'record_types': ['TXT'],
+            bind_acl_policies={'certbot-devices': {'domain': 'test.lan.j-j.family', 'record_types': ['TXT'],
                                                    'records': ['web', 'git']}},
             dns={'dynamic_zone_var': {'zone_authority': True,
                                       'CNAME': [{'name': 'None', 'canonical': 'pi-core'},
@@ -94,13 +94,13 @@ for tpl in sorted(env.list_templates()):
         continue
     extra = {}
     if tpl.startswith('bind9/data/zone'):
-        extra = dict(zone_name='lan.j-j.family', zone_records=v2['dns']['dynamic_zone_var'])
+        extra = dict(zone_name='test.lan.j-j.family', zone_records=v2['dns']['dynamic_zone_var'])
     if tpl.startswith('bind9/data/reverse'):
         extra = dict(reverse_zone_name='7.168.192.in-addr.arpa', ptr_records=rv['zones']['7.168.192.in-addr.arpa'])
     if tpl.startswith('systemd/'):
         extra = dict(item={'service': 'samba', 'compose': 'samba', 'folder': 'samba', 'requires': []})
     if tpl.startswith('resolver/config/'):     # what dns_filter/deploy_resolver passes beside the vars
-        extra = dict(zones=['lan.j-j.family', '7.168.192.in-addr.arpa'], clients=['192.168.7.0/24'],
+        extra = dict(zones=['test.lan.j-j.family', '7.168.192.in-addr.arpa'], clients=['192.168.7.0/24'],
                      resolver_rndc_secret='c2VjcmV0', groups=[{'name': 'kids', 'match': ['192.168.7.64/27'],
                                                               'rules_zone': 'group-kids.rpz', 'safe_zone': None}],
                      safe_zone=None, client_tls=False, adguard_tls=True, zone='group-x.rpz', what='group x',
@@ -121,14 +121,14 @@ for tpl in sorted(env.list_templates()):
         yaml.safe_load(text)
 zones = env.get_template('bind9/config/named.conf.zones.j2').render(**full)
 keys = env.get_template('bind9/config/named.conf.keys.j2').render(**full)
-for want in ('grant "npm" name _acme-challenge.npm.lan.j-j.family. TXT;',
-             'grant "npm" name _acme-challenge.shelfmark.lan.j-j.family. TXT;',
+for want in ('grant "npm" name _acme-challenge.npm.test.lan.j-j.family. TXT;',
+             'grant "npm" name _acme-challenge.shelfmark.test.lan.j-j.family. TXT;',
              'grant "acme_dns-01" subdomain _acme-challenge TXT;'):
     # covers: setting:tsig_keys +
     assert want in zones, f'missing update-policy grant: {want}'
 assert 'zonesub' not in zones, 'no key asked for any_name: nothing may get zonesub'
-for want in ('grant "dev1" name _acme-challenge.web.lan.j-j.family. TXT;',
-             'grant "dev1" name _acme-challenge.git.lan.j-j.family. TXT;'):
+for want in ('grant "dev1" name _acme-challenge.web.test.lan.j-j.family. TXT;',
+             'grant "dev1" name _acme-challenge.git.test.lan.j-j.family. TXT;'):
     # covers: setting:bind_acl_policies +
     assert want in zones, f'missing ACL-policy grant: {want}'
 assert 'grant "lonely"' not in zones, 'a key with no records, policy or any_name must get no update rights'
@@ -167,14 +167,14 @@ print('tsig_keys and bind_acl_policies: what apply refuses, with the reason, no 
 # Web UI at any host name, fabric-ctl.<domain> by default on a new install (2.1.8.12); the certificate page at
 # /certs/ (no certs.<domain> since 0.7.0, 1.5.1.5).
 # covers: setting:cname_mgr +
-assert v2['hostname_mgr'] == 'fabric-ctl.lan.j-j.family' and v2['cname_mgr'] == 'fabric-ctl' and 'hostname_certs' not in v2 and 'cname_certs' not in v2, v2
+assert v2['hostname_mgr'] == 'fabric-ctl.test.lan.j-j.family' and v2['cname_mgr'] == 'fabric-ctl' and 'hostname_certs' not in v2 and 'cname_certs' not in v2, v2
 custom = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'webui_hostname': 'Admin.Example.org'}))
 # covers: setting:webui_hostname +
 assert custom['hostname_mgr'] == 'admin.example.org', custom['hostname_mgr']
 names = [r['name'] for r in custom['dns']['dynamic_zone_var']['CNAME']]
 assert 'fabric' not in names and 'admin' not in names, f'no CNAME for a web UI outside the domain: {names}'
 ngx = env.get_template('nginx/nginx.conf.j2').render(**{**secrets, **custom})
-assert 'server_name admin.example.org;' in ngx and 'certs.lan.j-j.family' not in ngx
+assert 'server_name admin.example.org;' in ngx and 'certs.test.lan.j-j.family' not in ngx
 same = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'hostname': 'fabric'}))
 assert 'fabric' not in [r['name'] for r in same['dns']['dynamic_zone_var']['CNAME']], 'CNAME must not shadow the host A record'
 print('web UI host name (default, custom, same as host) rendered; no certs.<domain> server')
@@ -186,13 +186,13 @@ from fabriclib.samba.suggested_dc_name import suggested_dc_name  # noqa: E402
 
 
 def _dc(**over):
-    got = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family',
+    got = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.lan.j-j.family',
                                                                      **over}))
     compose = yaml.safe_load(env.get_template('samba/docker-compose.yml.j2').render(**got))['services']['samba']
     return got['dc_name'], got['hostname_dc'], compose['environment']['HOST_NAME']
 
 
-assert _dc() == ('dc-0001', 'dc-0001.ad.j-j.family', 'dc-0001') and suggested_dc_name() == 'dc-0001', _dc()
+assert _dc() == ('dc-0001', 'dc-0001.ad.lan.j-j.family', 'dc-0001') and suggested_dc_name() == 'dc-0001', _dc()
 for host in ('Kitchen-Server01', 'raspberrypi-4b'):
     assert _dc(hostname=host)[0] == 'dc-0001', (host, _dc(hostname=host))
 assert suggested_dc_name(['DC-0001', 'dc-0002', 'pc-7']) == 'dc-0003' and suggested_dc_name(['dc-0002']) == 'dc-0001'
@@ -212,10 +212,10 @@ except ValidationError as e:
 from fabriclib.samba.dc_count_text import dc_count_text  # noqa: E402
 assert dc_count_text(1) == '1 DC used, 1998 can be added' and dc_count_text(2) == '2 DCs used, 1997 can be added' \
     and dc_count_text(1999) == '1999 DCs used, 0 can be added', dc_count_text(1)
-assert _dc(dc_name='DC-Pi') == ('dc-pi', 'dc-pi.ad.j-j.family', 'dc-pi'), _dc(dc_name='DC-Pi')    # 0.7.x's, kept
-renamed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family',
+assert _dc(dc_name='DC-Pi') == ('dc-pi', 'dc-pi.ad.lan.j-j.family', 'dc-pi'), _dc(dc_name='DC-Pi')    # 0.7.x's, kept
+renamed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.lan.j-j.family',
                                                                      'dc_name': 'dc-pi-core', 'hostname': 'kitchen'}))
-assert renamed['hostname_dc'] == 'dc-pi-core.ad.j-j.family' and {'ip': renamed['host_ip'], 'name': 'kitchen'} in \
+assert renamed['hostname_dc'] == 'dc-pi-core.ad.lan.j-j.family' and {'ip': renamed['host_ip'], 'name': 'kitchen'} in \
     renamed['dns']['dynamic_zone_var']['A'], renamed['dns']['dynamic_zone_var']['A']
 print("the DC's own name: dc-0001, then the first free number, the host's name passed over; an installed one kept, a "
       "renamed host leaves it")
@@ -257,7 +257,7 @@ ngx_off = env.get_template('nginx/nginx.conf.j2').render(**{**secrets, **off})
 # covers: setting:dns_filter +
 assert '"grpc://bind9:' in ngx_off[ngx_off.index('location /dns-query'):], 'DoH goes to BIND with the DNS filter off'
 print('DoH: nginx speaks HTTP/2 to the DNS filter (or BIND with it off) (grpc_pass)')
-res_ctx = dict(zones=['lan.j-j.family'], clients=['192.168.7.0/24'], resolver_rndc_secret='c2VjcmV0', client_tls=True,
+res_ctx = dict(zones=['test.lan.j-j.family'], clients=['192.168.7.0/24'], resolver_rndc_secret='c2VjcmV0', client_tls=True,
                adguard_tls=True, safe_zone='safesearch-strict.rpz',
                groups=[{'name': 'kids', 'match': ['!192.168.7.70', '192.168.7.64/27'], 'rules_zone': 'group-kids.rpz',
                         'safe_zone': 'safesearch-ytmoderate.rpz'}])
@@ -271,7 +271,7 @@ assert f'remote-hostname "kids.filter.{v2["domain"]}"' in res_conf and \
     f'forwarders port 853 tls "group-kids" {{ {v2["ip_adguard"]}; }};' in kids, kids
 assert f'forwarders {{ {v2["ip_adguard"]} port 53; }};' in everyone and 'tls "upstream' not in res_conf, everyone
 for view in (kids, everyone):        # fabric's zones and the owner's rules in every view (no chained views now)
-    assert 'zone "lan.j-j.family" { type forward;' in view and 'zone "owner.rpz"' in view, view
+    assert 'zone "test.lan.j-j.family" { type forward;' in view and 'zone "owner.rpz"' in view, view
 assert kids.index('zone "fabric.rpz";') < kids.index('zone "group-kids.rpz";') < kids.index('zone "owner.rpz";'), kids
 assert 'dnssec-validation auto;' in res_conf and 'validate-except { "' in res_conf and 'responselog yes;' in res_conf and 'category responses' in res_conf
 assert 'bind-lists' not in res_conf, 'no list in the resolver (1.12.3)'
@@ -286,7 +286,7 @@ print("DNS filter: each view forwards to AdGuard Home (a group over DoT naming i
 # Federation (manual 1.9): the endpoint's vhost, socket mount, CNAME and unit only when it is
 # on; a site's organisation suffix comes from org_domain, its local suffix and names from its own.
 assert v2['federation_endpoint'] is False and v2['org_domain'] == v2['domain'], (v2['federation_endpoint'], v2['org_domain'])
-assert v2['hostname_federation'] == 'federation.lan.j-j.family', v2['hostname_federation']
+assert v2['hostname_federation'] == 'federation.test.lan.j-j.family', v2['hostname_federation']
 assert 'federation' not in [r['name'] for r in v2['dns']['dynamic_zone_var']['CNAME']], 'no CNAME while the endpoint is off'
 assert 'server_name federation.' not in env.get_template('nginx/nginx.conf.j2').render(**full), 'no vhost while off'
 assert '/srv/federation' not in env.get_template('nginx/docker-compose.yml.j2').render(**full), 'no socket mount while off'
@@ -294,17 +294,17 @@ fed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(
 # covers: setting:federation_endpoint +
 assert 'federation' in [r['name'] for r in fed['dns']['dynamic_zone_var']['CNAME']], 'CNAME for the endpoint'
 ngx = env.get_template('nginx/nginx.conf.j2').render(**{**secrets, **fed})
-assert 'server_name federation.lan.j-j.family;' in ngx and 'proxy_pass http://unix:/srv/federation/federation.sock:;' in ngx
+assert 'server_name federation.test.lan.j-j.family;' in ngx and 'proxy_pass http://unix:/srv/federation/federation.sock:;' in ngx
 assert 'limit_req zone=federation' in ngx and 'client_max_body_size 16k;' in ngx, 'the join route is rate- and size-limited'
 assert 'federation/run:/srv/federation:ro' in env.get_template('nginx/docker-compose.yml.j2').render(**{**secrets, **fed})
 unit = env.get_template('systemd/fabric-federation.service.j2').render(**fed)
 assert f"--allow-uid {fed['service_users']['nginx']['uid']}" in unit and 'lib/federation/server.py' in unit, unit
-site = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'domain': 'branch1.lan.j-j.family',
-                                                                  'org_domain': 'lan.j-j.family', 'site_name': 'branch1'}))
+site = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'domain': 'branch1.test.lan.j-j.family',
+                                                                  'org_domain': 'test.lan.j-j.family', 'site_name': 'branch1'}))
 # covers: setting:org_domain +
-assert site['ldap_base_dn'] == v2['ldap_base_dn'] == 'dc=lan,dc=j-j,dc=family', site['ldap_base_dn']
+assert site['ldap_base_dn'] == v2['ldap_base_dn'] == 'dc=test,dc=lan,dc=j-j,dc=family', site['ldap_base_dn']
 # covers: setting:site_name setting:domain +
-assert site['site_name'] == 'branch1' and site['hostname_federation'] == 'federation.branch1.lan.j-j.family'
+assert site['site_name'] == 'branch1' and site['hostname_federation'] == 'federation.branch1.test.lan.j-j.family'
 # a chosen base DN (the root site's install, e.g. dc=lan) is kept as given: it names the organisation
 for base in ('dc=lan', 'o=acme,dc=lan'):
     chosen = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ldap_base_dn': base}))
@@ -315,17 +315,17 @@ print('federation: endpoint vhost/mount/CNAME/unit only when on; a site shares t
 plain = env.get_template('bind9/config/named.conf.zones.j2').render(**full)
 assert 'type secondary' not in plain and 'also-notify' not in plain, 'no federation links: no secondaries, no notify'
 links = {'children': [{'site': 'lab', 'key': 'fed-lab', 'algorithm': 'hmac-sha256', 'secret': 'c2VjcmV0', 'delegate': True,
-                       'label': 'lab', 'domain': 'lab.lan.j-j.family', 'address': '192.168.9.9'}],
+                       'label': 'lab', 'domain': 'lab.test.lan.j-j.family', 'address': '192.168.9.9'}],
          'upstream': {'site': 'hq', 'key': 'fed-pi-core', 'algorithm': 'hmac-sha256', 'secret': 'dXBzdHJlYW0=',
                       'domain': 'hq.example.org', 'address': '192.168.8.8'}}
 zones = env.get_template('bind9/config/named.conf.zones.j2').render(**full, federation_links=links)
 keys = env.get_template('bind9/config/named.conf.keys.j2').render(**full, federation_links=links)
 assert 'allow-transfer { key "fed-lab"; key "fed-pi-core"; };' in zones and 'notify explicit;' in zones, zones[:600]
-assert 'zone "lab.lan.j-j.family" {\n    type secondary;\n    primaries { 192.168.9.9 port 53 key "fed-lab"; };' in zones
+assert 'zone "lab.test.lan.j-j.family" {\n    type secondary;\n    primaries { 192.168.9.9 port 53 key "fed-lab"; };' in zones
 assert 'zone "hq.example.org" {\n    type secondary;' in zones and 'key "fed-lab" {' in keys and 'key "fed-pi-core" {' in keys
 db = env.get_template('bind9/data/zone.j2').render(**full, federation_links=links, zone_name=v2['domain'],
                                                    zone_records=v2['dns']['dynamic_zone_var'])
-assert 'lab                     NS      ns.lab.lan.j-j.family.' in db and 'ns.lab                  A       192.168.9.9' in db
+assert 'lab                     NS      ns.lab.test.lan.j-j.family.' in db and 'ns.lab                  A       192.168.9.9' in db
 print('federation DNS: no links -> no transfers; links -> keys, signed transfers, secondaries, delegation with glue')
 # a name of 24 characters or more (a host name may be any DNS label since 0.7.0, 2.1.6.45) is still apart from its
 # type: the name was padded to 24 with nothing after it, and BIND read `<name>A` (2.3.1.21.3)
@@ -490,7 +490,7 @@ k4 = kea_json("kea-dhcp4.conf")["Dhcp4"]
 sn = k4["subnet4"][0]
 # covers: setting:dhcp +
 assert sn["pools"] == [{"pool": "192.168.7.100 - 192.168.7.199"}] and sn["reservations"][0]["ip-address"] == "192.168.7.20"
-assert k4["ddns-qualifying-suffix"] == "dhcp.lan.j-j.family." and k4["ddns-conflict-resolution-mode"] == "check-with-dhcid"
+assert k4["ddns-qualifying-suffix"] == "dhcp.test.lan.j-j.family." and k4["ddns-conflict-resolution-mode"] == "check-with-dhcid"
 assert k4["control-socket"]["socket-name"].startswith("/var/run/kea/") and k4["interfaces-config"]["interfaces"] == ["eth0"]
 # time (manual 1.13.1): Kea hands out this host's chrony (option 42) unless dhcp.ntp says otherwise
 assert {"name": "ntp-servers", "data": kv["host_ip"]} in k4["option-data"], k4["option-data"]
@@ -505,19 +505,19 @@ try:
 except ValidationError:
     pass
 d2 = kea_json("kea-dhcp-ddns.conf")["DhcpDdns"]
-assert d2["forward-ddns"]["ddns-domains"][0]["name"] == "dhcp.lan.j-j.family." and d2["tsig-keys"][0]["name"] == "kea-ddns"
+assert d2["forward-ddns"]["ddns-domains"][0]["name"] == "dhcp.test.lan.j-j.family." and d2["tsig-keys"][0]["name"] == "kea-ddns"
 zones = env.get_template('bind9/config/named.conf.zones.j2').render(**{**secrets, **kv, "tsig_keys": [], "tsig_secrets": {}})
-dz = zones[zones.index('zone "dhcp.lan.j-j.family"'):]
+dz = zones[zones.index('zone "dhcp.test.lan.j-j.family"'):]
 dz = dz[:dz.index("};\n};") + 5]
 assert 'grant "kea-ddns" zonesub A AAAA DHCID;' in dz and dz.count("grant") == 1, dz
 keys = env.get_template('bind9/config/named.conf.keys.j2').render(**{**secrets, **kv, "tsig_keys": [], "tsig_secrets": {}})
 assert 'key "kea-ddns"' in keys and kv["kea_ddns_secret"] in keys
-parent = env.get_template('bind9/data/zone.j2').render(**{**secrets, **kv, "zone_name": "lan.j-j.family",
+parent = env.get_template('bind9/data/zone.j2').render(**{**secrets, **kv, "zone_name": "test.lan.j-j.family",
                                                         "zone_records": kv["dns"]["dynamic_zone_var"]})
-assert re.search(r"^dhcp\s+NS\s+ns\.lan\.j-j\.family\.$", parent, re.M), "no delegation of the DHCP subzone"
+assert re.search(r"^dhcp\s+NS\s+ns\.test\.lan\.j-j\.family\.$", parent, re.M), "no delegation of the DHCP subzone"
 nokea = env.get_template('bind9/config/named.conf.zones.j2').render(**{**secrets, **v2, "tsig_keys": [], "tsig_secrets": {}})
 # covers: setting:install_kea +
-assert "dhcp.lan.j-j.family" not in nokea, "no DHCP subzone without Kea"
+assert "dhcp.test.lan.j-j.family" not in nokea, "no DHCP subzone without Kea"
 # covers: setting:dhcp -
 for bad, msg in ((lambda d: d["subnets"][0].update(pools=["192.168.8.1 - 192.168.8.9"]), "inside"),
                  (lambda d: d["subnets"][0]["reservations"][0].update(ip="192.168.7.150"), "outside its pools"),

@@ -20,7 +20,7 @@ REPO="$(cd "$HERE/../.." && pwd)"
 OUT="${FABRIC_TEST_OUT:-/tmp/fabric-tests}"
 W="$OUT/hardening"
 BASE="$W/opt"
-DOMAIN=lan.j-j.family
+DOMAIN=test.lan.j-j.family
 PASS=0; FAIL=0
 check() { if eval "$2"; then echo "PASS $1"; PASS=$((PASS+1)); else echo "FAIL $1"; FAIL=$((FAIL+1)); fi; }
 
