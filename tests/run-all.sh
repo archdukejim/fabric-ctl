@@ -8,11 +8,12 @@
 # Needs: Linux (amd64 or arm64), Docker with buildx, python3 with yaml +
 # jinja2, openssl, curl, setpriv. Runs as root (chown to service uids,
 # SO_PEERCRED checks). Output and scratch data: $FABRIC_TEST_OUT
-# (default /tmp/fabric-tests).
+# (default /tmp/fabric-tests-<run id>: each worktree its own, manual 3.1.2.6).
 # -----------------------------------------------------------------------
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
-export FABRIC_TEST_OUT="${FABRIC_TEST_OUT:-/tmp/fabric-tests}"
+RUN_ID="$(python3 "$HERE/common/test_run.py" id)" || exit 2
+export FABRIC_TEST_OUT="${FABRIC_TEST_OUT:-/tmp/fabric-tests-$RUN_ID}"
 SUITES=("$@")
 [ ${#SUITES[@]} -eq 0 ] && SUITES=(docs lint deploy consent render nginx zone zones webui pki federation resolver ntp openbao fluentbit kea settings freeradius samba keycloak hardening images)
 
@@ -35,7 +36,7 @@ for s in "${SUITES[@]}"; do
         docs)     run docs     bash -c "python3 \"$HERE/docs/run.py\" && python3 \"$HERE/ci/logs_secret_free_test.py\"" ;;
         lint)     run lint     bash "$HERE/lint/run.sh" ;;
         deploy)   run deploy   bash -c "python3 \"$HERE/deploy/restart_changed_test.py\" && python3 \"$HERE/deploy/check_service_settings_test.py\" && python3 \"$HERE/deploy/unit_start_wait_test.py\" && python3 \"$HERE/deploy/apply_failure_test.py\"" ;;
-        consent)  run consent  bash -c "python3 \"$HERE/consent/run.py\" && python3 \"$HERE/common/ask.py\" && python3 \"$HERE/common/save_vars_test.py\" && python3 \"$HERE/setup/wait_ready_test.py\" && python3 \"$HERE/samba/writable_server_test.py\" && python3 \"$HERE/samba/id_layout_test.py\" && python3 \"$HERE/samba/ensure_schema_test.py\" && python3 \"$HERE/setup/run_steps_test.py\" && python3 \"$HERE/setup/run_setup_test.py\" && python3 \"$HERE/setup/start_unit_test.py\" && python3 \"$HERE/setup/require_terminal_test.py\" && python3 \"$HERE/common/same_content_test.py\" && python3 \"$HERE/common/copy_tree_with_perms_test.py\" && python3 \"$HERE/common/copy_if_changed_test.py\" && python3 \"$HERE/federation/deploy_federation_endpoint_test.py\" && python3 \"$HERE/setup/import_old_vars_test.py\" && bash \"$HERE/host/upgrade_from_test.sh\" && for t in \"$HERE\"/setup/detach/*_test.py; do python3 \"\$t\" || exit 1; done" ;;
+        consent)  run consent  bash -c "python3 \"$HERE/consent/run.py\" && python3 \"$HERE/common/ask.py\" && python3 \"$HERE/common/save_vars_test.py\" && python3 \"$HERE/setup/wait_ready_test.py\" && python3 \"$HERE/samba/writable_server_test.py\" && python3 \"$HERE/samba/id_layout_test.py\" && python3 \"$HERE/samba/ensure_schema_test.py\" && python3 \"$HERE/setup/run_steps_test.py\" && python3 \"$HERE/setup/run_setup_test.py\" && python3 \"$HERE/setup/start_unit_test.py\" && python3 \"$HERE/setup/require_terminal_test.py\" && python3 \"$HERE/common/same_content_test.py\" && python3 \"$HERE/common/test_run_test.py\" && python3 \"$HERE/common/copy_tree_with_perms_test.py\" && python3 \"$HERE/common/copy_if_changed_test.py\" && python3 \"$HERE/federation/deploy_federation_endpoint_test.py\" && python3 \"$HERE/setup/import_old_vars_test.py\" && bash \"$HERE/host/upgrade_from_test.sh\" && for t in \"$HERE\"/setup/detach/*_test.py; do python3 \"\$t\" || exit 1; done" ;;
         render)   run render   python3 "$HERE/render.py" "$FABRIC_TEST_OUT/rendered" ;;
         nginx)    run nginx    bash "$HERE/nginx_check.sh" "$FABRIC_TEST_OUT/rendered" ;;
         zone)     run zone     bash -c "python3 \"$HERE/zone_test.py\" && python3 \"$HERE/dns/freeze_and_install_test.py\"" ;;

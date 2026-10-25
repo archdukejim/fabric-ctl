@@ -35,6 +35,8 @@ import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, "src"))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
 from fabriclib.localadmin.apply_local_admin_ssh import apply_local_admin_ssh  # noqa: E402
@@ -54,8 +56,8 @@ from fabriclib.vault.common.bao_request import bao_request  # noqa: E402
 from fabriclib.vault.configure_openbao import configure_openbao  # noqa: E402
 
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/localadmin"
-NET, SUBNET, BAO_IP = "localadmin_net", "10.254.46.0/24", "10.254.46.90"
-BAO, HOST = "localadmin-bao", "vault.lan.test"
+NET, SUBNET, BAO_IP = testrun.name("localadmin_net"), f"{testrun.PREFIX}.46.0/24", f"{testrun.PREFIX}.46.90"
+BAO, HOST = testrun.name("localadmin-bao"), "vault.lan.test"
 FAILED = 0
 AUDIT = []
 SET = []                                        # (user, password) chpasswd was given
@@ -77,8 +79,8 @@ def sh(cmd, ok=True, **kw):
 
 
 def cleanup():
-    sh(["docker", "rm", "-f", BAO], ok=False)
-    sh(["docker", "network", "rm", NET], ok=False)
+    testrun.remove("container", BAO)      # this run's only
+    testrun.remove("network", NET)
 
 
 def audit(actor, action, detail, source="cli", path=None):
@@ -126,8 +128,8 @@ with open(os.path.join(W, "config", "test.hcl"), "w") as f:
             'listener "tcp" {\n  address = "0.0.0.0:8200"\n  tls_cert_file = "/openbao/certs/bao.crt"\n'
             '  tls_key_file = "/openbao/certs/bao.key"\n}\n')
 lock = read_images_lock(os.path.join(REPO, "config"))
-sh(["docker", "network", "create", "--subnet", SUBNET, NET])
-sh(["docker", "run", "-d", "--name", BAO, "--network", NET, "--ip", BAO_IP, "--entrypoint", "bao",
+testrun.create_network(NET, SUBNET)
+sh(["docker", "run", "-d", "--name", BAO, *testrun.labels(), "--network", NET, "--ip", BAO_IP, "--entrypoint", "bao",
     "-v", f"{certs}:/openbao/certs:ro", "-v", f"{W}/config:/openbao/config:ro", lock["openbao"]["ref"],
     "server", "-config=/openbao/config/test.hcl"])
 V = {"ip_openbao": BAO_IP, "hostname_openbao": HOST, "openbao_ca_file": os.path.join(certs, "root_ca.crt"),

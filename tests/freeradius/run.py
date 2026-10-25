@@ -33,13 +33,19 @@ import time
 
 import yaml
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "common"))
+import test_run as testrun  # noqa: E402
+
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests")
 W = OUT + "/freeradius"
-NET, SUBNET = "radtest_net", "10.254.24.0/24"
-DC_IP, RADIUS_IP, SWITCH_IP, STRANGER_IP = "10.254.24.50", "10.254.24.98", "10.254.24.10", "10.254.24.11"
+NET, SUBNET = testrun.name("radtest_net"), f"{testrun.PREFIX}.24.0/24"   # per run (manual 3.1.2.6)
+DC_IP, RADIUS_IP, SWITCH_IP, STRANGER_IP = f"{testrun.PREFIX}.24.50", f"{testrun.PREFIX}.24.98", f"{testrun.PREFIX}.24.10", f"{testrun.PREFIX}.24.11"
 DOMAIN = "test.lan.j-j.family"                                          # tests/render.py's install
-DC = "samba"                    # the product's own name: fabric's directory functions use it
+DC = "samba"                    # the product's own name: fabric's directory functions use it (the lock below)
+RADIUS, SWITCH, STRANGER = testrun.name("rt-radius"), testrun.name("rt-switch"), testrun.name("rt-stranger")
+RADIUS_IMAGE = "fabric/freeradius:" + testrun.name("test")
+CLIENT_IMAGE = "fabric/radius-client:" + testrun.name("test")
 SECRET = "Sw1tchSecretForTests0123456789ab"
 FAILED = 0
 sys.path[0:0] = [os.path.join(REPO, "src"), REPO, os.path.join(REPO, "tests", "samba")]
@@ -84,8 +90,8 @@ def until(pred, timeout=90):
 
 
 def cleanup():
-    sh(f"docker rm -f {DC} rt-radius rt-switch rt-stranger >/dev/null 2>&1", ok=False)
-    sh(f"docker network rm {NET} >/dev/null 2>&1", ok=False)
+    testrun.remove("container", DC, RADIUS, SWITCH, STRANGER)    # this run's only (manual 3.1.2.6)
+    testrun.remove("network", NET)
 
 
 def openssl(*args):
@@ -108,27 +114,26 @@ def dc_healthy():
     return sh(["docker", "inspect", "-f", "{{.State.Health.Status}}", DC], ok=False).stdout.strip() == "healthy"
 
 
-if sh(["docker", "inspect", "-f", "{{.Config.Image}}", DC], ok=False).stdout.strip() not in ("", "fabric/samba:test"):
-    sys.exit(f"a container named {DC} that is not a test DC runs here: not touching it")
-cleanup()
+LOCK = testrun.product_names_lock("freeradius").__enter__()    # DC is the product's name: one run at a time
+cleanup()                                  # refuses a samba of the owner's or another run's: never touched
 shutil.rmtree(W, ignore_errors=True)
 os.makedirs(f"{W}/pki")
 DEBIAN = read_images_lock(os.path.join(REPO, "config"))["debian"]["ref"]
 
 # ------------------------------------------------------------------ images
-build = sh(["docker", "build", "-q", "-t", "fabric/freeradius:test", "--build-arg", f"BASE_IMAGE={DEBIAN}",
+build = sh(["docker", "build", "-q", "-t", RADIUS_IMAGE, "--build-arg", f"BASE_IMAGE={DEBIAN}",
             f"{REPO}/packaging/images/freeradius"], ok=False)
 check("FreeRADIUS image builds from Debian's packages on the pinned base", build.returncode == 0, build.stderr)
 if build.returncode:
     sys.exit(1)
-version = sh("docker run --rm --entrypoint /usr/sbin/freeradius fabric/freeradius:test -v", ok=False).stdout
+version = sh(["docker", "run", "--rm", "--entrypoint", "/usr/sbin/freeradius", RADIUS_IMAGE, "-v"], ok=False).stdout
 check("FreeRADIUS 3.2 inside", "FreeRADIUS Version 3.2." in version, version[:120])
 os.makedirs(f"{W}/client-build")
 with open(f"{W}/client-build/Dockerfile", "w") as f:        # the test's switch: eapol_test + radclient
-    f.write("FROM fabric/freeradius:test\nUSER root\nRUN apt-get update && apt-get install -y "
+    f.write(f"FROM {RADIUS_IMAGE}\nUSER root\nRUN apt-get update && apt-get install -y "
             "--no-install-recommends eapoltest freeradius-utils && rm -rf /var/lib/apt/lists/*\n"
             'ENTRYPOINT ["sleep", "infinity"]\n')
-sh(["docker", "build", "-q", "-t", "fabric/radius-client:test", f"{W}/client-build"])
+sh(["docker", "build", "-q", "-t", CLIENT_IMAGE, f"{W}/client-build"])
 
 # ------------------------------------------------------------------ the DC, and a PKI under its root (as Step-CA's)
 dc = start_dc(f"{W}/dc", DC, NET, SUBNET, DC_IP, domain=DOMAIN)
@@ -254,7 +259,7 @@ check("config: the directory account's password file, mode 0640",
 
 
 def start_radius():
-    sh(["docker", "run", "-d", "--name", "rt-radius", "--network", NET, "--ip",
+    sh(["docker", "run", "-d", "--name", RADIUS, *testrun.labels(), "--network", NET, "--ip",
         COMPOSE["networks"]["fabric_net"]["ipv4_address"], "--memory", COMPOSE["mem_limit"], "--user", "610:610",
         "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
         "--tmpfs", "/tmp:noexec,nosuid,size=8m", "--tmpfs", "/run/freeradius:uid=610,gid=610,mode=0700,size=8m",
@@ -264,12 +269,12 @@ def start_radius():
         # as the compose file mounts them: the DC's winbind for PEAP
         "-v", f"{W}/dc/samba/winbindd:/run/samba/winbindd:ro",
         "-v", f"{W}/dc/samba/data/state/winbindd_privileged:/data/state/winbindd_privileged:ro",
-        "-v", f"{W}/dc/samba/data/etc:/etc/samba:ro", "fabric/freeradius:test"])
+        "-v", f"{W}/dc/samba/data/etc:/etc/samba:ro", RADIUS_IMAGE])
     return until(lambda: "Ready to process requests" in logs(), 60)
 
 
 def logs():
-    res = sh("docker logs rt-radius", ok=False)
+    res = sh(["docker", "logs", RADIUS], ok=False)
     return res.stdout + res.stderr
 
 
@@ -278,12 +283,12 @@ check("FreeRADIUS starts on fabric's configuration (non-root, read-only)", ready
 if not ready:
     cleanup()
     sys.exit(1)
-for name, ip in (("rt-switch", SWITCH_IP), ("rt-stranger", STRANGER_IP)):
-    sh(["docker", "run", "-d", "--name", name, "--network", NET, "--ip", ip, "-v", f"{W}/pki:/pki:ro",
-        "fabric/radius-client:test"])
+for name, ip in ((SWITCH, SWITCH_IP), (STRANGER, STRANGER_IP)):
+    sh(["docker", "run", "-d", "--name", name, *testrun.labels(), "--network", NET, "--ip", ip, "-v", f"{W}/pki:/pki:ro",
+        CLIENT_IMAGE])
 
 
-def eap_tls(cert, box="rt-switch", secret=SECRET, mac="02:00:00:00:10:01"):
+def eap_tls(cert, box=SWITCH, secret=SECRET, mac="02:00:00:00:10:01"):
     """(accepted, VLAN or None, output) for one EAP-TLS authentication."""
     conf = (f'network={{\n key_mgmt=IEEE8021X\n eap=TLS\n identity="{cert}"\n ca_cert="/pki/root.crt"\n'
             f' client_cert="/pki/{cert}.crt"\n private_key="/pki/{cert}.key"\n'
@@ -321,7 +326,7 @@ except socket.timeout:
 '''
 
 
-def mab(mac, box="rt-switch", secret=SECRET, authenticator=True, user=None, timeout=3):
+def mab(mac, box=SWITCH, secret=SECRET, authenticator=True, user=None, timeout=3):
     """(reply code or None, VLAN or None, output) for one MAB request (User-Name = the MAC)."""
     if not authenticator:
         res = sh(["docker", "exec", "-i", box, "python3", "-", RADIUS_IP, secret, mac], ok=False, input=RAW_REQUEST)
@@ -363,7 +368,7 @@ check("EAP-TLS: unlinking the certificate refuses it at the next authentication"
 link_mod.link_device_cert(V, "test", "laptop1", FP["laptop1"])
 laptop1_serial = sh(["openssl", "x509", "-in", f"{W}/pki/laptop1.crt", "-noout", "-serial"]).stdout.strip().split("=")[1]
 write_ca_pem(revoked=[laptop1_serial])                       # revoked, still linked (2.1.5.10)
-sh("docker rm -f rt-radius", ok=False)
+testrun.remove("container", RADIUS)
 start_radius()
 ok, _, out = eap_tls("laptop1")
 check("EAP-TLS: a revoked certificate is refused in the TLS handshake even while its device is linked (CRL)",
@@ -371,7 +376,7 @@ check("EAP-TLS: a revoked certificate is refused in the TLS handshake even while
 ok, vlan, _ = eap_tls("laptop3")
 check("EAP-TLS: …and a certificate that is not revoked still gets in", ok, logs()[-400:])
 write_ca_pem()
-sh("docker rm -f rt-radius", ok=False)
+testrun.remove("container", RADIUS)
 start_radius()
 
 # ------------------------------------------------------------------ EAP-TTLS (people)
@@ -380,7 +385,7 @@ def eap_ttls(user, password, mac="02:00:00:00:20:01"):
     conf = (f'network={{\n key_mgmt=IEEE8021X\n eap=TTLS\n identity="{user}"\n anonymous_identity="anonymous"\n'
             f' password="{password}"\n phase2="auth=PAP"\n ca_cert="/pki/root.crt"\n'
             f' domain_suffix_match="{SERVER_NAME}"\n eapol_flags=0\n}}\n')
-    res = sh(["docker", "exec", "-i", "rt-switch", "sh", "-c",
+    res = sh(["docker", "exec", "-i", SWITCH, "sh", "-c",
               f"cat > /tmp/ttls.conf && eapol_test -c /tmp/ttls.conf -a {RADIUS_IP} -s '{SECRET}' -M {mac} -t 10 -r 0"],
              ok=False, input=conf)
     text = res.stdout + res.stderr
@@ -428,7 +433,7 @@ def eap_peap(user, password, mac="02:00:00:00:20:02"):
     conf = (f'network={{\n key_mgmt=IEEE8021X\n eap=PEAP\n identity="{user}"\n anonymous_identity="anonymous"\n'
             f' password="{password}"\n phase1="peaplabel=0"\n phase2="auth=MSCHAPV2"\n ca_cert="/pki/root.crt"\n'
             f' domain_suffix_match="{SERVER_NAME}"\n eapol_flags=0\n}}\n')
-    res = sh(["docker", "exec", "-i", "rt-switch", "sh", "-c",
+    res = sh(["docker", "exec", "-i", SWITCH, "sh", "-c",
               f"cat > /tmp/peap.conf && eapol_test -c /tmp/peap.conf -a {RADIUS_IP} -s '{SECRET}' -M {mac} -t 10 -r 0"],
              ok=False, input=conf)
     text = res.stdout + res.stderr
@@ -467,7 +472,7 @@ code, _, out = mab("02:00:00:00:30:01", user="alice")
 check("MAB: a User-Name that is not the calling MAC is refused", code == "Access-Reject", out[-400:])
 
 # ------------------------------------------------------------------ refused before any policy
-code, _, out = mab("02:00:00:00:30:01", box="rt-stranger")
+code, _, out = mab("02:00:00:00:30:01", box=STRANGER)
 check("an address that is not a RADIUS client gets no answer", code is None, out[-300:])
 code, _, out = mab("02:00:00:00:30:01", secret="WrongSecretWrongSecret")
 check("a wrong shared secret gets no Access-Accept", code != "Access-Accept", out[-300:])
@@ -553,7 +558,7 @@ def apply_radius():
                        "radius_people": data.get("radius_people") or []},
                       {"radius_secrets": sec.get("radius_secrets") or {},
                        "ad_radius_password": sec["ad_radius_password"]}, jinja_env(os.path.join(REPO, "templates")))
-    sh("docker rm -f rt-radius", ok=False)
+    testrun.remove("container", RADIUS)
     return start_radius()
 
 
@@ -593,7 +598,7 @@ saved_ok = (code == 0 and "RADIUS client switch2 added" in out and "recorded; ap
             and len(NEW) == 32 and secrets_now().get("switch2") == NEW and NEW not in open(VARS_FILE).read()
             and any(c["name"] == "switch2" for c in load_vars(VARS_FILE)["radius_clients"]))
 apply_radius()
-reply, vlan, mab_out = mab("02:00:00:00:30:01", box="rt-stranger", secret=NEW)
+reply, vlan, mab_out = mab("02:00:00:00:30:01", box=STRANGER, secret=NEW)
 # covers: cli:radius.add-client +
 check("add-client: the secret shown once is kept in the secrets (not vars.yaml); after apply the new switch is "
       "answered with it (MAB accepted on VLAN 30)", saved_ok and reply == "Access-Accept" and vlan == "30",
@@ -604,8 +609,8 @@ code, out, err = radius("rotate-secret", "switch2", "--secret-prompt", "--no-app
 saved_ok = (code == 0 and f"new shared secret for switch2 (shown once; give the device the same):\n{TYPED}" in out
             and secrets_now().get("switch2") == TYPED and ASKED[-1] == "shared secret (hidden): ")
 apply_radius()
-new_reply, _, new_out = mab("02:00:00:00:30:01", box="rt-stranger", secret=TYPED)
-old_reply, _, old_out = mab("02:00:00:00:30:01", box="rt-stranger", secret=NEW)
+new_reply, _, new_out = mab("02:00:00:00:30:01", box=STRANGER, secret=TYPED)
+old_reply, _, old_out = mab("02:00:00:00:30:01", box=STRANGER, secret=NEW)
 # covers: cli:radius.rotate-secret ask:radius.secret +
 check("rotate-secret --secret-prompt: the typed secret (trimmed) replaces the old one; after apply the switch is "
       "answered with it, the old one gets no Access-Accept",
@@ -627,7 +632,7 @@ code, out, err = radius("remove-client", "switch2", "--no-apply")
 saved_ok = (code == 0 and "RADIUS client switch2 removed" in out and "switch2" not in secrets_now()
             and not any(c["name"] == "switch2" for c in load_vars(VARS_FILE)["radius_clients"]))
 apply_radius()
-reply, _, mab_out = mab("02:00:00:00:30:01", box="rt-stranger", secret=TYPED)
+reply, _, mab_out = mab("02:00:00:00:30:01", box=STRANGER, secret=TYPED)
 # covers: cli:radius.remove-client +
 check("remove-client: gone from vars.yaml and its secret deleted; after apply the switch gets no answer",
       saved_ok and reply is None, (code, out, err, reply, mab_out[-300:]))
@@ -676,7 +681,7 @@ check("802.1X off: add-client and map-group are refused (exit 1, why), nothing s
 
 # ------------------------------------------------------------------ hardening
 import json  # noqa: E402
-h = json.loads(sh("docker inspect rt-radius").stdout)[0]
+h = json.loads(sh(["docker", "inspect", RADIUS]).stdout)[0]
 check("container: uid 610, no capabilities, read-only, no-new-privileges",
       h["Config"]["User"] == "610:610" and h["HostConfig"]["CapDrop"] == ["ALL"] and not h["HostConfig"].get("CapAdd")
       and h["HostConfig"]["ReadonlyRootfs"] and "no-new-privileges:true" in h["HostConfig"]["SecurityOpt"])

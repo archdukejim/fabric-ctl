@@ -8,7 +8,8 @@ import subprocess
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__)), os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
 from start_dc import start_dc  # noqa: E402
 import fabriclib.directory.add_device as m_add_device  # noqa: E402
 import fabriclib.directory.add_role as m_add_role  # noqa: E402
@@ -26,8 +27,9 @@ from fabriclib.directory.run_op import run_op  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-devices")
-NET, SUBNET, IP = "sambadev_net", "10.254.32.0/24", "10.254.32.10"
-DC = "samba"            # the product's own name: fabric's functions use it
+NET, SUBNET, IP = testrun.name("sambadev_net"), f"{testrun.PREFIX}.32.0/24", f"{testrun.PREFIX}.32.10"
+DC = "samba"            # the product's own name: fabric's functions use it, so one such run at a time
+LOCK = testrun.product_names_lock("samba devices").__enter__()            # (manual 3.1.2.6)
 FAILED = 0
 AUDIT = []
 
@@ -353,6 +355,6 @@ m_remove_machine.remove_machine(V, "setup", "fabhost", source="setup", secrets=S
 check("the fabric host's account is removed as other machines are (the undo of setup's member step)",
       "FABHOST" not in dn_of("fabhost"), dn_of("fabhost"))
 
-subprocess.run(["docker", "rm", "-f", DC], capture_output=True)
-subprocess.run(["docker", "network", "rm", NET], capture_output=True)
+testrun.remove("container", DC)      # this run's only
+testrun.remove("network", NET)
 sys.exit(1 if FAILED else 0)

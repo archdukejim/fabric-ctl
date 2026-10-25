@@ -22,12 +22,15 @@ import jinja2
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
+# step-ca is the product's name (fabric's mint_cert uses it): one such run at a time (manual 3.1.2.6)
+LOCK = testrun.product_names_lock("pki landing").__enter__()
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/pki-landing"
 IMAGE = os.environ.get("FABRIC_STEP_IMAGE") or subprocess.run(
     [sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "stepca"],
     capture_output=True, text=True, check=True).stdout.strip()
 STEP_UID = 1912
-LABEL = "fabric-test=pki-landing"
 DOMAIN, IP = "lan.test", "192.168.7.53"
 FAILED = 0
 
@@ -46,16 +49,12 @@ def sh(cmd, ok=True):
 
 
 def cleanup():
-    """Remove this test's step-ca only (labelled): never a step-ca container it did not start."""
-    ours = sh(["docker", "ps", "-aq", "--filter", "name=^step-ca$", "--filter", f"label={LABEL}"], ok=False).stdout
-    if ours.strip():
-        sh(["docker", "rm", "-f", "step-ca"], ok=False)
+    """Remove this run's step-ca only (labelled): one it did not start is refused, saying so (the test needs the
+    name: mint_cert)."""
+    testrun.remove("container", "step-ca")
 
 
 cleanup()
-if sh(["docker", "ps", "-aq", "--filter", "name=^step-ca$"], ok=False).stdout.strip():
-    print("FAIL a container named step-ca that this test did not start exists: the test needs the name (mint_cert)")
-    sys.exit(1)
 
 # ---------------------------------------------------------------- an install's layout, a CA made by step ca init
 shutil.rmtree(W, ignore_errors=True)
@@ -100,7 +99,7 @@ V = {"deploy_base_dir": W, "domain": DOMAIN, "hostname": "fab", "host_ip": IP, "
                                             {"name": "nas", "canonical": "printer"}]}}}
 _configure_ca_json(f"{data}/config/ca.json", V)
 sh(["chown", "-R", f"{STEP_UID}:{STEP_UID}", data])
-sh(["docker", "run", "-d", "--name", "step-ca", "--label", LABEL, "--network", "none", "-v", f"{data}:/home/step",
+sh(["docker", "run", "-d", "--name", "step-ca", *testrun.labels(), "--network", "none", "-v", f"{data}:/home/step",
     "--user", f"{STEP_UID}:{STEP_UID}", IMAGE, "/usr/local/bin/step-ca", "/home/step/config/ca.json",
     "--password-file", "/home/step/secrets/password"])
 for _ in range(30):

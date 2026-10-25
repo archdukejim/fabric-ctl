@@ -22,7 +22,8 @@ import time
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(REPO, "src"))
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
 from fabriclib.breakglass.break_glass_password import break_glass_password  # noqa: E402
@@ -46,10 +47,11 @@ from fabriclib.samba.write_bind_dlz import write_bind_dlz  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba")
-NET, SUBNET, IP = "sambatest_net", "10.254.30.0/24", "10.254.30.10"
+NET, SUBNET, IP = testrun.name("sambatest_net"), f"{testrun.PREFIX}.30.0/24", f"{testrun.PREFIX}.30.10"
 # BIND shares the DC's address, as both share the host's on an install (the AD zone sends updates to the DC's name)
 BIND_IP = IP
-DC, IMAGE, BIND = "sambatest-dc", "fabric/samba:test", "sambatest-bind"
+DC, BIND = testrun.name("sambatest-dc"), testrun.name("sambatest-bind")       # per run (manual 3.1.2.6)
+IMAGE, BIND_IMAGE = "fabric/samba:" + testrun.name("test"), "fabric/bind9:" + testrun.name("samba-test")
 CLIENT = IMAGE                  # the DC's image has dig and nsupdate (bind9-dnsutils)
 BASE = "DC=ad,DC=lan,DC=test"
 POLICY = {"minimum_length": 14, "complexity": True, "history": 24, "minimum_age_days": 0, "maximum_age_days": 0,
@@ -75,8 +77,8 @@ def sh(cmd, ok=True, **kw):
 
 
 def cleanup():
-    sh(["docker", "rm", "-f", DC, BIND, "sambatest-rodc"], ok=False)
-    sh(["docker", "network", "rm", NET], ok=False)
+    testrun.remove("container", DC, BIND, testrun.name("sambatest-rodc"))     # this run's only
+    testrun.remove("network", NET)
 
 
 def dc(*args, stdin=None):
@@ -114,7 +116,7 @@ if build.returncode:
 # the settings and compose file as an install renders them
 env = jinja_env(os.path.join(REPO, "templates"))
 v = yaml.safe_load(env.get_template("vars.yaml.j2").render(
-    domain="lan.test", hostname="pi-host", dc_name="dc-0001", host_ip=IP, lan_cidr=SUBNET, lan_gateway="10.254.30.1",
+    domain="lan.test", hostname="pi-host", dc_name="dc-0001", host_ip=IP, lan_cidr=SUBNET, lan_gateway=f"{testrun.PREFIX}.30.1",
     site_name="lan",
     ad_domain="ad.lan.test", ad_password_policy=POLICY, deploy_base_dir=W,
     ad_ntp_signd_dir=os.path.join(W, "ntp_signd")))     # never the host's own /var/lib/samba
@@ -143,9 +145,9 @@ check("deploy_samba: root-only folders (data traversable: SYSVOL is served as ea
       and os.path.exists(os.path.join(W, "samba", "converge", "converge.py")))
 
 # run it as the compose file says, on the test network
-sh(["docker", "network", "create", "--subnet", SUBNET, NET])
+testrun.create_network(NET, SUBNET)
 # the container's host name is the host's (the host network gives it the host's): the DC has its own (2.1.6.45)
-run = ["docker", "run", "-d", "--name", DC, "--hostname", "pi-host", "--network", NET, "--ip", IP,
+run = ["docker", "run", "-d", "--name", DC, *testrun.labels(), "--hostname", "pi-host", "--network", NET, "--ip", IP,
        "--read-only", "--memory", compose["mem_limit"], "--cap-drop", "ALL"]
 run += [x for c in compose["cap_add"] for x in ("--cap-add", c)]
 run += [x for o in compose["security_opt"] for x in ("--security-opt", o)]
@@ -395,7 +397,7 @@ check("before the domain exists BIND's DLZ files load nothing", "not provisioned
     os.path.join(W, "samba", "bind", "dlz.conf")).read())
 check("once provisioned, write_bind_dlz turns DLZ on (BIND must restart)", write_bind_dlz(v) is True)
 check("and again changes nothing", write_bind_dlz(v) is False)
-bind_build = sh(["docker", "build", "-q", "-t", "fabric/bind9:samba-test", "--build-arg", f"BASE_IMAGE={DEBIAN}",
+bind_build = sh(["docker", "build", "-q", "-t", BIND_IMAGE, "--build-arg", f"BASE_IMAGE={DEBIAN}",
                  f"{REPO}/packaging/images/bind9"], ok=False)
 check("fabric's BIND image (with Samba's DLZ libraries) builds", bind_build.returncode == 0, bind_build.stderr)
 etc_bind = os.path.join(W, "bindtest")
@@ -407,19 +409,19 @@ with open(os.path.join(etc_bind, "named.conf"), "w") as f:
             'include "/etc/bind-samba/dlz.conf";\n')
 with open(os.path.join(etc_bind, "db.lan.test"), "w") as f:
     f.write("$TTL 300\n@ IN SOA ns.lan.test. admin.lan.test. 1 3600 600 86400 300\n@ IN NS ns.lan.test.\n"
-            "ns IN A 10.254.30.10\nweb IN A 10.254.30.20\n")
+            f"ns IN A {testrun.PREFIX}.30.10\nweb IN A {testrun.PREFIX}.30.20\n")
 for name in os.listdir(etc_bind):
     os.chmod(os.path.join(etc_bind, name), 0o644)
 os.chmod(etc_bind, 0o755)
 bind_compose = yaml.safe_load(env.get_template("bind9/docker-compose.yml.j2").render(**v))["services"]["bind9"]
 samba_mounts = [m for m in bind_compose["volumes"]
                 if m.split(":")[1] in ("/etc/bind-samba", "/data/bind-dns", "/etc/samba")]
-sh(["docker", "run", "-d", "--name", BIND, "--network", f"container:{DC}", "--user", "600:600", "--read-only",
+sh(["docker", "run", "-d", "--name", BIND, *testrun.labels(), "--network", f"container:{DC}", "--user", "600:600", "--read-only",
     "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true", "--memory", "128m",
     "--tmpfs", "/run/named:uid=600,gid=600,mode=0755,size=4m", "--tmpfs", "/tmp:size=8m",
     "--tmpfs", "/var/cache/bind:uid=600,gid=600,size=8m"]
    + [x for t in bind_compose["tmpfs"] if t.startswith("/var/tmp") for x in ("--tmpfs", t)]
-   + [x for m in samba_mounts for x in ("-v", m)] + ["-v", f"{etc_bind}:/etc/bind:ro", "fabric/bind9:samba-test"])
+   + [x for m in samba_mounts for x in ("-v", m)] + ["-v", f"{etc_bind}:/etc/bind:ro", BIND_IMAGE])
 sh("sleep 8")
 
 
@@ -430,7 +432,7 @@ def client(*args):
 def unsigned_update(zone):
     """An nsupdate with no key: BIND must refuse it in every zone."""
     with open(os.path.join(W, "upd"), "w") as f:
-        f.write(f"server {BIND_IP}\nzone {zone}\nupdate add evil.{zone} 60 A 10.254.30.66\nsend\n")
+        f.write(f"server {BIND_IP}\nzone {zone}\nupdate add evil.{zone} 60 A {testrun.PREFIX}.30.66\nsend\n")
     return sh(["docker", "run", "--rm", "--network", NET, "-v", f"{W}/upd:/upd:ro", "--entrypoint", "nsupdate",
                CLIENT, "/upd"], ok=False)
 
@@ -439,7 +441,7 @@ srv = client("dig", "+short", f"@{BIND_IP}", "SRV", "_ldap._tcp.ad.lan.test").st
 check("BIND answers the AD zone from the DC's database (DLZ)", "389 dc-0001.ad.lan.test." in srv,
       sh(["docker", "logs", BIND], ok=False).stderr[-600:])
 check("and fabric's own zone, unchanged", client("dig", "+short", f"@{BIND_IP}", "A", "web.lan.test").stdout.strip()
-      == "10.254.30.20")
+      == f"{testrun.PREFIX}.30.20")
 upd = dc("samba_dnsupdate", "-s", "/data/etc/smb.conf", "--all-names")
 check("the DC's signed (GSS-TSIG) updates are accepted through BIND",
       upd.returncode == 0 and "Failed update" not in upd.stdout + upd.stderr, (upd.stdout + upd.stderr)[-400:])
@@ -1027,7 +1029,7 @@ check("every DC of the site full: refused, naming the range; other ranges go on"
 # a read-only DC joining with fabric's image (its join path), and NTLM at it for an account it does not cache:
 # forwarded to the writable DC while it is up (the Q6 follow-up S1 owes: PEAP at an RODC site relies on it); with the
 # writable DC down, cached accounts only, and no writes (manual 1.9.8.3)
-RODC, RODC_IP = "sambatest-rodc", "10.254.30.12"
+RODC, RODC_IP = testrun.name("sambatest-rodc"), f"{testrun.PREFIX}.30.12"
 # lab's read-only DC, dc-0003, prepared at the writable DC as a parent prepares a join (2.1.6.85): its record (a
 # read-only DC cannot write it), its accounts and its cache group rodc-cache-dc-0003
 rodc_state = {**lab, "dc": "dc-0003", "dc_type": "rodc",
@@ -1044,7 +1046,7 @@ with open(os.path.join(rw, "secrets", "join.auth"), "w") as f:
 os.chmod(os.path.join(rw, "secrets", "join.auth"), 0o600)
 renv = {**compose["environment"], "HOST_NAME": "dc-0003", "HOST_IP": RODC_IP, "INTERFACES": f"127.0.0.1 {RODC_IP}",
         "JOIN_ROLE": "RODC", "JOIN_SERVER": "dc-0001.ad.lan.test"}
-rrun = ["docker", "run", "-d", "--name", RODC, "--hostname", "rodc-host", "--network", NET, "--ip", RODC_IP,
+rrun = ["docker", "run", "-d", "--name", RODC, *testrun.labels(), "--hostname", "rodc-host", "--network", NET, "--ip", RODC_IP,
         "--dns", IP, "--read-only", "--memory", compose["mem_limit"], "--cap-drop", "ALL"]
 rrun += [x for c in compose["cap_add"] for x in ("--cap-add", c)]
 rrun += [x for o in compose["security_opt"] for x in ("--security-opt", o)]
@@ -1112,11 +1114,11 @@ check("allow_rodc_cache: the group put on the read-only DC's allow list at the w
 check("...a second run writes nothing", allow_rodc_cache(rv, container=RODC) == "", reveal_list())
 check("...nothing to do where the site's DC is writable", allow_rodc_cache({**rv, "ad_dc_type": "writable"}) == "")
 try:
-    allow_rodc_cache({**rv, "ad_join_server": "10.254.30.99"}, container=RODC)
+    allow_rodc_cache({**rv, "ad_join_server": f"{testrun.PREFIX}.30.99"}, container=RODC)
     why = ""
 except ValidationError as e:
     why = str(e)
-check("negative: allow_rodc_cache with the writable DC not answering: refused, saying where", "10.254.30.99" in why, why)
+check("negative: allow_rodc_cache with the writable DC not answering: refused, saying where", f"{testrun.PREFIX}.30.99" in why, why)
 rodc_v = {**v, "site_name": "lab", "dc_name": "dc-0003"}
 rodc_sec = {**SECRETS, "ad_agent_password": rodc_state["accounts"]["fabric-agent-dc-0003"]}
 host_pw = random_password(24)
@@ -1141,7 +1143,7 @@ check("negative: the same write at the read-only DC is refused (why the account 
       why != "" and "labrw" not in dc("ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=labrw$)",
                                       "dn").stdout, why)
 try:
-    run_op(rodc_v, rodc_sec, "place_fabric_host", {"name": "LABHOST"}, DC, "10.254.30.99")
+    run_op(rodc_v, rodc_sec, "place_fabric_host", {"name": "LABHOST"}, DC, f"{testrun.PREFIX}.30.99")
     why = ""
 except ValidationError as e:
     why = str(e)

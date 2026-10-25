@@ -20,8 +20,10 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
-sys.path[0:0] = [os.path.join(REPO, "src"), REPO, os.path.join(REPO, "tests", "samba"), HERE]
-from start_dc import start_dc  # noqa: E402
+sys.path[0:0] = [os.path.join(REPO, "src"), REPO, os.path.join(REPO, "tests", "samba"),
+                 os.path.join(REPO, "tests", "common"), HERE]
+from start_dc import IMAGE as SAMBA_IMAGE, start_dc  # noqa: E402
+import test_run as testrun  # noqa: E402
 from soft_passkey import SoftPasskey  # noqa: E402
 from fabriclib.directory.ensure_admin import ensure_admin  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
@@ -31,8 +33,10 @@ from fabriclib.secrets.random_password import random_password  # noqa: E402
 from webui.tlsclient import TLSClient  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "keycloak")
-NET, SUBNET, DC_IP, KC_IP = "kctest", "10.254.9.0/24", "10.254.9.10", "10.254.9.60"
-DC, KC = "kc-dc", "kc-keycloak"
+# per run (manual 3.1.2.6): another worktree's run has names and a subnet of its own
+N9 = testrun.net(9)
+NET, SUBNET, DC_IP, KC_IP = testrun.name("kctest"), f"{N9}.0/24", f"{N9}.10", f"{N9}.60"
+DC, KC = testrun.name("kc-dc"), testrun.name("kc-keycloak")
 HOST, REALM = "sso.test.lan.j-j.family", "test.lan.j-j.family"
 PASS = FAIL = 0
 
@@ -55,8 +59,8 @@ def sh(cmd, ok=True, **kw):
 
 
 def cleanup():
-    sh(["docker", "rm", "-f", DC, KC], ok=False)
-    sh(["docker", "network", "rm", NET], ok=False)
+    testrun.remove("container", DC, KC)      # this run's only (manual 3.1.2.6)
+    testrun.remove("network", NET)
 
 
 def ntlm_signs_in(user, password):
@@ -66,7 +70,7 @@ def ntlm_signs_in(user, password):
         f.write(f"username={user}\npassword={password}\ndomain=AD\n")
     os.chmod(auth, 0o600)
     res = sh(["docker", "run", "--rm", "--network", NET, "-v", f"{auth}:/auth:ro", "--entrypoint", "ldbsearch",
-              "fabric/samba:test", "-H", f"ldap://{DC_IP}", "-A", "/auth", "--use-kerberos=off", "-b",
+              SAMBA_IMAGE, "-H", f"ldap://{DC_IP}", "-A", "/auth", "--use-kerberos=off", "-b",
               dc["v"]["ad_base_dn"], "-s", "base", "dn"], ok=False)
     return res.returncode == 0
 
@@ -199,7 +203,7 @@ if missing:                                   # check() keeps 400 characters; th
 sh(["chown", "-R", "1000", krb_dir])
 shutil.copytree(krb_dir, os.path.join(W, "opt", "keycloak", "kerberos"))
 image = sh([sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "keycloak"]).stdout.strip()
-sh(["docker", "run", "-d", "--name", KC, "--network", NET, "--ip", KC_IP,
+sh(["docker", "run", "-d", "--name", KC, *testrun.labels(), "--network", NET, "--ip", KC_IP,
     "-v", f"{krb_dir}:/etc/keycloak/kerberos:ro",
     "-e", "JAVA_OPTS_APPEND=-Djava.security.krb5.conf=/etc/keycloak/kerberos/krb5.conf",
     "-e", "KC_BOOTSTRAP_ADMIN_USERNAME=admin", "-e", "KC_BOOTSTRAP_ADMIN_PASSWORD=KcAdmin1",

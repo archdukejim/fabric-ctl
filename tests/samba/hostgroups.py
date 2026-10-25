@@ -16,7 +16,8 @@ import sys
 import urllib.parse
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__)), os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
 from start_dc import start_dc  # noqa: E402
 import agent.get_route as m_get  # noqa: E402
 import agent.post_host_access as m_post  # noqa: E402
@@ -37,9 +38,9 @@ from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-hostgroups")
-# a second run beside this one (another worktree) names its own: SAMBA_TEST_ID, SAMBA_TEST_NET (a /24's three octets)
-_ID, _NET = os.environ.get("SAMBA_TEST_ID", ""), os.environ.get("SAMBA_TEST_NET", "10.254.37")
-NET, SUBNET, IP, DC = "hostgroups_net" + _ID, _NET + ".0/24", _NET + ".10", "hgdc" + _ID
+# a second run beside this one (another worktree) names its own (manual 3.1.2.6)
+_NET = testrun.net(37)
+NET, SUBNET, IP, DC = testrun.name("hostgroups_net"), _NET + ".0/24", _NET + ".10", testrun.name("hgdc")
 FAILED = 0
 
 
@@ -50,8 +51,8 @@ def check(name, cond, detail=""):
 
 
 def cleanup():
-    subprocess.run(["docker", "rm", "-f", DC], capture_output=True)
-    subprocess.run(["docker", "network", "rm", NET], capture_output=True)
+    testrun.remove("container", DC)      # this run's only
+    testrun.remove("network", NET)
 
 
 cleanup()

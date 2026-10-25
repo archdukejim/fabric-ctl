@@ -18,7 +18,8 @@ import time
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__)), os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
 from start_bind import start_bind  # noqa: E402
 from start_dc import POLICY, dc_tls, run_dc, start_dc  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
@@ -33,13 +34,13 @@ from fabriclib.samba.prepare_site import prepare_site  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-site-join")
-NET, SUBNET = "sitejoin_net", "10.254.35.0/24"
-ROOT, ROOT_IP, ROOT_BIND = "sjroot", "10.254.35.10", "sjroot-bind"
+NET, SUBNET = testrun.name("sitejoin_net"), f"{testrun.PREFIX}.35.0/24"
+ROOT, ROOT_IP, ROOT_BIND = testrun.name("sjroot"), f"{testrun.PREFIX}.35.10", testrun.name("sjroot-bind")   # per run (3.1.2.6)
 # site: (container, address, DC type, LAN, parent); lab2 is nested under lab, which prepares it in its own DC; each
 # site's DC is named as its parent names it (the lowest free dc-NNNN: the root is dc-0001)
-SITES = {"lab": ("sjlab", "10.254.35.20", "writable", "10.77.0.0/24", "lan"),
-         "edge": ("sjedge", "10.254.35.30", "rodc", "10.78.0.0/24", "lan"),
-         "lab2": ("sjlab2", "10.254.35.40", "writable", "10.79.0.0/24", "lab")}
+SITES = {"lab": (testrun.name("sjlab"), f"{testrun.PREFIX}.35.20", "writable", "10.77.0.0/24", "lan"),
+         "edge": (testrun.name("sjedge"), f"{testrun.PREFIX}.35.30", "rodc", "10.78.0.0/24", "lan"),
+         "lab2": (testrun.name("sjlab2"), f"{testrun.PREFIX}.35.40", "writable", "10.79.0.0/24", "lab")}
 DCN = {"lab": "dc-0002", "edge": "dc-0003", "lab2": "dc-0004"}
 FAILED = 0
 
@@ -75,9 +76,9 @@ def until(pred, timeout=180):
 
 
 def cleanup():
-    sh(["docker", "rm", "-f", ROOT, ROOT_BIND, *[c for c, _, _, _, _ in SITES.values()],
-        *[f"{c}-bind" for c, _, _, _, _ in SITES.values()]])
-    sh(["docker", "network", "rm", NET])
+    testrun.remove("container", ROOT, ROOT_BIND, *[c for c, _, _, _, _ in SITES.values()],
+                   *[f"{c}-bind" for c, _, _, _, _ in SITES.values()])    # this run's only
+    testrun.remove("network", NET)
 
 
 cleanup()

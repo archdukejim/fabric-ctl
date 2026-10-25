@@ -20,7 +20,9 @@ import sys
 import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__)), os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
+from start_dc import IMAGE as SAMBA_IMAGE  # noqa: E402
 from start_dc import POLICY, start_dc  # noqa: E402
 import agent.get_route as m_get  # noqa: E402
 import agent.post_grants as m_post  # noqa: E402
@@ -38,8 +40,8 @@ from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-grants")
-NET, SUBNET, IP, WEB_IP = "grants_net", "10.254.39.0/24", "10.254.39.10", "10.254.39.20"
-DC, WEB = "grdc", "gr-certs"
+NET, SUBNET, IP, WEB_IP = testrun.name("grants_net"), f"{testrun.PREFIX}.39.0/24", f"{testrun.PREFIX}.39.10", f"{testrun.PREFIX}.39.20"
+DC, WEB = testrun.name("grdc"), testrun.name("gr-certs")      # per run (manual 3.1.2.6)
 SRV, DSK, LAB = "grsrv", "grdsk", "grlab"           # a lan server, a lan desktop, a lab desktop
 PW = "Correct-Horse-9-" + random_password(8)
 FAILED = 0
@@ -114,8 +116,8 @@ def sudo_list(box, user):
 
 
 def cleanup():
-    sh(["docker", "rm", "-f", DC, WEB, *[f"gr-{b}" for b in (SRV, DSK, LAB)]], ok=False)
-    sh(["docker", "network", "rm", NET], ok=False)
+    testrun.remove("container", DC, WEB, *[testrun.name(f"gr-{b}") for b in (SRV, DSK, LAB)])   # this run's only
+    testrun.remove("network", NET)
 
 
 cleanup()
@@ -165,8 +167,8 @@ check("people in the domain: sam, dana, alice, bob, adam (lan), lara (lab)",
 os.makedirs(os.path.join(W, "www", "certs"), exist_ok=True)
 with open(os.path.join(W, "www", "certs", "root-ca.crt"), "w") as f:
     f.write(open(dc["root_ca"]).read())
-sh(["docker", "run", "-d", "--name", WEB, "--network", NET, "--ip", WEB_IP, "-v", f"{W}/www:/srv:ro",
-    "--entrypoint", "python3", "fabric/samba:test", "-m", "http.server", "80", "--directory", "/srv"])
+sh(["docker", "run", "-d", "--name", WEB, *testrun.labels(), "--network", NET, "--ip", WEB_IP, "-v", f"{W}/www:/srv:ro",
+    "--entrypoint", "python3", SAMBA_IMAGE, "-m", "http.server", "80", "--directory", "/srv"])
 fp = sh(["openssl", "x509", "-in", dc["root_ca"], "-noout", "-fingerprint", "-sha256"]).stdout.strip().split("=")[1]
 with open(os.path.join(W, "join-linux.sh"), "w") as f:
     f.write(dc["env"].get_template("nginx/www/certs/join-linux.sh.j2").render(**V))
@@ -178,8 +180,8 @@ os.chmod(os.path.join(W, "systemctl"), 0o755)
 
 
 def member(name, flags):
-    box = f"gr-{name}"
-    sh(["docker", "run", "-d", "--name", box, "--hostname", name, "--network", NET,
+    box = testrun.name(f"gr-{name}")
+    sh(["docker", "run", "-d", "--name", box, *testrun.labels(), "--hostname", name, "--network", NET,
         f"--add-host={V['hostname_dc']}:{IP}", f"--add-host={V['hostname_stepca']}:{WEB_IP}",
         f"--add-host={V['hostname_ntp']}:{IP}", "--cap-add", "DAC_READ_SEARCH",
         "-v", f"{W}/join-linux.sh:/root/join-linux.sh:ro", "-v", f"{W}/systemctl:/usr/local/sbin/systemctl:ro",

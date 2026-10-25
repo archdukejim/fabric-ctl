@@ -17,6 +17,10 @@ from contextlib import redirect_stderr, redirect_stdout
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
+# postgres is the product's name (its query log reads it): one such run at a time (manual 3.1.2.6)
+LOCK = testrun.product_names_lock("resolver querylog").__enter__()
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/querylog"
 FAILED = 0
 
@@ -107,13 +111,13 @@ check("fabricctl dns-filter ingest, log and stats refused without Postgres: exit
 
 pg = sh([sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "postgres"]).stdout.strip()
 try:
-    sh("docker rm -f postgres", ok=False)
+    testrun.remove("container", "postgres")
     shutil.rmtree(W, ignore_errors=True)
     os.makedirs(LOG)
     os.makedirs(f"{W}/fabric/config")
     with open(f"{W}/fabric/config/fabric-secrets.yml", "w") as f:
         yaml.safe_dump({"adguard_api_password": "test-only"}, f)
-    sh(["docker", "run", "-d", "--name", "postgres", "-e", "POSTGRES_USER=fabric_admin", "-e", "POSTGRES_DB=keycloak",
+    sh(["docker", "run", "-d", "--name", "postgres", *testrun.labels(), "-e", "POSTGRES_USER=fabric_admin", "-e", "POSTGRES_DB=keycloak",
         "-e", "POSTGRES_PASSWORD=test-only-password", pg])
     for _ in range(60):
         if sh("docker exec postgres pg_isready -U fabric_admin -d keycloak", ok=False).returncode == 0:
@@ -264,7 +268,7 @@ try:
     check("the queries table is still there after the refusals",
           psql("SELECT count(*) > 0 FROM queries;").stdout.strip() == "t")
 finally:
-    sh("docker rm -f postgres", ok=False)
+    testrun.remove("container", "postgres")
 
 print("\nall passed (0 failures)" if not FAILED else f"\n{FAILED} failed")
 sys.exit(1 if FAILED else 0)

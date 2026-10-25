@@ -2,8 +2,9 @@
 
 Suites prove behaviour against real containers ([3.1.2](../docs/volume_3_installation/3.1.2-automated-tests.md#312-automated-tests)). Run them with
 `sudo tests/run-all.sh [suite ...]` (all but `sandbox` by default); each suite
-writes its log to `$FABRIC_TEST_OUT` (default `/tmp/fabric-tests`). The `docs`
-suite needs no Docker or root and also runs alone: `python3 tests/docs/run.py`.
+writes its log to `$FABRIC_TEST_OUT` (default `/tmp/fabric-tests-<run id>`). The `docs`
+suite needs no Docker or root and also runs alone: `python3 tests/docs/run.py`. Two runs from different worktrees
+never take each other's containers, networks or subnets: [tests/common/test_run.py](common/test_run.py) (3.1.2.6).
 
 | Suite | Where | What it proves |
 |---|---|---|
