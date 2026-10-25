@@ -186,13 +186,13 @@ from fabriclib.samba.suggested_dc_name import suggested_dc_name  # noqa: E402
 
 
 def _dc(**over):
-    got = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.lan.j-j.family',
+    got = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.test.lan.j-j.family',
                                                                      **over}))
     compose = yaml.safe_load(env.get_template('samba/docker-compose.yml.j2').render(**got))['services']['samba']
     return got['dc_name'], got['hostname_dc'], compose['environment']['HOST_NAME']
 
 
-assert _dc() == ('dc-0001', 'dc-0001.ad.lan.j-j.family', 'dc-0001') and suggested_dc_name() == 'dc-0001', _dc()
+assert _dc() == ('dc-0001', 'dc-0001.ad.test.lan.j-j.family', 'dc-0001') and suggested_dc_name() == 'dc-0001', _dc()
 for host in ('Kitchen-Server01', 'raspberrypi-4b'):
     assert _dc(hostname=host)[0] == 'dc-0001', (host, _dc(hostname=host))
 assert suggested_dc_name(['DC-0001', 'dc-0002', 'pc-7']) == 'dc-0003' and suggested_dc_name(['dc-0002']) == 'dc-0001'
@@ -212,10 +212,10 @@ except ValidationError as e:
 from fabriclib.samba.dc_count_text import dc_count_text  # noqa: E402
 assert dc_count_text(1) == '1 DC used, 1998 can be added' and dc_count_text(2) == '2 DCs used, 1997 can be added' \
     and dc_count_text(1999) == '1999 DCs used, 0 can be added', dc_count_text(1)
-assert _dc(dc_name='DC-Pi') == ('dc-pi', 'dc-pi.ad.lan.j-j.family', 'dc-pi'), _dc(dc_name='DC-Pi')    # 0.7.x's, kept
-renamed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.lan.j-j.family',
+assert _dc(dc_name='DC-Pi') == ('dc-pi', 'dc-pi.ad.test.lan.j-j.family', 'dc-pi'), _dc(dc_name='DC-Pi')    # 0.7.x's, kept
+renamed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.test.lan.j-j.family',
                                                                      'dc_name': 'dc-pi-core', 'hostname': 'kitchen'}))
-assert renamed['hostname_dc'] == 'dc-pi-core.ad.lan.j-j.family' and {'ip': renamed['host_ip'], 'name': 'kitchen'} in \
+assert renamed['hostname_dc'] == 'dc-pi-core.ad.test.lan.j-j.family' and {'ip': renamed['host_ip'], 'name': 'kitchen'} in \
     renamed['dns']['dynamic_zone_var']['A'], renamed['dns']['dynamic_zone_var']['A']
 print("the DC's own name: dc-0001, then the first free number, the host's name passed over; an installed one kept, a "
       "renamed host leaves it")

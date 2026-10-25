@@ -21,7 +21,7 @@ docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
-docs/volume_1_description_and_architecture/1.1.4-roadmap.md	c75b8bf1a80f45df254c190e72d98c61ab63c8de	2026-10-24	
+docs/volume_1_description_and_architecture/1.1.4-roadmap.md	0276e444425037c71d2548117ef3f23981e1a938	2026-10-25	
 docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	7cc73759f86c7ce4ca7e2d58b7d1cc0db4cb9a64	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	c376feda6e17998f6aa6b2d9c85823f6b00ba89e	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
@@ -132,7 +132,7 @@ docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	332c50eeb8a
 docs/volume_1_description_and_architecture/README.md	2dd9726b272b131b3e07b1bc7bdaffe869d90a40	2026-10-23	
 docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af7662fdf5684924b409f9a9c	2026-10-23	
 docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	19fef6d13bb0bc1d5ca15f8ef4ae3d1c3b8118da	2026-10-24	
-docs/volume_2_engineering_decisions/2.1.1-product.md	2a28bbfc5ffa743f3483d809692922fe4a4196dd	2026-10-24	
+docs/volume_2_engineering_decisions/2.1.1-product.md	3463303eaaac9df8eaa54c1d1d733546ecb85c37	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	d2f651c94dba5302552170cee89cc3bc6f73769a	2026-10-10	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	139ff5b3ecce15085a60e2ef8443933896633b00	2026-10-12	
@@ -151,7 +151,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	8f8dc9a2628590186985c15579ae6
 docs/volume_2_engineering_decisions/2.1.9-federation.md	807fa399dad0db0dc7ee1508f22ea844d8656cc2	2026-10-25	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	90d815a3c3617bea6d7c3a34db0d2a50d082bbe3	2026-10-25	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	7422d1d674bad23673affb757d9f805af4f82ce8	2026-10-25	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -1875,7 +1875,7 @@ tests/pki/renewal.py	a5348829c60bad793ddb3a043398ca2836ece851	2026-10-20
 tests/pki/revocation.py	cf80ad8b84912f80b941f8fcf3387825e9ba18e6	2026-10-12	
 tests/pki/run.py	3ac7f08379bf8506c62d8333fed3ebab430472af	2026-10-13	
 tests/pki/site_ca.py	9c577e88a9f229c26a0ce4cdbcee7369587d6008	2026-10-25	
-tests/render.py	97f5e6816a26b2e597a06612ba6bb635a97d0d6f	2026-10-25	
+tests/render.py	1ed261baa6ba365bfe73a7bf1ed9882c70ddbccb	2026-10-25	
 tests/resolver/README.md	75145cbe364cefb256d5e0537159c0d926dad3d1	2026-10-21	
 tests/resolver/console.py	6c0c2e3efa559e3994399667a60a8c70529c724f	2026-10-23	
 tests/resolver/groups.py	5e317666ba1567ea2e4d0629061af57d292a1e4a	2026-10-25	
@@ -1895,7 +1895,7 @@ tests/samba/linux_join.py	3719299ed5b204b005ee307a71e1e53d335aed39	2026-10-25
 tests/samba/run.py	c452e49ffb029571a0ac92bb1563bc7dc4c27164	2026-10-25	
 tests/samba/site_join.py	87fca4f5b679b871a3dd653fd59d40dd1487c590	2026-10-25	
 tests/samba/start_bind.py	7ab43a4c47515a1b7f81d4ef004e4884d9a2a23b	2026-10-25	
-tests/samba/start_dc.py	ad39e02a8c2e8c63ff7c324c1018c7f7212391e0	2026-10-25	
+tests/samba/start_dc.py	b2d4ef1e586c4a6c4d0986a1907ce91bdd056584	2026-10-25	
 tests/samba/writable_server_test.py	b9fa7ec5b86b8e65a3443e584ccda3800930a49d	2026-10-17	
 tests/sandbox/Dockerfile	20b0b4c920006cd304cbe258c176c85b9e12b2a5	2026-10-10	
 tests/sandbox/README.md	829d71addd390c4083e575074bd4af1de9264070	2026-10-23	
