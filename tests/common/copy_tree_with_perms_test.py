@@ -47,6 +47,17 @@ with tempfile.TemporaryDirectory() as t:
     check("positive: a changed file is copied and reported, with its mode",
           copy_tree_with_perms(src, dst, UID, GID, 0o644, 0o755) and open(f"{dst}/app/oidc.py").read() == "x = 2\n"
           and oct(os.stat(f"{dst}/app/oidc.py").st_mode & 0o777) == "0o644")
+    # 2.3.10.11.19: a same-size rewrite inside one mtime tick, made deterministic by setting the old mtime back.
+    before = os.stat(f"{src}/app/oidc.py")
+    check("positive: copied again unchanged (caches the files' signatures)",
+          copy_tree_with_perms(src, dst, UID, GID, 0o644, 0o755) is False)
+    write(f"{src}/app/oidc.py", "x = 3\n")
+    os.utime(f"{src}/app/oidc.py", ns=(before.st_atime_ns, before.st_mtime_ns))
+    check("positive: a same-size change in the same mtime tick is copied and reported",
+          copy_tree_with_perms(src, dst, UID, GID, 0o644, 0o755) and open(f"{dst}/app/oidc.py").read() == "x = 3\n")
+    os.utime(f"{src}/app/README.md", ns=(before.st_atime_ns + 5 * 10**9, before.st_mtime_ns + 5 * 10**9))
+    check("negative: only the mtime moved, the content is the same: not copied, not reported",
+          copy_tree_with_perms(src, dst, UID, GID, 0o644, 0o755) is False)
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

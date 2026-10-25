@@ -75,7 +75,7 @@ docs/volume_1_description_and_architecture/1.17.38-fabriclib-domain.md	e0311ad77
 docs/volume_1_description_and_architecture/1.17.39-fabriclib-localadmin.md	8fa6d8cf79a5ca90fdda5e7ddd2e04d726f9c78a	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.4-fabricctl-lib.md	76bc845876c679778c0588d379f7246a12fae2d0	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.40-fabriclib-ipam.md	c50798671e320d804d19c278f3ce2dadf9ddc892	2026-10-25	
-docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	4d914a5112b633748e01f81a7b68afbd613ee447	2026-10-24	
+docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	ad25a37a5a13594cb73b47e710a47bc2da9ef3c5	2026-10-25	
 docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	e9b47dab12efa0833f6d3272a93548f39ba163aa	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.7-fabriclib-core.md	287e5a946064faecbdb0262ece385ff0e043036c	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	ee9669fa69d5d977e1b2771e32d55753e53d4964	2026-10-24	
@@ -154,7 +154,7 @@ docs/volume_2_engineering_decisions/2.1.9-federation.md	822f824f0de9dfa1960b37ef
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	8974d88778519bb319474e6fc9a13b3caf5a5c09	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	df2657c8cf2d67f4d5a365d2e71894c47f91730f	2026-10-25	
+docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	f8a13d3414e6ee9b0f4f7a0da7977a683f7fc9bf	2026-10-25	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
@@ -272,7 +272,7 @@ scripts/docs/README.md	e391ec81d122ee82ea285ffaf04eac6a8dd44372	2026-10-12
 scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03	
 scripts/docs/entrypoints.py	d00bed147591ebd063f9148b9ed95a7ddff0ab12	2026-10-23	
 scripts/docs/gen_lib_doc.py	d7a3c1284ca3a30af61353d41f5a9d2a1457a325	2026-10-12	
-scripts/docs/lib_doc_numbers.tsv	5e773934f3ee472669039ce5b74d6bb1996279fc	2026-10-25	
+scripts/docs/lib_doc_numbers.tsv	126e01d8f361de29fc99109f00854dcd282da8ce	2026-10-25	
 scripts/docs/lib_doc_registry.py	a3a407c2b06b44838c4ce7a69725c4d47339f437	2026-10-17	
 scripts/docs/product_code.py	645a3bb130463028b90de64798c81694e5293131	2026-10-03	
 scripts/docs/review_ledger.py	b3f307b4dbaba54a69cc93c993287d43c747ba8f	2026-10-08	
@@ -555,7 +555,7 @@ src/fabriclib/common/apply_intent.py	04ae0c47da4833e24a712a167ac5f3c9d0e7f4ea	20
 src/fabriclib/common/ask.py	5df065e3cd4c5487b71a37bbca9e2acb7de40d6c	2026-10-12	
 src/fabriclib/common/console.py	10ecbfe70f1058ba0c93a8428d5037a0e108ebd6	2026-10-11	
 src/fabriclib/common/copy_if_changed.py	31eb7d3a596ca3d0a85472a5621629a5e6ca0e70	2026-10-02	
-src/fabriclib/common/copy_tree_with_perms.py	87e5ee8ea15521328cc710926655806a7889b03c	2026-10-24	
+src/fabriclib/common/copy_tree_with_perms.py	d2b7975f74b7f426f93e4c37e9503330a2c0e7e8	2026-10-25	
 src/fabriclib/common/dns_query.py	9493d6e711242723c27a5ea9b9df5765718efd76	2026-10-09	
 src/fabriclib/common/dns_wire.py	3d0e2891f655b593472a57a2d2123844a66d2dc3	2026-10-09	
 src/fabriclib/common/doh_query.py	820cf245c084a1ead14f327d50c88c37d903d782	2026-10-09	
@@ -1956,7 +1956,7 @@ tests/ci/logs_secret_free_test.py	e710a2ffadd9a5adc4e9750edf4a52bb43c512ec	2026-
 tests/common/README.md	b8fbfc0cd3de64a65e6b8b257560993ecafb69ab	2026-10-24	
 tests/common/apply_intent_test.py	874e77af9e21fed5dd41eac320b3787bc604da4b	2026-10-24	
 tests/common/ask.py	52a510850e39121e2bec244890dabb189195a748	2026-10-12	
-tests/common/copy_tree_with_perms_test.py	1fd0f0b7e548a1c15e33e1893817a07b21aa7461	2026-10-24	
+tests/common/copy_tree_with_perms_test.py	8192ab229c00cb7b17c95d2cb807324f96f61cc0	2026-10-25	
 tests/common/kea_image.py	db300c22b55cae0ee6039dcc4625a04e64df5dbb	2026-10-23	
 tests/common/save_vars_test.py	6ebd62374b0a8ebd0b5c00df7722c493dfb27116	2026-10-17	
 tests/consent/README.md	3b6643214e21f6e73e66306424f4aea0521f38a9	2026-10-20	
