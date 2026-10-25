@@ -17,6 +17,7 @@ from fabriclib.pki.common.ca_files import ca_files
 from fabriclib.pki.common.describe_cert import describe_cert
 from fabriclib.secrets.load_secrets import load_secrets
 from fabriclib.secrets.save_secrets import save_secrets
+from fabriclib.system.version_info import version_info
 
 
 def _org_ous(v):
@@ -48,7 +49,8 @@ def create_invitation(v, actor, site_name, source="cli", now=None, nest=0, via="
     Returns: {"invitation": "fabric-join-1.<base64url JSON>", "site", "id", "expires" (epoch), "nest", "nested"
              (True when made on a site: the new site will be nested under it), "via"}. With via, the
              invitation's host and address are the relay's endpoint. The JSON holds
-             the upstream's federation host name and address, the root CA's SHA-256 fingerprint, the
+             the upstream's version (version_info: a joining site refuses one older than 0.8.0, 2.1.6.65), its
+             federation host name and address, the root CA's SHA-256 fingerprint, the
              organisation domain and base DN, the site name, the invitation id and its secret.
     Fails:   ValidationError "the federation endpoint is off: fabricctl federation enable"; site_name_problem's
              messages (not one label, or an organisation OU); "<name> is this site's own name"; "site <name> has joined
@@ -106,7 +108,8 @@ def create_invitation(v, actor, site_name, source="cli", now=None, nest=0, via="
             "host": ((relay.get("federation_host") or f"federation.{relay['domain']}") if relay
                      else v["hostname_federation"]),
             "address": relay["address"] if relay else v["host_ip"],
-            "root_sha256": describe_cert(open(root).read())["sha256"], "expires": expires}
+            "root_sha256": describe_cert(open(root).read())["sha256"], "expires": expires,
+            "version": version_info()["version"]}
     if via:
         body["via"] = via
     # the domain the new site's DC joins (manual 1.9.8.4)

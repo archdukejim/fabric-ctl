@@ -1,5 +1,5 @@
 [Unit]
-Description=fabric: move Windows machines that joined themselves into OU=windows, once each (manual 1.6.11.5)
+Description=fabric: move Windows machines that joined themselves into OU=servers or OU=desktops, once each (manual 1.6.13.3)
 After=docker.service fabric.target
 Wants=docker.service
 

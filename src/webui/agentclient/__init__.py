@@ -2,7 +2,7 @@
 importable from here (`from webui import agentclient as actions`)."""
 from webui.agentclient.connection import configure, set_token  # noqa: F401
 from webui.agentclient.constants import RECORD_TYPES  # noqa: F401
-from webui.agentclient.errors import AgentError, AuthError, PermissionDenied, ValidationError  # noqa: F401
+from webui.agentclient.errors import AgentError, AuthError, NotFound, PermissionDenied, ValidationError  # noqa: F401
 from webui.agentclient.add_client_class import add_client_class  # noqa: F401
 from webui.agentclient.add_radius_client import add_radius_client  # noqa: F401
 from webui.agentclient.add_record import add_record  # noqa: F401
@@ -13,7 +13,6 @@ from webui.agentclient.remove_zone import remove_zone  # noqa: F401
 from webui.agentclient.add_reservation import add_reservation  # noqa: F401
 from webui.agentclient.add_subnet import add_subnet  # noqa: F401
 from webui.agentclient.set_dhcp_on import set_dhcp_on  # noqa: F401
-from webui.agentclient.apply_changes import apply_changes  # noqa: F401
 from webui.agentclient.audit import audit  # noqa: F401
 from webui.agentclient.raise_signin_layer import raise_signin_layer  # noqa: F401
 from webui.agentclient.security_layers import security_layers  # noqa: F401
@@ -21,9 +20,7 @@ from webui.agentclient.ca_summary import ca_summary  # noqa: F401
 from webui.agentclient.convert_cert import convert_cert  # noqa: F401
 from webui.agentclient.create_person import create_person  # noqa: F401
 from webui.agentclient.create_tsig_key import create_tsig_key  # noqa: F401
-from webui.agentclient.delete_device import delete_device  # noqa: F401
 from webui.agentclient.delete_record import delete_record  # noqa: F401
-from webui.agentclient.delete_role import delete_role  # noqa: F401
 from webui.agentclient.delete_tsig_key import delete_tsig_key  # noqa: F401
 from webui.agentclient.describe_csr import describe_csr  # noqa: F401
 from webui.agentclient.device_overview import device_overview  # noqa: F401
@@ -33,21 +30,33 @@ from webui.agentclient.dns_filter_overview import dns_filter_overview  # noqa: F
 from webui.agentclient.host_changes import host_changes  # noqa: F401
 from webui.agentclient.inspect_pem import inspect_pem  # noqa: F401
 from webui.agentclient.issue_key_pair import issue_key_pair  # noqa: F401
-from webui.agentclient.link_device_cert import link_device_cert  # noqa: F401
 from webui.agentclient.list_issued import list_issued  # noqa: F401
 from webui.agentclient.list_people import list_people  # noqa: F401
+from webui.agentclient.person_overview import person_overview  # noqa: F401
+from webui.agentclient.directory_overview import directory_overview  # noqa: F401
+from webui.agentclient.list_groups import list_groups  # noqa: F401
+from webui.agentclient.show_group import show_group  # noqa: F401
+from webui.agentclient.list_machines import list_machines  # noqa: F401
+from webui.agentclient.list_ous import list_ous  # noqa: F401
+from webui.agentclient.list_grants import list_grants  # noqa: F401
+from webui.agentclient.site_overview import site_overview  # noqa: F401
+from webui.agentclient.kerberos_overview import kerberos_overview  # noqa: F401
+from webui.agentclient.list_spns import list_spns  # noqa: F401
+from webui.agentclient.show_grant import show_grant  # noqa: F401
+from webui.agentclient.explain_grants import explain_grants  # noqa: F401
+from webui.agentclient.machine_overview import machine_overview  # noqa: F401
+from webui.agentclient.machine_keytab import machine_keytab  # noqa: F401
 from webui.agentclient.list_tsig_keys import list_tsig_keys  # noqa: F401
 from webui.agentclient.list_zones import list_zones  # noqa: F401
 from webui.agentclient.query_log import query_log  # noqa: F401
-from webui.agentclient.map_radius_group import map_radius_group  # noqa: F401
 from webui.agentclient.radius_guides import radius_guides  # noqa: F401
 from webui.agentclient.radius_overview import radius_overview  # noqa: F401
 from webui.agentclient.read_audit import read_audit  # noqa: F401
 from webui.agentclient.relaxed_settings import relaxed_settings  # noqa: F401
 from webui.agentclient.cert_warnings import cert_warnings  # noqa: F401
+from webui.agentclient.host_reminders import host_reminders  # noqa: F401
 from webui.agentclient.revoke_cert import revoke_cert  # noqa: F401
 from webui.agentclient.remove_client_class import remove_client_class  # noqa: F401
-from webui.agentclient.remove_radius_client import remove_radius_client  # noqa: F401
 from webui.agentclient.remove_reservation import remove_reservation  # noqa: F401
 from webui.agentclient.remove_subnet import remove_subnet  # noqa: F401
 from webui.agentclient.reset_sign_in import reset_sign_in  # noqa: F401
@@ -55,12 +64,9 @@ from webui.agentclient.person_action import person_action  # noqa: F401
 from webui.agentclient.reverse_zones import reverse_zones  # noqa: F401
 from webui.agentclient.rotate_radius_secret import rotate_radius_secret  # noqa: F401
 from webui.agentclient.rotate_tsig_key import rotate_tsig_key  # noqa: F401
-from webui.agentclient.save_device import save_device  # noqa: F401
-from webui.agentclient.save_role import save_role  # noqa: F401
 from webui.agentclient.service_status import service_status  # noqa: F401
 from webui.agentclient.set_option import set_option  # noqa: F401
 from webui.agentclient.sign_csr import sign_csr  # noqa: F401
-from webui.agentclient.unmap_radius_group import unmap_radius_group  # noqa: F401
 from webui.agentclient.unset_option import unset_option  # noqa: F401
 from webui.agentclient.update_subnet import update_subnet  # noqa: F401
 from webui.agentclient.vault_add_kmip import vault_add_kmip  # noqa: F401
@@ -78,8 +84,6 @@ from webui.agentclient.gpo_overview import gpo_overview  # noqa: F401
 from webui.agentclient.gpo_change import gpo_change  # noqa: F401
 from webui.agentclient.add_machine import add_machine  # noqa: F401
 from webui.agentclient.machine_action import machine_action  # noqa: F401
-from webui.agentclient.logon_change import logon_change  # noqa: F401
-from webui.agentclient.logon_overview import logon_overview  # noqa: F401
 from webui.agentclient.list_host_groups import list_host_groups  # noqa: F401
 from webui.agentclient.host_group_change import host_group_change  # noqa: F401
 from webui.agentclient.list_sudo_rules import list_sudo_rules  # noqa: F401
@@ -89,3 +93,16 @@ from webui.agentclient.image_rows import image_rows  # noqa: F401
 from webui.agentclient.start_job import start_job  # noqa: F401
 from webui.agentclient.read_job import read_job  # noqa: F401
 from webui.agentclient.acme_overview import acme_overview  # noqa: F401
+from webui.agentclient.settings_overview import settings_overview  # noqa: F401
+from webui.agentclient.settings_export import settings_export  # noqa: F401
+from webui.agentclient.settings_plan import settings_plan  # noqa: F401
+from webui.agentclient.settings_apply import settings_apply  # noqa: F401
+from webui.agentclient.settings_dismiss import settings_dismiss  # noqa: F401
+from webui.agentclient.hold_change import hold_change  # noqa: F401
+from webui.agentclient.my_account import my_account  # noqa: F401
+from webui.agentclient.my_groups import my_groups  # noqa: F401
+from webui.agentclient.change_own_password import change_own_password  # noqa: F401
+from webui.agentclient.pending_counts import pending_counts  # noqa: F401
+from webui.agentclient.site_tree import site_tree  # noqa: F401
+from webui.agentclient.pending_page import pending_page  # noqa: F401
+from webui.agentclient.pending_action import pending_action  # noqa: F401

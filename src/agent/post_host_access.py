@@ -9,12 +9,14 @@ from fabriclib.directory.remove_sudo_rule import remove_sudo_rule
 from fabriclib.directory.set_host_group_member import set_host_group_member
 
 
-def post_host_access(route, actor, data):
+def post_host_access(route, actor, data, caller=None):
     """Purpose: host groups and sudo rules (manual 1.6.11.7): POST /v1/host-groups/... and /v1/sudo/... (fabriclib
              directory, as the site's agent account; changes in the directory at once, nothing to apply).
     Inputs:  route — ["host-groups"] (body: name), ["host-groups", <name>, "delete"], ["host-groups", <name>,
              "members"] (body: action add|remove, machine), ["sudo"] (body: name, users, commands and run_as as lists
-             of text, hosts: a host group or ALL), ["sudo", <name>, "delete"]; actor — str; data — the JSON body.
+             of text, hosts: a host group or ALL), ["sudo", <name>, "delete"]; actor — str; data — the JSON body; caller
+             — the token's user (a machine's
+             groups: fabric-agent's check, a grant's machines groups), or None for a root peer.
     Returns: host-groups: {"name"}; members: {"group", "machine", "member", "changed", "rules"}; sudo: {"name",
              "hosts"}; sudo/<name>/delete: {"name"}.
     Fails:   ValidationError("unknown operation") for another route, "action: add or remove", "<field> must be a list
@@ -29,7 +31,8 @@ def post_host_access(route, actor, data):
         action = data.get("action")
         if action not in ("add", "remove"):
             raise ValidationError("action: add or remove")
-        return set_host_group_member(v, actor, route[1], read_text(data, "machine"), action == "add", source="web")
+        return set_host_group_member(v, actor, route[1], read_text(data, "machine"), action == "add", source="web",
+                                     caller=caller)
     if route == ["sudo"]:
         return add_sudo_rule(v, actor, read_text(data, "name"), read_strings(data, "users"),
                              read_strings(data, "commands"), read_strings(data, "run_as"),

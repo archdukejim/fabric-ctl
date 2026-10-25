@@ -77,8 +77,7 @@ def run(ctx):
     v = ctx.vars
     try:
         state = ensure_vault_key(v)
-        ok(f"vault key {state}" + (": a key file on this host is its first unlock method" if state == "created" else
-                                   ": the iteration-1 key file is now the key-file unlock method" if state == "migrated"
+        ok(f"vault key {state}" + (": a key file on this host is its first unlock method" if state == "created"
                                    else ""))
         if not unlock_vault(v):
             raise SetupError("no unlock method is present (plug in your security key or USB stick) — "

@@ -1,0 +1,10 @@
+[Unit]
+Description=fabric: compile the grants every 5 minutes (manual 1.6.13.4)
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

@@ -3,7 +3,8 @@
 GET = {
     ("version",): "session",
     ("services",): "status:read", ("host-changes",): "status:read", ("relaxed-settings",): "status:read",
-    ("cert-warnings",): "status:read", ("images",): "status:read", ("jobs", "*"): "session",
+    ("cert-warnings",): "status:read", ("reminders",): "status:read", ("images",): "status:read",
+    ("jobs", "*"): "session",
     ("zones",): "dns:read", ("zones", "*"): "dns:read", ("reverse-zones",): "dns:read", ("tsig",): "dns:read",
     ("audit",): "audit:read",
     ("dhcp",): "dhcp:read",
@@ -11,16 +12,29 @@ GET = {
     ("radius",): "radius:read", ("radius", "guides"): "radius:read",
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
     ("devices",): "devices:read",
-    ("people",): "people:read",
-    ("domain",): "domain:read", ("domain", "logon"): "domain:read", ("gpo",): "domain:read",
+    ("people",): "people:read", ("people", "*"): "people:read",   # a person's page (1.6.12.4)
+    ("machines",): "domain:read", ("machines", "*"): "domain:read",   # Computers and a computer's page (1.6.12.6)
+    ("sites",): "domain:read",                                        # Sites (1.6.12.8)
+    ("sites", "tree"): "session",          # the top bar's site selector (1.8.6.12): every site; control is per page
+    ("domain",): "domain:read", ("gpo",): "domain:read", ("directory",): "domain:read",   # the Overview
+    ("domain", "grants"): "domain:read", ("domain", "grants", "*"): "domain:read",
+    ("domain", "grants", "explain", "*"): "domain:read", ("domain", "grants", "explain", "*", "*"): "domain:read",
+    ("domain", "kerberos"): "domain:read", ("domain", "kerberos", "spns"): "domain:read",
+    ("groups",): "domain:read", ("groups", "*"): "domain:read", ("ous",): "domain:read",
+    ("account",): "session",                           # a person's own account, read-only (1.8.6.6): theirs
+    ("account", "groups"): "session",                  # the groups a person manages (1.8.6.6): theirs alone
+    ("pending",): "session", ("pending", "*"): "session",  # a person's own pending changes (1.8.6.5)
     ("host-groups",): "domain:read", ("sudo",): "domain:read",
     ("federation",): "federation:read",
     ("vault",): "vault:status", ("vault", "slots"): "vault:status", ("vault", "devices"): "vault:status",
     ("security",): "security:raise",
+    ("settings",): "settings:admin", ("settings", "export"): "settings:admin",   # the setup wizard (1.8.5.6)
 }
 POST = {
     ("events",): "session", ("jobs", "doctor"): "status:read", ("jobs", "images"): "images:update",
     ("security", "raise"): "security:raise", ("security", "kerberos"): "security:raise",
+    ("settings", "plan"): "settings:admin", ("settings", "apply"): "settings:admin",
+    ("settings", "dismiss"): "settings:admin",
     ("zones",): "dns:write", ("zones", "*", "delete"): "dns:write",
     ("zones", "*", "records"): "dns:write", ("zones", "*", "records", "delete"): "dns:write",
     ("zones", "*", "records", "link"): "dns:write",
@@ -45,11 +59,27 @@ POST = {
     ("people",): "people:create", ("people", "*", "reset"): "people:reset",
     ("people", "*", "disable"): "people:disable", ("people", "*", "enable"): "people:disable",
     ("people", "*", "delete"): "people:remove", ("people", "*", "groups"): "people:groups",
+    ("people", "*", "edit"): "people:edit", ("people", "*", "unlock"): "people:reset",
+    ("groups",): "groups:admin", ("groups", "*", "delete"): "groups:admin",
+    ("groups", "*", "managers"): "groups:admin",
+    ("groups", "*", "members"): "session",            # a group's managers need no permission: fabric-agent checks
+    ("ous",): "ous:admin", ("ous", "rename"): "ous:admin", ("ous", "delete"): "ous:admin",
+    ("account", "password"): "session",               # a person's own password (1.8.6.6): theirs alone
+    ("account", "groups", "*", "members"): "session",  # a group they manage, from My account: the DC decides
+    # Apply per page (1.8.6.5): a person's own changes; holding one checks the change's own permission, and so
+    # does its Apply, change by change
+    ("pending", "hold"): "session", ("pending", "*", "drop"): "session", ("pending", "*", "discard"): "session",
+    ("pending", "*", "apply"): "session",
+    ("local-admin", "checkout"): "session",           # the DC host's local-admin: fabric-agent asks the DC the
+    ("local-admin", "ssh"): "session",                # caller's tier, the Enterprise Admin's alone (2.1.7.18)
     ("machines",): "machines:admin", ("machines", "*", "enable"): "machines:admin",
     ("machines", "*", "disable"): "machines:admin", ("machines", "*", "delete"): "machines:admin",
-    ("domain", "password-policy"): "domain:admin",
+    ("machines", "*", "move"): "machines:admin", ("machines", "*", "type"): "machines:admin",
+    ("machines", "*", "sites"): "machines:admin", ("machines", "*", "keytab"): "machines:admin",
+    ("domain", "password-policy"): "domain:admin", ("domain", "kerberos", "policy"): "domain:admin",
+    ("domain", "grants"): "groups:admin", ("domain", "grants", "sync"): "groups:admin",
+    ("domain", "grants", "*"): "groups:admin", ("domain", "grants", "*", "delete"): "groups:admin",
     ("gpo", "search"): "domain:read", ("gpo", "set"): "gpo:admin", ("gpo", "clear"): "gpo:admin",
-    ("domain", "logon", "set"): "gpo:admin", ("domain", "logon", "clear"): "gpo:admin",
     ("host-groups",): "machines:admin", ("host-groups", "*", "delete"): "machines:admin",
     ("host-groups", "*", "members"): "machines:admin",
     ("sudo",): "sudo:admin", ("sudo", "*", "delete"): "sudo:admin",

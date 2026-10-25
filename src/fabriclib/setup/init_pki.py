@@ -3,8 +3,6 @@ import os
 import shutil
 import subprocess
 
-import yaml
-
 from fabriclib.common.console import info, ok
 from fabriclib.consent.allowed_to_change import allowed_to_change
 from fabriclib.consent.check_consent import check_consent
@@ -154,15 +152,13 @@ def _intermediate_for_root(ctx, data, uid, gid):
 
 
 def _check_root_lifetime(v, certs_dir, config_dir):
-    """Purpose: refuse a changed CA lifetime on an existing CA (manual 2.1.5.6): it is fixed once the CA is made. A CA
-             made before 0.6.3 never had its lifetime chosen by this setting (0.6.2 rendered a default of 1825 days and
-             made every root for 3650): its own lifetime is adopted, once, before anything is refused.
+    """Purpose: refuse a changed CA lifetime on an existing CA (manual 2.1.5.6): it is fixed once the CA is made.
     Inputs:  v — vars: cert_root_ca_days, byoc (a brought-in root's lifetime is its own: not checked); certs_dir —
              Step-CA's certs folder; config_dir — the install's config folder (LIFETIME_FILE: the lifetime chosen,
-             written when the CA is made or adopted; fabric.yaml, rewritten when one is adopted).
-    Returns: None; on adopting, v["cert_root_ca_days"] is the CA's own lifetime.
+             written when the CA is made, and written then when it is missing).
+    Returns: None.
     Fails:   SetupError saying the root's actual lifetime and what to do, when cert_root_ca_days differs from the
-             lifetime chosen by more than a day; OSError writing the files.
+             lifetime chosen (or, with no record, the setting) by more than a day; OSError writing the record.
     Feeds:   run (an existing CA)."""
     if v.get("byoc"):
         return
@@ -172,24 +168,13 @@ def _check_root_lifetime(v, certs_dir, config_dir):
     actual = round((dates[1] - dates[0]).total_seconds() / 86400)
     wanted = int(v.get("cert_root_ca_days", 3650))
     record = os.path.join(config_dir, LIFETIME_FILE)
-    if not os.path.exists(record):          # made before the lifetime was a choice: the CA's own is the setting
-        if abs(actual - wanted) > 1:
-            v["cert_root_ca_days"] = actual
-            fabric_yaml = os.path.join(config_dir, "fabric.yaml")
-            if os.path.exists(fabric_yaml):
-                with open(fabric_yaml) as f:
-                    saved = yaml.safe_load(f) or {}
-                saved["cert_root_ca_days"] = actual
-                with open(fabric_yaml, "w") as f:
-                    yaml.safe_dump(saved, f, sort_keys=False)
-            ok(f"the CA's lifetime: {actual} days, as this CA was made (cert_root_ca_days set to it)")
-        with open(record, "w") as f:
-            f.write(f"{actual}\n")
-        return
     if abs(actual - wanted) > 1:
         raise SetupError(f"cert_root_ca_days is {wanted}, but this install's root CA was made for {actual} days: a "
                          "CA's lifetime cannot change once it exists. Set cert_root_ca_days back to "
                          f"{actual} (sudo fabricctl edit), or start a new CA with a reinstall (manual 3.2.4).")
+    if not os.path.exists(record):
+        with open(record, "w") as f:
+            f.write(f"{actual}\n")
 
 
 def _publish_ca_certs(ctx, certs_dir):

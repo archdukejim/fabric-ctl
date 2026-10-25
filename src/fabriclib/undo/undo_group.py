@@ -7,6 +7,7 @@ from fabriclib.consent.groups import GROUPS
 from fabriclib.consent.load_consent import load_consent
 from fabriclib.consent.plan_host_changes import plan_host_changes
 from fabriclib.consent.save_consent import save_consent
+from fabriclib.localadmin.remove_local_admin import remove_local_admin
 from fabriclib.setup.errors import SetupError
 from fabriclib.undo.remove_host_account import remove_host_account
 from fabriclib.undo.undo_firewall import undo_firewall
@@ -38,6 +39,9 @@ UNDO = {
                "stay; local accounts were never changed)",
                lambda ctx: remove_host_account(ctx.config_dir, ctx.vars, lambda: ctx.secrets)
                + undo_member(ctx.config_dir)),
+    "local_admin": ("remove this host's local-admin and its home folder (refused while it is signed in), fabric's "
+                    "SSH drop-in for it (sshd reloaded) and fabric's record of it; OpenBao keeps its versions as its "
+                    "history", lambda ctx: remove_local_admin(ctx.vars, ctx.config_dir)),
 }
 
 

@@ -60,9 +60,10 @@ cname_ca: {{ cname_ca | default('ca') }}
 landing_page_cname: {{ landing_page_cname | default('info', true) }}
 cname_dns: {{ cname_dns | default('dns') }}
 cname_sso: {{ cname_sso | default('sso') }}
-cname_mgr: {{ cname_mgr | default('fabric') }}
+cname_mgr: {{ cname_mgr | default('fabric-ctl') }}
 cname_openbao: {{ cname_openbao | default('vault') }}
-{# The web UI's address: any host name (default fabric.<domain>). Outside the
+{# The web UI's address: any host name (default fabric-ctl.<domain> on a new install, 2.1.8.12; an install's own
+   cname_mgr is kept in its vars.yaml, so an upgrade keeps its address). Outside the
    domain, fabric issues its certificate but you point DNS at this host. #}
 webui_hostname: {{ webui_hostname | default('', true) }}
 
@@ -71,7 +72,7 @@ hostname_bind9: {{ hostname_bind9 | default((cname_dns | default('dns')) ~ '.' ~
 hostname_stepca: {{ hostname_stepca | default((cname_ca | default('ca')) ~ '.' ~ domain) }}
 hostname_landing: {{ hostname_landing | default((landing_page_cname | default('info', true)) ~ '.' ~ domain) }}
 hostname_keycloak: {{ hostname_keycloak | default((cname_sso | default('sso')) ~ '.' ~ domain) }}
-{% set _hostname_mgr = (webui_hostname | default('', true) or ((cname_mgr | default('fabric')) ~ '.' ~ domain)) | lower %}
+{% set _hostname_mgr = (webui_hostname | default('', true) or ((cname_mgr | default('fabric-ctl')) ~ '.' ~ domain)) | lower %}
 hostname_mgr: {{ _hostname_mgr }}
 {# CA certificates for every system: http://<hostname_stepca>/certs/ (fabric's texts and scripts, and the CRL point:
    1.5.1.6), http://<host_ip>/certs/, and every other name nginx answers; certs.<domain> was dropped in 0.7.0 (1.5.1.5).
@@ -178,42 +179,36 @@ ad_domain: "{{ _ad }}"
 ad_realm: "{{ _ad | upper }}"
 ad_base_dn: "{{ _ad.split('.') | map('regex_replace', '^', 'DC=') | join(',') if _ad else '' }}"
 ad_netbios: "{{ (ad_netbios | default(_ad.split('.')[0], true))[:15] | upper }}"
-{# the DC's own name in the domain (2.1.6.45, manual 1.6.5.23), apart from the host's: setup asks it, suggesting
-   dc-<hostname> cut to 15 characters (a NetBIOS name); permanent. An install from before 0.7.0 keeps its host's name
-   (deploy/keep_old_install saves it as dc_name). #}
-{% set _dc = (dc_name | default(('dc-' ~ (hostname | lower))[:15].rstrip('-'), true)) | lower %}
+{# the DC's own name in the domain (2.1.6.45, 2.1.6.65, manual 1.6.5.26), apart from the host's: fabric names it,
+   never a person (dc-0001 for a new domain, the upstream's choice for a joining site); permanent. #}
+{% set _dc = (dc_name | default('dc-0001', true)) | lower %}
 dc_name: "{{ _dc }}"
 hostname_dc: "{{ (_dc ~ '.' ~ _ad) | lower if _ad else '' }}"
 # minimum_length, complexity (bool), history, minimum_age_days, maximum_age_days, lockout_threshold,
 # lockout_minutes, lockout_window_minutes: every key required
 ad_password_policy: {{ ad_password_policy | default({}, true) | to_json }}
+{# the tiers' own password policies (2.1.6.71), set only on the host: fabric-admin's and the Directory Administrators',
+   each an AD fine-grained password policy; setup starts them as copies of the default (fabric-admin: 3, then 15 minutes) #}
+ad_tier_password_policies: {{ ad_tier_password_policies | default({}, true) | to_json }}
+{# the domain's Kerberos ticket policy (manual 1.6.12.9): ticket_hours, renew_days, skew_minutes; AD's defaults #}
+ad_kerberos_policy: {{ ad_kerberos_policy | default({'ticket_hours': 10, 'renew_days': 7, 'skew_minutes': 5}, true) | to_json }}
+{# a machine no grant reaches: false (default) admits nobody from the domain, the fallback GPO `fabric: access none`
+   (2.1.6.87); true, a relaxation, leaves it open to every domain person, sssd's and Windows' own default (2.1.6.88) #}
+grants_fallback_open: {{ grants_fallback_open | default(false) | bool }}
 ad_old_password_minutes: {{ ad_old_password_minutes | default(0) | int }}
-# Who may sign in to the site's joined machines, per OU (manual 1.6.11.4): {<OU path below the site's OU, "" for the
-# site's OU>: {console: [groups], remote: [groups]}}; fabric-break-glass and local Administrators are always added.
-# null: the site's log-on rights as before 0.9 (an upgrade keeps them, 2.1.6.44); a fresh install starts with
-# {machines: {console: [<site>-machine-admins], remote: [<site>-machine-admins]}}. Edit: fabricctl domain logon.
-logon_policies: {{ (logon_policies if logon_policies is defined else none) | to_json }}
 {# the DC's signing socket for Windows members' time (2.1.13.1), where the host's chrony reaches it: the one path
    Ubuntu's AppArmor profile for chronyd allows (manual 1.6.5.8) #}
 ad_ntp_signd_dir: {{ ad_ntp_signd_dir | default('/var/lib/samba/ntp_signd', true) }}
 ad_rpc_ports: "{{ ad_rpc_ports | default('49152-49251', true) }}"
 {# A site's DC (manual 1.8.8.3-1.8.8.4): writable or read-only; the root's is always writable. A site joining the root's
-   domain gets from the join the root DC's address and name and its id block (setup's join step writes them). #}
+   domain gets from the join the root DC's address and name (setup's join step writes them). Its id range is its
+   name's (dc-NNNN: N x 1000000, 2.1.6.63, 2.1.6.86): no setting. #}
 ad_dc_type: {{ ad_dc_type | default('writable', true) }}
 ad_join_server: "{{ ad_join_server | default('', true) }}"
 ad_join_server_name: "{{ ad_join_server_name | default('', true) }}"
-posix_id_range: "{{ posix_id_range | default('', true) }}"
-{# Where this site's OU and the organisation's sit in the domain, below ad_base_dn (2.1.6.20, manual 1.9.8.14): sites nest,
-   each in its parent's OU, so a joining site gets both from the join; the root's are its own. #}
-{% set _site_ou = ad_site_ou | default('OU=' ~ ((site_name | default(hostname, true)) | lower) ~ ',OU=sites', true) %}
-ad_site_ou: "{{ _site_ou }}"
-ad_org_ou: "{{ ad_org_ou | default('OU=organisation,' ~ _site_ou, true) }}"
-{# uid/gid blocks (2.1.6.46, manual 1.6.3.17): a million per site, site S's from S x 1000000, the root site 1; fixed
-   ranges inside each. Both permanent. An install from before 0.7.0 keeps its own (5001, 100000: keep_old_install). #}
-posix_id_start: {{ posix_id_start | default(1000000) | int }}
-posix_id_block: {{ posix_id_block | default(1000000) | int }}
-# This host as a member of its own domain (manual 1.6.11.8, 2.1.6.34): the fabric admins sign in to it with their domain
-# accounts; local accounts are untouched. Asked in setup's Advanced; false leaves the host out (status shows it).
+# This host as a member of its own domain (manual 1.6.11.8, 2.1.6.34): no domain account signs in to it (a host that
+# runs a DC is the top tier, 2.1.6.75); local accounts are untouched. Asked in setup's Advanced; false leaves the host
+# out (status shows it).
 host_join_domain: {{ host_join_domain | default(true) | to_json }}
 # After how many days sssd renews this host's machine password with adcli (manual 1.6.11.12, 2.1.6.50): 0 never (the
 # default: the password is set once); a whole number from 1 to 999 turns it on (setup's member step installs adcli).
@@ -275,10 +270,12 @@ log_forwarding: {{ log_forwarding | default({}, true) | to_json }}
 install_webui: {{ (install_webui | default(true) | bool) and (install_keycloak | default(false) | bool) }}
 webui_realm: {{ webui_realm | default(domain) }}
 webui_admin_role: {{ webui_admin_role | default('fabric-console-admin') }}
-webui_admin_group: {{ webui_admin_group | default('admins') }}
-{# First web UI admin, created by `fabricctl setup` (a person in the domain + client certificate). #}
-webui_admin_user: {{ webui_admin_user | default('fabric-admin', true) }}
-webui_admin_email: {{ webui_admin_email | default('', true) }}
+{# The first Directory Administrator, created by `fabricctl setup` after fabric-admin, the Enterprise Admin (a person in
+   the domain + client certificate; 2.1.6.69): user name, full name and e-mail, all required, no default. #}
+webui_admin_user: {{ webui_admin_user | default('', true) | to_json }}
+webui_admin_first_name: {{ webui_admin_first_name | default('', true) | to_json }}
+webui_admin_last_name: {{ webui_admin_last_name | default('', true) | to_json }}
+webui_admin_email: {{ webui_admin_email | default('', true) | to_json }}
 webui_client_cert_days: {{ webui_client_cert_days | default(365) }}
 # Sign-in (manual 2.3.6.2.6.1, 2.1.6.23): a password by default; raised in the web console's Security page, lowered only
 # with `sudo fabricctl security lower` (2.1.6.24). Second factors: none | any (TOTP or a passkey) | totp | passkey.
@@ -317,7 +314,7 @@ keycloak_data_dir: {{ keycloak_data_dir | default((deploy_base_dir | default('/o
 postgres_data_dir: {{ postgres_data_dir | default((deploy_base_dir | default('/opt')) ~ '/postgres/data') }}
 {# Optional containers are derived from the install_* flags on every render, so
    strip them from any value read back from a previously rendered vars.yaml. #}
-{% set _optional_containers = ['dirsrv', 'keycloak', 'postgres', 'webui', 'fabric-web'] %}
+{% set _optional_containers = ['keycloak', 'postgres', 'fabric-web'] %}
 {% set _containers = (project_containers | default(['nginx', 'step-ca', 'bind9', 'openbao'])) | reject('in', _optional_containers) | list %}
 {% if 'openbao' not in _containers %}{% set _ = _containers.append('openbao') %}{% endif %}
 {% if install_keycloak | default(false) | bool %}{% set _ = _containers.extend(['keycloak', 'postgres']) %}{% endif %}
@@ -508,16 +505,16 @@ org_domain: {{ _org_domain }}
    of org_domain; a site gets its upstream's. Fixed once installed (setup refuses a change). #}
 {% set _base_dn = ((ldap_base_dn | default('', true)) or (_org_domain.split('.') | map('regex_replace', '^', 'dc=') | join(','))) | lower %}
 ldap_base_dn: {{ _base_dn }}
-# This install's site (manual 1.9): names its OU in the domain (OU=<site>,OU=sites), which holds its people,
-# machines, devices and service accounts. Defaults to the host name; fixed once installed (setup refuses a change).
+# This install's site (manual 1.9): names its AD site and its group site-<site> (1.6.13.3), which holds its people and
+# machines. Defaults to the host name; fixed once installed (setup refuses a change).
 site_name: {{ (site_name | default(hostname, true)) | lower }}
 
-{# `bundle`: the fabric role bundle Keycloak grants to members (design 2.1.6.1); admins get
-   webui_admin_role through webui_admin_group. #}
+{# `bundle`: the fabric role bundle Keycloak grants to members (design 2.1.6.1); directory-admins, the Directory
+   Administrators (2.1.6.81), get webui_admin_role. #}
 {# The organisation's groups have fixed gids in the root's built-in range (2.1.6.46, manual 1.6.3.17: 1040001 on,
-   the first hundred kept for them). An install from before 0.7.0 keeps 1100-1121 and 5000: its vars list them. #}
+   the first hundred kept for them). A group listed in the vars keeps its own gid. #}
 {% set default_ldap_groups = [
-  { 'gidNumber': 1040001, 'name': 'admins', 'permissions': ['read', 'write', 'modify'] },
+  { 'gidNumber': 1040001, 'name': 'directory-admins', 'permissions': ['read', 'write', 'modify'] },
   { 'gidNumber': 1040002, 'name': 'auditors', 'bundle': 'fabric-auditor' },
   { 'gidNumber': 1040003, 'name': 'network-operators', 'bundle': 'fabric-network-operator' },
   { 'gidNumber': 1040004, 'name': 'equipment-operators', 'bundle': 'fabric-equipment-operator' },
@@ -541,9 +538,7 @@ posix_login_shell: {{ posix_login_shell | default('/bin/bash') }}
   { 'name': 'users', 'description': 'Regular User accounts', 'parent': 'accounts' },
   { 'name': 'device-roles', 'description': 'What member devices may do (fabric device RBAC)' }
 ] %}
-{# admins and devices live in the local suffix (o=<site_name>), not here; hosts' uid range (from 389-DS) was never
-   used (2.1.6.46): dropped even if an older vars.yaml lists them. A users OU's uid_range is no longer read. #}
-{% set _merged_ous = (ldap_organizational_units | default([]) + default_ldap_ous) | unique(attribute='name')
-                     | rejectattr('name', 'in', ['admins', 'devices', 'hosts']) | list %}
+{# A users OU's uid_range is no longer read. #}
+{% set _merged_ous = (ldap_organizational_units | default([]) + default_ldap_ous) | unique(attribute='name') | list %}
 ldap_organizational_units:
 {{ _merged_ous | to_nice_yaml(indent=2) | indent(2, first=True) }}

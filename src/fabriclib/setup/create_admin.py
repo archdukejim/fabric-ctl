@@ -2,14 +2,19 @@ import os
 import shutil
 import subprocess
 
-from fabriclib.common.console import info, ok, warn
+from fabriclib.breakglass.ensure_enterprise_admin import ensure_enterprise_admin
+from fabriclib.breakglass.write_break_glass_file import write_break_glass_file
+from fabriclib.common.console import BOLD, NC, info, ok, warn
 from fabriclib.common.sudo_owner import sudo_owner
+from fabriclib.hostaccounts.record_setup_user import record_setup_user
+from fabriclib.directory.constants import DIRECTORY_ADMINS
 from fabriclib.directory.ensure_admin import ensure_admin
 from fabriclib.federation.common.is_root_site import is_root_site
 from fabriclib.keycloak.signin_levels import admin_level
 from fabriclib.pki.issue_client_cert import issue_client_cert
 from fabriclib.pki.needs_renewal import needs_renewal
 from fabriclib.setup.ask_first_admin import ask_first_admin
+from fabriclib.setup.errors import SetupError
 
 README = """fabric web UI — first login
 ===========================
@@ -66,14 +71,14 @@ def _readme(v, user, login, folder):
              the console requires one (webui_client_cert), and the second factor Keycloak will ask for.
     Inputs:  v — vars: hostname_mgr, hostname_stepca (the CA's files, 1.5.1.6), host_ip, the other names (for the
              hosts-file line),
-             webui_admin_group, webui_client_cert, the sign-in settings (admin_level); user — the admin; login — the
+             webui_client_cert, the sign-in settings (admin_level); user — the admin; login — the
              account the kit is for; folder — the kit's path.
     Returns: str.
     Fails:   ValidationError from admin_level for an unknown level; KeyError for a missing var.
     Feeds:   run; tests/render.py."""
     cert = bool(v.get("webui_client_cert"))
     return README.format(mgr=v["hostname_mgr"], certs=v["hostname_stepca"], user=user, login=login, host=v["host_ip"],
-                         ip=v["host_ip"], folder=folder, group=v.get("webui_admin_group", "admins"),
+                         ip=v["host_ip"], folder=folder, group=DIRECTORY_ADMINS,
                          cert_line=CERT_LINE.format(user=user) if cert else "",
                          cert_step=CERT_STEP.format(user=user) if cert else "", n=5 if cert else 4,
                          names=" ".join(v[k] for k in ("hostname_landing", "hostname_mgr", "hostname_keycloak",
@@ -86,27 +91,39 @@ def _readme(v, user, login, folder):
 
 
 def run(ctx):
-    """Purpose: the first web UI admin, end to end: a person in the directory, in the admin group (Keycloak grants it
-             fabric-console-admin), the fabric root CA and, while the web console requires one (webui_client_cert), a
-             client certificate (.p12, CN = username), collected with instructions in ~/fabric-admin of the account
-             that ran setup.
-    Inputs:  ctx — SetupContext: vars install_webui, install_keycloak,
-             webui_admin_user, webui_admin_email, webui_admin_group (default admins), webui_client_cert,
-             webui_client_cert_days (default 365), the sign-in settings, domain, hostname_mgr, hostname_landing,
-             host_ip; secrets (Keycloak admin); the published CA under <deploy_base>/nginx/www/certs. Env SUDO_USER
-             via sudo_owner.
-    Returns: None. Without web UI or Keycloak: nothing. At a federated site the person is not created here
-             (people come from the root, M5): only the client certificate and the kit. Otherwise the kit folder (0700)
-             holds root-ca.crt/.cer, README.txt and, with the certificate on and when due, <user>.p12, <user>.crt and
-             p12-password.txt. A new admin gets the password chosen in setup (ask_first_admin: asked here when setup
-             had not, 2.1.6.33); no password is written to the kit. Idempotent: an existing user keeps their
-             password; the certificate is renewed when due or from another CA.
-    Fails:   ValidationError from ensure_admin (the directory) or issue_client_cert (propagates,
-             not SetupError); CalledProcessError from openssl; OSError on files. Warns when run as root without sudo.
+    """Purpose: setup's administrators, end to end (manual 1.6.12.2; 2.1.6.68, 2.1.6.69). At the root site: first
+             `fabric-admin`, the Enterprise Admin (AD's top tier, not a Directory Administrator), with a generated
+             password written once to ~/fabric-admin/fabric-admin-password.txt of the account that ran setup (0600,
+             said here, kept nowhere else); then the first Directory Administrator, a person in OU=people and
+             `directory-admins` (Keycloak grants it fabric-console-admin) with their first and last names, their e-mail
+             when given (2.1.6.93) and the password they chose in setup. Then the fabric root CA and, while the web
+             console requires one (webui_client_cert),
+             the Directory Administrator's client certificate (.p12, CN = username), collected with instructions in
+             ~/fabric-admin of the account that ran setup.
+    Inputs:  ctx — SetupContext: vars install_webui, install_keycloak, ad_domain, dc_name, webui_admin_user,
+             webui_admin_first_name, webui_admin_last_name, webui_admin_email (optional), webui_client_cert,
+             webui_client_cert_days (default 365), the
+             sign-in settings, domain, hostname_mgr, hostname_landing, host_ip; secrets (Keycloak admin); config_dir
+             (the break-glass record; the setup account, recorded once: record_setup_user); the published CA under
+             <deploy_base>/nginx/www/certs. Env SUDO_USER via sudo_owner.
+    Returns: None. Without web UI or Keycloak: fabric-admin only. At a federated site no person is created here
+             (people come from the root, M5): only the client certificate and the kit. An existing fabric-admin keeps
+             its password (nothing written); an existing Directory Administrator keeps theirs; no sign-in password of
+             the Directory Administrator is written to the kit. The certificate is renewed when due or from another CA.
+    Fails:   SetupError when fabric-admin was made but its file could not be written (the reset is named); a missing
+             fact of the first Directory Administrator (ask_first_admin); ValidationError from ensure_enterprise_admin,
+             ensure_admin or issue_client_cert (propagates); CalledProcessError from openssl; OSError on files. Warns
+             when run as root without sudo.
     Feeds:   setup step `admin`, run by run_setup via STEPS."""
     v = ctx.vars
+    if record_setup_user(ctx.config_dir, sudo_owner()[0]):     # the host's root break glass for now (2.1.6.78)
+        info(f"{sudo_owner()[0]}, the account that ran setup, is this host's root break glass until local-admin takes "
+             "over: it is reminded of until you remove or approve it (sudo fabricctl host accounts list)")
+    root = is_root_site(os.path.join(ctx.config_dir, "federation.yaml"))
+    if root:                                  # the domain's top tier, with or without the web console
+        _enterprise_admin(ctx, v)
     if not (v.get("install_webui") and v.get("install_keycloak")):
-        ok("no web UI: nothing to do")
+        ok("no web UI: no Directory Administrator to make")
         return
     user = v.get("webui_admin_user")
     login, home, uid, gid = sudo_owner()
@@ -114,18 +131,27 @@ def run(ctx):
     os.makedirs(folder, mode=0o700, exist_ok=True)
     os.chown(folder, uid, gid)
 
-    if is_root_site(os.path.join(ctx.config_dir, "federation.yaml")):
-        state, _ = ensure_admin(v, ctx.secrets, user, v.get("webui_admin_email") or f"{user}@{v['domain']}",
-                                lambda: (ask_first_admin(ctx, needed=True), ctx.admin_password)[1])
+    if root:
+        if not user:                          # named before any step; asked here only when it was not
+            ask_first_admin(ctx, needed=True)
+            user = v.get("webui_admin_user")
+        state, _ = ensure_admin(v, ctx.secrets, user, v.get("webui_admin_email") or None,
+                                lambda: (ask_first_admin(ctx, needed=True), ctx.admin_password)[1],
+                                first=v.get("webui_admin_first_name"), last=v.get("webui_admin_last_name"))
         if state == "created":
-            ok(f"admin '{user}' created in the directory with the password chosen in setup, member of "
-               f"'{v.get('webui_admin_group', 'admins')}'")
+            ok(f"Directory Administrator '{user}' ({v.get('webui_admin_first_name')} "
+               f"{v.get('webui_admin_last_name')}) created in the directory with the "
+               f"password chosen in setup, member of '{DIRECTORY_ADMINS}'")
         else:
-            ok(f"admin '{user}' exists" + (" (added to the admin group)" if "+member" in state else ""))
+            ok(f"Directory Administrator '{user}' exists" + (" (added to the admin group)" if "+member" in state
+                                                             else ""))
     else:                                     # a federated site: people (the admin too) come from the root (M5)
         info(f"people are created at the root site: '{user}' signs in here once the root's directory has them "
-             f"(in '{v.get('webui_admin_group', 'admins')}')")
+             f"(in '{DIRECTORY_ADMINS}')")
 
+    if not user:                              # a federated site's kit names nobody: the root names its people
+        info("no first administrator named here: their sign-in kit is made at the root site")
+        return
     if v.get("webui_client_cert"):            # the web console asks for one (2.1.8.2: off by default)
         _client_cert(ctx, v, user, folder, (uid, gid))
     else:
@@ -139,6 +165,29 @@ def run(ctx):
     info(f"web UI login kit: {folder} (see README.txt)")
     if login == "root":
         warn("setup was not run with sudo from a user account: the kit is in /root")
+
+
+def _enterprise_admin(ctx, v):
+    """Purpose: `fabric-admin`, the Enterprise Admin, made once (ensure_enterprise_admin) and, when it was made now,
+             its generated password written to its one file (write_break_glass_file), the path said and the person
+             asked to put it somewhere safe and delete the file (2.1.6.69).
+    Inputs:  ctx — SetupContext (config_dir); v — vars (ad_domain and what ensure_enterprise_admin reads).
+    Returns: None.
+    Fails:   SetupError when the account was made but the file could not be written (the password is then lost:
+             `fabricctl admin reset-break-glass` makes a new one); ValidationError from ensure_enterprise_admin.
+    Feeds:   run."""
+    made = ensure_enterprise_admin(v)
+    if not made["created"]:
+        ok("fabric-admin, the Enterprise Admin, exists (its password is kept as it is)")
+        return
+    try:
+        path = write_break_glass_file(made["password"], v.get("ad_domain") or "", ctx.config_dir)
+    except OSError as e:
+        raise SetupError(f"fabric-admin was made but its password could not be written ({e}): run "
+                         "sudo fabricctl admin reset-break-glass for a new one") from None
+    ok("fabric-admin, the Enterprise Admin (Enterprise, Schema and Domain Admins), made with a generated password")
+    warn(f"its break-glass password is in {BOLD}{path}{NC} (0600, yours alone; fabric keeps it nowhere else): copy "
+         "it into your own safekeeping now, then delete the file")
 
 
 def _client_cert(ctx, v, user, folder, owner):

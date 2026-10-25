@@ -17,7 +17,7 @@ def apply_dns_filter(actor, source="web"):
              reloaded (rndc), AdGuard Home made to match through its API. Nothing restarts.
     Inputs:  actor — who asked (audit); source — "web" (default) or "cli".
     Returns: {"resolver": deploy_resolver's result, "adguard": sync_adguard's changes or None, "waiting": None, or why
-             the change waits for the next apply (AdGuard not answering, or no apply since 0.7.0 was installed)}.
+             the change waits for the next apply (AdGuard not answering, or no apply has run yet)}.
     Fails:   ValidationError when the settings do not render or are refused (check_filter_settings), or fabric's
              secrets cannot be read (OpenBao locked); OSError and jinja2 errors writing the resolver's files.
     Feeds:   agent/post_dns_filter (every change), dns_filter/run_dns_filter_command (`fabricctl dns-filter apply`)."""
@@ -27,7 +27,7 @@ def apply_dns_filter(actor, source="web"):
         if "adguard_api_password" not in secrets:
             write_audit(actor, "DNS_FILTER_APPLY", "waits for an apply", source)
             return {"resolver": None, "adguard": None,
-                    "waiting": "no apply has run since 0.7.0 was installed: run sudo fabricctl --apply"}
+                    "waiting": "no apply has run yet: run sudo fabricctl --apply"}
         jinja_env = jinja_env_for(paths["jinja"])
         final_vars, _ = render_vars(jinja_env, secrets, load_vars(paths["vars"]))
         if not final_vars.get("install_resolver"):

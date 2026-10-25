@@ -1,0 +1,152 @@
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+{% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
+{% macro last(value) %}{{ value[:16] | replace('T', ' ') if value else 'never' }}{% endmacro %}
+{% if view in ("list", "groups") %}
+<h1>Directory · Computers</h1>
+<nav class="sections">
+{% for id, label in sections %}<a href="/directory/computers{{ '' if id == 'list' else '/_' ~ id }}" class="section{{ ' active' if id == view }}"{{ ' aria-current="page"' if id == view }}>{{ label }}</a>{% endfor %}
+</nav>
+{% endif %}
+
+{% if view == "list" %}
+{% call p.actions() %}{% if can('machines:admin') %}<a class="btn" href="/directory/computers/_new">Add computer</a>{% endif %}{% endcall %}
+{% if unavailable %}<p class="flash bad" role="alert">The computers could not be read: {{ unavailable }}</p>
+{% else %}
+<section class="card"><h2>Computers <span class="muted">{{ total }}</span></h2>
+<form method="get" action="/directory/computers" class="grid search" role="search">
+<label>Search <input name="q" value="{{ search }}" autocomplete="off" placeholder="name, OS, folder, site, group"></label>
+<label>Type<select name="type"><option value="">any</option>{% for id, label in types | dictsort %}<option value="{{ id }}"{{ ' selected' if applied.type == id }}>{{ label }}</option>{% endfor %}<option value="none"{{ ' selected' if applied.type == 'none' }}>none</option></select></label>
+<label>Site<select name="site"><option value="">any</option>{% for s in sites %}<option{{ ' selected' if applied.site == s }}>{{ s }}</option>{% endfor %}</select></label>
+<div><button class="ghost">Search</button>{% if search or keep %} <a href="/directory/computers">Clear</a>{% endif %}</div></form>
+{% if machines %}{% call p.list(["", "Name", "Type", "Sites", "OS", "Folder", "Machine groups", "Last sign-in"]) %}{% for m in machines %}<tr>
+<td>{{ p.light('ok' if m.enabled else 'bad', 'enabled' if m.enabled else 'disabled') }}</td>
+<td data-label="Name"><a href="/directory/computers/{{ m.name | urlencode }}"><strong>{{ m.name }}</strong></a></td>
+<td data-label="Type">{{ types.get(m.type, '—') }}</td><td data-label="Sites">{{ m.sites | join(', ') or '—' }}</td>
+<td data-label="OS">{{ m.os or '—' }}</td><td data-label="Folder">{{ m.folder or '—' }}</td>
+<td data-label="Machine groups">{{ m.groups | join(', ') or '—' }}</td><td data-label="Last sign-in">{{ last(m.last_logon) }}</td></tr>{% endfor %}{% endcall %}
+{{ p.pager("/directory/computers", search, at, pages, "computers", keep) }}
+{% elif search or keep %}{{ p.empty("No computer matches.") }}
+{% else %}{% call p.empty("No computers in the domain yet.") %}{% if can('machines:admin') %}<a class="btn" href="/directory/computers/_new">Add computer</a>{% endif %}{% endcall %}{% endif %}
+<p class="muted small">The domain's computers (<code>OU=machines</code>, filed by type) and the fabric hosts. A disabled computer cannot sign anyone in or join an 802.1X port; its account stays. Last sign-in is the domain's own record, up to 14 days behind.</p>
+</section>
+{% endif %}
+
+{% elif view == "groups" %}
+{% if unavailable %}<p class="flash bad" role="alert">The machine groups could not be read: {{ unavailable }}</p>
+{% else %}
+<section class="card"><h2>Machine groups <span class="muted">{{ groups | length }}</span></h2>
+<p class="muted">Groups of the domain's computers (<code>hosts-&lt;name&gt;</code>), for grants and sudo rules to aim at.</p>
+{% if groups %}{% call p.list(["Machine group", "Computers", "Sudo rules", ""]) %}{% for g in groups %}<tr>
+<td data-label="Machine group"><strong>{{ g.name }}</strong>{% if not g.fabric %}<div class="muted small">not made by fabric</div>{% endif %}</td>
+<td data-label="Computers">{% for m in g.machines %}<a href="/directory/computers/{{ m | urlencode }}">{{ m }}</a>{{ ', ' if not loop.last }}{% else %}none{% endfor %}{% if g.other_members %}<div class="muted small">also {{ g.other_members | join(', ') }}</div>{% endif %}</td>
+<td data-label="Sudo rules">{{ g.rules | join(', ') or '—' }}</td>
+<td class="row-actions">{% if can('machines:admin') %}<form method="post" action="/directory/hostgroups/{{ g.short | urlencode }}/delete">{{ csrf() }}<button class="danger" title="refused while a sudo rule names it; its computers stay">Delete</button></form>{% endif %}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("No machine groups yet.") }}{% endif %}
+{% if can('machines:admin') %}
+{% if groups and all_machines %}<form method="post" action="/directory/hostgroups/_form/members" class="grid">
+{{ csrf() }}
+<label>Machine group<select name="group" required>{% for g in groups %}<option value="{{ g.short }}">{{ g.name }}</option>{% endfor %}</select></label>
+<label>Computer<select name="machine" required>{% for m in all_machines %}<option>{{ m.name }}</option>{% endfor %}</select></label>
+<div><button name="action" value="add">Add to group</button> <button name="action" value="remove" class="ghost">Take out of group</button></div>
+</form>{% endif %}
+<form method="post" action="/directory/hostgroups/_new" class="grid">
+{{ csrf() }}
+<label>New machine group<input name="name" required pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="web" title="it becomes hosts-&lt;name&gt;"></label>
+<div><button>Create</button></div>
+</form>
+<p class="muted small">Waits for Computers' Apply. A computer put in or taken out of a machine group changes where its grants and sudo rules apply once applied (sssd reads them within minutes).</p>{% endif %}
+</section>
+{% endif %}
+
+{% elif view == "new" %}
+<p><a href="/directory/computers">← Computers</a></p>
+<h1>Directory · Add computer</h1>
+<section class="card"><h2>Add computer</h2>
+<form method="post" action="/directory/machines/_new" class="grid">
+{{ csrf() }}
+<label>Host name<input name="name" required pattern="[a-z0-9]([a-z0-9-]{0,13}[a-z0-9])?" placeholder="ws01" autocomplete="off"></label>
+<label>Type<select name="type"><option value="">none (OU=machines)</option>{% for id, label in types | dictsort %}<option value="{{ id }}">{{ label }} (its folder and group)</option>{% endfor %}</select></label>
+<label><input type="checkbox" name="managed" value="yes" checked> Managed by fabric (SSH with Kerberos, DNS; manual 1.6.11.6)</label>
+<div><button>Add computer</button></div>
+</form>
+<p class="muted small">It goes into this site's group; add others from its page. Waits for Computers' Apply; its one-time join password is shown once on the Review after Apply: give it to <code>join-linux.sh --one-time</code> on a Linux machine (manual 4.6.6). Windows machines join with an admin's account (4.6.7) and are filed by their edition.</p>
+</section>
+
+{% elif view == "keytab" %}
+<p><a href="/directory/computers/{{ keytab.machine | urlencode }}">← {{ keytab.machine }}</a></p>
+<h1>Directory · Add a service to {{ keytab.machine }}</h1>
+<section class="card"><h2>Run this on {{ keytab.machine }}</h2>
+<p>In an SSH session on the computer, as someone who may run <code>sudo</code> there:</p>
+<pre><code>{{ keytab.command }}</code></pre>
+<p>It adds {% for s in keytab.spns %}<code>{{ s }}</code>{{ ', ' if not loop.last }}{% endfor %} to the computer's own account and writes the service's keytab, owned by its user, mode 0600. Nothing was changed here, and nothing secret is in the command.</p>
+</section>
+
+{% else %}
+{% set m = c.machine or {} %}
+<p><a href="/directory/computers">← Computers</a></p>
+<h1>Directory · {{ m.name }}{% if m.dns %} <span class="muted">{{ m.dns }}</span>{% endif %}</h1>
+{% if unavailable %}<p class="flash bad" role="alert">This computer could not be read: {{ unavailable }}</p>
+{% else %}
+{% call p.actions() %}{% if can('machines:admin') %}<form method="post" action="/directory/machines/{{ m.name | urlencode }}/{{ 'disable' if m.enabled else 'enable' }}">{{ csrf() }}<button class="ghost">{{ 'Disable' if m.enabled else 'Enable' }}</button></form>{% endif %}{% endcall %}
+<section class="card facts"><h2>State</h2><p>{{ p.status('ok' if m.enabled else 'bad', 'enabled' if m.enabled else 'disabled') }}</p>
+<dl><dt>Last sign-in</dt><dd>{{ last(m.last_logon) }}</dd><dt>Joined</dt><dd>{{ m.created or '—' }}</dd></dl></section>
+{{ p.facts("Details", [("Type", types.get(m.type, "none")), ("Sites", m.sites | join(", ") or "none"), ("OS", m.os or "—"), ("Folder", m.folder or "—"), ("Machine groups", m.groups | join(", ") or "none")]) }}
+<section class="card"><h2>Grants that reach it <span class="muted">{{ c.grants | length }}</span></h2>
+{% if c.grants %}{% call p.list(["Grant", "Kind", "Who", "Gives here"]) %}{% for g in c.grants %}<tr>
+<td data-label="Grant"><strong>{{ g.name }}</strong>{% if g.description %}<div class="muted small">{{ g.description }}</div>{% endif %}</td>
+<td data-label="Kind">{{ 'restricts' if g.kind == 'restrict' else 'allows' }}</td>
+<td data-label="Who">{{ g.who | join(' and ') }} <span class="muted small">({{ g.people }} {{ 'person' if g.people == 1 else 'people' }})</span></td>
+<td data-label="Gives here">{{ g.gives | join('; ') or '—' }}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("No grant reaches it: nobody from the domain signs in here.") }}{% endif %}
+<p class="muted small">A grant reaches a computer in all of its where groups; a restricting grant narrows what the allowing ones give.</p></section>
+<section class="card"><h2>802.1X device</h2>
+{% if c.devices %}{% call p.list(["", "Device", "Type", "Roles", "VLAN"]) %}{% for v in c.devices %}<tr>
+<td>{{ p.light('ok' if v.enabled else 'bad', 'enabled' if v.enabled else 'disabled') }}</td><td data-label="Device">{% if can('devices:read') %}<a href="/8021x/devices/{{ v.name | urlencode }}">{{ v.name }}</a>{% else %}{{ v.name }}{% endif %}</td>
+<td data-label="Type">{{ v.type }}</td><td data-label="Roles">{{ v.roles | join(", ") }}</td><td data-label="VLAN">{{ v.vlan if v.vlan is not none else "—" }}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("No 802.1X device has its name.") }}{% endif %}</section>
+{% set ch = c.choices or {} %}
+<section class="card"><h2>Machine groups <span class="muted">{{ (m.groups or []) | length }}</span></h2>
+{% if m.groups %}{% call p.list(["Machine group", ""]) %}{% for g in m.groups %}<tr><td data-label="Machine group">{{ g }}</td><td class="row-actions">{% if can('machines:admin') %}<form method="post" action="/directory/machines/{{ m.name | urlencode }}/groups">{{ csrf() }}<input type="hidden" name="action" value="remove"><input type="hidden" name="group" value="{{ g }}"><button class="ghost">Take out</button></form>{% endif %}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("In no machine group.") }}{% endif %}
+{% set addable = (ch.groups or []) | reject('in', m.groups or []) | list %}
+{% if can('machines:admin') and addable %}<form method="post" action="/directory/machines/{{ m.name | urlencode }}/groups" class="grid">
+{{ csrf() }}<input type="hidden" name="action" value="add">
+<label>Machine group<select name="group" required>{% for g in addable %}<option>{{ g }}</option>{% endfor %}</select></label>
+<div><button>Add to group</button></div></form>{% endif %}</section>
+{% if can('machines:admin') %}
+<section class="card"><h2>Change type</h2>
+<form method="post" action="/directory/machines/{{ m.name | urlencode }}/type" class="grid">
+{{ csrf() }}
+<label>Type<select name="type" required>{% for id, label in types | dictsort %}<option value="{{ id }}"{{ ' selected' if m.type == id }}>{{ label }}</option>{% endfor %}</select></label>
+<label><input type="checkbox" name="move" value="yes" checked> Move it to that type's folder</label>
+<div><button>Change type</button></div></form>
+<p class="muted small">Its type group decides which shipped grants reach it. Waits for Computers' Apply.</p></section>
+<section class="card"><h2>Sites</h2>
+<form method="post" action="/directory/machines/{{ m.name | urlencode }}/sites" class="grid">
+{{ csrf() }}
+<label>Site<select name="site" required>{% for s in ch.sites or [] %}<option>{{ s }}</option>{% endfor %}</select></label>
+<div><button name="action" value="add">Add to site</button> <button name="action" value="remove" class="ghost">Take out of site</button></div></form>
+<p class="muted small">A site is a group of its people and computers; grants scoped to a site reach it there. Waits for Computers' Apply.</p></section>
+{% if can('ous:admin') %}<section class="card"><h2>Move to folder</h2>
+<form method="post" action="/directory/machines/{{ m.name | urlencode }}/move" class="grid">
+{{ csrf() }}
+<label>Folder<select name="path" required>{% for f in ch.folders or [] %}<option{{ ' selected' if f == m.folder }}>{{ f }}</option>{% endfor %}</select></label>
+<div><button>Move</button></div></form>
+<p class="muted small">Folders grant nothing: nobody's access changes. Waits for Computers' Apply.</p></section>{% endif %}
+<section class="card"><h2>Add a service</h2>
+<form method="post" action="/directory/machines/{{ m.name | urlencode }}/keytab" class="grid">
+{{ csrf() }}
+<label>Service class<input name="service" required maxlength="32" pattern="[A-Za-z][A-Za-z0-9-]{0,31}" placeholder="HTTP" autocomplete="off"></label>
+<label>Its local user<input name="user" required maxlength="32" placeholder="www-data" autocomplete="off"></label>
+<label>Keytab path (optional)<input name="path" maxlength="255" placeholder="the tool's default" autocomplete="off"></label>
+<div><button>Show the command</button></div></form>
+<p class="muted small">Gives one command for the computer's administrator to run over SSH: the console never holds a key. Nothing waits for Apply.</p></section>
+<section class="card"><h2>Remove {{ m.name }}</h2>
+<form method="post" action="/directory/machines/{{ m.name | urlencode }}/delete" class="grid">
+{{ csrf() }}
+<div><button class="danger">Remove computer</button></div></form>
+<p class="muted small">At Computers' Apply its account goes from the domain: it can no longer sign anyone in, and it must join again to come back.</p></section>
+{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}

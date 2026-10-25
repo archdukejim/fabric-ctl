@@ -10,8 +10,12 @@ def read_policy_changes(data):
              "on"/"off" as a form sends it).
     Returns: dict {policy key: value} of the keys given.
     Fails:   ValidationError "<key> takes a whole number", "complexity takes on or off", "unknown policy setting
-             <key>", or "no policy value given".
+             <key>", "no policy value given", or, for a request naming a tier, that the tiers' policies are set only
+             on the host (2.1.6.71).
     Feeds:   agent/post_domain (POST /v1/domain/password-policy)."""
+    if "tier" in data:                  # the tiers' own policies are the host's alone (2.1.6.71)
+        raise ValidationError("the tiers' password policies (fabric-admin's, the Directory Administrators') are set "
+                              "only on the host: sudo fabricctl domain password-policy --tier (2.1.6.71)")
     known = set(POLICY_KEYS) | {"complexity"}
     unknown = sorted(k for k in data if k not in known and k != "actor")
     if unknown:

@@ -8,6 +8,7 @@ Installing, upgrading, building and releasing fabric, and maintaining its host. 
 - [3.1.2 Automated tests](3.1.2-automated-tests.md)
 - [3.1.3 The web UI's dev preview](3.1.3-dev-preview.md)
 - [3.1.4 Working on fabric](3.1.4-working-on-fabric.md)
+- [3.1.5 The Hyper-V test lab on gaming-23](3.1.5-hyperv-lab.md)
 
 ## 3.2 Architecture and the host
 
@@ -22,6 +23,7 @@ Installing, upgrading, building and releasing fabric, and maintaining its host. 
 - [3.3.2 After setup: CA certificates, the login kit, systemd](3.3.2-after-setup.md)
 - [3.3.3 Setup steps](3.3.3-setup-steps.md)
 - [3.3.4 Rebuilding a host](3.3.4-rebuilding.md)
+- [3.3.5 Moving to 0.8.0](3.3.5-moving-to-080.md)
 
 ## 3.4 DNS: BIND
 
@@ -79,3 +81,7 @@ Nothing here yet — nothing to install on its own: see [1.15](../volume_1_descr
 ## 3.17 The function reference
 
 Nothing here yet — nothing to install on its own: see [1.17](../volume_1_description_and_architecture/README.md).
+
+## 3.18 STIG compliance
+
+Nothing here yet — nothing to install on its own: see [1.18](../volume_1_description_and_architecture/README.md). Loading DISA's GPO package and the fabric host's own STIG step, if chosen (2.1.18.15), will be installed and operated from here and 4.18.

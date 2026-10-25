@@ -29,11 +29,12 @@ echo '<p>landing</p><script>fetch("/certs/ca-certs.json")</script>' > "$W/www/la
 echo 'crl' > "$W/www/certs/crl/intermediate.crl"
 echo 'body{}' > "$W/www/shared/style.css"
 chmod -R a+rX "$W"
-C="fabric-nginx-check-$$"
+TR=(python3 "$(dirname "$0")/common/test_run.py")      # per-run names and labels (manual 3.1.2.6)
+C="$("${TR[@]}" name fabric-nginx-check)-$$"
 FAILED=0
-cleanup() { docker rm -f "$C" >/dev/null 2>&1 || true; rm -rf "$W"; }
+cleanup() { "${TR[@]}" remove container "$C" >/dev/null || true; rm -rf "$W"; }   # this run's only
 trap cleanup EXIT
-docker run -d --name "$C" -v "$R/nginx.conf:/etc/nginx/nginx.conf:ro" -v "$W/certs:/etc/nginx/certs:ro" \
+docker run -d --name "$C" --label "$("${TR[@]}" label)" -v "$R/nginx.conf:/etc/nginx/nginx.conf:ro" -v "$W/certs:/etc/nginx/certs:ro" \
   -v "$W/conf.d:/etc/nginx/conf.d:ro" -v "$W/www:/srv/www:ro" "$IMAGE" >/dev/null
 for _ in $(seq 1 20); do
   docker exec "$C" curl -s -o /dev/null http://127.0.0.1/health && break

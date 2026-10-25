@@ -1,5 +1,4 @@
 import os
-import shutil
 
 from fabriclib.dhcp.client_networks import client_networks
 from fabriclib.common.ensure_dir import ensure_dir
@@ -23,8 +22,7 @@ def deploy_resolver(v, secrets, links, jinja_env):
              plain DNS, a group over DNS-over-TLS naming it; DoT and DoH for clients once the DNS name's certificate is
              in <base>/resolver/tls, 1.12.2.16), its rules zones (fabric's zones never filtered, the owner's allows
              and blocks, each group's, safe search), its control key, fabric's root CA (to check AdGuard's
-             certificate); a running resolver reloads what changed. The lists are AdGuard's (1.12.3.5): the converted
-             zones a 0.8.0 candidate kept in <base>/resolver/lists go.
+             certificate); a running resolver reloads what changed. The lists are AdGuard's (1.12.3.5).
     Inputs:  v — rendered vars: deploy_base_dir, service_users.resolver, ip_bind9, ip_adguard, domain, lan_cidr,
              fabric_subnet, security.firewall_allow, DHCP's subnets (client_networks: full and guest, 2.1.10.4),
              dns_filter_allow, dns_filter_block, dns_filter_safe_search, dns_filter_youtube, dns_filter_groups and
@@ -44,8 +42,6 @@ def deploy_resolver(v, secrets, links, jinja_env):
     ensure_dir(paths["log"], 0o750, uid, gid)
     ensure_dir(paths["cache"], 0o750, uid, gid)
     ensure_dir(paths["tls"], 0o750, uid, gid)          # as install_cert leaves it (mint_service_certs)
-    if os.path.isdir(paths["lists"]):                  # a 0.8.0 candidate's converted lists (1.12.3.11)
-        shutil.rmtree(paths["lists"])
     # DoT and DoH for clients once the DNS name's certificate is there (a first deploy runs before the certificates)
     client_tls = all(os.path.exists(os.path.join(paths["tls"], f)) for f in ("fullchain.pem", "privkey.pem"))
     # the groups reach AdGuard over DoT once its certificate for *.filter.<domain> is there (1.12.3.6)

@@ -2,8 +2,7 @@
 """The DNS filter (manual 1.12.2, 1.12.3) with real containers: fabric's BIND image as the authoritative server for a
 test zone, AdGuard Home (its pinned image) run as its rendered compose file says from the AdGuardHome.yaml fabric
 renders, and the resolver in front of it, from the configuration deploy_resolver writes. The lists are fabric's local
-copies, fetched from a local server. Also the settings that must be refused, the move from 0.6's AdGuard Home and the
-0.7.0 upgrade of the vars.
+copies, fetched from a local server. Also the settings that must be refused.
 
     sudo python3 tests/resolver/run.py           (needs Docker and dig; the internet checks need Cloudflare)
 """
@@ -23,10 +22,16 @@ from contextlib import redirect_stderr, redirect_stdout
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/resolver"
-NET, SUBNET, GATEWAY = "res_test_net", "10.254.42.0/24", "10.254.42.1"
-BIND_IP, RES_IP, AG_IP = "10.254.42.30", "10.254.42.33", "10.254.42.34"
-IMAGE = "fabric/bind9:restest"
+NET, SUBNET, GATEWAY = testrun.name("res_test_net"), f"{testrun.PREFIX}.42.0/24", f"{testrun.PREFIX}.42.1"
+BIND_IP, RES_IP, AG_IP = f"{testrun.PREFIX}.42.30", f"{testrun.PREFIX}.42.33", f"{testrun.PREFIX}.42.34"
+IMAGE = "fabric/bind9:" + testrun.name("restest")
+RES_AUTH = testrun.name("res-auth")
+# bind9-resolver and adguard-filter are the product's names (its deploy and sync use them): one such run at a time
+# (manual 3.1.2.6), and only this run's are removed
+LOCK = testrun.product_names_lock("resolver").__enter__()
 FAILED = 0
 
 
@@ -71,7 +76,7 @@ def refused(fn, *args):
 
 def run_compose(svc, name, ip, image):
     """A compose service as `docker run` (the hardening as rendered): account, capabilities, sysctls, mounts."""
-    cmd = ["docker", "run", "-d", "--name", name, "--network", NET, "--ip", ip, "--user", svc["user"],
+    cmd = ["docker", "run", "-d", "--name", name, *testrun.labels(), "--network", NET, "--ip", ip, "--user", svc["user"],
            "--cap-drop", "ALL", "--memory", str(svc["mem_limit"])]
     cmd += ["--read-only"] if svc.get("read_only") else []
     cmd += [x for o in svc.get("security_opt") or [] for x in ("--security-opt", o)]
@@ -101,7 +106,6 @@ from fabriclib.dns_filter.resolver_tls_pending import resolver_tls_pending  # no
 from fabriclib.dns_filter.sync_adguard import sync_adguard  # noqa: E402
 from fabriclib.common.dot_query import dot_query  # noqa: E402
 from fabriclib.dns_filter.update_lists import update_lists  # noqa: E402
-from fabriclib.setup.upgrade_vars import upgrade_vars  # noqa: E402
 from fabriclib.dns_filter.run_dns_filter_command import run_dns_filter_command  # noqa: E402
 from fabriclib.deploy.check_settings import check_settings  # noqa: E402
 
@@ -140,7 +144,7 @@ for name, bad in (("a list without an http(s) url", {"dns_filter_lists": [{"name
     # covers: setting:dns_filter_block setting:dns_filter_upstreams -
     check(f"settings: {name} is refused, saying why", bool(e), "accepted")
 for value, says in (("unbound", "dns_filter must be bind or none (got 'unbound')"),
-                    ("adguard", "adguard is gone since 0.7")):
+                    ("adguard", "dns_filter must be bind or none (got 'adguard')")):
     try:
         check_settings({"dns_filter": value, "domain": "lan.test", "org_domain": "lan.test"})
         check(f"settings: dns_filter {value} is refused", False, "accepted")
@@ -152,83 +156,6 @@ check_filter_settings(ok)
 # covers: setting:dns_filter_allow setting:dns_filter_block +
 check("settings: rules are normalised (lowercase, no trailing dot, no duplicates)",
       ok["dns_filter_allow"] == ["fine.example"] and ok["dns_filter_block"] == ["bad.example"], ok)
-
-# ---- the 0.7.0 upgrade of the vars (1.12.3.11)
-up = {"resolver_mem_limit": "384m", "dns_filter_groups": [{"name": "kids", "clients": ["192.168.77.5"],
-                                                            "lists": [{"name": "Adult", "url": "https://x/a"}]}]}
-changes = upgrade_vars(up, set(), True)
-check("upgrade: the resolver's old 384m default goes (128m now); a group's own lists are taken out and named",
-      "resolver_mem_limit" not in up and "lists" not in up["dns_filter_groups"][0]
-      and any("Adult" in c for c in changes), (up, changes))
-kept = {"resolver_mem_limit": "512m"}
-upgrade_vars(kept, set(), True)
-check("upgrade: a resolver limit the admin set is kept", kept == {"resolver_mem_limit": "512m"}, kept)
-
-# ---- the move from 0.6's AdGuard Home (manual 2.3.12.1.9, 1.12.3.11)
-GEN = "! fabric: the rules above are generated (fabric's own names stay resolvable)"
-SET = "! fabric: the rules above are adguard_rules (vars); rules you add in this UI go below"
-ADG = {"dns": {"upstream_dns": ["[/lan.test/]10.255.0.30", "https://1.1.1.1/dns-query", "tls://dns.quad9.net",
-                                "https://doh.example.net/dns-query", "192.168.1.1"]},
-       "filters": [{"enabled": True, "name": "AdGuard DNS filter", "url": "https://x.example/filter_1.txt"},
-                   {"enabled": False, "name": "Off list", "url": "https://x.example/off.txt"}],
-       "whitelist_filters": [{"name": "Allow list", "url": "https://x.example/allow.txt"}],
-       "user_rules": ["@@||lan.test^$important", "@@||192.168.77.53^$important", GEN, "||from-vars.example^", SET,
-                      "||ui-block.example^", "@@||ui-allow.example^$important", "/regex/", "plain.example",
-                      "||www.lan.test^"],
-       "filtering": {"safe_search": {"enabled": True}, "parental_enabled": True,
-                     "blocked_services": {"ids": ["tiktok"]}, "rewrites": [{"domain": "nas.home", "answer": "10.0.0.5"}]},
-       "clients": {"persistent": [{"name": "kid-tablet", "ids": ["192.168.77.40"]}]},
-       "users": [{"name": "fabric", "password": "$2a$10$hash"}]}
-VV = {"domain": "lan.test", "org_domain": "lan.test", "ip_bind9": "10.255.0.30"}
-from fabriclib.dns_filter.import_adguard_settings import import_adguard_settings  # noqa: E402
-from fabriclib.setup.move_dns_filter import move_dns_filter  # noqa: E402
-imp = import_adguard_settings(ADG, VV)
-st = imp["settings"]
-check("import: DoH/DoT upstreams of known providers become DoT by address with the certificate name",
-      st["dns_filter_upstreams"] == [{"address": "1.1.1.1", "name": "cloudflare-dns.com"},
-                                     {"address": "9.9.9.9", "name": "dns.quad9.net"},
-                                     {"address": "149.112.112.112", "name": "dns.quad9.net"}], st["dns_filter_upstreams"])
-check("import: lists by URL, ticked as they were (a switched-off one comes unticked); the owner's ||name^ and "
-      "@@||name^ rules (vars and UI); fabric's own left out",
-      st["dns_filter_lists"] == [{"name": "AdGuard DNS filter", "url": "https://x.example/filter_1.txt",
-                                  "enabled": True},
-                                 {"name": "Off list", "url": "https://x.example/off.txt", "enabled": False}]
-      and st["dns_filter_block"] == ["from-vars.example", "ui-block.example"]
-      and st["dns_filter_allow"] == ["ui-allow.example"] and st["dns_filter"] == "bind", st)
-nc = "\n".join(imp["not_carried"])
-check("import: what cannot move is listed — an unknown upstream, plain DNS, an allowlist, regex and exact rules, "
-      "parental control, blocked services, a rewrite, a client outside the networks answered",
-      all(x in nc for x in ("doh.example.net", "192.168.1.1", "Allow list", "/regex/", "plain.example",
-                            "parental", "blocked services", "nas.home", "kid-tablet"))
-      and "Off list" not in nc and st["dns_filter_safe_search"] is True and "www.lan.test" not in nc, imp["not_carried"])
-none = import_adguard_settings({"dns": {"upstream_dns": ["192.168.1.1"]}}, VV)
-check("import: when no upstream can be carried over DoT, Cloudflare's are used, and that is said",
-      none["settings"]["dns_filter_upstreams"][0] == {"address": "1.1.1.1", "name": "cloudflare-dns.com"}
-      and any("Cloudflare" in x for x in none["not_carried"]), none)
-plain = import_adguard_settings(None, {**VV, "adguard_rules": ["||a.example^"]})["settings"]
-check("import without AdGuard's config: what the adguard_* settings (or their defaults) would have started",
-      plain["dns_filter_upstreams"][0] == {"address": "1.1.1.1", "name": "cloudflare-dns.com"}
-      and plain["dns_filter_lists"][0]["name"] == "AdGuard DNS filter" and plain["dns_filter_block"] == ["a.example"])
-MW = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "resolver-move")
-shutil.rmtree(MW, ignore_errors=True)
-os.makedirs(f"{MW}/adguard/conf")
-with open(f"{MW}/adguard/conf/AdGuardHome.yaml", "w") as f:
-    yaml.safe_dump(ADG, f)
-data = {**VV, "dns_filter": "adguard", "adguard_upstreams": [], "ip_adguard": "10.255.0.31",
-        "dns_filter_allow": ["kept.example"]}
-lines = move_dns_filter(data, MW, f"{MW}/config")
-rec = [f for f in os.listdir(f"{MW}/config") if f.startswith("dns-filter-import-")]
-saved = json.load(open(f"{MW}/config/{rec[0]}")) if rec else {}
-check("setup's move: dns_filter becomes bind, the adguard_* keys go (0.6's ip_adguard too: 0.7.0's default applies), "
-      "an allow the admin set is kept as set",
-      data["dns_filter"] == "bind" and "adguard_upstreams" not in data and "ip_adguard" not in data
-      and data["dns_filter_allow"] == ["kept.example"] and data["dns_filter_block"] == st["dns_filter_block"], data)
-check("setup's move: a record of what moved and what did not, root only, without AdGuard's password hash",
-      len(rec) == 1 and oct(os.stat(f"{MW}/config/{rec[0]}").st_mode & 0o777) == "0o600"
-      and saved["not_carried"] and "users" not in saved["adguard_config"] and "$2a$" not in json.dumps(saved)
-      and any("not moved:" in ln for ln in lines), (rec, lines))
-check("setup's move: nothing to do once moved, nor on a host that never ran AdGuard",
-      move_dns_filter(data, MW, f"{MW}/config") == [] and move_dns_filter({**VV}, f"{MW}/none", f"{MW}/config") == [])
 
 # ---- a local server for the lists
 LIST_DIR = os.path.join(W, "served")
@@ -254,7 +181,7 @@ USERS = {"resolver": {"uid": 913, "gid": 913}, "adguard": {"uid": 914, "gid": 91
 SECRETS = {"resolver_rndc_secret": "c2VjcmV0LXRlc3Qta2V5LWZvci1mYWJyaWMtcmVzb2x2ZXI=",
            "adguard_api_password": "TestAdGuardPassw0rdForFabric"}
 PW = SECRETS["adguard_api_password"]
-NAMES = ("bind9-resolver", "res-auth", "adguard-filter")
+NAMES = ("bind9-resolver", RES_AUTH, "adguard-filter")
 try:
     shutil.rmtree(W, ignore_errors=True)
     os.makedirs(LIST_DIR)
@@ -279,7 +206,7 @@ try:
     URL404 = f"http://127.0.0.1:{srv.server_port}/missing.txt"
     V = {"deploy_base_dir": W, "service_users": USERS, "domain": "lan.test", "org_domain": "lan.test",
          "host_ip": GATEWAY, "ip_bind9": BIND_IP, "ip_resolver": RES_IP, "ip_adguard": AG_IP,
-         "lan_cidr": "192.168.77.0/24", "fabric_subnet": "10.254.99.0/24", "dns": {"dynamic_zone_var": {}},
+         "lan_cidr": "192.168.77.0/24", "fabric_subnet": f"{testrun.PREFIX}.99.0/24", "dns": {"dynamic_zone_var": {}},
          "install_resolver": True, "dns_filter": "bind", "resolver_mem_limit": "128m", "adguard_mem_limit": "1024m",
          "dns_filter_lists": [{"name": "Test list", "url": URL1, "enabled": True}],
          "dns_filter_allow": ["blocked-then-allowed.example", "example.net"],
@@ -339,7 +266,8 @@ try:
     check("AdGuard: deployed again, nothing to restart (the password's hash kept)", not again["restart"], again)
 
     # the containers: the authoritative BIND, AdGuard Home and the resolver as their compose files say
-    sh(f"docker rm -f {' '.join(NAMES)}; docker network rm {NET}", ok=False)
+    testrun.remove("container", *NAMES)
+    testrun.remove("network", NET)
     os.makedirs(f"{W}/bind9/config")
     os.makedirs(f"{W}/bind9/data")
     debian = sh([sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "debian"]).stdout.strip()
@@ -352,8 +280,8 @@ try:
                 f"ns IN A {BIND_IP}\nwww IN A 10.9.8.7\nads IN A 10.9.8.8\n")
     uid = sh(["docker", "run", "--rm", "--entrypoint", "id", IMAGE, "-u"]).stdout.strip()
     sh(f"chown -R {uid}:{uid} {W}/bind9/data")
-    sh(["docker", "network", "create", "--subnet", SUBNET, "--gateway", GATEWAY, NET])
-    sh(["docker", "run", "-d", "--name", "res-auth", "--network", NET, "--ip", BIND_IP,
+    testrun.create_network(NET, SUBNET, GATEWAY)
+    sh(["docker", "run", "-d", "--name", RES_AUTH, *testrun.labels(), "--network", NET, "--ip", BIND_IP,
         "-v", f"{W}/bind9/config:/etc/bind:ro", "-v", f"{W}/bind9/data:/var/lib/bind", IMAGE])
     ag = yaml.safe_load(env.get_template("dnsfilter/docker-compose.yml.j2").render(**V))["services"]["adguard-filter"]
     t0 = time.time()
@@ -493,7 +421,7 @@ try:
     a = deploy_adguard(V, SECRETS, env)
     # covers: setting:dns_filter_upstreams +
     check("an upstream changed: made through the API, no restart", not a["restart"] and a["synced"] == ["upstreams"], a)
-    moved = deploy_adguard({**V, "ip_resolver": "10.254.42.99"}, SECRETS, env, sync=False)
+    moved = deploy_adguard({**V, "ip_resolver": f"{testrun.PREFIX}.42.99"}, SECRETS, env, sync=False)
     check("a change outside the API (who may ask it) rewrites the file and asks for a restart", moved["restart"], moved)
     deploy_adguard(V, SECRETS, env, sync=False)          # back to this test's file
 
@@ -607,7 +535,8 @@ try:
     print(f"INFO AdGuard blocking again {time.time() - t0:.1f} s after its start")
 finally:
     if not os.environ.get("KEEP"):           # KEEP=1 leaves the containers to look at
-        sh(f"docker rm -f {' '.join(NAMES)}; docker network rm {NET}", ok=False)
+        testrun.remove("container", *NAMES)
+        testrun.remove("network", NET)
 
 print("\nall passed (0 failures)" if not FAILED else f"\n{FAILED} failed")
 sys.exit(1 if FAILED else 0)

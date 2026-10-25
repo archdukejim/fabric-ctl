@@ -9,4 +9,4 @@ def audit(ctx, lines):
     Fails:   never in practice (plain values).
     Feeds:   src/webui/routes/get_page (/audit); devserver.
     """
-    return render_page("audit", ctx=ctx, lines=lines)
+    return render_page("audit", ctx=ctx, page="/audit", lines=lines)

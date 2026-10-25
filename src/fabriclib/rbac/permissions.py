@@ -27,12 +27,16 @@ PERMISSIONS = {
     "radius:admin": "change 802.1X settings",
     "people:read": "see realm users",
     "people:create": "create realm users",
-    "people:reset": "reset a user's sign-in (password, TOTP)",
+    "people:reset": "reset a user's sign-in (password, TOTP), or unlock a locked-out one",
+    "people:edit": "change a person's details: names, contact, organisation, manager",
     "people:disable": "disable a user's sign-in everywhere at once, or enable it again",
     "people:remove": "remove a user and revoke their certificates",
     "people:groups": "change which groups a user is in",
     "domain:read": "see the domain: its controller, password policy, machines and Group Policy settings",
     "domain:admin": "change the domain's password policy (2.1.2.22; admins only)",
+    "groups:admin": "create and delete groups, set a group's managers; make, change and remove grants (1.6.12.11, "
+                    "1.6.13; the Directory Administrators)",
+    "ous:admin": "create, rename and delete the admin's own OUs; move a computer between OUs (with machines:admin)",
     "machines:admin": "pre-create, disable, enable and remove the site's machines; its host groups and their machines",
     "sudo:admin": "add and remove the site's sudo rules on its Linux machines (admin bundle, 1.6.11.7)",
     "gpo:admin": "set and clear policies in the site's admin settings GPO, and who may sign in to its machines",
@@ -43,15 +47,16 @@ PERMISSIONS = {
     "system:admin": "services, updates and settings",
     "images:update": "update a service's container image, or roll it back (2.1.8.3)",
     "security:raise": "raise sign-in security: second factors, the web console's client certificate (2.1.6.27)",
+    "settings:admin": "change setup's choices that are not sensitive in the setup wizard, export and import its "
+                      "settings file (2.1.8.7)",
 }
 
 _READ = ["status:read", "dns:read", "dhcp:read", "pki:read", "devices:read", "radius:read", "people:read",
          "domain:read", "federation:read", "vault:status",
          "audit:read"]
 
-# the web console's admin role (webui_admin_role): fabric-admin until 0.6.4, now the first admin's user name (2.1.6.33)
+# the web console's admin role (webui_admin_role, 2.1.6.33)
 ADMIN_ROLE = "fabric-console-admin"
-OLD_ADMIN_ROLE = "fabric-admin"
 
 # bundle -> permissions. "admin" is the web UI admin role (webui_admin_role, default ADMIN_ROLE).
 BUNDLES = {
@@ -62,9 +67,9 @@ BUNDLES = {
                                 "pki:read", "vault:status"],
     "fabric-equipment-operator": ["status:read", "dns:read", "pki:read", "pki:link-device", "devices:read",
                                   "devices:enroll", "devices:admin", "roles:admin", "radius:read", "radius:admin",
-                                  "domain:read", "machines:admin"],
+                                  "domain:read", "machines:admin", "ous:admin"],
     "fabric-pki-operator": ["status:read", "pki:read", "pki:issue", "pki:sign", "pki:revoke", "pki:link-device",
                            "devices:read"],
     "fabric-helpdesk": ["status:read", "dns:read", "pki:read", "devices:read", "devices:enroll", "people:read",
-                        "people:create", "people:reset", "people:disable", "domain:read"],
+                        "people:create", "people:reset", "people:disable", "people:edit", "domain:read"],
 }

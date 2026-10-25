@@ -17,7 +17,6 @@ import subprocess
 import sys
 import tempfile
 
-import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, "src"))
@@ -175,7 +174,7 @@ check("negative: a failed run is recorded with its error and exits 1 (the timer 
       code == 1 and not done["ok"] and "step-ca refused" in done["error"], done)
 rsc.mint_service_certs.run, rsc.pick_up_cert = real_mint, real_pick
 
-print("--- certs.<domain> is gone (1.5.1.5): no certificate issued for it, the old one deleted")
+print("--- certs.<domain> is gone (1.5.1.5): no certificate issued for it")
 msc = rsc.mint_service_certs
 _names = {k: f"{k}.lan.test" for k in ("hostname_bind9", "hostname_stepca", "hostname_landing", "hostname_openbao",
                                        "hostname_dc")}
@@ -192,21 +191,10 @@ class TCtx:
 
 
 tb = os.path.join(W, "retire")
-old_dir = os.path.join(tb, "nginx", "certs", "certs.lan.test")
-os.makedirs(old_dir)
-open(os.path.join(old_dir, "fullchain.pem"), "w").write("old")
 tctx = TCtx(tb)
 targets = msc._targets(tctx)
 check("no service certificate for certs.<domain> any more", all(not cn.startswith("certs.") for cn, *_ in targets),
       [cn for cn, *_ in targets])
-check("the old certs.<domain> certificate folder is found (run deletes it)",
-      msc._old_certs_host(tctx, targets) == old_dir)
-os.rename(old_dir, old_dir + ".gone")
-check("…and once gone, nothing to do (idempotent)", msc._old_certs_host(tctx, targets) is None)
-os.rename(old_dir + ".gone", old_dir)
-tctx = TCtx(tb, hostname_landing="certs.lan.test")
-check("negative: a name still in use (the info page named certs) keeps its certificate",
-      msc._old_certs_host(tctx, msc._targets(tctx)) is None)
 
 print("--- a service certificate naming another CRL point is issued again (1.5.1.6, 2.1.4.6)")
 _aia = "authorityInfoAccess=caIssuers;URI:http://aia.lan.test/intermediate.crt\n"
@@ -284,18 +272,14 @@ check("the existing root's own lifetime passes", lifetime_refused(3650) == "")
 check("negative: a changed lifetime on an existing CA is refused, saying the root's and what to do",
       "made for 3650 days" in lifetime_refused(1825) and "cannot change" in lifetime_refused(1825))
 check("a brought-in root's lifetime is its own: not checked", lifetime_refused(1825, byoc=True) == "")
-# a CA from before 0.6.3: 0.6.2 saved a default of 1825 that never shaped its root (found by the upgrade test)
-old_cfg = os.path.join(W, "cfg-0.6.2")
-os.makedirs(old_cfg, exist_ok=True)
-with open(os.path.join(old_cfg, "fabric.yaml"), "w") as f:
-    yaml.safe_dump({"domain": "lan.test", "cert_root_ca_days": 1825}, f)
-v_old = {"cert_root_ca_days": 1825}
-_check_root_lifetime(v_old, os.path.join(base, "stepca", "data", "certs"), old_cfg)
-check("upgrade from 0.6.2: the CA's own lifetime is adopted (setting and fabric.yaml), not refused",
-      v_old["cert_root_ca_days"] == 3650
-      and yaml.safe_load(open(os.path.join(old_cfg, "fabric.yaml")))["cert_root_ca_days"] == 3650
-      and open(os.path.join(old_cfg, "ca-lifetime")).read().strip() == "3650", v_old)
-check("...once: a change after that is refused", "cannot change" in lifetime_refused(1825, config=old_cfg))
+no_record = os.path.join(W, "cfg-no-record")
+os.makedirs(no_record, exist_ok=True)
+check("negative: with no record, a lifetime other than the root's is refused too (a CA from before 0.6.3 is no longer "
+      "adopted: 2.1.1.61)", "cannot change" in lifetime_refused(1825, config=no_record)
+      and not os.path.exists(os.path.join(no_record, "ca-lifetime")))
+check("with no record and the root's own lifetime: passes, and the record is written",
+      lifetime_refused(3650, config=no_record) == "" and open(os.path.join(no_record, "ca-lifetime")).read().strip()
+      == "3650")
 
 
 class PlanCtx:

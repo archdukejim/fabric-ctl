@@ -3,10 +3,8 @@ import os
 import yaml
 
 from fabriclib.common.console import ok
-from fabriclib.common.paths import PACKAGE_DIR
 from fabriclib.deploy.apply_deployment import apply_deployment
 from fabriclib.secrets.secrets_in_openbao import secrets_in_openbao
-from fabriclib.setup.adopt_stray_records import adopt_stray_records
 
 CLI_WRAPPER = """#!/bin/bash
 # fabricctl - fabric management CLI (installed by fabricctl setup)
@@ -53,8 +51,7 @@ def run(ctx):
              SECRETS_FILE_OVERRIDE, LINK_VARS_PATH for the deploy engine (deploy/deploy_paths reads them per run).
     Returns: None. Leaves the rendered install, an empty 0600 secrets file unless the secrets are in OpenBao,
              ctx.restart_services extended with services whose config, unit or image changed, ctx reloaded
-             (vars.yaml). From the package: an old /usr/local/bin wrapper is removed and records an earlier build left
-             beside the package's copy are adopted (adopt_stray_records); from a checkout:
+             (vars.yaml). From the package: an old /usr/local/bin wrapper is removed; from a checkout:
              /usr/local/bin/fabricctl is written (runs <target>/lib/manage.sh).
     Fails:   whatever apply_deployment raises (ValidationError, CalledProcessError, OSError) —
              propagates; OSError writing files.
@@ -87,7 +84,6 @@ def run(ctx):
         if os.path.exists(LOCAL_CLI) and "installed by fabricctl setup" in open(LOCAL_CLI).read():
             os.remove(LOCAL_CLI)
         ok(f"fabricctl command: {PACKAGED_CLI} (package)")
-        adopt_stray_records(os.path.join(PACKAGE_DIR, "archive"), os.path.join(ctx.target_dir, "archive"))
     else:
         _write_exec(LOCAL_CLI, CLI_WRAPPER.format(target=ctx.target_dir))
         ok(f"installed {LOCAL_CLI}")

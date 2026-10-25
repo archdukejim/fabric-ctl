@@ -1,6 +1,6 @@
 import ldb
 
-from paths import devices_dn, site_dn, sites_dn
+import paths
 
 
 def _one(m, name, default=""):
@@ -13,16 +13,18 @@ def _one(m, name, default=""):
 
 
 def read_devices(samdb, lp, site):
-    """Purpose: this site's devices and every device role it may use (its own and the organisation's), raw, in one
-             read (manual 1.6.3.4; the data shapes fabric's device code and the web UI use).
-    Inputs:  samdb — SamDB (as the site's agent); lp — LoadParm (unused); site — str.
+    """Purpose: the domain's devices (OU=devices) and its device roles (OU=device-roles), raw, in one read (manual
+             1.6.13.2, 2.1.6.80; the data shapes fabric's device code and the web UI use).
+    Inputs:  samdb — SamDB (as the DC's agent); lp — LoadParm (unused); site — str (unused: devices and roles are the
+             domain's).
     Returns: {"devices": [{name, type, enabled, macs, owner (DN or ""), description, certs (SHA-256 fingerprints),
              roles (the role names the device carries)}], "roles": [{name, description, permissions, vlan (int or
              None), priority (int, default 100), members (device names, from the devices' roles), dn}]}.
     Fails:   ldb.LdbError from a search.
     Feeds:   directory_ops (op "read_devices")."""
     devices = []
-    for m in samdb.search(base=devices_dn(samdb, site), scope=ldb.SCOPE_ONELEVEL, expression="(objectClass=device)",
+    for m in samdb.search(base=paths.folder_dn(samdb, "devices"), scope=ldb.SCOPE_ONELEVEL,
+                          expression="(objectClass=device)",
                           attrs=["cn", "fabricDeviceType", "fabricEnabled", "macAddress", "owner", "description",
                                  "fabricCertFingerprint", "fabricRoleName"]):
         devices.append({"name": _one(m, "cn"), "type": _one(m, "fabricDeviceType", "other"),
@@ -32,13 +34,9 @@ def read_devices(samdb, lp, site):
                         "certs": [str(x) for x in m.get("fabricCertFingerprint", [])],
                         "roles": sorted(str(x) for x in m.get("fabricRoleName", []))})
     roles = []
-    own = f",OU=device-roles,{site_dn(samdb, site)}".lower()
-    for m in samdb.search(base=sites_dn(samdb), scope=ldb.SCOPE_SUBTREE,
+    for m in samdb.search(base=paths.folder_dn(samdb, "device-roles"), scope=ldb.SCOPE_SUBTREE,
                           expression="(&(objectClass=group)(objectClass=fabricRole))",
                           attrs=["cn", "description", "fabricPermission", "fabricVlan", "fabricPriority"]):
-        dn = str(m.dn).lower()
-        if not dn.endswith(own) and ",ou=device-roles,ou=organisation," not in dn:
-            continue                     # another site's own role
         roles.append({"name": _one(m, "cn"), "description": _one(m, "description"),
                       "permissions": [str(x) for x in m.get("fabricPermission", [])],
                       "vlan": int(_one(m, "fabricVlan", "0")) or None,

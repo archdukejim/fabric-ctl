@@ -1,0 +1,8 @@
+[Unit]
+Description=fabric: this host's local-admin: a use seen in the journal and wtmp, its rotation after use, SSH applied (manual 1.7.1.4)
+After=docker.service fabric.target
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/fabricctl local-admin check --scheduled

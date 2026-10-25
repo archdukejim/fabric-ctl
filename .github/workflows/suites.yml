@@ -36,7 +36,7 @@ jobs:
         arch: [amd64, arm64]
         # "render nginx": nginx checks what render wrote, so the two run in one job
         suite: [docs, consent, "render nginx", zone, webui, pki, federation, resolver, ntp, openbao, fluentbit, kea,
-                freeradius, samba, keycloak, hardening, images]
+                settings, freeradius, samba, keycloak, hardening, images]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: What the suites need (3.1.2)

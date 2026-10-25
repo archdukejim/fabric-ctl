@@ -4,7 +4,7 @@ import os
 from fabriclib.common.errors import ValidationError
 from fabriclib.vault.common.bao_request import bao_request
 from fabriclib.vault.common.write_private_file import write_private_file
-from fabriclib.vault.constants import AGENT_CREDS, KV_MOUNTS, POLICIES, RETIRED_NAMES, SETUP_CREDS
+from fabriclib.vault.constants import AGENT_CREDS, KV_MOUNTS, POLICIES, SETUP_CREDS
 
 # AppRole -> (policy, credentials file)
 ROLES = {"fabric-setup": ("fabric-setup", SETUP_CREDS), "fabric-agent": ("fabric-agent", AGENT_CREDS)}
@@ -66,10 +66,6 @@ def configure_openbao(v, token):
         if (current or "").strip() != policy.strip():
             _call(v, token, "PUT", f"sys/policies/acl/{name}", {"policy": policy})
             changes.append(f"policy {name}")
-    for name in RETIRED_NAMES:                    # 2.1.6.33: the old admin policy, renamed
-        if bao_request(v, "GET", f"sys/policies/acl/{name}", token=token)[0] == 200:
-            _call(v, token, "DELETE", f"sys/policies/acl/{name}")
-            changes.append(f"policy {name} removed (renamed)")
     cidrs = [v.get("fabric_subnet", "10.255.0.0/24")]
     for role, (policy, creds_name) in ROLES.items():
         _call(v, token, "POST", f"auth/approle/role/{role}",

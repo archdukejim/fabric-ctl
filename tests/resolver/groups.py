@@ -4,7 +4,7 @@ image as the authoritative server for a test zone, AdGuard Home and the resolver
 what deploy_adguard and deploy_resolver write, each group's view reaching AdGuard over DoT with its ClientID (a test CA
 and a *.filter certificate), and three clients on their own addresses — a kid (in the kids' subnet group), a teen (an
 address group inside that subnet: the most specific wins) and an adult (in no group). Also the group settings that
-must be refused and the AdGuard import of clients.
+must be refused.
 
     sudo python3 tests/resolver/groups.py        (needs Docker; the safe-search checks need the internet)
 """
@@ -19,12 +19,17 @@ import time
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/resolver-groups"
-NET, SUBNET, GATEWAY = "resg_test_net", "10.254.43.0/24", "10.254.43.1"
-BIND_IP, RES_IP, AG_IP = "10.254.43.230", "10.254.43.233", "10.254.43.234"
-CLIENTS = {"kid": "10.254.43.5", "teen": "10.254.43.10", "adult": "10.254.43.100"}
-IMAGE = "fabric/bind9:restest"
-CLIENT_IMAGE = "fabric/dnsclient:restest"
+NET, SUBNET, GATEWAY = testrun.name("resg_test_net"), f"{testrun.PREFIX}.43.0/24", f"{testrun.PREFIX}.43.1"
+BIND_IP, RES_IP, AG_IP = f"{testrun.PREFIX}.43.230", f"{testrun.PREFIX}.43.233", f"{testrun.PREFIX}.43.234"
+CLIENTS = {"kid": f"{testrun.PREFIX}.43.5", "teen": f"{testrun.PREFIX}.43.10", "adult": f"{testrun.PREFIX}.43.100"}
+IMAGE = "fabric/bind9:" + testrun.name("restest")
+CLIENT_IMAGE = "fabric/dnsclient:" + testrun.name("restest")
+RESG_AUTH = testrun.name("resg-auth")
+# bind9-resolver and adguard-filter are the product's names: one such run at a time (manual 3.1.2.6)
+LOCK = testrun.product_names_lock("resolver groups").__enter__()
 FAILED = 0
 
 
@@ -42,7 +47,7 @@ def sh(cmd, ok=True):
 
 
 def dig(who, *args):
-    return sh(["docker", "exec", f"resg-{who}", "dig", "+time=5", "+tries=1", f"@{RES_IP}", *args], ok=False).stdout
+    return sh(["docker", "exec", testrun.name(f"resg-{who}"), "dig", "+time=5", "+tries=1", f"@{RES_IP}", *args], ok=False).stdout
 
 
 def status(who, name):
@@ -52,7 +57,7 @@ def status(who, name):
 
 def run_compose(svc, name, ip, image):
     """A compose service as `docker run` (the hardening as rendered): account, capabilities, sysctls, mounts."""
-    cmd = ["docker", "run", "-d", "--name", name, "--network", NET, "--ip", ip, "--user", svc["user"],
+    cmd = ["docker", "run", "-d", "--name", name, *testrun.labels(), "--network", NET, "--ip", ip, "--user", svc["user"],
            "--cap-drop", "ALL", "--memory", str(svc["mem_limit"])]
     cmd += ["--read-only"] if svc.get("read_only") else []
     cmd += [x for o in svc.get("security_opt") or [] for x in ("--security-opt", o)]
@@ -88,7 +93,6 @@ from fabriclib.dns_filter.common.resolver_rndc import resolver_rndc  # noqa: E40
 from fabriclib.dns_filter.common.safe_search import ENGINES, safe_search_records, safe_search_summary  # noqa: E402
 from fabriclib.dns_filter.deploy_adguard import deploy_adguard  # noqa: E402
 from fabriclib.dns_filter.deploy_resolver import deploy_resolver  # noqa: E402
-from fabriclib.dns_filter.import_adguard_settings import import_adguard_settings  # noqa: E402
 from fabriclib.dns_filter.ingest_dns_log import QUERY, RPZ, _rows  # noqa: E402
 from fabriclib.dns_filter.resolver_views import resolver_views  # noqa: E402
 from fabriclib.dns_filter.sync_adguard import sync_adguard  # noqa: E402
@@ -179,26 +183,6 @@ check("views: each group's safe-search zone follows its YouTube level; everyone'
       [g["safe_zone"] for g in views["groups"]] == [None, "safesearch-ytmoderate.rpz", "safesearch-strict.rpz"]
       and views["safe_zone"] is None)
 
-# ---- the AdGuard import: persistent clients become groups
-ADG = {"filtering": {"safe_search": {"enabled": True, "youtube": True}},
-       "clients": {"persistent": [
-           {"name": "Kid Tablet", "ids": ["192.168.77.40", "aa:bb:cc:dd:ee:ff"], "use_global_settings": False,
-            "safe_search": {"enabled": True, "youtube": True}},
-           {"name": "Office", "ids": ["192.168.77.128/25"], "use_global_settings": True},
-           {"name": "Phone", "ids": ["fd00::7", "phone-1"], "use_global_settings": False}]}}
-imp = import_adguard_settings(ADG, {**BASE})
-gs = imp["settings"]["dns_filter_groups"]
-nc = "\n".join(imp["not_carried"])
-check("import: a client with IPv4 ids becomes a group named after it, with its safe search (YouTube moderate)",
-      gs[0] == {"name": "kid-tablet", "clients": ["192.168.77.40"], "safe_search": True, "youtube": "moderate",
-                "allow": [], "block": []}, gs)
-check("import: a client on the global settings takes everyone's safe search; AdGuard's global safe search is "
-      "everyone's", gs[1]["name"] == "office" and gs[1]["safe_search"] is True
-      and imp["settings"]["dns_filter_safe_search"] is True and imp["settings"]["dns_filter_youtube"] == "moderate", gs)
-check("import: MAC addresses, client IDs, IPv6 and a client with nothing usable are listed as not carried",
-      all(x in nc for x in ("aa:bb:cc:dd:ee:ff", "fd00::7", "phone-1", "Phone")) and len(gs) == 2, imp["not_carried"])
-check("import: the groups pass the settings check", check_filter_settings({**BASE, **imp["settings"]}) is None)
-
 # ---- with real containers
 LIST_DIR = os.path.join(W, "served")
 
@@ -222,7 +206,7 @@ SECRETS = {"resolver_rndc_secret": "c2VjcmV0LXRlc3Qta2V5LWZvci1mYWJyaWMtcmVzb2x2
            "adguard_api_password": "TestAdGuardPassw0rdForFabric"}
 PW = SECRETS["adguard_api_password"]
 LINKS = {"children": [], "upstream": None}
-NAMES = "bind9-resolver resg-auth adguard-filter resg-kid resg-teen resg-adult"
+NAMES = ("bind9-resolver", RESG_AUTH, "adguard-filter", *(testrun.name(f"resg-{w}") for w in ("kid", "teen", "adult")))
 try:
     shutil.rmtree(W, ignore_errors=True)
     os.makedirs(LIST_DIR)
@@ -233,14 +217,14 @@ try:
     URL_SHARED = f"http://127.0.0.1:{srv.server_port}/shared.txt"
     V = {"deploy_base_dir": W, "service_users": USERS, "domain": "lan.test", "org_domain": "lan.test",
          "host_ip": GATEWAY, "ip_bind9": BIND_IP, "ip_resolver": RES_IP, "ip_adguard": AG_IP, "lan_cidr": SUBNET,
-         "fabric_subnet": "10.254.99.0/24", "dns": {"dynamic_zone_var": {}}, "install_resolver": True,
+         "fabric_subnet": f"{testrun.PREFIX}.99.0/24", "dns": {"dynamic_zone_var": {}}, "install_resolver": True,
          "dns_filter": "bind", "resolver_mem_limit": "128m", "adguard_mem_limit": "1024m",
          "dns_filter_lists": [{"name": "Shared", "url": URL_SHARED, "enabled": True}],
          "dns_filter_allow": [], "dns_filter_block": [],
          "dns_filter_upstreams": ([{"address": "1.1.1.1", "name": "cloudflare-dns.com"}] if internet else
                                   [{"address": "192.0.2.1", "name": "nowhere.invalid"}]),
          "dns_filter_groups": [
-             {"name": "kids", "clients": ["10.254.43.0/26"], "safe_search": True, "youtube": "strict",
+             {"name": "kids", "clients": [f"{testrun.PREFIX}.43.0/26"], "safe_search": True, "youtube": "strict",
               "allow": [KID_ALLOWED], "block": ["kid-blocked.example"]},
              {"name": "teen", "clients": [CLIENTS["teen"]], "safe_search": True, "youtube": "moderate"}],
          "image_adguard": sh([sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "adguard"]).stdout.strip(),
@@ -288,7 +272,7 @@ try:
           and os.path.exists(f"{W}/resolver/config/safesearch-ytmoderate.rpz") and a["restart"], (lists, r, a))
     check("config: the groups' views come before everyone's, the kids' view excludes the teen's address",
           conf.index('view "kids"') < conf.index('view "teen"') < conf.index('view "everyone"')
-          and f"match-clients {{ !{CLIENTS['teen']}; 10.254.43.0/26; }};" in conf, conf[:1500])
+          and f"match-clients {{ !{CLIENTS['teen']}; {testrun.PREFIX}.43.0/26; }};" in conf, conf[:1500])
     check("config: a group's view forwards to AdGuard over DoT naming the group (its ClientID), fabric's CA checked",
           f'forwarders port 853 tls "group-kids" {{ {AG_IP}; }};' in kids and 'remote-hostname "kids.filter.lan.test"'
           in conf and os.path.exists(f"{W}/resolver/config/fabric-root-ca.crt") and "127.0.0.1" not in kids, kids)
@@ -299,9 +283,10 @@ try:
                                                                                     ("teen", ["teen"])]
           and f"@@||{KID_ALLOWED}^$client='kids',important" in agconf["user_rules"], agconf["tls"])
 
-    sh(f"docker rm -f {NAMES}; docker network rm {NET}", ok=False)
-    sh(["docker", "network", "create", "--subnet", SUBNET, "--gateway", GATEWAY, NET])
-    sh(["docker", "run", "-d", "--name", "resg-auth", "--network", NET, "--ip", BIND_IP,
+    testrun.remove("container", *NAMES)
+    testrun.remove("network", NET)
+    testrun.create_network(NET, SUBNET, GATEWAY)
+    sh(["docker", "run", "-d", "--name", RESG_AUTH, *testrun.labels(), "--network", NET, "--ip", BIND_IP,
         "-v", f"{W}/bind9/config:/etc/bind:ro", "-v", f"{W}/bind9/data:/var/lib/bind", IMAGE])
     ag = yaml.safe_load(env.get_template("dnsfilter/docker-compose.yml.j2").render(**V))["services"]["adguard-filter"]
     run_compose(ag, "adguard-filter", AG_IP, V["image_adguard"])
@@ -312,7 +297,7 @@ try:
     rc = yaml.safe_load(env.get_template("resolver/docker-compose.yml.j2").render(**V))["services"]["bind9-resolver"]
     run_compose(rc, "bind9-resolver", RES_IP, IMAGE)
     for who, ip in CLIENTS.items():
-        sh(["docker", "run", "-d", "--name", f"resg-{who}", "--network", NET, "--ip", ip, CLIENT_IMAGE, "sleep", "900"])
+        sh(["docker", "run", "-d", "--name", testrun.name(f"resg-{who}"), *testrun.labels(), "--network", NET, "--ip", ip, CLIENT_IMAGE, "sleep", "900"])
     up = until(lambda: (resolver_rndc(["status"]) or subprocess.CompletedProcess([], 1)).returncode == 0)
     check("the resolver starts with the groups' views (BIND takes the configuration)", up,
           sh("docker logs --tail 30 bind9-resolver", ok=False).stderr)
@@ -413,7 +398,8 @@ try:
           "group-kids.rpz" not in rpz_log()[len(before):])
 finally:
     if not os.environ.get("KEEP"):
-        sh(f"docker rm -f {NAMES}; docker network rm {NET}", ok=False)
+        testrun.remove("container", *NAMES)
+        testrun.remove("network", NET)
 
 print("\nall passed (0 failures)" if not FAILED else f"\n{FAILED} failed")
 sys.exit(1 if FAILED else 0)

@@ -14,8 +14,9 @@ def dc_name_problem(name, netbios="", hostname=""):
              a dash left at the end), "" to skip that check.
     Returns: str, the problem; "" when the name can be used.
     Fails:   never.
-    Feeds:   setup/ask_dc_name (asked again at once; with the host's name), deploy/check_samba_settings
-             (deploy refuses), federation/accept_join."""
+    Feeds:   samba/suggested_dc_name (a number the DC could not have is passed over), deploy/check_samba_settings
+             (deploy refuses; an installed DC's own name, 0.7.x's `dc-<host>` included, passes),
+             federation/join_upstream (the name the upstream gave is checked)."""
     low = str(name or "").strip().lower()
     if not _NAME.match(low):
         return (f"{name!r}: one label of 1-15 letters, digits or hyphens, not starting or ending with a hyphen "

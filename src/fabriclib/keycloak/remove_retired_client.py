@@ -7,7 +7,7 @@ def remove_retired_client(kc, realm, client_id):
     Inputs:  kc — keycloak/admin_client Admin; realm — fabric's realm; client_id — the retired client's clientId.
     Returns: True when it was removed, False when it was not there.
     Fails:   SystemExit from kc.call on an admin API error.
-    Feeds:   keycloak/configure_keycloak."""
+    Feeds:   nothing since 0.8.0 (its one call, for fabric-adguard, retired: stale-code register 2.3.1.5.1, S13)."""
     _, found = kc.call("GET", f"/{q(realm)}/clients?clientId={q(client_id)}")
     if not found:
         return False

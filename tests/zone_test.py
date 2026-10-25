@@ -7,6 +7,7 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 from fabriclib.dns import reload_zone as reload_zone_module  # noqa: E402
+from fabriclib.dns import served_serial as served_serial_module  # noqa: E402
 from fabriclib.dns.find_changed_zones import find_changed_zones  # noqa: E402
 from fabriclib.dns.reload_zone import file_serial, reload_zone  # noqa: E402
 
@@ -42,7 +43,7 @@ def fake_rndc(args, timeout=15):
     return R(0)
 
 
-reload_zone_module.rndc = fake_rndc
+reload_zone_module.rndc = served_serial_module.rndc = fake_rndc
 uid, gid = os.getuid(), os.getgid()
 ZONE = """$ORIGIN lan.test.
 @ IN SOA ns.lan.test. hostmaster.lan.test. (

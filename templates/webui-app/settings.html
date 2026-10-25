@@ -1,0 +1,72 @@
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+{% macro today_is(f, shown=None) %}<span class="muted">today: {{ shown if shown is not none else (today[f] or '—') }}</span>{% endmacro %}
+{% macro onoff(f, on='on', off='off') %}<select name="{{ f }}"><option value="true"{{ ' selected' if typed[f] == 'true' }}>{{ on }}</option><option value="false"{{ ' selected' if typed[f] != 'true' }}>{{ off }}</option></select>{% endmacro %}
+<h1>Settings · the setup wizard</h1>
+<p class="muted">Setup's choices that can change later. Back and Next keep what you typed; nothing changes until you
+review the plan and apply it, as one apply.{% if not ov.finished.finished %} <strong>Finish setting up:</strong> after a
+fresh install these are setup's defaults.{% endif %}</p>
+{{ p.relaxations(relaxed) }}
+{% if signin_old %}<p class="warn-text">Apply needs a sign-in from the last 5 minutes: <a href="/login?next=/settings">sign in again</a> first, or you will be asked to at Apply.</p>{% endif %}
+<p class="steps">{% for s, title, _ in steps %}{% if s == step %}<strong>{{ loop.index }}. {{ title }}</strong>{% else %}<span class="muted">{{ loop.index }}. {{ title }}</span>{% endif %}{{ ' · ' if not loop.last }}{% endfor %}</p>
+<section class="card">
+{% if step == 'review' %}<form method="post" action="/settings/plan" class="grid">{% else %}<form method="post" action="/settings/step" class="grid">{% endif %}
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+{% for f, v in typed.items() if f not in fields %}{% if f in ('dns_filter_upstreams',) %}<textarea name="{{ f }}" hidden>{{ v }}</textarea>{% else %}<input type="hidden" name="{{ f }}" value="{{ v }}">{% endif %}{% endfor %}
+{% if step == 'parts' %}
+<h2>Optional parts</h2>
+<label>The DNS filter<select name="dns_filter"><option value="bind"{{ ' selected' if typed.dns_filter == 'bind' }}>on (bind)</option><option value="none"{{ ' selected' if typed.dns_filter == 'none' }}>off (none)</option></select> {{ today_is('dns_filter') }}</label>
+<label>Log forwarding (Fluent Bit){{ onoff('install_fluentbit') }} {{ today_is('install_fluentbit', 'on' if today.install_fluentbit == 'true' else 'off') }}</label>
+{% if today.log_target_both %}
+<input type="hidden" name="log_target" value="{{ typed.log_target }}">
+<p class="muted">The logs go to a syslog server and Elasticsearch both: change them in a settings file (Export, then Import) or on the host.</p>
+{% else %}
+<label>Send the logs to (a syslog server, host or host:port, TLS; or an Elasticsearch URL, https://…)<input name="log_target" value="{{ typed.log_target }}" placeholder="logs.example.org:6514"> {{ today_is('log_target') }}</label>
+{% endif %}
+<h2>Changed only on the host's console</h2>
+<table><thead><tr><th>Setting</th><th>Now</th><th>Changed with</th></tr></thead><tbody>
+{% for c in ov.console_only %}<tr><td data-label="Setting"><code>{{ c.key }}</code> <span class="muted">{{ c.what }}</span></td><td data-label="Now">{{ c.value or '—' }}</td><td data-label="Changed with"><code>{{ c.command }}</code></td></tr>{% endfor %}
+</tbody></table>
+<p class="muted">So are every host change (ports, the firewall, Docker's hardening, trust, time, domain membership),
+OpenBao's unlock and recovery, lowering sign-in security, client certificates and every secret.</p>
+{% elif step == 'memory' %}
+<h2>Memory</h2>
+<label>GB of memory fabric may use, 4 to {{ ov.host_gb or "what the host has" }}<input name="host_ram_capacity" type="number" min="4"{% if ov.host_gb %} max="{{ ov.host_gb }}"{% endif %} value="{{ typed.host_ram_capacity }}"> {{ today_is('host_ram_capacity') }}</label>
+<p class="muted">The plan shows how each service's share changes; the rest of the host is left to other work.</p>
+{% elif step == 'signin' %}
+<h2>Passwords and sign-in</h2>
+<p>Each has its own page, where it is changed and applied:</p>
+<ul><li>The domain's password policy: <a href="/directory/policies">Directory → Policies</a>.</li>
+<li>Signing in with the domain logon (Kerberos): <a href="/directory/kerberos">Directory → Kerberos</a>.</li>
+<li>Second factors and the console's client certificate: <a href="/settings/sign-in">Settings → Sign-in security</a>.</li></ul>
+<p class="muted">A settings file (Export, then Import) still sets the password policy and Kerberos sign-in.</p>
+{% elif step == 'upstreams' %}
+<h2>The DNS filter's upstreams</h2>
+<label>DNS-over-TLS servers, one a line: <code>address name-on-its-certificate</code>
+<textarea name="dns_filter_upstreams" rows="4">{{ typed.dns_filter_upstreams }}</textarea></label>
+<p class="muted">today: {{ today.dns_filter_upstreams | replace('\n', ', ') }}</p>
+{% else %}
+<h2>Review</h2>
+{% if changed %}
+<table><thead><tr><th>Field</th><th>Today</th><th>After</th></tr></thead><tbody>
+{% for f, old, new in changed %}<tr><td data-label="Field"><code>{{ f }}</code></td><td data-label="Today">{{ old or '—' }}</td><td data-label="After">{{ new or '—' }}</td></tr>{% endfor %}
+</tbody></table>
+{% else %}<p class="muted">Nothing typed differs from today's settings.</p>{% endif %}
+<p class="muted">Make the plan: each change is checked as setup checks it, with the memory plan; nothing changes until
+you apply it.</p>
+{% endif %}
+<div>{% if step == 'review' %}<button>Make the plan</button>{% elif next %}<button name="go" value="{{ next }}">Next</button>{% endif %}
+{% if prev %}<button name="go" value="{{ prev }}" class="ghost" formaction="/settings/step">Back</button>{% endif %}</div>
+</form></section>
+<section class="card"><h2>The settings file</h2>
+<p class="muted">The same settings as a file: no secret and nothing console-only. On a host without a browser:
+<code>sudo fabricctl settings export FILE</code> and <code>sudo fabricctl settings import FILE</code>.</p>
+<p><a href="/settings/export">Export</a> today's settings.</p>
+<form method="post" action="/settings/import" enctype="multipart/form-data" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label>Import a settings file<input type="file" name="file" accept=".yaml,.yml,text/yaml"></label>
+<label>or paste it<textarea name="text" rows="3"></textarea></label>
+<button>Import (shows the plan)</button></form></section>
+{% if not ov.finished.finished %}
+<form method="post" action="/settings/dismiss" class="apply"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost">Dismiss</button><span class="muted">keep setup's choices: the first sign-in no longer opens the wizard (Settings still does).</span></form>
+{% endif %}
+{% endblock %}

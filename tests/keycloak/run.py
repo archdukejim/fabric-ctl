@@ -20,8 +20,10 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
-sys.path[0:0] = [os.path.join(REPO, "src"), REPO, os.path.join(REPO, "tests", "samba"), HERE]
-from start_dc import start_dc  # noqa: E402
+sys.path[0:0] = [os.path.join(REPO, "src"), REPO, os.path.join(REPO, "tests", "samba"),
+                 os.path.join(REPO, "tests", "common"), HERE]
+from start_dc import IMAGE as SAMBA_IMAGE, start_dc  # noqa: E402
+import test_run as testrun  # noqa: E402
 from soft_passkey import SoftPasskey  # noqa: E402
 from fabriclib.directory.ensure_admin import ensure_admin  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
@@ -31,9 +33,11 @@ from fabriclib.secrets.random_password import random_password  # noqa: E402
 from webui.tlsclient import TLSClient  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "keycloak")
-NET, SUBNET, DC_IP, KC_IP = "kctest", "10.254.9.0/24", "10.254.9.10", "10.254.9.60"
-DC, KC = "kc-dc", "kc-keycloak"
-HOST, REALM = "sso.lan.j-j.family", "lan.j-j.family"
+# per run (manual 3.1.2.6): another worktree's run has names and a subnet of its own
+N9 = testrun.net(9)
+NET, SUBNET, DC_IP, KC_IP = testrun.name("kctest"), f"{N9}.0/24", f"{N9}.10", f"{N9}.60"
+DC, KC = testrun.name("kc-dc"), testrun.name("kc-keycloak")
+HOST, REALM = "sso.test.lan.j-j.family", "test.lan.j-j.family"
 PASS = FAIL = 0
 
 
@@ -55,8 +59,8 @@ def sh(cmd, ok=True, **kw):
 
 
 def cleanup():
-    sh(["docker", "rm", "-f", DC, KC], ok=False)
-    sh(["docker", "network", "rm", NET], ok=False)
+    testrun.remove("container", DC, KC)      # this run's only (manual 3.1.2.6)
+    testrun.remove("network", NET)
 
 
 def ntlm_signs_in(user, password):
@@ -66,7 +70,7 @@ def ntlm_signs_in(user, password):
         f.write(f"username={user}\npassword={password}\ndomain=AD\n")
     os.chmod(auth, 0o600)
     res = sh(["docker", "run", "--rm", "--network", NET, "-v", f"{auth}:/auth:ro", "--entrypoint", "ldbsearch",
-              "fabric/samba:test", "-H", f"ldap://{DC_IP}", "-A", "/auth", "--use-kerberos=off", "-b",
+              SAMBA_IMAGE, "-H", f"ldap://{DC_IP}", "-A", "/auth", "--use-kerberos=off", "-b",
               dc["v"]["ad_base_dn"], "-s", "base", "dn"], ok=False)
     return res.returncode == 0
 
@@ -134,11 +138,11 @@ shutil.rmtree(W, ignore_errors=True)
 # the DC first: Keycloak's account and the first admin come from it
 dc = start_dc(os.path.join(W, "dc"), DC, NET, SUBNET, DC_IP, extra_vars={
     "ip_keycloak": KC_IP, "hostname_keycloak": HOST, "webui_realm": REALM, "install_webui": True, "install_keycloak": True,
-    "hostname_mgr": "mgr.lan.j-j.family", "webui_hostname": "mgr.lan.j-j.family", "webui_admin_group": "admins",
+    "hostname_mgr": "mgr.test.lan.j-j.family", "webui_hostname": "mgr.test.lan.j-j.family",
     "signin_kerberos": True})     # off by default since 0.6.4 (2.1.6.32): this suite proves it on
 v, secrets, root_ca = dc["v"], dc["secrets"], dc["root_ca"]
 check("a real DC from fabric's image, converged (Keycloak's service account made)", True)
-state, otp = ensure_admin(v, secrets, "jim", "jim@lan.j-j.family", container=DC)
+state, otp = ensure_admin(v, secrets, "jim", "jim@test.lan.j-j.family", container=DC)
 check("the first admin jim is created in the directory with a one-time password", state == "created" and otp)
 
 # Keycloak, its certificate from the test root, the root as its truststore (fabric's LDAPS to the DC is verified)
@@ -161,7 +165,7 @@ spns = sh(["docker", "exec", DC, "samba-tool", "spn", "list", "fabric-sso-lan", 
 enc = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=fabric-sso-lan)",
           "msDS-SupportedEncryptionTypes"], ok=False).stdout
 check("the DC made the Kerberos sign-in account: both SPNs, AES only, its keytab handed to Keycloak",
-      install_sso_keytab(v) and "HTTP/sso.lan.j-j.family" in spns and "HTTP/dc1.lan.j-j.family" in spns
+      install_sso_keytab(v) and "HTTP/sso.test.lan.j-j.family" in spns and "HTTP/dc1.test.lan.j-j.family" in spns
       and "msDS-SupportedEncryptionTypes: 24" in enc and os.path.getsize(os.path.join(krb_dir, "sso.keytab")) > 0,
       (spns, enc))
 check("handing the keytab over again changes nothing", not install_sso_keytab(v))
@@ -173,22 +177,33 @@ from samba.ndr import ndr_unpack
 from open_samdb import open_samdb
 import ldb
 samdb, lp = open_samdb("/data/etc/smb.conf")
-g = samdb.search(base="CN=Policies,CN=System," + str(samdb.domain_dn()), scope=ldb.SCOPE_ONELEVEL,
-                 expression="(displayName=fabric: lan Windows baseline)", attrs=["cn"])[0]
-path = os.path.join(lp.get("path", "sysvol"), lp.get("realm").lower(), "Policies", str(g["cn"]), "Machine",
-                    "Registry.pol")
-for e in ndr_unpack(preg.file, open(path, "rb").read()).entries:
-    print(e.keyname, "|", e.valuename, "|", e.data)
+found = samdb.search(base="CN=Policies,CN=System," + str(samdb.domain_dn()), scope=ldb.SCOPE_ONELEVEL,
+                     expression="(displayName=fabric: lan Windows baseline)", attrs=["cn", "versionNumber"])
+g = found[0]
+folder = os.path.join(lp.get("path", "sysvol"), lp.get("realm").lower(), "Policies", str(g["cn"]))
+data = open(os.path.join(folder, "Machine", "Registry.pol"), "rb").read()
+pol = ndr_unpack(preg.file, data)
+print("READ gpos=%d bytes=%d entries=%d ad_version=%s gpt=%r" % (len(found), len(data), len(pol.entries),
+      g.get("versionNumber", [b"?"])[0], open(os.path.join(folder, "GPT.INI"), "rb").read()), flush=True)
+for e in pol.entries:
+    print(e.keyname, "|", e.valuename, "|", e.data, flush=True)
 """
-pol = sh(["docker", "exec", "-i", DC, "python3", "-"], ok=False, input=READ_POL).stdout
+# the whole read is kept for a failure (2.3.6.24): every entry, how many the file holds, and anything on stderr
+res = sh(["docker", "exec", "-i", DC, "python3", "-"], ok=False, input=READ_POL)
+pol = res.stdout
+want_pol = [f"Software\\Policies\\Microsoft\\Edge | AuthServerAllowlist | {HOST}",
+            f"Software\\Policies\\Google\\Chrome | AuthServerAllowlist | {HOST}",
+            f"Software\\Policies\\Mozilla\\Firefox\\Authentication\\SPNEGO | 1 | {HOST}"]
+missing = [w for w in want_pol if w not in pol]
 check("the site's Windows baseline GPO lets Edge, Chrome and Firefox use Kerberos for sso.<domain> (2.1.6.28)",
-      f"Software\\Policies\\Microsoft\\Edge | AuthServerAllowlist | {HOST}" in pol
-      and f"Software\\Policies\\Google\\Chrome | AuthServerAllowlist | {HOST}" in pol
-      and f"Software\\Policies\\Mozilla\\Firefox\\Authentication\\SPNEGO | 1 | {HOST}" in pol, pol)
+      not missing, "")
+print(f"    {(pol.splitlines() or ['READ nothing'])[0]}")
+if missing:                                   # check() keeps 400 characters; the read is longer
+    print(f"    missing: {missing}\n    read (exit {res.returncode}):\n{pol}\n    stderr: {res.stderr[-1500:]}")
 sh(["chown", "-R", "1000", krb_dir])
 shutil.copytree(krb_dir, os.path.join(W, "opt", "keycloak", "kerberos"))
 image = sh([sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "keycloak"]).stdout.strip()
-sh(["docker", "run", "-d", "--name", KC, "--network", NET, "--ip", KC_IP,
+sh(["docker", "run", "-d", "--name", KC, *testrun.labels(), "--network", NET, "--ip", KC_IP,
     "-v", f"{krb_dir}:/etc/keycloak/kerberos:ro",
     "-e", "JAVA_OPTS_APPEND=-Djava.security.krb5.conf=/etc/keycloak/kerberos/krb5.conf",
     "-e", "KC_BOOTSTRAP_ADMIN_USERNAME=admin", "-e", "KC_BOOTSTRAP_ADMIN_PASSWORD=KcAdmin1",
@@ -230,15 +245,21 @@ check("exactly one LDAP provider: Samba AD, AD mode, LDAPS to the DC's address, 
 st, sync = kc.call("POST", f"{R}/user-storage/{ldap[0]['id']}/sync?action=triggerFullSync")
 check("a full sync from AD over LDAPS works", st == 200 and not sync.get("failed"), sync)
 users = kc.call("GET", f"{R}/users?username=jim&exact=true")[1]
-check("jim (in the site's people) is visible in Keycloak", len(users) == 1, users)
+check("jim (in OU=people) is visible in Keycloak", len(users) == 1, users)
+fed = ldap[0]["config"] if ldap else {}
+check("the federation: users from OU=people, every enabled person admitted (2.1.6.83), bound as this DC's "
+      "fabric-keycloak-dc-0001 in OU=service-accounts (2.1.6.82)",
+      fed.get("usersDn") == [f"OU=people,{v['ad_base_dn']}"]
+      and fed.get("bindDn") == [f"CN=fabric-keycloak-dc-0001,OU=service-accounts,{v['ad_base_dn']}"]
+      and "1.2.840.113556.1.4.803:=2" in (fed.get("customUserSearchFilter") or [""])[0], fed)
 if users:
     roles = kc.call("GET", f"{R}/users/{users[0]['id']}/role-mappings/realm/composite")[1]
-    check("jim gets fabric-console-admin through AD's admins group", any(r["name"] == "fabric-console-admin" for r in roles),
+    check("jim gets fabric-console-admin through directory-admins (2.1.6.81)", any(r["name"] == "fabric-console-admin" for r in roles),
           [r["name"] for r in roles])
 client = kc.call("GET", f"{R}/clients?clientId=fabric-webui")[1][0]
 check("client: confidential, code flow only, exact redirect, PKCE S256, fullScopeAllowed off",
       not client["publicClient"] and client["standardFlowEnabled"] and not client["implicitFlowEnabled"]
-      and not client["directAccessGrantsEnabled"] and client["redirectUris"] == ["https://mgr.lan.j-j.family/oidc/callback"]
+      and not client["directAccessGrantsEnabled"] and client["redirectUris"] == ["https://mgr.test.lan.j-j.family/oidc/callback"]
       and client["attributes"].get("pkce.code.challenge.method") == "S256" and client["fullScopeAllowed"] is False)
 flows = {f["alias"]: f["id"] for f in kc.call("GET", f"{R}/authentication/flows")[1]}
 
@@ -251,8 +272,8 @@ def steps(flow):
 
 realm_rep = kc.call("GET", R)[1]
 signin, admin_flow = steps("fabric-signin"), steps("fabric-admin-signin")
-check("sign-in flows (2.1.6.23): fabric-signin is the realm's, fabric-admin-signin the web UI's; 0.6.0's flow is gone",
-      realm_rep["browserFlow"] == "fabric-signin" and "fabric-webui-mfa" not in flows
+check("sign-in flows (2.1.6.23): fabric-signin is the realm's, fabric-admin-signin the web UI's",
+      realm_rep["browserFlow"] == "fabric-signin"
       and client["authenticationFlowBindingOverrides"].get("browser") == flows.get("fabric-admin-signin"),
       (realm_rep["browserFlow"], sorted(flows)))
 check("by default: Kerberos or a password, no second factor; the admin flow never takes the session cookie",
@@ -268,7 +289,7 @@ check("Keycloak checks Kerberos tickets with the site's keytab; passwords stay w
 
 # a real browser sign-in by the first admin, with fabric's one-time password
 AUTH = (f"https://{HOST}/realms/{REALM}/protocol/openid-connect/auth?client_id=fabric-webui&response_type=code"
-        "&scope=openid&redirect_uri=https%3A%2F%2Fmgr.lan.j-j.family%2Foidc%2Fcallback&state=s&nonce=n"
+        "&scope=openid&redirect_uri=https%3A%2F%2Fmgr.test.lan.j-j.family%2Foidc%2Fcallback&state=s&nonce=n"
         "&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256")
 b = Browser(root_ca)
 page = start(b, AUTH)
@@ -299,16 +320,16 @@ for _ in range(4):
     if st in (302, 303):
         st, hdr, page = b.go(location)
 check("with a password only (2.1.6.23): Keycloak asks jim for a new password (AD's must-change), then signs him in",
-      seen == {"password"} and "mgr.lan.j-j.family/oidc/callback" in location and "code=" in location,
+      seen == {"password"} and "mgr.test.lan.j-j.family/oidc/callback" in location and "code=" in location,
       (seen, location[:120], page[:200]))
 check("the new password chosen in Keycloak landed in AD", ntlm_signs_in("jim", new_pw))
 check("the one-time password no longer signs in to AD", not ntlm_signs_in("jim", otp))
 
 # refusals
 def person(uid):
-    """A person made by fabric's own operation (in the site's people and <site>-users); their one-time password."""
+    """A person made by fabric's own operation (in OU=people and site-<site>); their one-time password."""
     pw = "Tst-" + random_password(20)
-    run_op(v, secrets, "create_person", {"uid": uid, "first": uid, "last": "T", "email": f"{uid}@lan.j-j.family",
+    run_op(v, secrets, "create_person", {"uid": uid, "first": uid, "last": "T", "email": f"{uid}@test.lan.j-j.family",
                                         "password": pw, "gid": 5000, "home_base": "/home", "shell": "/bin/bash"}, DC)
     return pw
 
@@ -320,13 +341,21 @@ page = start(b2, AUTH)
 _, _, page = b2.go(action(page), {"username": "bob", "password": bob_pw})
 check("refused: a person disabled in AD", re.search(r"disabled|Invalid username or password", page, re.I), page[:300])
 eve_pw = person("eve")
-sh(["docker", "exec", DC, "samba-tool", "group", "removemembers", "lan-users", "eve", "-s",
-    "/data/etc/smb.conf"])               # in the site's people, but in none of the admitted groups
+sh(["docker", "exec", DC, "samba-tool", "group", "removemembers", "site-lan", "eve", "-s",
+    "/data/etc/smb.conf"])               # in OU=people, but in no group at all
 b3 = Browser(root_ca)
 page = start(b3, AUTH)
-_, _, page = b3.go(action(page), {"username": "eve", "password": eve_pw})
-check("refused: a person outside the site's groups (2.1.6.14)", "Invalid username or password" in page, page[:300])
-bad = start(Browser(root_ca), AUTH.replace("mgr.lan.j-j.family%2Foidc", "evil.test%2Foidc"))
+st, hdr, page = b3.go(action(page), {"username": "eve", "password": eve_pw})
+if st in (302, 303):                     # the required action (AD's must-change) is a page of its own
+    st, hdr, page = b3.go(hdr.get("location"))
+check("every enabled person in OU=people is admitted, in a group or not (2.1.6.83): eve, in none, is asked for a new "
+      "password", "Invalid username or password" not in page and "password-new" in page, page[:300])
+b5 = Browser(root_ca)
+page = start(b5, AUTH)
+_, _, page = b5.go(action(page), {"username": "fabric-agent-dc-0001", "password": secrets["ad_agent_password"]})
+check("refused: a service account (outside OU=people) never signs in to the console",
+      "Invalid username or password" in page, page[:300])
+bad = start(Browser(root_ca), AUTH.replace("mgr.test.lan.j-j.family%2Foidc", "evil.test%2Foidc"))
 check("refused: a redirect URI that is not registered", "Invalid parameter: redirect_uri" in bad, bad[:200])
 
 # ---- raising the admin tools' second factor (manual 2.3.6.2.6.1): what the Security page and `fabricctl security` set
@@ -393,9 +422,14 @@ cw = os.path.join(W, "krb-client")
 os.makedirs(cw)
 sh(["docker", "cp", f"{DC}:/data/kerb.keytab", f"{cw}/kerb.keytab"])
 sh(["cp", root_ca, f"{cw}/root_ca.crt"])
+# the client asks for HTTP/<the name it was given>: never canonicalized through the machine's DNS, which may know the
+# test's names for real (the owner's network answered sso.lan.j-j.family, the test's domain until 2026-10-24, with its
+# own host, so the client asked for that host's SPN, which this test's DC does not hold: 2.3.6.23); the CNAME case
+# below sets it on, through /etc/hosts
 with open(f"{cw}/krb5.conf", "w") as f:
     f.write(f"[libdefaults]\n  default_realm = {AD_REALM}\n  dns_lookup_kdc = false\n  rdns = false\n"
-            f"[realms]\n  {AD_REALM} = {{\n    kdc = {DC_IP}\n  }}\n[domain_realm]\n  .lan.j-j.family = {AD_REALM}\n")
+            f"  dns_canonicalize_hostname = false\n"
+            f"[realms]\n  {AD_REALM} = {{\n    kdc = {DC_IP}\n  }}\n[domain_realm]\n  .test.lan.j-j.family = {AD_REALM}\n")
 for name in os.listdir(cw):
     os.chmod(os.path.join(cw, name), 0o644)
 neg = (f"curl -s -o /dev/null -w '%{{http_code}} %{{redirect_url}}\\n' --negotiate -u : --cacert /w/root_ca.crt "
@@ -405,10 +439,14 @@ cp /w/krb5.conf /etc/krb5.conf
 kinit -k -t /w/kerb.keytab kerb@{AD_REALM}
 echo "APP $({neg} '{APP_AUTH}')"
 echo "CONSOLE $(curl -s -L -c /tmp/jar -b /tmp/jar --negotiate -u : --cacert /w/root_ca.crt --connect-to {HOST}:443:{KC_IP}:8443 '{AUTH}' | grep -oE 'name=.t?otp.' | head -1)"
-echo "{KC_IP} dc1.lan.j-j.family {HOST}" >> /etc/hosts
-sed -i 's/rdns = false/rdns = false\\n  dns_canonicalize_hostname = true/' /etc/krb5.conf
+echo "{KC_IP} dc1.test.lan.j-j.family {HOST}" >> /etc/hosts
+sed -i 's/dns_canonicalize_hostname = false/dns_canonicalize_hostname = true/' /etc/krb5.conf
 kdestroy; kinit -k -t /w/kerb.keytab kerb@{AD_REALM}
 echo "CNAME $({neg} '{APP_AUTH}') $(klist | grep -o 'HTTP/[^@]*' | head -1)"
+grep -v ' dc1.test.lan.j-j.family ' /etc/hosts > /tmp/hosts; echo "{KC_IP} other.test.lan.j-j.family {HOST}" >> /tmp/hosts
+cat /tmp/hosts > /etc/hosts
+kdestroy; kinit -k -t /w/kerb.keytab kerb@{AD_REALM}
+echo "OTHER $({neg} '{APP_AUTH}') $(curl -sv -o /dev/null --negotiate -u : --cacert /w/root_ca.crt --connect-to {HOST}:443:{KC_IP}:8443 '{APP_AUTH}' 2>&1 | grep -o 'Server not found in Kerberos database' | head -1)"
 """
 out = sh(["docker", "run", "--rm", "--network", NET, "-v", f"{cw}:/w:ro", "debian:trixie", "bash", "-c", client],
          ok=False).stdout
@@ -418,7 +456,10 @@ check("Kerberos: a domain person's ticket signs them in to an app, no password a
 check("Kerberos never skips a second factor: the console still asks kerb for TOTP after the ticket",
       "otp" in lines.get("CONSOLE", ""), out[-400:])
 check("Kerberos through the name sso.<domain> is a CNAME of (the client asks for HTTP/<host>.<domain>)",
-      lines.get("CNAME", "").startswith("302") and "HTTP/dc1.lan.j-j.family" in lines.get("CNAME", ""), out[-400:])
+      lines.get("CNAME", "").startswith("302") and "HTTP/dc1.test.lan.j-j.family" in lines.get("CNAME", ""), out[-400:])
+check("refused: a CNAME of a host the site's account holds no SPN for: no ticket, Keycloak asks again (401)",
+      lines.get("OTHER", "").startswith("401") and "Server not found in Kerberos database" in lines.get("OTHER", ""),
+      out[-800:])
 st, _, page = Browser(root_ca).go(APP_AUTH)
 check("without a ticket Keycloak asks for one (401 Negotiate), then falls back to the password form",
       st == 401 and 'name="password"' in start(Browser(root_ca), APP_AUTH), (st, page[:200]))
@@ -568,29 +609,137 @@ fred_kc = kc.call("GET", f"{R}/users?username=fred&exact=true")[1]
 sessions = kc.call("GET", f"{R}/users/{fred_kc[0]['id']}/sessions")[1] if fred_kc else []
 check("a person signs in through Keycloak (a session held)", "code=" in location and sessions,
       (st, location[:120], page[:200]))
-done = enabled_mod.set_person_enabled(pv, "root", "fred", False, privileged=True, source="cli", secrets=ps,
+def _no_sessions(user_id):
+    """No Keycloak session for the user: none listed, or the user gone (Keycloak drops its copy of a person its
+    filter, enabled people only, no longer finds: 2.1.6.83)."""
+    st, body = kc.call("GET", f"{R}/users/{user_id}/sessions", allow=(404,))
+    return st == 404 or body == []
+
+
+done = enabled_mod.set_person_enabled(pv, "root", "fred", False, source="cli", secrets=ps,
                                       container=DC)
 check("disable: their Keycloak sessions end at once", done["changed"]
-      and kc.call("GET", f"{R}/users/{fred_kc[0]['id']}/sessions")[1] == [], done)
+      and _no_sessions(fred_kc[0]["id"]), done)
 st, location, page = sign_in(Browser(root_ca), APP_AUTH, "fred", fred_pw)
 check("disable: a new sign-in is refused, and so is NTLM", "code=" not in location and not ntlm_signs_in("fred", fred_pw),
       page[:300])
-enabled_mod.set_person_enabled(pv, "root", "fred", True, privileged=True, source="cli", secrets=ps, container=DC)
+enabled_mod.set_person_enabled(pv, "root", "fred", True, source="cli", secrets=ps, container=DC)
 st, location, page = sign_in(Browser(root_ca), APP_AUTH, "fred", fred_pw)
 check("enable: they sign in again", "code=" in location,
       (st, location[:120], re.findall(r'(?s)<span[^>]*(?:kc-feedback-text|input-error)[^>]*>(.*?)</span>', page)))
 check("refused: disabling the last admin who can sign in, or a remove without the user name typed back",
-      refused(enabled_mod.set_person_enabled, pv, "root", "jim", False, True, "cli", ps, DC)
-      and refused(remove_mod.remove_person, pv, "root", "fred", "fre", True, "cli", ps, DC))
+      refused(enabled_mod.set_person_enabled, pv, "root", "jim", False, None, "cli", ps, DC)
+      and refused(remove_mod.remove_person, pv, "root", "fred", "fre", None, "cli", ps, DC))
 check("refused: the helpdesk disabling an admin (a fabric group's member)",
-      refused(enabled_mod.set_person_enabled, pv, "helper", "jim", False, False, "web", ps, DC))
+      refused(enabled_mod.set_person_enabled, pv, "helper", "jim", False, "helper", "web", ps, DC))
 ledger, revoked = os.path.join(W, "issued.jsonl"), os.path.join(W, "revoked.jsonl")
-gone = remove_mod.remove_person(pv, "root", "fred", "fred", privileged=True, source="cli", secrets=ps, container=DC,
+gone = remove_mod.remove_person(pv, "root", "fred", "fred", source="cli", secrets=ps, container=DC,
                                 ledger=ledger, revoked=revoked)
 check("remove: the directory account and Keycloak's copy are gone, sign-in refused",
       gone == {"uid": "fred", "revoked": []} and kc.call("GET", f"{R}/users?username=fred&exact=true")[1] == []
       and not ntlm_signs_in("fred", fred_pw), gone)
 check("each change audited", PEOPLE_AUDIT == ["PERSON_DISABLE", "PERSON_ENABLE", "PERSON_REMOVE"], PEOPLE_AUDIT)
+
+# ---- a person's own password (manual 1.6.12.17.9, 2.1.1.62): through fabric-agent to the DC as the person, with the
+# current password, at once; their sessions elsewhere end, the one they changed it from stays
+import agent.post_account as account_mod  # noqa: E402
+import fabriclib.domain.change_own_password as own_mod  # noqa: E402
+
+OWN_AUDIT = []
+own_mod.write_audit = lambda actor, event, detail, source: OWN_AUDIT.append((actor, event, detail))
+account_mod.load_vars = lambda: pv
+real_change = own_mod.change_own_password
+# the route's own code, its DC this suite's (fabric-agent's is the host's `samba`) and its secrets this suite's
+account_mod.change_own_password = lambda *a, **k: real_change(*a, **{**k, "secrets": ps, "container": DC})
+gina_pw, gina_new = "Gi-" + random_password(20), "Gn-" + random_password(20)
+person("gina")
+sh(["docker", "exec", DC, "samba-tool", "user", "setpassword", "gina", f"--newpassword={gina_pw}", "-s",
+    "/data/etc/smb.conf"])
+gina_browsers = [Browser(root_ca), Browser(root_ca)]      # both alive: a jar is named by its id
+for b in gina_browsers:
+    if os.path.exists(b.jar):
+        os.remove(b.jar)
+for b in gina_browsers:
+    sign_in(b, APP_AUTH, "gina", gina_pw)
+gina_kc = kc.call("GET", f"{R}/users?username=gina&exact=true")[1][0]
+before = [s["id"] for s in kc.call("GET", f"{R}/users/{gina_kc['id']}/sessions")[1]]
+for body, user, words in (({"current": "Wrong-" + random_password(12), "new": gina_new}, "gina",
+                           "the current password is wrong"),
+                          ({"current": gina_pw, "new": "short"}, "gina", "password policy refused"),
+                          ({"current": gina_pw, "new": gina_pw}, "gina", "the new password is the current one"),
+                          ({"current": gina_pw}, "gina", "must be text"),
+                          ({"current": gina_pw, "new": gina_new}, None, "sign in as them")):
+    try:
+        account_mod.post_account(["account", "password"], user, body, before[0] if before else None)
+        err = ""
+    except ValidationError as e:
+        err = str(e)
+    # covers: agent:post.account.password -
+    check(f"own password refused ({words}): the password unchanged, no session ended, nothing audited",
+          words in err and ntlm_signs_in("gina", gina_pw) and not OWN_AUDIT
+          and len(kc.call("GET", f"{R}/users/{gina_kc['id']}/sessions")[1]) == len(before), err)
+done = account_mod.post_account(["account", "password"], "gina", {"current": gina_pw, "new": gina_new}, before[0])
+after = [s["id"] for s in kc.call("GET", f"{R}/users/{gina_kc['id']}/sessions")[1]]
+# covers: agent:post.account.password +
+check("own password changed with the current one: at once in AD (the new signs in over NTLM, the old not), the other "
+      "Keycloak session ended, the one it was changed from kept, audited without the password",
+      len(before) == 2 and done == {"uid": "gina", "changed": True, "sessions_ended": 1} and after == [before[0]]
+      and ntlm_signs_in("gina", gina_new) and not ntlm_signs_in("gina", gina_pw)
+      and OWN_AUDIT == [("gina", "PASSWORD_CHANGE_OWN", "user=gina")], (before, done, after, OWN_AUDIT))
+fresh = Browser(root_ca)
+if os.path.exists(fresh.jar):                              # a jar left by an earlier browser of the same id
+    os.remove(fresh.jar)
+st, location, page = sign_in(fresh, APP_AUTH, "gina", gina_new)
+check("...and Keycloak's sign-in takes the new password", "code=" in location, (st, location[:120]))
+
+# a person without an e-mail address (2.1.6.93: the first admin's is optional): made with their first and last names,
+# no mail, and signing in through Keycloak at once, no page asking for an address in between
+nomail_pw = "Nm-" + random_password(20)
+state, _ = ensure_admin(v, secrets, "nomail", None, lambda: nomail_pw, container=DC, first="No", last="Mail")
+seen = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "(sAMAccountName=nomail)", "mail",
+           "givenName", "sn"]).stdout
+check("a Directory Administrator without an e-mail address: made with first and last names and no mail",
+      state == "created" and "mail:" not in seen and "givenName: No" in seen and "sn: Mail" in seen, seen)
+nb = Browser(root_ca)
+if os.path.exists(nb.jar):
+    os.remove(nb.jar)
+st, location, page = sign_in(nb, APP_AUTH, "nomail", nomail_pw)
+check("...who signs in through Keycloak at once: no page asks for an e-mail address", "code=" in location,
+      (st, location[:120], page[:400]))
+email_attr = next((a for a in kc.call("GET", f"{R}/users/profile")[1].get("attributes", []) if a["name"] == "email"), {})
+check("...because the realm's user profile no longer requires an e-mail address (ensure_user_profile), while still "
+      "checking one given", "required" not in email_attr and "email" in email_attr.get("validations", {}), email_attr)
+
+# fabric touches only the LDAP provider it made (stale-code register S15): an admin's own provider, of another kind,
+# is left as it is; fabric's own, put out of AD mode, is made anew
+STORE = f"{R}/components?type=org.keycloak.storage.UserStorageProvider"
+kc.call("POST", f"{R}/components", {
+    "name": "admin-ldap", "providerId": "ldap", "providerType": "org.keycloak.storage.UserStorageProvider",
+    "parentId": realm_rep["id"], "config": {
+        "enabled": ["false"], "vendor": ["other"], "editMode": ["READ_ONLY"], "usernameLDAPAttribute": ["uid"],
+        "rdnLDAPAttribute": ["uid"], "uuidLDAPAttribute": ["entryUUID"], "userObjectClasses": ["inetOrgPerson"],
+        "connectionUrl": ["ldap://192.0.2.1:389"], "usersDn": ["ou=people,dc=example,dc=org"], "authType": ["none"],
+        "importEnabled": ["false"], "priority": ["0"]}})
+theirs = [c for c in kc.call("GET", STORE)[1] if c["name"] == "admin-ldap"]
+ours = [c for c in kc.call("GET", STORE)[1] if c["name"] == "Samba AD"]
+run3 = sh(boot, ok=False, env=env)
+after = kc.call("GET", STORE)[1]
+check("negative: an admin's own LDAP provider (another kind) is neither removed nor changed at a bootstrap; fabric's "
+      "is updated in place (the same id)",
+      "complete" in run3.stdout and len(theirs) == 1 and len(ours) == 1
+      and [c for c in after if c["name"] == "admin-ldap"] == theirs
+      and [c["id"] for c in after if c["name"] == "Samba AD"] == [ours[0]["id"]] and "removed" not in run3.stdout,
+      (run3.stdout[-400:], [(c["name"], c["config"].get("vendor")) for c in after]))
+mine = ours[0]
+mine["config"]["vendor"] = ["other"]
+kc.call("PUT", f"{R}/components/{mine['id']}", mine)
+run4 = sh(boot, ok=False, env=env)
+after = kc.call("GET", STORE)[1]
+made = [c for c in after if c["name"] == "Samba AD"]
+check("fabric's own provider, put out of AD mode, is removed and made anew in AD mode; the admin's is still untouched",
+      "removed fabric's LDAP federation Samba AD" in run4.stdout and len(made) == 1 and made[0]["id"] != mine["id"]
+      and made[0]["config"]["vendor"] == ["ad"] and [c for c in after if c["name"] == "admin-ldap"] == theirs,
+      (run4.stdout[-400:], [(c["name"], c["config"].get("vendor")) for c in after]))
 
 if not os.environ.get("KEYCLOAK_TEST_KEEP"):
     cleanup()

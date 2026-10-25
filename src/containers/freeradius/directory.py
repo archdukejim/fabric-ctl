@@ -1,6 +1,6 @@
 """fabric policy's connection to the site's domain controller (manual 1.6.3.11): verified LDAPS to the host's
-address, as the site's read-only `fabric-radius-<site>` (one connection per FreeRADIUS thread), or as a person to
-check their password."""
+address, as the DC's read-only `fabric-radius-<dc>` (2.1.6.82; one connection per FreeRADIUS thread), or as a person
+to check their password."""
 import json
 import threading
 
@@ -26,13 +26,14 @@ def load_config():
     return _conf
 
 
-def site_dn(conf):
-    """Purpose: this site's OU, under which its devices, roles and people live (manual 1.6.3.4).
-    Inputs:  conf — load_config()'s dict.
-    Returns: str, e.g. "OU=lab,OU=lan,OU=sites,<domain>" (sites nest, 2.1.6.20: setup writes it, from the join).
-    Fails:   KeyError without "site_dn".
-    Feeds:   check_person, lookup_device."""
-    return conf["site_dn"]
+def folder_dn(conf, name):
+    """Purpose: one of the domain's folders (manual 1.6.13.2): OU=people, OU=machines, OU=groups, OU=devices,
+             OU=device-roles; one set for the whole domain (2.1.6.80).
+    Inputs:  conf — load_config()'s dict; name — the folder's name.
+    Returns: str, e.g. "OU=devices,<domain>".
+    Fails:   KeyError without "base".
+    Feeds:   check_person, check_peap, lookup_device."""
+    return f"OU={name},{conf['base']}"
 
 
 def connect(dn=None, password=None):

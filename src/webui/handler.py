@@ -83,6 +83,21 @@ class Handler(BaseHTTPRequestHandler):
         """
         self.send(303, b"", headers=[("Location", location)] + list(headers or []))
 
+    def back(self, location, msg="", err=""):
+        """Purpose: After an action, go to a page with the action's own outcome as its message (manual 1.8.6.3:
+                 messages come from the server's result, never from the address bar).
+        Inputs:  location — str path to go to; msg — what was done; err — why it was refused (one of the two).
+        Returns: None; the message is kept in the signed-in session for its next page, and 303 is sent.
+        Fails:   as send.
+        Feeds:   every POST route (src/webui/routes/*_post.py)."""
+        sess = getattr(self, "sess", None)
+        if sess and (msg or err):
+            with self.app.lock:
+                stored = self.app.sessions.get(sess.get("sid"))
+                if stored is not None:
+                    stored["flash"] = {"err": str(err)} if err else {"ok": str(msg)}
+        self.redirect(location)
+
     def deny(self, status, message):
         """Purpose: Send an error page with a status and a message.
         Inputs:  status — int HTTP status (400, 401, 403, 404, 500, 503); message — str shown to the person
@@ -136,6 +151,7 @@ class Handler(BaseHTTPRequestHandler):
                  fabric-agent call runs as the signed-in person; fabric-agent enforces the permissions.
         """
         actions.set_token(None)          # this thread may have served someone else before
+        self.sess = None
         try:
             self.app.sweep()
             # gates 1, 2 and 5 read the certificate only while the web console requires one (webui_client_cert)
@@ -157,6 +173,10 @@ class Handler(BaseHTTPRequestHandler):
             if not sess:
                 return self.redirect("/login")
             actions.set_token(sess["id_token"])
+            self.sess = sess
+            if method == "GET":             # the last action's message, shown once on the next page (1.8.6.3)
+                with self.app.lock:
+                    sess["flash"] = (self.app.sessions.get(sess["sid"]) or {}).pop("flash", None)
 
             if method == "POST":
                 origin = self.headers.get("Origin", "")

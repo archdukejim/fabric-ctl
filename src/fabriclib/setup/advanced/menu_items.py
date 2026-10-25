@@ -3,7 +3,6 @@ import os
 from fabriclib.consent.groups import GROUPS
 from fabriclib.consent.initial_host_choices import TOGGLED
 from fabriclib.samba.suggested_ad_domain import suggested_ad_domain
-from fabriclib.samba.suggested_dc_name import suggested_dc_name
 from fabriclib.setup.advanced.ask_ca_lifetime import ask_ca_lifetime
 from fabriclib.setup.advanced.ask_first_admin_item import ask_first_admin_item
 from fabriclib.setup.advanced.ask_host_change import ask_host_change
@@ -12,10 +11,10 @@ from fabriclib.setup.advanced.ask_network import ask_network
 from fabriclib.setup.advanced.ask_part import ask_part
 from fabriclib.setup.advanced.common.parts import PARTS, part_on
 from fabriclib.setup.ask_ad_domain import ask_ad_domain
-from fabriclib.setup.ask_dc_name import ask_dc_name
 from fabriclib.setup.common.ask_setting import ask_setting
 from fabriclib.setup.common.ca_exists import ca_exists
 from fabriclib.setup.common.first_admin_needed import first_admin_needed
+from fabriclib.setup.common.first_admin_refused import first_admin_refused
 from fabriclib.setup.common.network_problem import network_problem
 from fabriclib.setup.common.valid_setting import valid_setting
 
@@ -60,24 +59,9 @@ def _ad_item(ctx):
     return run
 
 
-def _dc_item(ctx):
-    """Purpose: the ask callable of the domain controller's name item: guided mode's question (setup.dc_name),
-             refused once the domain exists (a DC cannot be renamed, 2.1.6.45).
-    Inputs:  ctx — SetupContext (vars, deploy_base).
-    Returns: a function of no arguments.
-    Fails:   never (the callable: EOFError).
-    Feeds:   menu_items."""
-    def run():
-        if os.path.exists(os.path.join(ctx.deploy_base, "samba", "data", ".fabric-provisioned")):
-            print("    refused: the domain controller's name is permanent, and this one is made")
-            return
-        ctx.vars.pop("dc_name", None)          # asked again, dc-<hostname> suggested
-        ask_dc_name(ctx)
-    return run
-
-
 def menu_items(ctx, networks=None):
-    """Purpose: the menu's items in their three parts (manual 1.2.9.11.3), each with its value as shown now.
+    """Purpose: the menu's items in their three parts (manual 1.2.9.11.3), each with its value as shown now. The
+             domain controller's name is not one: fabric names it (2.1.6.65).
     Inputs:  ctx — SetupContext: vars, origins, host_choices, admin_password; networks — host_networks() for DHCP's
              questions (None: this host's).
     Returns: list of {"part": "required"|"before"|"host", "title", "value" (str), "missing" (bool: a required item
@@ -99,9 +83,6 @@ def menu_items(ctx, networks=None):
     ad = v.get("ad_domain") or ""
     ad_text = ad or (f"{suggested_ad_domain(domain)} (suggested)" if suggested_ad_domain(domain) else "")
     add("required", "Windows (AD) domain", ad_text, _ad_item(ctx), not ad_text)
-    dc = v.get("dc_name") or ""
-    dc_text = dc or (f"{suggested_dc_name(v.get('hostname'))} (suggested)" if v.get("hostname") else "")
-    add("required", "Domain controller's name", dc_text, _dc_item(ctx))
     net_ok = all(valid_setting(k, str(v.get(k) or "")) for k in ("host_ip", "lan_cidr", "lan_gateway"))
     problem = network_problem(v) if net_ok else ""
     net_text = (f"{v.get('host_ip')} in {v.get('lan_cidr')}, gw {v.get('lan_gateway')}"
@@ -109,9 +90,14 @@ def menu_items(ctx, networks=None):
                 + (f" (does not fit: {len(items) + 1} to change)" if problem else "")) if net_ok else ""
     add("required", "Network", net_text, lambda: ask_network(ctx), not net_ok or bool(problem))
     user = str(v.get("webui_admin_user") or "")
-    user_ok, needed = valid_setting("webui_admin_user", user), first_admin_needed(ctx)
+    user_ok = all(valid_setting(k, str(v.get(k) or "")) for k in ("webui_admin_user", "webui_admin_first_name",
+                                                                   "webui_admin_last_name"))
+    user_ok = user_ok and first_admin_refused("webui_admin_email", v.get("webui_admin_email")) is None
+    needed = first_admin_needed(ctx)
     pw_missing = needed and not ctx.admin_password
-    admin_text = (_origin(ctx, "webui_admin_user", user) if user_ok else NEEDS) + (
+    admin_text = (f"{_origin(ctx, 'webui_admin_user', user)} ({v.get('webui_admin_first_name')} "
+                  f"{v.get('webui_admin_last_name')}, {v.get('webui_admin_email') or 'no e-mail'})"
+                  if user_ok else NEEDS) + (
         (", password" + (f" {NEEDS}" if pw_missing else "")) if needed else "")
     add("required", "First admin", admin_text, lambda: ask_first_admin_item(ctx), not user_ok or pw_missing)
 

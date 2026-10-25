@@ -26,6 +26,13 @@ ExecStartPre=/bin/sleep 30
 ExecCondition={{ item.condition }}
 {% endif %}
 ExecStartPre=-/usr/bin/docker compose -f {{ deploy_base_dir }}/{{ item.folder }}/docker-compose.yml rm -fsv
+# `compose rm` can return while Docker still removes the old container (an overlapping start's removal: "removal of
+# container ... is already in progress"), and `up` then finds it "marked for removal". Wait until it is really gone,
+# up to 60 s, or fail this start saying so (manual 1.2.4.4).
+ExecStartPre=/bin/bash -c 'for i in {1..60}; do \
+    docker container inspect {{ item.compose }} >/dev/null 2>&1 || exit 0; \
+    sleep 1; \
+done; echo "Container {{ item.compose }} still there 60 s after its removal: not started."; exit 1'
 ExecStart=/usr/bin/docker compose -f {{ deploy_base_dir }}/{{ item.folder }}/docker-compose.yml up --abort-on-container-exit
 ExecStop=/usr/bin/docker compose -f {{ deploy_base_dir }}/{{ item.folder }}/docker-compose.yml stop
 Restart=always

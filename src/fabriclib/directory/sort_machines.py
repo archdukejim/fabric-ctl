@@ -3,6 +3,8 @@ import os
 
 from fabriclib.common.paths import INSTALL_DIR
 from fabriclib.common.write_audit import write_audit
+from fabriclib.grants.sync_grants import sync_grants
+from fabriclib.directory.constants import FABRIC_MANAGED
 from fabriclib.directory.run_op import run_op
 from fabriclib.secrets.load_secrets import load_secrets
 
@@ -10,9 +12,10 @@ SORTED = os.path.join(INSTALL_DIR, "config", "machines-sorted.json")   # what wa
 
 
 def sort_machines(v, actor="fabric", source="timer", secrets=None, container="samba", record=SORTED):
-    """Purpose: the site's machines placed, each once: a Windows machine that joined itself into OU=machines moved
-             into OU=windows (manual 1.6.11.5, 2.1.6.36), and a Linux machine joined into OU=linux with an admin's
-             password made a member of <site>-fabric-machines unless its join said unmanaged (1.6.11.6, 2.1.6.40).
+    """Purpose: the domain's machines placed, each once: a Windows machine that joined itself into OU=machines
+             filed by its operatingSystem, a Server edition into OU=servers and `machines-servers`, any other into
+             OU=desktops and `machines-desktops` (manual 1.6.13.3); a Linux machine of this site joined with an
+             admin's password made a member of `fabric-managed` unless its join said unmanaged (1.6.11.6, 2.1.6.40).
              The DC does both; this records which machines, so one an admin moves back or takes out is left so.
     Inputs:  v — fabric vars (site_name); actor, source — for the audit; secrets — fabric's secrets (default:
              load_secrets()); container — the DC's container; record — the file of what was done before
@@ -39,7 +42,9 @@ def sort_machines(v, actor="fabric", source="timer", secrets=None, container="sa
             json.dump(done, f)
         os.replace(tmp, record)
     for m in moved:
-        write_audit(actor, "MACHINE_SORT", f"machine={m['name']} to={m['to']}", source)
+        write_audit(actor, "MACHINE_SORT", f"machine={m['name']} to={m['to']} type={m['type']}", source)
     for m in adopted:
-        write_audit(actor, "MACHINE_ADOPT", f"machine={m['name']} group={v['site_name']}-fabric-machines", source)
+        write_audit(actor, "MACHINE_ADOPT", f"machine={m['name']} group={FABRIC_MANAGED}", source)
+    if moved or adopted:                  # their new groups reach grants at once (1.6.13.4)
+        sync_grants(v, actor, source, container, quiet=True)
     return {"sorted": [m["name"] for m in moved], "adopted": [m["name"] for m in adopted]}

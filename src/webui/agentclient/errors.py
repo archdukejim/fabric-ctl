@@ -5,6 +5,10 @@ class ValidationError(ValueError):
     """The agent rejected the input (HTTP 400); message is safe to show."""
 
 
+class NotFound(ValidationError):
+    """The one thing the call names is not there (HTTP 404, decision 2.1.8.21); message is safe to show."""
+
+
 class AgentError(RuntimeError):
     """The agent is unreachable or failed."""
 

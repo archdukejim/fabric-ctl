@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+{% if page == "/account" %}
+<h1>My account · {{ ctx.user }}</h1>
+{% if error %}<p class="flash bad" role="alert">Your details could not be read: {{ error }}</p>{% endif %}
+{% if d %}{{ p.facts("My details", [("User name", d.uid)] + details + [("Groups", d.groups | join(", ") if d.groups else "none")]) }}
+<p class="muted small">Your details are kept in the domain; the helpdesk changes them.</p>{% endif %}
+<section class="card"><h2>Change my password</h2>
+<form method="post" action="/account/password" class="stack"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label>Current password <input type="password" name="current" autocomplete="current-password" required></label>
+<label>New password <input type="password" name="new" autocomplete="new-password" required></label>
+<label>New password again <input type="password" name="again" autocomplete="new-password" required></label>
+<button>Change my password</button></form>
+<p class="muted small">Changed at once, not with Apply. The domain's password policy applies; your other sessions are signed out.
+Forgotten it? Fabric sends no mail: ask the helpdesk to reset your sign-in.</p></section>
+<section class="card"><h2>Sign-in factors</h2>
+<p>Your second factors (an authenticator app, passkeys) are added and removed on the sign-in service's own pages.</p>
+{% if factors_url %}<p><a class="btn" href="{{ factors_url }}" rel="noopener">Manage my sign-in factors</a></p>{% endif %}</section>
+{% if d %}<section class="card"><h2>My certificates <span class="muted">{{ d.certs | length }}</span></h2>
+{% if d.certs %}{% call p.list(["", "Subject", "Serial", "Valid until", "Status"]) %}{% for c in d.certs %}<tr>
+<td>{{ p.light({'valid': 'ok', 'expires soon': 'warn'}.get(c.status, 'bad'), c.status) }}</td><td data-label="Subject">{{ c.subject }}</td>
+<td data-label="Serial"><code>{{ c.serial }}</code></td><td data-label="Valid until">{{ c.not_after }}</td><td data-label="Status">{{ c.status }}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("Fabric has issued no certificate to you.") }}{% endif %}</section>
+<section class="card"><h2>My devices <span class="muted">{{ d.devices | length }}</span></h2>
+{% if d.devices %}{% call p.list(["", "Device", "Type", "Roles", "VLAN"]) %}{% for v in d.devices %}<tr>
+<td>{{ p.light('ok' if v.enabled else 'bad', 'enabled' if v.enabled else 'disabled') }}</td><td data-label="Device">{{ v.name }}</td>
+<td data-label="Type">{{ v.type }}</td><td data-label="Roles">{{ v.roles | join(", ") }}</td><td data-label="VLAN">{{ v.vlan if v.vlan is not none else "—" }}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("No 802.1X device is yours.") }}{% endif %}</section>{% endif %}
+{% else %}
+<h1>My account · Groups I manage</h1>
+{% if error %}<p class="flash bad" role="alert">Your groups could not be read: {{ error }}</p>{% endif %}
+{% for g in groups or [] %}<section class="card"><h2>{{ g.name }} <span class="muted">{{ g.members | length }}</span></h2>
+<p class="muted small">You may {{ "add and remove" if g.add and g.remove else ("add" if g.add else ("remove" if g.remove else "only see")) }} members{% if g.only_from %}, people of {{ g.only_from }} only{% endif %}. Changes wait for Apply.</p>
+{% if g.members %}{% call p.list(["Member", ""]) %}{% for m in g.members %}<tr><td data-label="Member">{{ m }}</td><td class="row-actions">{% if g.remove %}<form method="post" action="/account/groups/{{ g.name | urlencode }}/members"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="action" value="remove"><input type="hidden" name="member" value="{{ m }}"><button class="ghost">Remove</button></form>{% endif %}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("No members yet.") }}{% endif %}
+{% if g.add %}<form method="post" action="/account/groups/{{ g.name | urlencode }}/members" class="grid"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="action" value="add">
+<label>User name <input name="member" required autocomplete="off"></label><button>Add a member</button></form>{% endif %}
+</section>{% else %}{% if not error %}{{ p.empty("You manage no group.") }}{% endif %}{% endfor %}
+{% endif %}
+{% endblock %}

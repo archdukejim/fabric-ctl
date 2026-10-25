@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block body %}
 <h1>{{ title }}</h1>
-{% if r.device %}<p class="flash ok">Linked to device <a href="/directory?view=device&name={{ r.device | urlencode }}">{{ r.device }}</a>.</p>{% endif %}
+{% if r.device %}<p class="flash ok">Linked to device <a href="/8021x/devices/{{ r.device | urlencode }}">{{ r.device }}</a>.</p>{% endif %}
 {% if r.key %}<p class="flash warn">This page is the only copy of the private key. It is not stored anywhere — download it now.</p>{% endif %}
 <section class="card"><h2>{{ r.info.subject }}</h2>
 <dl class="kv"><dt>Names</dt><dd>{{ r.info.sans | join(', ') or '—' }}</dd><dt>Key</dt><dd>{{ r.info.key }}</dd>
@@ -18,5 +18,5 @@
 <section class="card"><h2>Certificate (PEM)</h2><textarea readonly rows="10">{{ r.cert }}</textarea></section>
 {% if r.fullchain %}<section class="card"><h2>Full chain (PEM)</h2><textarea readonly rows="10">{{ r.fullchain }}</textarea></section>{% endif %}
 {% if r.key %}<section class="card"><h2>Private key (PEM)</h2><textarea readonly rows="8">{{ r.key }}</textarea></section>{% endif %}
-<p><a href="/stepca?view={{ back }}">Back</a></p>
+<p><a href="/pki?view={{ back }}">Back</a></p>
 {% endblock %}

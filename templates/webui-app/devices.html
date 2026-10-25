@@ -1,0 +1,64 @@
+{% extends "base.html" %}{% import "pattern.html" as p %}{% from "device_macros.html" import device_fields %}{% block body %}
+{% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
+{% if view == "list" %}
+<h1>802.1X · Devices</h1>
+{% call p.actions() %}{% if can('devices:enroll') %}<a class="btn" href="/8021x/devices/_new">Add device</a>{% endif %}{% endcall %}
+{% if unavailable %}<p class="flash bad" role="alert">The devices could not be read: {{ unavailable }}</p>
+{% else %}
+<section class="card"><h2>Devices <span class="muted">{{ data.devices | length }}</span></h2>
+<p class="muted">What a device may do comes from its roles. A disabled device gets nothing, whatever its roles say.</p>
+{% if data.devices %}{% call p.list(["", "Device", "Type", "MAC", "Owner", "Roles", "Access"]) %}{% for d in data.devices %}<tr>
+<td>{{ p.light('ok' if d.enabled else 'bad', 'enabled' if d.enabled else 'disabled') }}</td>
+<td data-label="Device"><a href="/8021x/devices/{{ d.name | urlencode }}"><strong>{{ d.name }}</strong></a>{% if d.description %}<div class="muted small">{{ d.description }}</div>{% endif %}</td>
+<td data-label="Type">{{ d.type }}</td><td data-label="MAC"><code class="small">{{ d.macs | join(' ') or '—' }}</code></td>
+<td data-label="Owner">{% if d.owner and can('people:read') %}<a href="/directory/people/{{ d.owner | urlencode }}">{{ d.owner }}</a>{% else %}{{ d.owner or '—' }}{% endif %}</td>
+<td data-label="Roles">{% for r in d.roles %}<a href="/8021x/roles/{{ r | urlencode }}">{{ r }}</a>{{ ', ' if not loop.last }}{% else %}—{% endfor %}</td>
+<td class="small" data-label="Access">{% if not d.enabled %}<span class="bad-text">disabled</span>{% else %}{% if d.vlan %}VLAN {{ d.vlan }} · {% endif %}{{ d.permissions | length }} permission{{ '' if d.permissions | length == 1 else 's' }}{% endif %}{% if d.certs %} · {{ d.certs | length }} cert{{ '' if d.certs | length == 1 else 's' }}{% endif %}</td></tr>{% endfor %}{% endcall %}
+{% else %}{% call p.empty("No devices yet: a laptop, phone or printer that joins the network with its own certificate or MAC.") %}{% if can('devices:enroll') %}<a class="btn" href="/8021x/devices/_new">Add device</a>{% endif %}{% endcall %}{% endif %}
+</section>
+{% endif %}
+
+{% elif view == "new" %}
+<p><a href="/8021x/devices">← Devices</a></p>
+<h1>802.1X · Add device</h1>
+{% if unavailable %}<p class="flash bad" role="alert">The device roles could not be read: {{ unavailable }}</p>
+{% else %}
+<section class="card"><form method="post" action="/directory/devices/_new" class="grid">{{ csrf() }}
+<label>Name<input name="name" required pattern="[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?" placeholder="jims-phone"></label>
+{{ device_fields({'enabled': True, 'roles': [], 'macs': [], 'type': 'laptop'}, data, people) }}
+<div><button>Add device</button></div>
+</form>
+<p class="muted small">The device waits for <strong>Apply</strong> in the top bar.</p></section>
+{% endif %}
+
+{% else %}
+{% set d = device %}
+<p><a href="/8021x/devices">← Devices</a></p>
+<h1>802.1X · Device {{ d.name }}</h1>
+{% call p.actions() %}{% if can('pki:issue') %}<a class="btn" href="/pki?view=issue&amp;device={{ d.name | urlencode }}">Generate key + certificate</a>{% endif %}{% if can('pki:sign') %}<a class="btn" href="/pki?view=sign&amp;device={{ d.name | urlencode }}">Sign its CSR</a>{% endif %}{% endcall %}
+<section class="card facts"><h2>{{ p.status('ok' if d.enabled else 'bad', 'enabled' if d.enabled else 'disabled') }}</h2>
+<dl><dt>Owner</dt><dd>{% if d.owner and can('people:read') %}<a href="/directory/people/{{ d.owner | urlencode }}">{{ d.owner }}</a>{% else %}{{ d.owner or '—' }}{% endif %}</dd>
+<dt>Roles</dt><dd>{% for r in d.roles %}<a href="/8021x/roles/{{ r | urlencode }}">{{ r }}</a>{{ ', ' if not loop.last }}{% else %}—{% endfor %}</dd>
+<dt>VLAN</dt><dd>{{ d.vlan or '—' }}{% if d.vlan %} <span class="muted">(from role {{ d.vlan_from }})</span>{% endif %}</dd>
+<dt>May</dt><dd>{% for perm in d.permissions %}<div>{{ data.permissions[perm][0] }} <span class="muted small">· {{ perm }}</span></div>{% else %}{{ 'nothing: disabled' if not d.enabled else 'nothing (no role grants anything)' }}{% endfor %}</dd></dl>
+</section>
+<section class="card"><h2>Certificates <span class="muted">{{ d.certs | length }}</span></h2>
+<p class="muted">Certificates issued to this device, by SHA-256 fingerprint: 802.1X EAP-TLS accepts these for it.</p>
+{% if d.certs %}<ul>{% for fp in d.certs %}<li><code class="fp small">{{ fp }}</code></li>{% endfor %}</ul>
+{% if can('pki:link-device') %}<form method="post" action="/directory/devices/{{ d.name | urlencode }}/certs/unlink" class="grid">{{ csrf() }}
+<label class="wide">Certificate<select name="sha256">{% for fp in d.certs %}<option>{{ fp }}</option>{% endfor %}</select></label>
+<div><button class="danger">Unlink certificate</button></div></form>{% endif %}
+{% else %}{{ p.empty("No certificate linked: generate one, or sign the device's own request, from the actions above.") }}{% endif %}
+</section>
+{% if can('devices:admin') %}
+<section class="card"><h2>Edit</h2><form method="post" action="/directory/devices/{{ d.name | urlencode }}" class="grid">{{ csrf() }}
+{{ device_fields(d, data, people) }}
+<div><button>Save the device</button></div>
+</form></section>
+<section class="card"><h2>Remove</h2><form method="post" action="/directory/devices/{{ d.name | urlencode }}/delete">{{ csrf() }}
+<p class="muted">Takes it out of every role. Its certificates stay valid until they expire.</p>
+<button class="danger">Remove device</button></form></section>
+{% endif %}
+<p class="muted small">Every change here waits for <strong>Apply</strong> in the top bar.</p>
+{% endif %}
+{% endblock %}

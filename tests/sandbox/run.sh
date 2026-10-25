@@ -73,9 +73,15 @@ ad_domain: ad.test
 ad_password_policy: {minimum_length: 14, complexity: true, history: 24, minimum_age_days: 0, maximum_age_days: 0, lockout_threshold: 10, lockout_minutes: 15, lockout_window_minutes: 15}
 install_keycloak: true
 install_webui: true
+# the first Directory Administrator (2.1.6.69): their own name, never fabric-admin (the Enterprise Admin's)
+webui_admin_user: pat.admin
+webui_admin_first_name: Pat
+webui_admin_last_name: Example
+webui_admin_email: pat@lan.test
 # the raised sign-in (2.3.6.2.6): the strict login test below; the host suite proves the default and raising
 webui_client_cert: true
 signin_admin_second_factor: totp
+install_fluentbit: true      # a fresh install with it on (2.3.1.25.4): deployed after the PKI step
 install_freeradius: true
 install_kea: true
 dns_filter: bind
@@ -97,6 +103,25 @@ echo "--- setup (fresh install)"
 ADMIN_PW="Fx9-$(openssl rand -hex 12)"
 ( umask 077; printf '%s\n' "$ADMIN_PW" > "$OUT/admin-pw"; printf 'short\n' > "$OUT/admin-pw-short" )
 docker cp "$OUT/admin-pw" "$NAME:/root/admin-pw"; docker cp "$OUT/admin-pw-short" "$NAME:/root/admin-pw-short"
+# fabric names its DCs (2.1.6.65): a new install's vars file that names one is refused before anything is written
+{ cat "$OUT/vars.yaml"; echo "dc_name: dc-office"; } > "$OUT/vars-named.yaml"
+docker cp "$OUT/vars-named.yaml" "$NAME:/root/vars-named.yaml"
+in_box 'fabricctl setup --file /root/vars-named.yaml --non-interactive --yes --approve all --admin-password-file /root/admin-pw' \
+    > "$OUT/setup-named.log" 2>&1
+# covers: cli:setup -
+check "a new install's vars file naming the DC is refused, saying fabric names DCs itself; nothing written" \
+    "grep -q 'fabric names its domain controllers itself' '$OUT/setup-named.log' && ! grep -q '\[preflight\]' '$OUT/setup-named.log' \
+     && ! in_box 'test -e /opt/fabric/config/fabric.yaml' && ! in_box 'getent passwd fabric-dns'"
+for bad in "webui_admin_user: fabric-admin" "webui_admin_first_name: ''" "webui_admin_email: nope"; do
+    { grep -v "^${bad%%:*}:" "$OUT/vars.yaml"; echo "$bad"; } > "$OUT/vars-badadmin.yaml"
+    docker cp "$OUT/vars-badadmin.yaml" "$NAME:/root/vars-badadmin.yaml"
+    in_box 'fabricctl setup --file /root/vars-badadmin.yaml --non-interactive --yes --approve all --admin-password-file /root/admin-pw' \
+        > "$OUT/setup-badadmin.log" 2>&1
+    # covers: cli:setup -
+    check "unattended: the first Directory Administrator's ${bad%%:*} refused ($bad), saying why, before any step" \
+        "grep -q 'the first Directory Administrator (2.1.6.69) needs ${bad%%:*}' '$OUT/setup-badadmin.log' \
+         && ! grep -q '\[preflight\]' '$OUT/setup-badadmin.log' && ! in_box 'getent passwd fabric-dns'"
+done
 in_box 'fabricctl setup --file /root/vars.yaml --non-interactive --yes --approve all' > "$OUT/setup-nopw.log" 2>&1
 # covers: cli:setup -
 check "unattended setup without the first admin's password refuses before any step, naming --admin-password-file" \
@@ -116,10 +141,25 @@ in_box 'fabricctl setup --file /root/vars.yaml --non-interactive --yes --approve
     | tee "$OUT/setup.log"
 # covers: cli:setup +
 check "setup completes" "grep -q 'fabric is ready' '$OUT/setup.log'"
-check "the first admin is fabric-admin, created with the password chosen for setup (2.1.6.33)" \
-    "grep -q \"admin 'fabric-admin' created in the directory with the password chosen in setup\" '$OUT/setup.log'"
+# (the start step's own message shows only when nothing deployed it before: the DNS filter's second render does here)
+check "Fluent Bit on at a fresh install: left by the deploy step for the root CA, deployed once it exists and running (2.3.1.25.4)" \
+    "grep -q \"Fluent Bit: deployed once fabric's root CA is made\" '$OUT/setup.log' \
+     && in_box 'systemctl is-active fluentbit' | grep -qx active && in_box 'test -s /opt/fluentbit/config/syslog-ca.crt'"
+check "the first Directory Administrator is pat.admin, created with the password chosen for setup (2.1.6.33, 2.1.6.69)" \
+    "grep -q \"Directory Administrator 'pat.admin' (Pat Example) created in the directory with the password chosen in setup\" '$OUT/setup.log'"
+GLASS=/root/fabric-admin/fabric-admin-password.txt
+check "fabric-admin, the Enterprise Admin, made with a generated password written once to ~/fabric-admin/ (0700/0600, the path said)" \
+    "grep -q 'fabric-admin, the Enterprise Admin (Enterprise, Schema and Domain Admins), made with a generated password' '$OUT/setup.log' \
+     && grep -q '$GLASS' '$OUT/setup.log' && [ \"\$(in_box 'stat -c %a /root/fabric-admin $GLASS' | tr '\n' ' ')\" = '700 600 ' ] \
+     && in_box 'grep -qE \"^password:  [A-Za-z0-9._,:+=@^~-]{24}\$\" $GLASS'"
+# fabric-admin's password for the checks below, in a root-only file of the box (never on a command line)
+in_box "umask 077; sed -n 's/^password:  //p' $GLASS > /root/ea-pw"
+check "fabric keeps fabric-admin's password nowhere else: not in its config folder (settings, records, setup's run log) nor /etc/fabric" \
+    "! in_box 'grep -rqF -f /root/ea-pw /opt/fabric/config /etc/fabric 2>/dev/null'"
 check "Kerberos sign-in is off on an unattended new install (2.1.6.32)" \
     "in_box 'grep -qx \"signin_kerberos: false\" /opt/fabric/config/vars.yaml'"
+check "the new domain's DC is dc-0001, chosen by fabric with nothing asked (2.1.6.65)" \
+    "in_box 'grep -qxE \"dc_name: \\\"?dc-0001\\\"?\" /opt/fabric/config/vars.yaml' &&! grep -q \"Domain controller's name\" '$OUT/setup.log'"
 grep -q "fabric is ready" "$OUT/setup.log" || in_box 'journalctl --no-pager -u samba | tail -60; docker logs samba 2>&1 | tail -80' > "$OUT/setup-dc.log" 2>&1   # diagnosis when setup fails
 check "setup did not shadow the package command" "! in_box 'test -e /usr/local/bin/fabricctl'"
 check "setup wrote nothing beside the package's copy: its records are the install's (0.6.4)" \
@@ -132,6 +172,8 @@ echo "--- doctor"
 in_box 'fabricctl doctor' 2>&1 | tee "$OUT/doctor.log"
 # covers: cli:doctor +
 check "doctor: all checks pass" "! grep -q '✗' '$OUT/doctor.log' && grep -q '✓' '$OUT/doctor.log'"
+check "doctor reminds of the break-glass password's file while it is there (a warning, not a failed check)" \
+    "grep -q 'the break-glass password of fabric-admin is still in $GLASS' '$OUT/doctor.log'"
 
 echo "--- fabric's own images (manual 1.14.3): published and signature-checked once the lock pins them"
 published=$(PYTHONPATH="$REPO/src" python3 -c "from fabriclib.common.read_published_lock import read_published_lock as r
@@ -179,8 +221,11 @@ check "setup --undo refuses what fabric needs (accounts), naming uninstall" "gre
 echo "--- POSIX identities in the domain (manual 1.6.3.9)"
 # a new install's laid-out block (1.6.3.17): the first admin takes the block's first id, Domain Users is `users`
 ADMIN_IDS=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=fabric-admin)' uidNumber gidNumber" | tr -d '\r')
-check "the admin has fabric's POSIX identity in AD: the block's first uid 1000000, Domain Users' gid 1040009" \
+DA_IDS=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=pat.admin)' uidNumber gidNumber" | tr -d '\r')
+check "fabric-admin has fabric's POSIX identity in AD: the block's first uid 1000000, Domain Users' gid 1040009" \
     "grep -qx 'uidNumber: 1000000' <<< '$ADMIN_IDS' && grep -qx 'gidNumber: 1040009' <<< '$ADMIN_IDS'"
+check "the first Directory Administrator an admin's id (1000001, the admin range) and Domain Users' gid" \
+    "grep -qx 'uidNumber: 1000001' <<< '$DA_IDS' && grep -qx 'gidNumber: 1040009' <<< '$DA_IDS'"
 
 echo "--- traffic stays on the host (2.1.2.15): containers reach the DC on fabric_net's gateway"
 DC_NAME=$(in_box "python3 -c 'import yaml; print(yaml.safe_load(open(\"/opt/fabric/config/vars.yaml\"))[\"hostname_dc\"])'")
@@ -276,18 +321,18 @@ check "radius: map-group applied; FreeRADIUS back up with EAP-TTLS on; status li
 # covers: cli:images.status +
 check "kea: fabricctl images status covers the Kea image" "in_box 'fabricctl images status' | grep -qE '^kea '"
 
-echo "--- info.<domain>/certs/: CA certificates for every system (1.5.1.5); web UI at fabric.<domain>"
+echo "--- info.<domain>/certs/: CA certificates for every system (1.5.1.5); web UI at fabric-ctl.<domain> (2.1.8.12)"
 docker cp "$REPO/tests/sandbox/certs_page_test.sh" "$NAME:/root/certs_page_test.sh"
 in_box 'bash /root/certs_page_test.sh info.lan.test ca.lan.test $(python3 -c "import yaml;print(yaml.safe_load(open(\"/opt/fabric/config/vars.yaml\"))[\"ip_nginx\"])") '"$IP" \
     > "$OUT/certs-page.log" 2>&1
 check "certs page at info.<domain>/certs/: every format real, right CA, right MIME, plain HTTP by name and IP, the CRLs; ca.<domain> stays Step-CA; certs.<domain> gone" \
     "! grep -q '^FAIL' '$OUT/certs-page.log' && [ \"\$(grep -c '^PASS' '$OUT/certs-page.log')\" -ge 25 ]"
-check "DNS: info.<domain> and fabric.<domain> resolve to the host" \
-    "in_box 'dig +short @$IP info.lan.test' | grep -qx $IP && in_box 'dig +short @$IP fabric.lan.test' | grep -qx $IP"
+check "DNS: info.<domain> and fabric-ctl.<domain> resolve to the host" \
+    "in_box 'dig +short @$IP info.lan.test' | grep -qx $IP && in_box 'dig +short @$IP fabric-ctl.lan.test' | grep -qx $IP"
 check "negative: certs.<domain> no longer resolves (1.5.1.5)" \
     "[ -z \"\$(in_box 'dig +short @$IP certs.lan.test')\" ]"
-check "web UI answers at fabric.<domain> (refuses without a client cert)" \
-    "[ \"\$(in_box 'curl -s -o /dev/null -w %{http_code} --cacert /opt/stepca/data/certs/root_ca.crt --resolve fabric.lan.test:443:$IP https://fabric.lan.test/')\" = 400 ]"
+check "web UI answers at fabric-ctl.<domain> (refuses without a client cert)" \
+    "[ \"\$(in_box 'curl -s -o /dev/null -w %{http_code} --cacert /opt/stepca/data/certs/root_ca.crt --resolve fabric-ctl.lan.test:443:$IP https://fabric-ctl.lan.test/')\" = 400 ]"
 
 # covers: setting:ca_nest_depth +
 check "the root CA allows one level of nesting (ca_nest_depth 1: path length 2); its intermediate signs leaves only" \
@@ -384,10 +429,10 @@ check "rfc2136.ini for the key: host IP, BIND's port ($BIND_PORT, behind the DNS
 
 echo "--- admin login kit"
 check "kit: .p12, its password and root CA in ~/fabric-admin; no sign-in password written there (2.1.6.33)" \
-    "in_box 'cd /root/fabric-admin && ls fabric-admin.p12 p12-password.txt README.txt *.crt' >/dev/null \
+    "in_box 'cd /root/fabric-admin && ls pat.admin.p12 p12-password.txt README.txt *.crt' >/dev/null \
      && ! in_box 'test -e /root/fabric-admin/initial-password.txt'"
 check "kit: secrets are 0600" \
-    "[ \"\$(in_box 'stat -c %a /root/fabric-admin/fabric-admin.p12 /root/fabric-admin/p12-password.txt' | sort -u)\" = 600 ]"
+    "[ \"\$(in_box 'stat -c %a /root/fabric-admin/pat.admin.p12 /root/fabric-admin/p12-password.txt' | sort -u)\" = 600 ]"
 
 echo "--- OpenBao (core): static-seal auto-unseal, recovery keys once, AppRoles, TLS via nginx"
 check "fabricctl vault status: unsealed, static seal, raft" "in_box 'fabricctl vault status' | grep -q 'unsealed  (static seal, raft storage)'"
@@ -417,7 +462,7 @@ check "core services start and serve while OpenBao is down" \
 in_box 'systemctl start openbao' > /dev/null 2>&1; sleep 10
 
 echo "--- restricted sign-in: HTTPS + client cert from this CA + Keycloak OIDC/TOTP + the console's admin role"
-# A person of the site who is NOT in admins (bob), and one in auditors (carol), each with a client certificate;
+# A person of the site who is NOT in directory-admins (bob), and one in auditors (carol), each with a client certificate;
 # their one-time passwords from fabric's own reset, through a root-only file
 docker cp "$REPO/tests/sandbox/make_person.py" "$NAME:/root/make_person.py"
 docker cp "$REPO/tests/host/reset_user.py" "$NAME:/root/reset_user.py"
@@ -434,9 +479,9 @@ CAROL_P12_PW=$(in_box 'fabricctl client-cert carol' 2>&1 | sed -n 's/^.p12 passw
 check "third user carol in the auditors group, with a client cert" "grep -q created '$OUT/carol.log' && [ -n '$CAROL_P12_PW' ]"
 BOB_UID=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=bob)' uidNumber" | grep ^uidNumber)
 CAROL_UID=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=carol)' uidNumber" | grep ^uidNumber)
-check "bob and carol have distinct uid numbers from the site's block" "[ -n '$BOB_UID' ] && [ '$BOB_UID' != '$CAROL_UID' ]"
+check "bob and carol have distinct uid numbers from the DC's range" "[ -n '$BOB_UID' ] && [ '$BOB_UID' != '$CAROL_UID' ]"
 
-echo "--- the fabric host as a member of its own domain (manual 1.6.11.8): the fabric admins only, local accounts kept"
+echo "--- the fabric host as a member of its own domain (manual 1.6.11.8): no domain account signs in, local accounts kept"
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq pamtester >/dev/null 2>&1'
 # passwords reach the box in root-only files, read on stdin (never a command line)
 ( umask 077; LOCAL_PW="Lc-$(openssl rand -hex 12)"; printf 'wrong\n' > "$OUT/wrong-pw"
@@ -453,26 +498,43 @@ check "setup made the host a member with its own account: the keytab holds FABRI
      && in_box 'klist -k /etc/krb5.keytab' | grep -qF ' FABRIC-SBX\$@AD.TEST' && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi 'DC-FABRIC-SBX' \
      && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi krbtgt \
      && in_box 'systemctl is-active sssd' | grep -qx active"
-check "…its computer account sits in the site's OU=fabric-hosts (group policy reaches it, 2.1.6.49); sssd enforces the OU's log-on policy" \
+check "…its computer account sits in the domain's OU=fabric-hosts (2.1.6.49, 1.6.13.2); sssd lets in fabric-admin alone and has no sudo provider; fabric-admin's sudo a local rule (0440, sudo takes it) (the top tier's host, 2.1.6.75, 2.1.6.78)" \
     "host_account | grep -q 'OU=fabric-hosts,' \
-     && in_box 'grep -qx ad_gpo_access_control.=.enforcing /etc/sssd/sssd.conf && grep -qx ad_hostname.=.fabric-sbx.ad.test /etc/sssd/sssd.conf'"
-check "the first admin (in fabric-admins) resolves on the host with the domain's uid (1000000, the block's first)" \
-    "in_box 'getent passwd fabric-admin' | grep -qE '^fabric-admin:[^:]*:1000000:'"
-check "the first admin signs in to the host with their domain password (PAM)" "pam fabric-admin /root/admin-pw"
-check "a wrong password is refused" "! pam fabric-admin /root/wrong-pw"
-check "the first admin has sudo on the host from the site's rule" "in_box 'sudo -l -U fabric-admin' | grep -q '(ALL) ALL'"
-check "a person outside the fabric admins (bob) resolves but is refused by OU=fabric-hosts' default log-on policy (no access filter of fabric's own, 2.1.6.53), and has no sudo" \
-    "in_box 'getent passwd bob' >/dev/null && ! in_box 'grep -q ad_access_filter /etc/sssd/sssd.conf' \
-     && ! pam bob /dev/null acct_mgmt && pam fabric-admin /dev/null acct_mgmt \
+     && in_box 'grep -qx access_provider.=.simple /etc/sssd/sssd.conf && grep -qx simple_allow_users.=.fabric-admin /etc/sssd/sssd.conf && grep -qx sudo_provider.=.none /etc/sssd/sssd.conf && grep -qx ad_hostname.=.fabric-sbx.ad.test /etc/sssd/sssd.conf' \
+     && [ \"\$(in_box 'stat -c %a /etc/sudoers.d/fabric-admin')\" = 440 ] && in_box 'visudo -cf /etc/sudoers.d/fabric-admin' >/dev/null"
+check "fabric-admin and the first Directory Administrator resolve on the host with the domain's uids (1000000, 1000001)" \
+    "in_box 'getent passwd fabric-admin' | grep -qE '^fabric-admin:[^:]*:1000000:' \
+     && in_box 'getent passwd pat.admin' | grep -qE '^pat.admin:[^:]*:1000001:'"
+ADMIN_GROUPS=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=fabric-admin)' memberOf" | tr -d '\n ')
+DA_GROUPS=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=pat.admin)' memberOf" | tr -d '\n ')
+check "fabric-admin alone is the Enterprise Admin (Enterprise, Schema and Domain Admins, 2.1.6.68), not in directory-admins, in OU=people" \
+    "echo '$ADMIN_GROUPS' | grep -q 'CN=EnterpriseAdmins,' && echo '$ADMIN_GROUPS' | grep -q 'CN=SchemaAdmins,' \
+     && echo '$ADMIN_GROUPS' | grep -q 'CN=DomainAdmins,' && ! echo '$ADMIN_GROUPS' | grep -q 'CN=directory-admins,' \
+     && in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=fabric-admin)' dn\" | grep -q '^dn: CN=fabric-admin,OU=people,'"
+check "the first Directory Administrator is in directory-admins (2.1.6.81) and in none of AD's top groups, in OU=people" \
+    "echo '$DA_GROUPS' | grep -q 'CN=directory-admins,OU=groups,' && ! echo '$DA_GROUPS' | grep -qE 'CN=(EnterpriseAdmins|SchemaAdmins|DomainAdmins),' \
+     && in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=pat.admin)' dn\" | grep -q '^dn: CN=pat.admin,OU=people,'"
+check "fabric-admin signs in to the DC's host (PAM authenticates it and its account check lets it in: the Enterprise Admin, 2.1.6.78)" \
+    "pam fabric-admin /root/ea-pw"
+check "negative: the Directory Administrator's password is right (PAM authenticates it) but the account may not sign in to the host (nobody else from the domain, 2.1.6.78)" \
+    "pam pat.admin /root/admin-pw authenticate && ! pam pat.admin /dev/null acct_mgmt"
+check "a wrong password is refused" "! pam fabric-admin /root/wrong-pw && ! pam pat.admin /root/wrong-pw"
+check "fabric-admin has sudo on the host (its local rule); negative: the Directory Administrator has none (no domain sudo rule reaches it)" \
+    "in_box 'sudo -l -U fabric-admin' | grep -q '(ALL : ALL) ALL' && in_box 'sudo -l -U pat.admin 2>&1' | grep -q 'not allowed'"
+check "negative: any other person (bob) resolves but is refused too, and has no sudo" \
+    "in_box 'getent passwd bob' >/dev/null && ! pam bob /dev/null acct_mgmt \
      && in_box 'sudo -l -U bob 2>&1' | grep -q 'not allowed'"
 echo "--- the fabric host as a machine fabric manages (manual 1.6.11.11, 2.1.6.49): Kerberos for SSH, never locked out"
-FM=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=*-fabric-machines)' sAMAccountName" \
-     | sed -n 's/^sAMAccountName: //p' | head -1)
+FM=fabric-managed
 in_member() { in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=FABRIC-SBX\$)' memberOf" \
               | grep -qi "^memberOf: CN=$FM,"; }
+in_dc_hosts() { in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=FABRIC-SBX\$)' memberOf" \
+              | grep -qi "^memberOf: CN=dc-hosts,"; }
+in_a_site() { in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=FABRIC-SBX\$)' memberOf" \
+              | grep -qi "^memberOf: CN=site-"; }
 samba_tool() { in_box "docker exec samba samba-tool $* -s /data/etc/smb.conf" >> "$OUT/samba-tool.log" 2>&1; }
-check "setup placed the host's account in the site's fabric-machines group ($FM): fabric manages it" \
-    "[ -n '$FM' ] && in_member && in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=FABRIC-SBX\\$)' description\" | grep -q \"fabric host\""
+check "setup placed the host's account in fabric-managed and dc-hosts, in no site's group (1.6.13.6): fabric manages it" \
+    "in_member && in_dc_hosts && ! in_a_site && in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=FABRIC-SBX\\$)' description\" | grep -q \"fabric host\""
 ( umask 077; printf '%s\n' "$BOB_PW" > "$OUT/bob-pw" ); docker cp "$OUT/bob-pw" "$NAME:/root/bob-pw"; rm -f "$OUT/bob-pw"
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server sshpass >/dev/null 2>&1; systemctl start ssh.socket >/dev/null 2>&1; true'
 in_box 'fabricctl domain host-managed' > "$OUT/host-managed.log" 2>&1
@@ -491,9 +553,11 @@ ssh_krb() { in_box "export KRB5CCNAME=FILE:/tmp/cc-$1; kinit $1 < $2 >/dev/null 
     -o GSSAPIAuthentication=yes $1@fabric-sbx.ad.test true; rc=\$?; kdestroy >/dev/null 2>&1; exit \$rc" >> "$OUT/ssh.log" 2>&1; }
 check "a local account signs in over SSH with its password (the host's exception to Kerberos-only: local accounts as before)" \
     "ssh_pw localop /root/localop-pw"
-check "a fabric admin signs in over SSH with a Kerberos ticket" "ssh_krb fabric-admin /root/admin-pw"
-check "a fabric admin's domain password over SSH is refused (domain accounts sign in with Kerberos)" "! ssh_pw fabric-admin /root/admin-pw"
-# dora: a person of the site (in <site>-users, not a fabric admin) whose password is usable at once (bob's is a
+check "fabric-admin signs in over SSH with a Kerberos ticket (break glass, 2.1.6.78)" "ssh_krb fabric-admin /root/ea-pw"
+check "negative: fabric-admin's password over SSH is refused (Kerberos only)" "! ssh_pw fabric-admin /root/ea-pw"
+check "negative: a Directory Administrator with a Kerberos ticket is refused over SSH (nobody else from the domain, 2.1.6.78)" "! ssh_krb pat.admin /root/admin-pw"
+check "negative: a Directory Administrator's domain password over SSH is refused" "! ssh_pw pat.admin /root/admin-pw"
+# dora: a person of the site (in site-<site>, not a Directory Administrator) whose password is usable at once (bob's is a
 # one-time password the web sign-in test needs, so neither kinit nor sssd's account check would take it): reset to a
 # password in a root-only file, then its must-change flag lifted in the domain (pwdLastSet -1: no secret on a line)
 in_box 'python3 /root/make_person.py dora' > "$OUT/dora.log" 2>&1
@@ -502,27 +566,13 @@ DORA_DN=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAcco
 printf 'dn: %s\nchangetype: modify\nreplace: pwdLastSet\npwdLastSet: -1\n' "$DORA_DN" \
     | docker exec -i "$NAME" docker exec -i samba ldbmodify -H /data/private/sam.ldb >> "$OUT/dora.log" 2>&1
 in_box 'sss_cache -E' >/dev/null 2>&1
-check "a person outside the fabric admins (dora) gets a ticket but is refused, over SSH with it and by PAM's account check" \
+check "negative: a person of the site (dora) gets a ticket but is refused, over SSH with it and by PAM's account check" \
     "in_box 'KRB5CCNAME=FILE:/tmp/cc-dorat kinit dora < /root/dora-pw >/dev/null 2>&1 && kdestroy -c FILE:/tmp/cc-dorat' \
      && ! ssh_krb dora /root/dora-pw && ! pam dora /dev/null acct_mgmt"
-echo "--- who signs in to the host is OU=fabric-hosts' log-on policy alone (2.1.6.53): changed there, nothing on the host"
-SITE=${FM%-fabric-machines}
-SSSD_BEFORE=$(in_box 'md5sum /etc/sssd/sssd.conf')
-# covers: cli:domain.logon +
-in_box "fabricctl domain logon set fabric-hosts --console fabric-admins,$SITE-fabric-admins,$SITE-users --remote fabric-admins,$SITE-fabric-admins,$SITE-users" > "$OUT/logon-hosts.log" 2>&1
-# sssd reads a GPO again once its own copy is 5 seconds old (ad_gpo_cache_timeout): asked for up to a minute
-within_a_minute() { for _ in $(seq 12); do eval "$1" && return 0; sleep 5; done; return 1; }
-check "an admin grants $SITE-users on OU=fabric-hosts' policy: dora may now sign in to the host (PAM, and SSH with a ticket), no file on the host changed" \
-    "within_a_minute 'pam dora /dev/null acct_mgmt' && ssh_krb dora /root/dora-pw \
-     && [ \"\$(in_box 'md5sum /etc/sssd/sssd.conf')\" = '$SSSD_BEFORE' ]"
-in_box 'fabricctl domain logon clear fabric-hosts' >> "$OUT/logon-hosts.log" 2>&1
-check "...logon clear fabric-hosts puts the default back: dora refused again (SSH too), the fabric admin still signs in" \
-    "within_a_minute '! pam dora /dev/null acct_mgmt' && ! ssh_krb dora /root/dora-pw && pam fabric-admin /dev/null acct_mgmt \
-     && grep -q 'back to the default' '$OUT/logon-hosts.log'"
 in_box 'systemctl stop samba' >/dev/null 2>&1
-check "with the DC stopped: a local account signs in and keeps its sudo, root works, the admin signs in from sssd's cache" \
+check "with the DC stopped: a local account signs in and keeps its sudo, root works" \
     "pam localop /root/localop-pw && in_box 'sudo -l -U localop' | grep -q '(ALL : ALL) ALL' \
-     && [ \"\$(in_box 'id -u root')\" = 0 ] && pam fabric-admin /root/admin-pw"
+     && [ \"\$(in_box 'id -u root')\" = 0 ]"
 check "…and over SSH with its password: the managed host never locks its owner out" "ssh_pw localop /root/localop-pw"
 in_box 'fabricctl domain host-managed --scheduled' > "$OUT/host-managed-dcdown.log" 2>&1
 check "with the DC stopped, the timer's run changes nothing (says the DC did not answer)" \
@@ -545,16 +595,15 @@ check "negative: sshd already refusing its configuration: host-managed refuses (
     "grep -q 'refuses its configuration as it is' '$OUT/host-managed-broken.log' && ! in_box 'fabricctl domain host-managed >/dev/null 2>&1' \
      && ! in_box 'test -e /etc/ssh/sshd_config.d/10-fabric.conf' && ! in_box 'grep -q pam_localuser /etc/pam.d/sshd'"
 in_box 'rm -f /etc/ssh/sshd_config.d/00-broken.conf; fabricctl domain host-managed' > "$OUT/host-managed-fixed.log" 2>&1
-check "…fixed: applied again, and the fabric admin signs in with Kerberos" \
-    "grep -q 'is in $FM' '$OUT/host-managed-fixed.log' && ssh_krb fabric-admin /root/admin-pw"
-# an account of 0.7.1's first build: in OU=machines/OU=linux, never placed (the record without "placed")
-SITE_OU=$(host_account | sed -n 's/^dn: CN=FABRIC-SBX,OU=fabric-hosts,\(.*\),DC=ad,DC=test$/\1/p')
-samba_tool computer move FABRIC-SBX "OU=linux,OU=machines,$SITE_OU"
+check "…fixed: applied again" \
+    "grep -q 'is in $FM' '$OUT/host-managed-fixed.log' && in_box 'test -f /etc/ssh/sshd_config.d/10-fabric.conf'"
+# an account setup made but never placed: in OU=machines (the record without "placed")
+samba_tool computer move FABRIC-SBX "OU=machines"
 in_box "python3 -c \"import json; p='/opt/fabric/config/member.json'; r=json.load(open(p)); r.pop('placed', None); json.dump(r, open(p, 'w'))\""
 in_box 'fabricctl setup --step member --non-interactive --yes' > "$OUT/member-move.log" 2>&1
 in_box 'fabricctl setup --step member --non-interactive --yes' > "$OUT/member-move2.log" 2>&1
-check "an account in OU=machines/OU=linux that setup never placed (0.7.1's first build) moves into OU=fabric-hosts at the next setup; a second run changes nothing" \
-    "[ -n '$SITE_OU' ] && host_account | grep -q 'OU=fabric-hosts,' && grep -q 'moved into OU=fabric-hosts' '$OUT/member-move.log' \
+check "an account in OU=machines that setup never placed moves into OU=fabric-hosts at the next setup; a second run changes nothing" \
+    "host_account | grep -q 'OU=fabric-hosts,' && grep -q 'moved into OU=fabric-hosts' '$OUT/member-move.log' \
      && grep -q 'nothing to change' '$OUT/member-move2.log'"
 # renewing the host's machine password (1.6.11.12): off by default; on, adcli is installed and sssd renews it
 check "the host's machine password is never renewed by default (sssd: age 0; no adcli)" \
@@ -571,12 +620,14 @@ in_box "adcli update --domain=ad.test --domain-controller=$DCNAME --computer-pas
 KVNO2=$(in_box 'klist -k /etc/krb5.keytab' | awk '/FABRIC-SBX\$@/ {print $1}' | sort -n | tail -1)
 in_box 'systemctl restart sssd; sss_cache -E' >/dev/null 2>&1
 host_kinit() { in_box "KRB5CCNAME=FILE:/tmp/cc-host kinit -k 'FABRIC-SBX\$@AD.TEST' && kdestroy -c FILE:/tmp/cc-host"; }
-check "the renewal sssd runs (adcli, from the host's keytab) changes the password: its keys move on, the host signs in with them, a fabric admin still signs in" \
-    "[ -n '$KVNO1' ] && [ '${KVNO2:-0}' -gt '$KVNO1' ] && host_kinit && pam fabric-admin /root/admin-pw"
+check "the renewal sssd runs (adcli, from the host's keytab) changes the password: its keys move on, the host signs in with them, sssd still resolves the Directory Administrator (whose sign-in stays refused: 2.1.6.78)" \
+    "[ -n '$KVNO1' ] && [ '${KVNO2:-0}' -gt '$KVNO1' ] && host_kinit && in_box 'getent passwd pat.admin' >/dev/null \
+     && ! pam pat.admin /root/admin-pw"
 in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_load(open(p)); v['host_machine_password_renew_days']=0; yaml.safe_dump(v, open(p, 'w'))\""
 in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-renew-off.log" 2>&1
-check "renewal off again: sssd's age back to 0, the keytab the DC's current keys, the admin signs in" \
-    "in_box 'grep -qx \"ad_maximum_machine_account_password_age = 0\" /etc/sssd/sssd.conf' && pam fabric-admin /root/admin-pw"
+check "renewal off again: sssd's age back to 0, the keytab the DC's current keys, the admin resolves (sign-in refused)" \
+    "in_box 'grep -qx \"ad_maximum_machine_account_password_age = 0\" /etc/sssd/sssd.conf' \
+     && in_box 'getent passwd pat.admin' >/dev/null && ! pam pat.admin /root/admin-pw"
 NSS_ORIG=$(in_box 'md5sum < /opt/fabric/config/host-originals/etc/nsswitch.conf')
 in_box 'fabricctl setup --undo member --non-interactive' > "$OUT/undo-member-refused.log" 2>&1
 # covers: cli:setup -
@@ -584,8 +635,8 @@ check "setup --undo member unattended without --yes changes nothing" \
     "grep -q 'pass --yes' '$OUT/undo-member-refused.log' && in_box 'test -e /etc/sssd/sssd.conf'"
 in_box 'fabricctl setup --undo member --non-interactive --yes' > "$OUT/undo-member.log" 2>&1
 # covers: cli:setup +
-check "setup --undo member: nsswitch.conf as it was, sssd.conf and the keytab gone, sssd stopped, recorded as declined" \
-    "[ \"\$(in_box 'md5sum < /etc/nsswitch.conf')\" = '$NSS_ORIG' ] && ! in_box 'test -e /etc/sssd/sssd.conf || test -e /etc/krb5.keytab' \
+check "setup --undo member: nsswitch.conf as it was, sssd.conf, fabric-admin's sudo rule and the keytab gone, sssd stopped, recorded as declined" \
+    "[ \"\$(in_box 'md5sum < /etc/nsswitch.conf')\" = '$NSS_ORIG' ] && ! in_box 'test -e /etc/sssd/sssd.conf || test -e /etc/krb5.keytab || test -e /etc/sudoers.d/fabric-admin' \
      && ! in_box 'systemctl is-active --quiet sssd' && in_box 'fabricctl status' | grep -qE '^  member +declined'"
 check "…the admin no longer resolves on the host; root and the local account still work; its own account left the domain" \
     "! in_box 'getent passwd fabric-admin' && pam localop /root/localop-pw && ! host_account"
@@ -604,10 +655,207 @@ in_box "python3 -c \"import yaml; p='/opt/fabric/config/vars.yaml'; v=yaml.safe_
 in_box 'fabricctl setup --step member --approve member --non-interactive --yes' > "$OUT/member-again.log" 2>&1
 # the undo put /etc/hosts back as it was, the test's name for the host's own SSH (above) with it
 in_box "grep -q ' fabric-sbx.ad.test\$' /etc/hosts || echo '127.0.0.2 fabric-sbx.ad.test' >> /etc/hosts"
-check "approved again: a member once more, its own account made again in OU=fabric-hosts and managed (the admin resolves, signs in, and over SSH with Kerberos)" \
-    "in_box 'getent passwd fabric-admin' >/dev/null && pam fabric-admin /root/admin-pw && host_account | grep -q 'OU=fabric-hosts,' \
-     && in_member && ssh_krb fabric-admin /root/admin-pw"
+check "approved again: a member once more, its own account made again in OU=fabric-hosts and managed (the admin resolves; no domain account signs in: 2.1.6.78)" \
+    "in_box 'getent passwd pat.admin' >/dev/null && ! pam pat.admin /root/admin-pw && pam fabric-admin /root/ea-pw && host_account | grep -q 'OU=fabric-hosts,' \
+     && in_member"
+echo "--- the tiers' password policies, reset-break-glass, the local administrator accounts (D2, 1.6.12.16)"
+# covers: cli:domain.password-policy +
+check "password-policy --tier enterprise-admin shows fabric-admin's own policy (3, then 15 minutes)" \
+    "in_box 'fabricctl domain password-policy --tier enterprise-admin' | grep -q 'lockout_threshold: 3'"
+in_box 'fabricctl domain password-policy --tier directory-admins --minimum-length 16' > "$OUT/tier-da.log" 2>&1
+check "password-policy --tier directory-admins --minimum-length 16: saved, applied, audited; the PSO on directory-admins says 16" \
+    "in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb -b 'CN=fabric-directory-admins,CN=Password Settings Container,CN=System,DC=ad,DC=test' -s base msDS-MinimumPasswordLength\" | grep -qx 'msDS-MinimumPasswordLength: 16' \
+     && in_box 'grep -q AD_TIER_PASSWORD_POLICY /opt/fabric/archive/audit.log'"
+in_box 'fabricctl domain password-policy --tier enterprise-admin --lockout-minutes 0' > "$OUT/tier-ea0.log" 2>&1
+# covers: cli:domain.password-policy -
+check "negative: fabric-admin locked until an admin unlocks it (--lockout-minutes 0) is refused, saying why; nothing changed" \
+    "grep -q 'break glass must unlock by itself' '$OUT/tier-ea0.log' \
+     && in_box 'fabricctl domain password-policy --tier enterprise-admin' | grep -q 'lockout_minutes: 15'"
+in_box 'fabricctl domain password-policy --tier enterprise-admin --lockout-threshold 0' > "$OUT/tier-ea-t0.log" 2>&1
+# covers: cli:domain.password-policy -
+check "negative: fabric-admin never locked out (--lockout-threshold 0) is refused, saying why; nothing changed (2.1.6.91)" \
+    "grep -q 'a lockout threshold of 0' '$OUT/tier-ea-t0.log' \
+     && in_box 'fabricctl domain password-policy --tier enterprise-admin' | grep -q 'lockout_threshold: 3'"
+in_box 'fabricctl domain password-policy --tier admins --history 1' > "$OUT/tier-bad.log" 2>&1
+check "negative: an unknown tier is refused, naming the two" "grep -q 'enterprise-admin' '$OUT/tier-bad.log' && grep -q 'directory-admins' '$OUT/tier-bad.log'"
+in_box 'su -s /bin/bash nobody -c "fabricctl admin reset-break-glass"' > "$OUT/reset-nonroot.log" 2>&1
+# covers: cli:admin -
+check "negative: reset-break-glass as anyone but root is refused (Run as root), nothing changed" \
+    "grep -q 'Run as root' '$OUT/reset-nonroot.log' && pam fabric-admin /root/ea-pw"
+for _ in 1 2 3; do pam fabric-admin /root/wrong-pw; done
+check "fabric-admin locked after 3 wrong passwords (its policy): its right one refused" "! pam fabric-admin /root/ea-pw authenticate"
+in_box 'fabricctl admin reset-break-glass' > "$OUT/reset.log" 2>&1
+in_box "umask 077; sed -n 's/^password:  //p' $GLASS > /root/ea-pw2"
+# covers: cli:admin +
+check "sudo fabricctl admin reset-break-glass: a new password in the same file (the path said, never the password), the lockout left to run out with its end said (2.1.6.92), audited BREAK_GLASS_RESET" \
+    "grep -q 'fabric-admin is locked out until' '$OUT/reset.log' && grep -q '$GLASS' '$OUT/reset.log' \
+     && ! in_box 'grep -qF -f /root/ea-pw2 /opt/fabric/archive/audit.log' && in_box 'grep -q BREAK_GLASS_RESET /opt/fabric/archive/audit.log'"
+check "negative: while the lockout runs, even the new password is refused (the reset never shortens it)" \
+    "! pam fabric-admin /root/ea-pw2 authenticate"
+# the lockout run out: here the test clears lockoutTime, as AD does when it ends (no waiting 15 minutes)
+cat > "$OUT/unlock_ea.sh" <<'SH'
+dn=$(docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=fabric-admin)' dn | sed -n 's/^dn: //p')
+printf 'dn: %s\nchangetype: modify\nreplace: lockoutTime\nlockoutTime: 0\n' "$dn" \
+    | docker exec -i samba ldbmodify -H /data/private/sam.ldb >/dev/null
+SH
+docker cp "$OUT/unlock_ea.sh" "$NAME:/root/unlock_ea.sh"
+in_box 'bash /root/unlock_ea.sh'
+check "…once it has run out, the new password signs in; the old one is refused" \
+    "pam fabric-admin /root/ea-pw2 && ! pam fabric-admin /root/ea-pw authenticate"
+docker cp "$OUT/reset.log" "$NAME:/root/reset.log"
+check "…its output never shows the password" "! in_box 'grep -qF -f /root/ea-pw2 /root/reset.log'"
+in_box 'mv /root/ea-pw2 /root/ea-pw'
+# covers: cli:host -
+check "negative: host accounts as anyone but root is refused" "in_box 'su -s /bin/bash nobody -c \"fabricctl host accounts list\" 2>&1' | grep -q 'Run as root'"
+in_box 'fabricctl host accounts list' > "$OUT/accounts.log" 2>&1
+# covers: cli:host +
+check "host accounts list: the local account in the sudo group (localop) listed, not approved; root and fabric-admin not" \
+    "grep -qE '^localop: in the sudo group.*; not approved: reminded' '$OUT/accounts.log' && ! grep -qE '^(root|fabric-admin)' '$OUT/accounts.log'"
+in_box 'fabricctl doctor' > "$OUT/doctor-accounts.log" 2>&1
+check "doctor reminds of localop (a warning: every check still passes)" \
+    "grep -qE 'the local account localop \(in the sudo group[^)]*\) has root or administrator rights' '$OUT/doctor-accounts.log' && ! grep -q '✗' '$OUT/doctor-accounts.log'"
+in_box 'fabricctl host accounts approve localop' > "$OUT/approve.log" 2>&1
+in_box 'fabricctl doctor' > "$OUT/doctor-approved.log" 2>&1
+check "host accounts approve localop: approved, audited LOCAL_ACCOUNT_APPROVE, reminded of no more" \
+    "grep -q 'localop approved as break glass' '$OUT/approve.log' && in_box 'grep -q LOCAL_ACCOUNT_APPROVE /opt/fabric/archive/audit.log' \
+     && ! grep -q 'the local account localop' '$OUT/doctor-approved.log' && in_box 'fabricctl host accounts list' | grep -q '^localop: .*approved by'"
+in_box 'fabricctl host accounts approve bob' > "$OUT/approve-bob.log" 2>&1
+check "negative: approving a domain account (bob, no local rights) is refused, saying why" \
+    "grep -q 'refused: bob is not a local root or administrator account' '$OUT/approve-bob.log'"
+in_box 'fabricctl host accounts unapprove localop' > "$OUT/unapprove.log" 2>&1
+check "host accounts unapprove localop: withdrawn, audited LOCAL_ACCOUNT_UNAPPROVE, reminded of again" \
+    "grep -q 'approval withdrawn' '$OUT/unapprove.log' && in_box 'grep -q LOCAL_ACCOUNT_UNAPPROVE /opt/fabric/archive/audit.log' \
+     && in_box 'fabricctl doctor' | grep -q 'the local account localop'"
+in_box "rm -f $GLASS"
+in_box 'fabricctl doctor' > "$OUT/doctor-noglass.log" 2>&1
+check "the break-glass file deleted: doctor reminds of it no more, the removal audited once (BREAK_GLASS_FILE_REMOVED)" \
+    "! grep -q 'break-glass password of fabric-admin' '$OUT/doctor-noglass.log' && [ \"\$(in_box 'grep -c BREAK_GLASS_FILE_REMOVED /opt/fabric/archive/audit.log')\" = 1 ]"
+in_box 'rm -f /root/ea-pw'
 in_box 'rm -f /root/localop-pw /root/wrong-pw /root/bob-pw /root/dora-pw'
+
+echo "--- the host's local-admin, set and kept by OpenBao (D6, 1.7.1.4)"
+LA_REC=/opt/fabric/config/local-admin.json
+# the password checked out into a root-only file in the box, never into a log here
+la_checkout() { in_box "umask 077; fabricctl local-admin checkout --reason '$1' > /root/la-out 2>&1; rc=\$?; \
+    sed -n 's/^password:  //p' /root/la-out > /root/la-pw; sed -i 's/^password:  .*/password:  (kept in \/root\/la-pw)/' /root/la-out; \
+    cat /root/la-out; exit \$rc"; }
+# the uses and check-outs of the current password moved 9 hours back: its grace (8 hours) over, with no waiting
+la_age() { in_box "python3 -c \"import datetime, json; p='$LA_REC'; r=json.load(open(p))
+for k in ('used', 'checkout'):
+    if r.get(k):
+        r[k]['when'] = (datetime.datetime.fromisoformat(r[k]['when']) - datetime.timedelta(hours=9)).isoformat()
+json.dump(r, open(p, 'w'))\""; }
+la_version() { in_box "python3 -c \"import json; print(json.load(open('$LA_REC'))['version'])\""; }
+check "setup made local-admin: a local account in sudo, fabric's (its record), its password from OpenBao (version 1)" \
+    "in_box 'id -nG local-admin' | grep -qw sudo && [ \"\$(la_version)\" = 1 ] && grep -q 'local-admin: its password set by OpenBao' '$OUT/setup.log'"
+in_box 'fabricctl local-admin status' > "$OUT/la-status.log" 2>&1
+# covers: cli:local-admin.status +
+# covers: cli:local-admin +
+check "fabricctl local-admin status: the account, its policy after-use, version 1, SSH off" \
+    "grep -q 'local-admin: the account exists; policy after-use' '$OUT/la-status.log' && grep -q \"OpenBao's version 1\" '$OUT/la-status.log' \
+     && grep -q 'SSH in the domain: off' '$OUT/la-status.log'"
+# covers: cli:local-admin.status -
+# covers: cli:local-admin -
+check "negative: fabricctl local-admin as anyone but root is refused (Run as root)" \
+    "in_box 'su -s /bin/bash nobody -c \"fabricctl local-admin status\" 2>&1' | grep -q 'Run as root'"
+check "host accounts list: local-admin managed by OpenBao, never reminded of" \
+    "in_box 'fabricctl host accounts list' | grep -q '^local-admin: .*managed by OpenBao' && ! in_box 'fabricctl doctor' | grep -q 'the local account local-admin'"
+check "doctor: local-admin's current version in OpenBao is the host's (a passing check)" \
+    "grep 'local-admin: the host.s break glass' '$OUT/doctor.log' | grep -q '✓'"
+in_box 'fabricctl local-admin check' > "$OUT/la-check.log" 2>&1
+# covers: cli:local-admin.check +
+check "the check (as the hourly timer) applies SSH off now an SSH server is installed: DenyUsers local-admin, sshd accepts it" \
+    "in_box 'grep -qx \"DenyUsers local-admin\" /etc/ssh/sshd_config.d/05-fabric-local-admin.conf' && in_box 'sshd -t' && grep -q 'off (sshd refuses it)' '$OUT/la-check.log'"
+# covers: cli:local-admin.check -
+check "negative: fabricctl local-admin check --bogus prints the usage (exit 2)" \
+    "in_box 'fabricctl local-admin check --bogus' | grep -q usage && ! in_box 'fabricctl local-admin check --bogus' >/dev/null"
+check "the hourly timer is installed and enabled" "in_box 'systemctl is-enabled fabric-local-admin.timer' | grep -qx enabled"
+la_checkout '' > "$OUT/la-checkout-noreason.log" 2>&1
+# covers: cli:local-admin.checkout -
+check "negative: a check-out without a reason is refused, nothing shown" \
+    "grep -q 'refused: a check-out needs a reason' '$OUT/la-checkout-noreason.log' && ! in_box 'test -s /root/la-pw'"
+la_checkout 'sandbox: break glass test' > "$OUT/la-checkout.log" 2>&1
+# covers: cli:local-admin.checkout +
+check "sudo fabricctl local-admin checkout --reason …: the password shown once, audited LOCAL_ADMIN_CHECKOUT, never logged" \
+    "in_box 'test \$(wc -c < /root/la-pw) -eq 25' && in_box 'grep -q LOCAL_ADMIN_CHECKOUT /opt/fabric/archive/audit.log' \
+     && ! in_box 'grep -qF -f /root/la-pw /opt/fabric/archive/audit.log /opt/fabric/config/local-admin.json' && grep -q 'rotated after use' '$OUT/la-checkout.log'"
+check "local-admin signs in at the console (PAM) with it" "pam local-admin /root/la-pw"
+check "negative: local-admin over SSH is refused by default, even with its password (2.1.7.19)" "! ssh_pw local-admin /root/la-pw"
+in_box 'fabricctl local-admin ssh on' > "$OUT/la-ssh-on.log" 2>&1
+# covers: cli:local-admin.ssh +
+check "local-admin ssh on: kept in the domain, applied at once (a Match block, sshd accepts it), audited LOCAL_ADMIN_SSH" \
+    "grep -q 'ON (a relaxation)' '$OUT/la-ssh-on.log' && in_box 'grep -qx \"Match User local-admin\" /etc/ssh/sshd_config.d/05-fabric-local-admin.conf' \
+     && in_box 'sshd -t' && in_box 'grep -q LOCAL_ADMIN_SSH /opt/fabric/archive/audit.log'"
+check "…local-admin now signs in over SSH with its password; another local account's sign-in unchanged" \
+    "ssh_pw local-admin /root/la-pw"
+check "…shown as a relaxation: fabricctl status, doctor (a warning) and domain status" \
+    "in_box 'fabricctl status' | grep -q 'local-admin over SSH: on' && in_box 'fabricctl doctor' | grep -q 'local-admin over SSH: on' \
+     && in_box 'fabricctl domain status' | grep -q 'RELAXED: local-admin over SSH is on'"
+in_box 'fabricctl local-admin ssh ack' > "$OUT/la-ssh-ack.log" 2>&1
+check "local-admin ssh ack: its alert acknowledged (audited LOCAL_ADMIN_SSH_ACK), doctor no longer warns; still shown as on" \
+    "grep -q 'its alert acknowledged by' '$OUT/la-ssh-ack.log' && in_box 'grep -q LOCAL_ADMIN_SSH_ACK /opt/fabric/archive/audit.log' \
+     && ! in_box 'fabricctl doctor 2>&1' | grep -q 'local-admin over SSH: on —' && in_box 'fabricctl status' | grep -q 'local-admin over SSH: on' \
+     && in_box 'fabricctl local-admin status' | grep -q 'its alert: acknowledged by'"
+in_box 'fabricctl local-admin ssh maybe' > "$OUT/la-ssh-bad.log" 2>&1
+# covers: cli:local-admin.ssh -
+check "negative: local-admin ssh maybe is refused (exit 1), still on" \
+    "grep -q 'refused: ssh: on or off' '$OUT/la-ssh-bad.log' && in_box 'grep -q Match /etc/ssh/sshd_config.d/05-fabric-local-admin.conf'"
+docker cp "$REPO/tests/sandbox/agent_job.py" "$NAME:/root/agent_job.py"
+in_box 'python3 /root/agent_job.py post /v1/local-admin/ssh "{\"ssh\": \"off\"}"' > "$OUT/la-ssh-route.json" 2>&1
+check "POST /v1/local-admin/ssh off through fabric-agent's socket (a root peer, the Enterprise Admin): off, applied from the agent" \
+    "grep -q '\"ssh\": false' '$OUT/la-ssh-route.json' && in_box 'grep -qx \"DenyUsers local-admin\" /etc/ssh/sshd_config.d/05-fabric-local-admin.conf' \
+     && ! ssh_pw local-admin /root/la-pw && ! in_box 'fabricctl status' | grep -q 'local-admin over SSH: on'"
+in_box 'fabricctl local-admin check' > "$OUT/la-check-used.log" 2>&1
+check "the SSH sign-in is seen as a use (the journal, wtmp), audited LOCAL_ADMIN_USED; within the grace nothing rotates" \
+    "grep -q 'local-admin was used at' '$OUT/la-check-used.log' && in_box 'grep -q LOCAL_ADMIN_USED /opt/fabric/archive/audit.log' && [ \"\$(la_version)\" = 1 ]"
+la_age
+in_box 'fabricctl local-admin check --scheduled' > "$OUT/la-check-rotate.log" 2>&1
+check "the grace over: a new password from OpenBao set and current (version 2), audited LOCAL_ADMIN_ROTATE" \
+    "grep -q 'local-admin has a new password' '$OUT/la-check-rotate.log' && [ \"\$(la_version)\" = 2 ] && in_box 'grep -q LOCAL_ADMIN_ROTATE /opt/fabric/archive/audit.log'"
+check "negative: the used password is refused now" "! pam local-admin /root/la-pw authenticate"
+la_checkout 'sandbox: after the rotation' > "$OUT/la-checkout2.log" 2>&1
+check "…the new one, checked out, signs in" "pam local-admin /root/la-pw"
+in_box 'fabricctl local-admin policy keep-until-checkout' > "$OUT/la-policy.log" 2>&1
+# covers: cli:local-admin.policy +
+check "local-admin policy keep-until-checkout: recorded, audited LOCAL_ADMIN_POLICY, status says it" \
+    "grep -q 'policy: keep-until-checkout' '$OUT/la-policy.log' && in_box 'grep -q LOCAL_ADMIN_POLICY /opt/fabric/archive/audit.log' \
+     && in_box 'fabricctl local-admin status' | grep -q 'policy keep-until-checkout'"
+in_box 'fabricctl local-admin policy yearly' > "$OUT/la-policy-bad.log" 2>&1
+# covers: cli:local-admin.policy -
+check "negative: an unknown policy is refused, naming the two" \
+    "grep -q 'refused: the policy is one of: after-use, keep-until-checkout' '$OUT/la-policy-bad.log'"
+la_age
+in_box 'fabricctl local-admin check' > "$OUT/la-check-keep.log" 2>&1
+check "keep-until-checkout: checked out (above), rotated after the grace like after-use (version 3); no schedule in 0.8.0" \
+    "[ \"\$(la_version)\" = 3 ]"
+in_box 'fabricctl local-admin check' > /dev/null 2>&1
+check "…and kept while nothing uses or checks it out" "[ \"\$(la_version)\" = 3 ]"
+in_box 'fabricctl local-admin policy after-use' > /dev/null 2>&1
+in_box 'su - local-admin -c true' > /dev/null 2>&1
+in_box 'fabricctl local-admin check' > "$OUT/la-check-su.log" 2>&1
+check "a session opened for it (su) is a use too" "grep -q 'local-admin was used at' '$OUT/la-check-su.log'"
+in_box 'systemctl stop openbao' > /dev/null 2>&1
+la_age
+in_box 'fabricctl local-admin check' > "$OUT/la-check-locked.log" 2>&1
+check "OpenBao stopped: the rotation due waits, said; the used password stays current (2.1.7.20)" \
+    "grep -q 'waits' '$OUT/la-check-locked.log' && [ \"\$(la_version)\" = 3 ]"
+check "…doctor reminds of it" "in_box 'fabricctl doctor 2>&1' | grep -q 'a new password has been due since'"
+la_checkout 'sandbox: OpenBao down' > "$OUT/la-checkout-locked.log" 2>&1
+check "negative: a check-out is refused while OpenBao is down (it holds the only copy)" \
+    "grep -q 'refused: OpenBao' '$OUT/la-checkout-locked.log' && ! in_box 'test -s /root/la-pw'"
+in_box 'systemctl start openbao' > /dev/null 2>&1; sleep 15
+in_box 'fabricctl local-admin check --scheduled' > "$OUT/la-check-back.log" 2>&1
+check "OpenBao back: the next run rotates it (version 4), nothing waits any more" \
+    "[ \"\$(la_version)\" = 4 ] && ! in_box 'fabricctl doctor 2>&1' | grep -q 'a new password has been due since'"
+in_box 'fabricctl setup --undo local_admin --non-interactive --yes' > "$OUT/la-undo.log" 2>&1
+check "setup --undo local_admin: the account, its home and the SSH drop-in removed, recorded as declined; status shows it" \
+    "! in_box 'id local-admin' >/dev/null 2>&1 && ! in_box 'test -e /home/local-admin || test -e /etc/ssh/sshd_config.d/05-fabric-local-admin.conf' \
+     && in_box 'fabricctl status' | grep -qE \"^  local_admin +declined\""
+in_box 'fabricctl setup --approve local_admin --step localadmin --non-interactive --yes' > "$OUT/la-again.log" 2>&1
+check "approved again: made again with a new password from OpenBao, SSH refused" \
+    "in_box 'id -nG local-admin' | grep -qw sudo && [ \"\$(la_version)\" = 5 ] \
+     && in_box 'grep -qx \"DenyUsers local-admin\" /etc/ssh/sshd_config.d/05-fabric-local-admin.conf'"
+in_box 'rm -f /root/la-pw /root/la-out'
 
 echo "--- Keycloak's database password, rotated by OpenBao (2.1.7.4)"
 pg_roles() { in_box "docker exec postgres psql -tA -U fabric_admin -d keycloak -c 'SELECT rolname, rolsuper, rolcanlogin FROM pg_roles'"; }
@@ -618,7 +866,7 @@ in_box 'fabricctl vault rotate-db' > "$OUT/rotate-db.log" 2>&1
 check "fabricctl vault rotate-db: rotated, Keycloak restarted with it and healthy; doctor's rotation check passes"     "grep -q 'Keycloak restarted with it and healthy' '$OUT/rotate-db.log' && in_box 'fabricctl doctor' | grep -q 'rotated by OpenBao in the last 40 days'"
 check "the monthly fabric-db-rotate timer is on" "in_box 'systemctl is-enabled fabric-db-rotate.timer' | grep -qx enabled"
 docker cp "$REPO/tests/sandbox/login_test.py" "$NAME:/root/login_test.py"
-in_box "FABRIC_ADMIN_PW='$ADMIN_PW' CAROL_PW='$CAROL_PW' CAROL_P12_PW='$CAROL_P12_PW' python3 /root/login_test.py /opt/fabric/config/vars.yaml bob '$BOB_PW' '$BOB_P12_PW'" 2>&1 | tee "$OUT/login.log"
+in_box "WIZARD=open FABRIC_ADMIN_PW='$ADMIN_PW' CAROL_PW='$CAROL_PW' CAROL_P12_PW='$CAROL_P12_PW' python3 /root/login_test.py /opt/fabric/config/vars.yaml bob '$BOB_PW' '$BOB_P12_PW'" 2>&1 | tee "$OUT/login.log"
 in_box 'journalctl --no-pager CONTAINER_NAME=nginx | grep -iE "oidc|error" | tail -40'     > "$OUT/login-nginx.log" 2>&1     # diagnosis when a sign-in check fails
 cat > "$OUT/reset_guard.py" <<'PY'
 import sys, yaml
@@ -627,16 +875,23 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.directory.reset_sign_in import reset_sign_in
 v = yaml.safe_load(open("/opt/fabric/config/vars.yaml"))
 try:
-    reset_sign_in(v, "helpdesk-test", "carol", privileged=False, source="test")
+    reset_sign_in(v, "helpdesk-test", "carol", caller="bob", source="test")
     print("RESET ALLOWED")
 except ValidationError as e:
     print(e)
 PY
 docker cp "$OUT/reset_guard.py" "$NAME:/root/reset_guard.py"
 check "people: without the admin bundle, a fabric-group member's sign-in cannot be reset (carol, auditors)" \
-    "in_box 'python3 /root/reset_guard.py' | grep -q 'only an admin can reset'"
+    "in_box 'python3 /root/reset_guard.py' | grep -q 'in a fabric group (auditors)'"
 check "sign-in: admin gets in; HTTP, missing/foreign certs, non-admins and borrowed certs are refused" \
     "! grep -q '^FAIL' '$OUT/login.log' && [ \"\$(grep -c '^PASS' '$OUT/login.log')\" -ge 11 ]"
+# the setup wizard (manual 1.8.5.10 "Finished"): a fresh install opens it on the admin's first Overview of a sign-in
+# (login_test.py with WIZARD=open requires it), the admin dismisses it through the console, recorded beside the settings
+# covers: web:get.settings web:post.settings.dismiss +
+check "setup wizard: the admin's first Overview opens it (303 to Settings); Dismiss through the console ends it" \
+    "grep -q '^PASS setup wizard: a fresh install' '$OUT/login.log' && grep -q '^PASS setup wizard: Dismiss' '$OUT/login.log' \
+     && grep -q '^PASS setup wizard finished' '$OUT/login.log' \
+     && in_box 'grep -q dismissed /opt/fabric/config/settings-wizard.json'"
 
 echo "--- container images: pinned, status, update (compose down/up, health-gated)"
 NGX_OLD=sha256:d5792f71a9496b833bc08ea834a758c46e2b6a6306c10f4be926f38a656cdc1c     # nginx 1.30.4
@@ -662,8 +917,9 @@ check "re-run re-issues no certificates" "! grep -q ': issued' '$OUT/setup2.log'
 check "re-run leaves the host's domain membership as it is (the member step changes nothing)"     "grep -q 'this host is a member of its domain (nothing to change)' '$OUT/setup2.log'"
 check "re-run neither re-initialises nor changes OpenBao" \
     "! grep -q 'OpenBao initialised' '$OUT/setup2.log' && grep -q 'OpenBao configured (no changes)' '$OUT/setup2.log'"
-check "re-run keeps the admin and their certificate" \
-    "grep -q \"admin 'fabric-admin' exists\" '$OUT/setup2.log' && grep -q 'is current' '$OUT/setup2.log'"
+check "re-run keeps fabric-admin (its password as it is, no file written), the Directory Administrator and their certificate" \
+    "grep -q 'fabric-admin, the Enterprise Admin, exists (its password is kept as it is)' '$OUT/setup2.log' \
+     && grep -q \"Directory Administrator 'pat.admin' exists\" '$OUT/setup2.log' && grep -q 'is current' '$OUT/setup2.log'"
 check "re-run keeps the images this host runs (a fabric upgrade never changes them)" \
     "[ \"\$(nginx_ref)\" = '$NGX_REF' ]"
 in_box 'fabricctl images rollback nginx' > "$OUT/images-rollback.log" 2>&1
@@ -689,6 +945,30 @@ check "doctor as an agent job (the web console's Run doctor): done, every check 
 in_box 'python3 /root/agent_job.py images update nginx' > "$OUT/images-job.json" 2>&1
 # covers: agent:post.jobs.images +
 check "an image update as an agent job (the web console's Updates): done, nothing to move while current"     "grep -q '\"state\": \"done\"' '$OUT/images-job.json' && grep -q 'nothing to update' '$OUT/images-job.json'"
+
+echo "--- a dropped session during setup (2.1.2.26): the work goes on as fabric-setup.service; setup again re-attaches"
+check "the first install's work ran as fabric-setup.service, the run recorded done, the unit gone (--collect)" \
+    "grep -q 'runs as fabric-setup.service' '$OUT/setup.log' && in_box 'grep -q \"^state: done\" /opt/fabric/config/setup-run.yaml' \
+     && ! in_box 'systemctl is-active -q fabric-setup.service'"
+check "no secret left: no hand-off file in /run/fabric-setup; the admin's password not in the run record or its log" \
+    "! in_box 'ls /run/fabric-setup/setup-*.handoff' 2>/dev/null && ! in_box 'grep -qF -f /root/admin-pw /opt/fabric/config/setup-run.yaml /opt/fabric/config/setup-run.log'"
+# a session of its own, killed with SIGHUP to its whole process group (what sshd does when the connection drops)
+in_box "rm -f /root/dropped.*; setsid bash -c 'echo \$\$ > /root/dropped.pid; exec fabricctl setup --non-interactive --yes > /root/dropped.log 2>&1' < /dev/null > /dev/null 2>&1 &"
+for _ in $(seq 1 300); do in_box 'grep -q "\[certs\]" /root/dropped.log' 2>/dev/null && break; sleep 2; done
+in_box 'kill -HUP -- -$(cat /root/dropped.pid)'
+sleep 2
+in_box 'cp /root/dropped.log /root/dropped-console.log'
+docker cp "$NAME:/root/dropped-console.log" "$OUT/dropped-console.log" >/dev/null 2>&1
+check "the session killed in the certificates step: its console is gone, fabric-setup.service goes on" \
+    "grep -q '\[certs\]' '$OUT/dropped-console.log' && ! in_box 'kill -0 \$(cat /root/dropped.pid)' 2>/dev/null \
+     && in_box 'systemctl is-active -q fabric-setup.service'"
+in_box 'fabricctl setup --non-interactive --yes' > "$OUT/reattach.log" 2>&1; REATTACH_RC=$?
+# covers: cli:setup +
+check "setup again re-attaches (no new run, no questions) and ends with the run's result: ready, exit 0" \
+    "[ $REATTACH_RC -eq 0 ] && grep -q 'a setup is already running' '$OUT/reattach.log' && grep -q 'fabric is ready' '$OUT/reattach.log'"
+check "…the dropped console never saw the end; the run's own log did, recorded done, the unit gone" \
+    "! grep -q 'fabric is ready' '$OUT/dropped-console.log' && in_box 'grep -q \"fabric is ready\" /opt/fabric/config/setup-run.log' \
+     && in_box 'grep -q \"^state: done\" /opt/fabric/config/setup-run.yaml' && ! in_box 'systemctl is-active -q fabric-setup.service'"
 
 echo "--- setup with a changed setting (live DNS zone must update, bind9 keeps serving)"
 cat > "$OUT/change.yaml" <<EOF
@@ -798,15 +1078,9 @@ docker cp "$DEB2" "$NAME:/root/fabricctl-new.deb"
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /root/fabricctl-new.deb' > "$OUT/apt2.log" 2>&1
 check "newer package installs over the old one" "grep -q 'package updated' '$OUT/apt2.log'"
 check "until setup runs, commands say the package is newer" "in_box 'fabricctl status' 2>&1 | grep -q 'package is newer'"
-# what builds before 0.6.4 left beside the package's copy: one line the install has, one it lacks
-in_box 'mkdir -p /usr/lib/fabricctl/fabric/archive && tail -1 /opt/fabric/archive/audit.log > /usr/lib/fabricctl/fabric/archive/audit.log \
-        && echo "[stray] an earlier build wrote this" >> /usr/lib/fabricctl/fabric/archive/audit.log'
 in_box 'fabricctl setup --non-interactive --yes' > "$OUT/setup-upgrade.log" 2>&1
 check "setup applies the upgrade" "grep -q 'fabric is ready' '$OUT/setup-upgrade.log' && ! in_box 'fabricctl status' 2>&1 | grep -q 'package is newer'"
 check "the install runs the upgraded build" "in_box 'cmp /usr/lib/fabricctl/fabric/BUILD /opt/fabric/BUILD'"
-check "records an earlier build left beside the package's copy adopted once, the stray folder gone" \
-    "[ \"\$(in_box 'grep -cF \"[stray] an earlier build\" /opt/fabric/archive/audit.log')\" = 1 ] \
-     && ! in_box 'test -e /usr/lib/fabricctl/fabric/archive'"
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get remove -y -qq fabricctl' > "$OUT/apt-remove.log" 2>&1
 check "apt remove removes the command but not the running install" \
     "! in_box 'test -e /usr/bin/fabricctl' && in_box 'systemctl is-active fabric.target' | grep -qx active && in_box 'dig +short @$IP ns.lan.test' | grep -qx $IP"
@@ -869,6 +1143,9 @@ check "uninstall put chrony's own configuration back and left ufw as it was befo
     "! in_box 'grep -q \"^# fabric\" /etc/chrony/chrony.conf' && ! in_box 'ufw status' | grep -qE '22/tcp|123/udp' \
      && in_box 'ufw status' | grep -q \"Status: $UFW_BEFORE\""
 check "uninstall took the host out of its domain: sssd.conf and the keytab gone, the admin no longer resolves"     "grep -qE 'This host as a member of its domain +undone' '$OUT/uninstall.log'      && ! in_box 'test -e /etc/sssd/sssd.conf || test -e /etc/krb5.keytab' && ! in_box 'getent passwd fabric-admin'"
+check "uninstall removed the host's local-admin (the account, its home, its SSH drop-in), listed as undone first" \
+    "grep -qE \"This host's local-admin +undone\" '$OUT/uninstall.log' && ! in_box 'id local-admin' >/dev/null 2>&1 \
+     && ! in_box 'test -e /home/local-admin || test -e /etc/ssh/sshd_config.d/05-fabric-local-admin.conf'"
 
 echo "--- fabricctl restore: the same fabric back from the export"
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /root/fabricctl-new.deb' > "$OUT/apt-restore.log" 2>&1

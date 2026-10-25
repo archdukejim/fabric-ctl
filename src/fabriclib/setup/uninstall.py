@@ -4,7 +4,11 @@ import shutil
 import subprocess
 
 from fabriclib.common.console import info, ok, warn
+from fabriclib.common.errors import ValidationError
 from fabriclib.images.constants import STATE as IMAGE_STATE
+from fabriclib.localadmin.remove_local_admin import remove_local_admin
+from fabriclib.setup.detach.constants import HANDOFF_DIR, UNIT as SETUP_UNIT
+from fabriclib.setup.detach.unit_running import unit_running
 from fabriclib.setup.common.service_account_name import service_account_name
 from fabriclib.undo.remove_host_account import remove_host_account
 from fabriclib.undo.undo_firewall import undo_firewall
@@ -19,7 +23,7 @@ UNITS = ["fabric-web", "webui", "fluentbit", "kea", "freeradius", "samba", "adgu
          "adguard-filter", "fabric-agent", "fabric-federation", "fabric-directory-sync", "nginx", "openbao", "keycloak",
          "postgres",
          "ldap", "stepca", "bind9", "fabric-firewall", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists",
-         "fabric-dns-log", "fabric-machines", "fabric-host-managed"]
+         "fabric-dns-log", "fabric-machines", "fabric-host-managed", "fabric-grants", "fabric-local-admin"]
 TARGET = "/etc/systemd/system/fabric.target"
 CONTAINERS = ["fabric-web", "webui", "fluentbit", "kea-dhcp4", "kea-ddns", "freeradius", "samba", "adguardhome",
               "oauth2-proxy-adguard", "bind9-resolver", "adguard-filter", "nginx", "openbao", "keycloak", "postgres",
@@ -32,11 +36,12 @@ LOCAL_IMAGES = ["fabric/bind9:local", "fabric/stepca:local", "fabric/dirsrv:loca
 
 
 def uninstall(ctx):
-    """Purpose: remove fabric from this host: units, fabric.target, containers, fabric_net, local images, the
+    """Purpose: remove fabric from this host: a running setup (fabric-setup.service, stopped first, and any secrets
+             handed to one), units, fabric.target, containers, fabric_net, local images, the
              host changes it made (undo/: its firewall rules — ufw off again if it was off before —, the resolver,
-             chrony's files, CA trust, the host's domain membership), data folders, the OpenBao key and runtime
-             folders, the image rollback record (and /etc/fabric once empty), service accounts and the CLI wrapper
-             (undo/uninstall_plan lists it).
+             chrony's files, CA trust, the host's domain membership, its local-admin), data folders, the OpenBao key
+             and runtime folders, the image rollback record (and /etc/fabric once empty), service accounts and the
+             CLI wrapper (undo/uninstall_plan lists it).
     Inputs:  ctx — SetupContext (state reloaded): vars keycloak_data_dir/postgres_data_dir (deleted when outside
              deploy_base), tsig_keys names (their <deploy_base>/<name> folders), openbao_runtime_dir,
              openbao_admin_dir, openbao_udev_rules, openbao_key_dir, service_users, domain_file.
@@ -46,6 +51,11 @@ def uninstall(ctx):
     Fails:   OSError from shutil.rmtree for the external data and key folders or os.remove; every command
              failure (systemctl, docker, iptables, userdel, update-ca-certificates) is ignored.
     Feeds:   cli main (`reinstall`), run_uninstall_command."""
+    # a setup still running (2.1.2.26) would go on changing what is being removed: stopped first
+    if unit_running():
+        subprocess.run(["systemctl", "stop", SETUP_UNIT], capture_output=True)
+        ok(f"stopped {SETUP_UNIT} (a setup that was running)")
+    shutil.rmtree(HANDOFF_DIR, ignore_errors=True)     # secrets a run never read (1.3.2.3.4)
     ctx.load_state()
     v = ctx.vars
 
@@ -55,7 +65,7 @@ def uninstall(ctx):
         ok(line)
     info("stopping and removing services")
     for timer in ("fabric-directory-sync", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists", "fabric-dns-log",
-                  "fabric-machines", "fabric-host-managed"):
+                  "fabric-machines", "fabric-host-managed", "fabric-grants", "fabric-local-admin"):
         subprocess.run(["systemctl", "disable", "--now", f"{timer}.timer"], capture_output=True)
     for unit in UNITS:
         subprocess.run(["systemctl", "disable", "--now", unit], capture_output=True)
@@ -76,6 +86,11 @@ def uninstall(ctx):
     for line in (undo_firewall(ctx.config_dir) + undo_resolver(ctx.config_dir) + undo_time(ctx.config_dir)
                  + undo_trust(v) + undo_member(ctx.config_dir)):
         ok(line)
+    try:                                      # the vault goes with fabric: OpenBao is not asked
+        for line in remove_local_admin(None, ctx.config_dir):
+            ok(line)
+    except ValidationError as e:
+        warn(str(e))
 
     for key in ("keycloak_data_dir", "postgres_data_dir"):
         path = v.get(key)

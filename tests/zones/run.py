@@ -7,6 +7,7 @@ console calls them, and the menu (`fabricctl`, DNS Configuration) driven on its 
 
     sudo python3 tests/zones/run.py          (needs Docker and dig)
 """
+import ast
 import http.client
 import json
 import os
@@ -18,11 +19,16 @@ import sys
 import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/zones"
 LIB = f"{W}/fabric/lib"
-NET, SUBNET, GATEWAY = "zones_test_net", "10.254.44.0/24", "10.254.44.1"
-BIND_IP, RES_IP = "10.254.44.30", "10.254.44.33"
-IMAGE = "fabric/bind9:zonetest"
+NET, SUBNET, GATEWAY = testrun.name("zones_test_net"), f"{testrun.PREFIX}.44.0/24", f"{testrun.PREFIX}.44.1"
+BIND_IP, RES_IP = f"{testrun.PREFIX}.44.30", f"{testrun.PREFIX}.44.33"
+IMAGE = "fabric/bind9:" + testrun.name("zonetest")
+# bind9 and bind9-resolver are the product's names (fabric's rndc and reloads use them): one such run at a time
+# (manual 3.1.2.6), and only this run's are removed
+LOCK = testrun.product_names_lock("zones").__enter__()
 SOCK = f"{W}/agent.sock"
 FAILED = 0
 sys.path[0:0] = [os.path.join(REPO, "src")]
@@ -126,12 +132,16 @@ with open(f"{REPO}/templates/vars.yaml.j2") as f:
         VARS.setdefault(key, SUBNET.rsplit('.', 1)[0] + '.' + last)
 agent_proc = None
 try:
-    sh(f"docker rm -f bind9 bind9-resolver; docker network rm {NET}", ok=False)
+    testrun.remove("container", "bind9", "bind9-resolver")
+    testrun.remove("network", NET)
     shutil.rmtree(W, ignore_errors=True)
     ignore = shutil.ignore_patterns("__pycache__")
     shutil.copytree(f"{REPO}/src/fabriclib", f"{LIB}/fabriclib", ignore=ignore)
     shutil.copytree(f"{REPO}/src/agent", f"{LIB}/agent", ignore=ignore)
     shutil.copytree(f"{REPO}/templates", f"{W}/fabric/jinja", ignore=ignore)
+    for src, dest in (("static/nginx/style.css", "nginx/www/shared"), ("static/vendor/marked.min.js", "nginx/www/manual"),
+                      ("static/vendor/mermaid.min.js", "nginx/www/manual")):   # as packaging/deb/assemble-tree.sh does
+        shutil.copy(f"{REPO}/{src}", f"{W}/fabric/jinja/{dest}/")
     for f in ("VERSION", "images.lock.yaml"):
         shutil.copy(f"{REPO}/config/{f}", f"{W}/fabric/{f}")
     os.makedirs(f"{W}/fabric/config")
@@ -164,8 +174,8 @@ try:
     # the containers: BIND from fabric's configuration, the resolver from deploy_resolver's
     debian = sh([sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "debian"]).stdout.strip()
     sh(["docker", "build", "-q", "-t", IMAGE, "--build-arg", f"BASE_IMAGE={debian}", f"{REPO}/packaging/images/bind9"])
-    sh(["docker", "network", "create", "--subnet", SUBNET, "--gateway", GATEWAY, NET])
-    sh(["docker", "run", "-d", "--name", "bind9", "--network", NET, "--ip", BIND_IP, "--user", "600:600",
+    testrun.create_network(NET, SUBNET, GATEWAY)
+    sh(["docker", "run", "-d", "--name", "bind9", *testrun.labels(), "--network", NET, "--ip", BIND_IP, "--user", "600:600",
         "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
         "--tmpfs", "/run/named:uid=600,gid=600,mode=0755,size=4m", "--tmpfs", "/tmp:noexec,nosuid,size=8m",
         "-v", f"{W}/bind9/config:/etc/bind:ro", "-v", f"{W}/bind9/data:/var/lib/bind",
@@ -180,10 +190,10 @@ try:
             f"env = jinja_env({W + '/fabric/jinja'!r})\ns = load_secrets()\nv, _ = render_vars(env, s, load_vars())\n"
             "deploy_resolver(v, s, {'children': [], 'upstream': None}, env)\nprint('rendered')")
     check("the resolver's configuration rendered", "rendered" in r.stdout, r.stderr[-600:])
-    sh(["docker", "run", "-d", "--name", "bind9-resolver", "--network", NET, "--ip", RES_IP, "--user", "913:913",
+    sh(["docker", "run", "-d", "--name", "bind9-resolver", *testrun.labels(), "--network", NET, "--ip", RES_IP, "--user", "913:913",
         "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
         "--tmpfs", "/run/named:uid=913,gid=913,mode=0755,size=4m", "--tmpfs", "/tmp:noexec,nosuid,size=8m",
-        "-v", f"{W}/resolver/config:/etc/bind:ro", "-v", f"{W}/resolver/lists:/etc/bind-lists:ro",
+        "-v", f"{W}/resolver/config:/etc/bind:ro",
         "-v", f"{W}/resolver/tls:/etc/bind-tls:ro", "-v", f"{W}/resolver/log:/var/log/named",
         "-v", f"{W}/resolver/cache:/var/cache/bind", "--entrypoint", "/usr/sbin/named", IMAGE,
         "-f", "-c", "/etc/bind/named.conf"])
@@ -325,9 +335,54 @@ try:
     check("menu: an admin's own record still deletes", "www" not in [x["name"] for x in
                                                                      vars_dns()["dynamic_zone_var"].get("A", [])],
           r.stdout[-400:])
+    # ---- DNS' own Apply (decision 2.1.8.24): a record saved by its route (as a held change runs at Apply), then the
+    # BIND-only deploy: BIND serves it, reloaded, never restarted; only BIND's files and the landing page installed
+    st, res = agent("/v1/zones/dynamic_zone_var/records", {"type": "A", "name": "applied", "ip": "10.9.8.44"})
+    started = sh("docker inspect -f '{{.State.StartedAt}}' bind9", ok=False).stdout.strip()
+    code = ("from fabriclib.dns.apply_dns import apply_dns\ntry:\n    print('DONE', apply_dns('tester', source='cli'))\n"
+            "except Exception as e:\n    print('REFUSED', type(e).__name__, e)")
+    r = lib(code)
+    check("DNS' Apply: the BIND-only deploy serves the new record; BIND reloaded, not restarted",
+          st == 200 and "DONE" in r.stdout and "lan.test" in r.stdout and "10.9.8.44" in short(BIND_IP, "applied.lan.test")
+          and sh("docker inspect -f '{{.State.StartedAt}}' bind9", ok=False).stdout.strip() == started,
+          r.stdout.strip().splitlines()[-2:] + [r.stderr[-300:]])
+    check("DNS' Apply: only BIND's files and the landing page installed (no other service's folder made)",
+          os.path.exists(f"{W}/nginx/www/landing/index.html") and not os.path.exists(f"{W}/keycloak")
+          and not os.path.exists(f"{W}/nginx/nginx.conf"), sorted(os.listdir(W)))
+    r = lib(code)
+    # a zone holding DHCP's kept PTRs (2.1.10.7) is swapped in again every time: its deployed file keeps them, the
+    # render does not (find_changed_zones; a full apply does the same, 2.3.8.3.22)
+    again = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
+    check("DNS' Apply again with nothing changed: BIND's configuration not reloaded, the changed zone not swapped "
+          "again, said", again.startswith("DONE") and "'config': False" in again and "'lan.test'" not in again, again)
+    # ---- the landing page's certificate (2.1.8.29): DNS' Apply issues none, and says when a full apply would
+
+    def landing_cert(names):
+        """Stand in the landing page's certificate holding these names (as setup's would)."""
+        d = f"{W}/nginx/certs/info.lan.test"
+        os.makedirs(d, exist_ok=True)
+        sh(["openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes", "-days", "2",
+            "-subj", f"/CN={names[0]}", "-addext", "subjectAltName=" + ",".join(f"DNS:{n}" for n in names),
+            "-keyout", f"{d}/privkey.pem", "-out", f"{d}/fullchain.pem"])
+
+    def stale_after_apply():
+        out = lib(code).stdout.strip().splitlines()
+        done = out[-1][len("DONE "):] if out and out[-1].startswith("DONE ") else "{}"
+        return ast.literal_eval(done).get("landing_cert", "no answer"), out[-1:]
+
+    landing_cert(["pi-core.lan.test", "old.lan.test"])
+    stale, said = stale_after_apply()
+    check("DNS' Apply: a landing certificate whose names are not the page's is said, the names a full apply changes",
+          isinstance(stale, dict) and stale["extra"] == ["old.lan.test"] and "lan.test" in stale["missing"], said)
+    exact = sorted({"pi-core.lan.test", *stale.get("missing", [])}) if isinstance(stale, dict) else ["pi-core.lan.test"]
+    landing_cert(exact)
+    stale, said = stale_after_apply()
+    check("...a certificate holding exactly the page's names: nothing said", stale is None, said)
+    shutil.rmtree(f"{W}/nginx/certs", ignore_errors=True)
     # ---- DHCP between applies (2.3.4.3, decision 2.1.4.7): a zone change renders BIND's zone list from the same
     # checked settings as an apply, so DHCP's reverse zones and Kea's grants stay
-    REV45, REV46 = "45.254.10.in-addr.arpa", "46.254.10.in-addr.arpa"
+    _rev = ".".join(reversed(testrun.PREFIX.split(".")))      # this run's prefix, reversed
+    REV45, REV46 = f"45.{_rev}.in-addr.arpa", f"46.{_rev}.in-addr.arpa"
     iface = lib("from fabriclib.system.host_networks import host_networks\nprint(sorted(host_networks())[0])")
     iface = iface.stdout.strip()
     kea_secret = "a2VhLWRkbnMtdGVzdC1vbmx5LXNlY3JldC0zMi1ieXRlcyE="
@@ -349,11 +404,11 @@ try:
     def kea_on(v):
         v["install_kea"] = True                     # a pool in 45 (no forward record: DHCP's only), one in 46
         v["dhcp"] = {"interfaces": [iface], "subnets": [
-            {"subnet": "10.254.45.0/24", "name": "lab45", "vlan": 45, "pools": ["10.254.45.100 - 10.254.45.150"],
-             "routers": "10.254.45.1"},
-            {"subnet": "10.254.46.0/24", "name": "lab46", "vlan": 46, "pools": ["10.254.46.100 - 10.254.46.150"],
-             "routers": "10.254.46.1"}]}
-        v["dns"]["dynamic_zone_var"].setdefault("A", []).append({"name": "nas46", "ip": "10.254.46.9"})
+            {"subnet": f"{testrun.PREFIX}.45.0/24", "name": "lab45", "vlan": 45, "pools": [f"{testrun.PREFIX}.45.100 - {testrun.PREFIX}.45.150"],
+             "routers": f"{testrun.PREFIX}.45.1"},
+            {"subnet": f"{testrun.PREFIX}.46.0/24", "name": "lab46", "vlan": 46, "pools": [f"{testrun.PREFIX}.46.100 - {testrun.PREFIX}.46.150"],
+             "routers": f"{testrun.PREFIX}.46.1"}]}
+        v["dns"]["dynamic_zone_var"].setdefault("A", []).append({"name": "nas46", "ip": f"{testrun.PREFIX}.46.9"})
     edit_vars(kea_on)
     # what an apply leaves: the reverse zones' files and BIND's zone list (the same shared check, check_rendered)
     r = lib("import os\nfrom fabriclib.common.jinja_env import jinja_env\nfrom fabriclib.common.load_vars import "
@@ -416,7 +471,8 @@ try:
 finally:
     if agent_proc:
         agent_proc.terminate()
-    sh(f"docker rm -f bind9 bind9-resolver; docker network rm {NET}", ok=False)
+    testrun.remove("container", "bind9", "bind9-resolver")
+    testrun.remove("network", NET)
 
 print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")
 sys.exit(1 if FAILED else 0)

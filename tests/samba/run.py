@@ -99,7 +99,7 @@ check("accepted: passwords that never expire (maximum 0) with any minimum age",
 check("refused: an RPC range at or below 1024", refused({**GOOD, "ad_rpc_ports": "100-200"}, "ad_rpc_ports"))
 
 check("the suggestion is a sibling at the top of the organisation's name (2.1.6.11); a two-label domain gets ad.<it>",
-      suggested_ad_domain("lan.j-j.family") == "ad.j-j.family" and suggested_ad_domain("pitest.home.arpa")
+      suggested_ad_domain("test.lan.j-j.family") == "ad.lan.j-j.family" and suggested_ad_domain("pitest.home.arpa")
       == "ad.home.arpa" and suggested_ad_domain("home.arpa") == "ad.home.arpa"
       and suggested_ad_domain("example.org") == "ad.example.org" and suggested_ad_domain("lan") == "")
 check("the two-label suggestion is a valid AD domain (a sub-domain, never the domain or a parent)",
@@ -171,45 +171,85 @@ check("the default policy (2.1.6.35): 12 characters, complexity, 5 remembered, n
           "minimum_length": 12, "complexity": True, "history": 5, "minimum_age_days": 0, "maximum_age_days": 0,
           "lockout_threshold": 10, "lockout_window_minutes": 15, "lockout_minutes": 15}, ok_default)
 
-print("--- the DC's own name (2.1.6.45, manual 1.6.5.23): asked, dc-<hostname> suggested, permanent")
-from fabriclib.setup.ask_dc_name import ask_dc_name  # noqa: E402
+print("--- the tiers' own password policies (2.1.6.71): copies of the default at the install that adds them")
+from fabriclib.samba.check_tier_policies import check_tier_policies  # noqa: E402
+from fabriclib.samba.tier_policy_defaults import tier_policy_defaults  # noqa: E402
+tiers = tier_policy_defaults(dict(DEFAULT_POLICY))
+check("a new install's tiers: fabric-admin's a copy of the default with 3 failures, then 15 minutes (window 15); the "
+      "Directory Administrators' the default's copy; AD takes both",
+      tiers["enterprise_admin"] == {**DEFAULT_POLICY, "lockout_threshold": 3, "lockout_minutes": 15,
+                                    "lockout_window_minutes": 15}
+      and tiers["directory_admins"] == DEFAULT_POLICY and check_tier_policies(tiers) is None, tiers)
+kept = tier_policy_defaults(dict(DEFAULT_POLICY), {"directory_admins": {**DEFAULT_POLICY, "history": 24}})
+check("...a tier already set is kept as it is, the missing one added",
+      kept["directory_admins"]["history"] == 24 and kept["enterprise_admin"]["lockout_threshold"] == 3, kept)
+try:
+    check_tier_policies({**tiers, "enterprise_admin": {**tiers["enterprise_admin"], "lockout_minutes": 0}})
+    why = ""
+except ValidationError as e:
+    why = str(e)
+check("negative: fabric-admin locked until an admin unlocks it (0 minutes) is refused, saying break glass unlocks by "
+      "itself", "break glass must unlock by itself" in why, why)
+try:
+    check_tier_policies({**tiers, "enterprise_admin": {**tiers["enterprise_admin"], "lockout_threshold": 0}})
+    why = ""
+except ValidationError as e:
+    why = str(e)
+# covers: setting:ad_tier_password_policies -
+check("negative: fabric-admin never locked out (a threshold of 0) is refused, saying it would be open to guessing "
+      "(2.1.6.91)", "a lockout threshold of 0" in why and "guessing" in why, why)
+check("...while the Directory Administrators' threshold may be 0 (their policy is the default's to choose)",
+      check_tier_policies({**tiers, "directory_admins": {**tiers["directory_admins"], "lockout_threshold": 0}})
+      is None)
+check("...while the Directory Administrators' may (0 is AD's until-unlocked)",
+      check_tier_policies({**tiers, "directory_admins": {**tiers["directory_admins"], "lockout_minutes": 0}}) is None)
+print("--- the DC's name, fabric's alone (2.1.6.65, manual 1.6.5.26): never asked, dc-0001 for a new domain")
+import tempfile as _tf  # noqa: E402
+
 from fabriclib.setup.errors import SetupError  # noqa: E402
+from fabriclib.setup.name_dc import name_dc  # noqa: E402
 
 
-def ask_dc(answers, have=None, unattended=False):
-    """setup's DC-name question with these answers; the settings after it and what was printed (or the refusal)."""
-    feed, real = iter(answers), builtins.input
+def name_of(have=None, unattended=False, installed=False, joining=None, upstream=None):
+    """setup's naming of the DC, with input() refusing to be called; the settings' dc_name after it (or the refusal)."""
+    base = _tf.mkdtemp()
+    os.makedirs(os.path.join(base, "fabric", "config"))
+    if installed:
+        os.makedirs(os.path.join(base, "samba", "data"))
+        open(os.path.join(base, "samba", "data", ".fabric-provisioned"), "w").close()
+    if upstream:
+        with open(os.path.join(base, "fabric", "config", "federation.yaml"), "w") as f:
+            yaml.safe_dump({"upstream": upstream}, f)
     ctx = types.SimpleNamespace(vars={"hostname": "Pi-Core", "ad_domain": "ad.lan.test", **(have or {})},
-                                non_interactive=unattended)
-    builtins.input = lambda prompt="": (print(prompt), next(feed))[1]
-    out = io.StringIO()
+                                non_interactive=unattended, deploy_base=base,
+                                config_dir=os.path.join(base, "fabric", "config"), join_invitation=joining)
+    real, asked = builtins.input, []
+    builtins.input = lambda prompt="": asked.append(prompt) or ""
     try:
-        with contextlib.redirect_stdout(out):
-            ask_dc_name(ctx)
+        name_dc(ctx)
     except SetupError as e:
         return None, str(e)
     finally:
         builtins.input = real
-    return ctx.vars.get("dc_name"), out.getvalue()
+    return ctx.vars.get("dc_name", "(unset)"), asked
 
 
-got, said = ask_dc([""])
-check("asked with dc-<hostname> suggested; Enter takes it; marked permanent in its one line (2.1.2.21)",
-      got == "dc-pi-core" and "[dc-pi-core]" in said and "Permanent" in said, (got, said))
-got, said = ask_dc(["a-name-far-too-long", "ad", "12", "DC-Kitchen"])
-check("negative: too long, the domain's NetBIOS name, only digits each refused saying why, then any valid name taken",
-      got == "dc-kitchen" and "1-15 letters" in said and "NetBIOS name" in said and "only digits" in said,
-      (got, said))
-got, said = ask_dc([], {"dc_name": "dc-kitchen"})
-check("an install that has its DC's name keeps it, nothing asked", got == "dc-kitchen" and said == "", (got, said))
-got, said = ask_dc(["", ], {"dc_name": "pi-core"})
-check("negative: a DC's name equal to the host's is asked again, saying why (2.1.6.51), the suggestion taken",
-      got == "dc-pi-core" and "host" in said, (got, said))
-got, said = ask_dc([], unattended=True)
-check("unattended: the suggestion is taken", got == "dc-pi-core", (got, said))
-got, said = ask_dc([], {"dc_name": "not valid!"}, unattended=True)
-check("negative: unattended, an invalid dc_name in the vars file is refused, saying why",
-      got is None and "dc_name" in said and "1-15 letters" in said, said)
+# covers: setting:dc_name +
+check("a new domain's DC is dc-0001, nothing asked: interactive and unattended",
+      name_of() == ("dc-0001", []) and name_of(unattended=True) == ("dc-0001", []), (name_of(), name_of(unattended=True)))
+check("a name left in the settings of a host whose DC is not installed is fabric's to replace: dc-0001",
+      name_of({"dc_name": "dc-kitchen"}) == ("dc-0001", []), name_of({"dc_name": "dc-kitchen"}))
+check("a host named dc-0001: its DC takes dc-0002 (the host joins the domain under its own name, 2.1.6.51)",
+      name_of({"hostname": "dc-0001"})[0] == "dc-0002", name_of({"hostname": "dc-0001"}))
+check("an installed DC keeps the name it has, 0.7.x's dc-<host> included; nothing asked",
+      name_of({"dc_name": "dc-pi-core"}, installed=True) == ("dc-pi-core", [])
+      and name_of({"dc_name": "dc-pi-core"}, unattended=True, installed=True) == ("dc-pi-core", []),
+      name_of({"dc_name": "dc-pi-core"}, installed=True))
+check("a site joining now has no name until the upstream gives one (a name left over is dropped)",
+      name_of({"dc_name": "dc-0001"}, joining="fabric-join-1.x") == ("(unset)", []))
+check("a site that joined keeps the name its upstream gave it (a re-run of setup, with or without --join)",
+      name_of(upstream={"site_name": "hq", "dc_name": "dc-0002"}) == ("dc-0002", [])
+      and name_of(joining="fabric-join-1.x", upstream={"site_name": "hq", "dc_name": "dc-0003"}) == ("dc-0003", []))
 
 print("--- the vars editor: dc_name refused like ad_domain, the host's name warned (2.1.6.45)")
 import fabriclib.menu.edit_category as m_edit  # noqa: E402
@@ -289,7 +329,7 @@ v = yaml.safe_load(env.get_template("vars.yaml.j2").render(**base))
 # covers: setting:ad_domain +
 check("the domain's names follow from ad_domain (lower-cased; realm, base DN, NetBIOS, the DC's name)",
       (v["ad_domain"], v["ad_realm"], v["ad_base_dn"], v["ad_netbios"], v["hostname_dc"])
-      == ("ad.lan.test", "AD.LAN.TEST", "DC=ad,DC=lan,DC=test", "AD", "dc-pi-core.ad.lan.test"),
+      == ("ad.lan.test", "AD.LAN.TEST", "DC=ad,DC=lan,DC=test", "AD", "dc-0001.ad.lan.test"),
       (v["ad_domain"], v["ad_realm"], v["ad_base_dn"], v["ad_netbios"], v["hostname_dc"]))
 check("the limit is planned (1.2.4.3): 512 MB at least at 4 GB, the smallest host (2.1.2.3); no samba_mem_limit written", v["memory_plan"]["limits"]["samba"] >= 512 and v["samba_mem_limit"] is None, v["memory_plan"])
 dc = yaml.safe_load(env.get_template("samba/docker-compose.yml.j2").render(**v))["services"]["samba"]
@@ -350,72 +390,17 @@ units = {u["service"]: u for u in service_units("/opt", v)}
 check("a samba unit on every install, requiring nothing",
       units["samba"]["enabled"] and units["samba"]["requires"] == [])
 
-print("--- who may sign in, per OU (manual 1.6.11.4): the setting, checked at apply; a fresh install's default")
+print("--- the per-OU log-on policies are retired (D1, 2.3.6.17): no setting; checked at apply")
 import tempfile  # noqa: E402
 
 from fabriclib.deploy.check_settings import check_settings  # noqa: E402
-from fabriclib.samba.check_logon_policies import check_logon_policies  # noqa: E402
 import fabriclib.setup.collect_vars as m_collect  # noqa: E402
 from fabriclib.setup.collect_vars import collect_vars  # noqa: E402
 
 m_collect.network_problem = lambda data: ""         # the test's addresses are not this machine's (pure logic)
 
-
-def logon_refused(value, words):
-    try:
-        check_logon_policies(value)
-    except ValidationError as e:
-        return words in str(e) or print(f"    refused, but: {e}")
-    return False
-
-
-check("logon_policies renders null by default (an upgrade keeps the rights it has, 2.1.6.44)",
-      "logon_policies" in v and v["logon_policies"] is None, v.get("logon_policies"))
-odd = "lan-x: #1 'q' $(id)"
-lp = yaml.safe_load(env.get_template("vars.yaml.j2").render(
-    **base, logon_policies={"machines": {"console": ["lan-machine-admins"], "remote": [odd]}}))
-check("logon_policies renders as it was set, a value with YAML's and the shell's specials read back as itself (1.1.5.7)",
-      lp["logon_policies"] == {"machines": {"console": ["lan-machine-admins"], "remote": [odd]}}, lp["logon_policies"])
-# covers: setting:logon_policies +
-check("accepted and normalised: OU paths in lower case (Site and / for the site's OU), groups stripped, a repeat "
-      "dropped, a right left out empty, Domain Admins with its space",
-      check_logon_policies({"Machines/Linux/": {"console": [" lan-devs", "LAN-devs"]},
-                            "site": {"console": ["Domain Admins"], "remote": ["Domain Admins"]}})
-      == {"": {"console": ["Domain Admins"], "remote": ["Domain Admins"]},
-          "machines/linux": {"console": ["lan-devs"], "remote": []}})
-check("accepted: null (the site's rights as before 0.9); an OU below machines granting nobody (a locked-down OU)",
-      check_logon_policies(None) is None and check_logon_policies(
-          {"machines": {"console": ["a"]}, "machines/vault": {"console": [], "remote": []}})["machines/vault"]
-      == {"console": [], "remote": []})
-# covers: setting:logon_policies -
-check("refused: a map without the site's OU or OU=machines (the site's machines would have no policy of fabric's)",
-      logon_refused({}, "no policy on the site's OU") and logon_refused({"machines/linux": {"console": ["a"]}},
-                                                                           "no policy on the site's OU"))
-check("refused: OU=machines or the site's OU granting nobody (only break-glass could sign in)",
-      logon_refused({"machines": {"console": [], "remote": []}}, "grants nobody")
-      and logon_refused({"": {}, "machines": {"console": ["a"]}}, "grants nobody"))
-check("refused: an OU path with a space, a comma or an empty part, nine levels, or `rights` (the legacy GPO's name)",
-      logon_refused({"machines/a b": {"console": ["a"]}, "machines": {"console": ["a"]}}, "a path below")
-      and logon_refused({"OU=x,DC=y": {"console": ["a"]}, "machines": {"console": ["a"]}}, "a path below")
-      and logon_refused({"machines//x": {"console": ["a"]}, "machines": {"console": ["a"]}}, "a path below")
-      and logon_refused({"/".join("abcdefghi"): {"console": ["a"]}, "machines": {"console": ["a"]}}, "a path below")
-      and logon_refused({"rights": {"console": ["a"]}, "machines": {"console": ["a"]}}, "rights"))
-check("refused: a group name AD could not hold (a comma, brackets, a leading space kept by a list item that is not "
-      "text), a right that is not a list, an unknown key, the same OU twice, a value that is not a map",
-      logon_refused({"machines": {"console": ["a,b"]}}, "not a group name")
-      and logon_refused({"machines": {"console": ["[x]"]}}, "not a group name")
-      and logon_refused({"machines": {"console": [5]}}, "not a group name")
-      and logon_refused({"machines": {"console": "a"}}, "a list of group names")
-      and logon_refused({"machines": {"console": ["a"], "ssh": ["a"]}}, "only console and remote")
-      and logon_refused({"machines": {"console": ["a"]}, "Machines": {"console": ["a"]}}, "named twice")
-      and logon_refused(["machines"], "a map of OU path"))
-try:
-    check_settings({**v, "dns_filter": "none", "logon_policies": {"machines": {"console": []}}})
-    applied = "accepted"
-except ValidationError as e:
-    applied = str(e)
-check("refused at apply: check_settings checks logon_policies before anything is rendered",
-      "grants nobody" in applied, applied)
+check("logon_policies is no longer rendered: who signs in is the grants' (D3)", "logon_policies" not in v,
+      v.get("logon_policies"))
 # pki_manual_max_days (2.3.1.15): a cap that is not a whole number of days is refused at apply, not on the PKI page
 for bad in ("abc", "0", "-5", "12.5"):
     try:
@@ -437,13 +422,13 @@ with open(answers, "w") as f:
                     "ad_domain": "ad.lan.test", "site_name": "Lan", "host_ram_capacity": 8}, f)
 
 
-def setup_vars(vars_file, provisioned=False):
+def setup_vars(vars_file, provisioned=False, user_file=None, base_dir=None):
     """collect_vars as setup runs it unattended with a vars file (pure logic: files in a scratch folder)."""
-    base_dir = tempfile.mkdtemp(dir=tmp)
+    base_dir = base_dir or tempfile.mkdtemp(dir=tmp)
     if provisioned:
         os.makedirs(os.path.join(base_dir, "samba", "data"))
         open(os.path.join(base_dir, "samba", "data", ".fabric-provisioned"), "w").close()
-    ctx = types.SimpleNamespace(user_vars_file=answers, vars_file=vars_file, source_dir=os.path.join(tmp, "src"),
+    ctx = types.SimpleNamespace(user_vars_file=user_file or answers, vars_file=vars_file, source_dir=os.path.join(tmp, "src"),
                                 config_dir=os.path.join(base_dir, "config"), deploy_base=base_dir,
                                 join_invitation=None, non_interactive=True, origins={},
                                 secrets_file=os.path.join(base_dir, "secrets.yml"))
@@ -453,17 +438,35 @@ def setup_vars(vars_file, provisioned=False):
 
 
 fresh = setup_vars(os.path.join(tmp, "none.yaml"))
-check("a fresh install: the site's machine admins may sign in to its OU=machines, at the keyboard and remotely "
-      "(2.1.6.42)", fresh.get("logon_policies") == {"machines": {"console": ["lan-machine-admins"],
-                                                                 "remote": ["lan-machine-admins"]}},
-      fresh.get("logon_policies"))
-existing = os.path.join(tmp, "vars.yaml")
-with open(existing, "w") as f:
-    yaml.safe_dump({"ad_password_policy": POLICY}, f)
-check("an upgrade (a vars file already there) keeps the log-on rights it has: no logon_policies (2.1.6.44)",
-      "logon_policies" not in setup_vars(existing), "set on an upgrade")
-check("a reinstall over a provisioned domain keeps them too (no vars file, but the domain's marker)",
-      "logon_policies" not in setup_vars(os.path.join(tmp, "none.yaml"), provisioned=True), "set on a reinstall")
+check("a fresh install sets no log-on policy (retired in D1: sign-in on joined machines is open until D3's grants)",
+      "logon_policies" not in fresh, fresh.get("logon_policies"))
+print("--- a settings file naming the DC (2.1.6.65): refused for a new install, an installed DC's name kept")
+# covers: cli:setup +
+check("a new install, unattended with a vars file: the DC is dc-0001, nothing asked", fresh.get("dc_name") == "dc-0001",
+      fresh.get("dc_name"))
+named = os.path.join(tmp, "named.yaml")
+with open(named, "w") as f:
+    yaml.safe_dump({**yaml.safe_load(open(answers)), "dc_name": "dc-office"}, f)
+new_base = tempfile.mkdtemp(dir=tmp)
+try:
+    setup_vars(os.path.join(tmp, "none.yaml"), user_file=named, base_dir=new_base)
+    said = "accepted"
+except SetupError as e:
+    said = str(e)
+# covers: cli:setup setting:dc_name -
+check("negative: a new install's --file that names the DC is refused, saying fabric names DCs itself; nothing written",
+      "names the domain controller (dc_name)" in said and "fabric names its domain controllers itself" in said
+      and "dc-office" not in said and "dc-0001" not in said
+      and "nothing was changed" in said and not os.path.exists(os.path.join(new_base, "config", "fabric.yaml")), said)
+legacy = os.path.join(tmp, "legacy.yaml")
+with open(legacy, "w") as f:
+    yaml.safe_dump({"ad_password_policy": POLICY, "dc_name": "dc-pi-core", "hostname": "pi-core"}, f)
+check("an installed host's upgrade keeps its DC's legacy name, 0.7.x's dc-<host> (nothing renamed)",
+      setup_vars(legacy, provisioned=True).get("dc_name") == "dc-pi-core", "renamed on an upgrade")
+check("…and a --file naming another DC there is not taken: the installed DC keeps its name",
+      setup_vars(legacy, provisioned=True, user_file=named).get("dc_name") == "dc-pi-core", "renamed by a --file")
+check("…and check_samba_settings accepts that legacy name for the installed DC",
+      not refused({**GOOD, "dc_name": "dc-pi-core"}, ""))
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

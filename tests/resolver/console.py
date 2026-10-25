@@ -11,6 +11,7 @@ import copy
 import json
 import os
 import sys
+import urllib.parse
 import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -51,8 +52,8 @@ L1 = "https://lists.example/one.txt"
 BASE = tempfile.mkdtemp()
 STORE = {"vars": {"domain": "lan.test", "org_domain": "lan.test", "dns_filter": "bind", "install_resolver": True,
                   "lan_cidr": "192.168.1.0/24", "fabric_subnet": "10.255.0.0/24", "deploy_base_dir": BASE,
-                  "adguard_mem_limit": "1024m", "host_ram_capacity": 4, "install_keycloak": True,   # the owner's Pi:
-                  # 0.7.0's default limit (counts as not set) and AdGuard Home's share of a 4 GB budget, 429 MiB
+                  "host_ram_capacity": 4, "install_keycloak": True,   # the owner's Pi: AdGuard Home's share of a
+                  # 4 GB budget, 429 MiB
                   "dns_filter_lists": [{"name": "One", "url": L1, "enabled": True}], "dns_filter_allow": [],
                   "dns_filter_block": [], "dns_filter_upstreams": [{"address": "1.1.1.1", "name": "cloudflare-dns.com"}]}}
 AUDIT = []
@@ -326,6 +327,11 @@ class H:
 
     def redirect(self, location, headers=None):
         self.out = (303, location)
+
+    def back(self, location, msg="", err=""):
+        """A form's outcome (the console keeps it for the next page, 1.8.6.3), written as msg=/err= for these checks."""
+        q = urllib.parse.urlencode({"err": err} if err else {"msg": msg} if msg else {})
+        self.redirect(location + (("&" if "?" in location else "?") + q if q else ""))
 
     def deny(self, status, text):
         self.out = (status, text)

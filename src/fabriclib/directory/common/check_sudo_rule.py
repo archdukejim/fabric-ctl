@@ -1,7 +1,7 @@
 import re
 
 from fabriclib.common.errors import ValidationError
-from fabriclib.directory.common.check_host_group_name import check_host_group_name
+from fabriclib.directory.common.check_host_group_name import PREFIX, check_host_group_name
 
 RULE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,62}$")
 PERSON_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$")
@@ -25,9 +25,10 @@ def _who(value, field):
 def check_sudo_rule(v, name, users, commands, run_as=None, hosts=None):
     """Purpose: a sudo rule's fields checked and made plain (manual 1.6.11.7): who (people and %groups), which commands
              (absolute paths, with their arguments, or ALL), as whom (default root), where (a host group, or ALL:
-             every machine of the site). A value that passes is safe as an LDAP value; whether the people, groups and
-             host group exist, and the ALL-to-everyone refusal, are the directory's checks (they need the domain).
-    Inputs:  v — fabric vars (site_name); name — the rule's name; users, commands — lists of str; run_as — list of
+             every joined machine, never a fabric host). A value that passes is safe as an LDAP value; whether
+             the people, groups and host group exist, and the ALL-to-everyone refusal, are the directory's
+             checks (they need the domain).
+    Inputs:  v — fabric vars; name — the rule's name; users, commands — lists of str; run_as — list of
              str or None (root); hosts — a host group's name (short or AD), or "ALL", "" or None (every machine).
     Returns: {"name", "users", "commands", "run_as", "hosts" ("ALL" or the host group's AD name)}.
     Fails:   ValidationError naming the field: a bad rule name, a value that is not a list of text, nobody, no
@@ -49,5 +50,5 @@ def check_sudo_rule(v, name, users, commands, run_as=None, hosts=None):
         if c != "ALL" and (len(c) > 255 or not COMMAND_RE.fullmatch(c)):
             raise ValidationError(f"commands: {c!r} is not an absolute path (with its arguments) or ALL")
     run_as = [_who(r, "as") for r in run_as or [] if r.strip()] or ["root"]
-    where = "ALL" if hosts in (None, "", "ALL") else f"{v['site_name']}-hosts-{check_host_group_name(v, hosts)}"
+    where = "ALL" if hosts in (None, "", "ALL") else f"{PREFIX}{check_host_group_name(v, hosts)}"
     return {"name": name, "users": users, "commands": commands, "run_as": run_as, "hosts": where}

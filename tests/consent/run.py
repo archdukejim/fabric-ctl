@@ -160,43 +160,27 @@ users = v["service_users"]
 check("defaults: fabric-* names in the 600-649 band (bind -> fabric-dns 600, Keycloak keeps gid 0)",
       users["bind"] == {"uid": 600, "gid": 600, "name": "fabric-dns"} and users["keycloak"]["gid"] == 0
       and all(600 <= u["uid"] <= 649 and u["name"].startswith("fabric-") for u in users.values()), users)
-msg = refused(lambda: pa.plan_accounts({"service_users": {"bind": {"uid": 1, "gid": 1, "name": "fabric-dns"}}},
-                                       "/nonexistent", JINJA))
+msg = refused(lambda: pa.plan_accounts({"service_users": {"bind": {"uid": 1, "gid": 1, "name": "fabric-dns"}}}))
 check("an id taken by another account stops setup, naming both (fabric never takes one over)",
       "is taken by" in msg and "service_users.bind" in msg, msg)
-fake = {"bind": 53, "fabric-dns": None}
-saved_fns = (pa._user_uid, pa._group_gid, pa._uid_owner, pa._gid_owner, pa._fabric_dirs)
-pa._user_uid = lambda n: fake.get(n)
-pa._group_gid = lambda n: 53 if n == "bind" else None
-pa._uid_owner = pa._gid_owner = lambda i: "bind" if i == 53 else None
-pa._fabric_dirs = lambda base, j: ["/opt/bind9", "/opt/fabric"]
+saved_fns = (pa._user_uid, pa._group_gid, pa._uid_owner, pa._gid_owner)
+pa._user_uid = pa._group_gid = pa._uid_owner = pa._gid_owner = lambda x: None
 try:
-    acts = pa.plan_accounts({"service_users": {"bind": users["bind"]}}, "/opt", JINJA)
+    acts = pa.plan_accounts({"service_users": {"bind": users["bind"]}})
 finally:
-    pa._user_uid, pa._group_gid, pa._uid_owner, pa._gid_owner, pa._fabric_dirs = saved_fns
-check("an install with the previous bind (53) account: create fabric-dns, move its files, remove bind",
-      [a["do"] for a in acts] == ["group", "user", "move", "remove"]
-      and acts[2]["uid"] == (53, 600) and acts[2]["gid"] == (53, 600) and acts[3]["name"] == "bind", acts)
+    pa._user_uid, pa._group_gid, pa._uid_owner, pa._gid_owner = saved_fns
+check("a host without fabric's accounts: create fabric-dns's group and user, nothing else (no account of a release "
+      "before 0.8.0 is moved: 2.1.1.61)", [a["do"] for a in acts] == ["group", "user"], acts)
 
-print("--- upgrading an older install's settings")
-old = {"service_users": {"bind": {"uid": 53, "gid": 53}, "nginx": {"uid": 1443, "gid": 1443}}}
-changes = upgrade_vars(old, set(), True)
-check("previous defaults are dropped (the new accounts apply), an admin's own ids are kept",
-      old["service_users"] == {"nginx": {"uid": 1443, "gid": 1443}} and len(changes) == 1, (old, changes))
-# certs.<domain> dropped (1.5.1.5): its keys and the default CNAME go; an admin's other records stay
-old = {"hostname": "fab", "cname_certs": "certs", "hostname_certs": "certs.lan.test",
-       "dns": {"dynamic_zone_var": {"CNAME": [{"canonical": "fab", "name": "certs"}, {"canonical": "fab", "name": "ca"},
-                                             {"canonical": "nas", "name": "certs2"}]}}}
-# (an install from before 0.7.0 also keeps its DC's name: that change is the DC's, 2.1.6.45, counted apart)
-changes = [c for c in upgrade_vars(old, set(), True) if "certs" in c]
-check("an older install's certs.<domain>: cname_certs, hostname_certs and its CNAME removed, other CNAMEs kept",
-      "cname_certs" not in old and "hostname_certs" not in old and len(changes) == 2
-      and [r["name"] for r in old["dns"]["dynamic_zone_var"]["CNAME"]] == ["ca", "certs2"], (old, changes))
-old = {"hostname": "fab", "dns": {"dynamic_zone_var": {"CNAME": [{"canonical": "elsewhere", "name": "certs"}]}}}
-changes = [c for c in upgrade_vars(old, set(), True) if "certs" in c]
-check("…but a certs record the admin pointed elsewhere is not the old default: kept, nothing reported",
-      old["dns"]["dynamic_zone_var"]["CNAME"] == [{"canonical": "elsewhere", "name": "certs"}] and changes == [],
-      (old, changes))
+print("--- an existing install's images at a re-run (upgrade_vars, 2.1.14.3)")
+old = {"image_fabric_samba": "ghcr.io/x/samba:1@sha256:" + "a" * 64, "image_nginx": "nginx:1.27",
+       "image_webui": "fabric/web:local", "image_postgres": "postgres:18", "image_pins": ["image_postgres"]}
+changes = upgrade_vars(old, {"image_postgres": True})
+check("a digest-pinned image and one the admin pinned are kept; an unpinned ref and a local build name go",
+      set(old) == {"image_fabric_samba", "image_postgres", "image_pins"} and len(changes) == 2, (old, changes))
+nothing = {"service_users": {"bind": {"uid": 53, "gid": 53}}, "cname_certs": "certs", "webui_admin_role": "fabric-admin"}
+check("negative: what upgrade_vars changed for installs before 0.8.0 is left alone (retired, 2.1.1.61)",
+      upgrade_vars(dict(nothing), set()) == [], nothing)
 
 print("--- the firewall's questions (2.1.2.13): the ports fabric needs, then securing, then the host's own rules")
 rules = plan_firewall({**v, "ntp_serve": False}, cfg, active=False)
@@ -385,7 +369,7 @@ check("negative: a fresh install has nothing to carry: every question needs an a
 
 rows = {t: (how, what) for t, how, what in uninstall_plan()}
 check("uninstall lists every kind of host change: removed, undone or kept (Docker's settings: how to undo first)",
-      len(rows) == 11 and rows["Service accounts"][0] == "removed" and rows["Secure this host"][0] == "undone"
+      len(rows) == 12 and rows["Service accounts"][0] == "removed" and rows["Secure this host"][0] == "undone"
       and rows["Ports fabric needs"][0] == rows["The host's own firewall rules"][0] == "undone"
       and rows["Docker daemon settings"][0] == "kept" and "--undo runtime" in rows["Docker daemon settings"][1], rows)
 
@@ -411,6 +395,25 @@ off, on = plan_text({"webui_admin_user": "fabric-admin"}), plan_text({"install_k
 check("DHCP off by default, and named a preview until 0.8.0, off and on",
       any("off: DHCP" in line and "preview until 0.8.0" in line for line in off)
       and any("✓" in line and "preview until 0.8.0" in line and "10.0.0.0/24" in line for line in on), (off, on))
+def plan_all(v, **ctx_over):
+    """setup's whole plan as printed, unattended."""
+    out = io.StringIO()
+    from fabriclib.setup.context import SetupContext
+    plan_ctx = SetupContext(deploy_base=os.path.join(fresh, "no-such"), vars=dict(v), non_interactive=True,
+                            assume_yes=True, **ctx_over)
+    with contextlib.redirect_stdout(out):
+        choose_plan(plan_ctx, lambda: (None, {}))
+    return out.getvalue()
+
+
+new_domain = plan_all({"webui_admin_user": "fabric-admin", "ad_domain": "ad.lan.test", "dc_name": "dc-0001"})
+# covers: ask:setup.plan +
+check("a new domain's plan says how many DCs it uses and how many can be added, never the DC's name or the scheme "
+      "(2.1.6.65's revision)", "1 DC used, 1998 can be added" in new_domain and "dc-0" not in new_domain,
+      new_domain[-1500:])
+joining = plan_all({"webui_admin_user": "fabric-admin", "ad_domain": "ad.lan.test"}, join_invitation="x")
+check("negative: a joining site's plan has no count yet (the join gives it) and names no DC",
+      "can be added" not in joining and "dc-0" not in joining, joining[-1500:])
 check("negative: no other part of the plan is called a preview (the DNS filter is finished)",
       not any("preview" in line for line in off + on if "DHCP" not in line), off + on)
 
@@ -424,7 +427,6 @@ from fabriclib.setup.common.ask_setting import ask_setting  # noqa: E402
 import fabriclib.setup.permanent_mark as m_mark  # noqa: E402
 from fabriclib.menu.constants import IMMUTABLE_KEYS  # noqa: E402
 from fabriclib.setup.ask_ad_domain import ask_ad_domain  # noqa: E402
-from fabriclib.setup.ask_dc_name import ask_dc_name  # noqa: E402
 
 
 def prompts(fn, answers):
@@ -444,39 +446,12 @@ q = types.SimpleNamespace(vars={"domain": "lan.test", "hostname": "pi", "cert_ro
 asked = {key: prompts(lambda key=key: ask_setting(key, default), [default])[0]
          for key, default in (("domain", "lan.test"), ("friendly_name", "Home Network"), ("hostname", "pi"),
                               ("host_ip", "10.0.0.5"), ("lan_cidr", "10.0.0.0/24"), ("lan_gateway", "10.0.0.1"),
-                              ("webui_admin_user", "fabric-admin"))}
+                              ("webui_admin_user", "pat.admin"))}
 asked["ad_domain"] = prompts(lambda: ask_ad_domain(q), [""])[0]
-asked["dc_name"] = prompts(lambda: ask_dc_name(q), [""])[0]
-# covers: ask:setup.dc_name setting:dc_name +
-check("the DC's name: Enter takes the suggestion dc-<hostname>", q.vars["dc_name"] == "dc-pi", q.vars)
-q_dc = types.SimpleNamespace(vars={"hostname": "pi", "ad_domain": "ad.lan.test"}, non_interactive=False)
-seen_dc = prompts(lambda: ask_dc_name(q_dc), ["dc_1", "ad", "DC-Garage"])
-# covers: ask:setup.dc_name -
-check("the DC's name: a name the DC cannot have (an underscore, the domain's NetBIOS name) is refused and asked again; "
-      "the answer is kept in lower case", len(seen_dc) == 3 and q_dc.vars["dc_name"] == "dc-garage",
-      (seen_dc, q_dc.vars))
-q_host = types.SimpleNamespace(vars={"hostname": "pi", "ad_domain": "ad.lan.test"}, non_interactive=False)
-out_host = io.StringIO()
-with contextlib.redirect_stdout(out_host):
-    feed_host = iter(["PI", "dc-pi"])
-    real_in = builtins.input
-    builtins.input = lambda prompt="": next(feed_host)
-    try:
-        ask_dc_name(q_host)
-    finally:
-        builtins.input = real_in
-# covers: ask:setup.dc_name -
-check("the DC's name: the host's own name is refused (the host joins the domain under it, 2.1.6.51), saying why, and "
-      "asked again", q_host.vars["dc_name"] == "dc-pi" and "this host's own name" in out_host.getvalue(),
-      (q_host.vars, out_host.getvalue()))
-q_unatt = types.SimpleNamespace(vars={"hostname": "pi", "ad_domain": "ad.lan.test", "dc_name": "pi"},
-                                non_interactive=True)
-check("negative: unattended, a dc_name equal to the host's name is refused, saying why",
-      "this host's own name" in refused(lambda: ask_dc_name(q_unatt)), q_unatt.vars)
 asked["cert_root_ca_days"] = prompts(lambda: ask_ca_lifetime(q), [""])[0]
-permanent = ("domain", "friendly_name", "ad_domain", "dc_name", "cert_root_ca_days")
+permanent = ("domain", "friendly_name", "ad_domain", "cert_root_ca_days")
 check("each permanent question carries ⚠ Permanent after its label: the DNS domain, the organisation's name, the AD "
-      "domain, the DC's name, the CA root's lifetime (Advanced)",
+      "domain, the CA root's lifetime (Advanced); the DC's name is no question (fabric names it, 2.1.6.65)",
       all("⚠ Permanent" in asked[k] for k in permanent) and set(permanent) <= IMMUTABLE_KEYS, asked)
 check("negative: none on a question that can change later: the host's name, its address, the subnet, the gateway, the "
       "first admin's name", not any("Permanent" in asked[k] for k in asked if k not in permanent), asked)
@@ -499,7 +474,7 @@ def mark_on_tty(no_color):
         os.environ["NO_COLOR"] = "1"
     try:
         importlib.reload(m_console)
-        return importlib.reload(m_mark).permanent_mark("dc_name")
+        return importlib.reload(m_mark).permanent_mark("ad_domain")
     finally:
         sys.stdout = real_out
         for k, val in env.items():
@@ -562,28 +537,32 @@ for d in (-1, 1000, 1.5, "30", True, None, [30]):
 check("negative: a renewal that is not a whole number from 0 to 999 (negative, too large, a fraction, text, true, "
       "empty, a list) is refused, saying so", bad_days == [-1, 1000, 1.5, "30", True, None, [30]], bad_days)
 names = [n for n, _, _ in STEPS]
-check("the group `member` is recommended, asked after the time service; its step comes right after `start`",
-      GROUPS["member"]["level"] == "recommended" and list(GROUPS)[-1] == "member"
+check("the group `member` is recommended, asked after the time service (local_admin next); its step right after `start`",
+      GROUPS["member"]["level"] == "recommended" and list(GROUPS)[-2] == "member"
       and GROUPS["member"]["step"] == "member" and names.index("member") == names.index("start") + 1, names)
 _real_missing = pm.missing_packages
 pm.missing_packages = lambda pkgs: ["sssd-ad", "krb5-user"]
 planned = plan_host_changes(mv, "/opt", cfg, JINJA, ["member"]).get("member", [])
-check("planned when on: the missing packages, the host's own account FAB1$ placed in OU=fabric-hosts and "
-      "hq-fabric-machines (never renewed by default) and its keytab only (never the DC's), krb5.conf, sssd.conf, NSS "
+check("planned when on: the missing packages, the host's own account FAB1$ placed in OU=fabric-hosts, "
+      "fabric-managed and dc-hosts, in no site's group (never renewed by default) and its keytab only (never the DC's), krb5.conf, sssd.conf, NSS "
       "and PAM (2.1.6.48, 2.1.6.49)",
       planned[:2] == ["apt: install sssd-ad", "apt: install krb5-user"]
-      and any("FAB1$" in x and "OU=fabric-hosts" in x and "hq-fabric-machines" in x and "never renewed" in x
+      and any("FAB1$" in x and "OU=fabric-hosts" in x and "fabric-managed and dc-hosts" in x
+              and "in no site's group" in x and "never renewed" in x
               and x.startswith("the domain:") for x in planned)
       and any("own computer account FAB1$" in x and "/etc/krb5.keytab" in x for x in planned)
       and not any("DC-FAB1" in x for x in planned)
-      and any("hq-fabric-admins" in x and "/etc/sssd/sssd.conf" in x for x in planned)
+      and any("no domain account signs in" in x and "/etc/sssd/sssd.conf" in x for x in planned)
       and any(x.startswith("PAM: pam-auth-update") for x in planned), planned)
-check("…and fabric's management of the host while it is in hq-fabric-machines: Kerberos for SSH with local accounts "
+check("…and fabric's management of the host while it is in fabric-managed: Kerberos for SSH with local accounts "
       "unchanged (checked by sshd -t), a domain password refused over SSH, the domain's names from fabric's DNS "
       "(1.6.11.11)",
       any("10-fabric.conf" in x and "local accounts' sign-in unchanged" in x and "sshd -t" in x
           and "pam_localuser" in x for x in planned)
       and any("resolved.conf.d/fabric.conf" in x and "10.0.0.5" in x for x in planned), planned)
+check("the consent screen names no domain controller: the KDC and the hosts-file line say the DC, not its name "
+      "(2.1.6.65's revision)", mv.get("hostname_dc") and not any(str(mv["hostname_dc"]).split(".")[0] in x.lower()
+                                                                 for x in planned), (mv.get("hostname_dc"), planned))
 renew = {**mv, "host_machine_password_renew_days": 30}
 pm.missing_packages = lambda pkgs: [p for p in pkgs if p == "adcli"]
 renew_plan = pm.plan_member(renew)
@@ -597,13 +576,20 @@ check("negative: not planned when host_join_domain is false (nothing asked, noth
 pm.missing_packages = _real_missing
 files = render_member_files(mv)
 sssd = files["/etc/sssd/sssd.conf"]
-check("sssd.conf: the host's own name, the OU's log-on policy (GPO access enforcing) as the one gate, no access "
-      "filter of fabric's own (2.1.6.53), sudo from the domain, this host's own DC, no dynamic DNS (2.1.6.48)",
-      "access_provider = ad\n" in sssd and "ad_gpo_access_control = enforcing\n" in sssd
-      and "ad_access_filter" not in sssd
-      and "ad_hostname = fab1.ad.test\n" in sssd and "simple_allow" not in sssd
-      and "sudo_provider = ad\n" in sssd and "ad_server = dc-fab1.ad.test\n" in sssd and "dyndns_update = false" in sssd
+check("sssd.conf: the host's own name, this host's own DC, no dynamic DNS (2.1.6.48); negative: no domain account "
+      "but fabric-admin signs in and no domain sudo rule reaches it (the top tier's host, 2.1.6.75, 2.1.6.78)",
+      "access_provider = simple\n" in sssd and "simple_allow_users = fabric-admin\n" in sssd
+      and "simple_allow_groups" not in sssd and "sudo_provider = none\n" in sssd
+      and "access_provider = ad" not in sssd and "ad_gpo_access_control" not in sssd
+      and "ldap_sudo_search_base" not in sssd
+      and "ad_hostname = fab1.ad.test\n" in sssd
+      and "ad_server = dc-0001.ad.test\n" in sssd and "dyndns_update = false" in sssd
       and sssd.startswith("# fabric"), sssd)
+check("the Enterprise Admin's sudo on its host: a local rule in /etc/sudoers.d/fabric-admin (fabric's marker), planned "
+      "0440, kept and undone with the member files",
+      files[pm.SUDOERS].endswith("\nfabric-admin ALL=(ALL:ALL) ALL\n") and files[pm.SUDOERS].startswith("# fabric")
+      and pm.SUDOERS in pm.KEPT_FILES and any(x.startswith(f"{pm.SUDOERS} (0440)") for x in pm.plan_member(mv)),
+      files[pm.SUDOERS])
 renew_sssd = render_member_files(renew)["/etc/sssd/sssd.conf"]
 rodc_sssd = render_member_files({**renew, "ad_dc_type": "rodc"})["/etc/sssd/sssd.conf"]
 check("sssd.conf: the machine password never renewed by default (age 0), renewed at the age set, at a read-only "
@@ -611,15 +597,8 @@ check("sssd.conf: the machine password never renewed by default (age 0), renewed
       "ad_maximum_machine_account_password_age = 0\n" in sssd
       and "ad_maximum_machine_account_password_age = 30\n" in renew_sssd
       and "ad_maximum_machine_account_password_age = 30\n" in rodc_sssd, (sssd, renew_sssd))
-check("its sudo search bases: the site's OU=sudoers, then the organisation's (as the Linux join builds them)",
-      "ldap_sudo_search_base = OU=sudoers,OU=hq,OU=sites,DC=ad,DC=test?onelevel??"
-      "OU=sudoers,OU=organisation,OU=hq,OU=sites,DC=ad,DC=test?onelevel?\n" in sssd, sssd)
-nested = render_member_files({**mv, "ad_site_ou": "OU=edge,OU=hq,OU=sites"})["/etc/sssd/sssd.conf"]
-check("a nested site's host also reads the rules of each site above it",
-      "OU=sudoers,OU=edge,OU=hq,OU=sites,DC=ad,DC=test?onelevel??OU=sudoers,OU=hq,OU=sites,DC=ad,DC=test?onelevel??"
-      in nested, nested)
 check("krb5.conf: the realm, its KDC this host's DC",
-      "default_realm = AD.TEST" in files["/etc/krb5.conf"] and "kdc = dc-fab1.ad.test" in files["/etc/krb5.conf"])
+      "default_realm = AD.TEST" in files["/etc/krb5.conf"] and "kdc = dc-0001.ad.test" in files["/etc/krb5.conf"])
 nss = "passwd:         files systemd\ngroup:          files systemd\nshadow:         files\nhosts: files dns\n"
 once = jh._with_sss(nss)
 check("nsswitch: sss after the files for passwd and group, a sudoers line added; a second pass changes nothing",
@@ -729,10 +708,11 @@ check("a read-only DC's site: the host's own account too, written at the writabl
 rodc_vars = {**mv, "ad_dc_type": "rodc", "ad_join_server": "10.0.9.5"}
 rodc_sssd = render_member_files(rodc_vars)["/etc/sssd/sssd.conf"]
 rodc_plan = pm.plan_member(rodc_vars)
-check("…its sssd as any member's (the OU's policy, its own name) and the plan says where the account is made and that "
-      "the read-only DC caches it",
-      "access_provider = ad\n" in rodc_sssd and "ad_hostname = fab1.ad.test\n" in rodc_sssd
-      and any(x.startswith("the domain:") and "writable domain controller 10.0.9.5" in x and "hq-rodc-cache" in x
+check("…its sssd as at a writable DC's site (no domain sign-in, its own name) and the plan says where the account is "
+      "made and that the read-only DC caches it",
+      "access_provider = simple\n" in rodc_sssd and "ad_hostname = fab1.ad.test\n" in rodc_sssd
+      and any(x.startswith("the domain:") and "writable domain controller 10.0.9.5" in x
+              and f"rodc-cache-{mv['dc_name']}" in x
               for x in rodc_plan), (rodc_sssd, rodc_plan))
 
 # the step on a scratch tree: the host's files in a folder of their own, the DC and the directory faked
@@ -750,9 +730,10 @@ kt_own = b"\x05\x02" + _entry("FAB1$@AD.TEST", 300, 1, b"o" * 32)
 calls, directory = [], {}
 
 
-def fake_add(v, actor, name, source="cli", secrets=None, container="samba", os=None, managed=True, server=None):
-    calls.append(("add", name, os, managed) + ((server,) if server else ()))
-    directory[name.upper()] = {"dn": f"CN={name.upper()},OU=linux,OU=machines,OU=hq,OU=sites,DC=ad,DC=test",
+def fake_add(v, actor, name, source="cli", secrets=None, container="samba", type=None, managed=True, server=None,
+             in_site=True):
+    calls.append(("add", name, type, managed, in_site) + ((server,) if server else ()))
+    directory[name.upper()] = {"dn": f"CN={name.upper()},OU=machines,DC=ad,DC=test",
                                "description": "fabric: unmanaged (manual 1.6.11.6)"}
     return "one-time"
 
@@ -768,9 +749,9 @@ def fake_place(v, actor, name, source="setup", secrets=None, container="samba", 
     calls.append(("place", name) + ((server,) if server else ()))
     entry = directory[name.upper()]
     moved = "OU=fabric-hosts," not in entry["dn"]
-    entry["dn"] = f"CN={name.upper()},OU=fabric-hosts,OU=hq,OU=sites,DC=ad,DC=test"
-    entry["member_of"] = ["CN=hq-fabric-machines,OU=groups,OU=hq,OU=sites,DC=ad,DC=test"]
-    return {"name": name.lower(), "dn": entry["dn"], "moved": moved, "joined": True}
+    entry["dn"] = f"CN={name.upper()},OU=fabric-hosts,DC=ad,DC=test"
+    entry["member_of"] = ["CN=fabric-managed,OU=groups,DC=ad,DC=test", "CN=dc-hosts,OU=groups,DC=ad,DC=test"]
+    return {"name": name.lower(), "dn": entry["dn"], "moved": moved, "joined": ["fabric-managed", "dc-hosts"]}
 
 
 managed_calls = []
@@ -805,9 +786,9 @@ with contextlib.redirect_stdout(out):
 record = json.load(open(os.path.join(jcfg, pm.RECORD)))
 # covers: cli:setup +
 check("approved: the host's own account made as add-machine makes one, then placed once as the site's fabric host "
-      "(OU=fabric-hosts, hq-fabric-machines), recorded, its keys (only) in the keytab, 0600; fabric's management "
-      "applied (2.1.6.49)",
-      calls == [("add", "fab1", "linux", False), ("place", "FAB1")] and record.get("account") == "FAB1"
+      "(OU=fabric-hosts, fabric-managed and dc-hosts; made with no type and in no site's group), recorded, its keys "
+      "(only) in the keytab, 0600; fabric's management applied (2.1.6.49, 1.6.13.6)",
+      calls == [("add", "fab1", None, False, False), ("place", "FAB1")] and record.get("account") == "FAB1"
       and record.get("placed") == "FAB1" and managed_calls == [True]
       and open(jh.KEYTAB, "rb").read() == kt_own and oct(os.stat(jh.KEYTAB).st_mode & 0o777) == "0o600"
       and "own computer account FAB1$" in out.getvalue() and "OU=fabric-hosts" in out.getvalue(),
@@ -816,22 +797,23 @@ out = io.StringIO()
 with contextlib.redirect_stdout(out):
     jh.run(jctx)
 check("a second run changes nothing (the account is the host's and placed: recorded)",
-      "nothing to change" in out.getvalue() and calls == [("add", "fab1", "linux", False), ("place", "FAB1")]
+      "nothing to change" in out.getvalue() and calls == [("add", "fab1", None, False, False), ("place", "FAB1")]
       and managed_calls == [True], (out.getvalue(), calls))
-# an admin takes the host out of hq-fabric-machines (or moves it): setup keeps it so, and removes the management
+# an admin takes the host out of fabric-managed (or moves it): setup keeps it so, and removes the management
 directory["FAB1"]["member_of"] = []
 out = io.StringIO()
 with contextlib.redirect_stdout(out):
     jh.run(jctx)
-check("taken out of hq-fabric-machines by an admin: the next setup does not put it back (placed once), and removes "
+check("taken out of fabric-managed by an admin: the next setup does not put it back (placed once), and removes "
       "fabric's management",
-      calls == [("add", "fab1", "linux", False), ("place", "FAB1")] and managed_calls == [True, False],
+      calls == [("add", "fab1", None, False, False), ("place", "FAB1")] and managed_calls == [True, False],
       (calls, managed_calls, out.getvalue()))
-directory["FAB1"]["member_of"] = ["CN=hq-fabric-machines,OU=groups,OU=hq,OU=sites,DC=ad,DC=test"]
+directory["FAB1"]["member_of"] = ["CN=fabric-managed,OU=groups,DC=ad,DC=test"]
 with contextlib.redirect_stdout(io.StringIO()):
     jh.run(jctx)
-# an account of 0.7.1's first build: in OU=linux, unmanaged, never placed (the record has no "placed")
-directory["FAB1"] = {"dn": "CN=FAB1,OU=linux,OU=machines,OU=hq,OU=sites,DC=ad,DC=test",
+# an account setup made but never placed (the record has no "placed": the place step failed, or an admin moved it
+# back): in OU=machines, unmanaged
+directory["FAB1"] = {"dn": "CN=FAB1,OU=machines,DC=ad,DC=test",
                      "description": "fabric: unmanaged (manual 1.6.11.6)", "member_of": []}
 rec = json.load(open(os.path.join(jcfg, pm.RECORD)))
 rec.pop("placed")
@@ -843,12 +825,12 @@ with contextlib.redirect_stdout(out):
 out2 = io.StringIO()
 with contextlib.redirect_stdout(out2):
     jh.run(jctx)
-check("an account of 0.7.1's first build (OU=linux, unmanaged) is moved into OU=fabric-hosts at the next setup, once; "
-      "a second run changes nothing",
+check("an account setup made but never placed (OU=machines, unmanaged) is moved into OU=fabric-hosts at the next "
+      "setup, once; a second run changes nothing",
       calls == [("place", "FAB1")] and "moved into OU=fabric-hosts" in out.getvalue()
       and "nothing to change" in out2.getvalue()
       and json.load(open(os.path.join(jcfg, pm.RECORD))).get("placed") == "FAB1", (calls, out.getvalue()))
-calls[:] = [("add", "fab1", "linux", False), ("place", "FAB1")]
+calls[:] = [("add", "fab1", None, False, False), ("place", "FAB1")]
 # an upgrade: the keytab still holds the DC's account (2.1.6.34), the record knows no account
 open(jh.KEYTAB, "wb").write(kt1)
 directory.clear()
@@ -858,7 +840,7 @@ out = io.StringIO()
 with contextlib.redirect_stdout(out):
     jh.run(jctx)
 check("an install whose keytab holds the DC's account moves to the host's own: made, recorded, the keytab replaced",
-      calls == [("add", "fab1", "linux", False), ("place", "FAB1")] and open(jh.KEYTAB, "rb").read() == kt_own
+      calls == [("add", "fab1", None, False, False), ("place", "FAB1")] and open(jh.KEYTAB, "rb").read() == kt_own
       and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") == "FAB1"
       and "held another account's: replaced" in out.getvalue(), (calls, out.getvalue()))
 # the host renamed: its account under the new name, the old one (fabric's, recorded) removed
@@ -871,7 +853,7 @@ calls.clear()
 with contextlib.redirect_stdout(io.StringIO()):
     jh.run(type("C", (), {"vars": renamed, "config_dir": jcfg, "offline": False, "secrets": {}})())
 check("the host renamed: its own account under the new name (placed), the one fabric made under the old name removed",
-      calls == [("add", "fab2", "linux", False), ("place", "FAB2"), ("remove", "fab1")] and set(directory) == {"FAB2"}
+      calls == [("add", "fab2", None, False, False), ("place", "FAB2"), ("remove", "fab1")] and set(directory) == {"FAB2"}
       and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") == "FAB2", (calls, directory))
 
 # the undo's part in the domain
@@ -919,12 +901,12 @@ out = io.StringIO()
 with contextlib.redirect_stdout(out):
     jh.run(rctx)
 # covers: cli:setup +
-check("a read-only DC's site: the host's account made and placed at the writable DC (in hq-rodc-cache), cached by the "
-      "read-only DC, its keys exported there; recorded",
-      calls == [("add", "fab1", "linux", False, "10.0.9.5"), ("place", "FAB1", "10.0.9.5")]
+check("a read-only DC's site: the host's account made and placed at the writable DC (in rodc-cache-<dc>), cached "
+      "by the read-only DC, its keys exported there; recorded",
+      calls == [("add", "fab1", None, False, False, "10.0.9.5"), ("place", "FAB1", "10.0.9.5")]
       and preloads == [("FAB1", "10.0.9.5")] and open(jh.KEYTAB, "rb").read() == kt_own
       and json.load(open(os.path.join(rcfg2, pm.RECORD))).get("placed") == "FAB1"
-      and "hq-rodc-cache" in out.getvalue(), (calls, preloads, out.getvalue()))
+      and f"rodc-cache-{rodc_vars['dc_name']}" in out.getvalue(), (calls, preloads, out.getvalue()))
 answering["up"] = False
 out = io.StringIO()
 with contextlib.redirect_stdout(out):
@@ -970,7 +952,8 @@ msg = refused(lambda: jh.run(type("C", (), {"vars": {**mv, "dc_name": "fab1", "h
 # covers: cli:setup -
 check("negative: the member step refuses a domain controller named as the host, saying what to do, before anything "
       "changes (2.1.6.51)",
-      "domain controller has this host's name" in msg and "host_join_domain: false" in msg and "dc_name" in msg
+      "domain controller has this host's name" in msg and "host_join_domain: false" in msg
+      and "rename this host (hostname)" in msg
       and not calls and not os.listdir(rcfg), (msg, calls))
 
 # fabric's management of the host, on a scratch tree: every host path its own, sshd and systemctl faked
@@ -989,7 +972,7 @@ PAM_ORIG = ("# PAM configuration for the Secure Shell service\n\n# Standard Un*x
 open(ahm.PAM_SSHD, "w").write(PAM_ORIG)
 reloads, sshd_says = [], {"before": "", "after": ""}
 ahm._reload = lambda what: reloads.append(what)
-ahm._sshd_check = lambda: sshd_says["after"] if os.path.exists(ahm.SSHD_DROPIN) else sshd_says["before"]
+ahm.sshd_check = lambda: sshd_says["after"] if os.path.exists(ahm.SSHD_DROPIN) else sshd_says["before"]
 done = ahm.apply_host_managed(mv, True)
 dropin, pam_now = open(ahm.SSHD_DROPIN).read(), open(ahm.PAM_SSHD).read()
 check("managed: sshd gets Kerberos (GSSAPI, the strict acceptor check off, PAM) and never PasswordAuthentication, so "
@@ -1052,8 +1035,8 @@ os.makedirs(ahm.SSHD_DIR)
 m_rdc.INSTALL_DIR = tempfile.mkdtemp()
 scfg = os.path.join(m_rdc.INSTALL_DIR, "config")
 os.makedirs(scfg)
-dc_says = {"FAB1": {"dn": "CN=FAB1,OU=fabric-hosts,OU=hq,OU=sites,DC=ad,DC=test", "description": "",
-                    "member_of": ["CN=hq-fabric-machines,OU=groups,OU=hq,OU=sites,DC=ad,DC=test"]}}
+dc_says = {"FAB1": {"dn": "CN=FAB1,OU=fabric-hosts,DC=ad,DC=test", "description": "",
+                    "member_of": ["CN=fabric-managed,OU=groups,DC=ad,DC=test"]}}
 shm.find_computer = lambda account: dc_says.get(account)
 
 
@@ -1075,14 +1058,14 @@ check("negative: an unknown option is a usage error", domain_cmd("host-managed",
 json.dump({"account": "FAB1", "placed": "FAB1"}, open(os.path.join(scfg, pm.RECORD), "w"))
 code, text = domain_cmd("host-managed")
 # covers: cli:domain.host-managed +
-check("in hq-fabric-machines: `domain host-managed` applies fabric's management and says what it found and changed",
-      code == 0 and "FAB1$ is in hq-fabric-machines" in text and os.path.exists(ahm.SSHD_DROPIN)
+check("in fabric-managed: `domain host-managed` applies fabric's management and says what it found and changed",
+      code == 0 and "FAB1$ is in fabric-managed" in text and os.path.exists(ahm.SSHD_DROPIN)
       and ahm.PAM_LINE in open(ahm.PAM_SSHD).read(), (code, text))
 code, text = domain_cmd("host-managed")
 check("…a second run: nothing to change", code == 0 and "nothing to change" in text, text)
 dc_says["FAB1"]["member_of"] = []
 code, text = domain_cmd("host-managed", "--scheduled")
-check("taken out of the group: the timer's run removes it", code == 0 and "not in hq-fabric-machines" in text
+check("taken out of the group: the timer's run removes it", code == 0 and "not in fabric-managed" in text
       and not os.path.exists(ahm.SSHD_DROPIN) and open(ahm.PAM_SSHD).read() == PAM_ORIG, (code, text))
 dc_says.clear()
 code, text = domain_cmd("host-managed")
@@ -1106,6 +1089,7 @@ from fabriclib.consent.save_consent import save_consent  # noqa: E402
 from fabriclib.setup.advanced.ask_dhcp_settings import ask_dhcp_settings  # noqa: E402
 from fabriclib.setup.advanced.ask_memory import ask_memory  # noqa: E402
 from fabriclib.setup.choose_mode import choose_mode  # noqa: E402
+from fabriclib.setup.finish_vars import finish_vars  # noqa: E402
 
 # the test's addresses are not this machine's: the check of the three together is the network item's own test below
 m_items.network_problem = m_menu.network_problem = lambda data: ""
@@ -1161,19 +1145,18 @@ c = new_ctx()
 got, out, left = drive(lambda: m_menu.setup_menu(c, NETS), [
     "99", "p",
     "3", 'a"quote', "Acme",
-    "7", "root", "",
+    "6", "root", "fabric-admin", "pat.admin", "", "Pat", "Ex<ample", "Example", "nope", "pat@lan.test",
     "4", "",
-    "5", "dc_1", "DC-Office",
-    "8", "0", "5",
-    "10", "maybe", "y",
-    "9", "y", "eth9", "", "", "",
-    "9", "y", "", "", "", "",
-    "11", "y", "http://siem.lan", "siem.lan:99999", "siem.lan",
-    "12", "n",
-    "13", "2", "4",
-    "15", "n",
-    "17", "y",
+    "7", "0", "5",
+    "9", "maybe", "y",
+    "8", "y", "eth9", "", "", "",
+    "8", "y", "", "", "", "",
+    "10", "y", "http://siem.lan", "siem.lan:99999", "siem.lan",
+    "11", "n",
+    "12", "2", "4",
     "14", "n",
+    "16", "y",
+    "13", "n",
     "20", "n",
     "p"], secrets=["short", "Good-Pass-12345", "Good-Pass-12345"])
 v = c.vars
@@ -1182,18 +1165,26 @@ check("the menu: three parts, 20 numbered items with their values; something not
       "numbers; Proceed waits for the required items without a value, naming them",
       got is None and "Required (setup cannot proceed until each has a value):" in out
       and "Changes to this host (recommended; each can be declined):" in out
-      and "'99' is not on the list: a number from 1 to 20" in out and "not yet: 3, 7 need an answer" in out
+      and "'99' is not on the list: a number from 1 to 20" in out and "not yet: 3, 6 need an answer" in out
       and "(needs an answer)" in out and not left, (got, out[-3000:], left))
 # covers: ask:setup.vars.* ask:setup.admin_password ask:setup.admin_password_again +-
-check("required items ask guided mode's questions with its checks: the organisation, the first admin (a reserved name "
-      "refused, Enter its default) and their password (too short refused, typed twice)",
-      v["friendly_name"] == "Acme" and v["webui_admin_user"] == "fabric-admin" and c.admin_password == "Good-Pass-12345"
-      and "not a valid friendly_name" in out and "not a valid webui_admin_user" in out, (v.get("friendly_name"), out))
+# covers: setting:webui_admin_user setting:webui_admin_first_name setting:webui_admin_last_name +-
+# covers: setting:webui_admin_email +-
+check("required items ask guided mode's questions with its checks: the organisation, the first Directory "
+      "Administrator (a reserved name and fabric-admin refused, saying why; an empty full name and a bad e-mail "
+      "refused) and their password (too short refused, typed twice)",
+      v["friendly_name"] == "Acme" and v["webui_admin_user"] == "pat.admin" and v["webui_admin_first_name"] == "Pat"
+      and v["webui_admin_last_name"] == "Example"
+      and v["webui_admin_email"] == "pat@lan.test" and c.admin_password == "Good-Pass-12345"
+      and "not a valid friendly_name" in out and "not a valid webui_admin_user: root is one of the system" in out
+      and "fabric-admin is the Enterprise Admin's own account" in out
+      and "not a valid webui_admin_first_name: the first administrator's first name is required" in out
+      and "not a valid webui_admin_last_name: a last name: letters and simple punctuation" in out
+      and "not a valid webui_admin_email: 'nope' is not an e-mail address" in out, (v.get("friendly_name"), out))
 check("the AD domain: Enter takes the suggestion (ad.lan.test); the CA's lifetime 5 years after 0 refused",
       v["ad_domain"] == "ad.lan.test" and v["cert_root_ca_days"] == 5 * 365 and "a whole number of years" in out, v)
-# covers: ask:setup.dc_name +-
-check("the DC's name item: dc-<hostname> suggested; a name the DC cannot have refused and asked again, then kept in "
-      "lower case", v["dc_name"] == "dc-office" and "dc-fab1 (suggested)" in out and "1-15 letters" in out, v)
+check("negative: the menu has no item for the DC's name, and shows none (fabric names it, 2.1.6.65)",
+      "Domain controller" not in out and "dc-0001" not in out and "dc_name" not in v, (v.get("dc_name"), out[:1500]))
 # covers: ask:setup.part.* +-
 check("the parts: 802.1X on (an answer that is not y or n refused first), the DNS filter off",
       v["install_freeradius"] is True and v["dns_filter"] == "none" and "'maybe': answer y or n" in out, v)
@@ -1216,17 +1207,23 @@ check("memory: 2 GB refused (4 at least), 4 taken", v["host_ram_capacity"] == 4 
 check("host changes: the ports turned off show what that means and take securing and the host's own rules along; "
       "the host's own rules turned on bring back what they need; Docker's hardening and membership off",
       {g: c.host_choices.get(g, True) for g in TOGGLED} == {"runtime": False, "ports": True, "firewall": True,
-                                                            "own_rules": True, "trust": True, "time": True}
+                                                            "own_rules": True, "trust": True, "time": True,
+                                                            "local_admin": True}
       and v["host_join_domain"] is False
       and "If no: ufw is not told about fabric's ports" in out and "also off: Secure this host" in out
       and "also off: The host's own firewall rules" in out and "also on: Ports fabric needs" in out
       and "also on: Secure this host" in out, (c.host_choices, out[-2500:]))
 c = new_ctx()
-got, out, left = drive(lambda: m_menu.setup_menu(c, NETS), ["3", "Acme", "7", "", "p"],
+got, out, left = drive(lambda: m_menu.setup_menu(c, NETS), ["3", "Acme", "6", "pat.admin", "Pat", "Example", "", "p"],
                        secrets=["Good-Pass-12345", "Good-Pass-12345"])
-check("Proceed with the DC's name item left alone saves its suggestion, dc-<hostname> (the 0.7.1 candidate's install "
-      "left it unset and the DC took the host's name, 2.3.1.21.2)",
-      got is None and not left and c.vars.get("dc_name") == "dc-fab1", (c.vars.get("dc_name"), left, out[-1500:]))
+with contextlib.redirect_stdout(io.StringIO()):
+    finish_vars(c)
+# covers: setting:dc_name +
+check("Advanced: after Proceed the settings are finished with the DC named dc-0001, nothing asked for it (2.1.6.65; "
+      "never the host's own name, 2.3.1.21.2)",
+      got is None and not left and c.vars.get("dc_name") == "dc-0001", (c.vars.get("dc_name"), left, out[-1500:]))
+check("...the first admin's e-mail address left empty (Enter) is taken: it is optional (2.1.6.93), the menu says so",
+      c.vars.get("webui_admin_email") == "" and "(Pat Example, no e-mail)" in out, out[-2500:])
 got, _, _ = drive(lambda: m_menu.setup_menu(new_ctx(), NETS), ["q"])
 check("negative: Quit in the menu changes nothing and stops setup", isinstance(got, SystemExit), got)
 
@@ -1253,7 +1250,9 @@ check("negative: a size whose memory plan does not fit is refused with the plan'
       c3.vars["host_ram_capacity"] == 8 and "refused: memory: the installed services need" in out, out)
 
 # the plan: settings, the memory split, every host change; Proceed is the one yes; Menu opens the menu
-pc = new_ctx(friendly_name="Acme", webui_admin_user="fabric-admin", ad_domain="ad.lan.test")
+pc = new_ctx(friendly_name="Acme", webui_admin_user="pat.admin", webui_admin_first_name="Pat",
+             webui_admin_last_name="Example",
+             webui_admin_email="pat@lan.test", ad_domain="ad.lan.test")
 pc.admin_password = "Good-Pass-12345"             # chosen already (the first admin item)
 pc.host_choices = {"runtime": False, "ports": True, "firewall": True, "own_rules": True, "trust": True, "time": True}
 os.makedirs(pc.config_dir, exist_ok=True)
@@ -1304,10 +1303,167 @@ hc = tempfile.mkdtemp()
 save_consent(hc, {"firewall": {"answer": "no", "changes": ["f"], "when": "t", "by": "x"}})
 check("a host change declined before starts off, what needs it too; the others on",
       initial_host_choices(hc) == {"runtime": True, "ports": True, "firewall": False, "own_rules": False,
-                                   "trust": True, "time": True}, initial_host_choices(hc))
+                                   "trust": True, "time": True, "local_admin": True}, initial_host_choices(hc))
 check("--approve turns one back on; --decline ports takes securing and the host's own rules along",
       initial_host_choices(hc, approve=["firewall"])["firewall"] is True
       and not any(initial_host_choices(hc, decline=["ports"])[g] for g in ("ports", "firewall", "own_rules")))
+
+
+print("--- a DC host's local administrator accounts (2.1.6.78, manual 1.6.13.6): listed, reminded, approved")
+from fabriclib.hostaccounts import run_host_command as rhc  # noqa: E402
+from fabriclib.hostaccounts.approve_local_account import approve_local_account  # noqa: E402
+from fabriclib.hostaccounts.list_local_admins import list_local_admins  # noqa: E402
+from fabriclib.hostaccounts.local_account_reminders import local_account_reminders  # noqa: E402
+from fabriclib.hostaccounts.record_setup_user import record_setup_user  # noqa: E402
+from fabriclib.hostaccounts.unapprove_local_account import unapprove_local_account  # noqa: E402
+from fabriclib.common.errors import ValidationError as VE  # noqa: E402
+
+la = tempfile.mkdtemp()
+lcfg = os.path.join(la, "config")
+os.makedirs(os.path.join(la, "sudoers.d"))
+os.makedirs(lcfg)
+open(os.path.join(la, "passwd"), "w").write(
+    "root:x:0:0:root:/root:/bin/bash\ntoor:x:0:0::/root:/bin/sh\nowner:x:1000:1000::/home/owner:/bin/bash\n"
+    "wheely:x:1001:10::/home/wheely:/bin/bash\ncarol:x:1002:1002::/home/carol:/bin/bash\n"
+    "dave:x:1003:1003::/home/dave:/bin/bash\neve:x:1004:1004::/home/eve:/bin/bash\n"
+    "frank:x:1005:1005::/home/frank:/bin/bash\nplain:x:1006:1006::/home/plain:/bin/bash\n"
+    "olduid:x:1007:1007::/home/olduid:/bin/bash\n")
+open(os.path.join(la, "group"), "w").write(
+    "root:x:0:\nwheel:x:10:\nsudo:x:27:owner\nops:x:2000:frank\nadmin:x:115:\n")
+open(os.path.join(la, "sudoers"), "w").write(
+    "Defaults env_reset\nroot ALL=(ALL:ALL) ALL\n%sudo ALL=(ALL:ALL) ALL\nUser_Alias HELPERS = eve\n"
+    "carol ALL=(ALL) NOPASSWD: ALL  # a comment\ndave ALL=(root) /usr/bin/systemctl restart nginx\n"
+    "HELPERS ALL = \\\n    (ALL) ALL\n#1007 ALL=(ALL) ALL\n@includedir /etc/sudoers.d\n")
+open(os.path.join(la, "sudoers.d", "ops"), "w").write("%ops ALL=(ALL:ALL) ALL\n")
+open(os.path.join(la, "sudoers.d", "fabric-admin"), "w").write("# fabric\nfabric-admin ALL=(ALL:ALL) ALL\n")
+open(os.path.join(la, "sudoers.d", "plain.bak"), "w").write("plain ALL=(ALL) ALL\n")   # sudo skips a name with a dot
+la_files = {"passwd": os.path.join(la, "passwd"), "group": os.path.join(la, "group"),
+            "sudoers": os.path.join(la, "sudoers"), "sudoers_dir": os.path.join(la, "sudoers.d")}
+check("the setup account recorded once (a later setup by another keeps the first; root never)",
+      record_setup_user(lcfg, "owner") and not record_setup_user(lcfg, "carol") and not record_setup_user(lcfg, "root"))
+rows = {r["name"]: r for r in list_local_admins(lcfg, **la_files)}
+check("listed: uid 0 but root, the sudo/wheel/admin groups' members (named or by primary group), sudoers ALL by name, "
+      "by group, by alias and by uid (sudoers.d too); the setup account marked",
+      sorted(rows) == ["carol", "eve", "frank", "olduid", "owner", "toor", "wheely"]
+      and rows["toor"]["why"] == ["uid 0"] and "in the sudo group" in rows["owner"]["why"]
+      and rows["owner"]["setup"] and not rows["carol"]["setup"] and "in the wheel group" in rows["wheely"]["why"]
+      and any("sudo ALL in" in w and "ops" in w for w in rows["frank"]["why"]), rows)
+check("negative: not listed: root, a rule with only some commands (dave), a drop-in sudo skips (plain.bak), "
+      "fabric-admin's rule (a domain account, not local), an account with no rights",
+      not {"root", "dave", "plain", "fabric-admin"} & set(rows))
+rem = local_account_reminders(lcfg, list(rows.values()))
+check("each one not approved is reminded of, the setup account named as such, saying how to approve it",
+      len(rem) == 7 and any("owner (the account that ran setup, " in r["text"] for r in rem)
+      and all("sudo fabricctl host accounts approve" in r["text"] for r in rem), rem)
+AUD = []
+done = approve_local_account(lcfg, "owner", "ea", audit=lambda *a: AUD.append(a), listed=list(rows.values()))
+rows = {r["name"]: r for r in list_local_admins(lcfg, **la_files)}
+check("approved (by root for the Enterprise Admin): recorded on the host with who and when, audited "
+      "LOCAL_ACCOUNT_APPROVE, its reminder gone, the others kept",
+      rows["owner"]["approved"]["by"] == "ea" and done["by"] == "ea" and AUD[-1][1] == "LOCAL_ACCOUNT_APPROVE"
+      and len(local_account_reminders(lcfg, list(rows.values()))) == 6
+      and json.load(open(os.path.join(lcfg, "local-accounts.json")))["approved"]["owner"]["by"] == "ea", rows["owner"])
+for name, why in (("dave", "not a local root or administrator"), ("nobody-here", "not a local root"),
+                  ("owner", "already approved")):
+    try:
+        approve_local_account(lcfg, name, "ea", audit=lambda *a: AUD.append(a), listed=list(rows.values()))
+        got = ""
+    except VE as e:
+        got = str(e)
+    check(f"refused: approving {name} ({why}), nothing recorded or audited",
+          why in got and len(AUD) == 1, got)
+try:
+    unapprove_local_account(lcfg, "carol", "ea", audit=lambda *a: AUD.append(a))
+    got = ""
+except VE as e:
+    got = str(e)
+check("refused: withdrawing an approval that is not there", "is not approved" in got and len(AUD) == 1, got)
+unapprove_local_account(lcfg, "owner", "ea", audit=lambda *a: AUD.append(a))
+check("withdrawn: audited LOCAL_ACCOUNT_UNAPPROVE, reminded again",
+      AUD[-1][1] == "LOCAL_ACCOUNT_UNAPPROVE"
+      and len(local_account_reminders(lcfg, list_local_admins(lcfg, **la_files))) == 7)
+_real_list = rhc.list_local_admins
+rhc.list_local_admins = lambda c: list_local_admins(c, **la_files)
+import fabriclib.hostaccounts.approve_local_account as ala  # noqa: E402
+_real_ala_list = ala.list_local_admins
+ala.list_local_admins = lambda c: list_local_admins(c, **la_files)
+ala.write_audit = lambda *a: AUD.append(a)
+import fabriclib.hostaccounts.unapprove_local_account as ula  # noqa: E402
+ula.write_audit = lambda *a: AUD.append(a)
+with contextlib.redirect_stdout(io.StringIO()) as said:
+    codes = [rhc.run_host_command(lcfg, ["accounts", "list"]), rhc.run_host_command(lcfg, ["accounts", "approve", "eve"]),
+             rhc.run_host_command(lcfg, ["accounts", "unapprove", "eve"])]
+# covers: cli:host.accounts +
+check("fabricctl host accounts list|approve|unapprove: each account with why and its state, then approved and "
+      "withdrawn (exit 0)",
+      codes == [0, 0, 0] and "owner (ran setup): in the sudo group, sudo ALL in " in said.getvalue()
+      and "toor: uid 0; not approved: reminded" in said.getvalue()
+      and "eve approved as break glass" in said.getvalue() and "eve: approval withdrawn" in said.getvalue(),
+      said.getvalue())
+with contextlib.redirect_stdout(io.StringIO()) as said:
+    codes = [rhc.run_host_command(lcfg, ["accounts", "approve", "dave"]), rhc.run_host_command(lcfg, ["accounts"]),
+             rhc.run_host_command(lcfg, ["accounts", "remove", "eve"])]
+# covers: cli:host.accounts -
+check("refused: approving an account with no rights (exit 1, why), a missing or unknown subcommand (usage, exit 2); "
+      "nothing recorded", codes == [1, 2, 2] and "refused: dave is not a local root" in said.getvalue()
+      and "usage:" in said.getvalue()
+      and json.load(open(os.path.join(lcfg, "local-accounts.json")))["approved"] == {}, said.getvalue())
+rhc.list_local_admins, ala.list_local_admins = _real_list, _real_ala_list
+
+
+print("--- the host's local-admin as a host change, and managed in the listing (2.1.7.16, manual 1.7.1.4.1, 1.7.1.4.8)")
+from fabriclib.consent.plan_local_admin import plan_local_admin  # noqa: E402
+from fabriclib.localadmin.constants import SSHD_DROPIN  # noqa: E402
+import fabriclib.undo.undo_group as ug  # noqa: E402
+
+check("the group `local_admin` is recommended, asked last; its step `localadmin` runs after `dbrotation`, before `admin`",
+      GROUPS["local_admin"]["level"] == "recommended" and list(GROUPS)[-1] == "local_admin"
+      and GROUPS["local_admin"]["step"] == "localadmin"
+      and names.index("localadmin") == names.index("dbrotation") + 1 == names.index("admin") - 1, names)
+lplan = plan_local_admin({})
+check("its plan: the local account local-admin and the SSH drop-in that refuses it, worded the same every run",
+      len(lplan) == 2 and "the local account local-admin" in lplan[0] and SSHD_DROPIN in lplan[1]
+      and plan_local_admin({"hostname": "other"}) == lplan, lplan)
+check("…and it is in setup's plan for the localadmin step", plan_host_changes(
+    {}, "/opt", cfg, JINJA, ["localadmin"]).get("local_admin") == lplan)
+rows = {t: (how, what) for t, how, what in uninstall_plan()}
+check("uninstall undoes it (the account, the drop-in, the record; OpenBao keeps its history)",
+      rows[GROUPS["local_admin"]["title"]][0] == "undone"
+      and "local-admin" in rows[GROUPS["local_admin"]["title"]][1], rows.get(GROUPS["local_admin"]["title"]))
+ucfg = tempfile.mkdtemp()
+UCtx = types.SimpleNamespace(config_dir=ucfg, vars={}, deploy_base="/opt", source_dir=REPO)
+ask_consent(ucfg, {"local_admin": lplan}, interactive=False, approve=["local_admin"])
+calls = []
+ug.UNDO["local_admin"] = (ug.UNDO["local_admin"][0], lambda ctx: calls.append(1) or ["local-admin: removed"])
+msg = refused(lambda: undo_group(UCtx, "local_admin", False, False))
+check("negative: `setup --undo local_admin` unattended without --yes changes nothing", "--yes" in msg and not calls, msg)
+with contextlib.redirect_stdout(io.StringIO()):
+    undo_group(UCtx, "local_admin", False, True)
+check("`setup --undo local_admin --yes` undoes it and records the answer as no",
+      calls == [1] and yaml.safe_load(open(os.path.join(ucfg, "consent.yaml")))["groups"]["local_admin"]["answer"]
+      == "no")
+with contextlib.redirect_stdout(io.StringIO()) as said:
+    went = check_consent(ucfg, "local_admin", lplan)
+check("declined: the step leaves the host as it is, warning what that means", went is False
+      and "no local-admin kept by OpenBao" in said.getvalue(), said.getvalue())
+open(os.path.join(la, "passwd"), "a").write("local-admin:x:1010:1010::/home/local-admin:/bin/bash\n")
+open(os.path.join(la, "group"), "w").write(
+    "root:x:0:\nwheel:x:10:\nsudo:x:27:owner,local-admin\nops:x:2000:frank\nadmin:x:115:\n")
+rows = {r["name"]: r for r in list_local_admins(lcfg, **la_files)}
+check("negative: a local-admin fabric did not make is listed and reminded of, as any other",
+      not rows["local-admin"]["managed"] and any(r["name"] == "local-admin" for r in
+                                                  local_account_reminders(lcfg, list(rows.values()))), rows["local-admin"])
+open(os.path.join(lcfg, "local-admin.json"), "w").write(json.dumps({"made": True, "version": 1}))
+rows = {r["name"]: r for r in list_local_admins(lcfg, **la_files)}
+check("the local-admin fabric made is listed as managed by OpenBao, with no reminder",
+      rows["local-admin"]["managed"] and not any(r["name"] == "local-admin" for r in
+                                                 local_account_reminders(lcfg, list(rows.values()))), rows["local-admin"])
+try:
+    approve_local_account(lcfg, "local-admin", "ea", audit=lambda *a: None, listed=list(rows.values()))
+    why = ""
+except VE as e:
+    why = str(e)
+check("negative: approving it is refused: OpenBao manages it", "managed by OpenBao" in why, why)
 
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

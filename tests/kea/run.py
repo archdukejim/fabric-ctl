@@ -17,9 +17,14 @@ import sys
 import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/kea"
-NET, SUBNET = "keatest_net", "10.254.23.0/24"
-BIND_IP, DDNS_IP = "10.254.23.30", "10.254.23.97"
+NET, SUBNET = testrun.name("keatest_net"), f"{testrun.PREFIX}.23.0/24"      # per run (manual 3.1.2.6)
+KT_DHCP4, KT_DDNS, KT_BIND = testrun.name("kt-dhcp4"), testrun.name("kt-ddns"), testrun.name("kt-bind")
+KT_C1, KT_C2, KT_C3, KT_BOOT = (testrun.name(f"kt-{n}") for n in ("c1", "c2", "c3", "boot"))
+KEA_IMAGE, BIND_IMAGE = "fabric/kea:" + testrun.name("test"), "fabric/bind9:" + testrun.name("keatest")
+BIND_IP, DDNS_IP = f"{testrun.PREFIX}.23.30", f"{testrun.PREFIX}.23.97"
 FAILED = 0
 sys.path[0:0] = [os.path.join(REPO, "src"), REPO]
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
@@ -56,8 +61,8 @@ def until(pred, timeout=60):
 
 
 def cleanup():
-    sh("docker rm -f kt-dhcp4 kt-ddns kt-bind kt-c1 kt-c2 kt-c3 kt-boot >/dev/null 2>&1", ok=False)
-    sh(f"docker network rm {NET} >/dev/null 2>&1", ok=False)
+    testrun.remove("container", KT_DHCP4, KT_DDNS, KT_BIND, KT_C1, KT_C2, KT_C3, KT_BOOT)   # this run's only
+    testrun.remove("network", NET)
 
 
 cleanup()
@@ -69,7 +74,7 @@ DEBIAN, BUSYBOX = lock["debian"]["ref"], \
 k = pkgs["kea"]
 
 # ------------------------------------------------------------------ images
-build = sh(["docker", "build", "-q", "-t", "fabric/kea:test", "--build-arg", f"BASE_IMAGE={DEBIAN}",
+build = sh(["docker", "build", "-q", "-t", KEA_IMAGE, "--build-arg", f"BASE_IMAGE={DEBIAN}",
             "--build-arg", f"KEA_VERSION={k['version']}", "--build-arg", f"KEA_REPO={k['repo']}",
             "--build-arg", f"KEA_SUITE={k['suite']}", "--build-arg", f"KEA_KEY_URL={k['key_url']}",
             "--build-arg", f"KEA_KEY_FINGERPRINT={k['key_fingerprint']}", f"{REPO}/packaging/images/kea"], ok=False)
@@ -81,23 +86,23 @@ bad = sh(["docker", "build", "-q", "--build-arg", f"BASE_IMAGE={DEBIAN}", "--bui
           f"{REPO}/packaging/images/kea"], ok=False)
 check("the build refuses a repository key that is not the pinned one", bad.returncode != 0
       and "is not the pinned" in bad.stderr + bad.stdout, bad.stderr[-300:])
-version = sh("docker run --rm --entrypoint /usr/sbin/kea-dhcp4 fabric/kea:test -V", ok=False).stdout
+version = sh(f"docker run --rm --entrypoint /usr/sbin/kea-dhcp4 {KEA_IMAGE} -V", ok=False).stdout
 check("Kea 3.0 LTS inside (the pinned version)", version.startswith("3.0."), version[:80])
-sh(["docker", "build", "-q", "-t", "fabric/bind9:keatest", "--build-arg", f"BASE_IMAGE={DEBIAN}",
+sh(["docker", "build", "-q", "-t", BIND_IMAGE, "--build-arg", f"BASE_IMAGE={DEBIAN}",
     f"{REPO}/packaging/images/bind9"])
 
 # ------------------------------------------------------------------ fabric's files
 V = {"deploy_base_dir": W, "domain": "lan.test", "install_kea": True, "ip_kea_ddns": DDNS_IP, "ip_bind9": BIND_IP,
-     "host_ip": BIND_IP, "service_users": {"kea": {"uid": 915, "gid": 915}}, "image_kea": "fabric/kea:test",
+     "host_ip": BIND_IP, "service_users": {"kea": {"uid": 915, "gid": 915}}, "image_kea": KEA_IMAGE,
      "dhcp": {"interfaces": ["eth0"], "lease_time": 3600,
               "options": [{"name": "time-offset", "data": "3600"}],
               # network boot for clients that say they are "fabricboot" (option 60): next-server, file, TFTP name
               "client_classes": [{"name": "boot-test", "test": "substring(option[60].hex,0,10) == 'fabricboot'",
-                                  "next_server": "10.254.23.30", "boot_file_name": "ipxe.efi",
-                                  "options": [{"name": "tftp-server-name", "data": "10.254.23.30"}]}],
+                                  "next_server": f"{testrun.PREFIX}.23.30", "boot_file_name": "ipxe.efi",
+                                  "options": [{"name": "tftp-server-name", "data": f"{testrun.PREFIX}.23.30"}]}],
               "subnets": [{"subnet": SUBNET, "name": "lab", "vlan": 23, "notes": "the test bridge", "id": 7,
-                           "pools": ["10.254.23.100 - 10.254.23.150"], "routers": "10.254.23.1",
-                           "reservations": [{"mac": "02:00:00:00:00:42", "ip": "10.254.23.42",
+                           "pools": [f"{testrun.PREFIX}.23.100 - {testrun.PREFIX}.23.150"], "routers": f"{testrun.PREFIX}.23.1",
+                           "reservations": [{"mac": "02:00:00:00:00:42", "ip": f"{testrun.PREFIX}.23.42",
                                              "hostname": "printer"}]}]}}
 V["dhcp"] = normalize_dhcp(V)
 V["dhcp_reverse_zones"] = dhcp_reverse_zones(V)          # as check_settings sets it (2.1.10.7)
@@ -110,7 +115,7 @@ check("Kea's configs, lease and socket folders, and the DHCP subzone file writte
 cfg4 = open(f"{W}/kea/config/kea-dhcp4.conf").read()
 # covers: setting:dhcp +
 check("Kea checked them first (kea-dhcp4 -t) and accepted: options, a client class, the subnet's id, name, VLAN",
-      check_kea_config("fabric/kea:test", "kea-dhcp4.conf", cfg4) is True and '"id": 7' in cfg4
+      check_kea_config(KEA_IMAGE, "kea-dhcp4.conf", cfg4) is True and '"id": 7' in cfg4
       and '"vlan": 23' in cfg4 and '"boot-test"' in cfg4)
 bad_v = {**V, "dhcp": normalize_dhcp({**V, "dhcp": {**V["dhcp"], "options": [{"name": "no-such-option", "data": "1"}]}})}
 try:
@@ -122,7 +127,7 @@ except ValidationError as e:
 check("an option Kea does not know is refused by Kea's own check, and nothing is written",
       "Kea refused" in refused and open(f"{W}/kea/config/kea-dhcp4.conf").read() == cfg4, refused[-300:])
 try:                                                  # ip_kea_ddns: Kea's own check refuses what is no address
-    deploy_kea({**V, "ip_kea_ddns": "10.254.23.300"}, {"kea_ddns_secret": secret}, env, 53, 53)
+    deploy_kea({**V, "ip_kea_ddns": f"{testrun.PREFIX}.23.300"}, {"kea_ddns_secret": secret}, env, 53, 53)
     refused = ""
 except ValidationError as e:
     refused = str(e)
@@ -151,10 +156,10 @@ open(f"{W}/bind9/config/named.conf", "w").write(
 sh(f"chown -R 53:53 {W}/bind9/data")
 
 # ------------------------------------------------------------------ containers
-sh(f"docker network create --subnet {SUBNET} --gateway 10.254.23.1 {NET}")
-sh(f"docker run -d --name kt-bind --network {NET} --ip {BIND_IP} --user 53:53 --cap-drop ALL "
+testrun.create_network(NET, SUBNET, f"{testrun.PREFIX}.23.1")
+sh(f"docker run -d --name {KT_BIND} --label {testrun.LABEL} --network {NET} --ip {BIND_IP} --user 53:53 --cap-drop ALL "
    f"-v {W}/bind9/config:/etc/bind:ro -v {W}/bind9/data:/var/lib/bind --tmpfs /var/cache/bind:uid=53,gid=53 "
-   f"--tmpfs /run/named:uid=53,gid=53 fabric/bind9:keatest")
+   f"--tmpfs /run/named:uid=53,gid=53 {BIND_IMAGE}")
 # production runs kea-dhcp4 in the host network; here it serves the test bridge's eth0,
 # with the command from fabric's compose template
 import shlex  # noqa: E402
@@ -165,23 +170,23 @@ KEA_CMD, KEA_MEM = COMPOSE["kea-dhcp4"]["command"], COMPOSE["kea-dhcp4"]["mem_li
 
 
 def start_dhcp4():
-    sh(f"docker run -d --name kt-dhcp4 --network {NET} --ip 10.254.23.2 --read-only --memory {KEA_MEM} "
+    sh(f"docker run -d --name {KT_DHCP4} --label {testrun.LABEL} --network {NET} --ip {testrun.PREFIX}.23.2 --read-only --memory {KEA_MEM} "
        f"--security-opt no-new-privileges:true --cap-drop ALL --cap-add NET_RAW --cap-add NET_BIND_SERVICE --tmpfs /tmp "
        f"-v {W}/kea/config:/config:ro -v {W}/kea/leases:/var/lib/kea -v {W}/kea/run:/run/kea "
-       f"fabric/kea:test {shlex.join(KEA_CMD)}")
+       f"{KEA_IMAGE} {shlex.join(KEA_CMD)}")
 
 
 start_dhcp4()
-sh(f"docker run -d --name kt-ddns --network {NET} --ip {DDNS_IP} --user 915:915 --read-only "
+sh(f"docker run -d --name {KT_DDNS} --label {testrun.LABEL} --network {NET} --ip {DDNS_IP} --user 915:915 --read-only "
    f"--security-opt no-new-privileges:true --cap-drop ALL --tmpfs /tmp --tmpfs /run/kea:uid=915,gid=915 "
-   f"-v {W}/kea/config:/config:ro fabric/kea:test /usr/sbin/kea-dhcp-ddns -c /config/kea-dhcp-ddns.conf")
+   f"-v {W}/kea/config:/config:ro {KEA_IMAGE} /usr/sbin/kea-dhcp-ddns -c /config/kea-dhcp-ddns.conf")
 check("kea-dhcp4 runs and creates its control socket", until(lambda: os.path.exists(f"{W}/kea/run/kea4-ctrl-socket")),
-      sh("docker logs kt-dhcp4", ok=False).stdout[-800:] + sh("docker logs kt-dhcp4", ok=False).stderr[-800:])
+      sh(f"docker logs {KT_DHCP4}", ok=False).stdout[-800:] + sh(f"docker logs {KT_DHCP4}", ok=False).stderr[-800:])
 
 
 def client(name, mac=None, hostname=None, vendor=None):
     """One DHCP client run; its script prints what it was given (udhcpc's environment: tftp, bootfile, siaddr…)."""
-    args = ["docker", "run", "--name", name, "--network", NET, "--cap-add", "NET_ADMIN", "--cap-add", "NET_RAW"]
+    args = ["docker", "run", "--name", name, *testrun.labels(), "--network", NET, "--cap-add", "NET_ADMIN", "--cap-add", "NET_RAW"]
     if mac:
         args += ["--mac-address", mac]
     cmd = ["udhcpc", "-i", "eth0", "-n", "-q", "-f", "-t", "5", "-s", "/tmp/s", "-O", "tftp", "-O", "timezone"]
@@ -197,8 +202,8 @@ def client(name, mac=None, hostname=None, vendor=None):
     return got[-1] if got else None, text
 
 
-ip1, out1 = client("kt-c1", "02:00:00:00:00:11", "laptop1")
-check("a client gets an address from the pool", ip1 is not None and ip1.startswith("10.254.23.1"), out1[-400:])
+ip1, out1 = client(KT_C1, "02:00:00:00:00:11", "laptop1")
+check("a client gets an address from the pool", ip1 is not None and ip1.startswith(f"{testrun.PREFIX}.23.1"), out1[-400:])
 
 
 def dig(name):
@@ -207,7 +212,7 @@ def dig(name):
 
 check("its hostname is registered in the DHCP subzone (Kea DDNS -> BIND, kea-ddns key)",
       until(lambda: dig("laptop1.dhcp.lan.test") == ip1, 30),
-      (dig("laptop1.dhcp.lan.test"), sh("docker logs kt-ddns", ok=False).stdout[-600:]))
+      (dig("laptop1.dhcp.lan.test"), sh(f"docker logs {KT_DDNS}", ok=False).stdout[-600:]))
 cfg_ddns = open(f"{W}/kea/config/kea-dhcp-ddns.conf").read()
 # covers: setting:ip_kea_ddns +
 check("ip_kea_ddns is where kea-ddns runs (compose) and listens, and where kea-dhcp4 sends its updates",
@@ -216,23 +221,23 @@ check("ip_kea_ddns is where kea-ddns runs (compose) and listens, and where kea-d
       and dig("laptop1.dhcp.lan.test") == ip1, (COMPOSE["kea-ddns"]["networks"], cfg_ddns[:300]))
 check("every client gets the global option (time-offset 3600 s), no boot settings",
       "timezone=3600" in out1 and "tftp=" not in out1, out1[-400:])
-ipb, outb = client("kt-boot", "02:00:00:00:00:31", vendor="fabricboot-x86")
+ipb, outb = client(KT_BOOT, "02:00:00:00:00:31", vendor="fabricboot-x86")
 check("a client in the boot class gets next-server, the boot file and the TFTP server option",
-      ipb is not None and "siaddr=10.254.23.30" in outb and "boot_file=ipxe.efi" in outb
-      and "tftp=10.254.23.30" in outb, outb[-500:])
-ip2, out2 = client("kt-c2", "02:00:00:00:00:42")
-check("a reserved MAC gets its fixed address", ip2 == "10.254.23.42", out2[-400:])
+      ipb is not None and f"siaddr={testrun.PREFIX}.23.30" in outb and "boot_file=ipxe.efi" in outb
+      and f"tftp={testrun.PREFIX}.23.30" in outb, outb[-500:])
+ip2, out2 = client(KT_C2, "02:00:00:00:00:42")
+check("a reserved MAC gets its fixed address", ip2 == f"{testrun.PREFIX}.23.42", out2[-400:])
 check(f"the lease's PTR is registered too, in fabric's reverse zone {REV} (2.1.10.7)",
       until(lambda: sh(["dig", "+short", f"@{BIND_IP}", "-x", ip1], ok=False).stdout.strip()
             == "laptop1.dhcp.lan.test.", 30), (sh(["dig", "+short", f"@{BIND_IP}", "-x", ip1], ok=False).stdout,
-                                               sh("docker logs kt-ddns", ok=False).stdout[-600:]))
-ip3, out3 = client("kt-c3", "02:00:00:00:00:13", "laptop1")
+                                               sh(f"docker logs {KT_DDNS}", ok=False).stdout[-600:]))
+ip3, out3 = client(KT_C3, "02:00:00:00:00:13", "laptop1")
 time.sleep(3)
 check("another client asking for the same name cannot take it over (DHCID)", ip3 and ip3 != ip1
       and dig("laptop1.dhcp.lan.test") == ip1, (ip3, dig("laptop1.dhcp.lan.test")))
 leases = list_leases(V)
 check("lease list over the control socket shows the clients", any(lease["ip"] == ip1 and lease["hostname"].startswith("laptop1")
-      for lease in leases) and any(lease["ip"] == "10.254.23.42" for lease in leases), leases)
+      for lease in leases) and any(lease["ip"] == f"{testrun.PREFIX}.23.42" for lease in leases), leases)
 evil = sh(f"printf 'server {BIND_IP}\\nzone lan.test\\nupdate add evil.lan.test 60 A 1.2.3.4\\nsend\\n' "
           f"| nsupdate -y hmac-sha256:kea-ddns:{secret} 2>&1", ok=False).stdout
 check("the key may not touch anything but the DHCP subzone", "REFUSED" in evil or "NOTAUTH" in evil, evil[-300:])
@@ -249,17 +254,17 @@ def leases_or_none():
 
 
 # a new container over the same run folder (restart, upgrade): the old PID file must not stop it
-sh("docker rm -f kt-dhcp4")
+testrun.remove("container", KT_DHCP4)
 start_dhcp4()
 check("kea-dhcp4 starts again over the previous container's run folder; leases kept",
-      until(lambda: sh("docker inspect -f {{.State.Running}} kt-dhcp4", ok=False).stdout.strip() == "true"
+      until(lambda: sh(f"docker inspect -f {{{{.State.Running}}}} {KT_DHCP4}", ok=False).stdout.strip() == "true"
             and os.path.exists(f"{W}/kea/run/kea4-ctrl-socket") and time.sleep(3) is None
-            and sh("docker inspect -f {{.State.Running}} kt-dhcp4", ok=False).stdout.strip() == "true"
+            and sh(f"docker inspect -f {{{{.State.Running}}}} {KT_DHCP4}", ok=False).stdout.strip() == "true"
             and any(lease["ip"] == ip1 for lease in leases_or_none())),
-      sh("docker logs kt-dhcp4", ok=False).stderr[-600:])
+      sh(f"docker logs {KT_DHCP4}", ok=False).stderr[-600:])
 
-insp = {c: json.loads(sh(f"docker inspect {c}").stdout)[0] for c in ("kt-dhcp4", "kt-ddns")}
-h4, hd = insp["kt-dhcp4"]["HostConfig"], insp["kt-ddns"]["HostConfig"]
+insp = {c: json.loads(sh(f"docker inspect {c}").stdout)[0] for c in (KT_DHCP4, KT_DDNS)}
+h4, hd = insp[KT_DHCP4]["HostConfig"], insp[KT_DDNS]["HostConfig"]
 check("kea-dhcp4: only NET_RAW + NET_BIND_SERVICE, read-only, no-new-privileges",
       sorted(c.replace("CAP_", "") for c in h4.get("CapAdd") or []) == ["NET_BIND_SERVICE", "NET_RAW"]
       and h4["CapDrop"] == ["ALL"]
@@ -269,7 +274,7 @@ check("kea_mem_limit is both Kea services' memory limit, and kea-dhcp4 runs unde
       KEA_MEM == "96m" and COMPOSE["kea-ddns"]["mem_limit"] == "96m" and h4["Memory"] == 96 * 1024 * 1024,
       (KEA_MEM, h4.get("Memory")))
 check("kea-ddns: uid 915, no capabilities, read-only",
-      insp["kt-ddns"]["Config"]["User"] == "915:915" and not hd.get("CapAdd") and hd["ReadonlyRootfs"])
+      insp[KT_DDNS]["Config"]["User"] == "915:915" and not hd.get("CapAdd") and hd["ReadonlyRootfs"])
 
 
 # ------------------------------------------------------------------ commands (manual 1.10.2.5)
@@ -284,7 +289,7 @@ from fabriclib.dhcp.unset_option import unset_option  # noqa: E402
 from fabriclib.dhcp.add_client_class import add_client_class  # noqa: E402
 from fabriclib.dhcp.remove_client_class import remove_client_class  # noqa: E402
 STORE = {"vars": {"install_kea": True, "domain": "lan.test", "host_ip": BIND_IP, "ip_kea_ddns": DDNS_IP,
-                  "image_kea": "fabric/kea:test", "dhcp": {"interfaces": ["eth0"], "subnets": [
+                  "image_kea": KEA_IMAGE, "dhcp": {"interfaces": ["eth0"], "subnets": [
     {"subnet": "10.1.0.0/24", "pools": ["10.1.0.100 - 10.1.0.150"]},
     {"subnet": "10.2.0.0/24", "pools": ["10.2.0.100 - 10.2.0.150"]},
     {"subnet": "10.3.0.0/24", "pools": ["10.3.0.100 - 10.3.0.150"]}]}}}
@@ -337,7 +342,7 @@ check("options at every level and a client class are saved",
       and subnets()["10.4.0.0/24"]["options"] == [{"name": "ntp-servers", "data": "10.4.0.1"}]
       and d["client_classes"][0]["options"] == [{"name": "boot-file-name", "data": "ipxe.efi"}], d)
 cfg = env.get_template("kea/kea-dhcp4.conf.j2").render(**{**V, "dhcp": normalize_dhcp({**V, "dhcp": {**d, "interfaces": ["eth0"]}})})
-check("Kea accepts what the commands made", check_kea_config("fabric/kea:test", "kea-dhcp4.conf", cfg) is True)
+check("Kea accepts what the commands made", check_kea_config(KEA_IMAGE, "kea-dhcp4.conf", cfg) is True)
 before = copy.deepcopy(STORE["vars"])
 msg = refused(lambda: set_option("root", "no-such-option", "1", subnet="iot"))
 check("a command Kea would refuse is refused before anything is saved (the next apply stays clean)",
@@ -380,7 +385,7 @@ NO_KEA = {**V, "deploy_base_dir": f"{W}/no-such-install"}
 code, out, err = dhcp_cli(V)
 # covers: cli:dhcp +
 check("fabricctl dhcp (no subcommand) shows the status: the subnet, its name and VLAN, the reservation, the class",
-      code == 0 and "10.254.23.0/24" in out and "lab" in out and "VLAN 23" in out and "printer" in out
+      code == 0 and f"{testrun.PREFIX}.23.0/24" in out and "lab" in out and "VLAN 23" in out and "printer" in out
       and "class boot-test" in out, (code, out, err))
 code, err, same = refused_cli(V, "add-subnet", "10.9.0.0/24", "--no-apply", "--name")
 code2, _, err2 = dhcp_cli(V, "frobnicate")

@@ -3,10 +3,8 @@
 {% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
 {% macro unset(o, scope, target) %}{% if can('dhcp:write') %}<form method="post" action="/kea/options/delete" class="inline">{{ csrf() }}<input type="hidden" name="option" value="{{ o.name if o.name is defined else o.code }}"><input type="hidden" name="scope" value="{{ scope }}"><input type="hidden" name="target" value="{{ target }}"><button class="ghost">Remove</button></form>{% endif %}{% endmacro %}
 {% block body %}
-<h1>Kea · DHCP</h1>
+<h1>DHCP · Kea</h1>
 <p class="flash warn">DHCP is a preview in this release: it works as this tab shows, but it is not finished, and 0.8.0 may change it as it finishes it. It stays off unless you turn it on.</p>
-{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
-{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
 {% if not d.enabled %}
 <section class="card"><h2>DHCP is off</h2>
 <p class="muted">Kea 3.0 LTS hands out addresses on a network and registers clients' names in their own DNS zone (<code>{{ d.ddns_zone or 'dhcp.<domain>' }}</code>) and their reverse zones.</p>
@@ -32,7 +30,7 @@
 <section class="card"><h2>Subnets</h2>
 <p class="muted">Serving on {{ d.interfaces | join(', ') }} · lease {{ d.lease_time }} s{% if d.ddns_zone %} · hostnames registered in <code>{{ d.ddns_zone }}</code>{% endif %}. A VLAN here is a record of what the network is for: fabric does not configure switches.</p>
 <table><thead><tr><th>Subnet</th><th>Name</th><th>VLAN</th><th>Pools</th><th>Router</th><th>Notes</th><th>Reservations</th></tr></thead><tbody>
-{% for s in d.subnets %}<tr><td>{{ s.subnet }}</td><td>{{ s.name or '—' }}</td><td>{{ s.vlan or '—' }}</td><td>{{ (s.pools or []) | join(', ') or '—' }}</td><td>{{ s.routers or '—' }}</td><td>{{ s.notes or '' }}</td><td class="num">{{ (s.reservations or []) | length }}</td></tr>
+{% for s in d.subnets %}<tr><td data-label="Subnet">{{ s.subnet }}</td><td data-label="Name">{{ s.name or '—' }}</td><td data-label="VLAN">{{ s.vlan or '—' }}</td><td data-label="Pools">{{ (s.pools or []) | join(', ') or '—' }}</td><td data-label="Router">{{ s.routers or '—' }}</td><td data-label="Notes">{{ s.notes or '' }}</td><td class="num" data-label="Reservations">{{ (s.reservations or []) | length }}</td></tr>
 {% if can('dhcp:write') %}<tr><td colspan="7"><details><summary>Edit {{ s.name or s.subnet }}</summary>
 <form method="post" action="/kea/subnets/update" class="grid">{{ csrf() }}<input type="hidden" name="subnet" value="{{ s.subnet }}">
 <label>Name<input name="name" value="{{ s.name or '' }}" placeholder="iot"></label>
@@ -66,10 +64,10 @@
 <p class="muted">Any DHCP option — network boot (PXE), switch provisioning (ZTP), time, vendor options — for every subnet, one subnet, a client class or one reservation; the most specific wins. Kea checks every option before it is applied.</p>
 {% if d.overrides %}<p class="flash warn">Replacing fabric's own: {{ d.overrides | join(', ') }}</p>{% endif %}
 <table><thead><tr><th>Where</th><th>Option</th><th>Value</th><th></th></tr></thead><tbody>
-{% for o in d.options %}<tr><td>every subnet</td><td><code>{{ opt_name(o) }}</code></td><td>{{ o.data }}</td><td class="num">{{ unset(o, 'all', '') }}</td></tr>{% endfor %}
-{% for s in d.subnets %}{% for o in s.options or [] %}<tr><td>subnet {{ s.name or s.subnet }}</td><td><code>{{ opt_name(o) }}</code></td><td>{{ o.data }}</td><td class="num">{{ unset(o, 'subnet', s.subnet) }}</td></tr>{% endfor %}
-{% for r in s.reservations or [] %}{% for o in r.options or [] %}<tr><td>reservation {{ r.mac }}</td><td><code>{{ opt_name(o) }}</code></td><td>{{ o.data }}</td><td class="num">{{ unset(o, 'mac', r.mac) }}</td></tr>{% endfor %}{% endfor %}{% endfor %}
-{% for c in d.client_classes %}{% for o in c.options or [] %}<tr><td>class {{ c.name }}</td><td><code>{{ opt_name(o) }}</code></td><td>{{ o.data }}</td><td class="num">{{ unset(o, 'class', c.name) }}</td></tr>{% endfor %}{% endfor %}
+{% for o in d.options %}<tr><td data-label="Where">every subnet</td><td data-label="Option"><code>{{ opt_name(o) }}</code></td><td data-label="Value">{{ o.data }}</td><td class="num">{{ unset(o, 'all', '') }}</td></tr>{% endfor %}
+{% for s in d.subnets %}{% for o in s.options or [] %}<tr><td data-label="Where">subnet {{ s.name or s.subnet }}</td><td data-label="Option"><code>{{ opt_name(o) }}</code></td><td data-label="Value">{{ o.data }}</td><td class="num">{{ unset(o, 'subnet', s.subnet) }}</td></tr>{% endfor %}
+{% for r in s.reservations or [] %}{% for o in r.options or [] %}<tr><td data-label="Where">reservation {{ r.mac }}</td><td data-label="Option"><code>{{ opt_name(o) }}</code></td><td data-label="Value">{{ o.data }}</td><td class="num">{{ unset(o, 'mac', r.mac) }}</td></tr>{% endfor %}{% endfor %}{% endfor %}
+{% for c in d.client_classes %}{% for o in c.options or [] %}<tr><td data-label="Where">class {{ c.name }}</td><td data-label="Option"><code>{{ opt_name(o) }}</code></td><td data-label="Value">{{ o.data }}</td><td class="num">{{ unset(o, 'class', c.name) }}</td></tr>{% endfor %}{% endfor %}
 </tbody></table>
 {% if can('dhcp:write') %}<form method="post" action="/kea/options" class="grid">{{ csrf() }}
 <label>Where<select name="scope"><option value="all">every subnet</option><option value="subnet">a subnet</option><option value="class">a client class</option><option value="mac">a reservation</option></select></label>
@@ -83,7 +81,7 @@
 <section class="card"><h2>Client classes</h2>
 <p class="muted">Clients matched by a Kea expression get their own options and network-boot settings, e.g. UEFI PXE: <code>option[93].hex == 0x0007</code>.</p>
 {% if d.client_classes %}<table><thead><tr><th>Class</th><th>Test</th><th>Next server</th><th>Boot file</th><th></th></tr></thead><tbody>
-{% for c in d.client_classes %}<tr><td>{{ c.name }}</td><td><code>{{ c.test }}</code></td><td>{{ c.next_server or '—' }}</td><td>{{ c.boot_file_name or '—' }}</td>
+{% for c in d.client_classes %}<tr><td data-label="Class">{{ c.name }}</td><td data-label="Test"><code>{{ c.test }}</code></td><td data-label="Next server">{{ c.next_server or '—' }}</td><td data-label="Boot file">{{ c.boot_file_name or '—' }}</td>
 <td class="num">{% if can('dhcp:write') %}<form method="post" action="/kea/classes/{{ c.name | urlencode }}/delete">{{ csrf() }}<button class="ghost">Remove</button></form>{% endif %}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">No client classes.</p>{% endif %}
 {% if can('dhcp:write') %}<details><summary>Add a client class</summary>
@@ -98,7 +96,7 @@
 
 <section class="card"><h2>Reservations</h2>
 <table><thead><tr><th>MAC</th><th>Address</th><th>Hostname</th><th></th></tr></thead><tbody>
-{% for s in d.subnets %}{% for r in s.reservations or [] %}<tr><td><code>{{ r.mac }}</code></td><td>{{ r.ip }}</td><td>{{ r.hostname or '—' }}</td>
+{% for s in d.subnets %}{% for r in s.reservations or [] %}<tr><td data-label="MAC"><code>{{ r.mac }}</code></td><td data-label="Address">{{ r.ip }}</td><td data-label="Hostname">{{ r.hostname or '—' }}</td>
 <td class="num">{% if can('dhcp:write') %}<form method="post" action="/kea/reservations/{{ r.mac | urlencode }}/delete">{{ csrf() }}<button class="ghost">Remove</button></form>{% endif %}</td></tr>{% endfor %}{% endfor %}
 </tbody></table>
 {% if can('dhcp:write') %}<form method="post" action="/kea/reservations" class="grid">{{ csrf() }}
@@ -112,7 +110,7 @@
 <section class="card"><h2>Leases <span class="muted">{{ d.leases | length }}</span></h2>
 {% if d.leases_error %}<p class="flash warn">{{ d.leases_error }}</p>{% endif %}
 {% if d.leases %}<table><thead><tr><th>Address</th><th>MAC</th><th>Hostname</th><th>Expires</th><th>State</th></tr></thead><tbody>
-{% for l in d.leases %}<tr><td>{{ l.ip }}</td><td><code>{{ l.mac }}</code></td><td>{{ l.hostname or '—' }}</td><td>{{ l.expires }}</td><td>{{ l.state }}</td></tr>{% endfor %}
+{% for l in d.leases %}<tr><td data-label="Address">{{ l.ip }}</td><td data-label="MAC"><code>{{ l.mac }}</code></td><td data-label="Hostname">{{ l.hostname or '—' }}</td><td data-label="Expires">{{ l.expires }}</td><td data-label="State">{{ l.state }}</td></tr>{% endfor %}
 </tbody></table>{% elif not d.leases_error %}<p class="blank">No leases yet.</p>{% endif %}
 </section>
 {% endif %}

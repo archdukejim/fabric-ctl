@@ -22,19 +22,29 @@
                                  DHCP (optional Kea): subnets, leases, reservations, options, client classes
   fabricctl radius status|log|add-client|rotate-secret|remove-client
                                  802.1X (optional FreeRADIUS): RADIUS clients, decisions
-  fabricctl domain status|password-policy|add-machine|logon
+  fabricctl domain status|password-policy|add-machine|sort-machines|host-managed|grant
                                  the domain (Samba AD): its DC, roles, password policy, machines to join,
-                                 who may sign in to them (per OU)
+                                 sorting the machines that joined themselves, this host's management, the
+                                 grants (who may do what, where)
+  fabricctl admin reset-break-glass
+                                 fabric-admin's lost password replaced, the account unlocked (writable DC)
+  fabricctl host accounts list|approve|unapprove <name>
+                                 this host's local root and administrator accounts; approved as break glass
+  fabricctl local-admin status|checkout|policy|ssh|check
+                                 this host's local-admin, set and kept by OpenBao: its password checked out,
+                                 its rotation, local-admin over SSH (off by default)
   fabricctl people list|show|add|reset|disable|enable|remove|groups|group
                                  the site's people: sign-in, groups, removal (fabricctl people --help)
   fabricctl machines groups|group
-                                 the site's host groups: groups of machines for sudo rules and log-on
+                                 the site's host groups: groups of machines for sudo rules
   fabricctl sudo list|add|remove the site's sudo rules on its Linux machines: who, which commands, where
   fabricctl gpo load|templates|list|show|set|clear|starter
                                  Group Policy from ADMX templates for this site's machines and people
   fabricctl sso add|list|remove  apps (Proxmox VE, TrueNAS, …) signing people in through Keycloak
   fabricctl security [raise|lower|kerberos]
                                  sign-in layers: second factors, the web console's client certificate
+  fabricctl settings export|import
+                                 the setup wizard's settings as a file: export [FILE], import FILE [--yes]
   fabricctl federation status|enable|disable|invite|invitations|revoke|networks
                                  sites joining this install (setup --join on the new site)
   fabricctl vault status         OpenBao: sealed?, version, seal key, secret engines
@@ -78,6 +88,9 @@ from fabriclib.dns.run_acl_command import run_acl_command  # noqa: E402
 from fabriclib.dns_filter.run_dns_filter_command import run_dns_filter_command  # noqa: E402
 from fabriclib.radius.run_radius_command import run_radius_command  # noqa: E402
 from fabriclib.samba.run_domain_command import run_domain_command  # noqa: E402
+from fabriclib.breakglass.run_admin_command import run_admin_command  # noqa: E402
+from fabriclib.hostaccounts.run_host_command import run_host_command  # noqa: E402
+from fabriclib.localadmin.run_local_admin_command import run_local_admin_command  # noqa: E402
 from fabriclib.directory.run_people_command import run_people_command  # noqa: E402
 from fabriclib.directory.run_machines_command import run_machines_command  # noqa: E402
 from fabriclib.directory.run_sudo_command import run_sudo_command  # noqa: E402
@@ -85,6 +98,7 @@ from fabriclib.samba.run_gpo_command import run_gpo_command  # noqa: E402
 from fabriclib.dns.run_tsig_command import run_tsig_command  # noqa: E402
 from fabriclib.keycloak.run_sso_command import run_sso_command  # noqa: E402
 from fabriclib.security.run_security_command import run_security_command  # noqa: E402
+from fabriclib.settings.run_settings_command import run_settings_command  # noqa: E402
 from fabriclib.federation.run_federation_command import run_federation_command  # noqa: E402
 from fabriclib.images.run_images_command import run_images_command  # noqa: E402
 from fabriclib.logs.run_logs_command import run_logs_command  # noqa: E402
@@ -227,6 +241,14 @@ def main(argv):
         return run_radius_command(SetupContext(deploy_base=_base(args)).load_state().vars, args)
     if cmd == "domain":
         return run_domain_command(SetupContext(deploy_base=_base(args)).load_state().vars, args)
+    if cmd == "admin":
+        ctx = SetupContext(deploy_base=_base(args))
+        return run_admin_command(ctx.load_state().vars, _without_base(args), ctx.config_dir)
+    if cmd == "host":
+        return run_host_command(SetupContext(deploy_base=_base(args)).config_dir, _without_base(args))
+    if cmd == "local-admin":
+        ctx = SetupContext(deploy_base=_base(args))
+        return run_local_admin_command(ctx.load_state().vars, ctx.config_dir, _without_base(args))
     if cmd == "people":
         return run_people_command(SetupContext(deploy_base=_base(args)).load_state().vars, _without_base(args))
     if cmd == "machines":
@@ -279,6 +301,8 @@ def main(argv):
         return run_sso_command(args)
     if cmd == "security":
         return run_security_command(args)
+    if cmd == "settings":
+        return run_settings_command(_without_base(args))
     if cmd == "acl":
         return run_acl_command(args)
     if cmd == "restore":

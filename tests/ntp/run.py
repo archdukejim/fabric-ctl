@@ -16,11 +16,14 @@ import time
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/ntp"
-NET_A, SUB_A, SRV_A = "ntp_test_lan", "10.254.46.0/24", "10.254.46.10"
-NET_B, SUB_B, SRV_B = "ntp_test_other", "10.254.47.0/24", "10.254.47.10"
-SITE_IP = "10.254.46.20"
-IMAGE = "fabric/chrony:test"
+NET_A, SUB_A, SRV_A = testrun.name("ntp_test_lan"), f"{testrun.PREFIX}.46.0/24", f"{testrun.PREFIX}.46.10"
+NET_B, SUB_B, SRV_B = testrun.name("ntp_test_other"), f"{testrun.PREFIX}.47.0/24", f"{testrun.PREFIX}.47.10"
+SITE_IP = f"{testrun.PREFIX}.46.20"
+IMAGE = "fabric/chrony:" + testrun.name("test")
+NTP_SRV, NTP_SITE = testrun.name("ntp-srv"), testrun.name("ntp-site")      # per run (manual 3.1.2.6)
 FAILED = 0
 
 
@@ -69,10 +72,8 @@ lock = read_images_lock(os.path.join(REPO, "config"))
 
 
 def cleanup():
-    for c in ("ntp-srv", "ntp-site"):
-        sh(["docker", "rm", "-f", c], ok=False)
-    for n in (NET_A, NET_B):
-        sh(["docker", "network", "rm", n], ok=False)
+    testrun.remove("container", NTP_SRV, NTP_SITE)      # this run's only
+    testrun.remove("network", NET_A, NET_B)
 
 
 # --- settings: what must be refused, and the upstream site first
@@ -153,17 +154,17 @@ with open(os.path.join(build, "Dockerfile"), "w") as f:
             "RUN apt-get update && apt-get install -y --no-install-recommends chrony python3-minimal "
             "&& rm -rf /var/lib/apt/lists/* && mkdir -p /run/chrony /var/log/chrony\n")
 sh(["docker", "build", "-q", "-t", IMAGE, build])
-sh(["docker", "network", "create", "--subnet", SUB_A, NET_A])
-sh(["docker", "network", "create", "--subnet", SUB_B, NET_B])
+testrun.create_network(NET_A, SUB_A)
+testrun.create_network(NET_B, SUB_B)
 try:
-    sh(["docker", "run", "-d", "--name", "ntp-srv", "--network", NET_A, "--ip", SRV_A,
+    sh(["docker", "run", "-d", "--name", NTP_SRV, *testrun.labels(), "--network", NET_A, "--ip", SRV_A,
         "-v", f"{srv_root}/etc/chrony:/etc/chrony:ro", "-v", f"{REPO}/src:/fabric-lib:ro",
         IMAGE, "chronyd", "-d", "-x", "-f", "/etc/chrony/chrony.conf"])
-    sh(["docker", "network", "connect", "--ip", SRV_B, NET_B, "ntp-srv"])
+    sh(["docker", "network", "connect", "--ip", SRV_B, NET_B, NTP_SRV])
     status = {}
 
     def srv_status():
-        status.update(json.loads(py("ntp-srv", "import json; from fabriclib.ntp.time_status import time_status; "
+        status.update(json.loads(py(NTP_SRV, "import json; from fabriclib.ntp.time_status import time_status; "
                                                "print(json.dumps(time_status()))") or "{}"))
         return "local" in status
     until(srv_status, 30)
@@ -180,21 +181,21 @@ try:
     check("query_time: a network that is not allowed gets no answer", refused == "None", refused)
 
     # a second site whose upstream is the first: it syncs from it
-    sh(["docker", "run", "-d", "--name", "ntp-site", "--network", NET_A, "--ip", SITE_IP,
+    sh(["docker", "run", "-d", "--name", NTP_SITE, *testrun.labels(), "--network", NET_A, "--ip", SITE_IP,
         "-v", f"{site_root}/etc/chrony:/etc/chrony:ro", "-v", f"{REPO}/src:/fabric-lib:ro",
         IMAGE, "chronyd", "-d", "-x", "-f", "/etc/chrony/chrony.conf"])
     site = {}
 
     def site_synced():
         site.clear()
-        site.update(json.loads(py("ntp-site", "import json; from fabriclib.ntp.time_status import time_status; "
+        site.update(json.loads(py(NTP_SITE, "import json; from fabriclib.ntp.time_status import time_status; "
                                               "print(json.dumps(time_status()))") or "{}"))
         return site.get("synced")
     check("a site syncs from its upstream site (federation hierarchy)",
           until(site_synced, 90) and site.get("source") == SRV_A and site.get("stratum") == 11, site)
 finally:
     if FAILED:
-        print(sh(["docker", "logs", "--tail", "30", "ntp-srv"], ok=False).stderr)
+        print(sh(["docker", "logs", "--tail", "30", NTP_SRV], ok=False).stderr)
     cleanup()
 
 print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")

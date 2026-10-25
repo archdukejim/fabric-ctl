@@ -6,7 +6,7 @@ from fabriclib.federation.common.load_registry import load_registry
 
 def is_root_site(registry_path=FEDERATION_FILE):
     """Purpose: whether this install is the root site (standalone, or the top of a federation): it holds the
-             organisation's part of the domain (OU=organisation, the domain-wide policies) and creates the first admin.
+             domain-wide parts (the root policy, fabric's fixed groups) and creates the first admin.
     Inputs:  registry_path — the federation registry (default this install's config/federation.yaml).
     Returns: True when this install has no upstream site.
     Fails:   yaml/OSError from load_registry for a malformed registry.

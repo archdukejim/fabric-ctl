@@ -9,6 +9,12 @@ and import as `fabriclib.<domain>.<file>`.
 | [common/](common/) | Shared helpers: paths, vars file, locking, audit log, errors |
 | [dns/](dns/) | DNS zones and records in `vars.yaml` (validated), zone sync status |
 | [system/](system/) | Version, service status, apply |
+| [breakglass/](breakglass/) | `fabric-admin`, the Enterprise Admin and break glass: its generated password, its one file, the reminder, the reset |
+| [hostaccounts/](hostaccounts/) | A DC host's local root and administrator accounts: listed, reminded of, approved as break glass |
+| [localadmin/](localadmin/) | The fabric host's local-admin: its password set and kept by OpenBao, rotated after use, checked out, SSH switch |
+| [grants/](grants/) | Grants: who may do what, where, by overlapping groups; compiled into groups, GPOs and sudo rules inside the DC (manual 1.6.13) |
+| [access/](access/) | fabric-agent's check of who may do what: the tiers, the grants' people and machines rights, a group's two levels; decided inside the DC (manual 1.6.12.17) |
+| [domain/](domain/) | Domain management: a person's details and lockout, groups and their managers, the admins' OUs, a computer's folder, type and sites, keytabs, Kerberos, a person's own password (manual 1.6.12.17) |
 | [setup/](setup/) | `fabricctl setup`, `doctor`, `uninstall`, `reinstall` — the installer |
 | [consent/](consent/) | Asking before fabric changes the host: the change groups, the questions, the recorded answers |
 | [undo/](undo/) | Reverting a host change fabric made: `setup --undo GROUP`, and what uninstall does with each |
@@ -28,6 +34,7 @@ and import as `fabriclib.<domain>.<file>`.
 | [menu/](menu/) | The vars editor (`fabricctl --interactive`), `--print` and `--apply` — `lib/interactive.py` is their entry point |
 | [deploy/](deploy/) | The deploy engine (apply): secrets, settings, render, install, restart — `lib/deploy.py` is its entry point |
 | [ntp/](ntp/) | Time: chrony on the host, serving the network, its settings and checks |
+| [settings/](settings/) | The setup wizard's settings (manual 1.8.5): read, check, plan and apply them; the settings file, `fabricctl settings` |
 | [federation/](federation/) | Sites: the site-name rule; invitations, joining and the federation endpoint as they are built |
 
 `cli.py` routes the `fabricctl` commands implemented here (setup, doctor, uninstall, reinstall, certs, tsig, acl,

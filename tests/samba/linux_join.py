@@ -1,11 +1,13 @@
 """The `samba` suite, Linux machines joining AD (manual 1.6.7, 1.6.5.19, S6): real Ubuntu 24.04 and 26.04
 containers run fabric's join-linux.sh as rendered against a converged test DC. Proves: the installer refuses a wrong
-root-CA fingerprint and changes nothing; a join with a site admin's password and one with a one-time join password
-(`fabricctl domain add-machine`); `id` with fabric's own ids; a password logon through PAM and a Kerberos ticket;
-sudo for a site admin (2.1.9.13's rule) and none for a person; a person of another site refused by the site's log-on
-GPO; cached logons with the DC stopped; then a log-on policy on OU=machines (manual 1.6.11.4) naming a group adam is in
-and alice is not: adam logs on, alice is refused; and a sudo rule on a host group (1.6.11.7) holding the 24.04 machine:
-it applies there and not on the 26.04 one. The containers have no systemd: a stand-in `systemctl` starts sssd.
+root-CA fingerprint and changes nothing; a join with a Directory Administrator's password (`--type server|desktop`:
+the type's OU and group, and the site's group, 1.6.13.3) and one with a one-time join password (`fabricctl domain
+add-machine`); the refusals of a type it does not take and a site the domain does not have; `id` with fabric's own ids;
+a password logon through PAM and a Kerberos ticket; who signs in from the shipped grants (1.6.13.5): at a server its
+administrators (sudo of every command there) and nobody else, a person of another site and the Directory
+Administrator refused; at a desktop every person, with no sudo;
+cached logons with the DC stopped; and a sudo rule on a host group (1.6.11.7) holding the 24.04 machine: it applies
+there and not on the 26.04 one. The containers have no systemd: a stand-in `systemctl` starts sssd.
     sudo python3 tests/samba/linux_join.py
 """
 import json
@@ -15,22 +17,25 @@ import sys
 import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__)), os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
+from start_dc import IMAGE as SAMBA_IMAGE  # noqa: E402
 from start_dc import POLICY, start_dc  # noqa: E402
 import fabriclib.directory.add_machine as m_add_machine  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
-from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
+import fabriclib.grants.sync_grants as m_sync  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-linux-join")
-NET, SUBNET, IP, WEB_IP = "linuxjoin_net", "10.254.33.0/24", "10.254.33.10", "10.254.33.20"
-DC, WEB = "ljdc", "lj-certs"
+NET, SUBNET, IP, WEB_IP = testrun.name("linuxjoin_net"), f"{testrun.PREFIX}.33.0/24", f"{testrun.PREFIX}.33.10", f"{testrun.PREFIX}.33.20"
+DC, WEB = testrun.name("ljdc"), testrun.name("lj-certs")      # per run (manual 3.1.2.6)
 # release -> (container image, machine name): Ubuntu, and Debian (what Proxmox VE 8 and 9 are built on)
 IMAGES = {"24.04": "ubuntu:24.04", "26.04": "ubuntu:26.04", "debian-12": "debian:12", "debian-13": "debian:13"}
 RELEASES = {"24.04": "ws2404", "26.04": "ws2604", "debian-12": "wsdeb12", "debian-13": "wsdeb13"}
 PW = "Correct-Horse-9-" + random_password(8)
 FAILED = 0
 m_add_machine.write_audit = lambda *a, **k: None
+m_sync.write_audit = lambda *a, **k: None
 
 
 def check(name, cond, detail=""):
@@ -57,36 +62,36 @@ def dc_healthy():
 
 
 def cleanup():
-    sh(["docker", "rm", "-f", DC, WEB, *[f"lj-{r}" for r in RELEASES.values()]], ok=False)
-    sh(["docker", "network", "rm", NET], ok=False)
+    testrun.remove("container", DC, WEB, *[testrun.name(f"lj-{r}") for r in RELEASES.values()])   # this run's only
+    testrun.remove("network", NET)
 
 
 cleanup()
 dc = start_dc(os.path.join(W, "dc"), DC, NET, SUBNET, IP)
 V, SECRETS = dc["v"], dc["secrets"]
-check("a converged DC (its site's sudo rule included)", dc_healthy())
-sudo_rule = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "(objectClass=sudoRole)",
-                "sudoUser", "sudoHost", "sudoCommand"], ok=False).stdout
-check("the site's sudo rule: its fabric-admins and, at the root, the organisation's may run anything; the console's "
-      "admin group and the old linux-sudo role are not in it (1.6.11.3, 2.1.6.37, 2.1.6.41)",
-      "sudoUser: %lan-fabric-admins" in sudo_rule and "sudoUser: %fabric-admins" in sudo_rule
-      and "sudoCommand: ALL" in sudo_rule and "%admins" not in sudo_rule and "linux-sudo" not in sudo_rule, sudo_rule)
+check("a converged DC", dc_healthy())
+sudo_rule = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "(objectClass=sudoRole)", "cn"],
+               ok=False).stdout
+check("negative: no sudo rule in the domain but the shipped grants' (the site default rule is retired, 2.1.6.80; 1.6.13.5)",
+      sorted(x.split("cn: ")[1] for x in sudo_rule.splitlines() if x.startswith("cn: ")) == [
+          "grant-desktop-administrators", "grant-network-administrators", "grant-server-administrators"], sudo_rule)
+BASE = V["ad_base_dn"]
 
-# people: alice (a person of lan), adam (a lan admin and one of its fabric-admins), lara (a person of another site, lab)
-lab = {"site": "lab", "root": False, "parent": "lan", "password_policy": POLICY, "networks": [],
-       "root_ca_pem": open(dc["root_ca"]).read(), "id_range": "200001-300000", "groups": [], "admin_group": "admins",
-       "accounts": {f"fabric-{k}-lab": random_password() for k in ("agent", "keycloak", "radius")}, "radius_gid": 610}
+# people: alice (a person of lan), adam (a Directory Administrator, 1.6.12.2), lara (a person of another site, lab)
+lab = {"site": "lab", "dc": "dc-0002", "dc_type": "writable", "root": False, "parent": "lan", "password_policy": POLICY,
+       "networks": [], "root_ca_pem": open(dc["root_ca"]).read(), "groups": [],
+       "accounts": {f"fabric-{k}-dc-0002": random_password() for k in ("agent", "keycloak", "radius")}, "radius_gid": 610}
 sh(["docker", "exec", "-i", DC, "python3", "/fabric/converge.py"], input=json.dumps(lab))
-lab_v = {**V, "site_name": "lab"}
-lab_s = {**SECRETS, "ad_agent_password": lab["accounts"]["fabric-agent-lab"]}
+lab_v = {**V, "site_name": "lab", "dc_name": "dc-0002"}
+lab_s = {**SECRETS, "ad_agent_password": lab["accounts"]["fabric-agent-dc-0002"]}
 ids = {}
 for uid, site_v, sec in (("alice", V, SECRETS), ("adam", V, SECRETS), ("lara", lab_v, lab_s)):
     made = run_op(site_v, sec, "create_person", {"uid": uid, "first": uid.title(), "last": "Test",
                                                   "email": f"{uid}@lan.test", "password": "Ot-" + random_password(20),
                                                   "gid": 5000, "home_base": "/home", "shell": "/bin/bash"}, DC)
     ids[uid] = made["uidNumber"]
-run_op(V, SECRETS, "add_group_member", {"group": "lan-admins", "uid": "adam"}, DC)
-run_op(V, SECRETS, "add_group_member", {"group": "lan-fabric-admins", "uid": "adam"}, DC)   # sudo (1.6.11.3)
+run_op(V, SECRETS, "add_group_member", {"group": "directory-admins", "uid": "adam"}, DC)
+run_op(V, SECRETS, "add_group_member", {"group": "server-admins", "uid": "alice"}, DC)     # the servers' grant
 set_pw = f"""
 import sys
 sys.path.insert(0, "/fabric")
@@ -96,15 +101,15 @@ for uid in ("alice", "adam", "lara"):          # as Keycloak's first sign-in wou
     samdb.setpassword("(sAMAccountName=%s)" % uid, {PW!r}, force_change_at_next_login=False)
 print("set")
 """
-check("people in the domain: alice and adam (lan; adam a site admin), lara (lab)",
+check("people in the domain: alice and adam (lan; adam a Directory Administrator), lara (lab)",
       "set" in sh(["docker", "exec", "-i", DC, "python3", "-"], input=set_pw, ok=False).stdout, ids)
 
 # ca.<domain>/certs/: the root CA served over plain HTTP, as nginx serves it; the join script fetches it there (1.5.1.6)
 os.makedirs(os.path.join(W, "www", "certs"), exist_ok=True)
 with open(os.path.join(W, "www", "certs", "root-ca.crt"), "w") as f:
     f.write(open(dc["root_ca"]).read())
-sh(["docker", "run", "-d", "--name", WEB, "--network", NET, "--ip", WEB_IP, "-v", f"{W}/www:/srv:ro",
-    "--entrypoint", "python3", "fabric/samba:test", "-m", "http.server", "80", "--directory", "/srv"])
+sh(["docker", "run", "-d", "--name", WEB, *testrun.labels(), "--network", NET, "--ip", WEB_IP, "-v", f"{W}/www:/srv:ro",
+    "--entrypoint", "python3", SAMBA_IMAGE, "-m", "http.server", "80", "--directory", "/srv"])
 fp = sh(["openssl", "x509", "-in", dc["root_ca"], "-noout", "-fingerprint", "-sha256"]).stdout.strip().split("=")[1]
 # as on a site with Keycloak (Kerberos sign-in on): the join also sets the browsers' policies (2.1.6.28)
 script = dc["env"].get_template("nginx/www/certs/join-linux.sh.j2").render(
@@ -137,9 +142,9 @@ hosts = [f"--add-host={V['hostname_dc']}:{IP}", f"--add-host={V['hostname_stepca
 
 
 def client(release, name):
-    box = f"lj-{name}"
-    # DAC_READ_SEARCH: what SSSD's own unit grants it (Docker's default set lacks it); the client is a test stand-in
-    sh(["docker", "run", "-d", "--name", box, "--hostname", name, "--network", NET, *hosts,
+    box = testrun.name(f"lj-{name}")
+        # DAC_READ_SEARCH: what SSSD's own unit grants it (Docker's default set lacks it); the client is a test stand-in
+    sh(["docker", "run", "-d", "--name", box, *testrun.labels(), "--hostname", name, "--network", NET, *hosts,
         "--cap-add", "DAC_READ_SEARCH",
         "-v", f"{W}/join-linux.sh:/root/join-linux.sh:ro", "-v", f"{W}/systemctl:/usr/local/sbin/systemctl:ro",
         IMAGES[release], "sleep", "infinity"])
@@ -150,48 +155,70 @@ def client(release, name):
 
 
 def logon(box, uid, password):
-    """A logon through PAM (authenticate + the account check: the log-on GPO), as login does."""
+    """A logon through PAM (authenticate + the account check), as login does."""
     return on(box, f"pamtester login {uid} authenticate acct_mgmt", stdin=password + "\n")
 
 
-def checks(box, release):
+def checks(box, release, desktop=False):
+    """The member's checks once it joined; its type's grants compiled first (the join changed groups outside fabric:
+    the fabric-grants timer's run, here at once): a server lets in its administrators (alice, in server-admins), a
+    desktop every person at the keyboard (1.6.13.5)."""
+    m_sync.sync_grants(V, "test", "timer", DC)
+    on(box, "systemctl restart sssd")              # sssd fetches the compiled rules anew (its sudo rules: else
+    time.sleep(8)                                   # its 15-minute refresh)
     code, out = on(box, "cat /etc/firefox/policies/policies.json /etc/chromium/policies/managed/fabric-sso.json "
                         f"/etc/opt/chrome/policies/managed/fabric-sso.json; grep -c '.{V['domain']} = ' /etc/krb5.conf")
     check(f"{release}: browsers may use Kerberos for {V['hostname_keycloak']} (Firefox, Chromium, Chrome); fabric's "
           "domain maps to the AD realm (2.1.6.28)", code == 0 and out.count(V["hostname_keycloak"]) == 3
           and '"SPNEGO"' in out, out)
     code, out = on(box, "id -u alice; id -u adam")
-    check(f"{release}: id gives fabric's own ids (from the site's block, not id mapping)",
+    check(f"{release}: id gives fabric's own ids (from the DC's range, not id mapping)",
           out.split() == [str(ids["alice"]), str(ids["adam"])], out)
     code, out = logon(box, "alice", PW)
-    check(f"{release}: a person of the site logs on with their domain password (PAM, log-on GPO)",
+    check(f"{release}: " + ("every person logs on at a desktop (the shipped desktops grant)" if desktop else
+                            "a server administrator (alice) logs on with their domain password (PAM, the grant)"),
           code == 0 and "successfully" in out, out)
     code, out = logon(box, "alice", "wrong-password")
     check(f"{release}: a wrong password is refused", code != 0, out)
     code, out = logon(box, "lara", PW)
-    check(f"{release}: a person of another site is refused by the site's log-on rights (GPO access control)",
-          code != 0, out)
+    if desktop:
+        check(f"{release}: a person of another site logs on at a desktop too (every person's, 2.1.6.77)",
+              code == 0 and "successfully" in out, out)
+    else:
+        check(f"negative: {release}: a person of another site, in no grant on servers, is refused (GPO access control)",
+              code != 0, out)
+        code, out = logon(box, "adam", PW)
+        check(f"negative: {release}: the Directory Administrator, in no grant on servers, is refused (1.6.13.5)",
+              code != 0, out)
     code, out = on(box, "kinit alice >/dev/null && klist", stdin=PW + "\n")
     check(f"{release}: a Kerberos ticket from the domain (kinit)", code == 0 and f"alice@{V['ad_realm']}" in out, out)
     code, out = on(box, "sudo -l -U adam; echo ---; sudo -l -U alice")
     admin, person = out.split("---", 1)
-    check(f"{release}: sudo for one of the site's fabric-admins from the site's rule, none for a person",
-          "(ALL) ALL" in admin and "not allowed" in person, out)
+    if desktop:
+        check(f"negative: {release}: no sudo at a desktop for a server administrator or the Directory Administrator",
+              "not allowed" in admin and "not allowed" in person, out)
+    else:
+        check(f"{release}: the server administrator has sudo of every command (the grant's rule); the Directory "
+              "Administrator none", "not allowed" in admin and "(root) ALL" in person, out)
 
 
-# 24.04: a wrong fingerprint refused, then a join with a site admin's password
+# 24.04: a wrong fingerprint refused, a type it does not take refused, then a join with an admin's password
 box, ok = client("24.04", RELEASES["24.04"])
 check("24.04: the client container is ready", ok)
 code, out = on(box, f"bash /root/join-linux.sh {'00' * 32} --user adam", stdin=PW + "\n")
 gone, _ = on(box, "test ! -e /usr/local/share/ca-certificates/fabric-root-ca.crt && ! dpkg -s adcli >/dev/null 2>&1")
 check("24.04: a wrong root-CA fingerprint is refused and nothing is trusted or installed",
       code != 0 and "not trusting it" in out and gone == 0, out)
+code, out = on(box, f"bash /root/join-linux.sh {fp} --user adam --type network", stdin=PW + "\n")
+gone, _ = on(box, "! dpkg -s adcli >/dev/null 2>&1")
+check("24.04: refused: --type network (a network machine is pre-created), saying so, before anything is installed",
+      code != 0 and "--type is server or desktop" in out and gone == 0, out)
 # a local user whose rootless-container ids (subordinate ids) overlap the domain's (manual 1.6.3.17)
 on(box, "printf 'safeuser:100000:65536\\nolduser:1000000:65536\\n' >> /etc/subuid")
 code, out = on(box, f"bash /root/join-linux.sh {fp} --user adam", stdin=PW + "\n")
-check("24.04: joins with a site admin's password (on stdin) into the site's OU=machines/OU=linux",
+check("24.04: joins with a Directory Administrator's password (on stdin), a server by default",
       code == 0 and "joined" in out, out)
-check("24.04: a local user whose subordinate ids overlap a site's block is named, and left as it was (2.1.6.46)",
+check("24.04: a local user whose subordinate ids overlap a DC's range is named, and left as it was (2.1.6.46)",
       "olduser" in out and "overlap" in out and "olduser:1000000:65536" in on(box, "cat /etc/subuid")[1], out[-800:])
 join_out = out
 code, defs = on(box, "grep -E '^SUB_(UID|GID)_(MIN|MAX)' /etc/login.defs; useradd -m newbie && grep '^newbie:' /etc/subuid")
@@ -199,13 +226,14 @@ new_start = int(defs.strip().splitlines()[-1].split(":")[1]) if "newbie:" in def
 check("24.04: local users made after the join get subordinate ids above AD's (SUB_UID_MIN, SUB_GID_MIN 2147483648)",
       code == 0 and "SUB_UID_MIN\t\t2147483648" in defs and "SUB_GID_MIN\t\t2147483648" in defs
       and new_start >= 2147483648, defs)
-check("negative: a local user whose subordinate ids overlap no block is not named", "safeuser" not in join_out,
+check("negative: a local user whose subordinate ids overlap no range is not named", "safeuser" not in join_out,
       join_out[-800:])
 where = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={RELEASES['24.04']}$)",
-            "distinguishedName", "operatingSystem", "operatingSystemVersion"], ok=False).stdout
-check("24.04: its computer account is in OU=linux,OU=machines,OU=lan, recording its OS (1.6.11.5, 2.1.6.36)",
-      "OU=linux,OU=machines,OU=lan,OU=sites" in where and "operatingSystem: Ubuntu" in where
-      and "operatingSystemVersion: 24.04" in where, where)
+            "distinguishedName", "operatingSystem", "operatingSystemVersion", "memberOf"], ok=False).stdout.replace("\n ", "")
+check("24.04: its computer account is in OU=servers,OU=machines, in machines-servers and site-lan, recording its OS "
+      "(1.6.13.3)", f"CN={RELEASES['24.04'].upper()},OU=servers,OU=machines,{BASE}" in where
+      and f"memberOf: CN=machines-servers,OU=groups,{BASE}" in where and f"memberOf: CN=site-lan,OU=groups,{BASE}"
+      in where and "operatingSystem: Ubuntu" in where and "operatingSystemVersion: 24.04" in where, where)
 time.sleep(5)
 checks(box, "24.04")
 
@@ -223,48 +251,83 @@ check("24.04: managed: sshd takes Kerberos and no passwords (its drop-in first),
 record = tempfile.mktemp()
 placed = m_sort.sort_machines(V, secrets=SECRETS, container=DC, record=record)
 code, out = on(box, "fabric-managed check; echo rc=$?; ls /etc/ssh/sshd_config.d/10-fabric.conf")
-check("24.04: the sort adopts it (lan-fabric-machines) and its hourly check keeps the configuration",
+check("24.04: the sort adopts it (fabric-managed) and its hourly check keeps the configuration",
       RELEASES["24.04"] in placed["adopted"] and "rc=0" in out and "10-fabric.conf" in out, (placed, out))
-sh(["docker", "exec", DC, "samba-tool", "group", "removemembers", "lan-fabric-machines", f"{RELEASES['24.04'].upper()}$",
+sh(["docker", "exec", DC, "samba-tool", "group", "removemembers", "fabric-managed", f"{RELEASES['24.04'].upper()}$",
     "-s", "/data/etc/smb.conf"])
 code, out = on(box, "fabric-managed check; ls /etc/ssh/sshd_config.d/ /etc/systemd/resolved.conf.d/ 2>&1")
-check("24.04: taken out of lan-fabric-machines, its next check removes fabric's SSH and DNS configuration",
+check("24.04: taken out of fabric-managed, its next check removes fabric's SSH and DNS configuration",
       "removed" in out and "10-fabric.conf" not in out and "fabric.conf" not in out, out)
+
+# a service's keytab (manual 1.6.12.17.8): the command the console shows, run by the machine's administrator
+from fabriclib.domain.keytab_command import keytab_command  # noqa: E402
+NAME = RELEASES["24.04"]
+shown = keytab_command(V, NAME, "HTTP", "www-data", secrets=SECRETS, container=DC)
+code, out = on(box, shown["command"].removeprefix("sudo ") + " && stat -c 'owner=%U mode=%a' /etc/krb5-http.keytab "
+                    "&& klist -k /etc/krb5-http.keytab | awk 'NR>3 {print $2}' | sort -u")
+spns = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={NAME}$)",
+           "servicePrincipalName"], ok=False).stdout.lower()
+keys = [ln for ln in out.splitlines() if "@" in ln]
+check("24.04: fabric-keytab as the console shows it: HTTP/<its names> on its own computer account, the keytab "
+      "/etc/krb5-http.keytab owned by www-data, 0600, holding HTTP's keys only",
+      code == 0 and "owner=www-data mode=600" in out and f"serviceprincipalname: http/{NAME}\n" in spns
+      and keys and all(k.lower().startswith("http/") for k in keys),
+      (shown, out, spns))
+for args, words in (("--machine other --service HTTP --user www-data", "run it on other"),
+                    (f"--machine {NAME} --service host --user www-data", "the machine's own name"),
+                    (f"--machine {NAME} --service HTTP --user nobody-here", "no user nobody-here"),
+                    (f"--machine {NAME} --service HTTP --user www-data --path /etc/krb5.keytab", "--path is an"),
+                    (f"--machine {NAME} --frob x", "usage")):
+    code, out = on(box, f"fabric-keytab {args}")
+    check(f"negative: 24.04: fabric-keytab {args} refused ({words})", code != 0 and words in out, out)
+code, out = on(box, f"setpriv --reuid=65534 --regid=65534 --clear-groups /usr/local/sbin/fabric-keytab --machine {NAME} "
+                    "--service HTTP --user www-data")
+check("negative: 24.04: fabric-keytab without sudo refused", code != 0 and "run it with sudo" in out, out)
 
 # 26.04: pre-created by fabricctl domain add-machine, joined with the one-time password
 box, ok = client("26.04", RELEASES["26.04"])
 check("26.04: the client container is ready (ubuntu:26.04)", ok)
-one_time = m_add_machine.add_machine(V, "test", RELEASES["26.04"], secrets=SECRETS, container=DC, os="linux")
+one_time = m_add_machine.add_machine(V, "test", RELEASES["26.04"], secrets=SECRETS, container=DC, type="server")
 code, out = on(box, f"bash /root/join-linux.sh {fp} --one-time", stdin=one_time + "\n")
 check("26.04: joins with a one-time join password, no admin password on the machine", code == 0 and "joined" in out,
       out)
 where = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={RELEASES['26.04']}$)",
             "distinguishedName", "operatingSystem"], ok=False).stdout
 # the OS is not recorded here: a one-time join signs in as the computer, which AD does not let write it (1.6.11.5)
-check("26.04: it stays where add-machine --os linux put it (OU=linux)",
-      "OU=linux,OU=machines,OU=lan,OU=sites" in where, where)
+check("26.04: it stays where add-machine --type server put it (OU=servers)",
+      f"OU=servers,OU=machines,{BASE}" in where, where)
 time.sleep(5)
 checks(box, "26.04")
 code, out = on(box, "fabric-managed check; echo rc=$?; cat /etc/systemd/resolved.conf.d/fabric.conf")
 check("26.04: pre-created managed (add-machine's default), its check finds it a member and keeps the configuration",
       "rc=0" in out and f"DNS={V['host_ip']}" in out, out)
 
-# Debian 12 and 13 (Proxmox VE 8, 9): joined with a site admin's password
+# Debian 12 and 13 (Proxmox VE 8, 9): joined with an admin's password; 13 as a desktop
 for release in ("debian-12", "debian-13"):
     box_d, ok = client(release, RELEASES[release])
     check(f"{release}: the client container is ready ({IMAGES[release]})", ok)
-    flag = " --unmanaged" if release == "debian-12" else ""
+    if release == "debian-12":
+        code, out = on(box_d, f"bash /root/join-linux.sh {fp} --user adam --site nosuch", stdin=PW + "\n")
+        check(f"{release}: refused: a site the domain does not have (no DC record names it), not joined",
+              code != 0 and "no site nosuch" in out and on(box_d, "test -e /etc/krb5.keytab")[0] != 0, out[-400:])
+    flag = " --unmanaged" if release == "debian-12" else " --type desktop"
     code, out = on(box_d, f"bash /root/join-linux.sh {fp} --user adam{flag}", stdin=PW + "\n")
-    check(f"{release}: joins with a site admin's password{flag} (sudo installed with it: Debian has none)",
+    check(f"{release}: joins with an admin's password{flag} (sudo installed with it: Debian has none)",
           code == 0 and "joined" in out and on(box_d, "command -v sudo")[0] == 0, out[-600:])
-    if flag:
-        desc = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb",
+    if release == "debian-13":
+        where = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb",
+                    f"(sAMAccountName={RELEASES[release]}$)", "distinguishedName", "memberOf"], ok=False).stdout.replace("\n ", "")
+        check(f"{release}: --type desktop: in OU=desktops,OU=machines and machines-desktops (1.6.13.3)",
+              f"OU=desktops,OU=machines,{BASE}" in where and f"CN=machines-desktops,OU=groups,{BASE}" in where
+              and "machines-servers" not in where, where)
+    if release == "debian-12":
+        desc =sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb",
                    f"(sAMAccountName={RELEASES[release]}$)", "description"], ok=False).stdout
         check(f"{release}: --unmanaged: fabric configures neither SSH nor DNS, and the account says unmanaged",
               on(box_d, "test -e /etc/systemd/resolved.conf.d/fabric.conf")[0] != 0
               and "description: fabric: unmanaged (manual 1.6.11.6)" in desc, desc)
     time.sleep(5)
-    checks(box_d, release)
+    checks(box_d, release, desktop=release == "debian-13")
 
 # the DC away: a person who logged on before still can (cached credentials)
 sh(["docker", "stop", DC])
@@ -274,42 +337,25 @@ check("with the DC stopped, a person who logged on before still logs on (cached 
       code == 0 and "successfully" in out, out)
 sh(["docker", "start", DC])
 
-# who may sign in, per OU (manual 1.6.11.4): a policy on OU=machines naming a group adam is in and alice is not
 for _ in range(60):
     if dc_healthy():
         break
     time.sleep(5)
-policy = {"machines": {"console": ["lan-fabric-admins"], "remote": ["lan-fabric-admins"]}}
-done = converge_domain({**V, "logon_policies": policy}, os.path.join(W, "dc", "federation.yaml"), SECRETS,
-                       container=DC)
-check("a log-on policy on OU=machines replaces the site's legacy one (fabric: lan log-on machines; rights removed)",
-      any("GPO fabric: lan log-on machines linked to OU=machines" in c for c in done)
-      and any(c == "GPO fabric: lan log-on rights removed" for c in done), done)
-for name in (RELEASES["24.04"], RELEASES["26.04"]):
-    lbox = f"lj-{name}"
-    on(lbox, "systemctl restart sssd")              # its GPO cache and its offline state from the DC's stop
-    time.sleep(8)
-    code, out = logon(lbox, "adam", PW)
-    check(f"{name}: one of the groups OU=machines names (lan-fabric-admins: adam) logs on (sssd GPO access control)",
-          code == 0 and "successfully" in out, out)
-    code, out = logon(lbox, "alice", PW)
-    check(f"{name}: a person of the site outside those groups (alice) is refused by OU=machines' policy",
-          code != 0, out)
 
-# a sudo rule on a host group (manual 1.6.11.7): alice may run uptime on the machines of lan-hosts-web, which holds the
+# a sudo rule on a host group (manual 1.6.11.7): lara (in no grant's sudo) may run uptime on the machines of hosts-web, which holds the
 # 24.04 machine only; sssd matches the rule's sudoHost (each member's names) against the machine's own name
 made = [run_op(V, SECRETS, "create_host_group", {"name": "web"}, DC),
         run_op(V, SECRETS, "set_host_group_member", {"name": "web", "machine": RELEASES["24.04"], "member": True}, DC),
-        run_op(V, SECRETS, "add_sudo_rule", {"name": "web-uptime", "users": ["alice"], "commands": ["/usr/bin/uptime"],
-                                             "run_as": ["root"], "hosts": "lan-hosts-web"}, DC)]
-check("a host group lan-hosts-web holding the 24.04 machine, and a sudo rule for alice on it (its hosts: that "
+        run_op(V, SECRETS, "add_sudo_rule", {"name": "web-uptime", "users": ["lara"], "commands": ["/usr/bin/uptime"],
+                                             "run_as": ["root"], "hosts": "hosts-web"}, DC)]
+check("a host group hosts-web holding the 24.04 machine, and a sudo rule for lara on it (its hosts: that "
       "machine's names)", RELEASES["24.04"] in made[2]["hosts"] and RELEASES["26.04"] not in made[2]["hosts"], made)
 for name, applies in ((RELEASES["24.04"], True), (RELEASES["26.04"], False)):
-    lbox = f"lj-{name}"
+    lbox = testrun.name(f"lj-{name}")
     on(lbox, "systemctl restart sssd")              # sssd's sudo rules fetched anew (else its next refresh)
     time.sleep(8)
-    code, out = on(lbox, "sudo -l -U alice")
-    check(f"{name}: the host group's sudo rule " + ("applies on its member: alice may run /usr/bin/uptime"
+    code, out = on(lbox, "sudo -l -U lara")
+    check(f"{name}: the host group's sudo rule " + ("applies on its member: lara may run /usr/bin/uptime"
                                                     if applies else "does not apply on a machine outside it"),
           ("/usr/bin/uptime" in out) == applies and (applies or "not allowed" in out), out)
 

@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler
 from agent.get_route import get_route
 from agent.post_route import post_route
 from agent.route_not_found import RouteNotFound
-from fabriclib.common.errors import ValidationError
+from fabriclib.common.errors import NotFound, ValidationError
 from fabriclib.common.load_vars import load_vars
 from fabriclib.keycloak.verify_user_token import verify_user_token
 from fabriclib.rbac.required_permission import required_permission
@@ -72,15 +72,17 @@ class Handler(BaseHTTPRequestHandler):
                  token that grants the permission the route requires.
         Inputs:  method — "GET" or "POST"; route — list of path segments after /v1/. Reads the "Authorization: Bearer
                  <token>" header and vars (load_vars) for token verification.
-        Returns: None when allowed, with self.user = the token's preferred_username and self.perms = its permission set
-                 (both None for a root peer); otherwise (status, error): (401, reason) when verify_user_token rejects
+        Returns: None when allowed, with self.user = the token's preferred_username, self.perms = its permission set
+                 and self.session = its `sid` (all None for a root peer); otherwise (status, error): (401, reason) when
+                 verify_user_token rejects
                  the token or it is missing; (403, "not allowed") when required_permission lists no permission for the
                  route (default deny); (403, "you need the permission <p>") when the token lacks it ("session" needs
                  none).
         Fails:   exceptions other than ValidationError (e.g. KeyError on a token without preferred_username, OSError
                  from load_vars) propagate to dispatch, which answers 500.
-        Feeds:   dispatch; self.user feeds actor, self.perms the people-reset privilege check."""
-        self.user, self.perms = None, None
+        Feeds:   dispatch; self.user feeds actor (and the caller fabric-agent's checks name), self.perms the routes that
+                 need a second permission, self.session a person's own password change."""
+        self.user, self.perms, self.session = None, None, None
         if self.peer_uid() == 0:
             return None
         auth = self.headers.get("Authorization", "")
@@ -94,6 +96,7 @@ class Handler(BaseHTTPRequestHandler):
         if need != "session" and need not in user_permissions(claims):
             return 403, f"you need the permission {need}"
         self.user, self.perms = claims["preferred_username"], user_permissions(claims)
+        self.session = claims.get("sid")
         return None
 
     def body(self):
@@ -148,7 +151,8 @@ class Handler(BaseHTTPRequestHandler):
                  Authorization header (see authorize) and, for POST, the JSON body (see body; actor from actor()).
         Returns: None; replies 200 with the result (get_route for GET, post_route for POST).
         Fails:   never raises; replies 403 "peer not allowed" when the peer uid is not in allowed_uids; 404 "not found"
-                 for a path outside /v1 or an unknown route; 401/403 from authorize; 400 with the message for
+                 for a path outside /v1 or an unknown route, 404 with the message for NotFound (a person,
+                 computer, group or grant that is not there); 401/403 from authorize; 400 with the message for
                  ValidationError; 400 "malformed request" for ValueError/JSON errors; 500 "internal error" (traceback to
                  stderr) for anything else.
         Feeds:   do_GET, do_POST."""
@@ -163,11 +167,13 @@ class Handler(BaseHTTPRequestHandler):
             if refused:
                 return self.reply(refused[0], {"error": refused[1]})
             if method == "GET":
-                return self.reply(200, get_route(route, self.user))
+                return self.reply(200, get_route(route, self.user, self.perms))
             data = self.body()
-            return self.reply(200, post_route(route, self.actor(data), data, self.perms))
+            return self.reply(200, post_route(route, self.actor(data), data, self.perms, self.session))
         except RouteNotFound:
             self.reply(404, {"error": "not found"})
+        except NotFound as exc:                 # one thing a read names is not there (2.1.8.21)
+            self.reply(404, {"error": str(exc)})
         except ValidationError as exc:
             self.reply(400, {"error": str(exc)})
         except (ValueError, json.JSONDecodeError):

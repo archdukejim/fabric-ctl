@@ -1,0 +1,418 @@
+# A 0.7.1 install's /opt/fabric/config/vars.yaml, made by 0.7.1's own code: tests/setup/make_vars_071.py
+ad_base_dn: DC=ad,DC=move,DC=home,DC=arpa
+ad_dc_type: writable
+ad_domain: ad.move.home.arpa
+ad_join_server: ''
+ad_join_server_name: ''
+ad_netbios: AD
+ad_ntp_signd_dir: /var/lib/samba/ntp_signd
+ad_old_password_minutes: 0
+ad_org_ou: OU=organisation,OU=fabric-sbx,OU=sites
+ad_password_policy:
+  complexity: true
+  history: 24
+  lockout_minutes: 15
+  lockout_threshold: 10
+  lockout_window_minutes: 15
+  maximum_age_days: 0
+  minimum_age_days: 0
+  minimum_length: 14
+ad_realm: AD.MOVE.HOME.ARPA
+ad_rpc_ports: 49152-49251
+ad_site_ou: OU=fabric-sbx,OU=sites
+address_line1: null
+address_line2: null
+adguard_mem_limit: null
+bind9_doh_port: 8053
+bind_acl_policies: {}
+bind_acls:
+  acme-updaters:
+  - 10.255.0.0/24
+  dns-resolvers:
+  - 127.0.0.1
+  - 10.77.0.0/24
+  - 10.255.0.0/24
+bind_dns_port: 5053
+byoc: false
+ca_crt_path: /home/default_admin/output/root_ca.crt
+ca_name: Fabric move test CA
+ca_nest_depth: 1
+care_of: null
+cert_acme_lifetime_hours: 1128h
+cert_city: City
+cert_country: US
+cert_intermediate_days: 1095
+cert_intermediate_digest: sha512
+cert_intermediate_key_param: 4096
+cert_intermediate_key_type: rsa
+cert_org: Fabric move test
+cert_ou: IT
+cert_province: State
+cert_renew_after_days: 30
+cert_root_ca_days: 3650
+cert_root_digest: sha512
+cert_root_key_param: 4096
+cert_root_key_type: rsa
+cert_service_days: 47
+cname_ca: ca
+cname_dns: dns
+cname_mgr: fabric
+cname_openbao: vault
+cname_sso: sso
+compose_file: /opt/fabric/docker-compose.yml
+contact_email: null
+contact_phone: null
+copyright: null
+dc_name: dc-fabric-sbx
+deploy_base_dir: /opt
+dhcp: {}
+dns:
+  dynamic_zone_var:
+    A:
+    - ip: 10.77.0.20
+      name: nas
+    - ip: 10.77.0.10
+      name: fabric-sbx
+    - ip: 10.77.0.10
+      name: '@'
+    CNAME:
+    - canonical: nas
+      name: files
+    - canonical: fabric-sbx
+      name: ca
+    - canonical: fabric-sbx
+      name: dns
+    - canonical: fabric-sbx
+      name: sso
+    - canonical: fabric-sbx
+      name: vault
+    - canonical: fabric-sbx
+      name: fabric
+    - canonical: fabric-sbx
+      name: info
+    - canonical: fabric-sbx
+      name: ntp
+  extra.home.arpa:
+    A:
+    - ip: 10.77.0.30
+      name: printer
+    zone_authority: true
+dns_filter: bind
+dns_filter_allow: []
+dns_filter_block: []
+dns_filter_groups: []
+dns_filter_lists:
+- enabled: true
+  name: AdGuard DNS filter
+  url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt
+dns_filter_safe_search: false
+dns_filter_upstreams:
+- address: 1.1.1.1
+  name: cloudflare-dns.com
+- address: 1.0.0.1
+  name: cloudflare-dns.com
+dns_filter_youtube: strict
+dns_server: 8.8.8.8
+domain: move.home.arpa
+domain_file: move_home_arpa
+fabric_subnet: 10.255.0.0/24
+federation_endpoint: false
+fluentbit_mem_limit: null
+freeradius_mem_limit: null
+friendly_name: Fabric move test
+host_ip: 10.77.0.10
+host_join_domain: true
+host_machine_password_renew_days: 0
+host_ram_capacity: 8
+hostname: fabric-sbx
+hostname_bind9: dns.move.home.arpa
+hostname_dc: dc-fabric-sbx.ad.move.home.arpa
+hostname_federation: federation.move.home.arpa
+hostname_keycloak: sso.move.home.arpa
+hostname_landing: info.move.home.arpa
+hostname_mgr: fabric.move.home.arpa
+hostname_nginx: nginx.move.home.arpa
+hostname_ntp: ntp.move.home.arpa
+hostname_openbao: vault.move.home.arpa
+hostname_radius: radius.move.home.arpa
+hostname_stepca: ca.move.home.arpa
+ica_crt_path: /home/default_admin/output/ica.crt
+image_adguard: adguard/adguardhome:v0.107.79@sha256:aba9e3bf0613be3ba3755e1fc311b126e2c24bec25e18b6483894a88283074f0
+image_cosign: ghcr.io/sigstore/cosign/cosign:v3.0.6@sha256:de9c65609e6bde17e6b48de485ee788407c9502fa08b8f4459f595b21f56cd00
+image_debian: debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
+image_fabric_bind9: ghcr.io/archdukejim/open-fabric/bind9:0.7.1-rc.182@sha256:565933836b40cc06b55cb404b8edbb59f2007b5f680cbe6db7995fcbe437d7a8
+image_fabric_freeradius: ghcr.io/archdukejim/open-fabric/freeradius:0.7.1-rc.182@sha256:94845c781c21b8e32dfeb56ffc560927f1aadc7ed75f524044c9cebe307c0a6f
+image_fabric_kea: ghcr.io/archdukejim/open-fabric/kea:0.7.1-rc.182@sha256:0231bf46e055d8baf3e327da61a8b040f956f1ddf198d9f6343f0abc91778bb3
+image_fabric_keycloak: ghcr.io/archdukejim/open-fabric/keycloak:0.7.1-rc.182@sha256:ab30b5ca45233b2968f65b053010b5e4c6f66a9e84f41bb33464f8bef7eaec85
+image_fabric_samba: ghcr.io/archdukejim/open-fabric/samba:0.7.1-rc.182@sha256:37b0a389da059bb9c9303276e2955fd23a1f879c563cb9501a437d4eaf0adb03
+image_fabric_stepca: ghcr.io/archdukejim/open-fabric/stepca:0.7.1-rc.182@sha256:254f7c5cd57d70378a45184260de74f3faa4eed30e3103bdc67c4a4f4c5631ab
+image_fabric_webui: ghcr.io/archdukejim/open-fabric/webui:0.7.1-rc.182@sha256:99a626d64e907f3a5e8edeaf48b6cc40ea30a4c121a112516f5f4800ca492e67
+image_fluentbit: fluent/fluent-bit:5.1.2@sha256:d792375ca8e53be72fc25716c28f291f32c6fc6f4f31d12d0d14bc78cefe9226
+image_freeradius: fabric/freeradius:local
+image_kea: fabric/kea:local
+image_keycloak: keycloak/keycloak:26.7.4@sha256:82a77884f3af238beab1e7afd63b5f530e1b5c0590bd7aa60b40a40463e29b2c
+image_nginx: nginx:1.30.5@sha256:b972f831f200b19ef0767938224f9711e74cd783718738cd7405d5cabf75c442
+image_openbao: openbao/openbao:2.7.0@sha256:71156a1c6623a5fa3f5e61b0c6a8ead0faf0df29a778339188443551995d1315
+image_pins: []
+image_postgres: postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+image_prune: true
+image_rolled_back: []
+image_samba: fabric/samba:local
+image_signature_check: true
+image_stepca: smallstep/step-ca:0.30.2@sha256:a2b17872915c193259b75a5474c398326f41bd199f0842093e52cf4182bc8270
+image_webui: fabric/web:local
+install_fluentbit: true
+install_freeradius: false
+install_kea: false
+install_keycloak: true
+install_resolver: true
+install_webui: true
+ip_adguard: 10.255.0.34
+ip_bind9: 10.255.0.30
+ip_fabric_gateway: 10.255.0.1
+ip_fluentbit: 10.255.0.95
+ip_freeradius: 10.255.0.98
+ip_kea_ddns: 10.255.0.97
+ip_keycloak: 10.255.0.60
+ip_nginx: 10.255.0.10
+ip_openbao: 10.255.0.90
+ip_postgres: 10.255.0.70
+ip_resolver: 10.255.0.33
+ip_stepca: 10.255.0.40
+ip_webui: 10.255.0.80
+kea_mem_limit: null
+keycloak_data_dir: /opt/keycloak/data
+lan_cidr: 10.77.0.0/24
+lan_gateway: 10.77.0.1
+landing_page_cname: info
+ldap_base_dn: dc=move,dc=home,dc=arpa
+ldap_groups:
+- gidNumber: 1040001
+  name: admins
+  permissions:
+  - read
+  - write
+  - modify
+- bundle: fabric-auditor
+  gidNumber: 1040002
+  name: auditors
+- bundle: fabric-network-operator
+  gidNumber: 1040003
+  name: network-operators
+- bundle: fabric-equipment-operator
+  gidNumber: 1040004
+  name: equipment-operators
+- bundle: fabric-pki-operator
+  gidNumber: 1040005
+  name: pki-operators
+- bundle: fabric-helpdesk
+  gidNumber: 1040006
+  name: helpdesk
+- description: May join the network by password (802.1X EAP-TTLS)
+  gidNumber: 1040007
+  name: network-staff
+- description: May join the network by password (802.1X EAP-TTLS) — map it to a guest
+    VLAN
+  gidNumber: 1040008
+  name: network-guests
+- gidNumber: 1040009
+  name: users
+  permissions:
+  - read
+ldap_organizational_units:
+- description: User Accounts
+  name: accounts
+- description: Security Groups
+  name: groups
+- description: Regular User accounts
+  name: users
+  parent: accounts
+- description: What member devices may do (fabric device RBAC)
+  name: device-roles
+log_forwarding: {}
+logon_policies:
+  machines:
+    console:
+    - fabric-sbx-machine-admins
+    remote:
+    - fabric-sbx-machine-admins
+memory_floors: {}
+memory_plan:
+  budget_mb: 7680
+  bursts:
+    adguard: 1912
+  capacity_mb: 8192
+  containers:
+    adguard: 1
+    bind9: 1
+    fluentbit: 1
+    keycloak: 1
+    nginx: 1
+    openbao: 1
+    postgres: 1
+    resolver: 1
+    samba: 1
+    stepca: 1
+    webui: 1
+  explicit: {}
+  limits:
+    adguard: 765
+    bind9: 509
+    fluentbit: 64
+    keycloak: 3313
+    nginx: 256
+    openbao: 256
+    postgres: 509
+    resolver: 128
+    samba: 1656
+    stepca: 128
+    webui: 96
+  over_mb: 1147
+  reserve_mb: 512
+  unassigned_mb: 0
+memory_weights: {}
+nginx_backend_stepca: https://step-ca:9000
+ntp_serve: true
+ntp_servers:
+- time.cloudflare.com nts
+- nts.netnod.se nts
+- ptbtime1.ptb.de nts
+ntp_set_clock: true
+openbao_admin_dir: /run/fabric/openbao-admin
+openbao_key_dir: /etc/fabric/openbao
+openbao_mem_limit: null
+openbao_pkcs11_modules: []
+openbao_recovery_shares: 1
+openbao_recovery_threshold: 1
+openbao_runtime_dir: /run/fabric/openbao
+openbao_seal_key_id: fabric-1
+org_domain: move.home.arpa
+pki_manual_max_days: 1825
+posix_home_base: /home
+posix_id_block: 1000000
+posix_id_range: ''
+posix_id_start: 1000000
+posix_login_shell: /bin/bash
+postgres_data_dir: /opt/postgres/data
+project_containers:
+- nginx
+- step-ca
+- bind9
+- openbao
+- keycloak
+- postgres
+- fabric-web
+radius_clients: []
+radius_people:
+- group: network-staff
+  priority: 50
+  vlan: null
+- group: network-guests
+  priority: 100
+  vlan: null
+resolver_mem_limit: null
+samba_mem_limit: null
+security:
+  docker_daemon_hardening: true
+  firewall: true
+  firewall_allow: []
+service_dirs:
+- folder: nginx
+  owner: nginx
+- folder: bind9
+  owner: bind
+- folder: stepca
+  owner: step
+- folder: keycloak
+  owner: keycloak
+- folder: postgres
+  owner: postgres
+- folder: webui
+  owner: root
+- folder: openbao
+  owner: openbao
+service_mark: null
+service_users:
+  adguard:
+    gid: 614
+    name: fabric-adguard
+    uid: 614
+  bind:
+    gid: 600
+    name: fabric-dns
+    uid: 600
+  fluentbit:
+    gid: 608
+    name: fabric-logs
+    uid: 608
+  freeradius:
+    gid: 610
+    name: fabric-radius
+    uid: 610
+  kea:
+    gid: 609
+    name: fabric-dhcp
+    uid: 609
+  keycloak:
+    gid: 0
+    name: fabric-sso
+    uid: 604
+  nginx:
+    gid: 602
+    name: fabric-proxy
+    uid: 602
+  openbao:
+    gid: 607
+    name: fabric-vault
+    uid: 607
+  postgres:
+    gid: 605
+    name: fabric-db
+    uid: 605
+  resolver:
+    gid: 613
+    name: fabric-resolver
+    uid: 613
+  step:
+    gid: 603
+    name: fabric-ca
+    uid: 603
+  webui:
+    gid: 606
+    name: fabric-webui
+    uid: 606
+signin_admin_second_factor: none
+signin_everyone_second_factor: none
+signin_kerberos: false
+site_ca_depth: 0
+site_name: fabric-sbx
+stepca_cert_allow_subordinate_ca: true
+stepca_cert_max_lifetime_hours: 1128h
+stepca_port: 9000
+system_timezone: America/New_York
+trademark: null
+tsig_keys:
+- algorithm: hmac-sha256
+  domain: move.home.arpa
+  name: acme
+  record_types:
+  - TXT
+  records:
+  - _acme-challenge.web
+- algorithm: hmac-sha256
+  domain: move.home.arpa
+  name: ddns
+  record_types:
+  - A
+  - AAAA
+  records:
+  - nas
+use_host_dns: true
+webui_admin_email: admin@move.home.arpa
+webui_admin_group: admins
+webui_admin_role: fabric-console-admin
+webui_admin_user: fabric-admin
+webui_client_cert: false
+webui_client_cert_days: 365
+webui_hostname: null
+webui_realm: move.home.arpa

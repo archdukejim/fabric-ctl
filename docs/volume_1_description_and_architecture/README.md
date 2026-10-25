@@ -32,6 +32,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.2.10 Global options](1.2.10-global.md)
 - [1.2.11 Networking and DNS](1.2.11-networking.md)
 - [1.2.12 Docker infrastructure](1.2.12-docker.md)
+- [1.2.13 What fabric claims, checked for collisions](1.2.13-name-claims.md)
 
 ## 1.3 fabricctl, setup and fabric-agent
 
@@ -62,6 +63,8 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.6.9 The organisation and its directory](1.6.9-directory.md)
 - [1.6.10 Security contexts and features](1.6.10-security.md)
 - [1.6.11 Host access](1.6.11-host-access.md)
+- [1.6.12 Domain management in the console](1.6.12-domain-management.md)
+- [1.6.13 Access by groups and grants](1.6.13-access-by-grants.md)
 
 ## 1.7 Secrets: OpenBao
 
@@ -73,6 +76,8 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.8.2 Security model and who may do what](1.8.2-webui-security.md)
 - [1.8.3 The web UI as the single pane](1.8.3-single-pane.md)
 - [1.8.4 Web UI](1.8.4-webui.md)
+- [1.8.5 The setup wizard: setup's choices in the console, and in a file](1.8.5-setup-wizard.md)
+- [1.8.6 The console redone in Cockpit's style](1.8.6-console-redo.md)
 
 ## 1.9 Federation
 
@@ -153,4 +158,23 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.17.29 webui](1.17.29-webui.md) — fabric-ctl web UI: server, pages, fabric-agent client, OIDC, CA-pinned TLS, dev preview
 - [1.17.30 fabriclib-samba](1.17.30-fabriclib-samba.md)
 - [1.17.31 fabriclib-directory](1.17.31-fabriclib-directory.md)
+- [1.17.33 fabriclib-settings](1.17.33-fabriclib-settings.md)
+- [1.17.34 fabriclib-breakglass](1.17.34-fabriclib-breakglass.md)
+- [1.17.35 fabriclib-hostaccounts](1.17.35-fabriclib-hostaccounts.md)
+- [1.17.36 fabriclib-grants](1.17.36-fabriclib-grants.md)
+- [1.17.37 fabriclib-access](1.17.37-fabriclib-access.md)
+- [1.17.38 fabriclib-domain](1.17.38-fabriclib-domain.md)
+- [1.17.39 fabriclib-localadmin](1.17.39-fabriclib-localadmin.md)
 <!-- end of generated 1.17 -->
+
+## 1.18 STIG compliance
+
+The home chapter for STIG compliance (Rule 5.8; 2.1.1.67).
+
+- [1.18.1 STIG compliance: scope, the guides, and which part answers to which](1.18.1-stig-scope.md)
+- [1.18.2 The STIG checklist: how compliance is recorded and proven](1.18.2-stig-checklist.md)
+- [1.18.3 STIG baselines for the domain's members, by Group Policy](1.18.3-stig-gpo-baselines.md)
+
+## Assets
+
+[`assets/`](assets/README.md): data the chapters rest on (the STIG checklist).

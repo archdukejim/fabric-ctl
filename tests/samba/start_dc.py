@@ -13,14 +13,15 @@ import time
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(REPO, "src"))
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.join(REPO, "tests", "common")]
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
 from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
 from fabriclib.samba.deploy_samba import deploy_samba  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
+import test_run as testrun  # noqa: E402
 
-IMAGE = "fabric/samba:test"
+IMAGE = "fabric/samba:" + testrun.name("test")      # each worktree's run builds its own (manual 3.1.2.6)
 POLICY = {"minimum_length": 14, "complexity": True, "history": 24, "minimum_age_days": 0, "maximum_age_days": 0,
           "lockout_threshold": 5, "lockout_minutes": 15, "lockout_window_minutes": 15}
 
@@ -33,13 +34,13 @@ def _sh(cmd, **kw):
     return res
 
 
-def start_dc(work, container, network, subnet, ip, domain="lan.j-j.family", ad_domain="ad.j-j.family",
+def start_dc(work, container, network, subnet, ip, domain="test.lan.j-j.family", ad_domain="ad.test.lan.j-j.family",
              hostname="dc1", site="lan", extra_vars=None, dc_name=""):
     """Purpose: a converged DC of a test domain on a test network, and what a suite needs to talk to it.
     Inputs:  work — a scratch folder (made anew); container — the DC's name; network/subnet — a Docker network (made
              if missing); ip — the DC's address there; domain, ad_domain, hostname, site — the install's settings;
              extra_vars — more settings for the render (e.g. Keycloak's); dc_name — the DC's own name ("": the
-             default, dc-<hostname>, so every suite's DC has a name unlike its host's, 2.1.6.45).
+             default, dc-0001, so every suite's DC has a name unlike its host's, 2.1.6.45).
     Returns: dict {"v": rendered vars (deploy_base_dir = work), "secrets", "env" (jinja env), "root_ca", "root_key"
              (the test PKI's files), "container"}.
     Fails:   RuntimeError when a step fails or the DC is not healthy within 5 minutes."""
@@ -67,8 +68,11 @@ def start_dc(work, container, network, subnet, ip, domain="lan.j-j.family", ad_d
                                               "ad_radius_password")}
     deploy_samba(v, secrets, env)
     dc_tls(v, root_ca, root_key)
-    if subprocess.run(["docker", "network", "inspect", network], capture_output=True).returncode:
-        _sh(["docker", "network", "create", "--subnet", subnet, network])
+    who = testrun.owner("network", network)   # made by the first DC of this run, or another's: refused
+    if who is None:
+        testrun.create_network(network, subnet)
+    elif who != testrun.RUN:
+        raise testrun.Refused(f"network {network} is not this run's ({testrun.RUN}); left as it is")
     run_dc(v, container, network, env)
     converge_domain(v, os.path.join(work, "federation.yaml"), secrets, container=container)
     return {"v": v, "secrets": secrets, "env": env, "root_ca": root_ca, "root_key": root_key, "container": container}
@@ -100,8 +104,8 @@ def run_dc(v, container, network, env, tries=60):
     Returns: None.
     Fails:   RuntimeError when the DC is not healthy in time (its log's end)."""
     compose = yaml.safe_load(env.get_template("samba/docker-compose.yml.j2").render(**v))["services"]["samba"]
-    subprocess.run(["docker", "rm", "-f", container], capture_output=True)
-    run = ["docker", "run", "-d", "--name", container, "--hostname", v["hostname"], "--network", network,
+    testrun.remove("container", container)
+    run = ["docker", "run", "-d", "--name", container, *testrun.labels(), "--hostname", v["hostname"], "--network", network,
            "--ip", v["host_ip"], "--read-only", "--memory", compose["mem_limit"], "--cap-drop", "ALL"]
     run += [x for c in compose["cap_add"] for x in ("--cap-add", c)]
     run += [x for o in compose["security_opt"] for x in ("--security-opt", o)]
@@ -122,5 +126,6 @@ def run_dc(v, container, network, env, tries=60):
 
 
 if __name__ == "__main__":          # a quick look: start one and print what a suite gets
-    out = start_dc("/tmp/start-dc", "startdc-test", "startdc_net", "10.254.48.0/24", "10.254.48.10")
+    n = testrun.net(48)
+    out = start_dc("/tmp/start-dc", testrun.name("startdc-test"), testrun.name("startdc_net"), f"{n}.0/24", f"{n}.10")
     print(json.dumps({k: out[k] for k in ("root_ca", "container")}))

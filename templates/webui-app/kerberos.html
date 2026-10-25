@@ -1,0 +1,41 @@
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+<h1>Directory · Kerberos</h1>
+{% if unavailable %}<p class="flash bad" role="alert">Kerberos could not be read: {{ unavailable }}</p>
+{% else %}
+<section class="card"><h2>Signing in with the domain logon</h2>
+<p>Now <strong>{{ 'on' if k.signin_kerberos else 'off' }}</strong>. On a computer joined to the domain, the Windows or Linux logon signs a person in to fabric's pages without their password; any second factor is still asked.</p>
+{% if can('security:raise') %}<form method="post" action="/security/kerberos"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<input type="hidden" name="value" value="{{ 'off' if k.signin_kerberos else 'on' }}">
+<button type="submit">Turn {{ 'off' if k.signin_kerberos else 'on' }}</button></form>
+<p class="muted small">Done at once, after a recent sign-in (as Settings → Sign-in security's layers), and recorded in the audit log.</p>
+{% else %}<p class="muted small">Turned on or off by whoever may raise sign-in security (<code>security:raise</code>).</p>{% endif %}
+</section>
+<section class="card facts"><h2>The realm</h2><dl><dt>Realm</dt><dd>{{ k.realm or '—' }}</dd>
+<dt>KDCs (the domain's DCs)</dt><dd>{% if k.kdcs_error %}<span class="warn-text">could not be read: {{ k.kdcs_error }}</span>{% else %}{{ (k.kdcs or []) | join(', ') or 'none' }}{% endif %}</dd></dl></section>
+<section class="card"><h2>Ticket policy</h2>
+{% set pol = k.policy or {} %}
+{% if can('domain:admin') %}
+<form method="post" action="/directory/domain/kerberos/policy" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+{% for key, label, lo, hi in fields %}<label>{{ label }}<input name="{{ key }}" required inputmode="numeric" pattern="[0-9]+" value="{{ pol[key] if key in pol }}"> <span class="muted small">{{ lo }} to {{ hi }}</span></label>
+{% endfor %}<div><button>Save the policy</button></div>
+</form>
+<p class="muted small">Domain-wide. Refused with why: a ticket age under 1 hour or over the renewal age, a renewal over 30 days, a clock skew under 1 or over 15 minutes (a wider skew weakens replay protection). The change waits for <strong>Apply</strong> in the top bar, which writes it into the DC; on the fabric host: <code>sudo fabricctl domain kerberos policy …</code>.</p>
+{% else %}{{ p.facts("As set", [(fields[0][1], pol.ticket_hours), (fields[1][1], pol.renew_days), (fields[2][1], pol.skew_minutes)]) }}
+<p class="muted small">Changed by a Directory Administrator (<code>domain:admin</code>).</p>{% endif %}
+</section>
+<section class="card"><h2>Service principals <span class="muted">{{ spns.spns | length }}</span></h2>
+{% if spns_error %}<p class="flash bad">The service principals could not be read: {{ spns_error }}</p>
+{% else %}
+{% if spns.duplicates %}<p class="flash bad" role="alert">Held by two accounts, which breaks Kerberos for both: {{ spns.duplicates | join(', ') }}.</p>{% endif %}
+{% if spns.spns %}{% call p.list(["", "Service principal", "Account", "Kind"]) %}{% for s in spns.spns %}<tr>
+<td>{{ p.light('bad' if s.duplicate else 'ok', 'duplicate' if s.duplicate else 'unique') }}</td>
+<td data-label="Service principal"><code>{{ s.spn }}</code></td>
+<td data-label="Account">{% if s.kind == 'computer' %}<a href="/directory/computers/{{ s.account | replace('$', '') | lower | urlencode }}">{{ s.account }}</a>{% else %}{{ s.account }}{% endif %}</td>
+<td data-label="Kind">{{ s.kind }}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("No service principals yet.") }}{% endif %}
+<p class="muted small">Read-only. A service on a machine gets its own on the computer's page (Add a service: a command for the machine's administrator).</p>
+{% endif %}
+</section>
+{% endif %}
+{% endblock %}

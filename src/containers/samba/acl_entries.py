@@ -12,7 +12,7 @@ def sid_of(samdb, name):
     Inputs:  samdb — SamDB; name — sAMAccountName.
     Returns: str.
     Fails:   IndexError if it does not exist; ldb.LdbError from the search.
-    Feeds:   ensure_site_acl, admin_gpo, converge."""
+    Feeds:   ensure_directory_acl, protect_top_tier, admin_gpo, converge."""
     res = samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_SUBTREE,
                        expression=f"(sAMAccountName={ldb.binary_encode(name)})", attrs=["objectSid"])
     return str(samdb.schema_format_value("objectSid", res[0]["objectSid"][0]), "utf-8")
@@ -34,7 +34,7 @@ def ensure_aces(samdb, entries):
     Inputs:  samdb — SamDB (as the system); entries — list of (dn str, SDDL entry str "(A;CI;…;;;S-…)").
     Returns: list of str, the entries added.
     Fails:   ldb.LdbError reading or changing a security descriptor; RuntimeError for invalid SDDL.
-    Feeds:   ensure_site_acl, admin_gpo."""
+    Feeds:   ensure_directory_acl, protect_top_tier, admin_gpo."""
     domain_sid = security.dom_sid(samdb.get_domain_sid())
     utils, done = SDUtils(samdb), []
     for dn, ace in entries:

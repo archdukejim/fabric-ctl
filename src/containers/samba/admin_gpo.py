@@ -1,6 +1,7 @@
 """The site's admin GPOs (manual 1.6.5.20, S5.4; 1.9.8.14): the policies an admin sets with `fabricctl gpo` and the
-web UI's editor, kept apart from fabric's own GPOs, which convergence rewrites. `fabric: <site> admin settings` holds
-defaults the sites below may override; `fabric: <site> controls` is linked enforced, so they cannot (2.1.6.20)."""
+web UI's editor, kept apart from fabric's own GPOs, which convergence rewrites. Both are linked at OU=machines
+(2.1.6.84): `fabric: <site> admin settings` as any GPO, `fabric: <site> controls` enforced, so a GPO an admin links
+below OU=machines cannot override it."""
 import os
 
 import ldb
@@ -11,7 +12,7 @@ from acl_entries import ensure_aces, sid_of
 from ensure_gpo import ensure_gpo
 import paths
 from set_gpo_acl import set_gpo_acl
-from site_roles import role_group
+from group_names import DIRECTORY_ADMINS
 
 REGISTRY_MACHINE = "[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{0F6B957D-509E-11D1-A7CC-0000F87571E3}]"
 REGISTRY_USER = "[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{0F6B957E-509E-11D1-A7CC-0000F87571E3}]"
@@ -65,14 +66,14 @@ def _pack(entries):
 
 
 def save_admin_settings(samdb, lp, site, settings, control=False):
-    """Purpose: write one of the site's admin GPOs (created and linked to the site's OU when missing, the controls
-             enforced), its version bumped.
+    """Purpose: write one of the site's admin GPOs (created and linked at OU=machines when missing, 2.1.6.84; the
+             controls enforced), its version bumped.
     Inputs:  samdb — SamDB (as the system); lp — LoadParm; site — str; settings — admin_settings' shape; control —
              bool, the enforced one.
     Returns: list of str, what changed.
     Fails:   ldb.LdbError; OSError; CalledProcessError (ensure_gpo).
     Feeds:   gpo_tool (ops "set", "clear")."""
-    done = ensure_gpo(samdb, lp, _name(site, control), paths.site_dn(samdb, site),
+    done = ensure_gpo(samdb, lp, _name(site, control), paths.folder_dn(samdb, "machines"),
                       REGISTRY_MACHINE if settings["machine"] else "",
                       {"Machine/Registry.pol": _pack(settings["machine"]),
                        "User/Registry.pol": _pack(settings["user"])},
@@ -81,13 +82,14 @@ def save_admin_settings(samdb, lp, site, settings, control=False):
 
 
 def ensure_gpo_admins(samdb, lp, site):
-    """Purpose: the site's GPO admins (2.1.9.13) edit its two admin GPOs with Windows' own tools too: full control of
-             each GPO object (never its permissions), and so of its SYSVOL folder (its file ACLs follow the object's).
+    """Purpose: the Directory Administrators (`directory-admins`, 2.1.6.76) edit the site's two admin GPOs with
+             Windows' own tools too: full control of each GPO object (never its permissions), and so of its SYSVOL
+             folder (its file ACLs follow the object's).
     Inputs:  samdb — SamDB (as the system); lp — LoadParm; site — str.
     Returns: list of str, the access entries added (none for a GPO not made yet).
     Fails:   ldb.LdbError; NTSTATUSError from set_gpo_acl.
     Feeds:   save_admin_settings, converge."""
-    sid = sid_of(samdb, role_group(site, "gpo-admins"))
+    sid = sid_of(samdb, DIRECTORY_ADMINS)
     done = []
     for control in (False, True):
         found = samdb.search(base=f"CN=Policies,CN=System,{samdb.domain_dn()}", scope=ldb.SCOPE_ONELEVEL,

@@ -1,0 +1,10 @@
+[Unit]
+Description=fabric: this host's local-admin checked hourly: a use seen, a rotation due, SSH as the domain says (manual 1.7.1.4)
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+AccuracySec=5min
+
+[Install]
+WantedBy=timers.target
