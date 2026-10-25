@@ -184,7 +184,7 @@ print(len(r('$REPO/config')['images']))")
 if [ "$published" -eq "$total" ]; then
     check "the core services run fabric's published images (pulled, not built here)" \
         "in_box 'docker inspect -f {{.Config.Image}} bind9 samba keycloak step-ca fabric-web' \
-         | grep -c '^ghcr.io/archdukejim/open-fabric/' | grep -qx 5 && ! in_box 'docker image inspect fabric/bind9:local' >/dev/null 2>&1"
+         | grep -c '^ghcr.io/archdukejim/fabric-ctl/' | grep -qx 5 && ! in_box 'docker image inspect fabric/bind9:local' >/dev/null 2>&1"
     check "each was signature-checked before use (verified digests remembered, root-only)" \
         "in_box 'stat -c %a /etc/fabric/images/verified.json' | grep -qx 600 \
          && [ \"\$(in_box \"grep -cE '^ +.at.: ' /etc/fabric/images/verified.json\")\" -ge 5 ]"

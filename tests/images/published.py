@@ -248,19 +248,20 @@ try:
     problems = source_hash.check(REPO)
     check("the lock as it is: every published image matches its sources or is marked pending", not problems, problems)
 
-    # the signer the lock trusts: the images workflow under either of the repository's names (2.1.1.68)
+    # the signer the lock trusts: fabric-ctl's images workflow only, since 0.8.0 (2.1.14.26)
     signer = re.compile(read_published_lock(os.path.join(REPO, "config"))["signer"])
     wf = "https://github.com/archdukejim/{}/.github/workflows/images.yml@refs/{}"
-    good = [wf.format(name, ref) for name in ("open-fabric", "fabric-ctl")
-            for ref in ("heads/main", "heads/rc/0.8.0", "tags/v0.8.0-rc.1")]
-    check("the signer: the images workflow of open-fabric (the images published before the rename) and of fabric-ctl, "
-          "from main, an rc/ branch or a v tag", all(signer.search(i) for i in good),
+    good = [wf.format("fabric-ctl", ref) for ref in ("heads/main", "heads/rc/0.8.0", "tags/v0.8.0-rc.4")]
+    check("the signer: fabric-ctl's images workflow, from main, an rc/ branch or a v tag",
+          all(signer.search(i) for i in good),
           [i for i in good if not signer.search(i)])
     bad = [wf.format("someone-else", "heads/main"), wf.format("fabric-ctl", "heads/dev/0.8.0"),
+           wf.format("open-fabric", "heads/main"),           # the old name: no image 0.8.0 pins was signed there
            "https://github.com/archdukejim/fabric-ctl/.github/workflows/other.yml@refs/heads/main",
            "https://github.com/archdukejim/fabric-ctl-fork/.github/workflows/images.yml@refs/heads/main",
            "https://github.com/evil/archdukejim/fabric-ctl/.github/workflows/images.yml@refs/heads/main"]
-    check("negative: the signer refuses another repository, a dev/ branch, another workflow and a look-alike name",
+    check("negative: the signer refuses another repository, the old name, a dev/ branch, another workflow and a "
+          "look-alike name",
           not any(signer.search(i) for i in bad), [i for i in bad if signer.search(i)])
     real = source_hash.source_hashes
     source_hash.source_hashes = lambda repo=REPO: now

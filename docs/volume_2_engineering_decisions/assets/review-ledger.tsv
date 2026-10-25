@@ -15,7 +15,7 @@ README.md	e11704d23ab0b3402607854f34089ea1a78ebdec	2026-10-23
 THIRD_PARTY_NOTICES	ff836ec5208f7ac6140740a07186107c63702d24	2026-10-08	
 config/README.md	6300abd255fbbe5a87bd0d83cd9c9dd1c4b8de1f	2026-10-08	
 config/VERSION	a3df0a6959e154733da89a5d6063742ce6d5b851	2026-10-21	
-config/images.lock.yaml	9ca92312a26f7e4de5a3e5eed7c5e98c381e72f0	2026-10-23	
+config/images.lock.yaml	65a5e03b06e62be9b1d8e54f4ff28237c6467093	2026-10-25	
 config/link-vars-template.yaml	09caaa55680a13015332a468218c99437f67db26	2026-09-30	
 docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
@@ -37,7 +37,7 @@ docs/volume_1_description_and_architecture/1.12.3-adguard-behind-bind.md	bfd9198
 docs/volume_1_description_and_architecture/1.13.1-chrony.md	ad072bf9a0b0d7d74c145a8df36599bb4f1aca6e	2026-10-08	
 docs/volume_1_description_and_architecture/1.14.1-image-channels.md	e8a2588c610300ccdb62867c57ac7afe4d9ab563	2026-10-23	
 docs/volume_1_description_and_architecture/1.14.2-image-updates.md	6ed0a9c2ef5337e257dce7ffc89c4502d0398697	2026-10-23	
-docs/volume_1_description_and_architecture/1.14.3-published-images-on-hosts.md	421014935e9f24e8db4cb27fb17e3d5dd1998d9f	2026-10-23	
+docs/volume_1_description_and_architecture/1.14.3-published-images-on-hosts.md	0c90f3bd4cfa4549636efb7c3220946dd3059607	2026-10-25	
 docs/volume_1_description_and_architecture/1.15.1-fluent-bit.md	b1106fe50c3441e51cbd48d61d7fed3746468413	2026-10-21	
 docs/volume_1_description_and_architecture/1.16.1-luks.md	f4b4c1a4dd1ecd389fd2fde6ec3bc00e7f92a738	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.1-about-the-reference.md	6b0b315f02c1a197b2ae64db31a6f0e932b12404	2026-10-17	
@@ -137,7 +137,7 @@ docs/volume_2_engineering_decisions/2.1.10-dhcp.md	d2f651c94dba5302552170cee89cc
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	139ff5b3ecce15085a60e2ef8443933896633b00	2026-10-12	
 docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece98c5e28bc1c8	2026-10-08	
-docs/volume_2_engineering_decisions/2.1.14-images.md	bb4339ff3bef36d06c8650ef117bd57b6d9fe354	2026-10-23	
+docs/volume_2_engineering_decisions/2.1.14-images.md	248151c9d9c79e2df741cf97ae067094436d9608	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.15-logs.md	b3fb9286ea0a6760a0ab597950d771e6cc305633	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.16-disk-encryption.md	2c5f6832b676ea44d7f5e8a76a4717b35f4d3cd6	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.18-stig.md	1c83b035548437109b09db17fa962aaa8649aa2a	2026-10-24	
@@ -151,7 +151,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	8f8dc9a2628590186985c15579ae6
 docs/volume_2_engineering_decisions/2.1.9-federation.md	807fa399dad0db0dc7ee1508f22ea844d8656cc2	2026-10-25	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	7422d1d674bad23673affb757d9f805af4f82ce8	2026-10-25	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	2ea03fd66dbfeedbd99501bd7a74210e536488d2	2026-10-25	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -172,13 +172,13 @@ docs/volume_3_installation/3.1.2-automated-tests.md	f79853d346c2159e46dad2197cee
 docs/volume_3_installation/3.1.3-dev-preview.md	f913e6ed5b5f0e0428479a417dc655071b3b2f42	2026-10-08	
 docs/volume_3_installation/3.1.4-working-on-fabric.md	f0aa02dae628fc02838839f4887bb5d6baa1e857	2026-10-08	
 docs/volume_3_installation/3.1.5-hyperv-lab.md	ac8b2bc05868b6eff7bd5c5da1de9e3fc094d5ac	2026-10-23	
-docs/volume_3_installation/3.14.1-building-images.md	897e957d49361f6c9d77a7611741dcabb0a43178	2026-10-20	
+docs/volume_3_installation/3.14.1-building-images.md	02f93e1b8005e59273fa694a2b3a26ace414aed8	2026-10-25	
 docs/volume_3_installation/3.16.1-disk-encryption.md	01a470a365017a5f19e088eb54482f8c49919b65	2026-10-08	
 docs/volume_3_installation/3.2.1-requirements.md	68939b2f537486536b086ded7ab0f2b604c4c3cc	2026-10-23	
 docs/volume_3_installation/3.2.2-docker-from-ubuntu.md	2d7250a68efefe0413b077ee659fa444d40a325a	2026-10-08	
 docs/volume_3_installation/3.2.3-deployed-structure.md	7e6cdc8cf16bfca41ab48a5b0e0dd7d69d0c29a2	2026-10-08	
 docs/volume_3_installation/3.2.4-reinstall-uninstall.md	d3395e834aa318e9342ddf80f1d903ee39dd7b4e	2026-10-23	
-docs/volume_3_installation/3.3.1-running-setup.md	1b4bb1bb926e078b47b629a0ecbcda8f326b5a51	2026-10-24	
+docs/volume_3_installation/3.3.1-running-setup.md	a42e72bcd1be7cc0c44235d35401f453c2325810	2026-10-25	
 docs/volume_3_installation/3.3.2-after-setup.md	35ed4792d55ba7d74779d3bcd998f561b8142509	2026-10-20	
 docs/volume_3_installation/3.3.3-setup-steps.md	06385ddf3a8844517b3d55c399a0af5bae65af77	2026-10-23	
 docs/volume_3_installation/3.3.4-rebuilding.md	89cf47b0a1e0594bdae8b4d684b4111123f5b76b	2026-10-08	
@@ -236,7 +236,7 @@ packaging/deb/build-deb.sh	7104ea4b00de477d5b3f8d5f6f1b09d0addf4e72	2026-10-03
 packaging/deb/control.in	283657bfd89df368a694f6f1a358245d220ee062	2026-10-23	
 packaging/deb/postinst	5c07a59336349fe0697c17073a1a90bb21b6650d	2026-09-30	
 packaging/deb/postrm	629abba3ee55d37bf33183c116baf265d6a84f06	2026-09-30	
-packaging/docker-bake.hcl	d9902a26867ce9345ea9b45799f78541a3b6d5ca	2026-10-23	
+packaging/docker-bake.hcl	c5c3c8a6de23dbbe978936b1fede73fa172bfda7	2026-10-25	
 packaging/images/README.md	6ab7581fd6b2dc3a18f6397572740377919a3c40	2026-10-12	
 packaging/images/bake_env.py	cf52a5aef0eb2fb640e64fc09d5340bc3a07227d	2026-10-09	
 packaging/images/bind9/.dockerignore	76683618065e127abc520ec990844339e7677973	2026-09-30	
@@ -253,7 +253,7 @@ packaging/images/samba/Dockerfile	0c094e7dfb420614534f5b9b04436bed1685f4a3	2026-
 packaging/images/samba/README.md	b4b381aec429c32b06b55b5b48ad48ec7d1a7340	2026-10-08	
 packaging/images/samba/entrypoint.sh	b6cfb7f6e11b8430d058de6cc35c4f8c51cc928d	2026-10-20	
 packaging/images/samba/set_password.py	8b0d769f7fcd661e69271f603171a6b2117bfa70	2026-10-08	
-packaging/images/smoke-test.sh	200198e50c4168559f97e69778922de3c0420238	2026-10-09	
+packaging/images/smoke-test.sh	a421973881bff0d4162a58d666b43d567140d0f8	2026-10-25	
 packaging/images/stage-contexts.sh	032b90565e1e40b075b798f6148feb14570d9d72	2026-10-09	
 packaging/images/stepca/.dockerignore	76683618065e127abc520ec990844339e7677973	2026-09-30	
 packaging/images/stepca/Dockerfile	248b87188874ec271394ffa5e4cce7fa56f38101	2026-09-30	
@@ -1518,7 +1518,7 @@ src/webui/devpreview/fake_network.py	59f09f031e6cbb0f004c42e8a3e79681313b5aa4	20
 src/webui/devpreview/fake_ous.py	40fc706f28cabc48ff7a86acb9e95d1b3f7b3425	2026-10-23	
 src/webui/devpreview/fake_pending.py	348a2f72c2a1167c9c50fc69d849ac97b2236af8	2026-10-23	
 src/webui/devpreview/fake_reads.py	0c3379fff4ea1d57be64d1620ce9322d588b4cc1	2026-10-24	
-src/webui/devpreview/sample_data.py	545c8080609630517f3110f75b4d1efbd7ff5eae	2026-10-23	
+src/webui/devpreview/sample_data.py	8e43c8258966866eedb2a6c57670a1ef22e5ae82	2026-10-25	
 src/webui/devpreview/sample_radius_guides.py	862106ee28f034e2c57b6725fb2edc7c23969cde	2026-10-23	
 src/webui/devpreview/sample_result.py	dbac8d00eeb06164ebb3f38b15bae7a22cc2817a	2026-10-02	
 src/webui/devpreview/sample_settings.py	edf10edc61c7684e32fae6a5e2b3d90b193676f6	2026-10-20	
@@ -1844,8 +1844,8 @@ tests/image_ref.py	4ff35451eb0f155eee1efe6209e935e841d0dc32	2026-10-03
 tests/images/README.md	32152577c75918aee5b4d0bfe1f04b2163e75144	2026-10-14	
 tests/images/commands.py	f50fd76f488d6f1bafd84b73218ee8eebe71742c	2026-10-25	
 tests/images/host_images.py	88e855ce667d351a3edc1fe87421a5ad687d19e0	2026-10-09	
-tests/images/previous.yaml	7dab3417916065b715c9e904ca412877f7767222	2026-10-12	
-tests/images/published.py	6fd100c27ae58d121fa520af046a11649701f8da	2026-10-23	
+tests/images/previous.yaml	a42668c18aaff9b95fe83264f8b29973397f23c9	2026-10-25	
+tests/images/published.py	329c8b0f5780f97257407e0defbfb6fbf60ef2ef	2026-10-25	
 tests/images/run.sh	4e4b398a854a4ec81041afbc8cd52bf7d3707ad1	2026-10-25	
 tests/images/switch_image_test.py	6534c1f8fff6b86fcd8b30770dcfeadba574d94c	2026-10-14	
 tests/images/update.sh	075211f0db5332572d6355fbdc507ae98a69c8b8	2026-10-12	
@@ -1910,7 +1910,7 @@ tests/sandbox/move_state.py	249c0e51bba5f789c7dec6aa7a9366755b6b81fa	2026-10-20
 tests/sandbox/radius_device.py	12b3e1127a0cc5966846fe0554dc84da7a2e5449	2026-10-05	
 tests/sandbox/radius_mab.py	c9575e9fd8e3c3d52dbd77b879b9ef9a6bd148d5	2026-09-30	
 tests/sandbox/rfc2136_test.sh	4299bc1c1d62237439cad3a2ebac534f45ef0874	2026-10-09	
-tests/sandbox/run.sh	7e04993f14a427d5d35ea92dc14f2b4fcaeefc9d	2026-10-23	
+tests/sandbox/run.sh	f165594a1ef016cdcf2bf17e3efce488ff12a033	2026-10-25	
 tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30	
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-12	

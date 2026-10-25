@@ -233,7 +233,7 @@ SAMPLE_SECURITY = [
     {"layer": "kerberos", "what": "signing in with the domain logon (Kerberos)", "value": "on", "effective": None,
      "choices": [], "lowered": None},
 ]
-_REG = "ghcr.io/archdukejim/open-fabric"
+_REG = "ghcr.io/archdukejim/fabric-ctl"
 SAMPLE_IMAGES = [
     {"service": "bind9", "var": "image_fabric_bind9", "running": f"{_REG}/bind9:0.6.3-rc.1@sha256:1111",
      "applied": f"{_REG}/bind9:0.6.3-rc.1@sha256:1111", "validated": f"{_REG}/bind9:0.6.3-rc.1@sha256:1111",
