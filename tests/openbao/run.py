@@ -9,6 +9,7 @@ happens when the key goes missing, and hardening.
 
     sudo python3 tests/openbao/run.py          (needs Docker, openssl, root)
 """
+import atexit
 import contextlib
 import getpass
 import io
@@ -580,6 +581,19 @@ check("method back -> unseals again, data intact", start() and
 check("the key never changed", open(f"{W}/keys/local-fabric-2.key", "rb").read() == key_bytes)
 
 # ---------------------------------------------------------------- USB stick unlock method (loop device)
+
+
+def release_sticks():
+    """Unmount whatever this run mounted from its stick images and detach their loop devices, also when the run
+    stops part way (2.3.1.30: one left attached and mounted outlives the run)."""
+    for img in (f"{W}/stick.img", f"{W}/other.img"):
+        for dev in [ln.split(":", 1)[0] for ln in sh(["losetup", "-j", img], ok=False).stdout.splitlines()]:
+            for point in sh(["findmnt", "-n", "-o", "TARGET", "-S", dev], ok=False).stdout.split():
+                sh(["umount", point], ok=False)
+            sh(["losetup", "-d", dev], ok=False)
+
+
+atexit.register(release_sticks)
 sh(f"truncate -s 64M {W}/stick.img")
 loop = sh(f"losetup --find --show {W}/stick.img").stdout.strip()
 sh(f"truncate -s 64M {W}/other.img")

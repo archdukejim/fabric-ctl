@@ -59,7 +59,7 @@ docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	476faab
 docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	e92ac286313686d8f5094464d10f6ef6ab71951a	2026-10-24	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	e51203f703b70dbe85dcf696d0430c6e56b3e8a9	2026-10-24	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	9fa688001068b61ddcf6cc50ec2737c20a0155ec	2026-10-13	
-docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	2870a95a9f39b75fd994a24f2133089b50a18183	2026-10-23	
+docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	ef0eaf5854c975ca84fbd27af2c17c78328ec055	2026-10-25	
 docs/volume_1_description_and_architecture/1.17.28-installers.md	986b323d7a4ca2e8cbf71d23fdd677f464f51139	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.29-webui.md	7392a10f7117da4a5b2f11306806e2a264c6c1f5	2026-10-24	
 docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	5b1eeb1dd2aa958cec476aa04bfae435ef4b1ca1	2026-10-24	
@@ -151,7 +151,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	8f8dc9a2628590186985c15579ae6
 docs/volume_2_engineering_decisions/2.1.9-federation.md	807fa399dad0db0dc7ee1508f22ea844d8656cc2	2026-10-25	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	96371f1d47349e0ecb1ea58479b7bf2f379988f1	2026-10-25	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	90d815a3c3617bea6d7c3a34db0d2a50d082bbe3	2026-10-25	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -168,7 +168,7 @@ docs/volume_2_engineering_decisions/README.md	b6d9237470b17c886b556facda7959ff02
 docs/volume_2_engineering_decisions/assets/README.md	3fd72f26d985cf1827afa0868c6c138dfec9d627	2026-10-08	
 docs/volume_2_engineering_decisions/assets/review-ledger.tsv	7133faf2e490a8453a49cd074e358f1d42a7be4b	2026-10-23	
 docs/volume_3_installation/3.1.1-manual-test-plan.md	45af38d9ad108ecf2ca0ba47e7cc0438e2ee9bfc	2026-10-23	
-docs/volume_3_installation/3.1.2-automated-tests.md	11e0a1d4f875677f934ca260641fdb711b6aaaa0	2026-10-25	
+docs/volume_3_installation/3.1.2-automated-tests.md	f79853d346c2159e46dad2197ceea0b49c683de6	2026-10-25	
 docs/volume_3_installation/3.1.3-dev-preview.md	f913e6ed5b5f0e0428479a417dc655071b3b2f42	2026-10-08	
 docs/volume_3_installation/3.1.4-working-on-fabric.md	f0aa02dae628fc02838839f4887bb5d6baa1e857	2026-10-08	
 docs/volume_3_installation/3.1.5-hyperv-lab.md	ac8b2bc05868b6eff7bd5c5da1de9e3fc094d5ac	2026-10-23	
@@ -1328,7 +1328,7 @@ src/fabriclib/vault/common/find_token.py	db7039398616e7c3f80c43a803fea2f9196034b
 src/fabriclib/vault/common/key_check_value.py	eca7f51dd0886601b6b70215399cf85c8b087b53	2026-09-30	
 src/fabriclib/vault/common/kmip_session.py	cd97bcc22c60780433dc54c5a57f7d5e2c31bd6e	2026-09-30	
 src/fabriclib/vault/common/load_pkcs11.py	8c9dcdf1dde0d732d63c90929e01e9b46aaf48b4	2026-09-30	
-src/fabriclib/vault/common/mounted_stick.py	296fcf9c104d29f57afcdfd7bd0b12823ce37c40	2026-09-30	
+src/fabriclib/vault/common/mounted_stick.py	1c810adbe8c99e251df1cb19c4a29dca1a51fa25	2026-10-25	
 src/fabriclib/vault/common/obtain_key.py	66650e996e1083ecd2fdf9aeff80cc1c7940ee2c	2026-09-30	
 src/fabriclib/vault/common/pkcs11_modules.py	69a015e5facb8971c149b6431955805567038be9	2026-09-30	
 src/fabriclib/vault/common/pkcs11_session.py	587bfbe7c695eaf2d92080ff53bcc16b5970b7e4	2026-10-03	
@@ -1867,7 +1867,7 @@ tests/ntp/run.py	19f896440a925367ca37c3462a083f9a9772611a	2026-10-25
 tests/openbao/README.md	2a2d5bf4c034c1329a9f750fe50662ea351d42dd	2026-10-23	
 tests/openbao/db_rotation.py	6541d7c57d9f8686b42dfd5c4010839ea2bfa915	2026-10-25	
 tests/openbao/local_admin.py	21a07e388acc0f1bd0a8c86eb7887cc5caba7ce5	2026-10-25	
-tests/openbao/run.py	20316609f1d3a4e78976fc7ee3c37eab2ba49981	2026-10-25	
+tests/openbao/run.py	158ae3e2d001b4de5d980cc9cff8d3a146bf1655	2026-10-25	
 tests/pki/README.md	93bb4418da64c7f479e291e518293fb3f7b84c0d	2026-10-13	
 tests/pki/acme.py	30e4f941313acdd2e22f78258ef1b3eb86427cb2	2026-10-25	
 tests/pki/landing.py	06925a77e86531206ff92a29b717f4b49387ac88	2026-10-25	
