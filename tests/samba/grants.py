@@ -26,12 +26,14 @@ from start_dc import IMAGE as SAMBA_IMAGE  # noqa: E402
 from start_dc import POLICY, start_dc  # noqa: E402
 import agent.get_route as m_get  # noqa: E402
 import agent.post_grants as m_post  # noqa: E402
+import fabriclib.directory.create_person as m_create  # noqa: E402
 import fabriclib.directory.set_person_group as m_group  # noqa: E402
 import fabriclib.grants.add_grant as m_add  # noqa: E402
 import fabriclib.grants.remove_grant as m_remove  # noqa: E402
 import fabriclib.grants.run_grant_command as m_cmd  # noqa: E402
 import fabriclib.grants.set_grant as m_set  # noqa: E402
 import fabriclib.grants.sync_grants as m_sync  # noqa: E402
+from agent.pending_thing import version_of  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
 from fabriclib.grants.grant_request import grant_request  # noqa: E402
@@ -52,7 +54,7 @@ def audit(actor, action, detail, source="cli"):
     AUDIT.append((action, detail, source))
 
 
-for mod in (m_add, m_set, m_remove, m_sync, m_group):
+for mod in (m_add, m_set, m_remove, m_sync, m_group, m_create):
     mod.write_audit = audit
 
 
@@ -285,6 +287,38 @@ code, out = grant("sync")
 check("a change made with samba-tool (bob into server-admins) is compiled by `grant sync` (the timer's run)",
       code == 0 and "grant-server-administrators-who: 1 added" in out, out)
 check(f"{SRV}: bob now signs in there", within(lambda: allowed(S, "bob", "login")))
+
+# a person fabric creates is compiled into the grants at once (1.6.13.4), so a change held on them right after (a
+# reset: its version is the person as read, their groups too, 2.1.8.14) is not refused when the timer runs (2.3.1.32)
+def person_version(uid):
+    return version_of(run_op(V, SECRETS, "get_person", {"uid": uid}, DC))
+
+
+n_audit = len(AUDIT)
+m_create.create_person(V, "test", "carl", "Carl", "Test", "carl@lan.test", secrets=SECRETS, container=DC)
+held = person_version("carl")
+check("fabric creates carl (site lan): compiled at once, carl in the desktops' who group (GRANT_COMPILE)",
+      [a[0] for a in AUDIT[n_audit:]] == ["PERSON_CREATE", "GRANT_COMPILE"]
+      and "grant-desktops-who" in run_op(V, SECRETS, "get_person", {"uid": "carl"}, DC)["groups"], AUDIT[n_audit:])
+done = m_sync.sync_grants(V, "test", "timer", DC)
+check("the timer's compile after it changes nothing: carl's version, as a reset held on him has it, is unchanged",
+      done["changed"] == [] and person_version("carl") == held, (done, held))
+run_op(V, SECRETS, "create_person", {"uid": "cora", "first": "Cora", "last": "Test", "email": "cora@lan.test",
+                                     "password": "Ot-" + random_password(20), "gid": 5000, "home_base": "/home",
+                                     "shell": "/bin/bash"}, DC)
+held = person_version("cora")
+done = m_sync.sync_grants(V, "test", "timer", DC)
+check("negative: a person made outside fabric (the DC's own op, as RSAT would) is reached at the timer's compile: "
+      "their version moves, so a change held on them before it is refused as changed since (1.8.6.5)",
+      any("grant-desktops-who" in c for c in done["changed"]) and person_version("cora") != held, done)
+n_audit = len(AUDIT)
+try:
+    m_create.create_person(V, "test", "carl", "Carl", "Again", "carl2@lan.test", secrets=SECRETS, container=DC)
+    err = ""
+except ValidationError as e:
+    err = str(e)
+check("negative: creating carl again is refused (taken), with no compile and nothing audited",
+      "already taken" in err and len(AUDIT) == n_audit, (err, AUDIT[n_audit:]))
 
 print("--- the fallback: a machine no grant reaches (2.1.6.87)")
 samba_tool("group", "removemembers", "machines-servers", f"{SRV.upper()}$")

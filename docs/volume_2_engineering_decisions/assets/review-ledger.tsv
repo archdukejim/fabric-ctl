@@ -64,11 +64,11 @@ docs/volume_1_description_and_architecture/1.17.28-installers.md	986b323d7a4ca2e
 docs/volume_1_description_and_architecture/1.17.29-webui.md	7392a10f7117da4a5b2f11306806e2a264c6c1f5	2026-10-24	
 docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	5b1eeb1dd2aa958cec476aa04bfae435ef4b1ca1	2026-10-24	
 docs/volume_1_description_and_architecture/1.17.30-fabriclib-samba.md	22cae230e948eec4a94212be61c550cb568cde65	2026-10-24	
-docs/volume_1_description_and_architecture/1.17.31-fabriclib-directory.md	c40a1ee868785aee917f9139c4e05593b696e5ad	2026-10-24	
+docs/volume_1_description_and_architecture/1.17.31-fabriclib-directory.md	2a014ea3112c1d1cc65f37e8ade7387eb27ca251	2026-10-25	
 docs/volume_1_description_and_architecture/1.17.33-fabriclib-settings.md	2d60ef37edd855f4645cf1ebe7fdbe23e21535a9	2026-10-20	
 docs/volume_1_description_and_architecture/1.17.34-fabriclib-breakglass.md	740d744fda539e3723c3025bac7ad17367ad9408	2026-10-20	
 docs/volume_1_description_and_architecture/1.17.35-fabriclib-hostaccounts.md	cc8ad9bfcc57375978eeae36174cf055004ea6a5	2026-10-23	
-docs/volume_1_description_and_architecture/1.17.36-fabriclib-grants.md	3357c5068bfcf88bf6c183c818175c1da8b65e8d	2026-10-23	
+docs/volume_1_description_and_architecture/1.17.36-fabriclib-grants.md	682be675b7b3d5426092e33e355bea1380192bc5	2026-10-25	
 docs/volume_1_description_and_architecture/1.17.37-fabriclib-access.md	1813146bfa8f4ae4563fd4b406142ce9cc6d75de	2026-10-20	
 docs/volume_1_description_and_architecture/1.17.38-fabriclib-domain.md	e0311ad777e551fc6604e23bfb2690db89412839	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.39-fabriclib-localadmin.md	8fa6d8cf79a5ca90fdda5e7ddd2e04d726f9c78a	2026-10-23	
@@ -105,7 +105,7 @@ docs/volume_1_description_and_architecture/1.6.1-directory.md	7fa9284225375dc046
 docs/volume_1_description_and_architecture/1.6.10-security.md	8d627ab12c234c4d60c501fdcd1b3dbbf1d2a905	2026-10-20	
 docs/volume_1_description_and_architecture/1.6.11-host-access.md	c03a81db6bf49742df56a34f3b0051a9bbbe9662	2026-10-23	
 docs/volume_1_description_and_architecture/1.6.12-domain-management.md	6529a7ae668caffe7c227e80b2435cd583e4b013	2026-10-23	
-docs/volume_1_description_and_architecture/1.6.13-access-by-grants.md	09b50bce35cef483a4708921f8dad333904c8b39	2026-10-24	
+docs/volume_1_description_and_architecture/1.6.13-access-by-grants.md	79ea402044e931602305c8c93df609c036ba4109	2026-10-25	
 docs/volume_1_description_and_architecture/1.6.2-keycloak.md	1170cb7e6152f061277c87f25439f287c659fed2	2026-10-21	
 docs/volume_1_description_and_architecture/1.6.3-samba-directory.md	755c6a8ee0a7d002b5c36e3c86f0ccb8a488c34e	2026-10-24	
 docs/volume_1_description_and_architecture/1.6.4-samba-ad.md	a0962a724db0ba9c74a562d70d742c061e9f9db4	2026-10-20	
@@ -680,7 +680,7 @@ src/fabriclib/directory/common/person_guard.py	1a0a2e61ba30b17c43d9117fa8865e97e
 src/fabriclib/directory/common/read_directory.py	f435fc661910d1400ec401d33ba2ca658bfac3bf	2026-10-20	
 src/fabriclib/directory/constants.py	469f37b6851b2dedf82415dc2fd1b07d00db31a6	2026-10-20	
 src/fabriclib/directory/create_host_group.py	aa19130fe2b8760a0d3348faa2d522af03b40a41	2026-10-20	
-src/fabriclib/directory/create_person.py	1d5b01f1a5ef41a112dbd68c9b35c86ae8a563a9	2026-10-20	
+src/fabriclib/directory/create_person.py	b3086068f2c60a842205dd7e5888282daa498c6d	2026-10-25	
 src/fabriclib/directory/device_overview.py	20c9334db8f96405cabb0c85c519eb35a31fd50a	2026-10-05	
 src/fabriclib/directory/ensure_admin.py	fdcac4970496b942778f4423fda7126899002aac	2026-10-20	
 src/fabriclib/directory/ensure_default_device_roles.py	5088477208d06b6898762cabf8f871ea75cc20fa	2026-10-20	
@@ -1888,7 +1888,7 @@ tests/samba/devices.py	6ab42b2f1dfc36dacff89ba078ed5a6d5f4a3069	2026-10-25
 tests/samba/domain.py	d731891d0e6b867935023f902b452ee9aec4175a	2026-10-25	
 tests/samba/ensure_schema_test.py	8c24fbe50739c208afb48fb73b82e9cb976a2b96	2026-10-24	
 tests/samba/gpo.py	ce75634400584e952532ecb433e575e0787e9a40	2026-10-25	
-tests/samba/grants.py	756c1c0dedf5b8bbc91baf5c038838f80cd21b0b	2026-10-25	
+tests/samba/grants.py	27c3bd126b50fc2acce4759a9da1ef541780c6f8	2026-10-25	
 tests/samba/hostgroups.py	a71ecfff520edd57ff2e976829c61205e4b827bd	2026-10-25	
 tests/samba/id_layout_test.py	2f5f8395429e443adbf0bd64480247c114dcc2c6	2026-10-20	
 tests/samba/linux_join.py	3719299ed5b204b005ee307a71e1e53d335aed39	2026-10-25	
