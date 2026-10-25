@@ -13,15 +13,17 @@ import subprocess
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__)),
+                 os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
 from start_dc import start_dc  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
 from fabriclib.samba.converge_domain import converge_domain  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-plan")
-NET, SUBNET, IP = "sambaplan_net", "10.254.33.0/24", "10.254.33.10"
-DC = "samba"            # the product's own name: fabric's functions use it
+NET, SUBNET, IP = testrun.name("sambaplan_net"), testrun.net(72) + ".0/24", testrun.net(72) + ".10"
+DC = testrun.name("sambaplandc")      # per run (manual 3.1.2.6); every call names it (container=DC)
 ARC = "1.2.840.113556.1.8000.2554"
 FAILED = 0
 
@@ -64,10 +66,6 @@ def ldb(expr, *attrs):
                           capture_output=True, text=True).stdout
 
 
-if subprocess.run(["docker", "inspect", "samba"], capture_output=True).returncode == 0 and \
-        not subprocess.run(["docker", "inspect", "-f", "{{.Config.Image}}", "samba"], capture_output=True,
-                           text=True).stdout.strip().endswith(":test"):
-    sys.exit("a container named samba that is not a test DC runs here: not touching it")
 dc = start_dc(W, DC, NET, SUBNET, IP)
 V, SECRETS = dc["v"], dc["secrets"]
 SITE = V["site_name"]
@@ -176,7 +174,7 @@ check("a subnet removed with its ranges and addresses (a tree delete), and its V
       plan["subnets"] == [] and plan["vlans"] == [] and "10.1.20.5" not in ldb("(fabricIp=10.1.20.5)", "dn"), plan)
 
 if not os.environ.get("FABRIC_TEST_KEEP"):     # keep the DC to look into a failure
-    subprocess.run(["docker", "rm", "-f", DC], capture_output=True)
-    subprocess.run(["docker", "network", "rm", NET], capture_output=True)
+    testrun.remove("container", DC)          # this run's only (manual 3.1.2.6)
+    testrun.remove("network", NET)
 print("\nFAILED" if FAILED else "\nall passed", f"({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

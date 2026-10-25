@@ -17,7 +17,9 @@ import sys
 from contextlib import redirect_stderr, redirect_stdout
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__)),
+                 os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
 from start_dc import POLICY, start_dc  # noqa: E402
 import fabriclib.grants.add_grant as m_add_grant  # noqa: E402
 import fabriclib.ipam.common.edit_options as m_edit_opt  # noqa: E402
@@ -45,8 +47,8 @@ m_run.apply_intent = __import__("functools").partial(
     m_intent.apply_intent, os.path.join(__import__("tempfile").mkdtemp(), ".apply.intent"))
 
 W =os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-ipam")
-NET, SUBNET, IP = "ipamtest_net", "10.254.41.0/24", "10.254.41.10"
-DC = "samba"            # the product's own name: fabric's functions use it
+NET, SUBNET, IP = testrun.name("ipam_net"), testrun.net(71) + ".0/24", testrun.net(71) + ".10"
+DC = testrun.name("ipamdc")      # per run (manual 3.1.2.6); every call names it (container=DC)
 FAILED = 0
 AUDIT = []
 
@@ -101,10 +103,6 @@ def ipam(*argv, v=None):
     return code, out.getvalue() + err.getvalue()
 
 
-if subprocess.run(["docker", "inspect", "samba"], capture_output=True).returncode == 0 and \
-        not subprocess.run(["docker", "inspect", "-f", "{{.Config.Image}}", "samba"], capture_output=True,
-                           text=True).stdout.strip().endswith(":test"):
-    sys.exit("a container named samba that is not a test DC runs here: not touching it")
 dc = start_dc(W, DC, NET, SUBNET, IP)
 V, SECRETS = dc["v"], dc["secrets"]
 os.environ["DEPLOY_BASE_DIR"] = W            # the kept plan goes under the test's folder
@@ -532,7 +530,7 @@ code, out = ipam("address", "remove", "10.1.30.10", "--no-apply")
 check("refused: removing an address that went with its VLAN", code == 1 and "not recorded" in out, out)
 
 if not os.environ.get("FABRIC_TEST_KEEP"):     # keep the DC to look into a failure
-    subprocess.run(["docker", "rm", "-f", DC], capture_output=True)
-    subprocess.run(["docker", "network", "rm", NET], capture_output=True)
+    testrun.remove("container", DC)          # this run's only (manual 3.1.2.6)
+    testrun.remove("network", NET)
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

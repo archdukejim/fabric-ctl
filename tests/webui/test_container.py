@@ -26,7 +26,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path[0:0] = [os.path.join(REPO, "src"), REPO]
+sys.path[0:0] = [os.path.join(REPO, "src"), REPO, os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
 from fabriclib.rbac.permissions import BUNDLES  # noqa: E402
 from fabriclib.hostaccounts.approve_local_account import approve_local_account  # noqa: E402
 from fabriclib.hostaccounts.list_local_admins import list_local_admins  # noqa: E402
@@ -42,10 +43,10 @@ ADMIN_ROLES = bundle_roles("admin", "fabric-console-admin")
 AUDITOR_ROLES = bundle_roles("fabric-auditor")
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/webui"
 # two runs side by side (two worktrees on one machine) each name their own container, network, image and mock Keycloak
-TID = os.environ.get("WEBUI_TEST_ID", "")                 # a suffix for the names, e.g. "-console"
-NET = os.environ.get("WEBUI_TEST_NET", "10.254.8")        # the test network's /24, its first three octets
-KC_PORT = int(os.environ.get("WEBUI_TEST_KC_PORT", "18443"))
-CWEBUI, CWNET, IMAGE = f"cwebui{TID}", f"cwnet{TID}", f"fabric/webui:test{TID}"
+# names, the /24 and the stand-in Keycloak's host port are this run's own (manual 3.1.2.6)
+NET = testrun.net(8)                                      # the test network's /24, its first three octets
+KC_PORT = testrun.port(18443)
+CWEBUI, CWNET, IMAGE = testrun.name("cwebui"), testrun.name("cwnet"), "fabric/webui:" + testrun.name("test")
 shutil.rmtree(W, ignore_errors=True)
 os.makedirs(W)
 
@@ -225,8 +226,8 @@ agent = subprocess.Popen([sys.executable, f"{W}/fabric/lib/agent/server.py", "--
                          env={**os.environ, "PATH": f"{W}/bin:" + os.environ.get("PATH", "/usr/bin:/bin")})
 
 # ------------------------------------------- webui container (uid 912)
-sh(f"docker rm -f {CWEBUI} >/dev/null 2>&1; docker network rm {CWNET} >/dev/null 2>&1; true")
-sh(f"docker network create --subnet {NET}.0/24 --gateway {NET}.1 {CWNET} >/dev/null")
+testrun.remove("container", CWEBUI)                     # this run's only
+testrun.create_network(CWNET, f"{NET}.0/24", f"{NET}.1")
 cfg = {"socket": "/run/webui/web.sock", "socket_gid": 0, "agent_socket": "/agent/agent.sock",
        "public_url": "https://mgr.test", "ca_file": "/certs/root_ca.crt", "intermediate_ca": "/certs/intermediate_ca.crt",
        "admin_role": "fabric-console-admin", "session_idle": 900, "session_max": 28800,
@@ -240,7 +241,7 @@ os.chmod(f"{W}/config/webui.json", 0o400)
 os.makedirs(f"{W}/build")
 sh(f"cp -a {W}/fabric/jinja/webui/build/. {W}/build/ && cp -a {W}/fabric/lib/webui {W}/build/app")
 sh(f"docker build -q --build-arg BASE_IMAGE={DEBIAN} --build-arg WEBUI_UID={UID} --build-arg WEBUI_GID={UID} -t {IMAGE} {W}/build >/dev/null")
-sh(f"docker run -d --name {CWEBUI} --network {CWNET} --ip {NET}.80 --user {UID}:{UID} --group-add 0 "
+sh(f"docker run -d --name {CWEBUI} --label {testrun.LABEL} --network {CWNET} --ip {NET}.80 --user {UID}:{UID} --group-add 0 "
    f"--read-only --security-opt no-new-privileges:true --cap-drop ALL --tmpfs /tmp:noexec,nosuid,size=16m "
    f"-v {W}/config:/config:ro -v {W}/certs:/certs:ro -v {W}/run:/run/webui -v {W}/agent:/agent:ro "
    f"{IMAGE} >/dev/null")
@@ -1949,8 +1950,9 @@ check("admin token: may read the layers", " 200 " in out, out)
 out = agent_call("POST", "/v1/security/raise", "alice", ADMIN_ROLES, {"layer": "admin-2fa", "value": "sms"})
 # covers: agent:post.security.raise -
 check("refused through the agent: a value that is no level (400)", " 400 " in out, out)
-subprocess.run(f"docker rm -f {CWEBUI} >/dev/null; docker network rm {CWNET} >/dev/null; docker rmi {IMAGE} >/dev/null",
-               shell=True)
+testrun.remove("container", CWEBUI)                     # this run's only
+testrun.remove("network", CWNET)
+subprocess.run(["docker", "rmi", IMAGE], capture_output=True)
 agent.terminate()
 kc.shutdown()
 failed = [n for n, ok in results if not ok]

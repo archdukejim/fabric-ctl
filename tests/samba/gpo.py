@@ -12,14 +12,15 @@ import subprocess
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__)), os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
 from start_dc import start_dc  # noqa: E402
 import fabriclib.samba.run_gpo_command as m_cmd  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.samba.gpo_request import gpo_request  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-gpo")
-NET, SUBNET, IP, DC = "gpo_net", "10.254.34.0/24", "10.254.34.10", "gpodc"
+NET, SUBNET, IP, DC = testrun.name("gpo_net"), f"{testrun.PREFIX}.34.0/24", f"{testrun.PREFIX}.34.10", testrun.name("gpodc")
 TEXT_POL, TEXT_EL = "POL_33AAE399_07A8_5CC8_882A_393E4B96B259", "TXT_F940E18B_16AE_594B_9669_96417E695AC9"
 BOOL_POL, BOOL_EL = "POL_3CD2A970_826E_518E_B5F0_5E6725FF354D", "CHK_5C837672_BFBB_592A_907C_E378BEEDA2E4"
 LIST_POL, LIST_EL = "POL_DB5DF501_6F87_42D4_9FEC_E7F32C498BD3", "LST_4F4BA073_4F7B_4B64_A61D_8E75257A4B9F"
@@ -182,7 +183,7 @@ check("refused: a file that is not a template, before anything is written",
       code == 1 and "broken" not in "".join(gpo_request({"op": "templates"}, DC)), out)
 check("every change audited", {"GPO_TEMPLATES_LOAD", "GPO_SET", "GPO_CLEAR"} <= set(AUDIT), AUDIT)
 
-subprocess.run(["docker", "rm", "-f", DC], capture_output=True)
-subprocess.run(["docker", "network", "rm", NET], capture_output=True)
+testrun.remove("container", DC)      # this run's only
+testrun.remove("network", NET)
 print(f"\n{FAILED and 'FAILED' or 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

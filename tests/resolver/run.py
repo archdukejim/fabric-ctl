@@ -22,10 +22,16 @@ from contextlib import redirect_stderr, redirect_stdout
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/resolver"
-NET, SUBNET, GATEWAY = "res_test_net", "10.254.42.0/24", "10.254.42.1"
-BIND_IP, RES_IP, AG_IP = "10.254.42.30", "10.254.42.33", "10.254.42.34"
-IMAGE = "fabric/bind9:restest"
+NET, SUBNET, GATEWAY = testrun.name("res_test_net"), f"{testrun.PREFIX}.42.0/24", f"{testrun.PREFIX}.42.1"
+BIND_IP, RES_IP, AG_IP = f"{testrun.PREFIX}.42.30", f"{testrun.PREFIX}.42.33", f"{testrun.PREFIX}.42.34"
+IMAGE = "fabric/bind9:" + testrun.name("restest")
+RES_AUTH = testrun.name("res-auth")
+# bind9-resolver and adguard-filter are the product's names (its deploy and sync use them): one such run at a time
+# (manual 3.1.2.6), and only this run's are removed
+LOCK = testrun.product_names_lock("resolver").__enter__()
 FAILED = 0
 
 
@@ -70,7 +76,7 @@ def refused(fn, *args):
 
 def run_compose(svc, name, ip, image):
     """A compose service as `docker run` (the hardening as rendered): account, capabilities, sysctls, mounts."""
-    cmd = ["docker", "run", "-d", "--name", name, "--network", NET, "--ip", ip, "--user", svc["user"],
+    cmd = ["docker", "run", "-d", "--name", name, *testrun.labels(), "--network", NET, "--ip", ip, "--user", svc["user"],
            "--cap-drop", "ALL", "--memory", str(svc["mem_limit"])]
     cmd += ["--read-only"] if svc.get("read_only") else []
     cmd += [x for o in svc.get("security_opt") or [] for x in ("--security-opt", o)]
@@ -175,7 +181,7 @@ USERS = {"resolver": {"uid": 913, "gid": 913}, "adguard": {"uid": 914, "gid": 91
 SECRETS = {"resolver_rndc_secret": "c2VjcmV0LXRlc3Qta2V5LWZvci1mYWJyaWMtcmVzb2x2ZXI=",
            "adguard_api_password": "TestAdGuardPassw0rdForFabric"}
 PW = SECRETS["adguard_api_password"]
-NAMES = ("bind9-resolver", "res-auth", "adguard-filter")
+NAMES = ("bind9-resolver", RES_AUTH, "adguard-filter")
 try:
     shutil.rmtree(W, ignore_errors=True)
     os.makedirs(LIST_DIR)
@@ -200,7 +206,7 @@ try:
     URL404 = f"http://127.0.0.1:{srv.server_port}/missing.txt"
     V = {"deploy_base_dir": W, "service_users": USERS, "domain": "lan.test", "org_domain": "lan.test",
          "host_ip": GATEWAY, "ip_bind9": BIND_IP, "ip_resolver": RES_IP, "ip_adguard": AG_IP,
-         "lan_cidr": "192.168.77.0/24", "fabric_subnet": "10.254.99.0/24", "dns": {"dynamic_zone_var": {}},
+         "lan_cidr": "192.168.77.0/24", "fabric_subnet": f"{testrun.PREFIX}.99.0/24", "dns": {"dynamic_zone_var": {}},
          "install_resolver": True, "dns_filter": "bind", "resolver_mem_limit": "128m", "adguard_mem_limit": "1024m",
          "dns_filter_lists": [{"name": "Test list", "url": URL1, "enabled": True}],
          "dns_filter_allow": ["blocked-then-allowed.example", "example.net"],
@@ -260,7 +266,8 @@ try:
     check("AdGuard: deployed again, nothing to restart (the password's hash kept)", not again["restart"], again)
 
     # the containers: the authoritative BIND, AdGuard Home and the resolver as their compose files say
-    sh(f"docker rm -f {' '.join(NAMES)}; docker network rm {NET}", ok=False)
+    testrun.remove("container", *NAMES)
+    testrun.remove("network", NET)
     os.makedirs(f"{W}/bind9/config")
     os.makedirs(f"{W}/bind9/data")
     debian = sh([sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "debian"]).stdout.strip()
@@ -273,8 +280,8 @@ try:
                 f"ns IN A {BIND_IP}\nwww IN A 10.9.8.7\nads IN A 10.9.8.8\n")
     uid = sh(["docker", "run", "--rm", "--entrypoint", "id", IMAGE, "-u"]).stdout.strip()
     sh(f"chown -R {uid}:{uid} {W}/bind9/data")
-    sh(["docker", "network", "create", "--subnet", SUBNET, "--gateway", GATEWAY, NET])
-    sh(["docker", "run", "-d", "--name", "res-auth", "--network", NET, "--ip", BIND_IP,
+    testrun.create_network(NET, SUBNET, GATEWAY)
+    sh(["docker", "run", "-d", "--name", RES_AUTH, *testrun.labels(), "--network", NET, "--ip", BIND_IP,
         "-v", f"{W}/bind9/config:/etc/bind:ro", "-v", f"{W}/bind9/data:/var/lib/bind", IMAGE])
     ag = yaml.safe_load(env.get_template("dnsfilter/docker-compose.yml.j2").render(**V))["services"]["adguard-filter"]
     t0 = time.time()
@@ -414,7 +421,7 @@ try:
     a = deploy_adguard(V, SECRETS, env)
     # covers: setting:dns_filter_upstreams +
     check("an upstream changed: made through the API, no restart", not a["restart"] and a["synced"] == ["upstreams"], a)
-    moved = deploy_adguard({**V, "ip_resolver": "10.254.42.99"}, SECRETS, env, sync=False)
+    moved = deploy_adguard({**V, "ip_resolver": f"{testrun.PREFIX}.42.99"}, SECRETS, env, sync=False)
     check("a change outside the API (who may ask it) rewrites the file and asks for a restart", moved["restart"], moved)
     deploy_adguard(V, SECRETS, env, sync=False)          # back to this test's file
 
@@ -528,7 +535,8 @@ try:
     print(f"INFO AdGuard blocking again {time.time() - t0:.1f} s after its start")
 finally:
     if not os.environ.get("KEEP"):           # KEEP=1 leaves the containers to look at
-        sh(f"docker rm -f {' '.join(NAMES)}; docker network rm {NET}", ok=False)
+        testrun.remove("container", *NAMES)
+        testrun.remove("network", NET)
 
 print("\nall passed (0 failures)" if not FAILED else f"\n{FAILED} failed")
 sys.exit(1 if FAILED else 0)

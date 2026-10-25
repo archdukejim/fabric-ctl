@@ -20,7 +20,8 @@ import time
 import types
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__)), os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
 
 # what every module below finds when it imports them: this suite's vars, secrets and audit, no Keycloak, no lock file
 HOLD = {"v": {}, "secrets": {}}
@@ -78,11 +79,11 @@ from fabriclib.samba.set_domain_password_policy import set_domain_password_polic
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-domain")
-# a second run beside this one (another worktree) names its own: SAMBA_TEST_ID, SAMBA_TEST_NET (a /24's three octets)
-NET = "domain_net" + os.environ.get("SAMBA_TEST_ID", "")
-SUBNET = os.environ.get("SAMBA_TEST_NET", "10.254.41") + ".0/24"
+# a second run beside this one (another worktree) names its own (manual 3.1.2.6)
+NET = testrun.name("domain_net")
+SUBNET = testrun.net(41) + ".0/24"
 IP = SUBNET.rsplit(".", 1)[0] + ".10"
-DC = "dmdc" + os.environ.get("SAMBA_TEST_ID", "")
+DC = testrun.name("dmdc")
 TARGET = {"name": DC}                 # where every `docker exec … samba` of the code under test goes
 FAILED = 0
 KERBEROS = {"ticket_hours": 3, "renew_days": 2, "skew_minutes": 7}
@@ -137,8 +138,8 @@ def cli(*args):
 
 
 def cleanup():
-    sh(["docker", "rm", "-f", DC], ok=False)
-    sh(["docker", "network", "rm", NET], ok=False)
+    testrun.remove("container", DC)      # this run's only
+    testrun.remove("network", NET)
 
 
 cleanup()
@@ -651,7 +652,7 @@ check("GET /v1/machines/SRV1 (any case): its row; the grants that reach it, each
       and "lan" in page["choices"]["sites"]
       and {"machines", "machines/servers", "machines/servers/web"} <= set(page["choices"]["folders"])
       and "people" not in page["choices"]["folders"] and page["devices"] == [], page)
-for name in ("nomachine", "dmdc" + os.environ.get("SAMBA_TEST_ID", "")):
+for name in ("nomachine", DC):
     gone, why = refused(m_get.get_route, ["machines", name], "alice")
     # covers: agent:get.machines.* -
     check(f"refused: GET /v1/machines/{name} (not a computer of the domain's folders: no machine)",

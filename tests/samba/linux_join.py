@@ -17,7 +17,9 @@ import sys
 import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__)), os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
+from start_dc import IMAGE as SAMBA_IMAGE  # noqa: E402
 from start_dc import POLICY, start_dc  # noqa: E402
 import fabriclib.directory.add_machine as m_add_machine  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
@@ -25,8 +27,8 @@ import fabriclib.grants.sync_grants as m_sync  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-linux-join")
-NET, SUBNET, IP, WEB_IP = "linuxjoin_net", "10.254.33.0/24", "10.254.33.10", "10.254.33.20"
-DC, WEB = "ljdc", "lj-certs"
+NET, SUBNET, IP, WEB_IP = testrun.name("linuxjoin_net"), f"{testrun.PREFIX}.33.0/24", f"{testrun.PREFIX}.33.10", f"{testrun.PREFIX}.33.20"
+DC, WEB = testrun.name("ljdc"), testrun.name("lj-certs")      # per run (manual 3.1.2.6)
 # release -> (container image, machine name): Ubuntu, and Debian (what Proxmox VE 8 and 9 are built on)
 IMAGES = {"24.04": "ubuntu:24.04", "26.04": "ubuntu:26.04", "debian-12": "debian:12", "debian-13": "debian:13"}
 RELEASES = {"24.04": "ws2404", "26.04": "ws2604", "debian-12": "wsdeb12", "debian-13": "wsdeb13"}
@@ -60,8 +62,8 @@ def dc_healthy():
 
 
 def cleanup():
-    sh(["docker", "rm", "-f", DC, WEB, *[f"lj-{r}" for r in RELEASES.values()]], ok=False)
-    sh(["docker", "network", "rm", NET], ok=False)
+    testrun.remove("container", DC, WEB, *[testrun.name(f"lj-{r}") for r in RELEASES.values()])   # this run's only
+    testrun.remove("network", NET)
 
 
 cleanup()
@@ -106,8 +108,8 @@ check("people in the domain: alice and adam (lan; adam a Directory Administrator
 os.makedirs(os.path.join(W, "www", "certs"), exist_ok=True)
 with open(os.path.join(W, "www", "certs", "root-ca.crt"), "w") as f:
     f.write(open(dc["root_ca"]).read())
-sh(["docker", "run", "-d", "--name", WEB, "--network", NET, "--ip", WEB_IP, "-v", f"{W}/www:/srv:ro",
-    "--entrypoint", "python3", "fabric/samba:test", "-m", "http.server", "80", "--directory", "/srv"])
+sh(["docker", "run", "-d", "--name", WEB, *testrun.labels(), "--network", NET, "--ip", WEB_IP, "-v", f"{W}/www:/srv:ro",
+    "--entrypoint", "python3", SAMBA_IMAGE, "-m", "http.server", "80", "--directory", "/srv"])
 fp = sh(["openssl", "x509", "-in", dc["root_ca"], "-noout", "-fingerprint", "-sha256"]).stdout.strip().split("=")[1]
 # as on a site with Keycloak (Kerberos sign-in on): the join also sets the browsers' policies (2.1.6.28)
 script = dc["env"].get_template("nginx/www/certs/join-linux.sh.j2").render(
@@ -140,9 +142,9 @@ hosts = [f"--add-host={V['hostname_dc']}:{IP}", f"--add-host={V['hostname_stepca
 
 
 def client(release, name):
-    box = f"lj-{name}"
-    # DAC_READ_SEARCH: what SSSD's own unit grants it (Docker's default set lacks it); the client is a test stand-in
-    sh(["docker", "run", "-d", "--name", box, "--hostname", name, "--network", NET, *hosts,
+    box = testrun.name(f"lj-{name}")
+        # DAC_READ_SEARCH: what SSSD's own unit grants it (Docker's default set lacks it); the client is a test stand-in
+    sh(["docker", "run", "-d", "--name", box, *testrun.labels(), "--hostname", name, "--network", NET, *hosts,
         "--cap-add", "DAC_READ_SEARCH",
         "-v", f"{W}/join-linux.sh:/root/join-linux.sh:ro", "-v", f"{W}/systemctl:/usr/local/sbin/systemctl:ro",
         IMAGES[release], "sleep", "infinity"])
@@ -349,7 +351,7 @@ made = [run_op(V, SECRETS, "create_host_group", {"name": "web"}, DC),
 check("a host group hosts-web holding the 24.04 machine, and a sudo rule for lara on it (its hosts: that "
       "machine's names)", RELEASES["24.04"] in made[2]["hosts"] and RELEASES["26.04"] not in made[2]["hosts"], made)
 for name, applies in ((RELEASES["24.04"], True), (RELEASES["26.04"], False)):
-    lbox = f"lj-{name}"
+    lbox = testrun.name(f"lj-{name}")
     on(lbox, "systemctl restart sssd")              # sssd's sudo rules fetched anew (else its next refresh)
     time.sleep(8)
     code, out = on(lbox, "sudo -l -U lara")

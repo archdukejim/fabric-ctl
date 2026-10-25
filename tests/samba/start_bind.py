@@ -9,11 +9,12 @@ import time
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(REPO, "src"))
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.join(REPO, "tests", "common")]
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
 from fabriclib.samba.write_bind_dlz import write_bind_dlz  # noqa: E402
+import test_run as testrun  # noqa: E402
 
-IMAGE = "fabric/bind9:samba-test"
+IMAGE = "fabric/bind9:" + testrun.name("samba-test")     # per worktree (manual 3.1.2.6)
 
 
 def start_bind(v, env, dc_container, name):
@@ -39,8 +40,9 @@ def start_bind(v, env, dc_container, name):
     os.chmod(etc, 0o755)
     compose = yaml.safe_load(env.get_template("bind9/docker-compose.yml.j2").render(**v))["services"]["bind9"]
     mounts = [m for m in compose["volumes"] if m.split(":")[1] in ("/etc/bind-samba", "/data/bind-dns", "/etc/samba")]
-    subprocess.run(["docker", "rm", "-f", name], capture_output=True)
-    run = ["docker", "run", "-d", "--name", name, "--network", f"container:{dc_container}", "--user", "600:600",
+    testrun.remove("container", name)
+    run = ["docker", "run", "-d", "--name", name, *testrun.labels(), "--network", f"container:{dc_container}",
+           "--user", "600:600",
            "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true", "--memory", "128m",
            "--tmpfs", "/run/named:uid=600,gid=600,mode=0755,size=4m", "--tmpfs", "/tmp:size=8m",
            "--tmpfs", "/var/cache/bind:uid=600,gid=600,size=8m"]

@@ -20,12 +20,17 @@ import time
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
+P = testrun.PREFIX                  # this run's 10.<n>; names <base>-<run id> (manual 3.1.2.6)
+KS_DHCP4, KS_C1_UP, KS_C1, KS_C2, KS_SQUAT, KS_NAS, KS_HAND, KS_QUIET = (testrun.name(f"ks-{n}") for n in ("dhcp4", "c1-up", "c1", "c2", "squat", "nas", "hand", "quiet"))
+ALL = (KS_DHCP4, KS_C1_UP, KS_C1, KS_C2, KS_SQUAT, KS_NAS, KS_HAND, KS_QUIET)
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/kea-scan"
-NET, SUBNET, KEA_IP = "keascan_net", "10.254.64.0/24", "10.254.64.2"
-KEA = "ks-dhcp4"
+NET, SUBNET, KEA_IP = testrun.name("keascan_net"), f"{P}.64.0/24", f"{P}.64.2"
+KEA = KS_DHCP4
 FAILED = 0
 sys.path[0:0] = [os.path.join(REPO, "src"), REPO]
-from tests.common.kea_image import build_kea_image  # noqa: E402
+from tests.common.kea_image import TAG as KEA_IMAGE, build_kea_image  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
@@ -59,16 +64,16 @@ def until(pred, timeout=60):
     return False
 
 
-TARGETS = {"ks-squat": ("10.254.64.100", "02:00:00:00:64:64", []),        # set by hand inside the pool
-           "ks-nas": ("10.254.64.10", "02:00:00:00:64:10", []),           # recorded in the plan
-           "ks-hand": ("10.254.64.11", "02:00:00:00:64:11", []),          # nobody recorded it
-           "ks-quiet": ("10.254.64.12", "02:00:00:00:64:12",              # drops pings, answers ARP
+TARGETS = {KS_SQUAT: (f"{P}.64.100", "02:00:00:00:64:64", []),        # set by hand inside the pool
+           KS_NAS: (f"{P}.64.10", "02:00:00:00:64:10", []),           # recorded in the plan
+           KS_HAND: (f"{P}.64.11", "02:00:00:00:64:11", []),          # nobody recorded it
+           KS_QUIET: (f"{P}.64.12", "02:00:00:00:64:12",              # drops pings, answers ARP
                         ["--sysctl", "net.ipv4.icmp_echo_ignore_all=1"])}
 
 
 def cleanup():
-    sh(["docker", "rm", "-f", KEA, "ks-c1", "ks-c1-up", "ks-c2", *TARGETS], ok=False)
-    sh(["docker", "network", "rm", NET], ok=False)
+    testrun.remove("container", *ALL)            # this run's only
+    testrun.remove("network", NET)
 
 
 cleanup()
@@ -80,14 +85,14 @@ DEBIAN, BUSYBOX = lock["debian"]["ref"], \
 k = pkgs["kea"]
 build = build_kea_image()
 check("Kea's image builds, with fping for the scan", build.returncode == 0 and sh(
-    "docker run --rm --entrypoint fping fabric/kea:test -v", ok=False).returncode == 0, build.stderr[-500:])
+    f"docker run --rm --entrypoint fping {KEA_IMAGE} -v", ok=False).returncode == 0, build.stderr[-500:])
 
 PLAN = {"site": "home", "block": 1, "vlans": [{"id": 64, "name": "lab", "access": "full"}],
-        "subnets": [{"name": "lab", "cidr": SUBNET, "vlan": 64, "gateway": "10.254.64.1", "dhcp": True, "id": 1,
+        "subnets": [{"name": "lab", "cidr": SUBNET, "vlan": 64, "gateway": f"{P}.64.1", "dhcp": True, "id": 1,
                      "relay": "", "notes": "", "allow_overlap": "", "options": [],
                      # a two-address pool: the squatter on the first leaves the client the second
-                     "ranges": [{"kind": "dhcp", "first": "10.254.64.100", "last": "10.254.64.101"}],
-                     "addresses": [{"ip": "10.254.64.10", "kind": "static", "name": "nas", "mac": "", "dns": False,
+                     "ranges": [{"kind": "dhcp", "first": f"{P}.64.100", "last": f"{P}.64.101"}],
+                     "addresses": [{"ip": f"{P}.64.10", "kind": "static", "name": "nas", "mac": "", "dns": False,
                                     "options": []}]}]}
 env = jinja_env(os.path.join(REPO, "templates"))
 
@@ -110,7 +115,7 @@ def render(ping_check):
 
 V, CFG = render(True)
 try:
-    accepted = check_kea_config("fabric/kea:test", "kea-dhcp4.conf", CFG)
+    accepted = check_kea_config(KEA_IMAGE, "kea-dhcp4.conf", CFG)
 except ValidationError as e:
     accepted = str(e)
 # covers: setting:dhcp +
@@ -132,54 +137,54 @@ def as_root(v, caller, action, target=None, container="samba"):
 
 
 def start_kea():
-    sh(["docker", "rm", "-f", KEA], ok=False)
-    sh(f"docker run -d --name {KEA} --network {NET} --ip {KEA_IP} --read-only --security-opt no-new-privileges:true "
+    testrun.remove("container", KEA)
+    sh(f"docker run -d --name {KEA} --label {testrun.LABEL} --network {NET} --ip {KEA_IP} --read-only --security-opt no-new-privileges:true "
        f"--cap-drop ALL --cap-add NET_RAW --cap-add NET_BIND_SERVICE --tmpfs /tmp "
        f"-v {W}/kea/config:/config:ro -v {W}/kea/leases:/var/lib/kea -v {W}/kea/run:/run/kea "
-       f"fabric/kea:test {shlex.join(KEA_CMD['command'])}")
+       f"{KEA_IMAGE} {shlex.join(KEA_CMD['command'])}")
     return until(lambda: os.path.exists(f"{W}/kea/run/kea4-ctrl-socket"))
 
 
 def client(name, mac):
-    out = sh(["docker", "run", "--name", name, "--network", NET, "--mac-address", mac, "--cap-add", "NET_ADMIN",
+    out = sh(["docker", "run", "--name", name, *testrun.labels(), "--network", NET, "--mac-address", mac, "--cap-add", "NET_ADMIN",
               "--cap-add", "NET_RAW", BUSYBOX, "udhcpc", "-i", "eth0", "-n", "-q", "-f", "-t", "8"], ok=False)
     text = out.stdout + out.stderr
     got = [ln.split("lease of ")[1].split()[0] for ln in text.splitlines() if "lease of " in ln]
     return (got[-1] if got else None), text
 
 
-sh(f"docker network create --subnet {SUBNET} --gateway 10.254.64.1 {NET}")
+testrun.create_network(NET, SUBNET, f"{P}.64.1")
 for name, (ip, mac, extra) in TARGETS.items():
-    sh(["docker", "run", "-d", "--name", name, "--network", NET, "--ip", ip, "--mac-address", mac, *extra, BUSYBOX,
+    sh(["docker", "run", "-d", "--name", name, *testrun.labels(), "--network", NET, "--ip", ip, "--mac-address", mac, *extra, BUSYBOX,
         "sleep", "3600"])
 check("Kea runs with ping-check on", start_kea(), sh(f"docker logs {KEA}", ok=False).stderr[-600:])
 
 # ---- ping-check (2.1.10.13)
-ip1, out1 = client("ks-c1", "02:00:00:00:64:01")
+ip1, out1 = client(KS_C1, "02:00:00:00:64:01")
 check("ping-check: the pool's first address answers a ping (set by hand), so the client is offered the next",
-      ip1 == "10.254.64.101", out1[-400:])
+      ip1 == f"{P}.64.101", out1[-400:])
 leases = list_leases(V)
 check("Kea declined the address that answered (its lease is declined)",
-      any(lease["ip"] == "10.254.64.100" and lease["state"] == "declined" for lease in leases), leases)
+      any(lease["ip"] == f"{P}.64.100" and lease["state"] == "declined" for lease in leases), leases)
 # covers: setting:dhcp -
-sh(["docker", "rm", "-f", KEA, "ks-c1"], ok=False)
+testrun.remove("container", KEA, KS_C1)
 for f in os.listdir(f"{W}/kea/leases"):
     os.remove(os.path.join(f"{W}/kea/leases", f))
 V_OFF, CFG_OFF = render(False)
 check("with dhcp.ping_check: false the hook is not loaded", "ping_check" not in CFG_OFF and start_kea())
-ip2, out2 = client("ks-c2", "02:00:00:00:64:02")
+ip2, out2 = client(KS_C2, "02:00:00:00:64:02")
 check("without ping-check Kea offers the address a device already answers on (what ping-check prevents)",
-      ip2 == "10.254.64.100", out2[-400:])
+      ip2 == f"{P}.64.100", out2[-400:])
 
 # ---- the scan (2.1.10.26), back with ping-check on and the declined lease
-sh(["docker", "rm", "-f", KEA, "ks-c2"], ok=False)
+testrun.remove("container", KEA, KS_C2)
 for f in os.listdir(f"{W}/kea/leases"):
     os.remove(os.path.join(f"{W}/kea/leases", f))
 V, CFG = render(True)
 start_kea()
-ip1, out1 = client("ks-c1", "02:00:00:00:64:01")
+ip1, out1 = client(KS_C1, "02:00:00:00:64:01")
 if ip1:     # udhcpc quits once it has the lease: the client keeps its address up as a device would, so the scan sees it
-    sh(["docker", "run", "-d", "--name", "ks-c1-up", "--network", NET, "--ip", ip1, "--mac-address",
+    sh(["docker", "run", "-d", "--name", KS_C1_UP, *testrun.labels(), "--network", NET, "--ip", ip1, "--mac-address",
         "02:00:00:00:64:01", BUSYBOX, "sleep", "3600"])
 AUDIT = []
 m_scan.load_plan_cache = lambda: PLAN
@@ -194,21 +199,21 @@ except ValidationError as e:
 by = {f["ip"]: f for f in res["answering"]}
 print(json.dumps(res, indent=1)[:2000])
 check("the scan runs in Kea's container and finds the recorded address as recorded", not err
-      and by.get("10.254.64.10", {}).get("status") == "recorded", err or res)
+      and by.get(f"{P}.64.10", {}).get("status") == "recorded", err or res)
 check("a subnet the host has an address in (the test network's bridge) is not beyond a router (2.1.10.50)",
       res.get("routed") is False, res.get("routed"))
 check("a device set by hand that nobody recorded: in use, unrecorded, with its MAC",
-      by.get("10.254.64.11", {}).get("status") == "unrecorded"
-      and by.get("10.254.64.11", {}).get("mac") == "02:00:00:00:64:11", by.get("10.254.64.11"))
-check("a device that drops pings is found by ARP", by.get("10.254.64.12", {}).get("how") == "arp"
-      and by.get("10.254.64.12", {}).get("status") == "unrecorded", by.get("10.254.64.12"))
+      by.get(f"{P}.64.11", {}).get("status") == "unrecorded"
+      and by.get(f"{P}.64.11", {}).get("mac") == "02:00:00:00:64:11", by.get(f"{P}.64.11"))
+check("a device that drops pings is found by ARP", by.get(f"{P}.64.12", {}).get("how") == "arp"
+      and by.get(f"{P}.64.12", {}).get("status") == "unrecorded", by.get(f"{P}.64.12"))
 check("the client's lease is a lease; the address Kea declined is in use, unrecorded",
-      by.get(ip1 or "", {}).get("status") == "lease" and by.get("10.254.64.100", {}).get("status") == "unrecorded"
-      and "declined" in by.get("10.254.64.100", {}).get("note", ""), (ip1, by.get(ip1 or ""), by.get("10.254.64.100")))
+      by.get(ip1 or "", {}).get("status") == "lease" and by.get(f"{P}.64.100", {}).get("status") == "unrecorded"
+      and "declined" in by.get(f"{P}.64.100", {}).get("note", ""), (ip1, by.get(ip1 or ""), by.get(f"{P}.64.100")))
 check("the scan is audited", AUDIT and AUDIT[-1][0] == "IPAM_SCAN" and f"subnet={SUBNET}" in AUDIT[-1][1], AUDIT)
 # covers: cli:ipam.scan -
 n = len(AUDIT)
-for typed, words in (("10.254.99.0/24", "not a subnet of this site's plan"), (SUBNET, "scanned")):
+for typed, words in ((f"{P}.99.0/24", "not a subnet of this site's plan"), (SUBNET, "scanned")):
     try:
         m_scan.scan_subnet(V, "root", typed, container=KEA, state_dir=STATE, check=as_root)
         why = "not refused"

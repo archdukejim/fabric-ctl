@@ -9,6 +9,7 @@ happens when the key goes missing, and hardening.
 
     sudo python3 tests/openbao/run.py          (needs Docker, openssl, root)
 """
+import atexit
 import contextlib
 import getpass
 import io
@@ -25,9 +26,14 @@ import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, "src"))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
+# openbao is the product's name (fabric's health and status read it): one such run at a time
+# (manual 3.1.2.6), and only this run's is removed
+LOCK = testrun.product_names_lock("openbao").__enter__()
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402  (the environment deploy renders with)
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/openbao"
-NET, SUBNET, IP = "obtest_net", "10.254.19.0/24", "10.254.19.90"   # its own range: suites may run back to back
+NET, SUBNET, IP = testrun.name("obtest_net"), f"{testrun.PREFIX}.19.0/24", f"{testrun.PREFIX}.19.90"   # its own range: suites may run back to back
 HOST = "vault.lan.test"
 FAILED = 0
 
@@ -56,12 +62,12 @@ def health(timeout=90):
 
 
 def compose(*args):
-    return sh(["docker", "compose", "-f", f"{W}/openbao/docker-compose.yml", *args], ok=False)
+    return sh(["docker", "compose", *testrun.compose_files(f"{W}/openbao/docker-compose.yml", "openbao"), *args], ok=False)
 
 
 # ---------------------------------------------------------------- layout
-sh("docker rm -f openbao >/dev/null 2>&1; true", ok=False)
-sh(f"docker network rm {NET} >/dev/null 2>&1; true", ok=False)
+testrun.remove("container", "openbao")      # this run's only
+testrun.remove("network", NET)
 shutil.rmtree(W, ignore_errors=True)
 for d in ("stepca/data/certs", "openbao/config", "openbao/data", "openbao/logs", "openbao/certs"):
     os.makedirs(f"{W}/{d}")
@@ -78,7 +84,7 @@ shutil.copy("bao.key", "openbao/certs/privkey.pem")
 shutil.copy("root.crt", "openbao/certs/root_ca.crt")
 sh("openssl req -x509 -newkey rsa:2048 -nodes -keyout other.key -out other.crt -days 2 -subj '/CN=Other Root'")
 
-V = {"deploy_base_dir": W, "domain": "lan.test", "hostname_openbao": HOST, "ip_openbao": IP, "ip_bind9": "10.254.19.30",
+V = {"deploy_base_dir": W, "domain": "lan.test", "hostname_openbao": HOST, "ip_openbao": IP, "ip_bind9": f"{testrun.PREFIX}.19.30",
      "openbao_key_dir": f"{W}/keys", "openbao_runtime_dir": f"{W}/run", "openbao_seal_key_id": "fabric-1",
      "openbao_udev_rules": f"{W}/90-fabric-unlock.rules", "openbao_admin_dir": f"{W}/admin",
      "openbao_mem_limit": "256m",
@@ -92,7 +98,7 @@ sh(["chown", "-R", "913:913", "openbao/data", "openbao/logs"])
 sh(["chmod", "-R", "a+rX", "openbao/config", "openbao/certs"])
 sh(["chown", "913:913", "openbao/certs/privkey.pem"])
 sh(["chmod", "0400", "openbao/certs/privkey.pem"])
-sh(f"docker network create --subnet {SUBNET} {NET}")
+testrun.create_network(NET, SUBNET)
 
 # from here fabriclib is the installed tree's, so its paths (archive/, config/) are this install's, never the
 # checkout's: the copy imported from src/ above, only to render, is dropped
@@ -388,11 +394,11 @@ check("vault rotate-db: OpenBao has no database engine here -> refused, the old 
       code == 1 and "error: OpenBao did not rotate it" in err and "the old password keeps working" in err
       and rot.get("ok") is False and not os.path.exists(SECRETS), err)
 bao_ip = sh("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' openbao").stdout.strip()
-elsewhere = vault_status({**V, "ip_openbao": "10.254.19.91"})
+elsewhere = vault_status({**V, "ip_openbao": f"{testrun.PREFIX}.19.91"})
 # covers: setting:ip_openbao +
 check("ip_openbao: OpenBao's container has that address and fabric reaches it there (not elsewhere)",
       bao_ip == IP and vault_status(V)["reachable"] and not elsewhere["reachable"]
-      and "not reachable at 10.254.19.91" in elsewhere.get("error", ""), (bao_ip, elsewhere))
+      and f"not reachable at {testrun.PREFIX}.19.91" in elsewhere.get("error", ""), (bao_ip, elsewhere))
 alias, other_name = vault_status({**V, "hostname_openbao": "openbao"}), \
     vault_status({**V, "hostname_openbao": "elsewhere.lan.test"})
 # covers: setting:hostname_openbao +
@@ -575,6 +581,19 @@ check("method back -> unseals again, data intact", start() and
 check("the key never changed", open(f"{W}/keys/local-fabric-2.key", "rb").read() == key_bytes)
 
 # ---------------------------------------------------------------- USB stick unlock method (loop device)
+
+
+def release_sticks():
+    """Unmount whatever this run mounted from its stick images and detach their loop devices, also when the run
+    stops part way (2.3.1.30: one left attached and mounted outlives the run)."""
+    for img in (f"{W}/stick.img", f"{W}/other.img"):
+        for dev in [ln.split(":", 1)[0] for ln in sh(["losetup", "-j", img], ok=False).stdout.splitlines()]:
+            for point in sh(["findmnt", "-n", "-o", "TARGET", "-S", dev], ok=False).stdout.split():
+                sh(["umount", point], ok=False)
+            sh(["losetup", "-d", dev], ok=False)
+
+
+atexit.register(release_sticks)
 sh(f"truncate -s 64M {W}/stick.img")
 loop = sh(f"losetup --find --show {W}/stick.img").stdout.strip()
 sh(f"truncate -s 64M {W}/other.img")
@@ -894,6 +913,6 @@ check("no Docker socket", not any("docker.sock" in m["Source"] for m in insp["Mo
 
 compose("down")
 sh(f"losetup -d {loop}", ok=False)
-sh(f"docker network rm {NET}", ok=False)
+testrun.remove("network", NET)
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

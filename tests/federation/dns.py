@@ -21,14 +21,17 @@ import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, "src"))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.federation.dns_links import dns_links  # noqa: E402
 
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/federation-dns"
-NET, SUBNET = "fed_dns_net", "10.254.31.0/24"
-IP = {"lan": "10.254.31.10", "lab": "10.254.31.11"}
+NET, SUBNET = testrun.name("fed_dns_net"), f"{testrun.PREFIX}.31.0/24"
+IP = {"lan": f"{testrun.PREFIX}.31.10", "lab": f"{testrun.PREFIX}.31.11"}
 DOMAIN = {"lan": "lan.test", "lab": "lab.lan.test"}
-IMAGE = "fabric/bind9:fedtest"
+IMAGE = "fabric/bind9:" + testrun.name("fedtest")
+FD = {site: testrun.name(f"fd-{site}") for site in ("lan", "lab")}      # per run (manual 3.1.2.6)
 FAILED = 0
 
 
@@ -86,8 +89,8 @@ def render(site, records, registry, secrets, extra_port=None):
 
 
 def start(site):
-    sh(f"docker rm -f fd-{site}", ok=False)
-    sh(f"docker run -d --name fd-{site} --network {NET} --ip {IP[site]} --user 53:53 --cap-drop ALL "
+    testrun.remove("container", FD[site])      # this run's only
+    sh(f"docker run -d --name {FD[site]} --label {testrun.LABEL} --network {NET} --ip {IP[site]} --user 53:53 --cap-drop ALL "
        f"-v {W}/{site}/config:/etc/bind:ro -v {W}/{site}/data:/var/lib/bind --tmpfs /var/cache/bind:uid=53,gid=53 "
        f"--tmpfs /run/named:uid=53,gid=53 {IMAGE}")
 
@@ -96,8 +99,7 @@ try:
     shutil.rmtree(W, ignore_errors=True)
     debian = sh([sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "debian"]).stdout.strip()
     sh(["docker", "build", "-q", "-t", IMAGE, "--build-arg", f"BASE_IMAGE={debian}", f"{REPO}/packaging/images/bind9"])
-    sh(f"docker network rm {NET}", ok=False)
-    sh(f"docker network create --subnet {SUBNET} {NET}")
+    testrun.create_network(NET, SUBNET)
 
     lan_records = {"zone_authority": True, "A": [{"name": "www", "ip": "10.9.9.1"}]}
     lab_records = {"zone_authority": True, "A": [{"name": "printer", "ip": "10.9.9.2"}]}
@@ -114,20 +116,20 @@ try:
     zone = open(f"{W}/lan/data/db.lan.test").read()
     conf = open(f"{W}/lan/config/named.conf").read()
     check("lan transfers lab's zone from lab's DNS port (5053, like a BIND behind the DNS filter)",
-          'primaries { 10.254.31.11 port 5053 key "fed-lab"; };' in conf
-          and 'also-notify { 10.254.31.11 port 5053 key "fed-lab"; };' in conf, conf[-900:])
+          f'primaries {{ {testrun.PREFIX}.31.11 port 5053 key "fed-lab"; }};' in conf
+          and f'also-notify {{ {testrun.PREFIX}.31.11 port 5053 key "fed-lab"; }};' in conf, conf[-900:])
     check("lan's zone: NS and glue for lab", "lab                     NS      ns.lab.lan.test." in zone
-          and "ns.lab                  A       10.254.31.11" in zone, zone[-600:])
+          and f"ns.lab                  A       {testrun.PREFIX}.31.11" in zone, zone[-600:])
     for site in ("lab", "lan"):
         start(site)
     check("both servers answer for their own zone",
           until(lambda: "10.9.9.1" in dig("lan", "+short", "www.lan.test") and
                 "10.9.9.2" in dig("lab", "+short", "printer.lab.lan.test")),
-          sh("docker logs fd-lan", ok=False).stderr[-600:] + sh("docker logs fd-lab", ok=False).stderr[-600:])
+          sh(f"docker logs {FD['lan']}", ok=False).stderr[-600:] + sh(f"docker logs {FD['lab']}", ok=False).stderr[-600:])
     check("lab keeps a secondary copy of lan's zone (answers authoritatively)",
-          until(lambda: "10.9.9.1" in dig("lab", "+short", "www.lan.test")), sh("docker logs fd-lab", ok=False).stderr[-800:])
+          until(lambda: "10.9.9.1" in dig("lab", "+short", "www.lan.test")), sh(f"docker logs {FD['lab']}", ok=False).stderr[-800:])
     check("lan keeps a secondary copy of lab's zone (transferred over 5053)",
-          until(lambda: "10.9.9.2" in dig("lan", "+short", "printer.lab.lan.test")), sh("docker logs fd-lan", ok=False).stderr[-800:])
+          until(lambda: "10.9.9.2" in dig("lan", "+short", "printer.lab.lan.test")), sh(f"docker logs {FD['lan']}", ok=False).stderr[-800:])
     referral = dig("lan", "+norec", "NS", "lab.lan.test")
     check("lan answers lab.lan.test's NS with ns.lab.lan.test", "ns.lab.lan.test." in referral, referral[-400:])
     check("a zone transfer without the key is refused", "Transfer failed" in dig("lan", "AXFR", "lan.test"))
@@ -140,12 +142,11 @@ try:
     render("lan", {**lan_records, "A": lan_records["A"] + [{"name": "new", "ip": "10.9.9.3"}]},
            {"sites": {"lab": {"domain": "lab.lan.test", "address": IP["lab"], "dns_port": 5053}}, "upstream": None},
            {"federation_tsig": {"lab": KEY}})
-    sh("docker restart fd-lan")
+    sh(f"docker restart {FD['lan']}")
     check("a change on lan reaches lab's copy (NOTIFY, then a signed transfer)",
-          until(lambda: "10.9.9.3" in dig("lab", "+short", "new.lan.test")), sh("docker logs fd-lab", ok=False).stderr[-800:])
+          until(lambda: "10.9.9.3" in dig("lab", "+short", "new.lan.test")), sh(f"docker logs {FD['lab']}", ok=False).stderr[-800:])
 finally:
-    for site in IP:
-        sh(f"docker rm -f fd-{site}", ok=False)
-    sh(f"docker network rm {NET}", ok=False)
+    testrun.remove("container", *FD.values())      # this run's only
+    testrun.remove("network", NET)
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

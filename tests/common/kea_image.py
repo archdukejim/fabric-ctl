@@ -2,12 +2,15 @@
 packaging with the versions the locks pin, as an install builds it."""
 import os
 import subprocess
+import sys
 
 from fabriclib.common.read_images_lock import read_images_lock
 from fabriclib.common.read_packages_lock import read_packages_lock
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-TAG = "fabric/kea:test"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import test_run as testrun  # noqa: E402
+TAG = "fabric/kea:" + testrun.name("test")      # each worktree's run builds its own (manual 3.1.2.6)
 
 
 def build_kea_image(tag=TAG, fingerprint=None):
