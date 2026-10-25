@@ -175,7 +175,7 @@ crypto pki authenticate {{ domain_file | upper }}-ROOT
       <p style="color:var(--muted);font-size:.9rem;">Machines join <code>{{ ad_domain }}</code>, the domain this network's
       sign-ins come from. Before any of them: the machine uses this network's DNS (<code>{{ host_ip }}</code>), which
       finds the domain's controller, and its clock follows <code>{{ hostname_ntp }}</code> (sign-ins refuse more than
-      five minutes of difference). Join with a site admin's account, or with a one-time join password made on the fabric
+      five minutes of difference). Join with a Directory Administrator's account, or with a one-time join password made on the fabric
       host with <code>sudo fabricctl domain add-machine &lt;name&gt;</code>; a machine joins site
       <code>{{ site_name }}</code> unless told another.</p>
     </div>
@@ -183,23 +183,23 @@ crypto pki authenticate {{ domain_file | upper }}-ROOT
     <div class="card" id="join-linux">
       <h2>Linux: Ubuntu, Debian, Proxmox VE</h2>
       <p>Ubuntu 24.04 or 26.04, Debian 12 or 13 (Proxmox VE 8 and 9 too): the machine trusts this CA (only if the
-      fingerprint you give matches the root CA's above), joins the domain, takes its time from this network, and lets
-      the site's people log on with their domain password; sudo follows the site's rules. The password is asked, never
-      typed on the command line.</p>
+      fingerprint you give matches the root CA's above), joins the domain and takes its time from this network; who
+      may log on there with their domain password, and who has sudo, is decided by the domain's grants. The password
+      is asked, never typed on the command line.</p>
       <pre><code><span class="cmd">wget</span> -nv http://{{ hostname_stepca }}/certs/join-linux.sh
-<span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --user &lt;site admin&gt;
+<span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --user &lt;directory admin&gt;
 <span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --one-time     <span style="color:var(--muted)"># a pre-created machine</span>
-<span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --user &lt;site admin&gt; --site &lt;site&gt; --name &lt;name&gt;</code></pre>
+<span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --user &lt;directory admin&gt; --site &lt;site&gt; --name &lt;name&gt;</code></pre>
     </div>
 
     <div class="card" id="join-windows">
       <h2>Windows</h2>
       <p>Windows 10 or 11 Pro or Enterprise. In <em>Settings &rarr; System &rarr; About &rarr; Domain or workgroup
-      &rarr; Change</em>, choose <em>Domain</em>, enter <code>{{ ad_domain }}</code> and a site admin's account, then
+      &rarr; Change</em>, choose <em>Domain</em>, enter <code>{{ ad_domain }}</code> and a Directory Administrator's account, then
       restart. Or in an administrator's PowerShell:</p>
-      <pre><code><span class="cmd">Add-Computer</span> -DomainName {{ ad_domain }} -Credential {{ ad_netbios }}\&lt;site admin&gt; -Restart</code></pre>
+      <pre><code><span class="cmd">Add-Computer</span> -DomainName {{ ad_domain }} -Credential {{ ad_netbios }}\&lt;directory admin&gt; -Restart</code></pre>
       <p style="color:var(--muted);font-size:.9rem;">After the restart the domain's policies do the rest: this CA
-      trusted, the time from the domain, who may log on (the site's people), and the wired 802.1X profile where the
+      trusted, the time from the domain, who may log on (the domain's grants), and the wired 802.1X profile where the
       network uses it. <code>gpupdate /force</code> applies them at once.</p>
     </div>
 
@@ -212,7 +212,7 @@ crypto pki authenticate {{ domain_file | upper }}-ROOT
         (<a href="root-ca.pem">root-ca.pem</a>), after checking its fingerprint above.</li>
         <li><em>Credentials &rarr; Directory Services &rarr; Configure Active Directory</em>: <strong>Domain
         Name</strong> <code>{{ ad_domain }}</code>, <strong>Domain Account Name</strong> and <strong>Password</strong> a
-        site admin's; under <em>Advanced Options</em> <strong>Site Name</strong> <code>{{ site_name }}</code>. Save:
+        Directory Administrator's; under <em>Advanced Options</em> <strong>Site Name</strong> <code>{{ site_name }}</code>. Save:
         TrueNAS joins and lists the domain's people and groups for its shares' permissions.</li>
         <li>A certificate for its web interface: make one on the fabric host
         (<code>sudo fabricctl certs --mint-certs</code>, its name in this network's DNS) and import it in

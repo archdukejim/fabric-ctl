@@ -404,4 +404,4 @@ else
 fi
 systemctl restart sssd
 systemctl enable sssd >/dev/null 2>&1 || true
-echo "done: domain people can log on here (until grants decide who, manual 1.6.13.4); sudo follows the domain's rules"
+echo "done: the domain's grants decide who logs on here and who has sudo (manual 1.6.13.4; a machine no grant reaches admits nobody from the domain)"
