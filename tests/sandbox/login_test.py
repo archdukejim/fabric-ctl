@@ -251,7 +251,11 @@ if os.environ.get("SIGNIN_MODE") == "plain":
     check("the Security page shows the layers to raise", st == 200 and "admin-2fa" in page, st)
     bob = Browser()
     st, page, seen = login(bob, OTHER, OTHER_PW)
-    check("a person without a fabric role is still refused (403)", st == 403, (st, seen))
+    st2, loc2, _ = bob.request("GET", f"https://{MGR}/")
+    st3, _, _ = bob.request("GET", f"https://{MGR}/dns/zones")
+    check("a person without a fabric role signs in to My account only (2.1.8.11): the Overview sends them there, "
+          "DNS refused (403)", st == 200 and st2 == 303 and (loc2 or "").endswith("/account") and st3 == 403,
+          (st, st2, loc2, st3, seen))
     sys.exit(1 if FAILED else 0)
 
 admin_pem = pem_from_p12(os.path.join(KIT, f"{ADMIN}.p12"), read("p12-password.txt"), "admin.pem")
@@ -429,6 +433,6 @@ st, page = applied(b, "people", csrf)
 # covers: web:post.directory.people.*.reset agent:post.people.*.reset +
 check(f"people: the admin resets {NEW}'s sign-in, applies -> its one-time password shown once",
       st == 200 and f"Reset the sign-in of {NEW}" in page and "Shown only now" in page,
-      (st, page.split("<main>")[-1][:300]))
+      (st, page.split("<main>")[-1][:1500]))
 
 sys.exit(1 if FAILED else 0)

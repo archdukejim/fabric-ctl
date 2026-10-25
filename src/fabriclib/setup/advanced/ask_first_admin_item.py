@@ -19,4 +19,4 @@ def ask_first_admin_item(ctx):
         ctx.origins.pop(key, None)
     if first_admin_needed(ctx):
         ctx.admin_password = None
-        ask_first_admin(ctx, needed=True)
+        ask_first_admin(ctx, needed=True, facts_asked=True)

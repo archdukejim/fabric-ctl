@@ -55,6 +55,10 @@ ad_domain: ad.$DOMAIN
 ad_password_policy: {minimum_length: 14, complexity: true, history: 24, minimum_age_days: 0, maximum_age_days: 0, lockout_threshold: 10, lockout_minutes: 15, lockout_window_minutes: 15}
 install_keycloak: true
 install_webui: true
+# the first Directory Administrator (2.1.6.69): their own name, never fabric-admin; required by --non-interactive
+webui_admin_user: host.admin
+webui_admin_first_name: Host
+webui_admin_last_name: Test
 tsig_keys:
 - { name: npm, records: [npm], secret: "$TSIG_SECRET", acls: [npm-updaters] }
 EOF

@@ -154,6 +154,15 @@ m_admin.ask_first_admin(ctx2)
 check("interactive: those keys are asked, and only those; the e-mail address of the file is kept",
       error is None and asked == ["webui_admin_user", "webui_admin_first_name", "webui_admin_last_name"]
       and ctx2.vars["webui_admin_email"] == old["webui_admin_email"], (error, asked))
+asked.clear()
+ctx4, _, error = setup_vars(OLD, interactive=True)
+ctx4.non_interactive, ctx4.admin_password = False, "set"
+ctx4.vars.update(install_webui=True, install_keycloak=True, webui_admin_email="")
+m_admin.ask_admin_fact = lambda key, cur: asked.append(key) or {**answers, "webui_admin_email": ""}[key]
+m_admin.ask_first_admin(ctx4)
+check("interactive, the file giving no e-mail address: it is asked too (optional: Enter leaves it empty, 2.1.6.93)",
+      error is None and asked == ["webui_admin_user", "webui_admin_first_name", "webui_admin_last_name",
+                                  "webui_admin_email"] and ctx4.vars["webui_admin_email"] == "", (error, asked))
 ctx3, _, error = setup_vars(moved_file)
 ctx3.admin_password = "set"
 ctx3.vars.update(install_webui=True, install_keycloak=True)

@@ -72,6 +72,10 @@ friendly_name: Fabric DHCP lab
 ad_domain: ad.$DOMAIN
 install_keycloak: true
 install_webui: true
+# the first Directory Administrator (2.1.6.69): required by --non-interactive
+webui_admin_user: lab.admin
+webui_admin_first_name: Lab
+webui_admin_last_name: Admin
 EOF
 ( umask 077; printf 'Fx9-%s\n' "$(openssl rand -hex 12)" > "$OUT/admin-pw" )
 scp -q "$OUT/vars.yaml" "$SERVER:/tmp/lab-vars.yaml"; scp -q -p "$OUT/admin-pw" "$SERVER:/tmp/admin-pw"
