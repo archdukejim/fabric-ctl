@@ -35,7 +35,7 @@ LOCAL_IMAGES = ["fabric/bind9:local", "fabric/stepca:local", "fabric/dirsrv:loca
                 "fabric/samba:local"]
 
 
-def uninstall(ctx):
+def uninstall(ctx, host_account=True):
     """Purpose: remove fabric from this host: a running setup (fabric-setup.service, stopped first, and any secrets
              handed to one), units, fabric.target, containers, fabric_net, local images, the
              host changes it made (undo/: its firewall rules — ufw off again if it was off before —, the resolver,
@@ -44,7 +44,8 @@ def uninstall(ctx):
              CLI wrapper (undo/uninstall_plan lists it).
     Inputs:  ctx — SetupContext (state reloaded): vars keycloak_data_dir/postgres_data_dir (deleted when outside
              deploy_base), tsig_keys names (their <deploy_base>/<name> folders), openbao_runtime_dir,
-             openbao_admin_dir, openbao_udev_rules, openbao_key_dir, service_users, domain_file.
+             openbao_admin_dir, openbao_udev_rules, openbao_key_dir, service_users, domain_file; host_account —
+             False when the caller already removed the host's computer account (an export stops the stack it needs).
     Returns: None. Only fabric's own objects are touched (no global Docker prune, no Docker restart: Docker's
              daemon settings stay, as do apt packages). The vault data and key are gone afterwards — export first
              to keep them.
@@ -60,9 +61,10 @@ def uninstall(ctx):
     v = ctx.vars
 
     # the host's own computer account (1.6.11.8), removed while the DC still answers: in a federation the domain
-    # outlives this site's DC
-    for line in remove_host_account(ctx.config_dir, v, lambda: ctx.secrets):
-        ok(line)
+    # outlives this site's DC. After an export the stack is stopped, so run_uninstall_command removes it first.
+    if host_account:
+        for line in remove_host_account(ctx.config_dir, v, lambda: ctx.secrets):
+            ok(line)
     info("stopping and removing services")
     for timer in ("fabric-directory-sync", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists", "fabric-dns-log",
                   "fabric-machines", "fabric-host-managed", "fabric-grants", "fabric-local-admin"):

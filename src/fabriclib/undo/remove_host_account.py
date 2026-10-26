@@ -17,7 +17,8 @@ def remove_host_account(config_dir, v, secrets):
     Returns: list of str, what was done (empty when fabric made no account for this host). RECORD forgets the
              account once it is gone.
     Fails:   OSError / ValueError on a damaged RECORD.
-    Feeds:   undo/undo_group (`fabricctl setup --undo member`), setup/uninstall."""
+    Feeds:   undo/undo_group (`fabricctl setup --undo member`), setup/uninstall, setup/run_uninstall_command (before
+             an export stops the stack)."""
     path = os.path.join(config_dir, RECORD)
     if not os.path.exists(path):
         return []
