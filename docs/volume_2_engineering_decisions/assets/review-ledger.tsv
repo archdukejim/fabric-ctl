@@ -56,7 +56,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	ae1189fad
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3c9f2a69f45e13f5365f8e49c066243f60235a80	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	7bed63a41e52d6386a7f0d44513a77346c5eea6f	2026-10-24	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	476faabbe0c00c58cd1c6928553e6c062ff7c910	2026-10-10	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	e3e611fff70b7a0843389e1774f1328da48aa680	2026-10-25	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	b6651c313492752c4946c60c81b692d193088337	2026-10-26	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	e51203f703b70dbe85dcf696d0430c6e56b3e8a9	2026-10-24	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	9fa688001068b61ddcf6cc50ec2737c20a0155ec	2026-10-13	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	ef0eaf5854c975ca84fbd27af2c17c78328ec055	2026-10-25	
@@ -151,7 +151,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	8f8dc9a2628590186985c15579ae6
 docs/volume_2_engineering_decisions/2.1.9-federation.md	807fa399dad0db0dc7ee1508f22ea844d8656cc2	2026-10-25	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	2c75a46f8e9faaadda616e6edc7c8b354b6bf03d	2026-10-25	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	2021fa70a3ab4c157f1a2079aa526a638cad8f8e	2026-10-26	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	ee19e85d0bf9615acd039774aae86f0ef7dff527	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -1196,7 +1196,7 @@ src/fabriclib/setup/ask_first_admin.py	d30686de978dc2591d7e525c2846a621fc12e0d6	
 src/fabriclib/setup/backup_install.py	2ff123589409bd647bab2659e86146217244fb6d	2026-10-08	
 src/fabriclib/setup/check_export_dir.py	418170a13dff61353dedf91b3e251156af4f931b	2026-09-30	
 src/fabriclib/setup/choose_mode.py	b3c45540a9ff5551c656e1151ab5463a4f9a7e85	2026-10-12	
-src/fabriclib/setup/choose_plan.py	39982513f4fe66dd6fa5a826e919e8165cfec2bd	2026-10-20	
+src/fabriclib/setup/choose_plan.py	b462cebc75ad2b384329c321e62901a1a3a31a63	2026-10-26	
 src/fabriclib/setup/collect_vars.py	0194c6e711345e98a52625f6f8937ebd5855c5f5	2026-10-20	
 src/fabriclib/setup/common/README.md	303ec2ffcc27a9b79ab5d510fedf92aa2df23a27	2026-10-23	
 src/fabriclib/setup/common/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-02	
@@ -1802,7 +1802,7 @@ tests/common/save_vars_test.py	6ebd62374b0a8ebd0b5c00df7722c493dfb27116	2026-10-
 tests/common/test_run.py	056da21f25b86e2f7844fa033bcb38dc2fc85dd7	2026-10-25	
 tests/common/test_run_test.py	3628bf27758b40302c2badb0ff4f5c3f7cd103d6	2026-10-25	
 tests/consent/README.md	3b6643214e21f6e73e66306424f4aea0521f38a9	2026-10-20	
-tests/consent/run.py	65140e7b71dddda0afa6e2a83100649f3ce0bf20	2026-10-23	
+tests/consent/run.py	ac4cf9dc6d4c8ea49ce967885d6852c2ca5a95a8	2026-10-26	
 tests/deploy/README.md	f13dbc7198d67711fb0380d8e3288c3950c5511c	2026-10-24	
 tests/deploy/apply_failure_test.py	b457897aa014296e0541695fd6323247758682bf	2026-10-24	
 tests/deploy/check_service_settings_test.py	59ee0317e2dbcdf1a4cde2eb75537a8497b20acd	2026-10-20	

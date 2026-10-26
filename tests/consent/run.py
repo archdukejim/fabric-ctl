@@ -414,6 +414,15 @@ check("a new domain's plan says how many DCs it uses and how many can be added, 
 joining = plan_all({"webui_admin_user": "fabric-admin", "ad_domain": "ad.lan.test"}, join_invitation="x")
 check("negative: a joining site's plan has no count yet (the join gives it) and names no DC",
       "can be added" not in joining and "dc-0" not in joining, joining[-1500:])
+first = {"webui_admin_user": "jane.doe", "webui_admin_first_name": "Jane", "webui_admin_last_name": "Doe",
+         "ad_domain": "ad.lan.test", "install_webui": True, "install_keycloak": True}
+check("a new install's plan says it creates the first Directory Administrator, by name (2.1.6.69)",
+      "Create the first Directory Administrator 'jane.doe' (Jane Doe)" in plan_all(first), plan_all(first)[-1500:])
+joined = plan_all({**first, "webui_admin_user": None, "webui_admin_first_name": None, "webui_admin_last_name": None},
+                  join_invitation="x")
+check("negative: a joining site's plan creates no first Directory Administrator (the domain has its own; it said "
+      "'None' (None None), 2.3.1.32)", "first Directory Administrator" not in joined and "None" not in joined,
+      joined[-1500:])
 check("negative: no other part of the plan is called a preview (the DNS filter is finished)",
       not any("preview" in line for line in off + on if "DHCP" not in line), off + on)
 
