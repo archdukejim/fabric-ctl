@@ -42,6 +42,16 @@ check("with an export: the host's account goes first, then the export, then unin
       rc == 0 and calls == [("account",), ("export", "/var/backups/x"), ("uninstall", False)], (rc, calls, out))
 check("…and what was done with the account is said", "account FAB1$ removed" in out, out)
 
+check("…as done (a tick), not a warning", "✓" in out and "!" not in out.split("FAB1$")[0].splitlines()[-1], out)
+
+said = ["the domain: this host's computer account FAB1$ NOT removed (OpenBao is not reachable): remove it in the web "
+        "console (Directory → Machines)"]
+ruc.remove_host_account = lambda cfg, v, secrets: calls.append(("account",)) or said
+rc, out = run(["--yes", "--export", "/var/backups/x"])
+line = [x for x in out.splitlines() if "FAB1$" in x]
+check("one the DC refused is a warning (!), not a tick, and the uninstall goes on",
+      rc == 0 and line and "!" in line[0] and "✓" not in line[0] and calls[-1] == ("uninstall", False), (line, calls))
+
 rc, out = run(["--yes", "--no-export"])
 check("without an export: uninstall removes the account itself (the stack still runs)",
       rc == 0 and calls == [("uninstall", True)], (rc, calls, out))

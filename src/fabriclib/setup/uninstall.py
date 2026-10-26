@@ -64,7 +64,7 @@ def uninstall(ctx, host_account=True):
     # outlives this site's DC. After an export the stack is stopped, so run_uninstall_command removes it first.
     if host_account:
         for line in remove_host_account(ctx.config_dir, v, lambda: ctx.secrets):
-            ok(line)
+            (warn if "NOT removed" in line else ok)(line)    # one the DC refused is a warning, not a tick
     info("stopping and removing services")
     for timer in ("fabric-directory-sync", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists", "fabric-dns-log",
                   "fabric-machines", "fabric-host-managed", "fabric-grants", "fabric-local-admin"):

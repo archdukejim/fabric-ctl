@@ -4,7 +4,7 @@ import sys
 import time
 
 from fabriclib.common.ask import ask
-from fabriclib.common.console import ok
+from fabriclib.common.console import ok, warn
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.sudo_owner import sudo_owner
 from fabriclib.setup.check_export_dir import check_export_dir
@@ -95,7 +95,7 @@ def run_uninstall_command(args, deploy_base):
             dest = check_export_dir(ctx, export)
             # the export stops the stack; the host's computer account needs OpenBao and the DC, so it goes first
             for line in remove_host_account(ctx.config_dir, ctx.vars, lambda: ctx.secrets):
-                ok(line)
+                (warn if "NOT removed" in line else ok)(line)
             export_install(ctx, dest)
         uninstall(ctx, host_account=not export)
     except ValidationError as exc:
