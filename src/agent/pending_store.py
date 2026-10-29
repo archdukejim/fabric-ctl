@@ -181,7 +181,8 @@ class PendingStore:
                                                                           "secret": result[secret]})
                 applied += 1
                 touched.add(key)
-                self._mark(item, "done")
+                # a change done with a warning (a zone published, the resolver not flushed: 2.1.4.9) says it
+                self._mark(item, "done", result.get("warning") if isinstance(result, dict) else None)
             if last and applied == len(mine):
                 item = entry["items"][-1]
                 self._mark(item, "running")
@@ -210,7 +211,8 @@ class PendingStore:
 
     def _mark(self, item, state, why=None):
         """Purpose: One queue item's state, under the lock.
-        Inputs:  item — a queue item; state — str; why — what its row says (a finish's note), None: unchanged.
+        Inputs:  item — a queue item; state — str; why — what its row says (a finish's note, a change's warning), None:
+                 unchanged.
         Returns: None.
         Fails:   never.
         Feeds:   _run_all."""

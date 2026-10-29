@@ -384,6 +384,7 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/ensure_dnslog_db.py	16
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/expand_group_clients.py	38	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/fetch_catalogue.py	22	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py	17	
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/flush_published_names.py	51	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py	13	0.8.0 / 2026-10-20
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/ingest_dns_log.py	18	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/read_query_log.py	19	
@@ -408,9 +409,11 @@ file	fabriclib-dns|src/fabriclib/dns/add_tsig_key.py	3
 file	fabriclib-dns|src/fabriclib/dns/add_zone.py	34	
 file	fabriclib-dns|src/fabriclib/dns/apply_dns.py	42	
 file	fabriclib-dns|src/fabriclib/dns/builtin_acls.py	4	
+file	fabriclib-dns|src/fabriclib/dns/changed_names.py	45	
 file	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py	37	
 file	fabriclib-dns|src/fabriclib/dns/common/landing_link.py	38	
 file	fabriclib-dns|src/fabriclib/dns/common/landing_names.py	40	
+file	fabriclib-dns|src/fabriclib/dns/common/zone_records.py	46	
 file	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py	5	
 file	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py	6	
 file	fabriclib-dns|src/fabriclib/dns/format_value.py	7	
@@ -439,6 +442,7 @@ file	fabriclib-dns|src/fabriclib/dns/run_tsig_command.py	24
 file	fabriclib-dns|src/fabriclib/dns/served_serial.py	43	
 file	fabriclib-dns|src/fabriclib/dns/set_acl_policy.py	25	
 file	fabriclib-dns|src/fabriclib/dns/set_key_acls.py	26	
+file	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py	47	
 file	fabriclib-dns|src/fabriclib/dns/set_record_link.py	39	
 file	fabriclib-dns|src/fabriclib/dns/sync_status.py	27	
 file	fabriclib-dns|src/fabriclib/dns/update_tsig_key.py	28	
@@ -1924,6 +1928,8 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/fetch_catalogue.py|fetch_
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|_lists	3	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|_read	2	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|filter_overview	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/flush_published_names.py|_why	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/flush_published_names.py|flush_published_names	2	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_group_name	5	0.8.0 / 2026-10-20
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_groups	6	0.8.0 / 2026-10-20
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py|_rule	2	0.8.0 / 2026-10-20
@@ -1972,12 +1978,15 @@ function	fabriclib-dns|src/fabriclib/dns/add_zone.py|_taken	2
 function	fabriclib-dns|src/fabriclib/dns/add_zone.py|add_zone	3	
 function	fabriclib-dns|src/fabriclib/dns/apply_dns.py|apply_dns	1	
 function	fabriclib-dns|src/fabriclib/dns/builtin_acls.py|builtin_acls	1	
+function	fabriclib-dns|src/fabriclib/dns/changed_names.py|changed_names	1	
 function	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py|_names	1	
 function	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py|fabric_record	2	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_link.py|landing_link	1	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|_fqdn	1	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|_service_names	2	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|landing_names	3	
+function	fabriclib-dns|src/fabriclib/dns/common/zone_records.py|_one_line	1	
+function	fabriclib-dns|src/fabriclib/dns/common/zone_records.py|zone_records	2	
 function	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py|create_zone_tsig_key	1	
 function	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py|find_changed_zones	1	
 function	fabriclib-dns|src/fabriclib/dns/format_value.py|format_value	1	
@@ -2018,6 +2027,10 @@ function	fabriclib-dns|src/fabriclib/dns/served_serial.py|served_serial	1
 function	fabriclib-dns|src/fabriclib/dns/set_acl_policy.py|set_acl_policy	1	
 function	fabriclib-dns|src/fabriclib/dns/set_key_acls.py|_is_key_entry	1	
 function	fabriclib-dns|src/fabriclib/dns/set_key_acls.py|set_key_acls	2	
+function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|_negative_ttl	3	
+function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|_rewrite	2	
+function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|_soa_fields	1	
+function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|set_negative_ttl	4	
 function	fabriclib-dns|src/fabriclib/dns/set_record_link.py|set_record_link	1	
 function	fabriclib-dns|src/fabriclib/dns/sync_status.py|sync_status	1	
 function	fabriclib-dns|src/fabriclib/dns/update_tsig_key.py|update_tsig_key	1	

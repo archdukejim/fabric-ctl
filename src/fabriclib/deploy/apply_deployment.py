@@ -20,6 +20,7 @@ from fabriclib.deploy.render_deployment import render_deployment
 from fabriclib.deploy.renew_landing_cert import renew_landing_cert
 from fabriclib.deploy.restart_changed import restart_changed
 from fabriclib.deploy.verify_published_images import verify_published_images
+from fabriclib.dns.changed_names import changed_names
 from fabriclib.federation.deploy_federation_endpoint import deploy_federation_endpoint
 
 
@@ -46,6 +47,7 @@ def _deploy(paths, start_services):
         restart.add("openbao")
     ngx = install_nginx_config(paths, final_vars)
     bind = install_bind9_files(paths, final_vars)
+    names = changed_names(bind["zones"])      # before they are swapped in: the resolver forgets them (2.1.4.9)
     optional = deploy_optional_parts(paths, final_vars, secrets, jinja_env, context["federation_links"])
     restart |= optional["restart"]
     web = install_webui_files(paths, final_vars)
@@ -59,7 +61,8 @@ def _deploy(paths, start_services):
              "daemon_reload": svc["daemon_reload"] or ngx["daemon_reload"] or web["agent"]
              or fed["unit_changed"] or fed["removed"],
              "bind9_config": bind["config"], "zones": bind["zones"], "nginx": ngx["nginx"],
-             "webui": web["webui"], "agent": web["agent"], "federation_unit": fed["unit_changed"]}
+             "webui": web["webui"], "agent": web["agent"], "federation_unit": fed["unit_changed"],
+             "names": names}
     bind_ids = service_user(final_vars, "bind")
     if not start_services:
         return finish_without_start(paths, state, bind_ids)

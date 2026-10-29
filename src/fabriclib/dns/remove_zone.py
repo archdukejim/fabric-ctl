@@ -33,7 +33,8 @@ def remove_zone(actor, key, confirm, source="cli"):
              needed. The records removed are kept in the audit entry.
     Inputs:  actor — who asks (audit); key — the zone's key in `dns:`; confirm — the zone's name typed again; source —
              "cli" or "web". Reads and writes vars.yaml under vars_lock.
-    Returns: {"key", "name", "records" (how many went)}.
+    Returns: {"key", "name", "records" (how many went), and "warning" when the resolver did not forget its cached
+             answers for the zone (2.1.4.9)}.
     Fails:   ValidationError with the reason, and nothing changed: an unknown zone; the site's own zone; confirm not the
              zone's name; a TSIG key or ACL policy naming it; or the publish failing (BIND or the resolver refusing):
              then the vars are put back, both configurations rendered again, and the message says why. OSError or
@@ -57,7 +58,7 @@ def remove_zone(actor, key, confirm, source="cli"):
         count = sum(len(v) for v in records.values() if isinstance(v, list))
         save_vars(data)
         try:
-            publish_zone_list(removed=(name,))
+            published = publish_zone_list(removed=(name,))
         except NotPublished as e:           # refused before BIND's files were touched: only the vars to put back
             save_vars(before)
             raise ValidationError(f"zone {name} not removed: {e}")
@@ -71,4 +72,7 @@ def remove_zone(actor, key, confirm, source="cli"):
             raise ValidationError(f"zone {name} not removed: {e}")
     write_audit(actor, "DNS_ZONE_DELETE", f"zone={name} records={count} {json.dumps(records, sort_keys=True)}",
                 source)
-    return {"key": key, "name": name, "records": count}
+    out = {"key": key, "name": name, "records": count}
+    if published.get("flush_error"):     # removed; the resolver's cached answers expire on their own (2.1.4.9)
+        out["warning"] = published["flush_error"]
+    return out

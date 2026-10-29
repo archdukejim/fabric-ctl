@@ -35,11 +35,11 @@ for s in "${SUITES[@]}"; do
     case "$s" in
         docs)     run docs     bash -c "python3 \"$HERE/docs/run.py\" && python3 \"$HERE/ci/logs_secret_free_test.py\"" ;;
         lint)     run lint     bash "$HERE/lint/run.sh" ;;
-        deploy)   run deploy   bash -c "python3 \"$HERE/deploy/restart_changed_test.py\" && python3 \"$HERE/deploy/check_service_settings_test.py\" && python3 \"$HERE/deploy/unit_start_wait_test.py\" && python3 \"$HERE/deploy/apply_failure_test.py\"" ;;
+        deploy)   run deploy   bash -c "python3 \"$HERE/deploy/restart_changed_test.py\" && python3 \"$HERE/agent/pending_store_test.py\" && python3 \"$HERE/deploy/check_service_settings_test.py\" && python3 \"$HERE/deploy/unit_start_wait_test.py\" && python3 \"$HERE/deploy/apply_failure_test.py\"" ;;
         consent)  run consent  bash -c "python3 \"$HERE/consent/run.py\" && python3 \"$HERE/common/ask.py\" && python3 \"$HERE/common/save_vars_test.py\" && python3 \"$HERE/setup/wait_ready_test.py\" && python3 \"$HERE/samba/writable_server_test.py\" && python3 \"$HERE/samba/id_layout_test.py\" && python3 \"$HERE/samba/ensure_schema_test.py\" && python3 \"$HERE/setup/run_steps_test.py\" && python3 \"$HERE/setup/run_setup_test.py\" && python3 \"$HERE/setup/start_unit_test.py\" && python3 \"$HERE/setup/require_terminal_test.py\" && python3 \"$HERE/common/same_content_test.py\" && python3 \"$HERE/common/test_run_test.py\" && python3 \"$HERE/common/copy_tree_with_perms_test.py\" && python3 \"$HERE/common/copy_if_changed_test.py\" && python3 \"$HERE/federation/deploy_federation_endpoint_test.py\" && python3 \"$HERE/setup/import_old_vars_test.py\" && python3 \"$HERE/setup/print_first_steps_test.py\" && python3 \"$HERE/setup/run_uninstall_command_test.py\" && bash \"$HERE/host/upgrade_from_test.sh\" && for t in \"$HERE\"/setup/detach/*_test.py; do python3 \"\$t\" || exit 1; done" ;;
         render)   run render   python3 "$HERE/render.py" "$FABRIC_TEST_OUT/rendered" ;;
         nginx)    run nginx    bash "$HERE/nginx_check.sh" "$FABRIC_TEST_OUT/rendered" ;;
-        zone)     run zone     bash -c "python3 \"$HERE/zone_test.py\" && python3 \"$HERE/dns/freeze_and_install_test.py\"" ;;
+        zone)     run zone     bash -c "python3 \"$HERE/zone_test.py\" && python3 \"$HERE/dns/freeze_and_install_test.py\" && python3 \"$HERE/dns/set_negative_ttl_test.py\" && python3 \"$HERE/dns/changed_names_test.py\" && python3 \"$HERE/dns_filter/flush_published_names_test.py\"" ;;
         zones)    run zones    python3 "$HERE/zones/run.py" ;;
         webui)    run webui    bash -c "python3 \"$HERE/webui/test_container.py\" && python3 \"$HERE/webui/test_devserver.py\" && python3 \"$HERE/webui/test_narrow.py\"" ;;
         pki)      run pki      python3 "$HERE/pki/run.py" ;;

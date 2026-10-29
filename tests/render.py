@@ -618,7 +618,13 @@ rz = reverse_zones(lab)["zones"]
 assert rz.get("0.20.10.in-addr.arpa") == [], "a DHCP zone with no static record is still generated"
 rzf = env.get_template("bind9/data/reverse-zone.j2").render(**{**lab, "reverse_zone_name": "0.20.10.in-addr.arpa",
                                                             "ptr_records": []})
-assert re.search(r"^\s+300 ; Negative caching TTL", rzf, re.M), "a DHCP zone caches 'no such name' briefly"
+# 2.1.4.9: every zone fabric renders keeps "no such name" 30 s (the SOA minimum), never a day or 5 minutes:
+# a DHCP reverse zone, another reverse zone, the site's forward zone (with and without federation links)
+_neg = re.compile(r"^\s+(\d+)\s+; Negative caching TTL", re.M)
+assert _neg.findall(rzf) == ["30"] and _neg.findall(_rz) == ["30"] and _neg.findall(db) == ["30"] \
+    and _neg.findall(_lz) == ["30"], (_neg.findall(rzf), _neg.findall(_rz), _neg.findall(db))
+assert not re.search(r"^\s+(86400|300)\s+; Negative", rzf + _rz + db + _lz, re.M), "no day or 5 minutes left"
+print("zone files: a miss is kept 30 s in every zone fabric renders (2.1.4.9)")
 zconf = env.get_template("bind9/config/named.conf.zones.j2").render(
     **{**secrets, **lab, "tsig_keys": [], "tsig_secrets": {}, "reverse_zone_names": list(rz)})
 lz = zconf[zconf.index('zone "0.20.10.in-addr.arpa"'):]

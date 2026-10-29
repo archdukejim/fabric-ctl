@@ -153,7 +153,14 @@ open(f"{W}/bind9/config/named.conf", "w").write(
     'acl "lan" { any; };\n'
     + env.get_template("bind9/config/named.conf.keys.j2").render(**bv)
     + env.get_template("bind9/config/named.conf.zones.j2").render(**bv))
-sh(f"chown -R 53:53 {W}/bind9/data")
+ddns_zone = open(f"{W}/bind9/data/db.dhcp.lan.test").read()
+check("a new DHCP subzone keeps 'no such name' 30 s (its SOA minimum, 2.1.4.9)",
+      "604800 30)" in ddns_zone, ddns_zone)
+# an older install's subzone, made with 300 s: the apply after the upgrade sets 30 s under the running BIND (below)
+open(f"{W}/bind9/data/db.dhcp.lan.test", "w").write(ddns_zone.replace("604800 30)", "604800 300)"))
+open(f"{W}/bind9/config/rndc.key", "w").write(env.get_template("bind9/config/rndc.key.j2").render(
+    rndc_secret=sh("openssl rand -base64 32").stdout.strip()))
+sh(f"chown -R 53:53 {W}/bind9/data {W}/bind9/config/rndc.key")
 
 # ------------------------------------------------------------------ containers
 testrun.create_network(NET, SUBNET, f"{testrun.PREFIX}.23.1")
@@ -244,6 +251,40 @@ check("the key may not touch anything but the DHCP subzone", "REFUSED" in evil o
 evil_rev = sh(f"printf 'server {BIND_IP}\\nzone {REV}\\nupdate add 9.{REV} 60 TXT evil\\nsend\\n' "
               f"| nsupdate -y hmac-sha256:kea-ddns:{secret} 2>&1", ok=False).stdout
 check("in the reverse zone the key may write PTR and DHCID only (a TXT refused)", "REFUSED" in evil_rev, evil_rev[-300:])
+
+# the DHCP subzone of an older install (300 s) given 30 s by the next apply, under the running BIND (2.1.4.9)
+from fabriclib.dhcp.ensure_ddns_zone import ensure_ddns_zone  # noqa: E402
+
+
+def bind_rndc(args, timeout=15):
+    return subprocess.run(["docker", "exec", KT_BIND, "rndc", *args], capture_output=True, text=True, timeout=timeout)
+
+
+def soa_minimum():
+    return (sh(["dig", "+short", f"@{BIND_IP}", "dhcp.lan.test", "SOA"], ok=False).stdout.split() or ["?"])[-1]
+
+
+serial0 = (sh(["dig", "+short", f"@{BIND_IP}", "dhcp.lan.test", "SOA"], ok=False).stdout.split() or ["", "", "0"])[2]
+check("an older install's DHCP subzone answers with a 300 s minimum, laptop1 registered in its journal",
+      soa_minimum() == "300" and dig("laptop1.dhcp.lan.test") == ip1, (soa_minimum(), dig("laptop1.dhcp.lan.test")))
+created = ensure_ddns_zone(V, 53, 53, call=bind_rndc)
+serial1 = (sh(["dig", "+short", f"@{BIND_IP}", "dhcp.lan.test", "SOA"], ok=False).stdout.split() or ["", "", "0"])[2]
+check("the apply sets 30 s under the running BIND (frozen, edited, thawed): served at once with a higher serial, "
+      "laptop1's registration kept, the file not made again",
+      not created and soa_minimum() == "30" and int(serial1) > int(serial0) and dig("laptop1.dhcp.lan.test") == ip1,
+      (created, soa_minimum(), serial0, serial1, dig("laptop1.dhcp.lan.test")))
+after = sh(f"printf 'server {BIND_IP}\\nzone dhcp.lan.test\\nupdate add late.dhcp.lan.test 60 A 10.1.2.3\\nsend\\n' "
+           f"| nsupdate -y hmac-sha256:kea-ddns:{secret} 2>&1", ok=False)
+check("the zone takes DHCP's updates again after it (thawed)",
+      after.returncode == 0 and dig("late.dhcp.lan.test") == "10.1.2.3", after.stdout[-300:])
+
+
+def no_rndc(args, timeout=15):
+    raise AssertionError(f"rndc asked: {args}")
+
+
+check("a subzone that already has 30 s is left alone (rndc not asked)",
+      ensure_ddns_zone(V, 53, 53, call=no_rndc) is False and soa_minimum() == "30")
 
 
 def leases_or_none():

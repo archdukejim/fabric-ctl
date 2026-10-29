@@ -212,7 +212,8 @@ try:
     took = time.time() - t0
     # covers: agent:post.zones +
     check("add: POST /v1/zones accepts a zone, normalised (lowercase, no trailing dot)",
-          st == 200 and res["name"] == "home.lan" and res["resolver"] and not res["public"], (st, res))
+          st == 200 and res["name"] == "home.lan" and res["resolver"] and not res["public"]
+          and "warning" not in res, (st, res))   # the resolver forgot the new zone (2.1.4.9): no warning
     check(f"add: in seconds, not an apply ({took:.1f} s)", took < 30, took)
     check("add: saved in dns: with its ns record (zone_authority)",
           vars_dns().get("home.lan") == {"zone_authority": True}, vars_dns())

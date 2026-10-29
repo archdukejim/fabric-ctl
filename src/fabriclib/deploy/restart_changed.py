@@ -7,6 +7,7 @@ from fabriclib.dns.freeze_and_install import freeze_and_install
 from fabriclib.dns.install_zone_file import install_zone_file
 from fabriclib.dns.reload_zone import reload_zone
 from fabriclib.dns.rndc import rndc
+from fabriclib.dns_filter.flush_published_names import flush_published_names
 from fabriclib.keycloak.install_sso_keytab import install_sso_keytab
 from fabriclib.samba.converge_domain import converge_domain
 from fabriclib.samba.write_bind_dlz import write_bind_dlz
@@ -84,7 +85,9 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
     Feeds:   apply_deployment (start_services=True: `fabricctl --apply`, the web UI's Apply).
     Notes:   restarts go one at a time in dependency order, each health-gated (_roll_out). BIND down or about to
              restart reads its zone files on start, so they are installed first (a running
-             BIND frozen before, so the files hold what DHCP registered: 2.1.10.7). The web UI is
+             BIND frozen before, so the files hold what DHCP registered: 2.1.10.7). Then the filtering resolver
+             forgets the names whose records changed (state["names"], 2.1.4.9: a flush that fails is a warning). The
+             web UI is
              restarted last with --no-block: this apply may have come from it. No --pull on image builds."""
     restart = set(state["restart"])
     if state["daemon_reload"]:
@@ -121,6 +124,12 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
                                       "check `docker logs bind9`.")
         for zone, src, dst in state["zones"]:
             reload_zone(zone, src, dst, *bind_ids)
+    if state.get("names"):            # BIND serves the new records: the resolver forgets the old (2.1.4.9)
+        flushed = flush_published_names(final_vars, state["names"])
+        if flushed["flushed"]:
+            print(f"Filtering resolver: {flushed['flushed']} published name(s) flushed from its cache")
+        if flushed["error"]:
+            print(f"Warning: {flushed['error']}")
     if "nginx" in running and "nginx" not in restart and state["nginx"]:
         print("Reloading NGINX...")
         _quiet(["docker", "exec", "nginx", "nginx", "-s", "reload"], "Reloading NGINX", 15)

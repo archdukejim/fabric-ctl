@@ -62,7 +62,7 @@ def add_zone(actor, name, hide_public=False, source="cli"):
              hide_public — True when the owner ticked that this name hides the real one on the internet (required for a
              name under a public top-level domain); source — "cli" or "web". Reads and writes vars.yaml under vars_lock.
     Returns: {"key", "name" (the same: a new zone's key is its name), "public" (bool), "resolver" (the resolver was
-             reloaded too)}.
+             reloaded too), and "warning" when the resolver did not forget its cached answers for the name (2.1.4.9)}.
     Fails:   ValidationError with the reason, and nothing changed: not a DNS name of at least two labels (ZONE_RE);
              one BIND already answers for (the site's domain, the DHCP zone, the AD zone, a reverse zone, an existing
              zone, another site's); a public name without hide_public; or the publish failing (BIND or the resolver
@@ -103,4 +103,7 @@ def add_zone(actor, name, hide_public=False, source="cli"):
                                       f"{again}; run an apply")
             raise ValidationError(f"zone {name} not added: {e}")
     write_audit(actor, "DNS_ZONE_ADD", f"zone={name}" + (" (hides the public name)" if public else ""), source)
-    return {"key": name, "name": name, "public": public, "resolver": published["resolver"]}
+    out = {"key": name, "name": name, "public": public, "resolver": published["resolver"]}
+    if published.get("flush_error"):     # published; the resolver's cached miss expires on its own (2.1.4.9)
+        out["warning"] = published["flush_error"]
+    return out

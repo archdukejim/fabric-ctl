@@ -52,8 +52,9 @@ def _finish_dns(routes):
              any of them is a record, a landing-page link or a TSIG key's removal; a zone's add and removal publish
              themselves (dns/publish_zone_list).
     Inputs:  routes — the routes being applied.
-    Returns: (what, fn(actor)), or None; fn returns what its row of the Review says once done: "" or that the
-             landing page's certificate waits for a full apply (decision 2.1.8.29).
+    Returns: (what, fn(actor)), or None; fn returns what its row of the Review says once done: "", that the
+             landing page's certificate waits for a full apply (decision 2.1.8.29), and/or that the filtering
+             resolver did not forget the changed names (a warning, 2.1.4.9).
     Fails:   never (fn raises ValidationError when BIND does not take the change).
     Feeds:   _finish."""
     if all(list(r) == ["zones"] or list(r)[2:] == ["delete"] and len(r) == 3 and r[0] == "zones" for r in routes):
@@ -62,7 +63,10 @@ def _finish_dns(routes):
     def publish(actor):
         from fabriclib.dns.apply_dns import apply_dns
         from agent.landing_note import landing_note
-        return landing_note(apply_dns(actor, source="web").get("landing_cert"))
+        done = apply_dns(actor, source="web")
+        notes = [landing_note(done.get("landing_cert")),
+                 f"warning: {done['flush_error']}" if done.get("flush_error") else ""]   # 2.1.4.9
+        return "; ".join(n for n in notes if n)
 
     return "Publish to BIND and the landing page (reloads only BIND)", publish
 

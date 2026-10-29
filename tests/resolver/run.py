@@ -57,6 +57,30 @@ def status(name):
     return out.split("status: ", 1)[1].split(",", 1)[0] if "status: " in out else "no answer"
 
 
+def product_negative_ttl():
+    """The negative-caching TTL fabric's forward zones carry (templates/bind9/data/zone.j2's SOA minimum, 2.1.4.9)."""
+    with open(os.path.join(REPO, "templates", "bind9", "data", "zone.j2")) as f:
+        line = [ln for ln in f if "; Negative caching TTL" in ln][0]
+    return int(line.split(";", 1)[0].split()[-1])
+
+
+NEG = product_negative_ttl()
+
+
+def test_zone(serial, extra=""):
+    """The authoritative BIND's test zone, with the SOA minimum fabric's zones have."""
+    return (f"$TTL 300\n@ IN SOA ns.lan.test. hostmaster.lan.test. {serial} 3600 600 86400 {NEG}\n"
+            f"@ IN NS ns.lan.test.\nns IN A {BIND_IP}\nwww IN A 10.9.8.7\nads IN A 10.9.8.8\n{extra}")
+
+
+def publish(serial, extra):
+    """A new version of the test zone served by the authoritative BIND (SIGHUP: named reads its zones again)."""
+    with open(f"{W}/bind9/data/db.lan.test", "w") as f:
+        f.write(test_zone(serial, extra))
+    sh(["docker", "kill", "-s", "HUP", RES_AUTH])
+    return until(lambda: str(serial) in sh(["dig", "+short", f"@{BIND_IP}", "lan.test", "SOA"], ok=False).stdout, 20)
+
+
 def until(fn, seconds=90):
     end = time.time() + seconds
     while time.time() < end:
@@ -99,6 +123,8 @@ from fabriclib.dns_filter.common.adguard_paths import adguard_paths  # noqa: E40
 from fabriclib.dns_filter.common.list_id import list_id  # noqa: E402
 from fabriclib.dns_filter.common.list_memory import list_memory  # noqa: E402
 from fabriclib.dns_filter.common.resolver_rndc import resolver_rndc  # noqa: E402
+from fabriclib.dns.changed_names import changed_names  # noqa: E402
+from fabriclib.dns_filter.flush_published_names import flush_published_names  # noqa: E402
 from fabriclib.dns_filter.deploy_adguard import deploy_adguard  # noqa: E402
 from fabriclib.dns_filter.deploy_resolver import deploy_resolver  # noqa: E402
 from fabriclib.dns_filter.show_filter_status import show_filter_status  # noqa: E402
@@ -276,8 +302,7 @@ try:
         f.write('options { directory "/var/cache/bind"; listen-on { any; }; listen-on-v6 { none; }; recursion no; };\n'
                 'zone "lan.test" { type primary; file "/var/lib/bind/db.lan.test"; };\n')
     with open(f"{W}/bind9/data/db.lan.test", "w") as f:
-        f.write("$TTL 300\n@ IN SOA ns.lan.test. hostmaster.lan.test. 1 3600 600 86400 300\n@ IN NS ns.lan.test.\n"
-                f"ns IN A {BIND_IP}\nwww IN A 10.9.8.7\nads IN A 10.9.8.8\n")
+        f.write(test_zone(1))
     uid = sh(["docker", "run", "--rm", "--entrypoint", "id", IMAGE, "-u"]).stdout.strip()
     sh(f"chown -R {uid}:{uid} {W}/bind9/data")
     testrun.create_network(NET, SUBNET, GATEWAY)
@@ -331,6 +356,32 @@ try:
     # covers: setting:security +
     check("after the reload the host is allowed: fabric's zone answers through the authoritative BIND",
           until(lambda: "10.9.8.7" in dig("+short", "www.lan.test"), 20), dig("www.lan.test"))
+
+    # a name asked before it exists (2.1.4.9): the resolver keeps the NXDOMAIN for the zone's SOA minimum only
+    check(f"fabric's zones keep 'no such name' {NEG} s (zone.j2's SOA minimum), not hours", NEG == 30, NEG)
+    first = status("late.lan.test")
+    asked = time.time()
+    published = publish(2, "late IN A 10.9.8.20\n")
+    cached = status("late.lan.test")
+    came = until(lambda: "10.9.8.20" in dig("+short", "late.lan.test"), NEG + 15)
+    waited = time.time() - asked
+    check(f"a name published after a client asked: the resolver's cached NXDOMAIN ends within {NEG} s, without a "
+          f"flush ({waited:.0f} s)", first == "NXDOMAIN" and published and cached == "NXDOMAIN" and came
+          and waited <= NEG + 5, (first, published, cached, came, waited))
+    # the apply's flush (dns/changed_names + flush_published_names): the name answers at once
+    check("before the flush: another new name is NXDOMAIN through the resolver",
+          status("later.lan.test") == "NXDOMAIN", dig("later.lan.test"))
+    old = f"{W}/db.lan.test.old"
+    shutil.copy(f"{W}/bind9/data/db.lan.test", old)
+    published = publish(3, "late IN A 10.9.8.20\nlater IN A 10.9.8.21\n")
+    still = status("later.lan.test")
+    names = changed_names([("lan.test", f"{W}/bind9/data/db.lan.test", old)])
+    flushed = flush_published_names(V, names)
+    check("BIND serves it, the resolver still answers its cached NXDOMAIN; after the apply's flush it answers at once "
+          "(only the changed name flushed, in every view)",
+          published and still == "NXDOMAIN" and names == {"names": ["later.lan.test."], "trees": []}
+          and flushed == {"flushed": 1, "error": None} and "10.9.8.21" in dig("+short", "later.lan.test"),
+          (published, still, names, flushed, dig("later.lan.test")))
     addr = sh(["docker", "inspect", "-f", "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
                "bind9-resolver"], ok=False).stdout.strip()
     # covers: setting:ip_resolver +
