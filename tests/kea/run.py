@@ -80,6 +80,12 @@ build = sh(["docker", "build", "-q", "-t", KEA_IMAGE, "--build-arg", f"BASE_IMAG
             "--build-arg", f"KEA_KEY_FINGERPRINT={k['key_fingerprint']}", f"{REPO}/packaging/images/kea"], ok=False)
 check("Kea image builds from ISC's repository (signing key pinned, exact version)", build.returncode == 0,
       build.stderr[-600:])
+installed = sh(["docker", "run", "--rm", "--entrypoint", "dpkg-query", KEA_IMAGE, "-W", "-f",
+                "${db:Status-Abbrev} ${Package} ${Version}\\n", "isc-kea-*"], ok=False).stdout.split("\n")
+installed = dict(line.split()[1:3] for line in installed if line.startswith("ii "))   # installed ones only
+# a newer ISC release in the repository is not taken: isc-kea-common left to apt broke the build (2.3.1.32)
+check("every isc-kea package in the image is the pinned version, isc-kea-common included",
+      "isc-kea-common" in installed and set(installed.values()) == {k["version"]}, installed)
 bad = sh(["docker", "build", "-q", "--build-arg", f"BASE_IMAGE={DEBIAN}", "--build-arg", f"KEA_VERSION={k['version']}",
           "--build-arg", f"KEA_REPO={k['repo']}", "--build-arg", f"KEA_SUITE={k['suite']}",
           "--build-arg", f"KEA_KEY_URL={k['key_url']}", "--build-arg", "KEA_KEY_FINGERPRINT=" + "0" * 40,

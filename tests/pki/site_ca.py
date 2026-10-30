@@ -150,8 +150,9 @@ check("sign: nothing left in the artifacts directory", os.listdir(f"{root_data}/
 
 # ---------------------------------------------------------------- the site checks and stages the answer
 fp = describe_cert(ROOT_PEM)["sha256"]
+wrong = ("AB:" if fp.startswith("AA:") else "AA:") + fp[3:]   # never the real one (1 run in 256 it was: 2.3.1.32)
 check("stage: a root other than the invitation's refused",
-      refused(stage_site_ca, JOIN, signed["cert"], ROOT_PEM, root_sha256="AA:" + fp[3:], match="fingerprint"))
+      refused(stage_site_ca, JOIN, signed["cert"], ROOT_PEM, root_sha256=wrong, match="fingerprint"))
 check("stage: a certificate that does not chain refused",
       refused(stage_site_ca, JOIN, signed["cert"], signed["cert"], match="self-signed"))
 req2 = make_site_ca_request(SITE, "branch2", "Site-Pw-2", f"{W}/branch2/join")
