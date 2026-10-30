@@ -78,6 +78,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.8.4 Web UI](1.8.4-webui.md)
 - [1.8.5 The setup wizard: setup's choices in the console, and in a file](1.8.5-setup-wizard.md)
 - [1.8.6 The console redone in Cockpit's style](1.8.6-console-redo.md)
+- [1.8.7 Cockpit behind fabric's web server](1.8.7-cockpit-proxy.md)
 
 ## 1.9 Federation
 
