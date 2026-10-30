@@ -21,7 +21,7 @@ docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
-docs/volume_1_description_and_architecture/1.1.4-roadmap.md	e40540b25f2fe882cb5399c6d1282ddf9b571b65	2026-10-30	
+docs/volume_1_description_and_architecture/1.1.4-roadmap.md	215af3289c3902d07fd3aeea75370ba6323a1938	2026-10-30	
 docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	7cc73759f86c7ce4ca7e2d58b7d1cc0db4cb9a64	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	c376feda6e17998f6aa6b2d9c85823f6b00ba89e	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
@@ -99,7 +99,7 @@ docs/volume_1_description_and_architecture/1.2.9-host-consent.md	ebd0867098b38a7
 docs/volume_1_description_and_architecture/1.3.1-host-package.md	44319278da7cf11a26e05b384c989d9b81f6f40d	2026-10-23	
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	4ab5c327069823d2f63aa8ce26c2c5aded2ec86c	2026-10-24	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	6bcce66ee2dba9bb1e5004a9186a113074bf9017	2026-10-25	
-docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	216136a4ae9f7ef241f69b9f933ef47dc9e9493f	2026-10-17	
+docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	59d67f10d44916abf16b3290736a505930d72f91	2026-10-30	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	4e83dfad50c23bdff3b9f1925982b76603d4f2a1	2026-10-13	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	8960e718285add9c0a6d0acb480c1fd020e8ba4f	2026-10-23	
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
@@ -123,7 +123,7 @@ docs/volume_1_description_and_architecture/1.8.3-single-pane.md	808634d3a80eb231
 docs/volume_1_description_and_architecture/1.8.4-webui.md	39217755a58747a679510a3109b1570af664d412	2026-10-23	
 docs/volume_1_description_and_architecture/1.8.5-setup-wizard.md	b3a5573e615599ff8d7358df777e1bc5852750f6	2026-10-23	
 docs/volume_1_description_and_architecture/1.8.6-console-redo.md	c8311dffa63ca371bd5f3ccebdb69d9441372eae	2026-10-25	
-docs/volume_1_description_and_architecture/1.8.7-cockpit-proxy.md	749bf5570f544d320b427af98e673f7cff6a730f	2026-10-30	
+docs/volume_1_description_and_architecture/1.8.7-cockpit-proxy.md	965690482f7597a1271ab627eb5724bf70e9fce2	2026-10-30	
 docs/volume_1_description_and_architecture/1.9.1-sites.md	c0b8fc74f6c5ee052cf2819e2425730981232ed1	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.2-ha-partners.md	941731a583188b3b8e4a467eabdd9966bb6214ca	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.3-between-sites.md	9b2693352d2d8a3cad600964f14c8df2b13af4f9	2026-10-08	
@@ -150,7 +150,7 @@ docs/volume_2_engineering_decisions/2.1.4-dns.md	bee8ed6231cdd939a30ffdb20279e79
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	81033c43c705bd5016ad4ffae99967677910aec6	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.6-identity.md	f140a6f25c90ffbccd9dbf39c5d47fbd81758e6f	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
-docs/volume_2_engineering_decisions/2.1.8-webui.md	908074daf6dcb361a6b788d64269ee08cba2aa47	2026-10-30	
+docs/volume_2_engineering_decisions/2.1.8-webui.md	ce9f646c504cfe1c8aca8e35fd09d0707b608191	2026-10-30	
 docs/volume_2_engineering_decisions/2.1.9-federation.md	35cd6c9aa7a8e1a889f52bf54a160f8e2fe3903c	2026-10-25	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
@@ -188,7 +188,7 @@ docs/volume_3_installation/3.3.4-rebuilding.md	89cf47b0a1e0594bdae8b4d684b411112
 docs/volume_3_installation/3.3.5-moving-to-080.md	9217d74284cbc4e7d2349430c2da7cf77b8a8de6	2026-10-20	
 docs/volume_3_installation/3.5.1-pki-before-install.md	fe4159103da796d8616041f0d1cd09f4b134db79	2026-10-08	
 docs/volume_3_installation/3.5.2-subordinate-ca.md	d84ac7e3817c58047a6317cdbff214f52895ed6e	2026-10-11	
-docs/volume_3_installation/3.8.1-cockpit-proxy.md	ce688a4ca8991d0e0904b744e6da44d366acc100	2026-10-30	
+docs/volume_3_installation/3.8.1-cockpit-proxy.md	47f288236b364c1488d3ba03669e3205395dbe02	2026-10-30	
 docs/volume_3_installation/3.9.1-joining.md	8107c7d0961916bb75ce6e4a8475139b701560fb	2026-10-18	
 docs/volume_3_installation/README.md	e5bf41d2f93e46e505826ef39caf8c0b8c1240d7	2026-10-30	
 docs/volume_4_operations/4.10.1-dhcp.md	bd18863bc973f0ee549798a38a9367e86491b68e	2026-10-24	
@@ -226,7 +226,7 @@ docs/volume_4_operations/4.8.2-device-access.md	acedfa20a29674a27a54708ea95f4a00
 docs/volume_4_operations/4.8.3-setup-wizard.md	4c794c462e527b19780a2d1d86b4a49aa69590c8	2026-10-23	
 docs/volume_4_operations/4.8.4-apply.md	6fce209c833634683dcf1e1a1a6ae54b9b29c15f	2026-10-24	
 docs/volume_4_operations/4.8.5-my-account.md	529555b06ddb1c979a7c0ee7386b26c1ea172853	2026-10-23	
-docs/volume_4_operations/4.8.6-cockpit.md	deba0717c907e985980a3a8a43c083f2aa8c174c	2026-10-30	
+docs/volume_4_operations/4.8.6-cockpit.md	9c5f6be7cc6469b8c07ff4432beda5778fc048bb	2026-10-30	
 docs/volume_4_operations/4.9.1-federation.md	ab020e95a31b25e7ee77280b0179e24200a93185	2026-10-25	
 docs/volume_4_operations/4.9.2-address-plan.md	695bf8e260b9df9fd7d41a9e9d13019664765a25	2026-10-08	
 docs/volume_4_operations/README.md	8ffc500c5d027a68ffb9b258da1143e00e97f60b	2026-10-30	
