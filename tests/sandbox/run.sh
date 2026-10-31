@@ -280,21 +280,30 @@ check "kea: fabricctl dhcp leases lists the client's lease" "in_box 'fabricctl d
 in_box 'fabricctl dhcp reserve 02:00:00:00:77:01 10.77.0.50 sbxprinter' > "$OUT/dhcp-reserve.log" 2>&1
 # covers: cli:dhcp.reserve cli:dhcp.status +
 check "kea: fabricctl dhcp reserve saves and applies; status lists it"     "grep -q 'applied' '$OUT/dhcp-reserve.log' && in_box 'fabricctl dhcp status' | grep -q '02:00:00:00:77:01  10.77.0.50'"
-check "kea: a reservation inside the pool is refused"     "! in_box 'fabricctl dhcp reserve 02:00:00:00:77:02 10.77.0.205 --no-apply' >/dev/null 2>&1"
-# DHCP management (manual 1.10.2): subnets with name/VLAN/notes, options, a client class, Kea's own check
+# 0.9.0: a reservation may lie inside a pool (Kea hands it only to its MAC: 1.10.4.3.2)
+# covers: cli:dhcp.unreserve +
+check "kea: a reservation inside the pool is accepted (1.10.4.3.2), and unreserve takes it back" \
+    "in_box 'fabricctl dhcp reserve 02:00:00:00:77:02 10.77.0.205 --no-apply' >/dev/null 2>&1 \
+     && in_box 'fabricctl dhcp unreserve 02:00:00:00:77:02 --no-apply' >/dev/null 2>&1"
+# DHCP management (manual 1.10.4): a subnet through the 0.7 alias, a client class and its option in the address plan
+# (since 0.9.0 the site's options and classes are `ipam option` and `ipam class`: 1.10.4.21), Kea's own check
 in_box 'fabricctl dhcp add-subnet 10.78.0.0/24 --name lab2 --vlan 78 --router 10.78.0.1 --pool "10.78.0.100 - 10.78.0.150" --notes "second lab"' > "$OUT/dhcp-subnet.log" 2>&1
-in_box 'fabricctl dhcp class add pxe-uefi --test "option[93].hex == 0x0007" --next-server 10.77.0.30 --boot-file ipxe.efi' >> "$OUT/dhcp-subnet.log" 2>&1
-in_box 'fabricctl dhcp option set tftp-server-name 10.77.0.30 --class pxe-uefi' >> "$OUT/dhcp-subnet.log" 2>&1
-# covers: cli:dhcp.add-subnet cli:dhcp.class cli:dhcp.option +
-check "kea: add-subnet, a client class and an option are saved, applied, and Kea runs them" \
+in_box 'fabricctl ipam class add site pxe-uefi --test "option[93].hex == 0x0007" --next-server 10.77.0.30 --boot-file ipxe.efi' >> "$OUT/dhcp-subnet.log" 2>&1
+in_box 'fabricctl ipam option set class pxe-uefi tftp-server-name 10.77.0.30' >> "$OUT/dhcp-subnet.log" 2>&1
+# covers: cli:dhcp.add-subnet +
+check "kea: add-subnet, a client class and its option are saved, applied, and Kea runs them" \
     "grep -c 'applied' '$OUT/dhcp-subnet.log' | grep -qx 3 && in_box 'systemctl is-active kea' | grep -qx active \
      && in_box 'fabricctl dhcp status' | grep -q 'lab2.*VLAN 78' && in_box 'cat /opt/kea/config/kea-dhcp4.conf' | grep -q 'pxe-uefi'"
-in_box 'fabricctl dhcp option set no-such-option 1' > "$OUT/dhcp-badopt.log" 2>&1
-# covers: cli:dhcp.option -
-check "kea: an option Kea does not know is refused before it is saved; the next apply is clean" \
-    "grep -q 'Kea refused' '$OUT/dhcp-badopt.log' && ! in_box 'grep -q no-such-option /opt/fabric/config/vars.yaml' \
+in_box 'fabricctl dhcp option set tftp-server-name 10.77.0.30' > "$OUT/dhcp-oldopt.log" 2>&1
+# covers: cli:dhcp.option cli:dhcp.class -
+check "kea: 0.8's dhcp option and class are refused, naming ipam option and ipam class (1.10.4.21)" \
+    "grep -q 'ipam option and ipam class' '$OUT/dhcp-oldopt.log' \
+     && ! in_box 'fabricctl dhcp class add x --test \"option[93].hex == 0x0007\"' >/dev/null 2>&1"
+in_box 'fabricctl ipam option set site no-such-option 1' > "$OUT/dhcp-badopt.log" 2>&1
+check "kea: an option Kea does not know is refused before it is saved, saying how to define it; the next apply is clean" \
+    "grep -q 'define it first' '$OUT/dhcp-badopt.log' && ! in_box 'fabricctl ipam option show site' | grep -q no-such-option \
      && in_box 'fabricctl --apply' > '$OUT/dhcp-apply.log' 2>&1"
-in_box 'fabricctl dhcp remove-subnet lab2 && fabricctl dhcp class remove pxe-uefi' > "$OUT/dhcp-remove.log" 2>&1
+in_box 'fabricctl dhcp remove-subnet lab2 && fabricctl ipam class remove site pxe-uefi' > "$OUT/dhcp-remove.log" 2>&1
 # covers: cli:dhcp.remove-subnet +
 check "kea: remove-subnet and class remove apply; the first subnet keeps its id (its leases stay)" \
     "grep -c 'applied' '$OUT/dhcp-remove.log' | grep -qx 2 && in_box 'cat /opt/kea/config/kea-dhcp4.conf' | grep -qF '\"id\": 1,' \
