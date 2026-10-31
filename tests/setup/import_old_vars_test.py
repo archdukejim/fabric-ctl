@@ -122,9 +122,12 @@ check("the console's address: a new install's is fabric-ctl.<domain>; the 0.7.1 
 ctx_same, _, error = setup_vars(write("same.yaml", yaml.safe_dump({**fresh_answers, "cname_mgr": old["cname_mgr"]})))
 same, _ = render_vars(env, secrets, {**yaml.safe_load(open(os.path.join(ctx_same.config_dir, "fabric.yaml"))),
                                      "deploy_base_dir": "/opt"})
-differ = sorted(k for k in set(same) | set(moved) if same.get(k) != moved.get(k))
+# install_was_ready (2.1.4.10): the moved file names hostname_landing, so it counts as an install once ready (its
+# zone, info included, is the admin's); a fresh one is not ready until its first setup ends
+differ = sorted(k for k in set(same) | set(moved) if same.get(k) != moved.get(k) and k != "install_was_ready")
 check("0.8.0 renders the moved settings as a fresh install with the same answers (zones, keys, parts, groups, "
-      "the DC; the console's kept address aside)", differ == [], {k: (same.get(k), moved.get(k)) for k in differ})
+      "the DC; the console's kept address aside)", differ == [] and moved["install_was_ready"] is True
+      and same["install_was_ready"] is False, {k: (same.get(k), moved.get(k)) for k in differ})
 try:
     check_settings({**moved, "dns_filter": "none"})
     said = "accepted"
@@ -154,6 +157,15 @@ m_admin.ask_first_admin(ctx2)
 check("interactive: those keys are asked, and only those; the e-mail address of the file is kept",
       error is None and asked == ["webui_admin_user", "webui_admin_first_name", "webui_admin_last_name"]
       and ctx2.vars["webui_admin_email"] == old["webui_admin_email"], (error, asked))
+asked.clear()
+ctx4, _, error = setup_vars(OLD, interactive=True)
+ctx4.non_interactive, ctx4.admin_password = False, "set"
+ctx4.vars.update(install_webui=True, install_keycloak=True, webui_admin_email="")
+m_admin.ask_admin_fact = lambda key, cur: asked.append(key) or {**answers, "webui_admin_email": ""}[key]
+m_admin.ask_first_admin(ctx4)
+check("interactive, the file giving no e-mail address: it is asked too (optional: Enter leaves it empty, 2.1.6.93)",
+      error is None and asked == ["webui_admin_user", "webui_admin_first_name", "webui_admin_last_name",
+                                  "webui_admin_email"] and ctx4.vars["webui_admin_email"] == "", (error, asked))
 ctx3, _, error = setup_vars(moved_file)
 ctx3.admin_password = "set"
 ctx3.vars.update(install_webui=True, install_keycloak=True)

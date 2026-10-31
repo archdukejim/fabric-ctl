@@ -79,7 +79,7 @@ def _deploy(paths, start_services):
         restart.add("openbao")
     ngx = install_nginx_config(paths, final_vars)
     bind = install_bind9_files(paths, final_vars)
-    names = changed_names(bind["zones"])      # before they are swapped in: the resolver forgets them (2.1.10.46)
+    names = changed_names(bind["zones"])      # before the swap: the resolver forgets them (2.1.10.46, 2.1.4.9)
     optional = deploy_optional_parts(paths, final_vars, secrets, jinja_env, context["federation_links"])
     restart |= optional["restart"]
     kea_reload, kea_drop = _kea_steps(p, optional["kea"], restart, start_services)

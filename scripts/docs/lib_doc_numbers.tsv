@@ -2,7 +2,7 @@
 file	fabricctl-agent|src/agent/get_route.py	1	
 file	fabricctl-agent|src/agent/handler.py	2	
 file	fabricctl-agent|src/agent/job_store.py	16	
-file	fabricctl-agent|src/agent/landing_note.py	43	
+file	fabricctl-agent|src/agent/landing_note.py	37	
 file	fabricctl-agent|src/agent/one_thing.py	35	
 file	fabricctl-agent|src/agent/pending_dns.py	41	
 file	fabricctl-agent|src/agent/pending_networks.py	42	
@@ -18,7 +18,7 @@ file	fabricctl-agent|src/agent/post_domain.py	14
 file	fabricctl-agent|src/agent/post_grants.py	27	
 file	fabricctl-agent|src/agent/post_groups.py	29	
 file	fabricctl-agent|src/agent/post_host_access.py	18	
-file	fabricctl-agent|src/agent/post_ipam_scan.py	37	
+file	fabricctl-agent|src/agent/post_ipam_scan.py	43	
 file	fabricctl-agent|src/agent/post_ipam_sync.py	38	
 file	fabricctl-agent|src/agent/post_local_admin.py	32	
 file	fabricctl-agent|src/agent/post_network.py	6	
@@ -93,7 +93,7 @@ file	fabricctl-jinja|src/containers/samba/ensure_service_accounts.py	26
 file	fabricctl-jinja|src/containers/samba/ensure_site_acl.py	19	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/ensure_site_info.py	27	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/ensure_site_link.py	58	
-file	fabricctl-jinja|src/containers/samba/ensure_site_record.py	149	
+file	fabricctl-jinja|src/containers/samba/ensure_site_record.py	145	
 file	fabricctl-jinja|src/containers/samba/ensure_sso_account.py	66	
 file	fabricctl-jinja|src/containers/samba/ensure_sudo_rule.py	47	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/ensure_tier_policies.py	100	
@@ -148,9 +148,9 @@ file	fabricctl-jinja|src/containers/samba/read_networks.py	45
 file	fabricctl-jinja|src/containers/samba/read_plan.py	151	
 file	fabricctl-jinja|src/containers/samba/read_replication.py	60	
 file	fabricctl-jinja|src/containers/samba/read_scan_requests.py	152	
-file	fabricctl-jinja|src/containers/samba/read_site_tree.py	153	
+file	fabricctl-jinja|src/containers/samba/read_site_tree.py	146	
 file	fabricctl-jinja|src/containers/samba/read_sites.py	65	
-file	fabricctl-jinja|src/containers/samba/read_usn.py	145	
+file	fabricctl-jinja|src/containers/samba/read_usn.py	153	
 file	fabricctl-jinja|src/containers/samba/refresh_sudo_hosts.py	85	
 file	fabricctl-jinja|src/containers/samba/remove_device.py	37	
 file	fabricctl-jinja|src/containers/samba/remove_gpo.py	113	
@@ -180,7 +180,7 @@ file	fabricctl-jinja|src/containers/samba/set_machine_site.py	135
 file	fabricctl-jinja|src/containers/samba/set_machine_type.py	136	
 file	fabricctl-jinja|src/containers/samba/set_password_policy.py	23	
 file	fabricctl-jinja|src/containers/samba/set_person.py	71	
-file	fabricctl-jinja|src/containers/samba/set_site_tree.py	154	
+file	fabricctl-jinja|src/containers/samba/set_site_tree.py	147	
 file	fabricctl-jinja|src/containers/samba/share_winbind.py	43	
 file	fabricctl-jinja|src/containers/samba/ship_grants.py	115	
 file	fabricctl-jinja|src/containers/samba/site_info.py	28	0.7.2 / 2026-10-19
@@ -188,8 +188,8 @@ file	fabricctl-jinja|src/containers/samba/site_roles.py	64	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/sort_windows_machines.py	90	
 file	fabricctl-jinja|src/containers/samba/unlock_person.py	137	
 file	fabricctl-jinja|src/containers/samba/windows_baseline_policy.py	48	
-file	fabricctl-jinja|src/containers/samba/write_plan.py	146	
-file	fabricctl-jinja|src/containers/samba/write_scan_request.py	147	
+file	fabricctl-jinja|src/containers/samba/write_plan.py	154	
+file	fabricctl-jinja|src/containers/samba/write_scan_request.py	155	
 file	fabricctl-lib|src/federation/server.py	1	
 file	fabricctl-lib|src/ux/cli/keycloak_bootstrap.py	2	
 file	fabriclib-access|src/fabriclib/access/check_access.py	1	
@@ -220,13 +220,13 @@ file	fabriclib-common|src/fabriclib/common/read_packages_lock.py	12
 file	fabriclib-common|src/fabriclib/common/read_published_lock.py	24	
 file	fabriclib-common|src/fabriclib/common/restore_original.py	13	
 file	fabriclib-common|src/fabriclib/common/run.py	14	
-file	fabriclib-common|src/fabriclib/common/same_content.py	32	
+file	fabriclib-common|src/fabriclib/common/same_content.py	29	
 file	fabriclib-common|src/fabriclib/common/save_vars.py	15	
 file	fabriclib-common|src/fabriclib/common/service_user.py	16	
 file	fabriclib-common|src/fabriclib/common/set_tsig_secrets.py	17	
 file	fabriclib-common|src/fabriclib/common/sudo_owner.py	18	
 file	fabriclib-common|src/fabriclib/common/try_apply_alone.py	31	
-file	fabriclib-common|src/fabriclib/common/try_vars_lock.py	29	
+file	fabriclib-common|src/fabriclib/common/try_vars_lock.py	32	
 file	fabriclib-common|src/fabriclib/common/vars_lock.py	19	
 file	fabriclib-common|src/fabriclib/common/wait_healthy.py	20	
 file	fabriclib-common|src/fabriclib/common/write_audit.py	21	
@@ -404,6 +404,8 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_memory.py	45
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_zone.py	5	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py	46	0.7.0 / 2026-10-12
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/parse_upstreams.py	50	
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/query_log_off.py	52	
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/read_dnslog.py	53	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_paths.py	6	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_rndc.py	7	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/rule_names.py	31	
@@ -442,24 +444,24 @@ file	fabriclib-dns|src/fabriclib/dns/add_tsig_key.py	3
 file	fabriclib-dns|src/fabriclib/dns/add_zone.py	34	
 file	fabriclib-dns|src/fabriclib/dns/apply_dns.py	42	
 file	fabriclib-dns|src/fabriclib/dns/builtin_acls.py	4	
-file	fabriclib-dns|src/fabriclib/dns/changed_names.py	48	
+file	fabriclib-dns|src/fabriclib/dns/changed_names.py	45	
 file	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py	37	
 file	fabriclib-dns|src/fabriclib/dns/common/landing_link.py	38	
 file	fabriclib-dns|src/fabriclib/dns/common/landing_names.py	40	
-file	fabriclib-dns|src/fabriclib/dns/common/zone_records.py	45	
+file	fabriclib-dns|src/fabriclib/dns/common/zone_records.py	46	
 file	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py	5	
 file	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py	6	
 file	fabriclib-dns|src/fabriclib/dns/format_value.py	7	
 file	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py	41	
 file	fabriclib-dns|src/fabriclib/dns/install_zone_file.py	8	
-file	fabriclib-dns|src/fabriclib/dns/landing_cert_stale.py	49	
+file	fabriclib-dns|src/fabriclib/dns/landing_cert_stale.py	44	
 file	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py	9	
 file	fabriclib-dns|src/fabriclib/dns/list_zones.py	10	
 file	fabriclib-dns|src/fabriclib/dns/merge_dynamic_records.py	33	
 file	fabriclib-dns|src/fabriclib/dns/normalize_acl_policies.py	11	
 file	fabriclib-dns|src/fabriclib/dns/normalize_tsig_keys.py	12	
 file	fabriclib-dns|src/fabriclib/dns/ptr_for_ip.py	13	
-file	fabriclib-dns|src/fabriclib/dns/publish_plan_records.py	46	
+file	fabriclib-dns|src/fabriclib/dns/publish_plan_records.py	48	
 file	fabriclib-dns|src/fabriclib/dns/publish_zone_list.py	35	
 file	fabriclib-dns|src/fabriclib/dns/reload_zone.py	14	
 file	fabriclib-dns|src/fabriclib/dns/remove_acl_entries.py	15	
@@ -467,7 +469,7 @@ file	fabriclib-dns|src/fabriclib/dns/remove_record.py	16
 file	fabriclib-dns|src/fabriclib/dns/remove_tsig_key.py	17	
 file	fabriclib-dns|src/fabriclib/dns/remove_zone.py	36	
 file	fabriclib-dns|src/fabriclib/dns/replace_tsig_secret.py	18	
-file	fabriclib-dns|src/fabriclib/dns/reverse_by_hand.py	44	
+file	fabriclib-dns|src/fabriclib/dns/reverse_by_hand.py	49	
 file	fabriclib-dns|src/fabriclib/dns/reverse_zones.py	19	
 file	fabriclib-dns|src/fabriclib/dns/rfc2136_settings.py	20	
 file	fabriclib-dns|src/fabriclib/dns/rndc.py	21	
@@ -477,6 +479,7 @@ file	fabriclib-dns|src/fabriclib/dns/run_tsig_command.py	24
 file	fabriclib-dns|src/fabriclib/dns/served_serial.py	43	
 file	fabriclib-dns|src/fabriclib/dns/set_acl_policy.py	25	
 file	fabriclib-dns|src/fabriclib/dns/set_key_acls.py	26	
+file	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py	47	
 file	fabriclib-dns|src/fabriclib/dns/set_record_link.py	39	
 file	fabriclib-dns|src/fabriclib/dns/sync_status.py	27	
 file	fabriclib-dns|src/fabriclib/dns/update_tsig_key.py	28	
@@ -484,7 +487,7 @@ file	fabriclib-dns|src/fabriclib/dns/validate_record.py	29
 file	fabriclib-dns|src/fabriclib/dns/zone_content_changed.py	30	
 file	fabriclib-dns|src/fabriclib/dns/zone_detail.py	31	
 file	fabriclib-dns|src/fabriclib/dns/zone_name.py	32	
-file	fabriclib-dns|src/fabriclib/dns/zones_bind_lacks.py	47	
+file	fabriclib-dns|src/fabriclib/dns/zones_bind_lacks.py	50	
 file	fabriclib-domain|src/fabriclib/domain/change_own_password.py	1	
 file	fabriclib-domain|src/fabriclib/domain/create_group.py	2	
 file	fabriclib-domain|src/fabriclib/domain/create_ou.py	3	
@@ -961,7 +964,7 @@ file	fabriclib-setup|src/fabriclib/setup/ask_dc_name.py	48	0.7.2 / 2026-10-18
 file	fabriclib-setup|src/fabriclib/setup/ask_first_admin.py	45	
 file	fabriclib-setup|src/fabriclib/setup/ask_kerberos.py	46	0.6.4 / 2026-10-09
 file	fabriclib-setup|src/fabriclib/setup/ask_ram.py	40	0.6.4 / 2026-10-09
-file	fabriclib-setup|src/fabriclib/setup/ask_site_number.py	106	
+file	fabriclib-setup|src/fabriclib/setup/ask_site_number.py	108	
 file	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py	38	0.5.0 / 2026-10-04
 file	fabriclib-setup|src/fabriclib/setup/backup_install.py	1	
 file	fabriclib-setup|src/fabriclib/setup/check_export_dir.py	2	
@@ -989,6 +992,7 @@ file	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py	52
 file	fabriclib-setup|src/fabriclib/setup/common/renew_days.py	79	
 file	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py	7	
 file	fabriclib-setup|src/fabriclib/setup/common/sshd_check.py	104	
+file	fabriclib-setup|src/fabriclib/setup/common/sssd_sockets.py	107	
 file	fabriclib-setup|src/fabriclib/setup/common/sync_host_managed.py	80	
 file	fabriclib-setup|src/fabriclib/setup/common/valid_setting.py	73	
 file	fabriclib-setup|src/fabriclib/setup/condition_host.py	8	
@@ -1029,7 +1033,7 @@ file	fabriclib-setup|src/fabriclib/setup/preflight.py	22
 file	fabriclib-setup|src/fabriclib/setup/print_first_steps.py	44	
 file	fabriclib-setup|src/fabriclib/setup/read_join_invitation.py	23	
 file	fabriclib-setup|src/fabriclib/setup/renew_service_certs.py	24	
-file	fabriclib-setup|src/fabriclib/setup/require_terminal.py	107	
+file	fabriclib-setup|src/fabriclib/setup/require_terminal.py	106	
 file	fabriclib-setup|src/fabriclib/setup/restore_install.py	25	
 file	fabriclib-setup|src/fabriclib/setup/retire_adguard.py	83	0.7.2 / 2026-10-20
 file	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py	26	0.7.2 / 2026-10-20
@@ -1181,8 +1185,8 @@ file	webui|src/webui/agentclient/machine_overview.py	240
 file	webui|src/webui/agentclient/map_radius_group.py	28	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/my_account.py	219	
 file	webui|src/webui/agentclient/my_groups.py	220	
-file	webui|src/webui/agentclient/networks_export.py	274	
-file	webui|src/webui/agentclient/networks_overview.py	275	
+file	webui|src/webui/agentclient/networks_export.py	292	
+file	webui|src/webui/agentclient/networks_overview.py	293	
 file	webui|src/webui/agentclient/option_sets.py	276	
 file	webui|src/webui/agentclient/pending_action.py	212	
 file	webui|src/webui/agentclient/pending_counts.py	213	
@@ -1228,7 +1232,7 @@ file	webui|src/webui/agentclient/show_grant.py	250
 file	webui|src/webui/agentclient/show_group.py	231	
 file	webui|src/webui/agentclient/sign_csr.py	45	
 file	webui|src/webui/agentclient/site_overview.py	256	
-file	webui|src/webui/agentclient/site_tree.py	292	
+file	webui|src/webui/agentclient/site_tree.py	274	
 file	webui|src/webui/agentclient/start_job.py	142	
 file	webui|src/webui/agentclient/sudo_rule_change.py	161	
 file	webui|src/webui/agentclient/sync_now.py	280	
@@ -1323,7 +1327,7 @@ file	webui|src/webui/routes/saved_and_applied.py	85
 file	webui|src/webui/routes/security_post.py	134	
 file	webui|src/webui/routes/settings_page.py	197	
 file	webui|src/webui/routes/settings_post.py	198	
-file	webui|src/webui/routes/site_link.py	293	
+file	webui|src/webui/routes/site_link.py	275	
 file	webui|src/webui/routes/sites_page.py	258	
 file	webui|src/webui/routes/stepca_page.py	86	
 file	webui|src/webui/routes/stepca_post.py	87	
@@ -1427,9 +1431,9 @@ function	fabricctl-agent|src/agent/pending_store.py|PendingStore.page	4
 function	fabricctl-agent|src/agent/pending_store.py|_new	12	
 function	fabricctl-agent|src/agent/pending_store.py|_old	11	
 function	fabricctl-agent|src/agent/pending_store.py|_read	13	
-function	fabricctl-agent|src/agent/pending_thing.py|_describe_dns	12	0.8.0 / 2026-10-23
+function	fabricctl-agent|src/agent/pending_thing.py|_describe_dns	12	0.8.0 / 2026-10-31
 function	fabricctl-agent|src/agent/pending_thing.py|_find	3	
-function	fabricctl-agent|src/agent/pending_thing.py|_zone	11	0.8.0 / 2026-10-23
+function	fabricctl-agent|src/agent/pending_thing.py|_zone	11	0.8.0 / 2026-10-31
 function	fabricctl-agent|src/agent/pending_thing.py|_zone_key	13	
 function	fabricctl-agent|src/agent/pending_thing.py|as_change	8	
 function	fabricctl-agent|src/agent/pending_thing.py|describe_change	2	
@@ -2040,7 +2044,7 @@ function	fabriclib-dhcp|src/fabriclib/dhcp/remove_reservation.py|remove_reservat
 function	fabriclib-dhcp|src/fabriclib/dhcp/remove_subnet.py|remove_subnet	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_alias.py|_clear	1	
 function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_alias.py|run_dhcp_alias	2	
-function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|_apply	1	0.8.0 / 2026-10-23
+function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|_apply	1	0.8.0 / 2026-10-31
 function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|_keep	5	
 function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|_parse	2	
 function	fabriclib-dhcp|src/fabriclib/dhcp/run_dhcp_command.py|_show	4	
@@ -2129,6 +2133,8 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_memory.py|lis
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_zone.py|list_zone	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py|mem_mb	1	0.7.0 / 2026-10-12
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/parse_upstreams.py|parse_upstreams	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/query_log_off.py|query_log_off	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/read_dnslog.py|read_dnslog	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_paths.py|resolver_paths	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_rndc.py|resolver_rndc	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/rule_names.py|rule_names	1	
@@ -2213,8 +2219,8 @@ function	fabriclib-dns|src/fabriclib/dns/common/landing_link.py|landing_link	1
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|_fqdn	1	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|_service_names	2	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|landing_names	3	
-function	fabriclib-dns|src/fabriclib/dns/common/zone_records.py|_one_line	2	
-function	fabriclib-dns|src/fabriclib/dns/common/zone_records.py|zone_records	1	
+function	fabriclib-dns|src/fabriclib/dns/common/zone_records.py|_one_line	1	
+function	fabriclib-dns|src/fabriclib/dns/common/zone_records.py|zone_records	2	
 function	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py|create_zone_tsig_key	1	
 function	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py|_not_loaded	2	
 function	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py|find_changed_zones	1	
@@ -2226,7 +2232,7 @@ function	fabriclib-dns|src/fabriclib/dns/landing_cert_stale.py|landing_cert_stal
 function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|_names	1	
 function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|list_tsig_keys	2	
 function	fabriclib-dns|src/fabriclib/dns/list_zones.py|list_zones	1	
-function	fabriclib-dns|src/fabriclib/dns/merge_dynamic_records.py|_records	1	0.8.0 / 2026-10-23
+function	fabriclib-dns|src/fabriclib/dns/merge_dynamic_records.py|_records	1	0.8.0 / 2026-10-31
 function	fabriclib-dns|src/fabriclib/dns/merge_dynamic_records.py|merge_dynamic_records	2	
 function	fabriclib-dns|src/fabriclib/dns/normalize_acl_policies.py|normalize_acl_policies	1	
 function	fabriclib-dns|src/fabriclib/dns/normalize_tsig_keys.py|normalize_tsig_keys	1	
@@ -2261,6 +2267,10 @@ function	fabriclib-dns|src/fabriclib/dns/served_serial.py|served_serial	1
 function	fabriclib-dns|src/fabriclib/dns/set_acl_policy.py|set_acl_policy	1	
 function	fabriclib-dns|src/fabriclib/dns/set_key_acls.py|_is_key_entry	1	
 function	fabriclib-dns|src/fabriclib/dns/set_key_acls.py|set_key_acls	2	
+function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|_negative_ttl	3	
+function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|_rewrite	2	
+function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|_soa_fields	1	
+function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|set_negative_ttl	4	
 function	fabriclib-dns|src/fabriclib/dns/set_record_link.py|set_record_link	1	
 function	fabriclib-dns|src/fabriclib/dns/sync_status.py|sync_status	1	
 function	fabriclib-dns|src/fabriclib/dns/update_tsig_key.py|update_tsig_key	1	
@@ -2339,6 +2349,7 @@ function	fabriclib-federation|src/fabriclib/federation/dns_links.py|dns_links	2
 function	fabriclib-federation|src/fabriclib/federation/drop_relay.py|drop_relay	1	
 function	fabriclib-federation|src/fabriclib/federation/federation_overview.py|federation_overview	1	
 function	fabriclib-federation|src/fabriclib/federation/federation_status.py|federation_status	1	
+function	fabriclib-federation|src/fabriclib/federation/join_upstream.py|_reached	3	
 function	fabriclib-federation|src/fabriclib/federation/join_upstream.py|_vars	2	
 function	fabriclib-federation|src/fabriclib/federation/join_upstream.py|join_upstream	1	
 function	fabriclib-federation|src/fabriclib/federation/keep_site_place.py|keep_site_place	1	
@@ -3028,6 +3039,11 @@ function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|rende
 function	fabriclib-setup|src/fabriclib/setup/common/renew_days.py|renew_days	1	
 function	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py|service_account_name	1	
 function	fabriclib-setup|src/fabriclib/setup/common/sshd_check.py|sshd_check	1	
+function	fabriclib-setup|src/fabriclib/setup/common/sssd_sockets.py|mask_sockets	4	
+function	fabriclib-setup|src/fabriclib/setup/common/sssd_sockets.py|restore_sockets	5	
+function	fabriclib-setup|src/fabriclib/setup/common/sssd_sockets.py|socket_states	2	
+function	fabriclib-setup|src/fabriclib/setup/common/sssd_sockets.py|socket_units	1	
+function	fabriclib-setup|src/fabriclib/setup/common/sssd_sockets.py|sockets_masked	3	
 function	fabriclib-setup|src/fabriclib/setup/common/sync_host_managed.py|sync_host_managed	1	
 function	fabriclib-setup|src/fabriclib/setup/common/valid_setting.py|valid_setting	1	
 function	fabriclib-setup|src/fabriclib/setup/condition_host.py|_apt_install	1	0.7.0 / 2026-10-12
@@ -3156,6 +3172,8 @@ function	fabriclib-setup|src/fabriclib/setup/start_services.py|run	1
 function	fabriclib-setup|src/fabriclib/setup/start_unit.py|_settled	3	
 function	fabriclib-setup|src/fabriclib/setup/start_unit.py|_unit_state	2	
 function	fabriclib-setup|src/fabriclib/setup/start_unit.py|start_unit	1	
+function	fabriclib-setup|src/fabriclib/setup/uninstall.py|_reset_failed	3	
+function	fabriclib-setup|src/fabriclib/setup/uninstall.py|_stop_timers	2	
 function	fabriclib-setup|src/fabriclib/setup/uninstall.py|uninstall	1	
 function	fabriclib-setup|src/fabriclib/setup/upgrade_vars.py|upgrade_vars	1	
 function	fabriclib-setup|src/fabriclib/setup/verify_install.py|_curl	1	

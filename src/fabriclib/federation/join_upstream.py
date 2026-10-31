@@ -19,6 +19,25 @@ from fabriclib.pki.stage_site_ca import stage_site_ca
 from fabriclib.samba.dc_name_problem import dc_name_problem
 
 ORG_KEYS = ("friendly_name", "cert_country", "cert_province", "cert_city", "cert_org", "cert_ou")
+FIREWALL_HINT = ("; a site in another network than the upstream's LAN is let in by the upstream's firewall only "
+                 "when its network is in the upstream's security.firewall_allow: there, add it and run "
+                 "`sudo fabricctl setup --step firewall --approve ports,firewall` (manual 4.9.1.4, 2.1.9.28)")
+
+
+def _reached(call, *args, **kw):
+    """Purpose: call one of the join's requests to the upstream; when the upstream could not be reached at all (not a
+             TLS or certificate refusal), say what usually stops it: the upstream's firewall (2.1.9.28).
+    Inputs:  call — fetch_pinned_root or post_upstream; args, kw — its arguments.
+    Returns: what call returns.
+    Fails:   ValidationError from call, the firewall named when it could not reach the upstream.
+    Feeds:   join_upstream."""
+    try:
+        return call(*args, **kw)
+    except ValidationError as e:
+        text = str(e)
+        if text.startswith("cannot reach") and not any(w in text.lower() for w in ("certificate", "ssl")):
+            raise ValidationError(text + FIREWALL_HINT) from None
+        raise
 
 
 def join_upstream(v, invitation, password, work_dir, domain, address, config_dir=None, audit_path=None,
@@ -55,7 +74,8 @@ def join_upstream(v, invitation, password, work_dir, domain, address, config_dir
     Fails:   ValidationError for an invitation from an upstream older than 0.8.0 (upstream_version_problem: before
              anything is made, sent or staged); from decode_invitation, make_site_ca_request, fetch_pinned_root,
              post_upstream ("the
-             upstream refused: ..."), stage_site_ca; "this site's domain is not valid"; "the upstream answered
+             upstream refused: ..."; "cannot reach ..." with the upstream's firewall_allow named, 2.1.9.28),
+             stage_site_ca; "this site's domain is not valid"; "the upstream answered
              with a different root"; "this node already joined <upstream>, not the invitation's ..."; an answer that
              prepares this site's DC without giving it a usable name (an upstream older than 0.8.0), before anything
              is staged or recorded here; OSError.
@@ -85,8 +105,8 @@ def join_upstream(v, invitation, password, work_dir, domain, address, config_dir
     if problem:
         raise ValidationError(problem)
     req = make_site_ca_request(v, inv["site"], password, work_dir)
-    root = fetch_pinned_root(inv["address"], inv["root_sha256"], port=http_port)
-    answer = post_upstream(inv["address"], inv["host"], root, "/v1/join",
+    root = _reached(fetch_pinned_root, inv["address"], inv["root_sha256"], port=http_port)
+    answer = _reached(post_upstream, inv["address"], inv["host"], root, "/v1/join",
                            {"id": inv["id"], "secret": inv["secret"], "site": inv["site"], "csr": req["csr"],
                             "domain": domain, "address": address, "federation_host": f"federation.{domain}",
                             "via": inv["via"], "dns_port": int(dns_port), "networks": site_networks(v),

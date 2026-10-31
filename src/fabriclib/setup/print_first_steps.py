@@ -10,14 +10,17 @@ def print_first_steps(ctx, guided=False):
     """Purpose: what the admin does next, in order, as setup's last words (manual 3.3.2): first trust fabric's root
              names first (fabric's DNS, or a hosts-file line printed here), then the CA from http://<host_ip>/certs/
              over plain HTTP, checking its fingerprint, then (when the console asks for one)
-             import the client certificate, then sign in. The order matters: a browser that does not trust the CA
-             cannot reach the console safely (the owner nearly signed in first, 2026-10-09). After Guided setup, a
+             import the client certificate, then sign in: as the first Directory Administrator setup made, or, on
+             a site that joined a domain (no webui_admin_user), as one of the domain's. The order matters: a browser
+             that does not trust the CA cannot reach the console safely (the owner nearly signed in first,
+             2026-10-09). After Guided setup, a
              last step: finish setting up in the console's Settings (the setup wizard, manual 1.8.5.7), where the
              choices Guided left at their defaults are made.
     Inputs:  ctx — SetupContext: vars install_webui, hostname_landing, hostname_stepca, hostname_mgr, webui_admin_user,
              webui_client_cert; the published ca-certs.json under <deploy_base>/nginx/www/certs; the login kit in the
-             home of the account that ran sudo (sudo_owner); guided — True after Guided setup (the wizard's step,
-             until the wizard has been applied once or dismissed: ctx.config_dir).
+             home of the account that ran sudo (sudo_owner), named only where it is (a joined site has none);
+             guided — True after Guided setup (the wizard's step, until the wizard has been applied once or dismissed:
+             ctx.config_dir).
     Returns: None; prints. Without the web UI: only the doctor line.
     Fails:   never for a missing ca-certs.json (the fingerprint is left out).
     Feeds:   setup/run_steps (after every step)."""
@@ -42,11 +45,17 @@ def print_first_steps(ctx, guided=False):
                  f"no names needed; or http://{v.get('hostname_stepca')}/certs/),\n       download the root "
                  "certificate"
                  + (f", check its SHA-256 fingerprint is\n         {sha256}\n       and" if sha256 else " and")
-                 + f" install it as a trusted root (the same file: {kit}/root-ca.crt, .cer for Windows)"]
-        if v.get("webui_client_cert"):
+                 + " install it as a trusted root"
+                 # the login kit is the first administrator's: a site that joined a domain has none (2.3.1.32)
+                 + (f" (the same file: {kit}/root-ca.crt, .cer for Windows)"
+                    if os.path.exists(os.path.join(kit, "root-ca.crt")) else "")]
+        if v.get("webui_client_cert") and user:
             steps.append(f"import your client certificate {kit}/{user}.p12 (its password: {kit}/p12-password.txt)")
-        steps.append(f"{BOLD}then sign in{NC} at {BOLD}https://{v.get('hostname_mgr')}{NC} as {user}, with the "
-                     "password you chose in setup (never as fabric-admin: it is break glass only)")
+        # a site that joined a domain made no first administrator of its own: the domain's sign in (2.3.1.32)
+        who = (f"{user}, with the password you chose in setup" if user else
+               "one of the domain's Directory Administrators (directory-admins), with their own password")
+        steps.append(f"{BOLD}then sign in{NC} at {BOLD}https://{v.get('hostname_mgr')}{NC} as {who} (never as "
+                     "fabric-admin: it is break glass only)")
         if guided and not wizard_finished(ctx.config_dir)["finished"]:
             steps.append(f"{BOLD}finish setting up in the console's Settings{NC} (it opens at your first sign-in): "
                          "DHCP, the DNS filter, log forwarding,\n       the memory fabric may use, passwords and "
@@ -54,5 +63,6 @@ def print_first_steps(ctx, guided=False):
         print("  Next:")
         for n, text in enumerate(steps, 1):
             print(f"    {n}. {text}")
-        print(f"     Everything is in the login kit: {kit}/README.txt")
+        if os.path.exists(os.path.join(kit, "README.txt")):
+            print(f"     Everything is in the login kit: {kit}/README.txt")
     ok("checks any time: sudo fabricctl doctor")

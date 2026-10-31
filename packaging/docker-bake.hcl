@@ -10,7 +10,7 @@
 #   docker buildx bake -f packaging/docker-bake.hcl --set '*.platform=linux/arm64' bind9
 
 variable "CONTEXTS" { default = "build/contexts" }
-variable "REGISTRY" { default = "ghcr.io/archdukejim/open-fabric" }
+variable "REGISTRY" { default = "ghcr.io/archdukejim/fabric-ctl" }
 variable "TAG" { default = "dev" }
 variable "REVISION" { default = "" }
 variable "BASE_DEBIAN" { default = "" }

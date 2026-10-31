@@ -8,7 +8,7 @@
 # service then works is for the suites (hardening, kea, freeradius, …).
 #
 #   packaging/images/smoke-test.sh <image name> <image ref>
-#   e.g. packaging/images/smoke-test.sh bind9 ghcr.io/archdukejim/open-fabric/bind9:dev
+#   e.g. packaging/images/smoke-test.sh bind9 ghcr.io/archdukejim/fabric-ctl/bind9:dev
 # -----------------------------------------------------------------------
 set -uo pipefail
 NAME="${1:?usage: smoke-test.sh <image name> <image ref>}"

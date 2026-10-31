@@ -20,8 +20,8 @@ def zone_records(text, zone, types):
              continued record had: 2.3.10.11.16 found a two-line DHCID kept as its first line only, which BIND
              then refused, "unbalanced parentheses").
     Fails:   never: lines it cannot read are skipped.
-    Feeds:   dns/merge_dynamic_records (Kea's PTR and DHCID in a reverse zone), dhcp/stale_dhcp_names (Kea's names
-             in dhcp.<domain>)."""
+    Feeds:   dns/changed_names (the names an apply changes, 2.1.4.9), dns/merge_dynamic_records (Kea's PTR and
+             DHCID in a reverse zone), dhcp/stale_dhcp_names (Kea's names in dhcp.<domain>)."""
     origin, owner, out, depth, pending = zone.rstrip(".") + ".", None, [], 0, None
     for raw in text.splitlines():
         line = raw.split(";", 1)[0].rstrip()

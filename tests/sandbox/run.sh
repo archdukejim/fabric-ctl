@@ -184,7 +184,7 @@ print(len(r('$REPO/config')['images']))")
 if [ "$published" -eq "$total" ]; then
     check "the core services run fabric's published images (pulled, not built here)" \
         "in_box 'docker inspect -f {{.Config.Image}} bind9 samba keycloak step-ca fabric-web' \
-         | grep -c '^ghcr.io/archdukejim/open-fabric/' | grep -qx 5 && ! in_box 'docker image inspect fabric/bind9:local' >/dev/null 2>&1"
+         | grep -c '^ghcr.io/archdukejim/fabric-ctl/' | grep -qx 5 && ! in_box 'docker image inspect fabric/bind9:local' >/dev/null 2>&1"
     check "each was signature-checked before use (verified digests remembered, root-only)" \
         "in_box 'stat -c %a /etc/fabric/images/verified.json' | grep -qx 600 \
          && [ \"\$(in_box \"grep -cE '^ +.at.: ' /etc/fabric/images/verified.json\")\" -ge 5 ]"
@@ -498,6 +498,10 @@ check "setup made the host a member with its own account: the keytab holds FABRI
      && in_box 'klist -k /etc/krb5.keytab' | grep -qF ' FABRIC-SBX\$@AD.TEST' && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi 'DC-FABRIC-SBX' \
      && ! in_box 'klist -k /etc/krb5.keytab' | grep -qi krbtgt \
      && in_box 'systemctl is-active sssd' | grep -qx active"
+# sssd starts its responders itself; the packages' socket units masked, none failed (1.6.7.8, 2.1.6.95)
+sssd_sockets() { in_box "systemctl list-unit-files 'sssd-*.socket' --no-legend" | awk '{print $2}' | sort -u | tr '\n' ' '; }
+check "the host's join masked sssd's socket units (2.1.6.95); no sssd unit failed" \
+    "[ \"\$(sssd_sockets)\" = 'masked ' ] && ! in_box 'systemctl --failed --no-legend --plain' | grep -q '^sssd'"
 check "…its computer account sits in the domain's OU=fabric-hosts (2.1.6.49, 1.6.13.2); sssd lets in fabric-admin alone and has no sudo provider; fabric-admin's sudo a local rule (0440, sudo takes it) (the top tier's host, 2.1.6.75, 2.1.6.78)" \
     "host_account | grep -q 'OU=fabric-hosts,' \
      && in_box 'grep -qx access_provider.=.simple /etc/sssd/sssd.conf && grep -qx simple_allow_users.=.fabric-admin /etc/sssd/sssd.conf && grep -qx sudo_provider.=.none /etc/sssd/sssd.conf && grep -qx ad_hostname.=.fabric-sbx.ad.test /etc/sssd/sssd.conf' \
@@ -638,6 +642,8 @@ in_box 'fabricctl setup --undo member --non-interactive --yes' > "$OUT/undo-memb
 check "setup --undo member: nsswitch.conf as it was, sssd.conf, fabric-admin's sudo rule and the keytab gone, sssd stopped, recorded as declined" \
     "[ \"\$(in_box 'md5sum < /etc/nsswitch.conf')\" = '$NSS_ORIG' ] && ! in_box 'test -e /etc/sssd/sssd.conf || test -e /etc/krb5.keytab || test -e /etc/sudoers.d/fabric-admin' \
      && ! in_box 'systemctl is-active --quiet sssd' && in_box 'fabricctl status' | grep -qE '^  member +declined'"
+check "…sssd's socket units as before fabric (none masked, 2.1.6.95), none failed" \
+    "! sssd_sockets | grep -q masked && ! in_box 'systemctl --failed --no-legend --plain' | grep -q '^sssd'"
 check "…the admin no longer resolves on the host; root and the local account still work; its own account left the domain" \
     "! in_box 'getent passwd fabric-admin' && pam localop /root/localop-pw && ! host_account"
 check "…and fabric's management of the host is gone: no SSH drop-in, PAM's sshd as before; the local account signs in over SSH" \

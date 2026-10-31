@@ -5,6 +5,7 @@ from fabriclib.consent.load_consent import load_consent
 from fabriclib.setup.advanced.setup_menu import setup_menu
 from fabriclib.setup.common.ca_exists import ca_exists
 from fabriclib.setup.common.dotted_keys import get_dotted
+from fabriclib.setup.common.first_admin_needed import first_admin_needed
 from fabriclib.setup.common.plan_items import PLAN
 from fabriclib.setup.errors import SetupError
 from fabriclib.samba.dc_count_text import dc_count_text
@@ -53,7 +54,8 @@ def _show_settings(ctx):
               f"{dc_count_text(1)}")
         print("  ✓ Create fabric-admin, the Enterprise Admin (break glass only), with a generated password written "
               "once to ~/fabric-admin/fabric-admin-password.txt")
-    if get_dotted(ctx.vars, "install_webui", True):
+    # only where setup makes them: never on a joining site (the domain has its own) nor on a re-run (2.3.1.32)
+    if get_dotted(ctx.vars, "install_webui", True) and first_admin_needed(ctx):
         print(f"  ✓ Create the first Directory Administrator '{ctx.vars.get('webui_admin_user')}' "
               f"({ctx.vars.get('webui_admin_first_name')} {ctx.vars.get('webui_admin_last_name')}) with the "
               "password you chose; login kit in ~/fabric-admin")

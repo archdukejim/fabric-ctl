@@ -109,7 +109,7 @@ def _filter(route, body):
     d, what = SAMPLE_DNS_FILTER, "/".join(route)
     if what == "querylog":
         entries = [e for e in SAMPLE_QUERY_LOG["entries"] if not body.get("blocked") or e["blocked"]]
-        return {"entries": entries}
+        return {"as_of": SAMPLE_QUERY_LOG["as_of"], "entries": entries}
     group = str(body.get("group", "")).strip()
     target = d if not group else next((g for g in d["groups"] if g["name"] == group), None)
     if target is None:

@@ -22,6 +22,7 @@ from fabriclib.setup.common.host_identity import host_identity
 from fabriclib.setup.common.missing_packages import missing_packages
 from fabriclib.setup.common.render_member_files import render_member_files
 from fabriclib.setup.common.renew_days import renew_days
+from fabriclib.setup.common.sssd_sockets import mask_sockets, socket_states, sockets_masked
 from fabriclib.setup.errors import SetupError
 
 NSS_DATABASES = ("passwd", "group", "sudoers")
@@ -263,7 +264,9 @@ def run(ctx):
              held the DC's account moves to its own: the keytab replaced); /etc/krb5.conf, /etc/sssd/sssd.conf (0600)
              and /etc/sudoers.d/fabric-admin (0440); sss in nsswitch.conf for passwd, group and sudoers; PAM's sss and
              mkhomedir profiles on; the DC's name in /etc/hosts when the host cannot resolve it; the classic sudo where
-             sudo-rs is the default; sssd enabled and restarted when anything changed; fabric's management applied or
+             sudo-rs is the default; sssd's socket units disabled and masked (how they were kept in RECORD first,
+             common/sssd_sockets, as the Linux join does: 1.6.7.8, 2.1.6.95); sssd enabled and restarted when anything
+             changed; fabric's management applied or
              removed as the account's membership says. Idempotent: a second run changes nothing.
     Fails:   SetupError: a domain controller with this host's name (2.1.6.51), or a read-only DC's site whose writable
              DC does not answer (2.1.6.52), before anything changes; the read-only DC not caching the account;
@@ -315,7 +318,7 @@ def run(ctx):
     host_changes = apply_host_managed(v, managed, dry=True)
     todo = (missing or not found or stale or _keys(keytab) != _keys(current)
             or any(_read(p) != c for p, c in files.items()) or _with_sss(nss) != nss or hosts_line
-            or len(_pam_on()) < 2 or _sudo_rs() or not _sssd_on() or place or host_changes)
+            or len(_pam_on()) < 2 or _sudo_rs() or not _sssd_on() or not sockets_masked() or place or host_changes)
     if not todo:
         ok("this host is a member of its domain (nothing to change)")
         return
@@ -330,6 +333,8 @@ def run(ctx):
     if not check_consent(ctx.config_dir, "member", plan):
         return
     _record_before(ctx.config_dir)
+    if _recorded(ctx.config_dir, "sockets") is None:      # before fabric masks them; an older install's RECORD lacks it
+        _record(ctx.config_dir, "sockets", socket_states())
     for path in (KEYTAB, *files, NSSWITCH) + ((HOSTS,) if hosts_line else ()):
         keep_original(path, ctx.config_dir, marker="# fabric")
     if missing:
@@ -393,6 +398,10 @@ def run(ctx):
     if _sudo_rs():
         subprocess.run(["update-alternatives", "--set", "sudo", CLASSIC_SUDO], check=True, capture_output=True)
         ok("sudo: the classic sudo (sudo-rs cannot read the domain's sudo rules)")
+    if not sockets_masked():
+        mask_sockets()
+        changed = True
+        ok("sssd's socket units disabled and masked: sssd starts its responders itself (1.6.7.8, 2.1.6.95)")
     if changed or not _sssd_on():
         subprocess.run(["systemctl", "enable", "sssd"], check=True, capture_output=True)
         subprocess.run(["systemctl", "restart", "sssd"], check=True, capture_output=True)

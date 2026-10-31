@@ -46,9 +46,12 @@ elif [ -n "${JOIN_ROLE:-}" ]; then
     echo "joining ${REALM,,} as $JOIN_ROLE through $JOIN_SERVER"
     clear_data
     mkdir -p "$DATA/etc"
+    # the join registers the DC's name at every address of its interfaces: the LAN's alone here, never fabric_net's
+    # gateway (2.1.2.15; a joined DC named it too, and the other DCs replicated to their own gateway: 2.3.1.32); the
+    # gateway is added to the interfaces below, once joined
     samba-tool domain join "${REALM,,}" "$JOIN_ROLE" --server="$JOIN_SERVER" -A /run/secrets/join.auth \
         --targetdir="$DATA" --dns-backend=BIND9_DLZ --option="netbios name = $HOST_NAME" ${JOIN_SITE:+--site="$JOIN_SITE"} "${OPTS[@]}" \
-        --option="interfaces = $INTERFACES" --option="bind interfaces only = yes" \
+        --option="interfaces = 127.0.0.1 $HOST_IP" --option="bind interfaces only = yes" \
         > /tmp/join.log 2>&1 || { show_log /tmp/join.log; exit 1; }
     rm -f /tmp/join.log
     touch "$DONE"

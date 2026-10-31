@@ -33,7 +33,6 @@ from fabriclib.setup.init_pki import _check_root_lifetime  # noqa: E402
 
 FAILED = 0
 W = tempfile.mkdtemp()
-NOW = datetime.datetime.now(datetime.timezone.utc)
 DAY = datetime.timedelta(days=1)
 
 
@@ -73,6 +72,9 @@ other = ca("other-root", 3650)
 svc = leaf("svc", 47, root)
 long = leaf("long", 5475, root)
 chain = (root[0], root[0])
+# "now" once the certificates exist: taken before, a slow runner made svc a second or two younger than NOW, and
+# NOW + 30 days was not yet 30 days after its notBefore (failed on arm64 CI, 2.3.1.32)
+NOW = datetime.datetime.now(datetime.timezone.utc)
 
 print("--- when a service certificate is due (2.1.5.4, 2.1.5.7)")
 check("a fresh 47-day certificate is not due", not needs_renewal(svc, ["svc.example.test"], chain, 30, 47, now=NOW))

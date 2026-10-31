@@ -7,16 +7,17 @@ previous:
   image_postgres:    {tag: "18.4", digest: "sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636"}   # 18.5 was never published
   image_fluentbit:   {tag: "5.1.1", digest: "sha256:a941bdd5ca552b2c6597fc7b3bccf2e61d30873939bab5700963de0e94ac6169"}
   image_adguard:     {tag: "v0.107.78", digest: "sha256:1ea34eafe5dc691007946e8eaab7bf46b0de9412f39213d8c06e48b53bf9a6c5"}   # new in 0.7.0
-  # fabric's own images: the 0.6.2 release (its candidate rc.47). Only the update path and health are checked:
-  # an image of the previous release is not expected to have this release's features.
-  image_fabric_bind9:      {tag: "0.6.2-rc.47", digest: "sha256:fdff1a3984de031116d79a483f8387c91872a9d043cc1c652f1b0088a5fb2697"}
-  image_fabric_freeradius: {tag: "0.6.2-rc.47", digest: "sha256:08f2fbc7fa4d990f4c7a272f04ea1350c67f2279268eb21054b90a3e69c152c8"}
-  image_fabric_kea:        {tag: "0.6.2-rc.47", digest: "sha256:e3cecdb3f1442054a53f7ddc6185a3cb76344f92b6e141319251265a3c6f9dd3"}
-  image_fabric_keycloak:   {tag: "0.6.2-rc.47", digest: "sha256:1673b9f7860e0042d8dc7b99424cc18e5da565698dbdf88259156f664cd2292f"}
-  image_fabric_samba:      {tag: "0.6.2-rc.47", digest: "sha256:7403e59ff286ca50e9a059ec7225569fe7b2ce25b20fb3242f81aa16507ea179"}
-  image_fabric_stepca:     {tag: "0.6.2-rc.47", digest: "sha256:e25442ee57e8bc75016f68e777f320c9a2f23f91f13803e307abd0ab96fb3852"}
-  image_fabric_webui:      {tag: "0.6.2-rc.47", digest: "sha256:f6be81ab2e766907a1fcd122c9d77b629c9142f56e949920b4c4bc40de8ff391"}
 # no earlier version to go back to, with the reason (any other var: a base fabric builds a local image from, which
 # moves only with a fabric release)
 skipped:
   image_openbao: "2.7.0 is the first release on its track (2.7.*); going back a minor version could leave its storage upgraded"
+  # fabric's own images: 0.8.0's are the first at ghcr.io/archdukejim/fabric-ctl and signed there (2.1.14.26); the
+  # previous release's (0.7.2: 0.7.1-rc.182) are at the old path under the old signer, which 0.8.0's lock no longer
+  # trusts, and nothing upgrades into 0.8.0 (2.1.1.60). From 0.8.1 these list 0.8.0's again.
+  image_fabric_bind9: "no earlier image at fabric-ctl's path (2.1.14.26)"
+  image_fabric_freeradius: "no earlier image at fabric-ctl's path (2.1.14.26)"
+  image_fabric_kea: "no earlier image at fabric-ctl's path (2.1.14.26)"
+  image_fabric_keycloak: "no earlier image at fabric-ctl's path (2.1.14.26)"
+  image_fabric_samba: "no earlier image at fabric-ctl's path (2.1.14.26)"
+  image_fabric_stepca: "no earlier image at fabric-ctl's path (2.1.14.26)"
+  image_fabric_webui: "no earlier image at fabric-ctl's path (2.1.14.26)"

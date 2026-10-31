@@ -134,6 +134,7 @@ SUDO_BASES="OU=sudoers,$BASE_DN?onelevel?"
 # recording its OS; the password on stdin
 # an unmanaged machine says so on its account: fabric's hourly sort leaves it out of fabric-managed
 UNMANAGED=()
+MANAGED_PENDING=0
 [[ $MANAGED -eq 1 ]] || UNMANAGED=(--description="fabric: unmanaged (manual 1.6.11.6)")
 if [[ $ONE_TIME -eq 1 ]]; then
     printf '%s' "$PASSWORD" | adcli join --domain="$AD_DOMAIN" --domain-realm="$REALM" --domain-controller="$DC" \
@@ -152,9 +153,18 @@ else
     for group in "machines-$TYPE_OU" "site-$SITE"; do
         out=$(printf 'dn: CN=%s,OU=groups,%s\nchangetype: modify\nadd: member\nmember: %s\n' "$group" "$BASE_DN" "$COMPUTER" \
             | LDAPSASL_NOCANON=on ldapmodify -Q -Y GSSAPI -H "ldap://$DC" 2>&1) \
-            || [[ $out == *"Type or value exists"* || $out == *"(20)"* ]] \
+            || [[ $out == *"Type or value exists"* || $out == *"(20)"* || $out == *"member already exists"* ]] \
             || die "$MACHINE joined, but could not be put in $group: $out"
     done
+    # a managed machine is in fabric-managed from its join, so its own timer keeps what the join applies (1.6.11.6,
+    # 2.1.6.97); an admin who may not change that group leaves it to the root's hourly sort (and the timer's guard)
+    if [[ $MANAGED -eq 1 ]]; then
+        out=$(printf 'dn: CN=fabric-managed,OU=groups,%s\nchangetype: modify\nadd: member\nmember: %s\n' "$BASE_DN" "$COMPUTER" \
+            | LDAPSASL_NOCANON=on ldapmodify -Q -Y GSSAPI -H "ldap://$DC" 2>&1) \
+            || [[ $out == *"Type or value exists"* || $out == *"(20)"* || $out == *"member already exists"* ]] \
+            || { MANAGED_PENDING=1
+                 echo "warning: $MACHINE is not in fabric-managed yet ($JOIN_USER may not change it): fabric's hourly sort adds it" >&2; }
+    fi
 fi
 kdestroy >/dev/null 2>&1 || true
 unset PASSWORD
@@ -184,6 +194,14 @@ enumerate = false
 ldap_sudo_search_base = $SUDO_BASES
 EOF
 chmod 0600 /etc/sssd/sssd.conf
+# sssd starts its responders itself (services = above). The packages' socket units (sssd-nss.socket, -pam, -sudo,
+# -pac, ...: enabled by default on Ubuntu 24.04 and Debian 12) would start them a second way and fail at every boot
+# beside services (manual 1.6.7.8, 2.1.6.95): disabled and masked, so a package upgrade does not enable them again
+mapfile -t sockets < <(systemctl list-unit-files 'sssd-*.socket' --no-legend 2>/dev/null | awk '{print $1}')
+if [[ -n "${sockets[*]:-}" ]]; then
+    systemctl disable --now "${sockets[@]}" >/dev/null 2>&1 || true
+    systemctl mask "${sockets[@]}" >/dev/null 2>&1 || true
+fi
 pam-auth-update --enable mkhomedir >/dev/null
 
 # local subordinate ids (rootless Podman and Docker) are not in AD: local users made from now on get theirs above
@@ -265,6 +283,9 @@ BASE_DN=$BASE_DN
 AD_DOMAIN=$AD_DOMAIN
 DOMAIN=$DOMAIN
 FABRIC_DNS=$FABRIC_DNS
+MANAGED_PENDING=$MANAGED_PENDING
+JOINED=$(date +%s)
+HOST_AT_JOIN=$(hostname -s | tr 'A-Z' 'a-z')
 EOF
 cat > /usr/local/sbin/fabric-managed <<'MANAGED'
 #!/bin/bash
@@ -313,12 +334,26 @@ member() {  # whether this machine is in fabric-managed, asked of the DC as the 
     KRB5CCNAME="FILE:$cc" LDAPSASL_NOCANON=on ldapsearch -LLL -o ldif-wrap=no -Q -Y GSSAPI -H "ldap://$DC" \
         -b "$BASE_DN" "(sAMAccountName=${MACHINE^^}\$)" memberOf 2>/dev/null | grep -qi "^memberOf: CN=fabric-managed,"
 }
+renamed() {  # the machine renamed since its join (1.6.7.9, 2.1.6.96): its domain account still has the old name
+    local now
+    now=$(hostname -s | tr 'A-Z' 'a-z')
+    if [[ -n ${HOST_AT_JOIN:-} && $now != "$HOST_AT_JOIN" ]]; then
+        echo "fabric-managed: warning: this machine is now named $now, but it joined the domain as $HOST_AT_JOIN" \
+             "(account ${MACHINE^^}\$); its domain sign-in breaks. Name it $HOST_AT_JOIN again, or leave, rename and" \
+             "join again (manual 4.6.6.11)" >&2
+    fi
+}
 case "${1:-check}" in
     apply) apply ;;
     remove) remove ;;
     check)
+        renamed
         rc=0; member || rc=$?
-        if [[ $rc -eq 0 ]]; then apply; elif [[ $rc -eq 1 ]]; then remove; else echo "fabric-managed: the DC did not answer; nothing changed" >&2; exit 1; fi ;;
+        # the guard (2.1.6.97): a managed join that could not add itself to fabric-managed keeps its configuration
+        # for 2 hours, so the root's hourly sort can add it first (one an admin took out is removed at once)
+        if [[ $rc -eq 1 && ${MANAGED_PENDING:-0} -eq 1 && $(( $(date +%s) - ${JOINED:-0} )) -lt 7200 ]]; then
+            echo "fabric-managed: not in fabric-managed yet; kept (joined under 2 hours ago: fabric's hourly sort adds it)"
+        elif [[ $rc -eq 0 ]]; then apply; elif [[ $rc -eq 1 ]]; then remove; else echo "fabric-managed: the DC did not answer; nothing changed" >&2; exit 1; fi ;;
     *) echo "usage: fabric-managed apply|remove|check" >&2; exit 2 ;;
 esac
 MANAGED
@@ -402,6 +437,29 @@ if [[ $MANAGED -eq 1 ]]; then
 else
     echo "unmanaged: fabric configures nothing more here"
 fi
+# the machine's name is its domain account's: renaming it breaks the join (manual 1.6.7.9, 2.1.6.96). polkit refuses
+# hostnamed's renames to everyone it asks (the desktop's settings, hostnamectl without root); /etc/hostname says why
+# to whoever edits it. Root's own hostnamectl and hostname are not asked of polkit: the hourly check warns of those
+mkdir -p /etc/polkit-1/rules.d
+cat > /etc/polkit-1/rules.d/10-fabric-hostname.rules <<EOF
+// fabric (manual 1.6.7.9, 4.6.6.11): this machine joined $AD_DOMAIN as ${MACHINE^^}\$; a new name breaks that.
+// To rename it: leave the domain, rename it, join again (manual 4.6.6.11).
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.hostname1.set-hostname" ||
+        action.id == "org.freedesktop.hostname1.set-static-hostname") {
+        polkit.log("fabric: renaming this machine refused for " + subject.user +
+                   ": it joined $AD_DOMAIN as ${MACHINE^^}\$; leave, rename, join again (manual 4.6.6.11)");
+        return polkit.Result.NO;
+    }
+});
+EOF
+chmod 0644 /etc/polkit-1/rules.d/10-fabric-hostname.rules
+if [[ -f /etc/hostname ]] && ! grep -q '^# fabric' /etc/hostname; then
+    { printf '# fabric: this name is the domain account %s$ (%s); a new one breaks the join.\n' "${MACHINE^^}" "$AD_DOMAIN"
+      printf '# To rename: leave the domain, rename, join again (manual 4.6.6.11).\n'
+      grep -v '^#' /etc/hostname; } > /etc/hostname.fabric && cat /etc/hostname.fabric > /etc/hostname
+    rm -f /etc/hostname.fabric
+fi
 systemctl restart sssd
 systemctl enable sssd >/dev/null 2>&1 || true
-echo "done: domain people can log on here (until grants decide who, manual 1.6.13.4); sudo follows the domain's rules"
+echo "done: the domain's grants decide who logs on here and who has sudo (manual 1.6.13.4; a machine no grant reaches admits nobody from the domain)"

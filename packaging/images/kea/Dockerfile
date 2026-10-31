@@ -1,7 +1,9 @@
 # Kea DHCPv4 + DHCP-DDNS 3.0 LTS from ISC's own signed apt repository (Debian
 # trixie ships only 2.6; design 2.1.1.5), on the validated Debian base. The Kea
 # version and the repository key's fingerprint come from images.lock.yaml:
-# the build fails if the key is not ISC's, and installs exactly that version.
+# the build fails if the key is not ISC's, and installs exactly that version:
+# every isc-kea package, isc-kea-common too (the others need its exact version;
+# left to apt it took ISC's newest, 3.0.5, and the build failed: 2.3.1.32).
 # The base is always given by the compose file (digest-pinned, no default).
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
@@ -27,7 +29,8 @@ RUN apt-get update \
  && [ "$fpr" = "$KEA_KEY_FINGERPRINT" ] || { echo "Kea repository key $fpr is not the pinned $KEA_KEY_FINGERPRINT" >&2; exit 1; } \
  && echo "deb [signed-by=/usr/share/keyrings/isc-kea.gpg] $KEA_REPO $KEA_SUITE main" > /etc/apt/sources.list.d/isc-kea.list \
  && apt-get update \
- && apt-get install -y --no-install-recommends "isc-kea-dhcp4=$KEA_VERSION" "isc-kea-dhcp-ddns=$KEA_VERSION" "isc-kea-hooks=$KEA_VERSION" \
+ && apt-get install -y --no-install-recommends "isc-kea-common=$KEA_VERSION" "isc-kea-dhcp4=$KEA_VERSION" \
+    "isc-kea-dhcp-ddns=$KEA_VERSION" "isc-kea-hooks=$KEA_VERSION" \
  && apt-get purge -y curl gpg && apt-get autoremove -y \
  # ISC's package makes the daemons 0750 _kea: root with every capability
  # dropped (no DAC override) and fabric's DDNS user could not execute them.

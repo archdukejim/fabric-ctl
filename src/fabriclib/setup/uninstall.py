@@ -31,12 +31,47 @@ CONTAINERS = ["fabric-web", "webui", "fluentbit", "kea-dhcp4", "kea-ddns", "free
               "dirsrv", "step-ca", "bind9"]
 DIRS = ["fabric", "nginx", "bind9", "stepca", "dirsrv", "keycloak", "postgres", "webui", "openbao", "fluentbit", "kea",
         "freeradius", "samba", "federation", "adguard", "adguard-auth", "resolver", "dnsfilter"]
+TIMERS = ("fabric-directory-sync", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists", "fabric-dns-log",
+          "fabric-machines", "fabric-host-managed", "fabric-grants", "fabric-local-admin", "fabric-dhcp-names",
+          "fabric-plan-watch")
+STAMPS = "/var/lib/systemd/timers"     # systemd's record of a Persistent= timer's last run
 LOCAL_IMAGES = ["fabric/bind9:local", "fabric/stepca:local", "fabric/dirsrv:local", "fabric/keycloak:local",
                 "fabric/web:local", "fabric/webui:local", "fabric/kea:local", "fabric/freeradius:local",
                 "fabric/samba:local"]
 
 
-def uninstall(ctx):
+def _stop_timers(stamps=STAMPS, run=subprocess.run):
+    """Purpose: stop and disable fabric's timers, and remove what systemd keeps of their last runs (2.3.1.32 finding
+             17): a Persistent= timer whose stamp outlives the uninstall fires at once when a later install enables
+             it, before that install's services run (the daily renewal then failed, step-ca not there yet, and
+             doctor stopped setup).
+    Inputs:  stamps — systemd's timer stamp folder; run — subprocess.run (tests).
+    Returns: None.
+    Fails:   OSError removing a stamp other than its absence; systemctl's failures are ignored.
+    Feeds:   uninstall."""
+    for timer in TIMERS:
+        run(["systemctl", "disable", "--now", f"{timer}.timer"], capture_output=True)
+        try:
+            os.remove(os.path.join(stamps, f"stamp-{timer}.timer"))
+        except FileNotFoundError:
+            pass
+
+
+def _reset_failed(run=subprocess.run):
+    """Purpose: clear what systemd keeps of fabric's units that failed (a service stopped mid-run, a timer's job
+             that ran while the stack was down), so an uninstall leaves no "not-found failed" fabric unit behind
+             (2.3.1.32 finding 18; 3.2.4.1).
+    Inputs:  run — subprocess.run (tests).
+    Returns: None.
+    Fails:   never; systemctl's refusal of a unit it never knew is ignored.
+    Feeds:   uninstall."""
+    units = ([f"{u}.service" for u in UNITS] + [f"{t}.timer" for t in TIMERS]
+             + ["fabric.target", SETUP_UNIT])
+    for unit in units:
+        run(["systemctl", "reset-failed", unit], capture_output=True)
+
+
+def uninstall(ctx, host_account=True):
     """Purpose: remove fabric from this host: a running setup (fabric-setup.service, stopped first, and any secrets
              handed to one), units, fabric.target, containers, fabric_net, local images, the
              host changes it made (undo/: its firewall rules — ufw off again if it was off before —, the resolver,
@@ -45,7 +80,8 @@ def uninstall(ctx):
              CLI wrapper (undo/uninstall_plan lists it).
     Inputs:  ctx — SetupContext (state reloaded): vars keycloak_data_dir/postgres_data_dir (deleted when outside
              deploy_base), tsig_keys names (their <deploy_base>/<name> folders), openbao_runtime_dir,
-             openbao_admin_dir, openbao_udev_rules, openbao_key_dir, service_users, domain_file.
+             openbao_admin_dir, openbao_udev_rules, openbao_key_dir, service_users, domain_file; host_account —
+             False when the caller already removed the host's computer account (an export stops the stack it needs).
     Returns: None. Only fabric's own objects are touched (no global Docker prune, no Docker restart: Docker's
              daemon settings stay, as do apt packages). The vault data and key are gone afterwards — export first
              to keep them.
@@ -61,14 +97,12 @@ def uninstall(ctx):
     v = ctx.vars
 
     # the host's own computer account (1.6.11.8), removed while the DC still answers: in a federation the domain
-    # outlives this site's DC
-    for line in remove_host_account(ctx.config_dir, v, lambda: ctx.secrets):
-        ok(line)
+    # outlives this site's DC. After an export the stack is stopped, so run_uninstall_command removes it first.
+    if host_account:
+        for line in remove_host_account(ctx.config_dir, v, lambda: ctx.secrets):
+            (warn if "NOT removed" in line else ok)(line)    # one the DC refused is a warning, not a tick
     info("stopping and removing services")
-    for timer in ("fabric-directory-sync", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists", "fabric-dns-log",
-                  "fabric-machines", "fabric-host-managed", "fabric-grants", "fabric-local-admin",
-                  "fabric-dhcp-names", "fabric-plan-watch"):
-        subprocess.run(["systemctl", "disable", "--now", f"{timer}.timer"], capture_output=True)
+    _stop_timers()
     for unit in UNITS:
         subprocess.run(["systemctl", "disable", "--now", unit], capture_output=True)
         for path in (f"/etc/systemd/system/{unit}.service", f"/etc/systemd/system/{unit}.timer"):
@@ -78,6 +112,7 @@ def uninstall(ctx):
     if os.path.exists(TARGET):
         os.remove(TARGET)
     subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
+    _reset_failed()
     for c in CONTAINERS:
         subprocess.run(["docker", "rm", "-f", c], capture_output=True)
     subprocess.run(["docker", "network", "rm", "fabric_net"], capture_output=True)

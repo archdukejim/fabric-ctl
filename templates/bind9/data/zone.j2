@@ -9,7 +9,7 @@ $ORIGIN {{ zone_name }}.
                         3600             ; Refresh
                         1800             ; Retry
                         604800           ; Expire
-                        86400            ; Negative caching TTL
+                        30               ; Negative caching TTL (a name asked before it exists answers within 30 s, 2.1.4.9)
 )
 
 ;-----------------------------------------------------------------

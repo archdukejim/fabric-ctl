@@ -84,5 +84,39 @@ except SetupError as e:
     check("negative: refusals in Postgres's log keep setup from saying it is ready, naming the check and doctor",
           "Keycloak's database" in str(e) and "fabricctl doctor" in str(e), e)
 
+# an install ready for the first time records it (2.1.4.10): from then on the landing page's alias is the admin's
+import tempfile  # noqa: E402
+import yaml  # noqa: E402
+
+
+class FirstCtx(Ctx):
+    def __init__(self, folder, was_ready):
+        self.config_dir, self.vars_file = folder, os.path.join(folder, "vars.yaml")
+        self.vars = {**Ctx.vars, "install_was_ready": was_ready}
+        with open(self.vars_file, "w") as f:
+            yaml.safe_dump({"domain": "lan.test", "install_was_ready": was_ready}, f)
+
+
+def stored(ctx):
+    with open(ctx.vars_file) as f:
+        return yaml.safe_load(f)
+
+
+wr._refusals = lambda since: 0
+with tempfile.TemporaryDirectory() as d:
+    ctx = FirstCtx(d, False)
+    wr.run(ctx)
+    check("a first install once ready records install_was_ready: true in its settings, the rest kept",
+          stored(ctx) == {"domain": "lan.test", "install_was_ready": True} and ctx.vars["install_was_ready"], stored(ctx))
+with tempfile.TemporaryDirectory() as d:
+    ctx = FirstCtx(d, False)
+    wr._refusals = lambda since: 2
+    try:
+        wr.run(ctx)
+    except SetupError:
+        pass
+    check("negative: an install not ready records nothing (its next run adds the alias again)",
+          stored(ctx)["install_was_ready"] is False, stored(ctx))
+
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

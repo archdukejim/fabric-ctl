@@ -13,6 +13,7 @@ from fabriclib.deploy.render_templates import BIND_CONFIG
 from fabriclib.deploy.render_vars import render_vars
 from fabriclib.dns.rndc import rndc
 from fabriclib.dns_filter.deploy_resolver import deploy_resolver
+from fabriclib.dns_filter.flush_published_names import flush_published_names
 from fabriclib.ipam.options.watch_state import save_watch_state
 from fabriclib.secrets.load_secrets import load_secrets
 
@@ -35,15 +36,18 @@ def publish_zone_list(added=(), removed=()):
              render BIND's configuration as apply does (the zone list, and the keys and ACLs it names) and the added
              zones' files into the deploy base, `rndc reconfig`, check BIND serves each added zone, delete the removed
              zones' files and journals; then, when the DNS filter is installed, render and reload the resolver's
-             configuration (its forward zones), through deploy_resolver. Nothing restarts. The settings are made whole
-             and checked exactly as an apply does them (check_rendered, decisions 2.1.4.7 and 2.1.10.21): the address
-             plan, the settings check, so the zone list keeps DHCP's reverse zones, Kea's grants and the denies on PTRs
-             set by hand between applies.
+             configuration (its forward zones), through deploy_resolver, and make it forget what it cached for
+             the added and removed zones (flush_published_names, 2.1.4.9). Nothing restarts. The settings are made
+             whole and checked exactly as an apply does them (check_rendered, decisions 2.1.4.7 and 2.1.10.21): the
+             address plan, the settings check, so the zone list keeps DHCP's reverse zones, Kea's grants and the
+             denies on PTRs set by hand between applies.
     Inputs:  added — zone names whose file is written (a new zone: its SOA, NS and ns record); removed — zone names
              whose files go once BIND has dropped them. Reads vars.yaml, fabric's secrets (read only: nothing is
              generated or saved here), the address plan (read from the DC as an apply reads it, and kept), the
              federation registry and the templates; the caller holds vars_lock.
-    Returns: {"bind": True, "resolver": True when the resolver was rendered (installed), else False}.
+    Returns: {"bind": True, "resolver": True when the resolver was rendered (installed), else False, "flushed": how
+             many zones the resolver forgot, "flush_error": why it did not, or None (a warning: the zone is
+             published either way)}.
     Fails:   NotPublished (a ValidationError) saying why, before any file is written: a TSIG key whose secret apply
              has not made yet, settings the apply's check refuses or that do not render; the caller rolls back the
              vars and has nothing to publish again. ValidationError once files are written: secrets that cannot be
@@ -103,11 +107,14 @@ def publish_zone_list(added=(), removed=()):
         save_watch_state("plan-dns", {"dns": checked["dns_digest"]})
 
     if not final_vars.get("install_resolver"):
-        return {"bind": True, "resolver": False}
+        return {"bind": True, "resolver": False, "flushed": 0, "flush_error": None}
     try:
         r = deploy_resolver(final_vars, secrets, context["federation_links"], jinja_env)
     except Exception as e:                  # its settings or its files: say so, the caller rolls back
         raise ValidationError(f"the DNS filter's configuration did not render: {e}")
     if r["config"] and not r["reconfigured"]:
         raise ValidationError("the DNS filter's resolver did not reload its configuration (is it running?)")
-    return {"bind": True, "resolver": True}
+    # a name asked before its zone was added was answered NXDOMAIN from the internet (cached for hours), a removed
+    # zone's names from BIND: the resolver forgets the whole zone (2.1.4.9); a flush that fails is a warning
+    flushed = flush_published_names(final_vars, {"trees": sorted(set(added) | set(removed)), "names": []})
+    return {"bind": True, "resolver": True, "flushed": flushed["flushed"], "flush_error": flushed["error"]}

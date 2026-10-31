@@ -78,7 +78,7 @@ def sh(cmd, ok=True, **kw):
 
 def cleanup():
     testrun.remove("container", DC, BIND, testrun.name("sambatest-rodc"))     # this run's only
-    testrun.remove("network", NET)
+    testrun.remove("network", NET, testrun.name("sambatest_gw"))
 
 
 def dc(*args, stdin=None):
@@ -1044,9 +1044,12 @@ for sub in ("data", "secrets"):
 with open(os.path.join(rw, "secrets", "join.auth"), "w") as f:
     f.write(f"username=Administrator\npassword={admin_pw}\ndomain=AD\n")
 os.chmod(os.path.join(rw, "secrets", "join.auth"), 0o600)
-renv = {**compose["environment"], "HOST_NAME": "dc-0003", "HOST_IP": RODC_IP, "INTERFACES": f"127.0.0.1 {RODC_IP}",
-        "JOIN_ROLE": "RODC", "JOIN_SERVER": "dc-0001.ad.lan.test"}
-rrun = ["docker", "run", "-d", "--name", RODC, *testrun.labels(), "--hostname", "rodc-host", "--network", NET, "--ip", RODC_IP,
+# a second address, as fabric_net's gateway is on a host: in its interfaces, never in its DNS records (2.1.2.15)
+GW_NET, RODC_GW = testrun.name("sambatest_gw"), f"{testrun.PREFIX}.31.12"
+testrun.create_network(GW_NET, f"{testrun.PREFIX}.31.0/24")
+renv = {**compose["environment"], "HOST_NAME": "dc-0003", "HOST_IP": RODC_IP,
+        "INTERFACES": f"127.0.0.1 {RODC_IP} {RODC_GW}", "JOIN_ROLE": "RODC", "JOIN_SERVER": "dc-0001.ad.lan.test"}
+rrun = ["docker", "create", "--name", RODC, *testrun.labels(), "--hostname", "rodc-host", "--network", NET, "--ip", RODC_IP,
         "--dns", IP, "--read-only", "--memory", compose["mem_limit"], "--cap-drop", "ALL"]
 rrun += [x for c in compose["cap_add"] for x in ("--cap-add", c)]
 rrun += [x for o in compose["security_opt"] for x in ("--security-opt", o)]
@@ -1056,6 +1059,8 @@ rrun += ["-v", f"{rw}/data:/data", "-v", f"{rw}/secrets:/run/secrets:ro", "-v", 
          "--health-cmd", shlex.join(compose["healthcheck"]["test"][1:]), "--health-interval", "10s",
          "--health-start-period", "180s", IMAGE]
 sh(rrun)
+sh(["docker", "network", "connect", "--ip", RODC_GW, GW_NET, RODC])
+sh(["docker", "start", RODC])
 rhealth = ""
 for _ in range(60):
     rhealth = sh(["docker", "inspect", "-f", "{{.State.Health.Status}}", RODC], ok=False).stdout.strip()
@@ -1068,6 +1073,10 @@ check("an RODC joins with fabric's image (hardened like the DC) and turns health
 rep = sh(["docker", "exec", RODC, "ldbsearch", "-H", "/data/private/sam.ldb", "-b", f"OU=people,{BASE}",
           "-s", "base", "dn"], ok=False).stdout
 check("the domain, its folders and fabric's schema replicated to the RODC", f"OU=people,{BASE}" in rep)
+r_rec = client("dig", "+short", f"@{BIND_IP}", "A", "dc-0003.ad.lan.test").stdout.split()
+r_ifs = sh(["docker", "exec", RODC, "testparm", "-s", "--parameter-name=interfaces", "/data/etc/smb.conf"], ok=False).stdout
+check("the joined DC's name is registered at its LAN address only, never at the second address it also listens on "
+      "(2.1.2.15: a host's fabric_net gateway; 2.3.1.32)", r_rec == [RODC_IP] and RODC_GW in r_ifs, (r_rec, r_ifs))
 
 
 def ntlm_at_rodc(user, password):

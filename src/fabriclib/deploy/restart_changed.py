@@ -115,10 +115,10 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
              restart reads its zone files on start, so they are installed first (a running
              BIND frozen before, so the files hold what DHCP registered: 2.1.10.7). Kea's changed files are
              reloaded over its control socket once BIND is reloaded (state["kea_reload"], 2.1.10.45); then the
-             filtering resolver forgets the names whose records changed (state["names"], 2.1.10.46: a flush that
-             fails is a warning). While Kea's DNS key is replaced (state["kea_drop"], 2.1.10.42) BIND takes the new
-             key before Kea, and drops the old one last. The web UI is restarted last with --no-block: this apply may
-             have come from it. No --pull on image builds."""
+             filtering resolver forgets the names whose records changed (state["names"], 2.1.10.46, 2.1.4.9: a
+             flush that fails is a warning). While Kea's DNS key is replaced (state["kea_drop"], 2.1.10.42) BIND
+             takes the new key before Kea, and drops the old one last. The web UI is restarted last with --no-block:
+             this apply may have come from it. No --pull on image builds."""
     restart = set(state["restart"])
     if state["daemon_reload"]:
         print("Reloading systemd daemon...")
@@ -156,7 +156,7 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
         took = reload_kea(final_vars, state["kea_reload"])
         if took["restarted"]:
             restart.add("kea")
-    if state.get("names"):            # BIND serves the new records: the resolver forgets the old (2.1.10.46)
+    if state.get("names"):            # BIND serves the new records: the resolver forgets the old (2.1.10.46, 2.1.4.9)
         flushed = flush_published_names(final_vars, state["names"])
         if flushed["flushed"]:
             print(f"Filtering resolver: {flushed['flushed']} published name(s) flushed from its cache")

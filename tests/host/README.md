@@ -4,7 +4,7 @@ End-to-end test on a real host over SSH (e.g. the reference Raspberry Pi), insta
 
 | File | What |
 |---|---|
-| `run.sh` | Package install, setup, doctor, `fabric.target`, certificate page, RFC2136, restricted sign-in, login kit permissions, re-run, stop/start, no secret in any process's argv, `apt purge` with `CLEANUP=1` (reuses the check scripts in `tests/sandbox/`) |
+| `run.sh` | Package install, setup, no failed sssd or fabric unit after setup and after sssd and `sockets.target` start again as at a boot (2.1.6.95), doctor, `fabric.target`, certificate page, RFC2136, restricted sign-in, login kit permissions, re-run, stop/start, no secret in any process's argv, `apt purge` with `CLEANUP=1` (no failed sssd or fabric unit left, the sockets unmasked again; reuses the check scripts in `tests/sandbox/`) |
 | `reset_user.py` | Put a directory user back to first sign-in (password, no TOTP, new password required) so the suite also runs on a host that was used before |
 | `upgrade.sh` | Upgrade in place from the floor, 0.8.0 until 1.0 (2.1.1.61), or the previous release (2.1.1.36); a `FROM` older than the floor, or not a version, refused before the host is reached (0.7.x moves instead: `tests/sandbox/move.sh`): the host wiped, release `FROM` installed from its GitHub release and set up, state seeded and snapshotted, the candidate installed from fabric's apt repository (`TO_SUITE`) and set up, the snapshot compared, doctor and status |
 | `upgrade_state.py` | Seeds and snapshots what an upgrade must keep: a person and the admin (identity and password version), a DNS record on the landing page, a device certificate (still valid against the CA), the root CA, fabric's secrets (hashed), a name the DNS filter blocks (`dns_filter_block`), the sign-in layers |

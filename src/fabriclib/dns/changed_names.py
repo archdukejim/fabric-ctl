@@ -17,7 +17,7 @@ def changed_names(zones):
              flushed whole (new: no deployed file yet; or more than MAX_NAMES names changed)}.
     Fails:   OSError reading a file.
     Feeds:   deploy/apply_deployment (an apply), dns/apply_dns (DNS' own Apply), dns/publish_plan_records (Sync
-             now)."""
+             now). 0.8.0 took it with 2.1.4.9."""
     names, trees = set(), set()
     for zone, src, dst in zones:
         if not os.path.exists(dst):

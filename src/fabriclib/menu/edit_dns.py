@@ -1,7 +1,7 @@
 import os
 
 from fabriclib.common.ask import ask
-from fabriclib.common.console import BOLD, GREEN, NC, RED
+from fabriclib.common.console import BOLD, GREEN, NC, RED, YELLOW
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
 from fabriclib.dns.add_zone import add_zone
@@ -36,6 +36,8 @@ def _add(data):
     try:
         res = add_zone(menu_actor(), name, hide_public=hide)
         print(f"{GREEN}Zone {res['name']} added: BIND answers for it now.{NC}")
+        if res.get("warning"):
+            print(f"{YELLOW}Warning: {res['warning']}{NC}")
     except ValidationError as e:
         print(f"{RED}{e}{NC}")
     data["dns"] = load_vars().get("dns") or {}
@@ -58,6 +60,8 @@ def _remove(data, zones):
     try:
         res = remove_zone(menu_actor(), key, confirm)
         print(f"{GREEN}Zone {res['name']} removed with its {res['records']} record(s).{NC}")
+        if res.get("warning"):
+            print(f"{YELLOW}Warning: {res['warning']}{NC}")
     except ValidationError as e:
         print(f"{RED}{e}{NC}")
     data["dns"] = load_vars().get("dns") or {}

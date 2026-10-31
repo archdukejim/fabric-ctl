@@ -186,13 +186,13 @@ from fabriclib.samba.suggested_dc_name import suggested_dc_name  # noqa: E402
 
 
 def _dc(**over):
-    got = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.lan.j-j.family',
+    got = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.test.lan.j-j.family',
                                                                      **over}))
     compose = yaml.safe_load(env.get_template('samba/docker-compose.yml.j2').render(**got))['services']['samba']
     return got['dc_name'], got['hostname_dc'], compose['environment']['HOST_NAME']
 
 
-assert _dc() == ('dc-0001', 'dc-0001.ad.lan.j-j.family', 'dc-0001') and suggested_dc_name() == 'dc-0001', _dc()
+assert _dc() == ('dc-0001', 'dc-0001.ad.test.lan.j-j.family', 'dc-0001') and suggested_dc_name() == 'dc-0001', _dc()
 for host in ('Kitchen-Server01', 'raspberrypi-4b'):
     assert _dc(hostname=host)[0] == 'dc-0001', (host, _dc(hostname=host))
 assert suggested_dc_name(['DC-0001', 'dc-0002', 'pc-7']) == 'dc-0003' and suggested_dc_name(['dc-0002']) == 'dc-0001'
@@ -212,10 +212,10 @@ except ValidationError as e:
 from fabriclib.samba.dc_count_text import dc_count_text  # noqa: E402
 assert dc_count_text(1) == '1 DC used, 1998 can be added' and dc_count_text(2) == '2 DCs used, 1997 can be added' \
     and dc_count_text(1999) == '1999 DCs used, 0 can be added', dc_count_text(1)
-assert _dc(dc_name='DC-Pi') == ('dc-pi', 'dc-pi.ad.lan.j-j.family', 'dc-pi'), _dc(dc_name='DC-Pi')    # 0.7.x's, kept
-renamed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.lan.j-j.family',
+assert _dc(dc_name='DC-Pi') == ('dc-pi', 'dc-pi.ad.test.lan.j-j.family', 'dc-pi'), _dc(dc_name='DC-Pi')    # 0.7.x's, kept
+renamed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.test.lan.j-j.family',
                                                                      'dc_name': 'dc-pi-core', 'hostname': 'kitchen'}))
-assert renamed['hostname_dc'] == 'dc-pi-core.ad.lan.j-j.family' and {'ip': renamed['host_ip'], 'name': 'kitchen'} in \
+assert renamed['hostname_dc'] == 'dc-pi-core.ad.test.lan.j-j.family' and {'ip': renamed['host_ip'], 'name': 'kitchen'} in \
     renamed['dns']['dynamic_zone_var']['A'], renamed['dns']['dynamic_zone_var']['A']
 print("the DC's own name: dc-0001, then the first free number, the host's name passed over; an installed one kept, a "
       "renamed host leaves it")
@@ -650,7 +650,13 @@ rz = reverse_zones(lab)["zones"]
 assert rz.get("0.20.10.in-addr.arpa") == [], "a DHCP zone with no static record is still generated"
 rzf = env.get_template("bind9/data/reverse-zone.j2").render(**{**lab, "reverse_zone_name": "0.20.10.in-addr.arpa",
                                                             "ptr_records": []})
-assert re.search(r"^\s+300 ; Negative caching TTL", rzf, re.M), "a DHCP zone caches 'no such name' briefly"
+# 2.1.4.9: every zone fabric renders keeps "no such name" 30 s (the SOA minimum), never a day or 5 minutes:
+# a DHCP reverse zone, another reverse zone, the site's forward zone (with and without federation links)
+_neg = re.compile(r"^\s+(\d+)\s+; Negative caching TTL", re.M)
+assert _neg.findall(rzf) == ["30"] and _neg.findall(_rz) == ["30"] and _neg.findall(db) == ["30"] \
+    and _neg.findall(_lz) == ["30"], (_neg.findall(rzf), _neg.findall(_rz), _neg.findall(db))
+assert not re.search(r"^\s+(86400|300)\s+; Negative", rzf + _rz + db + _lz, re.M), "no day or 5 minutes left"
+print("zone files: a miss is kept 30 s in every zone fabric renders (2.1.4.9)")
 zconf = env.get_template("bind9/config/named.conf.zones.j2").render(
     **{**secrets, **lab, "tsig_keys": [], "tsig_secrets": {}, "reverse_zone_names": list(rz)})
 lz = zconf[zconf.index('zone "0.20.10.in-addr.arpa"'):]
@@ -912,13 +918,25 @@ _ca_rec = next(r for r in _site["CNAME"] if r["name"] == "ca")
 assert fabric_record(v2, "dynamic_zone_var", "CNAME", _ca_rec) == {"service": "the CA (step-ca)", "setting": "cname_ca"}
 assert [r["name"] for r in _site["CNAME"] if not fabric_record(v2, "dynamic_zone_var", "CNAME", r)] == \
     ["calibre", "info"], _site["CNAME"]
-# the admin deletes info (or renames it: deleted, added under another name): the next render does not add it back
+# until the install has once been ready, every render adds info again (2.1.4.10: a failed first install run again
+# with its file, whose dns: has no info, keeps it); the first render records it not ready yet
+# covers: setting:install_was_ready +
+assert v2["install_was_ready"] is False, v2["install_was_ready"]
 _gone = copy.deepcopy(v2)
 _gone["dns"]["dynamic_zone_var"]["CNAME"] = [r for r in _gone["dns"]["dynamic_zone_var"]["CNAME"] if r["name"] != "info"]
+_v3 = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**secrets, **copy.deepcopy(_gone),
+                                                                'render_date': '2026-01-01'}))
+assert [r for r in _v3["dns"]["dynamic_zone_var"]["CNAME"] if r["name"] == "info"] == [
+    {"name": "info", "canonical": v2["hostname"]}] and _v3["install_was_ready"] is False, _v3["dns"]
+# once ready, the admin deletes info (or renames it: deleted, added under another name): the next render does not add
+# it back; an install from before 0.8.0 (no install_was_ready, hostname_landing stored) has been ready
 _gone["dns"]["dynamic_zone_var"]["CNAME"].append({"name": "welcome", "canonical": v2["hostname"]})
-_v3 = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**secrets, **_gone, 'render_date': '2026-01-01'}))
-_names3 = [r["name"] for r in _v3["dns"]["dynamic_zone_var"]["CNAME"]]
-assert "info" not in _names3 and "welcome" in _names3 and _v3["hostname_landing"] == v2["hostname_landing"], _names3
+for _ready in (True, None):
+    _older = {k: x for k, x in {**copy.deepcopy(_gone), "install_was_ready": _ready}.items() if x is not None}
+    _v3 = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**secrets, **_older, 'render_date': '2026-01-01'}))
+    _names3 = [r["name"] for r in _v3["dns"]["dynamic_zone_var"]["CNAME"]]
+    assert "info" not in _names3 and "welcome" in _names3 and _v3["hostname_landing"] == v2["hostname_landing"] \
+        and _v3["install_was_ready"] is True, (_ready, _names3)
 # a repointed info is kept as the admin left it
 _moved = copy.deepcopy(v2)
 for _r in _moved["dns"]["dynamic_zone_var"]["CNAME"]:
@@ -1166,6 +1184,12 @@ def mem_refused(**extra):
     except ValidationError as e:
         return str(e)
     return ''
+
+
+# covers: setting:install_was_ready -
+assert "install_was_ready 'maybe' must be true or false" in mem_refused(install_was_ready="maybe") \
+    and mem_refused(install_was_ready=True) == '' and mem_refused() == '', mem_refused(install_was_ready="maybe")
+print("install_was_ready: setup's own record, true or false; anything else refused (2.1.4.10)")
 
 
 for bad, needle in ((dict(memory_floors={'tomcat': 64}), 'no service tomcat'),

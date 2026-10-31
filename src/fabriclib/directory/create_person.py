@@ -6,6 +6,7 @@ from fabriclib.common.write_audit import write_audit
 from fabriclib.directory.constants import site_group
 from fabriclib.directory.people_password import people_password
 from fabriclib.directory.run_op import run_op
+from fabriclib.grants.sync_grants import sync_grants
 from fabriclib.secrets.load_secrets import load_secrets
 
 UID_RE = re.compile(r"^[a-z][a-z0-9._-]{1,31}$")
@@ -28,7 +29,9 @@ def create_person(v, actor, uid, first, last, email, source="web", secrets=None,
              "that name is already taken" (the user name or e-mail address, anywhere in the domain), the directory's
              refusals (run_op), check_access's, load_secrets' errors.
     Feeds:   agent route POST /v1/people (agent/post_route.py) -> webui agentclient.create_person -> People page.
-    Notes:   audited as PERSON_CREATE."""
+    Notes:   audited as PERSON_CREATE. The grants are compiled at once (1.6.13.4): the new person is in site-<site>,
+             so the grants on it reach them within this change, and a change held on them right after (a reset)
+             is not refused for the timer's compile moving their groups (2.3.1.32)."""
     if not UID_RE.match(uid or ""):
         raise ValidationError("user name: 2-32 characters, a-z 0-9 . _ -, starting with a letter")
     if not NAME_RE.match(first or "") or not NAME_RE.match(last or ""):
@@ -43,4 +46,5 @@ def create_person(v, actor, uid, first, last, email, source="web", secrets=None,
             "home_base": v.get("posix_home_base") or "/home", "shell": v.get("posix_login_shell") or "/bin/bash"},
            container)
     write_audit(actor, "PERSON_CREATE", f"user={uid}", source)
+    sync_grants(v, actor, source, container, quiet=True)      # their site's group reaches grants at once (1.6.13.4)
     return password

@@ -38,3 +38,4 @@ behind it matching the lists (design
 | `run_dns_filter_command.py` | `fabricctl dns-filter lists \| status \| apply \| log \| stats \| ingest` |
 | `resolver_tls_pending.py` | Whether the DNS name's certificate arrived after the resolver was rendered (setup renders once more) |
 | `common/` | Helpers shared by these files |
+| `flush_published_names.py` | The filtering resolver forgets the names fabric just published (`rndc flushname`/`flushtree`, 2.1.10.46); a failure said, never raised |

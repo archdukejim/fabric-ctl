@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 from fabriclib.samba.suggested_ad_domain import suggested_ad_domain  # noqa: E402
 from fabriclib.samba.suggested_dc_name import suggested_dc_name  # noqa: E402
 AD = suggested_ad_domain(DOMAIN)        # what Enter takes (2.1.6.11: a sibling of a domain of three labels or more)
+ADMIN = "rehearse.admin"                # the first Directory Administrator, named (2.1.6.69: no default)
 OUT = os.environ.get("OUT", "/tmp/fabric-tests/installer")
 SSH = ["ssh", "-o", "BatchMode=yes", "-i", KEY, TARGET]
 PASS = FAIL = 0
@@ -57,7 +58,10 @@ PROMPTS = [
     ("lan_cidr", r"LAN subnet \(CIDR\).*\]: $"),
     ("lan_gateway", r"LAN gateway \(router\).*\]: $"),
     ("friendly_name", r"Organisation's name.*\]: $"),
-    ("admin", r"First admin's user name.*\]: $"),
+    ("admin", r"First Directory Administrator's user name.*\]: $"),     # 2.1.6.69: their own, never fabric-admin
+    ("first", r"Their first name.*\]: $"),
+    ("last", r"Their last name.*\]: $"),
+    ("email", r"Their e-mail address.*\]: $"),
     ("ad_domain", r"Windows \(AD\) domain.*: $"),
     ("min_length", r"Minimum password length.*: $"),
     ("history", r"Previous passwords remembered.*: $"),
@@ -141,10 +145,13 @@ bad = {
     "lan_cidr": ["192.168.4.0/33", "nope", "", "", ""],
     "lan_gateway": ["300.1.1.1", "", HOST_IP, ""],
     "friendly_name": ['a"quote', "<b>", "x" * 41, "Fabric Installer Test"],
-    "admin": ["administrator", "root", "fabric-agent", "Bad User", ""],
+    "admin": ["administrator", "root", "fabric-agent", "Bad User", "fabric-admin", "", ADMIN],
+    "first": ["", "<b>", "Rehearse"],
+    "last": ["", "Admin"],
+    "email": ["nope", ""],
     "ad_domain": [DOMAIN, DOMAIN.split(".")[-1], "ad.local", "ad_x." + DOMAIN, ""],
     # too short (the default policy: 12), containing the user name, then two that differ, then a good one twice
-    "admin_pw": ["short", "xFabric-Admin-9", "Good-Pass-1234", "Good-Pass-1234"],
+    "admin_pw": ["short", "x" + ADMIN.title() + "-9", "Good-Pass-1234", "Good-Pass-1234"],
     "admin_pw2": ["nope", "Good-Pass-1234"],
     "mode": ["x", "g"],
     # the plan: no choice, then the menu (a number not on the list, the ports turned off), then Proceed
@@ -163,8 +170,12 @@ EXPECT = [
     ("an address this machine does not have: the network asked again", "is not an address of this machine", 1),
     ("the gateway given as the host's own address: the network asked again", "are both", 1),
     ("a quote, <>, 41 characters: refused as the organisation's name", "not a valid friendly_name", 3),
-    ("administrator, root, a fabric- name, a capital and a space: refused as the first admin",
-     "not a valid webui_admin_user", 4),
+    ("administrator, root, a fabric- name, a capital and a space, fabric-admin (break glass, 2.1.6.69) and none: "
+     "refused as the first admin", "not a valid webui_admin_user", 6),
+    ("the first admin's first name: none, <b>: refused", "not a valid webui_admin_first_name", 2),
+    ("...their last name: none, refused", "not a valid webui_admin_last_name", 1),
+    ("...their e-mail address: not one, refused; none taken (it is optional, 2.1.6.93)",
+     "not a valid webui_admin_email", 1),
     ("fabric's own domain, its parent, .local, an underscore: refused as the AD domain",
      "a domain of two labels or more", 4),
     ("the first admin's password: shorter than the default policy (12), refused", "at least 12 characters", 1),
@@ -208,7 +219,8 @@ good = {
     # own rules turned on (the ports and securing come back with them), then off again (kept beside fabric's)
     "menu": ["p", "1", "3", "6", "16", "16", "p"],    # 6: the first admin; 16: the host's own rules
     "yesno": ["y", "n"],
-    "domain": [DOMAIN], "friendly_name": ["Fabric Installer Test"], "admin": [""], "plan": ["p"],
+    "domain": [DOMAIN], "friendly_name": ["Fabric Installer Test"], "admin": [ADMIN], "first": ["Rehearse"],
+    "last": ["Admin"], "email": [""], "plan": ["p"],
     "admin_pw": ["Good-Pass-1234"], "admin_pw2": ["Good-Pass-1234"],
 }
 code, text, asked = drive(good, f"{OUT}/run2.log")
@@ -233,13 +245,14 @@ check("setup's last words: FIRST fabric's names (its DNS at the host's address, 
       and f"https://fabric-ctl.{DOMAIN}" in text[signin:], text[-1500:])
 saved = yaml.safe_load(R("cat /opt/fabric/config/vars.yaml")) or {}
 # covers: setting:webui_admin_user +
-check("Enter took fabric-admin as the first admin; the console's role is fabric-console-admin; Kerberos off; the "
-      "default policy; all the memory (2.1.2.16, 2.1.6.32, 2.1.6.33, 2.1.6.35)",
-      saved.get("webui_admin_user") == "fabric-admin" and saved.get("webui_admin_role") == "fabric-console-admin"
+check("the first admin as named, never fabric-admin (2.1.6.69); the console's role is fabric-console-admin; "
+      "Kerberos off; the default policy; all the memory (2.1.2.16, 2.1.6.32, 2.1.6.33, 2.1.6.35)",
+      saved.get("webui_admin_user") == ADMIN and saved.get("webui_admin_first_name") == "Rehearse"
+      and saved.get("webui_admin_last_name") == "Admin" and saved.get("webui_admin_role") == "fabric-console-admin"
       and saved.get("signin_kerberos") is False and (saved.get("ad_password_policy") or {}).get("minimum_length") == 12
       and (saved.get("ad_password_policy") or {}).get("lockout_threshold") == 10
       and int(saved.get("host_ram_capacity") or 0) >= 4,
-      {k: saved.get(k) for k in ("webui_admin_user", "webui_admin_role", "signin_kerberos", "ad_password_policy",
+      {k: saved.get(k) for k in ("webui_admin_user", "webui_admin_first_name", "webui_admin_last_name", "webui_admin_role", "signin_kerberos", "ad_password_policy",
                                  "host_ram_capacity")})
 check("Advanced: no question or menu item names the DC; it is dc-0001 (2.1.6.65), never the host's own name "
       "(2.3.1.21.2)", saved.get("dc_name") == suggested_dc_name() != guess_host and "Domain controller's name" not in text,
