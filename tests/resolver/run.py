@@ -70,7 +70,14 @@ NEG = product_negative_ttl()
 def test_zone(serial, extra=""):
     """The authoritative BIND's test zone, with the SOA minimum fabric's zones have."""
     return (f"$TTL 300\n@ IN SOA ns.lan.test. hostmaster.lan.test. {serial} 3600 600 86400 {NEG}\n"
-            f"@ IN NS ns.lan.test.\nns IN A {BIND_IP}\nwww IN A 10.9.8.7\nads IN A 10.9.8.8\n{extra}")
+            f"@ IN NS ns.lan.test.\nns IN A {BIND_IP}\nwww IN A 10.9.8.7\nads IN A 10.9.8.8\n"
+            f"long 86400 IN A 10.9.8.30\n{extra}")     # a day: the resolver's cache keeps it 300 s (2.1.12.11)
+
+
+def answer_ttls(name, rtype="A", section="+answer"):
+    """The TTLs of one section of the resolver's answer for name (a miss's SOA: section "+authority")."""
+    out = dig("+noall", section, name, rtype)
+    return [int(f[1]) for f in (ln.split() for ln in out.splitlines()) if len(f) > 1 and f[1].isdigit()]
 
 
 def publish(serial, extra):
@@ -357,6 +364,19 @@ try:
     check("after the reload the host is allowed: fabric's zone answers through the authoritative BIND",
           until(lambda: "10.9.8.7" in dig("+short", "www.lan.test"), 20), dig("www.lan.test"))
 
+    # no cached answer kept more than 5 minutes, a miss neither (2.1.12.11)
+    conf = open(f"{W}/resolver/config/named.conf").read()
+    opts = conf[conf.index("options {"):conf.index("logging {")]
+    check("config: the resolver keeps no answer and no miss more than 300 s (max-cache-ttl, max-ncache-ttl, in "
+          "the options: every view)", "max-cache-ttl 300;" in opts and "max-ncache-ttl 300;" in opts, opts)
+    check("AdGuard keeps no answer more than 300 s (cache_ttl_max)", agconf["dns"]["cache_ttl_max"] == 300,
+          agconf["dns"].get("cache_ttl_max"))
+    long_ttls = answer_ttls("long.lan.test") + answer_ttls("long.lan.test")    # asked, then from the cache
+    check("a record its zone gives a day (86400 s): through the resolver, asked and then from its cache, its TTL is "
+          "never over 300 s", len(long_ttls) == 2 and max(long_ttls) <= 300
+          and "86400" in sh(["dig", "+noall", "+answer", f"@{BIND_IP}", "long.lan.test"], ok=False).stdout,
+          (long_ttls, dig("long.lan.test")))
+
     # a name asked before it exists (2.1.4.9): the resolver keeps the NXDOMAIN for the zone's SOA minimum only
     check(f"fabric's zones keep 'no such name' {NEG} s (zone.j2's SOA minimum), not hours", NEG == 30, NEG)
     first = status("late.lan.test")
@@ -423,6 +443,14 @@ try:
               status("example.org") == "SERVFAIL", dig("example.org"))
         check("the owner's allow beats a list (example.net is listed and allowed: it resolves)",
               status("example.net") == "NOERROR", dig("example.net"))
+        # the root zone gives its servers' addresses 3600000 s, .com a miss 900 s: neither kept over 300 s (2.1.12.11)
+        root = answer_ttls("a.root-servers.net") + answer_ttls("a.root-servers.net")
+        check("an internet answer with a long TTL (a.root-servers.net): through the resolver never over 300 s",
+              len(root) == 2 and max(root) <= 300, (root, dig("a.root-servers.net")))
+        miss = f"no-such-name-{testrun.RUN}.com"
+        neg = answer_ttls(miss, "A", "+authority") + answer_ttls(miss, "A", "+authority")
+        check("an internet miss (a name .com does not have): its SOA's TTL through the resolver never over 300 s",
+              status(miss) == "NXDOMAIN" and len(neg) == 2 and max(neg) <= 300, (neg, dig(miss)))
     else:
         print("INFO no internet: AdGuard's upstream and the allow over a real name not checked")
     host = adguard_api(V, PW, "GET", "/control/filtering/check_host?" + urllib.parse.urlencode(

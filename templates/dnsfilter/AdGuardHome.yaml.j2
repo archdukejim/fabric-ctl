@@ -55,7 +55,8 @@ dns:
   cache_enabled: true
   cache_size: 4194304
   cache_ttl_min: 0
-  cache_ttl_max: 0
+  # no answer kept more than 5 minutes (2.1.12.11); a change here restarts AdGuard at the next apply (not in its API)
+  cache_ttl_max: 300
   cache_optimistic: false
   bogus_nxdomain: []
   aaaa_disabled: false

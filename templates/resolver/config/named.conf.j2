@@ -36,6 +36,10 @@ options {
     // own zones are never signed
     dnssec-validation auto;
     validate-except { {% for z in zones %}"{{ z }}"; {% endfor %}};
+    // no answer kept more than 5 minutes, a miss neither: then asked again (and validated) or dropped (2.1.12.11);
+    // BIND's defaults are a week and 3 hours. fabric's own zones still keep a miss only 30 s (their SOA, 2.1.4.9)
+    max-cache-ttl 300;
+    max-ncache-ttl 300;
     querylog yes;
     // each answer logged after its query, for the query log (1.12.3.7)
     responselog yes;

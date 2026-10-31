@@ -275,6 +275,10 @@ for view in (kids, everyone):        # fabric's zones and the owner's rules in e
 assert kids.index('zone "fabric.rpz";') < kids.index('zone "group-kids.rpz";') < kids.index('zone "owner.rpz";'), kids
 assert 'dnssec-validation auto;' in res_conf and 'validate-except { "' in res_conf and 'responselog yes;' in res_conf and 'category responses' in res_conf
 assert 'bind-lists' not in res_conf, 'no list in the resolver (1.12.3)'
+# no cached answer kept more than 5 minutes, a miss neither (2.1.12.11): once, in the options, so no view keeps longer
+opts = res_conf[res_conf.index('options {'):res_conf.index('logging {')]
+assert 'max-cache-ttl 300;' in opts and 'max-ncache-ttl 300;' in opts and res_conf.count('max-cache-ttl') == 1 \
+    and res_conf.count('max-ncache-ttl') == 1, opts
 plain = env.get_template('resolver/config/named.conf.j2').render(**{**v2, **res_ctx, 'adguard_tls': False})
 assert 'tls "group-kids"' not in plain and f'forwarders {{ {v2["ip_adguard"]} port 53; }};' in \
     plain[plain.index('view "kids"'):], 'before its certificate the group forwards over plain DNS'
@@ -405,6 +409,8 @@ assert agc['filtering']['blocking_mode'] == 'nxdomain' and agc['querylog']['enab
 assert agc['statistics']['enabled'] is False and agc['dns']['allowed_clients'] == ['10.255.0.33']
 assert agc['tls']['enabled'] is False and agc['schema_version'] == 34 and agc['filtering']['safe_fs_patterns'] == ['/lists/*']
 static = yaml.safe_load(agt.render(**agx, with_api=False))
+# AdGuard keeps no answer more than 5 minutes (2.1.12.11); outside its API, so a change rewrites the file and restarts it
+assert agc['dns']['cache_ttl_max'] == 300 and agc['dns']['cache_ttl_min'] == 0 and static['dns']['cache_ttl_max'] == 300, agc['dns']
 assert not {'filters', 'user_rules'} & set(static) and 'upstream_dns' not in static['dns'], 'the API parts left out'
 units_res = {u['service']: u for u in service_units('/opt', res)}
 assert units_res['bind9-resolver']['enabled'] and units_res['bind9-resolver']['requires'] == []
