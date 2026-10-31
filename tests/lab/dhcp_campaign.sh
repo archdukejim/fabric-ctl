@@ -14,7 +14,8 @@
 #   a scan finding that address; a reservation honoured; a name set by hand (--dns on) winning over DHCP's, published
 #   by Sync now; an option on a subnet reaching the client; the plan poll taking a change made without an apply
 #   the scan beyond a router (1.10.4.47): VLAN 20 is on none of fabric's networks, so its scan says "addresses only",
-#   its find has no MAC, and is recorded both ways (a static address, then a reservation with the MAC typed)
+#   its find has no MAC and lies in its DHCP range, so only a reservation is offered: a static address refused, then a
+#   reservation with the MAC typed (2.3.10.11.24)
 #   a branch location's relayed subnet (1.10.4.46): VLAN 30 at location `branch`, kub26-1's VLAN NIC moved to VLAN 30
 #   on Hyper-V (and back), leased through the relay; `ipam show` and the export name the location
 #   then the console as three people (tests/lab/dhcp_console.py, on the fabric VM)
@@ -144,15 +145,17 @@ check "the scan says VLAN 20 is beyond a router: addresses only" \
     "grep -q 'beyond a router: addresses only' '$OUT/scan.log'"
 check "the router's address is found with no MAC (ARP sees none past the gateway)" \
     "grep -E '^ +10\.88\.20\.100 +- ' '$OUT/scan.log' | grep -q 'IN USE, UNRECORDED'"
-check "both ways to record it are printed: a static address, or a reservation once its MAC is known" \
-    "grep -q 'ipam address add 10.88.20.100 --kind static' '$OUT/scan.log' \
+# 10.88.20.100 lies in VLAN 20's DHCP range, where only a reservation may be (check_address): the scan offers only that
+# way (2.3.10.11.24; a find outside every DHCP range is offered both ways: tests/ipam/scan.py)
+check "only a reservation once its MAC is known is offered: the find lies in VLAN 20's DHCP range" \
+    "! grep -q 'ipam address add 10.88.20.100 --kind static' '$OUT/scan.log' \
      && grep -q 'ipam address add 10.88.20.100 --kind reservation --mac <MAC>' '$OUT/scan.log'"
 F "fabricctl ipam address add 10.88.20.100 --kind reservation --name rtr20 --no-apply" > "$OUT/routed-nomac.log" 2>&1
 check "a reservation of the find without its MAC is refused, recording nothing" \
     "grep -q 'a reservation needs the device' '$OUT/routed-nomac.log' && ! F 'fabricctl ipam show' | grep -q rtr20"
 F "fabricctl ipam address add 10.88.20.100 --kind static --name rtr20 --no-apply" > "$OUT/routed-static.log" 2>&1
-check "the find recorded as a static address" \
-    "F 'fabricctl ipam show' | grep '10.88.20.100' | grep 'rtr20' | grep -q static"
+check "negative: the find as a static address is refused (a DHCP range: only a reservation), recording nothing" \
+    "grep -q 'only a reservation may be there' '$OUT/routed-static.log' && ! F 'fabricctl ipam show' | grep -q rtr20"
 F "fabricctl ipam address remove 10.88.20.100 --no-apply" > /dev/null 2>&1
 RTR_MAC=$(on "$ROUTER" "cat /sys/class/net/vlans.20/address" | tr -d '\r' | head -1)
 F "fabricctl ipam address add 10.88.20.100 --kind reservation --mac $RTR_MAC --name rtr20 --no-apply" \

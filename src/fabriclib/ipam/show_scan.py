@@ -1,7 +1,8 @@
 def show_scan(result):
     """Purpose: a scan's result as text (manual 1.10.4.22, 1.10.4.47): every address that answered, how, and what
              the plan and Kea know of it; those nobody recorded marked, with the command that would record each (a
-             find with no MAC both ways: a static address, or a reservation once its MAC is known); a subnet
+             find with no MAC both ways: a static address, or a reservation once its MAC is known; one in a DHCP range
+             only the reservation, the one way the plan takes it there); a subnet
              beyond a router said so.
     Inputs:  result — scan_subnet's result.
     Returns: str, ending in a newline.
@@ -24,6 +25,9 @@ def show_scan(result):
         if f["mac"]:
             lines.append(f"  to reserve it: sudo fabricctl ipam address add {f['ip']} --kind reservation "
                          f"--mac {f['mac']} --name <name>")
+        elif f.get("range") == "dhcp":      # only a reservation may be in a dhcp range (check_address)
+            lines.append(f"  to record it, once you know its MAC (in a DHCP range only a reservation may be): "
+                         f"sudo fabricctl ipam address add {f['ip']} --kind reservation --mac <MAC> --name <name>")
         else:
             lines.append(f"  to record it: sudo fabricctl ipam address add {f['ip']} --kind static --name <name>")
             lines.append(f"  or, once you know its MAC: sudo fabricctl ipam address add {f['ip']} --kind reservation "

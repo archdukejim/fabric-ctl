@@ -126,7 +126,8 @@ def scan_subnet(v, actor, subnet, source="cli", container=KEA_CONTAINER, state_d
              was checked already, and the audit names them); caller — the signed-in person's user name, or None
              (root); check — check_access (tests give their own); dc — the DC's container; networks — this
              host's addresses by interface (default host_networks(); tests give their own).
-    Returns: {"subnet": {"name", "cidr"}, "scanned" (int, addresses probed), "answering": [_classify's rows],
+    Returns: {"subnet": {"name", "cidr"}, "scanned" (int, addresses probed), "answering": [_classify's rows,
+             each with "range": the kind of the plan's range it lies in, or ""],
              "unrecorded" (int), "at" (ISO time), "allowed": {"by" (what allowed it: check_access's "by", or "a
              request from <site>")}, "routed" (bool: the host has no address in the subnet, so it is beyond a
              router and ARP sees no MAC there, decision 2.1.10.50, manual 1.10.4.47)}.
@@ -159,6 +160,11 @@ def scan_subnet(v, actor, subnet, source="cli", container=KEA_CONTAINER, state_d
         rows.setdefault(entry["routers"], {"ip": entry["routers"], "kind": "gateway", "name": "", "mac": "",
                                            "lease": ""})
     found = [_classify(ip, s, rows.get(ip)) for ip, s in seen.items() if ipaddress.ip_address(ip) in net]
+    # a find inside a dhcp range may be recorded only as a reservation (check_address): what it lies in is kept
+    ranges = next((p.get("ranges") or [] for p in plan.get("subnets") or [] if p.get("cidr") == sub["cidr"]), [])
+    for f in found:
+        f["range"] = next((r["kind"] for r in ranges if ipaddress.ip_address(r["first"]) <= ipaddress.ip_address(
+            f["ip"]) <= ipaddress.ip_address(r["last"])), "")
     unrecorded = sum(1 for f in found if f["status"] == "unrecorded")
     write_audit(actor, "IPAM_SCAN", f"from={v.get('dc_name') or v.get('site_name', '')} site={v.get('site_name', '')} "
                 f"subnet={sub['cidr']} answering={len(found)} "

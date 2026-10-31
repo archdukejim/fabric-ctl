@@ -299,6 +299,23 @@ check("asked for each address in use but unrecorded, no by default; only those w
 check("yes with a MAC: made a reservation for that MAC through the reservation unit, noted as found by a scan",
       ("10.1.20.55", "reservation", "cam4", "aa:bb:cc:00:00:55") in [a[:4] for a in ADDED]
       and all("found by a scan" in a[4] for a in ADDED), ADDED)
+# a find in a DHCP range can be only a reservation (check_address): the lab's dhcp campaign, 2026-10-31, was told a
+# static address the plan then refused (2.3.10.11.24)
+check("each find says the plan's range it lies in (a static one, a DHCP one)",
+      by["10.1.20.57"]["range"] == "static" and by["10.1.20.121"]["range"] == "dhcp",
+      (by["10.1.20.57"], by["10.1.20.121"]))
+POOLED = {**res, "answering": [{"ip": "10.1.20.200", "mac": "", "how": "ping", "status": "unrecorded", "kind": "",
+                                "name": "", "note": "", "range": "dhcp"}]}
+check("negative: a find with no MAC in a DHCP range is not offered as a static address, only as a reservation",
+      "--kind static" not in show_scan(POOLED)
+      and "ipam address add 10.1.20.200 --kind reservation --mac <MAC>" in show_scan(POOLED), show_scan(POOLED))
+pooled_out, before = io.StringIO(), len(ADDED)
+with redirect_stdout(pooled_out):
+    pooled = m_offer.offer_reservations(V, POOLED, ask=lambda qid, prompt, default: "",
+                                        ask_yes_no=lambda qid, question, now: True)
+check("negative: yes to that find with no MAC typed records nothing, and says only a reservation may be there",
+      pooled == [] and len(ADDED) == before and "only a reservation (with its MAC) may be" in pooled_out.getvalue(),
+      pooled_out.getvalue())
 check("yes without a MAC: recorded as a static address; no: left alone",
       ("10.1.20.57", "static", "cam4", "") in [a[:4] for a in ADDED] and not any(a[0] == "10.1.20.56" for a in ADDED),
       ADDED)

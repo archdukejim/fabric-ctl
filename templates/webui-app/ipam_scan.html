@@ -29,12 +29,12 @@ is done at once, not held for Apply.</p>
 </section>
 {% if unrecorded and can('dhcp:write') %}<section class="card"><h2>Record a find</h2>
 <form method="post" action="/networks/scan/record" class="grid">{{ csrf() }}
-<label class="wide">Find<select name="find" required>{% for f in unrecorded %}<option value="{{ f.ip }}|{{ f.mac or '' }}">{{ f.ip }}{% if f.mac %} — {{ f.mac }}{% endif %}</option>{% endfor %}</select></label>
+<label class="wide">Find<select name="find" required>{% for f in unrecorded %}<option value="{{ f.ip }}|{{ f.mac or '' }}">{{ f.ip }}{% if f.mac %} — {{ f.mac }}{% endif %}{% if f.range == 'dhcp' %} (in a DHCP range: a reservation only){% endif %}</option>{% endfor %}</select></label>
 <label>As<select name="kind"><option value="reservation">a reservation for its MAC</option><option value="static">a static address</option></select></label>
 <label>MAC (for a find with none: makes it a reservation)<input name="mac" maxlength="17" placeholder="aa:bb:cc:dd:ee:ff"></label>
 <label>Name (one DNS label, optional)<input name="name" maxlength="63" placeholder="cam4"></label>
 <div><button>Record find</button></div></form>
 <p class="muted">Waits for <strong>Apply</strong> in the top bar (Networks' changes). A find with no MAC is a static
-address, or a reservation once you type its MAC. Leave a find unrecorded and nothing changes.</p></section>{% endif %}
+address, or a reservation once you type its MAC; one in a DHCP range only a reservation. Leave a find unrecorded and nothing changes.</p></section>{% endif %}
 {% endif %}
 {% endblock %}
