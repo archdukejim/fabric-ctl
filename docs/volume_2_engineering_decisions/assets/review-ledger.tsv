@@ -138,7 +138,7 @@ docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	cbad7e90c2a
 docs/volume_2_engineering_decisions/2.1.1-product.md	37d82c42c98d7634463f9fb56fccf9c2be7c7e0a	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	cb4d596ec94f1c25f32f6133b0ef1ca075aec1d7	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
-docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	27269b8defaa8f36d05607f0d8c69b9dde7d5dcb	2026-10-31	
+docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	9a4a5837c87d7efa44a524511dbe73390da62b09	2026-10-31	
 docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece98c5e28bc1c8	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.14-images.md	bb4339ff3bef36d06c8650ef117bd57b6d9fe354	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.15-logs.md	b3fb9286ea0a6760a0ab597950d771e6cc305633	2026-10-08	
