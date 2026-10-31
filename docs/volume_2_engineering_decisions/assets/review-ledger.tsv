@@ -306,6 +306,7 @@ scripts/lab/send_key.ps1	c6da9dce920f4a13dea21bbfd18b921354e4d60b	2026-10-23
 scripts/lab/start_lab.ps1	6aa616380a97df396225b5a0a8f161240aff60b4	2026-10-23	
 scripts/release/README.md	d5379b29f1b78dc46eefe9b1b518555b2236f651	2026-10-08	
 scripts/release/make-apt-key.sh	e236d199325e428705b898f4dce580ffce535684	2026-10-23	
+scripts/release/rename-apt-key.sh	1e6a569c759aff0ed5b8afb505f411cb2db61c72	2026-10-31	
 spikes/README.md	26fd7b7c1c3c71822152c1a713f510d47f6691d1	2026-10-11	
 spikes/dns-engine/README.md	895bb7e3fd683380105a07417022b028c6c658ac	2026-10-11	
 spikes/dns-engine/adguard.py	95786719a486d0aba9863f44092e79011102e56c	2026-10-11	
@@ -2096,6 +2097,8 @@ tests/pki/renewal.py	a5348829c60bad793ddb3a043398ca2836ece851	2026-10-20
 tests/pki/revocation.py	cf80ad8b84912f80b941f8fcf3387825e9ba18e6	2026-10-12	
 tests/pki/run.py	3ac7f08379bf8506c62d8333fed3ebab430472af	2026-10-13	
 tests/pki/site_ca.py	9c577e88a9f229c26a0ce4cdbcee7369587d6008	2026-10-25	
+tests/release/README.md	e8cb54a0329e7cc161ef90ce8c7929e881edc4fe	2026-10-31	
+tests/release/apt_key_test.sh	b8d05fcd45ead6b86272520c4af430e3af5d8bd9	2026-10-31	
 tests/render.py	42895076add2e0a88762cd786fa72d8c6e6674a3	2026-10-31	
 tests/resolver/README.md	9d0451677cd3faf2d80956d33d6344c85e7e2b74	2026-10-31	
 tests/resolver/console.py	6c0c2e3efa559e3994399667a60a8c70529c724f	2026-10-23	
@@ -2121,6 +2124,7 @@ tests/samba/run.py	c452e49ffb029571a0ac92bb1563bc7dc4c27164	2026-10-25
 tests/samba/site_join.py	87fca4f5b679b871a3dd653fd59d40dd1487c590	2026-10-25	
 tests/samba/start_bind.py	7ab43a4c47515a1b7f81d4ef004e4884d9a2a23b	2026-10-25	
 tests/samba/start_dc.py	b2d4ef1e586c4a6c4d0986a1907ce91bdd056584	2026-10-25	
+tests/samba/start_dc_test.py	35d6085308cab14620f1353a268ec186d16bd13e	2026-10-31	
 tests/samba/writable_server_test.py	b9fa7ec5b86b8e65a3443e584ccda3800930a49d	2026-10-17	
 tests/sandbox/Dockerfile	20b0b4c920006cd304cbe258c176c85b9e12b2a5	2026-10-10	
 tests/sandbox/README.md	829d71addd390c4083e575074bd4af1de9264070	2026-10-23	
