@@ -1,0 +1,39 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Origin: open-fabric
+Label: fabric
+Suite: stable
+Codename: stable
+Date: Sat, 31 Oct 2026 15:51:15 UTC
+Architectures: amd64 arm64
+Components: main
+Description: fabric releases (manual 1.3.1.1, 2.1.1.2)
+MD5Sum:
+ e9cb53422b81e51b37f381e4430eedf5 1243 main/binary-amd64/Packages
+ ced1365c04e8cfcf6bbdedf6d331b43c 808 main/binary-amd64/Packages.gz
+ 07122050a38bf2f13d7f64c4e7bb23f3 141 main/binary-amd64/Release
+ e9cb53422b81e51b37f381e4430eedf5 1243 main/binary-arm64/Packages
+ ced1365c04e8cfcf6bbdedf6d331b43c 808 main/binary-arm64/Packages.gz
+ b28abdeae7c4560ce5cc5e98f6d06027 141 main/binary-arm64/Release
+SHA1:
+ 027f638911cccb9f9f50b043c2daba321221592d 1243 main/binary-amd64/Packages
+ cc81b009aad4299a6f7eef3e80d283af62632ab6 808 main/binary-amd64/Packages.gz
+ 0749347becb825cd263d954feded4019f5d6956c 141 main/binary-amd64/Release
+ 027f638911cccb9f9f50b043c2daba321221592d 1243 main/binary-arm64/Packages
+ cc81b009aad4299a6f7eef3e80d283af62632ab6 808 main/binary-arm64/Packages.gz
+ 080b5b5185d820709101e45695b4e0cdf7886211 141 main/binary-arm64/Release
+SHA256:
+ 27bae59cf59949fee6d2a5d6dc4741ef0a5999430c5c288bbae166573b3730ff 1243 main/binary-amd64/Packages
+ 1e84307f8d775edc8a04d4bc97d194e738278d4a982c49557fa471d4b3a7fa17 808 main/binary-amd64/Packages.gz
+ a0a67083b155cd1aa70c08720eb6cd01c4a25683853e43260a2eea98a5e3419e 141 main/binary-amd64/Release
+ 27bae59cf59949fee6d2a5d6dc4741ef0a5999430c5c288bbae166573b3730ff 1243 main/binary-arm64/Packages
+ 1e84307f8d775edc8a04d4bc97d194e738278d4a982c49557fa471d4b3a7fa17 808 main/binary-arm64/Packages.gz
+ a696c446e2276b5b5eaec2f79b0051d4acde43bb715d81d618159d0588cc4b41 141 main/binary-arm64/Release
+-----BEGIN PGP SIGNATURE-----
+
+iHUEARYKAB0WIQSZRsckkfyFSFrNh5vQ3y515ucyMAUCauYOcwAKCRDQ3y515ucy
+MIkrAQDTCJZs3vC75+St17bjN9Z57gshFbnR6qgrq0/jht+pEAD/ZTgeqXbUNRvn
+MooMB9vcvgA3AbGxTMuLcrVgpazzGgU=
+=HkFj
+-----END PGP SIGNATURE-----
