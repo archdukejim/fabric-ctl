@@ -56,7 +56,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	ae1189fad
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3c9f2a69f45e13f5365f8e49c066243f60235a80	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	7bed63a41e52d6386a7f0d44513a77346c5eea6f	2026-10-24	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	476faabbe0c00c58cd1c6928553e6c062ff7c910	2026-10-10	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	b2d2985b8bcd7dc639ccdce630469495827806d9	2026-10-31	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	233eb9463dafa3d34702a539947ecd6a471d322d	2026-10-31	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	e51203f703b70dbe85dcf696d0430c6e56b3e8a9	2026-10-24	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	d79781e67aeffd07080d9ead78322df49ffd33dc	2026-10-26	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	ef0eaf5854c975ca84fbd27af2c17c78328ec055	2026-10-25	
@@ -151,7 +151,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	8f8dc9a2628590186985c15579ae6
 docs/volume_2_engineering_decisions/2.1.9-federation.md	cd669c8882d4f654fa2246c5cbf4604d785544fb	2026-10-31	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	53317827d02af7c1a3f7ba8d58f92e56bbc43c33	2026-10-31	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	ebe471271fe4c04f5c90f9210ce3f1a712f5c5d2	2026-10-31	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	8d0e6dc9f88453889dccc29f981ca3ee730702f4	2026-10-29	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -177,7 +177,7 @@ docs/volume_3_installation/3.16.1-disk-encryption.md	01a470a365017a5f19e088eb544
 docs/volume_3_installation/3.2.1-requirements.md	dddb70ea81855c6560f95648a9e93c2b4187f337	2026-10-25	
 docs/volume_3_installation/3.2.2-docker-from-ubuntu.md	2d7250a68efefe0413b077ee659fa444d40a325a	2026-10-08	
 docs/volume_3_installation/3.2.3-deployed-structure.md	7e6cdc8cf16bfca41ab48a5b0e0dd7d69d0c29a2	2026-10-08	
-docs/volume_3_installation/3.2.4-reinstall-uninstall.md	d3395e834aa318e9342ddf80f1d903ee39dd7b4e	2026-10-23	
+docs/volume_3_installation/3.2.4-reinstall-uninstall.md	4c7866d907e30e29a01edb58e1d502efb1ab7e1a	2026-10-31	
 docs/volume_3_installation/3.3.1-running-setup.md	a42e72bcd1be7cc0c44235d35401f453c2325810	2026-10-25	
 docs/volume_3_installation/3.3.2-after-setup.md	35ed4792d55ba7d74779d3bcd998f561b8142509	2026-10-20	
 docs/volume_3_installation/3.3.3-setup-steps.md	06385ddf3a8844517b3d55c399a0af5bae65af77	2026-10-23	
@@ -269,7 +269,7 @@ scripts/docs/README.md	e391ec81d122ee82ea285ffaf04eac6a8dd44372	2026-10-12
 scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03	
 scripts/docs/entrypoints.py	d00bed147591ebd063f9148b9ed95a7ddff0ab12	2026-10-23	
 scripts/docs/gen_lib_doc.py	d7a3c1284ca3a30af61353d41f5a9d2a1457a325	2026-10-12	
-scripts/docs/lib_doc_numbers.tsv	6b8d3ea2c0e1811b36e3d62d940a90927ae2b0c5	2026-10-31	
+scripts/docs/lib_doc_numbers.tsv	97f7996b7f82b14106c44e499b2d4d4054e061d3	2026-10-31	
 scripts/docs/lib_doc_registry.py	a3a407c2b06b44838c4ce7a69725c4d47339f437	2026-10-17	
 scripts/docs/product_code.py	645a3bb130463028b90de64798c81694e5293131	2026-10-03	
 scripts/docs/review_ledger.py	b3f307b4dbaba54a69cc93c993287d43c747ba8f	2026-10-08	
@@ -1286,7 +1286,7 @@ src/fabriclib/setup/start_bootstrap.py	cd55ee690beb024d64109b2ac4927bae129d17e7	
 src/fabriclib/setup/start_services.py	4b6e0c7085e0635e8576b6a9e3d77cb8fef64b0b	2026-10-21	
 src/fabriclib/setup/start_unit.py	a951012acef5e4a15e47788b4ed241319e73d23f	2026-10-24	
 src/fabriclib/setup/steps.py	f43f4bace12ceb9095b3e8a318c1acc14c05ada1	2026-10-23	
-src/fabriclib/setup/uninstall.py	6e2e84d68b39655463b1471400db5aba2486ef0c	2026-10-26	
+src/fabriclib/setup/uninstall.py	b77033aa0323e59b73d20ff50c36354f8a21d537	2026-10-31	
 src/fabriclib/setup/upgrade_vars.py	9f068c6afe127a28b8cdca4388f251d02b1d63e0	2026-10-20	
 src/fabriclib/setup/verify_install.py	407ee1be2dbf4fd4e93a081c3388f8d984d1584d	2026-10-23	
 src/fabriclib/setup/wait_ready.py	7a1b280ff23995ea47a433ca648ea0450b4cabab	2026-10-31	
@@ -1893,7 +1893,7 @@ tests/resolver/console.py	6c0c2e3efa559e3994399667a60a8c70529c724f	2026-10-23
 tests/resolver/groups.py	5e317666ba1567ea2e4d0629061af57d292a1e4a	2026-10-25	
 tests/resolver/querylog.py	0378e80e7fa13e77534999301e31df4fea7bd779	2026-10-31	
 tests/resolver/run.py	73ed914152c7b7af09b8e0b121e422104aad32f2	2026-10-29	
-tests/run-all.sh	7d638bd338bb9d07206befff44ee8e1032c743bf	2026-10-29	
+tests/run-all.sh	8fe5fd9bc3e7ceadaa35a8d53ed4f39350017656	2026-10-31	
 tests/samba/README.md	38fc7de5c8ecea4f25f72d9253beae9b9c0817c1	2026-10-24	
 tests/samba/dc.py	96f6d6faa621d9493cc08331a692faeeae4ff567	2026-10-25	
 tests/samba/devices.py	6ab42b2f1dfc36dacff89ba078ed5a6d5f4a3069	2026-10-25	
@@ -1929,7 +1929,7 @@ tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-12
 tests/settings/README.md	587da87fb133b23bc53d8d4c37dda7156970ae80	2026-10-17	
 tests/settings/console.py	169cdec9afebfbc890a87a8e37038d774d1c56a7	2026-10-23	
 tests/settings/run.py	d764ac14e219bbcf3f42582b899a0c2c663b7f36	2026-10-20	
-tests/setup/README.md	0515205abbf8793f15fca01bf092378e65aea4d8	2026-10-26	
+tests/setup/README.md	59c0626882fdecb740b8ba1a6dd94f2b79fd08e2	2026-10-31	
 tests/setup/detach/README.md	0c490656f6d6dd1b3786d53284f3d3a4394db493	2026-10-17	
 tests/setup/detach/can_detach_test.py	63cb81fa5f680252079acc0208066b5aaeb18da7	2026-10-17	
 tests/setup/detach/choose_start_test.py	5b041ed37f7a1625e7dfea086a89de700f9e961b	2026-10-17	
@@ -1951,6 +1951,7 @@ tests/setup/run_setup_test.py	2865b49629bc4215ff9531af2dd2fbb3809a60b6	2026-10-2
 tests/setup/run_steps_test.py	4807eb4578d9b0e41d5b012201cbaddbcacfd591	2026-10-17	
 tests/setup/run_uninstall_command_test.py	da47421f7e3c3f5006c9504e94f867949559ce60	2026-10-26	
 tests/setup/start_unit_test.py	fe214622d907b1d7208054646c12b5186ef75fc3	2026-10-24	
+tests/setup/uninstall_test.py	0558c1f9839510460736384d569a5b436d57319f	2026-10-31	
 tests/setup/vars-0.7.1.yaml	988e48eafcdc0c10745577d3857ce93063ef07fd	2026-10-20	
 tests/setup/wait_ready_test.py	a0445caeaa3ccaf03445547420a2276742423766	2026-10-31	
 tests/webui/README.md	8bf341d02578de3df919b59719447d017cfe3802	2026-10-23	

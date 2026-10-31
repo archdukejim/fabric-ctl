@@ -2756,6 +2756,7 @@ function	fabriclib-setup|src/fabriclib/setup/start_services.py|run	1
 function	fabriclib-setup|src/fabriclib/setup/start_unit.py|_settled	3	
 function	fabriclib-setup|src/fabriclib/setup/start_unit.py|_unit_state	2	
 function	fabriclib-setup|src/fabriclib/setup/start_unit.py|start_unit	1	
+function	fabriclib-setup|src/fabriclib/setup/uninstall.py|_stop_timers	2	
 function	fabriclib-setup|src/fabriclib/setup/uninstall.py|uninstall	1	
 function	fabriclib-setup|src/fabriclib/setup/upgrade_vars.py|upgrade_vars	1	
 function	fabriclib-setup|src/fabriclib/setup/verify_install.py|_curl	1	

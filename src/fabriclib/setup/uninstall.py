@@ -30,9 +30,29 @@ CONTAINERS = ["fabric-web", "webui", "fluentbit", "kea-dhcp4", "kea-ddns", "free
               "dirsrv", "step-ca", "bind9"]
 DIRS = ["fabric", "nginx", "bind9", "stepca", "dirsrv", "keycloak", "postgres", "webui", "openbao", "fluentbit", "kea",
         "freeradius", "samba", "federation", "adguard", "adguard-auth", "resolver", "dnsfilter"]
+TIMERS = ("fabric-directory-sync", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists", "fabric-dns-log",
+          "fabric-machines", "fabric-host-managed", "fabric-grants", "fabric-local-admin")
+STAMPS = "/var/lib/systemd/timers"     # systemd's record of a Persistent= timer's last run
 LOCAL_IMAGES = ["fabric/bind9:local", "fabric/stepca:local", "fabric/dirsrv:local", "fabric/keycloak:local",
                 "fabric/web:local", "fabric/webui:local", "fabric/kea:local", "fabric/freeradius:local",
                 "fabric/samba:local"]
+
+
+def _stop_timers(stamps=STAMPS, run=subprocess.run):
+    """Purpose: stop and disable fabric's timers, and remove what systemd keeps of their last runs (2.3.1.32 finding
+             17): a Persistent= timer whose stamp outlives the uninstall fires at once when a later install enables
+             it, before that install's services run (the daily renewal then failed, step-ca not there yet, and
+             doctor stopped setup).
+    Inputs:  stamps — systemd's timer stamp folder; run — subprocess.run (tests).
+    Returns: None.
+    Fails:   OSError removing a stamp other than its absence; systemctl's failures are ignored.
+    Feeds:   uninstall."""
+    for timer in TIMERS:
+        run(["systemctl", "disable", "--now", f"{timer}.timer"], capture_output=True)
+        try:
+            os.remove(os.path.join(stamps, f"stamp-{timer}.timer"))
+        except FileNotFoundError:
+            pass
 
 
 def uninstall(ctx, host_account=True):
@@ -66,9 +86,7 @@ def uninstall(ctx, host_account=True):
         for line in remove_host_account(ctx.config_dir, v, lambda: ctx.secrets):
             (warn if "NOT removed" in line else ok)(line)    # one the DC refused is a warning, not a tick
     info("stopping and removing services")
-    for timer in ("fabric-directory-sync", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists", "fabric-dns-log",
-                  "fabric-machines", "fabric-host-managed", "fabric-grants", "fabric-local-admin"):
-        subprocess.run(["systemctl", "disable", "--now", f"{timer}.timer"], capture_output=True)
+    _stop_timers()
     for unit in UNITS:
         subprocess.run(["systemctl", "disable", "--now", unit], capture_output=True)
         for path in (f"/etc/systemd/system/{unit}.service", f"/etc/systemd/system/{unit}.timer"):
