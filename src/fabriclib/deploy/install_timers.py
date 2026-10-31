@@ -9,13 +9,18 @@ TIMERS = ["fabric-certs", "fabric-db-rotate", "fabric-machines", "fabric-host-ma
 # timers of an optional part: installed while all its flags are on, removed when one is off
 OPTIONAL = {"fabric-dns-lists": ("install_resolver",),                    # the lists, daily (manual 1.12.2.10)
             "fabric-dns-log": ("install_resolver", "install_keycloak")}  # the query log, 5 min (1.12.2.13)
+UNITS = "/etc/systemd/system"
+STAMPS = "/var/lib/systemd/timers"     # systemd's record of a Persistent= timer's last run
 
 
-def install_timers(paths, v=None):
+def install_timers(paths, v=None, units=UNITS, stamps=STAMPS, run=subprocess.run):
     """Purpose: install fabric's timers and their services and keep them enabled; an optional part's timer only
-             while every part it needs is on (removed when one is turned off).
+             while every part it needs is on (removed when one is turned off). A timer installed now (its unit not
+             there before) first loses any stamp an earlier install left (2.3.1.32 finding 17): systemd would run a
+             Persistent= timer's missed run at once, before this install's services run.
     Inputs:  paths — deploy_paths() (jinja: the templates folder); v — rendered vars (the install_* flags of
-             OPTIONAL); None: the optional timers are left as they are.
+             OPTIONAL); None: the optional timers are left as they are; units, stamps — systemd's unit and timer
+             stamp folders; run — subprocess.run (tests).
     Returns: True if a unit file changed (systemd reloaded here).
     Fails:   OSError copying or removing the files; systemctl failures are not raised (a host without systemd running,
              such as a render test, keeps the files).
@@ -27,19 +32,24 @@ def install_timers(paths, v=None):
             (on if all(v.get(f) for f in flags) else off).append(name)
     changed = False
     for name in on:
+        if not os.path.exists(os.path.join(units, f"{name}.timer")):
+            try:
+                os.remove(os.path.join(stamps, f"stamp-{name}.timer"))
+            except FileNotFoundError:
+                pass
         for kind in ("service", "timer"):
             changed |= bool(copy_if_changed(os.path.join(paths["jinja"], "systemd", f"{name}.{kind}"),
-                                            f"/etc/systemd/system/{name}.{kind}", 0o644))
+                                            os.path.join(units, f"{name}.{kind}"), 0o644))
     for name in off:
-        if os.path.exists(f"/etc/systemd/system/{name}.timer"):
-            subprocess.run(["systemctl", "disable", "--now", f"{name}.timer"], capture_output=True)
+        if os.path.exists(os.path.join(units, f"{name}.timer")):
+            run(["systemctl", "disable", "--now", f"{name}.timer"], capture_output=True)
         for kind in ("service", "timer"):
-            path = f"/etc/systemd/system/{name}.{kind}"
+            path = os.path.join(units, f"{name}.{kind}")
             if os.path.exists(path):
                 os.remove(path)
                 changed = True
     if changed:
-        subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
+        run(["systemctl", "daemon-reload"], capture_output=True)
     for name in on:
-        subprocess.run(["systemctl", "enable", "--now", f"{name}.timer"], capture_output=True)
+        run(["systemctl", "enable", "--now", f"{name}.timer"], capture_output=True)
     return changed

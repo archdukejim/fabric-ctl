@@ -76,7 +76,7 @@ docs/volume_1_description_and_architecture/1.17.4-fabricctl-lib.md	76bc845876c67
 docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	461d4f8b9439781a94ec6c9f0bad0134ec0094b2	2026-10-31	
 docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	e9b47dab12efa0833f6d3272a93548f39ba163aa	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.7-fabriclib-core.md	287e5a946064faecbdb0262ece385ff0e043036c	2026-10-08	
-docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	faa34e0470a56197cccfc57c9c83055b5c39df07	2026-10-31	
+docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	1cff5accdd374672ebb20445279816ff817f2a0c	2026-10-31	
 docs/volume_1_description_and_architecture/1.17.9-fabriclib-dhcp.md	099197164f42bcf6282b5d4dbba29c67323abc06	2026-10-29	
 docs/volume_1_description_and_architecture/1.18.1-stig-scope.md	e830c288f59acf8d6099480d1ccaec9a29736e79	2026-10-24	
 docs/volume_1_description_and_architecture/1.18.2-stig-checklist.md	083c19d85063bebcb758b6689cab17611c888168	2026-10-24	
@@ -151,7 +151,7 @@ docs/volume_2_engineering_decisions/2.1.8-webui.md	8f8dc9a2628590186985c15579ae6
 docs/volume_2_engineering_decisions/2.1.9-federation.md	cd669c8882d4f654fa2246c5cbf4604d785544fb	2026-10-31	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	ebe471271fe4c04f5c90f9210ce3f1a712f5c5d2	2026-10-31	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	78bcbf69ff999952eaecdd832421f942ab10c69c	2026-10-31	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	8d0e6dc9f88453889dccc29f981ca3ee730702f4	2026-10-29	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -177,7 +177,7 @@ docs/volume_3_installation/3.16.1-disk-encryption.md	01a470a365017a5f19e088eb544
 docs/volume_3_installation/3.2.1-requirements.md	dddb70ea81855c6560f95648a9e93c2b4187f337	2026-10-25	
 docs/volume_3_installation/3.2.2-docker-from-ubuntu.md	2d7250a68efefe0413b077ee659fa444d40a325a	2026-10-08	
 docs/volume_3_installation/3.2.3-deployed-structure.md	7e6cdc8cf16bfca41ab48a5b0e0dd7d69d0c29a2	2026-10-08	
-docs/volume_3_installation/3.2.4-reinstall-uninstall.md	4c7866d907e30e29a01edb58e1d502efb1ab7e1a	2026-10-31	
+docs/volume_3_installation/3.2.4-reinstall-uninstall.md	52a1c8a0724d9177b884b685302b90f7b921311e	2026-10-31	
 docs/volume_3_installation/3.3.1-running-setup.md	a42e72bcd1be7cc0c44235d35401f453c2325810	2026-10-25	
 docs/volume_3_installation/3.3.2-after-setup.md	35ed4792d55ba7d74779d3bcd998f561b8142509	2026-10-20	
 docs/volume_3_installation/3.3.3-setup-steps.md	06385ddf3a8844517b3d55c399a0af5bae65af77	2026-10-23	
@@ -616,7 +616,7 @@ src/fabriclib/deploy/install_openbao_config.py	8765ad111c99fb36d87b3a71392fb93a6
 src/fabriclib/deploy/install_runtime_dirs.py	9f4d48ed58930afed359b4f6d7df0cd941cdee58	2026-10-07	
 src/fabriclib/deploy/install_service_units.py	6717817a265028499c79048e5032ba822438f07f	2026-10-10	
 src/fabriclib/deploy/install_stepca_templates.py	2560c8964b2cba9f97a96b092cec349341bbccd4	2026-10-02	
-src/fabriclib/deploy/install_timers.py	84a5e0a7b61439d84f806e312afed4f680481a36	2026-10-23	
+src/fabriclib/deploy/install_timers.py	eeb13050fad7366be268c8fdcd7580262dd72131	2026-10-31	
 src/fabriclib/deploy/install_webui_files.py	5b643b0e1ad8a6e46615542262a1252fc27fb254	2026-10-02	
 src/fabriclib/deploy/load_link_vars.py	3c7d4fb83ff67dcc6eeb6f06410d512e0c2004c6	2026-10-02	
 src/fabriclib/deploy/merge_radius_clients.py	cbb1cf687ad015da02949eb2d9cc4bc0a0df5e94	2026-10-05	
@@ -1811,9 +1811,10 @@ tests/common/test_run.py	056da21f25b86e2f7844fa033bcb38dc2fc85dd7	2026-10-25
 tests/common/test_run_test.py	3628bf27758b40302c2badb0ff4f5c3f7cd103d6	2026-10-25	
 tests/consent/README.md	3b6643214e21f6e73e66306424f4aea0521f38a9	2026-10-20	
 tests/consent/run.py	ac4cf9dc6d4c8ea49ce967885d6852c2ca5a95a8	2026-10-26	
-tests/deploy/README.md	b3e91ab2c2a74020c7ccdbea997cac220c2c43a3	2026-10-29	
+tests/deploy/README.md	a5660a60441d95152b8a64402e1e0e04ca60cbaa	2026-10-31	
 tests/deploy/apply_failure_test.py	b457897aa014296e0541695fd6323247758682bf	2026-10-24	
 tests/deploy/check_service_settings_test.py	59ee0317e2dbcdf1a4cde2eb75537a8497b20acd	2026-10-20	
+tests/deploy/install_timers_test.py	ad7ca632b594b21a9bb3c64870bc67d3f4e9086e	2026-10-31	
 tests/deploy/restart_changed_test.py	87bafb24ecc1078f370627d7b0933d34b9718e7c	2026-10-29	
 tests/deploy/unit_start_wait_test.py	47851b894e18ed57c063a92620dfb4f2f08a0356	2026-10-24	
 tests/dns/README.md	be3c35a1c6c5831b596f6a0495d8f2425555d5f6	2026-10-29	
@@ -1893,7 +1894,7 @@ tests/resolver/console.py	6c0c2e3efa559e3994399667a60a8c70529c724f	2026-10-23
 tests/resolver/groups.py	5e317666ba1567ea2e4d0629061af57d292a1e4a	2026-10-25	
 tests/resolver/querylog.py	0378e80e7fa13e77534999301e31df4fea7bd779	2026-10-31	
 tests/resolver/run.py	73ed914152c7b7af09b8e0b121e422104aad32f2	2026-10-29	
-tests/run-all.sh	8fe5fd9bc3e7ceadaa35a8d53ed4f39350017656	2026-10-31	
+tests/run-all.sh	464c9d6062514e5f7157d571cd459b0c39ff88ca	2026-10-31	
 tests/samba/README.md	38fc7de5c8ecea4f25f72d9253beae9b9c0817c1	2026-10-24	
 tests/samba/dc.py	96f6d6faa621d9493cc08331a692faeeae4ff567	2026-10-25	
 tests/samba/devices.py	6ab42b2f1dfc36dacff89ba078ed5a6d5f4a3069	2026-10-25	
