@@ -46,6 +46,10 @@ services:
       INTERFACES: "127.0.0.1 {{ host_ip }} {{ ip_fabric_gateway | default('10.255.0.1') }}"
       RPC_PORTS: "{{ ad_rpc_ports }}"
       OLD_PASSWORD_MINUTES: "{{ ad_old_password_minutes }}"
+      # the Kerberos ticket policy (manual 1.6.12.9): the KDC's lifetimes, in hours, and its clock skew, in seconds
+      KDC_TICKET_HOURS: "{{ ad_kerberos_policy.ticket_hours }}"
+      KDC_RENEW_HOURS: "{{ ad_kerberos_policy.renew_days * 24 }}"
+      KDC_SKEW_SECONDS: "{{ ad_kerberos_policy.skew_minutes * 60 }}"
 {% if ad_join_server %}
       # a site's DC joins the root's domain instead of provisioning one (manual 1.9.8.4); once joined, unused
       JOIN_ROLE: "{{ 'RODC' if ad_dc_type == 'rodc' else 'DC' }}"

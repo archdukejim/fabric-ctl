@@ -1,9 +1,10 @@
-import filecmp
 import json
 import os
 import shutil
 import subprocess
 import tempfile
+
+from fabriclib.common.same_content import same_content
 
 TRUST_DIR = "/usr/local/share/ca-certificates"
 
@@ -112,7 +113,7 @@ def publish_ca_certs(certs_dir, www_dir, uid, gid, trust_prefix):
         for name in ("root-ca", "intermediate-ca") if trust_prefix else ():
             dst = os.path.join(TRUST_DIR, f"{trust_prefix}-{name}.crt")
             src = os.path.join(www_dir, f"{name}.crt")
-            if not (os.path.exists(dst) and filecmp.cmp(src, dst, shallow=False)):
+            if not (os.path.exists(dst) and same_content(src, dst)):
                 shutil.copy2(src, dst)
                 os.chmod(dst, 0o644)
                 trust_changed = True

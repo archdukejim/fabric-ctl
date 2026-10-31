@@ -18,9 +18,13 @@ seconds (`publish_zone_list.py`).
 | `zone_content_changed.py` | Rendered vs deployed zone file, ignoring the SOA serial |
 | `find_changed_zones.py` | The rendered zones whose records changed (the deploy engine installs them) |
 | `freeze_and_install.py` | Before BIND restarts: freeze a changed zone, wait for BIND's own write of its journal, then put the new file in place (manual 1.4.1.5) |
+| `set_negative_ttl.py` | A zone fabric does not render again (the DHCP subzone) given a new negative-caching TTL under the running BIND: freeze, edit the SOA, thaw (2.1.4.9) |
 | `install_zone_file.py` | Put a zone file in place with a fresh mtime and drop its stale journal; a reverse zone keeps the PTRs DHCP registered |
 | `merge_dynamic_records.py` | Kea's PTR and DHCID records from the file being replaced, merged into fabric's regenerated reverse zone (2.1.10.7) |
 | `reload_zone.py` | Swap a zone under a running BIND (freeze/thaw, or reload for static zones) until it serves the new serial |
+| `served_serial.py` | The SOA serial BIND serves for a zone now (`rndc zonestatus`) |
+| `apply_dns.py` | DNS' own Apply (2.1.8.24): everything rendered, only BIND's files and the landing page installed, `rndc reconfig` and the changed zones swapped in, health-gated |
+| `landing_cert_stale.py` | Whether the landing page's certificate still holds exactly the page's names, and what a full apply would change (2.1.8.29) |
 | `list_zones.py` | Zones with record counts (flagging hand-written reverse zones) |
 | `ptr_for_ip.py` | Reverse zone and PTR label for an address — or why it gets none (public, loopback, link-local) |
 | `reverse_zones.py` | Reverse zones + PTRs generated from all forward A/AAAA records (one per address); used by apply and the web UI |
@@ -49,3 +53,4 @@ seconds (`publish_zone_list.py`).
 | `set_acl_policy.py` | Set or clear the update policy every TSIG key in an ACL inherits (locked, audited) |
 | `run_acl_command.py` | `fabricctl acl list/add/remove/policy` (applies after a change) |
 | `common/` | Helpers shared by these files |
+| `changed_names.py` | The names whose records an apply or Sync now is about to change, so the filtering resolver forgets them (2.1.10.46) |

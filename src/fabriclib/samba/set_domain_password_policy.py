@@ -1,3 +1,4 @@
+from fabriclib.access.check_access import check_access
 from fabriclib.common.load_vars import load_vars
 from fabriclib.common.save_vars import save_vars
 from fabriclib.common.vars_lock import vars_lock
@@ -5,15 +6,18 @@ from fabriclib.common.write_audit import write_audit
 from fabriclib.deploy.check_samba_settings import check_samba_settings
 
 
-def set_domain_password_policy(actor, changes, source="cli"):
+def set_domain_password_policy(actor, changes, source="cli", caller=None, container="samba"):
     """Purpose: change the domain's password policy (2.1.6.13: the admin's; manual 1.6.3.8). The whole policy is checked
              again; the next apply writes it into the domain.
     Inputs:  actor — str, who asks (audit); changes — dict of policy keys to new values (minimum_length, complexity,
              history, minimum_age_days, maximum_age_days, lockout_threshold, lockout_minutes, lockout_window_minutes);
-             source — "cli" (default) or "web". Reads and writes vars.yaml under vars_lock.
+             source — "cli" (default) or "web"; caller — the signed-in person's user name (fabric-agent's check: a
+             Directory Administrator, 2.1.6.71), or None (root); container — the DC's container (the check).
+             Reads and writes vars.yaml under vars_lock.
     Returns: dict, the saved policy.
-    Fails:   ValidationError from check_samba_settings (a key unknown, out of range,
-             or the policy inconsistent); OSError or yaml.YAMLError from the vars file or the audit log.
+    Fails:   ValidationError from check_samba_settings (a key unknown, out of range, or the policy inconsistent: said
+             first), then check_access ("only a Directory Administrator may do this", the DC not running): nothing
+             saved; OSError or yaml.YAMLError from the vars file or the audit log.
     Feeds:   run_domain_command (password-policy); agent/post_domain (POST /v1/domain/password-policy, the
              console's Domain section, domain:admin)."""
     with vars_lock():
@@ -24,6 +28,7 @@ def set_domain_password_policy(actor, changes, source="cli"):
         check_samba_settings({"ad_rpc_ports": "49152-49251", "ad_old_password_minutes": 0, **data, "ad_domain": ad,
                               "ad_netbios": str(data.get("ad_netbios") or ad.split(".")[0])[:15].upper(),
                               "ad_password_policy": policy})
+        check_access(data, caller, "domain:admin", {}, container)
         data["ad_password_policy"] = policy
         save_vars(data)
     write_audit(actor, "AD_PASSWORD_POLICY", " ".join(f"{k}={v}" for k, v in sorted(changes.items())), source)

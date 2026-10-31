@@ -18,8 +18,8 @@ def dnslog_psql(sql, variables=None, as_admin=False, db=DB, timeout=300):
     Returns: psql's output (str).
     Fails:   ValidationError when psql fails (the last line of its error) or Postgres is not running; OSError without
              docker; subprocess.TimeoutExpired.
-    Feeds:   dns_filter/ensure_dnslog_db, dns_filter/ingest_dns_log, dns_filter/read_query_log,
-             dns_filter/dns_filter_stats."""
+    Feeds:   dns_filter/ensure_dnslog_db, dns_filter/ingest_dns_log, dns_filter/common/read_dnslog (the reads of
+             dns_filter/read_query_log and dns_filter/dns_filter_stats)."""
     args = ["docker", "exec", "-i", CONTAINER, "psql", "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1",
             "-U", ADMIN if as_admin else ROLE, "-d", db]
     for name, value in (variables or {}).items():

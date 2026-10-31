@@ -67,5 +67,45 @@ done, err = run({"nginx", "chrony"}, inactive={"chrony"})
 check("negative: a host service not active after its restart is refused the same way",
       done == ["nginx", "chrony"] and err and "chrony did not come back healthy" in err, (done, err))
 
+
+
+def finish(names, flush_result):
+    """restart_changed on a running install where only zones changed: docker, systemd and the resolver's flush stood
+    in for. Returns (what the flush was asked, the printed output)."""
+    import contextlib
+    import io
+    asked = []
+
+    def sysrun(cmd, **kw):
+        out = "bind9\nbind9-resolver\n" if cmd[:2] == ["docker", "ps"] else ""
+        return subprocess.CompletedProcess(cmd, 0, out, "")
+
+    real_run, real_flush, real_reload = rc.subprocess.run, rc.flush_published_names, rc.reload_zone
+    rc.subprocess.run = sysrun
+    rc.flush_published_names = lambda v, changed: asked.append(changed) or flush_result
+    rc.reload_zone = lambda *a: None
+    state = {"restart": set(), "rebuild": set(), "daemon_reload": False, "bind9_config": False,
+             "zones": [("lan.test", "/r/db.lan.test", "/d/db.lan.test")], "nginx": False, "webui": False,
+             "agent": False, "federation_unit": False, "names": names}
+    out = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(out):
+            rc.restart_changed({"base": "/x"}, {"install_resolver": True}, {}, state, (600, 600))
+    finally:
+        rc.subprocess.run, rc.flush_published_names, rc.reload_zone = real_run, real_flush, real_reload
+    return asked, out.getvalue()
+
+
+changed = {"names": ["late.lan.test."], "trees": []}
+asked, out = finish(changed, {"flushed": 1, "error": None})
+check("positive: once BIND serves the changed zone the filtering resolver forgets the changed names (2.1.4.9), and "
+      "the apply says how many", asked == [changed] and "1 published name(s) flushed" in out, (asked, out))
+asked, out = finish(changed, {"flushed": 0, "error": "the filtering resolver did not forget late.lan.test (x)"})
+check("negative: a flush that fails is a warning, the apply goes on to its end",
+      "Warning: the filtering resolver did not forget late.lan.test" in out and "Deployment complete." in out, out)
+asked, out = finish({"names": [], "trees": []}, {"flushed": 0, "error": None})
+check("no name changed: nothing flushed, nothing said (flush_published_names asks rndc nothing then)",
+      "flushed" not in out and "Warning" not in out, (asked, out))
+
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

@@ -4,18 +4,10 @@
 --text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
-header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;padding:12px max(16px,calc((100% - 1100px)/2 + 16px));border-bottom:1px solid var(--border);background:var(--surface)}
-.brand{font-weight:600;color:var(--text);text-decoration:none}.brand .subtitle{font-weight:400;color:var(--muted);font-size:.85em;margin-left:.35em}
-.who{display:flex;gap:12px;align-items:center;color:var(--muted);margin:0}.who form{margin:0}
-.tabs{display:flex;gap:4px;overflow-x:auto;padding:0 16px;justify-content:safe center;border-bottom:1px solid var(--border);background:var(--surface);scrollbar-width:thin}
-.tab{flex:none;padding:10px 12px;color:var(--muted);text-decoration:none;border-bottom:2px solid transparent;white-space:nowrap}
-.tab:hover{color:var(--text)}.tab.active{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
 .opt{margin-left:6px;font-size:11px;padding:0 6px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-weight:400}
 .subtabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
 .subtab{padding:4px 12px;border:1px solid var(--border);border-radius:999px;text-decoration:none;color:var(--text);background:var(--surface)}
 .subtab.active{border-color:var(--accent);color:var(--accent)}
-main{max-width:1100px;margin:0 auto;padding:16px}
-footer{max-width:1100px;margin:0 auto;padding:16px;color:var(--muted);font-size:13px}
 h1{font-size:22px;margin:8px 0 12px}h2{font-size:16px;margin:0 0 12px}
 a{color:var(--accent)}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin:0 0 16px;overflow-x:auto;overflow-y:hidden}
@@ -89,3 +81,74 @@ table.hours td{padding:3px 8px}
    these rules and shows every field (the server checks each type's own) */
 form.record:not(:has(option[value="MX"]:checked)):not(:has(option[value="SRV"]:checked)) .f-prio{display:none}
 form.record:not(:has(option[value="SRV"]:checked)) .f-srv{display:none}
+/* the frame (manual 1.8.6.2): a bar across the top, the navigation down the left, as Cockpit lays it out (its layout
+   ideas only, none of its CSS); under 768 px the navigation folds behind the Menu button, a checkbox: no script */
+.topbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--surface)}
+.brand{font-weight:700;color:var(--text);text-decoration:none}
+.install{color:var(--text)}.version{font-size:13px}
+.spacer{flex:1}
+.navtoggle{position:absolute;opacity:0;width:1px;height:1px;margin:0}
+label.navbutton{display:none;flex-direction:row;padding:4px 12px;border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-size:15px}
+.navtoggle:focus-visible~.topbar .navbutton{outline:2px solid var(--accent)}
+.usermenu{position:relative;margin:0}.usermenu summary{color:var(--text);list-style:none}
+.usermenu summary::after{content:" ▾";color:var(--muted)}
+.usermenu .menu{position:absolute;right:0;top:calc(100% + 6px);z-index:10;min-width:160px;display:flex;flex-direction:column;gap:8px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
+.usermenu .menu form{margin:0}
+/* the site selector (1.8.6.12): this site's name as a menu beside the host's; the federation's tree nested inside */
+.sitepick{position:relative;margin:0}.sitepick summary{color:var(--text);list-style:none;font-weight:600;cursor:pointer}
+.sitepick summary::after{content:" ▾";color:var(--muted);font-weight:400}
+.sitepick .menu{position:absolute;left:0;top:calc(100% + 6px);z-index:10;min-width:220px;max-width:calc(100vw - 32px);max-height:70vh;overflow:auto;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
+.sitepick ul{list-style:none;margin:0;padding:0}.sitepick ul ul{padding-left:18px;border-left:1px solid var(--border);margin-left:4px}
+.sitepick li{padding:4px 0}.sitepick li .light{margin-right:6px}.sitepick .muted{font-size:13px}
+.frame{display:flex;align-items:stretch;min-height:calc(100vh - 50px)}
+.side{flex:none;width:220px;background:var(--surface);border-right:1px solid var(--border);padding:8px 0}
+.side ul{list-style:none;margin:0;padding:0}
+.side a{display:block;padding:8px 16px;color:var(--text);text-decoration:none}
+.side a:hover{background:var(--bg)}
+.side .entry.open>a{font-weight:600}
+.side .pages a{padding:6px 16px 6px 28px;color:var(--muted);border-left:3px solid transparent}
+.side .pages a.active,.side .entry.open>a[aria-current]{color:var(--text);background:var(--bg);border-left:3px solid var(--accent)}
+.count{display:inline-block;min-width:18px;padding:0 6px;border-radius:999px;background:var(--warn);color:var(--surface);font-size:12px;font-weight:600;text-align:center}
+main{flex:1;min-width:0;max-width:1100px;padding:16px}
+main.bare{max-width:1100px;margin:0 auto}
+@media (max-width:767px){
+label.navbutton{display:inline-flex}
+.topbar{position:relative}.sitepick{position:static}.sitepick .menu{left:8px;right:8px;top:100%;min-width:0;max-width:none}
+.frame{flex-direction:column}
+.side{display:none;width:100%;border-right:0;border-bottom:1px solid var(--border)}
+.navtoggle:checked~.frame .side{display:block}
+.install,.version{font-size:13px}
+}
+/* the page pattern (manual 1.8.6.3): the actions bar, empty states, a detail page's facts, a status with its label */
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 16px}
+.actions form{margin:0}
+.empty{padding:16px;border:1px dashed var(--border);border-radius:8px;color:var(--muted);text-align:center;margin:0 0 12px}
+.empty p{margin:0 0 8px}
+.facts dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:0}
+.facts dt{color:var(--muted);font-size:13px}.facts dd{margin:0;overflow-wrap:anywhere}
+.status{white-space:nowrap}
+/* under 768 px a list is a stack of cards, each row one card and each cell its column's name and value; the section
+   bars wrap; long names and code break: nothing on a page scrolls sideways (1.8.6.9) */
+@media (max-width:767px){
+main table:not(.hours),main table:not(.hours)>tbody,main table:not(.hours)>tbody>tr,main table:not(.hours)>tbody>tr>td{display:block;width:auto}
+main table:not(.hours)>thead{display:none}
+main table:not(.hours)>tbody>tr{border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin:0 0 8px}
+main table:not(.hours)>tbody>tr>td{border:0;padding:3px 0;text-align:left;overflow-wrap:anywhere}
+main table:not(.hours)>tbody>tr>td[data-label]::before{content:attr(data-label);display:block;color:var(--muted);font-size:12px}
+main table:not(.hours) td:has(>form){white-space:normal}
+main td form{flex-wrap:wrap}
+.card{overflow-x:visible}
+.sections{flex-wrap:wrap;overflow-x:visible}
+.section{flex:0 1 auto}
+code,.fp,a{overflow-wrap:anywhere}
+pre{overflow-wrap:anywhere}
+input,select,textarea{max-width:100%}
+.kv,.facts dl{grid-template-columns:1fr}
+}
+/* Apply per page (manual 1.8.6.5): the top bar's pending changes, the Review page's changes and queue */
+.pendingbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:4px 8px;border:1px solid var(--warn);border-radius:6px}
+.pendingbar form{margin:0}
+.change-old{color:var(--muted);text-decoration:line-through}.change-new{font-weight:600}
+.qstate{white-space:nowrap}
+.qstate.qwhy{white-space:pre-wrap;word-break:break-word}   /* a row with why: a failed apply's last lines, as printed (2.1.8.31) */
+.pager{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:12px}

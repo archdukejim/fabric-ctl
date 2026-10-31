@@ -4,12 +4,14 @@ import sys
 import time
 
 from fabriclib.common.ask import ask
+from fabriclib.common.console import ok, warn
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.sudo_owner import sudo_owner
 from fabriclib.setup.check_export_dir import check_export_dir
 from fabriclib.setup.context import SetupContext
 from fabriclib.setup.export_install import export_install
 from fabriclib.setup.uninstall import uninstall
+from fabriclib.undo.remove_host_account import remove_host_account
 from fabriclib.undo.uninstall_plan import uninstall_plan
 
 USAGE = """usage: fabricctl uninstall                      asks: export first? where? remove the package too?
@@ -48,8 +50,10 @@ def _show_plan():
 
 def run_uninstall_command(args, deploy_base):
     """Purpose: `fabricctl uninstall`: offer to export all of fabric's data to a folder you choose, remove
-             fabric, and optionally the fabricctl package too. What happens to each host change fabric made is listed
-             first (undo/uninstall_plan); every question is asked before anything is touched.
+             fabric, and optionally the fabricctl package too. With an export, the host's own computer account
+             (1.6.11.8) is removed before the export stops the stack, since it needs OpenBao and the DC. What
+             happens to each host change fabric made is listed first (undo/uninstall_plan); every question is asked
+             before anything is touched.
     Inputs:  args — --help/-h (the usage, nothing else), --yes/-y, --export DIR, --no-export, --purge-package;
              deploy_base — install root.
              Unattended (--yes) the export choice must be explicit. Interactive otherwise.
@@ -88,8 +92,12 @@ def run_uninstall_command(args, deploy_base):
                 print("nothing changed")
                 return 1
         if export:
-            export_install(ctx, check_export_dir(ctx, export))
-        uninstall(ctx)
+            dest = check_export_dir(ctx, export)
+            # the export stops the stack; the host's computer account needs OpenBao and the DC, so it goes first
+            for line in remove_host_account(ctx.config_dir, ctx.vars, lambda: ctx.secrets):
+                (warn if "NOT removed" in line else ok)(line)
+            export_install(ctx, dest)
+        uninstall(ctx, host_account=not export)
     except ValidationError as exc:
         print(f"error: {exc}\n{USAGE}", file=sys.stderr)
         return 1

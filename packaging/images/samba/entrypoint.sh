@@ -9,7 +9,7 @@
 # a join's credentials (/run/secrets/join.auth).
 #
 # env: REALM, NETBIOS, HOST_NAME (short), HOST_IP, INTERFACES, RPC_PORTS,
-#      OLD_PASSWORD_MINUTES; optional JOIN_ROLE (DC|RODC), JOIN_SERVER, JOIN_SITE (its AD site),
+#      OLD_PASSWORD_MINUTES, KDC_TICKET_HOURS, KDC_RENEW_HOURS, KDC_SKEW_SECONDS; optional JOIN_ROLE (DC|RODC), JOIN_SERVER, JOIN_SITE (its AD site),
 #      SAMBA_DEBUG
 # -----------------------------------------------------------------------
 set -euo pipefail
@@ -46,9 +46,12 @@ elif [ -n "${JOIN_ROLE:-}" ]; then
     echo "joining ${REALM,,} as $JOIN_ROLE through $JOIN_SERVER"
     clear_data
     mkdir -p "$DATA/etc"
+    # the join registers the DC's name at every address of its interfaces: the LAN's alone here, never fabric_net's
+    # gateway (2.1.2.15; a joined DC named it too, and the other DCs replicated to their own gateway: 2.3.1.32); the
+    # gateway is added to the interfaces below, once joined
     samba-tool domain join "${REALM,,}" "$JOIN_ROLE" --server="$JOIN_SERVER" -A /run/secrets/join.auth \
         --targetdir="$DATA" --dns-backend=BIND9_DLZ --option="netbios name = $HOST_NAME" ${JOIN_SITE:+--site="$JOIN_SITE"} "${OPTS[@]}" \
-        --option="interfaces = $INTERFACES" --option="bind interfaces only = yes" \
+        --option="interfaces = 127.0.0.1 $HOST_IP" --option="bind interfaces only = yes" \
         > /tmp/join.log 2>&1 || { show_log /tmp/join.log; exit 1; }
     rm -f /tmp/join.log
     touch "$DONE"
@@ -94,6 +97,10 @@ set_global "rpc server dynamic port range" "$RPC_PORTS"
 # PEAP-MSCHAPv2 (802.1X): Samba refuses MS-CHAPv2 by default
 set_global "ntlm auth" "mschapv2-and-ntlmv2-only"
 set_global "old password allowed period" "$OLD_PASSWORD_MINUTES"
+# the Kerberos ticket policy (manual 1.6.12.9): the KDC's lifetimes, in hours (AD's defaults when not given)
+set_global "kdc:user ticket lifetime" "${KDC_TICKET_HOURS:-10}"
+set_global "kdc:service ticket lifetime" "${KDC_TICKET_HOURS:-10}"
+set_global "kdc:renewal lifetime" "${KDC_RENEW_HOURS:-168}"
 set_global "acl_xattr:security_acl_name" "user.NTACL"
 # LDAPS with fabric's Step-CA certificate (2.1.5.3); Samba's own CA stays off
 set_global "tls enabled" "yes"
@@ -127,6 +134,23 @@ set_share netlogon browseable no
         sleep 300
     done
 ) &
+
+# Purpose: the clock skew the KDC allows (manual 1.6.12.9), in the krb5.conf the DC's Kerberos reads (KRB5_CONFIG):
+#          `clockskew` in [libdefaults], replaced if present, added if not.
+# Inputs:  $1 — seconds. Changes $KRB5_CONFIG (made with [libdefaults] when provisioning left none).
+# Returns: 0.
+# Fails:   under set -e if sed fails.
+# Feeds:   the line below.
+set_clockskew() {
+    [ -f "$KRB5_CONFIG" ] || printf '[libdefaults]\n' > "$KRB5_CONFIG"
+    grep -q '^\[libdefaults\]' "$KRB5_CONFIG" || printf '[libdefaults]\n' >> "$KRB5_CONFIG"
+    if grep -qE '^\s*clockskew\s*=' "$KRB5_CONFIG"; then
+        sed -i -E "s|^\s*clockskew\s*=.*|\tclockskew = $1|" "$KRB5_CONFIG"
+    else
+        sed -i "/^\[libdefaults\]/a\\	clockskew = $1" "$KRB5_CONFIG"
+    fi
+}
+set_clockskew "${KDC_SKEW_SECONDS:-300}"
 
 # runtime sockets live on /run (a tmpfs, or the host's folders for winbind and ntp_signd)
 mkdir -p /run/samba/ntp_signd && chmod 750 /run/samba/ntp_signd

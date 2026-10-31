@@ -8,7 +8,7 @@ from fabriclib.directory.constants import DEVICE_NAME_RE
 
 
 def add_device(v, actor, name, fields, source="web"):
-    """Purpose: Add a device in this site's OU=devices (manual 1.6.3.4), naming its roles on the device
+    """Purpose: Add a device in the domain's OU=devices (manual 1.6.13.2), naming its roles on the device
              (fabricRoleName).
     Inputs:  v — fabric vars; actor — str, for the audit; name — host-name label (stripped, lower-cased,
              DEVICE_NAME_RE); fields — {type, macs, owner (username), description, enabled (default True),

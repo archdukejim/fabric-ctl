@@ -18,14 +18,17 @@ import tempfile
 from contextlib import redirect_stdout
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(REPO, "src"))
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
 from fabriclib.images.constants import STATE  # noqa: E402
 from fabriclib.images.run_images_command import _prune, run_images_command  # noqa: E402
 from fabriclib.setup.context import SetupContext  # noqa: E402
 
 CLI = os.path.join(REPO, "src", "fabriclib", "cli.py")
-OLD, USED, OTHER = "fabric-test/prune-old:1", "fabric-test/prune-used:1", "fabric-test/prune-other:1"
-CONTAINER = "fabric-test-prune-used"
+# this run's own repositories and container (manual 3.1.2.6): another run's prune never sees them
+REPOS = {n: testrun.name(f"fabric-test/prune-{n}") for n in ("old", "used", "other")}
+OLD, USED, OTHER = (REPOS[n] + ":1" for n in ("old", "used", "other"))
+CONTAINER = testrun.name("fabric-test-prune-used")
 PASS = FAIL = 0
 
 
@@ -67,7 +70,7 @@ def quiet(fn, *args):
 
 
 def cleanup():
-    subprocess.run(["docker", "rm", "-f", CONTAINER], capture_output=True)
+    testrun.remove("container", CONTAINER)      # this run's only
     for ref in (OLD, USED, OTHER):
         subprocess.run(["docker", "image", "rm", "-f", ref], capture_output=True)
 
@@ -108,11 +111,11 @@ cleanup()
 try:
     os.makedirs(os.path.join(work, "fabric"))
     with open(os.path.join(work, "fabric", "images.lock.yaml"), "w") as f:
-        f.write("images:\n" + "".join(f"  prune-{n}: {{var: image_test_{n}, repo: fabric-test/prune-{n}, tag: '0', "
+        f.write("images:\n" + "".join(f"  prune-{n}: {{var: image_test_{n}, repo: {REPOS[n]}, tag: '0', "
                                       f"digest: 'sha256:{'0' * 64}'}}\n" for n in ("old", "used")))
     for ref in (OLD, USED, OTHER):
         make_image(ref)
-    subprocess.run(["docker", "create", "--name", CONTAINER, USED, "/f"], capture_output=True, check=True)
+    subprocess.run(["docker", "create", "--name", CONTAINER, *testrun.labels(), USED, "/f"], capture_output=True, check=True)
     ctx = SetupContext(deploy_base=work)
 
     res = fabricctl("prune", "--all")

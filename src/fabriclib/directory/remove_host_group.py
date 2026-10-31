@@ -7,11 +7,11 @@ from fabriclib.secrets.load_secrets import load_secrets
 def remove_host_group(v, actor, name, source="cli", secrets=None, container="samba"):
     """Purpose: delete one of this site's host groups (manual 1.6.11.7); its machines stay as they are. Refused while a
              sudo rule of fabric's names it.
-    Inputs:  v — fabric vars (site_name); actor — str, for the audit; name — the short name (or the AD name);
+    Inputs:  v — fabric vars; actor — str, for the audit; name — the short name (or the AD name);
              source — audit source; secrets — fabric's secrets (default: load_secrets()); container — the DC's
              container.
     Returns: {"name": the AD name}.
-    Fails:   ValidationError "host group: …", "no host group … in site …", "host group … is named by sudo rule(s) …:
+    Fails:   ValidationError "host group: …", "no host group …", "host group … is named by sudo rule(s) …:
              remove them first", the directory's refusals (run_op), load_secrets' errors.
     Feeds:   agent route POST /v1/host-groups/<name>/delete (machines:admin); directory/run_machines_command.
     Notes:   audited as HOST_GROUP_REMOVE."""

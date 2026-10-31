@@ -11,7 +11,9 @@ def mounted_stick(v, fs_path, name, writable=False):
     Inputs:  v — vars: openbao_runtime_dir (the mount point is its sibling usb-<name>, a RAM path, made 0700);
              fs_path — device node holding the file system; name — the slot id, used in the mount point's name;
              writable — mount read-write (default read-only). Always nosuid,nodev,noexec. Needs root.
-    Returns: yields the mount point (str); afterwards it syncs, unmounts and removes the folder.
+    Returns: yields the mount point (str); afterwards it flushes the stick's file system alone (`sync -f`: a plain
+             `sync` waits on every file system the host has, and hung on one in the tests, 2.3.1.30), unmounts it and
+             removes the folder.
     Fails:   ValidationError "cannot mount" when mount fails; OSError if the mount point cannot be made.
              Unmount and rmdir failures are ignored (the folder then stays).
     Feeds:   slots/usb wrap, unwrap and forget.
@@ -25,7 +27,7 @@ def mounted_stick(v, fs_path, name, writable=False):
     try:
         yield point
     finally:
-        subprocess.run(["sync"], capture_output=True)
+        subprocess.run(["sync", "-f", point], capture_output=True)      # this file system only
         subprocess.run(["umount", point], capture_output=True)
         try:
             os.rmdir(point)

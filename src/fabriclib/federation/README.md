@@ -11,6 +11,7 @@ their own local network (design [1.9.1](../../../docs/volume_1_description_and_a
 | `revoke_invitation.py` | Upstream: withdraw an open invitation (audited) |
 | `accept_join.py` | Upstream: an invited site joins — check the invitation, sign the site's CA with the root key, record the site |
 | `decode_invitation.py` | Joining node: read and check an invitation (no network) |
+| `upstream_version_problem.py` | Joining node: an invitation from an upstream older than 0.8.0 (or naming no version) refused (2.1.6.65) |
 | `join_upstream.py` | Joining node: make the site CA request, pin the upstream's root, join over verified TLS, stage the CA, record the upstream |
 | `relay_join.py` | On a relay node: pass a join that names it (`via`) on to its upstream and return the answer unchanged |
 | `drop_relay.py` | On a site that joined through a relay: talk to the upstream directly from now on |
@@ -26,5 +27,8 @@ their own local network (design [1.9.1](../../../docs/volume_1_description_and_a
 | `show_networks.py` | `fabricctl federation networks`: the plan and its overlaps |
 | `run_federation_command.py` | `fabricctl federation status / enable / disable / invite / invitations / revoke / networks` |
 | `common/` | Helpers shared by the operations above (see its README) |
-| `next_id_block.py` | The uid/gid block a new site gets at its join: the next after every block handed out |
 | `federation_overview.py` | The Federation tab: sites, replication, conflicts, limits, the address plan |
+| `site_selector.py` | The console's site selector: every site nested under its parent, its console, its health (replication and a verified-HTTPS check), kept a minute (2.1.8.30) |
+| `console_reachable.py` | Whether a site's console answers over HTTPS verified against fabric's root, in a few seconds |
+| `write_site_place.py` | One site's place (parent, console's address) on its record, as fabric-agent; a read-only DC's site at its writable DC |
+| `keep_site_place.py` | This site's own place kept on its record after every convergence |

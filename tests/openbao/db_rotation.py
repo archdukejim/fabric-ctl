@@ -26,6 +26,8 @@ import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, "src"))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
 import fabriclib.vault.rotate_db_password as rotate_mod  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
@@ -33,8 +35,8 @@ from fabriclib.setup.ensure_db_rotation import configure_db_engine  # noqa: E402
 from fabriclib.vault.common.bao_request import bao_request  # noqa: E402
 
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/dbrotation"
-NET, SUBNET, PG_IP, BAO_IP = "dbrot_net", "10.254.45.0/24", "10.254.45.70", "10.254.45.90"
-PG, BAO, HOST = "dbrot-postgres", "dbrot-bao", "vault.lan.test"
+NET, SUBNET, PG_IP, BAO_IP = testrun.name("dbrot_net"), f"{testrun.PREFIX}.45.0/24", f"{testrun.PREFIX}.45.70", f"{testrun.PREFIX}.45.90"
+PG, BAO, HOST = testrun.name("dbrot-postgres"), testrun.name("dbrot-bao"), "vault.lan.test"
 FAILED = 0
 AUDIT = []
 rotate_mod.write_audit = lambda actor, event, detail, source, path=None: AUDIT.append((event, detail, path))
@@ -54,8 +56,8 @@ def sh(cmd, ok=True, **kw):
 
 
 def cleanup():
-    sh(["docker", "rm", "-f", PG, BAO], ok=False)
-    sh(["docker", "network", "rm", NET], ok=False)
+    testrun.remove("container", PG, BAO)      # this run's only
+    testrun.remove("network", NET)
 
 
 def signs_in(user, password, tries=1):
@@ -111,13 +113,13 @@ with open(os.path.join(W, "config", "test.hcl"), "w") as f:
             '  tls_key_file = "/openbao/certs/bao.key"\n}\n')
 
 lock = read_images_lock(os.path.join(REPO, "config"))
-sh(["docker", "network", "create", "--subnet", SUBNET, NET])
+testrun.create_network(NET, SUBNET)
 P0 = "Initial-" + os.urandom(8).hex()
-sh(["docker", "run", "-d", "--name", PG, "--network", NET, "--ip", PG_IP, "--network-alias", "postgres",
+sh(["docker", "run", "-d", "--name", PG, *testrun.labels(), "--network", NET, "--ip", PG_IP, "--network-alias", "postgres",
     "-e", "POSTGRES_DB=keycloak", "-e", "POSTGRES_USER=keycloak", "-e", f"POSTGRES_PASSWORD={P0}",
     "-v", f"{W}/pgcerts:/etc/postgres/certs:ro", lock["postgres"]["ref"], "postgres", "-c", "ssl=on",
     "-c", "ssl_cert_file=/etc/postgres/certs/postgres.crt", "-c", "ssl_key_file=/etc/postgres/certs/postgres.key"])
-sh(["docker", "run", "-d", "--name", BAO, "--network", NET, "--ip", BAO_IP, "--entrypoint", "bao",
+sh(["docker", "run", "-d", "--name", BAO, *testrun.labels(), "--network", NET, "--ip", BAO_IP, "--entrypoint", "bao",
     "-v", f"{certs}:/openbao/certs:ro", "-v", f"{W}/config:/openbao/config:ro", lock["openbao"]["ref"],
     "server", "-config=/openbao/config/test.hcl"])
 v = {"ip_openbao": BAO_IP, "hostname_openbao": HOST, "openbao_ca_file": os.path.join(certs, "root_ca.crt"),
@@ -233,8 +235,8 @@ try:
     from fabriclib.setup.ensure_db_rotation import align_postgres_roles  # noqa: E402
     check("before the take-over nothing is aligned (keycloak_db_user not in the secrets)",
           align_postgres_roles({"keycloak_db_password": "x", "postgres_admin_password": "y"}, PG) is False)
-    sh(["docker", "rm", "-f", PG])
-    sh(["docker", "run", "-d", "--name", PG, "--network", NET, "--ip", PG_IP, "--network-alias", "postgres",
+    testrun.remove("container", PG)
+    sh(["docker", "run", "-d", "--name", PG, *testrun.labels(), "--network", NET, "--ip", PG_IP, "--network-alias", "postgres",
         "-e", "POSTGRES_DB=keycloak", "-e", "POSTGRES_USER=keycloak", "-e", f"POSTGRES_PASSWORD={P0}",
         "-v", f"{W}/pgcerts:/etc/postgres/certs:ro", lock["postgres"]["ref"], "postgres", "-c", "ssl=on",
         "-c", "ssl_cert_file=/etc/postgres/certs/postgres.crt", "-c", "ssl_key_file=/etc/postgres/certs/postgres.key"])

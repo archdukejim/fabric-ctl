@@ -23,8 +23,8 @@ class App:
         Fails:   KeyError for a missing required config key; ValueError from int() on bad session limits;
                  CalledProcessError from cert_subject_rfc2253. All stop the server at start.
         Feeds:   server.main, which sets it as Handler.app for every request.
-        Notes:   admin_role is only named in the 'no fabric role' refusal; access is decided by the fabric:
-                 permission roles in the token.
+        Notes:   admin_role names the admin bundle's role (webui.json); access is decided by the fabric:
+                 permission roles in the token, and a person with none sees My account only (2.1.8.11).
         """
         self.cfg = cfg
         kc = cfg["keycloak"]

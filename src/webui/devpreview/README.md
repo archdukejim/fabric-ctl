@@ -1,20 +1,27 @@
 # src/webui/devpreview
 
-The dev preview (`devserver.py`): the real pages over in-memory sample data; no sign-in, nothing saved. Never part of the production server.
+The dev preview (`devserver.py`): the production routes and pages over in-memory sample data, every agent call answered in the process by a fake agent; no sign-in, nothing saved. Never part of the production server.
 
 | File | What |
 |---|---|
-| `dev_get_page.py` | Render the real pages (src/webui/views) with sample or in-memory data: /, /bind9, /stepca, /openbao, /directory, /kea, /dns-filter, /freeradius, /audit, /static/app.css, and /preview/denied (what a refused sign-in looks like). No sign-in, no client certificate, no fabric-agent. |
-| `dev_handler.py` | One dev-preview request: the real pages over in-memory sample data; no sign-in, nothing saved. |
-| `dev_post_action.py` | Act out every form post in memory only (DNS records, TSIG keys, apply, PKI, vault, devices, roles, people, DHCP reservations, subnets, options and classes, RADIUS clients and groups) and show the same result page or redirect as production. Nothing is saved, signed or applied; secrets and passwords shown are fake or throwaway. |
-| `dev_post_directory.py` | People, devices and roles acted out in memory, with the real fabriclib rules when available. |
-| `dev_post_dns.py` | TSIG keys, zones and zone records acted out in memory (secrets are fresh random throwaways). |
-| `dev_post_dns_filter.py` | The DNS filter tab's changes (lists, rules, upstreams) on the sample data |
-| `dev_post_dhcp.py` | The Kea tab's changes (reservations, subnets, options, classes) on the sample data |
-| `dev_post_network.py` | RADIUS groups and clients, acted out on the sample data in memory. |
+| `dev_handler.py` | One dev-preview request through the production routes (src/webui/routes) and pages, over in-memory sample data; no sign-in, no certificate, nothing saved. |
 | `dev_state.py` | In-memory sample data; nothing leaves this process. |
+| `fake_connection.py` | Stands in for the agent's unix-socket connection: every agent call is answered in this process by fake_agent. |
+| `fake_agent.py` | The stand-in for fabric-agent: one /v1/ request answered from the sample data, with the agent's own permission check. |
+| `fake_reads.py` | The fake agent's reads (GET /v1/…) from the sample data, in the agent's shapes. |
+| `fake_dns.py` | The fake agent's DNS changes: zones, records, the landing page's links, TSIG keys. |
+| `fake_groups.py` | The fake agent's groups: the list, a group's page, create, delete, managers, members. |
+| `fake_grants.py` | The fake agent's grants: the list, a grant's page, explain, add, change, remove. |
+| `fake_ous.py` | The fake agent's OUs: the tree, create, rename, delete, refused as the DC refuses. |
+| `fake_machines.py` | The fake agent's computers: the list, a computer's page, type, sites, folder, a keytab command. |
+| `fake_directory.py` | The fake agent's directory changes: people, 802.1X devices and roles, machines, host groups, sudo rules, the password policy, Group Policy. |
+| `fake_network.py` | The fake agent's network changes: DHCP, 802.1X, the DNS filter and its query log. |
+| `fake_misc.py` | The fake agent's other changes: Apply, events, jobs, the PKI, the vault, sign-in security, the setup wizard. |
+| `fake_pending.py` | The fake agent's Apply per page: the agent's own pending store over the sample data, its jobs done at once. |
+| `fake_account.py` | The fake agent's My account: the person's own read, managed groups, the own password. |
 | `fabric_rules.py` | fabriclib's real rules when the dev preview runs from a checkout (devserver.py puts src on the path); the webui image carries only src/webui/, so without them the preview shows sample data and skips the directory forms. |
 | `sample_data.py` | The dev preview's sample data: what a small home install looks like (nothing here is real). |
 | `sample_radius_guides.py` | The FreeRADIUS setup guides as fabric-agent fills them in, built from the sample RADIUS data and the dev preview's own throwaway CA (SAMPLE_ROOT_PEM). Sample only; nothing is read from a host. |
 | `sample_result.py` | A fake PKI result for the sign/issue/convert result page, shaped like fabric-agent's reply. |
+| `sample_settings.py` | The setup wizard's sample settings, plan and settings file |
 | `__init__.py` | Empty; makes it a package |

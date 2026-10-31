@@ -28,14 +28,19 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path[0:0] = [os.path.join(REPO, "src"), REPO, os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/fluentbit"
-NET, SUBNET, GW, IP = "fbtest_net", "10.254.21.0/24", "10.254.21.1", "10.254.21.95"
+NET, SUBNET, GW, IP = testrun.name("fbtest_net"), f"{testrun.PREFIX}.21.0/24", f"{testrun.PREFIX}.21.1", f"{testrun.PREFIX}.21.95"
 SYSLOG_PORT, ES_PORT, PW = 16514, 19200, "Es-Secret-9"
 FAILED = 0
-sys.path[0:0] = [os.path.join(REPO, "src"), REPO]
+# fluentbit is the product's name (fabric's logs commands read it): one such run at a time (manual 3.1.2.6)
+LOCK = testrun.product_names_lock("fluentbit").__enter__()
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
+from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.logs.deploy_fluentbit import deploy_fluentbit  # noqa: E402
+from fabriclib.logs.fluentbit_pending import fluentbit_pending  # noqa: E402
 from fabriclib.logs.log_status import log_status  # noqa: E402
 import fabriclib.logs.run_logs_command as m_logs  # noqa: E402
 from fabriclib.common.save_vars import save_vars  # noqa: E402
@@ -67,7 +72,8 @@ def until(pred, timeout=90):
 
 shutil.rmtree(W, ignore_errors=True)
 os.makedirs(f"{W}/stepca/data/certs")
-sh(f"docker rm -f fluentbit >/dev/null 2>&1; docker network rm {NET} >/dev/null 2>&1", ok=False)
+testrun.remove("container", "fluentbit")      # this run's only
+testrun.remove("network", NET)
 for ca in ("root", "other"):
     sh(f"openssl req -x509 -newkey rsa:2048 -nodes -keyout {ca}.key -out {ca}.crt -days 2 -subj '/CN={ca} CA' "
        "-addext basicConstraints=critical,CA:TRUE -addext keyUsage=critical,keyCertSign")
@@ -152,6 +158,24 @@ open(audit, "w").close()
 os.chown(f"{W}/openbao/logs", 913, 913)
 os.chown(audit, 913, 913)
 os.chmod(audit, 0o640)
+# a fresh install's deploy step comes before its PKI step (note 2.3.1.25.4): Fluent Bit waits for the root CA
+FRESH = {**V, "deploy_base_dir": f"{W}/fresh"}
+os.makedirs(FRESH["deploy_base_dir"])
+check("a fresh install, Step-CA not initialised yet: Fluent Bit is left for setup's start step (fluentbit_pending)",
+      fluentbit_pending(FRESH) and not fluentbit_pending({**FRESH, "install_fluentbit": False}))
+check("negative: with every destination's own ca_file nothing waits for fabric's CA",
+      not fluentbit_pending({**FRESH, "log_forwarding": {"syslog": {"ca_file": "/x.crt"},
+                                                       "elastic": {"ca_file": "/y.crt"}}}))
+os.makedirs(f"{W}/fresh/stepca/data/config")
+open(f"{W}/fresh/stepca/data/config/ca.json", "w").write("{}")
+try:
+    deploy_fluentbit(FRESH, {"log_elastic_password": PW}, env)
+    refused = ""
+except ValidationError as e:
+    refused = str(e)
+check("negative: an initialised CA whose root is missing is not waited for: the deploy is refused naming the file, "
+      "and nothing is written", not fluentbit_pending(FRESH) and "root_ca.crt not found" in refused
+      and not os.path.exists(f"{W}/fresh/fluentbit"), refused)
 check("config, CAs, credentials and buffer written; the password only in the root-only env file",
       deploy_fluentbit(V, {"log_elastic_password": PW}, env)
       and PW not in open(f"{W}/fluentbit/config/fluent-bit.yaml").read()
@@ -160,8 +184,9 @@ check("config, CAs, credentials and buffer written; the password only in the roo
 check("re-deploying unchanged files changes nothing", deploy_fluentbit(V, {"log_elastic_password": PW}, env) is False)
 compose = env.get_template("fluentbit/docker-compose.yml.j2").render(**V).replace("name: fabric_net", f"name: {NET}")
 open(f"{W}/fluentbit/docker-compose.yml", "w").write(compose)
-sh(f"docker network create --subnet {SUBNET} --gateway {GW} {NET}")
-up = sh(f"docker compose -f {W}/fluentbit/docker-compose.yml up -d", ok=False)
+COMPOSE = " ".join(testrun.compose_files(f"{W}/fluentbit/docker-compose.yml", "fluentbit"))   # labelled as this run's
+testrun.create_network(NET, SUBNET, GW)
+up = sh(f"docker compose {COMPOSE} up -d", ok=False)
 check("the pinned image starts from fabric's compose file", up.returncode == 0, up.stderr[-400:])
 
 
@@ -241,8 +266,8 @@ RESTARTS = []
 def restart_unit(cmd, **kw):
     RESTARTS.append(cmd)
     if cmd == ["systemctl", "try-restart", "fluentbit"]:
-        sh(f"docker compose -f {W}/fluentbit/docker-compose.yml rm -fsv", ok=False)
-        return sh(f"docker compose -f {W}/fluentbit/docker-compose.yml up -d", ok=False)
+        sh(f"docker compose {COMPOSE} rm -fsv", ok=False)
+        return sh(f"docker compose {COMPOSE} up -d", ok=False)
     raise AssertionError(f"unexpected command {cmd}")
 
 
@@ -343,11 +368,11 @@ check("install_fluentbit false: status says log forwarding is off; set-password 
       and len(RESTARTS) == restarts, (code, out, code2, out2, err2))
 save_vars(V, f"{W}/fabric/config/vars.yaml")
 
-sh(f"docker compose -f {W}/fluentbit/docker-compose.yml down", ok=False)
+sh(f"docker compose {COMPOSE} down", ok=False)
 code, out, err, _ = logs("status")
 # covers: cli:logs.status -
 check("logs status with Fluent Bit down: exit 1, it says Fluent Bit is not answering and why",
       code == 1 and out.startswith("Fluent Bit is not answering: ") and len(out.strip()) > 30, (code, out, err))
-sh(f"docker network rm {NET}", ok=False)
+testrun.remove("network", NET)
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

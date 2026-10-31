@@ -8,4 +8,4 @@ def person_result(ctx, uid, what, password):
     Fails:   never in practice (plain values).
     Feeds:   src/webui/routes/directory_post; devserver.
     """
-    return render_page("person_result", ctx=ctx, tab="directory", uid=uid, what=what, password=password)
+    return render_page("person_result", ctx=ctx, page="/directory/people", uid=uid, what=what, password=password)

@@ -1,7 +1,11 @@
+import os
 import subprocess
 import time
 
 from fabriclib.common.console import info, ok
+from fabriclib.common.load_vars import load_vars
+from fabriclib.common.save_vars import save_vars
+from fabriclib.common.vars_lock import vars_lock
 from fabriclib.setup.errors import SetupError
 
 QUIET = 30                       # seconds Postgres's log must stay free of refused sign-ins
@@ -79,8 +83,11 @@ def run(ctx):
     """Purpose: setup's last gate (decision 2.1.2.25): "fabric is ready" and the first steps are printed only once
              what a person reaches first answers, all at once, and Keycloak's database has settled.
     Inputs:  ctx — SetupContext (see probes).
+             Once ready, the install records it (install_was_ready, 2.1.4.10): from then on the landing page's alias
+             is the admin's record, no longer added by a render.
     Returns: None.
     Fails:   SetupError naming what did not answer within TIMEOUT s; `sudo fabricctl doctor` to look again.
+             OSError or yaml.YAMLError recording it.
     Feeds:   setup step `ready`, run by run_setup via STEPS (after verify)."""
     checks = probes(ctx)
     info(f"waiting for {len(checks)} thing(s) to answer at once (up to {TIMEOUT // 60} min)")
@@ -90,3 +97,9 @@ def run(ctx):
                          "look again with sudo fabricctl doctor)")
     for name, _ in checks:
         ok(name)
+    if not ctx.vars.get("install_was_ready", True) and os.path.exists(ctx.vars_file):
+        with vars_lock(os.path.join(ctx.config_dir, ".vars.lock")):
+            data = load_vars(ctx.vars_file)
+            data["install_was_ready"] = True
+            save_vars(data, ctx.vars_file)
+        ctx.vars["install_was_ready"] = True

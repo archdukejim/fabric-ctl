@@ -5,7 +5,8 @@ from fabriclib.secrets.load_secrets import load_secrets
 
 def read_address_plan(v, secrets=None, container="samba"):
     """Purpose: the address plan across sites, from the domain (manual 1.10.2.8, S4.2): every site's networks with
-             name, VLAN, kind and notes, as convergence wrote them in each site's OU=networks.
+             name, VLAN, kind and notes, as convergence wrote them in the domain's OU=networks (each
+             `<site>/<name>`, 1.6.13.10.10).
     Inputs:  v — fabric vars (site_name); secrets — fabric's secrets (default: load_secrets()); container — the DC's
              container (tests name their own).
     Returns: list of {"site", "name", "cidr", "vlan", "kind", "notes", "allow_overlap"}, sorted by site and

@@ -7,13 +7,13 @@ from fabriclib.directory.remove_host_group import remove_host_group
 from fabriclib.directory.set_host_group_member import set_host_group_member
 
 USAGE = """usage: fabricctl machines groups                     the site's host groups, their machines, their sudo rules
-       fabricctl machines group create <group>    a new host group, <site>-hosts-<group>
+       fabricctl machines group create <group>    a new host group, hosts-<group>
        fabricctl machines group delete <group>    remove it (refused while a sudo rule names it)
        fabricctl machines group add <group> <machine>
        fabricctl machines group remove <group> <machine>
                                                   put one of the site's machines in a host group, or take it out
-  A host group is an AD group of machines (manual 4.6.6): sudo rules name it (fabricctl sudo), and a log-on policy
-  may name it like any group. <group> is its short name (web) or its AD name (<site>-hosts-web)."""
+  A host group is an AD group of machines (manual 4.6.6): sudo rules name it (fabricctl sudo), and so may a
+  grant (manual 1.6.13.4). <group> is its short name (web) or its AD name (hosts-web)."""
 
 
 def _show(groups):

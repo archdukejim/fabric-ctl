@@ -1,10 +1,9 @@
 from fabriclib.common.ask import ask
 from fabriclib.common.console import BOLD, NC, YELLOW, heading
 from fabriclib.samba.suggested_ad_domain import suggested_ad_domain
-from fabriclib.samba.suggested_dc_name import suggested_dc_name
 from fabriclib.setup.advanced.menu_items import menu_items
 from fabriclib.setup.common.network_problem import network_problem
-from fabriclib.setup.common.valid_setting import FIRST_ADMIN, valid_setting
+from fabriclib.setup.common.valid_setting import valid_setting
 from fabriclib.setup.detect_network import detect_network
 
 SECTIONS = {"required": "Required (setup cannot proceed until each has a value):",
@@ -14,7 +13,7 @@ SECTIONS = {"required": "Required (setup cannot proceed until each has a value):
 
 def _fill_found(ctx):
     """Purpose: the values setup can find or default, filled in and marked so the menu shows them as such (1.2.9.11.3):
-             the domain home.arpa, this host's name and network as found, the first admin fabric-admin.
+             the domain home.arpa, this host's name and network as found (the first admin has no default, 2.1.6.69).
     Inputs:  ctx — SetupContext: vars (changed only where a value is missing or not valid), origins (changed).
     Returns: None.
     Fails:   never (detect_network finds what it can).
@@ -26,7 +25,7 @@ def _fill_found(ctx):
             found = detect_network() if found is None else found
             if found.get(key):
                 v[key], ctx.origins[key] = found[key], "found"
-    for key, default in (("domain", "home.arpa"), ("webui_admin_user", FIRST_ADMIN)):
+    for key, default in (("domain", "home.arpa"),):
         if not valid_setting(key, str(v.get(key) or "")):
             v[key], ctx.origins[key] = default, "default"
 
@@ -55,8 +54,9 @@ def setup_menu(ctx, networks=None):
              changes nothing. Something not on the list is refused, saying which numbers are.
     Inputs:  ctx — SetupContext: vars, origins, host_choices, admin_password (all changed by the items); networks —
              host_networks() for DHCP's questions (None: this host's). Interactive.
-    Returns: None, on Proceed: every required setting valid, the AD domain and the DC's name set (their suggestions
-             taken when none was chosen), the network's answers fitting together.
+    Returns: None, on Proceed: every required setting valid, the AD domain set (its suggestion taken when none was
+             chosen; the DC's name is fabric's, set after the menu by finish_vars, 2.1.6.65), the network's answers
+             fitting together.
     Fails:   SystemExit("setup cancelled") on Quit; EOFError from input().
     Feeds:   setup/run_setup (Advanced at the start), setup/choose_plan ([M]enu)."""
     _fill_found(ctx)
@@ -80,10 +80,6 @@ def setup_menu(ctx, networks=None):
                 continue
             if not ctx.vars.get("ad_domain"):
                 ctx.vars["ad_domain"] = suggested_ad_domain(str(ctx.vars.get("domain") or ""))
-            # the DC's name is permanent (2.1.6.45): the suggestion shown is saved, so a later host rename never
-            # moves it (the 0.7.1 candidate's install left it unset, 2.3.1.21.2)
-            if not ctx.vars.get("dc_name"):
-                ctx.vars["dc_name"] = suggested_dc_name(ctx.vars.get("hostname"))
             return
         if answer.isdigit() and 1 <= int(answer) <= len(items):
             items[int(answer) - 1]["ask"]()

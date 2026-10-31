@@ -3,8 +3,7 @@ import os
 from fabriclib.common.errors import ValidationError
 from fabriclib.vault.common.bao_request import bao_request
 from fabriclib.rbac.permissions import ADMIN_ROLE
-from fabriclib.vault.constants import (OIDC_BUNDLE_POLICIES, OIDC_CLIENT_ID, OIDC_MOUNT, OIDC_ROLE,
-                                      RETIRED_NAMES)
+from fabriclib.vault.constants import OIDC_BUNDLE_POLICIES, OIDC_CLIENT_ID, OIDC_MOUNT, OIDC_ROLE
 
 
 def _call(v, token, method, path, body=None):
@@ -78,11 +77,4 @@ def configure_oidc(v, token, client_secret):
         if alias.get("name") != bundle or alias.get("mount_accessor") != accessor:
             _call(v, token, "POST", "identity/group-alias", {"name": bundle, "mount_accessor": accessor,
                                                               "canonical_id": gid})
-    for name in RETIRED_NAMES:                    # 2.1.6.33: the sign-in role and admin group before the rename
-        if name != OIDC_ROLE and bao_request(v, "GET", f"auth/{OIDC_MOUNT}/role/{name}", token=token)[0] == 200:
-            _call(v, token, "DELETE", f"auth/{OIDC_MOUNT}/role/{name}")
-            changes.append(f"role {name} removed (renamed {OIDC_ROLE})")
-        if name not in bundles and bao_request(v, "GET", f"identity/group/name/{name}", token=token)[0] == 200:
-            _call(v, token, "DELETE", f"identity/group/name/{name}")
-            changes.append(f"group {name} removed (renamed)")
     return changes

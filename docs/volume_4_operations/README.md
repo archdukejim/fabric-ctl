@@ -39,6 +39,9 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 - [4.6.6 Joining Linux machines](4.6.6-linux-join.md)
 - [4.6.7 Joining Windows machines](4.6.7-windows-join.md)
 - [4.6.8 Group Policy from ADMX templates](4.6.8-group-policy.md)
+- [4.6.9 The administrators: break glass](4.6.9-administrators.md)
+- [4.6.10 Who may do what, where: grants](4.6.10-grants.md)
+- [4.6.11 Managing the directory: people, groups, OUs, computers, Kerberos](4.6.11-domain-management.md)
 
 ## 4.7 Secrets: OpenBao
 
@@ -46,8 +49,11 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 
 ## 4.8 The web UI
 
-- [4.8.1 Tabs and features](4.8.1-features.md)
+- [4.8.1 Pages and features](4.8.1-features.md)
 - [4.8.2 Device access](4.8.2-device-access.md)
+- [4.8.3 The setup wizard and the settings file](4.8.3-setup-wizard.md)
+- [4.8.4 Changes wait for Apply](4.8.4-apply.md)
+- [4.8.5 My account](4.8.5-my-account.md)
 
 ## 4.9 Federation
 
@@ -85,3 +91,7 @@ Nothing here yet — nothing to operate on its own: see [1.16](../volume_1_descr
 ## 4.17 The function reference
 
 Nothing here yet — nothing to operate on its own: see [1.17](../volume_1_description_and_architecture/README.md).
+
+## 4.18 STIG compliance
+
+Nothing here yet — nothing to operate until 0.11.0 builds it: see [1.18](../volume_1_description_and_architecture/README.md).

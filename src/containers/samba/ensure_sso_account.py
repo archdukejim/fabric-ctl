@@ -28,10 +28,11 @@ def _export(conf, realm, spns):
 
 
 def ensure_sso_account(samdb, lp, conf, site, spns):
-    """Purpose: the site's Kerberos sign-in account for Keycloak (manual 2.3.6.2.6.2): fabric-sso-<site> in the site's
-             OU=service-accounts, holding exactly the given HTTP SPNs, AES keys only, its password random and never
-             leaving the DC (nothing signs in with it: Keycloak only decrypts tickets with its keytab); the keytab
-             exported to /data/sso.keytab when the account, its SPNs or its key types change, or the keytab is missing.
+    """Purpose: the site's Kerberos sign-in account for Keycloak (manual 2.3.6.2.6.2): fabric-sso-<site> in the
+             domain's OU=service-accounts (1.6.13.2; one per site, as Keycloak is), holding exactly the given HTTP
+             SPNs, AES keys only, its password random and never leaving the DC (nothing signs in with it: Keycloak
+             only decrypts tickets with its keytab); the keytab exported to /data/sso.keytab when the account, its SPNs
+             or its key types change, or the keytab is missing.
     Inputs:  samdb — SamDB (system); lp — LoadParm (the realm); conf — smb.conf path (samba-tool); site — str;
              spns — list of "HTTP/<name>" ([] = no Kerberos sign-in at this site: nothing is done).
     Returns: list of str, what changed.
@@ -45,7 +46,7 @@ def ensure_sso_account(samdb, lp, conf, site, spns):
     attrs = ["userAccountControl", "servicePrincipalName", "msDS-SupportedEncryptionTypes"]
     found = samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_SUBTREE, expression=expr, attrs=attrs)
     if not found:
-        services = paths.relative(samdb, f"OU=service-accounts,{paths.site_dn(samdb, site)}")
+        services = paths.relative(samdb, paths.folder_dn(samdb, "service-accounts"))
         # a random password that meets any complexity policy; it is never stored or shown
         samdb.newuser(name, secrets.token_urlsafe(32) + "aA1!", userou=services,
                       force_password_change_at_next_login_req=False)

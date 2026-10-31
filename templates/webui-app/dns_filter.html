@@ -19,9 +19,9 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 {% macro lists_table(rows) %}
 <table class="lists"><thead><tr><th></th><th>List</th><th class="num">Rules</th><th class="num">Memory (est.)</th><th>Copy</th><th></th></tr></thead><tbody>
 {% for l in rows %}<tr><td>{{ tick(l) }}</td>
-<td><strong>{{ l.name }}</strong>{% if l.description %}<br><span class="muted small">{{ l.description }}</span>{% endif %}{% if l.homepage %} <a class="small" href="{{ l.homepage }}" rel="noopener noreferrer" target="_blank">home page</a>{% endif %}{% if l.category == 'Added by URL' %}<br><span class="muted small">{{ l.url }}</span>{% endif %}{% if l.error %}<br><span class="bad-text small">{{ l.error }}</span>{% endif %}</td>
-<td class="num">{{ l.rules or '—' }}</td><td class="num">{{ ('~' ~ l.memory_mb ~ ' MiB') if l.memory_mb is not none else '—' }}</td>
-<td>{% if l.last_success %}{{ ago(l.last_success) }}{% elif l.last_fetch %}<span class="pill warn">failed</span>{% else %}<span class="muted">not yet</span>{% endif %}</td>
+<td data-label="List"><strong>{{ l.name }}</strong>{% if l.description %}<br><span class="muted small">{{ l.description }}</span>{% endif %}{% if l.homepage %} <a class="small" href="{{ l.homepage }}" rel="noopener noreferrer" target="_blank">home page</a>{% endif %}{% if l.category == 'Added by URL' %}<br><span class="muted small">{{ l.url }}</span>{% endif %}{% if l.error %}<br><span class="bad-text small">{{ l.error }}</span>{% endif %}</td>
+<td class="num" data-label="Rules">{{ l.rules or '—' }}</td><td class="num" data-label="Memory (est.)">{{ ('~' ~ l.memory_mb ~ ' MiB') if l.memory_mb is not none else '—' }}</td>
+<td data-label="Copy">{% if l.last_success %}{{ ago(l.last_success) }}{% elif l.last_fetch %}<span class="pill warn">failed</span>{% else %}<span class="muted">not yet</span>{% endif %}</td>
 <td class="num">{% if can('dns:filter') and l.on_site and l.category == 'Added by URL' %}<form method="post" action="/dns-filter/lists/delete">{{ csrf() }}<input type="hidden" name="url" value="{{ l.url }}"><button class="ghost">Remove</button></form>{% endif %}</td></tr>{% endfor %}
 </tbody></table>
 {% endmacro %}
@@ -37,11 +37,9 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 {% endmacro %}
 {% block head %}{% if refresh %}<meta http-equiv="refresh" content="{{ refresh.seconds }};url={{ refresh.url }}">{% endif %}{% endblock %}
 {% block body %}
-<h1>DNS filter</h1>
+<h1>DNS · DNS filter</h1>
 {% if refresh %}<p class="flash warn">The first lists are still being fetched (a minute or so after setup): this page refreshes itself until every ticked list has a copy and AdGuard's catalogue is read.</p>
 {% elif stalled %}<p class="flash bad">Still no copy of every ticked list, or no catalogue, after five minutes: press <em>Fetch every list now</em> on Lists, or see <code>sudo fabricctl dns-filter status</code> on the host.</p>{% endif %}
-{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
-{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
 {% if d is not none and not d.on %}
 <section class="card"><h2>The DNS filter is off</h2>
 <p class="muted">fabric's resolver answers your network's DNS on port 53 and blocks ads, trackers and malware with AdGuard's lists, matched by AdGuard Home behind it; fabric's own names are never filtered. Turn it on in <code>vars.yaml</code> and re-run setup:</p>
@@ -55,6 +53,7 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 {% set s = d.stats %}
 {% if s.off %}<section class="card"><h2>Statistics</h2><p class="blank">No statistics: {{ s.off }}.</p></section>
 {% else %}
+<p class="muted small">As fabric last read the resolver's log, {{ ago(s.as_of) }} (every 5 minutes).</p>
 <div class="tiles">
 <div class="tile"><span class="muted">Queries, last 7 days</span><strong class="big">{{ s.week.queries }}</strong></div>
 <div class="tile"><span class="muted">Blocked, last 7 days</span><strong class="big">{{ s.week.blocked }}</strong>
@@ -68,11 +67,11 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 </tbody></table>{% else %}<p class="blank">No queries yet.</p>{% endif %}</section>
 <section class="card"><h2>Most blocked <span class="muted">last 7 days</span></h2>
 {% if s.top_blocked %}<table><thead><tr><th>Name</th><th>Blocked by</th><th class="num">Times</th></tr></thead><tbody>
-{% for t in s.top_blocked %}<tr><td><code>{{ t.name }}</code></td><td>{{ zone_label(t.zone, t.list) }}</td><td class="num">{{ t.count }}</td></tr>{% endfor %}
+{% for t in s.top_blocked %}<tr><td data-label="Name"><code>{{ t.name }}</code></td><td data-label="Blocked by">{{ zone_label(t.zone, t.list) }}</td><td class="num" data-label="Times">{{ t.count }}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">Nothing blocked yet.</p>{% endif %}</section>
 <section class="card"><h2>By list and rules <span class="muted">last 7 days</span></h2>
 {% if s.zones %}<table><thead><tr><th>List or rules</th><th class="num">Blocked</th><th class="num">Rewritten or passed</th></tr></thead><tbody>
-{% for z in s.zones %}<tr><td>{{ "fabric's own names (never filtered)" if z.zone == 'fabric.rpz' else zone_label(z.zone, z.list) }}{% if z.zone.startswith('group-') %} <span class="muted">({{ z.zone[6:-4] }})</span>{% endif %}</td><td class="num">{{ z.blocked }}</td><td class="num">{{ z.queries }}</td></tr>{% endfor %}
+{% for z in s.zones %}<tr><td data-label="List or rules">{{ "fabric's own names (never filtered)" if z.zone == 'fabric.rpz' else zone_label(z.zone, z.list) }}{% if z.zone.startswith('group-') %} <span class="muted">({{ z.zone[6:-4] }})</span>{% endif %}</td><td class="num" data-label="Blocked">{{ z.blocked }}</td><td class="num" data-label="Rewritten or passed">{{ z.queries }}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">No rewrites yet.</p>{% endif %}</section>
 {% endif %}
 {% endif %}
@@ -136,10 +135,11 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 <label class="check"><input type="checkbox" name="blocked"{{ ' checked' if search.blocked == 'on' }}> blocked only</label>
 <label>At most<select name="limit">{% for n in ['50', '200', '500'] %}<option{{ ' selected' if (search.limit or '200') == n }}>{{ n }}</option>{% endfor %}</select></label>
 <div><button>Search</button></div></form>
+{% if log and not log.off %}<p class="muted small">As fabric last read the resolver's log, {{ ago(log.as_of) }} (every 5 minutes).</p>{% endif %}
 {% if log and log.off %}<p class="blank">The query log is off: {{ log.off }}.</p>
 {% elif log %}{% if log.entries %}<table><thead><tr><th>Time (UTC)</th><th>Client</th><th>Group</th><th>Type</th><th>Name</th><th>What happened</th><th></th></tr></thead><tbody>
-{% for e in log.entries %}<tr><td class="small">{{ e.at[5:16] | replace('T', ' ') }}</td><td>{{ e.client }}</td><td class="muted">{{ e.view }}</td><td>{{ e.qtype }}</td><td><code>{{ e.name }}</code></td>
-<td>{% if e.blocked %}<span class="pill bad">blocked</span> {{ zone_label(e.zone, e.list) }}{% elif e.action == 'PASSTHRU' %}<span class="pill ok">allowed</span> {{ zone_label(e.zone, e.list) }}{% elif e.action %}<span class="pill">{{ 'rewritten' if e.action == 'Local-Data' else e.action }}</span> {{ zone_label(e.zone, e.list) }}{% else %}<span class="muted">answered</span>{% endif %}</td>
+{% for e in log.entries %}<tr><td class="small" data-label="Time (UTC)">{{ e.at[5:16] | replace('T', ' ') }}</td><td data-label="Client">{{ e.client }}</td><td class="muted" data-label="Group">{{ e.view }}</td><td data-label="Type">{{ e.qtype }}</td><td data-label="Name"><code>{{ e.name }}</code></td>
+<td data-label="What happened">{% if e.blocked %}<span class="pill bad">blocked</span> {{ zone_label(e.zone, e.list) }}{% elif e.action == 'PASSTHRU' %}<span class="pill ok">allowed</span> {{ zone_label(e.zone, e.list) }}{% elif e.action %}<span class="pill">{{ 'rewritten' if e.action == 'Local-Data' else e.action }}</span> {{ zone_label(e.zone, e.list) }}{% else %}<span class="muted">answered</span>{% endif %}</td>
 <td class="num">{% if e.blocked %}{{ rule_button('allow', e.name, 'Allow', e.view) }}{% elif e.zone != 'fabric.rpz' %}{{ rule_button('block', e.name, 'Block', e.view) }}{% endif %}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">No queries match.</p>{% endif %}{% endif %}
 </section>
@@ -153,7 +153,7 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 <section class="card"><h2>Internet lookups</h2>
 <p class="muted">AdGuard Home sends them over DNS-over-TLS, each upstream's certificate checked against its name. At least one.</p>
 {% if d.upstreams %}<table><thead><tr><th>Address</th><th>Certificate name</th></tr></thead><tbody>
-{% for u in d.upstreams %}<tr><td>{{ u.address }}</td><td><code>{{ u.name }}</code></td></tr>{% endfor %}</tbody></table>
+{% for u in d.upstreams %}<tr><td data-label="Address">{{ u.address }}</td><td data-label="Certificate name"><code>{{ u.name }}</code></td></tr>{% endfor %}</tbody></table>
 {% endif %}
 {% if can('dns:filter') %}<form method="post" action="/dns-filter/upstreams" class="stack">{{ csrf() }}
 <label>Upstreams, one per line: address and certificate name<textarea name="upstreams" rows="3" required placeholder="1.1.1.1 cloudflare-dns.com&#10;1.0.0.1 cloudflare-dns.com">{% for u in d.upstreams %}{{ u.address }} {{ u.name }}

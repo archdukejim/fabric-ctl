@@ -10,30 +10,45 @@
 # Plans memory for 4 GB (host_ram_capacity=4), the smallest host, so the tightest limits are exercised.
 # Needs root, Docker with compose v2, python3 (yaml, jinja2), openssl, curl.
 # Creates and removes the docker network fabric_net — do not run on a host
-# that runs a live fabric stack.
+# that runs a live fabric stack. The containers keep the product's names, so
+# it holds the machine-wide product-names lock, labels what it starts as this
+# run's and removes only that (manual 3.1.2.6).
 # -----------------------------------------------------------------------
 set -uo pipefail
 exec 9>/tmp/fabric-hardening-suite.lock
 flock -n 9 || { echo "another hardening run is active; refusing to start" >&2; exit 2; }
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
+TR=(python3 "$REPO/tests/common/test_run.py")
+NAMES_LOCK=/tmp/fabric-tests-product-names.lock
+exec 8>>"$NAMES_LOCK"
+if ! flock -n 8; then
+    echo "    waiting: another run holds fabric's container names ($(cat "$NAMES_LOCK"))"
+    flock -w 7200 8 || { echo "refused: another run held fabric's container names for 7200 s" >&2; exit 2; }
+fi
+echo "hardening of run $("${TR[@]}" id) ($REPO), pid $$" > "$NAMES_LOCK"
 OUT="${FABRIC_TEST_OUT:-/tmp/fabric-tests}"
 W="$OUT/hardening"
 BASE="$W/opt"
-DOMAIN=lan.j-j.family
+DOMAIN=test.lan.j-j.family
 PASS=0; FAIL=0
 check() { if eval "$2"; then echo "PASS $1"; PASS=$((PASS+1)); else echo "FAIL $1"; FAIL=$((FAIL+1)); fi; }
 
+declare -A SERVICE=([openbao]=openbao [keycloak]=keycloak [postgres]=postgres [stepca]=step-ca [bind9]=bind9)
+cf() {   # cf <dir>: the compose file and the override that labels its service as this run's
+    echo "-f $W/rendered/$1/docker-compose.yml -f $W/rendered/$1/test-run.override.yml"
+}
 down_all() {
     for s in openbao keycloak postgres stepca bind9; do
-        [ -f "$W/rendered/$s/docker-compose.yml" ] && docker compose -f "$W/rendered/$s/docker-compose.yml" down -v >/dev/null 2>&1
+        # shellcheck disable=SC2046  # the two -f pairs split on purpose
+        [ -f "$W/rendered/$s/test-run.override.yml" ] && docker compose $(cf "$s") down -v >/dev/null 2>&1
     done
-    docker network rm fabric_net >/dev/null 2>&1
+    "${TR[@]}" remove network fabric_net      # this run's only: another's is refused, saying so
 }
 if docker network inspect fabric_net >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -qx nginx; then
     echo "A fabric stack seems to be running here (nginx on fabric_net); refusing." >&2; exit 2
 fi
-down_all
+down_all || exit 2
 rm -rf "$W"; mkdir -p "$BASE"
 
 # ---- render with test-safe values ------------------------------------
@@ -41,7 +56,8 @@ export FABRIC_TEST_VARS="{\"deploy_base_dir\": \"$BASE\", \"host_ip\": \"127.0.0
   \"host_ram_capacity\": 4, \"hostname\": \"pi-core\", \"stepca_port\": 9000, \"openbao_key_dir\": \"$W/keys\", \"openbao_runtime_dir\": \"$W/run\", \"openbao_admin_dir\": \"$W/admin\"}"
 python3 "$REPO/tests/render.py" "$W/rendered" >/dev/null || { echo "FAIL render"; exit 1; }
 R="$W/rendered"
-docker network create --subnet 10.255.0.0/24 fabric_net >/dev/null
+for s in "${!SERVICE[@]}"; do "${TR[@]}" compose "$R/$s/docker-compose.yml" "${SERVICE[$s]}" >/dev/null; done
+"${TR[@]}" network fabric_net 10.255.0.0/24 || exit 2
 # Build contexts go where deploy.py puts them (/opt/<svc>/build)
 for s in bind9 stepca keycloak; do mkdir -p "$BASE/$s"; cp -a "$REPO/packaging/images/$s" "$BASE/$s/build"; done
 
@@ -107,7 +123,8 @@ wait_healthy() {  # container, timeout
     done
     docker logs --tail 30 "$1"; return 1
 }
-up() { docker compose -f "$R/$1/docker-compose.yml" up -d --build >"$W/$1-up.log" 2>&1 || { tail -20 "$W/$1-up.log"; return 1; }; }
+# shellcheck disable=SC2046  # the two -f pairs split on purpose
+up() { docker compose $(cf "$1") up -d --build >"$W/$1-up.log" 2>&1 || { tail -20 "$W/$1-up.log"; return 1; }; }
 
 # ---- bind9 -------------------------------------------------------------
 echo "--- bind9"

@@ -5,36 +5,49 @@ from fabriclib.common.errors import ValidationError
 from fabriclib.common.paths import INSTALL_DIR
 from fabriclib.directory.add_machine import add_machine
 from fabriclib.directory.sort_machines import sort_machines
-from fabriclib.samba.clear_logon_policy import clear_logon_policy
+from fabriclib.domain.run_group_command import run_group_command
+from fabriclib.domain.run_kerberos_command import run_kerberos_command
+from fabriclib.domain.run_machine_command import run_machine_command
+from fabriclib.domain.run_ou_command import run_ou_command
+from fabriclib.domain.run_person_command import run_person_command
+from fabriclib.grants.run_grant_command import run_grant_command
 from fabriclib.samba.domain_status import domain_status
-from fabriclib.samba.host_logon_default import HOSTS_OU
-from fabriclib.samba.logon_overview import logon_overview
 from fabriclib.samba.set_domain_password_policy import set_domain_password_policy
-from fabriclib.samba.set_logon_policy import set_logon_policy
+from fabriclib.samba.set_tier_password_policy import set_tier_password_policy
 from fabriclib.setup.common.sync_host_managed import sync_host_managed
 from fabriclib.setup.errors import SetupError
 from fabriclib.system.apply_changes import apply_changes
 
 USAGE = """usage: fabricctl domain status                    the Windows domain: its DC, the roles it holds, the policy
-       fabricctl domain password-policy [--minimum-length N] [--complexity on|off] [--history N]
-           [--minimum-age-days N] [--maximum-age-days N] [--lockout-threshold N] [--lockout-minutes N]
-           [--lockout-window-minutes N] [--no-apply]
-       fabricctl domain add-machine <name> [--os linux|windows] [--unmanaged]   pre-create a machine (in its OS
-           family's OU; managed by fabric unless --unmanaged) with a one-time join password
-       fabricctl domain sort-machines [--scheduled]   Windows machines that joined themselves into OU=windows; Linux
-           machines joined with an admin's password into <site>-fabric-machines (each once)
+       fabricctl domain password-policy [--tier enterprise-admin|directory-admins] [--minimum-length N]
+           [--complexity on|off] [--history N] [--minimum-age-days N] [--maximum-age-days N] [--lockout-threshold N]
+           [--lockout-minutes N] [--lockout-window-minutes N] [--no-apply]
+       fabricctl domain add-machine <name> [--type server|desktop|network] [--unmanaged]   pre-create a machine
+           (in its type's OU and group, and this site's group; managed by fabric unless --unmanaged) with a one-time
+           join password
+       fabricctl domain sort-machines [--scheduled]   Windows machines that joined themselves filed by type (a Server
+           edition a server, else a desktop); Linux machines joined with an admin's password into fabric-managed
+           (each once)
+       fabricctl domain grant list|show|add|set|remove|explain|sync ...   who may do what, where (grants)
+       fabricctl domain person edit|unlock|disable|enable ...   a person (manual 1.6.12.4)
+       fabricctl domain group list|create|delete|scope|managers|members ...   groups, their two levels (1.6.12.5)
+       fabricctl domain ou list|create|rename|delete ...   the admin's own folders (1.6.12.7)
+       fabricctl domain machine move|type|sites|keytab ...   a computer (1.6.12.6, 1.6.12.9)
+       fabricctl domain kerberos show|spns|policy ...   the realm, its service principals, the ticket policy (1.6.12.9)
        fabricctl domain host-managed [--scheduled]   this fabric host's management (Kerberos for SSH, the
-           domain's names from fabric's DNS) applied or removed as its account's <site>-fabric-machines membership says
-       fabricctl domain logon show [<ou>]          who may sign in to the site's machines, per OU
-       fabricctl domain logon set <ou> [--console G,...] [--remote G,...] [--no-apply]
-       fabricctl domain logon clear <ou> [--no-apply]
+           domain's names from fabric's DNS) applied or removed as its account's fabric-managed membership says
   password-policy without options shows the policy in the settings; with options it changes those values (the whole
-  policy is checked again) and applies them. add-machine prints the password once: give it to join-linux.sh
-  --one-time on the machine (manual 4.6.6). logon: <ou> is a path below the site's OU (machines, machines/linux, …;
-  site for the site's OU itself); set names the groups allowed at the keyboard (--console) and remotely (--remote:
-  RDP, SSH), a right left out kept as it is; clear lets the OU take its parent's policy again. fabric-break-glass and
-  each machine's local Administrators are always allowed (manual 4.6.8)."""
+  policy is checked again) and applies them. Without --tier it is the domain's default policy (everyone's but the
+  tiers'); --tier enterprise-admin is fabric-admin's own (its lockout never 0: break glass unlocks by itself),
+  --tier directory-admins the Directory Administrators' (2.1.6.71): set only here, as root.
+  add-machine prints the password once: give it to join-linux.sh
+  --one-time on the machine (manual 4.6.6)."""
 
+# the D4 commands (manual 1.6.12.12), each its own parser
+SUBCOMMANDS = {"person": run_person_command, "group": run_group_command, "ou": run_ou_command,
+               "machine": run_machine_command, "kerberos": run_kerberos_command}
+# --tier's names -> the tiers' policies' keys (2.1.6.71)
+TIER_NAMES = {"enterprise-admin": "enterprise_admin", "directory-admins": "directory_admins"}
 # option -> (policy key, type)
 OPTIONS = {"--minimum-length": ("minimum_length", int), "--complexity": ("complexity", bool),
            "--history": ("history", int), "--minimum-age-days": ("minimum_age_days", int),
@@ -44,12 +57,12 @@ OPTIONS = {"--minimum-length": ("minimum_length", int), "--complexity": ("comple
 
 def _changes(args):
     """Purpose: the policy values given as options.
-    Inputs:  args — list of str after `password-policy`.
+    Inputs:  args — list of str after `password-policy`, without --tier and --no-apply.
     Returns: dict {policy key: value}.
     Fails:   ValidationError for an unknown option, a missing value, a number that is not one, or a complexity other
              than on/off.
     Feeds:   run_domain_command."""
-    out, rest = {}, [a for a in args if a != "--no-apply"]
+    out, rest = {}, list(args)
     if len(rest) % 2:
         raise ValidationError("each option needs a value")
     for opt, value in zip(rest[::2], rest[1::2]):
@@ -65,74 +78,6 @@ def _changes(args):
         else:
             out[key] = int(value)
     return out
-
-
-def _groups(text):
-    """Purpose: a --console or --remote value as a list of group names.
-    Inputs:  text — "G1,G2" ("" for none).
-    Returns: list of str, stripped, empty items dropped.
-    Fails:   never.
-    Feeds:   _logon."""
-    return [g.strip() for g in text.split(",") if g.strip()]
-
-
-def _show(o):
-    """Purpose: print who may sign in, per OU.
-    Inputs:  o — logon_overview's dict.
-    Returns: None.
-    Fails:   never.
-    Feeds:   run_domain_command (status), _logon (show)."""
-    print(f"who may sign in to the machines of {o['site']}" + (
-        " (the log-on rights of before 0.9, on the site's OU: the first change makes them its policy)"
-        if o["legacy"] else "") + ":")
-    if o["error"]:
-        print(f"  could not be read: {o['error']}")
-    for p in o["policies"]:
-        print(f"  {p['ou'] or 'site'}: console {', '.join(p['console']) or '(nobody)'}; "
-              f"remote {', '.join(p['remote']) or '(nobody)'}")
-    if not o["policies"]:
-        print("  that OU has no policy of its own: it takes its parent's")
-    print(f"  always, everywhere: {', '.join(o['always'])}")
-
-
-def _logon(v, args):
-    """Purpose: `fabricctl domain logon show|set|clear` (manual 4.6.8): only parses and routes.
-    Inputs:  v — rendered vars; args — list of str after `logon`.
-    Returns: exit status: 0 ok, 1 refused or a failed apply, 2 usage.
-    Fails:   OSError from the settings or the audit log (propagates).
-    Feeds:   run_domain_command."""
-    op, rest = (args[0] if args else ""), args[1:]
-    no_apply = "--no-apply" in rest
-    rest = [a for a in rest if a != "--no-apply"]
-    opts = dict(zip(rest[1::2], rest[2::2]))
-    try:
-        if op == "show" and len(rest) <= 1:
-            _show(logon_overview(v, rest[0] if rest else None))
-            return 0
-        if op == "clear" and len(rest) == 1:
-            clear_logon_policy(getpass.getuser(), rest[0])
-            print(f"{rest[0]}: its own log-on policy cleared ("
-                  + ("back to the default: the fabric admins, 2.1.6.53)" if rest[0].strip("/").lower() == HOSTS_OU
-                     else "it takes its parent's)"))
-        elif op == "set" and len(rest) in (3, 5) and set(opts) <= {"--console", "--remote"} \
-                and len(opts) * 2 == len(rest) - 1:
-            done = set_logon_policy(v, getpass.getuser(), rest[0],
-                                    _groups(opts["--console"]) if "--console" in opts else None,
-                                    _groups(opts["--remote"]) if "--remote" in opts else None)
-            print(f"{done['ou'] or 'site'}: console {', '.join(done['console']) or '(nobody)'}; "
-                  f"remote {', '.join(done['remote']) or '(nobody)'}")
-        else:
-            print(USAGE)
-            return 2
-    except ValidationError as e:
-        print(f"refused: {e}")
-        return 1
-    if no_apply:
-        print("recorded; apply with: sudo fabricctl --apply")
-        return 0
-    ok, output = apply_changes("root", "cli")
-    print("applied (the site's log-on GPOs are updated)" if ok else output[-2000:])
-    return 0 if ok else 1
 
 
 def _host_managed(v, args):
@@ -154,7 +99,7 @@ def _host_managed(v, args):
     except SetupError as e:
         print(f"refused: {e}")
         return 1
-    print(f"{done['account']}$ is {'in' if done['managed'] else 'not in'} {v.get('site_name')}-fabric-machines: "
+    print(f"{done['account']}$ is {'in' if done['managed'] else 'not in'} fabric-managed: "
           f"fabric's management {'applied' if done['managed'] else 'removed'}")
     for line in done["changes"] or ["nothing to change"]:
         print(f"  {line}")
@@ -165,16 +110,19 @@ def run_domain_command(v, args):
     """Purpose: `fabricctl domain …` (manual 4.6.5): only routes to the domain functions.
     Inputs:  v — rendered vars; args — list of str after `domain`.
     Returns: exit status: 0 ok, 1 a refused change or a failed apply, 2 usage.
-    Fails:   OSError from the vars file or the audit log (propagates).
+    Fails:   OSError from the vars file or the audit log (propagates). password-policy --tier is refused with why
+             (exit 1) for an unknown tier or a policy the checks refuse (check_tier_policies).
     Feeds:   cli.main."""
-    if not args or args[0] not in ("status", "password-policy", "add-machine", "sort-machines", "logon",
-                                   "host-managed"):
+    if not args or args[0] not in ("status", "password-policy", "add-machine", "sort-machines", "grant",
+                                   "host-managed") + tuple(SUBCOMMANDS):
         print(USAGE)
         return 2
+    if args[0] == "grant":
+        return run_grant_command(v, args[1:])
+    if args[0] in SUBCOMMANDS:
+        return SUBCOMMANDS[args[0]](v, args[1:])
     if args[0] == "host-managed":
         return _host_managed(v, args[1:])
-    if args[0] == "logon":
-        return _logon(v, args[1:])
     if args[0] == "sort-machines":
         if args[1:] not in ([], ["--scheduled"]):
             print(USAGE)
@@ -185,9 +133,9 @@ def run_domain_command(v, args):
             print(f"refused: {e}")
             return 1
         if moved["sorted"]:
-            print(f"moved into OU=windows: {', '.join(moved['sorted'])}")
+            print(f"filed by type (OU=servers or OU=desktops): {', '.join(moved['sorted'])}")
         if moved["adopted"]:
-            print(f"managed by fabric now (in {v['site_name']}-fabric-machines): {', '.join(moved['adopted'])}")
+            print(f"managed by fabric now (in fabric-managed): {', '.join(moved['adopted'])}")
         if not moved["sorted"] and not moved["adopted"]:
             print("nothing to sort")
         return 0
@@ -195,12 +143,12 @@ def run_domain_command(v, args):
         rest = args[2:]
         managed = "--unmanaged" not in rest
         rest = [a for a in rest if a != "--unmanaged"]
-        os_family = rest[1] if len(rest) == 2 and rest[0] == "--os" else None
-        if len(args) < 2 or args[1].startswith("-") or (rest and os_family is None):
+        kind = rest[1] if len(rest) == 2 and rest[0] == "--type" else None
+        if len(args) < 2 or args[1].startswith("-") or (rest and kind is None):
             print(USAGE)
             return 2
         try:
-            password = add_machine(v, getpass.getuser(), args[1], os=os_family, managed=managed)
+            password = add_machine(v, getpass.getuser(), args[1], type=kind, managed=managed)
         except ValidationError as e:
             print(f"refused: {e}")
             return 1
@@ -215,18 +163,30 @@ def run_domain_command(v, args):
             print(f"  {line}")
         for line in s["policy"]:
             print(f"  {line}")
-        try:
-            _show(logon_overview(v))
-        except ValidationError as e:
-            print(f"who may sign in: the setting is refused: {e}")
+        if v.get("grants_fallback_open") is True:          # a relaxation, shown while on (2.1.6.88)
+            print("  RELAXED: grants_fallback_open is on: a machine no grant reaches admits every domain person")
+        if s.get("local_admin_ssh"):                       # a relaxation, shown while on (2.1.7.19)
+            print("  RELAXED: local-admin over SSH is on for this host (sudo fabricctl local-admin ssh off)")
         return 0 if s["running"] else 1
+    rest, tier = [a for a in args[1:] if a != "--no-apply"], None
+    if "--tier" in rest:
+        at = rest.index("--tier")
+        tier = rest[at + 1] if at + 1 < len(rest) else ""
+        rest = rest[:at] + rest[at + 2:]
     try:
-        changes = _changes(args[1:])
+        if tier is not None and tier not in TIER_NAMES:
+            raise ValidationError(f"--tier takes enterprise-admin or directory-admins, not {tier!r}")
+        changes = _changes(rest)
         if not changes:
-            for key, value in sorted((v.get("ad_password_policy") or {}).items()):
+            shown = ((v.get("ad_tier_password_policies") or {}).get(TIER_NAMES[tier]) if tier
+                     else v.get("ad_password_policy")) or {}
+            for key, value in sorted(shown.items()):
                 print(f"{key}: {value}")
             return 0
-        set_domain_password_policy(getpass.getuser(), changes)
+        if tier:
+            set_tier_password_policy(getpass.getuser(), TIER_NAMES[tier], changes)
+        else:
+            set_domain_password_policy(getpass.getuser(), changes)
     except ValidationError as e:
         print(f"refused: {e}")
         return 1

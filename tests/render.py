@@ -23,22 +23,22 @@ secrets = dict(ca_password='x', rndc_secret='dGVzdC1vbmx5LXJuZGMtc2VjcmV0LTMyLWJ
                webui_oidc_secret='OidcSecret1',
                tsig_secrets={'npm': 'bnBtLXRlc3Qtc2VjcmV0LTMyLWJ5dGVzLWxvbmch', 'acme_dns-01': 'YWNtZS10ZXN0LXNlY3JldA==',
                              'dev1': 'ZGV2MS1zZWNyZXQ=', 'lonely': 'bG9uZWx5LXNlY3JldA=='})
-user = dict(deploy_base_dir='/opt', domain='lan.j-j.family', hostname='pi-core',
+user = dict(deploy_base_dir='/opt', domain='test.lan.j-j.family', hostname='pi-core',
             host_ip='192.168.7.53', lan_cidr='192.168.7.0/24', lan_gateway='192.168.7.1',
             fabric_subnet='10.255.0.0/24', landing_page_cname=None, install_keycloak=True,
             cert_country='US', cert_province='S', cert_city='C', cert_org='O', cert_ou='IT', ca_name='CA',
-            project_containers=['nginx', 'step-ca', 'bind9', 'dirsrv', 'keycloak', 'postgres', 'dirsrv'],
-            service_dirs=[{'folder': 'dirsrv', 'owner': 'ldap'}, {'folder': 'extra', 'owner': 'root'}],
+            project_containers=['nginx', 'step-ca', 'bind9', 'keycloak', 'postgres', 'keycloak'],
+            service_dirs=[{'folder': 'extra', 'owner': 'root'}],
             # as normalize_tsig_keys leaves them: an NPM-style per-host key and a primary one
-            tsig_keys=[{'name': 'npm', 'algorithm': 'hmac-sha256', 'domain': 'lan.j-j.family',
+            tsig_keys=[{'name': 'npm', 'algorithm': 'hmac-sha256', 'domain': 'test.lan.j-j.family',
                         'record_types': ['TXT'], 'records': ['npm', 'shelfmark']},
-                       {'name': 'acme_dns-01', 'algorithm': 'hmac-sha256', 'domain': 'lan.j-j.family',
+                       {'name': 'acme_dns-01', 'algorithm': 'hmac-sha256', 'domain': 'test.lan.j-j.family',
                         'record_types': ['TXT'], 'primary': True},
-                       {'name': 'dev1', 'algorithm': 'hmac-sha256', 'domain': 'lan.j-j.family', 'record_types': ['TXT']},
-                       {'name': 'lonely', 'algorithm': 'hmac-sha256', 'domain': 'lan.j-j.family', 'record_types': ['TXT']}],
+                       {'name': 'dev1', 'algorithm': 'hmac-sha256', 'domain': 'test.lan.j-j.family', 'record_types': ['TXT']},
+                       {'name': 'lonely', 'algorithm': 'hmac-sha256', 'domain': 'test.lan.j-j.family', 'record_types': ['TXT']}],
             # certbot devices: rights come from the ACL's policy
             bind_acls={'certbot-devices': ['key "dev1"']},
-            bind_acl_policies={'certbot-devices': {'domain': 'lan.j-j.family', 'record_types': ['TXT'],
+            bind_acl_policies={'certbot-devices': {'domain': 'test.lan.j-j.family', 'record_types': ['TXT'],
                                                    'records': ['web', 'git']}},
             dns={'dynamic_zone_var': {'zone_authority': True,
                                       'CNAME': [{'name': 'None', 'canonical': 'pi-core'},
@@ -94,13 +94,13 @@ for tpl in sorted(env.list_templates()):
         continue
     extra = {}
     if tpl.startswith('bind9/data/zone'):
-        extra = dict(zone_name='lan.j-j.family', zone_records=v2['dns']['dynamic_zone_var'])
+        extra = dict(zone_name='test.lan.j-j.family', zone_records=v2['dns']['dynamic_zone_var'])
     if tpl.startswith('bind9/data/reverse'):
         extra = dict(reverse_zone_name='7.168.192.in-addr.arpa', ptr_records=rv['zones']['7.168.192.in-addr.arpa'])
     if tpl.startswith('systemd/'):
         extra = dict(item={'service': 'samba', 'compose': 'samba', 'folder': 'samba', 'requires': []})
     if tpl.startswith('resolver/config/'):     # what dns_filter/deploy_resolver passes beside the vars
-        extra = dict(zones=['lan.j-j.family', '7.168.192.in-addr.arpa'], clients=['192.168.7.0/24'],
+        extra = dict(zones=['test.lan.j-j.family', '7.168.192.in-addr.arpa'], clients=['192.168.7.0/24'],
                      resolver_rndc_secret='c2VjcmV0', groups=[{'name': 'kids', 'match': ['192.168.7.64/27'],
                                                               'rules_zone': 'group-kids.rpz', 'safe_zone': None}],
                      safe_zone=None, client_tls=False, adguard_tls=True, zone='group-x.rpz', what='group x',
@@ -121,14 +121,14 @@ for tpl in sorted(env.list_templates()):
         yaml.safe_load(text)
 zones = env.get_template('bind9/config/named.conf.zones.j2').render(**full)
 keys = env.get_template('bind9/config/named.conf.keys.j2').render(**full)
-for want in ('grant "npm" name _acme-challenge.npm.lan.j-j.family. TXT;',
-             'grant "npm" name _acme-challenge.shelfmark.lan.j-j.family. TXT;',
+for want in ('grant "npm" name _acme-challenge.npm.test.lan.j-j.family. TXT;',
+             'grant "npm" name _acme-challenge.shelfmark.test.lan.j-j.family. TXT;',
              'grant "acme_dns-01" subdomain _acme-challenge TXT;'):
     # covers: setting:tsig_keys +
     assert want in zones, f'missing update-policy grant: {want}'
 assert 'zonesub' not in zones, 'no key asked for any_name: nothing may get zonesub'
-for want in ('grant "dev1" name _acme-challenge.web.lan.j-j.family. TXT;',
-             'grant "dev1" name _acme-challenge.git.lan.j-j.family. TXT;'):
+for want in ('grant "dev1" name _acme-challenge.web.test.lan.j-j.family. TXT;',
+             'grant "dev1" name _acme-challenge.git.test.lan.j-j.family. TXT;'):
     # covers: setting:bind_acl_policies +
     assert want in zones, f'missing ACL-policy grant: {want}'
 assert 'grant "lonely"' not in zones, 'a key with no records, policy or any_name must get no update rights'
@@ -164,70 +164,90 @@ for _field, _bad, _msg in (
         assert _msg in str(e) and _sec['tsig_secrets'] == secrets['tsig_secrets'], (_field, _bad, str(e))
 print('tsig_keys and bind_acl_policies: what apply refuses, with the reason, no secret made')
 
-# Web UI at any host name; the certificate page at /certs/ (no certs.<domain> since 0.7.0, 1.5.1.5).
-assert v2['hostname_mgr'] == 'fabric.lan.j-j.family' and 'hostname_certs' not in v2 and 'cname_certs' not in v2, v2
+# Web UI at any host name, fabric-ctl.<domain> by default on a new install (2.1.8.12); the certificate page at
+# /certs/ (no certs.<domain> since 0.7.0, 1.5.1.5).
+# covers: setting:cname_mgr +
+assert v2['hostname_mgr'] == 'fabric-ctl.test.lan.j-j.family' and v2['cname_mgr'] == 'fabric-ctl' and 'hostname_certs' not in v2 and 'cname_certs' not in v2, v2
 custom = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'webui_hostname': 'Admin.Example.org'}))
 # covers: setting:webui_hostname +
 assert custom['hostname_mgr'] == 'admin.example.org', custom['hostname_mgr']
 names = [r['name'] for r in custom['dns']['dynamic_zone_var']['CNAME']]
 assert 'fabric' not in names and 'admin' not in names, f'no CNAME for a web UI outside the domain: {names}'
 ngx = env.get_template('nginx/nginx.conf.j2').render(**{**secrets, **custom})
-assert 'server_name admin.example.org;' in ngx and 'certs.lan.j-j.family' not in ngx
+assert 'server_name admin.example.org;' in ngx and 'certs.test.lan.j-j.family' not in ngx
 same = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'hostname': 'fabric'}))
 assert 'fabric' not in [r['name'] for r in same['dns']['dynamic_zone_var']['CNAME']], 'CNAME must not shadow the host A record'
 print('web UI host name (default, custom, same as host) rendered; no certs.<domain> server')
 
-# The DC's own name (2.1.6.45, manual 1.6.5.23): dc-<hostname> by default, cut to 15 characters; any name given is
-# kept; an install from before 0.7.0 keeps its host's; a host renamed later leaves the DC alone.
-from fabriclib.deploy.keep_old_install import keep_old_install  # noqa: E402
+# The DC's own name (2.1.6.45, 2.1.6.65, manual 1.6.5.26): fabric's, dc-0001 by default, the host's name aside; an
+# installed DC's name (0.7.x's dc-<host>) is kept; a host renamed later leaves the DC alone. (An install from before 0.7.0 keeping its host's name went with
+# keep_old_install, 2026-10-13: no such install exists, 2.1.6.51, S10.)
 from fabriclib.samba.suggested_dc_name import suggested_dc_name  # noqa: E402
 
 
 def _dc(**over):
-    got = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family',
+    got = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.test.lan.j-j.family',
                                                                      **over}))
     compose = yaml.safe_load(env.get_template('samba/docker-compose.yml.j2').render(**got))['services']['samba']
     return got['dc_name'], got['hostname_dc'], compose['environment']['HOST_NAME']
 
 
-assert _dc() == ('dc-pi-core', 'dc-pi-core.ad.j-j.family', 'dc-pi-core') and suggested_dc_name('pi-core') == 'dc-pi-core', _dc()
-for host, want in (('Kitchen-Server01', 'dc-kitchen-serv'), ('raspberrypi-4b', 'dc-raspberrypi')):
-    assert _dc(hostname=host)[0] == want == suggested_dc_name(host), (host, _dc(hostname=host))
-assert _dc(dc_name='DC1') == ('dc1', 'dc1.ad.j-j.family', 'dc1'), _dc(dc_name='DC1')
-old = {**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family'}
-fresh = {**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family'}
-assert keep_old_install(fresh, provisioned=False) == [] and 'dc_name' not in fresh and _dc()[0] == 'dc-pi-core', \
-    'a fresh install (no domain yet) keeps nothing: dc-<hostname> (2.3.1.21.2)'
-assert keep_old_install(old, provisioned=True) and old['dc_name'] == 'pi-core' and _dc(dc_name=old['dc_name'])[1] == 'pi-core.ad.j-j.family'
-assert keep_old_install(old, True) == [] and keep_old_install({'dc_name': 'dc-x', 'hostname': 'x'}, True) == [], \
-    'kept once only'
-renamed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.j-j.family',
+assert _dc() == ('dc-0001', 'dc-0001.ad.test.lan.j-j.family', 'dc-0001') and suggested_dc_name() == 'dc-0001', _dc()
+for host in ('Kitchen-Server01', 'raspberrypi-4b'):
+    assert _dc(hostname=host)[0] == 'dc-0001', (host, _dc(hostname=host))
+assert suggested_dc_name(['DC-0001', 'dc-0002', 'pc-7']) == 'dc-0003' and suggested_dc_name(['dc-0002']) == 'dc-0001'
+# a number the DC could not have is passed over (2.1.6.65): its host's own name (2.1.6.51), the domain's NetBIOS name
+assert suggested_dc_name(hostname='DC-0001.lan.test') == 'dc-0002' and suggested_dc_name(['dc-0001'], 'dc-0002') ==     'dc-0003' and suggested_dc_name(netbios='DC-0001') == 'dc-0002' and suggested_dc_name(hostname='pi') == 'dc-0001'
+# the cap (2.1.6.63): dc-1999 is the last; the 2000th DC is refused, saying why
+from fabriclib.common.errors import ValidationError  # noqa: E402
+_all_but_last = [f'dc-{n:04d}' for n in range(1, 1999)]
+assert suggested_dc_name(_all_but_last) == 'dc-1999' and suggested_dc_name(['dc-001', 'dc-1']) == 'dc-0001'
+try:
+    suggested_dc_name(_all_but_last + ['dc-1999'])
+    raise AssertionError('the 2000th DC was suggested a name')
+except ValidationError as e:
+    assert '1999 used, none can be added' in str(e) and 'the most domain controllers it may have' in str(e) \
+        and 'dc-' not in str(e), e
+# what a person reads (2.1.6.65's revision): how many DCs, never which
+from fabriclib.samba.dc_count_text import dc_count_text  # noqa: E402
+assert dc_count_text(1) == '1 DC used, 1998 can be added' and dc_count_text(2) == '2 DCs used, 1997 can be added' \
+    and dc_count_text(1999) == '1999 DCs used, 0 can be added', dc_count_text(1)
+assert _dc(dc_name='DC-Pi') == ('dc-pi', 'dc-pi.ad.test.lan.j-j.family', 'dc-pi'), _dc(dc_name='DC-Pi')    # 0.7.x's, kept
+renamed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ad_domain': 'ad.test.lan.j-j.family',
                                                                      'dc_name': 'dc-pi-core', 'hostname': 'kitchen'}))
-assert renamed['hostname_dc'] == 'dc-pi-core.ad.j-j.family' and {'ip': renamed['host_ip'], 'name': 'kitchen'} in \
+assert renamed['hostname_dc'] == 'dc-pi-core.ad.test.lan.j-j.family' and {'ip': renamed['host_ip'], 'name': 'kitchen'} in \
     renamed['dns']['dynamic_zone_var']['A'], renamed['dns']['dynamic_zone_var']['A']
-print("the DC's own name: dc-<hostname> cut to 15, a given one kept, an older install's host name kept, a renamed host "
-      "leaves it")
+print("the DC's own name: dc-0001, then the first free number, the host's name passed over; an installed one kept, a "
+      "renamed host leaves it")
 
-# The id layout (2.1.6.46, manual 1.6.3.17): the root is site 1, a million long; the organisation's groups in its
-# built-in range; no hosts range and no uid_range read; an install from before 0.7.0 keeps its numbers.
-from fabriclib.samba.id_range import id_range  # noqa: E402
-# covers: setting:posix_id_start +
-assert (v2['posix_id_start'], v2['posix_id_block'], id_range(v2)) == (1000000, 1000000, '1000000-1999999'), id_range(v2)
+# The id layout (2.1.6.46, 2.1.6.63, manual 1.6.3.17): a DC's range is its number's (dc-0001: 1000000-1999999), no
+# setting; the organisation's groups in dc-0001's built-in range; no hosts range and no uid_range read: a vars file
+# listing them (as one from before 0.7.0 did) is not read; the retired id settings are not rendered (2.1.6.86).
+from fabriclib.samba.dc_id_range import dc_id_range  # noqa: E402
+assert not {'posix_id_start', 'posix_id_block', 'posix_id_range', 'ad_site_ou', 'ad_org_ou', 'webui_admin_group'} & set(v2), \
+    sorted({'posix_id_start', 'posix_id_block', 'posix_id_range', 'ad_site_ou', 'ad_org_ou', 'webui_admin_group'} & set(v2))
+assert dc_id_range(v2['dc_name']) == '1000000-1999999', v2['dc_name']
+assert dc_id_range('DC-0042') == '42000000-42999999' and dc_id_range('dc-1999') == '1999000000-1999999999'
+for _bad in ('dc1', 'dc-pi', 'dc-0000', 'dc-2000', 'dc-001', ''):
+    try:
+        dc_id_range(_bad)
+        raise AssertionError(f"dc_id_range({_bad!r}) gave a range")
+    except ValidationError as e:
+        assert 'not a numbered DC name' in str(e), e
 gids = {g['name']: g['gidNumber'] for g in v2['ldap_groups']}
-assert gids['admins'] == 1040001 and gids['users'] == 1040009 and all(1040001 <= g <= 1040100 for g in gids.values()), gids
-assert 'hosts' not in [o['name'] for o in v2['ldap_organizational_units']] \
-    and not any('uid_range' in o for o in v2['ldap_organizational_units']), v2['ldap_organizational_units']
+assert gids['directory-admins'] == 1040001 and gids['users'] == 1040009 and 'admins' not in gids \
+    and all(1040001 <= g <= 1040100 for g in gids.values()), gids
+assert not any('uid_range' in o for o in v2['ldap_organizational_units']), v2['ldap_organizational_units']
 old = {**copy.deepcopy(PRISTINE), 'ldap_organizational_units': [
-    {'name': 'users', 'parent': 'accounts', 'uid_range': '5001-50000'}, {'name': 'hosts', 'uid_range': '2000-4900'}],
-       'ldap_groups': [{'gidNumber': 1100, 'name': 'admins'}, {'gidNumber': 5000, 'name': 'users'}]}
-keep_old_install(old, provisioned=True)
+    {'name': 'users', 'parent': 'accounts', 'uid_range': '5001-50000'}],
+       'ldap_groups': [{'gidNumber': 1100, 'name': 'admins'}, {'gidNumber': 5000, 'name': 'users'}],
+       'posix_id_start': 3000000, 'posix_id_range': '2000000-2999999'}
 was = yaml.safe_load(env.get_template('vars.yaml.j2').render(**old))
 was_gids = {g['name']: g['gidNumber'] for g in was['ldap_groups']}
-assert id_range(was) == '5001-105000' and was_gids['admins'] == 1100 and was_gids['users'] == 5000 \
-    and 'hosts' not in [o['name'] for o in was['ldap_organizational_units']], (id_range(was), was_gids)
-assert id_range({'posix_id_range': '2000000-2999999', 'posix_id_start': 1000000}) == '2000000-2999999'
-print("id layout: the root's block 1000000-1999999, the organisation's gids from 1040001; an older install keeps "
-      "5001-105000, 1100 and 5000")
+assert was_gids['admins'] == 1100 and was_gids['users'] == 5000 and 'posix_id_range' not in was \
+    and 'posix_id_start' not in was, was_gids
+print("id layout: dc-0001's range 1000000-1999999 by its number, the organisation's gids from 1040001 "
+      "(directory-admins first); the retired id settings are not rendered; listed gids are kept")
 doh = ngx[ngx.index('location /dns-query'):]
 doh = doh[:doh.index('\n        }')]          # the location block only
 assert 'grpc_pass $bind9_doh_backend;' in doh and '"grpc://resolver:8053"' in doh and 'proxy_pass $' not in doh, \
@@ -237,7 +257,7 @@ ngx_off = env.get_template('nginx/nginx.conf.j2').render(**{**secrets, **off})
 # covers: setting:dns_filter +
 assert '"grpc://bind9:' in ngx_off[ngx_off.index('location /dns-query'):], 'DoH goes to BIND with the DNS filter off'
 print('DoH: nginx speaks HTTP/2 to the DNS filter (or BIND with it off) (grpc_pass)')
-res_ctx = dict(zones=['lan.j-j.family'], clients=['192.168.7.0/24'], resolver_rndc_secret='c2VjcmV0', client_tls=True,
+res_ctx = dict(zones=['test.lan.j-j.family'], clients=['192.168.7.0/24'], resolver_rndc_secret='c2VjcmV0', client_tls=True,
                adguard_tls=True, safe_zone='safesearch-strict.rpz',
                groups=[{'name': 'kids', 'match': ['!192.168.7.70', '192.168.7.64/27'], 'rules_zone': 'group-kids.rpz',
                         'safe_zone': 'safesearch-ytmoderate.rpz'}])
@@ -251,7 +271,7 @@ assert f'remote-hostname "kids.filter.{v2["domain"]}"' in res_conf and \
     f'forwarders port 853 tls "group-kids" {{ {v2["ip_adguard"]}; }};' in kids, kids
 assert f'forwarders {{ {v2["ip_adguard"]} port 53; }};' in everyone and 'tls "upstream' not in res_conf, everyone
 for view in (kids, everyone):        # fabric's zones and the owner's rules in every view (no chained views now)
-    assert 'zone "lan.j-j.family" { type forward;' in view and 'zone "owner.rpz"' in view, view
+    assert 'zone "test.lan.j-j.family" { type forward;' in view and 'zone "owner.rpz"' in view, view
 assert kids.index('zone "fabric.rpz";') < kids.index('zone "group-kids.rpz";') < kids.index('zone "owner.rpz";'), kids
 assert 'dnssec-validation auto;' in res_conf and 'validate-except { "' in res_conf and 'responselog yes;' in res_conf and 'category responses' in res_conf
 assert 'bind-lists' not in res_conf, 'no list in the resolver (1.12.3)'
@@ -266,7 +286,7 @@ print("DNS filter: each view forwards to AdGuard Home (a group over DoT naming i
 # Federation (manual 1.9): the endpoint's vhost, socket mount, CNAME and unit only when it is
 # on; a site's organisation suffix comes from org_domain, its local suffix and names from its own.
 assert v2['federation_endpoint'] is False and v2['org_domain'] == v2['domain'], (v2['federation_endpoint'], v2['org_domain'])
-assert v2['hostname_federation'] == 'federation.lan.j-j.family', v2['hostname_federation']
+assert v2['hostname_federation'] == 'federation.test.lan.j-j.family', v2['hostname_federation']
 assert 'federation' not in [r['name'] for r in v2['dns']['dynamic_zone_var']['CNAME']], 'no CNAME while the endpoint is off'
 assert 'server_name federation.' not in env.get_template('nginx/nginx.conf.j2').render(**full), 'no vhost while off'
 assert '/srv/federation' not in env.get_template('nginx/docker-compose.yml.j2').render(**full), 'no socket mount while off'
@@ -274,17 +294,17 @@ fed = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(
 # covers: setting:federation_endpoint +
 assert 'federation' in [r['name'] for r in fed['dns']['dynamic_zone_var']['CNAME']], 'CNAME for the endpoint'
 ngx = env.get_template('nginx/nginx.conf.j2').render(**{**secrets, **fed})
-assert 'server_name federation.lan.j-j.family;' in ngx and 'proxy_pass http://unix:/srv/federation/federation.sock:;' in ngx
+assert 'server_name federation.test.lan.j-j.family;' in ngx and 'proxy_pass http://unix:/srv/federation/federation.sock:;' in ngx
 assert 'limit_req zone=federation' in ngx and 'client_max_body_size 16k;' in ngx, 'the join route is rate- and size-limited'
 assert 'federation/run:/srv/federation:ro' in env.get_template('nginx/docker-compose.yml.j2').render(**{**secrets, **fed})
 unit = env.get_template('systemd/fabric-federation.service.j2').render(**fed)
 assert f"--allow-uid {fed['service_users']['nginx']['uid']}" in unit and 'lib/federation/server.py' in unit, unit
-site = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'domain': 'branch1.lan.j-j.family',
-                                                                  'org_domain': 'lan.j-j.family', 'site_name': 'branch1'}))
+site = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'domain': 'branch1.test.lan.j-j.family',
+                                                                  'org_domain': 'test.lan.j-j.family', 'site_name': 'branch1'}))
 # covers: setting:org_domain +
-assert site['ldap_base_dn'] == v2['ldap_base_dn'] == 'dc=lan,dc=j-j,dc=family', site['ldap_base_dn']
+assert site['ldap_base_dn'] == v2['ldap_base_dn'] == 'dc=test,dc=lan,dc=j-j,dc=family', site['ldap_base_dn']
 # covers: setting:site_name setting:domain +
-assert site['site_name'] == 'branch1' and site['hostname_federation'] == 'federation.branch1.lan.j-j.family'
+assert site['site_name'] == 'branch1' and site['hostname_federation'] == 'federation.branch1.test.lan.j-j.family'
 # a chosen base DN (the root site's install, e.g. dc=lan) is kept as given: it names the organisation
 for base in ('dc=lan', 'o=acme,dc=lan'):
     chosen = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE), 'ldap_base_dn': base}))
@@ -295,17 +315,17 @@ print('federation: endpoint vhost/mount/CNAME/unit only when on; a site shares t
 plain = env.get_template('bind9/config/named.conf.zones.j2').render(**full)
 assert 'type secondary' not in plain and 'also-notify' not in plain, 'no federation links: no secondaries, no notify'
 links = {'children': [{'site': 'lab', 'key': 'fed-lab', 'algorithm': 'hmac-sha256', 'secret': 'c2VjcmV0', 'delegate': True,
-                       'label': 'lab', 'domain': 'lab.lan.j-j.family', 'address': '192.168.9.9'}],
+                       'label': 'lab', 'domain': 'lab.test.lan.j-j.family', 'address': '192.168.9.9'}],
          'upstream': {'site': 'hq', 'key': 'fed-pi-core', 'algorithm': 'hmac-sha256', 'secret': 'dXBzdHJlYW0=',
                       'domain': 'hq.example.org', 'address': '192.168.8.8'}}
 zones = env.get_template('bind9/config/named.conf.zones.j2').render(**full, federation_links=links)
 keys = env.get_template('bind9/config/named.conf.keys.j2').render(**full, federation_links=links)
 assert 'allow-transfer { key "fed-lab"; key "fed-pi-core"; };' in zones and 'notify explicit;' in zones, zones[:600]
-assert 'zone "lab.lan.j-j.family" {\n    type secondary;\n    primaries { 192.168.9.9 port 53 key "fed-lab"; };' in zones
+assert 'zone "lab.test.lan.j-j.family" {\n    type secondary;\n    primaries { 192.168.9.9 port 53 key "fed-lab"; };' in zones
 assert 'zone "hq.example.org" {\n    type secondary;' in zones and 'key "fed-lab" {' in keys and 'key "fed-pi-core" {' in keys
 db = env.get_template('bind9/data/zone.j2').render(**full, federation_links=links, zone_name=v2['domain'],
                                                    zone_records=v2['dns']['dynamic_zone_var'])
-assert 'lab                     NS      ns.lab.lan.j-j.family.' in db and 'ns.lab                  A       192.168.9.9' in db
+assert 'lab                     NS      ns.lab.test.lan.j-j.family.' in db and 'ns.lab                  A       192.168.9.9' in db
 print('federation DNS: no links -> no transfers; links -> keys, signed transfers, secondaries, delegation with glue')
 # a name of 24 characters or more (a host name may be any DNS label since 0.7.0, 2.1.6.45) is still apart from its
 # type: the name was padded to 24 with nothing after it, and BIND read `<name>A` (2.3.1.21.3)
@@ -470,7 +490,7 @@ k4 = kea_json("kea-dhcp4.conf")["Dhcp4"]
 sn = k4["subnet4"][0]
 # covers: setting:dhcp +
 assert sn["pools"] == [{"pool": "192.168.7.100 - 192.168.7.199"}] and sn["reservations"][0]["ip-address"] == "192.168.7.20"
-assert k4["ddns-qualifying-suffix"] == "dhcp.lan.j-j.family." and k4["ddns-conflict-resolution-mode"] == "check-with-dhcid"
+assert k4["ddns-qualifying-suffix"] == "dhcp.test.lan.j-j.family." and k4["ddns-conflict-resolution-mode"] == "check-with-dhcid"
 assert k4["control-socket"]["socket-name"].startswith("/var/run/kea/") and k4["interfaces-config"]["interfaces"] == ["eth0"]
 # time (manual 1.13.1): Kea hands out this host's chrony (option 42) unless dhcp.ntp says otherwise
 assert {"name": "ntp-servers", "data": kv["host_ip"]} in k4["option-data"], k4["option-data"]
@@ -485,19 +505,19 @@ try:
 except ValidationError:
     pass
 d2 = kea_json("kea-dhcp-ddns.conf")["DhcpDdns"]
-assert d2["forward-ddns"]["ddns-domains"][0]["name"] == "dhcp.lan.j-j.family." and d2["tsig-keys"][0]["name"] == "kea-ddns"
+assert d2["forward-ddns"]["ddns-domains"][0]["name"] == "dhcp.test.lan.j-j.family." and d2["tsig-keys"][0]["name"] == "kea-ddns"
 zones = env.get_template('bind9/config/named.conf.zones.j2').render(**{**secrets, **kv, "tsig_keys": [], "tsig_secrets": {}})
-dz = zones[zones.index('zone "dhcp.lan.j-j.family"'):]
+dz = zones[zones.index('zone "dhcp.test.lan.j-j.family"'):]
 dz = dz[:dz.index("};\n};") + 5]
 assert 'grant "kea-ddns" zonesub A AAAA DHCID;' in dz and dz.count("grant") == 1, dz
 keys = env.get_template('bind9/config/named.conf.keys.j2').render(**{**secrets, **kv, "tsig_keys": [], "tsig_secrets": {}})
 assert 'key "kea-ddns"' in keys and kv["kea_ddns_secret"] in keys
-parent = env.get_template('bind9/data/zone.j2').render(**{**secrets, **kv, "zone_name": "lan.j-j.family",
+parent = env.get_template('bind9/data/zone.j2').render(**{**secrets, **kv, "zone_name": "test.lan.j-j.family",
                                                         "zone_records": kv["dns"]["dynamic_zone_var"]})
-assert re.search(r"^dhcp\s+NS\s+ns\.lan\.j-j\.family\.$", parent, re.M), "no delegation of the DHCP subzone"
+assert re.search(r"^dhcp\s+NS\s+ns\.test\.lan\.j-j\.family\.$", parent, re.M), "no delegation of the DHCP subzone"
 nokea = env.get_template('bind9/config/named.conf.zones.j2').render(**{**secrets, **v2, "tsig_keys": [], "tsig_secrets": {}})
 # covers: setting:install_kea +
-assert "dhcp.lan.j-j.family" not in nokea, "no DHCP subzone without Kea"
+assert "dhcp.test.lan.j-j.family" not in nokea, "no DHCP subzone without Kea"
 # covers: setting:dhcp -
 for bad, msg in ((lambda d: d["subnets"][0].update(pools=["192.168.8.1 - 192.168.8.9"]), "inside"),
                  (lambda d: d["subnets"][0]["reservations"][0].update(ip="192.168.7.150"), "outside its pools"),
@@ -598,7 +618,13 @@ rz = reverse_zones(lab)["zones"]
 assert rz.get("0.20.10.in-addr.arpa") == [], "a DHCP zone with no static record is still generated"
 rzf = env.get_template("bind9/data/reverse-zone.j2").render(**{**lab, "reverse_zone_name": "0.20.10.in-addr.arpa",
                                                             "ptr_records": []})
-assert re.search(r"^\s+300 ; Negative caching TTL", rzf, re.M), "a DHCP zone caches 'no such name' briefly"
+# 2.1.4.9: every zone fabric renders keeps "no such name" 30 s (the SOA minimum), never a day or 5 minutes:
+# a DHCP reverse zone, another reverse zone, the site's forward zone (with and without federation links)
+_neg = re.compile(r"^\s+(\d+)\s+; Negative caching TTL", re.M)
+assert _neg.findall(rzf) == ["30"] and _neg.findall(_rz) == ["30"] and _neg.findall(db) == ["30"] \
+    and _neg.findall(_lz) == ["30"], (_neg.findall(rzf), _neg.findall(_rz), _neg.findall(db))
+assert not re.search(r"^\s+(86400|300)\s+; Negative", rzf + _rz + db + _lz, re.M), "no day or 5 minutes left"
+print("zone files: a miss is kept 30 s in every zone fabric renders (2.1.4.9)")
 zconf = env.get_template("bind9/config/named.conf.zones.j2").render(
     **{**secrets, **lab, "tsig_keys": [], "tsig_secrets": {}, "reverse_zone_names": list(rz)})
 lz = zconf[zconf.index('zone "0.20.10.in-addr.arpa"'):]
@@ -698,7 +724,7 @@ assert "--username=%{mschap:User-Name}" in mschap and "--allow-mschapv2" in msch
 frj_p = json.loads(env.get_template("freeradius/config/fabric-radius.json.j2").render(**{**rv_, "radius_people": people}))
 assert frj_p["people"] == people, frj_p
 frj = json.loads(env.get_template("freeradius/config/fabric-radius.json.j2").render(**rv_))
-assert frj["uri"] == f"ldaps://{rv_['ip_fabric_gateway']}:636" and frj["bind_dn"] == f"fabric-radius-{rv_['site_name']}@{rv_['ad_domain']}" \
+assert frj["uri"] == f"ldaps://{rv_['ip_fabric_gateway']}:636" and frj["bind_dn"] == f"fabric-radius-{rv_['dc_name']}@{rv_['ad_domain']}" \
     and frj["base"] == rv_["ad_base_dn"] and frj["site"] == rv_["site_name"], frj   # the site's DC (S3.2)
 fc = yaml.safe_load(env.get_template("freeradius/docker-compose.yml.j2").render(**rv_))["services"]["freeradius"]
 assert fc["cap_drop"] == ["ALL"] and not fc.get("cap_add") and fc["read_only"] and fc["user"] == "610:610", fc
@@ -757,7 +783,8 @@ for _m, _mode in (("tls", "machine"), ("ttls", "user")):
     _xml = _t.split("Set-Content -Path $xml -Encoding Ascii -Value @'\n", 1)[1].split("'@", 1)[0]
     _root = _ET.fromstring(_xml.split("?>", 1)[1])
     assert _root.tag.endswith("LANProfile") and f"<authMode>{_mode}</authMode>" in _xml
-    assert "Rr1" not in _t and "Sw1tchSecret" not in _t and "PRIVATE KEY" not in _t, "public data only"
+    _pub = _t.replace(_pem.strip(), "")   # the CA's base64 may hold "Rr1" by chance (about 1 run in 160)
+    assert "Rr1" not in _pub and "Sw1tchSecret" not in _pub and "PRIVATE KEY" not in _t, "public data only"
 assert "-Pfx" in _g["windows"]["tls"]["script"] and "<Type xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">21<" \
     in _g["windows"]["ttls"]["script"] and "<PAPAuthentication />" in _g["windows"]["ttls"]["script"]
 print("802.1X guides: Windows scripts (CA, pinned server, well-formed profiles, CRLF, public data only)")
@@ -859,13 +886,25 @@ _ca_rec = next(r for r in _site["CNAME"] if r["name"] == "ca")
 assert fabric_record(v2, "dynamic_zone_var", "CNAME", _ca_rec) == {"service": "the CA (step-ca)", "setting": "cname_ca"}
 assert [r["name"] for r in _site["CNAME"] if not fabric_record(v2, "dynamic_zone_var", "CNAME", r)] == \
     ["calibre", "info"], _site["CNAME"]
-# the admin deletes info (or renames it: deleted, added under another name): the next render does not add it back
+# until the install has once been ready, every render adds info again (2.1.4.10: a failed first install run again
+# with its file, whose dns: has no info, keeps it); the first render records it not ready yet
+# covers: setting:install_was_ready +
+assert v2["install_was_ready"] is False, v2["install_was_ready"]
 _gone = copy.deepcopy(v2)
 _gone["dns"]["dynamic_zone_var"]["CNAME"] = [r for r in _gone["dns"]["dynamic_zone_var"]["CNAME"] if r["name"] != "info"]
+_v3 = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**secrets, **copy.deepcopy(_gone),
+                                                                'render_date': '2026-01-01'}))
+assert [r for r in _v3["dns"]["dynamic_zone_var"]["CNAME"] if r["name"] == "info"] == [
+    {"name": "info", "canonical": v2["hostname"]}] and _v3["install_was_ready"] is False, _v3["dns"]
+# once ready, the admin deletes info (or renames it: deleted, added under another name): the next render does not add
+# it back; an install from before 0.8.0 (no install_was_ready, hostname_landing stored) has been ready
 _gone["dns"]["dynamic_zone_var"]["CNAME"].append({"name": "welcome", "canonical": v2["hostname"]})
-_v3 = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**secrets, **_gone, 'render_date': '2026-01-01'}))
-_names3 = [r["name"] for r in _v3["dns"]["dynamic_zone_var"]["CNAME"]]
-assert "info" not in _names3 and "welcome" in _names3 and _v3["hostname_landing"] == v2["hostname_landing"], _names3
+for _ready in (True, None):
+    _older = {k: x for k, x in {**copy.deepcopy(_gone), "install_was_ready": _ready}.items() if x is not None}
+    _v3 = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**secrets, **_older, 'render_date': '2026-01-01'}))
+    _names3 = [r["name"] for r in _v3["dns"]["dynamic_zone_var"]["CNAME"]]
+    assert "info" not in _names3 and "welcome" in _names3 and _v3["hostname_landing"] == v2["hostname_landing"] \
+        and _v3["install_was_ready"] is True, (_ready, _names3)
 # a repointed info is kept as the admin left it
 _moved = copy.deepcopy(v2)
 for _r in _moved["dns"]["dynamic_zone_var"]["CNAME"]:
@@ -1115,6 +1154,12 @@ def mem_refused(**extra):
     return ''
 
 
+# covers: setting:install_was_ready -
+assert "install_was_ready 'maybe' must be true or false" in mem_refused(install_was_ready="maybe") \
+    and mem_refused(install_was_ready=True) == '' and mem_refused() == '', mem_refused(install_was_ready="maybe")
+print("install_was_ready: setup's own record, true or false; anything else refused (2.1.4.10)")
+
+
 for bad, needle in ((dict(memory_floors={'tomcat': 64}), 'no service tomcat'),
                     (dict(memory_floors={'keycloak': 0}), 'a positive number of MB'),
                     (dict(memory_floors={'keycloak': 'lots'}), 'not a memory size'),
@@ -1133,22 +1178,23 @@ assert 'Turn off DHCP (install_kea: false), 256 MB' in msg and '802.1X (install_
 print('memory: floors and weights overridden when valid, refused when not; a plan whose floors do not fit is refused, '
       'naming the parts to turn off')
 
-# an explicit *_mem_limit wins (that limit, fixed); its pre-0.9 default counts as not set; a size that is none, refused
-mv = mem_vars(host_ram_capacity=4, kea_mem_limit='96m', samba_mem_limit='600m', resolver_mem_limit='384m', **PARTS_ON)
+# an explicit *_mem_limit wins (that limit, fixed), whatever its value; a size that is none, refused
+mv = mem_vars(host_ram_capacity=4, kea_mem_limit='96m', samba_mem_limit='600m', **PARTS_ON)
 p = mv['memory_plan']
 # covers: setting:samba_mem_limit +
 assert p['limits']['kea'] == 96 and p['limits']['samba'] == 600 and mv['kea_mem_limit'] == '96m' \
     and mv['samba_mem_limit'] == '600m' and mv['resolver_mem_limit'] is None \
     and p['explicit'] == {'kea': 96, 'samba': 600} and mem_total(p) == p['budget_mb'], p
 assert compose_limits(mv)['samba'] == 600 and compose_limits(mv)['kea-ddns'] == 96
-# AdGuard Home's adguard_mem_limit is its container's limit, rebuilds included: the budget counts it / 2.5; its 0.7.0
-# default (1 GiB at 4 GB) counts as not set (2.1.12.8)
+# AdGuard Home's adguard_mem_limit is its container's limit, rebuilds included: the budget counts it / 2.5 (2.1.12.8)
 mv = mem_vars(host_ram_capacity=4, adguard_mem_limit='800m', **PARTS_ON)
 p = mv['memory_plan']
 # covers: setting:adguard_mem_limit +
 assert p['explicit'] == {'adguard': 800} and p['limits']['adguard'] == 320 and p['bursts'] == {'adguard': 800}     and compose_limits(mv)['adguard-filter'] == 800 and mem_total(p) == p['budget_mb'], p
-mv = mem_vars(host_ram_capacity=4, adguard_mem_limit='1024m', **PARTS_ON)
-assert mv['memory_plan']['explicit'] == {} and mv['adguard_mem_limit'] is None, mv['memory_plan']
+mv = mem_vars(host_ram_capacity=4, adguard_mem_limit='1024m', kea_mem_limit='128m', **PARTS_ON)
+# what 0.7.0 held by default is an admin's value now (the old defaults retired: 2.1.1.61)
+assert mv['memory_plan']['explicit'] == {'adguard': 1024, 'kea': 128} and mv['adguard_mem_limit'] == '1024m', \
+    mv['memory_plan']
 for key in MEM_KEYS:
     msg = mem_refused(host_ram_capacity=4, **{key: '12x'})
     # covers: setting:openbao_mem_limit setting:kea_mem_limit setting:samba_mem_limit -

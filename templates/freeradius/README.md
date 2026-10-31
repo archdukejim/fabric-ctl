@@ -9,7 +9,7 @@ decision is fabric's policy, which asks the site's domain controller (AD) about 
 | [`packaging/images/freeradius/`](../../packaging/images/freeradius/) | The image: Debian's freeradius + python3 module + python3-ldap on the pinned Debian base; fabric's uid/gid |
 | `config/radiusd.conf.j2` | Main configuration: fabric's own minimal tree, logs to the journal (decisions, never passwords) |
 | `config/clients.conf.j2` | RADIUS clients (switches, APs) with their secrets from OpenBao; Message-Authenticator required unless relaxed |
-| `config/fabric-radius.json.j2` | Where the policy finds the DC (LDAPS to fabric_net's gateway, verified: 2.1.2.15), its read-only account `fabric-radius-<site>`, and the groups mapped for password logins |
+| `config/fabric-radius.json.j2` | Where the policy finds the DC (LDAPS to fabric_net's gateway, verified: 2.1.2.15), its read-only account `fabric-radius-<dc>`, and the groups mapped for password logins |
 | `config/mods/always.j2` | `ok` (accounting is acknowledged, not stored) |
 | `config/mods/eap.j2` | EAP-TLS (fabric CA only, no session resumption; the verify step that records each certificate's fingerprint); EAP-TTLS and PEAP only while a group is mapped |
 | `config/mods/mschap.j2` | PEAP's MS-CHAPv2, checked by the domain through `ntlm_auth` and the DC's winbind |

@@ -1,8 +1,8 @@
 import ldb
 
 from alloc_id import alloc_id
+from group_names import DOMAIN_GROUPS, rodc_cache, site_group
 import paths
-from site_roles import FABRIC_ADMINS, ROLES, fabric_admins, fabric_machines, rodc_cache, role_group
 
 DOMAIN_USERS_RID = 513          # AD's Domain Users: fabric's everyone-group `users` (Q11)
 
@@ -12,7 +12,7 @@ def _group(samdb, name):
     Inputs:  samdb — SamDB; name — sAMAccountName.
     Returns: the ldb.Message (dn, gidNumber, description), or None.
     Fails:   ldb.LdbError from the search.
-    Feeds:   ensure_groups."""
+    Feeds:   _ensure."""
     res = samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_SUBTREE,
                        expression=f"(&(objectClass=group)(sAMAccountName={ldb.binary_encode(name)}))",
                        attrs=["gidNumber", "description"])
@@ -21,10 +21,10 @@ def _group(samdb, name):
 
 def _ensure(samdb, name, ou, gid, description, done):
     """Purpose: one group as wanted: created in its OU when missing; its gid number and description set when they
-             differ (a gid from the site's block is taken only for a group that has none).
+             differ (a gid from the DC's range is taken only for a group that has none).
     Inputs:  samdb — SamDB; name — str; ou — str, relative to the domain; gid — int, a callable giving one when
-             the group has none, or None (not a POSIX group: no gid, none taken from the block); description — str
-             or ""; done — list, what changed is appended.
+             the group has none, or None (not a POSIX group: no gid, none taken); description — str or ""; done —
+             list, what changed is appended.
     Returns: None.
     Fails:   ldb.LdbError from a creation or change.
     Feeds:   ensure_groups."""
@@ -45,43 +45,30 @@ def _ensure(samdb, name, ou, gid, description, done):
         done += [f"group {name}: {k}" for k in sorted(changes)]
 
 
-def _add_member(samdb, group, member, done):
-    """Purpose: one group (or account) a member of another, when it is not already.
-    Inputs:  samdb — SamDB; group — the containing group's name; member — the member's name; done — list, appended.
-    Returns: None.
-    Fails:   ldb.LdbError from the change; TypeError if the group does not exist.
-    Feeds:   ensure_groups."""
-    have = samdb.search(base=str(_group(samdb, group).dn), scope=ldb.SCOPE_BASE, attrs=["member"])[0]
-    want = str(_group(samdb, member).dn).lower()
-    if want not in [str(m).lower() for m in have.get("member", [])]:
-        samdb.add_remove_group_members(group, [member], add_members_operation=True)
-        done.append(f"group {group}: {member} a member")
-
-
-def ensure_groups(samdb, site, root, org_groups):
-    """Purpose: the groups access is built on (manual 1.6.3.6, 1.6.3.10), with their gid numbers (1.6.3.9): the site's
-             people and admins, and its five role groups with `<site>-admins` in each (2.1.9.13) (gids from the
-             built-in range of the site's block, 2.1.6.46), and at the root site, first, the organisation's groups —
-             fabric's `ldap_groups` (the web UI's admin group, the RBAC bundle groups, the 802.1X groups) with their
-             own gids, `users` as AD's Domain Users, and `fabric-break-glass` (in every site's log-on policy). The host
-             groups (manual 1.6.11.2): the organisation's `fabric-admins` (at the root), each site's
-             `<site>-fabric-admins` with `fabric-admins` in it, `<site>-fabric-machines`, and `<site>-rodc-cache`
-             (what a read-only DC of the site may cache, 2.1.6.52); a new site's
-             `<site>-fabric-admins` starts as a member of `<site>-machine-admins` (2.1.6.38), an existing site's is
-             never nested by an upgrade.
-    Inputs:  samdb — SamDB; site — str; root — bool; org_groups — list of {name, gidNumber, description?} (fabric's
-             ldap_groups).
+def ensure_groups(samdb, dc, site, root, org_groups, rodc=False):
+    """Purpose: the groups fabric makes (manual 1.6.13.3; 2.1.6.74, 2.1.6.81, 2.1.6.85), in OU=groups, with their gid
+             numbers (1.6.3.9). At the root, first, the organisation's groups — fabric's `ldap_groups` with their fixed
+             gids (`directory-admins` the console's admin group, the RBAC bundle groups, the 802.1X groups), `users` as
+             AD's Domain Users — then the domain's own: `directory-admins` (when ldap_groups lacks it), `dc-hosts`,
+             `fabric-managed`, `fabric-break-glass`, `server-admins`, `desktop-admins`, `network-admins` and the
+             machine types' `machines-servers`, `machines-desktops`, `machines-network`. For every site its
+             `site-<name>`, and for a read-only DC `rodc-cache-<dc>`, what it may cache (2.1.6.52). gids come from the
+             built-in range of the converging DC's record (2.1.6.63); the cache group is not POSIX. No group is nested
+             in another: who may do what comes from grants (D3).
+    Inputs:  samdb — SamDB; dc — the DC whose range gids come from (the converging DC, or the one prepared); site —
+             str, its site; root — bool; org_groups — list of {name, gidNumber, description?} (fabric's ldap_groups);
+             rodc — bool: the DC is a read-only one.
     Returns: list of str, what changed.
-    Fails:   ldb.LdbError from a creation or change; ValueError from alloc_id when the block is full.
+    Fails:   ldb.LdbError from a creation or change; ValueError from alloc_id when the range is full.
     Feeds:   converge."""
     base = str(samdb.domain_dn())
-    site_dn = paths.site_dn(samdb, site)
+    groups = paths.relative(samdb, paths.folder_dn(samdb, "groups"))
     done = []
-    def builtin():          # fabric's own groups take gids from the block's built-in range (2.1.6.46)
-        return alloc_id(samdb, site_dn, "builtin_group")
+
+    def builtin():          # fabric's own groups take gids from the DC's built-in range (2.1.6.46)
+        return alloc_id(samdb, dc, "builtin_group")
 
     if root:                # the organisation's fixed gids first: none handed out below may take one of theirs
-        org = paths.relative(samdb, f"OU=groups,{paths.organisation_dn(samdb)}")
         for g in org_groups:
             if g["name"] == "users":
                 users = samdb.search(base=base, scope=ldb.SCOPE_SUBTREE,
@@ -92,32 +79,15 @@ def ensure_groups(samdb, site, root, org_groups):
                                                        ldb.FLAG_MOD_REPLACE))
                     done.append(f"Domain Users: gidNumber {g['gidNumber']} (fabric's users)")
                 continue
-            _ensure(samdb, g["name"], org, int(g["gidNumber"]), g.get("description") or "", done)
-    groups = paths.relative(samdb, f"OU=groups,{site_dn}")
-    for name in (f"{site}-users", f"{site}-admins"):
-        _ensure(samdb, name, groups, builtin, "", done)
-    new_site = f"group {site}-users created" in done
-    admins = str(_group(samdb, f"{site}-admins").dn)
-    for role, description in ROLES.items():      # the site's roles, <site>-admins in each (2.1.9.13)
-        name = role_group(site, role)
-        _ensure(samdb, name, groups, builtin, description, done)
-        members = samdb.search(base=str(_group(samdb, name).dn), scope=ldb.SCOPE_BASE, attrs=["member"])[0]
-        if admins.lower() not in [str(m).lower() for m in members.get("member", [])]:
-            samdb.add_remove_group_members(name, [f"{site}-admins"], add_members_operation=True)
-            done.append(f"group {name}: {site}-admins a member")
-    if root:
-        _ensure(samdb, "fabric-break-glass", org, builtin,
-                "May log on to every site's machines: for when everything else fails", done)
-        _ensure(samdb, FABRIC_ADMINS, org, builtin,
-                "Manage every site's hosts: root through sudo, fabricctl (manual 1.6.11)", done)
-    _ensure(samdb, fabric_admins(site), groups, builtin,
-            "Manage the site's hosts: root through sudo, fabricctl (manual 1.6.11)", done)
-    _ensure(samdb, fabric_machines(site), groups, builtin,
-            "The site's machines fabric manages (manual 1.6.11.6)", done)
-    _ensure(samdb, rodc_cache(site), groups, None,          # not POSIX: takes no id from the site's block
-            "Accounts the site's read-only DC may cache: its password replication allow list (manual 1.6.11.13)", done)
-    if _group(samdb, FABRIC_ADMINS) is not None:      # a site's DC converging before the root's upgrade has none yet
-        _add_member(samdb, fabric_admins(site), FABRIC_ADMINS, done)
-    if new_site:
-        _add_member(samdb, role_group(site, "machine-admins"), fabric_admins(site), done)
+            _ensure(samdb, g["name"], groups, int(g["gidNumber"]),
+                    g.get("description") or DOMAIN_GROUPS.get(g["name"], ""), done)
+        named = {g["name"] for g in org_groups}
+        for name, description in DOMAIN_GROUPS.items():
+            if name not in named:
+                _ensure(samdb, name, groups, builtin, description, done)
+    _ensure(samdb, site_group(site), groups, builtin,
+            f"fabric: the site {site}'s people and machines (manual 1.6.13.3)", done)
+    if rodc:
+        _ensure(samdb, rodc_cache(dc), groups, None,            # not POSIX: takes no id
+                f"fabric: the accounts read-only DC {dc} may cache (manual 1.6.11.13)", done)
     return done

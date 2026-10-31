@@ -10,7 +10,8 @@ def domain_dc_names(container="samba"):
     Inputs:  container — this site's DC.
     Returns: {"dcs": [name, …], "computers": [name, …]}, lower case, without the trailing $.
     Fails:   ValidationError when the DC does not answer (a name must never be guessed free).
-    Feeds:   federation/accept_join (a joining site's DC name checked before its join is prepared)."""
+    Feeds:   federation/accept_join (the lowest free name given to a joining site's DC before its join is prepared,
+             2.1.6.65)."""
     try:
         res = subprocess.run(["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", container, "python3",
                               "/fabric/read_dc_names.py"], capture_output=True, text=True, timeout=60)

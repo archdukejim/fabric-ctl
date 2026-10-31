@@ -1,6 +1,7 @@
 import json
 import os
 
+from fabriclib.directory.constants import FABRIC_MANAGED
 from fabriclib.common.errors import ValidationError
 from fabriclib.consent.plan_member import RECORD
 from fabriclib.setup.common.apply_host_managed import apply_host_managed
@@ -10,9 +11,9 @@ from fabriclib.setup.errors import SetupError
 
 def sync_host_managed(v, config_dir):
     """Purpose: keep fabric's management of the fabric host in step with its account's membership of
-             <site>-fabric-machines (decision 2.1.6.49, manual 1.6.11.11): asked of the DC (its own database, inside
+             `fabric-managed` (decision 2.1.6.49, manual 1.6.11.11): asked of the DC (its own database, inside
              the samba container), applied while the account is in the group, removed when it is not.
-    Inputs:  v — rendered vars (host_join_domain, site_name, and what apply_host_managed reads); config_dir — the
+    Inputs:  v — rendered vars (host_join_domain, and what apply_host_managed reads); config_dir — the
              install's config folder (RECORD names the host's own account).
     Returns: {"account": "FAB1", "managed": bool, "changes": [str, …]}.
     Fails:   ValidationError when this host is not a member of its domain with its own account (host_join_domain
@@ -31,6 +32,6 @@ def sync_host_managed(v, config_dir):
     if found is None:
         raise SetupError(f"the domain has no computer {account}$ (removed in the web console?): "
                          "`sudo fabricctl setup --step member` makes it again; nothing was changed")
-    group = f"cn={str(v.get('site_name') or '').lower()}-fabric-machines,"
+    group = f"cn={FABRIC_MANAGED},"
     managed = any(g.lower().startswith(group) for g in found.get("member_of", []))
     return {"account": account, "managed": managed, "changes": apply_host_managed(v, managed)}

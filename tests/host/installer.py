@@ -8,6 +8,8 @@ message, then the good answer. Two runs (setup's start, menu and plan: manual 1.
      back on, the host's own rules kept), the plan's one yes — setup must finish, then doctor, and the checks a person
      would make (the domain on IPv4 only, 2.1.6.29; the landing page at the host's own name; the host's own ufw rules
      kept beside fabric's).
+Then a dropped connection (2.1.2.26): setup run again, its SSH connection killed in the certificates step — the work
+goes on as fabric-setup.service, and `sudo fabricctl setup` re-attaches, asking nothing, and ends with its result.
 The host is left installed for a person to look at. Run from a Linux machine that reaches the host with a key:
     TARGET=tempuser@192.168.5.57 KEY=~/.ssh/fabric-test_ed25519 HOST_IP=192.168.5.57 DOMAIN=home.arpa \\
         python3 tests/host/installer.py
@@ -30,6 +32,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 from fabriclib.samba.suggested_ad_domain import suggested_ad_domain  # noqa: E402
 from fabriclib.samba.suggested_dc_name import suggested_dc_name  # noqa: E402
 AD = suggested_ad_domain(DOMAIN)        # what Enter takes (2.1.6.11: a sibling of a domain of three labels or more)
+ADMIN = "rehearse.admin"                # the first Directory Administrator, named (2.1.6.69: no default)
 OUT = os.environ.get("OUT", "/tmp/fabric-tests/installer")
 SSH = ["ssh", "-o", "BatchMode=yes", "-i", KEY, TARGET]
 PASS = FAIL = 0
@@ -55,9 +58,11 @@ PROMPTS = [
     ("lan_cidr", r"LAN subnet \(CIDR\).*\]: $"),
     ("lan_gateway", r"LAN gateway \(router\).*\]: $"),
     ("friendly_name", r"Organisation's name.*\]: $"),
-    ("admin", r"First admin's user name.*\]: $"),
+    ("admin", r"First Directory Administrator's user name.*\]: $"),     # 2.1.6.69: their own, never fabric-admin
+    ("first", r"Their first name.*\]: $"),
+    ("last", r"Their last name.*\]: $"),
+    ("email", r"Their e-mail address.*\]: $"),
     ("ad_domain", r"Windows \(AD\) domain.*: $"),
-    ("dc_name", r"Domain controller's name.*: $"),
     ("min_length", r"Minimum password length.*: $"),
     ("history", r"Previous passwords remembered.*: $"),
     ("min_age", r"Days before a new password may be changed.*: $"),
@@ -77,9 +82,10 @@ PROMPTS = [
 ]
 
 
-def drive(answers, log):
+def drive(answers, log, drop_at=None):
     """Run `sudo fabricctl setup` in a terminal, answering each question from answers[name] in turn ("" = Enter
-    when a list runs out). Returns (exit status, transcript, the questions in the order asked)."""
+    when a list runs out); with drop_at, the SSH client is killed once the screen shows it (the connection drops).
+    Returns (exit status, transcript, the questions in the order asked)."""
     pid, fd = pty.fork()
     if pid == 0:
         os.execvp("ssh", ["ssh", "-tt", "-o", "BatchMode=yes", "-i", KEY, TARGET, "sudo fabricctl setup"])
@@ -99,6 +105,9 @@ def drive(answers, log):
                 out.write(data)
                 out.flush()
                 last = time.time()
+                if drop_at and drop_at in transcript:
+                    os.kill(pid, 9)
+                    break
                 tail = re.sub(r"\x1b\[[0-9;]*m", "", screen[-500:])
                 for name, pattern in PROMPTS:
                     if re.search(pattern, tail):
@@ -136,15 +145,18 @@ bad = {
     "lan_cidr": ["192.168.4.0/33", "nope", "", "", ""],
     "lan_gateway": ["300.1.1.1", "", HOST_IP, ""],
     "friendly_name": ['a"quote', "<b>", "x" * 41, "Fabric Installer Test"],
-    "admin": ["administrator", "root", "fabric-agent", "Bad User", ""],
+    "admin": ["administrator", "root", "fabric-agent", "Bad User", "fabric-admin", "", ADMIN],
+    "first": ["", "<b>", "Rehearse"],
+    "last": ["", "Admin"],
+    "email": ["nope", ""],
     "ad_domain": [DOMAIN, DOMAIN.split(".")[-1], "ad.local", "ad_x." + DOMAIN, ""],
     # too short (the default policy: 12), containing the user name, then two that differ, then a good one twice
-    "admin_pw": ["short", "xFabric-Admin-9", "Good-Pass-1234", "Good-Pass-1234"],
+    "admin_pw": ["short", "x" + ADMIN.title() + "-9", "Good-Pass-1234", "Good-Pass-1234"],
     "admin_pw2": ["nope", "Good-Pass-1234"],
     "mode": ["x", "g"],
     # the plan: no choice, then the menu (a number not on the list, the ports turned off), then Proceed
     "plan": ["x", "m", "p"],
-    "menu": ["99", "15", "p"],          # 15: the ports fabric needs
+    "menu": ["99", "14", "p"],          # 14: the ports fabric needs
     "yesno": ["n"],
 }
 code, text, asked = drive(bad, f"{OUT}/run1.log")
@@ -158,8 +170,12 @@ EXPECT = [
     ("an address this machine does not have: the network asked again", "is not an address of this machine", 1),
     ("the gateway given as the host's own address: the network asked again", "are both", 1),
     ("a quote, <>, 41 characters: refused as the organisation's name", "not a valid friendly_name", 3),
-    ("administrator, root, a fabric- name, a capital and a space: refused as the first admin",
-     "not a valid webui_admin_user", 4),
+    ("administrator, root, a fabric- name, a capital and a space, fabric-admin (break glass, 2.1.6.69) and none: "
+     "refused as the first admin", "not a valid webui_admin_user", 6),
+    ("the first admin's first name: none, <b>: refused", "not a valid webui_admin_first_name", 2),
+    ("...their last name: none, refused", "not a valid webui_admin_last_name", 1),
+    ("...their e-mail address: not one, refused; none taken (it is optional, 2.1.6.93)",
+     "not a valid webui_admin_email", 1),
     ("fabric's own domain, its parent, .local, an underscore: refused as the AD domain",
      "a domain of two labels or more", 4),
     ("the first admin's password: shorter than the default policy (12), refused", "at least 12 characters", 1),
@@ -201,14 +217,15 @@ good = {
     "mode": ["a"],
     # Proceed before the required items have values (refused), the domain, the organisation, the first admin; the host's
     # own rules turned on (the ports and securing come back with them), then off again (kept beside fabric's)
-    "menu": ["p", "1", "3", "7", "17", "17", "p"],    # 7: the first admin; 17: the host's own rules
+    "menu": ["p", "1", "3", "6", "16", "16", "p"],    # 6: the first admin; 16: the host's own rules
     "yesno": ["y", "n"],
-    "domain": [DOMAIN], "friendly_name": ["Fabric Installer Test"], "admin": [""], "plan": ["p"],
+    "domain": [DOMAIN], "friendly_name": ["Fabric Installer Test"], "admin": [ADMIN], "first": ["Rehearse"],
+    "last": ["Admin"], "email": [""], "plan": ["p"],
     "admin_pw": ["Good-Pass-1234"], "admin_pw2": ["Good-Pass-1234"],
 }
 code, text, asked = drive(good, f"{OUT}/run2.log")
 check("Advanced: the menu's Proceed waits for the organisation and the first admin's password, naming them",
-      "not yet: 3, 7 need an answer" in text, text[:3000])
+      "not yet: 3, 6 need an answer" in text, text[:3000])
 check("the plan lists the ports and securing, in order, and the host's own rules under Not made (kept)",
       0 <= text.rfind("Ports fabric needs (recommended)") < text.rfind("Secure this host (recommended)")
       and "The host's own firewall rules: the host's own rules stay" in text, text[-3000:])
@@ -220,24 +237,26 @@ names, first, signin = (text.find("FIRST point the computer"), text.find("instal
                         text.find("then sign in"))
 fingerprint = R("openssl x509 -in /opt/nginx/www/certs/root-ca.crt -noout -fingerprint -sha256 | cut -d= -f2")
 check("setup's last words: FIRST fabric's names (its DNS at the host's address, or the hosts-file line naming info, "
-      "fabric and sso), then the root certificate over plain HTTP by address (its fingerprint), then sign in",
+      "fabric-ctl and sso), then the root certificate over plain HTTP by address (its fingerprint), then sign in",
       0 <= names < first < signin and "set its DNS server to" in text[names:first]
       and f"info.{DOMAIN}" in text[names:first] and f"sso.{DOMAIN}" in text[names:first]
       and "/certs/" in text[first:signin]
       and fingerprint.strip() and fingerprint.strip() in text[first:signin]
-      and f"https://fabric.{DOMAIN}" in text[signin:], text[-1500:])
+      and f"https://fabric-ctl.{DOMAIN}" in text[signin:], text[-1500:])
 saved = yaml.safe_load(R("cat /opt/fabric/config/vars.yaml")) or {}
 # covers: setting:webui_admin_user +
-check("Enter took fabric-admin as the first admin; the console's role is fabric-console-admin; Kerberos off; the "
-      "default policy; all the memory (2.1.2.16, 2.1.6.32, 2.1.6.33, 2.1.6.35)",
-      saved.get("webui_admin_user") == "fabric-admin" and saved.get("webui_admin_role") == "fabric-console-admin"
+check("the first admin as named, never fabric-admin (2.1.6.69); the console's role is fabric-console-admin; "
+      "Kerberos off; the default policy; all the memory (2.1.2.16, 2.1.6.32, 2.1.6.33, 2.1.6.35)",
+      saved.get("webui_admin_user") == ADMIN and saved.get("webui_admin_first_name") == "Rehearse"
+      and saved.get("webui_admin_last_name") == "Admin" and saved.get("webui_admin_role") == "fabric-console-admin"
       and saved.get("signin_kerberos") is False and (saved.get("ad_password_policy") or {}).get("minimum_length") == 12
       and (saved.get("ad_password_policy") or {}).get("lockout_threshold") == 10
       and int(saved.get("host_ram_capacity") or 0) >= 4,
-      {k: saved.get(k) for k in ("webui_admin_user", "webui_admin_role", "signin_kerberos", "ad_password_policy",
+      {k: saved.get(k) for k in ("webui_admin_user", "webui_admin_first_name", "webui_admin_last_name", "webui_admin_role", "signin_kerberos", "ad_password_policy",
                                  "host_ram_capacity")})
-check("Advanced with the DC's name left alone: the DC takes dc-<hostname>, never the host's own name (2.3.1.21.2)",
-      saved.get("dc_name") == suggested_dc_name(guess_host) != guess_host, saved.get("dc_name"))
+check("Advanced: no question or menu item names the DC; it is dc-0001 (2.1.6.65), never the host's own name "
+      "(2.3.1.21.2)", saved.get("dc_name") == suggested_dc_name() != guess_host and "Domain controller's name" not in text,
+      saved.get("dc_name"))
 check("the first admin was created with the chosen password; none written to the login kit",
       "created in the directory with the password chosen in setup" in text
       and not R("find /home /root -path '*/fabric-admin/initial-password.txt' -newer /opt/fabric/config/fabric.yaml "
@@ -278,5 +297,20 @@ R("fabricctl setup --step firewall --non-interactive --approve ports,firewall --
 check("the firewall set up again for the person to use (own rules kept)",
       "Default: deny (incoming)" in R("ufw status verbose")
       and all(ln in R("ufw show added").splitlines() for ln in removed))
+
+# ---- a dropped connection (2.1.2.26): the work goes on; setup again re-attaches and ends with the result
+code, text, asked = drive({"plan": ["p"]}, f"{OUT}/run3-dropped.log", drop_at="[certs]")
+time.sleep(3)
+check("the connection dropped in the certificates step: the console is gone, fabric-setup.service goes on",
+      "[certs]" in text and "runs as fabric-setup.service" in text
+      and R("systemctl is-active fabric-setup.service").strip() == "active", text[-1500:])
+code, text, asked = drive({}, f"{OUT}/run4-reattach.log")
+# covers: cli:setup +
+check("sudo fabricctl setup re-attaches: no question, the run from its start to fabric is ready, exit 0",
+      code == 0 and not asked and "a setup is already running" in text and "fabric is ready" in text,
+      (code, asked, text[-1500:]))
+check("…and the unit is gone once it ended (--collect), the run recorded done",
+      R("systemctl is-active fabric-setup.service").strip() != "active"
+      and "state: done" in R("cat /opt/fabric/config/setup-run.yaml"))
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

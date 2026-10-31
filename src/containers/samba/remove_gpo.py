@@ -7,13 +7,13 @@ from find_gpo import find_gpo
 
 
 def remove_gpo(samdb, lp, name):
-    """Purpose: one of fabric's GPOs gone (manual 1.6.11.4): unlinked from every object that links it (the domain, any
+    """Purpose: one of fabric's GPOs gone (manual 1.6.13.4): unlinked from every object that links it (the domain, any
              OU, any AD site), its container deleted with its Machine and User children, its SYSVOL folder removed —
              what `samba-tool gpo del` does, locally on the DC's own database (no SMB, no credentials).
     Inputs:  samdb — SamDB (as the system); lp — LoadParm (realm, the SYSVOL path); name — the GPO's display name.
     Returns: list of str, what was unlinked and removed ([] when there is no such GPO).
     Fails:   ldb.LdbError from AD; OSError removing the folder is ignored (a site's DC may never have had it).
-    Feeds:   ensure_logon_policies (a log-on policy no longer wanted, the site's legacy one included)."""
+    Feeds:   compile_grants (a set of machines no longer wanted, 1.6.13.4)."""
     found = find_gpo(samdb, name)
     if found is None:
         return []

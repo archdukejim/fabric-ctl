@@ -1,8 +1,8 @@
 """What the vars editor (`fabricctl --interactive`) treats specially."""
 
 # fixed once installed: never edited or deleted from the menu (ad_domain: 2.1.6.11; dc_name: an AD DC cannot be
-# renamed, 2.1.6.45; friendly_name: the CA's name is made from it). Setup marks its questions for these "⚠ Permanent"
-# (setup/permanent_mark, 2.1.2.20): one list for both.
+# renamed, 2.1.6.45, and fabric names it, 2.1.6.65; friendly_name: the CA's name is made from it). Setup marks its
+# questions for these "⚠ Permanent" (setup/permanent_mark, 2.1.2.20): one list for both.
 IMMUTABLE_KEYS = {
     "ad_domain", "ca_name", "cert_country", "cert_province", "cert_city", "cert_org", "cert_ou",
     "cert_root_digest", "cert_root_key_type", "cert_root_key_param", "cert_root_ca_days",
@@ -11,7 +11,6 @@ IMMUTABLE_KEYS = {
     "stepca_port", "stepca_cert_allow_subordinate_ca", "stepca_cert_max_lifetime_hours",
     "byoc", "ca_crt_path", "ica_crt_path", "ica_key_path", "extra_certs",
     "deploy_base_dir", "domain", "org_domain", "site_name", "dc_name", "friendly_name",
-    "posix_id_start", "posix_id_block",     # the uid/gid blocks' start and size (2.1.6.46)
 }
 
 # changing these can cut the host off its network, or rename it (hostname: its certificates and pages, never the DC,

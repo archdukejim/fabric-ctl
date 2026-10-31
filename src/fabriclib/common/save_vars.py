@@ -1,3 +1,5 @@
+import os
+
 import yaml
 
 from fabriclib.common.paths import VARS_FILE
@@ -17,12 +19,26 @@ def _empty_to_null(data):
 
 
 def save_vars(data, path=VARS_FILE):
-    """Purpose: write vars.yaml, empty strings stored as null, keys in their given order.
+    """Purpose: write vars.yaml, empty strings stored as null, keys in their given order; atomically, so a reader
+             without vars_lock (the agent, the console) sees the old file or the new one, never a part of either.
     Inputs:  data — dict of settings; path — str, default VARS_FILE. Callers hold vars_lock.
     Returns: None.
-    Fails:   OSError if the file cannot be written; yaml.representer.RepresenterError for values YAML cannot dump.
-             Not atomic: the file is truncated first, so a failure mid-write leaves it partial.
+    Fails:   OSError if the file cannot be written (the old file stays as it was); yaml errors
+             for values YAML cannot dump.
     Feeds:   dns/* (record, ACL and TSIG edits), dhcp/add_reservation, dhcp/remove_reservation,
-             radius/add_radius_client, remove_radius_client, map_radius_group, unmap_radius_group."""
-    with open(path, "w") as f:
-        yaml.dump(_empty_to_null(data), f, default_flow_style=False, sort_keys=False)
+             radius/add_radius_client, remove_radius_client, map_radius_group, unmap_radius_group, settings/apply."""
+    tmp = f"{path}.tmp"
+    try:
+        with open(tmp, "w") as f:
+            yaml.dump(_empty_to_null(data), f, default_flow_style=False, sort_keys=False)
+            f.flush()
+            os.fsync(f.fileno())
+        if os.path.exists(path):        # the new file keeps the old one's mode and owner (vars.yaml is root's, 0600)
+            st = os.stat(path)
+            os.chmod(tmp, st.st_mode & 0o7777)
+            if os.geteuid() == 0:
+                os.chown(tmp, st.st_uid, st.st_gid)
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)

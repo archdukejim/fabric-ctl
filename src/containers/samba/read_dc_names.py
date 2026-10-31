@@ -1,5 +1,6 @@
 """The names of the domain's domain controllers and of every other computer account (manual 1.6.5.23), read from this
-DC's own database, so a parent refuses a joining site's DC a name already in use before the join is prepared.
+DC's own database, so a parent gives a joining site's DC the lowest name not in use before the join is prepared
+(2.1.6.65). A DC's record (CN=dcs, 2.1.6.79) counts as a DC: a parent made it for a DC that has not joined yet.
     docker exec samba python3 /fabric/read_dc_names.py
 Prints one JSON object: {"dcs": [name, …], "computers": [name, …]} (lower case, without the trailing $)."""
 import json
@@ -8,6 +9,7 @@ import sys
 import ldb
 
 from open_samdb import open_samdb
+import paths
 
 CONF = "/data/etc/smb.conf"
 SERVER_TRUST, PARTIAL_SECRETS = 0x2000, 0x4000000     # userAccountControl: a DC, a read-only DC
@@ -16,8 +18,8 @@ SERVER_TRUST, PARTIAL_SECRETS = 0x2000, 0x4000000     # userAccountControl: a DC
 def read_dc_names():
     """Purpose: the computer names the domain holds, its DCs apart.
     Inputs:  none (the DC's own database, as the system).
-    Returns: {"dcs": sorted names of the writable and read-only DCs, "computers": sorted names of every computer
-             account, DCs included}.
+    Returns: {"dcs": sorted names of the writable and read-only DCs and of every DC record, "computers": sorted
+             names of every computer account, DCs included}.
     Fails:   ldb.LdbError from the search.
     Feeds:   this script's main."""
     samdb, _ = open_samdb(CONF)
@@ -29,6 +31,13 @@ def read_dc_names():
         computers.add(name)
         if int(str(r.get("userAccountControl", [0])[0])) & (SERVER_TRUST | PARTIAL_SECRETS):
             dcs.add(name)
+    try:
+        dcs |= {str(r["cn"][0]).lower() for r in samdb.search(base=f"CN=dcs,{paths.fabric_dn(samdb)}",
+                                                               scope=ldb.SCOPE_ONELEVEL, attrs=["cn"],
+                                                               expression="(objectClass=fabricDcInfo)")}
+    except ldb.LdbError as e:
+        if e.args[0] != ldb.ERR_NO_SUCH_OBJECT:     # no CN=dcs before the domain has converged
+            raise
     return {"dcs": sorted(dcs), "computers": sorted(computers)}
 
 

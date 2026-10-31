@@ -12,14 +12,15 @@ import subprocess
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__))]
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.dirname(os.path.abspath(__file__)), os.path.join(REPO, "tests", "common")]
+import test_run as testrun  # noqa: E402
 from start_dc import start_dc  # noqa: E402
 import fabriclib.samba.run_gpo_command as m_cmd  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.samba.gpo_request import gpo_request  # noqa: E402
 
 W = os.path.join(os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests"), "samba-gpo")
-NET, SUBNET, IP, DC = "gpo_net", "10.254.34.0/24", "10.254.34.10", "gpodc"
+NET, SUBNET, IP, DC = testrun.name("gpo_net"), f"{testrun.PREFIX}.34.0/24", f"{testrun.PREFIX}.34.10", testrun.name("gpodc")
 TEXT_POL, TEXT_EL = "POL_33AAE399_07A8_5CC8_882A_393E4B96B259", "TXT_F940E18B_16AE_594B_9669_96417E695AC9"
 BOOL_POL, BOOL_EL = "POL_3CD2A970_826E_518E_B5F0_5E6725FF354D", "CHK_5C837672_BFBB_592A_907C_E378BEEDA2E4"
 LIST_POL, LIST_EL = "POL_DB5DF501_6F87_42D4_9FEC_E7F32C498BD3", "LST_4F4BA073_4F7B_4B64_A61D_8E75257A4B9F"
@@ -129,7 +130,7 @@ g = samdb.search(base="CN=Policies,CN=System," + str(samdb.domain_dn()), scope=l
                  expression="(displayName=fabric: lan admin settings)",
                  attrs=["cn", "versionNumber", "gPCMachineExtensionNames"])[0]
 folder = os.path.join(lp.get("path", "sysvol"), lp.get("realm").lower(), "Policies", str(g["cn"]))
-link = samdb.search(base="OU=lan,OU=sites," + str(samdb.domain_dn()), scope=ldb.SCOPE_BASE, attrs=["gPLink"])[0]
+link = samdb.search(base="OU=machines," + str(samdb.domain_dn()), scope=ldb.SCOPE_BASE, attrs=["gPLink"])[0]
 pol = ndr_unpack(preg.file, open(os.path.join(folder, "Machine", "Registry.pol"), "rb").read())
 print(json.dumps({"linked": str(g.dn).lower() in str(link["gPLink"][0]).lower(), "version": int(str(g["versionNumber"])),
                   "ext": str(g["gPCMachineExtensionNames"]), "gpt": open(os.path.join(folder, "GPT.INI")).read(),
@@ -137,7 +138,7 @@ print(json.dumps({"linked": str(g.dn).lower() in str(link["gPLink"][0]).lower(),
 """
 res = subprocess.run(["docker", "exec", "-i", DC, "python3", "-"], input=READ, capture_output=True, text=True)
 g = json.loads(res.stdout or "{}") if res.returncode == 0 else {}
-check("the GPO is linked to OU=lan, its version bumped in AD and GPT.INI, Registry.pol as Windows reads it",
+check("the GPO is linked at OU=machines (2.1.6.84), its version bumped in AD and GPT.INI, Registry.pol as Windows reads it",
       g.get("linked") and g.get("version", 0) >= 7 and f"Version={g.get('version')}" in g.get("gpt", "")
       and "{35378EAC-683F-11D2-A89A-00C04FBBCFA2}" in g.get("ext", "") and g.get("entries") == 5,
       res.stderr[-300:] or g)
@@ -153,7 +154,7 @@ samdb, lp = open_samdb("/data/etc/smb.conf")
 for name in ("admin settings", "controls"):
     g = samdb.search(base="CN=Policies,CN=System," + str(samdb.domain_dn()), scope=ldb.SCOPE_ONELEVEL,
                      expression="(displayName=fabric: lan %s)" % name, attrs=["cn"])[0]
-    link = str(samdb.search(base="OU=lan,OU=sites," + str(samdb.domain_dn()), scope=ldb.SCOPE_BASE,
+    link = str(samdb.search(base="OU=machines," + str(samdb.domain_dn()), scope=ldb.SCOPE_BASE,
                             attrs=["gPLink"])[0]["gPLink"][0]).lower()
     print(name, link.split(str(g.dn).lower() + ";")[1][0] if str(g.dn).lower() + ";" in link else "-")
 """
@@ -182,7 +183,7 @@ check("refused: a file that is not a template, before anything is written",
       code == 1 and "broken" not in "".join(gpo_request({"op": "templates"}, DC)), out)
 check("every change audited", {"GPO_TEMPLATES_LOAD", "GPO_SET", "GPO_CLEAR"} <= set(AUDIT), AUDIT)
 
-subprocess.run(["docker", "rm", "-f", DC], capture_output=True)
-subprocess.run(["docker", "network", "rm", NET], capture_output=True)
+testrun.remove("container", DC)      # this run's only
+testrun.remove("network", NET)
 print(f"\n{FAILED and 'FAILED' or 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

@@ -19,7 +19,8 @@ from set_gpo_acl import set_gpo_acl
 
 CONF = "/data/etc/smb.conf"
 LOCK = "/run/samba/pull_sysvol.lock"     # one pull at a time (the entrypoint's round, or one run by hand)
-LINK = re.compile(r"\[LDAP://cn=(\{[0-9a-f-]+\}),cn=policies,cn=system,[^;\]]*;\d+\]", re.I)
+# a site's own GPOs, by their display names (converge, admin_gpo): the site is the second word
+SITE_GPO = re.compile(r"^fabric: ([a-z0-9][a-z0-9-]*) (?:Windows baseline|admin settings|controls)$")
 
 
 def _version(text):
@@ -32,60 +33,52 @@ def _version(text):
     return int(m.group(1)) if m else -1
 
 
-def _site_of(dn, sites):
-    """Purpose: the fabric site that owns a link target: the nearest site OU at or above it (sites nest, 2.1.6.20).
-    Inputs:  dn — str, the OU (or the domain) a GPO is linked to; sites — {lower-case site OU DN: site name}.
-    Returns: str site name, or None (the domain, OU=Domain Controllers, anything outside OU=sites).
+def _owner(name):
+    """Purpose: the site a GPO belongs to, by fabric's display name for a site's GPOs ("fabric: <site> Windows
+             baseline", "fabric: <site> admin settings", "fabric: <site> controls"); every other GPO is the root's
+             (the domain's own, fabric's domain-wide ones, an admin's).
+    Inputs:  name — the GPO's displayName.
+    Returns: str site name, or None (the root's).
     Fails:   never.
-    Feeds:   _owners."""
-    parts = [p.strip() for p in dn.split(",")]
-    for i in range(len(parts)):
-        name = sites.get(",".join(parts[i:]).lower())
-        if name:
-            return name
-    return None
+    Feeds:   pull_sysvol."""
+    m = SITE_GPO.match(name)
+    return m.group(1) if m else None
 
 
-def _owners(samdb, sites, root):
-    """Purpose: each GPO's owning site: the site its link is in, the root for the domain's own and unlinked ones.
-    Inputs:  samdb — SamDB; sites — {site OU DN (lower case): name}; root — the root site's name.
-    Returns: {guid "{…}" upper case: site name}.
+def _writable_dcs(samdb):
+    """Purpose: the domain's writable DCs, by AD site: the DCs that may hold a GPO's folders (a read-only DC's site
+             has its GPOs written at a writable DC: manual 1.9.8.14).
+    Inputs:  samdb — SamDB.
+    Returns: list of (AD site name, dnsHostName, NTDS Settings DN), by AD site and DN.
     Fails:   ldb.LdbError from a search.
     Feeds:   pull_sysvol."""
-    owners = {}
-    for res in samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_SUBTREE, expression="(gPLink=*)",
-                            attrs=["gPLink"]):
-        site = _site_of(str(res.dn), sites)
-        for guid in LINK.findall(str(res["gPLink"][0])):
-            if site or guid.upper() not in owners:        # a site's own link wins over the domain's
-                owners[guid.upper()] = site or owners.get(guid.upper(), root)
-    return owners
+    out = []
+    for ntds in samdb.search(base=f"CN=Sites,{samdb.get_config_basedn()}", scope=ldb.SCOPE_SUBTREE,
+                             expression="(objectClass=nTDSDSA)", attrs=["objectCategory"]):
+        if "NTDS-DSA-RO" in str(ntds["objectCategory"][0]).upper():
+            continue
+        server = samdb.search(base=str(ntds.dn.parent()), scope=ldb.SCOPE_BASE, attrs=["dNSHostName"])[0]
+        if "dNSHostName" in server:      # CN=NTDS Settings,CN=<dc>,CN=Servers,CN=<site>,CN=Sites,...
+            out.append((str(ntds.dn).split(",")[3].split("=", 1)[1], str(server["dNSHostName"][0]), str(ntds.dn)))
+    return sorted(out, key=lambda x: (x[0].lower(), x[2].lower()))
 
 
-def _writable_dc(samdb, site, parents, root):
-    """Purpose: the DC that holds a site's GPO folders: a writable DC in the site's own AD site, else its nearest
-             ancestor's (an RODC site, or one with no DC, has its GPOs written there: manual 1.9.8.14).
-    Inputs:  samdb — SamDB; site — str; parents — {site: parent site}; root — the root site.
-    Returns: (dnsHostName str, NTDS Settings DN str) or None.
-    Fails:   ldb.LdbError from a search.
+def _root_site(samdb):
+    """Purpose: the root site: the site of the domain's first DC (dc-0001's record, 2.1.6.79), the lowest-numbered
+             record when it is gone.
+    Inputs:  samdb — SamDB.
+    Returns: str, or None before any DC has a record.
+    Fails:   ldb.LdbError from a search other than a missing CN=dcs.
     Feeds:   pull_sysvol."""
-    config = str(samdb.get_config_basedn())
-    seen = set()
-    while site and site not in seen:
-        seen.add(site)
-        try:
-            found = samdb.search(base=f"CN=Servers,CN={site},CN=Sites,{config}", scope=ldb.SCOPE_SUBTREE,
-                                 expression="(objectClass=nTDSDSA)", attrs=["objectCategory"])
-        except ldb.LdbError:
-            found = []
-        for ntds in sorted(found, key=lambda r: str(r.dn)):
-            if "NTDS-DSA-RO" in str(ntds["objectCategory"][0]).upper():
-                continue
-            server = samdb.search(base=str(ntds.dn.parent()), scope=ldb.SCOPE_BASE, attrs=["dNSHostName"])[0]
-            if "dNSHostName" in server:
-                return str(server["dNSHostName"][0]), str(ntds.dn)
-        site = parents.get(site) or (root if site != root else None)
-    return None
+    try:
+        found = samdb.search(base=f"CN=dcs,CN=fabric,CN=System,{samdb.domain_dn()}", scope=ldb.SCOPE_ONELEVEL,
+                             expression="(objectClass=fabricDcInfo)", attrs=["cn", "fabricSite"])
+    except ldb.LdbError as e:
+        if e.args[0] != ldb.ERR_NO_SUCH_OBJECT:
+            raise
+        return None
+    found = sorted((m for m in found if m.get("fabricSite")), key=lambda m: str(m["cn"][0]).lower())
+    return str(found[0]["fabricSite"][0]) if found else None
 
 
 def pull_sysvol():
@@ -98,24 +91,14 @@ def pull_sysvol():
     samdb, lp = open_samdb(CONF)
     base, realm = str(samdb.domain_dn()), lp.get("realm").lower()
     me = str(samdb.get_dsServiceName()).lower()
-    sites, parents, root = {}, {}, None
-    for res in samdb.search(base=f"OU=sites,{base}", scope=ldb.SCOPE_SUBTREE, expression="(objectClass=fabricSiteInfo)",
-                            attrs=["ou"]):
-        sites[str(res.dn).lower()] = str(res["ou"][0])
-    for dn, name in sites.items():
-        above = dn.split(",", 1)[1]
-        if above in sites:                  # a site nested in its parent's OU (2.1.6.20)
-            parents[name] = sites[above]
-    # the root site's OU is the one holding OU=organisation (manual 1.6.3.4)
-    for res in samdb.search(base=f"OU=sites,{base}", scope=ldb.SCOPE_SUBTREE, expression="(ou=organisation)",
-                            attrs=["dn"]):
-        root = sites.get(str(res.dn).split(",", 1)[1].lower(), root)
-    owners = _owners(samdb, sites, root)
+    root = _root_site(samdb)
+    dcs = _writable_dcs(samdb)
     policies = os.path.join(lp.get("path", "sysvol"), realm, "Policies")
     creds = None
     conns, out = {}, []
     for gpo in samdb.search(base=f"CN=Policies,CN=System,{base}", scope=ldb.SCOPE_ONELEVEL,
-                            expression="(objectClass=groupPolicyContainer)", attrs=["cn", "versionNumber"]):
+                            expression="(objectClass=groupPolicyContainer)",
+                            attrs=["cn", "versionNumber", "displayName"]):
         guid = str(gpo["cn"][0]).upper()
         want = int(str(gpo.get("versionNumber", ["0"])[0]))
         folder = os.path.join(policies, guid)
@@ -123,25 +106,40 @@ def pull_sysvol():
         have = _version(open(ini, encoding="utf-8", errors="replace").read()) if os.path.exists(ini) else -1
         if have == want:
             continue
-        holder = _writable_dc(samdb, owners.get(guid, root), parents, root)
-        if holder is None or holder[1].lower() == me:
-            continue                    # this DC owns it (its own writes keep it current), or nobody holds it
-        host = holder[0]
-        try:
-            if host not in conns:
-                if creds is None:
-                    creds = Credentials()
-                    creds.guess(lp)
-                    creds.set_machine_account(lp)
-                    creds.set_kerberos_state(MUST_USE_KERBEROS)
-                conns[host] = smb_connection(host, "sysvol", lp, creds)
-            conn = conns[host]
-            remote = f"{realm}\\Policies\\{guid}"
-            theirs = _version(conn.loadfile(remote + "\\GPT.INI").decode("utf-8", "replace"))
-            if theirs != want:
-                out.append(f"{guid}: not copied from {host}: its files are version {theirs}, the object {want} "
-                           f"(changed away from its owner, or still being written)")
+        owner = _owner(str(gpo.get("displayName", [""])[0])) or root
+        # the owner site's writable DCs first, then the root's, then the others: the first whose files are the
+        # object's version is copied from (a read-only DC's site has its GPOs written at its parent's DC)
+        order = sorted(dcs, key=lambda d: (d[0].lower() != (owner or "").lower(),
+                                           d[0].lower() != (root or "").lower()))
+        if order and order[0][2].lower() == me:
+            continue                    # this DC owns it: its own writes keep it current
+        found, why = None, []
+        for _, host, dn in order:
+            if dn.lower() == me:
                 continue
+            try:
+                if host not in conns:
+                    if creds is None:
+                        creds = Credentials()
+                        creds.guess(lp)
+                        creds.set_machine_account(lp)
+                        creds.set_kerberos_state(MUST_USE_KERBEROS)
+                    conns[host] = smb_connection(host, "sysvol", lp, creds)
+                ini = conns[host].loadfile(f"{realm}\\Policies\\{guid}\\GPT.INI")
+                theirs = _version(ini.decode("utf-8", "replace"))
+            except Exception as e:      # one DC unreachable never stops the others
+                why.append(f"{host}: {type(e).__name__}: {e}")
+                continue
+            if theirs == want:
+                found = host
+                break
+            why.append(f"{host} has version {theirs}")
+        if found is None:
+            if why:
+                out.append(f"{guid}: not copied: no writable DC holds version {want} ({'; '.join(why)})")
+            continue
+        host, conn, remote = found, conns[found], f"{realm}\\Policies\\{guid}"
+        try:
             os.makedirs(policies, exist_ok=True)       # a joined DC may have no Policies folder yet
             tmp = os.path.join(policies, f".fabric-pull-{guid}")
             shutil.rmtree(tmp, ignore_errors=True)

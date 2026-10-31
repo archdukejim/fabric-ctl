@@ -9,7 +9,7 @@ $ORIGIN {{ reverse_zone_name }}.
                         3600             ; Refresh
                         1800             ; Retry
                         604800           ; Expire
-                        {{ 300 if reverse_zone_name in dhcp_reverse_zones | default([]) else 86400 }} ; Negative caching TTL (short in a DHCP zone: a new lease's name comes soon, 2.1.10.7)
+                        30               ; Negative caching TTL (a new lease's or record's name answers within 30 s, 2.1.4.9)
 )
 
 ;-----------------------------------------------------------------

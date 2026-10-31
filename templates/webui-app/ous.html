@@ -1,0 +1,55 @@
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+{% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
+{% if not path %}
+<h1>Directory · OUs</h1>
+{% if unavailable %}<p class="flash bad" role="alert">The OUs could not be read: {{ unavailable }}</p>
+{% else %}
+<section class="card"><h2>The domain's folders <span class="muted">{{ rows | length }}</span></h2>
+{% if rows %}{% call p.list(["OU", "Kept by", "People", "Groups", "Computers", "OUs"]) %}{% for o in rows %}<tr>
+<td data-label="OU"><a href="/directory/ous?{{ {'ou': o.path} | urlencode }}">{% if o.parent %}<span class="muted">{{ o.parent }}/</span>{% endif %}<strong>{{ o.leaf }}</strong></a></td>
+<td data-label="Kept by">{{ "fabric" if o.fabric else ("the site" if o.own else "AD") }}</td>
+<td data-label="People" class="num">{{ o.holds.people }}</td><td data-label="Groups" class="num">{{ o.holds.groups }}</td>
+<td data-label="Computers" class="num">{{ o.holds.computers }}</td><td data-label="OUs" class="num">{{ o.holds.ous }}</td></tr>{% endfor %}{% endcall %}
+{% else %}{{ p.empty("No OUs could be listed.") }}{% endif %}
+<p class="muted small">Folders by their path below the domain. fabric's own are fixed; the site's own go under people, service-accounts, groups and each machine type's folder. OUs grant nothing: access is by groups and grants.</p>
+</section>
+{% if can('ous:admin') %}<section class="card"><h2>Create OU</h2>
+<form method="post" action="/directory/ous/_new" class="grid">
+{{ csrf() }}
+<label>Under<select name="parent" required>{% for f in parents %}<option>{{ f }}</option>{% endfor %}</select></label>
+<label>Name<input name="name" required maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9 _.\-]{0,62}" autocomplete="off" placeholder="staff"></label>
+<div><button>Create OU</button></div></form>
+<p class="muted small">Waits for the OUs page's Apply. A name of fabric's own folders is refused.</p></section>{% endif %}
+{% endif %}
+
+{% else %}
+<p><a href="/directory/ous">← OUs</a></p>
+<h1>Directory · OU {{ path }}</h1>
+{% if unavailable %}<p class="flash bad" role="alert">The OUs could not be read: {{ unavailable }}</p>
+{% elif not ou %}<p class="flash bad" role="alert">No OU {{ path }} in the domain.</p>
+{% else %}
+<section class="card facts"><h2>What it holds</h2><dl>
+<dt>Kept by</dt><dd>{{ "fabric (fixed)" if ou.fabric else ("the site (changeable)" if ou.own else "AD") }}</dd>
+<dt>People</dt><dd>{{ ou.holds.people }}</dd><dt>Groups</dt><dd>{{ ou.holds.groups }}</dd>
+<dt>Computers</dt><dd>{% if ou.holds.computers %}<a href="/directory/computers?{{ {'q': ou.path} | urlencode }}">{{ ou.holds.computers }}</a>{% else %}0{% endif %}</dd>
+<dt>OUs</dt><dd>{{ ou.holds.ous }}</dd>{% if ou.holds.other %}<dt>Other</dt><dd>{{ ou.holds.other }}</dd>{% endif %}</dl>
+<p class="muted small">What it holds directly. OUs grant nothing: no policy is set by folder.</p></section>
+{% set below = rows | selectattr('parent', 'equalto', ou.path) | list %}
+{% if below %}<section class="card"><h2>OUs in it <span class="muted">{{ below | length }}</span></h2>
+<ul>{% for o in below %}<li><a href="/directory/ous?{{ {'ou': o.path} | urlencode }}">{{ o.leaf }}</a></li>{% endfor %}</ul></section>{% endif %}
+{% if ou.own and can('ous:admin') %}
+<section class="card"><h2>Rename</h2>
+<form method="post" action="/directory/ous/_form/rename" class="grid">
+{{ csrf() }}<input type="hidden" name="ou" value="{{ ou.path }}">
+<label>New name<input name="name" required maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9 _.\-]{0,62}" value="{{ ou.leaf }}" autocomplete="off"></label>
+<div><button>Rename</button></div></form>
+<p class="muted small">What it holds stays in it. Waits for the OUs page's Apply.</p></section>
+<section class="card"><h2>Delete {{ ou.leaf }}</h2>
+<form method="post" action="/directory/ous/_form/delete" class="grid">
+{{ csrf() }}<input type="hidden" name="ou" value="{{ ou.path }}">
+<div><button class="danger">Delete OU</button></div></form>
+<p class="muted small">Refused while it holds anything, naming what. Waits for the OUs page's Apply.</p></section>
+{% elif not ou.own %}<p class="muted small">{{ "One of fabric's fixed folders" if ou.fabric else "Not one the site adds to" }}: not changed here.</p>{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}

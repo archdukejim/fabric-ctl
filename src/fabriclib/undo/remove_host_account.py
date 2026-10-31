@@ -4,6 +4,7 @@ import os
 from fabriclib.common.errors import ValidationError
 from fabriclib.consent.plan_member import RECORD
 from fabriclib.directory.remove_machine import remove_machine
+from fabriclib.samba.writable_server import writable_server
 
 
 def remove_host_account(config_dir, v, secrets):
@@ -16,7 +17,8 @@ def remove_host_account(config_dir, v, secrets):
     Returns: list of str, what was done (empty when fabric made no account for this host). RECORD forgets the
              account once it is gone.
     Fails:   OSError / ValueError on a damaged RECORD.
-    Feeds:   undo/undo_group (`fabricctl setup --undo member`), setup/uninstall."""
+    Feeds:   undo/undo_group (`fabricctl setup --undo member`), setup/uninstall, setup/run_uninstall_command (before
+             an export stops the stack)."""
     path = os.path.join(config_dir, RECORD)
     if not os.path.exists(path):
         return []
@@ -27,8 +29,8 @@ def remove_host_account(config_dir, v, secrets):
         return []
     try:
         # a read-only DC's site: removed at the writable DC it was made at, with its place on the allow list
-        # (its <site>-rodc-cache membership goes with it, 2.1.6.52)
-        server = v.get("ad_join_server") if v.get("ad_dc_type") == "rodc" else None
+        # (its rodc-cache-<dc_name> membership goes with it, 2.1.6.52)
+        server = writable_server(v, "remove the host's account at")
         remove_machine(v, "fabricctl setup", account.lower(), source="setup", secrets=secrets(), server=server)
         done = f"the domain: this host's computer account {account}$ removed"
     except ValidationError as e:

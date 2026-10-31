@@ -6,15 +6,15 @@
   sudo fabricctl setup --file vars.yaml --non-interactive --yes --approve all   fully unattended
   sudo fabricctl setup --step certs         run one step (see --list)
   sudo fabricctl setup --undo firewall      undo one kind of host change and record it as declined
+  sudo fabricctl setup --restart            start over with the questions though the last run did not finish
   sudo fabricctl doctor                     run only the end-to-end checks
 """
 import argparse
 import os
 import sys
-import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from fabriclib.common.console import BOLD, NC, err, heading  # noqa: E402
+from fabriclib.common.console import err, heading, info  # noqa: E402
 from fabriclib.consent.ask_consent import ask_consent  # noqa: E402
 from fabriclib.consent.initial_host_choices import initial_host_choices  # noqa: E402
 from fabriclib.consent.plan_host_changes import plan_host_changes  # noqa: E402
@@ -26,10 +26,18 @@ from fabriclib.setup.choose_mode import choose_mode  # noqa: E402
 from fabriclib.setup.choose_plan import choose_plan  # noqa: E402
 from fabriclib.setup.collect_vars import collect_vars  # noqa: E402
 from fabriclib.setup.context import SetupContext  # noqa: E402
+from fabriclib.setup.detach.choose_start import choose_start  # noqa: E402
+from fabriclib.setup.detach.follow_run import follow_run  # noqa: E402
+from fabriclib.setup.detach.hand_over import hand_over  # noqa: E402
+from fabriclib.setup.detach.read_run import read_run  # noqa: E402
+from fabriclib.setup.detach.resume_run import resume_run  # noqa: E402
+from fabriclib.setup.detach.run_worker import run_worker  # noqa: E402
+from fabriclib.setup.detach.unit_running import unit_running  # noqa: E402
 from fabriclib.setup.errors import SetupError  # noqa: E402
 from fabriclib.setup.finish_vars import finish_vars  # noqa: E402
-from fabriclib.setup.print_first_steps import print_first_steps  # noqa: E402
 from fabriclib.setup.read_join_invitation import read_join_invitation  # noqa: E402
+from fabriclib.setup.require_terminal import require_terminal  # noqa: E402
+from fabriclib.setup.run_steps import run_steps  # noqa: E402
 from fabriclib.setup.steps import STEPS  # noqa: E402
 from fabriclib.setup.verify_install import run as verify  # noqa: E402
 from fabriclib.security.ufw_active import ufw_active  # noqa: E402
@@ -44,11 +52,15 @@ def main(argv=None):
     Inputs:  argv — option list (None: sys.argv[1:]): --file, --deploy-base (default /opt), --offline,
              --non-interactive, --yes/-y, --approve GROUPS / --decline GROUPS (host changes, repeatable),
              --step NAME (repeatable), --join [@FILE|-] (join an upstream fabric; read_join_invitation),
-             --undo GROUP (undo/undo_group: revert one host change, nothing else runs), --list, --doctor (hidden,
-             used by doctor).
-    Returns: exit status: 0 done (or --list printed), 1 a SetupError (message printed), 130 interrupted.
-             A full run leaves the install converged; the steps before deploy (preflight, host, docker,
-             deploy) collect vars first, and the plan is shown only when no --step is given. A new install with
+             --undo GROUP (undo/undo_group: revert one host change, nothing else runs), --list, --restart, --doctor
+             (hidden, used by doctor), --worker RUN (hidden: the unit's own command, detach/run_worker).
+    Returns: exit status: 0 done (or --list printed), 1 a SetupError (message printed), 130 interrupted (or, while
+             following the unit, detached). A full run (no --step) asks its questions here and hands the steps to
+             fabric-setup.service, following its log (detach/hand_over; decision 2.1.2.26): while that unit runs,
+             setup only re-attaches to it; when the last run did not finish, it resumes from the first step that
+             did not (detach/resume_run), unless --restart, --file or --join start over. The steps before deploy
+             (preflight, host, docker, deploy) collect vars first, and the plan is shown only when no --step is
+             given; --step runs stay in this session. A new install with
              someone there starts with [G]uided / [A]dvanced (choose_mode; Advanced: the menu of every setting,
              1.2.9.11); the plan's [P]roceed is the one yes for every host change it lists (2.1.2.18). Without a
              plan (--step, --yes), the changes that need an answer are listed with one question; unattended,
@@ -82,15 +94,43 @@ def main(argv=None):
                     help="join an upstream fabric as a new site (a fresh install): paste the invitation from "
                          "`fabricctl federation invite` at the prompt, or give @FILE or - (stdin)")
     ap.add_argument("--list", action="store_true", help="list the steps and exit")
+    ap.add_argument("--restart", action="store_true",
+                    help="start over with the questions and every step, though the last run did not finish")
     ap.add_argument("--doctor", action="store_true", help=argparse.SUPPRESS)
+    ap.add_argument("--worker", metavar="RUN", help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
 
     if args.list:
         for name, _, desc in STEPS:
             print(f"  {name:10} {desc}")
         return 0
+    if args.worker:                            # inside fabric-setup.service (2.1.2.26)
+        return run_worker(args.worker, args.deploy_base, STEPS)
+
+    if args.step is None and not (args.undo or args.doctor):
+        ctx = SetupContext(deploy_base=args.deploy_base, non_interactive=args.non_interactive,
+                           admin_password_file=args.admin_password_file)
+        last = read_run(ctx.config_dir)
+        what, remaining = choose_start(unit_running(), last, [n for n, _, _ in STEPS],
+                                       start_over=bool(args.restart or args.file or args.join is not None))
+        try:
+            if what == "attach":
+                info("a setup is already running (fabric-setup.service): following it; no questions are asked "
+                     "and options given now are not used")
+                return follow_run(ctx.config_dir)
+            if what == "resume":
+                return resume_run(ctx, STEPS, last, remaining, args.join)
+        except SetupError as e:
+            err(str(e))
+            return 1
+        except KeyboardInterrupt:
+            err("interrupted")
+            return 130
 
     try:
+        # a run that asks (not doctor, an undo, or steps that need no input) needs someone at a terminal (2.1.3.4)
+        if not (args.doctor or args.undo) and (args.step is None or any(s in NEEDS_INPUT for s in args.step)):
+            require_terminal(args.non_interactive)
         invitation = read_join_invitation(args.join, args.non_interactive)
     except SetupError as e:
         err(str(e))
@@ -114,7 +154,7 @@ def main(argv=None):
         if unknown:
             raise SetupError(f"unknown step(s): {', '.join(sorted(unknown))} (see --list)")
         jinja = os.path.join(ctx.source_dir, "jinja")
-        decided = None
+        decided, mode = None, None
         if any(s in NEEDS_INPUT for s in selected):
             heading("fabric setup")
             mode = choose_mode(ctx) if args.step is None else "guided"
@@ -145,17 +185,12 @@ def main(argv=None):
                              "only opens its own ports beside your rules: run setup again and allow the ports "
                              "fabric needs (or --approve ports)")
 
-        start = time.monotonic()
-        for name, step, desc in STEPS:
-            if name not in selected:
-                continue
-            heading(f"[{name}] {desc}")
-            step(ctx)
-            if name == "deploy":
-                ctx.load_state()
-        heading(f"{BOLD}fabric is ready{NC} ({time.monotonic() - start:.0f}s)")
-        print_first_steps(ctx)
-        return 0
+        if args.step is None:                  # the work goes to fabric-setup.service; this session follows it
+            return hand_over(ctx, STEPS, {"options": {
+                "offline": ctx.offline, "assume_yes": ctx.assume_yes, "guided": mode == "guided",
+                "join": bool(ctx.join_invitation), "admin_password": bool(ctx.admin_password),
+                "admin_password_file": ctx.admin_password_file}})
+        return run_steps(ctx, STEPS, selected, guided=mode == "guided")
     except SetupError as e:
         err(str(e))
         return 1

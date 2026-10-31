@@ -22,7 +22,7 @@ cd "$REPO" || exit 1
 set -a
 # shellcheck disable=SC1090  # the lock's build inputs, generated
 . <(python3 packaging/images/bake_env.py)
-CONTEXTS="$W/contexts"; REGISTRY=fabric-test/images; TAG="test"
+CONTEXTS="$W/contexts"; REGISTRY=fabric-test/images; TAG="$(python3 tests/common/test_run.py name test)"   # per run (3.1.2.6)
 set +a
 # the contexts are staged outside the checkout: bake reads them only when allowed
 BAKE=(docker buildx bake -f packaging/docker-bake.hcl "--allow=fs.read=$CONTEXTS")

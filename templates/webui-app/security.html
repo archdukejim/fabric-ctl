@@ -1,17 +1,16 @@
-{% extends "base.html" %}{% block body %}
-<h1>Security · Sign-in</h1>
-{% if msg %}<p class="flash ok">{{ msg }}</p>{% endif %}
-{% if err %}<p class="flash bad">{{ err }}</p>{% endif %}
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+<h1>Settings · Sign-in security</h1>
+{{ p.relaxations(relaxed) }}
 <p class="muted">Each layer can be raised here. Lowering one is done only on the fabric host, with
 <code>sudo fabricctl security lower &lt;layer&gt;</code>: it asks for the layer's name, is recorded in the audit log, and
 stays shown here and in <code>fabricctl doctor</code> until it is raised again.</p>
 <section class="card"><table><thead><tr><th>Layer</th><th>Now</th><th>What it covers</th><th>Raise</th></tr></thead><tbody>
 {% for l in layers if l.layer != 'kerberos' %}
-<tr><td><code>{{ l.layer }}</code></td>
-<td>{{ l.value }}{% if l.layer == 'admin-2fa' and l.effective != l.value %} <span class="muted">(asks for {{ l.effective }}: every sign-in's)</span>{% endif %}
+<tr><td data-label="Layer"><code>{{ l.layer }}</code></td>
+<td data-label="Now">{{ l.value }}{% if l.layer == 'admin-2fa' and l.effective != l.value %} <span class="muted">(asks for {{ l.effective }}: every sign-in's)</span>{% endif %}
 {% if l.lowered %}<br><span class="warn-text">lowered from {{ l.lowered.from }} by {{ l.lowered.by }}, {{ l.lowered.at }}</span>{% endif %}</td>
-<td class="muted">{{ l.what }}</td>
-<td>{% if l.choices %}<form method="post" action="/security/raise"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<td class="muted" data-label="What it covers">{{ l.what }}</td>
+<td data-label="Raise">{% if l.choices %}<form method="post" action="/security/raise"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <input type="hidden" name="layer" value="{{ l.layer }}">
 <select name="value">{% for c in l.choices %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
 <button type="submit">Raise</button></form>{% else %}<span class="muted">highest</span>{% endif %}</td></tr>
@@ -22,12 +21,6 @@ one, else an authenticator app), <strong>totp</strong> (an authenticator app), <
 phone or a security key, unlocked with its PIN or fingerprint). Turning on the client certificate: each admin needs
 their <code>.p12</code> first (<code>sudo fabricctl client-cert &lt;user&gt;</code>), and your browser must present yours
 before it can be turned on.</p></section>
-{% for l in layers if l.layer == 'kerberos' %}
-<section class="card"><h2>Signing in with the domain logon (Kerberos)</h2>
-<p>Now <strong>{{ l.value }}</strong>. On a computer joined to the domain, the Windows or Linux logon signs a person
-in without their password; any second factor is still asked. Not a layer: it can be turned off and on here.</p>
-<form method="post" action="/security/kerberos"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
-<input type="hidden" name="value" value="{{ 'off' if l.value == 'on' else 'on' }}">
-<button type="submit">Turn {{ 'off' if l.value == 'on' else 'on' }}</button></form></section>
-{% endfor %}
+<p class="muted small">Signing in with the domain logon (Kerberos) is turned on or off on
+<a href="/directory/kerberos">Directory → Kerberos</a>.</p>
 {% endblock %}

@@ -17,6 +17,9 @@ import time
 import jinja2
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
+SITECA = testrun.name("sitecatest")      # per run (manual 3.1.2.6)
 W = os.environ.get("FABRIC_TEST_OUT", "/tmp/fabric-tests") + "/pki-site-ca"
 IMAGE = os.environ.get("FABRIC_STEP_IMAGE") or subprocess.run(
     [sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "stepca"],
@@ -147,8 +150,9 @@ check("sign: nothing left in the artifacts directory", os.listdir(f"{root_data}/
 
 # ---------------------------------------------------------------- the site checks and stages the answer
 fp = describe_cert(ROOT_PEM)["sha256"]
+wrong = ("AB:" if fp.startswith("AA:") else "AA:") + fp[3:]   # never the real one (1 run in 256 it was: 2.3.1.32)
 check("stage: a root other than the invitation's refused",
-      refused(stage_site_ca, JOIN, signed["cert"], ROOT_PEM, root_sha256="AA:" + fp[3:], match="fingerprint"))
+      refused(stage_site_ca, JOIN, signed["cert"], ROOT_PEM, root_sha256=wrong, match="fingerprint"))
 check("stage: a certificate that does not chain refused",
       refused(stage_site_ca, JOIN, signed["cert"], signed["cert"], match="self-signed"))
 req2 = make_site_ca_request(SITE, "branch2", "Site-Pw-2", f"{W}/branch2/join")
@@ -207,22 +211,22 @@ os.remove(f"{data}/secrets/root_ca_key")
 shutil.copy2(f"{data}/certs/intermediate_ca.crt", f"{data}/certs/intermediate_chain.crt")   # a flat site: no parents
 _configure_ca_json(f"{data}/config/ca.json", {"byoc": True, "hostname_stepca": "ca.branch1.test"})
 sh(["chown", "-R", f"{STEP_UID}:{STEP_UID}", data])
-sh(["docker", "rm", "-f", "sitecatest"], ok=False)
-sh(["docker", "run", "-d", "--name", "sitecatest", "-v", f"{data}:/home/step", "--user", f"{STEP_UID}:{STEP_UID}",
+testrun.remove("container", SITECA)      # this run's only
+sh(["docker", "run", "-d", "--name", SITECA, *testrun.labels(), "-v", f"{data}:/home/step", "--user", f"{STEP_UID}:{STEP_UID}",
     IMAGE, "/usr/local/bin/step-ca", "/home/step/config/ca.json", "--password-file", "/home/step/secrets/password"])
 health = None
 for _ in range(20):
     time.sleep(2)
-    health = sh(["docker", "exec", "sitecatest", "step", "ca", "health", "--ca-url", "https://localhost:9000",
+    health = sh(["docker", "exec", SITECA, "step", "ca", "health", "--ca-url", "https://localhost:9000",
                  "--root", "/home/step/certs/root_ca.crt"], ok=False)
     if health.stdout.strip() == "ok":
         break
 check("use: Step-CA serves with the site's encrypted intermediate key", health.stdout.strip() == "ok",
-      sh(["docker", "logs", "sitecatest"], ok=False).stderr[-400:])
-roots = sh(["docker", "exec", "sitecatest", "step", "ca", "roots", "--ca-url", "https://localhost:9000",
+      sh(["docker", "logs", SITECA], ok=False).stderr[-400:])
+roots = sh(["docker", "exec", SITECA, "step", "ca", "roots", "--ca-url", "https://localhost:9000",
             "--root", "/home/step/certs/root_ca.crt"], ok=False).stdout
 check("use: the site's Step-CA hands out the organisation's root", roots.strip() == ROOT_PEM.strip(), roots[:200])
-sh(["docker", "rm", "-f", "sitecatest"], ok=False)
+testrun.remove("container", SITECA)      # this run's only
 
 # offline signing with the site's intermediate (setup's admin client certificate, extra certs, the PKI page):
 # what failed on a real joined site while intermediate_ca.crt carried the root

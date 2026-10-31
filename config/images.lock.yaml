@@ -84,19 +84,19 @@ images:
 # built from (scripts/images/source_hash.py): when its sources change, the image is unpinned and marked `pending` until it
 # is published again; the images suite refuses a stale pin (2.1.14.13).
 published:
-  registry: ghcr.io/archdukejim/open-fabric
+  registry: ghcr.io/archdukejim/fabric-ctl     # moved from open-fabric with 0.8.0, its first images signed from fabric-ctl (2.1.14.26)
   # who may have signed them: this repository's images workflow, from main, an rc/ branch or a v tag (2.1.14.9),
-  # under either of its names (renamed fabric-ctl on 2026-10-17; the images published before carry the old: 2.1.1.59)
-  signer: ^https://github\.com/archdukejim/(open-fabric|fabric-ctl)/\.github/workflows/images\.yml@refs/(heads/main|heads/rc/.+|tags/v.+)$
+  # under its name fabric-ctl only since 0.8.0, whose images are all signed there (2.1.14.26; until then also open-fabric)
+  signer: ^https://github\.com/archdukejim/fabric-ctl/\.github/workflows/images\.yml@refs/(heads/main|heads/rc/.+|tags/v.+)$
   issuer: https://token.actions.githubusercontent.com
   images:
-    bind9:      {var: image_fabric_bind9, tag: "0.7.1-rc.182", digest: "sha256:565933836b40cc06b55cb404b8edbb59f2007b5f680cbe6db7995fcbe437d7a8", source: "sha256:cfad6ca373441787e72ba1b7bb837f0f0d3f364274f2cfb4b72fd9cb3b34255a", account: bind, ids: "600:600"}
-    freeradius: {var: image_fabric_freeradius, tag: "0.7.1-rc.182", digest: "sha256:94845c781c21b8e32dfeb56ffc560927f1aadc7ed75f524044c9cebe307c0a6f", source: "sha256:d9dd93ddf40797b22c885f96e1663b65d7c99eee4898a90298ebe58e36969cbf", account: freeradius, ids: "610:610"}
-    kea:        {var: image_fabric_kea, tag: "0.7.1-rc.182", digest: "sha256:0231bf46e055d8baf3e327da61a8b040f956f1ddf198d9f6343f0abc91778bb3", source: "sha256:78b1e088e11a51e67e1a04de84c174d7acefafafe7e080988c971c6e1bcb592a", account: kea, ids: "609:609"}
-    keycloak:   {var: image_fabric_keycloak, tag: "0.7.1-rc.182", digest: "sha256:ab30b5ca45233b2968f65b053010b5e4c6f66a9e84f41bb33464f8bef7eaec85", source: "sha256:959fee075a7826341979c0d03be1041f3030429677424512af8d9af92a223f2c"}
-    samba:      {var: image_fabric_samba, tag: "0.7.1-rc.182", digest: "sha256:37b0a389da059bb9c9303276e2955fd23a1f879c563cb9501a437d4eaf0adb03", source: "sha256:bc9d2e8b51a78105d939031954ae237c63a1e5ca8b762f8545c8bbcf2e239af0", groups: "BIND_GID=600,RADIUS_GID=610"}
-    stepca:     {var: image_fabric_stepca, tag: "0.7.1-rc.182", digest: "sha256:254f7c5cd57d70378a45184260de74f3faa4eed30e3103bdc67c4a4f4c5631ab", source: "sha256:c1cfad746580c5a98afc2a1268448efbdb2b610024d2e5adeda45db85175f20e"}
-    webui:      {var: image_fabric_webui, tag: "0.7.1-rc.182", digest: "sha256:99a626d64e907f3a5e8edeaf48b6cc40ea30a4c121a112516f5f4800ca492e67", source: "sha256:97679ae6ceb20391fa13d681be56641464bfdc96b18a525550d181f222657804", account: webui, ids: "606:606"}
+    bind9:      {var: image_fabric_bind9, tag: "0.8.0-rc.294", digest: "sha256:757d7187bbc74085a7dddc2aa89a93491fc72704dfd0b0c6ceb3c25c1d828090", source: "sha256:cfad6ca373441787e72ba1b7bb837f0f0d3f364274f2cfb4b72fd9cb3b34255a", account: bind, ids: "600:600"}
+    freeradius: {var: image_fabric_freeradius, tag: "0.8.0-rc.294", digest: "sha256:863970970c8f9948c8aa1390ad97c90533a3470efb90364d56479b5a5edb7d3c", source: "sha256:d9dd93ddf40797b22c885f96e1663b65d7c99eee4898a90298ebe58e36969cbf", account: freeradius, ids: "610:610"}
+    kea:        {var: image_fabric_kea, tag: "0.8.0-rc.294", digest: "sha256:af70b37bbebf2b024e55e016f0711b24ed2154f71ee020a92e5df50037362550", source: "sha256:4692ce7d024da1df1d3bcd976d0b9f64c1c7975b0344d8eca1e584aa4a108476", account: kea, ids: "609:609"}
+    keycloak:   {var: image_fabric_keycloak, tag: "0.8.0-rc.294", digest: "sha256:38ba666bb3ea891db5adeb5cd5631d0a012252c83950d964ea7770d6fb264a1b", source: "sha256:959fee075a7826341979c0d03be1041f3030429677424512af8d9af92a223f2c"}
+    samba:      {var: image_fabric_samba, tag: "0.8.0-rc.294", digest: "sha256:cee7f41e431ff82a119d4ed603de51749a362155aba8ced82456d1670e3223d7", source: "sha256:8776a13b98656f07dcdd428d7269a8b7071d7f847611c6e1673f9de50372b80a", groups: "BIND_GID=600,RADIUS_GID=610"}
+    stepca:     {var: image_fabric_stepca, tag: "0.8.0-rc.294", digest: "sha256:eb3c2eb2232c89016025c7b4a85015cd897738c76c7da73941fc56a0ccfbfa7f", source: "sha256:c1cfad746580c5a98afc2a1268448efbdb2b610024d2e5adeda45db85175f20e"}
+    webui:      {var: image_fabric_webui, tag: "0.8.0-rc.294", digest: "sha256:edf62afd14d42c2b47fc93d67feb0aadb22a10f7cff7016659fdd0d4cebc17c8", source: "sha256:5f740538437f216b5d2edd3d089ec6bdc81540e3e8104b31ef055ca16b4945f1", account: webui, ids: "606:606"}
 
 # Packages installed into fabric's own images from an upstream's signed apt
 # repository (not Debian's): the exact version and the signing key's

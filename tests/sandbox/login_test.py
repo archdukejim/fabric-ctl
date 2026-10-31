@@ -16,6 +16,7 @@ handed out. Proves the admin gets in and that everyone else is refused:
   - OpenBao's own UI: the admin signs in with Keycloak (TOTP) and gets the
     fabric-console-admin policy (apps/ yes, fabric's own secrets no); others refused
   - people: the admin adds a person and resets a sign-in
+  - the top bar's site selector: this site marked, its own link home, an unknown site refused
 
   python3 login_test.py <vars.yaml> <other-user> <other-password> <other-p12-password>
 Prints PASS/FAIL lines.
@@ -191,6 +192,20 @@ def through_keycloak(browser, url, user, password, done):
     return None, seen, st, page
 
 
+def applied(browser, page_id, csrf):
+    """Apply a page's held changes (manual 1.8.6.5) and wait on its Review for the job: (status, page) of the Review
+    once it no longer runs (up to 3 minutes)."""
+    st, loc, page = browser.request("POST", f"https://{MGR}/changes/{page_id}/apply", {"csrf": csrf})
+    if st != 303:
+        return st, page
+    for _ in range(90):
+        st, _, page = browser.request("GET", f"https://{MGR}/changes/{page_id}")
+        if st != 200 or 'http-equiv="refresh"' not in page:
+            return st, page
+        time.sleep(2)
+    return st, page
+
+
 def login(browser, user, password):
     """Full browser login as `user`. Returns (status, page) of the web UI's
     OIDC callback, and the Keycloak pages seen on the way."""
@@ -231,12 +246,16 @@ if os.environ.get("SIGNIN_MODE") == "plain":
     check("the admin signs in with a password only, no TOTP (2.1.6.23); a new password asked only after a reset "
           "(2.1.6.33)", st == 200 and ("update-password" in seen) != CHOSEN and "configure-totp" not in seen
           and "otp" not in seen, (st, seen))
-    st, _, page = b.request("GET", f"https://{MGR}/security")
-    # covers: web:get.security +
+    st, _, page = b.request("GET", f"https://{MGR}/settings/sign-in")
+    # covers: web:get.settings.sign-in +
     check("the Security page shows the layers to raise", st == 200 and "admin-2fa" in page, st)
     bob = Browser()
     st, page, seen = login(bob, OTHER, OTHER_PW)
-    check("a person without a fabric role is still refused (403)", st == 403, (st, seen))
+    st2, loc2, _ = bob.request("GET", f"https://{MGR}/")
+    st3, _, _ = bob.request("GET", f"https://{MGR}/dns/zones")
+    check("a person without a fabric role signs in to My account only (2.1.8.11): the Overview sends them there, "
+          "DNS refused (403)", st == 200 and st2 == 303 and (loc2 or "").endswith("/account") and st3 == 403,
+          (st, st2, loc2, st3, seen))
     sys.exit(1 if FAILED else 0)
 
 admin_pem = pem_from_p12(os.path.join(KIT, f"{ADMIN}.p12"), read("p12-password.txt"), "admin.pem")
@@ -271,13 +290,48 @@ check("Keycloak required TOTP enrolment (and a new password only after a reset)"
       and "configure-totp" in seen, seen)
 check("admin: callback accepted (cert CN = user, the console's admin role)",
       st == 200 and "__Host-webui" in b.cookies.get(MGR, {}), (st, page[:300]))
+# the setup wizard (manual 1.8.5.3, 1.8.5.10 "Finished"): until it is applied once or dismissed, the first Overview of
+# each sign-in of an admin opens it; the admin dismisses it, as a real one would, through the console's own route.
+# WIZARD=open (a fresh install: the sandbox) requires it to open; a reused host (tests/host) may have finished it.
+st, loc, _ = b.request("GET", f"https://{MGR}/")
+if os.environ.get("WIZARD") == "open" or (st == 303 and (loc or "").endswith("/settings")):
+    # covers: web:get.settings agent:get.settings +
+    check("setup wizard: a fresh install's first Overview of a sign-in is sent to Settings (303)",
+          st == 303 and (loc or "").endswith("/settings"), (st, loc))
+    st, _, page = b.request("GET", f"https://{MGR}/settings")
+    check("setup wizard: its first step, with Dismiss", st == 200 and 'action="/settings/dismiss"' in page,
+          (st, page[:300]))
+    wcsrf = page.split('name="csrf" value="')[1].split('"')[0] if 'name="csrf"' in page else ""
+    st, loc, _ = b.request("POST", f"https://{MGR}/settings/dismiss", {"csrf": wcsrf})
+    # covers: web:post.settings.dismiss agent:post.settings.dismiss +
+    check("setup wizard: Dismiss -> back to the Overview", st == 303 and (loc or "").rstrip("/") == f"https://{MGR}",
+          (st, loc))
+else:
+    print(f"    (the setup wizard did not open: finished on this host before; first Overview answered {st})")
 st, _, page = b.request("GET", f"https://{MGR}/")
 check("admin: overview renders", st == 200 and "services healthy" in page and ADMIN in page, (st, page[:300]))
+check("setup wizard finished: the Overview no longer offers Finish setting up", "Finish setting up" not in page,
+      page[:300])
+SITE = str(V.get("site_name") or "")
+pick = page.split('<details class="sitepick">', 1)[-1].split("</details>", 1)[0]
+check("the top bar's site selector (1.8.6.12): this site's name as the menu, this site marked in the domain's list",
+      f'<summary aria-label="Site: {SITE}. Pick a site">{SITE}</summary>' in page
+      and f'<a href="/" aria-current="true"><strong>{SITE}</strong>' in pick, pick[:600] or page[:600])
+st, loc, _ = b.request("GET", f"https://{MGR}/sites/{SITE}")
+check("the site selector: this site's own link goes to its Overview (303 /; the client joins it to the page's address)",
+      st == 303 and loc == f"https://{MGR}/", (st, loc))
+st, _, page = b.request("GET", f"https://{MGR}/sites/ghost")
+check("refused: a site the domain does not hold (404, said; no redirect)", st == 404
+      and "No site ghost in the domain." in page, (st, page[:300]))
 
 # -- everyone else is refused -----------------------------------------------------------
-st, page, seen = login(Browser(other_pem), OTHER, OTHER_PW)
-check(f"'{OTHER}' (directory user, not in admins) with own valid cert -> 403 missing role",
-      st == 403 and "role" in page, (st, page[:300], seen))
+ob = Browser(other_pem)
+st, page, seen = login(ob, OTHER, OTHER_PW)
+st2, loc2, _ = ob.request("GET", f"https://{MGR}/")
+st3, _, page3 = ob.request("GET", f"https://{MGR}/dns/zones")
+check(f"'{OTHER}' (directory user, no fabric role) with own valid cert signs in to My account only (2.1.8.11): "
+      "the Overview sends it there, DNS refused", st == 200 and st2 == 303 and (loc2 or "").endswith("/account")
+      and st3 == 403, (st, st2, loc2, st3, page[:200], seen))
 st, page, _ = login(Browser(admin_pem), OTHER, OTHER_PW)
 check(f"admin's certificate used to sign in as '{OTHER}' -> 403 not your certificate",
       st == 403 and "does not belong" in page, (st, page[:300]))
@@ -306,14 +360,19 @@ if os.environ.get("CAROL_PW"):
     st, _, page = cb.request("GET", f"https://{MGR}/")
     check("carol (auditors group -> fabric-auditor bundle) signs in and sees the overview",
           st == 200 and "services healthy" in page, (st, page[:300], seen))
-    st, _, page = cb.request("GET", f"https://{MGR}/bind9")
-    check("auditor: DNS records readable, no add form", st == 200 and "/add" not in page, (st, page[:200]))
+    st, _, page = cb.request("GET", f"https://{MGR}/dns/zones")
+    check("auditor: DNS records readable, no add form, no Apply", st == 200 and "/add" not in page
+          and 'action="/changes/zones/apply"' not in page, (st, page[:200]))
     csrf = page.split('name="csrf" value="')[1].split('"')[0] if 'name="csrf"' in page else ""
-    st, _, page = cb.request("POST", f"https://{MGR}/bind9/zone/dynamic_zone_var/add",
-                             {"csrf": csrf, "type": "A", "name": "carol-was-here", "ip": "10.77.0.66"})
+    st, loc, page = cb.request("POST", f"https://{MGR}/bind9/zone/dynamic_zone_var/add",
+                               {"csrf": csrf, "type": "A", "name": "carol-was-here", "ip": "10.77.0.66"})
+    if st == 303 and loc:                         # the page says why, after the redirect (its message, 1.8.6.7)
+        _, _, shown = cb.request("GET", loc)
+        page = shown.split("<main>")[-1]
+    said = urllib.parse.unquote_plus(loc or "") + page
     # covers: web:post.bind9.zone.*.add agent:post.zones.*.records -
-    check("auditor: a DNS change is refused by fabric-agent (403, dns:write)", st == 403 and "dns:write" in page,
-          (st, page[:300]))
+    check("auditor: a DNS change is refused by fabric-agent when held (dns:write named), nothing held",
+          st in (303, 403) and "dns:write" in said and "Waiting for Apply" not in said, (st, loc, page[:300]))
 
 # -- OpenBao's own UI with Keycloak single sign-on ---------------------------------------
 st, res = vault_login(ADMIN, NEW_PW.get(ADMIN, admin_pw()))
@@ -352,25 +411,28 @@ if os.environ.get("CAROL_PW"):
 # -- people (Directory -> People): add a person, reset a sign-in ---------------------------
 # NEW_PERSON: a reused host (tests/host) already has the previous run's person
 NEW = os.environ.get("NEW_PERSON", "dave")
-st, _, page = b.request("GET", f"https://{MGR}/directory?view=people")
+st, _, page = b.request("GET", f"https://{MGR}/directory/people")
 if st == 303:       # the admin's session went idle (session_idle, 900 s) during the slower checks above
     print("    (admin session idle-expired; signing in again)")
     login(b, ADMIN, NEW_PW.get(ADMIN, admin_pw()))
-    st, _, page = b.request("GET", f"https://{MGR}/directory?view=people")
+    st, _, page = b.request("GET", f"https://{MGR}/directory/people")
 csrf = page.split('name="csrf" value="')[1].split('"')[0] if 'name="csrf"' in page else ""
 if not csrf or "/directory/people/_new" not in page:     # what the People page showed instead of its forms
     print(f"    people page ({st}): {page.split('<main>')[-1][:600]!r}")
 st, loc, page = b.request("POST", f"https://{MGR}/directory/people/_new",
                           {"csrf": csrf, "uid": NEW, "first": "Dave", "last": "Doe", "email": f"{NEW}@lan.test"})
+st, page = applied(b, "people", csrf)       # Apply per page: the job, then its Review
 # covers: web:post.directory.people._new agent:post.people +
-check(f"people: the admin adds {NEW} -> one-time password shown once", st == 200 and "shown only now" in page,
-      (st, urllib.parse.unquote_plus(loc or ""), page.split("<main>")[-1][:300]))     # the page's own message
-st, _, page = b.request("GET", f"https://{MGR}/directory?view=people")
-# covers: web:get.directory agent:get.people +
+check(f"people: the admin adds {NEW}, applies -> one-time password shown once, on the Review",
+      st == 200 and "Shown only now" in page, (st, page.split("<main>")[-1][:300]))     # the page's own message
+st, _, page = b.request("GET", f"https://{MGR}/directory/people")
+# covers: web:get.directory.people agent:get.people +
 check(f"people: {NEW} is in the directory (written by Keycloak)", f"{NEW}@lan.test" in page, page[:200])
 st, loc, page = b.request("POST", f"https://{MGR}/directory/people/{NEW}/reset", {"csrf": csrf})
+st, page = applied(b, "people", csrf)
 # covers: web:post.directory.people.*.reset agent:post.people.*.reset +
-check(f"people: the admin resets {NEW}'s sign-in", st == 200 and "sign-in reset" in page,
-      (st, urllib.parse.unquote_plus(loc or ""), page[:300]))
+check(f"people: the admin resets {NEW}'s sign-in, applies -> its one-time password shown once",
+      st == 200 and f"Reset the sign-in of {NEW}" in page and "Shown only now" in page,
+      (st, page.split("<main>")[-1][:1500]))
 
 sys.exit(1 if FAILED else 0)

@@ -18,6 +18,8 @@ import time
 import jinja2
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+import test_run as testrun  # noqa: E402
 sys.path.insert(0, os.path.join(REPO, "src"))
 from fabriclib.pki import run_acme_command as rac  # noqa: E402
 from fabriclib.setup.init_pki import _configure_ca_json  # noqa: E402
@@ -27,7 +29,8 @@ IMAGE = os.environ.get("FABRIC_STEP_IMAGE") or subprocess.run(
     [sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "stepca"],
     capture_output=True, text=True, check=True).stdout.strip()
 STEP_UID = 1912
-NET, DOMAIN = "fabric-acme-test", "lan.test"
+NET, DOMAIN = testrun.name("fabric-acme-test"), "lan.test"
+ACME_CA, ACME_MACHINE = testrun.name("acme-ca"), testrun.name("acme-machine")      # per run (manual 3.1.2.6)
 FAILED = 0
 
 
@@ -45,8 +48,8 @@ def sh(cmd, ok=True):
 
 
 def cleanup():
-    sh(["docker", "rm", "-f", "acme-ca", "acme-machine"], ok=False)
-    sh(["docker", "network", "rm", NET], ok=False)
+    testrun.remove("container", ACME_CA, ACME_MACHINE)      # this run's only
+    testrun.remove("network", NET)
 
 
 cleanup()
@@ -70,30 +73,30 @@ v = {"hostname_stepca": f"ca.{DOMAIN}", "domain": DOMAIN, "cert_acme_lifetime_ho
 check("fabric's converge writes the ACME provisioner (changed), and a second run changes nothing",
       _configure_ca_json(f"{data}/config/ca.json", v) is True and _configure_ca_json(f"{data}/config/ca.json", v) is False)
 sh(["chown", "-R", f"{STEP_UID}:{STEP_UID}", data])
-sh(["docker", "network", "create", NET])
-sh(["docker", "run", "-d", "--name", "acme-ca", "--network", NET, "--network-alias", f"ca.{DOMAIN}", "-v",
+sh(["docker", "network", "create", *testrun.labels(), NET])   # docker picks its subnet
+sh(["docker", "run", "-d", "--name", ACME_CA, *testrun.labels(), "--network", NET, "--network-alias", f"ca.{DOMAIN}", "-v",
     f"{data}:/home/step", "--user", f"{STEP_UID}:{STEP_UID}", IMAGE, "/usr/local/bin/step-ca",
     "/home/step/config/ca.json", "--password-file", "/home/step/secrets/password"])
 for _ in range(30):
     time.sleep(1)
-    if sh(["docker", "exec", "acme-ca", "step", "ca", "health", "--ca-url", "https://localhost:9000", "--root",
+    if sh(["docker", "exec", ACME_CA, "step", "ca", "health", "--ca-url", "https://localhost:9000", "--root",
            "/home/step/certs/root_ca.crt"], ok=False).stdout.strip() == "ok":
         break
 # the LAN machine: its own container, reachable by its name on the network, as root so its client can listen on 80
-sh(["docker", "run", "-d", "--name", "acme-machine", "--network", NET, "--network-alias", f"nas.{DOMAIN}",
+sh(["docker", "run", "-d", "--name", ACME_MACHINE, *testrun.labels(), "--network", NET, "--network-alias", f"nas.{DOMAIN}",
     "--network-alias", "nas.example.org",          # it answers for a name outside the domain too: the policy must refuse
     "--user", "0:0", "-v", f"{data}/certs/root_ca.crt:/root_ca.crt:ro", "--entrypoint", "sleep", IMAGE, "600"])
 
 
 def get(name, *extra):
     """The machine asks for a certificate for name over ACME (http-01, its own port 80)."""
-    return sh(["docker", "exec", "acme-machine", "step", "ca", "certificate", name, f"/tmp/{name}.crt",
+    return sh(["docker", "exec", ACME_MACHINE, "step", "ca", "certificate", name, f"/tmp/{name}.crt",
                f"/tmp/{name}.key", "--provisioner", "acme", "--ca-url", f"https://ca.{DOMAIN}:9000",
                "--root", "/root_ca.crt", "--standalone", "--http-listen", ":80", "--force", *extra], ok=False)
 
 
 res = get(f"nas.{DOMAIN}")
-cert = sh(["docker", "exec", "acme-machine", "cat", f"/tmp/nas.{DOMAIN}.crt"], ok=False).stdout
+cert = sh(["docker", "exec", ACME_MACHINE, "cat", f"/tmp/nas.{DOMAIN}.crt"], ok=False).stdout
 text = subprocess.run(["openssl", "x509", "-noout", "-text", "-dates"], input=cert, capture_output=True,
                       text=True).stdout
 check("http-01: the machine gets a certificate for its own name under the domain",
@@ -111,12 +114,12 @@ check("…for 47 days (1128 h, within a minute of Step-CA's backdating), naming 
       and f"info.{DOMAIN}" not in text,
       (hours, text[-600:]))
 # a service certificate, issued as setup issues it (pki/mint_cert: the JWK provisioner `admin`), names the CRL too
-svc = sh(["docker", "exec", "acme-ca", "step", "ca", "certificate", f"svc.{DOMAIN}", "/tmp/svc.crt", "/tmp/svc.key",
+svc = sh(["docker", "exec", ACME_CA, "step", "ca", "certificate", f"svc.{DOMAIN}", "/tmp/svc.crt", "/tmp/svc.key",
           "--ca-url", "https://localhost:9000", "--root", "/home/step/certs/root_ca.crt", "--provisioner", "admin",
           "--provisioner-password-file", "/home/step/secrets/password", "--force", "--kty", "RSA", "--size", "2048",
           "--san", f"svc.{DOMAIN}", "--not-after", "24h"], ok=False)
 svc_text = subprocess.run(["openssl", "x509", "-noout", "-text"], capture_output=True, text=True,
-                          input=sh(["docker", "exec", "acme-ca", "cat", "/tmp/svc.crt"], ok=False).stdout).stdout
+                          input=sh(["docker", "exec", ACME_CA, "cat", "/tmp/svc.crt"], ok=False).stdout).stdout
 check("a service certificate (the JWK provisioner, as setup mints it) names the CRL, for its own name",
       svc.returncode == 0 and f"http://ca.{DOMAIN}/certs/crl/intermediate.crl" in svc_text and "info." not in svc_text
       and f"DNS:svc.{DOMAIN}" in svc_text and "TLS Web Server Authentication" in svc_text, (svc.stderr[-300:], svc_text[-600:]))

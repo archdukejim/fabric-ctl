@@ -38,6 +38,9 @@ SAMPLE_DHCP = {"enabled": True, "interfaces": ["eth0"], "lease_time": 86400, "dd
                                                       "options": [{"name": "tftp-server-name",
                                                                    "data": "192.168.1.30"}]}]}
 SAMPLE = {
+    "relaxed_settings": [{"setting": "signin_admin_second_factor: none",
+                          "effect": "the web console and OpenBao ask for a password only; raise a second factor in "
+                                    "the web console's Settings → Sign-in security (2.3.6.2.6)"}],
     "services": [("nginx", "active", "healthy"), ("bind9", "active", "healthy"), ("stepca", "active", "healthy"),
                  ("samba", "active", "healthy"), ("postgres", "active", "healthy"), ("keycloak", "active", "healthy"),
                  ("openbao", "active", "healthy"), ("fabric-web", "active", "healthy"), ("fabric-agent", "active", "")],
@@ -88,16 +91,28 @@ SAMPLE = {
                      "owner": "", "description": "Disabled: firmware out of date", "certs": []},
                     {"name": "printer", "type": "printer", "enabled": True, "macs": ["00:1b:a9:12:34:56"],
                      "owner": "", "description": "Office laser", "certs": []}]},
-    "people": {"users": [{"uid": "jim", "name": "Jim", "mail": "jim@home.arpa", "locked": False, "groups": ["admins",
-                                                                                                            "users"]},
-                         {"uid": "sam", "name": "Sam", "mail": "sam@home.arpa", "locked": False, "groups": ["users"]}],
-               "groups": [{"name": "admins", "members": 1}, {"name": "users", "members": 2}],
+    "people": {"users": [{"uid": "jim", "name": "Jim", "mail": "jim@home.arpa", "locked": False, "state": "active",
+                          "last_logon": "2026-10-22T08:40:00+00:00",
+                          "groups": ["directory-admins", "site-lan", "users"], "sites": ["lan"], "site": "lan",
+                          "person": {"first": "Jim", "last": "Doe", "name": "Jim", "email": "jim@home.arpa",
+                                     "title": "Engineer", "department": "IT", "country": "US"}},
+                         {"uid": "sam", "name": "Sam", "mail": "sam@home.arpa", "locked": False, "state": "active",
+                          "last_logon": "", "groups": ["site-lan", "users"], "sites": ["lan"], "site": "lan",
+                          "person": {"first": "Sam", "last": "Reed", "name": "Sam", "email": "sam@home.arpa",
+                                     "manager": "jim"}},
+                         {"uid": "lee", "name": "Lee Park", "mail": "lee@home.arpa", "locked": True, "state": "locked",
+                          "last_logon": "2026-10-01T17:05:00+00:00", "groups": ["site-lan", "users"],
+                          "sites": ["lan"], "site": "lan",
+                          "person": {"first": "Lee", "last": "Park", "name": "Lee Park", "email": "lee@home.arpa"}}],
+               "groups": [{"name": "directory-admins", "members": 1}, {"name": "site-lan", "members": 3},
+                          {"name": "users", "members": 3}],
                "keycloak_url": "https://sso.home.arpa/admin/home.arpa/console/"},
     "issued": [{"when": "2026-09-20T10:12:00", "actor": "dev", "kind": "csr", "subject": "CN=switch-core.home.arpa",
                 "sans": ["switch-core.home.arpa", "192.168.1.2"], "not_after": "Sep 20 10:12:00 2027 GMT",
-                "status": "valid"},
+                "serial": "5a1c0e", "status": "valid"},
                {"when": "2025-10-01T08:00:00", "actor": "dev", "kind": "keypair", "subject": "CN=printer.home.arpa",
-                "sans": ["printer.home.arpa"], "not_after": "Oct 15 08:00:00 2026 GMT", "status": "expires soon"}],
+                "sans": ["printer.home.arpa"], "not_after": "Oct 15 08:00:00 2026 GMT", "serial": "3b07d2",
+                "status": "expires soon"}],
 }
 _FP = ":".join(["AB", "12", "CD", "34"] * 8)
 SAMPLE_VAULT = {"url": "https://vault.home.arpa/", "reachable": True, "initialized": True, "sealed": False,
@@ -161,37 +176,42 @@ SAMPLE_DOMAIN = {"status": {"domain": "ad.home.arpa", "realm": "AD.HOME.ARPA", "
                             "lockout_window_minutes": 15},
                  "site": "lan", "machines_error": "",
                  "machines": [{"name": "host-1", "dns": "host-1.ad.home.arpa", "os": "Windows 11 Pro", "enabled": True,
+                               "type": "server", "sites": ["lan"], "folder": "machines/servers",
                                "last_logon": "2026-10-05T08:12:00+00:00", "created": "2026-10-04", "dn": ""},
-                              {"name": "ws2404", "dns": "ws2404.ad.home.arpa", "os": "", "enabled": False,
+                              {"name": "jims-laptop", "dns": "jims-laptop.ad.home.arpa", "os": "Ubuntu 24.04",
+                               "enabled": False,
+                               "type": "desktop", "sites": ["lan", "edge"], "folder": "machines/desktops",
                                "last_logon": "", "created": "2026-10-05", "dn": ""}]}
-SAMPLE_LOGON = {"site": "lan", "legacy": False, "error": "",
-                "always": ["fabric-break-glass", "BUILTIN\\Administrators"],
-                "policies": [{"ou": "machines", "console": ["lan-machine-admins"], "remote": ["lan-machine-admins"]},
-                             {"ou": "machines/linux", "console": ["lan-machine-admins", "lan-devs"],
-                              "remote": ["lan-devs"]}]}
+SAMPLE_DIRECTORY = {"status": SAMPLE_DOMAIN["status"], "level": "2008 R2",
+                    "dcs": [{"name": "pi-core", "dns": "pi-core.ad.home.arpa", "writable": True},
+                            {"name": "pi-edge", "dns": "pi-edge.ad.home.arpa", "writable": False}],
+                    "replication": {"neighbours": [{"partition": "DC=ad,DC=home,DC=arpa", "from": "pi-edge",
+                                                    "last_success": "2026-10-23T07:55:00+00:00", "failures": 0,
+                                                    "message": ""}], "error": ""},
+                    "sites": ["edge", "lan"], "counts": {"people": 3, "groups": 3, "computers": 2, "ous": 6},
+                    "error": ""}
 SAMPLE_ACCESS = {"error": "",
-                 "groups": [{"name": "lan-hosts-web", "short": "web", "machines": ["host-1"], "other_members": [],
+                 "groups": [{"name": "hosts-web", "short": "web", "machines": ["host-1"], "other_members": [],
                              "rules": ["web-restart"], "hosts": ["host-1", "host-1.ad.home.arpa"], "fabric": True}],
-                 "sudo": [{"name": "lan-fabric-admins", "kind": "default", "users": ["%lan-fabric-admins"],
-                           "commands": ["ALL"], "run_as": ["ALL"], "hosts": ["ALL"], "host_group": ""},
-                          {"name": "web-restart", "kind": "fabric", "users": ["alice", "%lan-web-ops"],
+                 "sudo": [{"name": "web-restart", "kind": "fabric", "users": ["alice", "%web-ops"],
                            "commands": ["/usr/bin/systemctl restart nginx"], "run_as": ["root"],
-                           "hosts": ["host-1", "host-1.ad.home.arpa"], "host_group": "lan-hosts-web"},
+                           "hosts": ["host-1", "host-1.ad.home.arpa"], "host_group": "hosts-web"},
                           {"name": "backup", "kind": "other", "users": ["%backup-ops"], "commands": ["/usr/bin/rsync"],
                            "run_as": ["root"], "hosts": ["ALL"], "host_group": ""}]}
 SAMPLE_FEDERATION = {
     "site": "lan", "upstream": None,
     "sites": [{"name": "lab", "domain": "lab.home.arpa", "address": "192.168.20.2", "parent": "lan", "dc": "writable",
-               "id_range": "105001-205000", "joined": "2026-10-05T09:00:00+02:00", "via": ""},
+               "id_range": "2000000-2999999", "joined": "2026-10-05T09:00:00+02:00", "via": ""},
               {"name": "edge", "domain": "edge.home.arpa", "address": "192.168.30.2", "parent": "lan", "dc": "rodc",
-               "id_range": "205001-305000", "joined": "2026-10-05T09:30:00+02:00", "via": ""}],
+               "id_range": "3000000-3999999", "joined": "2026-10-05T09:30:00+02:00", "via": ""}],
     "replication": {"error": "", "neighbours": [
         {"partition": "DC=ad,DC=home,DC=arpa", "from": "CN=NTDS Settings,CN=DC-LAB,CN=Servers,CN=lab,CN=Sites",
          "last_success": "2026-10-05 10:15:02", "failures": 0, "message": ""},
         {"partition": "DC=ad,DC=home,DC=arpa", "from": "CN=NTDS Settings,CN=DC-EDGE,CN=Servers,CN=edge,CN=Sites",
          "last_success": "2026-10-05 09:58:40", "failures": 3, "message": "WERR_BADFILE"}]},
-    "conflicts": ["CN=printer\\0ACNF:5f0c,OU=devices,OU=lab,OU=sites,DC=ad,DC=home,DC=arpa"],
-    "limits": [["fabric-agent-<site>, <site>-admins", "its own OU=<site>", "read only"]],
+    "conflicts": ["CN=printer\\0ACNF:5f0c,OU=devices,DC=ad,DC=home,DC=arpa"],
+    "limits": [["fabric-agent-<dc>", "the directory's folders, never OU=service-accounts", "read only"],
+               ["directory-admins", "OU=people, OU=service-accounts, OU=machines and OU=groups", "read only"]],
     "plan": [{"site": "lab", "name": "lan", "cidr": "192.168.20.0/24", "vlan": None, "notes": ""},
              {"site": "lan", "name": "lan", "cidr": "192.168.1.0/24", "vlan": None, "notes": ""}],
     "overlaps": [], "plan_error": ""}
@@ -213,7 +233,7 @@ SAMPLE_SECURITY = [
     {"layer": "kerberos", "what": "signing in with the domain logon (Kerberos)", "value": "on", "effective": None,
      "choices": [], "lowered": None},
 ]
-_REG = "ghcr.io/archdukejim/open-fabric"
+_REG = "ghcr.io/archdukejim/fabric-ctl"
 SAMPLE_IMAGES = [
     {"service": "bind9", "var": "image_fabric_bind9", "running": f"{_REG}/bind9:0.6.3-rc.1@sha256:1111",
      "applied": f"{_REG}/bind9:0.6.3-rc.1@sha256:1111", "validated": f"{_REG}/bind9:0.6.3-rc.1@sha256:1111",
@@ -283,7 +303,7 @@ SAMPLE_DNS_FILTER = {
         ("Pixabay", 1, "safesearch.pixabay.com"), ("Ecosia", 1, "strict-safe-search.ecosia.org"))],
         "not_covered": ["Brave Search", "Startpage"],
         "youtube": {"strict": "restrict.youtube.com", "moderate": "restrictmoderate.youtube.com"}},
-    "stats": {"hours": [{"hour": f"2026-10-09T{h:02d}:00Z", "queries": q, "blocked": b}
+    "stats": {"as_of": time.time() - 140, "hours": [{"hour": f"2026-10-09T{h:02d}:00Z", "queries": q, "blocked": b}
                         for h, q, b in ((0, 412, 61), (1, 288, 40), (2, 190, 22), (3, 175, 19), (4, 230, 31),
                                         (5, 640, 98), (6, 1210, 170), (7, 1620, 233), (8, 1488, 206), (9, 1302, 188))],
               "week": {"queries": 48210, "blocked": 6940},
@@ -295,7 +315,7 @@ SAMPLE_DNS_FILTER = {
                               {"name": "app-measurement.com", "zone": _ZONE, "list": "AdGuard DNS filter",
                                "count": 640},
                               {"name": "ads.example.org", "zone": "owner.rpz", "list": None, "count": 28}]}}
-SAMPLE_QUERY_LOG = {"entries": [
+SAMPLE_QUERY_LOG = {"as_of": time.time() - 140, "entries": [
     {"at": "2026-10-09T09:58:12Z", "client": "192.168.1.20", "view": "everyone", "name": "browser.events.data.msn.com",
      "qtype": "A", "action": "NXDOMAIN", "zone": _ZONE, "list": "AdGuard DNS filter", "blocked": True},
     {"at": "2026-10-09T09:58:11Z", "client": "192.168.1.66", "view": "kids", "name": "www.roblox.com",

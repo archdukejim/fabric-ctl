@@ -5,7 +5,7 @@ from fabriclib.directory.run_op import run_op
 
 
 def ensure_default_device_roles(v, secrets, marker, container="samba"):
-    """Purpose: fabric's default device roles (DEFAULT_DEVICE_ROLES) in the organisation's OU=device-roles, created
+    """Purpose: fabric's default device roles (DEFAULT_DEVICE_ROLES) in the domain's OU=device-roles, created
              once: on a new install. The marker keeps a default role the admin deleted or renamed from coming back.
     Inputs:  v — fabric vars (site_name: the root site); secrets — fabric's secrets (ad_agent_password); marker —
              path of the file that records they were made; container — the DC's container (tests name their own).
@@ -20,7 +20,7 @@ def ensure_default_device_roles(v, secrets, marker, container="samba"):
         if name in have:
             continue
         run_op(v, secrets, "save_role", {"name": name, "description": description, "permissions": permissions,
-                                         "vlan": None, "priority": 100, "new": True, "organisation": True}, container)
+                                         "vlan": None, "priority": 100, "new": True}, container)
         added.append(name)
     with open(marker, "w") as f:
         f.write("\n".join(added) + "\n")

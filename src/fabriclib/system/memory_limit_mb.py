@@ -13,7 +13,7 @@ def memory_limit_mb(v, service):
     Feeds:   common/jinja_env (the compose templates' `memory_mb('<svc>')`), dns_filter (the resolver's limit),
              system/show_memory_plan."""
     floor = SERVICES[service][0]
-    key = SETTINGS.get(service, (None,))[0]
+    key = SETTINGS.get(service)
     explicit = parse_mem_mb(v.get(key), key) if key else None
     if explicit:
         return explicit
