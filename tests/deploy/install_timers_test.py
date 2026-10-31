@@ -33,6 +33,11 @@ with tempfile.TemporaryDirectory() as units, tempfile.TemporaryDirectory() as st
           and ["systemctl", "enable", "--now", "fabric-certs.timer"] in calls, (changed, calls))
     check("…and the stamps an earlier install left removed before (fabric-certs: its missed run would fire before "
           "step-ca runs)", left == ["stamp-other-job.timer"], left)
+    cond = ("ExecCondition=/bin/sh -c '! systemctl is-active --quiet fabric-setup.service "
+            "&& systemctl is-active --quiet fabric.target'")
+    lacking = [n for n in it.TIMERS + list(it.OPTIONAL) if cond not in open(os.path.join(units, f"{n}.service")).read()]
+    check("every timer's job is skipped, not failed, while setup works or fabric is stopped (finding 18)", not lacking,
+          lacking)
     open(os.path.join(stamps, "stamp-fabric-certs.timer"), "w").close()
     calls.clear()
     it.install_timers(paths, {"install_resolver": True, "install_keycloak": True}, units, stamps, run)

@@ -6,6 +6,7 @@ Host systemd units, rendered or copied by `deploy.py` to `/etc/systemd/system/`.
 |---|---|
 | `wrapper.service.j2` | One unit per installed service (nginx, bind9, stepca, postgres, keycloak, fabric-web, openbao, fluentbit, kea, freeradius, samba, adguard, bind9-resolver): `docker compose up` of `/opt/<folder>/docker-compose.yml`, part of `fabric.target`, waits for the container to be healthy, optional ExecCondition/ExecStartPost (OpenBao unlock) → `<service>.service` |
 | `fabric-certs.service`, `fabric-certs.timer` | `fabricctl certs --scheduled` every night (03:30, spread over half an hour): renews the service certificates that are due and records the run (manual 2.1.5.4); copied as is by `deploy/install_timers.py`, enabled |
+| (every timer's `.service`) | `ExecCondition`: a run while `fabric-setup.service` is active or `fabric.target` is not is skipped, not failed, since the stack it needs may not be there yet (2.3.1.32 finding 18) |
 | `fabric.target` | Groups every fabric unit (`systemctl start/stop/restart fabric.target`), copied as is → `fabric.target` |
 | `fabric-agent.service.j2` | The root `fabric-agent` (`lib/agent/server.py`): the web UI's privileged API on a unix socket only; only with `install_webui` → `fabric-agent.service` |
 | `fabric-federation.service.j2` | The root `fabric-federation` (`lib/federation/server.py`): the federation endpoint on a unix socket mounted into nginx; only with `federation_endpoint` → `fabric-federation.service` |

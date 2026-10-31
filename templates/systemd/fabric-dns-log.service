@@ -5,5 +5,8 @@ Wants=docker.service
 
 [Service]
 Type=oneshot
+# skipped, not failed, while setup is working or fabric is stopped: what it needs may not be there yet
+# (2.3.1.32 finding 18; exit 1 of the condition is "skipped")
+ExecCondition=/bin/sh -c '! systemctl is-active --quiet fabric-setup.service && systemctl is-active --quiet fabric.target'
 # also purges what is past its time (7 days; statistics 90 days, 2.1.12.4); a refusal keeps the lines for the next run
 ExecStart=/usr/bin/fabricctl dns-filter ingest --scheduled
