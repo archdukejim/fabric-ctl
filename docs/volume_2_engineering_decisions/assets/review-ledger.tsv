@@ -21,7 +21,7 @@ docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
-docs/volume_1_description_and_architecture/1.1.4-roadmap.md	f73d074658d76abbe4ac75fb4253d7e3d3d93eb9	2026-10-31	
+docs/volume_1_description_and_architecture/1.1.4-roadmap.md	6a96608c109991cecb6b424a0afa284cf4d9f94b	2026-10-31	
 docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	7cc73759f86c7ce4ca7e2d58b7d1cc0db4cb9a64	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	c376feda6e17998f6aa6b2d9c85823f6b00ba89e	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
@@ -124,6 +124,7 @@ docs/volume_1_description_and_architecture/1.8.4-webui.md	39217755a58747a679510a
 docs/volume_1_description_and_architecture/1.8.5-setup-wizard.md	b3a5573e615599ff8d7358df777e1bc5852750f6	2026-10-23	
 docs/volume_1_description_and_architecture/1.8.6-console-redo.md	c8311dffa63ca371bd5f3ccebdb69d9441372eae	2026-10-25	
 docs/volume_1_description_and_architecture/1.8.7-cockpit-proxy.md	965690482f7597a1271ab627eb5724bf70e9fce2	2026-10-30	
+docs/volume_1_description_and_architecture/1.8.8-directory-browser.md	0167f4dc0561f814cc33dd764f36e915aa4774fe	2026-10-31	
 docs/volume_1_description_and_architecture/1.9.1-sites.md	c0b8fc74f6c5ee052cf2819e2425730981232ed1	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.2-ha-partners.md	941731a583188b3b8e4a467eabdd9966bb6214ca	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.3-between-sites.md	9b2693352d2d8a3cad600964f14c8df2b13af4f9	2026-10-08	
@@ -132,10 +133,10 @@ docs/volume_1_description_and_architecture/1.9.5-attachment.md	5fd20315b3ef7d37b
 docs/volume_1_description_and_architecture/1.9.6-changes.md	e9adfe7f7a69c183701fb59d163d7eef196c6e39	2026-10-24	
 docs/volume_1_description_and_architecture/1.9.7-milestones.md	e58afe5eb9d02da03a309c838c2b86be04419123	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	332c50eeb8a970cd2cc0c3948f06703462945e77	2026-10-25	
-docs/volume_1_description_and_architecture/README.md	b51cbcfd64808e4bfc778fdce18da251f3083b8c	2026-10-30	
+docs/volume_1_description_and_architecture/README.md	50d22e34d28258e948b66928273f0471a53e86a7	2026-10-31	
 docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af7662fdf5684924b409f9a9c	2026-10-23	
 docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	cbad7e90c2ac64a84d6f8fd4f573fa54ab739022	2026-10-25	
-docs/volume_2_engineering_decisions/2.1.1-product.md	37d82c42c98d7634463f9fb56fccf9c2be7c7e0a	2026-10-25	
+docs/volume_2_engineering_decisions/2.1.1-product.md	fc771b3c3a2a3460d0081b775251755c810a4f58	2026-10-31	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	cb4d596ec94f1c25f32f6133b0ef1ca075aec1d7	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	9a4a5837c87d7efa44a524511dbe73390da62b09	2026-10-31	
@@ -150,7 +151,7 @@ docs/volume_2_engineering_decisions/2.1.4-dns.md	bee8ed6231cdd939a30ffdb20279e79
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	81033c43c705bd5016ad4ffae99967677910aec6	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.6-identity.md	f140a6f25c90ffbccd9dbf39c5d47fbd81758e6f	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
-docs/volume_2_engineering_decisions/2.1.8-webui.md	a70dead492171cb9fe91c78c924630b0453d6ba8	2026-10-31	
+docs/volume_2_engineering_decisions/2.1.8-webui.md	3f099424f4ab7b37441b391071a20ecab58f7bbe	2026-10-31	
 docs/volume_2_engineering_decisions/2.1.9-federation.md	35cd6c9aa7a8e1a889f52bf54a160f8e2fe3903c	2026-10-25	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
@@ -165,7 +166,7 @@ docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f487
 docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a9aeb2e856f39e5f862e36bf6273c583af26d627	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	096681ccf7581ef18aa7981a1456c7ab624620eb	2026-10-25	
 docs/volume_2_engineering_decisions/2.3.7-openbao-notes.md	78a60cfd1689c9b3a5cb36f58f74e66e344300a4	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	f9404dd5a4abbf8c95ad7bf07a54c8fe4ce31c64	2026-10-25	
+docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	cf6f11be830aaed603ad39ef6518599ce602eccd	2026-10-31	
 docs/volume_2_engineering_decisions/2.3.9-federation-notes.md	589194fbf33eda431862f1414dabc04a3181edc9	2026-10-08	
 docs/volume_2_engineering_decisions/README.md	b6d9237470b17c886b556facda7959ff02568173	2026-10-23	
 docs/volume_2_engineering_decisions/assets/README.md	3fd72f26d985cf1827afa0868c6c138dfec9d627	2026-10-08	
@@ -305,7 +306,7 @@ scripts/lab/send_key.ps1	c6da9dce920f4a13dea21bbfd18b921354e4d60b	2026-10-23
 scripts/lab/start_lab.ps1	6aa616380a97df396225b5a0a8f161240aff60b4	2026-10-23	
 scripts/release/README.md	d5379b29f1b78dc46eefe9b1b518555b2236f651	2026-10-08	
 scripts/release/make-apt-key.sh	e236d199325e428705b898f4dce580ffce535684	2026-10-23	
-spikes/README.md	26fd7b7c1c3c71822152c1a713f510d47f6691d1	2026-10-11	
+spikes/README.md	c413fb7eea34a28a62e24f6da418c4439bec242d	2026-10-31	
 spikes/dns-engine/README.md	895bb7e3fd683380105a07417022b028c6c658ac	2026-10-11	
 spikes/dns-engine/adguard.py	95786719a486d0aba9863f44092e79011102e56c	2026-10-11	
 spikes/dns-engine/clientid.sh	2554372cb64076467585d7b3c8e471848ce2466b	2026-10-11	
@@ -358,6 +359,13 @@ spikes/samba/radius/README.md	8f3a4969b6187d24a7abd9bf40ad1b33afcc2ba4	2026-10-0
 spikes/samba/radius/inner-rewrite	1a0a5d4a622f26f43de869ac5964d17586268af2	2026-10-04	
 spikes/samba/radius/mschap	8fda5447c625eeb7d2a85e867163d5a262f952ce	2026-10-04	
 spikes/samba/radius/radius.sh	6cc7d3a105dfa82f6e0aa9ab1e36fc85ea3fdc28	2026-10-04	
+spikes/webui-palette/README.md	8f74ca8c6d1943d5ac9ec267367f74ac0da95400	2026-10-31	
+spikes/webui-palette/build.py	67caf8820aeeb8baec74b9e1bffc3dd47bfaff4d	2026-10-31	
+spikes/webui-palette/check.py	71a562701b20898edd3b0211c734717e48ffe3b2	2026-10-31	
+spikes/webui-palette/index.html	62d00154b00c16dfd8bc085e35152609fcc17c90	2026-10-31	
+spikes/webui-palette/mockup.css	51f005ee364063760e3229ac0e0bed33515efe00	2026-10-31	
+spikes/webui-palette/mockups.src.html	943ff79d07d43b4eee01397702c8b9ccd3d52494	2026-10-31	
+spikes/webui-palette/palettes.css	e09226f423e80467342d1b23a6b6cd5ef6357aab	2026-10-31	
 src/README.md	c42cef0bbbc0803d6b920b8ba6a42718839da455	2026-10-12	
 src/agent/README.md	991c1a5c3028613c9b994fd5c4fb1eeaa5a78d3b	2026-10-24	
 src/agent/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
