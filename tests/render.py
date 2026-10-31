@@ -275,10 +275,12 @@ for view in (kids, everyone):        # fabric's zones and the owner's rules in e
 assert kids.index('zone "fabric.rpz";') < kids.index('zone "group-kids.rpz";') < kids.index('zone "owner.rpz";'), kids
 assert 'dnssec-validation auto;' in res_conf and 'validate-except { "' in res_conf and 'responselog yes;' in res_conf and 'category responses' in res_conf
 assert 'bind-lists' not in res_conf, 'no list in the resolver (1.12.3)'
-# no cached answer kept more than 5 minutes, a miss neither (2.1.12.11): once, in the options, so no view keeps longer
+# no cached answer kept more than 5 minutes, a miss neither (2.1.12.11): in the options, so no view keeps longer; a
+# client group's view keeps no miss at all (max-ncache-ttl 0, the owner 2026-10-31), everyone's the options' 300 s
 opts = res_conf[res_conf.index('options {'):res_conf.index('logging {')]
-assert 'max-cache-ttl 300;' in opts and 'max-ncache-ttl 300;' in opts and res_conf.count('max-cache-ttl') == 1 \
-    and res_conf.count('max-ncache-ttl') == 1, opts
+assert 'max-cache-ttl 300;' in opts and 'max-ncache-ttl 300;' in opts and res_conf.count('max-cache-ttl') == 1, opts
+assert 'max-ncache-ttl 0;' in kids and 'max-ncache-ttl' not in everyone \
+    and res_conf.count('max-ncache-ttl 0;') == res_conf.count('view "') - 1, (kids, everyone)
 plain = env.get_template('resolver/config/named.conf.j2').render(**{**v2, **res_ctx, 'adguard_tls': False})
 assert 'tls "group-kids"' not in plain and f'forwarders {{ {v2["ip_adguard"]} port 53; }};' in \
     plain[plain.index('view "kids"'):], 'before its certificate the group forwards over plain DNS'

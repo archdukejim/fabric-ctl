@@ -17,8 +17,10 @@
 #   images   every image updated and rolled back: tests/images/update.sh --ssh (2.1.14.12)
 #   restart  fabricctl stop and start, then the fabric VM rebooted
 #   restore  uninstall --export, then restore from it (3.2.4)
-#   move     the fabric VM moved from 10.88.0.10 to 10.88.0.13, host_ip set and applied, the members' DNS moved
-#   rename   the fabric VM renamed, hostname set and applied (the DC keeps dc_name, 1.6.5.23)
+#   move     the fabric VM moved from 10.88.0.10 to 10.88.0.13 by 4.2.4.2: netplan, host_ip applied, the member
+#            step, the members' DNS moved
+#   rename   the fabric VM renamed by 4.2.4.3: hostnamectl, hostname applied, the member step (the DC keeps
+#            dc_name, 1.6.5.23; the keytab holds the new name)
 # Afterwards the four VMs go back to `clean` (3.1.5.11 step 9).
 # -----------------------------------------------------------------------
 set -uo pipefail
@@ -122,24 +124,38 @@ if wants restore; then
     check "restore from it" "F 'fabricctl restore /root/fabric-export --yes' >/dev/null"
     client_check "a restore from an export"
 fi
+# Steps move and rename follow the operators' procedure, 4.2.4.2 and 4.2.4.3, step for step (2.1.1.73).
 if wants move; then
-    echo "=== move: $FABRIC to $MOVED"
-    # the address changes under this SSH session: netplan applies it detached, once the session has returned
+    echo "=== move: $FABRIC to $MOVED (4.2.4.2)"
+    # 4.2.4.2 step 2: the netplan file's address, applied detached (the address changes under this SSH session)
     F "sed -i 's#$FABRIC/24#$MOVED/24#' /etc/netplan/*.yaml && nohup setsid sh -c 'sleep 2; netplan apply' >/dev/null 2>&1 </dev/null &"
     sleep 20; FABRIC_OLD=$FABRIC; FABRIC=$MOVED
     check "the fabric VM answers at $MOVED" "up $MOVED"
+    # step 3: host_ip in vars.yaml, then the apply
     F "sed -i 's/^host_ip: .*/host_ip: $MOVED/' /opt/fabric/config/vars.yaml"
-    check "host_ip applied" "F 'fabricctl --apply' >/dev/null"
+    check "4.2.4.2 step 3: host_ip applied" "F 'fabricctl --apply' >/dev/null"
+    # step 4: the host's own join
+    check "4.2.4.2 step 4: the member step" "F 'fabricctl setup --step member --non-interactive --approve member' >/dev/null"
+    # step 5: the clients' DNS (the lab's members have fixed addresses)
     members_dns "$MOVED"
+    # step 6: doctor, and a client finds fabric at its new address
+    check "4.2.4.2 step 6: doctor passes" "F 'fabricctl doctor' >/dev/null"
     check "fabric's DNS answers at $MOVED, not at $FABRIC_OLD" "L 'getent hosts info.$DOMAIN' | grep -q '$MOVED'"
     client_check "a move to a new address"
 fi
 if wants rename; then
-    echo "=== rename: the fabric VM to $RENAMED"
+    echo "=== rename: the fabric VM to $RENAMED (4.2.4.3)"
     dc_before=$(dc_fqdn)
-    F "hostnamectl set-hostname $RENAMED && sed -i 's/^hostname: .*/hostname: $RENAMED/' /opt/fabric/config/vars.yaml"
-    check "hostname applied" "F 'fabricctl --apply' >/dev/null"
+    # 4.2.4.3 step 2: renamed as root; step 3: hostname in vars.yaml, then the apply
+    F "hostnamectl set-hostname $RENAMED"
+    F "sed -i 's/^hostname: .*/hostname: $RENAMED/' /opt/fabric/config/vars.yaml"
+    check "4.2.4.3 step 3: hostname applied" "F 'fabricctl --apply' >/dev/null"
     check "the DC keeps its own name ($dc_before)" "[ \"\$(dc_fqdn)\" = '$dc_before' ]"
+    # step 4: the host's own join moves to an account under the new name
+    check "4.2.4.3 step 4: the member step" "F 'fabricctl setup --step member --non-interactive --approve member' >/dev/null"
+    # step 5: its keytab holds the new name's account and doctor passes (adcli testjoin: in client_check)
+    check "4.2.4.3 step 5: the keytab holds ${RENAMED^^}\$" "F 'klist -k /etc/krb5.keytab' | grep -qF '${RENAMED^^}\$@'"
+    check "4.2.4.3 step 5: doctor passes" "F 'fabricctl doctor' >/dev/null"
     client_check "the host renamed"
 fi
 echo

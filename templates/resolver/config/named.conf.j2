@@ -37,7 +37,8 @@ options {
     dnssec-validation auto;
     validate-except { {% for z in zones %}"{{ z }}"; {% endfor %}};
     // no answer kept more than 5 minutes, a miss neither: then asked again (and validated) or dropped (2.1.12.11);
-    // BIND's defaults are a week and 3 hours. fabric's own zones still keep a miss only 30 s (their SOA, 2.1.4.9)
+    // BIND's defaults are a week and 3 hours. fabric's own zones keep a miss only 30 s (their SOA, 2.1.4.9); a
+    // client group's view none (below)
     max-cache-ttl 300;
     max-ncache-ttl 300;
     querylog yes;
@@ -71,6 +72,8 @@ logging {
 // everything else to AdGuard Home as the group {{ g.name }}
 view "{{ g.name }}" {
     match-clients { {% for m in g.match %}{{ m }}; {% endfor %}};
+    // a group's view keeps no "no such name" (2.1.12.11, the owner 2026-10-31); answers keep the options' 300 s cap
+    max-ncache-ttl 0;
     forward only;
 {% if adguard_tls %}
     forwarders port 853 tls "group-{{ g.name }}" { {{ ip_adguard }}; };

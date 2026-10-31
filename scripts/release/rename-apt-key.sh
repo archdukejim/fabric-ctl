@@ -3,7 +3,7 @@
 # Give the apt repository's signing key fabric-ctl's name, keeping the same key (manual 3.14.1.6, decision 2.1.3.5):
 # a new user ID, "fabric-ctl apt repository <apt@fabric-ctl.invalid>", made the primary one. The key, and so its
 # fingerprint, stay the same: hosts that already trust it need nothing. The old user ID ("open-fabric apt
-# repository") is kept, not primary (2.1.3.5's recommendation); --revoke-old revokes it instead (the owner's choice).
+# repository") is kept, not primary, unless --revoke-old: the owner chose to revoke it (2.1.3.5, B; it cannot be undone).
 #
 #   bash scripts/release/rename-apt-key.sh <offline folder of make-apt-key.sh> [--revoke-old]
 #

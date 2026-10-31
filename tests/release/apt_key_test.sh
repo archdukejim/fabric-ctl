@@ -2,8 +2,8 @@
 # -----------------------------------------------------------------------
 # The apt repository's public key keeps its fingerprint and carries fabric-ctl's name (manual 3.14.1.6, decision
 # 2.1.3.5): the published public.key (or a file given) is the one key 9946C724…E6E73230, its primary user ID is
-# "fabric-ctl apt repository <apt@fabric-ctl.invalid>", and the old "open-fabric apt repository" ID, kept or
-# revoked, is not the primary one. Needs gpg and, for the published key, the network.
+# "fabric-ctl apt repository <apt@fabric-ctl.invalid>", and the old "open-fabric apt repository" ID is revoked (the
+# owner's choice, 2026-10-31) and not the primary one. Needs gpg and, for the published key, the network.
 #
 #   bash tests/release/apt_key_test.sh [<public.key file or URL>]     (default: the published one)
 # -----------------------------------------------------------------------
@@ -31,8 +31,10 @@ primary() { uids | head -1; }
 check "one key in it, and it is $FPR (the fingerprint hosts trust)" "[ \"\$(keys)\" = '1|$FPR' ]"
 check "its primary user ID is \"$NEW_UID\", valid (not revoked)" \
     "p=\$(primary); [ \"\${p#*|}\" = '$NEW_UID' ] && [ \"\${p%%|*}\" != r ]"
-check "negative: the old \"$OLD_NAME\" ID is not the primary one (kept below it, or revoked)" \
+check "negative: the old \"$OLD_NAME\" ID is not the primary one" \
     "! primary | grep -qF '$OLD_NAME'"
+check "the old \"$OLD_NAME\" ID is still in the key, and revoked (2.1.3.5: revoked, not kept)" \
+    "uids | grep -qF '$OLD_NAME' && ! uids | grep -F '$OLD_NAME' | grep -qv '^r|'"
 echo
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

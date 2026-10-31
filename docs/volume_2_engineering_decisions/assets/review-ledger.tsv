@@ -202,6 +202,7 @@ docs/volume_4_operations/4.15.1-log-forwarding.md	bef17df806c5d8ff9b399a0018f6aa
 docs/volume_4_operations/4.2.1-resources.md	25a614597e0ad52f6a373a146787b02a97a62c7d	2026-10-12	
 docs/volume_4_operations/4.2.2-lifecycle.md	f1d9c91c389f3644c76fc14ee5e4615b38bdcafc	2026-10-12	
 docs/volume_4_operations/4.2.3-ports.md	884935fa8dda8501f8e6a6924750574becab1c9f	2026-10-11	
+docs/volume_4_operations/4.2.4-move-rename.md	f751c272e65035da7d590ccdf2ec8caf7d5e9d38	2026-10-31	
 docs/volume_4_operations/4.3.1-fabricctl.md	e52fb351243d8bfe097b2a070c444c07498bce91	2026-10-11	
 docs/volume_4_operations/4.4.1-records.md	621603ac6d2989f6dc86489318cc736a634873da	2026-10-24	
 docs/volume_4_operations/4.4.2-tsig.md	0bfa2dca10a0b3c35665006472cb80b873883f4f	2026-10-08	

@@ -11,6 +11,7 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 - [4.2.1 Resource use](4.2.1-resources.md)
 - [4.2.2 Lifecycle commands](4.2.2-lifecycle.md)
 - [4.2.3 Service ports](4.2.3-ports.md)
+- [4.2.4 Moving the host to a new address, and renaming it](4.2.4-move-rename.md)
 
 ## 4.3 fabricctl, setup and fabric-agent
 

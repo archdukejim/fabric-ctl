@@ -305,6 +305,25 @@ try:
     # fabric's zone, in every view, never filtered
     check("kid: fabric's zone answers in the group's view, even a name the list names (||lan.test^)",
           "10.9.8.7" in dig("kid", "+short", "www.lan.test") and "10.9.8.8" in dig("kid", "+short", "ads.lan.test"))
+    # a group's view keeps no "no such name" (max-ncache-ttl 0, 2.1.12.11, the owner 2026-10-31); everyone's view
+    # keeps it for the zone's SOA minimum (300 s here), within the options' 300 s cap
+    conf = open(f"{W}/resolver/config/named.conf").read()
+    groups_part, everyone_part = conf[:conf.index('view "everyone"')], conf[conf.index('view "everyone"'):]
+    check("config: each group's view keeps no miss (max-ncache-ttl 0); everyone's view takes the options' 300 s",
+          groups_part.count("max-ncache-ttl 0;") == groups_part.count('view "') >= 2
+          and "max-ncache-ttl" not in everyone_part, groups_part[-1500:])
+    missed = (status("kid", "late.lan.test"), status("adult", "late.lan.test"))
+    with open(f"{W}/bind9/data/db.lan.test", "w") as f:
+        f.write("$TTL 300\n@ IN SOA ns.lan.test. hostmaster.lan.test. 2 3600 600 86400 300\n@ IN NS ns.lan.test.\n"
+                f"ns IN A {BIND_IP}\nwww IN A 10.9.8.7\nads IN A 10.9.8.8\nlate IN A 10.9.8.20\n")
+    sh(["docker", "kill", "-s", "HUP", RESG_AUTH])
+    served = until(lambda: "10.9.8.20" in sh(["dig", "+short", f"@{BIND_IP}", "late.lan.test"], ok=False).stdout, 20)
+    # a TTL capped to 0 still answers within the second it was stored (BIND counts whole seconds): ask after it
+    time.sleep(2)
+    check("kid (a group's view): a name published after it asked answers at once, its miss not cached; the adult "
+          "(everyone's view) still gets its cached NXDOMAIN",
+          missed == ("NXDOMAIN", "NXDOMAIN") and served and "10.9.8.20" in dig("kid", "+short", "late.lan.test")
+          and status("adult", "late.lan.test") == "NXDOMAIN", (missed, served, dig("kid", "late.lan.test")))
     # the site's list applies to every group: AdGuard matches it for each
     check("kid, teen and adult: the site's list blocks for everyone (AdGuard over DoT for the groups)",
           until(lambda: status("kid", LISTED) == BLOCKED, 20) and status("teen", LISTED) == BLOCKED
