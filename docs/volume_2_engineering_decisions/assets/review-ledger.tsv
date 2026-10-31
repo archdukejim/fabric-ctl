@@ -124,7 +124,7 @@ docs/volume_1_description_and_architecture/1.8.4-webui.md	39217755a58747a679510a
 docs/volume_1_description_and_architecture/1.8.5-setup-wizard.md	b3a5573e615599ff8d7358df777e1bc5852750f6	2026-10-23	
 docs/volume_1_description_and_architecture/1.8.6-console-redo.md	c8311dffa63ca371bd5f3ccebdb69d9441372eae	2026-10-25	
 docs/volume_1_description_and_architecture/1.8.7-cockpit-proxy.md	965690482f7597a1271ab627eb5724bf70e9fce2	2026-10-30	
-docs/volume_1_description_and_architecture/1.8.8-directory-browser.md	e9ca0a8f5a3f00fe185b91d5f8863a6ae188cb35	2026-10-31	
+docs/volume_1_description_and_architecture/1.8.8-directory-browser.md	98912ae7bd75d8428af4ee41a4de8067887fa51c	2026-10-31	
 docs/volume_1_description_and_architecture/1.9.1-sites.md	c0b8fc74f6c5ee052cf2819e2425730981232ed1	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.2-ha-partners.md	941731a583188b3b8e4a467eabdd9966bb6214ca	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.3-between-sites.md	9b2693352d2d8a3cad600964f14c8df2b13af4f9	2026-10-08	
@@ -151,7 +151,7 @@ docs/volume_2_engineering_decisions/2.1.4-dns.md	d5be8ef23d0b5c7201f86ac892723b5
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	81033c43c705bd5016ad4ffae99967677910aec6	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.6-identity.md	1535b7507deac6a4da0b142b5ac910df362c15cf	2026-10-31	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
-docs/volume_2_engineering_decisions/2.1.8-webui.md	a70dead492171cb9fe91c78c924630b0453d6ba8	2026-10-31	
+docs/volume_2_engineering_decisions/2.1.8-webui.md	4a5a4eb94ccfa4fac0f4fe2d9b947c00326be3fd	2026-10-31	
 docs/volume_2_engineering_decisions/2.1.9-federation.md	cd669c8882d4f654fa2246c5cbf4604d785544fb	2026-10-31	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
