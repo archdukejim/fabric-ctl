@@ -886,13 +886,25 @@ _ca_rec = next(r for r in _site["CNAME"] if r["name"] == "ca")
 assert fabric_record(v2, "dynamic_zone_var", "CNAME", _ca_rec) == {"service": "the CA (step-ca)", "setting": "cname_ca"}
 assert [r["name"] for r in _site["CNAME"] if not fabric_record(v2, "dynamic_zone_var", "CNAME", r)] == \
     ["calibre", "info"], _site["CNAME"]
-# the admin deletes info (or renames it: deleted, added under another name): the next render does not add it back
+# until the install has once been ready, every render adds info again (2.1.4.10: a failed first install run again
+# with its file, whose dns: has no info, keeps it); the first render records it not ready yet
+# covers: setting:install_was_ready +
+assert v2["install_was_ready"] is False, v2["install_was_ready"]
 _gone = copy.deepcopy(v2)
 _gone["dns"]["dynamic_zone_var"]["CNAME"] = [r for r in _gone["dns"]["dynamic_zone_var"]["CNAME"] if r["name"] != "info"]
+_v3 = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**secrets, **copy.deepcopy(_gone),
+                                                                'render_date': '2026-01-01'}))
+assert [r for r in _v3["dns"]["dynamic_zone_var"]["CNAME"] if r["name"] == "info"] == [
+    {"name": "info", "canonical": v2["hostname"]}] and _v3["install_was_ready"] is False, _v3["dns"]
+# once ready, the admin deletes info (or renames it: deleted, added under another name): the next render does not add
+# it back; an install from before 0.8.0 (no install_was_ready, hostname_landing stored) has been ready
 _gone["dns"]["dynamic_zone_var"]["CNAME"].append({"name": "welcome", "canonical": v2["hostname"]})
-_v3 = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**secrets, **_gone, 'render_date': '2026-01-01'}))
-_names3 = [r["name"] for r in _v3["dns"]["dynamic_zone_var"]["CNAME"]]
-assert "info" not in _names3 and "welcome" in _names3 and _v3["hostname_landing"] == v2["hostname_landing"], _names3
+for _ready in (True, None):
+    _older = {k: x for k, x in {**copy.deepcopy(_gone), "install_was_ready": _ready}.items() if x is not None}
+    _v3 = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**secrets, **_older, 'render_date': '2026-01-01'}))
+    _names3 = [r["name"] for r in _v3["dns"]["dynamic_zone_var"]["CNAME"]]
+    assert "info" not in _names3 and "welcome" in _names3 and _v3["hostname_landing"] == v2["hostname_landing"] \
+        and _v3["install_was_ready"] is True, (_ready, _names3)
 # a repointed info is kept as the admin left it
 _moved = copy.deepcopy(v2)
 for _r in _moved["dns"]["dynamic_zone_var"]["CNAME"]:
@@ -1140,6 +1152,12 @@ def mem_refused(**extra):
     except ValidationError as e:
         return str(e)
     return ''
+
+
+# covers: setting:install_was_ready -
+assert "install_was_ready 'maybe' must be true or false" in mem_refused(install_was_ready="maybe") \
+    and mem_refused(install_was_ready=True) == '' and mem_refused() == '', mem_refused(install_was_ready="maybe")
+print("install_was_ready: setup's own record, true or false; anything else refused (2.1.4.10)")
 
 
 for bad, needle in ((dict(memory_floors={'tomcat': 64}), 'no service tomcat'),

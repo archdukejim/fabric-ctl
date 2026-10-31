@@ -303,7 +303,7 @@ SAMPLE_DNS_FILTER = {
         ("Pixabay", 1, "safesearch.pixabay.com"), ("Ecosia", 1, "strict-safe-search.ecosia.org"))],
         "not_covered": ["Brave Search", "Startpage"],
         "youtube": {"strict": "restrict.youtube.com", "moderate": "restrictmoderate.youtube.com"}},
-    "stats": {"hours": [{"hour": f"2026-10-09T{h:02d}:00Z", "queries": q, "blocked": b}
+    "stats": {"as_of": time.time() - 140, "hours": [{"hour": f"2026-10-09T{h:02d}:00Z", "queries": q, "blocked": b}
                         for h, q, b in ((0, 412, 61), (1, 288, 40), (2, 190, 22), (3, 175, 19), (4, 230, 31),
                                         (5, 640, 98), (6, 1210, 170), (7, 1620, 233), (8, 1488, 206), (9, 1302, 188))],
               "week": {"queries": 48210, "blocked": 6940},
@@ -315,7 +315,7 @@ SAMPLE_DNS_FILTER = {
                               {"name": "app-measurement.com", "zone": _ZONE, "list": "AdGuard DNS filter",
                                "count": 640},
                               {"name": "ads.example.org", "zone": "owner.rpz", "list": None, "count": 28}]}}
-SAMPLE_QUERY_LOG = {"entries": [
+SAMPLE_QUERY_LOG = {"as_of": time.time() - 140, "entries": [
     {"at": "2026-10-09T09:58:12Z", "client": "192.168.1.20", "view": "everyone", "name": "browser.events.data.msn.com",
      "qtype": "A", "action": "NXDOMAIN", "zone": _ZONE, "list": "AdGuard DNS filter", "blocked": True},
     {"at": "2026-10-09T09:58:11Z", "client": "192.168.1.66", "view": "kids", "name": "www.roblox.com",

@@ -71,6 +71,10 @@ hostname_nginx: {{ hostname_nginx | default('nginx.' ~ domain) }}
 hostname_bind9: {{ hostname_bind9 | default((cname_dns | default('dns')) ~ '.' ~ domain) }}
 hostname_stepca: {{ hostname_stepca | default((cname_ca | default('ca')) ~ '.' ~ domain) }}
 hostname_landing: {{ hostname_landing | default((landing_page_cname | default('info', true)) ~ '.' ~ domain) }}
+{# whether this install has once been ready (setup's last step sets it, 2.1.4.10): until then every render adds the
+   landing page's alias, so a failed first install run again keeps it; an install from before 0.8.0 (hostname_landing
+   stored) has been #}
+install_was_ready: {{ (install_was_ready | default(hostname_landing is defined)) | lower }}
 hostname_keycloak: {{ hostname_keycloak | default((cname_sso | default('sso')) ~ '.' ~ domain) }}
 {% set _hostname_mgr = (webui_hostname | default('', true) or ((cname_mgr | default('fabric-ctl')) ~ '.' ~ domain)) | lower %}
 hostname_mgr: {{ _hostname_mgr }}
@@ -460,9 +464,11 @@ bind_acl_policies:
 {% endif %}
 {# ntp.<domain> for clients; an install that already has a record of that name keeps its own #}
 {% set _own = ((dns | default({})).get('dynamic_zone_var', {}).get('A', []) + (dns | default({})).get('dynamic_zone_var', {}).get('CNAME', [])) | map(attribute='name') | list %}
-{# the landing page's alias (2.1.4.6): added once, by the render that installs the site (the one that also fixes
-   hostname_landing); from then on it is the admin's record, never added back #}
-{% if hostname_landing is not defined and (landing_page_cname | default('info', true)) not in _own %}
+{# the landing page's alias (2.1.4.6): added by the renders that install the site, until the install has once been
+   ready (2.1.4.10: a failed first install run again with its file keeps it); from then on it is the admin's record,
+   never added back #}
+{% if (hostname_landing is not defined or not (install_was_ready | default(true) | bool))
+      and (landing_page_cname | default('info', true)) not in _own %}
 {% set _ = default_cnames.append({ 'canonical': hostname, 'name': landing_page_cname | default('info', true) }) %}
 {% endif %}
 {% if ntp_serve | default(true) | bool and (cname_ntp | default('ntp')) not in _own %}

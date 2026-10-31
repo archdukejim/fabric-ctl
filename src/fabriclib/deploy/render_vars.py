@@ -18,7 +18,8 @@ def render_vars(jinja_env, secrets, custom_vars):
     Fails:   ValidationError when vars.yaml.j2 does not render, or host_ram_capacity — the admin's, else this host's
              measured memory — is under 4 GB (2.1.2.3; every container's memory limit follows from it, manual 1.2.4.3);
              plan_memory's refusals (memory_floors / memory_weights / a `*_mem_limit` not valid; the installed
-             services' floors not fitting the budget, naming the parts to turn off); check_cert_lifetimes' messages.
+             services' floors not fitting the budget, naming the parts to turn off); check_cert_lifetimes' messages;
+             install_was_ready that is not true or false (setup's own record, 2.1.4.10).
     Feeds:   apply_deployment."""
     context = {**secrets, **custom_vars, "host_ram_detected": host_ram_gb(),
                "render_date": datetime.now(timezone.utc).strftime("%Y-%m-%d")}
@@ -33,4 +34,8 @@ def render_vars(jinja_env, secrets, custom_vars):
         raise ValidationError(f"host_ram_capacity is {ram} GB: fabric needs at least {MIN_RAM_GB} GB (2.1.2.3). "
                               "Set it to this host's memory in GB, or leave it unset for setup to measure it.")
     check_cert_lifetimes(final_vars)
+    if not isinstance(final_vars.get("install_was_ready"), bool):
+        raise ValidationError(f"install_was_ready {final_vars.get('install_was_ready')!r} must be true or false: it is "
+                              "setup's own record of whether this install has once been ready (2.1.4.10); leave it out "
+                              "of a settings file")
     return final_vars, context

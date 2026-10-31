@@ -1,8 +1,7 @@
 import json
 
-from fabriclib.dns_filter.common.dnslog_psql import dnslog_psql
 from fabriclib.dns_filter.common.list_zone import list_zone
-from fabriclib.dns_filter.ingest_dns_log import ingest_dns_log
+from fabriclib.dns_filter.common.read_dnslog import read_dnslog
 
 STATS = """SELECT json_build_object(
   'hours', (SELECT coalesce(json_agg(json_build_object(
@@ -23,20 +22,21 @@ STATS = """SELECT json_build_object(
 
 
 def dns_filter_stats(v):
-    """Purpose: the DNS filter's statistics (manual 1.12.2.13; no client addresses, 2.1.12.4), read up to the moment
-             first: the last 24 hours by hour, the last 7 days' totals, queries and blocks per zone (each list, the
-             owner's rules, fabric's own names), and the 20 most blocked names of the last 7 days.
-    Inputs:  v — rendered vars (dns_filter_lists for list names, and what ingest_dns_log reads).
-    Returns: {"off": reason} when the query log is off; else {"hours": [{hour, queries, blocked}], "week": {queries,
-             blocked}, "zones": [{zone, list (its name, or None), queries, blocked}], "top_blocked": [{name, zone,
-             list, count}]}.
+    """Purpose: the DNS filter's statistics (manual 1.12.2.13; no client addresses, 2.1.12.4) as the fabric-dns-log
+             timer last read the resolver's log (one query, no ingest: 2.1.12.10): the last 24 hours by hour, the
+             last 7 days' totals, queries and blocks per zone (each list, the owner's rules, fabric's own names), and
+             the 20 most blocked names of the last 7 days.
+    Inputs:  v — rendered vars (dns_filter_lists for list names, and what read_dnslog reads).
+    Returns: {"off": reason} when the query log is off or not made yet; else {"as_of": when the timer last read
+             the log (epoch) or None, "hours": [{hour, queries, blocked}], "week": {queries, blocked}, "zones":
+             [{zone, list (its name, or None), queries, blocked}], "top_blocked": [{name, zone, list, count}]}.
     Fails:   ValidationError from Postgres.
     Feeds:   agent/get_route (GET /v1/dns-filter), dns_filter/run_dns_filter_command (`fabricctl dns-filter stats`);
              tests/resolver/querylog.py."""
-    state = ingest_dns_log(v)
-    if "off" in state:
-        return {"off": state["off"]}
-    stats = json.loads(dnslog_psql(STATS).strip())
+    r = read_dnslog(v, STATS)
+    if "off" in r:
+        return {"off": r["off"]}
+    stats = {**json.loads(r["out"].strip()), "as_of": r["as_of"]}
     names = {list_zone(i["url"]): i.get("name") or i["url"] for i in v.get("dns_filter_lists") or []}
     for row in stats["zones"] + stats["top_blocked"]:
         row["list"] = names.get(row["zone"])

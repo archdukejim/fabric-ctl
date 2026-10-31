@@ -221,6 +221,19 @@ check("join: a root other than the pinned one is refused before anything is sent
 check("join: an endpoint whose certificate does not name the federation host is refused",
       refused(join_upstream, SITE, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca", "branch1.hq.test", "127.0.0.2",
               **dict(J, https_port=EVIL_PORT), match="cannot reach"))
+try:
+    join_upstream(SITE, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca", "branch1.hq.test", "127.0.0.2",
+                  **dict(J, https_port=EVIL_PORT))
+    tls_text = ""
+except ValidationError as exc:
+    tls_text = str(exc)
+check("join: a TLS refusal does not blame the firewall", "cannot reach" in tls_text and "firewall" not in tls_text,
+      tls_text)
+check("join: an upstream not answering at all (its firewall shut to this site's network) is refused, naming the "
+      "upstream's security.firewall_allow and the step that applies it (2.1.9.28)",
+      refused(join_upstream, SITE, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca", "branch1.hq.test", "127.0.0.2",
+              **dict(J, http_port=free_port()),
+              match="security.firewall_allow: there, add it and run `sudo fabricctl setup --step firewall"))
 check("join: the upstream's own domain is refused for a site",
       refused(join_upstream, SITE, inv["invitation"], "Site-Pw-1", f"{B1}/site-ca", "hq.test", "127.0.0.2", **J,
               match="cannot use this site's domain"))

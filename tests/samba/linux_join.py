@@ -7,7 +7,13 @@ a password logon through PAM and a Kerberos ticket; who signs in from the shippe
 administrators (sudo of every command there) and nobody else, a person of another site and the Directory
 Administrator refused; at a desktop every person, with no sudo;
 cached logons with the DC stopped; and a sudo rule on a host group (1.6.11.7) holding the 24.04 machine: it applies
-there and not on the 26.04 one. The containers have no systemd: a stand-in `systemctl` starts sssd.
+there and not on the 26.04 one. The containers have no systemd: a stand-in `systemctl` starts sssd. Then 24.04 and
+Debian 12 with systemd as PID 1 (2.1.6.95): after a reboot no sssd unit failed (its socket units masked beside
+`services =`), sign-in and sudo work; again after the script runs a second time, and after it runs on a machine an
+older join left with the socket units enabled (negative: those fail at boot first); renaming (2.1.6.96): polkit
+refuses a person's hostnamectl (the rule's refusal: without it polkit would ask for a password), root's own rename is
+warned of by the hourly check. The admin-joined machine is in fabric-managed from its join (2.1.6.97), the sort
+records it, an admin's removal holds, and the guard keeps a join that could not add itself for 2 hours.
     sudo python3 tests/samba/linux_join.py
 """
 import json
@@ -32,6 +38,7 @@ DC, WEB = testrun.name("ljdc"), testrun.name("lj-certs")      # per run (manual 
 # release -> (container image, machine name): Ubuntu, and Debian (what Proxmox VE 8 and 9 are built on)
 IMAGES = {"24.04": "ubuntu:24.04", "26.04": "ubuntu:26.04", "debian-12": "debian:12", "debian-13": "debian:13"}
 RELEASES = {"24.04": "ws2404", "26.04": "ws2604", "debian-12": "wsdeb12", "debian-13": "wsdeb13"}
+BOOTS = {"24.04": "bt2404", "debian-12": "btdeb12"}       # the same, with systemd as PID 1 (2.1.6.95)
 PW = "Correct-Horse-9-" + random_password(8)
 FAILED = 0
 m_add_machine.write_audit = lambda *a, **k: None
@@ -62,8 +69,10 @@ def dc_healthy():
 
 
 def cleanup():
-    testrun.remove("container", DC, WEB, *[testrun.name(f"lj-{r}") for r in RELEASES.values()])   # this run's only
-    testrun.remove("network", NET)
+    testrun.remove("container", DC, WEB, *[testrun.name(f"lj-{r}") for r in [*RELEASES.values(), *BOOTS.values()]])
+    testrun.remove("network", NET)                                                   # this run's only
+    for name in BOOTS.values():                                                      # the systemd clients' images
+        sh(["docker", "rmi", "-f", testrun.name(f"fabric-ljboot-{name}")], ok=False)
 
 
 cleanup()
@@ -248,16 +257,37 @@ code, out = on(box, "sshd -T 2>/dev/null | grep -Ei '^(gssapiauthentication|pass
 check("24.04: managed: sshd takes Kerberos and no passwords (its drop-in first), resolved sends the domain's names to "
       "fabric", "gssapiauthentication yes" in out and "passwordauthentication no" in out
       and f"DNS={V['host_ip']}" in out and f"~{V['ad_domain']}" in out, out)
+check("24.04: in fabric-managed from its join (2.1.6.97), before any sort",
+      "memberOf: CN=fabric-managed," in where and on(box, "grep -x MANAGED_PENDING=0 /etc/fabric/managed.env")[0] == 0,
+      where)
+code, out = on(box, "fabric-managed check; echo rc=$?; ls /etc/ssh/sshd_config.d/10-fabric.conf")
+check("24.04: its own check right after the join keeps the configuration (finding 11: it removed it before the sort)",
+      "rc=0" in out and "10-fabric.conf" in out and "removed" not in out, out)
 record = tempfile.mktemp()
 placed = m_sort.sort_machines(V, secrets=SECRETS, container=DC, record=record)
-code, out = on(box, "fabric-managed check; echo rc=$?; ls /etc/ssh/sshd_config.d/10-fabric.conf")
-check("24.04: the sort adopts it (fabric-managed) and its hourly check keeps the configuration",
-      RELEASES["24.04"] in placed["adopted"] and "rc=0" in out and "10-fabric.conf" in out, (placed, out))
+guid = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", f"(sAMAccountName={RELEASES['24.04']}$)",
+           "objectGUID"], ok=False).stdout.split("objectGUID: ")[-1].split()[0]
+check("24.04: the sort records it (a member already: not adopted again, nothing audited)",
+      RELEASES["24.04"] not in placed["adopted"] and guid in json.load(open(record))["adopted"], (placed, guid))
 sh(["docker", "exec", DC, "samba-tool", "group", "removemembers", "fabric-managed", f"{RELEASES['24.04'].upper()}$",
     "-s", "/data/etc/smb.conf"])
 code, out = on(box, "fabric-managed check; ls /etc/ssh/sshd_config.d/ /etc/systemd/resolved.conf.d/ 2>&1")
 check("24.04: taken out of fabric-managed, its next check removes fabric's SSH and DNS configuration",
       "removed" in out and "10-fabric.conf" not in out and "fabric.conf" not in out, out)
+again = m_sort.sort_machines(V, secrets=SECRETS, container=DC, record=record)
+check("negative: 24.04: taken out by an admin, the next sort leaves it out", RELEASES["24.04"] not in again["adopted"]
+      and "fabric-managed" not in sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb",
+                                      f"(sAMAccountName={RELEASES['24.04']}$)", "memberOf"], ok=False).stdout, again)
+# the guard (2.1.6.97): a join that could not add itself keeps the configuration 2 hours for the sort, no longer
+on(box, "fabric-managed apply; sed -i 's/^MANAGED_PENDING=0$/MANAGED_PENDING=1/' /etc/fabric/managed.env")
+code, out = on(box, "fabric-managed check; ls /etc/ssh/sshd_config.d/")
+check("24.04: the guard: a join that could not add itself, not a member yet, under 2 hours: the configuration kept",
+      "kept" in out and "10-fabric.conf" in out, out)
+on(box, "sed -i 's/^JOINED=.*/JOINED=0/' /etc/fabric/managed.env")
+code, out = on(box, "fabric-managed check; ls /etc/ssh/sshd_config.d/")
+check("negative: 24.04: the guard ends after 2 hours: not a member, the configuration removed",
+      "removed" in out and "10-fabric.conf" not in out, out)
+on(box, "sed -i 's/^MANAGED_PENDING=1$/MANAGED_PENDING=0/' /etc/fabric/managed.env")
 
 # a service's keytab (manual 1.6.12.17.8): the command the console shows, run by the machine's administrator
 from fabriclib.domain.keytab_command import keytab_command  # noqa: E402
@@ -328,6 +358,116 @@ for release in ("debian-12", "debian-13"):
               and "description: fabric: unmanaged (manual 1.6.11.6)" in desc, desc)
     time.sleep(5)
     checks(box_d, release, desktop=release == "debian-13")
+
+
+# with systemd (2.1.6.95): the packages enable SSSD's socket units and the join masks them, so the machine boots with
+# no failed sssd unit, sign-in and sudo work after the reboot, and running the script again changes neither
+BOOT_DOCKERFILE = """FROM {image}
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update -qq && apt-get install -y -qq systemd systemd-sysv dbus polkitd pamtester sudo procps >/dev/null \\
+ && apt-get clean
+CMD ["/sbin/init"]
+"""
+
+
+def booted(box):
+    """Wait for the container's systemd to finish starting; its state ("running", "degraded", ...)."""
+    state = ""
+    for _ in range(60):
+        state = on(box, "systemctl is-system-running")[1].strip()
+        if state in ("running", "degraded"):
+            break
+        time.sleep(2)
+    return state
+
+
+def failed_sssd(box):
+    """The sssd units systemd lists as failed."""
+    return [u for u in on(box, "systemctl --failed --no-legend --plain | awk '{print $1}'")[1].split() if "sssd" in u]
+
+
+def boot_client(release, name):
+    """A joined machine with systemd as PID 1, as a real one boots (privileged: its own cgroup tree, like the sandbox)."""
+    box, image = testrun.name(f"lj-{name}"), testrun.name(f"fabric-ljboot-{name}")
+    sh(["docker", "build", "-q", "-t", image, "-"], input=BOOT_DOCKERFILE.format(image=IMAGES[release]))
+    sh(["docker", "run", "-d", "--name", box, *testrun.labels(), "--hostname", name, "--network", NET, *hosts,
+        "--privileged", "--cgroupns=private", "--tmpfs", "/run", "--tmpfs", "/run/lock",
+        "-v", f"{W}/join-linux.sh:/root/join-linux.sh:ro", image])
+    return box, booted(box) in ("running", "degraded")
+
+
+def after_boot(box, release, when):
+    """Reboot the machine; then no sssd unit failed, sssd runs, alice (a server administrator) logs on and has sudo."""
+    sh(["docker", "restart", box])
+    state = booted(box)
+    for _ in range(30):                     # sssd online again (its first lookups after the boot)
+        if on(box, "id -u alice")[0] == 0:
+            break
+        time.sleep(2)
+    failed = failed_sssd(box)
+    masked = on(box, "systemctl is-enabled sssd-nss.socket sssd-pam.socket sssd-sudo.socket sssd-pac.socket")[1]
+    check(f"{release} with systemd, {when}: after a reboot no sssd unit failed, sssd runs its responders "
+          "(services = nss, pam, sudo), the packages' socket units masked",
+          state in ("running", "degraded") and failed == [] and on(box, "systemctl is-active sssd")[1].strip()
+          == "active" and masked.split() == ["masked"] * 4
+          and on(box, "grep -qx 'services = nss, pam, sudo' /etc/sssd/sssd.conf")[0] == 0,
+          (state, failed, on(box, "systemctl --failed --no-legend --plain; systemctl status 'sssd*' --no-pager "
+                                  "| tail -40")[1]))
+    code, out = logon(box, "alice", PW)
+    check(f"{release} with systemd, {when}: a server administrator (alice) logs on", code == 0
+          and "successfully" in out, out)
+    on(box, "sss_cache -E")                 # sssd's cached sudo rules (from before the grants' sync) dropped (4.6.6.8)
+    for _ in range(15):
+        code, out = on(box, "sudo -l -U alice; echo ---; sudo -l -U lara")
+        if "(root) ALL" in out.split("---")[0]:
+            break
+        time.sleep(2)
+    check(f"{release} with systemd, {when}: alice has sudo (the grant's rule); negative: lara has none",
+          "(root) ALL" in out.split("---")[0] and "not allowed" in out.split("---")[-1], out)
+
+
+for release, name in BOOTS.items():
+    box_b, ok = boot_client(release, name)
+    check(f"{release} with systemd: the container boots ({IMAGES[release]})", ok)
+    code, out = on(box_b, f"bash /root/join-linux.sh {fp} --user adam", stdin=PW + "\n")
+    check(f"{release} with systemd: joins", code == 0 and "joined" in out, out[-600:])
+    code, out = on(box_b, "head -2 /etc/hostname")
+    check(f"{release} with systemd: /etc/hostname says the name is the domain account's and names the procedure "
+          "(a rename breaks the join, 2.1.6.96)", f"domain account {name.upper()}$" in out and "4.6.6.11" in out, out)
+    m_sync.sync_grants(V, "test", "timer", DC)
+    after_boot(box_b, release, "joined")
+    # renaming (2.1.6.96): polkit refuses hostnamed's rename to everyone it asks; root's own rename is warned of
+    ask = ("su probeu -s /bin/bash -c 'hostnamectl set-hostname renamed 2>&1; "
+           "pkcheck --action-id org.freedesktop.hostname1.set-static-hostname --process $$ >/dev/null 2>&1; "
+           "echo pk=$?'; hostname")
+    code, out = on(box_b, "useradd -m probeu 2>/dev/null; " + ask)
+    check(f"{release} with systemd: a person's hostnamectl rename is refused by fabric's polkit rule (Access denied; "
+          "polkit says not authorized), the name kept", "Access denied" in out and "pk=1" in out
+          and out.split()[-1] == name, out)
+    code, out = on(box_b, "mv /etc/polkit-1/rules.d/10-fabric-hostname.rules /root/; sleep 3; " + ask
+                   + "; mv /root/10-fabric-hostname.rules /etc/polkit-1/rules.d/; sleep 3")
+    check(f"negative: {release} with systemd: without the rule polkit would ask for an administrator's password "
+          "instead (the refusal is the rule's)", "pk=2" in out and out.split()[-1] == name, out)
+    code, out = on(box_b, f"hostname renamed-by-root; /usr/local/sbin/fabric-managed check 2>&1; hostname {name}; "
+                          "/usr/local/sbin/fabric-managed check 2>&1")
+    check(f"{release} with systemd: root's own rename is not stopped (polkit is not asked), and the hourly check "
+          "warns of it, naming the procedure; named back, no warning",
+          "now named renamed-by-root, but it joined the domain as " + name in out and "4.6.6.11" in out
+          and out.count("warning:") == 1, out)
+    code, out = on(box_b, f"bash /root/join-linux.sh {fp} --user adam", stdin=PW + "\n")
+    check(f"{release} with systemd: running the script again on the joined machine succeeds",
+          code == 0 and "joined" in out, out[-600:])
+    after_boot(box_b, release, "joined again")
+    # a machine as an older script left it (services in sssd.conf, the socket units enabled): what the owner saw
+    on(box_b, "s=$(systemctl list-unit-files 'sssd-*.socket' --no-legend | awk '{print $1}'); "
+              "systemctl unmask $s >/dev/null 2>&1; systemctl enable $s >/dev/null 2>&1")
+    sh(["docker", "restart", box_b])
+    booted(box_b)
+    old = failed_sssd(box_b)
+    check(f"negative: {release} with systemd: as an older join left it (socket units enabled beside services), "
+          "sssd's socket units fail at boot", old != [], old)
+    code, out = on(box_b, f"bash /root/join-linux.sh {fp} --user adam", stdin=PW + "\n")
+    after_boot(box_b, release, "an older join, the script run again (its fix)")
 
 # the DC away: a person who logged on before still can (cached credentials)
 sh(["docker", "stop", DC])

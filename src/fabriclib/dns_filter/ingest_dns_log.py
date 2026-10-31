@@ -10,6 +10,7 @@ from fabriclib.common.write_file_if_changed import write_file_if_changed
 from fabriclib.dns_filter.common.adguard_api import adguard_api
 from fabriclib.dns_filter.common.adguard_password import adguard_password
 from fabriclib.dns_filter.common.dnslog_psql import dnslog_psql
+from fabriclib.dns_filter.common.query_log_off import query_log_off
 from fabriclib.dns_filter.common.resolver_paths import resolver_paths
 from fabriclib.dns_filter.ensure_dnslog_db import ensure_dnslog_db
 
@@ -161,20 +162,21 @@ def ingest_dns_log(v):
     """Purpose: read the resolver's new query and RPZ log lines into the query log (manual 1.12.2.13, 1.12.3.7,
              decision 2.1.12.5): queries in, each rewrite of the resolver's marked on its query, each NXDOMAIN that
              AdGuard Home gave for a list marked blocked by that list, the touched hours' and days' statistics
-             recomputed, then rows past their time purged (2.1.12.4: 7 days; statistics 90 days). One run at a time.
+             recomputed, then rows past their time purged (2.1.12.4: 7 days; statistics 90 days). One run at a time;
+             the timer's alone since 2.1.12.10 (the console's reads never ingest): ingest.json's time is when it last
+             ran, which the tab shows.
     Inputs:  v — rendered vars (install_resolver, install_keycloak, deploy_base_dir, ip_adguard).
     Returns: {"off": reason} when the resolver or Postgres is not on; else {"queries": rows added, "rewrites": rewrite
              lines read, "adguard": answers marked blocked by a list, "adguard_error": why AdGuard could not be asked
              (those answers stay unmarked) or None, "skipped": lines that were none of these, "created": True when
              the database was made now}.
     Fails:   ValidationError from dnslog_psql (Postgres not running or refusing; the place in the files is kept, so
-             the next run reads the same lines again); OSError reading the logs or writing the place.
+             the next run reads the same lines again, and its time); OSError reading the logs or writing the place.
     Feeds:   dns_filter/run_dns_filter_command (`fabricctl dns-filter ingest`, the fabric-dns-log timer),
-             dns_filter/read_query_log, dns_filter/dns_filter_stats (before every read); tests/resolver/querylog.py."""
-    if not v.get("install_resolver"):
-        return {"off": "the BIND resolver is off"}
-    if not v.get("install_keycloak"):
-        return {"off": "Postgres is not installed (install_keycloak: false)"}
+             tests/resolver/querylog.py."""
+    off = query_log_off(v)
+    if off:
+        return {"off": off}
     paths = resolver_paths(v)
     place_file = os.path.join(paths["root"], "ingest.json")
     with open(os.path.join(paths["root"], "ingest.lock"), "a") as lock:
@@ -233,7 +235,9 @@ def ingest_dns_log(v):
         sql += [PURGE, "COMMIT;"]
         dnslog_psql("\n".join(sql) + "\n")
         new = {k: p for k, p in (("query.log", q_place), ("rpz.log", r_place)) if p}
-        if new != place:
+        if new != place or not os.path.exists(place_file):
             write_file_if_changed(place_file, json.dumps(new) + "\n", 0o600)
+        else:
+            os.utime(place_file)             # read up to now, nothing new: its time is the tab's "as of"
     return {"queries": len(queries), "rewrites": len(rewrites), "adguard": len(blocks), "adguard_error": ag_error,
             "skipped": q_skip + r_skip, "created": created}

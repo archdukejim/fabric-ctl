@@ -15,8 +15,9 @@ def sort_machines(v, actor="fabric", source="timer", secrets=None, container="sa
     """Purpose: the domain's machines placed, each once: a Windows machine that joined itself into OU=machines
              filed by its operatingSystem, a Server edition into OU=servers and `machines-servers`, any other into
              OU=desktops and `machines-desktops` (manual 1.6.13.3); a Linux machine of this site joined with an
-             admin's password made a member of `fabric-managed` unless its join said unmanaged (1.6.11.6, 2.1.6.40).
-             The DC does both; this records which machines, so one an admin moves back or takes out is left so.
+             admin's password made a member of `fabric-managed` unless its join said unmanaged (1.6.11.6, 2.1.6.40;
+             since 2.1.6.97 its join adds it itself, and the sort only records it). The DC does both; this records
+             which machines, so one an admin moves back or takes out is left so.
     Inputs:  v — fabric vars (site_name); actor, source — for the audit; secrets — fabric's secrets (default:
              load_secrets()); container — the DC's container; record — the file of what was done before
              ({"sorted": [guid], "adopted": [guid]}).
@@ -32,10 +33,11 @@ def sort_machines(v, actor="fabric", source="timer", secrets=None, container="sa
     done = {"sorted": list(done.get("sorted") or []), "adopted": list(done.get("adopted") or [])}
     secrets = secrets if secrets is not None else load_secrets()
     moved = run_op(v, secrets, "sort_windows_machines", {"skip": done["sorted"]}, container)
-    adopted = run_op(v, secrets, "adopt_linux_machines", {"skip": done["adopted"]}, container)
-    if moved or adopted:
+    found = run_op(v, secrets, "adopt_linux_machines", {"skip": done["adopted"]}, container)
+    adopted = [m for m in found if not m.get("seen")]
+    if moved or found:
         done["sorted"] = sorted(set(done["sorted"]) | {m["guid"] for m in moved})
-        done["adopted"] = sorted(set(done["adopted"]) | {m["guid"] for m in adopted})
+        done["adopted"] = sorted(set(done["adopted"]) | {m["guid"] for m in found})
         os.makedirs(os.path.dirname(record), exist_ok=True)
         tmp = record + ".tmp"
         with open(tmp, "w") as f:

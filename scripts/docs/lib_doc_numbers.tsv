@@ -371,6 +371,8 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_memory.py	45
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_zone.py	5	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py	46	0.7.0 / 2026-10-12
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/parse_upstreams.py	50	
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/query_log_off.py	52	
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/read_dnslog.py	53	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_paths.py	6	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_rndc.py	7	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/rule_names.py	31	
@@ -1901,6 +1903,8 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_memory.py|lis
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_zone.py|list_zone	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py|mem_mb	1	0.7.0 / 2026-10-12
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/parse_upstreams.py|parse_upstreams	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/query_log_off.py|query_log_off	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/read_dnslog.py|read_dnslog	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_paths.py|resolver_paths	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/resolver_rndc.py|resolver_rndc	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/rule_names.py|rule_names	1	
@@ -2108,6 +2112,7 @@ function	fabriclib-federation|src/fabriclib/federation/dns_links.py|dns_links	2
 function	fabriclib-federation|src/fabriclib/federation/drop_relay.py|drop_relay	1	
 function	fabriclib-federation|src/fabriclib/federation/federation_overview.py|federation_overview	1	
 function	fabriclib-federation|src/fabriclib/federation/federation_status.py|federation_status	1	
+function	fabriclib-federation|src/fabriclib/federation/join_upstream.py|_reached	3	
 function	fabriclib-federation|src/fabriclib/federation/join_upstream.py|_vars	2	
 function	fabriclib-federation|src/fabriclib/federation/join_upstream.py|join_upstream	1	
 function	fabriclib-federation|src/fabriclib/federation/keep_site_place.py|keep_site_place	1	

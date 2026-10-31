@@ -122,9 +122,12 @@ check("the console's address: a new install's is fabric-ctl.<domain>; the 0.7.1 
 ctx_same, _, error = setup_vars(write("same.yaml", yaml.safe_dump({**fresh_answers, "cname_mgr": old["cname_mgr"]})))
 same, _ = render_vars(env, secrets, {**yaml.safe_load(open(os.path.join(ctx_same.config_dir, "fabric.yaml"))),
                                      "deploy_base_dir": "/opt"})
-differ = sorted(k for k in set(same) | set(moved) if same.get(k) != moved.get(k))
+# install_was_ready (2.1.4.10): the moved file names hostname_landing, so it counts as an install once ready (its
+# zone, info included, is the admin's); a fresh one is not ready until its first setup ends
+differ = sorted(k for k in set(same) | set(moved) if same.get(k) != moved.get(k) and k != "install_was_ready")
 check("0.8.0 renders the moved settings as a fresh install with the same answers (zones, keys, parts, groups, "
-      "the DC; the console's kept address aside)", differ == [], {k: (same.get(k), moved.get(k)) for k in differ})
+      "the DC; the console's kept address aside)", differ == [] and moved["install_was_ready"] is True
+      and same["install_was_ready"] is False, {k: (same.get(k), moved.get(k)) for k in differ})
 try:
     check_settings({**moved, "dns_filter": "none"})
     said = "accepted"

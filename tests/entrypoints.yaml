@@ -528,6 +528,7 @@
 "setting:install_kea": "templates/vars.yaml.j2"
 "setting:install_keycloak": "templates/vars.yaml.j2"
 "setting:install_resolver": "templates/vars.yaml.j2"
+"setting:install_was_ready": "templates/vars.yaml.j2"
 "setting:install_webui": "templates/vars.yaml.j2"
 "setting:ip_adguard": "templates/vars.yaml.j2"
 "setting:ip_bind9": "templates/vars.yaml.j2"

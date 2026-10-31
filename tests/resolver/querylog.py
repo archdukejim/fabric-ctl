@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """The DNS filter's query log and statistics (manual 1.12.2.13, 1.12.3.7) with a real Postgres (the pinned image, named as
 fabric runs it): ingesting the resolver's log files, rewrites marking their queries, reading on from where it stopped
-(a rotated file too), purging at 7 days while statistics stay, searches and statistics, and what must be refused.
+(a rotated file too), purging at 7 days while statistics stay, searches and statistics, and what must be refused; the
+reads never ingest (2.1.12.10): before the timer's first run they say the log is not read yet, a new line waits for
+the next run, and each says when the log was last read.
 
     sudo python3 tests/resolver/querylog.py      (needs Docker)
 """
@@ -132,6 +134,14 @@ try:
            + rewrite("192.168.1.21", 4003, "deep.sub.ads.example", "NXDOMAIN", f"*.ads.example.{ZONE}", 28)
            + rewrite("192.168.1.21", 4004, "ok.example", "PASSTHRU", "ok.example.owner.rpz", 27)
            + rewrite("192.168.1.22", 4005, "old.example", "NXDOMAIN", f"old.example.{ZONE}", 8 * 86400))
+    early = (dns_filter_stats(V), read_query_log(V), dnsf(V, "stats"))
+    check("negative: before the timer's first run (no database yet) the reads say the log is not read yet, and make "
+          "nothing (the timer alone ingests, 2.1.12.10)",
+          all("not read yet" in r.get("off", "") for r in early[:2]) and early[2][0] == 2
+          and "not read yet" in early[2][1]
+          and psql("SELECT 1;", user="fabric_admin", db="keycloak").returncode == 0
+          and psql("SELECT datname FROM pg_database WHERE datname = 'dnslog';", user="fabric_admin",
+                   db="keycloak").stdout.strip() == "", early)
     r = ingest_dns_log(V)
     check("ingest: the database made, the queries and rewrites read, a stray line counted",
           r.get("created") and r["queries"] == 5 and r["rewrites"] == 4 and r["skipped"] == 1, r)
@@ -193,6 +203,14 @@ try:
           and "unknown option or missing value: --since" in refusals["an unknown option"][1]
           and "is not a DNS name" in refusals["a name that is not one"][1], refusals)
     append("query.log", query("192.168.1.50", 4101, "cli-ingest.example"))
+    # a read never ingests (2.1.12.10): the new line waits for the timer's run; the reads say when that last was
+    week = dns_filter_stats(V)["week"]
+    unread = read_query_log(V, client="192.168.1.50")
+    check("a read never ingests: the log's new line is not in a search or the statistics until the timer runs; both "
+          "say when the log was last read (ingest.json's time, within a minute)",
+          unread["entries"] == [] and dns_filter_stats(V)["week"] == week
+          and abs(time.time() - (unread["as_of"] or 0)) < 60 and dns_filter_stats(V)["as_of"] == unread["as_of"],
+          (unread, week))
     code, out = dnsf(V, "ingest", "--scheduled")
     # covers: cli:dns-filter.ingest +
     check("fabricctl dns-filter ingest (as its timer runs it): the new line read, exit 0; the log shows it",
