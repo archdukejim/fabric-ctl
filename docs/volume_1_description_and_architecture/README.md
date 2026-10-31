@@ -79,6 +79,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.8.5 The setup wizard: setup's choices in the console, and in a file](1.8.5-setup-wizard.md)
 - [1.8.6 The console redone in Cockpit's style](1.8.6-console-redo.md)
 - [1.8.7 Cockpit behind fabric's web server](1.8.7-cockpit-proxy.md)
+- [1.8.8 The directory browser, and the console made fast and clean (0.9.1)](1.8.8-directory-browser.md)
 
 ## 1.9 Federation
 
