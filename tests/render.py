@@ -349,6 +349,10 @@ _pg = lambda **s: yaml.safe_load(env.get_template('postgres/docker-compose.yml.j
 assert _pg() == 'pg_isready -U keycloak -d keycloak' and \
     _pg(keycloak_db_user='keycloak_db') == 'pg_isready -U keycloak_db -d keycloak', (_pg(), _pg(keycloak_db_user='x'))
 print("Postgres's health probe: the bootstrap role before the take-over, Keycloak's own after")
+_pgh = yaml.safe_load(env.get_template('postgres/docker-compose.yml.j2').render(**full))['services']['postgres'][
+    'healthcheck']
+assert _pgh['start_period'] == '300s' and _pgh['retries'] == 5, _pgh   # a first start's initdb on a slow disk (1.2.4.5)
+print("Postgres's health wait: 300 s of start before a failed probe counts (a first start's initdb)")
 # DNS filter (manual 1.12.2): on by default (2.1.12.3) -> the BIND resolver on 53, BIND on 5053 (even when vars.yaml
 # had 53), its own account, no capabilities, no requires; off -> BIND keeps the port vars say
 assert v2['dns_filter'] == user.get('dns_filter', 'bind') and v2['install_resolver'] is (v2['dns_filter'] == 'bind')

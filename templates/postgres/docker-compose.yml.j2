@@ -51,6 +51,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      # a first start runs initdb and syncs it to disk: a slow disk took 58 s (the lab, 2026-10-31), past 5 failed
+      # probes, and the unit stopped a healthy start (1.2.4.5); probes fail freely for 300 s, a success ends it early
+      start_period: 300s
 
 networks:
   fabric_net:
