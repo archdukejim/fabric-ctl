@@ -18,8 +18,8 @@ NSSWITCH = "/etc/nsswitch.conf"
 HOSTS = "/etc/hosts"
 # the host files the step keeps before its first change and the undo puts back (common/keep_original)
 KEPT_FILES = (KRB5_CONF, SSSD_CONF, SUDOERS, KEYTAB, NSSWITCH, HOSTS)
-# what was on before fabric (PAM profiles, sssd enabled, sudo's alternative) and the host's own computer account
-# fabric made ("account"): <config>/member.json, for the undo
+# what was on before fabric (PAM profiles, sssd enabled, sudo's alternative, sssd's socket units: "sockets") and the
+# host's own computer account fabric made ("account"): <config>/member.json, for the undo
 RECORD = "member.json"
 
 
@@ -80,4 +80,6 @@ def plan_member(v):
         f"{HOSTS}: the domain controller's name as {v.get('host_ip')}, only when this host cannot resolve it",
         "sudo: the classic sudo instead of sudo-rs, only where sudo-rs is the default (it cannot read the domain's "
         "sudo rules)",
+        "sssd's socket units (sssd-*.socket) disabled and masked: sssd starts its responders itself, and the "
+        "sockets would fail at every boot (decision 2.1.6.95); the undo puts them back as they were",
     ] + managed

@@ -7,6 +7,7 @@ Helpers shared by setup steps and the consent plans.
 | `missing_packages.py` | Which Debian packages are not installed |
 | `apt_install.py` | Install packages from the host's own apt sources (noninteractive) |
 | `render_member_files.py` | The host's krb5.conf and sssd.conf as a member of its own domain: no domain account signs in and no domain sudo rule applies (the top tier's host) |
+| `sssd_sockets.py` | sssd's socket units (`sssd-*.socket`): read, masked for the host's own join and put back by its undo; the Linux join's script follows its glob and commands (1.6.7.8, 2.1.6.95) |
 | `host_identity.py` | Which domain account the host signs in with: its own `<HOSTNAME>$` (2.1.6.48), or its DC's where it cannot have its own; a DC with the host's name refused (2.1.6.51) |
 | `find_computer.py` | Whether the domain has a computer account of a name, where, and its groups (read inside the DC) |
 | `sshd_check.py` | Whether sshd accepts its configuration as it is on disk (`sshd -t`) |

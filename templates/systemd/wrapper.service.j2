@@ -36,8 +36,10 @@ done; echo "Container {{ item.compose }} still there 60 s after its removal: not
 ExecStart=/usr/bin/docker compose -f {{ deploy_base_dir }}/{{ item.folder }}/docker-compose.yml up --abort-on-container-exit
 ExecStop=/usr/bin/docker compose -f {{ deploy_base_dir }}/{{ item.folder }}/docker-compose.yml stop
 Restart=always
-# `compose up` exits 130 when stopped (fabricctl stop, the unlock kill switch): a clean stop, not a failure.
-SuccessExitStatus=130
+# `compose up` exits 130 when stopped (fabricctl stop, the unlock kill switch), or 143 when systemd's SIGTERM reaches
+# it before it has ended after ExecStop (seen with keycloak at an uninstall, 2.3.1.32 finding 18): a clean stop, not a
+# failure.
+SuccessExitStatus=130 143
 TimeoutStartSec=600
 TimeoutStopSec=30
 {% if item.healthcheck | default(true) %}

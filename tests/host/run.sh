@@ -78,6 +78,15 @@ R "fabricctl setup --file /tmp/vars.yaml --non-interactive --yes --approve all -
 R "rm -f /tmp/admin-pw"
 echo "    setup took $(( ($(date +%s) - start) / 60 )) min"
 check "setup completes" "grep -q 'fabric is ready' '$OUT/setup.log'"
+# no failed unit of sssd's or fabric's (2.1.6.95, 2.3.1.32 finding 18): `systemctl --failed`, ours only
+OURS='^(sssd|fabric|nginx|openbao|keycloak|postgres|samba|bind9|adguard|stepca|step-ca|kea|freeradius|fluentbit|webui)[-.@]'
+failed_ours() { R 'systemctl --failed --no-legend --plain' | awk '{print $1}' | grep -E "$OURS"; }
+check "no failed sssd or fabric unit after setup (the host's join masked sssd's sockets, 2.1.6.95)" \
+    "[ -z \"\$(failed_ours)\" ] && R 'systemctl is-enabled sssd-nss.socket' | grep -qx masked"
+# as at a boot: sssd restarted and every socket unit started again (sockets.target)
+R 'systemctl restart sssd && systemctl start sockets.target; sleep 5'
+check "…and after sssd and the boot's sockets start again (as at a reboot)" \
+    "[ -z \"\$(failed_ours)\" ] && R 'systemctl is-active sssd' | grep -qx active"
 R 'fabricctl doctor' > "$OUT/doctor.log" 2>&1
 check "doctor: all checks pass" "! grep -q '✗' '$OUT/doctor.log' && grep -q '✓' '$OUT/doctor.log'"
 check "fabric.target enabled and active" "R 'systemctl is-enabled fabric.target && systemctl is-active fabric.target' >/dev/null"
@@ -199,6 +208,8 @@ if [ "${CLEANUP:-0}" = 1 ]; then
     # apt purge: apt cannot ask, so fabric's data is exported to /var/backups/fabric/ first
     R 'DEBIAN_FRONTEND=noninteractive apt-get purge -y -q fabricctl' > "$OUT/uninstall.log" 2>&1
     check "apt purge: data exported to /var/backups/fabric, fabric removed"         "R 'ls -d /var/backups/fabric/fabric-export-*/stepca/data' >/dev/null 2>&1 && ! R 'test -e /opt/fabric' && ! R 'dpkg -s fabricctl' >/dev/null 2>&1"
+    check "apt purge: no failed sssd or fabric unit left, sssd's sockets unmasked again (2.1.6.95, finding 18)" \
+        "[ -z \"\$(failed_ours)\" ] && ! R 'systemctl is-enabled sssd-nss.socket' | grep -qx masked"
 fi
 echo; echo "$PASS passed, $FAIL failed   (logs: $OUT)"
 exit $FAIL

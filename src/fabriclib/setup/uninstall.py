@@ -55,6 +55,20 @@ def _stop_timers(stamps=STAMPS, run=subprocess.run):
             pass
 
 
+def _reset_failed(run=subprocess.run):
+    """Purpose: clear what systemd keeps of fabric's units that failed (a service stopped mid-run, a timer's job
+             that ran while the stack was down), so an uninstall leaves no "not-found failed" fabric unit behind
+             (2.3.1.32 finding 18; 3.2.4.1).
+    Inputs:  run — subprocess.run (tests).
+    Returns: None.
+    Fails:   never; systemctl's refusal of a unit it never knew is ignored.
+    Feeds:   uninstall."""
+    units = ([f"{u}.service" for u in UNITS] + [f"{t}.timer" for t in TIMERS]
+             + ["fabric.target", SETUP_UNIT])
+    for unit in units:
+        run(["systemctl", "reset-failed", unit], capture_output=True)
+
+
 def uninstall(ctx, host_account=True):
     """Purpose: remove fabric from this host: a running setup (fabric-setup.service, stopped first, and any secrets
              handed to one), units, fabric.target, containers, fabric_net, local images, the
@@ -96,6 +110,7 @@ def uninstall(ctx, host_account=True):
     if os.path.exists(TARGET):
         os.remove(TARGET)
     subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
+    _reset_failed()
     for c in CONTAINERS:
         subprocess.run(["docker", "rm", "-f", c], capture_output=True)
     subprocess.run(["docker", "network", "rm", "fabric_net"], capture_output=True)

@@ -858,6 +858,7 @@ file	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py	52
 file	fabriclib-setup|src/fabriclib/setup/common/renew_days.py	79	
 file	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py	7	
 file	fabriclib-setup|src/fabriclib/setup/common/sshd_check.py	104	
+file	fabriclib-setup|src/fabriclib/setup/common/sssd_sockets.py	107	
 file	fabriclib-setup|src/fabriclib/setup/common/sync_host_managed.py	80	
 file	fabriclib-setup|src/fabriclib/setup/common/valid_setting.py	73	
 file	fabriclib-setup|src/fabriclib/setup/condition_host.py	8	
@@ -2628,6 +2629,11 @@ function	fabriclib-setup|src/fabriclib/setup/common/render_member_files.py|rende
 function	fabriclib-setup|src/fabriclib/setup/common/renew_days.py|renew_days	1	
 function	fabriclib-setup|src/fabriclib/setup/common/service_account_name.py|service_account_name	1	
 function	fabriclib-setup|src/fabriclib/setup/common/sshd_check.py|sshd_check	1	
+function	fabriclib-setup|src/fabriclib/setup/common/sssd_sockets.py|mask_sockets	4	
+function	fabriclib-setup|src/fabriclib/setup/common/sssd_sockets.py|restore_sockets	5	
+function	fabriclib-setup|src/fabriclib/setup/common/sssd_sockets.py|socket_states	2	
+function	fabriclib-setup|src/fabriclib/setup/common/sssd_sockets.py|socket_units	1	
+function	fabriclib-setup|src/fabriclib/setup/common/sssd_sockets.py|sockets_masked	3	
 function	fabriclib-setup|src/fabriclib/setup/common/sync_host_managed.py|sync_host_managed	1	
 function	fabriclib-setup|src/fabriclib/setup/common/valid_setting.py|valid_setting	1	
 function	fabriclib-setup|src/fabriclib/setup/condition_host.py|_apt_install	1	0.7.0 / 2026-10-12
@@ -2756,6 +2762,7 @@ function	fabriclib-setup|src/fabriclib/setup/start_services.py|run	1
 function	fabriclib-setup|src/fabriclib/setup/start_unit.py|_settled	3	
 function	fabriclib-setup|src/fabriclib/setup/start_unit.py|_unit_state	2	
 function	fabriclib-setup|src/fabriclib/setup/start_unit.py|start_unit	1	
+function	fabriclib-setup|src/fabriclib/setup/uninstall.py|_reset_failed	3	
 function	fabriclib-setup|src/fabriclib/setup/uninstall.py|_stop_timers	2	
 function	fabriclib-setup|src/fabriclib/setup/uninstall.py|uninstall	1	
 function	fabriclib-setup|src/fabriclib/setup/upgrade_vars.py|upgrade_vars	1	
