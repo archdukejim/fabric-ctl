@@ -7,6 +7,8 @@
 #
 #   tests/images/update.sh --box <container>                     the sandbox (tests/sandbox/run.sh keeps it with KEEP=1)
 #   tests/images/update.sh --ssh <user@host> [--key <file>]      a test host (never the production one)
+#   sudo bash update.sh --local                                    on the test host itself, as root, with host_images.py
+#                                                                  and previous.yaml beside it (a lab VM: 3.1.5.11)
 #
 # It changes the host's images and its installed lock, and puts the lock back as it found it.
 set -u
@@ -21,7 +23,9 @@ case "${1:-}" in
   --ssh) DEST="$2"; KEY=(); [ "${3:-}" = --key ] && KEY=(-i "$4")
          on_host() { ssh "${KEY[@]}" -o BatchMode=yes "$DEST" "sudo bash -lc $(printf '%q' "$*")"; }
          put() { scp -q "${KEY[@]}" "$1" "$DEST:/tmp/$(basename "$2")" && on_host "mv /tmp/$(basename "$2") $2"; } ;;
-  *) sed -n '2,10p' "$0"; exit 2 ;;
+  --local) on_host() { bash -lc "$*"; }
+           put() { cp "$1" "$2"; } ;;
+  *) sed -n '2,12p' "$0"; exit 2 ;;
 esac
 
 put "$HERE/host_images.py" /root/host_images.py
