@@ -25,7 +25,7 @@
 # -----------------------------------------------------------------------
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-FABRIC=10.88.0.10; MOVED=10.88.0.13; LINUX=10.88.0.21; WIN=10.88.0.41
+FABRIC=10.88.0.10; FIRST=$FABRIC; MOVED=10.88.0.13; LINUX=10.88.0.21; WIN=10.88.0.41
 DOMAIN=lab.test; AD=ad.lab.test; PERSON=lab.admin; RENAMED=g23-vm-ub24-1b
 ONLY="${ONLY:-join upgrade images restart restore move rename}"
 # keepalives: a session whose address went away (the move) ends in about a minute instead of waiting for ever
@@ -38,11 +38,23 @@ FLOOR="not run (no join step)"
 stop() { echo "STOP $1: the campaign ends here ($PASS passed, $FAIL failed)"; echo "FLOOR first setup: $FLOOR"; exit 1; }
 wants() { case " $ONLY " in *" $1 "*) return 0 ;; esac; return 1; }
 # Purpose: a command on a lab VM: its output without OpenSSH's notices, and the command's own exit status. The fabric
-#          VM keeps its host key under its first address when it moves (HostKeyAlias).
+#          VM keeps its host key under its first address when it moves (HostKeyAlias): the constant FIRST, never
+#          $FABRIC, which the move changes (run 6, 2026-11-01: the alias became the new address, refused).
 on() {
-    local out rc
-    out=$(ssh "${SSH[@]}" -o "HostKeyAlias=$([ "$1" = "$MOVED" ] && echo "$FABRIC" || echo "$1")" "labadmin@$1" "$2" 2>&1)
+    local out rc t0 alias
+    alias=$([ "$1" = "$MOVED" ] && echo "$FIRST" || echo "$1")
+    t0=$SECONDS
+    out=$(ssh "${SSH[@]}" -o "HostKeyAlias=$alias" "labadmin@$1" "$2" 2>&1)
     rc=$?
+    # a member whose DNS server is gone (the move, before 4.2.4.2 step 5) was slow to send its SSH banner (run 6):
+    # said, with the time it took, and tried once more with longer to connect
+    if [ $rc -eq 255 ] && printf '%s' "$out" | grep -q "banner exchange"; then
+        echo "INFO $1: no SSH banner within 20 s (after $((SECONDS - t0)) s); once more, 90 s to connect"
+        t0=$SECONDS
+        out=$(ssh -o ConnectTimeout=90 "${SSH[@]}" -o "HostKeyAlias=$alias" "labadmin@$1" "$2" 2>&1)
+        rc=$?
+        echo "INFO $1: the second try ended with $rc after $((SECONDS - t0)) s"
+    fi
     printf '%s\n' "$out" | grep -v "post-quantum\|store now\|upgraded. See\|^$" || true
     return $rc
 }
@@ -137,7 +149,7 @@ if wants images; then
     # run on the VM itself (--local): update.sh reads previous.yaml with Python, which Git Bash does not have
     F "install -d -m 0700 /root/imgtest" >/dev/null
     for f in update.sh host_images.py previous.yaml; do
-        scp -q "${SSH[@]}" -o "HostKeyAlias=10.88.0.10" "$REPO/tests/images/$f" "labadmin@$FABRIC:/tmp/imgtest-$f"
+        scp -q "${SSH[@]}" -o "HostKeyAlias=$FIRST" "$REPO/tests/images/$f" "labadmin@$FABRIC:/tmp/imgtest-$f"
         F "mv /tmp/imgtest-$f /root/imgtest/$f"
     done
     check "every image's update and rollback (tests/images/update.sh --local)" \
@@ -169,7 +181,7 @@ if wants move; then
     check "4.2.4.2 step 2: the new address in netplan, applied detached (ssh exit $rc)" "[ $rc -eq 0 ]"
     sleep 30; FABRIC_OLD=$FABRIC; FABRIC=$MOVED
     check "the fabric VM no longer answers at $FABRIC_OLD" "! on $FABRIC_OLD true >/dev/null 2>&1"
-    check "the fabric VM answers at $MOVED" "up $MOVED"
+    check "the fabric VM answers at $MOVED" "up $MOVED" || stop "the fabric VM is not reachable at $MOVED"
     # step 3: host_ip in vars.yaml, then the apply
     F "sed -i 's/^host_ip: .*/host_ip: $MOVED/' /opt/fabric/config/vars.yaml"
     check "4.2.4.2 step 3: host_ip applied" "F 'fabricctl --apply' >/dev/null"
