@@ -18,7 +18,8 @@ case "$VM" in 10.88.0.*) ;; *) echo "refused: $VM is not a lab address (10.88.0.
 [ -f "$DEB" ] || { echo "refused: no package at $DEB" >&2; exit 2; }
 [ -f "$VARS" ] || { echo "refused: no settings file at $VARS" >&2; exit 2; }
 [ -z "$PRE" ] || [ -f "$PRE" ] || { echo "refused: no pre-setup script at $PRE" >&2; exit 2; }
-SSH=(-i "$HOME/.ssh/g23_lab" -o "UserKnownHostsFile=$HOME/fabric-lab/known_hosts" -o BatchMode=yes -o ConnectTimeout=20)
+SSH=(-i "$HOME/.ssh/g23_lab" -o "UserKnownHostsFile=$HOME/fabric-lab/known_hosts" -o BatchMode=yes -o ConnectTimeout=20
+     -o ServerAliveInterval=15 -o ServerAliveCountMax=4)
 on() { ssh "${SSH[@]}" "labadmin@$VM" "$@" 2>&1 | grep -v "post-quantum\|store now\|upgraded. See" || true; }
 
 echo "--- copying $(basename "$DEB") and the settings to $VM"

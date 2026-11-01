@@ -28,7 +28,9 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 FABRIC=10.88.0.10; MOVED=10.88.0.13; LINUX=10.88.0.21; WIN=10.88.0.41
 DOMAIN=lab.test; AD=ad.lab.test; PERSON=lab.admin; RENAMED=g23-vm-ub24-1b
 ONLY="${ONLY:-join upgrade images restart restore move rename}"
-SSH=(-i "$HOME/.ssh/g23_lab" -o "UserKnownHostsFile=$HOME/fabric-lab/known_hosts" -o BatchMode=yes -o ConnectTimeout=20)
+# keepalives: a session whose address went away (the move) ends in about a minute instead of waiting for ever
+SSH=(-i "$HOME/.ssh/g23_lab" -o "UserKnownHostsFile=$HOME/fabric-lab/known_hosts" -o BatchMode=yes -o ConnectTimeout=20
+     -o ServerAliveInterval=15 -o ServerAliveCountMax=4)
 PASS=0; FAIL=0
 check() { if (set +o pipefail; eval "$2"); then echo "PASS $1"; PASS=$((PASS+1)); else echo "FAIL $1"; FAIL=$((FAIL+1)); return 1; fi; }
 FLOOR="not run (no join step)"
@@ -159,9 +161,14 @@ fi
 # Steps move and rename follow the operators' procedure, 4.2.4.2 and 4.2.4.3, step for step (2.1.1.73).
 if wants move; then
     echo "=== move: $FABRIC to $MOVED (4.2.4.2)"
-    # 4.2.4.2 step 2: the netplan file's address, applied detached (the address changes under this SSH session)
-    F "sed -i 's#$FABRIC/24#$MOVED/24#' /etc/netplan/*.yaml && nohup setsid sh -c 'sleep 2; netplan apply' >/dev/null 2>&1 </dev/null &"
-    sleep 20; FABRIC_OLD=$FABRIC; FABRIC=$MOVED
+    # 4.2.4.2 step 2: the netplan file's address, applied by systemd 10 s later, so this session has ended before the
+    # address changes under it (a nohup'd apply kept it open: run 5, 2026-11-01, ssh waited on the dead connection for
+    # good); and a hard limit with the keepalives, so no session can hang the campaign
+    timeout 60 ssh "${SSH[@]}" "labadmin@$FABRIC" "sudo bash -lc $(printf '%q' "sed -i 's#$FABRIC/24#$MOVED/24#' /etc/netplan/*.yaml && systemd-run --quiet --on-active=10 --unit=fabric-move-netplan netplan apply")" </dev/null >/dev/null 2>&1
+    rc=$?
+    check "4.2.4.2 step 2: the new address in netplan, applied detached (ssh exit $rc)" "[ $rc -eq 0 ]"
+    sleep 30; FABRIC_OLD=$FABRIC; FABRIC=$MOVED
+    check "the fabric VM no longer answers at $FABRIC_OLD" "! on $FABRIC_OLD true >/dev/null 2>&1"
     check "the fabric VM answers at $MOVED" "up $MOVED"
     # step 3: host_ip in vars.yaml, then the apply
     F "sed -i 's/^host_ip: .*/host_ip: $MOVED/' /opt/fabric/config/vars.yaml"
