@@ -254,6 +254,7 @@ if wants move; then
     members_dns "$MOVED"
     L 'resolvectl flush-caches' >/dev/null
     W 'ipconfig /flushdns' >/dev/null
+    check "4.2.4.2 step 5: ws25-1's secure channel set up again (nltest /sc_reset)" "W 'nltest /sc_reset:$AD' | grep -q NERR_Success"
     # step 6: 4.2.4.7, doctor, and a client finds fabric at its new address
     only_new "4.2.4.2 step 6" "$HOSTNOW"
     check "4.2.4.2 step 6: doctor passes" "F 'fabricctl doctor' >/dev/null"

@@ -105,7 +105,7 @@ docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	8960e718285add9c0a
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.1-directory.md	7fa9284225375dc046757b644311b8368d907462	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.10-security.md	8d627ab12c234c4d60c501fdcd1b3dbbf1d2a905	2026-10-20	
-docs/volume_1_description_and_architecture/1.6.11-host-access.md	112f416fb166c7cd012e4e94cd3561bc94885572	2026-10-31	
+docs/volume_1_description_and_architecture/1.6.11-host-access.md	7d9f11b6a0913a1593e7888132d11341e43c40a3	2026-11-01	
 docs/volume_1_description_and_architecture/1.6.12-domain-management.md	6529a7ae668caffe7c227e80b2435cd583e4b013	2026-10-23	
 docs/volume_1_description_and_architecture/1.6.13-access-by-grants.md	678c9987439cda4adbd8ccf152e2b87f6782e9b7	2026-10-25	
 docs/volume_1_description_and_architecture/1.6.2-keycloak.md	1170cb7e6152f061277c87f25439f287c659fed2	2026-10-21	
@@ -156,7 +156,7 @@ docs/volume_2_engineering_decisions/2.1.9-federation.md	cd669c8882d4f654fa2246c5
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	fe411034fed491837a2e07fa1be46ec22638ce03	2026-11-01	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	e713fef98e2f62b8474195d1281e6977870f9264	2026-11-01	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	8d0e6dc9f88453889dccc29f981ca3ee730702f4	2026-10-29	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -203,7 +203,7 @@ docs/volume_4_operations/4.15.1-log-forwarding.md	bef17df806c5d8ff9b399a0018f6aa
 docs/volume_4_operations/4.2.1-resources.md	25a614597e0ad52f6a373a146787b02a97a62c7d	2026-10-12	
 docs/volume_4_operations/4.2.2-lifecycle.md	f1d9c91c389f3644c76fc14ee5e4615b38bdcafc	2026-10-12	
 docs/volume_4_operations/4.2.3-ports.md	884935fa8dda8501f8e6a6924750574becab1c9f	2026-10-11	
-docs/volume_4_operations/4.2.4-move-rename.md	0e59c7834bd395bf748fb915f971992392f9b1d1	2026-11-01	
+docs/volume_4_operations/4.2.4-move-rename.md	bd98b8322b77e041575141ddf39ae13c510fb665	2026-11-01	
 docs/volume_4_operations/4.3.1-fabricctl.md	e52fb351243d8bfe097b2a070c444c07498bce91	2026-10-11	
 docs/volume_4_operations/4.4.1-records.md	621603ac6d2989f6dc86489318cc736a634873da	2026-10-24	
 docs/volume_4_operations/4.4.2-tsig.md	0bfa2dca10a0b3c35665006472cb80b873883f4f	2026-10-08	
@@ -1429,7 +1429,7 @@ src/fabriclib/setup/finish_vars.py	aa83f3f94d135eef84445d5a35cddc7ef3edd2c6	2026
 src/fabriclib/setup/harden_docker.py	1ad4aca818b8227f6566193c67503b8f12adae09	2026-10-03	
 src/fabriclib/setup/init_pki.py	e7be6fa7d4efc61daef06a0053b0e1b8d201b9be	2026-10-20	
 src/fabriclib/setup/join_federation.py	b2e8b9b1487a7929043138c3feed32de7a265c16	2026-10-20	
-src/fabriclib/setup/join_host_domain.py	6d1c31f868495eafdce72d689574067ce101acb3	2026-10-31	
+src/fabriclib/setup/join_host_domain.py	ee4afbf6ffcd2569821772db3eff954a64555521	2026-11-01	
 src/fabriclib/setup/mint_extra_certs.py	0e23e41edec381ab688dab5b8a06f9e39eb6a39e	2026-09-30	
 src/fabriclib/setup/mint_service_certs.py	48e309492c78b6db355a198cd5626dee3175a1ec	2026-10-20	
 src/fabriclib/setup/name_dc.py	8659ac17dcba4bec2643e6b5ddd19421e88c949d	2026-10-18	
@@ -1478,7 +1478,7 @@ src/fabriclib/system/show_relaxed_settings.py	9e2abca355e1f9a4152d09a8b4b96e15d7
 src/fabriclib/system/version_info.py	c05a45a89adb3648b63ead50bdd9a9ffbccd4cc6	2026-10-02	
 src/fabriclib/undo/README.md	a8862da3f79379ad356d963690169ad91c94611f	2026-10-12	
 src/fabriclib/undo/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-03	
-src/fabriclib/undo/remove_host_account.py	34af44d39b9eda629088d2ffc670dc4c3837a3cf	2026-10-26	
+src/fabriclib/undo/remove_host_account.py	53e221a3b5bfd5e7bb6a93dfc4839524773b5600	2026-11-01	
 src/fabriclib/undo/undo_firewall.py	31c6340536531ba26a3885fec76a71331731b13a	2026-10-08	
 src/fabriclib/undo/undo_group.py	d108efd2c2e5c095e74c47759dc20ed35d869930	2026-10-23	
 src/fabriclib/undo/undo_member.py	bfc170bf47a5e06ab5b082ef80164248ee589de3	2026-10-31	
@@ -1993,7 +1993,7 @@ tests/common/save_vars_test.py	6ebd62374b0a8ebd0b5c00df7722c493dfb27116	2026-10-
 tests/common/test_run.py	056da21f25b86e2f7844fa033bcb38dc2fc85dd7	2026-10-25	
 tests/common/test_run_test.py	3628bf27758b40302c2badb0ff4f5c3f7cd103d6	2026-10-25	
 tests/consent/README.md	3b6643214e21f6e73e66306424f4aea0521f38a9	2026-10-20	
-tests/consent/run.py	ac4cf9dc6d4c8ea49ce967885d6852c2ca5a95a8	2026-10-26	
+tests/consent/run.py	40364d9f85fdf9613853b4997359a9e3220e6108	2026-11-01	
 tests/deploy/README.md	bc91a4ef8983230cd1b07fc49c17c88d500dfe17	2026-10-31	
 tests/deploy/apply_deployment_test.py	61082104977e1d5834f6cb3433f0337df06456ef	2026-10-24	
 tests/deploy/apply_failure_test.py	b7bcc3a6c88e3c9bd79895b42cdc4ae626d56b40	2026-10-24	
@@ -2084,7 +2084,7 @@ tests/lab/dhcp.sh	30bfd8a0fd670dd228cdf1c1e6c303cd4a31fe6a	2026-10-25
 tests/lab/dhcp_campaign.sh	1b462797cddf25231389b9269fba6c02d39e07d2	2026-10-25	
 tests/lab/dhcp_console.py	7bd4f10efdc60150b3a97b78de5f1482203c69c2	2026-10-24	
 tests/lab/dhcp_vars.yaml	69c2af925c07a25e01fabb400c83320729d1095e	2026-10-23	
-tests/lab/joined_campaign.sh	b83bdeb1bee59332f801efcd28541e5d598def6b	2026-11-01	
+tests/lab/joined_campaign.sh	0162dcbd80e9e61d4af896d11fbbb049f69f6b36	2026-11-01	
 tests/lab/joined_vars.yaml	a0c9e1ae955bab7731d7a5e7c24fa92a27037236	2026-10-31	
 tests/lint/README.md	9757442e4a4f93e6dfa2de8daee0508f38dff835	2026-10-12	
 tests/lint/no_bare_prompts.py	f7bb9072256161fd72f5693e3a84d210269c8faa	2026-10-12	
