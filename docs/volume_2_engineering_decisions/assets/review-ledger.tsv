@@ -153,6 +153,7 @@ docs/volume_2_engineering_decisions/2.1.6-identity.md	1535b7507deac6a4da0b142b5a
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.8-webui.md	4a5a4eb94ccfa4fac0f4fe2d9b947c00326be3fd	2026-10-31	
 docs/volume_2_engineering_decisions/2.1.9-federation.md	cd669c8882d4f654fa2246c5cbf4604d785544fb	2026-10-31	
+docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
 docs/volume_2_engineering_decisions/2.3.1-product-notes.md	d48d42e555ef374b40ac0a993b62301a2e21fea1	2026-10-31	

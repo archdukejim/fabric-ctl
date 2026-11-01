@@ -30,7 +30,10 @@ DOMAIN=lab.test; AD=ad.lab.test; PERSON=lab.admin; RENAMED=g23-vm-ub24-1b
 ONLY="${ONLY:-join upgrade images restart restore move rename}"
 SSH=(-i "$HOME/.ssh/g23_lab" -o "UserKnownHostsFile=$HOME/fabric-lab/known_hosts" -o BatchMode=yes -o ConnectTimeout=20)
 PASS=0; FAIL=0
-check() { if (set +o pipefail; eval "$2"); then echo "PASS $1"; PASS=$((PASS+1)); else echo "FAIL $1"; FAIL=$((FAIL+1)); fi; }
+check() { if (set +o pipefail; eval "$2"); then echo "PASS $1"; PASS=$((PASS+1)); else echo "FAIL $1"; FAIL=$((FAIL+1)); return 1; fi; }
+FLOOR="not run (no join step)"
+# Purpose: end the campaign where a step it depends on did not happen; nothing after it runs on a half-built lab.
+stop() { echo "STOP $1: the campaign ends here ($PASS passed, $FAIL failed)"; echo "FLOOR first setup: $FLOOR"; exit 1; }
 wants() { case " $ONLY " in *" $1 "*) return 0 ;; esac; return 1; }
 # Purpose: a command on a lab VM: its output without OpenSSH's notices, and the command's own exit status. The fabric
 #          VM keeps its host key under its first address when it moves (HostKeyAlias).
@@ -45,16 +48,23 @@ F() { on "$FABRIC" "sudo bash -lc $(printf '%q' "$1")"; }          # as root on 
 L() { on "$LINUX" "sudo bash -lc $(printf '%q' "$1")"; }           # as root on the Linux member
 W() { on "$WIN" "powershell -NoProfile -Command \"$1\""; }           # on the Windows member (labadmin: an admin)
 up() { local i; for i in $(seq 1 60); do on "$1" true >/dev/null 2>&1 && return 0; sleep 10; done; return 1; }
-dc_fqdn() { F "awk '/^hostname_dc:/ {print \$2}' /opt/fabric/config/vars.yaml"; }
+# a captured name is used only when it is a DNS name (letters, digits, dots, hyphens), never as text to run
+dc_fqdn() { F "awk '/^hostname_dc:/ {print \$2}' /opt/fabric/config/vars.yaml" | grep -E '^[A-Za-z0-9.-]+$' || true; }
 
 # Purpose: one joined Linux machine's check, as root on it: its join, a machine ticket, a person, the DC by name. The
 #          machine's account is read from its keytab, so a renamed host is checked under the account it joined as.
 linux_ok() {   # $1 label, $2 F or L
     local dc acct; dc=$(dc_fqdn)
     acct=$($2 "klist -k /etc/krb5.keytab | awk '/\\\$@/ {print \$2; exit}'")
-    check "$1: adcli testjoin (the machine's password is the DC's)" "$2 'adcli testjoin -D $AD' >/dev/null"
+    [[ "$acct" =~ ^[A-Za-z0-9._-]+\$@[A-Za-z0-9.-]+$ ]] || acct=""   # only a principal NAME$@REALM, never other text
+    local q=${acct//\$/\\\$}       # NAME$@REALM: its $ kept from the remote shell (an unescaped "$@" expanded to nothing)
+    # adcli is on a machine the join script joined; setup gives the fabric host none unless its password is renewed
+    # (1.6.11.12), and there the machine ticket below is the proof that its key is the DC's
+    if $2 'command -v adcli' >/dev/null 2>&1; then
+        check "$1: adcli testjoin (the machine's password is the DC's)" "$2 'adcli testjoin -D $AD' >/dev/null"
+    fi
     check "$1: a Kerberos ticket as the machine (${acct:-none in its keytab})" \
-        "[ -n '$acct' ] && $2 'kinit -k \"$acct\" && klist | grep -q krbtgt'"
+        "[ -n '$acct' ] && $2 'kinit -k \"$q\" && klist | grep -q krbtgt'"
     check "$1: $PERSON resolves through SSSD (cache cleared first)" "$2 'sss_cache -E; id $PERSON@$AD' >/dev/null"
     check "$1: the DC ($dc) resolves through fabric's DNS" "[ -n '$dc' ] && $2 'getent hosts $dc' >/dev/null"
     check "$1: no failed sssd unit (2.1.6.95)" "[ -z \"\$($2 'systemctl --failed --no-legend | grep sssd')\" ]"
@@ -77,16 +87,38 @@ members_dns() {   # $1 fabric's address
 if wants join; then
     : "${FROM_DEB:?FROM_DEB: the .deb of the floor release, v0.8.0 from GitHub}"
     echo "=== join: fabric at the floor, then the members"
-    bash "$REPO/scripts/lab/install_dev_build.sh" "$FABRIC" "$FROM_DEB" "$REPO/tests/lab/joined_vars.yaml"
-    check "fabric at the floor: doctor passes" "F 'fabricctl doctor' >/dev/null"
+    FLOOR="clean: its setup finished at the first run"
+    if ! bash "$REPO/scripts/lab/install_dev_build.sh" "$FABRIC" "$FROM_DEB" "$REPO/tests/lab/joined_vars.yaml"; then
+        # nothing runs on a host the package did not reach (2026-11-01: apt's mirror mid-sync)
+        F 'command -v fabricctl' >/dev/null 2>&1 || stop "the floor's package did not install (apt's output above)"
+        # 0.8.0's known first-start issue (2.2.2.1, fixed in 0.9.0 by 1.2.4.5): the workaround an operator is given,
+        # setup run again, once; reported apart from the checks, so a stopped first run is never hidden
+        FLOOR="KNOWN ISSUE: its first setup stopped (0.8.0, 2.2.2.1); setup run again, once"
+        echo "KNOWN the floor's $FLOOR"
+        F 'fabricctl setup --file /root/lab-vars.yaml --non-interactive --yes --approve all --admin-password-file /root/lab-admin-pw' |
+            tail -2
+    fi
+    check "fabric at the floor: doctor passes" "F 'fabricctl doctor' >/dev/null" || stop "the floor is not up"
     fp=$(F "openssl x509 -noout -fingerprint -sha256 -in /opt/stepca/data/certs/root_ca.crt | cut -d= -f2")
+    # a captured value goes into a later command only when it is what it should be, never as text to run
+    [[ "$fp" =~ ^([0-9A-F]{2}:){31}[0-9A-F]{2}$ ]] || stop "no root CA fingerprint from the fabric VM"
     members_dns "$FABRIC"
     L "wget -nv -O /root/join-linux.sh http://$FABRIC/certs/join-linux.sh" >/dev/null
     # the one-time password goes from add-machine's output to the join's standard input: never an argument or a file
     F "fabricctl domain add-machine g23-vm-ub26-2 --type server | sed -n '/shown once/{n;p}'" |
         ssh "${SSH[@]}" "labadmin@$LINUX" "sudo bash /root/join-linux.sh $fp --one-time" 2>&1 | tail -3
-    F "fabricctl domain add-machine g23-vm-ws25-1 --type server | sed -n '/shown once/{n;p}'" |
-        ssh "${SSH[@]}" "labadmin@$WIN" "powershell -NoProfile -Command \"\$p = ConvertTo-SecureString ([Console]::In.ReadLine()) -AsPlainText -Force; Add-Computer -DomainName $AD -Options UnsecuredJoin,PasswordPass -Credential (New-Object PSCredential('x', \$p)) -Restart\"" 2>&1 | tail -3
+    # Windows' OpenSSH hands PowerShell's [Console]::In only what is there when the session opens (a line sent seconds
+    # later never arrives: 3.1.5.11 step 2, 2026-11-01), so the line is read here first, kept in this shell's memory
+    # only (read and printf are builtins: never on a command line), and only then does the session open, with it
+    F "fabricctl domain add-machine g23-vm-ws25-1 --type server | sed -n '/shown once/{n;p}'" | {
+        IFS= read -r line
+        [ -n "$line" ] || echo "FAIL ws25-1: add-machine printed no one-time password" >&2
+        # a pre-created account's one-time password is the machine password (an unsecured join, no user: options
+        # 0xC1 = join domain, unsecure, machine password passed); Add-Computer's PasswordPass refused the user name a
+        # PSCredential must carry ("Machine password and the user account are passed. Error out.", 2026-11-01)
+        printf '%s\n' "$line" | ssh "${SSH[@]}" "labadmin@$WIN" "powershell -NoProfile -Command \"\$r = (Get-WmiObject Win32_ComputerSystem).JoinDomainOrWorkgroup('$AD', [Console]::In.ReadLine(), \$null, \$null, 0xC1).ReturnValue; 'join: ' + \$r; if (\$r -eq 0) { Restart-Computer -Force }\"" 2>&1 | tail -3
+        unset line
+    }
     sleep 30; up "$WIN"
     client_check "the join (0.8.0)"
 fi
@@ -159,5 +191,6 @@ if wants rename; then
     client_check "the host renamed"
 fi
 echo
+echo "FLOOR first setup: $FLOOR"
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

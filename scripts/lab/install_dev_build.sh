@@ -27,8 +27,14 @@ scp -q "${SSH[@]}" "$VARS" "labadmin@$VM:/tmp/lab-vars.yaml"
 echo "--- apt install, and the first admin's password generated on the VM"
 on "sudo install -m 0600 /tmp/lab-vars.yaml /root/lab-vars.yaml && rm -f -- /tmp/lab-vars.yaml
     sudo sh -c 'umask 077; [ -s /root/lab-admin-pw ] || printf \"Lab-%s\n\" \"\$(openssl rand -hex 12)\" > /root/lab-admin-pw'
-    sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /tmp/fabricctl.deb >/dev/null
+    for i in 1 2 3; do sudo apt-get update -qq && break; echo \"apt-get update failed (try \$i of 3: Ubuntu's mirror or the lab's network), again in 30 s\"; sleep 30; done
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /tmp/fabricctl.deb >/dev/null
     dpkg-query -W -f='\${Package} \${Version}\n' fabricctl"
+# a failed install stops here: nothing after it runs on a host without fabric (2026-11-01: apt's mirror mid-sync)
+if ! ssh "${SSH[@]}" "labadmin@$VM" "command -v fabricctl" >/dev/null 2>&1; then
+    echo "refused: fabricctl did not install on $VM (apt's output above); nothing more was run" >&2
+    exit 1
+fi
 if [ -n "$PRE" ]; then
     echo "--- the lab-only pre-setup script $(basename "$PRE")"
     scp -q "${SSH[@]}" "$PRE" "labadmin@$VM:/tmp/lab-pre-setup.sh"
