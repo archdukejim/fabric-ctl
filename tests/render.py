@@ -346,8 +346,9 @@ print('zone files: a name of 24 characters or more stays apart from its record t
 # probe as it was refused every 10 s (2.3.1.21.4)
 _pg = lambda **s: yaml.safe_load(env.get_template('postgres/docker-compose.yml.j2').render(**full, **s))[  # noqa: E731
     'services']['postgres']['healthcheck']['test'][1]
-assert _pg() == 'pg_isready -U keycloak -d keycloak' and \
-    _pg(keycloak_db_user='keycloak_db') == 'pg_isready -U keycloak_db -d keycloak', (_pg(), _pg(keycloak_db_user='x'))
+assert _pg() == 'pg_isready -h 127.0.0.1 -U keycloak -d keycloak' and \
+    _pg(keycloak_db_user='keycloak_db') == 'pg_isready -h 127.0.0.1 -U keycloak_db -d keycloak', \
+    (_pg(), _pg(keycloak_db_user='x'))   # over TCP: only the real server, not the image's init one (1.2.4.5)
 print("Postgres's health probe: the bootstrap role before the take-over, Keycloak's own after")
 _pgh = yaml.safe_load(env.get_template('postgres/docker-compose.yml.j2').render(**full))['services']['postgres'][
     'healthcheck']
