@@ -2,6 +2,7 @@ import os
 import subprocess
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.common.one_off_labels import one_off_labels
 
 
 def run_step(v, args, home=None):
@@ -20,7 +21,9 @@ def run_step(v, args, home=None):
     data = home or os.path.join(v["deploy_base_dir"], "stepca", "data")
     uid, gid = (int(v["service_users"]["step"][k]) for k in ("uid", "gid"))
     res = subprocess.run(["docker", "run", "--rm", "--network", "none", "-v", f"{data}:/home/step",
-                          "--user", f"{uid}:{gid}", "--entrypoint", "/usr/local/bin/step", v["image_stepca"], *args],
+                          "--user", f"{uid}:{gid}", *one_off_labels(),
+                          "--entrypoint", "/usr/local/bin/step", v["image_stepca"],
+                          *args],
                          capture_output=True, text=True)
     if res.returncode != 0:
         raise ValidationError(f"step-ca refused: {(res.stderr or res.stdout).strip()[-300:]}")

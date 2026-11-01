@@ -4,6 +4,7 @@ import shutil
 import subprocess
 
 from fabriclib.common.console import info, ok
+from fabriclib.common.one_off_labels import one_off_labels
 from fabriclib.consent.allowed_to_change import allowed_to_change
 from fabriclib.consent.check_consent import check_consent
 from fabriclib.consent.plan_trust import plan_trust
@@ -116,6 +117,7 @@ def _make_root(ctx, data, uid, gid):
     _chown_tree(data, uid, gid)
     res = subprocess.run(["docker", "run", "--rm", "--network", "none", "-v", f"{data}:/home/step", "-u",
                           f"{uid}:{gid}",
+                          *one_off_labels(),
                           "--entrypoint", "/usr/local/bin/step", ctx.vars["image_stepca"], "certificate", "create",
                           f"{name} Root CA", "/home/step/root-new/root_ca.crt", "/home/step/root-new/root_ca_key",
                           "--template", "/home/step/root-new/root.tpl", "--kty", "EC", "--curve", "P-256",
@@ -140,7 +142,8 @@ def _intermediate_for_root(ctx, data, uid, gid):
     hours = (int(ctx.vars.get("cert_root_ca_days", 3650)) - 365) * 24
     name = ctx.vars["ca_name"]
     res = subprocess.run(["docker", "run", "--rm", "--network", "none", "-v", f"{data}:/home/step", "-u",
-                          f"{uid}:{gid}", "--entrypoint", "/usr/local/bin/step", ctx.vars["image_stepca"],
+                          f"{uid}:{gid}", *one_off_labels(),
+                          "--entrypoint", "/usr/local/bin/step", ctx.vars["image_stepca"],
                           "certificate", "create", f"{name} Intermediate CA", "/home/step/certs/intermediate_ca.crt",
                           "/home/step/secrets/intermediate_ca_key", "--profile", "intermediate-ca",
                           "--ca", "/home/step/certs/root_ca.crt", "--ca-key", "/home/step/secrets/root_ca_key",
@@ -269,7 +272,8 @@ def run(ctx):
         own_root = [f"--root={root_crt}", f"--key={root_key}", "--key-password-file=/home/step/secrets/password"]
     info("initialising Step-CA")
     res = subprocess.run(["docker", "run", "--rm", "-v", f"{data}:/home/step", "-e", "STEPPATH=/home/step",
-                          "-u", f"{uid}:{gid}", "--entrypoint", "/usr/local/bin/step", v["image_stepca"],
+                          "-u", f"{uid}:{gid}", *one_off_labels(),
+                          "--entrypoint", "/usr/local/bin/step", v["image_stepca"],
                           "ca", "init", f"--name={v['ca_name']}",
                           f"--dns={v['hostname_stepca']},localhost,127.0.0.1",
                           f"--address=:{v.get('stepca_port', 9000)}", "--provisioner=admin",

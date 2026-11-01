@@ -574,6 +574,7 @@ src/fabriclib/common/jinja_env.py	af398b3dd7e4aa726338efa99d64a5b698ce6a22	2026-
 src/fabriclib/common/keep_original.py	e9b55a88a4a6c96716a1af5ecb87e42985383fcc	2026-10-08	
 src/fabriclib/common/load_vars.py	7f046554956bb5731937666fda743d4bd17cb9f8	2026-10-02	
 src/fabriclib/common/lock_dir.py	9edebb19c7cd9f0cbd88a3cb78401dd7364eae8d	2026-10-04	
+src/fabriclib/common/one_off_labels.py	aa6826c5e0f7f289ac27ea6557f5d6c53dd49a29	2026-10-31	
 src/fabriclib/common/one_time_password.py	f90e8a74678804d8c0e27660f0f72f8a8b7f331a	2026-10-05	
 src/fabriclib/common/paths.py	b7f540d67b337a838ab4175ca1a881bcda304588	2026-10-24	
 src/fabriclib/common/read_audit.py	ba501fde422d3e87ae3a25dff3e9c4b676022848	2026-10-02	
@@ -1983,6 +1984,7 @@ tests/common/ask.py	52a510850e39121e2bec244890dabb189195a748	2026-10-12
 tests/common/copy_if_changed_test.py	620aa40a821cea1b4352113ce6bcb0205b4b206a	2026-10-25	
 tests/common/copy_tree_with_perms_test.py	9d1e9138a5009f530d21be486a71c31df12764b3	2026-10-25	
 tests/common/kea_image.py	11f6907c09c4ade1101ce25cf239a2f2d3ffbb2e	2026-10-25	
+tests/common/one_off_labels_test.py	6a8c3627a31fa6864806a34a934f4b98735120f2	2026-10-31	
 tests/common/same_content_test.py	c74473ef4511e8fce5928217d3d338e4b11f7882	2026-10-25	
 tests/common/save_vars_test.py	6ebd62374b0a8ebd0b5c00df7722c493dfb27116	2026-10-17	
 tests/common/test_run.py	056da21f25b86e2f7844fa033bcb38dc2fc85dd7	2026-10-25	

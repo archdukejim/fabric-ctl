@@ -213,6 +213,7 @@ file	fabriclib-common|src/fabriclib/common/jinja_env.py	6
 file	fabriclib-common|src/fabriclib/common/keep_original.py	7	
 file	fabriclib-common|src/fabriclib/common/load_vars.py	8	
 file	fabriclib-common|src/fabriclib/common/lock_dir.py	23	
+file	fabriclib-common|src/fabriclib/common/one_off_labels.py	33	
 file	fabriclib-common|src/fabriclib/common/one_time_password.py	9	
 file	fabriclib-common|src/fabriclib/common/read_audit.py	10	
 file	fabriclib-common|src/fabriclib/common/read_images_lock.py	11	
@@ -1889,6 +1890,7 @@ function	fabriclib-common|src/fabriclib/common/jinja_env.py|jinja_env	6
 function	fabriclib-common|src/fabriclib/common/keep_original.py|keep_original	1	
 function	fabriclib-common|src/fabriclib/common/load_vars.py|load_vars	1	
 function	fabriclib-common|src/fabriclib/common/lock_dir.py|lock_dir	1	
+function	fabriclib-common|src/fabriclib/common/one_off_labels.py|one_off_labels	1	
 function	fabriclib-common|src/fabriclib/common/one_time_password.py|one_time_password	1	
 function	fabriclib-common|src/fabriclib/common/read_audit.py|read_audit	1	
 function	fabriclib-common|src/fabriclib/common/read_images_lock.py|read_images_lock	1	

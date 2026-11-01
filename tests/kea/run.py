@@ -139,6 +139,37 @@ priv = subprocess.run(["unshare", "--mount", "--propagation", "private", "sh", "
                       input=cfg4, capture_output=True, text=True, timeout=120)
 check("Kea's check works from a process with a private /tmp, as fabric-agent runs (the console's applies)",
       priv.stdout.strip() == "True", priv.stdout + priv.stderr)
+# the check's throwaway container stays out of Kea's Compose project (1.2.4.6): fabric builds a pending Kea image with
+# `docker compose build`, so it carries Compose's labels, and the lab's dhcp campaign (2026-10-31) saw every check's
+# exit stop the unit's `compose up --abort-on-container-exit`, restarting Kea. Here: an image with those labels, a
+# project running from it as a unit runs it, then a check: the project keeps running.
+LBL_IMAGE, PROJ, LBL_C = "fabric/kea:" + testrun.name("labelled"), testrun.name("ktproj"), testrun.name("kt-proj")
+sh(["docker", "build", "-q", "-t", LBL_IMAGE, "--label", f"com.docker.compose.project={PROJ}", "--label",
+    "com.docker.compose.service=kea-dhcp4", "-"], input=f"FROM {KEA_IMAGE}\n")
+os.makedirs(f"{W}/proj", exist_ok=True)
+with open(f"{W}/proj/docker-compose.yml", "w") as f:
+    f.write(f"services:\n  kea-dhcp4:\n    image: {LBL_IMAGE}\n    container_name: {LBL_C}\n    network_mode: none\n"
+            f"    labels: [\"{testrun.LABEL}\"]\n    entrypoint: [\"sleep\", \"300\"]\n")
+COMPOSE = ["docker", "compose", "-p", PROJ, "-f", f"{W}/proj/docker-compose.yml"]
+up = subprocess.Popen([*COMPOSE, "up", "--abort-on-container-exit"], stdout=subprocess.DEVNULL,
+                      stderr=subprocess.DEVNULL)
+
+
+def proj_running():
+    return sh(["docker", "inspect", "-f", "{{.State.Running}}", LBL_C], ok=False).stdout.strip() == "true"
+
+
+running = until(proj_running, 60)
+checked = check_kea_config(LBL_IMAGE, "kea-dhcp4.conf", cfg4)
+time.sleep(5)                                      # compose up stops the project within a second of an exit it sees
+kept = up.poll() is None and proj_running()
+up.terminate()
+up.wait(timeout=60)
+sh([*COMPOSE, "down", "-t", "1"], ok=False)
+sh(["docker", "image", "rm", "-f", LBL_IMAGE], ok=False)
+check("negative: Kea's check from an image with Compose's labels leaves that project running (no restart of Kea; "
+      "only some Compose releases abort, 1.2.4.6)",
+      running and checked is True and kept, (running, checked, kept))
 bad_v = {**V, "dhcp": normalize_dhcp({**V, "dhcp": {**V["dhcp"], "options": [{"name": "no-such-option", "data": "1"}]}})}
 try:
     deploy_kea(bad_v, {"kea_ddns_secret": secret}, env, 53, 53)

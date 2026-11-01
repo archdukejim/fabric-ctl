@@ -2,6 +2,7 @@ import shutil
 import subprocess
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.common.one_off_labels import one_off_labels
 
 PROGRAMS = {"kea-dhcp4.conf": "/usr/sbin/kea-dhcp4", "kea-dhcp-ddns.conf": "/usr/sbin/kea-dhcp-ddns"}
 
@@ -16,8 +17,10 @@ def check_kea_config(image, name, text):
     Fails:   ValidationError with Kea's own message when it refuses the file; subprocess.TimeoutExpired (60 s).
     Feeds:   dhcp/deploy_kea.
     Notes:   runs in a throwaway container on the host network (Kea checks the served interfaces exist; `-t` opens
-             no socket), with no capabilities and a read-only root. The file goes in on stdin, into the container's
-             own /tmp: no host path is mounted, because the Docker daemon cannot see the caller's private /tmp
+             no socket), with no capabilities and a read-only root, outside Kea's Compose project
+             (common/one_off_labels: a locally built image carries its labels, and its exit stopped Kea, 1.2.4.6).
+             The file goes in on stdin, into the container's own /tmp: no host path is mounted, because the Docker
+             daemon cannot see the caller's private /tmp
              (fabric-agent's PrivateTmp: every console apply that changed Kea's file failed with "Unable to open
              file /check/kea-dhcp4.conf", 2.3.10.11.16)."""
     if not shutil.which("docker") or subprocess.run(["docker", "image", "inspect", image],
@@ -25,7 +28,7 @@ def check_kea_config(image, name, text):
         return None
     res = subprocess.run(["docker", "run", "--rm", "-i", "--network", "host", "--cap-drop", "ALL", "--read-only",
                           "--security-opt", "no-new-privileges:true", "--tmpfs", "/run/kea", "--tmpfs",
-                          "/var/run/kea", "--tmpfs", "/tmp", "--entrypoint", "/bin/sh", image, "-c",
+                          "/var/run/kea", "--tmpfs", "/tmp", *one_off_labels(), "--entrypoint", "/bin/sh", image, "-c",
                           f'cat > "/tmp/{name}" && exec {PROGRAMS[name]} -t "/tmp/{name}"'],
                          input=text, capture_output=True, text=True, timeout=60)
     if res.returncode != 0:
