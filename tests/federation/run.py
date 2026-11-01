@@ -247,7 +247,11 @@ check("join: an expired invitation is refused",
 SITE["hostname"] = "branch1"
 # the upstream's version (2.1.6.65's revision): carried by the invitation; one older than 0.8.0, or none (an older
 # upstream's), refused before anything is made, sent or staged, here and in setup --join
-check("invite: the invitation carries the upstream's version", body.get("version") == "0.8.0", body.get("version"))
+# the tree's own version (config/VERSION), never a fixed one: a version bump must not break it (rc/0.9.0, 2.3.1.37)
+with open(os.path.join(REPO, "config", "VERSION")) as f:
+    TREE_VERSION = f.read().strip()
+check("invite: the invitation carries the upstream's version (config/VERSION)",
+      body.get("version") == TREE_VERSION, (body.get("version"), TREE_VERSION))
 
 
 def _with_version(text, version):
