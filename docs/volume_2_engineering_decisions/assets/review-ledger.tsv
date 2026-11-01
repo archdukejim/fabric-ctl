@@ -2113,6 +2113,7 @@ tests/samba/README.md	c6d6ed8ea6d6f389cee1a6a5003b3f9b79ff486e	2026-10-25
 tests/samba/dc.py	a63433173910207e3d43cad42b3579e65d9fb06c	2026-10-25	
 tests/samba/devices.py	6ab42b2f1dfc36dacff89ba078ed5a6d5f4a3069	2026-10-25	
 tests/samba/domain.py	644d3a39062cdaabe741c02dffc0e1a61326773a	2026-10-25	
+tests/samba/ensure_join_account_test.py	decefb6d6dd3a82228c2c70a739355c5b3826a38	2026-11-01	
 tests/samba/ensure_schema_test.py	28168a7a620eaa0a296165641fe2807ba4f16e0f	2026-10-25	
 tests/samba/gpo.py	ce75634400584e952532ecb433e575e0787e9a40	2026-10-25	
 tests/samba/grant_networks_test.py	eedecb2f40fdfcfa27144703dade5c219e2ac41d	2026-10-23	

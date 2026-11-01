@@ -1610,6 +1610,7 @@ function	fabricctl-jinja|src/containers/samba/ensure_groups.py|_ensure	4
 function	fabricctl-jinja|src/containers/samba/ensure_groups.py|_ensure_group	1	0.5.0 / 2026-10-04
 function	fabricctl-jinja|src/containers/samba/ensure_groups.py|_group	3	
 function	fabricctl-jinja|src/containers/samba/ensure_groups.py|ensure_groups	2	
+function	fabricctl-jinja|src/containers/samba/ensure_join_account.py|_add_to_domain_admins	3	
 function	fabricctl-jinja|src/containers/samba/ensure_join_account.py|_filetime	1	
 function	fabricctl-jinja|src/containers/samba/ensure_join_account.py|ensure_join_account	2	
 function	fabricctl-jinja|src/containers/samba/ensure_layout.py|_ensure	3	

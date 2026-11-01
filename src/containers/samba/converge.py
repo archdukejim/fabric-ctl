@@ -9,7 +9,9 @@ The wanted state comes on stdin as JSON: {"site", "dc", "dc_type", "root" (bool)
 never a command line: it holds the service accounts' passwords). Prints one JSON object: {"changed": [what changed,
 …]}. Exits 1 with the error on stderr."""
 import json
+import os
 import sys
+import traceback
 
 from admin_gpo import ensure_gpo_admins
 from compile_grants import compile_grants
@@ -42,6 +44,7 @@ from windows_baseline_policy import windows_baseline_policy
 import paths
 
 CONF = "/data/etc/smb.conf"
+HERE = os.path.dirname(os.path.abspath(__file__))     # fabric's converge code: an error names its step here
 
 
 def converge(state):
@@ -129,6 +132,9 @@ if __name__ == "__main__":
     try:
         result = converge(json.load(sys.stdin))
     except Exception as e:                  # the caller reports it; the DC keeps running
-        print(f"{type(e).__name__}: {e}", file=sys.stderr)
+        # the step that failed, on the same (last) line: fabric's own innermost frame (2.3.6.27)
+        own = [f for f in traceback.extract_tb(e.__traceback__) if os.path.dirname(f.filename) == HERE]
+        where = f" (in {own[-1].name}, {os.path.basename(own[-1].filename)}:{own[-1].lineno})" if own else ""
+        print(f"{type(e).__name__}: {e}{where}", file=sys.stderr)
         sys.exit(1)
     print(json.dumps({"changed": result}))
