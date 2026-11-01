@@ -175,6 +175,29 @@ with tempfile.TemporaryDirectory() as d:
     open(bumped_src, "w").write(ZONE.format(serial=2000000900, records="5 PTR c.lan.test."))
     reload_zone("1.20.10.in-addr.arpa", bumped_src, bumped_dst, os.getuid(), os.getgid())
     checks["a serial above BIND's is left as rendered"] = file_serial(bumped_dst) == "2000000900"
+# The apply twice over a reverse zone holding Kea's PTRs (2.3.8.3.22's finding): the first finds it changed and swaps
+# it, keeping Kea's records after KEPT_HEAD; the second, rendered again with a new serial, finds no zone to swap
+with tempfile.TemporaryDirectory() as src_dir, tempfile.TemporaryDirectory() as dst_dir:
+    def render(serial):
+        with open(os.path.join(src_dir, f"db.{rev}"), "w") as f:
+            f.write(fabric_new.replace("2000000002 3600", f"{serial} ; Serial\n                        3600"))
+    open(os.path.join(dst_dir, f"db.{rev}"), "w").write(bind_old)
+    DST["dir"] = dst_dir
+    render(2000000002)
+    first = find_changed_zones(src_dir, dst_dir)
+    for zone, s, d in first:
+        reload_zone(zone, s, d, os.getuid(), os.getgid())
+    deployed = open(os.path.join(dst_dir, f"db.{rev}")).read()
+    calls.clear()
+    render(2000000003)
+    second = find_changed_zones(src_dir, dst_dir)
+    for zone, s, d in second:
+        reload_zone(zone, s, d, os.getuid(), os.getgid())
+    checks["applied twice: the first swaps the reverse zone and keeps Kea's PTRs"] = \
+        [z for z, _, _ in first] == [rev] and "kept from DHCP's registrations" in deployed \
+        and "laptop.dhcp.lan.test." in deployed
+    checks["applied twice: the second, with a new serial, finds no zone to swap and calls no rndc"] = \
+        second == [] and calls == []
 # A deployed file BIND did not load (it refused it and kept its older copy, the zone left frozen: 2.3.10.11.16, the
 # lab) is found and swapped again, though fabric's records did not change; a dynamic zone BIND serves above its file
 # is not; and a zone found frozen is thawed, never left so.
