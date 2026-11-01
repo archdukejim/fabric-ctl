@@ -253,6 +253,8 @@ if wants move; then
     # step 5: the clients' DNS (the lab's members have fixed addresses), then their caches cleared
     members_dns "$MOVED"
     L 'resolvectl flush-caches' >/dev/null
+    check "4.2.4.2 step 5: ub26-2's SSSD restarted, its KDC file at $MOVED" \
+        "L 'systemctl restart sssd && sleep 5 && id $PERSON@$AD >/dev/null; grep -qx $MOVED /var/lib/sss/pubconf/kdcinfo.${AD^^}'"
     W 'ipconfig /flushdns' >/dev/null
     check "4.2.4.2 step 5: ws25-1's secure channel set up again (nltest /sc_reset)" "W 'nltest /sc_reset:$AD' | grep -q NERR_Success"
     # step 6: 4.2.4.7, doctor, and a client finds fabric at its new address
