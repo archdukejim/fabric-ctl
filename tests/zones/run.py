@@ -362,10 +362,10 @@ try:
           and not os.path.exists(f"{W}/nginx/nginx.conf"), sorted(os.listdir(W)))
     r = lib(code)
     # a zone holding DHCP's kept PTRs (2.1.10.7) is not swapped again for them: find_changed_zones compares fabric's
-    # part of the deployed file only (2.3.10.11.13; 2.3.8.3.22's finding)
+    # part of the deployed file only (2.3.10.11.13; 2.3.8.3.22's finding). The same after Kea's registration, below.
     again = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
-    check("DNS' Apply again with nothing changed: BIND's configuration not reloaded, the changed zone not swapped "
-          "again, said", again.startswith("DONE") and "'config': False" in again and "'lan.test'" not in again, again)
+    check("DNS' Apply again with nothing changed: BIND's configuration not reloaded, no zone swapped, said",
+          again.startswith("DONE") and "'config': False" in again and "'zones': []" in again, again)
     # ---- the landing page's certificate (2.1.8.29): DNS' Apply issues none, and says when a full apply would
 
     def landing_cert(names):
@@ -542,6 +542,14 @@ try:
     r = lib(code)
     check("a second run finds nothing to change and reloads nothing", "'zones': []" in r.stdout
           and "'config': False" in r.stdout, r.stdout[-400:])
+    # DNS' Apply with a reverse zone whose deployed file holds Kea's kept PTR (its block after fabric's render): the
+    # kept block is not a change, so no zone is swapped (2.3.8.3.22's finding), and Kea's PTR is still served
+    kept_file = open(f"{W}/bind9/data/db.{REV45}").read()
+    r = lib("from fabriclib.dns.apply_dns import apply_dns\nprint('DONE', apply_dns('tester', source='cli'))")
+    again = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
+    check("DNS' Apply after Kea's registration, nothing changed: no zone swapped, Kea's PTR still served",
+          "kept from DHCP's registrations" in kept_file and again.startswith("DONE") and "'zones': []" in again
+          and short(BIND_IP, f"120.{REV45}", "PTR") == "laptop9.dhcp.lan.test.", (again, r.stderr[-300:]))
     edit_vars(lambda v: v["dhcp"].__setitem__("interfaces", ["nosuch0"]))
     before_conf = zone_list()
     r = lib(code)
