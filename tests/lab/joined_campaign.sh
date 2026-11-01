@@ -18,9 +18,10 @@
 #   restart  fabricctl stop and start, then the fabric VM rebooted
 #   restore  uninstall --export, then restore from it (3.2.4)
 #   move     the fabric VM moved from 10.88.0.10 to 10.88.0.13 by 4.2.4.2: netplan, host_ip applied, the member
-#            step, the members' DNS moved
-#   rename   the fabric VM renamed by 4.2.4.3: hostnamectl, hostname applied, the member step (the DC keeps
-#            dc_name, 1.6.5.23; the keytab holds the new name)
+#            step, 4.2.4.5's clean-up as written (0.9.0's known issue, 2.1.1.74), the members' DNS moved, 4.2.4.7
+#   rename   the fabric VM renamed by 4.2.4.3: the old way refused (2.1.6.104), `fabricctl admin rename-host`, the
+#            apply, the member step, 4.2.4.6's clean-up, 4.2.4.7 (the DC keeps dc_name, 1.6.5.23; the keytab holds
+#            the new name; local-admin follows it, 1.7.1.4.11)
 # Afterwards the four VMs go back to `clean` (3.1.5.11 step 9).
 # -----------------------------------------------------------------------
 set -uo pipefail
@@ -171,6 +172,39 @@ if wants restore; then
     client_check "a restore from an export"
 fi
 # Steps move and rename follow the operators' procedure, 4.2.4.2 and 4.2.4.3, step for step (2.1.1.73).
+# Purpose: the zone's records the menu lists (4.2.4.5 step 1: `sudo fabricctl --interactive`, 1, 1), one per line as
+#          "<n>) [<type>] <name> -> <value>", colours dropped. Read only: answers b, b, q.
+zone_list() {
+    F "printf '1\n1\nb\nb\nq\n' | TERM=dumb fabricctl --interactive 2>/dev/null" | sed 's/\x1b\[[0-9;]*m//g' |
+        grep -E '^ *[0-9]+\) \[[A-Z]+\] '
+}
+# Purpose: 4.2.4.5 step 1 / 4.2.4.6 step 1 as written: each record whose menu line matches the pattern deleted with
+#          the menu's `d` and its number, the list read again after each delete (it is renumbered). The number is
+#          used only when it is digits; nothing read back is run.
+zone_delete() {   # $1 an extended regex on "[<type>] <name> -> <value>"
+    local line n i
+    for i in $(seq 1 20); do
+        line=$(zone_list | grep -E "\) ${1}\$" | head -1)
+        [ -n "$line" ] || return 0
+        n=$(printf '%s' "$line" | sed -E 's/^ *([0-9]+)\).*/\1/')
+        [[ "$n" =~ ^[0-9]+$ ]] || return 1
+        echo "    deleting: $(printf '%s' "$line" | sed -E 's/^ *//')"
+        F "printf '1\n1\nd\n$n\nb\nb\nq\n' | TERM=dumb fabricctl --interactive >/dev/null 2>&1" || return 1
+    done
+    return 1
+}
+# Purpose: 4.2.4.7 as written, on the host: each name asked at fabric's own address gives the new address alone, and
+#          /etc/hosts names the DC at most once, at it.
+only_new() {   # $1 the step; $2 the host's name now
+    local out dc ad
+    dc=$(dc_fqdn); ad=${dc#*.}
+    out=$(F "for n in $2.$DOMAIN $DOMAIN ca.$DOMAIN $dc $ad; do echo \"\$n: \$(dig +short @$MOVED \"\$n\" | tr '\n' ' ')\"; done")
+    printf '%s\n' "$out" | sed 's/^/    /'
+    check "$1: 4.2.4.7, each name gives $MOVED alone, never $FIRST" \
+        "[ \$(printf '%s\n' \"\$out\" | grep -c ' $MOVED \$') -eq 5 ] && ! printf '%s\n' \"\$out\" | grep -qF '$FIRST'"
+    check "$1: 4.2.4.7, /etc/hosts names the DC at most once, at $MOVED" \
+        "[ \$(F 'grep -c \"$dc\" /etc/hosts' | tr -dc 0-9) -le 1 ] && ! F 'grep -F \"$dc\" /etc/hosts' | grep -qF '$FIRST'"
+}
 if wants move; then
     echo "=== move: $FABRIC to $MOVED (4.2.4.2)"
     # 4.2.4.2 step 2: the netplan file's address, applied by systemd 10 s later, so this session has ended before the
@@ -187,26 +221,71 @@ if wants move; then
     check "4.2.4.2 step 3: host_ip applied" "F 'fabricctl --apply' >/dev/null"
     # step 4: the host's own join
     check "4.2.4.2 step 4: the member step" "F 'fabricctl setup --step member --non-interactive --approve member' >/dev/null"
-    # step 5: the clients' DNS (the lab's members have fixed addresses)
+    # 4.2.4.5, the clean-up after a move (0.9.0's known issue, 2.3.1.34), each step as written
+    echo "--- 4.2.4.5: the clean-up after a move"
+    HOSTNOW=$(F 'hostname' | tr -dc 'a-z0-9-')
+    DCF=$(dc_fqdn); AD_DOMAIN=${DCF#*.}; DC_NAME=${DCF%%.*}
+    check "4.2.4.5 step 1: the zone's records at $FABRIC_OLD deleted in the menu" \
+        "zone_delete '\\[A\\] ($HOSTNOW|@) -> ${FABRIC_OLD//./\\.}'"
+    check "4.2.4.5 step 1: the apply" "F 'fabricctl --apply' >/dev/null"
+    out=$(F "docker exec samba samba_dnsupdate -s /data/etc/smb.conf --current-ip=$MOVED --use-samba-tool 2>&1; echo \"exit \$?\"")
+    printf '%s\n' "$out" | tail -3 | sed 's/^/    /'
+    check "4.2.4.5 step 2: the DC's records added at $MOVED (samba_dnsupdate --use-samba-tool)" \
+        "printf '%s\n' \"\$out\" | grep -qx 'exit 0'"
+    out=$(F "for n in @ $DC_NAME DomainDnsZones ForestDnsZones; do docker exec samba samba-tool dns delete 127.0.0.1 $AD_DOMAIN \"\$n\" A $FABRIC_OLD -s /data/etc/smb.conf -P 2>&1 | tail -1; done; docker exec samba samba-tool dns delete 127.0.0.1 _msdcs.$AD_DOMAIN gc A $FABRIC_OLD -s /data/etc/smb.conf -P 2>&1 | tail -1")
+    printf '%s\n' "$out" | sed 's/^/    /'
+    check "4.2.4.5 step 2: the DC's records at $FABRIC_OLD deleted (samba-tool dns delete)" \
+        "[ \$(printf '%s\n' \"\$out\" | grep -ci 'deleted successfully\|not exist\|not_exist') -eq 5 ]"
+    F "sed -i '/^${FABRIC_OLD}[[:space:]]\\+${DCF}\$/d' /etc/hosts"
+    check "4.2.4.5 step 3: /etc/hosts has no line for the DC at $FABRIC_OLD" "! F 'grep -F \"$DCF\" /etc/hosts' | grep -qF '$FABRIC_OLD'"
+    check "4.2.4.5 step 4: fabric's resolver restarted" "F 'systemctl restart bind9-resolver' >/dev/null"
+    # step 5: the clients' DNS (the lab's members have fixed addresses), then their caches cleared
     members_dns "$MOVED"
-    # step 6: doctor, and a client finds fabric at its new address
+    L 'resolvectl flush-caches' >/dev/null
+    W 'ipconfig /flushdns' >/dev/null
+    # step 6: 4.2.4.7, doctor, and a client finds fabric at its new address
+    only_new "4.2.4.2 step 6" "$HOSTNOW"
     check "4.2.4.2 step 6: doctor passes" "F 'fabricctl doctor' >/dev/null"
-    check "fabric's DNS answers at $MOVED, not at $FABRIC_OLD" "L 'getent hosts info.$DOMAIN' | grep -q '$MOVED'"
+    check "fabric's DNS answers at $MOVED, not at $FABRIC_OLD" \
+        "L 'getent ahostsv4 info.$DOMAIN' | grep -q '$MOVED' && ! L 'getent ahostsv4 info.$DOMAIN' | grep -q '$FABRIC_OLD'"
     client_check "a move to a new address"
 fi
 if wants rename; then
-    echo "=== rename: the fabric VM to $RENAMED (4.2.4.3)"
+    echo "=== rename: the fabric VM to $RENAMED (4.2.4.3, through break glass: 2.1.6.104)"
     dc_before=$(dc_fqdn)
-    # 4.2.4.3 step 2: renamed as root; step 3: hostname in vars.yaml, then the apply
-    F "hostnamectl set-hostname $RENAMED"
+    OLDNAME=$(F 'hostname' | tr -dc 'a-z0-9-')
+    # the refusal (1.6.11.14): the old way, hostname in vars.yaml then the apply, is refused on a DC's host
     F "sed -i 's/^hostname: .*/hostname: $RENAMED/' /opt/fabric/config/vars.yaml"
-    check "4.2.4.3 step 3: hostname applied" "F 'fabricctl --apply' >/dev/null"
+    out=$(F 'fabricctl --apply 2>&1')
+    check "negative: an apply with another hostname on the DC's host is refused, naming break glass and 4.2.4.3" \
+        "printf '%s\n' \"\$out\" | grep -q 'renamed only through break glass' && printf '%s\n' \"\$out\" | grep -q 'fabricctl admin rename-host $RENAMED'"
+    F "sed -i 's/^hostname: .*/hostname: $OLDNAME/' /opt/fabric/config/vars.yaml"
+    # 4.2.4.3 step 2: through break glass; step 3: the apply
+    check "4.2.4.3 step 2: fabricctl admin rename-host" \
+        "F \"fabricctl admin rename-host $RENAMED --reason 'the joined campaign (3.1.5.11)'\" | tail -3"
+    check "4.2.4.3 step 3: the apply" "F 'fabricctl --apply' >/dev/null"
     check "the DC keeps its own name ($dc_before)" "[ \"\$(dc_fqdn)\" = '$dc_before' ]"
     # step 4: the host's own join moves to an account under the new name
     check "4.2.4.3 step 4: the member step" "F 'fabricctl setup --step member --non-interactive --approve member' >/dev/null"
-    # step 5: its keytab holds the new name's account and doctor passes (adcli testjoin: in client_check)
-    check "4.2.4.3 step 5: the keytab holds ${RENAMED^^}\$" "F 'klist -k /etc/krb5.keytab' | grep -qF '${RENAMED^^}\$@'"
-    check "4.2.4.3 step 5: doctor passes" "F 'fabricctl doctor' >/dev/null"
+    # step 5: 4.2.4.6, the clean-up after a rename, each step as written
+    echo "--- 4.2.4.6: the clean-up after a rename"
+    had_info=$(zone_list | grep -cE "\] info -> $OLDNAME\$")
+    check "4.2.4.6 step 1: the zone's records under $OLDNAME deleted in the menu" \
+        "zone_delete '\\[A\\] $OLDNAME -> .*' && zone_delete '\\[CNAME\\] [a-z0-9-]+ -> $OLDNAME'"
+    check "4.2.4.6 step 1: the apply" "F 'fabricctl --apply' >/dev/null"
+    if [ "$had_info" -gt 0 ]; then
+        F "printf '1\n1\na\nCNAME\ninfo\n$RENAMED\nb\nb\nq\n' | TERM=dumb fabricctl --interactive >/dev/null 2>&1"
+        check "4.2.4.6 step 2: info added again under $RENAMED, then the apply" \
+            "zone_list | grep -qE '\\] info -> $RENAMED\$' && F 'fabricctl --apply' >/dev/null"
+    fi
+    check "4.2.4.6 step 3: fabric's resolver restarted" "F 'systemctl restart bind9-resolver' >/dev/null"
+    L 'resolvectl flush-caches' >/dev/null
+    W 'ipconfig /flushdns' >/dev/null
+    # step 6: 4.2.4.7; its keytab holds the new name's account; doctor passes (adcli testjoin: in client_check)
+    only_new "4.2.4.3 step 6" "$RENAMED"
+    check "4.2.4.3 step 6: 4.2.4.7, $OLDNAME.$DOMAIN gives nothing" "[ -z \"\$(F 'dig +short @$MOVED $OLDNAME.$DOMAIN')\" ]"
+    check "4.2.4.3 step 6: the keytab holds ${RENAMED^^}\$" "F 'klist -k /etc/krb5.keytab' | grep -qF '${RENAMED^^}\$@'"
+    check "4.2.4.3 step 6: doctor passes" "F 'fabricctl doctor' >/dev/null"
     client_check "the host renamed"
 fi
 echo

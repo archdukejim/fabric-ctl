@@ -4,13 +4,14 @@ import os
 from fabriclib.localadmin.constants import DEFAULT_POLICY, RECORD
 
 EMPTY = {"made": False, "made_at": None, "policy": DEFAULT_POLICY, "version": None, "set_at": None, "reason": None,
-         "used": None, "checkout": None, "waiting": None, "last_check": None, "ssh": None}
+         "used": None, "checkout": None, "waiting": None, "last_check": None, "ssh": None, "host": None}
 
 
 def load_record(config_dir):
     """Purpose: the host's record of its local-admin (manual 1.7.1.4): whether fabric made the account, its policy, the
              version OpenBao holds as current and when it was set, a use or check-out seen since, a rotation waiting,
-             the last timer run and the SSH switch as applied. Never a password.
+             the last timer run, the SSH switch as applied, and the host name it last followed (`host`, set by a
+             rename, 1.7.1.4.11; None before one). Never a password.
     Inputs:  config_dir — the install's config folder (<config>/local-admin.json).
     Returns: dict with every key of EMPTY (a missing record: EMPTY, nothing made).
     Fails:   ValueError for a record that is not JSON (never guessed); OSError other than a missing file.

@@ -31,7 +31,7 @@ Nothing yet for 2.1.17 (it follows chapter 1.17).
 Symptoms, causes and fixes.
 
 - [2.2.2 Architecture: the services and their start](2.2.2-architecture-troubleshooting.md)
-  - 2.2.2.1 Known issue of 0.8.0: a fresh install's setup stops at Postgres or Keycloak
+  - 2.2.2.1 Known issue of 0.8.0: a fresh install's setup stops at a unit's start (Postgres, Keycloak, nginx)
 - [2.2.6 Keycloak and the directory](2.2.6-keycloak-gotchas.md)
 - [2.2.8 The web UI](2.2.8-webui-troubleshooting.md)
 

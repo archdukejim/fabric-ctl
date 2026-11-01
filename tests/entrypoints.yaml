@@ -301,6 +301,7 @@
 "cli:acme.list": "src/fabriclib/pki/run_acme_command.py"
 "cli:acme.remove": "src/fabriclib/pki/run_acme_command.py"
 "cli:admin": "src/fabriclib/cli.py"
+"cli:admin.rename-host": "src/fabriclib/breakglass/run_admin_command.py"
 "cli:admin.reset-break-glass": "src/fabriclib/breakglass/run_admin_command.py"
 "cli:certs": "src/fabriclib/cli.py"
 "cli:client-cert": "src/fabriclib/cli.py"

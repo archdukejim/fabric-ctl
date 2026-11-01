@@ -554,6 +554,7 @@ src/fabriclib/breakglass/break_glass_password.py	38823233df4f2cc6ddfdde72d236962
 src/fabriclib/breakglass/break_glass_reminder.py	154d8c2fae4fa93951130f2f67574f2b74a8dbd5	2026-10-20	
 src/fabriclib/breakglass/constants.py	8b5a479aa04fadca3956b8a4b40c2e8a6adcfd22	2026-10-20	
 src/fabriclib/breakglass/ensure_enterprise_admin.py	d62d00e229c9924ff67bb2f38d1f68006c6cbd83	2026-10-20	
+src/fabriclib/breakglass/rename_host.py	01caa6de32885ced4bd9d6d98ef75e90a719ebfc	2026-11-01	
 src/fabriclib/breakglass/reset_break_glass.py	958d8f2438f29ff7472e4e69afd15cb0ef09bcd2	2026-10-20	
 src/fabriclib/breakglass/run_admin_command.py	5471097f5eaa24b134d272a69c9e8e6d09ce7942	2026-10-20	
 src/fabriclib/breakglass/write_break_glass_file.py	0179ffc0e1686d8b00ec9b84e5aa862b99c2aab5	2026-10-20	
@@ -1139,6 +1140,7 @@ src/fabriclib/localadmin/constants.py	53387276c549cc691d5b25234f2f4ed3f2e0bda7	2
 src/fabriclib/localadmin/ensure_local_admin.py	dfd3a757e10c110af47879904cad716f92d91f23	2026-10-23	
 src/fabriclib/localadmin/ensure_local_admin_store.py	04910d3ff376846d61ed19bcbb68c04cc6c66070	2026-10-23	
 src/fabriclib/localadmin/find_local_admin_uses.py	3a3a323005db79389bd657697106ca67e223ad4b	2026-10-23	
+src/fabriclib/localadmin/follow_rename.py	dad7baba7b04fb248dc0e6226bcab9c33e140263	2026-11-01	
 src/fabriclib/localadmin/local_admin_checks.py	95e962693ac2b4321a0a52e41c9d15508ff20b37	2026-10-23	
 src/fabriclib/localadmin/local_admin_request.py	5263255505c23830dbb54b0102ed79dfe3b79b8c	2026-10-23	
 src/fabriclib/localadmin/local_admin_status.py	277ca4cfe76e5bc9ff18e384cdaf6b381445aef4	2026-10-23	
@@ -1995,6 +1997,7 @@ tests/consent/run.py	ac4cf9dc6d4c8ea49ce967885d6852c2ca5a95a8	2026-10-26
 tests/deploy/README.md	bc91a4ef8983230cd1b07fc49c17c88d500dfe17	2026-10-31	
 tests/deploy/apply_deployment_test.py	61082104977e1d5834f6cb3433f0337df06456ef	2026-10-24	
 tests/deploy/apply_failure_test.py	b7bcc3a6c88e3c9bd79895b42cdc4ae626d56b40	2026-10-24	
+tests/deploy/check_fixed_identity_test.py	14a7ab7a34fe194529b8f8640029b631d65db880	2026-11-01	
 tests/deploy/check_service_settings_test.py	59ee0317e2dbcdf1a4cde2eb75537a8497b20acd	2026-10-20	
 tests/deploy/install_timers_test.py	4db8de07418c9ae4907a1e86a5b74688ba443407	2026-10-31	
 tests/deploy/restart_changed_test.py	87bafb24ecc1078f370627d7b0933d34b9718e7c	2026-10-29	

@@ -196,6 +196,7 @@ file	fabriclib-access|src/fabriclib/access/check_access.py	1
 file	fabriclib-breakglass|src/fabriclib/breakglass/break_glass_password.py	1	
 file	fabriclib-breakglass|src/fabriclib/breakglass/break_glass_reminder.py	2	
 file	fabriclib-breakglass|src/fabriclib/breakglass/ensure_enterprise_admin.py	3	
+file	fabriclib-breakglass|src/fabriclib/breakglass/rename_host.py	7	
 file	fabriclib-breakglass|src/fabriclib/breakglass/reset_break_glass.py	5	
 file	fabriclib-breakglass|src/fabriclib/breakglass/run_admin_command.py	6	
 file	fabriclib-breakglass|src/fabriclib/breakglass/write_break_glass_file.py	4	
@@ -763,6 +764,7 @@ file	fabriclib-localadmin|src/fabriclib/localadmin/common/utc_now.py	9
 file	fabriclib-localadmin|src/fabriclib/localadmin/ensure_local_admin.py	10	
 file	fabriclib-localadmin|src/fabriclib/localadmin/ensure_local_admin_store.py	11	
 file	fabriclib-localadmin|src/fabriclib/localadmin/find_local_admin_uses.py	12	
+file	fabriclib-localadmin|src/fabriclib/localadmin/follow_rename.py	27	
 file	fabriclib-localadmin|src/fabriclib/localadmin/local_admin_checks.py	13	
 file	fabriclib-localadmin|src/fabriclib/localadmin/local_admin_request.py	14	
 file	fabriclib-localadmin|src/fabriclib/localadmin/local_admin_status.py	15	
@@ -1859,7 +1861,12 @@ function	fabriclib-access|src/fabriclib/access/check_access.py|check_access	1
 function	fabriclib-breakglass|src/fabriclib/breakglass/break_glass_password.py|break_glass_password	1	
 function	fabriclib-breakglass|src/fabriclib/breakglass/break_glass_reminder.py|break_glass_reminder	1	
 function	fabriclib-breakglass|src/fabriclib/breakglass/ensure_enterprise_admin.py|ensure_enterprise_admin	1	
+function	fabriclib-breakglass|src/fabriclib/breakglass/rename_host.py|_hostnamectl	1	
+function	fabriclib-breakglass|src/fabriclib/breakglass/rename_host.py|_name_problem	2	
+function	fabriclib-breakglass|src/fabriclib/breakglass/rename_host.py|rename_host	3	
 function	fabriclib-breakglass|src/fabriclib/breakglass/reset_break_glass.py|reset_break_glass	1	
+function	fabriclib-breakglass|src/fabriclib/breakglass/run_admin_command.py|_rename	3	
+function	fabriclib-breakglass|src/fabriclib/breakglass/run_admin_command.py|_reset	2	
 function	fabriclib-breakglass|src/fabriclib/breakglass/run_admin_command.py|run_admin_command	1	
 function	fabriclib-breakglass|src/fabriclib/breakglass/write_break_glass_file.py|write_break_glass_file	1	
 function	fabriclib-common|src/fabriclib/common/apply_intent.py|apply_intent	1	
@@ -1955,6 +1962,7 @@ function	fabriclib-deploy|src/fabriclib/deploy/apply_deployment.py|_kea_steps	4
 function	fabriclib-deploy|src/fabriclib/deploy/apply_deployment.py|_prepare	1	0.8.0 / 2026-10-23
 function	fabriclib-deploy|src/fabriclib/deploy/apply_deployment.py|apply_deployment	3	
 function	fabriclib-deploy|src/fabriclib/deploy/archive_vars.py|archive_vars	1	
+function	fabriclib-deploy|src/fabriclib/deploy/check_fixed_identity.py|_hostname_problem	2	
 function	fabriclib-deploy|src/fabriclib/deploy/check_fixed_identity.py|check_fixed_identity	1	
 function	fabriclib-deploy|src/fabriclib/deploy/check_rendered.py|check_rendered	1	
 function	fabriclib-deploy|src/fabriclib/deploy/check_samba_settings.py|check_samba_settings	1	
@@ -2690,6 +2698,7 @@ function	fabriclib-localadmin|src/fabriclib/localadmin/ensure_local_admin_store.
 function	fabriclib-localadmin|src/fabriclib/localadmin/find_local_admin_uses.py|_journal	1	
 function	fabriclib-localadmin|src/fabriclib/localadmin/find_local_admin_uses.py|_wtmp	2	
 function	fabriclib-localadmin|src/fabriclib/localadmin/find_local_admin_uses.py|find_local_admin_uses	3	
+function	fabriclib-localadmin|src/fabriclib/localadmin/follow_rename.py|follow_rename	1	
 function	fabriclib-localadmin|src/fabriclib/localadmin/local_admin_checks.py|local_admin_checks	1	
 function	fabriclib-localadmin|src/fabriclib/localadmin/local_admin_request.py|local_admin_request	1	
 function	fabriclib-localadmin|src/fabriclib/localadmin/local_admin_status.py|local_admin_status	1	

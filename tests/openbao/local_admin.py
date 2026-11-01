@@ -17,6 +17,10 @@ sandbox runs them on a real host.
   keep-until-checkout keeps the password while nothing uses or checks it out
 - OpenBao sealed: the rotation due waits (the used password stays current, doctor's warning says so), a check-out is
   refused; unsealed, the next run rotates it
+- a domain controller's host renamed through break glass (2.1.6.104): `fabricctl admin rename-host` renames the host
+  (hostnamectl stood in for), vars.yaml and the recorded name; local-admin follows (a new password current under the
+  new name, doctor's check passing, the old name's versions marked moved); an apply with another name refused; every
+  refusal (usage, no or a long reason, a bad name, the DC's name, the same name, no DC, OpenBao sealed) changes nothing
 - the undo: the account removed, OpenBao's versions kept and marked removed, the record gone
 - the SSH drop-in (2.1.7.19): off refuses local-admin, on lets its password in, idempotent, sshd's refusal put back,
   a file that is not fabric's left alone
@@ -25,7 +29,9 @@ sandbox runs them on a real host.
 
     sudo python3 tests/openbao/local_admin.py          (needs Docker, openssl, root)
 """
+import contextlib
 import datetime
+import functools
 import json
 import os
 import shutil
@@ -37,8 +43,12 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(REPO, "src"))
 sys.path.insert(0, os.path.join(REPO, "tests", "common"))
 import test_run as testrun  # noqa: E402
+import fabriclib.breakglass.run_admin_command as m_admin  # noqa: E402
+from fabriclib.breakglass.rename_host import rename_host  # noqa: E402
+from fabriclib.breakglass.run_admin_command import run_admin_command  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
+from fabriclib.deploy.check_fixed_identity import check_fixed_identity  # noqa: E402
 from fabriclib.localadmin.apply_local_admin_ssh import apply_local_admin_ssh  # noqa: E402
 from fabriclib.localadmin.check_local_admin import check_local_admin  # noqa: E402
 from fabriclib.localadmin.checkout_local_admin import checkout_local_admin  # noqa: E402
@@ -46,6 +56,7 @@ from fabriclib.localadmin.common.local_admin_token import local_admin_token  # n
 from fabriclib.localadmin.constants import DIGITS, LOWER, UPPER  # noqa: E402
 from fabriclib.localadmin.ensure_local_admin import ensure_local_admin  # noqa: E402
 from fabriclib.localadmin.find_local_admin_uses import UTMP, find_local_admin_uses  # noqa: E402
+from fabriclib.localadmin.follow_rename import follow_rename  # noqa: E402
 from fabriclib.localadmin.local_admin_checks import local_admin_checks  # noqa: E402
 from fabriclib.localadmin.read_local_admin_secret import read_local_admin_secret  # noqa: E402
 from fabriclib.localadmin.record import load_record  # noqa: E402
@@ -371,7 +382,6 @@ msg = refused(lambda: checkout_local_admin(V, CFG, None, "root", "why", **kw))
 check("negative: a check-out is refused while OpenBao is sealed (it holds the only copy)", "sealed" in msg, msg)
 check("…doctor's check fails, saying OpenBao cannot be asked",
       not local_admin_checks(V, CFG, True, exists=lambda: True)["checks"][0][1])
-import contextlib  # noqa: E402
 import io  # noqa: E402
 import fabriclib.setup.verify_install as m_vi  # noqa: E402
 from fabriclib.setup.errors import SetupError  # noqa: E402
@@ -505,6 +515,84 @@ msg = refused(lambda: m_ack.ack_local_admin_ssh(V, CFG, None, "root", dc="web1",
 check("negative: a dc that is not dc-NNNN refused before the DC is asked", "not a domain controller" in msg, msg)
 switch.update({"ssh": False, "ack": None})
 check_local_admin(V, CFG, **parts)
+
+print("--- a domain controller's host renamed through break glass; its local-admin follows (2.1.6.104, 1.7.1.4.11)")
+HN = []
+with open(os.path.join(CFG, "vars.yaml"), "w") as f:
+    f.write("hostname: fabric\nsite_name: lan\n")
+TV = {**V, "hostname_dc": "dc-0001.ad.lan.test"}
+m_admin.rename_host = functools.partial(
+    rename_host, set_hostname=HN.append, token_fn=local_admin_token, audit=audit,
+    follow=functools.partial(follow_rename, set_password=chpasswd, audit=audit, now=now))
+
+
+def admin(tv, args_):
+    with contextlib.redirect_stdout(io.StringIO()) as said:
+        code = run_admin_command(tv, args_, CFG)
+    return code, said.getvalue()
+
+
+def state():
+    return (open(os.path.join(CFG, "vars.yaml")).read(), open(os.path.join(CFG, ".hostname")).read().strip()
+            if os.path.exists(os.path.join(CFG, ".hostname")) else None, len(SET), len(HN), load_record(CFG)["version"])
+
+
+before, n_audit = state(), len(AUDIT)
+code, said = admin(TV, ["rename-host", "fabric2", "--reason", "the lab's rename"])
+V2 = {**V, "hostname": "fabric2"}
+held = read_local_admin_secret(V2, local_admin_token(V2)[0])
+old_meta = bao_request(V, "GET", f"local-admin/metadata/{PATH}", token=ROOT)[1]["data"]["custom_metadata"]
+doctor = local_admin_checks(V2, CFG, True, exists=lambda: True)["checks"]
+# covers: cli:admin.rename-host +
+check("fabricctl admin rename-host: exit 0; the host renamed (hostnamectl), vars.yaml and the recorded name moved, "
+      "the next steps said",
+      code == 0 and HN == ["fabric2"] and "hostname: fabric2" in state()[0] and state()[1] == "fabric2"
+      and "sudo fabricctl --apply" in said and "--step member" in said, said)
+check("…local-admin follows the name: a new password set (chpasswd) under the new name's path, current there and "
+      "the host's version; the record names the host",
+      len(SET) == before[2] + 1 and held["current"] == load_record(CFG)["version"] and held["reason"] == "after rename"
+      and load_record(CFG)["host"] == "fabric2", (held, load_record(CFG)))
+check("…doctor's check passes under the new name (the joined campaign's 'current version None, the host's 2')",
+      doctor and all(c[1] for c in doctor), doctor)
+check("…the old name's versions kept as history, marked moved there; not current",
+      old_meta.get("moved_to") == "lan/fabric-host/fabric2/local-admin" and old_meta.get("current") == "none",
+      old_meta)
+check("…audited HOST_RENAME with who and why, and the rotation; never a password",
+      [a[1] for a in AUDIT[n_audit:]] == ["HOST_RENAME", "LOCAL_ADMIN_ROTATE"]
+      and "reason=the lab's rename" in AUDIT[n_audit][2] and "from=fabric to=fabric2" in AUDIT[n_audit][2]
+      and not any(p in " ".join(a[2] for a in AUDIT) for _, p in SET), AUDIT[n_audit:])
+check_fixed_identity({**TV, "hostname": "fabric2", "site_name": "lan", "ldap_base_dn": "dc=lan,dc=test",
+                      "org_domain": "lan.test"}, CFG)
+msg = refused(lambda: check_fixed_identity({**TV, "hostname": "fabric3", "site_name": "lan",
+                                            "ldap_base_dn": "dc=lan,dc=test", "org_domain": "lan.test"}, CFG))
+# covers: setting:hostname -
+check("negative: an apply with another name on a DC's host is refused, naming break glass; the record kept",
+      "renamed only through break glass" in msg and "fabricctl admin rename-host fabric3" in msg
+      and "4.2.4.3" in msg and state()[1] == "fabric2", msg)
+before = state()
+SEALED = {"on": False}
+for args_, tv, want, why in (
+        (["rename-host", "fabric3"], TV, 2, "usage:"),
+        (["rename-host", "fabric3", "--reason", ""], TV, 1, "--reason is required"),
+        (["rename-host", "fabric3", "--reason", "x" * 201], TV, 1, "--reason is required"),
+        (["rename-host", "bad_name", "--reason", "why"], TV, 1, "one label"),
+        (["rename-host", "dc-0001", "--reason", "why"], TV, 1, "domain controller's own name"),
+        (["rename-host", "fabric2", "--reason", "why"], {**TV, "hostname": "fabric2"}, 1, "already fabric2"),
+        (["rename-host", "fabric3", "--reason", "why"], V, 1, "runs no domain controller"),
+        (["rename-host", "fabric3", "--reason", "why"], TV, 1, "OpenBao must answer")):
+    if why == "OpenBao must answer":
+        bao_request(V, "PUT", "sys/seal", token=ROOT)
+    code, said = admin(tv, args_)
+    if why == "OpenBao must answer":
+        bao_request(V, "POST", "sys/unseal", body={"key": UNSEAL})
+    # covers: cli:admin.rename-host -
+    check(f"refused: fabricctl admin {' '.join(a if a else repr(a) for a in args_)[:60]} ({why}), exit {want}; "
+          "nothing changed", code == want and why in said and state() == before, (said, state(), before))
+code, said = admin({**TV, "hostname": "fabric2"}, ["rename-host", "fabric", "--reason", "back for the undo"])
+held = read_local_admin_secret(V, local_admin_token(V)[0])
+check("renamed back: exit 0, local-admin current under the first name again, its history kept there",
+      code == 0 and HN[-1] == "fabric" and state()[1] == "fabric" and held["current"] == load_record(CFG)["version"]
+      and held["versions"] >= 8, (said, held))
 
 print("--- the undo (1.7.1.4.1)")
 gone = []
