@@ -95,6 +95,8 @@ client_check() {   # $1 the step
 }
 # Purpose: the members' DNS pointed at fabric's address (as a network's DHCP would hand it out).
 members_dns() {   # $1 fabric's address
+    # a member fabric's join set up keeps the address in managed.env, which its hourly check puts back (4.2.4.2 step 5)
+    L "if [ -f /etc/fabric/managed.env ]; then sed -i 's/^FABRIC_DNS=.*/FABRIC_DNS=$1/' /etc/fabric/managed.env && fabric-managed apply; fi"
     L "resolvectl dns \"\$(ip route get $1 | awk '{for (i=1;i<NF;i++) if (\$i==\"dev\") print \$(i+1)}')\" $1"
     W "Get-NetIPAddress -IPAddress $WIN | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex \$_.InterfaceIndex -ServerAddresses $1 }"
 }
@@ -140,8 +142,17 @@ fi
 if wants upgrade; then
     : "${TO_DEB:?TO_DEB: the .deb built from the branch, 3.1.5.9 step 1}"
     echo "=== upgrade: $(basename "$TO_DEB") over the floor"
+    # the branch's version, from the file's name; used only when it is a Debian version (never as text to run)
+    to_ver=$(basename "$TO_DEB" | sed -E 's/^fabricctl_(.*)_all\.deb$/\1/')
+    [[ "$to_ver" =~ ^[0-9][0-9A-Za-z.~+-]*$ ]] || stop "TO_DEB's name gives no version ($(basename "$TO_DEB"))"
     scp -q "${SSH[@]}" "$TO_DEB" "labadmin@$FABRIC:/tmp/fabricctl-to.deb"
-    F "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /tmp/fabricctl-to.deb >/dev/null && rm -f -- /tmp/fabricctl-to.deb"
+    # a branch build sorts above the floor (3.1.5.9 step 1): apt refuses a downgrade, and runs 5 to 8 went on after
+    # "Packages were downgraded and -y was used without --allow-downgrades" with the floor still installed (2.3.1.33)
+    F "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /tmp/fabricctl-to.deb >/dev/null && rm -f -- /tmp/fabricctl-to.deb" ||
+        stop "the branch's package did not install (apt's output above)"
+    have_ver=$(F 'dpkg-query -W -f="\${Version}" fabricctl' | tr -dc '0-9A-Za-z.~+-')
+    check "the branch's package is installed ($to_ver; dpkg has $have_ver)" "[ '$have_ver' = '$to_ver' ]" ||
+        stop "the floor's package is still installed"
     check "the upgrade's setup finishes" "F 'fabricctl setup --non-interactive --yes --approve all' >/dev/null"
     client_check "the upgrade"
 fi
@@ -261,8 +272,9 @@ if wants rename; then
         "printf '%s\n' \"\$out\" | grep -q 'renamed only through break glass' && printf '%s\n' \"\$out\" | grep -q 'fabricctl admin rename-host $RENAMED'"
     F "sed -i 's/^hostname: .*/hostname: $OLDNAME/' /opt/fabric/config/vars.yaml"
     # 4.2.4.3 step 2: through break glass; step 3: the apply
-    check "4.2.4.3 step 2: fabricctl admin rename-host" \
-        "F \"fabricctl admin rename-host $RENAMED --reason 'the joined campaign (3.1.5.11)'\" | tail -3"
+    out=$(F "fabricctl admin rename-host $RENAMED --reason 'the joined campaign (3.1.5.11)' 2>&1"); rc=$?
+    printf '%s\n' "$out" | tail -3 | sed 's/^/    /'
+    check "4.2.4.3 step 2: fabricctl admin rename-host (exit $rc)" "[ $rc -eq 0 ]"
     check "4.2.4.3 step 3: the apply" "F 'fabricctl --apply' >/dev/null"
     check "the DC keeps its own name ($dc_before)" "[ \"\$(dc_fqdn)\" = '$dc_before' ]"
     # step 4: the host's own join moves to an account under the new name
