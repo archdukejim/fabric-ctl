@@ -2,6 +2,7 @@ import urllib.parse
 
 from webui import agentclient as actions
 from webui import views
+from webui.routes.places_for import places_for
 
 
 def computers_page(h, ctx, path, query):
@@ -21,7 +22,7 @@ def computers_page(h, ctx, path, query):
     if rest == "_new":
         if "machines:admin" not in (ctx.get("perms") or ()):
             return h.deny(403, "You need the permission machines:admin to add a computer.")
-        return h.send(200, views.computers(ctx, "new"))
+        return h.send(200, views.computers(ctx, "new", places=places_for("machine")))
     try:
         if not rest:
             return h.send(200, views.computers(ctx, "list", machines=actions.list_machines(), query=query))

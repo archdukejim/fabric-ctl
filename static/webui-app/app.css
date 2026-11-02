@@ -161,3 +161,8 @@ svg.netbar.tall{height:28px}
 .legend{font-size:13px;color:var(--muted)}.key{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 10px;vertical-align:middle}
 tr.overridden td{text-decoration:line-through;color:var(--muted)}tr.overridden td:last-child{text-decoration:none}
 tr.current td:first-child{font-weight:600}.subnet{margin:0 0 6px}
+/* Directory · Browse (1.8.8.4): the tree beside the opened folder's contents; one column on a narrow screen */
+.browse{display:grid;grid-template-columns:minmax(180px,1fr) 3fr;gap:16px;align-items:start}
+.tree ul{list-style:none;margin:4px 0 4px 14px;padding:0}.tree li{margin:2px 0}
+.tree a[aria-current="page"]{font-weight:700;color:var(--text)}
+@media (max-width:768px){.browse{grid-template-columns:1fr}}

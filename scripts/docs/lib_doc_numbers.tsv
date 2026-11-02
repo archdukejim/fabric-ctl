@@ -35,6 +35,7 @@ file	fabricctl-agent|src/agent/post_vault.py	9
 file	fabricctl-agent|src/agent/read_fields.py	10	
 file	fabricctl-agent|src/agent/read_strings.py	11	
 file	fabricctl-agent|src/agent/read_text.py	12	
+file	fabricctl-agent|src/agent/read_tree.py	44	
 file	fabricctl-agent|src/agent/server.py	13	
 file	fabricctl-jinja|packaging/images/bake_env.py	9	
 file	fabricctl-jinja|packaging/images/dirsrv/dscontainer-launch.py	1	0.5.0 / 2026-10-04
@@ -62,6 +63,7 @@ file	fabricctl-jinja|src/containers/samba/adopt_linux_machines.py	76
 file	fabricctl-jinja|src/containers/samba/all_machines.py	157	
 file	fabricctl-jinja|src/containers/samba/alloc_id.py	24	
 file	fabricctl-jinja|src/containers/samba/authorize_action.py	116	
+file	fabricctl-jinja|src/containers/samba/browse_ou.py	162	
 file	fabricctl-jinja|src/containers/samba/change_own_password.py	117	
 file	fabricctl-jinja|src/containers/samba/check_grant.py	103	
 file	fabricctl-jinja|src/containers/samba/compile_grants.py	104	
@@ -132,6 +134,7 @@ file	fabricctl-jinja|src/containers/samba/local_admin_tool.py	139
 file	fabricctl-jinja|src/containers/samba/logon_groups.py	84	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/logon_rights_policy.py	20	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/managed_groups.py	129	
+file	fabricctl-jinja|src/containers/samba/may_hold.py	163	
 file	fabricctl-jinja|src/containers/samba/move_machine.py	130	0.9.0 / 2026-11-02
 file	fabricctl-jinja|src/containers/samba/move_object.py	159	
 file	fabricctl-jinja|src/containers/samba/open_samdb.py	21	
@@ -498,6 +501,7 @@ file	fabriclib-dns|src/fabriclib/dns/zone_content_changed.py	30
 file	fabriclib-dns|src/fabriclib/dns/zone_detail.py	31	
 file	fabriclib-dns|src/fabriclib/dns/zone_name.py	32	
 file	fabriclib-dns|src/fabriclib/dns/zones_bind_lacks.py	50	
+file	fabriclib-domain|src/fabriclib/domain/browse_ou.py	34	
 file	fabriclib-domain|src/fabriclib/domain/change_own_password.py	1	
 file	fabriclib-domain|src/fabriclib/domain/create_group.py	2	
 file	fabriclib-domain|src/fabriclib/domain/create_ou.py	3	
@@ -512,6 +516,7 @@ file	fabriclib-domain|src/fabriclib/domain/list_ous.py	9
 file	fabriclib-domain|src/fabriclib/domain/list_spns.py	10	
 file	fabriclib-domain|src/fabriclib/domain/machine_overview.py	32	
 file	fabriclib-domain|src/fabriclib/domain/move_machine.py	11	
+file	fabriclib-domain|src/fabriclib/domain/move_object.py	35	
 file	fabriclib-domain|src/fabriclib/domain/my_account.py	28	
 file	fabriclib-domain|src/fabriclib/domain/my_groups.py	12	
 file	fabriclib-domain|src/fabriclib/domain/person_fields.py	26	
@@ -1145,6 +1150,7 @@ file	webui|src/webui/agentclient/add_subnet.py	5
 file	webui|src/webui/agentclient/add_zone.py	153	
 file	webui|src/webui/agentclient/apply_changes.py	6	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/audit.py	7	
+file	webui|src/webui/agentclient/browse_ou.py	294	
 file	webui|src/webui/agentclient/ca_summary.py	8	
 file	webui|src/webui/agentclient/cert_warnings.py	136	
 file	webui|src/webui/agentclient/change_own_password.py	218	
@@ -1286,6 +1292,7 @@ file	webui|src/webui/devpreview/fake_network.py	207
 file	webui|src/webui/devpreview/fake_ous.py	245	
 file	webui|src/webui/devpreview/fake_pending.py	215	
 file	webui|src/webui/devpreview/fake_reads.py	208	
+file	webui|src/webui/devpreview/fake_tree.py	295	
 file	webui|src/webui/devpreview/sample_data.py	186	
 file	webui|src/webui/devpreview/sample_radius_guides.py	68	
 file	webui|src/webui/devpreview/sample_result.py	69	
@@ -1329,6 +1336,7 @@ file	webui|src/webui/routes/ous_page.py	246
 file	webui|src/webui/routes/overview_post.py	143	
 file	webui|src/webui/routes/people_page.py	228	
 file	webui|src/webui/routes/picked_record.py	272	
+file	webui|src/webui/routes/places_for.py	296	
 file	webui|src/webui/routes/policies_page.py	236	
 file	webui|src/webui/routes/post_action.py	83	
 file	webui|src/webui/routes/radius_page.py	270	
@@ -1343,6 +1351,7 @@ file	webui|src/webui/routes/site_link.py	275
 file	webui|src/webui/routes/sites_page.py	258	
 file	webui|src/webui/routes/stepca_page.py	86	
 file	webui|src/webui/routes/stepca_post.py	87	
+file	webui|src/webui/routes/tree_page.py	297	
 file	webui|src/webui/routes/tsig_post.py	88	
 file	webui|src/webui/routes/vault_post.py	89	
 file	webui|src/webui/routes/zone_post.py	90	
@@ -1401,6 +1410,7 @@ file	webui|src/webui/views/settings.py	199
 file	webui|src/webui/views/settings_plan.py	200	
 file	webui|src/webui/views/sites.py	260	
 file	webui|src/webui/views/stepca.py	118	
+file	webui|src/webui/views/tree.py	298	
 file	webui|src/webui/views/tsig_result.py	119	
 function	fabricctl-agent|src/agent/get_route.py|_pending	2	
 function	fabricctl-agent|src/agent/get_route.py|get_route	1	
@@ -1503,6 +1513,7 @@ function	fabricctl-agent|src/agent/post_vault.py|post_vault	1
 function	fabricctl-agent|src/agent/read_fields.py|read_fields	1	
 function	fabricctl-agent|src/agent/read_strings.py|read_strings	1	
 function	fabricctl-agent|src/agent/read_text.py|read_text	1	
+function	fabricctl-agent|src/agent/read_tree.py|read_tree	1	
 function	fabricctl-agent|src/agent/server.py|main	1	
 function	fabricctl-jinja|packaging/images/bake_env.py|bake_env	1	
 function	fabricctl-jinja|packaging/images/dirsrv/dscontainer-launch.py|_signal	1	0.5.0 / 2026-10-04
@@ -1581,6 +1592,12 @@ function	fabricctl-jinja|src/containers/samba/authorize_action.py|_in_group	4
 function	fabricctl-jinja|src/containers/samba/authorize_action.py|_members_action	5	
 function	fabricctl-jinja|src/containers/samba/authorize_action.py|_networks_action	7	
 function	fabricctl-jinja|src/containers/samba/authorize_action.py|authorize_action	6	
+function	fabricctl-jinja|src/containers/samba/browse_ou.py|_kind	4	
+function	fabricctl-jinja|src/containers/samba/browse_ou.py|_part	1	
+function	fabricctl-jinja|src/containers/samba/browse_ou.py|_path	2	
+function	fabricctl-jinja|src/containers/samba/browse_ou.py|_resolve	3	
+function	fabricctl-jinja|src/containers/samba/browse_ou.py|_row	5	
+function	fabricctl-jinja|src/containers/samba/browse_ou.py|browse_ou	6	
 function	fabricctl-jinja|src/containers/samba/change_own_password.py|_quoted	1	
 function	fabricctl-jinja|src/containers/samba/change_own_password.py|change_own_password	2	
 function	fabricctl-jinja|src/containers/samba/check_grant.py|_everyone	3	
@@ -1745,6 +1762,9 @@ function	fabricctl-jinja|src/containers/samba/local_admin_tool.py|run	2
 function	fabricctl-jinja|src/containers/samba/logon_groups.py|logon_groups	1	0.7.2 / 2026-10-19
 function	fabricctl-jinja|src/containers/samba/logon_rights_policy.py|logon_rights_policy	1	0.7.2 / 2026-10-19
 function	fabricctl-jinja|src/containers/samba/managed_groups.py|managed_groups	1	
+function	fabricctl-jinja|src/containers/samba/may_hold.py|_refused	1	
+function	fabricctl-jinja|src/containers/samba/may_hold.py|kinds_held	3	
+function	fabricctl-jinja|src/containers/samba/may_hold.py|may_hold	2	
 function	fabricctl-jinja|src/containers/samba/move_machine.py|move_machine	1	0.9.0 / 2026-11-02
 function	fabricctl-jinja|src/containers/samba/move_object.py|move_object	1	
 function	fabricctl-jinja|src/containers/samba/open_samdb.py|open_samdb	1	
@@ -2317,6 +2337,7 @@ function	fabriclib-dns|src/fabriclib/dns/zone_content_changed.py|zone_content_ch
 function	fabriclib-dns|src/fabriclib/dns/zone_detail.py|zone_detail	1	
 function	fabriclib-dns|src/fabriclib/dns/zone_name.py|zone_name	1	
 function	fabriclib-dns|src/fabriclib/dns/zones_bind_lacks.py|zones_bind_lacks	1	
+function	fabriclib-domain|src/fabriclib/domain/browse_ou.py|browse_ou	1	
 function	fabriclib-domain|src/fabriclib/domain/change_own_password.py|change_own_password	1	
 function	fabriclib-domain|src/fabriclib/domain/create_group.py|create_group	1	
 function	fabriclib-domain|src/fabriclib/domain/create_ou.py|create_ou	1	
@@ -2331,6 +2352,7 @@ function	fabriclib-domain|src/fabriclib/domain/list_ous.py|list_ous	1
 function	fabriclib-domain|src/fabriclib/domain/list_spns.py|list_spns	1	
 function	fabriclib-domain|src/fabriclib/domain/machine_overview.py|machine_overview	1	
 function	fabriclib-domain|src/fabriclib/domain/move_machine.py|move_machine	1	
+function	fabriclib-domain|src/fabriclib/domain/move_object.py|move_object	1	
 function	fabriclib-domain|src/fabriclib/domain/my_account.py|my_account	1	
 function	fabriclib-domain|src/fabriclib/domain/my_groups.py|my_groups	1	
 function	fabriclib-domain|src/fabriclib/domain/person_fields.py|read_person_fields	1	
@@ -3355,6 +3377,7 @@ function	webui|src/webui/agentclient/add_subnet.py|add_subnet	1
 function	webui|src/webui/agentclient/add_zone.py|add_zone	1	
 function	webui|src/webui/agentclient/apply_changes.py|apply_changes	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/audit.py|audit	1	
+function	webui|src/webui/agentclient/browse_ou.py|browse_ou	1	
 function	webui|src/webui/agentclient/ca_summary.py|ca_summary	1	
 function	webui|src/webui/agentclient/cert_warnings.py|cert_warnings	1	
 function	webui|src/webui/agentclient/change_own_password.py|change_own_password	1	
@@ -3521,6 +3544,7 @@ function	webui|src/webui/devpreview/fake_agent.py|_read_grants	5
 function	webui|src/webui/devpreview/fake_agent.py|_read_groups	2	
 function	webui|src/webui/devpreview/fake_agent.py|_read_machines	3	
 function	webui|src/webui/devpreview/fake_agent.py|_read_ous	4	
+function	webui|src/webui/devpreview/fake_agent.py|_read_tree	7	
 function	webui|src/webui/devpreview/fake_agent.py|fake_agent	1	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.__init__	3	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.close	6	
@@ -3575,6 +3599,8 @@ function	webui|src/webui/devpreview/fake_ous.py|_name	2
 function	webui|src/webui/devpreview/fake_ous.py|_own	3	
 function	webui|src/webui/devpreview/fake_ous.py|_tree	1	
 function	webui|src/webui/devpreview/fake_ous.py|fake_ous	4	
+function	webui|src/webui/devpreview/fake_ous.py|kinds_of	5	
+function	webui|src/webui/devpreview/fake_ous.py|place_in	6	
 function	webui|src/webui/devpreview/fake_pending.py|_find	1	
 function	webui|src/webui/devpreview/fake_pending.py|_finish	5	
 function	webui|src/webui/devpreview/fake_pending.py|_store	3	
@@ -3587,6 +3613,8 @@ function	webui|src/webui/devpreview/fake_reads.py|_site_tree	7
 function	webui|src/webui/devpreview/fake_reads.py|_sites	5	
 function	webui|src/webui/devpreview/fake_reads.py|_spns	6	
 function	webui|src/webui/devpreview/fake_reads.py|fake_reads	3	
+function	webui|src/webui/devpreview/fake_tree.py|_contents	1	
+function	webui|src/webui/devpreview/fake_tree.py|fake_tree	2	
 function	webui|src/webui/devpreview/sample_data.py|_list	1	
 function	webui|src/webui/devpreview/sample_radius_guides.py|sample_radius_guides	1	
 function	webui|src/webui/devpreview/sample_result.py|sample_result	1	
@@ -3627,6 +3655,7 @@ function	webui|src/webui/routes/device_post.py|device_post	3
 function	webui|src/webui/routes/devices_page.py|_people	1	
 function	webui|src/webui/routes/devices_page.py|devices_page	2	
 function	webui|src/webui/routes/directory_page.py|directory_page	1	
+function	webui|src/webui/routes/directory_post.py|_back	15	
 function	webui|src/webui/routes/directory_post.py|_changed_fields	9	
 function	webui|src/webui/routes/directory_post.py|_device_fields	1	0.8.0 / 2026-10-23
 function	webui|src/webui/routes/directory_post.py|_grant	14	
@@ -3679,6 +3708,7 @@ function	webui|src/webui/routes/ous_page.py|ous_page	1
 function	webui|src/webui/routes/overview_post.py|overview_post	1	
 function	webui|src/webui/routes/people_page.py|people_page	1	
 function	webui|src/webui/routes/picked_record.py|picked_record	1	
+function	webui|src/webui/routes/places_for.py|places_for	1	
 function	webui|src/webui/routes/policies_page.py|policies_page	1	
 function	webui|src/webui/routes/post_action.py|_radius_people	2	
 function	webui|src/webui/routes/post_action.py|_segments	1	
@@ -3697,6 +3727,7 @@ function	webui|src/webui/routes/site_link.py|site_link	2
 function	webui|src/webui/routes/sites_page.py|sites_page	1	
 function	webui|src/webui/routes/stepca_page.py|stepca_page	1	
 function	webui|src/webui/routes/stepca_post.py|stepca_post	1	
+function	webui|src/webui/routes/tree_page.py|tree_page	1	
 function	webui|src/webui/routes/tsig_post.py|tsig_post	1	
 function	webui|src/webui/routes/vault_post.py|vault_post	1	
 function	webui|src/webui/routes/zone_post.py|zone_post	1	
@@ -3767,6 +3798,7 @@ function	webui|src/webui/views/settings.py|settings	1
 function	webui|src/webui/views/settings_plan.py|settings_plan	1	
 function	webui|src/webui/views/sites.py|sites	1	
 function	webui|src/webui/views/stepca.py|stepca	1	
+function	webui|src/webui/views/tree.py|tree	1	
 function	webui|src/webui/views/tsig_result.py|tsig_result	1	
 page	fabricctl-agent	2	
 page	fabricctl-jinja	3	

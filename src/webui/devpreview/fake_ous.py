@@ -55,6 +55,35 @@ def _own(tree, path):
     return tree[path]
 
 
+# as the DC's may_hold: each kind inside its own folder's tree (2.3.8.6), never a closed folder
+WITHIN = {"person": "people", "group": "groups", "machine": "machines"}
+CLOSED = ("fabric-hosts", "devices", "device-roles", "networks", "sudoers", "groups/fabric")
+
+
+def kinds_of(path):
+    """Purpose: The kinds an OU may be given, as the DC's may_hold.kinds_held says (the preview's copy).
+    Inputs:  path — an OU's path.
+    Returns: list of str.
+    Fails:   never.
+    Feeds:   fake_ous, place_in."""
+    if any(path == c or path.startswith(c + "/") for c in CLOSED):
+        return []
+    return [k for k, home in WITHIN.items() if path == home or path.startswith(home + "/")]
+
+
+def place_in(state, kind, path):
+    """Purpose: Create in... (2.1.6.101) checked as the DC checks it: an OU that is there and may hold the kind.
+    Inputs:  state — DevState; kind — "person", "machine" or "group"; path — the OU's path.
+    Returns: path.
+    Fails:   ValidationError with the DC's words.
+    Feeds:   fake_directory, fake_groups (their creates)."""
+    if kind not in kinds_of(path):
+        raise ValidationError(f"a {kind} moves only within OU={WITHIN[kind]} for now (not {path}, manual 1.8.8.5)")
+    if path not in _tree(state):
+        raise ValidationError(f"no OU {path}")
+    return path
+
+
 def fake_ous(state, who, route, body):
     """Purpose: The fake agent's OUs (manual 1.6.12.7): GET /v1/ous; POST /v1/ous, /v1/ous/rename, /v1/ous/delete —
              in memory, refused as the DC refuses.
@@ -68,7 +97,7 @@ def fake_ous(state, who, route, body):
     if body is None:
         if route != ["ous"]:
             return None
-        return {"ous": [{"path": p, "dn": "", **dict(e, holds=dict(e["holds"]))}
+        return {"ous": [{"path": p, "dn": "", **dict(e, holds=dict(e["holds"])), "kinds": kinds_of(p)}
                         for p, e in sorted(tree.items(), key=lambda x: x[0].lower())]}
     if route == ["ous"]:
         parent, name = str(body.get("parent") or "").strip("/"), _name(str(body.get("name") or ""))

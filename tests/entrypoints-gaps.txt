@@ -459,7 +459,6 @@ web:post.directory.gpo.set +
 web:post.directory.gpo.set -
 web:post.directory.people.*.* -
 web:post.directory.people.*.reset -
-web:post.directory.people._new -
 web:post.directory.roles.* +
 web:post.directory.roles.* -
 web:post.directory.roles.*.delete +

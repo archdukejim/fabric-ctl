@@ -16,6 +16,8 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `site_link.py` | /sites/<name>: the site selector's link, a 303 to that site's console from fabric-agent's list (no open redirect). |
 | `access_page.py` | Directory · Access: the grants, Add grant, a grant's page. |
 | `ous_page.py` | Directory · OUs: the tree, an OU's page. |
+| `tree_page.py` | Directory · Browse: the tree, an OU's contents, a search, Move to… (1.8.8.4). |
+| `places_for.py` | The OUs a create form's Create in… offers for a kind (the DC's rule, 1.8.8.5). |
 | `computers_page.py` | Directory · Computers: the list, Add computer, Machine groups, a computer's page. |
 | `policies_page.py` | Directory · Policies: its three tabs. |
 | `people_page.py` | Directory · People: the list, Add person, a person's page. |

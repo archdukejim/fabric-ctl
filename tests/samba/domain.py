@@ -548,6 +548,58 @@ for who, name, body, perms_, words in (
     gone, why = refused(m_domain.post_domain, ["machines", name, "move"], who, body, who, perms_)
     # covers: agent:post.machines.*.move -
     check(f"move {name} as {who} refused ({words})", gone and words in why, why)
+print("--- the directory browser and Move to... (1.8.8.4, 1.8.8.5)")
+import agent.read_tree as m_tree  # noqa: E402
+m_tree.load_vars = lambda: V
+tree = m_get.get_route(["directory", "tree", "ou=people", "q=", "w=0", "i=0"], "alice")
+# covers: agent:get.directory.tree.*.*.*.* +
+check("GET /v1/directory/tree/ou=people/…: the tree open at people (the domain's level, then people's), its people "
+      "listed by kind and name, OU=people may hold people only, AD's containers at the root, groups/fabric left out",
+      [lv["path"] for lv in tree["levels"]] == ["", "people"] and {"bob", "alice"} <= {
+          r["name"] for r in tree["contents"] if r["kind"] == "person"} and tree["kinds"] == ["person"]
+      and "Users" in {c["name"] for c in tree["levels"][0]["children"]}
+      and "groups/fabric" not in {c["path"] for lv in tree["levels"] for c in lv["children"]}, tree["levels"])
+found = m_get.get_route(["directory", "tree", "ou=", "q=bob", "w=1", "i=0"], "alice")
+check("...a search of the whole domain finds bob, saying where", any(r["name"] == "bob" and r["at"] == "people"
+                                                                     for r in found["contents"]), found["contents"])
+for segs, words in ((["ou=nowhere", "q=", "w=0", "i=0"], "no OU nowhere"),
+                    (["ou=", "q=b", "w=1", "i=0"], "at least 2 characters"),
+                    (["q=", "ou=", "w=0", "i=0"], "the tree's address"),
+                    (["ou=", "q=", "w=2", "i=0"], "the tree's address")):
+    gone, why = refused(m_get.get_route, ["directory", "tree"] + segs, "alice")
+    # covers: agent:get.directory.tree.*.*.*.* -
+    check(f"GET the tree refused ({words})", words in why, why)
+m_ous.post_ous(["ous"], "alice", {"parent": "people", "name": "movers"})
+done = m_people.post_people(["people", "bob", "move"], "alice", {"path": "people/movers"}, "alice",
+                            {"people:edit", "ous:admin"})
+# covers: agent:post.people.*.move +
+check("POST /v1/people/bob/move: bob in people/movers, his groups unchanged, audited PERSON_MOVE",
+      done["changed"] and f"CN=bob,OU=movers,OU=people,{BASE}" in ldb("(sAMAccountName=bob)", "dn")
+      and "CN=site-lan," in ldb("(sAMAccountName=bob)", "memberOf") and AUDIT[-1][1] == "PERSON_MOVE", done)
+for who, uid, body, perms_, words in (
+        ("alice", "bob", {"path": "machines/servers"}, None, "moves only within OU=people"),
+        ("alice", "bob", {"path": "people/nowhere"}, None, "no OU people/nowhere"),
+        ("hd", "bob", {"path": "people"}, {"people:edit"}, "needs ous:admin too"),
+        ("alice", "fabric-admin", {"path": "people"}, None, "")):
+    gone, why = refused(m_people.post_people, ["people", uid, "move"], who, body, who, perms_)
+    # covers: agent:post.people.*.move -
+    check(f"move {uid} as {who} refused ({words})", gone and words in why, why)
+m_people.post_people(["people", "bob", "move"], "alice", {"path": "people"}, "alice", None)
+m_ous.post_ous(["ous"], "alice", {"parent": "groups", "name": "crew"})
+done = m_groups.post_groups(["groups", "lab-people", "move"], "alice", {"path": "groups/crew"}, "alice",
+                            {"groups:admin", "ous:admin"})
+# covers: agent:post.groups.*.move +
+check("POST /v1/groups/lab-people/move: in groups/crew, audited GROUP_MOVE", done["changed"]
+      and "OU=crew,OU=groups," in ldb("(sAMAccountName=lab-people)", "dn") and AUDIT[-1][1] == "GROUP_MOVE", done)
+for who, name, body, perms_, words in (
+        ("alice", "lab-people", {"path": "people"}, None, "moves only within OU=groups"),
+        ("alice", "directory-admins", {"path": "groups/crew"}, None, ""),
+        ("alice", "lab-people", {"path": "groups"}, {"groups:admin"}, "needs ous:admin too"),
+        ("hd", "lab-people", {"path": "groups"}, None, "Directory Administrator")):
+    gone, why = refused(m_groups.post_groups, ["groups", name, "move"], who, body, who, perms_)
+    # covers: agent:post.groups.*.move -
+    check(f"move {name} as {who} refused ({words})", gone and words in why, why)
+m_groups.post_groups(["groups", "lab-people", "move"], "alice", {"path": "groups"}, "alice", None)
 gone, why = refused(m_ous.post_ous, ["ous", "delete"], "alice", {"ou": "machines/servers/web"})
 # covers: agent:post.ous.delete -
 check("delete machines/servers/web refused while it holds srv1, naming it", gone and "not empty" in why

@@ -14,7 +14,7 @@ NAME_RE = re.compile(r"^[a-z0-9]([a-z0-9-]{0,13}[a-z0-9])?$")
 
 
 def add_machine(v, actor, name, source="cli", secrets=None, container="samba", type=None, managed=True,
-                server=None, in_site=True, caller=None):
+                server=None, in_site=True, caller=None, ou=""):
     """Purpose: pre-create a machine (manual 1.6.7.3, S6.2; 1.6.13.3) with a one-time join password: the machine
              joins with `join-linux.sh --one-time`, so no admin password is typed on it. With a type it goes in that
              type's OU under OU=machines (OU=servers, OU=desktops, OU=network) and its group (`machines-servers`,
@@ -27,7 +27,8 @@ def add_machine(v, actor, name, source="cli", secrets=None, container="samba", t
              at (a read-only DC's site, 2.1.6.52); in_site — False leaves it out of the site's group (the fabric
              host's own account: it is in dc-hosts instead, 1.6.13.6); caller — the signed-in person's user name
              (fabric-agent's check: a grant's machines add whose where groups are all among the groups the machine is
-             made in, or a Directory Administrator), or None (root).
+             made in, or a Directory Administrator), or None (root); ou — Create in... (2.1.6.101): an OU's path to
+             make it in instead of its type's OU, where the DC lets a machine be (may_hold), or "".
     Returns: the one-time join password: shown once, stored nowhere.
     Fails:   ValidationError "machine name: …", "type: …", check_access's refusals, "that name is already taken", the
                  directory's refusals
@@ -36,6 +37,8 @@ def add_machine(v, actor, name, source="cli", secrets=None, container="samba", t
     Notes:   audited as MACHINE_CREATE."""
     if not NAME_RE.match(name or ""):
         raise ValidationError("machine name: 1-15 characters, a-z 0-9 and dashes, not starting or ending with a dash")
+    if not isinstance(ou, str):
+        raise ValidationError("ou: an OU's path, as text")
     if type is not None and type not in MACHINE_TYPES:
         raise ValidationError(f"type: one of {', '.join(MACHINE_TYPES)} (its OU and group), not {type!r}")
     groups = ([f"machines-{TYPE_OUS[type]}"] if type else []) + ([site_group(v["site_name"])] if in_site else []) \
@@ -44,8 +47,8 @@ def add_machine(v, actor, name, source="cli", secrets=None, container="samba", t
     password = people_password(v)          # a one-time password the domain's policy accepts
     run_op(v, secrets if secrets is not None else load_secrets(), "create_machine",
            {"name": name, "password": password, "managed": bool(managed), "in_site": bool(in_site),
-            **({"type": type} if type else {})}, container, server)
+            **({"type": type} if type else {}), **({"ou": ou} if ou else {})}, container, server)
     write_audit(actor, "MACHINE_CREATE", f"machine={name}" + (f" type={type}" if type else "")
-                + ("" if managed else " unmanaged"), source)
+                + ("" if managed else " unmanaged") + (f" ou={ou}" if ou else ""), source)
     sync_grants(v, actor, source, container, quiet=True)      # its groups reach grants at once (1.6.13.4)
     return password

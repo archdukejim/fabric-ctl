@@ -14,6 +14,7 @@ from webui.routes.sites_page import sites_page
 from webui.routes.site_link import site_link
 from webui.routes.kerberos_page import kerberos_page
 from webui.routes.ous_page import ous_page
+from webui.routes.tree_page import tree_page
 from webui.routes.dns_filter_page import dns_filter_page
 from webui.routes.moved_to import moved_to
 from webui.routes.networks_page import networks_page
@@ -82,7 +83,8 @@ def get_page(h, sess, path, query):
              /overview/updates, /audit), DNS (/dns/zones, /dns-filter), DHCP (/networks[/export|/scan|/options],
              1.10.4.40.1; /kea), PKI (/pki, /pki/acme),
              Directory (/directory, /directory/people|groups|computers[/_new|/<name>], /directory/computers/_groups,
-             /directory/ous[?ou=<path>], /directory/access[/_new|/<name>], /directory/sites[/<name>],
+             /directory/ous[?ou=<path>], /directory/tree[?ou=<path>&…] (Browse, 1.8.8.4),
+             /directory/access[/_new|/<name>], /directory/sites[/<name>],
              /directory/kerberos,
              /directory/policies[/gpo|/sudo]), 802.1X
              (/8021x, /8021x/decisions, /8021x/guides, /8021x/devices[/_new|/<name>], /8021x/roles[/_new|/<name>]),
@@ -165,6 +167,8 @@ def get_page(h, sess, path, query):
         return kerberos_page(h, ctx)
     if path == "/directory/ous":
         return ous_page(h, ctx, query)
+    if path == "/directory/tree":
+        return tree_page(h, ctx, query)
     if path == "/directory/computers" or path.startswith("/directory/computers/"):
         return computers_page(h, ctx, path, query)
     if path == "/directory/policies" or path == "/directory/policies/gpo" or path == "/directory/policies/sudo":

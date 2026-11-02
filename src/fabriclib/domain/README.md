@@ -30,6 +30,8 @@ fabric-agent's check (`fabriclib/access`), then one operation inside the DC, the
 | `rename_ou.py` | An admin's own OU renamed, audited `OU_RENAME` |
 | `delete_ou.py` | An empty admin's own OU deleted, audited `OU_REMOVE` |
 | `move_machine.py` | A computer moved to a folder in OU=machines' tree (the DC's `move_object`; fabric's own refused), audited `MACHINE_MOVE` |
+| `move_object.py` | Move to… for a person or group (a computer through move_machine), audited `PERSON_MOVE`, `GROUP_MOVE` |
+| `browse_ou.py` | The directory browser's read through the DC (1.8.8.4) |
 | `set_machine_type.py` | A computer's type group (and, asked, its type's folder), audited `MACHINE_TYPE` |
 | `set_machine_site.py` | A computer put in a site's group or taken out, audited `MACHINE_SITE_ADD` / `_REMOVE` |
 | `keytab_command.py` | The `fabric-keytab` command for a machine's administrator to run over SSH; nothing changed |

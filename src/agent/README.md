@@ -40,6 +40,7 @@ arbitrary commands.
 | `post_people.py` | A person (1.6.12.17.6): edit, unlock, reset, disable, enable, remove, groups, add; each checked by fabric-agent for the token's caller |
 | `post_groups.py` | Groups: create, delete, managers (`groups:admin`), members (the DC decides: the tier above, or a manager) |
 | `post_ous.py` | The admins' own OUs: create, rename, delete (`ous:admin`) |
+| `read_tree.py` | GET /v1/directory/tree/ou=…/q=…/w=…/i=…: the directory browser's read (1.8.8.4) |
 | `post_account.py` | A person's own account: their password, as them, at once (any sign-in) |
 | `post_host_access.py` | Host groups (create, delete, machines in and out) and sudo rules (add, remove), in the directory at once (1.6.11.7) |
 | `post_local_admin.py` | The DC host's local-admin: its check-out and its SSH switch, the Enterprise Admin's alone (1.7.1.4.5, 1.7.1.4.6) |

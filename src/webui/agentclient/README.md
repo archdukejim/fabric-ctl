@@ -48,6 +48,7 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `show_grant.py` | One grant with the people and machines it reaches. Agent route: GET /v1/domain/grants/<name> (domain:read). |
 | `explain_grants.py` | Which grants reach a person, and why. Agent route: GET /v1/domain/grants/explain/<person> (domain:read). |
 | `list_ous.py` | The OU tree by path: fabric's marked, the admin's own, what each holds. Agent route: GET /v1/ous (domain:read). |
+| `browse_ou.py` | The directory browser's read: the tree to an OU, its contents or a search. Agent route: GET /v1/directory/tree/… (domain:read). |
 | `list_machines.py` | The domain's computers: type, sites, OS, folder, machine groups, state. Agent route: GET /v1/machines (domain:read). |
 | `machine_overview.py` | One computer's page: its facts, the grants reaching it, its 802.1X device, its actions' choices. Agent route: GET /v1/machines/<name> (domain:read). |
 | `machine_keytab.py` | The command that installs a service's keytab on a computer (nothing changed). Agent route: POST /v1/machines/<name>/keytab (machines:admin). |

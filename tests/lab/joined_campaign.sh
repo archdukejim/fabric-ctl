@@ -6,7 +6,7 @@
 # runs on the lab VMs over SSH with the lab key.
 #
 #   FROM_DEB=<fabricctl 0.8.0 .deb> TO_DEB=<the branch's .deb> tests/lab/joined_campaign.sh
-#   [ONLY="join upgrade images restart restore move rename" picks steps; all by default, each needs those before it]
+#   [ONLY="join upgrade place images restart restore move rename" picks steps; all by default, each needs those before it]
 #
 # The steps, each followed by client_check (the fabric host's own join, the Linux member ub26-2, the Windows member
 # ws25-1: the machine's password still the DC's, a Kerberos ticket as the machine, a domain person resolved, the DC
@@ -14,6 +14,9 @@
 #   join     fabric at the floor (FROM_DEB, 0.8.0 until 1.0: 2.1.1.61) with tests/lab/joined_vars.yaml; ub26-2 and
 #            ws25-1 joined with one-time passwords, piped from add-machine's output to the member (never an argument)
 #   upgrade  TO_DEB installed over it, then setup unattended, as an operator upgrades
+#   place    ub26-2 and ws25-1 moved into an admin's OU, machines/branch (1.8.8.5; 2.3.8.6 keeps a machine in
+#            OU=machines' tree): the person's access check, sudo, Windows' fabric GPOs and local Administrators the
+#            same as before the move; the later steps then run with them there
 #   images   every image updated and rolled back: tests/images/update.sh --ssh (2.1.14.12)
 #   restart  fabricctl stop and start, then the fabric VM rebooted
 #   restore  uninstall --export, then restore from it (3.2.4)
@@ -28,7 +31,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 FABRIC=10.88.0.10; FIRST=$FABRIC; MOVED=10.88.0.13; LINUX=10.88.0.21; WIN=10.88.0.41
 DOMAIN=lab.test; AD=ad.lab.test; PERSON=lab.admin; RENAMED=g23-vm-ub24-1b
-ONLY="${ONLY:-join upgrade images restart restore move rename}"
+ONLY="${ONLY:-join upgrade place images restart restore move rename}"
 # keepalives: a session whose address went away (the move) ends in about a minute instead of waiting for ever
 SSH=(-i "$HOME/.ssh/g23_lab" -o "UserKnownHostsFile=$HOME/fabric-lab/known_hosts" -o BatchMode=yes -o ConnectTimeout=20
      -o ServerAliveInterval=15 -o ServerAliveCountMax=4)
@@ -155,6 +158,33 @@ if wants upgrade; then
         stop "the floor's package is still installed"
     check "the upgrade's setup finishes" "F 'fabricctl setup --non-interactive --yes --approve all' >/dev/null"
     client_check "the upgrade"
+fi
+if wants place; then
+    echo "=== place: ub26-2 and ws25-1 moved into an admin's OU (1.8.8.5; within OU=machines' tree until 2.3.8.6)"
+    # what the members give the person before the move: sssd's access check (the grants' GPOs, PAM's account phase),
+    # sudo, and Windows' applied GPOs and local Administrators; the same after it, whatever the grants give
+    l_state() { L "sssctl user-checks $PERSON@$AD -a acct -s sshd 2>&1 | grep -i 'pam_acct_mgmt'; sudo -l -U $PERSON@$AD 2>&1 | grep -E '^ +\\(' | sort"; }
+    w_state() { W "gpupdate /target:computer /force | Out-Null; ((gpresult /r /scope computer) -match 'fabric' | ForEach-Object { \$_.Trim() } | Sort-Object) -join ';'; ((net localgroup Administrators | Select-Object -Skip 6) | Sort-Object) -join ';'"; }
+    before_l=$(l_state); before_w=$(w_state)
+    echo "INFO before: ub26-2: ${before_l//$'\n'/ | }; ws25-1: ${before_w//$'\n'/ | }"
+    check "an admin's own OU made under OU=machines: machines/branch (2.1.6.101)" \
+        "F 'fabricctl domain ou create machines branch' >/dev/null"
+    check "an admin's own OU made at the domain's root: lab-root (2.1.6.101)" \
+        "F 'fabricctl domain ou create / lab-root' >/dev/null"
+    check "negative: a machine is not moved out of OU=machines' tree while 2.3.8.6 waits, saying why" \
+        "! F 'fabricctl domain machine move g23-vm-ub26-2 lab-root' >/tmp/place.out 2>&1 && grep -q 'within OU=machines' /tmp/place.out"
+    check "ub26-2 moved to machines/branch" "F 'fabricctl domain machine move g23-vm-ub26-2 machines/branch' >/dev/null"
+    check "ws25-1 moved to machines/branch" "F 'fabricctl domain machine move g23-vm-ws25-1 machines/branch' >/dev/null"
+    check "negative: the fabric host's own account stays where fabric put it (2.1.6.100)" \
+        "! F 'fabricctl domain machine move g23-vm-ub24-1 machines/branch' >/dev/null 2>&1"
+    sleep 60
+    after_l=$(l_state); after_w=$(w_state)
+    echo "INFO after: ub26-2: ${after_l//$'\n'/ | }; ws25-1: ${after_w//$'\n'/ | }"
+    check "ub26-2 in machines/branch: the person's access check and sudo as before the move (the GPOs at the root)" \
+        "[ -n '${before_l//\'/}' ] && [ '${before_l//\'/}' = '${after_l//\'/}' ]"
+    check "ws25-1 in machines/branch: the same fabric GPOs applied and the same local Administrators as before" \
+        "[ -n '${before_w//\'/}' ] && [ '${before_w//\'/}' = '${after_w//\'/}' ]"
+    client_check "machines moved into an admin's OU"
 fi
 if wants images; then
     echo "=== images: every image updated and rolled back"

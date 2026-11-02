@@ -88,9 +88,9 @@ def post_route(route, actor, data, perms, session=None):
         ok, output = apply_changes(actor, source="web")
         return {"ok": ok, "output": output}
     if area == ["people"]:
-        return post_people(route, actor, data, caller)
+        return post_people(route, actor, data, caller, perms)
     if area == ["groups"]:
-        return post_groups(route, actor, data, caller)
+        return post_groups(route, actor, data, caller, perms)
     if area == ["ous"]:
         return post_ous(route, actor, data)
     if area == ["account"] and len(route) == 4 and route[1] == "groups" and route[3] == "members":

@@ -124,6 +124,8 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `list_groups.py` / `group_scope.py` / `managed_groups.py` | The groups and kinds; one group's two levels; the groups a person manages |
 | `create_group.py` / `remove_group.py` / `set_group_managers.py` | An admin's own group made (with a gid), deleted (unused only), its managers set |
 | `ou_paths.py` | OUs by path; where an admin's own OU and a moved object may go (anywhere but fabric's closed folders and the Domain Controllers, 2.1.6.101); fabric's fixed OUs |
+| `may_hold.py` | Where a person, machine or group may be put by a move or Create in… (each kind's folder tree until 2.3.8.6): the one place to widen |
+| `browse_ou.py` | Operation `browse_ou`: the directory browser's read, one level at a time (1.8.8.4) |
 | `own_object.py` | Whether an object is one of fabric's own, which stays where fabric put it (2.1.6.100) |
 | `list_ous.py` / `create_ou.py` / `rename_ou.py` / `delete_ou.py` | The OU tree; an admin's own OU made, renamed, deleted (empty only) |
 | `move_object.py` / `set_machine_type.py` / `set_machine_site.py` | A person's, machine's or group's OU (Move to…, 1.8.8.5; within its kind's folder until 2.3.8.6); a computer's type group, site groups |

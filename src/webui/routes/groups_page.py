@@ -2,6 +2,7 @@ import urllib.parse
 
 from webui import agentclient as actions
 from webui import views
+from webui.routes.places_for import places_for
 
 
 def groups_page(h, ctx, path, query):
@@ -24,7 +25,7 @@ def groups_page(h, ctx, path, query):
     if rest == "_new":
         if "groups:admin" not in (ctx.get("perms") or ()):
             return h.deny(403, "You need the permission groups:admin to create a group.")
-        return h.send(200, views.groups(ctx, "new"))
+        return h.send(200, views.groups(ctx, "new", places=places_for("group")))
     name = urllib.parse.unquote(rest)
     try:
         return h.send(200, views.groups(ctx, "group", group=actions.show_group(name)))

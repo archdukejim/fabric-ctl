@@ -14,7 +14,8 @@ NAME_RE = re.compile(r"^[\w .,'-]{1,60}$")
 MAIL_RE = re.compile(r"^[^@\s]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,}$")
 
 
-def create_person(v, actor, uid, first, last, email, source="web", secrets=None, caller=None, container="samba"):
+def create_person(v, actor, uid, first, last, email, source="web", secrets=None, caller=None, container="samba",
+                  ou=""):
     """Purpose: Helpdesk `people:create` (manual 1.6.3): a new person in OU=people (the domain's, 2.1.6.64), with
              their POSIX identity from the DC's range, in this site's `site-<name>`, and a one-time password they
              change at their first sign-in (Keycloak asks; then TOTP enrolment).
@@ -23,7 +24,9 @@ def create_person(v, actor, uid, first, last, email, source="web", secrets=None,
              simple punctuation, 1-60; email — an address with a dotted domain; source — audit source; secrets —
              fabric's secrets (default: load_secrets()); caller — the signed-in person's user name (fabric-agent's
              check: a grant's people add whose where groups are all among the new person's, site-<site>, or a
-             Directory Administrator), or None (root); container — the DC's container.
+             Directory Administrator), or None (root); container — the DC's container; ou — Create in...
+             (2.1.6.101): an OU's path to make them in instead of OU=people, where the DC lets a person be
+             (may_hold), or "".
     Returns: the one-time password: shown once, stored nowhere.
     Fails:   ValidationError "user name: 2-32 characters …", "first and last name: …", "e-mail address looks wrong",
              "that name is already taken" (the user name or e-mail address, anywhere in the domain), the directory's
@@ -38,13 +41,16 @@ def create_person(v, actor, uid, first, last, email, source="web", secrets=None,
         raise ValidationError("first and last name: letters and simple punctuation, at most 60")
     if not MAIL_RE.match(email or ""):
         raise ValidationError("e-mail address looks wrong")
+    if not isinstance(ou, str):
+        raise ValidationError("ou: an OU's path, as text")
     check_access(v, caller, "people:add", {"groups": [site_group(v["site_name"])]}, container)
     password = people_password(v)
     users_gid = next((int(g["gidNumber"]) for g in v.get("ldap_groups") or [] if g["name"] == "users"), 5000)
     run_op(v, secrets if secrets is not None else load_secrets(), "create_person",
            {"uid": uid, "first": first, "last": last, "email": email, "password": password, "gid": users_gid,
-            "home_base": v.get("posix_home_base") or "/home", "shell": v.get("posix_login_shell") or "/bin/bash"},
+            "home_base": v.get("posix_home_base") or "/home", "shell": v.get("posix_login_shell") or "/bin/bash",
+            **({"ou": ou} if ou else {})},
            container)
-    write_audit(actor, "PERSON_CREATE", f"user={uid}", source)
+    write_audit(actor, "PERSON_CREATE", f"user={uid}" + (f" ou={ou}" if ou else ""), source)
     sync_grants(v, actor, source, container, quiet=True)      # their site's group reaches grants at once (1.6.13.4)
     return password

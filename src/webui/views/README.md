@@ -21,6 +21,7 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `sites.py` | Directory · Sites: the sites and a site's page (read-only). |
 | `access.py` | Directory · Access: the grants, a grant's page and its forms, Add grant; a grant's rights in words. |
 | `ous.py` | Directory · OUs: the tree with Create OU, an OU's page with Rename and Delete. |
+| `tree.py` | Directory · Browse: the tree beside an OU's contents, the search, the Move to… form. |
 | `computers.py` | Directory · Computers: the list (search, filters, 50 a page), a computer's page and its forms, Add computer, Machine groups, a service's keytab command. |
 | `paged.py` | A long list's search and paging (People, Groups). |
 | `policies.py` | Directory · Policies: the password policy, Group Policy and the sudo rules, one Apply. |

@@ -1,4 +1,5 @@
 from webui.devpreview.fabric_rules import ValidationError
+from webui.devpreview.fake_ous import place_in
 
 # the preview's groups in show_group's shape (1.6.12.5): one of each kind a page shows differently
 _EMPTY = {"grants": [], "sudo": [], "bundle": False, "bundle_name": "", "radius_vlan": None}
@@ -122,6 +123,8 @@ def fake_groups(state, who, route, body):
             raise ValidationError("a group's name: 2-64 of a-z 0-9 . _ -")
         if find_group(state, name) or any(u["uid"] == name for u in state.data["people"]["users"]):
             raise ValidationError(f"{name} is already taken")
+        if body.get("ou"):
+            place_in(state, "group", str(body["ou"]))
         _groups(state).append({"name": name, "kind": "own", "description": str(body.get("description") or ""),
                                "scope": dict(_EMPTY), "managers": {"managers": [], "add": False, "remove": False,
                                                                    "only_from": ""},

@@ -378,6 +378,29 @@ check(f"{SRV} in OU=branch: sam still signs in and keeps sudo, lara (lab's) stil
 code, out = grant("sync")
 check("negative: the compile after the move changes nothing (OUs grant nothing)",
       code == 0 and "nothing to change" in out, out)
+# Create in... (2.1.6.101): the same rule as a move (may_hold), at the DC
+made = run_op(V, SECRETS, "create_machine", {"name": "brws1", "password": PW + "Mc1", "ou": "machines/branch",
+                                             "type": "desktop"}, DC)
+check("Create in...: a machine made in machines/branch, its type its group (2.1.6.99)",
+      made.get("dn", "").startswith("CN=BRWS1,OU=branch,OU=machines,")
+      and "CN=machines-desktops," in ldb("(sAMAccountName=BRWS1$)", "memberOf"), made)
+made = run_op(V, SECRETS, "create_ou", {"parent": "groups", "name": "teams"}, DC)
+made = run_op(V, SECRETS, "create_group", {"name": "team-a", "ou": "groups/teams"}, DC)
+check("Create in...: a group made in groups/teams", "OU=teams,OU=groups," in ldb("(sAMAccountName=team-a)", "dn"),
+      made)
+for op, args, words in (("create_machine", {"name": "brws2", "password": PW + "Mc2", "ou": "branch"},
+                         "within OU=machines"),
+                        ("create_group", {"name": "team-b", "ou": "machines/branch"}, "within OU=groups"),
+                        ("create_group", {"name": "team-c", "ou": "groups/fabric"}, "closed folders"),
+                        ("create_machine", {"name": "brws3", "password": PW + "Mc3", "ou": "machines/nowhere"},
+                         "no OU machines/nowhere")):
+    try:
+        got = run_op(V, SECRETS, op, args, DC)
+    except ValidationError as e:
+        got = str(e)
+    check(f"negative: Create in... refused for {op} in {args['ou']}, saying why ({words}), nothing made",
+          words in str(got) and args["name"].upper() not in ldb(f"(sAMAccountName={args['name']}*)", "dn").upper(),
+          got)
 back = run_op(V, SECRETS, "move_object", {"kind": "machine", "name": SRV, "path": "machines/servers"}, DC)
 check(f"{SRV} moved back to machines/servers", back.get("changed"), back)
 # the upgrade (Rule 9, positive evidence): 0.9.0 linked the fallback at OU=machines; the next compile takes it out

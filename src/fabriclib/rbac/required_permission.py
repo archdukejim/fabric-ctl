@@ -21,6 +21,7 @@ GET = {
     ("sites",): "domain:read",                                        # Sites (1.6.12.8)
     ("sites", "tree"): "session",          # the top bar's site selector (1.8.6.12): every site; control is per page
     ("domain",): "domain:read", ("gpo",): "domain:read", ("directory",): "domain:read",   # the Overview
+    ("directory", "tree", "*", "*", "*", "*"): "domain:read",         # the directory browser (1.8.8.4)
     ("domain", "grants"): "domain:read", ("domain", "grants", "*"): "domain:read",
     ("domain", "grants", "explain", "*"): "domain:read", ("domain", "grants", "explain", "*", "*"): "domain:read",
     ("domain", "kerberos"): "domain:read", ("domain", "kerberos", "spns"): "domain:read",
@@ -64,8 +65,9 @@ POST = {
     ("people", "*", "disable"): "people:disable", ("people", "*", "enable"): "people:disable",
     ("people", "*", "delete"): "people:remove", ("people", "*", "groups"): "people:groups",
     ("people", "*", "edit"): "people:edit", ("people", "*", "unlock"): "people:reset",
+    ("people", "*", "move"): "people:edit",                           # Move to... (1.8.8.5), with ous:admin
     ("groups",): "groups:admin", ("groups", "*", "delete"): "groups:admin",
-    ("groups", "*", "managers"): "groups:admin",
+    ("groups", "*", "managers"): "groups:admin", ("groups", "*", "move"): "groups:admin",   # Move to... (1.8.8.5)
     ("groups", "*", "members"): "session",            # a group's managers need no permission: fabric-agent checks
     ("ous",): "ous:admin", ("ous", "rename"): "ous:admin", ("ous", "delete"): "ous:admin",
     ("account", "password"): "session",               # a person's own password (1.8.6.6): theirs alone

@@ -29,6 +29,7 @@
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Name<input name="name" required pattern="[a-z0-9._-]{2,64}" placeholder="lab-users" autocomplete="off"></label>
 <label>Description<input name="description" maxlength="256"></label>
+<label>Create in<select name="ou"><option value="">groups (fabric&#39;s folder)</option>{% for o in places %}<option>{{ o }}</option>{% endfor %}</select></label>
 <div><button>Create group</button></div>
 </form>
 <p class="muted small">Lower-case letters, digits and <code>. _ -</code>; not one of fabric's or AD's names. Waits for the Groups page's Apply.</p>

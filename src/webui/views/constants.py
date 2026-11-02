@@ -20,6 +20,7 @@ NAV = [
                       ("/kea", "Kea", ("dhcp:read",))]),
     ("pki", "PKI", [("/pki", "Certificates", ("pki:read",)), ("/pki/acme", "ACME", ("pki:read",))]),
     ("directory", "Directory", [("/directory", "Overview", ("domain:read",)),
+                                ("/directory/tree", "Browse", ("domain:read",)),
                                 ("/directory/people", "People", ("people:read",)),
                                 ("/directory/groups", "Groups", ("domain:read",)),
                                 ("/directory/computers", "Computers", ("domain:read",)),

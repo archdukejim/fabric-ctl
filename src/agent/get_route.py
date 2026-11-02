@@ -2,6 +2,7 @@ import os
 
 from agent.job_store import JOBS
 from agent.one_thing import one_thing
+from agent.read_tree import read_tree
 from agent.route_not_found import RouteNotFound
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
@@ -151,7 +152,8 @@ def get_route(route, user=None, perms=None):
              settings file; networks[/<site>]: networks_overview (the Networks tab: any site of the domain,
              1.10.4.35); networks/<site>/export: networks_csv ({"csv", "name"}); ipam/options/<site>[/<target>]:
              options_overview (`-` for this site; a target's effective options with their sources, 1.10.4.24.3);
-             ipam/scan: scan_overview (the subnets a scan may cover, and whether this person may scan here).
+             ipam/scan: scan_overview (the subnets a scan may cover, and whether this person may scan here);
+             directory/tree/ou=…/q=…/w=…/i=…: read_tree (the directory browser, 1.8.8.4).
     Fails:   RouteNotFound for any other route (-> 404); NotFound for a person, computer, group, grant or site
              (networks, ipam/options) that is not there (-> 404, 2.1.8.21; 1.10.4.40.1); whatever the operation
              raises (ValidationError -> 400).
@@ -187,6 +189,8 @@ def get_route(route, user=None, perms=None):
                          route[3] if len(route) == 4 else "")
     if route == ["ipam", "scan"]:
         return scan_overview(load_vars(), user)
+    if len(route) == 6 and route[:2] == ["directory", "tree"]:
+        return read_tree(route[2:])
     if route == ["vault", "slots"]:
         v = load_vars()
         return {"slots": list_slots(v), "host": v.get("hostname", "")}

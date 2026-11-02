@@ -401,6 +401,7 @@ src/agent/post_vault.py	bca39a3132a9f0a1bdf86999834847a5218b0682	2026-10-02
 src/agent/read_fields.py	8e80f528f1d99238af45808dd7758924a9b12b22	2026-10-03	
 src/agent/read_strings.py	f5f2db4bf0208ff0d6f626b7662ebce00d596490	2026-10-12	
 src/agent/read_text.py	9c40f63dfbce4a6e6dae57b432a1be3644beb67e	2026-10-02	
+src/agent/read_tree.py	a533bccc30d1204deccfc71776cfa3fc81f6fe57	2026-11-02	
 src/agent/route_not_found.py	c8dceaa5baf9495e016cb21c491fbb616a2b82ee	2026-10-02	
 src/agent/server.py	87316d80b677bd6f9806bdf5273a0604102616e7	2026-10-11	
 src/containers/README.md	820aa5b0aae136962c25ad5f521b72492bb926a0	2026-10-08	
@@ -426,6 +427,7 @@ src/containers/samba/adopt_linux_machines.py	9687fc9ecf3b326c27d28f27518bc7aa972
 src/containers/samba/all_machines.py	53a3eb884668b457e7707f3e05691bc78d1f5ac5	2026-11-02	
 src/containers/samba/alloc_id.py	407594ec737b5a7f85be055880ab21383191ff88	2026-10-20	
 src/containers/samba/authorize_action.py	b9847bc4d51bc64d5b0ef75777943db39b798a37	2026-10-23	
+src/containers/samba/browse_ou.py	de14ad4624018dbc3ed3da4d5698aa962fbc9661	2026-11-02	
 src/containers/samba/change_own_password.py	00c5aea96648498a4ab09d7b19df8131b0f07d7c	2026-10-20	
 src/containers/samba/check_grant.py	4433587cb9c273a698b6b0d81f647705e112ef8a	2026-10-23	
 src/containers/samba/compile_grants.py	5ef35d4455963b88f7e300ba6c700b249b0da19f	2026-10-21	
@@ -490,6 +492,7 @@ src/containers/samba/list_sudo_rules.py	dff62af925c31b3d6c838a691bdf298e9715e4cd
 src/containers/samba/local_admin_store.py	82e66acd85ccaa210b7c985be970da036c1475e7	2026-10-23	
 src/containers/samba/local_admin_tool.py	dc1fce784cab9c8abdb567035bb3a293b67a2ad4	2026-10-23	
 src/containers/samba/managed_groups.py	b7a2b430ba12f6ece8c6cadcb856185f69a3a08e	2026-10-20	
+src/containers/samba/may_hold.py	3e9f4e7aefb0b5b4292bbd42207df675da214dfd	2026-11-02	
 src/containers/samba/move_machine.py	e691aa46d8fbe57450ede4c4089b5a8be0e12476	2026-10-20	
 src/containers/samba/move_object.py	59e7f59685c78371f598a706c819d8cb1e5a74d0	2026-11-02	
 src/containers/samba/open_samdb.py	1d8df52a1d49724f2ecab96395ff274baf7b386c	2026-10-04	
@@ -877,6 +880,7 @@ src/fabriclib/dns_filter/sync_adguard.py	41957389f23e07edbc10ddff819014d4b9778bf
 src/fabriclib/dns_filter/update_lists.py	aea9b06efd955a5998ac4e759a36d51abdc5b479	2026-10-11	
 src/fabriclib/domain/README.md	cc89defc8ae09acc7a4fc0b8738d1581d0ae3459	2026-10-23	
 src/fabriclib/domain/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-20	
+src/fabriclib/domain/browse_ou.py	78a69923f0771d43677a8bba69b2ba7c3bd417c2	2026-11-02	
 src/fabriclib/domain/change_own_password.py	76ec9f3f45e36e7c9867c89521aef2a92a8da6b4	2026-10-20	
 src/fabriclib/domain/create_group.py	416296ecfeeb4dfb14d62d6608500430855b123e	2026-10-20	
 src/fabriclib/domain/create_ou.py	944d9c3d7a5948665999fc6edc74e9f61f463ea3	2026-10-20	
@@ -891,6 +895,7 @@ src/fabriclib/domain/list_ous.py	7c4b3bff70ec0e34e8cbb7d21277211ff84b8f00	2026-1
 src/fabriclib/domain/list_spns.py	b8978165d388762f153d64acfe83e0edef26db89	2026-10-20	
 src/fabriclib/domain/machine_overview.py	173c821e3c27e6bd83364c112f40c80f19b8c58f	2026-10-23	
 src/fabriclib/domain/move_machine.py	40a2e35248dba21ce6cf6c47950e216056520978	2026-10-20	
+src/fabriclib/domain/move_object.py	147c9565af0b69a01715c47493591bf8390ea4d0	2026-11-02	
 src/fabriclib/domain/my_account.py	3d925ba10382e921183a544024ad68f8471b3252	2026-10-23	
 src/fabriclib/domain/my_groups.py	a95fb69c2736f287319fec437e008f6ec686271b	2026-10-20	
 src/fabriclib/domain/person_fields.py	7d12051ff7e11176c260dc3812f7c3262e55beee	2026-10-20	
@@ -1573,6 +1578,7 @@ src/webui/agentclient/add_reservation.py	a8dbb59d490cf9c3f1ec4edab3c8ed99b647dd4
 src/webui/agentclient/add_subnet.py	7933e4be16d7df968bb5451c8ca64c046ed8de8e	2026-10-12	
 src/webui/agentclient/add_zone.py	0b9850ec3b1dd479a4eead1429de1a5ffa40c41b	2026-10-12	
 src/webui/agentclient/audit.py	70d19b367b49b1e70990bccea74bf9839ad0aece	2026-10-03	
+src/webui/agentclient/browse_ou.py	742734c334b3eea31d880d326e54fa6015e8a120	2026-11-02	
 src/webui/agentclient/ca_summary.py	63feba787561e7f55c9896e808f5c721653bec8e	2026-10-03	
 src/webui/agentclient/cert_warnings.py	25bcff6dd215d8a799693833560f0e3b58bddc4a	2026-10-08	
 src/webui/agentclient/change_own_password.py	f845a2fd23a01b4b5c29564d340eae2945292dee	2026-10-23	
@@ -1699,6 +1705,7 @@ src/webui/devpreview/fake_network.py	c7a081850659a65ffbde3b392c243be94eca9f32	20
 src/webui/devpreview/fake_ous.py	40fc706f28cabc48ff7a86acb9e95d1b3f7b3425	2026-10-23	
 src/webui/devpreview/fake_pending.py	735e96ecb307def43b70315b2fcb9f95dcd21d32	2026-10-24	
 src/webui/devpreview/fake_reads.py	0c3379fff4ea1d57be64d1620ce9322d588b4cc1	2026-10-25	
+src/webui/devpreview/fake_tree.py	67e4bfaad948ae85370748a68c8c9df28c7809c6	2026-11-02	
 src/webui/devpreview/sample_data.py	9bfd58fffc30848e159b16f9514110d88be4b319	2026-10-31	
 src/webui/devpreview/sample_networks.py	3dd9204ab38f1ef0bf2bfbce0271293424846667	2026-10-23	
 src/webui/devpreview/sample_radius_guides.py	862106ee28f034e2c57b6725fb2edc7c23969cde	2026-10-23	
@@ -1723,7 +1730,7 @@ src/webui/routes/computers_page.py	c16103d36b5732793eac5c2e0929cb4dc8bfa157	2026
 src/webui/routes/device_post.py	e21003a97ff703369fa2a70070ece842964ba8dd	2026-10-23	
 src/webui/routes/devices_page.py	f338bed9e8e53df398a0e08b5f9b783888cda90d	2026-10-23	
 src/webui/routes/directory_page.py	dffc9b2d0b65078f8b056c4e690efc68c4ecb026	2026-10-23	
-src/webui/routes/directory_post.py	b651f2c6aa31e2a9dbe0e3d856dd4eef6792c922	2026-10-23	
+src/webui/routes/directory_post.py	ab539ed81fae04c3e4bd612ca157abab7e98e81a	2026-11-02	
 src/webui/routes/dns_filter_page.py	00bb9f521064301f0ec1979892fda14b44cab78c	2026-10-23	
 src/webui/routes/dns_filter_post.py	2660014dd54c576fe8fe3f8e292aaa041261086b	2026-10-23	
 src/webui/routes/finish_setting_up.py	30bdd6e4562ebcf1c6aa1d86f463e76130414ea2	2026-10-17	
@@ -1745,6 +1752,7 @@ src/webui/routes/ous_page.py	ddbbb9d3a4f510337c380ad4011e1030b8c310ab	2026-10-23
 src/webui/routes/overview_post.py	00179b449988f055b4553c96f3073dbf80eebb28	2026-10-23	
 src/webui/routes/people_page.py	fc31efdcbbaaccbd5a23a9d43bd93f1e082b7dcb	2026-10-23	
 src/webui/routes/picked_record.py	4b5cc223b23d8388f34e0980187bbe1cbe853726	2026-10-23	
+src/webui/routes/places_for.py	af9baa8ac3c6fdbd561c5b81acb693c13e970fcb	2026-11-02	
 src/webui/routes/policies_page.py	2df6346ef7e646a4d17af9c5483552ec2d82cbd8	2026-10-23	
 src/webui/routes/post_action.py	2e36bd6b1ebbfa0e780e97ccd0a2f70e98ab41fa	2026-10-23	
 src/webui/routes/radius_page.py	f3bc72c06d72a4821aa13e442559b6e158d1a48b	2026-10-23	
@@ -1759,6 +1767,7 @@ src/webui/routes/site_link.py	a58167cc032a8e2c664a6afef74579b464ff1a77	2026-10-2
 src/webui/routes/sites_page.py	359c1ac6badea8270a88260d13232fe85b374be5	2026-10-23	
 src/webui/routes/stepca_page.py	12c8128616c6a62b0e97f6720d0295d2752454a3	2026-10-23	
 src/webui/routes/stepca_post.py	822facf0e0284c5056fec8af8914c955e0deabe9	2026-10-23	
+src/webui/routes/tree_page.py	a738ba90daeee04c9f9e0706b243818cb1750c7f	2026-11-02	
 src/webui/routes/tsig_post.py	fddebd1b134d2f8218d1f6568f68d07fe511f28c	2026-10-23	
 src/webui/routes/vault_post.py	cf07a5ef80554381596598d2e04ca16427254696	2026-10-23	
 src/webui/routes/zone_post.py	3ec02787db4adef404090fb4b5102302fdd0ef11	2026-10-23	
@@ -1820,6 +1829,7 @@ src/webui/views/settings.py	f295083ff61860c3450a10d1fdce4f9761578b9f	2026-10-23
 src/webui/views/settings_plan.py	d82da2646853d3639437a4dc4d3831830a0c22ea	2026-10-23	
 src/webui/views/sites.py	618831b112894a336781a52840c4d15225cf5d17	2026-10-23	
 src/webui/views/stepca.py	cb71453e0a9591592017af0aab5b6ecc69009e69	2026-10-23	
+src/webui/views/tree.py	ab3ad07bc7c5802d51ae11b6e054b403052e2464	2026-11-02	
 src/webui/views/tsig_result.py	d1049be0113e6b46c91c169841819657940a9ecb	2026-10-23	
 static/README.md	7173bb0bdcaf4690100a9d11e270944d48e76708	2026-10-03	
 static/nginx/README.md	ce87b7478aa0a65192a99a420f563f8b7606d391	2026-10-03	
@@ -1981,6 +1991,7 @@ templates/webui-app/settings.html	33d0dbe37f6b9dfa16698303863bf70f05ec8e0b	2026-
 templates/webui-app/settings_plan.html	127eedc06c78353d62e2ed639764a6da34085e46	2026-10-23	
 templates/webui-app/sites.html	3289c92e6943ff58d8b3179a82ea3639494ec85e	2026-10-23	
 templates/webui-app/stepca.html	5960249707aa07f56a47203be289d8c9df2781f9	2026-10-23	
+templates/webui-app/tree.html	c87acaceeb727e0be05a64b6da3a80ec012ec6c4	2026-11-02	
 templates/webui-app/tsig_result.html	94273d155f059266137590a671dc1b14dce6c60b	2026-10-23	
 templates/webui/README.md	18afb94efe023f28a4367b553e784c19970a9355	2026-10-03	
 templates/webui/docker-compose.yml.j2	2cef615a03ee1e58167c9dede4a3f06ca3291bcb	2026-10-12	
