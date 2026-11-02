@@ -14,6 +14,7 @@ from fabriclib.dhcp.normalize_dhcp import normalize_dhcp
 from fabriclib.federation.network_conflicts import network_conflicts
 from fabriclib.federation.read_address_plan import read_address_plan
 from fabriclib.federation.site_networks import site_networks
+from fabriclib.ipam.common.plan_holds_subnets import MOVED, MOVED_OPTIONS, plan_holds_subnets
 
 
 def _check_address_plan(before, data):
@@ -44,23 +45,28 @@ def _check_address_plan(before, data):
                                 "never routed together")
 
 
-def edit_dhcp(actor, event, change, source="cli"):
+def edit_dhcp(actor, event, change, source="cli", global_level=False):
     """Purpose: one change to `dhcp:` in vars.yaml, the way every DHCP command makes it: under the vars lock, on
              the normalized settings (so every subnet keeps a stored id), the whole block checked again — by fabric
              and, when DHCP is on, by Kea itself on the configuration it would get — before it is saved, then
              audited. Applied by the next apply.
     Inputs:  actor — who asks (audit); event — the audit event (e.g. "DHCP_SUBNET_ADD"); change — function(dhcp)
-             that changes the dict in place and returns (result, audit detail str); source — "cli" or "web".
+             that changes the dict in place and returns (result, audit detail str); source — "cli" or "web";
+             global_level — the change is to the global options or a client class (not a subnet or a reservation).
     Returns: (result of change, the saved dhcp block).
     Fails:   ValidationError from change, normalize_dhcp or Kea's check (check_kea_config: an option Kea does not
              know, data that does not fit, a class expression it cannot parse) or the address plan (a subnet
              overlapping another site's network without allow_overlap) — nothing is saved then, so a
-             refused change never breaks the next apply; OSError or yaml.YAMLError from vars_lock / load_vars /
-             save_vars / write_audit.
+             refused change never breaks the next apply; once this site's subnets live in the address plan
+             (plan_holds_subnets, manual 1.10.4.21, 1.10.4.37), every change is refused before `change` runs, naming
+             the `fabricctl ipam` commands that make it: MOVED_OPTIONS for global_level, MOVED for a subnet's or a
+             reservation's; OSError or yaml.YAMLError from vars_lock / load_vars / save_vars / write_audit.
     Feeds:   dhcp/add_subnet, update_subnet, remove_subnet, set_option, unset_option, add_client_class,
              remove_client_class."""
     with vars_lock():
         data = load_vars()
+        if plan_holds_subnets(data):          # the plan's since 0.9.0 (1.10.4.37): the ipam commands make it
+            raise ValidationError(MOVED_OPTIONS if global_level else MOVED)
         before = copy.deepcopy(data)
         dhcp = normalize_dhcp({**data, "dhcp": copy.deepcopy(data.get("dhcp") or {}), "install_kea": True})
         result, detail = change(dhcp)

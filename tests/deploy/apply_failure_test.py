@@ -13,6 +13,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(REPO, "src"))
 import fabriclib.system.apply_changes as ac  # noqa: E402
 import fabriclib.system.apply_failure as af  # noqa: E402
+import fabriclib.security.refresh_firewall as fw  # noqa: E402
+import agent.post_pending as pp  # noqa: E402
 from agent.post_pending import _finish  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 
@@ -84,6 +86,29 @@ with tempfile.TemporaryDirectory() as d:
     except ValidationError as e:
         why = str(e)
     check("positive: a page's Apply whose apply finishes raises nothing", why == "", why)
+
+    # the address manager's Apply (Networks, DHCP options): this site's plan applied, then the firewall
+    pp.load_vars = lambda: {"site_name": "home"}
+    what, apply_here = _finish("networks", [("ipam", "home", "subnet")])
+
+    def run_here(apply_result, firewall_result):
+        ac.apply_changes = lambda actor, source="cli": apply_result
+        fw.refresh_firewall = lambda: firewall_result
+        try:
+            apply_here("alice")
+            return ""
+        except ValidationError as e:
+            return str(e)
+
+    why = run_here((False, OUTPUT), (True, ""))
+    check("negative: Networks' Apply whose apply fails: its job's error has the last 10 lines and the log",
+          "Traceback: the cause" in why and "line 23" in why and "line 22" not in why
+          and "(the full output: " + logs in why, why)
+    why = run_here((True, ""), (False, "nft: the rule set refused\nfirewall not refreshed"))
+    check("negative: Networks' Apply whose firewall fails: its error has the firewall's lines and the log",
+          "nft: the rule set refused" in why and "(the full output: " + logs in why, why)
+    why = run_here((True, OUTPUT), (True, ""))
+    check("positive: Networks' Apply whose apply and firewall finish raises nothing", why == "", why)
     af.apply_failure.__defaults__ = af_default
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

@@ -10,7 +10,8 @@ from webui.httpio.read_form import read_form
 from webui.routes.get_page import get_page
 from webui.routes.post_action import post_action
 
-TOGGLES = ("fresh", "off")          # the preview's own switches (the DNS filter's first fetch; DHCP off)
+TOGGLES = ("fresh", "off", "noscan")   # the preview's own switches (the DNS filter's first fetch; DHCP off; no
+                                       # grant to scan here, 1.10.4.40.1)
 
 
 class _DevOIDC:

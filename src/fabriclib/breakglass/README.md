@@ -13,4 +13,5 @@ exists, and the reset by root on a host with a writable DC.
 | `write_break_glass_file.py` | The password written once to `~/fabric-admin/fabric-admin-password.txt` (0700/0600, the person's), its path recorded |
 | `break_glass_reminder.py` | While that file exists: the reminder to store it and delete it; once gone, its removal audited |
 | `reset_break_glass.py` | A lost password replaced on a host with a writable DC: a new one set inside the DC, the account unlocked, the file written again, audited `BREAK_GLASS_RESET` |
-| `run_admin_command.py` | `fabricctl admin reset-break-glass`: parses and routes to reset_break_glass |
+| `rename_host.py` | A domain controller's host renamed through break glass, the only way (2.1.6.104): the name and reason checked, hostnamectl, vars.yaml, the recorded name moved, local-admin follows, audited `HOST_RENAME` |
+| `run_admin_command.py` | `fabricctl admin reset-break-glass` and `admin rename-host`: parses and routes to reset_break_glass and rename_host |

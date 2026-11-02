@@ -44,7 +44,7 @@ Nothing here yet — nothing to install on its own: see [1.7](../volume_1_descri
 
 ## 3.8 The web UI
 
-Nothing here yet — nothing to install on its own: see [1.8](../volume_1_description_and_architecture/README.md).
+- [3.8.1 Cockpit behind fabric's web server](3.8.1-cockpit-proxy.md)
 
 ## 3.9 Federation
 

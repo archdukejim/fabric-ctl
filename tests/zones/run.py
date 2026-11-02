@@ -121,7 +121,7 @@ VARS = {"deploy_base_dir": W, "domain": "lan.test", "org_domain": "lan.test", "h
         "dns_filter": "bind", "dns_filter_lists": [], "dns_filter_upstreams": [{"address": "1.1.1.1", "name": "cloudflare-dns.com"}],
         "service_users": {"bind": {"uid": 600, "gid": 600}, "resolver": {"uid": 913, "gid": 913}},
         "dns": {"dynamic_zone_var": {"zone_authority": True, "A": [{"name": "www", "ip": "10.9.8.7"}]}},
-        # the zone path checks the settings as an apply does (2.1.4.7): an install's password policy (2.1.6.13)
+        # the zone path checks the settings as an apply does (2.1.4.7, 2.1.10.21): an install's password policy (2.1.6.13)
         "ad_password_policy": {"minimum_length": 14, "complexity": True, "history": 24, "minimum_age_days": 0,
                                "maximum_age_days": 0, "lockout_threshold": 5, "lockout_minutes": 15,
                                "lockout_window_minutes": 15}}
@@ -184,6 +184,16 @@ try:
     up = until(lambda: "10.9.8.7" in short(BIND_IP, "www.lan.test"))
     check("BIND starts from fabric's rendered configuration and serves the site's zone", up,
           sh("docker logs --tail 30 bind9", ok=False).stderr)
+    # a zone list installed without `rndc reconfig` (an apply stopped after BIND's files, 2.3.10.11.16): found, so
+    # the next apply reconfigures; a zone BIND serves is not named
+    from fabriclib.dns.zones_bind_lacks import zones_bind_lacks  # noqa: E402
+    lack_dir = f"{W}/lacks"
+    os.makedirs(lack_dir, exist_ok=True)
+    for name in ("db.lan.test", "db.not-listed.test"):
+        open(os.path.join(lack_dir, name), "w").close()
+    lacking = zones_bind_lacks(lack_dir)
+    check("a zone with a file that the running BIND does not know is found (the next apply reconfigures BIND); "
+          "one it serves is not", lacking == ["not-listed.test"], lacking)
     r = lib("import json\nfrom fabriclib.common.jinja_env import jinja_env\nfrom fabriclib.common.load_vars import "
             "load_vars\nfrom fabriclib.secrets.load_secrets import load_secrets\nfrom fabriclib.deploy.render_vars "
             "import render_vars\nfrom fabriclib.dns_filter.deploy_resolver import deploy_resolver\n"
@@ -351,11 +361,11 @@ try:
           os.path.exists(f"{W}/nginx/www/landing/index.html") and not os.path.exists(f"{W}/keycloak")
           and not os.path.exists(f"{W}/nginx/nginx.conf"), sorted(os.listdir(W)))
     r = lib(code)
-    # a zone holding DHCP's kept PTRs (2.1.10.7) is swapped in again every time: its deployed file keeps them, the
-    # render does not (find_changed_zones; a full apply does the same, 2.3.8.3.22)
+    # a zone holding DHCP's kept PTRs (2.1.10.7) is not swapped again for them: find_changed_zones compares fabric's
+    # part of the deployed file only (2.3.10.11.13; 2.3.8.3.22's finding). The same after Kea's registration, below.
     again = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
-    check("DNS' Apply again with nothing changed: BIND's configuration not reloaded, the changed zone not swapped "
-          "again, said", again.startswith("DONE") and "'config': False" in again and "'lan.test'" not in again, again)
+    check("DNS' Apply again with nothing changed: BIND's configuration not reloaded, no zone swapped, said",
+          again.startswith("DONE") and "'config': False" in again and "'zones': []" in again, again)
     # ---- the landing page's certificate (2.1.8.29): DNS' Apply issues none, and says when a full apply would
 
     def landing_cert(names):
@@ -380,8 +390,9 @@ try:
     stale, said = stale_after_apply()
     check("...a certificate holding exactly the page's names: nothing said", stale is None, said)
     shutil.rmtree(f"{W}/nginx/certs", ignore_errors=True)
-    # ---- DHCP between applies (2.3.4.3, decision 2.1.4.7): a zone change renders BIND's zone list from the same
-    # checked settings as an apply, so DHCP's reverse zones and Kea's grants stay
+    # ---- DHCP between applies (2.3.4.3, 2.3.10.4.10; decision 2.1.4.7, extended by 2.1.10.21): a zone change renders
+    # BIND's zone list from the same checked settings as an apply, so DHCP's reverse zones, Kea's grants and the
+    # denies on hand-set PTRs stay
     _rev = ".".join(reversed(testrun.PREFIX.split(".")))      # this run's prefix, reversed
     REV45, REV46 = f"45.{_rev}.in-addr.arpa", f"46.{_rev}.in-addr.arpa"
     iface = lib("from fabriclib.system.host_networks import host_networks\nprint(sorted(host_networks())[0])")
@@ -403,7 +414,7 @@ try:
             yaml.safe_dump(v, f, sort_keys=False)
 
     def kea_on(v):
-        v["install_kea"] = True                     # a pool in 45 (no forward record: DHCP's only), one in 46
+        v["install_kea"] = True                     # a pool in 45 (no name set by hand: DHCP's only), one in 46
         v["dhcp"] = {"interfaces": [iface], "subnets": [
             {"subnet": f"{testrun.PREFIX}.45.0/24", "name": "lab45", "vlan": 45, "pools": [f"{testrun.PREFIX}.45.100 - {testrun.PREFIX}.45.150"],
              "routers": f"{testrun.PREFIX}.45.1"},
@@ -438,13 +449,20 @@ try:
     conf = zone_list()
     check("add between applies: accepted, and the zone list keeps the reverse zone that holds only DHCP's PTRs, "
           "with Kea's grant", st == 200 and 'grant "kea-ddns" zonesub PTR DHCID;' in zone_block(conf, REV45)
-          and 'grant "kea-ddns" zonesub PTR DHCID;' in zone_block(conf, REV46)
           and status(BIND_IP, "between.lan") == "NOERROR" and status(BIND_IP, REV45) == "NOERROR", (st, res, conf))
+    check("add between applies: the PTR set by hand keeps its deny before Kea's grant (2.1.10.20)",
+          f'deny "kea-ddns" name 9.{REV46}. ANY;' in zone_block(conf, REV46)
+          and 'grant "kea-ddns" zonesub PTR DHCID;' in zone_block(conf, REV46)
+          and 'grant "kea-ddns" zonesub A AAAA DHCID;' in zone_block(conf, "dhcp.lan.test"), conf)
     upd = sh(f"printf 'server {BIND_IP}\\nzone {REV45}\\nupdate add 120.{REV45} 60 PTR laptop9.dhcp.lan.test.\\n"
              f"send\\n' | nsupdate -k {W}/kea-ddns.key 2>&1", ok=False)
     check("add between applies: DHCP's PTR registration still works (Kea's key adds a PTR in its reverse zone)",
           upd.returncode == 0 and short(BIND_IP, f"120.{REV45}", "PTR") == "laptop9.dhcp.lan.test.",
           upd.stdout[-300:])
+    grab = sh(f"printf 'server {BIND_IP}\\nzone {REV46}\\nupdate delete 9.{REV46} PTR\\nupdate add 9.{REV46} 60 PTR "
+              f"evil.dhcp.lan.test.\\nsend\\n' | nsupdate -k {W}/kea-ddns.key 2>&1", ok=False).stdout
+    check("add between applies: Kea's key still may not replace the PTR set by hand",
+          "REFUSED" in grab and short(BIND_IP, f"9.{REV46}", "PTR") == "nas46.lan.test.", grab[-300:])
 
     # covers: agent:post.zones -
     # covers: agent:post.zones.*.delete -
@@ -469,6 +487,75 @@ try:
           st == 200 and status(BIND_IP, "between.lan") != "NOERROR"
           and 'grant "kea-ddns" zonesub PTR DHCID;' in zone_block(zone_list(), REV45)
           and status(BIND_IP, REV45) == "NOERROR", (st, res))
+
+    # Sync now's quick path (manual 1.10.4.28, decision 2.1.10.29): names set by hand and a new subnet's reverse zone
+    # published under the running BIND without an apply; a reloaded reverse zone keeps Kea's PTR (2.1.10.7)
+    REV47 = f"47.{_rev}.in-addr.arpa"
+
+    def more(v):
+        v["dhcp"]["subnets"].append({"subnet": f"{testrun.PREFIX}.47.0/24", "name": "lab47", "vlan": 47,
+                                     "pools": [f"{testrun.PREFIX}.47.100 - {testrun.PREFIX}.47.150"], "routers": f"{testrun.PREFIX}.47.1"})
+        v["dns"]["dynamic_zone_var"]["A"] += [{"name": "printer47", "ip": f"{testrun.PREFIX}.47.9"},
+                                              {"name": "nas45", "ip": f"{testrun.PREFIX}.45.9"}]
+    # a client asks for the names before they exist: the filtering resolver caches the NXDOMAIN (2.3.10.11.16)
+    asked_before = (status(RES_IP, "printer47.lan.test", "A"), status(RES_IP, "nas45.lan.test", "A"))
+    edit_vars(more)
+    code = ("from fabriclib.dns.publish_plan_records import publish_plan_records\n"
+            "try:\n    print('done', publish_plan_records())\nexcept Exception as e:\n    print('REFUSED', e)")
+    r = lib(code)
+    check("Sync now's quick path: a new subnet's reverse zone served, with its PTR; a new name served",
+          "done" in r.stdout and status(BIND_IP, REV47) == "NOERROR"
+          and short(BIND_IP, f"9.{REV47}", "PTR") == "printer47.lan.test."
+          and short(BIND_IP, "printer47.lan.test") == f"{testrun.PREFIX}.47.9", r.stdout[-400:] + r.stderr[-600:])
+    check("Sync now: the filtering resolver forgets the names it had cached as missing; they resolve through it at "
+          "once (2.1.10.46)", asked_before == ("NXDOMAIN", "NXDOMAIN") and "'flushed': " in r.stdout
+          and "'flushed': 0" not in r.stdout and "'flush_error': None" in r.stdout
+          and short(RES_IP, "printer47.lan.test") == f"{testrun.PREFIX}.47.9"
+          and short(RES_IP, "nas45.lan.test") == f"{testrun.PREFIX}.45.9",
+          (asked_before, r.stdout[-400:], short(RES_IP, "printer47.lan.test")))
+    # without the flush the resolver keeps its NXDOMAIN: what the flush is for
+    late = status(RES_IP, "late47.lan.test", "A")
+    edit_vars(lambda v: v["dns"]["dynamic_zone_var"]["A"].append({"name": "late47", "ip": f"{testrun.PREFIX}.47.19"}))
+    r = lib("from fabriclib.dns.publish_plan_records import publish_plan_records\n"
+            "print('done', publish_plan_records(flush=lambda v, names: {'flushed': 0, 'error': None}))")
+    kept = status(RES_IP, "late47.lan.test", "A")
+    flush = ("from fabriclib.dns_filter.flush_published_names import flush_published_names\n"
+             "print(flush_published_names({'install_resolver': True}, {'names': ['late47.lan.test.'], 'trees': []}))")
+    r2 = lib(flush)
+    check("negative: published without the flush, the resolver still answers its cached NXDOMAIN though BIND has "
+          "the name; flushed, it answers", late == "NXDOMAIN" and "done" in r.stdout
+          and short(BIND_IP, "late47.lan.test") == f"{testrun.PREFIX}.47.19" and kept == "NXDOMAIN"
+          and "'flushed': 1" in r2.stdout and short(RES_IP, "late47.lan.test") == f"{testrun.PREFIX}.47.19",
+          (late, kept, r.stdout[-300:], r2.stdout[-300:] + r2.stderr[-300:]))
+    sh("docker stop bind9-resolver")
+    r = lib(flush)
+    sh("docker start bind9-resolver")
+    check("negative: the resolver not answering: the flush says so, not raised", "'flushed': 0" in r.stdout
+          and "did not forget late47.lan.test" in r.stdout, r.stdout[-300:] + r.stderr[-300:])
+    until(lambda: status(RES_IP, "lan.test") == "NOERROR", 30)
+    check("Sync now's quick path: a changed reverse zone reloaded with fabric's new PTR, Kea's PTR kept",
+          short(BIND_IP, f"9.{REV45}", "PTR") == "nas45.lan.test."
+          and short(BIND_IP, f"120.{REV45}", "PTR") == "laptop9.dhcp.lan.test.",
+          (short(BIND_IP, f"9.{REV45}", "PTR"), short(BIND_IP, f"120.{REV45}", "PTR"), r.stdout[-300:]))
+    check("Sync now's quick path: nothing restarted (BIND's container kept running)",
+          sh("docker inspect -f '{{.RestartCount}} {{.State.Running}}' bind9", ok=False).stdout.strip() == "0 true")
+    r = lib(code)
+    check("a second run finds nothing to change and reloads nothing", "'zones': []" in r.stdout
+          and "'config': False" in r.stdout, r.stdout[-400:])
+    # DNS' Apply with a reverse zone whose deployed file holds Kea's kept PTR (its block after fabric's render): the
+    # kept block is not a change, so no zone is swapped (2.3.8.3.22's finding), and Kea's PTR is still served
+    kept_file = open(f"{W}/bind9/data/db.{REV45}").read()
+    r = lib("from fabriclib.dns.apply_dns import apply_dns\nprint('DONE', apply_dns('tester', source='cli'))")
+    again = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
+    check("DNS' Apply after Kea's registration, nothing changed: no zone swapped, Kea's PTR still served",
+          "kept from DHCP's registrations" in kept_file and again.startswith("DONE") and "'zones': []" in again
+          and short(BIND_IP, f"120.{REV45}", "PTR") == "laptop9.dhcp.lan.test.", (again, r.stderr[-300:]))
+    edit_vars(lambda v: v["dhcp"].__setitem__("interfaces", ["nosuch0"]))
+    before_conf = zone_list()
+    r = lib(code)
+    check("refused when the apply's settings check refuses (an interface this host lacks), nothing changed",
+          "REFUSED" in r.stdout and "nothing changed" in r.stdout and zone_list() == before_conf, r.stdout[-400:])
+    edit_vars(lambda v: v["dhcp"].__setitem__("interfaces", [iface]))
 finally:
     if agent_proc:
         agent_proc.terminate()

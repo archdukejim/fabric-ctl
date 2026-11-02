@@ -39,3 +39,6 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `job.html` | A background job (doctor, an image update, the setup wizard's apply), with a meta refresh while it runs |
 | `settings.html` | The setup wizard: one step at a time with the others carried hidden, the console-only settings read only, Export, Import, Dismiss |
 | `settings_plan.html` | A plan of the setup wizard: the changes old to new, the parts and the memory plan, what was ignored; Apply |
+| `networks.html` | DHCP · Networks (1.10.4.40.1): the list, a VLAN's, subnet's and address's page, Add VLAN, the site's number, a search |
+| `ipam_scan.html` | The scan page, a page of Networks |
+| `dhcp_options.html` | DHCP · DHCP options |

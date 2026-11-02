@@ -1,9 +1,13 @@
 {% if install_kea | default(false) and (dhcp | default({})).ddns | default(true) %}
-// Kea DHCP-DDNS: may only change A/AAAA/DHCID in the DHCP subzone (design 2.1.4.1)
-key "kea-ddns" {
+// Kea DHCP-DDNS: may only change A/AAAA/DHCID in the DHCP subzone (design 2.1.4.1). While its key is being replaced
+// (2.1.10.42) BIND knows the old one too, until Kea runs on the new one
+{% for k in [{'name': kea_ddns_key | default('kea-ddns', true), 'secret': kea_ddns_secret}]
+            + ([kea_ddns_old] if kea_ddns_old | default(none) else []) %}
+key "{{ k.name }}" {
     algorithm hmac-sha256;
-    secret "{{ kea_ddns_secret }}";
+    secret "{{ k.secret }}";
 };
+{% endfor %}
 {% endif %}
 {% set fl = federation_links | default({'children': [], 'upstream': none}) %}
 {% for link in fl.children + ([fl.upstream] if fl.upstream else []) %}

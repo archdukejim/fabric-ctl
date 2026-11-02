@@ -9,6 +9,7 @@ over SSH only while the domain's switch for its host is on.
 | `__init__.py` | Package marker |
 | `constants.py` | The account's name, the record, OpenBao's mount and password policy, the policies, the grace, the SSH drop-in |
 | `record.py` | The host's record (`<config>/local-admin.json`): what fabric made and saw, never a password |
+| `follow_rename.py` | The account follows a rename (1.7.1.4.11): a new password current under the new name, the record's host, the old path marked moved |
 | `secret_path.py` | Where the host's local-admin lives in OpenBao's `local-admin/` mount |
 | `ensure_local_admin_store.py` | OpenBao's mount `local-admin/` and its password policy |
 | `set_local_admin_password.py` | A new password: generated, kept in OpenBao, set with chpasswd, then marked current |

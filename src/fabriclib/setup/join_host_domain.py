@@ -311,8 +311,10 @@ def run(ctx):
     stale = recorded if recorded and recorded != ident["account"] else None
     hosts_line = None if _resolves(v["hostname_dc"], v["host_ip"]) else f"{v['host_ip']} {v['hostname_dc']}\n"
     nss = _read(NSSWITCH) or ""
-    # placed once per account (2.1.6.49): an admin's later move, or taking it out of the group, is kept
-    place = _recorded(ctx.config_dir, "placed") != ident["account"]
+    # placed once per account (2.1.6.49): an admin's later move, or taking it out of the group, is kept. An account
+    # made now is a new one, placed whatever the record says: an export's record can still name the account the
+    # uninstall removed (the joined campaign's run 10, 2.3.1.33)
+    place = not found or _recorded(ctx.config_dir, "placed") != ident["account"]
     group = f"cn={FABRIC_MANAGED},"
     managed = place or any(g.lower().startswith(group) for g in (found or {}).get("member_of", []))
     host_changes = apply_host_managed(v, managed, dry=True)

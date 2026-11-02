@@ -17,19 +17,40 @@ def file_serial(path):
     return m.group(1) if m else None
 
 
+def _serial_above(src, served):
+    """Purpose: make the rendered file's SOA serial greater than the one BIND serves: a dynamic zone's serial grows
+             with every DHCP registration, and can pass the render's (the epoch, 1.10.3.4), and BIND keeps a file
+             whose serial is not greater ("zone serial unchanged").
+    Inputs:  src — the rendered file (rewritten in place when needed); served — BIND's serial (str) or None.
+    Returns: the serial src now carries (str), or None when it has none.
+    Fails:   OSError reading or writing src.
+    Feeds:   reload_zone."""
+    want = file_serial(src)
+    if not want or not served or int(want) > int(served):
+        return want
+    text = open(src).read()
+    new = str(int(served) + 1)
+    with open(src, "w") as f:
+        f.write(re.sub(r"^(\s*)" + want + r"(\s*;\s*Serial)", lambda m: m.group(1) + new + m.group(2), text, count=1,
+                       flags=re.MULTILINE))
+    return new
+
+
 def reload_zone(zone, src, dst, uid, gid):
     """Purpose: swap a zone file under a running BIND9 and make sure BIND serves the new one.
     Inputs:  zone — zone name; src — rendered file; dst — deployed file; uid, gid — bind user's ids. Needs the bind9
              container running.
-    Returns: None. Dynamic zones are frozen, swapped and thawed; static zones (freeze fails) swapped and reloaded.
-             Retried up to 5 times until `rndc zonestatus` shows src's serial.
+    Returns: None. Dynamic zones are frozen, swapped and thawed (one found frozen already is thawed as well);
+             static zones (freeze fails) swapped and reloaded.
+             Retried up to 5 times until `rndc zonestatus` shows src's serial, which is first made greater than
+             the one BIND serves (_serial_above: Kea's registrations raise a dynamic zone's).
     Fails:   never raises for BIND errors: prints "Warning: BIND9 did not accept zone ..." or "... serves <zone> serial
              X, not Y" and returns. OSError from install_zone_file propagates.
     Feeds:   deploy/install_zones_and_restart (live zone updates); tests/zone_test.py.
     Notes:   freezing makes BIND write its in-memory copy to the file, and that write can land after ours and put the
              old zone back ("zone serial unchanged" on thaw), hence the serial check and retry."""
     print(f"Updating zone {zone}...")
-    want = file_serial(src)
+    want = _serial_above(src, served_serial(zone))
     res = None
     for attempt in range(5):
         frozen = rndc(["freeze", zone])
@@ -39,7 +60,9 @@ def reload_zone(zone, src, dst, uid, gid):
         jnl = dst + ".jnl"
         if os.path.exists(jnl):
             os.remove(jnl)
-        if frozen is not None and frozen.returncode == 0:
+        left_frozen = frozen is not None and "already frozen" in f"{frozen.stdout}{frozen.stderr}"
+        if frozen is not None and (frozen.returncode == 0 or left_frozen):
+            # a zone found frozen (a file BIND refused at an earlier thaw, 2.3.10.11.16) is thawed too, never left
             res = rndc(["thaw", zone])
         else:
             # Static zone (no update-policy): a plain reload is enough.

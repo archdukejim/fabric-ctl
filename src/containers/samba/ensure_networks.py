@@ -20,19 +20,28 @@ def network_cn(site, name):
 def ensure_networks(samdb, site, networks):
     """Purpose: the site's networks as `fabricNetwork` entries in the domain's OU=networks (manual 1.10.2.8, S4.1;
              1.6.13.2), the address plan every site reads: added, changed to match, and removed when the site no
-             longer has them. Only this site's entries (fabricSite) are touched.
+             longer has them. Only this site's entries (fabricSite) are touched, and never one of the address
+             manager's subnets (the `fabricSubnet` class, manual 1.10.4.33): convergence neither changes nor removes
+             one, nor writes a network of a plan subnet's name or network.
     Inputs:  samdb — SamDB (as the system); site — str; networks — site_networks' list of {name, cidr, kind, vlan,
              notes, allow_overlap}.
     Returns: list of str, what changed.
     Fails:   ldb.LdbError for a change AD refuses (e.g. OU=networks missing: ensure_layout makes it first).
     Feeds:   converge."""
     base = paths.folder_dn(samdb, "networks")
-    have = {str(m["cn"][0]).lower(): m for m in samdb.search(
-        base=base, scope=ldb.SCOPE_ONELEVEL,
-        expression=f"(&(objectClass=fabricNetwork)(fabricSite={ldb.binary_encode(site)}))",
-        attrs=["cn", "fabricSite", *FIELDS])}
+    have, plan_names, plan_cidrs = {}, set(), set()
+    for m in samdb.search(base=base, scope=ldb.SCOPE_ONELEVEL,
+                          expression=f"(&(objectClass=fabricNetwork)(fabricSite={ldb.binary_encode(site)}))",
+                          attrs=["cn", "objectClass", "fabricSite", *FIELDS]):
+        if "fabricSubnet" in [str(c) for c in m["objectClass"]]:      # the plan's: fabric-agent's alone
+            plan_names.add(str(m["cn"][0]).lower())
+            plan_cidrs.add(str(m.get("fabricCidr", idx=0) or ""))
+            continue
+        have[str(m["cn"][0]).lower()] = m
     done = []
     for n in networks:
+        if network_cn(site, n["name"]).lower() in plan_names or str(n.get("cidr") or "") in plan_cidrs:
+            continue
         want = {attr: str(n.get(key) or "") for attr, key in FIELDS.items()}
         want["fabricSite"] = site
         old = have.pop(network_cn(site, n["name"]).lower(), None)

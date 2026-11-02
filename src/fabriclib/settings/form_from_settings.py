@@ -24,7 +24,10 @@ def form_from_settings(values):
     yes = {True: "true", False: "false"}
     lf = values.get("log_forwarding") or {}
     policy = values.get("ad_password_policy") or {}
-    form = {"dns_filter": str(values.get("dns_filter") or "bind"),
+    dhcp = values.get("dhcp") or {}
+    form = {"install_kea": yes[bool(values.get("install_kea"))],
+            **{f"dhcp_{k}": str(dhcp.get(k) or "") for k in ("interface", "subnet", "pool", "router")},
+            "dns_filter": str(values.get("dns_filter") or "bind"),
             "install_fluentbit": yes[bool(values.get("install_fluentbit"))],
             "log_target": _log_target(lf),
             "log_target_both": "yes" if lf.get("syslog") and lf.get("elastic") else "",

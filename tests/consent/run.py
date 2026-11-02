@@ -870,9 +870,21 @@ done = rha.remove_host_account(jcfg, renamed, lambda: {})
 # covers: cli:setup +
 check("undo: the host's own account removed from the domain, the record forgets it",
       done == ["the domain: this host's computer account FAB2$ removed"] and not directory
-      and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") is None, (done, directory))
+      and json.load(open(os.path.join(jcfg, pm.RECORD))).get("account") is None
+      and "placed" not in json.load(open(os.path.join(jcfg, pm.RECORD))), (done, directory))
 check("negative: a second undo removes nothing; no record, nothing either",
       rha.remove_host_account(jcfg, renamed, lambda: {}) == [] and rha.remove_host_account(fresh, mv, None) == [])
+# a restore from an export written before that (its record still names the removed account as placed): the account
+# made again is placed again, so the host's own management stays (the joined campaign's run 10, 2.3.1.33)
+json.dump({"account": None, "placed": "FAB2"}, open(os.path.join(jcfg, pm.RECORD), "w"))
+calls.clear()
+with contextlib.redirect_stdout(io.StringIO()):
+    jh.run(type("C", (), {"vars": renamed, "config_dir": jcfg, "offline": False, "secrets": {}})())
+# covers: cli:setup +
+check("an account made again under a name the record calls placed is placed again (fabric-managed, dc-hosts)",
+      calls == [("add", "fab2", None, False, False), ("place", "FAB2")]
+      and "fabric-managed" in " ".join(directory["FAB2"].get("member_of", [])), (calls, directory))
+directory.pop("FAB2")
 json.dump({"account": "FAB2"}, open(os.path.join(jcfg, pm.RECORD), "w"))
 check("an account already gone is fine (said so)",
       rha.remove_host_account(jcfg, renamed, lambda: {}) == ["the domain: this host's computer account FAB2$ was "

@@ -17,6 +17,7 @@ zone `dhcp.<domain>` through kea-dhcp-ddns.
 | `kea_option_defs.py` | Kea's option-def list |
 | `kea_client_classes.py` | Kea's client-classes list |
 | `check_kea_config.py` | Kea's own check (`kea-dhcp4 -t`) of a configuration before it is saved or installed |
+| `check_kea_files.py` | Kea's two files rendered and checked before an apply installs anything, so a refusal changes nothing |
 | `set_dhcp_on.py` | Turn DHCP on (its first subnet when it has none) or off, settings and leases kept (manual 1.10.3.5) |
 | `add_subnet.py` | Add a subnet (name, VLAN record, router, pools, notes) with the next id |
 | `update_subnet.py` | Change a subnet's name, VLAN, router, notes or pools (its network and id stay) |
@@ -28,9 +29,17 @@ zone `dhcp.<domain>` through kea-dhcp-ddns.
 | `common/` | Helpers shared by the commands: the checked edit of `dhcp:`, finding a subnet, where an option goes |
 | `deploy_kea.py` | Kea's config files (root:kea 0640, both checked by Kea before either is written), its leases and control-socket folders, and the DHCP zone |
 | `ensure_ddns_zone.py` | Create the empty dynamic zone file `db.<sub>.<domain>` once; never rewritten |
-| `kea_command.py` | Send one command to kea-dhcp4's control socket; raise on an error result |
+| `kea_command.py` | Send one command to a Kea daemon's control socket (kea-dhcp4's, or kea-dhcp-ddns's since 2.1.10.45); raise on an error result |
+| `reload_kea.py` | Kea takes its changed files by `config-reload` over each daemon's socket, a restart only when it does not (2.1.10.45) |
 | `list_leases.py` | The leases Kea holds (lease_cmds hook, `lease4-get-all`), with state and expiry |
 | `dhcp_overview.py` | What the Kea tab and `fabricctl dhcp` show: on/off, subnets, reservations, DHCP zone, leases |
 | `add_reservation.py` | Reserve an address for a MAC (optionally with a hostname) in `vars.yaml`, whole `dhcp:` revalidated (locked, audited) |
 | `remove_reservation.py` | Remove a MAC's reservation from `vars.yaml` (locked, audited) |
-| `run_dhcp_command.py` | `fabricctl dhcp status / leases / reserve / unreserve / add-subnet / set-subnet / remove-subnet / option / class` (applies after a change unless `--no-apply`) |
+| `run_dhcp_command.py` | `fabricctl dhcp status / leases / reserve / unreserve / add-subnet / set-subnet / remove-subnet / option / class / clean-names` (applies after a change unless `--no-apply`) |
+| `run_dhcp_alias.py` | The old add-subnet, set-subnet, remove-subnet, reserve and unreserve as aliases of `fabricctl ipam` once the subnets live in the plan |
+| `hand_set_addresses.py` | Every address a record set by hand names (fabric's forward zones, the plan's published names): their names outrank DHCP's (2.1.10.20) |
+| `keep_hand_set_addresses.py` | Keep the apply's addresses set by hand for the hourly cleanup (`<deploy base>/kea/hand-set.json`, 0600) |
+| `stale_dhcp_names.py` | The records of `dhcp.<domain>` left behind for addresses now named by hand: their A/AAAA, a name's DHCID once no address is left |
+| `clear_stale_dhcp_names.py` | Delete them: the zone read as BIND serves it (`named-compilezone -j` in its container), one `nsupdate` signed with Kea's key (0600 key file), each removal audited (2.1.10.22; the key's yearly replacement, 2.1.10.42, is open) |
+| `clean_dhcp_names.py` | `fabricctl dhcp clean-names [--scheduled]`, the hourly fabric-dhcp-names timer: the cleanup from the last apply's addresses |
+| `kea_key/` | Kea's DNS key replaced within a year (2.1.10.42): when, how, the old key's drop, doctor's reminders, `fabricctl dhcp rotate-key` |

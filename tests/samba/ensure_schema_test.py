@@ -1,9 +1,9 @@
-"""fabric's schema numbers each given once (manual 1.6.3.5; 2.1.8.30, and 2.1.10.33 on dev/0.9.0): a schema OID is
+"""fabric's schema numbers each given once and after 0.8.0's (manual 1.6.3.5, 1.10.4.31; 2.1.10.33): a schema OID is
 permanent, so src/containers/samba/ensure_schema.SETS gives every attribute and class number once in its set, every
 name once, every OID once, each class naming only attributes that exist, no live entry on a RETIRED or RESERVED
-number; 0.8.0's numbers as 0.8.0 ships them (fabricDcInfo class 7), 0.9.0's site record (class 18) brought forward
-exactly with the attributes it names, the site selector's own (46, 47, class 19); and schema_problems finds a domain
-whose schema disagrees (a lab domain that ran a pre-release VLAN record as class 7).
+number, 0.8.0's numbers as 0.8.0 ships them (fabricDcInfo class 7, and its site selector's 46, 47 and class 19,
+2.1.8.30), the address manager's as 2.1.10.33 chose them; and
+schema_problems finds a domain whose schema disagrees (a lab domain that ran the pre-release VLAN record as class 7).
 Pure logic, no container: Samba's ldb and the DC's open_samdb are stand-ins.
     python3 tests/samba/ensure_schema_test.py"""
 import collections
@@ -78,19 +78,26 @@ def main():
 
     attrs = {r[0]: r[1] for r in SETS["fabric"][2]}
     classes = {r[0]: r[1] for r in SETS["fabric"][3]}
-    check("0.8.0's schema as it ships: attributes 1-14, classes 1-7, fabricDcInfo 7",
+    check("0.8.0's schema as it ships: attributes 1-14, classes 1-7, fabricDcInfo 7 (2.1.10.33)",
           {n for n in attrs.values() if n <= 14} == set(range(1, 15)) and classes.get("fabricDcInfo") == 7
           and {n for n in classes.values() if n <= 7} == set(range(1, 8)), (attrs, classes))
-    check("0.9.0's site record brought forward under its numbers: class 18 and the attributes it names, 21, 31, 33, "
-          "34; nothing else of 0.9.0's 8-17 or 15-45", classes.get("fabricSiteRecord") == 18
-          and {n for n in classes.values() if 7 < n < 19} == {18}
-          and {k: attrs.get(k) for k in ("fabricDhcpOption", "fabricBlock", "fabricDhcpOptionDef", "fabricDhcpClass")}
-          == {"fabricDhcpOption": 21, "fabricBlock": 31, "fabricDhcpOptionDef": 33, "fabricDhcpClass": 34}
-          and {n for n in attrs.values() if 14 < n < 46} == {21, 31, 33, 34}, (sorted(attrs.values()), classes))
+    want = {"fabricSubnet": 8, "fabricRange": 9, "fabricAddress": 10, "fabricOptionSet": 12, "fabricScanRequest": 16,
+            "fabricVlanRecord": 17, "fabricSiteRecord": 18, "fabricSiteTree": 19, "fabricLocated": 20}
+    check("the address manager's classes: 8, 9, 10, 12, 16 kept, the VLAN record 17, the site's record 18, 0.8.0's "
+          "site tree 19, the location's label 20",
+          {k: classes.get(k) for k in want} == want, {k: classes.get(k) for k in want})
+    check("the plan's attributes keep 15-34 and 41-45, 0.8.0's site tree 46 and 47, and the location's "
+          "label 48 (2.1.10.49)",
+          {n for n in attrs.values() if n > 14} == set(range(15, 35)) | set(range(41, 46)) | {46, 47, 48}
+          and attrs.get("fabricLocation") == 48, sorted(attrs.values()))
+    located = next(c for c in SETS["fabric"][3] if c[0] == "fabricLocated")
+    check("the location's label is an auxiliary class holding fabricLocation alone (a class never changes once in a "
+          "schema, so it is not added to the VLAN record or the subnet)",
+          located[2] == 3 and located[3] == [] and located[4] == ["fabricLocation"], located)
     check("the site selector's own: fabricParentSite 46, fabricConsoleUrl 47, auxiliary class fabricSiteTree 19",
           attrs.get("fabricParentSite") == 46 and attrs.get("fabricConsoleUrl") == 47
-          and classes.get("fabricSiteTree") == 19 and {n for n in attrs.values() if n > 45} == {46, 47}
-          and {n for n in classes.values() if n > 18} == {19}, (attrs, classes))
+          and classes.get("fabricSiteTree") == 19 and {n for n in attrs.values() if n > 45} == {46, 47, 48}
+          and {n for n in classes.values() if n > 18} == {19, 20}, (attrs, classes))
     tree = next(c for c in SETS["fabric"][3] if c[0] == "fabricSiteTree")
     check("...auxiliary, may hold the two only", tree[2] == 3 and tree[3] == []
           and tree[4] == ["fabricParentSite", "fabricConsoleUrl"], tree)
@@ -108,7 +115,7 @@ def main():
     # schema_problems: a schema that agrees, and each kind of disagreement
     agree = wanted_oids()
     check("a schema holding exactly fabric's numbers agrees", schema_problems(agree) == [], schema_problems(agree))
-    check("a schema of 0.7's alone agrees (the rest is added)",
+    check("a schema of 0.8.0's alone agrees (the rest is added)",
           schema_problems({n: o for n, o in agree.items() if n in ("fabricDcInfo", "fabricSite", "fabricIdMark")})
           == [])
     check("a later release's name on a number fabric does not give is no disagreement",
@@ -117,14 +124,15 @@ def main():
     del lab["fabricDcInfo"]
     lab["fabricVlanRecord"] = f"{FABRIC_ARC}.2.7"
     found = schema_problems(lab)
-    check("negative: a pre-release VLAN record on class 7 is refused, naming it and fabricDcInfo",
-          any("is fabricVlanRecord here, fabricDcInfo in fabric" in p for p in found), found)
+    check("negative: the pre-release VLAN record on class 7 is refused, naming it",
+          any(p.startswith("fabricVlanRecord is ") and p.endswith(f"{FABRIC_ARC}.2.17 in fabric") for p in found),
+          found)
     other = dict(agree)
-    del other["fabricSiteTree"]
-    other["fabricOldTree"] = f"{FABRIC_ARC}.2.19"
+    del other["fabricRange"]
+    other["fabricOldRange"] = f"{FABRIC_ARC}.2.9"
     found = schema_problems(other)
     check("negative: one of fabric's numbers under another name is refused, naming both",
-          any("fabricOldTree here, fabricSiteTree in fabric" in p for p in found), found)
+          any("fabricOldRange here, fabricRange in fabric" in p for p in found), found)
     moved = dict(agree, fabricSiteRecord=f"{FABRIC_ARC}.2.17")
     check("negative: the site record under another number than 0.9.0's is refused",
           any(p.startswith("fabricSiteRecord is ") for p in schema_problems(moved)), schema_problems(moved))

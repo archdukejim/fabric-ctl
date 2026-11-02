@@ -1,0 +1,10 @@
+[Unit]
+Description=fabric: DHCP names left behind, hourly (manual 1.10.4.20, 2.1.10.22)
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

@@ -1,6 +1,7 @@
 """The setup wizard's sample data for the dev preview: what GET /v1/settings and POST /v1/settings/plan answer."""
 
 SAMPLE_SETTINGS_FORM = {
+    "install_kea": "false", "dhcp_interface": "", "dhcp_subnet": "", "dhcp_pool": "", "dhcp_router": "",
     "dns_filter": "bind", "install_fluentbit": "false", "log_target": "", "log_target_both": "",
     "host_ram_capacity": "8", "policy_minimum_length": "12", "policy_history": "5", "policy_minimum_age_days": "0",
     "policy_maximum_age_days": "0", "policy_lockout_threshold": "10", "policy_lockout_minutes": "15",
@@ -19,12 +20,14 @@ SAMPLE_SETTINGS = {
          "command": "sudo fabricctl setup, or the vars editor (sudo fabricctl)"},
     ],
     "finished": {"finished": False, "how": "", "by": "", "at": ""},
-    "host_gb": 8,
+    "host_gb": 8, "interfaces": ["eth0", "wlan0"], "dhcp_first_subnet": True,
 }
 
 SAMPLE_PLAN = {
     "id": "dev-plan", "source": "web",
-    "changes": [{"key": "install_fluentbit", "old": "off", "new": "on"},
+    "changes": [{"key": "install_kea", "old": "off", "new": "on"},
+                {"key": "dhcp", "old": "—", "new": '{"interface": "eth0", "subnet": "192.168.1.0/24"}'},
+                {"key": "install_fluentbit", "old": "off", "new": "on"},
                 {"key": "host_ram_capacity", "old": "8", "new": "6"}],
     "parts": [{"service": "Fluent Bit", "change": "started"}],
     "memory": {"budget_mb": 5632, "rows": [{"service": "Keycloak", "before": 2900, "after": 2100},
@@ -33,4 +36,4 @@ SAMPLE_PLAN = {
 }
 
 SAMPLE_SETTINGS_FILE = ("# fabric's settings file (manual 1.8.5.4): DEV PREVIEW sample\nfabric_settings: 1\n"
-                        "settings:\n  dns_filter: bind\n  host_ram_capacity: 8\n")
+                        "settings:\n  install_kea: false\n  dns_filter: bind\n  host_ram_capacity: 8\n")

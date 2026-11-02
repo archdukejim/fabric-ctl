@@ -15,7 +15,7 @@ def remove_host_account(config_dir, v, secrets):
     Inputs:  config_dir — the install's config folder (RECORD names the account); v — vars (site_name); secrets —
              a function returning fabric's secrets (called only when there is an account to remove).
     Returns: list of str, what was done (empty when fabric made no account for this host). RECORD forgets the
-             account once it is gone.
+             account once it is gone, and that it was placed (2.1.6.49).
     Fails:   OSError / ValueError on a damaged RECORD.
     Feeds:   undo/undo_group (`fabricctl setup --undo member`), setup/uninstall, setup/run_uninstall_command (before
              an export stops the stack)."""
@@ -39,6 +39,7 @@ def remove_host_account(config_dir, v, secrets):
                     "console (Directory → Machines)"]
         done = f"the domain: this host's computer account {account}$ was already gone"
     record["account"] = None
+    record.pop("placed", None)              # its placing goes with it: an account made again is placed again
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as f:
         json.dump(record, f)

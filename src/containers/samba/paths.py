@@ -78,7 +78,7 @@ def sites_dn(samdb):
     Inputs:  samdb — SamDB.
     Returns: str "CN=sites,CN=fabric,CN=System,<domain>".
     Fails:   never.
-    Feeds:   ensure_layout, site_record_dn, read_site_tree."""
+    Feeds:   ensure_layout, site_record_dn, read_plan, read_site_tree."""
     return f"CN=sites,{fabric_dn(samdb)}"
 
 
@@ -87,7 +87,34 @@ def site_record_dn(samdb, site):
     Inputs:  samdb — SamDB; site — the site's name (its AD site's).
     Returns: ldb.Dn.
     Fails:   never.
-    Feeds:   ensure_site_record, set_site_tree."""
+    Feeds:   ensure_site_record, write_plan, set_site_tree."""
     dn = ldb.Dn(samdb, f"CN=x,{sites_dn(samdb)}")
     dn.set_component(0, "CN", str(site))
     return dn
+
+
+def domain_options_dn(samdb):
+    """Purpose: the domain's DHCP option set, every site's Kea rendered with it first (2.1.10.34, manual 1.10.4.32).
+    Inputs:  samdb — SamDB.
+    Returns: str "CN=dhcp-options,CN=fabric,CN=System,<domain>".
+    Fails:   never.
+    Feeds:   ensure_domain_options, read_plan, write_plan."""
+    return f"CN=dhcp-options,{fabric_dn(samdb)}"
+
+
+def plan_entry_dn(samdb, site, name, below=None):
+    """Purpose: an entry of the address plan in the domain's OU=networks (2.1.10.35, manual 1.10.4.33): a subnet
+             `CN=<site>/<name>`, a VLAN `CN=<site>/vlan/<id>` (name "vlan/<id>"), or, with `below`, a range, an
+             address or a scan request `CN=<below>` inside its subnet's entry; every name escaped.
+    Inputs:  samdb — SamDB; site — str; name — the subnet's name, or "vlan/<id>"; below — the inner entry's name, or
+             None.
+    Returns: ldb.Dn.
+    Fails:   never.
+    Feeds:   write_plan, write_scan_request."""
+    dn = ldb.Dn(samdb, f"CN=x,{folder_dn(samdb, 'networks')}")
+    dn.set_component(0, "CN", f"{site}/{name}")
+    if below is None:
+        return dn
+    inner = ldb.Dn(samdb, f"CN=x,{dn}")
+    inner.set_component(0, "CN", str(below))
+    return inner

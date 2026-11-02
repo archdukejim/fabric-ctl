@@ -27,4 +27,5 @@ def set_option(actor, option, data, subnet=None, client_class=None, mac=None, al
         key = new.get("name", new.get("code"))
         target["options"] = [o for o in target.get("options") or [] if o.get("name", o.get("code")) != key] + [new]
         return label, f"{label}: {key}={new['data']}"
-    return edit_dhcp(actor, "DHCP_OPTION_SET", change, source)[0], new
+    return edit_dhcp(actor, "DHCP_OPTION_SET", change, source,
+                     global_level=not subnet and not mac)[0], new

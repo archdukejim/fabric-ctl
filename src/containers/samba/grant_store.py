@@ -116,10 +116,11 @@ def read_state(samdb):
     """Purpose: the compiler's record: the sets of machines by number, the next number, whether the shipped grants
              were made.
     Inputs:  samdb — SamDB.
-    Returns: dict {"next": int, "sets": {"<n>": {"allow": [names], "restrict": [names]}}, "shipped": bool}.
+    Returns: dict {"next": int, "sets": {"<n>": {"allow": [names], "restrict": [names]}}, "shipped": bool,
+             "shipped_networks": bool (0.9.0's network-plan made, 1.6.13.12)}.
     Fails:   as _read.
     Feeds:   compile_grants, ship_grants, show_grant."""
-    return {"next": 1, "sets": {}, "shipped": False, **(_read(samdb, STATE) or {})}
+    return {"next": 1, "sets": {}, "shipped": False, "shipped_networks": False, **(_read(samdb, STATE) or {})}
 
 
 def write_state(samdb, state):

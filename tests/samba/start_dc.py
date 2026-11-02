@@ -24,6 +24,8 @@ import test_run as testrun  # noqa: E402
 IMAGE = "fabric/samba:" + testrun.name("test")      # each worktree's run builds its own (manual 3.1.2.6)
 POLICY = {"minimum_length": 14, "complexity": True, "history": 24, "minimum_age_days": 0, "maximum_age_days": 0,
           "lockout_threshold": 5, "lockout_minutes": 15, "lockout_window_minutes": 15}
+# Samba's start losing a race for an RPC endpoint's port (2.3.6.26): the one exit a test DC is started again after
+RPC_PORT_RACE = "NT_STATUS_ADDRESS_ALREADY_ASSOCIATED"
 
 
 def _sh(cmd, **kw):
@@ -32,6 +34,12 @@ def _sh(cmd, **kw):
     if res.returncode:
         raise RuntimeError(f"{cmd[:4]}: {res.stderr.strip()[-400:]}")
     return res
+
+
+def _logs(container):
+    """A container's whole log, stdout and stderr (empty when it is gone)."""
+    res = subprocess.run(["docker", "logs", container], capture_output=True, text=True)
+    return res.stdout + res.stderr
 
 
 def start_dc(work, container, network, subnet, ip, domain="test.lan.j-j.family", ad_domain="ad.test.lan.j-j.family",
@@ -102,7 +110,8 @@ def run_dc(v, container, network, env, tries=60):
     Inputs:  v — the DC's rendered vars (after deploy_samba); container — its name; network — a Docker network; env —
              the jinja env; tries — 5-second waits (a join takes longer than a provisioning).
     Returns: None.
-    Fails:   RuntimeError when the DC is not healthy in time (its log's end)."""
+    Fails:   RuntimeError when the DC is not healthy in time (its log's end). A DC that exits only because Samba lost
+             its RPC port race at start (RPC_PORT_RACE) is started again, at most twice, as fabric's unit would."""
     compose = yaml.safe_load(env.get_template("samba/docker-compose.yml.j2").render(**v))["services"]["samba"]
     testrun.remove("container", container)
     run = ["docker", "run", "-d", "--name", container, *testrun.labels(), "--hostname", v["hostname"], "--network", network,
@@ -115,11 +124,18 @@ def run_dc(v, container, network, env, tries=60):
     run += ["--health-cmd", shlex.join(compose["healthcheck"]["test"][1:]), "--health-interval", "10s",
             "--health-start-period", "180s", IMAGE]
     _sh(run)
+    starts = 1
     for _ in range(tries):
-        state = subprocess.run(["docker", "inspect", "-f", "{{.State.Health.Status}}", container],
-                               capture_output=True, text=True).stdout.strip()
-        if state == "healthy":
+        state = subprocess.run(["docker", "inspect", "-f", "{{.State.Status}} {{.State.Health.Status}}", container],
+                               capture_output=True, text=True).stdout.split()
+        if state[-1:] == ["healthy"]:
             return
+        if state[:1] == ["exited"] and starts < 3 and RPC_PORT_RACE in _logs(container):
+            # Samba lost its RPC port race at start (2.3.6.26); fabric's unit restarts it (Restart=always), so the
+            # test starts it again, at most twice, and says so. Any other exit still fails.
+            print(f"INFO {container}: Samba's RPC endpoint port was taken at start ({RPC_PORT_RACE}); started again")
+            starts += 1
+            _sh(["docker", "start", container])
         time.sleep(5)
     raise RuntimeError(f"{container} not healthy: " + subprocess.run(["docker", "logs", container],
                                                                     capture_output=True, text=True).stdout[-1500:])

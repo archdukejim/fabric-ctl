@@ -10,11 +10,11 @@ never take each other's containers, networks or subnets: [tests/common/test_run.
 |---|---|---|
 | `docs` | [docs/](docs/), [ci/](ci/) | Every function documented (Purpose/Inputs/Returns/Fails/Feeds), the function reference (manual 1.17) current, docs and code agree, every file reviewed; CI keeps no log holding a secret of its run (3.1.2.4) |
 | `lint` | [lint/](lint/) | ruff (Python, `pyproject.toml`) and shellcheck (shell) from their pinned images: no findings in `src/`, `scripts/`, `tests/` (decision 2.1.1.15); every product file parses on Python 3.10 (2.1.1.43); no `input()`/`getpass()` outside `ask()` (1.1.5.6) |
-| `deploy` | [deploy/](deploy/), [agent/](agent/) | An apply's measured rollout: one service at a time in dependency order, health-gated, stopped at the first failure (2.1.14.15), systemd stood in for; the resolver's flush after it, and a change's warning on the Review (2.1.4.9) |
+| `deploy` | [deploy/](deploy/), [agent/](agent/) | An apply's measured rollout: one service at a time in dependency order, health-gated, stopped at the first failure (2.1.14.15), systemd stood in for; the resolver's flush after it, and a change's warning on the Review (2.1.4.9); the vars.yaml an apply installs, without what the address plan lays over it (1.10.4.14) |
 | `consent` | [consent/](consent/), [common/](common/), [setup/](setup/) | Asking before fabric changes the host: answers, questions, the subset rule, declined groups, the `fabric-*` accounts and their move, no containers; `ask()`, the one place a question is asked (manual 1.1.5.6); `samba/writable_server_test.py`, the one choice of the DC a domain write goes to (2.1.6.52) |
 | `render` | `render.py` | Every template renders from `vars.yaml.j2`; security properties of the rendered configs; every module imports |
 | `nginx` | `nginx_check.sh` | The rendered nginx configuration passes `nginx -t` in the pinned image |
-| `zone` | `zone_test.py`, [dns/](dns/), [dns_filter/](dns_filter/) | `deploy.py`'s zone deployment with `rndc` stubbed: unchanged records ignored, changed zones found, fresh mtime, BIND's late write detected and the swap repeated, stale journal removed; before a restart, BIND's write waited for (2.3.1.22); the names an apply changes found and flushed at the resolver, the DHCP subzone given the 30 s negative TTL (2.1.4.9) |
+| `zone` | `zone_test.py`, [dns/](dns/), [dns_filter/](dns_filter/) | `deploy.py`'s zone deployment with `rndc` stubbed: unchanged records ignored, changed zones found, fresh mtime, BIND's late write detected and the swap repeated, stale journal removed; before a restart, BIND's write waited for (2.3.1.22); the names an apply changes found and flushed at the resolver (1.10.4.44, 2.1.4.9), the DHCP subzone given the 30 s negative TTL (2.1.4.9) |
 | `zones` | [zones/](zones/) | Zones added and removed in seconds (1.4.1.3) with real BIND and resolver containers: through fabric-agent's routes and the menu, every refused name, the rollback when a reload fails, removal refused while a TSIG key names the zone |
 | `webui` | [webui/](webui/) | The web UI container against a mock Keycloak and the real fabric-agent; the dev preview |
 | `pki` | [pki/](pki/) | Manual PKI against a real Step-CA |
@@ -23,7 +23,8 @@ never take each other's containers, networks or subnets: [tests/common/test_run.
 | `federation` | [federation/](federation/) | Invitations, the federation endpoint, a site joining an upstream (real Step-CA) and directory replication between two real 389-DS (M5) |
 | `openbao` | [openbao/](openbao/) | OpenBao: unlock methods (key file, USB, security key, KMIP), rotation, fabric's secrets, policies, break glass |
 | `fluentbit` | [fluentbit/](fluentbit/) | Log forwarding to TLS syslog and Elasticsearch receivers |
-| `kea` | [kea/](kea/) | Kea DHCP with DDNS into BIND, real DHCP clients |
+| `kea` | [kea/](kea/) | Kea DHCP with DDNS into BIND, real DHCP clients; ping-check and the scan on a real network; a changed file taken by config-reload, and Kea's DNS key replaced (2.1.10.45, 2.1.10.42) |
+| `ipam` | [ipam/](ipam/), [dhcp/](dhcp/) | The address manager's model with no container (1.10.4.3): its rules, suggestions and the plan's small parts, its commands, the upgrade, Kea and DNS rendered from the plan, the plan poll, Sync now and the hourly cleanup of DHCP names left behind, ping-check and the scans, here and at another site, and the agent's routes for them (areas 4 to 7 of the port, 1.10.4.41) |
 | `settings` | [settings/](settings/) | The setup wizard with no container (manual 1.8.5): the settings file's round trip, what an import ignores and why, every wizard setting's refusal, the plan and its memory plan, a stale plan refused, the apply audited; `fabricctl settings`; the agent's routes and permission, the console's steps, plan, Apply after a recent sign-in, import and export |
 | `freeradius` | [freeradius/](freeradius/) | 802.1X against a real 389-DS: EAP-TLS, EAP-TTLS, MAB, refusals |
 | `samba` | [samba/](samba/) | The Windows domain controller: settings (2.1.6.11, 2.1.6.13), the rendered container, what changes around it; a real DC converged twice, the policy, the GPOs, BIND serving the AD zone through DLZ with signed updates, and the refusals (unsigned updates, another site, service accounts, short or wrong passwords); grants on real joined members (sssd), `fabricctl domain grant` and its routes |
@@ -32,7 +33,7 @@ never take each other's containers, networks or subnets: [tests/common/test_run.
 | `images` | [images/](images/) | fabric's own images build from `packaging/docker-bake.hcl` with a default host's build inputs and pass the smoke test CI runs before publishing (decision 2.1.1.21) |
 | `sandbox` | [sandbox/](sandbox/) | A full install from the .deb in a disposable systemd + Docker container (about 30 min; not in the default list) |
 
-Not in `run-all.sh`: [host/](host/) (a subset of the sandbox checks on a real machine over SSH) and [lab/](lab/) (DHCP on the Hyper-V lab's isolated network, manual 1.10.3.8).
+Not in `run-all.sh`: [host/](host/) (a subset of the sandbox checks on a real machine over SSH), [lab/](lab/) (DHCP on the Hyper-V lab's isolated network, manual 1.10.3.8; the joined campaign, 3.1.5.11) and [release/](release/) (what a release publishes: the apt key, 3.14.1.6).
 
 | File | What |
 |---|---|

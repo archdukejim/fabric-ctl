@@ -6,7 +6,7 @@ decision 2.1.8.7): what the web console's *Settings* and `fabricctl settings` ch
 
 | File | What |
 |---|---|
-| `constants.py` | `WIZARD_KEYS`, the file's `FORMAT`, the console-only settings shown read only, why an import ignores a key |
+| `constants.py` | `WIZARD_KEYS` (DHCP's `install_kea` and `dhcp` among them from 0.9.0), the file's `FORMAT`, the console-only settings shown read only, why an import ignores a key |
 | `read_settings.py` | The wizard's settings as they are now, defaults filled in, no secret and nothing console-only |
 | `export_settings.py` | The settings file: `fabric_settings: 1`, when and where it was exported, every wizard key |
 | `parse_settings_file.py` | A settings file read: its wizard keys taken, every other key ignored and listed by reason |

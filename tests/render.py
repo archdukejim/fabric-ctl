@@ -275,6 +275,12 @@ for view in (kids, everyone):        # fabric's zones and the owner's rules in e
 assert kids.index('zone "fabric.rpz";') < kids.index('zone "group-kids.rpz";') < kids.index('zone "owner.rpz";'), kids
 assert 'dnssec-validation auto;' in res_conf and 'validate-except { "' in res_conf and 'responselog yes;' in res_conf and 'category responses' in res_conf
 assert 'bind-lists' not in res_conf, 'no list in the resolver (1.12.3)'
+# no cached answer kept more than 5 minutes, a miss neither (2.1.12.11): in the options, so no view keeps longer; a
+# client group's view keeps no miss at all (max-ncache-ttl 0, the owner 2026-10-31), everyone's the options' 300 s
+opts = res_conf[res_conf.index('options {'):res_conf.index('logging {')]
+assert 'max-cache-ttl 300;' in opts and 'max-ncache-ttl 300;' in opts and res_conf.count('max-cache-ttl') == 1, opts
+assert 'max-ncache-ttl 0;' in kids and 'max-ncache-ttl' not in everyone \
+    and res_conf.count('max-ncache-ttl 0;') == res_conf.count('view "') - 1, (kids, everyone)
 plain = env.get_template('resolver/config/named.conf.j2').render(**{**v2, **res_ctx, 'adguard_tls': False})
 assert 'tls "group-kids"' not in plain and f'forwarders {{ {v2["ip_adguard"]} port 53; }};' in \
     plain[plain.index('view "kids"'):], 'before its certificate the group forwards over plain DNS'
@@ -340,9 +346,14 @@ print('zone files: a name of 24 characters or more stays apart from its record t
 # probe as it was refused every 10 s (2.3.1.21.4)
 _pg = lambda **s: yaml.safe_load(env.get_template('postgres/docker-compose.yml.j2').render(**full, **s))[  # noqa: E731
     'services']['postgres']['healthcheck']['test'][1]
-assert _pg() == 'pg_isready -U keycloak -d keycloak' and \
-    _pg(keycloak_db_user='keycloak_db') == 'pg_isready -U keycloak_db -d keycloak', (_pg(), _pg(keycloak_db_user='x'))
+assert _pg() == 'pg_isready -h 127.0.0.1 -U keycloak -d keycloak' and \
+    _pg(keycloak_db_user='keycloak_db') == 'pg_isready -h 127.0.0.1 -U keycloak_db -d keycloak', \
+    (_pg(), _pg(keycloak_db_user='x'))   # over TCP: only the real server, not the image's init one (1.2.4.5)
 print("Postgres's health probe: the bootstrap role before the take-over, Keycloak's own after")
+_pgh = yaml.safe_load(env.get_template('postgres/docker-compose.yml.j2').render(**full))['services']['postgres'][
+    'healthcheck']
+assert _pgh['start_period'] == '300s' and _pgh['retries'] == 5, _pgh   # a first start's initdb on a slow disk (1.2.4.5)
+print("Postgres's health wait: 300 s of start before a failed probe counts (a first start's initdb)")
 # DNS filter (manual 1.12.2): on by default (2.1.12.3) -> the BIND resolver on 53, BIND on 5053 (even when vars.yaml
 # had 53), its own account, no capabilities, no requires; off -> BIND keeps the port vars say
 assert v2['dns_filter'] == user.get('dns_filter', 'bind') and v2['install_resolver'] is (v2['dns_filter'] == 'bind')
@@ -405,6 +416,8 @@ assert agc['filtering']['blocking_mode'] == 'nxdomain' and agc['querylog']['enab
 assert agc['statistics']['enabled'] is False and agc['dns']['allowed_clients'] == ['10.255.0.33']
 assert agc['tls']['enabled'] is False and agc['schema_version'] == 34 and agc['filtering']['safe_fs_patterns'] == ['/lists/*']
 static = yaml.safe_load(agt.render(**agx, with_api=False))
+# AdGuard keeps no answer more than 5 minutes (2.1.12.11); outside its API, so a change rewrites the file and restarts it
+assert agc['dns']['cache_ttl_max'] == 300 and agc['dns']['cache_ttl_min'] == 0 and static['dns']['cache_ttl_max'] == 300, agc['dns']
 assert not {'filters', 'user_rules'} & set(static) and 'upstream_dns' not in static['dns'], 'the API parts left out'
 units_res = {u['service']: u for u in service_units('/opt', res)}
 assert units_res['bind9-resolver']['enabled'] and units_res['bind9-resolver']['requires'] == []
@@ -506,12 +519,41 @@ except ValidationError:
     pass
 d2 = kea_json("kea-dhcp-ddns.conf")["DhcpDdns"]
 assert d2["forward-ddns"]["ddns-domains"][0]["name"] == "dhcp.test.lan.j-j.family." and d2["tsig-keys"][0]["name"] == "kea-ddns"
+assert d2["dns-server-timeout"] >= 2000, "Kea waits long enough for BIND to answer an update (2.3.10.11.16)"
 zones = env.get_template('bind9/config/named.conf.zones.j2').render(**{**secrets, **kv, "tsig_keys": [], "tsig_secrets": {}})
 dz = zones[zones.index('zone "dhcp.test.lan.j-j.family"'):]
 dz = dz[:dz.index("};\n};") + 5]
 assert 'grant "kea-ddns" zonesub A AAAA DHCID;' in dz and dz.count("grant") == 1, dz
 keys = env.get_template('bind9/config/named.conf.keys.j2').render(**{**secrets, **kv, "tsig_keys": [], "tsig_secrets": {}})
 assert 'key "kea-ddns"' in keys and kv["kea_ddns_secret"] in keys
+# Kea's key being replaced (2.1.10.42): BIND knows the old key and the new, each granted the same, the old one's
+# denies kept too; Kea signs with the new one only; once dropped, only the new one is left
+rot = {**secrets, **kv, "tsig_keys": [], "tsig_secrets": {}, "kea_ddns_key": "kea-ddns-20261024",
+       "kea_ddns_secret": "bmV3LWtlYS1rZXktc2VjcmV0LTMyLWJ5dGVzLWxvbmchIQ==",
+       "kea_ddns_old": {"name": "kea-ddns", "secret": kv["kea_ddns_secret"], "made": "2025-11-01"},
+       "reverse_zone_names": ["7.168.192.in-addr.arpa"], "dhcp_reverse_zones": ["7.168.192.in-addr.arpa"],
+       "reverse_by_hand": {"7.168.192.in-addr.arpa": ["20"]}, "bind_acls": {"lan": ["any"]}}
+rkeys = env.get_template('bind9/config/named.conf.keys.j2').render(**rot)
+rzones = env.get_template('bind9/config/named.conf.zones.j2').render(**rot)
+assert 'key "kea-ddns-20261024"' in rkeys and rot["kea_ddns_secret"] in rkeys and 'key "kea-ddns"' in rkeys \
+    and kv["kea_ddns_secret"] in rkeys, rkeys
+for name in ("kea-ddns-20261024", "kea-ddns"):
+    assert f'grant "{name}" zonesub A AAAA DHCID;' in rzones and f'grant "{name}" zonesub PTR DHCID;' in rzones \
+        and f'deny "{name}" name 20.7.168.192.in-addr.arpa. ANY;' in rzones, (name, rzones)
+rev = rzones[rzones.index('zone "7.168.192.in-addr.arpa"'):]
+assert rev.index("deny") < rev.index("grant"), "every deny before the grants: the first match wins"
+rot_d2 = env.get_template("kea/kea-dhcp-ddns.conf.j2").render(**rot)
+rd2 = json.loads("\n".join(ln for ln in rot_d2.splitlines() if not ln.strip().startswith("//")))["DhcpDdns"]
+assert rd2["tsig-keys"] == [{"name": "kea-ddns-20261024", "algorithm": "HMAC-SHA256",
+                             "secret": rot["kea_ddns_secret"]}] \
+    and {d["key-name"] for d in rd2["forward-ddns"]["ddns-domains"] + rd2["reverse-ddns"]["ddns-domains"]} \
+    == {"kea-ddns-20261024"}, rd2
+done_keys = env.get_template('bind9/config/named.conf.keys.j2').render(**{**rot, "kea_ddns_old": None})
+assert 'key "kea-ddns-20261024"' in done_keys and 'key "kea-ddns"' not in done_keys \
+    and kv["kea_ddns_secret"] not in done_keys, done_keys
+assert 'grant "kea-ddns" ' not in env.get_template('bind9/config/named.conf.zones.j2').render(**{**rot,
+                                                                                                "kea_ddns_old": None})
+print("Kea's DNS key replaced (2.1.10.42): BIND knows both while it is, Kea signs with the new; the old one dropped")
 parent = env.get_template('bind9/data/zone.j2').render(**{**secrets, **kv, "zone_name": "test.lan.j-j.family",
                                                         "zone_records": kv["dns"]["dynamic_zone_var"]})
 assert re.search(r"^dhcp\s+NS\s+ns\.test\.lan\.j-j\.family\.$", parent, re.M), "no delegation of the DHCP subzone"
@@ -520,7 +562,7 @@ nokea = env.get_template('bind9/config/named.conf.zones.j2').render(**{**secrets
 assert "dhcp.test.lan.j-j.family" not in nokea, "no DHCP subzone without Kea"
 # covers: setting:dhcp -
 for bad, msg in ((lambda d: d["subnets"][0].update(pools=["192.168.8.1 - 192.168.8.9"]), "inside"),
-                 (lambda d: d["subnets"][0]["reservations"][0].update(ip="192.168.7.150"), "outside its pools"),
+                 (lambda d: d["subnets"][0]["reservations"][0].update(ip="192.168.8.150"), "must lie inside"),
                  (lambda d: d.update(interfaces=[]), "interface"),
                  (lambda d: d["subnets"][0].update(pools=["192.168.7.50 - 192.168.7.60"]), "inside a DHCP pool")):
     d = copy.deepcopy(kv["dhcp"])
@@ -531,6 +573,9 @@ for bad, msg in ((lambda d: d["subnets"][0].update(pools=["192.168.8.1 - 192.168
         raise AssertionError(f"not refused: {msg}")
     except ValidationError as e:
         assert msg in str(e), (msg, str(e))
+inpool = copy.deepcopy(kv["dhcp"])
+inpool["subnets"][0]["reservations"][0]["ip"] = "192.168.7.150"
+assert normalize_dhcp({**kv, "dhcp": inpool})["subnets"][0]["reservations"][0]["ip"] == "192.168.7.150",     "a reservation inside a pool is allowed since 0.9.0 (1.10.4.3.2)"
 # networks beyond the host's LAN (2.1.10.3-5, manual 1.10.3): a lab on a second interface, a guest subnet behind a relay
 import ipaddress  # noqa: E402
 

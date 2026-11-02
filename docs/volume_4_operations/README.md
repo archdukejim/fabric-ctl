@@ -11,6 +11,7 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 - [4.2.1 Resource use](4.2.1-resources.md)
 - [4.2.2 Lifecycle commands](4.2.2-lifecycle.md)
 - [4.2.3 Service ports](4.2.3-ports.md)
+- [4.2.4 Moving the host to a new address, and renaming it](4.2.4-move-rename.md)
 
 ## 4.3 fabricctl, setup and fabric-agent
 
@@ -54,6 +55,7 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 - [4.8.3 The setup wizard and the settings file](4.8.3-setup-wizard.md)
 - [4.8.4 Changes wait for Apply](4.8.4-apply.md)
 - [4.8.5 My account](4.8.5-my-account.md)
+- [4.8.6 Reaching a device's Cockpit through fabric](4.8.6-cockpit.md)
 
 ## 4.9 Federation
 
@@ -63,6 +65,7 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 ## 4.10 DHCP: Kea
 
 - [4.10.1 DHCP with Kea](4.10.1-dhcp.md)
+- [4.10.2 The address manager (`fabricctl ipam`)](4.10.2-address-manager.md)
 
 ## 4.11 802.1X: FreeRADIUS
 

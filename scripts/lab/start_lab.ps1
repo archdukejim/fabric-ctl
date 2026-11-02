@@ -8,11 +8,11 @@
   (g23-vm-*), never another VM on gaming-23. -List shows each campaign's VMs and memory and changes nothing.
 
 .PARAMETER Campaign
-  domain-linux, domain-windows, two-sites, dhcp, dot1x, ha, or none (stop the whole lab).
+  domain-linux, domain-windows, two-sites, dhcp, joined, dot1x, ha, or none (stop the whole lab).
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('domain-linux', 'domain-windows', 'two-sites', 'dhcp', 'dot1x', 'ha', 'none')]
+    [ValidateSet('domain-linux', 'domain-windows', 'two-sites', 'dhcp', 'joined', 'dot1x', 'ha', 'none')]
     [string]$Campaign,
     [switch]$List
 )
@@ -23,6 +23,7 @@ $Campaigns = [ordered]@{
     'domain-windows' = 'g23-vm-rtr-1', 'g23-vm-ub24-1', 'g23-vm-ws25-1', 'g23-vm-w11-1'
     'two-sites'      = 'g23-vm-rtr-1', 'g23-vm-ub24-1', 'g23-vm-ub26-1', 'g23-vm-ub26-2'
     'dhcp'           = 'g23-vm-ub24-1', 'g23-vm-rtr-1', 'g23-vm-kub26-1', 'g23-vm-w11-1'
+    'joined'         = 'g23-vm-rtr-1', 'g23-vm-ub24-1', 'g23-vm-ub26-2', 'g23-vm-ws25-1'
     'dot1x'          = 'g23-vm-ub24-1', 'g23-vm-rtr-1', 'g23-vm-auth-1', 'g23-vm-ub26-2', 'g23-vm-w11-1'
     'ha'             = 'g23-vm-rtr-1', 'g23-vm-ub24-1', 'g23-vm-ub24-2', 'g23-vm-ub26-1', 'g23-vm-ub26-2'
     'none'           = @()

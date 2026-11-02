@@ -4,7 +4,7 @@
 PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "machines": "/directory/computers",
                  "policies": "/directory/policies", "ous": "/directory/ous", "access": "/directory/access",
                  "kerberos": "/directory/kerberos", "devices": "/8021x/devices", "roles": "/8021x/roles",
-                 "radius": "/8021x", "zones": "/dns/zones",
+                 "radius": "/8021x", "zones": "/dns/zones", "networks": "/networks", "options": "/networks/options",
                  "account": "/account/groups"}
 
 # The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
@@ -16,7 +16,8 @@ NAV = [
     ("account", "My account", [("/account", "My account", ()), ("/account/groups", "Groups I manage", ())]),
     ("dns", "DNS", [("/dns/zones", "Zones", ("dns:read",)),
                     ("/dns-filter", "DNS filter", ("dns:filter", "dns:querylog"))]),
-    ("dhcp", "DHCP", [("/kea", "Kea", ("dhcp:read",))]),
+    ("dhcp", "DHCP", [("/networks", "Networks", ("dhcp:read",)), ("/networks/options", "DHCP options", ("dhcp:read",)),
+                      ("/kea", "Kea", ("dhcp:read",))]),
     ("pki", "PKI", [("/pki", "Certificates", ("pki:read",)), ("/pki/acme", "ACME", ("pki:read",))]),
     ("directory", "Directory", [("/directory", "Overview", ("domain:read",)),
                                 ("/directory/people", "People", ("people:read",)),
@@ -109,7 +110,8 @@ MENU_PERMS = {"sign": "pki:sign", "issue": "pki:issue", "convert": "pki:issue", 
               "lists": "dns:filter", "rules": "dns:filter", "settings": "dns:filter"}
 # the setup wizard's steps (manual 1.8.5.3): (step, title, its fields); the fields are agent settings_from_form's
 WIZARD_STEPS = [
-    ("parts", "Optional parts", ["dns_filter", "install_fluentbit", "log_target"]),
+    ("parts", "Optional parts", ["install_kea", "dhcp_interface", "dhcp_subnet", "dhcp_pool", "dhcp_router",
+                                 "dns_filter", "install_fluentbit", "log_target"]),
     ("memory", "Memory", ["host_ram_capacity"]),
     ("signin", "Passwords and sign-in", []),     # their pages: Directory → Policies, Kerberos (2.1.8.19)
     ("upstreams", "The DNS filter's upstreams", ["dns_filter_upstreams"]),

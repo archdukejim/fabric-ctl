@@ -1,0 +1,28 @@
+# fabric's settings for the lab's dhcp campaign (manual 3.1.5.10): g23-vm-ub24-1 as the root DC, Kea listening on its
+# NIC `lab` and reached from VLANs 10, 20 and 30 through the router's relay (g23-vm-rtr-1, 10.88.0.2). VLAN 10's
+# subnet is the settings' one, so the first apply moves it into the plan (1.10.4.37); VLANs 20 and 30 are added from
+# the CLI and the console. No secret here: the first admin's password is generated on the VM (3.1.5.9).
+domain: lab.test
+hostname: g23-vm-ub24-1
+host_ip: 10.88.0.10
+lan_cidr: 10.88.0.0/24
+lan_gateway: 10.88.0.2
+friendly_name: Fabric DHCP lab
+ad_domain: ad.lab.test
+ad_password_policy: {minimum_length: 14, complexity: true, history: 24, minimum_age_days: 0, maximum_age_days: 0, lockout_threshold: 10, lockout_minutes: 15, lockout_window_minutes: 15}
+install_keycloak: true
+install_webui: true
+webui_admin_user: lab.admin
+webui_admin_first_name: Lab
+webui_admin_last_name: Admin
+webui_admin_email: lab.admin@lab.test
+install_kea: true
+dhcp:
+  interfaces: [lab]
+  lease_time: 600
+  subnets:
+    - subnet: 10.88.10.0/24
+      name: vlan10
+      vlan: 10
+      pools: ["10.88.10.100 - 10.88.10.199"]
+      routers: 10.88.10.1

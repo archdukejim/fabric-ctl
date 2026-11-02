@@ -23,6 +23,18 @@ except ImportError:
     PRIVATE_TLDS = ()                       # without fabriclib every name counts as public in the preview
     DEVICE_TYPES, PERMISSIONS = [], {}
     BUNDLES, FABRIC_PERMISSIONS = {}, {p: "" for p in views.PREVIEW_PERMS}
+try:                                       # the address manager's pure views (1.10.4.40)
+    from fabriclib.ipam.common.option_codes import CATALOGUE  # noqa: F401
+    from fabriclib.ipam.common.site_plan import site_plan  # noqa: F401
+    from fabriclib.ipam.export_plan import export_plan  # noqa: F401
+    from fabriclib.ipam.networks_view import networks_view  # noqa: F401
+    from fabriclib.ipam.options.effective_options import effective_options  # noqa: F401
+    from fabriclib.ipam.options.settings_options import settings_options  # noqa: F401
+    from fabriclib.ipam.suggestions import suggest_split, suggest_subnet  # noqa: F401
+except ImportError:
+    CATALOGUE = {}
+    site_plan = export_plan = networks_view = effective_options = settings_options = None
+    suggest_split = suggest_subnet = None
 try:
     from fabriclib.rbac.required_permission import required_permission  # noqa: F401
 except ImportError:

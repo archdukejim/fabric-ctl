@@ -49,18 +49,20 @@ def _log_forwarding(text, base):
 def settings_from_form(form, base):
     """Purpose: the wizard's fields (manual 1.8.5.3) as the settings they set, for plan_settings: each field present
              turns into its setting's value; a field left out leaves its setting as it is.
-    Inputs:  form — {field: text}: dns_filter, install_fluentbit, log_target, host_ram_capacity, policy_<key> (each of
-             the password policy's keys) and policy_complexity, signin_kerberos, dns_filter_upstreams;
-             base — today's settings
-             (read_settings), what a partial field keeps.
+    Inputs:  form — {field: text}: install_kea, dhcp_interface, dhcp_subnet, dhcp_pool, dhcp_router, dns_filter,
+             install_fluentbit, log_target, host_ram_capacity, policy_<key> (each of the password policy's keys)
+             and policy_complexity, signin_kerberos, dns_filter_upstreams; base — today's settings (read_settings),
+             what a partial field keeps.
     Returns: {wizard key: value}.
     Fails:   ValidationError naming the field: a yes/no that is neither, a number that is not one, a log destination
              setup refuses, or an upstream pair of the wrong form.
     Feeds:   agent/post_settings (POST /v1/settings/plan with the wizard's fields)."""
     out = {}
-    for key in ("install_fluentbit", "signin_kerberos"):
+    for key in ("install_kea", "install_fluentbit", "signin_kerberos"):
         if key in form:
             out[key] = _flag(form, key)
+    if any(f"dhcp_{k}" in form for k in ("interface", "subnet", "pool", "router")):
+        out["dhcp"] = {k: str(form.get(f"dhcp_{k}", "")).strip() for k in ("interface", "subnet", "pool", "router")}
     if "dns_filter" in form:
         out["dns_filter"] = str(form["dns_filter"]).strip().lower()
     if "log_target" in form:

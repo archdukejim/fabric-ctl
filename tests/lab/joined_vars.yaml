@@ -1,0 +1,28 @@
+# fabric's settings for the lab's joined campaign (manual 3.1.5.11, decision 2.1.1.48): g23-vm-ub24-1 as the root
+# DC; Keycloak, the console and Kea on (their images are updated and rolled back with the rest), Kea on its NIC `lab`
+# with VLAN 10's subnet as in the dhcp campaign (the router's relay stays off: no lease is asked). The members join
+# it by one-time passwords. No secret here: the first admin's password is generated on the VM (3.1.5.9).
+domain: lab.test
+hostname: g23-vm-ub24-1
+host_ip: 10.88.0.10
+lan_cidr: 10.88.0.0/24
+lan_gateway: 10.88.0.2
+friendly_name: Fabric joined lab
+ad_domain: ad.lab.test
+ad_password_policy: {minimum_length: 14, complexity: true, history: 24, minimum_age_days: 0, maximum_age_days: 0, lockout_threshold: 10, lockout_minutes: 15, lockout_window_minutes: 15}
+install_keycloak: true
+install_webui: true
+webui_admin_user: lab.admin
+webui_admin_first_name: Lab
+webui_admin_last_name: Admin
+webui_admin_email: lab.admin@lab.test
+install_kea: true
+dhcp:
+  interfaces: [lab]
+  lease_time: 600
+  subnets:
+    - subnet: 10.88.10.0/24
+      name: vlan10
+      vlan: 10
+      pools: ["10.88.10.100 - 10.88.10.199"]
+      routers: 10.88.10.1

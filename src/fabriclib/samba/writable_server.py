@@ -9,7 +9,7 @@ def writable_server(v, to):
              ("make the host's account at").
     Returns: None (this site's DC) or the writable DC's address (str, trimmed).
     Fails:   ValidationError for a read-only DC with no writable DC known, before anything is written.
-    Feeds:   setup/common/host_identity, undo/remove_host_account."""
+    Feeds:   setup/common/host_identity, undo/remove_host_account, ipam/common/edit_plan, ipam/common/edit_options."""
     if v.get("ad_dc_type") != "rodc":
         return None
     server = str(v.get("ad_join_server") or "").strip()

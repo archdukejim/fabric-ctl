@@ -94,6 +94,7 @@ with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dst:
 # owners, a DHCID under the same owner), merged into fabric's new file; fabric's own PTR wins on a shared owner
 from fabriclib.dns.install_zone_file import install_zone_file  # noqa: E402
 from fabriclib.dns.merge_dynamic_records import merge_dynamic_records  # noqa: E402
+from fabriclib.dns.zone_content_changed import zone_content_changed as find_changed_zones_one  # noqa: E402
 rev = "0.20.10.in-addr.arpa"
 fabric_new = f"""$TTL 86400
 $ORIGIN {rev}.
@@ -124,6 +125,22 @@ checks = {
     "nothing to keep: the file unchanged": merge_dynamic_records(rev, fabric_new, "") == fabric_new,
     "merging twice keeps one copy": merge_dynamic_records(rev, merged, merged).count("laptop.dhcp") == 1,
 }
+# BIND writes a long DHCID over two lines in ( ... ): kept whole, on one line, balanced (2.3.10.11.16, the lab)
+bind_two_line = f"""$ORIGIN {rev}.
+100\t\t\tPTR\tg23-vm-kub26-1.dhcp.lab.test.
+\t\t\tDHCID\t( AAEB980XNC22Yol9k5ZMBNxBXTA3ix8vUv0Q3uzhTSFk
+\t\t\t\tEuE= ) ; 32 bytes
+101\t\t\tPTR\tphone.dhcp.lan.test.
+"""
+merged_two = merge_dynamic_records(rev, fabric_new, bind_two_line)
+kept_part = merged_two.split("kept from DHCP")[1]
+checks.update({
+    "a DHCID BIND wrote over two lines is kept whole, on one line":
+        "AAEB980XNC22Yol9k5ZMBNxBXTA3ix8vUv0Q3uzhTSFk EuE=" in merged_two,
+    "the merged file's parentheses balance (BIND refused the file: 'unbalanced parentheses')":
+        kept_part.count("(") == kept_part.count(")") and merged_two.count("(") == merged_two.count(")"),
+    "the record after the continued one is still read": "phone.dhcp.lan.test." in merged_two,
+})
 with tempfile.TemporaryDirectory() as d:
     src, dst = os.path.join(d, "new"), os.path.join(d, f"db.{rev}")
     open(src, "w").write(fabric_new)
@@ -137,6 +154,79 @@ with tempfile.TemporaryDirectory() as d:
     open(fwd, "w").write("old forward with a PTR-looking line\n100 PTR x.\n")
     install_zone_file(src, fwd, os.getuid(), os.getgid())
     checks["a forward zone is replaced as before"] = open(fwd).read() == fabric_new
+    # a deployed reverse zone holding fabric's render and the records kept from Kea is not a change; a new record is
+    rend = os.path.join(d, "rendered")
+    open(rend, "w").write(fabric_new)
+    checks["the kept records are not a change (the next render finds nothing to swap)"] = \
+        find_changed_zones_one(rend, dst) is False
+    open(rend, "a").write("6                       PTR     scanner.lan.test.\n")
+    checks["a new record of fabric's still is"] = find_changed_zones_one(rend, dst) is True
+
+    # BIND serves a serial above the render's (Kea's registrations raise it): the file swapped in is given one above
+    calls.clear()
+    bumped_src, bumped_dst = os.path.join(d, "db.1.20.10.in-addr.arpa.new"), os.path.join(d, "db.1.20.10.in-addr.arpa")
+    open(bumped_dst, "w").write(ZONE.format(serial=2000000500, records="5 PTR a.lan.test."))
+    open(bumped_src, "w").write(ZONE.format(serial=2000000300, records="5 PTR b.lan.test."))
+    DST["dir"] = d
+    reload_zone("1.20.10.in-addr.arpa", bumped_src, bumped_dst, os.getuid(), os.getgid())
+    checks["a serial BIND has passed is raised above it, and the swap is served"] = \
+        file_serial(bumped_dst) == "2000000501" and "b.lan.test." in open(bumped_dst).read() \
+        and calls.count("reload 1.20.10.in-addr.arpa") == 1
+    open(bumped_src, "w").write(ZONE.format(serial=2000000900, records="5 PTR c.lan.test."))
+    reload_zone("1.20.10.in-addr.arpa", bumped_src, bumped_dst, os.getuid(), os.getgid())
+    checks["a serial above BIND's is left as rendered"] = file_serial(bumped_dst) == "2000000900"
+# The apply twice over a reverse zone holding Kea's PTRs (2.3.8.3.22's finding): the first finds it changed and swaps
+# it, keeping Kea's records after KEPT_HEAD; the second, rendered again with a new serial, finds no zone to swap
+with tempfile.TemporaryDirectory() as src_dir, tempfile.TemporaryDirectory() as dst_dir:
+    def render(serial):
+        with open(os.path.join(src_dir, f"db.{rev}"), "w") as f:
+            f.write(fabric_new.replace("2000000002 3600", f"{serial} ; Serial\n                        3600"))
+    open(os.path.join(dst_dir, f"db.{rev}"), "w").write(bind_old)
+    DST["dir"] = dst_dir
+    render(2000000002)
+    first = find_changed_zones(src_dir, dst_dir)
+    for zone, s, d in first:
+        reload_zone(zone, s, d, os.getuid(), os.getgid())
+    deployed = open(os.path.join(dst_dir, f"db.{rev}")).read()
+    calls.clear()
+    render(2000000003)
+    second = find_changed_zones(src_dir, dst_dir)
+    for zone, s, d in second:
+        reload_zone(zone, s, d, os.getuid(), os.getgid())
+    checks["applied twice: the first swaps the reverse zone and keeps Kea's PTRs"] = \
+        [z for z, _, _ in first] == [rev] and "kept from DHCP's registrations" in deployed \
+        and "laptop.dhcp.lan.test." in deployed
+    checks["applied twice: the second, with a new serial, finds no zone to swap and calls no rndc"] = \
+        second == [] and calls == []
+# A deployed file BIND did not load (it refused it and kept its older copy, the zone left frozen: 2.3.10.11.16, the
+# lab) is found and swapped again, though fabric's records did not change; a dynamic zone BIND serves above its file
+# is not; and a zone found frozen is thawed, never left so.
+with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dst:
+    for d in (src, dst):
+        open(os.path.join(d, "db.9.20.10.in-addr.arpa"), "w").write(ZONE.format(serial=300, records="5 PTR x.lan.test."))
+    checks["a zone BIND serves below its deployed file's serial is swapped again (BIND did not load it)"] = \
+        [z for z, _, _ in find_changed_zones(src, dst, served=lambda z: "100")] == ["9.20.10.in-addr.arpa"]
+    checks["a dynamic zone BIND serves above its file (Kea's updates) is not"] = \
+        find_changed_zones(src, dst, served=lambda z: "350") == []
+    checks["BIND not answering changes nothing"] = find_changed_zones(src, dst, served=lambda z: None) == []
+    real_rndc, before = reload_zone_module.rndc, len(calls)
+
+    def frozen_rndc(args, timeout=15):
+        if args[0] == "freeze" and args[-1] == "9.20.10.in-addr.arpa":
+            calls.append(" ".join(args))
+            r = R(1)
+            r.stderr = "rndc: 'freeze' failed: already frozen"
+            return r
+        return real_rndc(args, timeout)
+    reload_zone_module.rndc = frozen_rndc
+    try:
+        DST["dir"] = dst
+        reload_zone("9.20.10.in-addr.arpa", os.path.join(src, "db.9.20.10.in-addr.arpa"),
+                    os.path.join(dst, "db.9.20.10.in-addr.arpa"), os.getuid(), os.getgid())
+    finally:
+        reload_zone_module.rndc = real_rndc
+    checks["a zone found frozen ('already frozen') is thawed after the swap, not reloaded and left frozen"] = \
+        "thaw 9.20.10.in-addr.arpa" in calls[before:] and "reload 9.20.10.in-addr.arpa" not in calls[before:]
 for name, passed in checks.items():
     print(("PASS " if passed else "FAIL ") + "DHCP's PTRs: " + name)
     ok &= passed

@@ -14,13 +14,19 @@ arbitrary commands.
 | `get_route.py` | GET routes: one fabriclib read each |
 | `post_route.py` | POST routes by area; apply, people, login events |
 | `post_pending.py` | Apply per page (manual 1.8.6.5): holding a change, dropping, discarding and applying a page's changes as one job |
-| `pending_store.py` | The pending store (2.1.8.13): each person's changes per page, Apply in order stopping at the first failure, refusing a change whose thing changed since, the page's queue |
+| `pending_store.py` | The pending store (2.1.8.13): each person's changes per page, Apply in order stopping at the first failure, refusing a change whose thing changed since, a check of the change's own at hold and at Apply (the address manager's grant), the page's queue |
 | `landing_note.py` | DNS' Review's sentence when the landing page's certificate waits for a full apply (2.1.8.29) |
 | `pending_thing.py` | What a held change changes: its page, its words, the thing's read and its version (2.1.8.14) |
+| `pending_dns.py` | DNS' held changes in a sentence (moved from `pending_thing.py`) |
+| `pending_networks.py` | The address manager's held changes (1.10.4.40.2): their page (Networks, DHCP options), sentence, thing and key, and the grant's networks right at their site |
 | `post_dns.py` | Zones (add, remove), their records, TSIG keys (a new key or secret given to BIND at once, 2.1.8.24) |
 | `post_dns_filter.py` | The DNS filter's lists, rules and upstreams (saved and applied), the lists job, the query-log search |
 | `post_dhcp.py` | DHCP: reservations, subnets (name, VLAN, notes, pools), options, client classes, each applied at once |
 | `post_network.py` | 802.1X settings, each applied at once |
+| `post_networks.py` | The address plan's changes (`/v1/networks/<site>/...`): each the ipam function the CLI calls, the grant checked there; this site's applied at once |
+| `post_options.py` | The DHCP options in the plan, client classes, definitions and netboot presets (the domain's set as `scope` domain) |
+| `post_ipam_sync.py` | Sync now: the plan poll at once, and BIND's records when DNS waits |
+| `post_ipam_scan.py` | A scan of this site's subnet, a find recorded, a scan asked of another site |
 | `post_pki.py` | Manual PKI: describe or sign a CSR, issue, inspect, convert |
 | `post_vault.py` | OpenBao's unlock methods, rotating the vault key |
 | `post_directory.py` | Devices and device roles in the domain |

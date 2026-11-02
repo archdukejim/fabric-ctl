@@ -1,10 +1,11 @@
-"""fabric-agent's check of who may do what (manual 1.6.12.2, 1.6.12.11, 1.6.13.4; 2.1.6.66 to 2.1.6.68, 2.1.6.73): the
-tiers, the grants' people and machines rights, and a group's two levels, decided from the directory as it is."""
+"""fabric-agent's check of who may do what (manual 1.6.12.2, 1.6.12.11, 1.6.13.4, 1.6.13.12; 2.1.6.66 to 2.1.6.68,
+2.1.6.73, 2.1.10.36): the tiers, the grants' people, machines and networks rights, and a group's two levels, decided
+from the directory as it is."""
 import ldb
 
 import paths
 from grant_members import excluded, group_members, reach, tiers
-from grant_names import MACHINE_RIGHTS, PEOPLE_RIGHTS
+from grant_names import ALL_SITES, MACHINE_RIGHTS, NETWORK_RIGHTS, PEOPLE_RIGHTS
 from grant_store import read_grants
 from group_kind import group_kind
 from group_names import DIRECTORY_ADMINS
@@ -83,6 +84,37 @@ def _grants_giving(samdb, category, right, caller_dn, target_dn=None, target_gro
     return by
 
 
+def _networks_action(samdb, tier, caller_dn, right, target):
+    """Purpose: whether the caller holds a networks right at a site (1.6.13.12, 2.1.10.36): the Directory
+             Administrators and AD's top tier everywhere; anyone else through an allowing grant whose who holds them,
+             with that right, and whose sites are `all` or name the site. The domain's option set, and anything done
+             at every site, is the target `all`: only a grant at `all` reaches it. Restricting grants do not narrow
+             networks rights.
+    Inputs:  samdb — SamDB; tier — the caller's tier; caller_dn — str (lower case), or None (root); right — one of
+             NETWORK_RIGHTS; target — {"site": a site's name, or "all"}.
+    Returns: str, by what it is allowed ("tier" or "grant <names>").
+    Fails:   ValueError saying why it is refused; ldb.LdbError.
+    Feeds:   authorize_action."""
+    site = str(target.get("site") or "").strip()
+    if not site:
+        raise ValueError("a networks right is checked at a site, or at all")
+    if RANK[tier] >= RANK["directory"]:
+        return "tier"
+    out, cache, by = excluded(samdb), {}, []
+    for g in read_grants(samdb):
+        if g["kind"] != "allow" or right not in (g.get("networks") or []):
+            continue
+        sites = {x.lower() for x in g.get("sites") or []}
+        if ALL_SITES not in sites and site.lower() not in sites:
+            continue
+        if caller_dn in reach(samdb, g, out, cache)["who"]:
+            by.append(g["name"])
+    if not by:
+        at = "every site (the domain's own)" if site.lower() == ALL_SITES else site
+        raise ValueError(f"no grant gives you networks {right} at {at} (manual 1.6.13.12)")
+    return "grant " + ", ".join(by)
+
+
 def _in_group(samdb, dn, group):
     """Purpose: whether an account is in a group, nesting followed (its primary group too).
     Inputs:  samdb — SamDB; dn — str (lower case); group — the group's name.
@@ -156,14 +188,17 @@ def authorize_action(samdb, caller, action, target, bundles=()):
     """Purpose: whether a caller may do an action (manual 1.6.12.2, 1.6.12.11; 2.1.6.66 to 2.1.6.68, 2.1.6.73): nothing
              below a tier touches it or its members; the Directory Administrators may do everything else; anyone else
              acts on a person or a machine only through an allowing grant whose who holds them and whose where holds
-             it, with that right; a group's scope and managers are the tier above it, its members that tier or its
-             managers within their controls. Some accounts are nobody's through fabric-agent: AD's top tier (managed on
-             the DC's host), fabric's own accounts and hosts, the DCs.
+             it, with that right; a site's address plan, DHCP options and scans through an allowing grant with that
+             networks right at the site (1.6.13.12); a group's scope and managers are the tier above it, its members
+             that tier or its managers within their controls. Some accounts are nobody's through fabric-agent: AD's
+             top tier (managed on the DC's host), fabric's own accounts and hosts, the DCs.
     Inputs:  samdb — SamDB (read only); caller — the signed-in person's user name, or None (root on a fabric host,
              acting for the Enterprise Admin); action — "people:edit|reset|unlock|disable|remove|add",
-             "machines:add|move|disable|remove|groups", "groups:admin", "groups:members" or "domain:admin";
+             "machines:add|move|disable|remove|groups", "networks:plan|options|scan", "groups:admin",
+             "groups:members" or "domain:admin";
              target — {"name"} (a person, a machine or a group), {"groups": [names]} (people:add, machines:add: the
-             groups the new account will be in), {"name", "member", "add"} (groups:members), {} (domain:admin, or
+             groups the new account will be in), {"site"} (networks: a site's name, or "all" for the domain's
+             option set and every site), {"name", "member", "add"} (groups:members), {} (domain:admin, or
              groups:admin for a new group); bundles — the names of the groups carrying a fabric role bundle (their
              members are the Directory Administrators' to manage, 1.8.2).
     Returns: {"tier": the caller's tier, "by": "tier", "manager" or "grant <names>"}.
@@ -186,6 +221,11 @@ def authorize_action(samdb, caller, action, target, bundles=()):
         return {"tier": tier, "by": "tier"}
     if action == "groups:members":
         return {"tier": tier, "by": _members_action(samdb, t, tier, caller, caller_dn, target, bundles)}
+    if action.startswith("networks:"):
+        right = action.split(":", 1)[1]
+        if right not in NETWORK_RIGHTS:
+            raise ValueError(f"unknown action {action}")
+        return {"tier": tier, "by": _networks_action(samdb, tier, caller_dn, right, target)}
     if action in PEOPLE or action in MACHINES:
         category = "people" if action in PEOPLE else "machines"
         right = (PEOPLE if category == "people" else MACHINES)[action]

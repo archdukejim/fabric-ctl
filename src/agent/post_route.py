@@ -1,14 +1,19 @@
 from agent.job_store import JOBS
+from fabriclib.common.apply_intent import apply_intent
 from agent.post_account import post_account
 from agent.post_directory import post_directory
 from agent.post_dhcp import post_dhcp
 from agent.post_domain import post_domain
 from agent.post_host_access import post_host_access
+from agent.post_ipam_scan import post_ipam_scan
+from agent.post_ipam_sync import post_ipam_sync
 from agent.post_local_admin import post_local_admin
 from agent.post_dns import post_dns
 from agent.post_dns_filter import post_dns_filter
 from agent.post_groups import post_groups
 from agent.post_network import post_network
+from agent.post_networks import post_networks
+from agent.post_options import post_options
 from agent.post_ous import post_ous
 from agent.post_pending import post_pending
 from agent.post_people import post_people
@@ -40,7 +45,10 @@ def post_route(route, actor, data, perms, session=None):
              post_pending's (a change held on its page, dropped, discarded, or the page applied as a job);
              jobs/doctor and jobs/images (body: action update|rollback, service): {"id"} of a job read with GET
              /v1/jobs/<id> by the person who started it;
-             events: {} after the login audit line; dns-filter/...: post_dns_filter's result; settings/plan,
+             events: {} after the login audit line; dns-filter/...: post_dns_filter's result; networks/<site>/...:
+             post_networks' result (the address plan, 1.10.4.21.5); ipam/scan[/record|/request]: post_ipam_scan's
+             (1.10.4.36); ipam/sync: post_ipam_sync's (Sync now, 1.10.4.28); ipam/options, classes, option-defs,
+             netboot: post_options' (1.10.4.24.6); settings/plan,
              settings/apply, settings/dismiss: post_settings' result (the setup wizard, 1.8.5).
     Fails:   ValidationError (-> 400) for an unsupported event or what fabriclib refuses; RouteNotFound (-> 404).
     Feeds:   agent/handler.py (dispatch).
@@ -51,6 +59,15 @@ def post_route(route, actor, data, perms, session=None):
         return post_dns(route, actor, data)
     if area == ["dhcp"]:
         return post_dhcp(route, actor, data)
+    if route[:2] == ["ipam", "scan"] and route[2:] != ["record"]:   # the address manager (1.10.4.35): each checks
+        return post_ipam_scan(route, actor, data, caller)              # the grant
+    if route[:2] == ["ipam", "sync"]:
+        return post_ipam_sync(route, actor, data, caller)
+    if area in (["ipam"], ["networks"]):          # a change, then its apply: the plan poll leaves Kea to it (2.1.10.45)
+        with apply_intent():
+            if route[:2] == ["ipam", "scan"]:
+                return post_ipam_scan(route, actor, data, caller)
+            return (post_options if area == ["ipam"] else post_networks)(route, actor, data, caller)
     if area == ["radius"]:
         return post_network(route, actor, data)
     if area == ["pki"] and len(route) == 2:

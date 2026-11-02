@@ -47,10 +47,15 @@ services:
         limits:
           memory: {{ memory_mb('postgres') }}M
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U {{ keycloak_db_user | default('keycloak') }} -d keycloak"]
+      # over TCP: the image's first-start init runs a server on the socket only, then stops it; a probe on the socket
+      # passed against that one, and Keycloak met the restart (1.2.4.5)
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U {{ keycloak_db_user | default('keycloak') }} -d keycloak"]
       interval: 10s
       timeout: 5s
       retries: 5
+      # a first start runs initdb and syncs it to disk: a slow disk took 58 s (the lab, 2026-10-31), past 5 failed
+      # probes, and the unit stopped a healthy start (1.2.4.5); probes fail freely for 300 s, a success ends it early
+      start_period: 300s
 
 networks:
   fabric_net:

@@ -21,4 +21,5 @@ def unset_option(actor, option, subnet=None, client_class=None, mac=None, source
             raise ValidationError(f"option {option} is not set for {label}")
         target["options"] = kept
         return label, f"{label}: {key} removed"
-    return edit_dhcp(actor, "DHCP_OPTION_UNSET", change, source)[0]
+    return edit_dhcp(actor, "DHCP_OPTION_UNSET", change, source,
+                     global_level=not subnet and not mac)[0]

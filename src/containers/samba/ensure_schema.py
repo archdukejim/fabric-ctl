@@ -23,12 +23,26 @@ SETS = {
                 ("fabricIdRange", 12, IA5, True), ("fabricIdNext", 13, INT, True),
                 # a laid-out block's high-water mark per range, "<kind>=<next>" (2.1.6.46, manual 1.6.3.17)
                 ("fabricIdMark", 14, IA5, False),
-                # brought forward from 0.9.0 with its site record, class 18 (2.1.8.30; there 2.1.10.33, 2.1.10.34):
-                # the attributes it names, under the same numbers; the rest of 15..45 are 0.9.0's, given there
-                ("fabricDhcpOption", 21, STRING, False), ("fabricBlock", 31, INT, True),
+                # the address manager's plan (manual 1.10.4.13.1, 1.10.4.31): VLANs, subnets, ranges, addresses, a
+                # site's number (on its record, 2.1.10.34)
+                ("fabricPurpose", 15, STRING, True), ("fabricAccess", 16, STRING, True),
+                ("fabricGateway", 17, IA5, True), ("fabricDhcpServed", 18, BOOL, True),
+                ("fabricSubnetId", 19, INT, True), ("fabricRelay", 20, IA5, True),
+                ("fabricDhcpOption", 21, STRING, False), ("fabricRangeKind", 22, STRING, True),
+                ("fabricFirst", 23, IA5, True), ("fabricLast", 24, IA5, True), ("fabricIp", 25, IA5, True),
+                ("fabricAddressKind", 26, STRING, True), ("fabricMac", 27, IA5, True),
+                ("fabricHostName", 28, IA5, True), ("fabricOwner", 29, STRING, True), ("fabricDns", 30, BOOL, True),
+                ("fabricBlock", 31, INT, True), ("fabricVlanName", 32, STRING, True),
+                # the option sets: the domain's and each site's (2.1.10.23, 2.1.10.34; manual 1.10.4.24.1)
                 ("fabricDhcpOptionDef", 33, STRING, False), ("fabricDhcpClass", 34, STRING, False),
+                # a scan requested at the site that serves the subnet, and its answer (2.1.10.38, manual 1.10.4.36)
+                ("fabricScanRequestedBy", 41, STRING, True), ("fabricScanActor", 42, STRING, True),
+                ("fabricScanState", 43, STRING, True), ("fabricScanResult", 44, STRING, True),
+                ("fabricScanDoneAt", 45, IA5, True),
+                # a location without a DC inside a site: its VLANs' and subnets' label (2.1.10.49, manual 1.10.4.46)
+                ("fabricLocation", 48, STRING, True),
                 # a site's place in the federation, for the console's site selector (2.1.8.30, manual 1.8.6.12): its
-                # parent site and its console's address, on its record through fabricSiteTree
+                # parent site and its console's address, on its record through fabricSiteTree (given on 0.8.0)
                 ("fabricParentSite", 46, STRING, True), ("fabricConsoleUrl", 47, IA5, True)],
                [("fabricDevice", 1, 3, [], ["fabricDeviceType", "fabricEnabled", "fabricCertFingerprint"]),
                 ("fabricRole", 2, 3, [], ["fabricPermission", "fabricVlan", "fabricPriority"]),
@@ -39,12 +53,33 @@ SETS = {
                 ("fabricIdLayout", 6, 3, [], ["fabricIdMark"]),
                 # a DC's record in CN=dcs,CN=fabric,CN=System: its site (2.1.6.79, manual 1.6.13.2)
                 ("fabricDcInfo", 7, 3, [], ["fabricSite"]),
+                # the address manager (manual 1.10.4.31): a subnet's own fields on its fabricNetwork entry; a range,
+                # an address and a scan request, each below its subnet's entry
+                ("fabricSubnet", 8, 3, [], ["fabricGateway", "fabricDhcpServed", "fabricSubnetId", "fabricRelay",
+                                            "fabricDhcpOption"]),
+                ("fabricRange", 9, 1, ["fabricRangeKind", "fabricFirst", "fabricLast"], ["description"],
+                 ["fabricNetwork"]),
+                ("fabricAddress", 10, 1, ["fabricIp", "fabricAddressKind"],
+                 ["fabricMac", "fabricHostName", "fabricOwner", "fabricDns", "fabricDhcpOption", "description"],
+                 ["fabricNetwork"]),
+                # the domain's DHCP options (CN=dhcp-options,CN=fabric,CN=System, 2.1.10.34)
+                ("fabricOptionSet", 12, 1, [], ["fabricDhcpOption", "fabricDhcpOptionDef", "fabricDhcpClass",
+                                                "description"]),
+                ("fabricScanRequest", 16, 1, ["fabricCidr", "fabricScanRequestedBy"],
+                 ["fabricScanActor", "fabricScanState", "fabricScanResult", "fabricScanDoneAt", "description"],
+                 ["fabricNetwork"]),
+                # a VLAN, in OU=networks (17: 7 is fabricDcInfo, 2.1.10.33)
+                ("fabricVlanRecord", 17, 1, ["fabricVlan", "fabricVlanName"],
+                 ["fabricSite", "fabricPurpose", "fabricAccess", "description"]),
                 # a site's record, CN=<site>,CN=sites,CN=fabric,CN=System: its number and its options (2.1.10.34)
                 ("fabricSiteRecord", 18, 1, [], ["fabricBlock", "fabricDhcpOption", "fabricDhcpOptionDef",
                                                  "fabricDhcpClass", "description"], ["container"]),
                 # on a site's record: its parent and its console's address (2.1.8.30); auxiliary, so class 18 stays
-                # exactly 0.9.0's
-                ("fabricSiteTree", 19, 3, [], ["fabricParentSite", "fabricConsoleUrl"])]),
+                # as it was
+                ("fabricSiteTree", 19, 3, [], ["fabricParentSite", "fabricConsoleUrl"]),
+                # the label, on a VLAN's or a subnet's entry when it has one (20: 19 is 0.8.0's site tree; a
+                # class once in a schema never changes, so the label is an auxiliary class, 2.1.10.49)
+                ("fabricLocated", 20, 3, [], ["fabricLocation"])]),
     # sudo's rules in the directory, with sudo's own registered arc (Ubuntu no longer ships its AD schema; Q9)
     "sudo": ("1.3.6.1.4.1.15953.9.1", "1.3.6.1.4.1.15953.9.2",
              [("sudoUser", 1, IA5, False), ("sudoHost", 2, IA5, False), ("sudoCommand", 3, IA5, False),
@@ -64,6 +99,7 @@ RETIRED = {
     "fabric": {"attributes": {35, 36, 39, 40}, "classes": {11, 13, 15}},
 }
 # numbers held for another release's branch, not given here (2.1.10.33): the SSH host's on dev/0.10.0-8021x
+# (37, 38, class 14)
 RESERVED = {"fabric": {"attributes": {37, 38}, "classes": {14}}}
 # a structural class's objects readable by authenticated users (machines included), or only admins see them (Q9)
 DEFAULT_SD = "D:(A;;RPWPCRCCDCLCLORCWOWDSDDTSW;;;DA)(A;;RPWPCRCCDCLCLORCWOWDSDDTSW;;;SY)(A;;RPLCLORC;;;AU)"

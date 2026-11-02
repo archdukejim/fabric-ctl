@@ -1,0 +1,10 @@
+[Unit]
+Description=fabric: the address plan poll, every 30 s (manual 1.10.4.26, 2.1.10.24)
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

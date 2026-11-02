@@ -26,7 +26,8 @@ with tempfile.TemporaryDirectory() as units, tempfile.TemporaryDirectory() as st
         open(os.path.join(stamps, f"stamp-{name}.timer"), "w").close()
     calls = []
     run = lambda args, **kw: calls.append(args)  # noqa: E731
-    changed = it.install_timers(paths, {"install_resolver": True, "install_keycloak": True}, units, stamps, run)
+    changed = it.install_timers(paths, {"install_resolver": True, "install_keycloak": True, "install_kea": True}, units,
+                                stamps, run)
     left = sorted(os.listdir(stamps))
     check("a first install: every timer's unit written and enabled", changed
           and all(os.path.exists(os.path.join(units, f"{n}.timer")) for n in it.TIMERS + list(it.OPTIONAL))
@@ -40,7 +41,8 @@ with tempfile.TemporaryDirectory() as units, tempfile.TemporaryDirectory() as st
           lacking)
     open(os.path.join(stamps, "stamp-fabric-certs.timer"), "w").close()
     calls.clear()
-    it.install_timers(paths, {"install_resolver": True, "install_keycloak": True}, units, stamps, run)
+    it.install_timers(paths, {"install_resolver": True, "install_keycloak": True, "install_kea": True}, units,
+                      stamps, run)
     check("negative: an install whose timers are already there keeps their stamps (a missed run still runs)",
           os.path.exists(os.path.join(stamps, "stamp-fabric-certs.timer")), sorted(os.listdir(stamps)))
     it.install_timers(paths, {"install_resolver": False}, units, stamps, run)

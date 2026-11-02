@@ -9,9 +9,8 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `converge.py` | The entry point: the wanted state as JSON on stdin, every part in order, what changed as JSON |
 | `open_samdb.py` | The DC's database opened locally as the system (optionally allowing schema changes) |
 | `repair_role_owners.py` | The roles this DC holds named by its current DN (a renamed AD site left the old text, 1.6.5.24) |
-| `ensure_schema.py` | fabric's and sudo's attributes and classes in AD's schema, added once (OIDs AD accepts, Q3) |
+| `ensure_schema.py` | fabric's and sudo's attributes and classes in AD's schema, added once (OIDs AD accepts, Q3), numbered after 0.8.0's with the retired and reserved numbers kept apart; a schema that disagrees is refused before anything is added (1.10.4.31) |
 | `ensure_layout.py` | The directory's folders (OU=people, OU=service-accounts, OU=groups with OU=fabric, OU=machines with one OU per type, OU=fabric-hosts, OU=devices, OU=device-roles, OU=networks, OU=sudoers) and `CN=fabric,CN=System` (with `CN=sites`, 1.10.4.32); AD's default containers point at OU=people and OU=machines (1.6.13.2) |
-| `ensure_site_record.py` | The site's record in `CN=sites,CN=fabric,CN=System`: its number and DHCP options (1.10.4.32) |
 | `ensure_groups.py` | The domain's groups (1.6.13.3): fabric-managed, directory-admins, dc-hosts, the tiers' admin groups, the machine types' groups, `site-<name>` per site, `rodc-cache-<dc>` for a read-only DC (2.1.6.52); fabric's `ldap_groups`, Domain Users as `users` (5000), `fabric-break-glass` |
 | `alloc_id.py` | The next number of a range for one use, from this DC's own range first, then its site's other DCs' (2.1.6.63), taken with one conditional change (never twice) |
 | `ensure_sso_account.py` | The site's `fabric-sso-<site>` account in OU=service-accounts: Keycloak's Kerberos SPNs, AES only, its keytab exported to `/data/sso.keytab` |
@@ -39,7 +38,15 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `save_role.py` | Operation `save_role`: a device role (a group with `fabricRole`) in `OU=device-roles` |
 | `remove_role.py` | Operation `remove_role`: a role deleted, refused while devices carry it |
 | `share_winbind.py` | winbind's privileged pipe in FreeRADIUS's group (root, 0750), for PEAP through `ntlm_auth` |
-| `ensure_networks.py` | The site's networks as `fabricNetwork` entries (`<site>/<name>`, marked with the site) in OU=networks (the address plan), kept to match |
+| `ensure_networks.py` | The site's networks as `fabricNetwork` entries (`<site>/<name>`, marked with the site) in OU=networks (the address plan), kept to match; never the address manager's subnets (1.10.4.33) |
+| `ensure_site_record.py` | The site's record in `CN=sites,CN=fabric,CN=System`: its number and DHCP options (1.10.4.32) |
+| `ensure_domain_options.py` | At the root: the domain's DHCP option set, `CN=dhcp-options,CN=fabric,CN=System` (1.10.4.32) |
+| `plan_cidrs.py` | The networks of the site's plan subnets, for its AD site's subnets (1.10.4.33) |
+| `read_plan.py` | Operation `read_plan`: the sites' records, the option sets, each site's VLANs, subnets, ranges and addresses (1.10.4.32, 1.10.4.33) |
+| `write_plan.py` | Operation `write_plan`: changes to the plan, a site's number and the option sets, in order (1.10.4.33) |
+| `read_scan_requests.py` | Operation `read_scan_requests`: a site's scan requests, their answers and who made them (1.10.4.36) |
+| `write_scan_request.py` | Operation `write_scan_request`: a scan request added, answered or removed (1.10.4.36) |
+| `read_usn.py` | This DC's highest committed USN, read anonymously on loopback: the plan poll's first step (1.10.4.26) |
 | `read_networks.py` | Operation `read_networks`: the address plan, every site's networks in one search |
 | `create_machine.py` | Operation `create_machine`: a machine pre-created in its type's OU under OU=machines (or OU=machines itself) with a one-time join password, in its type's and its site's groups and fabric-managed |
 | `sort_windows_machines.py` | Operation `sort_windows_machines`: Windows machines that joined themselves into OU=machines moved into OU=servers or OU=desktops by their operatingSystem, those moved before skipped (manual 1.6.13.3) |
@@ -88,9 +95,9 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `ensure_top_tier.py` | An account made a member of Enterprise, Schema and Domain Admins, the top tier's denies written at once (2.1.6.68) |
 | `ensure_enterprise_admin.py` | Run as root from fabric-ctl: `fabric-admin`, the Enterprise Admin, made once in OU=people with the generated password (JSON on stdin) and put in AD's top tier (2.1.6.69) |
 | `reset_break_glass.py` | Run as root from fabric-ctl (`fabricctl admin reset-break-glass`): `fabric-admin`'s new generated password set (JSON on stdin) and the account unlocked; a disabled account reported, never enabled (2.1.6.75) |
-| `grant_names.py` | The grants' vocabulary (1.6.13.4, 1.6.13.5): the name rule, the rights by category, the computed groups' and GPOs' names, the shipped grants and the templates |
+| `grant_names.py` | The grants' vocabulary (1.6.13.4, 1.6.13.5, 1.6.13.12): the name rule, the rights by category (networks too, with its sites), the computed groups' and GPOs' names, the shipped grants and the templates |
 | `grant_store.py` | The grant store in `CN=grants,CN=fabric,CN=System`: one `msDS-App-Configuration` per grant, its JSON in `msDS-Settings`; the compiler's record of the sets |
-| `check_grant.py` | A grant as it may be stored, or why not (its name, who and where, the tiers' groups and the DC hosts refused, the rights, sudo of every command for everyone) |
+| `check_grant.py` | A grant as it may be stored, or why not (its name, who and where, the tiers' groups and the DC hosts refused, the rights, sudo of every command for everyone; networks rights with their sites, 1.6.13.12) |
 | `grant_members.py` | A group's people and computers (nesting and primary groups followed); those no grant reaches (the top tier, fabric's accounts, the DC hosts); a grant's reach |
 | `ensure_computed_group.py` | A computed group in OU=fabric,OU=groups with exactly its members (a POSIX one for sudo); the computed groups there |
 | `access_policy.py` | A set's (or the fallback's) security template: sign-in at the keyboard and remotely, local administrators, always with Administrators and `local-admin` |
@@ -102,9 +109,9 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `explain_grants.py` | Which grants reach a person (and on a machine), and why; what they may do there |
 | `ad_sites.py` | AD's sites as fabric wrote them: each with its DCs, subnets and site links (Sites, 1.6.12.8) |
 | `reaching_grants.py` | The grants that reach a computer, and what each gives there (its page, 1.6.12.6) |
-| `ship_grants.py` | The grants a fresh install ships (1.6.13.5), made once at the root |
+| `ship_grants.py` | The grants a fresh install ships (1.6.13.5), made once at the root; 0.9.0's `network-plan` (1.6.13.12) once too, on an upgraded 0.8.0 domain as well |
 | `grants_tool.py` | The grants' entry point (as root, like gpo_tool): list, show, add, set, remove, compile, explain, reaching |
-| `authorize_action.py` | fabric-agent's check (1.6.12.17): the caller's tier, the grants' people and machines rights, a group's two levels; refused with why |
+| `authorize_action.py` | fabric-agent's check (1.6.12.17): the caller's tier, the grants' people, machines and networks rights (at a site, 1.6.13.12), a group's two levels; refused with why |
 | `group_kind.py` | A group's kind: AD's, a tier's, a bundle's, fabric's, filled, computed, a machine group, an admin's own |
 | `group_store.py` | A group's managers and controls in `CN=groups,CN=fabric,CN=System` (one `msDS-App-Configuration` per group, by objectGUID) |
 | `local_admin_store.py` | The local-admin switches in `CN=local-admin,CN=fabric,CN=System` (one `msDS-App-Configuration` per target: `dc-host-<dc>`; off when absent), with the alert's acknowledgement until the switch next changes |

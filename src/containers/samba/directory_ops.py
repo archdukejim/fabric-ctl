@@ -25,6 +25,8 @@ from move_machine import move_machine
 from place_fabric_host import place_fabric_host
 from read_devices import read_devices
 from read_networks import read_networks
+from read_plan import read_plan
+from read_scan_requests import read_scan_requests
 from remove_device import remove_device
 from remove_group import remove_group
 from remove_group_member import remove_group_member
@@ -46,6 +48,8 @@ from set_person import set_person
 from set_site_tree import set_site_tree
 from sort_windows_machines import sort_windows_machines
 from unlock_person import unlock_person
+from write_plan import write_plan
+from write_scan_request import write_scan_request
 
 # the operations fabric-agent may ask for (directory_op): each is f(samdb, lp, site, **args) -> JSON-able result
 # (and the request's dc, for one that takes it)
@@ -77,6 +81,8 @@ OPS = {
     "place_fabric_host": place_fabric_host,
     "read_devices": read_devices,
     "read_networks": read_networks,
+    "read_plan": read_plan,
+    "read_scan_requests": read_scan_requests,
     "remove_device": remove_device,
     "remove_group": remove_group,
     "remove_group_member": remove_group_member,
@@ -98,4 +104,6 @@ OPS = {
     "set_site_tree": set_site_tree,
     "sort_windows_machines": sort_windows_machines,
     "unlock_person": unlock_person,
+    "write_plan": write_plan,
+    "write_scan_request": write_scan_request,
 }
