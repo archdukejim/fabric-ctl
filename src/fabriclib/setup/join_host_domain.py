@@ -147,6 +147,30 @@ def _resolves(name, address):
         return False
 
 
+def _hosts_with(text, name, address, add):
+    """Purpose: /etc/hosts naming the DC at this host's address alone (decision 2.1.1.74): a line naming it at another
+             address (the host's old one, after a move) is dropped, since the first line wins; its own line added when
+             `add` and missing. Before 0.9.1 the join appended its line after the old one.
+    Inputs:  text — /etc/hosts as it is ("" when absent); name — hostname_dc; address — host_ip; add — whether the
+             host needs the line (it cannot find the DC's name at its address otherwise).
+    Returns: the file's new text (text itself when nothing changes).
+    Fails:   never.
+    Feeds:   run."""
+    lines, have = [], False
+    for line in text.splitlines(keepends=True):
+        fields = line.split("#", 1)[0].split()
+        if len(fields) > 1 and name.lower() in (f.lower() for f in fields[1:]):
+            if fields[0] != address:
+                continue                       # the DC at an old address
+            have = True
+        lines.append(line)
+    if add and not have:
+        if lines and not lines[-1].endswith("\n"):
+            lines[-1] += "\n"
+        lines.append(f"{address} {name}\n")
+    return "".join(lines)
+
+
 def _pam_on():
     """Purpose: the PAM profiles domain sign-in needs that are on now.
     Inputs:  none (reads PAM_AUTH, PAM_SESSION).
@@ -309,7 +333,10 @@ def run(ctx):
             if not server or not _answers(server):     # a read-only DC that does not cache it yet: preloaded below
                 raise
     stale = recorded if recorded and recorded != ident["account"] else None
-    hosts_line = None if _resolves(v["hostname_dc"], v["host_ip"]) else f"{v['host_ip']} {v['hostname_dc']}\n"
+    hosts_now = _read(HOSTS) or ""
+    # the DC's name at this host's address when DNS does not give it; a line at an old address dropped (2.1.1.74)
+    hosts_new = _hosts_with(hosts_now, v["hostname_dc"], v["host_ip"], not _resolves(v["hostname_dc"], v["host_ip"]))
+    hosts_line = hosts_new if hosts_new != hosts_now else None
     nss = _read(NSSWITCH) or ""
     # placed once per account (2.1.6.49): an admin's later move, or taking it out of the group, is kept. An account
     # made now is a new one, placed whatever the record says: an export's record can still name the account the
@@ -391,9 +418,9 @@ def run(ctx):
             f.write(_with_sss(nss))
         ok(f"{NSSWITCH}: sss for {', '.join(NSS_DATABASES)}")
     if hosts_line:
-        with open(HOSTS, "a") as f:                    # in place: a container's /etc/hosts is a bind mount
+        with open(HOSTS, "w") as f:                    # in place: a container's /etc/hosts is a bind mount
             f.write(hosts_line)
-        ok(f"{HOSTS}: {hosts_line.strip()}")
+        ok(f"{HOSTS}: {v['host_ip']} {v['hostname_dc']} (the DC's name at this host's address only, 2.1.1.74)")
     if len(_pam_on()) < 2:
         subprocess.run(["pam-auth-update", "--enable", "sss", "mkhomedir"], check=True, capture_output=True)
         ok("PAM: sss and mkhomedir on")

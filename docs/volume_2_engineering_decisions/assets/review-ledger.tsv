@@ -442,6 +442,7 @@ src/containers/samba/domain_facts.py	9ec26b1a8e259a1390f9ec3955d823689e5d67cd	20
 src/containers/samba/edit_person.py	e87e38bb62cb06d611c68ace28b53d14d46fc3cd	2026-10-23	
 src/containers/samba/ensure_ad_site.py	332be0125b9a3102f38aea58f15406d23541fb18	2026-10-08	
 src/containers/samba/ensure_computed_group.py	cdf0d719c8d09d62df6db7855cd23b95aa7290fc	2026-10-20	
+src/containers/samba/ensure_dc_address.py	a9a3494a4ae943ec99382f51ec1a7beabad154c1	2026-11-02	
 src/containers/samba/ensure_dc_record.py	077c08e8bdbbde9bff9870676608bebd2b014681	2026-10-20	
 src/containers/samba/ensure_directory_acl.py	7954add8a43ad8aa200a918169a96fec4c950fdf	2026-10-20	
 src/containers/samba/ensure_domain_options.py	5d5eca3493bcca6e22f77cd7b3f3c9167e35e6a6	2026-10-23	
@@ -773,9 +774,11 @@ src/fabriclib/dns/builtin_acls.py	9e6b7d30fd2836778d1e5e269b3e4bc9329d666f	2026-
 src/fabriclib/dns/changed_names.py	a252ff30faa05dca6e863af82f1609719d808136	2026-10-29	
 src/fabriclib/dns/common/README.md	041c51026d711108debbf7c9f2cefbfafd6a706e	2026-10-29	
 src/fabriclib/dns/common/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-12	
+src/fabriclib/dns/common/drop_previous_own.py	ab507512213438d6711e4cafbf1367346c080e7b	2026-11-02	
 src/fabriclib/dns/common/fabric_record.py	4346aa817f53d66cc4ccc08de82d5afc8b384b2a	2026-10-23	
 src/fabriclib/dns/common/landing_link.py	d8370fd603ae1089d65a12b1233e64d731fd7e62	2026-10-12	
 src/fabriclib/dns/common/landing_names.py	d58b63a3c52d22171a4f1cf074394af6f558b6bf	2026-10-13	
+src/fabriclib/dns/common/own_names.py	b7a818fc100e9ff759368a800098bd3fe053eebb	2026-11-02	
 src/fabriclib/dns/common/zone_records.py	1ad7f4e2b00c2ab775519a6df721a39fed9b0298	2026-10-29	
 src/fabriclib/dns/constants.py	c1d6ffdd67eddbeb11b6806611a69e1d40ba556a	2026-10-23	
 src/fabriclib/dns/create_zone_tsig_key.py	a79d0069466e2335014ae53e5b2134078ca5f8b6	2026-10-03	
@@ -1346,6 +1349,7 @@ src/fabriclib/settings/settings_overview.py	074a97643dbe7b7db6f340edc0d5ab667eff
 src/fabriclib/settings/wizard_finished.py	501f32db7bc5d794361aa40fa79d39bcbe72ec28	2026-10-17	
 src/fabriclib/setup/README.md	5416db2c7217061b6b83d14350c122d74e5a8a2a	2026-10-24	
 src/fabriclib/setup/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
+src/fabriclib/setup/address_checks.py	c9d83b59a6332fcc9a89514b5d95c5caa704c2e0	2026-11-02	
 src/fabriclib/setup/advanced/README.md	7680114643c11d1238cb8768d7e00252883576ca	2026-10-12	
 src/fabriclib/setup/advanced/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-12	
 src/fabriclib/setup/advanced/ask_ca_lifetime.py	3c07c7cbffa1b6e78957ea6bb52641da77c80870	2026-10-12	
@@ -2014,6 +2018,7 @@ tests/dhcp/kea_key/start_key_rotation_test.py	7fe5d07fdb063c3d8683f97bbefb7b1c33
 tests/dhcp/reload_kea_test.py	f5db5ed41986c1b090965433b1a6fa1ab9df2278	2026-10-24	
 tests/dns/README.md	be3c35a1c6c5831b596f6a0495d8f2425555d5f6	2026-10-29	
 tests/dns/changed_names_test.py	0cf3e097a88c81b490951942baba89a1a2ccf95e	2026-10-29	
+tests/dns/drop_previous_own_test.py	e0696cd1efc741ed370ca7cfd2b483b5f4572a28	2026-11-02	
 tests/dns/freeze_and_install_test.py	f1b60b4dbb9a6ee84348c4356b0f6ea201eef16a	2026-10-17	
 tests/dns/set_negative_ttl_test.py	bc007ebf9bbb9d26e4a313058a87041e22d66b79	2026-10-29	
 tests/dns/zones_bind_lacks_test.py	bf730af0e554723dae1f29feb5e016012cb0e94b	2026-10-24	
@@ -2155,6 +2160,7 @@ tests/settings/README.md	fe8cdeb50d57df5b0accee46d31aff967d27a9f8	2026-10-23
 tests/settings/console.py	b196bb4978b9340b0f6e9964c4f7677f9ebc8d6b	2026-10-23	
 tests/settings/run.py	1ee9c8568bdc0ae7a87a7241cb90952f26257744	2026-10-23	
 tests/setup/README.md	5f4a00c284944d839072189ba094aef8aa628b16	2026-10-31	
+tests/setup/address_checks_test.py	f09ef3c81209216ebc42ec3b1775c2aefb78a56a	2026-11-02	
 tests/setup/ask_site_number_test.py	2a2bf012217e09d4e4fc8a88dc659b284368fb0a	2026-10-23	
 tests/setup/common/README.md	a35d87fa64f9a6ec5e5c7d44ade9156ac7cb7d48	2026-10-31	
 tests/setup/common/sssd_sockets_test.py	e02dbd805ff3ea165eb3cd81c60ba351ec04bf93	2026-10-31	

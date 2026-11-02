@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import yaml
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.dns.common.drop_previous_own import drop_previous_own
 from fabriclib.pki.check_cert_lifetimes import check_cert_lifetimes
 from fabriclib.system.host_ram_gb import host_ram_gb
 
@@ -13,14 +14,17 @@ def render_vars(jinja_env, secrets, custom_vars):
     """Purpose: the full settings: vars.yaml.j2 rendered over the admin's vars and fabric's secrets.
     Inputs:  jinja_env — fabric's Jinja environment; secrets — dict; custom_vars — the admin's vars (already merged
              by merge_tsig_keys / merge_radius_clients).
-    Returns: (final_vars — the rendered settings, context — secrets + custom_vars + render_date: the start of what
+    Returns: (final_vars — the rendered settings, the site zone without the last render's own names (2.1.1.74),
+             context — secrets + custom_vars + render_date: the start of what
              every other template renders with; the caller adds final_vars once they are checked).
     Fails:   ValidationError when vars.yaml.j2 does not render, or host_ram_capacity — the admin's, else this host's
              measured memory — is under 4 GB (2.1.2.3; every container's memory limit follows from it, manual 1.2.4.3);
              plan_memory's refusals (memory_floors / memory_weights / a `*_mem_limit` not valid; the installed
              services' floors not fitting the budget, naming the parts to turn off); check_cert_lifetimes' messages;
-             install_was_ready that is not true or false (setup's own record, 2.1.4.10).
+             install_was_ready that is not true or false (setup's own record, 2.1.4.10); drop_previous_own's (a
+             dns_fabric_own that is not fabric's list).
     Feeds:   apply_deployment."""
+    custom_vars = drop_previous_own(custom_vars)       # fabric's own names from the last render (2.1.1.74)
     context = {**secrets, **custom_vars, "host_ram_detected": host_ram_gb(),
                "render_date": datetime.now(timezone.utc).strftime("%Y-%m-%d")}
     try:

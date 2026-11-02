@@ -77,6 +77,7 @@ file	fabricctl-jinja|src/containers/samba/domain_facts.py	140
 file	fabricctl-jinja|src/containers/samba/edit_person.py	121	
 file	fabricctl-jinja|src/containers/samba/ensure_ad_site.py	14	
 file	fabricctl-jinja|src/containers/samba/ensure_computed_group.py	105	
+file	fabricctl-jinja|src/containers/samba/ensure_dc_address.py	156	
 file	fabricctl-jinja|src/containers/samba/ensure_dc_record.py	93	
 file	fabricctl-jinja|src/containers/samba/ensure_directory_acl.py	94	
 file	fabricctl-jinja|src/containers/samba/ensure_domain_options.py	148	
@@ -447,9 +448,11 @@ file	fabriclib-dns|src/fabriclib/dns/add_zone.py	34
 file	fabriclib-dns|src/fabriclib/dns/apply_dns.py	42	
 file	fabriclib-dns|src/fabriclib/dns/builtin_acls.py	4	
 file	fabriclib-dns|src/fabriclib/dns/changed_names.py	45	
+file	fabriclib-dns|src/fabriclib/dns/common/drop_previous_own.py	51	
 file	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py	37	
 file	fabriclib-dns|src/fabriclib/dns/common/landing_link.py	38	
 file	fabriclib-dns|src/fabriclib/dns/common/landing_names.py	40	
+file	fabriclib-dns|src/fabriclib/dns/common/own_names.py	52	
 file	fabriclib-dns|src/fabriclib/dns/common/zone_records.py	46	
 file	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py	5	
 file	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py	6	
@@ -948,6 +951,7 @@ file	fabriclib-settings|src/fabriclib/settings/run_settings_command.py	10
 file	fabriclib-settings|src/fabriclib/settings/settings_from_form.py	11	
 file	fabriclib-settings|src/fabriclib/settings/settings_overview.py	12	
 file	fabriclib-settings|src/fabriclib/settings/wizard_finished.py	13	
+file	fabriclib-setup|src/fabriclib/setup/address_checks.py	109	
 file	fabriclib-setup|src/fabriclib/setup/adopt_stray_records.py	43	0.7.2 / 2026-10-20
 file	fabriclib-setup|src/fabriclib/setup/advanced/ask_ca_lifetime.py	54	
 file	fabriclib-setup|src/fabriclib/setup/advanced/ask_dhcp_settings.py	55	
@@ -1599,6 +1603,9 @@ function	fabricctl-jinja|src/containers/samba/edit_person.py|edit_person	1
 function	fabricctl-jinja|src/containers/samba/ensure_ad_site.py|ensure_ad_site	1	
 function	fabricctl-jinja|src/containers/samba/ensure_computed_group.py|computed_groups	1	
 function	fabricctl-jinja|src/containers/samba/ensure_computed_group.py|ensure_computed_group	2	
+function	fabricctl-jinja|src/containers/samba/ensure_dc_address.py|_addresses	1	
+function	fabricctl-jinja|src/containers/samba/ensure_dc_address.py|_node	2	
+function	fabricctl-jinja|src/containers/samba/ensure_dc_address.py|ensure_dc_address	3	
 function	fabricctl-jinja|src/containers/samba/ensure_dc_record.py|ensure_dc_record	1	
 function	fabricctl-jinja|src/containers/samba/ensure_directory_acl.py|ensure_directory_acl	1	
 function	fabricctl-jinja|src/containers/samba/ensure_domain_options.py|ensure_domain_options	1	
@@ -2224,12 +2231,16 @@ function	fabriclib-dns|src/fabriclib/dns/add_zone.py|add_zone	3
 function	fabriclib-dns|src/fabriclib/dns/apply_dns.py|apply_dns	1	
 function	fabriclib-dns|src/fabriclib/dns/builtin_acls.py|builtin_acls	1	
 function	fabriclib-dns|src/fabriclib/dns/changed_names.py|changed_names	1	
-function	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py|_names	1	
+function	fabriclib-dns|src/fabriclib/dns/common/drop_previous_own.py|_key	1	
+function	fabriclib-dns|src/fabriclib/dns/common/drop_previous_own.py|_previous	2	
+function	fabriclib-dns|src/fabriclib/dns/common/drop_previous_own.py|drop_previous_own	3	
+function	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py|_names	1	0.9.0 / 2026-11-02
 function	fabriclib-dns|src/fabriclib/dns/common/fabric_record.py|fabric_record	2	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_link.py|landing_link	1	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|_fqdn	1	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|_service_names	2	
 function	fabriclib-dns|src/fabriclib/dns/common/landing_names.py|landing_names	3	
+function	fabriclib-dns|src/fabriclib/dns/common/own_names.py|own_names	1	
 function	fabriclib-dns|src/fabriclib/dns/common/zone_records.py|_one_line	1	
 function	fabriclib-dns|src/fabriclib/dns/common/zone_records.py|zone_records	2	
 function	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py|create_zone_tsig_key	1	
@@ -2960,6 +2971,8 @@ function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|_whole	
 function	fabriclib-settings|src/fabriclib/settings/settings_from_form.py|settings_from_form	5	
 function	fabriclib-settings|src/fabriclib/settings/settings_overview.py|settings_overview	1	
 function	fabriclib-settings|src/fabriclib/settings/wizard_finished.py|wizard_finished	1	
+function	fabriclib-setup|src/fabriclib/setup/address_checks.py|_hosts_lines	1	
+function	fabriclib-setup|src/fabriclib/setup/address_checks.py|address_checks	2	
 function	fabriclib-setup|src/fabriclib/setup/adopt_stray_records.py|adopt_stray_records	1	0.7.2 / 2026-10-20
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_ca_lifetime.py|ask_ca_lifetime	1	
 function	fabriclib-setup|src/fabriclib/setup/advanced/ask_dhcp_settings.py|_suggested_pool	1	
@@ -3126,6 +3139,7 @@ function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_single_intermediate	3
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|run	7	
 function	fabriclib-setup|src/fabriclib/setup/join_federation.py|run	1	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_answers	15	
+function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_hosts_with	17	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_keys	1	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_pam_on	5	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_preload	16	

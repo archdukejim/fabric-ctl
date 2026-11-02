@@ -16,6 +16,7 @@ import traceback
 from admin_gpo import ensure_gpo_admins
 from compile_grants import compile_grants
 from ensure_ad_site import ensure_ad_site
+from ensure_dc_address import ensure_dc_address
 from ensure_dc_record import ensure_dc_record
 from ensure_domain_options import ensure_domain_options
 from ensure_directory_acl import ensure_directory_acl
@@ -51,14 +52,15 @@ def converge(state):
     """Purpose: every part of the domain fabric owns, in order: the roles this DC holds named by its current DN (again
              after the AD site, which may move it), the schema, the directory's folders (one set for the domain,
              1.6.13.2), the DC's record with its id range (2.1.6.79), the site's record (1.10.4.32), the groups
-             (1.6.13.3), the DC's service accounts (2.1.6.82), the site's Kerberos sign-in account, the AD zones on
-             IPv4 only (2.1.6.29), the directory's access entries (2.1.6.76), the site's networks (never the address
-             manager's subnets, 1.10.4.33), the host names of fabric's sudo rules on host groups (1.6.11.7), the AD
-             site and its subnets (the plan's too) and link, the password policy, the domain's DHCP options entry
-             (1.10.4.32) and the domain's trust GPO (fabric's root CA) at the root, the Directory Administrators'
-             rights on the site's admin GPOs, the site's Windows baseline GPO (linked at OU=machines, 2.1.6.84), at
-             the root the grants (the shipped ones once, then compiled: 1.6.13.4, 1.6.13.5) and winbind's privileged
-             pipe for FreeRADIUS. Each part changes only what differs, so a second run changes nothing.
+             (1.6.13.3), the DC's service accounts (2.1.6.82), the site's Kerberos sign-in account, the AD zones on IPv4
+             only (2.1.6.29), the DC's own records at its address only (2.1.1.74), the directory's access entries
+             (2.1.6.76), the site's networks (never the address manager's subnets, 1.10.4.33), the host names of
+             fabric's sudo rules on host groups (1.6.11.7), the AD site and its subnets (the plan's too) and link, the
+             password policy, the domain's DHCP options entry (1.10.4.32) and the domain's trust GPO (fabric's root CA)
+             at the root, the Directory Administrators' rights on the site's admin GPOs, the site's Windows baseline GPO
+             (linked at OU=machines, 2.1.6.84), at the root the grants (the shipped ones once, then compiled: 1.6.13.4,
+             1.6.13.5) and winbind's privileged pipe for FreeRADIUS. Each part changes only what differs, so a second
+             run changes nothing.
     Inputs:  state — dict: site (str); dc (str: the DC converged or prepared, dc-NNNN: its record, its range and its
              service accounts); dc_type ("writable" or "rodc": the DC prepared; a read-only one gets its cache group,
              2.1.6.85); root (bool: the root site, which also holds the domain's own settings and the domain-wide
@@ -100,6 +102,8 @@ def converge(state):
     changed += ensure_service_accounts(samdb, lp, dc, state["accounts"])
     changed += ensure_sso_account(samdb, lp, CONF, site, state.get("sso_spns") or [])
     changed += remove_ipv6_records(samdb)            # IPv4 only (2.1.6.29)
+    if os.environ.get("HOST_IP"):          # the DC's records at its address only, after a move (2.1.1.74)
+        changed += ensure_dc_address(samdb, lp, os.environ["HOST_IP"])
     changed += ensure_directory_acl(samdb, dc)
     changed += ensure_networks(samdb, site, state["networks"])
     changed += refresh_sudo_hosts(samdb)             # fabric's sudo rules follow their host groups (1.6.11.7)

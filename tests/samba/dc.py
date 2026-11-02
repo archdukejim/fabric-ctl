@@ -260,6 +260,50 @@ after = dc("python3", "-", "show", stdin=AAAA_PROBE).stdout.strip()
 check("an IPv6 record in the AD zone (from the host's IPv6) is removed by the next converge; its A stays (2.1.6.29)",
       "28" in added and any("IPv6 record removed" in c for c in cleaned) and "28" not in after and "1" in after,
       (added, cleaned, after))
+
+# 2.1.1.74: after a move the DC's own records named the old address too (its own update asks the old address and fails,
+# 2.3.1.34); the next converge leaves them at its address only. A record of another name at the old address is the
+# admin's and stays.
+MOVE_PROBE = r"""
+import json, sys
+sys.path.insert(0, "/fabric")
+import ldb
+from samba.dcerpc import dnsp
+from samba.dnsserver import ARecord
+from samba.ndr import ndr_pack, ndr_unpack
+from open_samdb import open_samdb
+samdb, lp = open_samdb("/data/etc/smb.conf")
+base, realm, me = str(samdb.domain_dn()), lp.get("realm").lower(), lp.get("netbios name").lower()
+zone = f"DC={realm},CN=MicrosoftDNS,DC=DomainDnsZones,{base}"
+names = {me: f"DC={me},{zone}", "@": f"DC=@,{zone}", "printer": f"DC=printer,{zone}"}
+def a(dn):
+    try:
+        n = samdb.search(base=dn, scope=ldb.SCOPE_BASE, attrs=["dnsRecord"])[0]
+    except ldb.LdbError:
+        return []
+    return sorted(ndr_unpack(dnsp.DnssrvRpcRecord, bytes(r)).data for r in n.get("dnsRecord", [])
+                  if ndr_unpack(dnsp.DnssrvRpcRecord, bytes(r)).wType == 1)
+if sys.argv[1] == "add":
+    for label in (me, "@"):
+        m = ldb.Message(ldb.Dn(samdb, names[label]))
+        m["dnsRecord"] = ldb.MessageElement([ndr_pack(ARecord("192.0.2.77"))], ldb.FLAG_MOD_ADD, "dnsRecord")
+        samdb.modify(m)
+    samdb.add({"dn": names["printer"], "objectClass": "dnsNode", "dnsRecord": [ndr_pack(ARecord("192.0.2.77"))]})
+print(json.dumps({k: a(v) for k, v in names.items()}))
+"""
+seeded = json.loads(dc("python3", "-", "add", stdin=MOVE_PROBE).stdout.strip() or "{}")
+moved = converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS, container=DC)
+after_move = json.loads(dc("python3", "-", "show", stdin=MOVE_PROBE).stdout.strip() or "{}")
+own_name = [k for k in after_move if k not in ("@", "printer")]
+check("after a move: the DC's own name and the domain's @ lose the old address and keep its own; the next converge "
+      "says so (2.1.1.74)",
+      seeded and all("192.0.2.77" in seeded[k] for k in seeded)
+      and all(after_move[k] == [IP] for k in own_name + ["@"])
+      and any("old address 192.0.2.77 removed" in c for c in moved), (seeded, moved, after_move))
+check("negative: a record of another name at the DC's old address is the admin's and is left alone",
+      after_move.get("printer") == ["192.0.2.77"], after_move)
+check("...and the converge after it changes nothing",
+      converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS, container=DC) == [])
 check("converge wrote the site's networks into its OU=networks (the address plan, S4.1)",
       "network lan added" in first and [(n["site"], n["name"], n["cidr"]) for n in read_address_plan(v, SECRETS, DC)]
       == [("lan", "lan", SUBNET)], first)

@@ -169,6 +169,12 @@ def restart_changed(paths, final_vars, secrets, state, bind_ids):
         try:                                      # idempotent: the domain as fabric wants it (manual 1.6.5.15)
             done = converge_domain(final_vars, paths["federation"], secrets)
             print("Windows domain: " + ("; ".join(done) if done else "as wanted"))
+            if any("(2.1.1.74)" in line for line in done) and final_vars.get("ad_domain"):
+                # the DC's records moved to its address: the resolver forgets the old answers (2.1.1.74)
+                ad = str(final_vars["ad_domain"])
+                flushed = flush_published_names(final_vars, {"trees": [ad, f"_msdcs.{ad}"], "names": []})
+                if flushed["error"]:
+                    print(f"Warning: {flushed['error']}")
             for line in move_subnets_to_plan(final_vars, secrets):    # once: 0.7's subnets into the plan (1.10.4.15)
                 print(line)
             for line in move_options_to_plan(final_vars, secrets):    # once: the global options too (2.1.10.23)

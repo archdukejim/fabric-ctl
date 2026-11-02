@@ -12,6 +12,7 @@ sys.path[0:0] = [os.path.join(REPO, 'src'), REPO]
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402  (the same env deploy.py uses)
 from fabriclib.dns.reverse_zones import reverse_zones  # noqa: E402
 from fabriclib.deploy.service_units import service_units  # noqa: E402
+from fabriclib.dns.common.drop_previous_own import drop_previous_own  # noqa: E402
 
 # FABRIC_TEST_TEMPLATES: another templates folder (its lock beside it), e.g. one with published digests pinned
 env = jinja_env(os.environ.get('FABRIC_TEST_TEMPLATES') or os.path.join(REPO, 'templates'))
@@ -51,7 +52,7 @@ user.update(json.loads(os.environ.get("FABRIC_TEST_VARS", "{}")))
 ctx = {**secrets, **user, 'render_date': '2026-01-01'}
 PRISTINE = copy.deepcopy(ctx)      # vars.yaml.j2 updates the dns dict it is given in place
 v1 = yaml.safe_load(env.get_template('vars.yaml.j2').render(**ctx))
-v2 = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**ctx, **v1}))
+v2 = yaml.safe_load(env.get_template('vars.yaml.j2').render(**drop_previous_own({**ctx, **v1})))  # as render_vars
 
 # Reverse zones: generated from forward A/AAAA records (deploy.py does the same).
 rv = reverse_zones({'domain': 'lan.test', 'host_ip': '192.168.7.53', 'dns': {

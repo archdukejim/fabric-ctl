@@ -85,6 +85,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `read_site_tree.py` | Every site's record with its parent and console's address (the site selector, 1.8.6.12) |
 | `acl_entries.py` | Access entries added once (compared parsed, object entries by their attribute) and a principal's SID |
 | `remove_ipv6_records.py` | The AD zones on IPv4 only (2.1.6.29): every AAAA record removed (the DC listens on IPv4) |
+| `ensure_dc_address.py` | The DC's own records in the AD zones at its address only (2.1.1.74): after a move its old address, the one its own name held, removed from its name, `@`, DomainDnsZones, ForestDnsZones and `gc._msdcs`; its address added |
 | `ensure_dc_record.py` | The DC's record in `CN=dcs,CN=fabric,CN=System` (2.1.6.79): its site, its id range and a mark per fixed range; a read-only DC's is written by the writable DC |
 | `dc_info.py` | Operation `dc_info`: a DC's record: its site, id range and its ranges' marks |
 | `domain_facts.py` | Operation `domain_facts`: the domain's functional level and its DCs, writable or read-only |

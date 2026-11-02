@@ -512,6 +512,7 @@
 "setting:deploy_base_dir": "templates/vars.yaml.j2"
 "setting:dhcp": "templates/vars.yaml.j2"
 "setting:dns": "templates/vars.yaml.j2"
+"setting:dns_fabric_own": "templates/vars.yaml.j2"
 "setting:dns_filter": "templates/vars.yaml.j2"
 "setting:dns_filter_allow": "templates/vars.yaml.j2"
 "setting:dns_filter_block": "templates/vars.yaml.j2"
