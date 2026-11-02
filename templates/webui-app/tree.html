@@ -18,7 +18,7 @@
 <form method="get" action="/directory/tree" class="grid search" role="search">
 <input type="hidden" name="ou" value="{{ ou }}">{% if internal %}<input type="hidden" name="internal" value="1">{% endif %}
 <label>Search <input name="q" value="{{ q }}" autocomplete="off" placeholder="name or description"></label>
-<label><input type="checkbox" name="whole" value="1"{% if whole %} checked{% endif %}> the whole domain</label>
+<label class="check"><input type="checkbox" name="whole" value="1"{% if whole %} checked{% endif %}> the whole domain</label>
 <div><button class="ghost">Search</button>{% if q %} <a href="/directory/tree?{{ dict(flags, ou=ou) | urlencode }}">Clear</a>{% endif %}</div></form>
 {% if move %}<section class="card" id="move"><h3>Move {{ move.name }} to…</h3>
 {% if move.places %}{% if move.kind == 'person' %}<form method="post" action="/directory/people/{{ move.name | urlencode }}/move" class="grid">{% elif move.kind == 'group' %}<form method="post" action="/directory/groups/{{ move.name | urlencode }}/move" class="grid">{% else %}<form method="post" action="/directory/machines/{{ move.name | urlencode }}/move" class="grid">{% endif %}

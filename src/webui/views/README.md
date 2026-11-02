@@ -35,6 +35,7 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `person_result.py` | The page that shows a person's one-time password once, after creating them or resetting their sign-in. |
 | `pki_result.py` | The result page after signing, issuing or converting a certificate: details and every format as a download. |
 | `radius_secret.py` | The page that shows a RADIUS client's shared secret once, after adding it or making a new one. |
+| `plain_words.py` | Words and dates for people (1.8.8.6): the Jinja filters `plain` (the manual's numbers in brackets left out) and `written` ("3 Oct 2026, 09:12"). |
 | `render_page.py` | Render one template in the frame (top bar, navigation, the message of the last action), hiding the pages, sub-menus and forms the signed-in person has no permission for. |
 | `stepca.py` | The Step-CA tab: CA details, sign a CSR, new key + certificate, inspect, convert, or the issued list. |
 | `tsig_result.py` | The page that shows a TSIG key's secret and RFC2136 client settings once. |

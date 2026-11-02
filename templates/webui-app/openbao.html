@@ -62,9 +62,10 @@
 <dt>Last tested</dt><dd>{{ sl.tested or 'never' }}</dd></dl>
 <p class="muted small">{{ slot_types[sl.type][1] }}</p></section>
 {% if can('vault:unlock') %}
-<section class="card"><h2>Test</h2><form method="post" action="/openbao/slots/{{ sl.id | urlencode }}/test" class="grid">
-<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<section class="card"><h2>Test</h2>
 <p class="muted">Unwraps the vault key with this method now and checks it; nothing is changed.</p>
+<form method="post" action="/openbao/slots/{{ sl.id | urlencode }}/test" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Type this host's name to confirm<input name="confirm" autocomplete="off" required placeholder="{{ host }}"></label>
 <div><button{{ '' if live else ' disabled' }}>Test {{ slot_types[sl.type][0] | lower }}</button></div></form></section>
 <section class="card"><h2>Remove</h2>

@@ -1401,6 +1401,7 @@ file	webui|src/webui/views/paged.py	235
 file	webui|src/webui/views/people.py	229	
 file	webui|src/webui/views/person_result.py	114	
 file	webui|src/webui/views/pki_result.py	115	
+file	webui|src/webui/views/plain_words.py	299	
 file	webui|src/webui/views/policies.py	237	
 file	webui|src/webui/views/radius_secret.py	116	
 file	webui|src/webui/views/render_page.py	117	
@@ -3789,6 +3790,8 @@ function	webui|src/webui/views/people.py|_matches	1	0.8.0 / 2026-10-23
 function	webui|src/webui/views/people.py|people	2	
 function	webui|src/webui/views/person_result.py|person_result	1	
 function	webui|src/webui/views/pki_result.py|pki_result	1	
+function	webui|src/webui/views/plain_words.py|when_written	2	
+function	webui|src/webui/views/plain_words.py|without_manual_numbers	1	
 function	webui|src/webui/views/policies.py|policies	1	
 function	webui|src/webui/views/radius_secret.py|radius_secret	1	
 function	webui|src/webui/views/render_page.py|render_page	1	

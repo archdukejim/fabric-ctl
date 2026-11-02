@@ -1820,6 +1820,7 @@ src/webui/views/paged.py	cd7215e78f5facc4c1ea11856059ecdeac87209a	2026-10-23
 src/webui/views/people.py	18580537cd2cb667b952c2e35fdf2036fa54248c	2026-10-23	
 src/webui/views/person_result.py	523437686e678d6e86900b720c11df57f1d86174	2026-10-23	
 src/webui/views/pki_result.py	5fa35ff87cfc2a0445962764247149c8bd806283	2026-10-23	
+src/webui/views/plain_words.py	3f5acd5c9ccd4111871d6bddc40fa2a42cf528aa	2026-11-02	
 src/webui/views/policies.py	3d0798be9d606e4ff95959ad4102afcc29ebd7a9	2026-10-23	
 src/webui/views/radius_secret.py	b13c8427cb0506c64b1d58315be16b543d5fae36	2026-10-23	
 src/webui/views/render_page.py	bb7548511b551c7df720bd0f514e6439bb7d6a38	2026-10-23	
