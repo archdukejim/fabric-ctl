@@ -2,7 +2,8 @@ import re
 
 from webui.devpreview.fabric_rules import ValidationError
 
-ROOTS = ("people", "service-accounts", "groups", "machines/servers", "machines/desktops", "machines/network")
+ROOTS = ("people", "service-accounts", "groups", "machines", "machines/servers", "machines/desktops",
+         "machines/network")
 FIXED = ("people", "service-accounts", "groups", "groups/fabric", "machines", "machines/servers", "machines/desktops",
          "machines/network", "fabric-hosts", "devices", "device-roles", "networks", "sudoers")
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.-]{0,62}$")
@@ -70,16 +71,18 @@ def fake_ous(state, who, route, body):
         return {"ous": [{"path": p, "dn": "", **dict(e, holds=dict(e["holds"]))}
                         for p, e in sorted(tree.items(), key=lambda x: x[0].lower())]}
     if route == ["ous"]:
-        parent, name = str(body.get("parent") or ""), _name(str(body.get("name") or ""))
-        if parent not in tree:
+        parent, name = str(body.get("parent") or "").strip("/"), _name(str(body.get("name") or ""))
+        if parent and parent not in tree:
             raise ValidationError(f"no OU {parent}")
-        if parent not in ROOTS and not tree[parent]["own"]:
-            raise ValidationError(f"{parent} takes no admin's folders: add them under {', '.join(ROOTS)}")
-        path = f"{parent}/{name}"
+        if parent and parent not in ROOTS and not tree[parent]["own"]:
+            raise ValidationError(f"{parent} is one of fabric's closed folders: an admin's OU goes anywhere else "
+                                  "(manual 1.6.12.7)")
+        path = f"{parent}/{name}" if parent else name
         if path in tree:
-            raise ValidationError(f"an OU {name} is already in {parent}")
+            raise ValidationError(f"an OU {name} is already in {parent or 'the domain'}")
         tree[path] = {"fabric": False, "own": True, "holds": dict(_EMPTY)}
-        tree[parent]["holds"]["ous"] += 1
+        if parent:
+            tree[parent]["holds"]["ous"] += 1
         return {"path": path, "dn": ""}
     path = str(body.get("ou") or "")
     entry = _own(tree, path)
@@ -88,10 +91,11 @@ def fake_ous(state, who, route, body):
             raise ValidationError(f"{path} is not empty: it holds {sum(entry['holds'].values())} things "
                                   "(manual 1.6.12.7)")
         del tree[path]
-        tree[path.rpartition("/")[0]]["holds"]["ous"] -= 1
+        if path.rpartition("/")[0] in tree:
+            tree[path.rpartition("/")[0]]["holds"]["ous"] -= 1
         return {"path": path}
     if route == ["ous", "rename"]:
-        new = f"{path.rpartition('/')[0]}/{_name(str(body.get('name') or ''))}"
+        new = "/".join(x for x in (path.rpartition('/')[0], _name(str(body.get('name') or ''))) if x)
         if new in tree and new != path:
             raise ValidationError(f"an OU {new.rpartition('/')[2]} is already beside {path}")
         for p in [p for p in tree if p == path or p.startswith(path + "/")]:

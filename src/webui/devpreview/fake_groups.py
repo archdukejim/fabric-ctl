@@ -25,6 +25,13 @@ SAMPLE_GROUPS = [
     {"name": "Domain Admins", "kind": "ad", "description": "AD's own",
      "scope": dict(_EMPTY), "managers": {"managers": [], "add": False, "remove": False, "only_from": ""},
      "members": {"people": [], "groups": [], "computers": []}},
+    # fabric's computed groups for the grants (1.6.13.4): hidden from the list by default (1.8.8.3)
+    {"name": "grant-lan-helpdesk-who", "kind": "computed", "description": "Who grant lan-helpdesk is for",
+     "scope": dict(_EMPTY), "managers": {"managers": [], "add": False, "remove": False, "only_from": ""},
+     "members": {"people": ["lee"], "groups": [], "computers": []}},
+    {"name": "access-1", "kind": "computed", "description": "The machines of set 1",
+     "scope": dict(_EMPTY), "managers": {"managers": [], "add": False, "remove": False, "only_from": ""},
+     "members": {"people": [], "groups": [], "computers": ["ws1"]}},
 ]
 FIXED = ("ad", "computed", "filled", "host-group")
 

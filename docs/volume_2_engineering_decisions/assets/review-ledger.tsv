@@ -423,6 +423,7 @@ src/containers/samba/add_sudo_rule.py	80e4e7f15d195594315d38d832a2942417bc1030	2
 src/containers/samba/admin_gpo.py	9dd1f45e6aca33349d27f7ad0da1d39a18067eb9	2026-10-20	
 src/containers/samba/admx_store.py	38254f44323f18add9df73c414adf0f02b16b5ed	2026-10-08	
 src/containers/samba/adopt_linux_machines.py	9687fc9ecf3b326c27d28f27518bc7aa97228bc6	2026-10-31	
+src/containers/samba/all_machines.py	53a3eb884668b457e7707f3e05691bc78d1f5ac5	2026-11-02	
 src/containers/samba/alloc_id.py	407594ec737b5a7f85be055880ab21383191ff88	2026-10-20	
 src/containers/samba/authorize_action.py	b9847bc4d51bc64d5b0ef75777943db39b798a37	2026-10-23	
 src/containers/samba/change_own_password.py	00c5aea96648498a4ab09d7b19df8131b0f07d7c	2026-10-20	
@@ -453,6 +454,7 @@ src/containers/samba/ensure_groups.py	f194ed430a1baf21ea5dd359f1f3db7463363da8	2
 src/containers/samba/ensure_join_account.py	bcbf664f59fc2c826ccc5baaea022ef11cdb3ced	2026-10-08	
 src/containers/samba/ensure_layout.py	23b61d25ba827f1f8f0cb96f3089b9050777692d	2026-10-23	
 src/containers/samba/ensure_networks.py	bc95b2e97c59ecb144d87f86f4e2d5d252757905	2026-10-23	
+src/containers/samba/ensure_ou_rights.py	99138f66b1a9007ea85e2bbe9a196b76b97d0e64	2026-11-02	
 src/containers/samba/ensure_schema.py	4791c7b2356df4f413d97653669ed1bdd53b3a11	2026-10-25	
 src/containers/samba/ensure_service_accounts.py	bf2a827409783d5d523d062d310301b4243f9867	2026-10-20	
 src/containers/samba/ensure_site_link.py	7b0823403c7fbc1d96ca58ae086991644e072858	2026-10-08	
@@ -489,9 +491,11 @@ src/containers/samba/local_admin_store.py	82e66acd85ccaa210b7c985be970da036c1475
 src/containers/samba/local_admin_tool.py	dc1fce784cab9c8abdb567035bb3a293b67a2ad4	2026-10-23	
 src/containers/samba/managed_groups.py	b7a2b430ba12f6ece8c6cadcb856185f69a3a08e	2026-10-20	
 src/containers/samba/move_machine.py	e691aa46d8fbe57450ede4c4089b5a8be0e12476	2026-10-20	
+src/containers/samba/move_object.py	59e7f59685c78371f598a706c819d8cb1e5a74d0	2026-11-02	
 src/containers/samba/open_samdb.py	1d8df52a1d49724f2ecab96395ff274baf7b386c	2026-10-04	
 src/containers/samba/order_gpo_links.py	3135cba20031f7696ee22059df25d6f78bcb63df	2026-10-20	
 src/containers/samba/ou_paths.py	43de7148ae80914af67eb0b16ff4f8162d90a40f	2026-10-20	
+src/containers/samba/own_object.py	cbdc2cbc66386ffdd018a534689dd3cfb0011256	2026-11-02	
 src/containers/samba/paths.py	139829887af9a72a21b19516f6efbb2747d4b1ba	2026-10-25	
 src/containers/samba/person_record.py	f903c94c1317ff76869fe59ade6ea8bd9096f617	2026-10-23	
 src/containers/samba/place_fabric_host.py	cd9e5e87a3a529d8d9a903466e837dad284e3360	2026-10-20	
@@ -540,6 +544,7 @@ src/containers/samba/set_site_tree.py	7d35f2668f45aa7056e00e47bf46552d1f1a3ef5	2
 src/containers/samba/share_winbind.py	75fb9062804044f1e88fd6c5c9be16fe82aaa319	2026-10-08	
 src/containers/samba/ship_grants.py	53c4205def1b09f50d604dd26463f251176aa39f	2026-10-23	
 src/containers/samba/sort_windows_machines.py	07525466e4b67a75736a50359eb2b432880f82d1	2026-10-20	
+src/containers/samba/unlink_gpo.py	68b1ec50e945b30085b907c0791b3ce3ccad03f2	2026-11-02	
 src/containers/samba/unlock_person.py	57ad382ca8858714ea4fb61e7133d5f0f0b92c51	2026-10-20	
 src/containers/samba/windows_baseline_policy.py	349c3e6df012d9eab0baaee551503e818fe0af8a	2026-10-08	
 src/containers/samba/write_plan.py	4e01fb1394ab2cba23c168303a0add3c63b0abe3	2026-10-25	

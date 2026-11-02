@@ -1,6 +1,7 @@
 import ldb
 
 from acl_entries import ensure_aces, sid_of
+from ensure_ou_rights import ensure_ou_rights
 from group_names import DIRECTORY_ADMINS, TIERS
 import paths
 from protect_top_tier import DENY, RESET_PASSWORD, protect_top_tier
@@ -32,7 +33,8 @@ def ensure_directory_acl(samdb, dc):
              account reads; its Keycloak account full control of OU=people (sign-in changes passwords and lockouts) and
              the members of OU=groups (Keycloak's group mapper). The grants' computed groups are written by no account
              at all: every one (Everyone) is denied any change in OU=fabric, the agents' and Keycloak's accounts and
-             the top tier too; fabric's compile writes them inside the DC as the system (1.6.13.4).
+             the top tier too; fabric's compile writes them inside the DC as the system (1.6.13.4). The admins' own OUs
+             at the domain's root get the same rights as fabric's folders (ensure_ou_rights, 2.1.6.102).
     Inputs:  samdb — SamDB (as the system; this DC's service accounts and fabric's groups exist: ensure_groups,
              ensure_service_accounts); dc — the DC whose accounts are given their rights (the converging DC, or the one
              prepared).
@@ -61,4 +63,4 @@ def ensure_directory_acl(samdb, dc):
     entries.append((paths.fabric_dn(samdb), f"(A;CI;{READ};;;AU)"))
     entries.append((folder("people"), f"(A;CI;{FULL};;;{keycloak})"))
     entries.append((groups, f"(A;CI;RPWPLCLORC;;;{keycloak})"))
-    return ensure_aces(samdb, entries) + protect_top_tier(samdb)
+    return ensure_aces(samdb, entries) + ensure_ou_rights(samdb, dc) + protect_top_tier(samdb)

@@ -7,12 +7,14 @@
 <section class="card"><h2>Groups <span class="muted">{{ total }}</span></h2>
 <form method="get" action="/directory/groups" class="grid search" role="search">
 <label>Search <input name="q" value="{{ search }}" autocomplete="off" placeholder="name, kind, description"></label>
-<div><button class="ghost">Search</button>{% if search %} <a href="/directory/groups">Clear</a>{% endif %}</div></form>
+{% if internal %}<input type="hidden" name="internal" value="1">{% endif %}
+<div><button class="ghost">Search</button>{% if search %} <a href="/directory/groups{{ '?internal=1' if internal }}">Clear</a>{% endif %}</div></form>
+<p class="small">{% if internal %}<a href="/directory/groups?{{ {'q': search} | urlencode }}">Hide fabric's internal groups</a> <span class="muted">(computed by fabric for the grants)</span>{% else %}<a href="/directory/groups?{{ {'q': search, 'internal': 1} | urlencode }}">Show fabric's internal groups</a>{% if hidden %} <span class="muted">({{ hidden }} hidden: computed by fabric for the grants)</span>{% endif %}{% endif %}</p>
 {% if groups %}{% call p.list(["Group", "Kind", "Members", "Description"]) %}{% for g in groups %}<tr>
 <td data-label="Group"><a href="/directory/groups/{{ g.name | urlencode }}"><strong>{{ g.name }}</strong></a></td>
-<td data-label="Kind">{{ g.kind_label }}</td><td data-label="Members" class="num">{{ g.members }}</td>
+<td data-label="Kind">{% if g.kind == 'computed' %}computed by fabric{% if g.serves %} · <a href="{{ g.serves }}">{{ g.serves_label }}</a>{% endif %}{% else %}{{ g.kind_label }}{% endif %}</td><td data-label="Members" class="num">{{ g.members }}</td>
 <td data-label="Description">{{ g.description or '—' }}</td></tr>{% endfor %}{% endcall %}
-{{ p.pager("/directory/groups", search, at, pages, "groups") }}
+{{ p.pager("/directory/groups", search, at, pages, "groups", {'internal': 1} if internal else {}) }}
 {% elif search %}{{ p.empty("No group matches “" ~ search ~ "”.") }}
 {% else %}{% call p.empty("No groups in this site yet.") %}{% if can('groups:admin') %}<a class="btn" href="/directory/groups/_new">Create group</a>{% endif %}{% endcall %}{% endif %}
 <p class="muted small">The site's groups (<code>OU=groups</code>). Fabric's own groups are marked by their kind; their members get permissions in fabric.</p>

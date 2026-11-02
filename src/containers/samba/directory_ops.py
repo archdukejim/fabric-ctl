@@ -21,7 +21,7 @@ from list_ous import list_ous
 from list_people import list_people
 from list_spns import list_spns
 from list_sudo_rules import list_sudo_rules
-from move_machine import move_machine
+from move_object import move_object
 from place_fabric_host import place_fabric_host
 from read_devices import read_devices
 from read_networks import read_networks
@@ -77,7 +77,7 @@ OPS = {
     "list_people": list_people,
     "list_spns": list_spns,
     "list_sudo_rules": list_sudo_rules,
-    "move_machine": move_machine,
+    "move_object": move_object,
     "place_fabric_host": place_fabric_host,
     "read_devices": read_devices,
     "read_networks": read_networks,

@@ -762,6 +762,23 @@ with serve():
           and "AD&#39;s own" in page and 'href="/directory/groups/_new"' in page, page[-3000:])
     page = get("/directory/groups?q=tier")
     check("...searched by kind: a tier's group alone", "directory-admins" in page and "lab-users" not in page)
+    page = get("/directory/groups")
+    check("fabric's computed groups hidden by default, the switch saying how many (1.8.8.3)",
+          "grant-lan-helpdesk-who" not in page and "access-1" not in page
+          and 'href="/directory/groups?q=&amp;internal=1"' in page and "2 hidden" in page, page[-3000:])
+    page = get("/directory/groups?q=grant")
+    check("negative: a search does not show a computed group while the switch is off", "grant-lan-helpdesk-who"
+          not in page, page[-2000:])
+    page = get("/directory/groups?internal=1")
+    check("Show fabric's internal groups: each marked computed by fabric, linking to the grant it serves; the "
+          "switch kept by the search and the pager",
+          "grant-lan-helpdesk-who" in page and "computed by fabric" in page
+          and 'href="/directory/access/lan-helpdesk"' in page and 'href="/directory/access"' in page
+          and 'name="internal" value="1"' in page and "Hide fabric's internal groups" in page, page[-3000:])
+    page = get("/directory/groups?internal=1&q=grant")
+    check("...and found by a search while shown", "grant-lan-helpdesk-who" in page and "lab-users" not in page)
+    page = get("/directory/groups?internal=yes")
+    check("negative: any other value of the switch leaves them hidden", "grant-lan-helpdesk-who" not in page)
     page = get("/directory/groups/lab-users")
     check("a group's two levels: what it grants (a sudo rule, 802.1X's VLAN), its managers and their controls, its "
           "members linked to their pages; Delete group (the site's own), the managers' form, the member forms",
@@ -978,7 +995,9 @@ with serve():
           "holds; Create OU offering only where the site's own go",
           '<span class="muted">machines/servers/</span><strong>web</strong>' in page and ">fabric<" in page
           and ">the site<" in page and 'action="/directory/ous/_new"' in page
-          and '<option>people/staff</option>' in page and '<option>machines</option>' not in page, page[-4000:])
+          and '<option>people/staff</option>' in page and '<option>machines</option>' in page
+          and "<option value=\"/\">the domain's root</option>" in page
+          and '<option>fabric-hosts</option>' not in page and '<option>devices</option>' not in page, page[-4000:])
     page = get("/directory/ous?ou=people/staff")
     check("an OU of the site's own: what it holds, Rename and Delete",
           "<dt>People</dt><dd>1</dd>" in page and 'action="/directory/ous/_form/rename"' in page
@@ -1003,13 +1022,16 @@ with serve():
     # covers: web:post.directory.ous._form.delete +
     check("Delete: held, back to the tree", loc == "/directory/ous" and "Remove OU machines/servers/web" in flash(page),
           (loc, flash(page)))
+    st, loc, page = post("/directory/ous/_new", {"parent": "/", "name": "branch"})
+    check("Create OU at the domain's root (2.1.6.101): held", "Waiting for Apply: Add OU branch" in flash(page),
+          flash(page))
     st, loc, page = post("/changes/ous/apply", {})
     page = get("/directory/ous")
-    check("...the three applied on one Review (one thing, the tree: none refuses the next)",
+    check("...the four applied on one Review (one thing, the tree: none refuses the next), branch at the root",
           ">contractors<" in page and ">team<" in page and "servers/</span><strong>web" not in page
-          and "change pending" not in page, page[-3000:])
+          and 'href="/directory/ous?ou=branch"' in page and "change pending" not in page, page[-3000:])
     for form, words in (({"parent": "people", "name": "people"}, "choose another"),
-                        ({"parent": "machines", "name": "x"}, "takes no admin")):
+                        ({"parent": "fabric-hosts", "name": "x"}, "closed folders")):
         post("/directory/ous/_new", form)
         st, loc, page = post("/changes/ous/apply", {})
         # covers: web:post.directory.ous._new -
