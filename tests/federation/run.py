@@ -213,7 +213,10 @@ B1 = f"{W}/branch1"
 os.makedirs(f"{B1}/config")
 J = dict(config_dir=f"{B1}/config", audit_path=f"{B1}/audit.log", http_port=HTTP_PORT, https_port=HTTPS_PORT)
 
-bad_pin = dict(forged, address="127.0.0.1", root_sha256="AA:" + body["root_sha256"][3:])
+# never the real pin: a root whose fingerprint began with AA made "AA:" + the rest the real one, the join went
+# through and spent the invitation (CI's arm64 run of ab846e84, 2.3.1.37 finding 6; as tests/pki/site_ca.py, 2.3.1.32)
+fp = body["root_sha256"]
+bad_pin = dict(forged, address="127.0.0.1", root_sha256=("AB:" if fp.upper().startswith("AA:") else "AA:") + fp[3:])
 bad_pin_text = "fabric-join-1." + base64.urlsafe_b64encode(json.dumps(bad_pin).encode()).decode()
 check("join: a root other than the pinned one is refused before anything is sent",
       refused(join_upstream, SITE, bad_pin_text, "Site-Pw-1", f"{B1}/site-ca", "branch1.hq.test", "127.0.0.2",
