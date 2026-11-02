@@ -950,7 +950,7 @@ with serve():
     post("/directory/machines/host-1/move", {"path": "people"})
     st, loc, page = post("/changes/machines/apply", {})
     # covers: web:post.directory.machines.*.move -
-    check("refused at Apply: a folder outside OU=machines", "only to a folder under OU=machines" in page, page[-1500:])
+    check("refused at Apply: a folder outside OU=machines", "moves only within OU=machines" in page, page[-1500:])
     post("/changes/machines/discard", {})
     post("/directory/machines/host-1/sites", {"action": "add", "site": "mars"})
     st, loc, page = post("/changes/machines/apply", {})

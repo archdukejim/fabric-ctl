@@ -96,7 +96,7 @@ published:
     keycloak:   {var: image_fabric_keycloak, tag: "0.9.0-rc.309", digest: "sha256:f6a1c743ac47dcad94f366606c94da346389e2b6ed5d57a831a00ecfe8460b8a", source: "sha256:959fee075a7826341979c0d03be1041f3030429677424512af8d9af92a223f2c"}
     samba:      {var: image_fabric_samba, tag: "0.9.0-rc.309", digest: "sha256:1091c850ae3dd7e28ccffc43708d74b2bd1eebd7049cc6719651d81ff131122a", source: "sha256:8776a13b98656f07dcdd428d7269a8b7071d7f847611c6e1673f9de50372b80a", groups: "BIND_GID=600,RADIUS_GID=610"}
     stepca:     {var: image_fabric_stepca, tag: "0.9.0-rc.309", digest: "sha256:2b1c5251b925fda4819c4003b8438ca4b20584aaf45c3970f88cb8c9b7e790c8", source: "sha256:c1cfad746580c5a98afc2a1268448efbdb2b610024d2e5adeda45db85175f20e"}
-    webui:      {var: image_fabric_webui, tag: "0.9.0-rc.309", digest: "sha256:87c6c61962b44624e6e5993c4cad78e9b8e2b7143b6ff797300696497a99a40d", source: "sha256:ff61e40ba0657b59e02130bd65dda60179ddb1ab9349e81527e40adef8a1c131", account: webui, ids: "606:606"}
+    webui:      {var: image_fabric_webui, tag: "", digest: "", pending: "its sources changed since 0.9.0-rc.309 (the directory browser's pages, 0.9.1): built and published again with 0.9.1", account: webui, ids: "606:606"}
 
 # Packages installed into fabric's own images from an upstream's signed apt
 # repository (not Debian's): the exact version and the signing key's

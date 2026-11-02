@@ -116,6 +116,7 @@ def fake_machines(state, who, route, body):
         return {"name": row["name"], "site": site, "member": add, "changed": set(row["sites"]) != before}
     path = str(body.get("path") or "")
     if path not in _overview(state, row["name"])["choices"]["folders"]:
-        raise ValidationError(f"only to a folder under OU=machines: no OU {path or '(none)'}")
+        raise ValidationError(f"a machine moves only within OU=machines for now (not {path or '(none)'}, manual "
+                              "1.8.8.5)")
     changed, row["folder"] = row.get("folder") != path, path
     return {"name": row["name"], "path": path, "changed": changed}

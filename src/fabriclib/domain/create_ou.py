@@ -15,7 +15,7 @@ def create_ou(v, actor, parent, name, source="web", secrets=None, container="sam
              container — the DC's container.
     Returns: {"path", "dn"}.
     Fails:   ValidationError "parent and name must be text"; the DC's: a bad name, one of fabric's folders' names, a
-             parent that takes no admin's folders, no such parent, "that name is already taken" (an OU of that name
+             parent in fabric's closed folders, no such parent, "that name is already taken" (an OU of that name
              there), "the directory refused the change …" (a folder fabric's agent may not write).
     Feeds:   agent route POST /v1/ous; domain/run_ou_command (create).
     Notes:   audited OU_CREATE."""

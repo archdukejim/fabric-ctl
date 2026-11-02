@@ -501,9 +501,9 @@ done2 = m_ous.post_ous(["ous"], "alice", {"parent": "machines/servers", "name": 
 check("POST /v1/ous: people/staff and machines/servers/web, audited",
       done["path"] == "people/staff" and done2["dn"] == f"OU=web,OU=servers,OU=machines,{BASE}"
       and AUDIT[-1][1] == "OU_CREATE", (done, done2))
-for body, words in (({"parent": "groups/fabric", "name": "x"}, "takes no admin's folders"),
-                    ({"parent": "machines", "name": "x"}, "takes no admin's folders"),
-                    ({"parent": "devices", "name": "x"}, "takes no admin's folders"),
+for body, words in (({"parent": "groups/fabric", "name": "x"}, "one of fabric's closed folders"),
+                    ({"parent": "fabric-hosts", "name": "x"}, "one of fabric's closed folders"),
+                    ({"parent": "devices", "name": "x"}, "one of fabric's closed folders"),
                     ({"parent": "people", "name": "people"}, "one of fabric's folders' names"),
                     ({"parent": "people", "name": "a,b"}, "an OU's name"),
                     ({"parent": "people", "name": "staff"}, "already taken"),
@@ -542,7 +542,7 @@ check("POST /v1/machines/srv1/move by hd (a grant's machines move on lan's serve
 for who, name, body, perms_, words in (
         ("hd", "dsk1", {"path": "machines"}, {"machines:admin", "ous:admin"}, "no grant gives you machines move on dsk1"),
         ("hd", "srv1", {"path": "machines"}, {"machines:admin"}, "needs ous:admin too"),
-        ("alice", "srv1", {"path": "people/office"}, None, "only to a folder under OU=machines"),
+        ("alice", "srv1", {"path": "people/office"}, None, "moves only within OU=machines"),
         ("alice", "srv1", {"path": "machines/nowhere"}, None, "no OU machines/nowhere"),
         ("alice", "nomachine", {"path": "machines"}, None, "no machine nomachine")):
     gone, why = refused(m_domain.post_domain, ["machines", name, "move"], who, body, who, perms_)
@@ -665,7 +665,7 @@ code4, out4 = cli("machine", "keytab", "dsk1", "--service", "postgres", "--user"
 check("domain machine move, type, sites, keytab (root)", [code, code2, code3, code4] == [0] * 4
       and "moved to machines" in out and "moved to OU=desktops" in out2 and "(already)" in out3
       and "sudo fabric-keytab --machine dsk1 --service postgres --user postgres" in out4, (out, out2, out3, out4))
-for args, words, want in ((("machine", "move", "dsk1", "people"), "only to a folder under OU=machines", 1),
+for args, words, want in ((("machine", "move", "dsk1", "people"), "moves only within OU=machines", 1),
                           (("machine", "type", "dsk1", "toaster"), "type: one of", 1),
                           (("machine", "keytab", "dsk1", "--service", "cifs", "--user", "x"), "the machine's own", 1),
                           (("machine", "frob", "dsk1"), "usage", 2)):
@@ -692,7 +692,7 @@ code4, out4 = cli("ou", "delete", "groups/squads")
 check("domain ou create, list, rename, delete (root)", [code, code2, code3, code4] == [0] * 4
       and "groups/teams" in out2 and "fabric's" in out2 and "groups/squads" in out3, (out, out2, out3, out4))
 for args, words, want in ((("ou", "delete", "people"), "one of fabric's folders", 1),
-                          (("ou", "create", "groups/fabric", "x"), "takes no admin's folders", 1),
+                          (("ou", "create", "groups/fabric", "x"), "one of fabric's closed folders", 1),
                           (("ou", "move", "x"), "usage", 2)):
     code, out = cli(*args)
     # covers: cli:domain.ou -
