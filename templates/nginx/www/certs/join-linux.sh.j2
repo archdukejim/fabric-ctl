@@ -292,6 +292,10 @@ cat > /usr/local/sbin/fabric-managed <<'MANAGED'
 # fabric's configuration of a machine it manages (manual 1.6.11.6), installed by join-linux.sh:
 #   fabric-managed apply | remove | check     (check: apply while in fabric-managed, remove when not)
 set -euo pipefail
+# one run at a time, and the settings read only once it holds the lock: the hourly check, started before an admin
+# changed FABRIC_DNS (4.2.4.2 step 5), wrote the old address back over the admin's apply (joined run 16, 2.3.1.42)
+exec 9>/run/fabric-managed.lock
+flock 9
 . /etc/fabric/managed.env
 # 10-: sshd keeps the first value it reads, and Ubuntu's cloud images set passwords on in 50-cloud-init.conf
 SSHD=/etc/ssh/sshd_config.d/10-fabric.conf

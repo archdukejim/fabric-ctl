@@ -99,7 +99,13 @@ client_check() {   # $1 the step
 # Purpose: the members' DNS pointed at fabric's address (as a network's DHCP would hand it out).
 members_dns() {   # $1 fabric's address
     # a member fabric's join set up keeps the address in managed.env, which its hourly check puts back (4.2.4.2 step 5)
-    L "if [ -f /etc/fabric/managed.env ]; then sed -i 's/^FABRIC_DNS=.*/FABRIC_DNS=$1/' /etc/fabric/managed.env && fabric-managed apply; fi"
+    # first a check under way is let finish: the floor's fabric-managed takes no lock, and one started before the
+    # change wrote the old address back (run 16, 2.3.1.42); 4.2.4.2 step 5 says the same
+    L "if [ -f /etc/fabric/managed.env ]; then while systemctl is-active -q fabric-managed.service; do sleep 1; done; sed -i 's/^FABRIC_DNS=.*/FABRIC_DNS=$1/' /etc/fabric/managed.env && fabric-managed apply; fi"
+    if L 'test -f /etc/fabric/managed.env' >/dev/null 2>&1; then
+        check "the member's fabric DNS drop-in names $1 (4.2.4.2 step 5)" \
+            "L 'grep -qx DNS=$1 /etc/systemd/resolved.conf.d/fabric.conf'"
+    fi
     L "resolvectl dns \"\$(ip route get $1 | awk '{for (i=1;i<NF;i++) if (\$i==\"dev\") print \$(i+1)}')\" $1"
     W "Get-NetIPAddress -IPAddress $WIN | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex \$_.InterfaceIndex -ServerAddresses $1 }"
 }
@@ -161,9 +167,27 @@ if wants upgrade; then
 fi
 if wants place; then
     echo "=== place: ub26-2 and ws25-1 moved into an admin's OU (1.8.8.5; within OU=machines' tree until 2.3.8.6)"
-    # what the members give the person before the move: sssd's access check (the grants' GPOs, PAM's account phase),
-    # sudo, and Windows' applied GPOs and local Administrators; the same after it, whatever the grants give
-    l_state() { L "sssctl user-checks $PERSON@$AD -a acct -s sshd 2>&1 | grep -i 'pam_acct_mgmt'; sudo -l -U $PERSON@$AD 2>&1 | grep -E '^ +\\(' | sort"; }
+    echo "INFO the host's own name before the move: $(on "$FABRIC" 'getent hosts "$(hostname)" || echo "not found"; grep -n "$(hostname)" /etc/hosts || echo "not in /etc/hosts"' | tr '\n' ' ')"
+    # two people, one allowed on ub26-2 by a grant and one not, so the compare proves both ways (2.3.1.41's weakness):
+    # placeok in place-crew, a grant of remote sign-in and sudo of /usr/bin/id on the host group hosts-placed
+    # (ub26-2 alone); placeno in no grant. Their one-time passwords are discarded, never printed or logged.
+    for who in placeok placeno; do
+        F "fabricctl people add $who --first Place --last ${who#place} --email $who@$DOMAIN >/dev/null" ||
+            stop "the place step's person $who was not made"
+    done
+    F "fabricctl domain group create place-crew --description 'the place step' >/dev/null &&
+       fabricctl domain group members place-crew add placeok >/dev/null &&
+       fabricctl machines group create placed >/dev/null && fabricctl machines group add placed g23-vm-ub26-2 >/dev/null &&
+       fabricctl domain grant add place-ok --who place-crew --where hosts-placed --signin remote --sudo /usr/bin/id >/dev/null" ||
+        stop "the place step's grant was not made"
+    # what ub26-2 gives each before the move: sssd's access check (the grants' GPOs, PAM's account phase) and sudo;
+    # Windows' applied GPOs and local Administrators; the same after it
+    l_one() { L "sssctl user-checks $1@$AD -a acct -s sshd 2>&1 | grep -io 'pam_acct_mgmt: .*'; sudo -l -U $1@$AD 2>&1 | grep -E '^ +\\(' | sort"; }
+    l_state() { L 'sss_cache -E; systemctl restart sssd; sleep 5' >/dev/null; echo "ok: $(l_one placeok | tr '\n' ' ')"; echo "no: $(l_one placeno | tr '\n' ' ')"; }
+    # the grant reaches ub26-2 through its GPO and sudo rules: wait for it (up to 10 minutes) before the first read
+    for _ in $(seq 1 20); do
+        l_state | grep -q '^ok: pam_acct_mgmt: Success' && break; sleep 30
+    done
     w_state() { W "gpupdate /target:computer /force | Out-Null; ((gpresult /r /scope computer) -match 'fabric' | ForEach-Object { \$_.Trim() } | Sort-Object) -join ';'; ((net localgroup Administrators | Select-Object -Skip 6) | Sort-Object) -join ';'"; }
     before_l=$(l_state); before_w=$(w_state)
     echo "INFO before: ub26-2: ${before_l//$'\n'/ | }; ws25-1: ${before_w//$'\n'/ | }"
@@ -180,7 +204,10 @@ if wants place; then
     sleep 60
     after_l=$(l_state); after_w=$(w_state)
     echo "INFO after: ub26-2: ${after_l//$'\n'/ | }; ws25-1: ${after_w//$'\n'/ | }"
-    check "ub26-2 in machines/branch: the person's access check and sudo as before the move (the GPOs at the root)" \
+    check "before the move: placeok allowed on ub26-2 (access check Success, sudo /usr/bin/id), placeno refused" \
+        "printf '%s' '${before_l//\'/}' | grep -q '^ok: pam_acct_mgmt: Success.*/usr/bin/id' &&
+         printf '%s' '${before_l//\'/}' | grep -q '^no: pam_acct_mgmt: Permission denied'"
+    check "ub26-2 in machines/branch: placeok still allowed and placeno still refused, as before (the GPOs at the root)" \
         "[ -n '${before_l//\'/}' ] && [ '${before_l//\'/}' = '${after_l//\'/}' ]"
     check "ws25-1 in machines/branch: the same fabric GPOs applied and the same local Administrators as before" \
         "[ -n '${before_w//\'/}' ] && [ '${before_w//\'/}' = '${after_w//\'/}' ]"
@@ -248,7 +275,10 @@ if wants move; then
     # step 4: the host's own join
     check "4.2.4.2 step 4: the member step" "F 'fabricctl setup --step member --non-interactive --approve member' >/dev/null"
     # since 0.9.1 the apply and the member step leave nothing at the old address (2.1.1.74): no clean-up by hand
-    HOSTNOW=$(F 'hostname' | tr -dc 'a-z0-9-')
+    # the name read without sudo: `on` keeps a command's stderr, and sudo's own warnings must not join the name (run 15)
+    HOSTNOW=$(on "$FABRIC" hostname | tr -dc 'a-z0-9-')
+    # how the moved host finds its own name (run 15: sudo once could not, "Temporary failure in name resolution")
+    echo "INFO the host's own name after the move: $(on "$FABRIC" 'getent hosts "$(hostname)" || echo "not found"; grep -n "$(hostname)" /etc/hosts || echo "not in /etc/hosts"' | tr '\n' ' ')"
     DCF=$(dc_fqdn)
     check "after the apply: no record at $FABRIC_OLD in fabric's zone (the menu's list)" \
         "zone_list >/dev/null && ! zone_list | grep -qF -- '-> $FABRIC_OLD'"
@@ -270,7 +300,7 @@ fi
 if wants rename; then
     echo "=== rename: the fabric VM to $RENAMED (4.2.4.3, through break glass: 2.1.6.104)"
     dc_before=$(dc_fqdn)
-    OLDNAME=$(F 'hostname' | tr -dc 'a-z0-9-')
+    OLDNAME=$(on "$FABRIC" hostname | tr -dc 'a-z0-9-')
     # the refusal (1.6.11.14): the old way, hostname in vars.yaml then the apply, is refused on a DC's host
     F "sed -i 's/^hostname: .*/hostname: $RENAMED/' /opt/fabric/config/vars.yaml"
     out=$(F 'fabricctl --apply 2>&1')

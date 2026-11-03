@@ -153,6 +153,7 @@ docs/volume_2_engineering_decisions/2.1.6-identity.md	b7ac66e4c6212a01a631f3eeeb
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.8-webui.md	4a5a4eb94ccfa4fac0f4fe2d9b947c00326be3fd	2026-10-31	
 docs/volume_2_engineering_decisions/2.1.9-federation.md	cd669c8882d4f654fa2246c5cbf4604d785544fb	2026-10-31	
+docs/volume_2_engineering_decisions/2.2.1-product-troubleshooting.md	e2d07e95fe1a7f8d96f8bb23122c590a94ef2bec	2026-11-03	
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
@@ -2172,6 +2173,8 @@ tests/sandbox/rfc2136_test.sh	4299bc1c1d62237439cad3a2ebac534f45ef0874	2026-10-0
 tests/sandbox/run.sh	5e43a82510c3e3f85bb86f72a0f8b1da68a7f2a6	2026-10-31	
 tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30	
 tests/sandbox/size_fill.py	7ff80c0a5befb18c3cfe57f90d5f57b8180004b7	2026-11-03	
+tests/sandbox/size_fill_dc.py	9a24362d71304487a4b51c9ed258fc6f5ea09adf	2026-11-03	
+tests/sandbox/size_load.py	263bbd04436984349b9faebb203adde26886f09d	2026-11-03	
 tests/sandbox/size_measure.sh	16d3bcf81bcd242df17563b87445693108625629	2026-11-03	
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-12	

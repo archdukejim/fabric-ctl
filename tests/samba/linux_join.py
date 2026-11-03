@@ -331,6 +331,17 @@ checks(box, "26.04")
 code, out = on(box, "fabric-managed check; echo rc=$?; cat /etc/systemd/resolved.conf.d/fabric.conf")
 check("26.04: pre-created managed (add-machine's default), its check finds it a member and keeps the configuration",
       "rc=0" in out and f"DNS={V['host_ip']}" in out, out)
+# one run at a time, the settings read once it holds the lock (joined run 16, 2.3.1.42): a run started while another
+# holds the lock waits, and writes the FABRIC_DNS the file has when it gets the lock, never the one before it
+code, out = on(box, "flock /run/fabric-managed.lock sleep 3 & sleep 0.5; t0=$(date +%s); "
+                    "sed -i 's/^FABRIC_DNS=.*/FABRIC_DNS=192.0.2.53/' /etc/fabric/managed.env; "
+                    "fabric-managed apply & sleep 1; "
+                    f"sed -i 's/^FABRIC_DNS=.*/FABRIC_DNS={V['host_ip']}/' /etc/fabric/managed.env; wait; "
+                    "echo waited=$(( $(date +%s) - t0 )); cat /etc/systemd/resolved.conf.d/fabric.conf")
+waited = int((out.split("waited=", 1)[1].split()[0]) if "waited=" in out else 0)
+check("26.04: fabric-managed waits for a run already going, then writes the FABRIC_DNS of that moment "
+      "(never an address read before it waited)", waited >= 2 and f"DNS={V['host_ip']}" in out
+      and "192.0.2.53" not in out, out)
 
 # Debian 12 and 13 (Proxmox VE 8, 9): joined with an admin's password; 13 as a desktop
 for release in ("debian-12", "debian-13"):
