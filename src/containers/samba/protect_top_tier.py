@@ -38,4 +38,4 @@ def protect_top_tier(samdb):
         for m in samdb.search(base=paths.folder_dn(samdb, name), scope=ldb.SCOPE_SUBTREE, attrs=["dn"],
                               expression=f"(&(objectCategory=person)(|(adminCount=1){chain}))"):
             entries += [(str(m.dn), f"(D;;{DENY};;;{admins})"), (str(m.dn), f"(OD;;CR;{RESET_PASSWORD};;{admins})")]
-    return ensure_aces(samdb, entries)
+    return ensure_aces(samdb, entries, gone_ok=True)       # accounts a search just found (2.3.6.29)

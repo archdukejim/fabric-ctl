@@ -1558,6 +1558,7 @@ function	fabricctl-jinja|src/containers/freeradius/record_fingerprint.py|_tlv	1
 function	fabricctl-jinja|src/containers/freeradius/record_fingerprint.py|main	3	
 function	fabricctl-jinja|src/containers/freeradius/record_fingerprint.py|serial_of	2	
 function	fabricctl-jinja|src/containers/samba/access_policy.py|access_policy	1	
+function	fabricctl-jinja|src/containers/samba/acl_entries.py|_ensure_one	4	
 function	fabricctl-jinja|src/containers/samba/acl_entries.py|_same	2	
 function	fabricctl-jinja|src/containers/samba/acl_entries.py|ensure_aces	3	
 function	fabricctl-jinja|src/containers/samba/acl_entries.py|sid_of	1	

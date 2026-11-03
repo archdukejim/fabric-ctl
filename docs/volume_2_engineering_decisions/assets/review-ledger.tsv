@@ -2137,6 +2137,7 @@ tests/resolver/querylog.py	0378e80e7fa13e77534999301e31df4fea7bd779	2026-10-31
 tests/resolver/run.py	73ed914152c7b7af09b8e0b121e422104aad32f2	2026-10-29	
 tests/run-all.sh	91f69f4532b2fc0441c576ed0b2e9699b261e582	2026-10-31	
 tests/samba/README.md	c6d6ed8ea6d6f389cee1a6a5003b3f9b79ff486e	2026-10-25	
+tests/samba/acl_entries_test.py	17613db26e83d400d26c826e42a4927fe9355681	2026-11-03	
 tests/samba/dc.py	a63433173910207e3d43cad42b3579e65d9fb06c	2026-10-25	
 tests/samba/devices.py	6ab42b2f1dfc36dacff89ba078ed5a6d5f4a3069	2026-10-25	
 tests/samba/domain.py	644d3a39062cdaabe741c02dffc0e1a61326773a	2026-10-25	

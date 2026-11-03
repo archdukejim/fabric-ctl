@@ -31,26 +31,46 @@ def _same(a, b):
     return a.type not in OBJECT_ACES or str(a.object.type) == str(b.object.type)
 
 
-def ensure_aces(samdb, entries, dacl_only=False):
+def ensure_aces(samdb, entries, dacl_only=False, gone_ok=False):
     """Purpose: each access entry present on its object, added when missing.
     Inputs:  samdb — SamDB (as the system); entries — list of (dn str, SDDL entry str "(A;CI;…;;;S-…)"); dacl_only —
              read and write the DACL alone (an account that is not the system, such as an OU's owner: the whole
-             descriptor holds the SACL, which only the system reads).
+             descriptor holds the SACL, which only the system reads); gone_ok — True for entries on objects a search
+             just found (accounts, not fabric's folders): one deleted since that search is skipped, not an error
+             (a site's join account its new DC deletes while the root converges: the samba suite on arm64, 2.3.6.29).
     Returns: list of str, the entries added.
-    Fails:   ldb.LdbError reading or changing a security descriptor; RuntimeError for invalid SDDL.
+    Fails:   ldb.LdbError reading or changing a security descriptor (a missing object too, unless gone_ok);
+             RuntimeError for invalid SDDL.
     Feeds:   ensure_directory_acl, protect_top_tier, admin_gpo, ensure_ou_rights."""
     domain_sid = security.dom_sid(samdb.get_domain_sid())
     utils, done = SDUtils(samdb), []
     for dn, ace in entries:
         want = security.descriptor.from_sddl("D:" + ace, domain_sid).dacl.aces[0]
-        if dacl_only:
-            sd = utils.read_sd_on_dn(dn, controls=[DACL_ONLY])
-            if not any(_same(have, want) for have in sd.dacl.aces):
-                sd.dacl_add(want)
-                utils.modify_sd_on_dn(dn, sd, controls=[DACL_ONLY])
-                done.append(f"{dn}: {ace}")
-            continue
-        if not any(_same(have, want) for have in utils.read_sd_on_dn(dn).dacl.aces):
-            utils.dacl_add_ace(dn, ace)
+        try:
+            added = _ensure_one(utils, dn, ace, want, dacl_only)
+        except ldb.LdbError as e:
+            if gone_ok and e.args[0] == ldb.ERR_NO_SUCH_OBJECT:
+                continue
+            raise
+        if added:
             done.append(f"{dn}: {ace}")
     return done
+
+
+def _ensure_one(utils, dn, ace, want, dacl_only):
+    """Purpose: one access entry on one object, added when missing.
+    Inputs:  utils — SDUtils; dn — str; ace — SDDL entry str; want — the entry parsed; dacl_only — as ensure_aces.
+    Returns: True when it was added.
+    Fails:   ldb.LdbError reading or changing the security descriptor.
+    Feeds:   ensure_aces."""
+    if dacl_only:
+        sd = utils.read_sd_on_dn(dn, controls=[DACL_ONLY])
+        if any(_same(have, want) for have in sd.dacl.aces):
+            return False
+        sd.dacl_add(want)
+        utils.modify_sd_on_dn(dn, sd, controls=[DACL_ONLY])
+        return True
+    if any(_same(have, want) for have in utils.read_sd_on_dn(dn).dacl.aces):
+        return False
+    utils.dacl_add_ace(dn, ace)
+    return True

@@ -55,12 +55,14 @@ def ensure_directory_acl(samdb, dc):
     for name in TIERS:
         entries.append((f"CN={name},{groups}", f"(D;;{DENY};;;{admins})"))
     services = folder("service-accounts")
+    accounts = []           # found by a search: one deleted since (a site's join account) is skipped (2.3.6.29)
     for account in samdb.search(base=services, scope=ldb.SCOPE_SUBTREE, expression=FABRIC_ACCOUNTS, attrs=["dn"]):
-        entries += [(str(account.dn), f"(D;;{DENY};;;{admins})"),
-                    (str(account.dn), f"(OD;;CR;{RESET_PASSWORD};;{admins})")]
+        accounts += [(str(account.dn), f"(D;;{DENY};;;{admins})"),
+                     (str(account.dn), f"(OD;;CR;{RESET_PASSWORD};;{admins})")]
     entries += [(folder(name), f"(A;CI;{FULL};;;{agent})") for name in AGENT_FOLDERS]
     entries.append((paths.fabric_dn(samdb), f"(A;CI;{FULL};;;{agent})"))
     entries.append((paths.fabric_dn(samdb), f"(A;CI;{READ};;;AU)"))
     entries.append((folder("people"), f"(A;CI;{FULL};;;{keycloak})"))
     entries.append((groups, f"(A;CI;RPWPLCLORC;;;{keycloak})"))
-    return ensure_aces(samdb, entries) + ensure_ou_rights(samdb, dc) + protect_top_tier(samdb)
+    return (ensure_aces(samdb, entries) + ensure_aces(samdb, accounts, gone_ok=True) + ensure_ou_rights(samdb, dc)
+            + protect_top_tier(samdb))
