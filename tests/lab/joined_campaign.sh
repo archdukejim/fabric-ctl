@@ -14,8 +14,8 @@
 #   join     fabric at the floor (FROM_DEB, 0.8.0 until 1.0: 2.1.1.61) with tests/lab/joined_vars.yaml; ub26-2 and
 #            ws25-1 joined with one-time passwords, piped from add-machine's output to the member (never an argument)
 #   upgrade  TO_DEB installed over it, then setup unattended, as an operator upgrades
-#   place    ub26-2 and ws25-1 moved into an admin's OU, machines/branch (1.8.8.5; 2.3.8.6 keeps a machine in
-#            OU=machines' tree): the person's access check, sudo, Windows' fabric GPOs and local Administrators the
+#   place    ub26-2 and ws25-1 moved into an admin's OU at the domain's root (1.8.8.5, 2.1.6.106; 2.3.8.6: anywhere):
+#            the person's access check, sudo, Windows' fabric GPOs and local Administrators the
 #            same as before the move; the later steps then run with them there
 #   images   every image updated and rolled back: tests/images/update.sh --ssh (2.1.14.12)
 #   restart  fabricctl stop and start, then the fabric VM rebooted
@@ -281,7 +281,7 @@ if wants move; then
     check "ws25-1 follows it: both addresses, old first, on its adapter" \
         "[ \"\$(win_dns)\" = '$FABRIC $MOVED' ]"
     check "...by the Group Policy Preferences task, also on NETLOGON's 5719 and every 5 minutes while it is announced" \
-        "W \"(Get-ScheduledTask -TaskName 'fabric secure channel').Triggers | Out-String\" | grep -q 'PT5M'"
+        "W \"Export-ScheduledTask -TaskName 'fabric secure channel' | Out-String\" | grep -q '<Interval>PT5M</Interval>'"
     echo "INFO ws25-1's DNS servers as it uses them: $(W 'ipconfig /all' | grep -iA2 'DNS Servers' | tr -s ' \r\n' ' ')"
     # 4.2.4.2 step 2: the netplan file's address, applied by systemd 10 s later, so this session has ended before the
     # address changes under it (a nohup'd apply kept it open: run 5, 2026-11-01, ssh waited on the dead connection for

@@ -3219,6 +3219,7 @@ function	fabriclib-setup|src/fabriclib/setup/deploy_config.py|_write_exec	2
 function	fabriclib-setup|src/fabriclib/setup/deploy_config.py|run	3	
 function	fabriclib-setup|src/fabriclib/setup/detach/can_detach.py|can_detach	1	
 function	fabriclib-setup|src/fabriclib/setup/detach/choose_start.py|choose_start	1	
+function	fabriclib-setup|src/fabriclib/setup/detach/follow_run.py|_ended	2	
 function	fabriclib-setup|src/fabriclib/setup/detach/follow_run.py|follow_run	1	
 function	fabriclib-setup|src/fabriclib/setup/detach/hand_over.py|_fresh_log	1	
 function	fabriclib-setup|src/fabriclib/setup/detach/hand_over.py|hand_over	2	

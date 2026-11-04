@@ -57,7 +57,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	ae1189fad
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3c9f2a69f45e13f5365f8e49c066243f60235a80	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	2db03a6c42354ee697dfcb19be1f64e723ac06de	2026-11-04	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	7894287d00403f0b0110842aadaf1bb462094762	2026-10-23	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	a1d89e2348e5b89701534697b1d178e2ca4d1352	2026-10-31	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	883bd5f7873527fc64ca67e1d51e391a2db9a737	2026-11-04	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	6f8a77df295e473b55bf0d59d729c3f6687a526b	2026-11-04	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	156cf5388b52a6ceb588f352ffd74ba6b58aba06	2026-10-31	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	ef0eaf5854c975ca84fbd27af2c17c78328ec055	2026-10-25	
@@ -107,7 +107,7 @@ docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	8960e718285add9c0a
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.1-directory.md	7fa9284225375dc046757b644311b8368d907462	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.10-security.md	8d627ab12c234c4d60c501fdcd1b3dbbf1d2a905	2026-10-20	
-docs/volume_1_description_and_architecture/1.6.11-host-access.md	7d9f11b6a0913a1593e7888132d11341e43c40a3	2026-11-01	
+docs/volume_1_description_and_architecture/1.6.11-host-access.md	830b20e84555652e0880cba5f21623d611b0a7cb	2026-11-04	
 docs/volume_1_description_and_architecture/1.6.12-domain-management.md	6529a7ae668caffe7c227e80b2435cd583e4b013	2026-10-23	
 docs/volume_1_description_and_architecture/1.6.13-access-by-grants.md	15b2411a1b4b0c367a483121eb87b4635e0bf60d	2026-11-04	
 docs/volume_1_description_and_architecture/1.6.2-keycloak.md	1170cb7e6152f061277c87f25439f287c659fed2	2026-10-21	
@@ -159,7 +159,7 @@ docs/volume_2_engineering_decisions/2.2.1-product-troubleshooting.md	020c264ac36
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	5c3555d3d2e6fedf690cffbb97e3e12e53698ded	2026-11-04	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	0fd8e19b6434307549438b95ea2bbbbf91ab3453	2026-11-04	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	8d0e6dc9f88453889dccc29f981ca3ee730702f4	2026-10-29	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -170,7 +170,7 @@ docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f487
 docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a9aeb2e856f39e5f862e36bf6273c583af26d627	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	d9b52f2951d7469595b4871be7c4f294e53cfa64	2026-11-01	
 docs/volume_2_engineering_decisions/2.3.7-openbao-notes.md	78a60cfd1689c9b3a5cb36f58f74e66e344300a4	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	231b36f02d0f5899dfafdf3f5fb2be1a3993ae91	2026-11-04	
+docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	560e85c492ca4841ed692558358fef0308342fe7	2026-11-04	
 docs/volume_2_engineering_decisions/2.3.9-federation-notes.md	589194fbf33eda431862f1414dabc04a3181edc9	2026-10-08	
 docs/volume_2_engineering_decisions/README.md	db77c9318e3383be0bedd0310d0a0e715024ae32	2026-11-04	
 docs/volume_2_engineering_decisions/assets/README.md	3fd72f26d985cf1827afa0868c6c138dfec9d627	2026-10-08	
@@ -281,7 +281,7 @@ scripts/docs/README.md	e391ec81d122ee82ea285ffaf04eac6a8dd44372	2026-10-12
 scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03	
 scripts/docs/entrypoints.py	d00bed147591ebd063f9148b9ed95a7ddff0ab12	2026-10-23	
 scripts/docs/gen_lib_doc.py	d7a3c1284ca3a30af61353d41f5a9d2a1457a325	2026-10-12	
-scripts/docs/lib_doc_numbers.tsv	762032b7c1d7f691d855dc5e93160f8717238a98	2026-11-04	
+scripts/docs/lib_doc_numbers.tsv	3491e2350fdb32a9577848bf5cbc3a1757840a4e	2026-11-04	
 scripts/docs/lib_doc_registry.py	a3a407c2b06b44838c4ce7a69725c4d47339f437	2026-10-17	
 scripts/docs/product_code.py	645a3bb130463028b90de64798c81694e5293131	2026-10-03	
 scripts/docs/review_ledger.py	b3f307b4dbaba54a69cc93c993287d43c747ba8f	2026-10-08	
@@ -1443,7 +1443,7 @@ src/fabriclib/setup/detach/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	
 src/fabriclib/setup/detach/can_detach.py	e05bcb8882985de74608986de2b6848632a792bf	2026-10-17	
 src/fabriclib/setup/detach/choose_start.py	82c49872395f12a80eedca7aad3e7e4449f85d48	2026-10-17	
 src/fabriclib/setup/detach/constants.py	6db3df97d093f3efb5b3bacae1ca99d801ce1f45	2026-10-17	
-src/fabriclib/setup/detach/follow_run.py	cba480c3f5b1ee371873ec32fab69e38fe908370	2026-10-17	
+src/fabriclib/setup/detach/follow_run.py	f2f9a07581552e8bab9229fa9f9ea3d38edb5716	2026-11-04	
 src/fabriclib/setup/detach/hand_over.py	ec0f81ac26ea8cb0854dfea735ec32e731263a43	2026-10-17	
 src/fabriclib/setup/detach/launch_worker.py	e4318386b08846d0af63a10ba366dffb2969eded	2026-10-17	
 src/fabriclib/setup/detach/read_handoff.py	af9c219eb98d046680e927a047ee2e01429891f5	2026-10-17	
@@ -1497,7 +1497,7 @@ src/fabriclib/sizing/advice.py	f7d7bc75cdbd9b82d3636690e5468a89029c3711	2026-11-
 src/fabriclib/sizing/refresh_sizing.py	992d7df119251298bfb464650e59c0c1318c9813	2026-11-04	
 src/fabriclib/sizing/run_sizing_command.py	d5c7f24e4b5c63e48e2b5e4deaec314973bf92d8	2026-11-04	
 src/fabriclib/sizing/state.py	b7e89b4fde70f08d46787ba80f155bf860e5c2c3	2026-11-04	
-src/fabriclib/sizing/table.py	c4a44f0e41e04da24be6cf26d3686e4e664bfec0	2026-11-04	
+src/fabriclib/sizing/table.py	626df9a7b8cc558505a887fec891a2a18edccabf	2026-11-04	
 src/fabriclib/system/README.md	ae4bf463e35d32c4d22649f7c534560d2a173d6b	2026-10-24	
 src/fabriclib/system/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
 src/fabriclib/system/apply_changes.py	a6b0c5238b28b1e9e44701002dd734756be00917	2026-10-02	
@@ -1923,7 +1923,7 @@ templates/nginx/www/certs/install-certs.sh.j2	4cd527b4db5e7744a6ac8a04f7e74063a0
 templates/nginx/www/certs/install-chrome-ubuntu.sh.j2	3196d4dffd42cd99ab875b65551ba321520e5a2e	2026-10-12	
 templates/nginx/www/certs/install-firefox-ubuntu.sh.j2	567ff3744968943c8c46406dfa2b591832aa95e5	2026-10-12	
 templates/nginx/www/certs/install-python-ubuntu.sh.j2	80bd35e39fbe8ef8f1ad0b7fba38353cc006247f	2026-10-12	
-templates/nginx/www/certs/join-linux.sh.j2	f0d099479a4da43fe19c15b79be6489161f06d33	2026-11-04	
+templates/nginx/www/certs/join-linux.sh.j2	62d37cd0d8229a160738c36cc726fdc4bd80dbe1	2026-11-04	
 templates/nginx/www/landing/README.md	a36a5f2a66f48eeb07996a67e3b58bb5acda7ae8	2026-10-13	
 templates/nginx/www/landing/index.html.j2	dfcd4d0ea84e063f9324ebe74db66d6d28be055c	2026-10-23	
 templates/nginx/www/manual/README.md	dd081199d419d4573664d9de5bd9683235beb19d	2026-10-03	
@@ -2137,7 +2137,7 @@ tests/lab/dhcp.sh	30bfd8a0fd670dd228cdf1c1e6c303cd4a31fe6a	2026-10-25
 tests/lab/dhcp_campaign.sh	1b462797cddf25231389b9269fba6c02d39e07d2	2026-10-25	
 tests/lab/dhcp_console.py	7bd4f10efdc60150b3a97b78de5f1482203c69c2	2026-10-24	
 tests/lab/dhcp_vars.yaml	69c2af925c07a25e01fabb400c83320729d1095e	2026-10-23	
-tests/lab/joined_campaign.sh	61c0f5e14c20d8d4d48d33d34a981a998c197ea6	2026-11-04	
+tests/lab/joined_campaign.sh	be158eb2e1554aef740a688d175c0ff3475b36cb	2026-11-04	
 tests/lab/joined_vars.yaml	a0c9e1ae955bab7731d7a5e7c24fa92a27037236	2026-10-31	
 tests/lint/README.md	9757442e4a4f93e6dfa2de8daee0508f38dff835	2026-10-12	
 tests/lint/no_bare_prompts.py	f7bb9072256161fd72f5693e3a84d210269c8faa	2026-10-12	
@@ -2179,7 +2179,7 @@ tests/samba/grants.py	49002728020240491021d30a2a8c1b6866c638c0	2026-11-04
 tests/samba/hostgroups.py	a71ecfff520edd57ff2e976829c61205e4b827bd	2026-10-25	
 tests/samba/id_layout_test.py	2f5f8395429e443adbf0bd64480247c114dcc2c6	2026-10-20	
 tests/samba/ipam.py	43bb5da0dd5dd8e8b13a703dd2c4b9a4474ed800	2026-10-25	
-tests/samba/linux_join.py	678c94b24e5c1dfa70e192879a5bf763091f50a8	2026-11-04	
+tests/samba/linux_join.py	380b7cd8002a422b981f325b1a3a56dd24379a43	2026-11-04	
 tests/samba/plan_store.py	7ebdd0072cf6f317e671c4b8b79b2e0b4c98eda3	2026-10-25	
 tests/samba/plan_store_test.py	174f00adf23343a84028154c6ff9a35c91a80a44	2026-10-23	
 tests/samba/run.py	c452e49ffb029571a0ac92bb1563bc7dc4c27164	2026-10-25	
@@ -2220,7 +2220,7 @@ tests/setup/common/sssd_sockets_test.py	e02dbd805ff3ea165eb3cd81c60ba351ec04bf93
 tests/setup/detach/README.md	0c490656f6d6dd1b3786d53284f3d3a4394db493	2026-10-17	
 tests/setup/detach/can_detach_test.py	63cb81fa5f680252079acc0208066b5aaeb18da7	2026-10-17	
 tests/setup/detach/choose_start_test.py	5b041ed37f7a1625e7dfea086a89de700f9e961b	2026-10-17	
-tests/setup/detach/follow_run_test.py	feb683633ab1d41439450025d84b26eda26b4e34	2026-10-17	
+tests/setup/detach/follow_run_test.py	aea2dc25c493c17e2143465a3c99c9f53b071184	2026-11-04	
 tests/setup/detach/hand_over_test.py	502b87dff55d488af6885bdcf9da78883b2a2de5	2026-10-17	
 tests/setup/detach/launch_worker_test.py	3ec1155b04f8c3a63c95f3c56bbc8172b2df27b3	2026-10-17	
 tests/setup/detach/read_handoff_test.py	4a9da733ec2664c1d3e0d5fe342db3da893ba65c	2026-10-17	

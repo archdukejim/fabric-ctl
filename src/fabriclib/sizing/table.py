@@ -11,5 +11,5 @@ TABLE = {
     # fabric's data volume: what it must have free to take an update's images and the logs' growth
     "disk": {"min": 2048, "min_per": 0.05, "rec": 8192, "rec_per": 0.1},
     # the one service that grows with the directory, against its own limit
-    "dc_memory": {"min": 450, "min_per": 0.02, "rec": 600, "rec_per": 0.04},
+    "dc_memory": {"min": 450, "min_per": 0.045, "rec": 600, "rec_per": 0.07},
 }

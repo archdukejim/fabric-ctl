@@ -334,13 +334,16 @@ remove() {
         echo "fabric-managed: removed (no longer in fabric-managed)"
     fi
 }
-member() {  # whether this machine is in fabric-managed, asked of the DC as the machine itself
-    local cc
+member() {  # whether this machine is in fabric-managed, asked of the DC as the machine itself: 0 yes, 1 no, 2 no answer
+    # a search that failed is no answer, never a "no": removing fabric's DNS on it would leave the machine unable to
+    # find the DC again (joined run 19, 2.3.1.47)
+    local cc out
     cc=$(mktemp)
     trap 'rm -f "$cc"' RETURN
     KRB5CCNAME="FILE:$cc" kinit -k "${MACHINE^^}\$@$REALM" >/dev/null 2>&1 || return 2
-    KRB5CCNAME="FILE:$cc" LDAPSASL_NOCANON=on ldapsearch -LLL -o ldif-wrap=no -Q -Y GSSAPI -H "ldap://$DC" \
-        -b "$BASE_DN" "(sAMAccountName=${MACHINE^^}\$)" memberOf 2>/dev/null | grep -qi "^memberOf: CN=fabric-managed,"
+    out=$(KRB5CCNAME="FILE:$cc" LDAPSASL_NOCANON=on ldapsearch -LLL -o ldif-wrap=no -Q -Y GSSAPI -H "ldap://$DC" \
+        -b "$BASE_DN" "(sAMAccountName=${MACHINE^^}\$)" memberOf 2>/dev/null) || return 2
+    grep -qi "^memberOf: CN=fabric-managed," <<<"$out"
 }
 answers() {  # whether a DNS server is there, over TCP (no tool the machine may lack)
     timeout 3 bash -c "exec 3<>/dev/tcp/$1/53" 2>/dev/null

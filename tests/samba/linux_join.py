@@ -348,6 +348,18 @@ check("26.04: fabric-managed waits for a run already going, then writes the FABR
       "(never an address read before it waited)", waited >= 2 and f"DNS={V['host_ip']}" in out
       and "192.0.2.53" not in out, out)
 
+# a search that failed is no answer, not a "no" (joined run 19, 2.3.1.47): the ticket comes, the DC's LDAP name does not
+# answer, and nothing is removed; the same check, answered, still keeps it
+code, out = on(box, "cp /etc/fabric/managed.env /tmp/managed.env.kept; "
+                    "sed -i 's/^DC=.*/DC=nothing-here.invalid/' /etc/fabric/managed.env; "
+                    "fabric-managed check; echo rc=$?; cat /etc/systemd/resolved.conf.d/fabric.conf; "
+                    "cp /tmp/managed.env.kept /etc/fabric/managed.env")
+check("negative, 26.04: the DC's LDAP not answering removes nothing, and says so", "did not answer" in out
+      and "removed" not in out and "rc=1" in out and f"DNS={V['host_ip']}" in out, out)
+code, out = on(box, "fabric-managed check; echo rc=$?; cat /etc/systemd/resolved.conf.d/fabric.conf")
+check("26.04: answered again, the check goes on keeping the configuration",
+      "rc=0" in out and "did not answer" not in out and f"DNS={V['host_ip']}" in out, out)
+
 # the host's coming move (decision 2.1.1.79, manual 1.4.1.8.7): the command against the real DC, this real member
 # following over LDAP as itself. A real address change, and all of Windows, are the lab's (2.3.8.8): not proven here
 print("--- fabricctl move prepare")
