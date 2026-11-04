@@ -1,7 +1,7 @@
 import ldb
 
 from host_groups import HOST_GROUP_MARK, PREFIX, member_hosts, rule_hosts, sudo_rules, text
-import paths
+from directory_scope import find_groups
 
 
 def list_host_groups(samdb, lp, site):
@@ -20,9 +20,8 @@ def list_host_groups(samdb, lp, site):
         if hosts not in (None, "ALL"):
             rules.setdefault(hosts.lower(), []).append(text(rule, "cn"))
     out = []
-    for g in samdb.search(base=paths.folder_dn(samdb, "groups"), scope=ldb.SCOPE_SUBTREE,
-                          expression=f"(&(objectClass=group)(sAMAccountName={ldb.binary_encode(PREFIX)}*))",
-                          attrs=["sAMAccountName", "member", "description"]):
+    for g in find_groups(samdb, f"(sAMAccountName={ldb.binary_encode(PREFIX)}*)",
+                         ["sAMAccountName", "member", "description"]):
         name = text(g, "sAMAccountName")
         machines, others = [], []
         for dn in g.get("member", []):

@@ -130,7 +130,7 @@ g = samdb.search(base="CN=Policies,CN=System," + str(samdb.domain_dn()), scope=l
                  expression="(displayName=fabric: lan admin settings)",
                  attrs=["cn", "versionNumber", "gPCMachineExtensionNames"])[0]
 folder = os.path.join(lp.get("path", "sysvol"), lp.get("realm").lower(), "Policies", str(g["cn"]))
-link = samdb.search(base="OU=machines," + str(samdb.domain_dn()), scope=ldb.SCOPE_BASE, attrs=["gPLink"])[0]
+link = samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_BASE, attrs=["gPLink"])[0]
 pol = ndr_unpack(preg.file, open(os.path.join(folder, "Machine", "Registry.pol"), "rb").read())
 print(json.dumps({"linked": str(g.dn).lower() in str(link["gPLink"][0]).lower(), "version": int(str(g["versionNumber"])),
                   "ext": str(g["gPCMachineExtensionNames"]), "gpt": open(os.path.join(folder, "GPT.INI")).read(),
@@ -138,7 +138,7 @@ print(json.dumps({"linked": str(g.dn).lower() in str(link["gPLink"][0]).lower(),
 """
 res = subprocess.run(["docker", "exec", "-i", DC, "python3", "-"], input=READ, capture_output=True, text=True)
 g = json.loads(res.stdout or "{}") if res.returncode == 0 else {}
-check("the GPO is linked at OU=machines (2.1.6.84), its version bumped in AD and GPT.INI, Registry.pol as Windows reads it",
+check("the GPO is linked at the domain's root (2.1.6.106), its version bumped in AD and GPT.INI, Registry.pol as Windows reads it",
       g.get("linked") and g.get("version", 0) >= 7 and f"Version={g.get('version')}" in g.get("gpt", "")
       and "{35378EAC-683F-11D2-A89A-00C04FBBCFA2}" in g.get("ext", "") and g.get("entries") == 5,
       res.stderr[-300:] or g)
@@ -154,7 +154,7 @@ samdb, lp = open_samdb("/data/etc/smb.conf")
 for name in ("admin settings", "controls"):
     g = samdb.search(base="CN=Policies,CN=System," + str(samdb.domain_dn()), scope=ldb.SCOPE_ONELEVEL,
                      expression="(displayName=fabric: lan %s)" % name, attrs=["cn"])[0]
-    link = str(samdb.search(base="OU=machines," + str(samdb.domain_dn()), scope=ldb.SCOPE_BASE,
+    link = str(samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_BASE,
                             attrs=["gPLink"])[0]["gPLink"][0]).lower()
     print(name, link.split(str(g.dn).lower() + ";")[1][0] if str(g.dn).lower() + ";" in link else "-")
 """

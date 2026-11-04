@@ -3,7 +3,8 @@
 GET = {
     ("version",): "session",
     ("services",): "status:read", ("host-changes",): "status:read", ("relaxed-settings",): "status:read",
-    ("cert-warnings",): "status:read", ("reminders",): "status:read", ("images",): "status:read",
+    ("cert-warnings",): "status:read", ("sizing",): "status:read", ("reminders",): "status:read", ("images",):
+    "status:read",
     ("jobs", "*"): "session",
     ("zones",): "dns:read", ("zones", "*"): "dns:read", ("reverse-zones",): "dns:read", ("tsig",): "dns:read",
     ("audit",): "audit:read",
@@ -40,6 +41,7 @@ POST = {
     ("security", "raise"): "security:raise", ("security", "kerberos"): "security:raise",
     ("settings", "plan"): "settings:admin", ("settings", "apply"): "settings:admin",
     ("settings", "dismiss"): "settings:admin",
+    ("sizing", "dismiss"): "status:read",
     ("zones",): "dns:write", ("zones", "*", "delete"): "dns:write",
     ("zones", "*", "records"): "dns:write", ("zones", "*", "records", "delete"): "dns:write",
     ("zones", "*", "records", "link"): "dns:write",

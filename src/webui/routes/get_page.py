@@ -61,7 +61,20 @@ def _overview(h, sess, ctx, path):
     except (actions.AgentError, actions.ValidationError, actions.PermissionDenied):
         pass
     return h.send(200, views.overview(ctx, actions.service_status(), actions.host_changes(),
-                                      actions.relaxed_settings(), actions.cert_warnings(), None, "", wizard))
+                                      actions.relaxed_settings(), actions.cert_warnings(), None, "", wizard,
+                                      sizing=_sizing()))
+
+
+def _sizing():
+    """Purpose: the Overview's Sizing card (manual 1.8.8.8): a failure to ask leaves the card out, never the page.
+    Inputs:  none.
+    Returns: agentclient.sizing()'s dict, or None.
+    Fails:   AuthError and PermissionDenied propagate.
+    Feeds:   get_page (/)."""
+    try:
+        return actions.sizing()
+    except (actions.AgentError, actions.ValidationError):
+        return None
 
 
 def _rest(path, prefix):

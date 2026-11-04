@@ -14,10 +14,9 @@ from order_gpo_links import order_gpo_links
 import paths
 from remove_gpo import remove_gpo
 from set_gpo_filter import set_gpo_filter
-from group_names import DC_HOSTS
+from member_gpo_filter import member_gpo_filter
 from unlink_gpo import unlink_gpo
 
-DOMAIN_CONTROLLERS, READ_ONLY_DCS = 516, 521     # the RIDs of AD's groups of the writable and read-only DCs
 
 
 def _sets(grants, reached):
@@ -155,10 +154,7 @@ def compile_grants(samdb, lp, dc, fallback_open=False):
     else:
         done += ensure_gpo(samdb, lp, FALLBACK_GPO, root, SECURITY_EXTENSIONS,
                            {SECURITY_TEMPLATE: access_policy([], [], [])})
-        domain_sid = str(samdb.get_domain_sid())
-        hosts = find_group(samdb, DC_HOSTS)          # ensure_groups makes it before the grants are compiled
-        denied = [f"{domain_sid}-{DOMAIN_CONTROLLERS}", f"{domain_sid}-{READ_ONLY_DCS}"] + ([hosts[1]] if hosts else [])
-        done += set_gpo_filter(samdb, lp, FALLBACK_GPO, None, deny_sids=denied)
+        done += member_gpo_filter(samdb, lp, FALLBACK_GPO)
         done += order_gpo_links(samdb, root, FALLBACK_GPO)
         done += unlink_gpo(samdb, machines, FALLBACK_GPO)
     done += ensure_ou_rights(samdb, dc)             # an OU made at the root with RSAT (2.1.6.102)

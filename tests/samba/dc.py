@@ -527,13 +527,15 @@ check("read_sites: every DC's record with its site and range (what a parent read
 READ_BASELINE = r"""
 import json, os, sys
 import ldb
-from samba.dcerpc import preg
+from samba.dcerpc import preg, security
 from samba.ndr import ndr_unpack
 sys.path.insert(0, "/fabric")
 from open_samdb import open_samdb
 samdb, lp = open_samdb("/data/etc/smb.conf")
 out = {}
-link = samdb.search(base="OU=machines,%s" % samdb.domain_dn(), scope=ldb.SCOPE_BASE, attrs=["gPLink"])
+link = samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_BASE, attrs=["gPLink"])
+machines = str(samdb.search(base="OU=machines,%s" % samdb.domain_dn(), scope=ldb.SCOPE_BASE,
+                            attrs=["gPLink"])[0].get("gPLink", [""])[0]).lower()
 for site in ("lan", "lab"):
     g = samdb.search(base="CN=Policies,CN=System," + str(samdb.domain_dn()), scope=ldb.SCOPE_ONELEVEL,
                      expression="(displayName=fabric: %s Windows baseline)" % site,
@@ -541,7 +543,12 @@ for site in ("lan", "lab"):
     folder = os.path.join(lp.get("path", "sysvol"), lp.get("realm").lower(), "Policies", str(g["cn"]), "Machine")
     pol = ndr_unpack(preg.file, open(os.path.join(folder, "Registry.pol"), "rb").read())
     scripts = os.path.join(folder, "Scripts")
-    out[site] = {"linked": str(g.dn).lower() in str(link[0].get("gPLink", [""])[0]).lower(),
+    sd = samdb.search(base=str(g.dn), scope=ldb.SCOPE_BASE, attrs=["nTSecurityDescriptor"])[0]
+    sddl = ndr_unpack(security.descriptor, sd["nTSecurityDescriptor"][0]).as_sddl(
+        security.dom_sid(str(samdb.get_domain_sid())))
+    out[site] = {"linked": str(g.dn).lower() in str(link[0].get("gPLink", [""])[0]).lower()
+                 and str(g.dn).lower() not in machines,
+                 "denied": "edacfd8f-ffb3-11d1-b41d-00a0c968f939;;DD)" in sddl,   # Apply Group Policy, the DCs'
                  "ext": str(g["gPCMachineExtensionNames"]), "version": int(str(g["versionNumber"])),
                  "values": sorted([e.keyname, e.valuename, e.data] for e in pol.entries),
                  "ini": open(os.path.join(scripts, "scripts.ini"), "rb").read().decode("utf-16")
@@ -556,9 +563,10 @@ base_res = dc("python3", "-", stdin=READ_BASELINE)
 baseline = json.loads(base_res.stdout or "{}") if base_res.returncode == 0 else {}
 want_values = [["Software\\Policies\\Microsoft\\W32Time\\Parameters", "Type", "NT5DS"],
                ["Software\\Policies\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "SyncForegroundPolicy", 1]]
-check("each site's Windows baseline GPO is linked at OU=machines (2.1.6.84): wait for the network at log-on, the "
+check("each site's Windows baseline GPO is linked at the domain's root (2.1.6.106): wait for the network at log-on, the "
       "domain's time (NT5DS)",
-      all(baseline.get(s, {}).get("linked") and baseline[s]["values"] == want_values for s in ("lan", "lab")),
+      all(baseline.get(s, {}).get("linked") and baseline[s].get("denied") and baseline[s]["values"] == want_values
+          for s in ("lan", "lab")),
       base_res.stderr[-400:] or baseline)
 lab_b, lan_b = baseline.get("lab", {}), baseline.get("lan", {})
 check("with 802.1X (lab): a start-up script turns on Wired AutoConfig and adds the PEAP profile naming the site's server",
@@ -644,6 +652,75 @@ REFUSED = [
 for label, ldif in REFUSED:
     tool = "ldbadd" if "changetype" not in ldif else "ldbmodify"
     check(f"refused: a Directory Administrator {label}", not done(as_user("diradmin", dir_pw, tool, ldif)))
+# any OU (2.1.6.106): Keycloak's account searches from the domain's root, so what it may see and write is the DC's to
+# say. Real LDAP as that account: a person and a group in an OU at the root are seen and written; a computer there
+# is not; a service account, one in an OU below OU=service-accounts, and AD's own are not seen at all
+KC = "fabric-keycloak-dc-0001"
+PLACE = r"""
+import sys
+sys.path.insert(0, "/fabric")
+from open_samdb import open_samdb
+samdb, lp = open_samdb("/data/etc/smb.conf")
+base = str(samdb.domain_dn())
+for ou in ("OU=elsewhere", "OU=nested,OU=service-accounts"):
+    samdb.create_ou(f"{ou},{base}")
+samdb.newuser("roamer", "Rs-" + "x7Y" * 8, userou="OU=elsewhere")
+samdb.newuser("svc-nested", "Rs-" + "x7Y" * 8, userou="OU=nested,OU=service-accounts")
+samdb.newgroup("roamers", groupou="OU=elsewhere")
+samdb.newcomputer("ROAMPC", computerou="OU=elsewhere")
+samdb.newuser("inmach", "Rs-" + "x7Y" * 8, userou="OU=servers,OU=machines")
+print("placed")
+"""
+placed = dc("python3", "-", stdin=PLACE)
+check("(an OU at the root with a person, a group and a computer; an OU below OU=service-accounts with an account)",
+      "placed" in placed.stdout, placed.stderr[-400:])
+converge_domain(v, os.path.join(W, "federation.yaml"), SECRETS, container=DC)
+
+
+def as_keycloak(expression):
+    """What Keycloak's account finds from the domain's root, over real LDAP: the DNs, lower case."""
+    auth = os.path.join(W, "kc.auth")
+    with open(auth, "w") as f:
+        f.write(f"username={KC}\npassword={SECRETS['ad_keycloak_password']}\ndomain=AD\n")
+    os.chmod(auth, 0o600)
+    res = sh(["docker", "run", "--rm", "--network", NET, "-v", f"{auth}:/auth:ro", "--entrypoint", "ldbsearch", IMAGE,
+              "-H", f"ldap://{IP}", "-A", "/auth", "-b", BASE, "-s", "sub", expression, "dn"], ok=False)
+    return [line[4:].lower() for line in res.stdout.splitlines() if line.startswith("dn: ")]
+
+
+PEOPLE_FILTER = ("(&(objectCategory=person)(objectClass=user)(!(isCriticalSystemObject=TRUE))"
+                 "(!(userAccountControl:1.2.840.113556.1.4.803:=2)))")
+seen = as_keycloak(PEOPLE_FILTER)
+check("Keycloak's filter from the root finds a person in OU=people and one in an OU at the root, and one below "
+      "OU=machines (any OU, 2.1.6.106)",
+      f"cn=roamer,ou=elsewhere,{BASE}".lower() in seen and any(s.endswith(f",ou=people,{BASE}".lower()) for s in seen)
+      and f"cn=inmach,ou=servers,ou=machines,{BASE}".lower() in seen, seen)
+check("negative: ...and no service account (OU=service-accounts and an OU below it), nothing of AD's CN=Users",
+      seen and not any(",ou=service-accounts," in s or ",cn=users," in s for s in seen), seen)
+check("negative: ...and no computer",
+      not any("roampc" in s for s in as_keycloak("(&(objectCategory=person)(sAMAccountName=ROAMPC$))")))
+groups_seen = as_keycloak("(&(objectClass=group)(!(isCriticalSystemObject=TRUE)))")
+check("Keycloak's group filter from the root finds a group in OU=groups and one in an OU at the root",
+      f"cn=roamers,ou=elsewhere,{BASE}".lower() in groups_seen
+      and f"cn=directory-admins,ou=groups,{BASE}".lower() in groups_seen, groups_seen)
+check("negative: ...and none of AD's own", not any(",cn=users," in s or ",cn=builtin," in s for s in groups_seen),
+      groups_seen)
+kc_pw = SECRETS["ad_keycloak_password"]
+check("Keycloak's account writes a person in an OU at the root, as in OU=people (a password at sign-in)",
+      done(as_user(KC, kc_pw, "ldbmodify", reset(f"CN=roamer,OU=elsewhere,{BASE}"))))
+check("...and one moved below OU=machines",
+      done(as_user(KC, kc_pw, "ldbmodify", reset(f"CN=inmach,OU=servers,OU=machines,{BASE}"))))
+check("...and a group's members in an OU at the root",
+      done(as_user(KC, kc_pw, "ldbmodify", f"dn: CN=roamers,OU=elsewhere,{BASE}\nchangetype: modify\nadd: member\n"
+                                           f"member: CN=roamer,OU=elsewhere,{BASE}\n")))
+check("negative: ...but not a computer there",
+      not done(as_user(KC, kc_pw, "ldbmodify", modify(f"CN=ROAMPC,OU=elsewhere,{BASE}"))))
+check("negative: ...nor a machine's OU itself",
+      not done(as_user(KC, kc_pw, "ldbmodify", modify(f"OU=servers,OU=machines,{BASE}"))))
+for gone_dn in (f"CN=ROAMPC,OU=elsewhere,{BASE}", f"CN=roamer,OU=elsewhere,{BASE}", f"CN=roamers,OU=elsewhere,{BASE}",
+                f"OU=elsewhere,{BASE}", f"CN=inmach,OU=servers,OU=machines,{BASE}",
+                f"CN=svc-nested,OU=nested,OU=service-accounts,{BASE}", f"OU=nested,OU=service-accounts,{BASE}"):
+    dc("ldbdel", "-H", "/data/private/sam.ldb", gone_dn)
 # the top tier (2.1.6.68, 2.1.6.69): setup makes fabric-admin, the Enterprise Admin, with a generated password at the
 # root's DC as root (ensure_enterprise_admin), alone in Enterprise, Schema and Domain Admins, never a Directory
 # Administrator; the Directory Administrators' rights never reach it

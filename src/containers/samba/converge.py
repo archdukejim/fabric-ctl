@@ -13,7 +13,7 @@ import os
 import sys
 import traceback
 
-from admin_gpo import ensure_gpo_admins
+from admin_gpo import admin_gpos_at_root, ensure_gpo_admins
 from compile_grants import compile_grants
 from ensure_ad_site import ensure_ad_site
 from ensure_dc_address import ensure_dc_address
@@ -21,6 +21,9 @@ from ensure_dc_record import ensure_dc_record
 from ensure_domain_options import ensure_domain_options
 from ensure_directory_acl import ensure_directory_acl
 from ensure_gpo import ensure_gpo
+from member_dns import ensure_member_dns
+from member_gpo_filter import member_gpo_filter
+from unlink_gpo import unlink_gpo
 from ensure_groups import ensure_groups
 from ensure_join_account import ensure_join_account
 from ensure_layout import ensure_layout
@@ -58,9 +61,9 @@ def converge(state):
              fabric's sudo rules on host groups (1.6.11.7), the AD site and its subnets (the plan's too) and link, the
              password policy, the domain's DHCP options entry (1.10.4.32) and the domain's trust GPO (fabric's root CA)
              at the root, the Directory Administrators' rights on the site's admin GPOs, the site's Windows baseline GPO
-             (linked at OU=machines, 2.1.6.84), at the root the grants (the shipped ones once, then compiled: 1.6.13.4,
-             1.6.13.5) and winbind's privileged pipe for FreeRADIUS. Each part changes only what differs, so a second
-             run changes nothing.
+             (linked at the domain's root, 2.1.6.106), at the root the grants (the shipped ones once, then compiled:
+             1.6.13.4, 1.6.13.5) and winbind's privileged pipe for FreeRADIUS. Each part changes only what differs, so
+             a second run changes nothing.
     Inputs:  state — dict: site (str); dc (str: the DC converged or prepared, dc-NNNN: its record, its range and its
              service accounts); dc_type ("writable" or "rodc": the DC prepared; a read-only one gets its cache group,
              2.1.6.85); root (bool: the root site, which also holds the domain's own settings and the domain-wide
@@ -120,9 +123,15 @@ def converge(state):
             changed += ensure_tier_policies(samdb, state["tier_policies"])
         changed += ensure_gpo(samdb, lp, "fabric: trust in fabric's root CA", base, TRUST_EXTENSIONS,
                               {"Machine/Registry.pol": root_ca_policy(state["root_ca_pem"])})
+    changed += admin_gpos_at_root(samdb, lp, site)      # 2.1.6.106: a machine in any OU keeps them
     changed += ensure_gpo_admins(samdb, lp, site)
     extensions, files = windows_baseline_policy(state.get("lan_profile") or "", state.get("sso_host") or "")
-    changed += ensure_gpo(samdb, lp, f"fabric: {site} Windows baseline", machines, extensions, files)
+    baseline = f"fabric: {site} Windows baseline"
+    changed += ensure_gpo(samdb, lp, baseline, base, extensions, files)
+    changed += member_gpo_filter(samdb, lp, baseline)
+    changed += unlink_gpo(samdb, machines, baseline)
+    if os.environ.get("HOST_IP"):         # an announced move (2.1.1.79): the record and the DNS servers' GPO
+        changed += ensure_member_dns(samdb, lp, site, dc, os.environ["HOST_IP"])
     if root:                              # the grants: the shipped ones once, then compiled (1.6.13.4, 1.6.13.5)
         changed += ship_grants(samdb)
         changed += compile_grants(samdb, lp, dc, bool(state.get("grants_fallback_open")))

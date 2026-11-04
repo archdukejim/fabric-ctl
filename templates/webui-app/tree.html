@@ -25,7 +25,7 @@
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="back" value="/directory/tree?{{ dict(flags, ou=ou) | urlencode }}">
 <label>To<select name="path" required>{% for o in move.places %}<option{% if o == ou %} selected{% endif %}>{{ o }}</option>{% endfor %}</select></label>
 <div><button>Move</button> <a href="/directory/tree?{{ dict(flags, ou=ou) | urlencode }}">Cancel</a></div></form>
-<p class="muted small">Waits for the {{ {'person': 'People', 'group': 'Groups', 'machine': 'Computers'}[move.kind] }} page's Apply. Its groups stay, so nothing it may do changes; for now a {{ move.kind }} stays inside its own folder's tree (manual 1.8.8.9).</p>
+<p class="muted small">Waits for the {{ {'person': 'People', 'group': 'Groups', 'machine': 'Computers'}[move.kind] }} page's Apply. Its groups stay, so nothing it may do changes (manual 1.8.8.5).</p>
 {% else %}<p class="muted">No OU can be offered (the tree could not be read).</p>{% endif %}</section>{% endif %}
 {% if rows %}{% call p.list(["Name", "Kind", "State", "Description", ""]) %}{% for r in rows %}<tr>
 <td data-label="Name">{% if r.kind in ('ou', 'container') %}<a href="/directory/tree?{{ dict(flags, ou=((r.at ~ '/') if r.at else '') ~ r.name) | urlencode }}"><strong>{{ r.name }}</strong></a>{% elif r.page %}<a href="{{ r.page | e }}">{{ r.name }}</a>{% else %}{{ r.name }}{% endif %}{% if whole and r.at %} <span class="muted small">in {{ r.at }}</span>{% endif %}</td>

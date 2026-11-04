@@ -13,7 +13,8 @@ def page_context(sess):
              own pending changes, and whether an apply of the page is running; empty when fabric-agent cannot say),
              'pending_counts': {path: pending} (the navigation's marks), 'sites': the top bar's site selector
              (actions.site_tree, 1.8.6.12; {"site": "", "tree": [], "error": why} when fabric-agent cannot say: the
-             page still works, without the selector)}.
+             page still works, without the selector), 'sizing_banner': the critical sizing alerts for someone with
+             settings:admin (1.8.8.8; [] otherwise)}.
     Fails:   agent errors (ValidationError, AuthError, PermissionDenied, AgentError) from version_info propagate to
              handle_request (400, redirect to /login, 403, 503).
     Feeds:   every route in src/webui/routes → every page in src/webui/views.
@@ -30,4 +31,5 @@ def page_context(sess):
     return {"user": sess["user"], "csrf": sess["csrf"], "perms": sess.get("perms") or [],
             "version": actions.version_info(), "reminders": sess.get("reminders") or [],
             "flash": sess.get("flash"), "preview": bool(sess.get("preview")), "pending": pending,
-            "pending_counts": {path: p["pending"] for path, p in pending.items()}, "sites": sites}
+            "pending_counts": {path: p["pending"] for path, p in pending.items()}, "sites": sites,
+            "sizing_banner": actions.sizing_banner(sess["user"], sess.get("perms") or [])}

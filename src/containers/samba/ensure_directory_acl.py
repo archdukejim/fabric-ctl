@@ -1,7 +1,7 @@
 import ldb
 
 from acl_entries import ensure_aces, sid_of
-from ensure_ou_rights import ensure_ou_rights
+from ensure_ou_rights import HIDE, ensure_ou_rights, keycloak_entries
 from group_names import DIRECTORY_ADMINS, TIERS
 import paths
 from protect_top_tier import DENY, RESET_PASSWORD, protect_top_tier
@@ -31,7 +31,9 @@ def ensure_directory_acl(samdb, dc):
              or OU=fabric-hosts. This DC's fabric-agent account has full control of fabric's folders but
              OU=service-accounts, and of fabric's state (CN=fabric,CN=System, 2.1.6.79), which every authenticated
              account reads; its Keycloak account full control of OU=people (sign-in changes passwords and lockouts) and
-             the members of OU=groups (Keycloak's group mapper). The grants' computed groups are written by no account
+             the members of OU=groups (Keycloak's group mapper), the same on what is moved below OU=groups, OU=machines
+             and the admins' own OUs, and it never sees AD's CN=Users and CN=Builtin nor OU=service-accounts, since
+             it searches from the domain's root (2.1.6.106). The grants' computed groups are written by no account
              at all: every one (Everyone) is denied any change in OU=fabric, the agents' and Keycloak's accounts and
              the top tier too; fabric's compile writes them inside the DC as the system (1.6.13.4). The admins' own OUs
              at the domain's root get the same rights as fabric's folders (ensure_ou_rights, 2.1.6.102).
@@ -64,5 +66,9 @@ def ensure_directory_acl(samdb, dc):
     entries.append((paths.fabric_dn(samdb), f"(A;CI;{READ};;;AU)"))
     entries.append((folder("people"), f"(A;CI;{FULL};;;{keycloak})"))
     entries.append((groups, f"(A;CI;RPWPLCLORC;;;{keycloak})"))
+    # any person or group may be moved to any OU (2.1.6.106): Keycloak's account searches from the domain's root
+    entries += keycloak_entries(groups, keycloak) + keycloak_entries(folder("machines"), keycloak)
+    base = str(samdb.domain_dn())
+    entries += [(f"CN={own},{base}", f"(D;CI;{HIDE};;;{keycloak})") for own in ("Users", "Builtin")]
     return (ensure_aces(samdb, entries) + ensure_aces(samdb, accounts, gone_ok=True) + ensure_ou_rights(samdb, dc)
             + protect_top_tier(samdb))

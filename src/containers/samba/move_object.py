@@ -12,8 +12,7 @@ def move_object(samdb, lp, site, kind, name, path, bundles=()):
     """Purpose: a person, machine or group moved to another OU (manual 1.8.8.5, "Move to…"; decision 2.1.8.37): its
              groups stay, so its grants, sudo rules, site and type follow it (2.1.6.72, 2.1.6.99), and fabric's access
              GPOs are linked at the domain's root (2.1.6.98). fabric's own objects stay put (2.1.6.100, own_object).
-             Where it may go is may_hold's: for now each kind inside its own folder's tree (2.3.8.6), a person
-             OU=people's, a group OU=groups', a machine OU=machines' (its type's OUs and an admin's OUs below them).
+             Where it may go is may_hold's: any OU but the closed ones and OU=service-accounts (2.1.6.106).
     Inputs:  samdb — SamDB (as the DC's agent); lp — LoadParm (unused); site — str (unused: the directory is the
              domain's); kind — "person", "machine" or "group"; name — its user, host or group name; path — the target
              OU's path ("branch", "people/staff"); bundles — the role bundles' groups (ldap_groups).

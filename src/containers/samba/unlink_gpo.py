@@ -4,8 +4,9 @@ from find_gpo import find_gpo
 
 
 def unlink_gpo(samdb, link_dn, name):
-    """Purpose: one GPO's link taken out of an OU's `gPLink`, the other links kept in their order: fabric's access GPOs
-             and the fallback linked at OU=machines before 0.9.1, now at the domain's root (2.1.6.98). Acts only on
+    """Purpose: one GPO's link taken out of an OU's `gPLink`, the other links kept in their order: fabric's access GPOs,
+             the fallback, the Windows baseline and the admin GPOs linked at OU=machines before 0.9.1, now at the
+             domain's root (2.1.6.98, 2.1.6.106). Acts only on
              positive evidence: the link is there, naming that GPO.
     Inputs:  samdb — SamDB (as the system); link_dn — the OU (OU=machines); name — the GPO's display name.
     Returns: list of str, what changed ([] when the GPO does not exist or is not linked there).

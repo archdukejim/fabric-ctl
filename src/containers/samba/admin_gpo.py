@@ -1,7 +1,7 @@
 """The site's admin GPOs (manual 1.6.5.20, S5.4; 1.9.8.14): the policies an admin sets with `fabricctl gpo` and the
-web UI's editor, kept apart from fabric's own GPOs, which convergence rewrites. Both are linked at OU=machines
-(2.1.6.84): `fabric: <site> admin settings` as any GPO, `fabric: <site> controls` enforced, so a GPO an admin links
-below OU=machines cannot override it."""
+web UI's editor, kept apart from fabric's own GPOs, which convergence rewrites. Both are linked at the domain's root
+(2.1.6.106; at OU=machines before 0.9.1, 2.1.6.84), denied to the DCs and the fabric hosts: `fabric: <site> admin
+settings` as any GPO, `fabric: <site> controls` enforced, so a GPO an admin links in any OU cannot override it."""
 import os
 
 import ldb
@@ -10,8 +10,11 @@ from samba.ndr import ndr_pack, ndr_unpack
 
 from acl_entries import ensure_aces, sid_of
 from ensure_gpo import ensure_gpo
+from find_gpo import find_gpo
+from member_gpo_filter import member_gpo_filter
 import paths
 from set_gpo_acl import set_gpo_acl
+from unlink_gpo import unlink_gpo
 from group_names import DIRECTORY_ADMINS
 
 REGISTRY_MACHINE = "[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{0F6B957D-509E-11D1-A7CC-0000F87571E3}]"
@@ -66,19 +69,43 @@ def _pack(entries):
 
 
 def save_admin_settings(samdb, lp, site, settings, control=False):
-    """Purpose: write one of the site's admin GPOs (created and linked at OU=machines when missing, 2.1.6.84; the
-             controls enforced), its version bumped.
+    """Purpose: write one of the site's admin GPOs (created and linked at the domain's root when missing, denied to the
+             DCs and the fabric hosts, 2.1.6.106; the controls enforced), its version bumped.
     Inputs:  samdb — SamDB (as the system); lp — LoadParm; site — str; settings — admin_settings' shape; control —
              bool, the enforced one.
     Returns: list of str, what changed.
     Fails:   ldb.LdbError; OSError; CalledProcessError (ensure_gpo).
     Feeds:   gpo_tool (ops "set", "clear")."""
-    done = ensure_gpo(samdb, lp, _name(site, control), paths.folder_dn(samdb, "machines"),
+    done = ensure_gpo(samdb, lp, _name(site, control), str(samdb.domain_dn()),
                       REGISTRY_MACHINE if settings["machine"] else "",
                       {"Machine/Registry.pol": _pack(settings["machine"]),
                        "User/Registry.pol": _pack(settings["user"])},
                       user_extensions=REGISTRY_USER if settings["user"] else "", enforced=control)
+    done += member_gpo_filter(samdb, lp, _name(site, control))
     return done + ensure_gpo_admins(samdb, lp, site)
+
+
+def admin_gpos_at_root(samdb, lp, site):
+    """Purpose: the site's admin GPOs that exist, linked at the domain's root as save_admin_settings links them, and
+             their old link at OU=machines (an install from before 0.9.1) taken out (2.1.6.106). What they hold is
+             not touched.
+    Inputs:  samdb — SamDB (as the system); lp — LoadParm; site — str.
+    Returns: list of str, what changed.
+    Fails:   ldb.LdbError; OSError; NTSTATUSError from set_gpo_acl.
+    Feeds:   converge."""
+    done = []
+    for control in (False, True):
+        name = _name(site, control)
+        found = find_gpo(samdb, name)
+        if found is None:
+            continue
+        now = samdb.search(base=found[0], scope=ldb.SCOPE_BASE,
+                           attrs=["gPCMachineExtensionNames", "gPCUserExtensionNames"])[0]
+        done += ensure_gpo(samdb, lp, name, str(samdb.domain_dn()), str(now.get("gPCMachineExtensionNames", [""])[0]),
+                           {}, user_extensions=str(now.get("gPCUserExtensionNames", [""])[0]), enforced=control)
+        done += member_gpo_filter(samdb, lp, name)
+        done += unlink_gpo(samdb, paths.folder_dn(samdb, "machines"), name)
+    return done
 
 
 def ensure_gpo_admins(samdb, lp, site):

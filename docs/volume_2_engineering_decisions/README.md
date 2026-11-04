@@ -32,6 +32,7 @@ Symptoms, causes and fixes.
 
 - [2.2.1 The product as a whole: building and testing it](2.2.1-product-troubleshooting.md)
   - 2.2.1.1 Likely: WSL's Ubuntu stops between test steps, taking a kept sandbox and /tmp with it
+  - 2.2.1.2 `sudo: unable to resolve host` during a move or a member step: harmless
 - [2.2.2 Architecture: the services and their start](2.2.2-architecture-troubleshooting.md)
   - 2.2.2.1 Known issue of 0.8.0: a fresh install's setup stops at a unit's start (Postgres, Keycloak, nginx)
 - [2.2.6 Keycloak and the directory](2.2.6-keycloak-gotchas.md)

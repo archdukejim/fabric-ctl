@@ -166,7 +166,7 @@ if wants upgrade; then
     client_check "the upgrade"
 fi
 if wants place; then
-    echo "=== place: ub26-2 and ws25-1 moved into an admin's OU (1.8.8.5; within OU=machines' tree until 2.3.8.6)"
+    echo "=== place: ub26-2 and ws25-1 moved into an admin's OU at the domain's root (1.8.8.5, 2.1.6.106)"
     echo "INFO the host's own name before the move: $(on "$FABRIC" 'getent hosts "$(hostname)" || echo "not found"; grep -n "$(hostname)" /etc/hosts || echo "not in /etc/hosts"' | tr '\n' ' ')"
     # two people, one allowed on ub26-2 by a grant and one not, so the compare proves both ways (2.3.1.41's weakness):
     # placeok in place-crew, a grant of remote sign-in and sudo of /usr/bin/id on the host group hosts-placed
@@ -195,21 +195,23 @@ if wants place; then
         "F 'fabricctl domain ou create machines branch' >/dev/null"
     check "an admin's own OU made at the domain's root: lab-root (2.1.6.101)" \
         "F 'fabricctl domain ou create / lab-root' >/dev/null"
-    check "negative: a machine is not moved out of OU=machines' tree while 2.3.8.6 waits, saying why" \
-        "! F 'fabricctl domain machine move g23-vm-ub26-2 lab-root' >/tmp/place.out 2>&1 && grep -q 'within OU=machines' /tmp/place.out"
-    check "ub26-2 moved to machines/branch" "F 'fabricctl domain machine move g23-vm-ub26-2 machines/branch' >/dev/null"
-    check "ws25-1 moved to machines/branch" "F 'fabricctl domain machine move g23-vm-ws25-1 machines/branch' >/dev/null"
+    check "negative: a machine is not moved into OU=service-accounts, saying why" \
+        "! F 'fabricctl domain machine move g23-vm-ub26-2 service-accounts' >/tmp/place.out 2>&1 && grep -q 'service accounts only' /tmp/place.out"
+    check "ub26-2 moved to lab-root, out of OU=machines" "F 'fabricctl domain machine move g23-vm-ub26-2 lab-root' >/dev/null"
+    check "ws25-1 moved to lab-root, out of OU=machines" "F 'fabricctl domain machine move g23-vm-ws25-1 lab-root' >/dev/null"
     check "negative: the fabric host's own account stays where fabric put it (2.1.6.100)" \
-        "! F 'fabricctl domain machine move g23-vm-ub24-1 machines/branch' >/dev/null 2>&1"
+        "! F 'fabricctl domain machine move g23-vm-ub24-1 lab-root' >/dev/null 2>&1"
     sleep 60
     after_l=$(l_state); after_w=$(w_state)
     echo "INFO after: ub26-2: ${after_l//$'\n'/ | }; ws25-1: ${after_w//$'\n'/ | }"
     check "before the move: placeok allowed on ub26-2 (access check Success, sudo /usr/bin/id), placeno refused" \
         "printf '%s' '${before_l//\'/}' | grep -q '^ok: pam_acct_mgmt: Success.*/usr/bin/id' &&
          printf '%s' '${before_l//\'/}' | grep -q '^no: pam_acct_mgmt: Permission denied'"
-    check "ub26-2 in machines/branch: placeok still allowed and placeno still refused, as before (the GPOs at the root)" \
+    check "before the move: ws25-1 takes the Windows baseline, linked at the domain's root since 0.9.1 (2.1.6.106)" \
+        "printf '%s' '${before_w//\'/}' | grep -q 'Windows baseline'"
+    check "ub26-2 in lab-root: placeok still allowed and placeno still refused, as before (the GPOs at the root)" \
         "[ -n '${before_l//\'/}' ] && [ '${before_l//\'/}' = '${after_l//\'/}' ]"
-    check "ws25-1 in machines/branch: the same fabric GPOs applied and the same local Administrators as before" \
+    check "ws25-1 in lab-root: the same fabric GPOs applied and the same local Administrators as before" \
         "[ -n '${before_w//\'/}' ] && [ '${before_w//\'/}' = '${after_w//\'/}' ]"
     client_check "machines moved into an admin's OU"
 fi
@@ -260,6 +262,24 @@ only_new() {   # $1 the step; $2 the host's name now
 }
 if wants move; then
     echo "=== move: $FABRIC to $MOVED (4.2.4.2)"
+    # the members joined at the floor keep the floor's script (2.1.1.81); this run stands in for a join from this build
+    # by installing this build's fabric-managed on ub26-2, so what is tested is what a new member has
+    L "wget -qO- http://$FABRIC/certs/join-linux.sh | sed -n \"/^cat > \/usr\/local\/sbin\/fabric-managed <<'MANAGED'\$/,/^MANAGED\$/p\" | sed '1d;\$d' > /usr/local/sbin/fabric-managed.new && [ -s /usr/local/sbin/fabric-managed.new ] && chmod 0755 /usr/local/sbin/fabric-managed.new && mv /usr/local/sbin/fabric-managed.new /usr/local/sbin/fabric-managed"
+    check "ub26-2 has this build's fabric-managed (it follows an announcement)" "L 'grep -q managed.next /usr/local/sbin/fabric-managed'"
+    # step 1a (2.1.1.79, 1.4.1.8.7): announced first, then the members told, each as its own timer would
+    check "negative: move prepare refuses the host's own address, saying why" \
+        "F 'fabricctl move prepare $FABRIC' 2>&1 | grep -q 'address now'"
+    check "4.2.4.2 step 1a: move prepare $MOVED" "F 'fabricctl move prepare $MOVED' | grep -q 'announced'"
+    check "...move status names both addresses" "F 'fabricctl move status' | grep -q 'from $FABRIC to $MOVED'"
+    L 'fabric-managed check' >/dev/null
+    check "ub26-2 follows it: both addresses, old first, in its DNS drop-in" \
+        "L 'grep -qx \"DNS=$FABRIC $MOVED\" /etc/systemd/resolved.conf.d/fabric.conf'"
+    W 'gpupdate /target:computer /force | Out-Null' >/dev/null
+    check "ws25-1 follows it: both addresses in DNS Client's policy" \
+        "W \"(Get-ItemProperty 'HKLM:\\Software\\Policies\\Microsoft\\Windows NT\\DNSClient').NameServer\" | grep -q '$FABRIC $MOVED'"
+    check "...and Group Policy Preferences made its scheduled task, on NETLOGON's 5719" \
+        "W \"(Get-ScheduledTask -TaskName 'fabric secure channel').Triggers[0].Subscription\" | grep -q 5719"
+    echo "INFO ws25-1's DNS servers as it uses them: $(W 'ipconfig /all' | grep -iA2 'DNS Servers' | tr -s ' \r\n' ' ')"
     # 4.2.4.2 step 2: the netplan file's address, applied by systemd 10 s later, so this session has ended before the
     # address changes under it (a nohup'd apply kept it open: run 5, 2026-11-01, ssh waited on the dead connection for
     # good); and a hard limit with the keepalives, so no session can hang the campaign
@@ -283,13 +303,31 @@ if wants move; then
     check "after the apply: no record at $FABRIC_OLD in fabric's zone (the menu's list)" \
         "zone_list >/dev/null && ! zone_list | grep -qF -- '-> $FABRIC_OLD'"
     check "after the member step: /etc/hosts has no line for the DC at $FABRIC_OLD" "! F 'grep -F \"$DCF\" /etc/hosts' | grep -qF '$FABRIC_OLD'"
-    # step 5: the clients' DNS (the lab's members have fixed addresses), then their caches cleared
-    members_dns "$MOVED"
-    L 'resolvectl flush-caches' >/dev/null
-    check "4.2.4.2 step 5: ub26-2's SSSD restarted, its KDC file at $MOVED" \
-        "L 'systemctl restart sssd && sleep 5 && id $PERSON@$AD >/dev/null; grep -qx $MOVED /var/lib/sss/pubconf/kdcinfo.${AD^^}'"
-    W 'ipconfig /flushdns' >/dev/null
-    check "4.2.4.2 step 5: ws25-1's secure channel set up again (nltest /sc_reset)" "W 'nltest /sc_reset:$AD' | grep -q NERR_Success"
+    # step 5: nothing done by hand on the members (2.1.1.79): each settles as its own timer and task would
+    L 'fabric-managed check' >/tmp/settle.out 2>&1; cat /tmp/settle.out | tail -2
+    MEMBERS_OK=1
+    check "ub26-2 settled by itself: the new address alone in its DNS drop-in and managed.env" \
+        "L 'grep -qx DNS=$MOVED /etc/systemd/resolved.conf.d/fabric.conf && grep -qx FABRIC_DNS=$MOVED /etc/fabric/managed.env && ! test -e /etc/fabric/managed.next'" || MEMBERS_OK=0
+    check "ub26-2: SSSD restarted by it, its KDC file at $MOVED, a person found" \
+        "L 'sleep 5; id $PERSON@$AD >/dev/null; grep -qx $MOVED /var/lib/sss/pubconf/kdcinfo.${AD^^}'" || MEMBERS_OK=0
+    # Windows: its task, on NETLOGON's 5719; up to 15 minutes for Netlogon to notice, nothing run by hand
+    W_OK=0
+    for _ in $(seq 1 30); do
+        if W 'Test-ComputerSecureChannel' | grep -q True; then W_OK=1; break; fi
+        sleep 30
+    done
+    echo "INFO ws25-1: 5719s logged: $(W "(Get-WinEvent -FilterHashtable @{LogName='System';ProviderName='NETLOGON';Id=5719} -MaxEvents 5 -ErrorAction SilentlyContinue | Measure-Object).Count"); the task last ran: $(W "(Get-ScheduledTaskInfo -TaskName 'fabric secure channel').LastRunTime")"
+    check "ws25-1 has its secure channel, nothing run by hand" "[ $W_OK -eq 1 ]" || MEMBERS_OK=0
+    W 'gpupdate /target:computer /force | Out-Null' >/dev/null
+    check "ws25-1's DNS Client policy names the new address alone after the move" \
+        "W \"(Get-ItemProperty 'HKLM:\\Software\\Policies\\Microsoft\\Windows NT\\DNSClient').NameServer\" | tr -d '\r' | grep -qx '$MOVED'" || MEMBERS_OK=0
+    check "the announcement went with the move: move status says none" "F 'fabricctl move status' | grep -q 'no move announced'"
+    if [ "$MEMBERS_OK" -eq 0 ]; then    # so the later steps still run: the procedure by hand, reported as the failure above
+        echo "INFO a member did not follow by itself: 4.2.4.2 step 5 by hand, so the rest of the run can go on"
+        members_dns "$MOVED"
+        L 'resolvectl flush-caches; systemctl restart sssd' >/dev/null
+        W 'ipconfig /flushdns; nltest /sc_reset:'"$AD" >/dev/null
+    fi
     # step 6: 4.2.4.7, doctor, and a client finds fabric at its new address
     only_new "4.2.4.2 step 6" "$HOSTNOW"
     check "4.2.4.2 step 6: doctor passes" "F 'fabricctl doctor' >/dev/null"

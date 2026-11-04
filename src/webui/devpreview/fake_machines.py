@@ -1,6 +1,7 @@
 import re
 
 from webui.devpreview.fabric_rules import ValidationError
+from webui.devpreview.fake_ous import place_in
 from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DIRECTORY, SAMPLE_DOMAIN
 
 FOLDERS = {"server": "machines/servers", "desktop": "machines/desktops", "network": "machines/network"}
@@ -115,8 +116,6 @@ def fake_machines(state, who, route, body):
         row["sites"] = sorted(before | {site} if add else before - {site})
         return {"name": row["name"], "site": site, "member": add, "changed": set(row["sites"]) != before}
     path = str(body.get("path") or "")
-    if path not in _overview(state, row["name"])["choices"]["folders"]:
-        raise ValidationError(f"a machine moves only within OU=machines for now (not {path or '(none)'}, manual "
-                              "1.8.8.5)")
+    place_in(state, "machine", path)
     changed, row["folder"] = row.get("folder") != path, path
     return {"name": row["name"], "path": path, "changed": changed}

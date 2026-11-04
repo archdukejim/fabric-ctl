@@ -2,7 +2,7 @@ import ldb
 
 from acl_entries import ensure_aces, sid_of
 from group_names import DIRECTORY_ADMINS
-import paths
+from directory_scope import in_an_ou
 
 # what the Directory Administrators may not do to an object: write, create or delete below it, delete it, change its
 # permissions or owner; and reset its password (the extended right User-Force-Change-Password), denied apart, so a
@@ -16,7 +16,7 @@ IN_CHAIN = "1.2.840.113556.1.4.1941"          # LDAP_MATCHING_RULE_IN_CHAIN: nes
 
 def protect_top_tier(samdb):
     """Purpose: AD's top tier out of the Directory Administrators' reach (2.1.6.68, 2.1.6.76): every account in
-             fabric's OU=people or OU=service-accounts that is a member (nesting followed) of Enterprise Admins,
+             any OU of the domain (2.1.6.106) that is a member (nesting followed) of Enterprise Admins,
              Schema Admins, Domain Admins or Administrators gets an entry denying `directory-admins` any change to it,
              its password included, so their full control of the folder (inherited) never reaches it. Samba does not
              run AD's AdminSDHolder propagation, so fabric writes the deny itself.
@@ -34,8 +34,8 @@ def protect_top_tier(samdb):
     chain = "".join(f"(memberOf:{IN_CHAIN}:={ldb.binary_encode(dn)})" for dn in tops)
     admins = sid_of(samdb, DIRECTORY_ADMINS)
     entries = []
-    for name in ("people", "service-accounts"):
-        for m in samdb.search(base=paths.folder_dn(samdb, name), scope=ldb.SCOPE_SUBTREE, attrs=["dn"],
-                              expression=f"(&(objectCategory=person)(|(adminCount=1){chain}))"):
+    for m in samdb.search(base=base, scope=ldb.SCOPE_SUBTREE, attrs=["dn"],
+                          expression=f"(&(objectCategory=person)(|(adminCount=1){chain}))"):
+        if in_an_ou(samdb, str(m.dn)):
             entries += [(str(m.dn), f"(D;;{DENY};;;{admins})"), (str(m.dn), f"(OD;;CR;{RESET_PASSWORD};;{admins})")]
     return ensure_aces(samdb, entries, gone_ok=True)       # accounts a search just found (2.3.6.29)

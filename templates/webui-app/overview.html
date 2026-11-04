@@ -32,6 +32,14 @@ defaults. Review them in the setup wizard, or keep them.</p>
 <div class="flash {{ 'bad' if certs | selectattr('level', 'equalto', 'fail') | list else 'warn' }}" role="status"><strong>Certificates:</strong>
 <ul>{% for c in certs %}<li>{{ c.what }}</li>{% endfor %}</ul></div>
 {% endif %}
+{% if sizing and sizing.alerts %}
+<section class="card sizing"><h2>Sizing</h2>
+<p class="muted small">What this install needs against what the host has, worked out hourly on the host; nothing is sent anywhere.</p>
+<ul class="plain">{% for a in sizing.alerts %}
+<li><span class="light {{ 'bad' if a.level == 'critical' else 'warn' }}" role="img" aria-label="{{ a.level }}"></span> {{ a.what }}. To close it: {{ a.close }}.
+<form method="post" action="/overview/sizing/dismiss" class="apply"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="resource" value="{{ a.resource }}"><button class="ghost">Dismiss</button></form></li>
+{% endfor %}</ul></section>
+{% endif %}
 {{ p.relaxations(relaxed) }}
 <p class="muted">{{ ok }} of {{ services | length }} services healthy.</p>
 <section class="tiles">

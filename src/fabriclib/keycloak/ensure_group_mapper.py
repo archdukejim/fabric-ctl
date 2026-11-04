@@ -5,8 +5,10 @@ LDAP_MAPPER = "org.keycloak.storage.ldap.mappers.LDAPStorageMapper"
 
 
 def ensure_group_mapper(kc, realm, ldap_id, v):
-    """Purpose: create or update the LDAP group mapper on the domain's groups in AD (OU=groups, 1.6.13.2; AD's
-             memberOf; LDAP_ONLY: memberships live in AD) and sync them into Keycloak (manual 1.6.3.11).
+    """Purpose: create or update the LDAP group mapper on the domain's groups in AD, from the domain's root since a
+             group may be in any OU (2.1.6.106: not AD's critical groups; the DC hides CN=Users and CN=Builtin from
+             this account; AD's memberOf; LDAP_ONLY: memberships live in AD) and sync them into Keycloak (manual
+             1.6.3.11).
     Inputs:  kc — Admin; realm — realm name; ldap_id — federation id from ensure_ldap_federation; v — vars
              (ad_base_dn).
     Returns: None.
@@ -14,7 +16,8 @@ def ensure_group_mapper(kc, realm, ldap_id, v):
              a created mapper cannot be found again.
     Feeds:   configure_keycloak (the synced groups are what grant_role_to_group looks up)."""
     config = {
-        "groups.dn": [f"OU=groups,{v['ad_base_dn']}"],
+        "groups.dn": [v["ad_base_dn"]],
+        "groups.ldap.filter": ["(!(isCriticalSystemObject=TRUE))"],
         "group.name.ldap.attribute": ["cn"],
         "group.object.classes": ["group"],
         "preserve.group.inheritance": ["false"],

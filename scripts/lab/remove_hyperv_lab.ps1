@@ -9,7 +9,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$VmDir = 'D:\Hyper-V\fabric-lab',
+    [string]$VmDir = 'V:\Hyper-V\fabric-lab',
     [switch]$Yes
 )
 $ErrorActionPreference = 'Stop'

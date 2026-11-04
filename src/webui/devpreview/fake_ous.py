@@ -55,9 +55,10 @@ def _own(tree, path):
     return tree[path]
 
 
-# as the DC's may_hold: each kind inside its own folder's tree (2.3.8.6), never a closed folder
-WITHIN = {"person": "people", "group": "groups", "machine": "machines"}
+# as the DC's may_hold: any OU (2.1.6.106), never a closed folder nor OU=service-accounts
+KINDS = ("person", "machine", "group")
 CLOSED = ("fabric-hosts", "devices", "device-roles", "networks", "sudoers", "groups/fabric")
+SERVICES = "service-accounts"
 
 
 def kinds_of(path):
@@ -66,9 +67,9 @@ def kinds_of(path):
     Returns: list of str.
     Fails:   never.
     Feeds:   fake_ous, place_in."""
-    if any(path == c or path.startswith(c + "/") for c in CLOSED):
+    if any(path == c or path.startswith(c + "/") for c in CLOSED + (SERVICES,)) or not path:
         return []
-    return [k for k, home in WITHIN.items() if path == home or path.startswith(home + "/")]
+    return list(KINDS)
 
 
 def place_in(state, kind, path):
@@ -77,8 +78,11 @@ def place_in(state, kind, path):
     Returns: path.
     Fails:   ValidationError with the DC's words.
     Feeds:   fake_directory, fake_groups (their creates)."""
+    if path == SERVICES or path.startswith(SERVICES + "/"):
+        raise ValidationError(f"{path} holds service accounts only: a {kind} is not put in it (manual 1.8.8.5)")
     if kind not in kinds_of(path):
-        raise ValidationError(f"a {kind} moves only within OU={WITHIN[kind]} for now (not {path}, manual 1.8.8.5)")
+        raise ValidationError(f"{path} is one of fabric's closed folders (or AD's Domain Controllers): nothing is put "
+                              "in it (manual 1.8.8.5)")
     if path not in _tree(state):
         raise ValidationError(f"no OU {path}")
     return path

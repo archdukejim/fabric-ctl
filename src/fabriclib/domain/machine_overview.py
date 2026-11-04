@@ -12,8 +12,8 @@ DEVICE_FIELDS = ("name", "type", "enabled", "macs", "roles", "vlan")
 def machine_overview(v, name, secrets=None, container="samba"):
     """Purpose: one computer as its page shows it (manual 1.6.12.6): its facts as the DC has them (type, sites, OS,
              folder, machine groups, state, last sign-in), the grants that reach it and what each gives, the 802.1X
-             device of the same name, and what its actions may choose from (the sites, the machine groups, the folders
-             under OU=machines).
+             device of the same name, and what its actions may choose from (the sites, the machine groups, the OUs a
+             machine may be moved to, 2.1.6.106).
     Inputs:  v — rendered vars; name — the computer's host name (any case); secrets — fabric's secrets (default:
              load_secrets(), through the reads); container — the DC's container.
     Returns: {"machine": list_machines' row, "grants": reaching_grants' rows, "devices": [{name, type, enabled, macs,
@@ -28,7 +28,7 @@ def machine_overview(v, name, secrets=None, container="samba"):
     grants = grant_request(v, {"op": "reaching", "machine": low}, container).get("grants") or []
     groups = [g.get("name", "") for g in list_groups(v, secrets, container).get("groups") or []]
     folders = [o["path"] for o in list_ous(v, secrets, container).get("ous") or []
-               if o.get("path") == "machines" or str(o.get("path", "")).startswith("machines/")]
+               if "machine" in (o.get("kinds") or [])]
     devices = [{k: d.get(k) for k in DEVICE_FIELDS} for d in list_devices(v) if str(d.get("name", "")).lower() == low]
     return {"machine": row, "grants": grants, "devices": devices,
             "choices": {"sites": sorted(g[len("site-"):] for g in groups if g.startswith("site-")),

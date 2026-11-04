@@ -47,4 +47,5 @@ arbitrary commands.
 | `post_security.py` | POST /v1/security/raise and /kerberos: raise a sign-in layer or turn Kerberos sign-in on or off, then apply |
 | `job_store.py` | Background jobs (doctor, an image update): started by one call, followed by id, read only by who started them; kept in memory |
 | `post_settings.py` | POST /v1/settings/plan, /apply and /dismiss: the setup wizard's plan, its apply as a job (a stale plan made again), the wizard dismissed |
+| `post_sizing.py` | POST /v1/sizing/dismiss: a person's own dismissal of a sizing alert, audited (1.8.8.8) |
 | `plan_store.py` | The setup wizard's plans waiting for their Apply: by id, only for who made them, 15 minutes; kept in memory |

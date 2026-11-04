@@ -7,9 +7,9 @@ from fabriclib.secrets.load_secrets import load_secrets
 
 def move_machine(v, actor, name, path, caller=None, source="web", secrets=None, container="samba"):
     """Purpose: a computer moved to another OU (manual 1.6.12.6, Move to folder; `ous:admin` with
-             `machines:admin`, 1.6.12.11): any OU in OU=machines' tree, an admin's own below it included (1.8.8.5;
-             out of that tree waits on 2.3.8.6); its groups
-             stay, so nobody's access changes (2.1.6.72) and fabric's access GPOs, at the domain's root, still reach it
+             `machines:admin`, 1.6.12.11): any OU but the closed ones and OU=service-accounts (1.8.8.5, 2.1.6.106); its
+             groups stay, so nobody's access changes (2.1.6.72) and fabric's access GPOs, at the domain's root, still
+             reach it
              (2.1.6.98); a fabric host is refused (2.1.6.100); after fabric-agent's check (a grant's machines move
              reaching it, or a Directory Administrator).
     Inputs:  v — rendered vars; actor — str, for the audit; name — the host name; path — the target folder's path

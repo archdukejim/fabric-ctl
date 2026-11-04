@@ -169,6 +169,8 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.17.38 fabriclib-domain](1.17.38-fabriclib-domain.md)
 - [1.17.39 fabriclib-localadmin](1.17.39-fabriclib-localadmin.md)
 - [1.17.40 fabriclib-ipam](1.17.40-fabriclib-ipam.md)
+- [1.17.41 fabriclib-move](1.17.41-fabriclib-move.md)
+- [1.17.42 fabriclib-sizing](1.17.42-fabriclib-sizing.md)
 <!-- end of generated 1.17 -->
 
 ## 1.18 STIG compliance

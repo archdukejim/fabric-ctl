@@ -300,6 +300,7 @@ flock 9
 # 10-: sshd keeps the first value it reads, and Ubuntu's cloud images set passwords on in 50-cloud-init.conf
 SSHD=/etc/ssh/sshd_config.d/10-fabric.conf
 RESOLVED=/etc/systemd/resolved.conf.d/fabric.conf
+NEXT=/etc/fabric/managed.next    # the host's next address, announced before it moves (manual 1.4.1.8.7, 2.1.1.79)
 
 reload() {
     systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
@@ -319,11 +320,14 @@ apply() {
             "KbdInteractiveAuthentication no" "UsePAM yes" | write "$SSHD" && changed=1
     fi
     mkdir -p /etc/systemd/resolved.conf.d
+    local servers=$FABRIC_DNS
+    if [[ -s $NEXT ]]; then servers="$FABRIC_DNS $(<"$NEXT")"; fi
     printf '[Resolve]\n# fabric (manual 1.6.11.6): the domain names from fabric; other names as the machine had them\nDNS=%s\nDomains=~%s ~%s\n' \
-        "$FABRIC_DNS" "$AD_DOMAIN" "$DOMAIN" | write "$RESOLVED" && changed=1
+        "$servers" "$AD_DOMAIN" "$DOMAIN" | write "$RESOLVED" && changed=1
     if [[ $changed -eq 1 ]]; then reload; echo "fabric-managed: applied"; fi
 }
 remove() {
+    rm -f "$NEXT"
     if [[ -e $SSHD || -e $RESOLVED ]]; then
         rm -f "$SSHD" "$RESOLVED"
         reload
@@ -337,6 +341,42 @@ member() {  # whether this machine is in fabric-managed, asked of the DC as the 
     KRB5CCNAME="FILE:$cc" kinit -k "${MACHINE^^}\$@$REALM" >/dev/null 2>&1 || return 2
     KRB5CCNAME="FILE:$cc" LDAPSASL_NOCANON=on ldapsearch -LLL -o ldif-wrap=no -Q -Y GSSAPI -H "ldap://$DC" \
         -b "$BASE_DN" "(sAMAccountName=${MACHINE^^}\$)" memberOf 2>/dev/null | grep -qi "^memberOf: CN=fabric-managed,"
+}
+answers() {  # whether a DNS server is there, over TCP (no tool the machine may lack)
+    timeout 3 bash -c "exec 3<>/dev/tcp/$1/53" 2>/dev/null
+}
+settle() {  # the host has moved: the old address silent and the announced one answering, so keep the new one alone
+    [[ -s $NEXT ]] || return 0
+    local new
+    new=$(<"$NEXT")
+    if ! answers "$FABRIC_DNS" && answers "$new"; then
+        sed -i "s/^FABRIC_DNS=.*/FABRIC_DNS=$new/" /etc/fabric/managed.env
+        FABRIC_DNS=$new
+        rm -f "$NEXT"
+        apply
+        resolvectl flush-caches 2>/dev/null || true
+        systemctl try-restart sssd 2>/dev/null || true  # its kdcinfo file still names the DC's old address
+        echo "fabric-managed: the host moved: DNS is now $new alone"
+    fi
+}
+announced() {  # the announced move's new address, asked of the DC as the machine itself; false when it did not answer
+    local cc out rc=0
+    cc=$(mktemp)
+    trap 'rm -f "$cc"' RETURN
+    KRB5CCNAME="FILE:$cc" kinit -k "${MACHINE^^}\$@$REALM" >/dev/null 2>&1 || return 1
+    out=$(KRB5CCNAME="FILE:$cc" LDAPSASL_NOCANON=on ldapsearch -LLL -o ldif-wrap=no -Q -Y GSSAPI -H "ldap://$DC" \
+        -b "CN=moves,CN=fabric,CN=System,$BASE_DN" -s one "(description=$FABRIC_DNS *)" description 2>/dev/null) || rc=$?
+    [[ $rc -eq 0 || $rc -eq 32 ]] || return 1     # 32: no such object: no move was ever announced
+    sed -n "s/^description: $FABRIC_DNS \([0-9.]*\)\$/\1/p" <<<"$out" | grep -E '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' || true
+}
+follow() {  # what the DC says of a coming move, kept for apply; said nothing (it did not answer): nothing changes
+    local new
+    new=$(announced) || return 0
+    if [[ -n $new ]]; then
+        printf '%s\n' "$new" > "$NEXT"
+    else
+        rm -f "$NEXT"    # none announced, or withdrawn
+    fi
 }
 renamed() {  # the machine renamed since its join (1.6.7.9, 2.1.6.96): its domain account still has the old name
     local now
@@ -352,12 +392,13 @@ case "${1:-check}" in
     remove) remove ;;
     check)
         renamed
+        settle
         rc=0; member || rc=$?
         # the guard (2.1.6.97): a managed join that could not add itself to fabric-managed keeps its configuration
         # for 2 hours, so the root's hourly sort can add it first (one an admin took out is removed at once)
         if [[ $rc -eq 1 && ${MANAGED_PENDING:-0} -eq 1 && $(( $(date +%s) - ${JOINED:-0} )) -lt 7200 ]]; then
             echo "fabric-managed: not in fabric-managed yet; kept (joined under 2 hours ago: fabric's hourly sort adds it)"
-        elif [[ $rc -eq 0 ]]; then apply; elif [[ $rc -eq 1 ]]; then remove; else echo "fabric-managed: the DC did not answer; nothing changed" >&2; exit 1; fi ;;
+        elif [[ $rc -eq 0 ]]; then follow; apply; elif [[ $rc -eq 1 ]]; then remove; else echo "fabric-managed: the DC did not answer; nothing changed" >&2; exit 1; fi ;;
     *) echo "usage: fabric-managed apply|remove|check" >&2; exit 2 ;;
 esac
 MANAGED

@@ -61,6 +61,7 @@ from fabriclib.common.paths import FEDERATION_FILE, VARS_FILE
 from fabriclib.setup.context import SetupContext
 from fabriclib.settings.export_settings import export_settings
 from fabriclib.settings.settings_overview import settings_overview
+from fabriclib.sizing.state import read_sizing
 
 # GET /v1/<route> -> the read operation answering it (vars are read per request)
 READS = {
@@ -146,6 +147,7 @@ def get_route(route, user=None, perms=None):
              people/<uid>: person_overview (a person's page); machines: list_machines (Computers);
              machines/<name>: machine_overview (a computer's page); sites: site_overview (Sites); sites/tree:
              site_selector (the top bar's site selector); directory: directory_overview (the Directory's Overview);
+             sizing: read_sizing (the timer's last result, this person's alerts, 1.8.8.8);
              account/groups: my_groups (the groups the signed-in person manages); pending: the person's pending
              changes per page and the pages with an apply running (1.8.6.5); pending/<page>: the page's Review;
              settings: settings_overview (the setup wizard, 1.8.5); settings/export: {"text", "name"}, the
@@ -170,6 +172,8 @@ def get_route(route, user=None, perms=None):
         return my_groups(load_vars(), user)
     if route[:1] == ["pending"] and len(route) <= 2:
         return _pending(route, user, perms)
+    if route == ["sizing"]:                         # the file the timer writes, less what this person dismissed
+        return read_sizing(os.path.join(load_vars()["deploy_base_dir"], "fabric", "config"), user)
     if len(route) == 2 and route[0] == "groups":
         return one_thing(show_group, load_vars(), route[1])
     if len(route) == 2 and route[0] == "people":

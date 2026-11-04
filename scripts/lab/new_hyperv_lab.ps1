@@ -14,14 +14,14 @@
 .PARAMETER IsoDir
   The folder holding the installer ISOs (default D:\os\AMD64-x86).
 .PARAMETER VmDir
-  Where the VMs and their disks go (default D:\Hyper-V\fabric-lab).
+  Where the VMs and their disks go (default V:\Hyper-V\fabric-lab; the seed media and the ISOs stay on D:).
 .PARAMETER Only
   Make only these VMs (names from lab_vms.json); default all.
 #>
 [CmdletBinding()]
 param(
     [string]$IsoDir = 'D:\os\AMD64-x86',
-    [string]$VmDir = 'D:\Hyper-V\fabric-lab',
+    [string]$VmDir = 'V:\Hyper-V\fabric-lab',
     [string[]]$Only = @()
 )
 $ErrorActionPreference = 'Stop'

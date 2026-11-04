@@ -13,9 +13,13 @@ Debian 12 with systemd as PID 1 (2.1.6.95): after a reboot no sssd unit failed (
 older join left with the socket units enabled (negative: those fail at boot first); renaming (2.1.6.96): polkit
 refuses a person's hostnamectl (the rule's refusal: without it polkit would ask for a password), root's own rename is
 warned of by the hourly check. The admin-joined machine is in fabric-managed from its join (2.1.6.97), the sort
-records it, an admin's removal holds, and the guard keeps a join that could not add itself for 2 hours.
+records it, an admin's removal holds, and the guard keeps a join that could not add itself for 2 hours. And
+`fabricctl move` (2.1.1.79): its refusals, the announcement, the real member following it over LDAP as itself and
+settling, the GPO for Windows; a real address change and Windows itself are the lab's (2.3.8.8).
     sudo python3 tests/samba/linux_join.py
 """
+import contextlib
+import io
 import json
 import os
 import subprocess
@@ -29,6 +33,7 @@ from start_dc import IMAGE as SAMBA_IMAGE  # noqa: E402
 from start_dc import POLICY, start_dc  # noqa: E402
 import fabriclib.directory.add_machine as m_add_machine  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
+from fabriclib.move.run_move_command import run_move_command  # noqa: E402
 import fabriclib.grants.sync_grants as m_sync  # noqa: E402
 from fabriclib.secrets.random_password import random_password  # noqa: E402
 
@@ -342,6 +347,196 @@ waited = int((out.split("waited=", 1)[1].split()[0]) if "waited=" in out else 0)
 check("26.04: fabric-managed waits for a run already going, then writes the FABRIC_DNS of that moment "
       "(never an address read before it waited)", waited >= 2 and f"DNS={V['host_ip']}" in out
       and "192.0.2.53" not in out, out)
+
+# the host's coming move (decision 2.1.1.79, manual 1.4.1.8.7): the command against the real DC, this real member
+# following over LDAP as itself. A real address change, and all of Windows, are the lab's (2.3.8.8): not proven here
+print("--- fabricctl move prepare")
+HOST = V["host_ip"]
+NEXT_ADDR, OTHER_ADDR = f"{testrun.PREFIX}.33.30", f"{testrun.PREFIX}.33.31"
+MOVE_V = {**V, "lan_cidr": SUBNET, "lan_gateway": f"{testrun.PREFIX}.33.1"}
+AUDITED = []
+
+
+def move(*args, registry=None):
+    """`fabricctl move ...`: its exit status and what it printed."""
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        code = run_move_command(MOVE_V, list(args), container=DC, registry=registry or {},
+                                audit=lambda who, what, detail, source: AUDITED.append(what))
+    return code, out.getvalue()
+
+
+READ_GPO = r"""
+import json, os, sys
+from xml.dom import minidom
+import ldb
+from samba.dcerpc import preg
+from samba.ndr import ndr_unpack
+sys.path.insert(0, "/fabric")
+from find_gpo import find_gpo
+from open_samdb import open_samdb
+samdb, lp = open_samdb("/data/etc/smb.conf")
+found = find_gpo(samdb, "fabric: %s DNS servers")
+if found is None:
+    print(json.dumps({"gpo": False}))
+    raise SystemExit
+root = samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_BASE, attrs=["gPLink"])[0]
+g = samdb.search(base=found[0], scope=ldb.SCOPE_BASE, attrs=["gPCMachineExtensionNames"])[0]
+folder = os.path.join(lp.get("path", "sysvol"), lp.get("realm").lower(), "Policies", found[1], "Machine")
+pol = ndr_unpack(preg.file, open(os.path.join(folder, "Registry.pol"), "rb").read())
+xml = open(os.path.join(folder, "Preferences", "ScheduledTasks", "ScheduledTasks.xml")).read()
+dom = minidom.parseString(xml)
+print(json.dumps({"gpo": True, "linked": found[0].lower() in str(root["gPLink"][0]).lower(),
+                  "ext": str(g["gPCMachineExtensionNames"]),
+                  "values": [[e.keyname, e.valuename, e.type, e.data] for e in pol.entries],
+                  "command": dom.getElementsByTagName("Command")[0].firstChild.data,
+                  "args": dom.getElementsByTagName("Arguments")[0].firstChild.data,
+                  "event": "EventID=5719" in dom.getElementsByTagName("Subscription")[0].firstChild.data
+                           and "NETLOGON" in dom.getElementsByTagName("Subscription")[0].firstChild.data}))
+""" % V["site_name"]
+
+
+def read_gpo():
+    res = sh(["docker", "exec", "-i", DC, "python3", "-"], ok=False, input=READ_GPO)
+    return json.loads(res.stdout.strip().splitlines()[-1]) if res.stdout.strip() else {"error": res.stderr[-400:]}
+
+
+def member_state():
+    code, out = on(box, "cat /etc/systemd/resolved.conf.d/fabric.conf | grep ^DNS=; "
+                        "grep ^FABRIC_DNS= /etc/fabric/managed.env; cat /etc/fabric/managed.next 2>/dev/null || "
+                        "echo no-next")
+    return out
+
+
+check("before any announcement: no DNS servers' GPO (an install that never announced a move has none)",
+      read_gpo().get("gpo") is False, read_gpo())
+for args, words, want, registry in (
+        (("prepare", "not-an-address"), "not an IPv4 address", 1, None),
+        (("prepare", "192.0.2.9"), "not on the host's LAN", 1, None),
+        (("prepare", f"{testrun.PREFIX}.33.0"), "network or broadcast", 1, None),
+        (("prepare", f"{testrun.PREFIX}.33.1"), "gateway", 1, None),
+        (("prepare", HOST), "the host's address now", 1, None),
+        (("prepare", NEXT_ADDR), "linked sites", 1, {"sites": {"lab": {}}}),
+        (("prepare", NEXT_ADDR), "linked sites", 1, {"upstream": {"name": "up"}}),
+        (("prepare",), "usage", 2, None),
+        (("frob",), "usage", 2, None)):
+    code, out = move(*args, registry=registry)
+    # covers: cli:move -
+    # covers: cli:move.prepare -
+    check(f"move {' '.join(args)} refused ({words}), nothing changed",
+          code == want and words in out and "no move announced" in move("status")[1], out)
+code, out = move("status", "extra")
+# covers: cli:move.status -
+check("move status with an extra word: usage", code == 2 and "usage" in out, out)
+code, out = move("cancel", "extra")
+# covers: cli:move.cancel -
+check("move cancel with an extra word: usage", code == 2 and "usage" in out, out)
+code, out = move("cancel")
+# covers: cli:move.cancel -
+check("move cancel with nothing announced: says so, changes nothing, nothing audited",
+      code == 0 and "no move announced" in out and "MOVE_CANCEL" not in AUDITED, out)
+code, out = move("prepare", NEXT_ADDR)
+# covers: cli:move +
+# covers: cli:move.prepare +
+check("move prepare: announced, told how long to wait, audited", code == 0 and f"to {NEXT_ADDR}" in out
+      and "Linux machines check hourly" in out and AUDITED[-1:] == ["MOVE_PREPARE"], out)
+code, out = move("status")
+# covers: cli:move.status +
+check("move status names both addresses", code == 0 and f"from {HOST} to {NEXT_ADDR}" in out, out)
+code, out = move("prepare", NEXT_ADDR)
+check("move prepare again: already announced, nothing changed", code == 0 and "already announced" in out, out)
+gpo = read_gpo()
+check("the DNS servers' GPO: linked at the domain's root, both addresses in DNSClient's NameServer",
+      gpo.get("linked") and gpo.get("values") == [["Software\\Policies\\Microsoft\\Windows NT\\DNSClient", "NameServer", 1,
+                                                   f"{HOST} {NEXT_ADDR}"]], gpo)
+check("...its scheduled task (well-formed XML) runs nltest /sc_reset on NETLOGON's 5719, with the Registry and "
+      "Scheduled Tasks extensions named",
+      gpo.get("command") == "nltest.exe" and gpo.get("args") == f"/sc_reset:{V['ad_domain']}" and gpo.get("event")
+      and "{35378EAC-683F-11D2-A89A-00C04FBBCFA2}" in gpo.get("ext", "")
+      and "{AADCED64-746C-4633-A97C-D61349046527}" in gpo.get("ext", ""), gpo)
+code, out = on(box, "fabric-managed check; echo rc=$?")
+state = member_state()
+check("a real member, as itself over LDAP, follows the announcement: both addresses, old first",
+      "rc=0" in out and f"DNS={HOST} {NEXT_ADDR}" in state and f"FABRIC_DNS={HOST}" in state
+      and NEXT_ADDR in state, (out, state))
+code, out = move("prepare", OTHER_ADDR)
+on(box, "fabric-managed check")
+state = member_state()
+check("another address replaces it, on the member too", f"DNS={HOST} {OTHER_ADDR}" in state
+      and NEXT_ADDR not in state, (out, state))
+code, out = move("cancel")
+# covers: cli:move.cancel +
+check("move cancel: withdrawn, audited", code == 0 and "withdrawn" in out and AUDITED[-1:] == ["MOVE_CANCEL"], out)
+on(box, "fabric-managed check")
+state = member_state()
+check("...the member goes back to the one address", f"DNS={HOST}\n" in state + "\n" and "no-next" in state, state)
+gpo = read_gpo()
+check("...and the GPO stays, naming the host's address alone",
+      gpo.get("values") and gpo["values"][0][3] == HOST, gpo)
+EVIL = r"""
+import sys
+sys.path.insert(0, "/fabric")
+from member_dns import announce, withdraw
+from open_samdb import open_samdb
+samdb, lp = open_samdb("/data/etc/smb.conf")
+if sys.argv[1:] == ["off"]:
+    withdraw(samdb, "%s")
+else:
+    announce(samdb, "%s", "%s", "9.9.9.9;touch")
+""" % (V["dc_name"], V["dc_name"], HOST)
+sh(["docker", "exec", "-i", DC, "python3", "-"], ok=False, input=EVIL)
+on(box, "fabric-managed check")
+state = member_state()
+check("negative: a record whose address is not one is not followed", "touch" not in state and "no-next" in state, state)
+sh(["docker", "exec", "-i", DC, "python3", "-", "off"], ok=False, input=EVIL)
+# settling: FABRIC_DNS and the next address set as they would be after the move. A listener in the member stands for
+# the host at its new address, TEST-NET for an address nothing answers on
+LISTEN = ("python3 -c \"import socket,time; s=socket.socket(); s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1); "
+          "s.bind(('127.0.0.1',53)); s.listen(5); time.sleep(40)\" >/dev/null 2>&1 & sleep 1;")
+SILENT = "192.0.2.53"
+code, out = on(box, f"sed -i 's/^FABRIC_DNS=.*/FABRIC_DNS={SILENT}/' /etc/fabric/managed.env; "
+                    "echo 192.0.2.54 > /etc/fabric/managed.next; fabric-managed check >/tmp/settle.out 2>&1; "
+                    "cat /tmp/settle.out")
+state = member_state()
+check("negative: both addresses silent: no move is taken for one, FABRIC_DNS stays", f"FABRIC_DNS={SILENT}" in state
+      and "the host moved" not in out, (out, state))
+code, out = on(box, f"{LISTEN} sed -i 's/^FABRIC_DNS=.*/FABRIC_DNS=127.0.0.1/' /etc/fabric/managed.env; "
+                    "echo 192.0.2.54 > /etc/fabric/managed.next; fabric-managed check >/tmp/settle.out 2>&1; "
+                    "cat /tmp/settle.out")
+state = member_state()
+check("negative: the old address still answering: it keeps both", "FABRIC_DNS=127.0.0.1" in state
+      and "the host moved" not in out, (out, state))
+code, out = on(box, f"sed -i 's/^FABRIC_DNS=.*/FABRIC_DNS={SILENT}/' /etc/fabric/managed.env; "
+                    "echo 127.0.0.1 > /etc/fabric/managed.next; fabric-managed check >/tmp/settle.out 2>&1; "
+                    "cat /tmp/settle.out; grep -c 'restart sssd\\|try-restart sssd' /tmp/systemctl.log 2>/dev/null")
+state = member_state()
+check("the old address silent and the new answering: the new alone, in the settings too, the file gone",
+      "the host moved: DNS is now 127.0.0.1" in out and "FABRIC_DNS=127.0.0.1" in state and "DNS=127.0.0.1\n" in state
+      and "no-next" in state, (out, state))
+on(box, f"sed -i 's/^FABRIC_DNS=.*/FABRIC_DNS={HOST}/' /etc/fabric/managed.env; fabric-managed apply")
+sh(["docker", "exec", DC, "samba-tool", "group", "removemembers", "fabric-managed", f"{RELEASES['26.04'].upper()}$",
+    "-s", "/data/etc/smb.conf"], ok=False)
+code, out = on(box, "echo 192.0.2.54 > /etc/fabric/managed.next; fabric-managed check; "
+                    "ls /etc/fabric/managed.next 2>&1 || true")
+check("negative: taken out of fabric-managed, the kept address goes with the rest", "No such file" in out, out)
+sh(["docker", "exec", DC, "samba-tool", "group", "addmembers", "fabric-managed", f"{RELEASES['26.04'].upper()}$",
+    "-s", "/data/etc/smb.conf"], ok=False)
+on(box, "fabric-managed apply")
+ARRIVED = r"""
+import sys
+sys.path.insert(0, "/fabric")
+from member_dns import announced, ensure_member_dns
+from open_samdb import open_samdb
+samdb, lp = open_samdb("/data/etc/smb.conf")
+done = ensure_member_dns(samdb, lp, "%s", "%s", "%s")
+print(done, announced(samdb, "%s"))
+""" % (V["site_name"], V["dc_name"], NEXT_ADDR, V["dc_name"])
+move("prepare", NEXT_ADDR)
+res = sh(["docker", "exec", "-i", DC, "python3", "-"], ok=False, input=ARRIVED)
+gpo = read_gpo()
+check("the convergence after the move (the host no longer at the old address): the announcement taken out, the GPO "
+      "naming the new address alone", "arrived" in res.stdout and res.stdout.strip().endswith("None")
+      and gpo.get("values") and gpo["values"][0][3] == NEXT_ADDR, (res.stdout, res.stderr[-300:], gpo))
 
 # Debian 12 and 13 (Proxmox VE 8, 9): joined with an admin's password; 13 as a desktop
 for release in ("debian-12", "debian-13"):

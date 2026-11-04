@@ -31,6 +31,7 @@ file	fabricctl-agent|src/agent/post_pki.py	7
 file	fabricctl-agent|src/agent/post_route.py	8	
 file	fabricctl-agent|src/agent/post_security.py	15	
 file	fabricctl-agent|src/agent/post_settings.py	26	
+file	fabricctl-agent|src/agent/post_sizing.py	45	
 file	fabricctl-agent|src/agent/post_vault.py	9	
 file	fabricctl-agent|src/agent/read_fields.py	10	
 file	fabricctl-agent|src/agent/read_strings.py	11	
@@ -76,6 +77,8 @@ file	fabricctl-jinja|src/containers/samba/create_person.py	30
 file	fabricctl-jinja|src/containers/samba/dc_info.py	92	
 file	fabricctl-jinja|src/containers/samba/delete_ou.py	120	
 file	fabricctl-jinja|src/containers/samba/directory_op.py	25	
+file	fabricctl-jinja|src/containers/samba/directory_scope.py	164	
+file	fabricctl-jinja|src/containers/samba/directory_size.py	165	
 file	fabricctl-jinja|src/containers/samba/domain_facts.py	140	
 file	fabricctl-jinja|src/containers/samba/edit_person.py	121	
 file	fabricctl-jinja|src/containers/samba/ensure_ad_site.py	14	
@@ -135,8 +138,11 @@ file	fabricctl-jinja|src/containers/samba/logon_groups.py	84	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/logon_rights_policy.py	20	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/managed_groups.py	129	
 file	fabricctl-jinja|src/containers/samba/may_hold.py	163	
+file	fabricctl-jinja|src/containers/samba/member_dns.py	166	
+file	fabricctl-jinja|src/containers/samba/member_gpo_filter.py	167	
 file	fabricctl-jinja|src/containers/samba/move_machine.py	130	0.9.0 / 2026-11-02
 file	fabricctl-jinja|src/containers/samba/move_object.py	159	
+file	fabricctl-jinja|src/containers/samba/move_tool.py	168	
 file	fabricctl-jinja|src/containers/samba/open_samdb.py	21	
 file	fabricctl-jinja|src/containers/samba/order_gpo_links.py	112	
 file	fabricctl-jinja|src/containers/samba/ou_paths.py	131	
@@ -807,6 +813,9 @@ file	fabriclib-menu|src/fabriclib/menu/parse_value.py	9
 file	fabriclib-menu|src/fabriclib/menu/print_vars.py	10	
 file	fabriclib-menu|src/fabriclib/menu/run_vars_menu.py	11	
 file	fabriclib-menu|src/fabriclib/menu/save_menu_change.py	12	
+file	fabriclib-move|src/fabriclib/move/check_new_address.py	1	
+file	fabriclib-move|src/fabriclib/move/move_request.py	2	
+file	fabriclib-move|src/fabriclib/move/run_move_command.py	3	
 file	fabriclib-ntp|src/fabriclib/ntp/chrony_settings.py	1	
 file	fabriclib-ntp|src/fabriclib/ntp/deploy_chrony.py	2	
 file	fabriclib-ntp|src/fabriclib/ntp/normalize_ntp.py	3	
@@ -1069,6 +1078,10 @@ file	fabriclib-setup|src/fabriclib/setup/uninstall.py	35
 file	fabriclib-setup|src/fabriclib/setup/upgrade_vars.py	36	
 file	fabriclib-setup|src/fabriclib/setup/verify_install.py	37	
 file	fabriclib-setup|src/fabriclib/setup/wait_ready.py	81	
+file	fabriclib-sizing|src/fabriclib/sizing/advice.py	1	
+file	fabriclib-sizing|src/fabriclib/sizing/refresh_sizing.py	2	
+file	fabriclib-sizing|src/fabriclib/sizing/run_sizing_command.py	3	
+file	fabriclib-sizing|src/fabriclib/sizing/state.py	4	
 file	fabriclib-system|src/fabriclib/system/apply_changes.py	1	
 file	fabriclib-system|src/fabriclib/system/apply_failure.py	15	
 file	fabriclib-system|src/fabriclib/system/common/parse_mem_mb.py	10	
@@ -1251,6 +1264,7 @@ file	webui|src/webui/agentclient/show_group.py	231
 file	webui|src/webui/agentclient/sign_csr.py	45	
 file	webui|src/webui/agentclient/site_overview.py	256	
 file	webui|src/webui/agentclient/site_tree.py	274	
+file	webui|src/webui/agentclient/sizing.py	300	
 file	webui|src/webui/agentclient/start_job.py	142	
 file	webui|src/webui/agentclient/sudo_rule_change.py	161	
 file	webui|src/webui/agentclient/sync_now.py	280	
@@ -1510,6 +1524,7 @@ function	fabricctl-agent|src/agent/post_route.py|post_route	1
 function	fabricctl-agent|src/agent/post_security.py|post_security	1	
 function	fabricctl-agent|src/agent/post_settings.py|_applied	1	
 function	fabricctl-agent|src/agent/post_settings.py|post_settings	2	
+function	fabricctl-agent|src/agent/post_sizing.py|post_sizing	1	
 function	fabricctl-agent|src/agent/post_vault.py|post_vault	1	
 function	fabricctl-agent|src/agent/read_fields.py|read_fields	1	
 function	fabricctl-agent|src/agent/read_strings.py|read_strings	1	
@@ -1537,7 +1552,10 @@ function	fabricctl-jinja|src/containers/freeradius/check_peap.py|check_peap	1
 function	fabricctl-jinja|src/containers/freeradius/check_person.py|check_person	1	
 function	fabricctl-jinja|src/containers/freeradius/check_person.py|person_groups	2	0.5.0 / 2026-10-04
 function	fabricctl-jinja|src/containers/freeradius/directory.py|connect	2	
+function	fabricctl-jinja|src/containers/freeradius/directory.py|find_machine	8	
+function	fabricctl-jinja|src/containers/freeradius/directory.py|find_person	7	
 function	fabricctl-jinja|src/containers/freeradius/directory.py|folder_dn	5	
+function	fabricctl-jinja|src/containers/freeradius/directory.py|in_an_ou	6	
 function	fabricctl-jinja|src/containers/freeradius/directory.py|load_config	1	
 function	fabricctl-jinja|src/containers/freeradius/directory.py|search	3	
 function	fabricctl-jinja|src/containers/freeradius/directory.py|site_dn	4	0.7.2 / 2026-10-19
@@ -1571,6 +1589,7 @@ function	fabricctl-jinja|src/containers/samba/add_sudo_rule.py|_exists	2
 function	fabricctl-jinja|src/containers/samba/add_sudo_rule.py|add_sudo_rule	3	
 function	fabricctl-jinja|src/containers/samba/admin_gpo.py|_name	1	
 function	fabricctl-jinja|src/containers/samba/admin_gpo.py|_pack	3	
+function	fabricctl-jinja|src/containers/samba/admin_gpo.py|admin_gpos_at_root	6	
 function	fabricctl-jinja|src/containers/samba/admin_gpo.py|admin_settings	2	
 function	fabricctl-jinja|src/containers/samba/admin_gpo.py|ensure_gpo_admins	5	
 function	fabricctl-jinja|src/containers/samba/admin_gpo.py|save_admin_settings	4	
@@ -1622,6 +1641,12 @@ function	fabricctl-jinja|src/containers/samba/dc_info.py|dc_info	1
 function	fabricctl-jinja|src/containers/samba/delete_ou.py|delete_ou	1	
 function	fabricctl-jinja|src/containers/samba/directory_op.py|connect	1	
 function	fabricctl-jinja|src/containers/samba/directory_op.py|run	2	
+function	fabricctl-jinja|src/containers/samba/directory_scope.py|find_groups	5	
+function	fabricctl-jinja|src/containers/samba/directory_scope.py|find_people	4	
+function	fabricctl-jinja|src/containers/samba/directory_scope.py|in_an_ou	1	
+function	fabricctl-jinja|src/containers/samba/directory_scope.py|is_fabric_host_dn	3	
+function	fabricctl-jinja|src/containers/samba/directory_scope.py|is_person_dn	2	
+function	fabricctl-jinja|src/containers/samba/directory_size.py|directory_size	1	
 function	fabricctl-jinja|src/containers/samba/domain_facts.py|domain_facts	1	
 function	fabricctl-jinja|src/containers/samba/edit_person.py|_record	2	0.8.0 / 2026-10-22
 function	fabricctl-jinja|src/containers/samba/edit_person.py|edit_person	1	
@@ -1658,7 +1683,9 @@ function	fabricctl-jinja|src/containers/samba/ensure_logon_policies.py|ensure_lo
 function	fabricctl-jinja|src/containers/samba/ensure_networks.py|ensure_networks	1	
 function	fabricctl-jinja|src/containers/samba/ensure_networks.py|network_cn	2	
 function	fabricctl-jinja|src/containers/samba/ensure_ou_rights.py|_root_ous	1	
+function	fabricctl-jinja|src/containers/samba/ensure_ou_rights.py|_service_ous	4	
 function	fabricctl-jinja|src/containers/samba/ensure_ou_rights.py|ensure_ou_rights	2	
+function	fabricctl-jinja|src/containers/samba/ensure_ou_rights.py|keycloak_entries	3	
 function	fabricctl-jinja|src/containers/samba/ensure_schema.py|_cn	1	
 function	fabricctl-jinja|src/containers/samba/ensure_schema.py|_present	2	
 function	fabricctl-jinja|src/containers/samba/ensure_schema.py|ensure_schema	3	
@@ -1767,8 +1794,18 @@ function	fabricctl-jinja|src/containers/samba/managed_groups.py|managed_groups	1
 function	fabricctl-jinja|src/containers/samba/may_hold.py|_refused	1	
 function	fabricctl-jinja|src/containers/samba/may_hold.py|kinds_held	3	
 function	fabricctl-jinja|src/containers/samba/may_hold.py|may_hold	2	
+function	fabricctl-jinja|src/containers/samba/member_dns.py|_record_dn	2	
+function	fabricctl-jinja|src/containers/samba/member_dns.py|announce	5	
+function	fabricctl-jinja|src/containers/samba/member_dns.py|announced	3	
+function	fabricctl-jinja|src/containers/samba/member_dns.py|ensure_member_dns	7	
+function	fabricctl-jinja|src/containers/samba/member_dns.py|gpo_name	1	
+function	fabricctl-jinja|src/containers/samba/member_dns.py|member_dns_files	6	
+function	fabricctl-jinja|src/containers/samba/member_dns.py|withdraw	4	
+function	fabricctl-jinja|src/containers/samba/member_gpo_filter.py|member_gpo_filter	1	
 function	fabricctl-jinja|src/containers/samba/move_machine.py|move_machine	1	0.9.0 / 2026-11-02
 function	fabricctl-jinja|src/containers/samba/move_object.py|move_object	1	
+function	fabricctl-jinja|src/containers/samba/move_tool.py|main	2	
+function	fabricctl-jinja|src/containers/samba/move_tool.py|run	1	
 function	fabricctl-jinja|src/containers/samba/open_samdb.py|open_samdb	1	
 function	fabricctl-jinja|src/containers/samba/order_gpo_links.py|order_gpo_links	1	
 function	fabricctl-jinja|src/containers/samba/ou_paths.py|closed_dns	6	
@@ -2789,6 +2826,9 @@ function	fabriclib-menu|src/fabriclib/menu/print_vars.py|print_vars	1
 function	fabriclib-menu|src/fabriclib/menu/run_vars_menu.py|run_vars_menu	1	
 function	fabriclib-menu|src/fabriclib/menu/save_menu_change.py|menu_actor	1	
 function	fabriclib-menu|src/fabriclib/menu/save_menu_change.py|save_menu_change	2	
+function	fabriclib-move|src/fabriclib/move/check_new_address.py|check_new_address	1	
+function	fabriclib-move|src/fabriclib/move/move_request.py|move_request	1	
+function	fabriclib-move|src/fabriclib/move/run_move_command.py|run_move_command	1	
 function	fabriclib-ntp|src/fabriclib/ntp/chrony_settings.py|_allowed	1	
 function	fabriclib-ntp|src/fabriclib/ntp/chrony_settings.py|chrony_settings	2	
 function	fabriclib-ntp|src/fabriclib/ntp/deploy_chrony.py|deploy_chrony	1	
@@ -3250,6 +3290,20 @@ function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|_refusals	2
 function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|probes	3	
 function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|run	5	
 function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|wait_ready	4	
+function	fabriclib-sizing|src/fabriclib/sizing/advice.py|_amount	3	
+function	fabriclib-sizing|src/fabriclib/sizing/advice.py|_people	4	
+function	fabriclib-sizing|src/fabriclib/sizing/advice.py|needed	2	
+function	fabriclib-sizing|src/fabriclib/sizing/advice.py|objects_of	1	
+function	fabriclib-sizing|src/fabriclib/sizing/advice.py|sizing_alerts	5	
+function	fabriclib-sizing|src/fabriclib/sizing/advice.py|visible_alerts	6	
+function	fabriclib-sizing|src/fabriclib/sizing/refresh_sizing.py|host_resources	1	
+function	fabriclib-sizing|src/fabriclib/sizing/refresh_sizing.py|refresh_sizing	2	
+function	fabriclib-sizing|src/fabriclib/sizing/run_sizing_command.py|run_sizing_command	2	
+function	fabriclib-sizing|src/fabriclib/sizing/run_sizing_command.py|show_sizing	1	
+function	fabriclib-sizing|src/fabriclib/sizing/state.py|_load	1	
+function	fabriclib-sizing|src/fabriclib/sizing/state.py|dismiss_alert	4	
+function	fabriclib-sizing|src/fabriclib/sizing/state.py|read_sizing	3	
+function	fabriclib-sizing|src/fabriclib/sizing/state.py|save_state	2	
 function	fabriclib-system|src/fabriclib/system/apply_changes.py|apply_changes	1	
 function	fabriclib-system|src/fabriclib/system/apply_failure.py|apply_failure	1	
 function	fabriclib-system|src/fabriclib/system/common/parse_mem_mb.py|parse_mem_mb	1	
@@ -3484,6 +3538,9 @@ function	webui|src/webui/agentclient/show_group.py|show_group	1
 function	webui|src/webui/agentclient/sign_csr.py|sign_csr	1	
 function	webui|src/webui/agentclient/site_overview.py|site_overview	1	
 function	webui|src/webui/agentclient/site_tree.py|site_tree	1	
+function	webui|src/webui/agentclient/sizing.py|sizing	1	
+function	webui|src/webui/agentclient/sizing.py|sizing_banner	3	
+function	webui|src/webui/agentclient/sizing.py|sizing_dismiss	2	
 function	webui|src/webui/agentclient/start_job.py|start_job	1	
 function	webui|src/webui/agentclient/sudo_rule_change.py|sudo_rule_change	1	
 function	webui|src/webui/agentclient/sync_now.py|sync_now	1	
@@ -3613,6 +3670,7 @@ function	webui|src/webui/devpreview/fake_reads.py|_dns_filter	1
 function	webui|src/webui/devpreview/fake_reads.py|_person	4	
 function	webui|src/webui/devpreview/fake_reads.py|_site_tree	7	
 function	webui|src/webui/devpreview/fake_reads.py|_sites	5	
+function	webui|src/webui/devpreview/fake_reads.py|_sizing	8	
 function	webui|src/webui/devpreview/fake_reads.py|_spns	6	
 function	webui|src/webui/devpreview/fake_reads.py|fake_reads	3	
 function	webui|src/webui/devpreview/fake_tree.py|_contents	1	
@@ -3682,6 +3740,7 @@ function	webui|src/webui/routes/dns_filter_post.py|dns_filter_post	2
 function	webui|src/webui/routes/finish_setting_up.py|finish_setting_up	1	
 function	webui|src/webui/routes/get_page.py|_overview	2	
 function	webui|src/webui/routes/get_page.py|_rest	3	
+function	webui|src/webui/routes/get_page.py|_sizing	4	
 function	webui|src/webui/routes/get_page.py|get_page	1	
 function	webui|src/webui/routes/groups_page.py|groups_page	1	
 function	webui|src/webui/routes/held.py|held	2	
@@ -3828,6 +3887,7 @@ page	fabriclib-ldap	15	0.5.0 / 2026-10-04
 page	fabriclib-localadmin	39	
 page	fabriclib-logs	16	
 page	fabriclib-menu	17	
+page	fabriclib-move	41	
 page	fabriclib-ntp	18	
 page	fabriclib-pki	19	
 page	fabriclib-radius	20	
@@ -3837,6 +3897,7 @@ page	fabriclib-secrets	22
 page	fabriclib-security	23	
 page	fabriclib-settings	33	
 page	fabriclib-setup	24	
+page	fabriclib-sizing	42	
 page	fabriclib-system	25	
 page	fabriclib-undo	26	
 page	fabriclib-vault	27	

@@ -99,6 +99,7 @@ from webui.agentclient.settings_export import settings_export  # noqa: F401
 from webui.agentclient.settings_plan import settings_plan  # noqa: F401
 from webui.agentclient.settings_apply import settings_apply  # noqa: F401
 from webui.agentclient.settings_dismiss import settings_dismiss  # noqa: F401
+from webui.agentclient.sizing import sizing, sizing_banner, sizing_dismiss  # noqa: F401
 from webui.agentclient.hold_change import hold_change  # noqa: F401
 from webui.agentclient.my_account import my_account  # noqa: F401
 from webui.agentclient.my_groups import my_groups  # noqa: F401

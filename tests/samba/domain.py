@@ -542,7 +542,8 @@ check("POST /v1/machines/srv1/move by hd (a grant's machines move on lan's serve
 for who, name, body, perms_, words in (
         ("hd", "dsk1", {"path": "machines"}, {"machines:admin", "ous:admin"}, "no grant gives you machines move on dsk1"),
         ("hd", "srv1", {"path": "machines"}, {"machines:admin"}, "needs ous:admin too"),
-        ("alice", "srv1", {"path": "people/office"}, None, "moves only within OU=machines"),
+        ("alice", "srv1", {"path": "devices"}, None, "closed folders"),
+        ("alice", "srv1", {"path": "service-accounts"}, None, "holds service accounts only"),
         ("alice", "srv1", {"path": "machines/nowhere"}, None, "no OU machines/nowhere"),
         ("alice", "nomachine", {"path": "machines"}, None, "no machine nomachine")):
     gone, why = refused(m_domain.post_domain, ["machines", name, "move"], who, body, who, perms_)
@@ -554,9 +555,11 @@ m_tree.load_vars = lambda: V
 tree = m_get.get_route(["directory", "tree", "ou=people", "q=", "w=0", "i=0"], "alice")
 # covers: agent:get.directory.tree.*.*.*.* +
 check("GET /v1/directory/tree/ou=people/…: the tree open at people (the domain's level, then people's), its people "
-      "listed by kind and name, OU=people may hold people only, AD's containers at the root, groups/fabric left out",
+      "listed by kind and name, OU=people may hold any kind (2.1.6.106), AD's containers at the root, groups/fabric left "
+      "out",
       [lv["path"] for lv in tree["levels"]] == ["", "people"] and {"bob", "alice"} <= {
-          r["name"] for r in tree["contents"] if r["kind"] == "person"} and tree["kinds"] == ["person"]
+          r["name"] for r in tree["contents"] if r["kind"] == "person"}
+      and sorted(tree["kinds"]) == ["group", "machine", "person"]
       and "Users" in {c["name"] for c in tree["levels"][0]["children"]}
       and "groups/fabric" not in {c["path"] for lv in tree["levels"] for c in lv["children"]}, tree["levels"])
 found = m_get.get_route(["directory", "tree", "ou=", "q=bob", "w=1", "i=0"], "alice")
@@ -577,7 +580,8 @@ check("POST /v1/people/bob/move: bob in people/movers, his groups unchanged, aud
       done["changed"] and f"CN=bob,OU=movers,OU=people,{BASE}" in ldb("(sAMAccountName=bob)", "dn")
       and "CN=site-lan," in ldb("(sAMAccountName=bob)", "memberOf") and AUDIT[-1][1] == "PERSON_MOVE", done)
 for who, uid, body, perms_, words in (
-        ("alice", "bob", {"path": "machines/servers"}, None, "moves only within OU=people"),
+        ("alice", "bob", {"path": "service-accounts"}, None, "holds service accounts only"),
+        ("alice", "bob", {"path": "sudoers"}, None, "closed folders"),
         ("alice", "bob", {"path": "people/nowhere"}, None, "no OU people/nowhere"),
         ("hd", "bob", {"path": "people"}, {"people:edit"}, "needs ous:admin too"),
         ("alice", "fabric-admin", {"path": "people"}, None, "")):
@@ -585,6 +589,43 @@ for who, uid, body, perms_, words in (
     # covers: agent:post.people.*.move -
     check(f"move {uid} as {who} refused ({words})", gone and words in why, why)
 m_people.post_people(["people", "bob", "move"], "alice", {"path": "people"}, "alice", None)
+print("--- any OU (2.1.6.106): what fabric reads follows a person, a group and a machine out of its folders")
+m_ous.post_ous(["ous"], "alice", {"parent": "", "name": "elsewhere"})
+m_people.post_people(["people", "bob", "move"], "alice", {"path": "elsewhere"}, "alice", {"people:edit", "ous:admin"})
+m_machines_move = m_domain.post_domain(["machines", "srv1", "move"], "alice", {"path": "elsewhere"}, "alice",
+                                       {"machines:admin", "ous:admin"})
+m_groups.post_groups(["groups", "lab-people", "move"], "alice", {"path": "elsewhere"}, "alice",
+                     {"groups:admin", "ous:admin"})
+check("a person, a machine and a group each moved to an OU at the domain's root",
+      f"CN=bob,OU=elsewhere,{BASE}" in ldb("(sAMAccountName=bob)", "dn")
+      and f"CN=SRV1,OU=elsewhere,{BASE}" in ldb("(sAMAccountName=SRV1$)", "dn")
+      and f"CN=lab-people,OU=elsewhere,{BASE}" in ldb("(sAMAccountName=lab-people)", "dn"), m_machines_move)
+everyone = m_get.get_route(["people"], "alice")
+everyone_rows = everyone.get("users") or everyone.get("people") or []
+check("...bob is still among the people, with his site's group, and fabric's service accounts and AD's own are not",
+      any(u["uid"] == "bob" and "lan" in u["sites"] for u in everyone_rows)
+      and not any(u["uid"].startswith("fabric-agent-") or u["uid"] in ("Administrator", "krbtgt", "Guest")
+                  for u in everyone_rows), everyone_rows)
+groups_now = m_get.get_route(["groups"], "alice")
+check("...lab-people is still among the groups, an admin's own, not taken for one of AD's",
+      any(g["name"] == "lab-people" and g["kind"] == "own" for g in groups_now.get("groups", []))
+      and not any(g["name"] == "Domain Admins" for g in groups_now.get("groups", [])), groups_now)
+machine_there = m_get.get_route(["machines", "srv1"], "alice")
+check("...srv1's page still finds it, and its Move to... offers the OU it is in",
+      "elsewhere" in machine_there["choices"]["folders"]
+      and "devices" not in machine_there["choices"]["folders"], machine_there["choices"])
+edited = m_people.post_people(["people", "bob", "move"], "hd", {"path": "people"}, "hd", {"people:edit", "ous:admin"})
+check("...a grant's person edit still reaches bob there, as it does in OU=people (fabric-agent's check)",
+      edited["changed"] and AUDIT[-1][1] == "PERSON_MOVE", edited)
+m_people.post_people(["people", "bob", "move"], "alice", {"path": "machines/servers"}, "alice", None)
+check("...and a person may be moved into OU=machines' tree too (any OU)",
+      f"CN=bob,OU=servers,OU=machines,{BASE}" in ldb("(sAMAccountName=bob)", "dn"))
+m_people.post_people(["people", "bob", "move"], "alice", {"path": "people"}, "alice", None)
+m_domain.post_domain(["machines", "srv1", "move"], "alice", {"path": "machines/servers/web"}, "alice", None)
+m_groups.post_groups(["groups", "lab-people", "move"], "alice", {"path": "groups"}, "alice", None)
+gone, why = refused(m_people.post_people, ["people", "bob", "move"], "alice", {"path": ""}, "alice", None)
+check("refused: a move to the domain's root itself, which is not an OU", gone, why)
+m_ous.post_ous(["ous", "delete"], "alice", {"path": "elsewhere"})
 m_ous.post_ous(["ous"], "alice", {"parent": "groups", "name": "crew"})
 done = m_groups.post_groups(["groups", "lab-people", "move"], "alice", {"path": "groups/crew"}, "alice",
                             {"groups:admin", "ous:admin"})
@@ -592,7 +633,7 @@ done = m_groups.post_groups(["groups", "lab-people", "move"], "alice", {"path": 
 check("POST /v1/groups/lab-people/move: in groups/crew, audited GROUP_MOVE", done["changed"]
       and "OU=crew,OU=groups," in ldb("(sAMAccountName=lab-people)", "dn") and AUDIT[-1][1] == "GROUP_MOVE", done)
 for who, name, body, perms_, words in (
-        ("alice", "lab-people", {"path": "people"}, None, "moves only within OU=groups"),
+        ("alice", "lab-people", {"path": "service-accounts"}, None, "holds service accounts only"),
         ("alice", "directory-admins", {"path": "groups/crew"}, None, ""),
         ("alice", "lab-people", {"path": "groups"}, {"groups:admin"}, "needs ous:admin too"),
         ("hd", "lab-people", {"path": "groups"}, None, "Directory Administrator")):
@@ -717,7 +758,7 @@ code4, out4 = cli("machine", "keytab", "dsk1", "--service", "postgres", "--user"
 check("domain machine move, type, sites, keytab (root)", [code, code2, code3, code4] == [0] * 4
       and "moved to machines" in out and "moved to OU=desktops" in out2 and "(already)" in out3
       and "sudo fabric-keytab --machine dsk1 --service postgres --user postgres" in out4, (out, out2, out3, out4))
-for args, words, want in ((("machine", "move", "dsk1", "people"), "moves only within OU=machines", 1),
+for args, words, want in ((("machine", "move", "dsk1", "devices"), "closed folders", 1),
                           (("machine", "type", "dsk1", "toaster"), "type: one of", 1),
                           (("machine", "keytab", "dsk1", "--service", "cifs", "--user", "x"), "the machine's own", 1),
                           (("machine", "frob", "dsk1"), "usage", 2)):

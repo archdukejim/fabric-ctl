@@ -22,8 +22,10 @@ def _fabrics(component, base):
 def ensure_ldap_federation(kc, realm, realm_id, v, s, writable=True, kerberos=False):
     """Purpose: the realm's user federation to fabric's directory, Samba AD (manual 1.6.3.11, 1.6.5.16 S2.5): AD mode,
              LDAPS to the DC at the host's address (verified against fabric's CA), bound as this DC's Keycloak
-             account, fabric-keycloak-<dc_name> in OU=service-accounts (2.1.6.82); people searched under OU=people,
-             every enabled person admitted (2.1.6.83: who may do what is the groups', and the grants'); writable, so
+             account, fabric-keycloak-<dc_name> in OU=service-accounts (2.1.6.82); people searched from the domain's
+             root, since a person may be in any OU (2.1.6.106: people only, not AD's critical accounts; the DC hides
+             OU=service-accounts, CN=Users and CN=Builtin from this account), every enabled person admitted (2.1.6.83:
+             who may do what is the groups', and the grants'); writable, so
              a password changed at sign-in lands in AD. fabric creates people itself (directory/create_person):
              Keycloak does not. With kerberos it also accepts a domain logon's ticket (SPNEGO, manual 2.3.6.2.6.2)
              with the site's fabric-sso keytab; any of the keytab's principals (HTTP/sso.<domain>,
@@ -39,7 +41,8 @@ def ensure_ldap_federation(kc, realm, realm_id, v, s, writable=True, kerberos=Fa
              provider cannot be found again.
     Feeds:   configure_keycloak (the id is passed to ensure_group_mapper)."""
     base = v["ad_base_dn"]
-    admitted = f"(!(userAccountControl:{MATCH_BIT}:={ACCOUNTDISABLE}))"     # every enabled person (2.1.6.83)
+    admitted = (f"(&(objectCategory=person)(!(isCriticalSystemObject=TRUE))"      # a person, not AD's own (2.1.6.106)
+                f"(!(userAccountControl:{MATCH_BIT}:={ACCOUNTDISABLE})))")        # every enabled one (2.1.6.83)
     config = {
         "enabled": ["true"],
         "vendor": ["ad"],
@@ -52,7 +55,7 @@ def ensure_ldap_federation(kc, realm, realm_id, v, s, writable=True, kerberos=Fa
         "userObjectClasses": ["person, organizationalPerson, user"],
         # the DC on fabric_net's gateway: the traffic stays on the bridge (2.1.2.15)
         "connectionUrl": [f"ldaps://{v.get('ip_fabric_gateway', '10.255.0.1')}:636"],
-        "usersDn": [f"OU=people,{base}"],
+        "usersDn": [base],
         "searchScope": ["2"],
         "customUserSearchFilter": [admitted],
         "authType": ["simple"],

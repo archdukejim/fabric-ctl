@@ -947,10 +947,10 @@ with serve():
     # covers: web:post.directory.machines.*.type -
     check("refused at Apply: a type that is not one, why shown", "type: one of" in page, page[-1500:])
     post("/changes/machines/discard", {})
-    post("/directory/machines/host-1/move", {"path": "people"})
+    post("/directory/machines/host-1/move", {"path": "devices"})
     st, loc, page = post("/changes/machines/apply", {})
     # covers: web:post.directory.machines.*.move -
-    check("refused at Apply: a folder outside OU=machines", "moves only within OU=machines" in page, page[-1500:])
+    check("refused at Apply: a closed folder, why shown", "closed folders" in page, page[-1500:])
     post("/changes/machines/discard", {})
     post("/directory/machines/host-1/sites", {"action": "add", "site": "mars"})
     st, loc, page = post("/changes/machines/apply", {})
@@ -1292,6 +1292,34 @@ for bundle, entries in ENTRIES.items():
         check(f"--as {bundle}: every page opens with its permission and is refused (403) without it", not wrong,
               wrong)
 
+with serve():
+    # the sizing advice (1.8.8.8): the card on Health, the banner while critical, the person's own dismissal
+    page = get("/")
+    check("Overview: the Sizing card names the numbers, the gap and what would close it, with Dismiss",
+          "<h2>Sizing</h2>" in page and "122 MiB below the recommended 250 MiB" in page
+          and "raise samba_mem_limit" in page and 'action="/overview/sizing/dismiss"' in page, page[-3000:])
+    page = get("/directory/people")
+    check("the banner on every page while one is critical, for settings:admin",
+          "sizing-banner" in page and "122 MiB below" in page, page[:2500])
+    st, loc, page = post("/overview/sizing/dismiss", {"resource": "ram"})
+    # covers: web:post.overview.sizing.dismiss +
+    check("Dismiss: back at the Overview, that alert gone, the other still there", st == 303 and loc == "/"
+          and "352 MiB below" not in get("/") and "122 MiB below" in get("/"), (st, loc))
+    st, loc, page = post("/overview/sizing/dismiss", {"resource": "nonsense"})
+    # covers: web:post.overview.sizing.dismiss -
+    check("negative: dismissing what is not an alert now is refused, saying why", st == 303 and loc == "/"
+          and "no sizing alert" in page, (st, loc, page[-800:]))
+with serve("fabric-auditor"):
+    page = get("/")
+    check("an auditor (status:read, no settings:admin): the card, no banner", "<h2>Sizing</h2>" in page
+          and "sizing-banner" not in page, page[-2000:])
+with serve("none"):
+    st, _, page = req("GET", "/")[:3] if False else (0, "", get("/account"))
+    check("negative: no role (no status:read): neither card nor banner", "<h2>Sizing</h2>" not in page
+          and "sizing-banner" not in page, page[-1500:])
+    st = post("/overview/sizing/dismiss", {"resource": "ram"})[0]
+    check("negative: ...and a dismissal is refused (403)", st == 403, st)
+
 with serve("fabric-helpdesk"):
     page = get("/directory/people/sam")
     check("helpdesk: Add person, Reset password and Edit (people:edit)", "/directory/people/_new"
@@ -1331,17 +1359,19 @@ with serve("fabric-helpdesk"):
 with serve():
     # Create in... (2.1.6.101, 1.8.8.5): each create form offers the OUs the DC says the kind may be put in
     page = get("/directory/people/_new")
-    check("Add person: Create in... offers OU=people's tree (people/staff), nothing else, fabric's folder the default",
+    check("Add person: Create in... offers any OU (people/staff, machines/servers), never service-accounts or a closed "
+          "one (2.1.6.106)",
           'name="ou"' in page and "<option>people/staff</option>" in page
-          and "<option>machines/servers</option>" not in page and "<option>groups</option>" not in page, page[-2500:])
+          and "<option>machines/servers</option>" in page and "<option>service-accounts</option>" not in page
+          and "<option>devices</option>" not in page, page[-2500:])
     page = get("/directory/groups/_new")
-    check("Create group: Create in... offers OU=groups' tree but never the grants' groups/fabric",
+    check("Create group: Create in... offers any OU but never the grants' groups/fabric",
           'name="ou"' in page and "<option>groups</option>" in page and "<option>groups/fabric</option>" not in page
-          and "<option>people/staff</option>" not in page, page[-2500:])
+          and "<option>people/staff</option>" in page, page[-2500:])
     page = get("/directory/computers/_new")
-    check("Add computer: Create in... offers OU=machines' tree (machines/servers/web), never fabric-hosts",
+    check("Add computer: Create in... offers any OU (machines/servers/web, people/staff), never fabric-hosts",
           'name="ou"' in page and "<option>machines/servers/web</option>" in page
-          and "<option>fabric-hosts</option>" not in page and "<option>people/staff</option>" not in page,
+          and "<option>fabric-hosts</option>" not in page and "<option>people/staff</option>" in page,
           page[-2500:])
     st, loc, page = post("/directory/people/_new", {"uid": "kim", "first": "Kim", "last": "Lee",
                                                     "email": "kim@home.arpa", "ou": "people/staff"})
@@ -1350,29 +1380,29 @@ with serve():
           or "kim" in flash(page), flash(page))
     st, loc, page = post("/changes/people/apply", {})
     check("...applied: kim made, nothing refused", "kim" in get("/directory/people?q=kim")
-          and "moves only within" not in page, page[-1500:])
+          and "closed folders" not in page, page[-1500:])
     post("/directory/people/_new", {"uid": "lou", "first": "Lou", "last": "Ma", "email": "lou@home.arpa",
-                                    "ou": "machines/servers"})
+                                    "ou": "service-accounts"})
     st, loc, page = post("/changes/people/apply", {})
     # covers: web:post.directory.people._new -
-    check("negative: a person created in machines/servers is refused at Apply, saying why (OU=people's tree)",
-          "moves only within OU=people" in page, page[-1500:])
+    check("negative: a person created in service-accounts is refused at Apply, saying why",
+          "holds service accounts only" in page, page[-1500:])
     post("/changes/people/discard", {})
     post("/directory/groups/_new", {"name": "teamx", "description": "", "ou": "groups/fabric"})
     st, loc, page = post("/changes/groups/apply", {})
     # covers: web:post.directory.groups._new -
     check("negative: a group created in the grants' groups/fabric is refused at Apply, saying why", "groups/fabric"
-          in page and "moves only within" in page, page[-1500:])
+          in page and "closed folders" in page, page[-1500:])
     post("/changes/groups/discard", {})
     post("/directory/machines/_new", {"name": "ws7", "managed": "yes", "ou": "machines/servers/web"})
     st, loc, page = post("/changes/machines/apply", {})
     page = get("/directory/computers/ws7")
     # covers: web:post.directory.machines._new +
     check("Add computer in machines/servers/web: applied, filed there", "machines/servers/web" in page, page[-2500:])
-    post("/directory/machines/_new", {"name": "ws8", "managed": "yes", "ou": "people"})
+    post("/directory/machines/_new", {"name": "ws8", "managed": "yes", "ou": "devices"})
     st, loc, page = post("/changes/machines/apply", {})
     # covers: web:post.directory.machines._new -
-    check("negative: a computer created in people is refused at Apply, saying why", "moves only within OU=machines"
+    check("negative: a computer created in a closed folder is refused at Apply, saying why", "closed folders"
           in page, page[-1500:])
     post("/changes/machines/discard", {})
 
@@ -1403,10 +1433,10 @@ with serve():
     check("negative: a whole-domain search of one character is refused, saying why", "at least 2 characters" in page,
           page[-2000:])
     page = get("/directory/tree?ou=people&move=person%3Ajim")
-    check("Move to...: a form for jim, its choices OU=people's tree only, back to the browser after",
+    check("Move to...: a form for jim, its choices any OU but service-accounts, back to the browser after",
           'action="/directory/people/jim/move"' in page and "<option>people/staff</option>" in page
-          and "<option>machines/servers</option>" not in page and 'name="back" value="/directory/tree?ou=people"'
-          in page, page[-3000:])
+          and "<option>machines/servers</option>" in page and "<option>service-accounts</option>" not in page
+          and 'name="back" value="/directory/tree?ou=people"' in page, page[-3000:])
     st, loc, page = post("/directory/people/jim/move", {"path": "people/staff", "back": "/directory/tree?ou=people"})
     # covers: web:post.directory.people.*.move +
     check("Move jim to people/staff: held for People's Apply, back in the browser", loc == "/directory/tree?ou=people"
@@ -1414,11 +1444,11 @@ with serve():
     st, loc, page = post("/changes/people/apply", {})
     check("...applied: jim in people/staff", 'href="/directory/people/jim"' in get("/directory/tree?ou=people/staff"),
           page[-1500:])
-    post("/directory/people/jim/move", {"path": "machines/servers", "back": "/directory/tree?ou=people"})
+    post("/directory/people/jim/move", {"path": "service-accounts", "back": "/directory/tree?ou=people"})
     st, loc, page = post("/changes/people/apply", {})
     # covers: web:post.directory.people.*.move -
-    check("negative: a person moved into machines/servers is refused at Apply, saying why (OU=people's tree)",
-          "moves only within OU=people" in page, page[-1500:])
+    check("negative: a person moved into service-accounts is refused at Apply, saying why",
+          "holds service accounts only" in page, page[-1500:])
     post("/changes/people/discard", {})
     st, loc, page = post("/directory/people/jim/move", {"path": "people", "back": "https://elsewhere.test/x"})
     check("negative: a move's way back that is not the browser's is ignored (no open redirect): the person's page",
@@ -1427,8 +1457,14 @@ with serve():
     st, loc, page = post("/directory/groups/lab-users/move", {"path": "groups", "back": "/directory/tree?ou=groups"})
     st, loc, page = post("/changes/groups/apply", {})
     # covers: web:post.directory.groups.*.move +
-    check("Move a group (lab-users) within OU=groups: applied", "moves only within" not in page
+    check("Move a group (lab-users) to OU=groups: applied", "closed folders" not in page
           and "stays where fabric put it" not in page, page[-1500:])
+    post("/directory/people/jim/move", {"path": "machines/servers", "back": "/directory/tree?ou=people"})
+    st, loc, page = post("/changes/people/apply", {})
+    check("Move a person out of OU=people, to machines/servers (any OU, 2.1.6.106): applied, listed there",
+          'href="/directory/people/jim"' in get("/directory/tree?ou=machines/servers"), page[-1500:])
+    post("/directory/people/jim/move", {"path": "people/staff"})
+    post("/changes/people/apply", {})
     post("/directory/groups/grant-lan-helpdesk-who/move", {"path": "groups"})
     st, loc, page = post("/changes/groups/apply", {})
     # covers: web:post.directory.groups.*.move -

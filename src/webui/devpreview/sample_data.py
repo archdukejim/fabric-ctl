@@ -243,6 +243,16 @@ SAMPLE_IMAGES = [
     {"service": "nginx", "var": "image_nginx", "running": "nginx:1.30.5@sha256:b972",
      "applied": "nginx:1.30.5@sha256:b972", "validated": "nginx:1.30.5@sha256:b972", "state": "current"},
 ]
+# the Overview's Sizing card and banner (1.8.8.8): a host a little small, and too small for its DC's limit
+SAMPLE_SIZING = {
+    "at": "2026-11-03T09:12:00+00:00", "size": {"people": 5, "computers": 2, "groups": 7}, "critical": True,
+    "alerts": [{"resource": "dc_memory", "level": "critical", "have": 128, "minimum": 200, "recommended": 250,
+                "gap": 122, "what": "5 people on 128 MiB the domain controller's memory limit: 122 MiB below "
+                                    "the recommended 250 MiB for that size, and below the minimum 200 MiB",
+                "close": "raise samba_mem_limit in the settings, or give the host more memory (manual 1.2.4.3)"},
+               {"resource": "ram", "level": "warn", "have": 2048, "minimum": 1900, "recommended": 2400,
+                "gap": 352, "what": "5 people on 2.0 GB RAM: 352 MiB below the recommended 2.3 GB for that "
+                                    "size", "close": "add memory to the host"}]}
 SAMPLE_DOCTOR = {"checks": [{"name": "DNS ns.home.arpa", "ok": True, "detail": ""},
                             {"name": "DNS-over-HTTPS https://ns.home.arpa/dns-query answers", "ok": True, "detail": ""},
                             {"name": "certificates: renewal working, none about to expire (2.1.5.4)", "ok": False,

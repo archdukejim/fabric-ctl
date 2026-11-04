@@ -61,6 +61,11 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `remove_sudo_rule.py` | Operation `remove_sudo_rule`: one of the editor's rules deleted (never an admin's own) |
 | `refresh_sudo_hosts.py` | The editor's rules on a host group, and the grants' rules on their computed where group, name its machines' short and DNS names as sudoHost (after a member change, at a compile, at convergence) |
 | `windows_baseline_policy.py` | The site's Windows baseline, linked at OU=machines: wait for the network at log-on, the domain's time, Wired AutoConfig and the 802.1X profile (start-up script) |
+| `directory_scope.py` | Where fabric finds its people and groups, in any OU: one rule (2.1.6.106) |
+| `directory_size.py` | How much the directory holds, for the sizing advice (1.8.8.8) |
+| `member_gpo_filter.py` | A GPO at the domain's root every member takes, denied to the DCs and the fabric hosts |
+| `member_dns.py` | The host's coming move: its record, and the GPO naming the DNS servers to Windows members (2.1.1.79) |
+| `move_tool.py` | The announced move's entry point (as root, like gpo_tool): prepare, status, cancel |
 | `gpo_tool.py` | fabric's ADMX editor's entry point: one operation (load, templates, policies, show, set, clear) as JSON |
 | `admx_store.py` | The domain's central store: templates saved, and every policy they define read as Windows' editor reads them |
 | `policy_entries.py` | What a policy writes to the registry (enabled with its elements, disabled), and which values are its own |
