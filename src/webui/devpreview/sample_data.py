@@ -247,7 +247,7 @@ SAMPLE_IMAGES = [
 SAMPLE_SIZING = {
     "at": "2026-11-03T09:12:00+00:00", "size": {"people": 5, "computers": 2, "groups": 7}, "critical": True,
     "alerts": [{"resource": "dc_memory", "level": "critical", "have": 128, "minimum": 200, "recommended": 250,
-                "gap": 122, "what": "5 people on 128 MiB the domain controller's memory limit: 122 MiB below "
+                "gap": 122, "what": "5 people on 128 MiB of memory limit for the domain controller: 122 MiB below "
                                     "the recommended 250 MiB for that size, and below the minimum 200 MiB",
                 "close": "raise samba_mem_limit in the settings, or give the host more memory (manual 1.2.4.3)"},
                {"resource": "ram", "level": "warn", "have": 2048, "minimum": 1900, "recommended": 2400,

@@ -370,8 +370,6 @@ READ_GPO = r"""
 import json, os, sys
 from xml.dom import minidom
 import ldb
-from samba.dcerpc import preg
-from samba.ndr import ndr_unpack
 sys.path.insert(0, "/fabric")
 from find_gpo import find_gpo
 from open_samdb import open_samdb
@@ -383,12 +381,12 @@ if found is None:
 root = samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_BASE, attrs=["gPLink"])[0]
 g = samdb.search(base=found[0], scope=ldb.SCOPE_BASE, attrs=["gPCMachineExtensionNames"])[0]
 folder = os.path.join(lp.get("path", "sysvol"), lp.get("realm").lower(), "Policies", found[1], "Machine")
-pol = ndr_unpack(preg.file, open(os.path.join(folder, "Registry.pol"), "rb").read())
 xml = open(os.path.join(folder, "Preferences", "ScheduledTasks", "ScheduledTasks.xml")).read()
 dom = minidom.parseString(xml)
 print(json.dumps({"gpo": True, "linked": found[0].lower() in str(root["gPLink"][0]).lower(),
                   "ext": str(g["gPCMachineExtensionNames"]),
-                  "values": [[e.keyname, e.valuename, e.type, e.data] for e in pol.entries],
+                  "pol": os.path.exists(os.path.join(folder, "Registry.pol")),
+                  "triggers": sorted(n.tagName for n in dom.getElementsByTagName("Triggers")[0].childNodes),
                   "command": dom.getElementsByTagName("Command")[0].firstChild.data,
                   "args": dom.getElementsByTagName("Arguments")[0].firstChild.data,
                   "event": "EventID=5719" in dom.getElementsByTagName("Subscription")[0].firstChild.data
@@ -446,13 +444,15 @@ check("move status names both addresses", code == 0 and f"from {HOST} to {NEXT_A
 code, out = move("prepare", NEXT_ADDR)
 check("move prepare again: already announced, nothing changed", code == 0 and "already announced" in out, out)
 gpo = read_gpo()
-check("the DNS servers' GPO: linked at the domain's root, both addresses in DNSClient's NameServer",
-      gpo.get("linked") and gpo.get("values") == [["Software\\Policies\\Microsoft\\Windows NT\\DNSClient", "NameServer", 1,
-                                                   f"{HOST} {NEXT_ADDR}"]], gpo)
-check("...its scheduled task (well-formed XML) runs nltest /sc_reset on NETLOGON's 5719, with the Registry and "
-      "Scheduled Tasks extensions named",
-      gpo.get("command") == "nltest.exe" and gpo.get("args") == f"/sc_reset:{V['ad_domain']}" and gpo.get("event")
-      and "{35378EAC-683F-11D2-A89A-00C04FBBCFA2}" in gpo.get("ext", "")
+check("the DNS servers' GPO: linked at the domain's root, no DNS Client policy (Windows ignored it: 2.3.1.44)",
+      gpo.get("linked") and gpo.get("pol") is False, gpo)
+check("...its scheduled task (well-formed XML): both addresses, old first, for an adapter naming either; PowerShell, "
+      "on its registration, every 5 minutes and NETLOGON's 5719, with the Scheduled Tasks extension named",
+      gpo.get("command") == "powershell.exe" and f"$use = @('{HOST}','{NEXT_ADDR}')" in gpo.get("args", "")
+      and f"$known = @('{HOST}','{NEXT_ADDR}')" in gpo.get("args", "")
+      and f"nltest /sc_reset:{V['ad_domain']}" in gpo.get("args", "") and gpo.get("event")
+      and gpo.get("triggers") == ["EventTrigger", "RegistrationTrigger", "TimeTrigger"]
+      and "{35378EAC-683F-11D2-A89A-00C04FBBCFA2}" not in gpo.get("ext", "")
       and "{AADCED64-746C-4633-A97C-D61349046527}" in gpo.get("ext", ""), gpo)
 code, out = on(box, "fabric-managed check; echo rc=$?")
 state = member_state()
@@ -472,7 +472,7 @@ state = member_state()
 check("...the member goes back to the one address", f"DNS={HOST}\n" in state + "\n" and "no-next" in state, state)
 gpo = read_gpo()
 check("...and the GPO stays, naming the host's address alone",
-      gpo.get("values") and gpo["values"][0][3] == HOST, gpo)
+      f"$use = @('{HOST}')" in gpo.get("args", "") and f"'{OTHER_ADDR}'" in gpo.get("args", ""), gpo)
 EVIL = r"""
 import sys
 sys.path.insert(0, "/fabric")
@@ -536,7 +536,8 @@ res = sh(["docker", "exec", "-i", DC, "python3", "-"], ok=False, input=ARRIVED)
 gpo = read_gpo()
 check("the convergence after the move (the host no longer at the old address): the announcement taken out, the GPO "
       "naming the new address alone", "arrived" in res.stdout and res.stdout.strip().endswith("None")
-      and gpo.get("values") and gpo["values"][0][3] == NEXT_ADDR, (res.stdout, res.stderr[-300:], gpo))
+      and f"$use = @('{NEXT_ADDR}')" in gpo.get("args", "") and f"'{HOST}'" in gpo.get("args", "")
+      and gpo.get("triggers") == ["EventTrigger", "RegistrationTrigger"], (res.stdout, res.stderr[-300:], gpo))
 
 # Debian 12 and 13 (Proxmox VE 8, 9): joined with an admin's password; 13 as a desktop
 for release in ("debian-12", "debian-13"):

@@ -6,7 +6,7 @@ object: {"result": ...} or {"error": message} (exit 0 either way)."""
 import json
 import sys
 
-from member_dns import announce, announced, ensure_member_dns, withdraw
+from member_dns import announce, announced, ensure_member_dns, note_previous, withdraw
 from open_samdb import open_samdb
 
 CONF = "/data/etc/smb.conf"
@@ -24,9 +24,15 @@ def run(req):
         move = announced(samdb, dc)
         return {"old": move[0] if move else "", "new": move[1] if move else ""}
     if op == "prepare":
+        move = announced(samdb, dc)
+        if move and move[1] != req["new"]:      # a machine may have taken the one this replaces
+            note_previous(samdb, dc, move[1], host)
         changed = announce(samdb, dc, host, req["new"])
     elif op == "cancel":
+        move = announced(samdb, dc)
         changed = withdraw(samdb, dc)
+        if move:            # a machine that took both addresses gives the one that never came back
+            note_previous(samdb, dc, move[1], host)
     else:
         raise ValueError(f"unknown operation {op}")
     return {"changed": changed, "done": ensure_member_dns(samdb, lp, site, dc, host)}

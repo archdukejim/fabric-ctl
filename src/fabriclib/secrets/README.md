@@ -11,6 +11,7 @@ re-imported.
 | File | What |
 |---|---|
 | `constants.py` | The OpenBao path and the marker file name |
+| `held_secrets.py` | What fabric-agent keeps of OpenBao's answer, for a minute; forgotten when it writes them (2.1.8.35) |
 | `secrets_in_openbao.py` | True once the marker exists (a missing file then never means "no secrets") |
 | `load_secrets.py` | Read them from the file or OpenBao; OpenBao locked → error, never an empty set |
 | `save_secrets.py` | Change them where they live (top-level keys; `tsig_secrets` and `radius_secrets` merged key by key; OpenBao check-and-set) |

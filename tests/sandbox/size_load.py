@@ -13,6 +13,7 @@ import time
 import yaml
 
 sys.path.insert(0, "/opt/fabric/lib")
+from fabriclib.directory import held_op  # noqa: E402
 from fabriclib.directory.list_machines import list_machines  # noqa: E402
 from fabriclib.directory.list_people import list_people  # noqa: E402
 from fabriclib.domain.browse_ou import browse_ou  # noqa: E402
@@ -23,6 +24,7 @@ from fabriclib.secrets.load_secrets import load_secrets  # noqa: E402
 def main():
     if len(sys.argv) != 2 or not sys.argv[1].isdigit():
         sys.exit(__doc__)
+    held_op.enable()            # as fabric-agent asks (2.1.8.35)
     v = yaml.safe_load(open("/opt/fabric/config/vars.yaml"))
     secrets = load_secrets(v=v)
     reads = {"people": lambda: list_people(v, secrets=secrets), "groups": lambda: list_groups(v, secrets=secrets),

@@ -65,6 +65,7 @@ on() {
 F() { on "$FABRIC" "sudo bash -lc $(printf '%q' "$1")"; }          # as root on the fabric VM (wherever it is now)
 L() { on "$LINUX" "sudo bash -lc $(printf '%q' "$1")"; }           # as root on the Linux member
 W() { on "$WIN" "powershell -NoProfile -Command \"$1\""; }           # on the Windows member (labadmin: an admin)
+win_dns() { W '(Get-DnsClientServerAddress -InterfaceAlias Ethernet -AddressFamily IPv4).ServerAddresses' | tr -d '\r' | tr '\n' ' ' | sed 's/ $//'; }
 up() { local i; for i in $(seq 1 60); do on "$1" true >/dev/null 2>&1 && return 0; sleep 10; done; return 1; }
 # a captured name is used only when it is a DNS name (letters, digits, dots, hyphens), never as text to run
 dc_fqdn() { F "awk '/^hostname_dc:/ {print \$2}' /opt/fabric/config/vars.yaml" | grep -E '^[A-Za-z0-9.-]+$' || true; }
@@ -275,10 +276,12 @@ if wants move; then
     check "ub26-2 follows it: both addresses, old first, in its DNS drop-in" \
         "L 'grep -qx \"DNS=$FABRIC $MOVED\" /etc/systemd/resolved.conf.d/fabric.conf'"
     W 'gpupdate /target:computer /force | Out-Null' >/dev/null
-    check "ws25-1 follows it: both addresses in DNS Client's policy" \
-        "W \"(Get-ItemProperty 'HKLM:\\Software\\Policies\\Microsoft\\Windows NT\\DNSClient').NameServer\" | grep -q '$FABRIC $MOVED'"
-    check "...and Group Policy Preferences made its scheduled task, on NETLOGON's 5719" \
-        "W \"(Get-ScheduledTask -TaskName 'fabric secure channel').Triggers[0].Subscription\" | grep -q 5719"
+    # its task runs when it is registered: a moment after gpupdate (run 18: the DNS Client policy was ignored, 2.3.1.44)
+    for _ in $(seq 1 12); do [ "$(win_dns)" = "$FABRIC $MOVED" ] && break; sleep 10; done
+    check "ws25-1 follows it: both addresses, old first, on its adapter" \
+        "[ \"\$(win_dns)\" = '$FABRIC $MOVED' ]"
+    check "...by the Group Policy Preferences task, also on NETLOGON's 5719 and every 5 minutes while it is announced" \
+        "W \"(Get-ScheduledTask -TaskName 'fabric secure channel').Triggers | Out-String\" | grep -q 'PT5M'"
     echo "INFO ws25-1's DNS servers as it uses them: $(W 'ipconfig /all' | grep -iA2 'DNS Servers' | tr -s ' \r\n' ' ')"
     # 4.2.4.2 step 2: the netplan file's address, applied by systemd 10 s later, so this session has ended before the
     # address changes under it (a nohup'd apply kept it open: run 5, 2026-11-01, ssh waited on the dead connection for
@@ -310,7 +313,7 @@ if wants move; then
         "L 'grep -qx DNS=$MOVED /etc/systemd/resolved.conf.d/fabric.conf && grep -qx FABRIC_DNS=$MOVED /etc/fabric/managed.env && ! test -e /etc/fabric/managed.next'" || MEMBERS_OK=0
     check "ub26-2: SSSD restarted by it, its KDC file at $MOVED, a person found" \
         "L 'sleep 5; id $PERSON@$AD >/dev/null; grep -qx $MOVED /var/lib/sss/pubconf/kdcinfo.${AD^^}'" || MEMBERS_OK=0
-    # Windows: its task, on NETLOGON's 5719; up to 15 minutes for Netlogon to notice, nothing run by hand
+    # Windows: its task, every 5 minutes and on NETLOGON's 5719; nothing run by hand
     W_OK=0
     for _ in $(seq 1 30); do
         if W 'Test-ComputerSecureChannel' | grep -q True; then W_OK=1; break; fi
@@ -319,8 +322,9 @@ if wants move; then
     echo "INFO ws25-1: 5719s logged: $(W "(Get-WinEvent -FilterHashtable @{LogName='System';ProviderName='NETLOGON';Id=5719} -MaxEvents 5 -ErrorAction SilentlyContinue | Measure-Object).Count"); the task last ran: $(W "(Get-ScheduledTaskInfo -TaskName 'fabric secure channel').LastRunTime")"
     check "ws25-1 has its secure channel, nothing run by hand" "[ $W_OK -eq 1 ]" || MEMBERS_OK=0
     W 'gpupdate /target:computer /force | Out-Null' >/dev/null
-    check "ws25-1's DNS Client policy names the new address alone after the move" \
-        "W \"(Get-ItemProperty 'HKLM:\\Software\\Policies\\Microsoft\\Windows NT\\DNSClient').NameServer\" | tr -d '\r' | grep -qx '$MOVED'" || MEMBERS_OK=0
+    for _ in $(seq 1 12); do [ "$(win_dns)" = "$MOVED" ] && break; sleep 10; done
+    check "ws25-1's adapter names the new address alone after the move, by the task" \
+        "[ \"\$(win_dns)\" = '$MOVED' ]" || MEMBERS_OK=0
     check "the announcement went with the move: move status says none" "F 'fabricctl move status' | grep -q 'no move announced'"
     if [ "$MEMBERS_OK" -eq 0 ]; then    # so the later steps still run: the procedure by hand, reported as the failure above
         echo "INFO a member did not follow by itself: 4.2.4.2 step 5 by hand, so the rest of the run can go on"

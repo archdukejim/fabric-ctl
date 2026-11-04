@@ -1,23 +1,24 @@
 import os
 import subprocess
 
+from fabriclib.common.errors import ValidationError
 from fabriclib.common.paths import INSTALL_DIR
+from fabriclib.directory.run_op import run_op
 from fabriclib.localadmin.record import load_record
 from fabriclib.samba.summarize_roles import summarize_roles
+from fabriclib.secrets.load_secrets import load_secrets
 
 
-def _dc(args):
-    """Purpose: run one samba-tool query inside the running DC.
-    Inputs:  args — list of str after `samba-tool`.
-    Returns: list of str, its output's non-empty lines; [] when the DC is not running or the query fails.
-    Fails:   never (FileNotFoundError without docker is reported as no lines).
+def _facts(v):
+    """Purpose: the DC's roles and password policy (the op roles_and_policy, in samba-tool's words).
+    Inputs:  v — rendered vars.
+    Returns: {"roles": [str], "policy": [str]}; both empty when the DC is not running or cannot be asked.
+    Fails:   never.
     Feeds:   domain_status."""
     try:
-        res = subprocess.run(["docker", "exec", "samba", "samba-tool", *args, "-s", "/data/etc/smb.conf"],
-                             capture_output=True, text=True, timeout=60)
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return []
-    return [line.strip() for line in res.stdout.splitlines() if line.strip()] if res.returncode == 0 else []
+        return run_op(v, load_secrets(), "roles_and_policy")
+    except (ValidationError, OSError, ValueError, subprocess.TimeoutExpired):
+        return {"roles": [], "policy": []}
 
 
 def _ssh_on(config_dir):
@@ -47,9 +48,10 @@ def domain_status(v, config_dir=None):
                                capture_output=True, text=True, timeout=10).stdout.strip()
     except (FileNotFoundError, subprocess.TimeoutExpired):
         state = ""
-    roles = _dc(["fsmo", "show"])
+    facts = _facts(v)
+    roles = facts["roles"]
     return {"domain": v.get("ad_domain"), "realm": v.get("ad_realm"), "netbios": v.get("ad_netbios"),
             "dc": v.get("hostname_dc"), "running": state == "healthy", "roles": roles,
             "role_summary": summarize_roles(roles, v.get("hostname_dc")),
-            "policy": _dc(["domain", "passwordsettings", "show"])[1:],
+            "policy": facts["policy"],
             "local_admin_ssh": _ssh_on(config_dir or os.path.join(INSTALL_DIR, "config"))}

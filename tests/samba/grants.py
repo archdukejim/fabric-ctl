@@ -359,15 +359,15 @@ check("...the Directory Administrators' full control and GPO links on it, nothin
       and "OA;CI;RPWP;f30e3bbe-9ff0-11d1-b603-0000f80367c1" not in ldb("(distinguishedName=" + BASE + ")",
                                                                    "nTSecurityDescriptor"), "sd")
 try:
-    refused = run_op(V, SECRETS, "move_object", {"kind": "machine", "name": SRV, "path": "branch"}, DC)
+    refused = run_op(V, SECRETS, "move_object", {"kind": "machine", "name": SRV, "path": "service-accounts"}, DC)
 except ValidationError as e:
     refused = str(e)
-check("negative: a machine is not moved out of OU=machines' tree while 2.3.8.6 waits on the owner, saying why",
-      "within OU=machines" in str(refused), refused)
+check("negative: a machine is not moved into service-accounts, saying why (2.1.6.106)",
+      "service accounts only" in str(refused), refused)
 made = run_op(V, SECRETS, "create_ou", {"parent": "machines", "name": "branch"}, DC)
-moved = run_op(V, SECRETS, "move_object", {"kind": "machine", "name": SRV, "path": "machines/branch"}, DC)
-check(f"{SRV} moved into an admin's OU, machines/branch", moved.get("changed") and moved.get("path") ==
-      "machines/branch", moved)
+moved = run_op(V, SECRETS, "move_object", {"kind": "machine", "name": SRV, "path": "branch"}, DC)
+check(f"{SRV} moved out of OU=machines into an admin's OU at the domain's root, branch (any OU, 2.1.6.106)",
+      moved.get("changed") and moved.get("path") == "branch", moved)
 kept = within(lambda: allowed(S, "sam", "login") and allowed(S, "sam", "sshd") and not allowed(S, "lara", "sshd"), 90)
 sudo = sudo_list(S, "sam")
 check(f"{SRV} in OU=branch: sam still signs in and keeps sudo, lara (lab's) still may not (the GPOs at the root, "
@@ -388,9 +388,16 @@ made = run_op(V, SECRETS, "create_ou", {"parent": "groups", "name": "teams"}, DC
 made = run_op(V, SECRETS, "create_group", {"name": "team-a", "ou": "groups/teams"}, DC)
 check("Create in...: a group made in groups/teams", "OU=teams,OU=groups," in ldb("(sAMAccountName=team-a)", "dn"),
       made)
-for op, args, words in (("create_machine", {"name": "brws2", "password": PW + "Mc2", "ou": "branch"},
-                         "within OU=machines"),
-                        ("create_group", {"name": "team-b", "ou": "machines/branch"}, "within OU=groups"),
+made = run_op(V, SECRETS, "create_machine", {"name": "brws2", "password": PW + "Mc2", "ou": "branch"}, DC)
+check("Create in...: a machine made outside OU=machines, in branch (any OU, 2.1.6.106)",
+      made.get("dn", "").startswith("CN=BRWS2,OU=branch,DC="), made)
+made = run_op(V, SECRETS, "create_group", {"name": "team-b", "ou": "machines/branch"}, DC)
+check("Create in...: a group made outside OU=groups, in machines/branch (any OU, 2.1.6.106)",
+      "OU=branch,OU=machines," in ldb("(sAMAccountName=team-b)", "dn"), made)
+samba_tool("computer", "delete", "BRWS2")
+samba_tool("group", "delete", "team-b")
+for op, args, words in (("create_machine", {"name": "brws4", "password": PW + "Mc4", "ou": "service-accounts"},
+                         "service accounts only"),
                         ("create_group", {"name": "team-c", "ou": "groups/fabric"}, "closed folders"),
                         ("create_machine", {"name": "brws3", "password": PW + "Mc3", "ou": "machines/nowhere"},
                          "no OU machines/nowhere")):

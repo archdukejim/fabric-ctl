@@ -1,5 +1,6 @@
 from fabriclib.common.errors import ValidationError
 from fabriclib.secrets.constants import VAULT_PATH
+from fabriclib.secrets.held_secrets import forget_secrets
 from fabriclib.vault.common.approle_login import approle_login
 from fabriclib.vault.common.bao_request import bao_request
 from fabriclib.vault.constants import SETUP_CREDS
@@ -23,4 +24,5 @@ def write_vault_secrets(v, secrets, version, token=None):
                                body={"options": {"cas": int(version)}, "data": secrets})
     if status != 200:
         raise ValidationError(f"writing fabric's secrets to OpenBao failed: {data.get('errors') or status}")
+    forget_secrets()
     return int(data["data"]["version"])

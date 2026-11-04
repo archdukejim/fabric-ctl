@@ -31,6 +31,9 @@ PAGES = ["/", "/overview/doctor", "/overview/updates", "/audit", "/dns/zones", "
          "/8021x/decisions", "/8021x/guides", "/secrets", "/federation", "/settings", "/account", "/account/groups"]
 
 
+BUDGET_MS = 924        # decision 2.1.8.35: the slowest page's measured best on the test Pi (739 ms), plus a quarter
+
+
 class Browser:
     """Cookies per host, no redirects followed, TLS verified against fabric's root CA, reaching nginx by its address."""
 
@@ -108,6 +111,7 @@ def main():
     ap.add_argument("--rounds", type=int, default=3)
     ap.add_argument("--json", default="")
     ap.add_argument("--pages", default="", help="a comma-separated list instead of every page")
+    ap.add_argument("--budget", action="store_true", help="fail when a page's best is over BUDGET_MS (2.1.8.35)")
     args = ap.parse_args()
     v = yaml.safe_load(open(args.vars))
     ca = f"{v['deploy_base_dir']}/stepca/data/certs/root_ca.crt"
@@ -130,6 +134,10 @@ def main():
     if args.json:
         with open(args.json, "w") as f:
             json.dump(out, f)
+    over = [p for p, r in out.items() if r["best_ms"] > BUDGET_MS or r["status"] != 200]
+    if args.budget and over:
+        print(f"over the budget of {BUDGET_MS} ms, or not answered: {over}")
+        return 1
     return 0
 
 

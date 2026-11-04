@@ -62,6 +62,8 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `refresh_sudo_hosts.py` | The editor's rules on a host group, and the grants' rules on their computed where group, name its machines' short and DNS names as sudoHost (after a member change, at a compile, at convergence) |
 | `windows_baseline_policy.py` | The site's Windows baseline, linked at OU=machines: wait for the network at log-on, the domain's time, Wired AutoConfig and the 802.1X profile (start-up script) |
 | `directory_scope.py` | Where fabric finds its people and groups, in any OU: one rule (2.1.6.106) |
+| `read_conflicts.py` | The objects AD renamed `CNF:`, in every partition (1.9.8.5) |
+| `roles_and_policy.py` | The domain-wide roles' owners and the password policy, in samba-tool's words, as an operation (2.1.8.35) |
 | `directory_size.py` | How much the directory holds, for the sizing advice (1.8.8.8) |
 | `member_gpo_filter.py` | A GPO at the domain's root every member takes, denied to the DCs and the fabric hosts |
 | `member_dns.py` | The host's coming move: its record, and the GPO naming the DNS servers to Windows members (2.1.1.79) |

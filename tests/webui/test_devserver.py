@@ -4,6 +4,7 @@ memory only, the console's frame and navigation per bundle (manual 1.8.6), and n
 production server."""
 import contextlib
 import http.client
+import importlib.util
 import os
 import re
 import subprocess
@@ -1309,6 +1310,23 @@ with serve():
     # covers: web:post.overview.sizing.dismiss -
     check("negative: dismissing what is not an alert now is refused, saying why", st == 303 and loc == "/"
           and "no sizing alert" in page, (st, loc, page[-800:]))
+with serve():
+    # the regression budget (2.1.8.35): here, what the web process itself adds to each page, with fabric-agent stubbed;
+    # the agent's share is measured on the test Pi (tests/host/page_speed.py --budget)
+    speed = importlib.util.spec_from_file_location(
+        "page_speed", os.path.join(REPO, "tests", "host", "page_speed.py"))
+    page_speed = importlib.util.module_from_spec(speed)
+    speed.loader.exec_module(page_speed)
+    slow = {}
+    for path in page_speed.PAGES:
+        times = []
+        for _ in range(3):
+            began = time.perf_counter()
+            get(path)
+            times.append((time.perf_counter() - began) * 1000)
+        slow[path] = round(min(times))
+    check(f"every page's own time within the budget of {page_speed.BUDGET_MS} ms (slowest here: "
+          f"{max(slow.values())} ms)", max(slow.values()) <= page_speed.BUDGET_MS, slow)
 with serve("fabric-auditor"):
     page = get("/")
     check("an auditor (status:read, no settings:admin): the card, no banner", "<h2>Sizing</h2>" in page

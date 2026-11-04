@@ -10,7 +10,8 @@ CLOSE = {"ram": "add memory to the host",
          "cores": "move the install to a host with more CPU cores",
          "disk": "free space on fabric's data volume, or give it more",
          "dc_memory": "raise samba_mem_limit in the settings, or give the host more memory (manual 1.2.4.3)"}
-WHAT = {"ram": "RAM", "cores": "CPU cores", "disk": "free disk", "dc_memory": "the domain controller's memory limit"}
+WHAT = {"ram": "RAM", "cores": "CPU cores", "disk": "free disk",
+        "dc_memory": "of memory limit for the domain controller"}
 
 
 def objects_of(size):

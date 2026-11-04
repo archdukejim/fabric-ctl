@@ -17,8 +17,8 @@ def machine_overview(v, name, secrets=None, container="samba"):
     Inputs:  v — rendered vars; name — the computer's host name (any case); secrets — fabric's secrets (default:
              load_secrets(), through the reads); container — the DC's container.
     Returns: {"machine": list_machines' row, "grants": reaching_grants' rows, "devices": [{name, type, enabled, macs,
-             roles, vlan}], "choices": {"sites": [names], "groups": [machine groups], "folders": [OU paths under
-             machines]}}.
+             roles, vlan}], "choices": {"sites": [names], "groups": [machine groups], "folders": [OU paths it may go
+             to]}}.
     Fails:   ValidationError "no machine <name> in the domain"; from run_op or grant_request (the DC not reachable).
     Feeds:   agent route GET /v1/machines/<name> (domain:read)."""
     low = str(name or "").lower()

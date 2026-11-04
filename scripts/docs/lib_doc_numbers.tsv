@@ -155,6 +155,7 @@ file	fabricctl-jinja|src/containers/samba/policy_entries.py	52
 file	fabricctl-jinja|src/containers/samba/protect_top_tier.py	97	
 file	fabricctl-jinja|src/containers/samba/pull_sysvol.py	61	
 file	fabricctl-jinja|src/containers/samba/reaching_grants.py	141	
+file	fabricctl-jinja|src/containers/samba/read_conflicts.py	169	
 file	fabricctl-jinja|src/containers/samba/read_dc_names.py	72	
 file	fabricctl-jinja|src/containers/samba/read_devices.py	36	
 file	fabricctl-jinja|src/containers/samba/read_id_blocks.py	62	0.5.0 / 2026-10-05
@@ -182,6 +183,7 @@ file	fabricctl-jinja|src/containers/samba/repair_role_owners.py	74
 file	fabricctl-jinja|src/containers/samba/reset_break_glass.py	101	
 file	fabricctl-jinja|src/containers/samba/reset_break_glass.py (gone 0.7.2 / 2026-10-20)	99	0.7.2 / 2026-10-20
 file	fabricctl-jinja|src/containers/samba/reset_password.py	33	
+file	fabricctl-jinja|src/containers/samba/roles_and_policy.py	170	
 file	fabricctl-jinja|src/containers/samba/root_ca_policy.py	22	
 file	fabricctl-jinja|src/containers/samba/save_device.py	39	
 file	fabricctl-jinja|src/containers/samba/save_role.py	40	
@@ -305,6 +307,7 @@ file	fabriclib-deploy|src/fabriclib/deploy/render_templates.py	22
 file	fabriclib-deploy|src/fabriclib/deploy/render_vars.py	23	
 file	fabriclib-deploy|src/fabriclib/deploy/renew_landing_cert.py	33	
 file	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py	24	
+file	fabriclib-deploy|src/fabriclib/deploy/running_build.py	36	
 file	fabriclib-deploy|src/fabriclib/deploy/service_units.py	25	
 file	fabriclib-deploy|src/fabriclib/deploy/vars_to_save.py	35	
 file	fabriclib-deploy|src/fabriclib/deploy/verify_published_images.py	27	
@@ -373,6 +376,7 @@ file	fabriclib-directory|src/fabriclib/directory/device_overview.py	13
 file	fabriclib-directory|src/fabriclib/directory/ensure_admin.py	3	
 file	fabriclib-directory|src/fabriclib/directory/ensure_default_device_roles.py	14	
 file	fabriclib-directory|src/fabriclib/directory/ensure_top_tier.py	46	0.7.2 / 2026-10-20
+file	fabriclib-directory|src/fabriclib/directory/held_op.py	48	
 file	fabriclib-directory|src/fabriclib/directory/link_device_cert.py	15	
 file	fabriclib-directory|src/fabriclib/directory/list_devices.py	16	
 file	fabriclib-directory|src/fabriclib/directory/list_host_groups.py	36	
@@ -915,6 +919,7 @@ file	fabriclib-samba|src/fabriclib/samba/logon_ou_path.py	30	0.7.2 / 2026-10-19
 file	fabriclib-samba|src/fabriclib/samba/logon_overview.py	31	0.7.2 / 2026-10-19
 file	fabriclib-samba|src/fabriclib/samba/password_meets_policy.py	24	
 file	fabriclib-samba|src/fabriclib/samba/prepare_site.py	16	
+file	fabriclib-samba|src/fabriclib/samba/read_in_dc.py	49	
 file	fabriclib-samba|src/fabriclib/samba/read_policy_changes.py	36	
 file	fabriclib-samba|src/fabriclib/samba/refuse_named_dc.py	39	
 file	fabriclib-samba|src/fabriclib/samba/replication_status.py	19	
@@ -937,6 +942,7 @@ file	fabriclib-samba|src/fabriclib/samba/write_bind_dlz.py	6
 file	fabriclib-secrets|src/fabriclib/secrets/common/read_vault_secrets.py	1	
 file	fabriclib-secrets|src/fabriclib/secrets/common/write_vault_secrets.py	2	
 file	fabriclib-secrets|src/fabriclib/secrets/export_secrets.py	3	
+file	fabriclib-secrets|src/fabriclib/secrets/held_secrets.py	11	
 file	fabriclib-secrets|src/fabriclib/secrets/import_secrets.py	4	
 file	fabriclib-secrets|src/fabriclib/secrets/load_secrets.py	5	
 file	fabriclib-secrets|src/fabriclib/secrets/random_password.py	10	
@@ -1639,8 +1645,16 @@ function	fabricctl-jinja|src/containers/samba/create_ou.py|create_ou	1
 function	fabricctl-jinja|src/containers/samba/create_person.py|create_person	1	
 function	fabricctl-jinja|src/containers/samba/dc_info.py|dc_info	1	
 function	fabricctl-jinja|src/containers/samba/delete_ou.py|delete_ou	1	
+function	fabricctl-jinja|src/containers/samba/directory_op.py|HeldSignIn.__init__	3	
+function	fabricctl-jinja|src/containers/samba/directory_op.py|HeldSignIn.connect	4	
+function	fabricctl-jinja|src/containers/samba/directory_op.py|HeldSignIn.drop	5	
+function	fabricctl-jinja|src/containers/samba/directory_op.py|_answer	9	
+function	fabricctl-jinja|src/containers/samba/directory_op.py|_local	7	
+function	fabricctl-jinja|src/containers/samba/directory_op.py|_stamp	6	
+function	fabricctl-jinja|src/containers/samba/directory_op.py|_tool	8	
 function	fabricctl-jinja|src/containers/samba/directory_op.py|connect	1	
 function	fabricctl-jinja|src/containers/samba/directory_op.py|run	2	
+function	fabricctl-jinja|src/containers/samba/directory_op.py|serve	10	
 function	fabricctl-jinja|src/containers/samba/directory_scope.py|find_groups	5	
 function	fabricctl-jinja|src/containers/samba/directory_scope.py|find_people	4	
 function	fabricctl-jinja|src/containers/samba/directory_scope.py|in_an_ou	1	
@@ -1794,12 +1808,14 @@ function	fabricctl-jinja|src/containers/samba/managed_groups.py|managed_groups	1
 function	fabricctl-jinja|src/containers/samba/may_hold.py|_refused	1	
 function	fabricctl-jinja|src/containers/samba/may_hold.py|kinds_held	3	
 function	fabricctl-jinja|src/containers/samba/may_hold.py|may_hold	2	
+function	fabricctl-jinja|src/containers/samba/member_dns.py|_previous	9	
 function	fabricctl-jinja|src/containers/samba/member_dns.py|_record_dn	2	
 function	fabricctl-jinja|src/containers/samba/member_dns.py|announce	5	
 function	fabricctl-jinja|src/containers/samba/member_dns.py|announced	3	
 function	fabricctl-jinja|src/containers/samba/member_dns.py|ensure_member_dns	7	
 function	fabricctl-jinja|src/containers/samba/member_dns.py|gpo_name	1	
 function	fabricctl-jinja|src/containers/samba/member_dns.py|member_dns_files	6	
+function	fabricctl-jinja|src/containers/samba/member_dns.py|note_previous	8	
 function	fabricctl-jinja|src/containers/samba/member_dns.py|withdraw	4	
 function	fabricctl-jinja|src/containers/samba/member_gpo_filter.py|member_gpo_filter	1	
 function	fabricctl-jinja|src/containers/samba/move_machine.py|move_machine	1	0.9.0 / 2026-11-02
@@ -1850,6 +1866,7 @@ function	fabricctl-jinja|src/containers/samba/pull_sysvol.py|_writable_dc	4	0.7.
 function	fabricctl-jinja|src/containers/samba/pull_sysvol.py|_writable_dcs	7	
 function	fabricctl-jinja|src/containers/samba/pull_sysvol.py|pull_sysvol	5	
 function	fabricctl-jinja|src/containers/samba/reaching_grants.py|reaching_grants	1	
+function	fabricctl-jinja|src/containers/samba/read_conflicts.py|read_conflicts	1	
 function	fabricctl-jinja|src/containers/samba/read_dc_names.py|read_dc_names	1	
 function	fabricctl-jinja|src/containers/samba/read_devices.py|_one	1	
 function	fabricctl-jinja|src/containers/samba/read_devices.py|read_devices	2	
@@ -1888,6 +1905,10 @@ function	fabricctl-jinja|src/containers/samba/reset_break_glass.py|_locked_until
 function	fabricctl-jinja|src/containers/samba/reset_break_glass.py|reset_break_glass	2	
 function	fabricctl-jinja|src/containers/samba/reset_break_glass.py|reset_break_glass (gone 0.7.2 / 2026-10-20)	1	0.7.2 / 2026-10-20
 function	fabricctl-jinja|src/containers/samba/reset_password.py|reset_password	1	
+function	fabricctl-jinja|src/containers/samba/roles_and_policy.py|_days	2	
+function	fabricctl-jinja|src/containers/samba/roles_and_policy.py|_policy	3	
+function	fabricctl-jinja|src/containers/samba/roles_and_policy.py|_roles	1	
+function	fabricctl-jinja|src/containers/samba/roles_and_policy.py|roles_and_policy	4	
 function	fabricctl-jinja|src/containers/samba/root_ca_policy.py|root_ca_policy	1	
 function	fabricctl-jinja|src/containers/samba/save_device.py|_owner_dn	1	
 function	fabricctl-jinja|src/containers/samba/save_device.py|save_device	2	
@@ -2081,6 +2102,9 @@ function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_quiet	1
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_reconfig_bind	5	
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|_roll_out	4	
 function	fabriclib-deploy|src/fabriclib/deploy/restart_changed.py|restart_changed	3	
+function	fabriclib-deploy|src/fabriclib/deploy/running_build.py|_this_build	1	
+function	fabriclib-deploy|src/fabriclib/deploy/running_build.py|build_changed	2	
+function	fabriclib-deploy|src/fabriclib/deploy/running_build.py|record_build	3	
 function	fabriclib-deploy|src/fabriclib/deploy/service_units.py|service_units	1	
 function	fabriclib-deploy|src/fabriclib/deploy/vars_to_save.py|vars_to_save	1	
 function	fabriclib-deploy|src/fabriclib/deploy/verify_published_images.py|verify_published_images	1	
@@ -2166,6 +2190,16 @@ function	fabriclib-directory|src/fabriclib/directory/device_overview.py|device_o
 function	fabriclib-directory|src/fabriclib/directory/ensure_admin.py|ensure_admin	1	
 function	fabriclib-directory|src/fabriclib/directory/ensure_default_device_roles.py|ensure_default_device_roles	1	
 function	fabriclib-directory|src/fabriclib/directory/ensure_top_tier.py|ensure_top_tier	1	0.7.2 / 2026-10-20
+function	fabriclib-directory|src/fabriclib/directory/held_op.py|_give	5	
+function	fabriclib-directory|src/fabriclib/directory/held_op.py|_read_line	6	
+function	fabriclib-directory|src/fabriclib/directory/held_op.py|_spawn	3	
+function	fabriclib-directory|src/fabriclib/directory/held_op.py|_take	4	
+function	fabriclib-directory|src/fabriclib/directory/held_op.py|ask	7	0.9.0 / 2026-11-04
+function	fabriclib-directory|src/fabriclib/directory/held_op.py|ask_tool	8	
+function	fabriclib-directory|src/fabriclib/directory/held_op.py|enable	1	
+function	fabriclib-directory|src/fabriclib/directory/held_op.py|enabled	2	
+function	fabriclib-directory|src/fabriclib/directory/held_op.py|forget	9	
+function	fabriclib-directory|src/fabriclib/directory/held_op.py|send	10	
 function	fabriclib-directory|src/fabriclib/directory/link_device_cert.py|link_device_cert	1	
 function	fabriclib-directory|src/fabriclib/directory/list_devices.py|list_devices	1	
 function	fabriclib-directory|src/fabriclib/directory/list_host_groups.py|list_host_groups	1	
@@ -2187,6 +2221,7 @@ function	fabriclib-directory|src/fabriclib/directory/require_device.py|require_d
 function	fabriclib-directory|src/fabriclib/directory/reset_sign_in.py|reset_sign_in	1	
 function	fabriclib-directory|src/fabriclib/directory/run_machines_command.py|_show	1	
 function	fabriclib-directory|src/fabriclib/directory/run_machines_command.py|run_machines_command	2	
+function	fabriclib-directory|src/fabriclib/directory/run_op.py|_asked	2	
 function	fabriclib-directory|src/fabriclib/directory/run_op.py|run_op	1	
 function	fabriclib-directory|src/fabriclib/directory/run_people_command.py|_options	1	
 function	fabriclib-directory|src/fabriclib/directory/run_people_command.py|_person	2	
@@ -2510,6 +2545,7 @@ function	fabriclib-images|src/fabriclib/images/run_images_command.py|_prune	2
 function	fabriclib-images|src/fabriclib/images/run_images_command.py|_short	1	
 function	fabriclib-images|src/fabriclib/images/run_images_command.py|run_images_command	3	
 function	fabriclib-images|src/fabriclib/images/running_image.py|running_image	1	
+function	fabriclib-images|src/fabriclib/images/running_image.py|running_images	2	
 function	fabriclib-images|src/fabriclib/images/switch_image.py|_apply	1	
 function	fabriclib-images|src/fabriclib/images/switch_image.py|switch_image	2	
 function	fabriclib-images|src/fabriclib/images/update_images.py|update_images	1	
@@ -2847,6 +2883,7 @@ function	fabriclib-pki|src/fabriclib/pki/common/ca_chain_pem.py|ca_chain_pem	1
 function	fabriclib-pki|src/fabriclib/pki/common/ca_files.py|ca_files	1	
 function	fabriclib-pki|src/fabriclib/pki/common/ca_parents_pem.py|ca_parents_pem	1	
 function	fabriclib-pki|src/fabriclib/pki/common/ca_path_len.py|ca_path_len	1	
+function	fabriclib-pki|src/fabriclib/pki/common/cert_dates.py|_read_dates	2	
 function	fabriclib-pki|src/fabriclib/pki/common/cert_dates.py|cert_dates	1	
 function	fabriclib-pki|src/fabriclib/pki/common/cert_names.py|cert_names	1	
 function	fabriclib-pki|src/fabriclib/pki/common/crl_points.py|crl_points	1	
@@ -2942,7 +2979,8 @@ function	fabriclib-samba|src/fabriclib/samba/domain_dc_names.py|domain_dc_names	
 function	fabriclib-samba|src/fabriclib/samba/domain_id_blocks.py|domain_id_blocks	1	0.5.0 / 2026-10-05
 function	fabriclib-samba|src/fabriclib/samba/domain_overview.py|domain_overview	1	
 function	fabriclib-samba|src/fabriclib/samba/domain_sites.py|domain_sites	1	
-function	fabriclib-samba|src/fabriclib/samba/domain_status.py|_dc	1	
+function	fabriclib-samba|src/fabriclib/samba/domain_status.py|_dc	1	0.9.0 / 2026-11-03
+function	fabriclib-samba|src/fabriclib/samba/domain_status.py|_facts	4	
 function	fabriclib-samba|src/fabriclib/samba/domain_status.py|_ssh_on	3	
 function	fabriclib-samba|src/fabriclib/samba/domain_status.py|domain_status	2	
 function	fabriclib-samba|src/fabriclib/samba/finish_join.py|finish_join	1	
@@ -2956,6 +2994,7 @@ function	fabriclib-samba|src/fabriclib/samba/logon_ou_path.py|logon_ou_path	1	0.
 function	fabriclib-samba|src/fabriclib/samba/logon_overview.py|logon_overview	1	0.7.2 / 2026-10-19
 function	fabriclib-samba|src/fabriclib/samba/password_meets_policy.py|password_meets_policy	1	
 function	fabriclib-samba|src/fabriclib/samba/prepare_site.py|prepare_site	1	
+function	fabriclib-samba|src/fabriclib/samba/read_in_dc.py|read_in_dc	1	
 function	fabriclib-samba|src/fabriclib/samba/read_policy_changes.py|read_policy_changes	1	
 function	fabriclib-samba|src/fabriclib/samba/refuse_named_dc.py|refuse_named_dc	1	
 function	fabriclib-samba|src/fabriclib/samba/replication_status.py|replication_status	1	
@@ -2985,6 +3024,9 @@ function	fabriclib-samba|src/fabriclib/samba/write_bind_dlz.py|write_bind_dlz	1
 function	fabriclib-secrets|src/fabriclib/secrets/common/read_vault_secrets.py|read_vault_secrets	1	
 function	fabriclib-secrets|src/fabriclib/secrets/common/write_vault_secrets.py|write_vault_secrets	1	
 function	fabriclib-secrets|src/fabriclib/secrets/export_secrets.py|export_secrets	1	
+function	fabriclib-secrets|src/fabriclib/secrets/held_secrets.py|forget_secrets	2	
+function	fabriclib-secrets|src/fabriclib/secrets/held_secrets.py|held_read	3	
+function	fabriclib-secrets|src/fabriclib/secrets/held_secrets.py|hold_secrets	1	
 function	fabriclib-secrets|src/fabriclib/secrets/import_secrets.py|_shred	1	
 function	fabriclib-secrets|src/fabriclib/secrets/import_secrets.py|import_secrets	2	
 function	fabriclib-secrets|src/fabriclib/secrets/load_secrets.py|load_secrets	1	
@@ -3320,6 +3362,7 @@ function	fabriclib-system|src/fabriclib/system/plan_memory.py|_weight	4
 function	fabriclib-system|src/fabriclib/system/plan_memory.py|plan_memory	5	
 function	fabriclib-system|src/fabriclib/system/relaxed_settings.py|relaxed_settings	1	
 function	fabriclib-system|src/fabriclib/system/render_template_file.py|render_template_file	1	
+function	fabriclib-system|src/fabriclib/system/service_status.py|_active	3	
 function	fabriclib-system|src/fabriclib/system/service_status.py|_health	1	
 function	fabriclib-system|src/fabriclib/system/service_status.py|service_status	2	
 function	fabriclib-system|src/fabriclib/system/show_memory_plan.py|show_memory_plan	1	

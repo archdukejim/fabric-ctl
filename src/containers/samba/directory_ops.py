@@ -16,6 +16,7 @@ from get_person import get_person
 from group_scope import group_scope
 from link_device_cert import link_device_cert
 from directory_size import directory_size
+from roles_and_policy import roles_and_policy
 from list_groups import list_groups
 from list_host_groups import list_host_groups
 from list_machines import list_machines
@@ -74,6 +75,7 @@ OPS = {
     "group_scope": group_scope,
     "link_device_cert": link_device_cert,
     "directory_size": directory_size,
+    "roles_and_policy": roles_and_policy,
     "list_groups": list_groups,
     "list_host_groups": list_host_groups,
     "list_machines": list_machines,

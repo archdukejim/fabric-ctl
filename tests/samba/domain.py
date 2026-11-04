@@ -64,6 +64,8 @@ import fabriclib.samba.domain_dc_names as m_dcnames  # noqa: E402
 import fabriclib.samba.domain_sites as m_dsites  # noqa: E402
 import fabriclib.samba.site_tree_records as m_tree  # noqa: E402
 import fabriclib.samba.replication_status as m_repl  # noqa: E402
+import fabriclib.samba.read_in_dc as m_readin  # noqa: E402
+import fabriclib.samba.gpo_request as m_gporeq  # noqa: E402
 import fabriclib.federation.accept_join as m_join  # noqa: E402
 from fabriclib.breakglass.ensure_enterprise_admin import ensure_enterprise_admin  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
@@ -98,7 +100,7 @@ def redirect(module):
     module.subprocess = types.SimpleNamespace(run=run, TimeoutExpired=subprocess.TimeoutExpired)
 
 
-for mod in (m_runop, m_greq, m_dcnames, m_dsites, m_tree, m_repl):
+for mod in (m_runop, m_greq, m_dcnames, m_dsites, m_tree, m_repl, m_readin, m_gporeq):
     redirect(mod)
 
 
@@ -625,7 +627,7 @@ m_domain.post_domain(["machines", "srv1", "move"], "alice", {"path": "machines/s
 m_groups.post_groups(["groups", "lab-people", "move"], "alice", {"path": "groups"}, "alice", None)
 gone, why = refused(m_people.post_people, ["people", "bob", "move"], "alice", {"path": ""}, "alice", None)
 check("refused: a move to the domain's root itself, which is not an OU", gone, why)
-m_ous.post_ous(["ous", "delete"], "alice", {"path": "elsewhere"})
+m_ous.post_ous(["ous", "delete"], "alice", {"ou": "elsewhere"})
 m_ous.post_ous(["ous"], "alice", {"parent": "groups", "name": "crew"})
 done = m_groups.post_groups(["groups", "lab-people", "move"], "alice", {"path": "groups/crew"}, "alice",
                             {"groups:admin", "ous:admin"})
@@ -737,14 +739,14 @@ reaching = {g["name"]: g for g in page["grants"]}
 # covers: agent:get.machines.* +
 check("GET /v1/machines/SRV1 (any case): its row; the grants that reach it, each with what it gives there (lan-servers: "
       "the help desk's machines rights; server-administrators: sign-in, sudo, local administrator); the choices of "
-      "its actions (sites, folders under machines)", page["machine"]["name"] == "srv1"
+      "its actions (sites, every OU it may go to, 2.1.6.106)", page["machine"]["name"] == "srv1"
       and reaching.get("lan-servers", {}).get("rights", {}).get("machines") == ["move", "disable", "groups", "add"]
       and reaching["lan-servers"]["who"] == ["helpdesk-lan"]
       and reaching.get("server-administrators", {}).get("rights", {}).get("local_admin") is True
       and reaching.get("lan-helpdesk", {}).get("rights", {}).get("machines") == []
       and "lan" in page["choices"]["sites"]
       and {"machines", "machines/servers", "machines/servers/web"} <= set(page["choices"]["folders"])
-      and "people" not in page["choices"]["folders"] and page["devices"] == [], page)
+      and "people" in page["choices"]["folders"] and page["devices"] == [], page)
 for name in ("nomachine", DC):
     gone, why = refused(m_get.get_route, ["machines", name], "alice")
     # covers: agent:get.machines.* -
@@ -1416,6 +1418,129 @@ check("negative: a console whose certificate is not from fabric's root is down, 
       not down[0] and "did not verify" in down[1], down)
 good.shutdown()
 other.shutdown()
+
+# ---- the held process (manual 1.8.8.2, decision 2.1.8.35): the same answers, however asked
+from fabriclib.directory import held_op  # noqa: E402
+from fabriclib.images.running_image import running_images  # noqa: E402
+from fabriclib.samba.read_in_dc import read_in_dc  # noqa: E402
+from fabriclib.system.service_status import _health  # noqa: E402
+
+HELD = ["pgrep", "-fc", "directory_op.py --serve"]
+
+
+def held_count():
+    return int(sh(["docker", "exec", DC, *HELD], ok=False).stdout.strip() or 0)
+
+
+def lines(*args):
+    out = sh(["docker", "exec", DC, "samba-tool", *args, "-s", "/data/etc/smb.conf"]).stdout
+    return [ln.strip() for ln in out.splitlines() if ln.strip()]
+
+
+sh(["docker", "exec", "-i", DC, "ldbadd", "-H", "/data/private/sam.ldb", "--controls=relax:0"],
+   input=f"dn: OU=held CNF:1,{BASE}\nobjectClass: organizationalUnit\n", ok=False)
+by_tool = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "(name=*CNF:*)", "dn"], ok=False).stdout
+READS = ("read_site_tree", "read_sites", "read_replication", "read_dc_names", "read_conflicts")
+alone = {r: read_in_dc(DC, r) for r in READS}
+check("read_conflicts.py: at least what the ldbsearch it replaces finds, one of them made here (it also looks in "
+      "Configuration, 2.3.1.45)", f"OU=held CNF:1,{BASE}" in by_tool and {
+          ln[4:] for ln in by_tool.splitlines() if ln.startswith("dn: ")} <= set(alone["read_conflicts"]["conflicts"]),
+      (by_tool, alone["read_conflicts"]))
+sh(["docker", "exec", DC, "ldbdel", "-H", "/data/private/sam.ldb", f"OU=held CNF:1,{BASE}"], ok=False)
+alone["read_conflicts"] = read_in_dc(DC, "read_conflicts")
+tools = {"list": m_greq.grant_request(V, {"op": "list"}, DC), "reaching": m_greq.grant_request(
+    V, {"op": "reaching", "machine": "srv1"}, DC), "templates": m_gporeq.gpo_request({"op": "templates"}, DC)}
+people = m_runop.run_op(V, SECRETS, "list_people", container=DC)
+facts = m_runop.run_op(V, SECRETS, "roles_and_policy", container=DC)
+check("roles_and_policy: the roles' owners in samba-tool fsmo show's words, line for line",
+      facts["roles"] == lines("fsmo", "show"), (facts["roles"], lines("fsmo", "show")))
+check("roles_and_policy: the password policy in samba-tool domain passwordsettings show's words, line for line",
+      facts["policy"] == lines("domain", "passwordsettings", "show")[1:], facts["policy"])
+real_enabled = held_op.enabled()
+held_op.enable()
+check("through a held process: the same people as a process of its own",
+      m_runop.run_op(V, SECRETS, "list_people", container=DC) == people)
+check("through a held process: the same domain facts", m_runop.run_op(V, SECRETS, "roles_and_policy", container=DC) == facts)
+for name in READS:
+    check(f"through a held process: {name} gives what the script gives alone", read_in_dc(DC, name) == alone[name])
+check("one process is held after one request at a time", held_count() == 1, held_count())
+check("through a held process: grants_tool's list and reaching give what the script gives",
+      m_greq.grant_request(V, {"op": "list"}, DC) == tools["list"]
+      and m_greq.grant_request(V, {"op": "reaching", "machine": "srv1"}, DC) == tools["reaching"])
+check("through a held process: gpo_tool's templates give what the script gives",
+      m_gporeq.gpo_request({"op": "templates"}, DC) == tools["templates"])
+_, why = refused(m_greq.grant_request, V, {"op": "show", "name": "no-such-grant"}, DC)
+check("negative: through a held process, a tool's own refusal comes word for word", "no grant no-such-grant" in why, why)
+check("negative: a held process runs only the tools it names",
+      "unknown tool" in held_op.ask_tool(DC, "converge", {}).get("error", ""))
+_, why = refused(m_runop.run_op, dict(V, site_name=V["site_name"]), dict(SECRETS, ad_agent_password="not-it"), "list_people",
+              container=DC)
+check("negative: through a held process, a wrong password is refused", "refused" in why or "reachable" not in why, why)
+check("the wrong password's refusal left the right one working",
+      m_runop.run_op(V, SECRETS, "list_people", container=DC) == people)
+_, why = refused(m_runop.run_op, V, SECRETS, "no_such_op", container=DC)
+check("negative: through a held process, an unknown operation is refused, saying so", "unknown directory" in why, why)
+try:
+    read_in_dc(DC, "converge")
+    why = "allowed"
+except ValueError as e:
+    why = str(e)
+check("negative: a held process runs only the reads it names", "unknown read" in why, why)
+_, why = refused(m_runop.run_op, V, SECRETS, "delete_ou", {"path": ""}, container=DC)
+check("negative: an operation's own refusal comes through word for word and the process stays",
+      "an OU's path" in why and held_count() >= 1, why)
+results = []
+threads = [threading.Thread(target=lambda: results.append(m_runop.run_op(V, SECRETS, "list_people", container=DC)))
+           for _ in range(5)]
+for t in threads:
+    t.start()
+for t in threads:
+    t.join()
+check("five asking at once all answered, by at most two processes",
+      results == [people] * 5 and held_count() <= held_op.MAX_HELD, (len(results), held_count()))
+sh(["docker", "exec", DC, "pkill", "-f", "directory_op.py --serve"], ok=False)
+time.sleep(1)
+check("a held process that was killed is replaced before it is asked",
+      m_runop.run_op(V, SECRETS, "list_people", container=DC) == people and held_count() >= 1, held_count())
+source = sh(["docker", "inspect", "-f", '{{range .Mounts}}{{if eq .Destination "/fabric"}}{{.Source}}{{end}}{{end}}',
+             DC]).stdout.strip()
+os.utime(os.path.join(source, "directory_op.py"))
+check("files replaced (an update): the old process does nothing and a new one answers",
+      m_runop.run_op(V, SECRETS, "list_people", container=DC) == people and held_count() <= held_op.MAX_HELD,
+      held_count())
+held_op.forget(DC)
+time.sleep(1)
+check("the agent's end closes stdin, and the process in the DC ends with it", held_count() == 0, held_count())
+real_spawn, held_op._spawn = held_op._spawn, (lambda c: subprocess.Popen(
+    ["docker", "exec", "-i", c, "python3", "-c", "import sys; sys.stdin.readline()"],
+    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL))
+_, why = refused(m_runop.run_op, V, SECRETS, "list_people", container=DC)
+check("negative: a process that ends without answering: the directory is not reachable, saying so", "not reachable" in why,
+      why)
+held_op._spawn = real_spawn
+held_op.forget(DC)
+idle = subprocess.Popen(["docker", "exec", "-i", DC, "python3", "-c", "import sys; sys.path.insert(0, '/fabric'); "
+                         "import directory_op as d; d.IDLE_SECONDS = 1; d.serve()"], stdin=subprocess.PIPE,
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+try:
+    idle.wait(30)
+    ended = True
+except subprocess.TimeoutExpired:
+    ended = False
+    idle.kill()
+check("a held process nobody asks ends by itself and gives its memory back", ended)
+if not real_enabled:
+    held_op._enabled = False
+
+# ---- what became one call
+one = sh(["docker", "inspect", "-f", "{{.State.Health.Status}}", DC], ok=False).stdout.strip()
+health = _health([DC, "fabric-no-such-container"])
+check("the services' health in one call: this DC's as one call for it says, a missing container said to be missing",
+      health == {DC: one or "no container", "fabric-no-such-container": "no container"}, health)
+image = sh(["docker", "inspect", "-f", "{{.Config.Image}}", DC]).stdout.strip()
+check("the images in one call: this DC's; a missing container absent; a local build not asked",
+      running_images([{"container": DC, "build": ""}, {"container": "fabric-no-such-container", "build": ""},
+                      {"container": "other", "build": "x"}]) == {DC: image})
 
 if not os.environ.get("FABRIC_TEST_KEEP"):
     cleanup()
