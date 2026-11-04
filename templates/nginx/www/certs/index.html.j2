@@ -190,6 +190,11 @@ crypto pki authenticate {{ domain_file | upper }}-ROOT
 <span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --user &lt;directory admin&gt;
 <span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --one-time     <span style="color:var(--muted)"># a pre-created machine</span>
 <span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --user &lt;directory admin&gt; --site &lt;site&gt; --name &lt;name&gt;</code></pre>
+      <p>A machine joined before 0.9.1 should have its <code>fabric-managed</code> refreshed once: its own copy can remove
+      fabric's DNS when one search fails, leaving it off the domain. This also brings back one that already lost it, which
+      is why it fetches by address, and changes nothing unless the DC answers:</p>
+      <pre><code><span class="cmd">sudo curl</span> -fsS --cacert /usr/local/share/ca-certificates/fabric-root-ca.crt --resolve {{ hostname_landing }}:443:{{ host_ip }} https://{{ hostname_landing }}/certs/join-linux.sh -o join-linux.sh
+<span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --refresh</code></pre>
     </div>
 
     <div class="card" id="join-windows">

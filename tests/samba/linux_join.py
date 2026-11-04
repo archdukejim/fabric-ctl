@@ -219,10 +219,12 @@ def checks(box, release, desktop=False):
 # 24.04: a wrong fingerprint refused, a type it does not take refused, then a join with an admin's password
 box, ok = client("24.04", RELEASES["24.04"])
 check("24.04: the client container is ready", ok)
+# covers: join:--user +-
 code, out = on(box, f"bash /root/join-linux.sh {'00' * 32} --user adam", stdin=PW + "\n")
 gone, _ = on(box, "test ! -e /usr/local/share/ca-certificates/fabric-root-ca.crt && ! dpkg -s adcli >/dev/null 2>&1")
 check("24.04: a wrong root-CA fingerprint is refused and nothing is trusted or installed",
       code != 0 and "not trusting it" in out and gone == 0, out)
+# covers: join:--type +-
 code, out = on(box, f"bash /root/join-linux.sh {fp} --user adam --type network", stdin=PW + "\n")
 gone, _ = on(box, "! dpkg -s adcli >/dev/null 2>&1")
 check("24.04: refused: --type network (a network machine is pre-created), saying so, before anything is installed",
@@ -323,6 +325,7 @@ check("negative: 24.04: fabric-keytab without sudo refused", code != 0 and "run 
 box, ok = client("26.04", RELEASES["26.04"])
 check("26.04: the client container is ready (ubuntu:26.04)", ok)
 one_time = m_add_machine.add_machine(V, "test", RELEASES["26.04"], secrets=SECRETS, container=DC, type="server")
+# covers: join:--one-time +
 code, out = on(box, f"bash /root/join-linux.sh {fp} --one-time", stdin=one_time + "\n")
 check("26.04: joins with a one-time join password, no admin password on the machine", code == 0 and "joined" in out,
       out)
@@ -359,6 +362,69 @@ check("negative, 26.04: the DC's LDAP not answering removes nothing, and says so
 code, out = on(box, "fabric-managed check; echo rc=$?; cat /etc/systemd/resolved.conf.d/fabric.conf")
 check("26.04: answered again, the check goes on keeping the configuration",
       "rc=0" in out and "did not answer" not in out and f"DNS={V['host_ip']}" in out, out)
+
+# --refresh (decision 2.1.1.84, manual 1.6.11.15): this member given the 0.8.0 script itself, as a member joined then has it
+sh(["docker", "cp", os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "fabric-managed-0.8.0"),
+    f"{box}:/root/fabric-managed-old"])
+OLD = "install -m 0755 /root/fabric-managed-old /usr/local/sbin/fabric-managed; "
+IS_OLD = "cmp /root/fabric-managed-old /usr/local/sbin/fabric-managed && echo still-old; "
+DROP = "/etc/systemd/resolved.conf.d/fabric.conf"
+LEFT = "echo left=$(ls -d /usr/local/sbin/.fabric-refresh* 2>/dev/null | wc -l); "
+
+
+def refresh(before="", args=None, after=""):
+    return on(box, before + f"bash /root/join-linux.sh {args or fp + ' --refresh'}; echo rc=$?; " + after)
+
+
+# covers: join:--refresh +-
+code, out = refresh(OLD, after=f"grep -c 'flock 9' /usr/local/sbin/fabric-managed; cat {DROP}; " + LEFT)
+check("--refresh: a member on the 0.8.0 script gets this build's, keeps its configuration, leaves nothing behind",
+      "rc=0" in out and "refreshed to this build's" in out and "in fabric-managed, its configuration applied" in out
+      and "\n1\n" in out and f"DNS={V['host_ip']}" in out and "left=0" in out, out)
+code, out = refresh()
+check("--refresh again: the same result, saying so", "rc=0" in out and "already this build's" in out, out)
+code, out = refresh(OLD + "fabric-managed remove; ", after=f"cat {DROP}; fabric-managed check; echo rc2=$?")
+check("--refresh: a member the old script cut off (its DNS removed) gets it back, and its check then keeps it",
+      "rc=0" in out and "refreshed to this build's" in out and f"DNS={V['host_ip']}" in out and "rc2=0" in out, out)
+t0 = time.time()
+code, out = on(box, f"flock /run/fabric-managed.lock sleep 4 & sleep 0.5; bash /root/join-linux.sh {fp} --refresh; echo rc=$?; wait")
+check("--refresh waits for a run holding the lock", "rc=0" in out and time.time() - t0 >= 3, out)
+sh(["docker", "exec", DC, "samba-tool", "group", "removemembers", "fabric-managed", f"{RELEASES['26.04'].upper()}$",
+    "--configfile=/data/etc/smb.conf"])
+code, out = refresh(OLD, after=f"ls {DROP} 2>&1")
+check("--refresh: really taken out of fabric-managed: refreshed, and the configuration goes, as the hourly check would",
+      "rc=0" in out and "not in fabric-managed" in out and "No such file" in out, out)
+sh(["docker", "exec", DC, "samba-tool", "group", "addmembers", "fabric-managed", f"{RELEASES['26.04'].upper()}$",
+    "--configfile=/data/etc/smb.conf"])
+on(box, "fabric-managed apply")
+
+# what may not change it: each from the old script, and it must still be the old script
+code, out = refresh(OLD, args=f"{'00' * 32} --refresh", after=IS_OLD)
+check("negative: --refresh with a fingerprint other than the root CA it trusts: refused, naming both, nothing changed",
+      "rc=1" in out and "not the fingerprint given" in out and "still-old" in out, out)
+code, out = refresh(OLD, args=f"{fp} --refresh --user adam", after=IS_OLD)
+check("negative: --refresh with another argument: refused, saying so, nothing changed",
+      "rc=1" in out and "takes nothing but the fingerprint" in out and "still-old" in out, out)
+code, out = refresh(OLD + "sed -i 's/^REALM=.*/REALM=OTHER.TEST/' /etc/fabric/managed.env; ", after=IS_OLD
+                    + f"sed -i 's/^REALM=.*/REALM={V['ad_realm']}/' /etc/fabric/managed.env")
+check("negative: --refresh on a machine of another realm: refused, nothing changed",
+      "rc=1" in out and "joined to OTHER.TEST" in out and "still-old" in out, out)
+code, out = refresh(OLD + "mv /etc/fabric/managed.env /root/env.kept; ", after=IS_OLD + "mv /root/env.kept /etc/fabric/managed.env")
+check("negative: --refresh on a machine with no settings (not joined): refused, nothing changed",
+      "rc=1" in out and "not joined" in out and "still-old" in out, out)
+BAD_DC = "cp /etc/fabric/managed.env /root/env.kept; sed -i 's/^DC=.*/DC=nothing-here.invalid/' /etc/fabric/managed.env; "
+BACK = "cmp /etc/fabric/managed.env /root/env.bad && echo env-as-it-was; cp /root/env.kept /etc/fabric/managed.env; "
+code, out = refresh(OLD + BAD_DC + "cp /etc/fabric/managed.env /root/env.bad; ", after=IS_OLD + BACK + f"cat {DROP}; " + LEFT)
+check("negative: --refresh with the DC not answering: refused, the old script, its settings and its DNS as they were",
+      "rc=1" in out and "did not answer as this machine" in out and "as it was" in out and "still-old" in out
+      and "env-as-it-was" in out and f"DNS={V['host_ip']}" in out and "left=0" in out, out)
+code, out = refresh(OLD + "fabric-managed remove; " + BAD_DC + "cp /etc/fabric/managed.env /root/env.bad; ",
+                    after=IS_OLD + BACK + f"ls {DROP} 2>&1; ls /etc/ssh/sshd_config.d/10-fabric.conf 2>&1")
+check("negative: --refresh, cut off and the DC not answering: refused, and still as it was: no DNS applied and left behind",
+      "rc=1" in out and "still-old" in out and "env-as-it-was" in out and out.count("No such file") == 2, out)
+code, out = refresh(after=f"grep -c 'flock 9' /usr/local/sbin/fabric-managed; cat {DROP}")
+check("--refresh once the DC answers again: done, so a refused refresh can simply be repeated",
+      "rc=0" in out and "refreshed to this build's" in out and f"DNS={V['host_ip']}" in out, out)
 
 # the host's coming move (decision 2.1.1.79, manual 1.4.1.8.7): the command against the real DC, this real member
 # following over LDAP as itself. A real address change, and all of Windows, are the lab's (2.3.8.8): not proven here
@@ -556,9 +622,11 @@ for release in ("debian-12", "debian-13"):
     box_d, ok = client(release, RELEASES[release])
     check(f"{release}: the client container is ready ({IMAGES[release]})", ok)
     if release == "debian-12":
+        # covers: join:--site -
         code, out = on(box_d, f"bash /root/join-linux.sh {fp} --user adam --site nosuch", stdin=PW + "\n")
         check(f"{release}: refused: a site the domain does not have (no DC record names it), not joined",
               code != 0 and "no site nosuch" in out and on(box_d, "test -e /etc/krb5.keytab")[0] != 0, out[-400:])
+    # covers: join:--unmanaged +
     flag = " --unmanaged" if release == "debian-12" else " --type desktop"
     code, out = on(box_d, f"bash /root/join-linux.sh {fp} --user adam{flag}", stdin=PW + "\n")
     check(f"{release}: joins with an admin's password{flag} (sudo installed with it: Debian has none)",

@@ -263,6 +263,11 @@ cli:sso.remove -
 cli:start -
 cli:stop -
 cli:vault.add-usb +
+join:--name +
+join:--name -
+join:--one-time -
+join:--site +
+join:--unmanaged -
 setting:ad_base_dn +
 setting:ad_base_dn -
 setting:ad_dc_type -

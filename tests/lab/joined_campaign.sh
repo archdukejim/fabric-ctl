@@ -14,6 +14,7 @@
 #   join     fabric at the floor (FROM_DEB, 0.8.0 until 1.0: 2.1.1.61) with tests/lab/joined_vars.yaml; ub26-2 and
 #            ws25-1 joined with one-time passwords, piped from add-machine's output to the member (never an argument)
 #   upgrade  TO_DEB installed over it, then setup unattended, as an operator upgrades
+#   move     ub26-2's floor script refreshed first (4.6.6.12, 2.1.1.84), with its refusals, then 4.2.4.2
 #   place    ub26-2 and ws25-1 moved into an admin's OU at the domain's root (1.8.8.5, 2.1.6.106; 2.3.8.6: anywhere):
 #            the person's access check, sudo, Windows' fabric GPOs and local Administrators the
 #            same as before the move; the later steps then run with them there
@@ -263,9 +264,46 @@ only_new() {   # $1 the step; $2 the host's name now
 }
 if wants move; then
     echo "=== move: $FABRIC to $MOVED (4.2.4.2)"
-    # the members joined at the floor keep the floor's script (2.1.1.81); this run stands in for a join from this build
-    # by installing this build's fabric-managed on ub26-2, so what is tested is what a new member has
-    L "wget -qO- http://$FABRIC/certs/join-linux.sh | sed -n \"/^cat > \/usr\/local\/sbin\/fabric-managed <<'MANAGED'\$/,/^MANAGED\$/p\" | sed '1d;\$d' > /usr/local/sbin/fabric-managed.new && [ -s /usr/local/sbin/fabric-managed.new ] && chmod 0755 /usr/local/sbin/fabric-managed.new && mv /usr/local/sbin/fabric-managed.new /usr/local/sbin/fabric-managed"
+    # ub26-2 was really joined by the floor's script: refreshed by the operators' procedure 4.6.6.12 (2.1.1.84)
+    fp=$(F "openssl x509 -noout -fingerprint -sha256 -in /opt/stepca/data/certs/root_ca.crt | cut -d= -f2")
+    [[ "$fp" =~ ^([0-9A-F]{2}:){31}[0-9A-F]{2}$ ]] || stop "no root CA fingerprint from the fabric VM"
+    FM=/usr/local/sbin/fabric-managed; DROPIN=/etc/systemd/resolved.conf.d/fabric.conf
+    # only the sums: sudo's own warning comes and goes while resolved restarts (2.3.1.42); a file gone drops its line
+    sums() { L "sha256sum $FM $DROPIN /etc/fabric/managed.env /etc/ssh/sshd_config.d/10-fabric.conf 2>/dev/null" | grep -E '^[0-9a-f]{64} '; }
+    floor_script() { L "grep -c 'flock 9' $FM" | grep -qx 0; }
+    check "4.6.6.12 step 1: ub26-2 still has the floor's script, as step 1 tells" floor_script
+    # the one fetch of 4.6.6.12: HTTPS, the root it trusts, by address (a member cut off has no name for fabric)
+    GET="curl -fsS --cacert /usr/local/share/ca-certificates/fabric-root-ca.crt --resolve info.$DOMAIN:443:$FABRIC https://info.$DOMAIN/certs/join-linux.sh -o /root/join-linux.sh"
+    check "4.6.6.12 step 2: the installer fetched by HTTPS at fabric's address, verified by the root the member trusts" "L '$GET'"
+    check "negative: the same fetch against a root it does not trust: refused" \
+        "L 'openssl req -x509 -newkey rsa:2048 -nodes -keyout /dev/null -subj /CN=other -days 1 -out /tmp/other.pem 2>/dev/null; ! curl -fsS --cacert /tmp/other.pem --resolve info.$DOMAIN:443:$FABRIC https://info.$DOMAIN/certs/join-linux.sh -o /dev/null 2>/dev/null'"
+    check "the certificates page shows the refresh, with the fetch by address"         "L 'wget -qO- http://$FABRIC/certs/' | grep -q -- '--resolve info.$DOMAIN:443:$FABRIC'"
+    was=$(sums)
+    check "negative: --refresh, a fingerprint it does not trust: refused, nothing changed" \
+        "L 'bash /root/join-linux.sh $(printf '0%.0s' {1..64}) --refresh' 2>&1 | grep -q 'not the fingerprint given' && [ \"\$(sums)\" = \"\$was\" ]"
+    L "cp /etc/fabric/managed.env /root/env.kept; sed -i 's/^DC=.*/DC=nothing-here.invalid/' /etc/fabric/managed.env" >/dev/null
+    was_bad=$(sums)
+    check "negative: --refresh, the DC not answering: refused, and script, settings and DNS as they were" \
+        "L 'bash /root/join-linux.sh $fp --refresh' 2>&1 | grep -q 'as it was' && [ \"\$(sums)\" = \"\$was_bad\" ]"
+    L "cp /root/env.kept /etc/fabric/managed.env" >/dev/null
+    check "...and the floor's script still there, its timer running" \
+        "floor_script && L 'systemctl is-active --quiet fabric-managed.timer'"
+    # what the floor's fault leaves: its own remove, as run 19's ub26-2 did to itself (2.3.1.47)
+    dc=$(dc_fqdn)
+    L "$FM remove; systemctl try-restart systemd-resolved; resolvectl flush-caches" >/dev/null
+    check "the floor's fault reproduced: ub26-2 has no drop-in, and the DC's name does not resolve" \
+        "! L 'test -e $DROPIN' && ! L 'resolvectl query $dc' >/dev/null 2>&1"
+    # a check running: the refresh has to wait it out (its service made to take 15 s; a floor script has no lock)
+    L "mkdir -p /etc/systemd/system/fabric-managed.service.d; printf '[Service]\nExecStartPre=/bin/sleep 15\n' > /etc/systemd/system/fabric-managed.service.d/lab-slow.conf; systemctl daemon-reload; systemctl start --no-block fabric-managed.service" >/dev/null
+    out=$(L "$GET; bash /root/join-linux.sh $fp --refresh" 2>&1); printf '%s\n' "$out" | sed 's/^/    /'
+    L "rm -rf /etc/systemd/system/fabric-managed.service.d; systemctl daemon-reload" >/dev/null
+    check "4.6.6.12 step 3: --refresh on the cut-off member: waited for the running check, refreshed, in fabric-managed" \
+        "printf '%s' \"\$out\" | grep -q 'waiting for a running check' && printf '%s' \"\$out\" | grep -q \"refreshed to this build's\" && printf '%s' \"\$out\" | grep -q 'in fabric-managed, its configuration applied'"
+    check "...its timer running again, nothing left behind" \
+        "L 'systemctl is-active --quiet fabric-managed.timer; ! ls -d /usr/local/sbin/.fabric-refresh* 2>/dev/null'"
+    client_check "a refresh"
+    check "--refresh again: the same result, saying so" \
+        "L 'bash /root/join-linux.sh $fp --refresh' | grep -q \"already this build's\""
     check "ub26-2 has this build's fabric-managed (it follows an announcement)" "L 'grep -q managed.next /usr/local/sbin/fabric-managed'"
     # step 1a (2.1.1.79, 1.4.1.8.7): announced first, then the members told, each as its own timer would
     check "negative: move prepare refuses the host's own address, saying why" \
