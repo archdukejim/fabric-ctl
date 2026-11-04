@@ -15,6 +15,7 @@ Helpers shared by the DNS filter's files (manual [1.12.2](../../../../docs/volum
 | `adguard_desired.py` | What AdGuard should hold, from the vars: lists, rules, groups, upstreams |
 | `resolver_paths.py` | The resolver's folders and files under the deploy base |
 | `dnslog_psql.py` | SQL for the query log through psql in the Postgres container (local socket, SQL on stdin) |
+| `own_clients.py` | fabric's own clients of the resolver (its network, the host, loopback): hidden from the query log by default (2.1.12.12) |
 | `query_log_off.py` | Why the query log is off (no resolver, no Postgres), or None |
 | `read_dnslog.py` | One read of the query log as the timer left it (never an ingest, 2.1.12.10), with when the timer last ran |
 | `resolver_rndc.py` | Run rndc in the resolver's container, with its own control key |

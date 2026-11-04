@@ -275,6 +275,37 @@ with serve():
     st, loc, page = post("/dns-filter/rules", {"kind": "block", "name": "www.wikipedia.org", "back": "querylog"})
     check("DNS filter: Block from the query log -> back there, listed in the rules",
           st == 303 and "view=querylog" in loc and "www.wikipedia.org" in get("/dns-filter?view=rules"), loc)
+    # fabric's own queries (2.1.12.12): hidden by default, the box shows them and stays ticked
+    hidden = get("/dns-filter?view=querylog")
+    shown = get("/dns-filter?view=querylog&own=on")
+    check("DNS filter: the query log hides fabric's own (the DC's lookup from 10.255.0.1) and says so",
+          "_ldap._tcp.dc._msdcs.home.arpa" not in hidden and "www.roblox.com" in hidden
+          and "fabric's own queries are hidden" in hidden and '<input type="checkbox" name="own">' in hidden)
+    check("DNS filter: Show fabric's own queries ticked shows it, the box kept ticked, no note",
+          "_ldap._tcp.dc._msdcs.home.arpa" in shown and '<input type="checkbox" name="own" checked>' in shown
+          and "own queries are hidden" not in shown)
+    check("DNS filter: a search whose own is not on or empty is refused, saying why",
+          "Show fabric&#39;s own queries is on or off" in get("/dns-filter?view=querylog&own=maybe"))
+    check("DNS filter: the overview states how many queries were fabric's own", "1310 of them fabric's own" in
+          get("/dns-filter"))
+    # the YouTube level applies only while safe search is on (2.1.12.13): disabled while off, kept across an off-save
+    page = get("/dns-filter?view=settings")
+    check("DNS filter: safe search off -> the YouTube select disabled, with its hint and a hidden copy",
+          '<select name="youtube" disabled>' in page and "Used only while safe search is on." in page
+          and '<input type="hidden" name="youtube" value="strict">' in page, page[:200])
+    post("/dns-filter/safe-search", {"on": "on", "youtube": "strict", "back": "settings"})
+    page = get("/dns-filter?view=settings")
+    check("DNS filter: safe search on -> the YouTube select enabled, no hidden copy",
+          '<select name="youtube">' in page and 'type="hidden" name="youtube"' not in page)
+    post("/dns-filter/safe-search", {"on": "on", "youtube": "moderate", "back": "settings"})
+    post("/dns-filter/safe-search", {"youtube": "moderate", "back": "settings"})   # off
+    page = get("/dns-filter?view=settings")
+    check("DNS filter: turned off, the YouTube level chosen while on is kept (disabled, its hidden copy moderate)",
+          '<input type="hidden" name="youtube" value="moderate">' in page
+          and '<option value="moderate" selected>' in page[page.find('name="youtube"'):])
+    post("/dns-filter/safe-search", {"youtube": "moderate", "back": "settings"})   # off again
+    check("DNS filter: saved again while off (the hidden copy sent), the YouTube level is still kept",
+          '<input type="hidden" name="youtube" value="moderate">' in get("/dns-filter?view=settings"))
     page = get("/dns/zones?zone=dynamic_zone_var")
     check("DNS · Zones shows records and the add form", "nas" in page and "192.168.1.10" in page)
 

@@ -6,10 +6,12 @@ from webui.views.constants import DNS_FILTER_SECTIONS
 def dns_filter_page(h, ctx, query):
     """Purpose: Render the DNS filter tab (manual 1.12.2.14): overview, lists, rules, the query log, settings.
     Inputs:  h — the request handler (send); ctx — page context; query — dict: view (a DNS_FILTER_SECTIONS id; anything
-             else is the overview), the query log's search (client, name, blocked "on", limit), wait (how
-             often the page has refreshed itself while a fresh install's first fetch runs, 2.1.2.22).
+             else is the overview), the query log's search (client, name, blocked "on", limit, own "on": fabric's own
+             queries too, 2.1.12.12), wait (how often the page has refreshed itself while a fresh install's first
+             fetch runs, 2.1.2.22).
     Returns: the page (200). Without dns:filter the overview is None (the query log still shows with dns:querylog);
-             a search the agent refuses shows its reason in place of the results.
+             a search the agent refuses (or an own that is not "on" or empty) shows its reason in place of the
+             results.
     Fails:   PermissionDenied without either permission (the handler's 403); other agent errors propagate to
              handle_request (redirect to /login, 503).
     Feeds:   get_page (/dns-filter)."""
@@ -21,12 +23,14 @@ def dns_filter_page(h, ctx, query):
         overview = None
         if section != "querylog":             # with dns:querylog only: the one section it can show
             section = "querylog"
-    search = {k: query.get(k, "") for k in ("client", "name", "blocked", "limit")}
+    search = {k: query.get(k, "") for k in ("client", "name", "blocked", "limit", "own")}
     log, log_err = None, ""
-    if section == "querylog":
+    if section == "querylog" and search["own"] not in ("", "on"):      # the box sends "on" or nothing (2.1.12.12)
+        log_err = f"Show fabric's own queries is on or off, not {search['own'][:40]!r}"
+    elif section == "querylog":
         try:
             log = actions.query_log(search["client"], search["name"], search["blocked"] == "on",
-                                    search["limit"] or 200)
+                                    search["limit"] or 200, search["own"] == "on")
         except actions.PermissionDenied as e:
             if overview is None:                  # neither dns:filter nor dns:querylog: the page is refused (403)
                 raise

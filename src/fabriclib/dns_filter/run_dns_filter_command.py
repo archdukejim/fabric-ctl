@@ -1,3 +1,5 @@
+import sys
+
 from fabriclib.common.errors import ValidationError
 from fabriclib.dns_filter.apply_dns_filter import apply_dns_filter
 from fabriclib.dns_filter.common.adguard_password import adguard_password
@@ -12,8 +14,10 @@ USAGE = """usage: fabricctl dns-filter lists [--scheduled]  fetch AdGuard's cata
        fabricctl dns-filter apply               make the DNS filter's settings in vars.yaml where they live
                                                 (the resolver reloaded, AdGuard Home through its API)
        fabricctl dns-filter status              the resolver, AdGuard Home, and each list's state
-       fabricctl dns-filter log [--client ADDRESS] [--name NAME] [--blocked] [--limit N]
-                                                the query log, newest first (a name: it and every name below it)
+       fabricctl dns-filter log [--client ADDRESS] [--name NAME] [--blocked] [--own] [--limit N]
+                                                the query log, newest first (a name: it and every name below it);
+                                                fabric's own queries (its containers, the host) only with --own
+                                                or when the client asked for is one of them
        fabricctl dns-filter stats               the last 24 hours, the last 7 days, per list, the most blocked names
        fabricctl dns-filter ingest [--scheduled]
                                                 read the resolver's new log lines into the query log now"""
@@ -22,15 +26,16 @@ USAGE = """usage: fabricctl dns-filter lists [--scheduled]  fetch AdGuard's cata
 def _options(args):
     """Purpose: the options of `fabricctl dns-filter log`.
     Inputs:  args — list of str after "log".
-    Returns: {"client", "name", "blocked_only", "limit"} for read_query_log.
+    Returns: {"client", "name", "blocked_only", "limit", "own"} for read_query_log (--own: fabric's own queries too,
+             2.1.12.12; it takes no value).
     Fails:   ValidationError for an unknown option or one without its value.
     Feeds:   run_dns_filter_command."""
-    out = {"client": "", "name": "", "blocked_only": False, "limit": 50}
+    out = {"client": "", "name": "", "blocked_only": False, "limit": 50, "own": False}
     i = 0
     while i < len(args):
         a = args[i]
-        if a == "--blocked":
-            out["blocked_only"] = True
+        if a in ("--blocked", "--own"):
+            out["blocked_only" if a == "--blocked" else "own"] = True
             i += 1
         elif a in ("--client", "--name", "--limit") and i + 1 < len(args):
             out[a[2:]] = args[i + 1]
@@ -49,6 +54,7 @@ def _print_stats(s):
     week = s["week"]
     share = round(100 * week["blocked"] / week["queries"], 1) if week["queries"] else 0
     print(f"last 7 days: {week['queries']} queries, {week['blocked']} blocked ({share}%)")
+    print(f"  of which fabric's own (its containers and the host): {week.get('own', 0)}; not in the most blocked names")
     print("last 24 hours (UTC):")
     for h in s["hours"]:
         print(f"  {h['hour'][11:16]}  {h['queries']:>7} queries  {h['blocked']:>6} blocked")
@@ -123,6 +129,9 @@ def run_dns_filter_command(v, argv):
             for e in r["entries"]:
                 why = f"  {e['action']} via {e['list'] or e['zone']}" if e.get("action") else ""
                 print(f"{e['at']}  {e['client']:<15} {e['view']:<10} {e['qtype']:<6} {e['name']}{why}")
+            if not r.get("own"):       # on stderr, so the lines on stdout stay only the log's
+                print(f"(fabric's own queries hidden: {', '.join(r.get('own_networks') or [])}; --own shows them)",
+                      file=sys.stderr)
             return 0
         if cmd == "stats" and not args:
             s = dns_filter_stats(v)

@@ -54,7 +54,8 @@ URL = "https://lists.example/test.txt"
 ZONE = list_zone(URL)
 LOG = f"{W}/resolver/log"
 V = {"deploy_base_dir": W, "install_resolver": True, "install_keycloak": True, "ip_adguard": "127.0.0.1",
-     "dns_filter_lists": [{"name": "Test list", "url": URL}]}       # AdGuard: nothing listens there
+     "dns_filter_lists": [{"name": "Test list", "url": URL}],       # AdGuard: nothing listens there
+     "host_ip": "192.168.1.10"}                 # fabric's own (2.1.12.12): this, fabric_subnet's default, loopback
 
 
 def stamp(ago=0):
@@ -169,7 +170,7 @@ try:
           and read_query_log(V, name="s.example")["entries"] == [])
     s = dns_filter_stats(V)
     check("statistics: the 7 days' totals and the 24 hours by hour, no client addresses",
-          s["week"] == {"queries": 4, "blocked": 2} and sum(h["queries"] for h in s["hours"]) == 4
+          s["week"] == {"queries": 4, "blocked": 2, "own": 0} and sum(h["queries"] for h in s["hours"]) == 4
           and "192.168" not in str(s), s)
     check("statistics: per list (its name) and per rules zone; the most blocked names",
           {(z["list"] or z["zone"], z["blocked"]) for z in s["zones"]} == {("Test list", 2), ("owner.rpz", 0)}
@@ -186,12 +187,12 @@ try:
           and "ads.example  (Test list)" in out and "192.168" not in out, out)
     code, out = dnsf(V, "log", "--client", "192.168.1.21")
     code2, out2 = dnsf(V, "log", "--blocked", "--limit", "1")
-    rows = out.splitlines()
+    rows = [ln for ln in out.splitlines() if not ln.startswith("(fabric's own queries hidden")]
     # covers: cli:dns-filter.log +
     check("fabricctl dns-filter log: newest first, by client; a block names its action and list; --blocked --limit",
           code == 0 and len(rows) == 2 and "ok.example" in rows[0] and "PASSTHRU via owner.rpz" in rows[0]
           and "deep.sub.ads.example" in rows[1] and "NXDOMAIN via Test list" in rows[1]
-          and code2 == 0 and len(out2.splitlines()) == 1 and "deep.sub.ads.example" in out2, (out, out2))
+          and code2 == 0 and len(out2.splitlines()) == 2 and "deep.sub.ads.example" in out2, (out, out2))
     refusals = {why: dnsf(V, "log", *args) for why, args in (
         ("a limit of 0", ["--limit", "0"]), ("an option without its value", ["--client"]),
         ("an unknown option", ["--since", "1h"]), ("a name that is not one", ["--name", "bad name!"]))}
@@ -274,6 +275,67 @@ try:
     check("…and the lines refused then are read by the next run (the place moved only after Postgres took them)",
           ingest_dns_log(V)["queries"] == 1
           and [e["name"] for e in read_query_log(V, client="192.168.1.31")["entries"]] == ["while-down.example"])
+    # fabric's own queries (2.1.12.12, manual 1.12.3.16): hidden by default, shown with the switch or a search for one
+    before = dns_filter_stats(V)["week"]
+    OWN = {"_ldap._tcp.dc._msdcs.home.arpa": "10.255.0.1", "loopback-own.example": "127.0.0.1",
+           "host-own.example": "192.168.1.10", "own-blocked.example": "10.255.0.5"}
+    append("query.log", "".join(query(c, 8001 + i, n, 2) for i, (n, c) in enumerate(OWN.items()))
+           + query("192.168.1.60", 8100, "dc.home.arpa", 2))
+    append("rpz.log", rewrite("10.255.0.5", 8004, "own-blocked.example", "NXDOMAIN", f"own-blocked.example.{ZONE}", 2))
+    ingest_dns_log(V)
+    plain = read_query_log(V, limit=500)
+    names = {e["name"] for e in plain["entries"]}
+    check("own queries: hidden by default (fabric_subnet, the gateway 10.255.0.1, host_ip, loopback); the answer says "
+          "so and names fabric's own networks",
+          not names & set(OWN) and plain["own"] is False
+          and plain["own_networks"] == ["10.255.0.0/24", "192.168.1.10/32", "127.0.0.0/8", "::1/128"], plain)
+    check("own queries: a LAN device asking for an AD name is client traffic and still shows", "dc.home.arpa" in names)
+    shown = read_query_log(V, limit=500, own=True)
+    check("own queries: shown with the switch (own=True), the rest still there",
+          set(OWN) <= {e["name"] for e in shown["entries"]} and "dc.home.arpa" in {e["name"] for e in shown["entries"]}
+          and shown["own"] is True, shown)
+    by = {c: read_query_log(V, client=c) for c in ("10.255.0.1", "192.168.1.10", "127.0.0.1", "10.255.0.0/24")}
+    check("own queries: a search by one of fabric's own addresses or its network shows them without the switch",
+          [e["name"] for e in by["10.255.0.1"]["entries"]] == ["_ldap._tcp.dc._msdcs.home.arpa"]
+          and [e["name"] for e in by["192.168.1.10"]["entries"]] == ["host-own.example"]
+          and [e["name"] for e in by["127.0.0.1"]["entries"]] == ["loopback-own.example"]
+          and len(by["10.255.0.0/24"]["entries"]) == 2 and all(b["own"] for b in by.values()), by)
+    lan = {e["name"] for e in read_query_log(V, client="192.168.1.0/24", limit=500)["entries"]}
+    check("own queries: a wider search (the LAN's /24 holding host_ip) still hides the host's own",
+          "host-own.example" not in lan and "dc.home.arpa" in lan, lan)
+    check("own queries: --blocked leaves an own block out by default, shows it with the switch",
+          "own-blocked.example" not in {e["name"] for e in read_query_log(V, blocked_only=True)["entries"]}
+          and "own-blocked.example" in {e["name"] for e in read_query_log(V, blocked_only=True, own=True)["entries"]})
+    check("own queries: a search for ::1 (IPv6 loopback) is a search for fabric's own",
+          read_query_log(V, client="::1")["own"] is True)
+    after = dns_filter_stats(V)
+    check("statistics: every query still counted; the 7 days' own count beside it; the most blocked names without "
+          "fabric's own block",
+          after["week"]["queries"] - before["queries"] == 5 and after["week"]["own"] - before["own"] == 4
+          and "own-blocked.example" not in {t["name"] for t in after["top_blocked"]}
+          and after["week"]["blocked"] - before["blocked"] == 1, (before, after))
+    code, out = dnsf(V, "log", "--limit", "500")
+    code2, out2 = dnsf(V, "log", "--own", "--limit", "500")
+    code3, out3 = dnsf(V, "stats")
+    # covers: cli:dns-filter.log +
+    check("fabricctl dns-filter log: fabric's own hidden (and said so), --own shows them; stats gives the own count",
+          code == 0 and "host-own.example" not in out and "dc.home.arpa" in out
+          and "(fabric's own queries hidden: 10.255.0.0/24, 192.168.1.10/32" in out and "--own shows them" in out
+          and code2 == 0 and all(n in out2 for n in OWN) and "own queries hidden" not in out2
+          and code3 == 0 and f"of which fabric's own (its containers and the host): {after['week']['own']}" in out3,
+          (out[-400:], out2[-400:], out3))
+    refusals = {why: dnsf(V, "log", *args) for why, args in (("--own with a value", ["--own", "yes"]),
+                                                               ("--own=yes", ["--own=yes"]))}
+    # covers: cli:dns-filter.log -
+    check("fabricctl dns-filter log: --own takes no value: --own yes and --own=yes refused (exit 1), saying why",
+          all(code == 1 and out.startswith("refused: unknown option or missing value") for code, out in
+              refusals.values()), refusals)
+    for bad in ("yes", 1, None, "true"):
+        try:
+            read_query_log(V, own=bad)
+            check(f"refused: own={bad!r}", False, "accepted")
+        except ValidationError as e:
+            check(f"refused: own={bad!r} (only true or false), saying why", "true or false" in str(e), e)
     for args, why in ((dict(client="not-an-address"), "a client that is not an address"),
                       (dict(name="bad name!"), "a name that is not one"),
                       (dict(limit=0), "a limit of 0"), (dict(limit=501), "a limit over 500"),

@@ -1,5 +1,8 @@
+import ipaddress
+
 from webui.devpreview.fabric_rules import ValidationError
-from webui.devpreview.sample_data import SAMPLE_DHCP, SAMPLE_DNS_FILTER, SAMPLE_QUERY_LOG, SAMPLE_RADIUS
+from webui.devpreview.sample_data import (SAMPLE_DHCP, SAMPLE_DNS_FILTER, SAMPLE_OWN_NETWORKS, SAMPLE_QUERY_LOG,
+                                         SAMPLE_RADIUS)
 
 APPLIED = {"applied": True, "output": "dev preview: nothing applied"}
 
@@ -108,8 +111,12 @@ def _filter(route, body):
     Feeds:   fake_network."""
     d, what = SAMPLE_DNS_FILTER, "/".join(route)
     if what == "querylog":
-        entries = [e for e in SAMPLE_QUERY_LOG["entries"] if not body.get("blocked") or e["blocked"]]
-        return {"as_of": SAMPLE_QUERY_LOG["as_of"], "entries": entries}
+        shown = bool(body.get("own"))         # as read_query_log: fabric's own hidden unless asked for (2.1.12.12)
+        own = [ipaddress.ip_network(n) for n in SAMPLE_OWN_NETWORKS]
+        entries = [e for e in SAMPLE_QUERY_LOG["entries"] if (not body.get("blocked") or e["blocked"]) and (
+            shown or not any(ipaddress.ip_address(e["client"]) in n for n in own))]
+        return {"as_of": SAMPLE_QUERY_LOG["as_of"], "entries": entries, "own": shown,
+                "own_networks": SAMPLE_OWN_NETWORKS}
     group = str(body.get("group", "")).strip()
     target = d if not group else next((g for g in d["groups"] if g["name"] == group), None)
     if target is None:
