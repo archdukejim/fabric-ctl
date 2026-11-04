@@ -11,7 +11,10 @@
 <p class="muted small">Switched on, every one of these answers only its safe results, for HTTPS too:
 {% for e in d.safe_search_sites.engines %}{{ e.engine }} ({{ e.names }} {{ 'site' if e.names == 1 else 'sites' }}){{ ', ' if not loop.last else '. ' }}{% endfor %}
 Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered | join(', ') }}; block them with a rule if they must not be used.</p>
-<label>YouTube<select name="youtube"{{ ' disabled' if not can('dns:filter') }}><option value="strict"{{ ' selected' if youtube == 'strict' }}>strict</option><option value="moderate"{{ ' selected' if youtube == 'moderate' }}>moderate</option></select></label>
+{# YouTube's level applies only while safe search is on: greyed out while off, its saved value kept by a hidden copy (a disabled select sends nothing; no script under the CSP) #}
+<label>YouTube<select name="youtube"{{ ' disabled' if not on or not can('dns:filter') }}><option value="strict"{{ ' selected' if youtube == 'strict' }}>strict</option><option value="moderate"{{ ' selected' if youtube == 'moderate' }}>moderate</option></select></label>
+{% if not on and can('dns:filter') %}<input type="hidden" name="youtube" value="{{ youtube or 'strict' }}">{% endif %}
+<p class="muted small">Used only while safe search is on.</p>
 {% if can('dns:filter') %}<div><button>Save safe search</button></div>{% endif %}</form>
 {% endmacro %}
 {# A list's checkbox (manual 1.12.3.5): a button that ticks or unticks it, no script needed #}
@@ -56,7 +59,8 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 {% if s.off %}<section class="card"><h2>Statistics</h2><p class="blank">No statistics: {{ s.off }}.</p></section>
 {% else %}
 <div class="tiles">
-<div class="tile"><span class="muted">Queries, last 7 days</span><strong class="big">{{ s.week.queries }}</strong></div>
+<div class="tile"><span class="muted">Queries, last 7 days</span><strong class="big">{{ s.week.queries }}</strong>
+<span class="muted small">{{ s.week.own or 0 }} of them fabric's own (its containers and the host; not in Most blocked)</span></div>
 <div class="tile"><span class="muted">Blocked, last 7 days</span><strong class="big">{{ s.week.blocked }}</strong>
 <span class="muted small">{{ ((100 * s.week.blocked / s.week.queries) | round(1)) if s.week.queries else 0 }}% of queries</span></div>
 <div class="tile"><span class="muted">Lists ticked</span><strong class="big">{{ d.lists | selectattr('enabled') | list | length }}</strong>
@@ -134,6 +138,7 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 <label>Client (address or network)<input name="client" value="{{ search.client }}" placeholder="192.168.1.20"></label>
 <label>Name (and every name below it)<input name="name" value="{{ search.name }}" placeholder="example.com"></label>
 <label class="check"><input type="checkbox" name="blocked"{{ ' checked' if search.blocked == 'on' }}> blocked only</label>
+<label class="check"><input type="checkbox" name="own"{{ ' checked' if search.own == 'on' }}> Show fabric's own queries</label>
 <label>At most<select name="limit">{% for n in ['50', '200', '500'] %}<option{{ ' selected' if (search.limit or '200') == n }}>{{ n }}</option>{% endfor %}</select></label>
 <div><button>Search</button></div></form>
 {% if log and log.off %}<p class="blank">The query log is off: {{ log.off }}.</p>
@@ -141,7 +146,8 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 {% for e in log.entries %}<tr><td class="small">{{ e.at[5:16] | replace('T', ' ') }}</td><td>{{ e.client }}</td><td class="muted">{{ e.view }}</td><td>{{ e.qtype }}</td><td><code>{{ e.name }}</code></td>
 <td>{% if e.blocked %}<span class="pill bad">blocked</span> {{ zone_label(e.zone, e.list) }}{% elif e.action == 'PASSTHRU' %}<span class="pill ok">allowed</span> {{ zone_label(e.zone, e.list) }}{% elif e.action %}<span class="pill">{{ 'rewritten' if e.action == 'Local-Data' else e.action }}</span> {{ zone_label(e.zone, e.list) }}{% else %}<span class="muted">answered</span>{% endif %}</td>
 <td class="num">{% if e.blocked %}{{ rule_button('allow', e.name, 'Allow', e.view) }}{% elif e.zone != 'fabric.rpz' %}{{ rule_button('block', e.name, 'Block', e.view) }}{% endif %}</td></tr>{% endfor %}
-</tbody></table>{% else %}<p class="blank">No queries match.</p>{% endif %}{% endif %}
+</tbody></table>{% else %}<p class="blank">No queries match.</p>{% endif %}
+{% if not log.own %}<p class="muted small">fabric's own queries are hidden: its containers, the host and loopback ({{ (log.own_networks or []) | join(', ') }}). Tick <em>Show fabric's own queries</em>, or search for one of those addresses as the client, to see them.</p>{% endif %}{% endif %}
 </section>
 {% endif %}
 

@@ -286,7 +286,7 @@ SAMPLE_DNS_FILTER = {
     "stats": {"hours": [{"hour": f"2026-10-09T{h:02d}:00Z", "queries": q, "blocked": b}
                         for h, q, b in ((0, 412, 61), (1, 288, 40), (2, 190, 22), (3, 175, 19), (4, 230, 31),
                                         (5, 640, 98), (6, 1210, 170), (7, 1620, 233), (8, 1488, 206), (9, 1302, 188))],
-              "week": {"queries": 48210, "blocked": 6940},
+              "week": {"queries": 48210, "blocked": 6940, "own": 1310},
               "zones": [{"zone": _ZONE, "list": "AdGuard DNS filter", "queries": 6912, "blocked": 6912},
                         {"zone": "owner.rpz", "list": None, "queries": 140, "blocked": 28},
                         {"zone": "fabric.rpz", "list": None, "queries": 3920, "blocked": 0}],
@@ -295,6 +295,8 @@ SAMPLE_DNS_FILTER = {
                               {"name": "app-measurement.com", "zone": _ZONE, "list": "AdGuard DNS filter",
                                "count": 640},
                               {"name": "ads.example.org", "zone": "owner.rpz", "list": None, "count": 28}]}}
+# fabric's own clients as fabric_subnet's default and a host at 192.168.1.10 give them (own_clients, 2.1.12.9)
+SAMPLE_OWN_NETWORKS = ["10.255.0.0/24", "192.168.1.10/32", "127.0.0.0/8", "::1/128"]
 SAMPLE_QUERY_LOG = {"entries": [
     {"at": "2026-10-09T09:58:12Z", "client": "192.168.1.20", "view": "everyone", "name": "browser.events.data.msn.com",
      "qtype": "A", "action": "NXDOMAIN", "zone": _ZONE, "list": "AdGuard DNS filter", "blocked": True},
@@ -302,6 +304,9 @@ SAMPLE_QUERY_LOG = {"entries": [
      "qtype": "A", "action": "NXDOMAIN", "zone": "group-kids.rpz", "list": None, "blocked": True},
     {"at": "2026-10-09T09:58:10Z", "client": "192.168.1.20", "view": "everyone", "name": "www.wikipedia.org",
      "qtype": "AAAA", "action": None, "zone": None, "list": None, "blocked": False},
+    {"at": "2026-10-09T09:58:00Z", "client": "10.255.0.1", "view": "everyone",       # fabric's own: the DC
+     "name": "_ldap._tcp.dc._msdcs.home.arpa", "qtype": "SRV", "action": "PASSTHRU", "zone": "fabric.rpz",
+     "list": None, "blocked": False},
     {"at": "2026-10-09T09:57:55Z", "client": "192.168.1.31", "view": "everyone", "name": "nas.home.arpa",
      "qtype": "A", "action": "PASSTHRU", "zone": "fabric.rpz", "list": None, "blocked": False},
     {"at": "2026-10-09T09:57:41Z", "client": "192.168.1.31", "view": "everyone", "name": "ad.doubleclick.net",

@@ -1,10 +1,13 @@
+import ipaddress
+
 from webui import views
 from webui.devpreview.sample_data import (RECORD_TYPES, SAMPLE_CA, SAMPLE_DEVICES, SAMPLE_DHCP, SAMPLE_DOMAIN,
                                           SAMPLE_EFFECTIVE, SAMPLE_OPTIONS,
                                           SAMPLE_FEDERATION, SAMPLE_GPO, SAMPLE_LOGON, SAMPLE_RADIUS, SAMPLE_ACME,
                                           SAMPLE_ACCESS,
                                           SAMPLE_IMAGES,
-                                          SAMPLE_SECURITY, SAMPLE_VAULT, SAMPLE_DNS_FILTER, SAMPLE_QUERY_LOG)
+                                          SAMPLE_SECURITY, SAMPLE_VAULT, SAMPLE_DNS_FILTER, SAMPLE_QUERY_LOG,
+                                          SAMPLE_OWN_NETWORKS)
 from webui.devpreview.dev_networks_page import dev_networks_page
 from webui.devpreview.dev_settings import dev_settings
 from webui.devpreview.sample_networks import SAMPLE_LOCAL_SCAN, SAMPLE_SCAN_SUBNETS
@@ -82,10 +85,14 @@ def dev_get_page(h, path, query):
         return h.send(200, views.federation(ctx, SAMPLE_FEDERATION))
     if path == "/dns-filter":
         view = query.get("view") if query.get("view") in [s for s, _ in views.DNS_FILTER_SECTIONS] else "overview"
-        search = {k: query.get(k, "") for k in ("client", "name", "blocked", "limit")}
+        search = {k: query.get(k, "") for k in ("client", "name", "blocked", "limit", "own")}
         log = SAMPLE_QUERY_LOG if view == "querylog" else None
-        if log and search["blocked"] == "on":
-            log = {"entries": [e for e in log["entries"] if e["blocked"]]}
+        if log:                       # as read_query_log: fabric's own hidden unless asked for (2.1.12.9)
+            own = [ipaddress.ip_network(n) for n in SAMPLE_OWN_NETWORKS]
+            shown = search["own"] == "on"
+            log = {"entries": [e for e in log["entries"] if (shown or not any(
+                ipaddress.ip_address(e["client"]) in n for n in own)) and (e["blocked"] or search["blocked"] != "on")],
+                "own": shown, "own_networks": SAMPLE_OWN_NETWORKS}
         sample = SAMPLE_DNS_FILTER if not query.get("fresh") else {     # the lists job's first run not done yet
             **SAMPLE_DNS_FILTER, "catalogue_fetched": None, "categories": ["Added by URL"],
             "lists": [{**r, "last_fetch": None, "last_success": None, "rules": None, "memory_mb": None}

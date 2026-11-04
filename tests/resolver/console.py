@@ -261,6 +261,11 @@ r3 = pdf.post_dns_filter(["dns-filter", "rules"], "alice", {"group": "guests", "
 check("agent: a group added, its safe search and its rule — each saved and applied, nothing fetched",
       r["result"]["added"] and r2["result"]["youtube"] == "moderate" and r3["result"]["group"] == "guests"
       and not r["fetching"] and CALLS == [("apply", "alice", "web")] * 3, (r, r2, r3, CALLS))
+r = pdf.post_dns_filter(["dns-filter", "safe-search"], "alice", {"group": "guests", "youtube": "moderate"})
+g = [x for x in v()["dns_filter_groups"] if x["name"] == "guests"][0]
+check("agent: safe search turned off keeps the YouTube level the form sends (the page's hidden copy)",
+      r["result"] == {"group": "guests", "on": False, "youtube": "moderate"}
+      and g.get("safe_search") is False and g.get("youtube") == "moderate", (r, g))
 r = pdf.post_dns_filter(["dns-filter", "groups", "delete"], "alice", {"name": "guests"})
 # covers: agent:post.dns-filter.groups.delete +
 check("agent: a group removed", r["result"]["name"] == "guests" and v()["dns_filter_groups"] == [], r)
@@ -268,8 +273,20 @@ e = refused(pdf.post_dns_filter, ["dns-filter", "groups"], "alice", {"name": "x"
 # covers: agent:post.dns-filter.groups -
 check("agent: clients sent as a list (not text) are refused", isinstance(e, ValidationError) and "text" in str(e), e)
 r = pdf.post_dns_filter(["dns-filter", "querylog"], "alice", {"client": "192.168.1.0/24", "blocked": True, "limit": 50})
-check("agent: the query-log search passes its terms on", CALLS[-1] == ("querylog", {
-    "client": "192.168.1.0/24", "name": "", "blocked_only": True, "limit": 50}), CALLS[-1:])
+# covers: agent:post.dns-filter.querylog +
+check("agent: the query-log search passes its terms on (fabric's own hidden unless asked: own False)",
+      CALLS[-1] == ("querylog", {"client": "192.168.1.0/24", "name": "", "blocked_only": True, "limit": 50,
+                                 "own": False}), CALLS[-1:])
+pdf.post_dns_filter(["dns-filter", "querylog"], "alice", {"own": True})
+check("agent: own true (fabric's own queries too, 2.1.12.9) is passed on", CALLS[-1][1]["own"] is True, CALLS[-1:])
+from fabriclib.dns_filter.read_query_log import read_query_log as real_read_query_log  # noqa: E402
+pdf.read_query_log = real_read_query_log         # refused before the log is read: no Postgres needed
+for bad in ("yes", 1, None):
+    e = refused(pdf.post_dns_filter, ["dns-filter", "querylog"], "alice", {"own": bad})
+    # covers: agent:post.dns-filter.querylog -
+    check(f"agent: own {bad!r} (not a JSON boolean) refused, saying why",
+          isinstance(e, ValidationError) and "true or false" in str(e), e)
+pdf.read_query_log = lambda vv, **kw: (CALLS.append(("querylog", kw)) or {"entries": []})
 
 # ---- the lists job: copies fetched, then AdGuard made to match and asked to reread what changed (1.12.3.5)
 with tempfile.TemporaryDirectory() as tmp:
@@ -435,6 +452,73 @@ check("page: everyone's safe search is in Settings",
 viewer = views.dns_filter(ctx("dns:querylog"), "groups", None, LOG, SEARCH)
 check("page: without dns:filter no group form shows", "/dns-filter/groups" not in viewer
       and "/dns-filter/safe-search" not in viewer)
+
+# ---- fabric's own queries in the query log (2.1.12.9, 1.12.3.16): the box, the note, a bad value
+OWN_LOG = {**LOG, "own": False, "own_networks": ["10.255.0.0/24", "192.168.1.10/32", "127.0.0.0/8", "::1/128"]}
+hidden = views.dns_filter(ctx("dns:filter", "dns:querylog"), "querylog", OV, OWN_LOG, SEARCH)
+shown = views.dns_filter(ctx("dns:filter", "dns:querylog"), "querylog", OV, {**OWN_LOG, "own": True},
+                         {**SEARCH, "own": "on"})
+check("page: the query log's search has the box Show fabric's own queries, unticked by default, and says what it hid",
+      '<input type="checkbox" name="own">' in hidden and "Show fabric's own queries" in hidden
+      and "fabric's own queries are hidden" in hidden and "10.255.0.0/24, 192.168.1.10/32" in hidden, hidden[-900:])
+check("page: with the box ticked it stays ticked (kept by the form) and the note is gone",
+      '<input type="checkbox" name="own" checked>' in shown and "own queries are hidden" not in shown)
+STATS = {"hours": [], "week": {"queries": 120, "blocked": 7, "own": 45}, "zones": [], "top_blocked": []}
+over = views.dns_filter(ctx("dns:filter"), "overview", {**OV, "stats": STATS}, None, SEARCH)
+check("page: the overview states how many of the 7 days' queries were fabric's own",
+      "45 of them fabric's own" in over, over[over.find("Queries, last 7 days"):][:300])
+
+
+class PageH:
+    def send(self, status, body):
+        self.out = (status, body)
+
+
+class PageActions:
+    ValidationError, PermissionDenied = ValidationError, PermissionError
+
+    def __init__(self):
+        self.calls = []
+
+    def dns_filter_overview(self):
+        return OV
+
+    def query_log(self, *args):
+        self.calls.append(args)
+        return {**OWN_LOG, "own": args[4]}
+
+
+import webui.routes.dns_filter_page as wpage  # noqa: E402
+wpage.actions, ph = PageActions(), PageH()
+wpage.dns_filter_page(ph, ctx("dns:filter", "dns:querylog"), {"view": "querylog", "own": "on"})
+# covers: web:get.dns-filter +
+check("web: the box ticked asks fabric-agent for fabric's own queries too (own True)",
+      ph.out[0] == 200 and wpage.actions.calls[-1][4] is True, wpage.actions.calls)
+wpage.dns_filter_page(ph, ctx("dns:filter", "dns:querylog"), {"view": "querylog"})
+check("web: unticked, fabric's own stay hidden (own False)", wpage.actions.calls[-1][4] is False)
+n = len(wpage.actions.calls)
+wpage.dns_filter_page(ph, ctx("dns:filter", "dns:querylog"), {"view": "querylog", "own": "yes"})
+# covers: web:get.dns-filter -
+check("web: a value for the box other than on is refused in place of the results, saying why; nothing asked",
+      ph.out[0] == 200 and "Show fabric&#39;s own queries is on or off" in ph.out[1] and len(wpage.actions.calls) == n,
+      ph.out[1][-600:] if isinstance(ph.out[1], str) else ph.out)
+
+# ---- the YouTube level applies only while safe search is on (owner 2026-10-17, 2.1.12.10)
+off_ = views.dns_filter(ctx("dns:filter"), "settings", {**OV, "safe_search": {"on": False, "youtube": "moderate"}},
+                        None, SEARCH)
+on_ = views.dns_filter(ctx("dns:filter"), "settings", {**OV, "safe_search": {"on": True, "youtube": "moderate"}},
+                       None, SEARCH)
+check("page: safe search off: the YouTube select is disabled, says it is used only while safe search is on, and a "
+      "hidden copy keeps the saved level when the form is saved",
+      '<select name="youtube" disabled>' in off_ and "Used only while safe search is on." in off_
+      and '<input type="hidden" name="youtube" value="moderate">' in off_, off_[off_.find("YouTube<"):][:500])
+check("page: safe search on: the YouTube select is enabled and no hidden copy is sent",
+      '<select name="youtube">' in on_ and 'type="hidden" name="youtube"' not in on_
+      and "Used only while safe search is on." in on_)
+ro = views.dns_filter(ctx("dns:querylog"), "settings", {**OV, "safe_search": {"on": True, "youtube": "strict"}},
+                      None, SEARCH)
+check("page: without dns:filter the select stays disabled, even with safe search on",
+      '<select name="youtube" disabled>' in ro and 'type="hidden" name="youtube"' not in ro)
 
 print("\nall passed (0 failures)" if not FAILED else f"\n{FAILED} failed")
 sys.exit(1 if FAILED else 0)

@@ -38,7 +38,8 @@ def post_dns_filter(route, actor, data):
              (audit); data — the JSON body: lists {name, url} (add, ticked); lists/set {url, enabled, name} (tick or
              untick); lists/delete {url}; rules and rules/delete {kind (allow | block), name, group}; upstreams
              {upstreams: "<address> <name>, …"}; groups {name, clients}; groups/delete {name}; safe-search {group, on,
-             youtube}; fetch {}; querylog {client, name, blocked, limit}. A missing or empty group is everyone.
+             youtube}; fetch {}; querylog {client, name, blocked, limit, own (true: fabric's own queries too,
+             2.1.12.9)}. A missing or empty group is everyone.
     Returns: a change: {"result": what it saved, "applied": bool (made at once), "waiting": why not (or None),
              "fetching": True when the lists job was started (a list ticked with no copy yet); a job that cannot
              start leaves the change saved, "waiting" naming why}; fetch: {"fetching":
@@ -47,7 +48,8 @@ def post_dns_filter(route, actor, data):
     Feeds:   agent/post_route."""
     if route == ["dns-filter", "querylog"]:            # a search: its terms in the body (a GET's query is ignored)
         return read_query_log(load_vars(), client=read_text(data, "client"), name=read_text(data, "name"),
-                              blocked_only=bool(data.get("blocked")), limit=data.get("limit", 200))
+                              blocked_only=bool(data.get("blocked")), limit=data.get("limit", 200),
+                              own=data.get("own", False))       # a JSON boolean; read_query_log refuses others
     if route == ["dns-filter", "fetch"]:
         return {"fetching": start_list_fetch()}
     group = read_text(data, "group")

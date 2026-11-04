@@ -2,6 +2,7 @@ import json
 
 from fabriclib.dns_filter.common.dnslog_psql import dnslog_psql
 from fabriclib.dns_filter.common.list_zone import list_zone
+from fabriclib.dns_filter.common.own_clients import own_clients
 from fabriclib.dns_filter.ingest_dns_log import ingest_dns_log
 
 STATS = """SELECT json_build_object(
@@ -9,7 +10,9 @@ STATS = """SELECT json_build_object(
               'hour', to_char(hour AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24":00Z"'), 'queries', queries,
               'blocked', blocked) ORDER BY hour), '[]')
             FROM stats_hourly WHERE zone = '' AND hour >= date_trunc('hour', now()) - interval '23 hours'),
-  'week', (SELECT json_build_object('queries', coalesce(sum(queries), 0), 'blocked', coalesce(sum(blocked), 0))
+  'week', (SELECT json_build_object('queries', coalesce(sum(queries), 0), 'blocked', coalesce(sum(blocked), 0),
+                                    'own', (SELECT count(*) FROM queries WHERE at >= now() - interval '7 days'
+                                            AND client <<= ANY (:'own_nets'::inet[])))
            FROM stats_hourly WHERE zone = '' AND hour >= now() - interval '7 days'),
   'zones', (SELECT coalesce(json_agg(json_build_object('zone', zone, 'queries', q, 'blocked', b) ORDER BY b DESC),
                             '[]')
@@ -24,19 +27,23 @@ STATS = """SELECT json_build_object(
 
 def dns_filter_stats(v):
     """Purpose: the DNS filter's statistics (manual 1.12.2.13; no client addresses, 2.1.12.4), read up to the moment
-             first: the last 24 hours by hour, the last 7 days' totals, queries and blocks per zone (each list, the
-             owner's rules, fabric's own names), and the 20 most blocked names of the last 7 days.
-    Inputs:  v — rendered vars (dns_filter_lists for list names, and what ingest_dns_log reads).
+             first: the last 24 hours by hour, the last 7 days' totals and how many of those queries were fabric's
+             own (own_clients, manual 1.12.3.16, decision 2.1.12.9), queries and blocks per zone (each list, the
+             owner's rules, fabric's own names), and the 20 most blocked names of the last 7 days (fabric's own
+             queries left out: ingest_dns_log counts only other clients' blocks into stats_blocked).
+    Inputs:  v — rendered vars (dns_filter_lists for list names, fabric_subnet and host_ip for fabric's own, and what
+             ingest_dns_log reads).
     Returns: {"off": reason} when the query log is off; else {"hours": [{hour, queries, blocked}], "week": {queries,
-             blocked}, "zones": [{zone, list (its name, or None), queries, blocked}], "top_blocked": [{name, zone,
-             list, count}]}.
-    Fails:   ValidationError from Postgres.
+             blocked, own (of those queries, fabric's own)}, "zones": [{zone, list (its name, or None), queries,
+             blocked}], "top_blocked": [{name, zone, list, count}]}.
+    Fails:   ValidationError from Postgres, or for a fabric_subnet that is not a network.
     Feeds:   agent/get_route (GET /v1/dns-filter), dns_filter/run_dns_filter_command (`fabricctl dns-filter stats`);
              tests/resolver/querylog.py."""
     state = ingest_dns_log(v)
     if "off" in state:
         return {"off": state["off"]}
-    stats = json.loads(dnslog_psql(STATS).strip())
+    own = "{" + ",".join(str(n) for n in own_clients(v)) + "}"
+    stats = json.loads(dnslog_psql(STATS, {"own_nets": own}).strip())
     names = {list_zone(i["url"]): i.get("name") or i["url"] for i in v.get("dns_filter_lists") or []}
     for row in stats["zones"] + stats["top_blocked"]:
         row["list"] = names.get(row["zone"])

@@ -39,7 +39,7 @@ def dns_filter(ctx, section, overview, log, search, msg="", err="", wait=0):
              the rules, the query log with Allow / Block from a line, and the upstreams.
     Inputs:  ctx — page context; section — a DNS_FILTER_SECTIONS id; overview — filter_overview's dict, or None
              without dns:filter; log — query_log's result or None; search — the query log's search (client, name,
-             blocked, limit); msg, err — flash texts; wait — how many times the page has refreshed itself while the
+             blocked, limit, own); msg, err — flash texts; wait — how many times the page has refreshed itself while the
              first fetch runs (the query's wait).
     Returns: HTML str. On the overview and lists sections, while _first_fetch_pending, the page carries a meta refresh
              (no script: the strict CSP) to itself with wait + 1, every REFRESH_SECONDS, at most REFRESH_TIMES times;

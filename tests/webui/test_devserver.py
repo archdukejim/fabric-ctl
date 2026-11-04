@@ -142,6 +142,36 @@ try:
     check("DNS filter tab: Block from the query log -> back there, listed in the rules",
           st == 303 and "view=querylog" in (loc or "")
           and "www.wikipedia.org" in req("GET", "/dns-filter?view=rules")[3], loc)
+    # fabric's own queries (2.1.12.9): hidden by default, the box shows them and stays ticked
+    hidden = req("GET", "/dns-filter?view=querylog")[3]
+    shown = req("GET", "/dns-filter?view=querylog&own=on")[3]
+    check("DNS filter tab: the query log hides fabric's own (the DC's lookup from 10.255.0.1) and says so",
+          "_ldap._tcp.dc._msdcs.home.arpa" not in hidden and "www.roblox.com" in hidden
+          and "fabric's own queries are hidden" in hidden and '<input type="checkbox" name="own">' in hidden)
+    check("DNS filter tab: Show fabric's own queries ticked shows it, the box kept ticked, no note",
+          "_ldap._tcp.dc._msdcs.home.arpa" in shown and '<input type="checkbox" name="own" checked>' in shown
+          and "own queries are hidden" not in shown)
+    check("DNS filter tab: the overview states how many queries were fabric's own",
+          "1310 of them fabric's own" in page)
+    # the YouTube level applies only while safe search is on (2.1.12.10): disabled while off, kept across an off-save
+    page = req("GET", "/dns-filter?view=settings")[3]
+    check("DNS filter tab: safe search off -> the YouTube select disabled, with its hint and a hidden copy",
+          '<select name="youtube" disabled>' in page and "Used only while safe search is on." in page
+          and '<input type="hidden" name="youtube" value="strict">' in page)
+    req("POST", "/dns-filter/safe-search", {"csrf": "dev", "on": "on", "youtube": "strict", "back": "settings"})
+    page = req("GET", "/dns-filter?view=settings")[3]
+    check("DNS filter tab: safe search on -> the YouTube select enabled, no hidden copy",
+          '<select name="youtube">' in page and 'type="hidden" name="youtube"' not in page)
+    req("POST", "/dns-filter/safe-search", {"csrf": "dev", "on": "on", "youtube": "moderate", "back": "settings"})
+    req("POST", "/dns-filter/safe-search", {"csrf": "dev", "youtube": "moderate", "back": "settings"})   # off
+    page = req("GET", "/dns-filter?view=settings")[3]
+    check("DNS filter tab: turned off, the YouTube level chosen while on is kept (disabled, its hidden copy moderate)",
+          '<input type="hidden" name="youtube" value="moderate">' in page
+          and '<option value="moderate" selected>' in page[page.find('name="youtube"'):])
+    req("POST", "/dns-filter/safe-search", {"csrf": "dev", "youtube": "moderate", "back": "settings"})   # off again
+    page = req("GET", "/dns-filter?view=settings")[3]
+    check("DNS filter tab: saved again while off (the hidden copy sent), the YouTube level is still kept",
+          '<input type="hidden" name="youtube" value="moderate">' in page)
     check("every service tab renders", tabs_ok)
     # the Networks tab (manual 1.10.4.21) over the sample plan
     # covers: web:get.networks +
