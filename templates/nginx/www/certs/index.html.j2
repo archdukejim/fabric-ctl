@@ -186,10 +186,27 @@ crypto pki authenticate {{ domain_file | upper }}-ROOT
       fingerprint you give matches the root CA's above), joins the domain and takes its time from this network; who
       may log on there with their domain password, and who has sudo, is decided by the domain's grants. The password
       is asked, never typed on the command line.</p>
-      <pre><code><span class="cmd">wget</span> -nv http://{{ hostname_stepca }}/certs/join-linux.sh
-<span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --user &lt;directory admin&gt;
-<span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --one-time     <span style="color:var(--muted)"># a pre-created machine</span>
-<span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --user &lt;directory admin&gt; --site &lt;site&gt; --name &lt;name&gt;</code></pre>
+      <p>The script runs as root, so it is fetched over HTTPS, trusting only the root certificate your fingerprint has just
+      vouched for. Take the fingerprint from somewhere you trust (on the host, the command at the top of this page), not from
+      a page served over plain HTTP. Paste this whole, in an empty folder; it refuses, running nothing, if
+      either check fails:</p>
+      <pre id="join-steps"><code>FP=&lt;root CA SHA-256 from above&gt;
+(
+  rm -f root-ca.crt join-linux.sh
+  if command -v curl &gt;/dev/null; then
+    plain() { curl -fsS "$1" -o "$2"; }
+    pinned() { curl -fsS --cacert root-ca.crt --capath . "$1" -o "$2"; }
+  else
+    plain() { wget -q "$1" -O "$2"; }
+    # wget keeps the system's store whatever it is told (Ubuntu 24.04), so openssl's own client, trusting this root alone
+    pinned() { printf 'GET /certs/join-linux.sh HTTP/1.0\r\nHost: {{ (hostname ~ '.' ~ domain) | lower }}\r\n\r\n' | openssl s_client -quiet -no-CApath -no-CAstore -CAfile root-ca.crt -verify_return_error -verify_hostname {{ (hostname ~ '.' ~ domain) | lower }} -connect {{ (hostname ~ '.' ~ domain) | lower }}:443 -servername {{ (hostname ~ '.' ~ domain) | lower }} 2&gt;/dev/null &gt; reply.tmp; head -1 reply.tmp | grep -q ' 200 ' &amp;&amp; sed '1,/^\r$/d' reply.tmp &gt; "$2"; }
+  fi
+  plain http://{{ hostname_stepca }}/certs/root-ca.crt root-ca.crt || { echo "REFUSED: could not fetch the root certificate. Nothing was run." &gt;&amp;2; exit 1; }
+  got=$(openssl x509 -in root-ca.crt -noout -fingerprint -sha256 | cut -d= -f2 | tr -d :)
+  [ -n "$got" ] &amp;&amp; [ "$got" = "$(printf %s "$FP" | tr -d : | tr a-f A-F)" ] || { rm -f root-ca.crt; echo "REFUSED: the root certificate served (${got:-none}) is not the fingerprint you gave: it is not fabric's, or the fingerprint is wrong. Nothing was run." &gt;&amp;2; exit 1; }
+  pinned https://{{ (hostname ~ '.' ~ domain) | lower }}/certs/join-linux.sh join-linux.sh || { rm -f join-linux.sh; echo "REFUSED: {{ (hostname ~ '.' ~ domain) | lower }} did not prove itself with that root, so the script was not trusted. Nothing was run." &gt;&amp;2; exit 1; }
+) &amp;&amp; sudo bash join-linux.sh "$FP" --user &lt;directory admin&gt;</code></pre>
+      <p>The last line's other forms: <code>--one-time</code> for a pre-created machine, or <code>--site &lt;site&gt; --name &lt;name&gt;</code> added to it.</p>
       <p>A machine joined before 0.9.1 should have its <code>fabric-managed</code> refreshed once: its own copy can remove
       fabric's DNS when one search fails, leaving it off the domain. This also brings back one that already lost it, which
       is why it fetches by address, and changes nothing unless the DC answers:</p>

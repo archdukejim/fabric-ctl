@@ -6,7 +6,7 @@
 # runs on the lab VMs over SSH with the lab key.
 #
 #   FROM_DEB=<fabricctl 0.8.0 .deb> TO_DEB=<the branch's .deb> tests/lab/joined_campaign.sh
-#   [ONLY="join upgrade place images restart restore move rename" picks steps; all by default, each needs those before it]
+#   [ONLY="join upgrade place images restart restore move rename fresh" picks steps; all by default, each needs those before it]
 #
 # The steps, each followed by client_check (the fabric host's own join, the Linux member ub26-2, the Windows member
 # ws25-1: the machine's password still the DC's, a Kerberos ticket as the machine, a domain person resolved, the DC
@@ -14,6 +14,7 @@
 #   join     fabric at the floor (FROM_DEB, 0.8.0 until 1.0: 2.1.1.61) with tests/lab/joined_vars.yaml; ub26-2 and
 #            ws25-1 joined with one-time passwords, piped from add-machine's output to the member (never an argument)
 #   upgrade  TO_DEB installed over it, then setup unattended, as an operator upgrades
+#   fresh    last: ub26-2 joined again, by this build's own steps as the certificates page gives them (4.6.6.2, 2.1.1.85)
 #   move     ub26-2's floor script refreshed first (4.6.6.12, 2.1.1.84), with its refusals, then 4.2.4.2
 #   place    ub26-2 and ws25-1 moved into an admin's OU at the domain's root (1.8.8.5, 2.1.6.106; 2.3.8.6: anywhere):
 #            the person's access check, sudo, Windows' fabric GPOs and local Administrators the
@@ -32,7 +33,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 FABRIC=10.88.0.10; FIRST=$FABRIC; MOVED=10.88.0.13; LINUX=10.88.0.21; WIN=10.88.0.41
 DOMAIN=lab.test; AD=ad.lab.test; PERSON=lab.admin; RENAMED=g23-vm-ub24-1b
-ONLY="${ONLY:-join upgrade place images restart restore move rename}"
+ONLY="${ONLY:-join upgrade place images restart restore move rename fresh}"
 # keepalives: a session whose address went away (the move) ends in about a minute instead of waiting for ever
 SSH=(-i "$HOME/.ssh/g23_lab" -o "UserKnownHostsFile=$HOME/fabric-lab/known_hosts" -o BatchMode=yes -o ConnectTimeout=20
      -o ServerAliveInterval=15 -o ServerAliveCountMax=4)
@@ -131,10 +132,17 @@ if wants join; then
     # a captured value goes into a later command only when it is what it should be, never as text to run
     [[ "$fp" =~ ^([0-9A-F]{2}:){31}[0-9A-F]{2}$ ]] || stop "no root CA fingerprint from the fabric VM"
     members_dns "$FABRIC"
+    # a machine just booted: the floor's join does not wait for dpkg's lock (run 22: unattended-upgrades held it, 2.3.1.50)
+    L 'systemctl stop unattended-upgrades.service apt-daily.service apt-daily-upgrade.service 2>/dev/null
+       for _ in $(seq 1 120); do fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || exit 0; sleep 5; done; exit 1' ||
+        stop "dpkg's lock on ub26-2 was not let go"
+    # the floor's own way, as 0.8.0's page gave it; this build's way is the fresh step (2.1.1.85)
     L "wget -nv -O /root/join-linux.sh http://$FABRIC/certs/join-linux.sh" >/dev/null
     # the one-time password goes from add-machine's output to the join's standard input: never an argument or a file
     F "fabricctl domain add-machine g23-vm-ub26-2 --type server | sed -n '/shown once/{n;p}'" |
         ssh "${SSH[@]}" "labadmin@$LINUX" "sudo bash /root/join-linux.sh $fp --one-time" 2>&1 | tail -3
+    # the pipe's status is tail's: what the join left is the proof (run 22 went on with a member that never joined)
+    L 'test -s /etc/fabric/managed.env' || stop "ub26-2's floor join did not happen"
     # Windows' OpenSSH hands PowerShell's [Console]::In only what is there when the session opens (a line sent seconds
     # later never arrives: 3.1.5.11 step 2, 2026-11-01), so the line is read here first, kept in this shell's memory
     # only (read and printf are builtins: never on a command line), and only then does the session open, with it
@@ -423,6 +431,39 @@ if wants rename; then
     check "4.2.4.3 step 6: the keytab holds ${RENAMED^^}\$" "F 'klist -k /etc/krb5.keytab' | grep -qF '${RENAMED^^}\$@'"
     check "4.2.4.3 step 6: doctor passes" "F 'fabricctl doctor' >/dev/null"
     client_check "the host renamed"
+fi
+if wants fresh; then
+    echo "=== fresh: ub26-2 joined again by this build's steps, as the certificates page gives them (4.6.6.2, 2.1.1.85)"
+    fp=$(F "openssl x509 -noout -fingerprint -sha256 -in /opt/stepca/data/certs/root_ca.crt | cut -d= -f2")
+    [[ "$fp" =~ ^([0-9A-F]{2}:){31}[0-9A-F]{2}$ ]] || stop "no root CA fingerprint from the fabric VM"
+    # the page's block itself, entities decoded, its placeholders filled; here a one-time password, read from stdin
+    # shellcheck disable=SC2016
+    L "mkdir -p /root/fresh; rm -f /root/fresh/*; wget -qO- http://$FABRIC/certs/ | sed -n '/<pre id=\"join-steps\">/,/<\\/pre>/p' |
+       sed 's/.*<code>//; s/<\\/code>.*//; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\\&/g; s/<root CA SHA-256 from above>/$fp/; s/--user <directory admin>/--one-time/' > /root/fresh/.steps"
+    check "the page's join steps fetch the root by HTTP and the script by HTTPS alone" \
+        "L 'grep -q \"http://.*/certs/root-ca.crt root-ca.crt\" /root/fresh/.steps && grep -q \"pinned https://.*/certs/join-linux.sh\" /root/fresh/.steps && ! grep -qE \"http://[^ ]*join-linux\" /root/fresh/.steps'"
+    was=$(L "sha256sum /etc/fabric/managed.env /etc/krb5.keytab /usr/local/sbin/fabric-managed" | grep -E '^[0-9a-f]{64} ')
+    unchanged() { [ "$(L "sha256sum /etc/fabric/managed.env /etc/krb5.keytab /usr/local/sbin/fabric-managed" | grep -E '^[0-9a-f]{64} ')" = "$was" ]; }
+    out=$(L "cd /root/fresh; sed 's/^FP=.*/FP=$(printf '00:%.0s' {1..31})00/' .steps > .wrong; bash .wrong; echo rc=\$?; ls -A | tr '\n' ' '" 2>&1)
+    printf '%s\n' "$out" | sed 's/^/    /'
+    check "negative: a wrong fingerprint: refused, saying why, the script neither fetched nor run, nothing changed" \
+        "printf '%s' \"\$out\" | grep -q 'is not the fingerprint you gave' && printf '%s' \"\$out\" | grep -q rc=1 && ! printf '%s' \"\$out\" | grep -q ' join-linux.sh' && unchanged"
+    # a root that is not fabric's, whose own fingerprint is held; the machine's store trusts fabric's: that must not count
+    L 'openssl req -x509 -newkey rsa:2048 -nodes -keyout /dev/null -subj /CN=other -days 1 -out /tmp/other.pem 2>/dev/null' >/dev/null
+    other=$(L 'openssl x509 -in /tmp/other.pem -noout -fingerprint -sha256 | cut -d= -f2')
+    [[ "$other" =~ ^([0-9A-F]{2}:){31}[0-9A-F]{2}$ ]] || stop "no other root's fingerprint"
+    out=$(L "cd /root/fresh; sed 's/^FP=.*/FP=$other/; s#http://[^ ]*/certs/root-ca.crt root-ca.crt#file:///tmp/other.pem root-ca.crt#' .steps > .other; bash .other; echo rc=\$?; ls -A | tr '\n' ' '" 2>&1)
+    printf '%s\n' "$out" | sed 's/^/    /'
+    check "negative: a root that is not fabric's: refused, saying why, the script not kept or run, nothing changed" \
+        "printf '%s' \"\$out\" | grep -q 'did not prove itself' && printf '%s' \"\$out\" | grep -q rc=1 && ! printf '%s' \"\$out\" | grep -q ' join-linux.sh' && unchanged"
+    # 4.6.6.11's way to join again under a new name, and the one-time password by the pipe, never an argument or a file
+    FRESH=g23-fresh-1
+    L "rm -f /etc/polkit-1/rules.d/10-fabric-hostname.rules /etc/krb5.keytab; hostnamectl set-hostname $FRESH" >/dev/null
+    F "fabricctl domain add-machine $FRESH --type server | sed -n '/shown once/{n;p}'" |
+        ssh "${SSH[@]}" "labadmin@$LINUX" "sudo bash -c 'cd /root/fresh && bash .steps'" 2>&1 | tail -3
+    check "the fresh join: the steps fetched and ran this build's script, joined as $FRESH" \
+        "L 'grep -qx MACHINE=$FRESH /etc/fabric/managed.env && test -s /root/fresh/join-linux.sh && grep -c \"flock 9\" /usr/local/sbin/fabric-managed | grep -qx 1'"
+    client_check "a fresh join by this build's steps"
 fi
 echo
 echo "FLOOR first setup: $FLOOR"

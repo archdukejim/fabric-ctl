@@ -1065,10 +1065,13 @@ for _tpl in ('stepca/leaf.tpl.j2', 'stepca/acme.tpl.j2'):
     assert f'"crlDistributionPoints": ["{_certs_url}crl/intermediate.crl"]' in _t and 'certs.' not in _t \
         and _land not in _t, (_tpl, _t)
 _page = env.get_template('nginx/www/certs/index.html.j2').render(**{**full, 'domain_file': 'lan'})
-assert f"<code>{_certs_url}</code>" in _page and f"{_certs_url}join-linux.sh" in _page and 'certs.' + v2['domain'] \
+assert f"<code>{_certs_url}</code>" in _page and f"{_certs_url}root-ca.crt root-ca.crt" in _page and 'certs.' + v2['domain'] \
     not in _page and _land not in _page, "the certificate page names ca.<domain>/certs/"
 # the refresh's HTTPS fetch (1.6.11.15): the host's own name, the one fabric keeps; ca.<domain>:443 is the CA's API
 _own = f"{v2['hostname']}.{v2['domain']}".lower()
+# the join's script comes over HTTPS alone (2.1.1.85); its steps are run for real by tests/samba/join_steps.py
+assert not re.search(r"http://[^\s<]*join-linux", _page), "the certificate page fetches the script over HTTP"
+assert f"pinned https://{_own}/certs/join-linux.sh join-linux.sh" in _page and "--capath ." in _page, "the join's fetch"
 assert "--capath /usr/local/share/ca-certificates --resolve" in _page, "the refresh's fetch trusts fabric's root alone"
 assert f"--resolve {_own}:443:{v2['host_ip']} https://{_own}/certs/join-linux.sh" in _page, "the refresh's fetch"
 for _tpl, _var in (('install-all-ubuntu.sh.j2', 'BASE_URL'), ('install-certs.sh.j2', 'CERT_BASE'),

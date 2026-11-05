@@ -21,6 +21,7 @@ STEPS = [("every function has a structured docstring", [os.path.join(HERE, "chec
          ("the function reference (manual 1.17) matches the code", [os.path.join(TOOLS, "gen_lib_doc.py"), "--check"]),
          ("the function reference gives each number once", [os.path.join(HERE, "lib_doc_registry_test.py")]),
          ("docs and code agree", [os.path.join(HERE, "check_consistency.py")]),
+         ("the join's script is never fetched by HTTP", [os.path.join(HERE, "check_join_fetch.py")]),
          ("every entry point is tested both ways, or a listed gap", [os.path.join(HERE, "check_entrypoints.py")]),
          ("every file has been reviewed", [os.path.join(TOOLS, "review_ledger.py")])]
 

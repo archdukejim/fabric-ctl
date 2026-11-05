@@ -279,8 +279,9 @@ fi
 [[ -n $PASSWORD ]] || die "no password given"
 
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-apt-get install -y -qq ca-certificates curl openssl >/dev/null
+# a machine just booted: unattended-upgrades can hold the lock for minutes (joined run 22, 2.3.1.50)
+apt-get -o DPkg::Lock::Timeout=600 update -qq
+apt-get -o DPkg::Lock::Timeout=600 install -y -qq ca-certificates curl openssl >/dev/null
 
 # fabric's root CA, fetched over plain HTTP (nothing is trusted yet) and kept only if its fingerprint matches
 tmp=$(mktemp -d)
@@ -293,7 +294,7 @@ update-ca-certificates >/dev/null
 echo "trusted fabric's root CA ($FP)"
 
 # sudo itself too: Debian and Proxmox VE do not install it
-apt-get install -y -qq adcli sssd-ad sssd-tools libpam-sss libnss-sss libsss-sudo sudo krb5-user ldap-utils \
+apt-get -o DPkg::Lock::Timeout=600 install -y -qq adcli sssd-ad sssd-tools libpam-sss libnss-sss libsss-sudo sudo krb5-user ldap-utils \
     libsasl2-modules-gssapi-mit >/dev/null
 
 # Kerberos: the domain's realm; its KDCs from DNS, the site's DC when DNS has none
