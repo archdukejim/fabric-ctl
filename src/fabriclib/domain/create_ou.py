@@ -5,7 +5,7 @@ from fabriclib.secrets.load_secrets import load_secrets
 
 
 def create_ou(v, actor, parent, name, source="web", secrets=None, container="samba"):
-    """Purpose: an admin's own OU (manual 1.6.12.7, Create OU; `ous:admin`, 1.6.12.11) anywhere since 0.9.1
+    """Purpose: an admin's own OU (manual 1.6.12.7, Create OU; `ous:admin`, 1.6.12.11) anywhere since 0.9.2
              (2.1.6.101): at the domain's root ("/" or ""), under OU=people, OU=service-accounts, OU=groups,
              OU=machines, a machine type's OU, or an admin's own; never in fabric's closed folders. OUs grant nothing
              (2.1.6.72), so no tier or grant decides who may add a folder: the permission alone.

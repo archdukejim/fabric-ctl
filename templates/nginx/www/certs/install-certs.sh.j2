@@ -1,19 +1,46 @@
 #!/usr/bin/env bash
+# Usage: sudo bash install-certs-{{ domain_file }}.sh <root CA SHA-256>
+# The certificates come by plain HTTP, so none is installed until the root matches the fingerprint given and the
+# intermediate is proved by that root (2.1.1.87).
 set -euo pipefail
 
 #--- Configuration -----------------------------------------------------------
 CERT_BASE="http://{{ hostname_stepca }}/certs"
 CERTS=("root-ca.crt" "intermediate-ca.crt")
 TARGET_DIR="/usr/local/share/ca-certificates"
+FP="${1:-}"
 
 #--- Helper ------------------------------------------------------------------
 die() { echo "ERROR: $*" >&2; exit 1; }
+refuse() { echo "REFUSED: $* Nothing was installed." >&2; exit 1; }
 
 #--- Ensure we run as root (or via sudo) -------------------------------------
 if [[ $EUID -ne 0 ]]; then
     echo "This script must be run with sudo or as root."
     exit 1
 fi
+
+[[ -n "$FP" ]] || refuse "give the root CA's SHA-256, from the certificates page."
+
+#--- Fetch every certificate, and check each before any is installed ----------
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+for name in "${CERTS[@]}"; do
+    echo "Downloading ${CERT_BASE}/${name} ..."
+    if command -v wget >/dev/null; then
+        wget -nv "${CERT_BASE}/${name}" -O "$WORK/$name" || die "Failed to download ${CERT_BASE}/${name}"
+    else
+        curl -fsS "${CERT_BASE}/${name}" -o "$WORK/$name" || die "Failed to download ${CERT_BASE}/${name}"
+    fi
+    # one certificate each: a second in the file would be trusted unchecked
+    [[ "$(grep -c -- '-----BEGIN CERTIFICATE-----' "$WORK/$name" || true)" == 1 ]] || refuse "$name is not one certificate."
+done
+got=$(openssl x509 -in "$WORK/root-ca.crt" -noout -fingerprint -sha256 2>/dev/null | cut -d= -f2 | tr -d :) || true
+if [[ -z "$got" || "$got" != "$(printf %s "$FP" | tr -d : | tr a-f A-F)" ]]; then
+    refuse "the root certificate served (${got:-none}) is not the fingerprint you gave: it is not fabric's, or the fingerprint is wrong."
+fi
+openssl verify -no-CApath -no-CAstore -CAfile "$WORK/root-ca.crt" "$WORK/intermediate-ca.crt" >/dev/null 2>&1 ||
+    refuse "the intermediate certificate served is not proved by that root."
 
 #--- Create target directory if missing --------------------------------------
 mkdir -p "$TARGET_DIR"
@@ -22,11 +49,7 @@ mkdir -p "$TARGET_DIR"
 install_cert() {
     local name="$1"
     local prefix="$2"
-    local url="${CERT_BASE}/${name}"
-    local tmp_file="/tmp/${prefix}-raw.crt"
-
-    echo "Downloading $url ..."
-    wget -nv "$url" -O "$tmp_file" || die "Failed to download $url"
+    local tmp_file="$WORK/$name"
 
     # Remove any old certificates for this prefix to avoid conflicts
     rm -f "${TARGET_DIR}/${prefix}"*.crt
@@ -63,19 +86,7 @@ install_cert() {
         fi
     done < "$tmp_file"
 
-    # Fallback: If no PEM certificates were found, attempt to convert from DER
-    if [[ $count -eq 0 ]]; then
-        cert_file="${TARGET_DIR}/${prefix}-1.crt"
-        if openssl x509 -inform DER -in "$tmp_file" -out "$cert_file" 2>/dev/null; then
-            echo "Converted binary DER certificate to PEM."
-            count=1
-        else
-            echo "Warning: No valid PEM or DER certificates found in $url"
-        fi
-    fi
-
     echo "Installed $count valid certificate(s) for $prefix"
-    rm -f "$tmp_file"
 }
 
 #--- Download and install each certificate ------------------------------------

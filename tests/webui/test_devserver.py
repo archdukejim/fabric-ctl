@@ -20,7 +20,7 @@ from webui import views  # noqa: E402
 from fabriclib.rbac.permissions import BUNDLES  # noqa: E402
 
 PORT = int(os.environ.get("WEBUI_DEV_PORT", "18765"))
-START_WAIT = 15                             # seconds a dev server may take to answer (about 6 under WSL's /mnt)
+START_WAIT = 60                             # seconds a dev server may take to answer (6 to 15 under WSL's /mnt: 2.3.1.53)
 FAILED = 0
 
 
@@ -77,11 +77,16 @@ def serve(bundle=None):
                             stderr=subprocess.STDOUT, text=True)
     try:
         end = time.time() + START_WAIT
-        while time.time() < end:
+        while True:
             try:
                 req("GET", "/static/app.css")
                 break
             except OSError:
+                if proc.poll() is not None or time.time() >= end:
+                    proc.terminate()
+                    said = proc.communicate(timeout=5)[0]
+                    raise SystemExit(f"the dev server did not answer on {PORT} within {START_WAIT} s "
+                                     f"(exit {proc.returncode}); it said: {said[-1500:]}") from None
                 time.sleep(0.1)
         yield
     finally:

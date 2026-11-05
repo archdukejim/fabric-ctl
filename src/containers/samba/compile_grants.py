@@ -90,7 +90,7 @@ def compile_grants(samdb, lp, dc, fallback_open=False):
              it differs: each grant's computed groups (`grant-<name>-who`, a POSIX group for sudo, and
              `grant-<name>-where`); the machines grouped into sets by the grants that reach them, each set's computers
              in `access-<n>` (computers only: anything else taken out) and its one GPO `fabric: access <n>` linked at
-             the domain's root, so a machine in any OU keeps it (2.1.6.98; before 0.9.1 at OU=machines, whose link is
+             the domain's root, so a machine in any OU keeps it (2.1.6.98; before 0.9.2 at OU=machines, whose link is
              taken out where it is found), filtered to that group and to each of its computers by SID (2.1.6.94),
              giving each right
              to its holders (restricted where a restricting grant says) and putting the local administrators'

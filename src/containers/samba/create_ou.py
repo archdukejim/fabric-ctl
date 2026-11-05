@@ -7,7 +7,7 @@ MARK = "an admin's folder (manual 1.6.12.7): OUs grant nothing"
 
 
 def create_ou(samdb, lp, site, parent, name, dc=""):
-    """Purpose: an admin's own OU (manual 1.6.12.7, Create OU), anywhere since 0.9.1 (1.8.8.5, 2.1.6.101): at the
+    """Purpose: an admin's own OU (manual 1.6.12.7, Create OU), anywhere since 0.9.2 (1.8.8.5, 2.1.6.101): at the
              domain's root, under OU=people, OU=service-accounts, OU=groups, OU=machines or a machine type's OU, or
              under an admin's own OU wherever it is; never inside fabric's closed folders or AD's Domain Controllers
              (ou_paths.place_ok) and never named as one of fabric's folders. One at the root gets the Directory

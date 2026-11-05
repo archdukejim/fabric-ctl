@@ -1,8 +1,46 @@
 #!/usr/bin/env bash
+# Usage: sudo bash install-all-{{ domain_file }}.sh <root CA SHA-256>
+# Each script comes by HTTPS, trusting fabric's root alone, and that root is checked first against the fingerprint given:
+# the certificates page shows it (2.1.1.87). Nothing is fetched by plain HTTP and run.
 set -euo pipefail
 
 BASE_URL="http://{{ hostname_stepca }}/certs"
+OWN="{{ (hostname ~ '.' ~ domain) | lower }}"
 DOMAIN="{{ domain_file }}"
+FP="${1:-}"
+
+[ -n "$FP" ] || { echo "REFUSED: give the root CA's SHA-256, from the certificates page. Nothing was run." >&2; exit 1; }
+[ "$EUID" -eq 0 ] || { echo "REFUSED: run it with sudo or as root. Nothing was run." >&2; exit 1; }
+
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+if command -v curl >/dev/null; then
+    plain() { curl -fsS "$1" -o "$2"; }
+    pinned() { curl -fsS --cacert "$WORK/root-ca.crt" --capath "$WORK" "https://$OWN/certs/$1" -o "$2"; }
+else
+    plain() { wget -q "$1" -O "$2"; }
+    # wget keeps the system's store whatever it is told (Ubuntu 24.04), so openssl's own client, trusting this root alone
+    pinned() {
+        printf 'GET /certs/%s HTTP/1.0\r\nHost: %s\r\n\r\n' "$1" "$OWN" |
+            openssl s_client -quiet -no-CApath -no-CAstore -CAfile "$WORK/root-ca.crt" -verify_return_error \
+                -verify_hostname "$OWN" -connect "$OWN:443" -servername "$OWN" 2>/dev/null > "$WORK/reply" || true
+        head -1 "$WORK/reply" | grep -q ' 200 ' && sed '1,/^\r$/d' "$WORK/reply" > "$2"
+    }
+fi
+plain "$BASE_URL/root-ca.crt" "$WORK/root-ca.crt" || { echo "REFUSED: could not fetch the root certificate. Nothing was run." >&2; exit 1; }
+got=$(openssl x509 -in "$WORK/root-ca.crt" -noout -fingerprint -sha256 2>/dev/null | cut -d= -f2 | tr -d :) || true
+if [ -z "$got" ] || [ "$got" != "$(printf %s "$FP" | tr -d : | tr a-f A-F)" ]; then
+    echo "REFUSED: the root certificate served (${got:-none}) is not the fingerprint you gave: it is not fabric's, or the fingerprint is wrong. Nothing was run." >&2
+    exit 1
+fi
+
+# run_script <name> [its arguments]: 1 when the script could not be trusted, or when it failed
+run_script() {
+    local name="install-$1-$DOMAIN.sh"
+    shift
+    pinned "$name" "$WORK/$name" || { echo "REFUSED: $OWN did not prove itself with that root, so $name was not trusted and not run." >&2; return 1; }
+    bash "$WORK/$name" "$@"
+}
 
 echo "================================================="
 echo " Starting All-in-One CA Installation "
@@ -10,7 +48,7 @@ echo "================================================="
 echo ""
 
 echo ">>> 1. Installing OS Certificates..."
-if wget -nv -O- "$BASE_URL/install-certs-$DOMAIN.sh" | bash; then
+if run_script certs "$FP"; then
     echo "[OK] OS Certificates installed."
 else
     echo "[ERROR] Failed to install OS certificates. Aborting."
@@ -20,7 +58,7 @@ echo ""
 
 echo ">>> 2. Configuring Python Applications..."
 if command -v python3 >/dev/null 2>&1; then
-    if wget -nv -O- "$BASE_URL/install-python-$DOMAIN.sh" | bash; then
+    if run_script python; then
         echo "[OK] Python configured."
     else
         echo "[WARNING] Failed to configure Python."
@@ -29,10 +67,9 @@ else
     echo "[SKIP] Python 3 not found on this system."
 fi
 echo ""
-
 echo ">>> 3. Configuring Firefox..."
 if command -v firefox >/dev/null 2>&1 || [ -d "$HOME/.mozilla/firefox" ] || [ -d "/snap/firefox" ] || [ -d "/etc/firefox" ]; then
-    if wget -nv -O- "$BASE_URL/install-firefox-$DOMAIN.sh" | bash; then
+    if run_script firefox; then
         echo "[OK] Firefox configured."
     else
         echo "[WARNING] Firefox configuration failed."
@@ -44,7 +81,7 @@ echo ""
 
 echo ">>> 4. Configuring Chrome/Chromium/Brave/Edge..."
 if command -v google-chrome >/dev/null 2>&1 || command -v chromium >/dev/null 2>&1 || command -v chromium-browser >/dev/null 2>&1 || command -v brave >/dev/null 2>&1 || command -v microsoft-edge >/dev/null 2>&1 || [ -d "$HOME/.pki/nssdb" ] || [ -d "/snap/chromium" ]; then
-    if wget -nv -O- "$BASE_URL/install-chrome-$DOMAIN.sh" | bash; then
+    if run_script chrome; then
         echo "[OK] Chrome/Chromium configured."
     else
         echo "[WARNING] Chrome/Chromium configuration failed."

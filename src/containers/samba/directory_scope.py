@@ -1,4 +1,4 @@
-"""Where fabric finds its people and groups since 0.9.1, when they may be in any OU (decision 2.1.6.106, manual
+"""Where fabric finds its people and groups since 0.9.2, when they may be in any OU (decision 2.1.6.106, manual
 1.8.8.5): one rule, so nothing else names a folder for them. AD's own are whatever is not in an OU (CN=Users,
 CN=Builtin), or is marked critical; a service account is whatever is in OU=service-accounts, and never a person."""
 import ldb

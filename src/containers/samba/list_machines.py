@@ -10,7 +10,7 @@ TYPES = {f"machines-{ou}": kind for kind, ou in paths.MACHINE_TYPES.items()}    
 
 def list_machines(samdb, lp, site):
     """Purpose: the domain's machines (manual 1.6.7.6, 1.6.5.21 S7.4, 1.6.13.3): the computer accounts in any OU
-             (OU=machines and below, an admin's own OUs anywhere since 0.9.1, 1.8.8.5), Windows and Linux alike, and the
+             (OU=machines and below, an admin's own OUs anywhere since 0.9.2, 1.8.8.5), Windows and Linux alike, and the
              fabric hosts in OU=fabric-hosts (1.6.11.11), each with its type, sites and machine groups (from its
              groups: its type is its group's, never its OU's, 2.1.6.99) and its folder.
     Inputs:  samdb — SamDB (as the DC's agent); lp — LoadParm (unused); site — str (unused: machines are the

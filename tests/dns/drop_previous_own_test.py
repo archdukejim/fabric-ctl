@@ -92,7 +92,7 @@ _, c = zone(render({**copy.deepcopy(ready), "hostname": "core"}))
 check("once ready, renamed: the landing alias follows the new name, once", ("info", "core") in c and
       not any(t == "fab" for _, t in c) and sum(1 for n, _ in c if n == "info") == 1, sorted(c))
 
-# an install from before 0.9.1 (no list kept): only exact matches are taken for fabric's (positive evidence)
+# an install from before 0.9.2 (no list kept): only exact matches are taken for fabric's (positive evidence)
 old = copy.deepcopy(first)
 old.pop("dns_fabric_own")
 old["dns"]["dynamic_zone_var"]["A"].append({"name": "fab", "ip": "10.88.0.99"})       # not fabric's: kept

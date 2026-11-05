@@ -7,7 +7,7 @@ def own_names(v):
              is not one of them since 0.7.1: added once at install, it is the admin's record (2.1.4.6).
     Returns: dict {(record type, name): (value it points to, service, setting)}.
     Fails:   never.
-    Feeds:   fabric_record, drop_previous_own (an install from before 0.9.1, which kept no list of them)."""
+    Feeds:   fabric_record, drop_previous_own (an install from before 0.9.2, which kept no list of them)."""
     host, domain = str(v.get("hostname") or ""), str(v.get("domain") or "")
     cnames = [(v.get("cname_ca") or "ca", "the CA (step-ca)", "cname_ca"),
               (v.get("cname_dns") or "dns", "DNS (BIND)", "cname_dns"),

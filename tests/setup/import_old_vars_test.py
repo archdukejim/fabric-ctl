@@ -127,7 +127,7 @@ same, _ = render_vars(env, secrets, {**yaml.safe_load(open(os.path.join(ctx_same
 
 
 def _zones(v):
-    """The zones' records as sets: their order is not the zone's (BIND serves the same records). Since 0.9.1 the first
+    """The zones' records as sets: their order is not the zone's (BIND serves the same records). Since 0.9.2 the first
     render of moved settings drops fabric's own names and adds them again (1.4.1.8), so they may come in another
     order than a fresh install's."""
     return {z: {t: sorted(map(str, r)) if isinstance(r, list) else r for t, r in recs.items()}

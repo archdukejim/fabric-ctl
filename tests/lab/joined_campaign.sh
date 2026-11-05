@@ -6,7 +6,7 @@
 # runs on the lab VMs over SSH with the lab key.
 #
 #   FROM_DEB=<fabricctl 0.8.0 .deb> TO_DEB=<the branch's .deb> tests/lab/joined_campaign.sh
-#   [ONLY="join upgrade place images restart restore move rename fresh" picks steps; all by default, each needs those before it]
+#   [ONLY="join upgrade place images restart restore move rename fresh certs" picks steps; all by default, each needs those before it]
 #
 # The steps, each followed by client_check (the fabric host's own join, the Linux member ub26-2, the Windows member
 # ws25-1: the machine's password still the DC's, a Kerberos ticket as the machine, a domain person resolved, the DC
@@ -14,7 +14,8 @@
 #   join     fabric at the floor (FROM_DEB, 0.8.0 until 1.0: 2.1.1.61) with tests/lab/joined_vars.yaml; ub26-2 and
 #            ws25-1 joined with one-time passwords, piped from add-machine's output to the member (never an argument)
 #   upgrade  TO_DEB installed over it, then setup unattended, as an operator upgrades
-#   fresh    last: ub26-2 joined again, by this build's own steps as the certificates page gives them (4.6.6.2, 2.1.1.85)
+#   fresh    ub26-2 joined again, by this build's own steps as the certificates page gives them (4.6.6.2, 2.1.1.85)
+#   certs    last: on ub26-2, install-all by the page's steps (4.5.1.7, 2.1.1.87)
 #   move     ub26-2's floor script refreshed first (4.6.6.12, 2.1.1.84), with its refusals, then 4.2.4.2
 #   place    ub26-2 and ws25-1 moved into an admin's OU at the domain's root (1.8.8.5, 2.1.6.106; 2.3.8.6: anywhere):
 #            the person's access check, sudo, Windows' fabric GPOs and local Administrators the
@@ -23,9 +24,9 @@
 #   restart  fabricctl stop and start, then the fabric VM rebooted
 #   restore  uninstall --export, then restore from it (3.2.4)
 #   move     the fabric VM moved from 10.88.0.10 to 10.88.0.13 by 4.2.4.2: netplan, host_ip applied, the member
-#            step (no clean-up by hand since 0.9.1: the apply does it, 2.1.1.74), the members' DNS moved, 4.2.4.7
+#            step (no clean-up by hand since 0.9.2: the apply does it, 2.1.1.74), the members' DNS moved, 4.2.4.7
 #   rename   the fabric VM renamed by 4.2.4.3: the old way refused (2.1.6.104), `fabricctl admin rename-host`, the
-#            apply, the member step (no clean-up by hand since 0.9.1), 4.2.4.7 (the DC keeps dc_name, 1.6.5.23; the
+#            apply, the member step (no clean-up by hand since 0.9.2), 4.2.4.7 (the DC keeps dc_name, 1.6.5.23; the
 #            keytab holds the new name; local-admin follows it, 1.7.1.4.11)
 # Afterwards the four VMs go back to `clean` (3.1.5.11 step 9).
 # -----------------------------------------------------------------------
@@ -33,7 +34,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 FABRIC=10.88.0.10; FIRST=$FABRIC; MOVED=10.88.0.13; LINUX=10.88.0.21; WIN=10.88.0.41
 DOMAIN=lab.test; AD=ad.lab.test; PERSON=lab.admin; RENAMED=g23-vm-ub24-1b
-ONLY="${ONLY:-join upgrade place images restart restore move rename fresh}"
+ONLY="${ONLY:-join upgrade place images restart restore move rename fresh certs}"
 # keepalives: a session whose address went away (the move) ends in about a minute instead of waiting for ever
 SSH=(-i "$HOME/.ssh/g23_lab" -o "UserKnownHostsFile=$HOME/fabric-lab/known_hosts" -o BatchMode=yes -o ConnectTimeout=20
      -o ServerAliveInterval=15 -o ServerAliveCountMax=4)
@@ -228,7 +229,7 @@ if wants place; then
     check "before the move: placeok allowed on ub26-2 (access check Success, sudo /usr/bin/id), placeno refused" \
         "printf '%s' '${before_l//\'/}' | grep -q '^ok: pam_acct_mgmt: Success.*/usr/bin/id' &&
          printf '%s' '${before_l//\'/}' | grep -q '^no: pam_acct_mgmt: Permission denied'"
-    check "before the move: ws25-1 takes the Windows baseline, linked at the domain's root since 0.9.1 (2.1.6.106)" \
+    check "before the move: ws25-1 takes the Windows baseline, linked at the domain's root since 0.9.2 (2.1.6.106)" \
         "printf '%s' '${before_w//\'/}' | grep -q 'Windows baseline'"
     check "ub26-2 in lab-root: placeok still allowed and placeno still refused, as before (the GPOs at the root)" \
         "[ -n '${before_l//\'/}' ] && [ '${before_l//\'/}' = '${after_l//\'/}' ]"
@@ -369,7 +370,7 @@ if wants move; then
     check "4.2.4.2 step 3: host_ip applied" "F 'fabricctl --apply' >/dev/null"
     # step 4: the host's own join
     check "4.2.4.2 step 4: the member step" "F 'fabricctl setup --step member --non-interactive --approve member' >/dev/null"
-    # since 0.9.1 the apply and the member step leave nothing at the old address (2.1.1.74): no clean-up by hand
+    # since 0.9.2 the apply and the member step leave nothing at the old address (2.1.1.74): no clean-up by hand
     # the name read without sudo: `on` keeps a command's stderr, and sudo's own warnings must not join the name (run 15)
     HOSTNOW=$(on "$FABRIC" hostname | tr -dc 'a-z0-9-')
     # how the moved host finds its own name (run 15: sudo once could not, "Temporary failure in name resolution")
@@ -429,7 +430,7 @@ if wants rename; then
     check "the DC keeps its own name ($dc_before)" "[ \"\$(dc_fqdn)\" = '$dc_before' ]"
     # step 4: the host's own join moves to an account under the new name
     check "4.2.4.3 step 4: the member step" "F 'fabricctl setup --step member --non-interactive --approve member' >/dev/null"
-    # step 5: nothing to clean up since 0.9.1 (2.1.1.74): fabric's names follow the new name, the landing alias with them
+    # step 5: nothing to clean up since 0.9.2 (2.1.1.74): fabric's names follow the new name, the landing alias with them
     check "4.2.4.3 step 5: no record names $OLDNAME in fabric's zone (the menu's list)" \
         "zone_list >/dev/null && ! zone_list | grep -qE '\] ($OLDNAME -> |[a-z0-9-]+ -> $OLDNAME\$)'"
     check "4.2.4.3 step 5: each of fabric's aliases is in the zone once, under $RENAMED" \
@@ -481,6 +482,27 @@ if wants fresh; then
     check "a member joined by this build's script keeps what its join applied: its first check removed nothing" \
         "L 'test -e /etc/systemd/resolved.conf.d/fabric.conf' && ! L \"journalctl --since @$since -u fabric-managed.service | grep -q 'removed (no longer in fabric-managed)'\""
     client_check "a fresh join by this build's steps"
+fi
+if wants certs; then
+    echo "=== certs: on ub26-2, install-all as the certificates page gives it (4.5.1.7, 2.1.1.87)"
+    fp=$(F "openssl x509 -noout -fingerprint -sha256 -in /opt/stepca/data/certs/root_ca.crt | cut -d= -f2")
+    [[ "$fp" =~ ^([0-9A-F]{2}:){31}[0-9A-F]{2}$ ]] || stop "no root CA fingerprint from the fabric VM"
+    STOREGLOB='/usr/local/share/ca-certificates/fabric-*-*-ca-*.crt'
+    L "rm -f $STOREGLOB; update-ca-certificates --fresh >/dev/null 2>&1; mkdir -p /root/all; rm -f /root/all/*; wget -qO- http://$FABRIC/certs/ | sed -n '/<pre id=\"install-all-steps\">/,/<\\/pre>/p' |
+       sed 's/.*<code>//; s/<\\/code>.*//; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\\&/g; s/<root CA SHA-256 from above>/$fp/' > /root/all/.steps"
+    check "the page's install-all steps fetch the root by HTTP and the script by HTTPS alone" \
+        "L 'grep -q \"http://.*/certs/root-ca.crt root-ca.crt\" /root/all/.steps && grep -q \"pinned https://.*/certs/install-all-.*\\.sh\" /root/all/.steps && ! grep -qE \"http://[^ ]*install-\" /root/all/.steps'"
+    out=$(L "cd /root/all; sed 's/^FP=.*/FP=$(printf '00:%.0s' {1..31})00/' .steps > .wrong; bash .wrong; echo rc=\$?; ls $STOREGLOB 2>/dev/null | wc -l | sed 's/^/installed=/'; ls -A | tr '\n' ' '" 2>&1)
+    printf '%s\n' "$out" | sed 's/^/    /'
+    check "negative: a wrong fingerprint: refused, saying why, nothing fetched or installed" \
+        "printf '%s' \"\$out\" | grep -q 'is not the fingerprint you gave' && printf '%s' \"\$out\" | grep -q 'rc=1' && printf '%s' \"\$out\" | grep -q 'installed=0' && ! printf '%s' \"\$out\" | grep -q 'install-all-'"
+    out=$(L "cd /root/all; rm -f install-all-* root-ca.crt; bash .steps; echo rc=\$?; ls $STOREGLOB 2>/dev/null | wc -l | sed 's/^/installed=/'" 2>&1)
+    printf '%s\n' "$out" | tail -12 | sed 's/^/    /'
+    check "the right fingerprint: root and intermediate in the system's store, each script by HTTPS" \
+        "printf '%s' \"\$out\" | grep -q '\[OK\] OS Certificates installed.' && printf '%s' \"\$out\" | grep -q 'rc=0' && printf '%s' \"\$out\" | grep -q 'installed=2' && ! printf '%s' \"\$out\" | grep -q REFUSED"
+    check "...and the machine now trusts fabric's own server, by its store alone" \
+        "L 'curl -fsS -o /dev/null --capath /etc/ssl/certs https://info.$DOMAIN/certs/'"
+    client_check "install-all"
 fi
 echo
 echo "FLOOR first setup: $FLOOR"

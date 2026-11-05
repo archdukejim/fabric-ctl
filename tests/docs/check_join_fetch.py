@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""The Linux join's script is never fetched by plain HTTP (decision 2.1.1.85): fails if a page, a template, the code or the
-manual still says so. A script fetched over HTTP and run as root cannot be vouched for by a fingerprint it checks itself.
+"""No script of the certificates page is fetched by plain HTTP (decisions 2.1.1.85, 2.1.1.87), the join's or an installer's:
+fails if a page, a template, the code or the manual still says so. A script fetched over HTTP and run as root cannot be vouched for by a fingerprint it checks itself.
 
 Left out: Volume 2's decisions and notes (they tell what was, and why it changed), the function reference's generated
 text, and tests/ (the floor's own join, a released version's, is still done its way).
@@ -14,8 +14,8 @@ import sys
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TOPS = ("README.md", "docs", "templates", "src", "static", "config", "examples", "packaging")
 SKIP = ("docs/volume_2_engineering_decisions/",)
-# on one line: http:// and the script's name after it, a template's {{ name }} included
-FETCH = re.compile(r"http://[^\n]{0,80}?/join-linux\.sh")
+# on one line: http:// and a script's name after it, a template's {{ name }} included; a shell variable's too (BASE_URL)
+FETCH = re.compile(r"(http://[^\n]{0,80}?|\$BASE_URL)/(join-linux|install-[^\n/\"']*?)\.sh")
 TEXT = (".md", ".j2", ".py", ".html", ".sh", ".txt", ".yaml", ".yml", ".js")
 
 
@@ -35,9 +35,11 @@ def main():
     Fails:   never.
     Feeds:   tests/docs/run.py."""
     for bad in ("wget -nv http://info.lab.test/certs/join-linux.sh", "http://{{ hostname_stepca }}/certs/join-linux.sh",
-                "curl -fsS http://10.0.0.1/certs/join-linux.sh -o j.sh"):
+                "curl -fsS http://10.0.0.1/certs/join-linux.sh -o j.sh", "wget -nv -O- http://ca.lab.test/certs/install-all-lan.sh | bash",
+                "http://{{ hostname_stepca }}/certs/install-certs-{{ domain_file }}.sh", 'wget -nv -O- "$BASE_URL/install-certs-$DOMAIN.sh" | bash'):
         assert found_in(bad), bad
     assert not found_in("curl --cacert r.crt --capath . https://h.lab.test/certs/join-linux.sh")
+    assert not found_in("https://h.lab.test/certs/install-certs-lan.sh") and not found_in("http://ca.lab.test/certs/root-ca.crt")
     problems = []
     for top in TOPS:
         path = os.path.join(REPO, top)
@@ -50,7 +52,7 @@ def main():
                 problems += [f"{rel}:{n}: {line.strip()[:120]}" for n, line in found_in(f.read())]
     for problem in problems:
         print(f"    {problem}")
-    print(f"    {len(problems)} place(s) fetch join-linux.sh by HTTP (2.1.1.85)")
+    print(f"    {len(problems)} place(s) fetch a script by HTTP (2.1.1.85, 2.1.1.87)")
     return 1 if problems else 0
 
 

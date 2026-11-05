@@ -1,6 +1,6 @@
 """The site's admin GPOs (manual 1.6.5.20, S5.4; 1.9.8.14): the policies an admin sets with `fabricctl gpo` and the
 web UI's editor, kept apart from fabric's own GPOs, which convergence rewrites. Both are linked at the domain's root
-(2.1.6.106; at OU=machines before 0.9.1, 2.1.6.84), denied to the DCs and the fabric hosts: `fabric: <site> admin
+(2.1.6.106; at OU=machines before 0.9.2, 2.1.6.84), denied to the DCs and the fabric hosts: `fabric: <site> admin
 settings` as any GPO, `fabric: <site> controls` enforced, so a GPO an admin links in any OU cannot override it."""
 import os
 
@@ -87,7 +87,7 @@ def save_admin_settings(samdb, lp, site, settings, control=False):
 
 def admin_gpos_at_root(samdb, lp, site):
     """Purpose: the site's admin GPOs that exist, linked at the domain's root as save_admin_settings links them, and
-             their old link at OU=machines (an install from before 0.9.1) taken out (2.1.6.106). What they hold is
+             their old link at OU=machines (an install from before 0.9.2) taken out (2.1.6.106). What they hold is
              not touched.
     Inputs:  samdb — SamDB (as the system); lp — LoadParm; site — str.
     Returns: list of str, what changed.

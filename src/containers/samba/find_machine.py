@@ -4,7 +4,7 @@ from all_machines import all_machines
 
 
 def find_machine(samdb, name):
-    """Purpose: a machine by its name, in any OU of the domain since 0.9.1 (1.8.8.5: a machine moved to an admin's OU
+    """Purpose: a machine by its name, in any OU of the domain since 0.9.2 (1.8.8.5: a machine moved to an admin's OU
              is still found): OU=machines and below, OU=fabric-hosts, an admin's own OU anywhere; never a domain
              controller or an account in AD's own containers (all_machines).
     Inputs:  samdb — SamDB; name — the host name (any case).

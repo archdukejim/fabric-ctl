@@ -1,6 +1,6 @@
 """The OUs an admin may make, and how the console and the CLI name an OU (manual 1.6.12.7, 1.6.13.2): by its path
 below the domain, top down ("people/staff", "machines/servers/web"). fabric's fixed OUs are shown, never changed; since
-0.9.1 an admin's own go anywhere (1.8.8.5, 2.1.6.101): at the domain's root, under OU=people, OU=service-accounts,
+0.9.2 an admin's own go anywhere (1.8.8.5, 2.1.6.101): at the domain's root, under OU=people, OU=service-accounts,
 OU=groups, OU=machines and each machine type's OU, or under another of their own; never inside fabric's closed folders
 (the fabric hosts, devices, device roles, networks, sudo rules, the grants' computed groups) nor AD's Domain
 Controllers. OUs grant nothing (2.1.6.72)."""
@@ -67,7 +67,7 @@ def closed_dns(samdb):
 
 
 def is_admin_ou(samdb, dn):
-    """Purpose: whether an OU is an admin's own (since 0.9.1 anywhere, 2.1.6.101): not one of fabric's fixed OUs, not
+    """Purpose: whether an OU is an admin's own (since 0.9.2 anywhere, 2.1.6.101): not one of fabric's fixed OUs, not
              AD's Domain Controllers, and not inside one of fabric's closed folders.
     Inputs:  samdb — SamDB; dn — str, an OU inside the domain.
     Returns: bool.

@@ -3,7 +3,8 @@
 page rendered, its block taken from it unchanged, in real Ubuntu and Debian containers, with curl and with wget alone,
 against a real TLS server. Proves: the script arrives and runs; a wrong fingerprint and a root that is not fabric's are each
 refused, saying why, with nothing run; and that a server the machine's own system store would accept (the trap of 2.3.1.49)
-still cannot vouch for it.
+still cannot vouch for it. The same for install-all (decision 2.1.1.87), with the real scripts served and run: the root and the
+intermediate land in the system store only when every check passed.
 
     sudo python3 tests/samba/join_steps.py
 """
@@ -71,9 +72,10 @@ def cleanup():
 
 
 BOXES = []
-page = jinja_env(os.path.join(REPO, "templates")).get_template(
-    "nginx/www/certs/index.html.j2").render(hostname_stepca=CA_NAME, hostname="host-1", domain="lab.test", domain_file="lan",
-                                            host_ip="10.0.0.1", ad_domain="ad.lab.test")
+ENV = jinja_env(os.path.join(REPO, "templates"))
+FACTS = {"hostname_stepca": CA_NAME, "hostname": "host-1", "domain": "lab.test", "domain_file": "lan", "host_ip": "10.0.0.1",
+         "ad_domain": "ad.lab.test", "friendly_name": "Lab"}
+page = ENV.get_template("nginx/www/certs/index.html.j2").render(**FACTS)
 found = re.search(r'<pre id="join-steps"><code>(.*?)</code></pre>', page, re.S)
 check("the page has the join's steps", bool(found))
 block = html.unescape(found.group(1))
@@ -81,8 +83,18 @@ check("...and its script comes by HTTPS alone", f"http://{CA_NAME}/certs/root-ca
       and f"https://{OWN}/certs/join-linux.sh" in block and not re.search(r"http://\S*join-linux", block), block)
 
 
-def steps(fp):
-    return block.replace("<root CA SHA-256 from above>", fp).replace("<directory admin>", "adam")
+found = re.search(r'<pre id="install-all-steps"><code>(.*?)</code></pre>', page, re.S)
+check("the page has install-all's steps", bool(found))
+all_block = html.unescape(found.group(1))
+check("...and its script comes by HTTPS alone", f"http://{CA_NAME}/certs/root-ca.crt" in all_block
+      and f"https://{OWN}/certs/install-all-lan.sh" in all_block and not re.search(r"http://\S*install-", page), all_block)
+# Installed: the store's own file names, and the bundle a client reads
+STORE = "/usr/local/share/ca-certificates/fabric-lan-"
+INSTALLED = f"ls {STORE}* 2>/dev/null | wc -l | sed 's/^/installed=/'"
+
+
+def steps(fp, text=None):
+    return (text or block).replace("<root CA SHA-256 from above>", fp).replace("<directory admin>", "adam")
 
 
 tmp = tempfile.mkdtemp(prefix="join-steps-")
@@ -99,6 +111,21 @@ try:
         "-days", "2", "-extfile", f"{tls}/ext", "-out", f"{tls}/leaf.crt"])
     with open(os.path.join(www, "certs", "join-linux.sh"), "w") as f:
         f.write('echo "ran with: $*" > /tmp/ran\n')
+    # the installers as setup renders them, and an intermediate under fabric's root and one under another
+    for src, dest in (("all-ubuntu", "all"), ("certs", "certs"), ("python-ubuntu", "python"), ("firefox-ubuntu", "firefox"),
+                      ("chrome-ubuntu", "chrome")):
+        with open(os.path.join(www, "certs", f"install-{dest}-lan.sh"), "w") as f:
+            f.write(ENV.get_template(f"nginx/www/certs/install-{src}.sh.j2").render(**FACTS))
+    with open(f"{tls}/ca-ext", "w") as f:
+        f.write("basicConstraints=critical,CA:TRUE\n")
+    for who in ("fabric", "other"):
+        sh(["openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", f"{tls}/{who}-int.key", "-subj", f"/CN={who} intermediate",
+            "-out", f"{tls}/{who}-int.csr"])
+        sh(["openssl", "x509", "-req", "-in", f"{tls}/{who}-int.csr", "-CA", f"{tls}/{who}.crt", "-CAkey", f"{tls}/{who}.key",
+            "-CAcreateserial", "-days", "2", "-extfile", f"{tls}/ca-ext", "-out", f"{tls}/{who}-int.crt"])
+    served_int = os.path.join(www, "certs", "intermediate-ca.crt")
+    with open(f"{tls}/fabric-int.crt") as f, open(served_int, "w") as g:
+        g.write(f.read())
     served_root = os.path.join(www, "certs", "root-ca.crt")
     with open(f"{tls}/fabric.crt") as f, open(served_root, "w") as g:
         g.write(f.read())
@@ -162,6 +189,94 @@ try:
             on(box, "rm -f /usr/local/share/ca-certificates/in-store.crt; update-ca-certificates --fresh >/dev/null 2>&1")
             with open(f"{tls}/fabric.crt") as f, open(served_root, "w") as g:
                 g.write(f.read())
+
+            # install-all and the scripts it runs (2.1.1.87): the same, and nothing in the store unless every check passed
+            def serve(name, source):
+                """What the plain server gives for a certificate, from then on."""
+                with open(source) as f, open(os.path.join(www, "certs", name), "w") as g:
+                    g.write(f.read())
+
+            def clean():
+                on(box, f"rm -f {STORE}* /w/* /tmp/-*; update-ca-certificates --fresh >/dev/null 2>&1")
+
+            def run_all(fp):
+                """install-all's block as pasted, in an empty folder, from an empty store."""
+                clean()
+                with open(os.path.join(tmp, "steps.sh"), "w") as f:
+                    f.write(steps(fp, all_block))
+                sh(["docker", "cp", os.path.join(tmp, "steps.sh"), f"{box}:/w/.steps"])
+                return on(box, f"cd /w; bash .steps; echo rc=$?; {INSTALLED}; "
+                               "test -e /w/install-all-lan.sh && echo KEPT-SCRIPT")[1]
+
+            def direct(script, fp):
+                """A script already fetched, run on its own with what it was given."""
+                clean()
+                sh(["docker", "cp", os.path.join(www, "certs", script), f"{box}:/w/{script}"])
+                return on(box, f"cd /w; bash {script} {fp}; echo rc=$?; {INSTALLED}")[1]
+
+            out = run_all(FABRIC_FP)
+            check(f"{who}: install-all, the right fingerprint: root and intermediate in the system store, each script by HTTPS",
+                  "rc=0" in out and "installed=2" in out and "[OK] OS Certificates installed." in out
+                  and "REFUSED" not in out, out)
+            code, trusted = on(box, f"openssl verify -no-CApath -CAfile /etc/ssl/certs/ca-certificates.crt /tls/leaf.crt; "
+                                    f"openssl s_client -no-CApath -CAfile /etc/ssl/certs/ca-certificates.crt -verify_return_error "
+                                    f"-connect {OWN}:443 -servername {OWN} </dev/null 2>&1 | grep -q 'Verify return code: 0' && echo TRUSTED")
+            check(f"{who}: ...and this machine now trusts fabric's server by its store", code == 0 and "TRUSTED" in trusted, trusted)
+            out = run_all(FABRIC_FP.lower().replace(":", ""))
+            check(f"{who}: install-all, the fingerprint however it was typed", "rc=0" in out and "installed=2" in out, out)
+            for what, fp in (("a wrong fingerprint", "00:" * 31 + "00"), ("no fingerprint", "")):
+                out = run_all(fp)
+                check(f"negative, {who}: install-all, {what}: refused, saying why, nothing fetched, run or installed",
+                      "rc=1" in out and "is not the fingerprint you gave" in out and "installed=0" in out and "KEPT-SCRIPT" not in out
+                      and "All-in-One" not in out, out)
+            serve("root-ca.crt", f"{tls}/other.crt")
+            out = run_all(FABRIC_FP)
+            check(f"negative, {who}: install-all, another root served, fabric's fingerprint held: refused, nothing installed",
+                  "rc=1" in out and "is not the fingerprint you gave" in out and "installed=0" in out and "KEPT-SCRIPT" not in out, out)
+            out = run_all(OTHER_FP)
+            check(f"negative, {who}: install-all, a root that is not the server's, its own fingerprint held: refused, nothing installed",
+                  "rc=1" in out and "did not prove itself" in out and "installed=0" in out and "All-in-One" not in out, out)
+            on(box, "cp /tls/fabric.crt /usr/local/share/ca-certificates/in-store.crt; update-ca-certificates >/dev/null 2>&1")
+            with open(os.path.join(tmp, "steps.sh"), "w") as f:
+                f.write(steps(OTHER_FP, all_block))
+            sh(["docker", "cp", os.path.join(tmp, "steps.sh"), f"{box}:/w/.steps"])
+            on(box, f"rm -f {STORE}* /w/install* /w/root*")
+            out = on(box, f"cd /w; bash .steps; echo rc=$?; {INSTALLED}")[1]
+            check(f"negative, {who}: install-all, the same with the server's root in the system store: still refused, nothing installed",
+                  "rc=1" in out and "did not prove itself" in out and "installed=0" in out, out)
+            on(box, "rm -f /usr/local/share/ca-certificates/in-store.crt; update-ca-certificates --fresh >/dev/null 2>&1")
+            # the script run on its own: the page's steps past, the server changed since
+            for what, fp, said in (("no fingerprint", "", "give the root CA's SHA-256"),
+                                   ("a wrong fingerprint", "00:" * 31 + "00", "is not the fingerprint you gave")):
+                out = direct("install-all-lan.sh", fp)
+                check(f"negative, {who}: install-all alone, {what}: refused, saying why, nothing run", "rc=1" in out and said in out
+                      and "installed=0" in out and "All-in-One" not in out, out)
+            # the server proves itself with a root other than the one the fingerprint names: the fetch of install-certs fails
+            serve("root-ca.crt", f"{tls}/other.crt")
+            out = direct("install-all-lan.sh", OTHER_FP)
+            check(f"negative, {who}: install-all alone, the server not proved by the root: refused at its first script, nothing installed",
+                  "rc=1" in out and "did not prove itself" in out and "installed=0" in out and "[ERROR]" in out, out)
+            serve("root-ca.crt", f"{tls}/fabric.crt")
+            out = direct("install-certs-lan.sh", FABRIC_FP)
+            check(f"{who}: install-certs alone, the right fingerprint: both installed", "rc=0" in out and "installed=2" in out, out)
+            for what, fp, said in (("no fingerprint", "", "give the root CA's SHA-256"),
+                                   ("a wrong fingerprint", "00:" * 31 + "00", "is not the fingerprint you gave")):
+                out = direct("install-certs-lan.sh", fp)
+                check(f"negative, {who}: install-certs alone, {what}: refused, saying why, nothing installed",
+                      "rc=1" in out and said in out and "installed=0" in out, out)
+            # the root is right, the intermediate served is not under it: not even the good root goes in
+            serve("intermediate-ca.crt", f"{tls}/other-int.crt")
+            out = direct("install-certs-lan.sh", FABRIC_FP)
+            check(f"negative, {who}: install-certs, an intermediate the root does not prove: refused, the good root not installed either",
+                  "rc=1" in out and "not proved by that root" in out and "installed=0" in out, out)
+            # a good intermediate with another certificate behind it: the second would have been trusted unchecked
+            with open(f"{tls}/fabric-int.crt") as f, open(f"{tls}/other.crt") as o, open(served_int, "w") as g:
+                g.write(f.read() + o.read())
+            out = direct("install-certs-lan.sh", FABRIC_FP)
+            check(f"negative, {who}: install-certs, a second certificate behind the intermediate: refused, nothing installed",
+                  "rc=1" in out and "is not one certificate" in out and "installed=0" in out, out)
+            serve("intermediate-ca.crt", f"{tls}/fabric-int.crt")
+            clean()
 finally:
     cleanup()
     subprocess.run(["rm", "-rf", "--", tmp], check=False)

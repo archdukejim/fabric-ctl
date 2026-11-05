@@ -18,7 +18,7 @@ def _key(rtype, record):
 
 def _previous(v, zone):
     """Purpose: the records the previous render added as fabric's own: the list it kept, or, for an install from
-             before 0.9.1 that kept none, only the zone's records that match fabric's names under today's settings
+             before 0.9.2 that kept none, only the zone's records that match fabric's names under today's settings
              exactly (positive evidence: nothing else is taken for fabric's).
     Inputs:  v — the settings; zone — the site zone's records (dns.dynamic_zone_var).
     Returns: set of (type, name, value).
@@ -45,7 +45,7 @@ def _previous(v, zone):
 def drop_previous_own(custom_vars):
     """Purpose: the site's zone without the names the previous render added as fabric's own, so a render after a move
              or a rename adds them at the new address and under the new name only (decision 2.1.1.74, known issue
-             2.3.1.34): before 0.9.1 each render merged its names with the previous render's copies, which vars.yaml
+             2.3.1.34): before 0.9.2 each render merged its names with the previous render's copies, which vars.yaml
              keeps, so the old address and name stayed in the zone. An admin's alias of the host's old name follows
              it to the new one; the landing page's alias is the admin's record (2.1.4.6) and is never dropped.
     Inputs:  custom_vars — the admin's vars (vars.yaml as installed); reads dns.dynamic_zone_var, dns_fabric_own (the

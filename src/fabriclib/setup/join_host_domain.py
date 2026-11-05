@@ -150,7 +150,7 @@ def _resolves(name, address):
 def _hosts_with(text, name, address, add):
     """Purpose: /etc/hosts naming the DC at this host's address alone (decision 2.1.1.74): a line naming it at another
              address (the host's old one, after a move) is dropped, since the first line wins; its own line added when
-             `add` and missing. Before 0.9.1 the join appended its line after the old one.
+             `add` and missing. Before 0.9.2 the join appended its line after the old one.
     Inputs:  text — /etc/hosts as it is ("" when absent); name — hostname_dc; address — host_ip; add — whether the
              host needs the line (it cannot find the DC's name at its address otherwise).
     Returns: the file's new text (text itself when nothing changes).
