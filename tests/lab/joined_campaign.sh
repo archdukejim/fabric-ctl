@@ -40,8 +40,10 @@ SSH=(-i "$HOME/.ssh/g23_lab" -o "UserKnownHostsFile=$HOME/fabric-lab/known_hosts
 PASS=0; FAIL=0
 check() { if (set +o pipefail; eval "$2"); then echo "PASS $1"; PASS=$((PASS+1)); else echo "FAIL $1"; FAIL=$((FAIL+1)); return 1; fi; }
 FLOOR="not run (no join step)"
+FLOORJOIN="not run, or clean: its configuration stayed"
+KNOWN_CUTOFFS=0     # only ever the floor's own join; a member joined by this build's script is a FAIL (the fresh step)
 # Purpose: end the campaign where a step it depends on did not happen; nothing after it runs on a half-built lab.
-stop() { echo "STOP $1: the campaign ends here ($PASS passed, $FAIL failed)"; echo "FLOOR first setup: $FLOOR"; exit 1; }
+stop() { echo "STOP $1: the campaign ends here ($PASS passed, $FAIL failed)"; echo "FLOOR first setup: $FLOOR"; echo "FLOOR join: $FLOORJOIN"; echo "FLOOR known cut-offs: $KNOWN_CUTOFFS"; exit 1; }
 wants() { case " $ONLY " in *" $1 "*) return 0 ;; esac; return 1; }
 # Purpose: a command on a lab VM: its output without OpenSSH's notices, and the command's own exit status. The fabric
 #          VM keeps its host key under its first address when it moves (HostKeyAlias): the constant FIRST, never
@@ -143,6 +145,15 @@ if wants join; then
         ssh "${SSH[@]}" "labadmin@$LINUX" "sudo bash /root/join-linux.sh $fp --one-time" 2>&1 | tail -3
     # the pipe's status is tail's: what the join left is the proof (run 22 went on with a member that never joined)
     L 'test -s /etc/fabric/managed.env' || stop "ub26-2's floor join did not happen"
+    # the floor's fault (2.3.1.47, 2.3.1.51): a join over 5 minutes after boot starts its first check beside its own apply,
+    # and a search failing there removes what the join applied. It is in the released script, so it is reported apart from
+    # the checks, as the floor's first setup is, and put right as an operator would. Run 19 and 23 lost it; 20 and 21 did not
+    if L "journalctl -b -u fabric-managed.service | grep -q 'removed (no longer in fabric-managed)'"; then
+        KNOWN_CUTOFFS=$((KNOWN_CUTOFFS+1))
+        FLOORJOIN="KNOWN ISSUE: its first check removed what its join applied (2.3.1.47); fabric-managed apply by hand"
+        echo "KNOWN the floor's join: $FLOORJOIN"
+        L 'fabric-managed apply; systemctl restart sssd; sleep 3' >/dev/null
+    fi
     # Windows' OpenSSH hands PowerShell's [Console]::In only what is there when the session opens (a line sent seconds
     # later never arrives: 3.1.5.11 step 2, 2026-11-01), so the line is read here first, kept in this shell's memory
     # only (read and printf are builtins: never on a command line), and only then does the session open, with it
@@ -459,13 +470,21 @@ if wants fresh; then
     # 4.6.6.11's way to join again under a new name, and the one-time password by the pipe, never an argument or a file
     FRESH=g23-fresh-1
     L "rm -f /etc/polkit-1/rules.d/10-fabric-hostname.rules /etc/krb5.keytab; hostnamectl set-hostname $FRESH" >/dev/null
+    since=$(L 'date +%s' | tr -dc 0-9)
     F "fabricctl domain add-machine $FRESH --type server | sed -n '/shown once/{n;p}'" |
         ssh "${SSH[@]}" "labadmin@$LINUX" "sudo bash -c 'cd /root/fresh && bash .steps'" 2>&1 | tail -3
     check "the fresh join: the steps fetched and ran this build's script, joined as $FRESH" \
         "L 'grep -qx MACHINE=$FRESH /etc/fabric/managed.env && test -s /root/fresh/join-linux.sh && grep -c \"flock 9\" /usr/local/sbin/fabric-managed | grep -qx 1'"
+    # this build's own script: a cut-off here is a failure, never the floor's known issue; its timer has passed boot + 5
+    # minutes by far, so its first check did start beside the join's apply. Any first check that ran is waited for
+    sleep 5
+    check "a member joined by this build's script keeps what its join applied: its first check removed nothing" \
+        "L 'test -e /etc/systemd/resolved.conf.d/fabric.conf' && ! L \"journalctl --since @$since -u fabric-managed.service | grep -q 'removed (no longer in fabric-managed)'\""
     client_check "a fresh join by this build's steps"
 fi
 echo
 echo "FLOOR first setup: $FLOOR"
+echo "FLOOR join: $FLOORJOIN"
+echo "FLOOR known cut-offs: $KNOWN_CUTOFFS"
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

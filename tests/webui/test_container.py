@@ -549,9 +549,13 @@ def newest_failed(review):
     return len(parts) > 1 and 'aria-label="failed"' in parts[1]
 
 
+APPLY_SAID = None
+
+
 def applied(page, cookie):
     """Apply a page's pending changes (manual 1.8.6.5) and wait for the job: the page's Review once it stopped."""
-    req("POST", f"/changes/{page}/apply", POSTH, {"csrf": cookie_csrf(cookie)}, cookie=cookie)
+    global APPLY_SAID
+    APPLY_SAID = req("POST", f"/changes/{page}/apply", POSTH, {"csrf": cookie_csrf(cookie)}, cookie=cookie)[:2]
     body = ""
     for _ in range(600):
         body = req("GET", f"/changes/{page}", ALICE, cookie=cookie)[3]
@@ -724,7 +728,7 @@ body = applied("policies", session)
 check("Apply: one job; the policy refused by fabric-agent without a DC to check the caller (fail closed), said in the "
       "queue; the change still pending; vars.yaml unchanged", "the domain controller is not running" in body
       and "Change the password policy" in body and "Apply 1 change" in body
-      and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, body[-2500:])
+      and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, (APPLY_SAID, body[-2500:]))
 st, hd, *_ = req("POST", "/changes/policies/discard", POSTH, {"csrf": csrf}, cookie=session)
 # covers: web:post.changes.*.discard +
 check("Discard: dropped, back on Policies", "Discarded 1 pending change" in urllib.parse.unquote_plus(

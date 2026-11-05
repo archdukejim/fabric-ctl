@@ -138,7 +138,7 @@ docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	3affd2890c9
 docs/volume_1_description_and_architecture/README.md	8b86aacb4d4617ebbac2a52e5ddf9ffeee177c9f	2026-11-04	
 docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af7662fdf5684924b409f9a9c	2026-10-23	
 docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	cbad7e90c2ac64a84d6f8fd4f573fa54ab739022	2026-10-25	
-docs/volume_2_engineering_decisions/2.1.1-product.md	2b204ba9bbd65763d82c8c238316fde179ff0f7e	2026-11-05	
+docs/volume_2_engineering_decisions/2.1.1-product.md	6fed214035f24b2f7126460aaf01fc1a93f33ffd	2026-11-05	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	cb4d596ec94f1c25f32f6133b0ef1ca075aec1d7	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	9a4a5837c87d7efa44a524511dbe73390da62b09	2026-10-31	
@@ -159,7 +159,7 @@ docs/volume_2_engineering_decisions/2.2.1-product-troubleshooting.md	020c264ac36
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	375142b2aaf5d00a4d62c50447b2b928324f2bd9	2026-11-05	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	c4dead0c906e8878b5a476e4457694ad4559b07a	2026-11-05	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	8d0e6dc9f88453889dccc29f981ca3ee730702f4	2026-10-29	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -2138,7 +2138,7 @@ tests/lab/dhcp.sh	30bfd8a0fd670dd228cdf1c1e6c303cd4a31fe6a	2026-10-25
 tests/lab/dhcp_campaign.sh	1b462797cddf25231389b9269fba6c02d39e07d2	2026-10-25	
 tests/lab/dhcp_console.py	7bd4f10efdc60150b3a97b78de5f1482203c69c2	2026-10-24	
 tests/lab/dhcp_vars.yaml	69c2af925c07a25e01fabb400c83320729d1095e	2026-10-23	
-tests/lab/joined_campaign.sh	3d375e1327ebfd774e4af8b632d24d7ac59ad90d	2026-11-05	
+tests/lab/joined_campaign.sh	079c56059d5b8678c40731570716ad7371b9c5e3	2026-11-05	
 tests/lab/joined_vars.yaml	a0c9e1ae955bab7731d7a5e7c24fa92a27037236	2026-10-31	
 tests/lint/README.md	9757442e4a4f93e6dfa2de8daee0508f38dff835	2026-10-12	
 tests/lint/no_bare_prompts.py	f7bb9072256161fd72f5693e3a84d210269c8faa	2026-10-12	
@@ -2251,7 +2251,7 @@ tests/speed/README.md	f69aa0dda8efa3b76f97663199754b7bfbd20534	2026-11-04
 tests/speed/run.py	2edccfc175cffb02b269ba774f23b39c8766a469	2026-11-04	
 tests/webui/README.md	c8f53ca6d023bb197df3d7e252adb4c279a40b1f	2026-10-23	
 tests/webui/narrow_probe.py	e4bf04507b8e3957c0dd1b2cfc935aa63b71ee04	2026-10-25	
-tests/webui/test_container.py	25204cec2053f617119c795b26f7585b3e39437f	2026-10-25	
+tests/webui/test_container.py	ca7ed1db5938f714c309e0442961eeb4350b1193	2026-11-05	
 tests/webui/test_devserver.py	e03ce76e9acc87cb0559f9372b22ae48118c94a8	2026-11-04	
 tests/webui/test_narrow.py	ae3209673bb3e2d822abd693e22b1bd497ceb3c6	2026-10-25	
 tests/webui/test_networks.py	3a8a8fde4bf6c2503ce91392674a8c0e1ea619a0	2026-10-25	
