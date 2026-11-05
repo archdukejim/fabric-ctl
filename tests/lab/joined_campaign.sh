@@ -273,11 +273,14 @@ if wants move; then
     floor_script() { L "grep -c 'flock 9' $FM" | grep -qx 0; }
     check "4.6.6.12 step 1: ub26-2 still has the floor's script, as step 1 tells" floor_script
     # the one fetch of 4.6.6.12: HTTPS, the root it trusts, by address (a member cut off has no name for fabric)
-    GET="curl -fsS --cacert /usr/local/share/ca-certificates/fabric-root-ca.crt --resolve info.$DOMAIN:443:$FABRIC https://info.$DOMAIN/certs/join-linux.sh -o /root/join-linux.sh"
+    # --capath too: Ubuntu's curl keeps /etc/ssl/certs beside a --cacert, which holds fabric's root here (run 21, 2.3.1.49)
+    OWN=$(on "$FABRIC" 'hostname -s' 2>/dev/null | tr -dc 'a-zA-Z0-9-' | tr 'A-Z' 'a-z').$DOMAIN
+    TRUST="--capath /usr/local/share/ca-certificates --resolve $OWN:443:$FABRIC https://$OWN/certs/join-linux.sh"
+    GET="curl -fsS --cacert /usr/local/share/ca-certificates/fabric-root-ca.crt $TRUST -o /root/join-linux.sh"
     check "4.6.6.12 step 2: the installer fetched by HTTPS at fabric's address, verified by the root the member trusts" "L '$GET'"
     check "negative: the same fetch against a root it does not trust: refused" \
-        "L 'openssl req -x509 -newkey rsa:2048 -nodes -keyout /dev/null -subj /CN=other -days 1 -out /tmp/other.pem 2>/dev/null; ! curl -fsS --cacert /tmp/other.pem --resolve info.$DOMAIN:443:$FABRIC https://info.$DOMAIN/certs/join-linux.sh -o /dev/null 2>/dev/null'"
-    check "the certificates page shows the refresh, with the fetch by address"         "L 'wget -qO- http://$FABRIC/certs/' | grep -q -- '--resolve info.$DOMAIN:443:$FABRIC'"
+        "L 'openssl req -x509 -newkey rsa:2048 -nodes -keyout /dev/null -subj /CN=other -days 1 -out /tmp/other.pem 2>/dev/null; ! curl -fsS --cacert /tmp/other.pem $TRUST -o /dev/null 2>/dev/null'"
+    check "the certificates page shows the refresh, with the fetch by address"         "L 'wget -qO- http://$FABRIC/certs/' | grep -qF -- '$TRUST'"
     was=$(sums)
     check "negative: --refresh, a fingerprint it does not trust: refused, nothing changed" \
         "L 'bash /root/join-linux.sh $(printf '0%.0s' {1..64}) --refresh' 2>&1 | grep -q 'not the fingerprint given' && [ \"\$(sums)\" = \"\$was\" ]"
@@ -290,9 +293,17 @@ if wants move; then
         "floor_script && L 'systemctl is-active --quiet fabric-managed.timer'"
     # what the floor's fault leaves: its own remove, as run 19's ub26-2 did to itself (2.3.1.47)
     dc=$(dc_fqdn)
-    L "$FM remove; systemctl try-restart systemd-resolved; resolvectl flush-caches" >/dev/null
-    check "the floor's fault reproduced: ub26-2 has no drop-in, and the DC's name does not resolve" \
-        "! L 'test -e $DROPIN' && ! L 'resolvectl query $dc' >/dev/null 2>&1"
+    # members_dns gave its link fabric's address by hand, which a real member has not: back to what its netplan says, or
+    # it is not cut off at all (run 21 "recovered" a member still resolving through that: 2.3.1.49). sssd restarted, so
+    # its KDC file, which still names the DC's address, goes as it does in time on a real member
+    dev=$(L "ip route get $FABRIC" | awk '{for (i=1;i<NF;i++) if ($i=="dev") print $(i+1)}')
+    L "$FM remove; resolvectl revert $dev; systemctl try-restart systemd-resolved; systemctl restart sssd; resolvectl flush-caches; sleep 3" >/dev/null
+    ticket() { L '. /etc/fabric/managed.env; kinit -k -c /tmp/refresh.cc "${MACHINE^^}\$@$REALM"' >/dev/null 2>&1; }
+    INFO_DNS=$(L 'resolvectl status' | grep -E 'DNS Servers' | tr -s ' ' | tr '\n' ';')
+    echo "INFO ub26-2's DNS, cut off: $INFO_DNS"
+    check "the floor's fault reproduced: no drop-in" "! L 'test -e $DROPIN'"
+    check "...the DC's name does not resolve" "! L 'getent hosts $dc' >/dev/null 2>&1"
+    check "...and no ticket as the machine" "! ticket"
     # a check running: the refresh has to wait it out (its service made to take 15 s; a floor script has no lock)
     L "mkdir -p /etc/systemd/system/fabric-managed.service.d; printf '[Service]\nExecStartPre=/bin/sleep 15\n' > /etc/systemd/system/fabric-managed.service.d/lab-slow.conf; systemctl daemon-reload; systemctl start --no-block fabric-managed.service" >/dev/null
     out=$(L "$GET; bash /root/join-linux.sh $fp --refresh" 2>&1); printf '%s\n' "$out" | sed 's/^/    /'
@@ -301,7 +312,11 @@ if wants move; then
         "printf '%s' \"\$out\" | grep -q 'waiting for a running check' && printf '%s' \"\$out\" | grep -q \"refreshed to this build's\" && printf '%s' \"\$out\" | grep -q 'in fabric-managed, its configuration applied'"
     check "...its timer running again, nothing left behind" \
         "L 'systemctl is-active --quiet fabric-managed.timer; ! ls -d /usr/local/sbin/.fabric-refresh* 2>/dev/null'"
+    # with its link still on what netplan says: fabric's drop-in alone brought it back
+    check "the fault gone: the drop-in back, the DC's name resolves, a ticket as the machine" \
+        "L 'test -e $DROPIN' && L 'getent hosts $dc' >/dev/null 2>&1 && ticket"
     client_check "a refresh"
+    L "resolvectl dns $dev $FABRIC" >/dev/null      # as members_dns had it, for the steps after this one
     check "--refresh again: the same result, saying so" \
         "L 'bash /root/join-linux.sh $fp --refresh' | grep -q \"already this build's\""
     check "ub26-2 has this build's fabric-managed (it follows an announcement)" "L 'grep -q managed.next /usr/local/sbin/fabric-managed'"
