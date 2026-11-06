@@ -331,6 +331,42 @@ checks(box, "26.04")
 code, out = on(box, "fabric-managed check; echo rc=$?; cat /etc/systemd/resolved.conf.d/fabric.conf")
 check("26.04: pre-created managed (add-machine's default), its check finds it a member and keeps the configuration",
       "rc=0" in out and f"DNS={V['host_ip']}" in out, out)
+# one run at a time, the settings read once it holds the lock (2.1.1.86): a run started while another holds the lock
+# waits, and writes the FABRIC_DNS the file has when it gets the lock, never the one before it
+code, out = on(box, "flock /run/fabric-managed.lock sleep 3 & sleep 0.5; t0=$(date +%s); "
+                    "sed -i 's/^FABRIC_DNS=.*/FABRIC_DNS=192.0.2.53/' /etc/fabric/managed.env; "
+                    "fabric-managed apply & sleep 1; "
+                    f"sed -i 's/^FABRIC_DNS=.*/FABRIC_DNS={V['host_ip']}/' /etc/fabric/managed.env; wait; "
+                    "echo waited=$(( $(date +%s) - t0 )); cat /etc/systemd/resolved.conf.d/fabric.conf")
+waited = int((out.split("waited=", 1)[1].split()[0]) if "waited=" in out else 0)
+check("26.04: fabric-managed waits for a run already going, then writes the FABRIC_DNS of that moment "
+      "(never an address read before it waited)", waited >= 2 and f"DNS={V['host_ip']}" in out
+      and "192.0.2.53" not in out, out)
+# a search that failed is no answer, not a "no" (2.1.1.86): the ticket comes, the DC's LDAP name does not answer
+DROP = "/etc/systemd/resolved.conf.d/fabric.conf"
+code, out = on(box, "cp /etc/fabric/managed.env /tmp/managed.env.kept; "
+                    "sed -i 's/^DC=.*/DC=nothing-here.invalid/' /etc/fabric/managed.env; "
+                    f"fabric-managed check; echo rc=$?; cat {DROP}; cp /tmp/managed.env.kept /etc/fabric/managed.env")
+check("negative, 26.04: the DC's LDAP not answering removes nothing, and says so", "did not answer" in out
+      and "removed" not in out and "rc=1" in out and f"DNS={V['host_ip']}" in out, out)
+code, out = on(box, f"fabric-managed check; echo rc=$?; cat {DROP}")
+check("26.04: answered again, the check goes on keeping the configuration",
+      "rc=0" in out and "did not answer" not in out and f"DNS={V['host_ip']}" in out, out)
+# the race itself, made certain: the join over 5 minutes after boot starts its first check beside its own apply, and that
+# check's search fails. A stand-in ldapsearch takes 3 s and fails, so the two overlap each time, in both orders
+STUB = ("mkdir -p /root/stub; printf '#!/bin/sh\\nsleep 3\\nexit 1\\n' > /root/stub/ldapsearch; chmod +x /root/stub/ldapsearch; "
+        f"rm -f {DROP}; ")
+code, out = on(box, STUB + "PATH=/root/stub:$PATH fabric-managed check >/tmp/first.out 2>&1 & sleep 1; "
+                           f"fabric-managed apply; wait; cat /tmp/first.out; cat {DROP}")
+check("the race: the check first, its search failing, the join's apply beside it: the apply waits, and what it applied stays",
+      "did not answer" in out and "removed" not in out and f"DNS={V['host_ip']}" in out, out)
+code, out = on(box, f"rm -f {DROP}; fabric-managed apply & PATH=/root/stub:$PATH fabric-managed check >/tmp/first.out 2>&1; wait; "
+                    f"cat /tmp/first.out; cat {DROP}")
+check("the race: the apply and the check started together, the search failing: what the apply wrote stays",
+      "removed" not in out and f"DNS={V['host_ip']}" in out, out)
+on(box, "rm -rf /root/stub; fabric-managed apply")
+code, out = on(box, f"fabric-managed check; echo rc=$?; cat {DROP}")
+check("...and with the search answering again, the check keeps it", "rc=0" in out and f"DNS={V['host_ip']}" in out, out)
 
 # Debian 12 and 13 (Proxmox VE 8, 9): joined with an admin's password; 13 as a desktop
 for release in ("debian-12", "debian-13"):

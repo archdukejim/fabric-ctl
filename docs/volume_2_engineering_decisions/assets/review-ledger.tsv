@@ -14,14 +14,14 @@ LICENSE	05e475fa9aff67dbd7d98e3bc88d87f93e36c79f	2026-09-30
 README.md	e11704d23ab0b3402607854f34089ea1a78ebdec	2026-10-23	
 THIRD_PARTY_NOTICES	ff836ec5208f7ac6140740a07186107c63702d24	2026-10-08	
 config/README.md	6300abd255fbbe5a87bd0d83cd9c9dd1c4b8de1f	2026-10-08	
-config/VERSION	a3df0a6959e154733da89a5d6063742ce6d5b851	2026-10-21	
+config/VERSION	f374f6662e9a1983e9b8a534a3295df618772ffe	2026-11-05	
 config/images.lock.yaml	8049975d3661055778b828f256fabeaa7d4edad5	2026-11-02	
 config/link-vars-template.yaml	09caaa55680a13015332a468218c99437f67db26	2026-09-30	
 docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
-docs/volume_1_description_and_architecture/1.1.4-roadmap.md	5629bf8af523b12def1b367a108278bddaf3df42	2026-11-02	
+docs/volume_1_description_and_architecture/1.1.4-roadmap.md	efedb056e903934eeb164774b037d0d896d4ad57	2026-11-05	
 docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	7cc73759f86c7ce4ca7e2d58b7d1cc0db4cb9a64	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	c376feda6e17998f6aa6b2d9c85823f6b00ba89e	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
@@ -105,7 +105,7 @@ docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	8960e718285add9c0a
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.1-directory.md	7fa9284225375dc046757b644311b8368d907462	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.10-security.md	8d627ab12c234c4d60c501fdcd1b3dbbf1d2a905	2026-10-20	
-docs/volume_1_description_and_architecture/1.6.11-host-access.md	7d9f11b6a0913a1593e7888132d11341e43c40a3	2026-11-01	
+docs/volume_1_description_and_architecture/1.6.11-host-access.md	5a4448570f3e14b83e0ab8814cd229a6e514bc27	2026-11-05	
 docs/volume_1_description_and_architecture/1.6.12-domain-management.md	6529a7ae668caffe7c227e80b2435cd583e4b013	2026-10-23	
 docs/volume_1_description_and_architecture/1.6.13-access-by-grants.md	678c9987439cda4adbd8ccf152e2b87f6782e9b7	2026-10-25	
 docs/volume_1_description_and_architecture/1.6.2-keycloak.md	1170cb7e6152f061277c87f25439f287c659fed2	2026-10-21	
@@ -136,7 +136,7 @@ docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	332c50eeb8a
 docs/volume_1_description_and_architecture/README.md	50d22e34d28258e948b66928273f0471a53e86a7	2026-10-31	
 docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af7662fdf5684924b409f9a9c	2026-10-23	
 docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	cbad7e90c2ac64a84d6f8fd4f573fa54ab739022	2026-10-25	
-docs/volume_2_engineering_decisions/2.1.1-product.md	14ebe02ea78d4add03f28a803907678ee6a7c467	2026-11-02	
+docs/volume_2_engineering_decisions/2.1.1-product.md	eac07ceda95290d285876476d5c0e9a440e73b09	2026-11-05	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	cb4d596ec94f1c25f32f6133b0ef1ca075aec1d7	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	558e56bfab8acc7043df3b83499e6e3551e688ff	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	9a4a5837c87d7efa44a524511dbe73390da62b09	2026-10-31	
@@ -156,7 +156,7 @@ docs/volume_2_engineering_decisions/2.1.9-federation.md	cd669c8882d4f654fa2246c5
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	bb2b13cd95bb5959ae86d30108186196c5d11cbd	2026-11-02	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	f303511910f9c6b571bf2be961c6dfb959fc92f3	2026-11-06	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	8d0e6dc9f88453889dccc29f981ca3ee730702f4	2026-10-29	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c0bcd80bcbdfcf9b5aef94676ed0deea2a949dcd	2026-10-12	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -1875,7 +1875,7 @@ templates/nginx/www/certs/install-certs.sh.j2	4cd527b4db5e7744a6ac8a04f7e74063a0
 templates/nginx/www/certs/install-chrome-ubuntu.sh.j2	3196d4dffd42cd99ab875b65551ba321520e5a2e	2026-10-12	
 templates/nginx/www/certs/install-firefox-ubuntu.sh.j2	567ff3744968943c8c46406dfa2b591832aa95e5	2026-10-12	
 templates/nginx/www/certs/install-python-ubuntu.sh.j2	80bd35e39fbe8ef8f1ad0b7fba38353cc006247f	2026-10-12	
-templates/nginx/www/certs/join-linux.sh.j2	14af0d9b471c3e21f6a67da068943f87b98b1d7f	2026-10-31	
+templates/nginx/www/certs/join-linux.sh.j2	8559e52804c86df497c9ea6c46b5398f1299d2d4	2026-11-05	
 templates/nginx/www/landing/README.md	a36a5f2a66f48eeb07996a67e3b58bb5acda7ae8	2026-10-13	
 templates/nginx/www/landing/index.html.j2	dfcd4d0ea84e063f9324ebe74db66d6d28be055c	2026-10-23	
 templates/nginx/www/manual/README.md	dd081199d419d4573664d9de5bd9683235beb19d	2026-10-03	
@@ -2125,7 +2125,7 @@ tests/samba/grants.py	8e33fe932f8511ed476cd6031c89795d1751ecd9	2026-10-25
 tests/samba/hostgroups.py	a71ecfff520edd57ff2e976829c61205e4b827bd	2026-10-25	
 tests/samba/id_layout_test.py	2f5f8395429e443adbf0bd64480247c114dcc2c6	2026-10-20	
 tests/samba/ipam.py	43bb5da0dd5dd8e8b13a703dd2c4b9a4474ed800	2026-10-25	
-tests/samba/linux_join.py	252ef3db0f4306c0b0b2f36606952d978dab4329	2026-10-31	
+tests/samba/linux_join.py	b1ad24855d504e3bfe3b9bce8f80a6bfa45440dd	2026-11-05	
 tests/samba/plan_store.py	7ebdd0072cf6f317e671c4b8b79b2e0b4c98eda3	2026-10-25	
 tests/samba/plan_store_test.py	174f00adf23343a84028154c6ff9a35c91a80a44	2026-10-23	
 tests/samba/run.py	c452e49ffb029571a0ac92bb1563bc7dc4c27164	2026-10-25	

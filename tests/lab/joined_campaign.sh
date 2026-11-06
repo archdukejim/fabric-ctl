@@ -120,10 +120,24 @@ if wants join; then
     # a captured value goes into a later command only when it is what it should be, never as text to run
     [[ "$fp" =~ ^([0-9A-F]{2}:){31}[0-9A-F]{2}$ ]] || stop "no root CA fingerprint from the fabric VM"
     members_dns "$FABRIC"
+    # a machine just booted: a join does not wait for dpkg's lock (unattended-upgrades held it in a run: 2.3.1.52)
+    L 'systemctl stop unattended-upgrades.service apt-daily.service apt-daily-upgrade.service 2>/dev/null
+       for _ in $(seq 1 120); do fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || exit 0; sleep 5; done; exit 1' ||
+        stop "dpkg's lock on ub26-2 was not let go"
     L "wget -nv -O /root/join-linux.sh http://$FABRIC/certs/join-linux.sh" >/dev/null
     # the one-time password goes from add-machine's output to the join's standard input: never an argument or a file
     F "fabricctl domain add-machine g23-vm-ub26-2 --type server | sed -n '/shown once/{n;p}'" |
         ssh "${SSH[@]}" "labadmin@$LINUX" "sudo bash /root/join-linux.sh $fp --one-time" 2>&1 | tail -3
+    # the pipe's status is tail's: what the join left is the proof
+    L 'test -s /etc/fabric/managed.env' || stop "ub26-2's join did not happen"
+    # FROM_DEB=TO_DEB: fabric at this build from the start, so the members join by this build's script (2.1.1.86). Over 5
+    # minutes after boot, its first check starts beside the join's apply: it may say anything but that it removed
+    if [ "$FROM_DEB" = "$TO_DEB" ]; then
+        L 'while systemctl is-active -q fabric-managed.service; do sleep 1; done' >/dev/null
+        echo "INFO ub26-2 booted $(L 'uptime -s'), joined $(L '. /etc/fabric/managed.env; date -u -d @$JOINED +%T'); its first check: $(L "journalctl -b -u fabric-managed.service -o short-precise --utc | grep -E 'Starting|fabric-managed\\[' | head -3 | tr '\n' ';'")"
+        check "a member joined by this build's script keeps what its join applied: its first check removed nothing" \
+            "L 'test -e /etc/systemd/resolved.conf.d/fabric.conf' && ! L \"journalctl -b -u fabric-managed.service | grep -q 'removed (no longer in fabric-managed)'\""
+    fi
     # Windows' OpenSSH hands PowerShell's [Console]::In only what is there when the session opens (a line sent seconds
     # later never arrives: 3.1.5.11 step 2, 2026-11-01), so the line is read here first, kept in this shell's memory
     # only (read and printf are builtins: never on a command line), and only then does the session open, with it
