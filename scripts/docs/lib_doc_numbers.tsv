@@ -3245,6 +3245,8 @@ function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|align_postgre
 function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|configure_db_engine	5	
 function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|run	7	
 function	fabriclib-setup|src/fabriclib/setup/export_install.py|_copy	1	
+function	fabriclib-setup|src/fabriclib/setup/export_install.py|_still_running	3	
+function	fabriclib-setup|src/fabriclib/setup/export_install.py|_stop_stack	4	
 function	fabriclib-setup|src/fabriclib/setup/export_install.py|export_install	2	
 function	fabriclib-setup|src/fabriclib/setup/finish_vars.py|finish_vars	1	
 function	fabriclib-setup|src/fabriclib/setup/harden_docker.py|run	1	

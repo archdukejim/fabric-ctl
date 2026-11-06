@@ -1157,6 +1157,9 @@ check "export: config, secrets, CA, directory, Keycloak, the vault and its key, 
 check "the package was purged too, and nothing was written to /var/backups"     "! in_box 'dpkg -s fabricctl' >/dev/null 2>&1 && ! in_box 'test -e /var/backups/fabric'"
 # the container names asked of Docker first, so a failing `docker ps` cannot pass for "none left"
 LEFT_NAMES=$(in_box "docker ps -a --format '{{.Names}}'"); LEFT_RC=$?
+# a clean shutdown removes it: Postgres was really stopped when it was copied (2.3.1.53: 0.9.0's export copied it running)
+check "the export copied Postgres stopped: no postmaster.pid in the copy" \
+    "in_box 'test -d $EX/postgres/data/pgdata && ! test -e $EX/postgres/data/pgdata/postmaster.pid'"
 check "no fabric container, network or unit is left"     "[ $LEFT_RC -eq 0 ] && ! grep -qxE 'bind9|bind9-resolver|step-ca|samba|keycloak|postgres|nginx|openbao|fabric-web|kea-dhcp4|kea-ddns|freeradius|fluentbit' <<<\"\$LEFT_NAMES\"      && ! in_box 'docker network inspect fabric_net' >/dev/null 2>&1      && ! in_box 'ls /etc/systemd/system/fabric.target /etc/systemd/system/{bind9,bind9-resolver,stepca,samba,keycloak,postgres,nginx,openbao,fabric-web,kea,freeradius,fabric-agent}.service' >/dev/null 2>&1"
 check "no data, key, kill-switch rule, CA trust, command or service account is left"     "! in_box 'ls -d /opt/fabric /opt/bind9 /opt/stepca /opt/openbao /opt/dirsrv /opt/kea /opt/freeradius /etc/fabric/openbao /run/fabric/openbao /run/fabric/openbao-admin /etc/udev/rules.d/90-fabric-unlock.rules /usr/local/bin/fabricctl /usr/bin/fabricctl /etc/fabric /usr/lib/fabricctl' >/dev/null 2>&1      && ! in_box 'ls /usr/local/share/ca-certificates/fabric-*' >/dev/null 2>&1 && ! in_box 'id fabric-vault' >/dev/null 2>&1"
 check "DNS is gone" "! in_box 'dig +time=2 +tries=1 +short @$IP ns.lan.test' | grep -qx $IP"

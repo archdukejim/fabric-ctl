@@ -653,6 +653,7 @@ BOOT_DOCKERFILE = """FROM {image}
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -qq && apt-get install -y -qq systemd systemd-sysv dbus polkitd pamtester sudo procps >/dev/null \\
  && apt-get clean
+RUN systemctl mask systemd-binfmt.service proc-sys-fs-binfmt_misc.automount >/dev/null 2>&1
 CMD ["/sbin/init"]
 """
 
@@ -692,6 +693,9 @@ def after_boot(box, release, when):
             break
         time.sleep(2)
     failed = failed_sssd(box)
+    # binfmt_misc is the kernel's: a boot here must not unregister what runs Windows programs under WSL (2.3.1.53)
+    check(f"{release}, booted: systemd-binfmt is masked, so the host keeps its binfmt entries",
+          on(box, "systemctl is-enabled systemd-binfmt.service")[1].strip() == "masked")
     masked = on(box, "systemctl is-enabled sssd-nss.socket sssd-pam.socket sssd-sudo.socket sssd-pac.socket")[1]
     check(f"{release} with systemd, {when}: after a reboot no sssd unit failed, sssd runs its responders "
           "(services = nss, pam, sudo), the packages' socket units masked",

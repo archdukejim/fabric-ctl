@@ -30,10 +30,17 @@ def build_changed(config_dir):
 
 
 def record_build(config_dir):
-    """Purpose: the services have been told to restart on this build.
+    """Purpose: the services have been told to restart on this build. Only bookkeeping, after the apply's work is
+             done, so a failure here says so and does not turn a finished apply into a failed one (2.3.1.53): the next
+             apply finds no record and restarts them once more, which is safe.
     Inputs:  config_dir — the install's config folder.
-    Returns: None.
-    Fails:   OSError from writing.
-    Feeds:   restart_changed."""
-    with open(os.path.join(config_dir, STAMP), "w") as f:
-        f.write(_this_build())
+    Returns: bool, whether it was recorded.
+    Fails:   never; it prints what went wrong.
+    Feeds:   apply_deployment."""
+    try:
+        with open(os.path.join(config_dir, STAMP), "w") as f:
+            f.write(_this_build())
+    except OSError as exc:
+        print(f"Warning: could not record this build ({exc}): the next apply restarts fabric's services once more")
+        return False
+    return True

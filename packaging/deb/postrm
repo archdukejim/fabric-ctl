@@ -21,7 +21,7 @@ case "$1" in
             DEST="/var/backups/fabric/fabric-export-$(date +%Y%m%d-%H%M%S)"
             echo "fabricctl: purging — exporting fabric's data to $DEST, then uninstalling fabric"
             if ! python3 "$CLI" uninstall --yes --export "$DEST"; then
-                echo "fabricctl: uninstall did not finish; finish it with: sudo python3 $CLI uninstall --yes --no-export" >&2
+                echo "fabricctl: uninstall did not finish. To keep an export: sudo python3 $CLI start, then sudo python3 $CLI uninstall --yes --export <folder>. To throw fabric's data away: sudo python3 $CLI uninstall --yes --no-export" >&2
             fi
         fi
         ;;

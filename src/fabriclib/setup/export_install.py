@@ -3,11 +3,14 @@ import subprocess
 import time
 
 from fabriclib.common.console import info, ok
+from fabriclib.common.errors import ValidationError
 from fabriclib.secrets.export_secrets import export_secrets
 from fabriclib.secrets.secrets_in_openbao import secrets_in_openbao
-from fabriclib.setup.uninstall import DIRS
+from fabriclib.setup.uninstall import DIRS, TIMERS
+from fabriclib.system.control_stack import control_stack
 
 ROOT_DIR = "@root"          # absolute paths outside the install root (the vault key folder, external data)
+STOP_WAIT = 90              # seconds the containers get to be gone once their units have stopped (2.3.1.53)
 
 README = """fabric export — {host}, {when}
 
@@ -33,10 +36,53 @@ def _copy(src, dest_parent):
     """Purpose: copy a folder with owners and modes kept.
     Inputs:  src — folder; dest_parent — folder to copy into (created).
     Returns: None; dest_parent/<basename of src>.
-    Fails:   CalledProcessError from `cp -a`; OSError from makedirs.
+    Fails:   ValidationError when `cp -a` fails: the export is not whole, and nothing has been removed; OSError from
+             makedirs.
     Feeds:   export_install."""
     os.makedirs(dest_parent, exist_ok=True)
-    subprocess.run(["cp", "-a", src, dest_parent], check=True)
+    res = subprocess.run(["cp", "-a", src, dest_parent], capture_output=True, text=True)
+    if res.returncode != 0:
+        raise ValidationError(f"the export could not copy {src}: {res.stderr.strip()[:300]}. It is not whole, so "
+                              "nothing was uninstalled; fabric is stopped: sudo fabricctl start, then try again")
+
+
+def _still_running(base):
+    """Purpose: the containers of this install still running, whatever systemd says of their units.
+    Inputs:  base — the install's deploy base; Compose records each project's folder on its containers.
+    Returns: sorted [name]; only those of fabric's own folders (DIRS): another project, even in the same base, is not.
+    Fails:   ValidationError when Docker cannot say: an export must not assume.
+    Feeds:   _stop_stack."""
+    res = subprocess.run(["docker", "ps", "--format",
+                          '{{.Names}}\t{{.Label "com.docker.compose.project.working_dir"}}'],
+                         capture_output=True, text=True)
+    if res.returncode != 0:
+        raise ValidationError(f"the export could not ask Docker what is running: {res.stderr.strip()[:300]}. "
+                              "Nothing was uninstalled")
+    rows = (line.split("\t") + [""] for line in res.stdout.splitlines())
+    folders = {os.path.join(base, name) for name in DIRS}
+    return sorted(row[0] for row in rows if row[1] in folders)
+
+
+def _stop_stack(base):
+    """Purpose: stop fabric and prove it has stopped before anything is copied. `systemctl stop fabric.target` returned
+             in under a second with Postgres still running: a unit is ordered Before= the target, so the target's stop
+             ends first and the units' stops, which systemctl does not wait for, come after (2.3.1.53).
+    Inputs:  base — the install's deploy base.
+    Returns: None. Nothing of this install is running, and no timer of fabric's can start anything during the copy.
+    Fails:   ValidationError from control_stack, or when a container of this install is still running after STOP_WAIT:
+             the copy would not be consistent, so there is none.
+    Feeds:   export_install."""
+    # one that is not there is no failure
+    subprocess.run(["systemctl", "stop", *[f"{t}.timer" for t in TIMERS]], capture_output=True)
+    control_stack("stop")                          # names every unit, so systemctl waits for each
+    end = time.time() + STOP_WAIT
+    running = _still_running(base)
+    while running and time.time() < end:
+        time.sleep(1)
+        running = _still_running(base)
+    if running:
+        raise ValidationError(f"fabric did not stop: {', '.join(running)} still running after {STOP_WAIT} s. A copy "
+                              "now would not be consistent, so there is none, and nothing was uninstalled")
 
 
 def export_install(ctx, dest):
@@ -47,7 +93,8 @@ def export_install(ctx, dest):
              hostname; secrets_file); dest — folder already accepted by check_export_dir.
     Returns: dest (str), root 0700: DIRS copies, @root/<abs path> for outside folders, README.txt, and
              fabric/config/fabric-secrets.yml (PLAINTEXT) when the secrets were in OpenBao. The stack stays stopped.
-    Fails:   ValidationError from export_secrets (OpenBao unreachable); CalledProcessError from cp -a; OSError.
+    Fails:   ValidationError from export_secrets (OpenBao unreachable), from _stop_stack (fabric did not stop) and
+             from _copy; OSError.
     Feeds:   run_uninstall_command (before uninstall)."""
     os.makedirs(dest, mode=0o700, exist_ok=True)
     os.chown(dest, 0, 0)
@@ -58,7 +105,7 @@ def export_install(ctx, dest):
         os.makedirs(os.path.dirname(secrets), mode=0o700, exist_ok=True)
         export_secrets(ctx.secrets_file, secrets)
     info("stopping fabric for a consistent copy")
-    subprocess.run(["systemctl", "stop", "fabric.target", "fabric-agent"], capture_output=True)
+    _stop_stack(ctx.deploy_base)
     for name in DIRS:
         if os.path.isdir(ctx.path(name)):
             _copy(ctx.path(name), dest)
