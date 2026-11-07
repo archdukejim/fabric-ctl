@@ -2,6 +2,7 @@
 file	fabricctl-agent|src/agent/get_route.py	1	
 file	fabricctl-agent|src/agent/handler.py	2	
 file	fabricctl-agent|src/agent/job_store.py	16	
+file	fabricctl-agent|src/agent/kept_store.py	46	
 file	fabricctl-agent|src/agent/landing_note.py	37	
 file	fabricctl-agent|src/agent/one_thing.py	35	
 file	fabricctl-agent|src/agent/pending_dns.py	41	
@@ -20,6 +21,7 @@ file	fabricctl-agent|src/agent/post_groups.py	29
 file	fabricctl-agent|src/agent/post_host_access.py	18	
 file	fabricctl-agent|src/agent/post_ipam_scan.py	43	
 file	fabricctl-agent|src/agent/post_ipam_sync.py	38	
+file	fabricctl-agent|src/agent/post_kept.py	47	
 file	fabricctl-agent|src/agent/post_local_admin.py	32	
 file	fabricctl-agent|src/agent/post_network.py	6	
 file	fabricctl-agent|src/agent/post_networks.py	39	
@@ -890,6 +892,8 @@ file	fabriclib-radius|src/fabriclib/radius/windows_lan_profile.py	13
 file	fabriclib-radius|src/fabriclib/radius/windows_setup_script.py	14	
 file	fabriclib-rbac|src/fabriclib/rbac/required_permission.py	1	
 file	fabriclib-rbac|src/fabriclib/rbac/user_permissions.py	2	
+file	fabriclib-readcache|src/fabriclib/readcache/host_rules.py	1	
+file	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py	2	
 file	fabriclib-samba|src/fabriclib/samba/allow_rodc_cache.py	33	
 file	fabriclib-samba|src/fabriclib/samba/check_kerberos_policy.py	45	
 file	fabriclib-samba|src/fabriclib/samba/check_logon_policies.py	28	0.7.2 / 2026-10-19
@@ -1199,6 +1203,7 @@ file	webui|src/webui/agentclient/host_reminders.py	201
 file	webui|src/webui/agentclient/image_rows.py	140	
 file	webui|src/webui/agentclient/inspect_pem.py	21	
 file	webui|src/webui/agentclient/issue_key_pair.py	22	
+file	webui|src/webui/agentclient/kept_refresh.py	301	
 file	webui|src/webui/agentclient/kerberos_overview.py	261	
 file	webui|src/webui/agentclient/kerberos_overview.py (gone 0.8.0 / 2026-10-23)	254	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/link_device_cert.py	23	0.8.0 / 2026-10-23
@@ -1225,6 +1230,7 @@ file	webui|src/webui/agentclient/my_groups.py	220
 file	webui|src/webui/agentclient/networks_export.py	292	
 file	webui|src/webui/agentclient/networks_overview.py	293	
 file	webui|src/webui/agentclient/option_sets.py	276	
+file	webui|src/webui/agentclient/overview_read.py	302	
 file	webui|src/webui/agentclient/pending_action.py	212	
 file	webui|src/webui/agentclient/pending_counts.py	213	
 file	webui|src/webui/agentclient/pending_page.py	214	
@@ -1277,6 +1283,7 @@ file	webui|src/webui/agentclient/sync_now.py	280
 file	webui|src/webui/agentclient/unmap_radius_group.py	46	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/unset_option.py	47	
 file	webui|src/webui/agentclient/update_subnet.py	48	
+file	webui|src/webui/agentclient/updates_read.py	303	
 file	webui|src/webui/agentclient/vault_add_kmip.py	49	
 file	webui|src/webui/agentclient/vault_add_security_key.py	50	
 file	webui|src/webui/agentclient/vault_add_usb.py	51	
@@ -1341,6 +1348,7 @@ file	webui|src/webui/routes/get_page.py	80
 file	webui|src/webui/routes/groups_page.py	233	
 file	webui|src/webui/routes/held.py	224	
 file	webui|src/webui/routes/kea_post.py	81	
+file	webui|src/webui/routes/kept_post.py	304	
 file	webui|src/webui/routes/kerberos_page.py	263	
 file	webui|src/webui/routes/kerberos_page.py (gone 0.8.0 / 2026-10-23)	257	0.8.0 / 2026-10-23
 file	webui|src/webui/routes/landing_post.py	187	
@@ -1349,6 +1357,7 @@ file	webui|src/webui/routes/networks_page.py	282
 file	webui|src/webui/routes/networks_post.py	283	
 file	webui|src/webui/routes/networks_scan_page.py	284	
 file	webui|src/webui/routes/networks_scan_post.py	285	
+file	webui|src/webui/routes/note_kept.py	305	
 file	webui|src/webui/routes/openbao_page.py	82	
 file	webui|src/webui/routes/options_page.py	286	
 file	webui|src/webui/routes/options_post.py	287	
@@ -1433,8 +1442,11 @@ file	webui|src/webui/views/sites.py	260
 file	webui|src/webui/views/stepca.py	118	
 file	webui|src/webui/views/tree.py	298	
 file	webui|src/webui/views/tsig_result.py	119	
+function	fabricctl-agent|src/agent/get_route.py|_kept	5	
+function	fabricctl-agent|src/agent/get_route.py|_overview	3	
 function	fabricctl-agent|src/agent/get_route.py|_pending	2	
 function	fabricctl-agent|src/agent/get_route.py|get_route	1	
+function	fabricctl-agent|src/agent/get_route.py|keep_fixed_pages	4	
 function	fabricctl-agent|src/agent/handler.py|Handler.actor	7	
 function	fabricctl-agent|src/agent/handler.py|Handler.address_string	1	
 function	fabricctl-agent|src/agent/handler.py|Handler.authorize	5	
@@ -1448,6 +1460,8 @@ function	fabricctl-agent|src/agent/handler.py|Handler.reply	3
 function	fabricctl-agent|src/agent/job_store.py|JobStore.__init__	1	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.read	3	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.start	2	
+function	fabricctl-agent|src/agent/kept_store.py|start_kept	2	
+function	fabricctl-agent|src/agent/kept_store.py|started	1	
 function	fabricctl-agent|src/agent/landing_note.py|landing_note	1	
 function	fabricctl-agent|src/agent/one_thing.py|one_thing	1	
 function	fabricctl-agent|src/agent/pending_dns.py|_zone	1	
@@ -1505,6 +1519,7 @@ function	fabricctl-agent|src/agent/post_groups.py|post_groups	1
 function	fabricctl-agent|src/agent/post_host_access.py|post_host_access	1	
 function	fabricctl-agent|src/agent/post_ipam_scan.py|post_ipam_scan	1	
 function	fabricctl-agent|src/agent/post_ipam_sync.py|post_ipam_sync	1	
+function	fabricctl-agent|src/agent/post_kept.py|post_kept	1	
 function	fabricctl-agent|src/agent/post_local_admin.py|post_local_admin	1	
 function	fabricctl-agent|src/agent/post_network.py|post_network	1	
 function	fabricctl-agent|src/agent/post_networks.py|_change	4	
@@ -2200,6 +2215,7 @@ function	fabriclib-directory|src/fabriclib/directory/held_op.py|enable	1
 function	fabriclib-directory|src/fabriclib/directory/held_op.py|enabled	2	
 function	fabriclib-directory|src/fabriclib/directory/held_op.py|forget	9	
 function	fabriclib-directory|src/fabriclib/directory/held_op.py|send	10	
+function	fabriclib-directory|src/fabriclib/directory/held_op.py|set_limit	11	
 function	fabriclib-directory|src/fabriclib/directory/link_device_cert.py|link_device_cert	1	
 function	fabriclib-directory|src/fabriclib/directory/list_devices.py|list_devices	1	
 function	fabriclib-directory|src/fabriclib/directory/list_host_groups.py|list_host_groups	1	
@@ -2959,6 +2975,25 @@ function	fabriclib-radius|src/fabriclib/radius/windows_lan_profile.py|windows_la
 function	fabriclib-radius|src/fabriclib/radius/windows_setup_script.py|windows_setup_script	1	
 function	fabriclib-rbac|src/fabriclib/rbac/required_permission.py|required_permission	1	
 function	fabriclib-rbac|src/fabriclib/rbac/user_permissions.py|user_permissions	1	
+function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|held_limit	4	
+function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|host_class	1	
+function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|refresh_interval	2	
+function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|under_pressure	3	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.__init__	4	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads._answer	7	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads._due	10	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads._refresh	11	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.configure	5	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.invalidate	9	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.next_wait	13	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.refresh_all	12	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.refresh_now	15	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.register	6	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.run	14	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.serve	8	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|_Entry.__init__	1	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|_why_bad	2	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|read_pressure	3	
 function	fabriclib-samba|src/fabriclib/samba/allow_rodc_cache.py|allow_rodc_cache	1	
 function	fabriclib-samba|src/fabriclib/samba/check_kerberos_policy.py|check_kerberos_policy	1	
 function	fabriclib-samba|src/fabriclib/samba/check_logon_policies.py|_groups	1	0.7.2 / 2026-10-19
@@ -3513,6 +3548,7 @@ function	webui|src/webui/agentclient/host_reminders.py|host_reminders	1
 function	webui|src/webui/agentclient/image_rows.py|image_rows	1	
 function	webui|src/webui/agentclient/inspect_pem.py|inspect_pem	1	
 function	webui|src/webui/agentclient/issue_key_pair.py|issue_key_pair	1	
+function	webui|src/webui/agentclient/kept_refresh.py|kept_refresh	1	
 function	webui|src/webui/agentclient/kerberos_overview.py|kerberos_overview	2	
 function	webui|src/webui/agentclient/kerberos_overview.py|kerberos_overview (gone 0.8.0 / 2026-10-23)	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/link_device_cert.py|link_device_cert	1	0.8.0 / 2026-10-23
@@ -3539,6 +3575,7 @@ function	webui|src/webui/agentclient/my_groups.py|my_groups	1
 function	webui|src/webui/agentclient/networks_export.py|networks_export	1	
 function	webui|src/webui/agentclient/networks_overview.py|networks_overview	1	
 function	webui|src/webui/agentclient/option_sets.py|option_sets	1	
+function	webui|src/webui/agentclient/overview_read.py|overview_read	1	
 function	webui|src/webui/agentclient/pending_action.py|pending_action	1	
 function	webui|src/webui/agentclient/pending_counts.py|pending_counts	1	
 function	webui|src/webui/agentclient/pending_page.py|pending_page	1	
@@ -3593,6 +3630,7 @@ function	webui|src/webui/agentclient/sync_now.py|sync_now	1
 function	webui|src/webui/agentclient/unmap_radius_group.py|unmap_radius_group	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/unset_option.py|unset_option	1	
 function	webui|src/webui/agentclient/update_subnet.py|update_subnet	1	
+function	webui|src/webui/agentclient/updates_read.py|updates_read	1	
 function	webui|src/webui/agentclient/vault_add_kmip.py|vault_add_kmip	1	
 function	webui|src/webui/agentclient/vault_add_security_key.py|vault_add_security_key	1	
 function	webui|src/webui/agentclient/vault_add_usb.py|vault_add_usb	1	
@@ -3795,6 +3833,7 @@ function	webui|src/webui/routes/kea_post.py|_kea	3
 function	webui|src/webui/routes/kea_post.py|_pools	1	
 function	webui|src/webui/routes/kea_post.py|_where	2	
 function	webui|src/webui/routes/kea_post.py|kea_post	4	
+function	webui|src/webui/routes/kept_post.py|kept_post	1	
 function	webui|src/webui/routes/kerberos_page.py|kerberos_page	2	
 function	webui|src/webui/routes/kerberos_page.py|kerberos_page (gone 0.8.0 / 2026-10-23)	1	0.8.0 / 2026-10-23
 function	webui|src/webui/routes/landing_post.py|landing_post	1	
@@ -3807,6 +3846,7 @@ function	webui|src/webui/routes/networks_post.py|networks_post	3
 function	webui|src/webui/routes/networks_scan_page.py|networks_scan_page	1	
 function	webui|src/webui/routes/networks_scan_post.py|_request	1	
 function	webui|src/webui/routes/networks_scan_post.py|networks_scan_post	2	
+function	webui|src/webui/routes/note_kept.py|note_kept	1	
 function	webui|src/webui/routes/openbao_page.py|openbao_page	1	
 function	webui|src/webui/routes/options_page.py|options_page	1	
 function	webui|src/webui/routes/options_post.py|_where	1	
@@ -3938,6 +3978,7 @@ page	fabriclib-ntp	18
 page	fabriclib-pki	19	
 page	fabriclib-radius	20	
 page	fabriclib-rbac	21	
+page	fabriclib-readcache	43	
 page	fabriclib-samba	30	
 page	fabriclib-secrets	22	
 page	fabriclib-security	23	

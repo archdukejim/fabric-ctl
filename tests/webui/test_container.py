@@ -476,11 +476,16 @@ check("break glass: with its file on the host, a new sign-in's pages carry the r
       (st, body[:600]))
 os.remove(GLASS)
 st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
-check("break glass: the file deleted, the Overview reads the reminders afresh and shows none; the removal is audited "
-      "once, the record dropped",
-      st == 200 and "fabric-admin-password.txt" not in body
-      and "BREAK_GLASS_FILE_REMOVED" in open(f"{W}/fabric/archive/audit.log").read()
-      and not os.path.exists(f"{W}/fabric/config/break-glass.json"), (st, body[:400]))
+check("break glass: the file deleted, the Overview shows no reminder", st == 200
+      and "fabric-admin-password.txt" not in body, (st, body[:400]))
+# the kept read's refresher, the real one, is what notices when no reminder was showing (1.8.9.2): its upper limit
+for _ in range(310):
+    if not os.path.exists(f"{W}/fabric/config/break-glass.json"):
+        break
+    time.sleep(1)
+check("break glass: the removal is audited once by the next read, the record dropped",
+      open(f"{W}/fabric/archive/audit.log").read().count("BREAK_GLASS_FILE_REMOVED") == 1
+      and not os.path.exists(f"{W}/fabric/config/break-glass.json"))
 st, hd, sc, body = req("GET", "/kea", ALICE, cookie=session)
 check("...and the other pages follow (the session's reminders replaced)",
       st == 200 and "fabric-admin-password.txt" not in body, st)

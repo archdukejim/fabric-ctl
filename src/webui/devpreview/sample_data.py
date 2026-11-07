@@ -182,6 +182,7 @@ SAMPLE_DOMAIN = {"status": {"domain": "ad.home.arpa", "realm": "AD.HOME.ARPA", "
                                "enabled": False,
                                "type": "desktop", "sites": ["lan", "edge"], "folder": "machines/desktops",
                                "last_logon": "", "created": "2026-10-05", "dn": ""}]}
+SAMPLE_KEPT = {"age_s": 20, "failed": ""}      # a page served from what fabric-agent keeps (1.8.9.4)
 SAMPLE_DIRECTORY = {"status": SAMPLE_DOMAIN["status"], "level": "2008 R2",
                     "dcs": [{"name": "pi-core", "dns": "pi-core.ad.home.arpa", "writable": True},
                             {"name": "pi-edge", "dns": "pi-edge.ad.home.arpa", "writable": False}],

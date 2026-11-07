@@ -16,6 +16,7 @@ A full install from the `.deb` in a disposable systemd + Docker container
 | `radius_mab.py` | A switch's MAB request (with Message-Authenticator) from outside the sandbox: Accept + VLAN, Reject, or no reply |
 | `radius_device.py` | Inside the sandbox: VLAN 30 on the default `printers` role and a printer in it, with fabric's own directory code |
 | `list_roles.py` | Inside the sandbox: the device roles' names (the defaults setup created) |
+| `read_cache.py` | The console's read cache against the real stack, run by hand on a default sign-in (3.1.2.8) |
 | `iterate.sh` | Developer helper: re-run parts against a kept sandbox |
 | `make_person.py` | A person of the site made the way fabric makes them, optionally in an organisation group |
 | `size_fill.py` | Fills a test install up to a number of people, with half as many computers and a tenth as many groups, made the way fabric makes them; re-runs top up (the sizing model's measurements, 1.8.8.8, 2.3.8.5) |

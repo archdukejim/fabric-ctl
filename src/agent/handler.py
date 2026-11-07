@@ -8,6 +8,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler
 
 from agent.get_route import get_route
+from agent.kept_store import KEPT
 from agent.post_route import post_route
 from agent.route_not_found import RouteNotFound
 from fabriclib.common.errors import NotFound, ValidationError
@@ -17,6 +18,7 @@ from fabriclib.rbac.required_permission import required_permission
 from fabriclib.rbac.user_permissions import user_permissions
 
 MAX_BODY = 64 * 1024
+NO_CHANGE = {"events", "kept", "sizing"}        # POSTs that change nothing a kept read shows (manual 1.8.9.2)
 ACTOR_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$")
 
 
@@ -169,7 +171,12 @@ class Handler(BaseHTTPRequestHandler):
             if method == "GET":
                 return self.reply(200, get_route(route, self.user, self.perms))
             data = self.body()
-            return self.reply(200, post_route(route, self.actor(data), data, self.perms, self.session))
+            try:
+                answer = post_route(route, self.actor(data), data, self.perms, self.session)
+            finally:                            # refused or not: a change may have got part of the way
+                if route[:1] and route[0] not in NO_CHANGE:
+                    KEPT.invalidate()
+            return self.reply(200, answer)
         except RouteNotFound:
             self.reply(404, {"error": "not found"})
         except NotFound as exc:                 # one thing a read names is not there (2.1.8.21)

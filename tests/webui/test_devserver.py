@@ -1099,10 +1099,11 @@ with serve():
           and "2 DCs used, 1997 can be added" in page and "pi-edge" in page, page[-4000:])
     page = get("/directory/sites/lan")
     check("a site's page: its people and machines linked, where its members change (its group), its grants, its AD "
-          "site read-only (DCs, subnets, site links); no form", 'href="/directory/people/jim"' in page
+          "site read-only (DCs, subnets, site links); no form but Refresh", 'href="/directory/people/jim"' in page
           and 'href="/directory/computers/host-1"' in page and 'href="/directory/groups/site-lan"' in page
           and "192.168.1.0/24" in page and "lan-edge (edge and lan; cost 100, every 15 minutes)" in page
-          and 'method="post"' not in page.split("<main", 1)[1].split("</main>", 1)[0], page[-3000:])
+          and 'method="post"' not in page.split("<main", 1)[1].split("</main>", 1)[0]
+          .replace('method="post" action="/kept/refresh"', ""), page[-3000:])
     st, _, _, page = req("GET", "/directory/sites/mars")
     # covers: web:get.directory.sites -
     check("a site that is not there: said, a 404 (2.1.8.16)", st == 404 and "No site mars in the domain" in page)
@@ -1316,7 +1317,23 @@ with serve():
     check("negative: dismissing what is not an alert now is refused, saying why", st == 303 and loc == "/"
           and "no sizing alert" in page, (st, loc, page[-800:]))
 with serve():
-    # the regression budget (2.1.8.35): here, what the web process itself adds to each page, with fabric-agent stubbed;
+    # a page drawn from kept data (1.8.9.4, 2.1.8.45): the line and its Refresh, without script
+    page = get("/directory/sites")
+    check("a kept page says how old it is, with Refresh in a plain form", "Updated 20 s ago" in page
+          and 'action="/kept/refresh"' in page and 'name="read" value="sites"' in page
+          and 'name="back" value="/directory/sites"' in page, page[:3000])
+    check("a page not kept says neither", "Updated " not in get("/audit") and "/kept/refresh" not in get("/audit"))
+    st, loc, _ = post("/kept/refresh", {"read": "sites", "back": "/directory/sites"})[:3]
+    # covers: web:post.kept.refresh +
+    check("Refresh reads again and comes back to the page", st == 303 and loc == "/directory/sites", (st, loc))
+    st, loc, page = post("/kept/refresh", {"read": "sites", "back": "/directory/sites"})
+    # covers: web:post.kept.refresh -
+    check("negative: Refresh again too soon is refused, saying when", st == 303 and loc == "/directory/sites"
+          and "it can run again in 30 s" in page, (st, loc, page[-800:]))
+    st, loc, _ = post("/kept/refresh", {"read": "overview", "back": "//evil.example/"})[:3]
+    # covers: web:post.kept.refresh -
+    check("negative: a `back` off this site goes home", st == 303 and loc == "/", (st, loc))
+    # the budget (2.1.8.43): here, what the web process itself adds to each page, with fabric-agent stubbed;
     # the agent's share is measured on the test Pi (tests/host/page_speed.py --budget)
     speed = importlib.util.spec_from_file_location(
         "page_speed", os.path.join(REPO, "tests", "host", "page_speed.py"))

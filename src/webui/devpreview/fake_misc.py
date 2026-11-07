@@ -96,6 +96,11 @@ def fake_misc(state, who, route, body):
     Feeds:   fake_agent."""
     if route == ["events"]:
         return {}
+    if route == ["kept", "refresh"]:          # as the agent: at most once per the class's lower limit (1.8.9.4)
+        if body.get("read") in getattr(state, "kept_refreshed", set()):
+            raise ValidationError("refreshed a moment ago: it can run again in 30 s")
+        state.kept_refreshed = getattr(state, "kept_refreshed", set()) | {body.get("read")}
+        return {"age_s": 0, "failed": ""}
     if route == ["sizing", "dismiss"]:
         if body.get("resource") not in {a["resource"] for a in SAMPLE_SIZING["alerts"]}:
             raise ValidationError(f"no sizing alert for {body.get('resource')!r} now")

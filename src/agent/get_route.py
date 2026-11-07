@@ -1,6 +1,7 @@
 import os
 
 from agent.job_store import JOBS
+from agent.kept_store import KEPT, started
 from agent.one_thing import one_thing
 from agent.read_tree import read_tree
 from agent.route_not_found import RouteNotFound
@@ -63,11 +64,28 @@ from fabriclib.settings.export_settings import export_settings
 from fabriclib.settings.settings_overview import settings_overview
 from fabriclib.sizing.state import read_sizing
 
+
+
+def _overview():
+    """Purpose: the Overview's slow reads together, so they can be kept as one (manual 1.8.9.2, 2.3.8.9.1).
+    Inputs:  none.
+    Returns: {"services": service_status, "reminders": host_reminders, or None when they could not be read}.
+    Fails:   what service_status raises.
+    Feeds:   READS."""
+    try:
+        reminders = host_reminders(load_vars()["deploy_base_dir"])
+    except (ValidationError, OSError):
+        reminders = None
+    return {"services": service_status(), "reminders": reminders}
+
+
 # GET /v1/<route> -> the read operation answering it (vars are read per request)
 READS = {
     ("version",): lambda: {**version_info(), "host": load_vars().get("hostname", ""),          # the top bar (1.8.6.2)
                            "domain": load_vars().get("domain", "")},
     ("services",): lambda: service_status(),
+    ("overview",): _overview,
+    ("updates",): lambda: {"rows": image_status(SetupContext(deploy_base=load_vars()["deploy_base_dir"]).load_state())},
     ("host-changes",): lambda: consent_status(os.path.join(load_vars()["deploy_base_dir"], "fabric", "config")),
     ("relaxed-settings",): lambda: relaxed_settings(load_vars()),
     ("cert-warnings",): lambda: cert_warnings(load_vars()),
@@ -109,6 +127,33 @@ READS = {
                               "domain": load_vars()["domain"]},
 }
 
+# the console's fixed pages' slow reads, kept for a signed-in person (manual 1.8.9.2, causes 2.3.8.9.1)
+KEPT_FIXED = (("overview",), ("updates",), ("dns-filter",), ("directory",), ("sites",), ("domain", "grants"),
+              ("domain", "kerberos"), ("gpo",), ("federation",), ("pki", "ca"))
+
+
+def keep_fixed_pages():
+    """Purpose: the fixed pages' reads, kept from the agent's start, so the first person to open one need not wait.
+    Inputs:  none.
+    Returns: None.
+    Fails:   never.
+    Feeds:   agent/kept_store.start_kept."""
+    for key in KEPT_FIXED:
+        KEPT.register(key, READS[key])
+
+
+def _kept(key, fn, perms, lasting=False):
+    """Purpose: one read for a signed-in person through what is kept; the host itself (a root peer) and anything but
+             a running fabric-agent always read live.
+    Inputs:  key — the read's key; fn — the read; perms — the token's permissions (None for root); lasting — one of
+             the fixed pages.
+    Returns: the read's answer.
+    Fails:   what fn raises.
+    Feeds:   get_route."""
+    if perms is None or not started():
+        return fn()
+    return KEPT.serve(key, fn, lasting)
+
 
 def _pending(route, user, perms):
     """Purpose: Apply per page's reads (manual 1.8.6.5): this person's pending changes per page, or one page's
@@ -148,6 +193,9 @@ def get_route(route, user=None, perms=None):
              machines/<name>: machine_overview (a computer's page); sites: site_overview (Sites); sites/tree:
              site_selector (the top bar's site selector); directory: directory_overview (the Directory's Overview);
              sizing: read_sizing (the timer's last result, this person's alerts, 1.8.8.8);
+             overview: {"services", "reminders"}; updates: {"rows"}: image_status; KEPT_FIXED, zones/<key>,
+             account/groups and domain/grants/explain/...: for a signed-in person, what fabric-agent keeps, with
+             "kept" (1.8.9);
              account/groups: my_groups (the groups the signed-in person manages); pending: the person's pending
              changes per page and the pages with an apply running (1.8.6.5); pending/<page>: the page's Review;
              settings: settings_overview (the setup wizard, 1.8.5); settings/export: {"text", "name"}, the
@@ -160,16 +208,23 @@ def get_route(route, user=None, perms=None):
              (networks, ipam/options) that is not there (-> 404, 2.1.8.21; 1.10.4.40.1); whatever the operation
              raises (ValidationError -> 400).
     Feeds:   agent/handler.py (dispatch)."""
+    if route == ["overview"]:
+        out = _kept(("overview",), READS[("overview",)], perms, lasting=True)
+        if out.get("kept") and out.get("reminders"):    # a reminder goes as soon as its cause does (2.1.6.69)
+            out = {**out, "reminders": host_reminders(load_vars()["deploy_base_dir"])}
+        return out
+    if tuple(route) in KEPT_FIXED:
+        return _kept(tuple(route), READS[tuple(route)], perms, lasting=True)
     if tuple(route) in READS:
         return READS[tuple(route)]()
     if len(route) == 2 and route[0] == "zones":
-        return zone_detail(route[1])
+        return _kept(tuple(route), lambda: zone_detail(route[1]), perms)
     if len(route) == 2 and route[0] == "jobs":
         return JOBS.read(route[1], user)
     if route == ["account"]:
         return my_account(load_vars(), user)
     if route == ["account", "groups"]:
-        return my_groups(load_vars(), user)
+        return _kept(("account", "groups", user), lambda: my_groups(load_vars(), user), perms)
     if route[:1] == ["pending"] and len(route) <= 2:
         return _pending(route, user, perms)
     if route == ["sizing"]:                         # the file the timer writes, less what this person dismissed
@@ -183,7 +238,8 @@ def get_route(route, user=None, perms=None):
     if len(route) == 3 and route[:2] == ["domain", "grants"]:
         return one_thing(show_grant, load_vars(), route[2])
     if len(route) in (4, 5) and route[:3] == ["domain", "grants", "explain"]:
-        return explain_grant(load_vars(), route[3], route[4] if len(route) == 5 else None)
+        return _kept(tuple(route), lambda: explain_grant(load_vars(), route[3], route[4] if len(route) == 5 else None),
+                     perms)
     if len(route) == 2 and route[0] == "networks":
         return one_thing(networks_overview, load_vars(), route[1])
     if len(route) == 3 and route[0] == "networks" and route[2] == "export":

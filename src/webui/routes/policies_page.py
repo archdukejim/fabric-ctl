@@ -1,5 +1,6 @@
 from webui import agentclient as actions
 from webui import views
+from webui.routes.note_kept import note_kept
 
 
 def policies_page(h, ctx, path, query):
@@ -16,7 +17,8 @@ def policies_page(h, ctx, path, query):
         if view == "password":
             return h.send(200, views.policies(ctx, view, domain=actions.domain_overview()))
         if view == "gpo":
-            return h.send(200, views.policies(ctx, view, gpo=actions.gpo_overview(query.get("match", ""))))
+            gpo = note_kept(ctx, actions.gpo_overview(query.get("match", "")), "gpo", path)
+            return h.send(200, views.policies(ctx, view, gpo=gpo))
         access = {"error": ""}
         try:
             access.update(groups=actions.list_host_groups(), sudo=actions.list_sudo_rules())

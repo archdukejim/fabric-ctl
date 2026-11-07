@@ -29,6 +29,8 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `get_page.py` | Route a signed-in GET to its page (the navigation of manual 1.8.6.4); an old address to its new one. |
 | `moved_to.py` | Where an old address of the console answers now (manual 1.8.6.4), or None. |
 | `openbao_page.py` | Render the OpenBao tab: status, unlock methods and their add/rotate/remove forms, secrets, disk encryption. |
+| `kept_post.py` | A page's Refresh (1.8.9.4). |
+| `note_kept.py` | A page drawn from kept data says so (1.8.9.4). |
 | `post_action.py` | Route a signed-in, CSRF-checked POST to its action. |
 | `dns_filter_page.py` | The DNS filter tab: overview, lists, rules, the query log (dns:querylog), settings |
 | `dns_filter_post.py` | The DNS filter tab's changes: lists, rules (also Allow / Block from the query log), upstreams, fetch now |
