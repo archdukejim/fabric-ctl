@@ -15,7 +15,7 @@ README.md	e11704d23ab0b3402607854f34089ea1a78ebdec	2026-10-23
 THIRD_PARTY_NOTICES	ff836ec5208f7ac6140740a07186107c63702d24	2026-10-08	
 config/README.md	6300abd255fbbe5a87bd0d83cd9c9dd1c4b8de1f	2026-10-08	
 config/VERSION	2003b639c40025a4216b7b765e800b872a9052cd	2026-11-07	
-config/images.lock.yaml	3c8d4db1587326ae238c44fc44a091e76841ba6c	2026-11-05	
+config/images.lock.yaml	90a432dd539cff4faadab3d4a18c8a8b5091fb9c	2026-11-07	
 config/link-vars-template.yaml	09caaa55680a13015332a468218c99437f67db26	2026-09-30	
 docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
@@ -2109,7 +2109,7 @@ tests/image_ref.py	4ff35451eb0f155eee1efe6209e935e841d0dc32	2026-10-03
 tests/images/README.md	32152577c75918aee5b4d0bfe1f04b2163e75144	2026-10-14	
 tests/images/commands.py	f50fd76f488d6f1bafd84b73218ee8eebe71742c	2026-10-25	
 tests/images/host_images.py	88e855ce667d351a3edc1fe87421a5ad687d19e0	2026-10-09	
-tests/images/previous.yaml	370e067eeaea63f09965f234a0c3b7584942ee65	2026-11-02	
+tests/images/previous.yaml	dce76a0ce0cd638f2177ee8c389cd77bf742e285	2026-11-07	
 tests/images/published.py	329c8b0f5780f97257407e0defbfb6fbf60ef2ef	2026-10-25	
 tests/images/run.sh	4e4b398a854a4ec81041afbc8cd52bf7d3707ad1	2026-10-25	
 tests/images/switch_image_test.py	6534c1f8fff6b86fcd8b30770dcfeadba574d94c	2026-10-14	
