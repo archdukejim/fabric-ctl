@@ -21,7 +21,7 @@ docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
-docs/volume_1_description_and_architecture/1.1.4-roadmap.md	15305d7d1cfc5fd35525fef3b4f12120c1110058	2026-11-07	
+docs/volume_1_description_and_architecture/1.1.4-roadmap.md	5f5d0a776dba3cd5a1107b5291093b1ffb617dde	2026-11-07	
 docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	7cc73759f86c7ce4ca7e2d58b7d1cc0db4cb9a64	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	c376feda6e17998f6aa6b2d9c85823f6b00ba89e	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
@@ -101,7 +101,7 @@ docs/volume_1_description_and_architecture/1.2.9-host-consent.md	f6bcdbb4401eba7
 docs/volume_1_description_and_architecture/1.3.1-host-package.md	44319278da7cf11a26e05b384c989d9b81f6f40d	2026-10-23	
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	4ab5c327069823d2f63aa8ce26c2c5aded2ec86c	2026-10-24	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	3ed8ca88c850b7c1c85302c6b3d86332efcf847d	2026-11-04	
-docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	72107f58b9845e4f2029866979508bfedcb9a21d	2026-11-07	
+docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	41f98adfdcfcc54a7e2a500228d23c2f2a30f074	2026-11-07	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	a44be399d7d405ada533585abf6e5da21d3bc372	2026-11-05	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	26784470690fb28f6c54cbd9cc59a35208a1426a	2026-10-31	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c4cff88c3f00f41fef9f762b780de695005e3e8e	2026-11-05	
