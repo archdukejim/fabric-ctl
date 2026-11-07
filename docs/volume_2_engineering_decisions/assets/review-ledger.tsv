@@ -21,7 +21,7 @@ docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
-docs/volume_1_description_and_architecture/1.1.4-roadmap.md	5f5d0a776dba3cd5a1107b5291093b1ffb617dde	2026-11-07	
+docs/volume_1_description_and_architecture/1.1.4-roadmap.md	b1a90c58f3533bbf65e5d0323abff20c523d83a6	2026-11-07	
 docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	7cc73759f86c7ce4ca7e2d58b7d1cc0db4cb9a64	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	c376feda6e17998f6aa6b2d9c85823f6b00ba89e	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
@@ -101,7 +101,7 @@ docs/volume_1_description_and_architecture/1.2.9-host-consent.md	f6bcdbb4401eba7
 docs/volume_1_description_and_architecture/1.3.1-host-package.md	44319278da7cf11a26e05b384c989d9b81f6f40d	2026-10-23	
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	4ab5c327069823d2f63aa8ce26c2c5aded2ec86c	2026-10-24	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	3ed8ca88c850b7c1c85302c6b3d86332efcf847d	2026-11-04	
-docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	41f98adfdcfcc54a7e2a500228d23c2f2a30f074	2026-11-07	
+docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	f5ef4befef560801dd425163a68bd756f171b562	2026-11-07	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	a44be399d7d405ada533585abf6e5da21d3bc372	2026-11-05	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	26784470690fb28f6c54cbd9cc59a35208a1426a	2026-10-31	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c4cff88c3f00f41fef9f762b780de695005e3e8e	2026-11-05	
@@ -181,7 +181,7 @@ docs/volume_3_installation/3.1.1-manual-test-plan.md	45af38d9ad108ecf2ca0ba47e7c
 docs/volume_3_installation/3.1.2-automated-tests.md	4ab9ef77b68de91787ac8c3987396fcbf6eccbdb	2026-11-07	
 docs/volume_3_installation/3.1.3-dev-preview.md	f913e6ed5b5f0e0428479a417dc655071b3b2f42	2026-10-08	
 docs/volume_3_installation/3.1.4-working-on-fabric.md	f0aa02dae628fc02838839f4887bb5d6baa1e857	2026-10-08	
-docs/volume_3_installation/3.1.5-hyperv-lab.md	9ea77229c340bc69d99f3ce2169a0a88cdb50e51	2026-11-07	
+docs/volume_3_installation/3.1.5-hyperv-lab.md	31cae7954e94517544fbf242599584321952ec06	2026-11-07	
 docs/volume_3_installation/3.14.1-building-images.md	fd76caf067051fa7799d2f7345c8107a198c8d4d	2026-11-07	
 docs/volume_3_installation/3.16.1-disk-encryption.md	01a470a365017a5f19e088eb54482f8c49919b65	2026-10-08	
 docs/volume_3_installation/3.2.1-requirements.md	dddb70ea81855c6560f95648a9e93c2b4187f337	2026-10-25	
@@ -2202,7 +2202,7 @@ tests/kea/scan.py	a2886cb628f60b0443b8e5b49c20e4474b834d5b	2026-10-25
 tests/keycloak/README.md	55bf0779666050bc9febb2d9c86957665c1d3d0d	2026-10-08	
 tests/keycloak/run.py	69a39b55a940c0f70f9eabdf82ba50f53a0c9e8c	2026-11-04	
 tests/keycloak/soft_passkey.py	51ec49de47ee87f347e246b14acf0eb5f20cb512	2026-10-08	
-tests/lab/README.md	b0170e52b20bed4a1e49a724df96f395887cc742	2026-11-07	
+tests/lab/README.md	de807c5ccfea92f3b2d512a5b2ce185527bdd276	2026-11-07	
 tests/lab/console_session.py	fc724414d441c7ffcb843cf3ef94cffbf0d08af4	2026-10-24	
 tests/lab/dhcp.sh	30bfd8a0fd670dd228cdf1c1e6c303cd4a31fe6a	2026-10-25	
 tests/lab/dhcp_campaign.sh	1b462797cddf25231389b9269fba6c02d39e07d2	2026-10-25	
@@ -2213,6 +2213,7 @@ tests/lab/dot1x_scripts_check.ps1	f46adf9620d84120542c83c0783d8f602479f22a	2026-
 tests/lab/dot1x_scripts_make.py	b3fedee4b57edf5ae328116fb3193d201c3aaf49	2026-11-07	
 tests/lab/joined_campaign.sh	3f52bf314604ca34e285a66717b36fc774be5e6f	2026-11-06	
 tests/lab/joined_vars.yaml	a0c9e1ae955bab7731d7a5e7c24fa92a27037236	2026-10-31	
+tests/lab/web_guided_lab.py	5496b06be3a3c13c600bd6c683b792e629c44eea	2026-11-07	
 tests/lint/README.md	9757442e4a4f93e6dfa2de8daee0508f38dff835	2026-10-12	
 tests/lint/no_bare_prompts.py	f7bb9072256161fd72f5693e3a84d210269c8faa	2026-10-12	
 tests/lint/parse_py.py	2274821472d00fc05121d488e8d124c1a87d28b8	2026-10-10	
