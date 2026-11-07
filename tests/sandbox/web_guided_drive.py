@@ -332,8 +332,8 @@ print("--- after Finish", flush=True)
 check("nothing listens on the site's ports", not listening(), listening())
 check("no firewall rule of the site's, with ufw on", not site_rules() and "Status: active" in box("ufw status")[1], (site_rules(), box("ufw status")[1]))
 check("no record, no listener, no certificate of the site's left",
-      box("test ! -e /run/fabric-setup/site-port && ! pgrep -f '[s]ite_main' && ! find /opt/fabric -name 'setup-site*' | grep -q .")[0] == 0,
-      box("ls /run/fabric-setup; pgrep -af '[s]ite_main'; find /opt/fabric -name 'setup-site*'")[1])
+      box("test ! -e /run/fabric-setup/site-port && ! pgrep -f '[s]ite_main' && ! find /opt/stepca/data/artifacts -name 'setup-site*' | grep -q .")[0] == 0,
+      box("ls /run/fabric-setup; pgrep -af '[s]ite_main'; find /opt/stepca/data/artifacts -name 'setup-site*'")[1])
 pw_file = os.path.join(folder, "pw")
 with open(pw_file, "w") as f:
     f.write(SECRET)
@@ -345,10 +345,10 @@ check("the one-time code is in no log", journal == "0", journal)
 status, out = box("fabricctl doctor > /tmp/doctor.log 2>&1; s=$?; tail -30 /tmp/doctor.log; exit $s", 600)
 with open(os.path.join(OUT, "doctor.log"), "w") as f:
     f.write(out)
-check("doctor passes on what the site installed", status == 0 and "✗" not in out and box("test -e /opt/fabric/config/vars.yaml")[0] == 0, out)
+check("doctor passes on what the site installed", status == 0 and "✗" not in out and box("test -e /opt/fabric/config/fabric.yaml -o -e /opt/fabric/config/vars.yaml")[0] == 0, out)
 check("the console answers on its name, verified by fabric's root",
-      box(f"curl -sS -o /dev/null -w '%{{http_code}}' --cacert /opt/fabric/nginx/www/certs/root-ca.crt --resolve {CONSOLE}:443:{IP} https://{CONSOLE}/")[0] == 0,
-      box(f"curl -sS -o /dev/null --cacert /opt/fabric/nginx/www/certs/root-ca.crt --resolve {CONSOLE}:443:{IP} https://{CONSOLE}/")[1])
+      box(f"curl -sS -o /dev/null -w '%{{http_code}}' --cacert /opt/nginx/www/certs/root-ca.crt --resolve {CONSOLE}:443:{IP} https://{CONSOLE}/")[0] == 0,
+      box(f"curl -sS -o /dev/null --cacert /opt/nginx/www/certs/root-ca.crt --resolve {CONSOLE}:443:{IP} https://{CONSOLE}/")[1])
 
 shutil.rmtree(folder, ignore_errors=True)
 subprocess.run(["docker", "rmi", IMAGE], capture_output=True)

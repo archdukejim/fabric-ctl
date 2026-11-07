@@ -36,7 +36,8 @@
   });
 
   function reach(url) {
-    return window.fetch(url, { mode: "no-cors", cache: "no-store", credentials: "omit" })
+    // manual: the console answers with a redirect to its sign-in, on a name this check does not ask about
+    return window.fetch(url, { mode: "no-cors", cache: "no-store", credentials: "omit", redirect: "manual" })
       .then(function () { return true; }, function () { return false; });
   }
 
