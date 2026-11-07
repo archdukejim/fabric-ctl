@@ -24,6 +24,7 @@ Installing, upgrading, building and releasing fabric, and maintaining its host. 
 - [3.3.3 Setup steps](3.3.3-setup-steps.md)
 - [3.3.4 Rebuilding a host](3.3.4-rebuilding.md)
 - [3.3.5 Moving to 0.8.0](3.3.5-moving-to-080.md)
+- 3.3.6 Web-guided setup — nothing to install until 0.9.4 builds it: see [1.3.6](../volume_1_description_and_architecture/1.3.6-web-guided-setup.md)
 
 ## 3.4 DNS: BIND
 

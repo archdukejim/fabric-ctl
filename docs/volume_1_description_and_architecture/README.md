@@ -39,6 +39,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.3.1 The host package](1.3.1-host-package.md)
 - [1.3.2 Setup: secure by default, scriptable](1.3.2-setup-design.md)
 - [1.3.3 The fixed API](1.3.3-agent-api.md)
+- [1.3.6 Web-guided setup](1.3.6-web-guided-setup.md)
 
 ## 1.4 DNS: BIND
 

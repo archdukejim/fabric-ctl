@@ -16,6 +16,7 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 ## 4.3 fabricctl, setup and fabric-agent
 
 - [4.3.1 The fabricctl command](4.3.1-fabricctl.md)
+- 4.3.6 Web-guided setup — nothing to operate until 0.9.4 builds it: see [1.3.6](../volume_1_description_and_architecture/1.3.6-web-guided-setup.md)
 
 ## 4.4 DNS: BIND
 
