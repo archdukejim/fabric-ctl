@@ -2978,8 +2978,10 @@ function	fabriclib-rbac|src/fabriclib/rbac/required_permission.py|required_permi
 function	fabriclib-rbac|src/fabriclib/rbac/user_permissions.py|user_permissions	1	
 function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|held_limit	4	
 function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|host_class	1	
+function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|pressure_reason	6	
+function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|psi_some_avg60	5	
 function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|refresh_interval	2	
-function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|under_pressure	3	
+function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|under_pressure	3	0.9.3 / 2026-11-07
 function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.__init__	4	
 function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads._answer	7	
 function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads._due	10	
@@ -2994,7 +2996,9 @@ function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.run
 function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.serve	8	
 function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|_Entry.__init__	1	
 function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|_why_bad	2	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|pressure_source	17	
 function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|read_pressure	3	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|read_psi	16	
 function	fabriclib-samba|src/fabriclib/samba/allow_rodc_cache.py|allow_rodc_cache	1	
 function	fabriclib-samba|src/fabriclib/samba/check_kerberos_policy.py|check_kerberos_policy	1	
 function	fabriclib-samba|src/fabriclib/samba/check_logon_policies.py|_groups	1	0.7.2 / 2026-10-19

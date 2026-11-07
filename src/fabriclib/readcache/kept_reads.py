@@ -5,7 +5,7 @@ import threading
 import time
 
 from fabriclib.common.errors import ValidationError
-from fabriclib.readcache.host_rules import SMALL, refresh_interval, under_pressure
+from fabriclib.readcache.host_rules import SMALL, pressure_reason, psi_some_avg60, refresh_interval
 
 IDLE_S = 600            # nobody asked for this long: only the upper limit keeps a read fresh
 
@@ -36,19 +36,45 @@ def _why_bad(value):
     return str(value.get("error") or "")
 
 
-def read_pressure(cores):
-    """Purpose: whether this host is under pressure now (host_rules.under_pressure, from /proc).
-    Inputs:  cores — int.
-    Returns: bool; False when /proc cannot be read, so a refresh is never stopped by this check itself.
+def read_psi(kind, root="/proc/pressure"):
+    """Purpose: one pressure reading from the kernel (1.8.9.3, decision 2.1.8.51).
+    Inputs:  kind — "cpu" or "memory"; root — the folder (tests).
+    Returns: its "some" avg60 percentage, or None when the kernel gives none (built without PSI, or with it off, as some
+             Raspberry Pi kernels are by default).
+    Fails:   never.
+    Feeds:   read_pressure, pressure_source."""
+    try:
+        with open(os.path.join(root, kind)) as f:
+            return psi_some_avg60(f.read())
+    except (OSError, ValueError):
+        return None
+
+
+def pressure_source(root="/proc/pressure"):
+    """Purpose: what this host's pressure is judged from, for the agent's status line at its start (1.8.9.3).
+    Inputs:  root — the folder (tests).
+    Returns: str.
+    Fails:   never.
+    Feeds:   agent/kept_store.start_kept."""
+    if read_psi("cpu", root) is None or read_psi("memory", root) is None:
+        return "no pressure readings on this kernel (PSI): pressure from available memory alone"
+    return "pressure from the kernel's CPU and memory readings (PSI) and available memory"
+
+
+def read_pressure(meminfo="/proc/meminfo", root="/proc/pressure"):
+    """Purpose: whether this host is under pressure now, and why (host_rules.pressure_reason, from /proc).
+    Inputs:  meminfo, root — where to read (tests).
+    Returns: "" when not, or when /proc/meminfo cannot be read, so a refresh is never stopped by this check itself;
+             otherwise the reason.
     Fails:   never.
     Feeds:   KeptReads.next_wait."""
     try:
-        with open("/proc/meminfo") as f:
+        with open(meminfo) as f:
             info = dict(line.split(":", 1) for line in f if ":" in line)
         available, total = int(info["MemAvailable"].split()[0]), int(info["MemTotal"].split()[0])
-        return under_pressure(available / 1024, total / 1024, os.getloadavg()[0], cores)
     except (OSError, KeyError, ValueError, IndexError):
-        return False
+        return ""
+    return pressure_reason(available / 1024, total / 1024, read_psi("cpu", root), read_psi("memory", root))
 
 
 class KeptReads:
@@ -57,26 +83,25 @@ class KeptReads:
              permission is checked before serve is reached; what is kept never decides access.
     Feeds:   agent/kept_store, agent/get_route, agent/handler."""
 
-    def __init__(self, cls=SMALL, clock=time.monotonic, cores=None, pressure=read_pressure):
+    def __init__(self, cls=SMALL, clock=time.monotonic, pressure=read_pressure):
         """Purpose: an empty store for a class of host.
-        Inputs:  cls — a HostClass; clock — seconds, monotonic (tests); cores — int, default this host's; pressure —
-                 callable(cores) -> bool (tests).
+        Inputs:  cls — a HostClass; clock — seconds, monotonic (tests); pressure — callable() -> "" or why the host is
+                 under pressure (tests).
         Returns: None.
         Fails:   never.
         Feeds:   agent/kept_store."""
         self.cls, self.clock, self.pressure = cls, clock, pressure
-        self.cores = cores or os.cpu_count() or 1
         self._lock, self._one = threading.Lock(), threading.Lock()
         self._wake = threading.Event()
         self._entries, self._generation, self._doubled = {}, 0, 0
 
-    def configure(self, cls, cores):
+    def configure(self, cls):
         """Purpose: set this host's class once it is known.
-        Inputs:  cls — a HostClass; cores — int.
+        Inputs:  cls — a HostClass.
         Returns: None.
         Fails:   never.
         Feeds:   agent/kept_store.start_kept."""
-        self.cls, self.cores = cls, cores
+        self.cls = cls
 
     def register(self, key, fn):
         """Purpose: a fixed page's read, refreshed from now on though nobody has asked yet.
@@ -197,10 +222,11 @@ class KeptReads:
         Fails:   never.
         Feeds:   run; tests."""
         before = self._doubled
-        self._doubled = min(self._doubled + 1, 8) if self.pressure(self.cores) else 0
+        why = self.pressure()
+        self._doubled = min(self._doubled + 1, 8) if why else 0
         wait = refresh_interval(took_s, self.cls, self._doubled)
         if self._doubled != before:
-            state = f"under pressure, next in {wait:.0f} s" if self._doubled else "pressure over"
+            state = f"under pressure, next in {wait:.0f} s: {why}" if self._doubled else "pressure over"
             print(f"kept reads: {state}", flush=True)
         return wait
 

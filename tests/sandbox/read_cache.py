@@ -27,6 +27,7 @@ for name in ("page_speed.py", os.path.join("..", "host", "page_speed.py")):     
         break
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.grants.grant_request import grant_request  # noqa: E402
+from fabriclib.readcache.kept_reads import read_psi  # noqa: E402
 
 PERSON, GROUP, GRANT = "zz-cache-person", "zz-cache-group", "zz-cache-grant"
 FAILED = 0
@@ -199,7 +200,7 @@ def main():
     if args.load:
         cores = os.cpu_count() or 1
         since = time.strftime("%Y-%m-%d %H:%M:%S")
-        print(f"     load before: {os.getloadavg()[0]:.1f} on {cores} cores", flush=True)
+        print(f"     before: CPU pressure {read_psi('cpu')}%, memory pressure {read_psi('memory')}% (2.1.8.51)", flush=True)
         loops = [subprocess.Popen(["nice", "-n", "19", "sh", "-c", "while :; do :; done"]) for _ in range(cores * 3)]
         slowest = 0.0
         ok = True
@@ -210,13 +211,15 @@ def main():
                 ok = ok and st == 200
                 slowest = max(slowest, took)
                 time.sleep(2)
-            log = agent_log("-20min")      # it may have been past the line already, as gaming-23's WSL often is
+            during = read_psi("cpu")
+            log = agent_log("-20min")
         finally:
             for loop in loops:
                 loop.kill()
                 loop.wait()
         check("under load every page still answered", ok, slowest)
-        print(f"     under load, the slowest /directory/sites: {slowest * 1000:.0f} ms", flush=True)
+        print(f"     under load, the slowest /directory/sites: {slowest * 1000:.0f} ms; CPU pressure at the end {during}%",
+              flush=True)
         check("the refresher said it backed off", "under pressure" in log, log[-400:])
         kills = sh("journalctl", "-k", "--since", since, "--no-pager")[1]
         check("nothing was killed for memory", "Out of memory" not in kills and "oom-kill" not in kills, kills[-300:])

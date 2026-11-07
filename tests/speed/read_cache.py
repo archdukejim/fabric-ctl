@@ -7,6 +7,7 @@ and Refresh's limit. The real components are in tests/sandbox/read_cache.py.
 """
 import os
 import sys
+import tempfile
 import threading
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
@@ -16,9 +17,9 @@ from agent import kept_store as m_store  # noqa: E402
 from agent.post_kept import post_kept  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.rbac.required_permission import required_permission  # noqa: E402
-from fabriclib.readcache.host_rules import LARGE, MEDIUM, SMALL, held_limit, host_class, refresh_interval, \
-    under_pressure  # noqa: E402
-from fabriclib.readcache.kept_reads import IDLE_S, KeptReads  # noqa: E402
+from fabriclib.readcache.host_rules import LARGE, MEDIUM, SMALL, held_limit, host_class, pressure_reason, \
+    psi_some_avg60, refresh_interval  # noqa: E402
+from fabriclib.readcache.kept_reads import IDLE_S, KeptReads, pressure_source, read_pressure  # noqa: E402
 
 FAILED = 0
 
@@ -50,7 +51,7 @@ class Read:
 
 def store(cls=SMALL, pressure=False):
     clock = Clock()
-    return KeptReads(cls, clock=clock, cores=4, pressure=lambda cores: pressure), clock
+    return KeptReads(cls, clock=clock, pressure=lambda: "CPU pressure 60% (from 50%)" if pressure else ""), clock
 
 
 # ---- the host's classes: the table's edges (1.8.9.3)
@@ -73,12 +74,48 @@ check("under pressure the wait doubles", refresh_interval(0.1, SMALL, 1) == 60 a
 check("and never passes the upper limit", refresh_interval(0.1, SMALL, 8) == 300 and refresh_interval(0.1, LARGE, 8) == 300)
 
 # ---- pressure: each side of each line
-check("memory at 15% and load at the cores: no pressure", not under_pressure(150, 1000, 4, 4))
-check("memory under 15%: pressure", under_pressure(149, 1000, 0, 4))
-check("load over the cores: pressure", under_pressure(900, 1000, 4.01, 4))
+# (2.1.8.51): the kernel's pressure readings and available memory, never the load average
+check("memory at 15%, CPU and memory pressure under their lines: none", pressure_reason(150, 1000, 49.99, 9.99) == "")
+check("memory under 15%: pressure", pressure_reason(149, 1000, 0, 0) == "memory available 14.9% (under 15%)",
+      pressure_reason(149, 1000, 0, 0))
+check("CPU pressure at 50%: pressure, saying so", pressure_reason(900, 1000, 50, 0) == "CPU pressure 50% (from 50%)")
+check("memory pressure at 10%: pressure, saying so", pressure_reason(900, 1000, 0, 10) == "memory pressure 10% (from 10%)")
+check("gaming-23's WSL (load 211 on 24 cores, CPU 0.08%, memory 0.02%, 86% free): no pressure",
+      pressure_reason(27597, 31936, 0.08, 0.02) == "")
+check("no pressure readings (a kernel without PSI): memory alone decides",
+      pressure_reason(900, 1000) == "" and pressure_reason(100, 1000).startswith("memory available"))
+PSI = "some avg10=0.22 avg60=0.08 avg300=0.01 total=1391500408\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+check("a pressure file's some avg60 is read, not its full line", psi_some_avg60(PSI) == 0.08)
+for bad in ("", "full avg10=1 avg60=2 avg300=3 total=4\n", "some avg10=1 avg300=3\n", "some avg60=x\n"):
+    try:
+        psi_some_avg60(bad)
+        check(f"refused: a pressure file without a some avg60 ({bad!r})", False)
+    except ValueError:
+        check(f"refused: a pressure file without a some avg60 ({bad!r})", True)
+with tempfile.TemporaryDirectory() as tmp:
+    mem = os.path.join(tmp, "meminfo")
+    psi = os.path.join(tmp, "pressure")
+    with open(mem, "w") as f:
+        f.write("MemTotal:  1024000 kB\nMemFree: 900 kB\nMemAvailable:  512000 kB\n")
+    check("PSI missing: no pressure from a half-free host, and the status says memory alone",
+          read_pressure(mem, psi) == "" and "alone" in pressure_source(psi), pressure_source(psi))
+    os.mkdir(psi)
+    with open(os.path.join(psi, "cpu"), "w") as f:
+        f.write(PSI.replace("avg60=0.08", "avg60=72.5"))
+    check("PSI half there (no memory file): the status says memory alone", "alone" in pressure_source(psi))
+    with open(os.path.join(psi, "memory"), "w") as f:
+        f.write(PSI)
+    check("PSI there: the reason read from the files, the status naming them",
+          read_pressure(mem, psi) == "CPU pressure 72.5% (from 50%)" and "PSI" in pressure_source(psi)
+          and "alone" not in pressure_source(psi), (read_pressure(mem, psi), pressure_source(psi)))
+    with open(os.path.join(psi, "cpu"), "w") as f:
+        f.write("garbled\n")
+    check("a pressure file that cannot be read counts as absent, never as pressure", read_pressure(mem, psi) == "")
+    check("a meminfo that cannot be read: no pressure, so the check never stops a refresh by itself",
+          read_pressure(os.path.join(tmp, "none"), psi) == "")
 kept, _ = store(pressure=True)
 check("pressure in a row doubles each time", [kept.next_wait(0.1) for _ in range(3)] == [60, 120, 240])
-kept.pressure = lambda cores: False
+kept.pressure = lambda: ""
 check("and ends when it does", kept.next_wait(0.1) == 30)
 
 # ---- held processes: the class's number, within the DC's memory limit
@@ -278,7 +315,7 @@ out = m_get.get_route(["sites"], "pat", {"domain:read"})
 out = m_get.get_route(["sites"], "pat", {"domain:read"})
 check("not a running agent: always live", reads["n"] == 2 and "kept" not in out, out)
 m_store._started.set()
-m_get.KEPT.configure(SMALL, 4)
+m_get.KEPT.configure(SMALL)
 m_get.get_route(["sites"], "pat", {"domain:read"})
 out = m_get.get_route(["sites"], "pat", {"domain:read"})
 check("a signed-in person: from what is kept", reads["n"] == 3 and "kept" in out, out)
