@@ -52,7 +52,7 @@ docs/volume_1_description_and_architecture/1.17.16-fabriclib-logs.md	1d09ba3f340
 docs/volume_1_description_and_architecture/1.17.17-fabriclib-menu.md	4589150a9d2953beeed9bb8950a394dc3de4c98f	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.18-fabriclib-ntp.md	9334d2fa4e44da9a3ed379aecea3c1896b87fc7a	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.19-fabriclib-pki.md	a96ba9875386c92c4a421af7cced6bf88d5864f0	2026-11-04	
-docs/volume_1_description_and_architecture/1.17.2-fabricctl-agent.md	d551d575ac005bbb2e74b42031d165e33bcc59a3	2026-11-07	
+docs/volume_1_description_and_architecture/1.17.2-fabricctl-agent.md	46fe120e7db5923266b736d7655a12e22d2385fa	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	6b4d2bfcc894efce5ce044d11045d559439473c2	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	6b230ac1ac6c601042d0888d164dde5ff2c3b93b	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	2db03a6c42354ee697dfcb19be1f64e723ac06de	2026-11-04	
@@ -78,7 +78,7 @@ docs/volume_1_description_and_architecture/1.17.40-fabriclib-ipam.md	4d0ec8f432b
 docs/volume_1_description_and_architecture/1.17.41-fabriclib-move.md	6298a0de9036827613f0be4fd0948b3929c0bdc3	2026-11-04	
 docs/volume_1_description_and_architecture/1.17.42-fabriclib-sizing.md	33e07417750cde5f5f4b7143b13c8f21a3c41785	2026-11-04	
 docs/volume_1_description_and_architecture/1.17.43-fabriclib-readcache.md	0426d396cb63fd3444ebf56e706fe6127e45ad00	2026-11-07	
-docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	00c9766c255df878f0016e9a356cffdf7499d924	2026-11-07	
+docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	0e06b0c29f7d9c27a1e728f789c3a2b9db085492	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	e9b47dab12efa0833f6d3272a93548f39ba163aa	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.7-fabriclib-core.md	287e5a946064faecbdb0262ece385ff0e043036c	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	c63ebe5f8f2270f41b92750eab6dbbef5cfc1b9f	2026-11-06	
@@ -128,7 +128,7 @@ docs/volume_1_description_and_architecture/1.8.5-setup-wizard.md	b3a5573e615599f
 docs/volume_1_description_and_architecture/1.8.6-console-redo.md	c8311dffa63ca371bd5f3ccebdb69d9441372eae	2026-10-25	
 docs/volume_1_description_and_architecture/1.8.7-cockpit-proxy.md	965690482f7597a1271ab627eb5724bf70e9fce2	2026-10-30	
 docs/volume_1_description_and_architecture/1.8.8-directory-browser.md	5ae8278da0a933c440bda79366849040979dd3eb	2026-11-05	
-docs/volume_1_description_and_architecture/1.8.9-console-read-cache.md	aec82422261d1abfab0f5c43ea38d19ed80bbb3e	2026-11-07	
+docs/volume_1_description_and_architecture/1.8.9-console-read-cache.md	dab46fddc9f9c473f6a3ce86257ffa1f1365af07	2026-11-07	
 docs/volume_1_description_and_architecture/1.9.1-sites.md	c0b8fc74f6c5ee052cf2819e2425730981232ed1	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.2-ha-partners.md	941731a583188b3b8e4a467eabdd9966bb6214ca	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.3-between-sites.md	9b2693352d2d8a3cad600964f14c8df2b13af4f9	2026-10-08	
@@ -283,7 +283,7 @@ scripts/docs/README.md	e391ec81d122ee82ea285ffaf04eac6a8dd44372	2026-10-12
 scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03	
 scripts/docs/entrypoints.py	e8d9ee4574ac5692b631a30a61a9c17af3d360fa	2026-11-04	
 scripts/docs/gen_lib_doc.py	d7a3c1284ca3a30af61353d41f5a9d2a1457a325	2026-10-12	
-scripts/docs/lib_doc_numbers.tsv	c386a25b169bf4d72b9b6bbffbe34710fa7c520e	2026-11-07	
+scripts/docs/lib_doc_numbers.tsv	ff6490c36d50554a41caa1b889f622ab2dbc5662	2026-11-07	
 scripts/docs/lib_doc_registry.py	a3a407c2b06b44838c4ce7a69725c4d47339f437	2026-10-17	
 scripts/docs/product_code.py	645a3bb130463028b90de64798c81694e5293131	2026-10-03	
 scripts/docs/review_ledger.py	b3f307b4dbaba54a69cc93c993287d43c747ba8f	2026-10-08	
@@ -370,7 +370,7 @@ spikes/samba/radius/radius.sh	6cc7d3a105dfa82f6e0aa9ab1e36fc85ea3fdc28	2026-10-0
 src/README.md	c42cef0bbbc0803d6b920b8ba6a42718839da455	2026-10-12	
 src/agent/README.md	10e1cf3470b30168e1fe9860d1795f808fed58b4	2026-11-07	
 src/agent/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
-src/agent/get_route.py	2d6bb0ffbc0b978c72a2b71c2f7a2feb426ee720	2026-11-07	
+src/agent/get_route.py	3d3289ddc5b521cb19d08fee4e3624aae255dc1c	2026-11-07	
 src/agent/handler.py	cfdd4562ad5128fedfb7e731bf2795bb624c7be0	2026-11-07	
 src/agent/job_store.py	86038e0f325ce4d8ddcccbc7822658936213c953	2026-11-07	
 src/agent/kept_store.py	d224f8ad171381c5ecccac635458c0a1c075beaa	2026-11-07	

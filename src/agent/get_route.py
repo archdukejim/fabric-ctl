@@ -1,4 +1,5 @@
 import os
+import time
 
 from agent.job_store import JOBS
 from agent.kept_store import KEPT, started
@@ -34,6 +35,7 @@ from fabriclib.domain.my_groups import my_groups
 from fabriclib.domain.show_group import show_group
 from fabriclib.grants.explain_grant import explain_grant
 from fabriclib.grants.list_grants import list_grants
+from fabriclib.hostaccounts.constants import RECORD
 from fabriclib.grants.show_grant import show_grant
 from fabriclib.images.image_status import image_status
 from fabriclib.ipam.networks_csv import networks_csv
@@ -77,6 +79,23 @@ def _overview():
     except (ValidationError, OSError):
         reminders = None
     return {"services": service_status(), "reminders": reminders}
+
+
+def _reminders_stale(out):
+    """Purpose: whether the kept Overview's reminders must be read afresh (manual 1.8.9.2): while the break-glass
+             file's reminder shows, so it goes with its file (2.1.6.69); and once the local accounts' record changed
+             after they were kept, since `fabricctl host accounts approve` writes it without the agent (2.1.6.78).
+    Inputs:  out — the kept Overview, with "kept": {"age_s"}.
+    Returns: bool.
+    Fails:   never (a record that cannot be read leaves them as kept).
+    Feeds:   get_route."""
+    if any(r.get("kind") == "break-glass" for r in out.get("reminders") or ()):
+        return True
+    record = os.path.join(load_vars()["deploy_base_dir"], "fabric", "config", RECORD)
+    try:
+        return os.stat(record).st_mtime >= time.time() - out["kept"]["age_s"] - 1
+    except OSError:
+        return False
 
 
 # GET /v1/<route> -> the read operation answering it (vars are read per request)
@@ -210,8 +229,8 @@ def get_route(route, user=None, perms=None):
     Feeds:   agent/handler.py (dispatch)."""
     if route == ["overview"]:
         out = _kept(("overview",), READS[("overview",)], perms, lasting=True)
-        if out.get("kept") and any(r.get("kind") == "break-glass" for r in out.get("reminders") or ()):
-            out = {**out, "reminders": host_reminders(load_vars()["deploy_base_dir"])}  # gone with its file (2.1.6.69)
+        if out.get("kept") and _reminders_stale(out):
+            out = {**out, "reminders": host_reminders(load_vars()["deploy_base_dir"])}
         return out
     if tuple(route) in KEPT_FIXED:
         return _kept(tuple(route), READS[tuple(route)], perms, lasting=True)

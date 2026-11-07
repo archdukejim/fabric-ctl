@@ -1445,6 +1445,7 @@ file	webui|src/webui/views/tsig_result.py	119
 function	fabricctl-agent|src/agent/get_route.py|_kept	5	
 function	fabricctl-agent|src/agent/get_route.py|_overview	3	
 function	fabricctl-agent|src/agent/get_route.py|_pending	2	
+function	fabricctl-agent|src/agent/get_route.py|_reminders_stale	6	
 function	fabricctl-agent|src/agent/get_route.py|get_route	1	
 function	fabricctl-agent|src/agent/get_route.py|keep_fixed_pages	4	
 function	fabricctl-agent|src/agent/handler.py|Handler.actor	7	
