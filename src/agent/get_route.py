@@ -210,8 +210,8 @@ def get_route(route, user=None, perms=None):
     Feeds:   agent/handler.py (dispatch)."""
     if route == ["overview"]:
         out = _kept(("overview",), READS[("overview",)], perms, lasting=True)
-        if out.get("kept") and out.get("reminders"):    # a reminder goes as soon as its cause does (2.1.6.69)
-            out = {**out, "reminders": host_reminders(load_vars()["deploy_base_dir"])}
+        if out.get("kept") and any(r.get("kind") == "break-glass" for r in out.get("reminders") or ()):
+            out = {**out, "reminders": host_reminders(load_vars()["deploy_base_dir"])}  # gone with its file (2.1.6.69)
         return out
     if tuple(route) in KEPT_FIXED:
         return _kept(tuple(route), READS[tuple(route)], perms, lasting=True)

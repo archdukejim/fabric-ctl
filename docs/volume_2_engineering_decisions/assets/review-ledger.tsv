@@ -21,7 +21,7 @@ docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
-docs/volume_1_description_and_architecture/1.1.4-roadmap.md	03e7d28d9c59268b8abae7e46506d3128a6450b0	2026-11-07	
+docs/volume_1_description_and_architecture/1.1.4-roadmap.md	8c888fdacfb5a554d59ffd14ace6953e30983f3d	2026-11-07	
 docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	7cc73759f86c7ce4ca7e2d58b7d1cc0db4cb9a64	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	c376feda6e17998f6aa6b2d9c85823f6b00ba89e	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
@@ -128,7 +128,7 @@ docs/volume_1_description_and_architecture/1.8.5-setup-wizard.md	b3a5573e615599f
 docs/volume_1_description_and_architecture/1.8.6-console-redo.md	c8311dffa63ca371bd5f3ccebdb69d9441372eae	2026-10-25	
 docs/volume_1_description_and_architecture/1.8.7-cockpit-proxy.md	965690482f7597a1271ab627eb5724bf70e9fce2	2026-10-30	
 docs/volume_1_description_and_architecture/1.8.8-directory-browser.md	5ae8278da0a933c440bda79366849040979dd3eb	2026-11-05	
-docs/volume_1_description_and_architecture/1.8.9-console-read-cache.md	ad785c8a914932377f4b5c5384edb23e937ec4f3	2026-11-07	
+docs/volume_1_description_and_architecture/1.8.9-console-read-cache.md	aec82422261d1abfab0f5c43ea38d19ed80bbb3e	2026-11-07	
 docs/volume_1_description_and_architecture/1.9.1-sites.md	c0b8fc74f6c5ee052cf2819e2425730981232ed1	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.2-ha-partners.md	941731a583188b3b8e4a467eabdd9966bb6214ca	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.3-between-sites.md	9b2693352d2d8a3cad600964f14c8df2b13af4f9	2026-10-08	
@@ -172,13 +172,13 @@ docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f487
 docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a9aeb2e856f39e5f862e36bf6273c583af26d627	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	d9b52f2951d7469595b4871be7c4f294e53cfa64	2026-11-01	
 docs/volume_2_engineering_decisions/2.3.7-openbao-notes.md	78a60cfd1689c9b3a5cb36f58f74e66e344300a4	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	559736832a5d3f427ddaf79bab1cbb9e35d57232	2026-11-07	
+docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	c8b89c8e0ab650971ab57baf9f32acff45a71bcb	2026-11-07	
 docs/volume_2_engineering_decisions/2.3.9-federation-notes.md	589194fbf33eda431862f1414dabc04a3181edc9	2026-10-08	
 docs/volume_2_engineering_decisions/README.md	db77c9318e3383be0bedd0310d0a0e715024ae32	2026-11-04	
 docs/volume_2_engineering_decisions/assets/README.md	3fd72f26d985cf1827afa0868c6c138dfec9d627	2026-10-08	
 docs/volume_2_engineering_decisions/assets/review-ledger.tsv	c975f0b8b8592270aae67107da26906a4ce8905a	2026-10-23	
 docs/volume_3_installation/3.1.1-manual-test-plan.md	45af38d9ad108ecf2ca0ba47e7cc0438e2ee9bfc	2026-10-23	
-docs/volume_3_installation/3.1.2-automated-tests.md	4bf41bc6ac7474bcf30f7403a6c14d8b9a7eb04b	2026-11-07	
+docs/volume_3_installation/3.1.2-automated-tests.md	4f22c2d6af63172ad7ff9f5a9e92c8dc3256e53a	2026-11-07	
 docs/volume_3_installation/3.1.3-dev-preview.md	f913e6ed5b5f0e0428479a417dc655071b3b2f42	2026-10-08	
 docs/volume_3_installation/3.1.4-working-on-fabric.md	f0aa02dae628fc02838839f4887bb5d6baa1e857	2026-10-08	
 docs/volume_3_installation/3.1.5-hyperv-lab.md	9ea77229c340bc69d99f3ce2169a0a88cdb50e51	2026-11-07	
@@ -370,7 +370,7 @@ spikes/samba/radius/radius.sh	6cc7d3a105dfa82f6e0aa9ab1e36fc85ea3fdc28	2026-10-0
 src/README.md	c42cef0bbbc0803d6b920b8ba6a42718839da455	2026-10-12	
 src/agent/README.md	10e1cf3470b30168e1fe9860d1795f808fed58b4	2026-11-07	
 src/agent/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
-src/agent/get_route.py	0cafec2b5709f6a8d063bd2bf3ec8e298f7626f6	2026-11-07	
+src/agent/get_route.py	2d6bb0ffbc0b978c72a2b71c2f7a2feb426ee720	2026-11-07	
 src/agent/handler.py	cfdd4562ad5128fedfb7e731bf2795bb624c7be0	2026-11-07	
 src/agent/job_store.py	86038e0f325ce4d8ddcccbc7822658936213c953	2026-11-07	
 src/agent/kept_store.py	d224f8ad171381c5ecccac635458c0a1c075beaa	2026-11-07	
@@ -2112,7 +2112,7 @@ tests/hardening/README.md	514afa897a841c34383af1ef74949610d5dd333d	2026-10-05
 tests/hardening/run.sh	48cf77e65828401406679238e9c8e5cf279502d7	2026-10-25	
 tests/host/README.md	38ec38fc036216481701d35410da7251c872ced6	2026-11-04	
 tests/host/installer.py	9beeb40de95dd79d007e185816faea83c621d41f	2026-10-25	
-tests/host/page_speed.py	49467c45ed7f335bec0ac2e29a616fcc7d073cf4	2026-11-07	
+tests/host/page_speed.py	46cb8a792f3d0181f9804aa420af5d6d70ed69b5	2026-11-07	
 tests/host/reset_user.py	b7c1bd91fa3c695d62869fb4f536df9c05ce4f9b	2026-10-20	
 tests/host/run.sh	d4cc9844451e54acb3240c631ddbc07dca49d266	2026-10-31	
 tests/host/upgrade.sh	a7d15ddda225dc5e8f1fb5a47418e91e55b04d5b	2026-10-23	

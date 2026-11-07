@@ -7,8 +7,7 @@ each through a new TLS connection, as a browser's new navigation might, and prin
 
 Prints one line per page: its status, the median and the best of its server time (request sent to the whole body read,
 which on the host itself is the server's time), after one load not counted. With --budget it fails on a median over
-100 ms, /secrets apart (decision 2.1.8.43). The Overview meets it only once no reminder shows (1.8.9.2): delete the file
-it names first. The password is read from a 0600 file and never printed."""
+100 ms, /secrets apart (decision 2.1.8.43). The Overview meets it only once the break-glass file is deleted (1.8.9.2). The password is read from a 0600 file and never printed."""
 import argparse
 import html
 import http.client
