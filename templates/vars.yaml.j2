@@ -485,8 +485,16 @@ bind_acl_policies:
 {% set _dynamic_zone = _user_dns.get('dynamic_zone_var', {}) %}
 {% set _merged_a = (_dynamic_zone.get('A', []) + default_a) | selectattr('name') | rejectattr('name', 'equalto', 'None') | unique | list %}
 {% set _merged_cname = (_dynamic_zone.get('CNAME', []) + default_cnames) | selectattr('name') | rejectattr('name', 'equalto', 'None') | unique | list %}
+{# fabric's own records this render adds (decision 2.1.1.74): the next render drops them before adding its own again
+   (dns/common/drop_previous_own), so a move or a rename leaves no old address or name. The landing page's alias is
+   the admin's record (2.1.4.6), so never listed; nor is a record the admin's own list already holds. #}
+{% set _fabric_own = {'A': [], 'CNAME': []} %}
+{% for r in default_a %}{% if r not in _dynamic_zone.get('A', []) %}{% set _ = _fabric_own['A'].append(r) %}{% endif %}{% endfor %}
+{% for r in default_cnames %}{% if r not in _dynamic_zone.get('CNAME', []) and r.name != (landing_page_cname | default('info', true)) %}{% set _ = _fabric_own['CNAME'].append(r) %}{% endif %}{% endfor %}
 {% set _ = _dynamic_zone.update({'A': _merged_a, 'CNAME': _merged_cname}) %}
 {% set _ = _user_dns.update({'dynamic_zone_var': _dynamic_zone}) %}
+dns_fabric_own:
+{{ _fabric_own | to_nice_yaml(indent=2) | indent(2, first=True) }}
 dns:
 {% for zone_key, zone_records in _user_dns.items() %}
   {{ zone_key }}:

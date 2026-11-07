@@ -1,5 +1,6 @@
 import ldb
 
+from directory_scope import in_an_ou
 import paths
 from group_names import DC_HOSTS, DIRECTORY_ADMINS, DOMAIN_GROUPS
 
@@ -8,8 +9,9 @@ FABRIC_PREFIXES = ("site-", "rodc-cache-")  # fabric's, made per site and per re
 
 
 def group_kind(samdb, name, bundles=()):
-    """Purpose: what a group is, for what may be done to it (manual 1.6.12.2, 1.6.12.5): AD's own (outside OU=groups,
-             left as AD has it), one of the grants' computed groups (OU=fabric: written only by fabric), one of the
+    """Purpose: what a group is, for what may be done to it (manual 1.6.12.2, 1.6.12.5): AD's own (not in an OU, or
+             marked critical: left as AD has it, 2.1.6.106), one of the grants' computed groups (OU=fabric: written only
+             by fabric), one of the
              tiers' (`directory-admins`: the Enterprise Admin's to change, 2.1.6.68; `dc-hosts`: fabric's), one fabric
              fills (`machines-*`: a computer's type), a machine group (`hosts-*`, its own page, 1.6.11.7), one of
              fabric's own (the domain's groups, `site-*`, `rodc-cache-*`, a group carrying a role bundle), or an
@@ -20,13 +22,15 @@ def group_kind(samdb, name, bundles=()):
              "bundle"|"own"}.
     Fails:   ValueError "no group <name> in the domain"; ldb.LdbError from the search.
     Feeds:   authorize_action, group_scope, remove_group, set_group_managers, create_group."""
-    found = samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_SUBTREE, attrs=["sAMAccountName"],
+    found = samdb.search(base=str(samdb.domain_dn()), scope=ldb.SCOPE_SUBTREE,
+                         attrs=["sAMAccountName", "isCriticalSystemObject"],
                          expression=f"(&(objectClass=group)(sAMAccountName={ldb.binary_encode(name)}))")
     if not found:
         raise ValueError(f"no group {name} in the domain")
     dn, real = str(found[0].dn), str(found[0]["sAMAccountName"][0])
     low, lname = dn.lower(), real.lower()
-    if not low.endswith("," + paths.folder_dn(samdb, "groups").lower()):
+    critical = str(found[0].get("isCriticalSystemObject", ["FALSE"])[0]).upper() == "TRUE"
+    if critical or not in_an_ou(samdb, dn):
         kind = "ad"
     elif low.endswith("," + paths.computed_groups_dn(samdb).lower()):
         kind = "computed"

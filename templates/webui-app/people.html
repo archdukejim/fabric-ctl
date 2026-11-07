@@ -32,6 +32,7 @@
 <label>E-mail<input name="email" type="email" required></label>
 <label>First name<input name="first" required maxlength="64"></label>
 <label>Last name<input name="last" required maxlength="64"></label>
+<label>Create in<select name="ou"><option value="">people (fabric&#39;s folder)</option>{% for o in places %}<option>{{ o }}</option>{% endfor %}</select></label>
 <div><button>Add person</button></div>
 </form>
 <p class="muted small">Waits for People's Apply. They get a one-time password, shown once on the Review after Apply, and choose their own and set up a second factor at their first sign-in.</p>

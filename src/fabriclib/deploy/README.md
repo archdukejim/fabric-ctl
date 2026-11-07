@@ -19,6 +19,7 @@ installs what changed and restarts or reloads what is affected.
 | `check_samba_settings.py` | The Windows domain's settings: the AD domain, NetBIOS names, the whole password policy (2.1.6.11, 2.1.6.13) |
 | `check_service_settings.py` | Every service's image and its address in fabric's network, checked before anything starts (gaps of 2.3.1.20.2) |
 | `load_link_vars.py` | The landing page's links, rendered into the context (a bad file is reported, never fatal) |
+| `running_build.py` | Whether the host's long-running services still run an older build, and the record of the one they run (2.1.1.83) |
 | `service_units.py` | fabric's container services and their wrapper units, with which are on |
 | `render_templates.py` | Every configuration file into the render folder |
 | `render_deployment.py` | The render half of the engine: secrets, the checked settings, every template rendered (shared with DNS' Apply, 2.1.8.24) |

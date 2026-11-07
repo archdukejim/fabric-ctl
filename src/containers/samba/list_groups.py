@@ -1,7 +1,6 @@
-import ldb
 
-import paths
 from group_kind import group_kind
+from directory_scope import find_groups
 
 
 def list_groups(samdb, lp, site, bundles=()):
@@ -14,8 +13,7 @@ def list_groups(samdb, lp, site, bundles=()):
     Fails:   ldb.LdbError from a search.
     Feeds:   directory_ops (op "list_groups")."""
     out = []
-    for g in samdb.search(base=paths.folder_dn(samdb, "groups"), scope=ldb.SCOPE_SUBTREE,
-                          expression="(objectClass=group)", attrs=["sAMAccountName", "member", "description"]):
+    for g in find_groups(samdb, attrs=["sAMAccountName", "member", "description"]):
         name = str(g["sAMAccountName"][0])
         out.append({"name": name, "kind": group_kind(samdb, name, bundles)["kind"],
                     "members": len(g.get("member", [])), "description": str(g.get("description", [""])[0])})

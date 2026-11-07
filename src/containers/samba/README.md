@@ -61,12 +61,20 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `remove_sudo_rule.py` | Operation `remove_sudo_rule`: one of the editor's rules deleted (never an admin's own) |
 | `refresh_sudo_hosts.py` | The editor's rules on a host group, and the grants' rules on their computed where group, name its machines' short and DNS names as sudoHost (after a member change, at a compile, at convergence) |
 | `windows_baseline_policy.py` | The site's Windows baseline, linked at OU=machines: wait for the network at log-on, the domain's time, Wired AutoConfig and the 802.1X profile (start-up script) |
+| `directory_scope.py` | Where fabric finds its people and groups, in any OU: one rule (2.1.6.106) |
+| `read_conflicts.py` | The objects AD renamed `CNF:`, in every partition (1.9.8.5) |
+| `roles_and_policy.py` | The domain-wide roles' owners and the password policy, in samba-tool's words, as an operation (2.1.8.35) |
+| `directory_size.py` | How much the directory holds, for the sizing advice (1.8.8.8) |
+| `member_gpo_filter.py` | A GPO at the domain's root every member takes, denied to the DCs and the fabric hosts |
+| `member_dns.py` | The host's coming move: its record, and the GPO naming the DNS servers to Windows members (2.1.1.79) |
+| `move_tool.py` | The announced move's entry point (as root, like gpo_tool): prepare, status, cancel |
 | `gpo_tool.py` | fabric's ADMX editor's entry point: one operation (load, templates, policies, show, set, clear) as JSON |
 | `admx_store.py` | The domain's central store: templates saved, and every policy they define read as Windows' editor reads them |
 | `policy_entries.py` | What a policy writes to the registry (enabled with its elements, disabled), and which values are its own |
 | `admin_gpo.py` | The site's `fabric: <site> admin settings` GPO, linked at OU=machines: what it sets, and writing it |
-| `list_machines.py` | Operation `list_machines`: the domain's computer accounts (in OU=machines and OU=fabric-hosts) with their type, state and last logon |
-| `find_machine.py` | A machine by its name, in OU=machines or OU=fabric-hosts (for set_machine, remove_machine, place_fabric_host) |
+| `list_machines.py` | Operation `list_machines`: the domain's computer accounts (in any OU, all_machines) with their type (its type group, 2.1.6.99), state and last logon |
+| `all_machines.py` | The domain's computer accounts in any OU but AD's Domain Controllers (1.8.8.5) |
+| `find_machine.py` | A machine by its name, in any OU (all_machines; for set_machine, remove_machine, place_fabric_host, move_object) |
 | `place_fabric_host.py` | Operation `place_fabric_host`: the site's fabric host's account moved into OU=fabric-hosts, made a member of fabric-managed and dc-hosts (and `rodc-cache-<dc>` at a read-only DC, 2.1.6.52), marked as the fabric host (manual 1.6.11.11) |
 | `set_machine.py` | Operation `set_machine`: disable a machine, or enable it again |
 | `remove_machine.py` | Operation `remove_machine`: a machine removed from the domain |
@@ -85,12 +93,14 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `read_site_tree.py` | Every site's record with its parent and console's address (the site selector, 1.8.6.12) |
 | `acl_entries.py` | Access entries added once (compared parsed, object entries by their attribute) and a principal's SID |
 | `remove_ipv6_records.py` | The AD zones on IPv4 only (2.1.6.29): every AAAA record removed (the DC listens on IPv4) |
+| `ensure_dc_address.py` | The DC's own records in the AD zones at its address only (2.1.1.74): after a move its old address, the one its own name held, removed from its name, `@`, DomainDnsZones, ForestDnsZones and `gc._msdcs`; its address added |
 | `ensure_dc_record.py` | The DC's record in `CN=dcs,CN=fabric,CN=System` (2.1.6.79): its site, its id range and a mark per fixed range; a read-only DC's is written by the writable DC |
 | `dc_info.py` | Operation `dc_info`: a DC's record: its site, id range and its ranges' marks |
 | `domain_facts.py` | Operation `domain_facts`: the domain's functional level and its DCs, writable or read-only |
 | `ad_time.py` | An AD timestamp as ISO text (a last sign-in) |
 | `group_names.py` | The names of the domain's groups (1.6.13.3): the fixed ones, `site-<name>`, `machines-<type>`, `rodc-cache-<dc>` |
 | `ensure_directory_acl.py` | directory-admins' rights (2.1.6.81): full control and GPO links on OU=people, OU=service-accounts, OU=machines and OU=groups, denied on fabric's accounts, the tiers' groups and OU=fabric; the agents' and Keycloak's rights |
+| `ensure_ou_rights.py` | The same rights on the admins' own OUs at the domain's root, and the right to create an OU there, not inherited (2.1.6.102) |
 | `protect_top_tier.py` | The top tier kept out of directory-admins' reach: the protected accounts and groups (AdminSDHolder) never inherit from the folders (2.1.6.81) |
 | `ensure_top_tier.py` | An account made a member of Enterprise, Schema and Domain Admins, the top tier's denies written at once (2.1.6.68) |
 | `ensure_enterprise_admin.py` | Run as root from fabric-ctl: `fabric-admin`, the Enterprise Admin, made once in OU=people with the generated password (JSON on stdin) and put in AD's top tier (2.1.6.69) |
@@ -101,11 +111,12 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `grant_members.py` | A group's people and computers (nesting and primary groups followed); those no grant reaches (the top tier, fabric's accounts, the DC hosts); a grant's reach |
 | `ensure_computed_group.py` | A computed group in OU=fabric,OU=groups with exactly its members (a POSIX one for sudo); the computed groups there |
 | `access_policy.py` | A set's (or the fallback's) security template: sign-in at the keyboard and remotely, local administrators, always with Administrators and `local-admin` |
-| `set_gpo_filter.py` | A GPO's security filtering as GPMC sets it: one group applies it, or every machine |
+| `set_gpo_filter.py` | A GPO's security filtering as GPMC sets it: one group applies it, or every machine; some denied it (the fallback: the DCs and dc-hosts, 2.1.6.98) |
 | `order_gpo_links.py` | One GPO's link put first in an OU's `gPLink` (the lowest precedence): the fallback (2.1.6.87) |
+| `unlink_gpo.py` | One GPO's link taken out of an OU's `gPLink` where found (an upgrade: the access GPOs' old links at OU=machines, 2.1.6.98) |
 | `remove_gpo.py` | One of fabric's GPOs unlinked everywhere and deleted with its SYSVOL folder (a set no longer wanted) |
 | `ensure_grant_sudo.py` | One `sudoRole` per grant with sudo (`grant-<name>`, `%grant-<name>-who`), its hosts its where group's machines |
-| `compile_grants.py` | The grants compiled: computed groups, the sets of machines with one GPO each, the fallback first, the sudo rules (at the root's writable DC) |
+| `compile_grants.py` | The grants compiled: computed groups, the sets of machines with one GPO each and the fallback, linked at the domain's root (2.1.6.98), the fallback first, the admins' rights on their root OUs, the sudo rules (at the root's writable DC) |
 | `explain_grants.py` | Which grants reach a person (and on a machine), and why; what they may do there |
 | `ad_sites.py` | AD's sites as fabric wrote them: each with its DCs, subnets and site links (Sites, 1.6.12.8) |
 | `reaching_grants.py` | The grants that reach a computer, and what each gives there (its page, 1.6.12.6) |
@@ -119,9 +130,12 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `group_uses.py` | Where a group is used: grants, sudo rules, other groups' managers |
 | `list_groups.py` / `group_scope.py` / `managed_groups.py` | The groups and kinds; one group's two levels; the groups a person manages |
 | `create_group.py` / `remove_group.py` / `set_group_managers.py` | An admin's own group made (with a gid), deleted (unused only), its managers set |
-| `ou_paths.py` | OUs by path; where an admin's own may go; fabric's fixed OUs |
+| `ou_paths.py` | OUs by path; where an admin's own OU and a moved object may go (anywhere but fabric's closed folders and the Domain Controllers, 2.1.6.101); fabric's fixed OUs |
+| `may_hold.py` | Where a person, machine or group may be put by a move or Create in… (each kind's folder tree until 2.3.8.6): the one place to widen |
+| `browse_ou.py` | Operation `browse_ou`: the directory browser's read, one level at a time (1.8.8.4) |
+| `own_object.py` | Whether an object is one of fabric's own, which stays where fabric put it (2.1.6.100) |
 | `list_ous.py` / `create_ou.py` / `rename_ou.py` / `delete_ou.py` | The OU tree; an admin's own OU made, renamed, deleted (empty only) |
-| `move_machine.py` / `set_machine_type.py` / `set_machine_site.py` | A computer's folder, type group, site groups |
+| `move_object.py` / `set_machine_type.py` / `set_machine_site.py` | A person's, machine's or group's OU (Move to…, 1.8.8.5; within its kind's folder until 2.3.8.6); a computer's type group, site groups |
 | `list_spns.py` | Every SPN and its account, duplicates flagged |
 | `edit_person.py` / `unlock_person.py` | A person's details, AD's standard attributes (2.1.6.93); a lockout cleared |
 | `change_own_password.py` | A person's own password: bound as them over NTLM, the change theirs (stdin only) |

@@ -8,7 +8,7 @@ fabric, generated from where each kind is declared, into tests/entrypoints.yaml.
                                                    tests/entrypoints-gaps.txt (the ratchet, 2.1.1.46)
 
 IDs: cli:<command>[.<sub>], ask:<area>.<name>, agent:<get|post>.<segments>, web:<get|post>.<path segments>,
-setting:<key>; a placeholder in a path is `*`.
+join:<flag of join-linux.sh>, setting:<key>; a placeholder in a path is `*`.
 """
 import ast
 import os
@@ -149,6 +149,19 @@ def _web():
     return found
 
 
+def _join():
+    """Purpose: the Linux installer's flags: its own argument loop in join-linux.sh.j2, up to the loop's end.
+    Inputs:  none (reads templates/).
+    Returns: {id: source}.
+    Fails:   OSError on an unreadable file; ValueError if the loop is gone (the inventory must not silently shrink).
+    Feeds:   collect."""
+    source = "templates/nginx/www/certs/join-linux.sh.j2"
+    text = _read(source)
+    start = text.index('JOIN_USER=""')
+    loop = text[start:text.index("esac", start)]
+    return {f"join:{flag}": source for flag in re.findall(r"^\s+(--[a-z-]+)\)", loop, re.M)}
+
+
 def _settings():
     """Purpose: the settings: the top-level keys of the settings file's template.
     Inputs:  none (reads templates/vars.yaml.j2).
@@ -166,7 +179,7 @@ def collect():
     Fails:   as the collectors.
     Feeds:   render, gaps; tests/docs/check_entrypoints.py."""
     found = {}
-    for part in (_cli, _ask, _agent, _web, _settings):
+    for part in (_cli, _ask, _agent, _web, _join, _settings):
         found.update(part())
     return found
 

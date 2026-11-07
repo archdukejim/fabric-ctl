@@ -44,6 +44,9 @@
   fabricctl sudo list|add|remove the site's sudo rules on its Linux machines: who, which commands, where
   fabricctl gpo load|templates|list|show|set|clear|starter
                                  Group Policy from ADMX templates for this site's machines and people
+  fabricctl sizing show|refresh  what the host is small for, if anything (also in status and doctor)
+  fabricctl move prepare|status|cancel
+                                 the host's next address announced to the machines fabric manages (manual 4.2.4.2)
   fabricctl sso add|list|remove  apps (Proxmox VE, TrueNAS, …) signing people in through Keycloak
   fabricctl security [raise|lower|kerberos]
                                  sign-in layers: second factors, the web console's client certificate
@@ -99,7 +102,9 @@ from fabriclib.localadmin.run_local_admin_command import run_local_admin_command
 from fabriclib.directory.run_people_command import run_people_command  # noqa: E402
 from fabriclib.directory.run_machines_command import run_machines_command  # noqa: E402
 from fabriclib.directory.run_sudo_command import run_sudo_command  # noqa: E402
+from fabriclib.move.run_move_command import run_move_command  # noqa: E402
 from fabriclib.samba.run_gpo_command import run_gpo_command  # noqa: E402
+from fabriclib.sizing.run_sizing_command import run_sizing_command, show_sizing  # noqa: E402
 from fabriclib.dns.run_tsig_command import run_tsig_command  # noqa: E402
 from fabriclib.keycloak.run_sso_command import run_sso_command  # noqa: E402
 from fabriclib.security.run_security_command import run_security_command  # noqa: E402
@@ -237,7 +242,9 @@ def main(argv):
     if cmd == "setup":
         return run_setup.main(args)
     if cmd == "doctor":
-        return run_setup.main(["--doctor", *args])
+        code = run_setup.main(["--doctor", *args])
+        show_sizing(SetupContext(deploy_base=_base(args)).config_dir)
+        return code
     if cmd == "secrets":
         return run_secrets_command(args, SetupContext(deploy_base=_base(args)).secrets_file)
     if cmd == "logs":
@@ -262,6 +269,11 @@ def main(argv):
         return run_sudo_command(SetupContext(deploy_base=_base(args)).load_state().vars, _without_base(args))
     if cmd == "gpo":
         return run_gpo_command(SetupContext(deploy_base=_base(args)).load_state().vars, args)
+    if cmd == "sizing":
+        ctx = SetupContext(deploy_base=_base(args))
+        return run_sizing_command(ctx.load_state().vars, ctx.config_dir, _without_base(args))
+    if cmd == "move":
+        return run_move_command(SetupContext(deploy_base=_base(args)).load_state().vars, _without_base(args))
     if cmd == "federation":
         return run_federation_command(SetupContext(deploy_base=_base(args)).load_state(), args)
     if cmd == "dhcp":
@@ -301,6 +313,7 @@ def main(argv):
             show_relaxed_settings(vars_)
             show_memory_plan(vars_)
             show_cert_warnings(vars_)
+            show_sizing(ctx.config_dir)
         return 0
     if cmd == "tsig":
         return run_tsig_command(args)

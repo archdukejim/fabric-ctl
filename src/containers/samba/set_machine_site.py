@@ -3,6 +3,7 @@ import ldb
 import paths
 from find_machine import find_machine
 from group_names import site_group
+from directory_scope import is_fabric_host_dn
 
 
 def set_machine_site(samdb, lp, site, name, site_name, member):
@@ -20,7 +21,7 @@ def set_machine_site(samdb, lp, site, name, site_name, member):
     if not found:
         raise ValueError(f"no site {site_name} in the domain (its group {group})")
     m = find_machine(samdb, name)
-    if not str(m.dn).lower().endswith("," + paths.folder_dn(samdb, "machines").lower()):
+    if is_fabric_host_dn(samdb, str(m.dn)):
         raise ValueError(f"{name} is a fabric host: managed by fabric (manual 1.6.13.6)")
     inside = str(m.dn).lower() in {str(x).lower() for x in found[0].get("member", [])}
     if inside == bool(member):

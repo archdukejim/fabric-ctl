@@ -2,6 +2,7 @@ from ad_sites import ad_sites
 from add_group_member import add_group_member
 from add_sudo_rule import add_sudo_rule
 from adopt_linux_machines import adopt_linux_machines
+from browse_ou import browse_ou
 from create_group import create_group
 from create_host_group import create_host_group
 from create_machine import create_machine
@@ -14,6 +15,8 @@ from edit_person import edit_person
 from get_person import get_person
 from group_scope import group_scope
 from link_device_cert import link_device_cert
+from directory_size import directory_size
+from roles_and_policy import roles_and_policy
 from list_groups import list_groups
 from list_host_groups import list_host_groups
 from list_machines import list_machines
@@ -21,7 +24,7 @@ from list_ous import list_ous
 from list_people import list_people
 from list_spns import list_spns
 from list_sudo_rules import list_sudo_rules
-from move_machine import move_machine
+from move_object import move_object
 from place_fabric_host import place_fabric_host
 from read_devices import read_devices
 from read_networks import read_networks
@@ -57,6 +60,7 @@ OPS = {
     "add_group_member": add_group_member,
     "add_sudo_rule": add_sudo_rule,
     "adopt_linux_machines": adopt_linux_machines,
+    "browse_ou": browse_ou,
     "create_group": create_group,
     "ad_sites": ad_sites,
     "create_host_group": create_host_group,
@@ -70,6 +74,8 @@ OPS = {
     "get_person": get_person,
     "group_scope": group_scope,
     "link_device_cert": link_device_cert,
+    "directory_size": directory_size,
+    "roles_and_policy": roles_and_policy,
     "list_groups": list_groups,
     "list_host_groups": list_host_groups,
     "list_machines": list_machines,
@@ -77,7 +83,7 @@ OPS = {
     "list_people": list_people,
     "list_spns": list_spns,
     "list_sudo_rules": list_sudo_rules,
-    "move_machine": move_machine,
+    "move_object": move_object,
     "place_fabric_host": place_fabric_host,
     "read_devices": read_devices,
     "read_networks": read_networks,

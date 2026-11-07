@@ -5,6 +5,7 @@ import yaml
 from fabriclib.common.load_vars import load_vars
 from fabriclib.common.paths import SECRETS_FILE
 from fabriclib.secrets.common.read_vault_secrets import read_vault_secrets
+from fabriclib.secrets.held_secrets import held_read
 from fabriclib.secrets.secrets_in_openbao import secrets_in_openbao
 
 
@@ -28,4 +29,4 @@ def load_secrets(path=SECRETS_FILE, v=None):
             return {}
         with open(path) as f:
             return yaml.safe_load(f) or {}
-    return read_vault_secrets(v or load_vars(os.path.join(os.path.dirname(path), "vars.yaml")))[0]
+    return held_read(lambda: read_vault_secrets(v or load_vars(os.path.join(os.path.dirname(path), "vars.yaml")))[0])

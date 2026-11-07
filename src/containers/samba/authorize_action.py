@@ -3,13 +3,13 @@
 from the directory as it is."""
 import ldb
 
-import paths
 from grant_members import excluded, group_members, reach, tiers
 from grant_names import ALL_SITES, MACHINE_RIGHTS, NETWORK_RIGHTS, PEOPLE_RIGHTS
 from grant_store import read_grants
 from group_kind import group_kind
 from group_names import DIRECTORY_ADMINS
 from group_store import read_managers
+from directory_scope import in_an_ou, is_fabric_host_dn, is_person_dn
 
 RANK = {"delegated": 1, "directory": 2, "enterprise": 3}
 # an action on one person or machine -> (the grant's category, the right in it)
@@ -249,7 +249,7 @@ def authorize_action(samdb, caller, action, target, bundles=()):
         if category == "people":
             if dn in t["ad_top"]:
                 raise ValueError(f"{name} is {TOP}")
-            if dn in t["fabric_accounts"] or not dn.endswith("," + paths.folder_dn(samdb, "people").lower()):
+            if dn in t["fabric_accounts"] or not is_person_dn(samdb, dn):
                 raise ValueError(f"{name} is {OWN}")
             if dn in t["directory_admins"]:
                 if RANK[tier] < RANK["enterprise"]:
@@ -262,7 +262,7 @@ def authorize_action(samdb, caller, action, target, bundles=()):
                 raise ValueError(f"{name} is in a fabric group ({', '.join(held)}): only a Directory Administrator "
                                  f"manages them (manual 1.8.2)")
         else:
-            if dn in t["dc_hosts"] or not dn.endswith("," + paths.folder_dn(samdb, "machines").lower()):
+            if dn in t["dc_hosts"] or is_fabric_host_dn(samdb, dn) or not in_an_ou(samdb, dn):
                 raise ValueError(f"{name} is a domain controller or a fabric host: managed by fabric (manual "
                                  f"1.6.13.6)")
             if RANK[tier] >= RANK["directory"]:

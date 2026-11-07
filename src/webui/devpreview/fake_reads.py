@@ -2,10 +2,22 @@ from webui.devpreview.sample_data import (SAMPLE_ACCESS, SAMPLE_ACME, SAMPLE_CA,
                                           SAMPLE_DIRECTORY, SAMPLE_DNS_FILTER, SAMPLE_DOMAIN, SAMPLE_FEDERATION,
                                           SAMPLE_GPO,
                                           SAMPLE_IMAGES, SAMPLE_RADIUS, SAMPLE_SECURITY, SAMPLE_VAULT)
+from webui.devpreview.sample_data import SAMPLE_SIZING
 from webui.devpreview.sample_radius_guides import sample_radius_guides
 from webui.devpreview.sample_settings import SAMPLE_SETTINGS, SAMPLE_SETTINGS_FILE
 from webui.devpreview.fabric_rules import ValidationError
 from webui.devpreview.fake_directory import kerberos_policy
+
+
+def _sizing(state):
+    """Purpose: the sample's sizing alerts, less what the preview's person dismissed (1.8.8.8).
+    Inputs:  state — DevState.
+    Returns: {"at", "size", "alerts", "critical"}.
+    Fails:   never.
+    Feeds:   fake_reads."""
+    gone = getattr(state, "sizing_dismissed", set())
+    rows = [a for a in SAMPLE_SIZING["alerts"] if a["resource"] not in gone]
+    return {**SAMPLE_SIZING, "alerts": rows, "critical": any(a["level"] == "critical" for a in rows)}
 
 
 def _dns_filter(state):
@@ -121,6 +133,7 @@ def fake_reads(state, who, route, body):
         ("services",): lambda: [list(s) for s in d["services"]],
         ("host-changes",): lambda: d["host_changes"], ("relaxed-settings",): lambda: d.get("relaxed_settings", []),
         ("cert-warnings",): lambda: d.get("cert_warnings", []), ("reminders",): lambda: [],
+        ("sizing",): lambda: _sizing(state),
         ("images",): lambda: SAMPLE_IMAGES, ("audit",): lambda: d["audit"],
         ("zones",): state.zones, ("reverse-zones",): state.reverse, ("tsig",): lambda: d["tsig"],
         ("dhcp",): lambda: _dhcp(state), ("dns-filter",): lambda: _dns_filter(state),

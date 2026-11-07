@@ -454,12 +454,12 @@ def over_socket():
     s = socket.socket(socket.AF_UNIX)
     s.settimeout(10)
     s.connect(sock_path)
-    s.sendall(b"GET /v1/health HTTP/1.0\r\n\r\n")
     out = b""
-    try:
+    try:                                  # refused peers are cut off, as soon as before the request is written (2.3.1.53)
+        s.sendall(b"GET /v1/health HTTP/1.0\r\n\r\n")
         while chunk := s.recv(4096):
             out += chunk
-    except ConnectionResetError:          # refused peers are cut off
+    except (ConnectionResetError, BrokenPipeError):
         pass
     return out.decode(errors="replace")
 

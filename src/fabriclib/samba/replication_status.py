@@ -1,5 +1,6 @@
-import json
 import subprocess
+
+from fabriclib.samba.read_in_dc import read_in_dc
 
 
 def replication_status(container="samba"):
@@ -13,10 +14,6 @@ def replication_status(container="samba"):
     Fails:   never (a DC that does not answer gives error and no neighbours).
     Feeds:   federation/federation_overview (the Federation tab)."""
     try:
-        res = subprocess.run(["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", container, "python3",
-                              "/fabric/read_replication.py"], capture_output=True, text=True, timeout=60)
-        if res.returncode != 0:
-            return {"neighbours": [], "error": (res.stderr.strip().splitlines() or ["the DC did not answer"])[-1]}
-        return {"neighbours": json.loads(res.stdout)["neighbours"], "error": ""}
+        return {"neighbours": read_in_dc(container, "read_replication")["neighbours"], "error": ""}
     except (OSError, subprocess.TimeoutExpired, ValueError, KeyError) as e:
         return {"neighbours": [], "error": str(e)}

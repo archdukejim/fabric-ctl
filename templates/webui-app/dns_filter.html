@@ -62,8 +62,8 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 <span class="muted small">~{{ d.memory.estimate_mb }} MiB{% if d.memory.limit_mb %}, ~{{ d.memory.peak_mb }} MiB at most of {{ d.memory.limit_mb | round | int }} MiB{% endif %}{% if d.groups %} · {{ d.groups | length }} client {{ 'group' if d.groups | length == 1 else 'groups' }}{% endif %}</span></div>
 </div>
 <section class="card"><h2>Last 24 hours <span class="muted">UTC</span></h2>
-{% if s.hours %}<table class="hours"><thead><tr><th>Hour</th><th></th><th class="num">Queries</th><th class="num">Blocked</th></tr></thead><tbody>
-{% for h in s.hours %}<tr><td>{{ h.hour[11:16] }}</td><td><meter class="bar" min="0" max="{{ peak }}" value="{{ h.queries }}" title="{{ h.queries }} queries"></meter></td><td class="num">{{ h.queries }}</td><td class="num">{{ h.blocked }}</td></tr>{% endfor %}
+{% if s.hours %}<p class="legend"><span class="key q"></span>queries <span class="key b"></span>blocked</p><table class="hours"><thead><tr><th>Hour</th><th></th><th class="num">Queries</th><th class="num">Blocked</th></tr></thead><tbody>
+{% for h in s.hours %}<tr><td>{{ h.hour[11:16] }}</td><td><svg class="hourbar" viewBox="0 0 {{ peak }} 10" preserveAspectRatio="none" role="img" aria-label="{{ h.queries }} queries, {{ h.blocked }} blocked"><rect class="track" width="{{ peak }}" height="10"/><rect class="q" width="{{ h.queries }}" height="10"/><rect class="b" width="{{ h.blocked }}" height="10"/></svg></td><td class="num">{{ h.queries }}</td><td class="num">{{ h.blocked }}</td></tr>{% endfor %}
 </tbody></table>{% else %}<p class="blank">No queries yet.</p>{% endif %}</section>
 <section class="card"><h2>Most blocked <span class="muted">last 7 days</span></h2>
 {% if s.top_blocked %}<table><thead><tr><th>Name</th><th>Blocked by</th><th class="num">Times</th></tr></thead><tbody>

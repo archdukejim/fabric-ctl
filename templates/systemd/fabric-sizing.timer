@@ -1,0 +1,10 @@
+[Unit]
+Description=fabric: work out the sizing advice hourly (manual 1.8.8.8)
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+AccuracySec=5min
+
+[Install]
+WantedBy=timers.target

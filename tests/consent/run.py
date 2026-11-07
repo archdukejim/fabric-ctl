@@ -613,6 +613,18 @@ once = jh._with_sss(nss)
 check("nsswitch: sss after the files for passwd and group, a sudoers line added; a second pass changes nothing",
       "passwd:         files systemd sss\n" in once and "sudoers:        files sss\n" in once
       and "hosts: files dns\n" in once and jh._with_sss(once) == once, once)
+hosts = "127.0.0.1 localhost\n10.88.0.10 dc-0001.ad.test\n10.88.0.50 nas\n"
+moved_hosts = jh._hosts_with(hosts, "dc-0001.ad.test", "10.88.0.13", True)
+check("after a move: /etc/hosts names the DC at the new address only, the old line dropped, the others kept (2.1.1.74)",
+      moved_hosts == "127.0.0.1 localhost\n10.88.0.50 nas\n10.88.0.13 dc-0001.ad.test\n", moved_hosts)
+check("...and a second pass changes nothing", jh._hosts_with(moved_hosts, "dc-0001.ad.test", "10.88.0.13", True)
+      == moved_hosts)
+check("the DC found by DNS: no line added; an old line at another address still dropped",
+      jh._hosts_with("127.0.0.1 localhost", "dc-0001.ad.test", "10.88.0.13", False) == "127.0.0.1 localhost"
+      and jh._hosts_with(hosts, "dc-0001.ad.test", "10.88.0.13", False) == "127.0.0.1 localhost\n10.88.0.50 nas\n")
+check("negative: a comment or another name that only contains the DC's is never taken for its line",
+      jh._hosts_with("# 10.88.0.10 dc-0001.ad.test\n10.88.0.10 dc-0001.ad.test.old\n", "dc-0001.ad.test",
+                     "10.88.0.13", False) == "# 10.88.0.10 dc-0001.ad.test\n10.88.0.10 dc-0001.ad.test.old\n")
 
 
 def _entry(principal, stamp, kvno, key):

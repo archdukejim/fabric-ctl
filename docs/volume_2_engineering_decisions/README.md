@@ -30,12 +30,16 @@ Nothing yet for 2.1.17 (it follows chapter 1.17).
 
 Symptoms, causes and fixes.
 
+- [2.2.1 The product as a whole: building and testing it](2.2.1-product-troubleshooting.md)
+  - 2.2.1.1 Likely: WSL's Ubuntu stops between test steps, taking a kept sandbox and /tmp with it
+  - 2.2.1.2 `sudo: unable to resolve host` during a move or a member step: harmless
+  - 2.2.1.3 `git worktree prune` from WSL removed every worktree's registration
 - [2.2.2 Architecture: the services and their start](2.2.2-architecture-troubleshooting.md)
   - 2.2.2.1 Known issue of 0.8.0: a fresh install's setup stops at a unit's start (Postgres, Keycloak, nginx)
 - [2.2.6 Keycloak and the directory](2.2.6-keycloak-gotchas.md)
 - [2.2.8 The web UI](2.2.8-webui-troubleshooting.md)
 
-Nothing yet for 2.2.1, 2.2.3, 2.2.4, 2.2.5, 2.2.7, 2.2.9, 2.2.10, 2.2.11, 2.2.12, 2.2.13, 2.2.14, 2.2.15, 2.2.16, 2.2.17, 2.2.18 (they follow chapters 1.1, 1.3, 1.4, 1.5, 1.7, 1.9, 1.10, 1.11, 1.12, 1.13, 1.14, 1.15, 1.16, 1.17, 1.18).
+Nothing yet for 2.2.3, 2.2.4, 2.2.5, 2.2.7, 2.2.9, 2.2.10, 2.2.11, 2.2.12, 2.2.13, 2.2.14, 2.2.15, 2.2.16, 2.2.17, 2.2.18 (they follow chapters 1.3, 1.4, 1.5, 1.7, 1.9, 1.10, 1.11, 1.12, 1.13, 1.14, 1.15, 1.16, 1.17, 1.18).
 
 ## 2.3 Engineering notes
 

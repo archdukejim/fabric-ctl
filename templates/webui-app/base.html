@@ -46,6 +46,8 @@
 {% if ctx.preview %}<p class="devbanner">DEV PREVIEW — sample data, no sign-in, nothing is saved or applied</p>{% endif %}
 {% if ctx.get('reminders') %}<div class="warn-text reminders" role="status"><strong>Reminder:</strong>
 <ul>{% for r in ctx.reminders %}<li>{{ r.text }}</li>{% endfor %}</ul></div>{% endif %}
+{% if ctx.get('sizing_banner') %}<div class="flash bad sizing-banner" role="alert"><strong>The host is too small for this install:</strong>
+<ul>{% for a in ctx.sizing_banner %}<li>{{ a.what }}. To close it: {{ a.close }}.</li>{% endfor %}</ul></div>{% endif %}
 <div class="frame">
 <nav class="side" id="sidenav" aria-label="Navigation"><ul>
 {% for e in nav %}

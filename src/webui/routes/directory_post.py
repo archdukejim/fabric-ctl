@@ -21,11 +21,24 @@ def _changed_fields(uid, form):
             if k in form and form.get(k, "").strip() != str(now.get(k) or "")}
 
 
+def _back(form, default):
+    """Purpose: where a Move to... made from the directory browser returns (1.8.8.4): the browser's own address the
+             form carries, never anywhere else (no open redirect), or the object's page.
+    Inputs:  form — dict (back); default — the object's page.
+    Returns: str, a path.
+    Fails:   never.
+    Feeds:   directory_post (moves)."""
+    back = str(form.get("back") or "")
+    ok = (back == "/directory/tree" or back.startswith("/directory/tree?")) and "//" not in back \
+        and not any(c in back for c in "\r\n\\")
+    return back if ok else default
+
+
 def _person_route(uid, op, form):
     """Purpose: A person's change as its agent route and body: disable, enable, remove (the user name typed back),
              groups (add or remove), reset, unlock, edit (the changed fields).
-    Inputs:  uid — the user name; op — "disable", "enable", "delete", "groups", "reset", "unlock" or "edit"; form —
-             dict (confirm; action, group; PERSON_FIELDS' keys).
+    Inputs:  uid — the user name; op — "disable", "enable", "delete", "groups", "reset", "unlock", "edit" or "move";
+             form — dict (confirm; action, group; PERSON_FIELDS' keys; path).
     Returns: (route, body).
     Fails:   ValidationError from the read an edit makes, or "nothing changed" (an edit that changes nothing).
     Feeds:   directory_post."""
@@ -35,22 +48,25 @@ def _person_route(uid, op, form):
             raise actions.ValidationError("nothing changed: no field differs from what the domain has")
         return f"people/{q(uid)}/edit", body
     body = {"delete": {"confirm": form.get("confirm", "")},
-            "groups": {"action": form.get("action", ""), "group": form.get("group", "")}}.get(op, {})
+            "groups": {"action": form.get("action", ""), "group": form.get("group", "")},
+            "move": {"path": form.get("path", "")}}.get(op, {})
     return f"people/{q(uid)}/{op}", body
 
 
 def _group(h, name, op, form):
-    """Purpose: A group's form (manual 1.6.12.5), held on Groups until its Apply: create (form name, description),
-             delete, managers (form managers: names separated by commas; add, remove: ticked; only_from) or members
-             (form action add|remove, member).
-    Inputs:  h — the request handler; name — "_new" or the group's name; op — "", "delete", "managers" or "members";
+    """Purpose: A group's form (manual 1.6.12.5), held on Groups until its Apply: create (form name, description, ou),
+             delete, managers (form managers: names separated by commas; add, remove: ticked; only_from), members
+             (form action add|remove, member) or move (form path, back: Move to..., 1.8.8.5).
+    Inputs:  h — the request handler; name — "_new" or the group's name; op — "", "delete", "managers", "members" or
+             "move";
              form — dict.
     Returns: 303 (held's): to the group's page, to Groups after a create or delete; 404 for another form.
     Fails:   AgentError, PermissionDenied and AuthError propagate.
     Feeds:   directory_post."""
     if name == "_new" and not op:
         return held(h, "/directory/groups", "groups", {"name": form.get("name", "").strip(),
-                                                        "description": form.get("description", "").strip()})
+                                                        "description": form.get("description", "").strip(),
+                                                        **({"ou": form["ou"]} if form.get("ou") else {})})
     if name in ("", "_new", "_form"):
         return h.deny(404, "Not found.")
     here = f"/directory/groups/{q(name)}"
@@ -64,15 +80,17 @@ def _group(h, name, op, form):
     if op == "members":
         return held(h, here, f"groups/{q(name)}/members", {"action": form.get("action", ""),
                                                             "member": form.get("member", "").strip()})
+    if op == "move":
+        return held(h, _back(form, here), f"groups/{q(name)}/move", {"path": form.get("path", "")})
     return h.deny(404, "Not found.")
 
 
 def _machine(h, sess, name, op, form):
-    """Purpose: A computer's form (manual 1.6.12.6), held on Computers until its Apply: add (form name, type, managed),
-             enable, disable, delete, type (form type, move ticked), sites (form action add|remove, site), move (form
-             path), groups (form action add|remove, group: one of its machine groups' members change); keytab (form
-             service, user, path) is done at once: it changes nothing and answers the command for the computer's
-             administrator (1.6.12.9).
+    """Purpose: A computer's form (manual 1.6.12.6), held on Computers until its Apply: add (form name, type,
+             managed, ou), enable, disable, delete, type (form type, move ticked), sites (form action add|remove,
+             site), move (form path), groups (form action add|remove, group: one of its machine groups' members
+             change); keytab (form service, user, path) is done at once: it changes nothing and answers the command
+             for the computer's administrator (1.6.12.9).
     Inputs:  h — the request handler (send, back, deny); sess — the session (the keytab page's context); name —
              "_new" or the computer's host name; op — the form; form — dict.
     Returns: 303 (held's): to the computer's page, to Computers after an add or a removal; the keytab: 200, the
@@ -82,7 +100,7 @@ def _machine(h, sess, name, op, form):
     if name == "_new" and not op:
         return held(h, "/directory/computers", "machines", {
             "name": form.get("name", ""), "managed": "yes" if form.get("managed") == "yes" else "no",
-            **({"type": form["type"]} if form.get("type") else {})})
+            **({"type": form["type"]} if form.get("type") else {}), **({"ou": form["ou"]} if form.get("ou") else {})})
     if name in ("", "_new", "_form"):
         return h.deny(404, "Not found.")
     here = f"/directory/computers/{q(name)}"
@@ -95,7 +113,7 @@ def _machine(h, sess, name, op, form):
         return held(h, here, f"machines/{q(name)}/sites", {"action": form.get("action", ""),
                                                            "site": form.get("site", "")})
     if op == "move":
-        return held(h, here, f"machines/{q(name)}/move", {"path": form.get("path", "")})
+        return held(h, _back(form, here), f"machines/{q(name)}/move", {"path": form.get("path", "")})
     if op == "groups":
         return held(h, here, f"host-groups/{q(form.get('group', ''))}/members",
                     {"action": form.get("action", ""), "machine": name})
@@ -217,11 +235,13 @@ def directory_post(h, sess, parts, form):
     kind, name, op = (parts + ["", "", ""])[:3]
     if kind == "people":
         if name == "_new" and not op:
-            return held(h, "/directory/people", "people", {k: form.get(k, "") for k in ("uid", "first", "last",
-                                                                                          "email")})
+            return held(h, "/directory/people", "people", {
+                **{k: form.get(k, "") for k in ("uid", "first", "last", "email")},
+                **({"ou": form["ou"]} if form.get("ou") else {})})
         if name not in ("", "_new", "_form") and len(parts) == 3 and op in (
-                "reset", "unlock", "disable", "enable", "delete", "groups", "edit"):
+                "reset", "unlock", "disable", "enable", "delete", "groups", "edit", "move"):
             back = "/directory/people" if op == "delete" else f"/directory/people/{q(name)}"
+            back = _back(form, back) if op == "move" else back
             try:
                 route, body = _person_route(name, op, form)
             except actions.ValidationError as exc:

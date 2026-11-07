@@ -1,5 +1,6 @@
 import ldb
 
+from may_hold import kinds_held
 from ou_paths import fixed_dns, is_admin_ou, ou_path
 
 
@@ -9,7 +10,8 @@ def list_ous(samdb, lp, site):
              not OUs and are not listed.
     Inputs:  samdb — SamDB (as the DC's agent); lp — LoadParm (unused); site — str (unused).
     Returns: {"ous": [{"path", "dn", "fabric": bool, "own": bool (an admin's, changeable), "holds": {"people",
-             "groups", "computers", "ous", "other"}}]}, by path.
+             "groups", "computers", "ous", "other"}, "kinds": the kinds it may be given (may_hold.kinds_held:
+             person, machine, group)}]}, by path.
     Fails:   ldb.LdbError from a search.
     Feeds:   directory_ops (op "list_ous")."""
     fixed, out = fixed_dns(samdb), []
@@ -24,6 +26,7 @@ def list_ous(samdb, lp, site):
             key = ("computers" if "computer" in classes else "people" if "user" in classes
                    else "groups" if "group" in classes else "ous" if "organizationalunit" in classes else "other")
             holds[key] += 1
-        out.append({"path": ou_path(samdb, dn), "dn": dn, "fabric": dn.lower() in fixed,
-                    "own": is_admin_ou(samdb, dn), "holds": holds})
+        path = ou_path(samdb, dn)
+        out.append({"path": path, "dn": dn, "fabric": dn.lower() in fixed, "own": is_admin_ou(samdb, dn),
+                    "holds": holds, "kinds": kinds_held(samdb, dn, path)})
     return {"ous": sorted(out, key=lambda o: o["path"].lower())}

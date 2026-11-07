@@ -11,6 +11,7 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `add_reservation.py` | Reserve an IP for a MAC; the agent saves it and applies at once (Kea reloads with it). Agent route: POST /v1/dhcp/reservations (dhcp:write), timeout 960 s. |
 | `set_dhcp_on.py` | Turn DHCP on or off; saved, applied, the host firewall brought in line |
 | `add_subnet.py` | Add a DHCP subnet (name, VLAN record, router, pools, notes); saved and applied |
+| `sizing.py` | The sizing advice as the Overview shows it, a person's dismissal, and the banner (asked once a minute per person, 1.8.8.8) |
 | `update_subnet.py` | Change a DHCP subnet's name, VLAN, router, notes or pools |
 | `remove_subnet.py` | Remove a DHCP subnet (refused with active leases unless forced) |
 | `set_option.py` | Set a DHCP option for every subnet, a subnet, a client class or a reservation |
@@ -48,6 +49,7 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `show_grant.py` | One grant with the people and machines it reaches. Agent route: GET /v1/domain/grants/<name> (domain:read). |
 | `explain_grants.py` | Which grants reach a person, and why. Agent route: GET /v1/domain/grants/explain/<person> (domain:read). |
 | `list_ous.py` | The OU tree by path: fabric's marked, the admin's own, what each holds. Agent route: GET /v1/ous (domain:read). |
+| `browse_ou.py` | The directory browser's read: the tree to an OU, its contents or a search. Agent route: GET /v1/directory/tree/… (domain:read). |
 | `list_machines.py` | The domain's computers: type, sites, OS, folder, machine groups, state. Agent route: GET /v1/machines (domain:read). |
 | `machine_overview.py` | One computer's page: its facts, the grants reaching it, its 802.1X device, its actions' choices. Agent route: GET /v1/machines/<name> (domain:read). |
 | `machine_keytab.py` | The command that installs a service's keytab on a computer (nothing changed). Agent route: POST /v1/machines/<name>/keytab (machines:admin). |

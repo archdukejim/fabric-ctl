@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block body %}
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
 {% if page == '/overview/doctor' %}
 <h1>Overview · Doctor</h1>
 <section class="card"><p>fabric's end-to-end checks (<code>fabricctl doctor</code>): every service answering, its certificates, its
@@ -22,20 +22,25 @@ names in DNS, the sign-in. A few seconds to a minute; the result opens on its ow
 {% set ok = services | selectattr(1, 'equalto', 'active') | rejectattr(2, 'in', ['unhealthy', 'starting']) | list | length %}
 <h1>Overview · Health</h1>
 {% if wizard and not wizard.finished %}
-<section class="card"><h2>Finish setting up</h2>
+<section class="flash info"><h2>Finish setting up</h2>
 <p>Setup left DHCP, the DNS filter, log forwarding, the memory fabric may use and the sign-in settings at their
 defaults. Review them in the setup wizard, or keep them.</p>
 <p><a href="/settings">Open Settings</a></p>
 <form method="post" action="/settings/dismiss" class="apply"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost">Dismiss</button><span class="muted">keep setup's choices</span></form></section>
 {% endif %}
 {% if certs %}
-<div class="{{ 'bad-text' if certs | selectattr('level', 'equalto', 'fail') | list else 'warn-text' }}" role="status"><strong>Certificates:</strong>
+<div class="flash {{ 'bad' if certs | selectattr('level', 'equalto', 'fail') | list else 'warn' }}" role="status"><strong>Certificates:</strong>
 <ul>{% for c in certs %}<li>{{ c.what }}</li>{% endfor %}</ul></div>
 {% endif %}
-{% if relaxed %}
-<div class="warn-text" role="status"><strong>Security relaxed on this host:</strong>
-<ul>{% for r in relaxed %}<li><code>{{ r.setting }}</code> — {{ r.effect }}</li>{% endfor %}</ul></div>
+{% if sizing and sizing.alerts %}
+<section class="card sizing"><h2>Sizing</h2>
+<p class="muted small">What this install needs against what the host has, worked out hourly on the host; nothing is sent anywhere.</p>
+<ul class="plain">{% for a in sizing.alerts %}
+<li><span class="light {{ 'bad' if a.level == 'critical' else 'warn' }}" role="img" aria-label="{{ a.level }}"></span> {{ a.what }}. To close it: {{ a.close }}.
+<form method="post" action="/overview/sizing/dismiss" class="apply"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="resource" value="{{ a.resource }}"><button class="ghost">Dismiss</button></form></li>
+{% endfor %}</ul></section>
 {% endif %}
+{{ p.relaxations(relaxed) }}
 <p class="muted">{{ ok }} of {{ services | length }} services healthy.</p>
 <section class="tiles">
 {% for name, state, health in services %}
@@ -52,22 +57,22 @@ defaults. Review them in the setup wizard, or keep them.</p>
 </div>
 {% endfor %}
 </section>
-<h2>Host changes</h2>
+<section class="card"><h2>Host changes</h2>
 {% if host_changes %}
 <p class="muted">What fabric may change on this host outside its own folders. Answers are given at <code>sudo fabricctl setup</code>; <code>--undo GROUP</code> reverts one.</p>
-<section class="card"><table class="list">
+<table class="list">
 <thead><tr><th>Change</th><th>Answer</th><th>When</th><th>By</th></tr></thead>
 <tbody>
 {% for c in host_changes %}
 <tr><td data-label="Change">{{ c.title }}</td>
 <td data-label="Answer">{% if c.state == 'approved' %}approved{% elif c.state == 'declined' %}<span class="warn-text">declined</span>{% else %}<span class="muted">not asked</span>{% endif %}
-{% if c.relaxation %}<div class="muted">{{ c.relaxation }}</div>{% endif %}</td>
-<td data-label="When">{{ c.when }}</td><td data-label="By">{{ c.by }}</td></tr>
+{% if c.relaxation %}<div class="muted">{{ c.relaxation | plain }}</div>{% endif %}</td>
+<td data-label="When">{{ c.when | written }}</td><td data-label="By">{{ c.by }}</td></tr>
 {% endfor %}
 </tbody>
-</table></section>
+</table>
 {% else %}
 <p class="muted">Not asked yet: this install was set up before fabric asked about host changes. The next <code>sudo fabricctl setup</code> asks before changing anything.</p>
-{% endif %}
+{% endif %}</section>
 {% endif %}
 {% endblock %}

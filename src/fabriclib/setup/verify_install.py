@@ -27,6 +27,7 @@ from fabriclib.breakglass.break_glass_reminder import break_glass_reminder
 from fabriclib.hostaccounts.local_account_reminders import local_account_reminders
 from fabriclib.localadmin.local_admin_checks import local_admin_checks
 from fabriclib.pki.common.cert_names import cert_names
+from fabriclib.setup.address_checks import address_checks
 from fabriclib.common.errors import ValidationError
 from fabriclib.setup.errors import SetupError
 from fabriclib.system.relaxed_settings import relaxed_settings
@@ -86,7 +87,8 @@ def checks(ctx):
              the DNS filter (the BIND resolver answers on 53) when on, time (chrony synchronised and
              under 1 s off — or this host's own clock when no source is set —, and at a site within 1 s of its
              upstream site), the certificates (renewal working, none about to expire), Kea's DNS key replaced
-             within a year (2.1.10.42), and every installed service.
+             within a year (2.1.10.42), only the host's own address and name left in DNS and /etc/hosts (2.1.1.74),
+             and every installed service.
     Inputs:  ctx — SetupContext: vars (hostnames, host_ip, ip_nginx, bind_dns_port, install_webui/keycloak,
              federation_endpoint, install_resolver, webui_admin_user/role), secrets (Keycloak),
              Step-CA root, the
@@ -113,6 +115,9 @@ def checks(ctx):
             add(f"DNS {name}", v["host_ip"] in got, ", ".join(got) or "no answer")
         except OSError as e:
             add(f"DNS {name}", False, str(e))
+
+    for row in address_checks(v, port):      # only the host's own address and name left (a move, a rename: 2.1.1.74)
+        add(*row)
 
     try:                                     # DNS-over-HTTPS through nginx to BIND (2.1.12.2)
         got = doh_query(f"ns.{v['domain']}", v["hostname_bind9"], v["ip_nginx"], root_ca)

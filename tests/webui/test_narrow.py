@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Every console page at a phone's width (manual 1.8.6.9): nothing wider than the screen, the top bar's menus (the
-site selector's nested list, 1.8.6.12; the person's menu) open on each. The dev preview serves the
-production pages; headless Chromium in the test browser image (decision 2.1.8.15: the pinned Debian base and Debian's
+site selector's nested list, 1.8.6.12; the person's menu) open on each. Then at a desktop's width (1366 px), the
+layout audit's checks (2.3.8.4.3, 1.8.8.6): nothing but fields in a field grid, a form's buttons a row of their own,
+no boxes overlapping, nothing scrolling sideways. The dev preview serves the production pages; headless Chromium in the test browser image (decision 2.1.8.15: the pinned Debian base and Debian's
 own chromium package, driven over its DevTools pipe by narrow_probe.py) opens each at 375 px and measures it. Needs
 Docker; the image, its container and the preview's port are this run's own (manual 3.1.2.6) and removed after.
 
@@ -21,7 +22,7 @@ sys.path.insert(0, os.path.join(REPO, "tests", "common"))
 import test_run as testrun  # noqa: E402
 IMAGE, NAME = "fabric/webui-browser:" + testrun.name("test"), testrun.name("cnarrow")
 PORT = testrun.port(18790)
-WIDTH = 375
+WIDTH, DESKTOP = 375, 1366
 DEBIAN = subprocess.run([sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "debian"], capture_output=True,
                         text=True, check=True).stdout.strip()
 DOCKERFILE = f"""FROM {DEBIAN}
@@ -51,7 +52,8 @@ PAGES = ["/", "/overview/doctor", "/overview/updates", "/audit", "/dns/zones", "
          "/8021x/guides?view=windows", "/8021x/devices", "/8021x/devices/jims-laptop", "/8021x/roles",
          "/8021x/roles/iot", "/secrets", "/secrets/unlock", "/secrets/disk", "/secrets/secrets",
          "/secrets/add-security-key", "/federation", "/settings", "/settings/sign-in", "/preview/denied",
-         "/account", "/account/groups", "/changes/people"]
+         "/account", "/account/groups", "/changes/people", "/directory/tree", "/directory/tree?ou=people",
+         "/directory/tree?ou=people&move=person%3Ajim", "/settings?step=memory", "/settings?step=review"]
 FAILED = 0
 
 
@@ -83,14 +85,22 @@ build = subprocess.run(["docker", "build", "-q", "-t", IMAGE, "-"], input=DOCKER
 check("the test browser image builds (pinned Debian, Debian's chromium)", build.returncode == 0, build.stderr[-800:])
 if build.returncode:
     sys.exit(1)
+
+
+def probe(width):
+    """Every page measured at one width: the probe's JSON rows, and stderr for a failure's detail."""
+    run = subprocess.run(["docker", "run", "--rm", "--name", NAME, *testrun.labels(), "--network", "host", "--memory", "1g",
+                          "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
+                          "-v", f"{HERE}:/probe:ro", IMAGE, "python3", "/probe/narrow_probe.py", str(width)]
+                         + [f"http://127.0.0.1:{PORT}{p}" for p in PAGES],
+                         capture_output=True, text=True, timeout=600)
+    return [json.loads(ln) for ln in run.stdout.splitlines() if ln.startswith("{")], run
+
+
 try:
     with preview():
-        run = subprocess.run(["docker", "run", "--rm", "--name", NAME, *testrun.labels(), "--network", "host", "--memory", "1g",
-                              "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
-                              "-v", f"{HERE}:/probe:ro", IMAGE, "python3", "/probe/narrow_probe.py", str(WIDTH)]
-                             + [f"http://127.0.0.1:{PORT}{p}" for p in PAGES],
-                             capture_output=True, text=True, timeout=600)
-    rows = [json.loads(ln) for ln in run.stdout.splitlines() if ln.startswith("{")]
+        rows, run = probe(WIDTH)
+        desk, drun = probe(DESKTOP)
     check(f"Chromium measured every page ({len(PAGES)})", len(rows) == len(PAGES) and not any("error" in r for r in rows),
           [r for r in rows if "error" in r] or run.stderr[-800:])
     bad = {r["url"].split(str(PORT), 1)[1]: r for r in rows if r.get("status") not in (200, 403)}
@@ -99,6 +109,17 @@ try:
             for r in rows if r.get("scroll_width", 0) > WIDTH or r.get("wide")}
     check(f"at {WIDTH} px nothing is wider than the screen on any page (scrollWidth; no element past the edge, nor scrolling inside a card)",
           not wide, json.dumps(wide, indent=1))
+    check(f"at {DESKTOP} px Chromium measured every page ({len(PAGES)})",
+          len(desk) == len(PAGES) and not any("error" in r for r in desk),
+          [r for r in desk if "error" in r] or drun.stderr[-800:])
+    for key, words in (("strays", "nothing but fields in a field grid (no heading, paragraph, list or table among them)"),
+                       ("lone", "a form's buttons are a row of their own, the full width (never one grid cell)"),
+                       ("overlaps", "no boxes overlapping")):
+        found = {r["url"].split(str(PORT), 1)[1]: r[key] for r in desk if r.get(key)}
+        check(f"at {DESKTOP} px on every page: {words}", not found, json.dumps(found, indent=1))
+    side = {r["url"].split(str(PORT), 1)[1]: (r.get("scroll_width"), r.get("wide"))
+            for r in desk if r.get("scroll_width", 0) > DESKTOP or r.get("wide")}
+    check(f"at {DESKTOP} px nothing scrolls sideways on any page", not side, json.dumps(side, indent=1))
 finally:
     testrun.remove("container", NAME)      # this run's only
     subprocess.run(["docker", "rmi", IMAGE], capture_output=True)

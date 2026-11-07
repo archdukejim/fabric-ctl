@@ -4,9 +4,10 @@ leaves its row empty. Pure: the routes and apply_dns stood in for (the zones sui
     python3 tests/agent/pending_store_test.py"""
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
-from agent.pending_store import PendingStore  # noqa: E402
+from agent.pending_store import PendingStore, QUEUE_SECONDS  # noqa: E402
 import agent.post_pending as pp  # noqa: E402
 import fabriclib.dns.apply_dns as apply_dns_module  # noqa: E402
 
@@ -34,6 +35,20 @@ check("a change done with a warning: done, its row says the warning",
 rows = applied({"key": "home.lan"})
 check("a change done without one: done, its row empty", rows[0]["state"] == "done" and rows[0]["why"] == "", rows)
 
+
+# an apply stopped at a change is failed before it is finished: its row stays until then, and QUEUE_SECONDS after (2.3.1.53)
+now = time.time()
+store = PendingStore(run=None, state=None, need=None, start_job=None)
+store.queue["dns"] = [{"state": "failed", "items": []}, {"state": "running", "items": []},
+                      {"state": "done", "finished": now - 5, "items": []}, {"state": "failed", "finished": now - 5, "items": []},
+                      {"state": "done", "finished": now - QUEUE_SECONDS - 5, "items": []},
+                      {"state": "failed", "finished": now - QUEUE_SECONDS - 5, "items": []}]
+store._expire()
+left = store.queue["dns"]
+check("the queue keeps a stopped apply not yet finished, a running one, and the recently finished",
+      [a["state"] for a in left] == ["failed", "running", "done", "failed"], left)
+check("negative: it forgets the finished, done or failed, once older than QUEUE_SECONDS",
+      all(a.get("finished", now) > now - QUEUE_SECONDS for a in left), left)
 
 def publish_note(answer):
     real = apply_dns_module.apply_dns

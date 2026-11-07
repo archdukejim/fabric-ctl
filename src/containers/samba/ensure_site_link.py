@@ -8,7 +8,9 @@ USE_NOTIFY = "1"
 def ensure_site_link(samdb, site, parent):
     """Purpose: the AD site link between a site and its parent (manual 1.9.8.5, S8.3): cost 100, every 15 minutes and
              on change notification, so AD's KCC builds replication both ways between their DCs; the link to an
-             earlier parent removed (a site that moved, 2.1.6.20).
+             earlier parent removed (a site that moved, 2.1.6.20); this site's link that lost a race removed: the parent
+             and the site each make it when a site moves here, each at its own DC, and AD renames one with a
+             `CNF:` suffix when they meet (2.3.1.45).
     Inputs:  samdb — SamDB (as the system); site — the site; parent — its parent site.
     Returns: list of str, what changed.
     Fails:   ldb.LdbError for a change AD refuses (e.g. either AD site missing: ensure_ad_site makes them).
@@ -21,6 +23,10 @@ def ensure_site_link(samdb, site, parent):
     for link in samdb.search(base=ip, scope=ldb.SCOPE_ONELEVEL, expression="(objectClass=siteLink)",
                              attrs=["cn", "siteList"]):
         name = str(link["cn"][0])
+        if "\nCNF:" in name and name.split("\nCNF:")[0].endswith(f"-{site}"):
+            samdb.delete(link.dn)
+            removed.append(f"site link {name.split(chr(10))[0]}'s duplicate, from a race, removed")
+            continue
         other = name[:-len(site) - 1] if name.endswith(f"-{site}") else ""
         listed = {str(x).lower() for x in link.get("siteList", [])}
         if other and other != parent and {f"cn={other},{sites}".lower(), f"cn={site},{sites}".lower()} <= listed:

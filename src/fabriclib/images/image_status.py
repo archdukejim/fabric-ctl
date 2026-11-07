@@ -1,7 +1,7 @@
 from fabriclib.common.read_images_lock import read_images_lock
 from fabriclib.common.read_published_lock import read_published_lock
 from fabriclib.images.installed_services import installed_services
-from fabriclib.images.running_image import running_image
+from fabriclib.images.running_image import running_image, running_images
 
 
 def image_status(ctx):
@@ -23,8 +23,11 @@ def image_status(ctx):
                       if e["ref"]})
     held = set(v.get("image_pins") or [])
     rows = []
-    for s in installed_services(ctx):
-        applied, running, want = v.get(s["var"]), running_image(s), validated.get(s["var"])
+    services = installed_services(ctx)
+    pulled = running_images(services)
+    for s in services:
+        running = running_image(s) if s["build"] else pulled.get(s["container"])
+        applied, want = v.get(s["var"]), validated.get(s["var"])
         if running is None:
             state = "not running"
         elif running != applied:

@@ -7,6 +7,7 @@ from webui.devpreview.fake_dns import fake_dns
 from webui.devpreview.fake_groups import fake_groups
 from webui.devpreview.fake_machines import fake_machines
 from webui.devpreview.fake_ous import fake_ous
+from webui.devpreview.fake_tree import fake_tree
 from webui.devpreview.fake_grants import fake_grants
 from webui.devpreview.fake_ipam import fake_ipam
 from webui.devpreview.fake_misc import fake_misc
@@ -40,6 +41,15 @@ def _read_ous(state, who, route, body):
     Fails:   never.
     Feeds:   fake_agent."""
     return fake_ous(state, who, route, None)
+
+
+def _read_tree(state, who, route, body):
+    """Purpose: The directory browser's read (fake_tree with no body: GET).
+    Inputs:  as fake_tree's.
+    Returns: fake_tree's answer, or None.
+    Fails:   ValidationError "no OU <path>", a whole-domain search too short.
+    Feeds:   fake_agent."""
+    return fake_tree(state, who, route, None)
 
 
 def _read_grants(state, who, route, body):
@@ -90,8 +100,8 @@ def fake_agent(state, who, method, route, body):
         return fake_ipam(s, w, "GET", r, b)
 
     def run(change, change_body):          # a held change at Apply: the same fake route as a direct call
-        for area in (ipam_post, fake_account, fake_dns, fake_machines, fake_ous, fake_grants, fake_directory,
-                     fake_groups, fake_network, fake_misc):
+        for area in (ipam_post, fake_account, fake_dns, fake_machines, fake_ous, fake_tree, fake_grants,
+                     fake_directory, fake_groups, fake_network, fake_misc):
             answer = area(state, who, change, change_body)
             if answer is not None:
                 return answer
@@ -101,9 +111,10 @@ def fake_agent(state, who, method, route, body):
         held = fake_pending(state, who, method, route, body, run)
         if held is not None:
             return 200, held
-        for area in ((ipam_get, fake_account, fake_reads, _read_groups, _read_machines, _read_ous, _read_grants)
-                     if method == "GET" else (ipam_post, fake_account, fake_dns, fake_machines, fake_ous, fake_grants,
-                                              fake_directory, fake_groups, fake_network, fake_misc)):
+        for area in ((ipam_get, fake_account, fake_reads, _read_groups, _read_machines, _read_ous, _read_tree,
+                      _read_grants)
+                     if method == "GET" else (ipam_post, fake_account, fake_dns, fake_machines, fake_ous, fake_tree,
+                                              fake_grants, fake_directory, fake_groups, fake_network, fake_misc)):
             answer = area(state, who, route, body)
             if answer is not None:
                 return 200, answer

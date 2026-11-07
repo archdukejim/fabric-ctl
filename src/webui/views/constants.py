@@ -20,6 +20,7 @@ NAV = [
                       ("/kea", "Kea", ("dhcp:read",))]),
     ("pki", "PKI", [("/pki", "Certificates", ("pki:read",)), ("/pki/acme", "ACME", ("pki:read",))]),
     ("directory", "Directory", [("/directory", "Overview", ("domain:read",)),
+                                ("/directory/tree", "Browse", ("domain:read",)),
                                 ("/directory/people", "People", ("people:read",)),
                                 ("/directory/groups", "Groups", ("domain:read",)),
                                 ("/directory/computers", "Computers", ("domain:read",)),
@@ -135,7 +136,8 @@ COMPUTER_SECTIONS = [("list", "Computers"), ("groups", "Machine groups")]
 GRANT_RIGHTS = (("people", "People", ("edit", "reset", "unlock", "disable", "add")),
                 ("machines", "Machines", ("add", "move", "disable", "remove", "groups")),
                 ("signin", "Sign-in", ("keyboard", "remote")))
-OU_ROOTS = ("people", "service-accounts", "groups", "machines/servers", "machines/desktops", "machines/network")
+OU_ROOTS = ("people", "service-accounts", "groups", "machines", "machines/servers", "machines/desktops",
+            "machines/network")
 RADIUS_PAGES = {"overview": "/8021x", "decisions": "/8021x/decisions", "switches": "/8021x/guides",
                 "windows": "/8021x/guides", "client": "/8021x", "new-client": "/8021x", "mapping": "/8021x",
                 "new-mapping": "/8021x"}

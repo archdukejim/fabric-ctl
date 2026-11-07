@@ -40,10 +40,12 @@ arbitrary commands.
 | `post_people.py` | A person (1.6.12.17.6): edit, unlock, reset, disable, enable, remove, groups, add; each checked by fabric-agent for the token's caller |
 | `post_groups.py` | Groups: create, delete, managers (`groups:admin`), members (the DC decides: the tier above, or a manager) |
 | `post_ous.py` | The admins' own OUs: create, rename, delete (`ous:admin`) |
+| `read_tree.py` | GET /v1/directory/tree/ou=…/q=…/w=…/i=…: the directory browser's read (1.8.8.4) |
 | `post_account.py` | A person's own account: their password, as them, at once (any sign-in) |
 | `post_host_access.py` | Host groups (create, delete, machines in and out) and sudo rules (add, remove), in the directory at once (1.6.11.7) |
 | `post_local_admin.py` | The DC host's local-admin: its check-out and its SSH switch, the Enterprise Admin's alone (1.7.1.4.5, 1.7.1.4.6) |
 | `post_security.py` | POST /v1/security/raise and /kerberos: raise a sign-in layer or turn Kerberos sign-in on or off, then apply |
 | `job_store.py` | Background jobs (doctor, an image update): started by one call, followed by id, read only by who started them; kept in memory |
 | `post_settings.py` | POST /v1/settings/plan, /apply and /dismiss: the setup wizard's plan, its apply as a job (a stale plan made again), the wizard dismissed |
+| `post_sizing.py` | POST /v1/sizing/dismiss: a person's own dismissal of a sizing alert, audited (1.8.8.8) |
 | `plan_store.py` | The setup wizard's plans waiting for their Apply: by id, only for who made them, 15 minutes; kept in memory |

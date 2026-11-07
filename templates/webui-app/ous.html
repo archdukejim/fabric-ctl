@@ -11,12 +11,12 @@
 <td data-label="People" class="num">{{ o.holds.people }}</td><td data-label="Groups" class="num">{{ o.holds.groups }}</td>
 <td data-label="Computers" class="num">{{ o.holds.computers }}</td><td data-label="OUs" class="num">{{ o.holds.ous }}</td></tr>{% endfor %}{% endcall %}
 {% else %}{{ p.empty("No OUs could be listed.") }}{% endif %}
-<p class="muted small">Folders by their path below the domain. fabric's own are fixed; the site's own go under people, service-accounts, groups and each machine type's folder. OUs grant nothing: access is by groups and grants.</p>
+<p class="muted small">Folders by their path below the domain. fabric's own are fixed; the site's own go anywhere else: at the domain's root, under people, service-accounts, groups and machines, or under another of the site's own (never in fabric-hosts, devices, device-roles, networks, sudoers). OUs grant nothing: access is by groups and grants.</p>
 </section>
 {% if can('ous:admin') %}<section class="card"><h2>Create OU</h2>
 <form method="post" action="/directory/ous/_new" class="grid">
 {{ csrf() }}
-<label>Under<select name="parent" required>{% for f in parents %}<option>{{ f }}</option>{% endfor %}</select></label>
+<label>Under<select name="parent" required><option value="/">the domain's root</option>{% for f in parents %}<option>{{ f }}</option>{% endfor %}</select></label>
 <label>Name<input name="name" required maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9 _.\-]{0,62}" autocomplete="off" placeholder="staff"></label>
 <div><button>Create OU</button></div></form>
 <p class="muted small">Waits for the OUs page's Apply. A name of fabric's own folders is refused.</p></section>{% endif %}

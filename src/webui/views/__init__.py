@@ -14,6 +14,7 @@ from webui.views.people import people  # noqa: F401
 from webui.views.groups import groups  # noqa: F401
 from webui.views.computers import computers  # noqa: F401
 from webui.views.ous import ous  # noqa: F401
+from webui.views.tree import tree  # noqa: F401
 from webui.views.access import access  # noqa: F401
 from webui.views.sites import sites  # noqa: F401
 from webui.views.kerberos import kerberos  # noqa: F401

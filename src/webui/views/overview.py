@@ -2,7 +2,8 @@ from webui.views.constants import SERVICES
 from webui.views.render_page import render_page
 
 
-def overview(ctx, services=(), host_changes=(), relaxed=(), certs=(), images=None, err="", wizard=None, page="/"):
+def overview(ctx, services=(), host_changes=(), relaxed=(), certs=(), images=None, err="", wizard=None, page="/",
+             sizing=None):
     """Purpose: The Overview entry's pages (manual 1.8.6.4): Health (one tile per service with a status light and a
              link to its page, only one its viewer may open; the host changes fabric may make), Doctor (run fabric's
              checks) or Updates (each service's image).
@@ -15,7 +16,9 @@ def overview(ctx, services=(), host_changes=(), relaxed=(), certs=(), images=Non
              images — agentclient.image_rows() for Updates (None: unreadable); err — a refused job;
              wizard — the setup wizard's record ({"finished", ...}: Finish setting up shown until it is applied once or
              dismissed, manual 1.8.5.3; None: not shown, e.g. without settings:admin); page — "/" (Health),
-             "/overview/doctor" or "/overview/updates".
+             "/overview/doctor" or "/overview/updates"; sizing — agentclient.sizing() for the Sizing card (1.8.8.8;
+             None:
+             not shown).
     Returns: HTML str.
     Fails:   Jinja2 errors propagate (e.g. UndefinedError when the template reads an attribute of a value the caller
              left out).
@@ -23,4 +26,4 @@ def overview(ctx, services=(), host_changes=(), relaxed=(), certs=(), images=Non
     """
     return render_page("overview", ctx=ctx, page=page, services=list(services), service_info=SERVICES,
                        host_changes=list(host_changes), relaxed=list(relaxed),
-                       certs=list(certs), images=images, err=err, wizard=wizard)
+                       certs=list(certs), images=images, err=err, wizard=wizard, sizing=sizing)

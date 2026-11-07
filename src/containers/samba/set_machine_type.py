@@ -1,13 +1,15 @@
 import paths
 from find_machine import find_machine
 from group_names import type_group
+from own_object import own_object
 
 
 def set_machine_type(samdb, lp, site, name, type, move=False):
     """Purpose: a computer's type changed (manual 1.6.12.6, Change type; 1.6.13.3): it goes into that type's group
              (`machines-servers`, ...) and out of the others', so the grants on its type follow; with move, it is also
              moved to that type's OU (only from OU=machines itself or another type's OU: an admin's own folder is
-             kept, said in the answer).
+             kept, said in the answer). Its type is its group's, wherever it is (2.1.6.99): a machine in an admin's OU
+             anywhere changes type too; only fabric's own (a fabric host) is refused (2.1.6.100).
     Inputs:  samdb — SamDB (as the DC's agent); lp — LoadParm (unused); site — str (unused); name — the host name;
              type — server, desktop or network; move — bool.
     Returns: {"name", "type", "changed": [what changed], "kept_folder": the admin's folder kept, or ""}.
@@ -19,8 +21,9 @@ def set_machine_type(samdb, lp, site, name, type, move=False):
     m = find_machine(samdb, name)
     dn = str(m.dn)
     machines = paths.folder_dn(samdb, "machines").lower()
-    if not dn.lower().endswith("," + machines):
-        raise ValueError(f"{name} is a fabric host: managed by fabric (manual 1.6.13.6)")
+    why = own_object(samdb, m)
+    if why:
+        raise ValueError(f"{name} is {why}: managed by fabric (manual 1.6.13.6)")
     account = f"{name.rstrip('$')}$"
     groups = {str(g).split(",", 1)[0].split("=", 1)[1].lower() for g in m.get("memberOf", [])}
     changed, kept = [], ""
