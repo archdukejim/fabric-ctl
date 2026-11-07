@@ -124,7 +124,7 @@ def install_state():
 
 def nothing_left(name, before):
     time.sleep(1)
-    _, process = box("pgrep -af site_main || true")
+    _, process = box("pgrep -af '[s]ite_main' || true")
     check(f"{name}: nothing listening, no rule, no record, the install folder as it was, no listener process",
           not listening() and not site_rules() and install_state() == before and not process.strip(),
           (listening(), site_rules(), install_state(), process))
@@ -231,10 +231,11 @@ setup = guided()
 setup.until(r"would block the setup site[^\n]*\[[Yy]/[nN]\][^\n]*$", 90)
 setup.send("y")
 setup.until(r"One-time code:\s+(\S+)", 60)
-box("pkill -9 -f '[f]abricctl setup' || true; pkill -9 -f 'bin/[f]abricctl' || true")
+box("pkill -9 -f 'fabriclib/[c]li.py setup'")
 setup.end(20)
 time.sleep(2)
-check("a killed setup: its listener ends with it", not box("pgrep -f site_main")[1].strip(), box("pgrep -af site_main")[1])
+check("a killed setup: its listener ends with it, and the port with it", not box("pgrep -f '[s]ite_main'")[1].strip() and not listening(),
+      (box("pgrep -af '[s]ite_main'")[1], listening()))
 check("a killed setup: the rule is left behind", "fabric-setup-site" in site_rules(), site_rules())
 setup = guided(["--terminal"])
 setup.until(r"DNS domain[^\n]*: $", 60)
@@ -293,6 +294,9 @@ def probe_cut_off(scenario, seconds):
 setup = guided()
 found = setup.until(r"One-time code:\s+(\S+)\s+Temporary certificate's SHA-256 fingerprint:\s+(\S+)", 90)
 check("the terminal gives the URL, the code and the fingerprint", found and f"https://{IP}:8443/" in setup.plain(), setup.plain()[-800:])
+if not found or f"https://{IP}:8443/" not in setup.plain():
+    print(f"web_guided: {PASS} passed, {FAIL} failed: the refusals above left something behind; the install was not run", flush=True)
+    sys.exit(1)
 code, fingerprint = found.group(1), found.group(2)
 scenario = {"url": f"https://{IP}:8443/", "code": code, "fingerprint": fingerprint, "out": "/out", "width": 1366, "secret": SECRET,
             "pictures": False, "answers": {"DNS domain": "lan.example", "First Directory": "pat.admin", "Their first": "Pat", "Their last": "Example"}}
@@ -328,8 +332,8 @@ print("--- after Finish", flush=True)
 check("nothing listens on the site's ports", not listening(), listening())
 check("no firewall rule of the site's, with ufw on", not site_rules() and "Status: active" in box("ufw status")[1], (site_rules(), box("ufw status")[1]))
 check("no record, no listener, no certificate of the site's left",
-      box("test ! -e /run/fabric-setup/site-port && ! pgrep -f site_main && ! find /opt/fabric -name 'setup-site*' | grep -q .")[0] == 0,
-      box("ls /run/fabric-setup; pgrep -af site_main; find /opt/fabric -name 'setup-site*'")[1])
+      box("test ! -e /run/fabric-setup/site-port && ! pgrep -f '[s]ite_main' && ! find /opt/fabric -name 'setup-site*' | grep -q .")[0] == 0,
+      box("ls /run/fabric-setup; pgrep -af '[s]ite_main'; find /opt/fabric -name 'setup-site*'")[1])
 pw_file = os.path.join(folder, "pw")
 with open(pw_file, "w") as f:
     f.write(SECRET)
@@ -338,10 +342,10 @@ hits = box("grep -rlF -f /tmp/pw /opt/fabric/config /var/log /run /tmp --exclude
 check("the first admin's password is in no file or log", not hits.strip(), hits)
 journal = box(f"journalctl --no-pager | grep -cF '{code}' || true")[1].strip()
 check("the one-time code is in no log", journal == "0", journal)
-status, out = box("fabricctl doctor 2>&1 | tail -30", 600)
+status, out = box("fabricctl doctor > /tmp/doctor.log 2>&1; s=$?; tail -30 /tmp/doctor.log; exit $s", 600)
 with open(os.path.join(OUT, "doctor.log"), "w") as f:
     f.write(out)
-check("doctor passes on what the site installed", "✗" not in out, out)
+check("doctor passes on what the site installed", status == 0 and "✗" not in out and box("test -e /opt/fabric/config/vars.yaml")[0] == 0, out)
 check("the console answers on its name, verified by fabric's root",
       box(f"curl -sS -o /dev/null -w '%{{http_code}}' --cacert /opt/fabric/nginx/www/certs/root-ca.crt --resolve {CONSOLE}:443:{IP} https://{CONSOLE}/")[0] == 0,
       box(f"curl -sS -o /dev/null --cacert /opt/fabric/nginx/www/certs/root-ca.crt --resolve {CONSOLE}:443:{IP} https://{CONSOLE}/")[1])

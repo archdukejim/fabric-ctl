@@ -381,7 +381,8 @@ with tempfile.TemporaryDirectory() as base:
     # ---- Ctrl-C, a real signal to a real process ----
     driver = os.path.join(HERE, "signal_driver.py")
     first, last = free_ports()
-    for stage, sent, status_wanted in (("question", signal.SIGINT, 130), ("question", signal.SIGHUP, 130), ("running", signal.SIGINT, 130)):
+    for stage, sent, status_wanted in (("question", signal.SIGINT, 130), ("question", signal.SIGHUP, 130), ("running", signal.SIGINT, 130),
+                                       ("running", signal.SIGKILL, -9)):
         env = {**os.environ, "SITE_LIB": LIB, "SITE_USER": USER or "", "SITE_FIRST": str(first), "SITE_LAST": str(last), "SITE_STAGE": stage,
                "SITE_BASE": base}
         p = subprocess.Popen([sys.executable, driver], stdout=subprocess.PIPE, text=True, env=env)
@@ -395,10 +396,13 @@ with tempfile.TemporaryDirectory() as base:
         p.send_signal(sent)
         out, _ = p.communicate(timeout=20)
         name = sent.name
-        check(f"{name} at the {stage} stage: the site was up, then setup ends ({status_wanted}) and the port closes",
+        time.sleep(0.5 if sent == signal.SIGKILL else 0)      # nothing waits for a killed setup's listener: it sees the link end
+        check(f"{name} at the {stage} stage: the site was up, then setup ends ({status_wanted}) and the port closes with its listener",
               was_open and p.returncode == status_wanted and not listening(first), (was_open, p.returncode, got + out))
         if stage == "question":
             check(f"{name} before Proceed: nothing changed", not os.path.exists(os.path.join(base, "fabric")), list(os.walk(base))[:3])
+        elif sent == signal.SIGKILL:
+            shutil.rmtree(os.path.join(base, "fabric"), ignore_errors=True)
         else:
             check(f"{name} after Proceed: the terminal says the work goes on", "setup goes on" in out, out[-500:])
             shutil.rmtree(os.path.join(base, "fabric"), ignore_errors=True)

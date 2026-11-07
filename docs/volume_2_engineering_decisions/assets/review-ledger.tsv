@@ -2285,7 +2285,7 @@ tests/sandbox/size_fill_dc.py	9a24362d71304487a4b51c9ed258fc6f5ea09adf	2026-11-0
 tests/sandbox/size_load.py	b5b72d63af1b6be75ec92ae2e1ea613e888c5bc4	2026-11-04	
 tests/sandbox/size_measure.sh	16d3bcf81bcd242df17563b87445693108625629	2026-11-03	
 tests/sandbox/web_guided.sh	3204c31ae9ff41370f01ffe0bba19d0b9e7f30ba	2026-11-07	
-tests/sandbox/web_guided_drive.py	f8d421c6e3e10a8f3a361117709e63e07f8ae125	2026-11-07	
+tests/sandbox/web_guided_drive.py	4df943635265dbdde960f52d7cd496e62746ba11	2026-11-07	
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-12	
 tests/settings/README.md	fe8cdeb50d57df5b0accee46d31aff967d27a9f8	2026-10-23	
@@ -2320,7 +2320,7 @@ tests/setup/run_uninstall_command_test.py	da47421f7e3c3f5006c9504e94f867949559ce
 tests/setup/site/README.md	0b5bfd158f14c438e4577598e95131050a063b58	2026-11-07	
 tests/setup/site/browser_test.py	11b2b3581317ac28ba3ee15ce2dd09fae287f4ae	2026-11-07	
 tests/setup/site/check_console_test.py	7e50da15509d7d4e1e247589b515c8eafa4d125a	2026-11-07	
-tests/setup/site/flow_test.py	bf0d6665cf73e2b5f2337a7b90de8f6e2e2029c0	2026-11-07	
+tests/setup/site/flow_test.py	2a34404b65182834a2d64d9645dd8ec38595686e	2026-11-07	
 tests/setup/site/guides_test.py	d08f250c6c1ea9b20eefb8e1f38f17ee6e80f046	2026-11-07	
 tests/setup/site/listener_link_test.py	0b85688dbaf11bd0dff74791b10ffed57f2fadd5	2026-11-07	
 tests/setup/site/preview.py	2ffd0ed28b6772d340eebb3eb907e84ad4be3942	2026-11-07	
