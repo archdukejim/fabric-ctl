@@ -21,7 +21,7 @@ docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
-docs/volume_1_description_and_architecture/1.1.4-roadmap.md	301cc2de1d917c295f0457345f5438ed2a18475b	2026-11-07	
+docs/volume_1_description_and_architecture/1.1.4-roadmap.md	30560978fb23b51068d8314ce0425fffcea52ac3	2026-11-07	
 docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	7cc73759f86c7ce4ca7e2d58b7d1cc0db4cb9a64	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	c376feda6e17998f6aa6b2d9c85823f6b00ba89e	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
@@ -53,7 +53,7 @@ docs/volume_1_description_and_architecture/1.17.17-fabriclib-menu.md	4589150a9d2
 docs/volume_1_description_and_architecture/1.17.18-fabriclib-ntp.md	9334d2fa4e44da9a3ed379aecea3c1896b87fc7a	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.19-fabriclib-pki.md	a96ba9875386c92c4a421af7cced6bf88d5864f0	2026-11-04	
 docs/volume_1_description_and_architecture/1.17.2-fabricctl-agent.md	b4f02dc2e3876f60445146e2492a3c2c10a2ad4c	2026-11-04	
-docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	ae1189fad3a9380d9d6dfb48a3b23ba0ed8a4c45	2026-10-23	
+docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	6b4d2bfcc894efce5ce044d11045d559439473c2	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3c9f2a69f45e13f5365f8e49c066243f60235a80	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	2db03a6c42354ee697dfcb19be1f64e723ac06de	2026-11-04	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	7894287d00403f0b0110842aadaf1bb462094762	2026-10-23	
@@ -140,7 +140,7 @@ docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af766
 docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	cbad7e90c2ac64a84d6f8fd4f573fa54ab739022	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.1-product.md	97db78f07e311efcc1b6cefc2cee58ed99b6d603	2026-11-06	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	cb4d596ec94f1c25f32f6133b0ef1ca075aec1d7	2026-10-25	
-docs/volume_2_engineering_decisions/2.1.11-radius.md	a466b92a7925b98e675fb820eec51a89df9fa3b8	2026-11-07	
+docs/volume_2_engineering_decisions/2.1.11-radius.md	3f69f3e7715c3622616ad0533798e0d9214a85ae	2026-11-07	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	9a4a5837c87d7efa44a524511dbe73390da62b09	2026-10-31	
 docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece98c5e28bc1c8	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.14-images.md	248151c9d9c79e2df741cf97ae067094436d9608	2026-10-25	
@@ -159,9 +159,9 @@ docs/volume_2_engineering_decisions/2.2.1-product-troubleshooting.md	020c264ac36
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	b1ce74ad7a20c2c83c7bd2b1dde828ec96239994	2026-11-06	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	8fe271b3ec837aff28b8462c9d91918f21f5e6d4	2026-11-07	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	8d0e6dc9f88453889dccc29f981ca3ee730702f4	2026-10-29	
-docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	c1b11c8e1d69e8646e753e397a640d20a85d83be	2026-11-07	
+docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	94fc068a1015d887dbbc7e0d3e24724376cdc280	2026-11-07	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
 docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada049ac8dfe7f10bf86562	2026-10-09	
 docs/volume_2_engineering_decisions/2.3.18-stig-notes.md	1db81a521f99c32204a51a706f9d49eb85db6540	2026-10-25	
@@ -176,10 +176,10 @@ docs/volume_2_engineering_decisions/README.md	db77c9318e3383be0bedd0310d0a0e7150
 docs/volume_2_engineering_decisions/assets/README.md	3fd72f26d985cf1827afa0868c6c138dfec9d627	2026-10-08	
 docs/volume_2_engineering_decisions/assets/review-ledger.tsv	c975f0b8b8592270aae67107da26906a4ce8905a	2026-10-23	
 docs/volume_3_installation/3.1.1-manual-test-plan.md	45af38d9ad108ecf2ca0ba47e7cc0438e2ee9bfc	2026-10-23	
-docs/volume_3_installation/3.1.2-automated-tests.md	c55de49313d7b603c620eddae490cd369646fd36	2026-11-07	
+docs/volume_3_installation/3.1.2-automated-tests.md	c62fb5f24ef2cd91cc3f510d38157759f436113a	2026-11-07	
 docs/volume_3_installation/3.1.3-dev-preview.md	f913e6ed5b5f0e0428479a417dc655071b3b2f42	2026-10-08	
 docs/volume_3_installation/3.1.4-working-on-fabric.md	f0aa02dae628fc02838839f4887bb5d6baa1e857	2026-10-08	
-docs/volume_3_installation/3.1.5-hyperv-lab.md	780ac746ee7497de97d51a57f42c6650cb297534	2026-11-07	
+docs/volume_3_installation/3.1.5-hyperv-lab.md	9ea77229c340bc69d99f3ce2169a0a88cdb50e51	2026-11-07	
 docs/volume_3_installation/3.14.1-building-images.md	2fc096a8d9d21c7ad4a49fd36b83383cbd4f870e	2026-11-02	
 docs/volume_3_installation/3.16.1-disk-encryption.md	01a470a365017a5f19e088eb54482f8c49919b65	2026-10-08	
 docs/volume_3_installation/3.2.1-requirements.md	dddb70ea81855c6560f95648a9e93c2b4187f337	2026-10-25	
@@ -1281,7 +1281,7 @@ src/fabriclib/radius/rotate_radius_secret.py	ab50b4faad6584026a44b94f5c722c679de
 src/fabriclib/radius/run_radius_command.py	e2f76c0d093c2cd9af5106e617e87e48de9c5880	2026-10-12	
 src/fabriclib/radius/unmap_radius_group.py	a98b18ef65cf94b193adfcef9393958f4014d752	2026-10-03	
 src/fabriclib/radius/windows_lan_profile.py	6f9d180a5dd11df5da281f42952deefade6d73e3	2026-10-08	
-src/fabriclib/radius/windows_setup_script.py	a57a5fd1c8262dfbe20cd34cefb32398b9adf366	2026-09-30	
+src/fabriclib/radius/windows_setup_script.py	5061b2355e849e3af81b9e607e60182ed3acb29b	2026-11-07	
 src/fabriclib/rbac/README.md	902302423cc659482567986ebe33921633da02fe	2026-10-08	
 src/fabriclib/rbac/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
 src/fabriclib/rbac/permissions.py	e1109c69c549a041692e18b261802603dfe65ad6	2026-10-20	
@@ -2141,8 +2141,8 @@ tests/lab/dhcp_campaign.sh	1b462797cddf25231389b9269fba6c02d39e07d2	2026-10-25
 tests/lab/dhcp_console.py	7bd4f10efdc60150b3a97b78de5f1482203c69c2	2026-10-24	
 tests/lab/dhcp_vars.yaml	69c2af925c07a25e01fabb400c83320729d1095e	2026-10-23	
 tests/lab/dot1x_scripts.sh	32aec3a3b7735a5ceea8e13c89e84e6286d89403	2026-11-07	
-tests/lab/dot1x_scripts_check.ps1	0673230369302659787318de5fa2528ea5797b27	2026-11-07	
-tests/lab/dot1x_scripts_make.py	1948b9d2b58ad53a51716f57eb5a811decb032a0	2026-11-07	
+tests/lab/dot1x_scripts_check.ps1	02f48dc810425b426f80594f251a4d846043bafb	2026-11-07	
+tests/lab/dot1x_scripts_make.py	b3fedee4b57edf5ae328116fb3193d201c3aaf49	2026-11-07	
 tests/lab/joined_campaign.sh	3f52bf314604ca34e285a66717b36fc774be5e6f	2026-11-06	
 tests/lab/joined_vars.yaml	a0c9e1ae955bab7731d7a5e7c24fa92a27037236	2026-10-31	
 tests/lint/README.md	9757442e4a4f93e6dfa2de8daee0508f38dff835	2026-10-12	
@@ -2165,7 +2165,7 @@ tests/pki/run.py	3ac7f08379bf8506c62d8333fed3ebab430472af	2026-10-13
 tests/pki/site_ca.py	9c577e88a9f229c26a0ce4cdbcee7369587d6008	2026-10-25	
 tests/release/README.md	e8cb54a0329e7cc161ef90ce8c7929e881edc4fe	2026-10-31	
 tests/release/apt_key_test.sh	b8d05fcd45ead6b86272520c4af430e3af5d8bd9	2026-10-31	
-tests/render.py	33d27fb8a73c5929c3efd6a0c9400ec6223bb70a	2026-11-05	
+tests/render.py	f903a350d05c6396912dc4d0eb501a14520b13ad	2026-11-07	
 tests/resolver/README.md	9d0451677cd3faf2d80956d33d6344c85e7e2b74	2026-10-31	
 tests/resolver/console.py	6c0c2e3efa559e3994399667a60a8c70529c724f	2026-10-23	
 tests/resolver/groups.py	5e317666ba1567ea2e4d0629061af57d292a1e4a	2026-10-25	

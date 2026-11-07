@@ -15,6 +15,7 @@ CONTROLS = {
     "no-such-command.ps1": "Get-NoSuchThingAtAll -Name x\n",
     "no-such-parameter.ps1": "Remove-Item -NoSuchParameter x\n",
 }
+REFUSE_HEAD = '$ErrorActionPreference = "Stop"\r\n$Interface = "fabric-no-such-adapter"\r\n'
 
 
 def main(pem_path, folder):
@@ -33,6 +34,14 @@ def main(pem_path, folder):
         print(f"PASS {name}: plain ASCII, {len(data)} bytes, CRLF line ends")
         with open(os.path.join(folder, name), "wb") as f:
             f.write(data)
+        # the two failure paths, as generated: an adapter that does not exist, so netsh must refuse (2.1.11.5). Nothing above
+        # the profile step is taken: no service, certificate or store line reaches the VM to run
+        step = text.index("The 802.1X profile on the wired adapter.")
+        step = text.rindex("\r\n", 0, step) + 2
+        again = text.index('netsh lan reconnect interface=')
+        for tail, cut in (("add", text[step:again]), ("reconnect", text[again:])):
+            with open(os.path.join(folder, f"refuse-{method}-{tail}.ps1"), "wb") as f:
+                f.write((REFUSE_HEAD + cut).encode("ascii"))
     for name, text in CONTROLS.items():
         with open(os.path.join(folder, name), "w", encoding="ascii", newline="\n") as f:
             f.write(text)

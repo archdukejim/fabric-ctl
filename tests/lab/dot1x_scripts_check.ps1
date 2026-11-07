@@ -59,5 +59,27 @@ foreach ($control in @(
     Say (($problems -join "`n").Contains($control[1])) "negative: $($control[2]) is caught"
 }
 
+# the two netsh lan failure paths, as generated, each in its own powershell.exe: dot3svc is stopped on a clean VM and the
+# adapter does not exist, so netsh refuses (a pass needs that exit code); the script must stop naming the step, never say Done, and leave no profile file; dot3svc stays as it was (2.1.11.5)
+$profileFile = Join-Path $env:TEMP "fabric-8021x.xml"
+$service = (Get-Service dot3svc).Status
+Write-Output "dot3svc is $service; its start type $((Get-Service dot3svc).StartType)"
+foreach ($method in "tls", "ttls") {
+    foreach ($step in "add", "reconnect") {
+        $path = Join-Path $Dir "refuse-$method-$step.ps1"
+        $words = if ($step -eq "add") { "netsh lan add profile failed" } else { "netsh lan reconnect failed" }
+        # its error comes on standard error, which "Stop" would turn into a failure of this check
+        $ErrorActionPreference = "Continue"
+        $out = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $path 2>&1 | Out-String)
+        $code = $LASTEXITCODE
+        $ErrorActionPreference = "Stop"
+        Write-Output "--- refuse-$method-$step (exit $code)"
+        Write-Output $out
+        # compared with the white space out: the host wraps a long error at its width
+        Say ($code -ne 0 -and ($out -replace "\s", "").Contains(($words -replace "\s", "")) -and -not $out.Contains("Done.") -and -not (Test-Path $profileFile)) "negative, ${method}: a refused netsh lan $step stops it, naming the step, no Done, no profile file left"
+    }
+}
+Say ((Get-Service dot3svc).Status -eq $service) "dot3svc is as it was"
+
 Write-Output "$script:failed failed"
 exit $(if ($script:failed) { 1 } else { 0 })

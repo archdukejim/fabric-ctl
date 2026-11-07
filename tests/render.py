@@ -813,12 +813,40 @@ import subprocess as _sp  # noqa: E402
 import tempfile as _tf  # noqa: E402
 import xml.etree.ElementTree as _ET  # noqa: E402
 from fabriclib.radius.radius_guides import radius_guides  # noqa: E402
+from fabriclib.radius.windows_setup_script import windows_setup_script  # noqa: E402
 with _tf.TemporaryDirectory() as _d:
     _sp.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", f"{_d}/k", "-out", f"{_d}/c",
              "-days", "1", "-subj", "/CN=Guide Root"], check=True, capture_output=True)
     _pem = open(f"{_d}/c").read()
     _sha1 = _sp.run(["openssl", "x509", "-in", f"{_d}/c", "-noout", "-fingerprint", "-sha1"],
                     capture_output=True, text=True, check=True).stdout.split("=", 1)[1].strip().lower().replace(":", " ")
+
+
+def _netsh_faults(text):
+    """What is wrong with a script's netsh lan steps (2.1.11.5): each failure stops it, naming the step, before "Done.";
+    the profile file is removed on the failure path too. Returns a list of strs."""
+    faults = []
+    add, again = text.find("netsh lan add profile filename="), text.find("netsh lan reconnect interface=")
+    done = text.find('Write-Host "Done.')
+    if min(add, again, done) < 0 or not add < again < done:
+        return ["the steps are missing or out of order"]
+    for name, at, stop, words in (("add", add, again, "netsh lan add profile failed"),
+                                  ("reconnect", again, done, "netsh lan reconnect failed")):
+        lines = text[at:stop].split("\n") + ["", ""]      # a broken text may stop short
+        if lines[1].strip() != "if ($LASTEXITCODE -ne 0) {":
+            faults.append(f"{name}: no check on the line after it")
+        if not lines[2].strip().startswith(f'throw "{words}'):
+            faults.append(f"{name}: its check does not stop, naming the step")
+    fin = text.find("} finally {", add)
+    if not add < fin < again or "Remove-Item $xml" not in text[fin:again]:
+        faults.append("the profile file is not removed in a finally")
+    if text.find("try {\n    netsh lan add profile") < 0:
+        faults.append("the add is not inside the try")
+    if text.count('Write-Host "Done.') != 1:
+        faults.append('"Done." more than once')
+    return faults
+
+
 _g = radius_guides({**v2, "radius_clients": rclients}, root_pem=_pem)
 for _m, _mode in (("tls", "machine"), ("ttls", "user")):
     _s = _g["windows"][_m]["script"]
@@ -829,8 +857,30 @@ for _m, _mode in (("tls", "machine"), ("ttls", "user")):
     _xml = _t.split("Set-Content -Path $xml -Encoding Ascii -Value @'\n", 1)[1].split("'@", 1)[0]
     _root = _ET.fromstring(_xml.split("?>", 1)[1])
     assert _root.tag.endswith("LANProfile") and f"<authMode>{_mode}</authMode>" in _xml
+    assert _netsh_faults(_t) == [], (_m, _netsh_faults(_t))
     _pub = _t.replace(_pem.strip(), "")   # the CA's base64 may hold "Rr1" by chance (about 1 run in 160)
     assert "Rr1" not in _pub and "Sw1tchSecret" not in _pub and "PRIVATE KEY" not in _t, "public data only"
+# negative: the check above catches each way of getting it wrong, or its pass means nothing
+for _m in ("tls", "ttls"):
+    _t = _g["windows"][_m]["script"].replace("\r\n", "\n")
+    _check = "if ($LASTEXITCODE -ne 0) {"
+    _add = 'netsh lan add profile filename="$xml" interface="$Interface"\n'
+    _again = 'netsh lan reconnect interface="$Interface"\n'
+    for _why, _bad in (
+            ("add unchecked", _t.replace(_add + "    " + _check, _add + "    if ($false) {")),
+            ("reconnect unchecked", _t.replace(_again + _check, _again + "if ($false) {")),
+            ("Done before the steps", 'Write-Host "Done."\n' + _t),
+            ("the old text", _t[:_t.index("try {\n    netsh")] + _add + "Remove-Item $xml\n" + _again + _t[_t.index('Write-Host "Done.'):]),
+            ("profile file left", _t.replace("Remove-Item $xml -ErrorAction SilentlyContinue", "# kept")),
+            ("no error for the add", _t.replace('throw "netsh lan add profile failed', 'Write-Host "netsh lan add profile failed')),
+            ("no error for the reconnect", _t.replace('throw "netsh lan reconnect failed', 'Write-Host "netsh lan reconnect failed'))):
+        assert _bad != _t and _netsh_faults(_bad), (_m, _why)
+_refused = False
+try:
+    windows_setup_script(v2, "peap", _pem)
+except ValueError:
+    _refused = True
+assert _refused, "an unknown method is refused"
 assert "-Pfx" in _g["windows"]["tls"]["script"] and "<Type xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">21<" \
     in _g["windows"]["ttls"]["script"] and "<PAPAuthentication />" in _g["windows"]["ttls"]["script"]
 print("802.1X guides: Windows scripts (CA, pinned server, well-formed profiles, CRLF, public data only)")
