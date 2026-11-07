@@ -22,6 +22,7 @@ from fabriclib.setup.site.listener_link import ListenerLink
 from fabriclib.setup.site.pick_port import pick_port
 from fabriclib.setup.site.print_site_start import print_site_start
 from fabriclib.setup.site.question_view import ANSI, question_view
+from fabriclib.setup.site.read_port_record import read_port_record
 from fabriclib.setup.site.read_site_files import read_site_files
 from fabriclib.setup.site.restore_snapshot import restore_snapshot
 from fabriclib.setup.site.session_keeper import SessionKeeper
@@ -74,13 +75,17 @@ class GuidedSite:
                  failing.
                  Whatever was made is taken back first: nothing changed.
         Feeds:   setup/run_setup."""
+        other = read_port_record(self.record)
+        if other:
+            raise SetupError(f"another setup's site is running here on TCP {other['port']} (process {other['pid']}). "
+                             "Finish or stop that one first. Nothing was changed.")
         self.snapshot = take_snapshot(self.ctx.target_dir)
         close_site_port(self.record)                     # what a killed run left, on its comment's evidence
         try:
             self.sock, self.port, found = pick_port(self.first, self.last)
             net = detect_network()
             self.addresses = host_addresses(net.get("host_ip"))
-            open_site_port(self.port, net.get("lan_cidr"))
+            opened = open_site_port(self.port, net.get("lan_cidr"))
             write_port_record(self.record, self.port, net.get("lan_cidr"))
             self.cert, self.key, self.fingerprint = make_certificate(self.addresses, net.get("hostname"))
             self._start()
@@ -89,6 +94,9 @@ class GuidedSite:
             raise
         print_site_start(self.term, self.addresses or ["<this host's address>"], self.port, self.keeper.code,
                          self.fingerprint, found)
+        if opened and net.get("lan_cidr"):
+            self.say(f"  The firewall lets browsers in from {net['lan_cidr']} only: a URL on another network will not "
+                     "open.\n\n")
         signal.signal(signal.SIGHUP, self._hang_up)
         signal.signal(signal.SIGTERM, self._hang_up)
         use_front_end(self)
@@ -157,11 +165,13 @@ class GuidedSite:
         if kind == "code":
             self._judge_code(message)
         elif kind == "answer":
-            self.keeper.noted("active")
-            self.answers.put(message)
+            if self.keeper.token:        # no answer before someone has given the code that only root's terminal shows
+                self.keeper.noted("active")
+                self.answers.put(message)
         elif kind == "cancel":
-            self.cancelled = True
-            self.answers.put(message)
+            if not self.proceeded:
+                self.cancelled = True
+                self.answers.put(message)
         elif kind == "finish":
             self.done.set()
         elif kind in ("active", "alive"):
@@ -282,15 +292,34 @@ class GuidedSite:
         Fails:   never for the certificate.
         Feeds:   follow."""
         self.ctx.load_state()
-        self.finish, chain, key = finish_data(self.ctx, self.addresses)
+        try:
+            self.finish, chain, key = finish_data(self.ctx, self.addresses)
+        except OSError as e:
+            self._site_lost(str(e))
+            return
         self.host_check = lambda: check_console(self.ctx)
         self.say(f"\n  fabric's root certificate, SHA-256: {self.finish['root_fingerprint']}\n")
         if chain:
-            self._move_to_new_certificate(chain, key)
+            try:
+                self._move_to_new_certificate(chain, key)
+            except SetupError as e:
+                self._site_lost(str(e).split(". Run Guided")[0])
+                return
         else:
             self._phase("finish", finish=self.finish)
         self.say("  The page shows the finish: trust, DNS, the check, the console. Ctrl-C here, Finish there, or an "
                  "hour stops the site.\n")
+
+    def _site_lost(self, why):
+        """Purpose: the install is good but the site cannot show its finish: that must not read as a failed setup.
+        Inputs:  why — str.
+        Returns: None; the site is done.
+        Fails:   never.
+        Feeds:   _finish_stage."""
+        self.listener.stop()
+        self.done.set()
+        self.say(f"\n  fabric is installed, but the setup site cannot show its finish: {why}.\n  Its steps, trust and "
+                 "DNS, are in the manual, 4.3.6.2 and 4.3.6.3.\n")
 
     def _move_to_new_certificate(self, chain, key):
         """Purpose: restart the listener on the new certificate, on the same port, with the same session; the page first
@@ -333,6 +362,7 @@ class GuidedSite:
     def close(self, why=""):
         """Purpose: stop the site, in every case (manual 1.3.6.2, 1.3.6.8): the listener ended, the port closed, any
                  rule it opened removed, the key forgotten; and before Proceed, the install folder left as it was found.
+                 Interrupts wait until this is done.
         Inputs:  why — what an open page is told.
         Returns: None.
         Fails:   never for a listener or a rule that has gone already; OSError restoring a file.
@@ -340,11 +370,12 @@ class GuidedSite:
         if self.closed:
             return
         self.closed = True
+        # a second Ctrl-C here must not leave the port, the rule or the folder half-way
+        for number in (signal.SIGINT, signal.SIGHUP, signal.SIGTERM):
+            signal.signal(number, signal.SIG_IGN)
         use_front_end(None)
         if self.saved_stdout:
             sys.stdout, self.saved_stdout = self.saved_stdout, None
-        signal.signal(signal.SIGHUP, signal.SIG_DFL)
-        signal.signal(signal.SIGTERM, signal.SIG_DFL)
         if self.listener.link and self.phase_now != "closed":
             self._close_page(why or ("This temporary site has stopped; any port it opened is closed." if self.proceeded
                                      else "Setup was closed. Nothing was changed."))
@@ -359,5 +390,8 @@ class GuidedSite:
         if self.port:
             self.say(f"\n  The setup site has stopped: TCP {self.port} is closed"
                      + (", and the firewall rule opened for it removed.\n" if removed else ".\n"))
+        signal.signal(signal.SIGINT, signal.default_int_handler)
+        signal.signal(signal.SIGHUP, signal.SIG_DFL)
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
 
 

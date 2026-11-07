@@ -1,5 +1,6 @@
 import json
 import os
+import socket
 import time
 
 from fabriclib.setup.site.listener.check_verdict import check_verdict
@@ -7,6 +8,7 @@ from fabriclib.setup.site.listener.page_for import page_for
 from fabriclib.setup.site.listener.render_page import render_page
 from fabriclib.setup.site.listener.request_base import COOKIE, RequestBase
 
+STREAM_SILENCE_MS = 30_000
 TYPES = {".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml"}
 # every way into the site, for the entry-point inventory (manual 3.1.2.5): do_GET and do_POST route by this table
 ROUTES = {("get", "/"): "_home", ("get", "/events"): "_events", ("get", "/static/*"): "_static",
@@ -83,7 +85,8 @@ class RequestHandler(RequestBase):
         why = {"wrong": f"That is not the code. {reply.get('left', 0)} tries left before it is replaced.",
                "replaced": "Too many wrong tries: that code is gone. The host's terminal shows a new one.",
                "busy": "Another browser already holds this setup's session, and a code opens one session. Use that "
-                       "browser. If you closed it, try again here in two minutes."}.get(result, "Setup did not answer.")
+                       "browser. If you closed it or lost it, try again here in three minutes."}.get(
+                   result, "Setup did not answer.")
         self._send(403 if result in ("wrong", "replaced") else 409,
                    render_page(state, "code", "Open setup", step=0, stream=False, error=why,
                                fingerprint=state.fingerprint))
@@ -112,10 +115,13 @@ class RequestHandler(RequestBase):
     def _cancel(self):
         """Purpose: leave before Proceed; setup closes the site with nothing changed.
         Inputs:  the form: csrf.
-        Returns: None.
+        Returns: None; after Proceed it is refused, saying the work goes on.
         Fails:   OSError from a closed connection.
         Feeds:   ROUTES."""
         if self._session_form() is not None:
+            if self.server.state.phase not in ("question", "working"):
+                self._refuse(409, "Refused: Proceed has been chosen and setup's work goes on. Nothing here cancels it.")
+                return
             self.server.control.send({"t": "cancel"})
             self._send(200, render_page(self.server.state, "closed", "The site has closed", stream=False,
                                         why="Setup was cancelled here. Nothing was changed."))
@@ -177,9 +183,12 @@ class RequestHandler(RequestBase):
         except ValueError:
             sent = 0
         self.connection.settimeout(None)
+        # a network that goes silent must end the stream: its writes would fit the send buffer for many minutes, each
+        # saying the browser is still there, and the same code could not reconnect (manual 1.3.6.5)
+        self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_USER_TIMEOUT, STREAM_SILENCE_MS)
         self._headers(200, kind="text/event-stream; charset=utf-8")
         version, ticked = None, 0.0
-        while True:
+        while self._signed_in():         # a later session ends this one, and what it may read
             with state.changed:
                 state.changed.wait_for(lambda: state.logged > sent or state.version != version, timeout=15)
                 first = state.logged - len(state.log)

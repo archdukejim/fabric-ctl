@@ -4,6 +4,7 @@ the host's network and the plan's host changes stood in for, since no host chang
     python3 tests/setup/site/site_test.py"""
 import os
 import re
+import signal
 import socket
 import ssl
 import subprocess
@@ -259,6 +260,62 @@ with tempfile.TemporaryDirectory() as base:
         check("the listener dying stops setup, saying so, with nothing changed", "ended" in str(e), e)
     site.close()
     check("then the port is closed", not listening(port))
+
+    # ---- a request that lies about its length ----
+    site, term, browser, record = new_site(base)
+    port = site.port
+
+    def raw_post(length, path="/code"):
+        tls = ssl._create_unverified_context().wrap_socket(socket.create_connection(("127.0.0.1", port), timeout=5))
+        tls.sendall(f"POST {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nOrigin: https://127.0.0.1:{port}\r\n"
+                    f"Content-Length: {length}\r\n\r\n".encode())
+        answer = b""
+        try:
+            while True:
+                chunk = tls.recv(4096)
+                if not chunk:
+                    return answer.decode("utf-8", "replace")
+                answer += chunk
+        except OSError as e:
+            return f"no end to the answer: {e}: {answer[:200]}"
+        finally:
+            tls.close()
+    answer = raw_post("-1")
+    check("a negative length: refused at once, saying why, nothing read", " 400 " in answer.split("\r\n")[0] and "length" in answer, answer[:300])  # covers: site:post.code -
+    answer = raw_post("abc")
+    check("a length that is no number: refused, saying why", " 400 " in answer.split("\r\n")[0], answer[:300])
+
+    # ---- a listener that speaks without a session ----
+    t, box = in_thread(lambda: ask("test.q", "A question: "))
+    time.sleep(0.3)
+    site._on_message({"t": "answer", "seq": str(site.seq), "value": "from nobody"})
+    time.sleep(0.8)
+    check("root takes no answer before the code has been given, whatever the listener says", site.answers.empty() and t.is_alive(), box)
+    browser.post("/code", {"code": term.code()})
+    status, page, _ = browser.post("/answer", {"csrf": "\u00e9", "seq": str(site.seq), "value": "x"})
+    check("a CSRF token that is not ASCII: refused, saying why", status == 403 and "stale" in page, page[:300])
+    site.answers.put({"t": "cancel"})
+    site.cancelled = True
+    t.join(5)
+    site.cancelled = False
+
+    # ---- a second setup while one site runs ----
+    other = gs.GuidedSite(site.ctx, term=Term(), first=site.first, last=site.last, record=record, lib_dir=LIB, user=USER)
+    try:
+        other.open()
+        check("a second setup", False)
+    except SetupError as e:
+        check("a second setup: refused, naming the first's port, and the first's record stays", str(port) in str(e) and os.path.exists(record), e)
+    check("the first site goes on", listening(port))
+
+    # ---- a second Ctrl-C while the site closes ----
+    site.grace = 1.0
+    timer = threading.Timer(0.3, os.kill, (os.getpid(), signal.SIGINT))
+    timer.start()
+    site.close("closing")
+    timer.join()
+    check("Ctrl-C during the close: the close still finishes", not listening(port) and not os.path.exists(record) and not os.path.exists(target))
+    check("then Ctrl-C works as before", signal.getsignal(signal.SIGINT) is signal.default_int_handler)
 
     # ---- the code again after a quiet session: reconnecting ----
     site, term, browser, record = new_site(base)

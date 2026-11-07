@@ -1,9 +1,15 @@
 import json
+import socket
+import struct
 import subprocess
 import threading
 
 from fabriclib.setup.errors import SetupError
 from fabriclib.setup.site.start_listener import start_listener
+
+
+SEND_SECONDS = 30          # a listener that stops reading must not stop setup
+MAX_LINE = 1024 * 1024
 
 
 class ListenerLink:
@@ -17,6 +23,7 @@ class ListenerLink:
         Feeds:   setup/site/guided_site."""
         self.lib_dir, self.user = lib_dir, user
         self.process = self.link = None
+        self.sending = threading.Lock()   # two threads send, and a message is one line
 
     def start(self, sock, cert, key, hello, on_message):
         """Purpose: start a listener on this certificate, tell it all it needs, and read its messages.
@@ -26,6 +33,7 @@ class ListenerLink:
         Fails:   SetupError when it dies before that, with its stderr's last words.
         Feeds:   setup/site/guided_site."""
         self.process, self.link = start_listener(sock, cert, key, self.lib_dir, self.user)
+        self.link.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, struct.pack("ll", SEND_SECONDS, 0))
         ready = threading.Event()
         self.send(hello)
         threading.Thread(target=self._pump, args=(self.link, ready, on_message), daemon=True).start()
@@ -42,7 +50,8 @@ class ListenerLink:
         Fails:   never: a listener that has gone is found by whoever waits on it.
         Feeds:   setup/site/guided_site."""
         try:
-            self.link.sendall((json.dumps(message) + "\n").encode())
+            with self.sending:
+                self.link.sendall((json.dumps(message) + "\n").encode())
         except (OSError, AttributeError):
             pass
 
@@ -50,15 +59,22 @@ class ListenerLink:
         """Purpose: read one listener's messages until it ends: a thread, so a code can be judged while setup waits.
         Inputs:  link — the socket; ready — Event set when it says it is ready; on_message — as start.
         Returns: None.
-        Fails:   never; a closed link just ends it.
+        Fails:   never; a closed link, or a line that is no message from the listener, ends it (the process is then
+                 stopped by whoever waits on it).
         Feeds:   start."""
         try:
-            for line in link.makefile("r", encoding="utf-8"):
-                message = json.loads(line)
-                if message.get("t") == "ready":
-                    ready.set()
-                else:
-                    on_message(message)
+            with link.makefile("r", encoding="utf-8") as lines:
+                while True:
+                    line = lines.readline(MAX_LINE)
+                    if not line.endswith("\n"):
+                        return
+                    message = json.loads(line)
+                    if not isinstance(message, dict):
+                        return
+                    if message.get("t") == "ready":
+                        ready.set()
+                    else:
+                        on_message(message)
         except (OSError, ValueError):
             pass
 
@@ -69,6 +85,10 @@ class ListenerLink:
         Fails:   never.
         Feeds:   setup/site/guided_site."""
         if self.link:
+            try:
+                self.link.shutdown(socket.SHUT_RDWR)  # the reading thread holds it open: close alone would not end it
+            except OSError:
+                pass
             self.link.close()
             self.link = None
         if self.process:

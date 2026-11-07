@@ -3369,6 +3369,7 @@ function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._jud
 function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._move_to_new_certificate	16	
 function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._on_message	8	
 function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._phase	13	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._site_lost	20	
 function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._start	5	
 function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._wait_answer	11	
 function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._wait_for_finish	17	

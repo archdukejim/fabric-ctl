@@ -14,7 +14,7 @@ SCRIPT = ("fabriclib", "setup", "site", "listener", "site_main.py")
 def start_listener(sock, cert_pem, key_pem, lib_dir=LIB_DIR, user="nobody"):
     """Purpose: start the site's unprivileged listener (manual 1.3.6.3). It gets, as inherited descriptors only, the
              listening socket, its end of a socket pair only the two can use, and the certificate and key in a memory
-             file, never on a disk.
+             file, never on a disk. It starts a session of its own: it must not hold root's terminal.
     Inputs:  sock — the listening socket; cert_pem, key_pem — str; lib_dir — the folder holding fabriclib, readable by
              the user; user — the account it runs as (None: this one; tests only).
     Returns: (process, setup's end of the socket pair).
@@ -37,7 +37,7 @@ def start_listener(sock, cert_pem, key_pem, lib_dir=LIB_DIR, user="nobody"):
             as_user = {"user": account.pw_uid, "group": account.pw_gid, "extra_groups": []}
         try:
             process = subprocess.Popen([sys.executable, "-I", os.path.join(lib_dir, *SCRIPT), *map(str, fds)],
-                                       pass_fds=fds, cwd="/", env={"PATH": "/usr/bin:/bin"},
+                                       pass_fds=fds, cwd="/", env={"PATH": "/usr/bin:/bin"}, start_new_session=True,
                                        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=errors, **as_user)
         except OSError as e:
             raise SetupError(f"the setup site could not start: {e}. Run Guided here instead: sudo fabricctl setup "

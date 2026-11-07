@@ -18,6 +18,7 @@ from fabriclib.setup.site.close_site_port import close_site_port  # noqa: E402
 from fabriclib.setup.site.finish_guides import DNS, TRUST, finish_guides  # noqa: E402
 from fabriclib.setup.site.keep_site_port import keep_site_port  # noqa: E402
 from fabriclib.setup.site.new_code import new_code  # noqa: E402
+from fabriclib.setup.site.question_view import question_view  # noqa: E402
 from fabriclib.setup.site.open_site_port import open_site_port  # noqa: E402
 from fabriclib.setup.site.host_addresses import host_addresses  # noqa: E402
 from fabriclib.setup.site.site_rule import site_rule  # noqa: E402
@@ -205,5 +206,10 @@ check("a host's addresses: the detected first, then others, no loopback or conta
       host_addresses("10.1.1.1", lambda *a, **k: Ip()) == ["10.1.1.1", "192.168.5.9"], host_addresses("10.1.1.1", lambda *a, **k: Ip()))
 check("the rule's words", site_rule(8443, None)[:2] == ["from", "any"])
 check("(the shell can run ufw's words)", isinstance(subprocess.list2cmdline(site_rule(8443, "10.0.0.0/8")), str))
+
+view = question_view("setup.plan", "\n  [P]roceed (allows the host changes listed), [M]enu, or [Q]uit? ", False)
+check("the plan offers Proceed and Cancel", [c[0] for c in view["choices"]] == ["p", "q"], view)
+view = question_view("setup.plan", "\n  [M]enu or [Q]uit? ", False)
+check("a plan with a problem offers no Proceed, only Cancel", [c[0] for c in view["choices"]] == ["q"] and "cannot proceed" in view["label"], view)
 
 sys.exit(finish("guides_test"))

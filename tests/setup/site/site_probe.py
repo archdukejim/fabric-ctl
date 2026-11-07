@@ -7,7 +7,7 @@ tests/sandbox/web_guided.sh read what it prints.
 
     python3 site_probe.py <scenario.json>
         url, code, fingerprint, out (folder), answers {label's start: value}, secret (the first admin's password),
-        width (default 1366), stop_at ("plan", "progress"), verify_new_certificate (bool), pictures (bool), resolve {name: address} (the browser's own DNS),
+        width (default 1366), stop_at ("plan", "progress"), hold (seconds to stay there), verify_new_certificate (bool), pictures (bool), resolve {name: address} (the browser's own DNS),
         finish_check (bool), check_with {stage: resolve} (the check again with such DNS), press_finish (default true)
     prints one JSON line per page or event: {"page", "title", "label", "wide", "text"} and last {"done": ...}
 """
@@ -250,6 +250,7 @@ def run(s):
                 page.report("progress")
                 if s.get("stop_at") == "progress":
                     print(json.dumps({"done": True, "stopped": "progress"}), flush=True)
+                    time.sleep(float(s.get("hold", 0)))      # the browser stays, for a network to be cut under it
                     page.cdp.close()
                     return 0
             if s.get("watch_log_for"):

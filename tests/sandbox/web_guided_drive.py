@@ -27,7 +27,7 @@ PROBE_DIR = os.path.join(REPO, "tests", "setup", "site")
 IMAGE = "fabric/webui-browser:web-guided"
 CONSOLE = "fabric-ctl.lan.example"
 SECRET = "Fx9-" + secrets.token_hex(12)      # chosen for this run; handed to the probe in a file, never on a command line
-QUIET = 125                                   # the session's quiet time (setup/site/constants), and a little
+QUIET = 180                                   # the stream's 30 s on a silent network, the session's 120 s, and a little
 PASS = FAIL = 0
 
 
@@ -268,6 +268,28 @@ def probe(scenario, seconds):
     return rows + ([{"probe_failed": run.returncode, "stderr": run.stderr[-1500:]}] if run.returncode else [])
 
 
+def probe_cut_off(scenario, seconds):
+    """The browser up to the install's progress, then its network cut under it, so it says no goodbye: its rows."""
+    path, name = os.path.join(folder, "scenario.json"), "fabric-web-guided-browser"
+    with open(path, "w") as f:
+        json.dump({**scenario, "stop_at": "progress", "hold": 900, "seconds": seconds}, f)
+    running = subprocess.Popen(["docker", "run", "--rm", "--name", name, "--network", NET, "--memory", "1g", "--shm-size", "256m",
+                                "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true", "-v", f"{PROBE_DIR}:/probe:ro",
+                                "-v", f"{folder}:/out", IMAGE, "python3", "/probe/site_probe.py", "/out/scenario.json"],
+                               stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    rows = []
+    for line in running.stdout:
+        if line.startswith("{"):
+            rows.append(json.loads(line))
+            if "done" in rows[-1]:
+                break
+    os.remove(path)
+    subprocess.run(["docker", "network", "disconnect", "--force", NET, name], capture_output=True)
+    subprocess.run(["docker", "rm", "-f", name], capture_output=True)
+    running.wait()
+    return rows
+
+
 setup = guided()
 found = setup.until(r"One-time code:\s+(\S+)\s+Temporary certificate's SHA-256 fingerprint:\s+(\S+)", 90)
 check("the terminal gives the URL, the code and the fingerprint", found and f"https://{IP}:8443/" in setup.plain(), setup.plain()[-800:])
@@ -277,17 +299,17 @@ scenario = {"url": f"https://{IP}:8443/", "code": code, "fingerprint": fingerpri
 holder = {}
 terminal = threading.Thread(target=lambda: holder.update(status=setup.end(3600)), daemon=True)
 terminal.start()                            # what the run prints must be read, or it would wait on a full terminal
-rows = probe({**scenario, "stop_at": "progress", "seconds": 300}, 300)
+rows = probe_cut_off(scenario, 300)
 check("a real browser reached the install: every question answered, Proceed pressed",
       rows and rows[-1].get("stopped") == "progress", rows[-3:])
 pages = {r["page"]: r for r in rows if "page" in r}
 check("the plan lists the site's port as a host change, and the firewall's own", "8443" in pages.get("plan", {}).get("text", ""), pages.get("plan"))
-print(f"    browser gone; a new one after {QUIET} s, with the same code", flush=True)
+print(f"    the browser's network cut; a new one after {QUIET} s, with the same code", flush=True)
 time.sleep(QUIET)
 rows = probe({**scenario, "finish_check": True, "restart_wait": 8, "seconds": 3400, "verify_new_certificate": True,
               "check_with": {"resolved": {f"{CONSOLE}:443": f"{IP}:443", CONSOLE: IP}}}, 3400)
 pages = {r["page"]: r for r in rows if "page" in r}
-check("the same code reconnects after the browser went away, and the install went on", "code" in pages and "finish" in pages,
+check("a network gone silent stops nothing: the same code reconnects, and the install went on", "code" in pages and "finish" in pages,
       list(pages) + rows[-2:])
 new = next((r for r in rows if r.get("event") == "new certificate"), {})
 check("the site moved to fabric's certificate", new.get("fingerprint") and new["fingerprint"] != fingerprint, new)

@@ -142,15 +142,19 @@ class RequestBase(BaseHTTPRequestHandler):
             cookie = SimpleCookie(self.headers.get("Cookie", "")).get(COOKIE)
         except CookieError:              # a malformed cookie is no session
             cookie = None
-        return bool(token and cookie and hmac.compare_digest(cookie.value, token))
+        return bool(token and cookie and hmac.compare_digest(cookie.value.encode(), token.encode()))
 
     def _form(self):
         """Purpose: the POST's fields, at most MAX_BODY bytes.
         Inputs:  none (the request's body).
-        Returns: {name: first value}; None when too long, already refused.
-        Fails:   OSError from a closed connection; ValueError for a length that is not a number.
+        Returns: {name: first value}; None when the length is no length or too long, already refused.
+        Fails:   OSError from a closed connection.
         Feeds:   the POST routes."""
-        length = int(self.headers.get("Content-Length") or 0)
+        given = self.headers.get("Content-Length") or "0"
+        if not (given.isascii() and given.isdigit()):      # "-1" would read until the client stops, without limit
+            self._refuse(400, "Refused: this request's length is not a number. Nothing was changed.")
+            return None
+        length = int(given)
         if length > MAX_BODY:
             self._refuse(413, "Refused: that answer is too long. Nothing was changed.")
             return None
@@ -169,7 +173,7 @@ class RequestBase(BaseHTTPRequestHandler):
         form = self._form()
         if form is None:
             return None
-        if not hmac.compare_digest(form.get("csrf", ""), self.server.state.csrf):
+        if not hmac.compare_digest(form.get("csrf", "").encode(), self.server.state.csrf.encode()):
             self._refuse(403, "Refused: this page is out of date (its security token is stale). Open the site again; "
                               "nothing was changed.")
             return None

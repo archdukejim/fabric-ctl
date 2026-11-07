@@ -190,6 +190,10 @@ with tempfile.TemporaryDirectory() as base:
     t, box = background(lambda: run.follow_as_unit(site))
     page = wait_for("step line 5", lambda: browser.get()[1])
     check("the page opens with the run's log so far", "step line 5" in page, page[:300])
+    status, page, _ = browser.post("/cancel", {"csrf": site.keeper.csrf})
+    check("Cancel after Proceed: refused, saying the work goes on", status == 409 and "goes on" in page, page[:300])  # covers: site:post.cancel -
+    site._on_message({"t": "cancel"})
+    check("and root would not take it either", not site.cancelled)
     events = stream_lines(browser, 3)  # covers: site:get.events +
     check("the live stream gives log lines, each with its number", "event: log" in events and "id: " in events and "step line" in events, events[:400])
     resumed = stream_lines(browser, 1, after=20)
@@ -315,6 +319,28 @@ with tempfile.TemporaryDirectory() as base:
           "stays on its temporary certificate" in page and "Temporary certificate in use" in page and "fabric is installed" in page, page[:800])
     status, _, _ = browser.post("/finish", {"csrf": browser.field(browser.get()[1], "csrf")})
     t.join(15)
+    site.close()
+    shutil.rmtree(ctx.target_dir)
+
+    # ---- the site cannot restart on the new certificate ----
+    site, term, browser = new_site(base)
+    ctx, port = site.ctx, site.port
+    browser.post("/code", {"code": term.code()})
+    site.proceeding()
+    chain, key = make_ca(base)
+    os.makedirs(ctx.path("nginx", "www", "certs"), exist_ok=True)
+    shutil.copy(os.path.join(base, "root-ca.crt"), ctx.path("nginx", "www", "certs", "root-ca.crt"))
+    write_vars(ctx)
+    fd.mint_site_cert = lambda c, a, n: (chain, key)
+
+    def no_listener(*args):
+        raise SetupError("the setup site could not start: it died. Run Guided here instead: sudo fabricctl setup --terminal. Nothing was changed.")
+    site.listener.start = no_listener
+    run = Run(ctx, ["a line"], "done")
+    run.go.set()
+    result = run.follow_as_unit(site)
+    check("the restart fails after a good install: setup still ends well, saying where the finish's steps are",
+          result == 0 and "fabric is installed" in term.text and "4.3.6.2" in term.text and "Nothing was changed" not in term.text, (result, term.text[-500:]))
     site.close()
     shutil.rmtree(ctx.target_dir)
 

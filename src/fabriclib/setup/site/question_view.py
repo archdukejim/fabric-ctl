@@ -17,7 +17,9 @@ def question_view(qid, prompt, secret):
     label = ANSI.sub("", prompt).strip()
     choices, default = [], ""
     if qid == "setup.plan":
-        label, choices = "Proceed with this plan?", PLAN_CHOICES
+        can_proceed = "roceed" in label          # a plan with a problem offers no Proceed: the notes say why
+        label = "Proceed with this plan?" if can_proceed else "Setup cannot proceed with this plan."
+        choices = PLAN_CHOICES if can_proceed else PLAN_CHOICES[1:]
     else:
         found = _BRACKET.search(label)
         if found:
