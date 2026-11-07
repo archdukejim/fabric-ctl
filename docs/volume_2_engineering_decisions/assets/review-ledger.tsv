@@ -57,7 +57,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	6b4d2bfcc
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3c9f2a69f45e13f5365f8e49c066243f60235a80	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	2db03a6c42354ee697dfcb19be1f64e723ac06de	2026-11-04	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	6f7588dd36324478149cc47af0f36564175f3143	2026-11-07	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	f5128d8c6112fdf8bfa7f92d6e1704ba4c9dd422	2026-11-07	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	b59904b9b23bffe2ab1210fa8f192ecddb1af0af	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	84f92a8162966299b794f709d19f83cf988199f1	2026-11-06	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	156cf5388b52a6ceb588f352ffd74ba6b58aba06	2026-10-31	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	ef0eaf5854c975ca84fbd27af2c17c78328ec055	2026-10-25	
@@ -101,7 +101,7 @@ docs/volume_1_description_and_architecture/1.2.9-host-consent.md	f6bcdbb4401eba7
 docs/volume_1_description_and_architecture/1.3.1-host-package.md	44319278da7cf11a26e05b384c989d9b81f6f40d	2026-10-23	
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	4ab5c327069823d2f63aa8ce26c2c5aded2ec86c	2026-10-24	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	3ed8ca88c850b7c1c85302c6b3d86332efcf847d	2026-11-04	
-docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	6f0800f7c684ea7d9300b5332192b65c47812ec4	2026-11-07	
+docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	72107f58b9845e4f2029866979508bfedcb9a21d	2026-11-07	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	a44be399d7d405ada533585abf6e5da21d3bc372	2026-11-05	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	26784470690fb28f6c54cbd9cc59a35208a1426a	2026-10-31	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c4cff88c3f00f41fef9f762b780de695005e3e8e	2026-11-05	
@@ -1492,7 +1492,7 @@ src/fabriclib/setup/site/certificate_fingerprint.py	5adef6e5eb00bf30386200568c5a
 src/fabriclib/setup/site/check_console.py	f134c91210c16fe9413672dbb74f1f1bbdcd60ce	2026-11-07	
 src/fabriclib/setup/site/close_site_port.py	cee224c9602e32d6d0330a2ac824a4d5efe1d454	2026-11-07	
 src/fabriclib/setup/site/constants.py	76a14ab02aea6ecabf8d4380122ae64004080296	2026-11-07	
-src/fabriclib/setup/site/finish_data.py	a08baa643888c4942f0d50b9145b1705978babc1	2026-11-07	
+src/fabriclib/setup/site/finish_data.py	f69f84ddb47c784829cf2100d2cea9f1a257fac4	2026-11-07	
 src/fabriclib/setup/site/finish_guides.py	270bb2ba3c3c70802267eba1d9d383fa66f26f44	2026-11-07	
 src/fabriclib/setup/site/guided_site.py	68669ad1aec6859e4d75f49358ff4e70a0f16bc6	2026-11-07	
 src/fabriclib/setup/site/host_addresses.py	ab395590323e3f8dc03cb36e270741dd9581a68b	2026-11-07	
@@ -1506,7 +1506,7 @@ src/fabriclib/setup/site/listener/finish_html.py	86b7d191a3823d8175ef8f191715a5a
 src/fabriclib/setup/site/listener/notes_html.py	7878fd3de032b708a95031f64b5774400e04cbdb	2026-11-07	
 src/fabriclib/setup/site/listener/page_for.py	1a2df692edb14350c65f30d413eee0dd681dfc92	2026-11-07	
 src/fabriclib/setup/site/listener/render_page.py	82aede69eb846f959866ac8f050616858154e6b7	2026-11-07	
-src/fabriclib/setup/site/listener/request_base.py	e92b4df9ea06bf30ab846a9ef482787e0acea9cc	2026-11-07	
+src/fabriclib/setup/site/listener/request_base.py	bd0bfd87a33572966442c7c59367a402db4730c9	2026-11-07	
 src/fabriclib/setup/site/listener/request_handler.py	fd1362a03d729ccc17e9330608658ba6726c80fa	2026-11-07	
 src/fabriclib/setup/site/listener/site_main.py	2c5b0e1e25b60f9c8eb6fe2d6fbcd3d0f6b30443	2026-11-07	
 src/fabriclib/setup/site/listener/site_server.py	8a62f3f571c2f0f868fd3943285f377f1cffd835	2026-11-07	
@@ -2318,7 +2318,7 @@ tests/setup/run_setup_test.py	2865b49629bc4215ff9531af2dd2fbb3809a60b6	2026-10-2
 tests/setup/run_steps_test.py	4807eb4578d9b0e41d5b012201cbaddbcacfd591	2026-10-17	
 tests/setup/run_uninstall_command_test.py	da47421f7e3c3f5006c9504e94f867949559ce60	2026-10-26	
 tests/setup/site/README.md	0b5bfd158f14c438e4577598e95131050a063b58	2026-11-07	
-tests/setup/site/browser_test.py	11b2b3581317ac28ba3ee15ce2dd09fae287f4ae	2026-11-07	
+tests/setup/site/browser_test.py	d7ed13328b0edda276c9fcd232ae2709ff66d23e	2026-11-07	
 tests/setup/site/check_console_test.py	7e50da15509d7d4e1e247589b515c8eafa4d125a	2026-11-07	
 tests/setup/site/flow_test.py	2a34404b65182834a2d64d9645dd8ec38595686e	2026-11-07	
 tests/setup/site/guides_test.py	d08f250c6c1ea9b20eefb8e1f38f17ee6e80f046	2026-11-07	

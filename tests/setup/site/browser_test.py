@@ -41,7 +41,7 @@ from fabriclib.setup.detach.constants import LOG  # noqa: E402
 from fabriclib.setup.detach.write_run import write_run  # noqa: E402
 
 IMAGE, NAME = "fabric/webui-browser:" + testrun.name("site"), testrun.name("csite")
-CONSOLE, SECRET = "fabric-ctl.lan.example", "Correct-Horse-Battery-9"
+CONSOLE, SSO, SECRET = "fabric-ctl.lan.example", "sso.lan.example", "Correct-Horse-Battery-9"
 DEBIAN = subprocess.run([sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "debian"], capture_output=True, text=True,
                         check=True).stdout.strip()
 DOCKERFILE = f"""FROM {DEBIAN}
@@ -82,7 +82,7 @@ def make_ca(folder):
     openssl("req", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes", "-keyout", f"{folder}/leaf.key",
             "-out", f"{folder}/leaf.csr", "-subj", "/CN=127.0.0.1")
     with open(f"{folder}/ext", "w") as f:
-        f.write(f"subjectAltName=IP:127.0.0.1,DNS:{CONSOLE}\n")
+        f.write(f"subjectAltName=IP:127.0.0.1,DNS:{CONSOLE},DNS:{SSO}\n")
     openssl("x509", "-req", "-in", f"{folder}/leaf.csr", "-CA", f"{folder}/root-ca.crt", "-CAkey", f"{folder}/root.key",
             "-CAcreateserial", "-days", "1", "-extfile", f"{folder}/ext", "-out", f"{folder}/leaf.crt")
     with open(f"{folder}/leaf.crt") as f:
@@ -92,10 +92,15 @@ def make_ca(folder):
 
 
 class Console(BaseHTTPRequestHandler):
-    """Stands for the console's nginx in this test: answers, on fabric's certificate."""
+    """Stands for the console's nginx in this test, on fabric's certificate: as the real one, its / sends the browser on to
+    sign in under Keycloak's name, which then answers."""
 
     def do_GET(self):
-        self.send_response(200)
+        if self.headers.get("Host", "").startswith(CONSOLE):
+            self.send_response(302)
+            self.send_header("Location", f"https://{SSO}/realms/fabric/protocol/openid-connect/auth")
+        else:
+            self.send_response(200)
         self.send_header("Content-Length", "0")
         self.end_headers()
 
@@ -134,7 +139,8 @@ def one_run(width, base, pictures):
                 "secret": SECRET, "pictures": bool(pictures), "finish_check": True, "restart_wait": 3, "seconds": 120,
                 "answers": {"DNS domain": "lan.example", "First Directory": "pat.admin", "Their first": "Pat", "Their last": "Example"},
                 "watch_log_for": "step 3 of the install",
-                "check_with": {"resolved": {f"{CONSOLE}:443": f"127.0.0.1:{port_console}", CONSOLE: "127.0.0.1"}}}
+                "check_with": {"resolved": {f"{CONSOLE}:443": f"127.0.0.1:{port_console}", f"{SSO}:443": f"127.0.0.1:{port_console}",
+                                            CONSOLE: "127.0.0.1"}}}
     with open(os.path.join(folder, "scenario.json"), "w") as f:
         json.dump(scenario, f)
     rows = []
@@ -164,7 +170,7 @@ def one_run(width, base, pictures):
         os.makedirs(ctx.path("nginx", "www", "certs"), exist_ok=True)
         shutil.copy(os.path.join(base, "root-ca.crt"), ctx.path("nginx", "www", "certs", "root-ca.crt"))
         with open(ctx.vars_file, "w") as f:
-            f.write(f"host_ip: 127.0.0.1\ndomain: lan.example\nhostname_mgr: {CONSOLE}\n")
+            f.write(f"host_ip: 127.0.0.1\ndomain: lan.example\nhostname_mgr: {CONSOLE}\nhostname_keycloak: {SSO}\n")
         path = os.path.join(ctx.config_dir, LOG)
         open(path, "w").close()
         running = [True]

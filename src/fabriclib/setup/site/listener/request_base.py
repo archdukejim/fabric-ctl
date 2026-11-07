@@ -72,6 +72,8 @@ class RequestBase(BaseHTTPRequestHandler):
         if state.finish.get("console_name"):
             name = state.finish["console_name"]
             connect += f" https://{name} https://{name}:{state.port}"
+        if state.finish.get("signin_name"):      # the console's / redirects there, and a policy checks every hop
+            connect += f" https://{state.finish['signin_name']}"
         self.send_response(status)
         self.send_header("Content-Type", kind)
         if length is not None:

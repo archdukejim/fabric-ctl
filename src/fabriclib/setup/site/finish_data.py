@@ -10,10 +10,10 @@ from fabriclib.setup.site.mint_site_cert import mint_site_cert
 def finish_data(ctx, addresses):
     """Purpose: what the finish page shows (manual 1.3.6.6), and the site's new certificate.
     Inputs:  ctx — SetupContext with the install's state: vars host_ip, domain, hostname_mgr; the root under
-             nginx/www/certs; addresses — the host's addresses.
+             nginx/www/certs; hostname_keycloak; addresses — the host's addresses.
     Returns: (finish dict, chain PEM or "", key PEM or ""). The dict: root_pem, root_fingerprint, certs_url,
-             console_url,
-             console_name, kit, trust, dns, and kept_temporary (what the page says) when no certificate could be had.
+             console_url, console_name, signin_name (where the console sends a browser to sign in), kit, trust, dns,
+             and kept_temporary (what the page says) when no certificate could be had.
     Fails:   OSError when the published root cannot be read: setup says it finished, and that is setup's first failure
              to look at.
     Feeds:   setup/site/guided_site."""
@@ -25,7 +25,8 @@ def finish_data(ctx, addresses):
     certs_url = f"http://{ip}/certs/"
     trust, dns = finish_guides(ip, v["domain"], certs_url, name)
     data = {"root_pem": root, "root_fingerprint": certificate_fingerprint(root), "certs_url": certs_url,
-            "console_url": f"https://{name}/", "console_name": name, "kit": os.path.join(home, "fabric-admin"),
+            "console_url": f"https://{name}/", "console_name": name,
+            "signin_name": v.get("hostname_keycloak", ""), "kit": os.path.join(home, "fabric-admin"),
             "trust": trust, "dns": dns}
     ordered = list(dict.fromkeys([ip, *addresses]))
     try:
