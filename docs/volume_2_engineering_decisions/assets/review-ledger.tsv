@@ -127,6 +127,7 @@ docs/volume_1_description_and_architecture/1.8.5-setup-wizard.md	b3a5573e615599f
 docs/volume_1_description_and_architecture/1.8.6-console-redo.md	c8311dffa63ca371bd5f3ccebdb69d9441372eae	2026-10-25	
 docs/volume_1_description_and_architecture/1.8.7-cockpit-proxy.md	965690482f7597a1271ab627eb5724bf70e9fce2	2026-10-30	
 docs/volume_1_description_and_architecture/1.8.8-directory-browser.md	5ae8278da0a933c440bda79366849040979dd3eb	2026-11-05	
+docs/volume_1_description_and_architecture/1.8.9-console-read-cache.md	1b40a5194ed8dac5d19fa6fb1c42d05c7793694e	2026-11-07	
 docs/volume_1_description_and_architecture/1.9.1-sites.md	c0b8fc74f6c5ee052cf2819e2425730981232ed1	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.2-ha-partners.md	941731a583188b3b8e4a467eabdd9966bb6214ca	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.3-between-sites.md	9b2693352d2d8a3cad600964f14c8df2b13af4f9	2026-10-08	

@@ -80,6 +80,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.8.6 The console redone in Cockpit's style](1.8.6-console-redo.md)
 - [1.8.7 Cockpit behind fabric's web server](1.8.7-cockpit-proxy.md)
 - [1.8.8 The directory browser, and the console made fast and clean (0.9.2)](1.8.8-directory-browser.md)
+- [1.8.9 Console read cache](1.8.9-console-read-cache.md)
 
 ## 1.9 Federation
 
