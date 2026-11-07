@@ -38,9 +38,9 @@ def _overview(h, sess, ctx, path):
     """Purpose: The Overview entry's pages: Health (/), Doctor, Updates.
     Inputs:  h — the request handler; sess — the session; ctx — page context; path — "/", "/overview/doctor" or
              "/overview/updates".
-    Returns: the page sent (Health: the host changes fabric may make, the host's reminders read afresh and, until the
-             setup wizard is finished, Finish setting up — its first view in a sign-in opens the wizard instead, 303
-             to /settings).
+    Returns: the page sent (Health: the host changes fabric may make, the host's reminders as kept (1.8.9.2) and,
+             until the setup wizard is finished, Finish setting up — its first view in a sign-in opens the wizard
+             instead, 303 to /settings).
     Fails:   agent errors propagate to handle_request.
     Feeds:   get_page."""
     if path == "/overview/doctor":

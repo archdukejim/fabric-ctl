@@ -82,15 +82,13 @@ def _overview():
 
 
 def _reminders_stale(out):
-    """Purpose: whether the kept Overview's reminders must be read afresh (manual 1.8.9.2): while the break-glass
-             file's reminder shows, so it goes with its file (2.1.6.69); and once the local accounts' record changed
-             after they were kept, since `fabricctl host accounts approve` writes it without the agent (2.1.6.78).
+    """Purpose: whether the kept Overview's reminders must be read afresh (manual 1.8.9.2): once the local accounts'
+             record changed after they were kept, since `fabricctl host accounts approve` writes it without the agent
+             (2.1.6.78). The break-glass file's reminder is kept like the rest (2.1.8.48).
     Inputs:  out — the kept Overview, with "kept": {"age_s"}.
     Returns: bool.
     Fails:   never (a record that cannot be read leaves them as kept).
     Feeds:   get_route."""
-    if any(r.get("kind") == "break-glass" for r in out.get("reminders") or ()):
-        return True
     record = os.path.join(load_vars()["deploy_base_dir"], "fabric", "config", RECORD)
     try:
         return os.stat(record).st_mtime >= time.time() - out["kept"]["age_s"] - 1

@@ -462,7 +462,7 @@ check("overview tab renders service health", st == 200 and "Overview" in body an
 check("overview: the host changes through the agent (this test install declined fabric's services, never asked the rest)",
       "Host changes" in body and ">declined<" in body and ">not asked<" in body, body[-600:])
 # the break-glass reminder (2.1.6.69): while fabric-admin's password file is on the host, every page of an
-# administrator's sign-in says to store it and delete it; Overview reads it afresh; its removal is audited once
+# administrator's sign-in says to store it and delete it; Overview's are kept (2.1.8.48); its removal is audited once
 GLASS = f"{W}/home-ea/fabric-admin/fabric-admin-password.txt"
 os.makedirs(os.path.dirname(GLASS), exist_ok=True)
 open(GLASS, "w").write("a test stand-in, no password\n")
@@ -474,15 +474,34 @@ st, hd, sc, body = req("GET", "/kea", ALICE, cookie=session)
 check("break glass: with its file on the host, a new sign-in's pages carry the reminder in the top bar, naming the file",
       st == 200 and "Reminder:" in body and "fabric-admin-password.txt" in body and "delete the file" in body,
       (st, body[:600]))
+st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
+kcsrf = body.split('name="csrf" value="')[1].split('"')[0]
+# covers: web:post.kept.refresh agent:post.kept.refresh +
+st, hd, *_ = req("POST", "/kept/refresh", {**ALICE, "Origin": "https://mgr.test"},
+                 {"csrf": kcsrf, "read": "overview", "back": "/"}, cookie=session)
+st2, _, _, body = req("GET", "/", ALICE, cookie=session)
+check("break glass: the Overview's Refresh reads it now, and the Overview names the file (kept with the rest, 2.1.8.48)",
+      st == 303 and hd.get("Location") == "/" and st2 == 200 and "fabric-admin-password.txt" in body, (st, body[:600]))
 os.remove(GLASS)
 st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
-check("break glass: the file deleted, the Overview shows no reminder", st == 200
-      and "fabric-admin-password.txt" not in body, (st, body[:400]))
-# the kept read's refresher, the real one, is what notices when no reminder was showing (1.8.9.2): its upper limit
-for _ in range(310):
-    if not os.path.exists(f"{W}/fabric/config/break-glass.json"):
-        break
+check("break glass: the file deleted, the kept Overview still names it until its next refresh (2.1.8.48)",
+      st == 200 and "fabric-admin-password.txt" in body and "Updated " in body, (st, body[:400]))
+# covers: web:post.kept.refresh agent:post.kept.refresh -
+st, hd, *_ = req("POST", "/kept/refresh", {**ALICE, "Origin": "https://mgr.test"},
+                 {"csrf": kcsrf, "read": "overview", "back": "/"}, cookie=session)
+st2, _, _, body = req("GET", "/", ALICE, cookie=session)
+check("negative: Refresh again too soon is refused, saying when, and the Overview is left as kept",
+      st == 303 and "it can run again in" in body and "fabric-admin-password.txt" in body, (st, body[:600]))
+# once the class's lower limit has passed (1.8.9.4), Refresh drops it at once, without waiting for the refresher
+for _ in range(70):
     time.sleep(1)
+    st, hd, *_ = req("POST", "/kept/refresh", {**ALICE, "Origin": "https://mgr.test"},
+                     {"csrf": kcsrf, "read": "overview", "back": "/"}, cookie=session)
+    st2, _, _, body = req("GET", "/", ALICE, cookie=session)
+    if "fabric-admin-password.txt" not in body:
+        break
+check("break glass: a later Refresh, the Overview shows no reminder", st2 == 200
+      and "fabric-admin-password.txt" not in body, (st2, body[:400]))
 check("break glass: the removal is audited once by the next read, the record dropped",
       open(f"{W}/fabric/archive/audit.log").read().count("BREAK_GLASS_FILE_REMOVED") == 1
       and not os.path.exists(f"{W}/fabric/config/break-glass.json"))
