@@ -8,6 +8,7 @@ itself is a container (`templates/samba`, `packaging/images/samba`); what conver
 |---|---|
 | `__init__.py` | Package marker |
 | `deploy_samba.py` | The DC's files under `<deploy_base>/samba`: root-only folders, the Administrator's password file, the converge code |
+| `read_in_dc.py` | One of the DC's read scripts, through a held process in fabric-agent, otherwise alone (2.1.8.35) |
 | `write_bind_dlz.py` | What BIND includes for the AD zone: Samba's DLZ module and the update keytab, once the domain exists (empty before) |
 | `suggested_ad_domain.py` | The AD domain setup suggests: a sibling at the top of the organisation's name (2.1.6.11) |
 | `suggested_dc_name.py` | The DC's name fabric chooses: the lowest free `dc-NNNN`, `dc-0001` to `dc-1999` (2.1.6.63, 2.1.6.65) |

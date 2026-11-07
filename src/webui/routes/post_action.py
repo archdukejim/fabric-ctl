@@ -54,7 +54,8 @@ def post_action(h, sess, path, form):
              /account/groups/<name>/members (1.8.6.6); /networks/… (plan, sync, scan, options: 1.10.4.40); /kea/…
              (reservations, subnets, options, classes); /dns-filter/…
              (lists, rules, upstreams, fetch); /overview/… (jobs); /freeradius/clients…; /freeradius/people…;
-             /bind9/tsig/…; /settings/… (the setup wizard: step, plan, import, apply, dismiss).
+             /bind9/tsig/…; /overview/sizing/dismiss (a sizing alert, 1.8.8.8); /settings/… (the setup wizard: step,
+             plan, import, apply, dismiss).
     Returns: /logout: session dropped, LOGOUT audited, 303 to Keycloak's logout URL clearing the session cookie;
              the rest as their route modules.
     Fails:   404 for an unknown path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
@@ -73,6 +74,12 @@ def post_action(h, sess, path, form):
         return zones_post(h, user, _segments(path, 3), form)
     if path.startswith("/bind9/landing/"):
         return landing_post(h, user, _segments(path, 3), form)
+    if path == "/overview/sizing/dismiss":          # the person's own (1.8.8.8, 2.1.8.39)
+        try:
+            actions.sizing_dismiss(form.get("resource", ""), sess["user"])
+        except actions.ValidationError as exc:
+            return h.back("/", err=str(exc))
+        return h.redirect("/")
     if path.startswith("/overview/"):
         return overview_post(h, _segments(path, 2))
     if path.startswith("/stepca/"):

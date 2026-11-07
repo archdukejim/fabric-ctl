@@ -20,6 +20,7 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `sites.html` | Directory · Sites: the sites, replication, a site's page |
 | `access.html` | Directory · Access: the grants, a grant's page, Add grant |
 | `ous.html` | Directory · OUs: the tree, an OU's page |
+| `tree.html` | Directory · Browse: the tree, an OU's contents, Move to… |
 | `computers.html` | Directory · Computers: the list, a computer's page, Add computer, Machine groups, a keytab command |
 | `policies.html` | Directory · Policies: the password policy, Group Policy, the sudo rules |
 | `people.html` | Directory · People: the list, a person's page, Add person |

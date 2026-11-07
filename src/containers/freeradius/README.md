@@ -13,5 +13,5 @@ rendered) by `fabriclib/radius/deploy_freeradius.py` to
 | `directory.py` | The policy's LDAPS connection to the site's DC: its DC's `fabric-radius-<dc>` account per thread, or a bind as a person |
 | `record_fingerprint.py` | EAP-TLS verify command: SHA-256 fingerprint of the presented certificate, stored under its serial in `/run/freeradius/fp` |
 | `normalize_mac.py` | Any MAC spelling → `aa:bb:cc:dd:ee:ff` |
-| `check_peap.py` | Decide an account the domain accepted over PEAP: a person, or a machine of this site's `OU=machines`, in a mapped group (2.1.11.3) |
-| `mappings.py` | An account's groups as mappings name them (those in `OU=groups`, plus the primary group) and the mapping it joins under |
+| `check_peap.py` | Decide an account the domain accepted over PEAP: a person, or a machine of this site, in a mapped group, wherever in the domain's OUs they are (2.1.11.3, 2.1.6.106) |
+| `mappings.py` | An account's groups as mappings name them (those in the domain's OUs, plus the primary group) and the mapping it joins under |

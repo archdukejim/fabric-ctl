@@ -3,7 +3,11 @@ import os
 import subprocess
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.directory import held_op
 from fabriclib.federation.common.is_root_site import is_root_site
+
+
+READS = {"list", "show", "explain", "reaching", "managed", "authorize"}       # a held process may answer (2.1.8.35)
 
 
 def grant_request(v, request, container="samba"):
@@ -22,13 +26,16 @@ def grant_request(v, request, container="samba"):
     root = is_root_site(registry) and (v.get("ad_dc_type") or "writable") != "rodc"
     req = {**request, "dc": v["dc_name"], "writable_root": root,
            "fallback_open": v.get("grants_fallback_open") is True}       # what a compile does without a grant
-    res = subprocess.run(["docker", "exec", "-i", "-e", "PYTHONDONTWRITEBYTECODE=1", container,
-                          "python3", "/fabric/grants_tool.py"], input=json.dumps(req), capture_output=True,
-                         text=True, timeout=300)
-    if res.returncode != 0 or not res.stdout.strip():
-        raise ValidationError("the domain controller is not running" if "is not running" in res.stderr
-                              or "No such container" in res.stderr else (res.stderr.strip() or "no answer")[-300:])
-    out = json.loads(res.stdout.strip().splitlines()[-1])
+    if held_op.enabled() and req.get("op") in READS:
+        out = held_op.ask_tool(container, "grants_tool", req)
+    else:
+        res = subprocess.run(["docker", "exec", "-i", "-e", "PYTHONDONTWRITEBYTECODE=1", container,
+                              "python3", "/fabric/grants_tool.py"], input=json.dumps(req), capture_output=True,
+                             text=True, timeout=300)
+        if res.returncode != 0 or not res.stdout.strip():
+            raise ValidationError("the domain controller is not running" if "is not running" in res.stderr
+                                  or "No such container" in res.stderr else (res.stderr.strip() or "no answer")[-300:])
+        out = json.loads(res.stdout.strip().splitlines()[-1])
     if "error" in out:
         raise ValidationError(out["error"])
     return out["result"]

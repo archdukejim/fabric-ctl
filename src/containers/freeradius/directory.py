@@ -32,8 +32,50 @@ def folder_dn(conf, name):
     Inputs:  conf — load_config()'s dict; name — the folder's name.
     Returns: str, e.g. "OU=devices,<domain>".
     Fails:   KeyError without "base".
-    Feeds:   check_person, check_peap, lookup_device."""
+    Feeds:   find_person, find_machine, lookup_device."""
     return f"OU={name},{conf['base']}"
+
+
+def in_an_ou(conf, dn):
+    """Purpose: whether an object is in an OU of the domain (any depth), and not in AD's own containers or its Domain
+             Controllers OU: the same rule as the DC's directory_scope (2.1.6.106).
+    Inputs:  conf — load_config()'s dict; dn — str, its DN.
+    Returns: bool.
+    Fails:   KeyError without "base".
+    Feeds:   find_person, find_machine, mappings' caller."""
+    suffix = "," + conf["base"].lower()
+    low = dn.lower()
+    if not low.endswith(suffix):
+        return False
+    rel = low[:-len(suffix)]
+    outermost = rel.rsplit(",", 1)[-1]
+    return "," in rel and outermost.startswith("ou=") and outermost != "ou=domain controllers"
+
+
+def find_person(uid, attrs):
+    """Purpose: a person by user name, in any OU (2.1.6.106): never a service account, nor one of AD's own.
+    Inputs:  uid — str, the user name, escaped by the caller; attrs — list of attribute names.
+    Returns: list of (dn, attrs).
+    Fails:   as search.
+    Feeds:   check_person, check_peap."""
+    conf = load_config()
+    services = "," + folder_dn(conf, "service-accounts").lower()
+    found = search(conf["base"], "(&(objectCategory=person)(objectClass=user)(!(isCriticalSystemObject=TRUE))"
+                                 "(sAMAccountName=%s))" % uid, attrs, subtree=True)
+    return [(dn, a) for dn, a in found if in_an_ou(conf, dn) and not dn.lower().endswith(services)]
+
+
+def find_machine(account, attrs):
+    """Purpose: a domain machine by its account name, in any OU (2.1.6.106): never a domain controller nor a fabric
+             host.
+    Inputs:  account — str, its sAMAccountName, escaped by the caller; attrs — list of attribute names.
+    Returns: list of (dn, attrs).
+    Fails:   as search.
+    Feeds:   check_peap."""
+    conf = load_config()
+    hosts = "," + folder_dn(conf, "fabric-hosts").lower()
+    found = search(conf["base"], "(&(objectCategory=computer)(sAMAccountName=%s))" % account, attrs, subtree=True)
+    return [(dn, a) for dn, a in found if in_an_ou(conf, dn) and not dn.lower().endswith(hosts)]
 
 
 def connect(dn=None, password=None):

@@ -10,6 +10,7 @@ from grant_names import APPLY_GROUP_POLICY, AUTHENTICATED_USERS
 from set_gpo_acl import set_gpo_acl
 
 OBJECT_ALLOWED = security.SEC_ACE_TYPE_ACCESS_ALLOWED_OBJECT
+OBJECT_DENIED = security.SEC_ACE_TYPE_ACCESS_DENIED_OBJECT
 
 
 def _key(text, domain_sid):
@@ -20,19 +21,21 @@ def _key(text, domain_sid):
     Feeds:   set_gpo_filter."""
     sd = security.descriptor.from_sddl("D:" + text, domain_sid)
     ace = sd.dacl.aces[0]
-    obj = str(ace.object.type) if ace.type == OBJECT_ALLOWED else ""
+    obj = str(ace.object.type) if ace.type in (OBJECT_ALLOWED, OBJECT_DENIED) else ""
     return (ace.type, ace.flags, ace.access_mask, str(ace.trustee), obj)
 
 
-def set_gpo_filter(samdb, lp, name, group_sid, machine_sids=()):
+def set_gpo_filter(samdb, lp, name, group_sid, machine_sids=(), deny_sids=()):
     """Purpose: a GPO's security filtering, as GPMC sets it (manual 1.6.13.4; checked on sssd, 2.3.6.19.1):
              Authenticated Users keep Read (every machine reads it), and only `group_sid` gets Read and Apply Group
              Policy; with no group, Authenticated Users apply it (every machine, the fallback, 2.1.6.87). Each of
              `machine_sids` (the group's computers) also gets Apply Group Policy on its own SID, for sssd before 2.9.4,
-             which ignores the computer's groups (2.1.6.94). Every other Apply Group Policy entry is taken out (a
-             machine that left the group too). SYSVOL's file ACLs follow. Nothing is written when it is already so.
+             which ignores the computer's groups (2.1.6.94). Each of `deny_sids` is denied Apply Group Policy: a GPO
+             linked at the domain's root that the domain controllers and the fabric hosts must not take (the
+             fallback, 2.1.6.98). Every other Apply Group Policy entry, allowed or denied, is taken out (a machine that
+             left the group too). SYSVOL's file ACLs follow. Nothing is written when it is already so.
     Inputs:  samdb — SamDB (as the system); lp — LoadParm; name — the GPO's display name; group_sid — str, or None;
-             machine_sids — iterable of str, the computers' SIDs (only with a group).
+             machine_sids — iterable of str, the computers' SIDs (only with a group); deny_sids — iterable of str.
     Returns: list of str, what changed.
     Fails:   ValueError "no GPO <name>"; ldb.LdbError; NTSTATUSError from set_gpo_acl.
     Feeds:   compile_grants."""
@@ -54,10 +57,12 @@ def set_gpo_filter(samdb, lp, name, group_sid, machine_sids=()):
     if group_sid:
         want.insert(1, f"(A;CI;RPLCLORC;;;{group_sid})")
         want += [f"(OA;CI;CR;{APPLY_GROUP_POLICY};;{sid})" for sid in sorted(set(machine_sids))]
+    want = [f"(OD;CI;CR;{APPLY_GROUP_POLICY};;{sid})" for sid in sorted(set(deny_sids))] + want
     keep, drop = [], []
     for ace in re.findall(r"\([^)]*\)", rest):
         k = _key(ace, domain_sid)
-        mine = k[3] in (AUTHENTICATED_USERS, target) or (k[0] == OBJECT_ALLOWED and k[4] == APPLY_GROUP_POLICY)
+        mine = k[3] in (AUTHENTICATED_USERS, target) or \
+            (k[0] in (OBJECT_ALLOWED, OBJECT_DENIED) and k[4] == APPLY_GROUP_POLICY)
         (drop if mine and not k[1] & security.SEC_ACE_FLAG_INHERITED_ACE else keep).append(ace)
     if sorted(_key(a, domain_sid) for a in drop) == sorted(_key(a, domain_sid) for a in want):
         return []
@@ -65,4 +70,5 @@ def set_gpo_filter(samdb, lp, name, group_sid, machine_sids=()):
     SDUtils(samdb).modify_sd_on_dn(dn, new, controls=["sd_flags:1:4"])
     set_gpo_acl(samdb, lp, guid)
     return [f"GPO {name}: applies to " + (f"its group's machines alone ({len(set(machine_sids))} named)"
-                                          if group_sid else "every machine")]
+                                          if group_sid else "every machine")
+            + (f", never to {len(set(deny_sids))} denied (the DCs and the fabric hosts)" if deny_sids else "")]

@@ -1,5 +1,24 @@
 {% extends "../shared/base.html.j2" %}
 
+{# A script is fetched and run as root only after this: the root checked against the fingerprint the admin holds, the script
+   by HTTPS, trusting that root alone (2.1.1.85, 2.1.1.87). Never by plain HTTP. #}
+{% macro fetch_steps(id, script, more="") %}<pre id="{{ id }}"><code>FP=&lt;root CA SHA-256 from above&gt;
+(
+  rm -f root-ca.crt {{ script }}
+  if command -v curl &gt;/dev/null; then
+    plain() { curl -fsS "$1" -o "$2"; }
+    pinned() { curl -fsS --cacert root-ca.crt --capath . "$1" -o "$2"; }
+  else
+    plain() { wget -q "$1" -O "$2"; }
+    # wget keeps the system's store whatever it is told (Ubuntu 24.04), so openssl's own client, trusting this root alone
+    pinned() { printf 'GET /certs/{{ script }} HTTP/1.0\r\nHost: {{ (hostname ~ '.' ~ domain) | lower }}\r\n\r\n' | openssl s_client -quiet -no-CApath -no-CAstore -CAfile root-ca.crt -verify_return_error -verify_hostname {{ (hostname ~ '.' ~ domain) | lower }} -connect {{ (hostname ~ '.' ~ domain) | lower }}:443 -servername {{ (hostname ~ '.' ~ domain) | lower }} 2&gt;/dev/null &gt; reply.tmp; head -1 reply.tmp | grep -q ' 200 ' &amp;&amp; sed '1,/^\r$/d' reply.tmp &gt; "$2"; }
+  fi
+  plain http://{{ hostname_stepca }}/certs/root-ca.crt root-ca.crt || { echo "REFUSED: could not fetch the root certificate. Nothing was run." &gt;&amp;2; exit 1; }
+  got=$(openssl x509 -in root-ca.crt -noout -fingerprint -sha256 | cut -d= -f2 | tr -d :)
+  [ -n "$got" ] &amp;&amp; [ "$got" = "$(printf %s "$FP" | tr -d : | tr a-f A-F)" ] || { rm -f root-ca.crt; echo "REFUSED: the root certificate served (${got:-none}) is not the fingerprint you gave: it is not fabric's, or the fingerprint is wrong. Nothing was run." &gt;&amp;2; exit 1; }
+  pinned https://{{ (hostname ~ '.' ~ domain) | lower }}/certs/{{ script }} {{ script }} || { rm -f {{ script }}; echo "REFUSED: {{ (hostname ~ '.' ~ domain) | lower }} did not prove itself with that root, so the script was not trusted. Nothing was run." &gt;&amp;2; exit 1; }
+) &amp;&amp; sudo bash {{ script }} "$FP"{{ more | e }}</code></pre>{% endmacro %}
+
 {% block title %}{{ friendly_name | default(ca_name) }} &mdash; CA certificates{% endblock %}
 
 {% block header_subtitle %}{{ cert_org }} &mdash; Certificate Authority for {{ domain }}{% endblock %}
@@ -84,18 +103,20 @@
       <div class="card">
         <h2>Linux</h2>
         <strong>Ubuntu / Debian — everything (system, Python, Firefox, Chrome):</strong>
-        <pre><code><span class="cmd">wget</span> -nv -O- http://{{ hostname_stepca }}/certs/install-all-{{ domain_file }}.sh | <span class="cmd">sudo bash</span></code></pre>
+        <p style="color:var(--muted);font-size:.9rem;">With the root's SHA-256 from above. It checks the root against that, then
+        fetches each script by HTTPS, trusting that root alone. If it says <code>REFUSED</code>, nothing was run or installed.</p>
+        {{ fetch_steps("install-all-steps", "install-all-" ~ domain_file ~ ".sh") }}
         <strong style="display:block;margin-top:1rem;">Debian / Ubuntu — system only, by hand:</strong>
         <pre><code><span class="cmd">sudo wget</span> -nv -O /usr/local/share/ca-certificates/{{ domain_file }}-root-ca.crt http://{{ hostname_stepca }}/certs/root-ca.crt
 <span class="cmd">sudo update-ca-certificates</span></code></pre>
         <strong style="display:block;margin-top:1rem;">RHEL / Fedora / Rocky:</strong>
         <pre><code><span class="cmd">sudo curl</span> -sSo /etc/pki/ca-trust/source/anchors/{{ domain_file }}-root-ca.crt http://{{ hostname_stepca }}/certs/root-ca.crt
 <span class="cmd">sudo update-ca-trust</span></code></pre>
-        <strong style="display:block;margin-top:1rem;">Other installers:</strong>
-        <pre><code>http://{{ hostname_stepca }}/certs/install-certs-{{ domain_file }}.sh     <span style="color:var(--muted)"># system store only</span>
-http://{{ hostname_stepca }}/certs/install-python-{{ domain_file }}.sh    <span style="color:var(--muted)"># Python requests / SSL_CERT_FILE</span>
-http://{{ hostname_stepca }}/certs/install-firefox-{{ domain_file }}.sh   <span style="color:var(--muted)"># Firefox NSS</span>
-http://{{ hostname_stepca }}/certs/install-chrome-{{ domain_file }}.sh    <span style="color:var(--muted)"># Chrome / Chromium / Brave / Edge NSS</span></code></pre>
+        <strong style="display:block;margin-top:1rem;">Other installers, once the root above is trusted:</strong>
+        <pre><code>https://{{ (hostname ~ '.' ~ domain) | lower }}/certs/install-certs-{{ domain_file }}.sh     <span style="color:var(--muted)"># system store only; give it the root's SHA-256</span>
+https://{{ (hostname ~ '.' ~ domain) | lower }}/certs/install-python-{{ domain_file }}.sh    <span style="color:var(--muted)"># Python requests / SSL_CERT_FILE</span>
+https://{{ (hostname ~ '.' ~ domain) | lower }}/certs/install-firefox-{{ domain_file }}.sh   <span style="color:var(--muted)"># Firefox NSS</span>
+https://{{ (hostname ~ '.' ~ domain) | lower }}/certs/install-chrome-{{ domain_file }}.sh    <span style="color:var(--muted)"># Chrome / Chromium / Brave / Edge NSS</span></code></pre>
       </div>
       <div class="card">
         <h2>Join a Linux machine to the domain</h2>
@@ -186,10 +207,17 @@ crypto pki authenticate {{ domain_file | upper }}-ROOT
       fingerprint you give matches the root CA's above), joins the domain and takes its time from this network; who
       may log on there with their domain password, and who has sudo, is decided by the domain's grants. The password
       is asked, never typed on the command line.</p>
-      <pre><code><span class="cmd">wget</span> -nv http://{{ hostname_stepca }}/certs/join-linux.sh
-<span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --user &lt;directory admin&gt;
-<span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --one-time     <span style="color:var(--muted)"># a pre-created machine</span>
-<span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --user &lt;directory admin&gt; --site &lt;site&gt; --name &lt;name&gt;</code></pre>
+      <p>The script runs as root, so it is fetched over HTTPS, trusting only the root certificate your fingerprint has just
+      vouched for. Take the fingerprint from somewhere you trust (on the host, the command at the top of this page), not from
+      a page served over plain HTTP. Paste this whole, in an empty folder; it refuses, running nothing, if
+      either check fails:</p>
+      {{ fetch_steps("join-steps", "join-linux.sh", " --user <directory admin>") }}
+      <p>The last line's other forms: <code>--one-time</code> for a pre-created machine, or <code>--site &lt;site&gt; --name &lt;name&gt;</code> added to it.</p>
+      <p>A machine joined before 0.9.2 should have its <code>fabric-managed</code> refreshed once. A copy from before 0.9.1 can remove
+      fabric's DNS when one search fails, leaving it off the domain. This also brings back one that already lost it, which
+      is why it fetches by address, and changes nothing unless the DC answers:</p>
+      <pre><code><span class="cmd">sudo curl</span> -fsS --cacert /usr/local/share/ca-certificates/fabric-root-ca.crt --capath /usr/local/share/ca-certificates --resolve {{ (hostname ~ '.' ~ domain) | lower }}:443:{{ host_ip }} https://{{ (hostname ~ '.' ~ domain) | lower }}/certs/join-linux.sh -o join-linux.sh
+<span class="cmd">sudo bash</span> join-linux.sh &lt;root CA SHA-256 from above&gt; --refresh</code></pre>
     </div>
 
     <div class="card" id="join-windows">

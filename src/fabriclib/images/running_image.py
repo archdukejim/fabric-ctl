@@ -3,6 +3,20 @@ import subprocess
 from fabriclib.images.built_from import built_from
 
 
+def running_images(services):
+    """Purpose: what several pulled services' containers run, in one `docker inspect`.
+    Inputs:  services — SERVICES entries.
+    Returns: {container: the image its container was created from}; a missing container is absent.
+    Fails:   FileNotFoundError if docker is missing.
+    Feeds:   image_status."""
+    names = [s["container"] for s in services if not s["build"]]
+    if not names:
+        return {}
+    res = subprocess.run(["docker", "inspect", "-f", "{{.Name}} {{.Config.Image}}", *names],
+                         capture_output=True, text=True)
+    return {a.lstrip("/"): b for a, _, b in (ln.partition(" ") for ln in res.stdout.splitlines()) if b}
+
+
 def running_image(service):
     """Purpose: what a service runs now.
     Inputs:  service — a SERVICES entry. For a local build asks the image's base label; otherwise `docker

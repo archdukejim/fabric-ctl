@@ -2,6 +2,8 @@ import ldb
 
 from group_names import FABRIC_MANAGED, site_group
 import paths
+from all_machines import all_machines
+from directory_scope import is_fabric_host_dn
 
 # what an unmanaged join writes on the account (join-linux.sh --unmanaged; add-machine --unmanaged)
 UNMANAGED = "fabric: unmanaged (manual 1.6.11.6)"
@@ -10,7 +12,8 @@ UNMANAGED = "fabric: unmanaged (manual 1.6.11.6)"
 def adopt_linux_machines(samdb, lp, site, skip=()):
     """Purpose: a Linux machine joined with an administrator's password lands in its type's OU and its site's group on
              its own (join-linux.sh); make each such machine of this site a member of `fabric-managed`, once (manual
-             1.6.11.6, 2.1.6.40): a computer under OU=machines in `site-<site>` whose operatingSystem is not Windows;
+             1.6.11.6, 2.1.6.40): a computer in any OU (2.1.6.106), not a fabric host, in `site-<site>` whose
+             operatingSystem is not Windows;
              not one marked unmanaged by its join, not one adopted before (an admin who takes a machine out keeps it
              out). One already a member (its join adds it itself since 2.1.6.97) is returned as seen, unchanged, so
              the record keeps it too.
@@ -21,10 +24,10 @@ def adopt_linux_machines(samdb, lp, site, skip=()):
     Fails:   ldb.LdbError from the search or a change AD refuses.
     Feeds:   directory_ops (op "adopt_linux_machines")."""
     groups = paths.folder_dn(samdb, "groups")
-    found = samdb.search(base=paths.folder_dn(samdb, "machines"), scope=ldb.SCOPE_SUBTREE,
-                         expression=f"(&(objectClass=computer)(operatingSystem=*)(!(operatingSystem=Windows*))"
-                                    f"(memberOf=CN={ldb.binary_encode(site_group(site))},{groups}))",
-                         attrs=["objectGUID", "sAMAccountName", "description", "memberOf"])
+    found = [m for m in all_machines(samdb, f"(operatingSystem=*)(!(operatingSystem=Windows*))"
+                                            f"(memberOf=CN={ldb.binary_encode(site_group(site))},{groups})",
+                                     ["objectGUID", "sAMAccountName", "description", "memberOf"])
+             if not is_fabric_host_dn(samdb, str(m.dn))]
     skip = {g.lower() for g in skip}
     adopted = []
     for m in found:

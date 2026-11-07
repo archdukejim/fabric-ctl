@@ -59,6 +59,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agent.handler import Handler  # noqa: E402
+from fabriclib.directory import held_op  # noqa: E402
+from fabriclib.secrets.held_secrets import hold_secrets  # noqa: E402
 
 
 class UnixServer(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
@@ -81,6 +83,8 @@ def main():
     ap.add_argument("--allow-uid", type=int, action="append", default=[], help="peer uid allowed besides root")
     args = ap.parse_args()
 
+    held_op.enable()            # manual 1.8.8.2: a long-lived process holds what a command starts anew
+    hold_secrets()
     Handler.allowed_uids = {0, *args.allow_uid}
     if os.path.exists(args.socket):
         os.unlink(args.socket)

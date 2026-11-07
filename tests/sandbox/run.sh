@@ -28,6 +28,8 @@ PASS=0; FAIL=0
 # finds x early and cmd then gets SIGPIPE writing the rest of its output.
 check() { if (set +o pipefail; eval "$2"); then echo "PASS $1"; PASS=$((PASS+1)); else echo "FAIL $1"; FAIL=$((FAIL+1)); fi; }
 in_box() { docker exec "$NAME" bash -lc "$*"; }
+# a failed doctor's own lines (✗) in this log, so the cause outlives the run's files (/tmp is lost when WSL stops)
+doctor_why() { grep '✗' "$1" 2>/dev/null | sed 's/^/    doctor: /'; true; }
 
 docker rm -f "$NAME" >/dev/null 2>&1; docker network rm "$NET" >/dev/null 2>&1
 docker volume rm fabric-sbx-docker >/dev/null 2>&1
@@ -172,6 +174,7 @@ echo "--- doctor"
 in_box 'fabricctl doctor' 2>&1 | tee "$OUT/doctor.log"
 # covers: cli:doctor +
 check "doctor: all checks pass" "! grep -q '✗' '$OUT/doctor.log' && grep -q '✓' '$OUT/doctor.log'"
+doctor_why "$OUT/doctor.log"
 check "doctor reminds of the break-glass password's file while it is there (a warning, not a failed check)" \
     "grep -q 'the break-glass password of fabric-admin is still in $GLASS' '$OUT/doctor.log'"
 
@@ -212,6 +215,7 @@ check "setup --undo trust: fabric's CA out of the host trust store, recorded as 
 in_box 'fabricctl doctor' > "$OUT/doctor-undo.log" 2>&1
 check "doctor passes with trust declined (it no longer expects the host to trust the CA)" \
     "! grep -q '✗' '$OUT/doctor-undo.log' && ! grep -q 'this host trusts the fabric CA' '$OUT/doctor-undo.log'"
+doctor_why "$OUT/doctor-undo.log"
 in_box 'fabricctl setup --approve trust --step pki --non-interactive --yes' > "$OUT/undo-reapprove.log" 2>&1
 check "setup --approve trust puts the CA back in the host trust store" \
     "in_box 'ls /usr/local/share/ca-certificates/fabric-*' >/dev/null 2>&1 && in_box 'fabricctl status' | grep -qE '^  trust +approved'"
@@ -395,11 +399,13 @@ in_box 'fabricctl doctor' > "$OUT/doctor-after-start.log" 2>&1
 # covers: cli:start +
 check "fabricctl start: everything back, doctor passes" \
     "! grep -q '✗' '$OUT/doctor-after-start.log' && grep -q '✓' '$OUT/doctor-after-start.log'"
+doctor_why "$OUT/doctor-after-start.log"
 in_box 'systemctl restart fabric.target' > /dev/null 2>&1
 sleep 20
 in_box 'fabricctl doctor' > "$OUT/doctor-after-restart.log" 2>&1
 check "systemctl restart fabric.target: doctor passes" \
     "! grep -q '✗' '$OUT/doctor-after-restart.log' && grep -q '✓' '$OUT/doctor-after-restart.log'"
+doctor_why "$OUT/doctor-after-restart.log"
 
 cat > "$OUT/secrets_dump.py" <<'PY'
 import json, sys
@@ -729,6 +735,7 @@ check "host accounts list: the local account in the sudo group (localop) listed,
 in_box 'fabricctl doctor' > "$OUT/doctor-accounts.log" 2>&1
 check "doctor reminds of localop (a warning: every check still passes)" \
     "grep -qE 'the local account localop \(in the sudo group[^)]*\) has root or administrator rights' '$OUT/doctor-accounts.log' && ! grep -q '✗' '$OUT/doctor-accounts.log'"
+doctor_why "$OUT/doctor-accounts.log"
 in_box 'fabricctl host accounts approve localop' > "$OUT/approve.log" 2>&1
 in_box 'fabricctl doctor' > "$OUT/doctor-approved.log" 2>&1
 check "host accounts approve localop: approved, audited LOCAL_ACCOUNT_APPROVE, reminded of no more" \
@@ -1113,6 +1120,7 @@ check "reinstall re-imported the exported secrets into OpenBao and left no plain
 check "after the reinstall the npm TSIG key still works" "[ \"\$(t2136 npm '$TSIG_SECRET' npm)\" = '4 passed, 0 failed' ]"
 in_box 'fabricctl doctor' > "$OUT/doctor-reinstall.log" 2>&1
 check "after the reinstall doctor passes" "! grep -q '✗' '$OUT/doctor-reinstall.log' && grep -q '✓' '$OUT/doctor-reinstall.log'"
+doctor_why "$OUT/doctor-reinstall.log"
 check "the domain survives the reinstall: a person made before it is still there, with the same SID (not a new domain)"     "[ -n '$SID_BEFORE' ] && in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=keeper)' objectSid\" | grep -q 'objectSid: $SID_BEFORE'"
 
 cat > "$OUT/argv_check.py" <<'PY'
@@ -1149,6 +1157,9 @@ check "export: config, secrets, CA, directory, Keycloak, the vault and its key, 
 check "the package was purged too, and nothing was written to /var/backups"     "! in_box 'dpkg -s fabricctl' >/dev/null 2>&1 && ! in_box 'test -e /var/backups/fabric'"
 # the container names asked of Docker first, so a failing `docker ps` cannot pass for "none left"
 LEFT_NAMES=$(in_box "docker ps -a --format '{{.Names}}'"); LEFT_RC=$?
+# a clean shutdown removes it: Postgres was really stopped when it was copied (2.3.1.53: 0.9.0's export copied it running)
+check "the export copied Postgres stopped: no postmaster.pid in the copy" \
+    "in_box 'test -d $EX/postgres/data/pgdata && ! test -e $EX/postgres/data/pgdata/postmaster.pid'"
 check "no fabric container, network or unit is left"     "[ $LEFT_RC -eq 0 ] && ! grep -qxE 'bind9|bind9-resolver|step-ca|samba|keycloak|postgres|nginx|openbao|fabric-web|kea-dhcp4|kea-ddns|freeradius|fluentbit' <<<\"\$LEFT_NAMES\"      && ! in_box 'docker network inspect fabric_net' >/dev/null 2>&1      && ! in_box 'ls /etc/systemd/system/fabric.target /etc/systemd/system/{bind9,bind9-resolver,stepca,samba,keycloak,postgres,nginx,openbao,fabric-web,kea,freeradius,fabric-agent}.service' >/dev/null 2>&1"
 check "no data, key, kill-switch rule, CA trust, command or service account is left"     "! in_box 'ls -d /opt/fabric /opt/bind9 /opt/stepca /opt/openbao /opt/dirsrv /opt/kea /opt/freeradius /etc/fabric/openbao /run/fabric/openbao /run/fabric/openbao-admin /etc/udev/rules.d/90-fabric-unlock.rules /usr/local/bin/fabricctl /usr/bin/fabricctl /etc/fabric /usr/lib/fabricctl' >/dev/null 2>&1      && ! in_box 'ls /usr/local/share/ca-certificates/fabric-*' >/dev/null 2>&1 && ! in_box 'id fabric-vault' >/dev/null 2>&1"
 check "DNS is gone" "! in_box 'dig +time=2 +tries=1 +short @$IP ns.lan.test' | grep -qx $IP"
@@ -1179,6 +1190,7 @@ check "restore: the domain is back (erin, added after the reinstall, exists agai
     "in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=erin)' sAMAccountName\" | grep -qx 'sAMAccountName: erin'"
 in_box 'fabricctl doctor' > "$OUT/doctor-restore.log" 2>&1
 check "restore: doctor passes" "! grep -q '✗' '$OUT/doctor-restore.log' && grep -q '✓' '$OUT/doctor-restore.log'"
+doctor_why "$OUT/doctor-restore.log"
 
 echo; echo "$PASS passed, $FAIL failed"
 if [ "${KEEP:-0}" != 1 ]; then

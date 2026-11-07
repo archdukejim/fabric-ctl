@@ -4,6 +4,7 @@ import jinja2
 
 from webui.views.constants import MENU_PERMS
 from webui.views.nav_menu import nav_menu
+from webui.views.plain_words import when_written, without_manual_numbers
 
 # autoescape; templates in templates/webui-app, no inline scripts or styles (the strict Content-Security-Policy)
 _PACKAGE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -13,6 +14,7 @@ _TEMPLATES = next((d for d in (os.path.join(_PACKAGE, "templates"),
                   os.path.join(_PACKAGE, "templates"))
 _env = jinja2.Environment(loader=jinja2.FileSystemLoader(_TEMPLATES), autoescape=True, trim_blocks=True,
                           lstrip_blocks=True)
+_env.filters.update(plain=without_manual_numbers, written=when_written)   # 1.8.8.6: words and dates for people
 
 
 def render_page(name, **kw):

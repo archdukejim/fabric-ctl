@@ -20,6 +20,7 @@ from agent.post_people import post_people
 from agent.post_pki import post_pki
 from agent.post_security import post_security
 from agent.post_settings import post_settings
+from agent.post_sizing import post_sizing
 from agent.post_vault import post_vault
 from agent.read_text import read_text
 from agent.route_not_found import RouteNotFound
@@ -49,7 +50,8 @@ def post_route(route, actor, data, perms, session=None):
              post_networks' result (the address plan, 1.10.4.21.5); ipam/scan[/record|/request]: post_ipam_scan's
              (1.10.4.36); ipam/sync: post_ipam_sync's (Sync now, 1.10.4.28); ipam/options, classes, option-defs,
              netboot: post_options' (1.10.4.24.6); settings/plan,
-             settings/apply, settings/dismiss: post_settings' result (the setup wizard, 1.8.5).
+             settings/apply, settings/dismiss: post_settings' result (the setup wizard, 1.8.5). sizing/dismiss:
+             post_sizing's.
     Fails:   ValidationError (-> 400) for an unsupported event or what fabriclib refuses; RouteNotFound (-> 404).
     Feeds:   agent/handler.py (dispatch).
     Notes:   POST apply only needs dns:write (rbac/required_permission), though it runs the whole deployment."""
@@ -88,9 +90,9 @@ def post_route(route, actor, data, perms, session=None):
         ok, output = apply_changes(actor, source="web")
         return {"ok": ok, "output": output}
     if area == ["people"]:
-        return post_people(route, actor, data, caller)
+        return post_people(route, actor, data, caller, perms)
     if area == ["groups"]:
-        return post_groups(route, actor, data, caller)
+        return post_groups(route, actor, data, caller, perms)
     if area == ["ous"]:
         return post_ous(route, actor, data)
     if area == ["account"] and len(route) == 4 and route[1] == "groups" and route[3] == "members":
@@ -104,6 +106,8 @@ def post_route(route, actor, data, perms, session=None):
     owner = actor if perms is not None else None    # a job is read by whoever started it (root: any)
     if area == ["settings"]:                        # the setup wizard (1.8.5): a plan, its apply as a job
         return post_settings(route, actor, data, owner)
+    if route == ["sizing", "dismiss"]:              # the person's own (1.8.8.8, 2.1.8.39)
+        return post_sizing(actor, data)
     if route == ["jobs", "doctor"]:              # doctor's checks take seconds to a minute: a job the page follows
         base = load_vars()["deploy_base_dir"]
         return JOBS.start("doctor", owner, lambda: doctor_report(base))

@@ -14,10 +14,10 @@ fabric makes them:
   disabled person, a person still on their one-time password, a person in no
   mapped group, an unknown name, and a password sent outside the tunnel.
   PEAP-MSCHAPv2 (eapol_test), checked by the DC through its winbind: a
-  person in a mapped group and a machine in OU=machines (host/<name>, by
-  its Domain Computers mapping) accepted on their VLANs; refused: a wrong
-  password, a disabled person, a person in no mapped group, a machine
-  outside OU=machines (1.6.13.2).
+  person in a mapped group and a machine in an OU (host/<name>, by its
+  Domain Computers mapping), there or moved to another OU (2.1.6.106),
+  accepted on their VLANs; refused: a wrong password, a disabled person,
+  a person in no mapped group, a machine in no OU (CN=Computers).
   Refused before any policy: an unknown RADIUS client, a wrong secret, a
   request without Message-Authenticator. The DC down -> refused (fail
   closed), and back -> reconnected. Container hardening.
@@ -209,7 +209,7 @@ for uid in people:
     if uid != "newbie":
         samdb.setpassword("(sAMAccountName=%s)" % uid, {PW!r}, force_change_at_next_login=False)
 samdb.disable_account("(sAMAccountName=dora)")
-for machine, ou in (("ws1", "OU=servers,OU=machines"), ("ws9", "CN=Computers")):   # ws9: outside OU=machines
+for machine, ou in (("ws1", "OU=servers,OU=machines"), ("ws9", "CN=Computers")):   # ws9: in no OU
     samdb.newcomputer(machine, computerou=ou)
     samdb.setpassword("(sAMAccountName=%s$)" % machine, {MACHINE_PW!r}, force_change_at_next_login=False)
 for group in sorted({{g for gs in people.values() for g in gs}}):
@@ -446,12 +446,42 @@ check("PEAP: a person in a mapped group, checked by the DC's winbind -> accepted
       ok and vlan == "20" and "ACCEPT method=peap group=staff vlan=20" in logs() and "person=alice" in logs(),
       out[-800:] + logs()[-800:])
 ok, vlan, out = eap_peap(f"host/ws1.{V['ad_domain']}", MACHINE_PW)
-check("PEAP: a machine in OU=machines (host/ws1 as ws1$, in OU=servers) by its Domain Computers mapping -> "
+check("PEAP: a machine in an OU (host/ws1 as ws1$, in OU=servers) by its Domain Computers mapping -> "
       "accepted on VLAN 40",
       ok and vlan == "40" and "machine=ws1$" in logs().rsplit("method=peap", 1)[-1], out[-800:] + logs()[-800:])
 ok, _, out = eap_peap(f"host/ws9.{V['ad_domain']}", MACHINE_PW)
-check("PEAP: a machine outside OU=machines is refused",
-      not ok and "reason=not_a_machine_in_OU=machines" in logs(), logs()[-400:])
+check("PEAP: a machine in AD's own CN=Computers, in no OU, is refused",
+      not ok and "reason=not_a_domain_machine" in logs(), logs()[-400:])
+MOVE_OUT = """
+import sys
+sys.path.insert(0, "/fabric")
+from open_samdb import open_samdb
+samdb, lp = open_samdb("/data/etc/smb.conf")
+base = str(samdb.domain_dn())
+samdb.create_ou(f"OU=elsewhere,{base}")
+samdb.rename(f"CN=alice,OU=people,{base}", f"CN=alice,OU=elsewhere,{base}")
+samdb.rename(f"CN=staff,OU=groups,{base}", f"CN=staff,OU=elsewhere,{base}")
+samdb.rename(f"CN=WS1,OU=servers,OU=machines,{base}", f"CN=WS1,OU=elsewhere,{base}")
+print("moved")
+"""
+moved = sh(["docker", "exec", "-i", DC, "python3", "-"], input=MOVE_OUT, ok=False)
+check("(alice, her group staff and ws1 moved to an OU at the domain's root, 2.1.6.106)", "moved" in moved.stdout,
+      moved.stderr[-400:])
+ok, vlan, out = eap_peap("alice", PW)
+check("PEAP: a person and her group in another OU -> still accepted on the group's VLAN", ok and vlan == "20",
+      out[-800:] + logs()[-800:])
+ok, vlan, out = eap_ttls("alice", PW)
+check("EAP-TTLS: the same", ok and vlan == "20", out[-800:] + logs()[-800:])
+ok, vlan, out = eap_peap(f"host/ws1.{V['ad_domain']}", MACHINE_PW)
+check("PEAP: a machine in another OU -> still accepted on VLAN 40", ok and vlan == "40", out[-800:] + logs()[-800:])
+MOVE_BACK = MOVE_OUT.replace('samdb.create_ou(f"OU=elsewhere,{base}")\n', "")
+for old, new in (("CN=alice,OU=people", "@A"), ("CN=alice,OU=elsewhere", "CN=alice,OU=people"), ("@A", "CN=alice,OU=elsewhere"),
+                 ("CN=staff,OU=groups", "@G"), ("CN=staff,OU=elsewhere", "CN=staff,OU=groups"), ("@G", "CN=staff,OU=elsewhere"),
+                 ("CN=WS1,OU=servers,OU=machines", "@W"), ("CN=WS1,OU=elsewhere", "CN=WS1,OU=servers,OU=machines"),
+                 ("@W", "CN=WS1,OU=elsewhere")):
+    MOVE_BACK = MOVE_BACK.replace(old, new)
+back = sh(["docker", "exec", "-i", DC, "python3", "-"], input=MOVE_BACK, ok=False)
+check("(moved back)", "moved" in back.stdout, back.stderr[-400:])
 ok, _, out = eap_peap("alice", "wrong-password")
 check("PEAP: a wrong password is refused by the domain", not ok, logs()[-400:])
 ok, _, out = eap_peap("nora", PW)

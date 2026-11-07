@@ -1,5 +1,7 @@
 import subprocess
 
+from fabriclib.samba.read_in_dc import read_in_dc
+
 
 def list_conflicts(container="samba"):
     """Purpose: the objects AD renamed `CNF:` after the same name was made on two DCs while they were apart (manual
@@ -9,8 +11,6 @@ def list_conflicts(container="samba"):
     Fails:   never.
     Feeds:   federation/federation_overview (the Federation tab)."""
     try:
-        res = subprocess.run(["docker", "exec", container, "ldbsearch", "-H", "/data/private/sam.ldb",
-                              "(name=*CNF:*)", "dn"], capture_output=True, text=True, timeout=60)
-    except (OSError, subprocess.TimeoutExpired):
+        return list(read_in_dc(container, "read_conflicts")["conflicts"])
+    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
         return []
-    return [line[4:] for line in res.stdout.splitlines() if line.startswith("dn: ")]

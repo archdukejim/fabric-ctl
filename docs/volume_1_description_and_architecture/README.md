@@ -79,7 +79,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.8.5 The setup wizard: setup's choices in the console, and in a file](1.8.5-setup-wizard.md)
 - [1.8.6 The console redone in Cockpit's style](1.8.6-console-redo.md)
 - [1.8.7 Cockpit behind fabric's web server](1.8.7-cockpit-proxy.md)
-- [1.8.8 The directory browser, and the console made fast and clean (0.9.1)](1.8.8-directory-browser.md)
+- [1.8.8 The directory browser, and the console made fast and clean (0.9.2)](1.8.8-directory-browser.md)
 
 ## 1.9 Federation
 
@@ -169,6 +169,8 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.17.38 fabriclib-domain](1.17.38-fabriclib-domain.md)
 - [1.17.39 fabriclib-localadmin](1.17.39-fabriclib-localadmin.md)
 - [1.17.40 fabriclib-ipam](1.17.40-fabriclib-ipam.md)
+- [1.17.41 fabriclib-move](1.17.41-fabriclib-move.md)
+- [1.17.42 fabriclib-sizing](1.17.42-fabriclib-sizing.md)
 <!-- end of generated 1.17 -->
 
 ## 1.18 STIG compliance

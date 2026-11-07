@@ -4,6 +4,7 @@ from access_policy import access_policy
 from ensure_computed_group import computed_groups, ensure_computed_group
 from ensure_gpo import ensure_gpo
 from ensure_grant_sudo import ensure_grant_sudo
+from ensure_ou_rights import ensure_ou_rights
 from find_gpo import find_gpo
 from grant_members import excluded, find_group, reach
 from grant_names import (FALLBACK_GPO, GROUP_MARK, SECURITY_EXTENSIONS, SECURITY_TEMPLATE, gpo_rights, set_gpo,
@@ -13,6 +14,9 @@ from order_gpo_links import order_gpo_links
 import paths
 from remove_gpo import remove_gpo
 from set_gpo_filter import set_gpo_filter
+from member_gpo_filter import member_gpo_filter
+from unlink_gpo import unlink_gpo
+
 
 
 def _sets(grants, reached):
@@ -85,11 +89,14 @@ def compile_grants(samdb, lp, dc, fallback_open=False):
     """Purpose: the grants made into what AD, sssd and Windows enforce (manual 1.6.13.4), every part changed only where
              it differs: each grant's computed groups (`grant-<name>-who`, a POSIX group for sudo, and
              `grant-<name>-where`); the machines grouped into sets by the grants that reach them, each set's computers
-             in `access-<n>` (computers only: anything else taken out) and its one GPO `fabric: access <n>` at
-             OU=machines, filtered to that group and to each of its computers by SID (2.1.6.94), giving each right
+             in `access-<n>` (computers only: anything else taken out) and its one GPO `fabric: access <n>` linked at
+             the domain's root, so a machine in any OU keeps it (2.1.6.98; before 0.9.2 at OU=machines, whose link is
+             taken out where it is found), filtered to that group and to each of its computers by SID (2.1.6.94),
+             giving each right
              to its holders (restricted where a restricting grant says) and putting the local administrators'
              groups in each machine's Administrators; a set no longer wanted removed with its GPO and groups; the
-             fallback `fabric: access none` (2.1.6.87), every machine's, kept first in OU=machines' links, or removed
+             fallback `fabric: access none` (2.1.6.87), every machine's but the DCs' and the fabric hosts' (denied
+             Apply Group Policy), kept first in the domain root's links, or removed
              while `grants_fallback_open` is on (2.1.6.88: a machine no grant reaches then admits every domain person,
              sssd's and Windows' default); one sudo rule per grant with sudo (ensure_grant_sudo). A set keeps its
              number while its grants stay the same; a new one takes the next number never used. Run at the root's
@@ -116,6 +123,7 @@ def compile_grants(samdb, lp, dc, fallback_open=False):
     state = read_state(samdb)
     numbers = {(tuple(s["allow"]), tuple(s["restrict"])): int(n) for n, s in state["sets"].items()}
     machines = paths.folder_dn(samdb, "machines")
+    root = str(samdb.domain_dn())          # where every machine is: fabric's access GPOs linked here (2.1.6.98)
     wanted = {}
     for key, computers in sorted(_sets(grants, reached).items()):
         n = numbers.get(key)
@@ -129,7 +137,8 @@ def compile_grants(samdb, lp, dc, fallback_open=False):
         rights, changed = _set_rights(samdb, n, key[0], key[1], by_name, reached, sids, keep)
         done += changed
         policy = access_policy(rights["keyboard"], rights["remote"], rights["local-admin"])
-        done += ensure_gpo(samdb, lp, set_gpo(n), machines, SECURITY_EXTENSIONS, {SECURITY_TEMPLATE: policy})
+        done += ensure_gpo(samdb, lp, set_gpo(n), root, SECURITY_EXTENSIONS, {SECURITY_TEMPLATE: policy})
+        done += unlink_gpo(samdb, machines, set_gpo(n))
         done += set_gpo_filter(samdb, lp, set_gpo(n), find_group(samdb, group)[1], _sids(samdb, computers))
     state["sets"] = wanted
     for n in range(1, state["next"]):      # every set no longer wanted (one an interrupted compile left too)
@@ -143,10 +152,12 @@ def compile_grants(samdb, lp, dc, fallback_open=False):
         if find_gpo(samdb, FALLBACK_GPO) is not None:
             done += remove_gpo(samdb, lp, FALLBACK_GPO)
     else:
-        done += ensure_gpo(samdb, lp, FALLBACK_GPO, machines, SECURITY_EXTENSIONS,
+        done += ensure_gpo(samdb, lp, FALLBACK_GPO, root, SECURITY_EXTENSIONS,
                            {SECURITY_TEMPLATE: access_policy([], [], [])})
-        done += set_gpo_filter(samdb, lp, FALLBACK_GPO, None)
-        done += order_gpo_links(samdb, machines, FALLBACK_GPO)
+        done += member_gpo_filter(samdb, lp, FALLBACK_GPO)
+        done += order_gpo_links(samdb, root, FALLBACK_GPO)
+        done += unlink_gpo(samdb, machines, FALLBACK_GPO)
+    done += ensure_ou_rights(samdb, dc)             # an OU made at the root with RSAT (2.1.6.102)
     done += ensure_grant_sudo(samdb, grants)
     if write_state(samdb, state):
         done.append("the sets of machines recorded")

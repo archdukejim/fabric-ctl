@@ -1,4 +1,5 @@
 from webui.devpreview.fabric_rules import ValidationError
+from webui.devpreview.fake_ous import place_in
 
 # the preview's groups in show_group's shape (1.6.12.5): one of each kind a page shows differently
 _EMPTY = {"grants": [], "sudo": [], "bundle": False, "bundle_name": "", "radius_vlan": None}
@@ -25,6 +26,13 @@ SAMPLE_GROUPS = [
     {"name": "Domain Admins", "kind": "ad", "description": "AD's own",
      "scope": dict(_EMPTY), "managers": {"managers": [], "add": False, "remove": False, "only_from": ""},
      "members": {"people": [], "groups": [], "computers": []}},
+    # fabric's computed groups for the grants (1.6.13.4): hidden from the list by default (1.8.8.3)
+    {"name": "grant-lan-helpdesk-who", "kind": "computed", "description": "Who grant lan-helpdesk is for",
+     "scope": dict(_EMPTY), "managers": {"managers": [], "add": False, "remove": False, "only_from": ""},
+     "members": {"people": ["lee"], "groups": [], "computers": []}},
+    {"name": "access-1", "kind": "computed", "description": "The machines of set 1",
+     "scope": dict(_EMPTY), "managers": {"managers": [], "add": False, "remove": False, "only_from": ""},
+     "members": {"people": [], "groups": [], "computers": ["ws1"]}},
 ]
 FIXED = ("ad", "computed", "filled", "host-group")
 
@@ -115,6 +123,8 @@ def fake_groups(state, who, route, body):
             raise ValidationError("a group's name: 2-64 of a-z 0-9 . _ -")
         if find_group(state, name) or any(u["uid"] == name for u in state.data["people"]["users"]):
             raise ValidationError(f"{name} is already taken")
+        if body.get("ou"):
+            place_in(state, "group", str(body["ou"]))
         _groups(state).append({"name": name, "kind": "own", "description": str(body.get("description") or ""),
                                "scope": dict(_EMPTY), "managers": {"managers": [], "add": False, "remove": False,
                                                                    "only_from": ""},

@@ -12,6 +12,23 @@ DETACHED = ("setup goes on as {unit}: a dropped connection or Ctrl-C does not st
             "    Follow it again: sudo fabricctl setup   (systemd's own lines: journalctl -u fabric-setup)")
 
 
+ENDED_ASKS, ENDED_GAP = 3, 2.0
+
+
+def _ended(running, sleep):
+    """Purpose: whether the unit has really ended: asked again over a few seconds, because one answer can be wrong (the
+             test Pi: "ended" while the unit ran on and finished well, 2.3.1.46).
+    Inputs:  running — callable() -> bool; sleep — callable(seconds).
+    Returns: bool; False as soon as it is seen running.
+    Fails:   never.
+    Feeds:   follow_run."""
+    for _ in range(ENDED_ASKS):
+        if running():
+            return False
+        sleep(ENDED_GAP)
+    return not running()
+
+
 def follow_run(config_dir, running=unit_running, out=None, sleep=time.sleep, interval=0.5, wait_log=10.0):
     """Purpose: show setup's run as it goes (decision 2.1.2.26, manual 1.3.2.3.2): print the run's log from its
              start and as it grows until the unit has ended, then end with the run's result. Ctrl-C stops
@@ -43,7 +60,7 @@ def follow_run(config_dir, running=unit_running, out=None, sleep=time.sleep, int
                     out.write(decoder.decode(chunk))
                     out.flush()
                     continue
-                if not running():
+                if _ended(running, sleep):
                     out.write(decoder.decode(f.read(), final=True))
                     out.flush()
                     break

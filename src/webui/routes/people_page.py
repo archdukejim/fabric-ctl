@@ -2,6 +2,7 @@ import urllib.parse
 
 from webui import agentclient as actions
 from webui import views
+from webui.routes.places_for import places_for
 
 
 def people_page(h, ctx, path, query):
@@ -25,7 +26,7 @@ def people_page(h, ctx, path, query):
     if rest == "_new":
         if "people:create" not in (ctx.get("perms") or ()):
             return h.deny(403, "You need the permission people:create to add a person.")
-        return h.send(200, views.people(ctx, "new"))
+        return h.send(200, views.people(ctx, "new", places=places_for("person")))
     uid = urllib.parse.unquote(rest)
     try:
         person = actions.person_overview(uid)

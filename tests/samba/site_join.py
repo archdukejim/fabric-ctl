@@ -294,6 +294,7 @@ if "lab2" in joined:
         after = converge_domain(v, os.path.join(W, "lab2", "federation.yaml"), secrets, container=container)
     except ValidationError as e:
         after = [f"error: {e}"]
+    LAB2 = (v, secrets, container)
     check("lab2's own convergence after the move runs cleanly, writing no log-on GPO (retired in D1, 2.3.6.17)",
           not any(c.startswith("error") for c in after) and not any("log-on" in c for c in after), after)
 
@@ -409,7 +410,37 @@ check("the root's replication status: the writable site's DC is an inbound neigh
       and all(n["last_success"] for n in rep["neighbours"]), rep)
 rep, got = partners(SITES["edge"][0])
 check("the RODC's replication status: it pulls from the root", not rep["error"] and "CN=DC-0001" in got, rep)
-check("no conflict objects in the domain", list_conflicts(ROOT) == [], list_conflicts(ROOT))
+# a site moving here: the parent and the site each make its link, each at its own DC, so AD may keep one as a CNF: copy
+# (2.3.1.45). Made here on purpose, so what follows does not depend on the race's timing.
+LOSER = r"""
+import sys
+sys.path.insert(0, "/fabric")
+from ensure_site_link import ensure_site_link
+from open_samdb import open_samdb
+samdb, _ = open_samdb("/data/etc/smb.conf")
+sites = f"CN=Sites,{samdb.get_config_basedn()}"
+ip = f"CN=IP,CN=Inter-Site Transports,{sites}"
+samdb.add({"dn": f"CN=lan-lab2\\0ACNF:00000000-0000-4000-8000-000000000001,{ip}", "objectClass": "siteLink",
+           "siteList": sorted([f"CN=lan,{sites}", f"CN=lab2,{sites}"]), "cost": ["100"]})
+samdb.add({"dn": f"CN=lan-other\\0ACNF:00000000-0000-4000-8000-000000000002,{ip}", "objectClass": "siteLink",
+           "siteList": sorted([f"CN=lan,{sites}", f"CN=lab2,{sites}"]), "cost": ["100"]})
+print(ensure_site_link(samdb, "lab2", "lan"))
+"""
+made = sh(["docker", "exec", ROOT, "python3", "-c", LOSER])
+left = list_conflicts(ROOT)
+check("a site's link that lost the race: the next convergence removes it, says so; its link stays",
+      "from a race, removed" in made.stdout and not any("lan-lab2" in c for c in left)
+      and "cn: lan-lab2" in search(ROOT, "(objectClass=siteLink)", ["cn"], base=f"CN=Sites,CN=Configuration,{BASE}"),
+      (made.stdout, made.stderr[-400:], left))
+check("negative: another link's CNF: copy is not this site's to remove, and is still shown",
+      any("lan-other" in c for c in left), left)
+sh(["docker", "exec", ROOT, "ldbdel", "-H", "/data/private/sam.ldb",
+    f"CN=lan-other\\0ACNF:00000000-0000-4000-8000-000000000002,CN=IP,CN=Inter-Site Transports,CN=Sites,"
+    f"CN=Configuration,{BASE}"])
+# the real race: lab2's and the root's links have met by now, or will: a convergence at lab2 settles it
+settled = until(lambda: converge_domain(LAB2[0], os.path.join(W, "lab2", "federation.yaml"), LAB2[1],
+                                        container=LAB2[2]) is not None and list_conflicts(ROOT) == [], 300)
+check("no conflict objects in any partition, once a convergence has seen them", settled, list_conflicts(ROOT))
 
 if not os.environ.get("FABRIC_TEST_KEEP"):
     cleanup()

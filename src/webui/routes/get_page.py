@@ -14,6 +14,7 @@ from webui.routes.sites_page import sites_page
 from webui.routes.site_link import site_link
 from webui.routes.kerberos_page import kerberos_page
 from webui.routes.ous_page import ous_page
+from webui.routes.tree_page import tree_page
 from webui.routes.dns_filter_page import dns_filter_page
 from webui.routes.moved_to import moved_to
 from webui.routes.networks_page import networks_page
@@ -60,7 +61,20 @@ def _overview(h, sess, ctx, path):
     except (actions.AgentError, actions.ValidationError, actions.PermissionDenied):
         pass
     return h.send(200, views.overview(ctx, actions.service_status(), actions.host_changes(),
-                                      actions.relaxed_settings(), actions.cert_warnings(), None, "", wizard))
+                                      actions.relaxed_settings(), actions.cert_warnings(), None, "", wizard,
+                                      sizing=_sizing()))
+
+
+def _sizing():
+    """Purpose: the Overview's Sizing card (manual 1.8.8.8): a failure to ask leaves the card out, never the page.
+    Inputs:  none.
+    Returns: agentclient.sizing()'s dict, or None.
+    Fails:   AuthError and PermissionDenied propagate.
+    Feeds:   get_page (/)."""
+    try:
+        return actions.sizing()
+    except (actions.AgentError, actions.ValidationError):
+        return None
 
 
 def _rest(path, prefix):
@@ -82,7 +96,8 @@ def get_page(h, sess, path, query):
              /overview/updates, /audit), DNS (/dns/zones, /dns-filter), DHCP (/networks[/export|/scan|/options],
              1.10.4.40.1; /kea), PKI (/pki, /pki/acme),
              Directory (/directory, /directory/people|groups|computers[/_new|/<name>], /directory/computers/_groups,
-             /directory/ous[?ou=<path>], /directory/access[/_new|/<name>], /directory/sites[/<name>],
+             /directory/ous[?ou=<path>], /directory/tree[?ou=<path>&…] (Browse, 1.8.8.4),
+             /directory/access[/_new|/<name>], /directory/sites[/<name>],
              /directory/kerberos,
              /directory/policies[/gpo|/sudo]), 802.1X
              (/8021x, /8021x/decisions, /8021x/guides, /8021x/devices[/_new|/<name>], /8021x/roles[/_new|/<name>]),
@@ -165,6 +180,8 @@ def get_page(h, sess, path, query):
         return kerberos_page(h, ctx)
     if path == "/directory/ous":
         return ous_page(h, ctx, query)
+    if path == "/directory/tree":
+        return tree_page(h, ctx, query)
     if path == "/directory/computers" or path.startswith("/directory/computers/"):
         return computers_page(h, ctx, path, query)
     if path == "/directory/policies" or path == "/directory/policies/gpo" or path == "/directory/policies/sudo":

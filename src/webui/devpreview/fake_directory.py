@@ -1,5 +1,6 @@
 from webui.devpreview.fabric_rules import (ValidationError, check_kerberos_policy, check_password_policy, list_devices,
                                            read_policy_changes)
+from webui.devpreview.fake_ous import place_in
 from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DOMAIN, SAMPLE_GPO
 
 # a person's fields (2.1.6.93), as fabriclib's person_fields names them
@@ -61,6 +62,8 @@ def _people(state, who, route, body):
         uid = str(body.get("uid", "")).strip()
         if not uid or any(u["uid"] == uid for u in users):
             raise ValidationError(f"{uid or 'a user name'} is missing or already exists")
+        if body.get("ou"):
+            place_in(state, "person", str(body["ou"]))
         name = f"{body.get('first', '')} {body.get('last', '')}".strip()
         users.append({"uid": uid, "name": name, "mail": body.get("email", ""), "locked": False, "state": "active",
                       "last_logon": "", "groups": ["site-lan", "users"], "sites": ["lan"], "site": "lan",
@@ -155,10 +158,11 @@ def _machines(state, route, body):
         if not name or any(m["name"] == name for m in machines):
             raise ValidationError(f"{name or 'a name'} is missing or already taken")
         kind = body.get("type") or ""
+        ou = place_in(state, "machine", str(body["ou"])) if body.get("ou") else ""
         machines.append({"name": name, "dns": f"{name}.ad.home.arpa", "os": "", "enabled": True, "last_logon": "",
                          "type": kind, "sites": ["lan"], "created": "today", "dn": "",
-                         "folder": "machines" + ({"server": "/servers", "desktop": "/desktops",
-                                                  "network": "/network"}.get(kind, ""))})
+                         "folder": ou or "machines" + ({"server": "/servers", "desktop": "/desktops",
+                                                        "network": "/network"}.get(kind, ""))})
         return {"password": "dev-preview-not-real"}
     if len(route) == 3 and route[0] == "machines":
         m = next((x for x in machines if x["name"] == route[1]), None)

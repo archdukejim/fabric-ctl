@@ -1,7 +1,7 @@
-import json
 import subprocess
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.samba.read_in_dc import read_in_dc
 
 
 def site_tree_records(container="samba"):
@@ -13,11 +13,7 @@ def site_tree_records(container="samba"):
     Fails:   ValidationError when the DC does not answer (the caller shows why, never a guessed tree).
     Feeds:   federation/site_selector."""
     try:
-        res = subprocess.run(["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", container, "python3",
-                              "/fabric/read_site_tree.py"], capture_output=True, text=True, timeout=30)
-        if res.returncode == 0:
-            return list(json.loads(res.stdout)["sites"])
-        why = (res.stderr.strip().splitlines() or ["no answer"])[-1]
+        return list(read_in_dc(container, "read_site_tree", 30)["sites"])
     except (OSError, subprocess.TimeoutExpired, ValueError, KeyError) as e:
         why = str(e)
     raise ValidationError(f"the sites' records could not be read from this site's DC: {why}")

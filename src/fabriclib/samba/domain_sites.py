@@ -1,7 +1,7 @@
-import json
 import subprocess
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.samba.read_in_dc import read_in_dc
 
 
 def domain_sites(container="samba"):
@@ -13,11 +13,7 @@ def domain_sites(container="samba"):
     Fails:   ValidationError when the DC does not answer (a site's presence must never be guessed).
     Feeds:   federation/accept_join (a site moving here)."""
     try:
-        res = subprocess.run(["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", container, "python3",
-                              "/fabric/read_sites.py"], capture_output=True, text=True, timeout=60)
-        if res.returncode == 0:
-            return list(json.loads(res.stdout)["dcs"])
-        why = (res.stderr.strip().splitlines() or ["no answer"])[-1]
+        return list(read_in_dc(container, "read_sites")["dcs"])
     except (OSError, subprocess.TimeoutExpired, ValueError, KeyError) as e:
         why = str(e)
     raise ValidationError(f"the domain's sites could not be read from this site's DC: {why}")

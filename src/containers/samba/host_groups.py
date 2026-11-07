@@ -4,6 +4,7 @@ the lookups the operations on them share. Both are the domain's: host groups in 
 import ldb
 
 import paths
+from directory_scope import find_groups
 
 HOST_GROUP_MARK = "fabric: a host group (manual 1.6.11.7)"
 RULE_MARK = "fabric: a sudo rule of fabric's editor (manual 1.6.11.7)"     # fabric's editor-made sudo rules
@@ -22,13 +23,12 @@ def host_group_name(name):
 
 
 def find_host_group(samdb, name):
-    """Purpose: one of the domain's host groups, in OU=groups (and the OUs an admin made below it).
+    """Purpose: one of the domain's host groups, in any OU (2.1.6.106).
     Inputs:  samdb — SamDB; name — the group's AD name (`hosts-<name>`).
     Returns: ldb.Message (dn, member).
     Fails:   ValueError "no host group <name>"; ldb.LdbError from the search.
     Feeds:   remove_host_group, set_host_group_member, add_sudo_rule, refresh_sudo_hosts."""
-    found = samdb.search(base=paths.folder_dn(samdb, "groups"), scope=ldb.SCOPE_SUBTREE, attrs=["member"],
-                         expression=f"(&(objectClass=group)(sAMAccountName={ldb.binary_encode(name)}))")
+    found = find_groups(samdb, f"(sAMAccountName={ldb.binary_encode(name)})", ["member"])
     if not found or not name.startswith(PREFIX):
         raise ValueError(f"no host group {name}")
     return found[0]

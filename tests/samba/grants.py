@@ -139,11 +139,35 @@ check("grant list: the five shipped grants (0.9.0's network-plan too, 1.6.13.12)
       and "network-plan: network-admins gives networks: plan,options,scan at all (" in out, out)
 check("all five reach nobody yet: no person in their who, no machine in their where",
       out.count("reaches nobody") == 5, out)
-gplink = ldb("(distinguishedName=" + MACHINES + ")", "gPLink")
+gplink = ldb("(distinguishedName=" + BASE + ")", "gPLink")
 fallback = ldb("(displayName=fabric: access none)", "cn")
 fb_guid = fallback.split("cn: ", 1)[1].split()[0] if "cn: " in fallback else "?"
-check("the fallback GPO `fabric: access none` is linked at OU=machines, first in gPLink (the lowest precedence)",
+check("the fallback GPO `fabric: access none` is linked at the domain's root, first in gPLink (the lowest "
+      "precedence), so a machine in any OU has it (2.1.6.98)",
       gplink.split("gPLink: ", 1)[-1].startswith(f"[LDAP://CN={fb_guid},"), gplink)
+check("negative: a fresh install links none of fabric's access GPOs at OU=machines (the root's link only)",
+      fb_guid not in ldb("(distinguishedName=" + MACHINES + ")", "gPLink"), MACHINES)
+# 2.1.6.98: the fallback denied to the DCs and to the hosts that run one, which keep their own rules
+SD_PROBE = r"""
+import sys
+sys.path.insert(0, "/fabric")
+import ldb
+from samba.dcerpc import security
+from samba.ndr import ndr_unpack
+from open_samdb import open_samdb
+from find_gpo import find_gpo
+samdb, _ = open_samdb("/data/etc/smb.conf")
+sid = security.dom_sid(samdb.get_domain_sid())
+res = samdb.search(base=find_gpo(samdb, "fabric: access none")[0], scope=ldb.SCOPE_BASE, attrs=["nTSecurityDescriptor"])
+print(ndr_unpack(security.descriptor, res[0]["nTSecurityDescriptor"][0]).as_sddl(sid))
+print(samdb.get_domain_sid())
+"""
+sd = sh(["docker", "exec", "-i", DC, "python3", "-"], ok=False, input=SD_PROBE).stdout.split()
+dom = sd[-1] if sd else "?"
+apply_gp = "edacfd8f-ffb3-11d1-b41d-00a0c968f939"
+check("the fallback is denied Apply Group Policy for the Domain Controllers, the read-only DCs and dc-hosts (2.1.6.98)",
+      sd and all(f"OD;CI;CR;{apply_gp};;{who})" in sd[0] for who in ("DD", f"{dom}-521"))
+      and sd[0].count(f"OD;CI;CR;{apply_gp};;") == 3, sd)
 
 # people: sam (server-admins), dana (desktop-admins), alice and bob (lan), lara (lab); adam a Directory Administrator
 lab = {"site": "lab", "dc": "dc-0002", "dc_type": "writable", "root": False, "parent": "lan", "password_policy": POLICY,
@@ -321,6 +345,82 @@ except ValidationError as e:
     err = str(e)
 check("negative: creating carl again is refused (taken), with no compile and nothing audited",
       "already taken" in err and len(AUDIT) == n_audit, (err, AUDIT[n_audit:]))
+
+print("--- an admin's own OU at the domain's root, and a machine in an admin's OU keeps its rights (1.8.8.5, 2.1.6.98)")
+made = run_op(V, SECRETS, "create_ou", {"parent": "", "name": "branch"}, DC)
+check("an admin's own OU made at the domain's root by the agent (2.1.6.101: OUs anywhere)", made.get("path") == "branch",
+      made)
+sub = run_op(V, SECRETS, "create_ou", {"parent": "branch", "name": "floor-2"}, DC)
+check("...the rights written on it at once (2.1.6.102): the agent makes an OU inside it",
+      sub.get("path") == "branch/floor-2", sub)
+check("...the Directory Administrators' full control and GPO links on it, nothing inherited from the root",
+      "OA;CI;RPWP;f30e3bbe-9ff0-11d1-b603-0000f80367c1" in ldb("(distinguishedName=OU=branch," + BASE + ")",
+                                                               "nTSecurityDescriptor")
+      and "OA;CI;RPWP;f30e3bbe-9ff0-11d1-b603-0000f80367c1" not in ldb("(distinguishedName=" + BASE + ")",
+                                                                   "nTSecurityDescriptor"), "sd")
+try:
+    refused = run_op(V, SECRETS, "move_object", {"kind": "machine", "name": SRV, "path": "service-accounts"}, DC)
+except ValidationError as e:
+    refused = str(e)
+check("negative: a machine is not moved into service-accounts, saying why (2.1.6.106)",
+      "service accounts only" in str(refused), refused)
+made = run_op(V, SECRETS, "create_ou", {"parent": "machines", "name": "branch"}, DC)
+moved = run_op(V, SECRETS, "move_object", {"kind": "machine", "name": SRV, "path": "branch"}, DC)
+check(f"{SRV} moved out of OU=machines into an admin's OU at the domain's root, branch (any OU, 2.1.6.106)",
+      moved.get("changed") and moved.get("path") == "branch", moved)
+kept = within(lambda: allowed(S, "sam", "login") and allowed(S, "sam", "sshd") and not allowed(S, "lara", "sshd"), 90)
+sudo = sudo_list(S, "sam")
+check(f"{SRV} in OU=branch: sam still signs in and keeps sudo, lara (lab's) still may not (the GPOs at the root, "
+      "the grants by group: nothing follows the OU)", kept and "(root) ALL" in sudo,
+      {"sam login": allowed(S, "sam", "login"), "sam sshd": allowed(S, "sam", "sshd"),
+       "lara sshd": allowed(S, "lara", "sshd"), "sudo": sudo[-300:],
+       "sssd": on(S, "tail -n 60 /var/log/sssd/sssd_*.log 2>/dev/null")[1][-4000:]})
+code, out = grant("sync")
+check("negative: the compile after the move changes nothing (OUs grant nothing)",
+      code == 0 and "nothing to change" in out, out)
+# Create in... (2.1.6.101): the same rule as a move (may_hold), at the DC
+made = run_op(V, SECRETS, "create_machine", {"name": "brws1", "password": PW + "Mc1", "ou": "machines/branch",
+                                             "type": "desktop"}, DC)
+check("Create in...: a machine made in machines/branch, its type its group (2.1.6.99)",
+      made.get("dn", "").startswith("CN=BRWS1,OU=branch,OU=machines,")
+      and "CN=machines-desktops," in ldb("(sAMAccountName=BRWS1$)", "memberOf"), made)
+made = run_op(V, SECRETS, "create_ou", {"parent": "groups", "name": "teams"}, DC)
+made = run_op(V, SECRETS, "create_group", {"name": "team-a", "ou": "groups/teams"}, DC)
+check("Create in...: a group made in groups/teams", "OU=teams,OU=groups," in ldb("(sAMAccountName=team-a)", "dn"),
+      made)
+made = run_op(V, SECRETS, "create_machine", {"name": "brws2", "password": PW + "Mc2", "ou": "branch"}, DC)
+check("Create in...: a machine made outside OU=machines, in branch (any OU, 2.1.6.106)",
+      made.get("dn", "").startswith("CN=BRWS2,OU=branch,DC="), made)
+made = run_op(V, SECRETS, "create_group", {"name": "team-b", "ou": "machines/branch"}, DC)
+check("Create in...: a group made outside OU=groups, in machines/branch (any OU, 2.1.6.106)",
+      "OU=branch,OU=machines," in ldb("(sAMAccountName=team-b)", "dn"), made)
+samba_tool("computer", "delete", "BRWS2")
+samba_tool("group", "delete", "team-b")
+for op, args, words in (("create_machine", {"name": "brws4", "password": PW + "Mc4", "ou": "service-accounts"},
+                         "service accounts only"),
+                        ("create_group", {"name": "team-c", "ou": "groups/fabric"}, "closed folders"),
+                        ("create_machine", {"name": "brws3", "password": PW + "Mc3", "ou": "machines/nowhere"},
+                         "no OU machines/nowhere")):
+    try:
+        got = run_op(V, SECRETS, op, args, DC)
+    except ValidationError as e:
+        got = str(e)
+    check(f"negative: Create in... refused for {op} in {args['ou']}, saying why ({words}), nothing made",
+          words in str(got) and args["name"].upper() not in ldb(f"(sAMAccountName={args['name']}*)", "dn").upper(),
+          got)
+back = run_op(V, SECRETS, "move_object", {"kind": "machine", "name": SRV, "path": "machines/servers"}, DC)
+check(f"{SRV} moved back to machines/servers", back.get("changed"), back)
+# the upgrade (Rule 9, positive evidence): 0.9.0 linked the fallback at OU=machines; the next compile takes it out
+fb_dn = f"CN={fb_guid},CN=Policies,CN=System,{BASE}"
+had = ldb("(distinguishedName=" + MACHINES + ")", "gPLink").split("gPLink: ", 1)[-1].split("\n")[0].strip()
+had = had if had.startswith("[") else ""
+on(DC, "ldbmodify -H /data/private/sam.ldb", stdin=f"dn: {MACHINES}\nchangetype: modify\nreplace: gPLink\n"
+   f"gPLink: [LDAP://{fb_dn};0]{had}\n")             # 0.9.0's link first, the site's own kept after it
+code, out = grant("sync")
+check("upgrade from 0.9.0: the fallback's old link at OU=machines is taken out by the next compile, the root's kept",
+      "removed (linked at the domain's root" in out
+      and fb_guid not in ldb("(distinguishedName=" + MACHINES + ")", "gPLink")
+      and f"CN={fb_guid}," in ldb("(distinguishedName=" + BASE + ")", "gPLink"), out)
 
 print("--- the fallback: a machine no grant reaches (2.1.6.87)")
 samba_tool("group", "removemembers", "machines-servers", f"{SRV.upper()}$")

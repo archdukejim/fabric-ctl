@@ -1,9 +1,9 @@
 import ldb
 
-import paths
 from grant_members import tiers
 from group_kind import group_kind
 from group_store import write_managers
+from directory_scope import find_people
 
 NO_MANAGERS = ("ad", "computed", "filled", "host-group")
 
@@ -15,9 +15,7 @@ def _manager_dn(samdb, t, name, bundles):
     Returns: str.
     Fails:   ValueError saying why it cannot be a manager.
     Feeds:   set_group_managers."""
-    found = samdb.search(base=paths.folder_dn(samdb, "people"), scope=ldb.SCOPE_SUBTREE, attrs=["dn"],
-                         expression=f"(&(objectClass=user)(!(objectClass=computer))"
-                                    f"(sAMAccountName={ldb.binary_encode(name)}))")
+    found = find_people(samdb, f"(sAMAccountName={ldb.binary_encode(name)})")
     if found:
         dn = str(found[0].dn)
         if dn.lower() in t["ad_top"] or dn.lower() in t["fabric_accounts"]:

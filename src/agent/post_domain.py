@@ -24,9 +24,9 @@ def post_domain(route, actor, data, caller=None, perms=None):
              /v1/machines/..., its admin settings GPO, POST /v1/gpo/..., and the domain's password policy, POST
              /v1/domain/password-policy (1.6.5.25, 2.1.2.22), and the grants, POST /v1/domain/grants/... (post_grants,
              1.6.13.7).
-    Inputs:  route — ["machines"] (body: name), ["machines", <name>, "enable"|"disable"|"delete"], ["gpo", "search"]
-             (body: match), ["gpo", "set"] (body: policy, values {element: text}, enabled, control), ["gpo",
-             "clear"] (body: policy), ["domain", "password-policy"]
+    Inputs:  route — ["machines"] (body: name, type, managed, ou), ["machines", <name>, "enable"|"disable"|"delete"],
+             ["gpo", "search"] (body: match), ["gpo", "set"] (body: policy, values {element: text}, enabled,
+             control), ["gpo", "clear"] (body: policy), ["domain", "password-policy"]
              (body: the policy keys to change, read_policy_changes), ["domain", "kerberos", "policy"] (body:
              ticket_hours, renew_days, skew_minutes), ["machines", <name>, "move"|"type"|"sites"|"keytab"] (body:
              path; type, move; action add|remove, site; service, user, path); actor — str; data — the JSON body;
@@ -57,7 +57,8 @@ def post_domain(route, actor, data, caller=None, perms=None):
     if route == ["machines"]:
         return {"password": add_machine(v, actor, read_text(data, "name"), source="web",
                                         type=read_text(data, "type") or None,
-                                        managed=read_text(data, "managed") != "no", caller=caller)}
+                                        managed=read_text(data, "managed") != "no", caller=caller,
+                                        ou=read_text(data, "ou"))}
     if len(route) == 3 and route[0] == "machines" and route[2] in ("enable", "disable"):
         return set_machine_enabled(v, actor, route[1], route[2] == "enable", source="web", caller=caller)
     if len(route) == 3 and route[0] == "machines" and route[2] == "delete":

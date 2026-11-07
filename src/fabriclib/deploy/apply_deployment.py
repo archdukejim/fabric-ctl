@@ -20,6 +20,7 @@ from fabriclib.deploy.install_webui_files import install_webui_files
 from fabriclib.deploy.render_deployment import render_deployment
 from fabriclib.deploy.renew_landing_cert import renew_landing_cert
 from fabriclib.deploy.restart_changed import restart_changed
+from fabriclib.deploy.running_build import build_changed, record_build
 from fabriclib.deploy.verify_published_images import verify_published_images
 from fabriclib.dhcp.check_kea_files import check_kea_files
 from fabriclib.dhcp.kea_key.drop_old_key import drop_old_key
@@ -91,11 +92,13 @@ def _deploy(paths, start_services):
     install_timers(paths, final_vars)
     keep_hand_set_addresses(final_vars)    # for the hourly cleanup of DHCP names left behind (2.1.10.22)
 
+    newer_build = build_changed(paths["config"])       # a package update: what runs still holds the old code (2.1.1.83)
     state = {"restart": restart, "rebuild": svc["rebuild"],
              "daemon_reload": svc["daemon_reload"] or ngx["daemon_reload"] or web["agent"]
              or fed["unit_changed"] or fed["removed"],
              "bind9_config": bind["config"], "zones": bind["zones"], "nginx": ngx["nginx"],
-             "webui": web["webui"], "agent": web["agent"], "federation_unit": fed["unit_changed"],
+             "webui": web["webui"], "agent": web["agent"] or (newer_build and bool(final_vars.get("install_webui"))),
+             "federation_unit": fed["unit_changed"] or (newer_build and bool(final_vars.get("federation_endpoint"))),
              "kea_reload": kea_reload, "kea_drop": kea_drop, "names": names}
     bind_ids = service_user(final_vars, "bind")
     if not start_services:
@@ -106,6 +109,7 @@ def _deploy(paths, start_services):
         # (2.1.4.8)
         if renew_landing_cert(paths, final_vars):
             changed.add("nginx")
+    record_build(paths["config"])
     if p["dns_digest"] is not None:        # BIND took this plan's names: only now may the poll count DNS current
         save_watch_state("plan-dns", {"dns": p["dns_digest"]})
     return changed

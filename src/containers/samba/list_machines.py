@@ -1,7 +1,5 @@
-import ldb
-
 from ad_time import ad_time
-from find_machine import MACHINE_FOLDERS
+from all_machines import all_machines
 from host_groups import PREFIX
 from ou_paths import ou_path
 import paths
@@ -11,9 +9,10 @@ TYPES = {f"machines-{ou}": kind for kind, ou in paths.MACHINE_TYPES.items()}    
 
 
 def list_machines(samdb, lp, site):
-    """Purpose: the domain's machines (manual 1.6.7.6, 1.6.5.21 S7.4, 1.6.13.3): the computer accounts in OU=machines
-             and the OUs below it, Windows and Linux alike, and the fabric hosts in OU=fabric-hosts (1.6.11.11), each
-             with its type, sites and machine groups (from its groups) and its folder.
+    """Purpose: the domain's machines (manual 1.6.7.6, 1.6.5.21 S7.4, 1.6.13.3): the computer accounts in any OU
+             (OU=machines and below, an admin's own OUs anywhere since 0.9.2, 1.8.8.5), Windows and Linux alike, and the
+             fabric hosts in OU=fabric-hosts (1.6.11.11), each with its type, sites and machine groups (from its
+             groups: its type is its group's, never its OU's, 2.1.6.99) and its folder.
     Inputs:  samdb — SamDB (as the DC's agent); lp — LoadParm (unused); site — str (unused: machines are the
              domain's; a machine's sites are its `site-<name>` groups).
     Returns: list of {"name" (the host name, lower case), "dns", "os", "type" (server, desktop, network, or ""),
@@ -22,16 +21,9 @@ def list_machines(samdb, lp, site):
              name.
     Fails:   ldb.LdbError from the search.
     Feeds:   directory_ops (op "list_machines")."""
-    out, found = [], []
-    for folder in MACHINE_FOLDERS:
-        try:
-            found += samdb.search(base=paths.folder_dn(samdb, folder), scope=ldb.SCOPE_SUBTREE,
-                                  expression="(objectCategory=computer)",
-                                  attrs=["sAMAccountName", "dNSHostName", "operatingSystem", "userAccountControl",
-                                         "lastLogonTimestamp", "whenCreated", "memberOf"])
-        except ldb.LdbError as e:
-            if e.args[0] != ldb.ERR_NO_SUCH_OBJECT:      # a folder not converged yet holds nothing
-                raise
+    out = []
+    found = all_machines(samdb, "", ["sAMAccountName", "dNSHostName", "operatingSystem", "lastLogonTimestamp",
+                                     "whenCreated", "memberOf"])
     for m in found:
         one = lambda name: str(m.get(name, idx=0) or "")    # noqa: E731
         created = one("whenCreated")

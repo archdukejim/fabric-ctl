@@ -1,7 +1,6 @@
-import ldb
 
 from ad_time import ad_time
-import paths
+from directory_scope import find_groups, find_people
 
 UF_ACCOUNTDISABLE = 0x2
 
@@ -27,10 +26,8 @@ def list_people(samdb, lp, site):
     Fails:   ldb.LdbError from a search.
     Feeds:   directory_ops (op "list_people")."""
     users = []
-    for m in samdb.search(base=paths.folder_dn(samdb, "people"), scope=ldb.SCOPE_SUBTREE,
-                          expression="(&(objectCategory=person)(objectClass=user)(!(objectClass=computer)))",
-                          attrs=["sAMAccountName", "displayName", "mail", "memberOf", "userAccountControl",
-                                 "lockoutTime", "uidNumber", "lastLogonTimestamp"]):
+    for m in find_people(samdb, attrs=["sAMAccountName", "displayName", "mail", "memberOf", "userAccountControl",
+                                       "lockoutTime", "uidNumber", "lastLogonTimestamp"]):
         uac = int(str(m.get("userAccountControl", ["0"])[0]))
         disabled, locked_out = bool(uac & UF_ACCOUNTDISABLE), int(str(m.get("lockoutTime", ["0"])[0])) > 0
         locked = disabled or locked_out
@@ -44,6 +41,5 @@ def list_people(samdb, lp, site):
                       "site": ", ".join(sites),
                       "uidNumber": int(str(m["uidNumber"][0])) if "uidNumber" in m else None})
     groups = [{"name": str(g["cn"][0]), "members": len(g.get("member", []))}
-              for g in samdb.search(base=paths.folder_dn(samdb, "groups"), scope=ldb.SCOPE_SUBTREE,
-                                    expression="(objectClass=group)", attrs=["cn", "member"])]
+              for g in find_groups(samdb, attrs=["cn", "member"])]
     return {"users": sorted(users, key=lambda u: u["uid"]), "groups": sorted(groups, key=lambda g: g["name"])}

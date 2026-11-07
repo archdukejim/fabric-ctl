@@ -18,4 +18,8 @@ A full install from the `.deb` in a disposable systemd + Docker container
 | `list_roles.py` | Inside the sandbox: the device roles' names (the defaults setup created) |
 | `iterate.sh` | Developer helper: re-run parts against a kept sandbox |
 | `make_person.py` | A person of the site made the way fabric makes them, optionally in an organisation group |
+| `size_fill.py` | Fills a test install up to a number of people, with half as many computers and a tenth as many groups, made the way fabric makes them; re-runs top up (the sizing model's measurements, 1.8.8.8, 2.3.8.5) |
+| `size_fill_dc.py` | The same fill in one batch inside the DC, by the DC's own create_person, create_machine and create_group over one local database: 5,000 people in minutes (2.3.8.5.1) |
+| `size_measure.sh` | Fills a sandbox left by `KEEP=1 run.sh` to each size in turn (5, 100, 1,000 people by default; in one batch inside the DC, or `FILL=agent` through fabric-agent's path) and reads each container's memory and CPU at rest, then at their highest under `size_load.py`'s reads, one tab-separated line per container, size and phase (2.3.8.5) |
+| `size_load.py` | A simple load: the console's directory reads (People, Groups, Computers, Browse) in a loop for a number of seconds, each read's median and slowest time printed (2.3.8.5.1) |
 | `agent_job.py` | Inside the sandbox: one fabric-agent job (doctor, an image update) through its socket, as the web console runs it; or one route answered at once (`post`) |

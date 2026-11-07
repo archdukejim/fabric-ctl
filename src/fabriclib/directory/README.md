@@ -7,6 +7,7 @@ account, so AD's limits apply to it.
 | File | What |
 |---|---|
 | `__init__.py` | Package marker |
+| `held_op.py` | fabric-agent's held processes in the DC: up to two `directory_op.py --serve`, each asked one request at a time (2.1.8.35) |
 | `run_op.py` | Run one directory operation as this DC's agent account (`fabric-agent-<dc>`); refusals as messages safe to show |
 | `list_people.py` | The People page: every person and group (never a password) and the Keycloak console link |
 | `create_person.py` | A new person in OU=people (POSIX identity from the DC's range, their site's `site-<name>`, a one-time password) |

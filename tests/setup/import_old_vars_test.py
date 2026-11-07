@@ -124,6 +124,17 @@ same, _ = render_vars(env, secrets, {**yaml.safe_load(open(os.path.join(ctx_same
                                      "deploy_base_dir": "/opt"})
 # install_was_ready (2.1.4.10): the moved file names hostname_landing, so it counts as an install once ready (its
 # zone, info included, is the admin's); a fresh one is not ready until its first setup ends
+
+
+def _zones(v):
+    """The zones' records as sets: their order is not the zone's (BIND serves the same records). Since 0.9.2 the first
+    render of moved settings drops fabric's own names and adds them again (1.4.1.8), so they may come in another
+    order than a fresh install's."""
+    return {z: {t: sorted(map(str, r)) if isinstance(r, list) else r for t, r in recs.items()}
+            for z, recs in (v.get("dns") or {}).items()}
+
+
+same, moved = {**same, "dns": _zones(same)}, {**moved, "dns": _zones(moved)}
 differ = sorted(k for k in set(same) | set(moved) if same.get(k) != moved.get(k) and k != "install_was_ready")
 check("0.8.0 renders the moved settings as a fresh install with the same answers (zones, keys, parts, groups, "
       "the DC; the console's kept address aside)", differ == [] and moved["install_was_ready"] is True

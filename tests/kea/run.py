@@ -15,6 +15,7 @@ import copy
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -35,7 +36,7 @@ from tests.common.kea_image import TAG as KEA_IMAGE, build_kea_image  # noqa: E4
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.common.read_images_lock import read_images_lock  # noqa: E402
 from fabriclib.common.read_packages_lock import read_packages_lock  # noqa: E402
-from fabriclib.dhcp.check_kea_config import check_kea_config  # noqa: E402
+from fabriclib.dhcp.check_kea_config import check_kea_config as real_check  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.dhcp.deploy_kea import deploy_kea  # noqa: E402
 from fabriclib.dhcp.list_leases import list_leases  # noqa: E402
@@ -98,6 +99,23 @@ sh(["docker", "build", "-q", "-t", BIND_IMAGE, "--build-arg", f"BASE_IMAGE={DEBI
     f"{REPO}/packaging/images/bind9"])
 
 # ------------------------------------------------------------------ fabric's files
+import fabriclib.dhcp.check_kea_files as check_kea_files_module  # noqa: E402
+import fabriclib.dhcp.common.edit_dhcp as edit_dhcp_module  # noqa: E402
+# The test's Kea serves its bridge's eth0, but Kea's real check runs on the host's network and refuses an interface that is not
+# there, and a runner may have no eth0 (2.3.1.53). So the check is given a name the host has; all else it reads is the file's.
+HOST_IFACE = next((n for _, n in socket.if_nameindex() if n != "lo"), "lo")
+
+
+def on_host(text):
+    return text.replace('"eth0"', f'"{HOST_IFACE}"')
+
+
+def check_kea_config(image, name, text):
+    return real_check(image, name, on_host(text))
+
+
+check_kea_files_module.check_kea_config = check_kea_config
+edit_dhcp_module.check_kea_config = check_kea_config
 V = {"deploy_base_dir": W, "domain": "lan.test", "install_kea": True, "ip_kea_ddns": DDNS_IP, "ip_bind9": BIND_IP,
      "host_ip": BIND_IP, "service_users": {"kea": {"uid": 915, "gid": 915}}, "image_kea": KEA_IMAGE,
      "dhcp": {"interfaces": ["eth0"], "lease_time": 3600,
@@ -122,6 +140,12 @@ check("Kea's configs, lease and socket folders, and the DHCP subzone file writte
       deploy_kea(V, {"kea_ddns_secret": secret}, env, 53, 53) and os.path.exists(f"{W}/bind9/data/db.dhcp.lan.test")
       and oct(os.stat(f"{W}/kea/config/kea-dhcp-ddns.conf").st_mode & 0o777) == "0o640")
 cfg4 = open(f"{W}/kea/config/kea-dhcp4.conf").read()
+try:
+    no_iface = real_check(KEA_IMAGE, "kea-dhcp4.conf", cfg4.replace('"eth0"', '"no-such-if0"'))
+except ValidationError as e:
+    no_iface = str(e)
+check("negative: Kea's real check refuses an interface the host does not have, saying so (why it is given the host's name)",
+      "doesn't exist in the system" in str(no_iface), no_iface)
 # covers: setting:dhcp +
 check("Kea checked them first (kea-dhcp4 -t) and accepted: options, a client class, the subnet's id, name, VLAN, "
       "the reservation whose names are set by hand in SKIP_DDNS with the ddns-tuning hook (2.1.10.20)",
@@ -136,7 +160,7 @@ priv = subprocess.run(["unshare", "--mount", "--propagation", "private", "sh", "
                        f"import sys; sys.path[0:0] = [{os.path.join(REPO, 'src')!r}]; "
                        "from fabriclib.dhcp.check_kea_config import check_kea_config; "
                        f"print(check_kea_config('{KEA_IMAGE}', 'kea-dhcp4.conf', sys.stdin.read()))"],
-                      input=cfg4, capture_output=True, text=True, timeout=120)
+                      input=on_host(cfg4), capture_output=True, text=True, timeout=120)
 check("Kea's check works from a process with a private /tmp, as fabric-agent runs (the console's applies)",
       priv.stdout.strip() == "True", priv.stdout + priv.stderr)
 # the check's throwaway container stays out of Kea's Compose project (1.2.4.6): fabric builds a pending Kea image with
@@ -489,9 +513,11 @@ planted = kea_update(f"update add old-cam2.dhcp.lan.test 300 A {P}.23.44")
 check("(set up: a second name left behind, old-cam2, served by BIND)", planted.returncode == 0
       and until(lambda: dig("old-cam2.dhcp.lan.test") == f"{P}.23.44", 15), planted.stdout + planted.stderr)
 before = len(CLEARED)
+# another key, for certain: a first letter swapped for "x" was the same one once in 64 (2.3.1.53)
+OTHER_KEY = ("B" if secret[0] == "A" else "A") + secret[1:]
 cdn.load_secrets = lambda: {"kea_ddns_secret": sh("openssl rand -base64 32").stdout.strip()}
 rc_bad = run_dhcp_command(HV2, ["clean-names", "--scheduled"])
-_, err = call(lambda: csn.clear_stale_dhcp_names(HV2, [f"{P}.23.44"], "x" + secret[1:], "root", "cli"))
+_, err = call(lambda: csn.clear_stale_dhcp_names(HV2, [f"{P}.23.44"], OTHER_KEY, "root", "cli"))
 check("refused: BIND refusing the update (a key it does not know) fails the run (exit 1) and says so; the name "
       "stays, nothing audited", rc_bad == 1 and "BIND refused" in err and "nothing was deleted" in err
       and dig("old-cam2.dhcp.lan.test") == f"{P}.23.44" and len(CLEARED) == before, (rc_bad, err))

@@ -2,7 +2,7 @@ import secrets
 
 from webui import views
 from webui.devpreview.fabric_rules import ValidationError
-from webui.devpreview.sample_data import SAMPLE_DOCTOR, SAMPLE_INFO, SAMPLE_PEM, SAMPLE_SECURITY
+from webui.devpreview.sample_data import SAMPLE_DOCTOR, SAMPLE_INFO, SAMPLE_PEM, SAMPLE_SECURITY, SAMPLE_SIZING
 from webui.devpreview.sample_result import sample_result
 from webui.devpreview.sample_settings import SAMPLE_PLAN
 
@@ -96,6 +96,11 @@ def fake_misc(state, who, route, body):
     Feeds:   fake_agent."""
     if route == ["events"]:
         return {}
+    if route == ["sizing", "dismiss"]:
+        if body.get("resource") not in {a["resource"] for a in SAMPLE_SIZING["alerts"]}:
+            raise ValidationError(f"no sizing alert for {body.get('resource')!r} now")
+        state.sizing_dismissed = getattr(state, "sizing_dismissed", set()) | {body["resource"]}
+        return {"resource": body["resource"], "level": "warn", "objects": 7}
     if route == ["jobs", "doctor"]:
         return _job(state, "doctor", SAMPLE_DOCTOR)
     if route == ["jobs", "images"]:

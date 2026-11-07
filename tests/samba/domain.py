@@ -64,6 +64,8 @@ import fabriclib.samba.domain_dc_names as m_dcnames  # noqa: E402
 import fabriclib.samba.domain_sites as m_dsites  # noqa: E402
 import fabriclib.samba.site_tree_records as m_tree  # noqa: E402
 import fabriclib.samba.replication_status as m_repl  # noqa: E402
+import fabriclib.samba.read_in_dc as m_readin  # noqa: E402
+import fabriclib.samba.gpo_request as m_gporeq  # noqa: E402
 import fabriclib.federation.accept_join as m_join  # noqa: E402
 from fabriclib.breakglass.ensure_enterprise_admin import ensure_enterprise_admin  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
@@ -98,7 +100,7 @@ def redirect(module):
     module.subprocess = types.SimpleNamespace(run=run, TimeoutExpired=subprocess.TimeoutExpired)
 
 
-for mod in (m_runop, m_greq, m_dcnames, m_dsites, m_tree, m_repl):
+for mod in (m_runop, m_greq, m_dcnames, m_dsites, m_tree, m_repl, m_readin, m_gporeq):
     redirect(mod)
 
 
@@ -501,9 +503,9 @@ done2 = m_ous.post_ous(["ous"], "alice", {"parent": "machines/servers", "name": 
 check("POST /v1/ous: people/staff and machines/servers/web, audited",
       done["path"] == "people/staff" and done2["dn"] == f"OU=web,OU=servers,OU=machines,{BASE}"
       and AUDIT[-1][1] == "OU_CREATE", (done, done2))
-for body, words in (({"parent": "groups/fabric", "name": "x"}, "takes no admin's folders"),
-                    ({"parent": "machines", "name": "x"}, "takes no admin's folders"),
-                    ({"parent": "devices", "name": "x"}, "takes no admin's folders"),
+for body, words in (({"parent": "groups/fabric", "name": "x"}, "one of fabric's closed folders"),
+                    ({"parent": "fabric-hosts", "name": "x"}, "one of fabric's closed folders"),
+                    ({"parent": "devices", "name": "x"}, "one of fabric's closed folders"),
                     ({"parent": "people", "name": "people"}, "one of fabric's folders' names"),
                     ({"parent": "people", "name": "a,b"}, "an OU's name"),
                     ({"parent": "people", "name": "staff"}, "already taken"),
@@ -542,12 +544,105 @@ check("POST /v1/machines/srv1/move by hd (a grant's machines move on lan's serve
 for who, name, body, perms_, words in (
         ("hd", "dsk1", {"path": "machines"}, {"machines:admin", "ous:admin"}, "no grant gives you machines move on dsk1"),
         ("hd", "srv1", {"path": "machines"}, {"machines:admin"}, "needs ous:admin too"),
-        ("alice", "srv1", {"path": "people/office"}, None, "only to a folder under OU=machines"),
+        ("alice", "srv1", {"path": "devices"}, None, "closed folders"),
+        ("alice", "srv1", {"path": "service-accounts"}, None, "holds service accounts only"),
         ("alice", "srv1", {"path": "machines/nowhere"}, None, "no OU machines/nowhere"),
         ("alice", "nomachine", {"path": "machines"}, None, "no machine nomachine")):
     gone, why = refused(m_domain.post_domain, ["machines", name, "move"], who, body, who, perms_)
     # covers: agent:post.machines.*.move -
     check(f"move {name} as {who} refused ({words})", gone and words in why, why)
+print("--- the directory browser and Move to... (1.8.8.4, 1.8.8.5)")
+import agent.read_tree as m_tree  # noqa: E402
+m_tree.load_vars = lambda: V
+tree = m_get.get_route(["directory", "tree", "ou=people", "q=", "w=0", "i=0"], "alice")
+# covers: agent:get.directory.tree.*.*.*.* +
+check("GET /v1/directory/tree/ou=people/…: the tree open at people (the domain's level, then people's), its people "
+      "listed by kind and name, OU=people may hold any kind (2.1.6.106), AD's containers at the root, groups/fabric left "
+      "out",
+      [lv["path"] for lv in tree["levels"]] == ["", "people"] and {"bob", "alice"} <= {
+          r["name"] for r in tree["contents"] if r["kind"] == "person"}
+      and sorted(tree["kinds"]) == ["group", "machine", "person"]
+      and "Users" in {c["name"] for c in tree["levels"][0]["children"]}
+      and "groups/fabric" not in {c["path"] for lv in tree["levels"] for c in lv["children"]}, tree["levels"])
+found = m_get.get_route(["directory", "tree", "ou=", "q=bob", "w=1", "i=0"], "alice")
+check("...a search of the whole domain finds bob, saying where", any(r["name"] == "bob" and r["at"] == "people"
+                                                                     for r in found["contents"]), found["contents"])
+for segs, words in ((["ou=nowhere", "q=", "w=0", "i=0"], "no OU nowhere"),
+                    (["ou=", "q=b", "w=1", "i=0"], "at least 2 characters"),
+                    (["q=", "ou=", "w=0", "i=0"], "the tree's address"),
+                    (["ou=", "q=", "w=2", "i=0"], "the tree's address")):
+    gone, why = refused(m_get.get_route, ["directory", "tree"] + segs, "alice")
+    # covers: agent:get.directory.tree.*.*.*.* -
+    check(f"GET the tree refused ({words})", words in why, why)
+m_ous.post_ous(["ous"], "alice", {"parent": "people", "name": "movers"})
+done = m_people.post_people(["people", "bob", "move"], "alice", {"path": "people/movers"}, "alice",
+                            {"people:edit", "ous:admin"})
+# covers: agent:post.people.*.move +
+check("POST /v1/people/bob/move: bob in people/movers, his groups unchanged, audited PERSON_MOVE",
+      done["changed"] and f"CN=bob,OU=movers,OU=people,{BASE}" in ldb("(sAMAccountName=bob)", "dn")
+      and "CN=site-lan," in ldb("(sAMAccountName=bob)", "memberOf") and AUDIT[-1][1] == "PERSON_MOVE", done)
+for who, uid, body, perms_, words in (
+        ("alice", "bob", {"path": "service-accounts"}, None, "holds service accounts only"),
+        ("alice", "bob", {"path": "sudoers"}, None, "closed folders"),
+        ("alice", "bob", {"path": "people/nowhere"}, None, "no OU people/nowhere"),
+        ("hd", "bob", {"path": "people"}, {"people:edit"}, "needs ous:admin too"),
+        ("alice", "fabric-admin", {"path": "people"}, None, "")):
+    gone, why = refused(m_people.post_people, ["people", uid, "move"], who, body, who, perms_)
+    # covers: agent:post.people.*.move -
+    check(f"move {uid} as {who} refused ({words})", gone and words in why, why)
+m_people.post_people(["people", "bob", "move"], "alice", {"path": "people"}, "alice", None)
+print("--- any OU (2.1.6.106): what fabric reads follows a person, a group and a machine out of its folders")
+m_ous.post_ous(["ous"], "alice", {"parent": "", "name": "elsewhere"})
+m_people.post_people(["people", "bob", "move"], "alice", {"path": "elsewhere"}, "alice", {"people:edit", "ous:admin"})
+m_machines_move = m_domain.post_domain(["machines", "srv1", "move"], "alice", {"path": "elsewhere"}, "alice",
+                                       {"machines:admin", "ous:admin"})
+m_groups.post_groups(["groups", "lab-people", "move"], "alice", {"path": "elsewhere"}, "alice",
+                     {"groups:admin", "ous:admin"})
+check("a person, a machine and a group each moved to an OU at the domain's root",
+      f"CN=bob,OU=elsewhere,{BASE}" in ldb("(sAMAccountName=bob)", "dn")
+      and f"CN=SRV1,OU=elsewhere,{BASE}" in ldb("(sAMAccountName=SRV1$)", "dn")
+      and f"CN=lab-people,OU=elsewhere,{BASE}" in ldb("(sAMAccountName=lab-people)", "dn"), m_machines_move)
+everyone = m_get.get_route(["people"], "alice")
+everyone_rows = everyone.get("users") or everyone.get("people") or []
+check("...bob is still among the people, with his site's group, and fabric's service accounts and AD's own are not",
+      any(u["uid"] == "bob" and "lan" in u["sites"] for u in everyone_rows)
+      and not any(u["uid"].startswith("fabric-agent-") or u["uid"] in ("Administrator", "krbtgt", "Guest")
+                  for u in everyone_rows), everyone_rows)
+groups_now = m_get.get_route(["groups"], "alice")
+check("...lab-people is still among the groups, an admin's own, not taken for one of AD's",
+      any(g["name"] == "lab-people" and g["kind"] == "own" for g in groups_now.get("groups", []))
+      and not any(g["name"] == "Domain Admins" for g in groups_now.get("groups", [])), groups_now)
+machine_there = m_get.get_route(["machines", "srv1"], "alice")
+check("...srv1's page still finds it, and its Move to... offers the OU it is in",
+      "elsewhere" in machine_there["choices"]["folders"]
+      and "devices" not in machine_there["choices"]["folders"], machine_there["choices"])
+edited = m_people.post_people(["people", "bob", "move"], "hd", {"path": "people"}, "hd", {"people:edit", "ous:admin"})
+check("...a grant's person edit still reaches bob there, as it does in OU=people (fabric-agent's check)",
+      edited["changed"] and AUDIT[-1][1] == "PERSON_MOVE", edited)
+m_people.post_people(["people", "bob", "move"], "alice", {"path": "machines/servers"}, "alice", None)
+check("...and a person may be moved into OU=machines' tree too (any OU)",
+      f"CN=bob,OU=servers,OU=machines,{BASE}" in ldb("(sAMAccountName=bob)", "dn"))
+m_people.post_people(["people", "bob", "move"], "alice", {"path": "people"}, "alice", None)
+m_domain.post_domain(["machines", "srv1", "move"], "alice", {"path": "machines/servers/web"}, "alice", None)
+m_groups.post_groups(["groups", "lab-people", "move"], "alice", {"path": "groups"}, "alice", None)
+gone, why = refused(m_people.post_people, ["people", "bob", "move"], "alice", {"path": ""}, "alice", None)
+check("refused: a move to the domain's root itself, which is not an OU", gone, why)
+m_ous.post_ous(["ous", "delete"], "alice", {"ou": "elsewhere"})
+m_ous.post_ous(["ous"], "alice", {"parent": "groups", "name": "crew"})
+done = m_groups.post_groups(["groups", "lab-people", "move"], "alice", {"path": "groups/crew"}, "alice",
+                            {"groups:admin", "ous:admin"})
+# covers: agent:post.groups.*.move +
+check("POST /v1/groups/lab-people/move: in groups/crew, audited GROUP_MOVE", done["changed"]
+      and "OU=crew,OU=groups," in ldb("(sAMAccountName=lab-people)", "dn") and AUDIT[-1][1] == "GROUP_MOVE", done)
+for who, name, body, perms_, words in (
+        ("alice", "lab-people", {"path": "service-accounts"}, None, "holds service accounts only"),
+        ("alice", "directory-admins", {"path": "groups/crew"}, None, ""),
+        ("alice", "lab-people", {"path": "groups"}, {"groups:admin"}, "needs ous:admin too"),
+        ("hd", "lab-people", {"path": "groups"}, None, "Directory Administrator")):
+    gone, why = refused(m_groups.post_groups, ["groups", name, "move"], who, body, who, perms_)
+    # covers: agent:post.groups.*.move -
+    check(f"move {name} as {who} refused ({words})", gone and words in why, why)
+m_groups.post_groups(["groups", "lab-people", "move"], "alice", {"path": "groups"}, "alice", None)
 gone, why = refused(m_ous.post_ous, ["ous", "delete"], "alice", {"ou": "machines/servers/web"})
 # covers: agent:post.ous.delete -
 check("delete machines/servers/web refused while it holds srv1, naming it", gone and "not empty" in why
@@ -644,14 +739,14 @@ reaching = {g["name"]: g for g in page["grants"]}
 # covers: agent:get.machines.* +
 check("GET /v1/machines/SRV1 (any case): its row; the grants that reach it, each with what it gives there (lan-servers: "
       "the help desk's machines rights; server-administrators: sign-in, sudo, local administrator); the choices of "
-      "its actions (sites, folders under machines)", page["machine"]["name"] == "srv1"
+      "its actions (sites, every OU it may go to, 2.1.6.106)", page["machine"]["name"] == "srv1"
       and reaching.get("lan-servers", {}).get("rights", {}).get("machines") == ["move", "disable", "groups", "add"]
       and reaching["lan-servers"]["who"] == ["helpdesk-lan"]
       and reaching.get("server-administrators", {}).get("rights", {}).get("local_admin") is True
       and reaching.get("lan-helpdesk", {}).get("rights", {}).get("machines") == []
       and "lan" in page["choices"]["sites"]
       and {"machines", "machines/servers", "machines/servers/web"} <= set(page["choices"]["folders"])
-      and "people" not in page["choices"]["folders"] and page["devices"] == [], page)
+      and "people" in page["choices"]["folders"] and page["devices"] == [], page)
 for name in ("nomachine", DC):
     gone, why = refused(m_get.get_route, ["machines", name], "alice")
     # covers: agent:get.machines.* -
@@ -665,7 +760,7 @@ code4, out4 = cli("machine", "keytab", "dsk1", "--service", "postgres", "--user"
 check("domain machine move, type, sites, keytab (root)", [code, code2, code3, code4] == [0] * 4
       and "moved to machines" in out and "moved to OU=desktops" in out2 and "(already)" in out3
       and "sudo fabric-keytab --machine dsk1 --service postgres --user postgres" in out4, (out, out2, out3, out4))
-for args, words, want in ((("machine", "move", "dsk1", "people"), "only to a folder under OU=machines", 1),
+for args, words, want in ((("machine", "move", "dsk1", "devices"), "closed folders", 1),
                           (("machine", "type", "dsk1", "toaster"), "type: one of", 1),
                           (("machine", "keytab", "dsk1", "--service", "cifs", "--user", "x"), "the machine's own", 1),
                           (("machine", "frob", "dsk1"), "usage", 2)):
@@ -692,7 +787,7 @@ code4, out4 = cli("ou", "delete", "groups/squads")
 check("domain ou create, list, rename, delete (root)", [code, code2, code3, code4] == [0] * 4
       and "groups/teams" in out2 and "fabric's" in out2 and "groups/squads" in out3, (out, out2, out3, out4))
 for args, words, want in ((("ou", "delete", "people"), "one of fabric's folders", 1),
-                          (("ou", "create", "groups/fabric", "x"), "takes no admin's folders", 1),
+                          (("ou", "create", "groups/fabric", "x"), "one of fabric's closed folders", 1),
                           (("ou", "move", "x"), "usage", 2)):
     code, out = cli(*args)
     # covers: cli:domain.ou -
@@ -1323,6 +1418,129 @@ check("negative: a console whose certificate is not from fabric's root is down, 
       not down[0] and "did not verify" in down[1], down)
 good.shutdown()
 other.shutdown()
+
+# ---- the held process (manual 1.8.8.2, decision 2.1.8.35): the same answers, however asked
+from fabriclib.directory import held_op  # noqa: E402
+from fabriclib.images.running_image import running_images  # noqa: E402
+from fabriclib.samba.read_in_dc import read_in_dc  # noqa: E402
+from fabriclib.system.service_status import _health  # noqa: E402
+
+HELD = ["pgrep", "-fc", "directory_op.py --serve"]
+
+
+def held_count():
+    return int(sh(["docker", "exec", DC, *HELD], ok=False).stdout.strip() or 0)
+
+
+def lines(*args):
+    out = sh(["docker", "exec", DC, "samba-tool", *args, "-s", "/data/etc/smb.conf"]).stdout
+    return [ln.strip() for ln in out.splitlines() if ln.strip()]
+
+
+sh(["docker", "exec", "-i", DC, "ldbadd", "-H", "/data/private/sam.ldb", "--controls=relax:0"],
+   input=f"dn: OU=held CNF:1,{BASE}\nobjectClass: organizationalUnit\n", ok=False)
+by_tool = sh(["docker", "exec", DC, "ldbsearch", "-H", "/data/private/sam.ldb", "(name=*CNF:*)", "dn"], ok=False).stdout
+READS = ("read_site_tree", "read_sites", "read_replication", "read_dc_names", "read_conflicts")
+alone = {r: read_in_dc(DC, r) for r in READS}
+check("read_conflicts.py: at least what the ldbsearch it replaces finds, one of them made here (it also looks in "
+      "Configuration, 2.3.1.45)", f"OU=held CNF:1,{BASE}" in by_tool and {
+          ln[4:] for ln in by_tool.splitlines() if ln.startswith("dn: ")} <= set(alone["read_conflicts"]["conflicts"]),
+      (by_tool, alone["read_conflicts"]))
+sh(["docker", "exec", DC, "ldbdel", "-H", "/data/private/sam.ldb", f"OU=held CNF:1,{BASE}"], ok=False)
+alone["read_conflicts"] = read_in_dc(DC, "read_conflicts")
+tools = {"list": m_greq.grant_request(V, {"op": "list"}, DC), "reaching": m_greq.grant_request(
+    V, {"op": "reaching", "machine": "srv1"}, DC), "templates": m_gporeq.gpo_request({"op": "templates"}, DC)}
+people = m_runop.run_op(V, SECRETS, "list_people", container=DC)
+facts = m_runop.run_op(V, SECRETS, "roles_and_policy", container=DC)
+check("roles_and_policy: the roles' owners in samba-tool fsmo show's words, line for line",
+      facts["roles"] == lines("fsmo", "show"), (facts["roles"], lines("fsmo", "show")))
+check("roles_and_policy: the password policy in samba-tool domain passwordsettings show's words, line for line",
+      facts["policy"] == lines("domain", "passwordsettings", "show")[1:], facts["policy"])
+real_enabled = held_op.enabled()
+held_op.enable()
+check("through a held process: the same people as a process of its own",
+      m_runop.run_op(V, SECRETS, "list_people", container=DC) == people)
+check("through a held process: the same domain facts", m_runop.run_op(V, SECRETS, "roles_and_policy", container=DC) == facts)
+for name in READS:
+    check(f"through a held process: {name} gives what the script gives alone", read_in_dc(DC, name) == alone[name])
+check("one process is held after one request at a time", held_count() == 1, held_count())
+check("through a held process: grants_tool's list and reaching give what the script gives",
+      m_greq.grant_request(V, {"op": "list"}, DC) == tools["list"]
+      and m_greq.grant_request(V, {"op": "reaching", "machine": "srv1"}, DC) == tools["reaching"])
+check("through a held process: gpo_tool's templates give what the script gives",
+      m_gporeq.gpo_request({"op": "templates"}, DC) == tools["templates"])
+_, why = refused(m_greq.grant_request, V, {"op": "show", "name": "no-such-grant"}, DC)
+check("negative: through a held process, a tool's own refusal comes word for word", "no grant no-such-grant" in why, why)
+check("negative: a held process runs only the tools it names",
+      "unknown tool" in held_op.ask_tool(DC, "converge", {}).get("error", ""))
+_, why = refused(m_runop.run_op, dict(V, site_name=V["site_name"]), dict(SECRETS, ad_agent_password="not-it"), "list_people",
+              container=DC)
+check("negative: through a held process, a wrong password is refused", "refused" in why or "reachable" not in why, why)
+check("the wrong password's refusal left the right one working",
+      m_runop.run_op(V, SECRETS, "list_people", container=DC) == people)
+_, why = refused(m_runop.run_op, V, SECRETS, "no_such_op", container=DC)
+check("negative: through a held process, an unknown operation is refused, saying so", "unknown directory" in why, why)
+try:
+    read_in_dc(DC, "converge")
+    why = "allowed"
+except ValueError as e:
+    why = str(e)
+check("negative: a held process runs only the reads it names", "unknown read" in why, why)
+_, why = refused(m_runop.run_op, V, SECRETS, "delete_ou", {"path": ""}, container=DC)
+check("negative: an operation's own refusal comes through word for word and the process stays",
+      "an OU's path" in why and held_count() >= 1, why)
+results = []
+threads = [threading.Thread(target=lambda: results.append(m_runop.run_op(V, SECRETS, "list_people", container=DC)))
+           for _ in range(5)]
+for t in threads:
+    t.start()
+for t in threads:
+    t.join()
+check("five asking at once all answered, by at most two processes",
+      results == [people] * 5 and held_count() <= held_op.MAX_HELD, (len(results), held_count()))
+sh(["docker", "exec", DC, "pkill", "-f", "directory_op.py --serve"], ok=False)
+time.sleep(1)
+check("a held process that was killed is replaced before it is asked",
+      m_runop.run_op(V, SECRETS, "list_people", container=DC) == people and held_count() >= 1, held_count())
+source = sh(["docker", "inspect", "-f", '{{range .Mounts}}{{if eq .Destination "/fabric"}}{{.Source}}{{end}}{{end}}',
+             DC]).stdout.strip()
+os.utime(os.path.join(source, "directory_op.py"))
+check("files replaced (an update): the old process does nothing and a new one answers",
+      m_runop.run_op(V, SECRETS, "list_people", container=DC) == people and held_count() <= held_op.MAX_HELD,
+      held_count())
+held_op.forget(DC)
+time.sleep(1)
+check("the agent's end closes stdin, and the process in the DC ends with it", held_count() == 0, held_count())
+real_spawn, held_op._spawn = held_op._spawn, (lambda c: subprocess.Popen(
+    ["docker", "exec", "-i", c, "python3", "-c", "import sys; sys.stdin.readline()"],
+    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL))
+_, why = refused(m_runop.run_op, V, SECRETS, "list_people", container=DC)
+check("negative: a process that ends without answering: the directory is not reachable, saying so", "not reachable" in why,
+      why)
+held_op._spawn = real_spawn
+held_op.forget(DC)
+idle = subprocess.Popen(["docker", "exec", "-i", DC, "python3", "-c", "import sys; sys.path.insert(0, '/fabric'); "
+                         "import directory_op as d; d.IDLE_SECONDS = 1; d.serve()"], stdin=subprocess.PIPE,
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+try:
+    idle.wait(30)
+    ended = True
+except subprocess.TimeoutExpired:
+    ended = False
+    idle.kill()
+check("a held process nobody asks ends by itself and gives its memory back", ended)
+if not real_enabled:
+    held_op._enabled = False
+
+# ---- what became one call
+one = sh(["docker", "inspect", "-f", "{{.State.Health.Status}}", DC], ok=False).stdout.strip()
+health = _health([DC, "fabric-no-such-container"])
+check("the services' health in one call: this DC's as one call for it says, a missing container said to be missing",
+      health == {DC: one or "no container", "fabric-no-such-container": "no container"}, health)
+image = sh(["docker", "inspect", "-f", "{{.Config.Image}}", DC]).stdout.strip()
+check("the images in one call: this DC's; a missing container absent; a local build not asked",
+      running_images([{"container": DC, "build": ""}, {"container": "fabric-no-such-container", "build": ""},
+                      {"container": "other", "build": "x"}]) == {DC: image})
 
 if not os.environ.get("FABRIC_TEST_KEEP"):
     cleanup()

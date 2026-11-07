@@ -1,8 +1,9 @@
 # The real-container suites in CI (decision 2.1.1.37, notes 2.3.1.11.1, manual 3.1.2): every suite of
-# `tests/run-all.sh` on amd64 and arm64 runners, one job per suite and architecture so a failure names both. Nightly,
-# by hand, and on a pull request to main: the sandbox (a full install) and the image-update test on it too. The checks
-# a merge to main needs are set in the repository's branch protection by the owner (3.1.2). docs and lint have their
-# own workflow (lint.yml); docs runs here as well, as run-all does.
+# `tests/run-all.sh` on amd64 and arm64 runners, one job per suite and architecture so a failure names both, but lint
+# (lint.yml) and the sandbox (its own job below). tests/docs/check_ci_suites.py fails if a suite is left out, as
+# deploy and zones were until 2026-11-05 (2.3.1.53). Nightly, by hand, and on a pull request to main: the sandbox (a
+# full install) and the image-update test on it too. The checks a merge to main needs are set in the repository's branch
+# protection by the owner (3.1.2). docs has its own workflow too (lint.yml) and runs here as well, as run-all does.
 name: suites
 
 on:
@@ -35,7 +36,7 @@ jobs:
       matrix:
         arch: [amd64, arm64]
         # "render nginx": nginx checks what render wrote, so the two run in one job
-        suite: [docs, consent, "render nginx", zone, webui, pki, federation, resolver, ntp, openbao, fluentbit, kea, ipam,
+        suite: [docs, deploy, consent, "render nginx", zone, zones, webui, pki, federation, resolver, ntp, openbao, fluentbit, kea, ipam,
                 settings, freeradius, samba, keycloak, hardening, images]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

@@ -13,6 +13,7 @@ The dev preview (`devserver.py`): the production routes and pages over in-memory
 | `fake_groups.py` | The fake agent's groups: the list, a group's page, create, delete, managers, members. |
 | `fake_grants.py` | The fake agent's grants: the list, a grant's page, explain, add, change, remove. |
 | `fake_ous.py` | The fake agent's OUs: the tree, create, rename, delete, refused as the DC refuses. |
+| `fake_tree.py` | The fake agent's directory browser and people's and groups' Move to…, refused as the DC refuses. |
 | `fake_machines.py` | The fake agent's computers: the list, a computer's page, type, sites, folder, a keytab command. |
 | `fake_directory.py` | The fake agent's directory changes: people, 802.1X devices and roles, machines, host groups, sudo rules, the password policy, Group Policy. |
 | `fake_network.py` | The fake agent's network changes: DHCP, 802.1X, the DNS filter and its query log. |

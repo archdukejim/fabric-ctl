@@ -2,6 +2,7 @@ import os
 
 from agent.job_store import JOBS
 from agent.one_thing import one_thing
+from agent.read_tree import read_tree
 from agent.route_not_found import RouteNotFound
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
@@ -60,6 +61,7 @@ from fabriclib.common.paths import FEDERATION_FILE, VARS_FILE
 from fabriclib.setup.context import SetupContext
 from fabriclib.settings.export_settings import export_settings
 from fabriclib.settings.settings_overview import settings_overview
+from fabriclib.sizing.state import read_sizing
 
 # GET /v1/<route> -> the read operation answering it (vars are read per request)
 READS = {
@@ -145,13 +147,15 @@ def get_route(route, user=None, perms=None):
              people/<uid>: person_overview (a person's page); machines: list_machines (Computers);
              machines/<name>: machine_overview (a computer's page); sites: site_overview (Sites); sites/tree:
              site_selector (the top bar's site selector); directory: directory_overview (the Directory's Overview);
+             sizing: read_sizing (the timer's last result, this person's alerts, 1.8.8.8);
              account/groups: my_groups (the groups the signed-in person manages); pending: the person's pending
              changes per page and the pages with an apply running (1.8.6.5); pending/<page>: the page's Review;
              settings: settings_overview (the setup wizard, 1.8.5); settings/export: {"text", "name"}, the
              settings file; networks[/<site>]: networks_overview (the Networks tab: any site of the domain,
              1.10.4.35); networks/<site>/export: networks_csv ({"csv", "name"}); ipam/options/<site>[/<target>]:
              options_overview (`-` for this site; a target's effective options with their sources, 1.10.4.24.3);
-             ipam/scan: scan_overview (the subnets a scan may cover, and whether this person may scan here).
+             ipam/scan: scan_overview (the subnets a scan may cover, and whether this person may scan here);
+             directory/tree/ou=…/q=…/w=…/i=…: read_tree (the directory browser, 1.8.8.4).
     Fails:   RouteNotFound for any other route (-> 404); NotFound for a person, computer, group, grant or site
              (networks, ipam/options) that is not there (-> 404, 2.1.8.21; 1.10.4.40.1); whatever the operation
              raises (ValidationError -> 400).
@@ -168,6 +172,8 @@ def get_route(route, user=None, perms=None):
         return my_groups(load_vars(), user)
     if route[:1] == ["pending"] and len(route) <= 2:
         return _pending(route, user, perms)
+    if route == ["sizing"]:                         # the file the timer writes, less what this person dismissed
+        return read_sizing(os.path.join(load_vars()["deploy_base_dir"], "fabric", "config"), user)
     if len(route) == 2 and route[0] == "groups":
         return one_thing(show_group, load_vars(), route[1])
     if len(route) == 2 and route[0] == "people":
@@ -187,6 +193,8 @@ def get_route(route, user=None, perms=None):
                          route[3] if len(route) == 4 else "")
     if route == ["ipam", "scan"]:
         return scan_overview(load_vars(), user)
+    if len(route) == 6 and route[:2] == ["directory", "tree"]:
+        return read_tree(route[2:])
     if route == ["vault", "slots"]:
         v = load_vars()
         return {"slots": list_slots(v), "host": v.get("hostname", "")}

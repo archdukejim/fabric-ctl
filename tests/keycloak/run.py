@@ -247,9 +247,10 @@ check("a full sync from AD over LDAPS works", st == 200 and not sync.get("failed
 users = kc.call("GET", f"{R}/users?username=jim&exact=true")[1]
 check("jim (in OU=people) is visible in Keycloak", len(users) == 1, users)
 fed = ldap[0]["config"] if ldap else {}
-check("the federation: users from OU=people, every enabled person admitted (2.1.6.83), bound as this DC's "
-      "fabric-keycloak-dc-0001 in OU=service-accounts (2.1.6.82)",
-      fed.get("usersDn") == [f"OU=people,{v['ad_base_dn']}"]
+check("the federation: users from the domain's root, people only (2.1.6.106), every enabled person admitted "
+      "(2.1.6.83), bound as this DC's fabric-keycloak-dc-0001 in OU=service-accounts (2.1.6.82)",
+      fed.get("usersDn") == [v["ad_base_dn"]]
+      and "objectCategory=person" in (fed.get("customUserSearchFilter") or [""])[0]
       and fed.get("bindDn") == [f"CN=fabric-keycloak-dc-0001,OU=service-accounts,{v['ad_base_dn']}"]
       and "1.2.840.113556.1.4.803:=2" in (fed.get("customUserSearchFilter") or [""])[0], fed)
 if users:
@@ -353,8 +354,32 @@ check("every enabled person in OU=people is admitted, in a group or not (2.1.6.8
 b5 = Browser(root_ca)
 page = start(b5, AUTH)
 _, _, page = b5.go(action(page), {"username": "fabric-agent-dc-0001", "password": secrets["ad_agent_password"]})
-check("refused: a service account (outside OU=people) never signs in to the console",
+check("refused: a service account (OU=service-accounts, hidden from Keycloak) never signs in to the console",
       "Invalid username or password" in page, page[:300])
+# any OU (2.1.6.106): a person moved out of OU=people signs in, her groups' roles still hers
+MOVE = '''
+import sys
+sys.path.insert(0, "/fabric")
+from open_samdb import open_samdb
+samdb, lp = open_samdb("/data/etc/smb.conf")
+base = str(samdb.domain_dn())
+samdb.create_ou(f"OU=elsewhere,{base}")
+samdb.rename(f"CN=eve T,OU=people,{base}" if samdb.search(base=f"OU=people,{base}", expression="(cn=eve T)") else
+             f"CN=eve,OU=people,{base}", f"CN=eve,OU=elsewhere,{base}")
+print("moved")
+'''
+moved = sh(["docker", "exec", "-i", DC, "python3", "-"], input=MOVE, ok=False)
+check("(eve moved to an OU at the domain's root)", "moved" in moved.stdout, moved.stderr[-300:])
+b6 = Browser(root_ca)
+page = start(b6, AUTH)
+st, hdr, page = b6.go(action(page), {"username": "eve", "password": eve_pw})
+if st in (302, 303):
+    st, hdr, page = b6.go(hdr.get("location"))
+check("a person moved out of OU=people still signs in (asked for a new password, her first sign-in): Keycloak follows "
+      "her", "Invalid username or password" not in page and "password-new" in page, page[:300])
+kc_groups = [g["name"] for g in kc.call("GET", f"{R}/groups?max=500")[1]]
+check("negative: AD's own groups are not synced into Keycloak from the root (Domain Admins, Administrators)",
+      kc_groups and "Domain Admins" not in kc_groups and "Administrators" not in kc_groups, kc_groups)
 bad = start(Browser(root_ca), AUTH.replace("mgr.test.lan.j-j.family%2Foidc", "evil.test%2Foidc"))
 check("refused: a redirect URI that is not registered", "Invalid parameter: redirect_uri" in bad, bad[:200])
 

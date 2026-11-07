@@ -255,7 +255,8 @@ class PendingStore:
         Feeds:   page."""
         cut = time.time() - QUEUE_SECONDS
         for page in list(self.queue):
-            self.queue[page] = [a for a in self.queue[page] if a["state"] == "running" or a.get("finished", 0) > cut]
+            # no "finished" yet: still running, a stopped one too (it has its failed state before its finish: 2.3.1.53)
+            self.queue[page] = [a for a in self.queue[page] if "finished" not in a or a["finished"] > cut]
 
 
 def _read(state, route, body):

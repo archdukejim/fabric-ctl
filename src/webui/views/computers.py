@@ -38,7 +38,8 @@ def _gives(rights):
     return out
 
 
-def computers(ctx, view, machines=None, computer=None, groups=None, query=None, keytab=None, unavailable=""):
+def computers(ctx, view, machines=None, computer=None, groups=None, query=None, keytab=None, unavailable="",
+              places=None):
     """Purpose: Directory · Computers (manual 1.6.12.6): the list (search, filters by type and site, 50 a page), a
              computer's page (its facts, the grants that reach it, its machine groups, its 802.1X device; Change type,
              Sites, Move to folder, Disable or Enable, Machine groups, Remove, Add a service), Add computer, the
@@ -47,7 +48,8 @@ def computers(ctx, view, machines=None, computer=None, groups=None, query=None, 
     Inputs:  ctx — page context; view — "list", "computer", "new", "groups" or "keytab"; machines — list_machines'
              rows (the list; the machine groups tab's members form); computer — machine_overview's dict; groups —
              list_host_groups' rows (the machine groups tab); query — dict: q, page, type, site; keytab — the keytab
-             answer {"machine", "command", "spns"}; unavailable — why it could not be read.
+             answer {"machine", "command", "spns"}; unavailable — why it could not be read; places — the OUs Add
+             computer's Create in... offers (places_for; 1.8.8.5).
     Returns: HTML str, in the navigation's Computers page.
     Fails:   Jinja2 errors propagate.
     Feeds:   src/webui/routes/computers_page, directory_post (keytab); devserver."""
@@ -60,4 +62,4 @@ def computers(ctx, view, machines=None, computer=None, groups=None, query=None, 
                        types=COMPUTER_TYPES, machines=page["rows"], all_machines=machines or [], total=page["total"],
                        at=page["at"], pages=page["pages"], search=page["search"], applied=applied, keep=keep,
                        sites=sites, c=computer or {}, groups=groups or [], keytab=keytab or {},
-                       unavailable=unavailable)
+                       unavailable=unavailable, places=places or [])

@@ -5,17 +5,16 @@ PEAP) and domain machines (PEAP)."""
 PRIMARY_GROUPS = {"513": {"domain users", "users"}, "515": {"domain computers"}}
 
 
-def account_groups(attrs, groups_dn):
+def account_groups(attrs, managed):
     """Purpose: the names of an account's groups, as radius_people names them (lower case).
-    Inputs:  attrs — dict {attr: [bytes]} with memberOf and primaryGroupID; groups_dn — str, the DN of the domain's
-             OU=groups (1.6.13.2).
-    Returns: set of str: the CN of each group in OU=groups (and below; AD's own groups such as Guests or
-             Administrators never match a mapping), and the primary group's names (PRIMARY_GROUPS).
+    Inputs:  attrs — dict {attr: [bytes]} with memberOf and primaryGroupID; managed — function of a group's DN: whether
+             it is one fabric manages, in an OU (directory.in_an_ou, 2.1.6.106).
+    Returns: set of str: the CN of each group in an OU (AD's own groups such as Guests or Administrators never match
+             a mapping), and the primary group's names (PRIMARY_GROUPS).
     Fails:   UnicodeDecodeError for a value that is not UTF-8.
     Feeds:   check_person, check_peap."""
-    tail = "," + groups_dn.lower()
     groups = {dn.split(",", 1)[0][3:].lower() for dn in (v.decode() for v in attrs.get("memberOf") or [])
-              if dn.lower().endswith(tail)}
+              if managed(dn)}
     for rid in (v.decode() for v in attrs.get("primaryGroupID") or []):
         groups |= PRIMARY_GROUPS.get(rid, set())
     return groups

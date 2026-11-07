@@ -6,6 +6,7 @@
 | File | What |
 |---|---|
 | `run_setup.py` | CLI for `fabricctl setup` / `doctor`: options, input, plan; hands a full run's steps to `fabric-setup.service` (detach/) |
+| `address_checks.py` | Doctor's checks that only the host's own address and name are left after a move or a rename (1.4.1.8.4, 4.2.4.7): fabric's names, the DC's name, the AD domain, `/etc/hosts` |
 | `require_terminal.py` | Refuses a setup that would ask its questions with no terminal on stdin, before anything is asked or changed, naming `--non-interactive --file FILE` (2.1.3.4) |
 | `steps.py` | The ordered step list |
 | `run_steps.py` | Runs the selected steps in order, then *fabric is ready*; keeps a full run's record after each step (2.1.2.26) |

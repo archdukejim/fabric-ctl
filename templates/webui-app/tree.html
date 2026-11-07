@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+<h1>Directory · Browse</h1>
+{% if unavailable %}<p class="flash bad" role="alert">{{ unavailable }}</p>{% endif %}
+{% set flags = {'internal': 1} if internal else {} %}
+{% macro node(i) -%}
+{% if i < t.levels | length %}<ul>{% for c in t.levels[i].children %}<li>
+<a href="/directory/tree?{{ dict(flags, ou=c.path) | urlencode }}"{% if c.path == ou %} aria-current="page"{% endif %}>{{ c.name }}</a>{% if c.fabric %} <span class="muted small">fabric's</span>{% elif c.kind == 'container' %} <span class="muted small">AD's</span>{% endif %}
+{% if i + 1 < t.levels | length and t.levels[i + 1].path == c.path %}{{ node(i + 1) }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+{%- endmacro %}
+<div class="browse">
+<nav class="card tree" aria-label="The domain's folders">
+<a href="/directory/tree{{ '?internal=1' if internal }}"{% if not ou %} aria-current="page"{% endif %}><strong>the domain</strong></a>
+{{ node(0) }}
+<p class="small">{% if internal %}<a href="/directory/tree?{{ {'ou': ou} | urlencode }}">Hide fabric's internal groups</a>{% else %}<a href="/directory/tree?{{ {'ou': ou, 'internal': 1} | urlencode }}">Show fabric's internal groups</a>{% endif %}</p>
+</nav>
+<section class="card">
+<h2>{% if whole and q %}Found in the domain{% elif ou %}{{ ou }}{% else %}the domain{% endif %} <span class="muted">{{ total }}</span></h2>
+<form method="get" action="/directory/tree" class="grid search" role="search">
+<input type="hidden" name="ou" value="{{ ou }}">{% if internal %}<input type="hidden" name="internal" value="1">{% endif %}
+<label>Search <input name="q" value="{{ q }}" autocomplete="off" placeholder="name or description"></label>
+<label class="check"><input type="checkbox" name="whole" value="1"{% if whole %} checked{% endif %}> the whole domain</label>
+<div><button class="ghost">Search</button>{% if q %} <a href="/directory/tree?{{ dict(flags, ou=ou) | urlencode }}">Clear</a>{% endif %}</div></form>
+{% if move %}<section class="card" id="move"><h3>Move {{ move.name }} to…</h3>
+{% if move.places %}{% if move.kind == 'person' %}<form method="post" action="/directory/people/{{ move.name | urlencode }}/move" class="grid">{% elif move.kind == 'group' %}<form method="post" action="/directory/groups/{{ move.name | urlencode }}/move" class="grid">{% else %}<form method="post" action="/directory/machines/{{ move.name | urlencode }}/move" class="grid">{% endif %}
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="back" value="/directory/tree?{{ dict(flags, ou=ou) | urlencode }}">
+<label>To<select name="path" required>{% for o in move.places %}<option{% if o == ou %} selected{% endif %}>{{ o }}</option>{% endfor %}</select></label>
+<div><button>Move</button> <a href="/directory/tree?{{ dict(flags, ou=ou) | urlencode }}">Cancel</a></div></form>
+<p class="muted small">Waits for the {{ {'person': 'People', 'group': 'Groups', 'machine': 'Computers'}[move.kind] }} page's Apply. Its groups stay, so nothing it may do changes (manual 1.8.8.5).</p>
+{% else %}<p class="muted">No OU can be offered (the tree could not be read).</p>{% endif %}</section>{% endif %}
+{% if rows %}{% call p.list(["Name", "Kind", "State", "Description", ""]) %}{% for r in rows %}<tr>
+<td data-label="Name">{% if r.kind in ('ou', 'container') %}<a href="/directory/tree?{{ dict(flags, ou=((r.at ~ '/') if r.at else '') ~ r.name) | urlencode }}"><strong>{{ r.name }}</strong></a>{% elif r.page %}<a href="{{ r.page | e }}">{{ r.name }}</a>{% else %}{{ r.name }}{% endif %}{% if whole and r.at %} <span class="muted small">in {{ r.at }}</span>{% endif %}</td>
+<td data-label="Kind">{{ r.kind }}</td>
+<td data-label="State">{% if r.kind in ('person', 'service account', 'machine') %}{{ p.light('bad' if r.disabled else 'ok', 'disabled' if r.disabled else 'enabled') }}{% endif %}</td>
+<td data-label="Description">{{ r.description or '—' }}</td>
+<td>{% if r.kind in ('person', 'group', 'machine') %}<a href="/directory/tree?{{ dict(flags, ou=ou, move=r.kind ~ ':' ~ r.name) | urlencode }}#move">Move to…</a>{% endif %}</td></tr>{% endfor %}{% endcall %}
+{{ p.pager("/directory/tree", q, at, pages, "objects", dict(flags, ou=ou, whole=1 if whole else '')) }}
+{% elif q %}{{ p.empty("Nothing matches “" ~ q ~ "”.") }}
+{% elif not unavailable %}{{ p.empty("This folder is empty.") }}{% endif %}
+{% if t.found %}<p class="flash warn">More than 200 found: search more narrowly.</p>{% endif %}
+</section>
+</div>
+<p class="muted small">The domain's folders as Active Directory Users and Computers shows them, one level read at a time. People, Groups, Computers and OUs stay in the navigation as filtered views.</p>
+{% endblock %}

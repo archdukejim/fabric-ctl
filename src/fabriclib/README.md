@@ -37,6 +37,8 @@ and import as `fabriclib.<domain>.<file>`.
 | [ntp/](ntp/) | Time: chrony on the host, serving the network, its settings and checks |
 | [settings/](settings/) | The setup wizard's settings (manual 1.8.5): read, check, plan and apply them; the settings file, `fabricctl settings` |
 | [federation/](federation/) | Sites: the site-name rule; invitations, joining and the federation endpoint as they are built |
+| [move/](move/) | `fabricctl move prepare`, `status` and `cancel`: a host's new address announced to its members before it moves (1.4.1.8.7) |
+| [sizing/](sizing/) | What the host is small for: the table, the advice, the hourly refresh and `fabricctl sizing` (1.8.8.8) |
 
 `cli.py` routes the `fabricctl` commands implemented here (setup, doctor, uninstall, reinstall, certs, tsig, acl,
 dhcp, radius, vault, logs, images, …) to one function each; `__init__.py` is empty (package marker).

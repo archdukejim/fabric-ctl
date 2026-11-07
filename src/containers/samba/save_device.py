@@ -1,6 +1,7 @@
 import ldb
 
 import paths
+from directory_scope import find_people
 
 
 def _owner_dn(samdb, owner):
@@ -9,9 +10,7 @@ def _owner_dn(samdb, owner):
     Returns: str.
     Fails:   ValueError "no such user: <owner>".
     Feeds:   save_device."""
-    found = samdb.search(base=paths.folder_dn(samdb, "people"), scope=ldb.SCOPE_SUBTREE,
-                         expression=f"(&(objectCategory=person)(sAMAccountName={ldb.binary_encode(owner)}))",
-                         attrs=["dn"])
+    found = find_people(samdb, f"(sAMAccountName={ldb.binary_encode(owner)})")
     if not found:
         raise ValueError(f"no such user: {owner}")
     return str(found[0].dn)

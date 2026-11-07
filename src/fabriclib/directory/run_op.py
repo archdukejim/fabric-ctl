@@ -2,17 +2,39 @@ import json
 import subprocess
 
 from fabriclib.common.errors import ValidationError
+from fabriclib.directory import held_op
 
 # what the caller is told for each kind of refusal (directory_op's kinds)
 MESSAGES = {"exists": "that name is already taken", "missing": "no such entry",
             "refused": "the directory refused the change (not permitted for fabric's agent)"}
 
 
+def _asked(container, request):
+    """Purpose: the DC's answer to one request, from a held process or one of its own.
+    Inputs:  container — the DC's container; request — directory_op's request.
+    Returns: the answer's dict.
+    Fails:   ValidationError when the DC does not answer; subprocess.TimeoutExpired after 60 s.
+    Feeds:   run_op."""
+    unreachable = "the directory is not reachable (is the samba service running?)"
+    if held_op.enabled():
+        try:
+            return held_op.send(container, request)
+        except (ValueError, OSError) as e:
+            raise ValidationError(unreachable) from e
+    res = subprocess.run(["docker", "exec", "-i", "-e", "PYTHONDONTWRITEBYTECODE=1", container,
+                          "python3", "/fabric/directory_op.py"],
+                         input=json.dumps(request), capture_output=True, text=True, timeout=60)
+    if res.returncode != 0 or not res.stdout.strip():
+        raise ValidationError(unreachable)
+    return json.loads(res.stdout.strip().splitlines()[-1])
+
+
 def run_op(v, secrets, op, args=None, container="samba", server=None):
     """Purpose: one directory operation (manual 1.6.3, 1.6.5.16), run inside the DC by src/containers/samba/
              directory_op.py, signed in as this DC's fabric-agent account, fabric-agent-<dc_name> (2.1.6.82) — so AD's
              ACLs apply to every change fabric-agent makes (1.6.13.2). The request, the account's password included,
-             goes on stdin, with this DC's name (the record its ids come from, 2.1.6.63).
+             goes on stdin, with this DC's name (the record its ids come from, 2.1.6.63). In fabric-agent it goes to a
+             held process (held_op, 2.1.8.35).
     Inputs:  v — rendered vars (site_name, dc_name); secrets — fabric's secrets (ad_agent_password); op — str, an
              operation
              of the DC's directory_ops; args — dict of its arguments (JSON-able); container — the DC's container;
@@ -31,12 +53,7 @@ def run_op(v, secrets, op, args=None, container="samba", server=None):
     dc = v["dc_name"]
     request = {"op": op, "args": args or {}, "site": v["site_name"], "dc": dc, "account": f"fabric-agent-{dc}",
                "password": secrets["ad_agent_password"], **({"server": server} if server else {})}
-    res = subprocess.run(["docker", "exec", "-i", "-e", "PYTHONDONTWRITEBYTECODE=1", container,
-                          "python3", "/fabric/directory_op.py"],
-                         input=json.dumps(request), capture_output=True, text=True, timeout=60)
-    if res.returncode != 0 or not res.stdout.strip():
-        raise ValidationError("the directory is not reachable (is the samba service running?)")
-    answer = json.loads(res.stdout.strip().splitlines()[-1])
+    answer = _asked(container, request)
     if "error" in answer:
         kind = answer.get("kind")
         if kind == "invalid":                 # the operation's own refusal: its message is meant for the person

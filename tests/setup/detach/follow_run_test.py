@@ -35,6 +35,8 @@ class Unit:
         self.pauses += 1
         if self.interrupt_after is not None and self.pauses > self.interrupt_after:
             raise KeyboardInterrupt
+        if not self.pieces:         # the unit has ended: follow_run asks again before it believes so
+            return
         with open(self.log, "ab") as f:
             f.write(self.pieces.pop(0))
         if not self.pieces:
@@ -96,6 +98,16 @@ with tempfile.TemporaryDirectory() as d:
         sys.stderr = saved
     check("negative: no log and no unit: exit 1, naming journalctl", code == 1 and "journalctl" in out.getvalue(),
           (code, out.getvalue()))
+
+with tempfile.TemporaryDirectory() as d:          # the test Pi: one wrong answer, the unit ran on (2.3.1.46)
+    with open(os.path.join(d, "setup-run.log"), "w") as f:
+        f.write("working\n")
+    write_run(d, {"id": "r1", "state": "done", "result": 0})
+    answers = iter([False, True, False, False, False, False])
+    out = io.StringIO()
+    code = follow_run(d, running=lambda: next(answers), out=out, sleep=lambda s: None, interval=0)
+    check("one answer of 'not running' is not believed: it follows on, until the unit has ended for some seconds",
+          code == 0 and "working" in out.getvalue() and next(answers, "spent") == "spent", code)
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)
