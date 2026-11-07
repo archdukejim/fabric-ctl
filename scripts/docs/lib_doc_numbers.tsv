@@ -424,6 +424,7 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_id.py	44
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_memory.py	45	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_zone.py	5	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py	46	0.7.0 / 2026-10-12
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/own_clients.py	54	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/parse_upstreams.py	50	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/query_log_off.py	52	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/read_dnslog.py	53	
@@ -2257,6 +2258,7 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_id.py|list_id
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_memory.py|list_memory	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_zone.py|list_zone	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py|mem_mb	1	0.7.0 / 2026-10-12
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/own_clients.py|own_clients	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/parse_upstreams.py|parse_upstreams	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/query_log_off.py|query_log_off	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/read_dnslog.py|read_dnslog	1	

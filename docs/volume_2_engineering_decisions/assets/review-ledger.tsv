@@ -861,6 +861,7 @@ src/fabriclib/dns_filter/common/filter_zones.py	8ca84dc30fe1129253d63e496e585644
 src/fabriclib/dns_filter/common/list_id.py	6497831066d97fdacde4e0da4a1076022f228196	2026-10-11	
 src/fabriclib/dns_filter/common/list_memory.py	8fa18afe2bef71df58c00cc34b06e02300c14bbd	2026-10-12	
 src/fabriclib/dns_filter/common/list_zone.py	83d35f64fbbeac41b5ee0ac7a21752826e254b47	2026-10-11	
+src/fabriclib/dns_filter/common/own_clients.py	2a52ff5220c599e902846e61e18ca5370c4cb99d	2026-11-07	
 src/fabriclib/dns_filter/common/parse_upstreams.py	2b38b04cf564289c437cd34cf02572ff7a11a309	2026-10-17	
 src/fabriclib/dns_filter/common/query_log_off.py	3dfc2f5f24fa1ca02c6d7f4addcd43007693d620	2026-10-31	
 src/fabriclib/dns_filter/common/read_dnslog.py	4c0d5d22eb76db7b243e34410592e3add40aaeed	2026-10-31	
