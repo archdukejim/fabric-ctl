@@ -311,7 +311,8 @@ check("the plan lists the site's port as a host change, and the firewall's own",
 print(f"    the browser's network cut; a new one after {QUIET} s, with the same code", flush=True)
 time.sleep(QUIET)
 rows = probe({**scenario, "finish_check": True, "restart_wait": 8, "seconds": 3400, "verify_new_certificate": True,
-              "check_with": {"resolved": {f"{CONSOLE}:443": f"{IP}:443", CONSOLE: IP}}}, 3400)
+              # as fabric's DNS answers: every name under the domain, so the console's redirect to its sign-in resolves too
+              "check_with": {"resolved": {"*.lan.example": IP}}}, 3400)
 pages = {r["page"]: r for r in rows if "page" in r}
 check("a network gone silent stops nothing: the same code reconnects, and the install went on", "code" in pages and "finish" in pages,
       list(pages) + rows[-2:])

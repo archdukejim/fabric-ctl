@@ -1916,7 +1916,7 @@ static/setup-site/dns-macos.svg	c47b1465dc07817ceec1ec60ebb01654bc3028b8	2026-11
 static/setup-site/dns-ubuntu.svg	72397cb383153e9a1da5392e9770aac763e109d9	2026-11-07	
 static/setup-site/dns-windows.svg	aa73379708faac22766ad48fe8cc1b8905cf363d	2026-11-07	
 static/setup-site/site.css	04dbaf2cf1a02b6afe3f910ef6a8c3ba6e1b97a0	2026-11-07	
-static/setup-site/site.js	45802b12727a5dbba3d9325f1db7d4ef69ffc1c1	2026-11-07	
+static/setup-site/site.js	0b58606c5fffc8e195052fc187833a63a7387888	2026-11-07	
 static/setup-site/trust-macos.svg	1130d861b4230242496cc4f4438fc3567a32e9df	2026-11-07	
 static/setup-site/trust-ubuntu.svg	aa7adef043864c4f5dae99aea422f8fe387cbd22	2026-11-07	
 static/setup-site/trust-windows.svg	7dfc491f72f4a55a505648717b5d70830213863b	2026-11-07	
@@ -2285,7 +2285,7 @@ tests/sandbox/size_fill_dc.py	9a24362d71304487a4b51c9ed258fc6f5ea09adf	2026-11-0
 tests/sandbox/size_load.py	b5b72d63af1b6be75ec92ae2e1ea613e888c5bc4	2026-11-04	
 tests/sandbox/size_measure.sh	16d3bcf81bcd242df17563b87445693108625629	2026-11-03	
 tests/sandbox/web_guided.sh	3204c31ae9ff41370f01ffe0bba19d0b9e7f30ba	2026-11-07	
-tests/sandbox/web_guided_drive.py	5409b64e104f75cf59ecbed38413a8d6a75ec914	2026-11-07	
+tests/sandbox/web_guided_drive.py	ce2c485a388171119c4610a07862a9071e04b533	2026-11-07	
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-12	
 tests/settings/README.md	fe8cdeb50d57df5b0accee46d31aff967d27a9f8	2026-10-23	
