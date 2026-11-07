@@ -12,3 +12,6 @@ lab of campaigns (manual 3.1.5).
 | `console_session.py` | A person's console session driven like a browser (Keycloak's sign-in, CSRF, Apply and its Review), for `dhcp_console.py` |
 | `joined_campaign.sh` | The lab's `joined` campaign (manual 3.1.5.11, decision 2.1.1.48), from Git Bash: the fabric host's own join, a Linux member (ub26-2) and a Windows member (ws25-1) checked after each of fabric's own changes: an upgrade from the floor, every image updated and rolled back, a restart and a reboot, a restore from an export, a move to a new address, the host renamed. Written 2026-10-31, not run yet |
 | `joined_vars.yaml` | fabric's settings for the `joined` campaign: the dhcp campaign's, so Keycloak, the console and Kea's images are updated and rolled back with the rest |
+| `dot1x_scripts.sh` | The generated 802.1X scripts on a Windows VM's PowerShell 5.1 (manual 3.1.5.12, decision 2.1.11.4), from Git Bash: syntax and import only, never run |
+| `dot1x_scripts_make.py` | Generates both scripts by the console's own function, and the three broken ones the check must catch |
+| `dot1x_scripts_check.ps1` | Runs on the VM: the version is 5.1, both parse, each command, parameter and module resolves |
