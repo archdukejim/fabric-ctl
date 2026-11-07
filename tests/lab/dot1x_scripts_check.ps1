@@ -1,5 +1,5 @@
-# The generated 802.1X scripts on Windows PowerShell 5.1 (manual 3.1.5.12, decision 2.1.11.4): syntax and import only.
-# Parses the scripts and looks their commands up; nothing here runs them, so no store, service or network changes.
+# The generated 802.1X scripts on Windows PowerShell 5.1 (manual 3.1.5.12, decisions 2.1.11.4, 2.1.11.5): syntax and import, plus the two netsh lan failure paths.
+# Parses the scripts and looks their commands up; only those failure paths run, not the scripts whole, so no store, service or network changes.
 # This proves nothing about 802.1X itself: that test needs real hardware (2.3.11.5).
 param([Parameter(Mandatory = $true)][string]$Dir)
 $ErrorActionPreference = "Stop"
