@@ -1,0 +1,26 @@
+<h1>fabric is installed</h1>
+$raw_new_cert
+<h2>1. Trust fabric's root certificate</h2>
+<p>Download it here or from <a href="$certs_url">$certs_url</a>, and check its SHA-256 fingerprint, which the host's terminal also printed:</p>
+<p class="fingerprint"><code>$root_fingerprint</code></p>
+<p><a class="button secondary" href="/root-ca.crt">Download the root certificate</a></p>
+$raw_trust
+<h2>2. Point this computer's DNS at fabric</h2>
+<p>The commands have your address and domain filled in. The manual has them too (4.3.6).</p>
+$raw_dns
+<h2>3. Check</h2>
+<div id="check" data-name="$console_name" data-port="$port" data-nonce="$nonce">
+<button type="button" id="check-button" hidden>Check $console_name</button>
+<p id="check-result" role="status"></p>
+<noscript><p>Without script this page cannot check for you. Open <a href="$console_url">$console_url</a> yourself: it should open with no warning.</p></noscript>
+</div>
+<h2>4. Go on</h2>
+<ul>
+<li>The console: <a href="$console_url">$console_url</a></li>
+<li>The login kit: <code>$kit</code> on the host (manual 4.6.3.1)</li>
+</ul>
+<form method="post" action="/finish" class="leave">
+<input type="hidden" name="csrf" value="$csrf">
+<button>Finish: stop this site</button>
+</form>
+<p class="small">This site stops by itself one hour after setup ended. Any port it opened closes with it.</p>
