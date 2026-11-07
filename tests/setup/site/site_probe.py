@@ -7,7 +7,7 @@ tests/sandbox/web_guided.sh read what it prints.
 
     python3 site_probe.py <scenario.json>
         url, code, fingerprint, out (folder), answers {label's start: value}, secret (the first admin's password),
-        width (default 1366), stop_at ("plan"), pictures (bool), resolve {name: address} (the browser's own DNS),
+        width (default 1366), stop_at ("plan", "progress"), verify_new_certificate (bool), pictures (bool), resolve {name: address} (the browser's own DNS),
         finish_check (bool), check_with {stage: resolve} (the check again with such DNS), press_finish (default true)
     prints one JSON line per page or event: {"page", "title", "label", "wide", "text"} and last {"done": ...}
 """
@@ -248,6 +248,10 @@ def run(s):
             if not getattr(page, "progress_seen", False):
                 page.progress_seen = True
                 page.report("progress")
+                if s.get("stop_at") == "progress":
+                    print(json.dumps({"done": True, "stopped": "progress"}), flush=True)
+                    page.cdp.close()
+                    return 0
             if s.get("watch_log_for"):
                 lines = page.js("document.getElementById('log').textContent")
                 if s["watch_log_for"] in lines:
@@ -268,6 +272,8 @@ def run(s):
             page.go(url)
         elif kind == "finish":
             page.report("finish")
+            if s.get("verify_new_certificate"):
+                print(json.dumps({"event": "verifies against the root", **verify_against_root(url)}), flush=True)
             if s.get("finish_check"):
                 finish_checks(page, s)
             if s.get("press_finish", True):
@@ -293,6 +299,29 @@ def run(s):
             time.sleep(0.5)
     print(json.dumps({"done": False, "why": "timed out"}), flush=True)
     return 1
+
+
+def verify_against_root(url):
+    """What a browser that trusts the offered root does: a verified connection to this address, names and all."""
+    parts = urllib.parse.urlsplit(url)
+    plain = ssl.create_default_context()
+    plain.check_hostname, plain.verify_mode = False, ssl.CERT_NONE
+    try:
+        with socket.create_connection((parts.hostname, parts.port), timeout=10) as raw, plain.wrap_socket(raw) as tls:
+            tls.sendall(f"GET /root-ca.crt HTTP/1.1\r\nHost: {parts.netloc}\r\nConnection: close\r\n\r\n".encode())
+            answer = b""
+            while True:
+                chunk = tls.recv(65536)
+                if not chunk:
+                    break
+                answer += chunk
+        root = answer.split(b"\r\n\r\n", 1)[1].decode()
+        strict = ssl.create_default_context(cadata=root)
+        with socket.create_connection((parts.hostname, parts.port), timeout=10) as raw:
+            with strict.wrap_socket(raw, server_hostname=parts.hostname):
+                return {"ok": True}
+    except (OSError, ssl.SSLError, IndexError, ValueError) as e:
+        return {"ok": False, "why": str(e)}
 
 
 def press_check(page):

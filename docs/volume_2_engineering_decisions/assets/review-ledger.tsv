@@ -57,7 +57,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	6b4d2bfcc
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	3c9f2a69f45e13f5365f8e49c066243f60235a80	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	2db03a6c42354ee697dfcb19be1f64e723ac06de	2026-11-04	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	6f7588dd36324478149cc47af0f36564175f3143	2026-11-07	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	117e2ff8b7941471cabd54862a4f47dfff789703	2026-11-07	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	cc4cf10af775da8491000878574b00b338873ab1	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	84f92a8162966299b794f709d19f83cf988199f1	2026-11-06	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	156cf5388b52a6ceb588f352ffd74ba6b58aba06	2026-10-31	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	ef0eaf5854c975ca84fbd27af2c17c78328ec055	2026-10-25	
@@ -1489,7 +1489,7 @@ src/fabriclib/setup/setup_openbao.py	1b6229b96f9d3c7732791e7cd50e18bb25646a91	20
 src/fabriclib/setup/site/README.md	1fa2b5a1c17e9065ebf65ba3adb6428dc89a7b7b	2026-11-07	
 src/fabriclib/setup/site/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-11-07	
 src/fabriclib/setup/site/certificate_fingerprint.py	5adef6e5eb00bf30386200568c5a31cd3e934033	2026-11-07	
-src/fabriclib/setup/site/check_console.py	df3bc8782494a5e5f32503915b4f2d1b3b8839b0	2026-11-07	
+src/fabriclib/setup/site/check_console.py	f134c91210c16fe9413672dbb74f1f1bbdcd60ce	2026-11-07	
 src/fabriclib/setup/site/close_site_port.py	cee224c9602e32d6d0330a2ac824a4d5efe1d454	2026-11-07	
 src/fabriclib/setup/site/constants.py	76a14ab02aea6ecabf8d4380122ae64004080296	2026-11-07	
 src/fabriclib/setup/site/finish_data.py	a08baa643888c4942f0d50b9145b1705978babc1	2026-11-07	
@@ -1525,7 +1525,7 @@ src/fabriclib/setup/site/read_site_files.py	ee59c18cb46b018fe3049abc008111def276
 src/fabriclib/setup/site/restore_snapshot.py	3722b586f8e84eb9fbe85df9a700f0157cfb3f54	2026-11-07	
 src/fabriclib/setup/site/session_keeper.py	8da1e46e77d130487352abc4e70bb7f8269a0cb1	2026-11-07	
 src/fabriclib/setup/site/site_rule.py	4eb7d63199eee5a735b2c592653d0c509e2f32ed	2026-11-07	
-src/fabriclib/setup/site/site_wanted.py	a73a91223e39bde56c52018e8b23d508bac8298a	2026-11-07	
+src/fabriclib/setup/site/site_wanted.py	e2794b29296bdc9eba8a4b39ab50206e34ad0d3b	2026-11-07	
 src/fabriclib/setup/site/start_listener.py	41e60f2c09c347267d589483b72d080c396aed15	2026-11-07	
 src/fabriclib/setup/site/take_snapshot.py	b82b5f205f59ce913b877e3d4eb9df8da1b6180a	2026-11-07	
 src/fabriclib/setup/site/tee_log.py	30c69aebd7c022ac22cd9424938d1e09877e368d	2026-11-07	
@@ -2239,7 +2239,7 @@ tests/resolver/console.py	6c0c2e3efa559e3994399667a60a8c70529c724f	2026-10-23
 tests/resolver/groups.py	5e317666ba1567ea2e4d0629061af57d292a1e4a	2026-10-25	
 tests/resolver/querylog.py	0378e80e7fa13e77534999301e31df4fea7bd779	2026-10-31	
 tests/resolver/run.py	73ed914152c7b7af09b8e0b121e422104aad32f2	2026-10-29	
-tests/run-all.sh	7a07ec75b19128d51f738de74aa5c75e97b6ff33	2026-11-07	
+tests/run-all.sh	7042deea54b5559c1d22d28e0e692e3a9ac42335	2026-11-07	
 tests/samba/README.md	82f7a75dcff226999a918a8f36bf6a3d2d1e6558	2026-11-05	
 tests/samba/acl_entries_test.py	17613db26e83d400d26c826e42a4927fe9355681	2026-11-03	
 tests/samba/dc.py	36f6ea3e78877acc398e20e699055c868ddde23e	2026-11-04	
@@ -2266,7 +2266,7 @@ tests/samba/start_dc.py	b2d4ef1e586c4a6c4d0986a1907ce91bdd056584	2026-10-25
 tests/samba/start_dc_test.py	35d6085308cab14620f1353a268ec186d16bd13e	2026-10-31	
 tests/samba/writable_server_test.py	b9fa7ec5b86b8e65a3443e584ccda3800930a49d	2026-10-17	
 tests/sandbox/Dockerfile	20b0b4c920006cd304cbe258c176c85b9e12b2a5	2026-10-10	
-tests/sandbox/README.md	829d71addd390c4083e575074bd4af1de9264070	2026-10-23	
+tests/sandbox/README.md	b1387ea7674ce52cbeaaec5c05bc223902977aae	2026-11-07	
 tests/sandbox/agent_job.py	f1d402de290c6ee1294fd2d24d2aea6cb205faca	2026-10-23	
 tests/sandbox/certs_page_test.sh	b3d79a28e1f027af88484153d7c5ea31e3b871f8	2026-10-23	
 tests/sandbox/iterate.sh	8be80562d8c2adf70ec0ac9f8ed094c5bc1cdb0c	2026-10-03	
@@ -2284,6 +2284,8 @@ tests/sandbox/size_fill.py	7ff80c0a5befb18c3cfe57f90d5f57b8180004b7	2026-11-03
 tests/sandbox/size_fill_dc.py	9a24362d71304487a4b51c9ed258fc6f5ea09adf	2026-11-03	
 tests/sandbox/size_load.py	b5b72d63af1b6be75ec92ae2e1ea613e888c5bc4	2026-11-04	
 tests/sandbox/size_measure.sh	16d3bcf81bcd242df17563b87445693108625629	2026-11-03	
+tests/sandbox/web_guided.sh	3204c31ae9ff41370f01ffe0bba19d0b9e7f30ba	2026-11-07	
+tests/sandbox/web_guided_drive.py	c7a4d6c507b136f15ee328a57d968bf343dbf168	2026-11-07	
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-12	
 tests/settings/README.md	fe8cdeb50d57df5b0accee46d31aff967d27a9f8	2026-10-23	
@@ -2315,13 +2317,14 @@ tests/setup/require_terminal_test.py	1f289981cfae043c498db988c852f0b34cd1c010	20
 tests/setup/run_setup_test.py	2865b49629bc4215ff9531af2dd2fbb3809a60b6	2026-10-24	
 tests/setup/run_steps_test.py	4807eb4578d9b0e41d5b012201cbaddbcacfd591	2026-10-17	
 tests/setup/run_uninstall_command_test.py	da47421f7e3c3f5006c9504e94f867949559ce60	2026-10-26	
-tests/setup/site/README.md	d9742d62cad8e2cb2f2a409d19072d6734a2c43b	2026-11-07	
+tests/setup/site/README.md	2b8c0921b8022f5f31b9a3181d4c625d6cb066d9	2026-11-07	
 tests/setup/site/browser_test.py	11b2b3581317ac28ba3ee15ce2dd09fae287f4ae	2026-11-07	
+tests/setup/site/check_console_test.py	7e50da15509d7d4e1e247589b515c8eafa4d125a	2026-11-07	
 tests/setup/site/flow_test.py	92346f3f5e382f23751442b20491ca9b63249e00	2026-11-07	
 tests/setup/site/guides_test.py	5cf427a954d29e4a4950480958ce054a5c000f2a	2026-11-07	
 tests/setup/site/preview.py	2ffd0ed28b6772d340eebb3eb907e84ad4be3942	2026-11-07	
 tests/setup/site/signal_driver.py	9e4f2f3b7edf1f1659c512906d98f5e0f07a7db9	2026-11-07	
-tests/setup/site/site_probe.py	f1ea81ed4cedca755ebe513e758e7ee7b769f87b	2026-11-07	
+tests/setup/site/site_probe.py	2c613afc6a5649a79095ca21e467b6f79a1c7cc4	2026-11-07	
 tests/setup/site/site_test.py	8e604c8ed5538e04761621935b9a3f1a6ccc57c7	2026-11-07	
 tests/setup/site/support.py	fb4567d507f12006432aec9baa49ee7ffa02f10d	2026-11-07	
 tests/setup/start_unit_test.py	fe214622d907b1d7208054646c12b5186ef75fc3	2026-10-24	
