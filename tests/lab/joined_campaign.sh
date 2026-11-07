@@ -146,10 +146,17 @@ if wants join; then
         ssh "${SSH[@]}" "labadmin@$LINUX" "sudo bash /root/join-linux.sh $fp --one-time" 2>&1 | tail -3
     # the pipe's status is tail's: what the join left is the proof (run 22 went on with a member that never joined)
     L 'test -s /etc/fabric/managed.env' || stop "ub26-2's floor join did not happen"
+    # FROM_DEB=TO_DEB: fabric at this build from the start, so the members join by this build's script (2.1.1.86). Over 5
+    # minutes after boot, its first check starts beside the join's apply: it may say anything but that it removed
+    if [ "$FROM_DEB" = "${TO_DEB:-}" ]; then
+        L 'while systemctl is-active -q fabric-managed.service; do sleep 1; done' >/dev/null
+        echo "INFO ub26-2 booted $(L 'uptime -s'), joined $(L '. /etc/fabric/managed.env; date -u -d @$JOINED +%T'); its first check: $(L "journalctl -b -u fabric-managed.service -o short-precise --utc | grep -E 'Starting|fabric-managed\\[' | head -3 | tr '\n' ';'")"
+        check "a member joined by this build's script keeps what its join applied: its first check removed nothing" \
+            "L 'test -e /etc/systemd/resolved.conf.d/fabric.conf' && ! L \"journalctl -b -u fabric-managed.service | grep -q 'removed (no longer in fabric-managed)'\""
     # the floor's fault (2.3.1.47, 2.3.1.51): a join over 5 minutes after boot starts its first check beside its own apply,
     # and a search failing there removes what the join applied. It is in the released script, so it is reported apart from
     # the checks, as the floor's first setup is, and put right as an operator would. Run 19 and 23 lost it; 20 and 21 did not
-    if L "journalctl -b -u fabric-managed.service | grep -q 'removed (no longer in fabric-managed)'"; then
+    elif L "journalctl -b -u fabric-managed.service | grep -q 'removed (no longer in fabric-managed)'"; then
         KNOWN_CUTOFFS=$((KNOWN_CUTOFFS+1))
         FLOORJOIN="KNOWN ISSUE: its first check removed what its join applied (2.3.1.47); fabric-managed apply by hand"
         echo "KNOWN the floor's join: $FLOORJOIN"

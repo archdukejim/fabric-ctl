@@ -32,7 +32,8 @@ cat <<'MANAGED'
 #   fabric-managed apply | remove | check     (check: apply while in fabric-managed, remove when not)
 set -euo pipefail
 # one run at a time, and the settings read only once it holds the lock: the hourly check, started before an admin
-# changed FABRIC_DNS (4.2.4.2 step 5), wrote the old address back over the admin's apply (joined run 16, 2.3.1.42)
+# changed FABRIC_DNS (4.2.4.2 step 5), wrote the old address back over the admin's apply (joined run 16, 2.3.1.42);
+# the first check starts beside the join's own apply when a machine joins over 5 minutes after boot (2.1.1.86)
 exec 9>/run/fabric-managed.lock
 flock 9
 . /etc/fabric/managed.env
@@ -75,7 +76,7 @@ remove() {
 }
 member() {  # whether this machine is in fabric-managed, asked of the DC as the machine itself: 0 yes, 1 no, 2 no answer
     # a search that failed is no answer, never a "no": removing fabric's DNS on it would leave the machine unable to
-    # find the DC again (joined run 19, 2.3.1.47)
+    # find the DC again (joined run 19, 2.3.1.47; 2.1.1.86)
     local cc out
     cc=$(mktemp)
     trap 'rm -f "$cc"' RETURN
