@@ -1110,25 +1110,30 @@ check("from the web UI container, a call without a sign-in token is refused (401
       r.stdout + r.stderr[-200:])
 
 print("--- fabric-agent: permissions from the signed token (RBAC)")
-CALL = ("import json,socket,sys; s=socket.socket(socket.AF_UNIX); s.connect(sys.argv[1]); b=sys.argv[4].encode(); "
+CALL = ("import json,socket,sys,time; s=socket.socket(socket.AF_UNIX); s.connect(sys.argv[1]); b=sys.argv[4].encode(); "
         "s.sendall(f'{sys.argv[2]} {sys.argv[3]} HTTP/1.0\\r\\nAuthorization: Bearer {sys.argv[5]}\\r\\n"
-        "Content-Type: application/json\\r\\nContent-Length: {len(b)}\\r\\n\\r\\n'.encode()+b); "
+        "Content-Type: application/json\\r\\nContent-Length: {len(b)}\\r\\n\\r\\n'.encode()); "
+        "time.sleep(float(sys.argv[6])); s.sendall(b); "
         "r=b''\nwhile True:\n c=s.recv(65536)\n if not c: break\n r+=c\n"
         "print(r.split(b'\\r\\n')[0].decode()); print(r.split(b'\\r\\n\\r\\n',1)[1].decode()[:300])")
 
 
-def agent_call(method, path, user, roles, body=None, exp=300):
+def agent_call(method, path, user, roles, body=None, exp=300, pause=0.0):
     now = int(time.time())
     token = sign_jwt({"iss": ISSUER, "aud": "fabric-webui", "azp": "fabric-webui", "sub": "u1", "iat": now,
                       "exp": now + exp, "preferred_username": user, "roles": list(roles)})
     r = subprocess.run(["setpriv", f"--reuid={UID}", f"--regid={UID}", "--clear-groups", sys.executable, "-c", CALL,
-                        f"{W}/agent/agent.sock", method, path, json.dumps(body or {}), token],
+                        f"{W}/agent/agent.sock", method, path, json.dumps(body or {}), token, str(pause)],
                        capture_output=True, text=True)
     return r.stdout + r.stderr[-300:]
 
 
 out = agent_call("GET", "/v1/zones", "alice", AUDITOR_ROLES)
 check("auditor token: may read zones", " 200 " in out, out)
+# a refusal is sent only once the body is read: as http.client does, the headers first, the body a moment later
+out = agent_call("POST", "/v1/dns-filter/fetch", "carol", AUDITOR_ROLES, {"name": "x"}, pause=0.5)
+check("a refused POST whose body comes after its headers: the refusal arrives, never a broken pipe (403, dns:filter)",
+      " 403 " in out and "dns:filter" in out and "Broken" not in out and "Error" not in out, out)
 out = agent_call("POST", "/v1/zones/dynamic_zone_var/records", "carol", AUDITOR_ROLES,
                  {"actor": "carol", "type": "A", "name": "nope", "ip": "192.168.7.9"})
 # covers: agent:post.zones.*.records -

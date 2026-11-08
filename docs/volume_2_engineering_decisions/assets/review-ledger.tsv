@@ -52,7 +52,7 @@ docs/volume_1_description_and_architecture/1.17.16-fabriclib-logs.md	1d09ba3f340
 docs/volume_1_description_and_architecture/1.17.17-fabriclib-menu.md	4589150a9d2953beeed9bb8950a394dc3de4c98f	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.18-fabriclib-ntp.md	9334d2fa4e44da9a3ed379aecea3c1896b87fc7a	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.19-fabriclib-pki.md	a96ba9875386c92c4a421af7cced6bf88d5864f0	2026-11-04	
-docs/volume_1_description_and_architecture/1.17.2-fabricctl-agent.md	e0e481dad3f8c2bde8efa3b5cdd708598df74d27	2026-11-07	
+docs/volume_1_description_and_architecture/1.17.2-fabricctl-agent.md	719239b879678ac60231a279324e304465fb6613	2026-11-08	
 docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	6b4d2bfcc894efce5ce044d11045d559439473c2	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	6b230ac1ac6c601042d0888d164dde5ff2c3b93b	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	2db03a6c42354ee697dfcb19be1f64e723ac06de	2026-11-04	
@@ -121,7 +121,7 @@ docs/volume_1_description_and_architecture/1.6.8-rbac.md	b9045e7ff40cb17f0f45093
 docs/volume_1_description_and_architecture/1.6.9-directory.md	c558e9ca3311c24aa6b6f6165155254d11bf8639	2026-10-20	
 docs/volume_1_description_and_architecture/1.7.1-openbao.md	869fb0df78b56e4afaca500a7d460c28a72809fd	2026-10-23	
 docs/volume_1_description_and_architecture/1.8.1-webui-architecture.md	3e965aa6440a866d5fb8ad6ce290e3c98ae98f8c	2026-10-23	
-docs/volume_1_description_and_architecture/1.8.2-webui-security.md	ad29e46e85706fcdd936071b6dfb1c7a3e15316d	2026-10-23	
+docs/volume_1_description_and_architecture/1.8.2-webui-security.md	30665b703b63e694fe59a0809ccdcc387de1204f	2026-11-08	
 docs/volume_1_description_and_architecture/1.8.3-single-pane.md	808634d3a80eb23100726babccde1c311b8af2c8	2026-10-17	
 docs/volume_1_description_and_architecture/1.8.4-webui.md	39217755a58747a679510a3109b1570af664d412	2026-10-23	
 docs/volume_1_description_and_architecture/1.8.5-setup-wizard.md	b3a5573e615599ff8d7358df777e1bc5852750f6	2026-10-23	
@@ -283,7 +283,7 @@ scripts/docs/README.md	e391ec81d122ee82ea285ffaf04eac6a8dd44372	2026-10-12
 scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03	
 scripts/docs/entrypoints.py	e8d9ee4574ac5692b631a30a61a9c17af3d360fa	2026-11-04	
 scripts/docs/gen_lib_doc.py	d7a3c1284ca3a30af61353d41f5a9d2a1457a325	2026-10-12	
-scripts/docs/lib_doc_numbers.tsv	76c3644de7b43ceb023c7083423483ccca9a4cc4	2026-11-07	
+scripts/docs/lib_doc_numbers.tsv	3d3cf76706ed9022b0e16be2adcbcf70641db6b1	2026-11-08	
 scripts/docs/lib_doc_registry.py	a3a407c2b06b44838c4ce7a69725c4d47339f437	2026-10-17	
 scripts/docs/product_code.py	645a3bb130463028b90de64798c81694e5293131	2026-10-03	
 scripts/docs/review_ledger.py	b3f307b4dbaba54a69cc93c993287d43c747ba8f	2026-10-08	
@@ -371,7 +371,7 @@ src/README.md	c42cef0bbbc0803d6b920b8ba6a42718839da455	2026-10-12
 src/agent/README.md	10e1cf3470b30168e1fe9860d1795f808fed58b4	2026-11-07	
 src/agent/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
 src/agent/get_route.py	1601966c231fe4807edba470042ba36e89539ce3	2026-11-07	
-src/agent/handler.py	cfdd4562ad5128fedfb7e731bf2795bb624c7be0	2026-11-07	
+src/agent/handler.py	8fefc452d82100aeea8e4013c0a8a8d63552d73b	2026-11-08	
 src/agent/job_store.py	86038e0f325ce4d8ddcccbc7822658936213c953	2026-11-07	
 src/agent/kept_store.py	b27a7966202c5fe29c648ed259feae12d15a561a	2026-11-07	
 src/agent/landing_note.py	fd9dd29802a24e92e580cff6c556dad72063ac0c	2026-10-24	
@@ -2272,7 +2272,7 @@ tests/speed/read_cache.py	91bdfd3c51b40f8f45228709ecda8cc87c571836	2026-11-07
 tests/speed/run.py	2edccfc175cffb02b269ba774f23b39c8766a469	2026-11-04	
 tests/webui/README.md	c8f53ca6d023bb197df3d7e252adb4c279a40b1f	2026-10-23	
 tests/webui/narrow_probe.py	e4bf04507b8e3957c0dd1b2cfc935aa63b71ee04	2026-10-25	
-tests/webui/test_container.py	b4857e470f848ea0876942040e2fb005246d7074	2026-11-07	
+tests/webui/test_container.py	9526e4fa89c3468182b904587508ac9a2bef4139	2026-11-08	
 tests/webui/test_devserver.py	aeb0d578ac7aa609d334d75c5687c72b09174f1b	2026-11-07	
 tests/webui/test_narrow.py	ae3209673bb3e2d822abd693e22b1bd497ceb3c6	2026-10-25	
 tests/webui/test_networks.py	3a8a8fde4bf6c2503ce91392674a8c0e1ea619a0	2026-10-25	

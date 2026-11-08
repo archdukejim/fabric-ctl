@@ -101,18 +101,30 @@ class Handler(BaseHTTPRequestHandler):
         self.session = claims.get("sid")
         return None
 
+    def drain(self):
+        """Purpose: read the request's body before anything is answered, so a refusal sent first never closes the socket
+                 while the caller is still sending it: the caller would get a broken pipe instead of the refusal.
+        Inputs:  none; reads the Content-Length header and self.rfile.
+        Returns: None; self.raw is the body's bytes, or None when its length is not one (body says why).
+        Fails:   never.
+        Feeds:   do_POST."""
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = -1
+        self.raw = self.rfile.read(length) if 0 <= length <= MAX_BODY else None
+
     def body(self):
-        """Purpose: read and parse the request's JSON body.
-        Inputs:  none; reads the Content-Length header and self.rfile. An empty body counts as {}.
+        """Purpose: parse the request's JSON body, read by drain.
+        Inputs:  none; self.raw. An empty body counts as {}.
         Returns: dict, the parsed object.
-        Fails:   ValidationError("request too large") over MAX_BODY (64 KiB), ValidationError("expected a JSON object")
-                 for any other JSON value (both -> 400 in dispatch); ValueError / json.JSONDecodeError for a bad
-                 Content-Length or invalid JSON (-> 400 "malformed request").
+        Fails:   ValidationError("request too large") for a length over MAX_BODY (64 KiB) or not one,
+                 ValidationError("expected a JSON object") for any other JSON value (both -> 400 in dispatch);
+                 json.JSONDecodeError for invalid JSON (-> 400 "malformed request").
         Feeds:   dispatch (every POST)."""
-        length = int(self.headers.get("Content-Length") or 0)
-        if length > MAX_BODY or length < 0:
+        if self.raw is None:
             raise ValidationError("request too large")
-        data = json.loads(self.rfile.read(length) or b"{}")
+        data = json.loads(self.raw or b"{}")
         if not isinstance(data, dict):
             raise ValidationError("expected a JSON object")
         return data
@@ -145,6 +157,7 @@ class Handler(BaseHTTPRequestHandler):
         Returns: None; the answer is sent by dispatch.
         Fails:   as dispatch (errors become JSON replies).
         Feeds:   dispatch("POST")."""
+        self.drain()
         self.dispatch("POST")
 
     def dispatch(self, method):

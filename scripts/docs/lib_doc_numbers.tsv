@@ -1455,6 +1455,7 @@ function	fabricctl-agent|src/agent/handler.py|Handler.body	6
 function	fabricctl-agent|src/agent/handler.py|Handler.dispatch	10	
 function	fabricctl-agent|src/agent/handler.py|Handler.do_GET	8	
 function	fabricctl-agent|src/agent/handler.py|Handler.do_POST	9	
+function	fabricctl-agent|src/agent/handler.py|Handler.drain	11	
 function	fabricctl-agent|src/agent/handler.py|Handler.log_message	2	
 function	fabricctl-agent|src/agent/handler.py|Handler.peer_uid	4	
 function	fabricctl-agent|src/agent/handler.py|Handler.reply	3	
