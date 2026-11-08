@@ -14,14 +14,14 @@ LICENSE	05e475fa9aff67dbd7d98e3bc88d87f93e36c79f	2026-09-30
 README.md	e11704d23ab0b3402607854f34089ea1a78ebdec	2026-10-23	
 THIRD_PARTY_NOTICES	ff836ec5208f7ac6140740a07186107c63702d24	2026-10-08	
 config/README.md	6300abd255fbbe5a87bd0d83cd9c9dd1c4b8de1f	2026-10-08	
-config/VERSION	965065db5b84c28a60e0e932153c4f59ac44c4da	2026-11-07	
+config/VERSION	b0bb878545dc6dc410a02b0df8b7ea9fd5705960	2026-11-08	
 config/images.lock.yaml	ddc4ee5722cd730e02618334f9e018da3f5272dc	2026-11-08	
 config/link-vars-template.yaml	09caaa55680a13015332a468218c99437f67db26	2026-09-30	
 docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
-docs/volume_1_description_and_architecture/1.1.4-roadmap.md	5b510e9257193a4796f28fca49b033eb126593f5	2026-11-07	
+docs/volume_1_description_and_architecture/1.1.4-roadmap.md	db9a8369a602ce45a839f9bf78d785121bbd0115	2026-11-08	
 docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	7cc73759f86c7ce4ca7e2d58b7d1cc0db4cb9a64	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	c376feda6e17998f6aa6b2d9c85823f6b00ba89e	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
@@ -98,11 +98,11 @@ docs/volume_1_description_and_architecture/1.2.5-templates.md	c45afe975df6d859aa
 docs/volume_1_description_and_architecture/1.2.6-targets-and-hardening.md	b6bcd9682212f8bd33652a8e475302d9f885afe4	2026-10-10	
 docs/volume_1_description_and_architecture/1.2.7-container-inventory.md	32699a0d996b13ad592b94e0ba7f2776b23db5f7	2026-10-12	
 docs/volume_1_description_and_architecture/1.2.8-security-defaults.md	51fb934f70e1688b6ae06a46d31bb5a24ca87c04	2026-10-23	
-docs/volume_1_description_and_architecture/1.2.9-host-consent.md	f6bcdbb4401eba75905a72b334e3212730f453c5	2026-11-07	
+docs/volume_1_description_and_architecture/1.2.9-host-consent.md	54cfba35093785c58a9e750d38dcee3ba4490621	2026-11-08	
 docs/volume_1_description_and_architecture/1.3.1-host-package.md	44319278da7cf11a26e05b384c989d9b81f6f40d	2026-10-23	
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	4ab5c327069823d2f63aa8ce26c2c5aded2ec86c	2026-10-24	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	9becb8c70be6bf5d0571d4bd42a8924d7761ca23	2026-11-08	
-docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	f797686d81751e2ac2f4a93ce2af05ddb8dc04ac	2026-11-08	
+docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	b5d69f88e744f0e7433d5215911f412a8c4075ec	2026-11-08	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	a44be399d7d405ada533585abf6e5da21d3bc372	2026-11-05	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	26784470690fb28f6c54cbd9cc59a35208a1426a	2026-10-31	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c4cff88c3f00f41fef9f762b780de695005e3e8e	2026-11-05	
@@ -125,7 +125,7 @@ docs/volume_1_description_and_architecture/1.8.1-webui-architecture.md	3e965aa64
 docs/volume_1_description_and_architecture/1.8.2-webui-security.md	206d20b96c31d67a8bd41ded16d3bc2663b84199	2026-11-08	
 docs/volume_1_description_and_architecture/1.8.3-single-pane.md	808634d3a80eb23100726babccde1c311b8af2c8	2026-10-17	
 docs/volume_1_description_and_architecture/1.8.4-webui.md	39217755a58747a679510a3109b1570af664d412	2026-10-23	
-docs/volume_1_description_and_architecture/1.8.5-setup-wizard.md	b3a5573e615599ff8d7358df777e1bc5852750f6	2026-10-23	
+docs/volume_1_description_and_architecture/1.8.5-setup-wizard.md	860ba0c558a4192415059954baadb2e6536f942e	2026-11-08	
 docs/volume_1_description_and_architecture/1.8.6-console-redo.md	c8311dffa63ca371bd5f3ccebdb69d9441372eae	2026-10-25	
 docs/volume_1_description_and_architecture/1.8.7-cockpit-proxy.md	965690482f7597a1271ab627eb5724bf70e9fce2	2026-10-30	
 docs/volume_1_description_and_architecture/1.8.8-directory-browser.md	5ae8278da0a933c440bda79366849040979dd3eb	2026-11-05	
@@ -141,7 +141,7 @@ docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	3affd2890c9
 docs/volume_1_description_and_architecture/README.md	a43f552cec4542ae432958b0c3138a2b9b42e833	2026-11-07	
 docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af7662fdf5684924b409f9a9c	2026-10-23	
 docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	cbad7e90c2ac64a84d6f8fd4f573fa54ab739022	2026-10-25	
-docs/volume_2_engineering_decisions/2.1.1-product.md	290937cf3f85492f17042456eaf407018f55460f	2026-11-07	
+docs/volume_2_engineering_decisions/2.1.1-product.md	4b117621acc6394c86233aab02a07e7ef0963e9f	2026-11-08	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	cb4d596ec94f1c25f32f6133b0ef1ca075aec1d7	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	3f69f3e7715c3622616ad0533798e0d9214a85ae	2026-11-07	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	515f4b543f91a0cf387eba583d2b143ec8458d85	2026-11-08	
@@ -156,7 +156,7 @@ docs/volume_2_engineering_decisions/2.1.4-dns.md	d5be8ef23d0b5c7201f86ac892723b5
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	81033c43c705bd5016ad4ffae99967677910aec6	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.6-identity.md	ba7f2d4406dd4915e90020313579bff2ce183eca	2026-11-05	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
-docs/volume_2_engineering_decisions/2.1.8-webui.md	8c243873acb5660b4ebbeb821d162373d999e5e7	2026-11-07	
+docs/volume_2_engineering_decisions/2.1.8-webui.md	165c6f13ad6454f06fb15207510890cb9e88c129	2026-11-08	
 docs/volume_2_engineering_decisions/2.1.9-federation.md	cd669c8882d4f654fa2246c5cbf4604d785544fb	2026-10-31	
 docs/volume_2_engineering_decisions/2.2.1-product-troubleshooting.md	020c264ac36d9366dd795e323122ce69eb7e8a80	2026-11-04	
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
@@ -189,7 +189,7 @@ docs/volume_3_installation/3.2.1-requirements.md	dddb70ea81855c6560f95648a9e93c2
 docs/volume_3_installation/3.2.2-docker-from-ubuntu.md	2d7250a68efefe0413b077ee659fa444d40a325a	2026-10-08	
 docs/volume_3_installation/3.2.3-deployed-structure.md	7e6cdc8cf16bfca41ab48a5b0e0dd7d69d0c29a2	2026-10-08	
 docs/volume_3_installation/3.2.4-reinstall-uninstall.md	8ebcddc7c630d1922579f2705b34cd1755405c28	2026-10-31	
-docs/volume_3_installation/3.3.1-running-setup.md	4e3782723fe92dd68443ab41a00bb3fb3046e910	2026-11-07	
+docs/volume_3_installation/3.3.1-running-setup.md	23448e1c52d45acec4cf88e6d2d23d5bf714e674	2026-11-08	
 docs/volume_3_installation/3.3.2-after-setup.md	35ed4792d55ba7d74779d3bcd998f561b8142509	2026-10-20	
 docs/volume_3_installation/3.3.3-setup-steps.md	d293d012a1a21f37bad8388dab08df79a1e78ade	2026-10-23	
 docs/volume_3_installation/3.3.4-rebuilding.md	89cf47b0a1e0594bdae8b4d684b4111123f5b76b	2026-10-08	
