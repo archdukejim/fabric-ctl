@@ -154,13 +154,17 @@ check("Kea checked them first (kea-dhcp4 -t) and accepted: options, a client cla
       and '"SKIP_DDNS"' not in cfg4.split(f'"{P}.23.42"')[1].split("}")[0]
       and '"vlan": 23' in cfg4 and '"boot-test"' in cfg4)
 # why the file goes in on stdin: fabric-agent (every console apply) runs with a private /tmp, which the Docker daemon
-# cannot see; a mounted temp folder made Kea refuse every console apply that changed its file (2.3.10.11.16)
+# cannot see; a mounted temp folder made Kea refuse every console apply that changed its file (2.3.10.11.16).
+# The process starts in src/ and imports through /proc/self/cwd, so a checkout under /tmp (as the rc's clones are)
+# stays reachable after the private /tmp hides it: the working directory keeps the folder it was opened on, where a
+# path (even ".", which Python makes absolute) would be looked up again in the new /tmp.
 priv = subprocess.run(["unshare", "--mount", "--propagation", "private", "sh", "-c",
                        'mount -t tmpfs none /tmp && exec "$0" -c "$1"', sys.executable,
-                       f"import sys; sys.path[0:0] = [{os.path.join(REPO, 'src')!r}]; "
+                       "import sys; sys.path[0:0] = ['/proc/self/cwd']; "
                        "from fabriclib.dhcp.check_kea_config import check_kea_config; "
                        f"print(check_kea_config('{KEA_IMAGE}', 'kea-dhcp4.conf', sys.stdin.read()))"],
-                      input=on_host(cfg4), capture_output=True, text=True, timeout=120)
+                      cwd=os.path.join(REPO, "src"), input=on_host(cfg4), capture_output=True, text=True,
+                      timeout=120)
 check("Kea's check works from a process with a private /tmp, as fabric-agent runs (the console's applies)",
       priv.stdout.strip() == "True", priv.stdout + priv.stderr)
 # the check's throwaway container stays out of Kea's Compose project (1.2.4.6): fabric builds a pending Kea image with
