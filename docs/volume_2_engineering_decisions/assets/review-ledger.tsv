@@ -15,7 +15,7 @@ README.md	e11704d23ab0b3402607854f34089ea1a78ebdec	2026-10-23
 THIRD_PARTY_NOTICES	ff836ec5208f7ac6140740a07186107c63702d24	2026-10-08	
 config/README.md	6300abd255fbbe5a87bd0d83cd9c9dd1c4b8de1f	2026-10-08	
 config/VERSION	b0bb878545dc6dc410a02b0df8b7ea9fd5705960	2026-11-08	
-config/images.lock.yaml	ddc4ee5722cd730e02618334f9e018da3f5272dc	2026-11-08	
+config/images.lock.yaml	75b163c4b9fd2554cd507fa1e29abacb64c2c194	2026-11-08	
 config/link-vars-template.yaml	09caaa55680a13015332a468218c99437f67db26	2026-09-30	
 docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
