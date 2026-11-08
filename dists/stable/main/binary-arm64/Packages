@@ -1,0 +1,24 @@
+Package: fabricctl
+Version: 0.9.5
+Architecture: all
+Maintainer: fabric <archdukejim@users.noreply.github.com>
+Homepage: https://github.com/archdukejim/fabric-ctl
+Depends: python3 (>= 3.10), python3-yaml, python3-jinja2, python3-bcrypt, chrony, openssl, curl, ca-certificates, iptables, ufw, dnsutils
+Recommends: python3-pykcs11, python3-pykmip
+Suggests: docker.io, docker-compose-v2, docker-buildx, ykcs11, opensc-pkcs11, pcscd, softhsm2
+Priority: optional
+Section: admin
+Filename: pool/main/f/fabricctl/fabricctl_0.9.5_all.deb
+Size: 2920648
+SHA256: d60949548851533b06a04909d11cb8f5930be93f1a8f2960132740d7fb2c8bfd
+SHA1: a06e12a5ade48d75feeb65e951d682d1d924f286
+MD5sum: b66605c9658a5dcea2c544a934b6e2f8
+Description: install, secure and run a small network fabric
+ fabricctl sets up and manages fabric on this host: authoritative DNS
+ (BIND9) with RFC2136/TSIG, an internal PKI (Step-CA), secrets (OpenBao),
+ 389 Directory Server, Keycloak SSO and the fabric-ctl web UI behind
+ client certificates and OIDC; optionally Kea DHCP, 802.1X (FreeRADIUS)
+ and log forwarding (Fluent Bit) — every service in a hardened container
+ under systemd (fabric.target). Installing the package changes nothing; run
+ `sudo fabricctl setup` to install fabric.
+
