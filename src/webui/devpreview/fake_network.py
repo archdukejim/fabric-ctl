@@ -140,7 +140,8 @@ def _filter(route, body):
         row = next((r for r in d["lists"] if r["url"] == url), None)
         on, added = what == "lists" or body.get("enabled") == "on", row is None
         if row is None:
-            row = {"id": hashlib.sha256(url.encode()).hexdigest()[:12], "name": body.get("name") or url, "url": url, "description": "", "homepage": "",
+            row = {"id": hashlib.sha256(url.encode()).hexdigest()[:12], "name": body.get("name") or url, "url": url,
+                   "description": "", "homepage": "",
                    "category": "Added by URL", "on_site": True, "enabled": on, "last_fetch": None,
                    "last_success": None, "rules": None, "memory_mb": None}
             d["lists"].append(row)

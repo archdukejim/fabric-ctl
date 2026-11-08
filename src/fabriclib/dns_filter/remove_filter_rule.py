@@ -14,7 +14,8 @@ def remove_filter_rule(actor, kind, name, source="cli", group="", dry=False):
              1.12.2.14, 1.12.2.15). Saved in vars.yaml; applied by the next apply.
     Inputs:  actor — who asks (audit); kind — "allow" or "block"; name — as listed; source — "cli" or "web"; group —
              "" for everyone, else a group's name.
-             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's Apply, 1.12.3.17).
+             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's
+             Apply, 1.12.3.17).
     Returns: {"kind", "name", "group"}.
     Fails:   ValidationError for another kind, an unknown group or a name not in that rule; OSError or yaml errors
              from the vars file and the audit log.

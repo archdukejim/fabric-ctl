@@ -43,7 +43,8 @@ def _finish(page, routes=()):
     Returns: (what, fn(actor)) for "policies" when the password policy is among them, for "kerberos" when the
              ticket policy is (written into the DC's KDC, 1.6.12.9), and for "zones" when a record, a landing-page link
              or a TSIG key's removal is (_finish_dns), for "networks" and "options" when this site's plan or
-             its options may have changed (_finish_plan), for "dns-filter" always (filter_finish); None otherwise (Group Policy and sudo rules are written
+             its options may have changed (_finish_plan), for "dns-filter" always (filter_finish); None
+             otherwise (Group Policy and sudo rules are written
              by their own changes, a zone's add and removal publish themselves).
     Fails:   never (fn raises ValidationError when the apply does not finish).
     Feeds:   PENDING (its finish)."""

@@ -12,7 +12,8 @@ def set_filter_upstreams(actor, text, source="cli", dry=False):
              certificate for it; the name is shown). Saved in vars.yaml; made in AdGuard by apply_dns_filter.
     Inputs:  actor — who asks (audit); text — "<address> <certificate name>" pairs separated by commas or new lines
              (e.g. "9.9.9.9 dns.quad9.net, 149.112.112.112 dns.quad9.net"); source — "cli" or "web".
-             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's Apply, 1.12.3.17).
+             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's
+             Apply, 1.12.3.17).
     Returns: the upstreams saved, [{address, name}].
     Fails:   ValidationError from parse_upstreams (an empty text, a pair without its name) or from
              check_filter_settings (none given, not an address, not a name); OSError or yaml errors from the vars file

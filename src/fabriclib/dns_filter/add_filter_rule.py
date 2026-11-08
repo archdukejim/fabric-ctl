@@ -17,7 +17,8 @@ def add_filter_rule(actor, kind, name, source="cli", group="", dry=False):
              moves: allowing a blocked name unblocks it. Saved in vars.yaml; applied by the next apply.
     Inputs:  actor — who asks (audit); kind — "allow" or "block"; name — a DNS name; source — "cli" or "web"; group —
              "" for everyone, else a group's name.
-             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's Apply, 1.12.3.17).
+             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's
+             Apply, 1.12.3.17).
     Returns: {"kind", "name" (normalised), "moved" (True when it left the other rule), "group" ("" or the name)}.
     Fails:   ValidationError for another kind, an unknown group, or from check_filter_settings (not a name, inside
              fabric's own domains, a group allow above them); nothing is saved then. OSError or yaml errors from the

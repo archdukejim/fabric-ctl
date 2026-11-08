@@ -16,7 +16,8 @@ def set_safe_search(actor, group, on, youtube="strict", source="cli", dry=False)
              by the next apply.
     Inputs:  actor — who asks (audit); group — "" for everyone, else a group's name; on — bool (a form's "on"/"true"/
              "1" counts as on); youtube — "strict" or "moderate"; source — "cli" or "web".
-             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's Apply, 1.12.3.17).
+             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's
+             Apply, 1.12.3.17).
     Returns: {"group" ("" or the name), "on": bool, "youtube"}.
     Fails:   ValidationError for an unknown group or another YouTube level; OSError or yaml errors from the vars file
              and the audit log.
@@ -34,5 +35,6 @@ def set_safe_search(actor, group, on, youtube="strict", source="cli", dry=False)
         if not dry:
             save_vars(data)
     if not dry:
-        write_audit(actor, "DNS_FILTER_SAFE_SEARCH", f"{label}: " + (f"strict, YouTube {youtube}" if on else "off"), source)
+        write_audit(actor, "DNS_FILTER_SAFE_SEARCH", f"{label}: " + (f"strict, YouTube {youtube}" if on else "off"),
+                    source)
     return {"group": "" if label == "everyone" else label[6:], "on": bool(on), "youtube": youtube}

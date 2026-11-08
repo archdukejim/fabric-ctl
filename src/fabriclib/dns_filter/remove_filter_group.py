@@ -11,7 +11,8 @@ def remove_filter_group(actor, name, source="cli", dry=False):
     """Purpose: remove a client group from the DNS filter (manual 1.12.2.15): its clients are answered as everyone
              again; the next apply drops its view, its rules zone and its own lists' copies.
     Inputs:  actor — who asks (audit); name — the group's name; source — "cli" or "web".
-             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's Apply, 1.12.3.17).
+             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's
+             Apply, 1.12.3.17).
     Returns: {"name", "clients"} of the group removed.
     Fails:   ValidationError when no group has that name; OSError or yaml errors from the vars file and the audit log.
     Feeds:   agent/post_dns_filter (POST /v1/dns-filter/groups/delete)."""

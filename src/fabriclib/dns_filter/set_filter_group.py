@@ -14,7 +14,8 @@ def set_filter_group(actor, name, clients, source="cli", dry=False):
              is added. Saved in vars.yaml; applied by the next apply.
     Inputs:  actor — who asks (audit); name — the group's name; clients — its addresses and subnets: a list, or one
              string separated by commas, spaces or new lines; source — "cli" or "web".
-             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's Apply, 1.12.3.17).
+             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's
+             Apply, 1.12.3.17).
     Returns: {"name" (normalised), "clients" (normalised), "added": True for a new group}.
     Fails:   ValidationError from check_filter_settings (a bad or reserved name, no clients, an address that is not
              one, outside the networks answered, inside fabric's own, in another group); nothing is saved then.
@@ -41,6 +42,6 @@ def set_filter_group(actor, name, clients, source="cli", dry=False):
             save_vars(data)
     group = next(g for g in data["dns_filter_groups"] if g["name"] == key)
     if not dry:
-        write_audit(actor, "DNS_FILTER_GROUP_" + ("ADD" if added else "CLIENTS"), f"{key}: {' '.join(group['clients'])}",
-                    source)
+        write_audit(actor, "DNS_FILTER_GROUP_" + ("ADD" if added else "CLIENTS"),
+                    f"{key}: {' '.join(group['clients'])}", source)
     return {"name": key, "clients": group["clients"], "added": added}

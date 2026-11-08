@@ -16,7 +16,8 @@ def set_filter_list(actor, url, enabled=True, name="", source="cli", dry=False):
              peak would pass AdGuard Home's memory limit (1.12.3.9). Made in AdGuard by apply_dns_filter.
     Inputs:  actor — who asks (audit); url — the list's URL; enabled — True to tick (or add), False to untick; name —
              its name for a new list (the URL when empty; an existing list keeps its name); source — "cli" or "web".
-             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's Apply, 1.12.3.17).
+             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's
+             Apply, 1.12.3.17).
     Returns: {"name", "url", "id", "enabled", "added": True for a new list, "memory": list_memory's result}.
     Fails:   ValidationError: not http(s) (check_filter_settings), a name over 200 characters, unticking a list the
              site does not have, the memory rule (with the estimate and the limit); nothing is saved then. OSError
