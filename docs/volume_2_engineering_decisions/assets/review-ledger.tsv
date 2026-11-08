@@ -2201,7 +2201,7 @@ tests/image_ref.py	4ff35451eb0f155eee1efe6209e935e841d0dc32	2026-10-03
 tests/images/README.md	32152577c75918aee5b4d0bfe1f04b2163e75144	2026-10-14	
 tests/images/commands.py	f50fd76f488d6f1bafd84b73218ee8eebe71742c	2026-10-25	
 tests/images/host_images.py	88e855ce667d351a3edc1fe87421a5ad687d19e0	2026-10-09	
-tests/images/previous.yaml	dce76a0ce0cd638f2177ee8c389cd77bf742e285	2026-11-07	
+tests/images/previous.yaml	05f942b5cfe9fb5206027648bbe5fd2c6865127b	2026-11-08	
 tests/images/published.py	329c8b0f5780f97257407e0defbfb6fbf60ef2ef	2026-10-25	
 tests/images/run.sh	4e4b398a854a4ec81041afbc8cd52bf7d3707ad1	2026-10-25	
 tests/images/switch_image_test.py	6534c1f8fff6b86fcd8b30770dcfeadba574d94c	2026-10-14	
