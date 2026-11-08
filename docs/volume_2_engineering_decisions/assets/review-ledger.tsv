@@ -2324,7 +2324,7 @@ tests/setup/run_steps_test.py	4807eb4578d9b0e41d5b012201cbaddbcacfd591	2026-10-1
 tests/setup/run_uninstall_command_test.py	da47421f7e3c3f5006c9504e94f867949559ce60	2026-10-26	
 tests/setup/site/README.md	b1e641b1d30c6a06756bbf0d2dd2b46bbb1d6998	2026-11-08	
 tests/setup/site/attach_server_test.py	7c7701bb77e4c1c07a061ef650112783fff111fa	2026-11-08	
-tests/setup/site/attach_site_test.py	3e1af401a7163cdccd3eaf93d4af61c64fda12a2	2026-11-08	
+tests/setup/site/attach_site_test.py	1b5126ae4bc71330e05286a92f2073605d61b9a2	2026-11-08	
 tests/setup/site/browser_test.py	10612eb4ac52aadcb924bcb38971567868675e75	2026-11-08	
 tests/setup/site/check_console_test.py	7e50da15509d7d4e1e247589b515c8eafa4d125a	2026-11-07	
 tests/setup/site/flow_test.py	2e7d08eafbf4a7fc65dfc3dfa244adcc86b0c063	2026-11-08	

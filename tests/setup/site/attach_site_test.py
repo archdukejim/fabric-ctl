@@ -4,6 +4,7 @@ detaches; a socket it cannot reach is refused, saying why. Real Unix sockets and
     python3 tests/setup/site/attach_site_test.py"""
 import io
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -53,9 +54,20 @@ if os.geteuid() == 0:
     probe = ("import sys\nsys.path.insert(0, sys.argv[2])\nfrom fabriclib.setup.site.attach_site import attach_site\n"
              "from fabriclib.setup.errors import SetupError\ntry:\n    attach_site({'port': 1, 'pid': 1}, sys.argv[1])\n"
              "except SetupError as e:\n    print(e)\n")
-    src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "src")
-    done = subprocess.run([sys.executable, "-c", probe, path, os.path.abspath(src)], user=65534, capture_output=True,
-                          text=True, timeout=10)
+    # the other user cannot read the checkout (CI's is under the runner's home): a readable copy of what it imports
+    src = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "src"))
+    lib = tempfile.mkdtemp(prefix="fabric-attach-lib-")
+    for rel in ("fabriclib/__init__.py", "fabriclib/setup/__init__.py", "fabriclib/setup/errors.py",
+                "fabriclib/setup/site/__init__.py", "fabriclib/setup/site/constants.py",
+                "fabriclib/setup/site/attach_site.py"):
+        os.makedirs(os.path.dirname(os.path.join(lib, rel)), exist_ok=True)
+        shutil.copy(os.path.join(src, rel), os.path.join(lib, rel))
+    for folder, _, names in os.walk(lib):
+        os.chmod(folder, 0o755)
+        for name in names:
+            os.chmod(os.path.join(folder, name), 0o644)
+    done = subprocess.run([sys.executable, "-c", probe, path, lib], user=65534, capture_output=True, text=True,
+                          timeout=10, cwd="/")
     check("a user who is not root: refused, told to use sudo", "only root can attach" in done.stdout, (done.stdout, done.stderr[-300:]))
     server.close()
 else:
