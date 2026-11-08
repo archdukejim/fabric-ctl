@@ -28,6 +28,8 @@ import yaml
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path[0:0] = [os.path.join(REPO, "src"), REPO, os.path.join(REPO, "tests", "common")]
 import test_run as testrun  # noqa: E402
+from fabriclib.dns_filter.common.lists_version import lists_version  # noqa: E402
+from fabriclib.dns_filter.filter_lists import filter_lists  # noqa: E402
 from fabriclib.rbac.permissions import BUNDLES  # noqa: E402
 from fabriclib.hostaccounts.approve_local_account import approve_local_account  # noqa: E402
 from fabriclib.hostaccounts.list_local_admins import list_local_admins  # noqa: E402
@@ -1683,15 +1685,17 @@ st, loc, review = filter_change("/dns-filter/lists", {"name": "x" * 201, "url": 
 check("DNS filter: a list name over 200 characters is refused when held, said why, nothing saved",
       "a list's name is at most 200 characters" in loc and not review and vars_now() == vt, loc)
 
+
+def lists_form():
+    """The lists form as the tab would show it now, every box unticked: the filter is off on this host, so the page
+    has no lists section (its form is checked in tests/resolver/console.py and the dev preview); its rows and version
+    come from the same reads fabric-agent makes (1.12.3.17)."""
+    rows = filter_lists(yaml.safe_load(vars_now()) or {})["lists"]
+    return {"shown": " ".join(r["id"] for r in rows), "version": lists_version(rows)}
+
+
 # the lists form: every box at once, then the tab's Apply (1.12.3.17)
-page = req("GET", "/dns-filter?view=lists", ALICE, cookie=adm)[3]
-ver = re.search(r'name="version" value="([0-9a-f]*)"', page)
-shown = re.search(r'name="shown" value="([^"]*)"', page)
-on = re.findall(r'name="on-([0-9a-f]+)" aria-label="[^"]*" checked>', page)
-check("DNS filter: the lists are one form of checkboxes with the page's version (no per-tick form)",
-      ver and shown and on and 'action="/dns-filter/lists/apply"' in page and "/dns-filter/lists/set" not in page,
-      page[page.find('id="lists"'):][:600])
-form = {"shown": shown.group(1) if shown else "", "version": ver.group(1) if ver else ""}   # every box unticked
+form = lists_form()
 st, loc, _ = web_post("/dns-filter/lists", {"name": "Meanwhile", "url": "https://lists.example.test/m.txt"}, adm,
                       acsrf)
 applied("dns-filter", adm)                     # the lists change after the page was shown
@@ -1700,8 +1704,7 @@ st, loc, body = web_post("/dns-filter/lists/apply", form, adm, acsrf)
 # covers: web:post.dns-filter.lists.apply agent:post.pending.hold -
 check("DNS filter: Apply changes from a page whose lists changed since is refused, saying why, nothing saved",
       st == 200 and "changed since this page was shown" in body and vars_now() == vt, (st, loc, body[:300]))
-page = req("GET", "/dns-filter?view=lists", ALICE, cookie=adm)[3]
-form["version"] = re.search(r'name="version" value="([0-9a-f]*)"', page).group(1)
+form = lists_form()
 st, loc, _ = web_post("/dns-filter/lists/apply", form, adm, acsrf)
 review = applied("dns-filter", adm) if "Applying" in loc else ""
 # covers: web:post.dns-filter.lists.apply +
