@@ -374,7 +374,7 @@ src/agent/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30
 src/agent/apply_filter_now.py	8397495230a9a7f602221b76b01d578714913a8d	2026-11-08	
 src/agent/change_dns_filter.py	aa55d1d953906bfc30dd03c092d42d612ca1654f	2026-11-08	
 src/agent/get_route.py	1601966c231fe4807edba470042ba36e89539ce3	2026-11-07	
-src/agent/handler.py	8fefc452d82100aeea8e4013c0a8a8d63552d73b	2026-11-08	
+src/agent/handler.py	b6c854759619dc44ff4c65c639125d94ffe1f021	2026-11-08	
 src/agent/job_store.py	86038e0f325ce4d8ddcccbc7822658936213c953	2026-11-07	
 src/agent/kept_store.py	b27a7966202c5fe29c648ed259feae12d15a561a	2026-11-07	
 src/agent/landing_note.py	fd9dd29802a24e92e580cff6c556dad72063ac0c	2026-10-24	
@@ -2280,7 +2280,7 @@ tests/speed/read_cache.py	91bdfd3c51b40f8f45228709ecda8cc87c571836	2026-11-07
 tests/speed/run.py	2edccfc175cffb02b269ba774f23b39c8766a469	2026-11-04	
 tests/webui/README.md	c8f53ca6d023bb197df3d7e252adb4c279a40b1f	2026-10-23	
 tests/webui/narrow_probe.py	e4bf04507b8e3957c0dd1b2cfc935aa63b71ee04	2026-10-25	
-tests/webui/test_container.py	a1ca889d44c8b82154df1e0bc3b7e946b788f592	2026-11-08	
+tests/webui/test_container.py	05d9171e44f90d0f5d2dec2cca73a7fbfc59dcb9	2026-11-08	
 tests/webui/test_devserver.py	cd9c70dbee06896a435461a702b99ccfd6526b9c	2026-11-08	
 tests/webui/test_narrow.py	ae3209673bb3e2d822abd693e22b1bd497ceb3c6	2026-10-25	
 tests/webui/test_networks.py	3a8a8fde4bf6c2503ce91392674a8c0e1ea619a0	2026-10-25	

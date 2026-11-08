@@ -103,11 +103,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def drain(self):
         """Purpose: read the request's body before anything is answered, so a refusal sent first never closes the socket
-                 while the caller is still sending it: the caller would get a broken pipe instead of the refusal.
+                 while the caller is still sending it: the caller would get a broken pipe instead of the refusal,
+                 or, with the body arrived but unread, a connection reset instead of the answer.
         Inputs:  none; reads the Content-Length header and self.rfile.
         Returns: None; self.raw is the body's bytes, or None when its length is not one (body says why).
         Fails:   never.
-        Feeds:   do_POST."""
+        Feeds:   do_GET, do_POST."""
         try:
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
@@ -145,10 +146,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         """Purpose: entry point for GET requests (called by BaseHTTPRequestHandler).
-        Inputs:  none; the request is in self.path / self.headers.
+        Inputs:  none; the request is in self.path / self.headers; a body it declares is read and ignored.
         Returns: None; the answer is sent by dispatch.
         Fails:   as dispatch (errors become JSON replies).
         Feeds:   dispatch("GET")."""
+        self.drain()                      # a body left unread when the socket closes resets it: no answer arrives
         self.dispatch("GET")
 
     def do_POST(self):

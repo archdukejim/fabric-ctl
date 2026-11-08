@@ -1270,6 +1270,10 @@ for path, roles, perm, ids in (("/v1/zones", PKI_OPS, "dns:read", "agent:get.zon
     # covers: agent:get.pki.issued agent:get.pki.acme agent:get.cert-warnings -
     check(f"refused: GET {path} without {perm} ({ids}): 403, the permission named",
           " 403 " in out and f"you need the permission {perm}" in out, out)
+# a GET's body read before the answer: unread when the agent closed, it reset the connection (CI, amd64)
+out = agent_call("GET", "/v1/reverse-zones", "carol", PKI_OPS, pause=0.5)
+check("a refused GET whose body comes after its headers: the refusal arrives, never a connection reset (403)",
+      " 403 " in out and "you need the permission dns:read" in out and "Error" not in out, out)
 out = agent_call("GET", "/v1/reminders", "carol", AUDITOR_ROLES)
 check("auditor token: GET /v1/reminders answers a list (status:read)", " 200 " in out and out.split("\n", 1)[1].startswith("["),
       out)
