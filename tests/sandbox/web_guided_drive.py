@@ -27,7 +27,7 @@ PROBE_DIR = os.path.join(REPO, "tests", "setup", "site")
 IMAGE = "fabric/webui-browser:web-guided"
 CONSOLE = "fabric-ctl.lan.example"
 SECRET = "Fx9-" + secrets.token_hex(12)      # chosen for this run; handed to the probe in a file, never on a command line
-QUIET = 180                                   # the stream's 30 s on a silent network, the session's 120 s, and a little
+QUIET = 40                                    # the stream's 30 s on a silent network, and a little
 PASS = FAIL = 0
 
 
@@ -218,9 +218,18 @@ found = setup.until(r"One-time code:\s+(\S+)", 60)
 # covers: ask:setup.site_port +
 check("agreed: real ufw holds the rule, with its comment", found and "fabric-setup-site" in site_rules(), (setup.plain()[-500:], site_rules()))
 check("the rule lets a browser in", serves(8443) == 200, serves(8443))
-_, row = box("ps -o user=,args= -C python3 | grep site_main")
-check("the listener runs as nobody, and neither the code nor the key is on its command line",
-      row.startswith("nobody") and found and found.group(1) not in row, row)
+_, row = box("ps -o uid=,gid=,args= -C python3 | grep site_main")
+check("the listener runs as uid and gid 649, and neither the code nor the key is on its command line",
+      row.split()[:2] == ["649", "649"] and found and found.group(1) not in row, row)
+# covers: cli:setup -
+other = Setup([], f"attach-{int(time.time())}.log")
+shown = other.until(r"One-time code:\s+(\S+)", 30)
+check("a second sudo fabricctl setup attaches: the URL and the current code, no second site",
+      shown and shown.group(1) == found.group(1) and ":8443/" in other.plain() and listening() == [8443], other.plain()[-600:])
+other.interrupt()
+status = other.end(20)
+check("Ctrl-C in the attached terminal only detaches: the site goes on", status == 0 and "Detached" in other.plain() and serves(8443) == 200,
+      (status, other.plain()[-300:]))
 setup.interrupt()
 setup.end()
 check("Ctrl-C: real ufw has lost the rule, and is as it was", not site_rules() and box("ufw status")[1] == ufw_before,
@@ -308,13 +317,14 @@ check("a real browser reached the install: every question answered, Proceed pres
       rows and rows[-1].get("stopped") == "progress", rows[-3:])
 pages = {r["page"]: r for r in rows if "page" in r}
 check("the plan lists the site's port as a host change, and the firewall's own", "8443" in pages.get("plan", {}).get("text", ""), pages.get("plan"))
-print(f"    the browser's network cut; a new one after {QUIET} s, with the same code", flush=True)
+print(f"    the browser's network cut; a new one after {QUIET} s, with the same code, taking the session over", flush=True)
 time.sleep(QUIET)
 rows = probe({**scenario, "finish_check": True, "restart_wait": 8, "seconds": 3400, "verify_new_certificate": True,
               # as fabric's DNS answers: every name under the domain, so the console's redirect to its sign-in resolves too
               "check_with": {"resolved": {"*.lan.example": IP}}}, 3400)
 pages = {r["page"]: r for r in rows if "page" in r}
-check("a network gone silent stops nothing: the same code reconnects, and the install went on", "code" in pages and "finish" in pages,
+check("a network gone silent stops nothing: a new browser is asked, takes the session over, and the install went on",
+      "code" in pages and "takeover" in pages and "finish" in pages,
       list(pages) + rows[-2:])
 new = next((r for r in rows if r.get("event") == "new certificate"), {})
 check("the site moved to fabric's certificate", new.get("fingerprint") and new["fingerprint"] != fingerprint, new)

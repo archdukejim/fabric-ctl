@@ -209,6 +209,10 @@ def run(s):
     page.report("code")
     page.js("document.getElementById('code').value = " + json.dumps(s["code"]))
     page.click("form[action='/code'] button")
+    page.settled()
+    if page.js("!!document.querySelector(\"input[name='ticket']\")"):   # another browser held it: end that (2.1.8.62)
+        page.report("takeover")
+        page.click("form[action='/code'] button")
     secrets_given = 0
     seen = stuck = 0
     end = time.time() + float(s.get("seconds", 3600))

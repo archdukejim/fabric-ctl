@@ -2290,7 +2290,7 @@ tests/sandbox/size_fill_dc.py	9a24362d71304487a4b51c9ed258fc6f5ea09adf	2026-11-0
 tests/sandbox/size_load.py	b5b72d63af1b6be75ec92ae2e1ea613e888c5bc4	2026-11-04	
 tests/sandbox/size_measure.sh	16d3bcf81bcd242df17563b87445693108625629	2026-11-03	
 tests/sandbox/web_guided.sh	3204c31ae9ff41370f01ffe0bba19d0b9e7f30ba	2026-11-07	
-tests/sandbox/web_guided_drive.py	ce2c485a388171119c4610a07862a9071e04b533	2026-11-07	
+tests/sandbox/web_guided_drive.py	6f81da45a8047b06ba79816a99d5af305fd6f9a9	2026-11-08	
 tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
 tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-12	
 tests/settings/README.md	fe8cdeb50d57df5b0accee46d31aff967d27a9f8	2026-10-23	
@@ -2333,7 +2333,7 @@ tests/setup/site/listener_link_test.py	c9729b1e33690d4336f32bf5744810813af7300a	
 tests/setup/site/preview.py	f4f2d3ce2cbac8cc755f5b43fdb824294b5afd4d	2026-11-08	
 tests/setup/site/signal_driver.py	11de42e704400014cad97fccd5cf597f7e6cc6f8	2026-11-08	
 tests/setup/site/site_account_test.py	95d507f6a4532b048d1e6472a63361908fc3f8f9	2026-11-08	
-tests/setup/site/site_probe.py	b1ae56dda126faafd3030559a4d04a134c6908a3	2026-11-07	
+tests/setup/site/site_probe.py	22ed459097abd71a6a189eb0ba6b4d7ef47f907a	2026-11-08	
 tests/setup/site/site_test.py	055b9242d67fab20bf1bda377a5a50ac7601ab54	2026-11-08	
 tests/setup/site/support.py	ed753a3a9a481d256ec6897ea98603d1beae66cf	2026-11-08	
 tests/setup/start_unit_test.py	fe214622d907b1d7208054646c12b5186ef75fc3	2026-10-24	
