@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Console palettes</title>
+<!-- spikes/webui-palette (manual 2.3.8.4): the source of index.html. build.py inlines the two stylesheets so
+     index.html opens on its own, with nothing fetched. Edit this file, then run build.py. -->
+<link rel="stylesheet" href="palettes.css">
+<link rel="stylesheet" href="mockup.css">
+<style>
+/* the review page around the mockups: neutral, so it does not tint what is compared */
+html,body{margin:0;background:#e9e9ec;color:#1b1b1f;font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){html,body{background:#232327;color:#ececf0}.controls{background:#2c2c31!important;border-color:#3a3a40!important}.controls legend,.pairs th{color:#b8b8c0!important}.swatch{border-color:#555!important}}
+.controls{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;padding:12px 16px;background:#fbfbfc;border-bottom:1px solid #d4d4da}
+.controls h1{font-size:16px;margin:0 16px 0 0;align-self:center}
+.controls fieldset{border:0;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px}
+.controls legend{font-size:12px;color:#5a5a63;padding:0 0 4px}
+.controls label{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:1px solid #b9b9c2;border-radius:999px;cursor:pointer;font-size:13px}
+.controls input{accent-color:#4b44d4;margin:0}
+.controls label:has(input:checked){border-color:currentColor;font-weight:600}
+.stage{display:grid;gap:16px;padding:16px;overflow-x:auto}
+.panel{display:flex;flex-direction:column;gap:6px;min-width:0}
+.panel>.cap{font-size:13px;font-weight:600}
+.panel>.cap span{font-weight:400;opacity:.75}
+.fit{overflow:hidden}
+.notes{max-width:1100px;padding:0 16px 32px}
+.notes h2{font-size:16px;margin:24px 0 8px}
+.pairs{border-collapse:collapse;font-size:13px}
+.pairs th,.pairs td{padding:4px 10px;border-bottom:1px solid #8884;text-align:left}
+.pairs th{color:#5a5a63;font-weight:600}
+.pairs td.r{text-align:right;font-variant-numeric:tabular-nums}
+.swatch{display:inline-block;width:14px;height:14px;border-radius:3px;border:1px solid #9995;vertical-align:middle;margin-right:4px}
+</style></head>
+<body>
+<form class="controls" id="controls" aria-label="What to show">
+  <h1>fabric console: three palettes</h1>
+  <fieldset><legend>Palette</legend>
+    <label><input type="radio" name="palette" value="harbor" checked> A · Harbor</label>
+    <label><input type="radio" name="palette" value="graphite"> B · Graphite</label>
+    <label><input type="radio" name="palette" value="sandstone"> C · Sandstone</label>
+    <label><input type="radio" name="palette" value="all"> All three</label>
+    <label><input type="radio" name="palette" value="today"> Today's colours</label>
+  </fieldset>
+  <fieldset><legend>Mode</legend>
+    <label><input type="radio" name="theme" value="light" checked> Light</label>
+    <label><input type="radio" name="theme" value="dark"> Dark</label>
+    <label><input type="radio" name="theme" value="both"> Both</label>
+  </fieldset>
+  <fieldset><legend>Page</legend>
+    <label><input type="radio" name="page" value="settings" checked> Settings</label>
+    <label><input type="radio" name="page" value="dns"> DNS filter</label>
+    <label><input type="radio" name="page" value="home"> Overview</label>
+  </fieldset>
+  <fieldset><legend>Width</legend>
+    <label><input type="radio" name="width" value="wide" checked> Desktop</label>
+    <label><input type="radio" name="width" value="phone"> Phone (375 px)</label>
+  </fieldset>
+</form>
+
+<div class="stage" id="stage">
+<div class="panel"><div class="cap" data-cap>A · Harbor <span>light</span></div><div class="fit">
+<div class="console" data-palette="harbor" data-theme="light" data-page="settings">
+  <header class="topbar">
+    <span class="btn secondary small navbutton">Menu</span>
+    <a class="brand" href="#">fabric-ctl</a>
+    <span class="small">pi-core · home.arpa</span>
+    <span class="site">lan</span>
+    <span class="small muted">fabricctl 0.9.0</span>
+    <span class="spacer"></span>
+    <div class="pendingbar" role="status"><strong>2 <span class="label">changes pending</span></strong>
+      <a class="btn secondary small" href="#">Review</a><button class="btn small" type="button">Apply</button><button class="btn ghost small" type="button">Discard</button></div>
+    <span class="site">jim</span>
+  </header>
+  <p class="devbanner">DEV PREVIEW · sample data, no sign-in, nothing is saved or applied</p>
+  <div class="frame">
+  <nav class="side" aria-label="Navigation"><ul>
+    <li class="open"><a href="#" data-go="home">Overview</a>
+      <ul class="pages"><li><a href="#" data-go="home" data-for="home">Health</a></li><li><a href="#">Doctor</a></li><li><a href="#">Updates</a></li><li><a href="#">Audit log</a></li></ul></li>
+    <li><a href="#">My account</a></li>
+    <li class="open"><a href="#" data-go="dns">DNS <span class="count">2</span></a>
+      <ul class="pages"><li><a href="#">Zones</a></li><li><a href="#" data-go="dns" data-for="dns">DNS filter <span class="count">2</span></a></li></ul></li>
+    <li><a href="#">DHCP</a></li><li><a href="#">PKI</a></li><li><a href="#">Directory</a></li><li><a href="#">802.1X</a></li>
+    <li><a href="#">Secrets</a></li><li><a href="#">Federation</a></li>
+    <li class="open"><a href="#" data-go="settings">Settings</a>
+      <ul class="pages"><li><a href="#" data-go="settings" data-for="settings">Setup wizard</a></li><li><a href="#">Sign-in security</a></li></ul></li>
+  </ul></nav>
+
+  <!-- ===================== Settings · the setup wizard (fixed) ===================== -->
+  <main class="page" data-show="settings">
+    <div class="pagehead"><span class="crumb">Settings</span><h1>Setup wizard</h1>
+      <p class="lead">Setup's choices that can change later. Back and Next keep what you typed; nothing changes until you
+      review the plan and apply it.</p></div>
+
+    <div class="notice warn" role="status"><span class="light warn" role="img" aria-label="relaxed"></span>
+      <div class="body"><p><strong>Security relaxed on this host</strong></p>
+      <p><code>signin_admin_second_factor: none</code>: the console and OpenBao ask for a password only.
+      <a href="#">Raise it in Sign-in security</a>.</p></div></div>
+
+    <div class="notice info" role="status"><div class="body"><p><strong>Finish setting up.</strong> After a fresh install
+      these are setup's defaults: review them, or keep them.</p></div>
+      <button class="btn secondary small" type="button">Keep setup's choices</button></div>
+
+    <ol class="stepper" aria-label="Steps">
+      <li aria-current="step">Optional parts</li><li>Memory</li><li>Passwords and sign-in</li><li>DNS filter upstreams</li><li>Review</li>
+    </ol>
+
+    <form class="card" onsubmit="return false">
+      <section>
+        <div class="card-head"><h2>Optional parts</h2><p>Each one is installed or removed when the plan is applied.</p></div>
+        <div class="fields">
+          <label class="field">DHCP (Kea)<select><option>off</option><option>on</option></select><span class="hint">Today: off</span></label>
+          <label class="field">DNS filter<select><option>on (bind)</option><option>off</option></select><span class="hint">Today: on (bind)</span></label>
+          <label class="field">Log forwarding (Fluent Bit)<select><option>off</option><option>on</option></select><span class="hint">Today: off</span></label>
+          <fieldset class="group"><legend>DHCP's first subnet, used when DHCP is turned on</legend>
+            <div class="fields">
+              <label class="field">Interface to serve<input placeholder="eth0"></label>
+              <label class="field">Subnet<input placeholder="192.168.1.0/24"></label>
+              <label class="field">Pool, first to last<input placeholder="192.168.1.100 - 192.168.1.199"></label>
+              <label class="field">Router told to clients<input placeholder="192.168.1.1"></label>
+            </div>
+            <p class="small muted">More subnets later, in DHCP → Networks.</p></fieldset>
+          <label class="field wide">Send the logs to<input placeholder="logs.example.org:6514"><span class="hint">A syslog server (host or host:port, over TLS) or an Elasticsearch URL (https://…). Today: not set.</span></label>
+        </div>
+      </section>
+
+      <section>
+        <div class="card-head"><h2>Changed only on the host's console</h2><p>Shown here for reference; the console cannot change them.</p></div>
+        <table class="list">
+          <colgroup><col class="c-key"><col class="c-now"><col class="c-how"></colgroup>
+          <thead><tr><th>Setting</th><th>Now</th><th>Changed with</th></tr></thead>
+          <tbody>
+            <tr><td data-label="Setting"><code>domain</code><span class="sub">The DNS domain; permanent</span></td><td data-label="Now">home.arpa</td><td data-label="Changed with"><code>sudo fabricctl setup</code> <span class="muted">on a new install only</span></td></tr>
+            <tr><td data-label="Setting"><code>hostname</code><span class="sub">This host's name</span></td><td data-label="Now">pi-core</td><td data-label="Changed with"><code>sudo fabricctl setup</code> <span class="muted">or its vars editor (<code>sudo fabricctl</code>)</span></td></tr>
+            <tr><td data-label="Setting"><code>host_ip</code><span class="sub">This host's LAN address</span></td><td data-label="Now">192.168.1.10</td><td data-label="Changed with"><code>sudo fabricctl setup</code> <span class="muted">or its vars editor (<code>sudo fabricctl</code>)</span></td></tr>
+          </tbody>
+        </table>
+        <p class="small muted">Also changed only on the host: every host change (ports, the firewall, Docker's hardening,
+        trust, time, domain membership), OpenBao's unlock and recovery, lowering sign-in security, client certificates
+        and every secret.</p>
+      </section>
+
+      <div class="form-actions">
+        <button class="btn secondary" type="button" disabled>Back</button>
+        <span class="spacer"></span>
+        <span class="small muted step">Step 1 of 5</span>
+        <button class="btn" type="button">Next: Memory</button>
+      </div>
+    </form>
+
+    <section class="card">
+      <div class="card-head"><h2>The settings file</h2><p>The same settings as a file, with no secret and nothing console-only.</p></div>
+      <div class="split">
+        <div class="actionsrow"><a class="btn secondary" href="#">Export today's settings</a></div>
+        <form class="fields" onsubmit="return false">
+          <label class="field wide">Import a settings file<input type="file"></label>
+          <label class="field wide">Or paste it<textarea placeholder="fabric_settings: 1&#10;settings:&#10;  install_kea: false"></textarea></label>
+          <div class="wide actionsrow"><button class="btn secondary" type="button">Import and show the plan</button></div>
+        </form>
+      </div>
+      <p class="small muted">On a host without a browser: <code>sudo fabricctl settings export FILE</code> and <code>sudo fabricctl settings import FILE</code>.</p>
+    </section>
+  </main>
+
+  <!-- ===================== DNS · DNS filter, Overview tab ===================== -->
+  <main class="page" data-show="dns">
+    <div class="pagehead"><span class="crumb">DNS</span><h1>DNS filter</h1></div>
+    <nav class="tabs" aria-label="DNS filter sections"><a href="#" aria-current="page">Overview</a><a href="#">Lists</a><a href="#">Rules</a><a href="#">Groups</a><a href="#">Query log</a><a href="#">Settings</a></nav>
+    <div class="tiles">
+      <div class="tile"><span class="small muted">Queries, last 7 days</span><span class="big">48,210</span></div>
+      <div class="tile"><span class="small muted">Blocked, last 7 days</span><span class="big">6,940</span><span class="small muted">14.4% of queries</span></div>
+      <div class="tile"><span class="small muted">Lists ticked</span><span class="big">3</span><span class="small muted">~45 MiB of 1,024 MiB</span></div>
+      <div class="tile warn"><span class="status small"><span class="light warn" role="img" aria-label="stale"></span>1 list's copy is 3 days old</span><a class="small" href="#">Fetch every list now</a></div>
+    </div>
+    <section class="card">
+      <div class="card-head"><h2>Last 24 hours</h2><span class="small muted">UTC</span>
+        <span class="spacer"></span><span class="legend"><span><span class="key q"></span>Queries</span><span><span class="key b"></span>Blocked</span></span></div>
+      <div class="hours" role="table" aria-label="Queries and blocked, per hour">
+        <span class="head">Hour</span><span class="head">Share of the busiest hour</span><span class="head n">Queries</span><span class="head n">Blocked</span>
+        <span class="h">00:00</span><svg viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><rect class="track" width="100" height="14" rx="2"/><rect class="q" width="25" height="8" y="0" rx="1"/><rect class="b" width="4" height="5" y="9" rx="1"/></svg><span class="n">412</span><span class="n">61</span>
+        <span class="h">01:00</span><svg viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><rect class="track" width="100" height="14" rx="2"/><rect class="q" width="18" height="8" rx="1"/><rect class="b" width="3" height="5" y="9" rx="1"/></svg><span class="n">288</span><span class="n">43</span>
+        <span class="h">02:00</span><svg viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><rect class="track" width="100" height="14" rx="2"/><rect class="q" width="12" height="8" rx="1"/><rect class="b" width="1.4" height="5" y="9" rx="1"/></svg><span class="n">190</span><span class="n">22</span>
+        <span class="h">06:00</span><svg viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><rect class="track" width="100" height="14" rx="2"/><rect class="q" width="40" height="8" rx="1"/><rect class="b" width="6" height="5" y="9" rx="1"/></svg><span class="n">649</span><span class="n">98</span>
+        <span class="h">07:00</span><svg viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><rect class="track" width="100" height="14" rx="2"/><rect class="q" width="75" height="8" rx="1"/><rect class="b" width="11" height="5" y="9" rx="1"/></svg><span class="n">1,210</span><span class="n">179</span>
+        <span class="h">08:00</span><svg viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><rect class="track" width="100" height="14" rx="2"/><rect class="q" width="100" height="8" rx="1"/><rect class="b" width="14" height="5" y="9" rx="1"/></svg><span class="n">1,620</span><span class="n">233</span>
+        <span class="h">09:00</span><svg viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><rect class="track" width="100" height="14" rx="2"/><rect class="q" width="92" height="8" rx="1"/><rect class="b" width="13" height="5" y="9" rx="1"/></svg><span class="n">1,488</span><span class="n">206</span>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Most blocked</h2><span class="small muted">last 7 days</span></div>
+      <table class="list">
+        <thead><tr><th>Name</th><th>Blocked by</th><th class="num">Times</th><th></th></tr></thead>
+        <tbody>
+          <tr><td data-label="Name"><code>browser.events.data.msn.com</code></td><td data-label="Blocked by">AdGuard DNS filter</td><td class="num" data-label="Times">1,204</td><td class="num"><button class="btn ghost small" type="button">Allow</button></td></tr>
+          <tr><td data-label="Name"><code>googleads.g.doubleclick.net</code></td><td data-label="Blocked by">AdGuard DNS filter</td><td class="num" data-label="Times">649</td><td class="num"><button class="btn ghost small" type="button">Allow</button></td></tr>
+          <tr><td data-label="Name"><code>telemetry.example-tv.com</code></td><td data-label="Blocked by"><span class="pill">your rules</span></td><td class="num" data-label="Times">311</td><td class="num"><button class="btn ghost small" type="button">Allow</button></td></tr>
+          <tr><td data-label="Name"><code>roblox.com</code></td><td data-label="Blocked by"><span class="pill warn">kids group</span></td><td class="num" data-label="Times">87</td><td class="num"><button class="btn ghost small" type="button">Allow</button></td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <!-- ===================== Overview · Health ===================== -->
+  <main class="page" data-show="home">
+    <div class="pagehead"><span class="crumb">Overview</span><h1>Health</h1></div>
+    <div class="notice info" role="status"><div class="body"><p><strong>Finish setting up</strong></p>
+      <p>Setup left DHCP, the DNS filter, log forwarding, the memory fabric may use and the sign-in settings at their defaults.</p>
+      <div class="row"><a class="btn" href="#">Open the setup wizard</a><button class="btn ghost" type="button">Keep setup's choices</button></div></div></div>
+    <div class="notice warn" role="status"><span class="light warn" role="img" aria-label="relaxed"></span>
+      <div class="body"><p><strong>Security relaxed on this host</strong></p>
+      <p><code>signin_admin_second_factor: none</code>: the console and OpenBao ask for a password only. <a href="#">Raise it in Sign-in security</a>.</p></div></div>
+    <div class="card-head"><h2>Services</h2><span class="status small"><span class="light warn" role="img" aria-label="one starting"></span>8 of 9 healthy, 1 starting</span></div>
+    <div class="tiles">
+      <div class="tile"><div class="head"><span class="light ok" role="img" aria-label="running, healthy"></span><a href="#">nginx</a></div><span class="small muted">Reverse proxy</span></div>
+      <div class="tile"><div class="head"><span class="light ok" role="img" aria-label="running, healthy"></span><a href="#">bind9</a></div><span class="small muted">DNS</span></div>
+      <div class="tile"><div class="head"><span class="light ok" role="img" aria-label="running, healthy"></span><a href="#">stepca</a></div><span class="small muted">Certificate authority</span></div>
+      <div class="tile"><div class="head"><span class="light ok" role="img" aria-label="running, healthy"></span><a href="#">samba</a></div><span class="small muted">Directory (Samba AD)</span></div>
+      <div class="tile"><div class="head"><span class="light ok" role="img" aria-label="running, healthy"></span>postgres</div><span class="small muted">Keycloak's database</span></div>
+      <div class="tile warn"><div class="head"><span class="light warn" role="img" aria-label="starting"></span>keycloak</div><span class="small muted">Single sign-on · <span class="pill warn">starting</span></span></div>
+      <div class="tile"><div class="head"><span class="light ok" role="img" aria-label="running, healthy"></span><a href="#">openbao</a></div><span class="small muted">Secrets</span></div>
+      <div class="tile"><div class="head"><span class="light ok" role="img" aria-label="running, healthy"></span>fabric-web</div><span class="small muted">This console</span></div>
+      <div class="tile"><div class="head"><span class="light ok" role="img" aria-label="running, healthy"></span>fabric-agent</div><span class="small muted">Host API</span></div>
+    </div>
+    <section class="card">
+      <div class="card-head"><h2>Host changes</h2><p>What fabric may change on this host outside its own folders. Answered at <code>sudo fabricctl setup</code>; <code>--undo GROUP</code> reverts one.</p></div>
+      <table class="list">
+        <thead><tr><th>Change</th><th>Answer</th><th>When</th><th>By</th></tr></thead>
+        <tbody>
+          <tr><td data-label="Change">Packages</td><td data-label="Answer"><span class="pill ok">approved</span></td><td data-label="When">3 Oct 2026, 09:12</td><td data-label="By">admin</td></tr>
+          <tr><td data-label="Change">Docker daemon settings</td><td data-label="Answer"><span class="pill ok">approved</span></td><td data-label="When">3 Oct 2026, 09:12</td><td data-label="By">admin</td></tr>
+          <tr><td data-label="Change">Host DNS resolver</td><td data-label="Answer"><span class="pill">not asked</span></td><td data-label="When">—</td><td data-label="By">—</td></tr>
+          <tr><td data-label="Change">Host trust store</td><td data-label="Answer"><span class="pill warn">declined</span><span class="sub">Tools on the host (curl, apt, browsers) reject fabric's certificates unless given the CA.</span></td><td data-label="When">3 Oct 2026, 09:12</td><td data-label="By">admin</td></tr>
+          <tr><td data-label="Change">Time service (chrony)</td><td data-label="Answer"><span class="pill ok">approved</span></td><td data-label="When">3 Oct 2026, 09:12</td><td data-label="By">admin</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+  </div>
+</div>
+</div></div>
+</div>
+
+<div class="notes">
+<h2>Contrast, measured (WCAG 2.2 AA: 4.5:1 for text, 3:1 for field edges, focus rings, lights and charts)</h2>
+<p>From <code>check.py</code>, which reads <code>palettes.css</code>: every candidate passes all 32 pairs in light and dark.
+Today's colours fail field edges in both modes (1.23:1 light, 1.41:1 dark) and, in dark mode, the address-bar and
+chart colours (2.26 to 2.92:1), which are hard-coded light-mode colours.</p>
+<table class="pairs">
+<thead><tr><th>Pair</th><th>Today L / D</th><th>A Harbor L / D</th><th>B Graphite L / D</th><th>C Sandstone L / D</th></tr></thead>
+<tbody>
+<tr><td>Text on page</td><td class="r">17.06 / 14.48</td><td class="r">15.33 / 15.63</td><td class="r">16.10 / 16.14</td><td class="r">15.22 / 15.49</td></tr>
+<tr><td>Text in a card</td><td class="r">17.85 / 11.87</td><td class="r">16.65 / 14.42</td><td class="r">17.69 / 15.03</td><td class="r">16.47 / 14.40</td></tr>
+<tr><td>Secondary text in a card</td><td class="r">4.76 / 5.71</td><td class="r">6.65 / 7.65</td><td class="r">7.26 / 7.09</td><td class="r">7.10 / 7.25</td></tr>
+<tr><td>Link in a card</td><td class="r">5.93 / 6.83</td><td class="r">6.09 / 8.42</td><td class="r">6.83 / 8.16</td><td class="r">6.63 / 7.77</td></tr>
+<tr><td>Primary button label</td><td class="r">5.93 / 6.83</td><td class="r">6.09 / 8.32</td><td class="r">6.83 / 7.89</td><td class="r">6.73 / 7.32</td></tr>
+<tr><td>Warning text</td><td class="r">5.02 / 8.76</td><td class="r">6.22 / 8.00</td><td class="r">6.11 / 9.16</td><td class="r">6.10 / 8.42</td></tr>
+<tr><td>Error text</td><td class="r">6.47 / 5.29</td><td class="r">6.55 / 6.70</td><td class="r">6.13 / 7.61</td><td class="r">6.44 / 7.21</td></tr>
+<tr><td>Field edge (3:1)</td><td class="r">1.23 / 1.41</td><td class="r">3.78 / 3.40</td><td class="r">4.06 / 3.07</td><td class="r">3.87 / 3.09</td></tr>
+</tbody></table>
+<h2>The clean-up shown here</h2>
+<ul>
+<li>Settings: each part of the form is its own section, heading on top; only fields sit in the field grid; the
+console-only table spans the card with sized columns, and the note under it reads "Also changed only on the host";
+Back and Next share one bar along the bottom.</li>
+<li>One button height (36 px; 30 px small) for every kind, so the pending bar's Review, Apply and Discard line up.</li>
+<li>One notice shape for "finish setting up", relaxed security and results; no manual numbers in what people read.</li>
+<li>Field edges at 3:1, a visible focus ring, a type scale of six sizes, dates written for people.</li>
+</ul>
+</div>
+
+<script>
+// The review page's switcher only; the console itself needs no script (manual 1.8.6.2).
+(function () {
+  const form = document.getElementById('controls');
+  const stage = document.getElementById('stage');
+  const proto = stage.querySelector('.panel').cloneNode(true);
+  const names = {harbor: 'A · Harbor', graphite: 'B · Graphite', sandstone: 'C · Sandstone', today: "Today's colours"};
+  function render() {
+    const v = Object.fromEntries(new FormData(form));
+    const pals = v.palette === 'all' ? ['harbor', 'graphite', 'sandstone'] : [v.palette];
+    const themes = v.theme === 'both' ? ['light', 'dark'] : [v.theme];
+    stage.replaceChildren();
+    const n = pals.length * themes.length;
+    const phone = v.width === 'phone';
+    stage.style.gridTemplateColumns = phone ? `repeat(${n}, 375px)` : `repeat(${Math.min(n, 3)}, minmax(0, 1fr))`;
+    for (const p of pals) for (const t of themes) {
+      const panel = proto.cloneNode(true);
+      panel.querySelector('[data-cap]').innerHTML = `${names[p]} <span>${t}</span>`;
+      const c = panel.querySelector('.console');
+      c.dataset.palette = p; c.dataset.theme = t; c.dataset.page = v.page;
+      stage.appendChild(panel);
+    }
+    fit(phone, n);
+  }
+  // Panels narrower than the desktop console are drawn at desktop width and scaled down, so a side-by-side
+  // comparison still shows the desktop layout; the Phone width shows the narrow layout at full size.
+  function fit(phone, n) {
+    for (const panel of stage.querySelectorAll('.panel')) {
+      const box = panel.querySelector('.fit'), c = panel.querySelector('.console');
+      c.style.width = ''; c.style.zoom = '';
+      if (phone) { c.style.width = '375px'; continue; }
+      const w = box.clientWidth, design = 1240;
+      if (n > 1 && w < design) { c.style.width = design + 'px'; c.style.zoom = (w / design).toFixed(3); }
+    }
+  }
+  form.addEventListener('change', render);
+  stage.addEventListener('click', e => {
+    const go = e.target.closest('[data-go]');
+    if (e.target.closest('a,button')) e.preventDefault();
+    if (go) { form.elements.page.value = go.dataset.go; render(); }
+  });
+  addEventListener('resize', () => fit(form.elements.width.value === 'phone', stage.children.length));
+  render();
+})();
+</script>
+<style>
+/* which page each mockup shows */
+.console main.page{display:none}
+.console[data-page="settings"] main[data-show="settings"],.console[data-page="dns"] main[data-show="dns"],.console[data-page="home"] main[data-show="home"]{display:flex}
+.console[data-page="settings"] [data-for="settings"],.console[data-page="dns"] [data-for="dns"],.console[data-page="home"] [data-for="home"]{color:var(--text);background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+</style>
+</body></html>
