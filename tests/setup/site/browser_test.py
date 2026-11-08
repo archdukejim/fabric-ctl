@@ -129,7 +129,7 @@ def one_run(width, base, pictures):
     term = Term()
     ctx = SetupContext(deploy_base=base)
     site = gs.GuidedSite(ctx, term=term, first=first, last=last, record=os.path.join(base, "site-port"), lib_dir=LIB, user=USER,
-                         grace=1.0, after=30)
+                         grace=1.0, after=30, attach=os.path.join(base, "attach.sock"))
     site.open()
     code = next(line.split()[-1] for line in term.text.splitlines() if "code:" in line)
     port_console = console_on(base)

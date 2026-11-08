@@ -1,6 +1,6 @@
 # fabriclib/setup/site/listener
 
-The setup site's listener (manual 1.3.6.3): a separate process, run as `nobody` with `python3 -I` and the standard library
+The setup site's listener (manual 1.3.6.3): a separate process, run as uid and gid 649 (no account) with `python3 -I` and the standard library
 only. It holds no power: it serves pages and passes what people type to root, which judges it.
 
 | File | What |

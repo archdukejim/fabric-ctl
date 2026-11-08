@@ -27,7 +27,6 @@ from fabriclib.setup.context import SetupContext  # noqa: E402
 from fabriclib.setup.detach.constants import LOG  # noqa: E402
 from fabriclib.setup.detach.write_run import write_run  # noqa: E402
 from fabriclib.setup.errors import SetupError  # noqa: E402
-from fabriclib.setup.site.constants import SESSION_QUIET_SECONDS  # noqa: E402
 from fabriclib.setup.site.certificate_fingerprint import certificate_fingerprint  # noqa: E402
 from fabriclib.setup.site.listener.check_verdict import check_verdict  # noqa: E402
 
@@ -80,7 +79,7 @@ def new_site(base, grace=0.3):
     ctx = SetupContext(deploy_base=base)
     ctx.host_problem = ""
     site = gs.GuidedSite(ctx, term=term, first=first, last=last, record=os.path.join(base, "site-port"), lib_dir=LIB, user=USER,
-                         grace=grace, after=30)
+                         grace=grace, after=30, attach=os.path.join(base, "attach.sock"))
     site.open()
     return site, term, Browser(site.port)
 
@@ -200,11 +199,10 @@ with tempfile.TemporaryDirectory() as base:
     check("a reconnect asks from where it was: nothing it has is sent twice", "step line 0\n" not in resumed and "step line 19\n" not in resumed and "step line 20" in resumed, resumed[:400])
     # the connection dropped after Proceed
     dropped = Browser(port)
-    dropped_status, _, _ = dropped.post("/code", {"code": term.code()})
-    check("a second browser is still refused while the first is around", dropped_status == 409, dropped_status)
-    site.keeper.seen -= SESSION_QUIET_SECONDS + 1
-    status, _, _ = dropped.post("/code", {"code": term.code()})
-    check("connection dropped after Proceed: nothing stopped, and the same code reconnects", status == 303 and run.running and t.is_alive(), status)
+    dropped_status, asked, _ = dropped.post("/code", {"code": term.code()})
+    check("a second browser is asked first while the first holds the session", dropped_status == 409 and "open in another browser" in asked, dropped_status)
+    status, _, _ = dropped.post("/code", {"ticket": dropped.field(asked, "ticket")})
+    check("connection dropped after Proceed: nothing stopped, and the code opens the site again", status == 303 and run.running and t.is_alive(), status)
     browser = dropped
     status, page, _ = browser.get()
     check("reconnected: the same run's log", "step line" in page and "Installing" in page, page[:300])
@@ -383,7 +381,7 @@ with tempfile.TemporaryDirectory() as base:
     first, last = free_ports()
     for stage, sent, status_wanted in (("question", signal.SIGINT, 130), ("question", signal.SIGHUP, 130), ("running", signal.SIGINT, 130),
                                        ("running", signal.SIGKILL, -9)):
-        env = {**os.environ, "SITE_LIB": LIB, "SITE_USER": USER or "", "SITE_FIRST": str(first), "SITE_LAST": str(last), "SITE_STAGE": stage,
+        env = {**os.environ, "SITE_LIB": LIB, "SITE_USER": str(USER) if USER else "", "SITE_FIRST": str(first), "SITE_LAST": str(last), "SITE_STAGE": stage,
                "SITE_BASE": base}
         p = subprocess.Popen([sys.executable, driver], stdout=subprocess.PIPE, text=True, env=env)
         got = ""

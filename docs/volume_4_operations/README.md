@@ -21,6 +21,8 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
   - 4.3.6.2 Trust fabric's root certificate
   - 4.3.6.3 Point a computer's DNS at fabric
   - 4.3.6.4 Troubleshoot the setup site
+  - 4.3.6.5 Get the code back from another terminal
+  - 4.3.6.6 Continue in another browser
 
 ## 4.4 DNS: BIND
 

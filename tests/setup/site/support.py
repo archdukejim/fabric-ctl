@@ -1,6 +1,6 @@
 """What the web-guided setup tests share: a real site (real listener process, real TLS, real sockets) driven as a browser
 drives it, over http.client. Not a test itself. The listener's code is copied to a world-readable folder when run as
-root, because it runs as nobody and a checkout's parents may not be readable (a CI runner's home)."""
+root, because it runs as uid 649 and a checkout's parents may not be readable (a CI runner's home)."""
 import html
 import http.client
 import os
@@ -14,6 +14,7 @@ import urllib.parse
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.insert(0, os.path.join(REPO, "src"))
+from fabriclib.setup.site.constants import SITE_ID  # noqa: E402
 
 PASS = FAIL = 0
 
@@ -49,7 +50,7 @@ def free_ports(count=3):
 
 
 def listener_lib():
-    """(lib_dir, user) for GuidedSite. As root: a readable copy, run as nobody, as the product does. Otherwise this user."""
+    """(lib_dir, user) for GuidedSite. As root: a readable copy, run as uid 649, as the product does. Otherwise this user."""
     source = os.path.join(REPO, "src")
     if os.geteuid() != 0:
         return source, None
@@ -65,7 +66,7 @@ def listener_lib():
         os.chmod(folder, 0o755)
         for name in names:
             os.chmod(os.path.join(folder, name), 0o644)
-    return top, "nobody"
+    return top, SITE_ID
 
 
 class Browser:

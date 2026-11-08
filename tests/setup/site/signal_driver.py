@@ -23,7 +23,8 @@ def main():
     ctx = SetupContext(deploy_base=env["SITE_BASE"])
     site = gs.GuidedSite(ctx, term=term, first=int(env["SITE_FIRST"]), last=int(env["SITE_LAST"]),
                          record=os.path.join(env["SITE_BASE"], "site-port"), lib_dir=env["SITE_LIB"],
-                         user=env["SITE_USER"] or None, grace=0.1)
+                         user=int(env["SITE_USER"]) if env["SITE_USER"] else None, grace=0.1,
+                         attach=os.path.join(env["SITE_BASE"], "attach.sock"))
     try:
         site.open()
         if env["SITE_STAGE"] == "question":

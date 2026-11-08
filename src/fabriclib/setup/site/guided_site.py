@@ -10,10 +10,12 @@ from fabriclib.common.paths import LIB_DIR
 from fabriclib.setup.detach.follow_run import follow_run
 from fabriclib.setup.detect_network import detect_network
 from fabriclib.setup.errors import SetupError
+from fabriclib.setup.site.attach_server import AttachServer
 from fabriclib.setup.site.certificate_fingerprint import certificate_fingerprint
 from fabriclib.setup.site.check_console import check_console
 from fabriclib.setup.site.close_site_port import close_site_port
-from fabriclib.setup.site.constants import AFTER_SECONDS, FIRST_PORT, IDLE_SECONDS, LAST_PORT, PORT_RECORD
+from fabriclib.setup.site.constants import (AFTER_SECONDS, ATTACH_SOCKET, FIRST_PORT, IDLE_SECONDS, LAST_PORT,
+                                            PORT_RECORD, SITE_ID)
 from fabriclib.setup.site.finish_data import finish_data
 from fabriclib.setup.site.host_addresses import host_addresses
 from fabriclib.setup.site.make_certificate import make_certificate
@@ -25,6 +27,7 @@ from fabriclib.setup.site.question_view import ANSI, question_view
 from fabriclib.setup.site.read_port_record import read_port_record
 from fabriclib.setup.site.read_site_files import read_site_files
 from fabriclib.setup.site.restore_snapshot import restore_snapshot
+from fabriclib.setup.site.site_account import site_account
 from fabriclib.setup.site.session_keeper import SessionKeeper
 from fabriclib.setup.site.take_snapshot import take_snapshot
 from fabriclib.setup.site.tee_log import TeeLog
@@ -39,11 +42,12 @@ class GuidedSite:
     unchanged; this object is their front end, and owns the unprivileged listener, the code and the session."""
 
     def __init__(self, ctx, term=None, first=FIRST_PORT, last=LAST_PORT, idle=IDLE_SECONDS, after=AFTER_SECONDS,
-                 record=PORT_RECORD, lib_dir=LIB_DIR, user="nobody", grace=RESTART_GRACE):
+                 record=PORT_RECORD, lib_dir=LIB_DIR, user=SITE_ID, grace=RESTART_GRACE, attach=ATTACH_SOCKET):
         """Purpose: hold what the site needs; nothing starts until open().
         Inputs:  ctx — SetupContext; term — the terminal's stream (default sys.stdout); first, last — the ports; idle,
                  after — the limits, seconds; record — the port's record; lib_dir, user — start_listener's; grace —
-                 seconds an open page gets to hear of a restart. Tests give their own.
+                 seconds an open page gets to hear of a restart; attach — the socket other terminals attach at. Tests
+                 give their own.
         Returns: None.
         Fails:   never.
         Feeds:   setup/run_setup."""
@@ -54,8 +58,10 @@ class GuidedSite:
         self.done = threading.Event()   # Finish
         self.sock = None
         self.listener = ListenerLink(lib_dir, user)
+        self.attach = AttachServer(self._greeting, attach)
         self.port, self.addresses, self.cert, self.key, self.fingerprint = None, [], "", "", ""
         self.keeper = SessionKeeper(self.say)
+        self.ended, self.watch_every = {}, 5.0          # ended sessions' tokens, for a restarted listener; seconds
         self.seq = 0
         self.notes = io.StringIO()
         self.saved_stdout = None
@@ -79,6 +85,8 @@ class GuidedSite:
         if other:
             raise SetupError(f"another setup's site is running here on TCP {other['port']} (process {other['pid']}). "
                              "Finish or stop that one first. Nothing was changed.")
+        if self.listener.user is not None:
+            site_account(self.listener.user)
         self.snapshot = take_snapshot(self.ctx.target_dir)
         close_site_port(self.record)                     # what a killed run left, on its comment's evidence
         try:
@@ -87,18 +95,22 @@ class GuidedSite:
             self.addresses = host_addresses(net.get("host_ip"))
             opened = open_site_port(self.port, net.get("lan_cidr"))
             write_port_record(self.record, self.port, net.get("lan_cidr"))
+            self.attach.open()
             self.cert, self.key, self.fingerprint = make_certificate(self.addresses, net.get("hostname"))
             self._start()
         except BaseException:
             self.close()
             raise
-        print_site_start(self.term, self.addresses or ["<this host's address>"], self.port, self.keeper.code,
+        start = io.StringIO()
+        print_site_start(start, self.addresses or ["<this host's address>"], self.port, self.keeper.code,
                          self.fingerprint, found)
+        self.say(start.getvalue())
         if opened and net.get("lan_cidr"):
             self.say(f"  The firewall lets browsers in from {net['lan_cidr']} only: a URL on another network will not "
                      "open.\n\n")
         signal.signal(signal.SIGHUP, self._hang_up)
         signal.signal(signal.SIGTERM, self._hang_up)
+        threading.Thread(target=self._watch_session, daemon=True).start()
         use_front_end(self)
         self.saved_stdout, sys.stdout = sys.stdout, self.notes
         return self
@@ -132,14 +144,28 @@ class GuidedSite:
         self.listener.start(self.sock, cert, key, {
             "t": "hello", "files": read_site_files(self.lib_dir), "port": self.port, "fingerprint": self.fingerprint,
             "temporary": self.temporary, "phase": self.phase_now, "token": self.keeper.token, "csrf": self.keeper.csrf,
-            "log": self.log_text, "finish": self.finish}, self._on_message)
+            "log": self.log_text, "finish": self.finish, "ended": self.ended}, self._on_message)
+
+    def _greeting(self):
+        """Purpose: what a terminal that attaches sees first (decision 2.1.8.60): the URLs, the code and the fingerprint
+                 as they are now.
+        Inputs:  none.
+        Returns: str.
+        Fails:   never.
+        Feeds:   AttachServer."""
+        lines = [f"      https://{address}:{self.port}/" for address in self.addresses or ["<this host's address>"]]
+        return "\n".join(["", "  Guided setup's site:", *lines, "", f"  One-time code:  {self.keeper.code}",
+                          f"  Certificate's SHA-256 fingerprint:\n      {self.fingerprint}", "",
+                          "  What setup prints from here follows.", "", ""])
 
     def say(self, text):
-        """Purpose: write to the terminal, which may have gone (a dropped SSH session after Proceed stops nothing).
+        """Purpose: write to the terminal, which may have gone (a dropped SSH session after Proceed stops nothing), and
+                 to every terminal attached.
         Inputs:  text — str.
         Returns: None.
         Fails:   never.
         Feeds:   this class, TeeLog."""
+        self.attach.say(text)
         try:
             self.term.write(text)
             self.term.flush()
@@ -162,7 +188,7 @@ class GuidedSite:
         Fails:   never.
         Feeds:   _start."""
         kind = message.get("t")
-        if kind == "code":
+        if kind in ("code", "takeover"):
             self._judge_code(message)
         elif kind == "answer":
             if self.keeper.token:        # no answer before someone has given the code that only root's terminal shows
@@ -185,10 +211,40 @@ class GuidedSite:
         Returns: None; the reply is sent.
         Fails:   never.
         Feeds:   _on_message."""
-        reply = self.keeper.judge(message.get("code", ""))
+        old = self.keeper.token
+        if message.get("t") == "takeover":
+            reply = self.keeper.take_over(message.get("ticket", ""))
+        else:
+            reply = self.keeper.judge(message.get("code", ""))
         if reply["result"] == "ok":
-            self.listener.send({"t": "session", "token": self.keeper.token, "csrf": self.keeper.csrf})
+            self._session(old, "taken")
+            if old:
+                self.say("  The setup site's session was taken over by another browser.\n")
         self.listener.send({"t": "reply", "id": message.get("id"), **reply})
+
+    def _session(self, old, why):
+        """Purpose: tell the listener the session now, and why the one before ended, so its browser is told.
+        Inputs:  old — the ended session's token, "" for none; why — "taken" or "idle".
+        Returns: None.
+        Fails:   never.
+        Feeds:   _judge_code, _watch_session."""
+        if old:
+            self.ended[old] = why
+            while len(self.ended) > 16:
+                self.ended.pop(next(iter(self.ended)))
+        self.listener.send({"t": "session", "token": self.keeper.token, "csrf": self.keeper.csrf, "ended": why})
+
+    def _watch_session(self):
+        """Purpose: end a session idle past its limit (decision 2.1.8.62), while the site runs.
+        Inputs:  none.
+        Returns: None, once the site has closed.
+        Fails:   never.
+        Feeds:   open, as a thread."""
+        while not self.closed:
+            old = self.keeper.token
+            if self.keeper.expired():
+                self._session(old, "idle")
+            time.sleep(self.watch_every)
 
     def ask(self, qid, prompt, secret):
         """Purpose: common/ask's front end: put one question on the page, with what setup printed since the last, and
@@ -383,6 +439,7 @@ class GuidedSite:
         if self.sock:
             self.sock.close()
         self.key = self.cert = ""
+        self.attach.close()
         self.keeper.forget()
         removed = close_site_port(self.record)
         if not self.proceeded and self.snapshot is not None:

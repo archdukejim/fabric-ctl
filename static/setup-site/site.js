@@ -9,6 +9,7 @@
     events.addEventListener("phase", function (e) {
       if (e.data !== body.dataset.version) { events.close(); window.location.reload(); }
     });
+    events.addEventListener("ended", function () { events.close(); window.location.reload(); });
     if (log) {
       events.addEventListener("log", function (e) {
         var bottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;

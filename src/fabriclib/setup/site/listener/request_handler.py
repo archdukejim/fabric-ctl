@@ -16,6 +16,10 @@ ROUTES = {("get", "/"): "_home", ("get", "/events"): "_events", ("get", "/static
           ("get", "/check-result/*"): "_check_result",
           ("post", "/code"): "_code", ("post", "/answer"): "_answer", ("post", "/cancel"): "_cancel",
           ("post", "/finish"): "_finish"}
+# what a browser whose session has ended is told (decision 2.1.8.62)
+ENDED = {"taken": "This session was ended from another browser, which now holds setup. Use that browser, or enter "
+                  "the code here to take it back.",
+         "idle": "The session ended after 15 minutes without activity. Enter the code again."}
 
 
 def _route(verb, path):
@@ -58,8 +62,7 @@ class RequestHandler(RequestBase):
             self._send(200, page_for(state))
             return
         if not self._signed_in():
-            self._send(200, render_page(state, "code", "Open setup", step=0, stream=False, error="",
-                                        fingerprint=state.fingerprint))
+            self._send(200, self._code_page(ENDED.get(self._ended(), "")))
             return
         self._note_activity()
         with state.changed:
@@ -76,20 +79,35 @@ class RequestHandler(RequestBase):
         if form is None:
             return
         state = self.server.state
-        reply = self.server.control.request({"t": "code", "code": form.get("code", "")})
+        if "ticket" in form:             # the confirmation to take the session over (decision 2.1.8.62)
+            reply = self.server.control.request({"t": "takeover", "ticket": form["ticket"]})
+        else:
+            reply = self.server.control.request({"t": "code", "code": form.get("code", "")})
         result = reply.get("result")
         if result == "ok":
+            # no Max-Age: the cookie, and with it the session for this browser, goes when the browser is closed
             cookie = f"{COOKIE}={state.token}; Path=/; Secure; HttpOnly; SameSite=Strict"
             self._headers(303, length=0, extra=[("Location", "/"), ("Set-Cookie", cookie)])
             return
+        if result == "elsewhere":
+            self._send(409, render_page(state, "takeover", "Open setup", step=0, stream=False,
+                                        ticket=reply.get("ticket", "")))
+            return
         why = {"wrong": f"That is not the code. {reply.get('left', 0)} tries left before it is replaced.",
                "replaced": "Too many wrong tries: that code is gone. The host's terminal shows a new one.",
-               "busy": "Another browser already holds this setup's session, and a code opens one session. Use that "
-                       "browser. If you closed it or lost it, try again here in three minutes."}.get(
-                   result, "Setup did not answer.")
-        self._send(403 if result in ("wrong", "replaced") else 409,
-                   render_page(state, "code", "Open setup", step=0, stream=False, error=why,
-                               fingerprint=state.fingerprint))
+               "stale": "That confirmation is no longer valid: it works once, for two minutes. Enter the code again."
+               }.get(result, "Setup did not answer.")
+        self._send(403 if result in ("wrong", "replaced", "stale") else 409, self._code_page(why))
+
+    def _code_page(self, error):
+        """Purpose: the code form, saying why it is shown again when there is a reason.
+        Inputs:  error — str, "" for none.
+        Returns: str, the page.
+        Fails:   never.
+        Feeds:   _home, _code."""
+        state = self.server.state
+        return render_page(state, "code", "Open setup", step=0, stream=False, error=error,
+                           fingerprint=state.fingerprint)
 
     def _answer(self):
         """Purpose: pass an answer to setup, which checks it as on the terminal; a bad one comes back as the same
@@ -204,6 +222,9 @@ class RequestHandler(RequestBase):
             if time.monotonic() - ticked > 10:
                 self._note_activity("alive")
                 ticked = time.monotonic()
+        # the page reloads at once and is told why (decision 2.1.8.62)
+        self.wfile.write(b"event: ended\ndata: 1\n\n")
+        self.wfile.flush()
 
     def _check(self, nonce):
         """Purpose: the browser's request for the finish's check, sent to the console's name at this port (manual

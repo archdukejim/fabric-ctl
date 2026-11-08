@@ -38,7 +38,8 @@ def main():
     fd.mint_site_cert = no_mint
     with tempfile.TemporaryDirectory() as base:
         ctx = SetupContext(deploy_base=base)
-        site = gs.GuidedSite(ctx, first=first, last=first + 10, record=os.path.join(base, "site-port"), lib_dir=lib, user=user, after=3600)
+        site = gs.GuidedSite(ctx, first=first, last=first + 10, record=os.path.join(base, "site-port"), lib_dir=lib, user=user, after=3600,
+                            attach=os.path.join(base, "attach.sock"))
         try:
             site.open()
             print("\n  A few details about this network:")

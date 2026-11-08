@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What root does with a listener that misbehaves (manual 1.3.6.3): it runs as nobody, so what it says is not trusted to be
+"""What root does with a listener that misbehaves (manual 1.3.6.3): it runs as uid 649, so what it says is not trusted to be
 well formed, and it must not be able to stop setup. A real socket pair, and a real process for the stop.
     python3 tests/setup/site/listener_link_test.py"""
 import os

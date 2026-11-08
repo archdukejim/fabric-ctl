@@ -7,6 +7,7 @@ import re
 import signal
 import socket
 import ssl
+import stat
 import subprocess
 import sys
 import tempfile
@@ -21,8 +22,9 @@ import fabriclib.setup.collect_vars as cv  # noqa: E402
 from fabriclib.common.ask import ask  # noqa: E402
 from fabriclib.setup.context import SetupContext  # noqa: E402
 from fabriclib.setup.errors import SetupError  # noqa: E402
-from fabriclib.setup.site.constants import SESSION_QUIET_SECONDS  # noqa: E402
+from fabriclib.setup.site.attach_site import attach_site  # noqa: E402
 from fabriclib.setup.site.pick_port import pick_port  # noqa: E402
+from fabriclib.setup.site.read_port_record import read_port_record  # noqa: E402
 from fabriclib.setup.site.question_view import question_view  # noqa: E402
 
 LIB, USER = listener_lib()
@@ -55,7 +57,8 @@ def new_site(base, **options):
     term = Term()
     ctx = SetupContext(deploy_base=base)
     record = os.path.join(base, "site-port")
-    site = gs.GuidedSite(ctx, term=term, first=first, last=last, record=record, lib_dir=LIB, user=USER, grace=0.2, **options)
+    site = gs.GuidedSite(ctx, term=term, first=first, last=last, record=record, lib_dir=LIB, user=USER, grace=0.2,
+                         attach=os.path.join(base, "attach.sock"), **options)
     site.open()
     return site, term, Browser(site.port), record
 
@@ -103,7 +106,7 @@ with tempfile.TemporaryDirectory() as base:
     pid = site.process.pid
     uid = os.stat(f"/proc/{pid}").st_uid
     if USER:
-        check("the listener runs as nobody, not root", uid == 65534, uid)
+        check("the listener runs as uid 649, which no account holds, not root", uid == 649, uid)
         with open(f"/proc/{pid}/status") as f:
             status = f.read()
         check("the listener holds no capabilities and can gain no privilege",
@@ -153,7 +156,7 @@ with tempfile.TemporaryDirectory() as base:
 
     other = Browser(port)
     status, page, _ = other.post("/code", {"code": second_code})
-    check("a second browser with the right code: refused and told why", status == 409 and "Another browser" in page and not other.cookie, page[:400])  # covers: site:get.home -
+    check("a second browser with the right code: no session yet, asked whether to end the other", status == 409 and "open in another browser" in page and not other.cookie, page[:400])  # covers: site:get.home -
 
     # the questions: Guided's own, real checks
     ctx = site.ctx
@@ -300,13 +303,30 @@ with tempfile.TemporaryDirectory() as base:
     site.cancelled = False
 
     # ---- a second setup while one site runs ----
-    other = gs.GuidedSite(site.ctx, term=Term(), first=site.first, last=site.last, record=record, lib_dir=LIB, user=USER)
+    other = gs.GuidedSite(site.ctx, term=Term(), first=site.first, last=site.last, record=record, lib_dir=LIB, user=USER,
+                          attach=site.attach.path)
     try:
         other.open()
         check("a second setup", False)
     except SetupError as e:
         check("a second setup: refused, naming the first's port, and the first's record stays", str(port) in str(e) and os.path.exists(record), e)
     check("the first site goes on", listening(port))
+
+    # ---- another terminal attaches (decision 2.1.8.60) ----
+    check("the attach socket is root's only", stat.S_IMODE(os.stat(site.attach.path).st_mode) == 0o600)
+    viewer = Term()
+    t, box = in_thread(lambda: attach_site(read_port_record(record), site.attach.path, viewer))
+    deadline = time.time() + 5
+    while time.time() < deadline and "fingerprint" not in viewer.text:
+        time.sleep(0.1)
+    check("an attached terminal is shown the URL, the current code and the fingerprint",
+          f":{port}/" in viewer.text and site.keeper.code in viewer.text and site.fingerprint in viewer.text, viewer.text)
+    for _ in range(5):
+        Browser(port).post("/code", {"code": "WRONG-CODE"})
+    deadline = time.time() + 5
+    while time.time() < deadline and "replaced" not in viewer.text:
+        time.sleep(0.1)
+    check("a replaced code is printed on the attached terminal too", f"code:  {site.keeper.code}" in viewer.text.split("replaced")[-1], viewer.text[-300:])
 
     # ---- a second Ctrl-C while the site closes ----
     site.grace = 1.0
@@ -316,8 +336,10 @@ with tempfile.TemporaryDirectory() as base:
     timer.join()
     check("Ctrl-C during the close: the close still finishes", not listening(port) and not os.path.exists(record) and not os.path.exists(target))
     check("then Ctrl-C works as before", signal.getsignal(signal.SIGINT) is signal.default_int_handler)
+    t.join(5)
+    check("the site's close ends the attach, which says so, and its socket is gone", box.get("value") == 0 and "has stopped" in viewer.text and not os.path.exists(site.attach.path), (box, viewer.text[-200:]))
 
-    # ---- the code again after a quiet session: reconnecting ----
+    # ---- one session at a time: another browser takes it over after asking (decision 2.1.8.62) ----
     site, term, browser, record = new_site(base)
     port = site.port
     code = term.code()
@@ -328,19 +350,41 @@ with tempfile.TemporaryDirectory() as base:
     status, page, _ = browser.get()
     check("a default in brackets is the field's value", 'value="yes"' in page, page[:800])
     old_page_csrf = browser.field(page, "csrf")
-    # the browser goes away: its cookie gone, it has been quiet long enough
-    site.keeper.seen -= SESSION_QUIET_SECONDS + 1
     second = Browser(port)
-    status, _, _ = second.post("/code", {"code": code})
-    check("connection lost before Proceed: the same code reconnects once the old session is quiet", status == 303 and second.cookie, status)
+    status, asked, _ = second.post("/code", {"code": code})
+    check("the code in a second browser: asked first, and nothing ends yet", status == 409 and "open in another browser" in asked and not second.cookie, status)  # covers: site:post.code -
+    check("the question's page carries a ticket, never the code", code not in asked and len(second.field(asked, "ticket")) > 20, asked[:600])
+    ticket = second.field(asked, "ticket")
+    status, page, _ = browser.get()
+    check("Back changes nothing: the first browser still holds setup", "A question" in page, page[:300])
+    status, _, _ = second.post("/code", {"ticket": "not-the-ticket"})
+    check("a made-up ticket is refused", status == 403 and not second.cookie, status)
+    status, _, _ = second.post("/code", {"ticket": ticket})
+    check("confirmed: this browser holds setup now", status == 303 and second.cookie, status)  # covers: site:post.code +
     status, again, _ = browser.get()
-    check("the old browser's session is over", 'action="/code"' in again, again[:300])
+    check("the other browser's session ended at once, and it is told why", 'action="/code"' in again and "ended from another browser" in again, again[:600])
+    check("the terminal says the session was taken over", "taken over by another browser" in term.text, term.text[-300:])
+    third = Browser(port)
+    status, page, _ = third.post("/code", {"ticket": ticket})
+    check("a ticket works once", status == 403 and "no longer valid" in page and not third.cookie, status)
     status, _, _ = second.post("/answer", {"csrf": old_page_csrf, "seq": "1", "value": "x"})
     check("the old page's CSRF token is stale now", status == 403, status)
     status, page, _ = second.get()
     second.answer(page, "")
     t.join(5)
     check("the new browser answers, Enter taking the default", box.get("value") == "yes", box)
+    # 15 minutes without activity ends the session; the code then opens a new one without asking
+    site.watch_every = 0.2
+    site.keeper.seen -= site.keeper.idle + 1
+    deadline = time.time() + 10
+    while time.time() < deadline and site.keeper.token:     # a page load here would itself be activity
+        time.sleep(0.2)
+    time.sleep(0.3)
+    page = second.get()[1]
+    check("idle past the limit: the session ends, and its browser is told why", 'action="/code"' in page and "15 minutes without activity" in page, page[:600])
+    fourth = Browser(port)
+    status, _, _ = fourth.post("/code", {"code": code})
+    check("after it, the code opens a session at once", status == 303 and fourth.cookie, status)
     site.close()
 
     # ---- ports: collisions, real sockets ----

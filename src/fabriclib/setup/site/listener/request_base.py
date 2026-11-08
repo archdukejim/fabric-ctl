@@ -139,12 +139,29 @@ class RequestBase(BaseHTTPRequestHandler):
         Returns: bool.
         Fails:   never.
         Feeds:   the routes."""
-        token = self.server.state.token
+        token, cookie = self.server.state.token, self._cookie()
+        return bool(token and cookie and hmac.compare_digest(cookie.encode(), token.encode()))
+
+    def _cookie(self):
+        """Purpose: the session cookie this request carries.
+        Inputs:  none (the Cookie header).
+        Returns: str, "" without one.
+        Fails:   never.
+        Feeds:   _signed_in, the routes."""
         try:
             cookie = SimpleCookie(self.headers.get("Cookie", "")).get(COOKIE)
         except CookieError:              # a malformed cookie is no session
             cookie = None
-        return bool(token and cookie and hmac.compare_digest(cookie.value.encode(), token.encode()))
+        return cookie.value if cookie else ""
+
+    def _ended(self):
+        """Purpose: why this browser's session ended, when it held one that has (decision 2.1.8.62).
+        Inputs:  none.
+        Returns: "taken", "idle" or "".
+        Fails:   never.
+        Feeds:   the routes."""
+        cookie = self._cookie()
+        return self.server.state.ended.get(cookie, "") if cookie else ""
 
     def _form(self):
         """Purpose: the POST's fields, at most MAX_BODY bytes.

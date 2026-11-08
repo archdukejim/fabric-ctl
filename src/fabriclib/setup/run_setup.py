@@ -40,6 +40,7 @@ from fabriclib.setup.read_join_invitation import read_join_invitation  # noqa: E
 from fabriclib.setup.require_terminal import require_terminal  # noqa: E402
 from fabriclib.setup.run_steps import run_steps  # noqa: E402
 from fabriclib.setup.site.close_site_port import close_site_port  # noqa: E402
+from fabriclib.setup.site.attach_site import attach_site  # noqa: E402
 from fabriclib.setup.site.guided_site import GuidedSite  # noqa: E402
 from fabriclib.setup.site.read_port_record import read_port_record  # noqa: E402
 from fabriclib.setup.site.site_wanted import site_wanted  # noqa: E402
@@ -120,8 +121,14 @@ def main(argv=None):
     if args.step is None and not (args.undo or args.doctor):
         ctx = SetupContext(deploy_base=args.deploy_base, non_interactive=args.non_interactive,
                            admin_password_file=args.admin_password_file)
-        if not read_port_record():             # what a killed site left behind: its firewall rule (1.3.6.7)
-            close_site_port()
+        record = read_port_record()
+        if record:                             # a Guided site runs: this terminal attaches to it (2.1.8.60)
+            try:
+                return attach_site(record)
+            except SetupError as e:
+                err(str(e))
+                return 1
+        close_site_port()                      # what a killed site left behind: its firewall rule (1.3.6.7)
         last = read_run(ctx.config_dir)
         what, remaining = choose_start(unit_running(), last, [n for n, _, _ in STEPS],
                                        start_over=bool(args.restart or args.file or args.join is not None))

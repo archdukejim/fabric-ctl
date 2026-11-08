@@ -20,6 +20,7 @@ class SiteState:
         self.temporary = hello.get("temporary", True)
         self.phase = hello.get("phase", "question")
         self.token, self.csrf = hello.get("token", ""), hello.get("csrf", "")
+        self.ended = dict(hello.get("ended") or {})    # {an ended session's token: "taken" or "idle"}, to tell it
         self.finish = hello.get("finish") or {}
         self.question, self.why = None, ""
         self.log = []
@@ -63,6 +64,10 @@ class SiteState:
                 self.fingerprint = message.get("fingerprint", self.fingerprint)
                 self.temporary = message.get("temporary", self.temporary)
             elif kind == "session":
+                if self.token and self.token != message["token"]:
+                    self.ended[self.token] = message.get("ended", "taken")
+                    if len(self.ended) > 16:
+                        self.ended.pop(next(iter(self.ended)))
                 self.token, self.csrf = message["token"], message["csrf"]
             else:
                 return

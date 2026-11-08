@@ -6,9 +6,12 @@ and the certificate; the unprivileged listener in [listener/](listener/README.md
 | File | What |
 |---|---|
 | `guided_site.py` | `GuidedSite`: the site from open to close, as `common/ask`'s front end and `hand_over`'s follower |
-| `session_keeper.py` | `SessionKeeper`: the one-time code, its wrong tries and the one session it opens |
+| `session_keeper.py` | `SessionKeeper`: the one-time code, its wrong tries, the one session it opens, its idle end and its takeover |
 | `listener_link.py` | `ListenerLink`: the listener process and the socket pair to it |
-| `start_listener.py` | Start the listener as `nobody`, with its socket, link and certificate as inherited descriptors |
+| `attach_server.py` | `AttachServer`: the root-only socket another terminal attaches at, and what it is shown |
+| `attach_site.py` | `sudo fabricctl setup` while a site runs: attach to it; Ctrl-C detaches |
+| `site_account.py` | Check uid and gid 649 are nobody's: no account, group or process holds them |
+| `start_listener.py` | Start the listener as uid 649, with its socket, link and certificate as inherited descriptors |
 | `tee_log.py` | `TeeLog`: the run's log, to the terminal and the page together |
 | `site_wanted.py` | Whether this run is a Guided one the site serves |
 | `constants.py` | The ports, limits, record and firewall comment |

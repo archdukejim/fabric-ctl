@@ -1,5 +1,4 @@
 import os
-import pwd
 import socket
 import subprocess
 import sys
@@ -7,18 +6,19 @@ import tempfile
 
 from fabriclib.common.paths import LIB_DIR
 from fabriclib.setup.errors import SetupError
+from fabriclib.setup.site.constants import SITE_ID
 
 SCRIPT = ("fabriclib", "setup", "site", "listener", "site_main.py")
 
 
-def start_listener(sock, cert_pem, key_pem, lib_dir=LIB_DIR, user="nobody"):
+def start_listener(sock, cert_pem, key_pem, lib_dir=LIB_DIR, user=SITE_ID):
     """Purpose: start the site's unprivileged listener (manual 1.3.6.3). It gets, as inherited descriptors only, the
              listening socket, its end of a socket pair only the two can use, and the certificate and key in a memory
              file, never on a disk. It starts a session of its own: it must not hold root's terminal.
     Inputs:  sock — the listening socket; cert_pem, key_pem — str; lib_dir — the folder holding fabriclib, readable by
-             the user; user — the account it runs as (None: this one; tests only).
+             the user; user — the uid and gid it runs as, which site_account has checked (None: this one; tests only).
     Returns: (process, setup's end of the socket pair).
-    Fails:   SetupError when the account is missing or the process cannot start; a failure after the start shows on
+    Fails:   SetupError when the process cannot start; a failure after the start shows on
              the first read of the link (GuidedSite says why from the process's stderr).
     Feeds:   setup/site/guided_site."""
     ours, theirs = socket.socketpair()
@@ -27,14 +27,7 @@ def start_listener(sock, cert_pem, key_pem, lib_dir=LIB_DIR, user="nobody"):
     try:
         os.write(memory, (cert_pem + key_pem).encode())
         fds = (sock.fileno(), theirs.fileno(), memory)
-        as_user = {}
-        if user:
-            try:
-                account = pwd.getpwnam(user)
-            except KeyError:
-                raise SetupError(f"the setup site runs as the account {user}, and this host has none. Run Guided here "
-                                 "instead: sudo fabricctl setup --terminal. Nothing was changed.") from None
-            as_user = {"user": account.pw_uid, "group": account.pw_gid, "extra_groups": []}
+        as_user = {} if user is None else {"user": user, "group": user, "extra_groups": []}
         try:
             process = subprocess.Popen([sys.executable, "-I", os.path.join(lib_dir, *SCRIPT), *map(str, fds)],
                                        pass_fds=fds, cwd="/", env={"PATH": "/usr/bin:/bin"}, start_new_session=True,
