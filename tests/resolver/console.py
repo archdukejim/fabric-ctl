@@ -430,6 +430,11 @@ for body, why in (({"on": "x", "shown": [], "version": ""}, "on not a list"),
     check(f"Apply: a malformed lists form refused ({why})", isinstance(e, ValidationError) and str(e), e)
 r = hold("lists/ticks", page_form({L1, TWO}))
 check("Apply: the lists form with no box changed holds nothing", r["id"] is None and r["pending"] == 0, r)
+e = refused(pp.post_pending, ["pending", "hold"], "audrey", {"route": "dns-filter/lists/ticks",
+                                                             "body": page_form({L1})}, set(BUNDLES["fabric-auditor"]),
+            None)
+check("Apply: the lists form without dns:filter is refused, the permission named, before the lists are read",
+      isinstance(e, ValidationError) and "you need the permission dns:filter" in str(e), e)
 
 # a bad change is refused when held (fabriclib's own check), not at Apply
 e = refused(hold, "rules", {"kind": "block", "name": "not a name!"})

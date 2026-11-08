@@ -293,7 +293,9 @@ def _said(status, hd, headers):
     m = re.search(r'<p class="flash (ok|bad)" role="(?:status|alert)">(.*?)</p>', page, re.S)
     if m:
         kind = "msg" if m.group(1) == "ok" else "err"
-        hd["Location"] = loc + ("&" if "?" in loc else "?") + urllib.parse.urlencode({kind: html.unescape(m.group(2))})
+        path, _, frag = loc.partition("#")         # the place on the page (#...) stays last, as a browser keeps it
+        hd["Location"] = path + ("&" if "?" in path else "?") + urllib.parse.urlencode(
+            {kind: html.unescape(m.group(2))}) + (f"#{frag}" if frag else "")
 
 
 def req_upload(path, headers, fields, files, cookie):
@@ -1609,52 +1611,108 @@ for path in ("/kea/subnets", "/kea/subnets/update", "/kea/subnets/delete", "/kea
     check(f"auditor: {path} is refused by fabric-agent (403, dhcp:write), nothing saved",
           st == 403 and "dhcp:write" in body and vars_now() == vt, (st, body[:200]))
 
-# ---- the DNS filter tab (manual 1.12.2.14): each change saved; the refusals say why and save nothing
+# ---- the DNS filter tab (manual 1.12.2.14, 1.12.3.17): each change held for the tab's Apply, saved at Apply; a
+# refusal says why when the change is held, and nothing waits or is saved
+
+
+def filter_change(path, form):
+    """A DNS filter change from the console: held for the tab's Apply (1.12.3.17), then that Apply, anything left
+    discarded: (status, the hold's Location with its message, the Review after the Apply; "" when nothing was held)."""
+    st, loc, _ = web_post(path, form, adm, acsrf)
+    review = applied("dns-filter", adm) if "Waiting for Apply" in loc else ""
+    req("POST", "/changes/dns-filter/discard", POSTH, {"csrf": acsrf}, cookie=adm)
+    return st, loc, review
+
+
+def site_lists():
+    """The site's lists as vars.yaml has them now."""
+    import yaml
+    return (yaml.safe_load(vars_now()) or {}).get("dns_filter_lists") or []
+
+
+vt = vars_now()
 st, loc, _ = web_post("/dns-filter/lists", {"name": "Test list", "url": "https://lists.example.test/hosts.txt"},
                       adm, acsrf)
-check("DNS filter: add a list -> saved (fetched by the lists job once applied)",
-      "Test list added" in loc and "https://lists.example.test/hosts.txt" in vars_now(), loc)
-st, loc, _ = web_post("/dns-filter/lists/delete", {"url": "https://lists.example.test/hosts.txt"}, adm, acsrf)
+check("DNS filter: add a list -> held for Apply, back to its section, nothing saved yet",
+      st == 303 and loc.startswith("/dns-filter?view=lists&msg=Waiting for Apply: Add the list Test list")
+      and loc.endswith("#lists") and vars_now() == vt, loc)
+review = applied("dns-filter", adm)
+check("DNS filter: ...the tab's Apply saves it (fetched by the lists job once applied), the filter applied once",
+      "https://lists.example.test/hosts.txt" in vars_now() and "Apply the DNS filter" in review
+      and not newest_failed(review), review[-600:])
+st, loc, review = filter_change("/dns-filter/lists/delete", {"url": "https://lists.example.test/hosts.txt"})
 # covers: web:post.dns-filter.lists.delete agent:post.dns-filter.lists.delete +
-check("DNS filter: remove the list -> gone", "Test list removed" in loc
-      and "lists.example.test" not in vars_now(), loc)
+check("DNS filter: remove the list -> held, gone at Apply", "Waiting for Apply: Remove the list" in loc
+      and "lists.example.test" not in vars_now() and not newest_failed(review), loc)
 vt = vars_now()
-st, loc, _ = web_post("/dns-filter/lists/delete", {"url": "https://lists.example.test/other.txt"}, adm, acsrf)
+st, loc, review = filter_change("/dns-filter/lists/delete", {"url": "https://lists.example.test/other.txt"})
 # covers: web:post.dns-filter.lists.delete agent:post.dns-filter.lists.delete -
-check("DNS filter: removing a list that is not there is refused, named, nothing saved",
-      "has no list with the url https://lists.example.test/other.txt" in loc and vars_now() == vt, loc)
-st, loc, _ = web_post("/dns-filter/lists", {"name": "x" * 201, "url": "https://lists.example.test/long.txt"},
-                      adm, acsrf)
+check("DNS filter: removing a list that is not there is refused when held, named, nothing waits or is saved",
+      "has no list with the url https://lists.example.test/other.txt" in loc and not review and vars_now() == vt, loc)
+st, loc, review = filter_change("/dns-filter/lists", {"name": "x" * 201, "url": "https://lists.example.test/long.txt"})
 # covers: web:post.dns-filter.lists -
-check("DNS filter: a list name over 200 characters is refused, said why, nothing saved",
-      "a list's name is at most 200 characters" in loc and vars_now() == vt, loc)
-st, loc, _ = web_post("/dns-filter/rules", {"kind": "block", "name": "ads.example.test"}, adm, acsrf)
-check("DNS filter: block a name -> saved", "ads.example.test blocked" in loc and "ads.example.test" in vars_now(), loc)
+check("DNS filter: a list name over 200 characters is refused when held, said why, nothing saved",
+      "a list's name is at most 200 characters" in loc and not review and vars_now() == vt, loc)
+
+# the lists form: every box at once, then the tab's Apply (1.12.3.17)
+page = req("GET", "/dns-filter?view=lists", ALICE, cookie=adm)[3]
+ver = re.search(r'name="version" value="([0-9a-f]*)"', page)
+shown = re.search(r'name="shown" value="([^"]*)"', page)
+on = re.findall(r'name="on-([0-9a-f]+)" aria-label="[^"]*" checked>', page)
+check("DNS filter: the lists are one form of checkboxes with the page's version (no per-tick form)",
+      ver and shown and on and 'action="/dns-filter/lists/apply"' in page and "/dns-filter/lists/set" not in page,
+      page[page.find('id="lists"'):][:600])
+form = {"shown": shown.group(1) if shown else "", "version": ver.group(1) if ver else ""}   # every box unticked
+st, loc, _ = web_post("/dns-filter/lists", {"name": "Meanwhile", "url": "https://lists.example.test/m.txt"}, adm,
+                      acsrf)
+applied("dns-filter", adm)                     # the lists change after the page was shown
+vt = vars_now()
+st, loc, body = web_post("/dns-filter/lists/apply", form, adm, acsrf)
+# covers: web:post.dns-filter.lists.apply agent:post.pending.hold -
+check("DNS filter: Apply changes from a page whose lists changed since is refused, saying why, nothing saved",
+      st == 200 and "changed since this page was shown" in body and vars_now() == vt, (st, loc, body[:300]))
+page = req("GET", "/dns-filter?view=lists", ALICE, cookie=adm)[3]
+form["version"] = re.search(r'name="version" value="([0-9a-f]*)"', page).group(1)
+st, loc, _ = web_post("/dns-filter/lists/apply", form, adm, acsrf)
+review = applied("dns-filter", adm) if "Applying" in loc else ""
+# covers: web:post.dns-filter.lists.apply +
+check("DNS filter: Apply changes with every box unticked unticks every list in one change, kept on the site",
+      st == 303 and "Applying 1 change" in loc and loc.endswith("#lists") and site_lists()
+      and not any(i.get("enabled", True) for i in site_lists())
+      and "https://lists.example.test/m.txt" in [i.get("url") for i in site_lists()]
+      and not newest_failed(review), (loc, review[-400:]))
+st, loc, review = filter_change("/dns-filter/lists/delete", {"url": "https://lists.example.test/m.txt"})
+
+st, loc, review = filter_change("/dns-filter/rules", {"kind": "block", "name": "ads.example.test"})
+check("DNS filter: block a name -> held, saved at Apply", "Waiting for Apply: Block ads.example.test" in loc
+      and "ads.example.test" in vars_now() and not newest_failed(review), loc)
 vt = vars_now()
 for form, why in (({"kind": "maybe", "name": "x.example.test"}, "kind: allow or block"),
                   ({"kind": "block", "name": "bad name!"}, "is not a DNS name"),
                   ({"kind": "block", "name": "pi-core.lan.test"}, "inside fabric's own domains")):
-    st, loc, _ = web_post("/dns-filter/rules", form, adm, acsrf)
+    st, loc, review = filter_change("/dns-filter/rules", form)
     # covers: web:post.dns-filter.rules agent:post.dns-filter.rules -
-    check(f"DNS filter: a rule refused ({why}): said why, nothing saved", why in loc and vars_now() == vt, loc)
-st, loc, _ = web_post("/dns-filter/rules/delete", {"kind": "block", "name": "ads.example.test"}, adm, acsrf)
+    check(f"DNS filter: a rule refused when held ({why}): said why, nothing saved", why in loc and not review
+          and vars_now() == vt, loc)
+st, loc, review = filter_change("/dns-filter/rules/delete", {"kind": "block", "name": "ads.example.test"})
 # covers: web:post.dns-filter.rules.delete agent:post.dns-filter.rules.delete +
-check("DNS filter: lift the block -> gone", "ads.example.test is no longer blocked" in loc
-      and "ads.example.test" not in vars_now(), loc)
+check("DNS filter: lift the block -> gone at Apply", "Waiting for Apply" in loc
+      and "ads.example.test" not in vars_now() and not newest_failed(review), loc)
 vt = vars_now()
-st, loc, _ = web_post("/dns-filter/rules/delete", {"kind": "block", "name": "ads.example.test"}, adm, acsrf)
+st, loc, review = filter_change("/dns-filter/rules/delete", {"kind": "block", "name": "ads.example.test"})
 # covers: web:post.dns-filter.rules.delete agent:post.dns-filter.rules.delete -
-check("DNS filter: lifting a block that is not there is refused, named, nothing saved",
-      "ads.example.test is not blocked by a rule of" in loc and vars_now() == vt, loc)
-st, loc, _ = web_post("/dns-filter/upstreams", {"upstreams": "9.9.9.9 dns.quad9.net"}, adm, acsrf)
+check("DNS filter: lifting a block that is not there is refused when held, named, nothing saved",
+      "ads.example.test is not blocked by a rule of" in loc and not review and vars_now() == vt, loc)
+st, loc, review = filter_change("/dns-filter/upstreams", {"upstreams": "9.9.9.9 dns.quad9.net"})
 # covers: web:post.dns-filter.upstreams agent:post.dns-filter.upstreams +
-check("DNS filter: set the upstreams -> saved with the name on each certificate",
-      "Upstreams saved: 9.9.9.9 (dns.quad9.net)" in loc and "dns.quad9.net" in vars_now(), loc)
+check("DNS filter: set the upstreams -> held, saved at Apply with the name on each certificate",
+      "Waiting for Apply: Set the upstreams to 9.9.9.9, dns.quad9.net" in loc and loc.endswith("#upstreams")
+      and "dns.quad9.net" in vars_now() and not newest_failed(review), loc)
 vt = vars_now()
-st, loc, _ = web_post("/dns-filter/upstreams", {"upstreams": "9.9.9.9"}, adm, acsrf)
+st, loc, review = filter_change("/dns-filter/upstreams", {"upstreams": "9.9.9.9"})
 # covers: web:post.dns-filter.upstreams agent:post.dns-filter.upstreams -
-check("DNS filter: an upstream without its certificate name is refused, said why, nothing saved",
-      "an address and the name on its certificate" in loc and vars_now() == vt, loc)
+check("DNS filter: an upstream without its certificate name is refused when held, said why, nothing saved",
+      "an address and the name on its certificate" in loc and not review and vars_now() == vt, loc)
 vt = vars_now()
 out = agent_call("POST", "/v1/dns-filter/safe-search", "alice", ADMIN_ROLES, {"group": "kids", "on": "on",
                                                                               "youtube": "loose"})
@@ -1667,37 +1725,40 @@ check("refused: removing a client group that does not exist (400, named), nothin
       " 400 " in out and "no client group is called kids" in out and vars_now() == vt, out)
 # the console's own forms for groups and safe search (they answered 500 before 0.9: the web's list of changes lacked
 # them, 2.3.1.16)
-st, loc, _ = web_post("/dns-filter/groups", {"name": "kids", "clients": "192.168.7.64/27"}, adm, acsrf)
+st, loc, review = filter_change("/dns-filter/groups", {"name": "kids", "clients": "192.168.7.64/27"})
 # covers: web:post.dns-filter.groups agent:post.dns-filter.groups +
-check("DNS filter: a client group made from the console -> saved, its clients named",
-      "Group kids added: 192.168.7.64/27" in loc and "kids" in vars_now(), (st, loc))
+check("DNS filter: a client group made from the console -> held, back to its card, saved at Apply",
+      "Waiting for Apply: Set client group kids: 192.168.7.64/27" in loc and loc.endswith("#group-kids")
+      and "kids" in vars_now() and not newest_failed(review), (st, loc))
 vt = vars_now()
-st, loc, _ = web_post("/dns-filter/groups", {"name": "kids2", "clients": "not-an-address"}, adm, acsrf)
+st, loc, review = filter_change("/dns-filter/groups", {"name": "kids2", "clients": "not-an-address"})
 # covers: web:post.dns-filter.groups agent:post.dns-filter.groups -
-check("DNS filter: a group whose client is not an address is refused, said why, nothing saved",
-      "is not an address or a subnet" in loc and vars_now() == vt, (st, loc))
-st, loc, _ = web_post("/dns-filter/safe-search", {"group": "kids", "on": "on", "youtube": "moderate", "back": "groups"},
-                      adm, acsrf)
+check("DNS filter: a group whose client is not an address is refused when held, said why, nothing saved",
+      "is not an address or a subnet" in loc and not review and vars_now() == vt, (st, loc))
+st, loc, review = filter_change("/dns-filter/safe-search", {"group": "kids", "on": "on", "youtube": "moderate",
+                                                            "back": "groups"})
 # covers: web:post.dns-filter.safe-search agent:post.dns-filter.safe-search +
-check("DNS filter: strict safe search on for the group, from the console -> saved",
-      "Strict safe search on, YouTube moderate" in loc and vars_now() != vt, (st, loc))
+check("DNS filter: strict safe search on for the group, from the console -> held, saved at Apply",
+      "Waiting for Apply: Strict safe search on for kids" in loc and vars_now() != vt and not newest_failed(review),
+      (st, loc))
 vt = vars_now()
-st, loc, _ = web_post("/dns-filter/safe-search", {"group": "kids", "on": "on", "youtube": "loose"}, adm, acsrf)
+st, loc, review = filter_change("/dns-filter/safe-search", {"group": "kids", "on": "on", "youtube": "loose"})
 # covers: web:post.dns-filter.safe-search -
-check("DNS filter: a YouTube level that is not one is refused from the console, said why, nothing saved",
-      "youtube: strict or moderate" in loc and vars_now() == vt, (st, loc))
-st, loc, _ = web_post("/dns-filter/groups/delete", {"name": "kids"}, adm, acsrf)
+check("DNS filter: a YouTube level that is not one is refused when held, said why, nothing saved",
+      "youtube: strict or moderate" in loc and not review and vars_now() == vt, (st, loc))
+st, loc, review = filter_change("/dns-filter/groups/delete", {"name": "kids"})
 # covers: web:post.dns-filter.groups.delete agent:post.dns-filter.groups.delete +
-check("DNS filter: the group removed from the console -> gone, its clients answered as everyone",
-      "Group kids removed" in loc and "kids" not in vars_now(), (st, loc))
+check("DNS filter: the group removed from the console -> held, gone at Apply, its clients answered as everyone",
+      "Waiting for Apply: Remove client group kids" in loc and "kids" not in vars_now() and not newest_failed(review),
+      (st, loc))
 vt = vars_now()
-st, loc, _ = web_post("/dns-filter/groups/delete", {"name": "kids"}, adm, acsrf)
+st, loc, review = filter_change("/dns-filter/groups/delete", {"name": "kids"})
 # covers: web:post.dns-filter.groups.delete -
-check("DNS filter: removing a group that is not there, from the console, is refused, named, nothing saved",
-      "no client group is called kids" in loc and vars_now() == vt, (st, loc))
+check("DNS filter: removing a group that is not there, from the console, is refused when held, nothing saved",
+      "no client group is called kids" in loc and not review and vars_now() == vt, (st, loc))
 st, loc, _ = web_post("/dns-filter/fetch", {}, adm, acsrf)
 # covers: web:post.dns-filter.fetch agent:post.dns-filter.fetch -
-check("DNS filter: Fetch now when the lists job cannot start (it never can here) is refused, saying so",
+check("DNS filter: Fetch now (done at once, never held) when the lists job cannot start is refused, saying so",
       "the lists job could not start" in loc and vars_now() == vt, loc)
 out = agent_call("POST", "/v1/dns-filter/querylog", "alice", ADMIN_ROLES, {"name": "bad name!"})
 # covers: agent:post.dns-filter.querylog -
@@ -1705,13 +1766,23 @@ check("refused: a query-log search for something that is not a DNS name (400, sa
       " 400 " in out and "is not a DNS name" in out, out)
 aud, aud_csrf = fresh(AUDITOR_ROLES)
 for path in ("/dns-filter/lists", "/dns-filter/lists/delete", "/dns-filter/rules", "/dns-filter/rules/delete",
-             "/dns-filter/upstreams", "/dns-filter/fetch"):
-    st, _, body = web_post(path, {"name": "x.example.test", "url": "https://x.example.test/l", "kind": "block",
-                                  "upstreams": "none", "clients": "192.168.7.81"}, aud, aud_csrf)
+             "/dns-filter/upstreams", "/dns-filter/lists/apply"):
+    st, loc, body = web_post(path, {"name": "x.example.test", "url": "https://x.example.test/l", "kind": "block",
+                                    "upstreams": "none", "clients": "192.168.7.81", "shown": "", "version": ""},
+                             aud, aud_csrf)
     # covers: web:post.dns-filter.lists web:post.dns-filter.lists.delete web:post.dns-filter.rules -
-    # covers: web:post.dns-filter.rules.delete web:post.dns-filter.upstreams web:post.dns-filter.fetch -
-    check(f"auditor: {path} is refused by fabric-agent (403, dns:filter), nothing saved",
-          st == 403 and "dns:filter" in body and vars_now() == vt, (st, body[:200]))
+    # covers: web:post.dns-filter.rules.delete web:post.dns-filter.upstreams web:post.dns-filter.lists.apply -
+    check(f"auditor: {path} is refused (nothing held without dns:filter), nothing saved",
+          st in (200, 303, 403) and vars_now() == vt
+          and not agent_call("GET", "/v1/pending", "audrey", AUDITOR_ROLES).count('"dns-filter"'), (st, loc, body[:200]))
+st, _, body = web_post("/dns-filter/fetch", {}, aud, aud_csrf)
+# covers: web:post.dns-filter.fetch -
+check("auditor: /dns-filter/fetch is refused by fabric-agent (403, dns:filter)", st == 403 and "dns:filter" in body,
+      (st, body[:200]))
+out = agent_call("POST", "/v1/pending/hold", "audrey", AUDITOR_ROLES,
+                 {"route": "dns-filter/rules", "body": {"kind": "block", "name": "x.example.test"}})
+check("auditor: fabric-agent refuses to hold a DNS filter change without dns:filter (400, the permission named)",
+      " 400 " in out and "you need the permission dns:filter" in out and vars_now() == vt, out)
 
 # ---- the FreeRADIUS tab (manual 1.11): refused while 802.1X is off; with it on, each change saved
 vt, st_before = vars_now(), secrets_now()

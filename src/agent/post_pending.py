@@ -166,6 +166,8 @@ def post_pending(route, actor, data, perms, session):
         if page is None:
             raise ValidationError("this change is not held: it is done at once")
         if parts == ["dns-filter", "lists", "ticks"]:         # the lists form: the boxes as they differ (1.12.3.17)
+            if required_permission("POST", parts) not in perms:     # its permission before the lists are read
+                raise ValidationError(f"you need the permission {required_permission('POST', parts)}")
             from fabriclib.dns_filter.filter_lists import filter_lists
             body = filter_ticks(body, filter_lists(load_vars())["lists"])
             if not body["tick"] and not body["untick"]:        # no box changed: nothing held
