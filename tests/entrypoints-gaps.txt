@@ -469,7 +469,6 @@ web:post.directory.roles.*.delete +
 web:post.directory.roles.*.delete -
 web:post.directory.roles._new +
 web:post.directory.roles._new -
-web:post.dns-filter.fetch +
 web:post.kea.off +
 web:post.kea.on +
 web:post.logout -

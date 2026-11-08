@@ -2,6 +2,7 @@ import contextlib
 import urllib.parse
 
 from agent.job_store import JOBS
+from agent.pending_filter import filter_check, filter_finish, filter_page_of, filter_ticks
 from agent.pending_networks import networks_grant, networks_page_of
 from agent.pending_store import PendingStore
 from agent.pending_thing import PAGES, describe_change, pending_page_of, thing_state
@@ -20,6 +21,9 @@ def _run(route, actor, body, perms, session):
     Returns: the route's result.
     Fails:   as the route (ValidationError with fabriclib's refusal).
     Feeds:   PENDING (its run)."""
+    if filter_page_of(route):                       # saved only: the page's finish applies the filter once
+        from agent.change_dns_filter import change_dns_filter
+        return change_dns_filter(route, actor, body)
     page = networks_page_of(route)
     if page:                                        # the signed-in person is the caller the grant is checked for
         from agent.post_ipam_scan import post_ipam_scan
@@ -39,12 +43,14 @@ def _finish(page, routes=()):
     Returns: (what, fn(actor)) for "policies" when the password policy is among them, for "kerberos" when the
              ticket policy is (written into the DC's KDC, 1.6.12.9), and for "zones" when a record, a landing-page link
              or a TSIG key's removal is (_finish_dns), for "networks" and "options" when this site's plan or
-             its options may have changed (_finish_plan); None otherwise (Group Policy and sudo rules are written
+             its options may have changed (_finish_plan), for "dns-filter" always (filter_finish); None otherwise (Group Policy and sudo rules are written
              by their own changes, a zone's add and removal publish themselves).
     Fails:   never (fn raises ValidationError when the apply does not finish).
     Feeds:   PENDING (its finish)."""
     if page == "zones":                       # DNS: BIND alone, and the landing page (2.1.8.24)
         return _finish_dns(routes)
+    if page == "dns-filter":                  # the DNS filter: applied once, nothing restarts (1.12.3.17)
+        return filter_finish(routes)
     if page in ("networks", "options"):        # the address manager: this site's plan applied once
         return _finish_plan(page, routes)
     wanted = {"policies": ["domain", "password-policy"], "kerberos": ["domain", "kerberos", "policy"]}.get(page)
@@ -116,7 +122,9 @@ def _finish_plan(page, routes):
 PENDING = PendingStore(run=_run, state=lambda route, body: thing_state(route, body, load_vars()),
                        need=lambda route: required_permission("POST", route),
                        start_job=JOBS.start, finish=_finish,
-                       check=lambda owner, route, body: networks_grant(load_vars(), owner, route, body),
+                       # the address manager's grant; the DNS filter's change as fabriclib checks it (1.12.3.17)
+                       check=lambda owner, route, body: (networks_grant(load_vars(), owner, route, body)
+                                                         or filter_check(owner, route, body)),
                        # the address manager's Apply: written, then applied; the plan poll leaves Kea to it (2.1.10.45)
                        around=lambda page: apply_intent() if page in ("networks", "options")
                        else contextlib.nullcontext())
@@ -143,7 +151,8 @@ def post_pending(route, actor, data, perms, session):
              Every one is the signed-in person's own: a root peer (the host) acts at once and holds nothing.
     Inputs:  route — ["pending", ...]; actor — the audit's name; data — the JSON body; perms — the token's permissions
              (None for a root peer); session — the token's sid.
-    Returns: hold: {"id", "page", "what", "pending"}; drop and discard: {"dropped", "pending"}; apply: {"id"} (the
+    Returns: hold: {"id", "page", "what", "pending"} (the lists form's ticks with no box changed: id None, nothing
+             held); drop and discard: {"dropped", "pending"}; apply: {"id"} (the
              job), the page's queue showing it to everyone who may see the page.
     Fails:   ValidationError (-> 400): a root peer, a change that is not held (done at once), the change's permission
              missing, an unknown page, nothing pending; RouteNotFound (-> 404) for another route.
@@ -155,6 +164,12 @@ def post_pending(route, actor, data, perms, session):
         page = pending_page_of(parts)
         if page is None:
             raise ValidationError("this change is not held: it is done at once")
+        if parts == ["dns-filter", "lists", "ticks"]:         # the lists form: the boxes as they differ (1.12.3.17)
+            from fabriclib.dns_filter.filter_lists import filter_lists
+            body = filter_ticks(body, filter_lists(load_vars())["lists"])
+            if not body["tick"] and not body["untick"]:        # no box changed: nothing held
+                held = PENDING.counts(actor, lambda p: False).get(page, {}).get("pending", 0)
+                return {"id": None, "page": page, "what": "", "pending": held}
         return PENDING.hold(actor, perms, page, parts, body, describe_change(parts, body))
     if len(route) != 3 or route[1] not in PAGES:
         raise RouteNotFound()

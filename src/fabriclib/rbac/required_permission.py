@@ -49,6 +49,7 @@ POST = {
     ("dns-filter", "querylog"): "dns:querylog",        # who looked up what: the admin bundle only (2.1.12.4)
     ("dns-filter", "lists"): "dns:filter", ("dns-filter", "lists", "set"): "dns:filter",
     ("dns-filter", "lists", "delete"): "dns:filter",
+    ("dns-filter", "lists", "ticks"): "dns:filter",     # the lists form's Apply, every tick at once (1.12.3.17)
     ("dns-filter", "rules"): "dns:filter", ("dns-filter", "rules", "delete"): "dns:filter",
     ("dns-filter", "upstreams"): "dns:filter", ("dns-filter", "fetch"): "dns:filter",
     ("dns-filter", "groups"): "dns:filter", ("dns-filter", "groups", "delete"): "dns:filter",

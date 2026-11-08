@@ -7,6 +7,10 @@ from webui.devpreview.sample_radius_guides import sample_radius_guides
 from webui.devpreview.sample_settings import SAMPLE_SETTINGS, SAMPLE_SETTINGS_FILE
 from webui.devpreview.fabric_rules import ValidationError
 from webui.devpreview.fake_directory import kerberos_policy
+try:                                       # fabriclib's version of the lists, from a checkout (as fabric_rules)
+    from fabriclib.dns_filter.common.lists_version import lists_version
+except ImportError:
+    lists_version = None
 
 
 def _sizing(state):
@@ -27,8 +31,9 @@ def _dns_filter(state):
     Returns: dict, GET /v1/dns-filter's shape.
     Fails:   never.
     Feeds:   fake_reads."""
-    if not state.toggles.get("fresh"):
-        return SAMPLE_DNS_FILTER
+    if not state.toggles.get("fresh"):        # the page sends the lists' version back with its Apply (1.12.3.17)
+        return {**SAMPLE_DNS_FILTER,
+                "lists_version": lists_version(SAMPLE_DNS_FILTER["lists"]) if lists_version else ""}
     return {**SAMPLE_DNS_FILTER, "catalogue_fetched": None, "categories": ["Added by URL"],
             "lists": [{**r, "last_fetch": None, "last_success": None, "rules": None, "memory_mb": None}
                       for r in SAMPLE_DNS_FILTER["lists"] if r["category"] == "Added by URL"]}

@@ -10,12 +10,13 @@ from fabriclib.dns_filter.common.list_id import list_id
 from fabriclib.dns_filter.common.list_memory import PEAK, list_memory
 
 
-def set_filter_list(actor, url, enabled=True, name="", source="cli"):
+def set_filter_list(actor, url, enabled=True, name="", source="cli", dry=False):
     """Purpose: tick or untick one of the site's lists (manual 1.12.3.5), or add one (from the catalogue or by URL):
              saved in vars.yaml. A list unticked stays, with its copy. Ticking is refused when the ticked lists'
              peak would pass AdGuard Home's memory limit (1.12.3.9). Made in AdGuard by apply_dns_filter.
     Inputs:  actor — who asks (audit); url — the list's URL; enabled — True to tick (or add), False to untick; name —
              its name for a new list (the URL when empty; an existing list keeps its name); source — "cli" or "web".
+             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's Apply, 1.12.3.17).
     Returns: {"name", "url", "id", "enabled", "added": True for a new list, "memory": list_memory's result}.
     Fails:   ValidationError: not http(s) (check_filter_settings), a name over 200 characters, unticking a list the
              site does not have, the memory rule (with the estimate and the limit); nothing is saved then. OSError
@@ -44,8 +45,10 @@ def set_filter_list(actor, url, enabled=True, name="", source="cli"):
                 f"past AdGuard Home's share of fabric's memory budget ({memory['limit_mb'] / PEAK:.0f} MiB; "
                 f"{memory['limit_mb']:.0f} MiB while it compiles them); untick a list first, or give fabric more "
                 f"memory (host_ram_capacity, memory_floors.adguard; manual 1.2.4.3)")
-        save_vars(data)
-    write_audit(actor, "DNS_FILTER_LIST_" + ("ADD" if added else "ON" if enabled else "OFF"),
-                f"{current['name']} {url}", source)
+        if not dry:
+            save_vars(data)
+    if not dry:
+        write_audit(actor, "DNS_FILTER_LIST_" + ("ADD" if added else "ON" if enabled else "OFF"),
+                    f"{current['name']} {url}", source)
     return {"name": current["name"], "url": url, "id": list_id(url), "enabled": bool(enabled), "added": added,
             "memory": memory}

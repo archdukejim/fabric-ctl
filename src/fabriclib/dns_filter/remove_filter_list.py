@@ -7,10 +7,11 @@ from fabriclib.common.vars_lock import vars_lock
 from fabriclib.common.write_audit import write_audit
 
 
-def remove_filter_list(actor, url, source="cli"):
+def remove_filter_list(actor, url, source="cli", dry=False):
     """Purpose: take a list off the site (manual 1.12.3.5): saved in vars.yaml; AdGuard drops it at the next sync
              (apply_dns_filter). Its copy stays while it is in AdGuard's catalogue (so it can be ticked again at once).
     Inputs:  actor — who asks (audit); url — the list's url, as listed; source — "cli" or "web".
+             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's Apply, 1.12.3.17).
     Returns: {"name", "url"} of the list removed.
     Fails:   ValidationError when the site has no list with that url; OSError or yaml errors from the vars file and
              the audit log.
@@ -23,6 +24,8 @@ def remove_filter_list(actor, url, source="cli"):
         if gone is None:
             raise ValidationError(f"the site has no list with the url {url}")
         data["dns_filter_lists"] = [i for i in lists if i is not gone]
-        save_vars(data)
-    write_audit(actor, "DNS_FILTER_LIST_REMOVE", f"{gone.get('name')} {url}", source)
+        if not dry:
+            save_vars(data)
+    if not dry:
+        write_audit(actor, "DNS_FILTER_LIST_REMOVE", f"{gone.get('name')} {url}", source)
     return {"name": gone.get("name") or url, "url": url}
