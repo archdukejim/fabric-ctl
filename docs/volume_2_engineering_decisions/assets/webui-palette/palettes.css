@@ -1,0 +1,63 @@
+/* spikes/webui-palette: three candidate palettes for the console (manual 2.3.8.4), each light and dark, as CSS
+   custom properties. The winner drops into static/webui-app/app.css: its light block becomes :root, its dark block
+   the @media (prefers-color-scheme:dark) :root. check.py measures every pair the console draws (WCAG AA). */
+
+/* Today's palette (static/webui-app/app.css:1-4), with the new tokens filled in from what the stylesheet hard-codes,
+   kept for the baseline measurement only */
+[data-palette="today"]{
+--bg:#f8fafc;--surface:#ffffff;--surface-2:#f1f5f9;--border:#e2e8f0;--border-strong:#e2e8f0;
+--text:#0f172a;--muted:#64748b;--accent:#0369a1;--accent-hover:#075985;--on-accent:#ffffff;--accent-soft:#e0f2fe;
+--ok:#15803d;--ok-soft:#f0fdf4;--warn:#b45309;--warn-soft:#fffbeb;--bad:#b91c1c;--bad-soft:#fef2f2;--focus:#0369a1;
+--seg-gateway:#0369a1;--seg-static:#7c3aed;--seg-dhcp:#15803d;--seg-reserved:#b45309;
+--chart-queries:#15803d;--chart-blocked:#b91c1c;--banner:#b45309;--on-banner:#ffffff}
+[data-palette="today"][data-theme="dark"]{
+--bg:#0f172a;--surface:#1e293b;--surface-2:#273449;--border:#334155;--border-strong:#334155;
+--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent-hover:#7dd3fc;--on-accent:#1e293b;--accent-soft:#0c2a3d;
+--ok:#4ade80;--ok-soft:#0f2a1c;--warn:#fbbf24;--warn-soft:#2d2410;--bad:#f87171;--bad-soft:#2f1618;--focus:#38bdf8;
+--seg-gateway:#0369a1;--seg-static:#7c3aed;--seg-dhcp:#15803d;--seg-reserved:#b45309;
+--chart-queries:#15803d;--chart-blocked:#b91c1c;--banner:#b45309;--on-banner:#ffffff}
+
+/* A. Harbor: cool grey-green neutrals, a teal accent. Calm, close to Cockpit's restraint; status colours stay
+   apart from the accent (teal is neither ok-green nor info-blue). */
+[data-palette="harbor"]{
+--bg:#f3f6f7;--surface:#ffffff;--surface-2:#eaf0f2;--border:#d5dee2;--border-strong:#748690;
+--text:#122027;--muted:#4d5f69;--accent:#0b6e69;--accent-hover:#08544f;--on-accent:#ffffff;--accent-soft:#dff1ef;
+--ok:#1b7a3a;--ok-soft:#e5f4ea;--warn:#8f5200;--warn-soft:#fdf1dc;--bad:#b42323;--bad-soft:#fbe9e9;--focus:#0b6e69;
+--seg-gateway:#0b6e69;--seg-static:#6d4fc2;--seg-dhcp:#2f8a45;--seg-reserved:#b86e00;
+--chart-queries:#3d8a99;--chart-blocked:#c2410c;--banner:#8f5200;--on-banner:#ffffff}
+[data-palette="harbor"][data-theme="dark"]{
+--bg:#0c1316;--surface:#131c20;--surface-2:#1a252a;--border:#27353b;--border-strong:#5f7179;
+--text:#e3ecef;--muted:#9bb0b8;--accent:#3cc9b7;--accent-hover:#6fdccd;--on-accent:#04201d;--accent-soft:#0f312d;
+--ok:#56c27a;--ok-soft:#10281a;--warn:#e2a54a;--warn-soft:#2c2111;--bad:#f2807a;--bad-soft:#341818;--focus:#6fdccd;
+--seg-gateway:#3cc9b7;--seg-static:#a897f0;--seg-dhcp:#56c27a;--seg-reserved:#e2a54a;
+--chart-queries:#5fb6c6;--chart-blocked:#f2807a;--banner:#e2a54a;--on-banner:#1a1205}
+
+/* B. Graphite: neutral greys with no tint, an indigo accent. Crisp and modern; the most contrast between the page
+   and its cards. */
+[data-palette="graphite"]{
+--bg:#f4f4f6;--surface:#ffffff;--surface-2:#ededf1;--border:#dcdce2;--border-strong:#7d7d8a;
+--text:#18181d;--muted:#56565f;--accent:#4b44d4;--accent-hover:#3a33b8;--on-accent:#ffffff;--accent-soft:#ebeafc;
+--ok:#1f7a3c;--ok-soft:#e6f4ea;--warn:#9a4d00;--warn-soft:#fdf0e0;--bad:#c01933;--bad-soft:#fce9ec;--focus:#4b44d4;
+--seg-gateway:#4b44d4;--seg-static:#a8327f;--seg-dhcp:#2b8a46;--seg-reserved:#b86200;
+--chart-queries:#6b66e0;--chart-blocked:#d0364e;--banner:#9a4d00;--on-banner:#ffffff}
+[data-palette="graphite"][data-theme="dark"]{
+--bg:#101012;--surface:#18181c;--surface-2:#212127;--border:#2d2d35;--border-strong:#65656f;
+--text:#ececf1;--muted:#a3a3ae;--accent:#a3a9ff;--accent-hover:#c3c7ff;--on-accent:#16134a;--accent-soft:#25244d;
+--ok:#5ccf86;--ok-soft:#11291a;--warn:#f0ae4c;--warn-soft:#2e2211;--bad:#ff8593;--bad-soft:#36161c;--focus:#c3c7ff;
+--seg-gateway:#a3a9ff;--seg-static:#e48ccb;--seg-dhcp:#5ccf86;--seg-reserved:#f0ae4c;
+--chart-queries:#8f95f5;--chart-blocked:#ff8593;--banner:#f0ae4c;--on-banner:#1a1205}
+
+/* C. Sandstone: warm stone neutrals, a cobalt accent. Softer on the eyes for long sessions; the warm greys set it
+   apart from today's cold slate even though the accent is blue. */
+[data-palette="sandstone"]{
+--bg:#f6f4f0;--surface:#fffdfa;--surface-2:#efebe4;--border:#e0d9ce;--border-strong:#8a7f70;
+--text:#221d17;--muted:#5f5649;--accent:#1f58b5;--accent-hover:#17468f;--on-accent:#ffffff;--accent-soft:#e3ecfa;
+--ok:#2c7a2f;--ok-soft:#e7f3e3;--warn:#935000;--warn-soft:#fbefd9;--bad:#b3261e;--bad-soft:#fbe8e5;--focus:#1f58b5;
+--seg-gateway:#1f58b5;--seg-static:#8a3fa8;--seg-dhcp:#3a8a3d;--seg-reserved:#b46a00;
+--chart-queries:#4a78c2;--chart-blocked:#c4471f;--banner:#935000;--on-banner:#ffffff}
+[data-palette="sandstone"][data-theme="dark"]{
+--bg:#14120f;--surface:#1c1a16;--surface-2:#25221d;--border:#353029;--border-strong:#706658;
+--text:#efe9e0;--muted:#b1a696;--accent:#86aef5;--accent-hover:#a9c6fa;--on-accent:#0e1f3d;--accent-soft:#1d2a42;
+--ok:#78c66f;--ok-soft:#172814;--warn:#e9a84d;--warn-soft:#2f2312;--bad:#f38a78;--bad-soft:#371a14;--focus:#a9c6fa;
+--seg-gateway:#86aef5;--seg-static:#cf96e6;--seg-dhcp:#78c66f;--seg-reserved:#e9a84d;
+--chart-queries:#86aef5;--chart-blocked:#f38a78;--banner:#e9a84d;--on-banner:#1a1205}
