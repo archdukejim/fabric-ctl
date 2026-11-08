@@ -1,0 +1,12 @@
+<h1>Setting up fabric</h1>
+<div class="printed">$raw_notes</div>
+<form method="post" action="/answer" class="question">
+<input type="hidden" name="csrf" value="$csrf">
+<input type="hidden" name="seq" value="$seq">
+<label for="value">$label $raw_permanent</label>
+<div class="row">$raw_field</div>
+</form>
+<form method="post" action="/cancel" class="leave">
+<input type="hidden" name="csrf" value="$csrf">
+<button class="link">Cancel setup: change nothing</button>
+</form>

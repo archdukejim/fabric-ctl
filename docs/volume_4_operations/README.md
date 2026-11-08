@@ -16,6 +16,13 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 ## 4.3 fabricctl, setup and fabric-agent
 
 - [4.3.1 The fabricctl command](4.3.1-fabricctl.md)
+- [4.3.6 Web-guided setup](4.3.6-web-guided-setup.md)
+  - 4.3.6.1 Run Guided in the browser
+  - 4.3.6.2 Trust fabric's root certificate
+  - 4.3.6.3 Point a computer's DNS at fabric
+  - 4.3.6.4 Troubleshoot the setup site
+  - 4.3.6.5 Get the code back from another terminal
+  - 4.3.6.6 Continue in another browser
 
 ## 4.4 DNS: BIND
 
@@ -56,6 +63,7 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 - [4.8.4 Changes wait for Apply](4.8.4-apply.md)
 - [4.8.5 My account](4.8.5-my-account.md)
 - [4.8.6 Reaching a device's Cockpit through fabric](4.8.6-cockpit.md)
+- 4.8.9 Console read cache — nothing to operate until 0.9.3 builds it: see [1.8.9](../volume_1_description_and_architecture/1.8.9-console-read-cache.md)
 
 ## 4.9 Federation
 

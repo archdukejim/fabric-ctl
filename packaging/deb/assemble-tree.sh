@@ -10,6 +10,7 @@
 #                                                 -> <dest>/fabric/lib/
 #   src/webui, src/ux/web/{server,devserver}.py   -> <dest>/fabric/lib/webui/
 #   templates/webui-app, static/webui-app         -> <dest>/fabric/lib/webui/{templates,static}/
+#   templates/setup-site, static/setup-site       -> <dest>/fabric/lib/setup-site/
 #   templates/* (the service templates)           -> <dest>/fabric/jinja/
 #   packaging/images/<service>/                   -> <dest>/fabric/jinja/<service>/build/   (image build contexts)
 #   src/containers/freeradius/                    -> <dest>/fabric/jinja/freeradius/python/
@@ -59,7 +60,9 @@ copy 's,^src/webui/,fabric/lib/webui/,' src/webui
 copy 's,^src/ux/web/,fabric/lib/webui/,' src/ux/web/server.py src/ux/web/devserver.py
 copy 's,^templates/webui-app/,fabric/lib/webui/templates/,;s,^static/webui-app/,fabric/lib/webui/static/,' \
     templates/webui-app static/webui-app
-copy 's,^templates/,fabric/jinja/,' templates ':(exclude)templates/webui-app'
+copy 's,^templates/setup-site/,fabric/lib/setup-site/,;s,^static/setup-site/,fabric/lib/setup-site/,' \
+    templates/setup-site static/setup-site
+copy 's,^templates/,fabric/jinja/,' templates ':(exclude)templates/webui-app' ':(exclude)templates/setup-site'
 for svc in bind9 freeradius kea keycloak samba stepca; do
     copy "s,^packaging/images/$svc/,fabric/jinja/$svc/build/," "packaging/images/$svc"
 done

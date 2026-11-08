@@ -6,6 +6,31 @@ import re
 QID_RE = re.compile(r"^[a-z][a-z0-9_]*\..", re.DOTALL)
 
 
+_front_end = None       # None: the terminal. Otherwise an object with ask(qid, prompt, secret): web-guided setup
+
+
+def use_front_end(front):
+    """Purpose: send every question to another front end until told otherwise (web-guided setup's site, manual
+             1.3.6.4), so its questions and checks stay the terminal's own and neither can drift.
+    Inputs:  front — an object with ask(qid, prompt, secret) returning the answer as typed; None: the terminal.
+    Returns: None.
+    Fails:   never.
+    Feeds:   setup/site/guided_site."""
+    global _front_end
+    _front_end = front
+
+
+def _read(qid, prompt, secret=False):
+    """Purpose: one answer as typed, from the front end in use or the terminal.
+    Inputs:  qid — the question's stable ID; prompt — str; secret — True: not echoed on a terminal.
+    Returns: the answer (str), unstripped.
+    Fails:   EOFError / KeyboardInterrupt from input() or getpass; what the front end raises (closing the site).
+    Feeds:   ask, ask_secret, ask_yes_no."""
+    if _front_end is not None:
+        return _front_end.ask(qid, prompt, secret)
+    return getpass.getpass(prompt) if secret else input(prompt)
+
+
 def _check(qid):
     """Purpose: refuse a question ID that is not "<area>.<name>" (the entry-point inventory lists questions by it,
              manual 1.1.5.6, 3.1.2.5).
@@ -27,7 +52,7 @@ def ask(qid, prompt, default=None):
     Fails:   ValueError for a malformed qid; EOFError / KeyboardInterrupt from input() propagate unchanged.
     Feeds:   every interactive prompt in src/ (setup, the vars menu, consent, undo, fabricctl's commands)."""
     _check(qid)
-    answer = input(prompt).strip()
+    answer = _read(qid, prompt).strip()
     if not answer and default is not None:
         return default
     return answer
@@ -41,7 +66,7 @@ def ask_secret(qid, prompt):
     Fails:   ValueError for a malformed qid; EOFError / KeyboardInterrupt from getpass propagate unchanged.
     Feeds:   setup (first admin, join invitation), fabricctl's tsig, radius, logs and vault commands."""
     _check(qid)
-    return getpass.getpass(prompt)
+    return _read(qid, prompt, secret=True)
 
 
 def ask_yes_no(qid, question, now):
@@ -54,7 +79,7 @@ def ask_yes_no(qid, question, now):
     Feeds:   setup/advanced (the parts, the host changes, domain membership)."""
     _check(qid)
     while True:
-        answer = input(f"\n  {question}? {'[Y/n]' if now else '[y/N]'} ").strip().lower() or ("y" if now else "n")
+        answer = _read(qid, f"\n  {question}? {'[Y/n]' if now else '[y/N]'} ").strip().lower() or ("y" if now else "n")
         if answer in ("y", "yes", "n", "no"):
             return answer.startswith("y")
         print(f"    {answer!r}: answer y or n")

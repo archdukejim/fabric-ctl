@@ -12,6 +12,7 @@
 | `run_uninstall_command_test.py` | Pure, in the `consent` suite: with an export, the host's own computer account is removed before the export stops the stack it needs, and not again by the uninstall; without one the uninstall removes it; a refused command removes nothing (2.3.1.32 finding 15) |
 | `export_install_test.py` | The export's stop: nothing is copied until the stack has really stopped; a container still running or Docker not answering refuses (2.3.1.53) |
 | `uninstall_test.py` | Pure, in the `consent` suite: fabric's timers stopped and their systemd stamps removed, so a later install's Persistent= timer does not fire before its services run; another program's stamp kept (2.3.1.32 finding 17); every fabric unit's failure cleared, no other unit touched (finding 18) |
+| `site/` | Web-guided setup, with a real listener, TLS and browser (its README, manual 1.3.6.8) |
 | `common/` | Pure tests of `fabriclib/setup/common/`, in the `consent` suite (its README): sssd's socket units masked by the host's join, put back by its undo, and the same as the Linux join's (2.1.6.95) |
 | `detach/` | Pure tests of setup's detached run, one per unit of `fabriclib/setup/detach/` (its README) |
 | `start_unit_test.py` | Pure, in the `consent` suite: a unit systemd is already starting (Keycloak, restarted by systemd with Postgres) is waited for, never stopped mid-start; one in its automatic-restart loop or failed is still stopped, cleared and started; a start that never ends is waited for only until the timeout (2.3.2.5) |

@@ -1,6 +1,7 @@
 from fabriclib.security.firewall_rules import firewall_rules
 from fabriclib.security.ssh_ports import ssh_ports
 from fabriclib.security.ufw_active import ufw_active
+from fabriclib.setup.site.read_port_record import read_port_record
 
 
 def plan_firewall(v, config_dir, active=None):
@@ -22,7 +23,11 @@ def plan_firewall(v, config_dir, active=None):
     first = ("ufw is on already: deny incoming and allow outgoing by default (the host's own rules are the next "
              "question)" if active else
              "ufw: deny incoming and allow outgoing by default, then enable ufw (existing rules are the next question)")
+    # web-guided setup's site, while it runs: its port stays open under the firewall this turns on (manual 1.3.6.7)
+    site = read_port_record()
     return ([first]
             + [f"ufw: allow {p}/tcp (SSH) from {c}" for c in rules["ssh"] for p in ports]
+            + ([f"ufw: allow {site['port']}/tcp (this setup's temporary site), removed when the site stops"]
+               if site else [])
             + ["iptables DOCKER-USER: ports Docker publishes are reachable only from " + ", ".join(rules["ssh"])
                + " (fabric-firewall.service re-applies this at boot)"])

@@ -5,6 +5,7 @@ from webui.views.render_page import render_page
 
 # a fresh install's first fetch (2.1.2.22 item 1): the tab reloads itself every REFRESH_SECONDS, at most REFRESH_TIMES
 REFRESH_SECONDS, REFRESH_TIMES = 10, 30
+APPLY_SECONDS = 2            # while the tab's Apply runs (1.12.3.17): seconds, nothing restarts
 
 
 def _ago(ts):
@@ -34,16 +35,19 @@ def _first_fetch_pending(overview):
         for lst in overview.get("lists") or [])
 
 
-def dns_filter(ctx, section, overview, log, search, msg="", err="", wait=0):
+def dns_filter(ctx, section, overview, log, search, msg="", err="", wait=0, sent=None):
     """Purpose: The DNS filter tab (manual 1.12.2.14): the statistics, the lists (and AdGuard's catalogue to add from),
              the rules, the query log with Allow / Block from a line, and the upstreams.
     Inputs:  ctx — page context; section — a DNS_FILTER_SECTIONS id; overview — filter_overview's dict, or None
              without dns:filter; log — query_log's result or None; search — the query log's search (client, name,
-             blocked, limit); msg, err — flash texts; wait — how many times the page has refreshed itself while the
-             first fetch runs (the query's wait).
-    Returns: HTML str. On the overview and lists sections, while _first_fetch_pending, the page carries a meta refresh
-             (no script: the strict CSP) to itself with wait + 1, every REFRESH_SECONDS, at most REFRESH_TIMES times;
-             then it stops and says so.
+             blocked, limit, own); msg, err — flash texts; wait — how many times the page has refreshed itself while the
+             first fetch runs (the query's wait); sent — a refused lists Apply's form ({"on": the ids ticked}): its
+             boxes are shown as sent instead of the site's (1.12.3.17), or None.
+    Returns: HTML str. The lists are one form of checkboxes, sent by its Apply changes (1.12.3.17). On the overview and
+             lists sections, while _first_fetch_pending, the page carries a meta refresh (no script: the strict CSP)
+             to itself with wait + 1, every REFRESH_SECONDS, at most REFRESH_TIMES times; then it stops and says so.
+             While an apply of the tab runs (ctx's pending, 1.8.6.5) it refreshes itself every APPLY_SECONDS, so it
+             shows the changes once they are made.
     Fails:   Jinja2 errors propagate (e.g. UndefinedError when the template reads a key the caller left out).
     Feeds:   src/webui/routes/dns_filter_page; devserver."""
     peak = max([h["queries"] for h in ((overview or {}).get("stats") or {}).get("hours") or []] or [1])
@@ -51,6 +55,11 @@ def dns_filter(ctx, section, overview, log, search, msg="", err="", wait=0):
     wait = int(wait) if str(wait).isdigit() else 0
     refresh = {"seconds": REFRESH_SECONDS, "url": f"/dns-filter?view={section}&wait={wait + 1}"} if (
         pending and wait < REFRESH_TIMES) else None
+    here = (ctx.get("pending") or {}).get("/dns-filter") or {}      # this person's changes waiting, an apply running
+    if here.get("running") and refresh is None:
+        refresh = {"seconds": APPLY_SECONDS, "url": f"/dns-filter?view={section}"}
+    ticked = set(sent["on"]) if sent else {r["id"] for r in (overview or {}).get("lists") or [] if r.get("enabled")}
     return render_page("dns_filter", ctx=ctx, page="/dns-filter", sections=DNS_FILTER_SECTIONS, view=section,
                        d=overview, log=log, search=search, peak=peak, ago=_ago, msg=msg, err=err, refresh=refresh,
-                       stalled=pending and not refresh)
+                       stalled=pending and not refresh, ticked=ticked, waiting=here.get("pending") or 0,
+                       applying=bool(here.get("running")))

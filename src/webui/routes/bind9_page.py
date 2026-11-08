@@ -1,5 +1,6 @@
 from webui import agentclient as actions
 from webui import views
+from webui.routes.note_kept import note_kept
 
 
 def bind9_page(h, ctx, query, status=200):
@@ -28,7 +29,8 @@ def bind9_page(h, ctx, query, status=200):
         if tsig_key is None:
             return h.deny(404, "No TSIG key has that name.")
     return h.send(status, views.bind9(
-        ctx, section, zones, zone=actions.zone_detail(key) if section in ("forward", "landing") and key else None,
+        ctx, section, zones, zone=note_kept(ctx, actions.zone_detail(key), f"zones/{key}", "/dns/zones")
+        if section in ("forward", "landing") and key else None,
         types=actions.RECORD_TYPES,
         tsig_keys=tsig, tsig_key=tsig_key,
         reverse=actions.reverse_zones() if section == "reverse" else None,

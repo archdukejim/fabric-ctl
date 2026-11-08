@@ -7,13 +7,14 @@ from webui.devpreview.fake_groups import find_group
 from webui.devpreview.fake_ous import fake_ous
 from webui.devpreview.fake_grants import fake_grants
 from webui.devpreview.fake_ipam import HERE, network_read
-from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DOMAIN, SAMPLE_GPO, SAMPLE_RADIUS
+from webui.devpreview.sample_data import SAMPLE_ACCESS, SAMPLE_DNS_FILTER, SAMPLE_DOMAIN, SAMPLE_GPO, SAMPLE_RADIUS
 
 try:                                       # the agent's own store and its words, from a checkout (as fabric_rules)
     import agent.pending_networks as pending_networks
     from agent.pending_store import PendingStore
     from agent.pending_thing import PAGES, describe_change, own_state, pending_page_of
     from agent.landing_note import landing_note
+    from agent.pending_filter import filter_finish, filter_page_of, filter_state, filter_ticks
     pending_networks._this_site = lambda: HERE         # the sample's own site, not this machine's vars.yaml
 except ImportError:
     PendingStore = None
@@ -26,6 +27,43 @@ def _find(rows, key, value):
     Fails:   never.
     Feeds:   _thing."""
     return next((r for r in rows or [] if str(r.get(key)) == str(value)), None)
+
+
+def _filter_vars():
+    """Purpose: The sample DNS filter as vars.yaml has it, for the agent's own read of a held change (filter_state).
+    Inputs:  none (reads SAMPLE_DNS_FILTER).
+    Returns: dict of the dns_filter_* settings.
+    Fails:   never.
+    Feeds:   _thing."""
+    d = SAMPLE_DNS_FILTER
+    return {"dns_filter_lists": [{"name": r["name"], "url": r["url"], "enabled": r["enabled"]}
+                                 for r in d["lists"] if r.get("on_site")],
+            "dns_filter_upstreams": d["upstreams"], "dns_filter_allow": d["allow"], "dns_filter_block": d["block"],
+            "dns_filter_safe_search": d["safe_search"]["on"], "dns_filter_youtube": d["safe_search"]["youtube"],
+            "dns_filter_groups": d["groups"]}
+
+
+def _check(state, route, body):
+    """Purpose: The preview's check of a held DNS filter change, at hold and at Apply, as the agent's dry run makes
+             it for the lists: the memory rule over the whole set (1.12.3.9), AdGuard Home's limit the sample's, or
+             150 MiB with the preview's `tight` toggle (so the refusal can be seen).
+    Inputs:  state — DevState (toggles); route — segments after /v1/; body — dict.
+    Returns: None.
+    Fails:   ValidationError naming the lists and the gap, as set_filter_lists says it.
+    Feeds:   _store."""
+    if route != ["dns-filter", "lists", "ticks"]:
+        return None
+    gone = {i.get("url") for i in body.get("untick") or []}
+    new = {i.get("url") for i in body.get("tick") or []}
+    rows = [r for r in SAMPLE_DNS_FILTER["lists"] if (r["enabled"] and r["url"] not in gone) or r["url"] in new]
+    total = sum(r["memory_mb"] or 0 for r in rows)
+    limit = 150.0 if state.toggles.get("tight") else SAMPLE_DNS_FILTER["memory"]["limit_mb"]
+    if total * 2.5 > limit:
+        names = ", ".join(f"{r['name']} (~{r['memory_mb']:.0f} MiB)" for r in rows if r["url"] in new)
+        raise ValidationError(f"the ticked lists do not fit: {names} would take the set to about {total:.0f} MiB, "
+                              f"{total * 2.5:.0f} MiB while AdGuard Home compiles them, {total * 2.5 - limit:.0f} MiB "
+                              f"past its limit of {limit:.0f} MiB. Nothing was changed")
+    return None
 
 
 def _thing(state, route, body):
@@ -41,6 +79,8 @@ def _thing(state, route, body):
         if site not in read["plans"]:
             raise ValidationError(f"no such site: {site}")
         return {"plan": {k: x for k, x in site_plan(read, site).items() if k != "read"}}
+    if filter_page_of(route):                        # the DNS filter tab (1.12.3.17): as the agent reads it
+        return filter_state(route, body, _filter_vars())
     head, name = route[0], (route[1] if len(route) > 1 else body.get("uid") or body.get("name", ""))
     if route[:2] == ["account", "groups"]:            # a member change from My account: its managed group
         group = _find(managed(state), "name", route[2] if len(route) > 2 else "")
@@ -96,6 +136,8 @@ def _finish(state, page, routes):
              renamed alias would.
     Fails:   never.
     Feeds:   _store."""
+    if page == "dns-filter":                           # applied once (1.12.3.17): nothing applied here
+        return filter_finish(routes)[0], lambda actor: state.log("DNS_FILTER_APPLY", "dev preview: nothing applied")
     if page == "policies" and ["domain", "password-policy"] in routes:
         return "Write the policy into the domain (restarts only what changed)", lambda actor: None
     if page in ("networks", "options"):                # this site's plan applied once (1.10.4.40.3)
@@ -129,7 +171,8 @@ def _store(state, who, run):
         state.pending = PendingStore(run=lambda route, actor, body, perms, session: run(route, body),
                                      state=lambda route, body: _thing(state, route, body),
                                      need=lambda route: required_permission("POST", route), start_job=start_job,
-                                     finish=lambda page, routes: _finish(state, page, routes))
+                                     finish=lambda page, routes: _finish(state, page, routes),
+                                     check=lambda owner, route, body: _check(state, route, body))
     return state.pending
 
 
@@ -158,6 +201,11 @@ def fake_pending(state, who, method, route, body, run):
         if page is None:
             raise ValidationError("this change is not held: it is done at once")
         change = body.get("body") or {}
+        if parts == ["dns-filter", "lists", "ticks"]:     # the lists form, as the agent takes it (1.12.3.17)
+            change = filter_ticks(change, SAMPLE_DNS_FILTER["lists"])
+            if not change["tick"] and not change["untick"]:
+                return {"id": None, "page": page, "what": "",
+                        "pending": store.counts(user, lambda p: False).get(page, {}).get("pending", 0)}
         return store.hold(user, perms, page, parts, change, describe_change(parts, change))
     if len(route) == 3 and route[1] in PAGES and route[2] in ("drop", "discard", "apply"):
         if route[2] == "drop":

@@ -11,6 +11,8 @@ arbitrary commands.
 |---|---|
 | `server.py` | Entry point (systemd): the socket server (root:webui 0660) and the route list |
 | `handler.py` | One request: peer uid (SO_PEERCRED), token and permission (`fabriclib/rbac`), body and actor, errors as JSON replies |
+| `kept_store.py` | The agent's read cache and its start, sized to this host (1.8.9) |
+| `post_kept.py` | A page's Refresh (1.8.9.4) |
 | `get_route.py` | GET routes: one fabriclib read each |
 | `post_route.py` | POST routes by area; apply, people, login events |
 | `post_pending.py` | Apply per page (manual 1.8.6.5): holding a change, dropping, discarding and applying a page's changes as one job |
@@ -18,9 +20,12 @@ arbitrary commands.
 | `landing_note.py` | DNS' Review's sentence when the landing page's certificate waits for a full apply (2.1.8.29) |
 | `pending_thing.py` | What a held change changes: its page, its words, the thing's read and its version (2.1.8.14) |
 | `pending_dns.py` | DNS' held changes in a sentence (moved from `pending_thing.py`) |
+| `pending_filter.py` | The DNS filter tab's held changes (1.12.3.17): their page, sentence, thing and key, the check of each as fabriclib makes it, the lists form's ticks (refused when the page is stale), and the one apply at the end |
 | `pending_networks.py` | The address manager's held changes (1.10.4.40.2): their page (Networks, DHCP options), sentence, thing and key, and the grant's networks right at their site |
 | `post_dns.py` | Zones (add, remove), their records, TSIG keys (a new key or secret given to BIND at once, 2.1.8.24) |
-| `post_dns_filter.py` | The DNS filter's lists, rules and upstreams (saved and applied), the lists job, the query-log search |
+| `post_dns_filter.py` | The DNS filter's lists, rules and upstreams called directly (saved and applied), the lists job, the query-log search |
+| `change_dns_filter.py` | One DNS filter settings change saved (or only checked), nothing applied: a direct call's, a held change's check and its run at Apply |
+| `apply_filter_now.py` | The DNS filter applied once (the resolver and AdGuard Home), and the lists job started for a list ticked with no copy |
 | `post_dhcp.py` | DHCP: reservations, subnets (name, VLAN, notes, pools), options, client classes, each applied at once |
 | `post_network.py` | 802.1X settings, each applied at once |
 | `post_networks.py` | The address plan's changes (`/v1/networks/<site>/...`): each the ipam function the CLI calls, the grant checked there; this site's applied at once |

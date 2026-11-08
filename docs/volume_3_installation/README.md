@@ -24,6 +24,11 @@ Installing, upgrading, building and releasing fabric, and maintaining its host. 
 - [3.3.3 Setup steps](3.3.3-setup-steps.md)
 - [3.3.4 Rebuilding a host](3.3.4-rebuilding.md)
 - [3.3.5 Moving to 0.8.0](3.3.5-moving-to-080.md)
+- [3.3.6 Web-guided setup](3.3.6-web-guided-setup.md)
+  - 3.3.6.1 Start Guided in the browser
+  - 3.3.6.2 Run Guided in the terminal instead
+  - 3.3.6.3 Clear what a killed setup left
+  - 3.3.6.4 Build and test the setup site
 
 ## 3.4 DNS: BIND
 
@@ -45,6 +50,7 @@ Nothing here yet — nothing to install on its own: see [1.7](../volume_1_descri
 ## 3.8 The web UI
 
 - [3.8.1 Cockpit behind fabric's web server](3.8.1-cockpit-proxy.md)
+- 3.8.9 Console read cache — nothing to install: see [1.8.9](../volume_1_description_and_architecture/1.8.9-console-read-cache.md)
 
 ## 3.9 Federation
 

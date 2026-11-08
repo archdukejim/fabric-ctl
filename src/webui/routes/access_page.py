@@ -2,6 +2,7 @@ import urllib.parse
 
 from webui import agentclient as actions
 from webui import views
+from webui.routes.note_kept import note_kept
 
 
 def access_page(h, ctx, path, query):
@@ -22,7 +23,8 @@ def access_page(h, ctx, path, query):
     if not rest or rest == "_new":
         view = "new" if rest else "list"
         try:
-            return h.send(200, views.access(ctx, view, grants=actions.list_grants(), query=query))
+            grants = note_kept(ctx, actions.list_grants(), "domain/grants", path)
+            return h.send(200, views.access(ctx, view, grants=grants, query=query))
         except (actions.AgentError, actions.ValidationError) as exc:
             return h.send(200, views.access(ctx, view, unavailable=str(exc)))
     name = urllib.parse.unquote(rest)

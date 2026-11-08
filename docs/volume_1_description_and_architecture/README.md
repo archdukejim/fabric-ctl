@@ -39,6 +39,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.3.1 The host package](1.3.1-host-package.md)
 - [1.3.2 Setup: secure by default, scriptable](1.3.2-setup-design.md)
 - [1.3.3 The fixed API](1.3.3-agent-api.md)
+- [1.3.6 Web-guided setup](1.3.6-web-guided-setup.md)
 
 ## 1.4 DNS: BIND
 
@@ -80,6 +81,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.8.6 The console redone in Cockpit's style](1.8.6-console-redo.md)
 - [1.8.7 Cockpit behind fabric's web server](1.8.7-cockpit-proxy.md)
 - [1.8.8 The directory browser, and the console made fast and clean (0.9.2)](1.8.8-directory-browser.md)
+- [1.8.9 Console read cache](1.8.9-console-read-cache.md)
 
 ## 1.9 Federation
 
@@ -171,6 +173,7 @@ The home chapter for security is 1.2.8 (Rule 5.8).
 - [1.17.40 fabriclib-ipam](1.17.40-fabriclib-ipam.md)
 - [1.17.41 fabriclib-move](1.17.41-fabriclib-move.md)
 - [1.17.42 fabriclib-sizing](1.17.42-fabriclib-sizing.md)
+- [1.17.43 fabriclib-readcache](1.17.43-fabriclib-readcache.md)
 <!-- end of generated 1.17 -->
 
 ## 1.18 STIG compliance

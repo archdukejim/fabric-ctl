@@ -15,6 +15,7 @@ from fabriclib.security.ssh_ports import ssh_ports
 from fabriclib.security.ufw_active import ufw_active
 from fabriclib.security.ufw_rule import RECORDS, ufw_rule
 from fabriclib.setup.errors import SetupError
+from fabriclib.setup.site.keep_site_port import keep_site_port
 
 UNIT = "/etc/systemd/system/fabric-firewall.service"
 UNIT_TEXT = """[Unit]
@@ -140,6 +141,9 @@ def run(ctx):
     for entry in ssh:
         subprocess.run(["ufw", "allow", *ufw_rule("ssh", entry)], check=True, capture_output=True)
     _forget_rules(ctx.config_dir, "ssh", ssh, "SSH")
+    site_port = keep_site_port()     # a running setup site stays reachable (the plan listed it, manual 1.3.6.7)
+    if site_port:
+        info(f"host firewall: TCP {site_port} stays open for this setup's temporary site, until the site stops")
 
     # 3. the host's own rules (asked only after securing is allowed, and only when there are any)
     own = host_own_rules(ctx.config_dir)

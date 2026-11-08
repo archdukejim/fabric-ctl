@@ -23,6 +23,8 @@ behind it matching the lists (design
 | `read_query_log.py` | Search the query log (client, name, blocked only), read up to the moment first |
 | `dns_filter_stats.py` | The statistics: the last 24 hours, the last 7 days, per list and rules zone, the most blocked names |
 | `filter_overview.py` | The DNS filter for the web console: every list as a checkbox with its copy's state and memory, the rules, the groups, safe search and the sites it covers, the statistics |
+| `filter_lists.py` | Every list the console shows as a checkbox: the catalogue and the site's, each with its copy's state |
+| `set_filter_lists.py` | The lists form's Apply: every tick and untick at once, one save; the memory rule over the whole set |
 | `set_filter_list.py` | Tick, untick or add a list (vars.yaml); a tick past AdGuard's memory limit is refused |
 | `remove_filter_list.py` | Take a list off the site (vars.yaml) |
 | `add_filter_rule.py` | Allow or block a name and every name below it, for everyone or a group; a name in the other rule moves |

@@ -64,6 +64,7 @@
 {% endif %}
 {% if msg %}<p class="flash ok" role="status">{{ msg }}</p>{% endif %}
 {% if err %}<p class="flash bad" role="alert">{{ err }}</p>{% endif %}
+{% set kept = ctx.get('kept') if ctx else none %}{% if kept %}<form method="post" action="/kept/refresh" class="kept apply small muted"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="read" value="{{ kept.read }}"><input type="hidden" name="back" value="{{ kept.back }}"><span>Updated {% if kept.age_s < 120 %}{{ kept.age_s }} s{% else %}{{ (kept.age_s / 60) | int }} min{% endif %} ago{% if kept.failed %}; the last refresh failed: {{ kept.failed }}{% endif %}</span><button class="ghost">Refresh</button></form>{% endif %}
 {% block body %}{% endblock %}
 </main>
 {% if ctx %}</div>{% endif %}

@@ -4,6 +4,7 @@ import threading
 import time
 import traceback
 
+from agent.kept_store import KEPT
 from fabriclib.common.errors import ValidationError
 
 KEEP = 50                                     # finished jobs kept for their pages, newest first
@@ -50,6 +51,8 @@ class JobStore:
                 result, state, error = None, "failed", "internal error (see the fabric-agent journal)"
             with self.lock:
                 job.update(result=result, state=state, error=error, finished=time.time())
+            if kind != "doctor":              # an apply or an update has changed what kept reads show (1.8.9.2)
+                KEPT.invalidate()
 
         threading.Thread(target=run, daemon=True, name=f"job-{kind}").start()
         return {"id": job_id}

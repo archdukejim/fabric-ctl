@@ -29,6 +29,7 @@ from webui.routes.policies_page import policies_page
 from webui.routes.settings_page import settings_page
 from webui.routes.stepca_page import stepca_page
 from webui.session.page_context import page_context
+from webui.routes.note_kept import note_kept
 
 SIGNED_IN = "Signed in again. Repeat the change: it needs a sign-in from the last 5 minutes."
 
@@ -37,30 +38,29 @@ def _overview(h, sess, ctx, path):
     """Purpose: The Overview entry's pages: Health (/), Doctor, Updates.
     Inputs:  h — the request handler; sess — the session; ctx — page context; path — "/", "/overview/doctor" or
              "/overview/updates".
-    Returns: the page sent (Health: the host changes fabric may make, the host's reminders read afresh and, until the
-             setup wizard is finished, Finish setting up — its first view in a sign-in opens the wizard instead, 303
-             to /settings).
+    Returns: the page sent (Health: the host changes fabric may make, the host's reminders as kept (1.8.9.2) and,
+             until the setup wizard is finished, Finish setting up — its first view in a sign-in opens the wizard
+             instead, 303 to /settings).
     Fails:   agent errors propagate to handle_request.
     Feeds:   get_page."""
     if path == "/overview/doctor":
         return h.send(200, views.overview(ctx, page=path))
     if path == "/overview/updates":
         try:
-            images = actions.image_rows()
+            images = note_kept(ctx, actions.updates_read(), "updates", path)["rows"]
         except (actions.AgentError, actions.ValidationError):
             images = None
         return h.send(200, views.overview(ctx, images=images, page=path))
     wizard, open_now = finish_setting_up(h, sess, ctx)
     if open_now:                                   # the first Overview of a sign-in opens the wizard (1.8.5.3)
         return h.redirect("/settings")
-    try:                                           # Overview reads the reminders afresh (2.1.6.69)
-        ctx["reminders"] = actions.host_reminders()
+    state = note_kept(ctx, actions.overview_read(), "overview", path)
+    if state.get("reminders") is not None:         # as kept, up to one refresh old (1.8.9.2, 2.1.6.69)
+        ctx["reminders"] = state["reminders"]
         with h.app.lock:                           # the session's other pages follow
             if sess.get("sid") in h.app.sessions:
                 h.app.sessions[sess["sid"]]["reminders"] = ctx["reminders"]
-    except (actions.AgentError, actions.ValidationError, actions.PermissionDenied):
-        pass
-    return h.send(200, views.overview(ctx, actions.service_status(), actions.host_changes(),
+    return h.send(200, views.overview(ctx, state["services"], actions.host_changes(),
                                       actions.relaxed_settings(), actions.cert_warnings(), None, "", wizard,
                                       sizing=_sizing()))
 
@@ -204,7 +204,7 @@ def get_page(h, sess, path, query):
     if _rest(path, "/changes/") in views.PENDING_PAGES:      # a page's Review and queue (1.8.6.5)
         return h.send(200, views.changes(ctx, actions.pending_page(_rest(path, "/changes/"))))
     if path == "/federation":
-        return h.send(200, views.federation(ctx, actions.federation_overview()))
+        return h.send(200, views.federation(ctx, note_kept(ctx, actions.federation_overview(), "federation", path)))
     if path == "/settings" or path == "/settings/export":
         return settings_page(h, sess, ctx, path, query)
     if path == "/settings/sign-in":
