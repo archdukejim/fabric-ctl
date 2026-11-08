@@ -1460,6 +1460,7 @@ function	fabricctl-agent|src/agent/handler.py|Handler.drain	11
 function	fabricctl-agent|src/agent/handler.py|Handler.log_message	2	
 function	fabricctl-agent|src/agent/handler.py|Handler.peer_uid	4	
 function	fabricctl-agent|src/agent/handler.py|Handler.reply	3	
+function	fabricctl-agent|src/agent/handler.py|Handler.unsupported	12	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.__init__	1	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.read	3	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.start	2	

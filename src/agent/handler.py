@@ -102,12 +102,14 @@ class Handler(BaseHTTPRequestHandler):
         return None
 
     def drain(self):
-        """Purpose: read the request's body before anything is answered, so a refusal sent first never closes the socket
-                 while the caller is still sending it: the caller would get a broken pipe instead of the refusal.
+        """Purpose: read the request's body, whatever its method, before anything is answered. A socket closed with
+                 bytes still unread makes the kernel reset it, so the caller gets "connection reset" instead of the
+                 answer; one closed while the caller is still sending gets a broken pipe. Either way it never sees
+                 the refusal or the result.
         Inputs:  none; reads the Content-Length header and self.rfile.
         Returns: None; self.raw is the body's bytes, or None when its length is not one (body says why).
         Fails:   never.
-        Feeds:   do_POST."""
+        Feeds:   do_GET, do_POST."""
         try:
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
@@ -149,6 +151,7 @@ class Handler(BaseHTTPRequestHandler):
         Returns: None; the answer is sent by dispatch.
         Fails:   as dispatch (errors become JSON replies).
         Feeds:   dispatch("GET")."""
+        self.drain()
         self.dispatch("GET")
 
     def do_POST(self):
@@ -159,6 +162,18 @@ class Handler(BaseHTTPRequestHandler):
         Feeds:   dispatch("POST")."""
         self.drain()
         self.dispatch("POST")
+
+    def unsupported(self):
+        """Purpose: any other method (PUT, DELETE, PATCH, OPTIONS): its body read first, as for GET and POST, then
+                 refused, so the refusal arrives instead of a reset connection.
+        Inputs:  none; the request is in self.headers / self.rfile.
+        Returns: None; replies 501 {"error": "unsupported method"}.
+        Fails:   never.
+        Feeds:   BaseHTTPRequestHandler, as do_PUT, do_DELETE, do_PATCH and do_OPTIONS (HEAD carries no body)."""
+        self.drain()
+        self.reply(501, {"error": "unsupported method"})
+
+    do_PUT = do_DELETE = do_PATCH = do_OPTIONS = unsupported
 
     def dispatch(self, method):
         """Purpose: route one /v1/ request to its route module and reply with the result as JSON.

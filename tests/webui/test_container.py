@@ -1134,6 +1134,14 @@ check("auditor token: may read zones", " 200 " in out, out)
 out = agent_call("POST", "/v1/dns-filter/fetch", "carol", AUDITOR_ROLES, {"name": "x"}, pause=0.5)
 check("a refused POST whose body comes after its headers: the refusal arrives, never a broken pipe (403, dns:filter)",
       " 403 " in out and "dns:filter" in out and "Broken" not in out and "Error" not in out, out)
+out = agent_call("GET", "/v1/host-groups", "carol", bundle_roles("fabric-pki-operator"), pause=0.5)
+check("a refused GET that declares a body: it is read before the refusal, so it arrives (403, domain:read)",
+      " 403 " in out and "domain:read" in out and "Broken" not in out and "Error" not in out, out)
+out = agent_call("GET", "/v1/zones", "alice", AUDITOR_ROLES, pause=0.5)
+check("...and an answered GET likewise (200)", " 200 " in out and "Error" not in out, out)
+out = agent_call("DELETE", "/v1/zones", "alice", AUDITOR_ROLES, pause=0.5)
+check("...and any other method: its body read, then refused (501, unsupported method)",
+      " 501 " in out and "unsupported method" in out and "Error" not in out, out)
 out = agent_call("POST", "/v1/zones/dynamic_zone_var/records", "carol", AUDITOR_ROLES,
                  {"actor": "carol", "type": "A", "name": "nope", "ip": "192.168.7.9"})
 # covers: agent:post.zones.*.records -
