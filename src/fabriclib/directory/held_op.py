@@ -12,7 +12,7 @@ import time
 
 from fabriclib.common.errors import ValidationError
 
-MAX_HELD = 2
+MAX_HELD = 2        # set for this host at fabric-agent's start (manual 1.8.9.3)
 _lock = threading.Condition()
 _idle = {}          # container -> [processes free]
 _count = {}         # container -> how many are running or lent
@@ -27,6 +27,18 @@ def enable():
     Feeds:   agent/server main."""
     global _enabled
     _enabled = True
+
+
+def set_limit(number):
+    """Purpose: how many held processes this host may keep in the DC (manual 1.8.9.3).
+    Inputs:  number — int, at least 1.
+    Returns: None.
+    Fails:   never.
+    Feeds:   agent/kept_store.start_kept."""
+    global MAX_HELD
+    with _lock:
+        MAX_HELD = number
+        _lock.notify_all()
 
 
 def enabled():

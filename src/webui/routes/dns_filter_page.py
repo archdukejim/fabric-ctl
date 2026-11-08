@@ -1,6 +1,7 @@
 from webui import agentclient as actions
 from webui import views
 from webui.views.constants import DNS_FILTER_SECTIONS
+from webui.routes.note_kept import note_kept
 
 
 def dns_filter_page(h, ctx, query):
@@ -18,7 +19,7 @@ def dns_filter_page(h, ctx, query):
     ids = [s for s, _ in DNS_FILTER_SECTIONS]
     section = query.get("view") if query.get("view") in ids else "overview"
     try:
-        overview = actions.dns_filter_overview()
+        overview = note_kept(ctx, actions.dns_filter_overview(), "dns-filter", "/dns-filter")
     except actions.PermissionDenied:
         overview = None
         if section != "querylog":             # with dns:querylog only: the one section it can show

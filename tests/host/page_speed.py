@@ -6,7 +6,8 @@ each through a new TLS connection, as a browser's new navigation might, and prin
     sudo python3 page_speed.py <vars.yaml> <user> <password-file> [--rounds N] [--json out.json]
 
 Prints one line per page: its status, the median and the best of its server time (request sent to the whole body read,
-which on the host itself is the server's time). The password is read from a 0600 file and never printed."""
+which on the host itself is the server's time), after one load not counted. With --budget it fails on a median over
+100 ms, /secrets apart (decision 2.1.8.43), the Overview's reminders kept like the rest (2.1.8.48). The password is read from a 0600 file and never printed."""
 import argparse
 import html
 import http.client
@@ -31,7 +32,8 @@ PAGES = ["/", "/overview/doctor", "/overview/updates", "/audit", "/dns/zones", "
          "/8021x/decisions", "/8021x/guides", "/secrets", "/federation", "/settings", "/account", "/account/groups"]
 
 
-BUDGET_MS = 924        # decision 2.1.8.35: the slowest page's measured best on the test Pi (739 ms), plus a quarter
+BUDGET_MS = 100        # decision 2.1.8.43: each page's median on the test Pi's 5-person install
+OUTSIDE = {"/secrets"}  # decision 2.1.8.43: its reads of OpenBao stay live, a best effort
 
 
 class Browser:
@@ -111,7 +113,7 @@ def main():
     ap.add_argument("--rounds", type=int, default=3)
     ap.add_argument("--json", default="")
     ap.add_argument("--pages", default="", help="a comma-separated list instead of every page")
-    ap.add_argument("--budget", action="store_true", help="fail when a page's best is over BUDGET_MS (2.1.8.35)")
+    ap.add_argument("--budget", action="store_true", help="fail when a page's median is over BUDGET_MS (2.1.8.43)")
     args = ap.parse_args()
     v = yaml.safe_load(open(args.vars))
     ca = f"{v['deploy_base_dir']}/stepca/data/certs/root_ca.crt"
@@ -124,6 +126,7 @@ def main():
     out = {}
     for page in pages:
         path = page.replace("{user}", args.user)
+        b.go("GET", f"https://{v['hostname_mgr']}{path}")       # a first load may be read live, or redirect once (1.8.9.2)
         times, status = [], 0
         for _ in range(args.rounds):
             status, _, _, took = b.go("GET", f"https://{v['hostname_mgr']}{path}")
@@ -134,7 +137,7 @@ def main():
     if args.json:
         with open(args.json, "w") as f:
             json.dump(out, f)
-    over = [p for p, r in out.items() if r["best_ms"] > BUDGET_MS or r["status"] != 200]
+    over = [p for p, r in out.items() if r["status"] != 200 or (r["median_ms"] > BUDGET_MS and p not in OUTSIDE)]
     if args.budget and over:
         print(f"over the budget of {BUDGET_MS} ms, or not answered: {over}")
         return 1

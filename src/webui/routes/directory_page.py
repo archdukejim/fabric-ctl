@@ -1,5 +1,6 @@
 from webui import agentclient as actions
 from webui import views
+from webui.routes.note_kept import note_kept
 
 
 def directory_page(h, ctx):
@@ -10,6 +11,7 @@ def directory_page(h, ctx):
     Feeds:   get_page (/directory).
     """
     try:
-        return h.send(200, views.directory(ctx, overview=actions.directory_overview()))
+        return h.send(200, views.directory(ctx, overview=note_kept(ctx, actions.directory_overview(), "directory",
+                                                                    "/directory")))
     except (actions.AgentError, actions.ValidationError) as exc:
         return h.send(200, views.directory(ctx, unavailable=str(exc)))

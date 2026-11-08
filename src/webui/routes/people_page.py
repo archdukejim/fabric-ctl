@@ -3,6 +3,7 @@ import urllib.parse
 from webui import agentclient as actions
 from webui import views
 from webui.routes.places_for import places_for
+from webui.routes.note_kept import note_kept
 
 
 def people_page(h, ctx, path, query):
@@ -40,7 +41,7 @@ def people_page(h, ctx, path, query):
     grants = {"grants": [], "never": "", "error": ""}       # the grants that reach them (1.6.13.7), with domain:read
     if "domain:read" in (ctx.get("perms") or ()):
         try:
-            grants.update(actions.explain_grants(uid))
+            grants.update(note_kept(ctx, actions.explain_grants(uid), f"domain/grants/explain/{uid}", path))
         except (actions.AgentError, actions.ValidationError) as exc:
             grants["error"] = str(exc)
     else:
