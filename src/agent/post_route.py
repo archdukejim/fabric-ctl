@@ -11,6 +11,7 @@ from agent.post_local_admin import post_local_admin
 from agent.post_dns import post_dns
 from agent.post_dns_filter import post_dns_filter
 from agent.post_groups import post_groups
+from agent.post_kept import post_kept
 from agent.post_network import post_network
 from agent.post_networks import post_networks
 from agent.post_options import post_options
@@ -51,7 +52,7 @@ def post_route(route, actor, data, perms, session=None):
              (1.10.4.36); ipam/sync: post_ipam_sync's (Sync now, 1.10.4.28); ipam/options, classes, option-defs,
              netboot: post_options' (1.10.4.24.6); settings/plan,
              settings/apply, settings/dismiss: post_settings' result (the setup wizard, 1.8.5). sizing/dismiss:
-             post_sizing's.
+             post_sizing's. kept/refresh: post_kept's (1.8.9.4).
     Fails:   ValidationError (-> 400) for an unsupported event or what fabriclib refuses; RouteNotFound (-> 404).
     Feeds:   agent/handler.py (dispatch).
     Notes:   POST apply only needs dns:write (rbac/required_permission), though it runs the whole deployment."""
@@ -106,6 +107,8 @@ def post_route(route, actor, data, perms, session=None):
     owner = actor if perms is not None else None    # a job is read by whoever started it (root: any)
     if area == ["settings"]:                        # the setup wizard (1.8.5): a plan, its apply as a job
         return post_settings(route, actor, data, owner)
+    if route == ["kept", "refresh"]:                # a page's Refresh (1.8.9.4)
+        return post_kept(data, perms, caller)
     if route == ["sizing", "dismiss"]:              # the person's own (1.8.8.8, 2.1.8.39)
         return post_sizing(actor, data)
     if route == ["jobs", "doctor"]:              # doctor's checks take seconds to a minute: a job the page follows

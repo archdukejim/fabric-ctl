@@ -1,10 +1,14 @@
 # fabric: numbers of the function reference (manual 1.17.1.2). Written by gen_lib_doc.py; never edit.
+file	fabricctl-agent|src/agent/apply_filter_now.py	48	
+file	fabricctl-agent|src/agent/change_dns_filter.py	49	
 file	fabricctl-agent|src/agent/get_route.py	1	
 file	fabricctl-agent|src/agent/handler.py	2	
 file	fabricctl-agent|src/agent/job_store.py	16	
+file	fabricctl-agent|src/agent/kept_store.py	46	
 file	fabricctl-agent|src/agent/landing_note.py	37	
 file	fabricctl-agent|src/agent/one_thing.py	35	
 file	fabricctl-agent|src/agent/pending_dns.py	41	
+file	fabricctl-agent|src/agent/pending_filter.py	50	
 file	fabricctl-agent|src/agent/pending_networks.py	42	
 file	fabricctl-agent|src/agent/pending_store.py	36	
 file	fabricctl-agent|src/agent/pending_thing.py	33	
@@ -20,6 +24,7 @@ file	fabricctl-agent|src/agent/post_groups.py	29
 file	fabricctl-agent|src/agent/post_host_access.py	18	
 file	fabricctl-agent|src/agent/post_ipam_scan.py	43	
 file	fabricctl-agent|src/agent/post_ipam_sync.py	38	
+file	fabricctl-agent|src/agent/post_kept.py	47	
 file	fabricctl-agent|src/agent/post_local_admin.py	32	
 file	fabricctl-agent|src/agent/post_network.py	6	
 file	fabricctl-agent|src/agent/post_networks.py	39	
@@ -423,7 +428,9 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/filter_zones.py	4
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_id.py	44	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_memory.py	45	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_zone.py	5	
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/lists_version.py	55	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py	46	0.7.0 / 2026-10-12
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/own_clients.py	54	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/parse_upstreams.py	50	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/query_log_off.py	52	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/read_dnslog.py	53	
@@ -439,6 +446,7 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/dns_filter_stats.py	15
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/ensure_dnslog_db.py	16	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/expand_group_clients.py	38	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/fetch_catalogue.py	22	
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_lists.py	56	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py	17	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/flush_published_names.py	51	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py	13	0.8.0 / 2026-10-20
@@ -453,6 +461,7 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/resolver_views.py	34
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/run_dns_filter_command.py	10	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_group.py	35	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_list.py	48	
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_lists.py	57	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_upstreams.py	26	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/set_safe_search.py	36	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/show_filter_status.py	11	
@@ -890,6 +899,8 @@ file	fabriclib-radius|src/fabriclib/radius/windows_lan_profile.py	13
 file	fabriclib-radius|src/fabriclib/radius/windows_setup_script.py	14	
 file	fabriclib-rbac|src/fabriclib/rbac/required_permission.py	1	
 file	fabriclib-rbac|src/fabriclib/rbac/user_permissions.py	2	
+file	fabriclib-readcache|src/fabriclib/readcache/host_rules.py	1	
+file	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py	2	
 file	fabriclib-samba|src/fabriclib/samba/allow_rodc_cache.py	33	
 file	fabriclib-samba|src/fabriclib/samba/check_kerberos_policy.py	45	
 file	fabriclib-samba|src/fabriclib/samba/check_logon_policies.py	28	0.7.2 / 2026-10-19
@@ -1076,6 +1087,48 @@ file	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py	29
 file	fabriclib-setup|src/fabriclib/setup/set_ram_capacity.py	47	
 file	fabriclib-setup|src/fabriclib/setup/setup_local_admin.py	105	
 file	fabriclib-setup|src/fabriclib/setup/setup_openbao.py	30	
+file	fabriclib-setup|src/fabriclib/setup/site/attach_server.py	149	
+file	fabriclib-setup|src/fabriclib/setup/site/attach_site.py	150	
+file	fabriclib-setup|src/fabriclib/setup/site/certificate_fingerprint.py	110	
+file	fabriclib-setup|src/fabriclib/setup/site/check_console.py	111	
+file	fabriclib-setup|src/fabriclib/setup/site/close_site_port.py	112	
+file	fabriclib-setup|src/fabriclib/setup/site/finish_data.py	113	
+file	fabriclib-setup|src/fabriclib/setup/site/finish_guides.py	114	
+file	fabriclib-setup|src/fabriclib/setup/site/guided_site.py	115	
+file	fabriclib-setup|src/fabriclib/setup/site/host_addresses.py	116	
+file	fabriclib-setup|src/fabriclib/setup/site/keep_site_port.py	117	
+file	fabriclib-setup|src/fabriclib/setup/site/listener/build_tls.py	118	
+file	fabriclib-setup|src/fabriclib/setup/site/listener/check_verdict.py	119	
+file	fabriclib-setup|src/fabriclib/setup/site/listener/control_link.py	120	
+file	fabriclib-setup|src/fabriclib/setup/site/listener/finish_html.py	121	
+file	fabriclib-setup|src/fabriclib/setup/site/listener/notes_html.py	122	
+file	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py	123	
+file	fabriclib-setup|src/fabriclib/setup/site/listener/render_page.py	124	
+file	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py	125	
+file	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py	126	
+file	fabriclib-setup|src/fabriclib/setup/site/listener/site_main.py	127	
+file	fabriclib-setup|src/fabriclib/setup/site/listener/site_server.py	128	
+file	fabriclib-setup|src/fabriclib/setup/site/listener/site_state.py	129	
+file	fabriclib-setup|src/fabriclib/setup/site/listener_link.py	130	
+file	fabriclib-setup|src/fabriclib/setup/site/make_certificate.py	131	
+file	fabriclib-setup|src/fabriclib/setup/site/mint_site_cert.py	132	
+file	fabriclib-setup|src/fabriclib/setup/site/new_code.py	133	
+file	fabriclib-setup|src/fabriclib/setup/site/open_site_port.py	134	
+file	fabriclib-setup|src/fabriclib/setup/site/pick_port.py	135	
+file	fabriclib-setup|src/fabriclib/setup/site/port_holder.py	136	
+file	fabriclib-setup|src/fabriclib/setup/site/print_site_start.py	137	
+file	fabriclib-setup|src/fabriclib/setup/site/question_view.py	138	
+file	fabriclib-setup|src/fabriclib/setup/site/read_port_record.py	139	
+file	fabriclib-setup|src/fabriclib/setup/site/read_site_files.py	140	
+file	fabriclib-setup|src/fabriclib/setup/site/restore_snapshot.py	141	
+file	fabriclib-setup|src/fabriclib/setup/site/session_keeper.py	142	
+file	fabriclib-setup|src/fabriclib/setup/site/site_account.py	151	
+file	fabriclib-setup|src/fabriclib/setup/site/site_rule.py	143	
+file	fabriclib-setup|src/fabriclib/setup/site/site_wanted.py	144	
+file	fabriclib-setup|src/fabriclib/setup/site/start_listener.py	145	
+file	fabriclib-setup|src/fabriclib/setup/site/take_snapshot.py	146	
+file	fabriclib-setup|src/fabriclib/setup/site/tee_log.py	147	
+file	fabriclib-setup|src/fabriclib/setup/site/write_port_record.py	148	
 file	fabriclib-setup|src/fabriclib/setup/stage_source.py	31	
 file	fabriclib-setup|src/fabriclib/setup/start_bootstrap.py	32	
 file	fabriclib-setup|src/fabriclib/setup/start_services.py	33	
@@ -1199,6 +1252,7 @@ file	webui|src/webui/agentclient/host_reminders.py	201
 file	webui|src/webui/agentclient/image_rows.py	140	
 file	webui|src/webui/agentclient/inspect_pem.py	21	
 file	webui|src/webui/agentclient/issue_key_pair.py	22	
+file	webui|src/webui/agentclient/kept_refresh.py	301	
 file	webui|src/webui/agentclient/kerberos_overview.py	261	
 file	webui|src/webui/agentclient/kerberos_overview.py (gone 0.8.0 / 2026-10-23)	254	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/link_device_cert.py	23	0.8.0 / 2026-10-23
@@ -1225,6 +1279,7 @@ file	webui|src/webui/agentclient/my_groups.py	220
 file	webui|src/webui/agentclient/networks_export.py	292	
 file	webui|src/webui/agentclient/networks_overview.py	293	
 file	webui|src/webui/agentclient/option_sets.py	276	
+file	webui|src/webui/agentclient/overview_read.py	302	
 file	webui|src/webui/agentclient/pending_action.py	212	
 file	webui|src/webui/agentclient/pending_counts.py	213	
 file	webui|src/webui/agentclient/pending_page.py	214	
@@ -1277,6 +1332,7 @@ file	webui|src/webui/agentclient/sync_now.py	280
 file	webui|src/webui/agentclient/unmap_radius_group.py	46	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/unset_option.py	47	
 file	webui|src/webui/agentclient/update_subnet.py	48	
+file	webui|src/webui/agentclient/updates_read.py	303	
 file	webui|src/webui/agentclient/vault_add_kmip.py	49	
 file	webui|src/webui/agentclient/vault_add_security_key.py	50	
 file	webui|src/webui/agentclient/vault_add_usb.py	51	
@@ -1341,6 +1397,7 @@ file	webui|src/webui/routes/get_page.py	80
 file	webui|src/webui/routes/groups_page.py	233	
 file	webui|src/webui/routes/held.py	224	
 file	webui|src/webui/routes/kea_post.py	81	
+file	webui|src/webui/routes/kept_post.py	304	
 file	webui|src/webui/routes/kerberos_page.py	263	
 file	webui|src/webui/routes/kerberos_page.py (gone 0.8.0 / 2026-10-23)	257	0.8.0 / 2026-10-23
 file	webui|src/webui/routes/landing_post.py	187	
@@ -1349,6 +1406,7 @@ file	webui|src/webui/routes/networks_page.py	282
 file	webui|src/webui/routes/networks_post.py	283	
 file	webui|src/webui/routes/networks_scan_page.py	284	
 file	webui|src/webui/routes/networks_scan_post.py	285	
+file	webui|src/webui/routes/note_kept.py	305	
 file	webui|src/webui/routes/openbao_page.py	82	
 file	webui|src/webui/routes/options_page.py	286	
 file	webui|src/webui/routes/options_post.py	287	
@@ -1433,8 +1491,15 @@ file	webui|src/webui/views/sites.py	260
 file	webui|src/webui/views/stepca.py	118	
 file	webui|src/webui/views/tree.py	298	
 file	webui|src/webui/views/tsig_result.py	119	
+function	fabricctl-agent|src/agent/apply_filter_now.py|apply_filter_now	1	
+function	fabricctl-agent|src/agent/change_dns_filter.py|_on	1	
+function	fabricctl-agent|src/agent/change_dns_filter.py|change_dns_filter	2	
+function	fabricctl-agent|src/agent/get_route.py|_kept	5	
+function	fabricctl-agent|src/agent/get_route.py|_overview	3	
 function	fabricctl-agent|src/agent/get_route.py|_pending	2	
+function	fabricctl-agent|src/agent/get_route.py|_reminders_stale	6	
 function	fabricctl-agent|src/agent/get_route.py|get_route	1	
+function	fabricctl-agent|src/agent/get_route.py|keep_fixed_pages	4	
 function	fabricctl-agent|src/agent/handler.py|Handler.actor	7	
 function	fabricctl-agent|src/agent/handler.py|Handler.address_string	1	
 function	fabricctl-agent|src/agent/handler.py|Handler.authorize	5	
@@ -1442,16 +1507,29 @@ function	fabricctl-agent|src/agent/handler.py|Handler.body	6
 function	fabricctl-agent|src/agent/handler.py|Handler.dispatch	10	
 function	fabricctl-agent|src/agent/handler.py|Handler.do_GET	8	
 function	fabricctl-agent|src/agent/handler.py|Handler.do_POST	9	
+function	fabricctl-agent|src/agent/handler.py|Handler.drain	11	
 function	fabricctl-agent|src/agent/handler.py|Handler.log_message	2	
 function	fabricctl-agent|src/agent/handler.py|Handler.peer_uid	4	
 function	fabricctl-agent|src/agent/handler.py|Handler.reply	3	
+function	fabricctl-agent|src/agent/handler.py|Handler.unsupported	12	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.__init__	1	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.read	3	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.start	2	
+function	fabricctl-agent|src/agent/kept_store.py|start_kept	2	
+function	fabricctl-agent|src/agent/kept_store.py|started	1	
 function	fabricctl-agent|src/agent/landing_note.py|landing_note	1	
 function	fabricctl-agent|src/agent/one_thing.py|one_thing	1	
 function	fabricctl-agent|src/agent/pending_dns.py|_zone	1	
 function	fabricctl-agent|src/agent/pending_dns.py|describe_dns	2	
+function	fabricctl-agent|src/agent/pending_filter.py|_group	2	
+function	fabricctl-agent|src/agent/pending_filter.py|_names	3	
+function	fabricctl-agent|src/agent/pending_filter.py|describe_filter	4	
+function	fabricctl-agent|src/agent/pending_filter.py|filter_check	7	
+function	fabricctl-agent|src/agent/pending_filter.py|filter_finish	9	
+function	fabricctl-agent|src/agent/pending_filter.py|filter_key	5	
+function	fabricctl-agent|src/agent/pending_filter.py|filter_page_of	1	
+function	fabricctl-agent|src/agent/pending_filter.py|filter_state	6	
+function	fabricctl-agent|src/agent/pending_filter.py|filter_ticks	8	
 function	fabricctl-agent|src/agent/pending_networks.py|_at	4	
 function	fabricctl-agent|src/agent/pending_networks.py|_describe_option	5	
 function	fabricctl-agent|src/agent/pending_networks.py|_this_site	2	
@@ -1497,7 +1575,7 @@ function	fabricctl-agent|src/agent/post_dhcp.py|post_dhcp	3
 function	fabricctl-agent|src/agent/post_directory.py|post_directory	1	
 function	fabricctl-agent|src/agent/post_dns.py|_published	2	
 function	fabricctl-agent|src/agent/post_dns.py|post_dns	1	
-function	fabricctl-agent|src/agent/post_dns_filter.py|_on	2	
+function	fabricctl-agent|src/agent/post_dns_filter.py|_on	2	0.9.5 / 2026-11-07
 function	fabricctl-agent|src/agent/post_dns_filter.py|post_dns_filter	1	
 function	fabricctl-agent|src/agent/post_domain.py|post_domain	1	
 function	fabricctl-agent|src/agent/post_grants.py|post_grants	1	
@@ -1505,6 +1583,7 @@ function	fabricctl-agent|src/agent/post_groups.py|post_groups	1
 function	fabricctl-agent|src/agent/post_host_access.py|post_host_access	1	
 function	fabricctl-agent|src/agent/post_ipam_scan.py|post_ipam_scan	1	
 function	fabricctl-agent|src/agent/post_ipam_sync.py|post_ipam_sync	1	
+function	fabricctl-agent|src/agent/post_kept.py|post_kept	1	
 function	fabricctl-agent|src/agent/post_local_admin.py|post_local_admin	1	
 function	fabricctl-agent|src/agent/post_network.py|post_network	1	
 function	fabricctl-agent|src/agent/post_networks.py|_change	4	
@@ -1971,9 +2050,11 @@ function	fabriclib-breakglass|src/fabriclib/breakglass/run_admin_command.py|run_
 function	fabriclib-breakglass|src/fabriclib/breakglass/write_break_glass_file.py|write_break_glass_file	1	
 function	fabriclib-common|src/fabriclib/common/apply_intent.py|apply_intent	1	
 function	fabriclib-common|src/fabriclib/common/ask.py|_check	1	
+function	fabriclib-common|src/fabriclib/common/ask.py|_read	6	
 function	fabriclib-common|src/fabriclib/common/ask.py|ask	2	
 function	fabriclib-common|src/fabriclib/common/ask.py|ask_secret	3	
 function	fabriclib-common|src/fabriclib/common/ask.py|ask_yes_no	4	
+function	fabriclib-common|src/fabriclib/common/ask.py|use_front_end	5	
 function	fabriclib-common|src/fabriclib/common/console.py|err	5	
 function	fabriclib-common|src/fabriclib/common/console.py|heading	1	
 function	fabriclib-common|src/fabriclib/common/console.py|info	2	
@@ -2200,6 +2281,7 @@ function	fabriclib-directory|src/fabriclib/directory/held_op.py|enable	1
 function	fabriclib-directory|src/fabriclib/directory/held_op.py|enabled	2	
 function	fabriclib-directory|src/fabriclib/directory/held_op.py|forget	9	
 function	fabriclib-directory|src/fabriclib/directory/held_op.py|send	10	
+function	fabriclib-directory|src/fabriclib/directory/held_op.py|set_limit	11	
 function	fabriclib-directory|src/fabriclib/directory/link_device_cert.py|link_device_cert	1	
 function	fabriclib-directory|src/fabriclib/directory/list_devices.py|list_devices	1	
 function	fabriclib-directory|src/fabriclib/directory/list_host_groups.py|list_host_groups	1	
@@ -2256,7 +2338,9 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/filter_zones.py|fi
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_id.py|list_id	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_memory.py|list_memory	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_zone.py|list_zone	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/lists_version.py|lists_version	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py|mem_mb	1	0.7.0 / 2026-10-12
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/own_clients.py|own_clients	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/parse_upstreams.py|parse_upstreams	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/query_log_off.py|query_log_off	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/read_dnslog.py|read_dnslog	1	
@@ -2284,8 +2368,10 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/dns_filter_stats.py|dns_f
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/ensure_dnslog_db.py|ensure_dnslog_db	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/expand_group_clients.py|expand_group_clients	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/fetch_catalogue.py|fetch_catalogue	1	
-function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|_lists	3	
-function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|_read	2	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_lists.py|_read	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_lists.py|filter_lists	2	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|_lists	3	0.9.5 / 2026-11-07
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|_read	2	0.9.5 / 2026-11-07
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|filter_overview	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/flush_published_names.py|_why	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/flush_published_names.py|flush_published_names	2	
@@ -2316,6 +2402,9 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/run_dns_filter_command.py
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/run_dns_filter_command.py|run_dns_filter_command	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_group.py|set_filter_group	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_list.py|set_filter_list	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_lists.py|_entries	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_lists.py|_estimates	2	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_lists.py|set_filter_lists	3	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_upstreams.py|set_filter_upstreams	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/set_safe_search.py|set_safe_search	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/show_filter_status.py|_age	1	
@@ -2959,6 +3048,29 @@ function	fabriclib-radius|src/fabriclib/radius/windows_lan_profile.py|windows_la
 function	fabriclib-radius|src/fabriclib/radius/windows_setup_script.py|windows_setup_script	1	
 function	fabriclib-rbac|src/fabriclib/rbac/required_permission.py|required_permission	1	
 function	fabriclib-rbac|src/fabriclib/rbac/user_permissions.py|user_permissions	1	
+function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|held_limit	4	
+function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|host_class	1	
+function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|pressure_reason	6	
+function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|psi_some_avg60	5	
+function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|refresh_interval	2	
+function	fabriclib-readcache|src/fabriclib/readcache/host_rules.py|under_pressure	3	0.9.3 / 2026-11-07
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.__init__	4	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads._answer	7	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads._due	10	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads._refresh	11	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.configure	5	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.invalidate	9	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.next_wait	13	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.refresh_all	12	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.refresh_now	15	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.register	6	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.run	14	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|KeptReads.serve	8	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|_Entry.__init__	1	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|_why_bad	2	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|pressure_source	17	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|read_pressure	3	
+function	fabriclib-readcache|src/fabriclib/readcache/kept_reads.py|read_psi	16	
 function	fabriclib-samba|src/fabriclib/samba/allow_rodc_cache.py|allow_rodc_cache	1	
 function	fabriclib-samba|src/fabriclib/samba/check_kerberos_policy.py|check_kerberos_policy	1	
 function	fabriclib-samba|src/fabriclib/samba/check_logon_policies.py|_groups	1	0.7.2 / 2026-10-19
@@ -3314,6 +3426,134 @@ function	fabriclib-setup|src/fabriclib/setup/set_ram_capacity.py|set_ram_capacit
 function	fabriclib-setup|src/fabriclib/setup/setup_local_admin.py|run	1	
 function	fabriclib-setup|src/fabriclib/setup/setup_openbao.py|_save_recovery	1	
 function	fabriclib-setup|src/fabriclib/setup/setup_openbao.py|run	2	
+function	fabriclib-setup|src/fabriclib/setup/site/attach_server.py|AttachServer.__init__	1	
+function	fabriclib-setup|src/fabriclib/setup/site/attach_server.py|AttachServer._accept	3	
+function	fabriclib-setup|src/fabriclib/setup/site/attach_server.py|AttachServer._send	4	
+function	fabriclib-setup|src/fabriclib/setup/site/attach_server.py|AttachServer.close	6	
+function	fabriclib-setup|src/fabriclib/setup/site/attach_server.py|AttachServer.open	2	
+function	fabriclib-setup|src/fabriclib/setup/site/attach_server.py|AttachServer.say	5	
+function	fabriclib-setup|src/fabriclib/setup/site/attach_site.py|attach_site	1	
+function	fabriclib-setup|src/fabriclib/setup/site/certificate_fingerprint.py|certificate_fingerprint	1	
+function	fabriclib-setup|src/fabriclib/setup/site/check_console.py|check_console	1	
+function	fabriclib-setup|src/fabriclib/setup/site/close_site_port.py|close_site_port	1	
+function	fabriclib-setup|src/fabriclib/setup/site/finish_data.py|finish_data	1	
+function	fabriclib-setup|src/fabriclib/setup/site/finish_guides.py|_filled	1	
+function	fabriclib-setup|src/fabriclib/setup/site/finish_guides.py|finish_guides	2	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite.__init__	1	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._close_page	18	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._finish_stage	15	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._greeting	21	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._hang_up	3	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._judge_code	9	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._move_to_new_certificate	16	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._on_message	8	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._phase	13	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._session	22	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._site_lost	20	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._start	5	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._wait_answer	11	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._wait_for_finish	17	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite._watch_session	23	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite.ask	10	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite.close	19	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite.follow	14	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite.keep_log	7	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite.open	2	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite.proceeding	12	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite.process	4	
+function	fabriclib-setup|src/fabriclib/setup/site/guided_site.py|GuidedSite.say	6	
+function	fabriclib-setup|src/fabriclib/setup/site/host_addresses.py|host_addresses	1	
+function	fabriclib-setup|src/fabriclib/setup/site/keep_site_port.py|keep_site_port	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/build_tls.py|_note_name	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/build_tls.py|build_tls	2	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/check_verdict.py|check_verdict	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/control_link.py|ControlLink.__init__	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/control_link.py|ControlLink.read_hello	2	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/control_link.py|ControlLink.request	4	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/control_link.py|ControlLink.run	5	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/control_link.py|ControlLink.send	3	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/finish_html.py|_guide	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/finish_html.py|finish_html	2	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/notes_html.py|notes_html	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_field	2	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_finish	4	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_log_text	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_question	3	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|page_for	5	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/render_page.py|_steps	3	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/render_page.py|escape	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/render_page.py|fill	2	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/render_page.py|render_page	4	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py|RequestBase._cookie	13	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py|RequestBase._dispatch	4	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py|RequestBase._ended	14	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py|RequestBase._form	11	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py|RequestBase._headers	5	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py|RequestBase._origin_ok	9	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py|RequestBase._refuse	8	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py|RequestBase._see	7	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py|RequestBase._send	6	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py|RequestBase._session_form	12	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py|RequestBase._signed_in	10	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py|RequestBase.do_GET	2	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py|RequestBase.do_POST	3	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py|RequestBase.log_message	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._answer	5	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._cancel	6	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._check	11	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._check_result	12	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._code	4	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._code_page	13	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._events	10	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._finish	7	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._home	3	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._note_activity	2	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._root_ca	9	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._static	8	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|_route	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/site_main.py|main	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/site_server.py|SiteServer.__init__	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/site_server.py|SiteServer.get_request	2	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/site_server.py|SiteServer.handle_error	5	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/site_server.py|SiteServer.process_request_thread	4	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/site_server.py|SiteServer.verify_request	3	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/site_state.py|SiteState.__init__	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/site_state.py|SiteState.add_log	2	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/site_state.py|SiteState.apply	3	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/site_state.py|SiteState.name_seen	6	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/site_state.py|SiteState.saw_name	5	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/site_state.py|SiteState.working	4	
+function	fabriclib-setup|src/fabriclib/setup/site/listener_link.py|ListenerLink.__init__	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener_link.py|ListenerLink._pump	4	
+function	fabriclib-setup|src/fabriclib/setup/site/listener_link.py|ListenerLink.send	3	
+function	fabriclib-setup|src/fabriclib/setup/site/listener_link.py|ListenerLink.start	2	
+function	fabriclib-setup|src/fabriclib/setup/site/listener_link.py|ListenerLink.stop	5	
+function	fabriclib-setup|src/fabriclib/setup/site/make_certificate.py|make_certificate	1	
+function	fabriclib-setup|src/fabriclib/setup/site/mint_site_cert.py|mint_site_cert	1	
+function	fabriclib-setup|src/fabriclib/setup/site/new_code.py|new_code	1	
+function	fabriclib-setup|src/fabriclib/setup/site/open_site_port.py|open_site_port	1	
+function	fabriclib-setup|src/fabriclib/setup/site/pick_port.py|pick_port	1	
+function	fabriclib-setup|src/fabriclib/setup/site/port_holder.py|port_holder	1	
+function	fabriclib-setup|src/fabriclib/setup/site/print_site_start.py|print_site_start	1	
+function	fabriclib-setup|src/fabriclib/setup/site/question_view.py|question_view	1	
+function	fabriclib-setup|src/fabriclib/setup/site/read_port_record.py|read_port_record	1	
+function	fabriclib-setup|src/fabriclib/setup/site/read_site_files.py|read_site_files	1	
+function	fabriclib-setup|src/fabriclib/setup/site/restore_snapshot.py|restore_snapshot	1	
+function	fabriclib-setup|src/fabriclib/setup/site/session_keeper.py|SessionKeeper.__init__	1	
+function	fabriclib-setup|src/fabriclib/setup/site/session_keeper.py|SessionKeeper._open	6	
+function	fabriclib-setup|src/fabriclib/setup/site/session_keeper.py|SessionKeeper.expired	7	
+function	fabriclib-setup|src/fabriclib/setup/site/session_keeper.py|SessionKeeper.forget	4	
+function	fabriclib-setup|src/fabriclib/setup/site/session_keeper.py|SessionKeeper.judge	2	
+function	fabriclib-setup|src/fabriclib/setup/site/session_keeper.py|SessionKeeper.noted	3	
+function	fabriclib-setup|src/fabriclib/setup/site/session_keeper.py|SessionKeeper.take_over	5	
+function	fabriclib-setup|src/fabriclib/setup/site/site_account.py|site_account	1	
+function	fabriclib-setup|src/fabriclib/setup/site/site_rule.py|site_rule	1	
+function	fabriclib-setup|src/fabriclib/setup/site/site_wanted.py|site_wanted	1	
+function	fabriclib-setup|src/fabriclib/setup/site/start_listener.py|start_listener	1	
+function	fabriclib-setup|src/fabriclib/setup/site/take_snapshot.py|take_snapshot	1	
+function	fabriclib-setup|src/fabriclib/setup/site/tee_log.py|TeeLog.__init__	1	
+function	fabriclib-setup|src/fabriclib/setup/site/tee_log.py|TeeLog.write	2	
+function	fabriclib-setup|src/fabriclib/setup/site/write_port_record.py|write_port_record	1	
 function	fabriclib-setup|src/fabriclib/setup/stage_source.py|stage_source	1	
 function	fabriclib-setup|src/fabriclib/setup/start_bootstrap.py|run	1	
 function	fabriclib-setup|src/fabriclib/setup/start_services.py|run	1	
@@ -3513,6 +3753,7 @@ function	webui|src/webui/agentclient/host_reminders.py|host_reminders	1
 function	webui|src/webui/agentclient/image_rows.py|image_rows	1	
 function	webui|src/webui/agentclient/inspect_pem.py|inspect_pem	1	
 function	webui|src/webui/agentclient/issue_key_pair.py|issue_key_pair	1	
+function	webui|src/webui/agentclient/kept_refresh.py|kept_refresh	1	
 function	webui|src/webui/agentclient/kerberos_overview.py|kerberos_overview	2	
 function	webui|src/webui/agentclient/kerberos_overview.py|kerberos_overview (gone 0.8.0 / 2026-10-23)	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/link_device_cert.py|link_device_cert	1	0.8.0 / 2026-10-23
@@ -3539,6 +3780,7 @@ function	webui|src/webui/agentclient/my_groups.py|my_groups	1
 function	webui|src/webui/agentclient/networks_export.py|networks_export	1	
 function	webui|src/webui/agentclient/networks_overview.py|networks_overview	1	
 function	webui|src/webui/agentclient/option_sets.py|option_sets	1	
+function	webui|src/webui/agentclient/overview_read.py|overview_read	1	
 function	webui|src/webui/agentclient/pending_action.py|pending_action	1	
 function	webui|src/webui/agentclient/pending_counts.py|pending_counts	1	
 function	webui|src/webui/agentclient/pending_page.py|pending_page	1	
@@ -3593,6 +3835,7 @@ function	webui|src/webui/agentclient/sync_now.py|sync_now	1
 function	webui|src/webui/agentclient/unmap_radius_group.py|unmap_radius_group	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/unset_option.py|unset_option	1	
 function	webui|src/webui/agentclient/update_subnet.py|update_subnet	1	
+function	webui|src/webui/agentclient/updates_read.py|updates_read	1	
 function	webui|src/webui/agentclient/vault_add_kmip.py|vault_add_kmip	1	
 function	webui|src/webui/agentclient/vault_add_security_key.py|vault_add_security_key	1	
 function	webui|src/webui/agentclient/vault_add_usb.py|vault_add_usb	1	
@@ -3697,6 +3940,7 @@ function	webui|src/webui/devpreview/fake_misc.py|_vault	3
 function	webui|src/webui/devpreview/fake_misc.py|fake_misc	4	
 function	webui|src/webui/devpreview/fake_network.py|_dhcp	2	
 function	webui|src/webui/devpreview/fake_network.py|_filter	4	
+function	webui|src/webui/devpreview/fake_network.py|_memory	6	
 function	webui|src/webui/devpreview/fake_network.py|_options	1	
 function	webui|src/webui/devpreview/fake_network.py|_radius	3	
 function	webui|src/webui/devpreview/fake_network.py|fake_network	5	
@@ -3706,6 +3950,8 @@ function	webui|src/webui/devpreview/fake_ous.py|_tree	1
 function	webui|src/webui/devpreview/fake_ous.py|fake_ous	4	
 function	webui|src/webui/devpreview/fake_ous.py|kinds_of	5	
 function	webui|src/webui/devpreview/fake_ous.py|place_in	6	
+function	webui|src/webui/devpreview/fake_pending.py|_check	7	
+function	webui|src/webui/devpreview/fake_pending.py|_filter_vars	6	
 function	webui|src/webui/devpreview/fake_pending.py|_find	1	
 function	webui|src/webui/devpreview/fake_pending.py|_finish	5	
 function	webui|src/webui/devpreview/fake_pending.py|_store	3	
@@ -3781,7 +4027,9 @@ function	webui|src/webui/routes/dirsrv_post.py|_device_fields	1	0.5.0 / 2026-10-
 function	webui|src/webui/routes/dirsrv_post.py|_role_fields	2	0.5.0 / 2026-10-05
 function	webui|src/webui/routes/dirsrv_post.py|dirsrv_post	3	0.5.0 / 2026-10-05
 function	webui|src/webui/routes/dns_filter_page.py|dns_filter_page	1	
-function	webui|src/webui/routes/dns_filter_post.py|_message	1	
+function	webui|src/webui/routes/dns_filter_post.py|_anchor	3	
+function	webui|src/webui/routes/dns_filter_post.py|_lists_apply	4	
+function	webui|src/webui/routes/dns_filter_post.py|_message	1	0.9.5 / 2026-11-07
 function	webui|src/webui/routes/dns_filter_post.py|dns_filter_post	2	
 function	webui|src/webui/routes/finish_setting_up.py|finish_setting_up	1	
 function	webui|src/webui/routes/get_page.py|_overview	2	
@@ -3795,6 +4043,7 @@ function	webui|src/webui/routes/kea_post.py|_kea	3
 function	webui|src/webui/routes/kea_post.py|_pools	1	
 function	webui|src/webui/routes/kea_post.py|_where	2	
 function	webui|src/webui/routes/kea_post.py|kea_post	4	
+function	webui|src/webui/routes/kept_post.py|kept_post	1	
 function	webui|src/webui/routes/kerberos_page.py|kerberos_page	2	
 function	webui|src/webui/routes/kerberos_page.py|kerberos_page (gone 0.8.0 / 2026-10-23)	1	0.8.0 / 2026-10-23
 function	webui|src/webui/routes/landing_post.py|landing_post	1	
@@ -3807,6 +4056,7 @@ function	webui|src/webui/routes/networks_post.py|networks_post	3
 function	webui|src/webui/routes/networks_scan_page.py|networks_scan_page	1	
 function	webui|src/webui/routes/networks_scan_post.py|_request	1	
 function	webui|src/webui/routes/networks_scan_post.py|networks_scan_post	2	
+function	webui|src/webui/routes/note_kept.py|note_kept	1	
 function	webui|src/webui/routes/openbao_page.py|openbao_page	1	
 function	webui|src/webui/routes/options_page.py|options_page	1	
 function	webui|src/webui/routes/options_post.py|_where	1	
@@ -3938,6 +4188,7 @@ page	fabriclib-ntp	18
 page	fabriclib-pki	19	
 page	fabriclib-radius	20	
 page	fabriclib-rbac	21	
+page	fabriclib-readcache	43	
 page	fabriclib-samba	30	
 page	fabriclib-secrets	22	
 page	fabriclib-security	23	

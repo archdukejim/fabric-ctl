@@ -56,6 +56,9 @@ from webui.agentclient.read_audit import read_audit  # noqa: F401
 from webui.agentclient.relaxed_settings import relaxed_settings  # noqa: F401
 from webui.agentclient.cert_warnings import cert_warnings  # noqa: F401
 from webui.agentclient.host_reminders import host_reminders  # noqa: F401
+from webui.agentclient.kept_refresh import kept_refresh  # noqa: F401
+from webui.agentclient.overview_read import overview_read  # noqa: F401
+from webui.agentclient.updates_read import updates_read  # noqa: F401
 from webui.agentclient.revoke_cert import revoke_cert  # noqa: F401
 from webui.agentclient.remove_client_class import remove_client_class  # noqa: F401
 from webui.agentclient.remove_reservation import remove_reservation  # noqa: F401

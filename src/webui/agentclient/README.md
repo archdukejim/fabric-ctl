@@ -11,6 +11,9 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `add_reservation.py` | Reserve an IP for a MAC; the agent saves it and applies at once (Kea reloads with it). Agent route: POST /v1/dhcp/reservations (dhcp:write), timeout 960 s. |
 | `set_dhcp_on.py` | Turn DHCP on or off; saved, applied, the host firewall brought in line |
 | `add_subnet.py` | Add a DHCP subnet (name, VLAN record, router, pools, notes); saved and applied |
+| `kept_refresh.py` | Read one page's kept data again now. Agent route: POST /v1/kept/refresh |
+| `overview_read.py` | The Overview's kept data. Agent route: GET /v1/overview |
+| `updates_read.py` | The Updates page's kept data. Agent route: GET /v1/updates |
 | `sizing.py` | The sizing advice as the Overview shows it, a person's dismissal, and the banner (asked once a minute per person, 1.8.8.8) |
 | `update_subnet.py` | Change a DHCP subnet's name, VLAN, router, notes or pools |
 | `remove_subnet.py` | Remove a DHCP subnet (refused with active leases unless forced) |

@@ -8,7 +8,7 @@ fabric, generated from where each kind is declared, into tests/entrypoints.yaml.
                                                    tests/entrypoints-gaps.txt (the ratchet, 2.1.1.46)
 
 IDs: cli:<command>[.<sub>], ask:<area>.<name>, agent:<get|post>.<segments>, web:<get|post>.<path segments>,
-join:<flag of join-linux.sh>, setting:<key>; a placeholder in a path is `*`.
+site:<get|post>.<path segments>, join:<flag of join-linux.sh>, setting:<key>; a placeholder in a path is `*`.
 """
 import ast
 import os
@@ -120,8 +120,8 @@ def _agent():
 
 def _web():
     """Purpose: the web console's pages (webui/routes/get_page.py: `path == "/x"`, and `_rest(path, "/x/")` for a
-             page per name, /x/*) and forms (`action` in templates/webui-app/; a Jinja placeholder is `*`, a form
-             with method get is its page).
+             page per name, /x/*) and forms (`action` in templates/webui-app/, and a button's `formaction`, which
+             posts its form elsewhere; a Jinja placeholder is `*`, a form with method get is its page).
     Inputs:  none (reads src/webui and templates/webui-app).
     Returns: {id: source}.
     Fails:   OSError on an unreadable file.
@@ -146,6 +146,25 @@ def _web():
                 continue
             verb = "get" if re.search(r'method="get"', attrs, re.I) else "post"
             found[ident(verb, action.group(1))] = f"templates/webui-app/{name}"
+        # a button posting its form to another action (the DNS filter's Remove inside the lists form, 1.12.3.17)
+        for m in re.finditer(r'<button\b[^>]*\bformaction="([^"]+)"', _read(f"templates/webui-app/{name}")):
+            found[ident("post", m.group(1))] = f"templates/webui-app/{name}"
+    return found
+
+
+def _site():
+    """Purpose: web-guided setup's temporary site (manual 1.3.6): the routes of its request handler's ROUTES table.
+    Inputs:  none (reads the handler's source).
+    Returns: {id: source}: site:<get|post>.<segments>, home for "/".
+    Fails:   OSError on an unreadable file; ValueError if the table is gone (the inventory must not silently shrink).
+    Feeds:   collect."""
+    source = "src/fabriclib/setup/site/listener/request_handler.py"
+    table = re.search(r"^ROUTES = \{.*?\}$", _read(source), re.S | re.M)
+    if not table:
+        raise ValueError(f"{source}: no ROUTES table")
+    found = {}
+    for verb, path in re.findall(r'\("(get|post)", "(/[^"]*)"\)', table.group(0)):
+        found[f"site:{verb}." + (".".join(path.strip("/").split("/")) or "home")] = source
     return found
 
 
@@ -179,7 +198,7 @@ def collect():
     Fails:   as the collectors.
     Feeds:   render, gaps; tests/docs/check_entrypoints.py."""
     found = {}
-    for part in (_cli, _ask, _agent, _web, _join, _settings):
+    for part in (_cli, _ask, _agent, _web, _site, _join, _settings):
         found.update(part())
     return found
 

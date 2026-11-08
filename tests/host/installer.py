@@ -88,7 +88,7 @@ def drive(answers, log, drop_at=None):
     Returns (exit status, transcript, the questions in the order asked)."""
     pid, fd = pty.fork()
     if pid == 0:
-        os.execvp("ssh", ["ssh", "-tt", "-o", "BatchMode=yes", "-i", KEY, TARGET, "sudo fabricctl setup"])
+        os.execvp("ssh", ["ssh", "-tt", "-o", "BatchMode=yes", "-i", KEY, TARGET, "sudo fabricctl setup --terminal"])
     screen, transcript, asked, last = "", "", [], time.time()
     with open(log, "w") as out:
         while True:

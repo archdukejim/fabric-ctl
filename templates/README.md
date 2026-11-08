@@ -23,4 +23,5 @@ containers in `src/containers/`.
 | [stepca/](stepca/) | The CA: compose file, certificate templates |
 | [systemd/](systemd/) | The per-service wrapper unit, `fabric.target`, `fabric-agent.service` |
 | [webui/](webui/) | Deploying the web UI container: compose file and `webui.json` |
+| [setup-site/](setup-site/) | Web-guided setup's pages (manual 1.3.6) |
 | [webui-app/](webui-app/) | The web UI's own page templates (installed in the app as `lib/webui/templates/`) |

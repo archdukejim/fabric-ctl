@@ -2,7 +2,8 @@
 # refused (default deny). "session" = any signed-in fabric user.
 GET = {
     ("version",): "session",
-    ("services",): "status:read", ("host-changes",): "status:read", ("relaxed-settings",): "status:read",
+    ("services",): "status:read", ("overview",): "status:read", ("updates",): "status:read",
+    ("host-changes",): "status:read", ("relaxed-settings",): "status:read",
     ("cert-warnings",): "status:read", ("sizing",): "status:read", ("reminders",): "status:read", ("images",):
     "status:read",
     ("jobs", "*"): "session",
@@ -37,6 +38,7 @@ GET = {
     ("settings",): "settings:admin", ("settings", "export"): "settings:admin",   # the setup wizard (1.8.5.6)
 }
 POST = {
+    ("kept", "refresh"): "session",     # a page's Refresh: fabric-agent checks the read's own permission (1.8.9.4)
     ("events",): "session", ("jobs", "doctor"): "status:read", ("jobs", "images"): "images:update",
     ("security", "raise"): "security:raise", ("security", "kerberos"): "security:raise",
     ("settings", "plan"): "settings:admin", ("settings", "apply"): "settings:admin",
@@ -49,6 +51,7 @@ POST = {
     ("dns-filter", "querylog"): "dns:querylog",        # who looked up what: the admin bundle only (2.1.12.4)
     ("dns-filter", "lists"): "dns:filter", ("dns-filter", "lists", "set"): "dns:filter",
     ("dns-filter", "lists", "delete"): "dns:filter",
+    ("dns-filter", "lists", "ticks"): "dns:filter",     # the lists form's Apply, every tick at once (1.12.3.17)
     ("dns-filter", "rules"): "dns:filter", ("dns-filter", "rules", "delete"): "dns:filter",
     ("dns-filter", "upstreams"): "dns:filter", ("dns-filter", "fetch"): "dns:filter",
     ("dns-filter", "groups"): "dns:filter", ("dns-filter", "groups", "delete"): "dns:filter",

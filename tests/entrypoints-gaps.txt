@@ -28,7 +28,6 @@ agent:post.devices.*.delete -
 agent:post.dhcp.off +
 agent:post.dhcp.on +
 agent:post.dns-filter.fetch +
-agent:post.dns-filter.querylog +
 agent:post.events -
 agent:post.gpo.clear +
 agent:post.gpo.clear -
@@ -470,7 +469,6 @@ web:post.directory.roles.*.delete +
 web:post.directory.roles.*.delete -
 web:post.directory.roles._new +
 web:post.directory.roles._new -
-web:post.dns-filter.fetch +
 web:post.kea.off +
 web:post.kea.on +
 web:post.logout -

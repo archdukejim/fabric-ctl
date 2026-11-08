@@ -8,6 +8,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler
 
 from agent.get_route import get_route
+from agent.kept_store import KEPT
 from agent.post_route import post_route
 from agent.route_not_found import RouteNotFound
 from fabriclib.common.errors import NotFound, ValidationError
@@ -17,6 +18,7 @@ from fabriclib.rbac.required_permission import required_permission
 from fabriclib.rbac.user_permissions import user_permissions
 
 MAX_BODY = 64 * 1024
+NO_CHANGE = {"events", "kept", "sizing"}        # POSTs that change nothing a kept read shows (manual 1.8.9.2)
 ACTOR_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$")
 
 
@@ -99,18 +101,32 @@ class Handler(BaseHTTPRequestHandler):
         self.session = claims.get("sid")
         return None
 
+    def drain(self):
+        """Purpose: read the request's body, whatever its method, before anything is answered. A socket closed with
+                 bytes still unread makes the kernel reset it, so the caller gets "connection reset" instead of the
+                 answer; one closed while the caller is still sending gets a broken pipe. Either way it never sees
+                 the refusal or the result.
+        Inputs:  none; reads the Content-Length header and self.rfile.
+        Returns: None; self.raw is the body's bytes, or None when its length is not one (body says why).
+        Fails:   never.
+        Feeds:   do_GET, do_POST."""
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = -1
+        self.raw = self.rfile.read(length) if 0 <= length <= MAX_BODY else None
+
     def body(self):
-        """Purpose: read and parse the request's JSON body.
-        Inputs:  none; reads the Content-Length header and self.rfile. An empty body counts as {}.
+        """Purpose: parse the request's JSON body, read by drain.
+        Inputs:  none; self.raw. An empty body counts as {}.
         Returns: dict, the parsed object.
-        Fails:   ValidationError("request too large") over MAX_BODY (64 KiB), ValidationError("expected a JSON object")
-                 for any other JSON value (both -> 400 in dispatch); ValueError / json.JSONDecodeError for a bad
-                 Content-Length or invalid JSON (-> 400 "malformed request").
+        Fails:   ValidationError("request too large") for a length over MAX_BODY (64 KiB) or not one,
+                 ValidationError("expected a JSON object") for any other JSON value (both -> 400 in dispatch);
+                 json.JSONDecodeError for invalid JSON (-> 400 "malformed request").
         Feeds:   dispatch (every POST)."""
-        length = int(self.headers.get("Content-Length") or 0)
-        if length > MAX_BODY or length < 0:
+        if self.raw is None:
             raise ValidationError("request too large")
-        data = json.loads(self.rfile.read(length) or b"{}")
+        data = json.loads(self.raw or b"{}")
         if not isinstance(data, dict):
             raise ValidationError("expected a JSON object")
         return data
@@ -131,10 +147,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         """Purpose: entry point for GET requests (called by BaseHTTPRequestHandler).
-        Inputs:  none; the request is in self.path / self.headers.
+        Inputs:  none; the request is in self.path / self.headers; a body it declares is read and ignored.
         Returns: None; the answer is sent by dispatch.
         Fails:   as dispatch (errors become JSON replies).
         Feeds:   dispatch("GET")."""
+        self.drain()
         self.dispatch("GET")
 
     def do_POST(self):
@@ -143,7 +160,20 @@ class Handler(BaseHTTPRequestHandler):
         Returns: None; the answer is sent by dispatch.
         Fails:   as dispatch (errors become JSON replies).
         Feeds:   dispatch("POST")."""
+        self.drain()
         self.dispatch("POST")
+
+    def unsupported(self):
+        """Purpose: any other method (PUT, DELETE, PATCH, OPTIONS): its body read first, as for GET and POST, then
+                 refused, so the refusal arrives instead of a reset connection.
+        Inputs:  none; the request is in self.headers / self.rfile.
+        Returns: None; replies 501 {"error": "unsupported method"}.
+        Fails:   never.
+        Feeds:   BaseHTTPRequestHandler, as do_PUT, do_DELETE, do_PATCH and do_OPTIONS (HEAD carries no body)."""
+        self.drain()
+        self.reply(501, {"error": "unsupported method"})
+
+    do_PUT = do_DELETE = do_PATCH = do_OPTIONS = unsupported
 
     def dispatch(self, method):
         """Purpose: route one /v1/ request to its route module and reply with the result as JSON.
@@ -169,7 +199,12 @@ class Handler(BaseHTTPRequestHandler):
             if method == "GET":
                 return self.reply(200, get_route(route, self.user, self.perms))
             data = self.body()
-            return self.reply(200, post_route(route, self.actor(data), data, self.perms, self.session))
+            try:
+                answer = post_route(route, self.actor(data), data, self.perms, self.session)
+            finally:                            # refused or not: a change may have got part of the way
+                if route[:1] and route[0] not in NO_CHANGE:
+                    KEPT.invalidate()
+            return self.reply(200, answer)
         except RouteNotFound:
             self.reply(404, {"error": "not found"})
         except NotFound as exc:                 # one thing a read names is not there (2.1.8.21)

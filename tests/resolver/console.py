@@ -197,13 +197,19 @@ check("network operators manage the filter but cannot read the query log; audito
       "dns:filter" in BUNDLES["fabric-network-operator"] and "dns:querylog" not in BUNDLES["fabric-network-operator"]
       and not {"dns:filter", "dns:querylog"} & set(BUNDLES["fabric-auditor"]))
 
+import fabriclib.dns_filter.set_filter_lists as m_set_lists  # noqa: E402
+m_set_lists.load_vars = lambda: copy.deepcopy(STORE["vars"])
+m_set_lists.save_vars = lambda data: STORE.update(vars=copy.deepcopy(data))
+m_set_lists.vars_lock = contextlib.nullcontext
+m_set_lists.write_audit = lambda actor, action, detail, source: AUDIT.append((actor, action, detail, source))
+import agent.apply_filter_now as afn  # noqa: E402
 import agent.post_dns_filter as pdf  # noqa: E402
 from agent.route_not_found import RouteNotFound  # noqa: E402
 CALLS, HAVE, WAIT = [], [], {"why": None}
-pdf.apply_dns_filter = lambda actor, source: (CALLS.append(("apply", actor, source)) or {"waiting": WAIT["why"]})
-pdf.start_list_fetch = lambda: (CALLS.append(("fetch",)) or True)
-pdf.adguard_desired = lambda vv: {"filters": [{"source": u} for u in HAVE]}     # the lists with a copy
-pdf.set_filter_list = m_set_list.set_filter_list
+afn.apply_dns_filter = lambda actor, source: (CALLS.append(("apply", actor, source)) or {"waiting": WAIT["why"]})
+afn.start_list_fetch = lambda: (CALLS.append(("fetch",)) or True)
+afn.adguard_desired = lambda vv: {"filters": [{"source": u} for u in HAVE]}     # the lists with a copy
+afn.load_vars = lambda: STORE["vars"]
 pdf.load_vars = lambda: STORE["vars"]
 pdf.read_query_log = lambda vv, **kw: (CALLS.append(("querylog", kw)) or {"entries": []})
 r = pdf.post_dns_filter(["dns-filter", "lists"], "alice", {"name": "Three", "url": "https://lists.example/3.txt"})
@@ -216,9 +222,9 @@ def _no_job():
     raise ValidationError("the lists job could not start: Unit fabric-dns-lists.service not found.")
 
 
-pdf.start_list_fetch = _no_job
+afn.start_list_fetch = _no_job
 r = pdf.post_dns_filter(["dns-filter", "lists"], "alice", {"name": "Four", "url": "https://lists.example/4.txt"})
-pdf.start_list_fetch = lambda: (CALLS.append(("fetch",)) or True)
+afn.start_list_fetch = lambda: (CALLS.append(("fetch",)) or True)
 check("agent: a list added while the lists job cannot start is saved and says what waits (not a refusal)",
       not r["applied"] and not r["fetching"] and "could not start" in r["waiting"]
       and "fabricctl dns-filter lists" in r["waiting"]
@@ -252,8 +258,6 @@ e = refused(pdf.post_dns_filter, ["dns-filter", "lists"], "alice", {"url": 42})
 check("agent: a field that is not text is refused", isinstance(e, ValidationError) and "text" in str(e), e)
 check("agent: an unknown DNS filter route is a 404", isinstance(refused(pdf.post_dns_filter, ["dns-filter", "x"],
                                                                          "alice", {}), RouteNotFound))
-pdf.set_filter_group, pdf.remove_filter_group = m_group.set_filter_group, m_rm_group.remove_filter_group
-pdf.set_safe_search, pdf.add_filter_rule = m_safe.set_safe_search, m_add_rule.add_filter_rule
 CALLS.clear()
 r = pdf.post_dns_filter(["dns-filter", "groups"], "alice", {"name": "guests", "clients": "192.168.1.200"})
 r2 = pdf.post_dns_filter(["dns-filter", "safe-search"], "alice", {"group": "guests", "on": "on", "youtube": "moderate"})
@@ -262,6 +266,11 @@ r3 = pdf.post_dns_filter(["dns-filter", "rules"], "alice", {"group": "guests", "
 check("agent: a group added, its safe search and its rule — each saved and applied, nothing fetched",
       r["result"]["added"] and r2["result"]["youtube"] == "moderate" and r3["result"]["group"] == "guests"
       and not r["fetching"] and CALLS == [("apply", "alice", "web")] * 3, (r, r2, r3, CALLS))
+r = pdf.post_dns_filter(["dns-filter", "safe-search"], "alice", {"group": "guests", "youtube": "moderate"})
+g = [x for x in v()["dns_filter_groups"] if x["name"] == "guests"][0]
+check("agent: safe search turned off keeps the YouTube level the form sends (the page's hidden copy)",
+      r["result"] == {"group": "guests", "on": False, "youtube": "moderate"}
+      and g.get("safe_search") is False and g.get("youtube") == "moderate", (r, g))
 r = pdf.post_dns_filter(["dns-filter", "groups", "delete"], "alice", {"name": "guests"})
 # covers: agent:post.dns-filter.groups.delete +
 check("agent: a group removed", r["result"]["name"] == "guests" and v()["dns_filter_groups"] == [], r)
@@ -269,8 +278,186 @@ e = refused(pdf.post_dns_filter, ["dns-filter", "groups"], "alice", {"name": "x"
 # covers: agent:post.dns-filter.groups -
 check("agent: clients sent as a list (not text) are refused", isinstance(e, ValidationError) and "text" in str(e), e)
 r = pdf.post_dns_filter(["dns-filter", "querylog"], "alice", {"client": "192.168.1.0/24", "blocked": True, "limit": 50})
-check("agent: the query-log search passes its terms on", CALLS[-1] == ("querylog", {
-    "client": "192.168.1.0/24", "name": "", "blocked_only": True, "limit": 50}), CALLS[-1:])
+# covers: agent:post.dns-filter.querylog +
+check("agent: the query-log search passes its terms on (fabric's own hidden unless asked: own False)",
+      CALLS[-1] == ("querylog", {"client": "192.168.1.0/24", "name": "", "blocked_only": True, "limit": 50,
+                                 "own": False}), CALLS[-1:])
+pdf.post_dns_filter(["dns-filter", "querylog"], "alice", {"own": True})
+check("agent: own true (fabric's own queries too, 2.1.12.12) is passed on", CALLS[-1][1]["own"] is True, CALLS[-1:])
+from fabriclib.dns_filter.read_query_log import read_query_log as real_read_query_log  # noqa: E402
+pdf.read_query_log = real_read_query_log         # refused before the log is read: no Postgres needed
+for bad in ("yes", 1, None):
+    e = refused(pdf.post_dns_filter, ["dns-filter", "querylog"], "alice", {"own": bad})
+    # covers: agent:post.dns-filter.querylog -
+    check(f"agent: own {bad!r} (not a JSON boolean) refused, saying why",
+          isinstance(e, ValidationError) and "true or false" in str(e), e)
+pdf.read_query_log = lambda vv, **kw: (CALLS.append(("querylog", kw)) or {"entries": []})
+
+# ---- the lists form's ticks called directly: one save, the whole set's memory (1.12.3.17)
+FIVE = "https://lists.example/5.txt"
+STORE["vars"]["dns_filter_lists"] = [{"name": "One", "url": L1, "enabled": False},
+                                     {"name": "Two", "url": TWO, "enabled": True}]
+CALLS.clear()
+n_audit = len(AUDIT)
+r = pdf.post_dns_filter(["dns-filter", "lists", "ticks"], "alice",
+                        {"tick": [{"url": L1, "name": "One"}, {"url": FIVE, "name": "Five"}],
+                         "untick": [{"url": TWO, "name": "Two"}]})
+# covers: agent:post.dns-filter.lists.ticks +
+check("agent: every tick at once: one save, one audit, one apply; a list new to the site added, unticked kept",
+      [(i["url"], i["enabled"]) for i in v()["dns_filter_lists"]] == [(L1, True), (TWO, False), (FIVE, True)]
+      and r["result"]["ticked"] == ["One", "Five"] and r["result"]["unticked"] == ["Two"]
+      and r["result"]["added"] == ["Five"] and len(AUDIT) == n_audit + 1 and AUDIT[-1][1] == "DNS_FILTER_LISTS"
+      and CALLS == [("apply", "alice", "web"), ("fetch",)], (r, CALLS, AUDIT[n_audit:]))
+before = copy.deepcopy(STORE["vars"])
+CALLS.clear()
+for body, why in (({"tick": "x"}, "tick not a list"), ({"tick": [{"url": 3}]}, "a URL that is not text"),
+                  ({"tick": [{"url": L1}], "untick": [{"url": L1}]}, "a list ticked and unticked at once"),
+                  ({"untick": [{"url": "https://lists.example/nope.txt"}]}, "unticking a list the site does not have"),
+                  ({"tick": [{"url": "ftp://lists.example/x", "name": "x"}]}, "not http(s)"),
+                  ({"tick": [{"url": BIG, "name": "Big"}]}, "the whole set past AdGuard Home's memory limit")):
+    e = refused(pdf.post_dns_filter, ["dns-filter", "lists", "ticks"], "alice", body)
+    # covers: agent:post.dns-filter.lists.ticks -
+    check(f"agent: ticks refused ({why}), saying why; nothing saved, applied or fetched",
+          isinstance(e, ValidationError) and str(e) and STORE["vars"] == before and CALLS == [], (e, CALLS))
+_said = str(refused(pdf.post_dns_filter, ["dns-filter", "lists", "ticks"], "alice",
+                    {"tick": [{"url": BIG, "name": "Big"}]}))
+check("agent: the memory refusal names the list ticked with its estimate, the gap past the limit, and how to make "
+      "room; nothing was changed",
+      "Big (~500 MiB)" in _said and "MiB past its limit of" in _said and "untick about" in _said
+      and "host_ram_capacity" in _said and "Nothing was changed" in _said, _said)
+
+# ---- the tab's Apply (1.12.3.17, 2.1.12.14): every change held by fabric-agent, one Apply makes them all
+import agent.post_pending as pp  # noqa: E402
+from agent.pending_filter import HELD  # noqa: E402
+from agent.pending_store import PendingStore  # noqa: E402
+from agent.pending_thing import thing_state, pending_page_of  # noqa: E402
+from fabriclib.dns_filter.common.lists_version import lists_version  # noqa: E402
+from fabriclib.dns_filter.filter_lists import filter_lists  # noqa: E402
+JOB = {}
+
+
+def _sync_job(kind, owner, fn):
+    JOB["result"] = fn()                     # the store's apply job, run at once
+    return {"id": "job-1"}
+
+
+pp.PENDING = PendingStore(run=pp._run, state=lambda route, body: thing_state(route, body, STORE["vars"]),
+                          need=lambda route: required_permission("POST", route), start_job=_sync_job,
+                          finish=pp._finish, check=lambda owner, route, body: pp.filter_check(owner, route, body))
+pp.load_vars = lambda: STORE["vars"]
+pp.write_audit = lambda actor, action, detail, source: AUDIT.append((actor, action, detail, source))
+PERMS = set(BUNDLES["fabric-network-operator"])
+check("the DNS filter's changes are held on its own page; the search and the fetch are done at once",
+      all(pending_page_of(["dns-filter", *w.split("/")]) == "dns-filter" for w in HELD)
+      and pending_page_of(["dns-filter", "querylog"]) is None and pending_page_of(["dns-filter", "fetch"]) is None)
+
+
+def hold(what, body):
+    return pp.post_pending(["pending", "hold"], "alice", {"route": f"dns-filter/{what}", "body": body}, PERMS, None)
+
+
+def page_form(ticked_urls):
+    """The lists form as the page sends it: every list shown, the boxes ticked, the page's version."""
+    rows = filter_lists(STORE["vars"])["lists"]
+    return {"on": [r["id"] for r in rows if r["url"] in ticked_urls], "shown": [r["id"] for r in rows],
+            "version": lists_version(rows)}
+
+
+STORE["vars"]["dns_filter_lists"] = [{"name": "One", "url": L1, "enabled": True},
+                                     {"name": "Two", "url": TWO, "enabled": False}]
+STORE["vars"]["dns_filter_block"] = []
+STORE["vars"]["dns_filter_upstreams"] = [{"address": "1.1.1.1", "name": "cloudflare-dns.com"}]
+CALLS.clear()
+saved = copy.deepcopy(STORE["vars"])
+r1 = hold("lists/ticks", page_form({TWO}))           # One unticked, Two ticked
+r2 = hold("rules", {"kind": "block", "name": "ads.example"})
+r3 = hold("upstreams", {"upstreams": "9.9.9.9 dns.quad9.net"})
+# covers: agent:post.pending.hold +
+check("Apply: a tick, a rule and the upstreams change nothing until Apply (held: nothing saved, nothing applied)",
+      STORE["vars"] == saved and CALLS == [] and r3["pending"] == 3 and r1["page"] == "dns-filter"
+      and r1["what"] == "Tick Two; untick One", (r1, r2, r3, CALLS))
+review = pp.PENDING.page("alice", "dns-filter", lambda p: True)
+check("Apply: the Review lists each change waiting, the ticks as the lists that differ",
+      [c["what"] for c in review["changes"]] == ["Tick Two; untick One", "Block ads.example",
+                                                  "Set the upstreams to 9.9.9.9, dns.quad9.net"]
+      and review["changes"][0]["new"] == {"tick": [{"url": TWO, "name": "Two"}], "untick": [{"url": L1, "name": "One"}]},
+      review["changes"])
+n_audit = len(AUDIT)
+pp.post_pending(["pending", "dns-filter", "apply"], "alice", {}, PERMS, None)
+check("Apply: one Apply makes every waiting change: each saved, the filter applied once, the list ticked with no "
+      "copy fetched once",
+      [(i["url"], i["enabled"]) for i in v()["dns_filter_lists"]] == [(L1, False), (TWO, True)]
+      and v()["dns_filter_block"] == ["ads.example"] and v()["dns_filter_upstreams"][0]["address"] == "9.9.9.9"
+      and CALLS == [("apply", "alice", "web"), ("fetch",)] and JOB["result"]["applied"] == 3
+      and [i["state"] for i in JOB["result"]["items"]] == ["done"] * 4
+      and pp.PENDING.counts("alice", lambda p: True) == {} and AUDIT[-1][1] == "PENDING_APPLY",
+      (JOB, CALLS, v()["dns_filter_lists"]))
+check("Apply: its last step says the first copy is being fetched",
+      "first copy" in JOB["result"]["items"][-1]["why"], JOB["result"]["items"][-1])
+
+# Discard drops every change waiting; nothing saved
+CALLS.clear()
+saved = copy.deepcopy(STORE["vars"])
+hold("lists/ticks", page_form({L1, TWO}))
+hold("rules/delete", {"kind": "block", "name": "ads.example"})
+out = pp.post_pending(["pending", "dns-filter", "discard"], "alice", {}, PERMS, None)
+check("Discard: drops the tab's waiting changes; nothing saved or applied",
+      out == {"dropped": 2, "pending": 0} and STORE["vars"] == saved and CALLS == [], (out, CALLS))
+
+# the memory rule over the whole set: refused at hold, nothing held or changed
+with open(f"{BASE}/dnsfilter/state.json", "w") as f:
+    json.dump({list_id(L1): {"memory_mb": 250.0}, list_id(TWO): {"memory_mb": 250.0}}, f)
+saved = copy.deepcopy(STORE["vars"])
+e = refused(hold, "lists/ticks", page_form({L1, TWO}))
+check("Apply: ticks that together pass AdGuard Home's limit are refused at once, naming the list and the gap; "
+      "nothing held, nothing changed",
+      isinstance(e, ValidationError) and "One (~250 MiB)" in str(e) and "past its limit" in str(e)
+      and STORE["vars"] == saved and pp.PENDING.counts("alice", lambda p: True) == {} and CALLS == [], e)
+os.remove(f"{BASE}/dnsfilter/state.json")
+
+# a stale page: the lists changed after the page was shown
+old_form = page_form({L1, TWO})
+m_set_list.set_filter_list("bob", L1, True, "", "cli")              # someone else ticks One meanwhile
+saved = copy.deepcopy(STORE["vars"])
+e = refused(hold, "lists/ticks", old_form)
+# covers: agent:post.pending.hold -
+check("Apply: a page whose lists changed since it was shown is refused, saying why; nothing held or changed",
+      isinstance(e, ValidationError) and "changed since this page was shown" in str(e)
+      and STORE["vars"] == saved and pp.PENDING.counts("alice", lambda p: True) == {}, e)
+for body, why in (({"on": "x", "shown": [], "version": ""}, "on not a list"),
+                  ({"on": ["nope"], "shown": [], "version": old_form["version"]}, "a box the page did not show")):
+    e = refused(hold, "lists/ticks", body)
+    check(f"Apply: a malformed lists form refused ({why})", isinstance(e, ValidationError) and str(e), e)
+r = hold("lists/ticks", page_form({L1, TWO}))
+check("Apply: the lists form with no box changed holds nothing", r["id"] is None and r["pending"] == 0, r)
+e = refused(pp.post_pending, ["pending", "hold"], "audrey", {"route": "dns-filter/lists/ticks",
+                                                             "body": page_form({L1})}, set(BUNDLES["fabric-auditor"]),
+            None)
+check("Apply: the lists form without dns:filter is refused, the permission named, before the lists are read",
+      isinstance(e, ValidationError) and "you need the permission dns:filter" in str(e), e)
+
+# a bad change is refused when held (fabriclib's own check), not at Apply
+e = refused(hold, "rules", {"kind": "block", "name": "not a name!"})
+check("Apply: a rule fabriclib refuses is refused when held, saying why; nothing waits",
+      isinstance(e, ValidationError) and str(e) and pp.PENDING.counts("alice", lambda p: True) == {}, e)
+e = refused(hold, "groups", {"name": "teen", "clients": "10.9.9.9"})
+check("Apply: a group outside the networks answered is refused when held", isinstance(e, ValidationError), e)
+
+# a held change whose part of the filter changed before Apply is refused at Apply and stays
+CALLS.clear()
+hold("upstreams", {"upstreams": "1.1.1.1 cloudflare-dns.com"})
+m_ups.set_filter_upstreams("bob", "8.8.8.8 dns.google", "cli")
+pp.post_pending(["pending", "dns-filter", "apply"], "alice", {}, PERMS, None)
+check("Apply: a change whose part changed since (another person) is refused at Apply and stays waiting; nothing "
+      "applied",
+      JOB["result"]["items"][0]["state"] == "failed" and "changed since" in JOB["result"]["items"][0]["why"]
+      and v()["dns_filter_upstreams"][0]["address"] == "8.8.8.8" and CALLS == []
+      and pp.PENDING.counts("alice", lambda p: True)["dns-filter"]["pending"] == 1, (JOB, CALLS))
+pp.post_pending(["pending", "dns-filter", "discard"], "alice", {}, PERMS, None)
+e = refused(pp.post_pending, ["pending", "dns-filter", "apply"], "alice", {}, PERMS, None)
+check("Apply: with nothing waiting it is refused, saying so", isinstance(e, ValidationError)
+      and "nothing is pending" in str(e), e)
+STORE["vars"]["dns_filter_upstreams"] = [{"address": "1.1.1.1", "name": "cloudflare-dns.com"}]
 
 # ---- the lists job: copies fetched, then AdGuard made to match and asked to reread what changed (1.12.3.5)
 with tempfile.TemporaryDirectory() as tmp:
@@ -310,15 +497,15 @@ with tempfile.TemporaryDirectory() as tmp:
 # ---- the web UI: its post route and the page for each kind of user
 from webui import views  # noqa: E402
 import webui.routes.dns_filter_post as wpost  # noqa: E402
+import webui.routes.held as wheld  # noqa: E402
 from fabriclib.rbac.required_permission import POST as AGENT_POST  # noqa: E402
-from webui.agentclient.dns_filter_change import CHANGES  # noqa: E402
 
-# every change the tab posts is one the console sends on, and one the agent serves (2.3.1.16: groups, groups/delete and
-# safe-search were missing from CHANGES, so those forms answered 500; the stand-in agent below accepts anything)
-check("web: every change the DNS filter tab posts is in the console's list of changes (none answers 500)",
-      set(wpost.BACK) <= CHANGES, sorted(set(wpost.BACK) - CHANGES))
-check("web: ...and each is a route the agent serves (its permission table)",
-      all(("dns-filter", *what.split("/")) in AGENT_POST for what in CHANGES), sorted(CHANGES))
+# every change the tab holds is one fabric-agent holds on the DNS filter's page and serves (2.3.1.16: groups,
+# groups/delete and safe-search were once missing, so those forms answered 500)
+HELD_WEB = (set(wpost.BACK) - {"fetch", "lists/apply"}) | {"lists/ticks"}
+check("web: every change the DNS filter tab holds is held by fabric-agent on the tab's page, and served",
+      all(("dns-filter", *w.split("/")) in AGENT_POST and pending_page_of(["dns-filter", *w.split("/")]) == "dns-filter"
+          for w in HELD_WEB), sorted(HELD_WEB))
 
 
 class H:
@@ -329,76 +516,146 @@ class H:
         self.out = (303, location)
 
     def back(self, location, msg="", err=""):
-        """A form's outcome (the console keeps it for the next page, 1.8.6.3), written as msg=/err= for these checks."""
+        """A form's outcome (the console keeps it for the next page, 1.8.6.3), written as msg=/err= for these checks,
+        before the place on the page (#...)."""
+        path, _, frag = location.partition("#")
         q = urllib.parse.urlencode({"err": err} if err else {"msg": msg} if msg else {})
-        self.redirect(location + (("&" if "?" in location else "?") + q if q else ""))
+        self.redirect(path + (("&" if "?" in path else "?") + q if q else "") + (f"#{frag}" if frag else ""))
 
     def deny(self, status, text):
         self.out = (status, text)
+
+    def send(self, status, body):
+        self.out = (status, body)
 
 
 class FakeActions:
     ValidationError = ValidationError
 
-    def __init__(self, applied=True, refuse=None):
-        self.applied, self.refuse, self.calls = applied, refuse, []
+    def __init__(self, refuse=None, pending=1, apply_refuse=None):
+        self.refuse, self.pending, self.apply_refuse, self.calls = refuse, pending, apply_refuse, []
 
-    def dns_filter_change(self, what, body):
-        self.calls.append((what, body))
+    def hold_change(self, route, body):
+        self.calls.append(("hold", route, body))
         if self.refuse:
             raise ValidationError(self.refuse)
-        result = [{"address": "9.9.9.9", "name": "dns.quad9.net"}] if what == "upstreams" else \
-            {"name": body.get("name"), "kind": body.get("kind")}          # the agent's shapes
-        return {"result": result, "applied": self.applied, "fetching": True,
-                "waiting": None if self.applied else "AdGuard Home is not answering"}
+        return {"id": "c1" if self.pending else None, "page": "dns-filter", "what": f"the change {route}",
+                "pending": self.pending}
+
+    def pending_action(self, page, op, change_id=None):
+        self.calls.append((op, page))
+        if self.apply_refuse:
+            raise ValidationError(self.apply_refuse)
+        return {"id": "job-1"}
+
+    def dns_filter_change(self, what, body):
+        self.calls.append(("now", what, body))
+        if self.refuse:
+            raise ValidationError(self.refuse)
+        return {"fetching": True}
 
 
-h, wpost.actions = H(), FakeActions()
-wpost.dns_filter_post(h, ["rules"], {"kind": "block", "name": "x.example", "back": "querylog"})
+def use(fake):
+    wpost.actions = wheld.actions = fake
+    return fake
+
+
+SESS = {"user": "alice", "csrf": "t"}
+h, fake = H(), use(FakeActions())
+wpost.dns_filter_post(h, SESS, ["rules"], {"kind": "block", "name": "x.example", "back": "querylog"})
 # covers: web:post.dns-filter.rules +
-check("web: Block from the query log saves and goes back to the query log with the outcome",
-      h.out[0] == 303 and h.out[1].startswith("/dns-filter?view=querylog&msg=") and wpost.actions.calls[-1][0] == "rules",
-      h.out)
-wpost.dns_filter_post(h, ["lists"], {"name": "Two", "url": "https://x/2", "back": "<script>"})
+check("web: Block from the query log is held for Apply, back to the query log where it was, saying it waits",
+      h.out[0] == 303 and h.out[1].startswith("/dns-filter?view=querylog&msg=Waiting+for+Apply")
+      and h.out[1].endswith("#querylog") and fake.calls == [("hold", "dns-filter/rules",
+                                                              {"kind": "block", "name": "x.example"})], (h.out, fake.calls))
+wpost.dns_filter_post(h, SESS, ["rules"], {"kind": "allow", "name": "y.example", "group": "Kids", "back": "groups"})
+check("web: a group's rule goes back to that group's card", h.out[1].endswith("#group-kids"), h.out)
+wpost.dns_filter_post(h, SESS, ["lists"], {"name": "Two", "url": "https://x/2", "back": "<script>"})
 # covers: web:post.dns-filter.lists +
-check("web: a back section that is not one is ignored (the change's own section)",
-      h.out[1].startswith("/dns-filter?view=lists&msg="), h.out)
-wpost.dns_filter_post(h, ["lists", "set"], {"url": "https://x/2", "name": "Two", "enabled": "off"})
-# covers: web:post.dns-filter.lists.set +
-check("web: a tick posts the list's URL and on or off, and goes back to Lists",
-      wpost.actions.calls[-1] == ("lists/set", {"name": "Two", "url": "https://x/2", "enabled": "off", "kind": "",
-                                                "upstreams": "", "group": "", "clients": "", "on": "", "youtube": ""})
-      and h.out[1].startswith("/dns-filter?view=lists&msg="), (wpost.actions.calls[-1:], h.out))
-h, wpost.actions = H(), FakeActions(refuse="not a DNS name")
-wpost.dns_filter_post(h, ["rules"], {"kind": "block", "name": "bad!"})
-check("web: a refused change goes back with the reason (err)", "err=not+a+DNS+name" in h.out[1], h.out)
-h, wpost.actions = H(), FakeActions(refuse="a tick that is not on or off")
-wpost.dns_filter_post(h, ["lists", "set"], {"url": "https://x/2", "enabled": "maybe", "back": "lists"})
-# covers: web:post.dns-filter.lists.set -
-check("web: a refused tick goes back to Lists with the reason (err)",
-      "err=a+tick+that+is+not+on+or+off" in h.out[1] and "view=lists" in h.out[1], h.out)
-h, wpost.actions = H(), FakeActions(applied=False)
-wpost.dns_filter_post(h, ["upstreams"], {"upstreams": "9.9.9.9 dns.quad9.net"})
-check("web: saved but waiting says so, with why",
-      "Saved%2C+but+not+in+use+yet" in h.out[1] and "not+answering" in h.out[1] and "view=settings" in h.out[1], h.out)
-h = H()
-wpost.dns_filter_post(h, ["lists", "rename"], {})
-check("web: an unknown change is a 404", h.out[0] == 404, h.out)
-h, wpost.actions = H(), FakeActions()
-wpost.dns_filter_post(h, ["safe-search"], {"group": "kids", "youtube": "strict", "back": "groups"})
+check("web: a list added by URL is held; a back section that is not one is ignored (the change's own section)",
+      h.out[1].startswith("/dns-filter?view=lists&msg=") and h.out[1].endswith("#lists")
+      and fake.calls[-1][1] == "dns-filter/lists", h.out)
+wpost.dns_filter_post(h, SESS, ["lists", "delete"], {"url": "https://x/2", "on-abc": "on", "shown": "abc"})
+# covers: web:post.dns-filter.lists.delete +
+check("web: Remove (posted from inside the lists form) holds the removal with its URL only",
+      fake.calls[-1] == ("hold", "dns-filter/lists/delete", {"url": "https://x/2"}) and "#lists" in h.out[1],
+      fake.calls[-1:])
+wpost.dns_filter_post(h, SESS, ["safe-search"], {"group": "kids", "youtube": "strict", "back": "groups"})
 # covers: web:post.dns-filter.safe-search +
-check("web: safe search with the box unchecked sends on='' (off) for its group, and goes back to Groups",
-      wpost.actions.calls[-1] == ("safe-search", {"name": "", "url": "", "enabled": "", "kind": "", "upstreams": "",
-                                                  "group": "kids", "clients": "", "on": "", "youtube": "strict"})
-      and h.out[1].startswith("/dns-filter?view=groups&msg="), (wpost.actions.calls[-1:], h.out))
-wpost.dns_filter_post(h, ["groups"], {"name": "kids", "clients": "192.168.1.64/27"})
+check("web: safe search with the box unchecked holds no 'on' (off) for its group, back to its card on Groups",
+      fake.calls[-1] == ("hold", "dns-filter/safe-search", {"group": "kids", "youtube": "strict"})
+      and h.out[1].startswith("/dns-filter?view=groups&msg=") and h.out[1].endswith("#group-kids"),
+      (fake.calls[-1:], h.out))
+wpost.dns_filter_post(h, SESS, ["groups"], {"name": "kids", "clients": "192.168.1.64/27"})
 # covers: web:post.dns-filter.groups +
-check("web: a group's change goes back to Groups", h.out[1].startswith("/dns-filter?view=groups&msg="), h.out)
+check("web: a group's change goes back to its card on Groups",
+      h.out[1].startswith("/dns-filter?view=groups&msg=") and h.out[1].endswith("#group-kids"), h.out)
+wpost.dns_filter_post(h, SESS, ["groups", "delete"], {"name": "kids"})
+# covers: web:post.dns-filter.groups.delete +
+check("web: a group's removal goes back to Groups (its card is gone)", h.out[1].endswith("#add-group"), h.out)
+wpost.dns_filter_post(h, SESS, ["upstreams"], {"upstreams": "9.9.9.9 dns.quad9.net"})
+# covers: web:post.dns-filter.upstreams +
+check("web: the upstreams go back to their card on Settings", h.out[1].startswith("/dns-filter?view=settings&msg=")
+      and h.out[1].endswith("#upstreams"), h.out)
+wpost.dns_filter_post(h, SESS, ["rules", "delete"], {"kind": "block", "name": "x.example"})
+# covers: web:post.dns-filter.rules.delete +
+check("web: a rule's removal is held, back to Rules", fake.calls[-1][1] == "dns-filter/rules/delete"
+      and h.out[1].endswith("#rules"), h.out)
+n = len(fake.calls)
+wpost.dns_filter_post(h, SESS, ["fetch"], {})
+# covers: web:post.dns-filter.fetch +
+check("web: Fetch every list now is done at once, never held", fake.calls[n:] == [("now", "fetch", {})]
+      and "Fetching+every+list" in h.out[1], (fake.calls[n:], h.out))
+h, fake = H(), use(FakeActions(refuse="not a DNS name"))
+wpost.dns_filter_post(h, SESS, ["rules"], {"kind": "block", "name": "bad!"})
+# covers: web:post.dns-filter.rules -
+check("web: a change fabric-agent refuses goes back with the reason (err), nothing held",
+      "err=not+a+DNS+name" in h.out[1], h.out)
+for what, form in ((["lists"], {"url": "ftp://x"}), (["lists", "delete"], {"url": "https://nope"}),
+                   (["safe-search"], {"group": "nosuch"}), (["groups"], {"name": "Bad Name"}),
+                   (["groups", "delete"], {"name": "nosuch"}), (["upstreams"], {"upstreams": ""}),
+                   (["rules", "delete"], {"kind": "block", "name": "never.example"})):
+    wpost.dns_filter_post(h, SESS, what, form)
+    # covers: web:post.dns-filter.lists web:post.dns-filter.lists.delete web:post.dns-filter.safe-search -
+    # covers: web:post.dns-filter.groups web:post.dns-filter.groups.delete web:post.dns-filter.upstreams -
+    # covers: web:post.dns-filter.rules.delete -
+    check(f"web: {'/'.join(what)} refused: back to its section with why", h.out[0] == 303
+          and "err=not+a+DNS+name" in h.out[1] and f"view={wpost.BACK['/'.join(what)]}" in h.out[1], h.out)
+h, fake = H(), use(FakeActions(refuse="the lists job could not start"))
+wpost.dns_filter_post(h, SESS, ["fetch"], {})
+# covers: web:post.dns-filter.fetch -
+check("web: a fetch that cannot start says why", "err=the+lists+job+could+not+start" in h.out[1], h.out)
+h = H()
+wpost.dns_filter_post(h, SESS, ["lists", "set"], {})
+check("web: the old one-tick post is gone (a 404): every tick goes through Apply changes", h.out[0] == 404, h.out)
+wpost.dns_filter_post(h, SESS, ["lists", "rename"], {})
+check("web: an unknown change is a 404", h.out[0] == 404, h.out)
+
+# the lists form's Apply changes: every box at once, then the tab's Apply
+h, fake = H(), use(FakeActions(pending=3))
+wpost.dns_filter_post(h, SESS, ["lists", "apply"], {"on-aaa": "on", "on-ccc": "on", "on-zzz": "on",
+                                                     "shown": "aaa bbb ccc", "version": "v1"})
+# covers: web:post.dns-filter.lists.apply +
+check("web: Apply changes sends every box of the lists shown at once (one hold), then applies the tab's changes, "
+      "back to the lists saying how many",
+      fake.calls == [("hold", "dns-filter/lists/ticks", {"on": ["aaa", "ccc"], "shown": ["aaa", "bbb", "ccc"],
+                                                         "version": "v1"}), ("apply", "dns-filter")]
+      and h.out[1].startswith("/dns-filter?view=lists&msg=Applying+3+changes") and h.out[1].endswith("#lists"),
+      (fake.calls, h.out))
+h, fake = H(), use(FakeActions(pending=0))
+wpost.dns_filter_post(h, SESS, ["lists", "apply"], {"shown": "aaa", "version": "v1"})
+check("web: Apply changes with no box changed and nothing waiting applies nothing, saying so",
+      fake.calls == [("hold", "dns-filter/lists/ticks", {"on": [], "shown": ["aaa"], "version": "v1"})]
+      and "Nothing+to+apply" in h.out[1], (fake.calls, h.out))
+h, fake = H(), use(FakeActions(apply_refuse="your apply of this page is still running"))
+wpost.dns_filter_post(h, SESS, ["lists", "apply"], {"shown": "aaa", "on-aaa": "on", "version": "v1"})
+check("web: an Apply refused (one still running) says why and that the ticks wait",
+      "err=your+apply+of+this+page+is+still+running" in h.out[1] and "wait+for+Apply" in h.out[1], h.out)
 
 from fabriclib.dns_filter.common.safe_search import safe_search_summary  # noqa: E402
 from webui.devpreview.sample_data import SAMPLE_DNS_FILTER  # noqa: E402
 OV = {**copy.deepcopy(SAMPLE_DNS_FILTER), "safe_search_sites": safe_search_summary(),
-      "stats": {"off": "Postgres is not installed"}}
+      "stats": {"off": "Postgres is not installed"}, "lists_version": lists_version(SAMPLE_DNS_FILTER["lists"])}
 LOG = {"entries": [{"at": "2026-10-09T10:00:00Z", "client": "192.168.1.2", "view": "everyone", "name": "ads.example",
                     "qtype": "A", "action": "NXDOMAIN", "zone": "owner.rpz", "list": None, "blocked": True},
                    {"at": "2026-10-09T10:00:01Z", "client": "192.168.1.66", "view": "kids", "name": "roblox.com",
@@ -429,18 +686,131 @@ check("page: Groups names every engine strict safe search covers, from fabric's 
       all(f"{e['engine']} ({e['names']} " in groups for e in safe_search_summary()["engines"])
       and "Brave Search" in groups and 'value="moderate" selected' in groups, groups[:300])
 lists = views.dns_filter(ctx("dns:filter"), "lists", OV, None, SEARCH)
-check("page: every list a checkbox posting its tick, by category, with its memory and the limit",
-      lists.count('action="/dns-filter/lists/set"') == len(OV["lists"]) and 'aria-pressed="true"' in lists
-      and "Security" in lists and "~24.5 MiB" in lists and "of a limit of 1024 MiB" in lists, lists[:400])
-check("page: only a list added by URL has Remove", lists.count('action="/dns-filter/lists/delete"') == 1)
+check("page: the lists are one form: a real checkbox per list (the ticked ones checked), by category, with its "
+      "memory and the limit, the page's version and every list shown, and one Apply changes",
+      lists.count('action="/dns-filter/lists/apply"') == 1 and lists.count('type="checkbox" class="tickbox"')
+      == len(OV["lists"]) and lists.count(" checked>") == sum(bool(r["enabled"]) for r in OV["lists"])
+      and f'name="version" value="{OV["lists_version"]}"' in lists
+      and f'name="shown" value="{" ".join(r["id"] for r in OV["lists"])}"' in lists
+      and lists.count("<button>Apply changes</button>") == 1 and "Security" in lists and "~24.5 MiB" in lists
+      and "of a limit of 1024 MiB" in lists and "/dns-filter/lists/set" not in lists, lists[:400])
+check("page: no script on the page (the strict CSP stands)", "<script" not in lists)
+check("page: only a list added by URL has Remove, a button of the lists form posting to its own action",
+      lists.count('formaction="/dns-filter/lists/delete"') == 1 and ' action="/dns-filter/lists/delete"' not in lists)
+check("page: with nothing waiting it says the ticks wait for Apply changes",
+      "Your ticks wait until you press Apply changes." in lists)
+waiting = views.dns_filter({**ctx("dns:filter"), "pending": {"/dns-filter": {"id": "dns-filter", "pending": 2,
+                                                                             "running": False}}},
+                           "lists", OV, None, SEARCH)
+check("page: with other changes waiting it says how many, with Review, and that Apply changes makes them too",
+      "2 other changes of this tab wait too" in waiting and 'href="/changes/dns-filter"' in waiting
+      and 'http-equiv="refresh"' not in waiting, waiting[waiting.find("applyline"):][:400])
+running = views.dns_filter({**ctx("dns:filter"), "pending": {"/dns-filter": {"id": "dns-filter", "pending": 0,
+                                                                             "running": True}}},
+                           "rules", OV, None, SEARCH)
+check("page: while the tab's Apply runs the page refreshes itself (a meta refresh, no script) on its section",
+      '<meta http-equiv="refresh" content="2;url=/dns-filter?view=rules">' in running, running[:600])
+check("page: each section's cards carry the ids a post returns to",
+      all(f'id="{i}"' in page for page, ids in (
+          (lists, ["lists"]), (operator, ["rules"]), (groups, ["group-kids", "group-teen-laptop", "add-group"]),
+          (views.dns_filter(ctx("dns:filter"), "settings", OV, None, SEARCH), ["safe-search", "upstreams"]),
+          (admin, ["querylog"])) for i in ids))
 seen = views.dns_filter(ctx("dns:querylog"), "lists", OV, LOG, SEARCH)
-check("page: without dns:filter the ticks show but post nothing", "/dns-filter/lists/set" not in seen
-      and 'class="tick on"' in seen)
+check("page: without dns:filter the ticks show but post nothing", "/dns-filter/lists/apply" not in seen
+      and 'class="tick on"' in seen and "tickbox" not in seen)
 check("page: everyone's safe search is in Settings",
       'action="/dns-filter/safe-search"' in views.dns_filter(ctx("dns:filter"), "settings", OV, None, SEARCH))
 viewer = views.dns_filter(ctx("dns:querylog"), "groups", None, LOG, SEARCH)
 check("page: without dns:filter no group form shows", "/dns-filter/groups" not in viewer
       and "/dns-filter/safe-search" not in viewer)
+
+# ---- fabric's own queries in the query log (2.1.12.12, 1.12.3.16): the box, the note, a bad value
+OWN_LOG = {**LOG, "own": False, "own_networks": ["10.255.0.0/24", "192.168.1.10/32", "127.0.0.0/8", "::1/128"]}
+hidden = views.dns_filter(ctx("dns:filter", "dns:querylog"), "querylog", OV, OWN_LOG, SEARCH)
+shown = views.dns_filter(ctx("dns:filter", "dns:querylog"), "querylog", OV, {**OWN_LOG, "own": True},
+                         {**SEARCH, "own": "on"})
+check("page: the query log's search has the box Show fabric's own queries, unticked by default, and says what it hid",
+      '<input type="checkbox" name="own">' in hidden and "Show fabric's own queries" in hidden
+      and "fabric's own queries are hidden" in hidden and "10.255.0.0/24, 192.168.1.10/32" in hidden, hidden[-900:])
+check("page: with the box ticked it stays ticked (kept by the form) and the note is gone",
+      '<input type="checkbox" name="own" checked>' in shown and "own queries are hidden" not in shown)
+STATS = {"hours": [], "week": {"queries": 120, "blocked": 7, "own": 45}, "zones": [], "top_blocked": []}
+over = views.dns_filter(ctx("dns:filter"), "overview", {**OV, "stats": STATS}, None, SEARCH)
+check("page: the overview states how many of the 7 days' queries were fabric's own",
+      "45 of them fabric's own" in over, over[over.find("Queries, last 7 days"):][:300])
+
+
+class PageH:
+    def send(self, status, body):
+        self.out = (status, body)
+
+
+class PageActions:
+    ValidationError, PermissionDenied = ValidationError, PermissionError
+
+    def __init__(self):
+        self.calls = []
+
+    def dns_filter_overview(self):
+        return OV
+
+    def query_log(self, *args):
+        self.calls.append(args)
+        return {**OWN_LOG, "own": args[4]}
+
+
+import webui.routes.dns_filter_page as wpage  # noqa: E402
+wpage.actions, ph = PageActions(), PageH()
+wpage.dns_filter_page(ph, ctx("dns:filter", "dns:querylog"), {"view": "querylog", "own": "on"})
+# covers: web:get.dns-filter +
+check("web: the box ticked asks fabric-agent for fabric's own queries too (own True)",
+      ph.out[0] == 200 and wpage.actions.calls[-1][4] is True, wpage.actions.calls)
+wpage.dns_filter_page(ph, ctx("dns:filter", "dns:querylog"), {"view": "querylog"})
+check("web: unticked, fabric's own stay hidden (own False)", wpage.actions.calls[-1][4] is False)
+n = len(wpage.actions.calls)
+wpage.dns_filter_page(ph, ctx("dns:filter", "dns:querylog"), {"view": "querylog", "own": "yes"})
+# covers: web:get.dns-filter -
+check("web: a value for the box other than on is refused in place of the results, saying why; nothing asked",
+      ph.out[0] == 200 and "Show fabric&#39;s own queries is on or off" in ph.out[1] and len(wpage.actions.calls) == n,
+      ph.out[1][-600:] if isinstance(ph.out[1], str) else ph.out)
+
+# a refused lists Apply: the lists page again with why, the boxes as sent (or as the lists are now, when stale)
+wpost.page_context = lambda sess: ctx("dns:filter")
+ROWS = OV["lists"]
+off = next(r for r in ROWS if not r["enabled"])           # a list not ticked, ticked in the refused form
+h, fake = H(), use(FakeActions(refuse="the ticked lists do not fit: Big (~500 MiB) would take the set to about ..."))
+form = {"shown": " ".join(r["id"] for r in ROWS), "version": OV["lists_version"], f"on-{off['id']}": "on",
+        **{f"on-{r['id']}": "on" for r in ROWS if r["enabled"]}}
+wpost.dns_filter_post(h, SESS, ["lists", "apply"], form)
+# covers: web:post.dns-filter.lists.apply -
+check("web: the memory refusal is the lists page again (no redirect) saying why, the boxes kept as sent, nothing "
+      "applied",
+      h.out[0] == 200 and "do not fit: Big (~500 MiB)" in h.out[1]
+      and f'name="on-{off["id"]}" aria-label="Use {off["name"]}" checked>'.replace("'", "&#39;") in h.out[1]
+      and [c[0] for c in fake.calls] == ["hold"], (fake.calls, h.out[1][h.out[1].find(off["id"]) - 80:][:300]
+                                                   if h.out[0] == 200 else h.out))
+h, fake = H(), use(FakeActions(refuse="the lists changed since this page was shown (another person, ...)"))
+wpost.dns_filter_post(h, SESS, ["lists", "apply"], {**form, "version": "an older version"})
+check("web: a stale page's Apply is refused saying why, the lists shown as they are now (not the boxes sent)",
+      h.out[0] == 200 and "changed since this page was shown" in h.out[1]
+      and f'name="on-{off["id"]}" aria-label="Use {off["name"]}">'.replace("'", "&#39;") in h.out[1], h.out[0])
+
+# ---- the YouTube level applies only while safe search is on (owner 2026-10-17, 2.1.12.13)
+off_ = views.dns_filter(ctx("dns:filter"), "settings", {**OV, "safe_search": {"on": False, "youtube": "moderate"}},
+                        None, SEARCH)
+on_ = views.dns_filter(ctx("dns:filter"), "settings", {**OV, "safe_search": {"on": True, "youtube": "moderate"}},
+                       None, SEARCH)
+check("page: safe search off: the YouTube select is disabled, says it is used only while safe search is on, and a "
+      "hidden copy keeps the saved level when the form is saved",
+      '<select name="youtube" disabled>' in off_ and "Used only while safe search is on." in off_
+      and '<input type="hidden" name="youtube" value="moderate">' in off_, off_[off_.find("YouTube<"):][:500])
+check("page: safe search on: the YouTube select is enabled and no hidden copy is sent",
+      '<select name="youtube">' in on_ and 'type="hidden" name="youtube"' not in on_
+      and "Used only while safe search is on." in on_)
+ro = views.dns_filter(ctx("dns:querylog"), "settings", {**OV, "safe_search": {"on": True, "youtube": "strict"}},
+                      None, SEARCH)
+check("page: without dns:filter the select stays disabled, even with safe search on",
+      '<select name="youtube" disabled>' in ro and 'type="hidden" name="youtube"' not in ro)
 
 print("\nall passed (0 failures)" if not FAILED else f"\n{FAILED} failed")
 sys.exit(1 if FAILED else 0)

@@ -10,6 +10,7 @@ from fabriclib.common.write_file_if_changed import write_file_if_changed
 from fabriclib.dns_filter.common.adguard_api import adguard_api
 from fabriclib.dns_filter.common.adguard_password import adguard_password
 from fabriclib.dns_filter.common.dnslog_psql import dnslog_psql
+from fabriclib.dns_filter.common.own_clients import own_clients
 from fabriclib.dns_filter.common.query_log_off import query_log_off
 from fabriclib.dns_filter.common.resolver_paths import resolver_paths
 from fabriclib.dns_filter.ensure_dnslog_db import ensure_dnslog_db
@@ -162,10 +163,11 @@ def ingest_dns_log(v):
     """Purpose: read the resolver's new query and RPZ log lines into the query log (manual 1.12.2.13, 1.12.3.7,
              decision 2.1.12.5): queries in, each rewrite of the resolver's marked on its query, each NXDOMAIN that
              AdGuard Home gave for a list marked blocked by that list, the touched hours' and days' statistics
-             recomputed, then rows past their time purged (2.1.12.4: 7 days; statistics 90 days). One run at a time;
-             the timer's alone since 2.1.12.10 (the console's reads never ingest): ingest.json's time is when it last
-             ran, which the tab shows.
-    Inputs:  v — rendered vars (install_resolver, install_keycloak, deploy_base_dir, ip_adguard).
+             recomputed (the most blocked names without fabric's own queries, 2.1.12.12), then rows past their time
+             purged (2.1.12.4: 7 days; statistics 90 days). One run at a time; the timer's alone since 2.1.12.10 (the
+             console's reads never ingest): ingest.json's time is when it last ran, which the tab shows.
+    Inputs:  v — rendered vars (install_resolver, install_keycloak, deploy_base_dir, ip_adguard; fabric_subnet and
+             host_ip for fabric's own: own_clients).
     Returns: {"off": reason} when the resolver or Postgres is not on; else {"queries": rows added, "rewrites": rewrite
              lines read, "adguard": answers marked blocked by a list, "adguard_error": why AdGuard could not be asked
              (those answers stay unmarked) or None, "skipped": lines that were none of these, "created": True when
@@ -230,10 +232,12 @@ def ingest_dns_log(v):
                     """DELETE FROM stats_blocked WHERE day IN
                        (SELECT DISTINCT (hour AT TIME ZONE 'UTC')::date FROM touched);""",
                     """INSERT INTO stats_blocked SELECT (at AT TIME ZONE 'UTC')::date, name, zone, count(*) FROM queries
-                       WHERE blocked AND (at AT TIME ZONE 'UTC')::date IN
+                       WHERE blocked AND NOT (client <<= ANY (:'own_nets'::inet[]))
+                       AND (at AT TIME ZONE 'UTC')::date IN
                        (SELECT DISTINCT (hour AT TIME ZONE 'UTC')::date FROM touched) GROUP BY 1, 2, 3;"""]
         sql += [PURGE, "COMMIT;"]
-        dnslog_psql("\n".join(sql) + "\n")
+        # the most blocked names (stats_blocked) leave fabric's own queries out (2.1.12.12)
+        dnslog_psql("\n".join(sql) + "\n", {"own_nets": "{" + ",".join(str(n) for n in own_clients(v)) + "}"})
         new = {k: p for k, p in (("query.log", q_place), ("rpz.log", r_place)) if p}
         if new != place or not os.path.exists(place_file):
             write_file_if_changed(place_file, json.dumps(new) + "\n", 0o600)

@@ -10,8 +10,9 @@ from webui.httpio.read_form import read_form
 from webui.routes.get_page import get_page
 from webui.routes.post_action import post_action
 
-TOGGLES = ("fresh", "off", "noscan")   # the preview's own switches (the DNS filter's first fetch; DHCP off; no
-                                       # grant to scan here, 1.10.4.40.1)
+TOGGLES = ("fresh", "off", "noscan", "tight")   # the preview's own switches (the DNS filter's first fetch; DHCP off;
+                                                # no grant to scan here, 1.10.4.40.1; AdGuard's memory limit 150 MiB,
+                                                # so the lists' memory refusal can be seen, 1.12.3.17)
 
 
 class _DevOIDC:

@@ -8,6 +8,7 @@ from webui.routes.changes_post import changes_post
 from webui.routes.directory_post import directory_post
 from webui.routes.dns_filter_post import dns_filter_post
 from webui.routes.kea_post import kea_post
+from webui.routes.kept_post import kept_post
 from webui.routes.landing_post import landing_post
 from webui.routes.networks_post import networks_post
 from webui.routes.overview_post import overview_post
@@ -54,7 +55,9 @@ def post_action(h, sess, path, form):
              /account/groups/<name>/members (1.8.6.6); /networks/… (plan, sync, scan, options: 1.10.4.40); /kea/…
              (reservations, subnets, options, classes); /dns-filter/…
              (lists, rules, upstreams, fetch); /overview/… (jobs); /freeradius/clients…; /freeradius/people…;
-             /bind9/tsig/…; /overview/sizing/dismiss (a sizing alert, 1.8.8.8); /settings/… (the setup wizard: step,
+             /bind9/tsig/…; /overview/sizing/dismiss (a sizing alert, 1.8.8.8); /kept/refresh (a page's Refresh,
+             1.8.9.4);
+             /settings/… (the setup wizard: step,
              plan, import, apply, dismiss).
     Returns: /logout: session dropped, LOGOUT audited, 303 to Keycloak's logout URL clearing the session cookie;
              the rest as their route modules.
@@ -74,6 +77,8 @@ def post_action(h, sess, path, form):
         return zones_post(h, user, _segments(path, 3), form)
     if path.startswith("/bind9/landing/"):
         return landing_post(h, user, _segments(path, 3), form)
+    if path == "/kept/refresh":                     # a page's Refresh (1.8.9.4)
+        return kept_post(h, form)
     if path == "/overview/sizing/dismiss":          # the person's own (1.8.8.8, 2.1.8.39)
         try:
             actions.sizing_dismiss(form.get("resource", ""), sess["user"])
@@ -101,7 +106,7 @@ def post_action(h, sess, path, form):
     if path.startswith("/kea/"):
         return kea_post(h, _segments(path, 2), form)
     if path.startswith("/dns-filter/"):
-        return dns_filter_post(h, _segments(path, 2), form)
+        return dns_filter_post(h, sess, _segments(path, 2), form)
     if path.startswith("/freeradius/clients"):
         return radius_post(h, sess, _segments(path, 3), form)
     if path.startswith("/freeradius/people"):

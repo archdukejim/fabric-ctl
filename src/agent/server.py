@@ -58,7 +58,9 @@ import socketserver
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from agent.get_route import keep_fixed_pages  # noqa: E402
 from agent.handler import Handler  # noqa: E402
+from agent.kept_store import start_kept  # noqa: E402
 from fabriclib.directory import held_op  # noqa: E402
 from fabriclib.secrets.held_secrets import hold_secrets  # noqa: E402
 
@@ -85,6 +87,7 @@ def main():
 
     held_op.enable()            # manual 1.8.8.2: a long-lived process holds what a command starts anew
     hold_secrets()
+    start_kept(keep_fixed_pages)    # manual 1.8.9: the console's slow reads, sized to this host
     Handler.allowed_uids = {0, *args.allow_uid}
     if os.path.exists(args.socket):
         os.unlink(args.socket)

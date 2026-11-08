@@ -5,7 +5,7 @@ PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "
                  "policies": "/directory/policies", "ous": "/directory/ous", "access": "/directory/access",
                  "kerberos": "/directory/kerberos", "devices": "/8021x/devices", "roles": "/8021x/roles",
                  "radius": "/8021x", "zones": "/dns/zones", "networks": "/networks", "options": "/networks/options",
-                 "account": "/account/groups"}
+                 "account": "/account/groups", "dns-filter": "/dns-filter"}
 
 # The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
 # permissions that show it: any one of them; () = any signed-in person). An entry shows when one of its pages does.

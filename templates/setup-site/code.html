@@ -1,0 +1,14 @@
+<h1>Open setup</h1>
+<p class="error" role="alert">$error</p>
+<h2>1. Check this page's certificate</h2>
+<p>This site's certificate is temporary, and your browser cannot vouch for it. You can: the fingerprint your browser shows for it
+(open the certificate from the address bar) should be the same as the one on the host's terminal.</p>
+<p class="fingerprint"><code>$fingerprint</code></p>
+<p>That check protects you: without it, someone on your LAN could stand between you and this page. The code below does not
+prevent that.</p>
+<h2>2. Enter the one-time code</h2>
+<form method="post" action="/code">
+<label for="code">One-time code, from the host's terminal</label>
+<input id="code" name="code" type="text" autocomplete="off" autofocus spellcheck="false" autocapitalize="characters" required>
+<button>Open setup</button>
+</form>

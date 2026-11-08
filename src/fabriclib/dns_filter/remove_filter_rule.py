@@ -9,11 +9,13 @@ from fabriclib.dns_filter.add_filter_rule import KINDS
 from fabriclib.dns_filter.common.filter_target import filter_target
 
 
-def remove_filter_rule(actor, kind, name, source="cli", group=""):
+def remove_filter_rule(actor, kind, name, source="cli", group="", dry=False):
     """Purpose: take a name out of the DNS filter's allows or blocks, everyone's or a client group's (manual
              1.12.2.14, 1.12.2.15). Saved in vars.yaml; applied by the next apply.
     Inputs:  actor — who asks (audit); kind — "allow" or "block"; name — as listed; source — "cli" or "web"; group —
              "" for everyone, else a group's name.
+             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's
+             Apply, 1.12.3.17).
     Returns: {"kind", "name", "group"}.
     Fails:   ValidationError for another kind, an unknown group or a name not in that rule; OSError or yaml errors
              from the vars file and the audit log.
@@ -28,6 +30,8 @@ def remove_filter_rule(actor, kind, name, source="cli", group=""):
         if name not in names:
             raise ValidationError(f"{name} is not {'allowed' if kind == 'allow' else 'blocked'} by a rule of {label}")
         target[keys[kind]] = [n for n in names if n != name]
-        save_vars(data)
-    write_audit(actor, f"DNS_FILTER_UN{kind.upper()}", f"{name} ({label})", source)
+        if not dry:
+            save_vars(data)
+    if not dry:
+        write_audit(actor, f"DNS_FILTER_UN{kind.upper()}", f"{name} ({label})", source)
     return {"kind": kind, "name": name, "group": "" if label == "everyone" else label[6:]}

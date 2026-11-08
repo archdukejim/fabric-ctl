@@ -1,5 +1,9 @@
+import hashlib
+import ipaddress
+
 from webui.devpreview.fabric_rules import ValidationError
-from webui.devpreview.sample_data import SAMPLE_DHCP, SAMPLE_DNS_FILTER, SAMPLE_QUERY_LOG, SAMPLE_RADIUS
+from webui.devpreview.sample_data import (SAMPLE_DHCP, SAMPLE_DNS_FILTER, SAMPLE_OWN_NETWORKS, SAMPLE_QUERY_LOG,
+                                         SAMPLE_RADIUS)
 
 APPLIED = {"applied": True, "output": "dev preview: nothing applied"}
 
@@ -99,6 +103,19 @@ def _radius(route, body):
     return None
 
 
+def _memory(d):
+    """Purpose: The sample's memory line after its ticks change, as list_memory counts it (1.12.3.9).
+    Inputs:  d — SAMPLE_DNS_FILTER (changed in place).
+    Returns: None.
+    Fails:   never.
+    Feeds:   _filter."""
+    on = [r for r in d["lists"] if r.get("enabled")]
+    total = round(sum(r["memory_mb"] for r in on if r.get("memory_mb") is not None), 1)
+    d["memory"] = {**d["memory"], "estimate_mb": total, "peak_mb": round(total * 2.5, 1),
+                   "fits": total * 2.5 <= d["memory"]["limit_mb"],
+                   "unknown": [r["name"] for r in on if r.get("memory_mb") is None]}
+
+
 def _filter(route, body):
     """Purpose: The DNS filter's changes on the sample data in memory (nothing fetched or applied), and the query log.
     Inputs:  route — segments after /v1/dns-filter/; body — dict (name, url, enabled, kind, upstreams, group,
@@ -108,8 +125,12 @@ def _filter(route, body):
     Feeds:   fake_network."""
     d, what = SAMPLE_DNS_FILTER, "/".join(route)
     if what == "querylog":
-        entries = [e for e in SAMPLE_QUERY_LOG["entries"] if not body.get("blocked") or e["blocked"]]
-        return {"as_of": SAMPLE_QUERY_LOG["as_of"], "entries": entries}
+        shown = bool(body.get("own"))         # as read_query_log: fabric's own hidden unless asked for (2.1.12.12)
+        own = [ipaddress.ip_network(n) for n in SAMPLE_OWN_NETWORKS]
+        entries = [e for e in SAMPLE_QUERY_LOG["entries"] if (not body.get("blocked") or e["blocked"]) and (
+            shown or not any(ipaddress.ip_address(e["client"]) in n for n in own))]
+        return {"as_of": SAMPLE_QUERY_LOG["as_of"], "entries": entries, "own": shown,
+                "own_networks": SAMPLE_OWN_NETWORKS}
     group = str(body.get("group", "")).strip()
     target = d if not group else next((g for g in d["groups"] if g["name"] == group), None)
     if target is None:
@@ -119,12 +140,23 @@ def _filter(route, body):
         row = next((r for r in d["lists"] if r["url"] == url), None)
         on, added = what == "lists" or body.get("enabled") == "on", row is None
         if row is None:
-            row = {"id": "", "name": body.get("name") or url, "url": url, "description": "", "homepage": "",
+            row = {"id": hashlib.sha256(url.encode()).hexdigest()[:12], "name": body.get("name") or url, "url": url,
+                   "description": "", "homepage": "",
                    "category": "Added by URL", "on_site": True, "enabled": on, "last_fetch": None,
                    "last_success": None, "rules": None, "memory_mb": None}
             d["lists"].append(row)
         row["on_site"], row["enabled"] = True, on
         return {"result": {"name": row["name"], "enabled": on, "added": added}, "applied": True}
+    if what == "lists/ticks":                 # the lists form's Apply: every tick at once (1.12.3.17)
+        rows = {r["url"]: r for r in d["lists"]}
+        for item, on in [(i, False) for i in body.get("untick") or []] + [(i, True) for i in body.get("tick") or []]:
+            row = rows.get(item.get("url"))
+            if row is None:
+                raise ValidationError(f"the site has no list with the url {item.get('url')}")
+            row["on_site"], row["enabled"] = True, on
+        _memory(d)
+        return {"result": {"ticked": [i.get("name") for i in body.get("tick") or []],
+                           "unticked": [i.get("name") for i in body.get("untick") or []]}, "applied": True}
     if what == "lists/delete":
         gone = next((r for r in d["lists"] if r["url"] == body.get("url")), {"name": body.get("url")})
         d["lists"] = [r for r in d["lists"] if r["url"] != body.get("url")]

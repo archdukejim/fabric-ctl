@@ -7,14 +7,14 @@ previous:
   image_postgres:    {tag: "18.4", digest: "sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636"}   # 18.5 was never published
   image_fluentbit:   {tag: "5.1.1", digest: "sha256:a941bdd5ca552b2c6597fc7b3bccf2e61d30873939bab5700963de0e94ac6169"}
   image_adguard:     {tag: "v0.107.78", digest: "sha256:1ea34eafe5dc691007946e8eaab7bf46b0de9412f39213d8c06e48b53bf9a6c5"}   # new in 0.7.0
-  # fabric's own images: the previous release (the pins of 0.9.1 and of 0.9.0, the same; published as 0.9.0-rc.309)
-  image_fabric_bind9:      {tag: "0.9.0-rc.309", digest: "sha256:f9fa95c27a2084b08968faef5d676b742c7fcada6a7bc0557dffc8f21c5e7a6f"}
-  image_fabric_freeradius: {tag: "0.9.0-rc.309", digest: "sha256:422e5d5642ebb61f770915aaa9f8f4686ec9d33789f549d7eebff24ff893f356"}
-  image_fabric_kea:        {tag: "0.9.0-rc.309", digest: "sha256:62f757c105986068274391707a9ef1394f341949974606ad50586247780df3f7"}
-  image_fabric_keycloak:   {tag: "0.9.0-rc.309", digest: "sha256:f6a1c743ac47dcad94f366606c94da346389e2b6ed5d57a831a00ecfe8460b8a"}
-  image_fabric_samba:      {tag: "0.9.0-rc.309", digest: "sha256:1091c850ae3dd7e28ccffc43708d74b2bd1eebd7049cc6719651d81ff131122a"}
-  image_fabric_stepca:     {tag: "0.9.0-rc.309", digest: "sha256:2b1c5251b925fda4819c4003b8438ca4b20584aaf45c3970f88cb8c9b7e790c8"}
-  image_fabric_webui:      {tag: "0.9.0-rc.309", digest: "sha256:87c6c61962b44624e6e5993c4cad78e9b8e2b7143b6ff797300696497a99a40d"}
+  # fabric's own images: the previous release, 0.9.2 (its pins, published as 0.9.2-rc.325)
+  image_fabric_bind9:      {tag: "0.9.2-rc.325", digest: "sha256:b901f95810e313299e066dcf63199f5917bc1b7e54fe9193955f9a5ae1018c7b"}
+  image_fabric_freeradius: {tag: "0.9.2-rc.325", digest: "sha256:3961f9f5d3aec686f467231fd98a765a0fc271dd04a5076413d18ac5885782aa"}
+  image_fabric_kea:        {tag: "0.9.2-rc.325", digest: "sha256:45bb6ceb5352741273d2d23a3f3cc6adacc3c80356c0655ed9ffd15fea86060b"}
+  image_fabric_keycloak:   {tag: "0.9.2-rc.325", digest: "sha256:3bfe4c4bc61810e264b0e2bf4bba934b373d7e33a1a887cd1dbf08986e53ab29"}
+  image_fabric_samba:      {tag: "0.9.2-rc.325", digest: "sha256:79f00b8207da6fee5b30cde26fd215ca6cf243ef0320d88b4d2364be4cd93d47"}
+  image_fabric_stepca:     {tag: "0.9.2-rc.325", digest: "sha256:b3c475f1d8ff970e4c3e3b641049a893e1e6af3e349b5a791e855c6a92a8eda0"}
+  image_fabric_webui:      {tag: "0.9.2-rc.325", digest: "sha256:a17c128c44b47105e94f4971aa5d03c0234d4d64d00da374a65ae4b256ddf184"}
 # no earlier version to go back to, with the reason (any other var: a base fabric builds a local image from, which
 # moves only with a fabric release)
 skipped:

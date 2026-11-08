@@ -7,6 +7,7 @@
   sudo fabricctl setup --step certs         run one step (see --list)
   sudo fabricctl setup --undo firewall      undo one kind of host change and record it as declined
   sudo fabricctl setup --restart            start over with the questions though the last run did not finish
+  sudo fabricctl setup --terminal           keep Guided in this terminal, for a host reached with no browser
   sudo fabricctl doctor                     run only the end-to-end checks
 """
 import argparse
@@ -38,6 +39,11 @@ from fabriclib.setup.finish_vars import finish_vars  # noqa: E402
 from fabriclib.setup.read_join_invitation import read_join_invitation  # noqa: E402
 from fabriclib.setup.require_terminal import require_terminal  # noqa: E402
 from fabriclib.setup.run_steps import run_steps  # noqa: E402
+from fabriclib.setup.site.close_site_port import close_site_port  # noqa: E402
+from fabriclib.setup.site.attach_site import attach_site  # noqa: E402
+from fabriclib.setup.site.guided_site import GuidedSite  # noqa: E402
+from fabriclib.setup.site.read_port_record import read_port_record  # noqa: E402
+from fabriclib.setup.site.site_wanted import site_wanted  # noqa: E402
 from fabriclib.setup.steps import STEPS  # noqa: E402
 from fabriclib.setup.verify_install import run as verify  # noqa: E402
 from fabriclib.security.ufw_active import ufw_active  # noqa: E402
@@ -53,7 +59,9 @@ def main(argv=None):
              --non-interactive, --yes/-y, --approve GROUPS / --decline GROUPS (host changes, repeatable),
              --step NAME (repeatable), --join [@FILE|-] (join an upstream fabric; read_join_invitation),
              --undo GROUP (undo/undo_group: revert one host change, nothing else runs), --list, --restart, --doctor
-             (hidden, used by doctor), --worker RUN (hidden: the unit's own command, detach/run_worker).
+             (hidden, used by doctor), --worker RUN (hidden: the unit's own command, detach/run_worker),
+             --terminal (keep
+             Guided here; otherwise, on a new install, its questions go on in the browser: site/, manual 1.3.6).
     Returns: exit status: 0 done (or --list printed), 1 a SetupError (message printed), 130 interrupted (or, while
              following the unit, detached). A full run (no --step) asks its questions here and hands the steps to
              fabric-setup.service, following its log (detach/hand_over; decision 2.1.2.26): while that unit runs,
@@ -96,6 +104,9 @@ def main(argv=None):
     ap.add_argument("--list", action="store_true", help="list the steps and exit")
     ap.add_argument("--restart", action="store_true",
                     help="start over with the questions and every step, though the last run did not finish")
+    ap.add_argument("--terminal", action="store_true",
+                    help="keep Guided in this terminal, for a host reached with no browser (default: on a new install, "
+                         "Guided goes on in the browser, on a temporary HTTPS site)")
     ap.add_argument("--doctor", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--worker", metavar="RUN", help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
@@ -110,6 +121,14 @@ def main(argv=None):
     if args.step is None and not (args.undo or args.doctor):
         ctx = SetupContext(deploy_base=args.deploy_base, non_interactive=args.non_interactive,
                            admin_password_file=args.admin_password_file)
+        record = read_port_record()
+        if record:                             # a Guided site runs: this terminal attaches to it (2.1.8.60)
+            try:
+                return attach_site(record)
+            except SetupError as e:
+                err(str(e))
+                return 1
+        close_site_port()                      # what a killed site left behind: its firewall rule (1.3.6.7)
         last = read_run(ctx.config_dir)
         what, remaining = choose_start(unit_running(), last, [n for n, _, _ in STEPS],
                                        start_over=bool(args.restart or args.file or args.join is not None))
@@ -138,6 +157,7 @@ def main(argv=None):
     ctx = SetupContext(deploy_base=args.deploy_base, user_vars_file=args.file, offline=args.offline,
                        non_interactive=args.non_interactive, assume_yes=args.yes, join_invitation=invitation,
                        admin_password_file=args.admin_password_file)
+    site = None
     try:
         if args.undo:
             ctx.load_state()
@@ -158,6 +178,8 @@ def main(argv=None):
         if any(s in NEEDS_INPUT for s in selected):
             heading("fabric setup")
             mode = choose_mode(ctx) if args.step is None else "guided"
+            if args.step is None and site_wanted(ctx, mode, args.terminal):     # the same questions, in the browser
+                site = GuidedSite(ctx).open()
             collect_vars(ctx, ask=mode != "advanced")
             apply_plan_defaults(ctx)
             ctx.host_choices = initial_host_choices(ctx.config_dir, args.approve, args.decline)
@@ -186,17 +208,26 @@ def main(argv=None):
                              "fabric needs (or --approve ports)")
 
         if args.step is None:                  # the work goes to fabric-setup.service; this session follows it
+            if site:
+                site.proceeding()
             return hand_over(ctx, STEPS, {"options": {
                 "offline": ctx.offline, "assume_yes": ctx.assume_yes, "guided": mode == "guided",
                 "join": bool(ctx.join_invitation), "admin_password": bool(ctx.admin_password),
-                "admin_password_file": ctx.admin_password_file}})
+                "admin_password_file": ctx.admin_password_file}}, follow=site.follow if site else follow_run)
         return run_steps(ctx, STEPS, selected, guided=mode == "guided")
     except SetupError as e:
+        if site:
+            site.close(str(e))
         err(str(e))
         return 1
     except KeyboardInterrupt:
+        if site:
+            site.close()
         err("interrupted")
         return 130
+    finally:
+        if site:
+            site.close()
 
 
 if __name__ == "__main__":
