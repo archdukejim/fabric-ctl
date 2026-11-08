@@ -18,9 +18,12 @@ request for this tag (global Rule 8); nothing else is tagged.
    `git tag -a v<version>-rc.<n> origin/main -m "<version> release candidate <n>"`, then
    `git push origin v<version>-rc.<n>`.
 4. **Watch** the `package` and `images` runs for the tag. **Verify**: the GitHub Release `v<version>-rc.<n>` is a
-   pre-release with `fabricctl_<version>_all.deb`; each image `ghcr.io/archdukejim/open-fabric/<name>:<version>-rc.<n>`
+   pre-release with `fabricctl_<version>.git<UTC stamp>.<commit>_all.deb` (an rc tag is not `v<version>`, so the
+   package is `<version>~git…`, and GitHub writes `~` as `.`); each image
+   `ghcr.io/archdukejim/fabric-ctl/<name>:<version>-rc.<n>` (`published.registry` in `config/images.lock.yaml`)
    resolves to the digest `config/images.lock.yaml` pins (`docker buildx imagetools inspect`); apt stable still
    serves the previous release.
 5. **Report**: the tag, its commit, what was verified, and how to test-install it (the pre-release's `.deb`:
-   `sudo apt install ./fabricctl_<version>_all.deb`, then `sudo fabricctl setup`). A fix found by a test install goes
+   `sudo apt install ./fabricctl_<version>.git<stamp>.<commit>_all.deb`, its name as the Release lists it, then
+   `sudo fabricctl setup`). A fix found by a test install goes
    back through `/rc`; `/promote` follows a good test.

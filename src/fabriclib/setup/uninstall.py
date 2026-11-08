@@ -11,6 +11,7 @@ from fabriclib.setup.detach.constants import HANDOFF_DIR, UNIT as SETUP_UNIT
 from fabriclib.setup.detach.unit_running import unit_running
 from fabriclib.setup.common.service_account_name import service_account_name
 from fabriclib.undo.remove_host_account import remove_host_account
+from fabriclib.setup.site.close_site_port import close_site_port
 from fabriclib.undo.undo_firewall import undo_firewall
 from fabriclib.undo.undo_member import undo_member
 from fabriclib.undo.undo_resolver import undo_resolver
@@ -122,6 +123,7 @@ def uninstall(ctx, host_account=True):
     ok("services, containers, fabric_net and local images removed")
 
     # the host changes fabric made, undone while their records (in the config folder) still exist
+    close_site_port()                        # what a killed web-guided setup left (manual 3.3.6.3)
     for line in (undo_firewall(ctx.config_dir) + undo_resolver(ctx.config_dir) + undo_time(ctx.config_dir)
                  + undo_trust(v) + undo_member(ctx.config_dir)):
         ok(line)

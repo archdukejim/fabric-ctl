@@ -2,13 +2,15 @@ import os
 import subprocess
 
 from fabriclib.security.ufw_rule import RECORDS, ufw_rule
+from fabriclib.setup.site.constants import RULE_COMMENT
 
 OWN_RULES = "host-originals/ufw.own-rules"     # in the config folder: the host's rules fabric removed (2.1.2.13)
 
 
 def host_own_rules(config_dir, planned=()):
     """Purpose: the ufw rules on this host that fabric did not add — the host's own (2.1.2.13): every rule ufw lists as
-             added, less fabric's (its records, and what this run plans to add).
+             added, less fabric's (its records, what this run plans to add, and web-guided setup's site's rule,
+             1.3.6.7).
     Inputs:  config_dir — the install's config folder (security/ufw_rule RECORDS); planned — (kind, entry) pairs
              fabric is about to add.
     Returns: list of str, each as ufw shows it ("ufw allow …"), in ufw's order; [] without ufw.
@@ -25,4 +27,4 @@ def host_own_rules(config_dir, planned=()):
             fabric |= {"ufw allow " + " ".join(ufw_rule(kind, x if kind != "ssh" or "@" in x else f"{x}@22"))
                        for x in open(record).read().split()}
     return [line.strip() for line in out.splitlines()
-            if line.strip().startswith("ufw ") and line.strip() not in fabric]
+            if line.strip().startswith("ufw ") and line.strip() not in fabric and RULE_COMMENT not in line]

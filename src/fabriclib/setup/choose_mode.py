@@ -16,8 +16,9 @@ def choose_mode(ctx):
     Feeds:   setup/run_setup (full runs, before collect_vars)."""
     if os.path.exists(ctx.vars_file) or ctx.non_interactive or ctx.assume_yes:
         return "guided"
-    print(f"\n  {BOLD}[G]uided{NC}   - the questions fabric needs, one at a time (recommended)")
-    print("  [A]dvanced - a menu of every setting")
+    print(f"\n  {BOLD}[G]uided{NC}   - the questions fabric needs, one at a time, in your browser (recommended; here "
+          "instead: --terminal)")
+    print("  [A]dvanced - a menu of every setting, in this terminal")
     print("  [Q]uit")
     while True:
         answer = ask("setup.mode", "\n  Guided, Advanced or Quit? [G/a/q] ", "g").lower()

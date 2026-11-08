@@ -1,0 +1,427 @@
+"""Web-guided setup's site (manual 1.3.6.8), its trust, refusals and limits, with a real listener process, real TLS and
+real sockets; the questions are Guided's real ones (collect_vars and its checks, ask_first_admin, choose_plan), only
+the host's network and the plan's host changes stood in for, since no host changes before Proceed.
+    python3 tests/setup/site/site_test.py"""
+import os
+import re
+import signal
+import socket
+import ssl
+import stat
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from support import Browser, check, finish, free_ports, label_of, listener_lib  # noqa: E402
+
+import fabriclib.setup.site.guided_site as gs  # noqa: E402
+import fabriclib.setup.collect_vars as cv  # noqa: E402
+from fabriclib.common.ask import ask  # noqa: E402
+from fabriclib.setup.context import SetupContext  # noqa: E402
+from fabriclib.setup.errors import SetupError  # noqa: E402
+from fabriclib.setup.site.attach_site import attach_site  # noqa: E402
+from fabriclib.setup.site.pick_port import pick_port  # noqa: E402
+from fabriclib.setup.site.read_port_record import read_port_record  # noqa: E402
+from fabriclib.setup.site.question_view import question_view  # noqa: E402
+
+LIB, USER = listener_lib()
+NET = {"hostname": "fabric-test", "host_ip": "127.0.0.1", "lan_gateway": "127.0.0.2", "lan_cidr": "127.0.0.0/8",
+       "interface": "lo"}
+gs.detect_network = lambda: NET
+cv.detect_network = lambda: NET
+cv.network_problem = lambda data: ""     # this machine's addresses are not the test's business
+gs.open_site_port = lambda port, cidr: False
+
+
+class Term:
+    """The terminal, kept to read."""
+
+    def __init__(self):
+        self.text = ""
+
+    def write(self, text):
+        self.text += text
+
+    def flush(self):
+        pass
+
+    def code(self):
+        return re.findall(r"code:\s+(\S+)", self.text)[-1]
+
+
+def new_site(base, **options):
+    first, last = free_ports()
+    term = Term()
+    ctx = SetupContext(deploy_base=base)
+    record = os.path.join(base, "site-port")
+    site = gs.GuidedSite(ctx, term=term, first=first, last=last, record=record, lib_dir=LIB, user=USER, grace=0.2,
+                         attach=os.path.join(base, "attach.sock"), **options)
+    site.open()
+    return site, term, Browser(site.port), record
+
+
+def in_thread(fn):
+    box = {}
+
+    def run():
+        try:
+            box["value"] = fn()
+        except BaseException as e:
+            box["raised"] = e
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    return t, box
+
+
+def listening(port):
+    with socket.socket() as s:
+        s.settimeout(1)
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+with tempfile.TemporaryDirectory() as base:
+    target = os.path.join(base, "fabric")
+
+    # ---- the site, its certificate and the code ----
+    site, term, browser, record = new_site(base)
+    port = site.port
+    check("the terminal prints the URL, the code and the fingerprint",
+          f"https://127.0.0.1:{port}/" in term.text and "One-time code" in term.text and site.fingerprint in term.text, term.text)
+    check("the terminal says a temporary certificate is in use, and what the check protects against",
+          "temporary certificate is in use" in term.text and "intercept" in term.text, term.text)
+    raw = ssl._create_unverified_context()
+    with raw.wrap_socket(socket.create_connection(("127.0.0.1", port), timeout=5)) as s:
+        der = s.getpeercert(True)
+        check("TLS 1.2 or newer", s.version() in ("TLSv1.2", "TLSv1.3"), s.version())
+    pem = ssl.DER_cert_to_PEM_cert(der)
+    from fabriclib.setup.site.certificate_fingerprint import certificate_fingerprint  # noqa: E402
+    check("the fingerprint printed is the certificate served", certificate_fingerprint(pem) == site.fingerprint)
+    out = subprocess.run(["openssl", "x509", "-noout", "-dates", "-ext", "subjectAltName"], input=pem, capture_output=True, text=True).stdout
+    check("the certificate names the host's address and name", "127.0.0.1" in out and "fabric-test" in out, out)
+    days = subprocess.run(["openssl", "x509", "-noout", "-checkend", str(86400 + 300)], input=pem, capture_output=True, text=True)
+    check("the certificate lasts one day", days.returncode != 0, days.stdout)
+    pid = site.process.pid
+    uid = os.stat(f"/proc/{pid}").st_uid
+    if USER:
+        check("the listener runs as uid 649, which no account holds, not root", uid == 649, uid)
+        with open(f"/proc/{pid}/status") as f:
+            status = f.read()
+        check("the listener holds no capabilities and can gain no privilege",
+              re.search(r"CapEff:\s+0+\n", status) and re.search(r"NoNewPrivs:\s+1", status), status)
+    else:
+        print("SKIP the listener's account (not root: run the suite as root)")
+    check("nothing holds the certificate on a disk: no file named for it in the install folder", not os.path.exists(target) or
+          not any("key" in n or "pem" in n for _, _, ns in os.walk(target) for n in ns))
+
+    # ---- refusals before the code: covers: site:post.code - ----
+    status, page, r = browser.get()
+    check("no session: the code page, with the fingerprint to compare", status == 200 and site.fingerprint in page and 'action="/code"' in page, page[:300])  # covers: site:get.home +
+    check("the page says the certificate is temporary (the relaxation visible)", "Temporary certificate in use" in page, page[:500])
+    headers = dict(r.getheaders())
+    check("the page's headers: CSP, nosniff, no framing, no HSTS",
+          "default-src 'none'" in headers.get("Content-Security-Policy", "") and headers.get("X-Content-Type-Options") == "nosniff"
+          and headers.get("X-Frame-Options") == "DENY" and "Strict-Transport-Security" not in headers, headers)
+    status, page, _ = browser.get("/nope")
+    check("an unknown address: refused, saying so", status == 404 and "no such page" in page, page[:200])
+    status, _, _ = browser.get("/events")
+    check("the live stream without a session: refused", status == 401, status)  # covers: site:get.events -
+    status, page, _ = browser.post("/answer", {"csrf": "x", "seq": "1", "value": "x"})
+    check("an answer without a session: refused", status == 403 and "session" in page, page[:300])  # covers: site:post.answer -
+    status, page, _ = browser.post("/code", {"code": term.code()}, origin="https://evil.example")
+    check("a right code with a wrong Origin: refused, naming it, and no session", status == 403 and "evil.example" in page and "Nothing was changed" in page and not browser.cookie, page[:300])  # covers: site:post.code -
+    status, page, _ = browser.post("/code", {"code": term.code()}, origin=None)
+    check("no Origin at all: refused", status == 403 and not browser.cookie, page[:300])
+
+    # wrong code and the lockout
+    first_code = term.code()
+    for n in range(1, 5):
+        status, page, _ = browser.post("/code", {"code": "WRONG-CODE-0000"})
+        check(f"wrong code {n}: refused, saying how many tries are left", status == 403 and f"{5 - n} tries left" in page, page[:400])
+    status, page, _ = browser.post("/code", {"code": "WRONG-CODE-0000"})
+    second_code = term.code()
+    check("the fifth wrong code replaces it, and the terminal prints the new one", status == 403 and "new one" in page and second_code != first_code, term.text[-300:])
+    check("the code is printed on the terminal only: never in a page", second_code not in page and first_code not in page)
+    status, page, _ = browser.post("/code", {"code": first_code})
+    check("the replaced code no longer opens anything", status == 403 and not browser.cookie, page[:300])
+    status, page, _ = browser.request("POST", "/code", {"code": "A" * 70000})
+    check("a body past the limit: refused", status == 413, status)
+
+    # ---- the session ----
+    status, page, _ = browser.post("/code", {"code": second_code.lower()})
+    cookie = browser.cookie
+    check("the right code opens a session (typed in any case)", status == 303 and "__Host-fabric-setup=" in cookie, (status, cookie))  # covers: site:post.code +
+
+    other = Browser(port)
+    status, page, _ = other.post("/code", {"code": second_code})
+    check("a second browser with the right code: no session yet, asked whether to end the other", status == 409 and "open in another browser" in page and not other.cookie, page[:400])  # covers: site:get.home -
+
+    # the questions: Guided's own, real checks
+    ctx = site.ctx
+
+    def run_questions():
+        ctx.vars = {}
+        cv.collect_vars(ctx)
+        return ctx.vars
+
+    t, box = in_thread(run_questions)
+    order = []
+    bad_seen = {}
+    bad = {"DNS domain": "not a domain", "This host's name": "bad.name", "This host's LAN address": "999.1.1.1",
+           "LAN subnet": "not-a-cidr", "LAN gateway": "nope", "Organisation's name": "<bad>", "Windows (AD) domain": "x.local"}
+    good = {"DNS domain": "lan.example", "This host's name": "fabric-test", "This host's LAN address": "",
+            "LAN subnet": "", "LAN gateway": "", "Organisation's name": "Example", "Windows (AD) domain": ""}
+    deadline = time.time() + 60
+    while t.is_alive() and time.time() < deadline:
+        status, page, _ = browser.get()
+        if 'action="/answer"' not in page:
+            time.sleep(0.05)
+            continue
+        label = label_of(page)
+        key = next((k for k in bad if label.startswith(k)), None)
+        if key is None:
+            check("an unexpected question", False, label)
+            break
+        if key not in bad_seen:
+            bad_seen[key] = True
+            browser.answer(page, bad[key])
+            status, again, _ = browser.get()
+            why = "not a valid" in again or "a domain of two labels" in again or "two labels" in again
+            check(f"a bad answer to '{key}': asked again, saying why, as the terminal does", label_of(again).startswith(key) and why, again[:900])
+            page = again
+        order.append(key)
+        browser.answer(page, good[key] or browser.field(page, "value") or "")
+        time.sleep(0.05)
+    t.join(10)
+    check("Guided's questions all came through the page, in order", order[:2] == ["DNS domain", "This host's name"] and "Windows (AD) domain" in order, order)
+    check("the answers reached setup's settings", box.get("value", {}).get("domain") == "lan.example" and box["value"].get("ad_domain"), box)
+
+    # permanent mark and the question's shape
+    view = question_view("setup.vars.domain", "  DNS domain (e.g. home.arpa) \x1b[93m⚠ Permanent\x1b[0m [home.arpa]: ", False)
+    check("a permanent choice is marked, its default the field's value, its colour gone",
+          view["permanent"] and view["default"] == "home.arpa" and "\x1b" not in view["label"] and "⚠" not in view["label"], view)
+    view = question_view("setup.consent.x", "\n  Allow it? [Y/n] ", False)
+    check("yes or no: two buttons, the default first", view["choices"][0][0] == "y" and view["label"] == "Allow it?", view)
+
+    # the plan: Proceed, Cancel; the menu refused; declined consent changes nothing
+    def plan():
+        return ask("setup.plan", "\n  [P]roceed (allows the host changes listed), [M]enu, or [Q]uit? ")
+
+    print("  the plan text\n    - a host change")
+    t, box = in_thread(plan)
+    deadline = time.time() + 15
+    page = ""
+    while time.time() < deadline:
+        status, page, _ = browser.get()
+        if "Proceed" in page and 'value="p"' in page:
+            break
+        time.sleep(0.05)
+    check("the plan shows what was printed before it, with one confirmation", "the plan text" in page and "a host change" in page and 'value="p"' in page and 'value="q"' in page, page[:800])
+    check("the plan offers no menu: Advanced stays in the terminal", 'value="m"' not in page)
+    status, stale, _ = browser.post("/answer", {"csrf": "not-the-token", "seq": browser.field(page, "seq"), "value": "p"})
+    check("a stale CSRF token: refused, saying so, nothing happened", status == 403 and "stale" in stale and t.is_alive(), stale[:300])  # covers: site:post.cancel -
+    status, wrong, _ = browser.post("/answer", {"csrf": browser.field(page, "csrf"), "seq": browser.field(page, "seq"), "value": "p"}, origin="https://evil.example")
+    check("the plan's Proceed from another site's page: refused, nothing happened", status == 403 and t.is_alive(), wrong[:300])
+    browser.answer(page, "m")
+    time.sleep(0.2)
+    status, page, _ = browser.get()
+    check("the menu's answer posted anyway: refused, saying why, the plan asked again", "the menu stays in the terminal" in page and 'value="p"' in page and t.is_alive(), page[:800])  # covers: site:post.answer +
+    check("the refused plan keeps its text", "the plan text" in page, page[:800])
+    status, _, _ = browser.post("/cancel", {"csrf": browser.field(page, "csrf")})
+    t.join(10)
+    check("Cancel: setup is told, as Quit", isinstance(box.get("raised"), SystemExit) and "cancelled" in str(box["raised"]), box)  # covers: site:post.cancel +
+    written = os.path.exists(os.path.join(target, "config", "fabric.yaml"))
+    check("(the questions did save settings as they went)", written)
+    site.close()
+    check("after Cancel: nothing changed: the install folder is as it was found", not os.path.exists(target), list(os.walk(target)))
+    check("after Cancel: the port is closed", not listening(port))
+    check("after Cancel: the listener has gone", site.process is None and not os.path.exists(f"/proc/{pid}"), pid)
+    check("after Cancel: the record is gone", not os.path.exists(record))
+    check("the terminal says the site stopped", "The setup site has stopped" in term.text, term.text[-200:])
+
+    # ---- the idle limit ----
+    site, term, browser, record = new_site(base, idle=1)
+    port = site.port
+    try:
+        ask("test.q", "A question: ")
+        check("the idle limit", False)
+    except SetupError as e:
+        check("idle past the limit: refused, saying so and how to start again", "idle" in str(e) and "sudo fabricctl setup" in str(e), e)
+    site.close(str("closed"))
+    check("idle: the port is closed and nothing changed", not listening(port) and not os.path.exists(target))
+
+    # ---- a listener that dies ----
+    site, term, browser, record = new_site(base)
+    port = site.port
+    site.process.kill()
+    try:
+        ask("test.q", "A question: ")
+        check("a dead listener", False)
+    except SetupError as e:
+        check("the listener dying stops setup, saying so, with nothing changed", "ended" in str(e), e)
+    site.close()
+    check("then the port is closed", not listening(port))
+
+    # ---- a request that lies about its length ----
+    site, term, browser, record = new_site(base)
+    port = site.port
+
+    def raw_post(length, path="/code"):
+        tls = ssl._create_unverified_context().wrap_socket(socket.create_connection(("127.0.0.1", port), timeout=5))
+        tls.sendall(f"POST {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nOrigin: https://127.0.0.1:{port}\r\n"
+                    f"Content-Length: {length}\r\n\r\n".encode())
+        answer = b""
+        try:
+            while True:
+                chunk = tls.recv(4096)
+                if not chunk:
+                    return answer.decode("utf-8", "replace")
+                answer += chunk
+        except OSError as e:
+            return f"no end to the answer: {e}: {answer[:200]}"
+        finally:
+            tls.close()
+    answer = raw_post("-1")
+    check("a negative length: refused at once, saying why, nothing read", " 400 " in answer.split("\r\n")[0] and "length" in answer, answer[:300])  # covers: site:post.code -
+    answer = raw_post("abc")
+    check("a length that is no number: refused, saying why", " 400 " in answer.split("\r\n")[0], answer[:300])
+
+    # ---- a listener that speaks without a session ----
+    t, box = in_thread(lambda: ask("test.q", "A question: "))
+    time.sleep(0.3)
+    site._on_message({"t": "answer", "seq": str(site.seq), "value": "from nobody"})
+    time.sleep(0.8)
+    check("root takes no answer before the code has been given, whatever the listener says", site.answers.empty() and t.is_alive(), box)
+    browser.post("/code", {"code": term.code()})
+    status, page, _ = browser.post("/answer", {"csrf": "\u00e9", "seq": str(site.seq), "value": "x"})
+    check("a CSRF token that is not ASCII: refused, saying why", status == 403 and "stale" in page, page[:300])
+    site.answers.put({"t": "cancel"})
+    site.cancelled = True
+    t.join(5)
+    site.cancelled = False
+
+    # ---- a second setup while one site runs ----
+    other = gs.GuidedSite(site.ctx, term=Term(), first=site.first, last=site.last, record=record, lib_dir=LIB, user=USER,
+                          attach=site.attach.path)
+    try:
+        other.open()
+        check("a second setup", False)
+    except SetupError as e:
+        check("a second setup: refused, naming the first's port, and the first's record stays", str(port) in str(e) and os.path.exists(record), e)
+    check("the first site goes on", listening(port))
+
+    # ---- another terminal attaches (decision 2.1.8.60) ----
+    check("the attach socket is root's only", stat.S_IMODE(os.stat(site.attach.path).st_mode) == 0o600)
+    viewer = Term()
+    t, box = in_thread(lambda: attach_site(read_port_record(record), site.attach.path, viewer))
+    deadline = time.time() + 5
+    while time.time() < deadline and "fingerprint" not in viewer.text:
+        time.sleep(0.1)
+    check("an attached terminal is shown the URL, the current code and the fingerprint",
+          f":{port}/" in viewer.text and site.keeper.code in viewer.text and site.fingerprint in viewer.text, viewer.text)
+    for _ in range(5):
+        Browser(port).post("/code", {"code": "WRONG-CODE"})
+    deadline = time.time() + 5
+    while time.time() < deadline and "replaced" not in viewer.text:
+        time.sleep(0.1)
+    check("a replaced code is printed on the attached terminal too", f"code:  {site.keeper.code}" in viewer.text.split("replaced")[-1], viewer.text[-300:])
+
+    # ---- a second Ctrl-C while the site closes ----
+    site.grace = 1.0
+    timer = threading.Timer(0.3, os.kill, (os.getpid(), signal.SIGINT))
+    timer.start()
+    site.close("closing")
+    timer.join()
+    check("Ctrl-C during the close: the close still finishes", not listening(port) and not os.path.exists(record) and not os.path.exists(target))
+    check("then Ctrl-C works as before", signal.getsignal(signal.SIGINT) is signal.default_int_handler)
+    t.join(5)
+    check("the site's close ends the attach, which says so, and its socket is gone", box.get("value") == 0 and "has stopped" in viewer.text and not os.path.exists(site.attach.path), (box, viewer.text[-200:]))
+
+    # ---- one session at a time: another browser takes it over after asking (decision 2.1.8.62) ----
+    site, term, browser, record = new_site(base)
+    port = site.port
+    code = term.code()
+    browser.post("/code", {"code": code})
+    old_page_csrf = None
+    t, box = in_thread(lambda: ask("test.q", "A question [yes]: ", "yes"))
+    time.sleep(0.2)
+    status, page, _ = browser.get()
+    check("a default in brackets is the field's value", 'value="yes"' in page, page[:800])
+    old_page_csrf = browser.field(page, "csrf")
+    second = Browser(port)
+    status, asked, _ = second.post("/code", {"code": code})
+    check("the code in a second browser: asked first, and nothing ends yet", status == 409 and "open in another browser" in asked and not second.cookie, status)  # covers: site:post.code -
+    check("the question's page carries a ticket, never the code", code not in asked and len(second.field(asked, "ticket")) > 20, asked[:600])
+    ticket = second.field(asked, "ticket")
+    status, page, _ = browser.get()
+    check("Back changes nothing: the first browser still holds setup", "A question" in page, page[:300])
+    status, _, _ = second.post("/code", {"ticket": "not-the-ticket"})
+    check("a made-up ticket is refused", status == 403 and not second.cookie, status)
+    status, _, _ = second.post("/code", {"ticket": ticket})
+    check("confirmed: this browser holds setup now", status == 303 and second.cookie, status)  # covers: site:post.code +
+    status, again, _ = browser.get()
+    check("the other browser's session ended at once, and it is told why", 'action="/code"' in again and "ended from another browser" in again, again[:600])
+    check("the terminal says the session was taken over", "taken over by another browser" in term.text, term.text[-300:])
+    third = Browser(port)
+    status, page, _ = third.post("/code", {"ticket": ticket})
+    check("a ticket works once", status == 403 and "no longer valid" in page and not third.cookie, status)
+    status, _, _ = second.post("/answer", {"csrf": old_page_csrf, "seq": "1", "value": "x"})
+    check("the old page's CSRF token is stale now", status == 403, status)
+    status, page, _ = second.get()
+    second.answer(page, "")
+    t.join(5)
+    check("the new browser answers, Enter taking the default", box.get("value") == "yes", box)
+    # 15 minutes without activity ends the session; the code then opens a new one without asking
+    site.watch_every = 0.2
+    site.keeper.seen -= site.keeper.idle + 1
+    deadline = time.time() + 10
+    while time.time() < deadline and site.keeper.token:     # a page load here would itself be activity
+        time.sleep(0.2)
+    time.sleep(0.3)
+    page = second.get()[1]
+    check("idle past the limit: the session ends, and its browser is told why", 'action="/code"' in page and "15 minutes without activity" in page, page[:600])
+    fourth = Browser(port)
+    status, _, _ = fourth.post("/code", {"code": code})
+    check("after it, the code opens a session at once", status == 303 and fourth.cookie, status)
+    site.close()
+
+    # ---- ports: collisions, real sockets ----
+    first, last = free_ports(3)
+    held = []
+    for p in range(first, last):
+        s = socket.socket()
+        s.bind(("0.0.0.0", p))
+        s.listen(1)
+        held.append(s)
+    sock, got, found = pick_port(first, last, holder=lambda p: "testprog (pid 7)")
+    check("the first ports taken: the next is used, saying what held them", got == last and len(found) == 2 and "testprog" in found[0], found)
+    sock.close()
+    s = socket.socket()
+    s.bind(("0.0.0.0", last))
+    s.listen(1)
+    held.append(s)
+    try:
+        pick_port(first, last, holder=lambda p: "testprog (pid 7)")
+        check("all ports taken", False)
+    except SetupError as e:
+        check("all ports taken: refused, saying what holds the first and offering --terminal, nothing changed",
+              "testprog" in str(e) and "--terminal" in str(e) and "Nothing was changed" in str(e), e)
+    for s in held:
+        s.close()
+
+    # ---- the firewall in the way, consent declined ----
+    def declined(port, cidr):
+        raise SetupError("without TCP open a browser cannot reach the setup site. sudo fabricctl setup --terminal. Nothing was changed.")
+    saved = gs.open_site_port
+    gs.open_site_port = declined
+    before = set(os.listdir(base))
+    try:
+        new_site(base)
+        check("a declined firewall question", False)
+    except SetupError as e:
+        check("a declined firewall question: refused, nothing changed", "--terminal" in str(e) and set(os.listdir(base)) == before, e)
+    gs.open_site_port = saved
+
+sys.exit(finish("site_test"))
