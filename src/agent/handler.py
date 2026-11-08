@@ -147,7 +147,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         """Purpose: entry point for GET requests (called by BaseHTTPRequestHandler).
-        Inputs:  none; the request is in self.path / self.headers.
+        Inputs:  none; the request is in self.path / self.headers; a body it declares is read and ignored.
         Returns: None; the answer is sent by dispatch.
         Fails:   as dispatch (errors become JSON replies).
         Feeds:   dispatch("GET")."""

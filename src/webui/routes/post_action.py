@@ -106,7 +106,7 @@ def post_action(h, sess, path, form):
     if path.startswith("/kea/"):
         return kea_post(h, _segments(path, 2), form)
     if path.startswith("/dns-filter/"):
-        return dns_filter_post(h, _segments(path, 2), form)
+        return dns_filter_post(h, sess, _segments(path, 2), form)
     if path.startswith("/freeradius/clients"):
         return radius_post(h, sess, _segments(path, 3), form)
     if path.startswith("/freeradius/people"):

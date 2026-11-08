@@ -8,6 +8,7 @@ Helpers shared by the DNS filter's files (manual [1.12.2](../../../../docs/volum
 | `filter_zones.py` | fabric's own zones: forwarded to this site's BIND and never filtered |
 | `list_id.py` | A list's id, from its URL (stable when lists are reordered or renamed): its copy's file name |
 | `list_zone.py` | The zone name the query log gives a list's block (`<id>.list.rpz`) |
+| `lists_version.py` | The version of the site's lists a page showed (a SHA-256): an Apply from a stale page is refused |
 | `list_memory.py` | The memory rule: the ticked lists' estimate and peak against AdGuard's limit |
 | `adguard_paths.py` | AdGuard Home's folders and fabric's files beside them (state, catalogue, render digest) |
 | `adguard_api.py` | AdGuard Home's API as fabric-agent's account |

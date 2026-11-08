@@ -120,8 +120,8 @@ def _agent():
 
 def _web():
     """Purpose: the web console's pages (webui/routes/get_page.py: `path == "/x"`, and `_rest(path, "/x/")` for a
-             page per name, /x/*) and forms (`action` in templates/webui-app/; a Jinja placeholder is `*`, a form
-             with method get is its page).
+             page per name, /x/*) and forms (`action` in templates/webui-app/, and a button's `formaction`, which
+             posts its form elsewhere; a Jinja placeholder is `*`, a form with method get is its page).
     Inputs:  none (reads src/webui and templates/webui-app).
     Returns: {id: source}.
     Fails:   OSError on an unreadable file.
@@ -146,6 +146,9 @@ def _web():
                 continue
             verb = "get" if re.search(r'method="get"', attrs, re.I) else "post"
             found[ident(verb, action.group(1))] = f"templates/webui-app/{name}"
+        # a button posting its form to another action (the DNS filter's Remove inside the lists form, 1.12.3.17)
+        for m in re.finditer(r'<button\b[^>]*\bformaction="([^"]+)"', _read(f"templates/webui-app/{name}")):
+            found[ident("post", m.group(1))] = f"templates/webui-app/{name}"
     return found
 
 

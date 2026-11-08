@@ -1,4 +1,6 @@
 # fabric: numbers of the function reference (manual 1.17.1.2). Written by gen_lib_doc.py; never edit.
+file	fabricctl-agent|src/agent/apply_filter_now.py	48	
+file	fabricctl-agent|src/agent/change_dns_filter.py	49	
 file	fabricctl-agent|src/agent/get_route.py	1	
 file	fabricctl-agent|src/agent/handler.py	2	
 file	fabricctl-agent|src/agent/job_store.py	16	
@@ -6,6 +8,7 @@ file	fabricctl-agent|src/agent/kept_store.py	46
 file	fabricctl-agent|src/agent/landing_note.py	37	
 file	fabricctl-agent|src/agent/one_thing.py	35	
 file	fabricctl-agent|src/agent/pending_dns.py	41	
+file	fabricctl-agent|src/agent/pending_filter.py	50	
 file	fabricctl-agent|src/agent/pending_networks.py	42	
 file	fabricctl-agent|src/agent/pending_store.py	36	
 file	fabricctl-agent|src/agent/pending_thing.py	33	
@@ -425,6 +428,7 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/filter_zones.py	4
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_id.py	44	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_memory.py	45	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_zone.py	5	
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/lists_version.py	55	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py	46	0.7.0 / 2026-10-12
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/own_clients.py	54	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/common/parse_upstreams.py	50	
@@ -442,6 +446,7 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/dns_filter_stats.py	15
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/ensure_dnslog_db.py	16	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/expand_group_clients.py	38	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/fetch_catalogue.py	22	
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_lists.py	56	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py	17	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/flush_published_names.py	51	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/import_adguard_settings.py	13	0.8.0 / 2026-10-20
@@ -456,6 +461,7 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/resolver_views.py	34
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/run_dns_filter_command.py	10	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_group.py	35	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_list.py	48	
+file	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_lists.py	57	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_upstreams.py	26	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/set_safe_search.py	36	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/show_filter_status.py	11	
@@ -1443,6 +1449,9 @@ file	webui|src/webui/views/sites.py	260
 file	webui|src/webui/views/stepca.py	118	
 file	webui|src/webui/views/tree.py	298	
 file	webui|src/webui/views/tsig_result.py	119	
+function	fabricctl-agent|src/agent/apply_filter_now.py|apply_filter_now	1	
+function	fabricctl-agent|src/agent/change_dns_filter.py|_on	1	
+function	fabricctl-agent|src/agent/change_dns_filter.py|change_dns_filter	2	
 function	fabricctl-agent|src/agent/get_route.py|_kept	5	
 function	fabricctl-agent|src/agent/get_route.py|_overview	3	
 function	fabricctl-agent|src/agent/get_route.py|_pending	2	
@@ -1470,6 +1479,15 @@ function	fabricctl-agent|src/agent/landing_note.py|landing_note	1
 function	fabricctl-agent|src/agent/one_thing.py|one_thing	1	
 function	fabricctl-agent|src/agent/pending_dns.py|_zone	1	
 function	fabricctl-agent|src/agent/pending_dns.py|describe_dns	2	
+function	fabricctl-agent|src/agent/pending_filter.py|_group	2	
+function	fabricctl-agent|src/agent/pending_filter.py|_names	3	
+function	fabricctl-agent|src/agent/pending_filter.py|describe_filter	4	
+function	fabricctl-agent|src/agent/pending_filter.py|filter_check	7	
+function	fabricctl-agent|src/agent/pending_filter.py|filter_finish	9	
+function	fabricctl-agent|src/agent/pending_filter.py|filter_key	5	
+function	fabricctl-agent|src/agent/pending_filter.py|filter_page_of	1	
+function	fabricctl-agent|src/agent/pending_filter.py|filter_state	6	
+function	fabricctl-agent|src/agent/pending_filter.py|filter_ticks	8	
 function	fabricctl-agent|src/agent/pending_networks.py|_at	4	
 function	fabricctl-agent|src/agent/pending_networks.py|_describe_option	5	
 function	fabricctl-agent|src/agent/pending_networks.py|_this_site	2	
@@ -1515,7 +1533,7 @@ function	fabricctl-agent|src/agent/post_dhcp.py|post_dhcp	3
 function	fabricctl-agent|src/agent/post_directory.py|post_directory	1	
 function	fabricctl-agent|src/agent/post_dns.py|_published	2	
 function	fabricctl-agent|src/agent/post_dns.py|post_dns	1	
-function	fabricctl-agent|src/agent/post_dns_filter.py|_on	2	
+function	fabricctl-agent|src/agent/post_dns_filter.py|_on	2	0.9.5 / 2026-11-07
 function	fabricctl-agent|src/agent/post_dns_filter.py|post_dns_filter	1	
 function	fabricctl-agent|src/agent/post_domain.py|post_domain	1	
 function	fabricctl-agent|src/agent/post_grants.py|post_grants	1	
@@ -2276,6 +2294,7 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/filter_zones.py|fi
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_id.py|list_id	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_memory.py|list_memory	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/list_zone.py|list_zone	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/lists_version.py|lists_version	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/mem_mb.py|mem_mb	1	0.7.0 / 2026-10-12
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/own_clients.py|own_clients	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/common/parse_upstreams.py|parse_upstreams	1	
@@ -2305,8 +2324,10 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/dns_filter_stats.py|dns_f
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/ensure_dnslog_db.py|ensure_dnslog_db	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/expand_group_clients.py|expand_group_clients	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/fetch_catalogue.py|fetch_catalogue	1	
-function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|_lists	3	
-function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|_read	2	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_lists.py|_read	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_lists.py|filter_lists	2	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|_lists	3	0.9.5 / 2026-11-07
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|_read	2	0.9.5 / 2026-11-07
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/filter_overview.py|filter_overview	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/flush_published_names.py|_why	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/flush_published_names.py|flush_published_names	2	
@@ -2337,6 +2358,9 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/run_dns_filter_command.py
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/run_dns_filter_command.py|run_dns_filter_command	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_group.py|set_filter_group	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_list.py|set_filter_list	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_lists.py|_entries	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_lists.py|_estimates	2	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_lists.py|set_filter_lists	3	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/set_filter_upstreams.py|set_filter_upstreams	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/set_safe_search.py|set_safe_search	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/show_filter_status.py|_age	1	
@@ -3744,6 +3768,7 @@ function	webui|src/webui/devpreview/fake_misc.py|_vault	3
 function	webui|src/webui/devpreview/fake_misc.py|fake_misc	4	
 function	webui|src/webui/devpreview/fake_network.py|_dhcp	2	
 function	webui|src/webui/devpreview/fake_network.py|_filter	4	
+function	webui|src/webui/devpreview/fake_network.py|_memory	6	
 function	webui|src/webui/devpreview/fake_network.py|_options	1	
 function	webui|src/webui/devpreview/fake_network.py|_radius	3	
 function	webui|src/webui/devpreview/fake_network.py|fake_network	5	
@@ -3753,6 +3778,8 @@ function	webui|src/webui/devpreview/fake_ous.py|_tree	1
 function	webui|src/webui/devpreview/fake_ous.py|fake_ous	4	
 function	webui|src/webui/devpreview/fake_ous.py|kinds_of	5	
 function	webui|src/webui/devpreview/fake_ous.py|place_in	6	
+function	webui|src/webui/devpreview/fake_pending.py|_check	7	
+function	webui|src/webui/devpreview/fake_pending.py|_filter_vars	6	
 function	webui|src/webui/devpreview/fake_pending.py|_find	1	
 function	webui|src/webui/devpreview/fake_pending.py|_finish	5	
 function	webui|src/webui/devpreview/fake_pending.py|_store	3	
@@ -3828,7 +3855,9 @@ function	webui|src/webui/routes/dirsrv_post.py|_device_fields	1	0.5.0 / 2026-10-
 function	webui|src/webui/routes/dirsrv_post.py|_role_fields	2	0.5.0 / 2026-10-05
 function	webui|src/webui/routes/dirsrv_post.py|dirsrv_post	3	0.5.0 / 2026-10-05
 function	webui|src/webui/routes/dns_filter_page.py|dns_filter_page	1	
-function	webui|src/webui/routes/dns_filter_post.py|_message	1	
+function	webui|src/webui/routes/dns_filter_post.py|_anchor	3	
+function	webui|src/webui/routes/dns_filter_post.py|_lists_apply	4	
+function	webui|src/webui/routes/dns_filter_post.py|_message	1	0.9.5 / 2026-11-07
 function	webui|src/webui/routes/dns_filter_post.py|dns_filter_post	2	
 function	webui|src/webui/routes/finish_setting_up.py|finish_setting_up	1	
 function	webui|src/webui/routes/get_page.py|_overview	2	

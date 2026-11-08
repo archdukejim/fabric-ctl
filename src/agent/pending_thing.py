@@ -2,6 +2,7 @@ import hashlib
 import json
 
 from agent.pending_dns import describe_dns
+from agent.pending_filter import describe_filter, filter_key, filter_page_of, filter_state
 from agent.pending_networks import (describe_networks, networks_key, networks_page_of,
                                     networks_state)
 from fabriclib.common.errors import ValidationError
@@ -12,7 +13,8 @@ PAGES = {"people": "people:read", "machines": "domain:read", "policies": "domain
          "groups": "domain:read", "ous": "domain:read", "access": "domain:read", "kerberos": "domain:read",
          "devices": "devices:read", "roles": "devices:read", "radius": "radius:read",
          "zones": "dns:read", "account": "session",
-         "networks": "dhcp:read", "options": "dhcp:read"}          # the address manager (1.10.4.40.2)
+         "networks": "dhcp:read", "options": "dhcp:read",          # the address manager (1.10.4.40.2)
+         "dns-filter": "dns:filter"}                                # the DNS filter tab (1.12.3.17)
 # a device's and a device role's own fields, as their read has them: what a change to one is checked against (what a
 # role grants a device, its VLAN and permissions, follows from the roles and is not the device's own)
 OWN_FIELDS = {"devices": ("type", "owner", "description", "macs", "enabled", "roles"),
@@ -45,6 +47,8 @@ def pending_page_of(route):
     Fails:   never.
     Feeds:   agent/post_pending (hold)."""
     head = route[:1]
+    if filter_page_of(route):                            # the DNS filter tab (1.12.3.17)
+        return filter_page_of(route)
     if networks_page_of(route):                          # Networks and DHCP options
         return networks_page_of(route)
     if as_change(route) is not route:
@@ -85,6 +89,8 @@ def describe_change(route, body):
     name = route[1] if len(route) > 1 else ""
     if route[0] in ("zones", "tsig"):
         return describe_dns(route, body)
+    if filter_page_of(route):
+        return describe_filter(route, body)
     if networks_page_of(route):
         return describe_networks(route, body)
     if len(route) == 1:
@@ -198,6 +204,8 @@ def thing_state(route, body, v):
     from fabriclib.grants.list_grants import list_grants
     if networks_page_of(route):               # a site's plan, or the domain's option set
         return networks_state(route, body, v)
+    if filter_page_of(route):                 # the lists, a client group, everyone's rules, the upstreams
+        return filter_state(route, body, v)
     mine, route = as_change(route) is not route, as_change(route)
     head, name = route[0], (route[1] if len(route) > 1 else "")
     if mine:                                  # a member change from My account: the group must be there
@@ -256,6 +264,8 @@ def thing_key(route, body):
     Feeds:   agent/pending_store (apply)."""
     if networks_page_of(route):
         return networks_key(route, body)
+    if filter_page_of(route):
+        return filter_key(route, body)
     route = as_change(route)
     if route[0] in ("people", "machines", "host-groups", "sudo", "groups", "devices", "roles"):
         return route[0], route[1] if len(route) > 1 else str(body.get("uid") or body.get("name") or "")

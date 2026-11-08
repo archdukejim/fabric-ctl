@@ -7,10 +7,12 @@ from fabriclib.common.vars_lock import vars_lock
 from fabriclib.common.write_audit import write_audit
 
 
-def remove_filter_group(actor, name, source="cli"):
+def remove_filter_group(actor, name, source="cli", dry=False):
     """Purpose: remove a client group from the DNS filter (manual 1.12.2.15): its clients are answered as everyone
              again; the next apply drops its view, its rules zone and its own lists' copies.
     Inputs:  actor — who asks (audit); name — the group's name; source — "cli" or "web".
+             dry — True: only checked, nothing saved or audited (a change held for the DNS filter tab's
+             Apply, 1.12.3.17).
     Returns: {"name", "clients"} of the group removed.
     Fails:   ValidationError when no group has that name; OSError or yaml errors from the vars file and the audit log.
     Feeds:   agent/post_dns_filter (POST /v1/dns-filter/groups/delete)."""
@@ -22,6 +24,8 @@ def remove_filter_group(actor, name, source="cli"):
         if gone is None:
             raise ValidationError(f"no client group is called {key}")
         data["dns_filter_groups"] = [g for g in groups if g is not gone]
-        save_vars(data)
-    write_audit(actor, "DNS_FILTER_GROUP_REMOVE", key, source)
+        if not dry:
+            save_vars(data)
+    if not dry:
+        write_audit(actor, "DNS_FILTER_GROUP_REMOVE", key, source)
     return {"name": key, "clients": list(gone.get("clients") or [])}

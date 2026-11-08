@@ -273,8 +273,12 @@ with serve():
     check("DNS filter: statistics, the most blocked names, its sections",
           "Last 24 hours" in page and "browser.events.data.msn.com" in page and "?view=querylog" in page)
     st, loc, page = post("/dns-filter/rules", {"kind": "block", "name": "www.wikipedia.org", "back": "querylog"})
-    check("DNS filter: Block from the query log -> back there, listed in the rules",
-          st == 303 and "view=querylog" in loc and "www.wikipedia.org" in get("/dns-filter?view=rules"), loc)
+    check("DNS filter: Block from the query log -> back there, where it was, waiting for Apply (not in the rules yet)",
+          st == 303 and loc == "/dns-filter?view=querylog#querylog" and "Waiting for Apply" in flash(page)
+          and "www.wikipedia.org" not in get("/dns-filter?view=rules"), (loc, flash(page)))
+    st, loc, page = post("/changes/dns-filter/apply", {})
+    check("DNS filter: the bar's Apply makes it -> listed in the rules",
+          st == 303 and "www.wikipedia.org" in get("/dns-filter?view=rules"), (loc, flash(page)))
     # fabric's own queries (2.1.12.12): hidden by default, the box shows them and stays ticked
     hidden = get("/dns-filter?view=querylog")
     shown = get("/dns-filter?view=querylog&own=on")
@@ -294,18 +298,75 @@ with serve():
           '<select name="youtube" disabled>' in page and "Used only while safe search is on." in page
           and '<input type="hidden" name="youtube" value="strict">' in page, page[:200])
     post("/dns-filter/safe-search", {"on": "on", "youtube": "strict", "back": "settings"})
+    post("/changes/dns-filter/apply", {})
     page = get("/dns-filter?view=settings")
     check("DNS filter: safe search on -> the YouTube select enabled, no hidden copy",
           '<select name="youtube">' in page and 'type="hidden" name="youtube"' not in page)
     post("/dns-filter/safe-search", {"on": "on", "youtube": "moderate", "back": "settings"})
+    post("/changes/dns-filter/apply", {})
     post("/dns-filter/safe-search", {"youtube": "moderate", "back": "settings"})   # off
+    post("/changes/dns-filter/apply", {})
     page = get("/dns-filter?view=settings")
     check("DNS filter: turned off, the YouTube level chosen while on is kept (disabled, its hidden copy moderate)",
           '<input type="hidden" name="youtube" value="moderate">' in page
           and '<option value="moderate" selected>' in page[page.find('name="youtube"'):])
     post("/dns-filter/safe-search", {"youtube": "moderate", "back": "settings"})   # off again
+    post("/changes/dns-filter/apply", {})
     check("DNS filter: saved again while off (the hidden copy sent), the YouTube level is still kept",
           '<input type="hidden" name="youtube" value="moderate">' in get("/dns-filter?view=settings"))
+    # the tab's Apply (1.12.3.17): the lists are one form of real checkboxes; nothing changes until Apply changes
+    def lists_form():
+        """The lists page and its form as the browser holds it: the version, the lists shown, the boxes ticked."""
+        page = get("/dns-filter?view=lists")
+        boxes = re.findall(r'name="on-([0-9a-f]+)" aria-label="Use [^"]+"( checked)?>', page)
+        version = re.search(r'name="version" value="([0-9a-f]*)"', page)
+        shown = re.search(r'name="shown" value="([^"]*)"', page)
+        return page, (version.group(1) if version else ""), (shown.group(1) if shown else ""), \
+            {i for i, on in boxes if on}
+
+    page, ver, shown, ticked = lists_form()
+    hagezi = f"{48:012x}"                     # on the site, not ticked (the sample)
+    check("DNS filter: the lists are one form of real checkboxes with one Apply changes, the page's version, no "
+          "script and no per-tick form",
+          'action="/dns-filter/lists/apply"' in page and len(ver) == 64 and hagezi in shown.split()
+          and hagezi not in ticked and ticked and "<button>Apply changes</button>" in page and "<script" not in page
+          and "/dns-filter/lists/set" not in page, (ver, shown, ticked))
+    form = {"shown": shown, "version": ver, **{f"on-{i}": "on" for i in ticked | {hagezi}}}
+    st, loc, page = post("/dns-filter/lists/apply?tight=1", form)      # the preview's AdGuard limit: 150 MiB
+    check("DNS filter: ticks that together pass AdGuard Home's limit are refused at Apply, naming the list and the "
+          "gap, the boxes kept as sent",
+          st == 200 and "the ticked lists do not fit" in page and "HaGeZi" in flash(page) and "past its limit" in page
+          and f'name="on-{hagezi}" aria-label="Use HaGeZi&#39;s Pro Blocklist" checked>' in page, (st, flash(page)))
+    page, _, _, now = lists_form()
+    check("DNS filter: ...and nothing changed or waits", now == ticked and "change pending" not in page
+          and "Your ticks wait until you press Apply changes." in page, now)
+    st, loc, page = post("/dns-filter/lists/apply", {**form, "version": "0" * 64})
+    check("DNS filter: a page whose lists changed since is refused saying why, the lists shown as they are now",
+          st == 200 and "changed since this page was shown" in page
+          and f'name="on-{hagezi}" aria-label="Use HaGeZi&#39;s Pro Blocklist">' in page, (st, flash(page)))
+    st, loc, page = post("/dns-filter/rules", {"kind": "allow", "name": "example.net"})
+    page = get("/dns-filter?view=lists")
+    check("DNS filter: a rule held: the bar says one change pending, the lists form that it waits too",
+          "1 change pending" in page and "1 other change of this tab waits too" in page
+          and "example.net" not in get("/dns-filter?view=rules"), page[page.find("applyline"):][:300])
+    st, loc, page = post("/dns-filter/lists/apply", form)
+    page_now, _, _, now = lists_form()
+    check("DNS filter: one Apply changes makes the ticks and the rule waiting, back to the lists",
+          st == 303 and loc.startswith("/dns-filter?view=lists") and loc.endswith("#lists")
+          and "Applying 2 changes" in flash(page) and now == ticked | {hagezi}
+          and "example.net" in get("/dns-filter?view=rules") and "change pending" not in page_now, (loc, flash(page)))
+    st, loc, page = post("/dns-filter/lists/apply", {**form, "version": lists_form()[1]})
+    check("DNS filter: Apply changes with no box changed and nothing waiting says so", st == 303
+          and "Nothing to apply" in flash(page), flash(page))
+    post("/dns-filter/rules", {"kind": "block", "name": "discard.example"})
+    st, loc, page = post("/changes/dns-filter/discard", {})
+    check("DNS filter: Discard drops what waits; nothing changed",
+          "Discarded 1 pending change" in flash(page) and "discard.example" not in get("/dns-filter?view=rules"),
+          flash(page))
+    st, loc, page = post("/dns-filter/groups", {"name": "kids", "clients": "192.168.1.64/27 192.168.1.80"})
+    check("DNS filter: a group's change comes back to its own card on Groups", loc == "/dns-filter?view=groups#group-kids"
+          and 'id="group-kids"' in page, loc)
+    post("/changes/dns-filter/discard", {})
     page = get("/dns/zones?zone=dynamic_zone_var")
     check("DNS · Zones shows records and the add form", "nas" in page and "192.168.1.10" in page)
 

@@ -85,9 +85,11 @@ details{margin-top:8px}summary{cursor:pointer;color:var(--accent)}
 .downloads{list-style:none;padding:0;margin:0 0 8px;display:flex;flex-direction:column;gap:8px}
 a.btn{background:var(--surface);color:var(--accent);border-color:var(--border-strong)}a.btn:hover{background:var(--surface-2)}
 button.ghost{background:var(--surface);color:var(--accent);border-color:var(--border-strong)}button.ghost:hover{background:var(--surface-2)}
-/* a list's checkbox on the DNS filter page: a button, no script (manual 1.12.3.5) */
-button.tick,span.tick{display:inline-block;width:22px;height:22px;min-height:0;padding:0;line-height:20px;text-align:center;background:var(--surface);color:var(--on-accent);border:1px solid var(--border-strong);border-radius:4px}
-button.tick.on,span.tick.on{background:var(--accent);border-color:var(--accent)}
+/* a list's checkbox on the DNS filter page: a real one in the lists form, sent by Apply changes (manual 1.12.3.17); read-only, a mark */
+input.tickbox{width:22px;height:22px;margin:0;accent-color:var(--accent);cursor:pointer}
+span.tick{display:inline-block;width:22px;height:22px;min-height:0;padding:0;line-height:20px;text-align:center;background:var(--surface);color:var(--on-accent);border:1px solid var(--border-strong);border-radius:4px}
+span.tick.on{background:var(--accent);border-color:var(--accent)}
+.applyline{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:12px 0}
 .row-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
 .sections{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:0 0 16px;overflow-x:auto;overflow-y:hidden}
 .section{flex:none;padding:8px 12px;color:var(--muted);text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
