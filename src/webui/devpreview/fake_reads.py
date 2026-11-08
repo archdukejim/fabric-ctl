@@ -2,7 +2,7 @@ from webui.devpreview.sample_data import (SAMPLE_ACCESS, SAMPLE_ACME, SAMPLE_CA,
                                           SAMPLE_DIRECTORY, SAMPLE_DNS_FILTER, SAMPLE_DOMAIN, SAMPLE_FEDERATION,
                                           SAMPLE_GPO,
                                           SAMPLE_IMAGES, SAMPLE_RADIUS, SAMPLE_SECURITY, SAMPLE_VAULT)
-from webui.devpreview.sample_data import SAMPLE_SIZING
+from webui.devpreview.sample_data import SAMPLE_KEPT, SAMPLE_SIZING
 from webui.devpreview.sample_radius_guides import sample_radius_guides
 from webui.devpreview.sample_settings import SAMPLE_SETTINGS, SAMPLE_SETTINGS_FILE
 from webui.devpreview.fabric_rules import ValidationError
@@ -136,6 +136,8 @@ def fake_reads(state, who, route, body):
         ("version",): lambda: {"version": "dev preview", "build": "sample data · no sign-in · nothing is saved",
                                "host": "pi-core", "domain": "home.arpa"},
         ("services",): lambda: [list(s) for s in d["services"]],
+        ("overview",): lambda: {"services": [list(s) for s in d["services"]], "reminders": [], "kept": SAMPLE_KEPT},
+        ("updates",): lambda: {"rows": SAMPLE_IMAGES, "kept": SAMPLE_KEPT},
         ("host-changes",): lambda: d["host_changes"], ("relaxed-settings",): lambda: d.get("relaxed_settings", []),
         ("cert-warnings",): lambda: d.get("cert_warnings", []), ("reminders",): lambda: [],
         ("sizing",): lambda: _sizing(state),
@@ -145,7 +147,7 @@ def fake_reads(state, who, route, body):
         ("radius",): lambda: SAMPLE_RADIUS, ("radius", "guides"): sample_radius_guides,
         ("pki", "ca"): lambda: SAMPLE_CA, ("pki", "issued"): lambda: d["issued"], ("pki", "acme"): lambda: SAMPLE_ACME,
         ("devices",): state.overview, ("people",): lambda: d["people"], ("directory",): lambda: SAMPLE_DIRECTORY,
-        ("sites",): lambda: _sites(state),
+        ("sites",): lambda: {**_sites(state), "kept": SAMPLE_KEPT},
         ("sites", "tree"): _site_tree,
         ("domain", "kerberos"): lambda: {"realm": "AD.HOME.ARPA", "kdcs": ["pi-core", "pi-edge"], "kdcs_error": "",
                                          "policy": kerberos_policy(state),

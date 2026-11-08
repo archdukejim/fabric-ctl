@@ -1,5 +1,6 @@
 from webui import agentclient as actions
 from webui import views
+from webui.routes.note_kept import note_kept
 
 
 def kerberos_page(h, ctx):
@@ -10,7 +11,7 @@ def kerberos_page(h, ctx):
     Fails:   PermissionDenied and AuthError propagate to handle_request.
     Feeds:   get_page."""
     try:
-        overview = actions.kerberos_overview()
+        overview = note_kept(ctx, actions.kerberos_overview(), "domain/kerberos", "/directory/kerberos")
     except (actions.AgentError, actions.ValidationError) as exc:
         return h.send(200, views.kerberos(ctx, unavailable=str(exc)))
     try:

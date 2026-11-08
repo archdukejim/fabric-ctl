@@ -11,6 +11,8 @@ arbitrary commands.
 |---|---|
 | `server.py` | Entry point (systemd): the socket server (root:webui 0660) and the route list |
 | `handler.py` | One request: peer uid (SO_PEERCRED), token and permission (`fabriclib/rbac`), body and actor, errors as JSON replies |
+| `kept_store.py` | The agent's read cache and its start, sized to this host (1.8.9) |
+| `post_kept.py` | A page's Refresh (1.8.9.4) |
 | `get_route.py` | GET routes: one fabriclib read each |
 | `post_route.py` | POST routes by area; apply, people, login events |
 | `post_pending.py` | Apply per page (manual 1.8.6.5): holding a change, dropping, discarding and applying a page's changes as one job |

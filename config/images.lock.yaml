@@ -96,7 +96,7 @@ published:
     keycloak:   {var: image_fabric_keycloak, tag: "0.9.2-rc.325", digest: "sha256:3bfe4c4bc61810e264b0e2bf4bba934b373d7e33a1a887cd1dbf08986e53ab29", source: "sha256:959fee075a7826341979c0d03be1041f3030429677424512af8d9af92a223f2c"}
     samba:      {var: image_fabric_samba, tag: "0.9.2-rc.325", digest: "sha256:79f00b8207da6fee5b30cde26fd215ca6cf243ef0320d88b4d2364be4cd93d47", source: "sha256:8776a13b98656f07dcdd428d7269a8b7071d7f847611c6e1673f9de50372b80a", groups: "BIND_GID=600,RADIUS_GID=610"}
     stepca:     {var: image_fabric_stepca, tag: "0.9.2-rc.325", digest: "sha256:b3c475f1d8ff970e4c3e3b641049a893e1e6af3e349b5a791e855c6a92a8eda0", source: "sha256:c1cfad746580c5a98afc2a1268448efbdb2b610024d2e5adeda45db85175f20e"}
-    webui:      {var: image_fabric_webui, tag: "", digest: "", pending: "its sources changed since 0.9.2-rc.325 (the DNS filter tab's Apply, 0.9.5): built and published again with 0.9.5", account: webui, ids: "606:606"}
+    webui:      {var: image_fabric_webui, tag: "", digest: "", pending: "its sources changed since 0.9.2-rc.325 (the age line and Refresh): built and published again with 0.9.5 (2.1.1.96)", account: webui, ids: "606:606"}
 
 # Packages installed into fabric's own images from an upstream's signed apt
 # repository (not Debian's): the exact version and the signing key's

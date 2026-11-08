@@ -1,5 +1,6 @@
 from webui import agentclient as actions
 from webui import views
+from webui.routes.note_kept import note_kept
 
 
 def _factors_url(h):
@@ -23,7 +24,7 @@ def account_page(h, ctx, path):
     Feeds:   get_page."""
     if path == "/account/groups":
         try:
-            groups, error = actions.my_groups().get("groups") or [], ""
+            groups, error = note_kept(ctx, actions.my_groups(), "account/groups", path).get("groups") or [], ""
         except actions.ValidationError as exc:
             groups, error = [], str(exc)
         return h.send(200, views.account(ctx, groups=groups, page=path, error=error))

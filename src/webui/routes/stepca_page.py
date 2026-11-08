@@ -1,5 +1,6 @@
 from webui import agentclient as actions
 from webui import views
+from webui.routes.note_kept import note_kept
 
 
 def stepca_page(h, ctx, view, status=200, serial="", **extra):
@@ -18,7 +19,7 @@ def stepca_page(h, ctx, view, status=200, serial="", **extra):
     if view not in views.STEPCA_VIEWS:
         view = "ca"
     try:
-        ca = actions.ca_summary()
+        ca = note_kept(ctx, actions.ca_summary(), "pki/ca", "/pki")
     except (actions.AgentError, actions.ValidationError):
         ca = None
     devices = []

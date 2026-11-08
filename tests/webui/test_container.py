@@ -464,7 +464,7 @@ check("overview tab renders service health", st == 200 and "Overview" in body an
 check("overview: the host changes through the agent (this test install declined fabric's services, never asked the rest)",
       "Host changes" in body and ">declined<" in body and ">not asked<" in body, body[-600:])
 # the break-glass reminder (2.1.6.69): while fabric-admin's password file is on the host, every page of an
-# administrator's sign-in says to store it and delete it; Overview reads it afresh; its removal is audited once
+# administrator's sign-in says to store it and delete it; Overview's are kept (2.1.8.48); its removal is audited once
 GLASS = f"{W}/home-ea/fabric-admin/fabric-admin-password.txt"
 os.makedirs(os.path.dirname(GLASS), exist_ok=True)
 open(GLASS, "w").write("a test stand-in, no password\n")
@@ -476,13 +476,37 @@ st, hd, sc, body = req("GET", "/kea", ALICE, cookie=session)
 check("break glass: with its file on the host, a new sign-in's pages carry the reminder in the top bar, naming the file",
       st == 200 and "Reminder:" in body and "fabric-admin-password.txt" in body and "delete the file" in body,
       (st, body[:600]))
+st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
+kcsrf = body.split('name="csrf" value="')[1].split('"')[0]
+# covers: web:post.kept.refresh agent:post.kept.refresh +
+st, hd, *_ = req("POST", "/kept/refresh", {**ALICE, "Origin": "https://mgr.test"},
+                 {"csrf": kcsrf, "read": "overview", "back": "/"}, cookie=session)
+st2, _, _, body = req("GET", "/", ALICE, cookie=session)
+check("break glass: the Overview's Refresh reads it now, and the Overview names the file (kept with the rest, 2.1.8.48)",
+      st == 303 and hd.get("Location") == "/" and st2 == 200 and "fabric-admin-password.txt" in body, (st, body[:600]))
 os.remove(GLASS)
 st, hd, sc, body = req("GET", "/", ALICE, cookie=session)
-check("break glass: the file deleted, the Overview reads the reminders afresh and shows none; the removal is audited "
-      "once, the record dropped",
-      st == 200 and "fabric-admin-password.txt" not in body
-      and "BREAK_GLASS_FILE_REMOVED" in open(f"{W}/fabric/archive/audit.log").read()
-      and not os.path.exists(f"{W}/fabric/config/break-glass.json"), (st, body[:400]))
+check("break glass: the file deleted, the kept Overview still names it until its next refresh (2.1.8.48)",
+      st == 200 and "fabric-admin-password.txt" in body and "Updated " in body, (st, body[:400]))
+# covers: web:post.kept.refresh agent:post.kept.refresh -
+st, hd, *_ = req("POST", "/kept/refresh", {**ALICE, "Origin": "https://mgr.test"},
+                 {"csrf": kcsrf, "read": "overview", "back": "/"}, cookie=session)
+st2, _, _, body = req("GET", "/", ALICE, cookie=session)
+check("negative: Refresh again too soon is refused, saying when, and the Overview is left as kept",
+      st == 303 and "it can run again in" in body and "fabric-admin-password.txt" in body, (st, body[:600]))
+# once the class's lower limit has passed (1.8.9.4), Refresh drops it at once, without waiting for the refresher
+for _ in range(70):
+    time.sleep(1)
+    st, hd, *_ = req("POST", "/kept/refresh", {**ALICE, "Origin": "https://mgr.test"},
+                     {"csrf": kcsrf, "read": "overview", "back": "/"}, cookie=session)
+    st2, _, _, body = req("GET", "/", ALICE, cookie=session)
+    if "fabric-admin-password.txt" not in body:
+        break
+check("break glass: a later Refresh, the Overview shows no reminder", st2 == 200
+      and "fabric-admin-password.txt" not in body, (st2, body[:400]))
+check("break glass: the removal is audited once by the next read, the record dropped",
+      open(f"{W}/fabric/archive/audit.log").read().count("BREAK_GLASS_FILE_REMOVED") == 1
+      and not os.path.exists(f"{W}/fabric/config/break-glass.json"))
 st, hd, sc, body = req("GET", "/kea", ALICE, cookie=session)
 check("...and the other pages follow (the session's reminders replaced)",
       st == 200 and "fabric-admin-password.txt" not in body, st)
@@ -1088,25 +1112,30 @@ check("from the web UI container, a call without a sign-in token is refused (401
       r.stdout + r.stderr[-200:])
 
 print("--- fabric-agent: permissions from the signed token (RBAC)")
-CALL = ("import json,socket,sys; s=socket.socket(socket.AF_UNIX); s.connect(sys.argv[1]); b=sys.argv[4].encode(); "
+CALL = ("import json,socket,sys,time; s=socket.socket(socket.AF_UNIX); s.connect(sys.argv[1]); b=sys.argv[4].encode(); "
         "s.sendall(f'{sys.argv[2]} {sys.argv[3]} HTTP/1.0\\r\\nAuthorization: Bearer {sys.argv[5]}\\r\\n"
-        "Content-Type: application/json\\r\\nContent-Length: {len(b)}\\r\\n\\r\\n'.encode()+b); "
+        "Content-Type: application/json\\r\\nContent-Length: {len(b)}\\r\\n\\r\\n'.encode()); "
+        "time.sleep(float(sys.argv[6])); s.sendall(b); "
         "r=b''\nwhile True:\n c=s.recv(65536)\n if not c: break\n r+=c\n"
         "print(r.split(b'\\r\\n')[0].decode()); print(r.split(b'\\r\\n\\r\\n',1)[1].decode()[:300])")
 
 
-def agent_call(method, path, user, roles, body=None, exp=300):
+def agent_call(method, path, user, roles, body=None, exp=300, pause=0.0):
     now = int(time.time())
     token = sign_jwt({"iss": ISSUER, "aud": "fabric-webui", "azp": "fabric-webui", "sub": "u1", "iat": now,
                       "exp": now + exp, "preferred_username": user, "roles": list(roles)})
     r = subprocess.run(["setpriv", f"--reuid={UID}", f"--regid={UID}", "--clear-groups", sys.executable, "-c", CALL,
-                        f"{W}/agent/agent.sock", method, path, json.dumps(body or {}), token],
+                        f"{W}/agent/agent.sock", method, path, json.dumps(body or {}), token, str(pause)],
                        capture_output=True, text=True)
     return r.stdout + r.stderr[-300:]
 
 
 out = agent_call("GET", "/v1/zones", "alice", AUDITOR_ROLES)
 check("auditor token: may read zones", " 200 " in out, out)
+# a refusal is sent only once the body is read: as http.client does, the headers first, the body a moment later
+out = agent_call("POST", "/v1/dns-filter/fetch", "carol", AUDITOR_ROLES, {"name": "x"}, pause=0.5)
+check("a refused POST whose body comes after its headers: the refusal arrives, never a broken pipe (403, dns:filter)",
+      " 403 " in out and "dns:filter" in out and "Broken" not in out and "Error" not in out, out)
 out = agent_call("POST", "/v1/zones/dynamic_zone_var/records", "carol", AUDITOR_ROLES,
                  {"actor": "carol", "type": "A", "name": "nope", "ip": "192.168.7.9"})
 # covers: agent:post.zones.*.records -

@@ -2,6 +2,7 @@ import urllib.parse
 
 from webui import agentclient as actions
 from webui import views
+from webui.routes.note_kept import note_kept
 
 
 def sites_page(h, ctx, path):
@@ -16,7 +17,7 @@ def sites_page(h, ctx, path):
     if "/" in rest:
         return h.deny(404, "Not found.")
     try:
-        overview = actions.site_overview()
+        overview = note_kept(ctx, actions.site_overview(), "sites", path)
     except (actions.AgentError, actions.ValidationError) as exc:
         return h.send(200, views.sites(ctx, name=urllib.parse.unquote(rest), unavailable=str(exc)))
     name = urllib.parse.unquote(rest)
