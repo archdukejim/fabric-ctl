@@ -162,7 +162,7 @@ docs/volume_2_engineering_decisions/2.2.1-product-troubleshooting.md	020c264ac36
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	cce874d1548b374a8f634457725225c685b7e93e	2026-11-07	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	d82c822bf262d28de714a6489ad3c132591cef71	2026-11-08	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	8d0e6dc9f88453889dccc29f981ca3ee730702f4	2026-10-29	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	94fc068a1015d887dbbc7e0d3e24724376cdc280	2026-11-07	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -2221,7 +2221,7 @@ tests/ipam/sync.py	be47f80babfa5e670235d7f002e405512822cafd	2026-10-24
 tests/ipam/upgrade.py	c9faf96f69717e48875ac2978289e6664d019994	2026-10-23	
 tests/kea/README.md	9f947f4ea6cc7ec50494be9b7e6c9e812438208e	2026-10-24	
 tests/kea/reload.py	e7cc86840cd099792826737de9218b839b24c6c7	2026-10-25	
-tests/kea/run.py	e9c60a4a5a8230fa3444ad7f11cda9e69fb2d4af	2026-11-05	
+tests/kea/run.py	560c5ef3206d278d20b049ae7b3331eec9a3ce5e	2026-11-08	
 tests/kea/scan.py	a2886cb628f60b0443b8e5b49c20e4474b834d5b	2026-10-25	
 tests/keycloak/README.md	55bf0779666050bc9febb2d9c86957665c1d3d0d	2026-10-08	
 tests/keycloak/run.py	69a39b55a940c0f70f9eabdf82ba50f53a0c9e8c	2026-11-04	
