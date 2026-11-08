@@ -11,13 +11,15 @@
     { "name": "g23-vm-ws25-1",  "iso": "SERVER_EVAL_x64FRE_en-us.iso",         "cpu": 2, "mem": 4, "disk": 64, "kind": "windows", "installer": "windows-server","ip": "10.88.0.41" },
     { "name": "g23-vm-w11-1",   "iso": "Win11_25H2_English_x64_v2.iso",        "cpu": 2, "mem": 4, "disk": 64, "kind": "windows", "installer": "windows-client","ip": "10.88.0.42" },
     { "name": "g23-vm-auth-1",  "iso": "ubuntu-26.04.1-live-server-amd64.iso", "cpu": 2, "mem": 2, "disk": 16, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.3" },
-    { "name": "g23-vm-ub24-2",  "iso": "ubuntu-24.04.4-live-server-amd64.iso", "cpu": 4, "mem": 6, "disk": 64, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.12" }
+    { "name": "g23-vm-ub24-2",  "iso": "ubuntu-24.04.4-live-server-amd64.iso", "cpu": 4, "mem": 6, "disk": 64, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.12" },
+    { "name": "g23-vm-dev-1",   "iso": "ubuntu-26.04.1-live-server-amd64.iso", "cpu": 8, "mem": 16, "disk": 256, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.5", "packages": ["docker.io", "docker-compose-v2", "docker-buildx", "git", "python3-yaml", "python3-jinja2", "softhsm2", "python3-pykcs11", "python3-pykmip", "xorriso", "openssl", "curl", "dpkg-dev", "qemu-user-static"] }
   ],
   "private_switches": ["fabric-lab-vlan", "fabric-8021x-p1", "fabric-8021x-p2", "fabric-8021x-p3"],
   "vlans": [10, 20, 30],
   "nics": [
     { "vm": "g23-vm-rtr-1",   "name": "vlans",  "switch": "fabric-lab-vlan", "mode": "trunk",  "n": 2 },
     { "vm": "g23-vm-rtr-1",   "name": "wan",    "switch": "Default Switch",  "mode": "plain",  "n": 3 },
+    { "vm": "g23-vm-dev-1",   "name": "wan",    "switch": "Default Switch",  "mode": "plain",  "n": 2 },
     { "vm": "g23-vm-auth-1",  "name": "p1",     "switch": "fabric-8021x-p1", "mode": "port",   "n": 2 },
     { "vm": "g23-vm-auth-1",  "name": "p2",     "switch": "fabric-8021x-p2", "mode": "port",   "n": 3 },
     { "vm": "g23-vm-auth-1",  "name": "p3",     "switch": "fabric-8021x-p3", "mode": "port",   "n": 4 },
