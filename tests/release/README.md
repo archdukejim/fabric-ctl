@@ -1,6 +1,6 @@
 # tests/release
 
-Checks of what a release publishes, run by hand from WSL (manual 3.14.1).
+Checks of what a release publishes, run by hand on the build VM `g23-vm-dev-1` (manual 3.14.1, 3.1.5.14).
 
 | File | What |
 |---|---|
