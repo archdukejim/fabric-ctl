@@ -162,7 +162,7 @@ docs/volume_2_engineering_decisions/2.2.1-product-troubleshooting.md	020c264ac36
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	3d81877abf4255ef2e38d4c1d75a84362036f334	2026-11-09	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	32c3b2b7081609c833f4029ea01376db7b6f80c0	2026-11-09	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	8d0e6dc9f88453889dccc29f981ca3ee730702f4	2026-10-29	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	94fc068a1015d887dbbc7e0d3e24724376cdc280	2026-11-07	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -2124,13 +2124,13 @@ tests/agent/README.md	ee215a84f9086cc5de13f6293997d6f7aa93e3f9	2026-10-29
 tests/agent/pending_store_test.py	cd0a296f798bf80023fd66b87f8b65845609af9c	2026-11-05	
 tests/ci/README.md	78278efb5a511e089fd82def756c3be5bfeca8df	2026-10-15	
 tests/ci/logs_secret_free_test.py	e710a2ffadd9a5adc4e9750edf4a52bb43c512ec	2026-10-15	
-tests/common/README.md	f0c3e1f95f5069b0777928225413524df08796e7	2026-11-09	
+tests/common/README.md	da9fd58d3301dca793ba93e9cce6adf8e687ba93	2026-11-09	
 tests/common/apply_intent_test.py	874e77af9e21fed5dd41eac320b3787bc604da4b	2026-10-24	
 tests/common/ask.py	52a510850e39121e2bec244890dabb189195a748	2026-10-12	
 tests/common/copy_if_changed_test.py	620aa40a821cea1b4352113ce6bcb0205b4b206a	2026-10-25	
 tests/common/copy_tree_with_perms_test.py	9d1e9138a5009f530d21be486a71c31df12764b3	2026-10-25	
 tests/common/kea_image.py	11f6907c09c4ade1101ce25cf239a2f2d3ffbb2e	2026-10-25	
-tests/common/kea_on_host.py	dc20dde00dd1610ef040f2479021874a685038b8	2026-11-09	
+tests/common/kea_on_host.py	e64c601f8065a6a1fc78001d7d001e38d96d267f	2026-11-09	
 tests/common/one_off_labels_test.py	6a8c3627a31fa6864806a34a934f4b98735120f2	2026-10-31	
 tests/common/same_content_test.py	c74473ef4511e8fce5928217d3d338e4b11f7882	2026-10-25	
 tests/common/save_vars_test.py	6ebd62374b0a8ebd0b5c00df7722c493dfb27116	2026-10-17	

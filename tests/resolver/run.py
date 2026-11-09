@@ -419,11 +419,12 @@ try:
     check("the owner's block applies (in the resolver)", status("owner-blocked.example") == "NXDOMAIN"
           and status("x.owner-blocked.example") == "NXDOMAIN")
     # dig is given its own copy of the CA under $HOME: Ubuntu 26.04 confines dig with AppArmor to $HOME and the
-    # system's certificates, so a CA in the test's folder (/tmp) is refused as "TLS context cannot be created" (2.3.1.59)
+    # system's certificates, so a CA in the test's folder (/tmp) is refused as "TLS context cannot be created" (2.3.1.56)
+    CA = f"{W}/resolver/tls/fullchain.pem"
     dig_home = tempfile.mkdtemp(prefix="fabric-dot-", dir=os.path.expanduser("~"))
-    CA = shutil.copy(f"{W}/resolver/tls/fullchain.pem", os.path.join(dig_home, "ca.pem"))
+    dig_ca = shutil.copy(CA, os.path.join(dig_home, "ca.pem"))
     try:
-        dot = sh(["dig", "+time=5", "+tries=1", "+tls", f"+tls-ca={CA}", "+tls-hostname=dns.lan.test", f"@{RES_IP}",
+        dot = sh(["dig", "+time=5", "+tries=1", "+tls", f"+tls-ca={dig_ca}", "+tls-hostname=dns.lan.test", f"@{RES_IP}",
                   "ads.example"], ok=False).stdout
     finally:
         shutil.rmtree(dig_home)

@@ -60,7 +60,7 @@ def openssl(*args, data=None):
 def make_ca(folder):
     """A real root and a leaf for the console's name and the address, as Step-CA gives."""
     # a CA with keyUsage, as fabric's own root has (init_pki): Python 3.13+ verifies strictly (VERIFY_X509_STRICT)
-    # and refuses a CA without it (2.3.1.59)
+    # and refuses a CA without it (2.3.1.56)
     openssl("req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes", "-keyout", f"{folder}/root.key",
             "-out", f"{folder}/root-ca.crt", "-days", "2", "-subj", "/CN=fabric test root", "-addext", "keyUsage=critical,keyCertSign,cRLSign")
     openssl("req", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes", "-keyout", f"{folder}/leaf.key",

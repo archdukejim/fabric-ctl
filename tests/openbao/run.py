@@ -508,7 +508,15 @@ def restart_unsealed():
     if st != "healthy" or status.get("sealed") is not False:
         # what it said, so a failure can be read without the container (gone by the next run; 2.3.1.56)
         logs = sh("docker logs --tail 40 openbao 2>&1", ok=False).stdout
-        raise ValidationError(f"not unsealed after restart: health {st!r}, status {status!r}\n{logs}")
+        store = read_slot_store(V) or {}
+        why = {}
+        for kid in (store.get("key_id"), store.get("previous_key_id")):
+            if kid:
+                errs = []
+                why[kid] = (obtain_key(V, store, kid, errors=errs)[0] is not None, errs)
+        in_ram = sorted(os.listdir(V["openbao_runtime_dir"])) if os.path.isdir(V["openbao_runtime_dir"]) else None
+        raise ValidationError(f"not unsealed after restart: health {st!r}, status {status!r}, key files in RAM "
+                              f"{in_ram}, each key obtained (and why not) {why}\n{logs}")
 
 
 res = rotate_vault_key(V, "tester", restart_unsealed, source="test")

@@ -98,18 +98,10 @@ sh(["docker", "build", "-q", "-t", BIND_IMAGE, "--build-arg", f"BASE_IMAGE={DEBI
     f"{REPO}/packaging/images/bind9"])
 
 # ------------------------------------------------------------------ fabric's files
-import fabriclib.dhcp.check_kea_files as check_kea_files_module  # noqa: E402
-import fabriclib.dhcp.common.edit_dhcp as edit_dhcp_module  # noqa: E402
 # The test's Kea serves its bridge's eth0; Kea's real check is given a name the host has (2.3.1.53)
-from kea_on_host import on_host  # noqa: E402
+from kea_on_host import check_on_host, on_host  # noqa: E402
 
-
-def check_kea_config(image, name, text):
-    return real_check(image, name, on_host(text))
-
-
-check_kea_files_module.check_kea_config = check_kea_config
-edit_dhcp_module.check_kea_config = check_kea_config
+check_kea_config = check_on_host()
 V = {"deploy_base_dir": W, "domain": "lan.test", "install_kea": True, "ip_kea_ddns": DDNS_IP, "ip_bind9": BIND_IP,
      "host_ip": BIND_IP, "service_users": {"kea": {"uid": 915, "gid": 915}}, "image_kea": KEA_IMAGE,
      "dhcp": {"interfaces": ["eth0"], "lease_time": 3600,
