@@ -28,7 +28,7 @@ from fabriclib.setup.init_pki import _configure_ca_json  # noqa: E402
 W = "/tmp/fabric-spike-certlist"
 IMAGE = subprocess.run([sys.executable, os.path.join(REPO, "tests", "image_ref.py"), "stepca"],
                        capture_output=True, text=True, check=True).stdout.strip()
-GO_IMAGE = "golang:1.23.4"
+GO_IMAGE = "golang:1.24.4"
 STEP_UID, DOMAIN = 1912, "lan.test"
 NET, CA, MACHINE = "spike-certlist", "spike-certlist-ca", "spike-certlist-machine"
 FOUND = []

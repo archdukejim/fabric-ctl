@@ -372,9 +372,9 @@ spikes/samba/radius/inner-rewrite	1a0a5d4a622f26f43de869ac5964d17586268af2	2026-
 spikes/samba/radius/mschap	8fda5447c625eeb7d2a85e867163d5a262f952ce	2026-10-04	
 spikes/samba/radius/radius.sh	6cc7d3a105dfa82f6e0aa9ab1e36fc85ea3fdc28	2026-10-04	
 spikes/stepca-cert-listing/README.md	ef2e70d3df95939049126928bab07f7573366a45	2026-11-09	
-spikes/stepca-cert-listing/reader/go.mod	4ffc2f3721697d9fd653c77871c2e1f8f9870df4	2026-11-09	
+spikes/stepca-cert-listing/reader/go.mod	dcfca6fd3bfaab56638285f8edb2e2e9089a8b55	2026-11-09	
 spikes/stepca-cert-listing/reader/main.go	0c506816bcbbeb4cdfbc3052e427ea6f29b7cb4d	2026-11-09	
-spikes/stepca-cert-listing/run.py	c62baa37d496e6d02d568c6b8939cf2351b64e14	2026-11-09	
+spikes/stepca-cert-listing/run.py	79601439bf7091e9bf0b79471e86577f1bbfcf6f	2026-11-09	
 src/README.md	c42cef0bbbc0803d6b920b8ba6a42718839da455	2026-10-12	
 src/agent/README.md	6e70c051a0f237698d5ae8c12c4c11407c52643d	2026-11-08	
 src/agent/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
