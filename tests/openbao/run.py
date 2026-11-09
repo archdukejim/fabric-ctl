@@ -16,6 +16,7 @@ import io
 import json
 import os
 import shutil
+import signal
 import socket
 import stat
 import subprocess
@@ -502,8 +503,12 @@ check("the last unlock method cannot be removed", last)
 
 def restart_unsealed():
     compose("restart")
-    if health() != "healthy" or vault_status(V).get("sealed") is not False:
-        raise ValidationError("not unsealed after restart")
+    st = health()
+    status = vault_status(V)
+    if st != "healthy" or status.get("sealed") is not False:
+        # what it said, so a failure can be read without the container (gone by the next run; 2.3.1.56)
+        logs = sh("docker logs --tail 40 openbao 2>&1", ok=False).stdout
+        raise ValidationError(f"not unsealed after restart: health {st!r}, status {status!r}\n{logs}")
 
 
 res = rotate_vault_key(V, "tester", restart_unsealed, source="test")
@@ -835,6 +840,11 @@ except ImportError:
 check("test prerequisites: python3-pykmip (client and pykmip-server) installed", have_kmip)
 if have_hsm and have_kmip:
     KP = 15696
+    # a port already in use (a KMIP server another run left, 2.3.1.56) is refused, never talked to
+    with socket.socket() as probe:
+        busy = probe.connect_ex(("127.0.0.1", KP)) == 0
+    if busy:
+        raise SystemExit(f"port {KP} is in use (another KMIP server?): stop it first; nothing here was tested against it")
     for name, san in (("kmip-server", "DNS:kmip.lan.test"), ("kmip-client", "DNS:fabric-test")):
         sh(f"openssl req -newkey rsa:2048 -nodes -keyout {name}.key -out {name}.csr -subj '/CN={name}'")
         open(f"{name}.ext", "w").write(f"subjectAltName={san}\nextendedKeyUsage=serverAuth,clientAuth\n")
@@ -846,7 +856,21 @@ if have_hsm and have_kmip:
                                  f"key_path={W}/kmip-server.pem\nca_path={W}/root.crt\nauth_suite=TLS1.2\n"
                                  f"enable_tls_client_auth=True\ndatabase_path={W}/kmip.db\nlogging_level=INFO\n")
     kmip_srv = subprocess.Popen(["pykmip-server", "-f", f"{W}/kmip.conf", "-l", f"{W}/kmip.log"],
-                                stdout=open(f"{W}/kmip.out", "w"), stderr=subprocess.STDOUT)
+                                stdout=open(f"{W}/kmip.out", "w"), stderr=subprocess.STDOUT, start_new_session=True)
+
+    def stop_kmip():
+        """The server and its worker processes stopped, however this run ends, so none is left on the port. It
+        ignores SIGTERM and SIGINT (seen on Ubuntu 26.04, 2.3.1.56): asked first, then killed."""
+        if kmip_srv.poll() is not None:
+            return
+        for sig in (signal.SIGTERM, signal.SIGKILL):
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(kmip_srv.pid, sig)
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                kmip_srv.wait(5)
+                return
+
+    atexit.register(stop_kmip)
     for _ in range(60):
         try:
             socket.create_connection(("127.0.0.1", KP), 1).close()
@@ -896,7 +920,9 @@ if have_hsm and have_kmip:
         kc.revoke(kenums.RevocationReasonCode.CESSATION_OF_OPERATION, kuid)
     check("KMIP kill switch: key revoked on the device -> the method no longer unwraps, fabric-unlock refuses",
           refused(lambda: test_slot(V, "tester", hsm, source="test"), "could not unwrap") and unlock_vault(V) is None)
-    kmip_srv.terminate()
+    stop_kmip()
+    check("the test's KMIP server is stopped, its port free again", kmip_srv.poll() is not None
+          and socket.socket().connect_ex(("127.0.0.1", KP)) != 0)
 
 # ---------------------------------------------------------------- hardening
 insp = json.loads(sh("docker inspect openbao").stdout)[0]

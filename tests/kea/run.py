@@ -15,7 +15,6 @@ import copy
 import json
 import os
 import shutil
-import socket
 import subprocess
 import sys
 import time
@@ -101,13 +100,8 @@ sh(["docker", "build", "-q", "-t", BIND_IMAGE, "--build-arg", f"BASE_IMAGE={DEBI
 # ------------------------------------------------------------------ fabric's files
 import fabriclib.dhcp.check_kea_files as check_kea_files_module  # noqa: E402
 import fabriclib.dhcp.common.edit_dhcp as edit_dhcp_module  # noqa: E402
-# The test's Kea serves its bridge's eth0, but Kea's real check runs on the host's network and refuses an interface that is not
-# there, and a runner may have no eth0 (2.3.1.53). So the check is given a name the host has; all else it reads is the file's.
-HOST_IFACE = next((n for _, n in socket.if_nameindex() if n != "lo"), "lo")
-
-
-def on_host(text):
-    return text.replace('"eth0"', f'"{HOST_IFACE}"')
+# The test's Kea serves its bridge's eth0; Kea's real check is given a name the host has (2.3.1.53)
+from kea_on_host import on_host  # noqa: E402
 
 
 def check_kea_config(image, name, text):

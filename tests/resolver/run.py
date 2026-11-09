@@ -14,6 +14,7 @@ import shutil
 import ssl
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import urllib.parse
@@ -417,9 +418,15 @@ try:
     check("a hosts line blocks", status("hosts-blocked.example") == "NXDOMAIN")
     check("the owner's block applies (in the resolver)", status("owner-blocked.example") == "NXDOMAIN"
           and status("x.owner-blocked.example") == "NXDOMAIN")
-    CA = f"{W}/resolver/tls/fullchain.pem"
-    dot = sh(["dig", "+time=5", "+tries=1", "+tls", f"+tls-ca={CA}", "+tls-hostname=dns.lan.test", f"@{RES_IP}",
-              "ads.example"], ok=False).stdout
+    # dig is given its own copy of the CA under $HOME: Ubuntu 26.04 confines dig with AppArmor to $HOME and the
+    # system's certificates, so a CA in the test's folder (/tmp) is refused as "TLS context cannot be created" (2.3.1.59)
+    dig_home = tempfile.mkdtemp(prefix="fabric-dot-", dir=os.path.expanduser("~"))
+    CA = shutil.copy(f"{W}/resolver/tls/fullchain.pem", os.path.join(dig_home, "ca.pem"))
+    try:
+        dot = sh(["dig", "+time=5", "+tries=1", "+tls", f"+tls-ca={CA}", "+tls-hostname=dns.lan.test", f"@{RES_IP}",
+                  "ads.example"], ok=False).stdout
+    finally:
+        shutil.rmtree(dig_home)
     check("DoT (853) for clients: the certificate verified, and filtered like plain DNS", "status: NXDOMAIN" in dot, dot)
     doh = sh(["dig", "+time=5", "+tries=1", "+http-plain", "-p", "8053", f"@{RES_IP}", "ads.example"], ok=False).stdout
     check("DoH (/dns-query on 8053, as nginx passes it) answers and filters", "status: NXDOMAIN" in doh, doh)
