@@ -105,7 +105,7 @@ docs/volume_1_description_and_architecture/1.3.3-agent-api.md	9becb8c70be6bf5d05
 docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	316140d9159b0d10868ba426ca09a638785321c8	2026-11-08	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	a44be399d7d405ada533585abf6e5da21d3bc372	2026-11-05	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	e58503ad946804b11abe0754bfde04d936bc992e	2026-11-08	
-docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	a6a947e01d2c798679a58deb270e846fbf93bd1e	2026-11-09	
+docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c23d6f467d24633549c84b13fb85d9fed7bdcf5d	2026-11-09	
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.1-directory.md	7fa9284225375dc046757b644311b8368d907462	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.10-security.md	8d627ab12c234c4d60c501fdcd1b3dbbf1d2a905	2026-10-20	
@@ -153,7 +153,7 @@ docs/volume_2_engineering_decisions/2.1.18-stig.md	1c83b035548437109b09db17fa962
 docs/volume_2_engineering_decisions/2.1.2-architecture.md	ac7804a13c1581a0009fc5ed58f618f3e107373a	2026-11-08	
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	a2dc65acd29b572c2207502c4de551053f4f81b4	2026-11-02	
 docs/volume_2_engineering_decisions/2.1.4-dns.md	bdded1bddbfc57db1f825d80ebf0566f358fca23	2026-11-08	
-docs/volume_2_engineering_decisions/2.1.5-certificates.md	d701dd32ffba62ca43a75d2bdc671b0ee7ce115e	2026-11-09	
+docs/volume_2_engineering_decisions/2.1.5-certificates.md	420d857ba3ebab6229063a3246d780a7c084b43d	2026-11-09	
 docs/volume_2_engineering_decisions/2.1.6-identity.md	ba7f2d4406dd4915e90020313579bff2ce183eca	2026-11-05	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.8-webui.md	784ea9de73ce48af59f6ae5cbc12b3f792026dba	2026-11-08	
@@ -170,7 +170,7 @@ docs/volume_2_engineering_decisions/2.3.14-image-notes.md	2a6950b89b58dcc37ada04
 docs/volume_2_engineering_decisions/2.3.18-stig-notes.md	1db81a521f99c32204a51a706f9d49eb85db6540	2026-10-25	
 docs/volume_2_engineering_decisions/2.3.2-architecture-notes.md	499077f66ffbd755ef2a1f41e55330305252b49d	2026-10-24	
 docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f4878a6c708a9f55be4	2026-10-12	
-docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	690a6b76fc7cc07609dc3a1d8720061b1f1ac6ec	2026-11-09	
+docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a7e6d6b2d3aab5f1de2c056333b4e3318b6f7c87	2026-11-09	
 docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	d9b52f2951d7469595b4871be7c4f294e53cfa64	2026-11-01	
 docs/volume_2_engineering_decisions/2.3.7-openbao-notes.md	78a60cfd1689c9b3a5cb36f58f74e66e344300a4	2026-10-23	
 docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	448036627ceab6c3818be2943d1a5b5a376fa7b3	2026-11-08	
@@ -318,7 +318,7 @@ scripts/lab/start_lab.ps1	6aa616380a97df396225b5a0a8f161240aff60b4	2026-10-23
 scripts/release/README.md	d5379b29f1b78dc46eefe9b1b518555b2236f651	2026-10-08	
 scripts/release/make-apt-key.sh	e236d199325e428705b898f4dce580ffce535684	2026-10-23	
 scripts/release/rename-apt-key.sh	1e6a569c759aff0ed5b8afb505f411cb2db61c72	2026-10-31	
-spikes/README.md	121e5624018ef3f4ef583396d147061a1bfc359f	2026-11-09	
+spikes/README.md	897ea8f145ec226704c2c40154efe501f5219766	2026-11-09	
 spikes/dns-engine/README.md	895bb7e3fd683380105a07417022b028c6c658ac	2026-10-11	
 spikes/dns-engine/adguard.py	95786719a486d0aba9863f44092e79011102e56c	2026-10-11	
 spikes/dns-engine/clientid.sh	2554372cb64076467585d7b3c8e471848ce2466b	2026-10-11	
@@ -371,7 +371,7 @@ spikes/samba/radius/README.md	8f3a4969b6187d24a7abd9bf40ad1b33afcc2ba4	2026-10-0
 spikes/samba/radius/inner-rewrite	1a0a5d4a622f26f43de869ac5964d17586268af2	2026-10-04	
 spikes/samba/radius/mschap	8fda5447c625eeb7d2a85e867163d5a262f952ce	2026-10-04	
 spikes/samba/radius/radius.sh	6cc7d3a105dfa82f6e0aa9ab1e36fc85ea3fdc28	2026-10-04	
-spikes/stepca-cert-listing/README.md	ef2e70d3df95939049126928bab07f7573366a45	2026-11-09	
+spikes/stepca-cert-listing/README.md	8ce9cf35d8396ec54c448e3cedd1232885f81a50	2026-11-09	
 spikes/stepca-cert-listing/reader/go.mod	dcfca6fd3bfaab56638285f8edb2e2e9089a8b55	2026-11-09	
 spikes/stepca-cert-listing/reader/main.go	0c506816bcbbeb4cdfbc3052e427ea6f29b7cb4d	2026-11-09	
 spikes/stepca-cert-listing/run.py	79601439bf7091e9bf0b79471e86577f1bbfcf6f	2026-11-09	
