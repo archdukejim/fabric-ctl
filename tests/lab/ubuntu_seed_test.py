@@ -41,8 +41,8 @@ check("the build VM's wan NIC takes DHCP, matched by its own MAC",
 check("its lab NIC keeps the lab address but no default route or DNS (the way out is wan)",
       dev["lab"]["addresses"] == ["10.88.0.5/24"] and "routes" not in dev["lab"] and "nameservers" not in dev["lab"],
       dev)
-check("it installs what the gate, the suites and the builds need, and qemu-user-static for the arm64 spike",
-      {"docker.io", "docker-buildx", "git", "python3-yaml", "dpkg-dev", "qemu-user-static"}
+check("it installs what the gate, the suites and the builds need, and the arm64 emulation (26.04's qemu-user-binfmt)",
+      {"docker.io", "docker-buildx", "git", "python3-yaml", "dpkg-dev", "qemu-user-binfmt"}
       <= set(VMS["g23-vm-dev-1"].get("packages", [])), VMS["g23-vm-dev-1"])
 
 ub = network("g23-vm-ub26-1")

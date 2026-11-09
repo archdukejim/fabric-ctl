@@ -12,7 +12,7 @@
     { "name": "g23-vm-w11-1",   "iso": "Win11_25H2_English_x64_v2.iso",        "cpu": 2, "mem": 4, "disk": 64, "kind": "windows", "installer": "windows-client","ip": "10.88.0.42" },
     { "name": "g23-vm-auth-1",  "iso": "ubuntu-26.04.1-live-server-amd64.iso", "cpu": 2, "mem": 2, "disk": 16, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.3" },
     { "name": "g23-vm-ub24-2",  "iso": "ubuntu-24.04.4-live-server-amd64.iso", "cpu": 4, "mem": 6, "disk": 64, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.12" },
-    { "name": "g23-vm-dev-1",   "iso": "ubuntu-26.04.1-live-server-amd64.iso", "cpu": 8, "mem": 16, "disk": 256, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.5", "packages": ["docker.io", "docker-compose-v2", "docker-buildx", "git", "python3-yaml", "python3-jinja2", "softhsm2", "python3-pykcs11", "python3-pykmip", "xorriso", "openssl", "curl", "dpkg-dev", "qemu-user-static"] }
+    { "name": "g23-vm-dev-1",   "iso": "ubuntu-26.04.1-live-server-amd64.iso", "cpu": 8, "mem": 16, "disk": 256, "kind": "linux",   "installer": "ubuntu-server", "ip": "10.88.0.5", "packages": ["docker.io", "docker-compose-v2", "docker-buildx", "git", "python3-yaml", "python3-jinja2", "softhsm2", "python3-pykcs11", "python3-pykmip", "xorriso", "openssl", "curl", "dpkg-dev", "qemu-user-binfmt"] }
   ],
   "private_switches": ["fabric-lab-vlan", "fabric-8021x-p1", "fabric-8021x-p2", "fabric-8021x-p3"],
   "vlans": [10, 20, 30],
