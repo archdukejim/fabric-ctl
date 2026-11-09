@@ -152,7 +152,7 @@ docs/volume_2_engineering_decisions/2.1.16-disk-encryption.md	2c5f6832b676ea44d7
 docs/volume_2_engineering_decisions/2.1.18-stig.md	1c83b035548437109b09db17fa962aaa8649aa2a	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.2-architecture.md	074748f61b8700279510fc2cd8ea3fa1e631af15	2026-11-08	
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	a2dc65acd29b572c2207502c4de551053f4f81b4	2026-11-02	
-docs/volume_2_engineering_decisions/2.1.4-dns.md	590a6bb5f88bed0a785e0ca8266e4d4a7d5cccee	2026-11-09	
+docs/volume_2_engineering_decisions/2.1.4-dns.md	0b8fc0377e0e85362cf5f4bc00a2825c20e0bd8d	2026-11-09	
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	81033c43c705bd5016ad4ffae99967677910aec6	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.6-identity.md	ba7f2d4406dd4915e90020313579bff2ce183eca	2026-11-05	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
