@@ -21,7 +21,7 @@ docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
-docs/volume_1_description_and_architecture/1.1.4-roadmap.md	7419423d15591bc1bff4781a59c212042a645c8b	2026-11-09	
+docs/volume_1_description_and_architecture/1.1.4-roadmap.md	725b0942c26dfcb7060fdb48f78b65f2f6ed3946	2026-11-10	
 docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	7cc73759f86c7ce4ca7e2d58b7d1cc0db4cb9a64	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	c376feda6e17998f6aa6b2d9c85823f6b00ba89e	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
@@ -103,7 +103,7 @@ docs/volume_1_description_and_architecture/1.3.1-host-package.md	44319278da7cf11
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	4ab5c327069823d2f63aa8ce26c2c5aded2ec86c	2026-10-24	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	9becb8c70be6bf5d0571d4bd42a8924d7761ca23	2026-11-08	
 docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	316140d9159b0d10868ba426ca09a638785321c8	2026-11-08	
-docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	f6bffe196c8f79d1b00894c4f630f90e05e0e4bd	2026-11-09	
+docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	f6bffe196c8f79d1b00894c4f630f90e05e0e4bd	2026-11-10	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	e58503ad946804b11abe0754bfde04d936bc992e	2026-11-08	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c4cff88c3f00f41fef9f762b780de695005e3e8e	2026-11-05	
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
@@ -112,7 +112,7 @@ docs/volume_1_description_and_architecture/1.6.10-security.md	8d627ab12c234c4d60
 docs/volume_1_description_and_architecture/1.6.11-host-access.md	e659a1c5370235909d5ff30d657c5588bf5e1592	2026-11-06	
 docs/volume_1_description_and_architecture/1.6.12-domain-management.md	f4d55e09bd438e2be4694ce137c1dcff38580283	2026-11-07	
 docs/volume_1_description_and_architecture/1.6.13-access-by-grants.md	70992a154bed2ac24821302757c875c314e3ee9c	2026-11-05	
-docs/volume_1_description_and_architecture/1.6.2-keycloak.md	1170cb7e6152f061277c87f25439f287c659fed2	2026-10-21	
+docs/volume_1_description_and_architecture/1.6.2-keycloak.md	5d6234a93358b0e67a425974ae530197b6248300	2026-11-09	
 docs/volume_1_description_and_architecture/1.6.3-samba-directory.md	3933cfd116ae5bc8972526ce0b10c1afe33ed336	2026-11-04	
 docs/volume_1_description_and_architecture/1.6.4-samba-ad.md	a0962a724db0ba9c74a562d70d742c061e9f9db4	2026-10-20	
 docs/volume_1_description_and_architecture/1.6.5-samba-dc.md	222850f5f8387d85c675922958a0e99dcbfb65f6	2026-11-04	
@@ -152,17 +152,17 @@ docs/volume_2_engineering_decisions/2.1.16-disk-encryption.md	2c5f6832b676ea44d7
 docs/volume_2_engineering_decisions/2.1.18-stig.md	1c83b035548437109b09db17fa962aaa8649aa2a	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.2-architecture.md	ac7804a13c1581a0009fc5ed58f618f3e107373a	2026-11-08	
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	a2dc65acd29b572c2207502c4de551053f4f81b4	2026-11-02	
-docs/volume_2_engineering_decisions/2.1.4-dns.md	22d860ccc663a896cc8403cc8a93a422e41786b5	2026-11-10	
+docs/volume_2_engineering_decisions/2.1.4-dns.md	35352a62298d2e0776f6dc791fc0acbcecf475bf	2026-11-10	
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	81033c43c705bd5016ad4ffae99967677910aec6	2026-10-23	
-docs/volume_2_engineering_decisions/2.1.6-identity.md	ba7f2d4406dd4915e90020313579bff2ce183eca	2026-11-05	
+docs/volume_2_engineering_decisions/2.1.6-identity.md	7f5c4d589081804c503cb9f1960f197514c6578a	2026-11-09	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
-docs/volume_2_engineering_decisions/2.1.8-webui.md	784ea9de73ce48af59f6ae5cbc12b3f792026dba	2026-11-08	
+docs/volume_2_engineering_decisions/2.1.8-webui.md	1d46c13d254e1d3b374d433a768a3af3ae2937dd	2026-11-09	
 docs/volume_2_engineering_decisions/2.1.9-federation.md	cd669c8882d4f654fa2246c5cbf4604d785544fb	2026-10-31	
 docs/volume_2_engineering_decisions/2.2.1-product-troubleshooting.md	020c264ac36d9366dd795e323122ce69eb7e8a80	2026-11-04	
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	70829048971590e6ef05eb70f6a9080559cf3287	2026-11-08	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	57470e5cd38e44f0b7d934d31ce9e5b906734409	2026-11-10	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	8d0e6dc9f88453889dccc29f981ca3ee730702f4	2026-10-29	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	94fc068a1015d887dbbc7e0d3e24724376cdc280	2026-11-07	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -214,7 +214,7 @@ docs/volume_4_operations/4.2.4-move-rename.md	5f3a994563d45011611307d36c4a72a153
 docs/volume_4_operations/4.3.1-fabricctl.md	e52fb351243d8bfe097b2a070c444c07498bce91	2026-10-11	
 docs/volume_4_operations/4.3.6-web-guided-setup.md	9a3b39da2b07f9495a00a2229aae14a3272a785b	2026-11-08	
 docs/volume_4_operations/4.4.1-records.md	621603ac6d2989f6dc86489318cc736a634873da	2026-10-24	
-docs/volume_4_operations/4.4.2-tsig.md	dbf70d993c80288dde87ca5016a304bfba77c145	2026-11-09	
+docs/volume_4_operations/4.4.2-tsig.md	03f8df2c71fe7512135c927a0d968bfee9196e20	2026-11-10	
 docs/volume_4_operations/4.4.3-acls.md	59c2bcdb5fbaba3b5c98cb929e009e43d72d1761	2026-10-08	
 docs/volume_4_operations/4.4.4-landing-links.md	0fda0d403a2a28e405dc64dbd725487326b7922c	2026-10-23	
 docs/volume_4_operations/4.4.5-reverse-dns.md	648365ba4f30cbedf6a64d6f376e17a8498130e8	2026-10-08	
@@ -223,7 +223,7 @@ docs/volume_4_operations/4.5.2-manual-certificates.md	814555e7a894cd8f4eb7a662f5
 docs/volume_4_operations/4.6.1-people.md	b712adcbad4034e12e7b986f3239d0a825e1d6f6	2026-10-09	
 docs/volume_4_operations/4.6.10-grants.md	075d891507b6df32fe544502b38175825506cf42	2026-10-23	
 docs/volume_4_operations/4.6.11-domain-management.md	fe70ea33773b83a1f8ea5d10c8decd666aefcd86	2026-11-05	
-docs/volume_4_operations/4.6.2-single-sign-on.md	dfb8622367ad9148afb02a2b43f50851987f055d	2026-10-11	
+docs/volume_4_operations/4.6.2-single-sign-on.md	08d8f446a9e735bbd091d3404d326c397a6d6d46	2026-11-09	
 docs/volume_4_operations/4.6.3-first-sign-in.md	f8826b3bd6bce11d63d61c1e4eadd461cfab285e	2026-10-23	
 docs/volume_4_operations/4.6.4-sign-in-security.md	3f500dfb78dff37e8ffb9c435b340013ac383db9	2026-10-23	
 docs/volume_4_operations/4.6.5-windows-domain.md	94d53755110311b17bba870c430d47149c4d6e21	2026-10-25	
