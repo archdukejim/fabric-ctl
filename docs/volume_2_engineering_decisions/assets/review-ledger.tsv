@@ -102,9 +102,9 @@ docs/volume_1_description_and_architecture/1.2.9-host-consent.md	54cfba35093785c
 docs/volume_1_description_and_architecture/1.3.1-host-package.md	44319278da7cf11a26e05b384c989d9b81f6f40d	2026-10-23	
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	4ab5c327069823d2f63aa8ce26c2c5aded2ec86c	2026-10-24	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	9becb8c70be6bf5d0571d4bd42a8924d7761ca23	2026-11-08	
-docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	7b7f4ef81bb2d4bdb22435f26a407711a9715dd8	2026-11-08	
+docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	316140d9159b0d10868ba426ca09a638785321c8	2026-11-08	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	a44be399d7d405ada533585abf6e5da21d3bc372	2026-11-05	
-docs/volume_1_description_and_architecture/1.4.2-landing-links.md	26784470690fb28f6c54cbd9cc59a35208a1426a	2026-10-31	
+docs/volume_1_description_and_architecture/1.4.2-landing-links.md	e58503ad946804b11abe0754bfde04d936bc992e	2026-11-08	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c4cff88c3f00f41fef9f762b780de695005e3e8e	2026-11-05	
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
 docs/volume_1_description_and_architecture/1.6.1-directory.md	7fa9284225375dc046757b644311b8368d907462	2026-10-08	
@@ -112,7 +112,7 @@ docs/volume_1_description_and_architecture/1.6.10-security.md	8d627ab12c234c4d60
 docs/volume_1_description_and_architecture/1.6.11-host-access.md	e659a1c5370235909d5ff30d657c5588bf5e1592	2026-11-06	
 docs/volume_1_description_and_architecture/1.6.12-domain-management.md	f4d55e09bd438e2be4694ce137c1dcff38580283	2026-11-07	
 docs/volume_1_description_and_architecture/1.6.13-access-by-grants.md	70992a154bed2ac24821302757c875c314e3ee9c	2026-11-05	
-docs/volume_1_description_and_architecture/1.6.2-keycloak.md	1170cb7e6152f061277c87f25439f287c659fed2	2026-10-21	
+docs/volume_1_description_and_architecture/1.6.2-keycloak.md	5d6234a93358b0e67a425974ae530197b6248300	2026-11-09	
 docs/volume_1_description_and_architecture/1.6.3-samba-directory.md	3933cfd116ae5bc8972526ce0b10c1afe33ed336	2026-11-04	
 docs/volume_1_description_and_architecture/1.6.4-samba-ad.md	a0962a724db0ba9c74a562d70d742c061e9f9db4	2026-10-20	
 docs/volume_1_description_and_architecture/1.6.5-samba-dc.md	222850f5f8387d85c675922958a0e99dcbfb65f6	2026-11-04	
@@ -126,7 +126,7 @@ docs/volume_1_description_and_architecture/1.8.2-webui-security.md	206d20b96c31d
 docs/volume_1_description_and_architecture/1.8.3-single-pane.md	808634d3a80eb23100726babccde1c311b8af2c8	2026-10-17	
 docs/volume_1_description_and_architecture/1.8.4-webui.md	39217755a58747a679510a3109b1570af664d412	2026-10-23	
 docs/volume_1_description_and_architecture/1.8.5-setup-wizard.md	860ba0c558a4192415059954baadb2e6536f942e	2026-11-08	
-docs/volume_1_description_and_architecture/1.8.6-console-redo.md	c8311dffa63ca371bd5f3ccebdb69d9441372eae	2026-10-25	
+docs/volume_1_description_and_architecture/1.8.6-console-redo.md	c41aa475ca2cecf382e1b095af9c6a1614851dc0	2026-11-08	
 docs/volume_1_description_and_architecture/1.8.7-cockpit-proxy.md	965690482f7597a1271ab627eb5724bf70e9fce2	2026-10-30	
 docs/volume_1_description_and_architecture/1.8.8-directory-browser.md	5ae8278da0a933c440bda79366849040979dd3eb	2026-11-05	
 docs/volume_1_description_and_architecture/1.8.9-console-read-cache.md	cc2f6f6095f23387a1801dfabf88793ab4d1bebf	2026-11-07	
@@ -150,13 +150,13 @@ docs/volume_2_engineering_decisions/2.1.14-images.md	248151c9d9c79e2df741cf97ae0
 docs/volume_2_engineering_decisions/2.1.15-logs.md	b3fb9286ea0a6760a0ab597950d771e6cc305633	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.16-disk-encryption.md	2c5f6832b676ea44d7f5e8a76a4717b35f4d3cd6	2026-10-08	
 docs/volume_2_engineering_decisions/2.1.18-stig.md	1c83b035548437109b09db17fa962aaa8649aa2a	2026-10-25	
-docs/volume_2_engineering_decisions/2.1.2-architecture.md	074748f61b8700279510fc2cd8ea3fa1e631af15	2026-11-08	
+docs/volume_2_engineering_decisions/2.1.2-architecture.md	ac7804a13c1581a0009fc5ed58f618f3e107373a	2026-11-08	
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	a2dc65acd29b572c2207502c4de551053f4f81b4	2026-11-02	
-docs/volume_2_engineering_decisions/2.1.4-dns.md	d5be8ef23d0b5c7201f86ac892723b57d7f4d550	2026-10-31	
+docs/volume_2_engineering_decisions/2.1.4-dns.md	b46be1fe38d204fed100d9bf07fcb67ca455668f	2026-11-09	
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	81033c43c705bd5016ad4ffae99967677910aec6	2026-10-23	
-docs/volume_2_engineering_decisions/2.1.6-identity.md	ba7f2d4406dd4915e90020313579bff2ce183eca	2026-11-05	
+docs/volume_2_engineering_decisions/2.1.6-identity.md	7f5c4d589081804c503cb9f1960f197514c6578a	2026-11-09	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
-docs/volume_2_engineering_decisions/2.1.8-webui.md	165c6f13ad6454f06fb15207510890cb9e88c129	2026-11-08	
+docs/volume_2_engineering_decisions/2.1.8-webui.md	1d46c13d254e1d3b374d433a768a3af3ae2937dd	2026-11-09	
 docs/volume_2_engineering_decisions/2.1.9-federation.md	cd669c8882d4f654fa2246c5cbf4604d785544fb	2026-10-31	
 docs/volume_2_engineering_decisions/2.2.1-product-troubleshooting.md	020c264ac36d9366dd795e323122ce69eb7e8a80	2026-11-04	
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
@@ -173,7 +173,7 @@ docs/volume_2_engineering_decisions/2.3.4-dns-notes.md	37ab643e96e0a54ebf7d5f487
 docs/volume_2_engineering_decisions/2.3.5-certificate-notes.md	a9aeb2e856f39e5f862e36bf6273c583af26d627	2026-10-11	
 docs/volume_2_engineering_decisions/2.3.6-identity-notes.md	d9b52f2951d7469595b4871be7c4f294e53cfa64	2026-11-01	
 docs/volume_2_engineering_decisions/2.3.7-openbao-notes.md	78a60cfd1689c9b3a5cb36f58f74e66e344300a4	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	844899040f53bf119e390e4457bfb25b830ab155	2026-11-07	
+docs/volume_2_engineering_decisions/2.3.8-webui-notes.md	448036627ceab6c3818be2943d1a5b5a376fa7b3	2026-11-08	
 docs/volume_2_engineering_decisions/2.3.9-federation-notes.md	589194fbf33eda431862f1414dabc04a3181edc9	2026-10-08	
 docs/volume_2_engineering_decisions/README.md	db77c9318e3383be0bedd0310d0a0e715024ae32	2026-11-04	
 docs/volume_2_engineering_decisions/assets/README.md	3fd72f26d985cf1827afa0868c6c138dfec9d627	2026-10-08	
@@ -214,7 +214,7 @@ docs/volume_4_operations/4.2.4-move-rename.md	5f3a994563d45011611307d36c4a72a153
 docs/volume_4_operations/4.3.1-fabricctl.md	e52fb351243d8bfe097b2a070c444c07498bce91	2026-10-11	
 docs/volume_4_operations/4.3.6-web-guided-setup.md	9a3b39da2b07f9495a00a2229aae14a3272a785b	2026-11-08	
 docs/volume_4_operations/4.4.1-records.md	621603ac6d2989f6dc86489318cc736a634873da	2026-10-24	
-docs/volume_4_operations/4.4.2-tsig.md	0bfa2dca10a0b3c35665006472cb80b873883f4f	2026-10-08	
+docs/volume_4_operations/4.4.2-tsig.md	cad3b4af15e7ca676150c5169b8a25f3ae07d2f9	2026-11-09	
 docs/volume_4_operations/4.4.3-acls.md	59c2bcdb5fbaba3b5c98cb929e009e43d72d1761	2026-10-08	
 docs/volume_4_operations/4.4.4-landing-links.md	0fda0d403a2a28e405dc64dbd725487326b7922c	2026-10-23	
 docs/volume_4_operations/4.4.5-reverse-dns.md	648365ba4f30cbedf6a64d6f376e17a8498130e8	2026-10-08	
@@ -223,7 +223,7 @@ docs/volume_4_operations/4.5.2-manual-certificates.md	814555e7a894cd8f4eb7a662f5
 docs/volume_4_operations/4.6.1-people.md	b712adcbad4034e12e7b986f3239d0a825e1d6f6	2026-10-09	
 docs/volume_4_operations/4.6.10-grants.md	075d891507b6df32fe544502b38175825506cf42	2026-10-23	
 docs/volume_4_operations/4.6.11-domain-management.md	fe70ea33773b83a1f8ea5d10c8decd666aefcd86	2026-11-05	
-docs/volume_4_operations/4.6.2-single-sign-on.md	dfb8622367ad9148afb02a2b43f50851987f055d	2026-10-11	
+docs/volume_4_operations/4.6.2-single-sign-on.md	08d8f446a9e735bbd091d3404d326c397a6d6d46	2026-11-09	
 docs/volume_4_operations/4.6.3-first-sign-in.md	f8826b3bd6bce11d63d61c1e4eadd461cfab285e	2026-10-23	
 docs/volume_4_operations/4.6.4-sign-in-security.md	3f500dfb78dff37e8ffb9c435b340013ac383db9	2026-10-23	
 docs/volume_4_operations/4.6.5-windows-domain.md	94d53755110311b17bba870c430d47149c4d6e21	2026-10-25	
