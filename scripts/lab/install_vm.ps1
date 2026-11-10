@@ -7,7 +7,8 @@
 .DESCRIPTION
   Needs Hyper-V Administrators' rights (not an elevated PowerShell). Idempotent: a VM that already answers SSH with
   the lab key is left alone. The router g23-vm-rtr-1 is installed first: every other VM's installer reaches the
-  internet through it, so this refuses another VM while the router does not answer and route.
+  internet through it, so this refuses another VM while the router does not answer and route;
+  a VM with its own NIC wan (the build VM, manual 3.1.5.14) is not held to that.
   Media, by installer (lab_vms.json):
     ubuntu-server  first DVD: <seed>\<iso>-autoinstall.iso (GRUB boots `autoinstall ds=nocloud`); second: <seed>\<vm>.iso (CIDATA)
     proxmox        first DVD: <seed>\<vm>.iso (the ISO prepared with answer.toml)
@@ -62,7 +63,9 @@ function Ssh($ip, $cmd) {
 
 if (Ssh $vm.ip 'hostname') { Write-Host "$Name already answers SSH at $($vm.ip): left as it is."; return }
 
-if ($Name -ne $Router) {
+# a VM with its own way out (a NIC named wan, as the build VM g23-vm-dev-1, manual 3.1.5.14) installs without it
+$ownWan = @($Lab.nics | Where-Object { $_.vm -eq $Name -and $_.name -eq 'wan' }).Count -gt 0
+if ($Name -ne $Router -and -not $ownWan) {
     $rtr = $Lab.vms | Where-Object name -eq $Router
     $routes = Ssh $rtr.ip 'sudo -n nft list table inet fabric_lab >/dev/null && ping -c1 -W3 1.1.1.1 >/dev/null && echo ok'
     if ($routes -ne 'ok') {
