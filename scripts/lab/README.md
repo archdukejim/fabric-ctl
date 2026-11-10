@@ -1,14 +1,14 @@
 # scripts/lab
 
 The Hyper-V test lab on gaming-23 (manual 3.1.5, decisions 2.1.1.63 to 2.1.1.65). Only `prepare_host.ps1` needs an
-elevated PowerShell; the others need Hyper-V Administrators' rights (or run in WSL).
+elevated PowerShell; the others need Hyper-V Administrators' rights; `make_seeds.sh` ran in WSL (its row).
 
 | File | What |
 |---|---|
 | `lab_vms.json` | The lab's inventory: VMs, installers, addresses, NICs and their switches; read by the scripts below |
 | `prepare_host.ps1` | The owner's one admin step: the account into Hyper-V Administrators, the switch `fabric-lab`, host address `10.88.0.1` (no NAT) |
 | `new_hyperv_lab.ps1` | Makes the lab's VMs (static MACs), private switches and extra NICs; refuses until `prepare_host.ps1` has run; keeps what exists |
-| `make_seeds.sh` | In WSL: writes every VM's unattended-install media into `D:\Hyper-V\fabric-lab\seed` (runs `seeds/make_seeds.py`) |
+| `make_seeds.sh` | In WSL (removed 2026-11-09; its port to the build VM is open, 2.1.1.99.2): writes every VM's unattended-install media into `D:\Hyper-V\fabric-lab\seed` (runs `seeds/make_seeds.py`) |
 | `seeds/make_seeds.py` | The generator's entry point: routes each VM to its installer's writer |
 | `seeds/lab_inventory.py` | Reads `lab_vms.json`; each NIC's MAC |
 | `seeds/lab_secret.py` | Generates a lab-only password once into an owner-only file in `%USERPROFILE%\fabric-lab` |
