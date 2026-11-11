@@ -30,7 +30,8 @@ jobs:
   suite:
     name: ${{ matrix.suite }} (${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
-    timeout-minutes: 60
+    # 90 minutes, not 60: samba amd64 took 45 to 47 and then ran past 60 on hosted runners (2.1.1.100)
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
