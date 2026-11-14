@@ -30,7 +30,7 @@ docs/volume_1_description_and_architecture/1.1.9-optional-parts.md	03fdc2ac87f89
 docs/volume_1_description_and_architecture/1.10.1-kea-design.md	5993f0ea70ce9b41bb56f868ced2d62587aae98a	2026-10-24	
 docs/volume_1_description_and_architecture/1.10.2-dhcp-management.md	0d0c79a055ff0cbf9ebac19254b58c99d1d5e7a3	2026-10-24	
 docs/volume_1_description_and_architecture/1.10.3-serving-networks.md	73756fd4c3aaf769d06c21ad404414f49c6c40a6	2026-11-14	
-docs/volume_1_description_and_architecture/1.10.4-address-manager.md	b3e3a32cf1bcab2d7e176b85cfeefccbe6bb513e	2026-11-14	
+docs/volume_1_description_and_architecture/1.10.4-address-manager.md	a5f324e2da61e36d5b870be73c4b6a20a020eb8a	2026-11-14	
 docs/volume_1_description_and_architecture/1.11.1-freeradius-design.md	53be8bfe3baba02927c9b7b66dd4d02282115356	2026-10-09	
 docs/volume_1_description_and_architecture/1.12.1-adguard.md	1a8e6312f0e91b20a9c8fc89c4af5544e71a87b5	2026-10-23	
 docs/volume_1_description_and_architecture/1.12.2-bind-resolver.md	9daf4e46c079fe4d62f4d0b74d79debd0691d826	2026-10-31	
@@ -103,7 +103,7 @@ docs/volume_1_description_and_architecture/1.3.1-host-package.md	44319278da7cf11
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	4ab5c327069823d2f63aa8ce26c2c5aded2ec86c	2026-10-24	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	32eaaf7b918d261660a95f9dc6991d8c07cb26f1	2026-11-14	
 docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	316140d9159b0d10868ba426ca09a638785321c8	2026-11-10	
-docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	635d04cb311fce02a9637bf8d772928037aa8dfd	2026-11-14	
+docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	3c8013fb950e2bc658ae27dedf1153686f11ea2c	2026-11-14	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	e58503ad946804b11abe0754bfde04d936bc992e	2026-11-10	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c23530a82de2f755d4a0bcf489bd2277902e5736	2026-11-11	
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
@@ -142,7 +142,7 @@ docs/volume_1_description_and_architecture/README.md	a43f552cec4542ae432958b0c31
 docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af7662fdf5684924b409f9a9c	2026-10-23	
 docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	cbad7e90c2ac64a84d6f8fd4f573fa54ab739022	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.1-product.md	99fe9a757047b55dbfdaadc551f5c735ffb417ff	2026-11-14	
-docs/volume_2_engineering_decisions/2.1.10-dhcp.md	fb3f11217e3204e8429a2783a821319e25fb45d8	2026-11-14	
+docs/volume_2_engineering_decisions/2.1.10-dhcp.md	00caa990979a73ddc43adf555215e1995c7bd9c3	2026-11-14	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	3f69f3e7715c3622616ad0533798e0d9214a85ae	2026-11-07	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	515f4b543f91a0cf387eba583d2b143ec8458d85	2026-11-08	
 docs/volume_2_engineering_decisions/2.1.13-time.md	382002cc710290228742eb0bbece98c5e28bc1c8	2026-10-08	
@@ -152,7 +152,7 @@ docs/volume_2_engineering_decisions/2.1.16-disk-encryption.md	2c5f6832b676ea44d7
 docs/volume_2_engineering_decisions/2.1.18-stig.md	1c83b035548437109b09db17fa962aaa8649aa2a	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.2-architecture.md	b0e0763e59da76eff03f425e4da62bdeb09f3f2e	2026-11-11	
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	a2dc65acd29b572c2207502c4de551053f4f81b4	2026-11-02	
-docs/volume_2_engineering_decisions/2.1.4-dns.md	bc1102a1907f720559268a468a92169fe07f4424	2026-11-14	
+docs/volume_2_engineering_decisions/2.1.4-dns.md	033bc6e89a6b3f812caa3dd88e6e27ee58254932	2026-11-14	
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	7e0829b303df6f0f0ec3c9cc0d5bf70d96794605	2026-11-11	
 docs/volume_2_engineering_decisions/2.1.6-identity.md	7f5c4d589081804c503cb9f1960f197514c6578a	2026-11-10	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
@@ -208,7 +208,7 @@ docs/volume_3_installation/3.8.1-cockpit-proxy.md	47f288236b364c1488d3ba03669e32
 docs/volume_3_installation/3.9.1-joining.md	97a63db531d513a61ec9d1b542d2ab96d91b4653	2026-10-31	
 docs/volume_3_installation/README.md	347d7e4ffdf48447185cf661ef29fd7172a0ba52	2026-11-07	
 docs/volume_4_operations/4.10.1-dhcp.md	bd18863bc973f0ee549798a38a9367e86491b68e	2026-10-24	
-docs/volume_4_operations/4.10.2-address-manager.md	55bc3a8fbf803b15f4e608472a942e29e60ef1a2	2026-11-14	
+docs/volume_4_operations/4.10.2-address-manager.md	586ecd1b6eb33040bf841fbb74d1e7da5307f1d4	2026-11-14	
 docs/volume_4_operations/4.11.1-radius.md	e00bb81fee4e2542835a17c74d53eae4d5fa4562	2026-10-23	
 docs/volume_4_operations/4.12.1-dns-filter.md	4c93159634a177d337566dead2688a3750dcff61	2026-11-08	
 docs/volume_4_operations/4.13.1-time.md	6c8f0553ab60090879e010d6463805505b645902	2026-10-08	
@@ -220,7 +220,7 @@ docs/volume_4_operations/4.2.3-ports.md	884935fa8dda8501f8e6a6924750574becab1c9f
 docs/volume_4_operations/4.2.4-move-rename.md	5f3a994563d45011611307d36c4a72a1538b6d1f	2026-11-05	
 docs/volume_4_operations/4.3.1-fabricctl.md	e52fb351243d8bfe097b2a070c444c07498bce91	2026-10-11	
 docs/volume_4_operations/4.3.6-web-guided-setup.md	9a3b39da2b07f9495a00a2229aae14a3272a785b	2026-11-08	
-docs/volume_4_operations/4.4.1-records.md	621603ac6d2989f6dc86489318cc736a634873da	2026-10-24	
+docs/volume_4_operations/4.4.1-records.md	549d3d7704dbd499c45273f4364e047675302120	2026-11-14	
 docs/volume_4_operations/4.4.2-tsig.md	095545b42dfff11e543017a6d48d20539a95054b	2026-11-14	
 docs/volume_4_operations/4.4.3-acls.md	59c2bcdb5fbaba3b5c98cb929e009e43d72d1761	2026-10-08	
 docs/volume_4_operations/4.4.4-landing-links.md	0fda0d403a2a28e405dc64dbd725487326b7922c	2026-10-23	
