@@ -30,6 +30,7 @@ from fabriclib.setup.advanced.ask_ca_lifetime import ask_ca_lifetime  # noqa: E4
 from fabriclib.setup import renew_service_certs as rsc  # noqa: E402
 from fabriclib.setup.errors import SetupError  # noqa: E402
 from fabriclib.setup.init_pki import _check_root_lifetime  # noqa: E402
+from fabriclib.setup.service_cert_targets import service_cert_targets  # noqa: E402
 
 FAILED = 0
 W = tempfile.mkdtemp()
@@ -109,12 +110,31 @@ def refused(settings):
 check("the defaults pass", refused({}) == "")
 check("90 days renewed at 30 passes", refused({"cert_service_days": 90}) == "")
 # covers: setting:cert_service_days -
-check("negative: renewal leaving under 7 days is refused, saying how long to make the certificate",
-      "leave at least 7" in refused({"cert_service_days": 35}) and "at least 37" in refused({"cert_service_days": 35}))
+check("negative: renewal leaving under a day is refused, saying the latest renew at (only the real limits, 2.1.5.14)",
+      "at least 1 day before the end" in refused({"cert_service_days": 30})
+      and "renew at 29 days at most" in refused({"cert_service_days": 30}))
+check("renewal leaving under 7 days passes now, with a note (2.1.5.14)", refused({"cert_service_days": 35}) == ""
+      and any("expiring soon" in n for n in check_cert_lifetimes({"cert_service_days": 35, "cert_renew_after_days": 30,
+                                                                  "cert_root_ca_days": 3650})))
+check("negative: fabric's own certificates under 2 days are refused",
+      "at least 2 days" in refused({"cert_service_days": 1, "cert_renew_after_days": 1}))
 # covers: setting:cert_renew_after_days -
 check("negative: a renewal age of 0 is refused", "at least a day" in refused({"cert_renew_after_days": 0}))
 # covers: setting:cert_root_ca_days -
 check("negative: a root under a year is refused", "at least 365" in refused({"cert_root_ca_days": 300}))
+_base = {"cert_service_days": 47, "cert_renew_after_days": 30, "cert_root_ca_days": 3650}
+try:
+    check_cert_lifetimes({**_base, "cert_acme_lifetime_hours": "2400h"}, intermediate_left_days=60,
+                         only={"cert_acme_lifetime_hours"})
+    _why = ""
+except ValidationError as e:
+    _why = str(e)
+check("negative: a lifetime being set longer than the intermediate has left is refused, naming it (1.5.1.10.2)",
+      "cert_acme_lifetime_hours is 100 days, longer than the intermediate CA has left (60 days)" in _why, _why)
+check("...but not a value set before, as the intermediate ages (the hand-issued 1825 days with 60 left), nor at a "
+      "setup run: an ageing intermediate never blocks an apply",
+      check_cert_lifetimes({**_base}, intermediate_left_days=60, only={"cert_service_days"}) == []
+      and check_cert_lifetimes({**_base, "pki_manual_max_days": 1825}) == [])
 check("negative: a lifetime that is not a whole number of days is refused, naming the setting",
       "cert_service_days must be a whole number" in refused({"cert_service_days": "47d"})
       and "cert_renew_after_days must be" in refused({"cert_renew_after_days": True}))
@@ -194,7 +214,7 @@ class TCtx:
 
 tb = os.path.join(W, "retire")
 tctx = TCtx(tb)
-targets = msc._targets(tctx)
+targets = service_cert_targets(tctx)
 check("no service certificate for certs.<domain> any more", all(not cn.startswith("certs.") for cn, *_ in targets),
       [cn for cn, *_ in targets])
 

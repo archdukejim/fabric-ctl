@@ -484,9 +484,14 @@ for svc in ('nginx', 'bind9', 'stepca', 'samba', 'keycloak', 'postgres', 'webui'
             f'{svc}/{name}: image not pinned: {ref}'
 for df in glob.glob(os.path.join(REPO, 'packaging', 'images', '*', 'Dockerfile')):
     text = open(df).read()
-    assert not re.search(r'^ARG BASE_IMAGE=', text, re.M), f'{df}: BASE_IMAGE must have no default'
-    assert all(ln.split()[1].startswith('${BASE_IMAGE}') for ln in text.splitlines() if ln.startswith('FROM ')), \
-        f'{df}: FROM must be the pinned ${{BASE_IMAGE}}'
+    assert not re.search(r'^ARG (BASE|GO)_IMAGE=', text, re.M), f'{df}: BASE_IMAGE and GO_IMAGE must have no default'
+    # each stage FROM a pinned build argument: the image's base, or the Go toolchain a build stage compiles with
+    # (stepca's certificate reader, 2.1.5.13); --platform= flags are skipped
+    froms = [[w for w in ln.split()[1:] if not w.startswith('--')][0] for ln in text.splitlines()
+             if ln.startswith('FROM ')]
+    assert froms and froms[-1].startswith('${BASE_IMAGE}') \
+        and all(f.startswith(('${BASE_IMAGE}', '${GO_IMAGE}')) for f in froms), \
+        f'{df}: FROM must be the pinned ${{BASE_IMAGE}} (a build stage: ${{GO_IMAGE}})'
 print('every image pinned by digest (lock, vars defaults, compose files, Dockerfiles)')
 
 # Fluent Bit (optional log forwarding, 2.1.15.1): verified TLS to every destination, no credential in the file

@@ -39,6 +39,7 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `saved_and_applied.py` | Run a change that fabric-agent saves and applies at once, and go back to its page with the outcome as its message. |
 | `stepca_page.py` | Render the Step-CA tab for one sub-view, with the CA summary, linkable devices and the issued list where needed. |
 | `stepca_post.py` | Manual PKI: each Step-CA form maps to one fabric-agent operation. |
+| `lifetimes_page.py` | Render PKI → Lifetimes from the agent's read. |
 | `tsig_post.py` | TSIG keys: create and rotate at once (BIND takes them at once), remove held for DNS' Apply. |
 | `vault_post.py` | Change the vault's unlock methods: rotate the key, test or remove a method, or add a USB stick, security key or KMIP HSM — each one fabric-agent call after a recent sign-in and the host name typed as confirmation. |
 | `zone_post.py` | DNS records: add one to a zone, or delete one, held for DNS' Apply. |

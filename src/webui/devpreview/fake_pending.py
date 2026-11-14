@@ -44,10 +44,11 @@ def _filter_vars():
 
 
 def _check(state, route, body):
-    """Purpose: The preview's check of a held DNS filter change, at hold and at Apply, as the agent's dry run makes
-             it for the lists: the memory rule over the whole set (1.12.3.9), AdGuard Home's limit the sample's, or
-             150 MiB with the preview's `tight` toggle (so the refusal can be seen); a TSIG key's Edit names that names
-             nothing refused as the agent's check refuses it (2.1.4.13).
+    """Purpose: The preview's check of a held Lifetimes change (fabriclib's own limits, 2.1.5.14), and of a held DNS
+             filter change, at hold and at Apply, as the agent's dry run makes it for the lists: the memory rule over
+             the whole set (1.12.3.9), AdGuard Home's limit the sample's, or 150 MiB with the preview's `tight`
+             toggle (so the refusal can be seen); a TSIG key's Edit names that names nothing refused as the agent's
+             check refuses it (2.1.4.13).
     Inputs:  state — DevState (toggles); route — segments after /v1/; body — dict.
     Returns: None.
     Fails:   ValidationError naming the lists and the gap, as set_filter_lists says it; "nothing to change" for an
@@ -55,6 +56,17 @@ def _check(state, route, body):
     Feeds:   _store."""
     if len(route) == 3 and route[0] == "tsig" and route[2] == "update" and not body:
         raise ValidationError("nothing to change: add or remove a name")      # as edit_tsig_names says it
+    if route == ["pki", "lifetimes"]:             # the real limits (2.1.5.14), as the agent checks them at hold
+        try:
+            from fabriclib.pki.set_lifetimes import lifetime_changes
+        except ImportError:                        # the webui image alone: the agent checks them
+            return None
+        life = state.data["lifetimes"]["values"]
+        v = {"cert_service_days": life["service_days"], "cert_renew_after_days": life["renew_after_days"],
+             "cert_acme_lifetime_hours": f"{life['acme_days'] * 24}h", "pki_manual_default_days":
+             life["issue_default_days"], "pki_manual_max_days": life["issue_max_days"]}
+        lifetime_changes(v, {str(k): str(x) for k, x in (body.get("fields") or {}).items()})
+        return None
     if route != ["dns-filter", "lists", "ticks"]:
         return None
     gone = {i.get("url") for i in body.get("untick") or []}
@@ -128,6 +140,8 @@ def _thing(state, route, body):
         return state.data["zones"].get(key)
     if head == "tsig":
         return _find(state.data["tsig"], "name", route[1])
+    if route == ["pki", "lifetimes"]:                 # the lifetimes as set (2.1.5.14)
+        return {"fields": dict(state.data["lifetimes"]["values"])}
     raise ValidationError("this change is not held in the preview")
 
 

@@ -1,7 +1,9 @@
+import datetime
 import secrets
 
 from webui import views
 from webui.devpreview.fabric_rules import ValidationError
+from webui.devpreview.fake_certs import fake_certs
 from webui.devpreview.sample_data import SAMPLE_DOCTOR, SAMPLE_INFO, SAMPLE_PEM, SAMPLE_SECURITY, SAMPLE_SIZING
 from webui.devpreview.sample_result import sample_result
 from webui.devpreview.sample_settings import SAMPLE_PLAN
@@ -21,7 +23,7 @@ def _job(state, kind, result):
 
 def _pki(state, op, body):
     """Purpose: The PKI's forms with sample results (nothing signed or issued).
-    Inputs:  state — DevState; op — describe-csr, inspect, sign, issue, convert, revoke; body — dict.
+    Inputs:  state — DevState; op — describe-csr, inspect, sign, issue, convert, lookup, lifetimes, revoke; body — dict.
     Returns: the agent's answer, or None for another op.
     Fails:   never.
     Feeds:   fake_misc."""
@@ -35,16 +37,40 @@ def _pki(state, op, body):
     if op in ("sign", "issue", "convert"):
         state.log(f"PKI_{op.upper()}", "dev preview: sample only, nothing signed")
         return sample_result(op)
-    if op == "revoke":                  # done at once (2.1.8.23): the sample certificate is marked revoked
-        target = str(body.get("target", ""))
-        row = next((c for c in state.data["issued"] if c.get("serial") == target), None)
+    if op == "lookup":                  # Revoke a certificate not listed: by serial only in the preview
+        serial = str(body.get("serial", "")).replace(":", "").upper().lstrip("0")
+        if body.get("pem"):
+            raise ValidationError("this install's CA did not sign that certificate (the preview checks no files)")
+        row = next((c for c in fake_certs(state)["certs"] if c["serial"] == serial), None)
         if row is None:
-            raise ValidationError(f"no certificate issued by hand with serial {target}")
+            raise ValidationError(f"this install's CA signed no certificate with the serial {serial} that is still "
+                                  "valid: give the certificate itself to revoke one no list shows")
+        return row
+    if op == "lifetimes":               # PKI's Apply (2.1.5.14): the sample values change, nothing restarts
+        fields = body.get("fields") or {}
+        life = state.data["lifetimes"]["values"]
+        life.update({k: int(v) for k, v in fields.items() if str(v).strip().isdigit() and k in life})
+        for r in state.data["lifetimes"]["renewals"]:   # the next renewal moves, as the agent's read works it out
+            due = datetime.date.fromisoformat(r["issued"]) + datetime.timedelta(days=life["renew_after_days"])
+            r["renews"] = min(due, datetime.date.fromisoformat(r["expires"])).isoformat()
+        state.log("PKI_LIFETIMES", f"dev preview: {fields}")
+        return {"changed": fields, "notes": [], "stepca": "unchanged", "renewal": 0}
+    if op == "revoke":                  # done at once (2.1.8.23): the sample certificate is marked revoked
+        target = str(body.get("target", "")).replace(":", "").upper().lstrip("0")
+        rows = state.data["issued"] + state.data["certs_other"]
+        row = next((c for c in rows if c.get("serial") == target), None)
+        if row is None:
+            raise ValidationError(f"this install's CA signed no certificate with the serial {target}")
+        cn = row["subject"].split("CN=")[-1]
+        if str(body.get("confirm", "")).strip().lower() != cn.lower():
+            raise ValidationError(f"type {cn!r} to confirm: nothing was revoked")
         if row["status"] == "revoked":
-            raise ValidationError(f"{row['subject']} is revoked already")
+            raise ValidationError(f"certificate {target} is already revoked")
         row["status"] = "revoked"
         state.log("CERT_REVOKE", f"dev preview: {row['subject']} ({body.get('reason', 'unspecified')})")
-        return {"subject": row["subject"], "serial": target, "reason": body.get("reason", "unspecified")}
+        replaced = {s: "reloaded" for s in row.get("services") or []}
+        return {"subject": row["subject"], "serial": target, "reason": body.get("reason", "unspecified"),
+                "replaced": replaced}
     return None
 
 

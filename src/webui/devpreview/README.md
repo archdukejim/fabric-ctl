@@ -9,6 +9,7 @@ The dev preview (`devserver.py`): the production routes and pages over in-memory
 | `fake_connection.py` | Stands in for the agent's unix-socket connection: every agent call is answered in this process by fake_agent. |
 | `fake_agent.py` | The stand-in for fabric-agent: one /v1/ request answered from the sample data, with the agent's own permission check. |
 | `fake_reads.py` | The fake agent's reads (GET /v1/…) from the sample data, in the agent's shapes. |
+| `fake_certs.py` | The fake agent's every-certificate list (GET /v1/pki/certs) from the sample data. |
 | `fake_dns.py` | The fake agent's DNS changes: zones, records, the landing page's links, TSIG keys. |
 | `fake_groups.py` | The fake agent's groups: the list, a group's page, create, delete, managers, members. |
 | `fake_grants.py` | The fake agent's grants: the list, a grant's page, explain, add, change, remove. |

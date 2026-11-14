@@ -851,6 +851,7 @@ file	fabriclib-pki|src/fabriclib/pki/acme_info.py	46
 file	fabriclib-pki|src/fabriclib/pki/acme_machines.py	47	
 file	fabriclib-pki|src/fabriclib/pki/ca_summary.py	1	
 file	fabriclib-pki|src/fabriclib/pki/cert_warnings.py	36	
+file	fabriclib-pki|src/fabriclib/pki/certs_overview.py	50	
 file	fabriclib-pki|src/fabriclib/pki/check_cert_lifetimes.py	37	
 file	fabriclib-pki|src/fabriclib/pki/common/artifacts_dir.py	2	
 file	fabriclib-pki|src/fabriclib/pki/common/ca_chain_pem.py	3	
@@ -859,8 +860,10 @@ file	fabriclib-pki|src/fabriclib/pki/common/ca_parents_pem.py	5
 file	fabriclib-pki|src/fabriclib/pki/common/ca_path_len.py	6	
 file	fabriclib-pki|src/fabriclib/pki/common/cert_dates.py	38	
 file	fabriclib-pki|src/fabriclib/pki/common/cert_names.py	49	
+file	fabriclib-pki|src/fabriclib/pki/common/cert_status.py	51	
 file	fabriclib-pki|src/fabriclib/pki/common/crl_points.py	48	
 file	fabriclib-pki|src/fabriclib/pki/common/describe_cert.py	7	
+file	fabriclib-pki|src/fabriclib/pki/common/intermediate_left_days.py	52	
 file	fabriclib-pki|src/fabriclib/pki/common/openssl.py	8	
 file	fabriclib-pki|src/fabriclib/pki/common/record_issued.py	9	
 file	fabriclib-pki|src/fabriclib/pki/common/revoked_serials.py	41	
@@ -872,12 +875,16 @@ file	fabriclib-pki|src/fabriclib/pki/common/valid_san.py	14
 file	fabriclib-pki|src/fabriclib/pki/convert_cert.py	15	
 file	fabriclib-pki|src/fabriclib/pki/describe_csr.py	16	
 file	fabriclib-pki|src/fabriclib/pki/export_p12.py	17	
+file	fabriclib-pki|src/fabriclib/pki/find_cert.py	53	
 file	fabriclib-pki|src/fabriclib/pki/hand_out_client_cert.py	18	
 file	fabriclib-pki|src/fabriclib/pki/inspect_pem.py	19	
 file	fabriclib-pki|src/fabriclib/pki/install_cert.py	20	
 file	fabriclib-pki|src/fabriclib/pki/issue_client_cert.py	21	
 file	fabriclib-pki|src/fabriclib/pki/issue_key_pair.py	22	
+file	fabriclib-pki|src/fabriclib/pki/list_certs.py	54	
 file	fabriclib-pki|src/fabriclib/pki/list_issued.py	23	
+file	fabriclib-pki|src/fabriclib/pki/list_service_certs.py	55	
+file	fabriclib-pki|src/fabriclib/pki/list_stepca_certs.py	56	
 file	fabriclib-pki|src/fabriclib/pki/make_site_ca_request.py	24	
 file	fabriclib-pki|src/fabriclib/pki/mint_cert.py	25	
 file	fabriclib-pki|src/fabriclib/pki/mint_extra_cert.py	26	
@@ -886,12 +893,15 @@ file	fabriclib-pki|src/fabriclib/pki/needs_renewal.py	28
 file	fabriclib-pki|src/fabriclib/pki/pick_up_cert.py	39	
 file	fabriclib-pki|src/fabriclib/pki/publish_ca_certs.py	29	
 file	fabriclib-pki|src/fabriclib/pki/publish_crl.py	42	
+file	fabriclib-pki|src/fabriclib/pki/read_lifetimes.py	57	
+file	fabriclib-pki|src/fabriclib/pki/replace_service_cert.py	58	
 file	fabriclib-pki|src/fabriclib/pki/replace_site_ca.py	30	
 file	fabriclib-pki|src/fabriclib/pki/revoke_cert.py	43	
 file	fabriclib-pki|src/fabriclib/pki/run_acme_command.py	45	
 file	fabriclib-pki|src/fabriclib/pki/run_certs_command.py	44	
 file	fabriclib-pki|src/fabriclib/pki/run_mint_certs_command.py	31	
 file	fabriclib-pki|src/fabriclib/pki/run_service_cert_command.py	32	
+file	fabriclib-pki|src/fabriclib/pki/set_lifetimes.py	59	
 file	fabriclib-pki|src/fabriclib/pki/show_cert_warnings.py	40	
 file	fabriclib-pki|src/fabriclib/pki/sign_csr.py	33	
 file	fabriclib-pki|src/fabriclib/pki/sign_site_ca.py	34	
@@ -1078,6 +1088,7 @@ file	fabriclib-setup|src/fabriclib/setup/export_install.py	16
 file	fabriclib-setup|src/fabriclib/setup/finish_vars.py	74	
 file	fabriclib-setup|src/fabriclib/setup/harden_docker.py	17	
 file	fabriclib-setup|src/fabriclib/setup/init_pki.py	18	
+file	fabriclib-setup|src/fabriclib/setup/issue_service_cert.py	152	
 file	fabriclib-setup|src/fabriclib/setup/join_federation.py	19	
 file	fabriclib-setup|src/fabriclib/setup/join_host_domain.py	53	
 file	fabriclib-setup|src/fabriclib/setup/mint_extra_certs.py	20	
@@ -1097,6 +1108,7 @@ file	fabriclib-setup|src/fabriclib/setup/run_restore_command.py	27
 file	fabriclib-setup|src/fabriclib/setup/run_setup.py	28	
 file	fabriclib-setup|src/fabriclib/setup/run_steps.py	98	
 file	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py	29	
+file	fabriclib-setup|src/fabriclib/setup/service_cert_targets.py	153	
 file	fabriclib-setup|src/fabriclib/setup/set_ram_capacity.py	47	
 file	fabriclib-setup|src/fabriclib/setup/setup_local_admin.py	105	
 file	fabriclib-setup|src/fabriclib/setup/setup_openbao.py	30	
@@ -1269,6 +1281,7 @@ file	webui|src/webui/agentclient/kept_refresh.py	301
 file	webui|src/webui/agentclient/kerberos_overview.py	261	
 file	webui|src/webui/agentclient/kerberos_overview.py (gone 0.8.0 / 2026-10-23)	254	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/link_device_cert.py	23	0.8.0 / 2026-10-23
+file	webui|src/webui/agentclient/list_certs.py	307	
 file	webui|src/webui/agentclient/list_grants.py	249	
 file	webui|src/webui/agentclient/list_groups.py	230	
 file	webui|src/webui/agentclient/list_host_groups.py	157	
@@ -1283,6 +1296,7 @@ file	webui|src/webui/agentclient/list_tsig_keys.py	26
 file	webui|src/webui/agentclient/list_zones.py	27	
 file	webui|src/webui/agentclient/logon_change.py	159	0.7.2 / 2026-10-19
 file	webui|src/webui/agentclient/logon_overview.py	160	0.7.2 / 2026-10-19
+file	webui|src/webui/agentclient/lookup_cert.py	308	
 file	webui|src/webui/agentclient/machine_action.py	128	
 file	webui|src/webui/agentclient/machine_keytab.py	239	
 file	webui|src/webui/agentclient/machine_overview.py	240	
@@ -1305,6 +1319,7 @@ file	webui|src/webui/agentclient/radius_overview.py	31
 file	webui|src/webui/agentclient/raise_signin_layer.py	132	
 file	webui|src/webui/agentclient/read_audit.py	32	
 file	webui|src/webui/agentclient/read_job.py	141	
+file	webui|src/webui/agentclient/read_lifetimes.py	309	
 file	webui|src/webui/agentclient/relaxed_settings.py	120	
 file	webui|src/webui/agentclient/remove_client_class.py	33	
 file	webui|src/webui/agentclient/remove_radius_client.py	34	0.8.0 / 2026-10-23
@@ -1370,6 +1385,7 @@ file	webui|src/webui/devpreview/dev_settings.py	195	0.8.0 / 2026-10-22
 file	webui|src/webui/devpreview/dev_state.py	67	
 file	webui|src/webui/devpreview/fake_account.py	221	
 file	webui|src/webui/devpreview/fake_agent.py	202	
+file	webui|src/webui/devpreview/fake_certs.py	310	
 file	webui|src/webui/devpreview/fake_connection.py	203	
 file	webui|src/webui/devpreview/fake_directory.py	204	
 file	webui|src/webui/devpreview/fake_dns.py	205	
@@ -1415,6 +1431,7 @@ file	webui|src/webui/routes/kept_post.py	304
 file	webui|src/webui/routes/kerberos_page.py	263	
 file	webui|src/webui/routes/kerberos_page.py (gone 0.8.0 / 2026-10-23)	257	0.8.0 / 2026-10-23
 file	webui|src/webui/routes/landing_post.py	187	
+file	webui|src/webui/routes/lifetimes_page.py	311	
 file	webui|src/webui/routes/moved_to.py	209	
 file	webui|src/webui/routes/networks_page.py	282	
 file	webui|src/webui/routes/networks_post.py	283	
@@ -1482,6 +1499,7 @@ file	webui|src/webui/views/job_page.py	144
 file	webui|src/webui/views/kea.py	111	
 file	webui|src/webui/views/kerberos.py	264	
 file	webui|src/webui/views/kerberos.py (gone 0.8.0 / 2026-10-23)	259	0.8.0 / 2026-10-23
+file	webui|src/webui/views/lifetimes.py	312	
 file	webui|src/webui/views/machine_result.py	129	0.8.0 / 2026-10-23
 file	webui|src/webui/views/nav_menu.py	210	
 file	webui|src/webui/views/networks.py	290	
@@ -1612,6 +1630,7 @@ function	fabricctl-agent|src/agent/post_options.py|_change	3
 function	fabricctl-agent|src/agent/post_options.py|_set_scope	2	
 function	fabricctl-agent|src/agent/post_options.py|post_options	4	
 function	fabricctl-agent|src/agent/post_ous.py|post_ous	1	
+function	fabricctl-agent|src/agent/post_pending.py|_check_lifetimes	7	
 function	fabricctl-agent|src/agent/post_pending.py|_finish	2	
 function	fabricctl-agent|src/agent/post_pending.py|_finish_dns	5	
 function	fabricctl-agent|src/agent/post_pending.py|_finish_plan	6	
@@ -2999,7 +3018,10 @@ function	fabriclib-pki|src/fabriclib/pki/acme_machines.py|acme_machines	1
 function	fabriclib-pki|src/fabriclib/pki/ca_summary.py|ca_summary	1	
 function	fabriclib-pki|src/fabriclib/pki/cert_warnings.py|_left	1	
 function	fabriclib-pki|src/fabriclib/pki/cert_warnings.py|cert_warnings	2	
+function	fabriclib-pki|src/fabriclib/pki/certs_overview.py|certs_overview	1	
 function	fabriclib-pki|src/fabriclib/pki/check_cert_lifetimes.py|_days	1	
+function	fabriclib-pki|src/fabriclib/pki/check_cert_lifetimes.py|acme_days	3	
+function	fabriclib-pki|src/fabriclib/pki/check_cert_lifetimes.py|authority_max_hours	4	
 function	fabriclib-pki|src/fabriclib/pki/check_cert_lifetimes.py|check_cert_lifetimes	2	
 function	fabriclib-pki|src/fabriclib/pki/common/artifacts_dir.py|artifacts_dir	1	
 function	fabriclib-pki|src/fabriclib/pki/common/ca_chain_pem.py|ca_chain_pem	1	
@@ -3009,8 +3031,11 @@ function	fabriclib-pki|src/fabriclib/pki/common/ca_path_len.py|ca_path_len	1
 function	fabriclib-pki|src/fabriclib/pki/common/cert_dates.py|_read_dates	2	
 function	fabriclib-pki|src/fabriclib/pki/common/cert_dates.py|cert_dates	1	
 function	fabriclib-pki|src/fabriclib/pki/common/cert_names.py|cert_names	1	
+function	fabriclib-pki|src/fabriclib/pki/common/cert_status.py|cert_status	2	
+function	fabriclib-pki|src/fabriclib/pki/common/cert_status.py|parse_cert_date	1	
 function	fabriclib-pki|src/fabriclib/pki/common/crl_points.py|crl_points	1	
 function	fabriclib-pki|src/fabriclib/pki/common/describe_cert.py|describe_cert	1	
+function	fabriclib-pki|src/fabriclib/pki/common/intermediate_left_days.py|intermediate_left_days	1	
 function	fabriclib-pki|src/fabriclib/pki/common/openssl.py|openssl	1	
 function	fabriclib-pki|src/fabriclib/pki/common/record_issued.py|record_issued	1	
 function	fabriclib-pki|src/fabriclib/pki/common/revoked_serials.py|norm_serial	1	
@@ -3024,12 +3049,21 @@ function	fabriclib-pki|src/fabriclib/pki/convert_cert.py|_write	1
 function	fabriclib-pki|src/fabriclib/pki/convert_cert.py|convert_cert	2	
 function	fabriclib-pki|src/fabriclib/pki/describe_csr.py|describe_csr	1	
 function	fabriclib-pki|src/fabriclib/pki/export_p12.py|export_p12	1	
+function	fabriclib-pki|src/fabriclib/pki/find_cert.py|_ca_serials	1	
+function	fabriclib-pki|src/fabriclib/pki/find_cert.py|_signed_here	2	
+function	fabriclib-pki|src/fabriclib/pki/find_cert.py|find_cert	3	
 function	fabriclib-pki|src/fabriclib/pki/hand_out_client_cert.py|hand_out_client_cert	1	
 function	fabriclib-pki|src/fabriclib/pki/inspect_pem.py|inspect_pem	1	
 function	fabriclib-pki|src/fabriclib/pki/install_cert.py|install_cert	1	
 function	fabriclib-pki|src/fabriclib/pki/issue_client_cert.py|issue_client_cert	1	
 function	fabriclib-pki|src/fabriclib/pki/issue_key_pair.py|issue_key_pair	1	
+function	fabriclib-pki|src/fabriclib/pki/list_certs.py|_cn	1	
+function	fabriclib-pki|src/fabriclib/pki/list_certs.py|_row	2	
+function	fabriclib-pki|src/fabriclib/pki/list_certs.py|list_certs	3	
 function	fabriclib-pki|src/fabriclib/pki/list_issued.py|list_issued	1	
+function	fabriclib-pki|src/fabriclib/pki/list_service_certs.py|list_service_certs	1	
+function	fabriclib-pki|src/fabriclib/pki/list_stepca_certs.py|_image	1	
+function	fabriclib-pki|src/fabriclib/pki/list_stepca_certs.py|list_stepca_certs	2	
 function	fabriclib-pki|src/fabriclib/pki/make_site_ca_request.py|make_site_ca_request	1	
 function	fabriclib-pki|src/fabriclib/pki/mint_cert.py|mint_cert	1	
 function	fabriclib-pki|src/fabriclib/pki/mint_extra_cert.py|extra_cert_paths	1	
@@ -3047,17 +3081,25 @@ function	fabriclib-pki|src/fabriclib/pki/publish_crl.py|_owner	6
 function	fabriclib-pki|src/fabriclib/pki/publish_crl.py|_revoked	1	
 function	fabriclib-pki|src/fabriclib/pki/publish_crl.py|_site_crls	4	
 function	fabriclib-pki|src/fabriclib/pki/publish_crl.py|publish_crl	5	
+function	fabriclib-pki|src/fabriclib/pki/read_lifetimes.py|lifetime_values	1	
+function	fabriclib-pki|src/fabriclib/pki/read_lifetimes.py|read_lifetimes	2	
+function	fabriclib-pki|src/fabriclib/pki/replace_service_cert.py|replace_service_cert	1	
 function	fabriclib-pki|src/fabriclib/pki/replace_site_ca.py|replace_site_ca	1	
 function	fabriclib-pki|src/fabriclib/pki/revoke_cert.py|_issuer_of	1	
+function	fabriclib-pki|src/fabriclib/pki/revoke_cert.py|_lookup	3	
 function	fabriclib-pki|src/fabriclib/pki/revoke_cert.py|revoke_cert	2	
 function	fabriclib-pki|src/fabriclib/pki/run_acme_command.py|_info	1	0.6.2 / 2026-10-08
 function	fabriclib-pki|src/fabriclib/pki/run_acme_command.py|run_acme_command	2	
+function	fabriclib-pki|src/fabriclib/pki/run_certs_command.py|_lifetimes	2	
 function	fabriclib-pki|src/fabriclib/pki/run_certs_command.py|run_certs_command	1	
 function	fabriclib-pki|src/fabriclib/pki/run_mint_certs_command.py|_ask	1	0.7.0 / 2026-10-12
 function	fabriclib-pki|src/fabriclib/pki/run_mint_certs_command.py|_prompt	4	
 function	fabriclib-pki|src/fabriclib/pki/run_mint_certs_command.py|_show	2	
 function	fabriclib-pki|src/fabriclib/pki/run_mint_certs_command.py|run_mint_certs_command	3	
 function	fabriclib-pki|src/fabriclib/pki/run_service_cert_command.py|run_service_cert_command	1	
+function	fabriclib-pki|src/fabriclib/pki/set_lifetimes.py|_restart_stepca	2	
+function	fabriclib-pki|src/fabriclib/pki/set_lifetimes.py|lifetime_changes	1	
+function	fabriclib-pki|src/fabriclib/pki/set_lifetimes.py|set_lifetimes	3	
 function	fabriclib-pki|src/fabriclib/pki/show_cert_warnings.py|show_cert_warnings	1	
 function	fabriclib-pki|src/fabriclib/pki/sign_csr.py|sign_csr	1	
 function	fabriclib-pki|src/fabriclib/pki/sign_site_ca.py|_hours_left	1	
@@ -3405,6 +3447,7 @@ function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_public_certs_readable	
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_publish_ca_certs	5	
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_single_intermediate	3	
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|run	7	
+function	fabriclib-setup|src/fabriclib/setup/issue_service_cert.py|issue_service_cert	1	
 function	fabriclib-setup|src/fabriclib/setup/join_federation.py|run	1	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_answers	15	
 function	fabriclib-setup|src/fabriclib/setup/join_host_domain.py|_hosts_with	17	
@@ -3429,7 +3472,7 @@ function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_install_dirs
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_old_certs_host	4	0.7.2 / 2026-10-20
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_replaced_serial	6	0.7.0 / 2026-10-12
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_revoke_replaced	7	0.7.0 / 2026-10-12
-function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_targets	1	
+function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|_targets	1	0.9.5 / 2026-11-14
 function	fabriclib-setup|src/fabriclib/setup/mint_service_certs.py|run	3	
 function	fabriclib-setup|src/fabriclib/setup/move_dns_filter.py|move_dns_filter	1	0.7.2 / 2026-10-20
 function	fabriclib-setup|src/fabriclib/setup/name_dc.py|name_dc	1	
@@ -3455,6 +3498,8 @@ function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|_opt	1
 function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|_package_installed	2	
 function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|_show_plan	3	
 function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|run_uninstall_command	4	
+function	fabriclib-setup|src/fabriclib/setup/service_cert_targets.py|cert_file	1	
+function	fabriclib-setup|src/fabriclib/setup/service_cert_targets.py|service_cert_targets	2	
 function	fabriclib-setup|src/fabriclib/setup/set_ram_capacity.py|_plan	1	
 function	fabriclib-setup|src/fabriclib/setup/set_ram_capacity.py|set_ram_capacity	2	
 function	fabriclib-setup|src/fabriclib/setup/setup_local_admin.py|run	1	
@@ -3791,6 +3836,7 @@ function	webui|src/webui/agentclient/kept_refresh.py|kept_refresh	1
 function	webui|src/webui/agentclient/kerberos_overview.py|kerberos_overview	2	
 function	webui|src/webui/agentclient/kerberos_overview.py|kerberos_overview (gone 0.8.0 / 2026-10-23)	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/link_device_cert.py|link_device_cert	1	0.8.0 / 2026-10-23
+function	webui|src/webui/agentclient/list_certs.py|list_certs	1	
 function	webui|src/webui/agentclient/list_grants.py|list_grants	1	
 function	webui|src/webui/agentclient/list_groups.py|list_groups	1	
 function	webui|src/webui/agentclient/list_host_groups.py|list_host_groups	1	
@@ -3805,6 +3851,7 @@ function	webui|src/webui/agentclient/list_tsig_keys.py|list_tsig_keys	1
 function	webui|src/webui/agentclient/list_zones.py|list_zones	1	
 function	webui|src/webui/agentclient/logon_change.py|logon_change	1	0.7.2 / 2026-10-19
 function	webui|src/webui/agentclient/logon_overview.py|logon_overview	1	0.7.2 / 2026-10-19
+function	webui|src/webui/agentclient/lookup_cert.py|lookup_cert	1	
 function	webui|src/webui/agentclient/machine_action.py|machine_action	1	
 function	webui|src/webui/agentclient/machine_keytab.py|machine_keytab	1	
 function	webui|src/webui/agentclient/machine_overview.py|machine_overview	1	
@@ -3827,6 +3874,7 @@ function	webui|src/webui/agentclient/radius_overview.py|radius_overview	1
 function	webui|src/webui/agentclient/raise_signin_layer.py|raise_signin_layer	1	
 function	webui|src/webui/agentclient/read_audit.py|read_audit	1	
 function	webui|src/webui/agentclient/read_job.py|read_job	1	
+function	webui|src/webui/agentclient/read_lifetimes.py|read_lifetimes	1	
 function	webui|src/webui/agentclient/relaxed_settings.py|relaxed_settings	1	
 function	webui|src/webui/agentclient/remove_client_class.py|remove_client_class	1	
 function	webui|src/webui/agentclient/remove_radius_client.py|remove_radius_client	1	0.8.0 / 2026-10-23
@@ -3929,6 +3977,7 @@ function	webui|src/webui/devpreview/fake_agent.py|_read_machines	3
 function	webui|src/webui/devpreview/fake_agent.py|_read_ous	4	
 function	webui|src/webui/devpreview/fake_agent.py|_read_tree	7	
 function	webui|src/webui/devpreview/fake_agent.py|fake_agent	1	
+function	webui|src/webui/devpreview/fake_certs.py|fake_certs	1	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.__init__	3	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.close	6	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.getresponse	5	
@@ -4083,6 +4132,7 @@ function	webui|src/webui/routes/kept_post.py|kept_post	1
 function	webui|src/webui/routes/kerberos_page.py|kerberos_page	2	
 function	webui|src/webui/routes/kerberos_page.py|kerberos_page (gone 0.8.0 / 2026-10-23)	1	0.8.0 / 2026-10-23
 function	webui|src/webui/routes/landing_post.py|landing_post	1	
+function	webui|src/webui/routes/lifetimes_page.py|lifetimes_page	1	
 function	webui|src/webui/routes/moved_to.py|_with	1	
 function	webui|src/webui/routes/moved_to.py|moved_to	2	
 function	webui|src/webui/routes/networks_page.py|networks_page	1	
@@ -4169,6 +4219,7 @@ function	webui|src/webui/views/job_page.py|job_page	1
 function	webui|src/webui/views/kea.py|kea	1	
 function	webui|src/webui/views/kerberos.py|kerberos	2	
 function	webui|src/webui/views/kerberos.py|kerberos (gone 0.8.0 / 2026-10-23)	1	0.8.0 / 2026-10-23
+function	webui|src/webui/views/lifetimes.py|lifetimes	1	
 function	webui|src/webui/views/machine_result.py|machine_result	1	0.8.0 / 2026-10-23
 function	webui|src/webui/views/nav_menu.py|nav_menu	1	
 function	webui|src/webui/views/networks.py|_hits	1	
