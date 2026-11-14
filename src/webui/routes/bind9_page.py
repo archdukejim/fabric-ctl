@@ -10,7 +10,8 @@ def bind9_page(h, ctx, query, status=200):
              'dhcp', 'tsig', 'new' (Add zone), 'key' (one TSIG key's page, with key: its name; its Edit names offers
              the zone's records, 2.1.4.13) or 'newkey' (New TSIG key, with mode: 'acme' (and zone: a zone's name,
              whose records are offered) or 'custom', 2.1.4.12); anything else is forward), zone (a zone key; default
-             the first forward zone; the landing section always shows the site's zone); status — int, default 200.
+             the first forward zone; the landing section always shows the site's zone), edit ("<type>-<index>": the
+             record whose row is open to change, 2.1.4.15); status — int, default 200.
     Returns: the BIND9 page with the given status; 404 for a TSIG key that is not there (2.1.8.16).
     Fails:   agent errors propagate to handle_request (400, redirect to /login, 403, 503) (e.g. an unknown zone key →
              400).
@@ -41,4 +42,4 @@ def bind9_page(h, ctx, query, status=200):
         types=actions.RECORD_TYPES,
         tsig_keys=tsig, tsig_key=tsig_key, tsig_choices=choices, tsig_mode=mode, tsig_zone=pick_zone,
         reverse=actions.reverse_zones() if section == "reverse" else None,
-        dhcp=actions.dhcp_overview() if section == "dhcp" else None))
+        dhcp=actions.dhcp_overview() if section == "dhcp" else None, edit=query.get("edit", "")))

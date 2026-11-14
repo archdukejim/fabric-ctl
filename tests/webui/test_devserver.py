@@ -397,22 +397,51 @@ with serve():
           "done — the landing page&#39;s certificate" in page and "issues it again" in page,
           page.split("<main", 1)[1][:2000])
     page = get("/dns/zones?zone=dynamic_zone_var")
-    idx = re.search(r'<option value="A\|(\d+)\|preview">', page)
-    st, loc, page = post("/bind9/zone/dynamic_zone_var/delete", {"record": f"A|{idx.group(1) if idx else '-1'}|preview"})
-    check("Delete a record: picked from its section's list, held", "Waiting for Apply: Delete A record preview"
-          in flash(page) and "192.168.1.99" in page, flash(page))
+    idx = re.search(r'aria-label="Edit preview A"', page) and re.search(r'form="del-A-(\d+)" aria-label="Delete preview A"',
+                                                                        page)
+    n = idx.group(1) if idx else "-1"
+    page = get(f"/dns/zones?zone=dynamic_zone_var&edit=A-{n}")
+    check("the pencil opens the row in place: name and value as inputs, Save, Cancel; the add row stays last",
+          'form="rec-edit" name="value" value="192.168.1.99"' in page and 'name="old_name" value="preview"' in page
+          and '<button form="rec-edit">Save</button>' in page and ">Cancel</a>" in page
+          and 'class="addrow"' in page, page.split("<main", 1)[1][:2500])
+    st, loc, page = post("/bind9/zone/dynamic_zone_var/update", {"type": "A", "index": n, "old_name": "preview",
+                                                                 "name": "preview2", "value": "192.168.1.98"})
+    check("Edit: held, naming the record, its new name and value", "Waiting for Apply: Change A record preview in the "
+          "site's zone to preview2: 192.168.1.98" in flash(page), flash(page))
     dns_apply()
-    check("...applied: gone", "192.168.1.99" not in get("/dns/zones?zone=dynamic_zone_var"))
+    page = get("/dns/zones?zone=dynamic_zone_var")
+    check("...applied: the record changed where it stands, the old gone", "192.168.1.98" in page
+          and "192.168.1.99" not in page and ">preview2<" in page, page.split("<main", 1)[1][:2500])
+    for form, why in (({"type": "A", "index": n, "old_name": "nope", "name": "x", "value": "192.168.1.5"},
+                       "record changed"),
+                      ({"type": "A", "index": n, "old_name": "preview2", "name": "preview2", "value": "192.168.1.98"},
+                       "nothing to change")):
+        post("/bind9/zone/dynamic_zone_var/update", form)
+        page = dns_apply()
+        check(f"Edit refused at Apply ({why}), the record kept", why in page
+              and "192.168.1.98" in get("/dns/zones?zone=dynamic_zone_var"), page.split("<main", 1)[1][:1500])
+        post("/changes/zones/discard", {})
+    st, loc, page = post("/bind9/zone/dynamic_zone_var/update", {"type": "A", "index": "x"})
+    check("Edit without a record: refused at once, nothing held", "pick a record to change" in flash(page)
+          and "change pending" not in page, flash(page))
+    st, loc, page = post("/bind9/zone/dynamic_zone_var/delete", {"type": "A", "index": n, "name": "preview2"})
+    check("Delete: the row's bin, held", "Waiting for Apply: Delete A record preview2"
+          in flash(page) and "192.168.1.98" in page, flash(page))
+    dns_apply()
+    check("...applied: gone", "192.168.1.98" not in get("/dns/zones?zone=dynamic_zone_var"))
     st, loc, page = post("/bind9/zone/dynamic_zone_var/delete", {"record": ""})
-    check("Delete a record refused without one picked, saying why, nothing held", "pick a record" in flash(page)
+    check("Delete refused without a record, saying why, nothing held", "pick a record" in flash(page)
           and "change pending" not in page, flash(page))
     page = get("/dns/zones?zone=dynamic_zone_var")
-    form = page.split('/bind9/zone/dynamic_zone_var/add"')[1].split("</form>")[0]
+    row = page.split('<tr class="addrow">')[1].split("</tr>")[0]
     css = get("/static/app.css")
-    check("record form: type, name, value; priority, weight, port only for MX/SRV; no landing-page fields",
-          'name="value"' in form and 'class="f-prio"' in form and form.count('class="f-srv"') == 2
-          and 'name="ip"' not in form and 'name="link"' not in form and '<option value="SRV">' in form
-          and 'option[value="SRV"]:checked' in css and ".f-srv{display:none}" in css, form)
+    check("the add row, last in the table: type, name, value; priority, weight, port only for MX/SRV; no landing-page "
+          "fields; no Add record or Delete a record card (2.1.4.15)",
+          'form="rec-add" name="value"' in row and "f-prio" in row and row.count("f-srv") == 2
+          and 'name="ip"' not in row and 'name="link"' not in row and '<option value="SRV">' in row
+          and 'tr.addrow:not(:has(option[value="SRV"]:checked)) .f-srv{display:none}' in css
+          and "<h2>Add record</h2>" not in page and "<h2>Delete a record</h2>" not in page, row)
     post("/bind9/zone/dynamic_zone_var/add", {"type": "MX", "name": "@", "value": "mail2", "priority": "20"})
     dns_apply()
     page = get("/dns/zones?zone=dynamic_zone_var")
@@ -426,13 +455,13 @@ with serve():
     page = get("/dns/zones?zone=dynamic_zone_var")
     rows = page.split("<tr")
     ca_row = [row.split("</tr>")[0] for row in rows if ">ca " in row][0]
-    info_rows = [row.split("</tr>")[0] for row in rows if ">info<" in row]
-    picks = page.split('name="record"')[1].split("</select>")[0]
-    check("fabric's own names marked 'provided by fabric' (with the setting) and not offered for deletion; the landing "
-          "page's info is the admin's since 0.7.1 (2.1.4.6), offered",
-          "provided by fabric" in ca_row and "cname_ca" in ca_row and "|ca\"" not in picks
-          and info_rows and all("provided by fabric" not in r for r in info_rows) and "|info\"" in picks,
-          (info_rows, ca_row, picks[:600]))
+    info_rows = [r for r in (row.split("</tr>")[0] for row in rows) if ">info<" in r and "rowact" in r]
+    check("fabric's own names marked 'provided by fabric' (with the setting), kept by fabric: no pencil or bin; the "
+          "landing page's info is the admin's since 0.7.1 (2.1.4.6), with both",
+          "provided by fabric" in ca_row and "cname_ca" in ca_row and "kept by fabric" in ca_row
+          and "iconbtn" not in ca_row and info_rows and all("provided by fabric" not in r for r in info_rows)
+          and all('aria-label="Delete info CNAME"' in r and 'aria-label="Edit info CNAME"' in r for r in info_rows),
+          (info_rows, ca_row))
     post("/bind9/zone/dynamic_zone_var/delete", {"record": "CNAME|3|ca"})
     page = dns_apply()
     check("deleting fabric's own name (ca) is refused at Apply, naming its setting",
@@ -441,7 +470,8 @@ with serve():
     post("/changes/zones/discard", {})
     post("/bind9/zone/dynamic_zone_var/delete", {"record": "CNAME|10|info"})
     dns_apply()
-    after = [row for row in get("/dns/zones?zone=dynamic_zone_var").split("<tr") if ">info<" in row]
+    after = [r for r in (row.split("</tr>")[0] for row in get("/dns/zones?zone=dynamic_zone_var").split("<tr"))
+             if ">info<" in r and "rowact" in r]
     check("deleting an info record works (the admin's since 0.7.1)", len(after) == len(info_rows) - 1, after)
     page = get("/dns/zones?view=landing")
     check("Landing page section: what the page is, its links (label, address), the add form with the zone's records",

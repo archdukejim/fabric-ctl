@@ -66,10 +66,24 @@ class DevState:
         z = self.data["zones"][key]
         own = SAMPLE_FABRIC_NAMES if key == "dynamic_zone_var" else {}
         return {"key": key, "name": z["name"], "status": "dev preview — sample data, not served by BIND",
-                "records": [dict({"type": t, "index": i, "name": n, "value": v,
+                "records": [dict({"type": t, "index": i, "name": n, "value": v, "edit": self._edit(t, v),
                                   "fabric": dict(zip(("service", "setting"), own[(t, n)])) if (t, n) in own else None,
                                   "link": (z.get("links") or {}).get(f"{t}|{n}")}, **self._ptr(t, v))
                             for i, (t, n, v) in enumerate(z["records"])]}
+
+    @staticmethod
+    def _edit(rtype, value):
+        """Purpose: A sample record's fields for its edit row (2.1.4.15), from its one display value.
+        Inputs:  rtype — record type; value — the value as shown ("10 mail" for MX, "p w port target" for SRV).
+        Returns: {"value", and "priority", "weight", "port" for MX and SRV}.
+        Fails:   never.
+        Feeds:   zone."""
+        parts = str(value).split()
+        if rtype == "MX" and len(parts) == 2:
+            return {"priority": parts[0], "value": parts[1]}
+        if rtype == "SRV" and len(parts) == 4:
+            return dict(zip(("priority", "weight", "port", "value"), parts))
+        return {"value": str(value).strip('"') if rtype == "TXT" else str(value)}
 
     @staticmethod
     def _ptr(rtype, value):

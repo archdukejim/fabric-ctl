@@ -58,6 +58,11 @@ def describe_dns(route, body):
         return f"Add {rtype} record {name} to {zone}" + _widens(route[1], rtype, body)
     if route[3:] == ["delete"]:
         return f"Delete {rtype} record {name} from {zone}"
+    if route[3:] == ["update"]:                                 # a record replaced in place (2.1.4.15)
+        old = body.get("old_name", "")
+        value = body.get("value", "")
+        return (f"Change {rtype} record {old} in {zone}" + (f" to {name}" if name and name != old else "")
+                + (f": {value}" if value else "") + _widens(route[1], rtype, body))
     if body.get("link") == "on":
         return f"Link {name} from the landing page"
     return f"Stop linking {name} from the landing page"

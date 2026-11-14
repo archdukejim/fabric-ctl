@@ -658,14 +658,42 @@ st, hd, *_ = req("POST", "/kea/off", POSTH, {"csrf": csrf}, cookie=session)
 check("turn DHCP off when it is off: refused, saying so", "already off" in urllib.parse.unquote_plus(
     hd.get("Location", "")), hd)
 st, hd, sc, body = req("GET", "/dns/zones?zone=dynamic_zone_var", ALICE, cookie=session)
-picked = re.search(r'<option value="CNAME\|(\d+)\|shelfmark">', body)
+picked = re.search(r'<form id="del-CNAME-(\d+)" [^>]*>(?:(?!</form>).)*name="name" value="shelfmark"', body, re.S)
 idx = picked.group(1) if picked else "-1"
-check("the zone's records listed with no form in a cell; Delete a record offers shelfmark", picked is not None
-      and 'method="post"' not in body.split('<table class="list')[1].split("</table>")[0], body[-1500:])
-st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": f"CNAME|{idx}|wrong-name"})
+check("the zone's records listed with no form in a cell; shelfmark's row has its pencil and its bin (2.1.4.15)",
+      picked is not None and 'method="post"' not in body.split('<table class="list')[1].split("</table>")[0]
+      and f'edit=CNAME-{idx}"' in body and f'form="del-CNAME-{idx}"' in body
+      and 'aria-label="Delete shelfmark CNAME"' in body, body[-1500:])
+body = req("GET", f"/dns/zones?zone=dynamic_zone_var&edit=CNAME-{idx}", ALICE, cookie=session)[3]
+check("...its pencil opens the row in place: its name and value as inputs, Save and Cancel, the old name kept",
+      'id="rec-edit"' in body and 'name="old_name" value="shelfmark"' in body
+      and 'form="rec-edit" name="value" value="nas25-apps"' in body and ">Cancel<" in body, body[-1500:])
+upd = {"type": "CNAME", "index": idx, "old_name": "shelfmark", "name": "shelfmark"}
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/update", {**upd, "value": "nas26-apps"})
+_cn = yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"]["dynamic_zone_var"].get("CNAME") or []
+# covers: web:post.bind9.zone.*.update agent:post.zones.*.records.update +
+check("edit CNAME -> held, then replaced in place at Apply (one record, its new target)",
+      "Waiting for Apply: Change CNAME record shelfmark" in loc and {"name": "shelfmark", "canonical": "nas26-apps"}
+      in _cn and not any(r.get("canonical") == "nas25-apps" and r.get("name") == "shelfmark" for r in _cn),
+      (loc, done[-1500:]))
+vt = open(f"{W}/fabric/config/vars.yaml").read()
+# covers: web:post.bind9.zone.*.update agent:post.zones.*.records.update -
+for form, why, label in (({**upd, "old_name": "wrong-name", "value": "x"}, "record changed", "a stale row"),
+                         ({**upd, "value": "bad target;rm"}, "invalid CNAME target", "an invalid value"),
+                         ({**upd, "value": "nas26-apps"}, "nothing to change", "the record as it is"),
+                         ({"type": "CNAME", "index": "1", "old_name": "ca", "name": "ca", "value": "elsewhere"},
+                          "provided by fabric", "fabric's own name")):
+    st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/update", form)
+    check(f"edit refused at Apply ({label}): said why, the old record kept, vars.yaml unchanged",
+          why in done and open(f"{W}/fabric/config/vars.yaml").read() == vt, done[-1500:])
+st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/update", POSTH, {"csrf": csrf, "type": "CNAME", "index": "x"},
+                 cookie=session)
+check("edit without a record picked: refused at once, saying why, nothing held",
+      "pick a record to change" in urllib.parse.unquote_plus(hd.get("Location", "")), hd)
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"type": "CNAME", "index": idx, "name": "wrong-name"})
 # covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete -
 check("stale delete (name mismatch) refused at Apply, said", "record changed" in done, done[-1500:])
-st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": f"CNAME|{idx}|shelfmark"})
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"type": "CNAME", "index": idx, "name": "shelfmark"})
 # covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete +
 check("delete CNAME -> held, then removed from vars.yaml at Apply", "Waiting for Apply: Delete CNAME record shelfmark"
       in loc and "shelfmark" not in open(f"{W}/fabric/config/vars.yaml").read(), (loc, done[-1500:]))

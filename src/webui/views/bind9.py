@@ -3,8 +3,8 @@ from webui.views.render_page import render_page
 
 
 def bind9(ctx, section, zones, zone=None, types=(), msg="", err="", tsig_keys=None, reverse=None, dhcp=None,
-          tsig_key=None, tsig_choices=None, tsig_mode=None, tsig_zone=None):
-    """Purpose: The BIND9 tab: forward zone records and the add form, the landing page's links (manual 1.4.2.4),
+          tsig_key=None, tsig_choices=None, tsig_mode=None, tsig_zone=None, edit=""):
+    """Purpose: The BIND9 tab: forward zone records, changed in their table, the landing page's links (manual 1.4.2.4),
              generated reverse zones, DHCP's names (read-only), or TSIG keys.
     Inputs:  ctx — page context; section — 'forward' | 'new' | 'landing' | 'reverse' | 'dhcp' | 'tsig' | 'key' |
              'newkey'; tsig_key
@@ -16,7 +16,8 @@ def bind9(ctx, section, zones, zone=None, types=(), msg="", err="", tsig_keys=No
              dhcp_overview() dict for the dhcp section (enabled, ddns_zone, leases, leases_error), or None;
              tsig_choices — tsig_choices() of the zone a key's names are picked from ('key', and 'newkey' in ACME
              mode with its zone), or None; tsig_mode — 'acme' | 'custom' | None for 'newkey'; tsig_zone — the zone
-             ACME mode picks from, or None.
+             ACME mode picks from, or None; edit — "<type>-<index>": the record whose row is open to change
+             (2.1.4.15), or "".
     Returns: HTML str.
     Fails:   Jinja2 errors propagate (e.g. UndefinedError when the template reads an attribute of a value the caller
              left out).
@@ -26,5 +27,5 @@ def bind9(ctx, section, zones, zone=None, types=(), msg="", err="", tsig_keys=No
                    forward_zones=[z for z in zones if not z.get("reverse")],
                    manual_reverse=[z for z in zones if z.get("reverse")], zone=zone, types=types, msg=msg,
                    err=err, tsig_keys=tsig_keys, tsig_key=tsig_key, reverse=reverse or {"zones": {}, "skipped": []},
-                   dhcp=dhcp, tsig_choices=tsig_choices, tsig_mode=tsig_mode, tsig_zone=tsig_zone,
+                   dhcp=dhcp, tsig_choices=tsig_choices, tsig_mode=tsig_mode, tsig_zone=tsig_zone, edit=edit,
                    tsig_scopes=TSIG_SCOPES, tsig_any_types=TSIG_ANY_TYPES)

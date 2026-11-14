@@ -45,13 +45,15 @@ def _record(state, key, op, body):
     """Purpose: A zone's record added, deleted or linked from the landing page (manual 1.4.2.4), in memory, refused
              as the agent refuses (fabric's own names; a stale record; a type or name that cannot be linked; a bad
              port).
-    Inputs:  state — DevState; key — the zone; op — "records", "records/delete" or "records/link"; body — dict.
+    Inputs:  state — DevState; key — the zone; op — "records", "records/delete", "records/update" (a record
+             replaced in place, 2.1.4.15: old_name the name shown) or "records/link"; body — dict.
     Returns: the answer ({"name"} for an add, else {}).
     Fails:   ValidationError with the agent's reason.
     Feeds:   fake_dns."""
     zone = state.data["zones"][key]
     records = zone["records"]
     rtype, name = body.get("type", ""), str(body.get("name", "")).strip()
+    shown = str(body.get("old_name", "")).strip() if op == "records/update" else name
     if op == "records":
         if rtype not in RECORD_TYPES:
             raise ValidationError("pick a record type")
@@ -61,14 +63,22 @@ def _record(state, key, op, body):
     idx = int(body.get("index", -1))
     if not rtype or idx < 0:
         raise ValidationError("pick a record to link")
-    if idx >= len(records) or records[idx][:2] != (rtype, name):
+    if idx >= len(records) or records[idx][:2] != (rtype, shown):
         raise ValidationError("record changed since it was shown; reload and try again")
-    if op == "records/delete":
-        own = SAMPLE_FABRIC_NAMES.get((rtype, name)) if key == "dynamic_zone_var" else None
+    if op in ("records/delete", "records/update"):
+        own = SAMPLE_FABRIC_NAMES.get((rtype, shown)) if key == "dynamic_zone_var" else None
         if own:
-            raise ValidationError(f"{'home.arpa' if name == '@' else name + '.home.arpa'} is provided by fabric "
+            raise ValidationError(f"{'home.arpa' if shown == '@' else shown + '.home.arpa'} is provided by fabric "
                                   f"({own[0]}, from the setting {own[1]}): every apply adds it back, so it cannot be "
-                                  "deleted here")
+                                  + ("deleted here" if op == "records/delete" else "changed here"))
+    if op == "records/update":
+        new = (rtype, name, _value(body))
+        if new == records[idx]:
+            raise ValidationError("nothing to change: the record is already so")
+        records[idx] = new
+        state.log("DNS_UPDATE", f"zone={key} {rtype} {shown} -> {name} {new[2]} (in memory)")
+        return {"old": {"name": shown}, "new": {"name": name}}
+    if op == "records/delete":
         records.pop(idx)
         state.log("DNS_DELETE", f"zone={key} {rtype} {name} (in memory)")
         return {}
@@ -118,7 +128,7 @@ def fake_dns(state, who, route, body):
             gone = zones.pop(key)
             state.log("DNS_ZONE_DELETE", f"zone={key} records={len(gone['records'])} (in memory)")
             return {"name": gone["name"], "records": len(gone["records"])}
-        if op in ("records", "records/delete", "records/link"):
+        if op in ("records", "records/delete", "records/update", "records/link"):
             return _record(state, key, op, body)
     if route == ["tsig"]:
         name = str(body.get("name", "")).strip() or "preview"

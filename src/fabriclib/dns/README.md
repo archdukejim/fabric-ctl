@@ -32,6 +32,7 @@ seconds (`publish_zone_list.py`).
 | `reverse_zones.py` | Reverse zones + PTRs generated from all forward A/AAAA records (one per address); used by apply and the web UI |
 | `zone_detail.py` | One zone's records (A/AAAA with their automatic PTR, fabric's own names marked, landing links) and sync status (`docker exec … rndc zonestatus`) |
 | `add_record.py` | Validate and add a record (locked, audited) |
+| `update_record.py` | Replace a record in place, the old kept if the new is refused (locked, audited) |
 | `remove_record.py` | Remove a record, refusing if it changed since it was shown or is one of fabric's own names (locked, audited) |
 | `set_record_link.py` | Link a record of the site's zone from the landing page, or stop linking it (locked, audited) |
 | `add_zone.py` | Add a forward zone, refusing names BIND already answers for and public names not ticked as hidden; served in seconds (locked, audited, rolled back if BIND or the resolver refuses) |

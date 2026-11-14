@@ -526,6 +526,7 @@ file	fabriclib-dns|src/fabriclib/dns/set_record_link.py	39
 file	fabriclib-dns|src/fabriclib/dns/sync_status.py	27	
 file	fabriclib-dns|src/fabriclib/dns/tsig_key_mode.py	61	
 file	fabriclib-dns|src/fabriclib/dns/tsig_record_notice.py	62	
+file	fabriclib-dns|src/fabriclib/dns/update_record.py	64	
 file	fabriclib-dns|src/fabriclib/dns/update_tsig_key.py	28	
 file	fabriclib-dns|src/fabriclib/dns/validate_record.py	29	
 file	fabriclib-dns|src/fabriclib/dns/zone_content_changed.py	30	
@@ -2557,6 +2558,7 @@ function	fabriclib-dns|src/fabriclib/dns/set_record_link.py|set_record_link	1
 function	fabriclib-dns|src/fabriclib/dns/sync_status.py|sync_status	1	
 function	fabriclib-dns|src/fabriclib/dns/tsig_key_mode.py|tsig_key_mode	1	
 function	fabriclib-dns|src/fabriclib/dns/tsig_record_notice.py|tsig_record_notice	1	
+function	fabriclib-dns|src/fabriclib/dns/update_record.py|update_record	1	
 function	fabriclib-dns|src/fabriclib/dns/update_tsig_key.py|update_tsig_key	1	
 function	fabriclib-dns|src/fabriclib/dns/validate_record.py|_host	2	
 function	fabriclib-dns|src/fabriclib/dns/validate_record.py|_int	1	
@@ -3989,6 +3991,7 @@ function	webui|src/webui/devpreview/dev_post_dns_filter.py|dev_post_dns_filter	1
 function	webui|src/webui/devpreview/dev_post_network.py|dev_post_network	1	0.8.0 / 2026-10-22
 function	webui|src/webui/devpreview/dev_settings.py|dev_settings	1	0.8.0 / 2026-10-22
 function	webui|src/webui/devpreview/dev_state.py|DevState.__init__	1	
+function	webui|src/webui/devpreview/dev_state.py|DevState._edit	10	
 function	webui|src/webui/devpreview/dev_state.py|DevState._ptr	5	
 function	webui|src/webui/devpreview/dev_state.py|DevState.log	9	
 function	webui|src/webui/devpreview/dev_state.py|DevState.overview	6	

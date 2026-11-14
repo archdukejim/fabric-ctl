@@ -12,6 +12,7 @@ from fabriclib.dns.remove_tsig_key import remove_tsig_key
 from fabriclib.dns.remove_zone import remove_zone
 from fabriclib.dns.rotate_tsig_key import rotate_tsig_key
 from fabriclib.dns.set_record_link import set_record_link
+from fabriclib.dns.update_record import update_record
 from fabriclib.dns.update_tsig_key import update_tsig_key
 
 
@@ -32,15 +33,18 @@ def _published(actor):
 
 
 def post_dns(route, actor, data):
-    """Purpose: DNS changes: POST /v1/zones/<key>/records[/delete|/link] and /v1/tsig[/<name>/rotate|delete|update].
+    """Purpose: DNS changes: POST /v1/zones/<key>/records[/delete|/update|/link] and
+             /v1/tsig[/<name>/rotate|delete|update].
     Inputs:  route — segments after /v1/; actor — the verified user; data — the body: type, name, ip|target|… for a
-             record (index for a delete; type, index, name, link, link_label, link_port, link_path for a landing-page
-             link); name, zone, scope, hosts, types, secret, with_aliases for a TSIG key; add, drop, add_with_aliases,
-             drop_with_aliases, scope, record_types for a key's Edit names (read_tsig_edit, 2.1.4.13).
+             record (index for a delete; index, old_name and the new fields for an update; type, index, name,
+             link, link_label, link_port, link_path for a landing-page link); name, zone, scope, hosts, types,
+             secret, with_aliases for a TSIG key; add, drop, add_with_aliases, drop_with_aliases, scope,
+             record_types for a key's Edit names (read_tsig_edit, 2.1.4.13).
     Returns: the new record; {"key", "secret", "ini", "published"[, "publish_error"]} for a new key (the secret shown
              once, BIND given it at once: _published); {"secret", "ini", "published"[, "publish_error"]} for a
              rotation; {} for a TSIG delete; {"key": the stored entry} for an edit (run at DNS' Apply, which
-             publishes it: held, 2.1.8.18); remove_record's result for a record delete; the record for a link.
+             publishes it: held, 2.1.8.18); remove_record's result for a record delete; update_record's ({old,
+             new}) for an update; the record for a link.
     Fails:   ValidationError for an unsupported record type, an invalid index or what fabriclib refuses (-> 400);
              RouteNotFound for another route.
     Feeds:   agent/post_route.py."""
@@ -54,11 +58,16 @@ def post_dns(route, actor, data):
         if rtype not in RECORD_TYPES:
             raise ValidationError("unsupported record type")
         return add_record(actor, route[1], rtype, data, source="web")
-    if len(route) == 4 and route[0] == "zones" and route[2:] in (["records", "delete"], ["records", "link"]):
+    if len(route) == 4 and route[0] == "zones" and route[2:] in (["records", "delete"], ["records", "link"],
+                                                                        ["records", "update"]):
         try:
             index = int(data.get("index", -1))
         except (TypeError, ValueError):
             raise ValidationError("invalid index")
+        if route[3] == "update":                   # a record replaced in place (2.1.4.15)
+            return update_record(actor, route[1], str(data.get("type", "")), index, str(data.get("old_name", "")),
+                                 {k: str(data.get(k) or "") for k in ("name", "value", "ip", "target", "text",
+                                                                      "priority", "weight", "port")}, source="web")
         if route[3] == "link":
             return set_record_link(actor, route[1], str(data.get("type", "")), index, str(data.get("name", "")),
                                    {k: str(data.get(k) or "")
