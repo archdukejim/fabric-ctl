@@ -32,9 +32,11 @@ from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.common.jinja_env import jinja_env  # noqa: E402
 from fabriclib.ipam.rules.add_rule import add_rule  # noqa: E402
 from fabriclib.ipam.rules.check_cut_off import check_cut_off  # noqa: E402
+from fabriclib.ipam.rules.check_rule import check_rule  # noqa: E402
 from fabriclib.ipam.rules.dhcp_allowed import dhcp_allowed  # noqa: E402
 from fabriclib.ipam.rules.effective_rules import effective_rules  # noqa: E402
 from fabriclib.ipam.rules.move_rule import move_rule  # noqa: E402
+from fabriclib.ipam.rules.network_in import network_in  # noqa: E402
 from fabriclib.ipam.rules.remove_rule import remove_rule  # noqa: E402
 from fabriclib.ipam.rules.set_rule import set_rule  # noqa: E402
 from fabriclib.ipam.rules.rule_networks import rule_networks  # noqa: E402
@@ -84,7 +86,7 @@ SIX = {"site": "house", "vlans": [vlan(10), vlan(20), vlan(30), vlan(40, "guest"
                    subnet("10.1.30.0/24", 30, dhcp=False), subnet("10.1.40.0/24", 40), subnet("10.1.50.0/24", 50)],
        "networks": [], "rules_kept": True,
        "rules": [rule("host", "any"), rule("20", "dns"), rule("20", "dhcp"), rule("20", "web"),
-                 rule("30", "ntp", "deny"), rule("any", "ntp"), rule("50", "dhcp")]}
+                 rule("30", "ntp", "deny"), rule("site", "ntp"), rule("50", "dhcp")]}
 
 print("--- the model (1.10.4.48.1)")
 fresh = {"site": "house", "vlans": [], "subnets": [], "networks": [], "rules": [], "rules_kept": False}
@@ -97,13 +99,39 @@ check("positive: six VLANs: each service answers only the networks a rule allows
       and src["dhcp"] == ["10.1.10.0/24", "10.1.20.0/24", "10.1.21.0/24", "10.1.50.0/24"]
       and src["ssh"] == ["10.1.10.0/24"] and src["web"] == ["10.1.10.0/24", "10.1.20.0/24", "10.1.21.0/24"], src)
 check("positive: a VLAN with two subnets: a rule naming it covers both", "10.1.21.0/24" in src["dns"], src)
-check("positive: first match: VLAN 30's ntp deny comes before `any ntp allow`, which still reaches 40 and 50",
+check("positive: first match: VLAN 30's ntp deny comes before `site ntp allow`, which still reaches 40 and 50",
       "10.1.30.0/24" not in src["ntp"] and {"10.1.40.0/24", "10.1.50.0/24"} <= set(src["ntp"]), src["ntp"])
 check("negative: the implied deny: a VLAN no rule names (60, no subnet; 40 for dns) reaches nothing of it",
       "10.1.40.0/24" not in src["dns"] and "10.1.40.0/24" not in src["ping"], src)
+check("negative: `site` is the site's networks only, never an outside address (2.1.10.62)",
+      "0.0.0.0/0" not in src["ntp"] and not network_in("8.8.8.8/32", src["ntp"]), src["ntp"])
 everything = service_sources(V, {**SIX, "rules": [rule("any", "any")]})
-check("negative: `any` is the site's networks only, never every address (2.1.10.60)",
-      "0.0.0.0/0" not in everything["dns"] and len(everything["dns"]) == 6, everything["dns"])
+check("positive: `any` is every address, outside ones too (2.1.10.62)", everything["dns"] == ["0.0.0.0/0"],
+      everything["dns"])
+holes = service_sources(V, {**SIX, "rules": [rule("host", "any"), rule("30", "dns", "deny"), rule("40", "dns", "deny"),
+                                             rule("any", "dns")]})["dns"]
+check("positive: `any` after denies: every address but the networks denied, as the fewest CIDRs",
+      network_in("10.1.20.0/24", holes) and network_in("8.8.8.8/32", holes) and network_in("10.1.10.0/24", holes)
+      and len(holes) < 40, holes)
+check("negative: ...the denied networks stay out of `any`'s list", not network_in("10.1.30.0/24", holes)
+      and not network_in("10.1.40.0/24", holes) and not network_in("10.1.30.7/32", holes), holes)
+site_wide = service_sources(V, {**SIX, "rules": [rule("site", "dns")]})["dns"]
+check("positive: `site`: every subnet of the site, the host's first, no outside address",
+      site_wide == ["10.1.10.0/24", "10.1.20.0/24", "10.1.21.0/24", "10.1.30.0/24", "10.1.40.0/24", "10.1.50.0/24"],
+      site_wide)
+TWO = {**SIX, "fabric_networks": ["10.2.20.0/24", "10.2.30.0/24"]}
+check("positive: `fabric`: every site's networks, this site's first",
+      service_sources(V, {**TWO, "rules": [rule("fabric", "ad")]})["ad"][-2:] == ["10.2.20.0/24", "10.2.30.0/24"])
+check("negative: another site's networks are not `site`'s",
+      "10.2.20.0/24" not in service_sources(V, {**TWO, "rules": [rule("site", "ad")]})["ad"])
+check("positive: a subnet: that subnet alone, not the rest of its VLAN",
+      service_sources(V, {**SIX, "rules": [rule("10.1.21.0/24", "dns")]})["dns"] == ["10.1.21.0/24"])
+check("positive: a subnet, `site`, `fabric` and `any` as typed", check_rule("10.1.21.0/24", "dns", "allow", SIX)
+      == rule("10.1.21.0/24", "dns") and check_rule("SITE", "dns", "allow", SIX) == rule("site", "dns")
+      and check_rule("fabric", "dns", "deny", SIX) == rule("fabric", "dns", "deny"))
+check("negative: a network that is no subnet of the site's plan is refused, saying so",
+      refused(lambda: check_rule("10.9.9.0/24", "dns", "allow", SIX), "not a subnet of the site's plan") is True
+      and refused(lambda: check_rule("10.1.21.0/33", "dns", "allow", SIX), "not a network") is True)
 nets = rule_networks({**V, "host_ip": "192.168.9.9"}, SIX)
 check("positive: no VLAN holds host_ip: `host` is lan_cidr", nets["host"] == ["10.1.10.0/24"]
       and nets["host_vlan"] is None, nets)
@@ -111,10 +139,9 @@ check("positive: the VLAN that holds host_ip is `host`", rule_networks(V, SIX)["
 
 print("--- an upgraded site (1.10.4.48.7, 2.1.10.59)")
 seed = seed_rules({**SIX, "rules_kept": False}, "10")
-check("positive: the host's VLAN everything (rule 1), a guest VLAN dhcp, dns and ntp, a full served VLAN all but ssh",
-      seed[0] == rule("host", "any") and rule("40", "dns") in seed and rule("40", "ntp") in seed
-      and rule("40", "dhcp") in seed
-      and rule("40", "web") not in seed and rule("50", "web") in seed and rule("50", "ssh") not in seed, seed)
+check("positive: the host's VLAN everything (rule 1), every served VLAN all but ssh, a guest one too (no guest case)",
+      seed[0] == rule("host", "any") and rule("40", "dns") in seed and rule("40", "web") in seed
+      and rule("50", "web") in seed and rule("50", "ssh") not in seed and rule("40", "ssh") not in seed, seed)
 check("negative: a VLAN without a served subnet (30) and the host's own (10) get no rule of their own",
       not [r for r in seed if r["from"] in ("30", "60", "10")], seed)
 check("positive: rules kept are enforced as kept", effective_rules(SIX) == SIX["rules"])
@@ -132,12 +159,18 @@ cut = check_cut_off([rule("20", "any")], nets)
 check("negative: no rule left allowing the host's VLAN: the implied deny cuts it off", cut and "no rule allows" in cut,
       cut)
 warn = rule_warnings([*SIX["rules"], rule("60", "dns"), rule("20", "dns", "deny")], nets)
-check("positive: warned: VLAN 50 has dhcp but not dns; VLAN 30 reaches nothing (its ntp denied before `any ntp`)",
+check("positive: warned: VLAN 50 has dhcp but not dns; VLAN 30 reaches nothing (its ntp denied before `site ntp`)",
       any("VLAN 50 gets DHCP" in w for w in warn) and any("VLAN 30 reaches none" in w for w in warn), warn)
-check("negative: not warned: VLAN 40 reaches ntp through `any ntp allow`", not any("VLAN 40" in w for w in warn), warn)
+check("negative: not warned: VLAN 40 reaches ntp through `site ntp allow`", not any("VLAN 40" in w for w in warn), warn)
 check("positive: warned: a rule whose VLAN has no subnet, a rule that never decides",
       any("rule 8 (from 60) matches no network" in w for w in warn)
       and any("rule 9 never decides" in w for w in warn), warn)
+check("negative: no rule from `any` allows anything: no warning that a service is open to every address",
+      not any("every address" in w for w in warn), warn)
+warn = rule_warnings([rule("host", "any"), rule("30", "dns", "deny"), rule("any", "dns"), rule("any", "ping")], nets)
+check("positive: warned: a rule from `any` that allows a service opens it to every address, naming the service",
+      "rule 3 opens dns to every address, outside ones too" in warn
+      and "rule 4 opens ping to every address, outside ones too" in warn, warn)
 lines = show_rules(SIX["rules"], nets)
 check("positive: the listing: numbered, the source's networks, the ports, the implied deny last",
       lines[0].startswith("1  from host (10.1.10.0/24)") and "53/udp" in lines[1]
@@ -148,6 +181,9 @@ kea = [{"subnet": "10.1.10.0/24"}, {"subnet": "10.1.40.0/24"}, {"subnet": "10.1.
 check("positive: Kea serves the subnets allowed dhcp", dhcp_allowed(kea, V, SIX) == [kea[0], kea[2]])
 check("negative: a VLAN not allowed dhcp (40) is left out of Kea", {"subnet": "10.1.40.0/24"}
       not in dhcp_allowed(kea, V, SIX))
+opened = {**SIX, "rules": [rule("host", "any"), rule("40", "dhcp", "deny"), rule("any", "dhcp")]}
+check("positive: `any dhcp allow` after a deny: Kea serves every subnet but the denied one (its list is CIDRs that "
+      "cover them)", dhcp_allowed(kea, V, opened) == [kea[0], kea[2]], dhcp_allowed(kea, V, opened))
 
 print("--- the firewall (1.10.4.48.3)")
 cfg = tempfile.mkdtemp()
@@ -278,9 +314,9 @@ out = set_rule(V, "root", "7", "50", "dhcp", "deny", to="2", secrets=SEC)
 check("positive: set with a new number: changed and moved in one change", out["result"]["rules"][1]
       == rule("50", "dhcp", "deny") and len(out["result"]["rules"]) == 7 and "now 2" in out["result"]["did"],
       out["result"])
-out = set_rule(V, "root", "6", "any", "ntp", "allow", to="1", secrets=SEC)
+out = set_rule(V, "root", "6", "site", "ntp", "allow", to="1", secrets=SEC)
 check("positive: set may only move a rule (the same rule, a new number)", out["result"]["rules"][0]
-      == rule("any", "ntp"), out["result"])
+      == rule("site", "ntp"), out["result"])
 out = add_rule(V, "root", "any", "dns", "allow", site="cabin", secrets=SEC)
 check("positive: another site's rules: its own list (the default first), judged by host and any alone",
       out["site"] == "cabin" and out["result"]["rules"] == [rule("host", "any"), rule("any", "dns")], out["result"])

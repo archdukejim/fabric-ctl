@@ -1,3 +1,4 @@
+from fabriclib.ipam.rules.network_in import network_in
 from fabriclib.ipam.rules.service_sources import NO_PLAN, service_sources
 
 
@@ -10,5 +11,5 @@ def dhcp_allowed(subnets, v, plan):
     Returns: the entries allowed, in their order.
     Fails:   OSError or json errors reading a damaged plan copy.
     Feeds:   ipam/load_address_plan (an apply, the plan poll), ipam/planned_subnets."""
-    allowed = set(service_sources(v, NO_PLAN if plan is None else plan)["dhcp"])
-    return [s for s in subnets if s.get("subnet") in allowed]
+    allowed = service_sources(v, NO_PLAN if plan is None else plan)["dhcp"]
+    return [s for s in subnets if network_in(s.get("subnet") or "", allowed)]

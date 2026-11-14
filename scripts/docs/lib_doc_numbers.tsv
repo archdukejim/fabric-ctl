@@ -724,6 +724,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/rules/decide_rule.py	105
 file	fabriclib-ipam|src/fabriclib/ipam/rules/dhcp_allowed.py	106	
 file	fabriclib-ipam|src/fabriclib/ipam/rules/effective_rules.py	107	
 file	fabriclib-ipam|src/fabriclib/ipam/rules/move_rule.py	108	
+file	fabriclib-ipam|src/fabriclib/ipam/rules/network_in.py	120	
 file	fabriclib-ipam|src/fabriclib/ipam/rules/network_names.py	109	
 file	fabriclib-ipam|src/fabriclib/ipam/rules/remove_rule.py	110	
 file	fabriclib-ipam|src/fabriclib/ipam/rules/rule_networks.py	111	
@@ -735,6 +736,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/rules/seed_site_rules.py	116
 file	fabriclib-ipam|src/fabriclib/ipam/rules/service_sources.py	117	
 file	fabriclib-ipam|src/fabriclib/ipam/rules/set_rule.py	119	
 file	fabriclib-ipam|src/fabriclib/ipam/rules/show_rules.py	118	
+file	fabriclib-ipam|src/fabriclib/ipam/rules/source_networks.py	121	
 file	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py	26	
 file	fabriclib-ipam|src/fabriclib/ipam/scan_overview.py	93	
 file	fabriclib-ipam|src/fabriclib/ipam/scan_subnet.py	75	
@@ -2827,11 +2829,13 @@ function	fabriclib-ipam|src/fabriclib/ipam/rules/add_rule.py|add_rule	1
 function	fabriclib-ipam|src/fabriclib/ipam/rules/change_rules.py|_text	1	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/change_rules.py|change_rules	2	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/check_cut_off.py|check_cut_off	1	
+function	fabriclib-ipam|src/fabriclib/ipam/rules/check_rule.py|_subnet	2	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/check_rule.py|check_rule	1	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/decide_rule.py|decide_rule	1	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/dhcp_allowed.py|dhcp_allowed	1	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/effective_rules.py|effective_rules	1	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/move_rule.py|move_rule	1	
+function	fabriclib-ipam|src/fabriclib/ipam/rules/network_in.py|network_in	1	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/network_names.py|network_names	1	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/remove_rule.py|remove_rule	1	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/rule_networks.py|_holds	1	
@@ -2841,10 +2845,12 @@ function	fabriclib-ipam|src/fabriclib/ipam/rules/rule_warnings.py|rule_warnings	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/rules_view.py|rules_view	1	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/seed_rules.py|seed_rules	1	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/seed_site_rules.py|seed_site_rules	1	
+function	fabriclib-ipam|src/fabriclib/ipam/rules/service_sources.py|_rest	2	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/service_sources.py|service_sources	1	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/set_rule.py|set_rule	1	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/show_rules.py|_source	1	
 function	fabriclib-ipam|src/fabriclib/ipam/rules/show_rules.py|show_rules	2	
+function	fabriclib-ipam|src/fabriclib/ipam/rules/source_networks.py|source_networks	1	
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_done	6	0.8.0 / 2026-10-23
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_keep	3	0.8.0 / 2026-10-23
 function	fabriclib-ipam|src/fabriclib/ipam/run_ipam_command.py|_leases	4	0.8.0 / 2026-10-23

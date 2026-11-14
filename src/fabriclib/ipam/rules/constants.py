@@ -1,5 +1,5 @@
-"""The access rules' words (manual 1.10.4.48.1, 1.10.4.48.2): the services with their ports, the actions, the
-fresh site's rule list."""
+"""The access rules' words (manual 1.10.4.48.1, 1.10.4.48.2): the services with their ports, the sources, the
+actions, the fresh site's rule list."""
 
 # each service a rule may name, in the order they are shown, with its ports as people read them (2.1.10.55)
 SERVICES = {
@@ -12,8 +12,11 @@ SERVICES = {
     "ssh": "sshd's ports",
     "ping": "ICMP echo",
 }
-ANY = "any"
-HOST = "host"
+ANY = "any"                 # a service: every one; a source: every IPv4 address, outside ones too (2.1.10.62)
+HOST = "host"               # the host's own VLAN
+SITE = "site"               # every network of the site (2.1.10.62)
+FABRIC = "fabric"           # every network of every site of the domain (2.1.10.62)
+EXTERNAL = "0.0.0.0/0"      # what `any` adds to the networks the domain knows
 ACTIONS = ("allow", "deny")
 
 # what a fresh site has (2.1.10.53): only the host's own VLAN reaches fabric

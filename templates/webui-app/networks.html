@@ -25,7 +25,7 @@
 {% if n.sites | length > 1 %}<form method="get" action="/networks/rules" class="grid"><label>Site<select name="site">{% for x in n.sites %}<option value="{{ x.name }}"{{ ' selected' if x.name == n.site }}>{{ x.name }}</option>{% endfor %}</select></label><div><button class="ghost">Show</button></div></form>{% endif %}
 <section class="card"><h2>Access rules at {{ n.site }}</h2>
 <p class="muted">Which of the site's networks reach which of fabric's services. The first rule that matches decides; anything no rule allows gets no answer at all.{% if w %} Change a row and press Save; pick another number to move it. Changes wait for <strong>Apply</strong>.{% endif %}</p>
-{% macro sources(pick) %}{% for s in a.sources %}<option value="{{ s }}"{{ ' selected' if s == pick }}>{{ s if s in ('host', 'any') else 'VLAN ' ~ s }}</option>{% endfor %}{% endmacro %}
+{% macro sources(pick) %}{% for s in a.sources %}<option value="{{ s.value }}"{{ ' selected' if s.value == pick }}>{{ s.label }}</option>{% endfor %}{% endmacro %}
 {% macro services(pick) %}{% for s in a.services %}<option value="{{ s.name }}"{{ ' selected' if s.name == pick }}>{{ s.name }}</option>{% endfor %}{% endmacro %}
 {% macro actions_(pick) %}{% for x in ('allow', 'deny') %}<option value="{{ x }}"{{ ' selected' if x == pick }}>{{ x }}</option>{% endfor %}{% endmacro %}
 {% if w %}{#- each row's forms, before the table: its controls name them (form=), so no form sits in a cell (1.8.6.3) -#}

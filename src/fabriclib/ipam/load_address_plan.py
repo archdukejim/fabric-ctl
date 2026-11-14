@@ -112,7 +112,7 @@ def load_address_plan(final_vars, secrets, container="samba", digest=None):
     rendered = plan_to_dhcp(plan)
     final_vars["dhcp"] = {**d, "subnets": dhcp_allowed(rendered["subnets"], final_vars, plan)}
     final_vars["access_sources"] = service_sources(final_vars, plan)
-    final_vars["access_networks"] = rule_networks(final_vars, plan)["any"]
+    final_vars["access_networks"] = rule_networks(final_vars, plan)["fabric"]
     _globals(final_vars, d, rendered)
     if digest is not None:              # kept by the caller once BIND took it, never before (2.3.10.5.6)
         digest["dns"] = plan_digest(rendered)["dns"]

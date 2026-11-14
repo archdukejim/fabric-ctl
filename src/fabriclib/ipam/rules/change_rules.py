@@ -21,9 +21,9 @@ def change_rules(v, actor, site, event, edit, force=False, secrets=None, contain
     """Purpose: one change to a site's access rules, the way add_rule, set_rule, remove_rule and move_rule make it
              (manual 1.10.4.48.5, 1.10.4.48.6): the site's rules now (effective_rules) changed by `edit`, checked,
              then the whole list written in place of the old one through edit_plan (the grant's networks right
-             `plan`, the audit). Refused, writing nothing: an empty list, a rule twice, and a list that cuts the host's VLAN off
-             SSH or the console without --force, which only root on the host gives (2.1.10.57; audited
-             IPAM_RULE_FORCED).
+             `plan`, the audit). Refused, writing nothing: an empty list, a rule twice, and a list that cuts the
+             host's VLAN off SSH or the console without --force, which only root on the host gives (2.1.10.57;
+             audited IPAM_RULE_FORCED).
     Inputs:  v — fabric vars; actor — who asks; site — "" this site, or another the caller's grants reach; event —
              the audit event; edit — function(rules, plan) -> (new rules, what it did as str); force — take a cut-off
              list; secrets, container, source ("cli" or "web"), caller — as edit_plan.

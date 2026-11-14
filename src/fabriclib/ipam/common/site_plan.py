@@ -6,7 +6,8 @@ def site_plan(read, site):
              keeps and renders it.
     Inputs:  read — read_plan's result ({"sites", "plans", "option_sets", "options"}); site — str.
     Returns: {"site", "block" (int or None), "rules" (the site's access rules as kept, 1.10.4.48.4), "rules_kept"
-             (bool: any are kept), "vlans", "subnets", "networks", "domain_options" (the domain's option set,
+             (bool: any are kept), "vlans", "subnets", "fabric_networks" (every other site's subnets, for the rules'
+             `fabric`, 2.1.10.62), "networks", "domain_options" (the domain's option set,
              or None before the root's convergence made it), "site_options" (the site's, from its record: {"options",
              "option_defs", "client_classes"}), "read" (local time it was read)}; empty lists for a site with nothing
              in its plan. Who may change it is the grants' (1.6.13.12), checked by fabric-agent, not kept here.
@@ -19,6 +20,8 @@ def site_plan(read, site):
     return {"site": site, "block": block, "rules": record.get("rules") or [],
             "rules_kept": bool(record.get("rules_kept")), "vlans": plan.get("vlans") or [],
             "subnets": plan.get("subnets") or [],
+            "fabric_networks": [s["cidr"] for other, p in sorted((read.get("plans") or {}).items()) if other != site
+                                for s in (p or {}).get("subnets") or [] if s.get("cidr")],
             "networks": plan.get("networks") or [], "domain_options": sets.get("domain"),
             "site_options": sets.get(site) or {"options": [], "option_defs": [], "client_classes": []},
             "read": time.strftime("%Y-%m-%d %H:%M:%S")}

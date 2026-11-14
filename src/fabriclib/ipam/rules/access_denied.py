@@ -1,5 +1,6 @@
 from fabriclib.ipam.common.plan_cache import load_plan_cache
 from fabriclib.ipam.rules.access_sources import access_sources
+from fabriclib.ipam.rules.network_in import network_in
 from fabriclib.ipam.rules.rule_networks import rule_networks
 
 
@@ -9,11 +10,12 @@ def access_denied(v):
              told to ignore, so even with the firewall off they get no answer, not a refusal.
     Inputs:  v — fabric vars (access_networks and access_sources when an apply set them; else host_ip, lan_cidr and
              the plan last read).
-    Returns: {service: [CIDR, ...]}, in rule_networks' order.
+    Returns: {service: [CIDR, ...]}: the networks the domain knows that no allowed network covers, in rule_networks'
+             order.
     Fails:   OSError or json errors reading a damaged plan copy.
     Feeds:   deploy/check_settings (the templates' access_denied), dns_filter/deploy_resolver."""
     known = v.get("access_networks")
     if not isinstance(known, list):
-        known = rule_networks(v, load_plan_cache())["any"]
+        known = rule_networks(v, load_plan_cache())["fabric"]
     sources = access_sources(v)
-    return {service: [n for n in known if n not in allowed] for service, allowed in sources.items()}
+    return {service: [n for n in known if not network_in(n, allowed)] for service, allowed in sources.items()}

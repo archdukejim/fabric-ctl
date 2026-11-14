@@ -1,6 +1,6 @@
 # fabriclib/ipam/rules
 
-A site's access rules (manual 1.10.4.48, decisions 2.1.10.53 to 2.1.10.60): which of its networks reach which of
+A site's access rules (manual 1.10.4.48, decisions 2.1.10.53 to 2.1.10.62): which of its networks reach which of
 fabric's services. Written like firewall rules, first match wins, `any deny` implied last; one answer
 (`service_sources`) that every layer of enforcement is built from. Pure but for the changes, which go through
 `ipam/common/edit_plan` as every plan change does.
@@ -8,8 +8,10 @@ fabric's services. Written like firewall rules, first match wins, `any deny` imp
 | File | What |
 |---|---|
 | `constants.py` | The services with their ports, the actions, a fresh site's rule, what the host's VLAN must keep |
-| `rule_networks.py` | The networks a rule can name: each VLAN's subnets, the host's VLAN, every network the site knows |
+| `rule_networks.py` | The networks a rule can name: each VLAN's subnets, the host's VLAN, the site's, every site's, every address |
 | `network_names.py` | The words that name one network in a rule's source |
+| `network_in.py` | Whether a network lies inside an allow list (`any`'s list is 0.0.0.0/0 less the denied) |
+| `source_networks.py` | What a rule's source stands for, as the listing and the console show it |
 | `decide_rule.py` | What the rules decide for one network and one service: the first match, or the implied deny |
 | `service_sources.py` | The networks each service answers under the site's rules |
 | `access_sources.py` | That answer as the settings hold it (an apply's), else from the plan last read |

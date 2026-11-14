@@ -1,14 +1,15 @@
-from fabriclib.ipam.rules.constants import ANY, HOST, SERVICES
+from fabriclib.ipam.rules.constants import ANY, SERVICES
+from fabriclib.ipam.rules.source_networks import source_networks
 
 
 def _source(word, nets):
     """Purpose: a rule's source as shown, with the networks it stands for.
     Inputs:  word — the rule's "from"; nets — rule_networks' result.
-    Returns: str, e.g. "host (10.1.10.0/24)", "20 (10.1.20.0/24)", "any".
+    Returns: str, e.g. "host (10.1.10.0/24)", "20 (10.1.20.0/24)", "any (every address, outside ones too)".
     Fails:   never.
     Feeds:   show_rules."""
-    cidrs = nets["host"] if word == HOST else [] if word == ANY else nets["vlans"].get(word, [])
-    return f"{word} ({', '.join(cidrs)})" if cidrs else word
+    said = source_networks(word, nets)
+    return f"{word} ({said})" if said else word
 
 
 def show_rules(rules, nets, kept=True):
