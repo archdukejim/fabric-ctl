@@ -425,6 +425,22 @@ with serve():
     st, loc, page = post("/bind9/zone/dynamic_zone_var/update", {"type": "A", "index": "x"})
     check("Edit without a record: refused at once, nothing held", "pick a record to change" in flash(page)
           and "change pending" not in page, flash(page))
+    page = get("/dns/zones?zone=dynamic_zone_var")
+    check("the VLAN column (2.1.4.16): a record answers everyone, or one VLAN of the plan picked in the add row",
+          "<th>VLAN</th>" in page and 'form="rec-add" name="vlan"' in page and '<option value="20">VLAN 20</option>'
+          in page and "everyone" in page, page.split("<main", 1)[1][:2500])
+    st, loc, page = post("/bind9/zone/dynamic_zone_var/add", {"type": "A", "name": "split", "value": "10.1.20.7",
+                                                              "vlan": "20"})
+    check("a record for VLAN 20: held, saying for whom", "Waiting for Apply: Add A record split for VLAN 20 to the "
+          "site's zone" in flash(page), flash(page))
+    dns_apply()
+    row = [r for r in get("/dns/zones?zone=dynamic_zone_var").split("<tr") if ">split<" in r]
+    check("...applied: its row says VLAN 20", row and 'data-label="VLAN"><span class="pill">VLAN 20' in row[0], row)
+    post("/bind9/zone/dynamic_zone_var/add", {"type": "A", "name": "nosuch", "value": "10.1.99.7", "vlan": "99"})
+    page = dns_apply()
+    check("a record for a VLAN the plan has not: refused at Apply, saying why", "VLAN 99 is not in the site&#39;s plan"
+          in page or "VLAN 99 is not in the site's plan" in page, page.split("<main", 1)[1][:1500])
+    post("/changes/zones/discard", {})
     st, loc, page = post("/bind9/zone/dynamic_zone_var/delete", {"type": "A", "index": n, "name": "preview2"})
     check("Delete: the row's bin, held", "Waiting for Apply: Delete A record preview2"
           in flash(page) and "192.168.1.98" in page, flash(page))

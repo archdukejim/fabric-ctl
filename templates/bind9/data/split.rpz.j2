@@ -1,0 +1,14 @@
+; VLAN {{ split.ref }}'s own answers (decision 2.1.4.16, manual 1.4.1.11): for each name here, that VLAN's clients get
+; these records (every type: a type not here answers no data); everyone else the zone's own. Rendered at every apply.
+$TTL 300
+@       IN      SOA     ns.{{ domain }}. hostmaster.{{ domain }}. (
+                        {{ (lookup('pipe', 'date +%s') | int) + 1000000000 }} ; Serial (Epoch timestamp offset)
+                        3600             ; Refresh
+                        1800             ; Retry
+                        604800           ; Expire
+                        30               ; Negative caching TTL
+)
+@       IN      NS      localhost.
+{% for line in split.lines %}
+{{ line }}
+{% endfor %}

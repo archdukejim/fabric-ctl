@@ -65,9 +65,9 @@ def post_dns(route, actor, data):
         except (TypeError, ValueError):
             raise ValidationError("invalid index")
         if route[3] == "update":                   # a record replaced in place (2.1.4.15)
+            fields = ("name", "value", "ip", "target", "text", "priority", "weight", "port", "vlan")
             return update_record(actor, route[1], str(data.get("type", "")), index, str(data.get("old_name", "")),
-                                 {k: str(data.get(k) or "") for k in ("name", "value", "ip", "target", "text",
-                                                                      "priority", "weight", "port")}, source="web")
+                                 {k: str(data.get(k) or "") for k in fields}, source="web")
         if route[3] == "link":
             return set_record_link(actor, route[1], str(data.get("type", "")), index, str(data.get("name", "")),
                                    {k: str(data.get(k) or "")

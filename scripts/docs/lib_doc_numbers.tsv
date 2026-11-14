@@ -523,6 +523,9 @@ file	fabriclib-dns|src/fabriclib/dns/set_acl_policy.py	25
 file	fabriclib-dns|src/fabriclib/dns/set_key_acls.py	26	
 file	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py	47	
 file	fabriclib-dns|src/fabriclib/dns/set_record_link.py	39	
+file	fabriclib-dns|src/fabriclib/dns/split/default_records.py	65	
+file	fabriclib-dns|src/fabriclib/dns/split/record_vlan.py	66	
+file	fabriclib-dns|src/fabriclib/dns/split/split_answers.py	67	
 file	fabriclib-dns|src/fabriclib/dns/sync_status.py	27	
 file	fabriclib-dns|src/fabriclib/dns/tsig_key_mode.py	61	
 file	fabriclib-dns|src/fabriclib/dns/tsig_record_notice.py	62	
@@ -2445,6 +2448,7 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/remove_filter_group.py|re
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/remove_filter_list.py|remove_filter_list	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/remove_filter_rule.py|remove_filter_rule	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/resolver_tls_pending.py|resolver_tls_pending	1	
+function	fabriclib-dns_filter|src/fabriclib/dns_filter/resolver_views.py|_inside	4	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/resolver_views.py|_limit_mb	1	0.8.0 / 2026-10-11
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/resolver_views.py|_matches	2	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/resolver_views.py|resolver_views	3	
@@ -2555,6 +2559,11 @@ function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|_rewrite	2
 function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|_soa_fields	1	
 function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|set_negative_ttl	4	
 function	fabriclib-dns|src/fabriclib/dns/set_record_link.py|set_record_link	1	
+function	fabriclib-dns|src/fabriclib/dns/split/default_records.py|default_records	1	
+function	fabriclib-dns|src/fabriclib/dns/split/record_vlan.py|record_vlan	1	
+function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|_qualified	1	
+function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|_rdata	2	
+function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|split_answers	3	
 function	fabriclib-dns|src/fabriclib/dns/sync_status.py|sync_status	1	
 function	fabriclib-dns|src/fabriclib/dns/tsig_key_mode.py|tsig_key_mode	1	
 function	fabriclib-dns|src/fabriclib/dns/tsig_record_notice.py|tsig_record_notice	1	
@@ -3993,6 +4002,7 @@ function	webui|src/webui/devpreview/dev_settings.py|dev_settings	1	0.8.0 / 2026-
 function	webui|src/webui/devpreview/dev_state.py|DevState.__init__	1	
 function	webui|src/webui/devpreview/dev_state.py|DevState._edit	10	
 function	webui|src/webui/devpreview/dev_state.py|DevState._ptr	5	
+function	webui|src/webui/devpreview/dev_state.py|DevState._vlans	11	
 function	webui|src/webui/devpreview/dev_state.py|DevState.log	9	
 function	webui|src/webui/devpreview/dev_state.py|DevState.overview	6	
 function	webui|src/webui/devpreview/dev_state.py|DevState.reverse	3	
@@ -4025,6 +4035,7 @@ function	webui|src/webui/devpreview/fake_directory.py|_policy	5
 function	webui|src/webui/devpreview/fake_directory.py|fake_directory	6	
 function	webui|src/webui/devpreview/fake_directory.py|kerberos_policy	8	
 function	webui|src/webui/devpreview/fake_dns.py|_record	3	
+function	webui|src/webui/devpreview/fake_dns.py|_split	5	
 function	webui|src/webui/devpreview/fake_dns.py|_tsig	1	
 function	webui|src/webui/devpreview/fake_dns.py|_value	2	
 function	webui|src/webui/devpreview/fake_dns.py|fake_dns	4	

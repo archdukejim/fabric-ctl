@@ -8,6 +8,7 @@ from fabriclib.common.write_audit import write_audit
 from fabriclib.dns.common.fabric_record import fabric_record
 from fabriclib.dns.constants import RECORD_TYPES
 from fabriclib.dns.drop_removed_names import drop_removed_names
+from fabriclib.dns.split.record_vlan import record_vlan
 from fabriclib.dns.tsig_record_notice import tsig_record_notice
 from fabriclib.dns.validate_record import validate_record
 
@@ -22,13 +23,15 @@ def update_record(actor, key, rtype, index, expected_name, form, source="cli"):
     Inputs:  actor — str, who asks (audit); key — the zone's key in `dns:`; rtype — the record's type (fixed: an edit
              never changes it); index — int, its place in that type's list; expected_name — the name the caller
              showed (a stale view cannot change another record); form — the new fields as validate_record takes
-             them (name, value or the type's own field, priority, weight, port); source — "cli" or "web".
+             them (name, value or the type's own field, priority, weight, port), and vlan ("": everyone, else the
+             VLAN it answers alone, 2.1.4.16); source — "cli" or "web".
     Returns: {"old": the record before, "new": the record after}. The landing page's link stays with the record;
              an ACME (DNS-01) key granted the old name loses it when no record of the zone keeps it
              (drop_removed_names, 2.1.4.12); a CNAME that gives a TSIG key a right is audited naming it (2.1.4.14).
     Fails:   ValidationError "unsupported record type"; "record changed since it was shown; reload and try again"
              (unknown zone or type, index out of range, another name); "<name> is provided by fabric (…)" for one
-             of fabric's own names; "a CNAME with that name already exists"; "nothing to change"; validate_record's;
+             of fabric's own names; "a CNAME with that name already exists"; "nothing to change"; validate_record's
+             and record_vlan's;
              OSError or yaml.YAMLError from vars_lock, load_vars, save_vars, write_audit.
     Feeds:   agent route POST /v1/zones/<key>/records/update (fabric-agent, src/agent/post_dns)."""
     if rtype not in RECORD_TYPES:
@@ -45,10 +48,12 @@ def update_record(actor, key, rtype, index, expected_name, form, source="cli"):
             fqdn = data.get("domain") if expected_name == "@" else f"{expected_name}.{data.get('domain')}"
             raise ValidationError(f"{fqdn} is provided by fabric ({own['service']}, from the setting "
                                   f"{own['setting']}): every apply adds it back, so it cannot be changed here")
+        new = record_vlan(key, rtype, new, form, data["dns"][key], index)      # one VLAN's own (2.1.4.16)
         new = {**new, **{k: old[k] for k in KEPT if k in old and k not in new}}
         if new == old:
             raise ValidationError("nothing to change: the record is already so")
-        if rtype == "CNAME" and any(r.get("name") == new["name"] for i, r in enumerate(records) if i != index):
+        if rtype == "CNAME" and any(r.get("name") == new["name"] and r.get("vlan") == new.get("vlan")
+                                    for i, r in enumerate(records) if i != index):
             raise ValidationError("a CNAME with that name already exists")
         before = copy.deepcopy(data)
         keys = tsig_record_notice(data, key, rtype, new)

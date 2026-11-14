@@ -66,10 +66,23 @@ class DevState:
         z = self.data["zones"][key]
         own = SAMPLE_FABRIC_NAMES if key == "dynamic_zone_var" else {}
         return {"key": key, "name": z["name"], "status": "dev preview — sample data, not served by BIND",
+                "vlans": self._vlans(),
                 "records": [dict({"type": t, "index": i, "name": n, "value": v, "edit": self._edit(t, v),
+                                  "vlan": (z.get("split") or {}).get(f"{t}|{n}|{v}", ""),
                                   "fabric": dict(zip(("service", "setting"), own[(t, n)])) if (t, n) in own else None,
                                   "link": (z.get("links") or {}).get(f"{t}|{n}")}, **self._ptr(t, v))
                             for i, (t, n, v) in enumerate(z["records"])]}
+
+    def _vlans(self):
+        """Purpose: the sample site's VLANs, for the zone page's VLAN column (2.1.4.16).
+        Inputs:  none (the sample plan of this site, as fake_ipam keeps it).
+        Returns: [{"ref", "label"}].
+        Fails:   never.
+        Feeds:   zone; fake_dns (a record's VLAN checked against them)."""
+        from webui.devpreview.sample_networks import SAMPLE_NETWORK_READ
+        plan = (self.data.get("networks") or SAMPLE_NETWORK_READ)["plans"]["lan"]
+        return [{"ref": str(x["id"]), "label": f"VLAN {x['id']}"} for x in plan.get("vlans") or []
+                if not x.get("location")]
 
     @staticmethod
     def _edit(rtype, value):

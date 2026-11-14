@@ -69,4 +69,5 @@ seconds (`publish_zone_list.py`).
 | `reverse_by_hand.py` | The reverse names whose PTR is set by hand, by zone (DHCP's key is denied them, 2.1.10.20) |
 | `publish_plan_records.py` | The same quick path for the address plan's DNS (Sync now): the zone list, and every zone whose records changed reloaded under the running BIND |
 | `common/` | Helpers shared by these files |
+| `split/` | Split DNS: a record answering one VLAN alone (2.1.4.16) |
 | `changed_names.py` | The names whose records an apply or Sync now is about to change, so the filtering resolver forgets them (2.1.10.46) |

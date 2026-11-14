@@ -41,6 +41,21 @@ def _value(body):
     return " ".join([nums[f] for f in need] + [value])
 
 
+def _split(state, zone, rec, body):
+    """Purpose: the VLAN a sample record answers alone (2.1.4.16), kept beside it, checked as the agent checks it.
+    Inputs:  state — DevState; zone — the sample zone; rec — the record's (type, name, value); body — vlan.
+    Returns: None.
+    Fails:   ValidationError for a VLAN the sample plan has not.
+    Feeds:   _record."""
+    vlan = str(body.get("vlan") or "").strip()
+    if not vlan:
+        return
+    known = [x["ref"] for x in state._vlans()]
+    if vlan not in known:
+        raise ValidationError(f"VLAN {vlan} is not in the site's plan (it has {', '.join(known) or 'none yet'})")
+    zone.setdefault("split", {})["|".join(rec)] = vlan
+
+
 def _record(state, key, op, body):
     """Purpose: A zone's record added, deleted or linked from the landing page (manual 1.4.2.4), in memory, refused
              as the agent refuses (fabric's own names; a stale record; a type or name that cannot be linked; a bad
@@ -57,7 +72,9 @@ def _record(state, key, op, body):
     if op == "records":
         if rtype not in RECORD_TYPES:
             raise ValidationError("pick a record type")
-        records.append((rtype, name, _value(body)))
+        rec = (rtype, name, _value(body))
+        _split(state, zone, rec, body)                  # checked before the record is kept
+        records.append(rec)
         state.log("DNS_ADD", f"zone={key} {rtype} {name} (in memory)")
         return {"name": name}
     idx = int(body.get("index", -1))
@@ -73,8 +90,15 @@ def _record(state, key, op, body):
                                   + ("deleted here" if op == "records/delete" else "changed here"))
     if op == "records/update":
         new = (rtype, name, _value(body))
-        if new == records[idx]:
+        split = zone.setdefault("split", {})
+        old_vlan = split.get("|".join(records[idx]), "")
+        if new == records[idx] and str(body.get("vlan") or "") == old_vlan:
             raise ValidationError("nothing to change: the record is already so")
+        _split(state, zone, new, body)                  # checked before the record changes
+        if old_vlan and not str(body.get("vlan") or "").strip():
+            split.pop("|".join(records[idx]), None)
+        elif "|".join(records[idx]) != "|".join(new):
+            split.pop("|".join(records[idx]), None)
         records[idx] = new
         state.log("DNS_UPDATE", f"zone={key} {rtype} {shown} -> {name} {new[2]} (in memory)")
         return {"old": {"name": shown}, "new": {"name": name}}

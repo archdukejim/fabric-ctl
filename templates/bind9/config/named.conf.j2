@@ -13,8 +13,52 @@ include "/etc/bind/named.conf.options";
 // 4. LOGGING (Independent, but usually here)
 include "/etc/bind/named.conf.logs";
 
+{% set split = split_views | default([]) %}
+{% if not split %}
 // 5. LOCAL ZONES (The actual DNS data)
 include "/etc/bind/named.conf.zones";
 
 // 6. THE AD ZONE (optional Windows domain, manual 1.6.5.6): Samba's DLZ module, from the DC's database
 include "/etc/bind-samba/dlz.conf";
+{% else %}
+{#- split DNS (decision 2.1.4.16, manual 1.4.1.11): a view per VLAN with answers of its own. Every zone stays in the
+    default view (in-view below), so there is one copy of each, its dynamic updates included; a VLAN's view answers
+    its own names from its RPZ instead (recursive-only no: on authoritative answers too) #}
+{% set fl = federation_links | default({'children': [], 'upstream': none}) %}
+{% set peers = fl.children + ([fl.upstream] if fl.upstream else []) %}
+{% set keys = [] %}
+{% if install_kea | default(false) and (dhcp | default({})).ddns | default(true) %}
+{% set _ = keys.append(kea_ddns_key | default('kea-ddns', true)) %}
+{% if kea_ddns_old | default(none) %}{% set _ = keys.append(kea_ddns_old.name) %}{% endif %}
+{% endif %}
+{% for link in peers %}{% set _ = keys.append(link.key) %}{% endfor %}
+{% for key in tsig_keys | default([]) %}{% set _ = keys.append(key.name) %}{% endfor %}
+{% set zone_names = [] %}
+{% for zone_key in dns.keys() %}{% set _ = zone_names.append(domain if zone_key == 'dynamic_zone_var' else zone_key) %}{% endfor %}
+{% if install_kea | default(false) and (dhcp | default({})).ddns | default(true) %}
+{% set _ = zone_names.append(((dhcp | default({})).ddns_subdomain | default('dhcp')) ~ '.' ~ domain) %}
+{% endif %}
+{% for link in peers if link.domain not in zone_names %}{% set _ = zone_names.append(link.domain) %}{% endfor %}
+{% for rev_zone in reverse_zone_names | default([]) %}{% set _ = zone_names.append(rev_zone) %}{% endfor %}
+// 5. EVERYONE ELSE: signed requests (Kea's, ACME's, the federation's: updates and transfers land here wherever they
+// come from), this host and fabric's containers, and every network that has no answers of its own
+view "default" {
+    match-clients { {% for k in keys | unique %}key "{{ k }}"; {% endfor %}127.0.0.1; {{ host_ip }}; {{ fabric_subnet }}; {% for s in split %}{% for c in s.cidrs %}!{{ c }}; {% endfor %}{% endfor %}any; };
+    include "/etc/bind/named.conf.zones";
+    // the AD zone (manual 1.6.5.6): Samba's DLZ loads into this view only (2.1.4.16's open point)
+    include "/etc/bind-samba/dlz.conf";
+};
+
+{% for s in split %}
+// 6. VLAN {{ s.ref }}'s own answers for {{ s.names | join(', ') }}; every other name as everyone gets it
+view "{{ s.view }}" {
+    match-clients { {% for c in s.cidrs %}{{ c }}; {% endfor %}};
+    zone "{{ s.rpz }}" { type primary; file "/var/lib/bind/db.{{ s.rpz }}"; allow-query { none; }; allow-transfer { none; }; };
+    response-policy { zone "{{ s.rpz }}"; } recursive-only no break-dnssec yes;
+{% for z in zone_names %}
+    zone "{{ z }}" { in-view "default"; };
+{% endfor %}
+};
+
+{% endfor %}
+{% endif %}

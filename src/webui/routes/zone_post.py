@@ -4,7 +4,7 @@ from webui import agentclient as actions
 from webui.routes.held import held, q
 from webui.routes.picked_record import picked_record
 
-RECORD_FIELDS = ("name", "value", "ip", "target", "text", "priority", "weight", "port")
+RECORD_FIELDS = ("name", "value", "ip", "target", "text", "priority", "weight", "port", "vlan")
 
 
 def zone_post(h, user, path, form):
