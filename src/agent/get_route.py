@@ -45,7 +45,9 @@ from fabriclib.ipam.scan_overview import scan_overview
 from fabriclib.pki.acme_info import acme_info
 from fabriclib.pki.acme_machines import acme_machines
 from fabriclib.pki.ca_summary import ca_summary
+from fabriclib.pki.certs_overview import certs_overview
 from fabriclib.pki.list_issued import list_issued
+from fabriclib.pki.read_lifetimes import read_lifetimes
 from fabriclib.radius.radius_guides import radius_guides
 from fabriclib.samba.domain_overview import domain_overview
 from fabriclib.samba.gpo_overview import gpo_overview
@@ -112,6 +114,9 @@ READS = {
     ("audit",): lambda: read_audit(),
     ("pki", "ca"): lambda: ca_summary(load_vars()),
     ("pki", "issued"): lambda: list_issued(),
+    ("pki", "certs"): lambda: certs_overview(load_vars()),                 # every certificate (2.1.5.13)
+    ("pki", "lifetimes"): lambda: read_lifetimes(load_vars(), SetupContext(deploy_base=load_vars()["deploy_base_dir"])
+                                                 .load_state()),           # PKI → Lifetimes (2.1.5.14)
     ("tsig",): lambda: list_tsig_keys(),
     ("reverse-zones",): lambda: reverse_zones(load_vars()),
     ("devices",): lambda: device_overview(load_vars()),
@@ -202,7 +207,8 @@ def get_route(route, user=None, perms=None):
     Returns: the operation's JSON-serialisable result. version: version_info with the host's name and domain (the
              console's top bar); zones/<key>: zone_detail; vault/slots: the unlock methods with
              this host's name; images: the image status rows; reminders: host_reminders (the console's top bar);
-             pki/acme: {info, machines, domain}; jobs/<id>: the job; domain/grants: list_grants; domain/grants/<name>:
+             pki/acme: {info, machines, domain}; pki/certs: certs_overview; pki/lifetimes: read_lifetimes;
+             jobs/<id>: the job; domain/grants: list_grants; domain/grants/<name>:
              show_grant; domain/grants/explain/<person>[/<machine>]: explain_grant; domain/kerberos: kerberos_overview;
              domain/kerberos/spns: list_spns; groups: list_groups; groups/<name>: show_group; ous: list_ous;
              account: my_account (the signed-in person's own details, groups, certificates and devices);

@@ -821,6 +821,59 @@ where = urllib.parse.unquote_plus(hd.get("Location", ""))
 check("Revoke a certificate the ledger does not have: refused at once by the real agent, said, nothing pending",
       st == 303 and where.startswith("/pki?view=issued") and "no certificate named 'ghost.lan.test'" in where
       and "change pending" not in where, (st, where))
+# Issued and Lifetimes through the real agent (2.1.5.13, 2.1.5.14); revoking and applying for real need Step-CA, which
+# tests/pki/console.py runs: here the lists, the confirmation and the refusals
+st, hd, sc, body = req("GET", "/pki?view=issued", ALICE, cookie=session)
+check("PKI · Issued through the real agent: the list, its filter, Revoke a certificate not listed; fabric's own said "
+      "to be unfound (these settings have no hostnames), Step-CA's database not there yet (nothing to list, no "
+      "warning), nothing failing",
+      st == 200 and 'action="/stepca/revoke/review"' in body and "source=acme" in body
+      and "fabric's own certificates are not listed: the setting hostname_" in html.unescape(body)
+      and "Step-CA's own certificates (ACME" not in html.unescape(body),
+      (st, body.split("<main", 1)[-1][:1500]))
+# covers: web:post.stepca.revoke.review agent:post.pki.lookup +
+st, hd, body = req_upload("/stepca/revoke/review", POSTH, {"csrf": csrf}, {"cert_file": ("sso.crt", sso_pem.encode())},
+                          session)
+check("Revoke a certificate not listed, by its file: this CA signed it, so its confirmation (its name typed again, the "
+      "file sent again with it)", st == 200 and "Type <code>sso.test</code>" in body and 'name="pem"' in body
+      and 'action="/stepca/revoke"' in body, (st, body[-1500:]))
+inter_pem = open(f"{W}/stepca/data/certs/intermediate_ca.crt").read()
+# covers: web:post.stepca.revoke.review agent:post.pki.lookup -
+for what, form, why in (("a serial that is not hexadecimal", {"serial": "zz-top"}, "is not a serial"),
+                        ("a pasted text that is not a certificate", {"cert": "hello"}, "not a certificate"),
+                        ("the CA's own intermediate", {"cert": inter_pem}, "own CA certificate"),
+                        ("a serial this CA never signed", {"serial": "0BADBAD0"}, "signed no certificate")):
+    st, hd, body = req_upload("/stepca/revoke/review", POSTH, {"csrf": csrf, **form}, {}, session)
+    check(f"negative: Revoke a certificate not listed: {what}: refused on Issued (400), saying why",
+          st == 400 and why in html.unescape(body), (st, body[:600]))
+# covers: web:get.pki.lifetimes agent:get.pki.lifetimes +
+st, hd, sc, body = req("GET", "/pki/lifetimes", ALICE, cookie=session)
+check("PKI · Lifetimes through the real agent: the values as set, its form, the hostnames missing said", st == 200
+      and 'action="/stepca/lifetimes"' in body and 'value="47"' in body and "the setting hostname_" in body,
+      (st, body[-1500:]))
+vars_before = open(f"{W}/fabric/config/vars.yaml").read()
+st, hd, *_ = req("POST", "/stepca/lifetimes", POSTH, {"csrf": csrf, "service_days": "47", "renew_after_days": "47"},
+                 cookie=session)
+where = urllib.parse.unquote_plus(hd.get("Location", ""))
+# covers: web:post.stepca.lifetimes -
+check("negative: renew at the lifetime's end: refused by the real agent when held, said, nothing pending or changed",
+      st == 303 and "at least 1 day before the end" in where and "Waiting for Apply" not in where
+      and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, (st, where))
+st, hd, *_ = req("POST", "/stepca/lifetimes", POSTH, {"csrf": csrf, "service_days": "40"}, cookie=session)
+where = urllib.parse.unquote_plus(hd.get("Location", ""))
+check("negative: a lifetime longer than this suite's 2-day intermediate has left: refused when held, said, nothing "
+      "pending or changed", st == 303 and "longer than the intermediate CA has left" in where
+      and "Waiting for Apply" not in where and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, (st, where))
+st, hd, *_ = req("POST", "/stepca/lifetimes", POSTH, {"csrf": csrf, "renew_after_days": "20"}, cookie=session)
+where = urllib.parse.unquote_plus(hd.get("Location", ""))
+# covers: web:post.stepca.lifetimes +
+check("a Lifetimes change is held for PKI's Apply, the settings unchanged until then (the intermediate's limit "
+      "applies only to what is changed)", st == 303
+      and "Waiting for Apply: Set certificate lifetimes: renew after days 20" in where
+      and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, (st, where))
+st, _, _, body = req("GET", "/pki/lifetimes", ALICE, cookie=session)
+check("...the page shows the top bar's Apply", 'action="/changes/pki/apply"' in body, body[:1500])
+req("POST", "/changes/pki/discard", POSTH, {"csrf": csrf}, cookie=session)
 
 # ---- the Directory tab without the domain controller: the page says so, nothing breaks
 st, hd, sc, body = req("GET", "/directory/people", ALICE, cookie=session)
@@ -1211,13 +1264,18 @@ for method, path, roles, perm in (
         ("GET", "/v1/groups/ops", PKI_ONLY, "domain:read"),
         ("GET", "/v1/ous", PKI_ONLY, "domain:read"),
         ("GET", "/v1/domain/kerberos", PKI_ONLY, "domain:read"),
-        ("GET", "/v1/domain/kerberos/spns", PKI_ONLY, "domain:read")):
+        ("GET", "/v1/domain/kerberos/spns", PKI_ONLY, "domain:read"),
+        ("GET", "/v1/pki/certs", ["fabric:status:read"], "pki:read"),
+        ("GET", "/v1/pki/lifetimes", ["fabric:status:read"], "pki:read"),
+        ("POST", "/v1/pki/lookup", ["fabric:status:read"], "pki:read"),
+        ("POST", "/v1/pki/lifetimes", AUDITOR_ROLES, "pki:settings")):
     out = agent_call(method, path, "carol", roles, {"name": "x"})
     # covers: agent:post.people.*.edit agent:post.people.*.unlock agent:post.groups agent:post.groups.*.delete -
     # covers: agent:post.groups.*.managers agent:post.ous agent:post.ous.rename agent:post.ous.delete -
     # covers: agent:post.machines.*.move agent:post.machines.*.type agent:post.machines.*.sites -
     # covers: agent:post.machines.*.keytab agent:post.domain.kerberos.policy agent:get.groups agent:get.groups.* -
     # covers: agent:get.ous agent:get.domain.kerberos agent:get.domain.kerberos.spns -
+    # covers: agent:get.pki.certs agent:get.pki.lifetimes agent:post.pki.lookup agent:post.pki.lifetimes -
     check(f"{method} {path} refused by fabric-agent without {perm} (403, named)", " 403 " in out and perm in out, out)
 out = agent_call("POST", "/v1/machines/ws1/move", "carol", ["fabric:machines:admin"], {"path": "machines"})
 check("moving a computer needs ous:admin as well as machines:admin (refused, named)", " 400 " in out and "ous:admin" in out,

@@ -42,6 +42,9 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `inspect_pem.py` | Decode certificates or a CSR for reading, with a trust verdict. Agent route: POST /v1/pki/inspect (pki:read). |
 | `issue_key_pair.py` | Generate a private key and certificate for a device that cannot make its own CSR. Agent route: POST /v1/pki/issue (pki:issue), timeout 180 s. |
 | `list_issued.py` | Certificates issued by hand, for the Step-CA 'issued' view. Agent route: GET /v1/pki/issued (pki:read). |
+| `list_certs.py` | Every certificate the console can revoke, for PKI → Issued. Agent route: GET /v1/pki/certs (pki:read), timeout 60 s. |
+| `lookup_cert.py` | The certificate a revocation names by serial or file. Agent route: POST /v1/pki/lookup (pki:read). |
+| `read_lifetimes.py` | PKI → Lifetimes' values and next renewals. Agent route: GET /v1/pki/lifetimes (pki:read). |
 | `list_people.py` | People and their groups (read-only; managed in Keycloak). Agent route: GET /v1/people (people:read). |
 | `list_groups.py` | The site's groups: kind, member count, description. Agent route: GET /v1/groups (domain:read). |
 | `show_group.py` | One group's two levels. Agent route: GET /v1/groups/<name> (domain:read). |
@@ -86,7 +89,7 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `cert_warnings.py` | What is wrong or coming with fabric's certificates, shown at the top of the overview. Agent route: GET /v1/cert-warnings (status:read). |
 | `host_reminders.py` | What every administrator is reminded of on this host (the break-glass password's file), in the top bar from each sign-in and on Overview. Agent route: GET /v1/reminders (status:read). |
 | `relaxed_settings.py` | The security relaxations turned on, shown at the top of the overview. Agent route: GET /v1/relaxed-settings (status:read). |
-| `revoke_cert.py` | Revoke a certificate fabric issued; the CRLs are published at once. Agent route: POST /v1/pki/revoke (pki:revoke). |
+| `revoke_cert.py` | Revoke any certificate this CA signed, with its name typed again; the CRLs are published at once. Agent route: POST /v1/pki/revoke (pki:revoke), timeout 300 s. |
 | `__init__.py` | Imports every function of this folder, so callers keep `module.function` |
 | `domain_overview.py` | The domain, its controller, the password policy and this site's machines. Agent route: GET /v1/domain (domain:read). |
 | `gpo_overview.py` | Group Policy: templates, the admin settings GPO, a policy search. Agent routes: GET /v1/gpo, POST /v1/gpo/search (domain:read). |

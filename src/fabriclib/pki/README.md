@@ -5,9 +5,17 @@ Certificates from fabric's Step-CA.
 | File | What |
 |---|---|
 | `cert_warnings.py` | What is wrong or coming with fabric's certificates (a failed renewal, a service certificate under 7 days, the CA within 180 days, issued certificates within 30), for status, doctor and the web console |
-| `check_cert_lifetimes.py` | Refuses certificate lifetimes that cannot work (2.1.5.4, 2.1.5.6) |
+| `check_cert_lifetimes.py` | Refuses only the certificate lifetimes that cannot work, notes the rest worth knowing; works out Step-CA's maximum (2.1.5.14) |
 | `publish_crl.py` | Publish the CRLs (the intermediate's; the root's where its key is here) to `/certs/crl/` (the point certificates name: `ca.<domain>`), nginx and FreeRADIUS (2.1.5.10, 1.5.1.5, 1.5.1.6) |
-| `revoke_cert.py` | Revoke a certificate fabric issued, by serial or name; the CRLs published at once |
+| `revoke_cert.py` | Revoke any certificate this CA signed, by serial, name or file, with its name typed again from the console; one of fabric's own replaced first; the CRLs published at once (2.1.5.13) |
+| `certs_overview.py` | The PKI page's Issued list for the agent: list_certs with each 802.1X machine's device and roles from the directory (2.1.5.13) |
+| `find_cert.py` | The certificate a revocation names by serial or file: refused when this CA did not sign it, it is not a certificate or it is the CA's own (1.5.1.9.2) |
+| `list_certs.py` | Every certificate the console can revoke, each marked by where it came from: issued here, fabric's own, ACME, 802.1X, anything else Step-CA signed (1.5.1.9.1) |
+| `list_service_certs.py` | fabric's own service certificates as they are on disk, with the services using each |
+| `list_stepca_certs.py` | Step-CA's own database, read through a copy by `fabric-certlist` in a throwaway container of the Step-CA image (1.5.1.9.1) |
+| `read_lifetimes.py` | PKI → Lifetimes' values, the intermediate's days left, each service certificate's next renewal, the ACME client's setting (2.1.5.14) |
+| `replace_service_cert.py` | Issue one of fabric's own certificates again and put it in use, before the old one is revoked (1.5.1.9.4) |
+| `set_lifetimes.py` | Check, save and apply the certificate lifetimes: ca.json converged, Step-CA restarted when it changed, what is due renewed (1.5.1.10.3) |
 | `run_acme_command.py` | `fabricctl acme`: the ACME directory for LAN machines, their DNS-01 keys (2.1.5.8) |
 | `run_certs_command.py` | `fabricctl certs`: renewal, the issued list, revocation |
 | `pick_up_cert.py` | How a service takes a renewed certificate: a reload, by itself, or a restart (2.1.5.4) |

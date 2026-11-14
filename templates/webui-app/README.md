@@ -34,6 +34,7 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `pki_result.html` | The pki result page |
 | `radius_secret.html` | The radius secret page |
 | `stepca.html` | The stepca page |
+| `lifetimes.html` | PKI → Lifetimes: fabric's own, ACME, hand-issued and 802.1X lifetimes, the next renewals, the limits |
 | `tsig_result.html` | The tsig result page |
 | `federation.html` | The Federation tab |
 | `security.html` | The Security page (sign-in layers, raises, Kerberos on/off; lowering shown as the host command) |

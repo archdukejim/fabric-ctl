@@ -5,7 +5,7 @@ PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "
                  "policies": "/directory/policies", "ous": "/directory/ous", "access": "/directory/access",
                  "kerberos": "/directory/kerberos", "devices": "/8021x/devices", "roles": "/8021x/roles",
                  "radius": "/8021x", "zones": "/dns/zones", "networks": "/networks", "options": "/networks/options",
-                 "account": "/account/groups", "dns-filter": "/dns-filter"}
+                 "account": "/account/groups", "dns-filter": "/dns-filter", "pki": "/pki/lifetimes"}
 
 # The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
 # permissions that show it: any one of them; () = any signed-in person). An entry shows when one of its pages does.
@@ -18,7 +18,8 @@ NAV = [
                     ("/dns-filter", "DNS filter", ("dns:filter", "dns:querylog"))]),
     ("dhcp", "DHCP", [("/networks", "Networks", ("dhcp:read",)), ("/networks/options", "DHCP options", ("dhcp:read",)),
                       ("/kea", "Kea", ("dhcp:read",))]),
-    ("pki", "PKI", [("/pki", "Certificates", ("pki:read",)), ("/pki/acme", "ACME", ("pki:read",))]),
+    ("pki", "PKI", [("/pki", "Certificates", ("pki:read",)), ("/pki/acme", "ACME", ("pki:read",)),
+                    ("/pki/lifetimes", "Lifetimes", ("pki:read",))]),
     ("directory", "Directory", [("/directory", "Overview", ("domain:read",)),
                                 ("/directory/tree", "Browse", ("domain:read",)),
                                 ("/directory/people", "People", ("people:read",)),
@@ -99,7 +100,7 @@ SERVICES = {
 }
 # every permission a page asks about (the dev preview's fallback when it runs without fabriclib)
 PREVIEW_PERMS = ["status:read", "dns:read", "dns:write", "tsig:manage", "dhcp:read", "dhcp:write", "pki:read",
-                 "pki:issue", "pki:sign",
+                 "pki:issue", "pki:sign", "pki:revoke", "pki:settings",
                  "pki:link-device", "devices:read", "devices:enroll", "devices:admin", "roles:admin", "radius:read",
                  "radius:admin",
                  "people:read", "domain:read", "domain:admin", "machines:admin", "sudo:admin", "gpo:admin",

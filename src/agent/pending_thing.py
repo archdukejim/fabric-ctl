@@ -14,7 +14,8 @@ PAGES = {"people": "people:read", "machines": "domain:read", "policies": "domain
          "devices": "devices:read", "roles": "devices:read", "radius": "radius:read",
          "zones": "dns:read", "account": "session",
          "networks": "dhcp:read", "options": "dhcp:read",          # the address manager (1.10.4.40.2)
-         "dns-filter": "dns:filter"}                                # the DNS filter tab (1.12.3.17)
+         "dns-filter": "dns:filter",                                # the DNS filter tab (1.12.3.17)
+         "pki": "pki:read"}                                         # PKI → Lifetimes (2.1.5.14)
 # a device's and a device role's own fields, as their read has them: what a change to one is checked against (what a
 # role grants a device, its VLAN and permissions, follows from the roles and is not the device's own)
 OWN_FIELDS = {"devices": ("type", "owner", "description", "macs", "enabled", "roles"),
@@ -74,6 +75,8 @@ def pending_page_of(route):
     if route == ["radius", "people"] or (len(route) == 4 and route[:2] in (["radius", "people"], ["radius", "clients"])
                                          and route[3] == "delete"):
         return "radius"                                   # adding a client and a new secret: at once (2.1.8.17)
+    if route == ["pki", "lifetimes"]:                     # PKI's Apply (2.1.5.14); a revocation: at once (2.1.8.23)
+        return "pki"
     if head == ["zones"] or (len(route) == 3 and route[0] == "tsig" and route[2] == "delete"):
         return "zones"                                    # DNS (2.1.8.18); a TSIG key's creation, new secret: at once
     return None
@@ -89,6 +92,10 @@ def describe_change(route, body):
     name = route[1] if len(route) > 1 else ""
     if route[0] in ("zones", "tsig"):
         return describe_dns(route, body)
+    if route == ["pki", "lifetimes"]:
+        fields = body.get("fields") if isinstance(body.get("fields"), dict) else {}
+        what = ", ".join(f"{k.replace('_', ' ')} {val}" for k, val in fields.items() if str(val).strip())
+        return f"Set certificate lifetimes: {what}" if what else "Set certificate lifetimes"
     if filter_page_of(route):
         return describe_filter(route, body)
     if networks_page_of(route):
@@ -238,6 +245,9 @@ def thing_state(route, body, v):
         rows, key = ((radius_overview(v).get("people"), "group") if route[1] == "people"
                      else (radius_overview(v).get("clients"), "name"))
         return _find(rows, key, route[2] if len(route) > 2 else body.get("group", ""))
+    if route == ["pki", "lifetimes"]:          # the lifetimes as set, in days (2.1.5.14)
+        from fabriclib.pki.read_lifetimes import lifetime_values
+        return {"fields": lifetime_values(v)}
     if head == "zones":                        # the zone's records as vars.yaml has them; None for a zone not there
         return (v.get("dns") or {}).get(name if len(route) > 1 else _zone_key(body))
     if head == "tsig":                         # the key as vars.yaml has it (its secret is not there)

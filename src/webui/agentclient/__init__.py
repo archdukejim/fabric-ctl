@@ -30,7 +30,10 @@ from webui.agentclient.dns_filter_overview import dns_filter_overview  # noqa: F
 from webui.agentclient.host_changes import host_changes  # noqa: F401
 from webui.agentclient.inspect_pem import inspect_pem  # noqa: F401
 from webui.agentclient.issue_key_pair import issue_key_pair  # noqa: F401
+from webui.agentclient.list_certs import list_certs  # noqa: F401
 from webui.agentclient.list_issued import list_issued  # noqa: F401
+from webui.agentclient.lookup_cert import lookup_cert  # noqa: F401
+from webui.agentclient.read_lifetimes import read_lifetimes  # noqa: F401
 from webui.agentclient.list_people import list_people  # noqa: F401
 from webui.agentclient.person_overview import person_overview  # noqa: F401
 from webui.agentclient.directory_overview import directory_overview  # noqa: F401

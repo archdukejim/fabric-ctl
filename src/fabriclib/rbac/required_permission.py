@@ -17,6 +17,7 @@ GET = {
     ("dns-filter",): "dns:filter",
     ("radius",): "radius:read", ("radius", "guides"): "radius:read",
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
+    ("pki", "certs"): "pki:read", ("pki", "lifetimes"): "pki:read",    # Issued (2.1.5.13), Lifetimes (2.1.5.14)
     ("devices",): "devices:read",
     ("people",): "people:read", ("people", "*"): "people:read",   # a person's page (1.6.12.4)
     ("machines",): "domain:read", ("machines", "*"): "domain:read",   # Computers and a computer's page (1.6.12.6)
@@ -58,6 +59,8 @@ POST = {
     ("dns-filter", "safe-search"): "dns:filter",
     ("pki", "describe-csr"): "pki:read", ("pki", "inspect"): "pki:read",
     ("pki", "sign"): "pki:sign", ("pki", "revoke"): "pki:revoke",
+    ("pki", "lookup"): "pki:read",                     # the certificate a revocation names, before its confirmation
+    ("pki", "lifetimes"): "pki:settings",              # held for PKI's Apply (2.1.5.14)
     ("pki", "issue"): "pki:issue", ("pki", "convert"): "pki:issue",
     ("tsig",): "tsig:manage", ("tsig", "*", "rotate"): "tsig:manage", ("tsig", "*", "delete"): "tsig:manage",
     ("vault", "rotate"): "vault:unlock", ("vault", "slots", "add-usb"): "vault:unlock",
