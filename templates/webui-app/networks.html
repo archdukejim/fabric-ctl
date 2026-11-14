@@ -20,7 +20,35 @@
 {% if n.stale %}<p class="flash warn" role="status">{{ n.stale }}</p>{% endif %}
 {% if n.error %}<p class="flash bad" role="alert">{{ n.error }}</p>{% endif %}
 
-{% if view == 'new-vlan' %}
+{% if view == 'rules' %}
+<p><a href="{{ here() }}">← {{ n.site }}'s VLANs</a></p>
+{% set a = n.access %}
+<section class="card"><h2>Access rules at {{ n.site }}</h2>
+<p class="muted">Which of the site's networks reach which of fabric's services (manual 4.10.2.21). The first rule that matches decides; anything no rule allows gets no answer at all.</p>
+{% if a %}{% call p.list(["#", "From", "Service", "Ports", "Action"]) %}{% for r in a.rules %}<tr>
+<td data-label="#">{{ r.n }}</td><td data-label="From">{{ r.from }}{% if r.networks %} <span class="muted">{{ r.networks }}</span>{% endif %}</td><td data-label="Service">{{ r.service }}</td><td data-label="Ports"><span class="muted">{{ r.ports }}</span></td>
+<td data-label="Action">{% if r.action == 'allow' %}{{ p.status('ok', 'allow') }}{% else %}{{ p.status('bad', 'deny') }}{% endif %}</td></tr>{% endfor %}<tr class="muted">
+<td data-label="#">*</td><td data-label="From">any</td><td data-label="Service">any</td><td data-label="Ports">implied: nothing else is answered</td><td data-label="Action">{{ p.status('bad', 'deny') }}</td></tr>{% endcall %}
+{% if not a.kept %}<p class="muted">None written yet: these are the rules the site has until one is changed.</p>{% endif %}
+{% for w in a.warnings %}<p class="flash warn" role="status">{{ w }}</p>{% endfor %}
+{% else %}{{ p.empty("The rules could not be read.") }}{% endif %}
+</section>
+{% if a and can('dhcp:write') %}
+<section class="card"><h2>Add a rule</h2>
+<form method="post" action="/networks/plan/{{ n.site | urlencode }}/rules" class="grid">{{ csrf() }}
+<label>From<select name="from">{% for s in a.sources %}<option value="{{ s }}">{{ s if s in ('host', 'any') else 'VLAN ' ~ s }}{{ " (the host's VLAN)" if s == 'host' }}{{ " (every network of the site)" if s == 'any' }}</option>{% endfor %}</select></label>
+<label>Service<select name="service">{% for s in a.services %}<option value="{{ s.name }}">{{ s.name }} ({{ s.ports }})</option>{% endfor %}</select></label>
+<label>Action<select name="action"><option value="allow">allow</option><option value="deny">deny</option></select></label>
+<label>As number (empty: last)<input name="at" inputmode="numeric"></label>
+<button>Add</button></form></section>
+{% if a.rules %}<section class="card"><h2>Move or remove a rule</h2>
+{% for r in a.rules %}<div class="grid"><form method="post" action="/networks/plan/{{ n.site | urlencode }}/rules/{{ r.n }}/move" class="inline">{{ csrf() }}
+<label>Rule {{ r.n }}: from {{ r.from }} {{ r.service }} {{ r.action }}, to number<select name="to">{% for x in a.rules %}<option value="{{ x.n }}"{{ ' selected' if x.n == r.n }}>{{ x.n }}</option>{% endfor %}</select></label><button>Move</button></form>
+<form method="post" action="/networks/plan/{{ n.site | urlencode }}/rules/{{ r.n }}/delete" class="inline">{{ csrf() }}<button>Remove {{ r.n }}</button></form></div>
+{% endfor %}<p class="muted">A change that would cut the host's VLAN off SSH or the console is refused here; it can be made only on the command line, at the host.</p></section>{% endif %}
+{% endif %}
+
+{% elif view == 'new-vlan' %}
 <p><a href="{{ here() }}">← {{ n.site }}'s VLANs</a></p>
 <section class="card"><h2>Add VLAN at {{ n.site }}</h2>
 {% if can('dhcp:write') %}<form method="post" action="/networks/plan/{{ n.site | urlencode }}/vlans" class="grid">{{ csrf() }}
@@ -30,7 +58,6 @@
 <label>Subnet (empty: 10.{{ n.block or n.suggested_block or 'n' }}.&lt;VLAN&gt;.0/24; at another location, give it)<input name="subnet"></label>
 <label>A record only, with no subnet<select name="no_subnet"><option value="off">no: give it a subnet</option><option value="on">yes</option></select></label>
 <label>Gateway (empty: the first host)<input name="gateway"></label>
-<label>Access<select name="access"><option value="full">full (fabric's services)</option><option value="guest">guest (DNS and NTP only)</option></select></label>
 {{ onoff('dhcp', 'Served by DHCP', true) }}
 <label>Suggested ranges in a /24<select name="split"><option value="on">add them</option><option value="off">none</option></select></label>
 <label>Relay (only when it lies outside the subnet)<input name="relay"></label>
@@ -152,7 +179,7 @@ the plan keep their networks. Waits for <strong>Apply</strong>; nothing restarts
 
 {% elif vlan %}
 <p><a href="{{ here() }}">← {{ n.site }}'s VLANs</a></p>
-{{ p.facts(vlan.label ~ " (" ~ vlan.name ~ ")", [("Location", vlan.location or "this DC's own"), ("Access", vlan.access), ("Purpose", vlan.purpose or None), ("Notes", vlan.notes or None)]) }}
+{{ p.facts(vlan.label ~ " (" ~ vlan.name ~ ")", [("Location", vlan.location or "this DC's own"), ("Purpose", vlan.purpose or None), ("Notes", vlan.notes or None)]) }}
 <section class="card"><h2>Its subnets <span class="muted">{{ vlan.subnets | length }}</span></h2>
 {% if vlan.subnets %}{% call p.list(["Subnet", "Name", "In use", "DHCP"]) %}{% for x in vlan.subnets %}<tr>
 <td data-label="Subnet"><a href="{{ here('&subnet=' ~ (x.name | urlencode)) }}">{{ x.cidr }}</a>{{ netbar(x, false) }}</td><td data-label="Name">{{ x.name }}</td>
@@ -166,7 +193,6 @@ the plan keep their networks. Waits for <strong>Apply</strong>; nothing restarts
 <label>Purpose<input name="purpose" value="{{ vlan.purpose or '' }}" maxlength="200"></label>
 <label>Notes<input name="notes" value="{{ vlan.notes or '' }}" maxlength="500"></label>
 <label>Location (empty: this DC's own; its subnets move with it)<input name="to_location" value="{{ vlan.location or '' }}"></label>
-<label>Access<select name="access"><option value="full"{{ ' selected' if vlan.access == 'full' }}>full (fabric's services)</option><option value="guest"{{ ' selected' if vlan.access == 'guest' }}>guest (DNS and NTP only)</option></select></label>
 <div><button>Save VLAN</button></div></form></section>
 <section class="card"><h2>Add subnet</h2>
 <form method="post" action="/networks/plan/{{ n.site | urlencode }}/subnets" class="grid">{{ csrf() }}{{ back(vlan_id=vlan.ref) }}<input type="hidden" name="vlan" value="{{ vlan.ref }}">
@@ -220,8 +246,9 @@ the plan keep their networks. Waits for <strong>Apply</strong>; nothing restarts
 </section>
 
 <section class="card"><h2>VLANs at {{ n.site }}{% if n.block %} <span class="muted">number {{ n.block }}</span>{% endif %}</h2>
-{% if n.vlans %}{% call p.list(["VLAN", "Name", "Access", "Subnets"]) %}{% for vlan in n.vlans %}<tr>
-<td data-label="VLAN"><a href="{{ here('&vlan=' ~ (vlan.ref | urlencode)) }}">{{ vlan.id }}</a>{% if vlan.location %} <span class="muted">at {{ vlan.location }}</span>{% endif %}</td><td data-label="Name">{{ vlan.name }}{% if vlan.purpose %} <span class="muted">{{ vlan.purpose }}</span>{% endif %}</td><td data-label="Access">{{ vlan.access }}</td>
+{% if n.access %}<p><a class="btn" href="{{ here('&view=rules') }}">Access rules ({{ n.access.rules | length }})</a> <span class="muted">which networks reach which of fabric's services</span></p>{% endif %}
+{% if n.vlans %}{% call p.list(["VLAN", "Name", "Subnets"]) %}{% for vlan in n.vlans %}<tr>
+<td data-label="VLAN"><a href="{{ here('&vlan=' ~ (vlan.ref | urlencode)) }}">{{ vlan.id }}</a>{% if vlan.location %} <span class="muted">at {{ vlan.location }}</span>{% endif %}</td><td data-label="Name">{{ vlan.name }}{% if vlan.purpose %} <span class="muted">{{ vlan.purpose }}</span>{% endif %}</td>
 <td data-label="Subnets">{% for x in vlan.subnets %}<div class="subnet"><a href="{{ here('&subnet=' ~ (x.name | urlencode)) }}">{{ x.cidr }}</a>{% if x.name != vlan.name %} ({{ x.name }}){% endif %} <span class="muted">{{ x.counts.used }}/{{ x.counts.size }} in use{% if x.counts.unrecorded %} · {{ x.counts.unrecorded }} unrecorded{% endif %}{% if not x.dhcp %} · DHCP off{% endif %}</span>{{ netbar(x, false) }}</div>{% else %}<span class="muted">a record only (no subnet)</span>{% endfor %}</td></tr>{% endfor %}{% endcall %}
 {% else %}{% call p.empty("No VLANs in " ~ n.site ~ "'s plan yet.") %}{% if can('dhcp:write') %}<a class="btn" href="{{ here('&view=new-vlan') }}">Add VLAN</a>{% endif %}{% endcall %}{% endif %}
 </section>

@@ -1,7 +1,8 @@
 import copy
 
-from webui.devpreview.fabric_rules import (CATALOGUE, ValidationError, effective_options, export_plan, networks_view,
-                                           settings_options, site_plan, suggest_split, suggest_subnet)
+from webui.devpreview.fabric_rules import (CATALOGUE, ValidationError, check_cut_off, check_rule, effective_options,
+                                           effective_rules, export_plan, networks_view, rule_networks, rule_number,
+                                           rules_view, settings_options, site_plan, suggest_split, suggest_subnet)
 from webui.devpreview.sample_networks import (SAMPLE_NETWORK_LEASES, SAMPLE_NETWORK_READ, SAMPLE_NETWORK_VARS,
                                               SAMPLE_SCAN, SAMPLE_SCAN_REQUESTS, SAMPLE_SYNC)
 
@@ -40,7 +41,8 @@ def _overview(state, site):
     sites = [{"name": s["name"], "own": s["name"] == HERE} for s in read["sites"]]
     out = networks_view(SAMPLE_NETWORK_VARS, read, site, sites, SAMPLE_NETWORK_LEASES if site == HERE else None)
     out.update(own=HERE, stale="", error="", leases_error="", scan_requests_error="",
-               scan_requests=[] if site == HERE else SAMPLE_SCAN_REQUESTS, sync=SAMPLE_SYNC if site == HERE else None)
+               scan_requests=[] if site == HERE else SAMPLE_SCAN_REQUESTS, sync=SAMPLE_SYNC if site == HERE else None,
+               access=rules_view(SAMPLE_NETWORK_VARS, site_plan(read, site), site == HERE))
     return out
 
 
@@ -123,6 +125,36 @@ def _vlan_add(plan, site, block, body):
     return {**NOTHING, "result": {"id": int(vid), "name": name}, "site": site, "own": site == HERE}
 
 
+def _rules(record, plan, site, rest, body):
+    """Purpose: A change to a site's access rules on the sample, in memory (manual 1.10.4.48.5): checked by
+             fabriclib's own check_rule and check_cut_off, so the preview refuses what the agent refuses.
+    Inputs:  record — the site's record in the sample (rules kept on it); plan — the site's plan; site — str; rest —
+             the segments after the site; body — dict (from, service, action, at; to).
+    Returns: the answer.
+    Fails:   ValidationError as the agent refuses (a bad rule or number, the host's VLAN cut off).
+    Feeds:   _change."""
+    whole = {**plan, "site": site, "rules": record.get("rules") or [], "rules_kept": bool(record.get("rules_kept"))}
+    rules = effective_rules(whole)
+    if rest == ["rules"]:
+        at = str(body.get("at") or "") or str(len(rules) + 1)
+        if not at.isdigit() or not 1 <= int(at) <= len(rules) + 1:
+            raise ValidationError(f"--at {at}: a rule's number, 1 to {len(rules) + 1}")
+        rules.insert(int(at) - 1, check_rule(body.get("from"), body.get("service"), body.get("action"), whole))
+    else:
+        n = rule_number(rest[1], rules)
+        if rest[2] == "delete":
+            rules.pop(n - 1)
+        else:
+            rules.insert(rule_number(body.get("to", ""), rules) - 1, rules.pop(n - 1))
+    if not rules:
+        raise ValidationError("a site keeps one rule at least: to deny everything, add `host any deny`")
+    cut = check_cut_off(rules, rule_networks(SAMPLE_NETWORK_VARS if site == HERE else {}, whole))
+    if cut:
+        raise ValidationError(cut)
+    record.update(rules=rules, rules_kept=True)
+    return {**NOTHING, "result": {"rules": rules}, "site": site, "own": site == HERE}
+
+
 def _change(state, route, body):
     """Purpose: A change to a site's plan on the sample, in memory: the number, a VLAN added or removed, an address
              recorded or removed, a scan's find recorded; the others answer done with nothing changed.
@@ -134,6 +166,8 @@ def _change(state, route, body):
     site = HERE if route[:2] == ["ipam", "scan"] else _site(state, route[1])
     plan, rest = read["plans"][site], (["addresses"] if route[:2] == ["ipam", "scan"] else route[2:])
     record = next(s for s in read["sites"] if s["name"] == site)
+    if rest[:1] == ["rules"]:
+        return _rules(record, plan, site, rest, body)
     if rest == ["block"]:
         number = str(body.get("number", ""))
         if not number.isdigit() or not 1 <= int(number) <= 255:

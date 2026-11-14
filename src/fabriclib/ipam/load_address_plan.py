@@ -7,6 +7,10 @@ from fabriclib.ipam.options.merge_option_sets import merge_option_sets
 from fabriclib.ipam.options.plan_digest import plan_digest
 from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp
 from fabriclib.ipam.read_plan import read_plan
+from fabriclib.ipam.rules.dhcp_allowed import dhcp_allowed
+from fabriclib.ipam.rules.rule_networks import rule_networks
+from fabriclib.ipam.rules.seed_site_rules import seed_site_rules
+from fabriclib.ipam.rules.service_sources import service_sources
 
 
 def _add_records(final_vars, records):
@@ -104,8 +108,11 @@ def load_address_plan(final_vars, secrets, container="samba", digest=None):
     else:
         plan = site_plan(read, final_vars["site_name"])
         save_plan_cache(plan)
+        lines += seed_site_rules(final_vars, plan, secrets, container)
     rendered = plan_to_dhcp(plan)
-    final_vars["dhcp"] = {**d, "subnets": rendered["subnets"]}
+    final_vars["dhcp"] = {**d, "subnets": dhcp_allowed(rendered["subnets"], final_vars, plan)}
+    final_vars["access_sources"] = service_sources(final_vars, plan)
+    final_vars["access_networks"] = rule_networks(final_vars, plan)["any"]
     _globals(final_vars, d, rendered)
     if digest is not None:              # kept by the caller once BIND took it, never before (2.3.10.5.6)
         digest["dns"] = plan_digest(rendered)["dns"]

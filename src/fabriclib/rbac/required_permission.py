@@ -103,6 +103,8 @@ POST = {
     # the address manager (manual 1.10.4.35): dhcp:write here, and the grant's networks right at the site,
     # checked by fabric-agent in each function (1.10.4.34)
     ("networks", "*", "block"): "dhcp:write", ("networks", "*", "vlans"): "dhcp:write",
+    ("networks", "*", "rules"): "dhcp:write", ("networks", "*", "rules", "*", "delete"): "dhcp:write",
+    ("networks", "*", "rules", "*", "move"): "dhcp:write",
     ("networks", "*", "vlans", "*"): "dhcp:write", ("networks", "*", "vlans", "*", "delete"): "dhcp:write",
     ("networks", "*", "subnets"): "dhcp:write", ("networks", "*", "subnets", "*"): "dhcp:write",
     ("networks", "*", "subnets", "*", "delete"): "dhcp:write", ("networks", "*", "ranges"): "dhcp:write",

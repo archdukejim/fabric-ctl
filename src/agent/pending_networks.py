@@ -93,6 +93,14 @@ def describe_networks(route, body):
     gone = sub[-1:] == ["delete"]
     if sub == ["block"]:
         return f"Set the site's number to {b.get('number', '')}{where}"
+    if sub[0] == "rules":                   # the site's access rules (1.10.4.48.5)
+        if len(sub) == 1:
+            at = f" as number {b['at']}" if b.get("at") else ""
+            return (f"Add access rule from {b.get('from', '')} service {b.get('service', '')} "
+                    f"{b.get('action', '')}{at}{where}")
+        if gone:
+            return f"Remove access rule {sub[1]}{where}"
+        return f"Move access rule {sub[1]} to {b.get('to', '')}{where}"
     if sub[0] == "vlans":
         if len(sub) == 1:
             at = f"@{b['location']}" if b.get("location") else ""      # another location of the site (1.10.4.46)

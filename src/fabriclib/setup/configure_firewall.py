@@ -9,6 +9,7 @@ from fabriclib.consent.plan_firewall import plan_firewall
 from fabriclib.consent.plan_own_rules import plan_own_rules
 from fabriclib.consent.plan_ports import plan_ports
 from fabriclib.security.apply_docker_firewall import apply_docker_firewall
+from fabriclib.security.apply_ping_rules import apply_ping_rules
 from fabriclib.security.firewall_rules import firewall_rules
 from fabriclib.security.host_own_rules import OWN_RULES, host_own_rules
 from fabriclib.security.ssh_ports import ssh_ports
@@ -158,6 +159,12 @@ def run(ctx):
             subprocess.run(["ufw", "delete", *r.split()[1:]], capture_output=True)
             warn(f"host firewall: removed the host's own rule: {r}")
     subprocess.run(["ufw", "--force", "enable"], check=True, capture_output=True)
+    ping = apply_ping_rules(ctx.vars, ctx.config_dir)       # 2.1.10.56: ping from the networks the rules allow
+    if ping["changed"]:
+        subprocess.run(["ufw", "reload"], check=True, capture_output=True)
+    info("host firewall: ping answered from " + (", ".join(ping["from"]) or "no network") + "; IPv6 ping not answered")
+    for why in ping["skipped"]:
+        warn(f"host firewall: ping: {why}")
 
     lib = os.path.join(ctx.target_dir, "lib")
     with open(UNIT, "w") as f:

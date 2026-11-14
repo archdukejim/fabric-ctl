@@ -414,15 +414,11 @@ cert_acme_lifetime_hours: {{ cert_acme_lifetime_hours | default('1128h') }}
 bind_dns_port: {{ 5053 if (dns_filter | default('bind', true) | lower) == 'bind' and _bind_port == 53 else _bind_port }}
 bind9_doh_port: {{ bind9_doh_port | default(8053) }}
 {% set _fabric_subnet = fabric_subnet | default('10.255.0.0/24') %}
-{# DHCP's full subnets resolve through fabric like the LAN (2.1.10.4; guest subnets only through the filter) #}
-{% set _dhcp_full = ((dhcp | default({}, true)).subnets | default([], true) | rejectattr('access', 'defined')
-                     | map(attribute='subnet') | list) if install_kea | default(false) | bool else [] %}
-{% set _dhcp_full = _dhcp_full + (((dhcp | default({}, true)).subnets | default([], true)
-                     | selectattr('access', 'defined') | selectattr('access', 'equalto', 'full')
-                     | map(attribute='subnet') | list) if install_kea | default(false) | bool else []) %}
+{# the networks the site's access rules allow dns (manual 1.10.4.48.3), when given; an apply adds them after it
+   reads the plan (deploy/check_settings). A served subnet is no longer allowed by being served (2.1.10.53). #}
 {% set default_acls = {
   'acme-updaters': [_fabric_subnet],
-  'dns-resolvers': ['127.0.0.1', lan_cidr, _fabric_subnet] + _dhcp_full
+  'dns-resolvers': ['127.0.0.1', lan_cidr, _fabric_subnet] + ((access_sources | default({}, true)).dns | default([]))
 } %}
 {% set final_bind_acls = default_acls %}
 {% if bind_acls is defined %}

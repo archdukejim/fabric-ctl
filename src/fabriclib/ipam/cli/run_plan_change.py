@@ -9,6 +9,9 @@ from fabriclib.ipam.remove_address import remove_address
 from fabriclib.ipam.remove_range import remove_range
 from fabriclib.ipam.remove_subnet import remove_subnet
 from fabriclib.ipam.remove_vlan import remove_vlan
+from fabriclib.ipam.rules.add_rule import add_rule
+from fabriclib.ipam.rules.move_rule import move_rule
+from fabriclib.ipam.rules.remove_rule import remove_rule
 from fabriclib.ipam.set_address import set_address
 from fabriclib.ipam.set_block import set_block
 from fabriclib.ipam.set_subnet import set_subnet
@@ -35,7 +38,7 @@ def _vlan(v, sub, rest, vals, bare, site, common):
     if sub == "add" and len(rest) == 1 and "--name" in vals:
         out = add_vlan(v, "root", rest[0], vals["--name"], site, vals.get("--subnet", ""),
                        "--no-subnet" in bare, vals.get("--gateway", ""), vals.get("--purpose", ""),
-                       vals.get("--notes", ""), vals.get("--access", "full"),
+                       vals.get("--notes", ""), "full",
                        on_off(vals["--dhcp"], "--dhcp") if "--dhcp" in vals else True, vals.get("--relay", ""),
                        vals.get("--allow-overlap", ""), "--no-split" not in bare, **common)
         r = out["result"]
@@ -48,7 +51,7 @@ def _vlan(v, sub, rest, vals, bare, site, common):
         return report_change(v, out, bare)
     if sub == "set" and len(rest) == 1:
         out = set_vlan(v, "root", rest[0], site, name=keep(vals, "--name"), purpose=keep(vals, "--purpose"),
-                       notes=keep(vals, "--notes"), access=keep(vals, "--access"),
+                       notes=keep(vals, "--notes"),
                        gateway=keep(vals, "--gateway", clear=True),
                        dhcp=keep(vals, "--dhcp", convert=on_off), relay=keep(vals, "--relay", clear=True),
                        allow_overlap=keep(vals, "--allow-overlap", clear=True),
@@ -128,10 +131,34 @@ def _address(v, cmd, sub, rest, vals, bare, site, common):
     return None
 
 
+def _rule(v, sub, rest, vals, bare, site, common):
+    """Purpose: `rule add|remove|move` (manual 1.10.4.48.5): the change, what it did and the list after, then applied.
+    Inputs:  as run_plan_change, with sub the subcommand and rest its positionals; --force taken here only.
+    Returns: exit status, or None when the arguments are not a rule change.
+    Fails:   ValidationError from the rules' functions.
+    Feeds:   run_plan_change."""
+    force = "--force" in bare
+    if sub == "add" and len(rest) == 3:
+        out = add_rule(v, "root", rest[0], rest[1], rest[2], vals.get("--at"), site, force, **common)
+    elif sub == "remove" and len(rest) == 1:
+        out = remove_rule(v, "root", rest[0], site, force, **common)
+    elif sub == "move" and len(rest) == 2:
+        out = move_rule(v, "root", rest[0], rest[1], site, force, **common)
+    else:
+        return None
+    r = out["result"]
+    print(f"site {out['site']}: {r['did']}" + (" (forced: the host's VLAN is cut off)" if r["forced"] else ""))
+    for n, rule in enumerate(r["rules"], 1):
+        print(f"  {n} from {rule['from']} service {rule['service']} {rule['action']}")
+    print("  * from any service any deny")
+    return report_change(v, out, bare)
+
+
 def run_plan_change(v, cmd, pos, vals, bare, site, secrets=None, container="samba"):
-    """Purpose: `fabricctl ipam block <n>` and `vlan|subnet|range|address add|set|remove` (manual 1.10.4.16): each the
-             plan's function it names, run as root (acting for the Enterprise Admin), its result printed, then
-             applied here or left to the other site's poll (report_change). Routes only.
+    """Purpose: `fabricctl ipam block <n>`, `rule add|remove|move` (1.10.4.48.5) and `vlan|subnet|range|address
+             add|set|remove` (manual 1.10.4.16): each the plan's function it names, run as root (acting for the
+             Enterprise Admin), its result printed, then applied here or left to the other site's poll
+             (report_change). Routes only.
     Inputs:  v — the rendered vars; cmd — the command; pos — its positionals; vals, bare — the flags (parse_args);
              site — --site's value ("" this site); secrets, container — as the plan's functions.
     Returns: exit status, or None when cmd and its arguments are not a change (the caller prints the usage).
@@ -150,6 +177,8 @@ def run_plan_change(v, cmd, pos, vals, bare, site, secrets=None, container="samb
         return _vlan(v, sub, rest, vals, bare, site, common)
     if cmd == "subnet":
         return _subnet(v, sub, rest, vals, bare, site, common)
+    if cmd == "rule":
+        return _rule(v, sub, rest, vals, bare, site, common)
     if cmd in ("range", "address"):
         return _address(v, cmd, sub, rest, vals, bare, site, common)
     return None

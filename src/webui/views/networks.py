@@ -1,6 +1,6 @@
 from webui.views.render_page import render_page
 
-VIEWS = ("new-vlan", "number")               # the forms on their own page (Add VLAN, the site's number)
+VIEWS = ("new-vlan", "number", "rules")      # their own page: Add VLAN, the site's number, the access rules
 
 
 def _hits(overview, q):
@@ -56,8 +56,8 @@ def networks(ctx, overview, query):
              requested there, its VLANs with each subnet's bar map), a VLAN's page, a subnet's page (its bar, facts,
              ranges, address table, options and sources, and its forms in sections), an address's page, Add VLAN or
              the site's number on their own page, or a search's matching rows. The forms show only with dhcp:write.
-    Inputs:  ctx — page context; overview — networks_overview's dict; query — dict: view (new-vlan, number), vlan,
-             subnet, address, q.
+    Inputs:  ctx — page context; overview — networks_overview's dict; query — dict: view (new-vlan, number, rules),
+             vlan, subnet, address, q.
     Returns: HTML str.
     Fails:   LookupError for a VLAN, subnet or address that is not there (_shown); Jinja2 errors propagate.
     Feeds:   src/webui/routes/networks_page (/networks); the dev preview."""

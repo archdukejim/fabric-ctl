@@ -13,7 +13,8 @@ http "doh" { endpoints { "/dns-query"; }; };
 tls "group-{{ g.name }}" { ca-file "/etc/bind/fabric-root-ca.crt"; remote-hostname "{{ g.name }}.filter.{{ domain }}"; };
 {% endfor %}
 {% endif %}
-// the networks that may use it: the LAN, fabric's own, and what the firewall lets in
+// the networks that may use it: those the site's access rules allow dns (1.10.4.48.3), fabric's own, and
+// security.firewall_allow
 acl "clients" { {% for c in clients %}{{ c }}; {% endfor %}127.0.0.1; };
 
 options {
@@ -31,6 +32,10 @@ options {
     allow-recursion { clients; };
     allow-query-cache { clients; };
     allow-transfer { none; };
+{% if deny %}
+    // the site's access rules (manual 1.10.4.48.3): a network not allowed dns gets no answer at all, not a refusal
+    blackhole { !127.0.0.1; !{{ host_ip }}; !{{ fabric_subnet }}; {% for n in deny %}{{ n }}; {% endfor %}};
+{% endif %}
     // DNSSEC validated here (2.1.12.7): a resolver that does not validate sets CD on what it forwards, so nothing
     // upstream would. AdGuard passes every DS query, so a blocked name in an unsigned zone stays NXDOMAIN; fabric's
     // own zones are never signed

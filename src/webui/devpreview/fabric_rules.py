@@ -31,10 +31,17 @@ try:                                       # the address manager's pure views (1
     from fabriclib.ipam.options.effective_options import effective_options  # noqa: F401
     from fabriclib.ipam.options.settings_options import settings_options  # noqa: F401
     from fabriclib.ipam.suggestions import suggest_split, suggest_subnet  # noqa: F401
+    from fabriclib.ipam.rules.check_cut_off import check_cut_off  # noqa: F401
+    from fabriclib.ipam.rules.check_rule import check_rule  # noqa: F401
+    from fabriclib.ipam.rules.effective_rules import effective_rules  # noqa: F401
+    from fabriclib.ipam.rules.rule_networks import rule_networks  # noqa: F401
+    from fabriclib.ipam.rules.rule_number import rule_number  # noqa: F401
+    from fabriclib.ipam.rules.rules_view import rules_view  # noqa: F401
 except ImportError:
     CATALOGUE = {}
     site_plan = export_plan = networks_view = effective_options = settings_options = None
     suggest_split = suggest_subnet = None
+    check_cut_off = check_rule = effective_rules = rule_networks = rule_number = rules_view = None
 try:
     from fabriclib.rbac.required_permission import required_permission  # noqa: F401
 except ImportError:

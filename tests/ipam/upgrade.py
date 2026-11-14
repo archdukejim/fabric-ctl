@@ -206,8 +206,9 @@ check("the plan holds the subnets: the settings carry none and a copy is kept", 
 check("the served subnets come from the copy kept; settings that still carry theirs win",
       [s["subnet"] for s in planned_subnets(NOW)] == ["192.168.20.0/24"]
       and planned_subnets({"dhcp": {"subnets": [{"subnet": "10.9.0.0/24"}]}}) == [{"subnet": "10.9.0.0/24"}])
-check("the firewall and BIND's ACLs see the plan's guest subnet between applies",
-      client_networks(NOW)["guest"] == ["192.168.20.0/24"], client_networks(NOW))
+check("the firewall and BIND's ACLs see the plan's subnet between applies (its access no longer read: 2.1.10.58)",
+      client_networks(NOW)["full"] == ["192.168.20.0/24"] and client_networks(NOW)["guest"] == [],
+      client_networks(NOW))
 ov = dhcp_overview({**NOW, "install_kea": False}, networks={})
 check("the Kea tab shows the plan's subnets and says they live in the plan", ov["in_plan"] is True
       and [s["subnet"] for s in ov["subnets"]] == ["192.168.20.0/24"] and ov["has_settings"], ov)

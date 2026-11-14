@@ -19,7 +19,8 @@ CLASSES = {"vlan": ["fabricVlanRecord"], "subnet": ["fabricNetwork", "fabricSubn
            "address": ["fabricAddress"]}
 # an option set (the domain's, or a site's on its record, 2.1.10.34): its lists and their attributes
 SET_FIELDS = {"options": "fabricDhcpOption", "option_defs": "fabricDhcpOptionDef", "client_classes": "fabricDhcpClass"}
-WHATS = ("vlan", "subnet", "range", "address", "block", "options")
+WHATS = ("vlan", "subnet", "range", "address", "block", "options", "rules")
+RULES = "fabricAccessRules"
 # a location's label is an auxiliary class on a VLAN's or a subnet's entry (2.1.10.49, manual 1.10.4.46.2)
 LOCATED = "fabricLocated"
 
@@ -133,6 +134,25 @@ def entry_dn(samdb, change):
     return paths.plan_entry_dn(samdb, site, str(change["subnet"]), below=key)
 
 
+def _write_rules(samdb, change):
+    """Purpose: a site's access rules replaced as one list on its record (manual 1.10.4.48.4): the record given the
+             fabricAccessRules class first when it lacks it, then every fabricAccessRule value replaced at once, so the
+             list is never half written.
+    Inputs:  samdb — SamDB; change — {"site", "fields": {"rules": [{"from", "service", "action"}, ...]}}.
+    Returns: str, what changed.
+    Fails:   ValueError "no such site: <site>"; ldb.LdbError from the read or the change.
+    Feeds:   write_plan."""
+    dn = _record(samdb, change.get("site"))
+    rules = (change.get("fields") or {}).get("rules") or []
+    have = [str(x) for x in samdb.search(base=dn, scope=ldb.SCOPE_BASE, attrs=["objectClass"])[0]["objectClass"]]
+    if RULES not in have:
+        samdb.modify(ldb.Message.from_dict(samdb, {"dn": str(dn), "objectClass": RULES}, ldb.FLAG_MOD_ADD))
+    msg = ldb.Message(dn)
+    msg["fabricAccessRule"] = ldb.MessageElement(values_of(list(rules)), ldb.FLAG_MOD_REPLACE, "fabricAccessRule")
+    samdb.modify(msg)
+    return f"access rules of {change['site']} set ({len(rules)})"
+
+
 def _relabel(samdb, dn, location):
     """Purpose: a VLAN's or a subnet's entry given the location class before its label is written, or rid of it
              once the label is gone (the class holds the attribute; manual 1.10.4.46.2).
@@ -161,7 +181,8 @@ def write_plan(samdb, lp, site, changes):
              ({field: value}; a set field of "" or None is removed; a subnet's or address's "netboot" goes into
              fabricDhcpOption with its options, 2.1.10.25; a VLAN's or subnet's "location" carries the
              fabricLocated class, 2.1.10.49; "block": {"block"}; "options": "options", "option_defs",
-             "client_classes", each replacing its list, 2.1.10.23), "rename" (a VLAN set: its new key, the entry
+             "client_classes", each replacing its list, 2.1.10.23; "rules": {"rules"}, the site's access rules
+             replacing the list, 2.1.10.53), "rename" (a VLAN set: its new key, the entry
              moved there first, 1.10.4.46.3)}.
     Returns: list of str, what changed.
     Fails:   ldb.LdbError from a change AD refuses (the changes before it stay made); ValueError for a change of an
@@ -174,6 +195,9 @@ def write_plan(samdb, lp, site, changes):
             raise ValueError(f"unknown plan change: {do} {what}")
         if what == "options":
             done.append(_write_set(samdb, c))
+            continue
+        if what == "rules":
+            done.append(_write_rules(samdb, c))
             continue
         if what == "block":
             msg = ldb.Message(_record(samdb, c.get("site")))

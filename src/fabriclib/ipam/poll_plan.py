@@ -1,3 +1,4 @@
+import json
 import time
 
 from fabriclib.common.errors import ValidationError
@@ -15,6 +16,7 @@ from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp
 from fabriclib.ipam.read_plan import read_plan
 from fabriclib.ipam.scancontrol.run_scan_requests import run_scan_requests
 from fabriclib.secrets.load_secrets import load_secrets
+from fabriclib.ipam.rules.service_sources import service_sources
 from fabriclib.security.refresh_firewall import refresh_firewall
 
 
@@ -42,7 +44,8 @@ def poll_plan(v, container="samba", secrets=None, render=render_kea, firewall=re
               read=read_plan, force=False, take_lock=None, scans=None, take_alone=None):
     """Purpose: one run of the plan poll (decision 2.1.10.24, manual 1.10.4.26): the DC's USN read; when it moved, the
              site's plan and option sets read and, when what Kea is rendered from changed, Kea alone re-rendered and
-             restarted (render_kea) and the host firewall brought in line when the served subnets changed. Never a
+             restarted (render_kea) and the host firewall brought in line when the served subnets or the networks the
+             site's access rules allow changed (1.10.4.48.3). Never a
              full apply: a change DNS needs is reported and waits for the next apply. Audited when Kea is re-rendered.
              Each run that reads the domain (the USN moved, Sync now, or a request still pending) also answers the
              scans other sites requested (decision 2.1.10.38, scancontrol/run_scan_requests), before Kea.
@@ -89,15 +92,17 @@ def poll_plan(v, container="samba", secrets=None, render=render_kea, firewall=re
         pending = bool(state.get("dns")) and state["dns"] != load_watch_state("plan-dns").get("dns")
         return _scans_done({"state": "unchanged", "usn": now, "dns_pending": pending, "scans": asked})
     site = v["site_name"]
-    served = plan_to_dhcp(site_plan(read(v, secrets, of=site, container=container), site))
+    plan = site_plan(read(v, secrets, of=site, container=container), site)
+    served = plan_to_dhcp(plan)
     digest = plan_digest(served)
+    access = json.dumps(service_sources(v, plan), sort_keys=True)     # the rules' answer (1.10.4.48.3)
     dns_pending = digest["dns"] != load_watch_state("plan-dns").get("dns")
     out = {"usn": now, "dns_pending": dns_pending, "kea_restarted": False, "firewall": False, "scans": asked}
     if not any(s.get("pools") for s in served["subnets"]):
         # nothing for Kea to serve yet (2.1.10.31): not a failure; the next change to the plan moves the USN again
         save_watch_state("plan-watch", {**state, "usn": now, "dns": digest["dns"]})
         return _scans_done({**out, "state": "no subnet", "why": NO_SUBNET})
-    if digest["kea"] == state.get("kea"):
+    if digest["kea"] == state.get("kea") and access == state.get("access"):
         save_watch_state("plan-watch", {**state, "usn": now, "dns": digest["dns"]})
         return _scans_done({**out, "state": "same plan"})
     alone = (take_alone or _try_alone)()     # an apply running or about to run renders Kea itself (2.1.10.45)
@@ -110,7 +115,7 @@ def poll_plan(v, container="samba", secrets=None, render=render_kea, firewall=re
     try:                                      # Kea and the firewall both inside the locks (2.1.10.45)
         done = render(secrets, container=container)
         out["kea_restarted"] = done["changed"]
-        if done["subnets"] != state.get("subnets"):
+        if done["subnets"] != state.get("subnets") or access != state.get("access"):
             ok, output = firewall()
             if not ok:
                 raise ValidationError(f"Kea is rendered from the plan, but the host firewall was not brought in line: "
@@ -120,6 +125,7 @@ def poll_plan(v, container="samba", secrets=None, render=render_kea, firewall=re
         lock.close()
         alone.close()
     save_watch_state("plan-watch", {"usn": now, "kea": digest["kea"], "subnets": done["subnets"], "dns": digest["dns"],
+                                    "access": access,
                                     "rendered": time.strftime("%Y-%m-%d %H:%M:%S"),
                                     "scan_pending": state["scan_pending"]})
     write_audit("root", "IPAM_WATCH_RENDER", f"site={site} usn={now} kea_restarted={out['kea_restarted']} "

@@ -6,6 +6,10 @@ from fabriclib.ipam.common.site_plan import site_plan
 from fabriclib.ipam.export_plan import export_plan
 from fabriclib.ipam.find_in_plan import find_in_plan
 from fabriclib.ipam.read_plan import read_plan
+from fabriclib.ipam.rules.effective_rules import effective_rules
+from fabriclib.ipam.rules.rule_networks import rule_networks
+from fabriclib.ipam.rules.rule_warnings import rule_warnings
+from fabriclib.ipam.rules.show_rules import show_rules
 from fabriclib.ipam.show_plan import show_plan
 from fabriclib.ipam.suggestions import suggest_block
 
@@ -36,7 +40,8 @@ def _print_rows(rows):
 
 
 def run_plan_read(v, cmd, pos, site, secrets=None, container="samba"):
-    """Purpose: `fabricctl ipam show|find|export` and `block` without a number (manual 1.10.4.16, 1.10.4.35): what the
+    """Purpose: `fabricctl ipam show|find|export`, `rule [list]` (the site's access rules, 1.10.4.48.5) and `block`
+             without a number (manual 1.10.4.16, 1.10.4.35): what the
              plan holds, any site of the domain, read as this site's agent account. Routes only.
     Inputs:  v — the rendered vars; cmd — the command; pos — its positionals; site — --site's value ("" none);
              secrets, container — as read_plan.
@@ -61,6 +66,17 @@ def run_plan_read(v, cmd, pos, site, secrets=None, container="samba"):
         read = read_plan(v, secrets, of=pos[0] if pos else "", container=container)
         sys.stdout.write(export_plan(read, pos[0] if pos else "", _leases(v, pos[0] if pos else ""),
                                      v["site_name"]))
+        return 0
+    if cmd == "rule" and pos in ([], ["list"]):
+        which = site or v["site_name"]
+        plan = site_plan(read_plan(v, secrets, of=which, container=container), which)
+        rules = effective_rules(plan)
+        nets = rule_networks(v if which == v["site_name"] else {}, plan)
+        print(f"site {which}: access rules (the first that matches decides)")
+        for line in show_rules(rules, nets, kept=plan["rules_kept"]):
+            print("  " + line)
+        for w in rule_warnings(rules, nets):
+            print(f"warning: {w}")
         return 0
     if cmd == "block" and not pos:
         which = site or v["site_name"]

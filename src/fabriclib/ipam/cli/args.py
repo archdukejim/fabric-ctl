@@ -2,8 +2,8 @@
 from fabriclib.common.errors import ValidationError
 from fabriclib.ipam.common.fields import KEEP
 
-FLAGS = {"--site", "--name", "--subnet", "--gateway", "--purpose", "--notes", "--access", "--dhcp", "--relay",
-         "--allow-overlap", "--kind", "--mac", "--owner", "--dns", "--vlan", "--to-location"}
+FLAGS = {"--site", "--name", "--subnet", "--gateway", "--purpose", "--notes", "--dhcp", "--relay",
+         "--allow-overlap", "--kind", "--mac", "--owner", "--dns", "--vlan", "--to-location", "--at"}
 BARE = {"--no-subnet", "--no-split", "--force", "--no-apply", "--no-ask"}
 
 
@@ -11,11 +11,15 @@ def parse_args(args):
     """Purpose: split command arguments into positionals, --flag values (the last one counts) and bare flags.
     Inputs:  args — list of str.
     Returns: (positionals, {flag: value}, set of bare flags).
-    Fails:   ValidationError for a value flag without a value, or a flag `fabricctl ipam` does not know.
+    Fails:   ValidationError for a value flag without a value, a flag `fabricctl ipam` does not know, or --access
+             (no longer taken, 2.1.10.58).
     Feeds:   ipam/run_ipam_command."""
     pos, vals, bare, i = [], {}, set(), 0
     while i < len(args):
         a = args[i]
+        if a == "--access":                         # 2.1.10.58: the rules decide what a VLAN reaches
+            raise ValidationError("--access is no longer taken (0.9.6): what a VLAN reaches is the site's access "
+                                  "rules: fabricctl ipam rule")
         if a in FLAGS:
             if i + 1 >= len(args):
                 raise ValidationError(f"{a} needs a value")

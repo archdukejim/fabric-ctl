@@ -1,6 +1,5 @@
 import os
 
-from fabriclib.dhcp.client_networks import client_networks
 from fabriclib.common.ensure_dir import ensure_dir
 from fabriclib.common.service_user import service_user
 from fabriclib.common.write_file_if_changed import write_file_if_changed
@@ -12,6 +11,8 @@ from fabriclib.dns_filter.common.resolver_rndc import resolver_rndc
 from fabriclib.dns_filter.common.safe_search import ZONES as SAFE_ZONES, safe_search_records
 from fabriclib.dns_filter.resolver_views import resolver_views
 from fabriclib.pki.common.ca_files import ca_files
+from fabriclib.ipam.rules.access_denied import access_denied
+from fabriclib.ipam.rules.access_sources import access_sources
 
 CONFIG = ("named.conf", "fabric.rpz", "owner.rpz", "rndc.key")
 
@@ -54,9 +55,9 @@ def deploy_resolver(v, secrets, links, jinja_env):
     ctx = {**v, "resolver_rndc_secret": secrets["resolver_rndc_secret"], "zones": filter_zones(v, links),
            "safe_zone": views["safe_zone"], "groups": views["groups"], "client_tls": client_tls,
            "adguard_tls": adguard_tls,
-           "clients": list(dict.fromkeys([v["lan_cidr"], v["fabric_subnet"],
-                                          *(security.get("firewall_allow") or []),
-                                          *client_networks(v)["full"], *client_networks(v)["guest"]]))}
+           "clients": list(dict.fromkeys([*access_sources(v)["dns"], v["fabric_subnet"],
+                                          *(security.get("firewall_allow") or [])])),
+           "deny": access_denied(v)["dns"]}
     files = {name: jinja_env.get_template(f"resolver/config/{name}.j2").render(**ctx) for name in CONFIG}
     if adguard_tls:
         with open(root_ca) as f:

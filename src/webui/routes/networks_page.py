@@ -7,7 +7,8 @@ from webui import views
 def networks_page(h, ctx, path, query):
     """Purpose: DHCP · Networks (manual 1.10.4.40.1): GET /networks shows a site's plan (?site=, this one by default)
              as a list, a VLAN's page (?vlan=<id>), a subnet's (?subnet=<name>), an address's (&address=<ip>), Add
-             VLAN or the site's number on their own page (?view=new-vlan|number), or a search (?q=); GET
+             VLAN, the site's number or its access rules on their own page (?view=new-vlan|number|rules), or a search
+             (?q=); GET
              /networks/export downloads the site's address table as CSV.
     Inputs:  h — the request handler (send, deny); ctx — page context; path — "/networks" or "/networks/export";
              query — dict: site, view, vlan, subnet, address, q.

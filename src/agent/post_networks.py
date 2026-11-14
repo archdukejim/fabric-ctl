@@ -13,6 +13,9 @@ from fabriclib.ipam.remove_address import remove_address
 from fabriclib.ipam.remove_range import remove_range
 from fabriclib.ipam.remove_subnet import remove_subnet
 from fabriclib.ipam.remove_vlan import remove_vlan
+from fabriclib.ipam.rules.add_rule import add_rule
+from fabriclib.ipam.rules.move_rule import move_rule
+from fabriclib.ipam.rules.remove_rule import remove_rule
 from fabriclib.ipam.set_address import set_address
 from fabriclib.ipam.set_block import set_block
 from fabriclib.ipam.set_subnet import set_subnet
@@ -67,16 +70,24 @@ def _change(v, actor, site, sub, data, caller):
     Feeds:   post_networks."""
     web = {"source": "web", "caller": caller}
     t = read_text
+    if "access" in data:                 # 2.1.10.58: what a VLAN reaches is the site's access rules'
+        raise ValidationError("a VLAN's access is no longer set (0.9.6): change the site's access rules")
+    if sub == ["rules"]:                 # the site's access rules (1.10.4.48.5); never --force from here (2.1.10.57)
+        return add_rule(v, actor, t(data, "from"), t(data, "service"), t(data, "action"), t(data, "at"), site, **web)
+    if len(sub) == 3 and sub[0] == "rules" and sub[2] == "delete":
+        return remove_rule(v, actor, sub[1], site, **web)
+    if len(sub) == 3 and sub[0] == "rules" and sub[2] == "move":
+        return move_rule(v, actor, sub[1], t(data, "to"), site, **web)
     if sub == ["block"]:
         return set_block(v, actor, t(data, "number"), site, **web)
     if sub == ["vlans"]:
         return add_vlan(v, actor, _vid(t(data, "id")), t(data, "name"), site, t(data, "subnet"),
                         _flag(data, "no_subnet", False), t(data, "gateway"), t(data, "purpose"), t(data, "notes"),
-                        t(data, "access") or "full", _flag(data, "dhcp", True), t(data, "relay"),
+                        "full", _flag(data, "dhcp", True), t(data, "relay"),
                         t(data, "allow_overlap"), _flag(data, "split", True), location=t(data, "location"), **web)
     if len(sub) == 2 and sub[0] == "vlans":
         return set_vlan(v, actor, _vid(sub[1]), site, name=_keep(data, "name"), purpose=_keep(data, "purpose"),
-                        notes=_keep(data, "notes"), access=_keep(data, "access"),
+                        notes=_keep(data, "notes"),
                         to_location=_keep(data, "to_location"), **web)
     if len(sub) == 3 and sub[0] == "vlans" and sub[2] == "delete":
         return remove_vlan(v, actor, _vid(sub[1]), site, _flag(data, "force", False), **web)
@@ -112,15 +123,17 @@ def _change(v, actor, site, sub, data, caller):
 def post_networks(route, actor, data, caller=None, apply=True):
     """Purpose: the Networks tab's changes to a site's address plan (manual 1.10.4.21.5, 1.10.4.35): POST
              /v1/networks/<site>/block, /vlans, /vlans/<id>, /vlans/<id>/delete, /subnets, /subnets/<name>,
-             /subnets/<name>/delete, /ranges, /ranges/delete, /addresses, /addresses/<ip>, /addresses/<ip>/delete.
+             /subnets/<name>/delete, /ranges, /ranges/delete, /addresses, /addresses/<ip>, /addresses/<ip>/delete,
+             /rules, /rules/<n>/delete, /rules/<n>/move (the site's access rules, 1.10.4.48.5).
              Any site of the domain; each change is the ipam function `fabricctl ipam` calls, which checks the
              signed-in person's networks `plan` right at that site first (fabric-agent's check_access, 1.10.4.34),
              writes as this site's agent account and audits, source web. Then apply_plan_change: this site's plan
              applied with the firewall in line, another site's left to its poll; a site's number is never applied
              (it shapes suggestions only).
     Inputs:  route — ["networks", <site>, …]; actor — the verified user; data — the body: number (block); id, name,
-             subnet, no_subnet, gateway, purpose, notes, access, dhcp, relay, allow_overlap, split (a VLAN); name,
-             purpose, notes, access (a VLAN changed: a field left out stays); vlan, cidr, name, gateway, dhcp, relay,
+             subnet, no_subnet, gateway, purpose, notes, dhcp, relay, allow_overlap, split (a VLAN); name,
+             purpose, notes (a VLAN changed: a field left out stays); from, service, action, at (a rule added); to
+             (a rule moved); access is refused (2.1.10.58); vlan, cidr, name, gateway, dhcp, relay,
              notes, allow_overlap, split (a subnet); gateway, dhcp, relay, notes, allow_overlap (a subnet changed);
              force (a removal with its recorded addresses); vlan, kind, first, last, notes (a range); vlan, first (a
              range removed); ip, kind, name, mac, owner, notes, dns, vlan (an address); kind, name, mac, owner,

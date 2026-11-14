@@ -582,7 +582,7 @@ import ipaddress  # noqa: E402
 
 from fabriclib.dhcp.client_networks import client_networks  # noqa: E402
 from fabriclib.dhcp.place_subnets import place_subnets  # noqa: E402
-from fabriclib.security.apply_docker_firewall import _rules as docker_rules  # noqa: E402
+from fabriclib.security.apply_docker_firewall import _published_ports, _rules as docker_rules  # noqa: E402
 # fabric's LAN address in this block is the PRISTINE LAN's (the hardening suite renders with host_ip 127.0.0.1)
 kv_any_host, kv = kv, {**kv, "host_ip": "192.168.7.53"}
 nets = {"eth0": [ipaddress.ip_interface(f"{kv['host_ip']}/24")], "eth1": [ipaddress.ip_interface("10.20.0.10/24")]}
@@ -610,8 +610,9 @@ for bad, msg in (({"access": "staff"}, "access is full"), ({"relay": "not-an-ip"
     except ValidationError as e:
         assert msg in str(e), (msg, str(e))
 served = client_networks(lab)
-assert served == {"full": ["192.168.7.0/24", "10.20.0.0/24"], "guest": ["10.30.0.0/24"],
-                  "full_addrs": [kv["host_ip"], "10.20.0.10"], "guest_addrs": [kv["host_ip"]]}, served
+# a subnet's access is no longer read (2.1.10.58): every served subnet is listened on; the rules decide who is answered
+assert served == {"full": ["192.168.7.0/24", "10.20.0.0/24", "10.30.0.0/24"], "guest": [],
+                  "full_addrs": [kv["host_ip"], "10.20.0.10"], "guest_addrs": []}, served
 lab["dhcp_served"] = served
 k4 = json.loads("\n".join(ln for ln in env.get_template("kea/kea-dhcp4.conf.j2").render(**lab).splitlines()
                           if not ln.strip().startswith("//")))["Dhcp4"]
@@ -641,14 +642,18 @@ assert {"10.20.0.10:53:53/udp", "10.20.0.10:853:853/tcp", f"{kv['host_ip']}:53:5
 nports = yaml.safe_load(env.get_template("nginx/docker-compose.yml.j2").render(**lab))["services"]["nginx"]["ports"]
 assert "10.20.0.10:443:443" in nports and nports.count(f"{kv['host_ip']}:443:443") == 1, nports
 kv = kv_any_host                  # the rest takes host_ip as the caller gave it
-labvars = yaml.safe_load(env.get_template("vars.yaml.j2").render(**{**lab, "install_kea": True}))
-assert {"10.20.0.0/24", "192.168.7.0/24"} <= set(labvars["bind_acls"]["dns-resolvers"]) \
-    and "10.30.0.0/24" not in labvars["bind_acls"]["dns-resolvers"], labvars["bind_acls"]
-guest = [r for r in docker_rules(["192.168.7.0/24", "10.20.0.0/24"], (), ["10.30.0.0/24"]) if "10.30.0.0/24" in r]
-assert sorted(r[r.index("--ctorigdstport") + 1] + "/" + r[r.index("-p") + 1] for r in guest) \
-    == ["53/tcp", "53/udp", "853/tcp"], guest
+# what each network reaches is the site's access rules' (1.10.4.48.3): only the networks allowed dns join the ACL
+allowed = {s: ["192.168.7.0/24"] for s in ("ntp", "dhcp", "web", "ad", "radius", "ssh", "ping")}
+allowed["dns"] = ["192.168.7.0/24", "10.30.0.0/24"]
+labvars = yaml.safe_load(env.get_template("vars.yaml.j2").render(**{**lab, "install_kea": True,
+                                                                     "access_sources": allowed}))
+assert {"10.30.0.0/24", "192.168.7.0/24"} <= set(labvars["bind_acls"]["dns-resolvers"]) \
+    and "10.20.0.0/24" not in labvars["bind_acls"]["dns-resolvers"], labvars["bind_acls"]
+dns_only = [r for r in docker_rules(allowed, _published_ports({})) if "10.30.0.0/24" in r]
+assert sorted(r[r.index("--ctorigdstport") + 1] + "/" + r[r.index("-p") + 1] for r in dns_only) \
+    == ["53/tcp", "53/udp", "853/tcp"], dns_only
 print("DHCP beyond the host's LAN: subnets placed on their interfaces (or a relay), each told fabric's address there, "
-      "the resolver and nginx listening on it, guests DNS only")
+      "the resolver and nginx listening on it, a network allowed dns alone reaching only the DNS ports")
 # reverse DNS for DHCP's clients (2.1.10.7, manual 1.10.3.4)
 from fabriclib.dhcp.dhcp_reverse_zones import dhcp_reverse_zones  # noqa: E402
 from fabriclib.dns.reverse_zones import reverse_zones  # noqa: E402

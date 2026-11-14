@@ -5,6 +5,8 @@ from fabriclib.ipam.networks_view import networks_view
 from fabriclib.ipam.read_plan import read_plan
 from fabriclib.ipam.scancontrol.list_scan_requests import list_scan_requests
 from fabriclib.ipam.sync.sync_status import sync_status
+from fabriclib.ipam.common.site_plan import site_plan
+from fabriclib.ipam.rules.rules_view import rules_view
 
 
 def _cached(site):
@@ -34,7 +36,8 @@ def networks_overview(v, site="", secrets=None, container="samba"):
              "error" (why nothing could be read, else ""), "leases_error" ("" or why Kea's leases are missing),
              "scan_requests" (the site shown's scan requests and their answers, list_scan_requests, 1.10.4.36),
              "scan_requests_error" ("" or why they could not be read), "sync" (sync_status for this site, None for
-             another: the Sync now card, 2.1.10.29).
+             another: the Sync now card, 2.1.10.29), "access" (the site's access rules, rules_view: 1.10.4.48.5; None
+             when nothing could be read).
     Fails:   ValidationError from read_plan for another site ("no such site: <S>", the DC not answering); OSError
              from the kept copy.
     Feeds:   agent route GET /v1/networks[/<site>] (dhcp:read)."""
@@ -66,6 +69,7 @@ def networks_overview(v, site="", secrets=None, container="samba"):
             asked = list_scan_requests(v, which, secrets, container)
         except ValidationError as exc:
             asked_error = str(exc)
+    out["access"] = rules_view(v, site_plan(answer, which), which == own) if not error else None
     out.update(own=own, stale=stale, error=error, leases_error=leases_error, scan_requests=asked,
                scan_requests_error=asked_error, sync=sync_status(v) if which == own else None)
     return out

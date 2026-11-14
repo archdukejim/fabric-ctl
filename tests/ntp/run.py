@@ -110,8 +110,12 @@ st = chrony_settings(site_v, reg)
 check("a site asks its upstream site first, then its own sources",
       [s["host"] for s in st["sources"]] == [SRV_A, "time.cloudflare.com"] and st["sources"][0]["prefer"], st)
 # covers: setting:security +
-check("it serves the LAN, the VPN and every DHCP subnet, nothing else",
-      st["allow"] == [SUB_A, "10.8.0.0/24", "192.168.20.0/24"], st["allow"])
+check("it serves the host's VLAN (the default rule) and security.firewall_allow; a subnet only the settings name is "
+      "not among the site's networks (manual 1.10.4.48.3)",
+      st["allow"] == [SUB_A, "10.8.0.0/24"], st["allow"])
+ruled = chrony_settings({**site_v, "access_sources": {"ntp": [SUB_A, "192.168.20.0/24"]}}, reg)
+check("it serves the networks the site's access rules allow ntp, then security.firewall_allow",
+      ruled["allow"] == [SUB_A, "192.168.20.0/24", "10.8.0.0/24"], ruled["allow"])
 
 # --- a site serving its network (no sources: its own clock), rendered by deploy_chrony
 srv_root, site_root = os.path.join(W, "srv"), os.path.join(W, "site")

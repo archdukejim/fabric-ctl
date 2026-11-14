@@ -263,6 +263,48 @@ with serve():
           in apply_page, main(apply_page)[:800])
     post("/changes/networks/discard", {})
 
+    print("--- the site's access rules (manual 1.10.4.48.5)")
+    page = get("/networks?site=lan&view=rules")
+    check("Access rules: the default rule with its ports, the implied deny, the Add form; no --force anywhere",
+          "Access rules at lan" in page and "from host" in page.replace("</td><td data-label=\"From\">", "from ")
+          and "implied" in page and "53/udp" in page and 'action="/networks/plan/lan/rules"' in page
+          and 'name="force"' not in page, main(page)[:1500])
+    check("the site's list links to it", "view=rules" in get("/networks?site=lan"))
+    def rule_rows():
+        return re.findall(r'<td data-label="#">(\d+)</td><td data-label="From">([\w@]+).*?data-label="Service">(\w+)<'
+                          r'.*?data-label="Action">.*?(allow|deny)', get("/networks?site=lan&view=rules"), re.S)
+    n = len(rule_rows())          # the sample is an upgraded site: the rules kept from what its VLANs reached
+    # covers: web:post.networks.plan.*.rules web:post.networks.plan.*.rules.*.move +
+    # covers: web:post.networks.plan.*.rules.*.delete +
+    for path, form, said in (("/networks/plan/lan/rules", {"from": "20", "service": "ssh", "action": "deny"},
+                              "Add access rule from 20 service ssh deny at lan"),
+                             ("/networks/plan/lan/rules", {"from": "any", "service": "radius", "action": "deny"},
+                              "Add access rule from any service radius deny at lan"),
+                             (f"/networks/plan/lan/rules/{n + 2}/move", {"to": "1"},
+                              f"Move access rule {n + 2} to 1 at lan"),
+                             (f"/networks/plan/lan/rules/{n + 2}/delete", {}, f"Remove access rule {n + 2} at lan")):
+        st, loc, page = post(path, form)
+        check(f"{path}: held, saying {said!r}, back on the Access rules page",
+              f"Waiting for Apply: {said}" in flash(page) and loc == "/networks?site=lan&view=rules", (loc, flash(page)))
+    review = apply("networks")
+    rows = rule_rows()
+    check("...applied in order: rule 1 is any's radius deny, VLAN 20's ssh deny gone, one rule more",
+          "plan to Kea and the firewall" in review and rows[:1] == [("1", "any", "radius", "deny")]
+          and ("20", "ssh", "deny") not in [r[1:] for r in rows] and len(rows) == n + 1, (n, rows))
+    # covers: web:post.networks.plan.*.rules web:post.networks.plan.*.rules.*.move -
+    # covers: web:post.networks.plan.*.rules.*.delete -
+    for path, form, words in (("/networks/plan/lan/rules", {"from": "host", "service": "ssh", "action": "deny",
+                                                            "at": "1", "force": "on"}, "without ssh"),
+                              ("/networks/plan/lan/rules", {"from": "20", "service": "smtp", "action": "allow"},
+                               "service &#39;smtp&#39;"),
+                              ("/networks/plan/lan/rules/99/move", {"to": "1"}, "numbered 1 to"),
+                              ("/networks/plan/lan/rules/99/delete", {}, "numbered 1 to")):
+        post(path, form)
+        review = apply("networks")
+        check(f"{path}: refused at Apply, saying why ({words}); the console never takes --force",
+              words in review or words.replace("&#39;", "'") in review, main(review)[:800])
+        post("/changes/networks/discard", {})
+
     print("--- done at once: Sync now, Scan now, Scan at <site>")
     # covers: web:post.networks.sync +
     st, loc, page = post("/networks/sync", {})
