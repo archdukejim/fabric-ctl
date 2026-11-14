@@ -20,6 +20,7 @@ from webui.agentclient.ca_summary import ca_summary  # noqa: F401
 from webui.agentclient.convert_cert import convert_cert  # noqa: F401
 from webui.agentclient.create_person import create_person  # noqa: F401
 from webui.agentclient.create_tsig_key import create_tsig_key  # noqa: F401
+from webui.agentclient.tsig_choices import tsig_choices  # noqa: F401
 from webui.agentclient.delete_record import delete_record  # noqa: F401
 from webui.agentclient.delete_tsig_key import delete_tsig_key  # noqa: F401
 from webui.agentclient.describe_csr import describe_csr  # noqa: F401

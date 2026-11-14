@@ -103,7 +103,7 @@ published:
     keycloak:   {var: image_fabric_keycloak, tag: "0.9.5-rc.344", digest: "sha256:8d0e4cdb929fa58556d5f22d1fe2b8400a1d2284a7ec616cc8c13c13339947c7", source: "sha256:959fee075a7826341979c0d03be1041f3030429677424512af8d9af92a223f2c"}
     samba:      {var: image_fabric_samba, tag: "0.9.5-rc.344", digest: "sha256:4090f33bd3e0f809ea9db7825f2f17bb1ca1d8402eb375e22c9f2cb860321885", source: "sha256:8776a13b98656f07dcdd428d7269a8b7071d7f847611c6e1673f9de50372b80a", groups: "BIND_GID=600,RADIUS_GID=610"}
     stepca:     {var: image_fabric_stepca, tag: "", digest: "", pending: "its sources changed since 0.9.5-rc.344 (the certificate reader, 2.1.5.13, 0.10.0): built and published again with 0.10.0"}
-    webui:      {var: image_fabric_webui, tag: "", digest: "", pending: "its sources changed since 0.9.5-rc.344 (PKI Issued and Lifetimes, 2.1.5.13, 2.1.5.14, 0.10.0): built and published again with 0.10.0"}
+    webui:      {var: image_fabric_webui, tag: "", digest: "", pending: "its sources changed since 0.9.5-rc.344 (TSIG keys by mode, Edit names, records with their aliases: 2.1.4.12 to 2.1.4.14; PKI Issued and Lifetimes: 2.1.5.13, 2.1.5.14; 0.10.0): built and published again with 0.10.0", account: webui, ids: "606:606"}
 
 # Packages installed into fabric's own images from an upstream's signed apt
 # repository (not Debian's): the exact version and the signing key's

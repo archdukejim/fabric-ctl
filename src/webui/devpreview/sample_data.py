@@ -68,9 +68,16 @@ SAMPLE = {
     },
     "audit": ["[dev] User: dev (web) | Action: LOGIN | dev preview — no certificate, no Keycloak\n"],
     "tsig": [{"name": "npm-certbot", "algorithm": "hmac-sha256", "types": "TXT",
-              "scope": "_acme-challenge.npm.home.arpa, _acme-challenge.nas.home.arpa", "acls": ["certbot-devices"]},
+              "scope": "_acme-challenge.nas.home.arpa; fabric and its aliases (_acme-challenge.fabric.home.arpa, "
+                       "_acme-challenge.ca.home.arpa, _acme-challenge.dns.home.arpa, _acme-challenge.info.home.arpa, "
+                       "_acme-challenge.sso.home.arpa)",
+              "acls": ["certbot-devices"], "domain": "home.arpa", "mode": "acme", "records": ["nas"],
+              "with_aliases": [{"record": "fabric", "names": ["fabric", "ca", "dns", "info", "sso"]}],
+              "primary": False, "any_name": False,
+              "notes": ["2026-11-14: npm dropped: the record was removed"]},
              {"name": "home.arpa-acme", "algorithm": "hmac-sha256", "types": "TXT",
-              "scope": "_acme-challenge (zone home.arpa)", "acls": []}],
+              "scope": "_acme-challenge (zone home.arpa)", "acls": [], "domain": "home.arpa", "mode": "custom",
+              "records": [], "with_aliases": [], "primary": True, "any_name": False, "notes": []}],
     "directory": {
         "roles": [{"name": "trusted", "description": "Managed laptops and phones", "priority": 10, "vlan": 10,
                    "permissions": ["dns:dhcp-register", "network:eap-tls", "pki:acme"], "members": ["jims-laptop",

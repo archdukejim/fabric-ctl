@@ -6,6 +6,7 @@ from agent.pending_filter import filter_check, filter_finish, filter_page_of, fi
 from agent.pending_networks import networks_grant, networks_page_of
 from agent.pending_store import PendingStore
 from agent.pending_thing import PAGES, describe_change, pending_page_of, thing_state
+from agent.pending_tsig import tsig_check
 from agent.route_not_found import RouteNotFound
 from fabriclib.common.apply_intent import apply_intent
 from fabriclib.common.errors import ValidationError
@@ -87,8 +88,8 @@ def _finish(page, routes=()):
 
 def _finish_dns(routes):
     """Purpose: What DNS' changes need once all are done: the BIND-only deploy (dns/apply_dns, decision 2.1.8.24) when
-             any of them is a record, a landing-page link or a TSIG key's removal; a zone's add and removal publish
-             themselves (dns/publish_zone_list).
+             any of them is a record, a landing-page link, a TSIG key's removal or its names (2.1.4.13); a zone's add
+             and removal publish themselves (dns/publish_zone_list).
     Inputs:  routes — the routes being applied.
     Returns: (what, fn(actor)), or None; fn returns what its row of the Review says once done: "", that the
              landing page's certificate waits for a full apply (decision 2.1.8.29), and/or that the filtering
@@ -140,9 +141,11 @@ def _finish_plan(page, routes):
 PENDING = PendingStore(run=_run, state=lambda route, body: thing_state(route, body, load_vars()),
                        need=lambda route: required_permission("POST", route),
                        start_job=JOBS.start, finish=_finish,
-                       # the address manager's grant; the DNS filter's change as fabriclib checks it (1.12.3.17)
+                       # the address manager's grant; the DNS filter's change as fabriclib checks it (1.12.3.17);
+                       # a TSIG key's Edit names as DNS' Apply would run it (1.4.1.9.3)
                        check=lambda owner, route, body: (networks_grant(load_vars(), owner, route, body)
                                                          or filter_check(owner, route, body)
+                                                         or tsig_check(load_vars(), route, body)
                                                          or _check_lifetimes(route, body)),
                        # the address manager's Apply: written, then applied; the plan poll leaves Kea to it (2.1.10.45)
                        around=lambda page: apply_intent() if page in ("networks", "options")

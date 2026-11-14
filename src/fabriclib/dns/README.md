@@ -42,7 +42,18 @@ seconds (`publish_zone_list.py`).
 | `remove_tsig_key.py` | Remove a TSIG key, its secret, its `key` entries in every ACL and the `rfc2136.ini` fabric wrote for it (locked, audited) |
 | `list_tsig_keys.py` | TSIG keys with their effective update rights (own + ACL policies) and ACLs |
 | `replace_tsig_secret.py` | Give a key a secret you supply, or a newly generated one (locked, audited) |
-| `update_tsig_key.py` | Change what a key may update: records, any name, types, zone, algorithm, `rfc2136.ini` path; secret untouched (locked, audited) |
+| `update_tsig_key.py` | Change what a key may update: records, any name, types, zone, algorithm, `rfc2136.ini` path, or an Edit names change (`edit_tsig_names`); secret untouched (locked, audited) |
+| `edit_tsig_names.py` | A key's names added or removed one at a time, a record with its aliases added or removed whole, a Custom key's scope and types; every refusal of 1.4.1.9.3 (2.1.4.13) |
+| `zone_records_for.py` | A zone's records found by the zone's name (a key's `domain`) |
+| `record_aliases.py` | An A or AAAA record's aliases in its zone: every CNAME pointing at it, chains included, loops cut (2.1.4.14) |
+| `alias_grants.py` | What each key's `records_with_aliases` grants as the zone is now: BIND's grants at every render, and the key's page (2.1.4.14) |
+| `key_record_choices.py` | The zone's A, AAAA and CNAME names a key's names are picked from, an address with its aliases (2.1.4.12) |
+| `tsig_key_mode.py` | A key's mode as shown: ACME (DNS-01) when it holds no more than ACME mode gives, else Custom (2.1.4.12) |
+| `acme_picks.py` | ACME mode's picks checked against the zone's records (the console's New key, `tsig add --mode acme`) |
+| `ask_tsig_scope.py` | `tsig add` with no scope: the mode, the zone and its records (or Custom's scopes) asked in a terminal |
+| `drop_removed_names.py` | A record removed: its grant dropped from the zone's ACME keys, with a note (2.1.4.12) |
+| `rename_tsig_names.py` | A record renamed (the host's own): the site zone's keys granted the new name (2.1.4.12) |
+| `tsig_record_notice.py` | The keys a new CNAME gives a right (an alias of a record held with its aliases): the Review's row and the audit (2.1.4.14) |
 | `rfc2136_settings.py` | The `rfc2136.ini` text a certbot-style client needs for one key (used by apply and the web UI) |
 | `create_zone_tsig_key.py` | Web UI: a new key limited to one forward zone and one scope (listed hosts' ACME, zone ACME, any name + types) |
 | `rotate_tsig_key.py` | Web UI: new generated secret for a key, returned with its `rfc2136.ini` text |

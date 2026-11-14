@@ -8,6 +8,7 @@ GET = {
     "status:read",
     ("jobs", "*"): "session",
     ("zones",): "dns:read", ("zones", "*"): "dns:read", ("reverse-zones",): "dns:read", ("tsig",): "dns:read",
+    ("tsig-choices", "*"): "dns:read",            # a zone's records a TSIG key's names are picked from (2.1.4.12)
     ("audit",): "audit:read",
     ("dhcp",): "dhcp:read",
     # the address manager (manual 1.10.4.35): any site of the domain is read
@@ -63,6 +64,7 @@ POST = {
     ("pki", "lifetimes"): "pki:settings",              # held for PKI's Apply (2.1.5.14)
     ("pki", "issue"): "pki:issue", ("pki", "convert"): "pki:issue",
     ("tsig",): "tsig:manage", ("tsig", "*", "rotate"): "tsig:manage", ("tsig", "*", "delete"): "tsig:manage",
+    ("tsig", "*", "update"): "tsig:manage",       # Edit names, held for DNS' Apply (2.1.4.13)
     ("vault", "rotate"): "vault:unlock", ("vault", "slots", "add-usb"): "vault:unlock",
     ("vault", "slots", "add-security-key"): "vault:unlock", ("vault", "slots", "add-hsm"): "vault:unlock",
     ("vault", "slots", "*", "test"): "vault:unlock", ("vault", "slots", "*", "remove"): "vault:unlock",

@@ -1,4 +1,5 @@
 from fabriclib.deploy.check_settings import check_settings
+from fabriclib.dns.alias_grants import alias_grants
 from fabriclib.dns.reverse_by_hand import reverse_by_hand
 from fabriclib.dns.reverse_zones import reverse_zones
 from fabriclib.federation.dns_links import dns_links
@@ -11,10 +12,12 @@ def check_rendered(final_vars, secrets, context, federation_file):
              2.1.10.21): the site's address plan (load_address_plan: the DHCP subnets and static names, manual
              1.10.4.14), the settings check (check_settings: DHCP placed and normalized, `dhcp_reverse_zones` where
              Kea registers PTRs), then the reverse zones, the PTRs set by hand that Kea's key may never replace
-             (2.1.10.20) and the federation links.
+             (2.1.10.20), the federation links, and the names each TSIG key's `records_with_aliases` grants as the
+             zone is now (2.1.4.14: the aliases follow the zone, at every render of BIND's grants).
     Inputs:  final_vars — render_vars' settings, changed in place (dhcp, dns, dhcp_served, dhcp_reverse_zones, ...);
              secrets — fabric's secrets (the agent's password for the plan, the federation keys); context — the
-             render context, changed in place (reverse_zone_names, reverse_by_hand, federation_links);
+             render context, changed in place (reverse_zone_names, reverse_by_hand, federation_links,
+             tsig_alias_grants: {key: sorted names});
              federation_file — the federation registry's path.
     Returns: {"lines": list of str to show (where the plan came from, names left out), "reverse": reverse_zones(),
              "dns_digest": what DNS is rendered from out of the plan (plan_digest's "dns"), or None when DNS is not
@@ -30,4 +33,7 @@ def check_rendered(final_vars, secrets, context, federation_file):
     context["reverse_by_hand"] = reverse_by_hand(reverse)      # PTRs DHCP's key may never replace (2.1.10.20)
     # federation (manual 1.9 M4): delegations, secondary zones and TSIG keys for the sites next to this one
     context["federation_links"] = dns_links(final_vars, secrets, federation_file)
+    # a key's records with their aliases, worked out from the zone as it is now (2.1.4.14, manual 1.4.1.9.4)
+    context["tsig_alias_grants"] = {key: sorted({n for names in covered.values() for n in names})
+                                    for key, covered in alias_grants(final_vars).items()}
     return {"lines": lines, "reverse": reverse, "dns_digest": digest.get("dns")}
