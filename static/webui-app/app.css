@@ -36,6 +36,9 @@ th{color:var(--muted);font-weight:500;font-size:13px}
 td form{margin:0;display:inline-flex;gap:6px;align-items:center;vertical-align:middle}
 td form+form{margin-left:6px}
 td:has(>form){white-space:nowrap}
+/* the access rules, edited in their rows (2.1.10.61): a row's buttons side by side, its forms kept out of the cells */
+table.rules td:last-child{white-space:nowrap}table.rules td:last-child button+button{margin-left:6px}
+.rowforms{display:none}
 .num{text-align:right;font-variant-numeric:tabular-nums}
 .pill{display:inline-block;padding:1px 10px;border:1px solid var(--border-strong);border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
 .pill.ok{color:var(--ok);background:var(--ok-soft);border-color:var(--ok)}.pill.bad{color:var(--bad);background:var(--bad-soft);border-color:var(--bad)}

@@ -101,7 +101,7 @@ def post_action(h, sess, path, form):
         return changes_post(h, _segments(path, 2), form)
     if path.startswith("/account/"):                     # My account (1.8.6.6): the password, Groups I manage
         return account_post(h, _segments(path, 2), form)
-    if path.startswith("/networks/"):                  # DHCP · Networks and DHCP options (1.10.4.40)
+    if path.startswith("/networks/"):                  # Networks: Segments, Access rules, DHCP options (1.10.4.40)
         return networks_post(h, sess, _segments(path, 2), form)
     if path.startswith("/kea/"):
         return kea_post(h, _segments(path, 2), form)

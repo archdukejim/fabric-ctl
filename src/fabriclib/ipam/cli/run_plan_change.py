@@ -12,6 +12,7 @@ from fabriclib.ipam.remove_vlan import remove_vlan
 from fabriclib.ipam.rules.add_rule import add_rule
 from fabriclib.ipam.rules.move_rule import move_rule
 from fabriclib.ipam.rules.remove_rule import remove_rule
+from fabriclib.ipam.rules.set_rule import set_rule
 from fabriclib.ipam.set_address import set_address
 from fabriclib.ipam.set_block import set_block
 from fabriclib.ipam.set_subnet import set_subnet
@@ -132,7 +133,8 @@ def _address(v, cmd, sub, rest, vals, bare, site, common):
 
 
 def _rule(v, sub, rest, vals, bare, site, common):
-    """Purpose: `rule add|remove|move` (manual 1.10.4.48.5): the change, what it did and the list after, then applied.
+    """Purpose: `rule add|set|remove|move` (manual 1.10.4.48.5): the change, what it did and the list after, then
+             applied.
     Inputs:  as run_plan_change, with sub the subcommand and rest its positionals; --force taken here only.
     Returns: exit status, or None when the arguments are not a rule change.
     Fails:   ValidationError from the rules' functions.
@@ -140,6 +142,8 @@ def _rule(v, sub, rest, vals, bare, site, common):
     force = "--force" in bare
     if sub == "add" and len(rest) == 3:
         out = add_rule(v, "root", rest[0], rest[1], rest[2], vals.get("--at"), site, force, **common)
+    elif sub == "set" and len(rest) == 4:
+        out = set_rule(v, "root", rest[0], rest[1], rest[2], rest[3], vals.get("--at"), site, force, **common)
     elif sub == "remove" and len(rest) == 1:
         out = remove_rule(v, "root", rest[0], site, force, **common)
     elif sub == "move" and len(rest) == 2:
@@ -155,7 +159,7 @@ def _rule(v, sub, rest, vals, bare, site, common):
 
 
 def run_plan_change(v, cmd, pos, vals, bare, site, secrets=None, container="samba"):
-    """Purpose: `fabricctl ipam block <n>`, `rule add|remove|move` (1.10.4.48.5) and `vlan|subnet|range|address
+    """Purpose: `fabricctl ipam block <n>`, `rule add|set|remove|move` (1.10.4.48.5) and `vlan|subnet|range|address
              add|set|remove` (manual 1.10.4.16): each the plan's function it names, run as root (acting for the
              Enterprise Admin), its result printed, then applied here or left to the other site's poll
              (report_change). Routes only.

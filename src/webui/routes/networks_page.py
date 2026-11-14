@@ -1,23 +1,28 @@
 import re
+import urllib.parse
 
 from webui import agentclient as actions
 from webui import views
 
 
 def networks_page(h, ctx, path, query):
-    """Purpose: DHCP · Networks (manual 1.10.4.40.1): GET /networks shows a site's plan (?site=, this one by default)
-             as a list, a VLAN's page (?vlan=<id>), a subnet's (?subnet=<name>), an address's (&address=<ip>), Add
-             VLAN, the site's number or its access rules on their own page (?view=new-vlan|number|rules), or a search
-             (?q=); GET
-             /networks/export downloads the site's address table as CSV.
-    Inputs:  h — the request handler (send, deny); ctx — page context; path — "/networks" or "/networks/export";
+    """Purpose: Networks · Segments (manual 1.10.4.40.1): GET /networks shows a site's plan (?site=, this one by
+             default) as a list, a VLAN's page (?vlan=<id>), a subnet's (?subnet=<name>), an address's
+             (&address=<ip>), Add VLAN or the site's number on their own page (?view=new-vlan|number), or a search
+             (?q=); GET /networks/rules is Networks · Access rules, the site's rules (2.1.10.61; the old
+             ?view=rules redirects there); GET /networks/export downloads the site's address table as CSV.
+    Inputs:  h — the request handler (send, deny, redirect); ctx — page context; path — "/networks",
+             "/networks/rules" or "/networks/export";
              query — dict: site, view, vlan, subnet, address, q.
-    Returns: 200 the page; 200 text/csv as an attachment; 404 for a site, VLAN, subnet or address that is not there
+    Returns: 200 the page; 303 from ?view=rules to /networks/rules; 200 text/csv as an attachment; 404 for a site, VLAN,
+             subnet or address that is not there
              (decision 2.1.8.16).
     Fails:   agent errors propagate to handle_request (400 the DC not answering for another site, 403 without
              dhcp:read, 503 the agent down).
     Feeds:   get_page."""
     site = query.get("site", "")
+    if path == "/networks" and query.get("view") == "rules":       # the old address of the rules (2.1.10.61)
+        return h.redirect("/networks/rules" + ("?" + urllib.parse.urlencode({"site": site}) if site else ""))
     try:
         if path == "/networks/export":
             res = actions.networks_export(site or actions.networks_overview()["site"])
@@ -28,6 +33,9 @@ def networks_page(h, ctx, path, query):
     except actions.NotFound as exc:
         return h.deny(404, f"Not found: {exc}.")
     try:
-        return h.send(200, views.networks(ctx, overview, query))
+        if path == "/networks/rules":
+            return h.send(200, views.networks(ctx, overview, {"site": site, "view": "rules"}))
+        return h.send(200, views.networks(ctx, overview, {**query, "view": "" if query.get("view") == "rules"
+                                                          else query.get("view", "")}))
     except LookupError as exc:
         return h.deny(404, f"Not found: {exc.args[0]}.")

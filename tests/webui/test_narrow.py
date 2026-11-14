@@ -39,6 +39,7 @@ PAGES = ["/", "/overview/doctor", "/overview/updates", "/audit", "/dns/zones", "
          "/dns-filter?view=lists", "/dns-filter?view=rules", "/dns-filter?view=querylog", "/dns-filter?view=settings",
          "/kea", "/networks", "/networks?site=parents", "/networks?site=lan&vlan=20", "/networks?site=lan&subnet=iot",
          "/networks?site=lan&subnet=iot&address=10.1.20.150", "/networks?site=lan&view=new-vlan", "/networks/scan",
+         "/networks/rules",
          "/networks/options", "/networks/options?site=lan&target=subnet:iot",
          "/pki", "/pki?view=sign", "/pki?view=issue", "/pki?view=inspect", "/pki?view=convert",
          "/pki?view=issued", "/pki/acme", "/directory", "/directory/people", "/directory/people/jim",

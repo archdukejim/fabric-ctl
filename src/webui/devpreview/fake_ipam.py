@@ -129,7 +129,7 @@ def _rules(record, plan, site, rest, body):
     """Purpose: A change to a site's access rules on the sample, in memory (manual 1.10.4.48.5): checked by
              fabriclib's own check_rule and check_cut_off, so the preview refuses what the agent refuses.
     Inputs:  record — the site's record in the sample (rules kept on it); plan — the site's plan; site — str; rest —
-             the segments after the site; body — dict (from, service, action, at; to).
+             the segments after the site; body — dict (from, service, action, at; to: a move or a change).
     Returns: the answer.
     Fails:   ValidationError as the agent refuses (a bad rule or number, the host's VLAN cut off).
     Feeds:   _change."""
@@ -140,6 +140,15 @@ def _rules(record, plan, site, rest, body):
         if not at.isdigit() or not 1 <= int(at) <= len(rules) + 1:
             raise ValidationError(f"--at {at}: a rule's number, 1 to {len(rules) + 1}")
         rules.insert(int(at) - 1, check_rule(body.get("from"), body.get("service"), body.get("action"), whole))
+    elif len(rest) == 2:                         # a rule changed where it stands, or moved with it (2.1.10.61)
+        n = rule_number(rest[1], rules)
+        m = rule_number(body.get("to") or str(n), rules)
+        rule = check_rule(body.get("from"), body.get("service"), body.get("action"), whole)
+        if rule == rules[n - 1] and m == n:
+            raise ValidationError(f"nothing to change: rule {n} is already from {rule['from']} service "
+                                  f"{rule['service']} {rule['action']}")
+        rules.pop(n - 1)
+        rules.insert(m - 1, rule)
     else:
         n = rule_number(rest[1], rules)
         if rest[2] == "delete":
@@ -148,6 +157,11 @@ def _rules(record, plan, site, rest, body):
             rules.insert(rule_number(body.get("to", ""), rules) - 1, rules.pop(n - 1))
     if not rules:
         raise ValidationError("a site keeps one rule at least: to deny everything, add `host any deny`")
+    seen = [(r["from"], r["service"], r["action"]) for r in rules]
+    twice = next((i for i, k in enumerate(seen, 1) if k in seen[:i - 1]), None)
+    if twice:
+        raise ValidationError(f"rule {twice} (from {seen[twice - 1][0]} service {seen[twice - 1][1]} "
+                              f"{seen[twice - 1][2]}) is already in the list")
     cut = check_cut_off(rules, rule_networks(SAMPLE_NETWORK_VARS if site == HERE else {}, whole))
     if cut:
         raise ValidationError(cut)

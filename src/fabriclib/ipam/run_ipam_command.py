@@ -20,6 +20,7 @@ USAGE = """usage: fabricctl ipam show [<site>]                    a site's VLANs
        fabricctl ipam rule [list]                      the site's access rules, numbered, with their ports
        fabricctl ipam rule add host|any|<vlan> dns|ntp|dhcp|web|ad|radius|ssh|ping|any allow|deny [--at N]
                                [--force]
+       fabricctl ipam rule set <n> host|any|<vlan> <service> allow|deny [--at M] [--force]
        fabricctl ipam rule remove <n> [--force]
        fabricctl ipam rule move <n> <m> [--force]
                                (the first rule that matches decides; anything no rule allows gets no answer;

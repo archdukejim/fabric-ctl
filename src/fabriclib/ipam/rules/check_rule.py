@@ -10,7 +10,7 @@ def check_rule(source, service, action, plan):
     Returns: {"from", "service", "action"}, lower case, the VLAN as vlan_ref writes it.
     Fails:   ValidationError naming what is wrong: a source that is not host, any or a VLAN of this site's plan; a
              service or an action that is not one.
-    Feeds:   add_rule."""
+    Feeds:   add_rule, set_rule."""
     src = str(source or "").strip().lower()
     if src not in (HOST, ANY):
         vid, location = parse_vlan_ref(src)

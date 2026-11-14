@@ -16,8 +16,10 @@ NAV = [
     ("account", "My account", [("/account", "My account", ()), ("/account/groups", "Groups I manage", ())]),
     ("dns", "DNS", [("/dns/zones", "Zones", ("dns:read",)),
                     ("/dns-filter", "DNS filter", ("dns:filter", "dns:querylog"))]),
-    ("dhcp", "DHCP", [("/networks", "Networks", ("dhcp:read",)), ("/networks/options", "DHCP options", ("dhcp:read",)),
-                      ("/kea", "Kea", ("dhcp:read",))]),
+    # Networks (DHCP until 0.10.0, 2.1.10.61): a site's segments, its access rules, DHCP's options and Kea
+    ("networks", "Networks", [("/networks", "Segments", ("dhcp:read",)),
+                              ("/networks/rules", "Access rules", ("dhcp:read",)),
+                              ("/networks/options", "DHCP options", ("dhcp:read",)), ("/kea", "Kea", ("dhcp:read",))]),
     ("pki", "PKI", [("/pki", "Certificates", ("pki:read",)), ("/pki/acme", "ACME", ("pki:read",))]),
     ("directory", "Directory", [("/directory", "Overview", ("domain:read",)),
                                 ("/directory/tree", "Browse", ("domain:read",)),

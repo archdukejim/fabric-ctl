@@ -36,6 +36,7 @@ from fabriclib.ipam.rules.dhcp_allowed import dhcp_allowed  # noqa: E402
 from fabriclib.ipam.rules.effective_rules import effective_rules  # noqa: E402
 from fabriclib.ipam.rules.move_rule import move_rule  # noqa: E402
 from fabriclib.ipam.rules.remove_rule import remove_rule  # noqa: E402
+from fabriclib.ipam.rules.set_rule import set_rule  # noqa: E402
 from fabriclib.ipam.rules.rule_networks import rule_networks  # noqa: E402
 from fabriclib.ipam.rules.rule_warnings import rule_warnings  # noqa: E402
 from fabriclib.ipam.rules.seed_rules import seed_rules  # noqa: E402
@@ -241,7 +242,19 @@ for name, fn, words in (
                                                       secrets=SEC, source="web", caller="nina"),
          "only on the command line"),
         ("a number that is no rule", lambda: remove_rule(V, "root", "12", secrets=SEC), "numbered 1 to 7"),
-        ("a move onto itself", lambda: move_rule(V, "root", "2", "2", secrets=SEC), "nothing to change")):
+        ("a move onto itself", lambda: move_rule(V, "root", "2", "2", secrets=SEC), "nothing to change"),
+        ("set: a change that changes nothing", lambda: set_rule(V, "root", "7", "50", "dhcp", "allow", secrets=SEC),
+         "nothing to change"),
+        ("set: a number that is no rule", lambda: set_rule(V, "root", "12", "50", "dns", "allow", secrets=SEC),
+         "numbered 1 to 7"),
+        ("set: a place that is no rule", lambda: set_rule(V, "root", "7", "50", "dns", "allow", to="9",
+                                                         secrets=SEC), "numbered 1 to 7"),
+        ("set: made equal to another rule", lambda: set_rule(V, "root", "7", "host", "any", "allow", secrets=SEC),
+         "already in the list"),
+        ("set: an unknown service", lambda: set_rule(V, "root", "7", "50", "smtp", "allow", secrets=SEC),
+         "service 'smtp'"),
+        ("set: the host's VLAN cut off", lambda: set_rule(V, "root", "1", "host", "dns", "allow", secrets=SEC),
+         "without ssh")):
     calls.clear()
     check(f"negative: refused, nothing written: {name}", refused(fn, words) is True
           and not [c for c in calls if c[0] == "write"], (refused(fn, words), calls))
@@ -256,6 +269,18 @@ check("positive: move: rule 7 becomes rule 2", out["result"]["rules"][1] == rule
 out = remove_rule(V, "root", "7", secrets=SEC)
 check("positive: remove: the rule gone, the rest kept in order", len(out["result"]["rules"]) == 6
       and rule("50", "dhcp") not in out["result"]["rules"], out["result"])
+calls.clear()
+out = set_rule(V, "root", "7", "50", "dns", "deny", secrets=SEC)
+check("positive: set: rule 7 changed where it stands, the rest kept, audited IPAM_RULE_SET",
+      out["result"]["rules"][6] == rule("50", "dns", "deny") and out["result"]["rules"][:6] == SIX["rules"][:6]
+      and [c[1] for c in calls if c[0] == "audit"] == ["IPAM_RULE_SET"], (out["result"], calls))
+out = set_rule(V, "root", "7", "50", "dhcp", "deny", to="2", secrets=SEC)
+check("positive: set with a new number: changed and moved in one change", out["result"]["rules"][1]
+      == rule("50", "dhcp", "deny") and len(out["result"]["rules"]) == 7 and "now 2" in out["result"]["did"],
+      out["result"])
+out = set_rule(V, "root", "6", "any", "ntp", "allow", to="1", secrets=SEC)
+check("positive: set may only move a rule (the same rule, a new number)", out["result"]["rules"][0]
+      == rule("any", "ntp"), out["result"])
 out = add_rule(V, "root", "any", "dns", "allow", site="cabin", secrets=SEC)
 check("positive: another site's rules: its own list (the default first), judged by host and any alone",
       out["site"] == "cabin" and out["result"]["rules"] == [rule("host", "any"), rule("any", "dns")], out["result"])
@@ -283,6 +308,14 @@ check("positive: `ipam rule add` says what it did and the list after", code == 0
 code, text = cli(["rule", "add", "40", "telnet", "allow"])
 check("negative: `ipam rule add` with an unknown service: refused, exit 1", code == 1 and "service 'telnet'" in text,
       text)
+code, text = cli(["rule", "set", "7", "50", "dns", "deny", "--at", "1"])
+check("positive: `ipam rule set` says what it changed and the list after", code == 0
+      and "changed rule 7, now 1: from 50 service dns deny" in text and "  1 from 50 service dns deny" in text, text)
+code, text = cli(["rule", "set", "7", "50", "dhcp", "allow"])
+check("negative: `ipam rule set` that changes nothing: refused, exit 1", code == 1 and "nothing to change" in text,
+      text)
+code, text = cli(["rule", "set", "7", "50"])
+check("negative: `ipam rule set` without service and action: usage, exit 2", code == 2 and "usage:" in text, text)
 code, text = cli(["rule", "add", "40"])
 check("negative: `ipam rule add` without service and action: usage, exit 2", code == 2 and "usage:" in text, text)
 code, text = cli(["rule", "add", "host", "web", "deny", "--at", "1"])
@@ -299,11 +332,14 @@ m_edit.load_secrets = lambda: SEC
 m_post.apply_plan_change = lambda v, actor, out, apply=True: APPLIED.append(out["site"]) or {**out, "own": True}
 ROUTES = [(["rules"], {"from": "40", "service": "ntp", "action": "allow"}, {"from": "40", "service": "x"}, "service"),
           (["rules", "3", "delete"], {}, {}, None),
-          (["rules", "2", "move"], {"to": "1"}, {"to": "77"}, "numbered 1 to")]
+          (["rules", "2", "move"], {"to": "1"}, {"to": "77"}, "numbered 1 to"),
+          (["rules", "7"], {"from": "50", "service": "dns", "action": "deny", "to": "1"},
+           {"from": "50", "service": "x", "action": "deny"}, "service")]
 for sub, body, bad, words in ROUTES:
     del APPLIED[:]
     calls.clear()
     # covers: agent:post.networks.*.rules agent:post.networks.*.rules.*.delete agent:post.networks.*.rules.*.move +
+    # covers: agent:post.networks.*.rules.* +
     out = m_post.post_networks(["networks", "house", *sub], "alice", body, caller="alice")
     check(f"positive: POST /v1/networks/<site>/{'/'.join(sub)}: written as the signed-in person, source web, applied",
           [c for c in calls if c[0] == "write"] and calls[0] == ("check", "alice", "networks:plan")
@@ -312,6 +348,7 @@ for sub, body, bad, words in ROUTES:
     calls.clear()
     bad_sub = ["rules", "99", sub[2]] if len(sub) == 3 else sub
     # covers: agent:post.networks.*.rules agent:post.networks.*.rules.*.delete agent:post.networks.*.rules.*.move -
+    # covers: agent:post.networks.*.rules.* -
     check(f"negative: refused: POST /v1/networks/<site>/{'/'.join(sub)}: nothing written or applied",
           refused(lambda: m_post.post_networks(["networks", "house", *bad_sub], "alice", bad, "alice"),
                   words or "numbered 1 to") is True and not APPLIED
@@ -326,12 +363,18 @@ check("negative: a VLAN's access is refused from the console (2.1.10.58)",
               "no longer set") is True)
 check("positive: each rule route needs dhcp:write", all(required_permission("POST", r) == "dhcp:write" for r in (
     ["networks", "house", "rules"], ["networks", "house", "rules", "2", "delete"],
-    ["networks", "house", "rules", "2", "move"])))
+    ["networks", "house", "rules", "2", "move"], ["networks", "house", "rules", "2"])))
 check("positive: a held rule change in a sentence",
       describe_networks(["networks", "house", "rules"], {"from": "40", "service": "ntp", "action": "allow"})
       == "Add access rule from 40 service ntp allow at house"
       and describe_networks(["networks", "house", "rules", "3", "move"], {"to": "1"})
-      == "Move access rule 3 to 1 at house")
+      == "Move access rule 3 to 1 at house"
+      and describe_networks(["networks", "house", "rules", "7"], {"from": "50", "service": "dns", "action": "deny",
+                                                                 "to": "1"})
+      == "Change access rule 7 to from 50 service dns deny as number 1 at house"
+      and describe_networks(["networks", "house", "rules", "7"], {"from": "50", "service": "dns", "action": "deny",
+                                                                 "to": "7"})
+      == "Change access rule 7 to from 50 service dns deny at house")
 
 print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")
 sys.exit(1 if FAILED else 0)

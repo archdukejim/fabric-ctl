@@ -100,6 +100,10 @@ def describe_networks(route, body):
                     f"{b.get('action', '')}{at}{where}")
         if gone:
             return f"Remove access rule {sub[1]}{where}"
+        if len(sub) == 2:                   # changed where it stands, or moved with it (2.1.10.61)
+            to = f" as number {b['to']}" if b.get("to") and str(b["to"]) != sub[1] else ""
+            return (f"Change access rule {sub[1]} to from {b.get('from', '')} service {b.get('service', '')} "
+                    f"{b.get('action', '')}{to}{where}")
         return f"Move access rule {sub[1]} to {b.get('to', '')}{where}"
     if sub[0] == "vlans":
         if len(sub) == 1:

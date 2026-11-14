@@ -3,7 +3,7 @@ from webui import views
 
 
 def options_page(h, ctx, query):
-    """Purpose: DHCP · DHCP options (GET /networks/options, manual 1.10.4.40.1): the domain's and a site's option
+    """Purpose: Networks · DHCP options (GET /networks/options, manual 1.10.4.40.1): the domain's and a site's option
              sets (?site=, this one by default), each subnet's and reservation's, and a target's effective options
              with their sources and, for a subnet or reservation, its own forms (?target=site|subnet:<name>|
              address:<ip>). A subnet or reservation is looked up first, so one not there answers 404.

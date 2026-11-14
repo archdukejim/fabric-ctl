@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% import "pattern.html" as p %}
-{#- DHCP · DHCP options (manual 1.10.4.40.1, 1.10.4.24): the domain's and a site's sets, each subnet's and
+{#- Networks · DHCP options (manual 1.10.4.40.1, 1.10.4.24): the domain's and a site's sets, each subnet's and
     reservation's options and netboot preset, a target's effective options. Every change waits for this page's Apply
     (1.10.4.40.2). No form in a table cell. -#}
 {% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="site" value="{{ d.site }}"><input type="hidden" name="view_target" value="{{ target }}">{% endmacro %}
@@ -8,7 +8,7 @@
 {% macro here(extra='') %}/networks/options?site={{ d.site | urlencode }}{{ extra }}{% endmacro %}
 {% set sets = ([('domain', "the domain's set", d.domain)] if d.domain else []) + [('site', d.site ~ "'s set", d.site_options)] %}
 {% block body %}
-<h1>DHCP · DHCP options{% if target %} · {{ target }}{% endif %}</h1>
+<h1>Networks · DHCP options{% if target %} · {{ target }}{% endif %}</h1>
 <datalist id="option-names">{% for c in d.catalogue %}<option value="{{ c.name }}">{{ c.code }}</option>{% endfor %}</datalist>
 <form method="get" action="/networks/options" class="grid"><input type="hidden" name="site" value="{{ d.site }}">
 <label class="wide">Show what a client gets at<select name="target"><option value="">— the sets —</option><option value="site"{{ ' selected' if target == 'site' }}>the site</option>

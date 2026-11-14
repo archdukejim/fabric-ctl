@@ -114,10 +114,10 @@ MOVED = {"/bind9": "/dns/zones", "/bind9?zone=iot.home.arpa&msg=x": "/dns/zones?
          "/directory/devices/jims-laptop": "/8021x/devices/jims-laptop", "/directory/roles/iot": "/8021x/roles/iot"}
 # each bundle's navigation entries (1.8.2.1.1's bundles against 1.8.6.4's table), written out as the oracle
 ENTRIES = {
-    "admin": ["Overview", "My account", "DNS", "DHCP", "PKI", "Directory", "802.1X", "Secrets", "Federation",
+    "admin": ["Overview", "My account", "DNS", "Networks", "PKI", "Directory", "802.1X", "Secrets", "Federation",
               "Settings"],
-    "fabric-auditor": ["Overview", "My account", "DNS", "DHCP", "PKI", "Directory", "802.1X", "Secrets", "Federation"],
-    "fabric-network-operator": ["Overview", "My account", "DNS", "DHCP", "PKI", "Secrets"],
+    "fabric-auditor": ["Overview", "My account", "DNS", "Networks", "PKI", "Directory", "802.1X", "Secrets", "Federation"],
+    "fabric-network-operator": ["Overview", "My account", "DNS", "Networks", "PKI", "Secrets"],
     "fabric-equipment-operator": ["Overview", "My account", "DNS", "PKI", "Directory", "802.1X"],
     "fabric-pki-operator": ["Overview", "My account", "PKI", "802.1X"],
     "fabric-helpdesk": ["Overview", "My account", "DNS", "PKI", "Directory", "802.1X"],
@@ -260,7 +260,7 @@ with serve():
     post("/changes/radius/apply", {})
     check("...applied: unmapped", req("GET", "/8021x/people/contractors")[0] == 404)
     page = get("/kea")
-    check("DHCP · Kea: subnets, reservations, leases, reserve form", "192.168.1.0/24" in page and "printer" in page
+    check("Networks · Kea: subnets, reservations, leases, reserve form", "192.168.1.0/24" in page and "printer" in page
           and "laptop1.dhcp.home.arpa" in page and 'action="/kea/reservations"' in page)
     check("DHCP named a preview until 0.8.0 (2.1.1.49, manual 1.10.3.9); no other page says so",
           "DHCP is a preview in this release" in page and "a preview in this release" not in get("/8021x"))

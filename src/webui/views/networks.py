@@ -1,6 +1,6 @@
 from webui.views.render_page import render_page
 
-VIEWS = ("new-vlan", "number", "rules")      # their own page: Add VLAN, the site's number, the access rules
+VIEWS = ("new-vlan", "number")      # their own page: Add VLAN, the site's number
 
 
 def _hits(overview, q):
@@ -52,12 +52,12 @@ def _shown(overview, query):
 
 
 def networks(ctx, overview, query):
-    """Purpose: DHCP · Networks (manual 1.10.4.40.1): a site's plan as a list (the sites, Sync now, the scans
+    """Purpose: Networks · Segments (manual 1.10.4.40.1): a site's plan as a list (the sites, Sync now, the scans
              requested there, its VLANs with each subnet's bar map), a VLAN's page, a subnet's page (its bar, facts,
              ranges, address table, options and sources, and its forms in sections), an address's page, Add VLAN or
              the site's number on their own page, or a search's matching rows. The forms show only with dhcp:write.
-    Inputs:  ctx — page context; overview — networks_overview's dict; query — dict: view (new-vlan, number, rules),
-             vlan, subnet, address, q.
+    Inputs:  ctx — page context; overview — networks_overview's dict; query — dict: view (new-vlan, number;
+             rules: Access rules' page), vlan, subnet, address, q.
     Returns: HTML str.
     Fails:   LookupError for a VLAN, subnet or address that is not there (_shown); Jinja2 errors propagate.
     Feeds:   src/webui/routes/networks_page (/networks); the dev preview."""
@@ -67,6 +67,9 @@ def networks(ctx, overview, query):
         v.setdefault("label", f"VLAN {v.get('id')}" + (f" at {v['location']}" if v["location"] else ""))
     vlan, subnet, row = _shown(overview, query)
     q = query.get("q", "")
+    if query.get("view") == "rules":       # Networks · Access rules, its own page (2.1.10.61); Segments' Apply
+        return render_page("networks", ctx=ctx, page="/networks/rules", queue="/networks", n=overview, view="rules",
+                           vlan=None, s=None, row=None, q="", hits=None)
     return render_page("networks", ctx=ctx, page="/networks", n=overview, view=query.get("view") if query.get("view")
                        in VIEWS and not (vlan or subnet) else "", vlan=vlan, s=subnet, row=row, q=q,
                        hits=_hits(overview, q) if q.strip() else None)

@@ -24,6 +24,6 @@ fabric's services. Written like firewall rules, first match wins, `any deny` imp
 | `check_cut_off.py` | Whether a list leaves the host's VLAN without SSH or the console |
 | `rule_warnings.py` | What a list allows that is likely a mistake |
 | `change_rules.py` | One change to the rules: checked, then the whole list written through edit_plan |
-| `add_rule.py`, `remove_rule.py`, `move_rule.py` | A rule added, removed, moved |
+| `add_rule.py`, `set_rule.py`, `remove_rule.py`, `move_rule.py` | A rule added, changed where it stands, removed, moved |
 | `show_rules.py` | The rules as `fabricctl ipam rule` prints them |
 | `rules_view.py` | The rules as the console's Access rules page shows them |

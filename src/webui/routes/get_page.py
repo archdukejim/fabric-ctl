@@ -149,7 +149,7 @@ def get_page(h, sess, path, query):
         return bind9_page(h, ctx, query)
     if path == "/dns-filter":
         return dns_filter_page(h, ctx, query)
-    if path == "/networks" or path == "/networks/export":
+    if path == "/networks" or path == "/networks/export" or path == "/networks/rules":
         return networks_page(h, ctx, path, query)
     if path == "/networks/scan":
         return networks_scan_page(h, ctx, query)
