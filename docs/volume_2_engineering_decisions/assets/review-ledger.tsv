@@ -2336,7 +2336,7 @@ tests/pki/run.py	3ac7f08379bf8506c62d8333fed3ebab430472af	2026-10-13
 tests/pki/site_ca.py	9c577e88a9f229c26a0ce4cdbcee7369587d6008	2026-10-25	
 tests/release/README.md	df2450ef1df17bc8aa5bb5bb1fd7b1c262f56f02	2026-11-09	
 tests/release/apt_key_test.sh	b8d05fcd45ead6b86272520c4af430e3af5d8bd9	2026-10-31	
-tests/render.py	eed9de2e465a1d1b22eb231fe3e8be25ef5065dc	2026-11-14	
+tests/render.py	a5967afefeffd8cf89d9986f2a5212eba4997de7	2026-11-14	
 tests/resolver/README.md	9d0451677cd3faf2d80956d33d6344c85e7e2b74	2026-10-31	
 tests/resolver/console.py	30e6bfb2adc8a05c8914afb7b110781bef8f0276	2026-11-08	
 tests/resolver/groups.py	5e317666ba1567ea2e4d0629061af57d292a1e4a	2026-10-25	
@@ -2446,7 +2446,7 @@ tests/speed/read_cache.py	91bdfd3c51b40f8f45228709ecda8cc87c571836	2026-11-07
 tests/speed/run.py	2edccfc175cffb02b269ba774f23b39c8766a469	2026-11-04	
 tests/webui/README.md	c8f53ca6d023bb197df3d7e252adb4c279a40b1f	2026-10-23	
 tests/webui/narrow_probe.py	e4bf04507b8e3957c0dd1b2cfc935aa63b71ee04	2026-10-25	
-tests/webui/test_container.py	f60583d6393259529825f9149006ec8de963e347	2026-11-14	
+tests/webui/test_container.py	e27c50088c6ae3daea6113655ed87054e1ebb19f	2026-11-14	
 tests/webui/test_devserver.py	5f66275538a4a90a3e86bcaa75b85252809e51e5	2026-11-14	
 tests/webui/test_narrow.py	19712aa70842f82ad569d3f4d6ae153327cad3dc	2026-11-14	
 tests/webui/test_networks.py	9f7b8a743a6763b4363352a5ec6e6d3c15b5d9b8	2026-11-14	

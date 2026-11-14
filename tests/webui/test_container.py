@@ -681,8 +681,9 @@ vt = open(f"{W}/fabric/config/vars.yaml").read()
 for form, why, label in (({**upd, "old_name": "wrong-name", "value": "x"}, "record changed", "a stale row"),
                          ({**upd, "value": "bad target;rm"}, "invalid CNAME target", "an invalid value"),
                          ({**upd, "value": "nas26-apps"}, "nothing to change", "the record as it is"),
-                         ({"type": "CNAME", "index": "1", "old_name": "ca", "name": "ca", "value": "elsewhere"},
-                          "provided by fabric", "fabric's own name")):
+                         ({"type": "CNAME", "index": str([r.get("name") for r in yaml.safe_load(vt)["dns"][
+                             "dynamic_zone_var"]["CNAME"]].index("ca")), "old_name": "ca", "name": "ca",
+                           "value": "elsewhere"}, "provided by fabric", "fabric's own name")):
     st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/update", form)
     check(f"edit refused at Apply ({label}): said why, the old record kept, vars.yaml unchanged",
           why in done and open(f"{W}/fabric/config/vars.yaml").read() == vt, done[-1500:])

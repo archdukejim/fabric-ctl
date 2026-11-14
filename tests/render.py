@@ -98,10 +98,13 @@ for tpl in sorted(env.list_templates()):
         extra = dict(zone_name='test.lan.j-j.family', zone_records=v2['dns']['dynamic_zone_var'])
     if tpl.startswith('bind9/data/reverse'):
         extra = dict(reverse_zone_name='7.168.192.in-addr.arpa', ptr_records=rv['zones']['7.168.192.in-addr.arpa'])
+    if tpl.endswith('/split.rpz.j2'):     # a VLAN's own answers (2.1.4.16), as dns/split/split_answers gives them
+        extra = dict(split={'ref': '20', 'view': 'vlan-20', 'rpz': 'split-20.rpz', 'cidrs': ['192.168.20.0/24'],
+                            'names': ['nas.test.lan.j-j.family'], 'lines': ['nas.test.lan.j-j.family A 192.168.20.5']})
     if tpl.startswith('systemd/'):
         extra = dict(item={'service': 'samba', 'compose': 'samba', 'folder': 'samba', 'requires': []})
     if tpl.startswith('resolver/config/'):     # what dns_filter/deploy_resolver passes beside the vars
-        extra = dict(zones=['test.lan.j-j.family', '7.168.192.in-addr.arpa'], clients=['192.168.7.0/24'],
+        extra = dict(**extra, zones=['test.lan.j-j.family', '7.168.192.in-addr.arpa'], clients=['192.168.7.0/24'],
                      resolver_rndc_secret='c2VjcmV0', groups=[{'name': 'kids', 'match': ['192.168.7.64/27'],
                                                               'rules_zone': 'group-kids.rpz', 'safe_zone': None}],
                      safe_zone=None, client_tls=False, adguard_tls=True, zone='group-x.rpz', what='group x',
