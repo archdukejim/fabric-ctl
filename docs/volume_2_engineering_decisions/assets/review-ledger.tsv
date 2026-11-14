@@ -21,7 +21,7 @@ docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23
 docs/volume_1_description_and_architecture/1.1.1-what-fabric-is.md	164fcaa938cc28be187fe5bd62a4a674ba600131	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.2-history.md	135792af40665d00d1c3f64538712c388451e485	2026-10-08	
 docs/volume_1_description_and_architecture/1.1.3-phases.md	aec10eb35c9042a4fb1e99cb56e0835b0bf89793	2026-10-08	
-docs/volume_1_description_and_architecture/1.1.4-roadmap.md	b4c35c8862b56af1640b1c18bb5aca9153bcad68	2026-11-14	
+docs/volume_1_description_and_architecture/1.1.4-roadmap.md	3ff8f39677b35cd06365fc5950243d01c04ce282	2026-11-14	
 docs/volume_1_description_and_architecture/1.1.5-code-conventions.md	7cc73759f86c7ce4ca7e2d58b7d1cc0db4cb9a64	2026-10-12	
 docs/volume_1_description_and_architecture/1.1.6-must-keep-working.md	c376feda6e17998f6aa6b2d9c85823f6b00ba89e	2026-10-23	
 docs/volume_1_description_and_architecture/1.1.7-third-party-licences.md	8d0f8be59d102eaa027becbf56c4f345bc3aaf59	2026-10-08	
@@ -103,7 +103,7 @@ docs/volume_1_description_and_architecture/1.3.1-host-package.md	44319278da7cf11
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	4ab5c327069823d2f63aa8ce26c2c5aded2ec86c	2026-10-24	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	dcfa335970889c0660ae1039fc9b7b0e5a9ee077	2026-11-14	
 docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	316140d9159b0d10868ba426ca09a638785321c8	2026-11-10	
-docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	635d04cb311fce02a9637bf8d772928037aa8dfd	2026-11-14	
+docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	d24c808bed84109ba1f4b8448fe1797957d6844f	2026-11-14	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	e58503ad946804b11abe0754bfde04d936bc992e	2026-11-10	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c23530a82de2f755d4a0bcf489bd2277902e5736	2026-11-11	
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
@@ -152,7 +152,7 @@ docs/volume_2_engineering_decisions/2.1.16-disk-encryption.md	2c5f6832b676ea44d7
 docs/volume_2_engineering_decisions/2.1.18-stig.md	1c83b035548437109b09db17fa962aaa8649aa2a	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.2-architecture.md	b0e0763e59da76eff03f425e4da62bdeb09f3f2e	2026-11-11	
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	a2dc65acd29b572c2207502c4de551053f4f81b4	2026-11-02	
-docs/volume_2_engineering_decisions/2.1.4-dns.md	bc1102a1907f720559268a468a92169fe07f4424	2026-11-14	
+docs/volume_2_engineering_decisions/2.1.4-dns.md	2e51092877945f7f3059eb48c46e48f39b5fcf6d	2026-11-14	
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	7e0829b303df6f0f0ec3c9cc0d5bf70d96794605	2026-11-11	
 docs/volume_2_engineering_decisions/2.1.6-identity.md	7f5c4d589081804c503cb9f1960f197514c6578a	2026-11-10	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
@@ -275,6 +275,10 @@ packaging/images/stage-contexts.sh	032b90565e1e40b075b798f6148feb14570d9d72	2026
 packaging/images/stepca/.dockerignore	76683618065e127abc520ec990844339e7677973	2026-09-30	
 packaging/images/stepca/Dockerfile	248b87188874ec271394ffa5e4cce7fa56f38101	2026-09-30	
 packaging/images/stepca/README.md	8a847479523c31f1562acbc7bc4e6469d21127c2	2026-09-30	
+packaging/images/stepca/reader/README.md	17c47c0b2c248e68b71af09175745418622d6517	2026-11-14	
+packaging/images/stepca/reader/go.mod	99e599b34b57e93768458b24f8b31b99ea5cd5a6	2026-11-14	
+packaging/images/stepca/reader/go.sum	6df34b07a97e85b1116b62bd90f8cbe12e6e98d7	2026-11-14	
+packaging/images/stepca/reader/main.go	4d0b219fabb3b78166ae7064311033ea1349b102	2026-11-14	
 packaging/images/webui/.dockerignore	76683618065e127abc520ec990844339e7677973	2026-09-30	
 packaging/images/webui/Dockerfile	56b6a171c42c4fc3537773745ac04de07d20d534	2026-10-02	
 packaging/images/webui/README.md	eeec6c95c1553b73cf8ce2761b4c52b35e4506b7	2026-10-03	
@@ -1251,6 +1255,7 @@ src/fabriclib/pki/acme_info.py	927af4a0e50aeb64ec24abe8a2ecd4423be86ede	2026-10-
 src/fabriclib/pki/acme_machines.py	d1d20a35de8d297f1b1dc5a9d3fa2f9e711f94ba	2026-10-09	
 src/fabriclib/pki/ca_summary.py	38a2d7291660d5b3f3b68b38563e4b47bb153eae	2026-10-23	
 src/fabriclib/pki/cert_warnings.py	18bb385fee1b0a2e84230d894cdd2faf8dfdecf7	2026-10-10	
+src/fabriclib/pki/certs_overview.py	f8260ec89d5941aafd1433b95ce67eaa65422866	2026-11-14	
 src/fabriclib/pki/check_cert_lifetimes.py	b0e900b45811bd084fee91509afea06edbfa6e11	2026-10-08	
 src/fabriclib/pki/common/README.md	7d0361370a5118a8dd664c84a5d7baa26ce18192	2026-10-13	
 src/fabriclib/pki/common/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
@@ -1261,8 +1266,10 @@ src/fabriclib/pki/common/ca_parents_pem.py	84d714e5966ef8530f78b648f68d825b5bf23
 src/fabriclib/pki/common/ca_path_len.py	f22c464ed5d41a987ebec6d42276b31590f9f46e	2026-10-01	
 src/fabriclib/pki/common/cert_dates.py	6081e461b492e7bf8d7e0f0a27d090776def91e7	2026-11-04	
 src/fabriclib/pki/common/cert_names.py	bf088d13b962aa5b80e5561d984eb06eea0b0b82	2026-10-13	
+src/fabriclib/pki/common/cert_status.py	82af0c8831fd7cd8e18b8635354cdfebe24d6988	2026-11-14	
 src/fabriclib/pki/common/crl_points.py	d959ba8bd2f051c89d00f4cdad69150b4a6195f4	2026-10-12	
 src/fabriclib/pki/common/describe_cert.py	94eadd19db0d595abdc309278d8166c1c238acc6	2026-10-01	
+src/fabriclib/pki/common/intermediate_left_days.py	83ec733e541cf8a60f53bf9d1e2be671d8ca3bc6	2026-11-14	
 src/fabriclib/pki/common/openssl.py	369b01e779ca0f600b30da9836f4c84ee12361ec	2026-10-01	
 src/fabriclib/pki/common/record_issued.py	30076a77c1ed00b14d9a40cfdc034f38fcce9b72	2026-10-08	
 src/fabriclib/pki/common/revoked_serials.py	94b4a434d1f3147030068509b2ce85f364f94a9d	2026-10-08	
@@ -1274,12 +1281,16 @@ src/fabriclib/pki/common/valid_san.py	e070c5e6600f4f9199246fc3752a3c014d616411	2
 src/fabriclib/pki/convert_cert.py	5b9a053d6f95aadb7abc16482b4586ac50d164d4	2026-09-30	
 src/fabriclib/pki/describe_csr.py	8a5952411082871a69999bfbb133942f8a35e3c2	2026-10-01	
 src/fabriclib/pki/export_p12.py	1fc056567fe4d74366b4010a02bf7ab694b8f531	2026-10-03	
+src/fabriclib/pki/find_cert.py	56ecee36117d64cbade6e867a5c8506b15a10660	2026-11-14	
 src/fabriclib/pki/hand_out_client_cert.py	b251d783e25e6d864de57e5b996a051c30f94339	2026-09-30	
 src/fabriclib/pki/inspect_pem.py	e4af7268e6657bc8fc2ecd283b4545c60b953342	2026-09-30	
 src/fabriclib/pki/install_cert.py	7e33576c1192bf5db58d9e0060dd341cd30e7862	2026-10-05	
 src/fabriclib/pki/issue_client_cert.py	e65a7ee3310a0ea820020d0b87a4a19cc05a5bbb	2026-10-08	
 src/fabriclib/pki/issue_key_pair.py	48b8af78ca0140cfc7c33f5fbc1266657879e83d	2026-10-05	
+src/fabriclib/pki/list_certs.py	d75e5ee98058a3e4c9d7d761b6bb080c30a36df2	2026-11-14	
 src/fabriclib/pki/list_issued.py	0bb64496b401fcae43f1c456d4a7873a3df1b570	2026-10-08	
+src/fabriclib/pki/list_service_certs.py	ab7a8268a0f484ba267f6d7f1e26e8e88a51932c	2026-11-14	
+src/fabriclib/pki/list_stepca_certs.py	339ac4a6e95a8d41674969927e2e5cd7b46359aa	2026-11-14	
 src/fabriclib/pki/make_site_ca_request.py	508724800c71aead5f6bc9a62384b4ed64982d1d	2026-10-01	
 src/fabriclib/pki/mint_cert.py	50bb1566d2a99363d92afca2f71c7feb7eab6e93	2026-10-08	
 src/fabriclib/pki/mint_extra_cert.py	3bab45aa27930bfd42c374b4e6829fc3f3c12942	2026-10-02	
@@ -1288,12 +1299,15 @@ src/fabriclib/pki/needs_renewal.py	c7551952fa866601e2694ad40035e30f430f3e86	2026
 src/fabriclib/pki/pick_up_cert.py	e18433da18ee63474e9d55e189e0126a6df19f76	2026-10-08	
 src/fabriclib/pki/publish_ca_certs.py	e64f7db2727e84f18240ad7270a237ca853347c1	2026-10-25	
 src/fabriclib/pki/publish_crl.py	28a07c5ba594bdc9fb65e030dcab5525b97f3f2a	2026-10-23	
+src/fabriclib/pki/read_lifetimes.py	50274ea438733c9d9c1cefca131ae7ffe31e749c	2026-11-14	
+src/fabriclib/pki/replace_service_cert.py	9a4c2be42746ca5e6a911816cf43c8f99ccf41d7	2026-11-14	
 src/fabriclib/pki/replace_site_ca.py	f3d7e0fcdd40976c489eed563819d3b9773c9e20	2026-10-08	
 src/fabriclib/pki/revoke_cert.py	49d3ce9badfdc738aaa3e23690069c59e89b56df	2026-10-08	
 src/fabriclib/pki/run_acme_command.py	0904f68ae3e0725dbb9b27d2622db8e03a59eaa2	2026-10-09	
 src/fabriclib/pki/run_certs_command.py	3adadb6655a6eccba28035b42cf3f4586ad0c3e9	2026-10-08	
 src/fabriclib/pki/run_mint_certs_command.py	11a37f096f8b0b6cf8dc2e47d9171e4def7e08aa	2026-10-12	
 src/fabriclib/pki/run_service_cert_command.py	0601146f4a31770f109a9978ed978568ed88947d	2026-10-12	
+src/fabriclib/pki/set_lifetimes.py	6e872f9a874176f44537ec064ad11b4b7fac67d5	2026-11-14	
 src/fabriclib/pki/show_cert_warnings.py	d45be80608c1f1ab62d9164e9d92fd5ac15e2b02	2026-10-08	
 src/fabriclib/pki/sign_csr.py	f8128362f83d0d7e96cc70841575cf71bc7354a8	2026-10-05	
 src/fabriclib/pki/sign_site_ca.py	6be743e2bd26f68aa9a8af822e8ac142515baa7d	2026-10-08	
@@ -1498,6 +1512,7 @@ src/fabriclib/setup/export_install.py	85cf0500b5029df7e784c548b0b8974d8b3df58b	2
 src/fabriclib/setup/finish_vars.py	aa83f3f94d135eef84445d5a35cddc7ef3edd2c6	2026-10-20	
 src/fabriclib/setup/harden_docker.py	1ad4aca818b8227f6566193c67503b8f12adae09	2026-10-03	
 src/fabriclib/setup/init_pki.py	e7be6fa7d4efc61daef06a0053b0e1b8d201b9be	2026-10-20	
+src/fabriclib/setup/issue_service_cert.py	e8d2e6a0cd1612efad110768722ab8039244da05	2026-11-14	
 src/fabriclib/setup/join_federation.py	b2e8b9b1487a7929043138c3feed32de7a265c16	2026-10-20	
 src/fabriclib/setup/join_host_domain.py	117ff4a20d75d59ff3f687852b0cf6534b285f38	2026-11-05	
 src/fabriclib/setup/mint_extra_certs.py	0e23e41edec381ab688dab5b8a06f9e39eb6a39e	2026-09-30	
@@ -1514,6 +1529,7 @@ src/fabriclib/setup/run_restore_command.py	820f710f63adbf8d099698ba9ca15a8c37566
 src/fabriclib/setup/run_setup.py	90ea0fa7ffe33ea2b883cad4b26741e64f2daf7e	2026-11-08	
 src/fabriclib/setup/run_steps.py	4e97d5eba1bc5b5011f7f0426d4801ff4762bef5	2026-10-17	
 src/fabriclib/setup/run_uninstall_command.py	5097ffd67b0da3e8ad57859fe64e86f8c7038e0f	2026-10-26	
+src/fabriclib/setup/service_cert_targets.py	53ac22e6094aa585a3bbaeaffcc9f47b813fc20c	2026-11-14	
 src/fabriclib/setup/service_order.py	cd80b2693e37f58aa33efffcae3c094e383ba43c	2026-10-12	
 src/fabriclib/setup/set_ram_capacity.py	d163f5910139f1405ff59bd804847b350bdc997d	2026-10-12	
 src/fabriclib/setup/setup_local_admin.py	44ae77f2274dcf26ef99efcee21a5b4403608912	2026-10-23	
@@ -1720,6 +1736,7 @@ src/webui/agentclient/inspect_pem.py	316a2291c303c5400f2f23fafffb928c7dec51b4	20
 src/webui/agentclient/issue_key_pair.py	692eef427812c61a28bfa88614dcf461118c0791	2026-10-03	
 src/webui/agentclient/kept_refresh.py	49407d22944c8b8c9f4add135286082bcc26a35e	2026-11-07	
 src/webui/agentclient/kerberos_overview.py	ae84be47d2aed3a17248704882cbebda5d8e9677	2026-10-23	
+src/webui/agentclient/list_certs.py	65f48577cc7178d89bad940fae2a5a3bc1878fb3	2026-11-14	
 src/webui/agentclient/list_grants.py	61b76b99c55bb1853ee0f00cf894e3deb5338f1b	2026-10-23	
 src/webui/agentclient/list_groups.py	5c67e72ce5f51332a341547602ec2945b22c9703	2026-10-23	
 src/webui/agentclient/list_host_groups.py	7af2842359ddcc75f50faa7715524a4e815a2870	2026-10-12	
@@ -1731,6 +1748,7 @@ src/webui/agentclient/list_spns.py	b2177783fdddb523eb4873074948ec5d61346375	2026
 src/webui/agentclient/list_sudo_rules.py	ddf2933c9e902f070fc6177b91cfe6b18a71e10d	2026-10-12	
 src/webui/agentclient/list_tsig_keys.py	af096f6a29f8abb83ff5cbf2846fd41a081021a6	2026-11-14	
 src/webui/agentclient/list_zones.py	c0cbbac02b1238385153a6057b7f82fcbfd387a7	2026-10-03	
+src/webui/agentclient/lookup_cert.py	43e51e83a5d59148392a86eaf3ee31fa58cdfb45	2026-11-14	
 src/webui/agentclient/machine_action.py	5b62eb182fbfaa4be1056694b694e994a435906b	2026-10-05	
 src/webui/agentclient/machine_keytab.py	a492dd52f62970ab643cc769c5b154d931de547f	2026-10-23	
 src/webui/agentclient/machine_overview.py	e5962faa94496c0aa9d0fb7cb724111f1b8724c0	2026-10-23	
@@ -1752,6 +1770,7 @@ src/webui/agentclient/radius_overview.py	59146a46998fca2937304f80d3537590a2f633c
 src/webui/agentclient/raise_signin_layer.py	63d21892b7c425cb76c82b5b9bc2383118fcdc3d	2026-10-07	
 src/webui/agentclient/read_audit.py	23553c23dffdd018c5670a7cac9b3d99ddf5216e	2026-10-03	
 src/webui/agentclient/read_job.py	aa692a1d6b4c62143457c251d923d4be1ae8262d	2026-10-09	
+src/webui/agentclient/read_lifetimes.py	d2e5d3cf1c15e58d19ee8087bcd37158199ff98c	2026-11-14	
 src/webui/agentclient/relaxed_settings.py	227c883cdfc7b567193b30041deb56616e907f95	2026-10-04	
 src/webui/agentclient/remove_client_class.py	4d3b7db158ef3fc21921008ae8da918a7586fc75	2026-10-12	
 src/webui/agentclient/remove_reservation.py	6c1b818427bbcc696469c288e3e7203686efc289	2026-10-12	
@@ -1808,6 +1827,7 @@ src/webui/devpreview/dev_state.py	16f6fdd1810f48531b063e09617f61d3d2e44774	2026-
 src/webui/devpreview/fabric_rules.py	a9a248a02bfff96d40741268daea30ee81693527	2026-10-23	
 src/webui/devpreview/fake_account.py	878d5d322dfb78eb9e2404130e73010d17d963b0	2026-10-23	
 src/webui/devpreview/fake_agent.py	dd6f23977f5986d6013230796fbd208dc7c44ede	2026-10-23	
+src/webui/devpreview/fake_certs.py	2907620d086fbe8954d5b882b0ea8782d8c9e9db	2026-11-14	
 src/webui/devpreview/fake_connection.py	258951c7122b544661d25599f151be6a591f4307	2026-10-23	
 src/webui/devpreview/fake_directory.py	576671f964e43aeec1d3a6360b40ba7fa65abe23	2026-10-23	
 src/webui/devpreview/fake_dns.py	5371a03f306f9a26823d71364c4d05019683dad8	2026-11-14	
@@ -1856,6 +1876,7 @@ src/webui/routes/kea_post.py	b87c4325a589056de74aaa21102423d891ffff89	2026-10-10
 src/webui/routes/kept_post.py	357b95699de63ce0b5a372b932a75da254459b84	2026-11-07	
 src/webui/routes/kerberos_page.py	2ecc3e87769f23b328b10d1d6545b715b4d2b6a9	2026-11-07	
 src/webui/routes/landing_post.py	51ad6f4a5623ced29485c1992568448e45aec785	2026-10-23	
+src/webui/routes/lifetimes_page.py	dbae7322f47c451f02d5b18adc47338dece4779e	2026-11-14	
 src/webui/routes/moved_to.py	56104fa21e096a7cbe93c2664c0ea078462383bf	2026-10-23	
 src/webui/routes/networks_page.py	81494f21c6850a01c8e00b6f3d70f79a9dae09bf	2026-10-23	
 src/webui/routes/networks_post.py	69e4a93611a67eda8b7d52b4798ad163f60565c6	2026-10-25	
@@ -1927,6 +1948,7 @@ src/webui/views/ipam_scan.py	0a344ca47dc310ce63bf275107c7f968465ae22c	2026-10-23
 src/webui/views/job_page.py	47a727b422d3fb1985a6698b3dcf853e1807cd7c	2026-10-23	
 src/webui/views/kea.py	8402f1116e94609d8a0848acdaaa54561e5d123a	2026-10-23	
 src/webui/views/kerberos.py	29d9bd3cf55f8d0d6f37027005be40f5cf214aa6	2026-10-23	
+src/webui/views/lifetimes.py	b988f1dc3951bf3cbc5a7e282a30704c40e46811	2026-11-14	
 src/webui/views/nav_menu.py	f7240cc292e2bc2831ffc270fb3cc2a931b102b3	2026-10-23	
 src/webui/views/networks.py	eaac07acd803ba877ee2778f89cc0adf1003c39c	2026-10-25	
 src/webui/views/openbao.py	fb058d28b81e7b2699c19dd04405b280ac4d4648	2026-10-23	
@@ -2117,6 +2139,7 @@ templates/webui-app/ipam_scan.html	d250028cb21ba4a4f2ccff5221bb6cc4663906b2	2026
 templates/webui-app/job.html	871110f9f94705445c82a741e060fc8ac30adb2e	2026-10-23	
 templates/webui-app/kea.html	5766fdeb9f331971acc95740641c0cbc39b006b5	2026-10-23	
 templates/webui-app/kerberos.html	911f5abaf782b1ef9185f43e57615e2b711ea34d	2026-10-23	
+templates/webui-app/lifetimes.html	c0ba8901519c99031a0666659e5ed1240527acc9	2026-11-14	
 templates/webui-app/networks.html	062af95aac483a745b2cb8150afdb8fbb85bd99b	2026-10-25	
 templates/webui-app/openbao.html	bddf369f4ecaaaec3296b61e19b4f2f673fccb27	2026-10-23	
 templates/webui-app/ous.html	0e4ae448a48019a2e26718e6d70cc5d85c223a46	2026-10-23	
@@ -2275,6 +2298,7 @@ tests/openbao/local_admin.py	21a07e388acc0f1bd0a8c86eb7887cc5caba7ce5	2026-10-25
 tests/openbao/run.py	158ae3e2d001b4de5d980cc9cff8d3a146bf1655	2026-10-25	
 tests/pki/README.md	93bb4418da64c7f479e291e518293fb3f7b84c0d	2026-10-13	
 tests/pki/acme.py	30e4f941313acdd2e22f78258ef1b3eb86427cb2	2026-10-25	
+tests/pki/console.py	af01e5a5235047a850c6ba1192c1de307f1ad864	2026-11-14	
 tests/pki/landing.py	06925a77e86531206ff92a29b717f4b49387ac88	2026-10-25	
 tests/pki/renewal.py	a5348829c60bad793ddb3a043398ca2836ece851	2026-10-20	
 tests/pki/revocation.py	cf80ad8b84912f80b941f8fcf3387825e9ba18e6	2026-10-12	

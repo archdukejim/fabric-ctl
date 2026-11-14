@@ -7,6 +7,8 @@ Helpers shared by the manual PKI operations.
 | `openssl.py` | Run openssl with stdin data; failures become a `ValidationError` with openssl's first error line |
 | `to_pem.py` | Pasted/uploaded PEM, DER or bare base64 → list of PEM blocks of one kind (cert, CSR, key) |
 | `describe_cert.py` | Subject, issuer, serial, SANs, key, validity, usages, CA flag, SHA-256 fingerprint of a PEM certificate |
+| `cert_status.py` | A certificate's state (valid, expires soon, expired, revoked) from its end date; openssl's and ISO dates read |
+| `intermediate_left_days.py` | The days the intermediate CA has left (None before the CA exists) |
 | `ca_files.py` | Paths of the Step-CA root and intermediate certificates |
 | `ca_path_len.py` | A CA certificate's path length (how many CA levels it may still sign) |
 | `ca_parents_pem.py` | A nested site's parent CAs (empty for the root site and flat sites) |

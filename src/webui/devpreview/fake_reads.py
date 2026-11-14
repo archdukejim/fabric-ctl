@@ -1,3 +1,4 @@
+from webui.devpreview.fake_certs import fake_certs
 from webui.devpreview.sample_data import (SAMPLE_ACCESS, SAMPLE_ACME, SAMPLE_CA, SAMPLE_DEVICES, SAMPLE_DHCP,
                                           SAMPLE_DIRECTORY, SAMPLE_DNS_FILTER, SAMPLE_DOMAIN, SAMPLE_FEDERATION,
                                           SAMPLE_GPO,
@@ -166,6 +167,7 @@ def fake_reads(state, who, route, body):
         ("dhcp",): lambda: _dhcp(state), ("dns-filter",): lambda: _dns_filter(state),
         ("radius",): lambda: SAMPLE_RADIUS, ("radius", "guides"): sample_radius_guides,
         ("pki", "ca"): lambda: SAMPLE_CA, ("pki", "issued"): lambda: d["issued"], ("pki", "acme"): lambda: SAMPLE_ACME,
+        ("pki", "certs"): lambda: fake_certs(state), ("pki", "lifetimes"): lambda: d["lifetimes"],
         ("devices",): state.overview, ("people",): lambda: d["people"], ("directory",): lambda: SAMPLE_DIRECTORY,
         ("sites",): lambda: {**_sites(state), "kept": SAMPLE_KEPT},
         ("sites", "tree"): _site_tree,

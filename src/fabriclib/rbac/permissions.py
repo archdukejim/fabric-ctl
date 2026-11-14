@@ -19,6 +19,7 @@ PERMISSIONS = {
     "pki:sign": "sign uploaded CSRs",
     "pki:revoke": "revoke issued certificates (published in the CRL at once, 2.1.5.10)",
     "pki:link-device": "link a certificate to a device",
+    "pki:settings": "set certificate lifetimes and renewal (PKI → Lifetimes, held for PKI's Apply, 2.1.5.14)",
     "devices:read": "see devices and device roles",
     "devices:enroll": "add devices",
     "devices:admin": "change, disable and delete devices",
@@ -69,7 +70,7 @@ BUNDLES = {
                                   "devices:enroll", "devices:admin", "roles:admin", "radius:read", "radius:admin",
                                   "domain:read", "machines:admin", "ous:admin"],
     "fabric-pki-operator": ["status:read", "pki:read", "pki:issue", "pki:sign", "pki:revoke", "pki:link-device",
-                           "devices:read"],
+                           "pki:settings", "devices:read"],
     "fabric-helpdesk": ["status:read", "dns:read", "pki:read", "devices:read", "devices:enroll", "people:read",
                         "people:create", "people:reset", "people:disable", "people:edit", "domain:read"],
 }

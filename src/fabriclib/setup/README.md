@@ -40,6 +40,8 @@
 | `init_pki.py` | Step-CA init (own root or bring-your-own), `ca.json`, CA certs published and trusted |
 | `start_bootstrap.py` | Start bind9 + step-ca; validate every zone |
 | `mint_service_certs.py` | Issue/renew service certificates (only what is missing, expiring or wrong); web UI and FreeRADIUS CA bundles |
+| `issue_service_cert.py` | Mint one service certificate and install it at each destination; the key never left behind |
+| `service_cert_targets.py` | Each service certificate fabric keeps: its name, SANs, destinations and the services that use it |
 | `mint_extra_certs.py` | `extra_certs` entries, when missing or due (part of the `certs` step) |
 | `join_host_domain.py` | Step `member`: this host a member of its own domain with its own computer account in OU=fabric-hosts (2.1.6.48; keytab, krb5.conf, sssd.conf, NSS, PAM); no domain account signs in (2.1.6.75) |
 | `start_services.py` | Retire renamed units; start the stack in order; converge the domain; the site's number (`ask_site_number`); configure Keycloak; fabric-agent + web UI; activate `fabric.target` |

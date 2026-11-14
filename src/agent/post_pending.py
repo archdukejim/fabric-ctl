@@ -36,6 +36,23 @@ def _run(route, actor, body, perms, session):
     return post_route(route, actor, body, perms, session)
 
 
+def _check_lifetimes(route, body):
+    """Purpose: a Lifetimes change is checked against the real limits when it is held, not only at PKI's Apply
+             (manual 1.5.1.10.2): a refused one is never held.
+    Inputs:  route — the change's segments; body — {"fields": {field: days}}.
+    Returns: None.
+    Fails:   ValidationError: fields missing, or what pki/set_lifetimes.lifetime_changes refuses.
+    Feeds:   PENDING (its check)."""
+    if route != ["pki", "lifetimes"]:
+        return None
+    from fabriclib.pki.set_lifetimes import lifetime_changes
+    fields = body.get("fields")
+    if not isinstance(fields, dict):
+        raise ValidationError("fields: the lifetimes to set")
+    lifetime_changes(load_vars(), {str(k): str(val) for k, val in fields.items()})
+    return None
+
+
 def _finish(page, routes=()):
     """Purpose: What a page's changes still need once all are done: a password policy changed on Policies is fabric's
              setting, written into the domain's services, restarting only what changed, health-gated (manual
@@ -128,7 +145,8 @@ PENDING = PendingStore(run=_run, state=lambda route, body: thing_state(route, bo
                        # a TSIG key's Edit names as DNS' Apply would run it (1.4.1.9.3)
                        check=lambda owner, route, body: (networks_grant(load_vars(), owner, route, body)
                                                          or filter_check(owner, route, body)
-                                                         or tsig_check(load_vars(), route, body)),
+                                                         or tsig_check(load_vars(), route, body)
+                                                         or _check_lifetimes(route, body)),
                        # the address manager's Apply: written, then applied; the plan poll leaves Kea to it (2.1.10.45)
                        around=lambda page: apply_intent() if page in ("networks", "options")
                        else contextlib.nullcontext())

@@ -97,6 +97,8 @@ hostname_federation: {{ ((cname_federation | default('federation')) ~ '.' ~ doma
 image_nginx: {{ image_nginx | default(images_lock.nginx) }}
 {# stepca and keycloak run thin local layers built FROM these (fabric/jinja/<svc>/build). #}
 image_stepca: {{ image_stepca | default(images_lock.stepca) }}
+{# builds fabric/stepca's certificate reader when this host builds that image (2.1.5.13); never run #}
+image_golang: {{ image_golang | default(images_lock.golang) }}
 image_keycloak: {{ image_keycloak | default(images_lock.keycloak) }}
 image_postgres: {{ image_postgres | default(images_lock.postgres) }}
 image_openbao: {{ image_openbao | default(images_lock.openbao) }}
@@ -394,7 +396,9 @@ cert_intermediate_key_param: {{ cert_intermediate_key_param | default(4096) }}
 # Service certificates (2.1.5.4): their lifetime, and the age at which the daily timer renews them.
 cert_service_days: {{ cert_service_days | default(47) }}
 cert_renew_after_days: {{ cert_renew_after_days | default(30) }}
-# Longest validity the web UI's Step-CA tab issues (CSR signing, generated key pairs).
+# Hand-issued certificates (the web UI's PKI page: CSR signing, generated key pairs): the days its forms fill in,
+# and the longest they accept. These and the lifetimes above are set in PKI → Lifetimes (2.1.5.14).
+pki_manual_default_days: {{ pki_manual_default_days | default(365) }}
 pki_manual_max_days: {{ pki_manual_max_days | default(1825) }}
 
 # ============================================================
@@ -402,7 +406,10 @@ pki_manual_max_days: {{ pki_manual_max_days | default(1825) }}
 # ============================================================
 stepca_port: {{ stepca_port | default(9000) }}
 stepca_cert_allow_subordinate_ca: {{ stepca_cert_allow_subordinate_ca | default(true) | lower }}
-stepca_cert_max_lifetime_hours: "{{ stepca_cert_max_lifetime_hours | default((cert_service_days | default(47) * 24) ~ 'h') }}"
+{# the authority's maximum is worked out, never set (2.1.5.14): the longest of the lifetimes it must allow; a value
+   given is replaced, since every earlier install's settings carry the old default #}
+{% set _acme_hours = (cert_acme_lifetime_hours | default('1128h') | string | lower | replace('h', '') | int) %}
+stepca_cert_max_lifetime_hours: "{{ [(cert_service_days | default(47) | int) * 24, _acme_hours, (pki_manual_max_days | default(1825) | int) * 24] | max }}h"
 cert_acme_lifetime_hours: {{ cert_acme_lifetime_hours | default('1128h') }}
 
 # ============================================================
