@@ -8,6 +8,7 @@ from fabriclib.common.save_vars import save_vars
 from fabriclib.common.vars_lock import vars_lock
 from fabriclib.common.write_audit import write_audit
 from fabriclib.deploy.check_fixed_identity import HOSTNAME_MARKER
+from fabriclib.dns.rename_tsig_names import rename_tsig_names
 from fabriclib.localadmin.common.local_admin_token import local_admin_token
 from fabriclib.localadmin.constants import REASON_MAX
 from fabriclib.localadmin.follow_rename import follow_rename
@@ -50,10 +51,11 @@ def rename_host(v, config_dir, new, reason, actor, vars_file=None, lock_file=Non
     """Purpose: a domain controller's host renamed through break glass, the only way (decision 2.1.6.104, manual
              1.6.11.14, 4.2.4.3): the name checked, a reason given, and OpenBao answering when the host's local-admin
              must follow it, all before anything changes; then the host renamed (hostnamectl), `hostname` set in
-             vars.yaml, the recorded name (<config>/.hostname, which an apply holds the host to) moved, the
-             local-admin given a new password under the new name (localadmin/follow_rename), and the rename audited
-             HOST_RENAME with who and why. The apply and the host's own join follow it (4.2.4.3 steps 4 and 5). Run
-             again with the same name after a failure, it does what is left and changes nothing done.
+             vars.yaml (a TSIG key granted the host's old name granted the new one: rename_tsig_names), the recorded
+             name (<config>/.hostname, which an apply holds the host to) moved, the local-admin given a new password
+             under the new name (localadmin/follow_rename), and the rename audited HOST_RENAME with who and why. The
+             apply and the host's own join follow it (4.2.4.3 steps 4 and 5). Run again with the same name after a
+             failure, it does what is left and changes nothing done.
     Inputs:  v — rendered vars (hostname, hostname_dc, dc_name; OpenBao's address); config_dir — the install's config
              folder; new — the new name; reason — why (one line, up to 200 characters); actor — who runs it (the
              person behind sudo); vars_file, lock_file — vars.yaml and its lock (default <config>/vars.yaml and
@@ -96,8 +98,11 @@ def rename_host(v, config_dir, new, reason, actor, vars_file=None, lock_file=Non
         data = load_vars(vars_file)
         if data.get("hostname") != new:
             data["hostname"] = new
+            keys = rename_tsig_names(data, old, new)      # a TSIG key's grant follows its record (2.1.4.12)
             save_vars(data, vars_file)
             changed.append(f"vars.yaml: hostname: {new}")
+            if keys:
+                changed.append(f"TSIG keys now granted {new} instead of {old}: {', '.join(keys)}")
     if recorded != new:
         with open(marker + ".new", "w") as f:
             f.write(new + "\n")

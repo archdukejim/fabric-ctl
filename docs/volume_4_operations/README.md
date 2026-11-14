@@ -28,6 +28,10 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 
 - [4.4.1 Zones and records](4.4.1-records.md)
 - [4.4.2 TSIG keys](4.4.2-tsig.md)
+  - 4.4.2.1 TSIG Keys (RFC2136 dynamic updates)
+  - 4.4.2.2 Make a key by its mode: ACME (DNS-01) or Custom
+  - 4.4.2.3 Change a key's names, keeping its secret
+  - 4.4.2.4 Grant a record with its aliases
 - [4.4.3 ACLs and update policies](4.4.3-acls.md)
 - [4.4.4 Landing page links](4.4.4-landing-links.md)
 - [4.4.5 Reverse DNS](4.4.5-reverse-dns.md)

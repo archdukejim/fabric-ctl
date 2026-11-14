@@ -4,6 +4,7 @@ from fabriclib.common.save_vars import save_vars
 from fabriclib.common.vars_lock import vars_lock
 from fabriclib.common.write_audit import write_audit
 from fabriclib.dns.constants import RECORD_TYPES
+from fabriclib.dns.tsig_record_notice import tsig_record_notice
 from fabriclib.dns.validate_record import validate_record
 
 
@@ -20,7 +21,8 @@ def add_record(actor, key, rtype, form, source="cli"):
              from validate_record; OSError or yaml.YAMLError from vars_lock / load_vars / save_vars / write_audit.
     Feeds:   agent route POST /v1/zones/<key>/records (fabric-agent, src/agent/, called by the web UI); the
              zone editor (menu/edit_dns_zone).
-    Notes:   only CNAME-vs-CNAME clashes are refused here; a CNAME beside other records of the same name is not checked.
+    Notes:   a CNAME that gives a TSIG key a right (tsig_record_notice, 2.1.4.14) is audited naming the key.
+             Only CNAME-vs-CNAME clashes are refused here; a CNAME beside other records of the same name is not checked.
     """
     if rtype not in RECORD_TYPES:
         raise ValidationError("unsupported record type")
@@ -33,7 +35,10 @@ def add_record(actor, key, rtype, form, source="cli"):
         existing = zone.setdefault(rtype, [])
         if rtype == "CNAME" and any(r.get("name") == record["name"] for r in existing):
             raise ValidationError("a CNAME with that name already exists")
+        keys = tsig_record_notice(data, key, rtype, record)     # before the record is in the zone
         existing.append(record)
         save_vars(data)
-    write_audit(actor, "DNS_ADD", f"zone={key} {rtype} {record}", source)
+    # a new alias of a record a TSIG key holds with its aliases widens that key (2.1.4.14): the audit names it
+    write_audit(actor, "DNS_ADD", f"zone={key} {rtype} {record}"
+                + (f" tsig={','.join(keys)} may update its _acme-challenge" if keys else ""), source)
     return record

@@ -16,19 +16,23 @@ def normalize_tsig_keys(keys, domain, secrets=None):
              secrets, never in vars).
     Inputs:  keys — list of dicts: name (required, NAME_RE, unique), algorithm (default hmac-sha256, one of ALGORITHMS),
              domain (default `domain`; "{{ domain }}" replaced), record_types (default [TXT]), records (hosts: only
-             _acme-challenge.<host>.<domain>), any_name (any name in the zone; never implied), primary, out (rfc2136.ini
+             _acme-challenge.<host>.<domain>), records_with_aliases (A or AAAA records: the same for each and for every
+             CNAME of the zone pointing at it at each render, 2.1.4.14), any_name (any name in the zone; never
+             implied), primary, out (rfc2136.ini
              path), acls (BIND ACLs to put the key in), secret (base64 of an existing key, e.g. from another DNS server
              whose clients must keep working).
              domain — str, the fabric domain.
              secrets — optional {name: secret} merged in first (a secret embedded in an entry wins).
     Returns: (keys, embedded): the normalized list, and {name: secret} for every secret found or given.
     Fails:   ValidationError "tsig_keys entry needs a name", "invalid or duplicate TSIG key name", "…: algorithm must be
-             one of …", "…: invalid domain …", "…: invalid record_types …", "…: invalid record names …", "…: invalid ACL
-             names …", "…: secret is not valid base64".
+             one of …", "…: invalid domain …", "…: invalid record_types …", "…: invalid record names …",
+             "…: invalid records_with_aliases …", "…: invalid ACL names …", "…: secret is not valid base64".
     Feeds:   deploy/merge_tsig_keys (apply), setup/collect_vars.py, add_tsig_key, update_tsig_key, replace_tsig_secret
              (to check a
              secret); ACL_RE, LABEL_RE and RTYPE_RE are reused by normalize_acl_policies.
-    Notes:   records clear any_name; any_name is kept only when explicitly true.
+    Notes:   records and records_with_aliases clear any_name; any_name is kept only when explicitly true. Whether a
+             records_with_aliases entry is an A or AAAA record of the zone is checked where a person picks it
+             (edit_tsig_names, create_zone_tsig_key): a record removed later grants nothing (alias_grants).
     """
     embedded = {}
     for name, secret in (secrets or {}).items():
@@ -52,11 +56,21 @@ def normalize_tsig_keys(keys, domain, secrets=None):
         key["record_types"] = [str(t).upper() for t in (key.get("record_types") or ["TXT"])]
         if not all(RTYPE_RE.match(t) for t in key["record_types"]):
             raise ValidationError(f"TSIG key {name}: invalid record_types {key['record_types']!r}")
+        if key.get("records_with_aliases"):
+            key["records_with_aliases"] = [str(r).rstrip(".") for r in key["records_with_aliases"]]
+            bad = [r for r in key["records_with_aliases"] if not LABEL_RE.match(r) or r.startswith("*") or r == "@"]
+            if bad:
+                raise ValidationError(f"TSIG key {name}: invalid records_with_aliases {bad!r} (A or AAAA record names)")
+        else:
+            key.pop("records_with_aliases", None)
         if key.get("records"):
             key["records"] = [str(r).rstrip(".") for r in key["records"]]
             bad = [r for r in key["records"] if not LABEL_RE.match(r)]
             if bad:
                 raise ValidationError(f"TSIG key {name}: invalid record names {bad!r}")
+            key.pop("any_name", None)
+        elif key.get("records_with_aliases"):
+            key.pop("records", None)
             key.pop("any_name", None)
         else:
             key.pop("records", None)

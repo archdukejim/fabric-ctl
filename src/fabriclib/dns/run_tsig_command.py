@@ -3,7 +3,9 @@ import sys
 
 from fabriclib.common.ask import ask_secret
 from fabriclib.common.errors import ValidationError
+from fabriclib.dns.acme_picks import acme_picks
 from fabriclib.dns.add_tsig_key import add_tsig_key
+from fabriclib.dns.ask_tsig_scope import ask_tsig_scope
 from fabriclib.dns.list_tsig_keys import list_tsig_keys
 from fabriclib.dns.remove_tsig_key import remove_tsig_key
 from fabriclib.dns.replace_tsig_secret import replace_tsig_secret
@@ -12,16 +14,20 @@ from fabriclib.dns.update_tsig_key import update_tsig_key
 from fabriclib.system.apply_changes import apply_changes
 
 USAGE = """usage: fabricctl tsig list                        every TSIG key: algorithm, types, what it may update, ACLs
-       fabricctl tsig add <name> [scope] [--secret-file F | --secret-prompt]
-                                                  add a key (a new secret, or an existing one you give)
-       fabricctl tsig update <name> [scope] [--drop-acl A]
+       fabricctl tsig add <name> [--mode acme|custom] [scope] [--secret-file F | --secret-prompt]
+                                                  add a key (a new secret, or an existing one you give); with no
+                                                  scope and no --mode it asks: ACME (DNS-01) or Custom
+       fabricctl tsig update <name> [scope] [--add-record H] [--drop-record H] [--add-record-with-aliases H]
+                                    [--drop-record-with-aliases H] [--drop-acl A]
                                                   change what a key may update (secret untouched)
        fabricctl tsig set-secret <name> --secret-file F | --secret-prompt
                                                   replace a key's secret with one you give
        fabricctl tsig rotate <name>               give a key a newly generated secret
        fabricctl tsig remove <name>               remove a key
-  scope: --domain Z --record HOST (repeatable) | --any-name, --types T,.. --algorithm A --out FILE --acl A
-  (repeatable). Every change is applied at once unless --no-apply. A secret never goes on the command line."""
+  scope: --domain Z --record HOST (repeatable; on update it replaces the list) --record-with-aliases HOST
+  (repeatable: an A or AAAA record and every CNAME pointing at it) | --any-name, --types T,.. --algorithm A
+  --out FILE --acl A (repeatable). --mode acme takes only the zone's records (TXT). Every change is applied at
+  once unless --no-apply. A secret never goes on the command line."""
 
 
 def _secret(args):
@@ -66,9 +72,12 @@ def run_tsig_command(argv):
     """Purpose: `fabricctl tsig list | add | update | set-secret | rotate | remove` — TSIG keys for RFC2136 dynamic
              updates (e.g. certbot's rfc2136 plugin in nginx-proxy-manager); a change is applied right away unless
              --no-apply.
-    Inputs:  argv — list of str after "tsig". add/update: name, --domain, --record (repeatable), --any-name, --types,
-             --algorithm, --out, --acl (repeatable); update also --drop-acl; add and set-secret: --secret-file or
-             --secret-prompt. Reads vars.yaml.
+    Inputs:  argv — list of str after "tsig". add/update: name, --domain, --record (repeatable),
+             --record-with-aliases (repeatable, 2.1.4.14), --any-name, --types, --algorithm, --out, --acl
+             (repeatable); add also --mode acme|custom (2.1.4.12; with neither a mode nor a scope flag the questions
+             of ask_tsig_scope are asked); update also --drop-acl, --add-record, --drop-record,
+             --add-record-with-aliases, --drop-record-with-aliases (one name at a time, edit_tsig_names,
+             2.1.4.13); add and set-secret: --secret-file or --secret-prompt. Reads vars.yaml.
     Returns: exit status: 0 on success; 1 on a ValidationError or OSError ("error: …" on stderr), including a failed
              apply.
     Fails:   SystemExit 2 from argparse on bad arguments; "--record and --any-name exclude each other", "nothing to
@@ -86,6 +95,9 @@ def run_tsig_command(argv):
         p.add_argument("--domain", help="zone (default: the fabric domain)")
         p.add_argument("--record", action="append", default=None,
                        help="host allowed a DNS-01 challenge (_acme-challenge.<host>.<zone>); repeatable")
+        p.add_argument("--record-with-aliases", action="append", default=None,
+                       help="an A or AAAA record granted with every CNAME of the zone pointing at it, as the zone is "
+                            "at each apply; repeatable")
         p.add_argument("--any-name", action="store_true",
                        help="may update any name in the zone (explicit; otherwise only --record hosts or ACL policies)")
         p.add_argument("--types", help="record types it may change, comma-separated (default TXT)")
@@ -102,9 +114,17 @@ def run_tsig_command(argv):
     add = sub.add_parser("add", help="add a key (new secret, or keep an existing one)")
     scope(add)
     secret_opts(add)
+    add.add_argument("--mode", choices=("acme", "custom"),
+                     help="acme: only the zone's records (TXT, DNS-01); custom: any scope (default when a scope "
+                          "flag is given; with neither, the questions are asked)")
     upd = sub.add_parser("update", help="change what a key may update (secret untouched)")
     scope(upd)
     upd.add_argument("--drop-acl", action="append", default=[], help="take the key out of this ACL; repeatable")
+    for flag, what in (("--add-record", "grant one more host's DNS-01 name"),
+                       ("--drop-record", "take one host's DNS-01 name away"),
+                       ("--add-record-with-aliases", "grant an A or AAAA record with its aliases"),
+                       ("--drop-record-with-aliases", "take a record with its aliases away")):
+        upd.add_argument(flag, action="append", default=[], help=f"{what}; repeatable")
     setp = sub.add_parser("set-secret", help="replace a key's secret with one you give")
     setp.add_argument("name")
     secret_opts(setp)
@@ -121,25 +141,45 @@ def run_tsig_command(argv):
         if args.cmd == "list":
             keys = list_tsig_keys()
             for k in keys:
+                mode = "ACME (DNS-01)" if k["mode"] == "acme" else "Custom"
                 print(f"{k['name']:<24} {k['algorithm']:<12} {k['types']:<8} {k['scope']}\n"
-                      f"{'':<24} ACLs: {', '.join(k['acls']) or '-'}   credentials: {k['ini']}")
+                      f"{'':<24} mode: {mode}   ACLs: {', '.join(k['acls']) or '-'}   credentials: {k['ini']}"
+                      + "".join(f"\n{'':<24} note: {n}" for n in k["notes"]))
             if not keys:
                 print("no TSIG keys")
             return 0
 
         if args.cmd == "add":
-            secret = _secret(args)
             entry = {"name": args.name}
-            for field, val in (("domain", args.domain), ("records", args.record), ("algorithm", args.algorithm),
+            for field, val in (("domain", args.domain), ("records", args.record),
+                               ("records_with_aliases", args.record_with_aliases), ("algorithm", args.algorithm),
                                ("out", args.out)):
                 if val:
                     entry[field] = val
             if args.types:
                 entry["record_types"] = [t.strip() for t in args.types.split(",") if t.strip()]
             if args.any_name:
-                if args.record:
+                if args.record or args.record_with_aliases:
                     raise ValidationError("--record and --any-name exclude each other")
                 entry["any_name"] = True
+            given = any((args.domain, args.record, args.record_with_aliases, args.any_name, args.types, args.acl))
+            if (args.mode is None and not given) or args.mode == "acme":
+                from fabriclib.common.load_vars import load_vars
+                data = load_vars()
+                if _stored_key(args.name) is not None:
+                    raise ValidationError(f"TSIG key {args.name!r} already exists")
+                if args.mode == "acme":                  # 2.1.4.12: only the zone's records, TXT, nothing else
+                    if args.any_name or args.types:
+                        raise ValidationError("--mode acme takes only --record and --record-with-aliases of the "
+                                              "zone (TXT); use --mode custom for more")
+                    zone = args.domain or data.get("domain", "")
+                    entry.pop("records", None)
+                    entry.pop("records_with_aliases", None)
+                    entry.update(acme_picks(data, zone, args.record or [], args.record_with_aliases or []),
+                                 domain=zone)
+                else:
+                    entry.update(ask_tsig_scope(data))
+            secret = _secret(args)
             key, _ = add_tsig_key("root", entry, secret)
             acls = set_key_acls("root", key["name"], add=args.acl) if args.acl else []
             msg = (f"TSIG key '{key['name']}' added ({'existing secret kept' if secret else 'new secret'})"
@@ -148,8 +188,8 @@ def run_tsig_command(argv):
             changes = {}
             if args.any_name and args.record:
                 raise ValidationError("--record and --any-name exclude each other")
-            if args.any_name:
-                changes.update(records=[], any_name=True)
+            if args.any_name:                         # any name replaces every name, with aliases or not
+                changes.update(records=[], records_with_aliases=[], any_name=True)
             elif args.record:
                 changes.update(records=args.record, any_name=None)
             if args.types:
@@ -157,10 +197,20 @@ def run_tsig_command(argv):
             for field in ("domain", "algorithm", "out"):
                 if getattr(args, field):
                     changes[field] = getattr(args, field)
-            if not changes and not args.acl and not args.drop_acl:
-                raise ValidationError("nothing to change (--record, --any-name, --types, --domain, --algorithm, "
-                                      "--out, --acl, --drop-acl)")
-            key = update_tsig_key("root", args.name, changes) if changes else _stored_key(args.name)
+            if args.record_with_aliases:
+                changes["records_with_aliases"] = args.record_with_aliases
+            edit = {f: getattr(args, a) for f, a in (("add", "add_record"), ("drop", "drop_record"),
+                                                     ("add_with_aliases", "add_record_with_aliases"),
+                                                     ("drop_with_aliases", "drop_record_with_aliases"))
+                    if getattr(args, a)} or None
+            if edit and (args.any_name or args.record or args.record_with_aliases):
+                raise ValidationError("--add-record/--drop-record change the names one at a time; --record and "
+                                      "--any-name replace them: give one or the other")
+            if not changes and not edit and not args.acl and not args.drop_acl:
+                raise ValidationError("nothing to change (--record, --add-record, --drop-record, --any-name, --types, "
+                                      "--domain, --algorithm, --out, --acl, --drop-acl)")
+            key = (update_tsig_key("root", args.name, changes, edit=edit) if changes or edit
+                   else _stored_key(args.name))
             if key is None:
                 raise ValidationError(f"no TSIG key named {args.name!r}")
             acls = set_key_acls("root", args.name, add=args.acl, drop=args.drop_acl)

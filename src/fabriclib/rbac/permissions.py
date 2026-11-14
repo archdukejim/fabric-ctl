@@ -9,7 +9,7 @@ PERMISSIONS = {
     "status:read": "see the services' health (Overview)",
     "dns:read": "see zones, records, reverse zones and TSIG key names",
     "dns:write": "add and remove DNS records, apply DNS changes",
-    "tsig:manage": "create, rotate and delete TSIG keys",
+    "tsig:manage": "create, rotate, edit the names of and delete TSIG keys",
     "dns:filter": "manage the DNS filter (lists, rules, client groups) and see its statistics",
     "dns:querylog": "read the DNS query log: which client looked up which name (admin bundle only, 2.1.12.4)",
     "dhcp:read": "see DHCP subnets, reservations and leases",

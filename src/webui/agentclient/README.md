@@ -59,6 +59,7 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `person_overview.py` | One person's page: details, state, last sign-in, groups, sites, certificates, devices. Agent route: GET /v1/people/<uid> (people:read). |
 | `directory_overview.py` | The Directory's Overview: the domain, its level and DCs, roles, replication, sites, counts. Agent route: GET /v1/directory (domain:read). |
 | `list_tsig_keys.py` | The TSIG keys and their update rights (never their secrets). Agent route: GET /v1/tsig (dns:read). |
+| `tsig_choices.py` | A zone's records a TSIG key's names are picked from (2.1.4.12–2.1.4.14). Agent route: GET /v1/tsig-choices/<zone> (dns:read). |
 | `list_zones.py` | The DNS zones for the BIND page's zone list. Agent route: GET /v1/zones (dns:read). |
 | `quote_segment.py` | URL-quote one path segment with nothing kept safe ("/" becomes %2F), so a name cannot change the route. |
 | `radius_guides.py` | The FreeRADIUS setup guides and Windows scripts, filled in for this host (public data only). Agent route: GET /v1/radius/guides (radius:read). |
