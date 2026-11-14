@@ -1,7 +1,7 @@
-"""The access rules' words (manual 1.10.4.48.1, 1.10.4.48.2): the services with their ports, the sources, the
-actions, the fresh site's rule list."""
+"""The access table's words (manual 1.10.4.48.10, 1.10.4.48.2): the services with their ports, the networks that
+are not VLANs, the actions."""
 
-# each service a rule may name, in the order they are shown, with its ports as people read them (2.1.10.55)
+# each service, in the order they are shown, with its ports as people read them (2.1.10.55)
 SERVICES = {
     "dns": "53/udp, 53/tcp, 853/tcp; BIND's bind_dns_port",
     "ntp": "123/udp",
@@ -12,15 +12,11 @@ SERVICES = {
     "ssh": "sshd's ports",
     "ping": "ICMP echo",
 }
-ANY = "any"                 # a service: every one; a source: every IPv4 address, outside ones too (2.1.10.62)
-HOST = "host"               # the host's own VLAN
-SITE = "site"               # every network of the site (2.1.10.62)
-FABRIC = "fabric"           # every network of every site of the domain (2.1.10.62)
-EXTERNAL = "0.0.0.0/0"      # what `any` adds to the networks the domain knows
+FABRIC = "fabric"           # every network of the domain's other sites (2.1.10.63)
+ANY = "any"                 # every other IPv4 address, outside ones too (2.1.10.63)
+ALL = "all"                 # every service at once, on the command line
+EXTERNAL = "0.0.0.0/0"      # what `any` stands for
 ACTIONS = ("allow", "deny")
-
-# what a fresh site has (2.1.10.53): only the host's own VLAN reaches fabric
-DEFAULT_RULES = [{"from": HOST, "service": ANY, "action": "allow"}]
 
 # what the host's VLAN must keep, unless --force at the host (2.1.10.57)
 GUARDED = ("ssh", "web")

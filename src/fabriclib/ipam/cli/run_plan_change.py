@@ -9,14 +9,11 @@ from fabriclib.ipam.remove_address import remove_address
 from fabriclib.ipam.remove_range import remove_range
 from fabriclib.ipam.remove_subnet import remove_subnet
 from fabriclib.ipam.remove_vlan import remove_vlan
-from fabriclib.ipam.rules.add_rule import add_rule
-from fabriclib.ipam.rules.move_rule import move_rule
-from fabriclib.ipam.rules.remove_rule import remove_rule
-from fabriclib.ipam.rules.set_rule import set_rule
 from fabriclib.ipam.set_address import set_address
 from fabriclib.ipam.set_block import set_block
 from fabriclib.ipam.set_subnet import set_subnet
 from fabriclib.ipam.set_vlan import set_vlan
+from fabriclib.ipam.rules.set_access import set_access
 
 
 def _subnet_line(out):
@@ -132,34 +129,24 @@ def _address(v, cmd, sub, rest, vals, bare, site, common):
     return None
 
 
-def _rule(v, sub, rest, vals, bare, site, common):
-    """Purpose: `rule add|set|remove|move` (manual 1.10.4.48.5): the change, what it did and the list after, then
-             applied.
+def _access(v, sub, rest, bare, site, common):
+    """Purpose: `access set <network> <service>|all allow|deny` (manual 1.10.4.48.11): the change, what it did and the
+             network's services after, then applied.
     Inputs:  as run_plan_change, with sub the subcommand and rest its positionals; --force taken here only.
-    Returns: exit status, or None when the arguments are not a rule change.
-    Fails:   ValidationError from the rules' functions.
+    Returns: exit status, or None when the arguments are not an access change.
+    Fails:   ValidationError from set_access.
     Feeds:   run_plan_change."""
-    force = "--force" in bare
-    if sub == "add" and len(rest) == 3:
-        out = add_rule(v, "root", rest[0], rest[1], rest[2], vals.get("--at"), site, force, **common)
-    elif sub == "set" and len(rest) == 4:
-        out = set_rule(v, "root", rest[0], rest[1], rest[2], rest[3], vals.get("--at"), site, force, **common)
-    elif sub == "remove" and len(rest) == 1:
-        out = remove_rule(v, "root", rest[0], site, force, **common)
-    elif sub == "move" and len(rest) == 2:
-        out = move_rule(v, "root", rest[0], rest[1], site, force, **common)
-    else:
+    if sub != "set" or len(rest) != 3:
         return None
+    out = set_access(v, "root", rest[0], {rest[1]: rest[2]}, site, "--force" in bare, **common)
     r = out["result"]
     print(f"site {out['site']}: {r['did']}" + (" (forced: the host's VLAN is cut off)" if r["forced"] else ""))
-    for n, rule in enumerate(r["rules"], 1):
-        print(f"  {n} from {rule['from']} service {rule['service']} {rule['action']}")
-    print("  * from any service any deny")
+    print(f"  {r['network']} reaches: " + (", ".join(s for s, a in r["row"].items() if a == "allow") or "nothing"))
     return report_change(v, out, bare)
 
 
 def run_plan_change(v, cmd, pos, vals, bare, site, secrets=None, container="samba"):
-    """Purpose: `fabricctl ipam block <n>`, `rule add|set|remove|move` (1.10.4.48.5) and `vlan|subnet|range|address
+    """Purpose: `fabricctl ipam block <n>`, `access set` (1.10.4.48.11) and `vlan|subnet|range|address
              add|set|remove` (manual 1.10.4.16): each the plan's function it names, run as root (acting for the
              Enterprise Admin), its result printed, then applied here or left to the other site's poll
              (report_change). Routes only.
@@ -181,8 +168,8 @@ def run_plan_change(v, cmd, pos, vals, bare, site, secrets=None, container="samb
         return _vlan(v, sub, rest, vals, bare, site, common)
     if cmd == "subnet":
         return _subnet(v, sub, rest, vals, bare, site, common)
-    if cmd == "rule":
-        return _rule(v, sub, rest, vals, bare, site, common)
+    if cmd == "access":
+        return _access(v, sub, rest, bare, site, common)
     if cmd in ("range", "address"):
         return _address(v, cmd, sub, rest, vals, bare, site, common)
     return None

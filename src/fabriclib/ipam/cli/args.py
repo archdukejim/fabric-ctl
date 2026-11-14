@@ -19,7 +19,7 @@ def parse_args(args):
         a = args[i]
         if a == "--access":                         # 2.1.10.58: the rules decide what a VLAN reaches
             raise ValidationError("--access is no longer taken (0.10.0): what a VLAN reaches is the site's access "
-                                  "rules: fabricctl ipam rule")
+                                  "table: fabricctl ipam access")
         if a in FLAGS:
             if i + 1 >= len(args):
                 raise ValidationError(f"{a} needs a value")

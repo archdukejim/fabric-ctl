@@ -13,10 +13,8 @@ from fabriclib.ipam.remove_address import remove_address
 from fabriclib.ipam.remove_range import remove_range
 from fabriclib.ipam.remove_subnet import remove_subnet
 from fabriclib.ipam.remove_vlan import remove_vlan
-from fabriclib.ipam.rules.add_rule import add_rule
-from fabriclib.ipam.rules.move_rule import move_rule
-from fabriclib.ipam.rules.remove_rule import remove_rule
-from fabriclib.ipam.rules.set_rule import set_rule
+from fabriclib.ipam.rules.constants import SERVICES
+from fabriclib.ipam.rules.set_access import set_access
 from fabriclib.ipam.set_address import set_address
 from fabriclib.ipam.set_block import set_block
 from fabriclib.ipam.set_subnet import set_subnet
@@ -71,17 +69,10 @@ def _change(v, actor, site, sub, data, caller):
     Feeds:   post_networks."""
     web = {"source": "web", "caller": caller}
     t = read_text
-    if "access" in data:                 # 2.1.10.58: what a VLAN reaches is the site's access rules'
-        raise ValidationError("a VLAN's access is no longer set (0.10.0): change the site's access rules")
-    if sub == ["rules"]:                 # the site's access rules (1.10.4.48.5); never --force from here (2.1.10.57)
-        return add_rule(v, actor, t(data, "from"), t(data, "service"), t(data, "action"), t(data, "at"), site, **web)
-    if len(sub) == 2 and sub[0] == "rules":   # a rule changed where it stands, or moved with it (2.1.10.61)
-        return set_rule(v, actor, sub[1], t(data, "from"), t(data, "service"), t(data, "action"), t(data, "to"), site,
-                        **web)
-    if len(sub) == 3 and sub[0] == "rules" and sub[2] == "delete":
-        return remove_rule(v, actor, sub[1], site, **web)
-    if len(sub) == 3 and sub[0] == "rules" and sub[2] == "move":
-        return move_rule(v, actor, sub[1], t(data, "to"), site, **web)
+    if "access" in data:                 # 2.1.10.58: what a VLAN reaches is the site's access table's
+        raise ValidationError("a VLAN's access is no longer set (0.10.0): set the site's access table")
+    if len(sub) == 2 and sub[0] == "access":     # one network's row (1.10.4.48.11); never --force from here (2.1.10.57)
+        return set_access(v, actor, sub[1], {s: t(data, s) for s in SERVICES if t(data, s)}, site, whole=True, **web)
     if sub == ["block"]:
         return set_block(v, actor, t(data, "number"), site, **web)
     if sub == ["vlans"]:
@@ -128,7 +119,7 @@ def post_networks(route, actor, data, caller=None, apply=True):
     """Purpose: the Networks tab's changes to a site's address plan (manual 1.10.4.21.5, 1.10.4.35): POST
              /v1/networks/<site>/block, /vlans, /vlans/<id>, /vlans/<id>/delete, /subnets, /subnets/<name>,
              /subnets/<name>/delete, /ranges, /ranges/delete, /addresses, /addresses/<ip>, /addresses/<ip>/delete,
-             /rules, /rules/<n>, /rules/<n>/delete, /rules/<n>/move (the site's access rules, 1.10.4.48.5).
+             /access/<network> (a network's row of the site's access table, 1.10.4.48.11).
              Any site of the domain; each change is the ipam function `fabricctl ipam` calls, which checks the
              signed-in person's networks `plan` right at that site first (fabric-agent's check_access, 1.10.4.34),
              writes as this site's agent account and audits, source web. Then apply_plan_change: this site's plan
@@ -136,16 +127,16 @@ def post_networks(route, actor, data, caller=None, apply=True):
              (it shapes suggestions only).
     Inputs:  route — ["networks", <site>, …]; actor — the verified user; data — the body: number (block); id, name,
              subnet, no_subnet, gateway, purpose, notes, dhcp, relay, allow_overlap, split (a VLAN); name,
-             purpose, notes (a VLAN changed: a field left out stays); from, service, action, at (a rule added);
-             from, service, action, to (a rule changed); to
-             (a rule moved); access is refused (2.1.10.58); vlan, cidr, name, gateway, dhcp, relay,
+             purpose, notes (a VLAN changed: a field left out stays); dns, ntp, dhcp, web, ad, radius, ssh, ping
+             each "allow" or left out, denied (a network's access); a VLAN's access is refused (2.1.10.58); vlan,
+             cidr, name, gateway, dhcp, relay,
              notes, allow_overlap, split (a subnet); gateway, dhcp, relay, notes, allow_overlap (a subnet changed);
              force (a removal with its recorded addresses); vlan, kind, first, last, notes (a range); vlan, first (a
              range removed); ip, kind, name, mac, owner, notes, dns, vlan (an address); kind, name, mac, owner,
              notes, dns (an address changed); caller — the signed-in person (None: a root peer); apply — False
              when the Networks page's Apply runs it as a held change (its finish applies once, 1.10.4.40.3).
     Returns: apply_plan_change's result ({"result", "warnings", "site", "own", "applied", "output"}).
-    Fails:   ValidationError (-> 400) from the readers and fabriclib (the grant refused, each rule named, no such
+    Fails:   ValidationError (-> 400) from the readers and fabriclib (the grant refused, each check named, no such
              site, the domain refusing); RouteNotFound (-> 404).
     Feeds:   agent/post_route.py."""
     if len(route) < 3 or not route[1].strip():

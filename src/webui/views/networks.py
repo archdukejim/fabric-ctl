@@ -57,7 +57,7 @@ def networks(ctx, overview, query):
              ranges, address table, options and sources, and its forms in sections), an address's page, Add VLAN or
              the site's number on their own page, or a search's matching rows. The forms show only with dhcp:write.
     Inputs:  ctx — page context; overview — networks_overview's dict; query — dict: view (new-vlan, number;
-             rules: Access rules' page), vlan, subnet, address, q.
+             rules: the Access page, net: its tab), vlan, subnet, address, q.
     Returns: HTML str.
     Fails:   LookupError for a VLAN, subnet or address that is not there (_shown); Jinja2 errors propagate.
     Feeds:   src/webui/routes/networks_page (/networks); the dev preview."""
@@ -67,9 +67,9 @@ def networks(ctx, overview, query):
         v.setdefault("label", f"VLAN {v.get('id')}" + (f" at {v['location']}" if v["location"] else ""))
     vlan, subnet, row = _shown(overview, query)
     q = query.get("q", "")
-    if query.get("view") == "rules":       # Networks · Access rules, its own page (2.1.10.61); Segments' Apply
+    if query.get("view") == "rules":       # Networks · Access, its own page (2.1.10.61); Segments' Apply
         return render_page("networks", ctx=ctx, page="/networks/rules", queue="/networks", n=overview, view="rules",
-                           vlan=None, s=None, row=None, q="", hits=None)
+                           net=query.get("net", ""), vlan=None, s=None, row=None, q="", hits=None)
     return render_page("networks", ctx=ctx, page="/networks", n=overview, view=query.get("view") if query.get("view")
                        in VIEWS and not (vlan or subnet) else "", vlan=vlan, s=subnet, row=row, q=q,
                        hits=_hits(overview, q) if q.strip() else None)

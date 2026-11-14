@@ -9,7 +9,7 @@ def networks_page(h, ctx, path, query):
     """Purpose: Networks · Segments (manual 1.10.4.40.1): GET /networks shows a site's plan (?site=, this one by
              default) as a list, a VLAN's page (?vlan=<id>), a subnet's (?subnet=<name>), an address's
              (&address=<ip>), Add VLAN or the site's number on their own page (?view=new-vlan|number), or a search
-             (?q=); GET /networks/rules is Networks · Access rules, the site's rules (2.1.10.61; the old
+             (?q=); GET /networks/rules is Networks · Access, the site's access table (2.1.10.61; the old
              ?view=rules redirects there); GET /networks/export downloads the site's address table as CSV.
     Inputs:  h — the request handler (send, deny, redirect); ctx — page context; path — "/networks",
              "/networks/rules" or "/networks/export";
@@ -34,7 +34,8 @@ def networks_page(h, ctx, path, query):
         return h.deny(404, f"Not found: {exc}.")
     try:
         if path == "/networks/rules":
-            return h.send(200, views.networks(ctx, overview, {"site": site, "view": "rules"}))
+            return h.send(200, views.networks(ctx, overview, {"site": site, "view": "rules",
+                                                              "net": query.get("net", "")}))
         return h.send(200, views.networks(ctx, overview, {**query, "view": "" if query.get("view") == "rules"
                                                           else query.get("view", "")}))
     except LookupError as exc:

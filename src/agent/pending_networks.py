@@ -93,18 +93,10 @@ def describe_networks(route, body):
     gone = sub[-1:] == ["delete"]
     if sub == ["block"]:
         return f"Set the site's number to {b.get('number', '')}{where}"
-    if sub[0] == "rules":                   # the site's access rules (1.10.4.48.5)
-        if len(sub) == 1:
-            at = f" as number {b['at']}" if b.get("at") else ""
-            return (f"Add access rule from {b.get('from', '')} service {b.get('service', '')} "
-                    f"{b.get('action', '')}{at}{where}")
-        if gone:
-            return f"Remove access rule {sub[1]}{where}"
-        if len(sub) == 2:                   # changed where it stands, or moved with it (2.1.10.61)
-            to = f" as number {b['to']}" if b.get("to") and str(b["to"]) != sub[1] else ""
-            return (f"Change access rule {sub[1]} to from {b.get('from', '')} service {b.get('service', '')} "
-                    f"{b.get('action', '')}{to}{where}")
-        return f"Move access rule {sub[1]} to {b.get('to', '')}{where}"
+    if sub[0] == "access":                  # a network's row of the site's access table (1.10.4.48.11)
+        allowed = [s for s in ("dns", "ntp", "dhcp", "web", "ad", "radius", "ssh", "ping") if b.get(s) == "allow"]
+        what = {"fabric": "the other sites", "any": "outside addresses"}.get(sub[1], f"VLAN {sub[1]}")
+        return f"Let {what} reach {', '.join(allowed) or 'nothing'}{where}"
     if sub[0] == "vlans":
         if len(sub) == 1:
             at = f"@{b['location']}" if b.get("location") else ""      # another location of the site (1.10.4.46)

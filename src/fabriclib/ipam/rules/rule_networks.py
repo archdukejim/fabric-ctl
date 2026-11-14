@@ -27,7 +27,7 @@ def rule_networks(v, plan):
              subnet of the site's plan), "site": [CIDR, ...] (host's first, then every subnet, each once), "fabric":
              [CIDR, ...] (site's, then the other sites'), "all": fabric's and then 0.0.0.0/0}.
     Fails:   never.
-    Feeds:   service_sources, access_denied, check_rule, check_cut_off, rule_warnings, show_rules, rules_view,
+    Feeds:   service_sources, access_denied, access_view, set_access, seed_site_access, run_plan_read,
              ipam/load_address_plan."""
     plan = plan or {}
     vlans = {vlan_ref(x): [] for x in plan.get("vlans") or []}

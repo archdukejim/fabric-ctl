@@ -8,23 +8,22 @@ from webui.routes.options_post import options_post
 # the plan's changes, as the segments after the site (1.10.4.21.5); "*" is a VLAN ID, a subnet's name or an address
 CHANGES = (["block"], ["vlans"], ["vlans", "*"], ["vlans", "*", "delete"], ["subnets"], ["subnets", "*"],
            ["subnets", "*", "delete"], ["ranges"], ["ranges", "delete"], ["addresses"], ["addresses", "*"],
-           ["addresses", "*", "delete"], ["rules"], ["rules", "*"], ["rules", "*", "delete"],
-           ["rules", "*", "move"])
+           ["addresses", "*", "delete"], ["access", "*"])
 FIELDS = ("number", "id", "name", "subnet", "no_subnet", "gateway", "purpose", "notes", "dhcp", "relay",
           "allow_overlap", "split", "force", "vlan", "cidr", "kind", "first", "last", "ip", "mac", "owner", "dns",
-          "location", "to_location", "from", "service", "action", "at", "to")     # never --force (2.1.10.57)
+          "location", "to_location", "ntp", "web", "ad", "radius", "ssh", "ping")     # never --force (2.1.10.57)
 
 
 def _back(site, rest, form):
     """Purpose: The page a plan change goes back to: the subnet's or VLAN's page the form was on, the site's list
-             after a VLAN's or subnet's removal, the Access rules page after a rule's change.
+             after a VLAN's or subnet's removal, the Access page's tab after a network's change.
     Inputs:  site — str; rest — the segments after the site; form — dict (back_vlan, back_subnet).
-    Returns: str, "/networks?site=…[&vlan=…|&subnet=…]" or "/networks/rules?site=…".
+    Returns: str, "/networks?site=…[&vlan=…|&subnet=…]" or "/networks/rules?site=…&net=…".
     Fails:   never.
     Feeds:   networks_post."""
     keep = {"site": site}
-    if rest[:1] == ["rules"]:                     # the site's access rules (1.10.4.48.5)
-        return "/networks/rules?" + urllib.parse.urlencode(keep)
+    if rest[:1] == ["access"]:                    # the network's tab of the Access page (1.10.4.48.11)
+        return "/networks/rules?" + urllib.parse.urlencode({**keep, "net": rest[1]})
     gone = rest[-1:] == ["delete"] and rest[0] in ("vlans", "subnets")
     if form.get("back_subnet") and not gone:
         keep["subnet"] = form["back_subnet"]

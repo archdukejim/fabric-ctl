@@ -9,7 +9,7 @@ from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp
 from fabriclib.ipam.read_plan import read_plan
 from fabriclib.ipam.rules.dhcp_allowed import dhcp_allowed
 from fabriclib.ipam.rules.rule_networks import rule_networks
-from fabriclib.ipam.rules.seed_site_rules import seed_site_rules
+from fabriclib.ipam.rules.seed_site_access import seed_site_access
 from fabriclib.ipam.rules.service_sources import service_sources
 
 
@@ -108,7 +108,7 @@ def load_address_plan(final_vars, secrets, container="samba", digest=None):
     else:
         plan = site_plan(read, final_vars["site_name"])
         save_plan_cache(plan)
-        lines += seed_site_rules(final_vars, plan, secrets, container)
+        lines += seed_site_access(final_vars, plan, secrets, container)
     rendered = plan_to_dhcp(plan)
     final_vars["dhcp"] = {**d, "subnets": dhcp_allowed(rendered["subnets"], final_vars, plan)}
     final_vars["access_sources"] = service_sources(final_vars, plan)

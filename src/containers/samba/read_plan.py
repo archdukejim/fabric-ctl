@@ -87,8 +87,8 @@ def read_plan(samdb, lp, site, of=""):
              other networks (the LAN convergence writes).
     Inputs:  samdb — SamDB (as the DC's agent); lp — LoadParm (unused); site — str (unused: any site's plan may be
              read); of — a site's name, or "" for every site.
-    Returns: {"sites": [{"name", "created" (whenCreated text), "block" (int or None), "rules" (the access rules,
-             in order, 1.10.4.48.4), "rules_kept" (bool: the record holds any)}] by when made then name,
+    Returns: {"sites": [{"name", "created" (whenCreated text), "block" (int or None), "rules" (the access table's
+             rows, 1.10.4.48.10), "rules_kept" (bool: the record holds any)}] by when made then name,
              "plans": {site: {"vlans": [{"id", "location" ("" the DC's own, 1.10.4.46), "name", "purpose",
              "access", "notes"}], "subnets": [{"name", "cidr", "vlan", "location", "kind", "gateway", "dhcp" (bool),
              "id" (Kea's subnet id or None), "relay", "notes", "allow_overlap", "options", "netboot", "ranges":

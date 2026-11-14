@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% import "pattern.html" as p %}
-{#- Networks · Segments and Networks · Access rules (manual 1.10.4.40.1, 1.10.4.48.5): a site's plan as a list, a VLAN's, a subnet's and an address's page, Add VLAN
+{#- Networks · Segments and Networks · Access (manual 1.10.4.40.1, 1.10.4.48.5): a site's plan as a list, a VLAN's, a subnet's and an address's page, Add VLAN
     and the site's number on their own pages, a search. Every change waits for Networks' Apply (1.10.4.40.2); Sync
     now and Scan at <site> are done at once. No form in a table cell, no inline script or style. -#}
 {% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
@@ -16,43 +16,33 @@
 {% else %}{{ p.empty("No options reach this subnet's clients.") }}{% endif %}{% endmacro %}
 {% macro onoff(name, label, on) %}<label>{{ label }}<select name="{{ name }}"><option value="on"{{ ' selected' if on }}>on</option><option value="off"{{ ' selected' if not on }}>off</option></select></label>{% endmacro %}
 {% block body %}
-<h1>Networks · {% if view == 'rules' %}Access rules{% else %}Segments{% if s %} · {{ s.cidr }}{% elif vlan %} · {{ vlan.label }}{% endif %}{% endif %}</h1>
+<h1>Networks · {% if view == 'rules' %}Access{% else %}Segments{% if s %} · {{ s.cidr }}{% elif vlan %} · {{ vlan.label }}{% endif %}{% endif %}</h1>
 {% if n.stale %}<p class="flash warn" role="status">{{ n.stale }}</p>{% endif %}
 {% if n.error %}<p class="flash bad" role="alert">{{ n.error }}</p>{% endif %}
 
 {% if view == 'rules' %}
 {% set a = n.access %}{% set site = n.site | urlencode %}{% set w = a and can('dhcp:write') %}
 {% if n.sites | length > 1 %}<form method="get" action="/networks/rules" class="grid"><label>Site<select name="site">{% for x in n.sites %}<option value="{{ x.name }}"{{ ' selected' if x.name == n.site }}>{{ x.name }}</option>{% endfor %}</select></label><div><button class="ghost">Show</button></div></form>{% endif %}
-<section class="card"><h2>Access rules at {{ n.site }}</h2>
-<p class="muted">Which of the site's networks reach which of fabric's services. The first rule that matches decides; anything no rule allows gets no answer at all.{% if w %} Change a row and press Save; pick another number to move it. Changes wait for <strong>Apply</strong>.{% endif %}</p>
-{% macro sources(pick) %}{% for s in a.sources %}<option value="{{ s.value }}"{{ ' selected' if s.value == pick }}>{{ s.label }}</option>{% endfor %}{% endmacro %}
-{% macro services(pick) %}{% for s in a.services %}<option value="{{ s.name }}"{{ ' selected' if s.name == pick }}>{{ s.name }}</option>{% endfor %}{% endmacro %}
-{% macro actions_(pick) %}{% for x in ('allow', 'deny') %}<option value="{{ x }}"{{ ' selected' if x == pick }}>{{ x }}</option>{% endfor %}{% endmacro %}
-{% if w %}{#- each row's forms, before the table: its controls name them (form=), so no form sits in a cell (1.8.6.3) -#}
-<div class="rowforms">{% for r in a.rules %}<form id="rule-{{ r.n }}" method="post" action="/networks/plan/{{ site }}/rules/{{ r.n }}">{{ csrf() }}</form><form id="rule-{{ r.n }}-rm" method="post" action="/networks/plan/{{ site }}/rules/{{ r.n }}/delete">{{ csrf() }}</form>{% endfor %}<form id="rule-new" method="post" action="/networks/plan/{{ site }}/rules">{{ csrf() }}</form></div>{% endif %}
-{% if a %}{% call p.list(["#", "From", "Service", "Action", ""] if w else ["#", "From", "Service", "Ports", "Action"], "rules") %}{% for r in a.rules %}<tr>
-{% if w %}{% set f = 'rule-' ~ r.n %}
-<td data-label="#"><select form="{{ f }}" name="to" aria-label="Rule {{ r.n }}'s number">{% for x in a.rules %}<option value="{{ x.n }}"{{ ' selected' if x.n == r.n }}>{{ x.n }}</option>{% endfor %}</select></td>
-<td data-label="From"><select form="{{ f }}" name="from" aria-label="Rule {{ r.n }} from">{{ sources(r.from) }}</select>{% if r.networks %} <span class="muted">{{ r.networks }}</span>{% endif %}</td>
-<td data-label="Service"><select form="{{ f }}" name="service" aria-label="Rule {{ r.n }} service">{{ services(r.service) }}</select> <span class="muted">{{ r.ports }}</span></td>
-<td data-label="Action"><select form="{{ f }}" name="action" aria-label="Rule {{ r.n }} action">{{ actions_(r.action) }}</select></td>
-<td data-label=""><button form="{{ f }}">Save</button> <button form="{{ f }}-rm" class="ghost">Remove</button></td>
-{% else %}
-<td data-label="#">{{ r.n }}</td><td data-label="From">{{ r.from }}{% if r.networks %} <span class="muted">{{ r.networks }}</span>{% endif %}</td><td data-label="Service">{{ r.service }}</td><td data-label="Ports"><span class="muted">{{ r.ports }}</span></td>
-<td data-label="Action">{% if r.action == 'allow' %}{{ p.status('ok', 'allow') }}{% else %}{{ p.status('bad', 'deny') }}{% endif %}</td>
-{% endif %}</tr>{% endfor %}
-{% if w %}<tr class="add">
-<td data-label="#"><select form="rule-new" name="at" aria-label="The new rule's number">{% for x in range(1, a.rules | length + 2) %}<option value="{{ x }}"{{ ' selected' if loop.last }}>{{ x }}</option>{% endfor %}</select></td>
-<td data-label="From"><select form="rule-new" name="from" aria-label="New rule from">{{ sources('') }}</select></td>
-<td data-label="Service"><select form="rule-new" name="service" aria-label="New rule service">{{ services('') }}</select></td>
-<td data-label="Action"><select form="rule-new" name="action" aria-label="New rule action">{{ actions_('allow') }}</select></td>
-<td data-label=""><button form="rule-new">Add</button></td></tr>{% endif %}
-<tr class="muted"><td data-label="#">*</td><td data-label="From">any</td><td data-label="Service">any</td>{% if w %}<td data-label="Action">{{ p.status('bad', 'deny') }}</td><td data-label="">implied: nothing else is answered</td>{% else %}<td data-label="Ports">implied: nothing else is answered</td><td data-label="Action">{{ p.status('bad', 'deny') }}</td>{% endif %}</tr>{% endcall %}
-{% if not a.kept %}<p class="muted">None written yet: these are the rules the site has until one is changed.</p>{% endif %}
-{% for wn in a.warnings %}<p class="flash warn" role="status">{{ wn }}</p>{% endfor %}
-{% if w %}<p class="muted">A change that would cut the host's VLAN off SSH or the console is refused here; it can be made only on the command line, at the host.</p>{% endif %}
-{% else %}{{ p.empty("The rules could not be read.") }}{% endif %}
+{% if a %}{% set sel = (a.networks | selectattr('key', 'equalto', net) | first) or a.networks[0] %}
+<div class="picker"><span class="muted">Network</span>
+{% for x in a.networks %}<a href="/networks/rules?site={{ site }}&amp;net={{ x.key | urlencode }}" class="subtab{{ ' active' if x.key == sel.key }}"{% if x.key == sel.key %} aria-current="page"{% endif %}>{{ x.label }}{% if x.host %} <span class="muted">host</span>{% endif %}</a>{% endfor %}
+</div>
+<section class="card"><h2>{{ sel.label }} at {{ n.site }}</h2>
+<p class="muted">{{ sel.cidrs }}. What it may reach of fabric's services; anything not allowed gets no answer at all.{% if w %} Tick what it may reach, then Save; changes wait for <strong>Apply</strong>.{% endif %}</p>
+{% if sel.host %}<p class="muted">The host's own VLAN: its SSH and console cannot be turned off here, only on the command line, at the host.</p>{% endif %}
+{% if w %}<form method="post" action="/networks/plan/{{ site }}/access/{{ sel.key | urlencode }}">{{ csrf() }}
+{% call p.list(["Service", "Ports", "Allowed"], "access") %}{% for s in sel.services %}<tr>
+<td data-label="Service"><label class="check" for="svc-{{ s.name }}">{{ s.name }}</label></td><td data-label="Ports"><span class="muted">{{ s.ports }}</span></td>
+<td data-label="Allowed">{% if s.guarded %}<input type="hidden" name="{{ s.name }}" value="allow"><input type="checkbox" id="svc-{{ s.name }}" checked disabled aria-label="{{ s.name }}: always allowed for the host's VLAN"> <span class="muted">always</span>{% else %}<input type="checkbox" id="svc-{{ s.name }}" name="{{ s.name }}" value="allow"{{ ' checked' if s.allow }}>{% endif %}</td></tr>{% endfor %}{% endcall %}
+<div class="form-actions"><button>Save</button></div></form>
+{% else %}{% call p.list(["Service", "Ports", "Allowed"], "access") %}{% for s in sel.services %}<tr>
+<td data-label="Service">{{ s.name }}</td><td data-label="Ports"><span class="muted">{{ s.ports }}</span></td>
+<td data-label="Allowed">{% if s.allow %}{{ p.status('ok', 'allowed') }}{% else %}{{ p.status('bad', 'no answer') }}{% endif %}</td></tr>{% endfor %}{% endcall %}{% endif %}
 </section>
+{% if a.host_lan %}<p class="muted">The host's network ({{ a.host_lan }}) is in no VLAN of the plan: it reaches everything.</p>{% endif %}
+{% if not a.kept %}<p class="muted">None written yet: this is what the site has until one is changed.</p>{% endif %}
+{% for wn in a.warnings %}<p class="flash warn" role="status">{{ wn }}</p>{% endfor %}
+{% else %}<section class="card">{{ p.empty("The access table could not be read.") }}</section>{% endif %}
 
 {% elif view == 'new-vlan' %}
 <p><a href="{{ here() }}">← {{ n.site }}'s VLANs</a></p>
@@ -252,7 +242,7 @@ the plan keep their networks. Waits for <strong>Apply</strong>; nothing restarts
 </section>
 
 <section class="card"><h2>VLANs at {{ n.site }}{% if n.block %} <span class="muted">number {{ n.block }}</span>{% endif %}</h2>
-{% if n.access %}<p><a href="/networks/rules?site={{ n.site | urlencode }}">Access rules ({{ n.access.rules | length }})</a> <span class="muted">which networks reach which of fabric's services</span></p>{% endif %}
+{% if n.access %}<p><a href="/networks/rules?site={{ n.site | urlencode }}">Access</a> <span class="muted">what each VLAN reaches of fabric's services</span></p>{% endif %}
 {% if n.vlans %}{% call p.list(["VLAN", "Name", "Subnets"]) %}{% for vlan in n.vlans %}<tr>
 <td data-label="VLAN"><a href="{{ here('&vlan=' ~ (vlan.ref | urlencode)) }}">{{ vlan.id }}</a>{% if vlan.location %} <span class="muted">at {{ vlan.location }}</span>{% endif %}</td><td data-label="Name">{{ vlan.name }}{% if vlan.purpose %} <span class="muted">{{ vlan.purpose }}</span>{% endif %}</td>
 <td data-label="Subnets">{% for x in vlan.subnets %}<div class="subnet"><a href="{{ here('&subnet=' ~ (x.name | urlencode)) }}">{{ x.cidr }}</a>{% if x.name != vlan.name %} ({{ x.name }}){% endif %} <span class="muted">{{ x.counts.used }}/{{ x.counts.size }} in use{% if x.counts.unrecorded %} · {{ x.counts.unrecorded }} unrecorded{% endif %}{% if not x.dhcp %} · DHCP off{% endif %}</span>{{ netbar(x, false) }}</div>{% else %}<span class="muted">a record only (no subnet)</span>{% endfor %}</td></tr>{% endfor %}{% endcall %}

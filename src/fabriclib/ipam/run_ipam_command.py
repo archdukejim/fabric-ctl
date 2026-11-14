@@ -17,14 +17,11 @@ USAGE = """usage: fabricctl ipam show [<site>]                    a site's VLANs
        fabricctl ipam find <ip|name|mac>               where an address, a name or a MAC is, in every site
        fabricctl ipam export [<site>]                  the address table as CSV (every site without one)
        fabricctl ipam block [<n>]                      the site's number (1-255): shown, or set
-       fabricctl ipam rule [list]                      the site's access rules, numbered, with their ports
-       fabricctl ipam rule add host|any|<vlan> dns|ntp|dhcp|web|ad|radius|ssh|ping|any allow|deny [--at N]
+       fabricctl ipam access [list]                    what each network reaches, service by service
+       fabricctl ipam access set <vlan>|fabric|any dns|ntp|dhcp|web|ad|radius|ssh|ping|all allow|deny
                                [--force]
-       fabricctl ipam rule set <n> host|any|<vlan> <service> allow|deny [--at M] [--force]
-       fabricctl ipam rule remove <n> [--force]
-       fabricctl ipam rule move <n> <m> [--force]
-                               (the first rule that matches decides; anything no rule allows gets no answer;
-                               --force, as root on the host only, takes a list that cuts the host's VLAN off)
+                               (a VLAN, the other sites or every outside address; anything not allowed
+                               gets no answer; --force, as root on the host only, cuts the host's VLAN off)
        fabricctl ipam vlan add <id>[@<location>] --name N [--subnet CIDR | --no-subnet] [--gateway IP]
                                [--purpose T]
                                [--notes T] [--dhcp on|off] [--relay IP] [--no-split]

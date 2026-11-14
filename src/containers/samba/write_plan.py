@@ -138,7 +138,7 @@ def _write_rules(samdb, change):
     """Purpose: a site's access rules replaced as one list on its record (manual 1.10.4.48.4): the record given the
              fabricAccessRules class first when it lacks it, then every fabricAccessRule value replaced at once, so the
              list is never half written.
-    Inputs:  samdb — SamDB; change — {"site", "fields": {"rules": [{"from", "service", "action"}, ...]}}.
+    Inputs:  samdb — SamDB; change — {"site", "fields": {"rules": [{"net", service: action, ...}, ...]}}.
     Returns: str, what changed.
     Fails:   ValueError "no such site: <site>"; ldb.LdbError from the read or the change.
     Feeds:   write_plan."""

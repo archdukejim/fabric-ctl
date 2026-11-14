@@ -94,7 +94,7 @@ def serve(bundle=None, extra=()):
 PAGES = ["/networks", "/networks?site=parents", "/networks?site=lan&vlan=20", "/networks?site=lan&subnet=iot",
          "/networks?site=lan&subnet=iot&address=10.1.20.150", "/networks?site=lan&subnet=iot&address=10.1.20.120",
          "/networks?site=lan&view=new-vlan", "/networks?site=lan&view=number", "/networks?site=lan&q=cam",
-         "/networks/rules?site=lan", "/networks/rules?site=parents",
+         "/networks/rules?site=lan", "/networks/rules?site=parents", "/networks/rules?site=lan&net=any",
          "/networks/scan", "/networks/options", "/networks/options?site=lan&target=subnet:iot",
          "/networks/options?site=lan&target=address:10.1.20.150", "/networks/options?site=lan&target=site"]
 
@@ -108,9 +108,9 @@ with serve():
     check("no form inside a table cell (the page pattern, 1.8.6.3)",
           not [p for p in PAGES if re.search(r"<td[^>]*>(?:(?!</td>).)*<form", get(p), re.S)])
     page = get("/networks")
-    check("the Networks entry (2.1.10.61) lists Segments, Access rules, DHCP options and Kea; Segments is shown",
+    check("the Networks entry (2.1.10.61) lists Segments, Access, DHCP options and Kea; Segments is shown",
           'href="/networks" class="active" aria-current="page">Segments' in page
-          and 'href="/networks/rules">Access rules' in page and 'href="/networks/options"' in page
+          and 'href="/networks/rules">Access<' in page and 'href="/networks/options"' in page
           and 'href="/kea"' in page and ">DHCP<" not in page and "<h1>Networks · Segments</h1>" in page)
     check("Networks lists the sites, Sync now, the scans requested, the VLANs with each subnet's bar",
           all(w in main(page) for w in (">lan</a>", ">parents</a>", "Sync now", "Scans requested at lan",
@@ -266,65 +266,47 @@ with serve():
           in apply_page, main(apply_page)[:800])
     post("/changes/networks/discard", {})
 
-    print("--- the site's access rules (manual 1.10.4.48.5)")
+    print("--- the site's access table (manual 1.10.4.48.11)")
     st, loc, _, _ = req("GET", "/networks?site=lan&view=rules")
-    check("the old address of the rules redirects to Networks · Access rules (2.1.10.61)",
+    check("the old address of the rules redirects to Networks · Access (2.1.10.61)",
           st == 303 and loc == "/networks/rules?site=lan", (st, loc))
     page = get("/networks/rules?site=lan")
-    check("Access rules: its own page in the menu, every rule a row of controls with its ports, the blank row that "
-          "adds, the implied deny; no --force anywhere",
-          "Access rules at lan" in page and 'class="active" aria-current="page">Access rules' in page
-          and "<h1>Networks · Access rules</h1>" in page and "implied" in page and "53/udp" in page
-          and 'action="/networks/plan/lan/rules"' in page and 'action="/networks/plan/lan/rules/1"' in page
-          and 'select form="rule-1" name="to"' in page and 'button form="rule-new">Add' in page
-          and 'name="force"' not in page and "Add a rule" not in page and "Move or remove" not in page,
-          main(page)[:1500])
+    check("Access: its own page in the menu, a tab per VLAN then Other sites and Outside, the first shown, the eight "
+          "services with their ports, one Save; no dropdown, no --force",
+          'class="active" aria-current="page">Access' in page and "<h1>Networks · Access</h1>" in page
+          and all(f'href="/networks/rules?site=lan&amp;net={k}"' in page for k in ("10", "20", "fabric", "any"))
+          and ">Other sites<" in page and ">Outside<" in page and "<h2>VLAN 10 at lan</h2>" in page
+          and "53/udp" in page and 'action="/networks/plan/lan/access/10"' in page and "<button>Save</button>" in page
+          and main(page).count("<select") == 1 and 'name="force"' not in page, main(page)[:1500])
+    check("...nothing kept on the site yet: said under the tab", "None written yet" in page, main(page)[-800:])
     check("the site's list links to it", 'href="/networks/rules?site=lan"' in get("/networks?site=lan"))
 
-    def rule_rows():
-        page = get("/networks/rules?site=lan")
-        out = []
-        for n in re.findall(r'<form id="rule-(\d+)" ', page):
-            pick = {k: re.search(rf'<select form="rule-{n}" name="{k}"[^>]*>.*?<option value="([^"]*)" selected',
-                                 page, re.S).group(1) for k in ("from", "service", "action")}
-            out.append((n, pick["from"], pick["service"], pick["action"]))
-        return out
-    n = len(rule_rows())          # the sample is an upgraded site: the rules kept from what its VLANs reached
-    # covers: web:post.networks.plan.*.rules +
-    # covers: web:post.networks.plan.*.rules.*.delete web:post.networks.plan.*.rules.* +
-    for path, form, said in (("/networks/plan/lan/rules", {"from": "20", "service": "ssh", "action": "deny"},
-                              "Add access rule from 20 service ssh deny at lan"),
-                             ("/networks/plan/lan/rules", {"from": "any", "service": "radius", "action": "deny"},
-                              "Add access rule from any service radius deny at lan"),
-                             (f"/networks/plan/lan/rules/{n + 2}/move", {"to": "1"},
-                              f"Move access rule {n + 2} to 1 at lan"),
-                             (f"/networks/plan/lan/rules/{n + 2}/delete", {}, f"Remove access rule {n + 2} at lan"),
-                             ("/networks/plan/lan/rules/3", {"from": "20", "service": "dns", "action": "deny", "to": "3"},
-                              "Change access rule 3 to from 20 service dns deny at lan")):
+    def ticked(net):
+        page = get(f"/networks/rules?site=lan&net={net}")
+        return [s for s in re.findall(r'name="(\w+)" value="allow"( checked)?', page) if s[1]], page
+    allowed, page = ticked("20")
+    check("a tab: VLAN 20 shown, its tab marked; the upgraded sample's seed: every service but ssh ticked",
+          'class="subtab active" aria-current="page">VLAN 20' in page
+          and [s[0] for s in allowed] == ["dns", "ntp", "dhcp", "web", "ad", "radius", "ping"], allowed)
+    # covers: web:post.networks.plan.*.access.* +
+    for path, form, said, net in (("/networks/plan/lan/access/20", {"dns": "allow", "ping": "allow"},
+                                   "Let VLAN 20 reach dns, ping at lan", "20"),
+                                  ("/networks/plan/lan/access/any", {"dns": "allow"},
+                                   "Let outside addresses reach dns at lan", "any")):
         st, loc, page = post(path, form)
-        check(f"{path}: held, saying {said!r}, back on the Access rules page",
-              f"Waiting for Apply: {said}" in flash(page) and loc == "/networks/rules?site=lan", (loc, flash(page)))
-    check("...the rules page shows the top bar's Apply for Segments' queue", "change" in page and
+        check(f"{path}: held, saying {said!r}, back on that network's tab",
+              f"Waiting for Apply: {said}" in flash(page) and loc == f"/networks/rules?site=lan&net={net}",
+              (loc, flash(page)))
+    check("...the Access page shows the top bar's Apply for Segments' queue",
           'action="/changes/networks/apply"' in get("/networks/rules?site=lan"))
     review = apply("networks")
-    rows = rule_rows()
-    check("...applied in order: rule 1 is any's radius deny, rule 3 changed where it stands (dns deny), VLAN 20's "
-          "ssh deny gone, one rule more",
-          "plan to Kea and the firewall" in review and rows[:1] == [("1", "any", "radius", "deny")]
-          and rows[2][1:] == ("20", "dns", "deny")
-          and ("20", "ssh", "deny") not in [r[1:] for r in rows] and len(rows) == n + 1, (n, rows))
-    # covers: web:post.networks.plan.*.rules -
-    # covers: web:post.networks.plan.*.rules.*.delete web:post.networks.plan.*.rules.* -
-    for path, form, words in (("/networks/plan/lan/rules", {"from": "host", "service": "ssh", "action": "deny",
-                                                            "at": "1", "force": "on"}, "without ssh"),
-                              ("/networks/plan/lan/rules", {"from": "20", "service": "smtp", "action": "allow"},
-                               "service &#39;smtp&#39;"),
-                              ("/networks/plan/lan/rules/99/move", {"to": "1"}, "numbered 1 to"),
-                              ("/networks/plan/lan/rules/99/delete", {}, "numbered 1 to"),
-                              ("/networks/plan/lan/rules/2", {"from": "host", "service": "any", "action": "allow"},
-                               "nothing to change"),
-                              ("/networks/plan/lan/rules/2", {"from": "host", "service": "dns", "action": "allow"},
-                               "without ssh")):
+    allowed, page = ticked("20")
+    check("...applied: VLAN 20 now reaches dns and ping alone (a service left unticked is denied)",
+          "plan to Kea and the firewall" in review and [s[0] for s in allowed] == ["dns", "ping"], allowed)
+    check("...outside allowed dns: warned under the tab", "outside: dns open to every address" in page, main(page)[-900:])
+    # covers: web:post.networks.plan.*.access.* -
+    for path, form, words in (("/networks/plan/lan/access/99", {"dns": "allow"}, "network &#39;99&#39;"),
+                              ("/networks/plan/lan/access/20", {"dns": "allow", "ping": "allow"}, "nothing to change")):
         post(path, form)
         review = apply("networks")
         check(f"{path}: refused at Apply, saying why ({words}); the console never takes --force",
