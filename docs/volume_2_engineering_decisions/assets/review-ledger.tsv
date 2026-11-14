@@ -103,7 +103,7 @@ docs/volume_1_description_and_architecture/1.3.1-host-package.md	44319278da7cf11
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	4ab5c327069823d2f63aa8ce26c2c5aded2ec86c	2026-10-24	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	dcfa335970889c0660ae1039fc9b7b0e5a9ee077	2026-11-14	
 docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	316140d9159b0d10868ba426ca09a638785321c8	2026-11-10	
-docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	635d04cb311fce02a9637bf8d772928037aa8dfd	2026-11-14	
+docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	d24c808bed84109ba1f4b8448fe1797957d6844f	2026-11-14	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	e58503ad946804b11abe0754bfde04d936bc992e	2026-11-10	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c23530a82de2f755d4a0bcf489bd2277902e5736	2026-11-11	
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
@@ -152,7 +152,7 @@ docs/volume_2_engineering_decisions/2.1.16-disk-encryption.md	2c5f6832b676ea44d7
 docs/volume_2_engineering_decisions/2.1.18-stig.md	1c83b035548437109b09db17fa962aaa8649aa2a	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.2-architecture.md	b0e0763e59da76eff03f425e4da62bdeb09f3f2e	2026-11-11	
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	a2dc65acd29b572c2207502c4de551053f4f81b4	2026-11-02	
-docs/volume_2_engineering_decisions/2.1.4-dns.md	bc1102a1907f720559268a468a92169fe07f4424	2026-11-14	
+docs/volume_2_engineering_decisions/2.1.4-dns.md	2e51092877945f7f3059eb48c46e48f39b5fcf6d	2026-11-14	
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	7e0829b303df6f0f0ec3c9cc0d5bf70d96794605	2026-11-11	
 docs/volume_2_engineering_decisions/2.1.6-identity.md	7f5c4d589081804c503cb9f1960f197514c6578a	2026-11-10	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
