@@ -12,6 +12,7 @@ file	fabricctl-agent|src/agent/pending_filter.py	50
 file	fabricctl-agent|src/agent/pending_networks.py	42	
 file	fabricctl-agent|src/agent/pending_store.py	36	
 file	fabricctl-agent|src/agent/pending_thing.py	33	
+file	fabricctl-agent|src/agent/pending_tsig.py	51	
 file	fabricctl-agent|src/agent/plan_store.py	25	
 file	fabricctl-agent|src/agent/post_account.py	28	
 file	fabricctl-agent|src/agent/post_dhcp.py	3	
@@ -42,6 +43,7 @@ file	fabricctl-agent|src/agent/read_fields.py	10
 file	fabricctl-agent|src/agent/read_strings.py	11	
 file	fabricctl-agent|src/agent/read_text.py	12	
 file	fabricctl-agent|src/agent/read_tree.py	44	
+file	fabricctl-agent|src/agent/read_tsig_edit.py	52	
 file	fabricctl-agent|src/agent/server.py	13	
 file	fabricctl-jinja|packaging/images/bake_env.py	9	
 file	fabricctl-jinja|packaging/images/dirsrv/dscontainer-launch.py	1	0.5.0 / 2026-10-04
@@ -468,11 +470,14 @@ file	fabriclib-dns_filter|src/fabriclib/dns_filter/show_filter_status.py	11
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/start_list_fetch.py	27	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/sync_adguard.py	49	
 file	fabriclib-dns_filter|src/fabriclib/dns_filter/update_lists.py	12	
+file	fabriclib-dns|src/fabriclib/dns/acme_picks.py	53	
 file	fabriclib-dns|src/fabriclib/dns/add_acl_entries.py	1	
 file	fabriclib-dns|src/fabriclib/dns/add_record.py	2	
 file	fabriclib-dns|src/fabriclib/dns/add_tsig_key.py	3	
 file	fabriclib-dns|src/fabriclib/dns/add_zone.py	34	
+file	fabriclib-dns|src/fabriclib/dns/alias_grants.py	54	
 file	fabriclib-dns|src/fabriclib/dns/apply_dns.py	42	
+file	fabriclib-dns|src/fabriclib/dns/ask_tsig_scope.py	55	
 file	fabriclib-dns|src/fabriclib/dns/builtin_acls.py	4	
 file	fabriclib-dns|src/fabriclib/dns/changed_names.py	45	
 file	fabriclib-dns|src/fabriclib/dns/common/drop_previous_own.py	51	
@@ -482,10 +487,13 @@ file	fabriclib-dns|src/fabriclib/dns/common/landing_names.py	40
 file	fabriclib-dns|src/fabriclib/dns/common/own_names.py	52	
 file	fabriclib-dns|src/fabriclib/dns/common/zone_records.py	46	
 file	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py	5	
+file	fabriclib-dns|src/fabriclib/dns/drop_removed_names.py	56	
+file	fabriclib-dns|src/fabriclib/dns/edit_tsig_names.py	57	
 file	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py	6	
 file	fabriclib-dns|src/fabriclib/dns/format_value.py	7	
 file	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py	41	
 file	fabriclib-dns|src/fabriclib/dns/install_zone_file.py	8	
+file	fabriclib-dns|src/fabriclib/dns/key_record_choices.py	58	
 file	fabriclib-dns|src/fabriclib/dns/landing_cert_stale.py	44	
 file	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py	9	
 file	fabriclib-dns|src/fabriclib/dns/list_zones.py	10	
@@ -495,11 +503,13 @@ file	fabriclib-dns|src/fabriclib/dns/normalize_tsig_keys.py	12
 file	fabriclib-dns|src/fabriclib/dns/ptr_for_ip.py	13	
 file	fabriclib-dns|src/fabriclib/dns/publish_plan_records.py	48	
 file	fabriclib-dns|src/fabriclib/dns/publish_zone_list.py	35	
+file	fabriclib-dns|src/fabriclib/dns/record_aliases.py	59	
 file	fabriclib-dns|src/fabriclib/dns/reload_zone.py	14	
 file	fabriclib-dns|src/fabriclib/dns/remove_acl_entries.py	15	
 file	fabriclib-dns|src/fabriclib/dns/remove_record.py	16	
 file	fabriclib-dns|src/fabriclib/dns/remove_tsig_key.py	17	
 file	fabriclib-dns|src/fabriclib/dns/remove_zone.py	36	
+file	fabriclib-dns|src/fabriclib/dns/rename_tsig_names.py	60	
 file	fabriclib-dns|src/fabriclib/dns/replace_tsig_secret.py	18	
 file	fabriclib-dns|src/fabriclib/dns/reverse_by_hand.py	49	
 file	fabriclib-dns|src/fabriclib/dns/reverse_zones.py	19	
@@ -514,11 +524,14 @@ file	fabriclib-dns|src/fabriclib/dns/set_key_acls.py	26
 file	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py	47	
 file	fabriclib-dns|src/fabriclib/dns/set_record_link.py	39	
 file	fabriclib-dns|src/fabriclib/dns/sync_status.py	27	
+file	fabriclib-dns|src/fabriclib/dns/tsig_key_mode.py	61	
+file	fabriclib-dns|src/fabriclib/dns/tsig_record_notice.py	62	
 file	fabriclib-dns|src/fabriclib/dns/update_tsig_key.py	28	
 file	fabriclib-dns|src/fabriclib/dns/validate_record.py	29	
 file	fabriclib-dns|src/fabriclib/dns/zone_content_changed.py	30	
 file	fabriclib-dns|src/fabriclib/dns/zone_detail.py	31	
 file	fabriclib-dns|src/fabriclib/dns/zone_name.py	32	
+file	fabriclib-dns|src/fabriclib/dns/zone_records_for.py	63	
 file	fabriclib-dns|src/fabriclib/dns/zones_bind_lacks.py	50	
 file	fabriclib-domain|src/fabriclib/domain/browse_ou.py	34	
 file	fabriclib-domain|src/fabriclib/domain/change_own_password.py	1	
@@ -1351,6 +1364,7 @@ file	webui|src/webui/agentclient/sizing.py	300
 file	webui|src/webui/agentclient/start_job.py	142	
 file	webui|src/webui/agentclient/sudo_rule_change.py	161	
 file	webui|src/webui/agentclient/sync_now.py	280	
+file	webui|src/webui/agentclient/tsig_choices.py	306	
 file	webui|src/webui/agentclient/unmap_radius_group.py	46	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/unset_option.py	47	
 file	webui|src/webui/agentclient/update_subnet.py	48	
@@ -1541,6 +1555,7 @@ function	fabricctl-agent|src/agent/kept_store.py|start_kept	2
 function	fabricctl-agent|src/agent/kept_store.py|started	1	
 function	fabricctl-agent|src/agent/landing_note.py|landing_note	1	
 function	fabricctl-agent|src/agent/one_thing.py|one_thing	1	
+function	fabricctl-agent|src/agent/pending_dns.py|_widens	3	
 function	fabricctl-agent|src/agent/pending_dns.py|_zone	1	
 function	fabricctl-agent|src/agent/pending_dns.py|describe_dns	2	
 function	fabricctl-agent|src/agent/pending_filter.py|_group	2	
@@ -1587,6 +1602,7 @@ function	fabricctl-agent|src/agent/pending_thing.py|state_change	7
 function	fabricctl-agent|src/agent/pending_thing.py|thing_key	5	
 function	fabricctl-agent|src/agent/pending_thing.py|thing_state	4	
 function	fabricctl-agent|src/agent/pending_thing.py|version_of	6	
+function	fabricctl-agent|src/agent/pending_tsig.py|tsig_check	1	
 function	fabricctl-agent|src/agent/plan_store.py|PlanStore.__init__	1	
 function	fabricctl-agent|src/agent/plan_store.py|PlanStore.put	2	
 function	fabricctl-agent|src/agent/plan_store.py|PlanStore.take	3	
@@ -1637,6 +1653,7 @@ function	fabricctl-agent|src/agent/read_fields.py|read_fields	1
 function	fabricctl-agent|src/agent/read_strings.py|read_strings	1	
 function	fabricctl-agent|src/agent/read_text.py|read_text	1	
 function	fabricctl-agent|src/agent/read_tree.py|read_tree	1	
+function	fabricctl-agent|src/agent/read_tsig_edit.py|read_tsig_edit	1	
 function	fabricctl-agent|src/agent/server.py|main	1	
 function	fabricctl-jinja|packaging/images/bake_env.py|bake_env	1	
 function	fabricctl-jinja|packaging/images/dirsrv/dscontainer-launch.py|_signal	1	0.5.0 / 2026-10-04
@@ -2440,6 +2457,7 @@ function	fabriclib-dns_filter|src/fabriclib/dns_filter/update_lists.py|_check_zo
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/update_lists.py|_fetch	1	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/update_lists.py|_rules	4	
 function	fabriclib-dns_filter|src/fabriclib/dns_filter/update_lists.py|update_lists	3	
+function	fabriclib-dns|src/fabriclib/dns/acme_picks.py|acme_picks	1	
 function	fabriclib-dns|src/fabriclib/dns/add_acl_entries.py|_check_entry	1	
 function	fabriclib-dns|src/fabriclib/dns/add_acl_entries.py|add_acl_entries	2	
 function	fabriclib-dns|src/fabriclib/dns/add_record.py|add_record	1	
@@ -2447,7 +2465,11 @@ function	fabriclib-dns|src/fabriclib/dns/add_tsig_key.py|add_tsig_key	1
 function	fabriclib-dns|src/fabriclib/dns/add_zone.py|_is_public	1	
 function	fabriclib-dns|src/fabriclib/dns/add_zone.py|_taken	2	
 function	fabriclib-dns|src/fabriclib/dns/add_zone.py|add_zone	3	
+function	fabriclib-dns|src/fabriclib/dns/alias_grants.py|_is_address	1	
+function	fabriclib-dns|src/fabriclib/dns/alias_grants.py|alias_grants	2	
 function	fabriclib-dns|src/fabriclib/dns/apply_dns.py|apply_dns	1	
+function	fabriclib-dns|src/fabriclib/dns/ask_tsig_scope.py|_pick	1	
+function	fabriclib-dns|src/fabriclib/dns/ask_tsig_scope.py|ask_tsig_scope	2	
 function	fabriclib-dns|src/fabriclib/dns/builtin_acls.py|builtin_acls	1	
 function	fabriclib-dns|src/fabriclib/dns/changed_names.py|changed_names	1	
 function	fabriclib-dns|src/fabriclib/dns/common/drop_previous_own.py|_key	1	
@@ -2463,13 +2485,19 @@ function	fabriclib-dns|src/fabriclib/dns/common/own_names.py|own_names	1
 function	fabriclib-dns|src/fabriclib/dns/common/zone_records.py|_one_line	1	
 function	fabriclib-dns|src/fabriclib/dns/common/zone_records.py|zone_records	2	
 function	fabriclib-dns|src/fabriclib/dns/create_zone_tsig_key.py|create_zone_tsig_key	1	
+function	fabriclib-dns|src/fabriclib/dns/drop_removed_names.py|drop_removed_names	1	
+function	fabriclib-dns|src/fabriclib/dns/edit_tsig_names.py|_names	1	
+function	fabriclib-dns|src/fabriclib/dns/edit_tsig_names.py|_scope	2	
+function	fabriclib-dns|src/fabriclib/dns/edit_tsig_names.py|edit_tsig_names	3	
 function	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py|_not_loaded	2	
 function	fabriclib-dns|src/fabriclib/dns/find_changed_zones.py|find_changed_zones	1	
 function	fabriclib-dns|src/fabriclib/dns/format_value.py|format_value	1	
 function	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py|_mtime	1	
 function	fabriclib-dns|src/fabriclib/dns/freeze_and_install.py|freeze_and_install	2	
 function	fabriclib-dns|src/fabriclib/dns/install_zone_file.py|install_zone_file	1	
+function	fabriclib-dns|src/fabriclib/dns/key_record_choices.py|key_record_choices	1	
 function	fabriclib-dns|src/fabriclib/dns/landing_cert_stale.py|landing_cert_stale	1	
+function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|_choices	3	
 function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|_names	1	
 function	fabriclib-dns|src/fabriclib/dns/list_tsig_keys.py|list_tsig_keys	2	
 function	fabriclib-dns|src/fabriclib/dns/list_zones.py|list_zones	1	
@@ -2483,6 +2511,8 @@ function	fabriclib-dns|src/fabriclib/dns/publish_plan_records.py|_why	1
 function	fabriclib-dns|src/fabriclib/dns/publish_plan_records.py|publish_plan_records	3	
 function	fabriclib-dns|src/fabriclib/dns/publish_zone_list.py|_why	1	
 function	fabriclib-dns|src/fabriclib/dns/publish_zone_list.py|publish_zone_list	2	
+function	fabriclib-dns|src/fabriclib/dns/record_aliases.py|_in_zone	1	
+function	fabriclib-dns|src/fabriclib/dns/record_aliases.py|record_aliases	2	
 function	fabriclib-dns|src/fabriclib/dns/reload_zone.py|_serial_above	4	
 function	fabriclib-dns|src/fabriclib/dns/reload_zone.py|_served_serial	2	0.8.0 / 2026-10-23
 function	fabriclib-dns|src/fabriclib/dns/reload_zone.py|file_serial	1	
@@ -2492,6 +2522,7 @@ function	fabriclib-dns|src/fabriclib/dns/remove_record.py|remove_record	1
 function	fabriclib-dns|src/fabriclib/dns/remove_tsig_key.py|remove_tsig_key	1	
 function	fabriclib-dns|src/fabriclib/dns/remove_zone.py|_named_by	1	
 function	fabriclib-dns|src/fabriclib/dns/remove_zone.py|remove_zone	2	
+function	fabriclib-dns|src/fabriclib/dns/rename_tsig_names.py|rename_tsig_names	1	
 function	fabriclib-dns|src/fabriclib/dns/replace_tsig_secret.py|replace_tsig_secret	1	
 function	fabriclib-dns|src/fabriclib/dns/reverse_by_hand.py|reverse_by_hand	1	
 function	fabriclib-dns|src/fabriclib/dns/reverse_zones.py|reverse_zones	1	
@@ -2514,6 +2545,8 @@ function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|_soa_fields	1
 function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|set_negative_ttl	4	
 function	fabriclib-dns|src/fabriclib/dns/set_record_link.py|set_record_link	1	
 function	fabriclib-dns|src/fabriclib/dns/sync_status.py|sync_status	1	
+function	fabriclib-dns|src/fabriclib/dns/tsig_key_mode.py|tsig_key_mode	1	
+function	fabriclib-dns|src/fabriclib/dns/tsig_record_notice.py|tsig_record_notice	1	
 function	fabriclib-dns|src/fabriclib/dns/update_tsig_key.py|update_tsig_key	1	
 function	fabriclib-dns|src/fabriclib/dns/validate_record.py|_host	2	
 function	fabriclib-dns|src/fabriclib/dns/validate_record.py|_int	1	
@@ -2522,6 +2555,7 @@ function	fabriclib-dns|src/fabriclib/dns/validate_record.py|validate_record	3
 function	fabriclib-dns|src/fabriclib/dns/zone_content_changed.py|zone_content_changed	1	
 function	fabriclib-dns|src/fabriclib/dns/zone_detail.py|zone_detail	1	
 function	fabriclib-dns|src/fabriclib/dns/zone_name.py|zone_name	1	
+function	fabriclib-dns|src/fabriclib/dns/zone_records_for.py|zone_records_for	1	
 function	fabriclib-dns|src/fabriclib/dns/zones_bind_lacks.py|zones_bind_lacks	1	
 function	fabriclib-domain|src/fabriclib/domain/browse_ou.py|browse_ou	1	
 function	fabriclib-domain|src/fabriclib/domain/change_own_password.py|change_own_password	1	
@@ -3884,6 +3918,7 @@ function	webui|src/webui/agentclient/sizing.py|sizing_dismiss	2
 function	webui|src/webui/agentclient/start_job.py|start_job	1	
 function	webui|src/webui/agentclient/sudo_rule_change.py|sudo_rule_change	1	
 function	webui|src/webui/agentclient/sync_now.py|sync_now	1	
+function	webui|src/webui/agentclient/tsig_choices.py|tsig_choices	1	
 function	webui|src/webui/agentclient/unmap_radius_group.py|unmap_radius_group	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/unset_option.py|unset_option	1	
 function	webui|src/webui/agentclient/update_subnet.py|update_subnet	1	
@@ -4010,6 +4045,7 @@ function	webui|src/webui/devpreview/fake_pending.py|_finish	5
 function	webui|src/webui/devpreview/fake_pending.py|_store	3	
 function	webui|src/webui/devpreview/fake_pending.py|_thing	2	
 function	webui|src/webui/devpreview/fake_pending.py|fake_pending	4	
+function	webui|src/webui/devpreview/fake_reads.py|_choices	9	
 function	webui|src/webui/devpreview/fake_reads.py|_dhcp	2	
 function	webui|src/webui/devpreview/fake_reads.py|_dns_filter	1	
 function	webui|src/webui/devpreview/fake_reads.py|_person	4	
@@ -4138,6 +4174,7 @@ function	webui|src/webui/routes/sites_page.py|sites_page	1
 function	webui|src/webui/routes/stepca_page.py|stepca_page	1	
 function	webui|src/webui/routes/stepca_post.py|stepca_post	1	
 function	webui|src/webui/routes/tree_page.py|tree_page	1	
+function	webui|src/webui/routes/tsig_post.py|_edit	2	
 function	webui|src/webui/routes/tsig_post.py|tsig_post	1	
 function	webui|src/webui/routes/vault_post.py|vault_post	1	
 function	webui|src/webui/routes/zone_post.py|zone_post	1	

@@ -122,9 +122,26 @@ def fake_dns(state, who, route, body):
             return _record(state, key, op, body)
     if route == ["tsig"]:
         name = str(body.get("name", "")).strip() or "preview"
-        state.data["tsig"].append({"name": name, "algorithm": "hmac-sha256", "types": "TXT",
-                                   "scope": f"(dev preview) {body.get('scope', '')}", "acls": []})
+        acme = body.get("scope") == "acme"
+        state.data["tsig"].append({
+            "name": name, "algorithm": "hmac-sha256", "types": "TXT", "acls": [], "notes": [],
+            "scope": f"(dev preview) {body.get('scope', '')}", "domain": body.get("zone") or "home.arpa",
+            "mode": "acme" if acme else "custom", "records": list(body.get("hosts") or []),
+            "with_aliases": [{"record": r, "names": [r]} for r in body.get("with_aliases") or []],
+            "primary": body.get("scope") == "acme-zone", "any_name": body.get("scope") == "any-name"})
         return _tsig(state, name, body.get("zone"), True)
+    if len(route) == 3 and route[0] == "tsig" and route[2] == "update":     # Edit names, at the preview's Apply
+        key = next((k for k in state.data["tsig"] if k["name"] == route[1]), None)
+        if key is None:
+            raise ValidationError(f"no TSIG key named {route[1]!r}")
+        drop, drop_aliases = body.get("drop") or [], body.get("drop_with_aliases") or []
+        key["records"] = [r for r in key["records"] if r not in drop] + list(body.get("add") or [])
+        key["with_aliases"] = ([e for e in key["with_aliases"] if e["record"] not in drop_aliases]
+                               + [{"record": r, "names": [r]} for r in body.get("add_with_aliases") or []])
+        key["scope"] = "(dev preview) " + ", ".join(key["records"] + [e["record"] + " and its aliases"
+                                                                       for e in key["with_aliases"]])
+        state.log("TSIG_UPDATE", f"key={route[1]} (in memory)")
+        return {"key": key}
     if len(route) == 3 and route[0] == "tsig" and route[2] == "rotate":
         return _tsig(state, route[1], "", False)
     if len(route) == 3 and route[0] == "tsig" and route[2] == "delete":

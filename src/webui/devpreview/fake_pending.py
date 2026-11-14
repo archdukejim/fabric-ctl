@@ -46,11 +46,15 @@ def _filter_vars():
 def _check(state, route, body):
     """Purpose: The preview's check of a held DNS filter change, at hold and at Apply, as the agent's dry run makes
              it for the lists: the memory rule over the whole set (1.12.3.9), AdGuard Home's limit the sample's, or
-             150 MiB with the preview's `tight` toggle (so the refusal can be seen).
+             150 MiB with the preview's `tight` toggle (so the refusal can be seen); a TSIG key's Edit names that names
+             nothing refused as the agent's check refuses it (2.1.4.13).
     Inputs:  state — DevState (toggles); route — segments after /v1/; body — dict.
     Returns: None.
-    Fails:   ValidationError naming the lists and the gap, as set_filter_lists says it.
+    Fails:   ValidationError naming the lists and the gap, as set_filter_lists says it; "nothing to change" for an
+             empty Edit names.
     Feeds:   _store."""
+    if len(route) == 3 and route[0] == "tsig" and route[2] == "update" and not body:
+        raise ValidationError("nothing to change: add or remove a name")      # as edit_tsig_names says it
     if route != ["dns-filter", "lists", "ticks"]:
         return None
     gone = {i.get("url") for i in body.get("untick") or []}

@@ -74,7 +74,7 @@ def pending_page_of(route):
     if route == ["radius", "people"] or (len(route) == 4 and route[:2] in (["radius", "people"], ["radius", "clients"])
                                          and route[3] == "delete"):
         return "radius"                                   # adding a client and a new secret: at once (2.1.8.17)
-    if head == ["zones"] or (len(route) == 3 and route[0] == "tsig" and route[2] == "delete"):
+    if head == ["zones"] or (len(route) == 3 and route[0] == "tsig" and route[2] in ("delete", "update")):
         return "zones"                                    # DNS (2.1.8.18); a TSIG key's creation, new secret: at once
     return None
 

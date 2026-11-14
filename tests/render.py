@@ -138,6 +138,31 @@ acl = env.get_template('bind9/config/named.conf.acl.j2').render(**full)
 assert 'acl "certbot-devices"' in acl and 'key "dev1";' in acl, 'policy ACL not rendered'
 assert 'secret "bnBtLXRlc3Qtc2VjcmV0LTMyLWJ5dGVzLWxvbmch";' in keys, 'embedded TSIG secret not rendered'
 print('TSIG keys and RFC2136 grants rendered')
+# a record with its aliases (2.1.4.14): the record and every CNAME of the zone pointing at it now, chains included;
+# a CNAME into another zone is not granted. The grants are worked out at the render (check_rendered's
+# tsig_alias_grants, from dns/alias_grants).
+from fabriclib.dns.alias_grants import alias_grants  # noqa: E402
+_full = copy.deepcopy(full)
+_dom = _full['domain']
+_z = _full['dns']['dynamic_zone_var']
+_z.setdefault('A', []).append({'name': 'proxy9', 'ip': '192.168.7.99'})
+_z.setdefault('CNAME', []).extend([{'name': 'app9', 'canonical': 'proxy9'},
+                                   {'name': 'deep9', 'canonical': f'app9.{_dom}.'},
+                                   {'name': 'out9', 'canonical': 'proxy9.elsewhere.test.'}])
+_full['tsig_keys'] = list(_full['tsig_keys']) + [{'name': 'proxy-key', 'domain': _dom, 'algorithm': 'hmac-sha256',
+                                                  'records_with_aliases': ['proxy9'], 'record_types': ['TXT']}]
+_grants = {k: sorted({n for ns in c.values() for n in ns}) for k, c in alias_grants(_full).items()}
+_zones = env.get_template('bind9/config/named.conf.zones.j2').render(**_full, tsig_alias_grants=_grants)
+for _n in ('proxy9', 'app9', 'deep9'):
+    # covers: setting:tsig_keys +
+    assert f'grant "proxy-key" name _acme-challenge.{_n}.{_dom}. TXT;' in _zones, f'missing alias grant: {_n}'
+assert '_acme-challenge.out9.' not in _zones, 'a CNAME into another zone must not be granted'
+_z['CNAME'] = [c for c in _z['CNAME'] if c['name'] != 'app9']
+_grants = {k: sorted({n for ns in c.values() for n in ns}) for k, c in alias_grants(_full).items()}
+_zones = env.get_template('bind9/config/named.conf.zones.j2').render(**_full, tsig_alias_grants=_grants)
+assert '_acme-challenge.app9.' not in _zones and '_acme-challenge.deep9.' not in _zones, \
+    'an alias removed (and the chain through it) must lose its grant at the next render'
+print('records with their aliases: granted as the zone is at the render')
 # what apply refuses in tsig_keys and bind_acl_policies (deploy/merge_tsig_keys), saying why, the secrets untouched
 from fabriclib.common.errors import ValidationError as _VE  # noqa: E402
 from fabriclib.deploy.merge_tsig_keys import merge_tsig_keys  # noqa: E402
@@ -149,6 +174,7 @@ for _field, _bad, _msg in (
         ('tsig_keys', [{'name': 'k', 'algorithm': 'hmac-whirlpool'}], 'algorithm must be one of'),
         ('tsig_keys', [{'name': 'k', 'record_types': ['TXT; drop']}], 'invalid record_types'),
         ('tsig_keys', [{'name': 'k', 'records': ['web', 'bad host']}], 'invalid record names'),
+        ('tsig_keys', [{'name': 'k', 'records_with_aliases': ['*.apps']}], 'invalid records_with_aliases'),
         ('tsig_keys', [{'name': 'k', 'secret': 'not base64!'}], 'secret is not valid base64'),
         ('bind_acl_policies', {'certbot-devices': {'records': []}}, 'a policy needs records (hosts) or any_name'),
         ('bind_acl_policies', {'bad acl!': {'any_name': True}}, 'invalid ACL name'),

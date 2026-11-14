@@ -610,8 +610,17 @@ with serve():
     check("forward records show their automatic PTR", "40.1.168.192.in-addr.arpa" in get("/dns/zones"))
     page = get("/dns/zones?view=tsig")
     check("TSIG view lists sample keys, each linked to its page, no form in the list", "npm-certbot" in page
-          and "New TSIG key for a zone" in page and 'href="/dns/zones?view=key&amp;key=npm-certbot"' in page
+          and "New TSIG key" in page and 'href="/dns/zones?view=key&amp;key=npm-certbot"' in page
           and 'method="post"' not in page.split('<table class="list')[1].split("</table>")[0])
+    check("New TSIG key starts with its mode (2.1.4.12)", "view=newkey&amp;mode=acme" in page
+          and "view=newkey&amp;mode=custom" in page and "ACME (DNS-01)" in page)
+    page = get("/dns/zones?view=newkey&mode=acme&zone=home.arpa")
+    check("ACME mode: the zone's records to tick, an address also with its aliases", 'name="rec_nas"' in page
+          and 'name="ali_nas"' in page and 'value="acme"' in page)
+    page = get("/dns/zones?view=key&key=npm-certbot")
+    check("a TSIG key's page: Edit names, each name's Remove, a record with its aliases and the key's note (2.1.4.13)",
+          "Edit names" in page and 'name="drop" value="nas"' in page and 'name="drop_with_aliases" value="fabric"' in page
+          and "npm dropped" in page and 'action="/bind9/tsig/npm-certbot/update"' in page)
     page = get("/dns/zones?view=key&key=npm-certbot")
     check("a TSIG key's page: its facts, New secret and Remove as their own forms",
           "TSIG key npm-certbot" in page and 'action="/bind9/tsig/npm-certbot/rotate"' in page

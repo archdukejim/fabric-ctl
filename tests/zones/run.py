@@ -3,7 +3,9 @@
 from the configuration fabric renders (its named.conf, keys, ACLs and zone list) and the DNS filter's resolver from
 the configuration deploy_resolver writes, both reloaded by the code under test. The code runs from an installed-looking
 tree (<out>/zones/fabric/lib), as on a host: fabric-agent's routes (POST /v1/zones, /v1/zones/<key>/delete) as the
-console calls them, and the menu (`fabricctl`, DNS Configuration) driven on its standard input.
+console calls them, and the menu (`fabricctl`, DNS Configuration) driven on its standard input. TSIG keys made
+by mode, their names edited and records granted with their aliases (2.1.4.12 to 2.1.4.14), checked with nsupdate
+against the same BIND.
 
     sudo python3 tests/zones/run.py          (needs Docker and dig)
 """
@@ -556,6 +558,196 @@ try:
     check("refused when the apply's settings check refuses (an interface this host lacks), nothing changed",
           "REFUSED" in r.stdout and "nothing changed" in r.stdout and zone_list() == before_conf, r.stdout[-400:])
     edit_vars(lambda v: v["dhcp"].__setitem__("interfaces", [iface]))
+
+    # ---- TSIG keys by mode, Edit names and records with their aliases (2.1.4.12 to 2.1.4.14, manual 1.4.1.9.6),
+    # against the real BIND: the key's client updates its names with the same secret, at each DNS' Apply
+    apply_code = "from fabriclib.dns.apply_dns import apply_dns\nprint('DONE', apply_dns('tester', source='cli'))"
+
+    def apply_now():
+        r = lib(apply_code)
+        return "DONE" in r.stdout, r.stdout[-300:] + r.stderr[-600:]
+
+    def get(path):
+        c = UConn("x")
+        c.request("GET", path)
+        r = c.getresponse()
+        return r.status, json.loads(r.read().decode() or "null")
+
+    def vars_now():
+        with open(f"{W}/fabric/config/vars.yaml") as f:
+            return yaml.safe_load(f)
+
+    def key_of(name):
+        return next((k for k in vars_now().get("tsig_keys") or [] if k["name"] == name), None)
+
+    def challenge(keyfile, name):
+        """An RFC 2136 update of _acme-challenge.<name>.lan.test signed with the key: True when BIND took it."""
+        out = sh(f"printf 'server {BIND_IP}\\nzone lan.test\\nupdate add _acme-challenge.{name}.lan.test. 60 TXT "
+                 f"\"t\"\\nsend\\n' | nsupdate -k {keyfile} 2>&1", ok=False)
+        return out.returncode == 0 and "REFUSED" not in out.stdout
+
+    for rtype, name, value in (("A", "proxy", "10.9.8.60"), ("A", "nas2", "10.9.8.61"), ("CNAME", "web", "proxy"),
+                               ("CNAME", "wiki", "web.lan.test."), ("CNAME", "out", "proxy.elsewhere.test."),
+                               ("CNAME", "loop1", "loop2"), ("CNAME", "loop2", "loop1")):
+        field = "ip" if rtype == "A" else "target"
+        agent("/v1/zones/dynamic_zone_var/records", {"type": rtype, "name": name, field: value})
+    ok, said = apply_now()
+    check("TSIG: the zone's records published for the picks (proxy, its aliases web and wiki, others)",
+          ok and short(BIND_IP, "web.lan.test") != "", said)
+    st, res = get("/v1/tsig-choices/lan.test")
+    proxy = next((c for c in res or [] if c.get("name") == "proxy"), {}) if st == 200 else {}
+    # covers: agent:get.tsig-choices.* +
+    check("GET /v1/tsig-choices/<zone>: the zone's records, proxy with its aliases (a chain included; not a CNAME "
+          "into another zone, nor a loop)", st == 200 and proxy.get("address") and proxy.get("aliases") == ["web", "wiki"],
+          (st, res))
+    st, res = get("/v1/tsig-choices/nowhere.test")
+    # covers: agent:get.tsig-choices.* -
+    check("GET /v1/tsig-choices of a zone fabric does not serve -> 400, naming it",
+          st == 400 and "nowhere.test" in res.get("error", ""), (st, res))
+
+    st, res = agent("/v1/tsig", {"name": "acme-px", "zone": "lan.test", "scope": "acme", "hosts": [],
+                                 "with_aliases": ["proxy"]})
+    # covers: agent:post.tsig +
+    check("ACME (DNS-01) key made with proxy and its aliases, published at once",
+          st == 200 and res.get("published") and key_of("acme-px").get("records_with_aliases") == ["proxy"], (st, res))
+    secret = res.get("secret", "")
+    with open(f"{W}/acme-px.key", "w") as f:            # nsupdate reads the key from a file, never the command line
+        f.write(f'key "acme-px" {{ algorithm hmac-sha256; secret "{secret}"; }};\n')
+    kf = f"{W}/acme-px.key"
+    check("BIND: the record and every alias pointing at it, a chain included, may be updated with the key",
+          challenge(kf, "proxy") and challenge(kf, "web") and challenge(kf, "wiki"))
+    check("BIND: a CNAME into another zone, a loop and an unpicked record are refused",
+          not challenge(kf, "out") and not challenge(kf, "loop1") and not challenge(kf, "nas2"))
+
+    st, res = agent("/v1/tsig/acme-px/update", {"add": ["nas2"]})
+    ok, said = apply_now()
+    # covers: agent:post.tsig.*.update +
+    check("Edit names: nas2 added through POST /v1/tsig/<name>/update; after DNS' Apply BIND takes it with the same "
+          "secret", st == 200 and ok and challenge(kf, "nas2") and challenge(kf, "proxy"), (st, res, said))
+    st, res = agent("/v1/tsig/acme-px/update", {"drop": ["nas2"]})
+    ok, said = apply_now()
+    check("Edit names: nas2 removed; after DNS' Apply BIND refuses it, the rest still works",
+          st == 200 and ok and not challenge(kf, "nas2") and challenge(kf, "web"), (st, res, said))
+    agent("/v1/zones/dynamic_zone_var/records", {"type": "CNAME", "name": "late", "target": "proxy"})
+    ok, said = apply_now()
+    check("a CNAME made later pointing at proxy is granted at the next DNS' Apply (the aliases follow the zone)",
+          ok and challenge(kf, "late"), said)
+    audit = open(f"{W}/fabric/archive/audit.log").read()
+    check("...and its record's audit entry names the key it widened", "late" in audit
+          and "tsig=acme-px may update its _acme-challenge" in audit, audit[-400:])
+    cn = vars_dns()["dynamic_zone_var"]["CNAME"]
+    st, _ = agent("/v1/zones/dynamic_zone_var/records/delete",
+                  {"type": "CNAME", "index": next(i for i, r in enumerate(cn) if r["name"] == "web"), "name": "web"})
+    ok, said = apply_now()
+    check("a CNAME removed loses its grant at the next DNS' Apply (and the chain through it)",
+          st == 200 and ok and not challenge(kf, "web") and not challenge(kf, "wiki") and challenge(kf, "proxy"), said)
+
+    before = vars_now()
+    for body, why in (({"drop_with_aliases": ["proxy"]}, "remove the key instead"),
+                      ({"add": ["printer"]}, "not a record of lan.test"),
+                      ({"add_with_aliases": ["proxy"]}, "already granted"),
+                      ({"add": ["bad name"]}, "not valid as a record name"),
+                      ({"scope": "any_name"}, "ACME (DNS-01) key"),
+                      ({"add": "proxy"}, "must be a list of text"),
+                      ({"secret": "x"}, "cannot change secret"),
+                      ({}, "nothing to change")):
+        st, res = agent("/v1/tsig/acme-px/update", body)
+        # covers: agent:post.tsig.*.update -
+        check(f"Edit names refused ({why}): 400, says why, vars.yaml unchanged",
+              st == 400 and why in res.get("error", "") and vars_now() == before, (st, res))
+    st, res = agent("/v1/tsig/ghost/update", {"add": ["proxy"]})
+    check("Edit names of a key no longer there: 400, named", st == 400 and "no TSIG key named 'ghost'" in res["error"])
+
+    # ---- the command line reaches the same units (fabricctl tsig add / update; --no-apply: DNS' Apply after)
+    def tsig_cli(*argv, answers=""):
+        r = lib("import sys\nfrom fabriclib.dns.run_tsig_command import run_tsig_command\n"
+                f"sys.exit(run_tsig_command({list(argv[1:])!r}))", stdin=answers)     # argv after `fabricctl`
+        return r.returncode, r.stdout + r.stderr
+
+    code, out = tsig_cli("tsig", "add", "cli-acme", "--mode", "acme", "--record", "nas2", "--record-with-aliases",
+                         "proxy", "--no-apply")
+    # covers: cli:tsig.add +
+    check("tsig add --mode acme: a record and a record with its aliases of the zone",
+          code == 0 and key_of("cli-acme").get("records") == ["nas2"]
+          and key_of("cli-acme").get("records_with_aliases") == ["proxy"], out)
+    before = vars_now()
+    for argv, why in ((("tsig", "add", "cli-bad", "--mode", "acme", "--record", "printer"), "not a record of lan.test"),
+                      (("tsig", "add", "cli-bad", "--mode", "acme", "--any-name"), "--mode acme takes only"),
+                      (("tsig", "update", "cli-acme", "--drop-record", "ghost"), "ghost is not granted"),
+                      (("tsig", "update", "cli-acme", "--add-record-with-aliases", "late"), "not an A or AAAA"),
+                      (("tsig", "update", "cli-acme", "--add-record", "x", "--record", "y"), "one or the other")):
+        code, out = tsig_cli(*argv, "--no-apply")
+        # covers: cli:tsig.add cli:tsig.update -
+        check(f"refused: fabricctl {' '.join(argv[:3])} … ({why}): exit 1, says why, nothing changed",
+              code == 1 and why in out and vars_now() == before, out[-300:])
+    code, out = tsig_cli("tsig", "update", "cli-acme", "--add-record", "late", "--drop-record-with-aliases", "proxy",
+                         "--no-apply")
+    # covers: cli:tsig.update +
+    check("tsig update --add-record/--drop-record-with-aliases: one at a time, the rest kept",
+          code == 0 and key_of("cli-acme").get("records") == ["nas2", "late"]
+          and "records_with_aliases" not in key_of("cli-acme"), out)
+    code, out = tsig_cli("tsig", "update", "cli-acme", "--add-record-with-aliases", "proxy", "--no-apply")
+    tsig_cli("tsig", "add", "cli-swap", "--mode", "custom", "--record", "nas2", "--no-apply")
+    code, out = tsig_cli("tsig", "update", "cli-swap", "--record-with-aliases", "proxy", "--no-apply")
+    check("tsig update --record-with-aliases replaces the key's records with aliases (its names kept)",
+          code == 0 and (key_of("cli-swap") or {}).get("records_with_aliases") == ["proxy"]
+          and (key_of("cli-swap") or {}).get("records") == ["nas2"], out[-300:])
+    code, out = tsig_cli("tsig", "update", "cli-swap", "--any-name", "--no-apply")
+    check("tsig update --any-name replaces every name, records with aliases too",
+          code == 0 and (key_of("cli-swap") or {}).get("any_name") is True
+          and not (key_of("cli-swap") or {}).get("records") and not (key_of("cli-swap") or {}).get("records_with_aliases"),
+          out[-300:])
+    tsig_cli("tsig", "remove", "cli-swap", "--no-apply")
+    code, out = tsig_cli("tsig", "list")
+    # covers: cli:tsig.list +
+    check("tsig list: the mode, and the names a record with its aliases covers today",
+          code == 0 and "mode: ACME (DNS-01)" in out and "proxy and its aliases (_acme-challenge.proxy.lan.test, "
+          "_acme-challenge.late.lan.test)" in out, out[-600:])
+    order = [c["name"] for c in json.loads(lib("import json\nfrom fabriclib.common.load_vars import load_vars\n"
+                                               "from fabriclib.dns.key_record_choices import key_record_choices\n"
+                                               "print(json.dumps(key_record_choices(load_vars(), 'lan.test')))")
+                                           .stdout)]
+    n_proxy, n_late = order.index("proxy") + 1, order.index("late") + 1
+    code, out = tsig_cli("tsig", "add", "cli-ask", "--no-apply", answers=f"\n\n{n_late}, {n_proxy}+\n")
+    # covers: ask:tsig.mode ask:tsig.zone ask:tsig.records +
+    check("tsig add with no scope asks: the mode (Enter: ACME), the zone (Enter: the site's), the records by number "
+          "('+': with its aliases)", code == 0 and key_of("cli-ask").get("records") == ["late"]
+          and key_of("cli-ask").get("records_with_aliases") == ["proxy"], out[-500:])
+    code, out = tsig_cli("tsig", "add", "cli-ask2", "--no-apply", answers="2\n\n1\nnas2, printer\n")
+    # covers: ask:tsig.custom_scope ask:tsig.hosts +
+    check("Custom asked: listed hosts, any names typed", code == 0
+          and key_of("cli-ask2").get("records") == ["nas2", "printer"], out[-400:])
+    code, out = tsig_cli("tsig", "add", "cli-ask3", "--no-apply", answers="2\n\n3\nTXT, A\n")
+    # covers: ask:tsig.types +
+    check("Custom asked: any name with the record types typed", code == 0 and key_of("cli-ask3").get("any_name")
+          and key_of("cli-ask3").get("record_types") == ["TXT", "A"], out[-400:])
+    before = vars_now()
+    for answers, why, ids in (("7\n", "answer a number from 1 to 2", "ask:tsig.mode"),
+                              ("1\n99\n", "answer a number from 1 to", "ask:tsig.zone"),
+                              ("1\n\nzz\n", "'+' only after an A or AAAA record", "ask:tsig.records"),
+                              (f"1\n\n{order.index('late') + 1}+\n", "'+' only after an A or AAAA record",
+                               "ask:tsig.records"),
+                              ("2\n\n9\n", "answer a number from 1 to 3", "ask:tsig.custom_scope"),
+                              ("2\n\n1\n\n", "no names given", "ask:tsig.hosts"),
+                              ("2\n\n3\nA B;\n", "invalid record_types", "ask:tsig.types")):
+        code, out = tsig_cli("tsig", "add", "cli-never", "--no-apply", answers=answers)
+        # covers: ask:tsig.mode ask:tsig.zone ask:tsig.records ask:tsig.custom_scope ask:tsig.hosts ask:tsig.types -
+        check(f"refused at the question ({ids}): says why, no key made", code == 1 and why in out
+              and vars_now() == before, out[-400:])
+
+    # ---- 2.1.4.12: a record removed takes its grant from the zone's ACME keys, with a note; a Custom key keeps it
+    a = vars_dns()["dynamic_zone_var"]["A"]
+    st, _ = agent("/v1/zones/dynamic_zone_var/records/delete",
+                  {"type": "A", "index": next(i for i, r in enumerate(a) if r["name"] == "nas2"), "name": "nas2"})
+    check("a record removed: dropped from the ACME key that named it, with a note on the key and in the audit",
+          st == 200 and (key_of("cli-acme") or {}).get("records") == ["late"]
+          and "nas2 dropped" in str((key_of("cli-acme") or {}).get("notes"))
+          and "key=cli-acme dropped nas2" in open(f"{W}/fabric/archive/audit.log").read(), key_of("cli-acme"))
+    check("...a Custom key that names it keeps it", (key_of("cli-ask2") or {}).get("records") == ["nas2", "printer"])
+    for name in ("acme-px", "cli-acme", "cli-ask", "cli-ask2", "cli-ask3"):
+        agent(f"/v1/tsig/{name}/delete", {})
+    ok, said = apply_now()
+    check("BIND refuses the removed key", ok and not challenge(kf, "proxy"), said)
 finally:
     if agent_proc:
         agent_proc.terminate()

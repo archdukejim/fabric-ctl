@@ -125,6 +125,26 @@ def _dhcp(state):
                                         "leases": []}
 
 
+def _choices(zone):
+    """Purpose: A sample zone's records as GET /v1/tsig-choices/<zone> answers (key_record_choices): each A, AAAA or
+             CNAME name once, an address with the CNAMEs pointing at it (one step: the sample has no chains).
+    Inputs:  zone — the sample zone ({"name", "records": [(type, name, value)]}).
+    Returns: list of {"name", "types", "address", "aliases"}.
+    Fails:   never.
+    Feeds:   fake_reads (tsig-choices)."""
+    types, aliases = {}, {}
+    for rtype, name, value in zone["records"]:
+        if rtype in ("A", "AAAA", "CNAME") and name != "@" and not name.startswith("*"):
+            types.setdefault(name, [])
+            if rtype not in types[name]:
+                types[name].append(rtype)
+            if rtype == "CNAME":
+                aliases.setdefault(value, []).append(name)
+    return [{"name": n, "types": t, "address": any(x in ("A", "AAAA") for x in t),
+             "aliases": sorted(set(aliases.get(n, []))) if any(x in ("A", "AAAA") for x in t) else []}
+            for n, t in sorted(types.items())]
+
+
 def fake_reads(state, who, route, body):
     """Purpose: The fake agent's reads: GET /v1/<route> from the preview's sample data, in the agent's shapes.
     Inputs:  state — DevState; who — {"user", "perms"}; route — segments after /v1/; body — unused.
@@ -173,6 +193,11 @@ def fake_reads(state, who, route, body):
         if route[1] not in d["zones"]:
             raise ValidationError("no such zone")
         return state.zone(route[1])
+    if len(route) == 2 and route[0] == "tsig-choices":       # a zone's records for a TSIG key's names (2.1.4.12)
+        zone = next((z for z in d["zones"].values() if z["name"] == route[1]), None)
+        if zone is None:
+            raise ValidationError(f"{route[1]!r} is not one of this fabric's zones")
+        return _choices(zone)
     if len(route) == 2 and route[0] == "jobs":
         job = d.setdefault("jobs", {}).get(route[1])
         if job is None:

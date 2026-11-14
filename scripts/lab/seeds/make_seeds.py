@@ -1,8 +1,8 @@
 """Writes every lab VM's unattended-install media into the seed folder (manual 3.1.5.3, decision 2.1.1.65).
 
-Purpose: the entry point make_seeds.sh runs in WSL; it only routes each VM to its installer's seed writer.
-Inputs: --inventory, --key (the lab public key), --iso-dir, --seed-dir, --secrets-dir (WSL path of
-  %USERPROFILE%\\fabric-lab), --secrets-win (its Windows path), --owner (DOMAIN\\user), --only (names, comma-separated).
+Purpose: the entry point make_seeds.sh runs on the build VM; it only routes each VM to its installer's seed writer.
+Inputs: --inventory, --key (the lab public key), --iso-dir, --seed-dir, --secrets-dir (~/fabric-lab on the build VM,
+  2.1.1.99.2), --only (names, comma-separated).
 Returns: exit 0 with one line per written file; passwords are never printed.
 Fails: exit non-zero on the first failing VM (its writer's exception).
 Feeds: install_vm.ps1, which attaches what this writes.
@@ -22,7 +22,7 @@ from lab_secret import lab_password  # noqa: E402
 
 def main():
     ap = argparse.ArgumentParser()
-    for a in ("--inventory", "--key", "--iso-dir", "--seed-dir", "--secrets-dir", "--secrets-win", "--owner"):
+    for a in ("--inventory", "--key", "--iso-dir", "--seed-dir", "--secrets-dir"):
         ap.add_argument(a, required=True)
     ap.add_argument("--only", default="")
     args = ap.parse_args()
@@ -39,7 +39,7 @@ def main():
     os.makedirs(args.seed_dir, exist_ok=True)
 
     def password(name):
-        return lab_password(os.path.join(args.secrets_dir, name), args.secrets_win + "\\" + name, args.owner)
+        return lab_password(os.path.join(args.secrets_dir, name))
 
     for vm in vms:
         kind = vm["installer"]

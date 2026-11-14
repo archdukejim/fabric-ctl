@@ -890,7 +890,11 @@ check("next= cannot leave this site (no open redirect)", st == 200 and 'url=/"' 
 
 # ---- BIND9 tab: TSIG keys for a zone
 st, hd, sc, body = req("GET", "/dns/zones?view=tsig", ALICE, cookie=session)
-check("TSIG view renders the create form", st == 200 and "New TSIG key for a zone" in body, st)
+check("TSIG view offers New TSIG key by mode (2.1.4.12): ACME (DNS-01) or Custom", st == 200 and "New TSIG key" in body
+      and "view=newkey&amp;mode=acme" in body and "view=newkey&amp;mode=custom" in body, st)
+st, hd, sc, body = req("GET", "/dns/zones?view=newkey&mode=custom", ALICE, cookie=session)
+check("Custom mode: today's menu (scopes, hosts, record types)", st == 200 and 'name="scope"' in body
+      and "acme-hosts" in body and 'name="hosts"' in body and 'name="type_A"' in body, st)
 st, hd, sc, body = req("POST", "/bind9/tsig/create", POSTH, {"csrf": csrf, "name": "npm-certbot", "zone": "lan.test",
                                                               "scope": "acme-hosts", "hosts": "npm, nas"}, cookie=session)
 secret = body.split('<code class="secret">')[1].split("<")[0] if '<code class="secret">' in body else ""
@@ -930,6 +934,87 @@ check("remove a TSIG key that does not exist -> refused at Apply (named), nothin
 st, hd, sc, body = req("POST", "/bind9/tsig/acme-old/delete", POSTH, {"csrf": "nope"}, cookie=session)
 check("TSIG delete with a bad CSRF token -> 403, nothing changed",
       st == 403 and open(f"{W}/fabric/config/vars.yaml").read() == vt, st)
+
+# ---- 2.1.4.12 to 2.1.4.14: ACME (DNS-01) mode picks the zone's records; Edit names keeps the secret, held for Apply
+for form in ({"type": "A", "name": "proxy", "ip": "192.168.7.60"}, {"type": "CNAME", "name": "web", "target": "proxy"}):
+    dns_change("/bind9/zone/dynamic_zone_var/add", form)
+st, hd, sc, body = req("GET", "/dns/zones?view=newkey&mode=acme", ALICE, cookie=session)
+check("ACME mode: first the zone", st == 200 and 'name="zone"' in body and "lan.test" in body
+      and 'name="rec_' not in body, st)
+st, hd, sc, body = req("GET", "/dns/zones?view=newkey&mode=acme&zone=lan.test", ALICE, cookie=session)
+check("ACME mode: then the zone's records, an A record also with its aliases (web)", st == 200
+      and 'name="rec_proxy"' in body and 'name="ali_proxy"' in body and 'name="rec_web"' in body
+      and 'name="ali_web"' not in body and "web" in body.split('name="ali_proxy"')[-1][:200], body[:300])
+st, hd, sc, body = req("GET", "/dns/zones?view=newkey&mode=acme&zone=evil.test", ALICE, cookie=session)
+check("ACME mode: a zone fabric does not serve -> 400, saying so", st == 400 and "not one of this fabric" in body, st)
+vt = open(f"{W}/fabric/config/vars.yaml").read()
+st, hd, sc, body = req("POST", "/bind9/tsig/create", POSTH, {"csrf": csrf, "name": "acme-web", "zone": "lan.test",
+                                                              "scope": "acme", "rec_printer": "1"}, cookie=session)
+# covers: web:post.bind9.tsig.create agent:post.tsig -
+check("ACME mode: a name that is not a record of the zone -> refused (400, says why), nothing saved",
+      st == 400 and "printer is not a record of lan.test" in html.unescape(body)
+      and open(f"{W}/fabric/config/vars.yaml").read() == vt, (st, body[:300]))
+st, hd, sc, body = req("POST", "/bind9/tsig/create", POSTH, {"csrf": csrf, "name": "acme-web", "zone": "lan.test",
+                                                              "scope": "acme", "rec_pi-core": "1", "ali_proxy": "1"},
+                       cookie=session)
+saved = yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))
+key = next((k for k in saved.get("tsig_keys") or [] if k["name"] == "acme-web"), {})
+secret = body.split('<code class="secret">')[1].split("<")[0] if '<code class="secret">' in body else ""
+# covers: web:post.bind9.tsig.create agent:post.tsig +
+check("ACME mode: the key made with exactly the picks (a record, a record with its aliases), TXT only",
+      st == 200 and secret and key.get("records") == ["pi-core"] and key.get("records_with_aliases") == ["proxy"]
+      and key.get("record_types") == ["TXT"] and not key.get("any_name") and not key.get("primary"), (st, key))
+st, hd, sc, body = req("GET", "/dns/zones?view=key&key=acme-web", ALICE, cookie=session)
+check("the key's page: ACME (DNS-01), Edit names with each name's Remove, the record with its aliases and what it "
+      "covers today", st == 200 and "ACME (DNS-01)" in body and "Edit names" in body
+      and 'name="drop" value="pi-core"' in body and 'name="drop_with_aliases" value="proxy"' in body
+      and "proxy, web" in body and 'value="rec:web"' in body and 'name="typed"' not in body, body[:300])
+st, hd, sc, body = req("GET", "/dns/zones?zone=dynamic_zone_var", ALICE, cookie=session)
+check("the record form says a new alias of proxy widens acme-web (2.1.4.14)",
+      "gives the" in body and "acme-web" in body and "<code>proxy</code>" in body, body[:300])
+st, hd, *_ = req("POST", "/bind9/tsig/acme-web/update", POSTH, {"csrf": csrf, "pick": "rec:web"}, cookie=session)
+loc = urllib.parse.unquote_plus(hd.get("Location", ""))
+held_vars = yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))
+check("Edit names: add web -> held on DNS -> Zones, said as the change, vars.yaml unchanged until Apply",
+      st == 303 and "Waiting for Apply: Change TSIG key acme-web: add web" in loc
+      and next(k for k in held_vars["tsig_keys"] if k["name"] == "acme-web").get("records") == ["pi-core"], loc)
+done = applied("zones", session)
+saved = yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))
+key = next((k for k in saved.get("tsig_keys") or [] if k["name"] == "acme-web"), {})
+# covers: web:post.bind9.tsig.*.update agent:post.tsig.*.update +
+check("...DNS' Apply: web added through the agent's route, the secret kept (no new secret made)",
+      key.get("records") == ["pi-core", "web"] and secret in open(f"{W}/fabric/config/fabric-secrets.yml").read()
+      and "TSIG_UPDATE" in open(f"{W}/fabric/archive/audit.log").read(), (key, done[-600:]))
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/add", {"type": "CNAME", "name": "wiki", "target": "web"})
+check("a CNAME to an alias of proxy: the hold names the key it widens (the Review's row, 2.1.4.14)",
+      "Add CNAME record wiki" in loc and "TSIG key acme-web may update this name's _acme-challenge" in loc, loc)
+st, loc, done = dns_change("/bind9/tsig/acme-web/update", {"drop_with_aliases": "proxy"})
+saved = yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))
+key = next((k for k in saved.get("tsig_keys") or [] if k["name"] == "acme-web"), {})
+check("Edit names: a record with its aliases removed whole", "Change TSIG key acme-web: remove proxy and its aliases"
+      in loc and "records_with_aliases" not in key, (loc, key))
+vt = open(f"{W}/fabric/config/vars.yaml").read()
+for form, why in (({"pick": "rec:printer"}, "printer is not a record of lan.test"),
+                  ({"drop": "nas"}, "nas is not granted to TSIG key acme-web"),
+                  ({"pick": "rec:web"}, "web is already granted"),
+                  ({"pick": "ali:web"}, "web is not an A or AAAA record"),
+                  ({"typed": "anything"}, "not a record of lan.test"),
+                  ({}, "nothing to change")):
+    st, loc, done = dns_change("/bind9/tsig/acme-web/update", form)
+    # covers: web:post.bind9.tsig.*.update -
+    check(f"Edit names refused when held ({why}): said on the key's page, nothing held or changed",
+          why in loc and "Waiting for Apply" not in loc and "view=key" in loc
+          and open(f"{W}/fabric/config/vars.yaml").read() == vt, loc)
+dns_change("/bind9/tsig/acme-web/update", {"drop": "pi-core"})
+st, loc, done = dns_change("/bind9/tsig/acme-web/update", {"drop": "web"})
+check("Edit names: the key's last name -> refused, 'remove the key instead', nothing changed",
+      "remove the key instead" in loc
+      and next(k for k in yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["tsig_keys"]
+               if k["name"] == "acme-web").get("records") == ["web"], loc)
+st, loc, done = dns_change("/bind9/tsig/ghost/update", {"pick": "rec:web"})
+check("Edit names of a key no longer there -> refused, named", "no TSIG key named 'ghost'" in loc, loc)
+st, hd, *_ = req("POST", "/bind9/tsig/acme-web/update", POSTH, {"csrf": "nope", "pick": "rec:proxy"}, cookie=session)
+check("Edit names with a bad CSRF token -> 403", st == 403, st)
 st, hd, sc, body = req("POST", "/stepca/acme/enroll", POSTH, {"csrf": csrf, "host": "nas", "domain": "lan.test"},
                        cookie=session)
 # covers: web:post.stepca.acme.enroll +

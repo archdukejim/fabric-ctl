@@ -28,5 +28,5 @@ def seed_site_rules(v, plan, secrets=None, container="samba"):
         edit_plan(v, "root", plan["site"], "IPAM_RULES_SEEDED", change, secrets, container)
     except (ValidationError, OSError, subprocess.TimeoutExpired) as e:
         return [f"access rules: not written yet ({e}); the site keeps what its VLANs reached until they are"]
-    return ["access rules: written once, keeping what each VLAN reached before 0.9.6 (2.1.10.59):"] + [
+    return ["access rules: written once, keeping what each VLAN reached before 0.10.0 (2.1.10.59):"] + [
         f"  {n} from {r['from']} service {r['service']} {r['action']}" for n, r in enumerate(rules, 1)]

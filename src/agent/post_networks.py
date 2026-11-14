@@ -71,7 +71,7 @@ def _change(v, actor, site, sub, data, caller):
     web = {"source": "web", "caller": caller}
     t = read_text
     if "access" in data:                 # 2.1.10.58: what a VLAN reaches is the site's access rules'
-        raise ValidationError("a VLAN's access is no longer set (0.9.6): change the site's access rules")
+        raise ValidationError("a VLAN's access is no longer set (0.10.0): change the site's access rules")
     if sub == ["rules"]:                 # the site's access rules (1.10.4.48.5); never --force from here (2.1.10.57)
         return add_rule(v, actor, t(data, "from"), t(data, "service"), t(data, "action"), t(data, "at"), site, **web)
     if len(sub) == 3 and sub[0] == "rules" and sub[2] == "delete":

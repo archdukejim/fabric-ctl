@@ -3,7 +3,8 @@ installer ISO a remastered copy whose GRUB entry boots with `autoinstall ds=nocl
 confirm before it writes the disk).
 
 Purpose: manual 3.1.5.3's Linux installs: labadmin with no password (locked), the lab key, passwordless sudo in
-  /etc/sudoers.d/labadmin (0440), OpenSSH with password sign-in off, the static address; the router's extras.
+  /etc/sudoers.d/labadmin (0440), OpenSSH with password sign-in off, the static address; the router's extras; a VM
+  with its own `wan` NIC (the build VM) takes DHCP and its default route there.
 Inputs: the inventory, the VM, the lab public key, the seed folder, the ISO folder.
 Returns: the paths written.
 Fails: CalledProcessError from xorriso.
@@ -24,6 +25,11 @@ _SSHD = ("# fabric lab (manual 3.1.5.3): key sign-in only\n"
          "PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin no\n")
 
 
+def _wan_nic(inv, vm):
+    """The VM's NIC named `wan` in the inventory's nics (its own way out), or None."""
+    return next((n for n in inv.get("nics", []) if n["vm"] == vm["name"] and n["name"] == "wan"), None)
+
+
 def user_data(inv, vm, key):
     net = inv["network"]
     if vm["name"] == "g23-vm-rtr-1":
@@ -34,6 +40,14 @@ def user_data(inv, vm, key):
             "addresses": [vm["ip"] + "/24"],
             "routes": [{"to": "default", "via": net["gateway"]}],
             "nameservers": {"addresses": [net["dns"]]}}}}
+        wan = _wan_nic(inv, vm)
+        if wan:
+            # its own way out (the build VM, 2.1.1.99): DHCP on Default Switch, so it needs no router running;
+            # the lab NIC then holds only the lab's subnet
+            lab = network["ethernets"]["lab"]
+            del lab["routes"], lab["nameservers"]
+            network["ethernets"]["wan"] = {"match": {"macaddress": mac(vm, wan["n"])}, "set-name": "wan",
+                                           "dhcp4": True}
         packages, extra_late = [], []
     packages = packages + vm.get("packages", [])
     late = []

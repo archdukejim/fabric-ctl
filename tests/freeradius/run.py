@@ -278,6 +278,13 @@ def logs():
     return res.stdout + res.stderr
 
 
+def refused_detail(code, out, timeout=3):
+    """A refusal check's failure detail: the reply (or that none came in time), radclient's output, and FreeRADIUS's
+    own log at that moment, so an intermittent miss on a CI runner shows the server's side too (2.3.1.53)."""
+    return (f"reply: {code or f'none within {timeout} s (one try)'}\n{out[-400:]}\n"
+            f"--- FreeRADIUS's log, its end:\n{logs()[-1500:]}")
+
+
 ready = start_radius()
 check("FreeRADIUS starts on fabric's configuration (non-root, read-only)", ready, logs()[-1500:])
 if not ready:
@@ -425,7 +432,8 @@ ok, _, out = eap_ttls("lockme", PW)
 check("EAP-TTLS: after 5 wrong passwords the domain locks the account: the right one is refused too", not ok,
       logs()[-400:])
 code, _, out = mab("02:00:00:00:30:01", user="alice")
-check("a person's password sent outside the TLS tunnel (plain PAP) is refused", code == "Access-Reject", out[-300:])
+check("a person's password sent outside the TLS tunnel (plain PAP) is refused", code == "Access-Reject",
+      refused_detail(code, out))
 
 # ------------------------------------------------------------------ PEAP-MSCHAPv2 (people and machines)
 def eap_peap(user, password, mac="02:00:00:00:20:02"):
@@ -495,11 +503,11 @@ code, vlan, out = mab("02-00-00-00-30-01")
 check("MAB: a MAC whose device has network:mab -> Access-Accept on its VLAN (30)",
       code == "Access-Accept" and vlan == "30", out[-800:] + logs()[-600:])
 code, _, out = mab("02:00:00:00:30:02")
-check("MAB: a device without network:mab is refused", code == "Access-Reject", out[-400:])
+check("MAB: a device without network:mab is refused", code == "Access-Reject", refused_detail(code, out))
 code, _, out = mab("02:00:00:00:99:99")
-check("MAB: an unknown MAC is refused", code == "Access-Reject", out[-400:])
+check("MAB: an unknown MAC is refused", code == "Access-Reject", refused_detail(code, out))
 code, _, out = mab("02:00:00:00:30:01", user="alice")
-check("MAB: a User-Name that is not the calling MAC is refused", code == "Access-Reject", out[-400:])
+check("MAB: a User-Name that is not the calling MAC is refused", code == "Access-Reject", refused_detail(code, out))
 
 # ------------------------------------------------------------------ refused before any policy
 code, _, out = mab("02:00:00:00:30:01", box=STRANGER)

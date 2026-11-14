@@ -33,7 +33,9 @@ USER probe
 """
 # every page of the navigation, a detail page of each kind, and the pages a form leads to
 PAGES = ["/", "/overview/doctor", "/overview/updates", "/audit", "/dns/zones", "/dns/zones?zone=iot.home.arpa",
-         "/dns/zones?view=reverse", "/dns/zones?view=tsig", "/dns/zones?view=landing", "/dns-filter",
+         "/dns/zones?view=reverse", "/dns/zones?view=tsig", "/dns/zones?view=key&key=npm-certbot",
+         "/dns/zones?view=newkey&mode=acme&zone=home.arpa", "/dns/zones?view=newkey&mode=custom",
+         "/dns/zones?view=landing", "/dns-filter",
          "/dns-filter?view=lists", "/dns-filter?view=rules", "/dns-filter?view=querylog", "/dns-filter?view=settings",
          "/kea", "/networks", "/networks?site=parents", "/networks?site=lan&vlan=20", "/networks?site=lan&subnet=iot",
          "/networks?site=lan&subnet=iot&address=10.1.20.150", "/networks?site=lan&view=new-vlan", "/networks/scan",
