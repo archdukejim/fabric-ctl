@@ -14,7 +14,7 @@ LICENSE	05e475fa9aff67dbd7d98e3bc88d87f93e36c79f	2026-09-30
 README.md	e11704d23ab0b3402607854f34089ea1a78ebdec	2026-10-23	
 THIRD_PARTY_NOTICES	ff836ec5208f7ac6140740a07186107c63702d24	2026-10-08	
 config/README.md	6300abd255fbbe5a87bd0d83cd9c9dd1c4b8de1f	2026-10-08	
-config/VERSION	b0bb878545dc6dc410a02b0df8b7ea9fd5705960	2026-11-08	
+config/VERSION	78bc1abd14f2c1f6330989d876c4ee7d5daf7ff6	2026-11-15	
 config/images.lock.yaml	585303b0f1f3b606338188a25a3e2336470645af	2026-11-14	
 config/link-vars-template.yaml	09caaa55680a13015332a468218c99437f67db26	2026-09-30	
 docs/README.md	990099034a7dbf25264220fdf0c66b7a5986dc86	2026-10-23	
@@ -162,7 +162,7 @@ docs/volume_2_engineering_decisions/2.2.1-product-troubleshooting.md	020c264ac36
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	4650aa7d6597182dbe8184af3d38c1f0208dc290	2026-11-15	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	20f992886d92318419595934a5ab6b235387554d	2026-11-15	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	8d0e6dc9f88453889dccc29f981ca3ee730702f4	2026-10-29	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	94fc068a1015d887dbbc7e0d3e24724376cdc280	2026-11-07	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
