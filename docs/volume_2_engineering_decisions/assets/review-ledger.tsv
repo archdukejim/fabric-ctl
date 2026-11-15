@@ -126,7 +126,7 @@ docs/volume_1_description_and_architecture/1.8.2-webui-security.md	2b43d412e2fb4
 docs/volume_1_description_and_architecture/1.8.3-single-pane.md	808634d3a80eb23100726babccde1c311b8af2c8	2026-10-17	
 docs/volume_1_description_and_architecture/1.8.4-webui.md	39217755a58747a679510a3109b1570af664d412	2026-10-23	
 docs/volume_1_description_and_architecture/1.8.5-setup-wizard.md	860ba0c558a4192415059954baadb2e6536f942e	2026-11-08	
-docs/volume_1_description_and_architecture/1.8.6-console-redo.md	0d3cc77ebf2717f92c8821577014d57fdd7949c2	2026-11-15	
+docs/volume_1_description_and_architecture/1.8.6-console-redo.md	c3eda0f856f7197ce332ba2cfc01f775d87b18df	2026-11-15	
 docs/volume_1_description_and_architecture/1.8.7-cockpit-proxy.md	965690482f7597a1271ab627eb5724bf70e9fce2	2026-10-30	
 docs/volume_1_description_and_architecture/1.8.8-directory-browser.md	f5c4dc47f985df989ae873cf7b530209be2063c3	2026-11-14	
 docs/volume_1_description_and_architecture/1.8.9-console-read-cache.md	cc2f6f6095f23387a1801dfabf88793ab4d1bebf	2026-11-07	
@@ -141,7 +141,7 @@ docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	3affd2890c9
 docs/volume_1_description_and_architecture/README.md	a43f552cec4542ae432958b0c3138a2b9b42e833	2026-11-07	
 docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af7662fdf5684924b409f9a9c	2026-10-23	
 docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	cbad7e90c2ac64a84d6f8fd4f573fa54ab739022	2026-10-25	
-docs/volume_2_engineering_decisions/2.1.1-product.md	7be19ae0ed5af6bf89332ebecc70755918e7df8a	2026-11-15	
+docs/volume_2_engineering_decisions/2.1.1-product.md	903edc428ccc9f337a109d36cfba5da75f191774	2026-11-15	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	88fb812a2241df9161cc991f734b990a9d579daa	2026-11-15	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	3f69f3e7715c3622616ad0533798e0d9214a85ae	2026-11-07	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	515f4b543f91a0cf387eba583d2b143ec8458d85	2026-11-08	
@@ -222,7 +222,7 @@ docs/volume_4_operations/4.3.1-fabricctl.md	e52fb351243d8bfe097b2a070c444c07498b
 docs/volume_4_operations/4.3.6-web-guided-setup.md	9a3b39da2b07f9495a00a2229aae14a3272a785b	2026-11-08	
 docs/volume_4_operations/4.4.1-records.md	549d3d7704dbd499c45273f4364e047675302120	2026-11-14	
 docs/volume_4_operations/4.4.2-tsig.md	095545b42dfff11e543017a6d48d20539a95054b	2026-11-14	
-docs/volume_4_operations/4.4.3-acls.md	59c2bcdb5fbaba3b5c98cb929e009e43d72d1761	2026-10-08	
+docs/volume_4_operations/4.4.3-acls.md	a57446ac71b8a3ea07f7c9ec80140c7a58c81318	2026-11-15	
 docs/volume_4_operations/4.4.4-landing-links.md	0fda0d403a2a28e405dc64dbd725487326b7922c	2026-10-23	
 docs/volume_4_operations/4.4.5-reverse-dns.md	648365ba4f30cbedf6a64d6f376e17a8498130e8	2026-10-08	
 docs/volume_4_operations/4.5.1-certificates.md	91e565464d8d8e8192a44eee0b3373064d8eedb6	2026-11-11	
