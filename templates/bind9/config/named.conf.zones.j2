@@ -21,14 +21,18 @@ zone "{{ zone_name }}" {
    granted here (validated by fabriclib/dns/normalize_tsig_keys.py and
    normalize_acl_policies.py):
    - key records    -> _acme-challenge.<record>.<zone> (DNS-01 for those hosts)
+   - key records_with_aliases -> the same for each record and every CNAME of the zone pointing at it now
+                       (tsig_alias_grants, worked out at each render: dns/alias_grants.py, 2.1.4.14)
    - key primary    -> the zone's ACME challenge name
    - key any_name   -> zonesub (any name) for its record types
    - ACL policies   -> every key in the ACL gets the ACL's grants #}
 {% for key in tsig_keys | default([]) %}
 {% if key.domain == zone_name %}
-{% if key.records is defined and key.records %}
-        // {{ key.name }} — DNS-01 challenges for {{ key.records | join(', ') }}
-{% for record in key.records %}
+{% set key_names = ((key.records if key.records is defined and key.records else [])
+                     + (tsig_alias_grants | default({})).get(key.name, [])) | unique | list %}
+{% if key_names %}
+        // {{ key.name }} — DNS-01 challenges for {{ key_names | join(', ') }}
+{% for record in key_names %}
         grant "{{ key.name }}" name _acme-challenge.{{ record }}.{{ zone_name }}. {{ key.record_types | join(' ') }};
 {% endfor %}
 {% elif key.primary is defined and key.primary %}

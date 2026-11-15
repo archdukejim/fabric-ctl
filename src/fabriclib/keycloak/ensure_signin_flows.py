@@ -32,18 +32,20 @@ def _what(ex):
 
 def _ensure_shape(kc, realm, alias):
     """Purpose: the flow `alias` built to _SHAPE: created when missing, rebuilt when its shape differs (a flow edited by
-             hand in Keycloak's console, or an older fabric's).
+             hand in Keycloak's console, or an older fabric's). A client bound to the old flow is bound to the new one,
+             whoever made it (2.1.6.121: setup leaves clients it did not make as they were).
     Inputs:  kc — Admin; realm — realm name; alias — SIGNIN or ADMIN.
     Returns: list of the flow's executions (admin API representations, in order).
     Fails:   SystemExit from kc.call.
     Feeds:   ensure_signin_flows."""
     base = f"/{q(realm)}/authentication/flows"
     flows = {f["alias"]: f for f in kc.call("GET", base)[1]}
+    bound = []
     if alias in flows:
         execs = kc.call("GET", f"{base}/{q(alias)}/executions")[1]
         if [_what(e) for e in execs] == _SHAPE[alias]:
             return execs
-        _unbind(kc, realm, flows[alias]["id"])
+        bound = _unbind(kc, realm, flows[alias]["id"])
         kc.call("DELETE", f"{base}/{flows[alias]['id']}")
         step(f"rebuilt the sign-in flow {alias} (its shape had changed)")
     kc.call("POST", base, {"alias": alias, "providerId": "basic-flow", "topLevel": True, "builtIn": False,
@@ -63,6 +65,13 @@ def _ensure_shape(kc, realm, alias):
     kc.call("POST", f"/{q(realm)}/authentication/executions/{cond['id']}/config",
             {"alias": f"{alias} without a passkey",
              "config": {"flow_to_check": f"{alias} passkey", "check_result": "not-executed"}})
+    if bound:
+        new_id = next(f["id"] for f in kc.call("GET", base)[1] if f["alias"] == alias)
+        for cid in bound:
+            client = kc.call("GET", f"/{q(realm)}/clients/{cid}")[1]
+            client["authenticationFlowBindingOverrides"] = {**(client.get("authenticationFlowBindingOverrides") or {}),
+                                                            "browser": new_id}
+            kc.call("PUT", f"/{q(realm)}/clients/{cid}", client)
     return kc.call("GET", f"{base}/{q(alias)}/executions")[1]
 
 
@@ -89,9 +98,9 @@ def _wanted(alias, level, kerberos):
 
 def _unbind(kc, realm, flow_id):
     """Purpose: let a flow be deleted: the realm's browser flow back to Keycloak's own, and no client's override
-             naming it (ensure_signin_flows and the client steps bind fabric's flows again in the same run).
+             naming it. _ensure_shape binds the clients it returns to the new flow (an admin's too, 2.1.6.121).
     Inputs:  kc — Admin; realm — realm name; flow_id — the flow's id.
-    Returns: None.
+    Returns: list of str, the ids of the clients whose override named it.
     Fails:   SystemExit from kc.call.
     Feeds:   _ensure_shape, ensure_signin_flows."""
     rep = kc.call("GET", f"/{q(realm)}")[1]
@@ -99,10 +108,15 @@ def _unbind(kc, realm, flow_id):
                  None)
     if rep.get("browserFlow") == alias:
         kc.call("PUT", f"/{q(realm)}", {"browserFlow": "browser"})
+    bound = []
     for client in kc.call("GET", f"/{q(realm)}/clients")[1]:
         if (client.get("authenticationFlowBindingOverrides") or {}).get("browser") == flow_id:
-            client["authenticationFlowBindingOverrides"] = {}
+            # Keycloak drops an override only when its value is blank; an empty map leaves it (and the flow undeletable)
+            overrides = client["authenticationFlowBindingOverrides"]
+            client["authenticationFlowBindingOverrides"] = {**overrides, "browser": ""}
             kc.call("PUT", f"/{q(realm)}/clients/{client['id']}", client)
+            bound.append(client["id"])
+    return bound
 
 
 def ensure_signin_flows(kc, realm, v):

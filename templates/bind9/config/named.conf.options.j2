@@ -4,7 +4,7 @@ options {
     // Listener configuration
     listen-on port 53 { any; };                   // used by step-ca and container system resolvers; host maps {{ bind_dns_port }}:53
     listen-on port {{ bind9_doh_port }} tls none http dns-over-https { any; };  // DoH — nginx terminates TLS, plain HTTP inbound
-    listen-on-v6 { any; };
+    listen-on-v6 { none; };                       // fabric serves no IPv6 (2.1.10.54)
 
     // Authoritative only — no recursive resolution
     recursion no;
@@ -22,6 +22,11 @@ options {
     allow-query { any; };
     allow-transfer { none; };
     minimal-responses yes;
+{% set _deny = (access_denied | default({})).dns | default([]) %}
+{% if _deny %}
+    // the site's access rules (manual 1.10.4.48.3): a network not allowed dns gets no answer at all, not a refusal
+    blackhole { !127.0.0.1; !{{ host_ip }}; !{{ fabric_subnet }}; {% for n in _deny %}{{ n }}; {% endfor %}};
+{% endif %}
 
     rate-limit {
         responses-per-second 10;

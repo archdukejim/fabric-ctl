@@ -8,6 +8,7 @@ from fabriclib.common.one_off_labels import one_off_labels
 from fabriclib.consent.allowed_to_change import allowed_to_change
 from fabriclib.consent.check_consent import check_consent
 from fabriclib.consent.plan_trust import plan_trust
+from fabriclib.pki.check_cert_lifetimes import authority_hours
 from fabriclib.pki.common.cert_dates import cert_dates
 from fabriclib.pki.common.ca_path_len import ca_path_len
 from fabriclib.pki.publish_ca_certs import publish_ca_certs
@@ -38,7 +39,8 @@ def _configure_ca_json(ca_json, v):
              intermediate followed by its parent CAs, so a nested site's certificates carry the whole chain).
              With stepca_cert_allow_subordinate_ca the JWK provisioner
              may issue the basicConstraints extension (2.5.29.19).
-    Fails:   OSError/json.JSONDecodeError reading ca.json; KeyError without hostname_stepca or
+    Fails:   OSError/json.JSONDecodeError reading ca.json; ValidationError for lifetimes that are not whole days or
+             hours (authority_hours); KeyError without hostname_stepca or
              "authority" in ca.json.
     Feeds:   run (the first initialisation, and every later run so existing installs converge)."""
     with open(ca_json) as f:
@@ -49,7 +51,7 @@ def _configure_ca_json(ca_json, v):
         cfg["key"] = "/home/step/secrets/intermediate_ca_key"
     cfg["dnsNames"] = [v["hostname_stepca"], "localhost", "127.0.0.1"]
     auth = cfg["authority"]
-    auth.setdefault("claims", {})["maxTLSCertDuration"] = str(v.get("stepca_cert_max_lifetime_hours", "131400h"))
+    auth.setdefault("claims", {})["maxTLSCertDuration"] = authority_hours(v)     # set, else worked out (2.1.5.14)
     provisioners = auth.setdefault("provisioners", [])
     if not any(p.get("type") == "ACME" for p in provisioners):
         provisioners.append({"type": "ACME", "name": "acme"})

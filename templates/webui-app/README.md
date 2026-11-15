@@ -34,12 +34,13 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `pki_result.html` | The pki result page |
 | `radius_secret.html` | The radius secret page |
 | `stepca.html` | The stepca page |
+| `lifetimes.html` | PKI → Lifetimes: fabric's own, ACME, hand-issued and 802.1X lifetimes, the next renewals, the limits |
 | `tsig_result.html` | The tsig result page |
 | `federation.html` | The Federation tab |
 | `security.html` | The Security page (sign-in layers, raises, Kerberos on/off; lowering shown as the host command) |
 | `job.html` | A background job (doctor, an image update, the setup wizard's apply), with a meta refresh while it runs |
 | `settings.html` | The setup wizard: one step at a time with the others carried hidden, the console-only settings read only, Export, Import, Dismiss |
 | `settings_plan.html` | A plan of the setup wizard: the changes old to new, the parts and the memory plan, what was ignored; Apply |
-| `networks.html` | DHCP · Networks (1.10.4.40.1): the list, a VLAN's, subnet's and address's page, Add VLAN, the site's number, a search |
+| `networks.html` | Networks · Segments (1.10.4.40.1): the list, a VLAN's, subnet's and address's page, Add VLAN, the site's number, a search |
 | `ipam_scan.html` | The scan page, a page of Networks |
-| `dhcp_options.html` | DHCP · DHCP options |
+| `dhcp_options.html` | Networks · DHCP options |

@@ -7,31 +7,39 @@ def bind9_page(h, ctx, query, status=200):
     """Purpose: Render the BIND9 tab: forward zone records, the landing page's links (manual 1.4.2.4), generated
              reverse zones, the names DHCP registered (read-only, from Kea's leases: manual 1.10.3.6) or TSIG keys.
     Inputs:  h — the request handler (send, deny); ctx — page context; query — dict: view ('landing', 'reverse',
-             'dhcp', 'tsig', 'new' (Add zone) or 'key' (one TSIG key's page, with key: its name); anything else is
-             forward), zone (a zone key; default the first forward zone; the landing section always shows the site's
-             zone); status — int, default 200.
+             'dhcp', 'tsig', 'new' (Add zone), 'key' (one TSIG key's page, with key: its name; its Edit names offers
+             the zone's records, 2.1.4.13) or 'newkey' (New TSIG key, with mode: 'acme' (and zone: a zone's name,
+             whose records are offered) or 'custom', 2.1.4.12); anything else is forward), zone (a zone key; default
+             the first forward zone; the landing section always shows the site's zone), edit ("<type>-<index>": the
+             record whose row is open to change, 2.1.4.15); status — int, default 200.
     Returns: the BIND9 page with the given status; 404 for a TSIG key that is not there (2.1.8.16).
     Fails:   agent errors propagate to handle_request (400, redirect to /login, 403, 503) (e.g. an unknown zone key →
              400).
     Feeds:   get_page (/dns/zones) and tsig_post (re-shows the TSIG section with 400 on a validation error).
     """
-    section = (query.get("view") if query.get("view") in ("landing", "reverse", "dhcp", "tsig", "new", "key")
-               else "forward")
+    section = (query.get("view") if query.get("view") in ("landing", "reverse", "dhcp", "tsig", "new", "key",
+                                                          "newkey") else "forward")
     zones = actions.list_zones()
     forward = [z for z in zones if not z.get("reverse")]
     key = query.get("zone") or (forward[0]["key"] if forward else "")
     if section == "landing":                     # the landing page links the site's own zone (1.4.2.2)
         key = "dynamic_zone_var"
-    tsig = actions.list_tsig_keys() if section in ("tsig", "key") else None
-    tsig_key = None
+    tsig = actions.list_tsig_keys() if section in ("tsig", "key", "forward") else None
+    tsig_key, choices, mode, pick_zone = None, None, None, None
     if section == "key":                         # one TSIG key's page: by its name
         tsig_key = next((k for k in tsig if k.get("name") == query.get("key")), None)
         if tsig_key is None:
             return h.deny(404, "No TSIG key has that name.")
+        choices = actions.tsig_choices(tsig_key["domain"])          # Edit names' Add (2.1.4.13)
+    if section == "newkey":                      # New TSIG key: the mode, then ACME's zone and its records (2.1.4.12)
+        mode = query.get("mode") if query.get("mode") in ("acme", "custom") else None
+        pick_zone = query.get("zone") if mode == "acme" else None
+        if pick_zone:
+            choices = actions.tsig_choices(pick_zone)
     return h.send(status, views.bind9(
         ctx, section, zones, zone=note_kept(ctx, actions.zone_detail(key), f"zones/{key}", "/dns/zones")
         if section in ("forward", "landing") and key else None,
         types=actions.RECORD_TYPES,
-        tsig_keys=tsig, tsig_key=tsig_key,
+        tsig_keys=tsig, tsig_key=tsig_key, tsig_choices=choices, tsig_mode=mode, tsig_zone=pick_zone,
         reverse=actions.reverse_zones() if section == "reverse" else None,
-        dhcp=actions.dhcp_overview() if section == "dhcp" else None))
+        dhcp=actions.dhcp_overview() if section == "dhcp" else None, edit=query.get("edit", "")))

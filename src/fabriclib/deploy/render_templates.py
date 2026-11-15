@@ -3,6 +3,8 @@ import shutil
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.dns.rfc2136_settings import rfc2136_settings
+from fabriclib.dns.split.default_records import default_records
+from fabriclib.dns.split.split_answers import split_answers
 
 BIND_CONFIG = ("named.conf", "named.conf.acl", "named.conf.logs", "named.conf.options", "named.conf.tls",
                "named.conf.zones", "named.conf.keys", "rndc.key")
@@ -32,7 +34,8 @@ def render_templates(paths, jinja_env, context, final_vars, secrets, tsig_keys, 
              federation_links, reverse_zone_names); final_vars — rendered settings; secrets — for the RFC2136
              files; tsig_keys — normalized keys; units — service_units(); reverse — reverse_zones(final_vars).
     Returns: None. <render>/: nginx (config, web pages, certificate install scripts, static assets), each enabled
-             unit's compose file and systemd wrapper, bind9 config and zones (forward and reverse),
+             unit's compose file and systemd wrapper, bind9 config and zones (forward and reverse; a VLAN's own
+             answers in its views and RPZ, 2.1.4.16),
              the web UI config and fabric-agent unit, the federation endpoint unit, OpenBao's config, Step-CA's
              certificate templates, an rfc2136.ini per TSIG key.
     Fails:   ValidationError when a template does not render; OSError copying the static files.
@@ -59,11 +62,18 @@ def render_templates(paths, jinja_env, context, final_vars, secrets, tsig_keys, 
             render(f"{u['folder']}/docker-compose.yml.j2", f"{u['folder']}/docker-compose.yml")
             render("systemd/wrapper.service.j2", f"systemd/{u['service']}.service", item=u)
 
+    split = split_answers(final_vars)          # the VLANs with answers of their own: BIND's views (2.1.4.16)
     for name in BIND_CONFIG:
-        render(f"bind9/config/{name}.j2", f"bind9/config/{name}")
+        render(f"bind9/config/{name}.j2", f"bind9/config/{name}", split_views=split)
     for key, records in (final_vars.get("dns") or {}).items():
         zone = final_vars.get("domain") if key == "dynamic_zone_var" else key
-        render("bind9/data/zone.j2", f"bind9/data/db.{zone}", zone_name=zone, zone_records=records)
+        render("bind9/data/zone.j2", f"bind9/data/db.{zone}", zone_name=zone, zone_records=default_records(records))
+    for s in split:                             # each VLAN's own answers, an RPZ installed and reloaded as a zone
+        render("bind9/data/split.rpz.j2", f"bind9/data/db.{s['rpz']}", split=s)
+    data = os.path.join(out, "bind9/data")
+    for f in os.listdir(data) if os.path.isdir(data) else []:      # a VLAN's answers all gone: its RPZ with them
+        if f.startswith("db.split-") and f.endswith(".rpz") and f[3:] not in {s["rpz"] for s in split}:
+            os.remove(os.path.join(data, f))
     for zone, ptrs in reverse["zones"].items():
         render("bind9/data/reverse-zone.j2", f"bind9/data/db.{zone}", reverse_zone_name=zone, ptr_records=ptrs)
 

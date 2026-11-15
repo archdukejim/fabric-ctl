@@ -97,6 +97,8 @@ hostname_federation: {{ ((cname_federation | default('federation')) ~ '.' ~ doma
 image_nginx: {{ image_nginx | default(images_lock.nginx) }}
 {# stepca and keycloak run thin local layers built FROM these (fabric/jinja/<svc>/build). #}
 image_stepca: {{ image_stepca | default(images_lock.stepca) }}
+{# builds fabric/stepca's certificate reader when this host builds that image (2.1.5.13); never run #}
+image_golang: {{ image_golang | default(images_lock.golang) }}
 image_keycloak: {{ image_keycloak | default(images_lock.keycloak) }}
 image_postgres: {{ image_postgres | default(images_lock.postgres) }}
 image_openbao: {{ image_openbao | default(images_lock.openbao) }}
@@ -394,7 +396,9 @@ cert_intermediate_key_param: {{ cert_intermediate_key_param | default(4096) }}
 # Service certificates (2.1.5.4): their lifetime, and the age at which the daily timer renews them.
 cert_service_days: {{ cert_service_days | default(47) }}
 cert_renew_after_days: {{ cert_renew_after_days | default(30) }}
-# Longest validity the web UI's Step-CA tab issues (CSR signing, generated key pairs).
+# Hand-issued certificates (the web UI's PKI page: CSR signing, generated key pairs): the days its forms fill in,
+# and the longest they accept. These and the lifetimes above are set in PKI → Lifetimes (2.1.5.14).
+pki_manual_default_days: {{ pki_manual_default_days | default(365) }}
 pki_manual_max_days: {{ pki_manual_max_days | default(1825) }}
 
 # ============================================================
@@ -402,7 +406,12 @@ pki_manual_max_days: {{ pki_manual_max_days | default(1825) }}
 # ============================================================
 stepca_port: {{ stepca_port | default(9000) }}
 stepca_cert_allow_subordinate_ca: {{ stepca_cert_allow_subordinate_ca | default(true) | lower }}
-stepca_cert_max_lifetime_hours: "{{ stepca_cert_max_lifetime_hours | default((cert_service_days | default(47) * 24) ~ 'h') }}"
+{# the authority's maximum (2.1.5.14.3): kept only when an administrator set it (refused when shorter than the
+   lifetimes need, pki/check_cert_lifetimes); otherwise never written, and setup/init_pki works it out from the
+   lifetimes. The old default earlier fabrics wrote here is taken out at the upgrade (setup/drop_old_authority_max). #}
+{% if stepca_cert_max_lifetime_hours is defined and stepca_cert_max_lifetime_hours is not none and (stepca_cert_max_lifetime_hours | string | trim) %}
+stepca_cert_max_lifetime_hours: "{{ stepca_cert_max_lifetime_hours }}"
+{% endif %}
 cert_acme_lifetime_hours: {{ cert_acme_lifetime_hours | default('1128h') }}
 
 # ============================================================
@@ -414,15 +423,11 @@ cert_acme_lifetime_hours: {{ cert_acme_lifetime_hours | default('1128h') }}
 bind_dns_port: {{ 5053 if (dns_filter | default('bind', true) | lower) == 'bind' and _bind_port == 53 else _bind_port }}
 bind9_doh_port: {{ bind9_doh_port | default(8053) }}
 {% set _fabric_subnet = fabric_subnet | default('10.255.0.0/24') %}
-{# DHCP's full subnets resolve through fabric like the LAN (2.1.10.4; guest subnets only through the filter) #}
-{% set _dhcp_full = ((dhcp | default({}, true)).subnets | default([], true) | rejectattr('access', 'defined')
-                     | map(attribute='subnet') | list) if install_kea | default(false) | bool else [] %}
-{% set _dhcp_full = _dhcp_full + (((dhcp | default({}, true)).subnets | default([], true)
-                     | selectattr('access', 'defined') | selectattr('access', 'equalto', 'full')
-                     | map(attribute='subnet') | list) if install_kea | default(false) | bool else []) %}
+{# the networks the site's access rules allow dns (manual 1.10.4.48.3), when given; an apply adds them after it
+   reads the plan (deploy/check_settings). A served subnet is no longer allowed by being served (2.1.10.53). #}
 {% set default_acls = {
   'acme-updaters': [_fabric_subnet],
-  'dns-resolvers': ['127.0.0.1', lan_cidr, _fabric_subnet] + _dhcp_full
+  'dns-resolvers': ['127.0.0.1', lan_cidr, _fabric_subnet] + ((access_sources | default({}, true)).dns | default([]))
 } %}
 {% set final_bind_acls = default_acls %}
 {% if bind_acls is defined %}

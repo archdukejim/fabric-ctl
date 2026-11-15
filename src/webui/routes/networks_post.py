@@ -3,31 +3,35 @@ import urllib.parse
 from webui import agentclient as actions
 from webui.routes.held import held, q
 from webui.routes.networks_scan_post import networks_scan_post
+from webui.routes.one_site import ONE_SITE, other_site
 from webui.routes.options_post import options_post
 
-# the plan's changes, as the segments after the site (1.10.4.21.5); "*" is a VLAN ID, a subnet's name or an address
-CHANGES = (["block"], ["vlans"], ["vlans", "*"], ["vlans", "*", "delete"], ["subnets"], ["subnets", "*"],
+# the plan's changes, as the segments after the site (1.10.4.21.5); "*" is a VLAN ID, a subnet's name or an address.
+# The site's number (block) is not set here: it matters only beside other sites (1.8.6.14; the CLI keeps it)
+CHANGES = (["vlans"], ["vlans", "*"], ["vlans", "*", "delete"], ["subnets"], ["subnets", "*"],
            ["subnets", "*", "delete"], ["ranges"], ["ranges", "delete"], ["addresses"], ["addresses", "*"],
-           ["addresses", "*", "delete"])
-FIELDS = ("number", "id", "name", "subnet", "no_subnet", "gateway", "purpose", "notes", "access", "dhcp", "relay",
+           ["addresses", "*", "delete"], ["access", "*"])
+FIELDS = ("number", "id", "name", "subnet", "no_subnet", "gateway", "purpose", "notes", "dhcp", "relay",
           "allow_overlap", "split", "force", "vlan", "cidr", "kind", "first", "last", "ip", "mac", "owner", "dns",
-          "location", "to_location")
+          "location", "to_location", "ntp", "web", "ad", "radius", "ssh", "ping")     # never --force (2.1.10.57)
 
 
-def _back(site, rest, form):
+def _back(rest, form):
     """Purpose: The page a plan change goes back to: the subnet's or VLAN's page the form was on, the site's list
-             after a VLAN's or subnet's removal.
-    Inputs:  site — str; rest — the segments after the site; form — dict (back_vlan, back_subnet).
-    Returns: str, "/networks?site=…[&vlan=…|&subnet=…]".
+             after a VLAN's or subnet's removal, the Access page's tab after a network's change.
+    Inputs:  rest — the segments after the site; form — dict (back_vlan, back_subnet).
+    Returns: str, "/networks[?vlan=…|?subnet=…]" or "/networks/rules?net=…" (this site's: 1.8.6.14).
     Fails:   never.
     Feeds:   networks_post."""
-    keep = {"site": site}
+    keep = {}
+    if rest[:1] == ["access"]:                    # the network's tab of the Access page (1.10.4.48.11)
+        return "/networks/rules?" + urllib.parse.urlencode({"net": rest[1]})
     gone = rest[-1:] == ["delete"] and rest[0] in ("vlans", "subnets")
     if form.get("back_subnet") and not gone:
         keep["subnet"] = form["back_subnet"]
     elif form.get("back_vlan") and not gone:
         keep["vlan"] = form["back_vlan"]
-    return "/networks?" + urllib.parse.urlencode(keep)
+    return "/networks" + ("?" + urllib.parse.urlencode(keep) if keep else "")
 
 
 def _sync(h):
@@ -57,7 +61,8 @@ def networks_post(h, sess, parts, form):
     Inputs:  h — the request handler (back, deny); sess — the session (the scan's result page); parts —
              URL-decoded segments after /networks/; form — dict (csrf, back_vlan or back_subnet: the page to go
              back to, and the change's fields of FIELDS).
-    Returns: 303 back to the page with "Waiting for Apply: …" or the refusal; 404 for another path.
+    Returns: 303 back to the page with "Waiting for Apply: …" or the refusal; 404 for another path, the site's
+             number (block), or another site's plan (ONE_SITE, 2.1.8.68).
     Fails:   AgentError, PermissionDenied and AuthError propagate to handle_request.
     Feeds:   post_action (/networks/…)."""
     if parts == ["sync"]:
@@ -71,5 +76,7 @@ def networks_post(h, sess, parts, form):
     site, rest = parts[1], parts[2:]
     if not any(len(c) == len(rest) and all(p in ("*", r) for p, r in zip(c, rest)) for c in CHANGES):
         return h.deny(404, "Not found.")
+    if other_site(site, actions.networks_overview().get("site")):      # this site's plan only (1.8.6.14)
+        return h.deny(404, ONE_SITE + ".")
     body = {k: form[k] for k in FIELDS if isinstance(form.get(k), str)}
-    return held(h, _back(site, rest, form), "networks/" + "/".join(q(x) for x in [site, *rest]), body)
+    return held(h, _back(rest, form), "networks/" + "/".join(q(x) for x in [site, *rest]), body)

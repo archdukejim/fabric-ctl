@@ -51,7 +51,7 @@
 {% endcall %}
 <section class="card facts"><h2>State</h2><p>{{ p.status(lights.get(d.state, 'ok'), d.state or 'active') }}</p>
 <dl><dt>Last sign-in</dt><dd>{{ d.last_logon[:16] | replace('T', ' ') if d.last_logon else 'never' }}</dd>
-<dt>Sites</dt><dd>{{ d.sites | join(', ') if d.sites else '—' }}</dd></dl></section>
+</dl></section>
 {{ p.facts("Details", details) }}
 {% if can('people:edit') %}<section class="card"><h2>Edit details</h2>
 <form method="post" action="/directory/people/{{ d.uid | urlencode }}/edit" class="grid">

@@ -29,5 +29,8 @@ def plan_firewall(v, config_dir, active=None):
             + [f"ufw: allow {p}/tcp (SSH) from {c}" for c in rules["ssh"] for p in ports]
             + ([f"ufw: allow {site['port']}/tcp (this setup's temporary site), removed when the site stops"]
                if site else [])
-            + ["iptables DOCKER-USER: ports Docker publishes are reachable only from " + ", ".join(rules["ssh"])
-               + " (fabric-firewall.service re-applies this at boot)"])
+            + ["iptables DOCKER-USER: ports Docker publishes are reachable only from the networks the site's access "
+               "rules allow each service (and security.firewall_allow); every other new connection is dropped "
+               "(fabric-firewall.service re-applies this at boot)",
+               "ufw before.rules: ping answered only from the networks the site's access rules allow ping, and IPv6 "
+               "ping not answered (the files as they were kept for uninstall to put back)"])

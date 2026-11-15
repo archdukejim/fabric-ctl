@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Web-guided setup's clean-machine run (manual 3.1.5.13, 1.3.6.8): the package on a fresh lab VM, `sudo fabricctl setup`
-in a real terminal (Windows OpenSSH with the lab key, 3.1.5.4), Guided in a real browser on this machine, every default
-accepted, through to Finish; then the host as it was left. From WSL on gaming-23, as root (Docker).
+in a real terminal (OpenSSH, -tt), Guided in a real browser on this machine, every default accepted, through to
+Finish; then the host as it was left. From the build VM g23-vm-dev-1 (3.1.5.14), as root (Docker), signed in to the lab
+VM with the lab key from the agent forwarded from gaming-23 (`ssh -A`, 2.1.1.99.2), or ~/.ssh/g23_lab if it is there:
 
-    python3 tests/lab/web_guided_lab.py 10.88.0.10 <fabricctl_….deb>
+    sudo --preserve-env=SSH_AUTH_SOCK python3 tests/lab/web_guided_lab.py 10.88.0.10 <fabricctl_….deb>
+
+Host keys are kept in ~/fabric-lab/known_hosts of the person who ran sudo; a VM met first is recorded (accept-new):
+the lab's VMs are reinstalled often, and only a lab address is accepted.
 """
 import json
 import os
@@ -22,11 +26,16 @@ if not VM.startswith("10.88.0."):
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PROBE_DIR = os.path.join(REPO, "tests", "setup", "site")
 IMAGE = "fabric/webui-browser:web-guided-lab"
-HOME = subprocess.run(["cmd.exe", "/c", "echo %USERPROFILE%"], capture_output=True, text=True, cwd="/mnt/c").stdout.strip()
-SSH_EXE = "/mnt/c/Windows/System32/OpenSSH/ssh.exe"
-SCP_EXE = "/mnt/c/Windows/System32/OpenSSH/scp.exe"
-OPTS = ["-i", f"{HOME}\\.ssh\\g23_lab", "-o", f"UserKnownHostsFile={HOME}\\fabric-lab\\known_hosts", "-o", "BatchMode=yes",
-        "-o", "ConnectTimeout=20", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=8"]
+HOME = os.path.expanduser("~" + os.environ.get("SUDO_USER", ""))     # the person's, not root's, under sudo
+KEY = os.path.join(HOME, ".ssh", "g23_lab")
+if not os.path.exists(KEY) and subprocess.run(["ssh-add", "-l"], capture_output=True).returncode != 0:
+    sys.exit("refused: no lab key: neither a forwarded agent holding it (ssh -A from gaming-23, run with "
+             "sudo --preserve-env=SSH_AUTH_SOCK) nor " + KEY + " (manual 3.1.5.14). Nothing was run.")
+os.makedirs(os.path.join(HOME, "fabric-lab"), exist_ok=True)
+SSH_EXE, SCP_EXE = "ssh", "scp"
+OPTS = [*(["-i", KEY] if os.path.exists(KEY) else []),
+        "-o", f"UserKnownHostsFile={HOME}/fabric-lab/known_hosts", "-o", "StrictHostKeyChecking=accept-new",
+        "-o", "BatchMode=yes", "-o", "ConnectTimeout=20", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=8"]
 SECRET = "Lab-" + secrets.token_hex(12)     # made for this run; to the browser in a file, never on a command line
 PASS = FAIL = 0
 
@@ -93,8 +102,8 @@ out_dir = tempfile.mkdtemp(prefix="web-guided-lab-", dir="/tmp")
 os.chmod(out_dir, 0o777)
 print(f"--- the package on {VM}: {os.path.basename(DEB)}", flush=True)
 shutil.copy(DEB, os.path.join(out_dir, "fabricctl.deb"))
-windows_deb = subprocess.run(["wslpath", "-w", os.path.join(out_dir, "fabricctl.deb")], capture_output=True, text=True).stdout.strip()
-copied = subprocess.run([SCP_EXE, "-q", *OPTS, windows_deb, f"labadmin@{VM}:/tmp/fabricctl.deb"], capture_output=True, text=True)
+copied = subprocess.run([SCP_EXE, "-q", *OPTS, os.path.join(out_dir, "fabricctl.deb"), f"labadmin@{VM}:/tmp/fabricctl.deb"],
+                        capture_output=True, text=True)
 check("the package reaches the VM", copied.returncode == 0, copied.stderr)
 status, text = on("sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /tmp/fabricctl.deb >/dev/null; "
                   "dpkg-query -W -f='${Package} ${Version}' fabricctl; echo; ufw status 2>/dev/null | head -1; sudo ufw status | head -1")
@@ -181,8 +190,7 @@ check("no record, listener or minted file of the site's left", status_left == 0,
 pw = os.path.join(out_dir, "pw")
 with open(pw, "w") as f:
     f.write(SECRET)
-subprocess.run([SCP_EXE, "-q", *OPTS, subprocess.run(["wslpath", "-w", pw], capture_output=True, text=True).stdout.strip(),
-                f"labadmin@{VM}:/tmp/lab-pw-check"], capture_output=True)
+subprocess.run([SCP_EXE, "-q", *OPTS, pw, f"labadmin@{VM}:/tmp/lab-pw-check"], capture_output=True)
 os.remove(pw)
 _, hits = on("sudo grep -rlF -f /tmp/lab-pw-check /opt/fabric/config /var/log /run /tmp --exclude=lab-pw-check 2>/dev/null; rm -f /tmp/lab-pw-check; true")
 check("the first admin's password is in no file or log", not hits.strip(), hits)

@@ -8,6 +8,7 @@ GET = {
     "status:read",
     ("jobs", "*"): "session",
     ("zones",): "dns:read", ("zones", "*"): "dns:read", ("reverse-zones",): "dns:read", ("tsig",): "dns:read",
+    ("tsig-choices", "*"): "dns:read",            # a zone's records a TSIG key's names are picked from (2.1.4.12)
     ("audit",): "audit:read",
     ("dhcp",): "dhcp:read",
     # the address manager (manual 1.10.4.35): any site of the domain is read
@@ -17,6 +18,7 @@ GET = {
     ("dns-filter",): "dns:filter",
     ("radius",): "radius:read", ("radius", "guides"): "radius:read",
     ("pki", "ca"): "pki:read", ("pki", "issued"): "pki:read", ("pki", "acme"): "pki:read",
+    ("pki", "certs"): "pki:read", ("pki", "lifetimes"): "pki:read",    # Issued (2.1.5.13), Lifetimes (2.1.5.14)
     ("devices",): "devices:read",
     ("people",): "people:read", ("people", "*"): "people:read",   # a person's page (1.6.12.4)
     ("machines",): "domain:read", ("machines", "*"): "domain:read",   # Computers and a computer's page (1.6.12.6)
@@ -46,7 +48,7 @@ POST = {
     ("sizing", "dismiss"): "status:read",
     ("zones",): "dns:write", ("zones", "*", "delete"): "dns:write",
     ("zones", "*", "records"): "dns:write", ("zones", "*", "records", "delete"): "dns:write",
-    ("zones", "*", "records", "link"): "dns:write",
+    ("zones", "*", "records", "link"): "dns:write", ("zones", "*", "records", "update"): "dns:write",
     ("apply",): "dns:write",
     ("dns-filter", "querylog"): "dns:querylog",        # who looked up what: the admin bundle only (2.1.12.4)
     ("dns-filter", "lists"): "dns:filter", ("dns-filter", "lists", "set"): "dns:filter",
@@ -58,8 +60,11 @@ POST = {
     ("dns-filter", "safe-search"): "dns:filter",
     ("pki", "describe-csr"): "pki:read", ("pki", "inspect"): "pki:read",
     ("pki", "sign"): "pki:sign", ("pki", "revoke"): "pki:revoke",
+    ("pki", "lookup"): "pki:read",                     # the certificate a revocation names, before its confirmation
+    ("pki", "lifetimes"): "pki:settings",              # held for PKI's Apply (2.1.5.14)
     ("pki", "issue"): "pki:issue", ("pki", "convert"): "pki:issue",
     ("tsig",): "tsig:manage", ("tsig", "*", "rotate"): "tsig:manage", ("tsig", "*", "delete"): "tsig:manage",
+    ("tsig", "*", "update"): "tsig:manage",       # Edit names, held for DNS' Apply (2.1.4.13)
     ("vault", "rotate"): "vault:unlock", ("vault", "slots", "add-usb"): "vault:unlock",
     ("vault", "slots", "add-security-key"): "vault:unlock", ("vault", "slots", "add-hsm"): "vault:unlock",
     ("vault", "slots", "*", "test"): "vault:unlock", ("vault", "slots", "*", "remove"): "vault:unlock",
@@ -103,6 +108,7 @@ POST = {
     # the address manager (manual 1.10.4.35): dhcp:write here, and the grant's networks right at the site,
     # checked by fabric-agent in each function (1.10.4.34)
     ("networks", "*", "block"): "dhcp:write", ("networks", "*", "vlans"): "dhcp:write",
+    ("networks", "*", "access", "*"): "dhcp:write",
     ("networks", "*", "vlans", "*"): "dhcp:write", ("networks", "*", "vlans", "*", "delete"): "dhcp:write",
     ("networks", "*", "subnets"): "dhcp:write", ("networks", "*", "subnets", "*"): "dhcp:write",
     ("networks", "*", "subnets", "*", "delete"): "dhcp:write", ("networks", "*", "ranges"): "dhcp:write",

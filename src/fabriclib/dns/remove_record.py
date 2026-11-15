@@ -1,9 +1,12 @@
+import copy
+
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
 from fabriclib.common.save_vars import save_vars
 from fabriclib.common.vars_lock import vars_lock
 from fabriclib.common.write_audit import write_audit
 from fabriclib.dns.common.fabric_record import fabric_record
+from fabriclib.dns.drop_removed_names import drop_removed_names
 
 
 def remove_record(actor, key, rtype, index, expected_name, source="cli"):
@@ -13,7 +16,9 @@ def remove_record(actor, key, rtype, index, expected_name, source="cli"):
              key — str zone key; rtype — str record type; index — int position in that type's list.
              expected_name — str, the name the caller showed (so a stale view cannot delete the wrong record).
              source — "cli" (default) or "web". Reads/writes vars.yaml under vars_lock.
-    Returns: the removed record dict. A type list left empty is deleted from the zone.
+    Returns: the removed record dict. A type list left empty is deleted from the zone. An ACME (DNS-01) TSIG key
+             granted the name (or the record with its aliases) loses it, with a note on the key and in the audit,
+             unless another record of the zone still has the name (drop_removed_names, decision 2.1.4.12).
     Fails:   ValidationError "record changed since it was shown; reload and try again" (unknown zone or type, index out
              of range, or another name); ValidationError "<name> is provided by fabric (…)" for one of fabric's own
              names (common/fabric_record, 2.1.2.22 item 6): every render adds it back from its setting, so it is
@@ -33,9 +38,13 @@ def remove_record(actor, key, rtype, index, expected_name, source="cli"):
             fqdn = data.get("domain") if name == "@" else f"{name}.{data.get('domain')}"
             raise ValidationError(f"{fqdn} is provided by fabric ({own['service']}, from the setting "
                                   f"{own['setting']}): every apply adds it back, so it cannot be deleted here")
+        before = copy.deepcopy(data)
         removed = records.pop(index)
         if not records:
             del data["dns"][key][rtype]
+        dropped = drop_removed_names(before, data, key)       # an ACME key's grant goes with its record (2.1.4.12)
         save_vars(data)
     write_audit(actor, "DNS_DELETE", f"zone={key} {rtype} {removed}", source)
+    for kname, names in dropped:
+        write_audit(actor, "TSIG_UPDATE", f"key={kname} dropped {', '.join(names)}: the record was removed", source)
     return removed

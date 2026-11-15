@@ -15,6 +15,7 @@ variable "TAG" { default = "dev" }
 variable "REVISION" { default = "" }
 variable "BASE_DEBIAN" { default = "" }
 variable "BASE_STEPCA" { default = "" }
+variable "BASE_GOLANG" { default = "" }
 variable "BASE_KEYCLOAK" { default = "" }
 variable "KEA_VERSION" { default = "" }
 variable "KEA_REPO" { default = "" }
@@ -80,7 +81,7 @@ target "samba" {
 target "stepca" {
   inherits = ["_fabric"]
   context  = "${CONTEXTS}/stepca"
-  args     = { BASE_IMAGE = BASE_STEPCA }
+  args     = { BASE_IMAGE = BASE_STEPCA, GO_IMAGE = BASE_GOLANG }
   tags     = ["${REGISTRY}/stepca:${TAG}"]
 }
 

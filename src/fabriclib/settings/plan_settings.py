@@ -2,6 +2,7 @@ import json
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.dhcp.common.turn_dhcp_on import turn_dhcp_on
+from fabriclib.dns.split.split_needs_filter import split_needs_filter
 from fabriclib.settings.check_wizard_value import check_wizard_value
 from fabriclib.settings.constants import WIZARD_KEYS
 from fabriclib.settings.read_settings import read_settings
@@ -51,7 +52,8 @@ def plan_settings(v, given, ignored=(), source="web", have_gb=None, networks=Non
     """Purpose: the plan for a change of the wizard's settings (manual 1.8.5.5), from the wizard, a settings file in
              the console or `fabricctl settings import`; nothing changes. Each value is checked as setup checks it
              (check_wizard_value); then together: log forwarding on needs a destination, DHCP turned on its first
-             subnet (turn_dhcp_on: the host's interfaces), and the parts that run must fit the memory (plan_memory).
+             subnet (turn_dhcp_on: the host's interfaces), the DNS filter kept on while a record answers one VLAN
+             (split_needs_filter, 2.1.4.16), and the parts that run must fit the memory (plan_memory).
              One invalid value refuses the whole change.
     Inputs:  v — the settings as saved (vars.yaml); given — {wizard key: value}, any subset (other keys are a caller's
              error); ignored — [{"key", "reason"}] a file's ignored keys, carried into the plan; source — "web",
@@ -73,6 +75,10 @@ def plan_settings(v, given, ignored=(), source="web", have_gb=None, networks=Non
     if new["install_fluentbit"] and not any(new["log_forwarding"].get(p) for p in ("syslog", "elastic")):
         raise ValidationError("install_fluentbit: log forwarding needs somewhere to send the logs (log_forwarding: "
                               "a syslog server or an Elasticsearch URL)")
+    try:                                              # split DNS keeps the filter on (2.1.4.16)
+        split_needs_filter(v, new["dns_filter"])
+    except ValidationError as e:
+        raise ValidationError(f"dns_filter: {e}") from None
     turning_on = new["install_kea"] and not base["install_kea"]
     if turning_on:
         d = new["dhcp"]

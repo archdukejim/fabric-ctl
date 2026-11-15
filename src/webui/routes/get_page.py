@@ -10,9 +10,9 @@ from webui.routes.finish_setting_up import finish_setting_up
 from webui.routes.computers_page import computers_page
 from webui.routes.access_page import access_page
 from webui.routes.groups_page import groups_page
-from webui.routes.sites_page import sites_page
-from webui.routes.site_link import site_link
+from webui.routes.one_site import ONE_SITE
 from webui.routes.kerberos_page import kerberos_page
+from webui.routes.lifetimes_page import lifetimes_page
 from webui.routes.ous_page import ous_page
 from webui.routes.tree_page import tree_page
 from webui.routes.dns_filter_page import dns_filter_page
@@ -94,30 +94,32 @@ def get_page(h, sess, path, query):
              (view, zone, device, name, slot, step, the query log's search as each page uses them).
     Returns: 303 to the new address of a page that moved; 200 page: Overview (/, /overview/doctor,
              /overview/updates, /audit), DNS (/dns/zones, /dns-filter), DHCP (/networks[/export|/scan|/options],
-             1.10.4.40.1; /kea), PKI (/pki, /pki/acme),
+             1.10.4.40.1; /kea), PKI (/pki, /pki/acme, /pki/lifetimes),
              Directory (/directory, /directory/people|groups|computers[/_new|/<name>], /directory/computers/_groups,
              /directory/ous[?ou=<path>], /directory/tree[?ou=<path>&…] (Browse, 1.8.8.4),
-             /directory/access[/_new|/<name>], /directory/sites[/<name>],
+             /directory/access[/_new|/<name>],
              /directory/kerberos,
              /directory/policies[/gpo|/sudo]), 802.1X
              (/8021x, /8021x/decisions, /8021x/guides, /8021x/devices[/_new|/<name>], /8021x/roles[/_new|/<name>]),
              Secrets
-             (/secrets[/<view>]), Federation (/federation),
+             (/secrets[/<view>]),
              Settings (/settings, /settings/export, /settings/sign-in), My account (/account, /account/groups,
              1.8.6.6), a job (/jobs/<id>), a page's pending changes and queue (/changes/<page id>, 1.8.6.5); 303
              from / to the first page they may see for a person who may not see the Overview (My account for one
              with no fabric role); 403 for a navigation page whose permission they lack (checked here too, not only
              by fabric-agent: a page that reads nothing, such as Doctor, would otherwise show; a person's or a
              group's page and Add person or Create group are their list's).
-             /sites/<name>: the site selector's link to that site's console (site_link).
+             404 "This console shows only this site; …" for the views of other sites (/sites/<name>, /federation,
+             /directory/sites[/<name>], 1.8.6.14).
     Fails:   404 for any other path; agent errors propagate to handle_request (400, redirect to /login, 403, 503).
     Feeds:   handler.Handler.handle_request.
     """
     new = moved_to(path, query)
     if new:
         return h.redirect(new)
-    if path.startswith("/sites/"):                 # the site selector's link: that site's own console (1.8.6.12)
-        return site_link(h, _rest(path, "/sites/") or "")
+    if (path.startswith("/sites/") or path in ("/federation", "/directory/sites")
+            or path.startswith("/directory/sites/")):       # views of other sites: not in this console (1.8.6.14)
+        return h.deny(404, ONE_SITE + ".")
     ctx = page_context(sess)
     if query.get("signed_in") and not ctx.get("flash"):     # back from a step-up sign-in: a fixed text, not the query's
         ctx["flash"] = {"ok": SIGNED_IN}
@@ -125,7 +127,7 @@ def get_page(h, sess, path, query):
         return h.redirect(views.nav_menu(set(ctx["perms"]), None)[0]["href"])
     shown = views.PENDING_PAGES.get(_rest(path, "/changes/") or "", path)   # a Review: the page it reviews
     for listing in ("/directory/people", "/directory/groups", "/directory/computers", "/directory/access",
-                    "/directory/sites", "/directory/policies", "/8021x/devices", "/8021x/roles"):
+                    "/directory/policies", "/8021x/devices", "/8021x/roles"):
         if path.startswith(listing + "/"):
             shown = listing
     if path.startswith("/8021x/clients/") or path.startswith("/8021x/people/"):
@@ -149,7 +151,7 @@ def get_page(h, sess, path, query):
         return bind9_page(h, ctx, query)
     if path == "/dns-filter":
         return dns_filter_page(h, ctx, query)
-    if path == "/networks" or path == "/networks/export":
+    if path == "/networks" or path == "/networks/export" or path == "/networks/rules":
         return networks_page(h, ctx, path, query)
     if path == "/networks/scan":
         return networks_scan_page(h, ctx, query)
@@ -159,9 +161,12 @@ def get_page(h, sess, path, query):
         return h.send(200, views.kea(ctx, actions.dhcp_overview()))
     if path == "/pki":
         view = query.get("view", "ca")
-        return stepca_page(h, ctx, "ca" if view == "acme" else view, device=query.get("device", ""))
+        return stepca_page(h, ctx, "ca" if view == "acme" else view, device=query.get("device", ""),
+                           source=query.get("source", ""))
     if path == "/pki/acme":
         return stepca_page(h, ctx, "acme")
+    if path == "/pki/lifetimes":
+        return lifetimes_page(h, ctx)
     if _rest(path, "/pki/issued/"):
         return stepca_page(h, ctx, "cert", serial=_rest(path, "/pki/issued/"))
     if _rest(path, "/pki/acme/"):
@@ -174,8 +179,6 @@ def get_page(h, sess, path, query):
         return groups_page(h, ctx, path, query)
     if path == "/directory/access" or path.startswith("/directory/access/"):
         return access_page(h, ctx, path, query)
-    if path == "/directory/sites" or path.startswith("/directory/sites/"):
-        return sites_page(h, ctx, path)
     if path == "/directory/kerberos":
         return kerberos_page(h, ctx)
     if path == "/directory/ous":
@@ -203,8 +206,6 @@ def get_page(h, sess, path, query):
         return openbao_page(h, ctx, {**query, "view": _rest(path, "/secrets/")})
     if _rest(path, "/changes/") in views.PENDING_PAGES:      # a page's Review and queue (1.8.6.5)
         return h.send(200, views.changes(ctx, actions.pending_page(_rest(path, "/changes/"))))
-    if path == "/federation":
-        return h.send(200, views.federation(ctx, note_kept(ctx, actions.federation_overview(), "federation", path)))
     if path == "/settings" or path == "/settings/export":
         return settings_page(h, sess, ctx, path, query)
     if path == "/settings/sign-in":

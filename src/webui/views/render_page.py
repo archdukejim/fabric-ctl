@@ -23,6 +23,7 @@ def render_page(name, **kw):
     Inputs:  name — a template in templates/webui-app (without .html); kw — the template's variables: ctx (dict with
              user, csrf, perms, version, and the message of the last action in flash ({"ok": str} or {"err": str},
              manual 1.8.6.3); default None = no frame), page (the navigation page shown, its path; default None),
+             queue (the navigation page whose pending changes this page's are, for the top bar; default page),
              menu / sections (lists of (view, label), filtered through MENU_PERMS), msg / err (shown as the page's
              message; the session's flash fills them when not given), and any others.
     Returns: the rendered HTML str. Templates also get can(permission), nav (nav_menu's entries), visible (the
@@ -45,7 +46,7 @@ def render_page(name, **kw):
     kw["nav"] = nav_menu(perms, kw["page"], ctx.get("pending_counts"))
     kw["visible"] = {p["href"] for e in kw["nav"] for p in e["pages"]}
     kw["entries"] = {e["id"] for e in kw["nav"]}
-    bar = (ctx.get("pending") or {}).get(kw["page"])
+    bar = (ctx.get("pending") or {}).get(kw.get("queue") or kw["page"])
     kw["bar"] = bar if bar and (bar.get("pending") or bar.get("running")) else None
     flash = ctx.get("flash") or {}
     if not kw.get("msg"):

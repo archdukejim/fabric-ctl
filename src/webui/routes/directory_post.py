@@ -5,6 +5,7 @@ from webui import views
 from webui.views.constants import GRANT_RIGHTS, KERBEROS_FIELDS, PERSON_FIELDS, POLICY_FIELDS
 from webui.routes.device_post import device_post
 from webui.routes.held import held, q
+from webui.routes.one_site import ONE_SITE
 from webui.session.page_context import page_context
 
 
@@ -87,10 +88,10 @@ def _group(h, name, op, form):
 
 def _machine(h, sess, name, op, form):
     """Purpose: A computer's form (manual 1.6.12.6), held on Computers until its Apply: add (form name, type,
-             managed, ou), enable, disable, delete, type (form type, move ticked), sites (form action add|remove,
-             site), move (form path), groups (form action add|remove, group: one of its machine groups' members
-             change); keytab (form service, user, path) is done at once: it changes nothing and answers the command
-             for the computer's administrator (1.6.12.9).
+             managed, ou), enable, disable, delete, type (form type, move ticked), move (form path; sites:
+             404, this console shows one site, 1.8.6.14), groups (form action add|remove, group: one of its
+             machine groups' members change); keytab (form service, user, path) is done at once: it changes
+             nothing and answers the command for the computer's administrator (1.6.12.9).
     Inputs:  h — the request handler (send, back, deny); sess — the session (the keytab page's context); name —
              "_new" or the computer's host name; op — the form; form — dict.
     Returns: 303 (held's): to the computer's page, to Computers after an add or a removal; the keytab: 200, the
@@ -109,9 +110,8 @@ def _machine(h, sess, name, op, form):
     if op == "type":
         return held(h, here, f"machines/{q(name)}/type", {"type": form.get("type", ""),
                                                           "move": bool(form.get("move"))})
-    if op == "sites":
-        return held(h, here, f"machines/{q(name)}/sites", {"action": form.get("action", ""),
-                                                           "site": form.get("site", "")})
+    if op == "sites":                            # a computer's sites: not in this console (1.8.6.14)
+        return h.deny(404, ONE_SITE + ".")
     if op == "move":
         return held(h, _back(form, here), f"machines/{q(name)}/move", {"path": form.get("path", "")})
     if op == "groups":

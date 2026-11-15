@@ -1,9 +1,9 @@
 {% extends "base.html" %}{% import "pattern.html" as p %}
-{#- DHCP · Networks · Scan (manual 1.10.4.40.1): a page of Networks. Scan now is done at once; Record a find waits for
+{#- Networks · Segments · Scan (manual 1.10.4.40.1): a page of Networks. Scan now is done at once; Record a find waits for
     Networks' Apply (1.10.4.40.2). -#}
 {% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
 {% block body %}
-<h1>DHCP · Networks · Scan a subnet</h1>
+<h1>Networks · Segments · Scan a subnet</h1>
 <p><a href="/networks">← Networks</a></p>
 <section class="card"><h2>Scan at {{ scan.site }}</h2>
 <p class="muted">Pings every address of one subnet of this site's plan and reads which devices answered ARP: what

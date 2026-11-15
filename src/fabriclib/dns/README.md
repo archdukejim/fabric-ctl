@@ -32,6 +32,7 @@ seconds (`publish_zone_list.py`).
 | `reverse_zones.py` | Reverse zones + PTRs generated from all forward A/AAAA records (one per address); used by apply and the web UI |
 | `zone_detail.py` | One zone's records (A/AAAA with their automatic PTR, fabric's own names marked, landing links) and sync status (`docker exec … rndc zonestatus`) |
 | `add_record.py` | Validate and add a record (locked, audited) |
+| `update_record.py` | Replace a record in place, the old kept if the new is refused (locked, audited) |
 | `remove_record.py` | Remove a record, refusing if it changed since it was shown or is one of fabric's own names (locked, audited) |
 | `set_record_link.py` | Link a record of the site's zone from the landing page, or stop linking it (locked, audited) |
 | `add_zone.py` | Add a forward zone, refusing names BIND already answers for and public names not ticked as hidden; served in seconds (locked, audited, rolled back if BIND or the resolver refuses) |
@@ -42,7 +43,18 @@ seconds (`publish_zone_list.py`).
 | `remove_tsig_key.py` | Remove a TSIG key, its secret, its `key` entries in every ACL and the `rfc2136.ini` fabric wrote for it (locked, audited) |
 | `list_tsig_keys.py` | TSIG keys with their effective update rights (own + ACL policies) and ACLs |
 | `replace_tsig_secret.py` | Give a key a secret you supply, or a newly generated one (locked, audited) |
-| `update_tsig_key.py` | Change what a key may update: records, any name, types, zone, algorithm, `rfc2136.ini` path; secret untouched (locked, audited) |
+| `update_tsig_key.py` | Change what a key may update: records, any name, types, zone, algorithm, `rfc2136.ini` path, or an Edit names change (`edit_tsig_names`); secret untouched (locked, audited) |
+| `edit_tsig_names.py` | A key's names added or removed one at a time, a record with its aliases added or removed whole, a Custom key's scope and types; every refusal of 1.4.1.9.3 (2.1.4.13) |
+| `zone_records_for.py` | A zone's records found by the zone's name (a key's `domain`) |
+| `record_aliases.py` | An A or AAAA record's aliases in its zone: every CNAME pointing at it, chains included, loops cut (2.1.4.14) |
+| `alias_grants.py` | What each key's `records_with_aliases` grants as the zone is now: BIND's grants at every render, and the key's page (2.1.4.14) |
+| `key_record_choices.py` | The zone's A, AAAA and CNAME names a key's names are picked from, an address with its aliases (2.1.4.12) |
+| `tsig_key_mode.py` | A key's mode as shown: ACME (DNS-01) when it holds no more than ACME mode gives, else Custom (2.1.4.12) |
+| `acme_picks.py` | ACME mode's picks checked against the zone's records (the console's New key, `tsig add --mode acme`) |
+| `ask_tsig_scope.py` | `tsig add` with no scope: the mode, the zone and its records (or Custom's scopes) asked in a terminal |
+| `drop_removed_names.py` | A record removed: its grant dropped from the zone's ACME keys, with a note (2.1.4.12) |
+| `rename_tsig_names.py` | A record renamed (the host's own): the site zone's keys granted the new name (2.1.4.12) |
+| `tsig_record_notice.py` | The keys a new CNAME gives a right (an alias of a record held with its aliases): the Review's row and the audit (2.1.4.14) |
 | `rfc2136_settings.py` | The `rfc2136.ini` text a certbot-style client needs for one key (used by apply and the web UI) |
 | `create_zone_tsig_key.py` | Web UI: a new key limited to one forward zone and one scope (listed hosts' ACME, zone ACME, any name + types) |
 | `rotate_tsig_key.py` | Web UI: new generated secret for a key, returned with its `rfc2136.ini` text |
@@ -57,4 +69,5 @@ seconds (`publish_zone_list.py`).
 | `reverse_by_hand.py` | The reverse names whose PTR is set by hand, by zone (DHCP's key is denied them, 2.1.10.20) |
 | `publish_plan_records.py` | The same quick path for the address plan's DNS (Sync now): the zone list, and every zone whose records changed reloaded under the running BIND |
 | `common/` | Helpers shared by these files |
+| `split/` | Split DNS: a record answering one VLAN alone (2.1.4.16) |
 | `changed_names.py` | The names whose records an apply or Sync now is about to change, so the filtering resolver forgets them (2.1.10.46) |

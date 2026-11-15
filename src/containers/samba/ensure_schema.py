@@ -41,6 +41,8 @@ SETS = {
                 ("fabricScanDoneAt", 45, IA5, True),
                 # a location without a DC inside a site: its VLANs' and subnets' label (2.1.10.49, manual 1.10.4.46)
                 ("fabricLocation", 48, STRING, True),
+                # a site's access rules, "<position>:<JSON>" each, on its record (2.1.10.53, manual 1.10.4.48.4)
+                ("fabricAccessRule", 49, STRING, False),
                 # a site's place in the federation, for the console's site selector (2.1.8.30, manual 1.8.6.12): its
                 # parent site and its console's address, on its record through fabricSiteTree (given on 0.8.0)
                 ("fabricParentSite", 46, STRING, True), ("fabricConsoleUrl", 47, IA5, True)],
@@ -79,7 +81,9 @@ SETS = {
                 ("fabricSiteTree", 19, 3, [], ["fabricParentSite", "fabricConsoleUrl"]),
                 # the label, on a VLAN's or a subnet's entry when it has one (20: 19 is 0.8.0's site tree; a
                 # class once in a schema never changes, so the label is an auxiliary class, 2.1.10.49)
-                ("fabricLocated", 20, 3, [], ["fabricLocation"])]),
+                ("fabricLocated", 20, 3, [], ["fabricLocation"]),
+                # the access rules, on a site's record (21: auxiliary, as 20, so the record's class is unchanged)
+                ("fabricAccessRules", 21, 3, [], ["fabricAccessRule"])]),
     # sudo's rules in the directory, with sudo's own registered arc (Ubuntu no longer ships its AD schema; Q9)
     "sudo": ("1.3.6.1.4.1.15953.9.1", "1.3.6.1.4.1.15953.9.2",
              [("sudoUser", 1, IA5, False), ("sudoHost", 2, IA5, False), ("sudoCommand", 3, IA5, False),

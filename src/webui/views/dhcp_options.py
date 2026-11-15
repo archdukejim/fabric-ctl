@@ -3,7 +3,7 @@ from webui.views.render_page import render_page
 
 
 def dhcp_options(ctx, overview, target=""):
-    """Purpose: DHCP · DHCP options (manual 1.10.4.40.1, 1.10.4.24): the domain's and the site's option sets, each
+    """Purpose: Networks · DHCP options (manual 1.10.4.40.1, 1.10.4.24): the domain's and the site's option sets, each
              subnet and reservation with its options and netboot preset; for a target, what a client gets there with
              its sources, and for a subnet or reservation its own options and preset with their forms. Each change
              waits for this page's Apply. The forms show only with dhcp:write.

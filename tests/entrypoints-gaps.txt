@@ -435,8 +435,6 @@ setting:site_ca_depth -
 setting:site_name -
 setting:stepca_cert_allow_subordinate_ca +
 setting:stepca_cert_allow_subordinate_ca -
-setting:stepca_cert_max_lifetime_hours +
-setting:stepca_cert_max_lifetime_hours -
 setting:stepca_port +
 setting:stepca_port -
 setting:system_timezone +

@@ -1,18 +1,18 @@
 import ipaddress
 
 from fabriclib.federation.common.load_registry import load_registry
+from fabriclib.ipam.rules.access_sources import access_sources
 from fabriclib.ntp.normalize_ntp import normalize_ntp
 
 
 def _allowed(v):
-    """Purpose: the networks chrony answers (ntp_serve).
-    Inputs:  v — vars: lan_cidr, security.firewall_allow, dhcp.subnets (when install_kea).
+    """Purpose: the networks chrony answers (ntp_serve): those the site's access rules allow `ntp` (manual
+             1.10.4.48.3), then security.firewall_allow, an explicit relaxation outside the rules.
+    Inputs:  v — vars: access_sources (or host_ip, lan_cidr and the plan last read), security.firewall_allow.
     Returns: list of network strings, deduplicated, in that order; entries that are not networks are left out.
-    Fails:   never.
+    Fails:   OSError or json errors reading a damaged plan copy.
     Feeds:   chrony_settings."""
-    nets = [v.get("lan_cidr"), *((v.get("security") or {}).get("firewall_allow") or [])]
-    if v.get("install_kea"):
-        nets += [s.get("subnet") for s in (v.get("dhcp") or {}).get("subnets") or []]
+    nets = [*access_sources(v)["ntp"], *((v.get("security") or {}).get("firewall_allow") or [])]
     out = []
     for n in nets:
         try:

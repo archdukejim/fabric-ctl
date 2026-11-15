@@ -20,6 +20,7 @@ arbitrary commands.
 | `landing_note.py` | DNS' Review's sentence when the landing page's certificate waits for a full apply (2.1.8.29) |
 | `pending_thing.py` | What a held change changes: its page, its words, the thing's read and its version (2.1.8.14) |
 | `pending_dns.py` | DNS' held changes in a sentence (moved from `pending_thing.py`) |
+| `pending_tsig.py` | A TSIG key's Edit names checked when it is held, so a refusal is said at once (1.4.1.9.3) |
 | `pending_filter.py` | The DNS filter tab's held changes (1.12.3.17): their page, sentence, thing and key, the check of each as fabriclib makes it, the lists form's ticks (refused when the page is stale), and the one apply at the end |
 | `pending_networks.py` | The address manager's held changes (1.10.4.40.2): their page (Networks, DHCP options), sentence, thing and key, and the grant's networks right at their site |
 | `post_dns.py` | Zones (add, remove), their records, TSIG keys (a new key or secret given to BIND at once, 2.1.8.24) |
@@ -36,6 +37,7 @@ arbitrary commands.
 | `post_vault.py` | OpenBao's unlock methods, rotating the vault key |
 | `post_directory.py` | Devices and device roles in the domain |
 | `read_text.py` / `read_strings.py` / `read_fields.py` | Checked fields of a request body |
+| `read_tsig_edit.py` | The body of a TSIG key's Edit names (`POST /v1/tsig/<name>/update`) as `edit_tsig_names` takes it |
 | `one_thing.py` | A read of one person, computer, group or grant: its "not there" refusal answered 404 (2.1.8.21). |
 | `route_not_found.py` | `RouteNotFound`: the handler answers 404 |
 | `__init__.py` | Empty; makes `agent` a package |

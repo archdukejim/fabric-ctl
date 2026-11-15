@@ -22,6 +22,7 @@ import yaml
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, "tests", "common"))
 import test_run as testrun  # noqa: E402
+from kea_on_host import on_host  # noqa: E402
 P = testrun.PREFIX                  # this run's 10.<n>; names <base>-<run id> (manual 3.1.2.6)
 KS_DHCP4, KS_C1_UP, KS_C1, KS_C2, KS_SQUAT, KS_NAS, KS_HAND, KS_QUIET = (testrun.name(f"ks-{n}") for n in ("dhcp4", "c1-up", "c1", "c2", "squat", "nas", "hand", "quiet"))
 ALL = (KS_DHCP4, KS_C1_UP, KS_C1, KS_C2, KS_SQUAT, KS_NAS, KS_HAND, KS_QUIET)
@@ -115,7 +116,8 @@ def render(ping_check):
 
 V, CFG = render(True)
 try:
-    accepted = check_kea_config(KEA_IMAGE, "kea-dhcp4.conf", CFG)
+    # Kea's real check runs on the host's network: given a name the host has, not the test bridge's eth0 (2.3.1.56)
+    accepted = check_kea_config(KEA_IMAGE, "kea-dhcp4.conf", on_host(CFG))
 except ValidationError as e:
     accepted = str(e)
 # covers: setting:dhcp +
