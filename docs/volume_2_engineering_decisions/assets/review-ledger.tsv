@@ -2214,7 +2214,7 @@ templates/webui-app/tsig_result.html	94273d155f059266137590a671dc1b14dce6c60b	20
 templates/webui/README.md	18afb94efe023f28a4367b553e784c19970a9355	2026-10-03	
 templates/webui/docker-compose.yml.j2	2cef615a03ee1e58167c9dede4a3f06ca3291bcb	2026-10-12	
 templates/webui/webui.json.j2	1161c507f612f4f256b7208bf12db143692a175d	2026-10-07	
-tests/README.md	56b37c9c8550d84481cae8b0d369a625cf290465	2026-11-14	
+tests/README.md	69c64647ff4cba1b6d91e30d082f4c835e703534	2026-11-15	
 tests/agent/README.md	ee215a84f9086cc5de13f6293997d6f7aa93e3f9	2026-10-29	
 tests/agent/pending_store_test.py	cd0a296f798bf80023fd66b87f8b65845609af9c	2026-11-05	
 tests/ci/README.md	78278efb5a511e089fd82def756c3be5bfeca8df	2026-10-15	
@@ -2473,6 +2473,8 @@ tests/sizing/run.py	e6e674d0b930f9831fdba7d2278dc32232f46302	2026-11-04
 tests/speed/README.md	99991a0ec43d23039afae6ae09c9f87a6ad12815	2026-11-07	
 tests/speed/read_cache.py	91bdfd3c51b40f8f45228709ecda8cc87c571836	2026-11-07	
 tests/speed/run.py	2edccfc175cffb02b269ba774f23b39c8766a469	2026-11-04	
+tests/system/README.md	5780a79bcaae8a394f1f0abc5813458ce4582948	2026-11-15	
+tests/system/host_ram_gb_test.py	556de6f6dabdc36376c1f36e9fd890872275e751	2026-11-15	
 tests/webui/README.md	c8f53ca6d023bb197df3d7e252adb4c279a40b1f	2026-10-23	
 tests/webui/narrow_probe.py	e4bf04507b8e3957c0dd1b2cfc935aa63b71ee04	2026-10-25	
 tests/webui/test_container.py	777df8fbba47d446b4959d725dee9cdc5cd6f407	2026-11-15	
