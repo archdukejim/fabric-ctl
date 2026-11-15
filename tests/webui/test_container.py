@@ -1189,12 +1189,11 @@ for path, form, perm in (("/directory/hostgroups/_new", {"name": "web"}, "machin
                           "sudo:admin"),
                          ("/directory/sudo/r/delete", {}, "sudo:admin"),
                          ("/directory/machines/ws1/type", {"type": "server", "move": "yes"}, "machines:admin"),
-                         ("/directory/machines/ws1/sites", {"action": "add", "site": "lan"}, "machines:admin"),
                          ("/directory/machines/ws1/move", {"path": "machines"}, "machines:admin"),
                          ("/directory/machines/ws1/groups", {"action": "add", "group": "hosts-web"},
                           "machines:admin")):
     st, _, _sc, body = req("POST", path, POSTH, {"csrf": cookie_csrf(aud), **form}, cookie=aud)
-    # covers: web:post.directory.machines.*.type web:post.directory.machines.*.sites -
+    # covers: web:post.directory.machines.*.type -
     # covers: web:post.directory.machines.*.move web:post.directory.machines.*.groups -
     # covers: web:post.directory.hostgroups._new web:post.directory.hostgroups._form.members -
     # covers: web:post.directory.hostgroups.*.delete web:post.directory.sudo._new web:post.directory.sudo.*.delete -
@@ -1225,18 +1224,15 @@ check("auditor: Kerberos through the real agent (domain:read), no DC here: the K
       "nor sign-in switch (neither domain:admin nor security:raise)", st == 200 and "Ticket policy" in body
       and body.count("could not be read") >= 2 and 'action="/directory/domain/kerberos/policy"' not in body
       and 'action="/security/kerberos"' not in body, (st, body[-1500:]))
-st, _, _sc, body = req("GET", "/directory/sites", ALICE, cookie=aud)
-check("auditor: Sites through the real agent (domain:read), no DC here: why said on the page", st == 200
-      and "The sites could not be read" in body and "no domain controller" in body, (st, body[-800:]))
-check("the site selector through the real agent, no DC and no site name here: the frame without it, the page "
-      "still works", st == 200 and 'class="sitepick"' not in body and 'class="usermenu"' in body, body[:1500])
-st, hd, _sc, body = req("GET", "/sites/lan", ALICE, cookie=aud)
-check("/sites/<a name the agent does not list>: 404, said (no site here is known)", st == 404
-      and "No site lan in the domain." in body and not hd.get("Location"), (st, body[-600:]))
-st, hd, _sc, body = req("GET", "/sites/ghost", ALICE, cookie=aud)
-# covers: web:get.sites.* -
-check("refused: /sites/<a site the domain does not hold> (404, said; no redirect)", st == 404
-      and "No site ghost in the domain." in body and not hd.get("Location"), (st, body[-600:]))
+# one site per console (2.1.8.68, 1.8.6.14): the views of other sites answer 404 through the real console, saying so
+for path in ("/directory/sites", "/directory/sites/lan", "/federation", "/sites/lan", "/sites/ghost",
+             "/networks?site=elsewhere", "/networks/options?site=elsewhere"):
+    st, hd, _sc, body = req("GET", path, ALICE, cookie=aud)
+    check(f"one site: {path} answers 404, saying this console shows only this site (no redirect)", st == 404
+          and "This console shows only this site" in body and not hd.get("Location"), (st, body[-600:]))
+st, _, _sc, body = req("GET", "/directory/kerberos", ALICE, cookie=aud)
+check("...and the frame has no site selector", 'class="sitepick"' not in body and 'class="usermenu"' in body,
+      body[:1500])
 st, _, _sc, body = req("GET", "/directory/access", ALICE, cookie=aud)
 check("auditor: Access through the real agent (domain:read), no DC here: why said on the page, no Add grant",
       st == 200 and "The grants could not be read" in body and "/directory/access/_new" not in body, (st, body[-800:]))

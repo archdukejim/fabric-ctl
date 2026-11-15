@@ -12,8 +12,9 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `device_post.py` | 802.1X's device and device role forms, each held for its page's Apply. |
 | `radius_page.py` | 802.1X's RADIUS clients: a client's and a group mapping's page, the add pages. |
 | `kerberos_page.py` | Directory · Kerberos. |
-| `sites_page.py` | Directory · Sites: the list, a site's page. |
-| `site_link.py` | /sites/<name>: the site selector's link, a 303 to that site's console from fabric-agent's list (no open redirect). |
+| `sites_page.py` | Directory · Sites: the list, a site's page. Unrouted since 2026-11-14 (1.8.6.14; S18). |
+| `site_link.py` | /sites/<name>: the site selector's link, a 303 to that site's console from fabric-agent's list (no open redirect). Unrouted since 2026-11-14 (one site per console, 1.8.6.14; stale-code register S18). |
+| `one_site.py` | The console shows only its own site (2.1.8.68): `other_site`, and `ONE_SITE`, the words of its 404. |
 | `access_page.py` | Directory · Access: the grants, Add grant, a grant's page. |
 | `ous_page.py` | Directory · OUs: the tree, an OU's page. |
 | `tree_page.py` | Directory · Browse: the tree, an OU's contents, a search, Move to… (1.8.8.4). |

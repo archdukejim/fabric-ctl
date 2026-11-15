@@ -1474,6 +1474,7 @@ file	webui|src/webui/routes/networks_post.py	283
 file	webui|src/webui/routes/networks_scan_page.py	284	
 file	webui|src/webui/routes/networks_scan_post.py	285	
 file	webui|src/webui/routes/note_kept.py	305	
+file	webui|src/webui/routes/one_site.py	313	
 file	webui|src/webui/routes/openbao_page.py	82	
 file	webui|src/webui/routes/options_page.py	286	
 file	webui|src/webui/routes/options_post.py	287	
@@ -4233,9 +4234,10 @@ function	webui|src/webui/routes/networks_post.py|_back	1
 function	webui|src/webui/routes/networks_post.py|_sync	2	
 function	webui|src/webui/routes/networks_post.py|networks_post	3	
 function	webui|src/webui/routes/networks_scan_page.py|networks_scan_page	1	
-function	webui|src/webui/routes/networks_scan_post.py|_request	1	
+function	webui|src/webui/routes/networks_scan_post.py|_request	1	0.9.5 / 2026-11-14
 function	webui|src/webui/routes/networks_scan_post.py|networks_scan_post	2	
 function	webui|src/webui/routes/note_kept.py|note_kept	1	
+function	webui|src/webui/routes/one_site.py|other_site	1	
 function	webui|src/webui/routes/openbao_page.py|openbao_page	1	
 function	webui|src/webui/routes/options_page.py|options_page	1	
 function	webui|src/webui/routes/options_post.py|_where	1	

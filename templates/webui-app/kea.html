@@ -37,7 +37,6 @@
 <label>VLAN (1–4094, empty: none)<input name="vlan" value="{{ s.vlan or '' }}"></label>
 <label>Router<input name="router" value="{{ s.routers or '' }}"></label>
 <label>Notes<input name="notes" value="{{ s.notes or '' }}" maxlength="500"></label>
-<label>May overlap another site because… (federation; empty: never)<input name="allow_overlap" value="{{ s.allow_overlap or '' }}" maxlength="200"></label>
 <label>Add pools (one per line)<textarea name="add_pools" rows="2" placeholder="192.168.20.100 - 192.168.20.200"></textarea></label>
 <label>Remove pools (one per line)<textarea name="remove_pools" rows="2"></textarea></label>
 <div><button>Save</button></div></form>
@@ -55,7 +54,6 @@
 <label>Router<input name="router" placeholder="192.168.20.1"></label>
 <label>Pools (one per line)<textarea name="pools" rows="2" placeholder="192.168.20.100 - 192.168.20.200"></textarea></label>
 <label>Notes<input name="notes" maxlength="500" placeholder="IoT: internet only, trunked on switch1 port 24"></label>
-<label>May overlap another site because… (federation; usually empty)<input name="allow_overlap" maxlength="200"></label>
 <div><button>Add subnet</button></div></form>
 <p class="muted small">Saved, checked by Kea and applied at once; a subnet keeps its id, so other subnets' leases are not affected.</p></details>{% endif %}
 </section>

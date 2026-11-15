@@ -98,7 +98,7 @@ PAGES = ["/", "/overview/doctor", "/overview/updates", "/audit", "/dns/zones", "
          "/pki/acme", "/directory", "/directory/people", "/directory/groups", "/directory/computers", "/directory/policies",
          "/directory/policies/gpo", "/directory/policies/sudo",
          "/8021x", "/8021x/decisions", "/8021x/guides", "/8021x/devices", "/8021x/roles", "/secrets", "/secrets/unlock",
-         "/secrets/disk", "/federation", "/settings", "/settings/sign-in", "/account", "/account/groups"]
+         "/secrets/disk", "/settings", "/settings/sign-in", "/account", "/account/groups"]
 # 1.8.6.4's moved addresses -> where each answers now
 MOVED = {"/bind9": "/dns/zones", "/bind9?zone=iot.home.arpa&msg=x": "/dns/zones?zone=iot.home.arpa",
          "/bind9?view=tsig": "/dns/zones?view=tsig", "/stepca": "/pki", "/stepca?view=sign": "/pki?view=sign",
@@ -114,9 +114,8 @@ MOVED = {"/bind9": "/dns/zones", "/bind9?zone=iot.home.arpa&msg=x": "/dns/zones?
          "/directory/devices/jims-laptop": "/8021x/devices/jims-laptop", "/directory/roles/iot": "/8021x/roles/iot"}
 # each bundle's navigation entries (1.8.2.1.1's bundles against 1.8.6.4's table), written out as the oracle
 ENTRIES = {
-    "admin": ["Overview", "My account", "DNS", "Networks", "PKI", "Directory", "802.1X", "Secrets", "Federation",
-              "Settings"],
-    "fabric-auditor": ["Overview", "My account", "DNS", "Networks", "PKI", "Directory", "802.1X", "Secrets", "Federation"],
+    "admin": ["Overview", "My account", "DNS", "Networks", "PKI", "Directory", "802.1X", "Secrets", "Settings"],
+    "fabric-auditor": ["Overview", "My account", "DNS", "Networks", "PKI", "Directory", "802.1X", "Secrets"],
     "fabric-network-operator": ["Overview", "My account", "DNS", "Networks", "PKI", "Secrets"],
     "fabric-equipment-operator": ["Overview", "My account", "DNS", "PKI", "Directory", "802.1X"],
     "fabric-pki-operator": ["Overview", "My account", "PKI", "802.1X"],
@@ -166,39 +165,18 @@ with serve():
     # covers: web:get.home -
     check("an unknown page is 404", req("GET", "/nowhere")[0] == 404)
 
-    # the site selector (manual 1.8.6.12, 2.1.8.30): this site's name as a menu, the federation's tree nested inside
+    # one site per console (manual 1.8.6.14, 2.1.8.68): no site selector, and no view of another site
     page = get("/dns/zones")
-    pick = page.split('<details class="sitepick">', 1)[-1].split("</details>", 1)[0]
-    check("the site selector: this site's name as a <details> menu in the top bar (no script)",
-          '<details class="sitepick"><summary aria-label="Site: lan. Pick a site">lan</summary>' in page
-          and page.index("sitepick") < page.index("usermenu"), page[:3000])
-    check("...every site nested under its parent: edge and lab under lan, annex under lab",
-          re.search(r"lan</strong>.*<ul>.*edge.*lab.*<ul>.*annex.*</ul>.*</ul>", pick, re.S) is not None
-          and pick.index("annex") > pick.index('href="/sites/lab"'), pick)
-    check("...each with a labelled light: up, replication failing (degraded), down; this site marked, linked home",
-          '<span class="light ok" role="img" aria-label="up"' in pick
-          and '<span class="light warn" role="img" aria-label="replication failing"' in pick
-          and '<span class="light bad" role="img" aria-label="down" title="no answer: timed out"' in pick
-          and '<a href="/" aria-current="true"><strong>lan</strong>' in pick, pick)
-    check("...another site's link is the console's own route, never an address in the page",
-          'href="/sites/edge"' in pick and 'href="/sites/annex"' in pick and "https://" not in pick, pick)
-    # covers: web:get.sites.* +
-    st, loc, _, _ = req("GET", "/sites/lab")
-    check("picking a site: /sites/lab answers 303 to lab's console, from the agent's list", st == 303
-          and loc == "https://mgr.lab.home.arpa/", (st, loc))
-    st, loc, _, _ = req("GET", "/sites/annex")
-    check("...a site that does not answer is still a link (listed as down)", st == 303
-          and loc == "https://mgr.annex.home.arpa/", (st, loc))
-    st, loc, _, _ = req("GET", "/sites/lan")
-    check("...this site's own goes to its Overview", st == 303 and loc == "/", (st, loc))
-    # covers: web:get.sites.* -
-    st, _, _, page = req("GET", "/sites/ghost")
-    check("refused: a site the domain does not hold (404, said; no redirect to a name the request gives)",
-          st == 404 and "No site ghost in the domain." in page, st)
-    st, _, _, page = req("GET", "/sites/lab/x")
-    check("refused: a path below a site (404)", st == 404 and "No such site." in page, st)
-    st, loc, _, page = req("GET", "/sites/https:%2F%2Fevil.example")
-    check("refused: an address in place of a site's name (404, no redirect)", st == 404 and not loc, (st, loc))
+    check("one site: no site selector in the top bar, the install's name says which",
+          "sitepick" not in page and 'href="/sites/' not in page and 'class="install"' in page, page[:3000])
+    for path in ("/sites/lab", "/sites/lan", "/sites/ghost", "/federation", "/directory/sites", "/directory/sites/lan",
+                 "/networks?site=lab", "/networks/rules?site=lab", "/networks/export?site=lab",
+                 "/networks/options?site=lab"):
+        st, loc, _, page = req("GET", path)
+        check(f"refused: {path} is not in this console (404, saying so; no redirect)",
+              st == 404 and not loc and "This console shows only this site" in page, (st, loc))
+    for path in ("/networks?site=lan", "/networks?site=LAN", "/networks/rules?site=lan", "/networks/options?site=lan"):
+        check(f"...{path}, naming this site, still answers (old links keep working)", req("GET", path)[0] == 200)
 
     page = get("/8021x")
     check("802.1X → RADIUS clients: server, clients and group mappings linked to their pages, the client without "
@@ -1084,30 +1062,31 @@ with serve():
           'http-equiv="refresh"' not in page and "still being fetched" not in page)
     page = get("/directory/computers")
     # covers: web:get.directory.computers +
-    check("Directory · Computers (admin): each computer with its state, type, sites, OS, folder, machine groups and "
-          "last sign-in, linking to its page; the search with its type and site filters; Add computer",
+    check("Directory · Computers (admin): each computer with its state, type, OS, folder, machine groups and last "
+          "sign-in, linking to its page; the search with its type filter, no site filter (1.8.6.14); Add computer",
           'href="/directory/computers/host-1"' in page and "machines/servers" in page and "Windows 11 Pro" in page
-          and "hosts-web" in page and "2026-10-05 08:12" in page and 'name="type"' in page and 'name="site"' in page
-          and 'href="/directory/computers/_new"' in page and 'aria-label="disabled"' in page, page[-3000:])
+          and "hosts-web" in page and "2026-10-05 08:12" in page and 'name="type"' in page and 'name="site"' not in page
+          and ">Sites<" not in page and 'href="/directory/computers/_new"' in page and 'aria-label="disabled"' in page,
+          page[-3000:])
     check("Directory · Computers: no per-OU log-on editor (retired in D1, 2.3.6.17), no sudo rules (Policies)",
           "Who may sign in" not in page and "/directory/logon/" not in page and "/directory/sudo/" not in page)
     page = get("/directory/computers?type=server")
     check("...filtered by type: the server alone", "host-1" in page and "jims-laptop" not in page)
-    page = get("/directory/computers?site=edge&q=laptop")
-    check("...by site and a search: the laptop in site edge alone", "jims-laptop" in page
-          and 'href="/directory/computers/host-1"' not in page and '<option selected>edge</option>' in page)
+    page = get("/directory/computers?q=laptop")
+    check("...a search: the laptop alone", "jims-laptop" in page and 'href="/directory/computers/host-1"' not in page)
     page = get("/directory/computers?type=toaster&site=mars")
     check("...a filter value that is not a choice is dropped, not refused: every computer",
           "host-1" in page and "jims-laptop" in page)
     page = get("/directory/computers/host-1")
-    check("a computer's page: its state, facts (type, sites, OS, folder, machine groups), the grants that reach it "
+    check("a computer's page: its state, facts (type, OS, folder, machine groups), the grants that reach it "
           "and what each gives there",
           "<dt>Folder</dt><dd>machines/servers</dd>" in page and "<dt>Machine groups</dt><dd>hosts-web</dd>" in page
           and "server-administrators" in page and "sign-in: keyboard, remote; local administrator; sudo: ALL" in page
           and 'aria-label="enabled"' in page, page[-4000:])
-    check("...its actions: Disable, Change type, Sites, Move to folder, Machine groups, Add a service, Remove",
-          all(f'action="/directory/machines/host-1/{op}"' in page
-              for op in ("disable", "type", "sites", "move", "groups", "keytab", "delete")), page[-4000:])
+    check("...its actions: Disable, Change type, Move to folder, Machine groups, Add a service, Remove; no Sites "
+          "(1.8.6.14)", all(f'action="/directory/machines/host-1/{op}"' in page
+                            for op in ("disable", "type", "move", "groups", "keytab", "delete"))
+          and "/directory/machines/host-1/sites" not in page and "<dt>Sites</dt>" not in page, page[-4000:])
     page = get("/directory/computers/jims-laptop")
     check("...the 802.1X device of the same name, linked; a disabled computer offers Enable",
           'href="/8021x/devices/jims-laptop"' in page and 'action="/directory/machines/jims-laptop/enable"' in page)
@@ -1133,8 +1112,8 @@ with serve():
     check("Change type: held, back on the computer's page", loc == "/directory/computers/host-1"
           and "Waiting for Apply: Set the type of host-1" in flash(page), (loc, flash(page)))
     st, loc, page = post("/directory/machines/host-1/sites", {"action": "add", "site": "edge"})
-    # covers: web:post.directory.machines.*.sites +
-    check("Sites: held, back on its page", "Change the sites of host-1" in flash(page), flash(page))
+    check("refused: a computer's sites are not changed in this console (404, said; nothing held)",
+          st == 404 and "This console shows only this site" in page, st)
     st, loc, page = post("/directory/machines/host-1/move", {"path": "machines/servers/web"})
     # covers: web:post.directory.machines.*.move +
     check("Move to folder: held", "Waiting for Apply: Move host-1" in flash(page), flash(page))
@@ -1143,10 +1122,10 @@ with serve():
     check("Machine groups: taking it out of one held as the group's member change", loc == "/directory/computers/host-1"
           and "Remove host-1 from machine group hosts-web" in flash(page), flash(page))
     st, loc, page = post("/changes/machines/apply", {})
-    check("...the four applied on one Review: its type, sites, folder and machine groups changed",
-          page.count(">done<") >= 4 and "Nothing waits" in page, page[-2500:])
+    check("...the three applied on one Review: its type, folder and machine groups changed",
+          page.count(">done<") >= 3 and "Nothing waits" in page, page[-2500:])
     page = get("/directory/computers/host-1")
-    check("...and its page says so", "<dt>Type</dt><dd>Desktop</dd>" in page and "edge, lan" in page
+    check("...and its page says so", "<dt>Type</dt><dd>Desktop</dd>" in page
           and "<dt>Folder</dt><dd>machines/servers/web</dd>" in page and "<dt>Machine groups</dt><dd>none</dd>" in page,
           page[-4000:])
     post("/directory/machines/host-1/type", {"type": "toaster"})
@@ -1158,11 +1137,6 @@ with serve():
     st, loc, page = post("/changes/machines/apply", {})
     # covers: web:post.directory.machines.*.move -
     check("refused at Apply: a closed folder, why shown", "closed folders" in page, page[-1500:])
-    post("/changes/machines/discard", {})
-    post("/directory/machines/host-1/sites", {"action": "add", "site": "mars"})
-    st, loc, page = post("/changes/machines/apply", {})
-    # covers: web:post.directory.machines.*.sites -
-    check("refused at Apply: a site that is not there", "no site mars" in page, page[-1500:])
     post("/changes/machines/discard", {})
     post("/directory/machines/host-1/groups", {"action": "add", "group": "hosts-nope"})
     st, loc, page = post("/changes/machines/apply", {})
@@ -1291,24 +1265,6 @@ with serve():
     # covers: web:post.security.kerberos -
     check("refused: an address past the sign-in switch (404)",
           req("POST", "/security/kerberos/x", {"csrf": "dev", "value": "on"})[0] == 404)
-    page = get("/directory/sites")
-    # covers: web:get.directory.sites +
-    check("Directory · Sites: each site with its people and machines (counts, linked to its group and to Computers by "
-          "site), its DCs, the grants scoped to it; the domain's DCs as counts; replication",
-          'href="/directory/sites/lan"' in page and 'href="/directory/groups/site-lan"' in page
-          and 'href="/directory/computers?site=edge"' in page and 'href="/directory/access/lan-helpdesk"' in page
-          and "2 DCs used, 1997 can be added" in page and "pi-edge" in page, page[-4000:])
-    page = get("/directory/sites/lan")
-    check("a site's page: its people and machines linked, where its members change (its group), its grants, its AD "
-          "site read-only (DCs, subnets, site links); no form but Refresh", 'href="/directory/people/jim"' in page
-          and 'href="/directory/computers/host-1"' in page and 'href="/directory/groups/site-lan"' in page
-          and "192.168.1.0/24" in page and "lan-edge (edge and lan; cost 100, every 15 minutes)" in page
-          and 'method="post"' not in page.split("<main", 1)[1].split("</main>", 1)[0]
-          .replace('method="post" action="/kept/refresh"', ""), page[-3000:])
-    st, _, _, page = req("GET", "/directory/sites/mars")
-    # covers: web:get.directory.sites -
-    check("a site that is not there: said, a 404 (2.1.8.16)", st == 404 and "No site mars in the domain" in page)
-    check("refused: an address past a site's page (404)", req("GET", "/directory/sites/lan/x")[0] == 404)
     page = get("/directory/access")
     # covers: web:get.directory.access +
     check("Directory · Access: each grant with its who, where, what it gives and whom it reaches (one marked as "
@@ -1416,11 +1372,6 @@ with serve():
     post("/changes/policies/discard", {})
     check("...the site's enforced controls listed apart, and a policy may be set as a control (2.1.6.20)",
           "fabric: lan controls" in page and "ExampleLocked" in page and 'name="control"' in page)
-    page = get("/federation")
-    check("Federation: sites with their DC type, replication with a failing neighbour, conflicts, limits, plan",
-          "lab.home.arpa" in page and "read-only" in page and "WERR_BADFILE" in page and "CNF:" in page
-          and "192.168.20.0/24" in page and "fabric-agent-&lt;dc&gt;" in page
-          and 'method="post"' not in page.split("<main", 1)[1] and "manual 4.9.1" not in page)
     page = get("/pki?view=issue&device=printer")
     check("PKI generate form offers devices, prefilled from the device page",
           "<option selected>printer</option>" in page and 'value="printer.home.arpa"' in page)
@@ -1483,7 +1434,7 @@ with serve():
 # covers: web:get.directory.policies +-
 # covers: web:get.directory.computers web:get.directory.policies.gpo web:get.directory.policies.sudo +-
 # covers: web:get.8021x web:get.8021x.decisions +-
-# covers: web:get.8021x.guides web:get.8021x.devices web:get.8021x.roles web:get.secrets web:get.federation +-
+# covers: web:get.8021x.guides web:get.8021x.devices web:get.8021x.roles web:get.secrets +-
 # covers: web:get.settings web:get.settings.sign-in +-
 # covers: web:get.account web:get.account.groups +
 for bundle, entries in ENTRIES.items():
@@ -1520,17 +1471,17 @@ with serve():
           and "no sizing alert" in page, (st, loc, page[-800:]))
 with serve():
     # a page drawn from kept data (1.8.9.4, 2.1.8.45): the line and its Refresh, without script
-    page = get("/directory/sites")
+    page = get("/overview/updates")
     check("a kept page says how old it is, with Refresh in a plain form", "Updated 20 s ago" in page
-          and 'action="/kept/refresh"' in page and 'name="read" value="sites"' in page
-          and 'name="back" value="/directory/sites"' in page, page[:3000])
+          and 'action="/kept/refresh"' in page and 'name="read" value="updates"' in page
+          and 'name="back" value="/overview/updates"' in page, page[:3000])
     check("a page not kept says neither", "Updated " not in get("/audit") and "/kept/refresh" not in get("/audit"))
-    st, loc, _ = post("/kept/refresh", {"read": "sites", "back": "/directory/sites"})[:3]
+    st, loc, _ = post("/kept/refresh", {"read": "updates", "back": "/overview/updates"})[:3]
     # covers: web:post.kept.refresh +
-    check("Refresh reads again and comes back to the page", st == 303 and loc == "/directory/sites", (st, loc))
-    st, loc, page = post("/kept/refresh", {"read": "sites", "back": "/directory/sites"})
+    check("Refresh reads again and comes back to the page", st == 303 and loc == "/overview/updates", (st, loc))
+    st, loc, page = post("/kept/refresh", {"read": "updates", "back": "/overview/updates"})
     # covers: web:post.kept.refresh -
-    check("negative: Refresh again too soon is refused, saying when", st == 303 and loc == "/directory/sites"
+    check("negative: Refresh again too soon is refused, saying when", st == 303 and loc == "/overview/updates"
           and "it can run again in 30 s" in page, (st, loc, page[-800:]))
     st, loc, _ = post("/kept/refresh", {"read": "overview", "back": "//evil.example/"})[:3]
     # covers: web:post.kept.refresh -
@@ -1741,7 +1692,7 @@ with serve("fabric-auditor"):
           "server-administrators" in page and 'method="post"' not in page.split("<main", 1)[1]
           .split("</main>", 1)[0] and req("GET", "/directory/computers/_new")[0] == 403, page[-2000:])
     for op, form in (("disable", {}), ("delete", {}), ("type", {"type": "server"}),
-                     ("sites", {"action": "add", "site": "lan"}), ("move", {"path": "machines"})):
+                     ("move", {"path": "machines"})):
         st, loc, page = post(f"/directory/machines/host-1/{op}", form)
         # covers: web:post.directory.machines.*.* web:post.directory.machines.*.delete -
         check(f"--as fabric-auditor: refused: holding a computer's {op}, the permission named (machines:admin)",
@@ -1802,8 +1753,8 @@ with serve("none"):
     st, loc, _, _ = req("GET", "/")
     check("--as none: / goes to My account (the Overview is not theirs)", st == 303 and loc == "/account", (st, loc))
     page = get("/account")
-    check("--as none: the site selector is everyone's (a session's): it shows for a person with no role",
-          '<details class="sitepick">' in page and 'href="/sites/lab"' in page, page[:2500])
+    check("--as none: no site selector for anyone (one site per console, 1.8.6.14)",
+          "sitepick" not in page and 'href="/sites/' not in page, page[:2500])
     check("--as none: My account shows their details (read-only), the password form, the sign-in factors, their "
           "certificates and devices; no form changes the details", "My details" in page and "Engineer" in page
           and 'action="/account/password"' in page and "Sign-in factors" in page and "CN=dev-none" in page

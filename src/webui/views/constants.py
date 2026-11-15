@@ -28,7 +28,6 @@ NAV = [
                                 ("/directory/groups", "Groups", ("domain:read",)),
                                 ("/directory/computers", "Computers", ("domain:read",)),
                                 ("/directory/ous", "OUs", ("domain:read",)),
-                                ("/directory/sites", "Sites", ("domain:read",)),
                                 ("/directory/access", "Access", ("domain:read",)),
                                 ("/directory/kerberos", "Kerberos", ("domain:read",)),
                                 ("/directory/policies", "Policies", ("domain:read",))]),
@@ -40,7 +39,6 @@ NAV = [
     ("secrets", "Secrets", [("/secrets", "Status", ("vault:status",)),
                             ("/secrets/unlock", "Unlock methods", ("vault:status",)),
                             ("/secrets/disk", "Disk encryption", ("vault:status",))]),
-    ("federation", "Federation", [("/federation", "Sites and replication", ("federation:read",))]),
     ("settings", "Settings", [("/settings", "Setup wizard", ("settings:admin",)),
                               ("/settings/sign-in", "Sign-in security", ("security:raise",))]),
 ]

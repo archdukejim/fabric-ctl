@@ -2,20 +2,22 @@
 {#- Networks · DHCP options (manual 1.10.4.40.1, 1.10.4.24): the domain's and a site's sets, each subnet's and
     reservation's options and netboot preset, a target's effective options. Every change waits for this page's Apply
     (1.10.4.40.2). No form in a table cell. -#}
-{% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="site" value="{{ d.site }}"><input type="hidden" name="view_target" value="{{ target }}">{% endmacro %}
+{% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="view_target" value="{{ target }}">{% endmacro %}
 {% macro label(o) %}{% if o.code is defined and o.code %}{{ o.code }}{% for c in d.catalogue if c.code == o.code %} {{ c.name }}{% endfor %}{% else %}{% for c in d.catalogue if c.name == o.name %}{{ c.code }} {% endfor %}{{ o.name }}{% endif %}{% endmacro %}
 {% macro opts(rows, what) %}{% if rows %}{% call p.list(["Option", "Value"]) %}{% for o in rows %}<tr><td data-label="Option"><code>{{ label(o) }}</code></td><td data-label="Value">{{ o.data }}</td></tr>{% endfor %}{% endcall %}{% else %}{{ p.empty("No options set " ~ what ~ ".") }}{% endif %}{% endmacro %}
-{% macro here(extra='') %}/networks/options?site={{ d.site | urlencode }}{{ extra }}{% endmacro %}
-{% set sets = ([('domain', "the domain's set", d.domain)] if d.domain else []) + [('site', d.site ~ "'s set", d.site_options)] %}
+{% macro here(extra='') %}/networks/options{{ ('?' ~ extra[1:]) if extra }}{% endmacro %}
+{% set sets = ([('domain', "inherited from the domain", d.domain)] if d.domain else []) + [('site', d.site ~ "'s set", d.site_options)] %}
+{#- the domain's set is inherited here, never changed (2.1.10.64): the forms offer this site's set and its classes only #}
+{% set own = sets | rejectattr('0', 'equalto', 'domain') | list %}
 {% block body %}
 <h1>Networks · DHCP options{% if target %} · {{ target }}{% endif %}</h1>
 <datalist id="option-names">{% for c in d.catalogue %}<option value="{{ c.name }}">{{ c.code }}</option>{% endfor %}</datalist>
-<form method="get" action="/networks/options" class="grid"><input type="hidden" name="site" value="{{ d.site }}">
+<form method="get" action="/networks/options" class="grid">
 <label class="wide">Show what a client gets at<select name="target"><option value="">— the sets —</option><option value="site"{{ ' selected' if target == 'site' }}>the site</option>
 {% for s in d.subnets %}<option value="subnet:{{ s.name }}"{{ ' selected' if target == 'subnet:' ~ s.name }}>subnet {{ s.name }} ({{ s.cidr }})</option>
 {% for r in s.reservations %}<option value="address:{{ r.ip }}"{{ ' selected' if target == 'address:' ~ r.ip }}>address {{ r.ip }} {{ r.name }}</option>{% endfor %}{% endfor %}</select></label>
 <div><button>Show</button></div></form>
-<p class="muted">Site {{ d.site }}{% if d.site != d.here %} (not this site: fabric's own values are this install's){% endif %} · <a href="/networks?site={{ d.site | urlencode }}">its Networks</a></p>
+<p class="muted">Site {{ d.site }} · <a href="/networks">its Networks</a></p>
 
 {% if target %}
 <p><a href="{{ here() }}">← the sets</a></p>
@@ -56,7 +58,7 @@
 {% else %}
 {% for scope, title, set in sets %}
 <section class="card"><h2>{{ title | capitalize }}</h2>
-<p class="muted">{{ "Every site's clients get them; changing them needs the grant's networks options right at every site." if scope == 'domain' else "Every subnet of " ~ d.site ~ " gets them." }}</p>
+<p class="muted">{{ "Set at the domain level and given to this site's clients; not changed here: a value set at this site's level replaces it." if scope == 'domain' else "Every subnet of " ~ d.site ~ " gets them." }}</p>
 {% if scope == 'site' and d.settings %}<p class="flash warn">This site's settings still carry options, definitions or classes: they are served above the site's own and move into the plan at the next apply.</p>{% endif %}
 <h3>Options</h3>{{ opts(set.options, 'in ' ~ title) }}
 <h3>Option definitions</h3>
@@ -77,23 +79,23 @@
 {% else %}{{ p.empty("No subnet in " ~ d.site ~ "'s plan yet: add one on Networks.") }}{% endif %}</section>
 
 {% if can('dhcp:write') %}
-{% set classes = [] %}{% for scope, title, set in sets %}{% for c in set.client_classes or [] %}{% set _ = classes.append((scope, c.name, title)) %}{% endfor %}{% endfor %}
+{% set classes = [] %}{% for scope, title, set in own %}{% for c in set.client_classes or [] %}{% set _ = classes.append((scope, c.name, title)) %}{% endfor %}{% endfor %}
 <section class="card"><h2>Set an option</h2>
 <form method="post" action="/networks/options/options" class="grid">{{ csrf() }}<input type="hidden" name="action" value="set">
-<label>In<select name="where">{% for scope, title, set in sets %}<option value="{{ scope }}">{{ title }}</option>{% endfor %}{% for scope, name, title in classes %}<option value="class:{{ scope }}:{{ name }}">class {{ name }} ({{ title }})</option>{% endfor %}</select></label>
+<label>In<select name="where">{% for scope, title, set in own %}<option value="{{ scope }}">{{ title }}</option>{% endfor %}{% for scope, name, title in classes %}<option value="class:{{ scope }}:{{ name }}">class {{ name }} ({{ title }})</option>{% endfor %}</select></label>
 <label>Option (standard name or code 1–254)<input name="option" required list="option-names" placeholder="ntp-servers"></label>
 <label>Value<input name="data" maxlength="1024"></label>
 <label class="check"><input type="checkbox" name="always_send" value="on"> send even when the client does not ask</label>
 <div><button>Set option</button></div></form>
 <p class="muted">A subnet's or a reservation's own options are set on its page: pick it above.</p></section>
-{% set removable = [] %}{% for scope, title, set in sets %}{% for o in set.options or [] %}{% set _ = removable.append((scope, o, title)) %}{% endfor %}{% for c in set.client_classes or [] %}{% for o in c.options or [] %}{% set _ = removable.append(('class:' ~ scope ~ ':' ~ c.name, o, 'class ' ~ c.name)) %}{% endfor %}{% endfor %}{% endfor %}
+{% set removable = [] %}{% for scope, title, set in own %}{% for o in set.options or [] %}{% set _ = removable.append((scope, o, title)) %}{% endfor %}{% for c in set.client_classes or [] %}{% for o in c.options or [] %}{% set _ = removable.append(('class:' ~ scope ~ ':' ~ c.name, o, 'class ' ~ c.name)) %}{% endfor %}{% endfor %}{% endfor %}
 {% if removable %}<section class="card"><h2>Remove an option</h2>
 <form method="post" action="/networks/options/options" class="grid">{{ csrf() }}<input type="hidden" name="action" value="remove">
 <label class="wide">Option<select name="picked" required>{% for where, o, title in removable %}<option value="{{ where }}|{{ o.name if o.name is defined and o.name else o.code }}">{{ label(o) }} = {{ o.data }} ({{ title }})</option>{% endfor %}</select></label>
 <div><button class="danger">Remove option</button></div></form></section>{% endif %}
 <section class="card"><h2>Add a client class</h2>
 <form method="post" action="/networks/options/classes" class="grid">{{ csrf() }}<input type="hidden" name="action" value="add">
-<label>In<select name="scope">{% for scope, title, set in sets %}<option value="{{ scope }}"{{ ' selected' if scope == 'site' }}>{{ title }}</option>{% endfor %}</select></label>
+<label>In<select name="scope">{% for scope, title, set in own %}<option value="{{ scope }}"{{ ' selected' if scope == 'site' }}>{{ title }}</option>{% endfor %}</select></label>
 <label>Name<input name="name" required placeholder="uefi-pxe"></label>
 <label class="wide">Test (Kea expression)<input name="test" required placeholder="option[93].hex == 0x0007"></label>
 <label>Next server (address, optional)<input name="next_server"></label>
@@ -105,19 +107,19 @@
 <div><button class="danger">Remove class</button></div></form></section>{% endif %}
 <section class="card"><h2>Define an option Kea has no name for</h2>
 <form method="post" action="/networks/options/option-defs" class="grid">{{ csrf() }}<input type="hidden" name="action" value="define">
-<label>In<select name="scope">{% for scope, title, set in sets %}<option value="{{ scope }}"{{ ' selected' if scope == 'site' }}>{{ title }}</option>{% endfor %}</select></label>
+<label>In<select name="scope">{% for scope, title, set in own %}<option value="{{ scope }}"{{ ' selected' if scope == 'site' }}>{{ title }}</option>{% endfor %}</select></label>
 <label>Name<input name="name" required placeholder="ztp-url"></label>
 <label>Code (1–254)<input name="code" required inputmode="numeric" placeholder="239"></label>
 <label>Type<select name="type">{% for t in ["string", "ipv4-address", "uint8", "uint16", "uint32", "boolean", "binary", "fqdn", "record"] %}<option>{{ t }}</option>{% endfor %}</select></label>
 <label class="check"><input type="checkbox" name="array" value="on"> an array</label>
 <label>Record types (for a record)<input name="record_types" placeholder="uint8, string"></label>
 <div><button>Define</button></div></form></section>
-{% set defs = [] %}{% for scope, title, set in sets %}{% for o in set.option_defs or [] %}{% set _ = defs.append((scope, o.name, title)) %}{% endfor %}{% endfor %}
+{% set defs = [] %}{% for scope, title, set in own %}{% for o in set.option_defs or [] %}{% set _ = defs.append((scope, o.name, title)) %}{% endfor %}{% endfor %}
 {% if defs %}<section class="card"><h2>Remove a definition</h2>
 <form method="post" action="/networks/options/option-defs" class="grid">{{ csrf() }}<input type="hidden" name="action" value="undefine">
 <label class="wide">Definition<select name="picked" required>{% for scope, name, title in defs %}<option value="{{ scope }}|{{ name }}">{{ name }} ({{ title }})</option>{% endfor %}</select></label>
 <div><button class="danger">Remove definition</button></div></form></section>{% endif %}
 {% endif %}
 {% endif %}
-<p class="muted">Every change here waits for <strong>Apply</strong> in the top bar, which brings this site's Kea and firewall in line once; another site's plan takes it within 30 seconds.</p>
+<p class="muted">Every change here waits for <strong>Apply</strong> in the top bar, which brings this site's Kea and firewall in line once.</p>
 {% endblock %}
