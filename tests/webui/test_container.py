@@ -717,9 +717,10 @@ check("fabric's own names (the host's A, ca) marked 'provided by fabric'; info a
 # covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete +
 cn = [r.get("name") for r in yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"]["dynamic_zone_var"]["CNAME"]]
 st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": f"CNAME|{cn.index('info')}|info"})
+newest = done.split('<h3 class="small">')[1:2] or [""]    # the queue lists every apply, newest first
 check("deleting info.<domain> works at Apply: an ordinary record now, gone from vars.yaml (the page stays at /info/)",
-      "provided by fabric" not in done and "name: info" not in open(f"{W}/fabric/config/vars.yaml").read(),
-      done[-1500:])
+      "provided by fabric" not in newest[0] and "name: info" not in open(f"{W}/fabric/config/vars.yaml").read(),
+      newest[0][:1500])
 # covers: web:post.bind9.zone.*.add +
 st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/add", {"type": "CNAME", "name": "info",
                                                                 "value": "nas25-apps"})
