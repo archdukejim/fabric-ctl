@@ -57,7 +57,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	6b4d2bfcc
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	6b230ac1ac6c601042d0888d164dde5ff2c3b93b	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	2db03a6c42354ee697dfcb19be1f64e723ac06de	2026-11-04	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	596cda79e74955b2c051ba600800975f89984688	2026-11-14	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	0a850328ca6ce7693d7de36df4c0c731e6d04e1f	2026-11-08	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	e524035a6d6e76f8a9fa9cac619debb95f70902d	2026-11-15	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	1b3e14b4efd6ffbb95280a24c82a7f6a29b1f61e	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	b8b3320d383bce35fdc5f0e76107e3f638130d52	2026-11-14	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	ef0eaf5854c975ca84fbd27af2c17c78328ec055	2026-10-25	
@@ -162,7 +162,7 @@ docs/volume_2_engineering_decisions/2.2.1-product-troubleshooting.md	020c264ac36
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	f9e9232e081782a9a36dd18274325d201f006b51	2026-11-15	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	47781d326675ad28c220093d80a54d49a92eb1e4	2026-11-15	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	8d0e6dc9f88453889dccc29f981ca3ee730702f4	2026-10-29	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	94fc068a1015d887dbbc7e0d3e24724376cdc280	2026-11-07	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -1506,7 +1506,7 @@ src/fabriclib/setup/collect_vars.py	7c6ca0451c471d207d400c7a4bf9cfe70d44644e	202
 src/fabriclib/setup/common/README.md	549a03d2744f353044912bb85c8aa31120777784	2026-10-31	
 src/fabriclib/setup/common/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-02	
 src/fabriclib/setup/common/apply_host_managed.py	d05a29ed63bcb109a727ff540fbee90c80218e95	2026-10-23	
-src/fabriclib/setup/common/apt_install.py	beec441d7da1c8b6009ebbd8738bae74004f89f1	2026-10-12	
+src/fabriclib/setup/common/apt_install.py	9d8c123aa5beb43e57582c427e492be847b81647	2026-11-15	
 src/fabriclib/setup/common/ask_admin_fact.py	774e56c3939e4badb868c623f06eb7359f12fbdb	2026-10-20	
 src/fabriclib/setup/common/ask_setting.py	556b52089c9919740b2c14b6a1227c6f8af11f3e	2026-10-12	
 src/fabriclib/setup/common/ca_exists.py	e0f7a2a00452b45b4e1f441172f77fb6e0c9a091	2026-10-12	
@@ -2370,7 +2370,7 @@ tests/resolver/console.py	30e6bfb2adc8a05c8914afb7b110781bef8f0276	2026-11-08
 tests/resolver/groups.py	5e317666ba1567ea2e4d0629061af57d292a1e4a	2026-10-25	
 tests/resolver/querylog.py	0378e80e7fa13e77534999301e31df4fea7bd779	2026-10-31	
 tests/resolver/run.py	73ed914152c7b7af09b8e0b121e422104aad32f2	2026-10-29	
-tests/run-all.sh	cd4f9e6030f877974364def372258dbd054ce6ff	2026-11-15	
+tests/run-all.sh	e415ab04e1812cf918e3b2065372448dc9f759f3	2026-11-15	
 tests/samba/README.md	82f7a75dcff226999a918a8f36bf6a3d2d1e6558	2026-11-05	
 tests/samba/acl_entries_test.py	17613db26e83d400d26c826e42a4927fe9355681	2026-11-03	
 tests/samba/dc.py	36f6ea3e78877acc398e20e699055c868ddde23e	2026-11-04	
@@ -2426,7 +2426,8 @@ tests/settings/run.py	531b7eba788166f7d87f8fef0e2b2d9e466f57ce	2026-11-15
 tests/setup/README.md	05ba818f206d12439e333fdbcee87b2a0d1e296a	2026-11-07	
 tests/setup/address_checks_test.py	f09ef3c81209216ebc42ec3b1775c2aefb78a56a	2026-11-02	
 tests/setup/ask_site_number_test.py	2a2bf012217e09d4e4fc8a88dc659b284368fb0a	2026-10-23	
-tests/setup/common/README.md	a35d87fa64f9a6ec5e5c7d44ade9156ac7cb7d48	2026-10-31	
+tests/setup/common/README.md	05e57456ae4673a9e10c0bdd7b3c00078d41eefc	2026-11-15	
+tests/setup/common/apt_install_test.py	3bbb56c4c611fd3351948ef2ba4447de26a647a3	2026-11-15	
 tests/setup/common/sssd_sockets_test.py	e02dbd805ff3ea165eb3cd81c60ba351ec04bf93	2026-10-31	
 tests/setup/detach/README.md	0c490656f6d6dd1b3786d53284f3d3a4394db493	2026-10-17	
 tests/setup/detach/can_detach_test.py	63cb81fa5f680252079acc0208066b5aaeb18da7	2026-10-17	
