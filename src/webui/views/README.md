@@ -38,6 +38,7 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `plain_words.py` | Words and dates for people (1.8.8.6): the Jinja filters `plain` (the manual's numbers in brackets left out) and `written` ("3 Oct 2026, 09:12"). |
 | `render_page.py` | Render one template in the frame (top bar, navigation, the message of the last action), hiding the pages, sub-menus and forms the signed-in person has no permission for. |
 | `stepca.py` | The Step-CA tab: CA details, sign a CSR, new key + certificate, inspect, convert, or the issued list. |
+| `lifetimes.py` | PKI → Lifetimes: the lifetimes and renewal, the next renewals, the form for `pki:settings`. |
 | `tsig_result.py` | The page that shows a TSIG key's secret and RFC2136 client settings once. |
 | `__init__.py` | Imports every function of this folder, so callers keep `module.function` |
 | `federation.py` | The Federation tab: sites, replication, conflicts, limits, the address plan. |

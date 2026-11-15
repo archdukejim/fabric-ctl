@@ -1,0 +1,47 @@
+{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+<h1>PKI · Lifetimes</h1>
+{% if unavailable %}<p class="flash bad" role="alert">The lifetimes could not be read: {{ unavailable }}</p>
+{% else %}
+{% set val = life['values'] %}
+{% for note in life.notes %}<p class="flash warn">{{ note }}</p>{% endfor %}
+{% if can('pki:settings') %}<form method="post" action="/stepca/lifetimes" class="stack">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+{% for k in ('service_days', 'renew_after_days', 'acme_days', 'issue_default_days', 'issue_max_days') %}<input type="hidden" name="was_{{ k }}" value="{{ val[k] }}">{% endfor %}{% endif %}
+<section class="card"><h2>fabric's own certificates</h2>
+<p class="muted small">The certificates fabric's services use (DNS, the web pages, the DC, FreeRADIUS, …). The daily renewal (<code>fabric-certs.timer</code>) renews each one once it is as old as <strong>renew at</strong>.</p>
+{% if can('pki:settings') %}<div class="grid">
+<label>Lifetime (days)<input name="service_days" inputmode="numeric" pattern="[0-9]+" value="{{ val.service_days }}" required></label>
+<label>Renew at (days old)<input name="renew_after_days" inputmode="numeric" pattern="[0-9]+" value="{{ val.renew_after_days }}" required></label>
+</div>{% else %}{{ p.facts("As set", [("Lifetime", val.service_days ~ " days"), ("Renew at", val.renew_after_days ~ " days old")]) }}{% endif %}
+{% if life.renewals %}{% call p.list(["Certificate", "Used by", "Issued", "Next renewal", "Expires"]) %}{% for r in life.renewals %}<tr>
+<td data-label="Certificate"><strong>{{ r.cn }}</strong></td><td data-label="Used by">{{ r.services | join(', ') }}</td>
+<td data-label="Issued">{{ r.issued }}</td><td data-label="Next renewal">{{ r.renews }}</td><td data-label="Expires">{{ r.expires }}</td></tr>{% endfor %}{% endcall %}
+<p class="muted small">Next renewal under the values as set now: a change moves it once applied, and renews at once a certificate already older than the new <strong>renew at</strong> or longer-lived than the new lifetime.</p>
+{% else %}{{ p.empty("No service certificate issued yet.") }}{% endif %}
+</section>
+<section class="card"><h2>LAN machines over ACME</h2>
+{% if can('pki:settings') %}<div class="grid">
+<label>Lifetime (days)<input name="acme_days" inputmode="numeric" pattern="[0-9]+" value="{{ val.acme_days }}" required></label>
+</div>{% else %}{{ p.facts("As set", [("Lifetime", val.acme_days ~ " days")]) }}{% endif %}
+<p class="muted small">Each machine's own ACME client chooses when to renew; fabric cannot set it. The setting that matches this lifetime: certbot <code>{{ life.acme_client.certbot }}</code> (its default renews 30 days before expiry); {{ life.acme_client.step }}.</p>
+</section>
+<section class="card"><h2>Hand-issued certificates</h2>
+{% if can('pki:settings') %}<div class="grid">
+<label>Default (days)<input name="issue_default_days" inputmode="numeric" pattern="[0-9]+" value="{{ val.issue_default_days }}" required></label>
+<label>Longest accepted (days)<input name="issue_max_days" inputmode="numeric" pattern="[0-9]+" value="{{ val.issue_max_days }}" required></label>
+</div>{% else %}{{ p.facts("As set", [("Default", val.issue_default_days ~ " days"), ("Longest accepted", val.issue_max_days ~ " days")]) }}{% endif %}
+<p class="muted small">What <a href="/pki?view=sign">Sign a CSR</a> and <a href="/pki?view=issue">New key + certificate</a> fill in, and the longest they accept.</p>
+</section>
+<section class="card"><h2>802.1X machines</h2>
+<p>{{ life.machines_expiring }} machine certificate{{ '' if life.machines_expiring == 1 else 's' }} linked to a device run{{ 's' if life.machines_expiring == 1 else '' }} out within 30 days{% if life.machines_expiring %}: <a href="/pki?view=issued&amp;source=8021x">see them in Issued</a>{% endif %}. A machine certificate that runs out cuts the machine off the network.</p>
+<p class="muted small">Their lifetime is chosen when each one is issued, with the hand-issued values above; a lifetime of their own comes with enrolment over SCEP (802.1X).</p>
+</section>
+{% if can('pki:settings') %}<div class="actions"><button>Save the lifetimes</button>
+<p class="muted small">Refused, with why, only where it could not work: longer than the intermediate CA has left ({{ life.intermediate_left_days if life.intermediate_left_days is not none else '—' }} days), fabric's own under 2 days or renewed under a day before the end, or a hand-issued default over its maximum. The change waits for <strong>Apply</strong> in the top bar, which restarts Step-CA with the new values and renews what is due; on the fabric host: <code>sudo fabricctl certs lifetimes …</code>.</p></div>
+</form>{% else %}<p class="muted small">Changed by whoever may set PKI's lifetimes (<code>pki:settings</code>).</p>{% endif %}
+<section class="card facts"><h2>Limits</h2><dl>
+<dt>The intermediate CA has left</dt><dd>{{ (life.intermediate_left_days ~ ' days') if life.intermediate_left_days is not none else 'no CA yet' }}: no certificate outlives it</dd>
+<dt>Step-CA's maximum</dt><dd>{{ life.authority_max_hours }} hours, worked out from the lifetimes above</dd>
+<dt>The root and the intermediate</dt><dd>fixed once the CA exists (<a href="/pki">Certificate authority</a>)</dd></dl></section>
+{% endif %}
+{% endblock %}

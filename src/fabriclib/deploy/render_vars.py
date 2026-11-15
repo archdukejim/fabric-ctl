@@ -37,7 +37,7 @@ def render_vars(jinja_env, secrets, custom_vars):
     if ram < MIN_RAM_GB:
         raise ValidationError(f"host_ram_capacity is {ram} GB: fabric needs at least {MIN_RAM_GB} GB (2.1.2.3). "
                               "Set it to this host's memory in GB, or leave it unset for setup to measure it.")
-    check_cert_lifetimes(final_vars)
+    check_cert_lifetimes(final_vars)    # only the real limits (2.1.5.14); the intermediate's when set (1.5.1.10.2)
     if not isinstance(final_vars.get("install_was_ready"), bool):
         raise ValidationError(f"install_was_ready {final_vars.get('install_was_ready')!r} must be true or false: it is "
                               "setup's own record of whether this install has once been ready (2.1.4.10); leave it out "

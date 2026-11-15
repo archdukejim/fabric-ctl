@@ -600,24 +600,78 @@ with serve():
           st == 200 and 'download="device.home.arpa.key"' in page and "only copy of the private key" in page)
     # covers: web:get.pki.issued.* web:get.pki.acme.* +-
     main = pages[5].split("<main", 1)[1]
-    check("PKI · Issued: each certificate lit by its status and linked to its page, no form on the list",
-          'href="/pki/issued/5a1c0e"' in main and 'class="light warn"' in main and 'method="post"' not in main,
-          main[-2000:])
+    check("PKI · Issued: every certificate the console can revoke, each lit by its status, linked to its page, with "
+          "Revoke in its row (2.1.5.13)",
+          'href="/pki/issued/5A1C0E"' in main and 'class="light warn"' in main
+          and 'href="/pki/issued/5A1C0E#revoke"' in main and "mgr.home.arpa" in main and "nas.home.arpa" in main,
+          main[-2500:])
+    check("...an 802.1X machine's certificate with its device and roles; fabric's own with the services using it",
+          "device laptop-7 (laptops)" in main and "fabric&#39;s own" in main and "nginx" in main, main[-2500:])
+    check("...filtered by where each came from, and Revoke a certificate not listed (serial or file)",
+          'href="/pki?view=issued&amp;source=acme"' in main and 'action="/stepca/revoke/review"' in main
+          and 'name="serial"' in main and 'name="cert_file"' in main, main[-2500:])
+    acme_only = get("/pki?view=issued&source=acme").split("<main", 1)[1]
+    check("the filter shows one source alone", "nas.home.arpa" in acme_only and "switch-core" not in acme_only)
     page = get("/pki/issued/5a1c0e")
-    check("a certificate's page: its facts and Revoke as its own form, said to be done at once",
-          "switch-core.home.arpa" in page and "5a1c0e" in page and 'action="/stepca/revoke"' in page
-          and "keyCompromise" in page and "Done at once" in page, page[-2500:])
+    check("a certificate's page: its facts and Revoke as its own form: the reason, its name typed again, done at once",
+          "switch-core.home.arpa" in page and "5A1C0E" in page and 'action="/stepca/revoke"' in page
+          and "keyCompromise" in page and "Done at once" in page and "Type <code>switch-core.home.arpa</code>" in page
+          and 'name="confirm"' in page, page[-2500:])
+    page = get("/pki/issued/4E91C2A7")
+    check("fabric's own certificate's page says a new one is issued and put in use first (1.5.1.9.4)",
+          "mgr.home.arpa" in page and "first issues a new one" in page and 'action="/stepca/revoke"' in page)
     check("pages for a certificate or an ACME machine that is not there answer 404 (2.1.8.16)",
           [req("GET", p)[0] for p in ("/pki/issued/nope", "/pki/acme/nope", "/pki/issued/a/b")] == [404, 404, 404])
     # covers: web:post.stepca.revoke +-
-    st, loc, page = post("/stepca/revoke", {"target": "5a1c0e", "reason": "keyCompromise"})
+    st, loc, page = post("/stepca/revoke", {"target": "5a1c0e", "reason": "keyCompromise", "confirm": "switch"})
+    check("negative: Revoke with the name not typed again: refused, said on its page, still valid",
+          loc == "/pki/issued/5a1c0e" and "to confirm" in flash(page) and 'action="/stepca/revoke"' in page,
+          (loc, flash(page)))
+    st, loc, page = post("/stepca/revoke", {"target": "5a1c0e", "reason": "keyCompromise",
+                                            "confirm": "switch-core.home.arpa"})
     check("Revoke certificate: done at once (2.1.8.23), back on its page: revoked, no Revoke form, nothing pending",
           st == 303 and loc == "/pki/issued/5a1c0e" and "Revoked CN=switch-core.home.arpa (keyCompromise)" in flash(page)
           and "revoked" in page and 'action="/stepca/revoke"' not in page and "change pending" not in page,
           (loc, flash(page)))
-    st, loc, page = post("/stepca/revoke", {"target": "5a1c0e", "reason": "superseded"})
-    check("revoking a certificate revoked already is refused, said on its page", loc == "/pki/issued/5a1c0e"
-          and "revoked already" in flash(page), (loc, flash(page)))
+    st, loc, page = post("/stepca/revoke", {"target": "5a1c0e", "reason": "superseded",
+                                            "confirm": "switch-core.home.arpa"})
+    check("negative: revoking a certificate revoked already is refused, said on its page", loc == "/pki/issued/5a1c0e"
+          and "already revoked" in flash(page), (loc, flash(page)))
+    st, loc, page = post("/stepca/revoke", {"target": "4E91C2A7", "reason": "superseded", "confirm": "mgr.home.arpa"})
+    check("fabric's own certificate revoked: the page says a new one was issued first and is in use (nginx)",
+          "A new certificate was issued first and is in use (nginx)" in flash(page), flash(page))
+    # covers: web:post.stepca.revoke.review +-
+    st, _, _, page = req("POST", "/stepca/revoke/review", {"csrf": "dev", "serial": "61:D0:E3"})
+    check("Revoke a certificate not listed, by serial: its confirmation (the certificate's page, Type its name)",
+          st == 200 and "nas.home.arpa" in page and "Type <code>nas.home.arpa</code>" in page, (st, page[-1500:]))
+    st, _, _, page = req("POST", "/stepca/revoke/review", {"csrf": "dev", "serial": "0BADBAD0"})
+    check("negative: a serial this CA never signed: refused on Issued (400), saying why",
+          st == 400 and "signed no certificate" in page and 'action="/stepca/revoke/review"' in page, (st, page[:400]))
+    # covers: web:get.pki.lifetimes +
+    page = get("/pki/lifetimes")
+    check("PKI · Lifetimes (2.1.5.14): each lifetime and renew at, the next renewals, the ACME client's setting",
+          'action="/stepca/lifetimes"' in page and 'name="service_days" inputmode="numeric" pattern="[0-9]+" value="47"'
+          in page and 'name="acme_days"' in page and "renew_before_expiry = 16 days" in page and "2026-12-14" in page
+          and "3285 days" in page, page[-2500:])
+    # covers: web:post.stepca.lifetimes +-
+    st, loc, page = post("/stepca/lifetimes", {"service_days": "1", "renew_after_days": "1"})
+    check("negative: a lifetime with no renewal run left: refused when held, said, nothing pending",
+          loc == "/pki/lifetimes" and "at least 2 days" in flash(page) and "change pending" not in page,
+          (loc, flash(page)))
+    st, loc, page = post("/stepca/lifetimes", {"service_days": "47", "was_service_days": "47"})
+    check("negative: nothing changed from the values shown: said, nothing held", loc == "/pki/lifetimes"
+          and "Nothing changed" in flash(page) and "change pending" not in page, (loc, flash(page)))
+    st, loc, page = post("/stepca/lifetimes", {"service_days": "60", "renew_after_days": "40",
+                                               "was_service_days": "47", "was_renew_after_days": "30",
+                                               "acme_days": "47", "was_acme_days": "47"})
+    check("a change: held for PKI's Apply (1.5.1.10.3), naming only what changed, the top bar's Apply on the page",
+          loc == "/pki/lifetimes" and "Waiting for Apply: Set certificate lifetimes: service days 60, renew after days 40 (" in flash(page)
+          and 'action="/changes/pki/apply"' in page and 'value="47"' in page, (loc, flash(page)))
+    st, loc, page = post("/changes/pki/apply", {})
+    page = get("/pki/lifetimes")
+    check("PKI's Apply: the new lifetime in force, each certificate's next renewal moved (renew at 40)",
+          'name="service_days" inputmode="numeric" pattern="[0-9]+" value="60"' in page and "2026-12-24" in page,
+          (st, loc))
     page = get("/")
     tiles = page.split("<section class=\"tiles\">")[1].split("</section>")[0]
     check("Health: one status light per service, each linked to its page", tiles.count('class="light ok"') == 9
@@ -1425,7 +1479,8 @@ with serve():
 
 # every navigation page, opened with its permission and refused without it, per bundle (manual 1.8.6.9):
 # covers: web:get.overview.doctor web:get.overview.updates web:get.audit web:get.dns.zones web:get.dns-filter +-
-# covers: web:get.kea web:get.pki web:get.pki.acme web:get.directory.people web:get.directory.policies +-
+# covers: web:get.kea web:get.pki web:get.pki.acme web:get.pki.lifetimes web:get.directory.people +-
+# covers: web:get.directory.policies +-
 # covers: web:get.directory.computers web:get.directory.policies.gpo web:get.directory.policies.sudo +-
 # covers: web:get.8021x web:get.8021x.decisions +-
 # covers: web:get.8021x.guides web:get.8021x.devices web:get.8021x.roles web:get.secrets web:get.federation +-
@@ -1736,6 +1791,11 @@ with serve("fabric-auditor"):
           "printer.home.arpa" in page and 'action="/stepca/revoke"' not in page
           and (st == 403 or (st == 303 and "pki:revoke" in flash(done)))
           and "expires soon" in get("/pki/issued/3b07d2"), (st, loc, flash(done)))
+    page = get("/pki/lifetimes")
+    st, loc, done = post("/stepca/lifetimes", {"service_days": "40"})
+    check("--as fabric-auditor: Lifetimes shown without its form; a change refused (pki:settings), nothing pending",
+          "47 days" in page and 'action="/stepca/lifetimes"' not in page and "pki:settings" in flash(done)
+          and "change pending" not in done, (st, loc, flash(done)))
 
 # My account (manual 1.8.6.6): a person with no fabric role signs in to it alone, and so does everyone else
 with serve("none"):

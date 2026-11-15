@@ -18,6 +18,7 @@ from webui.views.tree import tree  # noqa: F401
 from webui.views.access import access  # noqa: F401
 from webui.views.sites import sites  # noqa: F401
 from webui.views.kerberos import kerberos  # noqa: F401
+from webui.views.lifetimes import lifetimes  # noqa: F401
 from webui.views.devices import devices  # noqa: F401
 from webui.views.roles import roles  # noqa: F401
 from webui.views.policies import policies  # noqa: F401

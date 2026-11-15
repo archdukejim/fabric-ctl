@@ -13,6 +13,7 @@ from webui.routes.groups_page import groups_page
 from webui.routes.sites_page import sites_page
 from webui.routes.site_link import site_link
 from webui.routes.kerberos_page import kerberos_page
+from webui.routes.lifetimes_page import lifetimes_page
 from webui.routes.ous_page import ous_page
 from webui.routes.tree_page import tree_page
 from webui.routes.dns_filter_page import dns_filter_page
@@ -94,7 +95,7 @@ def get_page(h, sess, path, query):
              (view, zone, device, name, slot, step, the query log's search as each page uses them).
     Returns: 303 to the new address of a page that moved; 200 page: Overview (/, /overview/doctor,
              /overview/updates, /audit), DNS (/dns/zones, /dns-filter), DHCP (/networks[/export|/scan|/options],
-             1.10.4.40.1; /kea), PKI (/pki, /pki/acme),
+             1.10.4.40.1; /kea), PKI (/pki, /pki/acme, /pki/lifetimes),
              Directory (/directory, /directory/people|groups|computers[/_new|/<name>], /directory/computers/_groups,
              /directory/ous[?ou=<path>], /directory/tree[?ou=<path>&…] (Browse, 1.8.8.4),
              /directory/access[/_new|/<name>], /directory/sites[/<name>],
@@ -159,9 +160,12 @@ def get_page(h, sess, path, query):
         return h.send(200, views.kea(ctx, actions.dhcp_overview()))
     if path == "/pki":
         view = query.get("view", "ca")
-        return stepca_page(h, ctx, "ca" if view == "acme" else view, device=query.get("device", ""))
+        return stepca_page(h, ctx, "ca" if view == "acme" else view, device=query.get("device", ""),
+                           source=query.get("source", ""))
     if path == "/pki/acme":
         return stepca_page(h, ctx, "acme")
+    if path == "/pki/lifetimes":
+        return lifetimes_page(h, ctx)
     if _rest(path, "/pki/issued/"):
         return stepca_page(h, ctx, "cert", serial=_rest(path, "/pki/issued/"))
     if _rest(path, "/pki/acme/"):
