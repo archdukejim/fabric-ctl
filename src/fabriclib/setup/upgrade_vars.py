@@ -1,9 +1,13 @@
+from fabriclib.setup.drop_old_authority_max import drop_old_authority_max
+
+
 def upgrade_vars(data, pinned):
     """Purpose: adjust an existing install's vars before a newer fabric re-renders them, so an upgrade never
              changes a running image (design 2.1.14.3).
     Inputs:  data — the existing vars dict (modified in place); pinned — collection of image_* keys the admin
              set explicitly (left alone).
-    Returns: list of change descriptions (str), one per image_* key dropped. Keys pinned by digest ("@sha256:")
+    Returns: list of change descriptions (str), one per image_* key dropped, and one when Step-CA's maximum was fabric's
+             own old value, taken out (drop_old_authority_max, 2.1.5.14.3). Keys pinned by digest ("@sha256:")
              are kept; unpinned refs and local build names not in `pinned` are deleted, so the release's validated,
              digest-pinned default applies. (What it changed for installs before 0.8.0 is retired: 2.1.1.61, the
              stale-code register 2.3.1.5.2.)
@@ -16,4 +20,7 @@ def upgrade_vars(data, pinned):
             continue
         del data[key]
         changes.append(f"{key}: use this release's validated image (pinned by digest)")
+    authority = drop_old_authority_max(data)
+    if authority:
+        changes.append(authority)
     return changes

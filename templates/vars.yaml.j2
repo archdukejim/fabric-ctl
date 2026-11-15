@@ -406,10 +406,12 @@ pki_manual_max_days: {{ pki_manual_max_days | default(1825) }}
 # ============================================================
 stepca_port: {{ stepca_port | default(9000) }}
 stepca_cert_allow_subordinate_ca: {{ stepca_cert_allow_subordinate_ca | default(true) | lower }}
-{# the authority's maximum is worked out, never set (2.1.5.14): the longest of the lifetimes it must allow; a value
-   given is replaced, since every earlier install's settings carry the old default #}
-{% set _acme_hours = (cert_acme_lifetime_hours | default('1128h') | string | lower | replace('h', '') | int) %}
-stepca_cert_max_lifetime_hours: "{{ [(cert_service_days | default(47) | int) * 24, _acme_hours, (pki_manual_max_days | default(1825) | int) * 24] | max }}h"
+{# the authority's maximum (2.1.5.14.3): kept only when an administrator set it (refused when shorter than the
+   lifetimes need, pki/check_cert_lifetimes); otherwise never written, and setup/init_pki works it out from the
+   lifetimes. The old default earlier fabrics wrote here is taken out at the upgrade (setup/drop_old_authority_max). #}
+{% if stepca_cert_max_lifetime_hours is defined and stepca_cert_max_lifetime_hours is not none and (stepca_cert_max_lifetime_hours | string | trim) %}
+stepca_cert_max_lifetime_hours: "{{ stepca_cert_max_lifetime_hours }}"
+{% endif %}
 cert_acme_lifetime_hours: {{ cert_acme_lifetime_hours | default('1128h') }}
 
 # ============================================================

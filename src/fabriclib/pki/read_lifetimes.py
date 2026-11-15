@@ -2,7 +2,8 @@ import datetime
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.paths import ISSUED_CERTS_FILE, REVOKED_CERTS_FILE
-from fabriclib.pki.check_cert_lifetimes import acme_days, check_cert_lifetimes
+from fabriclib.pki.check_cert_lifetimes import (acme_days, authority_max_hours, check_cert_lifetimes,
+                                               given_authority_hours)
 from fabriclib.pki.common.cert_status import parse_cert_date
 from fabriclib.pki.common.intermediate_left_days import intermediate_left_days
 from fabriclib.pki.list_issued import list_issued
@@ -40,7 +41,9 @@ def read_lifetimes(v, ctx, now=None, ledger=ISSUED_CERTS_FILE, revoked=REVOKED_C
              running out within 30 days, and the matching setting for a LAN machine's own ACME client.
     Inputs:  v — settings; ctx — SetupContext with its vars loaded (fabric's own certificates); now — aware datetime
              (tests); ledger, revoked — the files (tests).
-    Returns: {"values": lifetime_values, "intermediate_left_days" (None before the CA exists), "authority_max_hours",
+    Returns: {"values": lifetime_values, "intermediate_left_days" (None before the CA exists), "authority_max_hours"
+             (Step-CA's maximum in force), "authority_max_set" (True: an administrator set it in the settings,
+             2.1.5.14.3),
              "notes" (check_cert_lifetimes' notes on the values as set), "renewals": [{"cn", "services", "issued",
              "renews" (ISO dates), "expires"}], "machines_expiring" (802.1X machine certificates, issued here and
              linked to a device, valid and ending within 30 days), "acme_client": {"certbot", "step"} (the client
@@ -73,8 +76,13 @@ def read_lifetimes(v, ctx, now=None, ledger=ISSUED_CERTS_FILE, revoked=REVOKED_C
     machines = sum(1 for e in list_issued(limit=1000000, path=ledger, now=now, revoked=revoked)
                    if e.get("device") and e.get("status") == "expires soon")
     acme = values["acme_days"]
+    try:
+        given = given_authority_hours(v)
+    except ValidationError:                  # not whole hours: already in the notes (check_cert_lifetimes)
+        given = None
     return {"values": values, "intermediate_left_days": left,
-            "authority_max_hours": max(values["service_days"], acme, values["issue_max_days"]) * 24,
+            "authority_max_hours": given if given is not None else int(authority_max_hours({**DEFAULTS, **v})[:-1]),
+            "authority_max_set": given is not None,
             "notes": notes, "renewals": renewals, "machines_expiring": machines,
             "acme_client": {"certbot": f"renew_before_expiry = {max(1, -(-acme // 3))} days",
                             "step": "step ca renew --daemon renews at two thirds of the lifetime by itself"}}

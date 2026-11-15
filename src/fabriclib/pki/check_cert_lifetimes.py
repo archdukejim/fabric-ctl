@@ -43,6 +43,34 @@ def authority_max_hours(v):
     return f"{max(_days(v, 'cert_service_days') * 24, acme_days(v) * 24, _days(v, 'pki_manual_max_days') * 24)}h"
 
 
+def given_authority_hours(v):
+    """Purpose: Step-CA's maximum as an administrator set it (stepca_cert_max_lifetime_hours), when one is set: a
+             ceiling above what the lifetimes need is allowed; fabric never writes the setting itself (2.1.5.14.3).
+    Inputs:  v — settings.
+    Returns: int hours, or None when the setting is absent or empty.
+    Fails:   ValidationError when it is not "<n>h" (or a bare whole number of hours).
+    Feeds:   check_cert_lifetimes, authority_hours."""
+    value = v.get("stepca_cert_max_lifetime_hours")
+    if value is None or str(value).strip() == "":
+        return None
+    text = str(value).strip().lower()
+    hours = text[:-1] if text.endswith("h") else text
+    if isinstance(value, bool) or not hours.isdigit():
+        raise ValidationError(f"stepca_cert_max_lifetime_hours must be whole hours, such as 43800h (got {value!r}); "
+                              "leave it out and fabric works it out from the lifetimes")
+    return int(hours)
+
+
+def authority_hours(v):
+    """Purpose: Step-CA's maximum in force: the one an administrator set, else the one worked out (2.1.5.14).
+    Inputs:  v — settings.
+    Returns: "<hours>h".
+    Fails:   ValidationError from given_authority_hours or authority_max_hours.
+    Feeds:   setup/init_pki (ca.json's maxTLSCertDuration), pki/read_lifetimes (the page's Limits)."""
+    given = given_authority_hours(v)
+    return f"{given}h" if given is not None else authority_max_hours(v)
+
+
 def check_cert_lifetimes(v, intermediate_left_days=None, only=None):
     """Purpose: refuse only certificate lifetimes that could not work (decision 2.1.5.14, "only the real limits";
              manual 1.5.1.10.2, 2.1.5.6), and say what is allowed but worth knowing.
@@ -57,7 +85,8 @@ def check_cert_lifetimes(v, intermediate_left_days=None, only=None):
     Fails:   ValidationError naming the setting: not a whole number of days; fabric's own lifetime under 2 days, renew
              at under 1 day or less than 1 day before the end; any lifetime longer than the intermediate has left
              (Step-CA would cut it at the intermediate's expiry); the hand-issued default over its maximum;
-             cert_root_ca_days under 365.
+             cert_root_ca_days under 365; a stepca_cert_max_lifetime_hours set shorter than the lifetimes need, or not
+             whole hours (2.1.5.14.3).
     Feeds:   deploy/render_vars (every setup run, without the intermediate's limit), pki/set_lifetimes (PKI →
              Lifetimes, `fabricctl certs lifetimes`)."""
     v = {"cert_root_ca_days": 3650, "pki_manual_default_days": 365, "pki_manual_max_days": 1825, **v}
@@ -89,6 +118,13 @@ def check_cert_lifetimes(v, intermediate_left_days=None, only=None):
                 raise ValidationError(f"{key} is {days} days, longer than the intermediate CA has left "
                                       f"({intermediate_left_days} days): Step-CA would cut such a certificate at the "
                                       "intermediate's own expiry")
+    given = given_authority_hours(v)
+    need = int(authority_max_hours(v)[:-1])
+    if given is not None and given < need:
+        raise ValidationError(f"stepca_cert_max_lifetime_hours is {given}h, shorter than the {need}h the lifetimes "
+                              "need (the longest of fabric's own, ACME's and the hand-issued maximum): Step-CA would "
+                              "refuse those certificates. Raise it, or take it out of the settings and fabric works it "
+                              "out (2.1.5.14.3)")
     notes = []
     for label, days in (("fabric's own certificates", service), ("ACME certificates", acme)):
         if days > NOTE_SERVER_DAYS:

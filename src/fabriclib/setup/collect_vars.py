@@ -18,6 +18,7 @@ from fabriclib.samba.tier_policy_defaults import tier_policy_defaults
 from fabriclib.setup.common.ask_setting import ask_setting
 from fabriclib.setup.common.network_problem import network_problem
 from fabriclib.setup.common.read_vars_file import read_vars_file
+from fabriclib.setup.drop_old_authority_max import drop_old_authority_max
 from fabriclib.setup.drop_retired_settings import drop_retired_settings
 from fabriclib.setup.common.valid_setting import REQUIRED, valid_setting
 from fabriclib.setup.errors import SetupError
@@ -42,10 +43,14 @@ def _drop_retired(ctx, user_file, user):
              takes are ignored, each printed with why and the list written to the audit log (SETUP_IMPORT).
     Inputs:  ctx — SetupContext: target_dir (the audit log under it); user_file — the file's path; user — its
              settings.
-    Returns: the settings without the ignored keys (drop_retired_settings).
+    Returns: the settings without the ignored keys (drop_retired_settings) and without an older fabric's own
+             stepca_cert_max_lifetime_hours (drop_old_authority_max, printed).
     Fails:   OSError writing the audit log.
     Feeds:   collect_vars."""
     kept, ignored = drop_retired_settings(user)
+    authority = drop_old_authority_max(kept)              # an older fabric's own value, not the admin's (2.1.5.14.3)
+    if authority:
+        info(f"{user_file}: {authority}")
     if ignored:
         info(f"{user_file}: {len(ignored)} setting(s) this release no longer takes, ignored (3.3.5.3):")
         for key, why in ignored:

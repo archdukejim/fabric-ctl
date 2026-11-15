@@ -41,7 +41,7 @@
 </form>{% else %}<p class="muted small">Changed by whoever may set PKI's lifetimes (<code>pki:settings</code>).</p>{% endif %}
 <section class="card facts"><h2>Limits</h2><dl>
 <dt>The intermediate CA has left</dt><dd>{{ (life.intermediate_left_days ~ ' days') if life.intermediate_left_days is not none else 'no CA yet' }}: no certificate outlives it</dd>
-<dt>Step-CA's maximum</dt><dd>{{ life.authority_max_hours }} hours, worked out from the lifetimes above</dd>
+<dt>Step-CA's maximum</dt><dd>{{ life.authority_max_hours }} hours, {% if life.authority_max_set %}set in the settings (<code>stepca_cert_max_lifetime_hours</code>): a lifetime above needs it raised or taken out{% else %}worked out from the lifetimes above{% endif %}</dd>
 <dt>The root and the intermediate</dt><dd>fixed once the CA exists (<a href="/pki">Certificate authority</a>)</dd></dl></section>
 {% endif %}
 {% endblock %}

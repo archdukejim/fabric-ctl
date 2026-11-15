@@ -284,6 +284,12 @@ ngx_off = env.get_template('nginx/nginx.conf.j2').render(**{**secrets, **off})
 # covers: setting:dns_filter +
 assert '"grpc://bind9:' in ngx_off[ngx_off.index('location /dns-query'):], 'DoH goes to BIND with the DNS filter off'
 print('DoH: nginx speaks HTTP/2 to the DNS filter (or BIND with it off) (grpc_pass)')
+# Step-CA's maximum (2.1.5.14.3): never written by fabric, kept when an administrator set it
+assert 'stepca_cert_max_lifetime_hours' not in v1 and 'stepca_cert_max_lifetime_hours' not in v2,     "Step-CA's maximum is worked out at setup (init_pki), never written into the settings"
+_set = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE),
+                                                                 'stepca_cert_max_lifetime_hours': '50000h'}))
+assert _set['stepca_cert_max_lifetime_hours'] == '50000h', "an administrator's Step-CA maximum is kept as set"
+print("Step-CA's maximum: not written unless an administrator set it (2.1.5.14.3)")
 res_ctx = dict(zones=['test.lan.j-j.family'], clients=['192.168.7.0/24'], resolver_rndc_secret='c2VjcmV0', client_tls=True,
                adguard_tls=True, safe_zone='safesearch-strict.rpz',
                groups=[{'name': 'kids', 'match': ['!192.168.7.70', '192.168.7.64/27'], 'rules_zone': 'group-kids.rpz',

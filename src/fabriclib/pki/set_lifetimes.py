@@ -6,7 +6,7 @@ from fabriclib.common.save_vars import save_vars
 from fabriclib.common.vars_lock import vars_lock
 from fabriclib.common.wait_healthy import wait_healthy
 from fabriclib.common.write_audit import write_audit
-from fabriclib.pki.check_cert_lifetimes import authority_max_hours, check_cert_lifetimes
+from fabriclib.pki.check_cert_lifetimes import check_cert_lifetimes
 from fabriclib.pki.common.intermediate_left_days import intermediate_left_days
 from fabriclib.pki.read_lifetimes import DEFAULTS, FIELDS, lifetime_values
 
@@ -17,7 +17,8 @@ def lifetime_changes(v, given):
     Inputs:  v — the settings now; given — {field: days} for some of FIELDS (str or int; "" or None: unchanged).
     Returns: (changed — {setting: (old, new)} for the settings that differ, notes — check_cert_lifetimes' notes).
     Fails:   ValidationError, nothing changed: an unknown field, a value that is not a whole number of days, what
-             check_cert_lifetimes refuses (the intermediate's days left, for the values changed).
+             check_cert_lifetimes refuses (the intermediate's days left, for the values changed; a lifetime over a
+             stepca_cert_max_lifetime_hours an administrator set).
     Feeds:   set_lifetimes, agent/post_pending (the hold's check), agent/pending_thing (the Review)."""
     unknown = sorted(set(given) - set(FIELDS))
     if unknown:
@@ -57,9 +58,9 @@ def _restart_stepca(run):
 def set_lifetimes(actor, given, source="cli", ctx=None, run=subprocess.run, converge=None, renew=None):
     """Purpose: PKI → Lifetimes' Apply and `fabricctl certs lifetimes --…` (decision 2.1.5.14, manual 1.5.1.10.3):
              save the lifetimes and renewal age, converge Step-CA's ca.json (the ACME provisioner's lifetime, the
-             authority's maximum worked out from them) and restart it when that changed, then renew at once, as the
-             daily timer would, each of fabric's own certificates the new values say is due. Certificates already
-             issued keep their expiry until they are renewed.
+             authority's maximum: an administrator's, else worked out from them) and restart it when that changed,
+             then renew at once, as the daily timer would, each of fabric's own certificates the new values say is
+             due. Certificates already issued keep their expiry until they are renewed.
     Inputs:  actor — who (audit); given — {field: days} (read_lifetimes.FIELDS); source — "cli" | "web"; ctx —
              SetupContext (made for the install when None); run — subprocess.run (tests); converge — (ca_json, v) ->
              bool (default init_pki._configure_ca_json); renew — ctx -> exit status (default renew_service_certs).
@@ -77,8 +78,7 @@ def set_lifetimes(actor, given, source="cli", ctx=None, run=subprocess.run, conv
             return {"changed": {}, "notes": notes, "stepca": "unchanged", "renewal": 0}
         for key, (_old, new) in changed.items():
             v[key] = new
-        v["stepca_cert_max_lifetime_hours"] = authority_max_hours(v)
-        save_vars(v)
+        save_vars(v)                # Step-CA's maximum follows from them (never written, 2.1.5.14.3)
     write_audit(actor, "PKI_LIFETIMES", " ".join(f"{k}={old}->{new}" for k, (old, new) in changed.items()), source)
     if converge is None:
         from fabriclib.setup.init_pki import _configure_ca_json as converge
