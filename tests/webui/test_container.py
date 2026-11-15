@@ -715,7 +715,8 @@ mark = {n: any(f">{n} " in r and "provided by fabric" in r for r in rows)
 check("fabric's own names (the host's A, ca) marked 'provided by fabric'; info and the admin's not",
       mark == {"pi-core": True, "ca": True, "info": False, "calibre": False}, mark)
 # covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete +
-st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": "CNAME|1|info"})
+cn = [r.get("name") for r in yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"]["dynamic_zone_var"]["CNAME"]]
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": f"CNAME|{cn.index('info')}|info"})
 check("deleting info.<domain> works at Apply: an ordinary record now, gone from vars.yaml (the page stays at /info/)",
       "provided by fabric" not in done and "name: info" not in open(f"{W}/fabric/config/vars.yaml").read(),
       done[-1500:])
@@ -726,7 +727,8 @@ _cnames = (yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"]["dynamic_
 check("info added again pointing at another machine (repointed), saved as the admin's record",
       {"name": "info", "canonical": "nas25-apps"} in _cnames, (done[-1500:], _cnames))
 # covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete -
-st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": "CNAME|1|ca"})
+cn = [r.get("name") for r in yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"]["dynamic_zone_var"]["CNAME"]]
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": f"CNAME|{cn.index('ca')}|ca"})
 check("deleting ca.<domain> is still refused at Apply: fabric's (the CA, and the CRL point), named with its setting",
       "provided by fabric" in done and "cname_ca" in done
       and any(r.get("name") == "ca" for r in yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"][
