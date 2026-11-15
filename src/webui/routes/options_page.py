@@ -17,9 +17,11 @@ def options_page(h, ctx, query):
     Feeds:   get_page."""
     site, target = query.get("site", ""), query.get("target", "")
     try:
-        overview = actions.option_sets("")                  # this site's: the console shows no other (1.8.6.14)
-        if other_site(site, overview.get("here") or overview.get("site")):
+        # this site's only (1.8.6.14): a site named is checked first, by the plan's own read, so another site's
+        # answers 404 even when the option sets cannot be read here
+        if site and other_site(site, actions.networks_overview().get("site")):
             return h.deny(404, ONE_SITE + ".")
+        overview = actions.option_sets("")
         views.option_owner(overview, target)
     except actions.NotFound as exc:
         return h.deny(404, f"Not found: {exc}.")

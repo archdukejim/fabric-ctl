@@ -39,7 +39,7 @@ def options_post(h, parts, form):
     Feeds:   networks_post."""
     if len(parts) != 1 or parts[0] not in KINDS:
         return h.deny(404, "Not found.")
-    if form.get("site") and other_site(form["site"], actions.option_sets("").get("here")):    # 1.8.6.14
+    if form.get("site") and other_site(form["site"], actions.networks_overview().get("site")):    # 1.8.6.14
         return h.deny(404, ONE_SITE + ".")
     body = {k: form[k] for k in FIELDS if isinstance(form.get(k), str) and form[k]}
     picked, _, named = str(form.get("picked") or "").partition("|")

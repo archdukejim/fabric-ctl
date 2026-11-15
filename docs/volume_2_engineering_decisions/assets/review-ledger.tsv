@@ -1933,8 +1933,8 @@ src/webui/routes/networks_scan_post.py	ba7c870d5543067fdd5712606f1477570941b83d	
 src/webui/routes/note_kept.py	3d50c815fd3e32e62fff0290500d88902becfb8c	2026-11-07	
 src/webui/routes/one_site.py	a1e5764db5b74b3953306dd1201363d21653497d	2026-11-15	
 src/webui/routes/openbao_page.py	cd33190fb3237bfe3e2a3eea2e9ec686b72f5b21	2026-10-23	
-src/webui/routes/options_page.py	c963d6fbc4f1e4deac0411d20f01e899bc13c77f	2026-11-15	
-src/webui/routes/options_post.py	2ff95193eb9cf8aa184437ec0dc43bfec69c8724	2026-11-15	
+src/webui/routes/options_page.py	969ae8b2b26563083baab0a799a4ac180c9f815c	2026-11-15	
+src/webui/routes/options_post.py	1f1a5370cc12f9256b8160bc9a5655e9f07acd35	2026-11-15	
 src/webui/routes/ous_page.py	ddbbb9d3a4f510337c380ad4011e1030b8c310ab	2026-10-23	
 src/webui/routes/overview_post.py	00179b449988f055b4553c96f3073dbf80eebb28	2026-10-23	
 src/webui/routes/people_page.py	5536d53eee9b27b6cd9da0ceec2e57194f477dc9	2026-11-07	
