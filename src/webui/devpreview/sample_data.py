@@ -135,7 +135,7 @@ SAMPLE = {
                      "status": "valid", "provisioner": "acme", "provisioner_type": "ACME"}],
     "lifetimes": {"values": {"service_days": 47, "renew_after_days": 30, "acme_days": 47, "issue_default_days": 365,
                              "issue_max_days": 1825},
-                  "intermediate_left_days": 3285, "authority_max_hours": 43800, "notes": [],
+                  "intermediate_left_days": 3285, "authority_max_hours": 43800, "authority_max_set": False, "notes": [],
                   "renewals": [{"cn": "mgr.home.arpa", "services": ["nginx"], "issued": "2026-11-14",
                                 "renews": "2026-12-14", "expires": "2026-12-31"},
                                {"cn": "radius.home.arpa", "services": ["freeradius"], "issued": "2026-11-03",

@@ -23,13 +23,15 @@ sys.path.insert(0, os.path.join(REPO, "src"))
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.pki import pick_up_cert as pick  # noqa: E402
 from fabriclib.pki.cert_warnings import cert_warnings  # noqa: E402
-from fabriclib.pki.check_cert_lifetimes import check_cert_lifetimes  # noqa: E402
+from fabriclib.pki.check_cert_lifetimes import authority_hours, check_cert_lifetimes  # noqa: E402
 from fabriclib.pki.common.crl_points import crl_points  # noqa: E402
 from fabriclib.pki.needs_renewal import needs_renewal  # noqa: E402
 from fabriclib.setup.advanced.ask_ca_lifetime import ask_ca_lifetime  # noqa: E402
 from fabriclib.setup import renew_service_certs as rsc  # noqa: E402
 from fabriclib.setup.errors import SetupError  # noqa: E402
+from fabriclib.setup.drop_old_authority_max import drop_old_authority_max  # noqa: E402
 from fabriclib.setup.init_pki import _check_root_lifetime  # noqa: E402
+from fabriclib.setup.upgrade_vars import upgrade_vars  # noqa: E402
 from fabriclib.setup.service_cert_targets import service_cert_targets  # noqa: E402
 
 FAILED = 0
@@ -138,6 +140,39 @@ check("...but not a value set before, as the intermediate ages (the hand-issued 
 check("negative: a lifetime that is not a whole number of days is refused, naming the setting",
       "cert_service_days must be a whole number" in refused({"cert_service_days": "47d"})
       and "cert_renew_after_days must be" in refused({"cert_renew_after_days": True}))
+
+print("--- Step-CA's maximum: refused when shorter, fabric's own old value taken out at the upgrade (2.1.5.14.3)")
+# covers: setting:stepca_cert_max_lifetime_hours +
+check("without it, Step-CA's maximum is worked out from the lifetimes (the hand-issued 1825 days: 43800h)",
+      authority_hours(dict(_base)) == "43800h" and refused({}) == "")
+check("an administrator's longer maximum is kept and passes", refused({"stepca_cert_max_lifetime_hours": "50000h"})
+      == "" and authority_hours({**_base, "stepca_cert_max_lifetime_hours": "50000h"}) == "50000h")
+# covers: setting:stepca_cert_max_lifetime_hours -
+_short = refused({"stepca_cert_max_lifetime_hours": "1128h"})
+check("negative: one shorter than the lifetimes need is refused, saying what they need and how to fix it",
+      "stepca_cert_max_lifetime_hours is 1128h, shorter than the 43800h the lifetimes need" in _short
+      and "take it out of the settings" in _short, _short)
+check("negative: one that is not whole hours is refused, naming it",
+      "stepca_cert_max_lifetime_hours must be whole hours" in refused({"stepca_cert_max_lifetime_hours": "47d"}))
+for label, given, extra in (("1128h, the old default with cert_service_days 47", "1128h", {}),
+                            ("2160h, the old default with cert_service_days 90", "2160h", {"cert_service_days": 90}),
+                            ("43800h, what the lifetimes work out to (a 0.10.0 candidate's own)", "43800h", {})):
+    old = {**_base, **extra, "stepca_cert_max_lifetime_hours": given}
+    why = drop_old_authority_max(old)
+    check(f"the upgrade takes out {label}", "stepca_cert_max_lifetime_hours" not in old and why
+          and "taken out" in why, (old, why))
+kept = {**_base, "stepca_cert_max_lifetime_hours": "50000h"}
+check("negative: an administrator's own value is kept (and refused later only when it is too short)",
+      drop_old_authority_max(kept) is None and kept["stepca_cert_max_lifetime_hours"] == "50000h")
+bad = {**_base, "stepca_cert_max_lifetime_hours": "soon"}
+check("negative: a value that is not whole hours is left for the check to refuse",
+      drop_old_authority_max(bad) is None and bad["stepca_cert_max_lifetime_hours"] == "soon")
+fresh = {}
+check("negative: a fresh install (no settings) is left as it is", drop_old_authority_max(fresh) is None and fresh == {})
+up = {**_base, "stepca_cert_max_lifetime_hours": "1128h"}
+check("an existing install's upgrade (upgrade_vars) takes it out and says so",
+      any("stepca_cert_max_lifetime_hours" in c for c in upgrade_vars(up, set()))
+      and "stepca_cert_max_lifetime_hours" not in up and refused(up) == "", up)
 
 print("--- how a service takes its renewed certificate (the reload table)")
 calls = []

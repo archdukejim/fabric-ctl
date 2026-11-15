@@ -1118,6 +1118,7 @@ file	fabriclib-setup|src/fabriclib/setup/detach/write_handoff.py	96
 file	fabriclib-setup|src/fabriclib/setup/detach/write_run.py	97	
 file	fabriclib-setup|src/fabriclib/setup/detect_network.py	15	
 file	fabriclib-setup|src/fabriclib/setup/doctor_report.py	41	
+file	fabriclib-setup|src/fabriclib/setup/drop_old_authority_max.py	154	
 file	fabriclib-setup|src/fabriclib/setup/drop_retired_settings.py	103	
 file	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py	42	
 file	fabriclib-setup|src/fabriclib/setup/export_install.py	16	
@@ -3106,8 +3107,10 @@ function	fabriclib-pki|src/fabriclib/pki/cert_warnings.py|cert_warnings	2
 function	fabriclib-pki|src/fabriclib/pki/certs_overview.py|certs_overview	1	
 function	fabriclib-pki|src/fabriclib/pki/check_cert_lifetimes.py|_days	1	
 function	fabriclib-pki|src/fabriclib/pki/check_cert_lifetimes.py|acme_days	3	
+function	fabriclib-pki|src/fabriclib/pki/check_cert_lifetimes.py|authority_hours	6	
 function	fabriclib-pki|src/fabriclib/pki/check_cert_lifetimes.py|authority_max_hours	4	
 function	fabriclib-pki|src/fabriclib/pki/check_cert_lifetimes.py|check_cert_lifetimes	2	
+function	fabriclib-pki|src/fabriclib/pki/check_cert_lifetimes.py|given_authority_hours	5	
 function	fabriclib-pki|src/fabriclib/pki/common/artifacts_dir.py|artifacts_dir	1	
 function	fabriclib-pki|src/fabriclib/pki/common/ca_chain_pem.py|ca_chain_pem	1	
 function	fabriclib-pki|src/fabriclib/pki/common/ca_files.py|ca_files	1	
@@ -3511,6 +3514,7 @@ function	fabriclib-setup|src/fabriclib/setup/detach/write_run.py|write_run	1
 function	fabriclib-setup|src/fabriclib/setup/detect_network.py|detect_network	1	
 function	fabriclib-setup|src/fabriclib/setup/doctor_report.py|_checks	2	
 function	fabriclib-setup|src/fabriclib/setup/doctor_report.py|doctor_report	1	
+function	fabriclib-setup|src/fabriclib/setup/drop_old_authority_max.py|drop_old_authority_max	1	
 function	fabriclib-setup|src/fabriclib/setup/drop_retired_settings.py|drop_retired_settings	1	
 function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|_call	4	
 function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|_ensure_roles	2	

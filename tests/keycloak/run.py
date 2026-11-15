@@ -561,6 +561,35 @@ check("any: a person with neither is made to enrol TOTP (and choose a password),
       sorted(seen) == ["password", "totp"] and "code=" in location, (seen, location[:120], page[:300]))
 converge_with(signin_everyone_second_factor="none")
 
+# ---- a client made by hand in Keycloak's console is left as it was (2.1.6.121)
+flows = {f["alias"]: f["id"] for f in kc.call("GET", f"{R}/authentication/flows")[1]}
+kc.call("POST", f"{R}/clients", {"clientId": "hand-made", "name": "made by hand", "protocol": "openid-connect",
+                                 "publicClient": False, "redirectUris": ["https://hand.lan.test/cb"],
+                                 "description": "an admin's", "attributes": {"hand.note": "keep me"},
+                                 "authenticationFlowBindingOverrides": {"browser": flows["fabric-admin-signin"]}})
+spnego = next(e for e in kc.call("GET", f"{R}/authentication/flows/fabric-admin-signin/executions")[1]
+              if e.get("providerId") == "auth-spnego")
+kc.call("DELETE", f"{R}/authentication/executions/{spnego['id']}")   # the admin flow's shape changed: setup rebuilds it
+rebuild = converge_with()
+check("setup re-run with the admin flow changed by hand: it rebuilds the flow and completes",
+      rebuild.returncode == 0 and "complete" in rebuild.stdout
+      and "rebuilt the sign-in flow fabric-admin-signin" in rebuild.stdout,
+      (rebuild.stdout[-500:], rebuild.stderr[-800:]))
+hand = kc.call("GET", f"{R}/clients?clientId=hand-made")[1]
+new_flows = {f["alias"]: f["id"] for f in kc.call("GET", f"{R}/authentication/flows")[1]}
+check("setup leaves a hand-made client as it was, and keeps it on the admin flow it rebuilt",
+      len(hand) == 1 and hand[0]["description"] == "an admin's"
+      and hand[0]["redirectUris"] == ["https://hand.lan.test/cb"]
+      and hand[0]["attributes"].get("hand.note") == "keep me"
+      and new_flows["fabric-admin-signin"] != flows["fabric-admin-signin"]
+      and hand[0]["authenticationFlowBindingOverrides"].get("browser") == new_flows["fabric-admin-signin"],
+      ([(k, hand[0].get(k)) for k in ("description", "attributes", "authenticationFlowBindingOverrides")]
+       if hand else hand, flows, new_flows))
+check("fabric's own client follows the rebuilt admin flow too",
+      kc.call("GET", f"{R}/clients?clientId=fabric-webui")[1][0]["authenticationFlowBindingOverrides"].get("browser")
+      == new_flows["fabric-admin-signin"])
+kc.call("DELETE", f"{R}/clients/{hand[0]['id']}")
+
 # ---- apps signing people in through Keycloak (fabricctl sso, manual 4.6.2)
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.keycloak.add_app_client import add_app_client  # noqa: E402
