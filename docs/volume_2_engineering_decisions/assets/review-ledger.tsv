@@ -46,7 +46,7 @@ docs/volume_1_description_and_architecture/1.17.10-fabriclib-dns.md	2f72f9c68c91
 docs/volume_1_description_and_architecture/1.17.11-fabriclib-dns_filter.md	fd6e465296352db237468f001ba7692ba1a10385	2026-11-08	
 docs/volume_1_description_and_architecture/1.17.12-fabriclib-federation.md	84d0517d464e7b9579ff4dc5abcd78d0bd8c0c0a	2026-11-04	
 docs/volume_1_description_and_architecture/1.17.13-fabriclib-images.md	9e5b05193a2ba2dbbc1a46281395978d0f88fb1d	2026-11-04	
-docs/volume_1_description_and_architecture/1.17.14-fabriclib-keycloak.md	6a316ca84b97031db951f37217b6fbb28744766f	2026-11-04	
+docs/volume_1_description_and_architecture/1.17.14-fabriclib-keycloak.md	259c4ef354bb8bf0a8d41fa2df7eea99b525c3a4	2026-11-15	
 docs/volume_1_description_and_architecture/1.17.15-fabriclib-ldap.md	b418f2836a0b1c7a8d6f591eb39a697a5b34fadb	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.16-fabriclib-logs.md	1d09ba3f340ccde109a2622ae98555f704124abe	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.17-fabriclib-menu.md	4589150a9d2953beeed9bb8950a394dc3de4c98f	2026-10-23	
@@ -112,7 +112,7 @@ docs/volume_1_description_and_architecture/1.6.10-security.md	8d627ab12c234c4d60
 docs/volume_1_description_and_architecture/1.6.11-host-access.md	e659a1c5370235909d5ff30d657c5588bf5e1592	2026-11-06	
 docs/volume_1_description_and_architecture/1.6.12-domain-management.md	f4d55e09bd438e2be4694ce137c1dcff38580283	2026-11-07	
 docs/volume_1_description_and_architecture/1.6.13-access-by-grants.md	8f01c1358693358083775c84b8db84875cf0fa35	2026-11-14	
-docs/volume_1_description_and_architecture/1.6.2-keycloak.md	5d6234a93358b0e67a425974ae530197b6248300	2026-11-10	
+docs/volume_1_description_and_architecture/1.6.2-keycloak.md	5202f8c958d098272093da3c913067fc82d75b65	2026-11-15	
 docs/volume_1_description_and_architecture/1.6.3-samba-directory.md	3933cfd116ae5bc8972526ce0b10c1afe33ed336	2026-11-04	
 docs/volume_1_description_and_architecture/1.6.4-samba-ad.md	a0962a724db0ba9c74a562d70d742c061e9f9db4	2026-10-20	
 docs/volume_1_description_and_architecture/1.6.5-samba-dc.md	222850f5f8387d85c675922958a0e99dcbfb65f6	2026-11-04	
@@ -154,7 +154,7 @@ docs/volume_2_engineering_decisions/2.1.2-architecture.md	b0e0763e59da76eff03f42
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	a2dc65acd29b572c2207502c4de551053f4f81b4	2026-11-02	
 docs/volume_2_engineering_decisions/2.1.4-dns.md	2e51092877945f7f3059eb48c46e48f39b5fcf6d	2026-11-14	
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	7e0829b303df6f0f0ec3c9cc0d5bf70d96794605	2026-11-11	
-docs/volume_2_engineering_decisions/2.1.6-identity.md	7f5c4d589081804c503cb9f1960f197514c6578a	2026-11-10	
+docs/volume_2_engineering_decisions/2.1.6-identity.md	f8bd232a2f3a983435eb2cf0f86bae9c49a84401	2026-11-15	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
 docs/volume_2_engineering_decisions/2.1.8-webui.md	1d46c13d254e1d3b374d433a768a3af3ae2937dd	2026-11-10	
 docs/volume_2_engineering_decisions/2.1.9-federation.md	cd669c8882d4f654fa2246c5cbf4604d785544fb	2026-10-31	
@@ -1167,7 +1167,7 @@ src/fabriclib/keycloak/ensure_ldap_federation.py	5abe285ef7e4094502c753e252bcfd5
 src/fabriclib/keycloak/ensure_openbao_client.py	aaa5dde92c3e0978d1277e54d8d01583b81f31ae	2026-10-07	
 src/fabriclib/keycloak/ensure_rbac_roles.py	1ebabbdc918dce425cfd4bebbd9ddbaa01f95c75	2026-10-09	
 src/fabriclib/keycloak/ensure_realm.py	1ffb6d3973fca76674a753f93a2a7522e52e11d5	2026-10-02	
-src/fabriclib/keycloak/ensure_signin_flows.py	f892da054da8ec4acfe294ec836c476a302310e2	2026-10-20	
+src/fabriclib/keycloak/ensure_signin_flows.py	d6a186881434264fb70f7a15e6169a65aeff9976	2026-11-15	
 src/fabriclib/keycloak/ensure_user_profile.py	3014e7e8b936e968fb2e4468dd2ef7516bedc140	2026-10-20	
 src/fabriclib/keycloak/ensure_webui_client.py	3792d44f10c940951ed6a6a7d4dc4d1744c08925	2026-10-07	
 src/fabriclib/keycloak/fabric_groups.py	c31d9cc93440762c0713b525315236a987701e86	2026-10-20	
@@ -2270,7 +2270,7 @@ tests/kea/reload.py	e7cc86840cd099792826737de9218b839b24c6c7	2026-10-25
 tests/kea/run.py	560c5ef3206d278d20b049ae7b3331eec9a3ce5e	2026-11-08	
 tests/kea/scan.py	a2886cb628f60b0443b8e5b49c20e4474b834d5b	2026-10-25	
 tests/keycloak/README.md	55bf0779666050bc9febb2d9c86957665c1d3d0d	2026-10-08	
-tests/keycloak/run.py	69a39b55a940c0f70f9eabdf82ba50f53a0c9e8c	2026-11-04	
+tests/keycloak/run.py	3c6ba257671435cdb08885bcdbed5c940123842a	2026-11-15	
 tests/keycloak/soft_passkey.py	51ec49de47ee87f347e246b14acf0eb5f20cb512	2026-10-08	
 tests/lab/README.md	413e89a175759b2cd14d387f37f282ba558e9cae	2026-11-11	
 tests/lab/console_session.py	fc724414d441c7ffcb843cf3ef94cffbf0d08af4	2026-10-24	
