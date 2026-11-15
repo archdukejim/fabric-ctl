@@ -4,7 +4,7 @@ local data (split_answers), the zone file without them (default_records), BIND's
 signed requests, this host and fabric's containers, every network but the split VLANs'; each VLAN's view sharing
 every zone with in-view and answering from its RPZ) and nothing changed for a site without them, and the resolver's
 views (a group's clients in such a VLAN first, then the groups, the VLANs, everyone). Pure render; no container
-(BIND taking the views is the 0.10.0 testing's, 2.1.1.101).
+(BIND taking the views is the 0.10.0 testing's, 2.1.1.102).
 
     python3 tests/dns/split/split_answers_test.py
 """
