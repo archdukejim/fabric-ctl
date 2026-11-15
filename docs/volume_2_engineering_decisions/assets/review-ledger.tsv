@@ -162,7 +162,7 @@ docs/volume_2_engineering_decisions/2.2.1-product-troubleshooting.md	020c264ac36
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	47781d326675ad28c220093d80a54d49a92eb1e4	2026-11-15	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	7797d0fefd8a4c57d13e5adb1eba2f221403f217	2026-11-15	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	8d0e6dc9f88453889dccc29f981ca3ee730702f4	2026-10-29	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	94fc068a1015d887dbbc7e0d3e24724376cdc280	2026-11-07	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -2402,7 +2402,7 @@ tests/sandbox/agent_job.py	f1d402de290c6ee1294fd2d24d2aea6cb205faca	2026-10-23
 tests/sandbox/certs_page_test.sh	b3d79a28e1f027af88484153d7c5ea31e3b871f8	2026-10-23	
 tests/sandbox/iterate.sh	8be80562d8c2adf70ec0ac9f8ed094c5bc1cdb0c	2026-10-03	
 tests/sandbox/list_roles.py	857dc28e0a40f95853048b691a117befa804aff3	2026-10-05	
-tests/sandbox/login_test.py	0d07a095f208074c698781dc6e1aa4d213efb710	2026-10-25	
+tests/sandbox/login_test.py	693001338a161c41f56b3dc7fa5e2093806d867c	2026-11-15	
 tests/sandbox/make_person.py	f778029f1dfc122927b454149f21fda1c884cdf7	2026-10-05	
 tests/sandbox/move.sh	f2525a241b5b1d054a51893a5ab2b408349df04f	2026-10-21	
 tests/sandbox/move_state.py	249c0e51bba5f789c7dec6aa7a9366755b6b81fa	2026-10-20	
