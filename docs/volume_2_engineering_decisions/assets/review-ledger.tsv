@@ -873,7 +873,7 @@ src/fabriclib/dns/set_record_link.py	87508f56dcb5b9504132c3ca939e02b84058aab9	20
 src/fabriclib/dns/split/README.md	1c6dca46774cdbd44e85686fc140a706094d414f	2026-11-15	
 src/fabriclib/dns/split/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-11-14	
 src/fabriclib/dns/split/default_records.py	f3a18ac3514066063941bae69b8c21c870880327	2026-11-14	
-src/fabriclib/dns/split/record_vlan.py	9991710a98b94df66f403b41ea8b11e5033c310d	2026-11-15	
+src/fabriclib/dns/split/record_vlan.py	d9512a3947697b4ddec05105a299fb3b560af3ea	2026-11-15	
 src/fabriclib/dns/split/split_answers.py	0e61ce4106fca088badd15451f4f3e47114ad995	2026-11-14	
 src/fabriclib/dns/split/split_needs_filter.py	c8ec3b034e544a2c4c46c5ec65b071021da5bb5a	2026-11-15	
 src/fabriclib/dns/sync_status.py	a73f4e9cf9c7c2ecef0ace2725998513353e1d15	2026-10-02	

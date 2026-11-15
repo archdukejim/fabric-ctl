@@ -16,7 +16,8 @@ def record_vlan(key, rtype, record, form, zone, index=None, plan=None, dns_filte
              plan — the site's plan (default: the copy this site last read); dns_filter — the site's setting
              (bind or none; unset counts as bind).
     Returns: record, with "vlan" (the VLAN's reference) when one was given.
-    Fails:   ValidationError: the DNS filter off; a VLAN that is not one; one the site's plan does not have; a VLAN in a reverse zone;
+    Fails:   ValidationError: the DNS filter off; a VLAN that is not one; one the site's plan does not have; a VLAN
+             in a reverse zone;
              a CNAME clash for that VLAN.
     Feeds:   add_record, update_record."""
     text = str(form.get("vlan") or "").strip()
