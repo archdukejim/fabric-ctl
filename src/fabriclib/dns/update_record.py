@@ -48,7 +48,8 @@ def update_record(actor, key, rtype, index, expected_name, form, source="cli"):
             fqdn = data.get("domain") if expected_name == "@" else f"{expected_name}.{data.get('domain')}"
             raise ValidationError(f"{fqdn} is provided by fabric ({own['service']}, from the setting "
                                   f"{own['setting']}): every apply adds it back, so it cannot be changed here")
-        new = record_vlan(key, rtype, new, form, data["dns"][key], index)      # one VLAN's own (2.1.4.16)
+        new = record_vlan(key, rtype, new, form, data["dns"][key], index,     # one VLAN's own (2.1.4.16)
+                          dns_filter=data.get("dns_filter"))
         new = {**new, **{k: old[k] for k in KEPT if k in old and k not in new}}
         if new == old:
             raise ValidationError("nothing to change: the record is already so")

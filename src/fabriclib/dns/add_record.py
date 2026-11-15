@@ -35,7 +35,7 @@ def add_record(actor, key, rtype, form, source="cli"):
         zone = (data.get("dns") or {}).get(key)
         if zone is None:
             raise ValidationError("unknown zone")
-        record = record_vlan(key, rtype, record, form, zone)    # one VLAN's own answer (2.1.4.16)
+        record = record_vlan(key, rtype, record, form, zone, dns_filter=data.get("dns_filter"))   # 2.1.4.16
         existing = zone.setdefault(rtype, [])
         if rtype == "CNAME" and any(r.get("name") == record["name"] and r.get("vlan") == record.get("vlan")
                                     for r in existing):

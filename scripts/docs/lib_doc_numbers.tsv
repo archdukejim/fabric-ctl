@@ -526,6 +526,7 @@ file	fabriclib-dns|src/fabriclib/dns/set_record_link.py	39
 file	fabriclib-dns|src/fabriclib/dns/split/default_records.py	65	
 file	fabriclib-dns|src/fabriclib/dns/split/record_vlan.py	66	
 file	fabriclib-dns|src/fabriclib/dns/split/split_answers.py	67	
+file	fabriclib-dns|src/fabriclib/dns/split/split_needs_filter.py	68	
 file	fabriclib-dns|src/fabriclib/dns/sync_status.py	27	
 file	fabriclib-dns|src/fabriclib/dns/tsig_key_mode.py	61	
 file	fabriclib-dns|src/fabriclib/dns/tsig_record_notice.py	62	
@@ -2585,6 +2586,8 @@ function	fabriclib-dns|src/fabriclib/dns/split/record_vlan.py|record_vlan	1
 function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|_qualified	1	
 function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|_rdata	2	
 function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|split_answers	3	
+function	fabriclib-dns|src/fabriclib/dns/split/split_needs_filter.py|split_names	1	
+function	fabriclib-dns|src/fabriclib/dns/split/split_needs_filter.py|split_needs_filter	2	
 function	fabriclib-dns|src/fabriclib/dns/sync_status.py|sync_status	1	
 function	fabriclib-dns|src/fabriclib/dns/tsig_key_mode.py|tsig_key_mode	1	
 function	fabriclib-dns|src/fabriclib/dns/tsig_record_notice.py|tsig_record_notice	1	

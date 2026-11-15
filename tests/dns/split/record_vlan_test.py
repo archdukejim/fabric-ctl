@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A record's VLAN, as typed (decision 2.1.4.16, manual 1.4.1.11): a VLAN of the site's plan, kept as its reference;
 refused, saying why: not a VLAN, a VLAN the plan has not, a reverse zone, a CNAME beside another record of the same
-name for the same VLAN (both ways); a record for everyone and one for a VLAN may share a name. Pure logic; no
+name for the same VLAN (both ways), the DNS filter off; a record for everyone and one for a VLAN may share a name. Pure logic; no
 container.
 
     python3 tests/dns/split/record_vlan_test.py
@@ -66,6 +66,14 @@ for name, fn, words in (
 check("positive: the same CNAME name for another VLAN is no clash",
       record_vlan("dynamic_zone_var", "CNAME", {"name": "files", "canonical": "nas"}, {"vlan": "10"}, ZONE,
                   plan=PLAN)["vlan"] == "10")
+
+check("negative: a VLAN with the DNS filter off: refused, saying why (2.1.4.16)",
+      refused(lambda: record_vlan("dynamic_zone_var", "A", A, {"vlan": "20"}, ZONE, plan=PLAN, dns_filter="none"),
+              "needs the DNS filter on") is True)
+check("positive: no VLAN with the DNS filter off: the record answers everyone",
+      record_vlan("dynamic_zone_var", "A", A, {}, ZONE, plan=PLAN, dns_filter="none") == A)
+check("positive: the filter unset counts as on",
+      record_vlan("dynamic_zone_var", "A", A, {"vlan": "20"}, ZONE, plan=PLAN, dns_filter=None)["vlan"] == "20")
 
 print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")
 sys.exit(1 if FAILED else 0)

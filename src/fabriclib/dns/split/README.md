@@ -6,4 +6,5 @@ Split DNS (decision 2.1.4.16, manual [1.4.1.11](../../../../docs/volume_1_descri
 |---|---|
 | `record_vlan.py` | A record's VLAN as typed, checked: a VLAN of the site's plan, a forward zone, no CNAME clash for that VLAN |
 | `split_answers.py` | The VLANs with answers of their own: each one's subnets, its view and RPZ names, its records as the RPZ's local data |
+| `split_needs_filter.py` | Refuses a record for one VLAN while the DNS filter is off (the AD zone is answered only through the resolver) |
 | `default_records.py` | A zone's records as everyone gets them: a VLAN's own left out |
