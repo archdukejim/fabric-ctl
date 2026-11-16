@@ -57,7 +57,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	6b4d2bfcc
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	6b230ac1ac6c601042d0888d164dde5ff2c3b93b	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	2db03a6c42354ee697dfcb19be1f64e723ac06de	2026-11-04	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	f0b93f4ea770fdb718e217f9128740bb5a3174f1	2026-11-16	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	880de0b6d01ee88af933de14a764e4d441ea6420	2026-11-16	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	b48a266b9c88d5f9cc0e693171e68b7e25150cf5	2026-11-16	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	1b3e14b4efd6ffbb95280a24c82a7f6a29b1f61e	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	b8b3320d383bce35fdc5f0e76107e3f638130d52	2026-11-14	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	ef0eaf5854c975ca84fbd27af2c17c78328ec055	2026-10-25	
@@ -1636,7 +1636,7 @@ src/fabriclib/setup/site/write_port_record.py	2454c1da74440241505e1c7f4a4cb29048
 src/fabriclib/setup/stage_source.py	fc569e4dbbec1547cbf74bb155ad3d2498c21c6b	2026-09-30	
 src/fabriclib/setup/start_bootstrap.py	cd55ee690beb024d64109b2ac4927bae129d17e7	2026-09-30	
 src/fabriclib/setup/start_services.py	e534caa2d8954b45b6bb9976878b0ed45893d21a	2026-10-23	
-src/fabriclib/setup/start_unit.py	a951012acef5e4a15e47788b4ed241319e73d23f	2026-10-24	
+src/fabriclib/setup/start_unit.py	bcee638ee8c29fe0f7c6ad68f462ebfc1996a976	2026-11-16	
 src/fabriclib/setup/steps.py	f43f4bace12ceb9095b3e8a318c1acc14c05ada1	2026-10-23	
 src/fabriclib/setup/uninstall.py	865838a57c11889c78621ac600a1ce389d98282d	2026-11-07	
 src/fabriclib/setup/upgrade_vars.py	2d4a5e92bea0f05fb7920f4834402ea029f253a6	2026-11-15	
@@ -2467,7 +2467,7 @@ tests/setup/site/site_account_test.py	95d507f6a4532b048d1e6472a63361908fc3f8f9	2
 tests/setup/site/site_probe.py	22ed459097abd71a6a189eb0ba6b4d7ef47f907a	2026-11-08	
 tests/setup/site/site_test.py	055b9242d67fab20bf1bda377a5a50ac7601ab54	2026-11-08	
 tests/setup/site/support.py	ed753a3a9a481d256ec6897ea98603d1beae66cf	2026-11-08	
-tests/setup/start_unit_test.py	fe214622d907b1d7208054646c12b5186ef75fc3	2026-10-24	
+tests/setup/start_unit_test.py	5832c0c60a08729ae851c9c0cca445eee3423c91	2026-11-16	
 tests/setup/uninstall_test.py	fc0730999854b3cf6e846d1b161c4d7ceae5be0f	2026-10-31	
 tests/setup/vars-0.7.1.yaml	988e48eafcdc0c10745577d3857ce93063ef07fd	2026-10-20	
 tests/setup/wait_ready_test.py	a0445caeaa3ccaf03445547420a2276742423766	2026-10-31	

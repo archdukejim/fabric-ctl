@@ -23,9 +23,10 @@ def check(name, cond, detail=""):
     print(("PASS " if cond else "FAIL ") + name + ("" if cond else f"  -> {detail}"))
 
 
-def run(states, restart, final_active=True):
-    """start_unit over a unit whose `systemctl show` answers states in turn; returns (result, systemctl verbs)."""
-    seen, left = [], list(states)
+def run(states, restart, final_active=True, fails=0):
+    """start_unit over a unit whose `systemctl show` answers states in turn, its first `fails` starts or restarts
+    failing; returns (result, systemctl verbs)."""
+    seen, left, failing = [], list(states), [fails]
 
     def sysrun(cmd, **kw):
         verb = cmd[1]
@@ -35,6 +36,11 @@ def run(states, restart, final_active=True):
         seen.append(verb)
         if verb == "is-active":
             return subprocess.CompletedProcess(cmd, 0 if final_active else 3)
+        if verb in ("start", "restart") and failing[0]:
+            failing[0] -= 1
+            if kw.get("check"):
+                raise subprocess.CalledProcessError(1, cmd)
+            return subprocess.CompletedProcess(cmd, 1, "", "")
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
     real_run, real_wait, real_sleep = su.subprocess.run, su.wait_healthy, su.time.sleep
@@ -66,5 +72,17 @@ finally:
     su.time.monotonic = real
 check("negative: a start that never ends is waited for only until the timeout, then handled as not active",
       res == "started" and "stop" in seen, (res, seen))
+res, seen = run([("active", "running"), ("activating", "start"), ("active", "running")], restart=True, fails=1)
+check("positive: a restart cut short by systemd re-executing (2.3.1.57) is waited for; the unit systemd started "
+      "again goes on to its health check, with no second start",
+      res == "restarted" and seen.count("restart") == 1 and "start" not in seen, (res, seen))
+res, seen = run([("active", "running"), ("failed", "failed")], restart=True, fails=1)
+check("negative: a cut-short restart after which the unit is down: its failed state cleared, started once more",
+      res == "restarted" and seen[-2:] == ["reset-failed", "start"], (res, seen))
+try:
+    run([("failed", "failed")], restart=False, final_active=False, fails=2)
+    check("negative: a unit that fails its second start too is an error", False, "no error")
+except subprocess.CalledProcessError:
+    check("negative: a unit that fails its second start too is an error (CalledProcessError)", True)
 print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")
 sys.exit(1 if FAILED else 0)

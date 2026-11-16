@@ -42,11 +42,14 @@ def start_unit(unit, container, restart):
     """Purpose: enable a fabric unit (links it into multi-user.target and fabric.target), start or restart it,
              and wait for its container to be healthy (its failed state cleared first, so systemd's start limit
              never refuses the start; a unit that is not cleanly active is stopped first, ending any restart loop;
-             a unit systemd is already starting or stopping is waited for first, never interrupted).
+             a unit systemd is already starting or stopping is waited for first, never interrupted; a start cut
+             short from outside, as by systemd re-executing, is waited for and tried once more only if the unit
+             did not come up by itself).
     Inputs:  unit — systemd unit name; container — its container name; restart — bool, restart when already
              active (config, certificate or image changed).
     Returns: "running" (active and no restart asked; health not checked), "started" or "restarted".
-    Fails:   CalledProcessError from `systemctl enable/start/restart`; SetupError when the container is not healthy
+    Fails:   CalledProcessError from `systemctl enable`, or from the second start when the first failed and the unit
+             did not come up; SetupError when the container is not healthy
              within 900 s (last 40 log lines included).
     Feeds:   start_services.run, setup_openbao.run, images.switch_image."""
     subprocess.run(["systemctl", "enable", unit], check=True, capture_output=True)
@@ -60,7 +63,13 @@ def start_unit(unit, container, restart):
     if not active:
         subprocess.run(["systemctl", "stop", unit], capture_output=True)
     subprocess.run(["systemctl", "reset-failed", unit], capture_output=True)
-    subprocess.run(["systemctl", "restart" if active else "start", unit], check=True)
+    if subprocess.run(["systemctl", "restart" if active else "start", unit]).returncode != 0:
+        # the start was cut short from outside: systemd re-executed mid-start (unattended-upgrades upgrading a library
+        # it links, the 0.10.0 rehearsal's bind9, 2.3.1.57) killed its control process, and systemd started the unit
+        # again itself. Waited for; a unit that ends active goes on to its health check, else one more start.
+        if _settled(unit)[0] != "active":
+            subprocess.run(["systemctl", "reset-failed", unit], capture_output=True)
+            subprocess.run(["systemctl", "start", unit], check=True)
     healthy, why = wait_healthy(container, timeout=900)
     if not healthy:
         logs = subprocess.run(["docker", "logs", "--tail", "40", container], capture_output=True, text=True)
