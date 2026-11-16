@@ -5,6 +5,7 @@ import subprocess
 from fabriclib.common.keep_original import ORIGINALS
 from fabriclib.security.apply_ping_rules import BEFORE, BEFORE6
 from fabriclib.security.host_own_rules import OWN_RULES
+from fabriclib.security.ufw_own_rule_args import ufw_own_rule_args
 from fabriclib.security.ufw_rule import RECORDS, ufw_rule
 
 UNIT = "/etc/systemd/system/fabric-firewall.service"
@@ -43,9 +44,14 @@ def undo_firewall(config_dir):
     own = os.path.join(config_dir, OWN_RULES)          # the host's own rules fabric removed (2.1.2.13): put back
     if os.path.exists(own):
         for rule in open(own).read().splitlines():
-            if rule.startswith("ufw "):
-                subprocess.run(["ufw", *rule.split()[1:]], capture_output=True)
-                done.append(f"ufw: the host's own rule put back: {rule}")
+            args = ufw_own_rule_args(rule)
+            if args:
+                res = subprocess.run(["ufw", *args], capture_output=True, text=True)
+                if res.returncode == 0:
+                    done.append(f"ufw: the host's own rule put back: {rule}")
+                    continue
+                why = ((res.stderr or res.stdout or "").strip().splitlines() or ["ufw failed"])[0]
+                done.append(f"ufw: could not put back the host's own rule {rule}: {why}; add it with ufw yourself")
         os.remove(own)
     for name, path in (("ufw.before.rules", BEFORE), ("ufw.before6.rules", BEFORE6)):   # ping (2.1.10.56)
         kept = os.path.join(config_dir, ORIGINALS, name)

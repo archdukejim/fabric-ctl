@@ -1033,6 +1033,7 @@ file	fabriclib-security|src/fabriclib/security/set_signin_layer.py	8
 file	fabriclib-security|src/fabriclib/security/signin_layers.py	9	
 file	fabriclib-security|src/fabriclib/security/ssh_ports.py	5	
 file	fabriclib-security|src/fabriclib/security/ufw_active.py	11	
+file	fabriclib-security|src/fabriclib/security/ufw_own_rule_args.py	15	
 file	fabriclib-security|src/fabriclib/security/ufw_rule.py	4	
 file	fabriclib-settings|src/fabriclib/settings/apply_settings.py	1	
 file	fabriclib-settings|src/fabriclib/settings/check_wizard_value.py	2	
@@ -3343,6 +3344,7 @@ function	fabriclib-security|src/fabriclib/security/signin_layers.py|read_lowered
 function	fabriclib-security|src/fabriclib/security/signin_layers.py|signin_rows	4	
 function	fabriclib-security|src/fabriclib/security/ssh_ports.py|ssh_ports	1	
 function	fabriclib-security|src/fabriclib/security/ufw_active.py|ufw_active	1	
+function	fabriclib-security|src/fabriclib/security/ufw_own_rule_args.py|ufw_own_rule_args	1	
 function	fabriclib-security|src/fabriclib/security/ufw_rule.py|ufw_rule	1	
 function	fabriclib-settings|src/fabriclib/settings/apply_settings.py|_log_forwarding	1	
 function	fabriclib-settings|src/fabriclib/settings/apply_settings.py|apply_settings	2	

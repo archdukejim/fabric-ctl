@@ -14,6 +14,7 @@ from fabriclib.security.firewall_rules import firewall_rules
 from fabriclib.security.host_own_rules import OWN_RULES, host_own_rules
 from fabriclib.security.ssh_ports import ssh_ports
 from fabriclib.security.ufw_active import ufw_active
+from fabriclib.security.ufw_own_rule_args import ufw_own_rule_args
 from fabriclib.security.ufw_rule import RECORDS, ufw_rule
 from fabriclib.setup.errors import SetupError
 from fabriclib.setup.site.keep_site_port import keep_site_port
@@ -156,8 +157,15 @@ def run(ctx):
         warn(f"host firewall: removing {len(own)} rule(s) of this host's own (own_rules, 2.1.2.24); kept for uninstall "
              f"to put back, or now: sudo fabricctl setup --undo firewall")
         for r in own:
-            subprocess.run(["ufw", "delete", *r.split()[1:]], capture_output=True)
-            warn(f"host firewall: removed the host's own rule: {r}")
+            args = ufw_own_rule_args(r)
+            res = subprocess.run(["ufw", "delete", *args], capture_output=True, text=True) if args else None
+            if res is not None and res.returncode == 0:
+                warn(f"host firewall: removed the host's own rule: {r}")
+                continue
+            # said, never claimed: the rule is still there (2.3.1.57)
+            why = ((res.stderr or res.stdout or "ufw failed").strip().splitlines() or ["ufw failed"])[0] if res \
+                else "not a ufw rule"
+            warn(f"host firewall: could not remove the host's own rule {r}: {why}; it stays (remove it with ufw)")
     subprocess.run(["ufw", "--force", "enable"], check=True, capture_output=True)
     ping = apply_ping_rules(ctx.vars, ctx.config_dir)       # 2.1.10.56: ping from the networks the rules allow
     if ping["changed"]:

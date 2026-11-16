@@ -56,7 +56,7 @@ docs/volume_1_description_and_architecture/1.17.2-fabricctl-agent.md	88c2c607aef
 docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	6b4d2bfcc894efce5ce044d11045d559439473c2	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	6b230ac1ac6c601042d0888d164dde5ff2c3b93b	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	2db03a6c42354ee697dfcb19be1f64e723ac06de	2026-11-04	
-docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	596cda79e74955b2c051ba600800975f89984688	2026-11-14	
+docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	f0b93f4ea770fdb718e217f9128740bb5a3174f1	2026-11-16	
 docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	880de0b6d01ee88af933de14a764e4d441ea6420	2026-11-16	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	1b3e14b4efd6ffbb95280a24c82a7f6a29b1f61e	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	b8b3320d383bce35fdc5f0e76107e3f638130d52	2026-11-14	
@@ -162,7 +162,7 @@ docs/volume_2_engineering_decisions/2.2.1-product-troubleshooting.md	020c264ac36
 docs/volume_2_engineering_decisions/2.2.2-architecture-troubleshooting.md	0db3f3627c26662a728f2f433fd7670e86c33f95	2026-11-01	
 docs/volume_2_engineering_decisions/2.2.6-keycloak-gotchas.md	7997b28a9ff4b58f2bcef5ae7bdf8f7798b89e21	2026-10-08	
 docs/volume_2_engineering_decisions/2.2.8-webui-troubleshooting.md	4b55ea2f97f7686c104f46152df960b625db4c0b	2026-10-23	
-docs/volume_2_engineering_decisions/2.3.1-product-notes.md	701b471723ab22a59b780eaef7a10a5b240c0844	2026-11-16	
+docs/volume_2_engineering_decisions/2.3.1-product-notes.md	9513218af56eda8ae6f3b93127fcf4cddab13700	2026-11-16	
 docs/volume_2_engineering_decisions/2.3.10-dhcp-notes.md	8d0e6dc9f88453889dccc29f981ca3ee730702f4	2026-10-29	
 docs/volume_2_engineering_decisions/2.3.11-radius-notes.md	94fc068a1015d887dbbc7e0d3e24724376cdc280	2026-11-07	
 docs/volume_2_engineering_decisions/2.3.12-dns-filter-notes.md	3d4caf6eef53d873ff4365ecab71f8fe6aa73141	2026-10-10	
@@ -299,7 +299,7 @@ scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03
 scripts/docs/draw_setup_site.py	05ae330e46df71385ba6b228c585d46396f76b18	2026-11-07	
 scripts/docs/entrypoints.py	dad36de00b3605164c5b6f5198c153bb58dfd0f1	2026-11-08	
 scripts/docs/gen_lib_doc.py	d7a3c1284ca3a30af61353d41f5a9d2a1457a325	2026-10-12	
-scripts/docs/lib_doc_numbers.tsv	0435ca401a1090f8d595085c5b41005946a1b03c	2026-11-15	
+scripts/docs/lib_doc_numbers.tsv	61927962c7f2e1128f2955b2d65a965c8b699c2a	2026-11-16	
 scripts/docs/lib_doc_registry.py	a3a407c2b06b44838c4ce7a69725c4d47339f437	2026-10-17	
 scripts/docs/product_code.py	645a3bb130463028b90de64798c81694e5293131	2026-10-03	
 scripts/docs/review_ledger.py	b3f307b4dbaba54a69cc93c993287d43c747ba8f	2026-10-08	
@@ -1460,6 +1460,7 @@ src/fabriclib/security/set_signin_layer.py	eefb5bbca32cfca1d27c9f45f7e70b8df1652
 src/fabriclib/security/signin_layers.py	57dcd4a7bcbd0b7f3319712669e45b3c4f7d1552	2026-10-23	
 src/fabriclib/security/ssh_ports.py	3859ae3af3751fd7b40409678ada25e3846fb239	2026-10-06	
 src/fabriclib/security/ufw_active.py	4df4d7a717e39337e43b1533756dae584621aaea	2026-10-08	
+src/fabriclib/security/ufw_own_rule_args.py	0f2b38524a116bc123e3cef27449736afbfce967	2026-11-16	
 src/fabriclib/security/ufw_rule.py	069d2f9b40aaff56779a023f791f4983b316826c	2026-10-06	
 src/fabriclib/settings/README.md	525f0aea8dea2fee946938366e93d4f3e7389bf5	2026-10-23	
 src/fabriclib/settings/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-17	
@@ -1532,7 +1533,7 @@ src/fabriclib/setup/common/sssd_sockets.py	6be80de914c99294e4142891d3a0236e54d8b
 src/fabriclib/setup/common/sync_host_managed.py	bd339b6efd340954dd38ddba9fa63a20e4441c7b	2026-10-20	
 src/fabriclib/setup/common/valid_setting.py	4de850a92f562b4c72745c8ead54136a2a9a389e	2026-10-20	
 src/fabriclib/setup/condition_host.py	1ba436a6447e2b17a040c5e98fcbf67fd0311197	2026-10-12	
-src/fabriclib/setup/configure_firewall.py	acd22a0419c985cdea22c40fa17faa590e65453b	2026-11-14	
+src/fabriclib/setup/configure_firewall.py	dbbffc026d7114c66e3d3311935ca49f4fd3a6c8	2026-11-16	
 src/fabriclib/setup/configure_network.py	779fccd8fa0c0082fcb66a293ffaf3236028c1a3	2026-10-09	
 src/fabriclib/setup/context.py	21e9d21c47976297951a121b9e4d5ad9ce534d55	2026-10-13	
 src/fabriclib/setup/create_accounts.py	6a00e2ccb00ac2af3dfcd57b0a81b13514dabcf1	2026-10-20	
@@ -1670,7 +1671,7 @@ src/fabriclib/system/version_info.py	c05a45a89adb3648b63ead50bdd9a9ffbccd4cc6	20
 src/fabriclib/undo/README.md	a8862da3f79379ad356d963690169ad91c94611f	2026-10-12	
 src/fabriclib/undo/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-03	
 src/fabriclib/undo/remove_host_account.py	53e221a3b5bfd5e7bb6a93dfc4839524773b5600	2026-11-01	
-src/fabriclib/undo/undo_firewall.py	28a690abf5143fbd215f0799ad1424d6d5bf4ec0	2026-11-14	
+src/fabriclib/undo/undo_firewall.py	077f34f38b01c564c3c4ed20ec6c9f272109fcb4	2026-11-16	
 src/fabriclib/undo/undo_group.py	d108efd2c2e5c095e74c47759dc20ed35d869930	2026-10-23	
 src/fabriclib/undo/undo_member.py	bfc170bf47a5e06ab5b082ef80164248ee589de3	2026-10-31	
 src/fabriclib/undo/undo_resolver.py	0f63e90144cfcd4a33f900817520465067936eed	2026-10-08	
@@ -2371,7 +2372,7 @@ tests/resolver/console.py	30e6bfb2adc8a05c8914afb7b110781bef8f0276	2026-11-08
 tests/resolver/groups.py	5e317666ba1567ea2e4d0629061af57d292a1e4a	2026-10-25	
 tests/resolver/querylog.py	0378e80e7fa13e77534999301e31df4fea7bd779	2026-10-31	
 tests/resolver/run.py	73ed914152c7b7af09b8e0b121e422104aad32f2	2026-10-29	
-tests/run-all.sh	e415ab04e1812cf918e3b2065372448dc9f759f3	2026-11-15	
+tests/run-all.sh	9f62bf0ec3fd4561d197818cc9ee9565f5615cae	2026-11-16	
 tests/samba/README.md	82f7a75dcff226999a918a8f36bf6a3d2d1e6558	2026-11-05	
 tests/samba/acl_entries_test.py	17613db26e83d400d26c826e42a4927fe9355681	2026-11-03	
 tests/samba/dc.py	36f6ea3e78877acc398e20e699055c868ddde23e	2026-11-04	
@@ -2419,8 +2420,9 @@ tests/sandbox/size_load.py	b5b72d63af1b6be75ec92ae2e1ea613e888c5bc4	2026-11-04
 tests/sandbox/size_measure.sh	16d3bcf81bcd242df17563b87445693108625629	2026-11-03	
 tests/sandbox/web_guided.sh	3204c31ae9ff41370f01ffe0bba19d0b9e7f30ba	2026-11-07	
 tests/sandbox/web_guided_drive.py	6f81da45a8047b06ba79816a99d5af305fd6f9a9	2026-11-08	
-tests/security/README.md	5181e9d08a03731704c2b1580b9901a2206849ad	2026-10-07	
+tests/security/README.md	5036817c39b909042171b50dcc6f7415881a3d2b	2026-11-16	
 tests/security/run.py	c73640fe654e4648a2592142655c1accd55fed03	2026-10-12	
+tests/security/ufw_own_rule_args_test.py	0d941b594487ae236ca1f56407d21fed87636d9d	2026-11-16	
 tests/settings/README.md	fe8cdeb50d57df5b0accee46d31aff967d27a9f8	2026-10-23	
 tests/settings/console.py	b196bb4978b9340b0f6e9964c4f7677f9ebc8d6b	2026-10-23	
 tests/settings/run.py	531b7eba788166f7d87f8fef0e2b2d9e466f57ce	2026-11-15	
