@@ -1445,7 +1445,7 @@ src/fabriclib/secrets/random_secret.py	12a8b476ea333570b3dfda750cc5364458eb9134	
 src/fabriclib/secrets/run_secrets_command.py	f1905cec1f3c58dcef71f12fca96108475bde9c6	2026-10-12	
 src/fabriclib/secrets/save_secrets.py	8444c73d6ebecdabb4a78eaedece15aa6e19958c	2026-10-02	
 src/fabriclib/secrets/secrets_in_openbao.py	92c573bf5f48cc9a4a5cc253090190b98589c215	2026-09-30	
-src/fabriclib/security/README.md	f80145d4e3ec2b94a6740921894e6432a80f734c	2026-11-14	
+src/fabriclib/security/README.md	15b93ac126c6b74e285f90988b8a582aa1eefab4	2026-11-16	
 src/fabriclib/security/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
 src/fabriclib/security/apply_docker_firewall.py	0229aa6a0e488172825551d43659516c3ab0112d	2026-11-14	
 src/fabriclib/security/apply_ping_rules.py	c3ad8d5bec85ff9e5f67bf0718eff61425ecbb0c	2026-11-14	
