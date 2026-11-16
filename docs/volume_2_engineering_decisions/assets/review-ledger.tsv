@@ -60,7 +60,7 @@ docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	f0b93f4
 docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	b48a266b9c88d5f9cc0e693171e68b7e25150cf5	2026-11-16	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	1b3e14b4efd6ffbb95280a24c82a7f6a29b1f61e	2026-11-07	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	b8b3320d383bce35fdc5f0e76107e3f638130d52	2026-11-14	
-docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	ef0eaf5854c975ca84fbd27af2c17c78328ec055	2026-10-25	
+docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	b5c01a256137696071ff66faa27e2cfec46ea187	2026-11-16	
 docs/volume_1_description_and_architecture/1.17.28-installers.md	986b323d7a4ca2e8cbf71d23fdd677f464f51139	2026-10-23	
 docs/volume_1_description_and_architecture/1.17.29-webui.md	a658af9445312bd07eb4f556af7e29990b5a420b	2026-11-15	
 docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	42a6cf08b37dd3d767a12b40941bbb502417ba7f	2026-11-14	
@@ -120,7 +120,7 @@ docs/volume_1_description_and_architecture/1.6.6-domain-join.md	5f1da00e7d17efb8
 docs/volume_1_description_and_architecture/1.6.7-linux-join-ad.md	86d1142b2a80487c0c7e03b4a2669f8499032d39	2026-11-05	
 docs/volume_1_description_and_architecture/1.6.8-rbac.md	b9045e7ff40cb17f0f45093228519644e794a7cd	2026-10-17	
 docs/volume_1_description_and_architecture/1.6.9-directory.md	c558e9ca3311c24aa6b6f6165155254d11bf8639	2026-10-20	
-docs/volume_1_description_and_architecture/1.7.1-openbao.md	869fb0df78b56e4afaca500a7d460c28a72809fd	2026-10-23	
+docs/volume_1_description_and_architecture/1.7.1-openbao.md	145e1b76f582c1a5bb889da30fff46da6d532fc1	2026-11-16	
 docs/volume_1_description_and_architecture/1.8.1-webui-architecture.md	3e965aa6440a866d5fb8ad6ce290e3c98ae98f8c	2026-10-23	
 docs/volume_1_description_and_architecture/1.8.2-webui-security.md	2b43d412e2fb4ef47215c436a48bce8830d941fa	2026-11-14	
 docs/volume_1_description_and_architecture/1.8.3-single-pane.md	808634d3a80eb23100726babccde1c311b8af2c8	2026-10-17	
@@ -238,7 +238,7 @@ docs/volume_4_operations/4.6.6-linux-join.md	37753fe8187efb9c2d3933698ec33c70014
 docs/volume_4_operations/4.6.7-windows-join.md	bb141b31d8a22562528cd6100e18ee4b51af7fa2	2026-10-25	
 docs/volume_4_operations/4.6.8-group-policy.md	d37b8d4d4d271f8ac7ecf3f46cdd782395c18a3b	2026-10-25	
 docs/volume_4_operations/4.6.9-administrators.md	e9c90e60a4212a68cc306c04952be05aad8bd8f4	2026-10-20	
-docs/volume_4_operations/4.7.1-openbao.md	047a12a0de695a19d65f9d7999a216fe7017ac45	2026-10-23	
+docs/volume_4_operations/4.7.1-openbao.md	c2f79ac367256f72c834d178c18cc220d3ea22a0	2026-11-16	
 docs/volume_4_operations/4.8.1-features.md	19a66bb9bf7184563f82ab8727eb8d178263c6bb	2026-11-15	
 docs/volume_4_operations/4.8.2-device-access.md	acedfa20a29674a27a54708ea95f4a00494bb0c8	2026-10-23	
 docs/volume_4_operations/4.8.3-setup-wizard.md	4c794c462e527b19780a2d1d86b4a49aa69590c8	2026-10-23	
@@ -299,7 +299,7 @@ scripts/docs/call_graph.py	bc2918c0b3b2f7f2091f5e229fb18df85dc956bd	2026-10-03
 scripts/docs/draw_setup_site.py	05ae330e46df71385ba6b228c585d46396f76b18	2026-11-07	
 scripts/docs/entrypoints.py	dad36de00b3605164c5b6f5198c153bb58dfd0f1	2026-11-08	
 scripts/docs/gen_lib_doc.py	d7a3c1284ca3a30af61353d41f5a9d2a1457a325	2026-10-12	
-scripts/docs/lib_doc_numbers.tsv	61927962c7f2e1128f2955b2d65a965c8b699c2a	2026-11-16	
+scripts/docs/lib_doc_numbers.tsv	3b5d781fc1866eed37ed5dd771473139726022ac	2026-11-16	
 scripts/docs/lib_doc_registry.py	a3a407c2b06b44838c4ce7a69725c4d47339f437	2026-10-17	
 scripts/docs/product_code.py	645a3bb130463028b90de64798c81694e5293131	2026-10-03	
 scripts/docs/review_ledger.py	b3f307b4dbaba54a69cc93c993287d43c747ba8f	2026-10-08	
@@ -1716,8 +1716,8 @@ src/fabriclib/vault/list_slots.py	734c454c3ad95ed8b85819b39e4687e5afeab008	2026-
 src/fabriclib/vault/remove_slot.py	3062d14cb3a637b64a3ec528ad160ccfbc8262e0	2026-09-30	
 src/fabriclib/vault/revoke_token.py	66a085d9e8ffd813f19b0b33a4d5282e6fac4834	2026-09-30	
 src/fabriclib/vault/rotate_db_password.py	6bcf62a7747a7387f44e108aa6181a2270c4c851	2026-10-09	
-src/fabriclib/vault/rotate_vault_key.py	16d386833ef8f2f29f6439721138dfedfab66381	2026-09-30	
-src/fabriclib/vault/run_vault_command.py	eef267daa0fd183180e9bee52a9d34ec604f0e0e	2026-10-12	
+src/fabriclib/vault/rotate_vault_key.py	040dd6c3bbf097d68a43881a89369b4a68922ad6	2026-11-16	
+src/fabriclib/vault/run_vault_command.py	c899f6799e2b79d7e094b95fd9f560517b87c6cf	2026-11-16	
 src/fabriclib/vault/slots/README.md	5a7c602678bcb9d3140ce3156d216c8bab38d865	2026-09-30	
 src/fabriclib/vault/slots/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-09-30	
 src/fabriclib/vault/slots/kmip.py	b4d4d0cfd582d9c36573684443e27db8edd0eb71	2026-09-30	
@@ -1725,7 +1725,7 @@ src/fabriclib/vault/slots/local.py	38971d4ec209ffbc565c19e32a48c53945eda1e8	2026
 src/fabriclib/vault/slots/pkcs11.py	a86da408ff7e8141af07c54f2e2f93167063043f	2026-09-30	
 src/fabriclib/vault/slots/usb.py	3f2a42c7972530eafb6a395925423ab294ce0845	2026-10-03	
 src/fabriclib/vault/test_slot.py	bea2931752424d1429350699a51154f6efc163d6	2026-09-30	
-src/fabriclib/vault/unlock_vault.py	8142d074639bc28aef0de270087b4b7f70497a28	2026-09-30	
+src/fabriclib/vault/unlock_vault.py	669c21c2ab00267e7bb1ffc7ffcb8aebed3b4edc	2026-11-16	
 src/fabriclib/vault/vault_device_event.py	5d481cfaeb09bdbf21944df7aeae4a91a7d1e223	2026-10-03	
 src/fabriclib/vault/vault_status.py	ec4abc5ceed75bdc6cc08cb5f4291cc774271a49	2026-10-03	
 src/fabriclib/vault/wipe_runtime_keys.py	2ad900aadb08b45c172cf2cf9be4444132acd818	2026-09-30	
@@ -2352,10 +2352,11 @@ tests/lint/run.sh	65cb637fbb502f8a1acb006605509c0cec72be2c	2026-10-12
 tests/nginx_check.sh	c7480576ba1dcba1984c5e6fa9cfc9f9bc0f9c09	2026-10-25	
 tests/ntp/README.md	37e7cca81172f8a93564bcd84d2a894591b76848	2026-10-02	
 tests/ntp/run.py	95336ffb2e386ac81ad40737bca6959962838de2	2026-11-14	
-tests/openbao/README.md	2a2d5bf4c034c1329a9f750fe50662ea351d42dd	2026-10-23	
+tests/openbao/README.md	f5e82d0b7650e2f6a278c4de52cf3dfeeb83af90	2026-11-16	
 tests/openbao/db_rotation.py	6541d7c57d9f8686b42dfd5c4010839ea2bfa915	2026-10-25	
+tests/openbao/kmip_server.py	da83efe9f93edd92c25bed6ae8c41666469be8d0	2026-11-16	
 tests/openbao/local_admin.py	21a07e388acc0f1bd0a8c86eb7887cc5caba7ce5	2026-10-25	
-tests/openbao/run.py	158ae3e2d001b4de5d980cc9cff8d3a146bf1655	2026-10-25	
+tests/openbao/run.py	753585b6371d8fa7c39f27e4b828acd185e869e4	2026-11-16	
 tests/pki/README.md	93bb4418da64c7f479e291e518293fb3f7b84c0d	2026-10-13	
 tests/pki/acme.py	30e4f941313acdd2e22f78258ef1b3eb86427cb2	2026-10-25	
 tests/pki/console.py	af01e5a5235047a850c6ba1192c1de307f1ad864	2026-11-14	

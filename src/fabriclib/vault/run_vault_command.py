@@ -199,7 +199,8 @@ def run_vault_command(v, argv):
             return 0
         if cmd == "rotate" and args in (["--yes"], ["-y"]):
             res = rotate_vault_key(v, "root", lambda: restart_openbao(v), source="cli")
-            print(f"vault key rotated to {res['key_id']}; kept {', '.join(res['kept'])}"
+            print(("the rotation that had stopped part way is finished: " if res.get("resumed") else "")
+                  + f"vault key rotated to {res['key_id']}; kept {', '.join(res['kept'])}"
                   + (f"; dropped {', '.join(res['dropped'])}" if res["dropped"] else ""))
             return 0
     except ValidationError as e:

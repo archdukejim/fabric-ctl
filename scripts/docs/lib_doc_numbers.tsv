@@ -3843,6 +3843,7 @@ function	fabriclib-vault|src/fabriclib/vault/rotate_db_password.py|_apply_and_wa
 function	fabriclib-vault|src/fabriclib/vault/rotate_db_password.py|_record	1	
 function	fabriclib-vault|src/fabriclib/vault/rotate_db_password.py|rotate_db_password	3	
 function	fabriclib-vault|src/fabriclib/vault/rotate_vault_key.py|_next_id	1	
+function	fabriclib-vault|src/fabriclib/vault/rotate_vault_key.py|_unlock_or_stop	3	
 function	fabriclib-vault|src/fabriclib/vault/rotate_vault_key.py|rotate_vault_key	2	
 function	fabriclib-vault|src/fabriclib/vault/run_vault_command.py|_status	2	
 function	fabriclib-vault|src/fabriclib/vault/run_vault_command.py|restart_openbao	1	

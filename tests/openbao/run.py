@@ -863,7 +863,10 @@ if have_hsm and have_kmip:
     open("kmip.conf", "w").write(f"[server]\nhostname=127.0.0.1\nport={KP}\ncertificate_path={W}/kmip-server.pem\n"
                                  f"key_path={W}/kmip-server.pem\nca_path={W}/root.crt\nauth_suite=TLS1.2\n"
                                  f"enable_tls_client_auth=True\ndatabase_path={W}/kmip.db\nlogging_level=INFO\n")
-    kmip_srv = subprocess.Popen(["pykmip-server", "-f", f"{W}/kmip.conf", "-l", f"{W}/kmip.log"],
+    # PyKMIP's server, a session whose client has gone made to end (it looped without end on 26.04, 2.3.1.57)
+    kmip_srv = subprocess.Popen([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                              "kmip_server.py"),
+                                 "-f", f"{W}/kmip.conf", "-l", f"{W}/kmip.log"],
                                 stdout=open(f"{W}/kmip.out", "w"), stderr=subprocess.STDOUT, start_new_session=True)
 
     def stop_kmip():
@@ -922,6 +925,33 @@ if have_hsm and have_kmip:
           code == 0 and out.strip() == f"{hsm2}: removed" and slot_ids() == before, (out, err))
     remove_slot(V, "tester", tok, source="test")
     check("OpenBao restarts from the HSM alone", start() and not vault_status(V)["sealed"])
+    # the device stops answering mid-rotation (2.3.1.57): it is frozen right after it wrapped the new key, so the
+    # unlock before the restart cannot read a key from it
+    import fabriclib.vault.slots.kmip as kmip_slot
+    real_wrap, key_before = kmip_slot.wrap, read_slot_store(V)["key_id"]
+
+    def wrap_then_freeze(*a, **kw):
+        out = real_wrap(*a, **kw)
+        os.killpg(kmip_srv.pid, signal.SIGSTOP)
+        return out
+
+    kmip_slot.wrap = wrap_then_freeze
+    try:
+        stopped = refused(lambda: rotate_vault_key(V, "tester", restart_unsealed, source="test"),
+                          "OpenBao was not restarted and keeps running as it was")
+    finally:
+        kmip_slot.wrap = real_wrap
+        os.killpg(kmip_srv.pid, signal.SIGCONT)
+    part = read_slot_store(V)
+    check("rotation, the device stops answering mid-way: stopped before any restart and says so; OpenBao still "
+          "running unsealed; the store part way (both keys); no key left in RAM",
+          stopped and part.get("previous_key_id") == key_before and health() == "healthy"
+          and vault_status(V).get("sealed") is False and not os.listdir(f"{W}/run"), part.get("previous_key_id"))
+    res = rotate_vault_key(V, "tester", restart_unsealed, source="test")
+    check("...once the device answers again, a second rotate finishes that rotation: the HSM holds its new key "
+          "alone, OpenBao opened with it",
+          res["resumed"] and res["key_id"] == part["key_id"] and res["kept"] == [hsm]
+          and not read_slot_store(V).get("previous_key_id") and test_slot(V, "tester", hsm, source="test"), res)
     res = rotate_vault_key(V, "tester", restart_unsealed, source="test")
     check("rotation: the HSM wraps the new key", res["kept"] == [hsm] and test_slot(V, "tester", hsm, source="test"))
     with kmip_session(*kargs) as kc:
