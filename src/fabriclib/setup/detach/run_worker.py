@@ -15,7 +15,9 @@ from fabriclib.setup.run_steps import run_steps
 def run_worker(run_id, deploy_base, steps, read_secrets=read_handoff):
     """Purpose: `fabricctl setup --worker <run>` — setup's work inside fabric-setup.service (decision 2.1.2.26,
              manual 1.3.2.3): the recorded run's remaining steps, with the answers its questions saved and the
-             secrets they handed over, its progress kept in the run record.
+             secrets they handed over, its progress kept in the run record. A unit restarted mid-run (needrestart,
+             decision 2.1.2.28) runs this again: it carries on from the first step not done, reading the hand-off
+             again; the hand-off is removed when the run ends (done, failed or interrupted).
     Inputs:  run_id — the run to do (the unit's argument); deploy_base — the install root; steps — STEPS;
              read_secrets — read_handoff (tests give their own). Reads <config>/setup-run.yaml and, before deploy,
              <config>/fabric.yaml (the settings), after it vars.yaml.
@@ -40,8 +42,6 @@ def run_worker(run_id, deploy_base, steps, read_secrets=read_handoff):
             record.update(handoff=None, state="failed", result=1)
             save(record)
             return 1
-        record["handoff"] = None
-        save(record)
     opts = record.get("options") or {}
     ctx.offline, ctx.assume_yes, ctx.non_interactive = bool(opts.get("offline")), bool(opts.get("assume_yes")), True
     ctx.admin_password_file = opts.get("admin_password_file")
@@ -55,4 +55,11 @@ def run_worker(run_id, deploy_base, steps, read_secrets=read_handoff):
             ctx.vars = yaml.safe_load(f) or {}
     else:
         ctx.load_state()
-    return run_steps(ctx, steps, selected, guided=bool(opts.get("guided")), record=record, save=save)
+    try:
+        return run_steps(ctx, steps, selected, guided=bool(opts.get("guided")), record=record, save=save)
+    finally:                                   # the run ended (done, failed or interrupted): its secrets go with it
+        if record.get("handoff"):
+            if os.path.exists(record["handoff"]):
+                os.remove(record["handoff"])
+            record["handoff"] = None
+            save(record)

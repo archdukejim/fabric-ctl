@@ -1,5 +1,5 @@
-"""read_handoff (manual 1.3.2.3.4): the unit reads the handed-over secrets once, removing the file, and refuses one
-that is not a 0600 regular file of the expected owner (root in the unit; here the uid running the suite).
+"""read_handoff (manual 1.3.2.3.4): the unit reads the handed-over secrets, keeping the file for the run (a restarted
+unit reads it again, 2.1.2.28; the worker removes it at the end), and refuses, removing, one that is not a 0600 regular file of the expected owner (root in the unit; here the uid running the suite).
     python3 tests/setup/detach/read_handoff_test.py"""
 import os
 import sys
@@ -33,9 +33,12 @@ with tempfile.TemporaryDirectory() as d:
     got = read_handoff(path, ME)
     check("the secrets are read", got == {"admin_password": "Good-Pass-1234", "join_invitation": "fabric-join-1.abc"},
           got)
-    check("…and the file is gone once read", not os.path.exists(path))
+    check("…and the file is kept for the run (a restarted unit reads it again, 2.1.2.28)", os.path.exists(path))
+    again = read_handoff(path, ME)
+    check("…read a second time, as a restarted unit does: the same secrets", again == got, again)
+    os.remove(path)                         # as the worker does when the run ends
     msg = refused(path)
-    check("negative: read a second time (the run started already): refused, saying to run setup again",
+    check("negative: gone (the run ended, or the host restarted): refused, saying to run setup again",
           msg and "sudo fabricctl setup" in msg, msg)
     path = write_handoff("r2", {"admin_password": "x"}, d)
     os.chmod(path, 0o644)

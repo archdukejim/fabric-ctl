@@ -48,6 +48,9 @@ install -m 0644 "$REPO/THIRD_PARTY_NOTICES" "$root/usr/share/doc/fabricctl/THIRD
 sed "s/@VERSION@/${DEB_VERSION}/" "$HERE/control.in" > "$root/DEBIAN/control"
 install -m 0755 "$HERE/postinst" "$root/DEBIAN/postinst"
 install -m 0755 "$HERE/postrm" "$root/DEBIAN/postrm"
+# needrestart leaves setup's unit alone while it works (2.1.2.28): a conffile, so dpkg owns it and purge removes it
+install -D -m 0644 "$HERE/needrestart.conf" "$root/etc/needrestart/conf.d/fabric.conf"
+echo /etc/needrestart/conf.d/fabric.conf > "$root/DEBIAN/conffiles"
 
 # Code is root-owned and not writable by anyone else; scripts executable.
 find "$lib" -type d -exec chmod 0755 {} +
