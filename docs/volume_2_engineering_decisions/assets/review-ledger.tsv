@@ -1011,7 +1011,7 @@ src/fabriclib/federation/network_conflicts.py	75f6135d8f179f1411db087a3678c16ade
 src/fabriclib/federation/read_address_plan.py	2ad3ec81499687a076bb128445a865da4a1f5e04	2026-10-20	
 src/fabriclib/federation/relay_join.py	c63af2285715a2ec5548fe831dd00f3e79212d21	2026-10-08	
 src/fabriclib/federation/remove_site.py	e7641772088b41d44e5c6cbc46da981c87b8098c	2026-10-20	
-src/fabriclib/federation/reparent_site.py	51af9151453d39fb301ed8851cd0f2642a4657dd	2026-11-17	
+src/fabriclib/federation/reparent_site.py	89c455069270978279c0550ec5ac8624c06e4f47	2026-11-17	
 src/fabriclib/federation/revoke_invitation.py	37f47d8a936d3879d6cdc608771151bf84dec2c3	2026-10-01	
 src/fabriclib/federation/run_federation_command.py	83ea921317a9a6ecaf38ac8fb6c63cf1eedfb1e0	2026-10-08	
 src/fabriclib/federation/set_federation_endpoint.py	026b067042397f8ab807718fe0371a9bc641d699	2026-10-08	

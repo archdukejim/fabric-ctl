@@ -1,5 +1,4 @@
 import os
-import subprocess
 
 from fabriclib.common.systemctl_up import systemctl_up
 from fabriclib.common.errors import ValidationError
