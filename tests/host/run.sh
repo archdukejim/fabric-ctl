@@ -73,11 +73,45 @@ start=$(date +%s)
 ADMIN_PW="Fx9-$(openssl rand -hex 12)"
 ( umask 077; printf '%s\n' "$ADMIN_PW" > "$OUT/admin-pw" )
 scp -q -p -o BatchMode=yes -i "$KEY" "$OUT/admin-pw" "$TARGET:/tmp/admin-pw"
+# Decision 2.1.2.28: setup's unit restarted while it works, as a fresh Ubuntu's unattended-upgrades does (2.3.1.55,
+# 2.3.1.57). Once deploy is done the password file is deleted, so the password is only in the hand-off, as when it is
+# typed; then a program the worker runs on is replaced and needrestart runs in its automatic mode (it must leave the
+# unit alone), systemd re-executes (the unit runs on), and the unit is restarted (the worker carries on).
+restart_cases() {
+    local t=0 pid id1
+    until R "grep -qx -- '- deploy' /opt/fabric/config/setup-run.yaml 2>/dev/null && systemctl is-active -q fabric-setup.service"; do
+        sleep 5; t=$((t + 5)); [ "$t" -ge 1800 ] && { echo "reached=no"; return; }
+    done
+    echo "reached=yes"
+    R "rm -f /tmp/admin-pw"
+    pid=$(R "systemctl show -p MainPID --value fabric-setup.service")
+    id1=$(R "systemctl show -p InvocationID --value fabric-setup.service")
+    R "pkg=\$(dpkg -S \"\$(readlink -f /proc/$pid/exe)\" | cut -d: -f1); echo package=\$pkg; DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=1 apt-get -o DPkg::Lock::Timeout=600 install --reinstall -y -qq \$pkg >/dev/null 2>&1"
+    if R "ls -l /proc/$pid/exe" | grep -q deleted; then echo "outdated=yes"; else echo "outdated=no"; fi
+    R "NEEDRESTART_MODE=a needrestart -r a 2>&1 | tail -5"
+    sleep 5
+    if [ "$(R "systemctl show -p InvocationID --value fabric-setup.service")" = "$id1" ]; then echo "needrestart_left_it=yes"; else echo "needrestart_left_it=no"; fi
+    R "systemctl daemon-reexec"; sleep 5
+    if [ "$(R "systemctl show -p InvocationID --value fabric-setup.service")" = "$id1" ]; then echo "reexec_left_it=yes"; else echo "reexec_left_it=no"; fi
+    R "systemctl restart fabric-setup.service"; sleep 5
+    if R "systemctl is-active -q fabric-setup.service" && [ "$(R "systemctl show -p InvocationID --value fabric-setup.service")" != "$id1" ]; then
+        echo "restarted=yes"; else echo "restarted=no"; fi
+}
+restart_cases > "$OUT/restart.txt" 2>&1 &
+WATCH=$!
 R "fabricctl setup --file /tmp/vars.yaml --non-interactive --yes --approve all --admin-password-file /tmp/admin-pw" \
     > "$OUT/setup.log" 2>&1
+wait "$WATCH"
 R "rm -f /tmp/admin-pw"
 echo "    setup took $(( ($(date +%s) - start) / 60 )) min"
 check "setup completes" "grep -q 'fabric is ready' '$OUT/setup.log'"
+check "2.1.2.28: a program the worker runs on replaced mid-install: needrestart in automatic mode leaves its unit alone" \
+    "grep -qx reached=yes '$OUT/restart.txt' && grep -qx outdated=yes '$OUT/restart.txt' && grep -qx needrestart_left_it=yes '$OUT/restart.txt'"
+check "…systemd re-executed mid-install (systemctl daemon-reexec): the unit runs on" \
+    "grep -qx reexec_left_it=yes '$OUT/restart.txt'"
+check "…the unit restarted mid-install: the worker carries on, the first admin made with the password handed over" \
+    "grep -qx restarted=yes '$OUT/restart.txt' && grep -q 'with the password chosen in setup' '$OUT/setup.log'"
+check "…and the hand-off is gone once the run ended" "[ -z \"\$(R 'ls /run/fabric-setup 2>/dev/null')\" ]"
 # no failed unit of sssd's or fabric's (2.1.6.95, 2.3.1.32 finding 18): `systemctl --failed`, ours only
 OURS='^(sssd|fabric|nginx|openbao|keycloak|postgres|samba|bind9|adguard|stepca|step-ca|kea|freeradius|fluentbit|webui)[-.@]'
 failed_ours() { R 'systemctl --failed --no-legend --plain' | awk '{print $1}' | grep -E "$OURS"; }

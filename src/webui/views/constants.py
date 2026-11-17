@@ -5,7 +5,7 @@ PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "
                  "policies": "/directory/policies", "ous": "/directory/ous", "access": "/directory/access",
                  "kerberos": "/directory/kerberos", "devices": "/8021x/devices", "roles": "/8021x/roles",
                  "radius": "/8021x", "zones": "/dns/zones", "networks": "/networks", "options": "/networks/options",
-                 "account": "/account/groups", "dns-filter": "/dns-filter"}
+                 "account": "/account/groups", "dns-filter": "/dns-filter", "pki": "/pki/lifetimes"}
 
 # The navigation down the left (manual 1.8.6.4): (entry id, label, its pages); a page is (path, label, the
 # permissions that show it: any one of them; () = any signed-in person). An entry shows when one of its pages does.
@@ -16,16 +16,18 @@ NAV = [
     ("account", "My account", [("/account", "My account", ()), ("/account/groups", "Groups I manage", ())]),
     ("dns", "DNS", [("/dns/zones", "Zones", ("dns:read",)),
                     ("/dns-filter", "DNS filter", ("dns:filter", "dns:querylog"))]),
-    ("dhcp", "DHCP", [("/networks", "Networks", ("dhcp:read",)), ("/networks/options", "DHCP options", ("dhcp:read",)),
-                      ("/kea", "Kea", ("dhcp:read",))]),
-    ("pki", "PKI", [("/pki", "Certificates", ("pki:read",)), ("/pki/acme", "ACME", ("pki:read",))]),
+    # Networks (DHCP until 0.10.0, 2.1.10.61): a site's segments, its access rules, DHCP's options and Kea
+    ("networks", "Networks", [("/networks", "Segments", ("dhcp:read",)),
+                              ("/networks/rules", "Access", ("dhcp:read",)),
+                              ("/networks/options", "DHCP options", ("dhcp:read",)), ("/kea", "Kea", ("dhcp:read",))]),
+    ("pki", "PKI", [("/pki", "Certificates", ("pki:read",)), ("/pki/acme", "ACME", ("pki:read",)),
+                    ("/pki/lifetimes", "Lifetimes", ("pki:read",))]),
     ("directory", "Directory", [("/directory", "Overview", ("domain:read",)),
                                 ("/directory/tree", "Browse", ("domain:read",)),
                                 ("/directory/people", "People", ("people:read",)),
                                 ("/directory/groups", "Groups", ("domain:read",)),
                                 ("/directory/computers", "Computers", ("domain:read",)),
                                 ("/directory/ous", "OUs", ("domain:read",)),
-                                ("/directory/sites", "Sites", ("domain:read",)),
                                 ("/directory/access", "Access", ("domain:read",)),
                                 ("/directory/kerberos", "Kerberos", ("domain:read",)),
                                 ("/directory/policies", "Policies", ("domain:read",))]),
@@ -37,7 +39,6 @@ NAV = [
     ("secrets", "Secrets", [("/secrets", "Status", ("vault:status",)),
                             ("/secrets/unlock", "Unlock methods", ("vault:status",)),
                             ("/secrets/disk", "Disk encryption", ("vault:status",))]),
-    ("federation", "Federation", [("/federation", "Sites and replication", ("federation:read",))]),
     ("settings", "Settings", [("/settings", "Setup wizard", ("settings:admin",)),
                               ("/settings/sign-in", "Sign-in security", ("security:raise",))]),
 ]
@@ -99,7 +100,7 @@ SERVICES = {
 }
 # every permission a page asks about (the dev preview's fallback when it runs without fabriclib)
 PREVIEW_PERMS = ["status:read", "dns:read", "dns:write", "tsig:manage", "dhcp:read", "dhcp:write", "pki:read",
-                 "pki:issue", "pki:sign",
+                 "pki:issue", "pki:sign", "pki:revoke", "pki:settings",
                  "pki:link-device", "devices:read", "devices:enroll", "devices:admin", "roles:admin", "radius:read",
                  "radius:admin",
                  "people:read", "domain:read", "domain:admin", "machines:admin", "sudo:admin", "gpo:admin",

@@ -11,6 +11,7 @@ from fabriclib.common.load_vars import load_vars
 from fabriclib.common.read_audit import read_audit
 from fabriclib.consent.consent_status import consent_status
 from fabriclib.dhcp.dhcp_overview import dhcp_overview
+from fabriclib.dns.key_record_choices import key_record_choices
 from fabriclib.dns.list_tsig_keys import list_tsig_keys
 from fabriclib.dns.list_zones import list_zones
 from fabriclib.dns.reverse_zones import reverse_zones
@@ -45,7 +46,9 @@ from fabriclib.ipam.scan_overview import scan_overview
 from fabriclib.pki.acme_info import acme_info
 from fabriclib.pki.acme_machines import acme_machines
 from fabriclib.pki.ca_summary import ca_summary
+from fabriclib.pki.certs_overview import certs_overview
 from fabriclib.pki.list_issued import list_issued
+from fabriclib.pki.read_lifetimes import read_lifetimes
 from fabriclib.radius.radius_guides import radius_guides
 from fabriclib.samba.domain_overview import domain_overview
 from fabriclib.samba.gpo_overview import gpo_overview
@@ -112,6 +115,9 @@ READS = {
     ("audit",): lambda: read_audit(),
     ("pki", "ca"): lambda: ca_summary(load_vars()),
     ("pki", "issued"): lambda: list_issued(),
+    ("pki", "certs"): lambda: certs_overview(load_vars()),                 # every certificate (2.1.5.13)
+    ("pki", "lifetimes"): lambda: read_lifetimes(load_vars(), SetupContext(deploy_base=load_vars()["deploy_base_dir"])
+                                                 .load_state()),           # PKI → Lifetimes (2.1.5.14)
     ("tsig",): lambda: list_tsig_keys(),
     ("reverse-zones",): lambda: reverse_zones(load_vars()),
     ("devices",): lambda: device_overview(load_vars()),
@@ -200,9 +206,11 @@ def get_route(route, user=None, perms=None):
              (None for root): a job is read only by the person who started it, pending changes are each person's;
              perms — the token's permissions (who may see a page's queue; None for root).
     Returns: the operation's JSON-serialisable result. version: version_info with the host's name and domain (the
-             console's top bar); zones/<key>: zone_detail; vault/slots: the unlock methods with
+             console's top bar); zones/<key>: zone_detail; tsig-choices/<zone>: key_record_choices (the records a
+             TSIG key's names are picked from, 2.1.4.12); vault/slots: the unlock methods with
              this host's name; images: the image status rows; reminders: host_reminders (the console's top bar);
-             pki/acme: {info, machines, domain}; jobs/<id>: the job; domain/grants: list_grants; domain/grants/<name>:
+             pki/acme: {info, machines, domain}; pki/certs: certs_overview; pki/lifetimes: read_lifetimes;
+             jobs/<id>: the job; domain/grants: list_grants; domain/grants/<name>:
              show_grant; domain/grants/explain/<person>[/<machine>]: explain_grant; domain/kerberos: kerberos_overview;
              domain/kerberos/spns: list_spns; groups: list_groups; groups/<name>: show_group; ous: list_ous;
              account: my_account (the signed-in person's own details, groups, certificates and devices);
@@ -238,6 +246,8 @@ def get_route(route, user=None, perms=None):
         return _kept(tuple(route), lambda: zone_detail(route[1]), perms)
     if len(route) == 2 and route[0] == "jobs":
         return JOBS.read(route[1], user)
+    if len(route) == 2 and route[0] == "tsig-choices":       # a TSIG key's names picked from its zone (2.1.4.12)
+        return key_record_choices(load_vars(), route[1])
     if route == ["account"]:
         return my_account(load_vars(), user)
     if route == ["account", "groups"]:

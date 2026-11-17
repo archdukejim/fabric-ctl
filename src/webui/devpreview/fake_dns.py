@@ -41,34 +41,68 @@ def _value(body):
     return " ".join([nums[f] for f in need] + [value])
 
 
+def _split(state, zone, rec, body):
+    """Purpose: the VLAN a sample record answers alone (2.1.4.16), kept beside it, checked as the agent checks it.
+    Inputs:  state — DevState; zone — the sample zone; rec — the record's (type, name, value); body — vlan.
+    Returns: None.
+    Fails:   ValidationError for a VLAN the sample plan has not.
+    Feeds:   _record."""
+    vlan = str(body.get("vlan") or "").strip()
+    if not vlan:
+        return
+    known = [x["ref"] for x in state._vlans()]
+    if vlan not in known:
+        raise ValidationError(f"VLAN {vlan} is not in the site's plan (it has {', '.join(known) or 'none yet'})")
+    zone.setdefault("split", {})["|".join(rec)] = vlan
+
+
 def _record(state, key, op, body):
     """Purpose: A zone's record added, deleted or linked from the landing page (manual 1.4.2.4), in memory, refused
              as the agent refuses (fabric's own names; a stale record; a type or name that cannot be linked; a bad
              port).
-    Inputs:  state — DevState; key — the zone; op — "records", "records/delete" or "records/link"; body — dict.
+    Inputs:  state — DevState; key — the zone; op — "records", "records/delete", "records/update" (a record
+             replaced in place, 2.1.4.15: old_name the name shown) or "records/link"; body — dict.
     Returns: the answer ({"name"} for an add, else {}).
     Fails:   ValidationError with the agent's reason.
     Feeds:   fake_dns."""
     zone = state.data["zones"][key]
     records = zone["records"]
     rtype, name = body.get("type", ""), str(body.get("name", "")).strip()
+    shown = str(body.get("old_name", "")).strip() if op == "records/update" else name
     if op == "records":
         if rtype not in RECORD_TYPES:
             raise ValidationError("pick a record type")
-        records.append((rtype, name, _value(body)))
+        rec = (rtype, name, _value(body))
+        _split(state, zone, rec, body)                  # checked before the record is kept
+        records.append(rec)
         state.log("DNS_ADD", f"zone={key} {rtype} {name} (in memory)")
         return {"name": name}
     idx = int(body.get("index", -1))
     if not rtype or idx < 0:
         raise ValidationError("pick a record to link")
-    if idx >= len(records) or records[idx][:2] != (rtype, name):
+    if idx >= len(records) or records[idx][:2] != (rtype, shown):
         raise ValidationError("record changed since it was shown; reload and try again")
-    if op == "records/delete":
-        own = SAMPLE_FABRIC_NAMES.get((rtype, name)) if key == "dynamic_zone_var" else None
+    if op in ("records/delete", "records/update"):
+        own = SAMPLE_FABRIC_NAMES.get((rtype, shown)) if key == "dynamic_zone_var" else None
         if own:
-            raise ValidationError(f"{'home.arpa' if name == '@' else name + '.home.arpa'} is provided by fabric "
+            raise ValidationError(f"{'home.arpa' if shown == '@' else shown + '.home.arpa'} is provided by fabric "
                                   f"({own[0]}, from the setting {own[1]}): every apply adds it back, so it cannot be "
-                                  "deleted here")
+                                  + ("deleted here" if op == "records/delete" else "changed here"))
+    if op == "records/update":
+        new = (rtype, name, _value(body))
+        split = zone.setdefault("split", {})
+        old_vlan = split.get("|".join(records[idx]), "")
+        if new == records[idx] and str(body.get("vlan") or "") == old_vlan:
+            raise ValidationError("nothing to change: the record is already so")
+        _split(state, zone, new, body)                  # checked before the record changes
+        if old_vlan and not str(body.get("vlan") or "").strip():
+            split.pop("|".join(records[idx]), None)
+        elif "|".join(records[idx]) != "|".join(new):
+            split.pop("|".join(records[idx]), None)
+        records[idx] = new
+        state.log("DNS_UPDATE", f"zone={key} {rtype} {shown} -> {name} {new[2]} (in memory)")
+        return {"old": {"name": shown}, "new": {"name": name}}
+    if op == "records/delete":
         records.pop(idx)
         state.log("DNS_DELETE", f"zone={key} {rtype} {name} (in memory)")
         return {}
@@ -118,13 +152,30 @@ def fake_dns(state, who, route, body):
             gone = zones.pop(key)
             state.log("DNS_ZONE_DELETE", f"zone={key} records={len(gone['records'])} (in memory)")
             return {"name": gone["name"], "records": len(gone["records"])}
-        if op in ("records", "records/delete", "records/link"):
+        if op in ("records", "records/delete", "records/update", "records/link"):
             return _record(state, key, op, body)
     if route == ["tsig"]:
         name = str(body.get("name", "")).strip() or "preview"
-        state.data["tsig"].append({"name": name, "algorithm": "hmac-sha256", "types": "TXT",
-                                   "scope": f"(dev preview) {body.get('scope', '')}", "acls": []})
+        acme = body.get("scope") == "acme"
+        state.data["tsig"].append({
+            "name": name, "algorithm": "hmac-sha256", "types": "TXT", "acls": [], "notes": [],
+            "scope": f"(dev preview) {body.get('scope', '')}", "domain": body.get("zone") or "home.arpa",
+            "mode": "acme" if acme else "custom", "records": list(body.get("hosts") or []),
+            "with_aliases": [{"record": r, "names": [r]} for r in body.get("with_aliases") or []],
+            "primary": body.get("scope") == "acme-zone", "any_name": body.get("scope") == "any-name"})
         return _tsig(state, name, body.get("zone"), True)
+    if len(route) == 3 and route[0] == "tsig" and route[2] == "update":     # Edit names, at the preview's Apply
+        key = next((k for k in state.data["tsig"] if k["name"] == route[1]), None)
+        if key is None:
+            raise ValidationError(f"no TSIG key named {route[1]!r}")
+        drop, drop_aliases = body.get("drop") or [], body.get("drop_with_aliases") or []
+        key["records"] = [r for r in key["records"] if r not in drop] + list(body.get("add") or [])
+        key["with_aliases"] = ([e for e in key["with_aliases"] if e["record"] not in drop_aliases]
+                               + [{"record": r, "names": [r]} for r in body.get("add_with_aliases") or []])
+        key["scope"] = "(dev preview) " + ", ".join(key["records"] + [e["record"] + " and its aliases"
+                                                                       for e in key["with_aliases"]])
+        state.log("TSIG_UPDATE", f"key={route[1]} (in memory)")
+        return {"key": key}
     if len(route) == 3 and route[0] == "tsig" and route[2] == "rotate":
         return _tsig(state, route[1], "", False)
     if len(route) == 3 and route[0] == "tsig" and route[2] == "delete":

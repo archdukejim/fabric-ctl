@@ -8,8 +8,10 @@ def ca_summary(v):
     """Purpose: Summarise the fabric CA for the PKI page: root and intermediate details, where devices
              download them, and the validity cap for hand-issued certificates.
     Inputs:  v — fabric vars: deploy_base_dir (CA files via ca_files), domain, hostname_stepca,
-             pki_manual_max_days (default DEFAULT_MAX_DAYS, 1825). Reads root_ca.crt and intermediate_ca.crt.
-    Returns: {"domain", "certs_url": "http://<hostname_stepca>/certs/" (1.5.1.6), "max_days": int,
+             pki_manual_max_days (default DEFAULT_MAX_DAYS, 1825), pki_manual_default_days (default 365). Reads
+             root_ca.crt and intermediate_ca.crt.
+    Returns: {"domain", "certs_url": "http://<hostname_stepca>/certs/" (1.5.1.6), "max_days": int, "default_days": int
+             (what the issue and sign forms fill in),
              "root": describe_cert dict, "intermediate": describe_cert dict (first certificate of the file)}.
     Fails:   OSError if a CA file is missing or unreadable; ValueError if pki_manual_max_days is not a
              number; ValidationError from to_pem / describe_cert (openssl) if a file holds no certificate.
@@ -17,8 +19,8 @@ def ca_summary(v):
              -> the PKI page.
     """
     out = {"domain": v.get("domain", ""), "certs_url": f"http://{v.get('hostname_stepca', '')}/certs/",
-           "max_days": int(v.get("pki_manual_max_days")
-                                                                                 or DEFAULT_MAX_DAYS)}
+           "max_days": int(v.get("pki_manual_max_days") or DEFAULT_MAX_DAYS),
+           "default_days": int(v.get("pki_manual_default_days") or 365)}         # PKI → Lifetimes (2.1.5.14)
     for label, path in zip(("root", "intermediate"), ca_files(v)):
         with open(path) as f:
             out[label] = describe_cert(to_pem(f.read(), "cert")[0])

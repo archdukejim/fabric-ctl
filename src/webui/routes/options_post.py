@@ -1,6 +1,12 @@
 import urllib.parse
 
+from webui import agentclient as actions
 from webui.routes.held import held
+from webui.routes.one_site import ONE_SITE, other_site
+
+# the domain's option set, as the console answers a change to it (decision 2.1.10.64)
+DOMAIN_SET = ("The domain's options are inherited here and not changed in this console: set the value at this "
+              "site's level to override it")
 
 FIELDS = ("action", "scope", "target", "option", "data", "name", "test", "next_server", "server_hostname",
           "boot_file", "code", "type", "record_types", "space", "server", "bios", "uefi", "arm64", "ipxe", "http")
@@ -27,16 +33,19 @@ def options_post(h, parts, form):
     Inputs:  h — the request handler (back, deny); parts — segments after /networks/options/; form — dict: the fields
              of FIELDS, site, view_target (the page to go back to), where (an option's place, _where), picked
              ("<place>|<option>" or "<scope>|<name>" from a select), always_send and array ("on").
-    Returns: 303 back to /networks/options (site and target kept) with "Waiting for Apply: …" or the refusal; 404
-             for another path.
+    Returns: 303 back to /networks/options (its target kept) with "Waiting for Apply: …" or the refusal (DOMAIN_SET
+             for the domain's set or one of its classes, 2.1.10.64); 404 for another path or another site (ONE_SITE).
     Fails:   AgentError, PermissionDenied and AuthError propagate to handle_request.
     Feeds:   networks_post."""
     if len(parts) != 1 or parts[0] not in KINDS:
         return h.deny(404, "Not found.")
+    if form.get("site") and other_site(form["site"], actions.networks_overview().get("site")):    # 1.8.6.14
+        return h.deny(404, ONE_SITE + ".")
     body = {k: form[k] for k in FIELDS if isinstance(form.get(k), str) and form[k]}
-    if form.get("site"):
-        body["site"] = form["site"]
     picked, _, named = str(form.get("picked") or "").partition("|")
+    place = picked or str(form.get("where") or form.get("scope") or "")
+    if place == "domain" or place.startswith("class:domain:"):        # inherited here, never changed (2.1.10.64)
+        return h.back("/networks/options", err=DOMAIN_SET)
     if parts[0] == "options":
         body.update(_where(picked if picked else str(form.get("where") or "")))
         if picked:
@@ -46,6 +55,6 @@ def options_post(h, parts, form):
     for flag in ("always_send", "array"):
         if form.get(flag) == "on":
             body[flag] = True
-    back = {k: x for k, x in (("site", form.get("site", "")), ("target", form.get("view_target", ""))) if x}
+    back = {"target": form["view_target"]} if form.get("view_target") else {}
     return held(h, "/networks/options" + ("?" + urllib.parse.urlencode(back) if back else ""), f"ipam/{parts[0]}",
                 body)

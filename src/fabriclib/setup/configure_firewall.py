@@ -2,6 +2,7 @@ import ipaddress
 import os
 import subprocess
 
+from fabriclib.common.systemctl_up import systemctl_up
 from fabriclib.common.console import info, ok, warn
 from fabriclib.common.keep_original import ORIGINALS
 from fabriclib.consent.check_consent import check_consent
@@ -9,10 +10,12 @@ from fabriclib.consent.plan_firewall import plan_firewall
 from fabriclib.consent.plan_own_rules import plan_own_rules
 from fabriclib.consent.plan_ports import plan_ports
 from fabriclib.security.apply_docker_firewall import apply_docker_firewall
+from fabriclib.security.apply_ping_rules import apply_ping_rules
 from fabriclib.security.firewall_rules import firewall_rules
 from fabriclib.security.host_own_rules import OWN_RULES, host_own_rules
 from fabriclib.security.ssh_ports import ssh_ports
 from fabriclib.security.ufw_active import ufw_active
+from fabriclib.security.ufw_own_rule_args import ufw_own_rule_args
 from fabriclib.security.ufw_rule import RECORDS, ufw_rule
 from fabriclib.setup.errors import SetupError
 from fabriclib.setup.site.keep_site_port import keep_site_port
@@ -155,14 +158,27 @@ def run(ctx):
         warn(f"host firewall: removing {len(own)} rule(s) of this host's own (own_rules, 2.1.2.24); kept for uninstall "
              f"to put back, or now: sudo fabricctl setup --undo firewall")
         for r in own:
-            subprocess.run(["ufw", "delete", *r.split()[1:]], capture_output=True)
-            warn(f"host firewall: removed the host's own rule: {r}")
+            args = ufw_own_rule_args(r)
+            res = subprocess.run(["ufw", "delete", *args], capture_output=True, text=True) if args else None
+            if res is not None and res.returncode == 0:
+                warn(f"host firewall: removed the host's own rule: {r}")
+                continue
+            # said, never claimed: the rule is still there (2.3.1.57)
+            why = ((res.stderr or res.stdout or "ufw failed").strip().splitlines() or ["ufw failed"])[0] if res \
+                else "not a ufw rule"
+            warn(f"host firewall: could not remove the host's own rule {r}: {why}; it stays (remove it with ufw)")
     subprocess.run(["ufw", "--force", "enable"], check=True, capture_output=True)
+    ping = apply_ping_rules(ctx.vars, ctx.config_dir)       # 2.1.10.56: ping from the networks the rules allow
+    if ping["changed"]:
+        subprocess.run(["ufw", "reload"], check=True, capture_output=True)
+    info("host firewall: ping answered from " + (", ".join(ping["from"]) or "no network") + "; IPv6 ping not answered")
+    for why in ping["skipped"]:
+        warn(f"host firewall: ping: {why}")
 
     lib = os.path.join(ctx.target_dir, "lib")
     with open(UNIT, "w") as f:
         f.write(UNIT_TEXT.format(lib=lib, vars=ctx.vars_file))
     subprocess.run(["systemctl", "daemon-reload"], check=True)
     subprocess.run(["systemctl", "enable", "fabric-firewall"], check=True, capture_output=True)
-    subprocess.run(["systemctl", "restart", "fabric-firewall"], check=True)
+    systemctl_up(["fabric-firewall"], restart=True)
     ok(apply_docker_firewall(ctx.vars_file) + " (re-applied at boot by fabric-firewall.service)")

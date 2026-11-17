@@ -2,6 +2,7 @@ import os
 import subprocess
 import time
 
+from fabriclib.common.systemctl_up import systemctl_up
 from fabriclib.common.console import info, ok
 from fabriclib.common.errors import ValidationError
 from fabriclib.deploy.apply_deployment import apply_deployment
@@ -111,19 +112,19 @@ def run(ctx):
            + (", web UI client, sign-in flows)" if v.get("install_webui") else ")"))
 
     if v.get("install_webui"):
-        subprocess.run(["systemctl", "enable", "--now", "fabric-agent"], check=True, capture_output=True)
+        systemctl_up(["fabric-agent"], enable=True, capture=True)
         if "fabric-agent" in ctx.restart_services:
-            subprocess.run(["systemctl", "restart", "fabric-agent"], check=True)
+            systemctl_up(["fabric-agent"], restart=True)
         ok(f"fabric-agent: {'restarted' if 'fabric-agent' in ctx.restart_services else 'running'}")
         ok(f"fabric-web: {start_unit('fabric-web', 'fabric-web', 'fabric-web' in ctx.restart_services)}")
 
     if v.get("federation_endpoint"):
-        subprocess.run(["systemctl", "enable", "--now", "fabric-federation"], check=True, capture_output=True)
+        systemctl_up(["fabric-federation"], enable=True, capture=True)
         if "fabric-federation" in ctx.restart_services:
-            subprocess.run(["systemctl", "restart", "fabric-federation"], check=True)
+            systemctl_up(["fabric-federation"], restart=True)
         ok(f"fabric-federation: {'restarted' if 'fabric-federation' in ctx.restart_services else 'running'}")
 
     # Everything is up: activate the target now (it is enabled for boot), so
     # `fabricctl stop|restart` / `systemctl ... fabric.target` reach every unit.
-    subprocess.run(["systemctl", "start", "fabric.target"], check=True, capture_output=True)
+    systemctl_up(["fabric.target"], capture=True)
     ok("fabric.target active (systemctl status fabric.target)")

@@ -6,7 +6,7 @@ in the container. A change triggers `rndc reconfig` or a restart.
 
 | File | What |
 |---|---|
-| `named.conf.j2` | Main file: includes the parts below in order (ACLs, keys, TLS, options, logs, zones) → `named.conf` |
+| `named.conf.j2` | Main file: includes the parts below in order (ACLs, keys, TLS, options, logs, zones); with split DNS (2.1.4.16) the zones and the AD zone in a default view, then a view per VLAN with answers of its own (its RPZ, every zone shared with in-view) → `named.conf` |
 | `named.conf.acl.j2` | One `acl` per entry of `bind_acls` → `named.conf.acl` |
 | `named.conf.keys.j2` | TSIG keys: every key in `tsig_keys`, with DHCP DDNS the `kea-ddns` key, and one `fed-<site>` key per federation link; secrets from fabric's secrets → `named.conf.keys` |
 | `named.conf.options.j2` | Listeners (53, and the DoH port behind nginx), no recursion, no DNSSEC validation → `named.conf.options` |

@@ -1,0 +1,8 @@
+; VLAN {{ split.ref }}'s own answers (decision 2.1.4.16, manual 1.4.1.11): for each name here, that VLAN's clients get
+; these records (every type: a type not here answers no data); everyone else the zone's own. Rendered at every apply.
+$TTL 300
+@ SOA localhost. hostmaster.{{ split.rpz }}. 1 3600 600 86400 300
+@ NS localhost.
+{% for line in split.lines %}
+{{ line }}
+{% endfor %}

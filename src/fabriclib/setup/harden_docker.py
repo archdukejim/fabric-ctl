@@ -3,6 +3,7 @@ import os
 import subprocess
 import time
 
+from fabriclib.common.systemctl_up import systemctl_up
 from fabriclib.common.console import info, ok, warn
 from fabriclib.common.keep_original import keep_original
 from fabriclib.consent.check_consent import check_consent
@@ -39,7 +40,7 @@ def run(ctx):
         json.dump(merged, f, indent=2)
         f.write("\n")
     info("restarting Docker to apply daemon settings (live-restore keeps containers running from now on)")
-    subprocess.run(["systemctl", "restart", "docker"], check=True)
+    systemctl_up(["docker"], restart=True)
     for _ in range(12):
         if subprocess.run(["docker", "info"], capture_output=True).returncode == 0:
             ok("Docker daemon hardened: " + ", ".join(k for k in HARDENED if k != "log-driver"))

@@ -3,6 +3,7 @@ import os
 import subprocess
 import time
 
+from fabriclib.common.systemctl_up import systemctl_up
 from fabriclib.common.restore_original import restore_original
 from fabriclib.security.hardened_daemon_settings import DAEMON_JSON, HARDENED
 
@@ -50,7 +51,7 @@ def undo_runtime(config_dir, restart=True):
     else:
         done = [f"{DAEMON_JSON}: {'put back as it was' if how == 'restored' else 'removed (it did not exist before)'}"]
     if done and restart:
-        subprocess.run(["systemctl", "restart", "docker"], check=True)
+        systemctl_up(["docker"], restart=True)
         for _ in range(12):
             if subprocess.run(["docker", "info"], capture_output=True).returncode == 0:
                 break

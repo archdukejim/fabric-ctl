@@ -3,6 +3,7 @@ steps not yet done, with the settings the questions saved and the secrets they h
 is not the one recorded as running. The steps are stubbed.
     python3 tests/setup/detach/run_worker_test.py"""
 import os
+import signal
 import sys
 import tempfile
 
@@ -33,10 +34,13 @@ def step(name):
     def run(ctx):
         seen.append((name, ctx.admin_password, ctx.join_invitation, ctx.non_interactive, ctx.offline,
                      sorted(ctx.restart_services), dict(ctx.vars)))
+        if name in CUT:                     # the unit stopped here (needrestart's restart): SIGTERM, as systemd sends
+            os.kill(os.getpid(), signal.SIGTERM)
     return (name, run, name)
 
 
 STEPS = [step(n) for n in ("preflight", "join", "deploy", "certs", "admin", "ready")]
+CUT = set()
 
 
 def read_own(path):
@@ -74,6 +78,32 @@ with tempfile.TemporaryDirectory() as d:
           not os.path.exists(handoff) and read_run(config)["handoff"] is None, read_run(config))
     check("negative: no secret is written into the run record",
           "Good-Pass-1234" not in open(os.path.join(config, "setup-run.yaml")).read())
+
+seen.clear()
+with tempfile.TemporaryDirectory() as d:
+    # decision 2.1.2.28: the unit restarted in the middle of a step (needrestart, systemd's re-execution); the restarted
+    # worker carries on from that step with the secrets the questions handed over, the hand-off kept until the end
+    config = setup(d, {"id": "r5", "state": "running", "done": [], "options": {}}, {"admin_password": "Typed-Pass-99"})
+    handoff = read_run(config)["handoff"]
+    child = os.fork()
+    if child == 0:                          # the unit's process, killed in the middle of certs
+        CUT.add("certs")
+        run_worker("r5", d, STEPS, read_secrets=read_own)
+        os._exit(0)
+    _, status = os.waitpid(child, 0)
+    cut = os.WIFSIGNALED(status) and os.WTERMSIG(status) == signal.SIGTERM
+    rec = read_run(config)
+    check("a unit stopped mid-step: the run stays running, certs not done, the hand-off kept and named",
+          cut and rec["state"] == "running" and "certs" not in rec["done"] and "deploy" in rec["done"]
+          and os.path.exists(handoff) and rec["handoff"] == handoff, rec)
+    seen.clear()
+    code = run_worker("r5", d, STEPS, read_secrets=read_own)
+    check("…restarted: it carries on from certs, the step that did not finish, and ends done",
+          code == 0 and [s[0] for s in seen] == ["certs", "admin", "ready"] and read_run(config)["state"] == "done",
+          (code, [s[0] for s in seen], read_run(config)))
+    check("…and [admin] has the password typed in the questions (the 0.10.0 rc's rehearsal lost it, 2.3.1.57)",
+          [s[1] for s in seen if s[0] == "admin"] == ["Typed-Pass-99"], seen)
+    check("…then the hand-off is gone", not os.path.exists(handoff) and read_run(config)["handoff"] is None)
 
 seen.clear()
 with tempfile.TemporaryDirectory() as d:

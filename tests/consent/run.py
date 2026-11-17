@@ -184,9 +184,11 @@ check("negative: what upgrade_vars changed for installs before 0.8.0 is left alo
 
 print("--- the firewall's questions (2.1.2.13): the ports fabric needs, then securing, then the host's own rules")
 rules = plan_firewall({**v, "ntp_serve": False}, cfg, active=False)
-check("securing: the default policy, SSH, the DOCKER-USER limit — and no fabric port (those are the first question)",
+check("securing: the default policy, SSH, the DOCKER-USER limit, ping by the access rules (2.1.10.56) — and no "
+      "fabric port (those are the first question)",
       rules[0].startswith("ufw: deny incoming") and "ufw: allow 22/tcp (SSH) from 10.0.0.0/24" in rules
-      and rules[-1].startswith("iptables DOCKER-USER") and not any("domain controller" in x for x in rules), rules)
+      and rules[-2].startswith("iptables DOCKER-USER") and rules[-1].startswith("ufw before.rules: ping")
+      and not any("domain controller" in x for x in rules), rules)
 on = plan_firewall({**v, "ntp_serve": False}, cfg, active=True)
 check("ufw on already: the first line says so, the rest the same",
       on[0].startswith("ufw is on already: deny incoming") and on[1:] == rules[1:], on[:2])
@@ -747,6 +749,7 @@ jh.render_member_files = lambda v: {krb_path: "# fabric krb5\n", sssd_path: "# f
 jh._resolves, jh._pam_on, jh._sudo_rs = (lambda name, address: True), (lambda: ["sss", "mkhomedir"]), (lambda: False)
 jh._sssd_on = lambda: True
 jh.subprocess = types.SimpleNamespace(run=lambda *a, **k: types.SimpleNamespace(returncode=1, stdout="", stderr=""))
+jh.systemctl_up = lambda *a, **k: None          # sssd's restart (common/systemctl_up): no sssd to start here
 kt_own = b"\x05\x02" + _entry("FAB1$@AD.TEST", 300, 1, b"o" * 32)
 calls, directory = [], {}
 

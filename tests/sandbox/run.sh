@@ -1064,7 +1064,7 @@ D1=$(openssl rand -base64 32); D2=$(openssl rand -base64 32)
 in_box "umask 077; printf '%s' '$D1' > /root/d1.secret; printf '%s' '$D2' > /root/d2.secret"
 in_box 'fabricctl acl policy certbot-devices --record web' >> "$OUT/tsig.log" 2>&1
 in_box 'fabricctl tsig add dev1 --acl certbot-devices --secret-file /root/d1.secret' >> "$OUT/tsig.log" 2>&1
-in_box 'fabricctl tsig add dev2 --secret-file /root/d2.secret' >> "$OUT/tsig.log" 2>&1
+in_box 'fabricctl tsig add dev2 --mode custom --secret-file /root/d2.secret' >> "$OUT/tsig.log" 2>&1
 # covers: cli:acl.policy +
 check "policy: device key in the ACL may set _acme-challenge.web (other names refused)" \
     "[ \"\$(t2136 dev1 '$D1' web)\" = '4 passed, 0 failed' ]"

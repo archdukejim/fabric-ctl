@@ -46,6 +46,9 @@ from fabriclib.dhcp.kea_key.drop_old_key import drop_old_key  # noqa: E402
 from fabriclib.dhcp.list_leases import list_leases  # noqa: E402
 from fabriclib.dhcp.normalize_dhcp import normalize_dhcp  # noqa: E402
 from fabriclib.dhcp.reload_kea import reload_kea  # noqa: E402
+from kea_on_host import check_on_host  # noqa: E402
+
+check_on_host()     # Kea's real check, inside deploy_kea, given a name the host has, not the bridge's eth0 (2.3.1.56)
 
 
 def check(name, cond, detail=""):

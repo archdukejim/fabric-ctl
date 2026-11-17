@@ -38,6 +38,7 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `plain_words.py` | Words and dates for people (1.8.8.6): the Jinja filters `plain` (the manual's numbers in brackets left out) and `written` ("3 Oct 2026, 09:12"). |
 | `render_page.py` | Render one template in the frame (top bar, navigation, the message of the last action), hiding the pages, sub-menus and forms the signed-in person has no permission for. |
 | `stepca.py` | The Step-CA tab: CA details, sign a CSR, new key + certificate, inspect, convert, or the issued list. |
+| `lifetimes.py` | PKI → Lifetimes: the lifetimes and renewal, the next renewals, the form for `pki:settings`. |
 | `tsig_result.py` | The page that shows a TSIG key's secret and RFC2136 client settings once. |
 | `__init__.py` | Imports every function of this folder, so callers keep `module.function` |
 | `federation.py` | The Federation tab: sites, replication, conflicts, limits, the address plan. |
@@ -45,7 +46,7 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `job_page.py` | A background job's page: doctor's checks or what an image change did; refreshes itself while it runs |
 | `settings.py` | The setup wizard: one step (optional parts, memory, passwords and sign-in, the upstreams, review), the rest carried hidden; the console-only settings read only |
 | `settings_plan.py` | A plan of the setup wizard: each change old to new, the parts and memory, what an import ignored; Apply |
-| `networks.py` | DHCP · Networks (1.10.4.40.1): the list, a VLAN's, subnet's and address's page, Add VLAN, the site's number, a search. |
+| `networks.py` | Networks · Segments (1.10.4.40.1): the list, a VLAN's, subnet's and address's page, Add VLAN, the site's number, a search. |
 | `ipam_scan.py` | The scan page: whether the person may scan, Scan now, what answered, Record a find. |
-| `dhcp_options.py` | DHCP · DHCP options: the sets, the subnets and reservations, a target's effective options and own forms. |
+| `dhcp_options.py` | Networks · DHCP options: the sets, the subnets and reservations, a target's effective options and own forms. |
 | `option_owner.py` | The subnet or reservation a DHCP options target names (404 when it is not there). |

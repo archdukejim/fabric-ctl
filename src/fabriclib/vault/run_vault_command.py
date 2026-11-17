@@ -1,7 +1,7 @@
 import getpass
-import subprocess
 import sys
 
+from fabriclib.common.systemctl_up import systemctl_up
 from fabriclib.common.ask import ask_secret
 from fabriclib.common.errors import ValidationError
 from fabriclib.vault.add_kmip_slot import add_kmip_slot
@@ -53,7 +53,7 @@ def restart_openbao(v, timeout=180):
     Feeds:   the restart callable of rotate_vault_key, from run_vault_command (rotate) and the agent route
              POST /v1/vault/rotate.
     """
-    subprocess.run(["systemctl", "restart", "openbao"], check=True, timeout=timeout)
+    systemctl_up(["openbao"], restart=True, timeout=timeout)
     wait_active(v, timeout)
 
 
@@ -199,7 +199,8 @@ def run_vault_command(v, argv):
             return 0
         if cmd == "rotate" and args in (["--yes"], ["-y"]):
             res = rotate_vault_key(v, "root", lambda: restart_openbao(v), source="cli")
-            print(f"vault key rotated to {res['key_id']}; kept {', '.join(res['kept'])}"
+            print(("the rotation that had stopped part way is finished: " if res.get("resumed") else "")
+                  + f"vault key rotated to {res['key_id']}; kept {', '.join(res['kept'])}"
                   + (f"; dropped {', '.join(res['dropped'])}" if res["dropped"] else ""))
             return 0
     except ValidationError as e:

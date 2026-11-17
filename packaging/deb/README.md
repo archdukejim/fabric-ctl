@@ -9,6 +9,7 @@ depend on the repository's layout (decision 2.1.2.5).
 | `build-deb.sh` | Build `dist/fabricctl_<version>_all.deb` from this checkout (one package for amd64 and arm64) |
 | `control.in` | Package metadata; `@VERSION@` is filled in by `build-deb.sh` |
 | `postinst` | Prints the next step; never starts services or touches the network |
+| `needrestart.conf` | Installed as `/etc/needrestart/conf.d/fabric.conf` (a conffile): needrestart never restarts `fabric-setup.service` while it works (2.1.2.28) |
 | `postrm` | `remove`: leaves the install running and untouched; `purge`: export to `/var/backups/fabric/`, then uninstall |
 
 Repository → host:

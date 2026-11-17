@@ -13,6 +13,7 @@ from fabriclib.ipam.set_address import set_address
 from fabriclib.ipam.set_block import set_block
 from fabriclib.ipam.set_subnet import set_subnet
 from fabriclib.ipam.set_vlan import set_vlan
+from fabriclib.ipam.rules.set_access import set_access
 
 
 def _subnet_line(out):
@@ -35,7 +36,7 @@ def _vlan(v, sub, rest, vals, bare, site, common):
     if sub == "add" and len(rest) == 1 and "--name" in vals:
         out = add_vlan(v, "root", rest[0], vals["--name"], site, vals.get("--subnet", ""),
                        "--no-subnet" in bare, vals.get("--gateway", ""), vals.get("--purpose", ""),
-                       vals.get("--notes", ""), vals.get("--access", "full"),
+                       vals.get("--notes", ""), "full",
                        on_off(vals["--dhcp"], "--dhcp") if "--dhcp" in vals else True, vals.get("--relay", ""),
                        vals.get("--allow-overlap", ""), "--no-split" not in bare, **common)
         r = out["result"]
@@ -48,7 +49,7 @@ def _vlan(v, sub, rest, vals, bare, site, common):
         return report_change(v, out, bare)
     if sub == "set" and len(rest) == 1:
         out = set_vlan(v, "root", rest[0], site, name=keep(vals, "--name"), purpose=keep(vals, "--purpose"),
-                       notes=keep(vals, "--notes"), access=keep(vals, "--access"),
+                       notes=keep(vals, "--notes"),
                        gateway=keep(vals, "--gateway", clear=True),
                        dhcp=keep(vals, "--dhcp", convert=on_off), relay=keep(vals, "--relay", clear=True),
                        allow_overlap=keep(vals, "--allow-overlap", clear=True),
@@ -128,10 +129,27 @@ def _address(v, cmd, sub, rest, vals, bare, site, common):
     return None
 
 
+def _access(v, sub, rest, bare, site, common):
+    """Purpose: `access set <network> <service>|all allow|deny` (manual 1.10.4.48.11): the change, what it did and the
+             network's services after, then applied.
+    Inputs:  as run_plan_change, with sub the subcommand and rest its positionals; --force taken here only.
+    Returns: exit status, or None when the arguments are not an access change.
+    Fails:   ValidationError from set_access.
+    Feeds:   run_plan_change."""
+    if sub != "set" or len(rest) != 3:
+        return None
+    out = set_access(v, "root", rest[0], {rest[1]: rest[2]}, site, "--force" in bare, **common)
+    r = out["result"]
+    print(f"site {out['site']}: {r['did']}" + (" (forced: the host's VLAN is cut off)" if r["forced"] else ""))
+    print(f"  {r['network']} reaches: " + (", ".join(s for s, a in r["row"].items() if a == "allow") or "nothing"))
+    return report_change(v, out, bare)
+
+
 def run_plan_change(v, cmd, pos, vals, bare, site, secrets=None, container="samba"):
-    """Purpose: `fabricctl ipam block <n>` and `vlan|subnet|range|address add|set|remove` (manual 1.10.4.16): each the
-             plan's function it names, run as root (acting for the Enterprise Admin), its result printed, then
-             applied here or left to the other site's poll (report_change). Routes only.
+    """Purpose: `fabricctl ipam block <n>`, `access set` (1.10.4.48.11) and `vlan|subnet|range|address
+             add|set|remove` (manual 1.10.4.16): each the plan's function it names, run as root (acting for the
+             Enterprise Admin), its result printed, then applied here or left to the other site's poll
+             (report_change). Routes only.
     Inputs:  v — the rendered vars; cmd — the command; pos — its positionals; vals, bare — the flags (parse_args);
              site — --site's value ("" this site); secrets, container — as the plan's functions.
     Returns: exit status, or None when cmd and its arguments are not a change (the caller prints the usage).
@@ -150,6 +168,8 @@ def run_plan_change(v, cmd, pos, vals, bare, site, secrets=None, container="samb
         return _vlan(v, sub, rest, vals, bare, site, common)
     if cmd == "subnet":
         return _subnet(v, sub, rest, vals, bare, site, common)
+    if cmd == "access":
+        return _access(v, sub, rest, bare, site, common)
     if cmd in ("range", "address"):
         return _address(v, cmd, sub, rest, vals, bare, site, common)
     return None

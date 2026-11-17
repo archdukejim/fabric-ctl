@@ -16,7 +16,7 @@ handed out. Proves the admin gets in and that everyone else is refused:
   - OpenBao's own UI: the admin signs in with Keycloak (TOTP) and gets the
     fabric-console-admin policy (apps/ yes, fabric's own secrets no); others refused
   - people: the admin adds a person and resets a sign-in
-  - the top bar's site selector: this site marked, its own link home, an unknown site refused
+  - one site per console: no site selector or Federation, every site view answers 404 (1.8.6.14)
 
   python3 login_test.py <vars.yaml> <other-user> <other-password> <other-p12-password>
 Prints PASS/FAIL lines.
@@ -312,17 +312,13 @@ st, _, page = b.request("GET", f"https://{MGR}/")
 check("admin: overview renders", st == 200 and "services healthy" in page and ADMIN in page, (st, page[:300]))
 check("setup wizard finished: the Overview no longer offers Finish setting up", "Finish setting up" not in page,
       page[:300])
-SITE = str(V.get("site_name") or "")
-pick = page.split('<details class="sitepick">', 1)[-1].split("</details>", 1)[0]
-check("the top bar's site selector (1.8.6.12): this site's name as the menu, this site marked in the domain's list",
-      f'<summary aria-label="Site: {SITE}. Pick a site">{SITE}</summary>' in page
-      and f'<a href="/" aria-current="true"><strong>{SITE}</strong>' in pick, pick[:600] or page[:600])
-st, loc, _ = b.request("GET", f"https://{MGR}/sites/{SITE}")
-check("the site selector: this site's own link goes to its Overview (303 /; the client joins it to the page's address)",
-      st == 303 and loc == f"https://{MGR}/", (st, loc))
-st, _, page = b.request("GET", f"https://{MGR}/sites/ghost")
-check("refused: a site the domain does not hold (404, said; no redirect)", st == 404
-      and "No site ghost in the domain." in page, (st, page[:300]))
+ONE = "This console shows only this site"                                  # routes/one_site
+check("one site per console (1.8.6.14, 2.1.8.68): no site selector in the top bar, no Federation in the navigation",
+      '<details class="sitepick">' not in page and 'href="/federation"' not in page, page[:600])
+for path in ("/sites/" + str(V.get("site_name") or "lan"), "/sites/ghost", "/federation", "/directory/sites"):
+    st, _, body = b.request("GET", f"https://{MGR}{path}")
+    check(f"one site per console: {path} answers 404, saying the console shows only this site",
+          st == 404 and ONE in body, (st, body[:300]))
 
 # -- everyone else is refused -----------------------------------------------------------
 ob = Browser(other_pem)

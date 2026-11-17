@@ -16,6 +16,7 @@ import io
 import json
 import os
 import shutil
+import signal
 import socket
 import stat
 import subprocess
@@ -502,8 +503,20 @@ check("the last unlock method cannot be removed", last)
 
 def restart_unsealed():
     compose("restart")
-    if health() != "healthy" or vault_status(V).get("sealed") is not False:
-        raise ValidationError("not unsealed after restart")
+    st = health()
+    status = vault_status(V)
+    if st != "healthy" or status.get("sealed") is not False:
+        # what it said, so a failure can be read without the container (gone by the next run; 2.3.1.56)
+        logs = sh("docker logs --tail 40 openbao 2>&1", ok=False).stdout
+        store = read_slot_store(V) or {}
+        why = {}
+        for kid in (store.get("key_id"), store.get("previous_key_id")):
+            if kid:
+                errs = []
+                why[kid] = (obtain_key(V, store, kid, errors=errs)[0] is not None, errs)
+        in_ram = sorted(os.listdir(V["openbao_runtime_dir"])) if os.path.isdir(V["openbao_runtime_dir"]) else None
+        raise ValidationError(f"not unsealed after restart: health {st!r}, status {status!r}, key files in RAM "
+                              f"{in_ram}, each key obtained (and why not) {why}\n{logs}")
 
 
 res = rotate_vault_key(V, "tester", restart_unsealed, source="test")
@@ -835,6 +848,11 @@ except ImportError:
 check("test prerequisites: python3-pykmip (client and pykmip-server) installed", have_kmip)
 if have_hsm and have_kmip:
     KP = 15696
+    # a port already in use (a KMIP server another run left, 2.3.1.56) is refused, never talked to
+    with socket.socket() as probe:
+        busy = probe.connect_ex(("127.0.0.1", KP)) == 0
+    if busy:
+        raise SystemExit(f"port {KP} is in use (another KMIP server?): stop it first; nothing here was tested against it")
     for name, san in (("kmip-server", "DNS:kmip.lan.test"), ("kmip-client", "DNS:fabric-test")):
         sh(f"openssl req -newkey rsa:2048 -nodes -keyout {name}.key -out {name}.csr -subj '/CN={name}'")
         open(f"{name}.ext", "w").write(f"subjectAltName={san}\nextendedKeyUsage=serverAuth,clientAuth\n")
@@ -845,14 +863,36 @@ if have_hsm and have_kmip:
     open("kmip.conf", "w").write(f"[server]\nhostname=127.0.0.1\nport={KP}\ncertificate_path={W}/kmip-server.pem\n"
                                  f"key_path={W}/kmip-server.pem\nca_path={W}/root.crt\nauth_suite=TLS1.2\n"
                                  f"enable_tls_client_auth=True\ndatabase_path={W}/kmip.db\nlogging_level=INFO\n")
-    kmip_srv = subprocess.Popen(["pykmip-server", "-f", f"{W}/kmip.conf", "-l", f"{W}/kmip.log"],
-                                stdout=open(f"{W}/kmip.out", "w"), stderr=subprocess.STDOUT)
-    for _ in range(60):
-        try:
-            socket.create_connection(("127.0.0.1", KP), 1).close()
-            break
-        except OSError:
-            time.sleep(0.5)
+    def start_kmip():
+        """PyKMIP's server, a session whose client has gone made to end (it looped without end on 26.04, 2.3.1.57),
+        started and waited for; its keys are in kmip.db, so a server started again holds the same keys."""
+        global kmip_srv
+        kmip_srv = subprocess.Popen([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                                  "kmip_server.py"),
+                                     "-f", f"{W}/kmip.conf", "-l", f"{W}/kmip.log"],
+                                    stdout=open(f"{W}/kmip.out", "a"), stderr=subprocess.STDOUT,
+                                    start_new_session=True)
+        for _ in range(60):
+            try:
+                socket.create_connection(("127.0.0.1", KP), 1).close()
+                return
+            except OSError:
+                time.sleep(0.5)
+
+    def stop_kmip():
+        """The server and its worker processes stopped, however this run ends, so none is left on the port. It
+        ignores SIGTERM and SIGINT (seen on Ubuntu 26.04, 2.3.1.56): asked first, then killed."""
+        if kmip_srv.poll() is not None:
+            return
+        for sig in (signal.SIGTERM, signal.SIGKILL):
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(kmip_srv.pid, sig)
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                kmip_srv.wait(5)
+                return
+
+    start_kmip()
+    atexit.register(stop_kmip)
     kargs = ("127.0.0.1", KP, "kmip.lan.test", f"{W}/root.crt", f"{W}/kmip-client.crt", f"{W}/kmip-client.key")
     with kmip_session(*kargs) as kc:
         kuid = kc.create(kenums.CryptographicAlgorithm.AES, 256)
@@ -890,13 +930,44 @@ if have_hsm and have_kmip:
           code == 0 and out.strip() == f"{hsm2}: removed" and slot_ids() == before, (out, err))
     remove_slot(V, "tester", tok, source="test")
     check("OpenBao restarts from the HSM alone", start() and not vault_status(V)["sealed"])
+    # the device stops answering mid-rotation (2.3.1.57): it is frozen right after it wrapped the new key, so the
+    # unlock before the restart cannot read a key from it; then it comes back as a fresh server on the same keys
+    # (PyKMIP itself, once thawed, hangs on its second request: the stand-in's limit, not a device's)
+    import fabriclib.vault.slots.kmip as kmip_slot
+    real_wrap, key_before = kmip_slot.wrap, read_slot_store(V)["key_id"]
+
+    def wrap_then_freeze(*a, **kw):
+        out = real_wrap(*a, **kw)
+        os.killpg(kmip_srv.pid, signal.SIGSTOP)
+        return out
+
+    kmip_slot.wrap = wrap_then_freeze
+    try:
+        stopped = refused(lambda: rotate_vault_key(V, "tester", restart_unsealed, source="test"),
+                          "OpenBao was not restarted and keeps running as it was")
+    finally:
+        kmip_slot.wrap = real_wrap
+        stop_kmip()
+        start_kmip()
+    part = read_slot_store(V)
+    check("rotation, the device stops answering mid-way: stopped before any restart and says so; OpenBao still "
+          "running unsealed; the store part way (both keys); no key left in RAM",
+          stopped and part.get("previous_key_id") == key_before and health() == "healthy"
+          and vault_status(V).get("sealed") is False and not os.listdir(f"{W}/run"), part.get("previous_key_id"))
+    res = rotate_vault_key(V, "tester", restart_unsealed, source="test")
+    check("...once the device answers again, a second rotate finishes that rotation: the HSM holds its new key "
+          "alone, OpenBao opened with it",
+          res["resumed"] and res["key_id"] == part["key_id"] and res["kept"] == [hsm]
+          and not read_slot_store(V).get("previous_key_id") and test_slot(V, "tester", hsm, source="test"), res)
     res = rotate_vault_key(V, "tester", restart_unsealed, source="test")
     check("rotation: the HSM wraps the new key", res["kept"] == [hsm] and test_slot(V, "tester", hsm, source="test"))
     with kmip_session(*kargs) as kc:
         kc.revoke(kenums.RevocationReasonCode.CESSATION_OF_OPERATION, kuid)
     check("KMIP kill switch: key revoked on the device -> the method no longer unwraps, fabric-unlock refuses",
           refused(lambda: test_slot(V, "tester", hsm, source="test"), "could not unwrap") and unlock_vault(V) is None)
-    kmip_srv.terminate()
+    stop_kmip()
+    check("the test's KMIP server is stopped, its port free again", kmip_srv.poll() is not None
+          and socket.socket().connect_ex(("127.0.0.1", KP)) != 0)
 
 # ---------------------------------------------------------------- hardening
 insp = json.loads(sh("docker inspect openbao").stdout)[0]

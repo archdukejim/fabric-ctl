@@ -15,7 +15,6 @@ import copy
 import json
 import os
 import shutil
-import socket
 import subprocess
 import sys
 import time
@@ -99,23 +98,10 @@ sh(["docker", "build", "-q", "-t", BIND_IMAGE, "--build-arg", f"BASE_IMAGE={DEBI
     f"{REPO}/packaging/images/bind9"])
 
 # ------------------------------------------------------------------ fabric's files
-import fabriclib.dhcp.check_kea_files as check_kea_files_module  # noqa: E402
-import fabriclib.dhcp.common.edit_dhcp as edit_dhcp_module  # noqa: E402
-# The test's Kea serves its bridge's eth0, but Kea's real check runs on the host's network and refuses an interface that is not
-# there, and a runner may have no eth0 (2.3.1.53). So the check is given a name the host has; all else it reads is the file's.
-HOST_IFACE = next((n for _, n in socket.if_nameindex() if n != "lo"), "lo")
+# The test's Kea serves its bridge's eth0; Kea's real check is given a name the host has (2.3.1.53)
+from kea_on_host import check_on_host, on_host  # noqa: E402
 
-
-def on_host(text):
-    return text.replace('"eth0"', f'"{HOST_IFACE}"')
-
-
-def check_kea_config(image, name, text):
-    return real_check(image, name, on_host(text))
-
-
-check_kea_files_module.check_kea_config = check_kea_config
-edit_dhcp_module.check_kea_config = check_kea_config
+check_kea_config = check_on_host()
 V = {"deploy_base_dir": W, "domain": "lan.test", "install_kea": True, "ip_kea_ddns": DDNS_IP, "ip_bind9": BIND_IP,
      "host_ip": BIND_IP, "service_users": {"kea": {"uid": 915, "gid": 915}}, "image_kea": KEA_IMAGE,
      "dhcp": {"interfaces": ["eth0"], "lease_time": 3600,

@@ -98,10 +98,13 @@ for tpl in sorted(env.list_templates()):
         extra = dict(zone_name='test.lan.j-j.family', zone_records=v2['dns']['dynamic_zone_var'])
     if tpl.startswith('bind9/data/reverse'):
         extra = dict(reverse_zone_name='7.168.192.in-addr.arpa', ptr_records=rv['zones']['7.168.192.in-addr.arpa'])
+    if tpl.endswith('/split.rpz.j2'):     # a VLAN's own answers (2.1.4.16), as dns/split/split_answers gives them
+        extra = dict(split={'ref': '20', 'view': 'vlan-20', 'rpz': 'split-20.rpz', 'cidrs': ['192.168.20.0/24'],
+                            'names': ['nas.test.lan.j-j.family'], 'lines': ['nas.test.lan.j-j.family A 192.168.20.5']})
     if tpl.startswith('systemd/'):
         extra = dict(item={'service': 'samba', 'compose': 'samba', 'folder': 'samba', 'requires': []})
     if tpl.startswith('resolver/config/'):     # what dns_filter/deploy_resolver passes beside the vars
-        extra = dict(zones=['test.lan.j-j.family', '7.168.192.in-addr.arpa'], clients=['192.168.7.0/24'],
+        extra = dict(**extra, zones=['test.lan.j-j.family', '7.168.192.in-addr.arpa'], clients=['192.168.7.0/24'],
                      resolver_rndc_secret='c2VjcmV0', groups=[{'name': 'kids', 'match': ['192.168.7.64/27'],
                                                               'rules_zone': 'group-kids.rpz', 'safe_zone': None}],
                      safe_zone=None, client_tls=False, adguard_tls=True, zone='group-x.rpz', what='group x',
@@ -138,6 +141,31 @@ acl = env.get_template('bind9/config/named.conf.acl.j2').render(**full)
 assert 'acl "certbot-devices"' in acl and 'key "dev1";' in acl, 'policy ACL not rendered'
 assert 'secret "bnBtLXRlc3Qtc2VjcmV0LTMyLWJ5dGVzLWxvbmch";' in keys, 'embedded TSIG secret not rendered'
 print('TSIG keys and RFC2136 grants rendered')
+# a record with its aliases (2.1.4.14): the record and every CNAME of the zone pointing at it now, chains included;
+# a CNAME into another zone is not granted. The grants are worked out at the render (check_rendered's
+# tsig_alias_grants, from dns/alias_grants).
+from fabriclib.dns.alias_grants import alias_grants  # noqa: E402
+_full = copy.deepcopy(full)
+_dom = _full['domain']
+_z = _full['dns']['dynamic_zone_var']
+_z.setdefault('A', []).append({'name': 'proxy9', 'ip': '192.168.7.99'})
+_z.setdefault('CNAME', []).extend([{'name': 'app9', 'canonical': 'proxy9'},
+                                   {'name': 'deep9', 'canonical': f'app9.{_dom}.'},
+                                   {'name': 'out9', 'canonical': 'proxy9.elsewhere.test.'}])
+_full['tsig_keys'] = list(_full['tsig_keys']) + [{'name': 'proxy-key', 'domain': _dom, 'algorithm': 'hmac-sha256',
+                                                  'records_with_aliases': ['proxy9'], 'record_types': ['TXT']}]
+_grants = {k: sorted({n for ns in c.values() for n in ns}) for k, c in alias_grants(_full).items()}
+_zones = env.get_template('bind9/config/named.conf.zones.j2').render(**_full, tsig_alias_grants=_grants)
+for _n in ('proxy9', 'app9', 'deep9'):
+    # covers: setting:tsig_keys +
+    assert f'grant "proxy-key" name _acme-challenge.{_n}.{_dom}. TXT;' in _zones, f'missing alias grant: {_n}'
+assert '_acme-challenge.out9.' not in _zones, 'a CNAME into another zone must not be granted'
+_z['CNAME'] = [c for c in _z['CNAME'] if c['name'] != 'app9']
+_grants = {k: sorted({n for ns in c.values() for n in ns}) for k, c in alias_grants(_full).items()}
+_zones = env.get_template('bind9/config/named.conf.zones.j2').render(**_full, tsig_alias_grants=_grants)
+assert '_acme-challenge.app9.' not in _zones and '_acme-challenge.deep9.' not in _zones, \
+    'an alias removed (and the chain through it) must lose its grant at the next render'
+print('records with their aliases: granted as the zone is at the render')
 # what apply refuses in tsig_keys and bind_acl_policies (deploy/merge_tsig_keys), saying why, the secrets untouched
 from fabriclib.common.errors import ValidationError as _VE  # noqa: E402
 from fabriclib.deploy.merge_tsig_keys import merge_tsig_keys  # noqa: E402
@@ -149,6 +177,7 @@ for _field, _bad, _msg in (
         ('tsig_keys', [{'name': 'k', 'algorithm': 'hmac-whirlpool'}], 'algorithm must be one of'),
         ('tsig_keys', [{'name': 'k', 'record_types': ['TXT; drop']}], 'invalid record_types'),
         ('tsig_keys', [{'name': 'k', 'records': ['web', 'bad host']}], 'invalid record names'),
+        ('tsig_keys', [{'name': 'k', 'records_with_aliases': ['*.apps']}], 'invalid records_with_aliases'),
         ('tsig_keys', [{'name': 'k', 'secret': 'not base64!'}], 'secret is not valid base64'),
         ('bind_acl_policies', {'certbot-devices': {'records': []}}, 'a policy needs records (hosts) or any_name'),
         ('bind_acl_policies', {'bad acl!': {'any_name': True}}, 'invalid ACL name'),
@@ -258,6 +287,12 @@ ngx_off = env.get_template('nginx/nginx.conf.j2').render(**{**secrets, **off})
 # covers: setting:dns_filter +
 assert '"grpc://bind9:' in ngx_off[ngx_off.index('location /dns-query'):], 'DoH goes to BIND with the DNS filter off'
 print('DoH: nginx speaks HTTP/2 to the DNS filter (or BIND with it off) (grpc_pass)')
+# Step-CA's maximum (2.1.5.14.3): never written by fabric, kept when an administrator set it
+assert 'stepca_cert_max_lifetime_hours' not in v1 and 'stepca_cert_max_lifetime_hours' not in v2,     "Step-CA's maximum is worked out at setup (init_pki), never written into the settings"
+_set = yaml.safe_load(env.get_template('vars.yaml.j2').render(**{**copy.deepcopy(PRISTINE),
+                                                                 'stepca_cert_max_lifetime_hours': '50000h'}))
+assert _set['stepca_cert_max_lifetime_hours'] == '50000h', "an administrator's Step-CA maximum is kept as set"
+print("Step-CA's maximum: not written unless an administrator set it (2.1.5.14.3)")
 res_ctx = dict(zones=['test.lan.j-j.family'], clients=['192.168.7.0/24'], resolver_rndc_secret='c2VjcmV0', client_tls=True,
                adguard_tls=True, safe_zone='safesearch-strict.rpz',
                groups=[{'name': 'kids', 'match': ['!192.168.7.70', '192.168.7.64/27'], 'rules_zone': 'group-kids.rpz',
@@ -458,9 +493,14 @@ for svc in ('nginx', 'bind9', 'stepca', 'samba', 'keycloak', 'postgres', 'webui'
             f'{svc}/{name}: image not pinned: {ref}'
 for df in glob.glob(os.path.join(REPO, 'packaging', 'images', '*', 'Dockerfile')):
     text = open(df).read()
-    assert not re.search(r'^ARG BASE_IMAGE=', text, re.M), f'{df}: BASE_IMAGE must have no default'
-    assert all(ln.split()[1].startswith('${BASE_IMAGE}') for ln in text.splitlines() if ln.startswith('FROM ')), \
-        f'{df}: FROM must be the pinned ${{BASE_IMAGE}}'
+    assert not re.search(r'^ARG (BASE|GO)_IMAGE=', text, re.M), f'{df}: BASE_IMAGE and GO_IMAGE must have no default'
+    # each stage FROM a pinned build argument: the image's base, or the Go toolchain a build stage compiles with
+    # (stepca's certificate reader, 2.1.5.13); --platform= flags are skipped
+    froms = [[w for w in ln.split()[1:] if not w.startswith('--')][0] for ln in text.splitlines()
+             if ln.startswith('FROM ')]
+    assert froms and froms[-1].startswith('${BASE_IMAGE}') \
+        and all(f.startswith(('${BASE_IMAGE}', '${GO_IMAGE}')) for f in froms), \
+        f'{df}: FROM must be the pinned ${{BASE_IMAGE}} (a build stage: ${{GO_IMAGE}})'
 print('every image pinned by digest (lock, vars defaults, compose files, Dockerfiles)')
 
 # Fluent Bit (optional log forwarding, 2.1.15.1): verified TLS to every destination, no credential in the file
@@ -582,7 +622,7 @@ import ipaddress  # noqa: E402
 
 from fabriclib.dhcp.client_networks import client_networks  # noqa: E402
 from fabriclib.dhcp.place_subnets import place_subnets  # noqa: E402
-from fabriclib.security.apply_docker_firewall import _rules as docker_rules  # noqa: E402
+from fabriclib.security.apply_docker_firewall import _published_ports, _rules as docker_rules  # noqa: E402
 # fabric's LAN address in this block is the PRISTINE LAN's (the hardening suite renders with host_ip 127.0.0.1)
 kv_any_host, kv = kv, {**kv, "host_ip": "192.168.7.53"}
 nets = {"eth0": [ipaddress.ip_interface(f"{kv['host_ip']}/24")], "eth1": [ipaddress.ip_interface("10.20.0.10/24")]}
@@ -610,8 +650,9 @@ for bad, msg in (({"access": "staff"}, "access is full"), ({"relay": "not-an-ip"
     except ValidationError as e:
         assert msg in str(e), (msg, str(e))
 served = client_networks(lab)
-assert served == {"full": ["192.168.7.0/24", "10.20.0.0/24"], "guest": ["10.30.0.0/24"],
-                  "full_addrs": [kv["host_ip"], "10.20.0.10"], "guest_addrs": [kv["host_ip"]]}, served
+# a subnet's access is no longer read (2.1.10.58): every served subnet is listened on; the rules decide who is answered
+assert served == {"full": ["192.168.7.0/24", "10.20.0.0/24", "10.30.0.0/24"], "guest": [],
+                  "full_addrs": [kv["host_ip"], "10.20.0.10"], "guest_addrs": []}, served
 lab["dhcp_served"] = served
 k4 = json.loads("\n".join(ln for ln in env.get_template("kea/kea-dhcp4.conf.j2").render(**lab).splitlines()
                           if not ln.strip().startswith("//")))["Dhcp4"]
@@ -641,14 +682,18 @@ assert {"10.20.0.10:53:53/udp", "10.20.0.10:853:853/tcp", f"{kv['host_ip']}:53:5
 nports = yaml.safe_load(env.get_template("nginx/docker-compose.yml.j2").render(**lab))["services"]["nginx"]["ports"]
 assert "10.20.0.10:443:443" in nports and nports.count(f"{kv['host_ip']}:443:443") == 1, nports
 kv = kv_any_host                  # the rest takes host_ip as the caller gave it
-labvars = yaml.safe_load(env.get_template("vars.yaml.j2").render(**{**lab, "install_kea": True}))
-assert {"10.20.0.0/24", "192.168.7.0/24"} <= set(labvars["bind_acls"]["dns-resolvers"]) \
-    and "10.30.0.0/24" not in labvars["bind_acls"]["dns-resolvers"], labvars["bind_acls"]
-guest = [r for r in docker_rules(["192.168.7.0/24", "10.20.0.0/24"], (), ["10.30.0.0/24"]) if "10.30.0.0/24" in r]
-assert sorted(r[r.index("--ctorigdstport") + 1] + "/" + r[r.index("-p") + 1] for r in guest) \
-    == ["53/tcp", "53/udp", "853/tcp"], guest
+# what each network reaches is the site's access rules' (1.10.4.48.3): only the networks allowed dns join the ACL
+allowed = {s: ["192.168.7.0/24"] for s in ("ntp", "dhcp", "web", "ad", "radius", "ssh", "ping")}
+allowed["dns"] = ["192.168.7.0/24", "10.30.0.0/24"]
+labvars = yaml.safe_load(env.get_template("vars.yaml.j2").render(**{**lab, "install_kea": True,
+                                                                     "access_sources": allowed}))
+assert {"10.30.0.0/24", "192.168.7.0/24"} <= set(labvars["bind_acls"]["dns-resolvers"]) \
+    and "10.20.0.0/24" not in labvars["bind_acls"]["dns-resolvers"], labvars["bind_acls"]
+dns_only = [r for r in docker_rules(allowed, _published_ports({})) if "10.30.0.0/24" in r]
+assert sorted(r[r.index("--ctorigdstport") + 1] + "/" + r[r.index("-p") + 1] for r in dns_only) \
+    == ["53/tcp", "53/udp", "853/tcp"], dns_only
 print("DHCP beyond the host's LAN: subnets placed on their interfaces (or a relay), each told fabric's address there, "
-      "the resolver and nginx listening on it, guests DNS only")
+      "the resolver and nginx listening on it, a network allowed dns alone reaching only the DNS ports")
 # reverse DNS for DHCP's clients (2.1.10.7, manual 1.10.3.4)
 from fabriclib.dhcp.dhcp_reverse_zones import dhcp_reverse_zones  # noqa: E402
 from fabriclib.dns.reverse_zones import reverse_zones  # noqa: E402

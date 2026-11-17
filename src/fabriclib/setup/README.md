@@ -15,6 +15,7 @@
 | `errors.py` | `SetupError` — a step cannot continue; message says why and what to do |
 | `choose_mode.py` | A new install's start: [G]uided, [A]dvanced (the menu of every setting) or [Q]uit (1.2.9.11.1) |
 | `collect_vars.py` | Where settings come from: existing install, `--file` (or a checkout's `custom-vars.yaml` on a fresh install) overrides, prompts for anything missing (guided mode) |
+| `drop_old_authority_max.py` | The upgrade step of 2.1.5.14.3: a `stepca_cert_max_lifetime_hours` fabric wrote itself is taken out, so Step-CA's maximum is worked out; an administrator's is kept |
 | `drop_retired_settings.py` | A settings file of an older fabric taken as it is (2.1.1.60): the keys this release no longer takes, listed with why and ignored (the table: `common/retired_settings.py`) |
 | `apply_plan_defaults.py` | The plan's hardened defaults recorded as values, so what is shown is what renders |
 | `finish_vars.py` | The last of collecting the settings: a fresh install's log-on rights, TSIG secrets moved, `fabric.yaml` saved |
@@ -40,6 +41,8 @@
 | `init_pki.py` | Step-CA init (own root or bring-your-own), `ca.json`, CA certs published and trusted |
 | `start_bootstrap.py` | Start bind9 + step-ca; validate every zone |
 | `mint_service_certs.py` | Issue/renew service certificates (only what is missing, expiring or wrong); web UI and FreeRADIUS CA bundles |
+| `issue_service_cert.py` | Mint one service certificate and install it at each destination; the key never left behind |
+| `service_cert_targets.py` | Each service certificate fabric keeps: its name, SANs, destinations and the services that use it |
 | `mint_extra_certs.py` | `extra_certs` entries, when missing or due (part of the `certs` step) |
 | `join_host_domain.py` | Step `member`: this host a member of its own domain with its own computer account in OU=fabric-hosts (2.1.6.48; keytab, krb5.conf, sssd.conf, NSS, PAM); no domain account signs in (2.1.6.75) |
 | `start_services.py` | Retire renamed units; start the stack in order; converge the domain; the site's number (`ask_site_number`); configure Keycloak; fabric-agent + web UI; activate `fabric.target` |

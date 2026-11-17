@@ -13,7 +13,8 @@ http "doh" { endpoints { "/dns-query"; }; };
 tls "group-{{ g.name }}" { ca-file "/etc/bind/fabric-root-ca.crt"; remote-hostname "{{ g.name }}.filter.{{ domain }}"; };
 {% endfor %}
 {% endif %}
-// the networks that may use it: the LAN, fabric's own, and what the firewall lets in
+// the networks that may use it: those the site's access rules allow dns (1.10.4.48.3), fabric's own, and
+// security.firewall_allow
 acl "clients" { {% for c in clients %}{{ c }}; {% endfor %}127.0.0.1; };
 
 options {
@@ -31,6 +32,10 @@ options {
     allow-recursion { clients; };
     allow-query-cache { clients; };
     allow-transfer { none; };
+{% if deny %}
+    // the site's access rules (manual 1.10.4.48.3): a network not allowed dns gets no answer at all, not a refusal
+    blackhole { !127.0.0.1; !{{ host_ip }}; !{{ fabric_subnet }}; {% for n in deny %}{{ n }}; {% endfor %}};
+{% endif %}
     // DNSSEC validated here (2.1.12.7): a resolver that does not validate sets CD on what it forwards, so nothing
     // upstream would. AdGuard passes every DS query, so a blocked name in an unsigned zone stays NXDOMAIN; fabric's
     // own zones are never signed
@@ -67,16 +72,14 @@ logging {
     zone "fabric.rpz" { type primary; file "/etc/bind/fabric.rpz"; };
     zone "owner.rpz" { type primary; file "/etc/bind/owner.rpz"; };
 {% endmacro %}
-{% for g in groups %}
-// client group {{ g.name }} (manual 1.12.2.15, 1.12.3.6): fabric's zones, its own rules, the owner's, its safe search;
-// everything else to AdGuard Home as the group {{ g.name }}
+{% macro group_view(g, split) %}
 view "{{ g.name }}" {
     match-clients { {% for m in g.match %}{{ m }}; {% endfor %}};
     // a group's view keeps no "no such name" (2.1.12.11, the owner 2026-10-31); answers keep the options' 300 s cap
     max-ncache-ttl 0;
     forward only;
 {% if adguard_tls %}
-    forwarders port 853 tls "group-{{ g.name }}" { {{ ip_adguard }}; };
+    forwarders port 853 tls "group-{{ g.group | default(g.name) }}" { {{ ip_adguard }}; };
 {% else %}
     // no certificate for *.filter.{{ domain }} yet: plain DNS (the group's AdGuard rules wait for it)
     forwarders { {{ ip_adguard }} port 53; };
@@ -85,8 +88,14 @@ view "{{ g.name }}" {
 {% if g.safe_zone %}
     zone "{{ g.safe_zone }}" { type primary; file "/etc/bind/{{ g.safe_zone }}"; };
 {% endif %}
-    // first match wins: fabric's zones never filtered, the group's own allows and blocks, the owner's, safe search
+{% if split %}
+    zone "{{ split }}" { type primary; file "/etc/bind/{{ split }}"; };
+{% endif %}
+    // first match wins: {% if split %}the VLAN's own answers, {% endif %}fabric's zones never filtered, the group's own allows and blocks, the owner's, safe search
     response-policy {
+{% if split %}
+        zone "{{ split }}";
+{% endif %}
         zone "fabric.rpz";
         zone "{{ g.rules_zone }}";
         zone "owner.rpz";
@@ -95,18 +104,24 @@ view "{{ g.name }}" {
 {% endif %}
     } break-dnssec yes qname-wait-recurse no;
 };
-
-{% endfor %}
-view "everyone" {
-    match-clients { any; };
+{% endmacro %}
+{% macro everyone_view(name, match, split) %}
+view "{{ name }}" {
+    match-clients { {% for m in match %}{{ m }}; {% endfor %}};
     // everything that is not fabric's goes to AdGuard Home, which matches the lists (1.12.3.2)
     forward only;
     forwarders { {{ ip_adguard }} port 53; };
 {{ own_zones() }}{% if safe_zone %}
     zone "{{ safe_zone }}" { type primary; file "/etc/bind/{{ safe_zone }}"; };
 {% endif %}
-    // first match wins: fabric's zones are never filtered, then the owner's rules, safe search
+{% if split %}
+    zone "{{ split }}" { type primary; file "/etc/bind/{{ split }}"; };
+{% endif %}
+    // first match wins: {% if split %}the VLAN's own answers, {% endif %}fabric's zones are never filtered, then the owner's rules, safe search
     response-policy {
+{% if split %}
+        zone "{{ split }}";
+{% endif %}
         zone "fabric.rpz";
         zone "owner.rpz";
 {% if safe_zone %}
@@ -114,3 +129,18 @@ view "everyone" {
 {% endif %}
     } break-dnssec yes qname-wait-recurse no;
 };
+{% endmacro %}
+{% for g in pairs | default([]) %}
+// client group {{ g.group }} inside {{ g.split }}'s VLAN (decision 2.1.4.16): the group's filtering, the VLAN's own answers
+{{ group_view(g, g.split) }}
+{% endfor %}
+{% for g in groups %}
+// client group {{ g.name }} (manual 1.12.2.15, 1.12.3.6): fabric's zones, its own rules, the owner's, its safe search;
+// everything else to AdGuard Home as the group {{ g.name }}
+{{ group_view(g, none) }}
+{% endfor %}
+{% for x in vlans | default([]) %}
+// {{ x.name }}: its own answers for its names (decision 2.1.4.16, manual 1.4.1.11), everything else as everyone's
+{{ everyone_view(x.name, x.match, x.split) }}
+{% endfor %}
+{{ everyone_view("everyone", ["any"], none) }}

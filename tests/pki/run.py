@@ -583,5 +583,12 @@ print("\n".join(line for line in land.stdout.splitlines() if line.startswith(("P
       or land.stdout[-2000:] + land.stderr[-2000:])
 check("landing certificate: landing.py passed", land.returncode == 0, land.stderr[-400:])
 
+print("--- revoking any certificate from the console, and the Lifetimes page (console.py)")
+con = subprocess.run([sys.executable, os.path.join(REPO, "tests", "pki", "console.py")], capture_output=True,
+                     text=True)
+print("\n".join(line for line in con.stdout.splitlines() if line.startswith(("PASS", "FAIL")))
+      or con.stdout[-2000:] + con.stderr[-2000:])
+check("console revocation and lifetimes: console.py passed", con.returncode == 0, con.stderr[-400:])
+
 print(f"\n{'FAILED' if FAILED else 'all passed'} ({FAILED} failures)")
 sys.exit(1 if FAILED else 0)

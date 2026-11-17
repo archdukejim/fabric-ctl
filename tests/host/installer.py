@@ -27,7 +27,9 @@ import yaml
 
 TARGET, KEY = os.environ["TARGET"], os.path.expanduser(os.environ["KEY"])
 HOST_IP, DOMAIN = os.environ["HOST_IP"], os.environ.get("DOMAIN", "home.arpa")
-FOREIGN_IP = os.environ.get("FOREIGN_IP", "192.168.7.250")    # in the host's subnet, but not one of its addresses
+# in the host's subnet but not one of its addresses: its /24's .250 (a fixed 192.168.7.250 was the Pi's, outside the lab
+# VM's 10.88.0.0/24, so setup asked about the subnet instead: the 0.10.0 rc's rehearsal, 2.3.1.57)
+FOREIGN_IP = os.environ.get("FOREIGN_IP") or HOST_IP.rsplit(".", 1)[0] + (".251" if HOST_IP.endswith(".250") else ".250")
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "src"))
 from fabriclib.samba.suggested_ad_domain import suggested_ad_domain  # noqa: E402
 from fabriclib.samba.suggested_dc_name import suggested_dc_name  # noqa: E402

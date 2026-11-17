@@ -86,18 +86,24 @@ def main():
     check("the address manager's classes: 8, 9, 10, 12, 16 kept, the VLAN record 17, the site's record 18, 0.8.0's "
           "site tree 19, the location's label 20",
           {k: classes.get(k) for k in want} == want, {k: classes.get(k) for k in want})
-    check("the plan's attributes keep 15-34 and 41-45, 0.8.0's site tree 46 and 47, and the location's "
-          "label 48 (2.1.10.49)",
-          {n for n in attrs.values() if n > 14} == set(range(15, 35)) | set(range(41, 46)) | {46, 47, 48}
-          and attrs.get("fabricLocation") == 48, sorted(attrs.values()))
+    check("the plan's attributes keep 15-34 and 41-45, 0.8.0's site tree 46 and 47, the location's label 48 "
+          "(2.1.10.49) and the site's access rules 49 (2.1.10.53)",
+          {n for n in attrs.values() if n > 14} == set(range(15, 35)) | set(range(41, 46)) | {46, 47, 48, 49}
+          and attrs.get("fabricLocation") == 48 and attrs.get("fabricAccessRule") == 49, sorted(attrs.values()))
+    rules = next(c for c in SETS["fabric"][3] if c[0] == "fabricAccessRules")
+    check("the site's access rules: auxiliary class 21 holding fabricAccessRule alone, multi-valued "
+          "(manual 1.10.4.48.4)",
+          classes.get("fabricAccessRules") == 21 and rules[2] == 3 and rules[3] == []
+          and rules[4] == ["fabricAccessRule"]
+          and next(a for a in SETS["fabric"][2] if a[0] == "fabricAccessRule")[3] is False, rules)
     located = next(c for c in SETS["fabric"][3] if c[0] == "fabricLocated")
     check("the location's label is an auxiliary class holding fabricLocation alone (a class never changes once in a "
           "schema, so it is not added to the VLAN record or the subnet)",
           located[2] == 3 and located[3] == [] and located[4] == ["fabricLocation"], located)
     check("the site selector's own: fabricParentSite 46, fabricConsoleUrl 47, auxiliary class fabricSiteTree 19",
           attrs.get("fabricParentSite") == 46 and attrs.get("fabricConsoleUrl") == 47
-          and classes.get("fabricSiteTree") == 19 and {n for n in attrs.values() if n > 45} == {46, 47, 48}
-          and {n for n in classes.values() if n > 18} == {19, 20}, (attrs, classes))
+          and classes.get("fabricSiteTree") == 19 and {n for n in attrs.values() if n > 45} == {46, 47, 48, 49}
+          and {n for n in classes.values() if n > 18} == {19, 20, 21}, (attrs, classes))
     tree = next(c for c in SETS["fabric"][3] if c[0] == "fabricSiteTree")
     check("...auxiliary, may hold the two only", tree[2] == 3 and tree[3] == []
           and tree[4] == ["fabricParentSite", "fabricConsoleUrl"], tree)

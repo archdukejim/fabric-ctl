@@ -1,6 +1,7 @@
 import os
 import subprocess
 
+from fabriclib.common.systemctl_up import systemctl_up
 from fabriclib.common.errors import ValidationError
 from fabriclib.deploy.compose_builds import compose_builds
 from fabriclib.dhcp.clear_stale_dhcp_names import clear_stale_dhcp_names
@@ -42,7 +43,7 @@ def _roll_out(restart):
             if container:
                 start_unit(unit, container, restart=True)
             else:
-                subprocess.run(["systemctl", "restart", unit], check=True, timeout=TIMEOUT.get(unit, 30))
+                systemctl_up([unit], restart=True, timeout=TIMEOUT.get(unit, 30))
                 if subprocess.run(["systemctl", "is-active", "--quiet", unit]).returncode != 0:
                     raise SetupError(f"{unit} is not active after its restart")
         except (SetupError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:

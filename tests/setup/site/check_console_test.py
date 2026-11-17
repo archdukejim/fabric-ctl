@@ -28,7 +28,10 @@ def make_ca(folder, stem):
     root, root_key = f"{folder}/{stem}-root.crt", f"{folder}/{stem}-root.key"
     leaf, key, csr, ext = f"{folder}/{stem}.crt", f"{folder}/{stem}.key", f"{folder}/{stem}.csr", f"{folder}/{stem}.ext"
     curve = ("-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes")
-    openssl("req", "-x509", *curve, "-keyout", root_key, "-out", root, "-days", "2", "-subj", f"/CN={stem} root")
+    # a CA with keyUsage, as fabric's own root has (init_pki): Python 3.13+ verifies strictly (VERIFY_X509_STRICT)
+    # and refuses a CA without it (2.3.1.56)
+    openssl("req", "-x509", *curve, "-keyout", root_key, "-out", root, "-days", "2", "-subj", f"/CN={stem} root",
+            "-addext", "keyUsage=critical,keyCertSign,cRLSign")
     openssl("req", *curve, "-keyout", key, "-out", csr, "-subj", f"/CN={NAME}")
     with open(ext, "w") as f:
         f.write(f"subjectAltName=DNS:{NAME}\n")

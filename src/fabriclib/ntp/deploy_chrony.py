@@ -1,6 +1,7 @@
 import os
 import subprocess
 
+from fabriclib.common.systemctl_up import systemctl_up
 from fabriclib.common.console import warn
 from fabriclib.common.keep_original import keep_original
 from fabriclib.common.write_file_if_changed import write_file_if_changed
@@ -52,7 +53,7 @@ def deploy_chrony(v, registry_path, jinja_env, root="/", manage_units=True, conf
     subprocess.run(["systemctl", "disable", "--now", "systemd-timesyncd"], capture_output=True)
     subprocess.run(["systemctl", "enable", "chrony"], check=True, capture_output=True)
     subprocess.run(["systemctl", "enable", "chrony-wait"], capture_output=True)   # absent on some releases
-    subprocess.run(["systemctl", "restart" if changed else "start", "chrony"], check=True)
+    systemctl_up(["chrony"], restart=changed)
     # the clock settled before anything is stamped with it: chrony steps a wrong clock a little after it starts,
     # and a step between the CA's root and intermediate left the root valid only hours later (manual 2.3.6.1.27)
     if not v.get("ntp_set_clock", True):          # -x: chrony never corrects the clock, so nothing to wait for

@@ -47,7 +47,8 @@ def _kea(parts, form):
                                  form.get("allow_overlap", ""))
         return res, f"Subnet {res['subnet']['subnet']} ({res['subnet']['name']}) added."
     if parts == ["subnets", "update"]:
-        fields = {k: form.get(k, "") for k in ("name", "vlan", "router", "notes", "allow_overlap")}
+        # a field the form leaves out stays as it is: the overlap with another site is not asked here (1.8.6.14)
+        fields = {k: form.get(k, "") for k in ("name", "vlan", "router", "notes", "allow_overlap") if k in form}
         fields.update(add_pools=_pools(form.get("add_pools")), remove_pools=_pools(form.get("remove_pools")))
         res = actions.update_subnet(form.get("subnet", ""), fields)
         return res, f"Subnet {res['subnet']['subnet']} saved."

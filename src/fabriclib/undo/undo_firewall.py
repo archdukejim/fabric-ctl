@@ -1,8 +1,11 @@
 import os
+import shutil
 import subprocess
 
 from fabriclib.common.keep_original import ORIGINALS
+from fabriclib.security.apply_ping_rules import BEFORE, BEFORE6
 from fabriclib.security.host_own_rules import OWN_RULES
+from fabriclib.security.ufw_own_rule_args import ufw_own_rule_args
 from fabriclib.security.ufw_rule import RECORDS, ufw_rule
 
 UNIT = "/etc/systemd/system/fabric-firewall.service"
@@ -10,7 +13,8 @@ UNIT = "/etc/systemd/system/fabric-firewall.service"
 
 def undo_firewall(config_dir):
     """Purpose: undo the `ports`, `firewall` and `own_rules` host changes (manual 1.2.9.5, 2.1.2.13): the ufw rules
-             fabric added, the host's own rules it removed put back, its DOCKER-USER rules and their boot unit; ufw
+             fabric added, the host's own rules it removed put back, ufw's before.rules and before6.rules as they were
+             (fabric's ping block, 2.1.10.56), its DOCKER-USER rules and their boot unit; ufw
              switched off again if it was off before fabric. When ufw stays
              on (it was on before, or that is not known), fabric's SSH rules stay too: removing them would lock every
              remote admin out of the host.
@@ -40,10 +44,23 @@ def undo_firewall(config_dir):
     own = os.path.join(config_dir, OWN_RULES)          # the host's own rules fabric removed (2.1.2.13): put back
     if os.path.exists(own):
         for rule in open(own).read().splitlines():
-            if rule.startswith("ufw "):
-                subprocess.run(["ufw", *rule.split()[1:]], capture_output=True)
-                done.append(f"ufw: the host's own rule put back: {rule}")
+            args = ufw_own_rule_args(rule)
+            if args:
+                res = subprocess.run(["ufw", *args], capture_output=True, text=True)
+                if res.returncode == 0:
+                    done.append(f"ufw: the host's own rule put back: {rule}")
+                    continue
+                why = ((res.stderr or res.stdout or "").strip().splitlines() or ["ufw failed"])[0]
+                done.append(f"ufw: could not put back the host's own rule {rule}: {why}; add it with ufw yourself")
         os.remove(own)
+    for name, path in (("ufw.before.rules", BEFORE), ("ufw.before6.rules", BEFORE6)):   # ping (2.1.10.56)
+        kept = os.path.join(config_dir, ORIGINALS, name)
+        if os.path.exists(kept):
+            shutil.copy2(kept, path)
+            os.remove(kept)
+            if shutil.which("ufw"):
+                subprocess.run(["ufw", "reload"], capture_output=True)
+            done.append(f"{path}: put back as it was before fabric (ping answered as ufw's default)")
     if os.path.exists(UNIT):
         subprocess.run(["systemctl", "disable", "--now", "fabric-firewall"], capture_output=True)
         os.remove(UNIT)

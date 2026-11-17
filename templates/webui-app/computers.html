@@ -14,14 +14,13 @@
 {% else %}
 <section class="card"><h2>Computers <span class="muted">{{ total }}</span></h2>
 <form method="get" action="/directory/computers" class="grid search" role="search">
-<label>Search <input name="q" value="{{ search }}" autocomplete="off" placeholder="name, OS, folder, site, group"></label>
+<label>Search <input name="q" value="{{ search }}" autocomplete="off" placeholder="name, OS, folder, group"></label>
 <label>Type<select name="type"><option value="">any</option>{% for id, label in types | dictsort %}<option value="{{ id }}"{{ ' selected' if applied.type == id }}>{{ label }}</option>{% endfor %}<option value="none"{{ ' selected' if applied.type == 'none' }}>none</option></select></label>
-<label>Site<select name="site"><option value="">any</option>{% for s in sites %}<option{{ ' selected' if applied.site == s }}>{{ s }}</option>{% endfor %}</select></label>
 <div><button class="ghost">Search</button>{% if search or keep %} <a href="/directory/computers">Clear</a>{% endif %}</div></form>
-{% if machines %}{% call p.list(["", "Name", "Type", "Sites", "OS", "Folder", "Machine groups", "Last sign-in"]) %}{% for m in machines %}<tr>
+{% if machines %}{% call p.list(["", "Name", "Type", "OS", "Folder", "Machine groups", "Last sign-in"]) %}{% for m in machines %}<tr>
 <td>{{ p.light('ok' if m.enabled else 'bad', 'enabled' if m.enabled else 'disabled') }}</td>
 <td data-label="Name"><a href="/directory/computers/{{ m.name | urlencode }}"><strong>{{ m.name }}</strong></a></td>
-<td data-label="Type">{{ types.get(m.type, '—') }}</td><td data-label="Sites">{{ m.sites | join(', ') or '—' }}</td>
+<td data-label="Type">{{ types.get(m.type, '—') }}</td>
 <td data-label="OS">{{ m.os or '—' }}</td><td data-label="Folder">{{ m.folder or '—' }}</td>
 <td data-label="Machine groups">{{ m.groups | join(', ') or '—' }}</td><td data-label="Last sign-in">{{ last(m.last_logon) }}</td></tr>{% endfor %}{% endcall %}
 {{ p.pager("/directory/computers", search, at, pages, "computers", keep) }}
@@ -70,7 +69,7 @@
 <label><input type="checkbox" name="managed" value="yes" checked> Managed by fabric (SSH with Kerberos, DNS; manual 1.6.11.6)</label>
 <div><button>Add computer</button></div>
 </form>
-<p class="muted small">It goes into this site's group; add others from its page. Waits for Computers' Apply; its one-time join password is shown once on the Review after Apply: give it to <code>join-linux.sh --one-time</code> on a Linux machine. Windows machines join with an admin's account and are filed by their edition.</p>
+<p class="muted small">It goes into this site's group. Waits for Computers' Apply; its one-time join password is shown once on the Review after Apply: give it to <code>join-linux.sh --one-time</code> on a Linux machine. Windows machines join with an admin's account and are filed by their edition.</p>
 </section>
 
 {% elif view == "keytab" %}
@@ -91,7 +90,7 @@
 {% call p.actions() %}{% if can('machines:admin') %}<form method="post" action="/directory/machines/{{ m.name | urlencode }}/{{ 'disable' if m.enabled else 'enable' }}">{{ csrf() }}<button class="ghost">{{ 'Disable' if m.enabled else 'Enable' }}</button></form>{% endif %}{% endcall %}
 <section class="card facts"><h2>State</h2><p>{{ p.status('ok' if m.enabled else 'bad', 'enabled' if m.enabled else 'disabled') }}</p>
 <dl><dt>Last sign-in</dt><dd>{{ last(m.last_logon) }}</dd><dt>Joined</dt><dd>{{ m.created or '—' }}</dd></dl></section>
-{{ p.facts("Details", [("Type", types.get(m.type, "none")), ("Sites", m.sites | join(", ") or "none"), ("OS", m.os or "—"), ("Folder", m.folder or "—"), ("Machine groups", m.groups | join(", ") or "none")]) }}
+{{ p.facts("Details", [("Type", types.get(m.type, "none")), ("OS", m.os or "—"), ("Folder", m.folder or "—"), ("Machine groups", m.groups | join(", ") or "none")]) }}
 <section class="card"><h2>Grants that reach it <span class="muted">{{ c.grants | length }}</span></h2>
 {% if c.grants %}{% call p.list(["Grant", "Kind", "Who", "Gives here"]) %}{% for g in c.grants %}<tr>
 <td data-label="Grant"><strong>{{ g.name }}</strong>{% if g.description %}<div class="muted small">{{ g.description }}</div>{% endif %}</td>
@@ -122,12 +121,6 @@
 <label><input type="checkbox" name="move" value="yes" checked> Move it to that type's folder</label>
 <div><button>Change type</button></div></form>
 <p class="muted small">Its type group decides which shipped grants reach it. Waits for Computers' Apply.</p></section>
-<section class="card"><h2>Sites</h2>
-<form method="post" action="/directory/machines/{{ m.name | urlencode }}/sites" class="grid">
-{{ csrf() }}
-<label>Site<select name="site" required>{% for s in ch.sites or [] %}<option>{{ s }}</option>{% endfor %}</select></label>
-<div><button name="action" value="add">Add to site</button> <button name="action" value="remove" class="ghost">Take out of site</button></div></form>
-<p class="muted small">A site is a group of its people and computers; grants scoped to a site reach it there. Waits for Computers' Apply.</p></section>
 {% if can('ous:admin') %}<section class="card"><h2>Move to folder</h2>
 <form method="post" action="/directory/machines/{{ m.name | urlencode }}/move" class="grid">
 {{ csrf() }}

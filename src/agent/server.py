@@ -23,6 +23,7 @@ request. Root peers (the host itself) are not asked for a token.
   POST /v1/zones {actor, name, hide_public} | /v1/zones/<key>/delete {actor, confirm}
   POST /v1/zones/<key>/records          {actor, type, name, ip|target|...}
   POST /v1/zones/<key>/records/delete   {actor, type, index, name}
+  POST /v1/zones/<key>/records/update   {actor, type, index, old_name, name, value|ip|target|...}
   POST /v1/apply                        {actor}
   POST /v1/events                       {actor, action, detail}  (login audit)
   GET  /v1/pki/ca | /v1/pki/issued | /v1/tsig | /v1/reverse-zones

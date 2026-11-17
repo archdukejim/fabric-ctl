@@ -93,6 +93,10 @@ def describe_networks(route, body):
     gone = sub[-1:] == ["delete"]
     if sub == ["block"]:
         return f"Set the site's number to {b.get('number', '')}{where}"
+    if sub[0] == "access":                  # a network's row of the site's access table (1.10.4.48.11)
+        allowed = [s for s in ("dns", "ntp", "dhcp", "web", "ad", "radius", "ssh", "ping") if b.get(s) == "allow"]
+        what = {"fabric": "the other sites", "any": "outside addresses"}.get(sub[1], f"VLAN {sub[1]}")
+        return f"Let {what} reach {', '.join(allowed) or 'nothing'}{where}"
     if sub[0] == "vlans":
         if len(sub) == 1:
             at = f"@{b['location']}" if b.get("location") else ""      # another location of the site (1.10.4.46)

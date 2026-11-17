@@ -40,6 +40,9 @@ check("the site's end ends the attach, saying so", "has stopped" in out.getvalue
 
 server = AttachServer(lambda: "hello\n", path).open()
 out = io.StringIO()
+# Ctrl-C as at a terminal: a run started in the background (`cmd &` in a script) inherits SIGINT ignored, and Python
+# then raises no KeyboardInterrupt, so the attach would wait for ever (the 0.10.0 rc's run, 2.3.1.57)
+signal.signal(signal.SIGINT, signal.default_int_handler)
 threading.Timer(0.5, os.kill, (os.getpid(), signal.SIGINT)).start()
 result = attach_site(RECORD, path, out)
 time.sleep(0.2)

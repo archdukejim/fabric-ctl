@@ -111,6 +111,17 @@ table.hours td{padding:3px 8px}
    these rules and shows every field (the server checks each type's own) */
 form.record:not(:has(option[value="MX"]:checked)):not(:has(option[value="SRV"]:checked)) .f-prio{display:none}
 form.record:not(:has(option[value="SRV"]:checked)) .f-srv{display:none}
+/* a zone's records changed in their table (2.1.4.15): the add row's fields by type as the form's, the row's icon
+   buttons side by side, the edit row's fields on one line */
+tr.addrow:not(:has(option[value="MX"]:checked)):not(:has(option[value="SRV"]:checked)) .f-prio{display:none}
+tr.addrow:not(:has(option[value="SRV"]:checked)) .f-srv{display:none}
+table.records td.rowact{white-space:nowrap;text-align:right}table.records code{overflow-wrap:anywhere}
+table.records .inline{display:flex;flex-wrap:wrap;gap:6px}table.records .inline input{flex:1 1 10em;min-width:0}
+table.records .inline input.num{flex:0 0 5.5em}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;margin-left:4px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);cursor:pointer;vertical-align:middle}
+.iconbtn:hover,.iconbtn:focus-visible{background:var(--surface-2)}
+.iconbtn.danger{color:var(--bad)}
+svg.icon{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 /* the frame (manual 1.8.6.2): a bar across the top, the navigation down the left, as Cockpit lays it out (its layout
    ideas only, none of its CSS); under 768 px the navigation folds behind the Menu button, a checkbox: no script */
 .topbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--surface)}

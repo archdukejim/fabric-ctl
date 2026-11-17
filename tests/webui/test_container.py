@@ -658,14 +658,43 @@ st, hd, *_ = req("POST", "/kea/off", POSTH, {"csrf": csrf}, cookie=session)
 check("turn DHCP off when it is off: refused, saying so", "already off" in urllib.parse.unquote_plus(
     hd.get("Location", "")), hd)
 st, hd, sc, body = req("GET", "/dns/zones?zone=dynamic_zone_var", ALICE, cookie=session)
-picked = re.search(r'<option value="CNAME\|(\d+)\|shelfmark">', body)
+picked = re.search(r'<form id="del-CNAME-(\d+)" [^>]*>(?:(?!</form>).)*name="name" value="shelfmark"', body, re.S)
 idx = picked.group(1) if picked else "-1"
-check("the zone's records listed with no form in a cell; Delete a record offers shelfmark", picked is not None
-      and 'method="post"' not in body.split('<table class="list')[1].split("</table>")[0], body[-1500:])
-st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": f"CNAME|{idx}|wrong-name"})
+check("the zone's records listed with no form in a cell; shelfmark's row has its pencil and its bin (2.1.4.15)",
+      picked is not None and 'method="post"' not in body.split('<table class="list')[1].split("</table>")[0]
+      and f'edit=CNAME-{idx}"' in body and f'form="del-CNAME-{idx}"' in body
+      and 'aria-label="Delete shelfmark CNAME"' in body, body[-1500:])
+body = req("GET", f"/dns/zones?zone=dynamic_zone_var&edit=CNAME-{idx}", ALICE, cookie=session)[3]
+check("...its pencil opens the row in place: its name and value as inputs, Save and Cancel, the old name kept",
+      'id="rec-edit"' in body and 'name="old_name" value="shelfmark"' in body
+      and 'form="rec-edit" name="value" value="nas25-apps"' in body and ">Cancel<" in body, body[-1500:])
+upd = {"type": "CNAME", "index": idx, "old_name": "shelfmark", "name": "shelfmark"}
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/update", {**upd, "value": "nas26-apps"})
+_cn = yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"]["dynamic_zone_var"].get("CNAME") or []
+# covers: web:post.bind9.zone.*.update agent:post.zones.*.records.update +
+check("edit CNAME -> held, then replaced in place at Apply (one record, its new target)",
+      "Waiting for Apply: Change CNAME record shelfmark" in loc and {"name": "shelfmark", "canonical": "nas26-apps"}
+      in _cn and not any(r.get("canonical") == "nas25-apps" and r.get("name") == "shelfmark" for r in _cn),
+      (loc, done[-1500:]))
+vt = open(f"{W}/fabric/config/vars.yaml").read()
+# covers: web:post.bind9.zone.*.update agent:post.zones.*.records.update -
+for form, why, label in (({**upd, "old_name": "wrong-name", "value": "x"}, "record changed", "a stale row"),
+                         ({**upd, "value": "bad target;rm"}, "invalid CNAME target", "an invalid value"),
+                         ({**upd, "value": "nas26-apps"}, "nothing to change", "the record as it is"),
+                         ({"type": "CNAME", "index": str([r.get("name") for r in yaml.safe_load(vt)["dns"][
+                             "dynamic_zone_var"]["CNAME"]].index("ca")), "old_name": "ca", "name": "ca",
+                           "value": "elsewhere"}, "provided by fabric", "fabric's own name")):
+    st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/update", form)
+    check(f"edit refused at Apply ({label}): said why, the old record kept, vars.yaml unchanged",
+          why in done and open(f"{W}/fabric/config/vars.yaml").read() == vt, done[-1500:])
+st, hd, *_ = req("POST", "/bind9/zone/dynamic_zone_var/update", POSTH, {"csrf": csrf, "type": "CNAME", "index": "x"},
+                 cookie=session)
+check("edit without a record picked: refused at once, saying why, nothing held",
+      "pick a record to change" in urllib.parse.unquote_plus(hd.get("Location", "")), hd)
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"type": "CNAME", "index": idx, "name": "wrong-name"})
 # covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete -
 check("stale delete (name mismatch) refused at Apply, said", "record changed" in done, done[-1500:])
-st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": f"CNAME|{idx}|shelfmark"})
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"type": "CNAME", "index": idx, "name": "shelfmark"})
 # covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete +
 check("delete CNAME -> held, then removed from vars.yaml at Apply", "Waiting for Apply: Delete CNAME record shelfmark"
       in loc and "shelfmark" not in open(f"{W}/fabric/config/vars.yaml").read(), (loc, done[-1500:]))
@@ -686,10 +715,12 @@ mark = {n: any(f">{n} " in r and "provided by fabric" in r for r in rows)
 check("fabric's own names (the host's A, ca) marked 'provided by fabric'; info and the admin's not",
       mark == {"pi-core": True, "ca": True, "info": False, "calibre": False}, mark)
 # covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete +
-st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": "CNAME|1|info"})
+cn = [r.get("name") for r in yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"]["dynamic_zone_var"]["CNAME"]]
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": f"CNAME|{cn.index('info')}|info"})
+newest = done.split('<h3 class="small">')[1:2] or [""]    # the queue lists every apply, newest first
 check("deleting info.<domain> works at Apply: an ordinary record now, gone from vars.yaml (the page stays at /info/)",
-      "provided by fabric" not in done and "name: info" not in open(f"{W}/fabric/config/vars.yaml").read(),
-      done[-1500:])
+      "provided by fabric" not in newest[0] and "name: info" not in open(f"{W}/fabric/config/vars.yaml").read(),
+      newest[0][:1500])
 # covers: web:post.bind9.zone.*.add +
 st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/add", {"type": "CNAME", "name": "info",
                                                                 "value": "nas25-apps"})
@@ -697,7 +728,8 @@ _cnames = (yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"]["dynamic_
 check("info added again pointing at another machine (repointed), saved as the admin's record",
       {"name": "info", "canonical": "nas25-apps"} in _cnames, (done[-1500:], _cnames))
 # covers: web:post.bind9.zone.*.delete agent:post.zones.*.records.delete -
-st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": "CNAME|1|ca"})
+cn = [r.get("name") for r in yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"]["dynamic_zone_var"]["CNAME"]]
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/delete", {"record": f"CNAME|{cn.index('ca')}|ca"})
 check("deleting ca.<domain> is still refused at Apply: fabric's (the CA, and the CRL point), named with its setting",
       "provided by fabric" in done and "cname_ca" in done
       and any(r.get("name") == "ca" for r in yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["dns"][
@@ -821,6 +853,59 @@ where = urllib.parse.unquote_plus(hd.get("Location", ""))
 check("Revoke a certificate the ledger does not have: refused at once by the real agent, said, nothing pending",
       st == 303 and where.startswith("/pki?view=issued") and "no certificate named 'ghost.lan.test'" in where
       and "change pending" not in where, (st, where))
+# Issued and Lifetimes through the real agent (2.1.5.13, 2.1.5.14); revoking and applying for real need Step-CA, which
+# tests/pki/console.py runs: here the lists, the confirmation and the refusals
+st, hd, sc, body = req("GET", "/pki?view=issued", ALICE, cookie=session)
+check("PKI · Issued through the real agent: the list, its filter, Revoke a certificate not listed; fabric's own said "
+      "to be unfound (these settings have no hostnames), Step-CA's database not there yet (nothing to list, no "
+      "warning), nothing failing",
+      st == 200 and 'action="/stepca/revoke/review"' in body and "source=acme" in body
+      and "fabric's own certificates are not listed: the setting hostname_" in html.unescape(body)
+      and "Step-CA's own certificates (ACME" not in html.unescape(body),
+      (st, body.split("<main", 1)[-1][:1500]))
+# covers: web:post.stepca.revoke.review agent:post.pki.lookup +
+st, hd, body = req_upload("/stepca/revoke/review", POSTH, {"csrf": csrf}, {"cert_file": ("sso.crt", sso_pem.encode())},
+                          session)
+check("Revoke a certificate not listed, by its file: this CA signed it, so its confirmation (its name typed again, the "
+      "file sent again with it)", st == 200 and "Type <code>sso.test</code>" in body and 'name="pem"' in body
+      and 'action="/stepca/revoke"' in body, (st, body[-1500:]))
+inter_pem = open(f"{W}/stepca/data/certs/intermediate_ca.crt").read()
+# covers: web:post.stepca.revoke.review agent:post.pki.lookup -
+for what, form, why in (("a serial that is not hexadecimal", {"serial": "zz-top"}, "is not a serial"),
+                        ("a pasted text that is not a certificate", {"cert": "hello"}, "not a certificate"),
+                        ("the CA's own intermediate", {"cert": inter_pem}, "own CA certificate"),
+                        ("a serial this CA never signed", {"serial": "0BADBAD0"}, "signed no certificate")):
+    st, hd, body = req_upload("/stepca/revoke/review", POSTH, {"csrf": csrf, **form}, {}, session)
+    check(f"negative: Revoke a certificate not listed: {what}: refused on Issued (400), saying why",
+          st == 400 and why in html.unescape(body), (st, body[:600]))
+# covers: web:get.pki.lifetimes agent:get.pki.lifetimes +
+st, hd, sc, body = req("GET", "/pki/lifetimes", ALICE, cookie=session)
+check("PKI · Lifetimes through the real agent: the values as set, its form, the hostnames missing said", st == 200
+      and 'action="/stepca/lifetimes"' in body and 'value="47"' in body and "the setting hostname_" in body,
+      (st, body[-1500:]))
+vars_before = open(f"{W}/fabric/config/vars.yaml").read()
+st, hd, *_ = req("POST", "/stepca/lifetimes", POSTH, {"csrf": csrf, "service_days": "47", "renew_after_days": "47"},
+                 cookie=session)
+where = urllib.parse.unquote_plus(hd.get("Location", ""))
+# covers: web:post.stepca.lifetimes -
+check("negative: renew at the lifetime's end: refused by the real agent when held, said, nothing pending or changed",
+      st == 303 and "at least 1 day before the end" in where and "Waiting for Apply" not in where
+      and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, (st, where))
+st, hd, *_ = req("POST", "/stepca/lifetimes", POSTH, {"csrf": csrf, "service_days": "40"}, cookie=session)
+where = urllib.parse.unquote_plus(hd.get("Location", ""))
+check("negative: a lifetime longer than this suite's 2-day intermediate has left: refused when held, said, nothing "
+      "pending or changed", st == 303 and "longer than the intermediate CA has left" in where
+      and "Waiting for Apply" not in where and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, (st, where))
+st, hd, *_ = req("POST", "/stepca/lifetimes", POSTH, {"csrf": csrf, "renew_after_days": "20"}, cookie=session)
+where = urllib.parse.unquote_plus(hd.get("Location", ""))
+# covers: web:post.stepca.lifetimes +
+check("a Lifetimes change is held for PKI's Apply, the settings unchanged until then (the intermediate's limit "
+      "applies only to what is changed)", st == 303
+      and "Waiting for Apply: Set certificate lifetimes: renew after days 20" in where
+      and open(f"{W}/fabric/config/vars.yaml").read() == vars_before, (st, where))
+st, _, _, body = req("GET", "/pki/lifetimes", ALICE, cookie=session)
+check("...the page shows the top bar's Apply", 'action="/changes/pki/apply"' in body, body[:1500])
+req("POST", "/changes/pki/discard", POSTH, {"csrf": csrf}, cookie=session)
 
 # ---- the Directory tab without the domain controller: the page says so, nothing breaks
 st, hd, sc, body = req("GET", "/directory/people", ALICE, cookie=session)
@@ -890,7 +975,11 @@ check("next= cannot leave this site (no open redirect)", st == 200 and 'url=/"' 
 
 # ---- BIND9 tab: TSIG keys for a zone
 st, hd, sc, body = req("GET", "/dns/zones?view=tsig", ALICE, cookie=session)
-check("TSIG view renders the create form", st == 200 and "New TSIG key for a zone" in body, st)
+check("TSIG view offers New TSIG key by mode (2.1.4.12): ACME (DNS-01) or Custom", st == 200 and "New TSIG key" in body
+      and "view=newkey&amp;mode=acme" in body and "view=newkey&amp;mode=custom" in body, st)
+st, hd, sc, body = req("GET", "/dns/zones?view=newkey&mode=custom", ALICE, cookie=session)
+check("Custom mode: today's menu (scopes, hosts, record types)", st == 200 and 'name="scope"' in body
+      and "acme-hosts" in body and 'name="hosts"' in body and 'name="type_A"' in body, st)
 st, hd, sc, body = req("POST", "/bind9/tsig/create", POSTH, {"csrf": csrf, "name": "npm-certbot", "zone": "lan.test",
                                                               "scope": "acme-hosts", "hosts": "npm, nas"}, cookie=session)
 secret = body.split('<code class="secret">')[1].split("<")[0] if '<code class="secret">' in body else ""
@@ -930,6 +1019,87 @@ check("remove a TSIG key that does not exist -> refused at Apply (named), nothin
 st, hd, sc, body = req("POST", "/bind9/tsig/acme-old/delete", POSTH, {"csrf": "nope"}, cookie=session)
 check("TSIG delete with a bad CSRF token -> 403, nothing changed",
       st == 403 and open(f"{W}/fabric/config/vars.yaml").read() == vt, st)
+
+# ---- 2.1.4.12 to 2.1.4.14: ACME (DNS-01) mode picks the zone's records; Edit names keeps the secret, held for Apply
+for form in ({"type": "A", "name": "proxy", "ip": "192.168.7.60"}, {"type": "CNAME", "name": "web", "target": "proxy"}):
+    dns_change("/bind9/zone/dynamic_zone_var/add", form)
+st, hd, sc, body = req("GET", "/dns/zones?view=newkey&mode=acme", ALICE, cookie=session)
+check("ACME mode: first the zone", st == 200 and 'name="zone"' in body and "lan.test" in body
+      and 'name="rec_' not in body, st)
+st, hd, sc, body = req("GET", "/dns/zones?view=newkey&mode=acme&zone=lan.test", ALICE, cookie=session)
+check("ACME mode: then the zone's records, an A record also with its aliases (web)", st == 200
+      and 'name="rec_proxy"' in body and 'name="ali_proxy"' in body and 'name="rec_web"' in body
+      and 'name="ali_web"' not in body and "web" in body.split('name="ali_proxy"')[-1][:200], body[:300])
+st, hd, sc, body = req("GET", "/dns/zones?view=newkey&mode=acme&zone=evil.test", ALICE, cookie=session)
+check("ACME mode: a zone fabric does not serve -> 400, saying so", st == 400 and "not one of this fabric" in body, st)
+vt = open(f"{W}/fabric/config/vars.yaml").read()
+st, hd, sc, body = req("POST", "/bind9/tsig/create", POSTH, {"csrf": csrf, "name": "acme-web", "zone": "lan.test",
+                                                              "scope": "acme", "rec_printer": "1"}, cookie=session)
+# covers: web:post.bind9.tsig.create agent:post.tsig -
+check("ACME mode: a name that is not a record of the zone -> refused (400, says why), nothing saved",
+      st == 400 and "printer is not a record of lan.test" in html.unescape(body)
+      and open(f"{W}/fabric/config/vars.yaml").read() == vt, (st, body[:300]))
+st, hd, sc, body = req("POST", "/bind9/tsig/create", POSTH, {"csrf": csrf, "name": "acme-web", "zone": "lan.test",
+                                                              "scope": "acme", "rec_pi-core": "1", "ali_proxy": "1"},
+                       cookie=session)
+saved = yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))
+key = next((k for k in saved.get("tsig_keys") or [] if k["name"] == "acme-web"), {})
+secret = body.split('<code class="secret">')[1].split("<")[0] if '<code class="secret">' in body else ""
+# covers: web:post.bind9.tsig.create agent:post.tsig +
+check("ACME mode: the key made with exactly the picks (a record, a record with its aliases), TXT only",
+      st == 200 and secret and key.get("records") == ["pi-core"] and key.get("records_with_aliases") == ["proxy"]
+      and key.get("record_types") == ["TXT"] and not key.get("any_name") and not key.get("primary"), (st, key))
+st, hd, sc, body = req("GET", "/dns/zones?view=key&key=acme-web", ALICE, cookie=session)
+check("the key's page: ACME (DNS-01), Edit names with each name's Remove, the record with its aliases and what it "
+      "covers today", st == 200 and "ACME (DNS-01)" in body and "Edit names" in body
+      and 'name="drop" value="pi-core"' in body and 'name="drop_with_aliases" value="proxy"' in body
+      and "proxy, web" in body and 'value="rec:web"' in body and 'name="typed"' not in body, body[:300])
+st, hd, sc, body = req("GET", "/dns/zones?zone=dynamic_zone_var", ALICE, cookie=session)
+check("the record form says a new alias of proxy widens acme-web (2.1.4.14)",
+      "gives the" in body and "acme-web" in body and "<code>proxy</code>" in body, body[:300])
+st, hd, *_ = req("POST", "/bind9/tsig/acme-web/update", POSTH, {"csrf": csrf, "pick": "rec:web"}, cookie=session)
+loc = urllib.parse.unquote_plus(hd.get("Location", ""))
+held_vars = yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))
+check("Edit names: add web -> held on DNS -> Zones, said as the change, vars.yaml unchanged until Apply",
+      st == 303 and "Waiting for Apply: Change TSIG key acme-web: add web" in loc
+      and next(k for k in held_vars["tsig_keys"] if k["name"] == "acme-web").get("records") == ["pi-core"], loc)
+done = applied("zones", session)
+saved = yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))
+key = next((k for k in saved.get("tsig_keys") or [] if k["name"] == "acme-web"), {})
+# covers: web:post.bind9.tsig.*.update agent:post.tsig.*.update +
+check("...DNS' Apply: web added through the agent's route, the secret kept (no new secret made)",
+      key.get("records") == ["pi-core", "web"] and secret in open(f"{W}/fabric/config/fabric-secrets.yml").read()
+      and "TSIG_UPDATE" in open(f"{W}/fabric/archive/audit.log").read(), (key, done[-600:]))
+st, loc, done = dns_change("/bind9/zone/dynamic_zone_var/add", {"type": "CNAME", "name": "wiki", "target": "web"})
+check("a CNAME to an alias of proxy: the hold names the key it widens (the Review's row, 2.1.4.14)",
+      "Add CNAME record wiki" in loc and "TSIG key acme-web may update this name's _acme-challenge" in loc, loc)
+st, loc, done = dns_change("/bind9/tsig/acme-web/update", {"drop_with_aliases": "proxy"})
+saved = yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))
+key = next((k for k in saved.get("tsig_keys") or [] if k["name"] == "acme-web"), {})
+check("Edit names: a record with its aliases removed whole", "Change TSIG key acme-web: remove proxy and its aliases"
+      in loc and "records_with_aliases" not in key, (loc, key))
+vt = open(f"{W}/fabric/config/vars.yaml").read()
+for form, why in (({"pick": "rec:printer"}, "printer is not a record of lan.test"),
+                  ({"drop": "nas"}, "nas is not granted to TSIG key acme-web"),
+                  ({"pick": "rec:web"}, "web is already granted"),
+                  ({"pick": "ali:web"}, "web is not an A or AAAA record"),
+                  ({"typed": "anything"}, "not a record of lan.test"),
+                  ({}, "nothing to change")):
+    st, loc, done = dns_change("/bind9/tsig/acme-web/update", form)
+    # covers: web:post.bind9.tsig.*.update -
+    check(f"Edit names refused when held ({why}): said on the key's page, nothing held or changed",
+          why in loc and "Waiting for Apply" not in loc and "view=key" in loc
+          and open(f"{W}/fabric/config/vars.yaml").read() == vt, loc)
+dns_change("/bind9/tsig/acme-web/update", {"drop": "pi-core"})
+st, loc, done = dns_change("/bind9/tsig/acme-web/update", {"drop": "web"})
+check("Edit names: the key's last name -> refused, 'remove the key instead', nothing changed",
+      "remove the key instead" in loc
+      and next(k for k in yaml.safe_load(open(f"{W}/fabric/config/vars.yaml"))["tsig_keys"]
+               if k["name"] == "acme-web").get("records") == ["web"], loc)
+st, loc, done = dns_change("/bind9/tsig/ghost/update", {"pick": "rec:web"})
+check("Edit names of a key no longer there -> refused, named", "no TSIG key named 'ghost'" in loc, loc)
+st, hd, *_ = req("POST", "/bind9/tsig/acme-web/update", POSTH, {"csrf": "nope", "pick": "rec:proxy"}, cookie=session)
+check("Edit names with a bad CSRF token -> 403", st == 403, st)
 st, hd, sc, body = req("POST", "/stepca/acme/enroll", POSTH, {"csrf": csrf, "host": "nas", "domain": "lan.test"},
                        cookie=session)
 # covers: web:post.stepca.acme.enroll +
@@ -1019,12 +1189,11 @@ for path, form, perm in (("/directory/hostgroups/_new", {"name": "web"}, "machin
                           "sudo:admin"),
                          ("/directory/sudo/r/delete", {}, "sudo:admin"),
                          ("/directory/machines/ws1/type", {"type": "server", "move": "yes"}, "machines:admin"),
-                         ("/directory/machines/ws1/sites", {"action": "add", "site": "lan"}, "machines:admin"),
                          ("/directory/machines/ws1/move", {"path": "machines"}, "machines:admin"),
                          ("/directory/machines/ws1/groups", {"action": "add", "group": "hosts-web"},
                           "machines:admin")):
     st, _, _sc, body = req("POST", path, POSTH, {"csrf": cookie_csrf(aud), **form}, cookie=aud)
-    # covers: web:post.directory.machines.*.type web:post.directory.machines.*.sites -
+    # covers: web:post.directory.machines.*.type -
     # covers: web:post.directory.machines.*.move web:post.directory.machines.*.groups -
     # covers: web:post.directory.hostgroups._new web:post.directory.hostgroups._form.members -
     # covers: web:post.directory.hostgroups.*.delete web:post.directory.sudo._new web:post.directory.sudo.*.delete -
@@ -1055,18 +1224,15 @@ check("auditor: Kerberos through the real agent (domain:read), no DC here: the K
       "nor sign-in switch (neither domain:admin nor security:raise)", st == 200 and "Ticket policy" in body
       and body.count("could not be read") >= 2 and 'action="/directory/domain/kerberos/policy"' not in body
       and 'action="/security/kerberos"' not in body, (st, body[-1500:]))
-st, _, _sc, body = req("GET", "/directory/sites", ALICE, cookie=aud)
-check("auditor: Sites through the real agent (domain:read), no DC here: why said on the page", st == 200
-      and "The sites could not be read" in body and "no domain controller" in body, (st, body[-800:]))
-check("the site selector through the real agent, no DC and no site name here: the frame without it, the page "
-      "still works", st == 200 and 'class="sitepick"' not in body and 'class="usermenu"' in body, body[:1500])
-st, hd, _sc, body = req("GET", "/sites/lan", ALICE, cookie=aud)
-check("/sites/<a name the agent does not list>: 404, said (no site here is known)", st == 404
-      and "No site lan in the domain." in body and not hd.get("Location"), (st, body[-600:]))
-st, hd, _sc, body = req("GET", "/sites/ghost", ALICE, cookie=aud)
-# covers: web:get.sites.* -
-check("refused: /sites/<a site the domain does not hold> (404, said; no redirect)", st == 404
-      and "No site ghost in the domain." in body and not hd.get("Location"), (st, body[-600:]))
+# one site per console (2.1.8.68, 1.8.6.14): the views of other sites answer 404 through the real console, saying so
+for path in ("/directory/sites", "/directory/sites/lan", "/federation", "/sites/lan", "/sites/ghost",
+             "/networks?site=elsewhere", "/networks/options?site=elsewhere"):
+    st, hd, _sc, body = req("GET", path, ALICE, cookie=aud)
+    check(f"one site: {path} answers 404, saying this console shows only this site (no redirect)", st == 404
+          and "This console shows only this site" in body and not hd.get("Location"), (st, body[-600:]))
+st, _, _sc, body = req("GET", "/directory/kerberos", ALICE, cookie=aud)
+check("...and the frame has no site selector", 'class="sitepick"' not in body and 'class="usermenu"' in body,
+      body[:1500])
 st, _, _sc, body = req("GET", "/directory/access", ALICE, cookie=aud)
 check("auditor: Access through the real agent (domain:read), no DC here: why said on the page, no Add grant",
       st == 200 and "The grants could not be read" in body and "/directory/access/_new" not in body, (st, body[-800:]))
@@ -1211,13 +1377,18 @@ for method, path, roles, perm in (
         ("GET", "/v1/groups/ops", PKI_ONLY, "domain:read"),
         ("GET", "/v1/ous", PKI_ONLY, "domain:read"),
         ("GET", "/v1/domain/kerberos", PKI_ONLY, "domain:read"),
-        ("GET", "/v1/domain/kerberos/spns", PKI_ONLY, "domain:read")):
+        ("GET", "/v1/domain/kerberos/spns", PKI_ONLY, "domain:read"),
+        ("GET", "/v1/pki/certs", ["fabric:status:read"], "pki:read"),
+        ("GET", "/v1/pki/lifetimes", ["fabric:status:read"], "pki:read"),
+        ("POST", "/v1/pki/lookup", ["fabric:status:read"], "pki:read"),
+        ("POST", "/v1/pki/lifetimes", AUDITOR_ROLES, "pki:settings")):
     out = agent_call(method, path, "carol", roles, {"name": "x"})
     # covers: agent:post.people.*.edit agent:post.people.*.unlock agent:post.groups agent:post.groups.*.delete -
     # covers: agent:post.groups.*.managers agent:post.ous agent:post.ous.rename agent:post.ous.delete -
     # covers: agent:post.machines.*.move agent:post.machines.*.type agent:post.machines.*.sites -
     # covers: agent:post.machines.*.keytab agent:post.domain.kerberos.policy agent:get.groups agent:get.groups.* -
     # covers: agent:get.ous agent:get.domain.kerberos agent:get.domain.kerberos.spns -
+    # covers: agent:get.pki.certs agent:get.pki.lifetimes agent:post.pki.lookup agent:post.pki.lifetimes -
     check(f"{method} {path} refused by fabric-agent without {perm} (403, named)", " 403 " in out and perm in out, out)
 out = agent_call("POST", "/v1/machines/ws1/move", "carol", ["fabric:machines:admin"], {"path": "machines"})
 check("moving a computer needs ous:admin as well as machines:admin (refused, named)", " 400 " in out and "ous:admin" in out,
