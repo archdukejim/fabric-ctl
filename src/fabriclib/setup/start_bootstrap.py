@@ -1,5 +1,6 @@
 import subprocess
 
+from fabriclib.common.systemctl_up import systemctl_up
 from fabriclib.common.console import info, ok
 from fabriclib.common.wait_healthy import wait_healthy
 from fabriclib.setup.errors import SetupError
@@ -15,7 +16,7 @@ def run(ctx):
              600 s (last 40 log lines included) or `named-checkzone` rejects a zone.
     Feeds:   setup step `bootstrap`, run by run_setup via STEPS."""
     info("starting bind9 and step-ca (images build on first start)")
-    subprocess.run(["systemctl", "enable", "--now", "bind9", "stepca"], check=True)
+    systemctl_up(["bind9", "stepca"], enable=True)
     for container in ("bind9", "step-ca"):
         healthy, why = wait_healthy(container, timeout=600)
         if not healthy:

@@ -1,7 +1,7 @@
 import getpass
-import subprocess
 import sys
 
+from fabriclib.common.systemctl_up import systemctl_up
 from fabriclib.common.ask import ask_secret
 from fabriclib.common.errors import ValidationError
 from fabriclib.vault.add_kmip_slot import add_kmip_slot
@@ -53,7 +53,7 @@ def restart_openbao(v, timeout=180):
     Feeds:   the restart callable of rotate_vault_key, from run_vault_command (rotate) and the agent route
              POST /v1/vault/rotate.
     """
-    subprocess.run(["systemctl", "restart", "openbao"], check=True, timeout=timeout)
+    systemctl_up(["openbao"], restart=True, timeout=timeout)
     wait_active(v, timeout)
 
 

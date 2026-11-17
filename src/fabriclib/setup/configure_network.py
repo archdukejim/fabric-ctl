@@ -1,6 +1,7 @@
 import os
 import subprocess
 
+from fabriclib.common.systemctl_up import systemctl_up
 from fabriclib.common.console import ok
 from fabriclib.common.keep_original import keep_original
 from fabriclib.consent.check_consent import check_consent
@@ -55,5 +56,5 @@ def run(ctx):
         if os.path.islink("/etc/resolv.conf") or os.path.exists("/etc/resolv.conf"):
             os.remove("/etc/resolv.conf")
         os.symlink("/run/systemd/resolve/resolv.conf", "/etc/resolv.conf")
-        subprocess.run(["systemctl", "restart", "systemd-resolved"], check=True)
+        systemctl_up(["systemd-resolved"], restart=True)
     ok(f"host resolver uses {ctx.vars.get('dns_server')} (stub listener off, frees port 53)")

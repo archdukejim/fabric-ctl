@@ -31,6 +31,8 @@
 | `same_content.py` | Whether two files hold the same bytes, read every time (never `filecmp`'s cache, 2.3.1.29) |
 | `ensure_dir.py` | A directory with the given mode and owner |
 | `service_user.py` | A service's uid/gid from `service_users` |
+| `systemctl_up.py` | Start or restart systemd units so a start cut short from outside (systemd re-executed by an update) does not fail the caller: waited for, started once more only if down (2.3.1.57) |
+| `unit_settled.py` | Wait while systemd starts or stops a unit; its state once settled (2.3.2.5) |
 | `read_published_lock.py` | fabric's own published images as the lock pins them (`published:` in `images.lock.yaml`), signer and issuer |
 | `lock_dir.py` | Where `images.lock.yaml` is for a jinja folder (the host's fabric/, or the checkout's config/) |
 | `try_vars_lock.py` | The same lock taken without waiting: None while an apply holds it (the plan poll, Sync now) |

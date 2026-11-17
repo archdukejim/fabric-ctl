@@ -2,6 +2,7 @@ import ipaddress
 import os
 import subprocess
 
+from fabriclib.common.systemctl_up import systemctl_up
 from fabriclib.common.console import info, ok, warn
 from fabriclib.common.keep_original import ORIGINALS
 from fabriclib.consent.check_consent import check_consent
@@ -179,5 +180,5 @@ def run(ctx):
         f.write(UNIT_TEXT.format(lib=lib, vars=ctx.vars_file))
     subprocess.run(["systemctl", "daemon-reload"], check=True)
     subprocess.run(["systemctl", "enable", "fabric-firewall"], check=True, capture_output=True)
-    subprocess.run(["systemctl", "restart", "fabric-firewall"], check=True)
+    systemctl_up(["fabric-firewall"], restart=True)
     ok(apply_docker_firewall(ctx.vars_file) + " (re-applied at boot by fabric-firewall.service)")

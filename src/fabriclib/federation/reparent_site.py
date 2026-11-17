@@ -1,6 +1,7 @@
 import os
 import subprocess
 
+from fabriclib.common.systemctl_up import systemctl_up
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
 from fabriclib.common.save_vars import save_vars
@@ -64,7 +65,7 @@ def reparent_site(ctx, actor, invitation):
         data = load_vars()
         data.update({k: new[k] for k in ("ica_crt_path", "ica_key_path", "ica_parents_path", "site_ca_depth")})
         save_vars(data)
-    subprocess.run(["systemctl", "restart", "stepca"], check=True)
+    systemctl_up(["stepca"], restart=True)
     if renew_service_certs(ctx, force=True) != 0:
         raise ValidationError("the service certificates could not be re-issued under the new parent: see "
                               "`fabricctl status`")

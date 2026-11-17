@@ -1,5 +1,7 @@
 import subprocess
 
+from fabriclib.common.systemctl_up import systemctl_up
+
 # How each service takes a renewed certificate (manual 2.1.5.4): a signal where the program re-reads its certificate
 # without dropping anything, nothing where it watches the file itself, a restart (seconds) otherwise.
 HUP = {"nginx", "postgres", "openbao"}        # nginx and Postgres reload; OpenBao re-reads its listener (no reseal)
@@ -20,5 +22,5 @@ def pick_up_cert(unit):
     if unit in HUP:
         subprocess.run(["docker", "kill", "--signal", "HUP", unit], check=True, capture_output=True)
         return "reloaded"
-    subprocess.run(["systemctl", "restart", unit], check=True)
+    systemctl_up([unit], restart=True)
     return "restarted"

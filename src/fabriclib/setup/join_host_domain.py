@@ -4,6 +4,7 @@ import socket
 import struct
 import subprocess
 
+from fabriclib.common.systemctl_up import systemctl_up
 from fabriclib.directory.constants import DC_HOSTS, FABRIC_MANAGED
 from fabriclib.common.console import info, ok, warn
 from fabriclib.common.errors import ValidationError
@@ -433,7 +434,7 @@ def run(ctx):
         ok("sssd's socket units disabled and masked: sssd starts its responders itself (1.6.7.8, 2.1.6.95)")
     if changed or not _sssd_on():
         subprocess.run(["systemctl", "enable", "sssd"], check=True, capture_output=True)
-        subprocess.run(["systemctl", "restart", "sssd"], check=True, capture_output=True)
+        systemctl_up(["sssd"], restart=True, capture=True)
         ok("sssd enabled and restarted")
     for line in apply_host_managed(v, managed):
         ok(line)

@@ -9,6 +9,7 @@ container removal. The sandbox and the lab run the real units.
 import os
 import subprocess
 import sys
+import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, "src"))
@@ -43,12 +44,12 @@ def run(states, restart, final_active=True, fails=0):
             return subprocess.CompletedProcess(cmd, 1, "", "")
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
-    real_run, real_wait, real_sleep = su.subprocess.run, su.wait_healthy, su.time.sleep
-    su.subprocess.run, su.wait_healthy, su.time.sleep = sysrun, lambda c, timeout: (True, ""), lambda s: None
+    real_run, real_wait, real_sleep = su.subprocess.run, su.wait_healthy, time.sleep
+    su.subprocess.run, su.wait_healthy, time.sleep = sysrun, lambda c, timeout: (True, ""), lambda s: None
     try:
         return su.start_unit("keycloak", "keycloak", restart), seen
     finally:
-        su.subprocess.run, su.wait_healthy, su.time.sleep = real_run, real_wait, real_sleep
+        su.subprocess.run, su.wait_healthy, time.sleep = real_run, real_wait, real_sleep
 
 
 res, seen = run([("activating", "start-pre"), ("activating", "start-post"), ("active", "running")], restart=True)
@@ -63,13 +64,13 @@ check("negative: a unit in its automatic-restart loop is not waited for: stopped
 res, seen = run([("failed", "failed")], restart=False, final_active=False)
 check("negative: a failed unit is stopped, its failed state cleared, then started",
       res == "started" and seen == ["enable", "is-active", "stop", "reset-failed", "start"], (res, seen))
-real = su.time.monotonic
+real = time.monotonic
 ticks = iter(range(0, 10000, 400))
-su.time.monotonic = lambda: next(ticks)
+time.monotonic = lambda: next(ticks)
 try:
     res, seen = run([("activating", "start-post")], restart=False, final_active=False)
 finally:
-    su.time.monotonic = real
+    time.monotonic = real
 check("negative: a start that never ends is waited for only until the timeout, then handled as not active",
       res == "started" and "stop" in seen, (res, seen))
 res, seen = run([("active", "running"), ("activating", "start"), ("active", "running")], restart=True, fails=1)
