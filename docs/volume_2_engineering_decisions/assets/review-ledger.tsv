@@ -2356,7 +2356,7 @@ tests/openbao/README.md	f5e82d0b7650e2f6a278c4de52cf3dfeeb83af90	2026-11-16
 tests/openbao/db_rotation.py	6541d7c57d9f8686b42dfd5c4010839ea2bfa915	2026-10-25	
 tests/openbao/kmip_server.py	da83efe9f93edd92c25bed6ae8c41666469be8d0	2026-11-16	
 tests/openbao/local_admin.py	21a07e388acc0f1bd0a8c86eb7887cc5caba7ce5	2026-10-25	
-tests/openbao/run.py	753585b6371d8fa7c39f27e4b828acd185e869e4	2026-11-16	
+tests/openbao/run.py	c4dad65aaddf4ed171a8e386d0e4e4526d294c20	2026-11-17	
 tests/pki/README.md	93bb4418da64c7f479e291e518293fb3f7b84c0d	2026-10-13	
 tests/pki/acme.py	30e4f941313acdd2e22f78258ef1b3eb86427cb2	2026-10-25	
 tests/pki/console.py	af01e5a5235047a850c6ba1192c1de307f1ad864	2026-11-14	

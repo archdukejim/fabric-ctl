@@ -863,11 +863,21 @@ if have_hsm and have_kmip:
     open("kmip.conf", "w").write(f"[server]\nhostname=127.0.0.1\nport={KP}\ncertificate_path={W}/kmip-server.pem\n"
                                  f"key_path={W}/kmip-server.pem\nca_path={W}/root.crt\nauth_suite=TLS1.2\n"
                                  f"enable_tls_client_auth=True\ndatabase_path={W}/kmip.db\nlogging_level=INFO\n")
-    # PyKMIP's server, a session whose client has gone made to end (it looped without end on 26.04, 2.3.1.57)
-    kmip_srv = subprocess.Popen([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                                              "kmip_server.py"),
-                                 "-f", f"{W}/kmip.conf", "-l", f"{W}/kmip.log"],
-                                stdout=open(f"{W}/kmip.out", "w"), stderr=subprocess.STDOUT, start_new_session=True)
+    def start_kmip():
+        """PyKMIP's server, a session whose client has gone made to end (it looped without end on 26.04, 2.3.1.57),
+        started and waited for; its keys are in kmip.db, so a server started again holds the same keys."""
+        global kmip_srv
+        kmip_srv = subprocess.Popen([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                                  "kmip_server.py"),
+                                     "-f", f"{W}/kmip.conf", "-l", f"{W}/kmip.log"],
+                                    stdout=open(f"{W}/kmip.out", "a"), stderr=subprocess.STDOUT,
+                                    start_new_session=True)
+        for _ in range(60):
+            try:
+                socket.create_connection(("127.0.0.1", KP), 1).close()
+                return
+            except OSError:
+                time.sleep(0.5)
 
     def stop_kmip():
         """The server and its worker processes stopped, however this run ends, so none is left on the port. It
@@ -881,13 +891,8 @@ if have_hsm and have_kmip:
                 kmip_srv.wait(5)
                 return
 
+    start_kmip()
     atexit.register(stop_kmip)
-    for _ in range(60):
-        try:
-            socket.create_connection(("127.0.0.1", KP), 1).close()
-            break
-        except OSError:
-            time.sleep(0.5)
     kargs = ("127.0.0.1", KP, "kmip.lan.test", f"{W}/root.crt", f"{W}/kmip-client.crt", f"{W}/kmip-client.key")
     with kmip_session(*kargs) as kc:
         kuid = kc.create(kenums.CryptographicAlgorithm.AES, 256)
@@ -926,7 +931,8 @@ if have_hsm and have_kmip:
     remove_slot(V, "tester", tok, source="test")
     check("OpenBao restarts from the HSM alone", start() and not vault_status(V)["sealed"])
     # the device stops answering mid-rotation (2.3.1.57): it is frozen right after it wrapped the new key, so the
-    # unlock before the restart cannot read a key from it
+    # unlock before the restart cannot read a key from it; then it comes back as a fresh server on the same keys
+    # (PyKMIP itself, once thawed, hangs on its second request: the stand-in's limit, not a device's)
     import fabriclib.vault.slots.kmip as kmip_slot
     real_wrap, key_before = kmip_slot.wrap, read_slot_store(V)["key_id"]
 
@@ -941,7 +947,8 @@ if have_hsm and have_kmip:
                           "OpenBao was not restarted and keeps running as it was")
     finally:
         kmip_slot.wrap = real_wrap
-        os.killpg(kmip_srv.pid, signal.SIGCONT)
+        stop_kmip()
+        start_kmip()
     part = read_slot_store(V)
     check("rotation, the device stops answering mid-way: stopped before any restart and says so; OpenBao still "
           "running unsealed; the store part way (both keys); no key left in RAM",
