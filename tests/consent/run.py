@@ -749,6 +749,7 @@ jh.render_member_files = lambda v: {krb_path: "# fabric krb5\n", sssd_path: "# f
 jh._resolves, jh._pam_on, jh._sudo_rs = (lambda name, address: True), (lambda: ["sss", "mkhomedir"]), (lambda: False)
 jh._sssd_on = lambda: True
 jh.subprocess = types.SimpleNamespace(run=lambda *a, **k: types.SimpleNamespace(returncode=1, stdout="", stderr=""))
+jh.systemctl_up = lambda *a, **k: None          # sssd's restart (common/systemctl_up): no sssd to start here
 kt_own = b"\x05\x02" + _entry("FAB1$@AD.TEST", 300, 1, b"o" * 32)
 calls, directory = [], {}
 
