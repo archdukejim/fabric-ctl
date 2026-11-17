@@ -1,0 +1,6 @@
+Archive: testing
+Component: main
+Origin: open-fabric
+Label: fabric
+Architecture: arm64
+Description: fabric release candidates, for testing before a release (manual 3.14.1)
