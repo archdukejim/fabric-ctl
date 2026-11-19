@@ -57,7 +57,7 @@ def _restore_bundle(args, ctx, path, cli):
     consent = [x for i, a in enumerate(args) if a in ("--approve", "--decline") and i + 1 < len(args)
                for x in (a, args[i + 1])]
     if allow_again:
-        allowed = sorted(g for g, rec in load_consent(ctx.config_dir).items() if rec.get("answer") == "yes")
+        allowed = sorted(g for g, rec in (load_consent(ctx.config_dir) or {}).items() if rec.get("answer") == "yes")
         consent += ["--approve", ",".join(allowed)] if allowed else []
     elif moving and not given:
         print("  setup asks again for the host changes the new network brings: pass --approve GROUPS (setup names "

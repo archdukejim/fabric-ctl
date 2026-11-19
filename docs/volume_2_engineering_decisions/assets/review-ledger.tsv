@@ -1626,7 +1626,7 @@ src/fabriclib/setup/renew_service_certs.py	5d8f3e781644ba4e45ae0357bc3d89a0d96c6
 src/fabriclib/setup/require_terminal.py	06232388bd713c9be3ced285cf7c8f25c04ad1f1	2026-10-24	
 src/fabriclib/setup/restore_install.py	6922e43371b516c9810b33fa6609f86d45360ee8	2026-11-19	
 src/fabriclib/setup/run_reinstall_command.py	dacdad7bf6f2b6daa19758f09fa8d75aad24529b	2026-11-19	
-src/fabriclib/setup/run_restore_command.py	2d2bd69faf58552a16a11cb02e309dbd6bb310b6	2026-11-19	
+src/fabriclib/setup/run_restore_command.py	4670f2af13d22b3c93a858a6d90756568b66504c	2026-11-19	
 src/fabriclib/setup/run_setup.py	90ea0fa7ffe33ea2b883cad4b26741e64f2daf7e	2026-11-08	
 src/fabriclib/setup/run_steps.py	4e97d5eba1bc5b5011f7f0426d4801ff4762bef5	2026-10-17	
 src/fabriclib/setup/run_uninstall_command.py	26729956bf38fdeb8b638b2a7273ba435e0cfe90	2026-11-19	
