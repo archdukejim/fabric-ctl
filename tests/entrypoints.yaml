@@ -267,6 +267,7 @@
 "ask:radius.secret": "src/fabriclib/radius/run_radius_command.py"
 "ask:restore.confirm": "src/fabriclib/setup/run_restore_command.py"
 "ask:restore.confirm_bundle": "src/fabriclib/setup/run_restore_command.py"
+"ask:restore.confirm_section": "src/fabriclib/setup/run_restore_command.py"
 "ask:security.lower.confirm": "src/fabriclib/security/run_security_command.py"
 "ask:service_cert.confirm": "src/fabriclib/pki/run_service_cert_command.py"
 "ask:settings.import.apply": "src/fabriclib/settings/run_settings_command.py"

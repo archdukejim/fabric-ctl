@@ -104,7 +104,7 @@ docs/volume_1_description_and_architecture/1.3.1-host-package.md	66ee0318b3c811f
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	561a2a82fd1256ef185273619d844c62b0b4a298	2026-11-16	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	d79c1e12921577f13f62a589608a907976bd2c9c	2026-11-14	
 docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	6e6acf23690f100f13a59c406c07e55ec9631d1f	2026-11-19	
-docs/volume_1_description_and_architecture/1.3.7-backups.md	d517d265fca4b1d14481bcc57e1eeb4859c101f9	2026-11-19	
+docs/volume_1_description_and_architecture/1.3.7-backups.md	092497ec2d061de644f46c1ce94380b5fc1fe206	2026-11-19	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	83451a312d81dca3e211264d22ee12c62589eb2d	2026-11-15	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	e58503ad946804b11abe0754bfde04d936bc992e	2026-11-10	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c23530a82de2f755d4a0bcf489bd2277902e5736	2026-11-11	
@@ -600,10 +600,10 @@ src/fabriclib/__init__.py	117907918b0432dc26398d6d6e4aefc09ca0ab31	2026-09-30
 src/fabriclib/access/README.md	5eed9ee10e4ad9deb3906d2de75d2c8b7e0250ef	2026-10-20	
 src/fabriclib/access/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-10-20	
 src/fabriclib/access/check_access.py	be0c8cb13938076a0f8cecba00ea958df3160025	2026-10-20	
-src/fabriclib/backup/README.md	cd49cf3c4367cf9baa412e9f61211ceee7c1a710	2026-11-19	
+src/fabriclib/backup/README.md	e7d4cf62775cb59f5102afb8b66034739e786417	2026-11-19	
 src/fabriclib/backup/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-11-19	
 src/fabriclib/backup/backup_lock.py	db0f4e7aa7a255b3416fef61190c42d54acf3cbb	2026-11-19	
-src/fabriclib/backup/backup_plan.py	4704ac4e3b6db6184af7b81466a2b87a2706b347	2026-11-19	
+src/fabriclib/backup/backup_plan.py	e2af8d2846b30734e6d2c2d1a7a2326dc79630d3	2026-11-19	
 src/fabriclib/backup/backup_running.py	7007e780305cae1a6f0bdb2691384e6486a04e4c	2026-11-19	
 src/fabriclib/backup/bundle_key_from.py	6c285b139f658a10b427ab29d495fb25e777b9f6	2026-11-19	
 src/fabriclib/backup/bundle_name.py	b65ad86395a2d6b37d51fd6e4e306085e19e11eb	2026-11-19	
@@ -614,10 +614,11 @@ src/fabriclib/backup/dump_signin.py	d65301167baddb439330a783879bf8a6f8f38234	202
 src/fabriclib/backup/freeze_zones.py	9fe0858f393568a3741ba4728d8759ceaccb865c	2026-11-19	
 src/fabriclib/backup/install_backup_timer.py	45e370df764dce7fdb9e846f5c587be9abf53974	2026-11-19	
 src/fabriclib/backup/list_bundles.py	63cfa4fad2215a0c5673e10d5689ddea70d78f43	2026-11-19	
+src/fabriclib/backup/live_paths.py	35d2c4afa766b4a2a81ae21cebd6e24875768bad	2026-11-19	
 src/fabriclib/backup/load_directory_dump.py	a379b5198271c3e120864295841e704020644995	2026-11-19	
 src/fabriclib/backup/load_signin_dump.py	e04be90ba032241592e41c61e3292a4fe421b2dd	2026-11-19	
 src/fabriclib/backup/load_vault_snapshot.py	4fea29cd914b4f54c651dfac6cd3074563d6871f	2026-11-19	
-src/fabriclib/backup/make_backup.py	ba0b9ffb805dace912c39ad6d551a55e1a8a4f47	2026-11-19	
+src/fabriclib/backup/make_backup.py	1fc0b5661491b4c1081458a4b8b664e464c0b276	2026-11-19	
 src/fabriclib/backup/make_bundle.py	240b69005ca4bc9d7488701eed4bae66789408d4	2026-11-19	
 src/fabriclib/backup/make_bundle_key.py	5f7005afdd1c8f81223595e98ee0ab1f365dc47b	2026-11-19	
 src/fabriclib/backup/open_bundle_key.py	16b5c4bdf78f8f67dab63fffc5ddf856567483a2	2026-11-19	
@@ -626,9 +627,11 @@ src/fabriclib/backup/pack_section.py	33d52baa646e5983961e9055a76ade8d22dd1901	20
 src/fabriclib/backup/pause_unit.py	1ea1aa7afc51c567f14e923cd27b79c161fcca6a	2026-11-19	
 src/fabriclib/backup/prune_bundles.py	4f0d869f8452b7230026e0504c26e4781fb20b99	2026-11-19	
 src/fabriclib/backup/read_backup_key.py	7a19e9a0daf792f6a4b547262d0eac4722ffd33f	2026-11-19	
+src/fabriclib/backup/read_build.py	c5e9f9aba03615a9a7c492f1c893ab9de6aa087f	2026-11-19	
 src/fabriclib/backup/read_manifest.py	2ca7a51fa255b2c83f6ab88429a154b03f89cabf	2026-11-19	
 src/fabriclib/backup/restore_bundle.py	996a22a1384239b82beabb513a48786841e50422	2026-11-19	
 src/fabriclib/backup/restore_pending.py	911dfe670afac113f70f4dcd54d6497aff4845c3	2026-11-19	
+src/fabriclib/backup/restore_section.py	e0fc7e688e6a8ccf5bb424b20f1311f2eda683a7	2026-11-19	
 src/fabriclib/backup/run_age.py	c9f7e317b584918e7c5941d156f065f605987125	2026-11-19	
 src/fabriclib/backup/run_backup_command.py	de85b07b00836e1139c3c722c4a0d964793073bd	2026-11-19	
 src/fabriclib/backup/save_vault_snapshot.py	74c98804d379a2fc9a2bc0f535f047c37d55978f	2026-11-19	
@@ -1619,7 +1622,7 @@ src/fabriclib/setup/read_join_invitation.py	6350212d176ebcbe77aeac7e73d0df606831
 src/fabriclib/setup/renew_service_certs.py	5d8f3e781644ba4e45ae0357bc3d89a0d96c603d	2026-10-13	
 src/fabriclib/setup/require_terminal.py	06232388bd713c9be3ced285cf7c8f25c04ad1f1	2026-10-24	
 src/fabriclib/setup/restore_install.py	bfda80d17f655e3e4889c3298b3326f0d8579b81	2026-10-17	
-src/fabriclib/setup/run_restore_command.py	e7eea905af5df3d11f1f0f0139a1fc4f08cd109d	2026-11-19	
+src/fabriclib/setup/run_restore_command.py	1516eea5e6711bda07d4e002b1a6aa00480e39c3	2026-11-19	
 src/fabriclib/setup/run_setup.py	90ea0fa7ffe33ea2b883cad4b26741e64f2daf7e	2026-11-08	
 src/fabriclib/setup/run_steps.py	4e97d5eba1bc5b5011f7f0426d4801ff4762bef5	2026-10-17	
 src/fabriclib/setup/run_uninstall_command.py	5097ffd67b0da3e8ad57859fe64e86f8c7038e0f	2026-10-26	
@@ -2262,9 +2265,10 @@ templates/webui/webui.json.j2	1161c507f612f4f256b7208bf12db143692a175d	2026-10-0
 tests/README.md	6983ecf1b0f50d5c69c231b8e1b43f64f027e682	2026-11-19	
 tests/agent/README.md	ee215a84f9086cc5de13f6293997d6f7aa93e3f9	2026-10-29	
 tests/agent/pending_store_test.py	cd0a296f798bf80023fd66b87f8b65845609af9c	2026-11-05	
-tests/backup/README.md	00242c8deb30626bddaf9d8afd65d584349e8979	2026-11-19	
+tests/backup/README.md	00525ecc717abdad79be15d1ba5f61094d49b9c2	2026-11-19	
 tests/backup/bundle_test.py	7ea9fca827c311af5b75a2f49036042b889fad01	2026-11-19	
 tests/backup/prune_bundles_test.py	10cef5e1dc853852d88d4ceb5bb1fab21da173e5	2026-11-19	
+tests/backup/restore_section_test.py	fe5fb7aad5497f0b210f4969ad40a93e3406f195	2026-11-19	
 tests/backup/restore_test.py	e963d41329331114d2fc290153e38397a54627b6	2026-11-19	
 tests/backup/run_backup_command_test.py	8612c16b531d56acdd84066b6d452535c112a916	2026-11-19	
 tests/backup/schedule_test.py	9cf70483b1f8b579d1b198f8361947ce23101515	2026-11-19	

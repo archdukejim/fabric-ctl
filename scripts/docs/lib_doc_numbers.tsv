@@ -221,6 +221,7 @@ file	fabriclib-access|src/fabriclib/access/check_access.py	1
 file	fabriclib-backup|src/fabriclib/backup/backup_lock.py	14	
 file	fabriclib-backup|src/fabriclib/backup/backup_plan.py	15	
 file	fabriclib-backup|src/fabriclib/backup/backup_running.py	16	
+file	fabriclib-backup|src/fabriclib/backup/build_version.py	35	0.10.0 / 2026-11-19
 file	fabriclib-backup|src/fabriclib/backup/bundle_key_from.py	1	
 file	fabriclib-backup|src/fabriclib/backup/bundle_name.py	2	
 file	fabriclib-backup|src/fabriclib/backup/check_backup_space.py	17	
@@ -230,6 +231,7 @@ file	fabriclib-backup|src/fabriclib/backup/dump_signin.py	19
 file	fabriclib-backup|src/fabriclib/backup/freeze_zones.py	20	
 file	fabriclib-backup|src/fabriclib/backup/install_backup_timer.py	21	
 file	fabriclib-backup|src/fabriclib/backup/list_bundles.py	22	
+file	fabriclib-backup|src/fabriclib/backup/live_paths.py	36	
 file	fabriclib-backup|src/fabriclib/backup/load_directory_dump.py	30	
 file	fabriclib-backup|src/fabriclib/backup/load_signin_dump.py	31	
 file	fabriclib-backup|src/fabriclib/backup/load_vault_snapshot.py	32	
@@ -242,9 +244,11 @@ file	fabriclib-backup|src/fabriclib/backup/pack_section.py	8
 file	fabriclib-backup|src/fabriclib/backup/pause_unit.py	24	
 file	fabriclib-backup|src/fabriclib/backup/prune_bundles.py	25	
 file	fabriclib-backup|src/fabriclib/backup/read_backup_key.py	26	
+file	fabriclib-backup|src/fabriclib/backup/read_build.py	38	
 file	fabriclib-backup|src/fabriclib/backup/read_manifest.py	9	
 file	fabriclib-backup|src/fabriclib/backup/restore_bundle.py	33	
 file	fabriclib-backup|src/fabriclib/backup/restore_pending.py	34	
+file	fabriclib-backup|src/fabriclib/backup/restore_section.py	37	
 file	fabriclib-backup|src/fabriclib/backup/run_age.py	10	
 file	fabriclib-backup|src/fabriclib/backup/run_backup_command.py	27	
 file	fabriclib-backup|src/fabriclib/backup/save_vault_snapshot.py	28	
@@ -2155,9 +2159,10 @@ function	fabricctl-lib|src/federation/server.py|main	8
 function	fabricctl-lib|src/ux/cli/keycloak_bootstrap.py|main	1	
 function	fabriclib-access|src/fabriclib/access/check_access.py|check_access	1	
 function	fabriclib-backup|src/fabriclib/backup/backup_lock.py|backup_lock	1	
-function	fabriclib-backup|src/fabriclib/backup/backup_plan.py|_live	1	
+function	fabriclib-backup|src/fabriclib/backup/backup_plan.py|_live	1	0.10.0 / 2026-11-19
 function	fabriclib-backup|src/fabriclib/backup/backup_plan.py|backup_plan	2	
 function	fabriclib-backup|src/fabriclib/backup/backup_running.py|backup_running	1	
+function	fabriclib-backup|src/fabriclib/backup/build_version.py|build_version	1	0.10.0 / 2026-11-19
 function	fabriclib-backup|src/fabriclib/backup/bundle_key_from.py|bundle_key_from	1	
 function	fabriclib-backup|src/fabriclib/backup/bundle_name.py|bundle_name	1	
 function	fabriclib-backup|src/fabriclib/backup/check_backup_space.py|_used	1	
@@ -2168,6 +2173,7 @@ function	fabriclib-backup|src/fabriclib/backup/dump_signin.py|dump_signin	1
 function	fabriclib-backup|src/fabriclib/backup/freeze_zones.py|freeze_zones	1	
 function	fabriclib-backup|src/fabriclib/backup/install_backup_timer.py|install_backup_timer	1	
 function	fabriclib-backup|src/fabriclib/backup/list_bundles.py|list_bundles	1	
+function	fabriclib-backup|src/fabriclib/backup/live_paths.py|live_paths	1	
 function	fabriclib-backup|src/fabriclib/backup/load_directory_dump.py|load_directory_dump	1	
 function	fabriclib-backup|src/fabriclib/backup/load_signin_dump.py|load_signin_dump	1	
 function	fabriclib-backup|src/fabriclib/backup/load_vault_snapshot.py|load_vault_snapshot	1	
@@ -2183,12 +2189,16 @@ function	fabriclib-backup|src/fabriclib/backup/prune_bundles.py|prune_bundles	1
 function	fabriclib-backup|src/fabriclib/backup/read_backup_key.py|_key_file	2	
 function	fabriclib-backup|src/fabriclib/backup/read_backup_key.py|_value	1	
 function	fabriclib-backup|src/fabriclib/backup/read_backup_key.py|read_backup_key	3	
+function	fabriclib-backup|src/fabriclib/backup/read_build.py|read_build	1	
 function	fabriclib-backup|src/fabriclib/backup/read_manifest.py|read_manifest	1	
 function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|_check_changes	2	
 function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|_version	1	
 function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|restore_bundle	3	
 function	fabriclib-backup|src/fabriclib/backup/restore_pending.py|read_restore_pending	1	
 function	fabriclib-backup|src/fabriclib/backup/restore_pending.py|write_restore_pending	2	
+function	fabriclib-backup|src/fabriclib/backup/restore_section.py|_bundle_vars	2	
+function	fabriclib-backup|src/fabriclib/backup/restore_section.py|_clear	1	
+function	fabriclib-backup|src/fabriclib/backup/restore_section.py|restore_section	3	
 function	fabriclib-backup|src/fabriclib/backup/run_age.py|_pump	1	
 function	fabriclib-backup|src/fabriclib/backup/run_age.py|run_age	2	
 function	fabriclib-backup|src/fabriclib/backup/run_backup_command.py|_flag	1	
@@ -3676,8 +3686,9 @@ function	fabriclib-setup|src/fabriclib/setup/require_terminal.py|require_termina
 function	fabriclib-setup|src/fabriclib/setup/restore_install.py|restore_install	1	
 function	fabriclib-setup|src/fabriclib/setup/retire_adguard.py|retire_adguard	1	0.7.2 / 2026-10-20
 function	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py|retire_renamed_units	1	0.7.2 / 2026-10-20
-function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|_package_version	2	
+function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|_package_version	2	0.10.0 / 2026-11-19
 function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|_restore_bundle	3	
+function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|_restore_one_section	4	
 function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|run_restore_command	1	
 function	fabriclib-setup|src/fabriclib/setup/run_setup.py|main	1	
 function	fabriclib-setup|src/fabriclib/setup/run_steps.py|_now	1	

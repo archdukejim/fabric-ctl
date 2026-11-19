@@ -9,6 +9,7 @@ checked; `age` and `zstd` are needed (the package depends on them).
 | `bundle_test.py` | A bundle made, checked and opened with the real age, zstd and tar: passphrase and public key, wrong keys, a changed byte, nothing written plain |
 | `prune_bundles_test.py` | Keeping the newest scheduled bundles; the others never removed |
 | `restore_test.py` | A whole restore of a real bundle with address changes, its refusals, and the dump loaders |
+| `restore_section_test.py` | One section restored on a running install, its refusals, and `fabricctl restore --section` |
 | `run_backup_command_test.py` | `fabricctl backup`: routing, the key never an argument, one backup at a time |
 | `schedule_test.py` | The schedule in vars.yaml and its timer's units: on, changed, refused, off |
 | `section_of_key_test.py` | Every vars.yaml key belongs to exactly one section |

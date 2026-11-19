@@ -2,7 +2,10 @@ import os
 import sys
 
 from fabriclib.backup.read_backup_key import read_backup_key
+from fabriclib.backup.read_build import read_build
 from fabriclib.backup.restore_bundle import restore_bundle
+from fabriclib.backup.restore_section import restore_section
+from fabriclib.backup.sections import SECTIONS
 from fabriclib.common.ask import ask
 from fabriclib.common.errors import ValidationError
 from fabriclib.setup.context import SetupContext
@@ -11,20 +14,6 @@ from fabriclib.setup.restore_install import restore_install
 USAGE = ("usage: fabricctl restore <bundle.fabric.tar> [--set host_ip=… --set lan_cidr=… --set lan_gateway=…] "
          "[--key-file PATH | --key-stdin] [--yes] [--approve GROUPS] [--decline GROUPS]\n"
          "       fabricctl restore <export folder> [--yes] …   (a folder from 0.10.0's `fabricctl uninstall --export`)")
-
-
-def _package_version(cli):
-    """Purpose: the installed package's version, from the BUILD file beside the packaged code.
-    Inputs:  cli — path of the packaged cli.py.
-    Returns: str, "?" when unknown.
-    Fails:   never.
-    Feeds:   _restore_bundle."""
-    try:
-        with open(os.path.join(os.path.dirname(os.path.dirname(cli)), "fabric", "BUILD")) as f:
-            line = next((x for x in f if x.startswith("package:")), "")
-        return line.split()[-1] if line else "?"
-    except OSError:
-        return "?"
 
 
 def _restore_bundle(args, ctx, path, cli):
@@ -50,7 +39,7 @@ def _restore_bundle(args, ctx, path, cli):
                 print("nothing changed")
                 return 1
         out = restore_bundle(ctx.deploy_base, path, read_backup_key(args, {}, opening=True), changes,
-                             _package_version(cli))
+                             read_build(os.path.dirname(os.path.dirname(os.path.dirname(cli))))["version"])
     except ValidationError as exc:
         print(f"error: {exc}\n{USAGE}", file=sys.stderr)
         return 1
@@ -60,6 +49,39 @@ def _restore_bundle(args, ctx, path, cli):
                for x in (a, args[i + 1])]
     os.execv(sys.executable, [sys.executable, cli, "setup", "--yes", "--non-interactive", *consent,
                               *[a for a in args if a.startswith("--deploy-base") or a == "--no-color"]])
+
+
+def _restore_one_section(args, ctx, path):
+    """Purpose: `fabricctl restore <bundle> --section NAME` on a running install (manual 1.3.7.8): the warning, the
+             site's name typed, then restore_section (a safety bundle first).
+    Inputs:  args — the command's arguments (--section NAME, --key-file, --key-stdin, --yes); ctx — SetupContext of
+             the install; path — the bundle.
+    Returns: 0 when restored, 1 when refused or not confirmed (the reason printed).
+    Fails:   CalledProcessError from the apply that follows (printed by it).
+    Feeds:   run_restore_command."""
+    section = args[args.index("--section") + 1] if args.index("--section") + 1 < len(args) else ""
+    try:
+        if not os.path.exists(ctx.vars_file):
+            raise ValidationError("fabric is not installed here: restore the whole bundle instead (no --section)")
+        v = ctx.load_state().vars
+        site = v.get("site_name") or v.get("hostname") or "fabric"
+        what = SECTIONS[section]["what"] if section in SECTIONS else section
+        print(f"Restoring {section} replaces it on this install: {what}. What it holds now is lost (a safety bundle "
+              "of it is made first) and this cannot be undone."
+              + (f" Depends on it: {', '.join(SECTIONS[section]['depends'])}." if section in SECTIONS
+                 and SECTIONS[section]["depends"] else ""))
+        if "--yes" not in args and "-y" not in args:
+            if ask("restore.confirm_section", f"Type the site's name ({site}) to restore {section}: ").strip() != site:
+                print("nothing changed")
+                return 1
+        version = read_build(ctx.deploy_base)["version"]
+        out = restore_section(ctx.deploy_base, ctx.config_dir, path, section,
+                              read_backup_key(args, v, opening=True), version)
+    except ValidationError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"{section} restored from {os.path.basename(path)}; the state it replaced is in {out['safety']}")
+    return 0
 
 
 def run_restore_command(args, deploy_base, cli):
@@ -77,9 +99,12 @@ def run_restore_command(args, deploy_base, cli):
     Fails:   ValidationError is printed with USAGE (exit 1); CalledProcessError from restore_install (cp -a);
              EOFError from input() without --yes; OSError from os.execv.
     Feeds:   cli main (`restore`)."""
-    values = {i + 1 for i, a in enumerate(args) if a in ("--set", "--key-file", "--approve", "--decline")}
+    values = {i + 1 for i, a in enumerate(args)
+              if a in ("--set", "--key-file", "--approve", "--decline", "--section")}
     folder = next((a for i, a in enumerate(args) if not a.startswith("-") and i not in values), None)
     ctx = SetupContext(deploy_base=deploy_base)
+    if folder and os.path.isfile(folder) and "--section" in args:
+        return _restore_one_section(args, ctx, os.path.realpath(folder))
     if folder and os.path.isfile(folder):
         return _restore_bundle(args, ctx, os.path.realpath(folder), cli)
     try:
