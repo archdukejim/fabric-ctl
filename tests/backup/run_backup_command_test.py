@@ -32,7 +32,7 @@ def check(name, cond, detail=""):
 made, answers = [], []
 
 
-def fake_make(base, v, secrets_file, kind, method, **kw):
+def fake_make(base, v, secrets_file, kind, method, actor=None, **kw):
     made.append((kind, method, kw))
     return "/x.fabric.tar"
 
