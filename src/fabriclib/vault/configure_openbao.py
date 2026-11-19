@@ -4,10 +4,11 @@ import os
 from fabriclib.common.errors import ValidationError
 from fabriclib.vault.common.bao_request import bao_request
 from fabriclib.vault.common.write_private_file import write_private_file
-from fabriclib.vault.constants import AGENT_CREDS, KV_MOUNTS, POLICIES, SETUP_CREDS
+from fabriclib.vault.constants import AGENT_CREDS, BACKUP_CREDS, KV_MOUNTS, POLICIES, SETUP_CREDS
 
 # AppRole -> (policy, credentials file)
-ROLES = {"fabric-setup": ("fabric-setup", SETUP_CREDS), "fabric-agent": ("fabric-agent", AGENT_CREDS)}
+ROLES = {"fabric-setup": ("fabric-setup", SETUP_CREDS), "fabric-agent": ("fabric-agent", AGENT_CREDS),
+         "fabric-backup": ("fabric-backup", BACKUP_CREDS)}
 
 
 def _call(v, token, method, path, body=None, ok=(200, 204)):
@@ -40,15 +41,15 @@ def configure_openbao(v, token):
     """Purpose: bring OpenBao to fabric's configuration; safe to re-run (converges).
     Inputs:  v — vars: fabric_subnet (default 10.255.0.0/24), openbao_key_dir;
              token — the initial root token on first setup, else a fabric-setup token.
-             Reads and writes the AppRole credential files SETUP_CREDS and AGENT_CREDS.
+             Reads and writes the AppRole credential files SETUP_CREDS, AGENT_CREDS and BACKUP_CREDS.
     Returns: list of changes made (str): "AppRole auth", "KV <mount>", "policy <name>", "AppRole <role> credentials".
     Fails:   ValidationError from _call when OpenBao refuses a step, or from bao_request if it is unreachable;
              OSError writing credentials; ValueError on a corrupt credentials file.
     Feeds:   setup/setup_openbao, tests/openbao/run.py.
-    Notes:   converges AppRole auth, KV v2 at fabric/ and apps/, every policy in POLICIES, and the fabric-setup and
-             fabric-agent AppRoles: tokens 15 min (at most 30), tokens and secret IDs usable only from fabric_net
-             (this host), secret IDs without TTL or use limit. Credentials are root 0400 in <openbao_key_dir>; new
-             ones are made only when the stored ones no longer log in. The role settings are rewritten every run
+    Notes:   converges AppRole auth, KV v2 at fabric/ and apps/, every policy in POLICIES, and the fabric-setup,
+             fabric-agent and fabric-backup AppRoles: tokens 15 min (at most 30), tokens and secret IDs usable only
+             from fabric_net (this host), secret IDs without TTL or use limit. Credentials are root 0400 in
+             <openbao_key_dir>; new ones are made only when the stored ones no longer log in. The role settings are rewritten every run
              (not reported as a change).
     """
     changes = []

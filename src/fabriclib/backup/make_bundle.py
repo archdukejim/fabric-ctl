@@ -1,3 +1,4 @@
+import contextlib
 import io
 import json
 import os
@@ -53,11 +54,12 @@ def make_bundle(plan, host, meta, kind, passphrase=None, public_key=None, folder
         identity, recipient = make_bundle_key()
         key_age = seal_bundle_key(identity, passphrase=passphrase, public_key=public_key)
         del identity
-        by_name = {section: (paths, extra) for section, paths, extra in plan}
+        by_name = {section: rest for section, *rest in plan}
         sections = []
         for section in ORDER:
-            paths, extra = by_name.get(section, ([], None))
-            entry = pack_section(os.path.join(stage, f"{section}.tar.zst.age"), paths, recipient, extra)
+            paths, extra, around = (list(by_name.get(section, ())) + [[], None, None])[:3]
+            with around() if around else contextlib.nullcontext():
+                entry = pack_section(os.path.join(stage, f"{section}.tar.zst.age"), paths, recipient, extra)
             entry.update(name=section, what=SECTIONS[section]["what"], empty=not paths and not extra)
             sections.append(entry)
         manifest = dict(meta, format=FORMAT, host=host, kind=kind, made=time.strftime("%Y-%m-%dT%H:%M:%SZ",

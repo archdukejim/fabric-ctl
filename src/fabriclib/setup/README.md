@@ -19,6 +19,7 @@
 | `drop_retired_settings.py` | A settings file of an older fabric taken as it is (2.1.1.60): the keys this release no longer takes, listed with why and ignored (the table: `common/retired_settings.py`) |
 | `apply_plan_defaults.py` | The plan's hardened defaults recorded as values, so what is shown is what renders |
 | `finish_vars.py` | The last of collecting the settings: a fresh install's log-on rights, TSIG secrets moved, `fabric.yaml` saved |
+| `stop_for_copy.py` | fabric stopped, and proven stopped, before a consistent copy (an export, a cold backup) |
 | `upgrade_vars.py` | Existing install's vars before re-render: the release's images, unless pinned (what it did for installs before 0.8.0 is retired, 2.1.1.61) |
 | `detect_network.py` | Guess hostname, host IP, gateway, LAN CIDR and interface from the default route |
 | `choose_plan.py` | The plan: what setup will do, the memory split, every host change; [P]roceed (the one yes), [M]enu, [Q]uit |

@@ -1,4 +1,4 @@
-"""The export's stop (2.3.1.53): nothing is copied until the stack has really stopped; a container still running, or Docker not
+"""The export's stop (2.3.1.53; setup/stop_for_copy, shared with a cold backup bundle): nothing is copied until the stack has really stopped; a container still running, or Docker not
 answering, refuses with no copy; a copy that fails says so instead of a traceback. Pure logic: systemd, Docker and cp stood in
 for. The sandbox runs the real one, and restores from it.
     python3 tests/setup/export_install_test.py"""
@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
 import fabriclib.setup.export_install as ei  # noqa: E402
+import fabriclib.setup.stop_for_copy as sfc  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 
 FAILED = 0
@@ -43,15 +44,15 @@ def run_export(ps_replies, cp_rc=0, ps_rc=0, stop_error=None):
             raise ValidationError(stop_error)
         return []
 
-    ei.subprocess = SimpleNamespace(run=fake_run)
-    ei.control_stack = fake_stop
+    ei.subprocess = sfc.subprocess = SimpleNamespace(run=fake_run)
+    sfc.control_stack = fake_stop
     ei.secrets_in_openbao = lambda f: False
-    ei.STOP_WAIT = 2
-    ei.time = SimpleNamespace(time=real_time.time, sleep=lambda s: real_time.sleep(0.01), strftime=real_time.strftime)
+    sfc.STOP_WAIT = 2
+    sfc.time = SimpleNamespace(time=real_time.time, sleep=lambda s: real_time.sleep(0.01), strftime=real_time.strftime)
     with tempfile.TemporaryDirectory() as d:
         base = os.path.join(d, "opt")
         os.makedirs(os.path.join(base, "postgres"))
-        ei.DIRS = ("postgres",)
+        ei.DIRS = sfc.DIRS = ("postgres",)
         ctx = SimpleNamespace(vars={}, secrets_file="", deploy_base=base, path=lambda n: os.path.join(base, n))
         os_chown, os.chown = os.chown, lambda *a: None
         try:
@@ -64,14 +65,14 @@ def run_export(ps_replies, cp_rc=0, ps_rc=0, stop_error=None):
     return steps, error
 
 
-real_time = ei.time
+real_time = sfc.time
 steps, error = run_export([""])
 check("a stack that has stopped: timers first, every unit, Docker asked, then the copy", not error
       and steps.index("timers") < steps.index("stack stop") < steps.index("ps") < steps.index("cp"), (steps, error))
 
 
 # what the probe measured: the stop returns, Postgres still running; the copy waits for it to be gone
-ei._real_still = ei._still_running
+sfc._real_still = sfc._still_running
 ps = {"n": 0}
 
 
@@ -80,14 +81,14 @@ def stopping(base):
     return ["postgres"] if ps["n"] < 3 else []
 
 
-ei._still_running = stopping
+sfc._still_running = stopping
 steps, error = run_export([""])
 check("Postgres still going down when the stop returns: the copy waits until it is gone", not error and ps["n"] == 3 and "cp" in steps, (ps, steps, error))
-ei._still_running = lambda base: ["postgres"]
+sfc._still_running = lambda base: ["postgres"]
 steps, error = run_export([""])
 check("negative: a container still running after the wait: refused, naming it, nothing copied",
       "postgres still running" in error and "cp" not in steps, (steps, error))
-ei._still_running = ei._real_still
+sfc._still_running = sfc._real_still
 steps, error = run_export([""], ps_rc=1)
 check("negative: Docker cannot say what runs: refused, nothing copied", "could not ask Docker" in error and "cp" not in steps, (steps, error))
 steps, error = run_export([""], stop_error="systemctl stop fabric.target failed: x")
@@ -100,8 +101,8 @@ check("negative: a copy that fails: says what, that nothing was uninstalled, and
 
 
 def listing(out):
-    ei.subprocess = SimpleNamespace(run=lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, stdout=out, stderr=""))
-    return ei._still_running("/opt")
+    sfc.subprocess = SimpleNamespace(run=lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, stdout=out, stderr=""))
+    return sfc._still_running("/opt")
 
 
 check("this install's containers are counted, by Compose's folder", listing("postgres\t/opt/postgres\n") == ["postgres"])

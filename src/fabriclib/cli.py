@@ -45,6 +45,7 @@
   fabricctl gpo load|templates|list|show|set|clear|starter
                                  Group Policy from ADMX templates for this site's machines and people
   fabricctl sizing show|refresh  what the host is small for, if anything (also in status and doctor)
+  fabricctl backup [list|check|schedule]  encrypted backups of everything, by hand or on a schedule (1.3.7)
   fabricctl move prepare|status|cancel
                                  the host's next address announced to the machines fabric manages (manual 4.2.4.2)
   fabricctl sso add|list|remove  apps (Proxmox VE, TrueNAS, …) signing people in through Keycloak
@@ -88,6 +89,7 @@ import sys
 # Run as a script, Python puts fabriclib/ itself first on sys.path, where its
 # folders (dns/, keycloak/) would shadow real packages. Use fabric/lib.
 sys.path[0] = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from fabriclib.backup.run_backup_command import run_backup_command  # noqa: E402
 from fabriclib.common.ask import ask  # noqa: E402
 from fabriclib.consent.show_consent_status import show_consent_status  # noqa: E402
 from fabriclib.dhcp.run_dhcp_command import run_dhcp_command  # noqa: E402
@@ -272,6 +274,9 @@ def main(argv):
     if cmd == "sizing":
         ctx = SetupContext(deploy_base=_base(args))
         return run_sizing_command(ctx.load_state().vars, ctx.config_dir, _without_base(args))
+    if cmd == "backup":
+        ctx = SetupContext(deploy_base=_base(args)).load_state()
+        return run_backup_command(ctx.deploy_base, ctx.vars, ctx.secrets_file, _without_base(args))
     if cmd == "move":
         return run_move_command(SetupContext(deploy_base=_base(args)).load_state().vars, _without_base(args))
     if cmd == "federation":
