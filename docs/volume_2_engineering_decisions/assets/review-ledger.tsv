@@ -1742,7 +1742,7 @@ src/fabriclib/vault/common/write_private_file.py	ad83d2de34177febdfb6ebdc3fcfdf4
 src/fabriclib/vault/common/write_seal_config.py	20e67fbed8498662e4fc7c28fa7c963152e1bd22	2026-09-30	
 src/fabriclib/vault/common/write_slot_store.py	70f5bc2151ea860ec8947df15094aa2acc633931	2026-09-30	
 src/fabriclib/vault/configure_oidc.py	ae183d4c8d8a67516df7e90feda2cf289d61f529	2026-10-20	
-src/fabriclib/vault/configure_openbao.py	50f3cbc00f9a4f56805de86aa8b637096eee9be4	2026-11-19	
+src/fabriclib/vault/configure_openbao.py	ec80c1b0474365a4eb25ddcafcb88e17c66fa7db	2026-11-19	
 src/fabriclib/vault/constants.py	73830bd9c810a5c90aa5e3237d534146a9a9d0f9	2026-11-19	
 src/fabriclib/vault/detect_devices.py	5e0f956efea5432f25f21f8b3bdfbbf168e25c10	2026-10-03	
 src/fabriclib/vault/ensure_vault_key.py	8b605fa3caa36b5772e9dea2ad92ce9f54901385	2026-10-20	

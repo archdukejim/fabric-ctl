@@ -49,8 +49,8 @@ def configure_openbao(v, token):
     Notes:   converges AppRole auth, KV v2 at fabric/ and apps/, every policy in POLICIES, and the fabric-setup,
              fabric-agent and fabric-backup AppRoles: tokens 15 min (at most 30), tokens and secret IDs usable only
              from fabric_net (this host), secret IDs without TTL or use limit. Credentials are root 0400 in
-             <openbao_key_dir>; new ones are made only when the stored ones no longer log in. The role settings are rewritten every run
-             (not reported as a change).
+             <openbao_key_dir>; new ones are made only when the stored ones no longer log in. The role settings are
+             rewritten every run (not reported as a change).
     """
     changes = []
     if "approle/" not in _call(v, token, "GET", "sys/auth"):
