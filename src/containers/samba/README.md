@@ -7,6 +7,7 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | File | What |
 |---|---|
 | `converge.py` | The entry point: the wanted state as JSON on stdin, every part in order, what changed as JSON |
+| `finish_restore.py` | After a restore from an online backup: the backup marks removed from sam.ldb, in the DC's image with the DC stopped (1.3.7.6) |
 | `open_samdb.py` | The DC's database opened locally as the system (optionally allowing schema changes) |
 | `repair_role_owners.py` | The roles this DC holds named by its current DN (a renamed AD site left the old text, 1.6.5.24) |
 | `ensure_schema.py` | fabric's and sudo's attributes and classes in AD's schema, added once (OIDs AD accepts, Q3), numbered after 0.8.0's with the retired and reserved numbers kept apart; a schema that disagrees is refused before anything is added (1.10.4.31) |

@@ -10,16 +10,18 @@ from fabriclib.backup.section_paths import section_paths
 from fabriclib.backup.sections import ORDER
 
 DUMPS = "/run/fabric/backup/dumps"       # RAM: an online section's dumps, packed under this path, then removed
+# the DC's databases and their locks: Samba's offline copy (dump_directory) stands for them in an online bundle
+DC_DATABASES = ["*.ldb", "*.tdb", "*.ldb-lock", "*.tdb-lock"]
 
 
 def _live(section, base, v):
     """Purpose: the folders an online copy leaves out of a section because its service's dump stands for them.
     Inputs:  section — name; base — install root; v — vars.
-    Returns: [abs path] (the DC's databases, OpenBao's raft data, Postgres's data folder).
+    Returns: [abs path] (OpenBao's raft data, Postgres's data folder). The DC's databases are left out by name
+             instead (DC_DATABASES): SYSVOL and the DLZ's files beside them are packed live.
     Fails:   never.
     Feeds:   backup_plan."""
-    return {"directory": [os.path.join(base, "samba", "data")],
-            "secrets": [os.path.join(base, "openbao", "data")],
+    return {"secrets": [os.path.join(base, "openbao", "data")],
             "signin": [os.path.normpath(v["postgres_data_dir"])] if v.get("postgres_data_dir") else [],
             }.get(section, [])
 
@@ -43,6 +45,8 @@ def backup_plan(base, v, method, dumps=DUMPS):
         if method == "online":
             live = _live(section, base, v)
             paths = [(p, skip + [x for x in live if x.startswith(p + os.sep)]) for p, skip in paths if p not in live]
+            if section == "directory":
+                paths = [(p, skip + DC_DATABASES) for p, skip in paths]
             folder = os.path.join(dumps, section)
             if section == "directory" and os.path.isdir(os.path.join(base, "samba", "data")):
                 dump_directory(base, folder)

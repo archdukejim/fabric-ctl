@@ -20,6 +20,9 @@ Backups: one encrypted bundle of seven sections, made by hand or on a schedule, 
 | `freeze_zones.py` | BIND's zones written out and held still while they are copied (`rndc freeze`, `thaw`) |
 | `install_backup_timer.py` | fabric-backup.timer and its service as vars.yaml says, or removed |
 | `list_bundles.py` | The bundles in the backups folder, newest first, from their names and manifests |
+| `load_directory_dump.py` | Before the DC starts after an online restore: the domain's copy in place, its backup marks removed |
+| `load_signin_dump.py` | Once Postgres runs after an online restore: Keycloak's database from its dump |
+| `load_vault_snapshot.py` | Right after OpenBao is initialised on a restored host: the bundle's snapshot forced onto it |
 | `make_backup.py` | One bundle of the install, online or cold, one at a time, audited |
 | `make_bundle.py` | One bundle: a fresh key pair, each section packed and encrypted to it, the key sealed, one plain tar |
 | `make_bundle_key.py` | A new age key pair for one bundle, in memory |
@@ -30,6 +33,8 @@ Backups: one encrypted bundle of seven sections, made by hand or on a schedule, 
 | `prune_bundles.py` | Keep the newest scheduled bundles; never remove the others |
 | `read_backup_key.py` | How a bundle is sealed or opened: a passphrase asked twice or read from stdin, a public key, a private key file |
 | `read_manifest.py` | A bundle's manifest, read without any key |
+| `restore_bundle.py` | A whole restore: the bundle checked and opened, every section in place, address changes written |
+| `restore_pending.py` | The dumps an online restore leaves for setup to load, crossed off as each is loaded |
 | `run_age.py` | `age` with a passphrase typed on a pty of its own, never on its command line |
 | `run_backup_command.py` | `fabricctl backup`, `list`, `check`, `schedule`: routes and prints |
 | `save_vault_snapshot.py` | OpenBao's raft snapshot, taken with the fabric-backup AppRole |

@@ -13,7 +13,8 @@ def pack_section(dest, paths, recipient, extra_dir=None):
     """Purpose: one section's file of a bundle (manual 1.3.7.2), streamed `tar | zstd | age` so nothing of it is ever
              written unencrypted; owners, modes, ACLs and extended attributes kept (SYSVOL's NT ACLs are xattrs).
     Inputs:  dest — the section's file, <section>.tar.zst.age, written as dest + ".part" and renamed when whole;
-             paths — [(abs path, [abs paths to leave out])] from section_paths; recipient — the bundle's public key;
+             paths — [(abs path, [abs paths or file-name patterns such as "*.ldb" to leave out])] from section_paths
+             or backup_plan; recipient — the bundle's public key;
              extra_dir — a folder of online dumps (1.3.7.4) packed under its own absolute path, or None.
     Returns: {"file": basename, "size": int, "sha256": hex} of the encrypted file.
     Fails:   ValidationError when tar, zstd or age fails (the .part file is removed); OSError.

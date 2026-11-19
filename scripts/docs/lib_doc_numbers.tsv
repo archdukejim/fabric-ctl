@@ -117,6 +117,7 @@ file	fabricctl-jinja|src/containers/samba/explain_grants.py	107
 file	fabricctl-jinja|src/containers/samba/find_gpo.py	79	
 file	fabricctl-jinja|src/containers/samba/find_machine.py	53	
 file	fabricctl-jinja|src/containers/samba/find_person.py	68	
+file	fabricctl-jinja|src/containers/samba/finish_restore.py	171	
 file	fabricctl-jinja|src/containers/samba/get_person.py	31	
 file	fabricctl-jinja|src/containers/samba/gpo_tool.py	51	
 file	fabricctl-jinja|src/containers/samba/grant_members.py	108	
@@ -229,6 +230,9 @@ file	fabriclib-backup|src/fabriclib/backup/dump_signin.py	19
 file	fabriclib-backup|src/fabriclib/backup/freeze_zones.py	20	
 file	fabriclib-backup|src/fabriclib/backup/install_backup_timer.py	21	
 file	fabriclib-backup|src/fabriclib/backup/list_bundles.py	22	
+file	fabriclib-backup|src/fabriclib/backup/load_directory_dump.py	30	
+file	fabriclib-backup|src/fabriclib/backup/load_signin_dump.py	31	
+file	fabriclib-backup|src/fabriclib/backup/load_vault_snapshot.py	32	
 file	fabriclib-backup|src/fabriclib/backup/make_backup.py	23	
 file	fabriclib-backup|src/fabriclib/backup/make_bundle.py	4	
 file	fabriclib-backup|src/fabriclib/backup/make_bundle_key.py	5	
@@ -239,6 +243,8 @@ file	fabriclib-backup|src/fabriclib/backup/pause_unit.py	24
 file	fabriclib-backup|src/fabriclib/backup/prune_bundles.py	25	
 file	fabriclib-backup|src/fabriclib/backup/read_backup_key.py	26	
 file	fabriclib-backup|src/fabriclib/backup/read_manifest.py	9	
+file	fabriclib-backup|src/fabriclib/backup/restore_bundle.py	33	
+file	fabriclib-backup|src/fabriclib/backup/restore_pending.py	34	
 file	fabriclib-backup|src/fabriclib/backup/run_age.py	10	
 file	fabriclib-backup|src/fabriclib/backup/run_backup_command.py	27	
 file	fabriclib-backup|src/fabriclib/backup/save_vault_snapshot.py	28	
@@ -1917,6 +1923,8 @@ function	fabricctl-jinja|src/containers/samba/explain_grants.py|explain_grants	2
 function	fabricctl-jinja|src/containers/samba/find_gpo.py|find_gpo	1	
 function	fabricctl-jinja|src/containers/samba/find_machine.py|find_machine	1	
 function	fabricctl-jinja|src/containers/samba/find_person.py|find_person	1	
+function	fabricctl-jinja|src/containers/samba/finish_restore.py|finish_restore	1	
+function	fabricctl-jinja|src/containers/samba/finish_restore.py|main	2	
 function	fabricctl-jinja|src/containers/samba/get_person.py|get_person	1	
 function	fabricctl-jinja|src/containers/samba/gpo_tool.py|_policy	1	
 function	fabricctl-jinja|src/containers/samba/gpo_tool.py|_without	2	
@@ -2160,6 +2168,9 @@ function	fabriclib-backup|src/fabriclib/backup/dump_signin.py|dump_signin	1
 function	fabriclib-backup|src/fabriclib/backup/freeze_zones.py|freeze_zones	1	
 function	fabriclib-backup|src/fabriclib/backup/install_backup_timer.py|install_backup_timer	1	
 function	fabriclib-backup|src/fabriclib/backup/list_bundles.py|list_bundles	1	
+function	fabriclib-backup|src/fabriclib/backup/load_directory_dump.py|load_directory_dump	1	
+function	fabriclib-backup|src/fabriclib/backup/load_signin_dump.py|load_signin_dump	1	
+function	fabriclib-backup|src/fabriclib/backup/load_vault_snapshot.py|load_vault_snapshot	1	
 function	fabriclib-backup|src/fabriclib/backup/make_backup.py|_meta	1	
 function	fabriclib-backup|src/fabriclib/backup/make_backup.py|make_backup	2	
 function	fabriclib-backup|src/fabriclib/backup/make_bundle.py|make_bundle	1	
@@ -2173,6 +2184,11 @@ function	fabriclib-backup|src/fabriclib/backup/read_backup_key.py|_key_file	2
 function	fabriclib-backup|src/fabriclib/backup/read_backup_key.py|_value	1	
 function	fabriclib-backup|src/fabriclib/backup/read_backup_key.py|read_backup_key	3	
 function	fabriclib-backup|src/fabriclib/backup/read_manifest.py|read_manifest	1	
+function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|_check_changes	2	
+function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|_version	1	
+function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|restore_bundle	3	
+function	fabriclib-backup|src/fabriclib/backup/restore_pending.py|read_restore_pending	1	
+function	fabriclib-backup|src/fabriclib/backup/restore_pending.py|write_restore_pending	2	
 function	fabriclib-backup|src/fabriclib/backup/run_age.py|_pump	1	
 function	fabriclib-backup|src/fabriclib/backup/run_age.py|run_age	2	
 function	fabriclib-backup|src/fabriclib/backup/run_backup_command.py|_flag	1	
@@ -3660,6 +3676,8 @@ function	fabriclib-setup|src/fabriclib/setup/require_terminal.py|require_termina
 function	fabriclib-setup|src/fabriclib/setup/restore_install.py|restore_install	1	
 function	fabriclib-setup|src/fabriclib/setup/retire_adguard.py|retire_adguard	1	0.7.2 / 2026-10-20
 function	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py|retire_renamed_units	1	0.7.2 / 2026-10-20
+function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|_package_version	2	
+function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|_restore_bundle	3	
 function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|run_restore_command	1	
 function	fabriclib-setup|src/fabriclib/setup/run_setup.py|main	1	
 function	fabriclib-setup|src/fabriclib/setup/run_steps.py|_now	1	
