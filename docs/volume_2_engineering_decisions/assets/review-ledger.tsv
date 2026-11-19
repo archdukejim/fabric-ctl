@@ -103,7 +103,7 @@ docs/volume_1_description_and_architecture/1.3.1-host-package.md	c93bfc219b4fbbc
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	561a2a82fd1256ef185273619d844c62b0b4a298	2026-11-16	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	d79c1e12921577f13f62a589608a907976bd2c9c	2026-11-14	
 docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	6e6acf23690f100f13a59c406c07e55ec9631d1f	2026-11-19	
-docs/volume_1_description_and_architecture/1.3.7-backups.md	31ffa0395f3a7f03fedf6e1d01cb2ba14f77ba3c	2026-11-19	
+docs/volume_1_description_and_architecture/1.3.7-backups.md	7b766fcbbe8d8718ecfbe2353cef76696da0f970	2026-11-19	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	83451a312d81dca3e211264d22ee12c62589eb2d	2026-11-15	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	e58503ad946804b11abe0754bfde04d936bc992e	2026-11-10	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c23530a82de2f755d4a0bcf489bd2277902e5736	2026-11-11	
@@ -142,7 +142,7 @@ docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	3affd2890c9
 docs/volume_1_description_and_architecture/README.md	f2d27ceb618488943f3d27ece96bce640c3a6760	2026-11-19	
 docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af7662fdf5684924b409f9a9c	2026-10-23	
 docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	cbad7e90c2ac64a84d6f8fd4f573fa54ab739022	2026-10-25	
-docs/volume_2_engineering_decisions/2.1.1-product.md	206131dc0bff93ebdf055ce087d757aeba095b9e	2026-11-19	
+docs/volume_2_engineering_decisions/2.1.1-product.md	98fad24c026abea860a2eba26d06ce55efe6bc37	2026-11-19	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	88fb812a2241df9161cc991f734b990a9d579daa	2026-11-15	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	3f69f3e7715c3622616ad0533798e0d9214a85ae	2026-11-07	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	515f4b543f91a0cf387eba583d2b143ec8458d85	2026-11-08	
