@@ -125,7 +125,18 @@ check("positive: audited as RESTORE", audits and audits[-1][1] == "RESTORE", aud
 # run_restore_command's bundle form, setup's exec stood in for
 shutil.rmtree(base)
 execs = []
-rrc.os.execv = lambda exe, argv: execs.append(argv)
+
+
+class _OS:
+    """os for run_restore_command alone, with setup's exec stood in for (os.execv itself stays: age's pty child
+    needs it)."""
+    execv = staticmethod(lambda exe, argv: execs.append(argv))
+
+    def __getattr__(self, name):
+        return getattr(os, name)
+
+
+rrc.os = _OS()
 rrc.ask = lambda qid, prompt, default=None: "no"
 real_stdin = sys.stdin
 sys.stdin = io.StringIO(PASS + "\n")

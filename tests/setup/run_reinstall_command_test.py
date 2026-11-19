@@ -42,7 +42,17 @@ rrc.make_backup = lambda base, v, sf, kind, method, **key: calls.append(("bundle
 rrc.uninstall = lambda ctx, host_account=True: calls.append(("uninstall", host_account))
 rrc.restore_bundle = fake_restore
 rrc.stage_source = lambda ctx: "/var/tmp/fabric-reinstall-src/fabric"
-rrc.os.execv = lambda exe, argv: calls.append(("setup", argv[2:]))
+
+
+class _OS:
+    """os for run_reinstall_command alone, with setup's exec stood in for (os.execv itself is left alone)."""
+    execv = staticmethod(lambda exe, argv: calls.append(("setup", argv[2:])))
+
+    def __getattr__(self, name):
+        return getattr(os, name)
+
+
+rrc.os = _OS()
 rrc.ask = lambda qid, prompt, default=None: answer["v"]
 here = {"problem": "", "links": {}}
 rrc.network_problem = lambda new: here["problem"]

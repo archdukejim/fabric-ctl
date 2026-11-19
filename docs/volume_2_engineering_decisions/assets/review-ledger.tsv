@@ -2274,7 +2274,7 @@ tests/backup/bundle_test.py	7ea9fca827c311af5b75a2f49036042b889fad01	2026-11-19
 tests/backup/old_address_uses_test.py	8769a016e75d9251088d09847617a774bb76a2da	2026-11-19	
 tests/backup/prune_bundles_test.py	10cef5e1dc853852d88d4ceb5bb1fab21da173e5	2026-11-19	
 tests/backup/restore_section_test.py	fe5fb7aad5497f0b210f4969ad40a93e3406f195	2026-11-19	
-tests/backup/restore_test.py	4f7ff5626e5f4d2e59443559c0503dda1bed4ed9	2026-11-19	
+tests/backup/restore_test.py	854990f32cbbee33ccf3bf6e74401ae12a2fe5e4	2026-11-19	
 tests/backup/run_backup_command_test.py	8612c16b531d56acdd84066b6d452535c112a916	2026-11-19	
 tests/backup/schedule_test.py	9cf70483b1f8b579d1b198f8361947ce23101515	2026-11-19	
 tests/backup/section_of_key_test.py	c8b9343613733ce3b810f5e887a96e1b3013bc59	2026-11-19	
@@ -2475,7 +2475,7 @@ tests/sandbox/radius_device.py	12b3e1127a0cc5966846fe0554dc84da7a2e5449	2026-10-
 tests/sandbox/radius_mab.py	c9575e9fd8e3c3d52dbd77b879b9ef9a6bd148d5	2026-09-30	
 tests/sandbox/read_cache.py	a4da4c6b6dac58a1e9eba615c98aaa49c3527871	2026-11-07	
 tests/sandbox/rfc2136_test.sh	4299bc1c1d62237439cad3a2ebac534f45ef0874	2026-10-09	
-tests/sandbox/run.sh	c1479599994d0594cce0aa1ca3124cc1a8dd3d35	2026-11-19	
+tests/sandbox/run.sh	e3947c89bbfaa7e22fe71bc63de0f30901c9fd2f	2026-11-19	
 tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30	
 tests/sandbox/size_fill.py	7ff80c0a5befb18c3cfe57f90d5f57b8180004b7	2026-11-03	
 tests/sandbox/size_fill_dc.py	9a24362d71304487a4b51c9ed258fc6f5ea09adf	2026-11-03	
@@ -2513,7 +2513,7 @@ tests/setup/import_old_vars_test.py	d9b448d531d076315a8e4c5446ce9f3462de7bfe	202
 tests/setup/make_vars_071.py	a8da8a7fad9dd047a410099a8d2b60da3e6098a7	2026-10-20	
 tests/setup/print_first_steps_test.py	12785bb1026c4c5cfabf318d9cd1caefe155dbfe	2026-10-25	
 tests/setup/require_terminal_test.py	1f289981cfae043c498db988c852f0b34cd1c010	2026-10-24	
-tests/setup/run_reinstall_command_test.py	d80211f533b3059b1394fd41fd391078bd8a96b0	2026-11-19	
+tests/setup/run_reinstall_command_test.py	411eec53b10dc97e6023fe981e8df706c86f8fb6	2026-11-19	
 tests/setup/run_setup_test.py	2865b49629bc4215ff9531af2dd2fbb3809a60b6	2026-10-24	
 tests/setup/run_steps_test.py	4807eb4578d9b0e41d5b012201cbaddbcacfd591	2026-10-17	
 tests/setup/run_uninstall_command_test.py	12fb1b7ffd36248d66f43f1d54e46abb9ee2504e	2026-11-19	

@@ -31,7 +31,7 @@ in_box() { docker exec "$NAME" bash -lc "$*"; }
 # a failed doctor's own lines (✗) in this log, so the cause outlives the run's files (/tmp is lost when WSL stops)
 doctor_why() { grep '✗' "$1" 2>/dev/null | sed 's/^/    doctor: /'; true; }
 
-docker rm -f "$NAME" >/dev/null 2>&1; docker network rm "$NET" >/dev/null 2>&1
+docker rm -f "$NAME" >/dev/null 2>&1; docker network rm "$NET" fabric-sbx-net2 >/dev/null 2>&1
 docker volume rm fabric-sbx-docker >/dev/null 2>&1
 rm -rf "$OUT"; mkdir -p "$OUT"
 
@@ -1208,8 +1208,49 @@ check "dns restored alone: a safety bundle made first, DNS answering after" \
     "grep -q 'dns restored from' '$OUT/section.log' && in_box 'ls /var/backups/fabric/*-manual.fabric.tar' >/dev/null 2>&1 \
      && [ \"\$(t2136 npm '$TSIG_SECRET' npm)\" = '4 passed, 0 failed' ]"
 
+echo "--- a move to another VLAN and subnet, by the operator's procedure (4.2.4.8)"
+# the box's network is the VLAN: a second Docker network on another subnet stands for the new one
+NET2=fabric-sbx-net2; SUBNET2=10.79.0.0/24; IP2=10.79.0.10; GW2=10.79.0.1
+docker network rm "$NET2" >/dev/null 2>&1; docker network create --subnet "$SUBNET2" --gateway "$GW2" "$NET2" >/dev/null
+in_box 'fabricctl uninstall --yes --backup --key-stdin < /root/bundle-pw' > "$OUT/move-uninstall.log" 2>&1
+B2=$(in_box 'ls -t /var/backups/fabric/*-uninstall.fabric.tar' 2>/dev/null | head -1)
+check "step 2: fabric removed, its bundle kept, the package kept" \
+    "[ -n '$B2' ] && ! in_box 'test -e /opt/fabric/config/vars.yaml' && in_box 'dpkg -s fabricctl' >/dev/null 2>&1"
+MOVE="--set host_ip=$IP2 --set lan_cidr=$SUBNET2 --set lan_gateway=$GW2 --set dns_server=$GW2"
+in_box "fabricctl restore $B2 $MOVE --key-stdin --yes < /root/bundle-pw" > "$OUT/move-early.log" 2>&1
+# covers: cli:restore -
+check "step 4 before step 3: refused before anything is unpacked (the host does not have the new address yet)" \
+    "grep -q 'not an address of this machine' '$OUT/move-early.log' && grep -q '4.2.4.8' '$OUT/move-early.log' \
+     && ! in_box 'test -e /opt/fabric/config/vars.yaml'"
+# step 3: the host moves to the new VLAN (Docker gives it the new address and default route)
+docker network disconnect "$NET" "$NAME" && docker network connect --ip "$IP2" "$NET2" "$NAME"
+check "step 3: the host has its new address and reaches its new gateway" \
+    "in_box 'ip -4 -o addr' | grep -q ' $IP2/' && in_box 'ping -c1 -W2 $GW2' >/dev/null"
+in_box "fabricctl restore $B2 $MOVE --key-stdin --yes < /root/bundle-pw" > "$OUT/move.log" 2>&1
+# covers: cli:restore +
+check "step 4: setup completes at the new address" "grep -q 'fabric is ready' '$OUT/move.log'"
+IP_OLD=$IP; IP=$IP2
+check "the zone answers with the new address only" \
+    "[ \"\$(in_box 'dig +short +time=2 +tries=1 @$IP2 ns.lan.test')\" = '$IP2' ]"
+check "the DC's own name is at the new address, not the old one" \
+    "in_box \"dig +short @$IP2 \$(grep '^hostname_dc:' /opt/fabric/config/vars.yaml | cut -d' ' -f2)\" | grep -qx '$IP2' \
+     && ! in_box \"dig +short @$IP2 \$(grep '^hostname_dc:' /opt/fabric/config/vars.yaml | cut -d' ' -f2)\" | grep -qx '$IP_OLD'"
+check "the DC's certificate names the new address (re-issued from the same CA)" \
+    "in_box 'echo | openssl s_client -connect $IP2:636 2>/dev/null | openssl x509 -noout -ext subjectAltName' | grep -q '$IP2' \
+     && [ \"\$(in_box 'openssl x509 -noout -fingerprint -sha256 -in /opt/stepca/data/certs/root_ca.crt')\" = '$CA_FP' ]"
+check "the domain came along (erin still exists)" \
+    "in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=erin)' sAMAccountName\" | grep -qx 'sAMAccountName: erin'"
+check "the TSIG key still updates DNS at the new address" "[ \"\$(t2136 npm '$TSIG_SECRET' npm)\" = '4 passed, 0 failed' ]"
+check "settings still at the old address are listed, not changed (step 5)" \
+    "! grep -q 'still at the old address' '$OUT/move.log' || grep -q '$IP_OLD\|10\.77\.0\.' '$OUT/move.log'"
+grep 'still at the old address' "$OUT/move.log" | sed 's/^/    listed: /'
+in_box 'fabricctl doctor' > "$OUT/doctor-move.log" 2>&1
+check "after the move doctor passes" "! grep -q '✗' '$OUT/doctor-move.log' && grep -q '✓' '$OUT/doctor-move.log'"
+doctor_why "$OUT/doctor-move.log"
+
 echo; echo "$PASS passed, $FAIL failed"
 if [ "${KEEP:-0}" != 1 ]; then
-    docker rm -f "$NAME" >/dev/null; docker network rm "$NET" >/dev/null; docker volume rm fabric-sbx-docker >/dev/null
+    docker rm -f "$NAME" >/dev/null; docker network rm "$NET" "${NET2:-fabric-sbx-net2}" >/dev/null 2>&1
+    docker volume rm fabric-sbx-docker >/dev/null
 fi
 exit $FAIL
