@@ -57,7 +57,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	6b4d2bfcc
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	06f74c15c586706f54077fa0cf964bafad8180ab	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	dc5f299fbdaa57147f2a2d00770407c6b35e71cd	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	f0b93f4ea770fdb718e217f9128740bb5a3174f1	2026-11-19	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	83aa2300574fe66a04114ac3b6ecf553b174e98e	2026-11-19	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	690ad5de1cdda8221d0ef332e656e3926211e09c	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	b975e7aaec9d1d11edaa9b448c75cfac40a7488b	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	b8b3320d383bce35fdc5f0e76107e3f638130d52	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	f8b7a04f759d79ab3623953719d5031f82bc4c2a	2026-11-19	
@@ -80,7 +80,7 @@ docs/volume_1_description_and_architecture/1.17.42-fabriclib-sizing.md	33e074177
 docs/volume_1_description_and_architecture/1.17.43-fabriclib-readcache.md	090caf47ba9cf5a9c645eda35ad9839828e3143e	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.44-fabriclib-backup.md	9cd9ae27c1e8163a63d7179a9d611082e593e6d3	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	7f370edcd82cbdda0232c1faf311973daee25e9a	2026-11-19	
-docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	4138ada4c7c5ed4c9739db47072c012026b67a6e	2026-11-19	
+docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	d0dfd82d0d86ab2d69cd1e858366a62cfd0e7d4e	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.7-fabriclib-core.md	c0e772899c5a3017bd51219c0cbd55614110e8e3	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.8-fabriclib-deploy.md	b8b4b8984ead4eab774b46fc6bb66e141dd7c00d	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.9-fabriclib-dhcp.md	280e493882718c25795e33523b0782c238eb6026	2026-11-19	
@@ -104,7 +104,7 @@ docs/volume_1_description_and_architecture/1.3.1-host-package.md	66ee0318b3c811f
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	561a2a82fd1256ef185273619d844c62b0b4a298	2026-11-16	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	d79c1e12921577f13f62a589608a907976bd2c9c	2026-11-14	
 docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	6e6acf23690f100f13a59c406c07e55ec9631d1f	2026-11-19	
-docs/volume_1_description_and_architecture/1.3.7-backups.md	196c6b0150ec99bc757d71e19dea86b168ab2bd1	2026-11-19	
+docs/volume_1_description_and_architecture/1.3.7-backups.md	2e5adfbadbd2132f26e67eacbfbf3f0e6fc33b40	2026-11-19	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	83451a312d81dca3e211264d22ee12c62589eb2d	2026-11-15	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	e58503ad946804b11abe0754bfde04d936bc992e	2026-11-10	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c23530a82de2f755d4a0bcf489bd2277902e5736	2026-11-11	
@@ -219,7 +219,7 @@ docs/volume_4_operations/4.15.1-log-forwarding.md	bef17df806c5d8ff9b399a0018f6aa
 docs/volume_4_operations/4.2.1-resources.md	4ff760209445010c290ae2572123d0c7931a4dd4	2026-11-04	
 docs/volume_4_operations/4.2.2-lifecycle.md	178ddb0e1b550742912c5c9e843342fef105c600	2026-11-19	
 docs/volume_4_operations/4.2.3-ports.md	884935fa8dda8501f8e6a6924750574becab1c9f	2026-10-11	
-docs/volume_4_operations/4.2.4-move-rename.md	f880feb5e3f0475094efd1b5ec9951d27e7f8b71	2026-11-19	
+docs/volume_4_operations/4.2.4-move-rename.md	37475ba25709ec40b5413a9c018d1361c67c08b0	2026-11-19	
 docs/volume_4_operations/4.3.1-fabricctl.md	e52fb351243d8bfe097b2a070c444c07498bce91	2026-10-11	
 docs/volume_4_operations/4.3.6-web-guided-setup.md	9a3b39da2b07f9495a00a2229aae14a3272a785b	2026-11-08	
 docs/volume_4_operations/4.4.1-records.md	e4749401246b82c9e5ff13777314d4bc292404dd	2026-11-15	
@@ -1626,7 +1626,7 @@ src/fabriclib/setup/renew_service_certs.py	5d8f3e781644ba4e45ae0357bc3d89a0d96c6
 src/fabriclib/setup/require_terminal.py	06232388bd713c9be3ced285cf7c8f25c04ad1f1	2026-10-24	
 src/fabriclib/setup/restore_install.py	6922e43371b516c9810b33fa6609f86d45360ee8	2026-11-19	
 src/fabriclib/setup/run_reinstall_command.py	dacdad7bf6f2b6daa19758f09fa8d75aad24529b	2026-11-19	
-src/fabriclib/setup/run_restore_command.py	26b43674ac11cde0fc145dbbd183dbd4a2f22c98	2026-11-19	
+src/fabriclib/setup/run_restore_command.py	2d2bd69faf58552a16a11cb02e309dbd6bb310b6	2026-11-19	
 src/fabriclib/setup/run_setup.py	90ea0fa7ffe33ea2b883cad4b26741e64f2daf7e	2026-11-08	
 src/fabriclib/setup/run_steps.py	4e97d5eba1bc5b5011f7f0426d4801ff4762bef5	2026-10-17	
 src/fabriclib/setup/run_uninstall_command.py	26729956bf38fdeb8b638b2a7273ba435e0cfe90	2026-11-19	
@@ -2274,7 +2274,7 @@ tests/backup/bundle_test.py	7ea9fca827c311af5b75a2f49036042b889fad01	2026-11-19
 tests/backup/old_address_uses_test.py	8769a016e75d9251088d09847617a774bb76a2da	2026-11-19	
 tests/backup/prune_bundles_test.py	10cef5e1dc853852d88d4ceb5bb1fab21da173e5	2026-11-19	
 tests/backup/restore_section_test.py	fe5fb7aad5497f0b210f4969ad40a93e3406f195	2026-11-19	
-tests/backup/restore_test.py	854990f32cbbee33ccf3bf6e74401ae12a2fe5e4	2026-11-19	
+tests/backup/restore_test.py	dbc768886cb1afdca2660054b4111488cb8e522d	2026-11-19	
 tests/backup/run_backup_command_test.py	8612c16b531d56acdd84066b6d452535c112a916	2026-11-19	
 tests/backup/schedule_test.py	9cf70483b1f8b579d1b198f8361947ce23101515	2026-11-19	
 tests/backup/section_of_key_test.py	c8b9343613733ce3b810f5e887a96e1b3013bc59	2026-11-19	
@@ -2341,7 +2341,7 @@ tests/docs/lib_doc_registry_test.py	514b55f65bf11ec7f26273399f569be160ee74f6	202
 tests/docs/run.py	3b57194608ffcc9201f57f3c8cb2e5e3ca48a94b	2026-11-06	
 tests/entrypoints-gaps.txt	1b956125077a3747b17204da57ef66d6e5feec83	2026-11-19	
 tests/entrypoints-reasons.yaml	fd19dcae1f8c4708e37dbe8a3cc43e366d9c08d1	2026-10-12	
-tests/entrypoints.yaml	45df73b55bf9fd4a1f714c3e5d7b04aadd275e5d	2026-11-19	
+tests/entrypoints.yaml	243219d3c6249675f045f92d5ec165a61349a7e2	2026-11-19	
 tests/federation/README.md	44bdd3de62c06bb34e0d5766ed90dcb537fb0ddb	2026-10-25	
 tests/federation/address_plan.py	353d827caa3bd6b24884c785e238d859d9f16066	2026-10-08	
 tests/federation/deploy_federation_endpoint_test.py	c790d4dedaabb74db505224c42126a0dece440dc	2026-10-25	
@@ -2475,7 +2475,7 @@ tests/sandbox/radius_device.py	12b3e1127a0cc5966846fe0554dc84da7a2e5449	2026-10-
 tests/sandbox/radius_mab.py	c9575e9fd8e3c3d52dbd77b879b9ef9a6bd148d5	2026-09-30	
 tests/sandbox/read_cache.py	a4da4c6b6dac58a1e9eba615c98aaa49c3527871	2026-11-07	
 tests/sandbox/rfc2136_test.sh	4299bc1c1d62237439cad3a2ebac534f45ef0874	2026-10-09	
-tests/sandbox/run.sh	e3947c89bbfaa7e22fe71bc63de0f30901c9fd2f	2026-11-19	
+tests/sandbox/run.sh	e2babb9264291000a214aeec9268e646a60ce8e9	2026-11-19	
 tests/sandbox/set_lock.py	3f76da2458bc18d18fbf3efb8b176900a0984ae7	2026-09-30	
 tests/sandbox/size_fill.py	7ff80c0a5befb18c3cfe57f90d5f57b8180004b7	2026-11-03	
 tests/sandbox/size_fill_dc.py	9a24362d71304487a4b51c9ed258fc6f5ea09adf	2026-11-03	

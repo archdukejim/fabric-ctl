@@ -265,6 +265,7 @@
 "ask:mint_certs.san": "src/fabriclib/pki/run_mint_certs_command.py"
 "ask:people.remove.confirm": "src/fabriclib/directory/run_people_command.py"
 "ask:radius.secret": "src/fabriclib/radius/run_radius_command.py"
+"ask:restore.approve_move": "src/fabriclib/setup/run_restore_command.py"
 "ask:restore.confirm": "src/fabriclib/setup/run_restore_command.py"
 "ask:restore.confirm_bundle": "src/fabriclib/setup/run_restore_command.py"
 "ask:restore.confirm_section": "src/fabriclib/setup/run_restore_command.py"

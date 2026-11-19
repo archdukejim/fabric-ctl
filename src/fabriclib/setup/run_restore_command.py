@@ -8,6 +8,7 @@ from fabriclib.backup.restore_bundle import restore_bundle
 from fabriclib.backup.restore_section import restore_section
 from fabriclib.backup.sections import SECTIONS
 from fabriclib.common.ask import ask
+from fabriclib.consent.load_consent import load_consent
 from fabriclib.common.errors import ValidationError
 from fabriclib.setup.context import SetupContext
 from fabriclib.setup.restore_install import restore_install
@@ -21,14 +22,25 @@ def _restore_bundle(args, ctx, path, cli):
     """Purpose: `fabricctl restore <bundle>` (manual 1.3.7.6, 1.3.7.7): the bundle restored whole, with any address
              changes, then setup run on it, as for an export.
     Inputs:  args — the command's arguments (--set key=value, --key-file, --key-stdin, --yes, --approve/--decline);
-             ctx — SetupContext; path — the bundle; cli — the packaged cli.py setup is run with.
+             ctx — SetupContext; path — the bundle; cli — the packaged cli.py setup is run with. With a new address
+             and no --approve/--decline, it asks first whether the host changes allowed before are allowed again for
+             the new network (yes: setup gets --approve with the groups consent.yaml records as yes, never one
+             declined); with --yes it does not, and setup stops on them (global Rule 12).
     Returns: 1 when refused or not confirmed; on success it does not return (setup replaces the process).
     Fails:   OSError from os.execv.
     Feeds:   run_restore_command."""
+    allow_again = False
     try:
         changes = read_changes(args)
+        moving = bool(set(changes) & {"host_ip", "lan_cidr", "lan_gateway"})
+        given = "--approve" in args or "--decline" in args
         if "--yes" not in args and "-y" not in args:
             what = ", ".join(f"{k}={v}" for k, v in changes.items()) or "no changes"
+            if moving and not given:      # asked up front with the rest (global Rule 12)
+                allow_again = ask("restore.approve_move", "The new address changes the host changes you allowed "
+                                  "before (the firewall's and the ports' networks, the domain member's address). "
+                                  "Allow them again for the new network? Ones you declined stay declined. "
+                                  "[Y/n] ").lower() in ("", "y", "yes")
             if ask("restore.confirm_bundle", f"Restore fabric from {path} ({what}) and set it up. "
                    "Type 'yes' to continue: ").lower() != "yes":
                 print("nothing changed")
@@ -44,6 +56,12 @@ def _restore_bundle(args, ctx, path, cli):
         print(f"  still at the old address (change it after setup): {setting} = {value}")
     consent = [x for i, a in enumerate(args) if a in ("--approve", "--decline") and i + 1 < len(args)
                for x in (a, args[i + 1])]
+    if allow_again:
+        allowed = sorted(g for g, rec in load_consent(ctx.config_dir).items() if rec.get("answer") == "yes")
+        consent += ["--approve", ",".join(allowed)] if allowed else []
+    elif moving and not given:
+        print("  setup asks again for the host changes the new network brings: pass --approve GROUPS (setup names "
+              "them) to allow them unattended")
     os.execv(sys.executable, [sys.executable, cli, "setup", "--yes", "--non-interactive", *consent,
                               *[a for a in args if a.startswith("--deploy-base") or a == "--no-color"]])
 

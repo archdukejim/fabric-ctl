@@ -152,6 +152,26 @@ sys.stdin = real_stdin
 check("positive: confirmed: restored with the change, then setup runs unattended",
       execs and execs[-1][2:5] == ["setup", "--yes", "--non-interactive"]
       and yaml.safe_load(open(os.path.join(config, "vars.yaml")))["lan_gateway"] == "10.0.0.254", (code, execs))
+shutil.rmtree(base)
+asked = []
+rrc.ask = lambda qid, prompt, default=None: asked.append(qid) or ("" if qid == "restore.approve_move" else "yes")
+rrc.load_consent = lambda d: {"firewall": {"answer": "yes"}, "ports": {"answer": "yes"}, "time": {"answer": "no"}}
+sys.stdin = io.StringIO(PASS + "\n")
+code = rrc.run_restore_command([bundle, "--key-stdin", "--set", "host_ip=10.0.0.9"], base, "cli.py")
+sys.stdin = real_stdin
+# covers: ask:restore.approve_move +
+check("positive: a new address: asked first whether host changes allowed before are allowed again; yes approves "
+      "only those (a declined one stays declined)",
+      asked[:2] == ["restore.approve_move", "restore.confirm_bundle"] and execs
+      and execs[-1][execs[-1].index("--approve") + 1] == "firewall,ports", (asked, execs))
+shutil.rmtree(base)
+rrc.ask = lambda qid, prompt, default=None: "n" if qid == "restore.approve_move" else "yes"
+sys.stdin = io.StringIO(PASS + "\n")
+code = rrc.run_restore_command([bundle, "--key-stdin", "--set", "host_ip=10.0.0.9"], base, "cli.py")
+sys.stdin = real_stdin
+# covers: ask:restore.approve_move -
+check("negative: not allowed again: setup gets no approval (it stops and asks, global Rule 12)",
+      execs and "--approve" not in execs[-1], execs)
 code = rrc.run_restore_command([bundle, "--set", "host_ip"], base, "cli.py")
 check("negative: --set without key=value is refused", code == 1, code)
 

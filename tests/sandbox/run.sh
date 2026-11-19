@@ -1225,8 +1225,9 @@ check "step 4 before step 3: refused before anything is unpacked (the host does 
 # step 3: the host moves to the new VLAN (Docker gives it the new address and default route)
 docker network disconnect "$NET" "$NAME" && docker network connect --ip "$IP2" "$NET2" "$NAME"
 check "step 3: the host has its new address and reaches its new gateway" \
-    "in_box 'ip -4 -o addr' | grep -q ' $IP2/' && in_box 'ping -c1 -W2 $GW2' >/dev/null"
-in_box "fabricctl restore $B2 $MOVE --key-stdin --yes < /root/bundle-pw" > "$OUT/move.log" 2>&1
+    "in_box 'ip -4 -o addr' | grep -q ' $IP2/' && in_box 'ip route show default' | grep -q 'via $GW2'"
+# unattended, the host changes the new network brings are approved by name (global Rule 12: never by default)
+in_box "fabricctl restore $B2 $MOVE --approve ports,firewall,member --key-stdin --yes < /root/bundle-pw"     > "$OUT/move.log" 2>&1
 # covers: cli:restore +
 check "step 4: setup completes at the new address" "grep -q 'fabric is ready' '$OUT/move.log'"
 IP_OLD=$IP; IP=$IP2
