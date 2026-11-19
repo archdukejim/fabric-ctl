@@ -28,6 +28,7 @@ Backups: one encrypted bundle of seven sections, made by hand or on a schedule, 
 | `make_backup.py` | One bundle of the install, online or cold, one at a time, audited |
 | `make_bundle.py` | One bundle: a fresh key pair, each section packed and encrypted to it, the key sealed, one plain tar |
 | `make_bundle_key.py` | A new age key pair for one bundle, in memory |
+| `old_address_uses.py` | After a move to another subnet: the settings still naming the old address or subnet |
 | `open_bundle_key.py` | key.age opened with the passphrase or the schedule's private key |
 | `open_section.py` | One section unpacked into place (`age -d \| zstd -d \| tar -x`), owners, modes, ACLs and xattrs kept |
 | `pack_section.py` | One section streamed `tar \| zstd \| age`, never written unencrypted |

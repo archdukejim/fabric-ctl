@@ -7,6 +7,7 @@ checked; `age` and `zstd` are needed (the package depends on them).
 | File | What |
 |---|---|
 | `bundle_test.py` | A bundle made, checked and opened with the real age, zstd and tar: passphrase and public key, wrong keys, a changed byte, nothing written plain |
+| `old_address_uses_test.py` | What still names the old address or subnet after a move; fabric's own and other networks left out |
 | `prune_bundles_test.py` | Keeping the newest scheduled bundles; the others never removed |
 | `restore_test.py` | A whole restore of a real bundle with address changes, its refusals, and the dump loaders |
 | `restore_section_test.py` | One section restored on a running install, its refusals, and `fabricctl restore --section` |

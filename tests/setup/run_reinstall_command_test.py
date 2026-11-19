@@ -34,6 +34,7 @@ def fake_restore(base, path, key, changes, package_version):
     calls.append(("restore", path, key["passphrase"], changes))
     if restore["fail"]:
         raise ValidationError(restore["fail"])
+    return {"leftover": [("dns.lab.test.A.www", "10.0.0.5")]}
 
 
 rrc.make_backup = lambda base, v, sf, kind, method, **key: calls.append(("bundle", kind, method,
@@ -43,6 +44,9 @@ rrc.restore_bundle = fake_restore
 rrc.stage_source = lambda ctx: "/var/tmp/fabric-reinstall-src/fabric"
 rrc.os.execv = lambda exe, argv: calls.append(("setup", argv[2:]))
 rrc.ask = lambda qid, prompt, default=None: answer["v"]
+here = {"problem": "", "links": {}}
+rrc.network_problem = lambda new: here["problem"]
+rrc.load_registry = lambda path: here["links"]
 answer = {"v": "yes"}
 tmp = tempfile.mkdtemp()
 os.makedirs(os.path.join(tmp, "fabric", "config"))
@@ -73,6 +77,19 @@ check("confirmed: a cold bundle, uninstall keeping the host's account, the bundl
                                                        "lan_gateway": "10.0.5.1"}), (rc, calls, out))
 check("…setup gets its own options, not reinstall's", calls[-1][1] == ["setup", "--yes", "--non-interactive"], calls)
 check("…and the changes are said before anything is done", "host_ip 10.0.0.5 -> 10.0.5.2" in out, out)
+check("…and what still names the old address is listed", "still at the old address: dns.lab.test.A.www" in out, out)
+
+here["problem"] = "10.0.5.2 is not an address of this machine (it has 10.0.0.5)"
+rc, out = run(["--key-stdin", "--set", "host_ip=10.0.5.2", "--set", "lan_cidr=10.0.5.0/24", "--set",
+               "lan_gateway=10.0.5.1", "--yes"])
+here["problem"] = ""
+check("negative: a new address this host does not have yet: refused before anything, pointing to the move (4.2.4.8)",
+      rc == 1 and calls == [] and "4.2.4.8" in out, (rc, calls, out))
+here["links"] = {"sites": {"branch": {}}}
+rc, out = run(["--key-stdin", "--set", "host_ip=10.0.0.9", "--yes"])
+here["links"] = {}
+check("negative: a new address with linked sites: refused before anything (2.1.1.77)",
+      rc == 1 and calls == [] and "linked sites" in out, (rc, calls, out))
 
 answer["v"] = "no"
 rc, out = run(["--key-stdin"])

@@ -48,13 +48,17 @@ def refused(fn):
 
 audits = []
 rb.write_audit = lambda *a, **k: audits.append(a)
+here = {"problem": ""}                       # this test machine has none of the addresses: stood in for
+rb.network_problem = lambda new: here["problem"]
 tmp = tempfile.mkdtemp()
 base = os.path.join(tmp, "opt", "fabric")
 config = os.path.join(base, "fabric", "config")
 os.makedirs(config)
 os.makedirs(os.path.join(base, "bind9", "data"))
 V = {"hostname": "fabric-1", "domain": "lab.test", "host_ip": "10.0.0.5", "lan_cidr": "10.0.0.0/24",
-     "lan_gateway": "10.0.0.1", "tsig_keys": [{"name": "npm"}]}
+     "lan_gateway": "10.0.0.1", "tsig_keys": [{"name": "npm"}], "dns_server": "10.0.0.1",
+     "dns": {"lab.test": {"A": {"www": "10.0.0.5", "far": "192.0.2.7"}}},
+     "dhcp": {"subnets": [{"subnet": "10.0.0.0/24", "routers": "10.0.0.1"}]}}
 with open(os.path.join(config, "vars.yaml"), "w") as f:
     yaml.safe_dump(V, f)
 with open(os.path.join(base, "bind9", "data", "db.lab.test"), "w") as f:
@@ -66,6 +70,8 @@ META = {"fabric_version": "0.10.1", "commit": "t", "domain": "lab.test", "host_i
 bundle = make_bundle([(s, section_paths(s, base, V), None, None) for s in ORDER], "fabric-1", META, "uninstall",
                      passphrase=PASS, folder=folder)
 key = {"passphrase": PASS}
+linked = make_bundle([(s, section_paths(s, base, V), None, None) for s in ORDER], "fabric-1", dict(META, linked=True),
+                     "manual", passphrase=PASS, folder=folder)
 
 check("negative: refused while fabric is installed, nothing touched",
       "fabric is installed here" in (refused(lambda: rb.restore_bundle(base, bundle, key)) or ""))
@@ -81,12 +87,24 @@ check("negative: another install root: refused",
 check("negative: the host's name is not changed by a restore: refused before anything is unpacked (4.2.4.3)",
       "4.2.4.3" in (refused(lambda: rb.restore_bundle(base, bundle, key, {"hostname": "fabric-2"})) or "")
       and not os.path.exists(base))
+here["problem"] = "10.0.5.2 is not an address of this machine (it has 10.0.0.5)"
+check("negative: a new address this host does not have yet: refused before anything is unpacked, saying to "
+      "re-address it first (4.2.4.8)",
+      "4.2.4.8" in (refused(lambda: rb.restore_bundle(base, bundle, key, {"host_ip": "10.0.0.9"})) or "")
+      and not os.path.exists(base))
+here["problem"] = ""
+check("negative: a new address for an install with linked sites: refused (2.1.1.77)",
+      "linked sites" in (refused(lambda: rb.restore_bundle(base, linked, key, {"host_ip": "10.0.0.9"})) or "")
+      and not os.path.exists(base))
+check("negative: an upstream DNS server that is not an address: refused",
+      "not an address" in (refused(lambda: rb.restore_bundle(base, bundle, key, {"dns_server": "router"})) or ""))
 check("negative: a gateway outside the new subnet: refused before anything is unpacked",
       "must both be in" in (refused(lambda: rb.restore_bundle(base, bundle, key, {"host_ip": "10.0.5.2",
                                                                             "lan_cidr": "10.0.5.0/24"})) or "")
       and not os.path.exists(base))
 out = rb.restore_bundle(base, bundle, key, {"host_ip": "10.0.5.2", "lan_cidr": "10.0.5.0/24",
-                                           "lan_gateway": "10.0.5.1"}, package_version="0.10.1")
+                                           "lan_gateway": "10.0.5.1", "dns_server": "10.0.5.1"},
+                       package_version="0.10.1")
 with open(os.path.join(config, "vars.yaml")) as f:
     back = yaml.safe_load(f)
 st = os.stat(os.path.join(base, "bind9", "data", "db.lab.test"))
@@ -94,8 +112,12 @@ check("positive: every section back in place, owners kept", (st.st_uid, st.st_gi
 check("positive: the new address, subnet and gateway written; the rest as it was",
       back["host_ip"] == "10.0.5.2" and back["lan_cidr"] == "10.0.5.0/24" and back["lan_gateway"] == "10.0.5.1"
       and back["tsig_keys"] == [{"name": "npm"}] and back["domain"] == "lab.test", back)
-check("positive: the changes reported old to new", out["changed"]["host_ip"] == ("10.0.0.5", "10.0.5.2"),
-      out["changed"])
+check("positive: the changes reported old to new", out["changed"]["host_ip"] == ("10.0.0.5", "10.0.5.2")
+      and back["dns_server"] == "10.0.5.1", out["changed"])
+check("positive: what still names the old address or subnet is listed: the admin's record, DHCP's old subnet and "
+      "router; not a record elsewhere, not the changed settings",
+      dict(out["leftover"]) == {"dns.lab.test.A.www": "10.0.0.5", "dhcp.subnets.0.subnet": "10.0.0.0/24",
+                                "dhcp.subnets.0.routers": "10.0.0.1"}, out["leftover"])
 check("positive: a cold bundle leaves nothing pending for setup", out["pending"] == [] and
       read_restore_pending(config) == {}, out)
 check("positive: audited as RESTORE", audits and audits[-1][1] == "RESTORE", audits)

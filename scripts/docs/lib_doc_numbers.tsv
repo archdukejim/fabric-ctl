@@ -239,6 +239,7 @@ file	fabriclib-backup|src/fabriclib/backup/load_vault_snapshot.py	32
 file	fabriclib-backup|src/fabriclib/backup/make_backup.py	23	
 file	fabriclib-backup|src/fabriclib/backup/make_bundle.py	4	
 file	fabriclib-backup|src/fabriclib/backup/make_bundle_key.py	5	
+file	fabriclib-backup|src/fabriclib/backup/old_address_uses.py	41	
 file	fabriclib-backup|src/fabriclib/backup/open_bundle_key.py	6	
 file	fabriclib-backup|src/fabriclib/backup/open_section.py	7	
 file	fabriclib-backup|src/fabriclib/backup/pack_section.py	8	
@@ -2181,10 +2182,13 @@ function	fabriclib-backup|src/fabriclib/backup/live_paths.py|live_paths	1
 function	fabriclib-backup|src/fabriclib/backup/load_directory_dump.py|load_directory_dump	1	
 function	fabriclib-backup|src/fabriclib/backup/load_signin_dump.py|load_signin_dump	1	
 function	fabriclib-backup|src/fabriclib/backup/load_vault_snapshot.py|load_vault_snapshot	1	
+function	fabriclib-backup|src/fabriclib/backup/make_backup.py|_linked	3	
 function	fabriclib-backup|src/fabriclib/backup/make_backup.py|_meta	1	
 function	fabriclib-backup|src/fabriclib/backup/make_backup.py|make_backup	2	
 function	fabriclib-backup|src/fabriclib/backup/make_bundle.py|make_bundle	1	
 function	fabriclib-backup|src/fabriclib/backup/make_bundle_key.py|make_bundle_key	1	
+function	fabriclib-backup|src/fabriclib/backup/old_address_uses.py|_hits	1	
+function	fabriclib-backup|src/fabriclib/backup/old_address_uses.py|old_address_uses	2	
 function	fabriclib-backup|src/fabriclib/backup/open_bundle_key.py|open_bundle_key	1	
 function	fabriclib-backup|src/fabriclib/backup/open_section.py|open_section	1	
 function	fabriclib-backup|src/fabriclib/backup/pack_section.py|pack_section	1	

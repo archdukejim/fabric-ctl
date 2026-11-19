@@ -2,6 +2,8 @@ import os
 import shutil
 import time
 
+import yaml
+
 from fabriclib.backup.backup_lock import backup_lock
 from fabriclib.backup.backup_plan import DUMPS, backup_plan
 from fabriclib.backup.check_backup_space import check_backup_space
@@ -12,6 +14,7 @@ from fabriclib.backup.sections import ORDER
 from fabriclib.common.console import info, ok
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.write_audit import write_audit
+from fabriclib.federation.common.load_registry import load_registry
 from fabriclib.secrets.export_secrets import export_secrets
 from fabriclib.secrets.secrets_in_openbao import secrets_in_openbao
 from fabriclib.setup.stop_for_copy import stop_for_copy
@@ -19,11 +22,25 @@ from fabriclib.setup.stop_for_copy import stop_for_copy
 PACKAGED = "/usr/lib/fabricctl/fabric"
 
 
+def _linked(path):
+    """Purpose: whether the install has linked sites (an upstream, or sites joined to it), for the manifest: a
+             restore to another address refuses then (check_changes).
+    Inputs:  path — its federation.yaml.
+    Returns: True or False (no file, or one that does not parse: False).
+    Fails:   never.
+    Feeds:   _meta."""
+    try:
+        links = load_registry(path)
+    except (OSError, yaml.YAMLError):
+        return False
+    return bool(links.get("upstream") or links.get("sites"))
+
+
 def _meta(base, v, method):
     """Purpose: the manifest's description of the install (manual 1.3.7.2).
     Inputs:  base — install root; v — vars; method — "cold" or "online".
     Returns: dict: fabric_version and commit (the install's BUILD, else the package's), domain, host_ip, lan_cidr,
-             lan_gateway, base, method.
+             lan_gateway, dns_server, base, method, linked (whether it has linked sites, 2.1.1.77).
     Fails:   never (an unknown version is "?").
     Feeds:   make_backup."""
     build = read_build(os.path.join(base, "fabric"))
@@ -31,7 +48,8 @@ def _meta(base, v, method):
         build = read_build(PACKAGED)
     return {"fabric_version": build["version"], "commit": build["commit"],
             "domain": v.get("domain"), "host_ip": v.get("host_ip"), "lan_cidr": v.get("lan_cidr"),
-            "lan_gateway": v.get("lan_gateway"), "base": base, "method": method}
+            "lan_gateway": v.get("lan_gateway"), "dns_server": v.get("dns_server"), "base": base, "method": method,
+            "linked": _linked(os.path.join(base, "fabric", "config", "federation.yaml"))}
 
 
 def make_backup(base, v, secrets_file, kind, method, passphrase=None, public_key=None, actor="root", source="cli",

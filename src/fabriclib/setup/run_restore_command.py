@@ -40,6 +40,8 @@ def _restore_bundle(args, ctx, path, cli):
         return 1
     for key, (old, new) in out["changed"].items():
         print(f"  {key}: {old} -> {new}")
+    for setting, value in out.get("leftover", []):
+        print(f"  still at the old address (change it after setup): {setting} = {value}")
     consent = [x for i, a in enumerate(args) if a in ("--approve", "--decline") and i + 1 < len(args)
                for x in (a, args[i + 1])]
     os.execv(sys.executable, [sys.executable, cli, "setup", "--yes", "--non-interactive", *consent,
