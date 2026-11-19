@@ -604,13 +604,13 @@ src/fabriclib/backup/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-1
 src/fabriclib/backup/bundle_key_from.py	6c285b139f658a10b427ab29d495fb25e777b9f6	2026-11-19	
 src/fabriclib/backup/bundle_name.py	b65ad86395a2d6b37d51fd6e4e306085e19e11eb	2026-11-19	
 src/fabriclib/backup/check_bundle.py	1a615e196c39469a2064f94de6df2b107d9ae49f	2026-11-19	
-src/fabriclib/backup/make_bundle.py	dc5d7938f456b8b70613910a5ceeff98144c68c0	2026-11-19	
+src/fabriclib/backup/make_bundle.py	965c7bb6df14d9e9f37c6262782f463dc98f766d	2026-11-19	
 src/fabriclib/backup/make_bundle_key.py	5f7005afdd1c8f81223595e98ee0ab1f365dc47b	2026-11-19	
 src/fabriclib/backup/open_bundle_key.py	16b5c4bdf78f8f67dab63fffc5ddf856567483a2	2026-11-19	
 src/fabriclib/backup/open_section.py	2fa1876aa20ae5cd64f78c855f3822185e48ba2f	2026-11-19	
 src/fabriclib/backup/pack_section.py	40b438c83d8e43ddd4223a2a9615c426b94bd895	2026-11-19	
-src/fabriclib/backup/read_manifest.py	0eb4f6bcaabe2109bb58aa48d8c0c45120164060	2026-11-19	
-src/fabriclib/backup/run_age.py	8d31b8452c0d1083dc44413f86bafcc3d4c2eb4a	2026-11-19	
+src/fabriclib/backup/read_manifest.py	2ca7a51fa255b2c83f6ab88429a154b03f89cabf	2026-11-19	
+src/fabriclib/backup/run_age.py	c9f7e317b584918e7c5941d156f065f605987125	2026-11-19	
 src/fabriclib/backup/seal_bundle_key.py	c7ea718a315247862ebc3bc32354ab3074b075b0	2026-11-19	
 src/fabriclib/backup/section_of_key.py	958a2bb2e0bbda0fd00cc8aefc37665017fa2ff2	2026-11-19	
 src/fabriclib/backup/section_paths.py	51eb931bf6f37670c1b0386c1377ba279e9f2ed6	2026-11-19	
@@ -2240,7 +2240,7 @@ tests/README.md	6983ecf1b0f50d5c69c231b8e1b43f64f027e682	2026-11-19
 tests/agent/README.md	ee215a84f9086cc5de13f6293997d6f7aa93e3f9	2026-10-29	
 tests/agent/pending_store_test.py	cd0a296f798bf80023fd66b87f8b65845609af9c	2026-11-05	
 tests/backup/README.md	a126a83f58947bd7576cba50067d3e1bd9789563	2026-11-19	
-tests/backup/bundle_test.py	ec1eaf09e3b89dce870119be2907ab489a5f3e06	2026-11-19	
+tests/backup/bundle_test.py	7ea9fca827c311af5b75a2f49036042b889fad01	2026-11-19	
 tests/backup/section_of_key_test.py	c8b9343613733ce3b810f5e887a96e1b3013bc59	2026-11-19	
 tests/backup/section_paths_test.py	689f086351a2905757ec1c1cd4f40fb576e7ddec	2026-11-19	
 tests/ci/README.md	78278efb5a511e089fd82def756c3be5bfeca8df	2026-10-15	

@@ -22,6 +22,7 @@ def read_manifest(path):
     except (tarfile.TarError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValidationError(f"{path} is not a fabric bundle: {exc}") from None
     if not isinstance(manifest, dict) or manifest.get("format") not in FORMATS:
-        raise ValidationError(f"{path}: unknown bundle format {manifest.get('format') if isinstance(manifest, dict) else '?'}")
+        found = manifest.get("format") if isinstance(manifest, dict) else "?"
+        raise ValidationError(f"{path}: unknown bundle format {found}")
     manifest["members"] = members
     return manifest

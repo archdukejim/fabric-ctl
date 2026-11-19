@@ -61,15 +61,16 @@ plan = [(s, section_paths(s, base, {}), None) for s in ORDER]
 path = make_bundle(plan, "fabric-test", META, "manual", passphrase=PASSPHRASE, folder=folder)
 check("positive: the bundle is written 0600 in a 0700 folder",
       oct(os.stat(path).st_mode & 0o777) == "0o600" and oct(os.stat(folder).st_mode & 0o777) == "0o700")
-check("positive: nothing else is left in the folder (no staging, no .part)", os.listdir(folder) == [os.path.basename(path)],
-      os.listdir(folder))
+check("positive: nothing else is left in the folder (no staging, no .part)",
+      os.listdir(folder) == [os.path.basename(path)], os.listdir(folder))
 with tarfile.open(path) as t:
     names = sorted(t.getnames())
     manifest = json.loads(t.extractfile("manifest.json").read())
     raw = b"".join(t.extractfile(n).read() for n in names if n.endswith(".age"))
 check("positive: the bundle holds the manifest, README, key.age and the seven sections",
       names == sorted(["manifest.json", "README.txt", "key.age"] + [f"{s}.tar.zst.age" for s in ORDER]), names)
-check("negative: no plain zone or key data anywhere in the bundle", b"lab.test." not in raw and b"not a real key" not in raw)
+check("negative: no plain zone or key data anywhere in the bundle",
+      b"lab.test." not in raw and b"not a real key" not in raw)
 check("positive: the manifest names no passphrase and marks empty sections",
       PASSPHRASE not in json.dumps(manifest) and {e["name"]: e["empty"] for e in manifest["sections"]}["dhcp"]
       and not {e["name"]: e["empty"] for e in manifest["sections"]}["dns"])
@@ -93,7 +94,8 @@ check("positive: its extended attribute too" if has_xattr else "positive: (no us
 check("negative: dns does not carry pki's bind9/ssl",
       not os.path.exists(os.path.join(out, base.lstrip("/"), "bind9", "ssl", "bind9.key")))
 open_section(path, "pki", identity, dest=out)
-check("positive: pki carries bind9/ssl", os.path.exists(os.path.join(out, base.lstrip("/"), "bind9", "ssl", "bind9.key")))
+check("positive: pki carries bind9/ssl",
+      os.path.exists(os.path.join(out, base.lstrip("/"), "bind9", "ssl", "bind9.key")))
 check("negative: a section opened with another bundle's key is refused",
       refused(lambda: open_section(path, "dns", "AGE-SECRET-KEY-1" + "Q" * 58, dest=out)) is not None)
 

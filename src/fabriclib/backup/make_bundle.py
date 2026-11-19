@@ -37,8 +37,9 @@ def make_bundle(plan, host, meta, kind, passphrase=None, public_key=None, folder
              manifest: fabric_version, commit, domain, host_ip, lan_cidr, base, method ("cold" or "online");
              kind — bundle_name.KINDS; passphrase / public_key — exactly one; folder — where bundles live.
     Returns: the bundle's path (0600 in a 0700 folder).
-    Fails:   ValidationError when a bundle of the same name exists, or from pack_section or seal_bundle_key (nothing is left: the staging folder and the
-             .part file are removed); ValueError from bundle_name; OSError.
+    Fails:   ValidationError when a bundle of the same name exists, or from pack_section or seal_bundle_key
+             (nothing is left: the staging folder and the .part file are removed); ValueError from bundle_name;
+             OSError.
     Feeds:   backup_online, backup_cold."""
     os.makedirs(folder, mode=0o700, exist_ok=True)
     os.chmod(folder, 0o700)

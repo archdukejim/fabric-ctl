@@ -59,6 +59,7 @@ def run_age(args, data=None, passphrase=None, identity=None):
         rid, wid = os.pipe()
         os.write(wid, identity.encode() + b"\n")
         os.close(wid)
+        os.set_inheritable(rid, True)          # pipes are closed on exec unless marked (PEP 446)
         keep.append(rid)
         args = [f"/dev/fd/{rid}" if a == "{identity}" else a for a in args]
     pid, master = pty.fork()
@@ -83,6 +84,7 @@ def run_age(args, data=None, passphrase=None, identity=None):
     if code == 127:
         raise OSError("age is not installed (the fabricctl package depends on it: apt install age)")
     if code != 0:
-        last = [line.strip() for line in tty.splitlines() if line.strip()]
+        # age's last line is a link to report bugs; the reason is the line before it
+        last = [line.strip() for line in tty.splitlines() if line.strip() and "filippo.io/age/report" not in line]
         raise ValidationError(f"age failed: {last[-1] if last else 'no reason given'}")
     return out
